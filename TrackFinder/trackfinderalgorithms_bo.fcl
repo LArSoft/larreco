@@ -1,0 +1,17 @@
+#include "trackfinderalgorithms.fcl"
+
+BEGIN_PROLOG
+
+bo_spacepointalg: @local::standard_spacepointalg
+bo_spacepointalg.MinViews: 2
+bo_spacepointalg.EnableW:  true
+
+bo_kalmanfilteralg:          @local::standard_kalmanfilteralg
+bo_seedfinderalgorithm:                          @local::standard_seedfinderalgorithm
+bo_seedfinderalgorithm.SpacePointAlg :           @local::bo_spacepointalg
+bo_seedfinderalgorithm.SpacePointAlg.PreferColl: true
+bo_seedfinderalgorithm.SpacePointAlg.Filter:     false
+bo_beziertrackeralgorithm:                       @local::standard_beziertrackeralgorithm
+bo_beziertrackeralgorithm.SeedFinderAlgorithm:   @local::bo_seedfinderalgorithm
+
+END_PROLOG

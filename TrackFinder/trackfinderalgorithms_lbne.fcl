@@ -1,0 +1,19 @@
+#include "trackfinderalgorithms.fcl"
+
+BEGIN_PROLOG
+
+lbne10kt_spacepointalg:          @local::standard_spacepointalg
+lbne10kt_spacepointalg.MinViews: 3
+lbne10kt_spacepointalg.EnableW:  true
+lbne10kt_kalmanfilteralg:        @local::standard_kalmanfilteralg
+
+
+# For now, treat the other lbne geometries the same as 10kt
+
+lbne34kt_spacepointalg:          @local::lbne10kt_spacepointalg
+lbne34kt_kalmanfilteralg:        @local::lbne10kt_kalmanfilteralg
+lbne35t_spacepointalg:           @local::lbne10kt_spacepointalg
+lbne35t_kalmanfilteralg:         @local::lbne10kt_kalmanfilteralg
+
+
+END_PROLOG

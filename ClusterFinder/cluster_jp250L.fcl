@@ -1,0 +1,29 @@
+#include "clustermodules.fcl"
+
+BEGIN_PROLOG
+
+jp250L_dbscanalg:                  @local::standard_dbscanalg      
+jp250L_fuzzyclusteralg:            @local::standard_fuzzyclusteralg
+jp250L_houghbasealg:               @local::standard_houghbasealg   
+jp250L_houghbasealg.MaxLines:      15
+jp250L_houghbasealg.MinHits:       3
+jp250L_houghbasealg.NumAngleCells: 5000
+jp250L_houghbasealg.MaxDistance:   5.0
+jp250L_endpointalg:                @local::standard_endpointalg
+
+jp250L_dbcluster:                    @local::standard_dbcluster      
+jp250L_fuzzycluster:                 @local::standard_fuzzycluster      
+jp250L_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
+jp250L_dbcluster.DBScanAlg:          @local::jp250L_dbscanalg   
+jp250L_dbclusterana:                 @local::standard_dbclusterana   
+jp250L_kingacluster:                 @local::standard_kingacluster   
+jp250L_kingaclusterana:              @local::standard_kingaclusterana
+jp250L_houghlinefinder:              @local::standard_houghlinefinder
+jp250L_houghlinefinder.HoughBaseAlg: @local::jp250L_houghbasealg
+jp250L_houghlinefinderana:           @local::standard_houghlinefinderana 
+jp250L_linemerger:                   @local::standard_linemerger         
+jp250L_endpointmod:                  @local::standard_endpointmod        
+jp250L_endpointmod.EndPointAlg:      @local::jp250L_endpointalg
+jp250L_showeranglecluster:           @local::standard_showeranglecluster
+
+END_PROLOG

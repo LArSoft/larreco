@@ -1,0 +1,310 @@
+#include "trackfinderalgorithms.fcl"
+
+BEGIN_PROLOG
+
+standard_featuretracker:
+{
+ module_type:         "FeatureTracker"
+ HitModuleLabel:      "ffthit"
+ LineIntFraction:     0.90
+ LineIntThreshold:    3
+ CornerPset:          @local::standard_cornerfinderalg
+ SpacepointPset:      @local::microboone_spacepointalg
+}
+
+standard_featuretracker.SpacepointPset.MinViews: 2
+
+
+standard_seedfindermodule:
+{
+ module_type:         "SeedFinderModule"
+ InputSource:          1                     # 1: use clusters
+                                             # 2: use hits
+ InputModuleLabel:     "dbcluster"     
+ SeedAlg:              @local::standard_seedfinderalgorithm
+}
+
+standard_beziertrackermodule:
+{
+ module_type:         "BezierTrackerModule"
+ ClusterModuleLabel:  "dbcluster"
+ BezierTrackerAlgorithm: @local::standard_beziertrackeralgorithm
+}
+
+standard_trackcheater:
+{
+ module_type:         "TrackCheater"
+ CheatedClusterLabel: "cluster"
+ G4ModuleLabel:       "largeant"
+}
+
+standard_trackkalmancheater:
+{
+  module_type:        "TrackKalmanCheater"
+  Hist:               false
+  UseClusterHits:     true
+  HitModuleLabel:     "ffthit"
+  ClusterModuleLabel: "dbcluster"
+  MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
+  KalmanFilterAlg:    @local::standard_kalmanfilteralg
+  SpacePointAlg:      @local::standard_spacepointalg
+}
+
+standard_track3Dreco:
+{
+ module_type:        "Track3Dreco"
+ ClusterModuleLabel: "linemerger"
+ TMatch:             35
+ Chi2DOFmax:         10.0
+}
+
+standard_cosmictracker:
+{
+ module_type:        "CosmicTracker"
+ ClusterModuleLabel: "linemerger"
+ KScut:              0.9
+ TMatch:             35
+ SMatch:             1.0
+ Toler1:             30    #tolerance in fit, 1st iteration
+ Toler2:             20    #tolerance in fit, 2nd iteration
+ EnableU:            true
+ EnableV:            true
+ EnableZ:            true
+ Debug:              false
+ IsoHitCut:          100000
+ SortDirection:      "+z"
+ CleanUpHits:        false
+ DirSPS:             false
+}
+
+standard_track3Dkalman:
+{
+ module_type:         "Track3DKalman"
+ SpacePtsModuleLabel: "spacepts"
+ GenieGenModuleLabel: "generator"        # comment out for real data.
+ G4ModuleLabel:       "largeant"
+ PosErr3:             [0.02,0.02,0.02]   #  position resolution, cm.
+ MomErr3:             [0.10,0.10,0.2]    #  momentum resolution, GeV/c.
+ MomStart3:           [0.10,0.10,1.5]    #  GeV/c. Will *not* be Unit norm'd.
+ PerpLimit:           2.0
+ GenfPRINT:           true
+}
+
+standard_track3DkalmanSPS:
+{
+ module_type:         "Track3DKalmanSPS"
+ ClusterModuleLabel:  "dbscan"
+ SpptModuleLabel:     "spacepointfinder"
+ GenieGenModuleLabel: "generator"        # comment out for real data.
+ G4ModuleLabel:       "largeant"
+ PosErr3:             [0.05,0.1,0.1]   #  position resolution, cm.
+ MomErr3:             [0.5,0.5,1.8]    #  momentum resolution, GeV/c.
+ MomStart3:           [0.10,0.10,1.5]    #  GeV/c. Will *not* be Unit norm'd.
+ PerpLimit:           50.0
+ PdgCode:	      -13 # mu+
+ ErrScaleSim:         0.
+ ErrScaleMeas:        500.
+ DecimateC:           1
+ MaxUpdateC:          0.1
+ DecimateU:           1 # on first pass. after that its increased.
+ DistanceU:           15.0
+ MaxUpdateU:          0.1
+ Chi2HitThresh:       1000000.0
+ GenfPRINT:           false
+ SortDirection:       "z"
+ SpacePointAlg:       @local::standard_spacepointalg
+}
+
+standard_trackana:
+{
+  module_type:        "TrackAna"
+  TrackModuleLabel:   "trackkalmanhit"
+  SpacepointModuleLabel:  "spacepointfinder"
+  StitchModuleLabel:  "stitch"
+  TrkSpptAssocModuleLabel:  "trackkalmanhit"
+  HitSpptAssocModuleLabel:  "ffthit"
+  MinMCKE:            0.05
+  MatchColinearity:   0.99
+  MatchDisp:          2.0
+  IgnoreSign:         true
+}
+
+standard_seedana:
+{
+  module_type:        "SeedAna"
+  SeedModuleLabel:   "seedfinder"
+  MinMCKE:            0.05
+  MatchColinearity:   0.99
+  MatchDisp:          2.0
+  IgnoreSign:         true
+}
+
+standard_spacepts:
+{
+ module_type:           "SpacePts"
+ TicksOffset:           75.0
+ ClusterModuleLabel:    "linemerger"
+ EndPoint2DModuleLabel: "vertex2d"
+ TMatch:                50.0
+ vertexclusterWindow:   100.
+}
+
+standard_spacepointana:
+{
+  module_type:             "SpacePointAna"
+  HitModuleLabel:          "ffthit"
+  UseClusterHits:          true
+  ClusterModuleLabel:      "dbcluster"
+  UseMC:                   false
+  SpacePointAlgTime:       @local::standard_spacepointalg
+  SpacePointAlgSep:        @local::standard_spacepointalg
+  SpacePointAlgDefault:    @local::standard_spacepointalg
+}
+
+standard_spacepointfinder:
+{
+  module_type:        "SpacePointFinder"
+  ClusterModuleLabel: "dbcluster"
+  MinHits:            10
+  ClusterAssns:       true
+  SpacePointAlg:      @local::standard_spacepointalg
+}
+
+standard_spacepointcheater:
+{
+  module_type:        "SpacePointCheater"
+  ClusterModuleLabel: "dbcluster"
+  MinHits:            10
+  ClusterAssns:       true
+  SpacePointAlg:      @local::standard_spacepointalg
+}
+
+
+development_beziertrackana:
+{
+  module_type:            "BezierTrackAna"
+  BezierTrackModuleLabel: "beziertracker"
+}
+
+standard_track3Dkalmanhit:
+{
+  module_type:        "Track3DKalmanHit"
+  Hist:               false
+  UseClusterHits:     true
+  HitModuleLabel:     "ffthit"
+  ClusterModuleLabel: "dbcluster"
+  MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
+  MinSeedHits:        12            # Minimum number of hits per track seed.
+  MaxSeedChiDF:       20.           # Maximum seed track chisquare/dof.
+  MinSeedSlope:       0.02          # Minimum seed slope (dx/dz).
+  KalmanFilterAlg:    @local::standard_kalmanfilteralg
+  SeedFinderAlg:      @local::standard_seedfinderalgorithm
+  SpacePointAlg:      @local::standard_spacepointalg
+}
+
+standard_cosmictagger:
+{
+    module_type: "CosmicTagger"
+    SpacePointAlg:       @local::standard_spacepointalg
+    TPCBoundaryLimit: 15
+    SpillDistance: 12
+    SpillVetoCounter: 2
+    dTLimit: 8
+    dWLimit: 8
+}
+
+standard_trackstitcher:
+{
+    module_type: "TrackStitcher"
+    TrackModuleLabel: "trk3dsps"
+    SpptModuleLabel: "spacepts"
+    CosAngTolerance: 0.90
+    SpptSepTolerance: 3.0 # cm
+}
+
+standard_magdriftana:
+{
+ module_type:           "MagDriftAna"
+ HitsModuleLabel:       "ffthit"
+ LArGeantModuleLabel:   "largeant"
+}
+
+bo_track:                               @local::standard_track3Dreco  
+bo_kalman:                              @local::standard_track3Dkalman
+bo_spacepts:                            @local::standard_spacepts     
+bo_spacepoint:                          @local::standard_spacepointana
+bo_spacepoint.SpacePointAlgTime:        @local::bo_spacepointalg
+bo_spacepoint.SpacePointAlgTime.MaxDT:  50.
+bo_spacepoint.SpacePointAlgSep:         @local::bo_spacepointalg
+bo_spacepoint.SpacePointAlgSep.MaxS:    10.
+bo_spacepoint.SpacePointAlgDefault:     @local::bo_spacepointalg
+bo_spacepoint_finder:                   @local::standard_spacepointalg    
+bo_spacepoint_finder.SpacePointAlg:     @local::bo_spacepointalg    
+bo_spacepointcheater:                   @local::standard_spacepointcheater
+bo_spacepointcheater.SpacePointAlg:     @local::bo_spacepointalg    
+bo_beziertracker:                       @local::standard_beziertrackermodule
+bo_seedfinder:                          @local::standard_seedfindermodule     
+
+argoneut_track:                               @local::standard_track3Dreco  
+argoneut_kalman:                              @local::standard_track3Dkalman
+argoneut_spacepts:                            @local::standard_spacepts     
+argoneut_spacepoint:                          @local::standard_spacepointana
+argoneut_spacepoint.SpacePointAlgTime:        @local::argoneut_spacepointalg
+argoneut_spacepoint.SpacePointAlgTime.MaxDT:  50.
+argoneut_spacepoint.SpacePointAlgSep:         @local::argoneut_spacepointalg
+argoneut_spacepoint.SpacePointAlgSep.MaxS:    10.
+argoneut_spacepoint.SpacePointAlgDefault:     @local::argoneut_spacepointalg
+argoneut_spacepoint_finder:                   @local::standard_spacepointalg    
+argoneut_spacepoint_finder.SpacePointAlg:     @local::argoneut_spacepointalg    
+argoneut_spacepointcheater:                   @local::standard_spacepointcheater
+argoneut_spacepointcheater.SpacePointAlg:     @local::argoneut_spacepointalg    
+
+microboone_track:                                       @local::standard_track3Dreco
+microboone_spacepts:                                    @local::standard_spacepts
+microboone_spacepts.TicksOffset:                        0.0         
+microboone_spacepts.ClusterModuleLabel:                 "dbcluster" 
+microboone_spacepts.TMatch:                             11.0        
+microboone_spacepts.vertexclusterWindow:                10000000.   
+microboone_kalman:                                      @local::standard_track3DkalmanSPS    
+microboone_kalman.SpacePointAlg:                        @local::microboone_spacepointalg     
+microboone_spacepoint:                                  @local::standard_spacepointana 
+microboone_spacepoint.SpacePointAlgTime:                @local::microboone_spacepointalg     
+microboone_spacepoint.SpacePointAlgTime.MaxDT:          50.
+microboone_spacepoint.SpacePointAlgSep:                 @local::microboone_spacepointalg     
+microboone_spacepoint.SpacePointAlgSep.MaxS:            10.
+microboone_spacepoint.SpacePointAlgDefault:             @local::microboone_spacepointalg     
+microboone_spacepoint_finder:                           @local::standard_spacepointfinder    
+microboone_spacepoint_finder.SpacePointAlg:             @local::microboone_spacepointalg     
+microboone_spacepointcheater:                           @local::standard_spacepointcheater   
+microboone_spacepointcheater.SpacePointAlg:             @local::microboone_spacepointalg     
+microboone_trackkalmancheater:                          @local::standard_trackkalmancheater  
+microboone_trackkalmancheater.KalmanFilterAlg:          @local::microboone_kalmanfilteralg   
+microboone_trackkalmancheater.SpacePointAlg:            @local::microboone_spacepointalg   
+microboone_trackkalmancheater.SpacePointAlg.MinViews:   2
+microboone_track3Dkalmanhit:                            @local::standard_track3Dkalmanhit
+microboone_track3Dkalmanhit.KalmanFilterAlg:            @local::microboone_kalmanfilteralg
+microboone_track3Dkalmanhit.SeedFinderAlg:              @local::microboone_seedfinderalgorithm
+microboone_track3Dkalmanhit.SeedFinderAlg.ExtendThresh: 0.
+microboone_track3Dkalmanhit.SpacePointAlg:              @local::microboone_spacepointalg
+microboone_track3Dkalmanhit.SpacePointAlg.MinViews:     2
+microboone_seedfindermodule:                            @local::standard_seedfindermodule     
+microboone_seedfindermodule.SeedAlg:                    @local::microboone_seedfinderalgorithm
+microboone_beziertrackermodule:                         @local::standard_beziertrackermodule
+microboone_beziertrackermodule.BezierTrackerAlgorithm:  @local::microboone_beziertrackeralgorithm
+
+microboone_featuretracker: @local::standard_featuretracker
+
+microboone_2stg_kalman:
+{
+ module_type:         "Track3DKalmanSPS2stg"
+ ClusterModuleLabel:  "dbscan"
+ GenieGenModuleLabel: "generator"     # comment out for real data.
+ G4ModuleLabel:       "largeant"
+ PosErr3:             [0.05,0.05,0.05]   #  position resolution, cm.
+ MomErr3:             [0.10,0.10,0.20]   #  momentum resolution, GeV/c.
+ MomStart3:           [0.10,0.10,1.0]    #  Will be Unit norm'd.
+ TailPtsFrac:         0.9    # fraction of upstream SpacePoints to ignore in 1st stage fit.
+ GenfPRINT:           true
+}
+
+END_PROLOG

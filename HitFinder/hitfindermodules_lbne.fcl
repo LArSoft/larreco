@@ -1,0 +1,46 @@
+#include "hitfindermodules.fcl"
+#include "disambigalgorithms.fcl"
+
+BEGIN_PROLOG
+
+
+
+standard_disambigcheat:
+{
+ module_type:         "DisambigCheater"
+ ChanHitLabel:        "gaushit"
+}
+
+
+apa_hitfinder:
+{
+ module_type:         "APAHitFinder"
+ DisambigAlg:         @local::apa_disambigalg
+ ChanHitLabel:        "gaushit"
+ ClusLabel:           "fuzzy"
+}
+
+
+
+
+lbnefd_gaushitfinder:   @local::gaus_hitfinder
+lbnefd_apahitfinder:    @local::apa_hitfinder
+lbnefd_hitcheater:	  @local::standard_hitcheater
+
+lbnefd_gaushitfinder.IndMinWidth: 1.0
+lbnefd_gaushitfinder.ColMinWidth: 1.0
+
+
+
+
+lbne35t_gaushitfinder:    @local::gaus_hitfinder
+lbne35t_apahitfinder:     @local::apa_hitfinder
+lbne35t_hitcheater:	  @local::standard_hitcheater
+
+lbne35t_gaushitfinder.IndMinWidth: 1.0
+lbne35t_gaushitfinder.ColMinWidth: 1.0
+
+
+
+
+END_PROLOG

@@ -1,0 +1,9 @@
+#include "trackfinderalgorithms.fcl"
+
+BEGIN_PROLOG
+
+argoneut_spacepointalg: @local::standard_spacepointalg
+
+argoneut_kalmanfilteralg:    @local::standard_kalmanfilteralg
+
+END_PROLOG

@@ -1,0 +1,76 @@
+BEGIN_PROLOG
+
+standard_vertexcheater:
+{
+ module_type:        "VertexCheater"
+ CheatedShowerLabel: "shower"
+ CheatedTrackLabel:  "track"
+ G4ModuleLabel:      "largeant"
+}
+
+standard_harrisvertexfinder:
+{
+ module_type:        "HarrisVertexFinder"
+ DBScanModuleLabel:  "dbscan"
+ TimeBins:           256
+ MaxCorners:         20
+ Gsigma:             1.
+ Window:             5
+ Threshold:          0.1
+ SaveVertexMap:      -1
+}
+
+standard_vertexmatch:
+{
+ module_type:       "VertexMatch"
+ HoughModuleLabel:  "hough"
+ VertexModuleLabel: "harris"
+ MaxDistance:       30.
+}
+
+standard_primaryvertexfinder:
+{
+ module_type:       "PrimaryVertexFinder"
+ TrackModuleLabel:  "track3d"
+ VertexWindow:       0.5
+}
+
+standard_vertexfinder2d:
+{
+ module_type:        "VertexFinder2D"
+ ClusterModuleLabel: "linemerger"
+}
+
+standard_featurevertexfinder:
+{
+ module_type:        	"FeatureVertexFinder"		# module name
+ ClusterModuleLabel: 	"hough"			# clusters the module takes in
+ HitModuleLabel:	"ffthit"		# hits the module takes in
+ CornerPset:          	@local::standard_cornerfinderalg	# using the cornerfinder alg
+ ClusterParamsAlg: 	@local::standard_clusterparamsalg
+
+}
+#Setting featurevertexfinder to use the Harris score (instead of Nobel)
+standard_featurevertexfinder.CornerPset.CornerScore_algorithm: "Harris"
+#Setting featurevertexfinder to use ClusterParmsAlg with a smaller hit list size
+standard_featurevertexfinder.ClusterParamsAlg.MinHitListSize: 10
+
+standard_featurevertexfinderana:
+{
+
+ module_type:		"FeatureVertexFinderAna"
+ LArGeantModuleLabel:  	"largeant"
+ GenieModuleLabel:      "generator"
+ VertexModuleLabel:	"featureVtx"
+ EndPoint2dModuleLabel: "featureVtx"
+}
+
+
+argoneut_harris:        	@local::standard_harrisvertexfinder
+argoneut_vertexmatch:   	@local::standard_vertexmatch
+argoneut_primaryvertex: 	@local::standard_primaryvertexfinder
+argoneut_vertex2d:     	 	@local::standard_vertexfinder2d
+argoneut_featruevertexfinder:	@local::standard_featurevertexfinder
+
+
+END_PROLOG

@@ -1,0 +1,103 @@
+BEGIN_PROLOG
+
+standard_hitcheater:
+{
+ module_type:       "HitCheater"
+ G4ModuleLabel:     "largeant"
+ WireModuleLabel:   "caldata"
+ MinimumCharge:     5.
+}
+
+standard_hitcheater_preSpill:  @local::standard_hitcheater
+standard_hitcheater_postSpill: @local::standard_hitcheater
+standard_hitcheater_preSpill.WireModuleLabel:  "caldataPreSpill:preSpill"
+standard_hitcheater_postSpill.WireModuleLabel: "caldataPostSpill:postSpill"
+
+standard_hitfinder:
+{
+ module_type:         "FFTHitFinder"
+ CalDataModuleLabel:  "caldata"      
+ MinSigInd:            6.0              # Induction signal height threshold  
+ MinSigCol:            11.0             # Collection signal height threshold
+ IndWidth:             6.0              # Initial width for induction fit
+ ColWidth:             7.8              # Initial width for collection fit
+ IndMinWidth:          4.0              # Induction Hit width threshold
+ ColMinWidth:          6.0              # Collection hit width threshold
+ MaxMultiHit:          3                # maximum hits for multi fit   
+ AreaMethod:           0                # 0 = area by integral, 1 = area by gaussian area formula
+ AreaNorms:            [ 13.25, 26.31 ] # normalizations that put signal area in 
+                                        # same scale as peak height. 
+}
+
+gaus_hitfinder:
+{
+ module_type:         "GausHitFinder"
+ CalDataModuleLabel:  "caldata"      
+ MinSigInd:            6.0              # Induction signal height threshold  
+ MinSigCol:            11.0             # Collection signal height threshold
+ IndWidth:             6.0              # Initial width for induction fit
+ ColWidth:             7.8              # Initial width for collection fit
+ IndMinWidth:          4.0              # Induction Hit width threshold
+ ColMinWidth:          6.0              # Collection hit width threshold
+ MaxMultiHit:          3                # maximum hits for multi fit   
+ AreaMethod:           0                # 0 = area by integral, 1 = area by gaussian area formula
+ AreaNorms:            [ 13.25, 26.31 ] # normalizations that put signal area in 
+                                        # same scale as peak height. 
+ Chi2NDF:              15               # maximum Chisquared / NDF allowed for a hit to be saved
+}
+
+
+rff_hitfinder:
+{
+ module_type:         "RFFHitFinder"
+ CalDataModuleLabel:  "caldata"      
+ MinSigInd:            6.0              # Induction signal height threshold  
+ MinSigCol:            11.0             # Collection signal height threshold
+ MaxMultiHit:          3                # maximum hits for multi fit   
+ SigmaLimit:           500              # limit on maximum width for fitted hit
+ MeanMerge:            2.5              # merge means that are within 2.5 ticks
+ MeanMultiplicity:     3                # require at least n nearby "means" to form a hit
+}
+
+#For now, keep the APAHitFinder configured just like the GausHitFinder
+apa_hitfinder:               @local::gaus_hitfinder
+apa_hitfinder.module_type:   "APAHitFinder"
+
+
+standard_hitfinderana:
+{
+ module_type:          "HitFinderAna"
+ HitsModuleLabel:      "ffthit"
+ LArGeantModuleLabel:  "largeant"
+}
+
+gaus_hitfinderana:
+{
+ module_type:          "GausHitFinderAna"
+ HitsModuleLabel:      "gaushit"
+ LArGeantModuleLabel:  "largeant"
+}
+
+jp250L_hitfinder:       @local::standard_hitfinder
+jp250L_gaushitfinder:   @local::gaus_hitfinder
+
+bo_hitfinder:       @local::standard_hitfinder
+bo_gaushitfinder:   @local::gaus_hitfinder
+
+argoneut_hitfinder:     @local::standard_hitfinder
+argoneut_gaushitfinder: @local::gaus_hitfinder
+argoneut_mc_hitfinder:  @local::standard_hitfinder
+argoneut_mc_hitfinder.AreaNorms: [ 12.89, 14.51 ]
+
+microboone_hitfinder:     @local::standard_hitfinder
+microboone_gaushitfinder: @local::gaus_hitfinder
+microboone_rffhitfinder: @local::rff_hitfinder
+microboone_hitfinder.IndMinWidth: 1.0
+microboone_hitfinder.ColMinWidth: 1.0
+microboone_gaushitfinder.IndMinWidth: 1.0
+microboone_gaushitfinder.ColMinWidth: 1.0
+microboone_rffhitfinder.IndMinWidth: 1.0
+microboone_rffhitfinder.ColMinWidth: 1.0
+
+
+END_PROLOG

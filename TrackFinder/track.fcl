@@ -1,0 +1,79 @@
+#include "matchtracksmodule.fcl"
+
+#include "geometry.fcl"
+#include "larproperties.fcl"
+#include "detectorproperties.fcl"
+#include "larfft.fcl"
+
+#include "caldata.fcl"
+#include "hitfindermodules.fcl"
+#include "clustermodules.fcl"
+#include "trackfindermodules.fcl"
+#include "calorimetry.fcl"
+
+
+process_name: FindTracks
+
+services:
+{
+  TFileService: {fileName: "tracks_hist.root"}
+  Timing:       {}
+  user:         
+  { 
+   Geometry:	     @local::argoneut_geo
+   DetectorProperties: @local::argoneut_detproperties
+   LArProperties:    @local::argoneut_properties
+   LArFFT:           @local::argoneut_larfft
+  }
+  MessageLogger: 
+  {
+    destinations: ["detailedInfo"]
+    categories:   ["Summary"]
+   	debugModules: ["*"]
+    detailedInfo: {threshold: "Summary"}
+  }
+  RandomNumberGenerator: {}
+}
+
+
+source:
+{
+ module_type: RootInput
+ fileNames:    ["mergedata.root"]
+ maxEvents: -1
+}
+
+outputs:
+{
+ out1:
+ {
+    module_type: RootOutput
+    fileName:    "tracks.root"
+    outputCommands: [ "keep *", "drop sim::Electronss_driftel_*_GenieGen" ]
+ }      
+}
+
+physics:
+{
+  producers:
+  {
+   caldata:    @local::argoneut_calwire
+   ffthit:     @local::argoneut_hitfinder
+   dbcluster:  @local::argoneut_dbcluster
+   hough:      @local::argoneut_houghlinefinder
+   linemerger: @local::argoneut_linemerger
+   track3d:    @local::argoneut_track
+ 
+  }
+
+  analyzers:{}
+
+  recopath: [caldata, ffthit, dbcluster, hough, linemerger, track3d]
+  anapath:  [calo]
+  stream1:  [out1]
+  trigger_paths: [recopath]
+  end_paths:     [stream1, anapath]
+}
+
+physics.analyzers.calo:  @local::argoneut_calo
+

@@ -1,0 +1,10 @@
+#include "calorimetry_microboone.fcl"
+#include "showerfindermodules.fcl"
+
+BEGIN_PROLOG
+
+microboone_shower:   @local::standard_shower 
+microboone_shower.CaloAlg:            	   @local::microboone_calorimetryalgmc
+microboone_shower.UseArea:   false
+
+END_PROLOG

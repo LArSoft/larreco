@@ -1,0 +1,23 @@
+
+BEGIN_PROLOG
+
+
+apa_geoalg:
+{
+}
+
+
+apa_disambigalg:
+{
+ APAGeometryAlg:     @local::apa_geoalg
+ Crawl:              true
+ UseEndP:            true
+ CompareViews:       true
+ NChanJumps:         5
+ CloseHitsRadius:    6.
+ MaxEndPDegRange:    10.
+}
+
+
+
+END_PROLOG

@@ -1,0 +1,47 @@
+#include "clustermodules.fcl"
+
+BEGIN_PROLOG
+
+lbne_dbscanalg:    @local::standard_dbscanalg_fast
+lbne_houghbasealg: @local::standard_houghbasealg
+lbne_endpointalg:  @local::standard_endpointalg 
+
+lbnefd_dbcluster:                    @local::standard_dbcluster      
+lbnefd_dbcluster.DBScanAlg:          @local::lbnefd_dbscanalg          
+lbnefd_dbclusterana:                 @local::standard_dbclusterana   
+lbnefd_fuzzycluster:                 @local::standard_fuzzycluster
+lbnefd_fuzzycluster.HitsModuleLabel: "gaushit"
+lbnefd_kingacluster:                 @local::standard_kingacluster   
+lbnefd_kingaclusterana:              @local::standard_kingaclusterana
+lbnefd_houghlinefinder:              @local::standard_houghlinefinder
+lbnefd_houghlinefinder.HoughBaseAlg: @local::lbnefd_houghbasealg
+lbnefd_houghlinefinderana:           @local::standard_houghlinefinderana
+lbnefd_linemerger:                   @local::standard_linemerger        
+lbnefd_endpointmod:                  @local::standard_endpointmod       
+lbnefd_endpointmod.EndPointAlg:      @local::lbnefd_endpointalg
+lbnefd_showeranglecluster:           @local::standard_showeranglecluster
+
+
+
+lbne35t_dbscanalg:    @local::standard_dbscanalg_fast
+lbne35t_houghbasealg: @local::standard_houghbasealg
+lbne35t_endpointalg:  @local::standard_endpointalg
+
+lbne35t_dbcluster:                    @local::standard_dbcluster
+lbne35t_dbcluster.DBScanAlg:          @local::lbne35t_dbscanalg
+lbne35t_dbclusterana:                 @local::standard_dbclusterana
+lbne35t_fuzzycluster:                 @local::standard_fuzzycluster
+lbne35t_fuzzycluster.HitsModuleLabel: "gaushit" 
+lbne35t_kingacluster:                 @local::standard_kingacluster
+lbne35t_kingaclusterana:              @local::standard_kingaclusterana
+lbne35t_houghlinefinder:              @local::standard_houghlinefinder
+lbne35t_houghlinefinder.HoughBaseAlg: @local::lbne35t_houghbasealg
+lbne35t_houghlinefinderana:           @local::standard_houghlinefinderana
+lbne35t_linemerger:                   @local::standard_linemerger
+lbne35t_endpointmod:                  @local::standard_endpointmod
+lbne35t_endpointmod.EndPointAlg:      @local::lbne35t_endpointalg
+lbne35t_showeranglecluster:           @local::standard_showeranglecluster
+
+
+
+END_PROLOG

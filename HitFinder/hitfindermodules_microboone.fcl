@@ -1,0 +1,12 @@
+#include "hitfindermodules.fcl"
+
+BEGIN_PROLOG
+
+microboone_hitfinder:     @local::standard_hitfinder
+microboone_gaushitfinder: @local::gaus_hitfinder
+microboone_hitfinder.IndMinWidth: 1.0
+microboone_hitfinder.ColMinWidth: 1.0
+microboone_gaushitfinder.IndMinWidth: 1.0
+microboone_gaushitfinder.ColMinWidth: 1.0
+
+END_PROLOG

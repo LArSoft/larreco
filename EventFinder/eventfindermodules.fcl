@@ -1,0 +1,21 @@
+BEGIN_PROLOG
+
+standard_eventcheater:
+{
+ module_type:        "EventCheater"
+ CheatedVertexLabel: "vertex"
+ G4ModuleLabel:      "largeant"
+}
+
+standard_eventmaker:
+{ 
+ module_type:       "EventMaker"
+ VertexModuleLabel: "vertex"     #label of module producing recob::Vertex objects
+ Proximity:         10.          #max distance between recob::Vertex objects for them to be associated in an event
+}
+
+argoneut_eventmaker:   @local::standard_eventmaker
+microboone_eventmaker: @local::standard_eventmaker
+lbne_eventmaker:       @local::standard_eventmaker
+
+END_PROLOG

@@ -1,0 +1,52 @@
+#include "clustermodules.fcl"
+
+BEGIN_PROLOG
+
+argoneut_dbscanalg:                  @local::standard_dbscanalg       
+argoneut_clustercrawleralg:          @local::standard_clustercrawleralg
+argoneut_clustercrawleralg.AllowNoHitWire:  3
+argoneut_clustercrawleralg.MaxWirSkip:      [12, 8, 2]
+argoneut_clustercrawleralg.MinWirAfterSkip: [1, 1, 1]
+argoneut_clustercrawleralg.ChiCut:          [2., 2., 2.]
+argoneut_clustercrawleralg.ChgCut:          [2., 2., 2.]
+argoneut_clustercrawleralg.HitErrFac:       0.6
+argoneut_cchitfinderalg:             @local::standard_cchitfinderalg
+argoneut_cchitfinderalg.MinSigInd:   1.8
+argoneut_cchitfinderalg.MinSigCol:   2.5
+argoneut_cchitfinderalg.MinRMSInd:   5.
+argoneut_cchitfinderalg.MinRMSCol:  10.
+argoneut_cchitfinderalg.ChiNorms:  [ 0.5, 2.7]
+argoneut_cchitfinderalg.ChgNorms:  [ 1.0, 1.0]
+argoneut_cchitrefineralg:            @local::standard_cchitrefineralg
+argoneut_fuzzyclusteralg:            @local::standard_fuzzyclusteralg
+argoneut_houghbasealg:               @local::standard_houghbasealg   
+argoneut_houghbasealg.MaxLines:      15                              
+argoneut_houghbasealg.MinHits:       3                               
+argoneut_houghbasealg.NumAngleCells: 5000
+argoneut_houghbasealg.MaxDistance:   5.0
+argoneut_endpointalg:                @local::standard_endpointalg
+
+argoneut_clustercrawler:               @local::standard_clustercrawler      
+argoneut_clustercrawler.ClusterCrawlerAlg: @local::argoneut_clustercrawleralg
+argoneut_clustercrawler.CCHitFinderAlg:    @local::argoneut_cchitfinderalg
+argoneut_clustercrawler.CCHitRefinerAlg:   @local::argoneut_cchitrefineralg
+argoneut_clustercrawlermc:             @local::argoneut_clustercrawler      
+argoneut_clustercrawlermc.CCHitFinderAlg.MinRMSInd: 6.7
+argoneut_clustercrawlermc.CCHitFinderAlg.MinRMSCol: 7.6
+argoneut_clustercrawlermc.CCHitFinderAlg.ChiNorms:  [ 1.6, 7.5 ]
+argoneut_dbcluster:                    @local::standard_dbcluster      
+argoneut_dbcluster.DBScanAlg:          @local::argoneut_dbscanalg    
+argoneut_dbclusterana:                 @local::standard_dbclusterana   
+argoneut_fuzzycluster:                 @local::standard_fuzzycluster      
+argoneut_fuzzycluster.fuzzyClusterAlg: @local::argoneut_fuzzyclusteralg      
+argoneut_kingacluster:                 @local::standard_kingacluster   
+argoneut_kingaclusterana:              @local::standard_kingaclusterana
+argoneut_houghlinefinder:              @local::standard_houghlinefinder
+argoneut_houghlinefinder.HoughBaseAlg: @local::argoneut_houghbasealg
+argoneut_houghlinefinderana:           @local::standard_houghlinefinderana
+argoneut_linemerger:                   @local::standard_linemerger        
+argoneut_endpointmod:                  @local::standard_endpointmod       
+argoneut_endpointmod.EndPointAlg:      @local::argoneut_endpointalg
+argoneut_showeranglecluster:           @local::standard_showeranglecluster
+
+END_PROLOG

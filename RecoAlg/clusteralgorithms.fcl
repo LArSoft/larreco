@@ -1,0 +1,317 @@
+#include "trackfinderalgorithms.fcl"
+BEGIN_PROLOG
+
+standard_clustercrawleralg:
+{
+  NumPass:              3  # number of passes through the hit list
+  MaxHitsFit:  [20,  8, 4] # number of hits fitted to a line
+  MinHits:     [20,  8, 3] # minimum size of a cluster
+  NHitsAve:     [8,  8, 0] # number of hits to find the average charge and width  
+                           # at the end of the cluster. NHitsAve should be 1 or 2
+  ChgCut:   [.65, .65, .7] # max fractional hit charge difference for adding hits
+  WidCut:     [1., 1., 1.] # max fractional hit width difference for adding hits
+  ChiCut:     [3., 3., 3.] # stop adding hits to clusters if ChiCut is reached
+  MaxWirSkip:   [25, 8, 2] # max number of wires to skip without adding a hit
+  MinWirAfterSkip: [3, 2, 1] # min reqd number of consecutive wires with a hit after a skip
+  KinkChiRat: [1.2, 1.2, 0.] # Max consecutive chisq increase for the last 3 hits on the cluster
+                             # 0. = no kink check when following
+  KinkAngCut: [0.35, 0.35, 0.4] # kink angle cut (radians) used to follow and merge
+  DoMerge:   [false, true, true] # run cluster merging code?
+  TimeDelta: [2., 3., 10.] # max time difference for cluster merging
+  FindVertices: [false, true, true]  # make 2D vertices after clustering?
+  LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
+  ClHitMergeChiCut:    4.0 # Merge cluster hit-multiplets if the separation chisq
+                           # is < cut. Set < 0 for no merging
+  ClGhostHitFrac:     -0.5 # Merge clusters if they share a fraction of hits
+                           # in the same hit multiplet. Set < 0 for no merging
+  HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
+  AllowNoHitWire:        0 # 
+  DebugPlane:          -1  # print info only in this plane
+  DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
+  DebugHit:             0  # out detailed information while crawling
+}
+
+standard_cchitfinderalg:
+{
+  CalDataModuleLabel: "caldata"
+  MinSigInd:   3.   # min signal peak for induction plane
+  MinSigCol:   5.   # min signal peak for collection plane
+  MinRMSInd:   3.   # min signal width for induction plane
+  MinRMSCol:   3.   # min signal width for induction plane
+  MaxBumps:    5    # make a crude hit if > MaxBumps are found in the RAT
+  MaxXtraHits: 1    # max number of hidden hits in Region Above Threshold
+  ChiSplit:  10.   # Max chi/DOF for splitting hits for signal rms error = 1
+  ChiNorms: [ 2.7, 20.4, 7.8 ]  # chi/DOF normalization for each plane
+  TimeOffsets: [ 0.48, 0.41, 0.49 ] # hit time offsets
+  ChgNorms: [ 0.733, 0.750, 1.471 ]   # Area -> Charge normalization
+}
+
+standard_cchitrefineralg:
+{
+  RefineHits:       false  # refine hits during clustering?
+  BEChgRat:           2.0  # Begin/End Charge Ratio to determine cluster direction
+                           # Set to 0 to turn off
+}
+
+standard_houghbasealg:
+{
+  MaxLines:                 50   # The maximum number of Hough lines to look for, 20 had been working!
+  MinHits:                  5
+  SaveAccumulator:          0
+  NumAngleCells:            20000 # The number of angle cells to create for the Hough transform,
+  RhoResolutionFactor:      5    # Was set to 5
+  MaxDistance:              1.0  # 0.1 was working (okay, not really, larger is probably better,
+  MaxSlope:                 80.0 # 80 was working fine previously
+  RhoZeroOutRange:          0
+  ThetaZeroOutRange:        0
+  HitsPerCluster:           1
+  MissedHits:               1    # Was set to 0
+  MissedHitsDistance:       2.0  # 
+  MissedHitsToLineSize:     0.25    # Was set to 0
+}
+
+standard_endpointalg:
+{
+  TimeBins:            256
+  MaxCorners:          20
+  Gsigma:              1.
+  Window:              5
+  Threshold:           0.1
+  SaveVertexMap:       -1
+}
+
+
+standard_cornerfinderalg:
+{
+  RawDataModuleLabel:           "daq"
+  CalDataModuleLabel:		"caldata"
+  Trimming_threshold:      10
+  Trimming_totalThreshold: 5e4
+  Conversion_algorithm:         "standard"
+  Conversion_function:          "TMath::Gaus(x,0,1)*TMath::Gaus(y,0,1)"
+  Conversion_func_neighborhood: 3
+  Conversion_threshold:		0
+  Conversion_bins_per_input_x:	1
+  Conversion_bins_per_input_y:	1
+  Derivative_method: 		"Sobel" #Noble
+  Derivative_neighborhood:	1 
+  Derivative_BlurFunc:	"NotImplemented" 
+  Derivative_BlurNeighborhood:	5 
+  CornerScore_Noble_epsilon:    1e-5
+  CornerScore_Harris_kappa:     0.05
+  CornerScore_neighborhood:	1
+  CornerScore_algorithm:	"Nobel" #Harris
+  MaxSuppress_neighborhood:	3
+  MaxSuppress_threshold:	1000
+  Integral_bin_threshold:       5
+  Integral_fraction_threshold:  0.95
+  
+
+}
+
+standard_dbscanalg:
+{
+  eps:    1.0
+  epstwo: 1.5
+  minPts: 2
+  Method: 0   # 0 -- naive findNeighbor implemention                     
+              # 1 -- findNeigbors with R*-tree                           
+              # 2 -- DBScan from the paper with R*-tree                  
+  Metric: 3   # Which RegionQuery distance metric to use.                
+              # **ONLY APPLIES** if Method is 1 or 2.                    
+              #                                                          
+	      # 0 -- rectangle (no bad channels) **not implemented**     
+	      # 1 -- Manhattan distance (only uses eps, no bad channels) 
+              #                                  **not implemented**     
+	      # 2 -- Eliptical (no bad channels) **not implemented**     
+	      # 3 -- findNeighbors-alike: Elliptical and bad             
+              #                           channel aware (not working)    
+}
+
+standard_fuzzyclusteralg:
+{
+  Fuzzifier:     1.1   # The fuzzifier (m) needed for fuzzy clustering
+  MaxNumClusters: 10   # The maximum number of clusters to try, needed for fuzzy clustering, was 5
+  Iterations:     100  # The maximum number of iterations to try, needed for fuzzy clustering, was 10
+  MergeCutoff:    100  # The maximum distance between clusters prior to merging,  
+  HoughBaseAlg:{
+    MaxLines:             25
+    MaxDistance:          0.1
+    MinHits:              5
+    NumAngleCells:        3600
+    SaveAccumulator:          0
+    RhoResolutionFactor:      5     
+    MaxSlope:                 80.0 # 80 was working fine previously
+    RhoZeroOutRange:          0
+    ThetaZeroOutRange:        0
+    HitsPerCluster:           1
+    MissedHits:               1    # Was set to 0
+    MissedHitsDistance:       1.0  # 
+    MissedHitsToLineSize:     0.5    # Was set to 0
+  }
+  DBScanAlg:       @local::standard_dbscanalg 
+  EndPointClusAlg: @local::standard_endpointalg
+  DoFuzzyRemnantMerge:      1    # Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
+  FuzzyRemnantMergeCutoff: 20    # Cut off on distance from hough line to hit in the remnant of the fuzzy cluster
+  
+  DoTrackClusterMerge:     1  # Turns on merging of track-like Hough lines (0-off, 1-on)
+  ChargeAsymAngleCut:        0.1 # Cut on product of charge asymmetry and the square of the sin of angle between slopes of lines, only for track-like
+  SigmaChargeAsymAngleCut:   1.0  # Cut on product of charge sigma asymmetry and the sin of angle between slopes of lines, only for track-like
+  TrackClusterMergeCutoff: 5.0 # The maximum distance between track-like Hough line endpoints before they can be merged,
+  
+  DoShowerClusterMerge:     1    # Turns on merging of shower-like Hough line (0-off, 1-on)
+  ShowerClusterMergeAngle: 30    # The maximum angle between slopes of shower-like lines to be merged,
+  ShowerClusterMergeCutoff:  7.5 # The maximum distance between shower-like line endpoints before they can be merged,
+
+  DoShowerTrackClusterMerge:     1    # Turns on merging of shower-like and track-like lines (0-off, 1-on)
+  ShowerTrackClusterMergeAngle:  15   # The maximum angle between slopes of shower-like and track-like lines to be merged,
+  ShowerTrackClusterMergeCutoff: 7.5  # The maximum distance between shower-like and track-like line endpoints before they can be merged,
+  ShowerLikenessCut:       0.5   # Cut on shower likeness (the larger the more shower like, the smaller the less shower like)
+  MaxVertexLines:          100   # Max number of line end points allowed in a Hough line merge region for a merge to happen 
+  VertexLinesCutoff:       5.0   #  Size of the vertex region to count up lines for MaxVertexLines 
+}
+
+
+standard_clusterparamsalg:
+ {
+  ChargeCutoffThreshold:    [500,500,1000]
+  SelectBoxSizePar:               10     #distance along axis
+  SelectBoxSizePerp:              3      #distance perpendicular to axis
+  ForceRightGoing:        	  false
+  MinHitListSize:		  40
+  fOutlierRadius:		  5 
+  #HoughBaseAlg.NumAngleCells:       3000
+  #HoughBaseAlg.RhoResolutionFactor:       4
+  #HoughBaseAlg.MaxLines:       100
+  HitDensityCutoff:             1.9  # Showers is high, tracks low, 0 don't use cut
+  MultiHitWireCutoff: 		 2.1  # Showers is high, tracks low, 0 don't use cut
+  OffAxisHitsCutoff:            0    # Showers is high, tracks low, 0 don't use cut
+  PrincipalComponentCutoff:     0    # Tracks is high ~1, showers low, 0 don't use cut
+  ShowerSelisORorAND:           0    # 0 = OR, 1 = AND
+
+  HoughBaseAlg:                   @local::standard_houghbasealg
+
+ }
+
+ standard_clustermatchalg:
+ {
+  DebugMode: true
+  StoreSpacePoint: true
+  MatchAlgoList:                [0, 1, 2, 3] # Algorithms enum to be enabled
+  CutParam_NumSpacePoint:       100          # Number of minimum space point to claim a cluster by kSpacePoint
+  CutParam_OverlayTimeFraction: 0.0          # Minimum fraction of overlayed time period used by kRoughTime
+  CutParam_SumChargeRatio:      1000.0       # Maximum difference in fraction of clusters' charge sum used by kSumCharge
+  SpacePointAlg:                @local::microboone_spacepointalg
+  }
+ standard_clustermatchalg.SpacePointAlg.Filter: false
+
+ standard_clustermergealg:
+ {
+  VerboseMode:    false
+  MaxAngleDiff:   0
+  MaxSquaredDist: 0
+  }
+
+standard_smallclustalg:
+ {
+  RadiusSizePar:   	3	  #radius of circle in "cm"
+  NHitsInClust:		4	  # Max Number of hits in cluster
+  Verbose:			false
+ }
+ 
+
+standard_dbscanalg_fast:        @local::standard_dbscanalg
+standard_dbscanalg_fast.eps:    1.25
+standard_dbscanalg_fast.epstwo: 1.75
+standard_dbscanalg_fast.Method: 2
+
+jp250L_dbscanalg:                  @local::standard_dbscanalg      
+jp250L_fuzzyclusteralg:            @local::standard_fuzzyclusteralg
+jp250L_houghbasealg:               @local::standard_houghbasealg   
+jp250L_houghbasealg.MaxLines:      15
+jp250L_houghbasealg.MinHits:       3
+jp250L_houghbasealg.NumAngleCells: 5000
+jp250L_houghbasealg.MaxDistance:   5.0
+jp250L_endpointalg:                @local::standard_endpointalg
+
+bo_dbscanalg:                   @local::standard_dbscanalg      
+bo_fuzzyclusteralg:             @local::standard_fuzzyclusteralg
+bo_houghbasealg:                @local::standard_houghbasealg   
+bo_houghbasealg.MaxLines:       15
+bo_houghbasealg.MinHits:        3
+bo_houghbasealg.NumAngleCells:  5000
+bo_houghbasealg.MaxDistance:    5.0
+bo_endpointalg:                 @local::standard_endpointalg
+bo_clustercrawleralg:           @local::standard_clustercrawleralg
+bo_clustercrawleralg.NumPass: 1
+bo_clustercrawleralg.MaxHitsFit: [ 8 ]
+bo_clustercrawleralg.MinHits: [ 3 ]
+bo_clustercrawleralg.ChgCut: [ 2. ]
+bo_clustercrawleralg.WidCut: [ 2. ]
+bo_clustercrawleralg.ChiCut: [ 20. ]
+bo_clustercrawleralg.MaxWirSkip: [ 25 ]
+bo_clustercrawleralg.MinWirAfterSkip: [ 1 ]
+bo_clustercrawleralg.KinkChiRat: [ 2. ]
+bo_clustercrawleralg.KinkAngCut: [ 0.5 ]
+bo_clustercrawleralg.DoMerge:  [ true ]
+bo_clustercrawleralg.TimeDelta:  [ 10. ]
+bo_clustercrawleralg.FindVertices: [ false ]
+bo_clustercrawleralg.HitErrFac: 1.
+bo_cchitfinderalg:              @local::standard_cchitfinderalg
+bo_cchitfinderalg.MinSigInd:    4.
+bo_cchitfinderalg.MinSigCol:    5.
+bo_cchitfinderalg.MinRMSInd:     8.
+bo_cchitfinderalg.MinRMSCol:     7.
+bo_cchitfinderalg.ChiNorms:     [ 1.8, 3.3, 4.3 ]
+bo_cchitrefineralg:             @local::standard_cchitrefineralg
+
+argoneut_dbscanalg:                  @local::standard_dbscanalg       
+argoneut_fuzzyclusteralg:            @local::standard_fuzzyclusteralg
+argoneut_houghbasealg:               @local::standard_houghbasealg   
+argoneut_houghbasealg.MaxLines:      15                              
+argoneut_houghbasealg.MinHits:       3                               
+argoneut_houghbasealg.NumAngleCells: 5000
+argoneut_houghbasealg.MaxDistance:   5.0
+argoneut_endpointalg:                @local::standard_endpointalg
+argoneut_cornerfinderalg:		      @local::standard_cornerfinderalg
+argoneut_clusterparamsalg:       @local::standard_clusterparamsalg
+argoneut_clusterparamsalg.HoughBaseAlg: @local::argoneut_houghbasealg
+argoneut_clusterparamsalg.HoughBaseAlg.NumAngleCells:       3000
+argoneut_clusterparamsalg.HoughBaseAlg.RhoResolutionFactor:       4
+argoneut_clusterparamsalg.HoughBaseAlg.MaxLines:       100
+argoneut_clusterparamsalg.ChargeCutoffThreshold:  [200,400]
+argoneut_clusterparamsalg.ForceRightGoing:   true
+argoneut_smallclustalg:	@local::standard_smallclustalg
+
+
+
+microboone_dbscanalg:                         @local::standard_dbscanalg_fast 
+microboone_endpointalg:                       @local::standard_endpointalg    
+microboone_houghbasealg:                      @local::standard_houghbasealg   
+microboone_houghbasealg.MaxLines:             20
+microboone_houghbasealg.MaxDistance:          1.0
+microboone_houghbasealg.MinHits:              5
+microboone_houghbasealg.NumAngleCells:        20000
+microboone_houghbasealg.DoHoughLineMerge:     1
+microboone_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
+microboone_clusterparamsalg:                 @local::standard_clusterparamsalg
+microboone_smallclustalg:	   @local::standard_smallclustalg
+microboone_clustercrawleralg:      @local::standard_clustercrawleralg
+microboone_clustermatchalg:                   @local::standard_clustermatchalg
+microboone_clustermergealg:                   @local::standard_clustermergealg
+
+lbnefd_dbscanalg:    @local::standard_dbscanalg_fast
+lbnefd_houghbasealg: @local::standard_houghbasealg
+lbnefd_endpointalg:  @local::standard_endpointalg 
+lbnefd_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+lbnefd_fuzzyclusteralg.HoughBaseAlg:      @local::lbnefd_houghbasealg 
+
+lbne35t_dbscanalg:    @local::standard_dbscanalg_fast
+lbne35t_houghbasealg: @local::standard_houghbasealg
+lbne35t_endpointalg:  @local::standard_endpointalg 
+lbne35t_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+lbne35t_fuzzyclusteralg.HoughBaseAlg:      @local::lbne35t_houghbasealg 
+
+
+END_PROLOG

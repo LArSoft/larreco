@@ -1,0 +1,67 @@
+#include "trackfindermodules.fcl"
+
+BEGIN_PROLOG
+
+microboone_track:                                       @local::standard_track3Dreco
+microboone_spacepts:                                    @local::standard_spacepts
+microboone_spacepts.TicksOffset:                        0.0         
+microboone_spacepts.ClusterModuleLabel:                 "dbcluster" 
+microboone_spacepts.TMatch:                             11.0        
+microboone_spacepts.vertexclusterWindow:                10000000.   
+microboone_kalman:                                      @local::standard_track3DkalmanSPS    
+microboone_kalman.SpacePointAlg:                        @local::microboone_spacepointalg
+microboone_kalman_cosmic:                               @local::microboone_kalman
+microboone_kalman_cosmic.SortDirection:  "y"
+microboone_kalman_cosmic.MinNumSppts: 10
+microboone_kalman_cosmic.DistanceU: 5.
+microboone_kalman_cosmic.MaxPass: 1 # don't do the usual 2nd pass for MS energy meas't!
+
+microboone_spacepoint:                                  @local::standard_spacepointana 
+microboone_spacepoint.SpacePointAlgTime:                @local::microboone_spacepointalg     
+microboone_spacepoint.SpacePointAlgTime.MaxDT:          50.
+microboone_spacepoint.SpacePointAlgSep:                 @local::microboone_spacepointalg     
+microboone_spacepoint.SpacePointAlgSep.MaxS:            10.
+microboone_spacepoint.SpacePointAlgDefault:             @local::microboone_spacepointalg     
+microboone_spacepoint_finder:                           @local::standard_spacepointfinder    
+microboone_spacepoint_finder.SpacePointAlg:             @local::microboone_spacepointalg     
+microboone_spacepointcheater:                           @local::standard_spacepointcheater   
+microboone_spacepointcheater.SpacePointAlg:             @local::microboone_spacepointalg     
+microboone_trackkalmancheater:                          @local::standard_trackkalmancheater  
+microboone_trackkalmancheater.KalmanFilterAlg:          @local::microboone_kalmanfilteralg   
+microboone_trackkalmancheater.SpacePointAlg:            @local::microboone_spacepointalg   
+microboone_trackkalmancheater.SpacePointAlg.MinViews:   2
+microboone_track3Dkalmanhit:                            @local::standard_track3Dkalmanhit
+microboone_track3Dkalmanhit.KalmanFilterAlg:            @local::microboone_kalmanfilteralg
+microboone_track3Dkalmanhit.SeedFinderAlg:              @local::microboone_seedfinderalgorithm
+microboone_track3Dkalmanhit.SeedFinderAlg.ExtendThresh: 0.
+microboone_track3Dkalmanhit.SpacePointAlg:              @local::microboone_spacepointalg
+microboone_track3Dkalmanhit.SpacePointAlg.MinViews:     2
+microboone_seedfindermodule:                            @local::standard_seedfindermodule     
+microboone_seedfindermodule.SeedAlg:                    @local::microboone_seedfinderalgorithm
+microboone_beziertrackermodule:                         @local::standard_beziertrackermodule
+microboone_beziertrackermodule.BezierTrackerAlgorithm:  @local::microboone_beziertrackeralgorithm
+microboone_trackstitcher:                               @local::standard_trackstitcher
+microboone_trackstitcher.TrackModuleLabel:              "trackkalsps"
+microboone_trackstitcher.SpptModuleLabel:               "spacepointfinder"
+microboone_trackstitcher.CosAngTolerance:               0.95
+microboone_trackstitcher.SpptSepTolerance:              15.0
+microboone_cosmictracker:                               @local::standard_cosmictracker  
+microboone_cosmictracker.ClusterModuleLabel:            "dbcluster"
+
+
+microboone_2stg_kalman:
+{
+ module_type:         "Track3DKalmanSPS2stg"
+ ClusterModuleLabel:  "dbscan"
+ GenieGenModuleLabel: "generator"     # comment out for real data.
+ G4ModuleLabel:       "largeant"
+ PosErr3:             [0.05,0.05,0.05]   #  position resolution, cm.
+ MomErr3:             [0.10,0.10,0.20]   #  momentum resolution, GeV/c.
+ MomStart3:           [0.10,0.10,1.0]    #  Will be Unit norm'd.
+ TailPtsFrac:         0.9    # fraction of upstream SpacePoints to ignore in 1st stage fit.
+ GenfPRINT:           true
+}
+
+#microboone_cosmicfinder: @local::standard_cosmicfinder
+
+END_PROLOG

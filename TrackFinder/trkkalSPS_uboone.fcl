@@ -1,0 +1,95 @@
+#include "services.fcl"
+#include "largeantmodules.fcl"
+#include "mccheatermodules.fcl"
+#include "trackfinderservices.fcl"
+#include "trackfindermodules.fcl"
+#include "filters.fcl"
+
+process_name: TrkKal
+
+services:
+{
+  TFileService: { fileName: "recon_hist_Kal_mu.root" } # yer fave input file w SpacePoints.
+  Timing:       {}
+  SimpleMemoryCheck:     { ignoreTotal: 1 } # default is one
+  RandomNumberGenerator: {} #ART native random number generator
+  user:   @local::microboone_simulation_services
+}
+services.user.SpacePointService:  @local::microboone_spacepointservice
+
+source:
+{
+  module_type: RootInput
+  fileNames: [ " ../trk/recon_trk_mu.root" ]
+  maxEvents: 1000       # Number of events to create
+  skipEvents: 0
+}
+
+outputs:
+{
+ out1:
+ {
+   module_type: RootOutput
+   fileName:    "recon_Kal_mu.root" #default file name, can override from command line with -o or --output
+ }
+}
+
+# Define and configure some modules to do work on each event.
+# First modules are defined; they are scheduled later.
+# Modules are grouped by type.
+physics:
+{
+
+ producers:
+ {
+   trackkal: @local::microboone_kalman
+ }
+
+ filters:
+ {
+   badevts:  @local::evtfilter
+ }
+
+ analyzers:
+ {
+   largana:  @local::microboone_largeantana
+   sptana: @local::microboone_spacepoint
+ }
+
+ recon: [ trackkal ]  # badevts, 
+ analyze: [ sptana, largana ] # trkana
+ #define the output stream, there could be more than one if using filters 
+ stream1:  [ out1 ]
+
+ #trigger_paths is a keyword and contains the paths that modify the art::event, 
+ #ie filters and producers
+ trigger_paths: [ recon ] 
+
+ #end_paths is a keyword and contains the paths that do not modify the art::Event, 
+ #ie analyzers and output streams.  these all run simultaneously
+ end_paths:     [ analyze ] # let's drop ", stream1".
+}
+
+# set some parameters. Check the smallness of the x position, as is the case.
+physics.producers.trackkal.PosErr3: [0.05, 0.1, 0.1] // cm 
+// 0.3,0.3,0.3; 0.2,0.2,0.4 does evt 1, but gives tiny p for evt 2.
+physics.producers.trackkal.MomErr3: [.01, .01, .03] // GeV
+physics.producers.trackkal.MomStart3: [0.5, 0.5, 1.8]   // GeV
+#physics.producers.trackkal.DoFit: false // !!!!!
+#physics.producers.trackkal.PerpLimit: 4.5 // Perp outliers to PC1 to omit
+physics.producers.trackkal.PerpLimit: 1000. // Perp outliers to PC1 to omit
+physics.producers.trackkal.PdgCode: -13 // mu+
+physics.producers.trackkal.ErrScale: 1.0 // !!!!!
+physics.producers.trackkal.DecimateC: 40 // ! Contained decimation
+physics.producers.trackkal.MaxUpdateC: 0.1 // ! Contained cutoff on Kal update.
+physics.producers.trackkal.DecimateU: 100 // ! Uncontained decimation
+physics.producers.trackkal.MaxUpdateU: 0.02 //Unontained cutoff on Kal update.
+
+
+#physics.filters.badevts.BadEvents: [24, 160, 174, 179, 186, 225 ] // BadEvents,BadRuns must be vectors 
+#physics.filters.badevts.BadRuns:   [1, 1, 1, 1, 1, 1 ] // of equal length.
+
+physics.analyzers.sptana.ClusterModuleLabel: "dbscan"
+physics.analyzers.sptana :  @local::microboone_spacepoint
+physics.analyzers.sptana.UseMC: false
+
