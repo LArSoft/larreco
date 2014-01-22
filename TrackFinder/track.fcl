@@ -20,6 +20,7 @@ services:
   Timing:       {}
   user:         
   { 
+   ExptGeoHelperInterface: @local::argoneut_geometry_helper
    Geometry:	     @local::argoneut_geo
    DetectorProperties: @local::argoneut_detproperties
    LArProperties:    @local::argoneut_properties
