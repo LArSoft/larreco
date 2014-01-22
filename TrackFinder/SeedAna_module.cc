@@ -353,7 +353,7 @@ namespace trkf {
     int fNumEvent;
   };
 
-  DEFINE_ART_MODULE(SeedAna);
+  DEFINE_ART_MODULE(SeedAna)
 
   // RecoHists methods.
 
