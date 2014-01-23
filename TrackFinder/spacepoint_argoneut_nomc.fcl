@@ -19,6 +19,7 @@ services:
 # services from LArSoft - see definitions for configurations in 
 # geometry.fcl
 # services.fcl
+services.user.ExptGeoHelperInterface: @local::argoneut_geometry_helper
 services.user.Geometry:           @local::argoneut_geo 
 services.user.DetectorProperties: @local::argoneut_detproperties
 services.user.LArProperties:      @local::argoneut_properties

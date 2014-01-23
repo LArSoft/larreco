@@ -184,8 +184,8 @@ void Track3Dreco::produce(art::Event& evt)
 
    // Some variables for the hit
    float time;            //hit time at maximum
-   unsigned int wire;     //hit wire number
-   unsigned int plane;    //hit plane number
+   unsigned int wire = 0;     //hit wire number
+   unsigned int plane = 0;    //hit plane number
 
    size_t startSPIndex = spacepoints->size(); //index for knowing which spacepoints are with which cluster
    size_t endSPIndex = spacepoints->size(); //index for knowing which spacepoints are with which cluster

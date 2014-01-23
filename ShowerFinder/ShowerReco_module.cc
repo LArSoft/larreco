@@ -606,7 +606,7 @@ void ShowerReco::produce(art::Event& evt)
 //   }
  
   //find best set:
-  unsigned int bp1,bp2;
+  unsigned int bp1 = 0,bp2 = 0;
   double minerror1=99999999,minerror2=9999999;
   for(unsigned int ii = 0; ii < fNPlanes; ++ii)
   {

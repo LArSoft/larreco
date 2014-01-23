@@ -1,5 +1,6 @@
 
 art_make( BASENAME_ONLY
+          EXCLUDE ShowerSelectorFilter_module.cc
           MODULE_LIBRARIES 
                         BackTracker_service
                         AnalysisBase
@@ -25,6 +26,15 @@ art_make( BASENAME_ONLY
 			${CETLIB}
                         ${ROOT_BASIC_LIB_LIST}
          )
+
+simple_plugin( ShowerSelectorFilter "module"
+         		  Filters
+ 			  RecoAlg
+ 		    	  RawData
+                          LArProperties_service
+ 			  ${SIMULATIONBASE}
+               BASENAME_ONLY 
+ 	     )     
 
 install_headers()
 install_fhicl()

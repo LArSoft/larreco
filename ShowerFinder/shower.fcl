@@ -16,6 +16,7 @@ services:
   Timing:       {}
   user:         
   { 
+   ExptGeoHelperInterface: @local::argoneut_geometry_helper
    Geometry:	     @local::argoneut_geo
    LArProperties:    @local::argoneut_properties
    LArFFT:           @local::argoneut_larfft

@@ -19,6 +19,7 @@ services:
 # services from LArSoft - see definitions for configurations in 
 # geometry_microboone.fcl
 # services_microboone.fcl
+services.user.ExptGeoHelperInterface: @local::microboone_geometry_helper
 services.user.Geometry:           @local::microboone_geo 
 services.user.DetectorProperties: @local::microboone_detproperties
 services.user.LArProperties:      @local::microboone_properties

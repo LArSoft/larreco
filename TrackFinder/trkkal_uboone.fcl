@@ -18,6 +18,7 @@ services:
   user: { }
 }
 
+services.user.ExptGeoHelperInterface: @local::microboone_geometry_helper
 services.user.Geometry:           @local::microboone_geo 
 services.user.LArProperties:      @local::microboone_properties
 services.user.DetectorProperties: @local::microboone_detproperties
