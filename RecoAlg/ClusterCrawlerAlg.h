@@ -121,6 +121,7 @@ namespace cluster {
     float clparerr[2];  ///< cluster parameter errors
     float clChisq;     ///< chisq of the current fit
     float fAveChg;  ///< average charge at leading edge of cluster
+    float fChgSlp;  ///< slope of the  charge vs wire 
     float fAveAmp;  ///< average hit Amplitude at the leading edge of the cluster
     float fAveRMS;  ///< average hit width at the leading edge of the cluster
 
@@ -170,7 +171,6 @@ namespace cluster {
     unsigned short fFirstWire;    ///< the first wire with a hit
     unsigned short fFirstHit;     ///< first hit used
     unsigned short fLastWire;      ///< the last wire with a hit
-    float fChgSlp;  ///< slope of the  charge vs wire 
     float fAveWid;  ///< average hit width at the leading edge of the cluster
     unsigned int cstat;         // the current cryostat
     unsigned int tpc;         // the current TPC

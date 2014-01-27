@@ -112,8 +112,8 @@ namespace cluster {
     clBeginWir = 0; clBeginChg = 0; clEndSlp = 0;      clEndSlpErr = 0;
     clEndTim = 0;   clEndWir = 0;   clEndChg = 0;      clChisq = 0;
     clStopCode = 0; clProcCode = 0; clAssn = 0;        fFirstWire = 0;
-    fLastWire = 0; fAveChg = 0.; fAveWid = 0.; pass = 0; fScaleF = 0;
-    tcl.clear(); vtx.clear(); WireHitRange.clear();
+    fLastWire = 0; fAveChg = 0.; fChgSlp = 0.; fAveWid = 0.; pass = 0;
+    fScaleF = 0; tcl.clear(); vtx.clear(); WireHitRange.clear();
   }
 
 
@@ -2356,6 +2356,7 @@ namespace cluster {
       nht = nhit;
       // find the first desired hit and move towards the End
       fAveChg = 0.;
+      fChgSlp = 0.;
       fAveRMS = 0.;
       unsigned short hitcnt = 0;
       bool UseEm = false;
@@ -2390,6 +2391,7 @@ namespace cluster {
       nht = -nhit;
       // find the first desired hit and move towards the Begin
       fAveChg = 0.;
+      fChgSlp = 0.;
       fAveRMS = 0.;
       unsigned short hitcnt = 0;
       bool UseEm = false;
@@ -2424,6 +2426,7 @@ namespace cluster {
     
     if(nht < 2) return;
     fAveChg = fAveChg / (float)nht;
+    fChgSlp = 0.;
     
     float intcpt = 0.;
     float slope = 0.;
@@ -2437,7 +2440,6 @@ namespace cluster {
     clpar[1] = slope;
     clparerr[0] = intcpterr;
     clparerr[1] = slopeerr;
-  std::cout<<"fitclustermid "<<slopeerr<<std::endl;
   }
 
 /////////////////////////////////////////
@@ -2552,10 +2554,12 @@ namespace cluster {
     if(fNHitsAve[pass] == 1) {
       // simply use the charge and width the last hit
       fAveChg = allhits[fcl2hits[ih0]].Charge;
+      fChgSlp = 0.;
     } else if(fNHitsAve[pass] == 2) {
       // average the last two points if requested
       fAveChg = (allhits[fcl2hits[ih0]].Charge + 
                  allhits[fcl2hits[ih0 - 1]].Charge) / 2.;
+      fChgSlp = 0.;
     } else if((unsigned short)fcl2hits.size() >= fNHitsAve[pass]){
       // do a real fit
       std::vector<float> xwir;
@@ -2584,7 +2588,9 @@ namespace cluster {
       float slopeerr; float chidof;
       LinFit(xwir, ychg, ychgerr2, intcpt, slope, intcpterr, slopeerr, chidof);
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"FitChg chidof "<<chidof;
-      if(chidof < 20.) fAveChg = intcpt;
+      if(chidof > 20.) return;
+      fAveChg = intcpt;
+      fChgSlp = slope;
     }
   } // fitchg
 
@@ -2812,10 +2818,10 @@ namespace cluster {
       SigOK = true;
     }
 
+    if(imbest < 0) return;
+
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<" Best hit time "<<(int)allhits[imbest].Time;
-
-    if(imbest < 0) return;
 
     // Make a charge similarity cut if the average charge is defined
     bool fitChg = true;
