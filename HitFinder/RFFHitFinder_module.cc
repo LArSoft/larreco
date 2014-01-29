@@ -157,7 +157,7 @@ std::vector<float> RFFHitFinder::GaussianElimination(std::vector< std::vector<fl
     return solutions;
   }
 
-  float matrix[N_PEAKS][N_PEAKS+1]; //N_PEAKS rows, N_PEAKS+1 columns for augmented matrix
+  std::vector< std::vector<float> > matrix(N_PEAKS,std::vector<float>(N_PEAKS+1)); //N_PEAKS rows, N_PEAKS+1 columns for augmented matrix
 
   for(uint i=0; i<N_PEAKS; i++){
     std::vector<float> this_row = scaled_distances.at(i);
