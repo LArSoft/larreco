@@ -391,7 +391,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
     intercept = (rho/sin(theta));
     float distance;
 
-    if(!isinf(slope) && !isnan(slope)){
+    if(!std::isinf(slope) && !std::isnan(slope)){
       sequenceHolder.clear();
       fMaxWire = 0;
       iMaxWire = 0;
@@ -571,7 +571,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
             lineHits);
       linesFound->push_back(protoTrackToLoad);
        
-    }/// end if !isnan
+    }/// end if !std::isnan
 
 
     nLinesFound++;
@@ -1046,7 +1046,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       // What is this?   
       indcolscaling = 0;
       
-      if(!isinf(slope) && !isnan(slope)){
+      if(!std::isinf(slope) && !std::isnan(slope)){
       sequenceHolder.clear();
       hitTemp.clear();
       for(size_t i = 0; i < hit.size(); ++i){
@@ -1156,7 +1156,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       //		}
       //	      }
       
-      }// end if !isnan
+      }// end if !std::isnan
       
       nLinesFound++;
       
@@ -1422,7 +1422,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
 
 
 
-	    if(!isinf(slope) && !isnan(slope)){
+	    if(!std::isinf(slope) && !std::isnan(slope)){
 	      sequenceHolder.clear();
 	      hitTemp.clear();
 	      for(size_t i = 0; i < hit.size(); ++i){
@@ -1559,7 +1559,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
 	      //		}
 	      //	      }
               
-	    }// end if !isnan
+	    }// end if !std::isnan
    
             nLinesFound++;
 

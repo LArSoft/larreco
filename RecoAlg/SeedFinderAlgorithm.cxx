@@ -220,7 +220,7 @@ namespace trkf {
 	      {
 		std::vector<char> HitStatusGood;
 		recob::Seed      SeedGood;
-		for(size_t r=0; r!=uint(fRefits); ++r)
+		for(size_t r=0; r!=(unsigned int)fRefits; ++r)
 		  {
 		    double PrevLength = TheSeed.GetLength();
 
