@@ -285,11 +285,11 @@ void cluster::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoi
 	int startx = std::get<2>(WireData_trimmed_histos.at(histos));
 	int starty = std::get<3>(WireData_trimmed_histos.at(histos));
 
-	//std::cout << "Doing histogram " << histos << ", of plane " << plane << " with start points " << startx << " " << starty << std::endl;
+	std::cout << "Doing histogram " << histos << ", of plane " << plane << " with start points " << startx << " " << starty << std::endl;
 	attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
 			      WireData_IDs[plane],fGeom->Cryostat(cstat).TPC(tpc).Plane(plane).View(),corner_vector,startx,starty);
 
-	//std::cout << "\tTotal feature points now is " << corner_vector.size() << std::endl;
+	std::cout << "\tTotal feature points now is " << corner_vector.size() << std::endl;
       }
       
       //remove_duplicates(corner_vector);
@@ -378,10 +378,10 @@ struct compare_to_range{
 // This looks for areas of the wires that are non-noise, to speed up evaluation
 void cluster::CornerFinderAlg::create_smaller_histos(){
 
-  //std::cout << "OK, creating the smaller histograms." << std::endl;
+  std::cout << "OK, creating the smaller histograms." << std::endl;
 
   for(auto pid : fGeom->PlaneIDs() ){
-    //std::cout << "Working plane " << plane << "." << std::endl;
+    std::cout << "Working plane " << pid.Plane << "." << std::endl;
 
     int x_bins = WireData_histos_ProjectionX[pid.Plane]->GetNbinsX();
     //float x_min = WireData_histos_ProjectionX[plane]->GetXaxis()->GetBinLowEdge(1);
@@ -441,8 +441,8 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
       
     }
     
-    //std::cout << "We have a total of " << cut_points_x.size() << " x cut points." << std::endl;
-    //std::cout << "We have a total of " << cut_points_y.size() << " y cut points." << std::endl;
+    std::cout << "We have a total of " << cut_points_x.size() << " x cut points." << std::endl;
+    std::cout << "We have a total of " << cut_points_y.size() << " y cut points." << std::endl;
     
     std::vector<int> x_low{1};
     std::vector<int> x_high{x_bins};
@@ -529,7 +529,7 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
       
     }
     
-    /*
+    
       std::cout << "First point in x is " << cut_points_x.at(0) << std::endl;
       std::sort(cut_points_x.begin(),cut_points_x.end(),compare_to_value(x_bins/2));	
       std::cout << "Now the first point in x is " << cut_points_x.at(0) << std::endl;
@@ -539,14 +539,14 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
       std::cout << "Now the first point in y is " << cut_points_y.at(0) << std::endl;
       
       std::cout << "Integral on the SW side is " 
-      << WireData_histos[plane]->Integral(1,cut_points_x.at(0),1,cut_points_y.at(0)) << std::endl;
+		<< WireData_histos[pid.Plane]->Integral(1,cut_points_x.at(0),1,cut_points_y.at(0)) << std::endl;
       std::cout << "Integral on the SE side is " 
-      << WireData_histos[plane]->Integral(cut_points_x.at(0),x_bins,1,cut_points_y.at(0)) << std::endl;
+		<< WireData_histos[pid.Plane]->Integral(cut_points_x.at(0),x_bins,1,cut_points_y.at(0)) << std::endl;
       std::cout << "Integral on the NW side is " 
-      << WireData_histos[plane]->Integral(1,cut_points_x.at(0),cut_points_y.at(0),y_bins) << std::endl;
+		<< WireData_histos[pid.Plane]->Integral(1,cut_points_x.at(0),cut_points_y.at(0),y_bins) << std::endl;
       std::cout << "Integral on the NE side is " 
-      << WireData_histos[plane]->Integral(cut_points_x.at(0),x_bins,cut_points_y.at(0),y_bins) << std::endl;
-    */
+		<< WireData_histos[pid.Plane]->Integral(cut_points_x.at(0),x_bins,cut_points_y.at(0),y_bins) << std::endl;
+    
     
     //std::cout << "Total of " << x_low.size() << " sub-histograms." << std::endl;
     for(size_t il=0; il<x_low.size(); il++){
