@@ -159,7 +159,7 @@ std::vector<float> RFFHitFinder::GaussianElimination(std::vector< std::vector<fl
 
   std::vector< std::vector<float> > matrix(N_PEAKS,std::vector<float>(N_PEAKS+1)); //N_PEAKS rows, N_PEAKS+1 columns for augmented matrix
 
-  for(uint i=0; i<N_PEAKS; i++){
+  for(unsigned int i=0; i<N_PEAKS; i++){
     std::vector<float> this_row = scaled_distances.at(i);
     
     if(this_row.size()!=N_PEAKS){
@@ -167,7 +167,7 @@ std::vector<float> RFFHitFinder::GaussianElimination(std::vector< std::vector<fl
       return solutions;
     }
     
-    for(uint j=0; j<N_PEAKS; j++){
+    for(unsigned int j=0; j<N_PEAKS; j++){
       float gaus_val = 0;
       if(this_row.at(j) < 4) {
 	int this_bin = std::floor( this_row.at(j)*10 + 0.5);
@@ -179,7 +179,7 @@ std::vector<float> RFFHitFinder::GaussianElimination(std::vector< std::vector<fl
 
   }//end filling the augmented matrix
 
-  for(uint i=0; i<N_PEAKS; i++){
+  for(unsigned int i=0; i<N_PEAKS; i++){
     
     float diag_val = matrix[i][i];
     
@@ -187,9 +187,9 @@ std::vector<float> RFFHitFinder::GaussianElimination(std::vector< std::vector<fl
     //std::cout << "ERROR!!! The diagonal should never be this small?    " << matrix[i][i] << std:: endl;
     //}
 
-    for(uint j=i+1; j<N_PEAKS; j++){
+    for(unsigned int j=i+1; j<N_PEAKS; j++){
       float scale_val = matrix[j][i] / diag_val;
-      for(uint k=i; k<N_PEAKS+1; k++){
+      for(unsigned int k=i; k<N_PEAKS+1; k++){
 	matrix[j][k] -= matrix[i][k]*scale_val;
       }
     }
@@ -207,7 +207,7 @@ std::vector<float> RFFHitFinder::GaussianElimination(std::vector< std::vector<fl
 
     float this_solution = matrix[i][N_PEAKS];
     
-    for(uint j=i+1; j<N_PEAKS; j++)
+    for(unsigned int j=i+1; j<N_PEAKS; j++)
       this_solution -= matrix[i][j]*solutions.at(j);
     
     this_solution /= matrix[i][i];
@@ -505,8 +505,8 @@ void RFFHitFinder::produce(art::Event& evt)
 	try_reduce=false;
 	
 	float delta = 0;
-	for(uint i=0; i<mean_matches.size(); i++){
-	  for(uint j=i+1; j<mean_matches.size(); j++){
+	for(unsigned int i=0; i<mean_matches.size(); i++){
+	  for(unsigned int j=i+1; j<mean_matches.size(); j++){
 
 	    delta = std::get<1>(mean_matches.at(j)) - std::get<1>(mean_matches.at(i));
 
@@ -537,7 +537,7 @@ void RFFHitFinder::produce(art::Event& evt)
 
 
 
-      uint i_means=0;
+      unsigned int i_means=0;
       std::vector<float> peak_signals;
       while(i_means < mean_matches.size()){
 
@@ -560,12 +560,12 @@ void RFFHitFinder::produce(art::Event& evt)
 
 
       std::vector< std::vector<float> > scaled_distances;
-      for(uint i=0; i<peak_signals.size(); i++){
+      for(unsigned int i=0; i<peak_signals.size(); i++){
 	
 	std::vector<float> scaled_distance_row;
 	float this_mean = std::get<1>(mean_matches.at(i));
 	
-	for(uint j=0; j<mean_matches.size(); j++)
+	for(unsigned int j=0; j<mean_matches.size(); j++)
 	  scaled_distance_row.push_back( std::abs(this_mean - std::get<1>(mean_matches.at(j))) / std::get<1>(sigma_matches.at(j)) );
 	
 	scaled_distances.push_back(scaled_distance_row);
@@ -578,7 +578,7 @@ void RFFHitFinder::produce(art::Event& evt)
       
       //std::cout << "OK, we got the solutions. Size " << solutions.size() << std::endl;
       
-      for(uint i=0; i<solutions.size(); i++){
+      for(unsigned int i=0; i<solutions.size(); i++){
 
 	// get the WireID for this hit
 	std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
