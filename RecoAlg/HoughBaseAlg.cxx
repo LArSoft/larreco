@@ -750,6 +750,7 @@ inline std::vector<int> cluster::HoughTransform::DoAddPointReturnMax(int x,
         val = m_accumA->second++;
         
         if( max_val < val){
+	  max_val = val;
           max[0] = val;
           max[1] = lastDist;
           max[2] = (angleStepInt);
@@ -767,6 +768,7 @@ inline std::vector<int> cluster::HoughTransform::DoAddPointReturnMax(int x,
           val = m_accumA->second++;
           //// Note, m_accum is a vector of associative containers, "a" calls the vector element, "cell" is the container key, and the ++ iterates the value correspoding to the key
           if(max_val < val){
+	    max_val = val;
             max[0] = val;
             max[1] = cell;
             max[2] = (angleStepInt);
