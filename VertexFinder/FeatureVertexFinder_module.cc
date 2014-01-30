@@ -303,7 +303,9 @@ namespace vertex{
     // ### Push the features into a vector of Endpoint2d's ###
     // #######################################################
     std::vector<recob::EndPoint2D> EndPoints;
+    std::cout << "About to get the Feature points..." << std::endl;
     fCorner.get_feature_points_fast(EndPoints);
+    std::cout << "Got feature points, size " << EndPoints.size() << std::endl;
     //fCorner.get_feature_points(EndPoints);
     
     // ########################################################
