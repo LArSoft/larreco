@@ -46,6 +46,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <vector>
 
 // Define parameters that will tell us if we are doing a normal Hough line merge
 // or a shower Hough line merge
@@ -231,8 +232,8 @@ inline bool cluster::fuzzyClusterAlg::updateMembership(int *k)
   //fpsCentroids.Print();
   //fpsMembership.Print();
   
-  TMatrixT<double> clusterCovarianceMats[*k];
-  double clusterRadii[*k];
+  std::vector<TMatrixT<double>> clusterCovarianceMats(*k);
+  std::vector<double> clusterRadii(*k);
 
   // Determine the elements of u^m_ij
   TMatrixT<double> Uji_m(*k, fpsMat.GetNrows());
@@ -309,7 +310,7 @@ inline bool cluster::fuzzyClusterAlg::updateMembership(int *k)
   
   for ( int j = 0; j < *k; ++j){
     bool clusterCovarianceSingular = false;
-    TMatrixT<double> clusCovarianceMatInv = clusterCovarianceMats[j];
+    TMatrixT<double>& clusCovarianceMatInv = clusterCovarianceMats[j];
     //std::cout << "cov. matrix: " << clusCovarianceMatInv.Determinant() << std::endl;
     double clusCovarianceMatInvDeterminant = clusCovarianceMatInv(0,0)*clusCovarianceMatInv(1,1)-clusCovarianceMatInv(0,1)*clusCovarianceMatInv(1,0);
 
