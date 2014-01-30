@@ -367,7 +367,7 @@ genf::GFKalman::processHit(GFTrack* tr, int ihit, int irep,int direction){
     try{
       rep->extrapolate(pl,state,cov);
       /*
-      if ( isnan(cov[0][0]) )
+      if ( std::isnan(cov[0][0]) )
 	{
 	  cov = covFilt;
 	}
@@ -453,8 +453,8 @@ genf::GFKalman::processHit(GFTrack* tr, int ihit, int irep,int direction){
   Double_t mom = fabs(1.0/state[0][0]);
   Double_t beta = mom/sqrt(mass*mass+mom*mom);
   const Double_t lowerLim(0.01);
-  if (isnan(dist) || dist<=0.0) dist=lowerLim; // don't allow 0s here.
-  if (isnan(beta) || beta<0.01) beta=0.01;
+  if (std::isnan(dist) || dist<=0.0) dist=lowerLim; // don't allow 0s here.
+  if (std::isnan(beta) || beta<0.01) beta=0.01;
   TMatrixT<Double_t> H=hit->getHMatrix(rep,beta,dist);
 
 
