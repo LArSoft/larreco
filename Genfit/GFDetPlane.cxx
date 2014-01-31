@@ -57,7 +57,7 @@ genf::GFDetPlane::~GFDetPlane(){
   if(fFinitePlane!=NULL) delete fFinitePlane;
 }
 
-genf::GFDetPlane::GFDetPlane(const genf::GFDetPlane& rhs){
+genf::GFDetPlane::GFDetPlane(const genf::GFDetPlane& rhs): TObject(rhs) {
   if(rhs.fFinitePlane != NULL) fFinitePlane = rhs.fFinitePlane->clone();
   else fFinitePlane = NULL;
   fO = rhs.fO;

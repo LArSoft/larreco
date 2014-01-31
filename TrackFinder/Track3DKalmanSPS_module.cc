@@ -722,17 +722,9 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  // Let's find track's principle components.
 	  // We will sort along that direction, rather than z.
 	  // Further, we will skip outliers away from main axis.
-	  TVectorD* evals; 
-	  TMatrixD* evecs; 
-	  TVectorD* means; 
-	  TVectorD* sigmas; 
 	  
 	  TPrincipal* principal = new TPrincipal(3,"ND");
-	  Double_t* data = new Double_t[3];
-	  evals = new TVectorD(3);
-	  evecs = new TMatrixD(3,3);
-	  means = new TVectorD(3);
-	  sigmas= new TVectorD(3);
+	  
 	  // I need to shuffle these around, so use copy constructor
 	  // to make non-const version spacepointss.
 	  art::PtrVector<recob::SpacePoint> spacepointss(spacepoints);
@@ -747,32 +739,29 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	      //	      std::cout << "Spacepoint " << point << " added:" << spacepointss[point]->XYZ()[0]<< ", " << spacepointss[point]->XYZ()[1]<< ", " << spacepointss[point]->XYZ()[2]<< ". " << std::endl;
 	      if (point<(spacepointss.size()-nTailPoints))
 		{
-		  data[0] = spacepointss[point]->XYZ()[0];
-		  data[1] = spacepointss[point]->XYZ()[1];
-		  data[2] = spacepointss[point]->XYZ()[2];
-		  principal->AddRow(data);
+		  principal->AddRow(spacepointss[point]->XYZ());
 		}
 	    }
-	  delete [] data;
 	  principal->MakePrincipals();
 	  /*
 	    principal->Test();
 	    principal->MakeHistograms();
 	    principal->Print("MSEV");
 	  */
-	  evals = (TVectorD*)(principal->GetEigenValues());
-	  evecs = (TMatrixD*)(principal->GetEigenVectors());
-	  means = (TVectorD*)(principal->GetMeanValues());
-	  sigmas= (TVectorD*)(principal->GetSigmas());
-	  
+	  const TVectorD* evals = principal->GetEigenValues(); 
+	  const TMatrixD* evecs = principal->GetEigenVectors();
+	  const TVectorD* means = principal->GetMeanValues();
+	  const TVectorD* sigmas = principal->GetSigmas();
+	/*
 	  std::vector<TVector3*> pcs;
 	  Double_t* pc = new Double_t[3];
 	  for (unsigned int point=0;point<spacepointss.size();++point)
 	    {
 	      principal->X2P((Double_t *)(spacepointss[point]->XYZ()),pc);
-	      pcs.push_back((TVector3 *)pc);
+	      pcs.push_back((TVector3 *)pc); // !!!
 	    }
 	  delete [] pc;
+	*/
 	  Double_t tmp[3], tmp2[3];
 	  principal->X2P((Double_t *)(means->GetMatrixArray()),tmp);
 	  principal->X2P((Double_t *)(sigmas->GetMatrixArray()),tmp2);
@@ -909,8 +898,8 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		    }
 		  // If point is too close in Mag or Z or too far in X from last kept point drop it.
 		  // I think this is largely redundant with PCA cut.
-		  TVector3 one((TVector3)(spacepointss[point]->XYZ()));
-		  TVector3 two((TVector3)(spacepointss[ppoint]->XYZ()));
+		  TVector3 one(spacepointss[point]->XYZ());
+		  TVector3 two(spacepointss[ppoint]->XYZ());
 		  if (rePass==2 && uncontained) 
 		    {
 		      epsMag = fDistanceU; // cm

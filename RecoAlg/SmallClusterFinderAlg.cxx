@@ -406,7 +406,7 @@ int cluster::SmallClusterFinderAlg::GetPlaneAndTPC(art::Ptr<recob::Hit> a, //the
 //Function to return the small clusters by plane
 std::vector< std::vector <art::Ptr< recob::Hit> > > cluster::SmallClusterFinderAlg::GetSmallClustersByPlane(unsigned int iPlane){
 	//Check the plane number:
-	if (iPlane >= 0 && iPlane < fNPlanes)
+	if (/* iPlane >= 0 && */ iPlane < fNPlanes)
 		return smallClustList[iPlane];
 	else {
 		std::vector< std::vector <art::Ptr< recob::Hit> > > vec;
@@ -416,7 +416,7 @@ std::vector< std::vector <art::Ptr< recob::Hit> > > cluster::SmallClusterFinderA
 
 std::vector< art::Ptr<recob::Hit> > cluster::SmallClusterFinderAlg::GetLeftoversByPlane(unsigned int iPlane){
 	//Check the plane number:
-	if (iPlane >= 0 && iPlane < fNPlanes)
+	if (/* iPlane >= 0 && */ iPlane < fNPlanes)
 		return hitlistleftover[iPlane];
 	else {
 		std::vector <art::Ptr< recob::Hit> >  vec;
