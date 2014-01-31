@@ -166,8 +166,8 @@ class RKTrackRep : public GFAbsTrackRep {
   TMatrixT<double> fAuxInfo;
 
 
-  RKTrackRep& operator=(const RKTrackRep* rhs){return *this;};
-  RKTrackRep(const RKTrackRep& rhs){};
+  RKTrackRep& operator=(const RKTrackRep* /* rhs */){return *this;}
+  RKTrackRep(const RKTrackRep& /* rhs */): GFAbsTrackRep() {}
   bool fDirection;
     
   //! PDG particle code
