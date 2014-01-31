@@ -2395,8 +2395,10 @@ namespace cluster {
       fAveRMS = 0.;
       unsigned short hitcnt = 0;
       bool UseEm = false;
-      for(unsigned short it = cls.tclhits.size() - 1; it >= 0; --it) {
-        unsigned short ihit = cls.tclhits[it];
+//      for(unsigned short it = cls.tclhits.size() - 1; it >= 0; --it) {
+//        unsigned short ihit = cls.tclhits[it];
+      for(auto it = cls.tclhits.crbegin(); it != cls.tclhits.crend(); ++it) {
+        unsigned short ihit = *it;
         if(ihit > allhits.size()-1) {
           mf::LogVerbatim("ClusterCrawler")<<"FitClusterMid bad ihit "<<ihit;
           return;
