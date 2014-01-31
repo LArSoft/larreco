@@ -405,7 +405,7 @@ namespace vertex{
 	geo::WireID wireID(hits[0]->WireID().Cryostat,
 			   hits[0]->WireID().TPC,
 			   hits[0]->WireID().Plane,
-			   (uint)vtx_w.back());  //for update to EndPoint2D ... WK 4/22/13
+			   (unsigned int)vtx_w.back());  //for update to EndPoint2D ... WK 4/22/13
 	
 	recob::EndPoint2D vertex(vtx_t.back(),
 				 wireID, //for update to EndPoint2D ... WK 4/22/13

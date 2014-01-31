@@ -606,7 +606,7 @@ void FeatureVertexFinderAna::analyze(const art::Event& evt)
     	{
 	
 	fRecoVtxN3d->Fill(Vertexlist.size());
-	for(uint ww = 0; ww<Vertexlist.size(); ww++)
+	for(unsigned int ww = 0; ww<Vertexlist.size(); ww++)
 		{
 		Vertexlist[ww]->XYZ(xyz);
 		

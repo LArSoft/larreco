@@ -161,8 +161,8 @@ public:
     //    Double_t mass = 0.104; // close enough for muons, pions, I think.
     Double_t mom = fabs(1.0/state[0][0]);
     Double_t beta = mom/sqrt(mass*mass+mom*mom);
-    if (isnan(dist) || dist<0.2) dist=0.2; // don't allow 0s here.
-    if (isnan(beta) || beta<0.04) beta=0.04;
+    if (std::isnan(dist) || dist<0.2) dist=0.2; // don't allow 0s here.
+    if (std::isnan(beta) || beta<0.04) beta=0.04;
 
     TMatrixT<Double_t> H = getHMatrix(stateVector,beta,dist);
     return ( getHitCoord(d,dPrev) - (H*state ));
