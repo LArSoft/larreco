@@ -24,6 +24,7 @@
 #ifndef GFABSRECOHIT_H
 #define GFABSRECOHIT_H
 
+#include<stdexcept> // std::logic_error
 #include<iostream>
 
 #include "TMatrixT.h"
@@ -236,6 +237,10 @@ public:
 
   // public:
   //ClassDef(GFAbsRecoHit,3)
+
+  private:
+  virtual void Print(Option_t*) const
+    { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
 
 };
 } // namespace  

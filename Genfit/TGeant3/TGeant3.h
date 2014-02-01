@@ -18,6 +18,7 @@
 #undef WITHROOT
 #endif
 
+#include <stdexcept> // std::logic_error
 #include "TVirtualMC.h"
 #include "TMCProcess.h"
 #include "TMCParticleType.h"
@@ -1235,6 +1236,11 @@ protected:
   Int_t GetIonPdg(Int_t z, Int_t a, Int_t i = 0) const;                
   Int_t GetSpecialPdg(Int_t number) const;                
 
+private:
+  virtual Bool_t GetMaterial
+    (Int_t, TString&, Double_t&, Double_t&, Double_t&, Double_t&, Double_t&, TArrayD&)
+    { throw std::logic_error(std::string(__func__) + "::setData(TMatrixT, GFDetPlane, TMatrixT) not available"); }
+  
   ClassDef(TGeant3,1)  //C++ interface to Geant basic routines
 };
 

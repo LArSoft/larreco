@@ -24,6 +24,7 @@
 #ifndef GFABSTRACKREP_H
 #define GFABSTRACKREP_H
 
+#include<stdexcept> // std::logic_error
 #include<vector>
 #include<list>
 #include<iostream>
@@ -316,6 +317,9 @@ class GFAbsTrackRep : public TObject{
 
  private:
   void Abort(std::string method);
+
+  virtual void Print(Option_t*) const
+    { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
 
 
   //ClassDef(GFAbsTrackRep,3)

@@ -120,8 +120,8 @@ namespace cluster{
   }
 
   //####################################################################################  
-  void ClusterMergeAlg::AppendHitInfo(cluster_merge_info &ci, 
-				      const std::vector<art::Ptr<recob::Hit> > &in_hit_v) 
+  void ClusterMergeAlg::AppendHitInfo(cluster_merge_info &/*ci*/, 
+				      const std::vector<art::Ptr<recob::Hit> > &/*in_hit_v*/) 
   //####################################################################################  
   {}
 
