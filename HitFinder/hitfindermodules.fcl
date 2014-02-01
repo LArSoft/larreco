@@ -59,6 +59,18 @@ rff_hitfinder:
  MeanMultiplicity:     3                # require at least n nearby "means" to form a hit
 }
 
+tt_hitfinder:
+{
+ module_type:         "TTHitFinder"
+ CalDataModuleLabel:  "caldata"
+ MinSigIndPeak:       6.0
+ MinSigColPeak:       11.0
+ MinSigIndTail:       2.0
+ MinSigColTail:       3.67
+ IndWidth:            3
+ ColWidth:            3
+}
+
 #For now, keep the APAHitFinder configured just like the GausHitFinder
 apa_hitfinder:               @local::gaus_hitfinder
 apa_hitfinder.module_type:   "APAHitFinder"
