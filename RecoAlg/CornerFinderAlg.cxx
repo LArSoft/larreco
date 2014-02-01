@@ -859,7 +859,7 @@ void cluster::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, 
   //std::cout << "(Almost) Finished derivatives." << std::endl;
 
   //this is just a double Gaussian
-  float func_blur[10][10];
+  float func_blur[11][11];
   func_blur[0][0] = 0.000000;
   func_blur[0][1] = 0.000000;
   func_blur[0][2] = 0.000000;
@@ -1037,7 +1037,7 @@ void cluster::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x
   const int y_bins = h_derivative_y->GetNbinsY();
   
   //the structure tensor elements
-  double st_xx, st_xy, st_yy;
+  double st_xx = 0., st_xy = 0., st_yy = 0.;
 
   for(int iy=1+fCornerScore_neighborhood; iy<=(y_bins-fCornerScore_neighborhood); iy++){
     for(int ix=1+fCornerScore_neighborhood; ix<=(x_bins-fCornerScore_neighborhood); ix++){

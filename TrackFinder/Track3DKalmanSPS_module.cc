@@ -390,11 +390,11 @@ namespace trkf {
 
       std::vector< art::Ptr<recob::Hit> > hitlist = h.at(ind);
 
-      double wirePitch;
-      double angleToVert;
+      double wirePitch = 0.;
+      double angleToVert = 0;
       //      unsigned int tpc1;
       unsigned int plane1;
-      double charge;
+      double charge = 0.;
 
       for(std::vector< art::Ptr<recob::Hit> >::const_iterator ihit = hitlist.begin();
 	  ihit != hitlist.end(); ++ihit) 

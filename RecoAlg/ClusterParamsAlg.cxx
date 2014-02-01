@@ -451,7 +451,7 @@ int cluster::ClusterParamsAlg::FindTrunk(std::vector < art::Ptr < recob::Hit> > 
   {
   int fDirection=0;
   unsigned int currplane=999;
-  double fTotalCharge;
+  double fTotalCharge = 0.;
   
  
   
