@@ -28,7 +28,7 @@ extern "C" {
 MinuitStruct gMinStruct;
 
 /////////////////////////////////////////
-  void fcnW(Int_t &npar, Double_t *gin, Double_t &fval,
+  void fcnW(Int_t &/*npar*/, Double_t */*gin*/, Double_t &fval,
       double *par, Int_t iflag)
   {
     // Minuit function for fitting the amplitudes of all cluster hits on
@@ -97,8 +97,8 @@ MinuitStruct gMinStruct;
   }
 
 /////////////////////////////////////////
-  void fcnA(Int_t &npar, Double_t *gin, Double_t &fval,
-      double *par, Int_t iflag)
+  void fcnA(Int_t &/*npar*/, Double_t */*gin*/, Double_t &fval,
+      double *par, Int_t /*iflag*/)
   {
     // Minuit function for fitting the vertex position and average hit signals
     // on All wires in the RAT range
@@ -208,7 +208,7 @@ namespace cluster{
   
   void CCHitRefinerAlg::RunCCHitRefiner(
       std::vector<CCHitFinderAlg::CCHit>& allhits,
-      CCHitFinderAlg::HitCuts& hitcuts,
+      CCHitFinderAlg::HitCuts& /*hitcuts*/,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl,
       std::vector<ClusterCrawlerAlg::VtxStore>& vtx, 
       ClusterCrawlerAlg& fCCAlg) 
@@ -293,7 +293,7 @@ namespace cluster{
   void CCHitRefinerAlg::RefineHits(
     std::vector<CCHitFinderAlg::CCHit>& allhits,
     std::vector<ClusterCrawlerAlg::ClusterStore>& tcl,
-    std::vector<ClusterCrawlerAlg::VtxStore>& vtx)
+    std::vector<ClusterCrawlerAlg::VtxStore>& /*vtx*/)
   {
 
     // get the amplitude -> charge normalization from a hit on a cluster
@@ -488,7 +488,7 @@ namespace cluster{
 
 /////////////////////////////////////////
   void CCHitRefinerAlg::FitHitAmplitudes(
-    std::vector<ClusterCrawlerAlg::VtxStore>& vtx)
+    std::vector<ClusterCrawlerAlg::VtxStore>& /*vtx*/)
   {
     // Performs a fit to the wire signal on each wire in the RAT range
     // to find the amplitudes and time offsets of all of the hits
@@ -816,7 +816,7 @@ namespace cluster{
   void CCHitRefinerAlg::FillVcl(
     std::vector<CCHitFinderAlg::CCHit>& allhits,
     std::vector<ClusterCrawlerAlg::ClusterStore>& tcl, 
-    std::vector<ClusterCrawlerAlg::VtxStore>& vtx)
+    std::vector<ClusterCrawlerAlg::VtxStore>& /*vtx*/)
   {
     // refit the clusters associated with theVtx. The fit is done
     // at the boundary of the RAT range. 
@@ -978,7 +978,7 @@ namespace cluster{
   void CCHitRefinerAlg::FindRATRange(
       std::vector<CCHitFinderAlg::CCHit>& allhits,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl, 
-      std::vector<ClusterCrawlerAlg::VtxStore>& vtx,
+      std::vector<ClusterCrawlerAlg::VtxStore>& /*vtx*/,
       bool& SkipIt)
   {
     // gets the range of wires and times of the RAT surrounding theVtx.
@@ -1109,7 +1109,7 @@ namespace cluster{
 
 /////////////////////////////////////////
     void CCHitRefinerAlg::SetClusterBeginEnd(
-        std::vector<CCHitFinderAlg::CCHit>& allhits,
+        std::vector<CCHitFinderAlg::CCHit>& /*allhits*/,
         std::vector<ClusterCrawlerAlg::ClusterStore>& tcl)
     {
       // This routine prepares the clusters in tcl for stuffing into

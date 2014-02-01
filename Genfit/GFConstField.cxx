@@ -18,6 +18,6 @@
 */
 #include"GFConstField.h"
 
-TVector3 genf::GFConstField::get(const TVector3& pos) const{
+TVector3 genf::GFConstField::get(const TVector3& /* pos */) const{
   return TVector3(fF1,fF2,fF3);
 }

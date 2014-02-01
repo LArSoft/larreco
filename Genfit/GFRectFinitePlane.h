@@ -31,6 +31,7 @@
 #ifndef GFRECTFINITEPLANE_H
 #define GFRECTFINITEPLANE_H
 
+#include <stdexcept> // std::logic_error
 #include "Genfit/GFAbsFinitePlane.h"
 
 /** @brief Concrete implementation of finitie detector plane for rectangles.
@@ -55,6 +56,9 @@ public:
   }
  private:
   double fUmin,fUmax,fVmin,fVmax;
+  
+  virtual void Print(Option_t*) const
+    { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
   // public:
   //ClassDef(GFRectFinitePlane,1)
 };

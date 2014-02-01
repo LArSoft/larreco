@@ -56,7 +56,7 @@ namespace apa{
   }
 
   //----------------------------------------------------------
-  void APAGeometryAlg::reconfigure(fhicl::ParameterSet const& p)
+  void APAGeometryAlg::reconfigure(fhicl::ParameterSet const& /*p*/)
   {
   }
 

@@ -187,7 +187,7 @@ double genf::GFMaterialEffects::stepper(const double& maxDist,
                                   const double& diry,
                                   const double& dirz,
                                   const double& mom,
-                                  const int& pdg){
+                                  const int& /* pdg */){
 
   static const double maxPloss = .005; // maximum relative momentum loss allowed
 

@@ -167,8 +167,6 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
   art::FindManyP<recob::Hit> fmh(clusterListHandle, evt, fDBScanModuleLabel);
 
   int flag   = 0;
-  int windex = 0; //the wire index to make sure the vertex finder does not fall off the edge of the hit map
-  int tindex = 0; //the time index to make sure the vertex finder does not fall off the edge of the hit map
   int n      = 0; //index of window cell. There are 49 cells in the 7X7 Gaussian and Gaussian derivative windows
   unsigned int numberwires = 0;
   double numbertimesamples = 0.;
@@ -240,15 +238,13 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
 	MatrixBsum[wire][timebin] = 0.;
 	n = 0;
 	for(int i = -3; i <= 3; ++i) {
-	  windex=0;
+	  unsigned int windex = ((int)wire < -i)? 0: wire + i;
+	  if (windex >= numberwires) windex = numberwires - 1;
 	  for(int j = -3; j <= 3; ++j) {
-	    tindex=0;
-	    while(wire+i+windex < 0)            ++windex;
-	    while(wire+i+windex > numberwires)  --windex;
-	    while(timebin+j+tindex < 0)         ++tindex;
-	    while(timebin+j+tindex > fTimeBins) --tindex;               
-	    MatrixAsum[wire][timebin] += wx[n]*hit_map[wire+i+windex][timebin+j+tindex];  
-	    MatrixBsum[wire][timebin] += wy[n]*hit_map[wire+i+windex][timebin+j+tindex]; 
+	    unsigned int tindex = (unsigned int) std::min(std::max(timebin +j, 0), fTimeBins - 1);
+	    
+	    MatrixAsum[wire][timebin] += wx[n]*hit_map[windex][tindex];
+	    MatrixBsum[wire][timebin] += wy[n]*hit_map[windex][tindex];
 	    ++n;
 	  }// end loop over j
 	}// end loop over i
@@ -265,16 +261,13 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
 	n = 0;
 	
 	for(int i = -3; i <= 3; i++) {
-	  windex=0;
+	  unsigned int windex = ((int)wire < -i)? 0: wire + i;
+	  if (windex >= numberwires) windex = numberwires - 1;
 	  for(int j = -3; j <= 3; j++) {
-	    tindex = 0;
-	    while(wire+i+windex < 0)            ++windex;
-	    while(wire+i+windex > numberwires)  --windex;
-	    while(timebin+j+tindex < 0)         ++tindex;
-	    while(timebin+j+tindex > fTimeBins) --tindex;               
-	    MatrixAAsum += w[n]*pow(MatrixAsum[wire+i][timebin+j],2);  
-	    MatrixBBsum += w[n]*pow(MatrixBsum[wire+i][timebin+j],2);                   
-	    MatrixCCsum += w[n]*MatrixAsum[wire+i][timebin+j]*MatrixBsum[wire+i][timebin+j]; 
+	    unsigned int tindex = (unsigned int) std::min(std::max(timebin +j, 0), fTimeBins - 1);
+	    MatrixAAsum += w[n]*pow(MatrixAsum[windex][tindex],2);
+	    MatrixBBsum += w[n]*pow(MatrixBsum[windex][tindex],2);
+	    MatrixCCsum += w[n]*MatrixAsum[windex][tindex]*MatrixBsum[windex][tindex]; 
 	    ++n;
 	  }// end loop over j
 	}// end loop over i

@@ -388,7 +388,7 @@ std::vector< art::Ptr<recob::Hit> > cluster::SmallClusterFinderAlg::CreateHighHi
 // ******************************* //
 int cluster::SmallClusterFinderAlg::GetPlaneAndTPC(art::Ptr<recob::Hit> a, //the hit
 						unsigned int &p, //plane
- 						unsigned int &cs,  //cryostat
+ 						unsigned int &/*cs*/,  //cryostat
 						unsigned int &t, //time
 						unsigned int &w) //wire
 {

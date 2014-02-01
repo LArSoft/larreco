@@ -49,7 +49,7 @@ genf::GFTrack::~GFTrack() {
   }
 }
 
-genf::GFTrack::GFTrack(const GFTrack& _tr) {
+genf::GFTrack::GFTrack(const GFTrack& _tr): TObject() {
   fCand=_tr.fCand;
   fCardinal_rep=_tr.fCardinal_rep;
   fNextHitToFit=_tr.fNextHitToFit;
