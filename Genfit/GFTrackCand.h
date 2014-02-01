@@ -22,6 +22,7 @@
 #ifndef GFTRACKCAND_H
 #define GFTRACKCAND_H
 
+#include<stdexcept> // std::logic_error
 #include <vector>
 #include <set>
 #include "assert.h"
@@ -187,6 +188,9 @@ namespace genf {
 
     int fMcTrackId; //if MC simulation, store the mct track id here
     // Private Methods -----------------
+
+    virtual void Print(Option_t*) const
+      { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
 
     //public:
     //ClassDef(GFTrackCand,3)

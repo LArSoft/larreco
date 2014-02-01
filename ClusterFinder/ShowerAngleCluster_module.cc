@@ -207,7 +207,7 @@ cluster::ShowerAngleCluster::~ShowerAngleCluster()
 }
 
 //____________________________________________________________________________
- void cluster::ShowerAngleCluster::beginRun(art::Run& run)
+ void cluster::ShowerAngleCluster::beginRun(art::Run& /*run*/)
   {
     
   //  //std::cout << "------------- In SHowANgle preBeginRun"<<  larp->Efield() << std::endl;

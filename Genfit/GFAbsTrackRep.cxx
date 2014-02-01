@@ -53,26 +53,26 @@ void genf::GFAbsTrackRep::Abort(std::string method){
   throw;
 }
 
-void genf::GFAbsTrackRep::extrapolateToPoint(const TVector3& point,
-				    TVector3& poca,
-				    TVector3& normVec){
+void genf::GFAbsTrackRep::extrapolateToPoint(const TVector3& /* point */,
+				    TVector3& /* poca */,
+				    TVector3& /* normVec */){
   Abort("extrapolateToPoca()");
 }
 
-void genf::GFAbsTrackRep::extrapolateToLine(const TVector3& point1, 
-									const TVector3& point2,
-									TVector3& poca,
-									TVector3& normVec,
-									TVector3& poca_onwire){
+void genf::GFAbsTrackRep::extrapolateToLine(const TVector3& /* point1 */, 
+									const TVector3& /* point2 */,
+									TVector3& /* poca */,
+									TVector3& /* normVec */,
+									TVector3& /* poca_onwire */){
   Abort("extrapolateToLine()");
 }
   
 
-void genf::GFAbsTrackRep::stepalong(double h){
+void genf::GFAbsTrackRep::stepalong(double /* h */){
   Abort("stepalong()");
 }
 
-void genf::GFAbsTrackRep::getPosMomCov(const GFDetPlane& pl,TVector3& pos,TVector3& mom,TMatrixT<Double_t>& cov){
+void genf::GFAbsTrackRep::getPosMomCov(const GFDetPlane& /* pl */,TVector3& /* pos */,TVector3& /* mom */,TMatrixT<Double_t>& /* cov */){
   Abort("getPosMomCov()");
 }
 

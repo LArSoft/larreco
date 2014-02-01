@@ -24,6 +24,7 @@
 
 #include"TObject.h"
 #include"TMatrixT.h"
+#include<stdexcept> // std::logic_error
 #include<vector>
 #include<cassert>
 #include<iostream>
@@ -83,7 +84,10 @@ class GFBookkeeping : public TObject {
 
  private:
   //protect from call of net yet defined assignement operator
-  GFBookkeeping& operator=(const GFBookkeeping& rhs){return *this;}
+  GFBookkeeping& operator=(const GFBookkeeping& /* rhs */){return *this;}
+  
+  virtual void Print(Option_t*) const
+    { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
 
   // public:
   //ClassDef(GFBookkeeping,2)

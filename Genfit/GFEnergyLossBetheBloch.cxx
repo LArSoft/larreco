@@ -31,13 +31,13 @@ double genf::GFEnergyLossBetheBloch::energyLoss(const double& step,
                                           const double& matDensity,
                                           const double& matZ,
                                           const double& matA,
-                                          const double& radiationLength,
+                                          const double& /* radiationLength */,
                                           const double& meanExcitationEnergy,
                                           const bool&   doNoise,
                                                 TMatrixT<Double_t>* noise,
-                                          const TMatrixT<Double_t>* jacobian,
-                                          const TVector3* directionBefore,
-                                          const TVector3* directionAfter){
+                                          const TMatrixT<Double_t>* /* jacobian */,
+                                          const TVector3* /* directionBefore */,
+                                          const TVector3* /* directionAfter */){
 
   static const double me = getParticleMass(11); // electron mass (GeV)  0.000519...
 

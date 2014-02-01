@@ -58,7 +58,7 @@ genf::GFSpacepointHitPolicy::hitCoord(GFAbsRecoHit* hit,const GFDetPlane& plane)
 
 
 TMatrixT<Double_t> 
-genf::GFSpacepointHitPolicy::hitCoord(GFAbsRecoHit* hit,const GFDetPlane& plane,const GFDetPlane& planePrev)
+genf::GFSpacepointHitPolicy::hitCoord(GFAbsRecoHit* hit,const GFDetPlane& plane,const GFDetPlane& /* planePrev */)
 {
   TMatrixT<Double_t> returnMat(5,1); // Just return last 2 elements. Will calculate the rest in GFKalman.cxx.
 

@@ -698,7 +698,7 @@ bool genf::RKTrackRep::RKutta (const GFDetPlane& plane,
                          double& coveredDistance, 
                          std::vector<TVector3>& points,
                          std::vector<double>& pointPaths, 
-                         const double& maxLen,  // currently not used
+                         const double& /* maxLen */,  // currently not used
                          bool calcCov) const {
 
   static const double EC     = .000149896229;   // c/(2*10^12) resp. c/2Tera

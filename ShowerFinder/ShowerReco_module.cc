@@ -341,7 +341,7 @@ void ShowerReco::beginRun(art::Run&)
 
 
 
- void ShowerReco::ShowerReco::ClearandResizeVectors(unsigned int nPlanes) {
+ void ShowerReco::ShowerReco::ClearandResizeVectors(unsigned int /*nPlanes*/) {
     //calculate factorial for number of angles
   int fact=1;
   for (unsigned int i = 1; i <= fNPlanes; ++i) fact *= i;
@@ -836,7 +836,7 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
 
 
 //------------------------------------------------------------------------------
-void ShowerReco::LongTransEnergy(unsigned int set, std::vector < art::Ptr<recob::Hit> > hitlist, bool isData)
+void ShowerReco::LongTransEnergy(unsigned int set, std::vector < art::Ptr<recob::Hit> > hitlist, bool /*isData*/)
 {
   // alogorithm for energy vs dx of the shower (roto-translation) COLLECTION VIEW
   // double  wire_cm, time_cm;

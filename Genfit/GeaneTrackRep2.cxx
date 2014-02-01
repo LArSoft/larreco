@@ -633,7 +633,7 @@ genf::GeaneTrackRep2::getPosMom(const GFDetPlane& pl,TVector3& pos, TVector3& mo
 
 
 void
-genf::GeaneTrackRep2::getPosMomCov(const GFDetPlane& pl,TVector3& pos,TVector3& mom,TMatrixT<Double_t>& cov){
+genf::GeaneTrackRep2::getPosMomCov(const GFDetPlane& /* pl */,TVector3& /* pos */,TVector3& /* mom */,TMatrixT<Double_t>& cov){
   cov.ResizeTo(6,6);
   std::cerr<<"insert brain here " << __FILE__ << " " << __LINE__
 	   << " ->abort" <<std::endl;

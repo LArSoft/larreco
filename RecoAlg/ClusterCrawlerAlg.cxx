@@ -1791,7 +1791,7 @@ namespace cluster {
 
 /////////////////////////////////////////
   void ClusterCrawlerAlg::PrintClusters(
-    std::vector<CCHitFinderAlg::CCHit>& allhits, 
+    std::vector<CCHitFinderAlg::CCHit>& /*allhits*/, 
      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
   {
     // prints clusters to the screen for code development
@@ -1845,7 +1845,7 @@ namespace cluster {
   } // cl2Print
 
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::TmpGet(std::vector<CCHitFinderAlg::CCHit>& allhits,
+    void ClusterCrawlerAlg::TmpGet(std::vector<CCHitFinderAlg::CCHit>& /*allhits*/,
         std::vector<ClusterStore>& tcl, unsigned short it1)
     {
       // copies temp cluster it1 into the fcl2hits vector, etc. This is 
@@ -2395,8 +2395,10 @@ namespace cluster {
       fAveRMS = 0.;
       unsigned short hitcnt = 0;
       bool UseEm = false;
-      for(unsigned short it = cls.tclhits.size() - 1; it >= 0; --it) {
-        unsigned short ihit = cls.tclhits[it];
+//      for(unsigned short it = cls.tclhits.size() - 1; it >= 0; --it) {
+//        unsigned short ihit = cls.tclhits[it];
+      for(auto it = cls.tclhits.crbegin(); it != cls.tclhits.crend(); ++it) {
+        unsigned short ihit = *it;
         if(ihit > allhits.size()-1) {
           mf::LogVerbatim("ClusterCrawler")<<"FitClusterMid bad ihit "<<ihit;
           return;
