@@ -13,7 +13,6 @@
  * that will need to clean it up.
  */
 #include <string>
-#include <stdint.h>
 #include <math.h>
 
 // Framework includes
@@ -24,16 +23,7 @@
 // LArSoft Includes
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
 #include "RecoBase/Hit.h"
-
-// ROOT Includes 
-#include "TH1D.h"
-#include "TDecompSVD.h"
-#include "TMath.h"
-#include "TF1.h"
 
 namespace hit{
 
@@ -165,7 +155,14 @@ namespace hit{
 	//if necessary, do loop over hit width, and check tail thresholds
 	int begin_tail_tick = std::floor(time_bin-half_width);
 	float totalCharge = getTotalCharge(&signal[begin_tail_tick],width,threshold_tail);
-	if(totalCharge==-999) continue;
+	if(totalCharge==-999) {
+	  mf::LogInfo("TTHitFinderDetail") << "Rejecting would be hit at (plane,wire,time_bin,first_bin,last_bin)=(" 
+				     << wire_id.Plane << "," << wire_id.Wire << "," << time_bin << "," << begin_tail_tick << "," << begin_tail_tick+width-1 << "): " 
+				     << signal.at(time_bin-1) << " "
+				     << signal.at(time_bin) << " "
+				     << signal.at(time_bin+1);
+	  continue;
+	}
 	
 	//OK, if we've passed all tests up to this point, we have a hit!
 
@@ -183,11 +180,18 @@ namespace hit{
 		       );
 	hitCollection->push_back(hit);
 
+	mf::LogInfo("TTHitFinderDetail") << "Adding new hit at (plane,wire,time)=(" 
+				   << wire_id.Plane << "," << wire_id.Wire << "," << hit_time << "): " 
+				   << signal.at(time_bin-1) << " "
+				   << signal.at(time_bin) << " "
+				   << signal.at(time_bin+1);
+
       }//End loop over time ticks on wire
 
     }//End loop over all wires
 
     //put this hit collection onto the event
+    mf::LogInfo("TTHitFinder") << "Total TTHitFinder hits: " << hitCollection->size();
     evt.put(std::move(hitCollection));
 
   } // End of produce()  
@@ -197,7 +201,7 @@ namespace hit{
   float TTHitFinder::getTotalCharge(const float* signal_vector,int width=3,float threshold=-99){
 
     float totalCharge = 0;
-    for(int tick=0; tick<=width; tick++){
+    for(int tick=0; tick<width; tick++){
       if(signal_vector[tick] < threshold){
 	totalCharge = -999; //special value for being below threshold
 	break;

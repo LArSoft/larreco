@@ -63,10 +63,10 @@ tt_hitfinder:
 {
  module_type:         "TTHitFinder"
  CalDataModuleLabel:  "caldata"
- MinSigIndPeak:       6.0
- MinSigColPeak:       11.0
- MinSigIndTail:       2.0
- MinSigColTail:       3.67
+ MinSigPeakInd:       6.0
+ MinSigPeakCol:       11.0
+ MinSigTailInd:       2.0
+ MinSigTailCol:       3.67
  IndWidth:            3
  ColWidth:            3
 }
