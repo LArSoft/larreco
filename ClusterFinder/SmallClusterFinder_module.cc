@@ -118,7 +118,7 @@ namespace cluster{
 	}
 
 	//____________________________________________________________________________
-	void SmallClusterFinder::beginRun(art::Run& run)
+	void SmallClusterFinder::beginRun(art::Run& /*run*/)
 	  {
 		//nothing to do at beginRun()
 		return;

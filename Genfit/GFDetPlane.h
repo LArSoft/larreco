@@ -32,8 +32,8 @@
 #ifndef GFDETPLANE_H
 #define GFDETPLANE_H
 
+#include<stdexcept> // std::logic_error
 #include"GFAbsFinitePlane.h"
-
 #include "TObject.h"
 
 #include "TVector3.h"
@@ -159,6 +159,11 @@ namespace genf {
     // Private Methods -----------------
 
     void sane(); // ensures orthnormal coordinates
+    
+  private:
+    virtual void Print(Option_t*) const
+      { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
+
     //public:
     //ClassDef(GFDetPlane,2)
 

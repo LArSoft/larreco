@@ -1101,7 +1101,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 /// some small value.
 ///
 bool trkf::KalmanFilterAlg::fitMomentumRange(const KGTrack& trg,
-					     const Propagator* prop,
+					     const Propagator* /*prop*/,
 					     KETrack& tremom) const
 {
   if(!trg.isValid())
