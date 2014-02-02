@@ -1,4 +1,5 @@
 
+cet_remove_compiler_flag( CXX -Werror )
 
 art_make( BASENAME_ONLY
           EXCLUDE FeatureVertexFinder_module.cc

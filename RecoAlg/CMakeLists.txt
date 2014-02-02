@@ -1,4 +1,5 @@
 
+cet_remove_compiler_flag( CXX -Werror )
 
 art_make( LIBRARY_NAME  RecoAlg
           LIB_LIBRARIES HarrisVertexFinder_module
