@@ -217,4 +217,4 @@ namespace hit{
 } // end of hit namespace
 
 
-#endif // FTHITFINDER_H
+#endif // TTHITFINDER_H
