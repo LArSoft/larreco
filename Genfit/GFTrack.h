@@ -25,6 +25,7 @@
 #define GFTRACK_H
 
 #include"assert.h"
+#include<stdexcept> // std::logic_error
 #include<map>
 
 #include "Genfit/GFAbsTrackRep.h"
@@ -427,6 +428,10 @@ public:
   //! are in the same planes.
   void getHitsByPlane(std::vector<std::vector<int>*>& retVal);
   
+
+private:
+  virtual void Print(Option_t*) const
+    { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
 
   //public:
   //ClassDef(GFTrack,1)

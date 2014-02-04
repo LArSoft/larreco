@@ -117,13 +117,17 @@ struct AcceptEllipse {
     return (t < 1);
   }
 private:
+  static const BoundingBox EmptyBoundingBox; // for uninitialized bounds
+  
   AcceptEllipse()
-    :m_bound(BoundingBox()),r(),c(){
+    :m_bound(EmptyBoundingBox),r(),c(){
     r[0] = r[1] = 1.0;
     c[0] = (m_bound.edges[0].second-m_bound.edges[0].first)/2.0;
     c[1] = (m_bound.edges[1].second-m_bound.edges[1].first)/2.0;
   }
 };
+
+const BoundingBox AcceptEllipse::EmptyBoundingBox;
 
 //----------------------------------------------------------
 // FindNeighbors acceptor

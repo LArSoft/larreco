@@ -217,15 +217,6 @@ namespace vertex{
     
     double presamplings = detprop->TriggerOffset(); //trigger offset
     
-    // =============================================
-    // === Wire Pitch variable (to be set later) ===
-    // =============================================
-    double wire_pitch   = 0;
-    // ===========================================================
-    // === Number of planes in this detector (to be set later) ===
-    // ===========================================================
-    int nplanes = 0;
-    
     std::vector<double> vtx_wire = {0.};
     std::vector<double> vtx_time = {0.};
     std::vector<double> vtx_plane = {0.};
@@ -738,17 +729,17 @@ for(int checkz = nGood3dFeatures; checkz > 0; checkz--)
       	// ##########################
       	for(size_t tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc)
 		{
-		nplanes = geom->Cryostat(cstat).TPC(tpc).Nplanes();
+		// unsigned int nplanes = geom->Cryostat(cstat).TPC(tpc).Nplanes();
 		
 		
     		
     		// #################################
 		// ### Loop over the wire planes ###
 		// #################################
-		for (int i = 0; i < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++i)
+		for (unsigned int i = 0; i < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++i)
 			{
     			//           geom->WirePitch(Wire1, Wire2, Plane#, TPC#, Cyro#);
-    			wire_pitch = geom->WirePitch(0,1,i,tpc,cstat);
+    			// double wire_pitch = geom->WirePitch(0,1,i,tpc,cstat); // currently unused
     			
 			// ##############################################
 	  		// ### If there is at least one cluster found ###

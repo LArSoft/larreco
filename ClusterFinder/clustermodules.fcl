@@ -36,6 +36,17 @@ standard_fuzzycluster:
  CornerFinderAlg: @local::standard_cornerfinderalg
 }
 
+standard_ccclusterana:
+{ 
+ module_type:              "CCclusterAna"
+ HitsModuleLabel:          "cccluster"
+ ClusterModuleLabel:       "cccluster"
+ HitEnergyFraction:        0.1
+ TrackWeightOption:        1 # 0 = equal weighting, 1 = weight by kinetic energy
+ MergeDaughters:           true # merge daughter MC particles with mothers
+ MergeAngleCut:            0.2 # radians. Angle cut for MC particle merging
+}
+
 standard_dbclusterana:
 { 
  module_type:              "DBclusterAna"

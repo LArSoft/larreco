@@ -325,7 +325,7 @@ cluster::ShowerAngleClusterAna::~ShowerAngleClusterAna()
 }
 
 //____________________________________________________________________________
-void cluster::ShowerAngleClusterAna::beginRun(const art::Run& run)
+void cluster::ShowerAngleClusterAna::beginRun(const art::Run& /*run*/)
 {
     
   //  //std::cout << "------------- In SHowANgle preBeginRun"<<  larp->Efield() << std::endl;
@@ -1297,7 +1297,7 @@ void cluster::ShowerAngleClusterAna::GetVertexCluster(std::vector < art::Ptr < r
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 // old version - picks up the mother particle only 
-void cluster::ShowerAngleClusterAna::GetVertexN(const art::Event& evt){
+void cluster::ShowerAngleClusterAna::GetVertexN(const art::Event& /*evt*/){
 
   fMCPDGstart.clear(); 
   fMCenergystart.clear();

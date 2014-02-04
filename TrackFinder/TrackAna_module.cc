@@ -42,7 +42,7 @@ namespace {
 
   // Calculate distance to boundary.
   //----------------------------------------------------------------------------
-  double bdist(const TVector3& pos, unsigned int tpc = 0, unsigned int cstat = 0)
+  double bdist(const TVector3& pos, unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
   {
     // Get geometry.
 
@@ -81,7 +81,7 @@ namespace {
   //----------------------------------------------------------------------------
   double length(const simb::MCParticle& part, 
 		TVector3& start, TVector3& end,
-		unsigned int tpc = 0, unsigned int cstat = 0)
+		unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
   {
     // Get geometry.
 

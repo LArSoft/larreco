@@ -28,7 +28,7 @@
 #ifndef RKTRACKREP_H
 #define RKTRACKREP_H
 
-
+#include <stdexcept> // std::logic_error
 #include "Genfit/GFAbsTrackRep.h"
 #include "Genfit/GFDetPlane.h"
 #include "Genfit/GFTrackCand.h"
@@ -166,8 +166,8 @@ class RKTrackRep : public GFAbsTrackRep {
   TMatrixT<double> fAuxInfo;
 
 
-  RKTrackRep& operator=(const RKTrackRep* rhs){return *this;};
-  RKTrackRep(const RKTrackRep& rhs){};
+  RKTrackRep& operator=(const RKTrackRep* /* rhs */){return *this;}
+  RKTrackRep(const RKTrackRep& /* rhs */): GFAbsTrackRep() {}
   bool fDirection;
     
   //! PDG particle code
@@ -204,6 +204,10 @@ class RKTrackRep : public GFAbsTrackRep {
     */
   double Extrap(const GFDetPlane& plane, TMatrixT<Double_t>* state, TMatrixT<Double_t>* cov=NULL) const;
 
+  
+  void setData(const TMatrixT<Double_t>& /* st */, const GFDetPlane& /* pl */, const TMatrixT<Double_t>* /*cov*/=NULL)
+    { throw std::logic_error(std::string(__func__) + "::setData(TMatrixT, GFDetPlane, TMatrixT) not available"); }
+  
   // public:
   //ClassDef(RKTrackRep,3)
 

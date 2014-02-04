@@ -440,7 +440,7 @@ bool vertex::PrimaryVertexFinder::IsInVertexCollection(int a, std::vector<std::v
 // //------------------------------------------------------------------------------
 int vertex::PrimaryVertexFinder::IndexInVertexCollection(int a, int b, std::vector<std::vector<int> > vertex_collection)
 {
-  int index;
+  int index = -1;
   for(unsigned int i = 0; i < vertex_collection.size() ; i++){
     for(std::vector<int>::iterator itr = vertex_collection[i].begin(); itr < vertex_collection[i].end(); ++itr){
       if (a == *itr || b == *itr)

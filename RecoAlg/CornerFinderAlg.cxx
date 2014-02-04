@@ -86,7 +86,7 @@ cluster::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset)
   /* For now, we need something to associate each wire in the histogram with a wire_id.
      This is not a beautiful way of handling this, but for now it should work. */
   WireData_IDs.resize(nPlanes);
-  for(uint i_plane=0; i_plane < nPlanes; ++i_plane)
+  for(unsigned int i_plane=0; i_plane < nPlanes; ++i_plane)
     WireData_IDs[i_plane].resize(fGeom->Nwires(i_plane));
   
   WireData_trimmed_histos.resize(0);
@@ -191,7 +191,7 @@ void cluster::CornerFinderAlg::TakeInRaw( art::Event const&evt)
   run_number = evt.run();
 
   // Creating the histograms
-  for (uint i_plane=0; i_plane < fGeom->Nplanes(); i_plane++){
+  for (unsigned int i_plane=0; i_plane < fGeom->Nplanes(); i_plane++){
     
     std::stringstream ss_tmp_name,ss_tmp_title;
     ss_tmp_name << "h_WireData_" << i_plane << "_" << run_number << "_" << event_number;
@@ -233,20 +233,20 @@ void cluster::CornerFinderAlg::TakeInRaw( art::Event const&evt)
     try { this_wireID = possible_wireIDs.at(0);}
     catch(cet::exception& excep) { std::cout << "Bail out! No Possible Wires!"<< std::endl; }
     
-    uint i_plane = this_wireID.Plane;
-    uint i_wire = this_wireID.Wire;
+    unsigned int i_plane = this_wireID.Plane;
+    unsigned int i_wire = this_wireID.Wire;
 
     WireData_IDs[i_plane][i_wire] = this_wireID;
     
     std::vector<float> signal(wire->Signal());
-    for(uint i_time = 0; i_time < nTimeTicks; i_time++){
+    for(unsigned int i_time = 0; i_time < nTimeTicks; i_time++){
       WireData_histos[i_plane]->SetBinContent(i_wire,i_time,signal[i_time]);  
     }//<---End time loop
         
   }//<-- End loop over wires
   
 
-  for (uint i_plane=0; i_plane < fGeom->Nplanes(); i_plane++){
+  for (unsigned int i_plane=0; i_plane < fGeom->Nplanes(); i_plane++){
     WireData_histos_ProjectionX[i_plane] = WireData_histos[i_plane]->ProjectionX();
     WireData_histos_ProjectionY[i_plane] = WireData_histos[i_plane]->ProjectionY();
   }
@@ -859,7 +859,7 @@ void cluster::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, 
   //std::cout << "(Almost) Finished derivatives." << std::endl;
 
   //this is just a double Gaussian
-  float func_blur[10][10];
+  float func_blur[11][11];
   func_blur[0][0] = 0.000000;
   func_blur[0][1] = 0.000000;
   func_blur[0][2] = 0.000000;
@@ -1037,7 +1037,7 @@ void cluster::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x
   const int y_bins = h_derivative_y->GetNbinsY();
   
   //the structure tensor elements
-  double st_xx, st_xy, st_yy;
+  double st_xx = 0., st_xy = 0., st_yy = 0.;
 
   for(int iy=1+fCornerScore_neighborhood; iy<=(y_bins-fCornerScore_neighborhood); iy++){
     for(int ix=1+fCornerScore_neighborhood; ix<=(x_bins-fCornerScore_neighborhood); ix++){

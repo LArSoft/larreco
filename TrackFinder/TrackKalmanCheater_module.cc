@@ -360,7 +360,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 	    const recob::Hit& hit = **ih;
 	    unsigned int plane = hit.WireID().Plane;
 
-	    assert(plane >= 0 && plane < planehits.size());
+	    assert(/*plane >= 0 &&*/ plane < planehits.size());
 	    ++planehits[plane];
 	  }
 	  unsigned int prefplane = 0;

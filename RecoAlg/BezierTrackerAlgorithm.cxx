@@ -68,7 +68,7 @@ namespace trkf {
 
 
   //-----------------------------------------------
-  std::vector<trkf::BezierTrack> BezierTrackerAlgorithm::MakeTracks(std::vector< std::vector<art::PtrVector<recob::Hit> > >& SortedHits, std::vector<art::PtrVector<recob::Hit> >& HitAssocs)
+  std::vector<trkf::BezierTrack> BezierTrackerAlgorithm::MakeTracks(std::vector< std::vector<art::PtrVector<recob::Hit> > >& SortedHits, std::vector<art::PtrVector<recob::Hit> >& HitAssocs, std::vector<std::vector<std::pair<int,int> > >& ClustersUsed)
   {
     
     std::vector<trkf::BezierTrack> ReturnVector;
@@ -239,6 +239,13 @@ namespace trkf {
 		std::vector<std::vector<recob::Seed> > SeedsForTracks = OrganizeSeedsIntoTracks(SeedsThisCombo, HitStruct, HitsPerSeed, OrgHits, HitsPerTrack);
 		for(size_t iTrack=0; iTrack!=SeedsForTracks.size(); ++iTrack)
 		  {
+		    std::vector<std::pair<int, int> > ClustersThisTrack;
+		    ClustersThisTrack.push_back(std::pair<int,int>(0,nU));
+		    ClustersThisTrack.push_back(std::pair<int,int>(1,nV));
+		    ClustersThisTrack.push_back(std::pair<int,int>(2,nW));
+
+		    ClustersUsed.push_back(ClustersThisTrack);
+		    
 		    ReturnVector.push_back(trkf::BezierTrack(SeedsForTracks.at(iTrack)));
 		    // Fill up the hit vector
 		    art::PtrVector<recob::Hit> HitsForThisTrack;
@@ -266,7 +273,7 @@ namespace trkf {
 
   //------------------------------------------------
   
-  void BezierTrackerAlgorithm::FilterOverlapTracks(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs)
+  void BezierTrackerAlgorithm::FilterOverlapTracks(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs, std::vector<std::vector<std::pair<int, int> > >& ClustersUsed)
   {
     
     std::map<int, bool> ToErase;
@@ -321,6 +328,7 @@ namespace trkf {
 	  {
 	    BTracks.erase(BTracks.begin()+i);
 	    HitVecs.erase(HitVecs.begin()+i);
+	    ClustersUsed.erase(ClustersUsed.begin()+i);
 	  }
       }
   }
@@ -329,7 +337,7 @@ namespace trkf {
 
   //------------------------------------------------
   
-  void BezierTrackerAlgorithm::MakeOverlapJoins(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs)
+  void BezierTrackerAlgorithm::MakeOverlapJoins(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs, std::vector<std::vector<std::pair<int, int> > >& ClustersUsed)
   {
     
     std::vector<double> Lengths;
@@ -371,7 +379,12 @@ namespace trkf {
 			
 			// Add the pointervectors into 1 and remove 2
 			AddPtrVectors(HitVecs.at(t1), HitVecs.at(t2));
+			ClustersUsed.at(t1).insert(ClustersUsed.at(t1).begin(),
+						   ClustersUsed.at(t2).begin(),
+						   ClustersUsed.at(t2).end());
+		       
 			HitVecs.erase(HitVecs.begin()+t2);
+			ClustersUsed.erase(ClustersUsed.begin()+t2);
 			
 			LoopStatus=3;
 		      }
@@ -385,7 +398,7 @@ namespace trkf {
 
 
   //--------------------------------------------
-  void BezierTrackerAlgorithm::SortTracksByLength(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs)
+  void BezierTrackerAlgorithm::SortTracksByLength(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs, std::vector<std::vector<std::pair<int, int> > >& ClustersUsed)
   {
     
     std::vector<double> Lengths;
@@ -415,21 +428,24 @@ namespace trkf {
     
     std::vector<trkf::BezierTrack> BTracksNew;
     std::vector<art::PtrVector<recob::Hit> >  HitVecsNew;
+    std::vector<std::vector<std::pair<int, int> > > ClustersUsedNew;
     for(size_t i=0; i!=SortedOrder.size(); ++i)
       {
 	BTracksNew.push_back(BTracks.at(SortedOrder.at(i)));
 	HitVecsNew.push_back(HitVecs.at(SortedOrder.at(i)));
+	ClustersUsedNew.push_back(ClustersUsed.at(SortedOrder.at(i)));
       }
     
     BTracks=BTracksNew;
     HitVecs=HitVecsNew;
+    ClustersUsed=ClustersUsedNew;
   }
 
 
   //--------------------------------------------
 
 
-  void BezierTrackerAlgorithm::MakeDirectJoins(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs)
+  void BezierTrackerAlgorithm::MakeDirectJoins(std::vector<trkf::BezierTrack>& BTracks, std::vector<art::PtrVector<recob::Hit> > & HitVecs, std::vector<std::vector<std::pair<int, int> > >& ClustersUsed)
   {
     
     int LoopStatus=1;
@@ -481,7 +497,12 @@ namespace trkf {
 			
 			// Add the pointervectors into 1 and remove 2
 			AddPtrVectors(HitVecs.at(t1), HitVecs.at(t2));
+			ClustersUsed.at(t1).insert(ClustersUsed.at(t1).begin(),
+						   ClustersUsed.at(t2).begin(),
+						   ClustersUsed.at(t2).end());
+		
 			HitVecs.erase(HitVecs.begin()+t2);
+			ClustersUsed.erase(ClustersUsed.begin()+t2);
 			LoopStatus=3;
 		      }
 		  }
