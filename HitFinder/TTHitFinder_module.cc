@@ -58,7 +58,9 @@ namespace hit{
   //-------------------------------------------------
   TTHitFinder::TTHitFinder(fhicl::ParameterSet const& pset) {
     this->reconfigure(pset);
-    produces< std::vector<recob::Hit> >();
+    produces< std::vector<recob::Hit> >("uhits");
+    produces< std::vector<recob::Hit> >("vhits");
+    produces< std::vector<recob::Hit> >("yhits");
   }
 
   //-------------------------------------------------
@@ -97,7 +99,9 @@ namespace hit{
   { 
     
     //initialize our hit collection
-    std::unique_ptr<std::vector<recob::Hit> > hitCollection(new std::vector<recob::Hit>);
+    std::unique_ptr<std::vector<recob::Hit> > hitCollection_U(new std::vector<recob::Hit>);
+    std::unique_ptr<std::vector<recob::Hit> > hitCollection_V(new std::vector<recob::Hit>);
+    std::unique_ptr<std::vector<recob::Hit> > hitCollection_Y(new std::vector<recob::Hit>);
 
     // Read in the wire List object(s).
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
@@ -178,7 +182,12 @@ namespace hit{
 		       peak_val, 0,       //peak charge, no error,
 		       1, 1.              //multiplicity and goodness of fit dummy values
 		       );
-	hitCollection->push_back(hit);
+	if(wire_id.Plane==0)
+	  hitCollection_U->push_back(hit);
+	else if(wire_id.Plane==1)
+	  hitCollection_V->push_back(hit);
+	else if(wire_id.Plane==2)
+	  hitCollection_Y->push_back(hit);
 
 	mf::LogInfo("TTHitFinderDetail") << "Adding new hit at (plane,wire,time)=(" 
 				   << wire_id.Plane << "," << wire_id.Wire << "," << hit_time << "): " 
@@ -191,8 +200,13 @@ namespace hit{
     }//End loop over all wires
 
     //put this hit collection onto the event
-    mf::LogInfo("TTHitFinder") << "Total TTHitFinder hits: " << hitCollection->size();
-    evt.put(std::move(hitCollection));
+    mf::LogInfo("TTHitFinder") << "Total TTHitFinder hits (U,V,Y)=(" 
+			       << hitCollection_U->size() << ","
+			       << hitCollection_V->size() << ","
+			       << hitCollection_Y->size() << ")";
+    evt.put(std::move(hitCollection_U),"uhits");
+    evt.put(std::move(hitCollection_V),"vhits");
+    evt.put(std::move(hitCollection_Y),"yhits");
 
   } // End of produce()  
   
