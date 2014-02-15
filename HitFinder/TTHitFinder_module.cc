@@ -106,6 +106,8 @@ namespace hit{
     // Read in the wire List object(s).
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
+    std::vector<recob::Wire> const& wireVec(*wireVecHandle);
+
     art::ServiceHandle<geo::Geometry> geom;
    
     //initialize some variables that will be in the loop.
@@ -114,7 +116,7 @@ namespace hit{
     int   width = 3;
 
     //Loop over wires
-    for(uint wireIter = 0; wireIter < wireVecHandle->size(); wireIter++) {
+    for(uint wireIter = 0; wireIter < wireVec.size(); wireIter++) {
       
       //get our wire
       art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);

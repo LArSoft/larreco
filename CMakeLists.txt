@@ -69,6 +69,7 @@ add_subdirectory(RecoAlg)
 add_subdirectory(ShowerFinder)
 add_subdirectory(TrackFinder)
 add_subdirectory(VertexFinder)
+add_subdirectory(SpacePointFinder)
 
 
 # ups - table and config files
