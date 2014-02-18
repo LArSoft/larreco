@@ -4,15 +4,11 @@
 include_directories ( $ENV{G4INCLUDE} )
 
 art_make( BASENAME_ONLY 
-#          EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc
           MODULE_LIBRARIES  RecoAlg
-#			    Simulation
 			    RecoObjects
 			    RecoBase
 			    Geometry
 			    Geometry_service
-#			    AnalysisAlg
-#			    AnalysisBase
 			    Utilities
 			    ${MAGNETICFIELD_SERVICE}
 			    ${SIMULATIONBASE}
