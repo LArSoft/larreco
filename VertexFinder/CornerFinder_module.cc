@@ -74,9 +74,9 @@ namespace vertex {
     fCornerAlg.TakeInRaw(evt);
 
     //now, make a vector of recob::EndPoint2Ds, and hand that to CornerAlg to fill out
-    std::unique_ptr< std::vector<recob::EndPoint2D> > corner_vector;
+    std::unique_ptr< std::vector<recob::EndPoint2D> > corner_vector(new std::vector<recob::EndPoint2D>);
     fCornerAlg.get_feature_points_fast(*corner_vector);
-    
+
 
     //and now, put this on the event.
     evt.put(std::move(corner_vector));
