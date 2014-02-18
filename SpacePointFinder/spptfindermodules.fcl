@@ -1,0 +1,15 @@
+BEGIN_PROLOG
+
+tt_spptfinder:
+{
+ module_type:         "TTSpacePointFinder"
+ HitModuleLabel:      "tthit"
+ UHitsInstanceLabel:  "uhits"
+ VHitsInstanceLabel:  "vhits"
+ YHitsInstanceLabel:  "yhits"
+ TimeDiffMax:         0.5
+ YDiffMax:            0.15
+ ZDiffMax:            0.15
+}
+
+END_PROLOG
