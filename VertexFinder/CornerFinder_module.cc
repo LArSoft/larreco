@@ -75,8 +75,19 @@ namespace vertex {
 
     //now, make a vector of recob::EndPoint2Ds, and hand that to CornerAlg to fill out
     std::unique_ptr< std::vector<recob::EndPoint2D> > corner_vector(new std::vector<recob::EndPoint2D>);
-    fCornerAlg.get_feature_points_fast(*corner_vector);
+    fCornerAlg.get_feature_points(*corner_vector);
 
+    mf::LogVerbatim("CornerFinderModule") << "CornerFinderAlg finished, and returned " 
+					  << corner_vector->size() << " endpoints.";
+
+    for(std::vector<recob::EndPoint2D>::iterator iter=corner_vector->begin(); iter!=corner_vector->end(); iter++){
+      geo::WireID wid = iter->WireID();
+      mf::LogVerbatim("CornerFinderModule") << "Endpoint found: (plane,wire,time,strength)=(" 
+					    << wid.Plane << "," 
+					    << wid.Wire << "," 
+					    << iter->DriftTime() << ","
+					    << iter->Strength() << ")";
+    }
 
     //and now, put this on the event.
     evt.put(std::move(corner_vector));
