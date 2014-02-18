@@ -49,16 +49,18 @@ namespace vertex {
   
 
   //-----------------------------------------------------------------------------
-  CornerFinder::CornerFinder(fhicl::ParameterSet const& pset) {  
+  CornerFinder::CornerFinder(fhicl::ParameterSet const& pset):
+    fCornerAlg(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"))
+  {  
     this->reconfigure(pset);    
     produces< std::vector<recob::EndPoint2D> >();
   }
-
+  
   //-----------------------------------------------------------------------------
   CornerFinder::~CornerFinder(){}
 
   //---------------------------------------------------------------------------
-  void CornerFinder::reconfigure(fhicl::ParameterSet const& p) {
+  void CornerFinder::reconfigure(fhicl::ParameterSet const& pset) {
     fCornerAlg.reconfigure(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"));
     return;
   }
