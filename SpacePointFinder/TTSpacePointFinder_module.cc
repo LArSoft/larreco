@@ -34,9 +34,10 @@
 //boost includes
 #include "boost/multi_array.hpp"
 
-bool  HitTimeComparison(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b) { return a->PeakTime() < b->PeakTime(); }
 
 namespace sppt{
+
+  bool  HitTimeComparison(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b) { return a->PeakTime() < b->PeakTime(); }
 
   class TTSpacePointFinder : public art::EDProducer {
     
