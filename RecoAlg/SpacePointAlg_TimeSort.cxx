@@ -1,26 +1,24 @@
-#ifndef TTSPACEPOINTFINDER_H
-#define TTSPACEPOINTFINDER_H
+#ifndef SPACEPOINTALG_TIMESORT_H
+#define SPACEPOINTALG_TIMESORT_H
 /*!
- * Title:   TTSpacePointFinder class
+ * Title:   SpacePointAlg_TimeSort class
  * Author:  wketchum@lanl.gov
- * Inputs:  recob::Hit
- * Outputs: recob::SpacePoint
+ * Inputs:  std::vector<recob::Hit> (one for each plane)
+ * Outputs: std::vector<recob::SpacePoint>
  *
  * Description:
- * This module, TimeTickSpacePointFinder (or TTSpacePointFinder for short) is 
- * designed to produce a spacepoint object based on hits from TTHitFinder.
- * There is intention to allow for a significant number of ghost spacepoints, 
- * with some downstream application dealing with the results.
+ * This space point algorithm tries to improve speed by 
+ * (1) keeping hit collections distinct among planes;
+ * (2) sorting hit collections by time; and,
+ * (3) having a lookup table for (y,z) coordinate positions.
+ * The original use case for this code was with the TTHitFinder, 
+ * which produces an incredibly large number of hits per plane, 
+ * making some sorted space point alg more attractive.
  *
  * This code is totally microboone specific, btw.
  */
 #include <string>
 #include <math.h>
-
-// Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h" 
-#include "art/Framework/Core/EDProducer.h" 
 
 // LArSoft Includes
 #include "SimpleTypesAndConstants/geo_types.h"
@@ -30,103 +28,101 @@
 #include "RecoBase/Hit.h"
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/AssociationUtil.h"
+#include "art/Persistency/Common/Ptr.h"
 
 //boost includes
 #include "boost/multi_array.hpp"
-
 
 namespace sppt{
 
   bool  HitTimeComparison(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b) { return a->PeakTime() < b->PeakTime(); }
 
-  class TTSpacePointFinder : public art::EDProducer {
-    
+  class SpacePointAlg_TimeSort {
+
   public:
-    
-    explicit TTSpacePointFinder(fhicl::ParameterSet const& pset); 
-    virtual ~TTSpacePointFinder();
-         
-    void produce(art::Event& evt); 
-    void beginJob();
-    void beginRun(art::Run& run);
-    void endJob(); 
-    void reconfigure(fhicl::ParameterSet const& p);                
+    SpacePointAlg_TimeSort(fhicl::ParameterSet const& pset);
+    ~SpacePointAlg_TimeSort();
+
+    void reconfigure(fhicl::ParameterSet const& pset);
+    void setTimeOffsets();
+    void fillCoordinatesArrays();
+
+    void createSpacePoints(std::vector< art::Ptr<recob::Hit> > &hitVec_U,
+			   std::vector< art::Ptr<recob::Hit> > &hitVec_V,
+			   std::vector< art::Ptr<recob::Hit> > &hitVec_Y,
+			   std::unique_ptr<std::vector<recob::SpacePoint> > spptCollection,
+			   std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > > spptAssociatedHits);
 
   private:
-        
-    std::string    fHitModuleLabel;     /// Input hit module name
-    std::string    fUHitsInstanceLabel; /// Input U hits instance name
-    std::string    fVHitsInstanceLabel; /// Input V hits instance name
-    std::string    fYHitsInstanceLabel; /// Input Y hits instance name
+
     float          fTimeDiffMax;        /// Maximum allowed time difference
     float          fYDiffMax;           /// Maximum allowed y-coordinate difference
     float          fZDiffMax;           /// Maximum allowed z-coordinate difference
 
-    void  sortHitsByTime( std::vector< art::Ptr<recob::Hit> > &hits_handle);
-   
+    bool TIME_OFFSET_SET;
+    bool COORDINATES_FILLED;
+
     double TIME_OFFSET_U;
     double TIME_OFFSET_V;
     double TIME_OFFSET_Y;
     double TICKS_TO_X;
 
-    boost::multi_array<double, 2> coordinates_UV_y;//(boost::extents[1][1]);
-    boost::multi_array<double, 2> coordinates_UV_z;//(boost::extents[1][1]);
-    boost::multi_array<double, 2> coordinates_UY_y;//(boost::extents[1][1]);
-    boost::multi_array<double, 2> coordinates_UY_z;//(boost::extents[1][1]);
+    boost::multi_array<double, 2> coordinates_UV_y;
+    boost::multi_array<double, 2> coordinates_UV_z;
+    boost::multi_array<double, 2> coordinates_UY_y;
+    boost::multi_array<double, 2> coordinates_UY_z;
 
-  protected:     
-  
-  }; // class TTSpacePointFinder  
-  
+    void sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hits_handle);
+    
+  }; //class SpacePointAlg_TimeSort
+
   //-------------------------------------------------
-  TTSpacePointFinder::TTSpacePointFinder(fhicl::ParameterSet const& pset) {
+  SpacePointAlg_TimeSort::SpacePointAlg_TimeSort(fhicl::ParameterSet const& pset){
     this->reconfigure(pset);
-    produces< std::vector<recob::SpacePoint> >();
-    produces<art::Assns<recob::SpacePoint, recob::Hit>       >();
+    TIME_OFFSET_SET    = false;
+    COORDINATES_FILLED = false;
   }
+  
+  //-------------------------------------------------
+  SpacePointAlg_TimeSort::~SpacePointAlg_TimeSort(){}
 
   //-------------------------------------------------
-  TTSpacePointFinder::~TTSpacePointFinder(){}
-
-  //-------------------------------------------------
-  void TTSpacePointFinder::reconfigure(fhicl::ParameterSet const& p) {
-    fHitModuleLabel     = p.get< std::string >("HitModuleLabel","tthit");
-    fUHitsInstanceLabel = p.get< std::string >("UHitsInstaceLabel","uhits");
-    fVHitsInstanceLabel = p.get< std::string >("VHitsInstaceLabel","vhits");
-    fYHitsInstanceLabel = p.get< std::string >("YHitsInstaceLabel","yhits");
-    fTimeDiffMax        = p.get< float       >("TimeDiffMax");
-    fZDiffMax           = p.get< float       >("ZDiffMax");
-    fYDiffMax           = p.get< float       >("YDiffMax");
+  void SpacePointAlg_TimeSort::reconfigure(fhicl::ParameterSet const& p) {
+    fTimeDiffMax = p.get< float >("TimeDiffMax");
+    fZDiffMax    = p.get< float >("ZDiffMax");
+    fYDiffMax    = p.get< float >("YDiffMax");
 
     //enforce a minimum time diff
     if(fTimeDiffMax<0){
-      mf::LogError("TTSpacePointFinder") << "Time difference must be greater than zero.";
+      mf::LogError("SpacePointAlg_TimeSort") << "Time difference must be greater than zero.";
       return;
     }
     if(fZDiffMax<0){
-      mf::LogError("TTSpacePointFinder") << "Z-coordinate difference must be greater than zero.";
+      mf::LogError("SpacePointAlg_TimeSort") << "Z-coordinate difference must be greater than zero.";
       return;
     }
     if(fYDiffMax<0){
-      mf::LogError("TTSpacePointFinder") << "Y-coordinate difference must be greater than zero.";
+      mf::LogError("SpacePointAlg_TimeSort") << "Y-coordinate difference must be greater than zero.";
       return;
     }
 
   }
 
   //-------------------------------------------------
-  void TTSpacePointFinder::beginJob(){}
+  void SpacePointAlg_TimeSort::setTimeOffsets(){
 
-  //-------------------------------------------------
-  void TTSpacePointFinder::beginRun(art::Run &run){
-        art::ServiceHandle<util::DetectorProperties> detprop;
-
+    art::ServiceHandle<util::DetectorProperties> detprop;    
     TIME_OFFSET_U = -1*detprop->GetXTicksOffset(geo::View_t::kU,0,0);
     TIME_OFFSET_V = -1*detprop->GetXTicksOffset(geo::View_t::kV,0,0);
     TIME_OFFSET_Y = -1*detprop->GetXTicksOffset(geo::View_t::kZ,0,0);
-
     TICKS_TO_X = detprop->GetXTicksCoefficient();
-    
+
+    TIME_OFFSET_SET = true;
+  }
+
+  //-------------------------------------------------
+  void SpacePointAlg_TimeSort::fillCoordinatesArrays(){
+
     art::ServiceHandle<geo::Geometry> geom;
     unsigned int nwires_u = geom->Nwires(geo::View_t::kU);
     unsigned int nwires_v = geom->Nwires(geo::View_t::kV);
@@ -152,44 +148,39 @@ namespace sppt{
 				coordinates_UY_z[iy][iu]);
       }
     }	    
+    
+    COORDINATES_FILLED = true;
   }
 
   //-------------------------------------------------
-  void TTSpacePointFinder::endJob(){}
-
-  //-------------------------------------------------
-  void TTSpacePointFinder::produce(art::Event& evt)
+  void SpacePointAlg_TimeSort::createSpacePoints(std::vector< art::Ptr<recob::Hit> > &hitVec_U,
+						 std::vector< art::Ptr<recob::Hit> > &hitVec_V,
+						 std::vector< art::Ptr<recob::Hit> > &hitVec_Y,
+						 std::unique_ptr<std::vector<recob::SpacePoint> > spptCollection,
+						 std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > > spptAssociatedHits)
   { 
 
-    //initialize our spacepoint collection
-    std::unique_ptr<std::vector<recob::SpacePoint> > spptCollection(new std::vector<recob::SpacePoint>);
-    std::unique_ptr<art::Assns<recob::SpacePoint,recob::Hit> > spptAssns(new art::Assns<recob::SpacePoint,recob::Hit>);
+    if(!TIME_OFFSET_SET){
+      mf::LogWarning("SpacePointAlg_TimeSort")
+	<< "Time offsets not set before createSpacePoints call!"
+	<< "\nYou should call SpacePointAlg_TimeSort::setTimeOffsets() in beginRun()!"
+	<< "\nWill be set now, but you should modify your code!";
+      setTimeOffsets();
+    }
+    if(!COORDINATES_FILLED){
+      mf::LogWarning("SpacePointAlg_TimeSort")
+	<< "Coordinate arrays not filled before createSpacePoints call!"
+	<< "\nYou should call SpacePointAlg_TimeSort::fillCoordinateArrays() in beginRun()!"
+	<< "\nWill be filled now, but you should modify your code!";
+      fillCoordinatesArrays();
+    }
 
-    // Read in the hits. Note, we will reorder hit vector, so we do in fact need a copy.
-    art::Handle< std::vector<recob::Hit> > hitHandle_U;
-    evt.getByLabel(fHitModuleLabel,fUHitsInstanceLabel,hitHandle_U);
-    std::vector< art::Ptr<recob::Hit> > hitVec_U;
-    art::fill_ptr_vector(hitVec_U,hitHandle_U);
-
-    art::Handle< std::vector<recob::Hit> > hitHandle_V;
-    evt.getByLabel(fHitModuleLabel,fVHitsInstanceLabel,hitHandle_V);
-    std::vector< art::Ptr<recob::Hit> > hitVec_V;
-    art::fill_ptr_vector(hitVec_V,hitHandle_V);
-
-    art::Handle< std::vector<recob::Hit> > hitHandle_Y;
-    evt.getByLabel(fHitModuleLabel,fYHitsInstanceLabel,hitHandle_Y);
-    std::vector< art::Ptr<recob::Hit> > hitVec_Y;
-    art::fill_ptr_vector(hitVec_Y,hitHandle_Y);
-
-    mf::LogInfo("TTSpacePointFinderDetail") 
-      << "Got handles to hits."; 
-    
     //sort the hits by the time
     sortHitsByTime(hitVec_U);
     sortHitsByTime(hitVec_V);
     sortHitsByTime(hitVec_Y);
-
-    mf::LogInfo("TTSpacePointFinderDetail") 
+    
+    mf::LogInfo("SpacePointAlg_TimeSortDetail") 
       << "Sorted " 
       << hitVec_U.size() << " u hits, "
       << hitVec_V.size() << " v hits, "
@@ -207,7 +198,7 @@ namespace sppt{
     while(ihitu != hitVec_U.end()){
       time_hitu = (*ihitu)->PeakTime() + TIME_OFFSET_U;
 
-      mf::LogInfo("TTSpacePointFinderDetail") 
+      mf::LogInfo("SpacePointAlg_TimeSortDetail") 
 	<< "Hit times (u,v,y)=("
 	<< time_hitu << ","
 	<< time_hitv << ","
@@ -241,7 +232,7 @@ namespace sppt{
       //  -- time_hitu is within fTimeDiffMax of both time_hitv and time_hity; and
       //  -- time_hitu <= time_hitv AND time_hitu <=time_hity, so time_hitv and time_hity are near too
       
-      mf::LogInfo("TTSpacePointFinderDetail") 
+      mf::LogInfo("SpacePointAlg_TimeSortDetail") 
 	<< "Matching hit times (u,v,y)=("
 	<< time_hitu << ","
 	<< time_hitv << ","
@@ -260,7 +251,7 @@ namespace sppt{
 	unsigned int vwire = (*ihitv_inner)->WireID().Wire;
 	unsigned int ywire = (*ihity_inner)->WireID().Wire;
 
-	mf::LogInfo("TTSpacePointFinderDetail") 
+	mf::LogInfo("SpacePointAlg_TimeSortDetail") 
 	  << "(y,z) coordinate for uv/uy: ("
 	  << coordinates_UV_y[vwire][uwire] << ","
 	  << coordinates_UV_z[vwire][uwire] << ")/("
@@ -296,7 +287,8 @@ namespace sppt{
 
 	  //make association with hits
 	  std::vector< art::Ptr<recob::Hit> > myhits = {*ihitu,*ihitv_inner,*ihity_inner};
-	  util::CreateAssn(*this, evt, *spptCollection, myhits, *spptAssns);
+	  spptAssociatedHits->push_back(myhits);
+	  //util::CreateAssn(*this, evt, *spptCollection, myhits, *spptAssns);
 	}
 
 	//now increment the v or y hit, whichever is smalles (closest to u hit) in time
@@ -314,23 +306,16 @@ namespace sppt{
       }
 
       ihitu++;
-    }
-    
-    //finally, put things on the event
-    evt.put(std::move(spptCollection));
-    evt.put(std::move(spptAssns));
+    }// end while looping over u hits
 
-  } // End of produce()  
-    
+  }//end createSpacePoints
+
   //-------------------------------------------------
-  void TTSpacePointFinder::sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hitVec){
+  void SpacePointAlg_TimeSort::sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hitVec){
     std::sort(hitVec.begin(),hitVec.end(),HitTimeComparison);
   }
-  
-
-  DEFINE_ART_MODULE(TTSpacePointFinder)
-
-} // end of sppt namespace
 
 
-#endif // TTSPACEPOINTFINDER_H
+} //end sppt namespace
+
+#endif // SPACEPOINTALG_TIMESORT_H
