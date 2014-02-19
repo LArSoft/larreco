@@ -55,6 +55,13 @@ standard_featurevertexfinder.CornerPset.CornerScore_algorithm: "Harris"
 #Setting featurevertexfinder to use ClusterParmsAlg with a smaller hit list size
 standard_featurevertexfinder.ClusterParamsAlg.MinHitListSize: 10
 
+standard_cornerfinder:
+{
+ module_type:        "CornerFinder"		# module name
+ CornerAlgParamSet:  @local::standard_cornerfinderalg	# using the cornerfinder alg
+}
+standard_cornerfinder.CornerAlgParamSet.CornerScore_algorithm: "Harris"
+
 standard_featurevertexfinderana:
 {
 
