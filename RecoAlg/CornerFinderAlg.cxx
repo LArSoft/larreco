@@ -157,7 +157,7 @@ void cluster::CornerFinderAlg::TakeInRaw( art::Event const&evt)
 {
 
   //first, make sure the trimmed histos are not here
-  for (auto wd_histo : WireData_trimmed_histos) delete std::get<1>(wd_histo);
+  //for (auto wd_histo : WireData_trimmed_histos) delete std::get<1>(wd_histo);
   WireData_trimmed_histos.clear();
 
   // Use the TFile service in art
@@ -181,7 +181,7 @@ void cluster::CornerFinderAlg::TakeInRaw( art::Event const&evt)
 
   // Catch if things go badly
   catch(cet::exception& excep){
-    std::cout<<"Bail out!"<<std::endl;;
+    mf::LogError("CornerFinderAlg") << "Bail out! Failed to get wire objects";
   }
   
   // Getting the bins for the histograms in terms of number of wires and number of time ticks
@@ -231,7 +231,7 @@ void cluster::CornerFinderAlg::TakeInRaw( art::Event const&evt)
     std::vector<geo::WireID> possible_wireIDs = fGeom->ChannelToWire(wire->Channel());
     geo::WireID this_wireID;
     try { this_wireID = possible_wireIDs.at(0);}
-    catch(cet::exception& excep) { std::cout << "Bail out! No Possible Wires!"<< std::endl; }
+    catch(cet::exception& excep) { mf::LogError("CornerFinderAlg") << "Bail out! No Possible Wires!"; }
     
     unsigned int i_plane = this_wireID.Plane;
     unsigned int i_wire = this_wireID.Wire;
@@ -278,18 +278,21 @@ void cluster::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoi
   
   for(unsigned int cstat = 0; cstat < fGeom->Ncryostats(); ++cstat){
     for(unsigned int tpc = 0; tpc < fGeom->Cryostat(cstat).NTPC(); ++tpc){
-      //std::cout << "OK, about to loop over " << WireData_trimmed_histos.size() << " histograms." << std::endl;
       for(size_t histos=0; histos!= WireData_trimmed_histos.size(); histos++){
 	
 	int plane = std::get<0>(WireData_trimmed_histos.at(histos));
 	int startx = std::get<2>(WireData_trimmed_histos.at(histos));
 	int starty = std::get<3>(WireData_trimmed_histos.at(histos));
 
-	std::cout << "Doing histogram " << histos << ", of plane " << plane << " with start points " << startx << " " << starty << std::endl;
+	mf::LogDebug("CornerFinderAlg") 
+	  << "Doing histogram " << histos 
+	  << ", of plane " << plane 
+	  << " with start points " << startx << " " << starty;
+
 	attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
 			      WireData_IDs[plane],fGeom->Cryostat(cstat).TPC(tpc).Plane(plane).View(),corner_vector,startx,starty);
 
-	std::cout << "\tTotal feature points now is " << corner_vector.size() << std::endl;
+	mf::LogDebug("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
       }
       
       //remove_duplicates(corner_vector);
@@ -378,30 +381,20 @@ struct compare_to_range{
 // This looks for areas of the wires that are non-noise, to speed up evaluation
 void cluster::CornerFinderAlg::create_smaller_histos(){
 
-  std::cout << "OK, creating the smaller histograms." << std::endl;
-
   for(auto pid : fGeom->PlaneIDs() ){
-    std::cout << "Working plane " << pid.Plane << "." << std::endl;
+
+    mf::LogDebug("CornerFinderAlg") 
+      << "Working plane " << pid.Plane << ".";
 
     int x_bins = WireData_histos_ProjectionX[pid.Plane]->GetNbinsX();
-    //float x_min = WireData_histos_ProjectionX[plane]->GetXaxis()->GetBinLowEdge(1);
-    //float x_max = WireData_histos_ProjectionX[plane]->GetXaxis()->GetBinUpEdge(x_bins);
-    
     int y_bins = WireData_histos_ProjectionY[pid.Plane]->GetNbinsX();
-    //float y_min = WireData_histos_ProjectionY[plane]->GetXaxis()->GetBinLowEdge(1);
-    //float y_max = WireData_histos_ProjectionY[plane]->GetXaxis()->GetBinUpEdge(y_bins);
-
 
     std::vector<int> cut_points_x {0};
     std::vector<int> cut_points_y {0};
     
     for (int ix=1; ix<=x_bins; ix++){
-      //if(ix==1) std::cout << "Projection X values:" << std::endl;
       
       float this_value = WireData_histos_ProjectionX[pid.Plane]->GetBinContent(ix);
-      //float next_value = WireData_histos_ProjectionX[plane]->GetBinContent(ix+1);
-      //std::cout << "\t\tBin " << ix 
-      //	    << ", (Projection,Change) = (" << this_value << "," << next_value << ")" << std::endl;
       
       if(ix<fTrimming_buffer || ix>(x_bins-fTrimming_buffer)) continue;
       
@@ -412,19 +405,14 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
 	jx++;
       }
       if(this_value<fTrimming_threshold){
-	//std::cout << "\t\t\tWe have a cut point at " << ix << std::endl;
 	cut_points_x.push_back(ix);
       }
       
     }
     
     for (int iy=1; iy<=y_bins; iy++){
-      //if(iy==1) std::cout << "Projection Y values:" << std::endl;
       
       float this_value = WireData_histos_ProjectionY[pid.Plane]->GetBinContent(iy);
-      //float next_value = WireData_histos_ProjectionY[plane]->GetBinContent(iy+1);
-      //std::cout << "\t\tBin " << iy 
-      //	    << ", (Projection,Change) = (" << this_value << "," << next_value << ")" << std::endl;
       
       if(iy<fTrimming_buffer || iy>(y_bins-fTrimming_buffer)) continue;
       
@@ -435,14 +423,14 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
 	jy++;
       }
       if(this_value<fTrimming_threshold){
-	//std::cout << "\t\t\tWe have a cut point at " << iy << std::endl;
 	cut_points_y.push_back(iy);
       }
       
     }
     
-    std::cout << "We have a total of " << cut_points_x.size() << " x cut points." << std::endl;
-    std::cout << "We have a total of " << cut_points_y.size() << " y cut points." << std::endl;
+    mf::LogDebug("CornerFinderAlg") 
+      << "We have a total of " << cut_points_x.size() << " x cut points."
+      << "\nWe have a total of " << cut_points_y.size() << " y cut points.";
     
     std::vector<int> x_low{1};
     std::vector<int> x_high{x_bins};
@@ -452,8 +440,6 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
     bool y_change = true;
     while(x_change || y_change){
       
-      //std::cout << "OK, let's trim things down!" << std::endl;
-      
       x_change = false;
       y_change = false;
       
@@ -462,11 +448,7 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
       for(size_t il=0; il<current_size; il++){
 	
 	int comp_value = (x_high.at(il) + x_low.at(il)) / 2;
-	//std::cout << "x low point is " << x_low.at(il) << " and high point is " << x_high.at(il) << std::endl;
-	//std::sort(cut_points_x.begin(),cut_points_x.end(),compare_to_range(x_low.at(il),x_high.at(il)));
 	std::sort(cut_points_x.begin(),cut_points_x.end(),compare_to_value(comp_value));
-	
-	//std::cout << "\tClosest cut point in x is " << cut_points_x.at(0) << std::endl;
 	
 	if(cut_points_x.at(0) <= x_low.at(il) || cut_points_x.at(0) >= x_high.at(il))
 	  continue;
@@ -491,8 +473,6 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
 	  x_change = true;
 	}
       }
-      
-      //if(x_change) std::cout << "\tTrimmed in x!" << std::endl;
       
       current_size = x_low.size();
       
@@ -525,36 +505,36 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
 	}
       }
       
-      //if(y_change) std::cout << "\tTrimmed in y!" << std::endl;
-      
     }
     
+    mf::LogDebug("CornerFinderAlg") 
+      << "First point in x is " << cut_points_x.at(0);
     
-      std::cout << "First point in x is " << cut_points_x.at(0) << std::endl;
-      std::sort(cut_points_x.begin(),cut_points_x.end(),compare_to_value(x_bins/2));	
-      std::cout << "Now the first point in x is " << cut_points_x.at(0) << std::endl;
+    std::sort(cut_points_x.begin(),cut_points_x.end(),compare_to_value(x_bins/2));	
+    
+    mf::LogDebug("CornerFinderAlg") 
+      << "Now the first point in x is " << cut_points_x.at(0);
+    
+    mf::LogDebug("CornerFinderAlg") 
+       << "First point in y is " << cut_points_y.at(0);
+    
+    std::sort(cut_points_y.begin(),cut_points_y.end(),compare_to_value(y_bins/2));	
+    
+    mf::LogDebug("CornerFinderAlg") 
+      << "Now the first point in y is " << cut_points_y.at(0);
       
-      std::cout << "First point in y is " << cut_points_y.at(0) << std::endl;
-      std::sort(cut_points_y.begin(),cut_points_y.end(),compare_to_value(y_bins/2));	
-      std::cout << "Now the first point in y is " << cut_points_y.at(0) << std::endl;
-      
-      std::cout << "Integral on the SW side is " 
-		<< WireData_histos[pid.Plane]->Integral(1,cut_points_x.at(0),1,cut_points_y.at(0)) << std::endl;
-      std::cout << "Integral on the SE side is " 
-		<< WireData_histos[pid.Plane]->Integral(cut_points_x.at(0),x_bins,1,cut_points_y.at(0)) << std::endl;
-      std::cout << "Integral on the NW side is " 
-		<< WireData_histos[pid.Plane]->Integral(1,cut_points_x.at(0),cut_points_y.at(0),y_bins) << std::endl;
-      std::cout << "Integral on the NE side is " 
-		<< WireData_histos[pid.Plane]->Integral(cut_points_x.at(0),x_bins,cut_points_y.at(0),y_bins) << std::endl;
+    mf::LogDebug("CornerFinderAlg") 
+      << "\nIntegral on the SW side is " 
+      << WireData_histos[pid.Plane]->Integral(1,cut_points_x.at(0),1,cut_points_y.at(0))
+      << "\nIntegral on the SE side is " 
+      << WireData_histos[pid.Plane]->Integral(cut_points_x.at(0),x_bins,1,cut_points_y.at(0))
+      << "\nIntegral on the NW side is " 
+      << WireData_histos[pid.Plane]->Integral(1,cut_points_x.at(0),cut_points_y.at(0),y_bins)
+      << "\nIntegral on the NE side is " 
+      << WireData_histos[pid.Plane]->Integral(cut_points_x.at(0),x_bins,cut_points_y.at(0),y_bins);
     
     
-    //std::cout << "Total of " << x_low.size() << " sub-histograms." << std::endl;
     for(size_t il=0; il<x_low.size(); il++){
-      //std::cout << "\t(x1,x2,y1,y2) = (" 
-      //	    << x_low.at(il) << ","
-      //	    << x_high.at(il) << ","
-      //	    << y_low.at(il) << ","
-      //	    << y_high.at(il) << ")" << std::endl;
       
       std::stringstream h_name;
       h_name << "h_" << pid.Cryostat << "_" << pid.TPC << "_" << pid.Plane << "_sub" << il;
@@ -568,13 +548,11 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
 	}
       }
       
-      WireData_trimmed_histos.push_back(std::make_tuple(pid.Plane,h_tmp,x_low.at(il),y_low.at(il)));
+      WireData_trimmed_histos.push_back(std::make_tuple(pid.Plane,h_tmp,x_low.at(il)-1,y_low.at(il)-1));
     }
     
   }// end loop over PlaneIDs
 
-
-  //std::cout << "Done! Total of " << WireData_trimmed_histos.size() << " histograms." << std::endl;
 
 }
 
@@ -827,7 +805,7 @@ void cluster::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, 
 					+ 1*(h_conversion->GetBinContent(ix+2,iy+2)-h_conversion->GetBinContent(ix+2,iy-2)));
 	}
 	else{
-	  std::cout << "Sobel derivative not supported for neighborhoods > 2." << std::endl;
+	  mf::LogError("CornerFinderAlg") << "Sobel derivative not supported for neighborhoods > 2.";
 	  return;
 	}
 	
@@ -842,21 +820,19 @@ void cluster::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, 
 					(h_conversion->GetBinContent(ix,iy+1)-h_conversion->GetBinContent(ix,iy-1)));
 	}
 	else{
-	  std::cout << "Local derivative not yet supported for neighborhoods > 1." << std::endl;
+	  mf::LogError("CornerFinderAlg") << "Local derivative not yet supported for neighborhoods > 1.";
 	  return;
 	}
       } //end if local
       
       else{
-	std::cout << "Bad derivative algorithm! " << fDerivative_method << std::endl;
+	mf::LogError("CornerFinderAlg") << "Bad derivative algorithm! " << fDerivative_method;
 	return;
       }
 
     }
   }
 
-
-  //std::cout << "(Almost) Finished derivatives." << std::endl;
 
   //this is just a double Gaussian
   float func_blur[11][11];
@@ -988,7 +964,7 @@ void cluster::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, 
   if(fDerivative_BlurNeighborhood>0){
 	
     if(fDerivative_BlurNeighborhood>10){
-      std::cout << "WARNING...BlurNeighborhoods>10 not currently allowed. Shrinking to 10." << std::endl;
+      mf::LogWarning("CornerFinderAlg") << "WARNING...BlurNeighborhoods>10 not currently allowed. Shrinking to 10.";
       fDerivative_BlurNeighborhood=10;
     }
 
@@ -1022,8 +998,6 @@ void cluster::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, 
 
   } //end if blur
 
-
-  //std::cout << "Finished derivatives." << std::endl;
 
 }
 
@@ -1080,7 +1054,7 @@ void cluster::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x
 				       (st_xx*st_yy-st_xy*st_xy) - ((st_xx+st_yy)*(st_xx+st_yy)*fCornerScore_Harris_kappa));
 	}
 	else{
-	  std::cout << "BAD CORNER ALGORITHM: " << fCornerScore_algorithm << std::endl;
+	  mf::LogError("CornerFinderAlg") << "BAD CORNER ALGORITHM: " << fCornerScore_algorithm;
 	  return;
 	}
       
@@ -1129,8 +1103,8 @@ size_t cluster::CornerFinderAlg::perform_maximum_suppression(TH2D *h_cornerScore
 
       if(temp_center_bin){
 	
-	float time_tick = 0.5 * (float)((2*iy+starty) * fConversion_bins_per_input_y);
-	int wire_number = ( (2*ix+startx)*fConversion_bins_per_input_x ) / 2;
+	float time_tick = 0.5 * (float)((2*(iy+starty)) * fConversion_bins_per_input_y);
+	int wire_number = ( (2*(ix+startx))*fConversion_bins_per_input_x ) / 2;
 	double totalQ = 0;
 	int id = 0;
 	recob::EndPoint2D corner(time_tick,

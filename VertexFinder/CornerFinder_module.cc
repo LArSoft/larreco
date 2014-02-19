@@ -43,6 +43,7 @@ namespace vertex {
     
   private:
     cluster::CornerFinderAlg  fCornerAlg;
+    void printEndpoints(std::vector<recob::EndPoint2D> const& corner_vecotr);
 
   }; //class CornerFinder
   
@@ -69,18 +70,32 @@ namespace vertex {
   void CornerFinder::produce(art::Event& evt){
   
     //We need do very little here, as it's all handled by the corner finder.
+    const bool DEBUG_TEST = false; //turn on/off some messages
 
     //First, have it process the "raw" data.
     fCornerAlg.TakeInRaw(evt);
 
     //now, make a vector of recob::EndPoint2Ds, and hand that to CornerAlg to fill out
     std::unique_ptr< std::vector<recob::EndPoint2D> > corner_vector(new std::vector<recob::EndPoint2D>);
-    fCornerAlg.get_feature_points(*corner_vector);
+    fCornerAlg.get_feature_points_fast(*corner_vector);
 
-    mf::LogVerbatim("CornerFinderModule") << "CornerFinderAlg finished, and returned " 
+    mf::LogInfo("CornerFinderModule") << "CornerFinderAlg finished, and returned " 
 					  << corner_vector->size() << " endpoints.";
 
-    for(std::vector<recob::EndPoint2D>::iterator iter=corner_vector->begin(); iter!=corner_vector->end(); iter++){
+    if(DEBUG_TEST) printEndpoints(*corner_vector);
+
+    //and now, put this on the event.
+    evt.put(std::move(corner_vector));
+
+    //Done!
+
+  } // end of produce
+
+
+  //-----------------------------------------------------------------------------
+  void CornerFinder::printEndpoints(std::vector<recob::EndPoint2D> const& corner_vector){
+
+    for(auto iter=corner_vector.begin(); iter!=corner_vector.end(); iter++){
       geo::WireID wid = iter->WireID();
       mf::LogVerbatim("CornerFinderModule") << "Endpoint found: (plane,wire,time,strength)=(" 
 					    << wid.Plane << "," 
@@ -89,12 +104,7 @@ namespace vertex {
 					    << iter->Strength() << ")";
     }
 
-    //and now, put this on the event.
-    evt.put(std::move(corner_vector));
-
-    //Done!
-
-  } // end of produce
+  }
 
 
   DEFINE_ART_MODULE(CornerFinder)
