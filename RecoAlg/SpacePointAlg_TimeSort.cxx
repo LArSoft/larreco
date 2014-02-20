@@ -1,5 +1,3 @@
-#ifndef SPACEPOINTALG_TIMESORT_H
-#define SPACEPOINTALG_TIMESORT_H
 /*!
  * Title:   SpacePointAlg_TimeSort class
  * Author:  wketchum@lanl.gov
@@ -17,13 +15,13 @@
  *
  * This code is totally microboone specific, btw.
  */
-#include <string>
+#include "RecoAlg/SpacePointAlg_TimeSort.h"
+
 #include <math.h>
 
 // LArSoft Includes
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
-#include "Utilities/AssociationUtil.h"
 #include "Utilities/DetectorProperties.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/SpacePoint.h"
@@ -34,47 +32,6 @@
 #include "boost/multi_array.hpp"
 
 namespace sppt{
-
-  bool  HitTimeComparison(art::Ptr<recob::Hit> a, art::Ptr<recob::Hit> b) { return a->PeakTime() < b->PeakTime(); }
-
-  class SpacePointAlg_TimeSort {
-
-  public:
-    SpacePointAlg_TimeSort(fhicl::ParameterSet const& pset);
-    ~SpacePointAlg_TimeSort();
-
-    void reconfigure(fhicl::ParameterSet const& pset);
-    void setTimeOffsets();
-    void fillCoordinatesArrays();
-
-    void createSpacePoints(std::vector< art::Ptr<recob::Hit> > &hitVec_U,
-			   std::vector< art::Ptr<recob::Hit> > &hitVec_V,
-			   std::vector< art::Ptr<recob::Hit> > &hitVec_Y,
-			   std::unique_ptr<std::vector<recob::SpacePoint> > spptCollection,
-			   std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > > spptAssociatedHits);
-
-  private:
-
-    float          fTimeDiffMax;        /// Maximum allowed time difference
-    float          fYDiffMax;           /// Maximum allowed y-coordinate difference
-    float          fZDiffMax;           /// Maximum allowed z-coordinate difference
-
-    bool TIME_OFFSET_SET;
-    bool COORDINATES_FILLED;
-
-    double TIME_OFFSET_U;
-    double TIME_OFFSET_V;
-    double TIME_OFFSET_Y;
-    double TICKS_TO_X;
-
-    boost::multi_array<double, 2> coordinates_UV_y;
-    boost::multi_array<double, 2> coordinates_UV_z;
-    boost::multi_array<double, 2> coordinates_UY_y;
-    boost::multi_array<double, 2> coordinates_UY_z;
-
-    void sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hits_handle);
-    
-  }; //class SpacePointAlg_TimeSort
 
   //-------------------------------------------------
   SpacePointAlg_TimeSort::SpacePointAlg_TimeSort(fhicl::ParameterSet const& pset){
@@ -156,8 +113,8 @@ namespace sppt{
   void SpacePointAlg_TimeSort::createSpacePoints(std::vector< art::Ptr<recob::Hit> > &hitVec_U,
 						 std::vector< art::Ptr<recob::Hit> > &hitVec_V,
 						 std::vector< art::Ptr<recob::Hit> > &hitVec_Y,
-						 std::unique_ptr<std::vector<recob::SpacePoint> > spptCollection,
-						 std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > > spptAssociatedHits)
+						 std::unique_ptr<std::vector<recob::SpacePoint> > &spptCollection,
+						 std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > > &spptAssociatedHits)
   { 
 
     if(!TIME_OFFSET_SET){
@@ -317,5 +274,3 @@ namespace sppt{
 
 
 } //end sppt namespace
-
-#endif // SPACEPOINTALG_TIMESORT_H

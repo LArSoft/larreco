@@ -1,0 +1,10 @@
+BEGIN_PROLOG
+
+standard_sppttimesortalg:
+{
+ TimeDiffMax:         0.5
+ YDiffMax:            0.15
+ ZDiffMax:            0.15
+}
+
+END_PROLOG
