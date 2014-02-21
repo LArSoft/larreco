@@ -205,8 +205,8 @@ class RKTrackRep : public GFAbsTrackRep {
   double Extrap(const GFDetPlane& plane, TMatrixT<Double_t>* state, TMatrixT<Double_t>* cov=NULL) const;
 
   
-  void setData(const TMatrixT<Double_t>& /* st */, const GFDetPlane& /* pl */, const TMatrixT<Double_t>* /*cov*/=NULL)
-    { throw std::logic_error(std::string(__func__) + "::setData(TMatrixT, GFDetPlane, TMatrixT) not available"); }
+  //  void setData(const TMatrixT<Double_t>& /* st */, const GFDetPlane& /* pl */, const TMatrixT<Double_t>* cov=NULL, const TMatrixT<double>* aux=NULL);
+    //    { throw std::logic_error(std::string(__func__) + "::setData(TMatrixT, GFDetPlane, TMatrixT) not available"); }
   
   // public:
   //ClassDef(RKTrackRep,3)
