@@ -125,7 +125,7 @@ namespace sppt{
     std::vector< art::Ptr<recob::Hit> > hitVec_Y;
     art::fill_ptr_vector(hitVec_Y,hitHandle_Y);
 
-    mf::LogInfo("TTSpacePointFinderDetail") 
+    LOG_DEBUG("TTSpacePointFinder") 
       << "Got handles to hits:\n"
       << hitVec_U.size() << " u hits, "
       << hitVec_V.size() << " v hits, "
@@ -135,8 +135,7 @@ namespace sppt{
     fSpptAlg.createSpacePoints(hitVec_U,hitVec_V,hitVec_Y,
 			       spptCollection,spptAssociatedHits);
 
-    mf::LogInfo("TTSpacePointFinder")
-      << "Finished spacepoint alg. Created " << spptCollection->size() << " spacepoints.";
+    mf::LogInfo("TTSpacePointFinder") << "Finished spacepoint alg. Created " << spptCollection->size() << " spacepoints.";
 
 
     //check that spptCollection and spptAssociatedHits have same size

@@ -137,7 +137,7 @@ namespace sppt{
     sortHitsByTime(hitVec_V);
     sortHitsByTime(hitVec_Y);
     
-    mf::LogInfo("SpacePointAlg_TimeSortDetail") 
+    LOG_DEBUG("SpacePointAlg_TimeSort") 
       << "Sorted " 
       << hitVec_U.size() << " u hits, "
       << hitVec_V.size() << " v hits, "
@@ -155,7 +155,7 @@ namespace sppt{
     while(ihitu != hitVec_U.end()){
       time_hitu = (*ihitu)->PeakTime() + TIME_OFFSET_U;
 
-      mf::LogInfo("SpacePointAlg_TimeSortDetail") 
+      mf::LogInfo("SpacePointAlg_TimeSort") 
 	<< "Hit times (u,v,y)=("
 	<< time_hitu << ","
 	<< time_hitv << ","
@@ -189,7 +189,7 @@ namespace sppt{
       //  -- time_hitu is within fTimeDiffMax of both time_hitv and time_hity; and
       //  -- time_hitu <= time_hitv AND time_hitu <=time_hity, so time_hitv and time_hity are near too
       
-      mf::LogInfo("SpacePointAlg_TimeSortDetail") 
+      mf::LogInfo("SpacePointAlg_TimeSort") 
 	<< "Matching hit times (u,v,y)=("
 	<< time_hitu << ","
 	<< time_hitv << ","
@@ -208,7 +208,7 @@ namespace sppt{
 	unsigned int vwire = (*ihitv_inner)->WireID().Wire;
 	unsigned int ywire = (*ihity_inner)->WireID().Wire;
 
-	mf::LogInfo("SpacePointAlg_TimeSortDetail") 
+	mf::LogInfo("SpacePointAlg_TimeSort") 
 	  << "(y,z) coordinate for uv/uy: ("
 	  << coordinates_UV_y[vwire][uwire] << ","
 	  << coordinates_UV_z[vwire][uwire] << ")/("
@@ -264,6 +264,9 @@ namespace sppt{
 
       ihitu++;
     }// end while looping over u hits
+
+    LOG_DEBUG("SpacePointAlg_TimeSort") 
+      << "Finished with " << spptCollection->size() << " spacepoints.";
 
   }//end createSpacePoints
 
