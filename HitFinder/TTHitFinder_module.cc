@@ -197,7 +197,7 @@ namespace hit{
 			       << "\tTotal hits (U,V,Y)= (" 
 			       << hitCollection_U->size() << ","
 			       << hitCollection_V->size() << ","
-			       << hitCollection_Y->size() << ")"
+			       << hitCollection_Y->size() << ")";
 
     }//End loop over all wires
 
