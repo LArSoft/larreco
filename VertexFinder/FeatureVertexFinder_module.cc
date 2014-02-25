@@ -63,7 +63,6 @@
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
-#include "RecoAlg/CornerFinderAlg.h"
 #include "RecoAlg/ClusterParamsAlg.h"
 
 // #####################
@@ -104,11 +103,10 @@ namespace vertex {
     
     TH1D *dtIC;
   
-    std::string fClusterModuleLabel;
-    std::string fHitModuleLabel;
-    // JA:Adding Corner Finder Alg
-    cluster::CornerFinderAlg  fCorner;
-    cluster::ClusterParamsAlg fClParAlg;
+   std::string fClusterModuleLabel;
+   std::string fHitModuleLabel;
+   std::string fCornerFinderModuleLabel;
+   cluster::ClusterParamsAlg fClParAlg;
   };
     
 }//<---End namespace vertex
@@ -130,7 +128,6 @@ namespace vertex{
 
 //-----------------------------------------------------------------------------
   FeatureVertexFinder::FeatureVertexFinder(fhicl::ParameterSet const& pset):
-  fCorner(pset.get<fhicl::ParameterSet>("CornerPset")),
   fClParAlg(pset.get<fhicl::ParameterSet>("ClusterParamsAlg"), pset.get< std::string >("module_type"))
   {  
     /*this->*/reconfigure(pset);    
@@ -149,8 +146,10 @@ namespace vertex{
   //---------------------------------------------------------------------------
   void FeatureVertexFinder::reconfigure(fhicl::ParameterSet const& p) 
   {
-    fClusterModuleLabel  = p.get< std::string >("ClusterModuleLabel");
-    fHitModuleLabel	 = p.get< std::string >("HitModuleLabel");
+    fCornerFinderModuleLabel  = p.get< std::string >("CornerFinderModuleLabel");
+    fClusterModuleLabel       = p.get< std::string >("ClusterModuleLabel");
+    fHitModuleLabel	      = p.get< std::string >("HitModuleLabel");
+
     return;
   }
   //-------------------------------------------------------------------------
@@ -277,6 +276,7 @@ namespace vertex{
     // ####################################################################
     // ### Utilizing the CornerFinderAlg to get a list of EndPoint2d's  ###
     // ####################################################################
+    // Change from Wes (2/21/14): Take CornerFinderModule as input to algorithm here.
     
     std::vector<unsigned int>   feature_wire = {0};
     std::vector<double>   feature_time = {0.};
@@ -293,30 +293,22 @@ namespace vertex{
     int n3dFeatures = 0;
     
     
-    
-    // ###################################################
-    // ### Take in the raw information about the event ###
-    // ###################################################
-    fCorner.TakeInRaw(evt);
-    
-    // #######################################################
-    // ### Push the features into a vector of Endpoint2d's ###
-    // #######################################################
-    std::vector<recob::EndPoint2D> EndPoints;
-    fCorner.get_feature_points_fast(EndPoints);
-    //fCorner.get_feature_points(EndPoints);
-    
+    art::Handle< std::vector<recob::EndPoint2D> > CornerFinderHandle;
+    evt.getByLabel(fCornerFinderModuleLabel,CornerFinderHandle);
+    std::vector< art::Ptr<recob::EndPoint2D> > EndPoints;
+    art::fill_ptr_vector(EndPoints, CornerFinderHandle);   
+        
     // ########################################################
     // ### Loop over all the features and record their info ###
     // ########################################################
     for(size_t i=0; i!=EndPoints.size(); ++i)
     	{
 	
-	feature_wire.push_back(EndPoints.at(i).WireID().Wire);
-	feature_time.push_back(EndPoints.at(i).DriftTime());
-	feature_plane.push_back(EndPoints.at(i).WireID().Plane);
-	feature_channel.push_back(geom->PlaneWireToChannel(EndPoints.at(i).WireID().Plane, EndPoints.at(i).WireID().Wire, 0, 0));
-	feature_strength.push_back(EndPoints.at(i).Strength());
+	feature_wire.push_back(EndPoints.at(i)->WireID().Wire);
+	feature_time.push_back(EndPoints.at(i)->DriftTime());
+	feature_plane.push_back(EndPoints.at(i)->WireID().Plane);
+	feature_channel.push_back(geom->PlaneWireToChannel(EndPoints.at(i)->WireID().Plane, EndPoints.at(i)->WireID().Wire, 0, 0));
+	feature_strength.push_back(EndPoints.at(i)->Strength());
 	nFeatures++;
 	
 	

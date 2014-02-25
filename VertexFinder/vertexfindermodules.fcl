@@ -46,14 +46,19 @@ standard_featurevertexfinder:
  module_type:        	"FeatureVertexFinder"		# module name
  ClusterModuleLabel: 	"hough"			# clusters the module takes in
  HitModuleLabel:	"ffthit"		# hits the module takes in
- CornerPset:          	@local::standard_cornerfinderalg	# using the cornerfinder alg
+ CornerFinderModuleLabel: "corner"	# endpoint2ds from corner finder
  ClusterParamsAlg: 	@local::standard_clusterparamsalg
-
 }
-#Setting featurevertexfinder to use the Harris score (instead of Nobel)
-standard_featurevertexfinder.CornerPset.CornerScore_algorithm: "Harris"
 #Setting featurevertexfinder to use ClusterParmsAlg with a smaller hit list size
 standard_featurevertexfinder.ClusterParamsAlg.MinHitListSize: 10
+
+standard_cornerfinder:
+{
+ module_type:        "CornerFinder"		# module name
+ CornerAlgParamSet:  @local::standard_cornerfinderalg	# using the cornerfinder alg
+}
+#Setting cornerfinder to use the Harris score (instead of Nobel)
+standard_cornerfinder.CornerAlgParamSet.CornerScore_algorithm: "Harris"
 
 standard_featurevertexfinderana:
 {
