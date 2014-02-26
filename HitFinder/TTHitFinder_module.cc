@@ -116,7 +116,7 @@ namespace hit{
     int   width = 3;
 
     //Loop over wires
-    for(uint wireIter = 0; wireIter < wireVec.size(); wireIter++) {
+    for(unsigned int wireIter = 0; wireIter < wireVec.size(); wireIter++) {
       
       //get our wire
       art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
