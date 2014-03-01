@@ -1274,8 +1274,6 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
   unsigned int t=hit.at(0)->WireID().TPC;
   unsigned int p=hit.at(0)->WireID().Plane;   
   
-  LOG_DEBUG("HoughBaseAlg") << "We have (cs t p)=..." << cs << t << p;
-
   //	geo::View_t    view = geom->Cryostat(cs).TPC(t).Plane(p).View();
   geo::SigType_t sigt = geom->Cryostat(cs).TPC(t).Plane(p).SignalType();   
   
@@ -1338,8 +1336,6 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
   //adds all of the hits (that have not yet been associated with a line) to the accumulator
   c.Init(dx,dy,fRhoResolutionFactor,fNumAngleCells);
   
-  LOG_DEBUG("HoughBaseAlg") << "Done some init stuff now.";
-  
   // count is how many points are left to randomly insert
   unsigned int count = hit.size();
   std::vector<unsigned int> accumPoints;
@@ -1364,8 +1360,6 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       continue;
     accumPoints.at(randInd)=1;
     
-    LOG_DEBUG("HoughBaseAlg") << "listofxmax loop start...";
-
     // zeroes out the neighborhood of all previous lines  
     for(unsigned int i = 0; i < listofxmax.size(); ++i){
       int yClearStart = listofymax.at(i) - fRhoZeroOutRange;
@@ -1387,8 +1381,6 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       }
     }// end loop over size of listxmax
   
-
-    LOG_DEBUG("HoughBaseAlg") << "get max...";
 
     //find the weightiest cell in the accumulator.
     int maxCell = 0;
@@ -1446,8 +1438,6 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
     //indcolscaling = 0;
     
     
-    LOG_DEBUG("HoughBaseAlg") << "have slope...";
-
         
     if(!std::isinf(slope) && !std::isnan(slope)){
       sequenceHolder.clear();
@@ -1483,8 +1473,6 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       
       
       
-      LOG_DEBUG("HoughBaseAlg") << "some prep work...";
-
       // Check if lastHits has hits with big gaps in it
       // lastHits[i] is ordered in increasing channel and then increasing peak time,
       // as a consequence, if the line has a negative slope and there are multiple hits in the line for a channel,
@@ -1495,7 +1483,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
       tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
       int missedHits=0;
-      int lastHitsChannel = lastHits.at(0);
+      int lastHitsChannel = 0;//lastHits.at(0);
       int nHitsPerChannel = 1;
 
       LOG_DEBUG("HoughBaseAlg") << "filling the pCorner arrays around here..."
@@ -1506,7 +1494,6 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       double pCorner1[2];
       unsigned int lastChannel = hit.at(hitTemp.at(lastHits.at(0)))->Wire()->RawDigit()->Channel();
 
-      LOG_DEBUG("HoughBaseAlg") << "lastHits loop...";
       for(size_t i = 0; i < lastHits.size()-1; ++i) {
 	bool newChannel = false;
 	if(slope < 0){
@@ -1520,13 +1507,11 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
 
 	if(slope > 0 || (!newChannel && nHitsPerChannel <= 1)){
 
-	  LOG_DEBUG("HoughBaseAlg") << "if slope > 0...";
-
 	  //std::cout << hits[hitsTemp[lastHits[i]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[i]]]->StartTime()+hits[hitsTemp[lastHits[i]]]->EndTime())/2.) << std::endl;
 	  pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(i)))->Wire()->RawDigit()->Channel())*wire_dist;
-	  pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(i)))->StartTime()+hit[hitTemp[lastHits[i]]]->EndTime())/2.)*tickToDist;
+	  pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(i)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i)))->EndTime())/2.)*tickToDist;
 	  pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel())*wire_dist;
-	  pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit[hitTemp[lastHits[i+1]]]->EndTime())/2.)*tickToDist;
+	  pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i+1)))->EndTime())/2.)*tickToDist;
 	  //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
 	  if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
 	    missedHits++;
@@ -1535,15 +1520,11 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
 
 	else if (slope < 0 && newChannel && nHitsPerChannel > 1){
 
-	  LOG_DEBUG("HoughBaseAlg") << "if slope < 0..."
-				    << "\n but first, lastHits size is " << lastHits.size() 
-				    << " and lastHitsChannel=" << lastHitsChannel;
-
 	  //std::cout << hits[hitsTemp[lastHits[lastHitsChannel]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[lastHitsChannel]]]->StartTime()+hits[hitsTemp[lastHits[lastHitsChannel]]]->EndTime())/2.) << std::endl;
 	  pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->Wire()->RawDigit()->Channel())*wire_dist;
-	  pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->StartTime()+hit[hitTemp[lastHits[lastHitsChannel]]]->EndTime())/2.)*tickToDist;
+	  pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->StartTime()+hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->EndTime())/2.)*tickToDist;
 	  pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel())*wire_dist;
-	  pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit[hitTemp[lastHits[i+1]]]->EndTime())/2.)*tickToDist;
+	  pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i+1)))->EndTime())/2.)*tickToDist;
 	  //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
 	  if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
 	    missedHits++;
@@ -1552,8 +1533,6 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
 	  nHitsPerChannel=0;
 	}
       }
-
-      LOG_DEBUG("HoughBaseAlg") << "done with lastHits loop...";
 
       //std::cout << "missedHits " << missedHits << std::endl;
       //std::cout << "lastHits.size() " << lastHits.size() << std::endl;
@@ -1567,9 +1546,6 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       clusterHits.clear();    
       double totalQ = 0.;
       if(lastHits.size() < 5) continue;
-      
-      LOG_DEBUG("HoughBaseAlg") << "Gonna do the final results now...";
-
       
       for(size_t i = 0; i < lastHits.size(); ++i) {
 	clusterHits.push_back(hit.at(hitTemp.at(lastHits.at(i))));
