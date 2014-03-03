@@ -884,11 +884,17 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
   std::vector< art::Ptr<recob::Hit> > hit;
 
   for(auto view : geom->Views() ){
+
+    LOG_DEBUG("HoughBaseAlg") << "Analyzing view " << view;
+
     art::PtrVector<recob::Cluster>::const_iterator clusterIter = clusIn.begin();
     int clusterID = 0;//the unique ID of the cluster
     
     size_t cinctr = 0;
     while(clusterIter != clusIn.end()) {
+
+      LOG_DEBUG("HoughBaseAlg") << "Analyzing cinctr=" << cinctr << " which is in view " << (*clusterIter)->View();
+
       hit.clear();
       if(fPerCluster){
 	if((*clusterIter)->View() == view) hit = fmh.at(cinctr);
@@ -911,6 +917,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
 	continue;
       }
       
+      LOG_DEBUG("HoughBaseAlg") << "We have all the hits..." << hit.size();
       
       /*
       //factor to make x and y scale the same units
@@ -1170,23 +1177,25 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       std::vector< art::PtrVector<recob::Hit> >   planeClusHitsOut;
       this->FastTransform(hit,planeClusHitsOut,slopevec,totalQvec );
       
+      LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
+
       for(size_t xx = 0; xx < planeClusHitsOut.size(); ++xx){
-	unsigned int sw = (*planeClusHitsOut[xx].begin())->WireID().Wire;
-	unsigned int ew = (*(planeClusHitsOut[xx].end()-1))->WireID().Wire;
+	unsigned int sw = (*planeClusHitsOut.at(xx).begin())->WireID().Wire;
+	unsigned int ew = (*(planeClusHitsOut.at(xx).end()-1))->WireID().Wire;
 	
 	recob::Cluster cluster(sw, 0.,
-			       (*planeClusHitsOut[xx].begin())->PeakTime(), 0.,
+			       (*planeClusHitsOut.at(xx).begin())->PeakTime(), 0.,
 			       ew, 0., 
-			       (planeClusHitsOut[xx][planeClusHitsOut[xx].size()-1])->PeakTime(), 0.,
-			       slopevec[xx], 0., 
+			       (planeClusHitsOut.at(xx).at(planeClusHitsOut.at(xx).size()-1))->PeakTime(), 0.,
+			       slopevec.at(xx), 0., 
 			       -999., 0., 
-			       totalQvec[xx],
-			       geom->View((*planeClusHitsOut[xx].begin())->Channel()),
+			       totalQvec.at(xx),
+			       geom->View((*planeClusHitsOut.at(xx).begin())->Channel()),
 			       clusterID);	      
 	
 	++clusterID;
 	ccol.push_back(cluster);
-	clusHitsOut.push_back(planeClusHitsOut[xx]);
+	clusHitsOut.push_back(planeClusHitsOut.at(xx));
       }
       
       
@@ -1248,368 +1257,388 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
 
 	
 
-	size_t cinctr = 0;
-	//while(clusterIter != clusIn.end()) {
-	hit.clear();
-	for(std::vector < art::Ptr < recob::Hit > >::const_iterator ii=clusIn.begin();ii!=clusIn.end();ii++)
-	   hit.push_back((*ii));   // this is new
-	 
-	unsigned int cs=hit[0]->WireID().Cryostat;
-	unsigned int t=hit[0]->WireID().TPC;
-	unsigned int p=hit[0]->WireID().Plane;   
-	
-//	geo::View_t    view = geom->Cryostat(cs).TPC(t).Plane(p).View();
-	geo::SigType_t sigt = geom->Cryostat(cs).TPC(t).Plane(p).SignalType();   
-	    
-	 // if(fPerCluster){
-	 //   if((*clusterIter)->View() == view) hit = fmh.at(cinctr);
-	 // }
-	 // else{   
-	  //  while(clusterIter != clusIn.end()){
-	  //    if( (*clusterIter)->View() == view ){
-
+  size_t cinctr = 0;
+  //while(clusterIter != clusIn.end()) {
+  hit.clear();
+  for(std::vector < art::Ptr < recob::Hit > >::const_iterator ii=clusIn.begin();ii!=clusIn.end();ii++)
+    hit.push_back((*ii));   // this is new
+  
+  if(hit.size() == 0){ 
+    if(fPerCluster){
+      ++cinctr;
+    }
+    return -1;
+  }
+  
+  unsigned int cs=hit.at(0)->WireID().Cryostat;
+  unsigned int t=hit.at(0)->WireID().TPC;
+  unsigned int p=hit.at(0)->WireID().Plane;   
+  
+  //	geo::View_t    view = geom->Cryostat(cs).TPC(t).Plane(p).View();
+  geo::SigType_t sigt = geom->Cryostat(cs).TPC(t).Plane(p).SignalType();   
+  
+  // if(fPerCluster){
+  //   if((*clusterIter)->View() == view) hit = fmh.at(cinctr);
+  // }
+  // else{   
+  //  while(clusterIter != clusIn.end()){
+  //    if( (*clusterIter)->View() == view ){
+  
 	//	hit = fmh.at(cinctr);
 	 //     }// end if cluster is in correct view
 	 //     clusterIter++;
 	  //    ++cinctr;
 	//    }//end loop over clusters
 	//  }//end if not fPerCluster
-	  if(hit.size() == 0){ 
-	    if(fPerCluster){
-	//      clusterIter++;
-	      ++cinctr;
-	    }
-	   return -1; //continue;
-	  }
-	  //factor to make x and y scale the same units
-	  double xyScale  = .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
-	  xyScale        *= detprop->SamplingRate()/geom->WirePitch(0,1,p,t,cs);
-          double wirePitch = geom->WirePitch(geom->View(hit[0]->Wire()->RawDigit()->Channel()));
-	  
-	  int x, y;
-	  int dx = geom->Cryostat(cs).TPC(t).Plane(p).Nwires();//number of wires 
-	  int dy = hit[0]->Wire()->NSignal();//number of time samples. 
-	  skip.clear();
-	  skip.resize(hit.size());
-	  std::vector<int> listofxmax;
-	  std::vector<int> listofymax;  
-	  std::vector<int> hitTemp;        //indecies ofcandidate hits
-	  std::vector<int> sequenceHolder; //channels of hits in list
-	  std::vector<int> currentHits;    //working vector of hits 
-	  std::vector<int> lastHits;       //best list of hits
-	  art::PtrVector<recob::Hit> clusterHits;
-	  float indcolscaling = 0.;       //a parameter to account for the different 
-	                                  //characteristic hit width of induction and collection plane
-	  float centerofmassx = 0;
-	  float centerofmassy = 0;
-	  float denom = 0; 
-	  float intercept=0.;
-	  float slope = 0.;
-	  //this array keeps track of the hits that have already been associated with a line. 
-	  int xMax = 0;
-	  int yMax = 0;
-	  float rho;
-	  float theta; 
-	  int accDx(0), accDy(0);
 
-
-	  //Init specifies the size of the two-dimensional accumulator 
-	  //(based on the arguments, number of wires and number of time samples). 
-	  //adds all of the hits (that have not yet been associated with a line) to the accumulator
-	  c.Init(dx,dy,fRhoResolutionFactor,fNumAngleCells);
-
-
-          // count is how many points are left to randomly insert
-          unsigned int count = hit.size();
-          std::vector<unsigned int> accumPoints;
-          accumPoints.resize(hit.size());
-          int nAccum = 0;
-          unsigned int nLinesFound = 0;
-
-          for( ; count > 0; count--){
-	   
-
-            // The random hit we are examining
-            unsigned int randInd = (unsigned int)(flat.fire()*hit.size());
-        
-            // Skip if it's already in a line
-            if(skip[randInd]==1)
-              continue;
-        
-            // If we have already accumulated the point, skip it
-            if(accumPoints[randInd])
-              continue;
-            accumPoints[randInd]=1;
-    
-            // zeroes out the neighborhood of all previous lines  
-            for(unsigned int i = 0; i < listofxmax.size(); ++i){
-              int yClearStart = listofymax[i] - fRhoZeroOutRange;
-              if (yClearStart < 0) yClearStart = 0;
-              
-              int yClearEnd = listofymax[i] + fRhoZeroOutRange;
-              if (yClearEnd >= accDy) yClearEnd = accDy - 1;
-              
-              int xClearStart = listofxmax[i] - fThetaZeroOutRange;
-              if (xClearStart < 0) xClearStart = 0;
-              
-              int xClearEnd = listofxmax[i] + fThetaZeroOutRange;
-              if (xClearEnd >= accDx) xClearEnd = accDx - 1;
-              
-              for (y = yClearStart; y <= yClearEnd; ++y){
-                for (x = xClearStart; x <= xClearEnd; ++x){
-                  c.SetCell(y,x,0);
-                }
-              }
-            }// end loop over size of listxmax
+  if(hit.size() == 0){ 
+    if(fPerCluster){
+      //      clusterIter++;
+      ++cinctr;
+    }
+    return -1; //continue;
+  }
   
-            //find the weightiest cell in the accumulator.
-            int maxCell = 0;
-            unsigned int wireMax = hit[randInd]->WireID().Wire;
+  //factor to make x and y scale the same units
+  double xyScale  = .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  xyScale        *= detprop->SamplingRate()/geom->WirePitch(0,1,p,t,cs);
+  double wirePitch = geom->WirePitch(geom->View(hit[0]->Wire()->RawDigit()->Channel()));
+  
+  int x, y;
+  int dx = geom->Cryostat(cs).TPC(t).Plane(p).Nwires();//number of wires 
+  int dy = hit.at(0)->Wire()->NSignal();//number of time samples. 
+  skip.clear();
+  skip.resize(hit.size());
+  std::vector<int> listofxmax;
+  std::vector<int> listofymax;  
+  std::vector<int> hitTemp;        //indecies ofcandidate hits
+  std::vector<int> sequenceHolder; //channels of hits in list
+  std::vector<int> currentHits;    //working vector of hits 
+  std::vector<int> lastHits;       //best list of hits
+  art::PtrVector<recob::Hit> clusterHits;
+  float indcolscaling = 0.;       //a parameter to account for the different 
+  //characteristic hit width of induction and collection plane
+  float centerofmassx = 0;
+  float centerofmassy = 0;
+  float denom = 0; 
+  float intercept=0.;
+  float slope = 0.;
+  //this array keeps track of the hits that have already been associated with a line. 
+  int xMax = 0;
+  int yMax = 0;
+  float rho;
+  float theta; 
+  int accDx(0), accDy(0);
+  
+  
+  //Init specifies the size of the two-dimensional accumulator 
+  //(based on the arguments, number of wires and number of time samples). 
+  //adds all of the hits (that have not yet been associated with a line) to the accumulator
+  c.Init(dx,dy,fRhoResolutionFactor,fNumAngleCells);
+  
+  // count is how many points are left to randomly insert
+  unsigned int count = hit.size();
+  std::vector<unsigned int> accumPoints;
+  accumPoints.resize(hit.size());
+  int nAccum = 0;
+  unsigned int nLinesFound = 0;
+  
+  for( ; count > 0; count--){
+    
+    
+    // The random hit we are examining
+    unsigned int randInd = (unsigned int)(flat.fire()*hit.size());
+    
+    LOG_DEBUG("HoughBaseAlg") << "randInd=" << randInd << " and size is " << hit.size();
 
-            // Add the randomly selected point to the accumulator
-	    std::vector<int> max = c.AddPointReturnMax(wireMax, 
-						       (int)(hit[randInd]->PeakTime()));
-            maxCell = max[0];
-            xMax    = max[1];
-            yMax    = max[2];
-            nAccum++; 
+  // Skip if it's already in a line
+    if(skip.at(randInd)==1)
+      continue;
+    
+    // If we have already accumulated the point, skip it
+    if(accumPoints.at(randInd))
+      continue;
+    accumPoints.at(randInd)=1;
+    
+    // zeroes out the neighborhood of all previous lines  
+    for(unsigned int i = 0; i < listofxmax.size(); ++i){
+      int yClearStart = listofymax.at(i) - fRhoZeroOutRange;
+      if (yClearStart < 0) yClearStart = 0;
+      
+      int yClearEnd = listofymax.at(i) + fRhoZeroOutRange;
+      if (yClearEnd >= accDy) yClearEnd = accDy - 1;
+      
+      int xClearStart = listofxmax.at(i) - fThetaZeroOutRange;
+      if (xClearStart < 0) xClearStart = 0;
+      
+      int xClearEnd = listofxmax.at(i) + fThetaZeroOutRange;
+      if (xClearEnd >= accDx) xClearEnd = accDx - 1;
+      
+      for (y = yClearStart; y <= yClearEnd; ++y){
+	for (x = xClearStart; x <= xClearEnd; ++x){
+	  c.SetCell(y,x,0);
+	}
+      }
+    }// end loop over size of listxmax
+  
 
-            // Continue if the biggest maximum for the randomly selected point is smaller than fMinHits
-            if (maxCell < fMinHits) 
-              continue;
-
-            // Find the center of mass of the 3x3 cell system (with maxCell at the center). 
-            denom = centerofmassx = centerofmassy = 0;
-          
-            if(xMax > 0 && yMax > 0 && xMax + 1 < accDx && yMax + 1 < accDy){  
-              for(int i = -1; i < 2; ++i){
-                for(int j = -1; j < 2; ++j){
-                  denom += c.GetCell(yMax+i,xMax+j);
-                  centerofmassx += j*c.GetCell(yMax+i,xMax+j);
-                  centerofmassy += i*c.GetCell(yMax+i,xMax+j);
-                }
-              }
-              centerofmassx /= denom;
-              centerofmassy /= denom;      
-            }
-            else  centerofmassx = centerofmassy = 0;
-          
-            //fill the list of cells that have already been found
-            listofxmax.push_back(xMax);
-            listofymax.push_back(yMax);
+    //find the weightiest cell in the accumulator.
+    int maxCell = 0;
+    unsigned int wireMax = hit.at(randInd)->WireID().Wire;
+    
+    // Add the randomly selected point to the accumulator
+    std::vector<int> max = c.AddPointReturnMax(wireMax, 
+					       (int)(hit.at(randInd)->PeakTime()));
+    maxCell = max.at(0);
+    xMax    = max.at(1);
+    yMax    = max.at(2);
+    nAccum++; 
+    
+    // Continue if the biggest maximum for the randomly selected point is smaller than fMinHits
+    if (maxCell < fMinHits) 
+      continue;
+    
+    // Find the center of mass of the 3x3 cell system (with maxCell at the center). 
+    denom = centerofmassx = centerofmassy = 0;
+    
+    if(xMax > 0 && yMax > 0 && xMax + 1 < accDx && yMax + 1 < accDy){  
+      for(int i = -1; i < 2; ++i){
+	for(int j = -1; j < 2; ++j){
+	  denom += c.GetCell(yMax+i,xMax+j);
+	  centerofmassx += j*c.GetCell(yMax+i,xMax+j);
+	  centerofmassy += i*c.GetCell(yMax+i,xMax+j);
+	}
+      }
+      centerofmassx /= denom;
+      centerofmassy /= denom;      
+    }
+    else  centerofmassx = centerofmassy = 0;
+    
+    //fill the list of cells that have already been found
+    listofxmax.push_back(xMax);
+    listofymax.push_back(yMax);
+    
+    // Find the lines equation
+    c.GetEquation(yMax+centerofmassy, xMax+centerofmassx, rho, theta);
+    //c.GetEquation(yMax, xMax, rho, theta);
+    slope = -1./tan(theta);    
+    intercept = (rho/sin(theta));
+    //mf::LogVerbatim("HoughBaseAlg") << std::endl;
+    //mf::LogVerbatim("HoughBaseAlg") << "slope: " << slope << " intercept: " << intercept << std::endl; 
+    //mf::LogInfo("HoughBaseAlg") << "slope: " << slope << " intercept: " << intercept;
+    double distance;
+    /// \todo: the collection plane's characteristic hit width's are, 
+    /// \todo: on average, about 5 time samples wider than the induction plane's. 
+    /// \todo: this is hard-coded for now.
+    if(sigt == geo::kInduction)
+      indcolscaling = 5.;
+    else
+      indcolscaling = 0.;
+    // What is this?   
+    //indcolscaling = 0;
+    
+    
         
-            // Find the lines equation
-            c.GetEquation(yMax+centerofmassy, xMax+centerofmassx, rho, theta);
-            //c.GetEquation(yMax, xMax, rho, theta);
-            slope = -1./tan(theta);    
-            intercept = (rho/sin(theta));
-            //mf::LogVerbatim("HoughBaseAlg") << std::endl;
-            //mf::LogVerbatim("HoughBaseAlg") << "slope: " << slope << " intercept: " << intercept << std::endl; 
-            //mf::LogInfo("HoughBaseAlg") << "slope: " << slope << " intercept: " << intercept;
-            double distance;
-            /// \todo: the collection plane's characteristic hit width's are, 
-            /// \todo: on average, about 5 time samples wider than the induction plane's. 
-            /// \todo: this is hard-coded for now.
-            if(sigt == geo::kInduction)
-              indcolscaling = 5.;
-            else
-              indcolscaling = 0.;
-            // What is this?   
-            //indcolscaling = 0;
+    if(!std::isinf(slope) && !std::isnan(slope)){
+      sequenceHolder.clear();
+      hitTemp.clear();
+      for(size_t i = 0; i < hit.size(); ++i){
+	distance = (TMath::Abs(hit.at(i)->PeakTime()-slope*(double)(hit.at(i)->WireID().Wire)-intercept)/(std::sqrt(pow(xyScale*slope,2)+1)));
+	
+	if(distance < fMaxDistance+((hit.at(i)->EndTime()-hit.at(i)->StartTime())/2.)+indcolscaling  && skip.at(i)!=1){
+	  hitTemp.push_back(i);
+	  sequenceHolder.push_back(hit.at(i)->Channel());
+	}
+	
+      }// end loop over hits
+      
+      if(hitTemp.size() < 2) continue;
+      currentHits.clear();  
+      lastHits.clear();
+      int j; 
+      currentHits.push_back(0);
+      for(size_t i = 0; i + 1 < sequenceHolder.size(); ++i){  
+	j = 1;
+	while((chanFilt.BadChannel(sequenceHolder.at(i)+j)) == true) j++;
+	if(sequenceHolder.at(i+1)-sequenceHolder.at(i) <= j + fMissedHits) currentHits.push_back(i+1);
+	else if(currentHits.size() > lastHits.size()) {
+	  lastHits = currentHits;
+	  currentHits.clear();
+	}
+	else currentHits.clear();
+      }
+      
+      
+      if(currentHits.size() > lastHits.size()) lastHits = currentHits;
+      
+      
+      
+      // Check if lastHits has hits with big gaps in it
+      // lastHits[i] is ordered in increasing channel and then increasing peak time,
+      // as a consequence, if the line has a negative slope and there are multiple hits in the line for a channel,
+      // we have to go back to the first hit (in terms of lastHits[i]) of that channel to find the distance
+      // between hits
+      //std::cout << "New line" << std::endl;
+      double wire_dist = wirePitch;
+      double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+      tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+      int missedHits=0;
+      int lastHitsChannel = 0;//lastHits.at(0);
+      int nHitsPerChannel = 1;
+
+      LOG_DEBUG("HoughBaseAlg") << "filling the pCorner arrays around here..."
+				<< "\n but first, lastHits size is " << lastHits.size() 
+				<< " and lastHitsChannel=" << lastHitsChannel;
+
+      double pCorner0[2];
+      double pCorner1[2];
+      unsigned int lastChannel = hit.at(hitTemp.at(lastHits.at(0)))->Wire()->RawDigit()->Channel();
+
+      for(size_t i = 0; i < lastHits.size()-1; ++i) {
+	bool newChannel = false;
+	if(slope < 0){
+	  if(hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel() != lastChannel){
+	    newChannel = true;
+	  }
+	  if(hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel() == lastChannel)
+	    nHitsPerChannel++;
+	}
+	
+
+	if(slope > 0 || (!newChannel && nHitsPerChannel <= 1)){
+
+	  //std::cout << hits[hitsTemp[lastHits[i]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[i]]]->StartTime()+hits[hitsTemp[lastHits[i]]]->EndTime())/2.) << std::endl;
+	  pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(i)))->Wire()->RawDigit()->Channel())*wire_dist;
+	  pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(i)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i)))->EndTime())/2.)*tickToDist;
+	  pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel())*wire_dist;
+	  pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i+1)))->EndTime())/2.)*tickToDist;
+	  //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
+	  if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
+	    missedHits++;
+	}
 
 
+	else if (slope < 0 && newChannel && nHitsPerChannel > 1){
 
+	  //std::cout << hits[hitsTemp[lastHits[lastHitsChannel]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[lastHitsChannel]]]->StartTime()+hits[hitsTemp[lastHits[lastHitsChannel]]]->EndTime())/2.) << std::endl;
+	  pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->Wire()->RawDigit()->Channel())*wire_dist;
+	  pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->StartTime()+hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->EndTime())/2.)*tickToDist;
+	  pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel())*wire_dist;
+	  pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i+1)))->EndTime())/2.)*tickToDist;
+	  //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
+	  if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
+	    missedHits++;
+	  lastChannel=hit.at(hitTemp.at(lastHits.at(i)))->Wire()->RawDigit()->Channel();
+	  lastHitsChannel=i+1;
+	  nHitsPerChannel=0;
+	}
+      }
 
-
-
-	    if(!std::isinf(slope) && !std::isnan(slope)){
-	      sequenceHolder.clear();
-	      hitTemp.clear();
-	      for(size_t i = 0; i < hit.size(); ++i){
-		distance = (TMath::Abs(hit[i]->PeakTime()-slope*(double)(hit[i]->WireID().Wire)-intercept)/(std::sqrt(pow(xyScale*slope,2)+1)));
-		
-		if(distance < fMaxDistance+((hit[i]->EndTime()-hit[i]->StartTime())/2.)+indcolscaling  && skip[i]!=1){
-		  hitTemp.push_back(i);
-		  sequenceHolder.push_back(hit[i]->Channel());
-		}
-		
-	      }// end loop over hits
-	      
-	      if(hitTemp.size() < 2) continue;
-	      currentHits.clear();  
-	      lastHits.clear();
-	      int j; 
-	      currentHits.push_back(0);
-	      for(size_t i = 0; i + 1 < sequenceHolder.size(); ++i){  
-		j = 1;
-		while((chanFilt.BadChannel(sequenceHolder[i]+j)) == true) j++;
-		if(sequenceHolder[i+1]-sequenceHolder[i] <= j + fMissedHits) currentHits.push_back(i+1);
-		else if(currentHits.size() > lastHits.size()) {
-		  lastHits = currentHits;
-		  currentHits.clear();
-		}
-		else currentHits.clear();
-	      }
-
-
-	      if(currentHits.size() > lastHits.size()) lastHits = currentHits;
-
-
-
-
-              // Check if lastHits has hits with big gaps in it
-              // lastHits[i] is ordered in increasing channel and then increasing peak time,
-              // as a consequence, if the line has a negative slope and there are multiple hits in the line for a channel,
-              // we have to go back to the first hit (in terms of lastHits[i]) of that channel to find the distance
-              // between hits
-              //std::cout << "New line" << std::endl;
-              double wire_dist = wirePitch;
-              double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
-              tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-              int missedHits=0;
-              int lastHitsChannel = lastHits[0];
-              int nHitsPerChannel = 1;
-              double pCorner0[2];
-              double pCorner1[2];
-              unsigned int lastChannel = hit[hitTemp[lastHits[0]]]->Wire()->RawDigit()->Channel();
-              for(size_t i = 0; i < lastHits.size()-1; ++i) {
-                bool newChannel = false;
-                if(slope < 0){
-                  if(hit[hitTemp[lastHits[i+1]]]->Wire()->RawDigit()->Channel() != lastChannel){
-                    newChannel = true;
-                  }
-                  if(hit[hitTemp[lastHits[i+1]]]->Wire()->RawDigit()->Channel() == lastChannel)
-                    nHitsPerChannel++;
-                }
-                if(slope > 0 || (!newChannel && nHitsPerChannel <= 1)){
-                  //std::cout << hits[hitsTemp[lastHits[i]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[i]]]->StartTime()+hits[hitsTemp[lastHits[i]]]->EndTime())/2.) << std::endl;
-                  pCorner0[0] = (hit[hitTemp[lastHits[i]]]->Wire()->RawDigit()->Channel())*wire_dist;
-                  pCorner0[1] = ((hit[hitTemp[lastHits[i]]]->StartTime()+hit[hitTemp[lastHits[i]]]->EndTime())/2.)*tickToDist;
-                  pCorner1[0] = (hit[hitTemp[lastHits[i+1]]]->Wire()->RawDigit()->Channel())*wire_dist;
-                  pCorner1[1] = ((hit[hitTemp[lastHits[i+1]]]->StartTime()+hit[hitTemp[lastHits[i+1]]]->EndTime())/2.)*tickToDist;
-                  //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
-                  if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
-                    missedHits++;
-                } else if (slope < 0 && newChannel && nHitsPerChannel > 1){
-                  //std::cout << hits[hitsTemp[lastHits[lastHitsChannel]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[lastHitsChannel]]]->StartTime()+hits[hitsTemp[lastHits[lastHitsChannel]]]->EndTime())/2.) << std::endl;
-                  pCorner0[0] = (hit[hitTemp[lastHits[lastHitsChannel]]]->Wire()->RawDigit()->Channel())*wire_dist;
-                  pCorner0[1] = ((hit[hitTemp[lastHits[lastHitsChannel]]]->StartTime()+hit[hitTemp[lastHits[lastHitsChannel]]]->EndTime())/2.)*tickToDist;
-                  pCorner1[0] = (hit[hitTemp[lastHits[i+1]]]->Wire()->RawDigit()->Channel())*wire_dist;
-                  pCorner1[1] = ((hit[hitTemp[lastHits[i+1]]]->StartTime()+hit[hitTemp[lastHits[i+1]]]->EndTime())/2.)*tickToDist;
-                  //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
-                  if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
-                    missedHits++;
-                  lastChannel=hit[hitTemp[lastHits[i]]]->Wire()->RawDigit()->Channel();
-                  lastHitsChannel=i+1;
-                  nHitsPerChannel=0;
-                }
-              }
-              //std::cout << "missedHits " << missedHits << std::endl;
-              //std::cout << "lastHits.size() " << lastHits.size() << std::endl;
-              //std::cout << "missedHits/lastHits.size() " << (double)missedHits/((double)lastHits.size()-1) << std::endl;
-              if((double)missedHits/((double)lastHits.size()-1) > fMissedHitsToLineSize)
-                continue;
-
-
-
-
-	      clusterHits.clear();    
-	      double totalQ = 0.;
-              if(lastHits.size() < 5) continue;
-
-
-	      for(size_t i = 0; i < lastHits.size(); ++i) {
-		clusterHits.push_back(hit[hitTemp[lastHits[i]]]);
-		totalQ += clusterHits.back()->Charge();
-		skip[hitTemp[lastHits[i]]]=1;
-	      } 
-	      //protection against very steep uncorrelated hits
-	      if(std::abs(slope)>fMaxSlope 
-		 && std::abs((*clusterHits.begin())->Wire()->RawDigit()->Channel()-
-			       clusterHits[clusterHits.size()-1]->Wire()->RawDigit()->Channel())>=0
-		 )
-		continue;
-	     
-
-
-	     // unsigned int sw = (*clusterHits.begin())->WireID().Wire;
-	     // unsigned int ew = (*(clusterHits.end()-1))->WireID().Wire;
-	      
-	    /*  recob::Cluster cluster(sw, 0.,
-				     (*clusterHits.begin())->PeakTime(), 0.,
-				     ew, 0., 
-				     (clusterHits[clusterHits.size()-1])->PeakTime(), 0.,
-				     slope, 0., 
-				     -999., 0., 
-				     totalQ,
-				     geom->View((*clusterHits.begin())->Channel()),
-				     clusterID);	*/      
-	      
-	   //   ++clusterID;
-	    //  ccol.push_back(cluster);
-	      clusHitsOut.push_back(clusterHits);
-              slopevec.push_back(slope);
-	      totalQvec.push_back(totalQ);
-	      //Turn off hit sharing. T. Yang 9/14/12
-	      //	      //allow double assignment of first and last hits
-	      //	      for(size_t i = 0; i < lastHits.size(); ++i){ 
-	      //		if(skip[hitTemp[lastHits[i]]] ==1){
-	      //		  channel = hit[hitTemp[lastHits[i]]]->Wire()->RawDigit()->Channel();  
-	      //		  if( channel == sc || channel == ec) skip[i] = 0;
-	      //		}
-	      //	      }
-              
-	    }// end if !std::isnan
-   
-            nLinesFound++;
-
-            if(nLinesFound>(unsigned int)fMaxLines)
-              break;
-
-	    
-	  }// end loop over hits
-	  
-	  // saves a bitmap image of the accumulator (useful for debugging), 
-	  // with scaling based on the maximum cell value
-	  if(fSaveAccumulator){   
-	    unsigned char *outPix = new unsigned char [accDx*accDy];
-	    //finds the maximum cell in the accumulator for image scaling
-	    int cell, pix = 0, maxCell = 0;
-	    for (y = 0; y < accDy; ++y){ 
-	      for (x = 0; x < accDx; ++x){
-		cell = c.GetCell(y,x);
-		if (cell > maxCell) maxCell = cell;
-	      }
-	    }
-	    for (y = 0; y < accDy; ++y){
-	      for (x = 0; x < accDx; ++x){ 
-		//scales the pixel weights based on the maximum cell value     
-		if(maxCell > 0)
-		  pix = (int)((1500*c.GetCell(y,x))/maxCell);
-		outPix[y*accDx + x] = pix;
-	      }
-	    }
-	    	    
-	    HLSSaveBMPFile("houghaccum.bmp", outPix, accDx, accDy);
-	    delete [] outPix;
-	  }// end if saving accumulator
-	  
-	  hit.clear();
-	  lastHits.clear();
-// 	  if(clusterIter != clusIn.end()){
-// 	    clusterIter++;
-// 	    ++cinctr;
-// 	  }
-	  listofxmax.clear();
-	  listofymax.clear();
-	//}//end loop over clusters
-
-//       }//end loop over planes
-//     }// end loop over tpcs
-//   }// end loop over cryostats
-
+      //std::cout << "missedHits " << missedHits << std::endl;
+      //std::cout << "lastHits.size() " << lastHits.size() << std::endl;
+      //std::cout << "missedHits/lastHits.size() " << (double)missedHits/((double)lastHits.size()-1) << std::endl;
+      if((double)missedHits/((double)lastHits.size()-1) > fMissedHitsToLineSize)
+	continue;
+      
+      
+      
+      
+      clusterHits.clear();    
+      double totalQ = 0.;
+      if(lastHits.size() < 5) continue;
+      
+      for(size_t i = 0; i < lastHits.size(); ++i) {
+	clusterHits.push_back(hit.at(hitTemp.at(lastHits.at(i))));
+	totalQ += clusterHits.back()->Charge();
+	skip.at(hitTemp.at(lastHits.at(i)))=1;
+      } 
+      //protection against very steep uncorrelated hits
+      if(std::abs(slope)>fMaxSlope 
+	 && std::abs((*clusterHits.begin())->Wire()->RawDigit()->Channel()-
+		     clusterHits.at(clusterHits.size()-1)->Wire()->RawDigit()->Channel())>=0
+	 )
+	continue;
+      
+      
+      
+      // unsigned int sw = (*clusterHits.begin())->WireID().Wire;
+      // unsigned int ew = (*(clusterHits.end()-1))->WireID().Wire;
+      
+      /*  recob::Cluster cluster(sw, 0.,
+	  (*clusterHits.begin())->PeakTime(), 0.,
+	  ew, 0., 
+	  (clusterHits[clusterHits.size()-1])->PeakTime(), 0.,
+	  slope, 0., 
+	  -999., 0., 
+	  totalQ,
+	  geom->View((*clusterHits.begin())->Channel()),
+	  clusterID);	*/      
+      
+      //   ++clusterID;
+      //  ccol.push_back(cluster);
+      clusHitsOut.push_back(clusterHits);
+      slopevec.push_back(slope);
+      totalQvec.push_back(totalQ);
+      //Turn off hit sharing. T. Yang 9/14/12
+      //	      //allow double assignment of first and last hits
+      //	      for(size_t i = 0; i < lastHits.size(); ++i){ 
+      //		if(skip[hitTemp[lastHits[i]]] ==1){
+      //		  channel = hit[hitTemp[lastHits[i]]]->Wire()->RawDigit()->Channel();  
+      //		  if( channel == sc || channel == ec) skip[i] = 0;
+      //		}
+      //	      }
+      
+    }// end if !std::isnan
+    
+    nLinesFound++;
+    
+    if(nLinesFound>(unsigned int)fMaxLines)
+      break;
+    
+    
+  }// end loop over hits
+  
+  // saves a bitmap image of the accumulator (useful for debugging), 
+  // with scaling based on the maximum cell value
+  if(fSaveAccumulator){   
+    unsigned char *outPix = new unsigned char [accDx*accDy];
+    //finds the maximum cell in the accumulator for image scaling
+    int cell, pix = 0, maxCell = 0;
+    for (y = 0; y < accDy; ++y){ 
+      for (x = 0; x < accDx; ++x){
+	cell = c.GetCell(y,x);
+	if (cell > maxCell) maxCell = cell;
+      }
+    }
+    for (y = 0; y < accDy; ++y){
+      for (x = 0; x < accDx; ++x){ 
+	//scales the pixel weights based on the maximum cell value     
+	if(maxCell > 0)
+	  pix = (int)((1500*c.GetCell(y,x))/maxCell);
+	outPix[y*accDx + x] = pix;
+      }
+    }
+    
+    HLSSaveBMPFile("houghaccum.bmp", outPix, accDx, accDy);
+    delete [] outPix;
+  }// end if saving accumulator
+  
+  hit.clear();
+  lastHits.clear();
+  // 	  if(clusterIter != clusIn.end()){
+  // 	    clusterIter++;
+  // 	    ++cinctr;
+  // 	  }
+  listofxmax.clear();
+  listofymax.clear();
+  //}//end loop over clusters
+  
+  //       }//end loop over planes
+  //     }// end loop over tpcs
+  //   }// end loop over cryostats
+  
   return clusHitsOut.size();
-
+  
 }
 
 
