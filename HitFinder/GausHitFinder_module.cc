@@ -47,6 +47,7 @@ extern "C" {
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "RecoBase/Hit.h"
+#include "Utilities/DetectorProperties.h"
 
 // ROOT Includes 
 #include "TH1D.h"
@@ -167,7 +168,8 @@ void GausHitFinder::produce(art::Event& evt)
   // ---------------------------
   // --- Seed Fit Functions  --- (This function used to "seed" the mean peak position)
   // ---------------------------
-  TF1 *hit	= new TF1("hit","gaus",0,3200);
+  art::ServiceHandle<util::DetectorProperties> detprop;
+  TF1 *hit	= new TF1("hit","gaus",0,detprop->NumberTimeSamples());
 
   std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
     

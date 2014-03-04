@@ -2925,8 +2925,8 @@ namespace cluster {
         vtx[iv].Wire = (int)(wv + 0.5);
         vtx[iv].Time = -tv;
         if(vtx[iv].Time < 0 || vtx[iv].Time > 3200) {
-          mf::LogError("ClusterCrawler")<<"FitVtx: Bad fit time "<<vtx[iv].Time
-            <<" on vtx "<<iv;
+          //mf::LogError("ClusterCrawler")<<"FitVtx: Bad fit time "<<vtx[iv].Time
+	  //<<" on vtx "<<iv; // commenting out as it gives incorrect message in 1-big-window regime
         }
       } // ChiDOF < 5
     } // FitVtx
