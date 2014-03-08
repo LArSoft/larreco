@@ -82,15 +82,15 @@ namespace vertex {
 
     //We will need the geometry.
     geo::Geometry const& my_geometry(*fGeometryHandle);
+    fCornerAlg.InitializeGeometry(&my_geometry);
 
     //We need to grab out the wires.
     art::Handle< std::vector<recob::Wire> > wireHandle;
     evt.getByLabel(fCalDataModuleLabel,wireHandle);
     std::vector<recob::Wire> const& wireVec(*wireHandle);
 
-    //First, have it process the "raw" data.
-    //fCornerAlg.TakeInRaw(evt);
-    fCornerAlg.GrabWires(wireVec,my_geometry);
+    //First, have it process the wires.
+    fCornerAlg.GrabWires(wireVec);
 
     //now, make a vector of recob::EndPoint2Ds, and hand that to CornerAlg to fill out
     std::unique_ptr< std::vector<recob::EndPoint2D> > corner_vector(new std::vector<recob::EndPoint2D>);
