@@ -9,9 +9,6 @@
 #define CORNERFINDERALG_H
 
 #include "fhiclcpp/ParameterSet.h" 
-#include "art/Persistency/Common/Ptr.h" 
-#include "art/Persistency/Common/PtrVector.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h"
 
 #include "TMath.h"
 #include "TH2.h"
@@ -19,6 +16,7 @@
 #include "TH1D.h"
 #include <vector>
 #include <string>
+#include "RecoBase/Wire.h"
 #include "RecoBase/EndPoint2D.h"
 #include "Geometry/Geometry.h"
 
@@ -27,7 +25,7 @@ namespace trkf {
   class BezierTrack;
 }
 
-namespace cluster { //<---Not sure if this is the right namespace
+namespace corner { //<---Not sure if this is the right namespace
 
    class CornerFinderAlg {
    
@@ -39,8 +37,10 @@ namespace cluster { //<---Not sure if this is the right namespace
     void   reconfigure(fhicl::ParameterSet const& pset);
     
 
-    void TakeInRaw( art::Event const&evt); //this one creates the histograms we want to use
-    
+    void InitializeGeometry( geo::Geometry const *geometry );
+    void GrabWires( std::vector<recob::Wire> const& wireVec ); //this one creates the histograms we want to use
+
+
     void get_feature_points(std::vector<recob::EndPoint2D> &); //here we get feature points with corner score
     void get_feature_points_LineIntegralScore(std::vector<recob::EndPoint2D> &); //here we get feature points with LineIntegral score
     void get_feature_points_fast(std::vector<recob::EndPoint2D> &); //here we get feature points with corner score
@@ -58,6 +58,8 @@ namespace cluster { //<---Not sure if this is the right namespace
 
     private:
     
+    geo::Geometry const * my_geometry; //internal pointer to geometry ... nees to be initialized!!!
+    void CheckGeometry();
 
     art::ServiceHandle<geo::Geometry> fGeom; ///< handle to the geometry service
 

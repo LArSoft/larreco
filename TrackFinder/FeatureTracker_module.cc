@@ -18,6 +18,7 @@
 #include "RecoAlg/SeedFinderAlgorithm.h"
 #include "TVector3.h"
 #include "RecoBase/EndPoint2D.h"
+#include "RecoBase/Wire.h"
 
 #include "RecoAlg/CornerFinderAlg.h"
 #include "RecoAlg/SpacePointAlg.h"
@@ -61,6 +62,7 @@ namespace trkf {
 
     std::string fTruthModuleLabel;
     std::string fHitModuleLabel;
+    std::string fCalDataModuleLabel;
 
     void GetProjectedEnds(TVector3 xyz, std::vector<double>& uvw, std::vector<double>& t, int tpc=0, int cryo=0);
     
@@ -85,7 +87,7 @@ namespace trkf {
     bool CheckSeedLineInt(recob::Seed& TheSeed);
 
     trkf::SpacePointAlg       fSP;
-    cluster::CornerFinderAlg  fCorner;
+    corner::CornerFinderAlg  fCorner;
 
     
     double  fLineIntThreshold;
@@ -140,7 +142,9 @@ namespace trkf {
     fHitModuleLabel    = pset.get<std::string>("HitModuleLabel");
     fLineIntFraction   = pset.get<double>("LineIntFraction");
     fLineIntThreshold  = pset.get<double>("LineIntThreshold");
-    
+    fhicl::ParameterSet CornerPset = pset.get<fhicl::ParameterSet>("CornerPset");
+    fCalDataModuleLabel = CornerPset.get<std::string>("CalDataModuleLabel");
+ 
   }
 
   void FeatureTracker::beginJob()
@@ -161,7 +165,18 @@ namespace trkf {
     }
     
     
-    fCorner.TakeInRaw(evt);
+    //We will need the geometry.
+    art::ServiceHandle<geo::Geometry> fGeometryHandle;
+    geo::Geometry const& my_geometry(*fGeometryHandle);
+    fCorner.InitializeGeometry(&my_geometry);
+
+    //We need to grab out the wires.
+    art::Handle< std::vector<recob::Wire> > wireHandle;
+    evt.getByLabel(fCalDataModuleLabel,wireHandle);
+    std::vector<recob::Wire> const& wireVec(*wireHandle);
+
+    //First, have it process the wires.
+    fCorner.GrabWires(wireVec);
    
     std::vector<recob::EndPoint2D> EndPoints;
     fCorner.get_feature_points(EndPoints);
