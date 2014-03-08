@@ -19,6 +19,7 @@
 #include "TH1D.h"
 #include <vector>
 #include <string>
+#include "RecoBase/Wire.h"
 #include "RecoBase/EndPoint2D.h"
 #include "Geometry/Geometry.h"
 
@@ -27,7 +28,7 @@ namespace trkf {
   class BezierTrack;
 }
 
-namespace cluster { //<---Not sure if this is the right namespace
+namespace corner { //<---Not sure if this is the right namespace
 
    class CornerFinderAlg {
    
@@ -39,6 +40,7 @@ namespace cluster { //<---Not sure if this is the right namespace
     void   reconfigure(fhicl::ParameterSet const& pset);
     
 
+    void GrabWires( std::vector<recob::Wire> const& wireVec, geo::Geometry const& geometry); //this one creates the histograms we want to use
     void TakeInRaw( art::Event const&evt); //this one creates the histograms we want to use
     
     void get_feature_points(std::vector<recob::EndPoint2D> &); //here we get feature points with corner score

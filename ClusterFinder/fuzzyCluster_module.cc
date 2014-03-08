@@ -33,7 +33,6 @@
 #include "RawData/raw.h"
 #include "RawData/RawDigit.h"
 #include "RecoAlg/fuzzyClusterAlg.h"
-#include "RecoAlg/CornerFinderAlg.h"
 #include "Filters/ChannelFilter.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
@@ -41,6 +40,7 @@
 #include "Geometry/PlaneGeo.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
+#include "RecoBase/EndPoint2D.h"
 #include "Utilities/AssociationUtil.h"
 #include "Utilities/SeedCreator.h"
 
@@ -70,7 +70,6 @@ namespace cluster{
     long int fHoughSeed;
    
     fuzzyClusterAlg ffuzzyCluster; ///< object that implements the fuzzy cluster algorithm
-    CornerFinderAlg fcornerfinder; ///< object that implements the corner finder algorithm
   };
 
 }
@@ -80,8 +79,7 @@ namespace cluster{
 
   //-------------------------------------------------
   fuzzyCluster::fuzzyCluster(fhicl::ParameterSet const& pset) :
-    ffuzzyCluster(pset.get< fhicl::ParameterSet >("fuzzyClusterAlg")),
-    fcornerfinder(pset.get< fhicl::ParameterSet >("CornerFinderAlg"))
+    ffuzzyCluster(pset.get< fhicl::ParameterSet >("fuzzyClusterAlg"))
   {  
     this->reconfigure(pset);
     produces< std::vector<recob::Cluster> >();  
@@ -148,10 +146,6 @@ namespace cluster{
     } 
 
     std::vector<recob::EndPoint2D> endcol; 
-
-    // Pass information into CornerFinder
-    //fcornerfinder.TakeInRaw(evt);
-    //fcornerfinder.get_feature_points_LineIntegralScore(endcol);
 
     // get the ChannelFilter
     filter::ChannelFilter chanFilt;

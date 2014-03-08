@@ -68,7 +68,7 @@ extern "C" {
 
 
 //-----------------------------------------------------------------------------
-cluster::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset) 
+corner::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset) 
 {
   this->reconfigure(pset);
 
@@ -94,7 +94,7 @@ cluster::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset)
 }
 
 //-----------------------------------------------------------------------------
-cluster::CornerFinderAlg::~CornerFinderAlg()
+corner::CornerFinderAlg::~CornerFinderAlg()
 {
   
   for (auto wd_histo : WireData_histos) delete wd_histo;
@@ -117,7 +117,7 @@ cluster::CornerFinderAlg::~CornerFinderAlg()
 }
 
 //-----------------------------------------------------------------------------
-void cluster::CornerFinderAlg::reconfigure(fhicl::ParameterSet const& p)
+void corner::CornerFinderAlg::reconfigure(fhicl::ParameterSet const& p)
 {
   // ### These are all the tuneable .fcl file parameters from the event ###
   fCalDataModuleLabel  			 = p.get< std::string 	 >("CalDataModuleLabel");
@@ -151,9 +151,67 @@ void cluster::CornerFinderAlg::reconfigure(fhicl::ParameterSet const& p)
 
 }
 
+//-----------------------------------------------------------------------------
+void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec, geo::Geometry const& geometry){
+
+  WireData_trimmed_histos.clear();
+  const unsigned int nTimeTicks = wireVec.at(0).NSignal();
+
+  // Initialize the histograms.
+  // All of this should eventually be changed to not need to use histograms...
+  for (unsigned int i_plane=0; i_plane < geometry.Nplanes(); i_plane++){
+
+    std::stringstream ss_tmp_name,ss_tmp_title;
+    ss_tmp_name << "h_WireData_" << i_plane;
+    ss_tmp_title << fCalDataModuleLabel << " wire data for plane " << i_plane << ";Wire Number;Time Tick";
+
+    if(WireData_histos[i_plane]) {
+      WireData_histos[i_plane]->Reset();
+      WireData_histos[i_plane]->SetName(ss_tmp_name.str().c_str());
+      WireData_histos[i_plane]->SetTitle(ss_tmp_title.str().c_str());
+    }
+    else
+      WireData_histos[i_plane] = new TH2F(ss_tmp_name.str().c_str(),
+					  ss_tmp_title.str().c_str(),
+					  geometry.Nwires(i_plane),
+					  0,
+					  geometry.Nwires(i_plane),
+					  nTimeTicks,
+					  0,
+					  nTimeTicks);
+  }
+
+
+  /* Now do the loop over the wires. */
+  for (std::vector<recob::Wire>::const_iterator iwire = wireVec.begin(); iwire < wireVec.end(); iwire++) {
+    
+    std::vector<geo::WireID> possible_wireIDs = geometry.ChannelToWire(iwire->Channel());
+    geo::WireID this_wireID;
+    try { this_wireID = possible_wireIDs.at(0);}
+    catch(cet::exception& excep) { mf::LogError("CornerFinderAlg") << "Bail out! No Possible Wires!"; }
+    
+    unsigned int i_plane = this_wireID.Plane;
+    unsigned int i_wire = this_wireID.Wire;
+
+    WireData_IDs[i_plane][i_wire] = this_wireID;
+    
+    for(unsigned int i_time = 0; i_time < nTimeTicks; i_time++){
+      WireData_histos[i_plane]->SetBinContent(i_wire,i_time,(iwire->Signal()).at(i_time));  
+    }//<---End time loop
+        
+  }//<-- End loop over wires
+  
+
+  for (unsigned int i_plane=0; i_plane < geometry.Nplanes(); i_plane++){
+    WireData_histos_ProjectionX[i_plane] = WireData_histos[i_plane]->ProjectionX();
+    WireData_histos_ProjectionY[i_plane] = WireData_histos[i_plane]->ProjectionY();
+  }
+
+
+}
 
 //-----------------------------------------------------------------------------
-void cluster::CornerFinderAlg::TakeInRaw( art::Event const&evt)
+void corner::CornerFinderAlg::TakeInRaw( art::Event const&evt)
 {
 
   //first, make sure the trimmed histos are not here
@@ -259,7 +317,7 @@ void cluster::CornerFinderAlg::TakeInRaw( art::Event const&evt)
 
 //-----------------------------------------------------------------------------------
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners
-void cluster::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> & corner_vector){
+void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> & corner_vector){
 
   for(auto pid : fGeom->PlaneIDs()){
     attach_feature_points(WireData_histos[pid.Plane],
@@ -272,7 +330,7 @@ void cluster::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D>
 
 //-----------------------------------------------------------------------------------
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners, but quickly!
-void cluster::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoint2D> & corner_vector){
+void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoint2D> & corner_vector){
 
   create_smaller_histos();
   
@@ -305,7 +363,7 @@ void cluster::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoi
 //-----------------------------------------------------------------------------------
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners
 // Uses line integral score as corner strength
-void cluster::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<recob::EndPoint2D> & corner_vector){
+void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<recob::EndPoint2D> & corner_vector){
 
   for(auto pid : fGeom->PlaneIDs()){
     attach_feature_points_LineIntegralScore(WireData_histos[pid.Plane],
@@ -317,7 +375,7 @@ void cluster::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<
 }
 
 //-----------------------------------------------------------------------------------
-void cluster::CornerFinderAlg::remove_duplicates(std::vector<recob::EndPoint2D> & corner_vector){
+void corner::CornerFinderAlg::remove_duplicates(std::vector<recob::EndPoint2D> & corner_vector){
 
   int i_wire, j_wire;
   float i_time, j_time;
@@ -379,7 +437,7 @@ struct compare_to_range{
 
 //-----------------------------------------------------------------------------
 // This looks for areas of the wires that are non-noise, to speed up evaluation
-void cluster::CornerFinderAlg::create_smaller_histos(){
+void corner::CornerFinderAlg::create_smaller_histos(){
 
   for(auto pid : fGeom->PlaneIDs() ){
 
@@ -558,7 +616,7 @@ void cluster::CornerFinderAlg::create_smaller_histos(){
 
 //-----------------------------------------------------------------------------
 // This puts on all the feature points in a given view, using a given data histogram
-void cluster::CornerFinderAlg::attach_feature_points(TH2F *h_wire_data, 
+void corner::CornerFinderAlg::attach_feature_points(TH2F *h_wire_data, 
 						     std::vector<geo::WireID> wireIDs, 
 						     geo::View_t view, 
 						     std::vector<recob::EndPoint2D> & corner_vector,
@@ -637,7 +695,7 @@ void cluster::CornerFinderAlg::attach_feature_points(TH2F *h_wire_data,
 
 //-----------------------------------------------------------------------------
 // This puts on all the feature points in a given view, using a given data histogram
-void cluster::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F *h_wire_data, 
+void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F *h_wire_data, 
 								       std::vector<geo::WireID> wireIDs, 
 								       geo::View_t view, 
 								       std::vector<recob::EndPoint2D> & corner_vector){
@@ -700,7 +758,7 @@ void cluster::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F *h_w
 
 //-----------------------------------------------------------------------------
 // Convert to pixel
-void cluster::CornerFinderAlg::create_image_histo(TH2F *h_wire_data, TH2F *h_conversion) {
+void corner::CornerFinderAlg::create_image_histo(TH2F *h_wire_data, TH2F *h_conversion) {
   
   double temp_integral=0;
 
@@ -760,7 +818,7 @@ void cluster::CornerFinderAlg::create_image_histo(TH2F *h_wire_data, TH2F *h_con
 //-----------------------------------------------------------------------------
 // Derivative
 
-void cluster::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, TH2F *h_derivative_x, TH2F *h_derivative_y){
+void corner::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, TH2F *h_derivative_x, TH2F *h_derivative_y){
 
   const int x_bins = h_conversion->GetNbinsX();
   const int y_bins = h_conversion->GetNbinsY();
@@ -1005,7 +1063,7 @@ void cluster::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, 
 //-----------------------------------------------------------------------------
 // Corner Score
 
-void cluster::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x, TH2F *h_derivative_y, TH2D *h_cornerScore){
+void corner::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x, TH2F *h_derivative_y, TH2D *h_cornerScore){
 
   const int x_bins = h_derivative_x->GetNbinsX();
   const int y_bins = h_derivative_y->GetNbinsY();
@@ -1066,7 +1124,7 @@ void cluster::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x
 
 //-----------------------------------------------------------------------------
 // Max Supress
-size_t cluster::CornerFinderAlg::perform_maximum_suppression(TH2D *h_cornerScore, 
+size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D *h_cornerScore, 
 							     std::vector<recob::EndPoint2D> & corner_vector,
 							     std::vector<geo::WireID> wireIDs, 
 							     geo::View_t view, 
@@ -1128,7 +1186,7 @@ size_t cluster::CornerFinderAlg::perform_maximum_suppression(TH2D *h_cornerScore
 
 
 /* Silly little function for doing a line integral type thing. Needs improvement. */
-float cluster::CornerFinderAlg::line_integral(TH2F *hist, int begin_x, float begin_y, int end_x, float end_y, float threshold){
+float corner::CornerFinderAlg::line_integral(TH2F *hist, int begin_x, float begin_y, int end_x, float end_y, float threshold){
 
   int x1 = hist->GetXaxis()->FindBin( begin_x );
   int y1 = hist->GetYaxis()->FindBin( begin_y );
@@ -1198,7 +1256,7 @@ float cluster::CornerFinderAlg::line_integral(TH2F *hist, int begin_x, float beg
 }
 
 
-std::vector<float> cluster::CornerFinderAlg::line_integrals(trkf::BezierTrack& TheTrack, size_t Steps, float threshold){
+std::vector<float> corner::CornerFinderAlg::line_integrals(trkf::BezierTrack& TheTrack, size_t Steps, float threshold){
 
   std::vector<float> fractions(3);
 
@@ -1227,7 +1285,7 @@ std::vector<float> cluster::CornerFinderAlg::line_integrals(trkf::BezierTrack& T
 
 //-----------------------------------------------------------------------------
 // Do the silly little line integral score thing
-size_t cluster::CornerFinderAlg::calculate_line_integral_score( TH2F* h_wire_data, 
+size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F* h_wire_data, 
 								std::vector<recob::EndPoint2D> const & corner_vector, 
 								std::vector<recob::EndPoint2D> & corner_lineIntegralScore_vector,
 								TH2F* h_lineIntegralScore){
@@ -1271,7 +1329,7 @@ size_t cluster::CornerFinderAlg::calculate_line_integral_score( TH2F* h_wire_dat
 }
 
 
-TH2F* cluster::CornerFinderAlg::GetWireDataHist(unsigned int i_plane){
+TH2F* corner::CornerFinderAlg::GetWireDataHist(unsigned int i_plane){
 
   if(i_plane >= WireData_histos.size()){
     mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
@@ -1281,7 +1339,7 @@ TH2F* cluster::CornerFinderAlg::GetWireDataHist(unsigned int i_plane){
   return WireData_histos.at(i_plane);
 }
 
-TH2F* cluster::CornerFinderAlg::GetConversionHist(unsigned int i_plane){
+TH2F* corner::CornerFinderAlg::GetConversionHist(unsigned int i_plane){
 
   if(i_plane >= fConversion_histos.size()){
     mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
@@ -1291,7 +1349,7 @@ TH2F* cluster::CornerFinderAlg::GetConversionHist(unsigned int i_plane){
   return fConversion_histos.at(i_plane);
 }
 
-TH2F* cluster::CornerFinderAlg::GetDerivativeXHist(unsigned int i_plane){
+TH2F* corner::CornerFinderAlg::GetDerivativeXHist(unsigned int i_plane){
 
   if(i_plane >= fDerivativeX_histos.size()){
     mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
@@ -1301,7 +1359,7 @@ TH2F* cluster::CornerFinderAlg::GetDerivativeXHist(unsigned int i_plane){
   return fDerivativeX_histos.at(i_plane);
 }
 
-TH2F* cluster::CornerFinderAlg::GetDerivativeYHist(unsigned int i_plane){
+TH2F* corner::CornerFinderAlg::GetDerivativeYHist(unsigned int i_plane){
 
   if(i_plane >= fDerivativeY_histos.size()){
     mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
@@ -1311,7 +1369,7 @@ TH2F* cluster::CornerFinderAlg::GetDerivativeYHist(unsigned int i_plane){
   return fDerivativeY_histos.at(i_plane);
 }
 
-TH2D* cluster::CornerFinderAlg::GetCornerScoreHist(unsigned int i_plane){
+TH2D* corner::CornerFinderAlg::GetCornerScoreHist(unsigned int i_plane){
 
   if(i_plane >= fCornerScore_histos.size()){
     mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
@@ -1321,7 +1379,7 @@ TH2D* cluster::CornerFinderAlg::GetCornerScoreHist(unsigned int i_plane){
   return fCornerScore_histos.at(i_plane);
 }
 
-TH2D* cluster::CornerFinderAlg::GetMaxSuppressHist(unsigned int i_plane){
+TH2D* corner::CornerFinderAlg::GetMaxSuppressHist(unsigned int i_plane){
 
   if(i_plane >= fMaxSuppress_histos.size()){
     mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";

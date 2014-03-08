@@ -85,7 +85,7 @@ namespace trkf {
     bool CheckSeedLineInt(recob::Seed& TheSeed);
 
     trkf::SpacePointAlg       fSP;
-    cluster::CornerFinderAlg  fCorner;
+    corner::CornerFinderAlg  fCorner;
 
     
     double  fLineIntThreshold;

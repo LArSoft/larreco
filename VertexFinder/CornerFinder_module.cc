@@ -21,10 +21,13 @@
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Principal/Event.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 
 //LArSoft includes
+#include "RecoBase/Wire.h"
 #include "RecoBase/EndPoint2D.h"
 #include "RecoAlg/CornerFinderAlg.h"
+#include "Geometry/Geometry.h"
 
 //header info for CornerFinder class
 
@@ -42,7 +45,11 @@ namespace vertex {
     void produce(art::Event& evt);
     
   private:
-    cluster::CornerFinderAlg  fCornerAlg;
+    corner::CornerFinderAlg  fCornerAlg;
+    art::ServiceHandle<geo::Geometry> fGeometryHandle;
+
+    std::string               fCalDataModuleLabel;
+
     void printEndpoints(std::vector<recob::EndPoint2D> const& corner_vecotr);
 
   }; //class CornerFinder
@@ -62,6 +69,7 @@ namespace vertex {
 
   //---------------------------------------------------------------------------
   void CornerFinder::reconfigure(fhicl::ParameterSet const& pset) {
+    fCalDataModuleLabel = pset.get<std::string>("CalDataModuleLabel");
     fCornerAlg.reconfigure(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"));
     return;
   }
@@ -72,8 +80,17 @@ namespace vertex {
     //We need do very little here, as it's all handled by the corner finder.
     const bool DEBUG_TEST = false; //turn on/off some messages
 
+    //We will need the geometry.
+    geo::Geometry const& my_geometry(*fGeometryHandle);
+
+    //We need to grab out the wires.
+    art::Handle< std::vector<recob::Wire> > wireHandle;
+    evt.getByLabel(fCalDataModuleLabel,wireHandle);
+    std::vector<recob::Wire> const& wireVec(*wireHandle);
+
     //First, have it process the "raw" data.
-    fCornerAlg.TakeInRaw(evt);
+    //fCornerAlg.TakeInRaw(evt);
+    fCornerAlg.GrabWires(wireVec,my_geometry);
 
     //now, make a vector of recob::EndPoint2Ds, and hand that to CornerAlg to fill out
     std::unique_ptr< std::vector<recob::EndPoint2D> > corner_vector(new std::vector<recob::EndPoint2D>);
