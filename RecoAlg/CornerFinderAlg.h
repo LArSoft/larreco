@@ -31,7 +31,7 @@ namespace corner { //<---Not sure if this is the right namespace
    
    public:
     
-     explicit CornerFinderAlg(fhicl::ParameterSet const& pset, const geo::Geometry* geometry); 
+     explicit CornerFinderAlg(fhicl::ParameterSet const& pset, geo::Geometry const& geometry); 
      virtual ~CornerFinderAlg();        
      
      void   reconfigure(fhicl::ParameterSet const& pset);
@@ -57,7 +57,7 @@ namespace corner { //<---Not sure if this is the right namespace
      
     private:
      
-     const geo::Geometry * const my_geometry; //internal pointer to geometry ... needs to be initialized in constructor!!!
+     const geo::Geometry my_geometry; //internal geometry ... needs to be initialized in constructor!!!
      void InitializeGeometry();
      
      // Need to list the things we will take in from the .fcl file

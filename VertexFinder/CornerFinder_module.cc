@@ -58,7 +58,7 @@ namespace vertex {
 
   //-----------------------------------------------------------------------------
   CornerFinder::CornerFinder(fhicl::ParameterSet const& pset):
-    fCornerAlg(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"),&(*fGeometryHandle))
+    fCornerAlg(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"),*fGeometryHandle)
   {  
     this->reconfigure(pset);    
     produces< std::vector<recob::EndPoint2D> >();

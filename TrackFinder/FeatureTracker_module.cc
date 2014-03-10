@@ -126,12 +126,10 @@ namespace trkf {
 
   FeatureTracker::FeatureTracker(const fhicl::ParameterSet& pset):
     fSP(pset.get<fhicl::ParameterSet>("SpacepointPset")),
-    fCorner(pset.get<fhicl::ParameterSet>("CornerPset"),&(*fGeometryHandle))
-
+    fCorner(pset.get<fhicl::ParameterSet>("CornerPset"),*fGeometryHandle)
   {
     reconfigure(pset);
     produces< std::vector<recob::Seed> >();
-    
   }
 
   FeatureTracker::~FeatureTracker()
