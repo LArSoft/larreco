@@ -59,10 +59,11 @@ extern "C" {
 
 
 //-----------------------------------------------------------------------------
-corner::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset) 
+corner::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset, const geo::Geometry* geometry):
+  my_geometry(geometry)
 {
   this->reconfigure(pset);
-  my_geometry = NULL;
+  InitializeGeometry();
 }
 
 //-----------------------------------------------------------------------------
@@ -124,9 +125,7 @@ void corner::CornerFinderAlg::reconfigure(fhicl::ParameterSet const& p)
 }
 
 //-----------------------------------------------------------------------------
-void corner::CornerFinderAlg::InitializeGeometry( geo::Geometry const *geo ){
-
-  my_geometry = geo;
+void corner::CornerFinderAlg::InitializeGeometry(){
 
   // set the sizes of the WireData_histos and WireData_IDs
   unsigned int nPlanes = my_geometry->Nplanes();
@@ -149,22 +148,10 @@ void corner::CornerFinderAlg::InitializeGeometry( geo::Geometry const *geo ){
 
 }
 
-void::corner::CornerFinderAlg::CheckGeometry(){
-
-  if(!my_geometry){
-    mf::LogError("CornerFinderAlg") << "ERROR: Geometry is not initialized."
-				    << "\n\tYou need to call "
-				    << "CornerFinderAlg::InitializeGeometry(geo::Geometry const *geo) "
-				    << "with your geometry.";
-    throw(std::runtime_error("Uninitialized geometry in CornerFinderAlg."));
-  }
-
-}
-
 //-----------------------------------------------------------------------------
 void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec){
 
-  CheckGeometry();
+  
 
   WireData_trimmed_histos.clear();
   const unsigned int nTimeTicks = wireVec.at(0).NSignal();
@@ -227,7 +214,7 @@ void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners
 void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> & corner_vector){
 
-  CheckGeometry();
+  
 
   for(auto pid : my_geometry->PlaneIDs()){
     attach_feature_points(WireData_histos[pid.Plane],
@@ -242,7 +229,7 @@ void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> 
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners, but quickly!
 void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoint2D> & corner_vector){
 
-  CheckGeometry();
+  
 
   create_smaller_histos();
   
@@ -277,7 +264,7 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 // Uses line integral score as corner strength
 void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<recob::EndPoint2D> & corner_vector){
 
-  CheckGeometry();
+  
 
   for(auto pid : my_geometry->PlaneIDs()){
     attach_feature_points_LineIntegralScore(WireData_histos[pid.Plane],

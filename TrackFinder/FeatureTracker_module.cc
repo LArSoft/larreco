@@ -94,6 +94,7 @@ namespace trkf {
     double  fLineIntFraction;
 
     std::map<int, std::vector<double> > fEndPointTimes;
+    art::ServiceHandle<geo::Geometry> fGeometryHandle;
   };
 }
 
@@ -125,7 +126,7 @@ namespace trkf {
 
   FeatureTracker::FeatureTracker(const fhicl::ParameterSet& pset):
     fSP(pset.get<fhicl::ParameterSet>("SpacepointPset")),
-    fCorner(pset.get<fhicl::ParameterSet>("CornerPset"))
+    fCorner(pset.get<fhicl::ParameterSet>("CornerPset"),&(*fGeometryHandle))
 
   {
     reconfigure(pset);
@@ -164,12 +165,6 @@ namespace trkf {
       hitvec.push_back(prod);
     }
     
-    
-    //We will need the geometry.
-    art::ServiceHandle<geo::Geometry> fGeometryHandle;
-    geo::Geometry const& my_geometry(*fGeometryHandle);
-    fCorner.InitializeGeometry(&my_geometry);
-
     //We need to grab out the wires.
     art::Handle< std::vector<recob::Wire> > wireHandle;
     evt.getByLabel(fCalDataModuleLabel,wireHandle);

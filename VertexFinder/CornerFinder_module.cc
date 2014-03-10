@@ -58,7 +58,7 @@ namespace vertex {
 
   //-----------------------------------------------------------------------------
   CornerFinder::CornerFinder(fhicl::ParameterSet const& pset):
-    fCornerAlg(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"))
+    fCornerAlg(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"),&(*fGeometryHandle))
   {  
     this->reconfigure(pset);    
     produces< std::vector<recob::EndPoint2D> >();
@@ -79,10 +79,6 @@ namespace vertex {
   
     //We need do very little here, as it's all handled by the corner finder.
     const bool DEBUG_TEST = false; //turn on/off some messages
-
-    //We will need the geometry.
-    geo::Geometry const& my_geometry(*fGeometryHandle);
-    fCornerAlg.InitializeGeometry(&my_geometry);
 
     //We need to grab out the wires.
     art::Handle< std::vector<recob::Wire> > wireHandle;
