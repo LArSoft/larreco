@@ -126,7 +126,7 @@ namespace trkf {
 
   FeatureTracker::FeatureTracker(const fhicl::ParameterSet& pset):
     fSP(pset.get<fhicl::ParameterSet>("SpacepointPset")),
-    fCorner(pset.get<fhicl::ParameterSet>("CornerPset"),*fGeometryHandle)
+    fCorner(pset.get<fhicl::ParameterSet>("CornerPset"))
   {
     reconfigure(pset);
     produces< std::vector<recob::Seed> >();
@@ -169,10 +169,10 @@ namespace trkf {
     std::vector<recob::Wire> const& wireVec(*wireHandle);
 
     //First, have it process the wires.
-    fCorner.GrabWires(wireVec);
+    fCorner.GrabWires(wireVec,*fGeometryHandle);
    
     std::vector<recob::EndPoint2D> EndPoints;
-    fCorner.get_feature_points(EndPoints);
+    fCorner.get_feature_points(EndPoints,*fGeometryHandle);
     
     fEndPointTimes = ExtractEndPointTimes(EndPoints);
     

@@ -50,7 +50,7 @@ namespace vertex {
 
     std::string               fCalDataModuleLabel;
 
-    void printEndpoints(std::vector<recob::EndPoint2D> const& corner_vecotr);
+    void printEndpoints(std::vector<recob::EndPoint2D> const& corner_vector);
 
   }; //class CornerFinder
   
@@ -58,7 +58,7 @@ namespace vertex {
 
   //-----------------------------------------------------------------------------
   CornerFinder::CornerFinder(fhicl::ParameterSet const& pset):
-    fCornerAlg(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"),*fGeometryHandle)
+    fCornerAlg(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"))
   {  
     this->reconfigure(pset);    
     produces< std::vector<recob::EndPoint2D> >();
@@ -86,11 +86,11 @@ namespace vertex {
     std::vector<recob::Wire> const& wireVec(*wireHandle);
 
     //First, have it process the wires.
-    fCornerAlg.GrabWires(wireVec);
+    fCornerAlg.GrabWires(wireVec,*fGeometryHandle);
 
     //now, make a vector of recob::EndPoint2Ds, and hand that to CornerAlg to fill out
     std::unique_ptr< std::vector<recob::EndPoint2D> > corner_vector(new std::vector<recob::EndPoint2D>);
-    fCornerAlg.get_feature_points_fast(*corner_vector);
+    fCornerAlg.get_feature_points_fast(*corner_vector,*fGeometryHandle);
 
     mf::LogInfo("CornerFinderModule") << "CornerFinderAlg finished, and returned " 
 					  << corner_vector->size() << " endpoints.";

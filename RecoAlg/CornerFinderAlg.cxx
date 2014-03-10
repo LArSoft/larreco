@@ -59,15 +59,17 @@ extern "C" {
 
 
 //-----------------------------------------------------------------------------
-corner::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset, geo::Geometry const& geometry):
-  my_geometry(geometry)
+corner::CornerFinderAlg::CornerFinderAlg(fhicl::ParameterSet const& pset)
 {
   this->reconfigure(pset);
-  InitializeGeometry();
+}
+
+corner::CornerFinderAlg::~CornerFinderAlg(){
+  this->CleanCornerFinderAlg();
 }
 
 //-----------------------------------------------------------------------------
-corner::CornerFinderAlg::~CornerFinderAlg()
+void corner::CornerFinderAlg::CleanCornerFinderAlg()
 {
   
   for (auto wd_histo : WireData_histos) delete wd_histo;
@@ -125,7 +127,9 @@ void corner::CornerFinderAlg::reconfigure(fhicl::ParameterSet const& p)
 }
 
 //-----------------------------------------------------------------------------
-void corner::CornerFinderAlg::InitializeGeometry(){
+void corner::CornerFinderAlg::InitializeGeometry(geo::Geometry const& my_geometry){
+
+  CleanCornerFinderAlg();
 
   // set the sizes of the WireData_histos and WireData_IDs
   unsigned int nPlanes = my_geometry.Nplanes();
@@ -149,11 +153,10 @@ void corner::CornerFinderAlg::InitializeGeometry(){
 }
 
 //-----------------------------------------------------------------------------
-void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec){
-
+void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec, geo::Geometry const& my_geometry){
   
+  InitializeGeometry(my_geometry);
 
-  WireData_trimmed_histos.clear();
   const unsigned int nTimeTicks = wireVec.at(0).NSignal();
 
   // Initialize the histograms.
@@ -212,7 +215,8 @@ void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec
 
 //-----------------------------------------------------------------------------------
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners
-void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> & corner_vector){
+void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> & corner_vector, 
+						 geo::Geometry const& my_geometry){
 
   
 
@@ -227,11 +231,12 @@ void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> 
 
 //-----------------------------------------------------------------------------------
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners, but quickly!
-void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoint2D> & corner_vector){
+void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoint2D> & corner_vector, 
+						      geo::Geometry const& my_geometry){
 
   
 
-  create_smaller_histos();
+  create_smaller_histos(my_geometry);
   
   for(unsigned int cstat = 0; cstat < my_geometry.Ncryostats(); ++cstat){
     for(unsigned int tpc = 0; tpc < my_geometry.Cryostat(cstat).NTPC(); ++tpc){
@@ -262,7 +267,8 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 //-----------------------------------------------------------------------------------
 // This gives us a vecotr of EndPoint2D objects that correspond to possible corners
 // Uses line integral score as corner strength
-void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<recob::EndPoint2D> & corner_vector){
+void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<recob::EndPoint2D> & corner_vector,
+								   geo::Geometry const& my_geometry){
 
   
 
@@ -338,7 +344,7 @@ struct compare_to_range{
 
 //-----------------------------------------------------------------------------
 // This looks for areas of the wires that are non-noise, to speed up evaluation
-void corner::CornerFinderAlg::create_smaller_histos(){
+void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geometry){
 
   for(auto pid : my_geometry.PlaneIDs() ){
 

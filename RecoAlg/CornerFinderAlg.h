@@ -31,18 +31,24 @@ namespace corner { //<---Not sure if this is the right namespace
    
    public:
     
-     explicit CornerFinderAlg(fhicl::ParameterSet const& pset, geo::Geometry const& geometry); 
+     explicit CornerFinderAlg(fhicl::ParameterSet const& pset); 
      virtual ~CornerFinderAlg();        
      
      void   reconfigure(fhicl::ParameterSet const& pset);
     
      
-     void GrabWires( std::vector<recob::Wire> const& wireVec ); //this one creates the histograms we want to use
+     void GrabWires( std::vector<recob::Wire> const& wireVec ,
+		     geo::Geometry const&);                                      //this one creates the histograms we want to use
      
      
-     void get_feature_points(std::vector<recob::EndPoint2D> &); //here we get feature points with corner score
-     void get_feature_points_LineIntegralScore(std::vector<recob::EndPoint2D> &); //here we get feature points with LineIntegral score
-     void get_feature_points_fast(std::vector<recob::EndPoint2D> &); //here we get feature points with corner score
+     void get_feature_points(std::vector<recob::EndPoint2D> &, 
+			     geo::Geometry const&);                              //here we get feature points with corner score
+
+     void get_feature_points_LineIntegralScore(std::vector<recob::EndPoint2D> &,
+					       geo::Geometry const&);            //here we get feature points with LineIntegral score
+
+     void get_feature_points_fast(std::vector<recob::EndPoint2D> &,
+				  geo::Geometry const&);                         //here we get feature points with corner score
      
      float line_integral(TH2F *hist, int x1, float y1, int x2, float y2, float threshold);				   
      
@@ -57,8 +63,8 @@ namespace corner { //<---Not sure if this is the right namespace
      
     private:
      
-     const geo::Geometry my_geometry; //internal geometry ... needs to be initialized in constructor!!!
-     void InitializeGeometry();
+     void CleanCornerFinderAlg();
+     void InitializeGeometry(geo::Geometry const&);
      
      // Need to list the things we will take in from the .fcl file
      
@@ -127,7 +133,7 @@ namespace corner { //<---Not sure if this is the right namespace
 						  std::vector<recob::EndPoint2D>&);
      
      
-     void create_smaller_histos();
+     void create_smaller_histos(geo::Geometry const&);
      void remove_duplicates(std::vector<recob::EndPoint2D>&);
      
    };//<---End of class CornerFinderAlg
