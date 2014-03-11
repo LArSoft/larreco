@@ -1,12 +1,12 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v1_00_04
+parent	larreco	v1_00_05
 defaultqual	e4
 #
 fcldir product_dir job
 #
 product         version
-larsim		v1_00_04
+larsim		v1_00_05
 nutools         v1_01_05
 gcc		v4_8_1
 
