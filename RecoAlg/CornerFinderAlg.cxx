@@ -514,6 +514,7 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
       }
       
       WireData_trimmed_histos.push_back(std::make_tuple(pid.Plane,h_tmp,x_low.at(il)-1,y_low.at(il)-1));
+      delete h_tmp;
     }
     
   }// end loop over PlaneIDs
