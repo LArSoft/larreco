@@ -162,7 +162,7 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   }
 
   mf::LogInfo("fuzzyCluster") << "InitFuzzy: hits vector size is " << fps.size();
-
+  
   return;
 }
 
@@ -310,20 +310,17 @@ inline bool cluster::fuzzyClusterAlg::updateMembership(int *k)
   
   for ( int j = 0; j < *k; ++j){
     bool clusterCovarianceSingular = false;
-    TMatrixT<double>& clusCovarianceMatInv = clusterCovarianceMats[j];
+
+    //TMatrixT<double>& clusCovarianceMatInv = clusterCovarianceMats[j];
+    
+    TDecompSVD clusCovarianceMatInvSVD(clusterCovarianceMats[j]);
+    clusCovarianceMatInvSVD.SetTol(1e-20);
+    TMatrixT<double> clusCovarianceMatInv = clusCovarianceMatInvSVD.Invert();
+    
+
     //std::cout << "cov. matrix: " << clusCovarianceMatInv.Determinant() << std::endl;
     double clusCovarianceMatInvDeterminant = clusCovarianceMatInv(0,0)*clusCovarianceMatInv(1,1)-clusCovarianceMatInv(0,1)*clusCovarianceMatInv(1,0);
 
-
-    //std::cout << clusCovarianceMatInvDeterminant << std::endl;
-    //if(clusCovarianceMatInvDeterminant == clusCovarianceMatInvDeterminant)
-      //std::cout << "Not a NAN" << std::endl;
-    if(std::fabs(clusCovarianceMatInvDeterminant) > 1e-10 && clusCovarianceMatInvDeterminant == clusCovarianceMatInvDeterminant){
-      clusCovarianceMatInv.Invert();
-    }
-    else{
-      mf::LogVerbatim("fuzzyCluster") << "updateMembership: Covariance matrix is singular 2";
-    }
 
 
     //std::cout << "inverse cov. matrix: " << clusCovarianceMatInv.Determinant() << " " << std::endl;
