@@ -286,7 +286,9 @@ inline bool cluster::fuzzyClusterAlg::updateMembership(int *k)
     double clusCovarianceMatDeterminant = clusCovarianceMat(0,0)*clusCovarianceMat(1,1)-clusCovarianceMat(0,1)*clusCovarianceMat(1,0);
 
     // Check if the covariance matrix determinant is zero or nan
-    if(clusCovarianceMatDeterminant > 0 && clusCovarianceMatDeterminant == clusCovarianceMatDeterminant){
+    if(clusCovarianceMatDeterminant > 0 
+        && std::isfinite(clusCovarianceMatDeterminant)
+        && std::isnormal(clusCovarianceMatDeterminant)){
       clusterRadii[j] = fBeta*pow(clusCovarianceMatDeterminant,0.25)/((double)*k);
     }
     else{
@@ -335,9 +337,11 @@ inline bool cluster::fuzzyClusterAlg::updateMembership(int *k)
       fpsMatMinusCent_col(0,0)=fpsMat_row(0)-fpsCentroids_row(0);
       fpsMatMinusCent_col(1,0)=fpsMat_row(1)-fpsCentroids_row(1);
       TMatrixT<double> tempDistanceSquared = (fpsMatMinusCent_row*(clusCovarianceMatInv*fpsMatMinusCent_col));
-      if(clusCovarianceMatInvDeterminant != 0 && clusCovarianceMatInvDeterminant == clusCovarianceMatInvDeterminant){
-        //fpsDistances(j,i) = std::sqrt(std::max((double)0,tempDistanceSquared(0,0)/sqrt(clusterCovarianceMats[j].Determinant()) - pow(clusterRadii[j],2)));
-        fpsDistances(j,i) = std::sqrt(std::max((double)0,tempDistanceSquared(0,0)/std::sqrt(clusCovarianceMatInvDet) - (clusterRadii[j])*(clusterRadii[j])));
+      if(clusCovarianceMatInvDeterminant != 0 
+        && std::isfinite(clusCovarianceMatInvDeterminant)
+        && std::isnormal(clusCovarianceMatInvDeterminant)){
+          //fpsDistances(j,i) = std::sqrt(std::max((double)0,tempDistanceSquared(0,0)/sqrt(clusterCovarianceMats[j].Determinant()) - pow(clusterRadii[j],2)));
+          fpsDistances(j,i) = std::sqrt(std::max((double)0,tempDistanceSquared(0,0)/std::sqrt(clusCovarianceMatInvDet) - (clusterRadii[j])*(clusterRadii[j])));
       }
       else{
         clusterCovarianceSingular = true;
