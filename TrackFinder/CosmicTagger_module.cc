@@ -188,7 +188,7 @@ trkf::CosmicTagger::CosmicTagger(fhicl::ParameterSet const & p)
   produces< std::vector<recob::Track> >();
   produces< std::vector<recob::Cluster> >();
   produces< std::vector<anab::CosmicTag> >();
-  produces< art::Assns<anab::CosmicTag, recob::Track> >();
+  produces< art::Assns<recob::Track, anab::CosmicTag> >();
 
 
 }
@@ -202,13 +202,14 @@ void trkf::CosmicTagger::produce(art::Event & e) {
 
 
 
+
   std::unique_ptr< std::vector<recob::Track > >      outTracksForTags( new std::vector<recob::Track>);
 
   outClusters    = std::unique_ptr<std::vector<recob::Cluster> > ( new std::vector<recob::Cluster> );
 
   cosmicTagTrackVector = std::unique_ptr< std::vector< anab::CosmicTag > >( new std::vector<anab::CosmicTag> );
 
-  std::unique_ptr< art::Assns<anab::CosmicTag, recob::Track > >    assnOutCosmicTagTrack( new art::Assns<anab::CosmicTag, recob::Track>);
+  std::unique_ptr< art::Assns<recob::Track, anab::CosmicTag > >    assnOutCosmicTagTrack( new art::Assns<recob::Track, anab::CosmicTag>);
 
 
 
@@ -223,10 +224,19 @@ void trkf::CosmicTagger::produce(art::Event & e) {
 
   if(fDoTrackCheck) e.getByLabel(fTrackModuleLabel        ,Trk_h    );
 
+
+  /*
+art::Handle< std::vector<recob::Track> > trackh;
+evt.getByLabel(fTrackModuleLabel, trackh);
+std::vector<art::Ptr<recob::Track> > tracklist;
+art::fill_ptr_vector(tracklist,trackh);
+
+
+art::FindManyP<anab::CosmicTag> cosmictag( tracklist ,evt,fCosmicTagAssocLabel);
+   */
+
+
   art::PtrVector<recob::Track> TrkVec;
-
-
-
 
   if(fDoTrackCheck) {
     for(unsigned int i=0; i < Trk_h->size(); i++) {
@@ -234,6 +244,8 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       TrkVec.push_back(track);
     }
   }
+
+
 
 
 
@@ -273,7 +285,7 @@ void trkf::CosmicTagger::produce(art::Event & e) {
   // CHANGE THIS BACK WHEN IT DOES
   //  if(fDoClusterCheck) art::FindManyP<recob::SpacePoint> sptsSpill   (Trk_h, e, fTrackModuleLabel);
 
-
+  std::cout << "fDoTrackCheck " << fDoTrackCheck <<std::endl;//<< " number of tracks " << Trk_h->size() << std::endl;
   if( fDoTrackCheck ) {
 
     art::FindManyP<recob::Hit>        hitsSpill   (Trk_h, e, fTrackModuleLabel);
@@ -288,8 +300,10 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       int face2       = -1; 
       int trackType   = -1;
 
-
+      std::cerr << "WHAT TRACK ARE WE ON " << iTrack << std::endl;
       art::Ptr<recob::Track>              tTrack       = TrkVec.at(iTrack);
+
+      std::vector<anab::CosmicTag> damnAssns;
 
       std::vector<art::Ptr<recob::Hit> >  HitVec  = hitsSpill.at(iTrack);
 
@@ -524,7 +538,7 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       endPt2.push_back( trackEndPt2_Z );
       
       
-      anab::CosmicTag cctt = anab::CosmicTag(endPt1, endPt2, -999, 0, isCosmic );
+      anab::CosmicTag cctt = anab::CosmicTag(endPt1, endPt2, 0, isCosmic );
       
       int nXBd =0;
       float xBnd1 = cctt.getXInteraction(endPt1[0], 2.0*geo->DetHalfWidth(), fReadOutWindowSize, trackTime, std::floor(tick1) );
@@ -532,17 +546,24 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       if(xBnd1 < bndDist || xBnd2 < bndDist) nXBd++;
       if( ( 2.*geo->DetHalfWidth() - xBnd1 < bndDist ) || ( 2.*geo->DetHalfWidth() - xBnd1 < bndDist ) ) nXBd++;
       
-      if( isCosmic==0 && nXBd+nBd>1 ) isCosmic = 2;
+      if(tick1 < fReadOutWindowSize || tick2 > 2*fReadOutWindowSize ) isCosmic = 1;
+      if( nBd>1 ) isCosmic = 2;
+      if( isCosmic==0 && nXBd+nBd>1 ) isCosmic = 3;
       
       float cosmicScore = isCosmic > 0 ? 1 : 0;
     
     
     cosmicTagTrackVector->push_back( anab::CosmicTag(endPt1,
 						     endPt2,
-						     -999,
 						     cosmicScore,
 						     isCosmic
 						     ) );
+
+    damnAssns.push_back( anab::CosmicTag(endPt1,
+					  endPt2,
+					  cosmicScore,
+					  isCosmic
+					  ) );
     
     mf::LogInfo("CosmicTagger Results") << "The IsCosmic value is "<< isCosmic << " origin: " << origin
 					<< trackEndPt1_X<<","<< trackEndPt1_Y << "," << trackEndPt1_Z<< " | | " 
@@ -595,7 +616,12 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       tV.push_back( tTrack );
 
 
-      util::CreateAssn(*this, e, *cosmicTagTrackVector, tV, *(assnOutCosmicTagTrack.get() ) );
+
+      //util::CreateAssn(*this, e, *cosmicTagTrackVector, tV, *assnOutCosmicTagTrack );
+      std::cerr << "creating (?) association  " << cosmicTagTrackVector->back().CosmicScore() << std::endl;
+      util::CreateAssn(*this, e, *cosmicTagTrackVector, tTrack, *assnOutCosmicTagTrack );
+
+
       
 
 
