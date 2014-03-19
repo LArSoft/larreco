@@ -1127,10 +1127,12 @@ namespace  trkf{
 	      
 		int wmin = std::max(0., std::min(wire21, wire22));
 		int wmax = std::max(0., std::max(wire21, wire22) + 1.);
-	      
-		for(std::map<unsigned int, art::Ptr<recob::Hit> >::const_iterator 
-		      ihit2 = hitmap[cstat][tpc][plane2].lower_bound(wmin);
-		    ihit2 != hitmap[cstat][tpc][plane2].upper_bound(wmax); ++ihit2) {
+		
+		std::map<unsigned int, art::Ptr<recob::Hit> >::const_iterator 
+		  ihit2 = hitmap[cstat][tpc][plane2].lower_bound(wmin),
+		  ihit2end = hitmap[cstat][tpc][plane2].upper_bound(wmax); 
+		
+		for(; ihit2 != ihit2end; ++ihit2) {
 		
 		  const art::Ptr<recob::Hit>& phit2 = ihit2->second;
 		
@@ -1193,6 +1195,7 @@ namespace  trkf{
 	  double c1 = (xyz12[2] - xyz11[2]) / (2.*hl1);
 	  double dist1 = -xyz11[1] * c1 + xyz11[2] * s1;
 	  double pitch1 = geom->WirePitch(0, 1, plane1, tpc, cstat);
+	  const double TicksOffset1 = detprop->GetXTicksOffset(plane1,tpc,cstat);
 
 	  // Get angle, pitch, and offset of plane2 wires.
 	
@@ -1206,6 +1209,7 @@ namespace  trkf{
 	  double c2 = (xyz22[2] - xyz21[2]) / (2.*hl2);
 	  double dist2 = -xyz21[1] * c2 + xyz21[2] * s2;
 	  double pitch2 = geom->WirePitch(0, 1, plane2, tpc, cstat);
+	  const double TicksOffset2 = detprop->GetXTicksOffset(plane2,tpc,cstat);
 
 	  // Get angle, pitch, and offset of plane3 wires.
 	
@@ -1219,6 +1223,7 @@ namespace  trkf{
 	  double c3 = (xyz32[2] - xyz31[2]) / (2.*hl3);
 	  double dist3 = -xyz31[1] * c3 + xyz31[2] * s3;
 	  double pitch3 = geom->WirePitch(0, 1, plane3, tpc, cstat);
+	  const double TicksOffset3 = detprop->GetXTicksOffset(plane3,tpc,cstat);
 
 	  // Get sine of angle differences.
 	
@@ -1227,10 +1232,11 @@ namespace  trkf{
 	  double s31 = s3 * c1 - s1 * c3;   // sin(theta3 - theta1).
 	
 	  // Loop over hits in plane1.
-	
-	  for(std::map<unsigned int, art::Ptr<recob::Hit> >::const_iterator
-		ihit1 = hitmap[cstat][tpc][plane1].begin();
-	      ihit1 != hitmap[cstat][tpc][plane1].end(); ++ihit1) {
+	  
+	  std::map<unsigned int, art::Ptr<recob::Hit> >::const_iterator
+	    ihit1 = hitmap[cstat][tpc][plane1].begin(),
+	    ihit1end = hitmap[cstat][tpc][plane1].end();
+	  for(; ihit1 != ihit1end; ++ihit1) {
 	  
 	    unsigned int wire1 = ihit1->first;
 	    const art::Ptr<recob::Hit>& phit1 = ihit1->second;
@@ -1251,7 +1257,7 @@ namespace  trkf{
 	  
 	    // Get corrected time and oblique coordinate of first hit.
 	  
-	    double t1 = phit1->PeakTime() - detprop->GetXTicksOffset(plane1,tpc,cstat);
+	    double t1 = phit1->PeakTime() - TicksOffset1;
 	    double u1 = wire1 * pitch1 + dist1;
 	  
 	    // Find the plane2 wire numbers corresponding to the endpoints.
@@ -1261,17 +1267,19 @@ namespace  trkf{
 
 	    int wmin = std::max(0., std::min(wire21, wire22));
 	    int wmax = std::max(0., std::max(wire21, wire22) + 1.);
-	  
-	    for(std::map<unsigned int, art::Ptr<recob::Hit> >::const_iterator 
-		  ihit2 = hitmap[cstat][tpc][plane2].lower_bound(wmin);
-		ihit2 != hitmap[cstat][tpc][plane2].upper_bound(wmax); ++ihit2) {
+	    
+	    std::map<unsigned int, art::Ptr<recob::Hit> >::const_iterator
+	      ihit2 = hitmap[cstat][tpc][plane2].lower_bound(wmin),
+	      ihit2end = hitmap[cstat][tpc][plane2].upper_bound(wmax);
+	    
+	    for(; ihit2 != ihit2end; ++ihit2) {
 
 	      int wire2 = ihit2->first;
 	      const art::Ptr<recob::Hit>& phit2 = ihit2->second;
 	    
 	      // Get corrected time of second hit.
 	    
-	      double t2 = phit2->PeakTime() - detprop->GetXTicksOffset(plane2,tpc,cstat);
+	      double t2 = phit2->PeakTime() - TicksOffset2;
 	    
 	      // Check maximum time difference with first hit.
 	    
@@ -1298,17 +1306,19 @@ namespace  trkf{
 		  double w3delta = std::abs(fMaxS / (s12 * pitch3));
 		  int w3min = std::max(0., std::ceil(w3pred - w3delta));
 		  int w3max = std::max(0., std::floor(w3pred + w3delta));
-		
-		  for(std::map<unsigned int, art::Ptr<recob::Hit> >::const_iterator 
-			ihit3 = hitmap[cstat][tpc][plane3].lower_bound(w3min);
-		      ihit3 != hitmap[cstat][tpc][plane3].upper_bound(w3max); ++ihit3) {
+		  
+		  std::map<unsigned int, art::Ptr<recob::Hit> >::const_iterator
+		    ihit3 = hitmap[cstat][tpc][plane3].lower_bound(w3min),
+		    ihit3end = hitmap[cstat][tpc][plane3].upper_bound(w3max);
+		  
+		  for(; ihit3 != ihit3end; ++ihit3) {
 		  
 		    int wire3 = ihit3->first;
 		    const art::Ptr<recob::Hit>& phit3 = ihit3->second;
 		  
 		    // Get corrected time of third hit.
 		  
-		    double t3 = phit3->PeakTime() - detprop->GetXTicksOffset(plane3,tpc,cstat);
+		    double t3 = phit3->PeakTime() - TicksOffset3;
 		  
 		    // Check time difference of third hit compared to first two hits.
 		  
@@ -1419,15 +1429,18 @@ namespace  trkf{
 	    // Make a collection of hits that is the union of the hits
 	    // from each candidate space point.
 	  
+	    std::multimap<sptkey_type, recob::SpacePoint>::const_iterator
+	      jSPT = sptmap.lower_bound(key), jSPTend = sptmap.upper_bound(key);
+		
 	    art::PtrVector<recob::Hit> merged_hits;
-	    for(std::multimap<sptkey_type, recob::SpacePoint>::const_iterator j = sptmap.lower_bound(key);
-		j != sptmap.upper_bound(key); ++j) {
-	      const recob::SpacePoint& spt = j->second;
+	    for(; jSPT != jSPTend; ++jSPT) {
+	      const recob::SpacePoint& spt = jSPT->second;
 	    
 	      // Loop over hits from this space points.
 	      // Add each hit to the collection of all hits.
 	    
 	      const art::PtrVector<recob::Hit>& spt_hits = getAssociatedHits(spt);
+	      merged_hits.reserve(merged_hits.size() + spt_hits.size()); // better than nothing, but not ideal
 	      for(art::PtrVector<recob::Hit>::const_iterator k = spt_hits.begin();
 		  k != spt_hits.end(); ++k) {
 		const art::Ptr<recob::Hit>& hit = *k;
