@@ -285,28 +285,28 @@ inline bool cluster::fuzzyClusterAlg::updateMembership(int *k)
     // Is the cluster covariance matrix singular?
     double clusCovarianceMatDeterminant = clusCovarianceMat(0,0)*clusCovarianceMat(1,1)-clusCovarianceMat(0,1)*clusCovarianceMat(1,0);
 
-    // Check if the covariance matrix determinant is zero or nan
-    if(clusCovarianceMatDeterminant > 0 
-        && std::isfinite(clusCovarianceMatDeterminant)
-        && std::isnormal(clusCovarianceMatDeterminant)){
-      clusterRadii[j] = fBeta*pow(clusCovarianceMatDeterminant,0.25)/((double)*k);
-    }
-    else{
-      mf::LogVerbatim("fuzzyCluster") << "updateMembership: Covariance matrix is singular 1";
-      clusterRadii[j]=0;
-      continue;
-    }
-    //std::cout << "Made it past exception 1" << std::endl;
-
-
-    //try
-    //{
-      //clusterRadii[j] = fBeta*pow(clusCovarianceMat.Determinant(),0.25)/((double)*k);
+    //// Check if the covariance matrix determinant is zero or nan
+    //if(clusCovarianceMatDeterminant > 0 
+        //&& std::isfinite(clusCovarianceMatDeterminant)
+        //&& std::isnormal(clusCovarianceMatDeterminant)){
+      //clusterRadii[j] = fBeta*pow(clusCovarianceMatDeterminant,0.25)/((double)*k);
     //}
-    //catch(...){
+    //else{
       //mf::LogVerbatim("fuzzyCluster") << "updateMembership: Covariance matrix is singular 1";
+      //clusterRadii[j]=0;
       //continue;
     //}
+    ////std::cout << "Made it past exception 1" << std::endl;
+
+
+    try
+    {
+      clusterRadii[j] = fBeta*pow(clusCovarianceMatDeterminant,0.25)/((double)*k);
+    }
+    catch(...){
+      mf::LogVerbatim("fuzzyCluster") << "updateMembership: Covariance matrix is singular 1";
+      continue;
+    }
   }
 
   
@@ -317,8 +317,13 @@ inline bool cluster::fuzzyClusterAlg::updateMembership(int *k)
     
     TDecompSVD clusCovarianceMatInvSVD(clusterCovarianceMats[j]);
     clusCovarianceMatInvSVD.SetTol(1e-20);
-    TMatrixT<double> clusCovarianceMatInv = clusCovarianceMatInvSVD.Invert();
-    
+    TMatrixT<double> clusCovarianceMatInv;
+    try{
+     clusCovarianceMatInv = clusCovarianceMatInvSVD.Invert();
+    }
+    catch(...){
+      continue;
+    }
 
     //std::cout << "cov. matrix: " << clusCovarianceMatInv.Determinant() << std::endl;
     double clusCovarianceMatInvDeterminant = clusCovarianceMatInv(0,0)*clusCovarianceMatInv(1,1)-clusCovarianceMatInv(0,1)*clusCovarianceMatInv(1,0);
@@ -337,16 +342,30 @@ inline bool cluster::fuzzyClusterAlg::updateMembership(int *k)
       fpsMatMinusCent_col(0,0)=fpsMat_row(0)-fpsCentroids_row(0);
       fpsMatMinusCent_col(1,0)=fpsMat_row(1)-fpsCentroids_row(1);
       TMatrixT<double> tempDistanceSquared = (fpsMatMinusCent_row*(clusCovarianceMatInv*fpsMatMinusCent_col));
-      if(clusCovarianceMatInvDeterminant != 0 
-        && std::isfinite(clusCovarianceMatInvDeterminant)
-        && std::isnormal(clusCovarianceMatInvDeterminant)){
+      //if(clusCovarianceMatInvDeterminant != 0 
+        //&& std::isfinite(clusCovarianceMatInvDeterminant)
+        //&& std::isnormal(clusCovarianceMatInvDeterminant)){
+          ////fpsDistances(j,i) = std::sqrt(std::max((double)0,tempDistanceSquared(0,0)/sqrt(clusterCovarianceMats[j].Determinant()) - pow(clusterRadii[j],2)));
+          //fpsDistances(j,i) = std::sqrt(std::max((double)0,tempDistanceSquared(0,0)/std::sqrt(clusCovarianceMatInvDet) - (clusterRadii[j])*(clusterRadii[j])));
+      //}
+      //else{
+        //clusterCovarianceSingular = true;
+        //fpsDistances(j,i) = 999999;
+      //}
+
+      
+      try{     
           //fpsDistances(j,i) = std::sqrt(std::max((double)0,tempDistanceSquared(0,0)/sqrt(clusterCovarianceMats[j].Determinant()) - pow(clusterRadii[j],2)));
           fpsDistances(j,i) = std::sqrt(std::max((double)0,tempDistanceSquared(0,0)/std::sqrt(clusCovarianceMatInvDet) - (clusterRadii[j])*(clusterRadii[j])));
       }
-      else{
+      catch(...){
         clusterCovarianceSingular = true;
         fpsDistances(j,i) = 999999;
       }
+      
+      
+      
+      
       //std::cout << "fpsDistances(j,i): " << fpsDistances(j,i) << std::endl;
     }
     if(clusterCovarianceSingular)
