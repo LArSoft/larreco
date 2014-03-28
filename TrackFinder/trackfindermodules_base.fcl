@@ -123,8 +123,10 @@ standard_trackana:
   module_type:        "TrackAna"
   TrackModuleLabel:   "trackkalmanhit"
   MinMCKE:            0.05
+  MinMCLen:           20.
   MatchColinearity:   0.99
   MatchDisp:          2.0
+  WMatchDisp:         15.0
   IgnoreSign:         true
 }
 

@@ -9,6 +9,7 @@
 //  MinMCKE:            Minimum MC particle kinetic energy.
 //  MatchColinearity:   Minimum colinearity for mc-track matching.
 //  MatchDisp:          Maximum uv displacement for mc-track matching.
+//  WMatchDisp:         maximum w displacement of mc-track matching.
 //
 // Created: 2-Aug-2011  H. Greenlee
 //
@@ -26,6 +27,8 @@
 #include "art/Framework/Principal/Event.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "Utilities/DetectorProperties.h"
+#include "Utilities/LArProperties.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/Hit.h"
@@ -79,8 +82,8 @@ namespace {
 
   // Length of MC particle.
   //----------------------------------------------------------------------------
-  double length(const simb::MCParticle& part, 
-		TVector3& start, TVector3& end,
+  double length(const simb::MCParticle& part, double dx,
+		TVector3& start, TVector3& end, TVector3& startmom, TVector3& endmom,
 		unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
   {
     // Get geometry.
@@ -95,6 +98,8 @@ namespace {
     double ymax = geom->DetHalfHeight();
     double zmin = 0.;
     double zmax = geom->DetLength();
+    double xminframe = -2.*geom->DetHalfWidth();
+    double xmaxframe = 4.*geom->DetHalfWidth();
 
     double result = 0.;
     TVector3 disp;
@@ -102,22 +107,33 @@ namespace {
     bool first = true;
 
     for(int i = 0; i < n; ++i) {
-      const TVector3& pos = part.Position(i).Vect();
+      TVector3 pos = part.Position(i).Vect();
+
+      // Make fiducial cuts.  Require the particle to be within the physical volume of
+      // the tpc, and also require the apparent x position to be within the expanded
+      // readout frame.
+
       if(pos.X() >= xmin &&
 	 pos.X() <= xmax &&
 	 pos.Y() >= ymin &&
 	 pos.Y() <= ymax &&
 	 pos.Z() >= zmin &&
 	 pos.Z() <= zmax) {
-	if(first)
-	  start = pos;
-	else {
-	  disp -= pos;
-	  result += disp.Mag();
+	pos[0] += dx;
+	if(pos[0] >= xminframe && pos[0] <= xmaxframe) {
+	  if(first) {
+	    start = pos;
+	    startmom = part.Momentum(i).Vect();
+	  }
+	  else {
+	    disp -= pos;
+	    result += disp.Mag();
+	  }
+	  first = false;
+	  disp = pos;
+	  end = pos;
+	  endmom = part.Momentum(i).Vect();
 	}
-	first = false;
-	disp = pos;
-	end = pos;
       }
     }
 
@@ -309,8 +325,10 @@ namespace trkf {
     std::string fHitSpptAssocModuleLabel;
 
     double fMinMCKE;           // Minimum MC particle kinetic energy (GeV).
+    double fMinMCLen;          // Minimum MC particle length in tpc (cm).
     double fMatchColinearity;  // Minimum matching colinearity.
     double fMatchDisp;         // Maximum matching displacement.
+    double fWMatchDisp;        // Maximum matching displacement in the w direction.
     bool fIgnoreSign;          // Ignore sign of mc particle if true.
     bool fStitchedAnalysis;    // if true, do the whole drill-down from stitched track to assd hits
 
@@ -493,21 +511,21 @@ namespace trkf {
     fHduvcosth = dir.make<TH2F>("duvcosth", "Delta(uv) vs. Colinearity", 
 				100, 0.95, 1., 100, 0., 1.);
     fHcosth = dir.make<TH1F>("colin", "Colinearity", 100, 0.95, 1.);
-    fHmcu = dir.make<TH1F>("mcu", "MC Truth U", 100, -1., 1.);
-    fHmcv = dir.make<TH1F>("mcv", "MC Truth V", 100, -1., 1.);
-    fHmcw = dir.make<TH1F>("mcw", "MC Truth W", 100, -1., 1.);
-    fHupull = dir.make<TH1F>("dupull", "U Pull", 100, -10., 10.);
-    fHvpull = dir.make<TH1F>("dvpull", "V Pull", 100, -10., 10.);
+    fHmcu = dir.make<TH1F>("mcu", "MC Truth U", 100, -5., 5.);
+    fHmcv = dir.make<TH1F>("mcv", "MC Truth V", 100, -5., 5.);
+    fHmcw = dir.make<TH1F>("mcw", "MC Truth W", 100, -20., 20.);
+    fHupull = dir.make<TH1F>("dupull", "U Pull", 100, -20., 20.);
+    fHvpull = dir.make<TH1F>("dvpull", "V Pull", 100, -20., 20.);
     fHmcdudw = dir.make<TH1F>("mcdudw", "MC Truth U Slope", 100, -0.2, 0.2);
     fHmcdvdw = dir.make<TH1F>("mcdvdw", "MV Truth V Slope", 100, -0.2, 0.2);
     fHdudwpull = dir.make<TH1F>("dudwpull", "U Slope Pull", 100, -10., 10.);
     fHdvdwpull = dir.make<TH1F>("dvdwpull", "V Slope Pull", 100, -10., 10.);
-    fHstartdx = dir.make<TH1F>("startdx", "Start Delta x", 100, -1., 1.);
-    fHstartdy = dir.make<TH1F>("startdy", "Start Delta y", 100, -1., 1.);
-    fHstartdz = dir.make<TH1F>("startdz", "Start Delta z", 100, -1., 1.);
+    fHstartdx = dir.make<TH1F>("startdx", "Start Delta x", 100, -10., 10.);
+    fHstartdy = dir.make<TH1F>("startdy", "Start Delta y", 100, -10., 10.);
+    fHstartdz = dir.make<TH1F>("startdz", "Start Delta z", 100, -10., 10.);
     fHenddx = dir.make<TH1F>("enddx", "End Delta x", 100, -10., 10.);
     fHenddy = dir.make<TH1F>("enddy", "End Delta y", 100, -10., 10.);
-    fHenddz = dir.make<TH1F>("enddz", "End Delta z", 100, -20., 20.);
+    fHenddz = dir.make<TH1F>("enddz", "End Delta z", 100, -10., 10.);
     fHlvsl = dir.make<TH2F>("lvsl", "Reco Length vs. MC Truth Length",
 			    100, 0., 1.1 * geom->DetLength(), 100, 0., 1.1 * geom->DetLength());
     fHdl = dir.make<TH1F>("dl", "Track Length Minus MC Particle Length", 100, -50., 50.);
@@ -593,8 +611,10 @@ namespace trkf {
     , fTrkSpptAssocModuleLabel(pset.get<std::string>("TrkSpptAssocModuleLabel"))
     , fHitSpptAssocModuleLabel(pset.get<std::string>("HitSpptAssocModuleLabel"))
     , fMinMCKE(pset.get<double>("MinMCKE"))
+    , fMinMCLen(pset.get<double>("MinMCLen"))
     , fMatchColinearity(pset.get<double>("MatchColinearity"))
     , fMatchDisp(pset.get<double>("MatchDisp"))
+    , fWMatchDisp(pset.get<double>("WMatchDisp"))
     , fIgnoreSign(pset.get<bool>("IgnoreSign"))
     , fStitchedAnalysis(pset.get<bool>("StitchedAnalysis",false))
     , fNumEvent(0)
@@ -608,7 +628,8 @@ namespace trkf {
       << "  StitchModuleLabel = " << fStitchModuleLabel << "\n"
       << "  TrkSpptAssocModuleLabel = " << fTrkSpptAssocModuleLabel << "\n"
       << "  HitSpptAssocModuleLabel = " << fHitSpptAssocModuleLabel << "\n"
-      << "  MinMCKE = " << fMinMCKE;
+      << "  MinMCKE = " << fMinMCKE << "\n"
+      << "  MinMCLen = " << fMinMCLen;
   }
 
   TrackAna::~TrackAna()
@@ -624,6 +645,8 @@ namespace trkf {
   // Arguments: event - Art event.
   //
   {
+    art::ServiceHandle<util::DetectorProperties> detprop;
+    art::ServiceHandle<util::LArProperties> larprop;
     art::ServiceHandle<cheat::BackTracker> bt;
     std::map<int, art::PtrVector<recob::Hit> > hitmap;
     ++fNumEvent;
@@ -631,6 +654,10 @@ namespace trkf {
     // Make sure histograms are booked.
 
     bool mc = !evt.isRealData();
+
+    // Get geometry.
+
+    art::ServiceHandle<geo::Geometry> geom;
 
     // Get mc particles.
 
@@ -667,37 +694,53 @@ namespace trkf {
 
 	  if(part->E() >= 0.001*part->Mass() + fMinMCKE) {
 
-	    // This is a good mc particle (capable of making a track).
+	    // Calculate the x offset due to nonzero mc particle time.
 
-	    plist2.push_back(part);
+	    double mctime = part->T();                                // nsec
+	    double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();  // cm
 
-	    // Fill histograms.
-
-	    if(fMCHistMap.count(pdg) == 0) {
-	      std::ostringstream ostr;
-	      ostr << "MC" << (fIgnoreSign ? "All" : (pdg > 0 ? "Pos" : "Neg")) << std::abs(pdg);
-	      fMCHistMap[pdg] = MCHists(ostr.str());
-	    }
-	    const MCHists& mchists = fMCHistMap[pdg];
+	    // Calculate the length of this mc particle inside the fiducial volume.
 
 	    TVector3 mcstart;
 	    TVector3 mcend;
-	    double plen = length(*part, mcstart, mcend);
-	    double mctheta_xz = std::atan2(part->Px(), part->Pz());
-	    double mctheta_yz = std::atan2(part->Py(), part->Pz());
+	    TVector3 mcstartmom;
+	    TVector3 mcendmom;
+	    double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
-	    mchists.fHmcstartx->Fill(mcstart.X());
-	    mchists.fHmcstarty->Fill(mcstart.Y());
-	    mchists.fHmcstartz->Fill(mcstart.Z());
-	    mchists.fHmcendx->Fill(mcend.X());
-	    mchists.fHmcendy->Fill(mcend.Y());
-	    mchists.fHmcendz->Fill(mcend.Z());
-	    mchists.fHmctheta->Fill(part->Momentum().Theta());
-	    mchists.fHmcphi->Fill(part->Momentum().Phi());
-	    mchists.fHmctheta_xz->Fill(mctheta_xz);
-	    mchists.fHmctheta_yz->Fill(mctheta_yz);
-	    mchists.fHmcmom->Fill(part->Momentum().Vect().Mag());
-	    mchists.fHmclen->Fill(plen);
+	    // Apply minimum fiducial length cut.  Always reject particles that have
+	    // zero length in the tpc regardless of the configured cut.
+
+	    if(plen > 0. && plen > fMinMCLen) {
+
+	      // This is a good mc particle (capable of making a track).
+
+	      plist2.push_back(part);
+
+	      // Fill histograms.
+
+	      if(fMCHistMap.count(pdg) == 0) {
+		std::ostringstream ostr;
+		ostr << "MC" << (fIgnoreSign ? "All" : (pdg > 0 ? "Pos" : "Neg")) << std::abs(pdg);
+		fMCHistMap[pdg] = MCHists(ostr.str());
+	      }
+	      const MCHists& mchists = fMCHistMap[pdg];
+
+	      double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
+	      double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
+
+	      mchists.fHmcstartx->Fill(mcstart.X());
+	      mchists.fHmcstarty->Fill(mcstart.Y());
+	      mchists.fHmcstartz->Fill(mcstart.Z());
+	      mchists.fHmcendx->Fill(mcend.X());
+	      mchists.fHmcendy->Fill(mcend.Y());
+	      mchists.fHmcendz->Fill(mcend.Z());
+	      mchists.fHmctheta->Fill(mcstartmom.Theta());
+	      mchists.fHmcphi->Fill(mcstartmom.Phi());
+	      mchists.fHmctheta_xz->Fill(mctheta_xz);
+	      mchists.fHmctheta_yz->Fill(mctheta_yz);
+	      mchists.fHmcmom->Fill(mcstartmom.Mag());
+	      mchists.fHmclen->Fill(plen);
+	    }
 	  }
 	}
       }
@@ -820,13 +863,21 @@ namespace trkf {
 	art::Ptr<recob::Track> ptrack(trackh, i);
 	const recob::Track& track = *ptrack;
 
+	// Calculate the x offset due to nonzero reconstructed time.
+
+	//double recotime = track.Time() * detprop->SamplingRate();       // nsec
+	double recotime = 0.;
+	double trackdx = recotime * 1.e-3 * larprop->DriftVelocity();  // cm
+
 	// Fill histograms involving reco tracks only.
 	
 	int ntraj = track.NumberTrajectoryPoints();
 	if(ntraj > 0) {
-	  const TVector3& pos = track.Vertex();
+	  TVector3 pos = track.Vertex();
 	  const TVector3& dir = track.VertexDirection();
-	  const TVector3& end = track.End();
+	  TVector3 end = track.End();
+	  pos[0] += trackdx;
+	  end[0] += trackdx;
 	  
 	  double dpos = bdist(pos);
 	  double dend = bdist(end);
@@ -877,16 +928,28 @@ namespace trkf {
 	    assert(fMCHistMap.count(pdg) > 0);
 	    const MCHists& mchists = fMCHistMap[pdg];
 
-	    // Get the momentum and displacement of this mc
-	    // particle in the global coordinate system.
+	    // Calculate the x offset due to nonzero mc particle time.
 
-	    TVector3 mcmom = part->Momentum().Vect();
-	    TVector3 mcpos = part->Position().Vect() - pos;
+	    double mctime = part->T();                                 // nsec
+	    double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();  // cm
+
+	    // Calculate the points where this mc particle enters and leaves the
+	    // fiducial volume, and the length in the fiducial volume.
+
+	    TVector3 mcstart;
+	    TVector3 mcend;
+	    TVector3 mcstartmom;
+	    TVector3 mcendmom;
+	    double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+
+	    // Get the displacement of this mc particle in the global coordinate system.
+
+	    TVector3 mcpos = mcstart - pos;
 	    
 	    // Rotate the momentum and position to the
 	    // track-local coordinate system.
 
-	    TVector3 mcmoml = rot * mcmom;
+	    TVector3 mcmoml = rot * mcstartmom;
 	    TVector3 mcposl = rot * mcpos;
 
 	    double colinearity = mcmoml.Z() / mcmoml.Mag();
@@ -931,11 +994,8 @@ namespace trkf {
 
 		// Fill matching histograms.
 
-		TVector3 mcstart;
-		TVector3 mcend;
-		double plen = length(*part, mcstart, mcend);
-		double mctheta_xz = std::atan2(part->Px(), part->Pz());
-		double mctheta_yz = std::atan2(part->Py(), part->Pz());
+		double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
+		double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
 
 		mchists.fHstartdx->Fill(pos.X() - mcstart.X());
 		mchists.fHstartdy->Fill(pos.Y() - mcstart.Y());
@@ -945,12 +1005,12 @@ namespace trkf {
 		mchists.fHenddz->Fill(end.Z() - mcend.Z());
 		mchists.fHlvsl->Fill(plen, tlen);
 		mchists.fHdl->Fill(tlen - plen);
-		mchists.fHpvsp->Fill(mcmom.Mag(), mom);
-		double dp = mom - mcmom.Mag();
+		mchists.fHpvsp->Fill(mcstartmom.Mag(), mom);
+		double dp = mom - mcstartmom.Mag();
 		mchists.fHdp->Fill(dp);
 		mchists.fHppull->Fill(dp / std::sqrt(cov(4,4)));
 		if(std::abs(dpos) >= 5. && std::abs(dend) >= 5.) {
-		  mchists.fHpvspc->Fill(mcmom.Mag(), mom);
+		  mchists.fHpvspc->Fill(mcstartmom.Mag(), mom);
 		  mchists.fHdpc->Fill(dp);
 		  mchists.fHppullc->Fill(dp / std::sqrt(cov(4,4)));
 		}
@@ -960,7 +1020,7 @@ namespace trkf {
 		// starting position (w) matches and the reconstructed track length
 		// is more than 0.5 of the mc particle trajectory length.
 
-		bool good = std::abs(w) <= fMatchDisp &&
+		bool good = std::abs(w) <= fWMatchDisp &&
 		  tlen > 0.5 * plen;
 		if(good) {
 		  mchists.fHgstartx->Fill(mcstart.X());
@@ -969,11 +1029,11 @@ namespace trkf {
 		  mchists.fHgendx->Fill(mcend.X());
 		  mchists.fHgendy->Fill(mcend.Y());
 		  mchists.fHgendz->Fill(mcend.Z());
-		  mchists.fHgtheta->Fill(part->Momentum().Theta());
-		  mchists.fHgphi->Fill(part->Momentum().Phi());
+		  mchists.fHgtheta->Fill(mcstartmom.Theta());
+		  mchists.fHgphi->Fill(mcstartmom.Phi());
 		  mchists.fHgtheta_xz->Fill(mctheta_xz);
 		  mchists.fHgtheta_yz->Fill(mctheta_yz);
-		  mchists.fHgmom->Fill(part->Momentum().Vect().Mag());
+		  mchists.fHgmom->Fill(mcstartmom.Mag());
 		  mchists.fHglen->Fill(plen);
 		}
 	      }
