@@ -91,7 +91,7 @@ namespace {
   }
 
   //----------------------------------------------------------------------------
-  // Filter a collection of hits.
+  // Filter a collection of hits (set difference).
   //
   // Arguments:
   //
@@ -363,15 +363,15 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   bool done = false;
   while(!done) {
 
-    // Use remaining hits to make space points using the seed finder.
-       
+    // Use remaining seederhits to make seeds.
 
     std::vector<art::PtrVector<recob::Hit> > hitsperseed;
     std::vector<recob::Seed> seeds;
     if(seederhits.size()>0)
       seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
+    assert(seeds.size() == hitsperseed.size());
     
-    if(seeds.size() == 0 || !seeds.front().IsValid()) {
+    if(seeds.size() == 0) {
 
       // Quit loop if we didn't find any new seeds.
 
@@ -380,190 +380,196 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     }
     else {
 
-      // Found a seed.
+      // Loop over seeds.
 
-      mf::LogDebug log("Track3DKalmanHit");
-
-      // Extract the first seed found.  Also extract the space points
-      // used by this seed.
-
-      const recob::Seed& seed = (seeds.front());
+      std::vector<recob::Seed>::const_iterator sit = seeds.begin();
+      std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit = hitsperseed.begin();
+      for(;sit != seeds.end() && hpsit != hitsperseed.end(); ++sit, ++hpsit) {
+	
+	const recob::Seed& seed = *sit;
+	art::PtrVector<recob::Hit> seedhits = *hpsit;
       
-      // Extract hits used by space points in this seed.
+	// Filter hits used by seed from hits available to make future seeds.
+	// No matter what, we will never use these hits for another seed.
+	// This eliminates the possibility of an infinite loop.
 
-      art::PtrVector<recob::Hit> seedhits = (hitsperseed.front());
+	size_t initial_seederhits = seederhits.size();
+	FilterHits(seederhits, seedhits);
 
-      // Filter hits used by seed from hits available to make future seeds.
-      // No matter what, we will never use these hits for another seed.
+	// Require that this seed be fully disjoint from existing tracks.
 
-      FilterHits(seederhits, seedhits);
+	if(seedhits.size() + seederhits.size() == initial_seederhits) {
 
-      // Convert seed into initial KTracks on surface located at seed point, 
-      // and normal to seed direction.
+	  mf::LogDebug log("Track3DKalmanHit");
 
-      double xyz[3];
-      double dir[3];
-      double err[3];   // Dummy.
-      seed.GetPoint(xyz, err);
-      seed.GetDirection(dir, err);
+	  // Convert seed into initial KTracks on surface located at seed point, 
+	  // and normal to seed direction.
 
-      std::shared_ptr<const Surface> psurf(new SurfXYZPlane(xyz[0], xyz[1], xyz[2],
-							    dir[0], dir[1], dir[2]));
-      TrackVector vec(5);
-      vec(0) = 0.;
-      vec(1) = 0.;
-      vec(2) = 0.;
-      vec(3) = 0.;
-      vec(4) = 2.0;
+	  double xyz[3];
+	  double dir[3];
+	  double err[3];   // Dummy.
+	  seed.GetPoint(xyz, err);
+	  seed.GetDirection(dir, err);
 
-      log << "Seed found with " << seedhits.size() <<" hits.\n"
-	  << "(x,y,z) = " << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << "\n"
-	  << "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n"
-	  << "(x1, y1, z1)) = ";
+	  std::shared_ptr<const Surface> psurf(new SurfXYZPlane(xyz[0], xyz[1], xyz[2],
+								dir[0], dir[1], dir[2]));
+	  TrackVector vec(5);
+	  vec(0) = 0.;
+	  vec(1) = 0.;
+	  vec(2) = 0.;
+	  vec(3) = 0.;
+	  vec(4) = 2.0;
 
-      // Cut on the seed slope dx/dz.
+	  log << "Seed found with " << seedhits.size() <<" hits.\n"
+	      << "(x,y,z) = " << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << "\n"
+	      << "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n"
+	      << "(x1, y1, z1)) = ";
 
-      if(std::abs(dir[0]) >= fMinSeedSlope * std::abs(dir[2])) {
+	  // Cut on the seed slope dx/dz.
 
-	// Make two initial KTracks for forward and backward directions.
-	// Assume muon (pdgid = 13).
+	  if(std::abs(dir[0]) >= fMinSeedSlope * std::abs(dir[2])) {
 
-	int pdg = 13;
-	std::vector<KTrack> initial_tracks;
-	initial_tracks.reserve(2);
-	initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
-	initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
+	    // Make two initial KTracks for forward and backward directions.
+	    // Assume muon (pdgid = 13).
 
-	// Loop over initial tracks.
+	    int pdg = 13;
+	    std::vector<KTrack> initial_tracks;
+	    initial_tracks.reserve(2);
+	    initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
+	    initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
 
-	int ntracks = kalman_tracks.size();   // Remember original track count.
+	    // Loop over initial tracks.
 
-	for(std::vector<KTrack>::const_iterator itrk = initial_tracks.begin();
-	    itrk != initial_tracks.end(); ++itrk) {
-	  const KTrack& trk = *itrk;
+	    int ntracks = kalman_tracks.size();   // Remember original track count.
 
-	  // Fill hit container with current seed hits.
+	    for(std::vector<KTrack>::const_iterator itrk = initial_tracks.begin();
+		itrk != initial_tracks.end(); ++itrk) {
+	      const KTrack& trk = *itrk;
 
-	  KHitContainerWireX seedcont;
-	  seedcont.fill(seedhits, -1);
+	      // Fill hit container with current seed hits.
 
-	  // Set the preferred plane to be the one with the most hits.
+	      KHitContainerWireX seedcont;
+	      seedcont.fill(seedhits, -1);
 
-	  unsigned int prefplane = seedcont.getPreferredPlane();
-	  fKFAlg.setPlane(prefplane);
-	  log << "Preferred plane = " << prefplane << "\n";
+	      // Set the preferred plane to be the one with the most hits.
 
-	  // Build and smooth seed track.
+	      unsigned int prefplane = seedcont.getPreferredPlane();
+	      fKFAlg.setPlane(prefplane);
+	      log << "Preferred plane = " << prefplane << "\n";
 
-	  KGTrack trg0;
-	  bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, seedcont);
-	  if(ok) {
-	    KGTrack trg1;
-	    ok = fKFAlg.smoothTrack(trg0, &trg1, fProp);
-	    if(ok) {
+	      // Build and smooth seed track.
 
-	      // Now we have the seed track in the form of a KGTrack.
-	      // Do additional quality cuts.
-
-	      size_t n = trg1.numHits();
-	      ok = (n >= fMinSeedHits &&
-		    trg0.startTrack().getChisq() <= n * fMaxSeedChiDF &&
-		    trg0.endTrack().getChisq() <= n * fMaxSeedChiDF &&
-		    trg1.startTrack().getChisq() <= n * fMaxSeedChiDF &&
-		    trg1.endTrack().getChisq() <= n * fMaxSeedChiDF);
-	      double mom0[3];
-	      double mom1[3];
-	      trg0.startTrack().getMomentum(mom0);
-	      trg0.endTrack().getMomentum(mom1);
-	      double dxdz0 = mom0[0] / mom0[2];
-	      double dxdz1 = mom1[0] / mom1[2];
-	      ok = ok && (std::abs(dxdz0) > fMinSeedSlope &&
-			  std::abs(dxdz1) > fMinSeedSlope);
+	      KGTrack trg0;
+	      bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, seedcont);
 	      if(ok) {
-
-		// Make a copy of the original hit collection of all
-		// available track hits.
-
-		art::PtrVector<recob::Hit> trackhits = hits;
-
-		// Do an extend + smooth loop here.
-
-		int niter = 6;
-
-		for(int ix = 0; ok && ix < niter; ++ix) {
-
-		  // Fill a collection of hits from the last good track
-		  // (initially the seed track).
-
-		  art::PtrVector<recob::Hit> goodhits;
-		  trg1.fillHits(goodhits);
-
-		  // Filter hits already on the track out of the available hits.
-
-		  FilterHits(trackhits, goodhits);
-
-		  // Fill hit container using filtered hits.
-
-		  KHitContainerWireX trackcont;
-		  trackcont.fill(trackhits, -1);
-
-		  // Extend the track.  It is not an error for the
-		  // extend operation to fail, meaning that no new hits
-		  // were added.
-
-		  fKFAlg.extendTrack(trg1, fProp, trackcont);
-
-		  // Smooth the extended track, and make a new
-		  // unidirectionally fit track in the opposite
-		  // direction.
-
-		  KGTrack trg2;
-		  ok = fKFAlg.smoothTrack(trg1, &trg2, fProp);
-		  if(ok) {
-		    KETrack tremom;
-		    bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
-		    if(pok)
-		      fKFAlg.updateMomentum(tremom, fProp, trg2);
-		    trg1 = trg2;
-		  }
-		}
-
-		// Do a final smooth.
-
+		KGTrack trg1;
+		ok = fKFAlg.smoothTrack(trg0, &trg1, fProp);
 		if(ok) {
-		  ok = fKFAlg.smoothTrack(trg1, 0, fProp);
+
+		  // Now we have the seed track in the form of a KGTrack.
+		  // Do additional quality cuts.
+
+		  size_t n = trg1.numHits();
+		  ok = (n >= fMinSeedHits &&
+			trg0.startTrack().getChisq() <= n * fMaxSeedChiDF &&
+			trg0.endTrack().getChisq() <= n * fMaxSeedChiDF &&
+			trg1.startTrack().getChisq() <= n * fMaxSeedChiDF &&
+			trg1.endTrack().getChisq() <= n * fMaxSeedChiDF);
+		  double mom0[3];
+		  double mom1[3];
+		  trg0.startTrack().getMomentum(mom0);
+		  trg0.endTrack().getMomentum(mom1);
+		  double dxdz0 = mom0[0] / mom0[2];
+		  double dxdz1 = mom1[0] / mom1[2];
+		  ok = ok && (std::abs(dxdz0) > fMinSeedSlope &&
+			      std::abs(dxdz1) > fMinSeedSlope);
 		  if(ok) {
-		    KETrack tremom;
-		    bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
-		    if(pok)
-		      fKFAlg.updateMomentum(tremom, fProp, trg1);
 
-		    // Save this track.
+		    // Make a copy of the original hit collection of all
+		    // available track hits.
 
-		    ++fNumTrack;
-		    kalman_tracks.push_back(trg1);
+		    art::PtrVector<recob::Hit> trackhits = hits;
+
+		    // Do an extend + smooth loop here.
+
+		    int niter = 6;
+
+		    for(int ix = 0; ok && ix < niter; ++ix) {
+
+		      // Fill a collection of hits from the last good track
+		      // (initially the seed track).
+
+		      art::PtrVector<recob::Hit> goodhits;
+		      trg1.fillHits(goodhits);
+
+		      // Filter hits already on the track out of the available hits.
+
+		      FilterHits(trackhits, goodhits);
+
+		      // Fill hit container using filtered hits.
+
+		      KHitContainerWireX trackcont;
+		      trackcont.fill(trackhits, -1);
+
+		      // Extend the track.  It is not an error for the
+		      // extend operation to fail, meaning that no new hits
+		      // were added.
+
+		      fKFAlg.extendTrack(trg1, fProp, trackcont);
+
+		      // Smooth the extended track, and make a new
+		      // unidirectionally fit track in the opposite
+		      // direction.
+
+		      KGTrack trg2;
+		      ok = fKFAlg.smoothTrack(trg1, &trg2, fProp);
+		      if(ok) {
+			KETrack tremom;
+			bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
+			if(pok)
+			  fKFAlg.updateMomentum(tremom, fProp, trg2);
+			trg1 = trg2;
+		      }
+		    }
+
+		    // Do a final smooth.
+
+		    if(ok) {
+		      ok = fKFAlg.smoothTrack(trg1, 0, fProp);
+		      if(ok) {
+			KETrack tremom;
+			bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
+			if(pok)
+			  fKFAlg.updateMomentum(tremom, fProp, trg1);
+
+			// Save this track.
+
+			++fNumTrack;
+			kalman_tracks.push_back(trg1);
+		      }
+		    }
 		  }
 		}
 	      }
+	      if(ok) {
+		log << "Find track succeeded.\n";
+	      }
+	      else
+		log << "Find track failed.\n";
+	    }
+
+	    // Loop over newly added tracks and remove hits contained on
+	    // these tracks from hits available for making additional
+	    // tracks or track seeds.
+
+	    for(unsigned int itrk = ntracks; itrk < kalman_tracks.size(); ++itrk) {
+	      const KGTrack& trg = kalman_tracks[itrk];
+	      art::PtrVector<recob::Hit> track_used_hits;
+	      trg.fillHits(track_used_hits);
+	      FilterHits(hits, track_used_hits);
+	      FilterHits(seederhits, track_used_hits);
 	    }
 	  }
-	  if(ok) {
-	    log << "Find track succeeded.\n";
-	  }
-	  else
-	    log << "Find track failed.\n";
-	}
-
-	// Loop over newly added tracks and remove hits contained on
-	// these tracks from hits available for making additional
-	// tracks or track seeds.
-
-	for(unsigned int itrk = ntracks; itrk < kalman_tracks.size(); ++itrk) {
-	  const KGTrack& trg = kalman_tracks[itrk];
-	  art::PtrVector<recob::Hit> track_used_hits;
-	  trg.fillHits(track_used_hits);
-	  FilterHits(hits, track_used_hits);
-	  FilterHits(seederhits, track_used_hits);
 	}
       }
     }
