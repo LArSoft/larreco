@@ -874,7 +874,7 @@ namespace trkf {
 	int ntraj = track.NumberTrajectoryPoints();
 	if(ntraj > 0) {
 	  TVector3 pos = track.Vertex();
-	  const TVector3& dir = track.VertexDirection();
+	  TVector3 dir = track.VertexDirection();
 	  TVector3 end = track.End();
 	  pos[0] += trackdx;
 	  end[0] += trackdx;
@@ -907,134 +907,170 @@ namespace trkf {
 	    mom = track.VertexMomentum();
 	  rhists.fHmom->Fill(mom);
 	  rhists.fHlen->Fill(tlen);
-	      
-	  // Calculate the global-to-local rotation matrix.
 
-	  TMatrixD rot(3,3);
-	  track.GlobalToLocalRotationAtPoint(0, rot);
+	  // Loop over direction.  
+	  for(int swap=0; swap<2; ++swap) {
+
+	    // Analyze reversed tracks only if start momentum = end momentum.
+
+	    if(swap != 0 && track.NumberFitMomentum() > 0 &&
+	       track.VertexMomentum() != track.EndMomentum())
+	      continue;
+
+	    // Calculate the global-to-local rotation matrix.
+
+	    TMatrixD rot(3,3);
+	    int start_point = (swap == 0 ? 0 : ntraj-1);
+	    track.GlobalToLocalRotationAtPoint(start_point, rot);
+
+	    // Update track data for reversed case.
+
+	    if(swap != 0) {
+	      rot(1, 0) = -rot(1, 0);
+	      rot(2, 0) = -rot(2, 0);
+	      rot(1, 1) = -rot(1, 1);
+	      rot(2, 1) = -rot(2, 1);
+	      rot(1, 2) = -rot(1, 2);
+	      rot(2, 2) = -rot(2, 2);
+
+	      pos = track.End();
+	      dir = -track.EndDirection();
+	      end = track.Vertex();
+	      pos[0] += trackdx;
+	      end[0] += trackdx;
 	  
-	  // Get covariance matrix.
+	      dpos = bdist(pos);
+	      dend = bdist(end);
+	      theta_xz = std::atan2(dir.X(), dir.Z());
+	      theta_yz = std::atan2(dir.Y(), dir.Z());
 
-	  const TMatrixD& cov = track.VertexCovariance();
-	  
-	  // Loop over track-like mc particles.
-
-	  for(auto ipart = plist2.begin(); ipart != plist2.end(); ++ipart) {
-	    const simb::MCParticle* part = *ipart;
-	    assert(part != 0);
-	    int pdg = part->PdgCode();
-	    if(fIgnoreSign)
-	      pdg = std::abs(pdg);
-	    assert(fMCHistMap.count(pdg) > 0);
-	    const MCHists& mchists = fMCHistMap[pdg];
-
-	    // Calculate the x offset due to nonzero mc particle time.
-
-	    double mctime = part->T();                                 // nsec
-	    double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();  // cm
-
-	    // Calculate the points where this mc particle enters and leaves the
-	    // fiducial volume, and the length in the fiducial volume.
-
-	    TVector3 mcstart;
-	    TVector3 mcend;
-	    TVector3 mcstartmom;
-	    TVector3 mcendmom;
-	    double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
-
-	    // Get the displacement of this mc particle in the global coordinate system.
-
-	    TVector3 mcpos = mcstart - pos;
-	    
-	    // Rotate the momentum and position to the
-	    // track-local coordinate system.
-
-	    TVector3 mcmoml = rot * mcstartmom;
-	    TVector3 mcposl = rot * mcpos;
-
-	    double colinearity = mcmoml.Z() / mcmoml.Mag();
-	    
-	    double u = mcposl.X();
-	    double v = mcposl.Y();
-	    double w = mcposl.Z();
-	    
-	    double pu = mcmoml.X();
-	    double pv = mcmoml.Y();
-	    double pw = mcmoml.Z();
-
-	    double dudw = pu / pw;
-	    double dvdw = pv / pw;
-
-	    double u0 = u - w * dudw;
-	    double v0 = v - w * dvdw;
-	    double uv0 = std::sqrt(u0*u0 + v0*v0);
-
-	    mchists.fHduvcosth->Fill(colinearity, uv0);
-	    if(std::abs(uv0) < fMatchDisp) {
-
-	      // Fill slope matching histograms.
-
-	      mchists.fHmcdudw->Fill(dudw);
-	      mchists.fHmcdvdw->Fill(dvdw);
-	      mchists.fHdudwpull->Fill(dudw / std::sqrt(cov(2,2)));
-	      mchists.fHdvdwpull->Fill(dvdw / std::sqrt(cov(3,3)));
+	      if(track.NumberFitMomentum() > 0)
+		mom = track.EndMomentum();
 	    }
-	    mchists.fHcosth->Fill(colinearity);
-	    if(colinearity > fMatchColinearity) {
+	  
+	    // Get covariance matrix.
 
-	      // Fill displacement matching histograms.
+	    const TMatrixD& cov = (swap == 0 ? track.VertexCovariance() : track.EndCovariance());
+	  
+	    // Loop over track-like mc particles.
 
-	      mchists.fHmcu->Fill(u0);
-	      mchists.fHmcv->Fill(v0);
-	      mchists.fHmcw->Fill(w);
-	      mchists.fHupull->Fill(u0 / std::sqrt(cov(0,0)));
-	      mchists.fHvpull->Fill(v0 / std::sqrt(cov(1,1)));
-	      
+	    for(auto ipart = plist2.begin(); ipart != plist2.end(); ++ipart) {
+	      const simb::MCParticle* part = *ipart;
+	      assert(part != 0);
+	      int pdg = part->PdgCode();
+	      if(fIgnoreSign)
+		pdg = std::abs(pdg);
+	      assert(fMCHistMap.count(pdg) > 0);
+	      const MCHists& mchists = fMCHistMap[pdg];
+
+	      // Calculate the x offset due to nonzero mc particle time.
+
+	      double mctime = part->T();                                 // nsec
+	      double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();   // cm
+
+	      // Calculate the points where this mc particle enters and leaves the
+	      // fiducial volume, and the length in the fiducial volume.
+
+	      TVector3 mcstart;
+	      TVector3 mcend;
+	      TVector3 mcstartmom;
+	      TVector3 mcendmom;
+	      double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+
+	      // Get the displacement of this mc particle in the global coordinate system.
+
+	      TVector3 mcpos = mcstart - pos;
+	    
+	      // Rotate the momentum and position to the
+	      // track-local coordinate system.
+
+	      TVector3 mcmoml = rot * mcstartmom;
+	      TVector3 mcposl = rot * mcpos;
+
+	      double colinearity = mcmoml.Z() / mcmoml.Mag();
+	    
+	      double u = mcposl.X();
+	      double v = mcposl.Y();
+	      double w = mcposl.Z();
+	    
+	      double pu = mcmoml.X();
+	      double pv = mcmoml.Y();
+	      double pw = mcmoml.Z();
+
+	      double dudw = pu / pw;
+	      double dvdw = pv / pw;
+
+	      double u0 = u - w * dudw;
+	      double v0 = v - w * dvdw;
+	      double uv0 = std::sqrt(u0*u0 + v0*v0);
+
+	      mchists.fHduvcosth->Fill(colinearity, uv0);
 	      if(std::abs(uv0) < fMatchDisp) {
 
-		// Fill matching histograms.
+		// Fill slope matching histograms.
 
-		double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
-		double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
+		mchists.fHmcdudw->Fill(dudw);
+		mchists.fHmcdvdw->Fill(dvdw);
+		mchists.fHdudwpull->Fill(dudw / std::sqrt(cov(2,2)));
+		mchists.fHdvdwpull->Fill(dvdw / std::sqrt(cov(3,3)));
+	      }
+	      mchists.fHcosth->Fill(colinearity);
+	      if(colinearity > fMatchColinearity) {
 
-		mchists.fHstartdx->Fill(pos.X() - mcstart.X());
-		mchists.fHstartdy->Fill(pos.Y() - mcstart.Y());
-		mchists.fHstartdz->Fill(pos.Z() - mcstart.Z());
-		mchists.fHenddx->Fill(end.X() - mcend.X());
-		mchists.fHenddy->Fill(end.Y() - mcend.Y());
-		mchists.fHenddz->Fill(end.Z() - mcend.Z());
-		mchists.fHlvsl->Fill(plen, tlen);
-		mchists.fHdl->Fill(tlen - plen);
-		mchists.fHpvsp->Fill(mcstartmom.Mag(), mom);
-		double dp = mom - mcstartmom.Mag();
-		mchists.fHdp->Fill(dp);
-		mchists.fHppull->Fill(dp / std::sqrt(cov(4,4)));
-		if(std::abs(dpos) >= 5. && std::abs(dend) >= 5.) {
-		  mchists.fHpvspc->Fill(mcstartmom.Mag(), mom);
-		  mchists.fHdpc->Fill(dp);
-		  mchists.fHppullc->Fill(dp / std::sqrt(cov(4,4)));
-		}
+		// Fill displacement matching histograms.
 
-		// Count this track as well-reconstructed if it is matched to an
-		// mc particle (which it is if get here), and if in addition the
-		// starting position (w) matches and the reconstructed track length
-		// is more than 0.5 of the mc particle trajectory length.
+		mchists.fHmcu->Fill(u0);
+		mchists.fHmcv->Fill(v0);
+		mchists.fHmcw->Fill(w);
+		mchists.fHupull->Fill(u0 / std::sqrt(cov(0,0)));
+		mchists.fHvpull->Fill(v0 / std::sqrt(cov(1,1)));
+	      
+		if(std::abs(uv0) < fMatchDisp) {
 
-		bool good = std::abs(w) <= fWMatchDisp &&
-		  tlen > 0.5 * plen;
-		if(good) {
-		  mchists.fHgstartx->Fill(mcstart.X());
-		  mchists.fHgstarty->Fill(mcstart.Y());
-		  mchists.fHgstartz->Fill(mcstart.Z());
-		  mchists.fHgendx->Fill(mcend.X());
-		  mchists.fHgendy->Fill(mcend.Y());
-		  mchists.fHgendz->Fill(mcend.Z());
-		  mchists.fHgtheta->Fill(mcstartmom.Theta());
-		  mchists.fHgphi->Fill(mcstartmom.Phi());
-		  mchists.fHgtheta_xz->Fill(mctheta_xz);
-		  mchists.fHgtheta_yz->Fill(mctheta_yz);
-		  mchists.fHgmom->Fill(mcstartmom.Mag());
-		  mchists.fHglen->Fill(plen);
+		  // Fill matching histograms.
+
+		  double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
+		  double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
+
+		  mchists.fHstartdx->Fill(pos.X() - mcstart.X());
+		  mchists.fHstartdy->Fill(pos.Y() - mcstart.Y());
+		  mchists.fHstartdz->Fill(pos.Z() - mcstart.Z());
+		  mchists.fHenddx->Fill(end.X() - mcend.X());
+		  mchists.fHenddy->Fill(end.Y() - mcend.Y());
+		  mchists.fHenddz->Fill(end.Z() - mcend.Z());
+		  mchists.fHlvsl->Fill(plen, tlen);
+		  mchists.fHdl->Fill(tlen - plen);
+		  mchists.fHpvsp->Fill(mcstartmom.Mag(), mom);
+		  double dp = mom - mcstartmom.Mag();
+		  mchists.fHdp->Fill(dp);
+		  mchists.fHppull->Fill(dp / std::sqrt(cov(4,4)));
+		  if(std::abs(dpos) >= 5. && std::abs(dend) >= 5.) {
+		    mchists.fHpvspc->Fill(mcstartmom.Mag(), mom);
+		    mchists.fHdpc->Fill(dp);
+		    mchists.fHppullc->Fill(dp / std::sqrt(cov(4,4)));
+		  }
+
+		  // Count this track as well-reconstructed if it is matched to an
+		  // mc particle (which it is if get here), and if in addition the
+		  // starting position (w) matches and the reconstructed track length
+		  // is more than 0.5 of the mc particle trajectory length.
+
+		  bool good = std::abs(w) <= fWMatchDisp &&
+		    tlen > 0.5 * plen;
+		  if(good) {
+		    mchists.fHgstartx->Fill(mcstart.X());
+		    mchists.fHgstarty->Fill(mcstart.Y());
+		    mchists.fHgstartz->Fill(mcstart.Z());
+		    mchists.fHgendx->Fill(mcend.X());
+		    mchists.fHgendy->Fill(mcend.Y());
+		    mchists.fHgendz->Fill(mcend.Z());
+		    mchists.fHgtheta->Fill(mcstartmom.Theta());
+		    mchists.fHgphi->Fill(mcstartmom.Phi());
+		    mchists.fHgtheta_xz->Fill(mctheta_xz);
+		    mchists.fHgtheta_yz->Fill(mctheta_yz);
+		    mchists.fHgmom->Fill(mcstartmom.Mag());
+		    mchists.fHglen->Fill(plen);
+		  }
 		}
 	      }
 	    }

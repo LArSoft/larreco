@@ -13,9 +13,11 @@
 // HitModuleLabel     - Module label for unclustered Hits.
 // ClusterModuleLabel - Module label for Clusters.
 // MaxTcut            - Maximum delta ray energy in Mev for dE/dx.
+// DoDedx             - Global dE/dx enable flag.
 // MinSeedHits        - Minimum number of hits per track seed.
 // MaxSeedChiDF       - Maximum seed track chisquare/dof.
 // MinSeedSlope       - Minimum seed slope (dx/dz).
+// InitialMomentum    - Initial momentum guess.
 // KalmanFilterAlg    - Parameter set for KalmanFilterAlg.
 // SeedFinderAlg      - Parameter set for seed finder algorithm object.
 // SpacePointAlg      - Parmaeter set for space points.
@@ -150,9 +152,11 @@ namespace trkf {
     std::string fHitModuleLabel;        ///< Unclustered Hits.
     std::string fClusterModuleLabel;    ///< Clustered Hits.
     double fMaxTcut;                    ///< Maximum delta ray energy in MeV for restricted dE/dx.
+    bool fDoDedx;                       ///< Global dE/dx enable flag.
     double fMinSeedHits;                ///< Minimum number of hits per track seed.
     double fMaxSeedChiDF;               ///< Maximum seed track chisquare/dof.
     double fMinSeedSlope;               ///< Minimum seed slope (dx/dz).
+    double fInitialMomentum;            ///< Initial (or constant) momentum.
 
     // Algorithm objects.
 
@@ -190,9 +194,11 @@ trkf::Track3DKalmanHit::Track3DKalmanHit(fhicl::ParameterSet const & pset) :
   fHist(false),
   fUseClusterHits(false),
   fMaxTcut(0.),
+  fDoDedx(false),
   fMinSeedHits(0.),
   fMaxSeedChiDF(0.),
   fMinSeedSlope(0.),
+  fInitialMomentum(0.),
   fKFAlg(pset.get<fhicl::ParameterSet>("KalmanFilterAlg")),
   fSeedFinderAlg(pset.get<fhicl::ParameterSet>("SeedFinderAlg")),
   fSpacePointAlg(pset.get<fhicl::ParameterSet>("SpacePointAlg")),
@@ -240,12 +246,14 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
   fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
   fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
   fMaxTcut = pset.get<double>("MaxTcut");
+  fDoDedx = pset.get<bool>("DoDedx");
   fMinSeedHits = pset.get<double>("MinSeedHits");
   fMaxSeedChiDF = pset.get<double>("MaxSeedChiDF");
   fMinSeedSlope = pset.get<double>("MinSeedSlope");
+  fInitialMomentum = pset.get<double>("InitialMomentum");
   if(fProp != 0)
     delete fProp;
-  fProp = new PropXYZPlane(fMaxTcut);
+  fProp = new PropXYZPlane(fMaxTcut, fDoDedx);
 }
 
 //----------------------------------------------------------------------------
@@ -418,7 +426,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 	  vec(1) = 0.;
 	  vec(2) = 0.;
 	  vec(3) = 0.;
-	  vec(4) = 2.0;
+	  vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
 
 	  log << "Seed found with " << seedhits.size() <<" hits.\n"
 	      << "(x,y,z) = " << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << "\n"
@@ -429,14 +437,16 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 	  if(std::abs(dir[0]) >= fMinSeedSlope * std::abs(dir[2])) {
 
-	    // Make two initial KTracks for forward and backward directions.
+	    // Make one or two initial KTracks for forward and backward directions.
 	    // Assume muon (pdgid = 13).
 
 	    int pdg = 13;
 	    std::vector<KTrack> initial_tracks;
-	    initial_tracks.reserve(2);
+	    int ninit = (fDoDedx ? 2 : 1);
+	    initial_tracks.reserve(ninit);
 	    initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
-	    initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
+	    if(ninit > 1)
+	      initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
 
 	    // Loop over initial tracks.
 
