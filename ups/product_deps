@@ -19,6 +19,7 @@ qualifier	larsim		nutools		gcc	notes
 e4:debug	e4:debug	debug:e4	-nq-
 e4:opt		e4:opt		e4:prof		-nq-
 e4:prof		e4:prof		e4:prof		-nq-
+e4:debug:noifdh e4:debug         debug:e4        -nq-
 
 # Preserve tabs and formatting in emacs and vi / vim:
 
