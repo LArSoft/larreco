@@ -74,7 +74,7 @@ namespace recob {
 
 
 
-    struct protoTrack
+    struct protoTrackLSWMS
     {
       int clusterNumber=999999;
       int oldClusterNumber=999999;
@@ -96,7 +96,7 @@ namespace recob {
       bool mergedLeft=false;
       bool mergedRight=false;
       std::vector<art::Ptr<recob::Hit>> hits;
-      protoTrack(){
+      protoTrackLSWMS(){
       }
       
       void Init(unsigned int num=999999, 
@@ -165,14 +165,14 @@ namespace cluster {
 
     double GetR() {return m_R;}
 
-    int LineSegmentGeneration(const DIR_POINT& _dpOrig, protoTrack *protoTrackToAdd, std::vector<art::Ptr<recob::Hit> > const& hits, double& _error, int &nClustersTemp, std::vector<unsigned int>                 *fpointId_to_clusterId);
+    int LineSegmentGeneration(const DIR_POINT& _dpOrig, protoTrackLSWMS *protoTrackLSWMSToAdd, std::vector<art::Ptr<recob::Hit> > const& hits, double& _error, int &nClustersTemp, std::vector<unsigned int>                 *fpointId_to_clusterId);
     
     // Growing and Mean-Shift
     double grow(const DIR_POINT& _dpOrig, openCVPoint& _ptDst, int _dir);
     int weightedMeanShift(const DIR_POINT& _dpOrig, DIR_POINT& _dpDst, const boost::numeric::ublas::matrix<int> & _M);
     //int weightedMeanShift(const DIR_POINT& _dpOrig, DIR_POINT& _dpDst, const cv::Mat& _M = cv::Mat() );
 
-    void updateMask(openCVPoint _pt1, openCVPoint _pt2, protoTrack* protoTrackToAdd, std::vector<art::Ptr<recob::Hit> > const& hits, int &nClustersTemp,std::vector<unsigned int>                 *fpointId_to_clusterId);
+    void updateMask(openCVPoint _pt1, openCVPoint _pt2, protoTrackLSWMS* protoTrackLSWMSToAdd, std::vector<art::Ptr<recob::Hit> > const& hits, int &nClustersTemp,std::vector<unsigned int>                 *fpointId_to_clusterId);
 
     private:
 
@@ -239,7 +239,7 @@ namespace cluster {
     size_t FindLineSegments(std::vector<art::Ptr<recob::Hit> > const& hits,
                      std::vector<unsigned int>     *fpointId_to_clusterId,
                      int *nClusters,
-                     std::vector<protoTrack> *protoTracks);
+                     std::vector<protoTrackLSWMS> *protoTrackLSWMSs);
 
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);

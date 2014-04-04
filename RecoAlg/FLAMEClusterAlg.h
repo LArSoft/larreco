@@ -238,14 +238,14 @@ namespace cluster{
     {
       public:
         int clusterNumber=-999999;
-        std::vector<protoTrack> clusterProtoTracks;
-        showerCluster (protoTrack protoTrackTemp)
+        std::vector<protoTrackLSWMS> clusterProtoTracks;
+        showerCluster (protoTrackLSWMS protoTrackLSWMSTemp)
         {
-          clusterNumber=protoTrackTemp.clusterNumber;
-          clusterProtoTracks.push_back(protoTrackTemp);
+          clusterNumber=protoTrackLSWMSTemp.clusterNumber;
+          clusterProtoTracks.push_back(protoTrackLSWMSTemp);
         }
 
-        void addProtoTracks(std::vector<protoTrack> tracksToAdd){
+        void addProtoTracks(std::vector<protoTrackLSWMS> tracksToAdd){
           
           for(auto tracksToAddItr = tracksToAdd.begin(); tracksToAddItr != tracksToAdd.end(); tracksToAddItr++)
             tracksToAddItr->clusterNumber = clusterNumber;
@@ -263,14 +263,14 @@ namespace cluster{
     {
       public:
         int clusterNumber=-999999;
-        std::vector<protoTrack> clusterProtoTracks;
-        trackCluster (protoTrack protoTrackTemp)
+        std::vector<protoTrackLSWMS> clusterProtoTracks;
+        trackCluster (protoTrackLSWMS protoTrackLSWMSTemp)
         {
-          clusterNumber=protoTrackTemp.clusterNumber;
-          clusterProtoTracks.push_back(protoTrackTemp);
+          clusterNumber=protoTrackLSWMSTemp.clusterNumber;
+          clusterProtoTracks.push_back(protoTrackLSWMSTemp);
         }
 
-        void addProtoTracks(std::vector<protoTrack> tracksToAdd){
+        void addProtoTracks(std::vector<protoTrackLSWMS> tracksToAdd){
 
           for(auto tracksToAddItr = tracksToAdd.begin(); tracksToAddItr != tracksToAdd.end(); tracksToAddItr++)
             tracksToAddItr->clusterNumber = clusterNumber;

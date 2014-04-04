@@ -301,7 +301,7 @@ void cluster::LSWMS::Init( std::vector<art::Ptr<recob::Hit> > const& hits,
 size_t cluster::LSWMSBaseAlg::FindLineSegments(std::vector<art::Ptr<recob::Hit> > const& hits,
 					std::vector<unsigned int>                 *fpointId_to_clusterId,
 					int                                       *nClusters,
-                                        std::vector<protoTrack>                   *linesFound
+                                        std::vector<protoTrackLSWMS>                   *linesFound
 					)
 {
 
@@ -311,7 +311,7 @@ size_t cluster::LSWMSBaseAlg::FindLineSegments(std::vector<art::Ptr<recob::Hit> 
 
 
   // Define the prototrack object
-  protoTrack protoTrackToLoad;
+  protoTrackLSWMS protoTrackLSWMSToLoad;
 
 
 
@@ -364,8 +364,8 @@ size_t cluster::LSWMSBaseAlg::FindLineSegments(std::vector<art::Ptr<recob::Hit> 
       //if(fVerbose) { printf("Try dpOrig=(%d,%d,%.2f,%.2f)...\n", dpOrig.pt.wire, dpOrig.pt.timebin, dpOrig.vx, dpOrig.vy); }
       mf::LogVerbatim("LSWMSBaseAlg") << "Try dpOrig=("<<dpOrig.pt.wire<<","<<dpOrig.pt.timebin<<","<<dpOrig.vx<<","<<dpOrig.vy<<")..."; 
     
-      l.LineSegmentGeneration(dpOrig, &protoTrackToLoad, hits, error, nClustersTemp, fpointId_to_clusterId);
-      linesFound->push_back(protoTrackToLoad);
+      l.LineSegmentGeneration(dpOrig, &protoTrackLSWMSToLoad, hits, error, nClustersTemp, fpointId_to_clusterId);
+      linesFound->push_back(protoTrackLSWMSToLoad);
     }
     l.SetM(timebin,wire,255);
   }
@@ -392,8 +392,8 @@ size_t cluster::LSWMSBaseAlg::FindLineSegments(std::vector<art::Ptr<recob::Hit> 
       //DIR_POINT dpOrig(openCVPoint(x0,y0),l.GetGx(y0,x0),l.GetGy(y0,x0));
       //if(fVerbose) { printf("-------------------------------\n"); }
       //if(fVerbose) { printf("Try dpOrig=(%d,%d,%.2f,%.2f)...\n", dpOrig.pt.wire, dpOrig.pt.timebin, dpOrig.vx, dpOrig.vy); }
-      //l.LineSegmentGeneration(dpOrig, &protoTrackToLoad, hits, error, nClustersTemp, fpointId_to_clusterId);
-      //linesFound->push_back(protoTrackToLoad);
+      //l.LineSegmentGeneration(dpOrig, &protoTrackLSWMSToLoad, hits, error, nClustersTemp, fpointId_to_clusterId);
+      //linesFound->push_back(protoTrackLSWMSToLoad);
     //}
 	//for(unsigned int j=y0-l.GetR(); j<=y0+l.GetR(); ++j)
 	//{
@@ -420,8 +420,8 @@ size_t cluster::LSWMSBaseAlg::FindLineSegments(std::vector<art::Ptr<recob::Hit> 
         //DIR_POINT dpOrig(openCVPoint(wire,timebin),l.GetGx(timebin,wire),l.GetGy(timebin,wire));
 	//if(fVerbose) { printf("-------------------------------\n"); }
 	//if(fVerbose) { printf("Try dpOrig=(%d,%d,%.2f,%.2f)...\n", dpOrig.pt.wire, dpOrig.pt.timebin, dpOrig.vx, dpOrig.vy); }
-        //l.LineSegmentGeneration(dpOrig, &protoTrackToLoad, hits, error, nClustersTemp, fpointId_to_clusterId);
-        //linesFound->push_back(protoTrackToLoad);
+        //l.LineSegmentGeneration(dpOrig, &protoTrackLSWMSToLoad, hits, error, nClustersTemp, fpointId_to_clusterId);
+        //linesFound->push_back(protoTrackLSWMSToLoad);
       //}
     //}
   //}
@@ -443,7 +443,7 @@ size_t cluster::LSWMSBaseAlg::FindLineSegments(std::vector<art::Ptr<recob::Hit> 
 
 
 //------------------------------------------------------------------------------
-int cluster::LSWMS::LineSegmentGeneration(const DIR_POINT& _dpOrig, protoTrack* protoTrackToAdd, std::vector<art::Ptr<recob::Hit> > const& hits, double& _error, int &nClustersTemp,std::vector<unsigned int>                 *fpointId_to_clusterId)
+int cluster::LSWMS::LineSegmentGeneration(const DIR_POINT& _dpOrig, protoTrackLSWMS* protoTrackLSWMSToAdd, std::vector<art::Ptr<recob::Hit> > const& hits, double& _error, int &nClustersTemp,std::vector<unsigned int>                 *fpointId_to_clusterId)
 {
 	// **********************************************
 	// Starts at dpOrig and generates lSeg
@@ -560,7 +560,7 @@ int cluster::LSWMS::LineSegmentGeneration(const DIR_POINT& _dpOrig, protoTrack* 
 	//_lSeg.push_back(openCVPoint(pt1.wire, pt1.timebin));
 	
 	// Update visited positions matrix
-	updateMask(pt1,pt2, protoTrackToAdd, hits, nClustersTemp, fpointId_to_clusterId);
+	updateMask(pt1,pt2, protoTrackLSWMSToAdd, hits, nClustersTemp, fpointId_to_clusterId);
 
                
 
@@ -1261,7 +1261,7 @@ int cluster::LSWMS::weightedMeanShift(const DIR_POINT& _dpOrig, DIR_POINT& _dpDs
 	return RET_OK;
 }
 
-void cluster::LSWMS::updateMask(openCVPoint _pt1, openCVPoint _pt2, protoTrack* protoTrackToAdd, std::vector<art::Ptr<recob::Hit> > const& hits, int &nClustersTemp, std::vector<unsigned int> *fpointId_to_clusterId)
+void cluster::LSWMS::updateMask(openCVPoint _pt1, openCVPoint _pt2, protoTrackLSWMS* protoTrackLSWMSToAdd, std::vector<art::Ptr<recob::Hit> > const& hits, int &nClustersTemp, std::vector<unsigned int> *fpointId_to_clusterId)
 {	
 
         art::ServiceHandle<geo::Geometry> geom;
@@ -1379,7 +1379,7 @@ void cluster::LSWMS::updateMask(openCVPoint _pt1, openCVPoint _pt2, protoTrack* 
         double slope = (pCornerMax[1]-pCornerMin[1])/(pCornerMax[0]-pCornerMin[0]);
         double intercept = pCornerMax[1] - slope*pCornerMax[0];
 
-        protoTrackToAdd->Init(nClustersTemp-1,
+        protoTrackLSWMSToAdd->Init(nClustersTemp-1,
               slope,
               intercept,
               totalQ,

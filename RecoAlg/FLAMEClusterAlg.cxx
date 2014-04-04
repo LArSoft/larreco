@@ -346,14 +346,14 @@ void cluster::FLAMEClusterAlg::run_FLAME_cluster(std::vector<art::Ptr<recob::Hit
   // Loop over clusters with the Hough line finder to break the clusters up further
   // list of lines
   //std::cout << "Starting Hough" << std::endl;
-  std::vector<protoTrack> protoTracksFound;
+  std::vector<protoTrackLSWMS> protoTrackLSWMSsFound;
   //TStopwatch w;
   //double timeTotal = 0;
   int nClusters = flame->cso_count+1;
   int nClustersTemp = flame->cso_count+1;
   if(nClustersTemp > 0){
       std::cout << "Line Finding" << std::endl;
-      fLBAlg.FindLineSegments(allhits, &fpointId_to_clusterId, &nClusters, &protoTracksFound);
+      fLBAlg.FindLineSegments(allhits, &fpointId_to_clusterId, &nClusters, &protoTrackLSWMSsFound);
   }
 
 
@@ -379,10 +379,10 @@ void cluster::FLAMEClusterAlg::run_FLAME_cluster(std::vector<art::Ptr<recob::Hit
   //double distance;
   //double peakTimePerpMin;
   //double peakTimePerpMax;
-  //for(auto protoTracksFoundItr = protoTracksFound.begin(); protoTracksFoundItr < protoTracksFound.end(); ++protoTracksFoundItr){
+  //for(auto protoTrackLSWMSsFoundItr = protoTrackLSWMSsFound.begin(); protoTrackLSWMSsFoundItr < protoTrackLSWMSsFound.end(); ++protoTrackLSWMSsFoundItr){
 
-    ////std::cout << "iMinWire: " << protoTracksFoundItr->iMinWire << std::endl;
-    ////std::cout << "iMaxWire: " << protoTracksFoundItr->iMaxWire << std::endl;
+    ////std::cout << "iMinWire: " << protoTrackLSWMSsFoundItr->iMinWire << std::endl;
+    ////std::cout << "iMaxWire: " << protoTrackLSWMSsFoundItr->iMaxWire << std::endl;
 
     //totalBkgDistCharge = 0;
     //fMaxDistance = 0.1;
@@ -390,25 +390,25 @@ void cluster::FLAMEClusterAlg::run_FLAME_cluster(std::vector<art::Ptr<recob::Hit
       ///// Veto the hit if it already belongs to a line, proto tracks (Hough lines) are added after the fuzzy clusters
       ////if(fpointId_to_clusterId.at(hitsItr-allhits.cbegin()) < nClustersTemp)
 	////continue;
-      //distance = (TMath::Abs((*hitsItr)->PeakTime()-protoTracksFoundItr->clusterSlope*(double)((*hitsItr)->WireID().Wire)-protoTracksFoundItr->clusterIntercept)/(std::sqrt(pow(xyScale*protoTracksFoundItr->clusterSlope,2)+1)));
+      //distance = (TMath::Abs((*hitsItr)->PeakTime()-protoTrackLSWMSsFoundItr->clusterSlope*(double)((*hitsItr)->WireID().Wire)-protoTrackLSWMSsFoundItr->clusterIntercept)/(std::sqrt(pow(xyScale*protoTrackLSWMSsFoundItr->clusterSlope,2)+1)));
       ///// Sum up background hits, use smart distance
-      //peakTimePerpMin=-(1/protoTracksFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTracksFoundItr->iMinWire]->PeakTime()+(1/protoTracksFoundItr->clusterSlope)*(allhits[protoTracksFoundItr->iMinWire]->WireID().Wire);
-      //peakTimePerpMax=-(1/protoTracksFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTracksFoundItr->iMaxWire]->PeakTime()+(1/protoTracksFoundItr->clusterSlope)*(allhits[protoTracksFoundItr->iMaxWire]->WireID().Wire);
+      //peakTimePerpMin=-(1/protoTrackLSWMSsFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTrackLSWMSsFoundItr->iMinWire]->PeakTime()+(1/protoTrackLSWMSsFoundItr->clusterSlope)*(allhits[protoTrackLSWMSsFoundItr->iMinWire]->WireID().Wire);
+      //peakTimePerpMax=-(1/protoTrackLSWMSsFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTrackLSWMSsFoundItr->iMaxWire]->PeakTime()+(1/protoTrackLSWMSsFoundItr->clusterSlope)*(allhits[protoTrackLSWMSsFoundItr->iMaxWire]->WireID().Wire);
       //if(distance > 1*(fMaxDistance+(((*hitsItr)->EndTime()-(*hitsItr)->StartTime())/2.)+indcolscaling)
 	 //&& distance < 25*(fMaxDistance+(((*hitsItr)->EndTime()-(*hitsItr)->StartTime())/2.)+indcolscaling)){
-	//if((protoTracksFoundItr->clusterSlope < 0 && (*hitsItr)->PeakTime() < peakTimePerpMin && (*hitsItr)->PeakTime() > peakTimePerpMax)
-	    //|| (protoTracksFoundItr->clusterSlope > 0 && (*hitsItr)->PeakTime() > peakTimePerpMin && (*hitsItr)->PeakTime() < peakTimePerpMax)){
+	//if((protoTrackLSWMSsFoundItr->clusterSlope < 0 && (*hitsItr)->PeakTime() < peakTimePerpMin && (*hitsItr)->PeakTime() > peakTimePerpMax)
+	    //|| (protoTrackLSWMSsFoundItr->clusterSlope > 0 && (*hitsItr)->PeakTime() > peakTimePerpMin && (*hitsItr)->PeakTime() < peakTimePerpMax)){
 	  //totalBkgDistCharge+=distance/(*hitsItr)->Charge();
 	//}
       //}
     //}/// end loop over hits
-    //protoTracksFoundItr->showerLikeness = totalBkgDistCharge/(double)protoTracksFoundItr->hits.size();
-    ////std::cout << "showerLikeness: " << totalBkgDistCharge/(double)protoTracksFoundItr->hits.size() << std::endl;
+    //protoTrackLSWMSsFoundItr->showerLikeness = totalBkgDistCharge/(double)protoTrackLSWMSsFoundItr->hits.size();
+    ////std::cout << "showerLikeness: " << totalBkgDistCharge/(double)protoTrackLSWMSsFoundItr->hits.size() << std::endl;
 
-    //if(protoTracksFoundItr->showerLikeness > fShowerLikenessCut)
-      //showerClusters.push_back(showerCluster(*protoTracksFoundItr));
+    //if(protoTrackLSWMSsFoundItr->showerLikeness > fShowerLikenessCut)
+      //showerClusters.push_back(showerCluster(*protoTrackLSWMSsFoundItr));
     //else
-      //trackClusters.push_back(trackCluster(*protoTracksFoundItr));
+      //trackClusters.push_back(trackCluster(*protoTrackLSWMSsFoundItr));
 
   //}/// end loop over lines found
 
@@ -498,15 +498,15 @@ void cluster::FLAMEClusterAlg::run_FLAME_cluster(std::vector<art::Ptr<recob::Hit
   //// Reassign the merged lines
   //for(auto fpointId_to_clusterIdItr = fpointId_to_clusterId.begin(); fpointId_to_clusterIdItr != fpointId_to_clusterId.end(); ++fpointId_to_clusterIdItr){
     //for(auto trackClustersItr = trackClusters.begin(); trackClustersItr != trackClusters.end(); ++trackClustersItr){
-      //for(auto protoTracksFoundItr = trackClustersItr->clusterProtoTracks.begin(); protoTracksFoundItr < trackClustersItr->clusterProtoTracks.end(); ++protoTracksFoundItr){
-	//if(*fpointId_to_clusterIdItr == (unsigned int)protoTracksFoundItr->oldClusterNumber)
-	  //*fpointId_to_clusterIdItr = protoTracksFoundItr->clusterNumber;
+      //for(auto protoTrackLSWMSsFoundItr = trackClustersItr->clusterProtoTracks.begin(); protoTrackLSWMSsFoundItr < trackClustersItr->clusterProtoTracks.end(); ++protoTrackLSWMSsFoundItr){
+	//if(*fpointId_to_clusterIdItr == (unsigned int)protoTrackLSWMSsFoundItr->oldClusterNumber)
+	  //*fpointId_to_clusterIdItr = protoTrackLSWMSsFoundItr->clusterNumber;
       //}
     //}
     //for(auto showerClustersItr = showerClusters.begin(); showerClustersItr != showerClusters.end(); ++showerClustersItr){
-      //for(auto protoTracksFoundItr = showerClustersItr->clusterProtoTracks.begin(); protoTracksFoundItr < showerClustersItr->clusterProtoTracks.end(); ++protoTracksFoundItr){
-	//if(*fpointId_to_clusterIdItr == (unsigned int)protoTracksFoundItr->oldClusterNumber){
-	  //*fpointId_to_clusterIdItr = protoTracksFoundItr->clusterNumber;
+      //for(auto protoTrackLSWMSsFoundItr = showerClustersItr->clusterProtoTracks.begin(); protoTrackLSWMSsFoundItr < showerClustersItr->clusterProtoTracks.end(); ++protoTrackLSWMSsFoundItr){
+	//if(*fpointId_to_clusterIdItr == (unsigned int)protoTrackLSWMSsFoundItr->oldClusterNumber){
+	  //*fpointId_to_clusterIdItr = protoTrackLSWMSsFoundItr->clusterNumber;
 	//}
       //}
     //}
@@ -524,13 +524,13 @@ void cluster::FLAMEClusterAlg::run_FLAME_cluster(std::vector<art::Ptr<recob::Hit
 
 
   //// Find sizes of all merged lines combined
-  //// For protoTracksFoundSizes, key is cluster number and size is the mapped value
-  //std::map<int,double> protoTracksFoundSizes;
-  //for(auto protoTracksFoundItr = protoTracksFound.begin(); protoTracksFoundItr < protoTracksFound.end(); ++protoTracksFoundItr){
-    //if(!protoTracksFoundSizes.count(protoTracksFoundItr->clusterNumber))
-      //protoTracksFoundSizes[protoTracksFoundItr->clusterNumber] = std::sqrt( pow(protoTracksFoundItr->pMin0-protoTracksFoundItr->pMax0,2)+pow(protoTracksFoundItr->pMin1-protoTracksFoundItr->pMax1,2));
+  //// For protoTrackLSWMSsFoundSizes, key is cluster number and size is the mapped value
+  //std::map<int,double> protoTrackLSWMSsFoundSizes;
+  //for(auto protoTrackLSWMSsFoundItr = protoTrackLSWMSsFound.begin(); protoTrackLSWMSsFoundItr < protoTrackLSWMSsFound.end(); ++protoTrackLSWMSsFoundItr){
+    //if(!protoTrackLSWMSsFoundSizes.count(protoTrackLSWMSsFoundItr->clusterNumber))
+      //protoTrackLSWMSsFoundSizes[protoTrackLSWMSsFoundItr->clusterNumber] = std::sqrt( pow(protoTrackLSWMSsFoundItr->pMin0-protoTrackLSWMSsFoundItr->pMax0,2)+pow(protoTrackLSWMSsFoundItr->pMin1-protoTrackLSWMSsFoundItr->pMax1,2));
     //else 
-      //protoTracksFoundSizes[protoTracksFoundItr->clusterNumber]+= std::sqrt( pow(protoTracksFoundItr->pMin0-protoTracksFoundItr->pMax0,2)+pow(protoTracksFoundItr->pMin1-protoTracksFoundItr->pMax1,2));
+      //protoTrackLSWMSsFoundSizes[protoTrackLSWMSsFoundItr->clusterNumber]+= std::sqrt( pow(protoTrackLSWMSsFoundItr->pMin0-protoTrackLSWMSsFoundItr->pMax0,2)+pow(protoTrackLSWMSsFoundItr->pMin1-protoTrackLSWMSsFoundItr->pMax1,2));
   //}
   
   //std::vector< art::Ptr<recob::Hit> > unclusteredhits;
@@ -553,41 +553,41 @@ void cluster::FLAMEClusterAlg::run_FLAME_cluster(std::vector<art::Ptr<recob::Hit
       //minDistance = 999999;
 
       //for(auto showerClustersItr = showerClusters.begin(); showerClustersItr != showerClusters.end(); ++showerClustersItr){
-	//for(auto protoTracksItr = showerClustersItr->clusterProtoTracks.begin(); protoTracksItr < showerClustersItr->clusterProtoTracks.end(); ++protoTracksItr){
+	//for(auto protoTrackLSWMSsItr = showerClustersItr->clusterProtoTracks.begin(); protoTrackLSWMSsItr < showerClustersItr->clusterProtoTracks.end(); ++protoTrackLSWMSsItr){
 	  
-	  //distance = PointSegmentDistance( p0, p1, protoTracksItr->pMin0, protoTracksItr->pMin1, protoTracksItr->pMax0, protoTracksItr->pMax1);
+	  //distance = PointSegmentDistance( p0, p1, protoTrackLSWMSsItr->pMin0, protoTrackLSWMSsItr->pMin1, protoTrackLSWMSsItr->pMax0, protoTrackLSWMSsItr->pMax1);
 	  //// Is the point behind or ahead of the line?
-	  ////if(protoTracksFoundItr->pMin0 > p0){
-	     ////double protoTracksFoundSlope = (protoTracksFoundItr->pMax1 - protoTracksFoundItr->pMin1)/(protoTracksFoundItr->pMax0 - protoTracksFoundItr->pMin0);
-	     ////double pMinHitSlope = (p1 - protoTracksFoundItr->pMin1)/(p0 - protoTracksFoundItr->pMin0);
-	     ////double slopeAngle = atan(std::abs((protoTracksFoundSlope - pMinHitSlope)/(1 + protoTracksFoundSlope*pMinHitSlope)))*(180/TMath::Pi());
+	  ////if(protoTrackLSWMSsFoundItr->pMin0 > p0){
+	     ////double protoTrackLSWMSsFoundSlope = (protoTrackLSWMSsFoundItr->pMax1 - protoTrackLSWMSsFoundItr->pMin1)/(protoTrackLSWMSsFoundItr->pMax0 - protoTrackLSWMSsFoundItr->pMin0);
+	     ////double pMinHitSlope = (p1 - protoTrackLSWMSsFoundItr->pMin1)/(p0 - protoTrackLSWMSsFoundItr->pMin0);
+	     ////double slopeAngle = atan(std::abs((protoTrackLSWMSsFoundSlope - pMinHitSlope)/(1 + protoTrackLSWMSsFoundSlope*pMinHitSlope)))*(180/TMath::Pi());
 	     ////if(distance < 10 && slopeAngle < 10){
-	       ////fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTracksFoundItr->clusterNumber;
+	       ////fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTrackLSWMSsFoundItr->clusterNumber;
 	       ////unclustered = false;
 	       ////break;
 	     ////}
 	  ////}
-	  ////if (protoTracksFoundItr->pMax0 < p0){
-	     ////double protoTracksFoundSlope = (protoTracksFoundItr->pMax1 - protoTracksFoundItr->pMin1)/(protoTracksFoundItr->pMax0 - protoTracksFoundItr->pMin0);
-	     ////double pMaxHitSlope = (protoTracksFoundItr->pMax1-p1)/(protoTracksFoundItr->pMax0-p0);
-	     ////double slopeAngle = atan(std::abs((protoTracksFoundSlope - pMaxHitSlope)/(1 + protoTracksFoundSlope*pMaxHitSlope)))*(180/TMath::Pi());
+	  ////if (protoTrackLSWMSsFoundItr->pMax0 < p0){
+	     ////double protoTrackLSWMSsFoundSlope = (protoTrackLSWMSsFoundItr->pMax1 - protoTrackLSWMSsFoundItr->pMin1)/(protoTrackLSWMSsFoundItr->pMax0 - protoTrackLSWMSsFoundItr->pMin0);
+	     ////double pMaxHitSlope = (protoTrackLSWMSsFoundItr->pMax1-p1)/(protoTrackLSWMSsFoundItr->pMax0-p0);
+	     ////double slopeAngle = atan(std::abs((protoTrackLSWMSsFoundSlope - pMaxHitSlope)/(1 + protoTrackLSWMSsFoundSlope*pMaxHitSlope)))*(180/TMath::Pi());
 	     ////if(distance < 10 && slopeAngle < 10){
-	       ////fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTracksFoundItr->clusterNumber;
+	       ////fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTrackLSWMSsFoundItr->clusterNumber;
 	       ////unclustered = false;
 	       ////break;
 	     ////}
 	  ////}
 	  
 	  //// If the line does not look showerlike, skip it
-	  //if(protoTracksItr->showerLikeness<fShowerLikenessCut)
+	  //if(protoTrackLSWMSsItr->showerLikeness<fShowerLikenessCut)
 	    //continue;
 
 	  //if(distance > fFLAMERemnantMergeCutoff)
 	    //continue;
 
-	  //distance/=pow(protoTracksFoundSizes[protoTracksItr->clusterNumber],1/4);
+	  //distance/=pow(protoTrackLSWMSsFoundSizes[protoTrackLSWMSsItr->clusterNumber],1/4);
 	  //if(distance < minDistance){
-	    //fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTracksItr->clusterNumber;
+	    //fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTrackLSWMSsItr->clusterNumber;
 	    //minDistance = distance;
 	    //unclustered = false;
 	  //}
@@ -1244,7 +1244,7 @@ bool cluster::FLAMEClusterAlg::mergeShowerTrackClusters(showerCluster *showerClu
           mergeSlope.push_back(trackClusterProtoTrackItr->clusterSlope*xyScale);
         
         
-          // Sum up number of protoTracks at the vertex
+          // Sum up number of protoTrackLSWMSs at the vertex
           //distance between two segments in the plane:
           //  one segment is (x11, y11) to (x12, y12) or (p0MinLine1, p1MinLine1) to (p0MaxLine1, p1MaxLine1)
           //  the other is   (x21, y21) to (x22, y22) or (p0MinLine2, p1MinLine2) to (p0MaxLine2, p1MaxLine2)
@@ -1499,7 +1499,7 @@ bool cluster::FLAMEClusterAlg::mergeTrackClusters(unsigned int clusIndexStart,
           mergeSlope.push_back(trackClustersClusIndexStartProtoTrackItr->clusterSlope*xyScale);
        
 
-          // Sum up number of protoTracks at the vertex
+          // Sum up number of protoTrackLSWMSs at the vertex
           //distance between two segments in the plane:
           //  one segment is (x11, y11) to (x12, y12) or (p0MinLine1, p1MinLine1) to (p0MaxLine1, p1MaxLine1)
           //  the other is   (x21, y21) to (x22, y22) or (p0MinLine2, p1MinLine2) to (p0MaxLine2, p1MaxLine2)
@@ -1778,7 +1778,7 @@ bool cluster::FLAMEClusterAlg::mergeTrackClusters(unsigned int clusIndexStart,
   //trackClustersToMergeItr->clusterProtoTracks[*toMergeItr].merged = true;
 
   //// For loop over all lines found to reassign lines to clusIndexStart that already belonged to toMerge 
-  //// Need to delete trackClustersItr that gets merged, load protoTracks from one to the other 
+  //// Need to delete trackClustersItr that gets merged, load protoTrackLSWMSs from one to the other 
   ////
   ////
   //for(auto trackClustersItr = trackClusters->begin(); trackClustersItr != trackClusters->end(); trackClustersItr++){
