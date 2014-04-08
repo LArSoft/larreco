@@ -25,8 +25,6 @@
 #define GFABSGEOMATMANAGER_H
 
 #include"TObject.h"
-#include<iostream>
-#include <assert.h>
 
 
 /** @brief Base class for material and geometry interface

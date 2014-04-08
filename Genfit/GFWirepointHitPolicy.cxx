@@ -22,8 +22,8 @@
 
 #include "Genfit/GFWirepointHitPolicy.h"
 
-#include "assert.h"
 #include <cmath>
+#include <cassert>
 
 #include "TMath.h"
 #include "TVector3.h"
@@ -116,8 +116,7 @@ genf::GFWirepointHitPolicy::detPlane(GFAbsRecoHit* hit, GFAbsTrackRep* rep)
   
   // check poca inside tube 
   if(distance > fMaxdistance) {
-    GFException exc("distance poca-wire > maxdistance", __LINE__,__FILE__);	
-    throw exc;    
+    throw GFException("distance poca-wire > maxdistance", __LINE__,__FILE__)/* .setFatal() */;
   }
   
   // find plane
@@ -131,8 +130,7 @@ genf::GFWirepointHitPolicy::detPlane(GFAbsRecoHit* hit, GFAbsTrackRep* rep)
   
   // check orthogonality
   if(fabs(fromwiretoextr * wiredirection) > 1e-3) {
-    GFException exc("fromwiretoextr*wiredirection > 1e-3", __LINE__,__FILE__);	
-    throw exc;    
+    throw GFException("fromwiretoextr*wiredirection > 1e-3", __LINE__,__FILE__)/* .setFatal() */;
   }
   
   TVector3 U;

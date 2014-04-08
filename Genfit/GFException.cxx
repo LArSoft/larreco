@@ -26,16 +26,18 @@ GFException::GFException(std::string _excString, int _line, std::string  _file) 
 GFException::~GFException() throw() {
 }
 
-void GFException::setNumbers(std::string _numbersLabel,
+GFException& GFException::setNumbers(std::string _numbersLabel,
 				 const std::vector<double>& _numbers) {
   fNumbersLabel = _numbersLabel;
   fNumbers = _numbers;
+  return *this;
 }
 
-void GFException::setMatrices(std::string _matricesLabel,
+GFException& GFException::setMatrices(std::string _matricesLabel,
 				  const std::vector< TMatrixT<Double_t> >& _matrices) {
   fMatricesLabel = _matricesLabel;
   fMatrices = _matrices;
+  return *this;
 }
 
 const char* GFException::what() const throw(){

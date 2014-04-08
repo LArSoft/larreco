@@ -117,7 +117,8 @@ GFRecoHitProducer<hit_T,recoHit_T>::~GFRecoHitProducer() {
 
 template <class hit_T,class recoHit_T>
 GFAbsRecoHit* GFRecoHitProducer<hit_T,recoHit_T>::produce(int index) {
-  assert(hitArrayTClones!=NULL);
+  if (!hitArrayTClones)
+    throw GFException("GFRecoHitProducer(): no hit set up", __LINE__, __FILE__);
   //assert(hitArrayTClones!=NULL || hitArrayVector!=NULL);//at least one exists
   //assert(!(hitArrayTClones!=NULL && hitArrayVector!=NULL));//but not both
   //if(hitArrayTClones!=NULL){

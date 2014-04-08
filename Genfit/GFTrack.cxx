@@ -16,7 +16,6 @@
    You should have received a copy of the GNU Lesser General Public License
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <assert.h>
 #include <iostream>
 
 #include "Genfit/GFTrack.h"
@@ -64,7 +63,6 @@ genf::GFTrack::GFTrack(const GFTrack& _tr): TObject() {
   fBookkeeping.clear();
 
   for(unsigned int i=0;i<_tr.fBookkeeping.size();++i){
-    assert(_tr.fBookkeeping.at(i)!= NULL) ;
     fBookkeeping.push_back(new GFBookkeeping(*(_tr.fBookkeeping.at(i))));
   }
   fRepAtHit = _tr.fRepAtHit;
@@ -99,7 +97,6 @@ genf::GFTrack& genf::GFTrack::operator=(const GFTrack& _tr) {
   for(unsigned int i=0; i<fBookkeeping.size(); ++i) delete fBookkeeping[i];
   fBookkeeping.clear();
   for(unsigned int i=0;i<_tr.fBookkeeping.size();++i){
-    assert(_tr.fBookkeeping.at(i)!= NULL) ;
     fBookkeeping.push_back(new GFBookkeeping(*(_tr.fBookkeeping.at(i))));
   }
   fRepAtHit = _tr.fRepAtHit;
@@ -159,7 +156,9 @@ genf::GFTrack::fillGeoTrack(TVirtualGeoTrack* geotrk,unsigned int repid) const
   for(unsigned int i=0; i<n; ++i){// loop over hits
     GFDetPlane pl=fHits[i]->getDetPlane(rep);
     TVector3 pos=rep->getPos(pl);
-    std::cout<<pos.X()<<","<<pos.Y()<<","<<pos.Z()<<std::endl;
+    #ifdef NDEBUG
+      std::cout<<pos.X()<<","<<pos.Y()<<","<<pos.Z()<<std::endl;
+    #endif // NDEBUG
     geotrk->AddPoint(pos.X(),pos.Y(),pos.Z(),0);
   }// end loop over hits
 }
@@ -174,7 +173,6 @@ genf::GFTrack::getResiduals(unsigned int detId, // which detector?
   unsigned int nhits=getNumHits();
   if(repid>=getNumReps())return;
   GFAbsTrackRep* rep=getTrackRep(repid);//->clone();
-  assert(rep->getState()==getTrackRep(repid)->getState());
   for(unsigned int ih=0; ih<nhits; ++ih){// loop over hits
     unsigned int anid;
     unsigned int dummy;
@@ -224,8 +222,10 @@ void genf::GFTrack::getHitsByPlane(std::vector<std::vector<int>*>& retVal){
   }
   retVal.clear();
   //this method can only be called when all hits have been loaded
-  assert(fHits.size()==fCand.getNHits());
-  assert(fHits.size()>1);
+  if (fHits.size() != fCand.getNHits())
+    throw GFException("genf::GFTrack::getResiduals(): inconsistent hits", __LINE__, __FILE__).setFatal();
+  if (fHits.size() < 2)
+    throw GFException("genf::GFTrack::getResiduals(): less than 2 hits", __LINE__, __FILE__).setFatal();
   unsigned int detId,hitId,planeId;
   fCand.getHitWithPlane(0,detId,hitId,planeId);
   //  std::cout << "$$$ " << 0 << " " << detId << " " << hitId << " " << planeId << std::endl;

@@ -18,9 +18,9 @@
 */
 
 #include "Genfit/GFEnergyLossCoulomb.h"
-#include "assert.h"
+#include <string>
+#include "Genfit/GFException.h"
 #include "math.h"
-#include <iostream>
 
 genf::GFEnergyLossCoulomb::~GFEnergyLossCoulomb(){
 }
@@ -45,15 +45,14 @@ double genf::GFEnergyLossCoulomb::energyLoss(const double& step,
   const double beta = mom/sqrt(mass*mass+mom*mom);
  
   if (doNoise) {
-    assert (noise!=NULL); // assert that optional argument noise exists
-    assert (jacobian!=NULL); // assert that optional argument jacobian exists
-    assert (directionBefore!=NULL); // assert that optional argument directionBefore exists
-    assert (directionAfter!=NULL); // assert that optional argument directionAfter exists
-    
+    if (!noise) throw GFException(std::string(__func__) + ": no noise given!", __LINE__, __FILE__).setFatal();
+    if (!jacobian) throw GFException(std::string(__func__) + ": no jacobian given!", __LINE__, __FILE__).setFatal();
+    if (!directionBefore) throw GFException(std::string(__func__) + ": no directionBefore given!", __LINE__, __FILE__).setFatal();
+    if (!directionAfter) throw GFException(std::string(__func__) + ": no directionAfter given!", __LINE__, __FILE__).setFatal();
     
     // MULTIPLE SCATTERING; calculate sigma^2 
     // PANDA report PV/01-07 eq(43); linear in step length
-    double sigma2 = 225.E-6/(beta*beta*mom*mom) * step/radiationLength * matZ/(matZ+1) * log(159.*pow(matZ,-1./3.))/log(287.*pow(matZ,-0.5)); // sigma^2 = 225E-6/mom^2 * XX0/beta^2 * Z/(Z+1) * ln(159*Z^(-1/3))/ln(287*Z^(-1/2)
+    double sigma2 = 225.E-6/(beta*beta*mom*mom) * step/radiationLength * matZ/(matZ+1) * log(159.*pow(matZ,-1./3.))/log(287./sqrt(matZ)); // sigma^2 = 225E-6/mom^2 * XX0/beta^2 * Z/(Z+1) * ln(159*Z^(-1/3))/ln(287*Z^(-1/2)
         
     
     // noiseBefore

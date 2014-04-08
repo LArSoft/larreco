@@ -23,6 +23,7 @@
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Principal/Event.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
+#include "cetlib/exception.h"
 
 #include "Geometry/Geometry.h"
 #include "RecoBase/Seed.h"
@@ -138,8 +139,10 @@ namespace {
   void effcalc(const TH1* hnum, const TH1* hden, TH1* heff)
   {
     int nbins = hnum->GetNbinsX();
-    assert(nbins == hden->GetNbinsX());
-    assert(nbins == heff->GetNbinsX());
+    if (nbins != hden->GetNbinsX())
+      throw cet::exception("SeedAna") << "effcalc[" __FILE__ "]: incompatible histograms (I)";
+    if (nbins != heff->GetNbinsX())
+      throw cet::exception("SeedAna") << "effcalc[" __FILE__ "]: incompatible histograms (II)";
 
     // Loop over bins, including underflow and overflow.
 
@@ -172,8 +175,10 @@ namespace {
   void mulcalc(const TH1* hnum, const TH1* hden, TH1* hmul)
   {
     int nbins = hnum->GetNbinsX();
-    assert(nbins == hden->GetNbinsX());
-    assert(nbins == hmul->GetNbinsX());
+    if (nbins != hden->GetNbinsX())
+      throw cet::exception("SeedAna") << "mulcalc[" __FILE__ "]: incompatible histograms (I)";
+    if (nbins != hmul->GetNbinsX())
+      throw cet::exception("SeedAna") << "mulcalc[" __FILE__ "]: incompatible histograms (II)";
 
     // Loop over bins, including underflow and overflow.
 
@@ -668,7 +673,8 @@ namespace trkf {
       for(sim::ParticleList::const_iterator ipart = plist.begin();
 	  ipart != plist.end(); ++ipart) {
 	const simb::MCParticle* part = (*ipart).second;
-	assert(part != 0);
+	if (!part)
+	  throw cet::exception("SeedAna") << "no particle!";
 	int pdg = part->PdgCode();
 	if(fIgnoreSign)
 	  pdg = std::abs(pdg);

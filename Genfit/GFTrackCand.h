@@ -22,13 +22,13 @@
 #ifndef GFTRACKCAND_H
 #define GFTRACKCAND_H
 
-#include<stdexcept> // std::logic_error
 #include <vector>
 #include <set>
-#include "assert.h"
 
 #include "TObject.h"
 #include "TVector3.h"
+
+#include "Genfit/GFException.h"
 
 /** @brief Track candidate -- a list of cluster indices
  *
@@ -84,7 +84,8 @@ namespace genf {
     void getHit(unsigned int i, 
 		unsigned int& detId,
 		unsigned int& hitId) const {
-      assert(i<getNHits());
+      if (i >= getNHits())
+        throw GFException("genf::GFTrackCand::getHit(int, int, int): hit index out of range", __LINE__, __FILE__).setFatal();
       detId=fDetId.at(i);hitId=fHitId.at(i);
     }
     /** @brief Get detector ID and cluster index (hitId) for 
@@ -94,7 +95,8 @@ namespace genf {
 		unsigned int& detId,
 		unsigned int& hitId,
 		double &rho) const {
-      assert(i<getNHits());
+      if (i >= getNHits())
+        throw GFException("genf::GFTrackCand::getHit(int, int, int, double): hit index out of range", __LINE__, __FILE__).setFatal();
       detId=fDetId.at(i);hitId=fHitId.at(i);
       rho=fRho.at(i);
     }
@@ -105,7 +107,8 @@ namespace genf {
 			 unsigned int& detId,
 			 unsigned int& hitId,
 			 unsigned int& planeId) const {
-      assert(i<getNHits());
+      if (i >= getNHits())
+        throw GFException("genf::GFTrackCand::getHitWithPlane(): hit index out of range", __LINE__, __FILE__).setFatal();
       detId=fDetId.at(i);hitId=fHitId.at(i);
       planeId=fPlaneId.at(i);
     }
@@ -190,7 +193,7 @@ namespace genf {
     // Private Methods -----------------
 
     virtual void Print(Option_t*) const
-      { throw std::logic_error(std::string(__func__) + "::Print(Option_t*) not available"); }
+      { throw GFException(std::string(__func__) + "::Print(Option_t*) not available", __LINE__, __FILE__).setFatal(); }
 
     //public:
     //ClassDef(GFTrackCand,3)

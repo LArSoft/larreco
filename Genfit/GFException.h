@@ -72,13 +72,13 @@ class GFException : public std::exception
   virtual ~GFException() throw();
   
   /** @brief set fatal flag. if this is true, the fit stops for this current track repr. */
-  void setFatal (bool b=true){fFatal=b;}
+  GFException& setFatal (bool b = true) { fFatal=b; return *this; }
   /** @brief get fatal flag. */
   bool isFatal (){return fFatal;}
   /** @brief set list of numbers with description */
-  void setNumbers (std::string, const std::vector<double>&);
+  GFException& setNumbers (std::string, const std::vector<double>&);
   /** @brief set list of matrices with description */
-  void setMatrices(std::string, const std::vector< TMatrixT<Double_t> >&);
+  GFException& setMatrices(std::string, const std::vector< TMatrixT<Double_t> >&);
 
   /** @brief print information in the exception object */
   void info();

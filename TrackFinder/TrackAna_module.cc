@@ -26,6 +26,7 @@
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Principal/Event.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
+#include "cetlib/exception.h"
 
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/LArProperties.h"
@@ -145,8 +146,10 @@ namespace {
   void effcalc(const TH1* hnum, const TH1* hden, TH1* heff)
   {
     int nbins = hnum->GetNbinsX();
-    assert(nbins == hden->GetNbinsX());
-    assert(nbins == heff->GetNbinsX());
+    if (nbins != hden->GetNbinsX())
+      throw cet::exception("TrackAna") << "effcalc[" __FILE__ "]: incompatible histograms (I)";
+    if (nbins != heff->GetNbinsX())
+      throw cet::exception("TrackAna") << "effcalc[" __FILE__ "]: incompatible histograms (II)";
 
     // Loop over bins, including underflow and overflow.
 
@@ -677,7 +680,8 @@ namespace trkf {
       for(sim::ParticleList::const_iterator ipart = plist.begin();
 	  ipart != plist.end(); ++ipart) {
 	const simb::MCParticle* part = (*ipart).second;
-	assert(part != 0);
+	if (!part)
+	  throw cet::exception("SeedAna") << "no particle!";
 	int pdg = part->PdgCode();
 	if(fIgnoreSign)
 	  pdg = std::abs(pdg);
@@ -951,17 +955,19 @@ namespace trkf {
 	    // Get covariance matrix.
 
 	    const TMatrixD& cov = (swap == 0 ? track.VertexCovariance() : track.EndCovariance());
-	  
+	    
 	    // Loop over track-like mc particles.
-
+	    
 	    for(auto ipart = plist2.begin(); ipart != plist2.end(); ++ipart) {
 	      const simb::MCParticle* part = *ipart;
-	      assert(part != 0);
+	      if (!part)
+	        throw cet::exception("SeedAna") << "no particle! [II]";
 	      int pdg = part->PdgCode();
-	      if(fIgnoreSign)
-		pdg = std::abs(pdg);
-	      assert(fMCHistMap.count(pdg) > 0);
-	      const MCHists& mchists = fMCHistMap[pdg];
+	      if(fIgnoreSign) pdg = std::abs(pdg);
+	      auto iMCHistMap = fMCHistMap.find(pdg);
+	      if (iMCHistMap == fMCHistMap.end())
+	        throw cet::exception("SeedAna") << "no particle with ID=" << pdg;
+	      const MCHists& mchists = iMCHistMap->second;
 
 	      // Calculate the x offset due to nonzero mc particle time.
 

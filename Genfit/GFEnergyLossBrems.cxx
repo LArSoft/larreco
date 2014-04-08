@@ -18,9 +18,8 @@
 */
 
 #include "Genfit/GFEnergyLossBrems.h"
-#include "assert.h"
+#include "Genfit/GFException.h"
 #include "math.h"
-#include <iostream>
 
 //#define BETHE  // don't use MIGDAL correction for electron bremsstrahlung (only Bethe Heitler)
 
@@ -167,11 +166,12 @@ double genf::GFEnergyLossBrems::energyLoss(const double& step,
 
         dedxBrems = 0.60221367*matDensity*dedxBrems/matA; // energy loss dE/dx [GeV/cm]
       }
-    }                                         
+    }
 
-    assert(dedxBrems>=0.);                                         
+    if (dedxBrems < 0.)
+      throw GFException("genf::GFEnergyLossBrems::energyLoss(): negative dE/dx", __LINE__, __FILE__).setFatal();
 
-    double factor=1.; // positron correction factor                                       
+    double factor=1.; // positron correction factor
 
     if (pdg==-11){
         static const double AA=7522100., A1=0.415, A3=0.0021, A5=0.00054;
@@ -205,7 +205,8 @@ double genf::GFEnergyLossBrems::energyLoss(const double& step,
 
     
     if (doNoise) {
-      assert (noise!=NULL); // assert that optional argument noise exists
+      if (!noise)
+        throw GFException("genf::GFEnergyLossBrems::energyLoss(): no noise matrix!", __LINE__, __FILE__).setFatal();
       
       double LX  = 1.442695*step/radiationLength;
       double S2B = mom*mom * ( 1./pow(3.,LX) - 1./pow(4.,LX) );

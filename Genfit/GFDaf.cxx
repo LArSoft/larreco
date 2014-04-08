@@ -27,11 +27,7 @@
 
 
 #include "Genfit/GFDaf.h"
-
-#include "assert.h"
-#include "stdlib.h"
-#include <iostream>
-#include <sstream>
+#include "Genfit/GFException.h"
 
 #include "TMath.h"
 #include "math.h"
@@ -332,13 +328,15 @@ void genf::GFDaf::processTrack(GFTrack* trk){
 	    int dimV = V.GetNrows();
 	    double detV = V.Determinant();
 	    TMatrixT<Double_t> expArg = smooResidTransp*Vinv*smooResid;
-	    assert(expArg.GetNrows()==1);
+	    if (expArg.GetNrows() != 1)
+	      throw std::runtime_error("genf::GFDaf::processTrack(): wrong matrix dimensions!");
 	    double thisPhi = 1./(pow(2.*TMath::Pi(),dimV/2.)*sqrt(detV))*exp(-0.5*expArg[0][0]);
 	    phi.push_back(thisPhi);
 	    sumPhi += thisPhi;
 
 	    double cutVal = chi2Cuts[dimV];
-	    assert(cutVal>1.E-6);
+	    if (cutVal <= 1.E-6)
+	      throw std::runtime_error("genf::GFDaf::processTrack(): chi2 cut too low");
 	    sumPhiCut += 1./(2*TMath::Pi()*sqrt(detV))*exp(-0.5*cutVal/fBeta.at(iBeta));
 	  }
 	  for(unsigned int ihit=0;ihit<planes.at(ipl)->size();++ihit){
@@ -445,14 +443,25 @@ void genf::GFDaf::setProbCut(double val){
     chi2Cuts[5] = 20.51;
   }
   else{
-    std::cout << "GFDafsetProbCut() with value " << val << " is not supported ->fatal" << std::endl;
-    throw;
+    throw GFException("genf::GFTrackCand::GFDafsetProbCut(): value not supported", __LINE__, __FILE__)
+      .setFatal().setNumbers("value", { val });
   }
 
 }
 
-
-void genf::GFDaf::setBetas(double b1,double b2,double b3,double b4,double b5,double b6,double b7,double b8,double b9,double b10){
+void genf::GFDaf::setBetas(
+  double b1, double b2,
+  double b3 /* = -1. */,
+  double b4 /* = -1. */,
+  double b5 /* = -1. */,
+  double b6 /* = -1. */,
+  double b7 /* = -1. */,
+  double b8 /* = -1. */,
+  double b9 /* = -1. */,
+  double b10 /* = -1. */
+) {
+  
+  /* // asserting version
   assert(b1>0);fBeta.push_back(b1);
   assert(b2>0 && b2<=b1);fBeta.push_back(b2);
   if(b3>=0.) {
@@ -460,25 +469,73 @@ void genf::GFDaf::setBetas(double b1,double b2,double b3,double b4,double b5,dou
     if(b4>=0.) {
       assert(b4<=b3);fBeta.push_back(b4);
       if(b5>=0.) {
-	assert(b5<=b4);fBeta.push_back(b5);
-	if(b6>=0.) {
-	  assert(b6<=b5);fBeta.push_back(b6);
-	  if(b7>=0.) {
-	    assert(b7<=b6);fBeta.push_back(b7);
-	    if(b8>=0.) {
-	      assert(b8<=b7);fBeta.push_back(b8);
-	      if(b9>=0.) {
-		assert(b9<=b8);fBeta.push_back(b9);
-		if(b10>=0.) {
-		  assert(b10<=b9);fBeta.push_back(b10);
-		}
-	      }
-	    }
-	  }
-	}
+        assert(b5<=b4);fBeta.push_back(b5);
+        if(b6>=0.) {
+          assert(b6<=b5);fBeta.push_back(b6);
+          if(b7>=0.) {
+            assert(b7<=b6);fBeta.push_back(b7);
+            if(b8>=0.) {
+              assert(b8<=b7);fBeta.push_back(b8);
+              if(b9>=0.) {
+                assert(b9<=b8);fBeta.push_back(b9);
+                if(b10>=0.) {
+                  assert(b10<=b9);fBeta.push_back(b10);
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
+  */
+  if (b1 <= 0)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b1 <= 0");
+  fBeta.push_back(b1);
+  
+  if (b2 <= 0 || b2 > b1)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b2 in wrong range");
+  fBeta.push_back(b2);
+  
+  if(b3 < 0.) return;
+  if (b3 > b2)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b3 > b2");
+  fBeta.push_back(b3);
+  
+  if(b4 < 0.) return;
+  if (b4 > b3)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b4 > b3");
+  fBeta.push_back(b4);
+  
+  if(b5 < 0.) return;
+  if (b5 > b4)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b5 > b4");
+  fBeta.push_back(b5);
+  
+  if(b6 < 0.) return;
+  if (b6 > b5)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b6 > b5");
+  fBeta.push_back(b6);
+  
+  if(b7 < 0.) return;
+  if (b7 > b6)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b7 > b6");
+  fBeta.push_back(b7);
+  
+  if(b8 < 0.) return;
+  if (b8 > b7)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b8 > b7");
+  fBeta.push_back(b8);
+  
+  if(b9 < 0.) return;
+  if (b9 > b8)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b9 > b8");
+  fBeta.push_back(b9);
+  
+  if(b10 < 0.) return;
+  if (b10 > b9)
+    throw std::runtime_error("genf::GFDaf::setBetas(): b10 > b9");
+  fBeta.push_back(b10);
+  
 }
-
 

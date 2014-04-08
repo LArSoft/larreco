@@ -25,19 +25,16 @@
 
 #include "Genfit/RKTrackRep.h"
 #include <iostream>
-#include <sstream>
-#include <iomanip>
-#include "assert.h"
-#include "stdlib.h"
+#include <memory> // std::unique_ptr
+#include <algorithm> // std::fill
+#include <type_traits> // std::extent<>
 #include "math.h"
-#include "TMath.h"
 #include "TGeoManager.h"
 #include "TDatabasePDG.h"
 #include "Genfit/GFException.h"
 #include "Genfit/GFFieldManager.h"
 #include "Genfit/GFMaterialEffects.h"
 
-#include "cetlib/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #define MINSTEP 0.001   // minimum step [cm] for Runge Kutta and iteration to POCA
@@ -48,8 +45,7 @@ void genf::RKTrackRep::setData(const TMatrixT<Double_t>& st, const GFDetPlane& p
     fCacheSpu = (*aux)(0,0);
   } else {
     if(pl!=fCachePlane){
-      std::cerr << "RKTrackRep::setData() - a fatal error ocurred! It was called with a reference plane is not the same then the one the last extrapolate(plane,state,cov) was made -> abort in line " << __LINE__ << std::endl;
-      throw;
+      throw GFException("RKTrackRep::setData() called with a reference plane not the same as the one the last extrapolate(plane,state,cov) was made", __LINE__, __FILE__).setFatal();
     }
   }
   GFAbsTrackRep::setData(st,pl,cov);
@@ -60,8 +56,7 @@ void genf::RKTrackRep::setData(const TMatrixT<Double_t>& st, const GFDetPlane& p
 const TMatrixT<double>* genf::RKTrackRep::getAuxInfo(const GFDetPlane& pl) {
 
   if(pl!=fCachePlane) {
-    std::cerr << "RKTrackRep::getAuxInfo() - Fatal error: Trying to get auxillary information with planes mismatch (Information returned does not belong to requested plane)! -> abort in line " << __LINE__ << std::endl;
-	throw;
+      throw GFException("RKTrackRep::getAuxInfo() trying to get auxillary information with planes mismatch (Information returned does not belong to requested plane)", __LINE__, __FILE__).setFatal();
   }
   fAuxInfo.ResizeTo(1,1);
   fAuxInfo(0,0) = fCacheSpu;
@@ -404,8 +399,7 @@ void genf::RKTrackRep::extrapolateToPoint(const TVector3& pos,
 
     if(fabs(coveredDistance)<MINSTEP) break;
     if(++iterations == maxIt) {
-      GFException exc("RKTrackRep::extrapolateToPoint==> extrapolation to point failed, maximum number of iterations reached",__LINE__,__FILE__);
-      throw exc;
+      throw GFException("RKTrackRep::extrapolateToPoint==> extrapolation to point failed, maximum number of iterations reached",__LINE__,__FILE__).setFatal();
     }
   }
   poca.SetXYZ(state7[0][0],state7[1][0],state7[2][0]);
@@ -419,8 +413,7 @@ TVector3 genf::RKTrackRep::poca2Line(const TVector3& extr1,const TVector3& extr2
   
   TVector3 theWire = extr2-extr1;
   if(theWire.Mag()<1.E-8){
-    GFException exc("RKTrackRep::poca2Line(): try to find poca between line and point, but the line is really just a point",__LINE__,__FILE__);
-    throw exc;
+    throw GFException("RKTrackRep::poca2Line(): try to find poca between line and point, but the line is really just a point",__LINE__,__FILE__).setFatal();
   }
   double t = 1./(theWire*theWire)*(point*theWire+extr1*extr1-extr1*extr2);
   return (extr1+t*theWire);
@@ -469,8 +462,7 @@ void genf::RKTrackRep::extrapolateToLine(const TVector3& point1,
 
     if(fabs(coveredDistance)<MINSTEP) break;
     if(++iterations == maxIt) {
-      GFException exc("RKTrackRep extrapolation to point failed, maximum number of iterations reached",__LINE__,__FILE__);
-      throw exc;
+      throw GFException("RKTrackRep extrapolation to point failed, maximum number of iterations reached",__LINE__,__FILE__).setFatal();
     }
   }
   poca.SetXYZ(state7[0][0],state7[1][0],state7[2][0]);
@@ -784,7 +776,7 @@ bool genf::RKTrackRep::RKutta (const GFDetPlane& plane,
     std::cout<<"Destination  X = "<<SU[0]*SU[3]<<std::endl;
 
       mf::LogInfo("RKTrackRep::RKutta(): ") << "Throw cet exception here, ... ";
-      throw cet::exception("RKTrackRep.cxx: ") << " Runge Kutta propagation failed. Line " <<__LINE__ << ", " << __FILE__ << "\n";
+      throw GFException("RKTrackRep::RKutta(): Runge Kutta propagation failed",__LINE__,__FILE__).setFatal();
 
     return(false);
 
@@ -1067,9 +1059,9 @@ double genf::RKTrackRep::Extrap( const GFDetPlane& plane, TMatrixT<Double_t>* st
   bool calcCov(true);
   if(cov==NULL) calcCov=false;  
 
-  double *P;
-  if(calcCov) {P = new double[56]; memset(P,0x00,56*sizeof(double));}
-  else {P = new double[7];} // not needed memset(P,0x00,7*sizeof(double));};
+  double P[56]; // only 7 used if no covariance matrix
+  if(calcCov) std::fill(P, P + std::extent<decltype(P)>::value, 0);
+//  else {} // not needed std::fill(P, P + 7, 0);
 
   for(int i=0;i<7;++i){
     P[i] = (*state)[i][0];
@@ -1084,11 +1076,8 @@ double genf::RKTrackRep::Extrap( const GFDetPlane& plane, TMatrixT<Double_t>* st
 
   while(true){
     if(numIt++ > maxNumIt){
-      GFException exc("RKTrackRep::Extrap ==> maximum number of iterations exceeded",
-		      __LINE__,__FILE__);
-      exc.setFatal();
-      delete P;
-      throw exc;
+      throw GFException("RKTrackRep::Extrap ==> maximum number of iterations exceeded",
+        __LINE__,__FILE__).setFatal();
     }
 
     if(calcCov){
@@ -1123,11 +1112,9 @@ double genf::RKTrackRep::Extrap( const GFDetPlane& plane, TMatrixT<Double_t>* st
 
       
       //exc.setFatal(); // stops propagation; faster, but some hits will be lost
-      if ( P!=NULL ) delete P;
       mf::LogInfo("RKTrackRep::RKutta(): ") << "Throw cet exception here, ... ";
-      throw cet::exception("RKTrackRep.cxx: ") << " Runge Kutta propagation failed. Line " <<__LINE__ << ", " << __FILE__ << "\n";
-      
-      //throw exc;
+      throw GFException("RKTrackRep::RKutta(): Runge Kutta propagation failed",
+        __LINE__,__FILE__).setFatal();
     }
 
     TVector3 directionAfter(P[3],P[4],P[5]); // direction after propagation
@@ -1165,10 +1152,7 @@ double genf::RKTrackRep::Extrap( const GFDetPlane& plane, TMatrixT<Double_t>* st
     }
     //assert(fabs(checkSum-coveredDistance)<1.E-7);
     if(fabs(checkSum-coveredDistance)>1.E-7){
-      GFException exc("RKTrackRep::Extrap ==> fabs(checkSum-coveredDistance)>1.E-7",__LINE__,__FILE__);
-      exc.setFatal();
-      delete[] P;
-      throw exc;
+      throw GFException("RKTrackRep::Extrap ==> fabs(checkSum-coveredDistance)>1.E-7",__LINE__,__FILE__).setFatal();
     }
     
     if(calcCov){ //calculate Jacobian jac
@@ -1229,7 +1213,6 @@ double genf::RKTrackRep::Extrap( const GFDetPlane& plane, TMatrixT<Double_t>* st
   (*state)[4][0] = P[4];  (*state)[5][0] = P[5];
   (*state)[6][0] = P[6];
     
-  delete P;
   return sumDistance;
 }
 
