@@ -252,7 +252,7 @@ double genf::GFMaterialEffects::stepper(const double& maxDist,
 }
 
 void genf::GFMaterialEffects::getParameters(){
-  if (!gGeoManager->GetCurrentVolume()->GetMedium());
+  if (!gGeoManager->GetCurrentVolume()->GetMedium())
     throw GFException(std::string(__func__) + ": no medium", __LINE__, __FILE__).setFatal();
   TGeoMaterial * mat = gGeoManager->GetCurrentVolume()->GetMedium()->GetMaterial();
   fmatDensity      = mat->GetDensity();
