@@ -31,8 +31,6 @@
 
 #include<vector>
 #include<map>
-#include<assert.h>
-#include<iostream>
 
 #include "TClonesArray.h"
 
@@ -124,9 +122,7 @@ GFAbsRecoHit* GFRecoHitProducer<hit_T,recoHit_T>::produce(int index) {
   //if(hitArrayTClones!=NULL){
     //the ROOT guys really use 0 and not NULL grrr...
   if(hitArrayTClones->At(index) == 0) {
-    GFException e("In GFRecoHitProducer: index for hit in TClonesArray out of bounds",__LINE__,__FILE__);
-    e.setFatal();
-    throw e;
+    throw GFException("In GFRecoHitProducer: index for hit in TClonesArray out of bounds",__LINE__,__FILE__).setFatal();
   }
   return ( new recoHit_T( (hit_T*) hitArrayTClones->At(index) ) );
   //}
