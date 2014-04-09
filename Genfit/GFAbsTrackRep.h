@@ -195,12 +195,8 @@ class GFAbsTrackRep : public TObject{
   
   virtual void Print() const;
 
-  inline TMatrixT<Double_t> getState() const {
-    return fState;
-  }
-  inline TMatrixT<Double_t> getCov() const {
-    return fCov;
-  }
+  const TMatrixT<Double_t>& getState() const { return fState; }
+  const TMatrixT<Double_t>& getCov() const { return fCov; }
 
   double getStateElem(int i) const {return fState(i,0);}
   double getCovElem(int i, int j) const {return fCov(i,j);}

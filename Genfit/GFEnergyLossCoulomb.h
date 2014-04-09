@@ -24,9 +24,6 @@
 #ifndef GFENERGYLOSSCOULOMB_H
 #define GFENERGYLOSSCOULOMB_H
 
-#include <iostream>
-#include <assert.h>
-
 #include"GFAbsEnergyLoss.h"
 
   

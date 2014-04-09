@@ -213,7 +213,7 @@ namespace hit{
   {
 
     if (evt.isRealData()){
-      throw cet::exception("HitFinderAna: ") << "Not for use on Data yet... " << "\n";
+      throw cet::exception("HitFinderAna: ") << "Not for use on Data yet...\n";
     }
     
     art::Handle< std::vector<recob::Hit> > hitHandle;

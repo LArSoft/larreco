@@ -246,8 +246,7 @@ namespace hit {
   {
 
     if (evt.isRealData()) {
-      throw cet::exception("MagDriftAna: ") << "Not for use on Data yet... " 
-					    << "\n";
+      throw cet::exception("MagDriftAna: ") << "Not for use on Data yet...\n";
     }
     
     ensureHists();

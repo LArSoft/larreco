@@ -237,7 +237,8 @@ double genf::GFMaterialEffects::stepper(const double& maxDist,
     
     if(dP + momLoss > mom*maxPloss){
       double fraction = (mom*maxPloss-dP)/momLoss;
-      assert(fraction>0.&&fraction<1.);
+      if ((fraction <= 0.) || (fraction >= 1.))
+        throw GFException(std::string(__func__) + ": invalid fraction", __LINE__, __FILE__).setFatal();
       dP+=fraction*momLoss;
       X+=fraction*fstep;
       break;
@@ -247,11 +248,12 @@ double genf::GFMaterialEffects::stepper(const double& maxDist,
     X += fstep;
   }
 
-  return X;                 
+  return X;
 }
 
 void genf::GFMaterialEffects::getParameters(){
-  assert(gGeoManager->GetCurrentVolume()->GetMedium()!=NULL);
+  if (!gGeoManager->GetCurrentVolume()->GetMedium())
+    throw GFException(std::string(__func__) + ": no medium", __LINE__, __FILE__).setFatal();
   TGeoMaterial * mat = gGeoManager->GetCurrentVolume()->GetMedium()->GetMaterial();
   fmatDensity      = mat->GetDensity();
   fmatZ            = mat->GetZ();
@@ -662,11 +664,12 @@ http://physics.nist.gov/PhysRefData/XrayMassCoef/tab1.html
 */
 
 const int MeanExcEnergy_NELEMENTS = 93; // 0 = vacuum, 1 = hydrogen, 92 = uranium
-const float MeanExcEnergy_vals[] = {1.e15, 19.2, 41.8, 40.0, 63.7, 76.0, 78., 82.0, 95.0, 115.0, 137.0, 149.0, 156.0, 166.0, 173.0, 173.0, 180.0, 174.0, 188.0, 190.0, 191.0, 216.0, 233.0, 245.0, 257.0, 272.0, 286.0, 297.0, 311.0, 322.0, 330.0, 334.0, 350.0, 347.0, 348.0, 343.0, 352.0, 363.0, 366.0, 379.0, 393.0, 417.0, 424.0, 428.0, 441.0, 449.0, 470.0, 470.0, 469.0, 488.0, 488.0, 487.0, 485.0, 491.0, 482.0, 488.0, 491.0, 501.0, 523.0, 535.0, 546.0, 560.0, 574.0, 580.0, 591.0, 614.0, 628.0, 650.0, 658.0, 674.0, 684.0, 694.0, 705.0, 718.0, 727.0, 736.0, 746.0, 757.0, 790.0, 790.0, 800.0, 810.0, 823.0, 823.0, 830.0, 825.0, 794.0, 827.0, 826.0, 841.0, 847.0, 878.0, 890.0};
+const float MeanExcEnergy_vals[MeanExcEnergy_NELEMENTS] = {1.e15, 19.2, 41.8, 40.0, 63.7, 76.0, 78., 82.0, 95.0, 115.0, 137.0, 149.0, 156.0, 166.0, 173.0, 173.0, 180.0, 174.0, 188.0, 190.0, 191.0, 216.0, 233.0, 245.0, 257.0, 272.0, 286.0, 297.0, 311.0, 322.0, 330.0, 334.0, 350.0, 347.0, 348.0, 343.0, 352.0, 363.0, 366.0, 379.0, 393.0, 417.0, 424.0, 428.0, 441.0, 449.0, 470.0, 470.0, 469.0, 488.0, 488.0, 487.0, 485.0, 491.0, 482.0, 488.0, 491.0, 501.0, 523.0, 535.0, 546.0, 560.0, 574.0, 580.0, 591.0, 614.0, 628.0, 650.0, 658.0, 674.0, 684.0, 694.0, 705.0, 718.0, 727.0, 736.0, 746.0, 757.0, 790.0, 790.0, 800.0, 810.0, 823.0, 823.0, 830.0, 825.0, 794.0, 827.0, 826.0, 841.0, 847.0, 878.0, 890.0};
 
 double genf::GFMaterialEffects::MeanExcEnergy_get(int Z){
-    assert(Z>=0&&Z<MeanExcEnergy_NELEMENTS);
-    return MeanExcEnergy_vals[Z];
+  if ((Z < 0) || (Z > MeanExcEnergy_NELEMENTS))
+    throw GFException(std::string(__func__) + ": unsupported Z", __LINE__, __FILE__).setFatal();
+  return MeanExcEnergy_vals[Z];
 }
 
 double genf::GFMaterialEffects::MeanExcEnergy_get(TGeoMaterial* mat){

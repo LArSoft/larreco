@@ -18,9 +18,8 @@
 */
 
 #include "Genfit/GFEnergyLossBetheBloch.h"
-#include "assert.h"
+#include "Genfit/GFException.h"
 #include "math.h"
-#include <iostream>
 
 genf::GFEnergyLossBetheBloch::~GFEnergyLossBetheBloch(){
 }
@@ -60,7 +59,8 @@ double genf::GFEnergyLossBetheBloch::energyLoss(const double& step,
   else{
     dedx *= (log(argument)-beta*beta); // Bethe-Bloch [MeV/cm]
     dedx *= 1.E-3;  // in GeV/cm, hence 1.e-3
-    assert(dedx>0);
+    if (dedx <= 0.)
+      throw GFException("GFEnergyLossBetheBloch::energyLoss(): non-positive dE/dx", __LINE__, __FILE__).setFatal();
   }
   
   double DE = step * dedx; //always positive
@@ -71,7 +71,8 @@ double genf::GFEnergyLossBetheBloch::energyLoss(const double& step,
 
     
   if (doNoise) {
-    assert (noise!=NULL); // assert that optional argument noise exists
+    if (!noise)
+      throw GFException("GFEnergyLossBetheBloch::energyLoss(): no noise matrix specified!", __LINE__, __FILE__).setFatal();
     
     // ENERGY LOSS FLUCTUATIONS; calculate sigma^2(E); 
     double sigma2E = 0.;

@@ -103,11 +103,12 @@ public:
 	typedef RStarRemoveLeaf<Leaf>				RemoveLeaf;
 	typedef RStarRemoveSpecificLeaf<Leaf>		RemoveSpecificLeaf;
 	
+	static_assert(1 <= min_child_items && min_child_items <= max_child_items/2,
+	  "Wrong parameters in RStarTree template.");
 
 	// default constructor
 	RStarTree() : m_root(NULL), m_size(0) 
 	{
-		assert(1 <= min_child_items && min_child_items <= max_child_items/2);
 	}
 	
 	// destructor

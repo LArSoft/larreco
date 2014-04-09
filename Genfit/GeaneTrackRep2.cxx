@@ -23,7 +23,6 @@
 // C/C++ Headers ----------------------
 #include <iostream>
 #include <cmath>
-#include <cassert>
 
 // Collaborating Class Headers --------
 #include "Genfit/GFAbsRecoHit.h"
@@ -71,9 +70,7 @@ genf::GeaneTrackRep2::GeaneTrackRep2(const GFDetPlane& plane,
   pw = mom*w;
 
   if(fabs(pw)<1.e-10){
-    GFException exc("fabs(pw<1.e-10)",__LINE__,__FILE__);
-    exc.setFatal();
-    throw exc;
+    throw GFException("fabs(pw<1.e-10)",__LINE__,__FILE__).setFatal();
   }
   fState[1][0] = pu/pw;
   fState[2][0] = pv/pw;
@@ -130,16 +127,12 @@ genf::GeaneTrackRep2::extrapolate(const GFDetPlane& pl,
 			   TMatrixT<Double_t>& covPred)
 {
   if(fabs(getMom(fRefPlane).Theta()/TMath::Pi()*180.) < THETACUT){
-    GFException exc("GEANE propagation not possible for p.theta<THETACUT",__LINE__,__FILE__);
-    exc.setFatal();
-    throw exc;
+    throw GFException("GEANE propagation not possible for p.theta<THETACUT",__LINE__,__FILE__).setFatal();
   }
 
   TGeant3 *gMC3 = (TGeant3*) gMC;        
-  if(gMC3==NULL){
-    std::cerr << "GeaneTrackRep2: TGeant3 has not been initialized. -> abort"
-	      << std::endl;
-    throw;
+  if(!gMC3){
+    throw GFException("GeaneTrackRep2: TGeant3 has not been initialized.",__LINE__,__FILE__).setFatal();
   }
 
   statePred.ResizeTo(fDimension,1);covPred.ResizeTo(fDimension,fDimension);

@@ -8,6 +8,7 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
+#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <cmath>
@@ -243,8 +244,6 @@ namespace  trkf{
 
     // Got exactly three hits.
 
-    assert(hits.size() == 3);
-
     // Calculate angles and distance of each hit from origin.
 
     double dist[3] = {0., 0., 0.};
@@ -475,7 +474,8 @@ namespace  trkf{
 
     // Remember associated hits internally.
 
-    assert(fSptHitMap.count(sptid) == 0);
+    if (fSptHitMap.find(sptid) != fSptHitMap.end())
+      throw cet::exception("SpacePointAlg") << "fillSpacePoint(): hit already present!\n";
     fSptHitMap[sptid] = hits;
 
     // Calculate position and error matrix.
@@ -695,7 +695,8 @@ namespace  trkf{
 
     // Remember associated hits internally.
 
-    assert(fSptHitMap.count(sptid) == 0);
+    if(fSptHitMap.count(sptid) != 0);
+      throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): hit already present!\n";
     fSptHitMap[sptid] = hits;
 
     // Do a preliminary scan of hits.
@@ -710,7 +711,14 @@ namespace  trkf{
 
       const recob::Hit& hit = **ihit;
       geo::WireID hitWireID = hit.WireID();
-      //\todo change asserts to throwing cet::exceptions
+    /* // kept as assertions for performance reasons
+      if (hitWireID.Cryostat != cstat0)
+        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): incompatible cryostat\n";
+      if (hitWireID.TPC != tpc0);
+        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): incompatible TPC\n";
+      if (hitWireID.Plane >= nplanes);
+        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): unknown plane\n";
+    */
       assert(hitWireID.Cryostat == cstat0);
       assert(hitWireID.TPC == tpc0);
       assert(hitWireID.Plane < nplanes);
@@ -1095,7 +1103,9 @@ namespace  trkf{
 	      double dist2 = -xyz21[1] * c2 + xyz21[2] * s2;
 	      double pitch2 = geom->WirePitch(0, 1, plane2, tpc, cstat);
 	    
-	      assert(hitmap[cstat][tpc][plane1].size() <= hitmap[cstat][tpc][plane2].size());
+	      if(hitmap[cstat][tpc][plane1].size() > hitmap[cstat][tpc][plane2].size())
+	        throw cet::exception("SpacePointAlg") << "makeSpacePoints(): hitmaps with incompatible size\n";
+	      
 
 	      // Loop over pairs of hits.
 	    
@@ -1111,6 +1121,7 @@ namespace  trkf{
 		const geo::WireGeo& wgeo = geom->WireIDToWireGeo(phit1WireID);
 
 		// Get endpoint coordinates of this wire.
+		// (kept as assertions for performance reasons)
 		assert(phit1WireID.Cryostat == cstat);
 		assert(phit1WireID.TPC == tpc);
 		assert(phit1WireID.Plane == plane1);
@@ -1244,7 +1255,7 @@ namespace  trkf{
 	    const geo::WireGeo& wgeo = geom->WireIDToWireGeo(phit1WireID);
 
 	    // Get endpoint coordinates of this wire from plane1.
-	  
+	    // (kept as assertions for performance reasons)
 	    assert(phit1WireID.Cryostat == cstat);
 	    assert(phit1WireID.TPC == tpc);
 	    assert(phit1WireID.Plane == plane1);
@@ -1399,14 +1410,13 @@ namespace  trkf{
 	  
 	    // Transfer best filtered space point to result vector.
 	  
-	    assert(best_spt != 0);
-	    if(best_spt != 0) {
-	      spts.push_back(*best_spt);
-	      if(fMinViews <= 2)
-		++n2filt;
-	      else
-		++n3filt;
-	    }
+	    if (!best_spt)
+	      throw cet::exception("SpacePointAlg") << "makeSpacePoints(): no best point\n";
+	    spts.push_back(*best_spt);
+	    if(fMinViews <= 2)
+	      ++n2filt;
+	    else
+	      ++n3filt;
 	  }
 	}// end if filtering
       

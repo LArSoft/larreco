@@ -413,7 +413,7 @@ namespace trkf {
       double cosgamma = TMath::Abs(TMath::Sin(angleToVert)*dir.Y() +
 				   TMath::Cos(angleToVert)*dir.Z());      
       // if(cosgamma < 1.e-5)
-	//	throw cet::exception("Track") << "cosgamma is basically 0, that can't be right";
+	//	throw cet::exception("Track") << "cosgamma is basically 0, that can't be right\n";
 
       v.push_back(charge/wirePitch/cosgamma);
       //      std::cout << " Track3DKalmanSPS::dQdxCalc() : For loc.XYZ() hit is ... " << ind << " and v is " << v.back() << std::endl;

@@ -26,6 +26,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
+#include "cetlib/exception.h"
 
 #include "Geometry/Geometry.h"
 #include "RecoBase/Track.h"
@@ -294,7 +295,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
     for(sim::ParticleList::const_iterator ipart = plist.begin();
 	ipart != plist.end(); ++ipart) {
       const simb::MCParticle* part = (*ipart).second;
-      assert(part != 0);
+      if (!part) throw cet::exception("TrackKalmanCheater") << "no particle!\n";
       int pdg = part->PdgCode();
 
       // Ignore everything except stable charged nonshowering particles.
@@ -332,7 +333,8 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
 	if(nhit > 0 && pz != 0.) {
 	  const art::PtrVector<recob::Hit>& trackhits = hitmap[trackid];
-	  assert(trackhits.size() > 0);
+	  if (trackhits.empty())
+	    throw cet::exception("TrackKalmanCheater") << "No hits in track\n";
 
 	  // Make a seed track (KTrack).
 
@@ -360,7 +362,8 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 	    const recob::Hit& hit = **ih;
 	    unsigned int plane = hit.WireID().Plane;
 
-	    assert(/*plane >= 0 &&*/ plane < planehits.size());
+	    if (plane >= planehits.size());
+	      throw cet::exception("TrackKalmanCheater") << "plane " << plane << "...\n";
 	    ++planehits[plane];
 	  }
 	  unsigned int prefplane = 0;
