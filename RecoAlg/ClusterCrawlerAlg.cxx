@@ -96,7 +96,7 @@ namespace cluster {
     if(fNumPass > fDoMerge.size()) badinput = true;
     if(fNumPass > fTimeDelta.size()) badinput = true;
 
-    if(badinput) throw cet::exception("ClusterCrawler")<<"Bad input from fcl file ";
+    if(badinput) throw cet::exception("ClusterCrawler")<<"Bad input from fcl file\n";
 
   }
 

@@ -147,9 +147,9 @@ namespace {
   {
     int nbins = hnum->GetNbinsX();
     if (nbins != hden->GetNbinsX())
-      throw cet::exception("TrackAna") << "effcalc[" __FILE__ "]: incompatible histograms (I)";
+      throw cet::exception("TrackAna") << "effcalc[" __FILE__ "]: incompatible histograms (I)\n";
     if (nbins != heff->GetNbinsX())
-      throw cet::exception("TrackAna") << "effcalc[" __FILE__ "]: incompatible histograms (II)";
+      throw cet::exception("TrackAna") << "effcalc[" __FILE__ "]: incompatible histograms (II)\n";
 
     // Loop over bins, including underflow and overflow.
 
@@ -681,7 +681,7 @@ namespace trkf {
 	  ipart != plist.end(); ++ipart) {
 	const simb::MCParticle* part = (*ipart).second;
 	if (!part)
-	  throw cet::exception("SeedAna") << "no particle!";
+	  throw cet::exception("SeedAna") << "no particle!\n";
 	int pdg = part->PdgCode();
 	if(fIgnoreSign)
 	  pdg = std::abs(pdg);
@@ -961,12 +961,12 @@ namespace trkf {
 	    for(auto ipart = plist2.begin(); ipart != plist2.end(); ++ipart) {
 	      const simb::MCParticle* part = *ipart;
 	      if (!part)
-	        throw cet::exception("SeedAna") << "no particle! [II]";
+	        throw cet::exception("SeedAna") << "no particle! [II]\n";
 	      int pdg = part->PdgCode();
 	      if(fIgnoreSign) pdg = std::abs(pdg);
 	      auto iMCHistMap = fMCHistMap.find(pdg);
 	      if (iMCHistMap == fMCHistMap.end())
-	        throw cet::exception("SeedAna") << "no particle with ID=" << pdg;
+	        throw cet::exception("SeedAna") << "no particle with ID=" << pdg << "\n";
 	      const MCHists& mchists = iMCHistMap->second;
 
 	      // Calculate the x offset due to nonzero mc particle time.

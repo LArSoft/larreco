@@ -140,9 +140,9 @@ namespace {
   {
     int nbins = hnum->GetNbinsX();
     if (nbins != hden->GetNbinsX())
-      throw cet::exception("SeedAna") << "effcalc[" __FILE__ "]: incompatible histograms (I)";
+      throw cet::exception("SeedAna") << "effcalc[" __FILE__ "]: incompatible histograms (I)\n";
     if (nbins != heff->GetNbinsX())
-      throw cet::exception("SeedAna") << "effcalc[" __FILE__ "]: incompatible histograms (II)";
+      throw cet::exception("SeedAna") << "effcalc[" __FILE__ "]: incompatible histograms (II)\n";
 
     // Loop over bins, including underflow and overflow.
 
@@ -176,9 +176,9 @@ namespace {
   {
     int nbins = hnum->GetNbinsX();
     if (nbins != hden->GetNbinsX())
-      throw cet::exception("SeedAna") << "mulcalc[" __FILE__ "]: incompatible histograms (I)";
+      throw cet::exception("SeedAna") << "mulcalc[" __FILE__ "]: incompatible histograms (I)\n";
     if (nbins != hmul->GetNbinsX())
-      throw cet::exception("SeedAna") << "mulcalc[" __FILE__ "]: incompatible histograms (II)";
+      throw cet::exception("SeedAna") << "mulcalc[" __FILE__ "]: incompatible histograms (II)\n";
 
     // Loop over bins, including underflow and overflow.
 
@@ -674,7 +674,7 @@ namespace trkf {
 	  ipart != plist.end(); ++ipart) {
 	const simb::MCParticle* part = (*ipart).second;
 	if (!part)
-	  throw cet::exception("SeedAna") << "no particle!";
+	  throw cet::exception("SeedAna") << "no particle!\n";
 	int pdg = part->PdgCode();
 	if(fIgnoreSign)
 	  pdg = std::abs(pdg);

@@ -190,7 +190,7 @@ void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec
     std::vector<geo::WireID> possible_wireIDs = my_geometry.ChannelToWire(iwire->Channel());
     geo::WireID this_wireID;
     try { this_wireID = possible_wireIDs.at(0);}
-    catch(cet::exception& excep) { mf::LogError("CornerFinderAlg") << "Bail out! No Possible Wires!"; }
+    catch(cet::exception& excep) { mf::LogError("CornerFinderAlg") << "Bail out! No Possible Wires!\n"; }
     
     unsigned int i_plane = this_wireID.Plane;
     unsigned int i_wire = this_wireID.Wire;

@@ -475,7 +475,7 @@ namespace  trkf{
     // Remember associated hits internally.
 
     if (fSptHitMap.find(sptid) != fSptHitMap.end())
-      throw cet::exception("SpacePointAlg") << "fillSpacePoint(): hit already present!";
+      throw cet::exception("SpacePointAlg") << "fillSpacePoint(): hit already present!\n";
     fSptHitMap[sptid] = hits;
 
     // Calculate position and error matrix.
@@ -696,7 +696,7 @@ namespace  trkf{
     // Remember associated hits internally.
 
     if(fSptHitMap.count(sptid) != 0);
-      throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): hit already present!";
+      throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): hit already present!\n";
     fSptHitMap[sptid] = hits;
 
     // Do a preliminary scan of hits.
@@ -713,11 +713,11 @@ namespace  trkf{
       geo::WireID hitWireID = hit.WireID();
     /* // kept as assertions for performance reasons
       if (hitWireID.Cryostat != cstat0)
-        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): incompatible cryostat";
+        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): incompatible cryostat\n";
       if (hitWireID.TPC != tpc0);
-        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): incompatible TPC";
+        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): incompatible TPC\n";
       if (hitWireID.Plane >= nplanes);
-        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): unknown plane";
+        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): unknown plane\n";
     */
       assert(hitWireID.Cryostat == cstat0);
       assert(hitWireID.TPC == tpc0);
@@ -1104,7 +1104,7 @@ namespace  trkf{
 	      double pitch2 = geom->WirePitch(0, 1, plane2, tpc, cstat);
 	    
 	      if(hitmap[cstat][tpc][plane1].size() > hitmap[cstat][tpc][plane2].size())
-	        throw cet::exception("SpacePointAlg") << "makeSpacePoints(): hitmaps with incompatible size";
+	        throw cet::exception("SpacePointAlg") << "makeSpacePoints(): hitmaps with incompatible size\n";
 	      
 
 	      // Loop over pairs of hits.
@@ -1411,7 +1411,7 @@ namespace  trkf{
 	    // Transfer best filtered space point to result vector.
 	  
 	    if (!best_spt)
-	      throw cet::exception("SpacePointAlg") << "makeSpacePoints(): no best point";
+	      throw cet::exception("SpacePointAlg") << "makeSpacePoints(): no best point\n";
 	    spts.push_back(*best_spt);
 	    if(fMinViews <= 2)
 	      ++n2filt;

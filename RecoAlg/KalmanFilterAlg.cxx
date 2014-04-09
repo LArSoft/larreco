@@ -199,7 +199,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 				       KHitContainer& hits) const
 {
   if (!prop)
-    throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::buildTrack(): no propagator";
+    throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::buildTrack(): no propagator\n";
 
   // Direction must be forward or backward (unknown is not allowed).
 
@@ -270,7 +270,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 
     std::shared_ptr<const Surface> psurf = trf.getSurface();
     if (gr.getPlane() < 0)
-      throw cet::exception("KalmanFilterAlg") << "negative plane?";
+      throw cet::exception("KalmanFilterAlg") << "negative plane?\n";
     if(fPlane < 0 || gr.getPlane() < 0 || fPlane == gr.getPlane())
       psurf = gr.getSurface();
 
@@ -483,7 +483,7 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 					const Propagator* prop) const
 {
   if (!prop)
-    throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::smoothTrack(): no propagator";
+    throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::smoothTrack(): no propagator\n";
 
   // Default result failure.
 
@@ -549,7 +549,7 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
     }
     if(dofit) {
       if (!trk)
-        throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::smoothTrack(): no track!";
+        throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::smoothTrack(): no track!\n";
 
       // Cumulative chisquare.
 
@@ -581,7 +581,7 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
           itend = trg.getTrackMap().begin();
           break;
         default:
-          throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::smoothTrack(): invalid direction";
+          throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::smoothTrack(): invalid direction\n";
       } // switch
 
       mf::LogInfo log("KalmanFilterAlg");
@@ -790,7 +790,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 					KHitContainer& hits) const
 {
   if (!prop)
-    throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::extendTrack(): no propagator";
+    throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::extendTrack(): no propagator\n";
 
   // Default result failure.
 
@@ -903,7 +903,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	    --it;
 	    break;
 	  default:
-	    throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::extendTrack(): invalid direction";
+	    throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::extendTrack(): invalid direction\n";
 	} // switch
 	const KHitGroup& gr = *it;
 
@@ -920,7 +920,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 
 	std::shared_ptr<const Surface> psurf = trf.getSurface();
 	if (gr.getPlane() < 0)
-	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::extendTrack(): negative plane?";
+	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::extendTrack(): negative plane?\n";
 	if(fPlane < 0 || gr.getPlane() < 0 || fPlane == gr.getPlane())
 	  psurf = gr.getSurface();
 
@@ -1073,7 +1073,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
           fchisq = trg.startTrack().getChisq();
           break;
         default:
-          throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::extendTrack(): invalid direction [II]";
+          throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::extendTrack(): invalid direction [II]\n";
       } // switch
     }
 
@@ -1117,7 +1117,7 @@ bool trkf::KalmanFilterAlg::fitMomentumRange(const KGTrack& trg,
 
   const KHitTrack& trh = trg.endTrack();
   if (trh.getStat() == KFitTrack::INVALID)
-    throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::fitMomentumRange(): invalid end track";
+    throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::fitMomentumRange(): invalid end track\n";
   tremom = trh;
 
   // Set track momentum to a small value.
@@ -1523,7 +1523,7 @@ bool trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
   while(!done) {
     KHitTrack& trh = it->second;
     if (trh.getStat() == KFitTrack::INVALID)
-      throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::updateMomentum(): invalid track";
+      throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::updateMomentum(): invalid track\n";
 
     // Propagate momentum-estimating track to current track surface
     // and update momentum.
@@ -1714,15 +1714,15 @@ void trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
 	jt = trackmap.begin();
       else {
 	if (nb < 1)
-	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::cleanTrack(): nb not positive";
+	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::cleanTrack(): nb not positive\n";
 	if (ne < 1)
-	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::cleanTrack(): ne not positive";
+	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::cleanTrack(): ne not positive\n";
 	
 	double disti = (*it).first;
 	double distj = (*jt).first;
 	double sep = disti - distj;
 	if (sep < 0.)
-	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::fitMomentumRange(): negative separation";
+	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::fitMomentumRange(): negative separation\n";
 
 	if(sep > fGapDist) {
 
