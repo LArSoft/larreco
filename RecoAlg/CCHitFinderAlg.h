@@ -97,7 +97,7 @@ namespace cluster {
     const float SqrtPi  = 1.7725;
 
 
-    bool prt;
+//    bool prt;
     
     art::ServiceHandle<geo::Geometry> geom;
     art::ServiceHandle<util::LArProperties> larprop;
