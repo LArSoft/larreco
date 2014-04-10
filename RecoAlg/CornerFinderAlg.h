@@ -95,7 +95,7 @@ namespace corner { //<---Not sure if this is the right namespace
      std::vector<TH2F*> WireData_histos;
      std::vector<TH1D*> WireData_histos_ProjectionX;
      std::vector<TH1D*> WireData_histos_ProjectionY;
-     std::vector< std::tuple<int,TH2F*,int,int> > WireData_trimmed_histos;
+     std::vector< std::tuple<int,std::unique_ptr<TH2F>,int,int> > WireData_trimmed_histos;
      std::vector< std::vector<geo::WireID> > WireData_IDs;
      std::vector<TH2F*> fConversion_histos;
      std::vector<TH2F*> fDerivativeX_histos;
@@ -106,6 +106,7 @@ namespace corner { //<---Not sure if this is the right namespace
      unsigned int event_number;
      unsigned int run_number;
      
+     void create_image_histo(std::unique_ptr<TH2F> h_wire_data, TH2F *h_conversion);
      void create_image_histo(TH2F *h_wire_data, TH2F *h_conversion);
      void create_derivative_histograms(TH2F *h_conversion, TH2F *h_derivative_x, TH2F *h_derivative_y);
      void create_cornerScore_histogram(TH2F *h_derivative_x, TH2F *h_derivative_y, TH2D *h_cornerScore);
@@ -122,7 +123,7 @@ namespace corner { //<---Not sure if this is the right namespace
 					   std::vector<recob::EndPoint2D> & corner_lineIntegralScore_vector,
 					   TH2F* h_lineIntegralScore);
      
-     void attach_feature_points(TH2F *h_wire_data, 
+     void attach_feature_points(std::unique_ptr<TH2F> h_wire_data, 
 				std::vector<geo::WireID> wireIDs, 
 				geo::View_t view,
 				std::vector<recob::EndPoint2D>&,

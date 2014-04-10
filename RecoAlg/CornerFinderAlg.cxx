@@ -36,6 +36,7 @@ extern "C" {
 #include <fstream>
 #include <math.h>
 #include <algorithm>
+#include <memory>
 
 #include "TMath.h"
 
@@ -86,7 +87,7 @@ void corner::CornerFinderAlg::CleanCornerFinderAlg()
   WireData_histos_ProjectionY.clear();
   WireData_IDs.clear();
   
-  for (auto wd_histo : WireData_trimmed_histos) delete std::get<1>(wd_histo);
+  //for (auto wd_histo : WireData_trimmed_histos) delete std::get<1>(wd_histo);
   WireData_trimmed_histos.clear();
   
 }
@@ -221,7 +222,8 @@ void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> 
   
 
   for(auto pid : my_geometry.PlaneIDs()){
-    attach_feature_points(WireData_histos[pid.Plane],
+    std::unique_ptr<TH2F> myhisto( new TH2F(*WireData_histos[pid.Plane]) );
+    attach_feature_points(std::move(myhisto),
 			  WireData_IDs[pid.Plane],
 			  my_geometry.View(pid),
 			  corner_vector);
@@ -251,7 +253,7 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 	  << ", of plane " << plane 
 	  << " with start points " << startx << " " << starty;
 
-	attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
+	attach_feature_points(std::move(std::get<1>(WireData_trimmed_histos.at(histos))),
 			      WireData_IDs[plane],my_geometry.Cryostat(cstat).TPC(tpc).Plane(plane).View(),corner_vector,startx,starty);
 
 	mf::LogDebug("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
@@ -503,9 +505,10 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
       
       std::stringstream h_name;
       h_name << "h_" << pid.Cryostat << "_" << pid.TPC << "_" << pid.Plane << "_sub" << il;
-      TH2F *h_tmp = new TH2F((h_name.str()).c_str(),"",
-			     x_high.at(il)-x_low.at(il)+1,x_low.at(il),x_high.at(il),
-			     y_high.at(il)-y_low.at(il)+1,y_low.at(il),y_high.at(il));
+      std::unique_ptr<TH2F> h_tmp(new TH2F((h_name.str()).c_str(),"",
+					   x_high.at(il)-x_low.at(il)+1,x_low.at(il),x_high.at(il),
+					   y_high.at(il)-y_low.at(il)+1,y_low.at(il),y_high.at(il))
+				  );
       
       for(int ix=1; ix<=(x_high.at(il)-x_low.at(il)+1); ix++){
 	for(int iy=1; iy<=(y_high.at(il)-y_low.at(il)+1); iy++){
@@ -513,8 +516,8 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
 	}
       }
       
-      WireData_trimmed_histos.push_back(std::make_tuple(pid.Plane,h_tmp,x_low.at(il)-1,y_low.at(il)-1));
-      delete h_tmp;
+      WireData_trimmed_histos.push_back(std::make_tuple(pid.Plane,std::move(h_tmp),x_low.at(il)-1,y_low.at(il)-1));
+      //delete h_tmp;
     }
     
   }// end loop over PlaneIDs
@@ -524,7 +527,7 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
 
 //-----------------------------------------------------------------------------
 // This puts on all the feature points in a given view, using a given data histogram
-void corner::CornerFinderAlg::attach_feature_points(TH2F *h_wire_data, 
+void corner::CornerFinderAlg::attach_feature_points( std::unique_ptr<TH2F> h_wire_data, 
 						     std::vector<geo::WireID> wireIDs, 
 						     geo::View_t view, 
 						     std::vector<recob::EndPoint2D> & corner_vector,
@@ -551,7 +554,7 @@ void corner::CornerFinderAlg::attach_feature_points(TH2F *h_wire_data,
 
   if(fConversion_histos[view]){
     fConversion_histos[view]->Reset();
-    fConversion_histos[view]->SetName(conversion_name.str().c_str());
+    //fConversion_histos[view]->SetName(conversion_name.str().c_str());
   }
   else
     fConversion_histos[view] = new TH2F(conversion_name.str().c_str(),"Image Conversion Histogram",
@@ -560,7 +563,7 @@ void corner::CornerFinderAlg::attach_feature_points(TH2F *h_wire_data,
   
   if(fDerivativeX_histos[view]){
     fDerivativeX_histos[view]->Reset();
-    fDerivativeX_histos[view]->SetName(dx_name.str().c_str());
+    //fDerivativeX_histos[view]->SetName(dx_name.str().c_str());
   }
   else
     fDerivativeX_histos[view] = new TH2F(dx_name.str().c_str(),"Partial Derivatives (x)",
@@ -569,7 +572,7 @@ void corner::CornerFinderAlg::attach_feature_points(TH2F *h_wire_data,
   
   if(fDerivativeY_histos[view]){
     fDerivativeY_histos[view]->Reset();
-    fDerivativeY_histos[view]->SetName(dy_name.str().c_str());
+    //fDerivativeY_histos[view]->SetName(dy_name.str().c_str());
   }
   else
     fDerivativeY_histos[view] = new TH2F(dy_name.str().c_str(),"Partial Derivatives (y)",
@@ -578,7 +581,7 @@ void corner::CornerFinderAlg::attach_feature_points(TH2F *h_wire_data,
   
   if(fCornerScore_histos[view]){
     fCornerScore_histos[view]->Reset();
-    fCornerScore_histos[view]->SetName(cornerScore_name.str().c_str());
+    //fCornerScore_histos[view]->SetName(cornerScore_name.str().c_str());
   }
   else
     fCornerScore_histos[view] = new TH2D(cornerScore_name.str().c_str(),"Corner Score",
@@ -587,14 +590,14 @@ void corner::CornerFinderAlg::attach_feature_points(TH2F *h_wire_data,
 
   if(fMaxSuppress_histos[view]){
     fMaxSuppress_histos[view]->Reset();
-    fMaxSuppress_histos[view]->SetName(maxSuppress_name.str().c_str());
+    //fMaxSuppress_histos[view]->SetName(maxSuppress_name.str().c_str());
   }
   else
     fMaxSuppress_histos[view] = new TH2D(maxSuppress_name.str().c_str(),"Corner Points (Maximum Suppressed)",
 					    converted_x_bins,x_min,x_max,
 					    converted_y_bins,y_min,y_max);
   
-  create_image_histo(h_wire_data,fConversion_histos[view]);  
+  create_image_histo(std::move(h_wire_data),fConversion_histos[view]);  
   create_derivative_histograms(fConversion_histos[view],fDerivativeX_histos[view],fDerivativeY_histos[view]);
   create_cornerScore_histogram(fDerivativeX_histos[view],fDerivativeY_histos[view],fCornerScore_histos[view]);
   perform_maximum_suppression(fCornerScore_histos[view],corner_vector,wireIDs,view,fMaxSuppress_histos[view],startx,starty);
@@ -647,7 +650,7 @@ void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F *h_wi
 		      converted_x_bins,x_min,x_max,
 		      converted_y_bins,y_min,y_max);
   
-  create_image_histo(h_wire_data,&h_conversion);  
+  create_image_histo(h_wire_data,&h_conversion);
   create_derivative_histograms(&h_conversion,&h_derivative_x,&h_derivative_y);
   create_cornerScore_histogram(&h_derivative_x,&h_derivative_y,&h_cornerScore);
 
@@ -663,6 +666,65 @@ void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F *h_wi
     
 }
 
+
+//-----------------------------------------------------------------------------
+// Convert to pixel
+void corner::CornerFinderAlg::create_image_histo(std::unique_ptr<TH2F> h_wire_data, TH2F *h_conversion) {
+  
+  double temp_integral=0;
+
+  const TF2 fConversion_TF2("fConversion_func",fConversion_func.c_str(),-20,20,-20,20);
+
+  for(int ix=1; ix<=h_conversion->GetNbinsX(); ix++){
+    for(int iy=1; iy<=h_conversion->GetNbinsY(); iy++){
+      
+      temp_integral = h_wire_data->Integral(ix,ix,iy,iy);
+
+      if( temp_integral > fConversion_threshold){
+
+	if(fConversion_algorithm.compare("binary")==0)
+	  h_conversion->SetBinContent(ix,iy,10*fConversion_threshold);
+	else if(fConversion_algorithm.compare("standard")==0)
+	  h_conversion->SetBinContent(ix,iy,temp_integral);
+
+	else if(fConversion_algorithm.compare("function")==0){
+
+	  temp_integral = 0;
+	  for(int jx=ix-fConversion_func_neighborhood; jx<=ix+fConversion_func_neighborhood; jx++){
+	    for(int jy=iy-fConversion_func_neighborhood; jy<=iy+fConversion_func_neighborhood; jy++){
+	      temp_integral += h_wire_data->GetBinContent(jx,jy)*fConversion_TF2.Eval(ix-jx,iy-jy);
+	    }
+	  }
+	  h_conversion->SetBinContent(ix,iy,temp_integral);
+	}
+
+	else if(fConversion_algorithm.compare("skeleton")==0){
+	  
+	  if( (temp_integral > h_wire_data->GetBinContent(ix-1,iy) && temp_integral > h_wire_data->GetBinContent(ix+1,iy))
+	      || (temp_integral > h_wire_data->GetBinContent(ix,iy-1) && temp_integral > h_wire_data->GetBinContent(ix,iy+1)))
+	    h_conversion->SetBinContent(ix,iy,temp_integral);
+	  else 
+	    h_conversion->SetBinContent(ix,iy,fConversion_threshold);
+	}
+	else if(fConversion_algorithm.compare("sk_bin")==0){
+	  
+	  if( (temp_integral > h_wire_data->GetBinContent(ix-1,iy) && temp_integral > h_wire_data->GetBinContent(ix+1,iy))
+	      || (temp_integral > h_wire_data->GetBinContent(ix,iy-1) && temp_integral > h_wire_data->GetBinContent(ix,iy+1)))
+	    h_conversion->SetBinContent(ix,iy,10*fConversion_threshold);
+	  else 
+	    h_conversion->SetBinContent(ix,iy,fConversion_threshold);
+	}
+	else
+	  h_conversion->SetBinContent(ix,iy,temp_integral);
+      }
+
+      else
+	h_conversion->SetBinContent(ix,iy,fConversion_threshold);
+      
+    }
+  }
+
+}
 
 //-----------------------------------------------------------------------------
 // Convert to pixel
