@@ -17,11 +17,14 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include"GFGeoMatManager.h"
-#include"assert.h"
+
 #include"math.h"
+#include<cassert>
+
 #include"TGeoMaterial.h"
 #include"TGeoManager.h"
-#include<iostream>
+
+#include"GFException.h"
 
 
 float MeanExcEnergy_get(int Z);
@@ -33,7 +36,8 @@ void genf::GFGeoMatManager::getMaterialParameters(double& matDensity,
                                             double& matA,
                                             double& radiationLength,
                                             double& mEE){
-  assert(gGeoManager->GetCurrentVolume()->GetMedium()!=NULL);
+  if (!gGeoManager->GetCurrentVolume()->GetMedium())
+    throw GFException("genf::GFGeoMatManager::getMaterialParameters(): no medium in volume!", __LINE__, __FILE__).setFatal();
   TGeoMaterial * mat = gGeoManager->GetCurrentVolume()->GetMedium()->GetMaterial(); 
   //std::cout << "GFGeoMatManager::getMaterialParameters: CurrentVolume is " << std::endl;
   //gGeoManager->GetCurrentVolume()->Print();
@@ -69,10 +73,11 @@ http://physics.nist.gov/PhysRefData/XrayMassCoef/tab1.html
 */
 
 const int MeanExcEnergy_NELEMENTS = 92;
-const float MeanExcEnergy_vals[] = {19.2, 41.8, 40.0, 63.7, 76.0, 78., 82.0, 95.0, 115.0, 137.0, 149.0, 156.0, 166.0, 173.0, 173.0, 180.0, 174.0, 188.0, 190.0, 191.0, 216.0, 233.0, 245.0, 257.0, 272.0, 286.0, 297.0, 311.0, 322.0, 330.0, 334.0, 350.0, 347.0, 348.0, 343.0, 352.0, 363.0, 366.0, 379.0, 393.0, 417.0, 424.0, 428.0, 441.0, 449.0, 470.0, 470.0, 469.0, 488.0, 488.0, 487.0, 485.0, 491.0, 482.0, 488.0, 491.0, 501.0, 523.0, 535.0, 546.0, 560.0, 574.0, 580.0, 591.0, 614.0, 628.0, 650.0, 658.0, 674.0, 684.0, 694.0, 705.0, 718.0, 727.0, 736.0, 746.0, 757.0, 790.0, 790.0, 800.0, 810.0, 823.0, 823.0, 830.0, 825.0, 794.0, 827.0, 826.0, 841.0, 847.0, 878.0, 890.0};
+const float MeanExcEnergy_vals[MeanExcEnergy_NELEMENTS] = {19.2, 41.8, 40.0, 63.7, 76.0, 78., 82.0, 95.0, 115.0, 137.0, 149.0, 156.0, 166.0, 173.0, 173.0, 180.0, 174.0, 188.0, 190.0, 191.0, 216.0, 233.0, 245.0, 257.0, 272.0, 286.0, 297.0, 311.0, 322.0, 330.0, 334.0, 350.0, 347.0, 348.0, 343.0, 352.0, 363.0, 366.0, 379.0, 393.0, 417.0, 424.0, 428.0, 441.0, 449.0, 470.0, 470.0, 469.0, 488.0, 488.0, 487.0, 485.0, 491.0, 482.0, 488.0, 491.0, 501.0, 523.0, 535.0, 546.0, 560.0, 574.0, 580.0, 591.0, 614.0, 628.0, 650.0, 658.0, 674.0, 684.0, 694.0, 705.0, 718.0, 727.0, 736.0, 746.0, 757.0, 790.0, 790.0, 800.0, 810.0, 823.0, 823.0, 830.0, 825.0, 794.0, 827.0, 826.0, 841.0, 847.0, 878.0, 890.0};
 
 float MeanExcEnergy_get(int Z){
-    assert(Z>0&&Z<=MeanExcEnergy_NELEMENTS);
+    if ((Z <= 0) || (Z > MeanExcEnergy_NELEMENTS))
+      throw GFException("MeanExcEnergy_get(): Z out of range", __LINE__, __FILE__).setFatal();
     return MeanExcEnergy_vals[Z-1];
 }
   

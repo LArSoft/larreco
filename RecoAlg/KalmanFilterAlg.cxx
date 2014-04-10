@@ -198,7 +198,8 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 				       const Propagator::PropDirection dir,
 				       KHitContainer& hits) const
 {
-  assert(prop != 0);
+  if (!prop)
+    throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::buildTrack(): no propagator\n";
 
   // Direction must be forward or backward (unknown is not allowed).
 
@@ -251,7 +252,6 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
     if(dir == Propagator::FORWARD)
       it = hits.getSorted().begin();
     else {
-      assert(dir == Propagator::BACKWARD);
       it = hits.getSorted().end();
       --it;
     }
@@ -269,7 +269,8 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
     // surface.
 
     std::shared_ptr<const Surface> psurf = trf.getSurface();
-    assert(gr.getPlane() >= 0);
+    if (gr.getPlane() < 0)
+      throw cet::exception("KalmanFilterAlg") << "negative plane?\n";
     if(fPlane < 0 || gr.getPlane() < 0 || fPlane == gr.getPlane())
       psurf = gr.getSurface();
 
@@ -291,7 +292,6 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       if(dir == Propagator::FORWARD)
 	trf.setStat(KFitTrack::FORWARD_PREDICTED);
       else {
-	assert(dir == Propagator::BACKWARD);
 	trf.setStat(KFitTrack::BACKWARD_PREDICTED);
       }
       if(fTrace) {
@@ -344,7 +344,6 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	if(dir == Propagator::FORWARD)
 	  trf.setStat(KFitTrack::FORWARD);
 	else {
-	  assert(dir == Propagator::BACKWARD);
 	  trf.setStat(KFitTrack::BACKWARD);
 	}
 
@@ -428,7 +427,6 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       fchisq = trg.endTrack().getChisq();
     }
     else {
-      assert(dir == Propagator::BACKWARD);
       trg.startTrack().setStat(KFitTrack::OPTIMAL);
       fchisq = trg.startTrack().getChisq();
     }
@@ -484,7 +482,8 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 					KGTrack* trg1,
 					const Propagator* prop) const
 {
-  assert(prop != 0);
+  if (!prop)
+    throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::smoothTrack(): no propagator\n";
 
   // Default result failure.
 
@@ -549,8 +548,8 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
       }
     }
     if(dofit) {
-      assert(dir == Propagator::FORWARD || dir == Propagator::BACKWARD);
-      assert(trk != 0);
+      if (!trk)
+        throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::smoothTrack(): no track!\n";
 
       // Cumulative chisquare.
 
@@ -572,15 +571,18 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 
       std::multimap<double, KHitTrack>::iterator it;
       std::multimap<double, KHitTrack>::iterator itend;
-      if(dir == Propagator::FORWARD) {
-	it = trg.getTrackMap().begin();
-	itend = trg.getTrackMap().end();
-      }
-      else {
-	assert(dir == Propagator::BACKWARD);
-	it = trg.getTrackMap().end();
-	itend = trg.getTrackMap().begin();
-      }
+      switch (dir) {
+        case Propagator::FORWARD:
+          it = trg.getTrackMap().begin();
+          itend = trg.getTrackMap().end();
+          break;
+        case Propagator::BACKWARD:
+          it = trg.getTrackMap().end();
+          itend = trg.getTrackMap().begin();
+          break;
+        default:
+          throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::smoothTrack(): invalid direction\n";
+      } // switch
 
       mf::LogInfo log("KalmanFilterAlg");
 
@@ -633,7 +635,6 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 	  if(dir == Propagator::FORWARD)
 	    trf.setStat(KFitTrack::FORWARD_PREDICTED);
 	  else {
-	    assert(dir == Propagator::BACKWARD);
 	    trf.setStat(KFitTrack::BACKWARD_PREDICTED);
 	  }
 	  if(fTrace) {
@@ -706,7 +707,6 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 	      if(dir == Propagator::FORWARD)
 		trf.setStat(KFitTrack::FORWARD);
 	      else {
-		assert(dir == Propagator::BACKWARD);
 		trf.setStat(KFitTrack::BACKWARD);
 	      }
 	      if(fTrace) {
@@ -740,7 +740,6 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 	if(dir == Propagator::FORWARD)
 	  trg1->endTrack().setStat(KFitTrack::OPTIMAL);
 	else {
-	  assert(dir == Propagator::BACKWARD);
 	  trg1->startTrack().setStat(KFitTrack::OPTIMAL);
 	}
       }
@@ -790,7 +789,8 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 					const Propagator* prop,
 					KHitContainer& hits) const
 {
-  assert(prop != 0);
+  if (!prop)
+    throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::extendTrack(): no propagator\n";
 
   // Default result failure.
 
@@ -894,13 +894,17 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	// Get an iterator for the next KHitGroup.
 
 	std::list<KHitGroup>::iterator it;
-	if(dir == Propagator::FORWARD)
-	  it = hits.getSorted().begin();
-	else {
-	  assert(dir == Propagator::BACKWARD);
-	  it = hits.getSorted().end();
-	  --it;
-	}
+	switch (dir) {
+	  case Propagator::FORWARD:
+	    it = hits.getSorted().begin();
+	    break;
+	  case Propagator::BACKWARD:
+	    it = hits.getSorted().end();
+	    --it;
+	    break;
+	  default:
+	    throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::extendTrack(): invalid direction\n";
+	} // switch
 	const KHitGroup& gr = *it;
 
 	if(fTrace) {
@@ -915,7 +919,8 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	// surface.
 
 	std::shared_ptr<const Surface> psurf = trf.getSurface();
-	assert(gr.getPlane() >= 0);
+	if (gr.getPlane() < 0)
+	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::extendTrack(): negative plane?\n";
 	if(fPlane < 0 || gr.getPlane() < 0 || fPlane == gr.getPlane())
 	  psurf = gr.getSurface();
 
@@ -937,7 +942,6 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	  if(dir == Propagator::FORWARD)
 	    trf.setStat(KFitTrack::FORWARD_PREDICTED);
 	  else {
-	    assert(dir == Propagator::BACKWARD);
 	    trf.setStat(KFitTrack::BACKWARD_PREDICTED);
 	  }
 	  if(fTrace) {
@@ -990,7 +994,6 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	    if(dir == Propagator::FORWARD)
 	      trf.setStat(KFitTrack::FORWARD);
 	    else {
-	      assert(dir == Propagator::BACKWARD);
 	      trf.setStat(KFitTrack::BACKWARD);
 	    }
 
@@ -1060,15 +1063,18 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
     path = 0.;
     if(trg.isValid()) {
       path = trg.endTrack().getPath() - trg.startTrack().getPath();
-      if(dir == Propagator::FORWARD) {
-	trg.endTrack().setStat(KFitTrack::OPTIMAL);
-	fchisq = trg.endTrack().getChisq();
-      }
-      else {
-	assert(dir == Propagator::BACKWARD);
-	trg.startTrack().setStat(KFitTrack::OPTIMAL);
-	fchisq = trg.startTrack().getChisq();
-      }
+      switch (dir) {
+        case Propagator::FORWARD:
+          trg.endTrack().setStat(KFitTrack::OPTIMAL);
+          fchisq = trg.endTrack().getChisq();
+          break;
+        case Propagator::BACKWARD:
+          trg.startTrack().setStat(KFitTrack::OPTIMAL);
+          fchisq = trg.startTrack().getChisq();
+          break;
+        default:
+          throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::extendTrack(): invalid direction [II]\n";
+      } // switch
     }
 
     // Summary.
@@ -1110,7 +1116,8 @@ bool trkf::KalmanFilterAlg::fitMomentumRange(const KGTrack& trg,
   // Extract track with lowest momentum.
 
   const KHitTrack& trh = trg.endTrack();
-  assert(trh.getStat() != KFitTrack::INVALID);
+  if (trh.getStat() == KFitTrack::INVALID)
+    throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::fitMomentumRange(): invalid end track\n";
   tremom = trh;
 
   // Set track momentum to a small value.
@@ -1515,7 +1522,8 @@ bool trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
   bool done = false;
   while(!done) {
     KHitTrack& trh = it->second;
-    assert(trh.getStat() != KFitTrack::INVALID);
+    if (trh.getStat() == KFitTrack::INVALID)
+      throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::updateMomentum(): invalid track\n";
 
     // Propagate momentum-estimating track to current track surface
     // and update momentum.
@@ -1705,12 +1713,17 @@ void trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
       if(jt == trackmap.end())
 	jt = trackmap.begin();
       else {
-	assert(nb >= 1);
-	assert(ne >= 1);
+	if (nb < 1)
+	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::cleanTrack(): nb not positive\n";
+	if (ne < 1)
+	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::cleanTrack(): ne not positive\n";
+	
 	double disti = (*it).first;
 	double distj = (*jt).first;
 	double sep = disti - distj;
-	assert(sep >= 0.);
+	if (sep < 0.)
+	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::fitMomentumRange(): negative separation\n";
+
 	if(sep > fGapDist) {
 
 	  // Found a gap.  See if we want to trim track.

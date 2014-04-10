@@ -24,9 +24,6 @@
 #ifndef GFABSENERGYLOSS_H
 #define GFABSENERGYLOSS_H
 
-#include <iostream>
-#include <assert.h>
-
 #include"TObject.h"
 #include<vector>
 #include"TVector3.h"

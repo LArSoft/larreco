@@ -24,10 +24,9 @@
 #ifndef GFTRACK_H 
 #define GFTRACK_H
 
-#include"assert.h"
-#include<stdexcept> // std::logic_error
 #include<map>
 
+#include "Genfit/GFException.h"
 #include "Genfit/GFAbsTrackRep.h"
 #include "Genfit/GFAbsRecoHit.h"
 
@@ -56,7 +55,7 @@ class TVirtualGeoTrack;
  * one will after the fit choose the best fitting representation to be 
  * the cardinal rep.
  *
- * The GFTRack takes ownership over the GFAbsRecoHit pointers it holds.
+ * The GFTrack takes ownership over the GFAbsRecoHit pointers it holds.
  */
 
 namespace genf {
@@ -292,7 +291,6 @@ public:
   // ---------------------
 
   void addFailedHit(unsigned int irep,unsigned int id){
-    assert(irep<fBookkeeping.size());
     fBookkeeping.at(irep)->addFailedHit(id);
   }
 
@@ -335,7 +333,8 @@ public:
   //! get GFBookKeeping object for particular track rep (default is cardinal rep)
   GFBookkeeping* getBK(int index=-1){
     if(index==-1) return fBookkeeping.at(fCardinal_rep);
-    assert((unsigned int)index<getNumReps());
+    if ((unsigned int)index >= getNumReps())
+      throw GFException("genf::GFTrack::getBK(): index out of range", __LINE__, __FILE__).setFatal();
     return fBookkeeping.at(index);
   }
     
@@ -387,14 +386,16 @@ public:
   /** @brief set the hit index at which plane,state&cov of rep irep is defined
    */
   void setRepAtHit(unsigned int irep,int ihit){
-    assert(irep<getNumReps());
+    if (irep >= getNumReps())
+      throw GFException("genf::GFTrack::setRepAtHit(): index out of range", __LINE__, __FILE__).setFatal();
     fRepAtHit.at(irep) = ihit;
   }
 
   /** @brief get the hit index at which plane,state&cov of rep irep is defined
    */
   int getRepAtHit(unsigned int irep){
-    assert(irep<getNumReps());
+    if (irep >= getNumReps())
+      throw GFException("genf::GFTrack::getRepAtHit(): index out of range", __LINE__, __FILE__).setFatal();
     return fRepAtHit.at(irep);
   }
 

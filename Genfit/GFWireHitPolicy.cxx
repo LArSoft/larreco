@@ -22,7 +22,7 @@
 
 #include "Genfit/GFWireHitPolicy.h"
 
-#include "assert.h"
+#include "cassert"
 #include <cmath>
 
 #include "TMath.h"

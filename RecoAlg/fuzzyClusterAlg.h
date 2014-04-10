@@ -19,6 +19,7 @@
 #include "Geometry/Geometry.h"
 
 #include "TMatrixD.h"
+#include "TDecompSVD.h"
 #include "TVectorF.h"
 #include "TVector.h"
 #include "TH1.h"

@@ -1,12 +1,12 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v1_00_05
+parent	larreco	v1_00_07
 defaultqual	e4
 #
 fcldir product_dir job
 #
 product         version
-larsim		v1_00_05
+larsim		v1_00_07
 nutools         v1_01_05
 gcc		v4_8_1
 
@@ -19,6 +19,7 @@ qualifier	larsim		nutools		gcc	notes
 e4:debug	e4:debug	debug:e4	-nq-
 e4:opt		e4:opt		e4:prof		-nq-
 e4:prof		e4:prof		e4:prof		-nq-
+e4:debug:noifdh e4:debug         debug:e4        -nq-
 
 # Preserve tabs and formatting in emacs and vi / vim:
 

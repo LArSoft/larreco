@@ -25,7 +25,6 @@
 #define GFENERGYLOSSBREMS_H
 
 #include <iostream>
-#include <assert.h>
 
 #include"GFAbsEnergyLoss.h"
 

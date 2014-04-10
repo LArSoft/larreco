@@ -17,8 +17,8 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "Genfit/GFAbsTrackRep.h"
+#include "Genfit/GFException.h"
 #include <iostream>
-#include <assert.h>
 
 genf::GFAbsTrackRep::GFAbsTrackRep() : fDimension(5),fState(5,1), fCov(5,5), fChiSqu(0), fNdf(0), fStatusFlag(0), fInverted(false), fFirstState(5,1), fFirstCov(5,5), fLastState(5,1), fLastCov(5,5)
 {
@@ -50,7 +50,7 @@ void genf::GFAbsTrackRep::Abort(std::string method){
 	    << "in a track rep which didnt overwrite this method. "
 	    << std::endl << "C++ throw;" << std::endl;
   //system call abort
-  throw;
+  throw GFException("genf::GFAbsTrackRep: " + method + "() not implemented", __LINE__, __FILE__).setFatal();
 }
 
 void genf::GFAbsTrackRep::extrapolateToPoint(const TVector3& /* point */,

@@ -1,6 +1,42 @@
 #include "trackfinderalgorithms.fcl"
 BEGIN_PROLOG
 
+standard_flamelswmsclusteralg:
+{
+  Iterations:     500  # The maximum number of iterations to try, needed for fuzzy clustering, was 10
+  Epsilon:        1e-6 # The limit in the difference between memberships when FLAME clustering stops 
+  KNN:            10
+  DistanceMetric: 0
+
+  LSWMSBaseAlg:{
+    TimeBins: 1024
+    UseWMS: 0
+    Gsigma: 1.0 
+    R: 4
+    Verbose: 1
+  }
+
+  DoFLAMERemnantMerge:      1    # Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
+  FLAMERemnantMergeCutoff: 20    # Cut off on distance from hough line to hit in the remnant of the fuzzy cluster
+  
+  DoTrackClusterMerge:     1  # Turns on merging of track-like Hough lines (0-off, 1-on)
+  ChargeAsymAngleCut:        0.1 # Cut on product of charge asymmetry and the square of the sin of angle between slopes of lines, only for track-like
+  SigmaChargeAsymAngleCut:   1.0  # Cut on product of charge sigma asymmetry and the sin of angle between slopes of lines, only for track-like
+  TrackClusterMergeCutoff: 5.0 # The maximum distance between track-like Hough line endpoints before they can be merged,
+  
+  DoShowerClusterMerge:     1    # Turns on merging of shower-like Hough line (0-off, 1-on)
+  ShowerClusterMergeAngle: 30    # The maximum angle between slopes of shower-like lines to be merged,
+  ShowerClusterMergeCutoff:  7.5 # The maximum distance between shower-like line endpoints before they can be merged,
+
+  DoShowerTrackClusterMerge:     1    # Turns on merging of shower-like and track-like lines (0-off, 1-on)
+  ShowerTrackClusterMergeAngle:  15   # The maximum angle between slopes of shower-like and track-like lines to be merged,
+  ShowerTrackClusterMergeCutoff: 7.5  # The maximum distance between shower-like and track-like line endpoints before they can be merged,
+  ShowerLikenessCut:       0.5   # Cut on shower likeness (the larger the more shower like, the smaller the less shower like)
+  MaxVertexLines:          100   # Max number of line end points allowed in a Hough line merge region for a merge to happen 
+  VertexLinesCutoff:       5.0   #  Size of the vertex region to count up lines for MaxVertexLines 
+
+}
+
 standard_clustercrawleralg:
 {
   NumPass:              3  # number of passes through the hit list
@@ -131,7 +167,7 @@ standard_dbscanalg:
 standard_fuzzyclusteralg:
 {
   Fuzzifier:     1.1   # The fuzzifier (m) needed for fuzzy clustering
-  MaxNumClusters: 10   # The maximum number of clusters to try, needed for fuzzy clustering, was 5
+  MaxNumClusters:  5   # The maximum number of clusters to try, needed for fuzzy clustering, was 5
   Iterations:     100  # The maximum number of iterations to try, needed for fuzzy clustering, was 10
   MergeCutoff:    100  # The maximum distance between clusters prior to merging,  
   HoughBaseAlg:{

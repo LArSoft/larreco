@@ -123,8 +123,10 @@ standard_trackana:
   module_type:        "TrackAna"
   TrackModuleLabel:   "trackkalmanhit"
   MinMCKE:            0.05
+  MinMCLen:           20.
   MatchColinearity:   0.99
   MatchDisp:          2.0
+  WMatchDisp:         15.0
   IgnoreSign:         true
 }
 
@@ -192,9 +194,11 @@ standard_track3Dkalmanhit:
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
   MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
+  DoDedx:             false         # dE/dx enable flag.
   MinSeedHits:        20            # Minimum number of hits per track seed.
   MaxSeedChiDF:       20.           # Maximum seed track chisquare/dof.
   MinSeedSlope:       0.02          # Minimum seed slope (dx/dz).
+  InitialMomentum:    0.2           # Initial momentum (GeV/c).
   KalmanFilterAlg:    @local::standard_kalmanfilteralg
   SeedFinderAlg:      @local::standard_seedfinderalgorithm
   SpacePointAlg:      @local::standard_spacepointalg
@@ -209,6 +213,22 @@ standard_cosmictagger:
     SpillVetoCounter: 2
     dTLimit: 8
     dWLimit: 8
+}
+
+standard_cosmictagger:
+{
+    module_type: "CosmicTagger"
+    SpacePointAlg:       @local::standard_spacepointalg
+    TPCBoundaryLimit: 15
+    SpillDistance: 12
+    SpillVetoCounter: 2
+    dTLimit: 8
+    dWLimit: 8
+    TrackModuleLabel: "track" #"beziertracker"
+    ClusterModuleLabel: "cluster" #"dbcluster"
+    DoTrackCheck: 1 # 0
+    DoClusterCheck: 1 # 1
+    ClustersAssociatedToTracks: 1 # make this 1 when tracks are associated to clusters
 }
 
 

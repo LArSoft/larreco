@@ -116,8 +116,10 @@ standard_trackana:
   module_type:        "TrackAna"
   TrackModuleLabel:   "trackkalmanhit"
   MinMCKE:            0.05
+  MinMCLen:           20.
   MatchColinearity:   0.99
   MatchDisp:          2.0
+  WMatchDisp:         15.0
   IgnoreSign:         true
 }
 
@@ -185,9 +187,11 @@ standard_track3Dkalmanhit:
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
   MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
+  DoDedx:             false         # dE/dx enable flag.
   MinSeedHits:        20            # Minimum number of hits per track seed.
   MaxSeedChiDF:       20.           # Maximum seed track chisquare/dof.
   MinSeedSlope:       0.02          # Minimum seed slope (dx/dz).
+  InitialMomentum:    0.2           # Initial momentum (GeV/c).
   KalmanFilterAlg:    @local::standard_kalmanfilteralg
   SeedFinderAlg:      @local::standard_seedfinderalgorithm
   SpacePointAlg:      @local::standard_spacepointalg

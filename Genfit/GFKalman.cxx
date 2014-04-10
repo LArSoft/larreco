@@ -18,10 +18,7 @@
 */
 #include "Genfit/GFKalman.h"
 
-#include "assert.h"
 #include <iostream>
-#include <sstream>
-#include <iomanip>
 
 #include "TMath.h"
 #include "TRandom.h"
@@ -50,7 +47,8 @@ genf::GFKalman::~GFKalman(){;}
 
 void genf::GFKalman::processTrack(GFTrack* trk){
   int direction=fInitialDirection;
-  assert(direction==1 || direction==-1);
+  if ((direction != 1) && (direction != -1))
+    throw GFException(std::string(__func__) + ": wrong direction", __LINE__, __FILE__).setFatal();
   //  trk->clearGFBookkeeping();
   trk->clearRepAtHit();
   /*
@@ -249,9 +247,7 @@ double genf::GFKalman::chi2Increment(const TMatrixT<Double_t>& r,const TMatrixT<
       //throw e;
     }
   if(TMath::IsNaN(det)) {
-    GFException e("Kalman Chi2Increment: det of covsum is nan",__LINE__,__FILE__);
-    e.setFatal();
-    throw e;
+    throw GFException("Kalman Chi2Increment: det of covsum is nan",__LINE__,__FILE__).setFatal();
   }
   TMatrixT<Double_t> residTranspose(r);
   residTranspose.T();
@@ -724,14 +720,10 @@ genf::GFKalman::calcCov7x7(const TMatrixT<Double_t>& cov, const GFDetPlane& plan
   }
   catch (cet::exception &)
     {
-      GFException e("GFKalman: Jac.T*Jac is not invertible. But keep plowing on ... ",__LINE__,__FILE__);
-      e.setFatal();
-      throw e;
+      throw GFException("GFKalman: Jac.T*Jac is not invertible. But keep plowing on ... ",__LINE__,__FILE__).setFatal();
     }
   if(TMath::IsNaN(det)) {
-    GFException e("GFKalman: det of Jac.T*Jac is nan",__LINE__,__FILE__);
-    e.setFatal();
-    throw e;
+    throw GFException("GFKalman: det of Jac.T*Jac is nan",__LINE__,__FILE__).setFatal();
   }
 
   TMatrixT<Double_t> j5x7 = jjInv*jac_t; 
@@ -766,9 +758,7 @@ genf::GFKalman::calcGain(const TMatrixT<Double_t>& cov,
   covsum.Invert(&det);
   //    std::cout << "GFKalman:: calGain(), det is  "<< det << std::endl;
   if(TMath::IsNaN(det)) {
-    GFException e("Kalman Gain: det of covsum is nan",__LINE__,__FILE__);
-    e.setFatal();
-    throw e;
+    throw GFException("Kalman Gain: det of covsum is nan",__LINE__,__FILE__).setFatal();
   }
 
   if(det==0){

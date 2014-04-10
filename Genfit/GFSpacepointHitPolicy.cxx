@@ -18,8 +18,6 @@
 */
 #include "Genfit/GFSpacepointHitPolicy.h"
 
-#include "assert.h"
-
 #include "TMath.h"
 
 #include "Genfit/GFAbsRecoHit.h"

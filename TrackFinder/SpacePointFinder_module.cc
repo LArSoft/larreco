@@ -13,6 +13,7 @@
 // Created: 15-Dec-2011  H. Greenlee
 //
 
+#include <cassert>
 #include <vector>
 
 #include "art/Framework/Core/ModuleMacros.h" 
