@@ -149,16 +149,20 @@ namespace cluster {
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[clstr.tclhits[0]];
       art::Ptr<recob::Wire> theWire = theHit.Wire;
       uint32_t channel = theWire->Channel();
-      recob::Cluster cluster((double)clstr.BeginWir, 0.,
-                             (double)clstr.BeginTim, 0.,
-                             (double)clstr.EndWir, 0.,
-                             (double)clstr.EndTim, 0.,
-                             (double)clstr.EndSlp, (double)clstr.EndSlpErr,
-                             -999.,0.,
-                             totalQ,
-                             geo->View(channel),
-                             nclus);
-      sccol.push_back(cluster);
+      
+      // create the recob::Cluster directly in the vector
+      sccol.emplace_back((double)clstr.BeginWir, 0.,
+                         (double)clstr.BeginTim, 0.,
+                         (double)clstr.EndWir, 0.,
+                         (double)clstr.EndTim, 0.,
+                         (double)clstr.EndSlp, (double)clstr.EndSlpErr,
+                         -999.,0.,
+                         totalQ,
+                         geo->View(channel),
+                         nclus,
+                         geo->ChannelToWire(channel).front().planeID() // get plane from channel geometry
+                         );
+      
       // associate the hits to this cluster
       util::CreateAssn(*this, evt, sccol, shcol, *hc_assn, firsthit, hitcnt);
     } // cluster iterator
@@ -195,10 +199,7 @@ namespace cluster {
     for(unsigned short iht = 0; iht < shcol.size(); ++iht) {
       hcol->push_back(shcol[iht]);
     }
-    std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>);
-    for(unsigned short icl = 0; icl < sccol.size(); ++icl) {
-      ccol->push_back(sccol[icl]);
-    }
+    std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
 
     // deal with cluster-EndPoint2D assns later (if necessary/desired)
     std::unique_ptr<std::vector<recob::EndPoint2D> > vcol(new std::vector<recob::EndPoint2D>);

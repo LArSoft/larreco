@@ -408,7 +408,7 @@ namespace cluster{
 				 -999., 0.,
 				 totalQ,
 				 fGeom->Cryostat(c).TPC(t).Plane(p).View(),
-				 ClusterNo);
+				 ClusterNo, { c, t, p });
 	  
 	  ccol->push_back(cluster);
   	  

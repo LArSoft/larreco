@@ -53,6 +53,7 @@ namespace cluster
     
     unsigned int cluster_index; ///< Input cluster ID
     geo::View_t  view;          ///< Wire plane ID
+    geo::PlaneID planeID;       ///< plane ID
     
     double start_wire;          ///< Vertex wire
     double start_time;          ///< Vertex time
@@ -67,7 +68,7 @@ namespace cluster
     double angle;               ///< 2D angle
     
     /// Default constructor
-    cluster_merge_info() {
+    cluster_merge_info(): planeID() {
       
       cluster_index = 0xffffffff;
       view = geo::kUnknown;
@@ -75,6 +76,18 @@ namespace cluster
       start_wire_err = start_time_err = end_wire_err =end_time_err = -1;
       
     };
+    
+    /// Initialization from a recob::Cluster
+    explicit cluster_merge_info(const recob::Cluster& cl)
+      :cluster_index(cl.ID())
+      ,view(cl.View())
+      ,planeID(cl.Plane())
+      ,start_wire(cl.StartPos()[0])
+      ,start_time(cl.StartPos()[1])
+      ,end_wire(cl.EndPos()[0])
+      ,end_time(cl.EndPos()[1])
+      ,angle(cl.dTdW())
+      {}
   };
 
   class ClusterMergeAlg {

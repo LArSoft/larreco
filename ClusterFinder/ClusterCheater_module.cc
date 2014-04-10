@@ -241,7 +241,7 @@ namespace cluster{
       // add a cluster to the collection.  Make the ID be the eve particle
       // trackID*1000 + plane number*100 + tpc*10 + cryostat that the current hits are from
       ///\todo: The above encoding of the ID probably won't work for LBNE and should be revisited
-      
+      const geo::PlaneID& planeID = hitMapItr.first.planeID;
       clustercol->push_back(recob::Cluster(startWire, 0.,
 					   startTime, 0.,
 					   endWire,   0.,
@@ -251,9 +251,10 @@ namespace cluster{
 					   totalQ,
 					   hitMapItr.second.at(0)->View(),
 					   (hitMapItr.first.eveID*1000 + 
-					    hitMapItr.first.planeID.Plane*100  + 
-					    hitMapItr.first.planeID.TPC*10     + 
-					    hitMapItr.first.planeID.Cryostat)
+					    planeID.Plane*100  + 
+					    planeID.TPC*10     + 
+					    planeID.Cryostat),
+					   planeID
 					   )
 			    );
       

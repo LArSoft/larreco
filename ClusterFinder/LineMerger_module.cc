@@ -211,7 +211,7 @@ namespace cluster{
 
 	// now add the final version of cl1 to the collection of SuperClusters
 	// and create the association between the super cluster and the hits
-	SuperClusters->push_back(cl1);
+	SuperClusters->push_back(std::move(cl1));
 	util::CreateAssn(*this, evt, *(SuperClusters.get()), ptrvs, *(assn.get()));	
 	++clsnum1;
 

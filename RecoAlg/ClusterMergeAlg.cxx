@@ -10,7 +10,8 @@
 #include "ClusterMergeAlg.h"
 
 namespace cluster{
-
+  
+  
   //##################################################################
   ClusterMergeAlg::ClusterMergeAlg(fhicl::ParameterSet const& pset)
   //##################################################################
@@ -62,14 +63,7 @@ namespace cluster{
   {
 
     PrepareDetParams();
-    cluster_merge_info ci;
-    ci.cluster_index = cl.ID();
-    ci.view = cl.View();
-    ci.start_wire = cl.StartPos()[0];
-    ci.start_time = cl.StartPos()[1];
-    ci.end_wire   = cl.EndPos()[0];
-    ci.end_time   = cl.EndPos()[1];
-    ci.angle      = cl.dTdW();
+    cluster_merge_info ci(cl);
 
     AppendHitInfo(ci,in_hit_v);
     
@@ -94,14 +88,7 @@ namespace cluster{
   {
 
     PrepareDetParams();
-    cluster_merge_info ci;
-    ci.cluster_index = cl->ID();
-    ci.view = cl->View();
-    ci.start_wire = cl->StartPos()[0];
-    ci.start_time = cl->StartPos()[1];
-    ci.end_wire   = cl->EndPos()[0];
-    ci.end_time   = cl->EndPos()[1];
-    ci.angle      = cl->dTdW();
+    cluster_merge_info ci(*cl);
 
     AppendHitInfo(ci,in_hit_v);
     
