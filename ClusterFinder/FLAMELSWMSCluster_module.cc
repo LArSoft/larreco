@@ -229,20 +229,21 @@ namespace cluster{
 	////////
 	if (clusterHits.size()>0){
 	  /// \todo: need to define start and end positions for this cluster and slopes for dTdW, dQdW
-	  unsigned int sw = clusterHits[0]->WireID().Wire;
-	  unsigned int ew = clusterHits[clusterHits.size()-1]->WireID().Wire;
+	  const geo::WireID& wireID = clusterHits.front()->WireID();
+	  unsigned int sw = wireID.Wire;
+	  unsigned int ew = clusterHits.back()->WireID().Wire;
 	  
-	  recob::Cluster cluster(sw*1., 0.,
-				 clusterHits[0]->PeakTime(), clusterHits[0]->SigmaPeakTime(),
+	  // create the recob::Cluster directly in the vector
+	  ccol->emplace_back(sw*1., 0.,
+				 clusterHits.front()->PeakTime(), clusterHits.front()->SigmaPeakTime(),
 				 ew*1., 0.,
-				 clusterHits[clusterHits.size()-1]->PeakTime(), clusterHits[clusterHits.size()-1]->SigmaPeakTime(),
+				 clusterHits.back()->PeakTime(), clusterHits.back()->SigmaPeakTime(),
 				 -999., 0., 
 				 -999., 0.,
 				 totalQ,
-				 clusterHits[0]->View(),
-				 ccol->size());
-	  
-	  ccol->push_back(cluster);
+				 clusterHits.front()->View(),
+				 ccol->size(),
+				 wireID.planeID());
 	  
 	  // associate the hits to this cluster
 	  util::CreateAssn(*this, evt, *ccol, clusterHits, *assn);

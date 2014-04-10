@@ -194,7 +194,7 @@ namespace cluster {
     HoughBaseAlg(fhicl::ParameterSet const& pset); 
     virtual ~HoughBaseAlg();
 
-    size_t FastTransform(std::vector<art::Ptr<recob::Cluster> >         & clusIn,
+    size_t FastTransform(const std::vector<art::Ptr<recob::Cluster> >         & clusIn,
 			 std::vector<recob::Cluster>                    & ccol,  
 			 std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut,
 			 art::Event                                const& evt,

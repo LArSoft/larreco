@@ -18,6 +18,7 @@
 
 #include "art/Framework/Core/EDProducer.h" // include the proper bit of the framework
 #include "art/Framework/Services/Registry/ActivityRegistry.h"
+#include <utility> // std::move()
 #include <vector>
 #include <string>
 
@@ -382,8 +383,7 @@ void cluster::ShowerAngleCluster::produce(art::Event& evt)
 	   art::FindManyP<recob::Hit> fs( pcoll, evt, fClusterModuleLabel);
 	   std::vector< art::Ptr<recob::Hit> > hitlist = fs.at(0);
 	   //std::cout << "---------- going into pclust " << pclust->StartPos()[0] << " " << pclust->StartPos()[1] << std::endl;
-	   recob::Cluster temp=MainClusterLoop( pclust,hitlist, iClust, ShowerAngleCluster->size());
-	   ShowerAngleCluster->push_back(temp);
+	   ShowerAngleCluster->push_back(std::move(MainClusterLoop( pclust,hitlist, iClust, ShowerAngleCluster->size())));
 	   util::CreateAssn(*this, evt, *(ShowerAngleCluster.get()), hitlist, *(assn.get()));
 	 }
 	 
@@ -438,7 +438,7 @@ void cluster::ShowerAngleCluster::produce(art::Event& evt)
        if(hitlist.size()<=fMinHitListSize )
 	 continue;
 
-       recob::Cluster temp=MainClusterLoop( cl, hitlist, iClust, inputShowerClusters.size());
+       recob::Cluster temp = MainClusterLoop( cl, hitlist, iClust, inputShowerClusters.size());
        if(!fCParAlg.isShower(lineslopetest[iClust],
 			     fWireVertex[iClust],
 			     fTimeVertex[iClust],
@@ -448,11 +448,11 @@ void cluster::ShowerAngleCluster::produce(art::Event& evt)
 	 continue;
        
        // Store this processed shower-like cluster
-       inputShowerClusters.push_back(temp);
+       inputShowerClusters.push_back(std::move(temp));
        inputShowerClusterHits.push_back(hitlist);
 
        // Feed this cluster & hitlist into Merge algorithm
-       fCMergeAlg.AppendClusterInfo(temp,hitlist);
+       fCMergeAlg.AppendClusterInfo(inputShowerClusters.back(),hitlist);
 
      } // End loop on clusters.
      
@@ -497,7 +497,8 @@ void cluster::ShowerAngleCluster::produce(art::Event& evt)
 						      inputShowerClusters[iClust].SigmadQdW(),
 						      inputShowerClusters[iClust].Charge(),
 						      inputShowerClusters[iClust].View(),
-						      outClusterID));
+						      outClusterID,
+						      inputShowerClusters[iClust].Plane()));
 	 outputShowerClusterHits.push_back(inputShowerClusterHits.at(iClust));
        }
        // else we need to merge hits & re-evaluate cluster parameters.
@@ -510,7 +511,7 @@ void cluster::ShowerAngleCluster::produce(art::Event& evt)
 
 	     hitlist.push_back(iHit);
 	 outClusterID = (int)(ShowerAngleCluster->size());
-	 ShowerAngleCluster->push_back(MergeClusterLoop(hitlist,outClusterID));
+	 ShowerAngleCluster->push_back(std::move(MergeClusterLoop(hitlist,outClusterID)));
 	 outputShowerClusterHits.push_back(hitlist);
        }
 
@@ -784,20 +785,22 @@ recob::Cluster cluster::ShowerAngleCluster::MainClusterLoop( art::Ptr<recob::Clu
     //std::cout <<"lineinterc " << lineinterctest[iClustInput] <<std::endl;	
     //std::cout <<"plane  " << xplane <<std::endl;	
 
-    recob::Cluster outCluster(fWireVertex[iClustInput], fErrors[iClustInput],
+    return recob::Cluster /* outCluster */ (
+			      fWireVertex[iClustInput], fErrors[iClustInput],
 			      fTimeVertex[iClustInput], fErrors[iClustInput],
 			      fWireEnd[iClustInput], fWireEnd[iClustInput]*0.05,
 			      fTimeEnd[iClustInput], fTimeEnd[iClustInput]*0.05,  
 			      xangle[iClustInput], xangle[iClustInput]*0.05, lineslopetest[iClustInput],lineinterctest[iClustInput],5.,
 			      viewfix,
-			      iClustOutput);
+			      iClustOutput,
+			      hitlist.front()->WireID().planeID());
 
 //     ShowerAngleCluster->push_back(temp);
 //   
 //     util::CreateAssn(*this, evt, *(ShowerAngleCluster.get()), hitlist, *(assn.get()));
-    return outCluster;
+//     return outCluster;
     
-}
+} // cluster::ShowerAngleCluster::MainClusterLoop()
 
 recob::Cluster cluster::ShowerAngleCluster::MergeClusterLoop( std::vector<art::Ptr<recob::Hit> > &hitlist,
                                                               unsigned int iClustOutput) {
@@ -848,7 +851,9 @@ recob::Cluster cluster::ShowerAngleCluster::MergeClusterLoop( std::vector<art::P
                             time_end, time_end*0.05,
                             angle_2d, angle_2d*0.05, lineslope, lineintercept, 5.,
                             viewfix,
-                            iClustOutput);
+                            iClustOutput,
+                            hitlist.front()->WireID().planeID()
+                            );
   return outCluster;
 }
 

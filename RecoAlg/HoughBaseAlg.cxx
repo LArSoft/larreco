@@ -860,7 +860,7 @@ void cluster::HoughBaseAlg::HLSSaveBMPFile(const char *fileName, unsigned char *
  
 
 //------------------------------------------------------------------------------
-size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster> >         & clusIn,
+size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cluster> >         & clusIn,
 					    std::vector<recob::Cluster>                    & ccol,  
 					    std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut,
 					    art::Event                                const& evt,
@@ -1180,7 +1180,8 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
       LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
 
       for(size_t xx = 0; xx < planeClusHitsOut.size(); ++xx){
-	unsigned int sw = (*planeClusHitsOut.at(xx).begin())->WireID().Wire;
+	const recob::Hit& FirstHit(**planeClusHitsOut.at(xx).begin());
+	unsigned int sw = FirstHit.WireID().Wire;
 	unsigned int ew = (*(planeClusHitsOut.at(xx).end()-1))->WireID().Wire;
 	
 	recob::Cluster cluster(sw, 0.,
@@ -1190,8 +1191,9 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
 			       slopevec.at(xx), 0., 
 			       -999., 0., 
 			       totalQvec.at(xx),
-			       geom->View((*planeClusHitsOut.at(xx).begin())->Channel()),
-			       clusterID);	      
+			       geom->View(FirstHit.Channel()),
+			       clusterID,
+			       FirstHit.WireID().planeID());
 	
 	++clusterID;
 	ccol.push_back(cluster);
@@ -1572,7 +1574,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Cluster>
 	  -999., 0., 
 	  totalQ,
 	  geom->View((*clusterHits.begin())->Channel()),
-	  clusterID);	*/      
+	  clusterID, (*clusterHits.begin())->WireID().planeID()); */
       
       //   ++clusterID;
       //  ccol.push_back(cluster);
