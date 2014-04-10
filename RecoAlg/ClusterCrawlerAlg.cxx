@@ -96,7 +96,7 @@ namespace cluster {
     if(fNumPass > fDoMerge.size()) badinput = true;
     if(fNumPass > fTimeDelta.size()) badinput = true;
 
-    if(badinput) throw cet::exception("ClusterCrawler")<<"Bad input from fcl file\n";
+    if(badinput) throw cet::exception("ClusterCrawler")<<"Bad input from fcl file ";
 
   }
 
@@ -301,7 +301,7 @@ namespace cluster {
                 AllDone = (nHitsUsed == allhits.size());
                 break;
               }
-              if(pass < fNumPass - 1) {
+              if(pass < fNumPass - 2) {
                 // Is it long enough for the next pass?
                 if(fcl2hits.size() >= fMinHits[pass+1]) {
                   clEndSlp = clpar[1]; // save the slope at the end
@@ -2822,8 +2822,8 @@ namespace cluster {
 
     if(imbest < 0) return;
 
-  if(prt) mf::LogVerbatim("ClusterCrawler")
-    <<" Best hit time "<<(int)allhits[imbest].Time;
+    if(prt) mf::LogVerbatim("ClusterCrawler")
+      <<" Best hit time "<<(int)allhits[imbest].Time;
 
     // Make a charge similarity cut if the average charge is defined
     bool fitChg = true;
@@ -2833,7 +2833,7 @@ namespace cluster {
 
       // charge is way too high?
       if(chgrat > 2 * fChgCut[pass]) {
-  if(prt) mf::LogVerbatim("ClusterCrawler")<<" fails high charge cut";
+        if(prt) mf::LogVerbatim("ClusterCrawler")<<" fails high charge cut";
         return;
       }
 
@@ -2851,16 +2851,24 @@ namespace cluster {
       
       // the last hit added was low charge and this one is as well
       if(lasthitlow && chgrat < -fChgCut[pass]) {
-  if(prt) mf::LogVerbatim("ClusterCrawler")<<" fails low charge cut. Stop crawling.";
+        if(prt) mf::LogVerbatim("ClusterCrawler")<<" fails low charge cut. Stop crawling.";
         SigOK = false;
         return;
       } // lasthitlow
     
       // the last hit was high charge and this one is also
       if(lasthitbig && chgrat > fChgCut[pass]) {
-  if(prt) mf::LogVerbatim("ClusterCrawler")<<" fails 2nd high charge cut";
+        if(prt) mf::LogVerbatim("ClusterCrawler")<<" fails 2nd high charge cut";
         return;
       } // lasthitbig
+
+    
+      // require that large charge hits have a very good projection error
+      if(chgrat > fChgCut[pass]) {
+        if(prt) mf::LogVerbatim("ClusterCrawler")<<" fails high charge && bad delta T";
+        if(best > 1.5 * err) return;
+      }
+
       // decide whether to fit the charge
       fitChg = ( !lasthitlow && !lasthitbig && chgrat < fabs(fChgCut[pass]) );
     } // fAveChg > 0

@@ -153,7 +153,7 @@ void trkf::TrackKalmanCheater::reconfigure(fhicl::ParameterSet const & pset)
   fMaxTcut = pset.get<double>("MaxTcut");
   if(fProp != 0)
     delete fProp;
-  fProp = new PropYZPlane(fMaxTcut, true);
+  fProp = new PropYZPlane(fMaxTcut);
 }
 
 //------------------------------------------------------------------------------

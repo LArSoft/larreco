@@ -253,7 +253,7 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
   fInitialMomentum = pset.get<double>("InitialMomentum");
   if(fProp != 0)
     delete fProp;
-  fProp = new PropXYZPlane(fMaxTcut, fDoDedx);
+  fProp = new PropXYZPlane(fMaxTcut);
 }
 
 //----------------------------------------------------------------------------
