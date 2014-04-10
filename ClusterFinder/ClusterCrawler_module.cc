@@ -19,6 +19,7 @@
 #include <memory>
 
 //LArSoft includes
+#include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
@@ -160,7 +161,7 @@ namespace cluster {
                          totalQ,
                          geo->View(channel),
                          nclus,
-                         geo->ChannelToWire(channel).front().planeID() // get plane from channel geometry
+                         ClusterCrawlerAlg::DecodeCTP(clstr.CTP)
                          );
       
       // associate the hits to this cluster
@@ -209,24 +210,18 @@ namespace cluster {
     for(unsigned short iv = 0; iv < fCCAlg.vtx.size(); iv++) {
       ClusterCrawlerAlg::VtxStore vtx = fCCAlg.vtx[iv];
       if(vtx.Wght <= 0) continue;
-      if(vtx.CTP > 2) {
-        mf::LogError("ClusterCrawler")<<"Bad vtx CTP "<<vtx.CTP;
-        continue;
-      }
-      unsigned int cstat = vtx.CTP / 100;
-      unsigned int tpc = (vtx.CTP - 100 * cstat) / 10;
-      unsigned int plane = vtx.CTP - 100 * cstat - 10 * tpc;
+      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(vtx.CTP);
       unsigned int wire = vtx.Wire;
-      if(wire > geo->Nwires(plane) - 1) {
+      if(wire > geo->Nwires(planeID.Plane) - 1) {
         mf::LogError("ClusterCrawler")<<"Bad vtx wire "<<wire<<" plane "
-          <<plane<<" vtx # "<<iv;
+          <<planeID.Plane<<" vtx # "<<iv;
         continue;
       }
-      uint32_t channel = geo->PlaneWireToChannel(plane, wire, tpc, cstat);
+      uint32_t channel = geo->PlaneWireToChannel(planeID.Plane, wire, planeID.TPC, planeID.Cryostat);
       // get the Wire ID from the channel
       std::vector<geo::WireID> wids = geo->ChannelToWire(channel);
       if(!wids[0].isValid) {
-        mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<plane<<" "<<wire<<" "<<tpc<<" "<<cstat;
+        mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<planeID.Plane<<" "<<wire<<" "<<planeID.TPC<<" "<<planeID.Cryostat;
         continue;
       }
       recob::EndPoint2D myvtx((double)vtx.Time, wids[0], (double)vtx.Wght,

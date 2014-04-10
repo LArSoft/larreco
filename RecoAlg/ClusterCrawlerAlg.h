@@ -17,6 +17,7 @@
 #include "art/Persistency/Common/Ptr.h" 
 #include "art/Persistency/Common/PtrVector.h" 
 
+#include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/LArProperties.h"
@@ -32,13 +33,24 @@ namespace cluster {
   class ClusterCrawlerAlg {
     public:
 
+    // some functions to handle the CTP_t type
+    typedef unsigned int CTP_t;
+    
+    static constexpr unsigned int CTPpad = 1000; // alignment for CTP sub-items
+    static CTP_t EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane)
+      { return cryo * CTPpad*CTPpad + tpc * CTPpad + plane; }
+    static CTP_t EncodeCTP(const geo::PlaneID& planeID)
+      { return EncodeCTP(planeID.Cryostat, planeID.TPC, planeID.Plane); }
+    static geo::PlaneID DecodeCTP(CTP_t CTP)
+      { return { CTP / (CTPpad*CTPpad), CTP / CTPpad % CTPpad, CTP % CTPpad }; }
+    
     // struct of temporary clusters
     struct ClusterStore {
       short ID;         // Cluster ID. ID < 0 = abandoned cluster
       short ProcCode;   // Processor code for debugging
       short Assn;       // coded pointer to associated clusters
       short StopCode;   // code for the reason for stopping cluster tracking
-      unsigned short CTP; // Cryostat/TPC/Plane code
+      CTP_t CTP;        // Cryostat/TPC/Plane code
       float BeginSlp;   // beginning slope (= DS end = high wire number)
       float BeginSlpErr; // error
       unsigned short BeginWir;   // begin wire
@@ -52,7 +64,7 @@ namespace cluster {
       short BeginVtx;   // ID of the begin vertex
       short EndVtx;     // ID of the end vertex
       std::vector<unsigned short> tclhits; // hits on the cluster
-    };
+    }; // ClusterStore
     std::vector< ClusterStore > tcl;
 
     // struct of temporary vertices
@@ -61,7 +73,7 @@ namespace cluster {
       float Time;
       float Wght;       // Wght < 0 for abandoned vertices 
       short Topo;
-      unsigned short CTP;
+      CTP_t CTP;
     };
     std::vector< VtxStore > vtx;
     std::vector< std::pair<short, short> > vtxRange;
@@ -106,7 +118,7 @@ namespace cluster {
 
     // fills a wirehitrange vector for the supplied Cryostat/TPC/Plane code
     void GetHitRange(std::vector<CCHitFinderAlg::CCHit>& allhits,
-      unsigned short CTP, 
+      CTP_t CTP, 
       std::vector< std::pair<short, short> >& wirehitrange,
       unsigned short& firstwire, unsigned short& lastwire);
 
@@ -166,7 +178,7 @@ namespace cluster {
                         ///< +10000 modified by CCHitRefiner
     short clAssn;         ///< index of a parent cluster. -1 if no parent.
                         ///< Parent clusters are not associated with daughters
-    unsigned short clCTP; // Cryostat/TPC/Plane code
+    CTP_t clCTP;        ///< Cryostat/TPC/Plane code
     
     unsigned short fFirstWire;    ///< the first wire with a hit
     unsigned short fFirstHit;     ///< first hit used
