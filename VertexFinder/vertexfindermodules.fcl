@@ -55,6 +55,7 @@ standard_featurevertexfinder.ClusterParamsAlg.MinHitListSize: 10
 standard_cornerfinder:
 {
  module_type:        "CornerFinder"		# module name
+ CalWireDataLabel:   "calwire"
  CornerAlgParamSet:  @local::standard_cornerfinderalg	# using the cornerfinder alg
 }
 #Setting cornerfinder to use the Harris score (instead of Nobel)
