@@ -73,14 +73,14 @@ corner::CornerFinderAlg::~CornerFinderAlg(){
 void corner::CornerFinderAlg::CleanCornerFinderAlg()
 {
   
-  for (auto wd_histo : WireData_histos) delete wd_histo;
-  for (auto wd_histo : WireData_histos_ProjectionX) delete wd_histo;
-  for (auto wd_histo : WireData_histos_ProjectionY) delete wd_histo;
-  for (auto histo : fConversion_histos) delete histo;
-  for (auto histo : fDerivativeX_histos) delete histo;
-  for (auto histo : fDerivativeY_histos) delete histo;
-  for (auto histo : fCornerScore_histos) delete histo;
-  for (auto histo : fMaxSuppress_histos) delete histo;
+  //for (auto wd_histo : WireData_histos) delete wd_histo;
+  //for (auto wd_histo : WireData_histos_ProjectionX) delete wd_histo;
+  //for (auto wd_histo : WireData_histos_ProjectionY) delete wd_histo;
+  //for (auto histo : fConversion_histos) delete histo;
+  //for (auto histo : fDerivativeX_histos) delete histo;
+  //for (auto histo : fDerivativeY_histos) delete histo;
+  //for (auto histo : fCornerScore_histos) delete histo;
+  //for (auto histo : fMaxSuppress_histos) delete histo;
 
   WireData_histos.clear();
   WireData_histos_ProjectionX.clear();
@@ -147,7 +147,7 @@ void corner::CornerFinderAlg::InitializeGeometry(geo::Geometry const& my_geometr
      This is not a beautiful way of handling this, but for now it should work. */
   WireData_IDs.resize(nPlanes);
   for(unsigned int i_plane=0; i_plane < nPlanes; ++i_plane)
-    WireData_IDs[i_plane].resize(my_geometry.Nwires(i_plane));
+    WireData_IDs.at(i_plane).resize(my_geometry.Nwires(i_plane));
   
   WireData_trimmed_histos.resize(0);
 
@@ -168,20 +168,20 @@ void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec
     ss_tmp_name << "h_WireData_" << i_plane;
     ss_tmp_title << fCalDataModuleLabel << " wire data for plane " << i_plane << ";Wire Number;Time Tick";
 
-    if(WireData_histos[i_plane]) {
-      WireData_histos[i_plane]->Reset();
-      WireData_histos[i_plane]->SetName(ss_tmp_name.str().c_str());
-      WireData_histos[i_plane]->SetTitle(ss_tmp_title.str().c_str());
+    if( (unsigned int)(WireData_histos.at(i_plane).GetNbinsX()) == (my_geometry.Nwires(i_plane)) ) {
+      WireData_histos.at(i_plane).Reset();
+      WireData_histos.at(i_plane).SetName(ss_tmp_name.str().c_str());
+      WireData_histos.at(i_plane).SetTitle(ss_tmp_title.str().c_str());
     }
     else
-      WireData_histos[i_plane] = new TH2F(ss_tmp_name.str().c_str(),
-					  ss_tmp_title.str().c_str(),
-					  my_geometry.Nwires(i_plane),
-					  0,
-					  my_geometry.Nwires(i_plane),
-					  nTimeTicks,
-					  0,
-					  nTimeTicks);
+      WireData_histos.at(i_plane) = TH2F(ss_tmp_name.str().c_str(),
+					 ss_tmp_title.str().c_str(),
+					 my_geometry.Nwires(i_plane),
+					 0,
+					 my_geometry.Nwires(i_plane),
+					 nTimeTicks,
+					 0,
+					 nTimeTicks);
   }
 
 
@@ -196,18 +196,18 @@ void corner::CornerFinderAlg::GrabWires( std::vector<recob::Wire> const& wireVec
     unsigned int i_plane = this_wireID.Plane;
     unsigned int i_wire = this_wireID.Wire;
 
-    WireData_IDs[i_plane][i_wire] = this_wireID;
+    WireData_IDs.at(i_plane).at(i_wire) = this_wireID;
     
     for(unsigned int i_time = 0; i_time < nTimeTicks; i_time++){
-      WireData_histos[i_plane]->SetBinContent(i_wire,i_time,(iwire->Signal()).at(i_time));  
+      WireData_histos.at(i_plane).SetBinContent(i_wire,i_time,(iwire->Signal()).at(i_time));  
     }//<---End time loop
         
   }//<-- End loop over wires
   
 
   for (unsigned int i_plane=0; i_plane < my_geometry.Nplanes(); i_plane++){
-    WireData_histos_ProjectionX[i_plane] = WireData_histos[i_plane]->ProjectionX();
-    WireData_histos_ProjectionY[i_plane] = WireData_histos[i_plane]->ProjectionY();
+    WireData_histos_ProjectionX.at(i_plane) = *(WireData_histos.at(i_plane).ProjectionX());
+    WireData_histos_ProjectionY.at(i_plane) = *(WireData_histos.at(i_plane).ProjectionY());
   }
 
 
@@ -222,9 +222,8 @@ void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> 
   
 
   for(auto pid : my_geometry.PlaneIDs()){
-    std::unique_ptr<TH2F> myhisto( new TH2F(*WireData_histos[pid.Plane]) );
-    attach_feature_points(std::move(myhisto),
-			  WireData_IDs[pid.Plane],
+    attach_feature_points(WireData_histos.at(pid.Plane),
+			  WireData_IDs.at(pid.Plane),
 			  my_geometry.View(pid),
 			  corner_vector);
   }
@@ -253,8 +252,8 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 	  << ", of plane " << plane 
 	  << " with start points " << startx << " " << starty;
 
-	attach_feature_points(std::move(std::get<1>(WireData_trimmed_histos.at(histos))),
-			      WireData_IDs[plane],my_geometry.Cryostat(cstat).TPC(tpc).Plane(plane).View(),corner_vector,startx,starty);
+	attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
+			      WireData_IDs.at(plane),my_geometry.Cryostat(cstat).TPC(tpc).Plane(plane).View(),corner_vector,startx,starty);
 
 	mf::LogDebug("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
       }
@@ -275,8 +274,8 @@ void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<r
   
 
   for(auto pid : my_geometry.PlaneIDs()){
-    attach_feature_points_LineIntegralScore(WireData_histos[pid.Plane],
-					    WireData_IDs[pid.Plane],
+    attach_feature_points_LineIntegralScore(WireData_histos.at(pid.Plane),
+					    WireData_IDs.at(pid.Plane),
 					    my_geometry.View(pid),
 					    corner_vector);
   }
@@ -353,22 +352,22 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
     mf::LogDebug("CornerFinderAlg") 
       << "Working plane " << pid.Plane << ".";
 
-    int x_bins = WireData_histos_ProjectionX[pid.Plane]->GetNbinsX();
-    int y_bins = WireData_histos_ProjectionY[pid.Plane]->GetNbinsX();
+    int x_bins = WireData_histos_ProjectionX.at(pid.Plane).GetNbinsX();
+    int y_bins = WireData_histos_ProjectionY.at(pid.Plane).GetNbinsX();
 
     std::vector<int> cut_points_x {0};
     std::vector<int> cut_points_y {0};
     
     for (int ix=1; ix<=x_bins; ix++){
       
-      float this_value = WireData_histos_ProjectionX[pid.Plane]->GetBinContent(ix);
+      float this_value = WireData_histos_ProjectionX.at(pid.Plane).GetBinContent(ix);
       
       if(ix<fTrimming_buffer || ix>(x_bins-fTrimming_buffer)) continue;
       
       int jx=ix-fTrimming_buffer;
       while(this_value<fTrimming_threshold){
 	if(jx==ix+fTrimming_buffer) break;
-	this_value = WireData_histos_ProjectionX[pid.Plane]->GetBinContent(jx);
+	this_value = WireData_histos_ProjectionX.at(pid.Plane).GetBinContent(jx);
 	jx++;
       }
       if(this_value<fTrimming_threshold){
@@ -379,14 +378,14 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
     
     for (int iy=1; iy<=y_bins; iy++){
       
-      float this_value = WireData_histos_ProjectionY[pid.Plane]->GetBinContent(iy);
+      float this_value = WireData_histos_ProjectionY.at(pid.Plane).GetBinContent(iy);
       
       if(iy<fTrimming_buffer || iy>(y_bins-fTrimming_buffer)) continue;
       
       int jy=iy-fTrimming_buffer;
       while(this_value<fTrimming_threshold){
 	if(jy==iy+fTrimming_buffer) break;
-	this_value = WireData_histos_ProjectionY[pid.Plane]->GetBinContent(jy);
+	this_value = WireData_histos_ProjectionY.at(pid.Plane).GetBinContent(jy);
 	jy++;
       }
       if(this_value<fTrimming_threshold){
@@ -420,8 +419,8 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
 	if(cut_points_x.at(0) <= x_low.at(il) || cut_points_x.at(0) >= x_high.at(il))
 	  continue;
 	
-	double integral_low = WireData_histos[pid.Plane]->Integral(x_low.at(il),cut_points_x.at(0),y_low.at(il),y_high.at(il));
-	double integral_high = WireData_histos[pid.Plane]->Integral(cut_points_x.at(0),x_high.at(il),y_low.at(il),y_high.at(il));
+	double integral_low = WireData_histos.at(pid.Plane).Integral(x_low.at(il),cut_points_x.at(0),y_low.at(il),y_high.at(il));
+	double integral_high = WireData_histos.at(pid.Plane).Integral(cut_points_x.at(0),x_high.at(il),y_low.at(il),y_high.at(il));
 	if(integral_low > fTrimming_totalThreshold && integral_high > fTrimming_totalThreshold){
 	  x_low.push_back(cut_points_x.at(0));
 	  x_high.push_back(x_high.at(il));
@@ -451,8 +450,8 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
 	if(cut_points_y.at(0) <= y_low.at(il) || cut_points_y.at(0) >= y_high.at(il))
 	  continue;
 	
-	double integral_low = WireData_histos[pid.Plane]->Integral(x_low.at(il),x_high.at(il),y_low.at(il),cut_points_y.at(0));
-	double integral_high = WireData_histos[pid.Plane]->Integral(x_low.at(il),x_high.at(il),cut_points_y.at(0),y_high.at(il));
+	double integral_low = WireData_histos.at(pid.Plane).Integral(x_low.at(il),x_high.at(il),y_low.at(il),cut_points_y.at(0));
+	double integral_high = WireData_histos.at(pid.Plane).Integral(x_low.at(il),x_high.at(il),cut_points_y.at(0),y_high.at(il));
 	if(integral_low > fTrimming_totalThreshold && integral_high > fTrimming_totalThreshold){
 	  y_low.push_back(cut_points_y.at(0));
 	  y_high.push_back(y_high.at(il));
@@ -492,32 +491,30 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
       
     mf::LogDebug("CornerFinderAlg") 
       << "\nIntegral on the SW side is " 
-      << WireData_histos[pid.Plane]->Integral(1,cut_points_x.at(0),1,cut_points_y.at(0))
+      << WireData_histos.at(pid.Plane).Integral(1,cut_points_x.at(0),1,cut_points_y.at(0))
       << "\nIntegral on the SE side is " 
-      << WireData_histos[pid.Plane]->Integral(cut_points_x.at(0),x_bins,1,cut_points_y.at(0))
+      << WireData_histos.at(pid.Plane).Integral(cut_points_x.at(0),x_bins,1,cut_points_y.at(0))
       << "\nIntegral on the NW side is " 
-      << WireData_histos[pid.Plane]->Integral(1,cut_points_x.at(0),cut_points_y.at(0),y_bins)
+      << WireData_histos.at(pid.Plane).Integral(1,cut_points_x.at(0),cut_points_y.at(0),y_bins)
       << "\nIntegral on the NE side is " 
-      << WireData_histos[pid.Plane]->Integral(cut_points_x.at(0),x_bins,cut_points_y.at(0),y_bins);
+      << WireData_histos.at(pid.Plane).Integral(cut_points_x.at(0),x_bins,cut_points_y.at(0),y_bins);
     
     
     for(size_t il=0; il<x_low.size(); il++){
       
       std::stringstream h_name;
       h_name << "h_" << pid.Cryostat << "_" << pid.TPC << "_" << pid.Plane << "_sub" << il;
-      std::unique_ptr<TH2F> h_tmp(new TH2F((h_name.str()).c_str(),"",
-					   x_high.at(il)-x_low.at(il)+1,x_low.at(il),x_high.at(il),
-					   y_high.at(il)-y_low.at(il)+1,y_low.at(il),y_high.at(il))
-				  );
+      TH2F h_tmp( (h_name.str()).c_str(),"",
+		  x_high.at(il)-x_low.at(il)+1,x_low.at(il),x_high.at(il),
+		  y_high.at(il)-y_low.at(il)+1,y_low.at(il),y_high.at(il));
       
       for(int ix=1; ix<=(x_high.at(il)-x_low.at(il)+1); ix++){
 	for(int iy=1; iy<=(y_high.at(il)-y_low.at(il)+1); iy++){
-	  h_tmp->SetBinContent(ix,iy,WireData_histos[pid.Plane]->GetBinContent(x_low.at(il)+(ix-1),y_low.at(il)+(iy-1)));
+	  h_tmp.SetBinContent(ix,iy,WireData_histos.at(pid.Plane).GetBinContent(x_low.at(il)+(ix-1),y_low.at(il)+(iy-1)));
 	}
       }
       
-      WireData_trimmed_histos.push_back(std::make_tuple(pid.Plane,std::move(h_tmp),x_low.at(il)-1,y_low.at(il)-1));
-      //delete h_tmp;
+      WireData_trimmed_histos.push_back(std::make_tuple(pid.Plane,h_tmp,x_low.at(il)-1,y_low.at(il)-1));
     }
     
   }// end loop over PlaneIDs
@@ -527,7 +524,7 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
 
 //-----------------------------------------------------------------------------
 // This puts on all the feature points in a given view, using a given data histogram
-void corner::CornerFinderAlg::attach_feature_points( std::unique_ptr<TH2F> h_wire_data, 
+void corner::CornerFinderAlg::attach_feature_points( TH2F const& h_wire_data, 
 						     std::vector<geo::WireID> wireIDs, 
 						     geo::View_t view, 
 						     std::vector<recob::EndPoint2D> & corner_vector,
@@ -535,13 +532,13 @@ void corner::CornerFinderAlg::attach_feature_points( std::unique_ptr<TH2F> h_wir
 						     int starty){
 
 
-  const int x_bins = h_wire_data->GetNbinsX();
-  const float x_min = h_wire_data->GetXaxis()->GetBinLowEdge(1);
-  const float x_max = h_wire_data->GetXaxis()->GetBinUpEdge(x_bins);
+  const int x_bins = h_wire_data.GetNbinsX();
+  const float x_min = h_wire_data.GetXaxis()->GetBinLowEdge(1);
+  const float x_max = h_wire_data.GetXaxis()->GetBinUpEdge(x_bins);
 
-  const int y_bins = h_wire_data->GetNbinsY();
-  const float y_min = h_wire_data->GetYaxis()->GetBinLowEdge(1);
-  const float y_max = h_wire_data->GetYaxis()->GetBinUpEdge(y_bins);
+  const int y_bins = h_wire_data.GetNbinsY();
+  const float y_min = h_wire_data.GetYaxis()->GetBinLowEdge(1);
+  const float y_max = h_wire_data.GetYaxis()->GetBinUpEdge(y_bins);
 
   const int converted_y_bins = y_bins/fConversion_bins_per_input_y;
   const int converted_x_bins = x_bins/fConversion_bins_per_input_x;
@@ -552,73 +549,48 @@ void corner::CornerFinderAlg::attach_feature_points( std::unique_ptr<TH2F> h_wir
   std::stringstream cornerScore_name; cornerScore_name << "h_cornerScore_"  << view << "_" << run_number << "_" << event_number;
   std::stringstream maxSuppress_name; maxSuppress_name << "h_maxSuppress_"  << view << "_" << run_number << "_" << event_number;
 
-  if(fConversion_histos[view]){
-    fConversion_histos[view]->Reset();
-    //fConversion_histos[view]->SetName(conversion_name.str().c_str());
-  }
-  else
-    fConversion_histos[view] = new TH2F(conversion_name.str().c_str(),"Image Conversion Histogram",
-					   converted_x_bins,x_min,x_max,
-					   converted_y_bins,y_min,y_max);
+  TH2F conversion_histo(conversion_name.str().c_str(),"Image Conversion Histogram",
+			 converted_x_bins,x_min,x_max,
+			 converted_y_bins,y_min,y_max);
   
-  if(fDerivativeX_histos[view]){
-    fDerivativeX_histos[view]->Reset();
-    //fDerivativeX_histos[view]->SetName(dx_name.str().c_str());
-  }
-  else
-    fDerivativeX_histos[view] = new TH2F(dx_name.str().c_str(),"Partial Derivatives (x)",
-					    converted_x_bins,x_min,x_max,
-					    converted_y_bins,y_min,y_max);
+  TH2F derivativeX_histo(dx_name.str().c_str(),"Partial Derivatives (x)",
+			  converted_x_bins,x_min,x_max,
+			  converted_y_bins,y_min,y_max);
   
-  if(fDerivativeY_histos[view]){
-    fDerivativeY_histos[view]->Reset();
-    //fDerivativeY_histos[view]->SetName(dy_name.str().c_str());
-  }
-  else
-    fDerivativeY_histos[view] = new TH2F(dy_name.str().c_str(),"Partial Derivatives (y)",
-					    converted_x_bins,x_min,x_max,
-					    converted_y_bins,y_min,y_max);
+  TH2F derivativeY_histo(dy_name.str().c_str(),"Partial Derivatives (y)",
+			  converted_x_bins,x_min,x_max,
+			  converted_y_bins,y_min,y_max);
   
-  if(fCornerScore_histos[view]){
-    fCornerScore_histos[view]->Reset();
-    //fCornerScore_histos[view]->SetName(cornerScore_name.str().c_str());
-  }
-  else
-    fCornerScore_histos[view] = new TH2D(cornerScore_name.str().c_str(),"Corner Score",
-					    converted_x_bins,x_min,x_max,
-					    converted_y_bins,y_min,y_max);
-
-  if(fMaxSuppress_histos[view]){
-    fMaxSuppress_histos[view]->Reset();
-    //fMaxSuppress_histos[view]->SetName(maxSuppress_name.str().c_str());
-  }
-  else
-    fMaxSuppress_histos[view] = new TH2D(maxSuppress_name.str().c_str(),"Corner Points (Maximum Suppressed)",
-					    converted_x_bins,x_min,x_max,
-					    converted_y_bins,y_min,y_max);
+  TH2D cornerScore_histo(cornerScore_name.str().c_str(),"Corner Score",
+			 converted_x_bins,x_min,x_max,
+			 converted_y_bins,y_min,y_max);
   
-  create_image_histo(std::move(h_wire_data),fConversion_histos[view]);  
-  create_derivative_histograms(fConversion_histos[view],fDerivativeX_histos[view],fDerivativeY_histos[view]);
-  create_cornerScore_histogram(fDerivativeX_histos[view],fDerivativeY_histos[view],fCornerScore_histos[view]);
-  perform_maximum_suppression(fCornerScore_histos[view],corner_vector,wireIDs,view,fMaxSuppress_histos[view],startx,starty);
+  TH2D maxSuppress_histo(maxSuppress_name.str().c_str(),"Corner Points (Maximum Suppressed)",
+			 converted_x_bins,x_min,x_max,
+			 converted_y_bins,y_min,y_max);
+  
+  create_image_histo(h_wire_data,conversion_histo);  
+  create_derivative_histograms(conversion_histo,derivativeX_histo,derivativeY_histo);
+  create_cornerScore_histogram(derivativeX_histo,derivativeY_histo,cornerScore_histo);
+  perform_maximum_suppression(cornerScore_histo,corner_vector,wireIDs,view,maxSuppress_histo,startx,starty);
 }
 
 
 //-----------------------------------------------------------------------------
 // This puts on all the feature points in a given view, using a given data histogram
-void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F *h_wire_data, 
+void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F const& h_wire_data, 
 								       std::vector<geo::WireID> wireIDs, 
 								       geo::View_t view, 
 								       std::vector<recob::EndPoint2D> & corner_vector){
 
 
-  const int   x_bins = h_wire_data->GetNbinsX();
-  const float x_min  = h_wire_data->GetXaxis()->GetBinLowEdge(1);
-  const float x_max  = h_wire_data->GetXaxis()->GetBinUpEdge(x_bins);
+  const int   x_bins = h_wire_data.GetNbinsX();
+  const float x_min  = h_wire_data.GetXaxis()->GetBinLowEdge(1);
+  const float x_max  = h_wire_data.GetXaxis()->GetBinUpEdge(x_bins);
 
-  const int   y_bins = h_wire_data->GetNbinsY();
-  const float y_min  = h_wire_data->GetYaxis()->GetBinLowEdge(1);
-  const float y_max  = h_wire_data->GetYaxis()->GetBinUpEdge(y_bins);
+  const int   y_bins = h_wire_data.GetNbinsY();
+  const float y_min  = h_wire_data.GetYaxis()->GetBinLowEdge(1);
+  const float y_max  = h_wire_data.GetYaxis()->GetBinUpEdge(y_bins);
 
   const int converted_y_bins = y_bins/fConversion_bins_per_input_y;
   const int converted_x_bins = x_bins/fConversion_bins_per_input_x;
@@ -650,135 +622,76 @@ void corner::CornerFinderAlg::attach_feature_points_LineIntegralScore(TH2F *h_wi
 		      converted_x_bins,x_min,x_max,
 		      converted_y_bins,y_min,y_max);
   
-  create_image_histo(h_wire_data,&h_conversion);
-  create_derivative_histograms(&h_conversion,&h_derivative_x,&h_derivative_y);
-  create_cornerScore_histogram(&h_derivative_x,&h_derivative_y,&h_cornerScore);
+  create_image_histo(h_wire_data,h_conversion);
+  create_derivative_histograms(h_conversion,h_derivative_x,h_derivative_y);
+  create_cornerScore_histogram(h_derivative_x,h_derivative_y,h_cornerScore);
 
   std::vector<recob::EndPoint2D> corner_vector_tmp;
-  perform_maximum_suppression(&h_cornerScore,corner_vector_tmp,wireIDs,view,&h_maxSuppress);
+  perform_maximum_suppression(h_cornerScore,corner_vector_tmp,wireIDs,view,h_maxSuppress);
 
   std::stringstream LI_name; LI_name << "h_lineIntegralScore_" << view << "_" << run_number << "_" << event_number;
   TH2F h_lineIntegralScore((LI_name.str()).c_str(),
 			   "Line Integral Score",
 			   x_bins,x_min,x_max,
 			   y_bins,y_min,y_max);
-  calculate_line_integral_score(h_wire_data,corner_vector_tmp,corner_vector,&h_lineIntegralScore);
+  calculate_line_integral_score(h_wire_data,corner_vector_tmp,corner_vector,h_lineIntegralScore);
     
 }
 
 
 //-----------------------------------------------------------------------------
 // Convert to pixel
-void corner::CornerFinderAlg::create_image_histo(std::unique_ptr<TH2F> h_wire_data, TH2F *h_conversion) {
+void corner::CornerFinderAlg::create_image_histo(TH2F const& h_wire_data, TH2F & h_conversion) {
   
   double temp_integral=0;
 
   const TF2 fConversion_TF2("fConversion_func",fConversion_func.c_str(),-20,20,-20,20);
 
-  for(int ix=1; ix<=h_conversion->GetNbinsX(); ix++){
-    for(int iy=1; iy<=h_conversion->GetNbinsY(); iy++){
+  for(int ix=1; ix<=h_conversion.GetNbinsX(); ix++){
+    for(int iy=1; iy<=h_conversion.GetNbinsY(); iy++){
       
-      temp_integral = h_wire_data->Integral(ix,ix,iy,iy);
+      temp_integral = h_wire_data.Integral(ix,ix,iy,iy);
 
       if( temp_integral > fConversion_threshold){
 
 	if(fConversion_algorithm.compare("binary")==0)
-	  h_conversion->SetBinContent(ix,iy,10*fConversion_threshold);
+	  h_conversion.SetBinContent(ix,iy,10*fConversion_threshold);
 	else if(fConversion_algorithm.compare("standard")==0)
-	  h_conversion->SetBinContent(ix,iy,temp_integral);
+	  h_conversion.SetBinContent(ix,iy,temp_integral);
 
 	else if(fConversion_algorithm.compare("function")==0){
 
 	  temp_integral = 0;
 	  for(int jx=ix-fConversion_func_neighborhood; jx<=ix+fConversion_func_neighborhood; jx++){
 	    for(int jy=iy-fConversion_func_neighborhood; jy<=iy+fConversion_func_neighborhood; jy++){
-	      temp_integral += h_wire_data->GetBinContent(jx,jy)*fConversion_TF2.Eval(ix-jx,iy-jy);
+	      temp_integral += h_wire_data.GetBinContent(jx,jy)*fConversion_TF2.Eval(ix-jx,iy-jy);
 	    }
 	  }
-	  h_conversion->SetBinContent(ix,iy,temp_integral);
+	  h_conversion.SetBinContent(ix,iy,temp_integral);
 	}
 
 	else if(fConversion_algorithm.compare("skeleton")==0){
 	  
-	  if( (temp_integral > h_wire_data->GetBinContent(ix-1,iy) && temp_integral > h_wire_data->GetBinContent(ix+1,iy))
-	      || (temp_integral > h_wire_data->GetBinContent(ix,iy-1) && temp_integral > h_wire_data->GetBinContent(ix,iy+1)))
-	    h_conversion->SetBinContent(ix,iy,temp_integral);
+	  if( (temp_integral > h_wire_data.GetBinContent(ix-1,iy) && temp_integral > h_wire_data.GetBinContent(ix+1,iy))
+	      || (temp_integral > h_wire_data.GetBinContent(ix,iy-1) && temp_integral > h_wire_data.GetBinContent(ix,iy+1)))
+	    h_conversion.SetBinContent(ix,iy,temp_integral);
 	  else 
-	    h_conversion->SetBinContent(ix,iy,fConversion_threshold);
+	    h_conversion.SetBinContent(ix,iy,fConversion_threshold);
 	}
 	else if(fConversion_algorithm.compare("sk_bin")==0){
 	  
-	  if( (temp_integral > h_wire_data->GetBinContent(ix-1,iy) && temp_integral > h_wire_data->GetBinContent(ix+1,iy))
-	      || (temp_integral > h_wire_data->GetBinContent(ix,iy-1) && temp_integral > h_wire_data->GetBinContent(ix,iy+1)))
-	    h_conversion->SetBinContent(ix,iy,10*fConversion_threshold);
+	  if( (temp_integral > h_wire_data.GetBinContent(ix-1,iy) && temp_integral > h_wire_data.GetBinContent(ix+1,iy))
+	      || (temp_integral > h_wire_data.GetBinContent(ix,iy-1) && temp_integral > h_wire_data.GetBinContent(ix,iy+1)))
+	    h_conversion.SetBinContent(ix,iy,10*fConversion_threshold);
 	  else 
-	    h_conversion->SetBinContent(ix,iy,fConversion_threshold);
+	    h_conversion.SetBinContent(ix,iy,fConversion_threshold);
 	}
 	else
-	  h_conversion->SetBinContent(ix,iy,temp_integral);
+	  h_conversion.SetBinContent(ix,iy,temp_integral);
       }
 
       else
-	h_conversion->SetBinContent(ix,iy,fConversion_threshold);
-      
-    }
-  }
-
-}
-
-//-----------------------------------------------------------------------------
-// Convert to pixel
-void corner::CornerFinderAlg::create_image_histo(TH2F *h_wire_data, TH2F *h_conversion) {
-  
-  double temp_integral=0;
-
-  const TF2 fConversion_TF2("fConversion_func",fConversion_func.c_str(),-20,20,-20,20);
-
-  for(int ix=1; ix<=h_conversion->GetNbinsX(); ix++){
-    for(int iy=1; iy<=h_conversion->GetNbinsY(); iy++){
-      
-      temp_integral = h_wire_data->Integral(ix,ix,iy,iy);
-
-      if( temp_integral > fConversion_threshold){
-
-	if(fConversion_algorithm.compare("binary")==0)
-	  h_conversion->SetBinContent(ix,iy,10*fConversion_threshold);
-	else if(fConversion_algorithm.compare("standard")==0)
-	  h_conversion->SetBinContent(ix,iy,temp_integral);
-
-	else if(fConversion_algorithm.compare("function")==0){
-
-	  temp_integral = 0;
-	  for(int jx=ix-fConversion_func_neighborhood; jx<=ix+fConversion_func_neighborhood; jx++){
-	    for(int jy=iy-fConversion_func_neighborhood; jy<=iy+fConversion_func_neighborhood; jy++){
-	      temp_integral += h_wire_data->GetBinContent(jx,jy)*fConversion_TF2.Eval(ix-jx,iy-jy);
-	    }
-	  }
-	  h_conversion->SetBinContent(ix,iy,temp_integral);
-	}
-
-	else if(fConversion_algorithm.compare("skeleton")==0){
-	  
-	  if( (temp_integral > h_wire_data->GetBinContent(ix-1,iy) && temp_integral > h_wire_data->GetBinContent(ix+1,iy))
-	      || (temp_integral > h_wire_data->GetBinContent(ix,iy-1) && temp_integral > h_wire_data->GetBinContent(ix,iy+1)))
-	    h_conversion->SetBinContent(ix,iy,temp_integral);
-	  else 
-	    h_conversion->SetBinContent(ix,iy,fConversion_threshold);
-	}
-	else if(fConversion_algorithm.compare("sk_bin")==0){
-	  
-	  if( (temp_integral > h_wire_data->GetBinContent(ix-1,iy) && temp_integral > h_wire_data->GetBinContent(ix+1,iy))
-	      || (temp_integral > h_wire_data->GetBinContent(ix,iy-1) && temp_integral > h_wire_data->GetBinContent(ix,iy+1)))
-	    h_conversion->SetBinContent(ix,iy,10*fConversion_threshold);
-	  else 
-	    h_conversion->SetBinContent(ix,iy,fConversion_threshold);
-	}
-	else
-	  h_conversion->SetBinContent(ix,iy,temp_integral);
-      }
-
-      else
-	h_conversion->SetBinContent(ix,iy,fConversion_threshold);
+	h_conversion.SetBinContent(ix,iy,fConversion_threshold);
       
     }
   }
@@ -788,10 +701,10 @@ void corner::CornerFinderAlg::create_image_histo(TH2F *h_wire_data, TH2F *h_conv
 //-----------------------------------------------------------------------------
 // Derivative
 
-void corner::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, TH2F *h_derivative_x, TH2F *h_derivative_y){
+void corner::CornerFinderAlg::create_derivative_histograms(TH2F const& h_conversion, TH2F & h_derivative_x, TH2F & h_derivative_y){
 
-  const int x_bins = h_conversion->GetNbinsX();
-  const int y_bins = h_conversion->GetNbinsY();
+  const int x_bins = h_conversion.GetNbinsX();
+  const int y_bins = h_conversion.GetNbinsY();
 
   for(int iy=1+fDerivative_neighborhood; iy<=(y_bins-fDerivative_neighborhood); iy++){
     for(int ix=1+fDerivative_neighborhood; ix<=(x_bins-fDerivative_neighborhood); ix++){
@@ -799,38 +712,38 @@ void corner::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, T
       if(fDerivative_method.compare("Sobel")==0){
 	
 	if(fDerivative_neighborhood==1){
-	  h_derivative_x->SetBinContent(ix,iy,
-					0.5*(h_conversion->GetBinContent(ix+1,iy)-h_conversion->GetBinContent(ix-1,iy))
-					+ 0.25*(h_conversion->GetBinContent(ix+1,iy+1)-h_conversion->GetBinContent(ix-1,iy+1))
-					+ 0.25*(h_conversion->GetBinContent(ix+1,iy-1)-h_conversion->GetBinContent(ix-1,iy-1)));
-	  h_derivative_y->SetBinContent(ix,iy,
-					0.5*(h_conversion->GetBinContent(ix,iy+1)-h_conversion->GetBinContent(ix,iy-1))
-					+ 0.25*(h_conversion->GetBinContent(ix-1,iy+1)-h_conversion->GetBinContent(ix-1,iy-1))
-					+ 0.25*(h_conversion->GetBinContent(ix+1,iy+1)-h_conversion->GetBinContent(ix+1,iy-1)));
+	  h_derivative_x.SetBinContent(ix,iy,
+					0.5*(h_conversion.GetBinContent(ix+1,iy)-h_conversion.GetBinContent(ix-1,iy))
+					+ 0.25*(h_conversion.GetBinContent(ix+1,iy+1)-h_conversion.GetBinContent(ix-1,iy+1))
+					+ 0.25*(h_conversion.GetBinContent(ix+1,iy-1)-h_conversion.GetBinContent(ix-1,iy-1)));
+	  h_derivative_y.SetBinContent(ix,iy,
+					0.5*(h_conversion.GetBinContent(ix,iy+1)-h_conversion.GetBinContent(ix,iy-1))
+					+ 0.25*(h_conversion.GetBinContent(ix-1,iy+1)-h_conversion.GetBinContent(ix-1,iy-1))
+					+ 0.25*(h_conversion.GetBinContent(ix+1,iy+1)-h_conversion.GetBinContent(ix+1,iy-1)));
 	}
 	else if(fDerivative_neighborhood==2){
-	  h_derivative_x->SetBinContent(ix,iy,
-					12*(h_conversion->GetBinContent(ix+1,iy)-h_conversion->GetBinContent(ix-1,iy))
-					+ 8*(h_conversion->GetBinContent(ix+1,iy+1)-h_conversion->GetBinContent(ix-1,iy+1))
-					+ 8*(h_conversion->GetBinContent(ix+1,iy-1)-h_conversion->GetBinContent(ix-1,iy-1))
-					+ 2*(h_conversion->GetBinContent(ix+1,iy+2)-h_conversion->GetBinContent(ix-1,iy+2))
-					+ 2*(h_conversion->GetBinContent(ix+1,iy-2)-h_conversion->GetBinContent(ix-1,iy-2))
-					  + 6*(h_conversion->GetBinContent(ix+2,iy)-h_conversion->GetBinContent(ix-2,iy))
-					+ 4*(h_conversion->GetBinContent(ix+2,iy+1)-h_conversion->GetBinContent(ix-2,iy+1))
-					+ 4*(h_conversion->GetBinContent(ix+2,iy-1)-h_conversion->GetBinContent(ix-2,iy-1))
-					+ 1*(h_conversion->GetBinContent(ix+2,iy+2)-h_conversion->GetBinContent(ix-2,iy+2))
-					  + 1*(h_conversion->GetBinContent(ix+2,iy-2)-h_conversion->GetBinContent(ix-2,iy-2)));
-	  h_derivative_y->SetBinContent(ix,iy,
-					12*(h_conversion->GetBinContent(ix,iy+1)-h_conversion->GetBinContent(ix,iy-1))
-					+ 8*(h_conversion->GetBinContent(ix-1,iy+1)-h_conversion->GetBinContent(ix-1,iy-1))
-					+ 8*(h_conversion->GetBinContent(ix+1,iy+1)-h_conversion->GetBinContent(ix+1,iy-1))
-					+ 2*(h_conversion->GetBinContent(ix-2,iy+1)-h_conversion->GetBinContent(ix-2,iy-1))
-					+ 2*(h_conversion->GetBinContent(ix+2,iy+1)-h_conversion->GetBinContent(ix+2,iy-1))
-					+ 6*(h_conversion->GetBinContent(ix,iy+2)-h_conversion->GetBinContent(ix,iy-2))
-					+ 4*(h_conversion->GetBinContent(ix-1,iy+2)-h_conversion->GetBinContent(ix-1,iy-2))
-					+ 4*(h_conversion->GetBinContent(ix+1,iy+2)-h_conversion->GetBinContent(ix+1,iy-2))
-					+ 1*(h_conversion->GetBinContent(ix-2,iy+2)-h_conversion->GetBinContent(ix-2,iy-2))
-					+ 1*(h_conversion->GetBinContent(ix+2,iy+2)-h_conversion->GetBinContent(ix+2,iy-2)));
+	  h_derivative_x.SetBinContent(ix,iy,
+					12*(h_conversion.GetBinContent(ix+1,iy)-h_conversion.GetBinContent(ix-1,iy))
+					+ 8*(h_conversion.GetBinContent(ix+1,iy+1)-h_conversion.GetBinContent(ix-1,iy+1))
+					+ 8*(h_conversion.GetBinContent(ix+1,iy-1)-h_conversion.GetBinContent(ix-1,iy-1))
+					+ 2*(h_conversion.GetBinContent(ix+1,iy+2)-h_conversion.GetBinContent(ix-1,iy+2))
+					+ 2*(h_conversion.GetBinContent(ix+1,iy-2)-h_conversion.GetBinContent(ix-1,iy-2))
+					  + 6*(h_conversion.GetBinContent(ix+2,iy)-h_conversion.GetBinContent(ix-2,iy))
+					+ 4*(h_conversion.GetBinContent(ix+2,iy+1)-h_conversion.GetBinContent(ix-2,iy+1))
+					+ 4*(h_conversion.GetBinContent(ix+2,iy-1)-h_conversion.GetBinContent(ix-2,iy-1))
+					+ 1*(h_conversion.GetBinContent(ix+2,iy+2)-h_conversion.GetBinContent(ix-2,iy+2))
+					  + 1*(h_conversion.GetBinContent(ix+2,iy-2)-h_conversion.GetBinContent(ix-2,iy-2)));
+	  h_derivative_y.SetBinContent(ix,iy,
+					12*(h_conversion.GetBinContent(ix,iy+1)-h_conversion.GetBinContent(ix,iy-1))
+					+ 8*(h_conversion.GetBinContent(ix-1,iy+1)-h_conversion.GetBinContent(ix-1,iy-1))
+					+ 8*(h_conversion.GetBinContent(ix+1,iy+1)-h_conversion.GetBinContent(ix+1,iy-1))
+					+ 2*(h_conversion.GetBinContent(ix-2,iy+1)-h_conversion.GetBinContent(ix-2,iy-1))
+					+ 2*(h_conversion.GetBinContent(ix+2,iy+1)-h_conversion.GetBinContent(ix+2,iy-1))
+					+ 6*(h_conversion.GetBinContent(ix,iy+2)-h_conversion.GetBinContent(ix,iy-2))
+					+ 4*(h_conversion.GetBinContent(ix-1,iy+2)-h_conversion.GetBinContent(ix-1,iy-2))
+					+ 4*(h_conversion.GetBinContent(ix+1,iy+2)-h_conversion.GetBinContent(ix+1,iy-2))
+					+ 1*(h_conversion.GetBinContent(ix-2,iy+2)-h_conversion.GetBinContent(ix-2,iy-2))
+					+ 1*(h_conversion.GetBinContent(ix+2,iy+2)-h_conversion.GetBinContent(ix+2,iy-2)));
 	}
 	else{
 	  mf::LogError("CornerFinderAlg") << "Sobel derivative not supported for neighborhoods > 2.";
@@ -842,10 +755,10 @@ void corner::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, T
       else if(fDerivative_method.compare("local")==0){
 	
 	if(fDerivative_neighborhood==1){
-	  h_derivative_x->SetBinContent(ix,iy,
-					(h_conversion->GetBinContent(ix+1,iy)-h_conversion->GetBinContent(ix-1,iy)));
-	  h_derivative_y->SetBinContent(ix,iy,
-					(h_conversion->GetBinContent(ix,iy+1)-h_conversion->GetBinContent(ix,iy-1)));
+	  h_derivative_x.SetBinContent(ix,iy,
+					(h_conversion.GetBinContent(ix+1,iy)-h_conversion.GetBinContent(ix-1,iy)));
+	  h_derivative_y.SetBinContent(ix,iy,
+					(h_conversion.GetBinContent(ix,iy+1)-h_conversion.GetBinContent(ix,iy-1)));
 	}
 	else{
 	  mf::LogError("CornerFinderAlg") << "Local derivative not yet supported for neighborhoods > 1.";
@@ -996,14 +909,14 @@ void corner::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, T
       fDerivative_BlurNeighborhood=10;
     }
 
-    TH2F *h_clone_derivative_x = (TH2F*)h_derivative_x->Clone("h_clone_derivative_x");
-    TH2F *h_clone_derivative_y = (TH2F*)h_derivative_y->Clone("h_clone_derivative_y");
+    TH2F *h_clone_derivative_x = (TH2F*)h_derivative_x.Clone("h_clone_derivative_x");
+    TH2F *h_clone_derivative_y = (TH2F*)h_derivative_y.Clone("h_clone_derivative_y");
     
     temp_integral_x = 0;
     temp_integral_y = 0;
     
-    for(int ix=1; ix<=h_derivative_x->GetNbinsX(); ix++){
-      for(int iy=1; iy<=h_derivative_y->GetNbinsY(); iy++){
+    for(int ix=1; ix<=h_derivative_x.GetNbinsX(); ix++){
+      for(int iy=1; iy<=h_derivative_y.GetNbinsY(); iy++){
 
 	temp_integral_x = 0;
 	temp_integral_y = 0;
@@ -1014,8 +927,8 @@ void corner::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, T
 	    temp_integral_y += h_clone_derivative_y->GetBinContent(jx,jy)*func_blur[(ix-jx)+5][(iy-jy)+5];
 	  }
 	}
-	h_derivative_x->SetBinContent(ix,iy,temp_integral_x);
-	h_derivative_y->SetBinContent(ix,iy,temp_integral_y);
+	h_derivative_x.SetBinContent(ix,iy,temp_integral_x);
+	h_derivative_y.SetBinContent(ix,iy,temp_integral_y);
 
       }
     }
@@ -1033,10 +946,10 @@ void corner::CornerFinderAlg::create_derivative_histograms(TH2F *h_conversion, T
 //-----------------------------------------------------------------------------
 // Corner Score
 
-void corner::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x, TH2F *h_derivative_y, TH2D *h_cornerScore){
+void corner::CornerFinderAlg::create_cornerScore_histogram(TH2F const& h_derivative_x, TH2F const& h_derivative_y, TH2D & h_cornerScore){
 
-  const int x_bins = h_derivative_x->GetNbinsX();
-  const int y_bins = h_derivative_y->GetNbinsY();
+  const int x_bins = h_derivative_x.GetNbinsX();
+  const int y_bins = h_derivative_y.GetNbinsY();
   
   //the structure tensor elements
   double st_xx = 0., st_xy = 0., st_yy = 0.;
@@ -1050,9 +963,9 @@ void corner::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x,
 	for(int jx=ix-fCornerScore_neighborhood; jx<=ix+fCornerScore_neighborhood; jx++){
 	  for(int jy=iy-fCornerScore_neighborhood; jy<=iy+fCornerScore_neighborhood; jy++){
 	    
-	    st_xx += h_derivative_x->GetBinContent(jx,jy)*h_derivative_x->GetBinContent(jx,jy);
-	    st_yy += h_derivative_y->GetBinContent(jx,jy)*h_derivative_y->GetBinContent(jx,jy);
-	    st_xy += h_derivative_x->GetBinContent(jx,jy)*h_derivative_y->GetBinContent(jx,jy);
+	    st_xx += h_derivative_x.GetBinContent(jx,jy)*h_derivative_x.GetBinContent(jx,jy);
+	    st_yy += h_derivative_y.GetBinContent(jx,jy)*h_derivative_y.GetBinContent(jx,jy);
+	    st_xy += h_derivative_x.GetBinContent(jx,jy)*h_derivative_y.GetBinContent(jx,jy);
 	    
 	  }
 	}
@@ -1062,23 +975,23 @@ void corner::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x,
       else{
 	for(int jy=iy-fCornerScore_neighborhood; jy<=iy+fCornerScore_neighborhood; jy++){
 	  
-	  st_xx -= h_derivative_x->GetBinContent(ix-fCornerScore_neighborhood-1,jy)*h_derivative_x->GetBinContent(ix-fCornerScore_neighborhood-1,jy);
-	  st_xx += h_derivative_x->GetBinContent(ix+fCornerScore_neighborhood,jy)*h_derivative_x->GetBinContent(ix+fCornerScore_neighborhood,jy);
+	  st_xx -= h_derivative_x.GetBinContent(ix-fCornerScore_neighborhood-1,jy)*h_derivative_x.GetBinContent(ix-fCornerScore_neighborhood-1,jy);
+	  st_xx += h_derivative_x.GetBinContent(ix+fCornerScore_neighborhood,jy)*h_derivative_x.GetBinContent(ix+fCornerScore_neighborhood,jy);
 	  
-	  st_yy -= h_derivative_y->GetBinContent(ix-fCornerScore_neighborhood-1,jy)*h_derivative_y->GetBinContent(ix-fCornerScore_neighborhood-1,jy);
-	  st_yy += h_derivative_y->GetBinContent(ix+fCornerScore_neighborhood,jy)*h_derivative_y->GetBinContent(ix+fCornerScore_neighborhood,jy);
+	  st_yy -= h_derivative_y.GetBinContent(ix-fCornerScore_neighborhood-1,jy)*h_derivative_y.GetBinContent(ix-fCornerScore_neighborhood-1,jy);
+	  st_yy += h_derivative_y.GetBinContent(ix+fCornerScore_neighborhood,jy)*h_derivative_y.GetBinContent(ix+fCornerScore_neighborhood,jy);
 	  
-	  st_xy -= h_derivative_x->GetBinContent(ix-fCornerScore_neighborhood-1,jy)*h_derivative_y->GetBinContent(ix-fCornerScore_neighborhood-1,jy);
-	  st_xy += h_derivative_x->GetBinContent(ix+fCornerScore_neighborhood,jy)*h_derivative_y->GetBinContent(ix+fCornerScore_neighborhood,jy);
+	  st_xy -= h_derivative_x.GetBinContent(ix-fCornerScore_neighborhood-1,jy)*h_derivative_y.GetBinContent(ix-fCornerScore_neighborhood-1,jy);
+	  st_xy += h_derivative_x.GetBinContent(ix+fCornerScore_neighborhood,jy)*h_derivative_y.GetBinContent(ix+fCornerScore_neighborhood,jy);
 	}
       }
       
       if( fCornerScore_algorithm.compare("Noble")==0 ) {
-	h_cornerScore->SetBinContent(ix,iy,
+	h_cornerScore.SetBinContent(ix,iy,
 				     (st_xx*st_yy-st_xy*st_xy) / (st_xx+st_yy + fCornerScore_Noble_epsilon));
       }
 	else if( fCornerScore_algorithm.compare("Harris")==0 ) {
-	  h_cornerScore->SetBinContent(ix,iy,
+	  h_cornerScore.SetBinContent(ix,iy,
 				       (st_xx*st_yy-st_xy*st_xy) - ((st_xx+st_yy)*(st_xx+st_yy)*fCornerScore_Harris_kappa));
 	}
 	else{
@@ -1094,16 +1007,16 @@ void corner::CornerFinderAlg::create_cornerScore_histogram(TH2F *h_derivative_x,
 
 //-----------------------------------------------------------------------------
 // Max Supress
-size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D *h_cornerScore, 
-							     std::vector<recob::EndPoint2D> & corner_vector,
-							     std::vector<geo::WireID> wireIDs, 
-							     geo::View_t view, 
-							     TH2D *h_maxSuppress=NULL,
-							     int startx,
-							     int starty){
+size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D const& h_cornerScore, 
+							    std::vector<recob::EndPoint2D> & corner_vector,
+							    std::vector<geo::WireID> wireIDs, 
+							    geo::View_t view, 
+							    TH2D & h_maxSuppress,
+							    int startx,
+							    int starty){
 
-  const int x_bins = h_cornerScore->GetNbinsX();
-  const int y_bins = h_cornerScore->GetNbinsY();
+  const int x_bins = h_cornerScore.GetNbinsX();
+  const int y_bins = h_cornerScore.GetNbinsY();
 
   double temp_max;
   bool temp_center_bin;
@@ -1111,7 +1024,7 @@ size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D *h_cornerScore,
   for(int iy=1; iy<=y_bins; iy++){
     for(int ix=1; ix<=x_bins; ix++){
 
-      if(h_cornerScore->GetBinContent(ix,iy) < fMaxSuppress_threshold)
+      if(h_cornerScore.GetBinContent(ix,iy) < fMaxSuppress_threshold)
 	continue;
 
       temp_max = -1000;
@@ -1120,8 +1033,8 @@ size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D *h_cornerScore,
       for(int jx=ix-fMaxSuppress_neighborhood; jx<=ix+fMaxSuppress_neighborhood; jx++){
 	for(int jy=iy-fMaxSuppress_neighborhood; jy<=iy+fMaxSuppress_neighborhood; jy++){
 
-	  if(h_cornerScore->GetBinContent(jx,jy) > temp_max){
-	    temp_max = h_cornerScore->GetBinContent(jx,jy);
+	  if(h_cornerScore.GetBinContent(jx,jy) > temp_max){
+	    temp_max = h_cornerScore.GetBinContent(jx,jy);
 	    if(jx==ix && jy==iy) temp_center_bin=true;
 	    else{ temp_center_bin=false; }
 	  }
@@ -1137,14 +1050,13 @@ size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D *h_cornerScore,
 	int id = 0;
 	recob::EndPoint2D corner(time_tick,
 				 wireIDs[wire_number],
-				 h_cornerScore->GetBinContent(ix,iy),
+				 h_cornerScore.GetBinContent(ix,iy),
 				 id,
 				 view,
 				 totalQ);
 	corner_vector.push_back(corner);
 
-	if(h_maxSuppress)
-	  h_maxSuppress->SetBinContent(ix,iy,h_cornerScore->GetBinContent(ix,iy));	
+	h_maxSuppress.SetBinContent(ix,iy,h_cornerScore.GetBinContent(ix,iy));	
       }
       
     }
@@ -1156,12 +1068,12 @@ size_t corner::CornerFinderAlg::perform_maximum_suppression(TH2D *h_cornerScore,
 
 
 /* Silly little function for doing a line integral type thing. Needs improvement. */
-float corner::CornerFinderAlg::line_integral(TH2F *hist, int begin_x, float begin_y, int end_x, float end_y, float threshold){
+float corner::CornerFinderAlg::line_integral(TH2F const& hist, int begin_x, float begin_y, int end_x, float end_y, float threshold){
 
-  int x1 = hist->GetXaxis()->FindBin( begin_x );
-  int y1 = hist->GetYaxis()->FindBin( begin_y );
-  int x2 = hist->GetXaxis()->FindBin( end_x );
-  int y2 = hist->GetYaxis()->FindBin( end_y );
+  int x1 = hist.GetXaxis()->FindBin( begin_x );
+  int y1 = hist.GetYaxis()->FindBin( begin_y );
+  int x2 = hist.GetXaxis()->FindBin( end_x );
+  int y2 = hist.GetYaxis()->FindBin( end_y );
 
   if(x1==x2 && abs(y1-y2)<1e-5)
     return 0;
@@ -1199,7 +1111,7 @@ float corner::CornerFinderAlg::line_integral(TH2F *hist, int begin_x, float begi
       for(int iy=y_min; iy<=y_max; iy++){
 	bin_counter++;
 
-	if( hist->GetBinContent(ix,iy) > threshold )
+	if( hist.GetBinContent(ix,iy) > threshold )
 	  fraction += 1.;
       }
 
@@ -1216,7 +1128,7 @@ float corner::CornerFinderAlg::line_integral(TH2F *hist, int begin_x, float begi
     }
     for(int iy=y_min; iy<=y_max; iy++){
 	bin_counter++;
-	if( hist->GetBinContent(x1,iy) > threshold)
+	if( hist.GetBinContent(x1,iy) > threshold)
 	  fraction += 1.;
       }
 
@@ -1239,10 +1151,10 @@ std::vector<float> corner::CornerFinderAlg::line_integrals(trkf::BezierTrack& Th
 
       for(size_t j=0; j!=WireData_histos.size(); ++j)
         {
-          int x = WireData_histos.at(j)->GetXaxis()->FindBin(uvw[j]);
-          int y = WireData_histos.at(j)->GetYaxis()->FindBin(ticks[j]);
+          int x = WireData_histos.at(j).GetXaxis()->FindBin(uvw[j]);
+          int y = WireData_histos.at(j).GetYaxis()->FindBin(ticks[j]);
 
-          if( WireData_histos.at(j)->GetBinContent(x,y) > threshold )
+          if( WireData_histos.at(j).GetBinContent(x,y) > threshold )
             fractions.at(j) += 1.;
         }
     }
@@ -1255,10 +1167,10 @@ std::vector<float> corner::CornerFinderAlg::line_integrals(trkf::BezierTrack& Th
 
 //-----------------------------------------------------------------------------
 // Do the silly little line integral score thing
-size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F* h_wire_data, 
+size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F const& h_wire_data, 
 								std::vector<recob::EndPoint2D> const & corner_vector, 
 								std::vector<recob::EndPoint2D> & corner_lineIntegralScore_vector,
-								TH2F* h_lineIntegralScore){
+								TH2F & h_lineIntegralScore){
 
   float score;
 
@@ -1289,9 +1201,9 @@ size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F* h_wire_data
     corner_lineIntegralScore_vector.push_back(corner);
     
 
-    h_lineIntegralScore->SetBinContent(h_wire_data->GetXaxis()->FindBin(i_corner.WireID().Wire),
-				       h_wire_data->GetYaxis()->FindBin(i_corner.DriftTime()),
-				       score);
+    h_lineIntegralScore.SetBinContent(h_wire_data.GetXaxis()->FindBin(i_corner.WireID().Wire),
+				      h_wire_data.GetYaxis()->FindBin(i_corner.DriftTime()),
+				      score);
     
   }
   
@@ -1299,16 +1211,11 @@ size_t corner::CornerFinderAlg::calculate_line_integral_score( TH2F* h_wire_data
 }
 
 
-TH2F* corner::CornerFinderAlg::GetWireDataHist(unsigned int i_plane){
 
-  if(i_plane >= WireData_histos.size()){
-    mf::LogWarning("CornerFinderAlg") << "WARNING:  Requested plane does not exist.";
-    return NULL;
-  }
-
+TH2F const& corner::CornerFinderAlg::GetWireDataHist(unsigned int i_plane){
   return WireData_histos.at(i_plane);
 }
-
+/*
 TH2F* corner::CornerFinderAlg::GetConversionHist(unsigned int i_plane){
 
   if(i_plane >= fConversion_histos.size()){
@@ -1358,3 +1265,4 @@ TH2D* corner::CornerFinderAlg::GetMaxSuppressHist(unsigned int i_plane){
 
   return fMaxSuppress_histos.at(i_plane);
 }
+*/
