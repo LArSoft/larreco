@@ -10,7 +10,6 @@
 
 #include "fhiclcpp/ParameterSet.h" 
 
-#include "TMath.h"
 #include "TH2.h"
 #include "TF2.h"
 #include "TH1D.h"

@@ -91,21 +91,19 @@ bool genf::operator== (const GFTrackCand& lhs, const GFTrackCand& rhs){
   return result;
 }
 
-void genf::GFTrackCand::Print() const {
-  std::cout << "======== GFTrackCand::print ========" << std::endl;
-  if(fMcTrackId>=0) std::cout << "mcTrackId=" << fMcTrackId << std::endl;
-  std::cout << "seed values for pos,direction, and q/p: " << std::endl;
-  fPosSeed.Print();
-  fDirSeed.Print();
-  std::cout << "q/p=" << fQoverpSeed << std::endl;
+void genf::GFTrackCand::Print(std::ostream& out /* = std::cout */) const {
+  out << "======== GFTrackCand::print ========";
+  if(fMcTrackId>=0) out << "\nmcTrackId=" << fMcTrackId;
+  out << "\nseed values for pos,direction, and q/p: " << std::endl;
+  PrintROOTobject(out, fPosSeed);
+  PrintROOTobject(out, fDirSeed);
+  out << "q/p=" << fQoverpSeed << std::endl;
   if (fDetId.size() !=fHitId.size())
     throw std::runtime_error("genf::GFTrackCand::GFTrackCand(): hit/det size mismatch");
-  std::cout << "detId|hitId|rho ";
-  for(unsigned int i=0;i<fDetId.size();++i){
-    std::cout << fDetId.at(i) << "|" << fHitId.at(i) 
-	      << "|" << fRho.at(i) << " ";
-  }
-  std::cout << std::endl;
+  out << "detId|hitId|rho ";
+  for(unsigned int i=0;i<fDetId.size();++i)
+    out << fDetId.at(i) << "|" << fHitId.at(i) << "|" << fRho.at(i) << " ";
+  out << std::endl;
 }
 
 void genf::GFTrackCand::append(const GFTrackCand& rhs){

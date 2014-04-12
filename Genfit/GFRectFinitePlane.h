@@ -32,6 +32,7 @@
 #define GFRECTFINITEPLANE_H
 
 #include <stdexcept> // std::logic_error
+#include <iostream>
 #include "Genfit/GFAbsFinitePlane.h"
 
 /** @brief Concrete implementation of finitie detector plane for rectangles.
@@ -43,7 +44,7 @@ class GFRectFinitePlane : public GFAbsFinitePlane {
 public:
   //override inActive & Print methods
   bool inActive(const double& u,const double& v) const;
-  void Print() const;
+  void Print(std::ostream& out = std::cout) const;
 
   //! give dimensions of finite rectangle: u1,u2,v1,v2
   GFRectFinitePlane(const double&,const double&,const double&,const double&);

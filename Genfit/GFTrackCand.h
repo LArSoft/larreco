@@ -168,7 +168,7 @@ namespace genf {
 
     // Operations ----------------------
     void reset();
-    void Print() const ;
+    void Print(std::ostream& out = std::cout) const ;
 
   private:
 

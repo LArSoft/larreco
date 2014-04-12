@@ -30,6 +30,7 @@
 #include "TMatrixT.h"
 #include "TObject.h"
 
+#include "Genfit/GFException.h" // PrintROOTobject()
 #include "Genfit/GFAbsTrackRep.h"
 #include "Genfit/GFDetPlane.h"
 #include<cmath>
@@ -229,7 +230,8 @@ public:
 
   /** @brief Print raw hit coordinates.
    */
-  virtual void Print() {fHitCoord.Print();}
+  virtual void Print(std::ostream& out = std::cout) const
+    { PrintROOTobject(out, fHitCoord); }
 
   virtual const std::string& getPolicyName();
 

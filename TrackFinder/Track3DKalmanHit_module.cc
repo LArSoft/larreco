@@ -408,8 +408,6 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 	if(seedhits.size() + seederhits.size() == initial_seederhits) {
 
-	  mf::LogDebug log("Track3DKalmanHit");
-
 	  // Convert seed into initial KTracks on surface located at seed point, 
 	  // and normal to seed direction.
 
@@ -427,8 +425,11 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 	  vec(2) = 0.;
 	  vec(3) = 0.;
 	  vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
-
-	  log << "Seed found with " << seedhits.size() <<" hits.\n"
+	  
+	  // depending on the compilation options, might be a mf::LogDebug or a NeverLogger_;
+	  // note that the line number for the later insertions will be misleading
+	  auto log = LOG_DEBUG("Track3DKalmanHit")
+	      << "Seed found with " << seedhits.size() <<" hits.\n"
 	      << "(x,y,z) = " << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << "\n"
 	      << "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n"
 	      << "(x1, y1, z1)) = ";

@@ -239,16 +239,16 @@ genf::GFDetPlane::sane(){
 
 
 void
-genf::GFDetPlane::Print() const
+genf::GFDetPlane::Print(std::ostream& out /* = std::cout */) const
 {
-  std::cout<<"GFDetPlane: "
+  out<<"GFDetPlane: "
 	   <<"O("<<fO.X()<<","<<fO.Y()<<","<<fO.Z()<<") "
 	   <<"u("<<fU.X()<<","<<fU.Y()<<","<<fU.Z()<<") "
 	   <<"v("<<fV.X()<<","<<fV.Y()<<","<<fV.Z()<<") "
 	   <<"n("<<getNormal().X()<<","<<getNormal().Y()<<","<<getNormal().Z()<<") "
 		   <<std::endl;
-  std::cout << fFinitePlane << std::endl;
-  if(fFinitePlane!=NULL) fFinitePlane->Print();
+  out << fFinitePlane << std::endl;
+  if(fFinitePlane!=NULL) fFinitePlane->Print(out);
     
 }
 

@@ -409,9 +409,9 @@ public:
 
   /** @brief print bookkeeping
    */
-  void printBookkeeping();
-
-  void Print();
+  void printBookkeeping(std::ostream& out = std::cout) const;
+  
+  void Print(std::ostream& out = std::cout) const;
 
   void clearBookkeeping(){
     for(unsigned int i=0;i<getNumReps();++i){

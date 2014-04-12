@@ -90,17 +90,17 @@ genf::GFAbsTrackRep::reset(){
 }
 
 void
-genf::GFAbsTrackRep::Print() const {
-  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-  std::cout<<"GFAbsTrackRep::Parameters at reference plane ";
-  fRefPlane.Print();
-  std::cout<<"GFAbsTrackRep::State"<<std::endl;
-  fState.Print();
-  std::cout<<"GFAbsTrackRep::Covariances"<<std::endl;
-  fCov.Print();
-  std::cout<<"GFAbsTrackRep::chi^2"<<std::endl;
-  std::cout<<fChiSqu<<std::endl;
-  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+genf::GFAbsTrackRep::Print(std::ostream& out /* = std::cout */) const {
+  out << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+  out <<"GFAbsTrackRep::Parameters at reference plane ";
+  fRefPlane.Print(out);
+  out <<"GFAbsTrackRep::State"<<std::endl;
+  PrintROOTmatrix(out, fState);
+  out <<"GFAbsTrackRep::Covariances"<<std::endl;
+  PrintROOTmatrix(out, fCov);
+  out <<"GFAbsTrackRep::chi^2"<<std::endl;
+  out <<fChiSqu<<std::endl;
+  out << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 }
 
 

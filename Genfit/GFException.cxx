@@ -16,7 +16,10 @@
    You should have received a copy of the GNU Lesser General Public License
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include"GFException.h"
+
+#include "GFException.h"
+
+#include "TMath.h"
 
 bool GFException::fQuiet = false;
 
@@ -76,3 +79,13 @@ void GFException::info() {
   }
   std::cout << "===========================" << std::endl;  
 }
+
+
+//------------------------------------------------------------------------------
+template <>
+void genf::PrintROOTobject(std::ostream& out, const TVector3& v) {
+  out << "(x,y,z)=(" << v.X() << "," << v.Y() << "," << v.Z() << ")"
+    " (rho,theta,phi)=(" << v.Mag() << "," << (v.Theta()*TMath::RadToDeg())
+    << "," << (v.Phi()*TMath::RadToDeg()) << ")";
+} // genf::PrintROOTobject<TVector3>()
+

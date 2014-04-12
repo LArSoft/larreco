@@ -28,8 +28,12 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <ios> // std::ios::fmtflags
+#include <iomanip> // std::setw()
 
+#include "TObject.h"
 #include "TMatrixT.h"
+#include "TVector3.h"
 
 /** @brief Exception class for error handling in GENFIT (provides storage for diagnostic information)
  *
@@ -91,6 +95,74 @@ class GFException : public std::exception
   static void quiet(bool b=true){fQuiet=b;}
 
 };
+
+
+namespace genf {
+//------------------------------------------------------------------------------
+//@{
+/// Small utility functions which print some ROOT objects into an output stream
+template <class ROOTOBJ>
+void PrintROOTobject(std::ostream&, const ROOTOBJ&);
+
+template <>
+void PrintROOTobject(std::ostream&, const TVector3& v);
+
+template <typename T>
+void PrintROOTmatrix(std::ostream& out, const TMatrixT<T>& m);
+//@}
+
+
+/// Shortcut to write one ROOT object into a string
+template <class ROOTOBJ>
+std::string ROOTobjectToString(const ROOTOBJ& obj)
+  { std::ostringstream sstr; PrintROOTobject(sstr, obj); return sstr.str(); }
+
+
+} // namespace genf
+
+
+//------------------------------------------------------------------------------
+// template definitions
+//
+template <class ROOTOBJ>
+void genf::PrintROOTobject(std::ostream&, const ROOTOBJ& obj) { obj.Print(); }
+
+template <typename T>
+void genf::PrintROOTmatrix(std::ostream& out, const TMatrixT<T>& m) {
+  
+  constexpr std::streamsize fw = 11;
+  constexpr std::streamsize ifw = 4 + (fw & 1);
+  const Int_t rb = m.GetRowLwb(), cb = m.GetColLwb();
+  
+  const Int_t R = m.GetNrows(), C = m.GetNcols();
+  out << R << "x" << C << " matrix is as follows";
+  
+  std::streamsize swidth = out.width(4);
+  std::ios::fmtflags sflags = out.flags();
+  out.unsetf(std::ios_base::floatfield); // out << std::defaultfloat;
+  
+  // header: column number
+  std::string index_pad((fw-ifw)/2, ' ');
+  out << "\n" << std::string(ifw, ' ') << " |";
+  for (Int_t c = 0; c < C; ++c)
+    out << index_pad << std::setw(ifw) << (cb + c) << index_pad << "|";
+  
+  // dashed line
+  out << "\n" << std::string((C+1) * (fw+1), '-');
+  
+  // content, row by row
+  for (Int_t r = 0; r < R; ++r) {
+    // header: row number
+    out << "\n" << std::setw(ifw) << (rb + r) << " |";
+    for (Int_t c = 0; c < C; ++c) out << std::setw(fw) << m(rb + r, cb + c) << " ";
+  } // for r
+  out << "\n\n";
+  
+  // restore the stream features
+  out.flags(sflags);
+  out.width(swidth);
+} // genf::PrintROOTmatrix<TMatrixT<T>>()
+
 
 #endif
 

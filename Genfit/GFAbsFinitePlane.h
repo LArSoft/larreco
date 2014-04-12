@@ -30,6 +30,9 @@
 #define GFABSFINITEPLANE_H
 
 #include<stdexcept> // std::logic_error
+#include<string>
+#include<iostream>
+
 #include "TObject.h"
 
 /** @brief Abstract base class for implementing arbitrarily shaped finite detector planes
@@ -46,7 +49,7 @@ public:
   //! Returns whether a u,v point is in the active plane or not. Needs to be implemented
   //! in child class.
   virtual bool inActive(const double& u,const double& v)const = 0;
-  virtual void Print() const = 0;
+  virtual void Print(std::ostream& out = std::cout) const = 0;
   //! Deep copy ctor for polymorphic class.
   virtual GFAbsFinitePlane* clone() const = 0;
   virtual ~GFAbsFinitePlane();
@@ -57,8 +60,11 @@ public:
 
   // ClassDef(GFAbsFinitePlane,1)
 };
-}
+
+
+} // namespace genf
 
 /* @} **/
+
 
 #endif

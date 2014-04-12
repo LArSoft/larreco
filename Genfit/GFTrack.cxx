@@ -152,7 +152,7 @@ genf::GFTrack::fillGeoTrack(TVirtualGeoTrack* geotrk,unsigned int repid) const
 {
   GFAbsTrackRep* rep=getTrackRep(repid);
   unsigned int n=fCand.getNHits();
-  rep->getState().Print();
+  PrintROOTobject(std::cout, rep->getState());
   for(unsigned int i=0; i<n; ++i){// loop over hits
     GFDetPlane pl=fHits[i]->getDetPlane(rep);
     TVector3 pos=rep->getPos(pl);
@@ -197,21 +197,21 @@ genf::GFTrack::getResiduals(unsigned int detId, // which detector?
 }
 
 
-void genf::GFTrack::printBookkeeping(){
-  std::cout << "GFTrack::printBookkeeping()" << std::endl;
+void genf::GFTrack::printBookkeeping(std::ostream& out /* = std::cout */) const {
+  out << "GFTrack::printBookkeeping()" << std::endl;
   for(unsigned int i=0;i<getNumReps();++i){
-    std::cout << "trackRep " << i << ":" << std::endl;    
-    fBookkeeping.at(i)->Print();
+    out << "trackRep " << i << ":" << std::endl;    
+    fBookkeeping.at(i)->Print(out);
   }
 
 }
 
-void genf::GFTrack::Print(){
+void genf::GFTrack::Print(std::ostream& out /* = std::cout */) const {
   for(unsigned int i=0;i<getNumReps();++i){
-    getTrackRep(i)->Print();
-    fBookkeeping.at(i)->Print();
+    getTrackRep(i)->Print(out);
+    fBookkeeping.at(i)->Print(out);
   }
-  std::cout << "GFTrack has " << getNumHits() << " detector hits." << std::endl;
+  out << "GFTrack has " << getNumHits() << " detector hits." << std::endl;
   
 }
 

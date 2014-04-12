@@ -25,34 +25,16 @@
 ////////////////////////////////////////////////////////////////////////
 
 
-// ### Lots of includes...not sure if we need them all...just copy and pasting
-#include <iostream>
-#include <vector>
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-#include <sstream>
-#include <fstream>
-#include <math.h>
-#include <algorithm>
-#include <memory>
+#include "RecoAlg/CornerFinderAlg.h"
 
-#include "TMath.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "RawData/raw.h"
-#include "RawData/RawDigit.h"
+#include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Wire.h"
-#include "RecoAlg/CornerFinderAlg.h"
 
 #include "RecoObjects/BezierTrack.h"
-
-#include "fhiclcpp/ParameterSet.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 
 // NOTE: In the .h file I assumed this would belong in the cluster class....if 
@@ -231,7 +213,7 @@ void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> 
 }
 
 //-----------------------------------------------------------------------------------
-// This gives us a vecotr of EndPoint2D objects that correspond to possible corners, but quickly!
+// This gives us a vector of EndPoint2D objects that correspond to possible corners, but quickly!
 void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoint2D> & corner_vector, 
 						      geo::Geometry const& my_geometry){
 
@@ -247,7 +229,7 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 	int startx = std::get<2>(WireData_trimmed_histos.at(histos));
 	int starty = std::get<3>(WireData_trimmed_histos.at(histos));
 
-	mf::LogDebug("CornerFinderAlg") 
+	LOG_DEBUG("CornerFinderAlg") 
 	  << "Doing histogram " << histos 
 	  << ", of plane " << plane 
 	  << " with start points " << startx << " " << starty;
@@ -255,7 +237,7 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 	attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
 			      WireData_IDs.at(plane),my_geometry.Cryostat(cstat).TPC(tpc).Plane(plane).View(),corner_vector,startx,starty);
 
-	mf::LogDebug("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
+	LOG_DEBUG("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
       }
       
       //remove_duplicates(corner_vector);
@@ -473,23 +455,23 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
       
     }
     
-    mf::LogDebug("CornerFinderAlg") 
+    LOG_DEBUG("CornerFinderAlg") 
       << "First point in x is " << cut_points_x.at(0);
     
     std::sort(cut_points_x.begin(),cut_points_x.end(),compare_to_value(x_bins/2));	
     
-    mf::LogDebug("CornerFinderAlg") 
+    LOG_DEBUG("CornerFinderAlg") 
       << "Now the first point in x is " << cut_points_x.at(0);
     
-    mf::LogDebug("CornerFinderAlg") 
+    LOG_DEBUG("CornerFinderAlg") 
        << "First point in y is " << cut_points_y.at(0);
     
     std::sort(cut_points_y.begin(),cut_points_y.end(),compare_to_value(y_bins/2));	
     
-    mf::LogDebug("CornerFinderAlg") 
+    LOG_DEBUG("CornerFinderAlg") 
       << "Now the first point in y is " << cut_points_y.at(0);
       
-    mf::LogDebug("CornerFinderAlg") 
+    LOG_DEBUG("CornerFinderAlg") 
       << "\nIntegral on the SW side is " 
       << WireData_histos.at(pid.Plane).Integral(1,cut_points_x.at(0),1,cut_points_y.at(0))
       << "\nIntegral on the SE side is " 
