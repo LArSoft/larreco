@@ -16,8 +16,10 @@
 
 #include <map>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <cmath>
+#include <memory>
 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -327,6 +329,7 @@ namespace trkf {
     std::string fTrkSpptAssocModuleLabel;
     std::string fHitSpptAssocModuleLabel;
 
+    int fDump;                 // Number of events to dump to debug message facility.
     double fMinMCKE;           // Minimum MC particle kinetic energy (GeV).
     double fMinMCLen;          // Minimum MC particle length in tpc (cm).
     double fMatchColinearity;  // Minimum matching colinearity.
@@ -613,6 +616,7 @@ namespace trkf {
     , fStitchModuleLabel(pset.get<std::string>("StitchModuleLabel"))
     , fTrkSpptAssocModuleLabel(pset.get<std::string>("TrkSpptAssocModuleLabel"))
     , fHitSpptAssocModuleLabel(pset.get<std::string>("HitSpptAssocModuleLabel"))
+    , fDump(pset.get<int>("Dump"))
     , fMinMCKE(pset.get<double>("MinMCKE"))
     , fMinMCLen(pset.get<double>("MinMCLen"))
     , fMatchColinearity(pset.get<double>("MatchColinearity"))
@@ -631,6 +635,7 @@ namespace trkf {
       << "  StitchModuleLabel = " << fStitchModuleLabel << "\n"
       << "  TrkSpptAssocModuleLabel = " << fTrkSpptAssocModuleLabel << "\n"
       << "  HitSpptAssocModuleLabel = " << fHitSpptAssocModuleLabel << "\n"
+      << "  Dump = " << fDump << "\n"
       << "  MinMCKE = " << fMinMCKE << "\n"
       << "  MinMCLen = " << fMinMCLen;
   }
@@ -654,6 +659,14 @@ namespace trkf {
     std::map<int, art::PtrVector<recob::Hit> > hitmap;
     ++fNumEvent;
 
+    // Optional dump stream.
+
+    std::unique_ptr<mf::LogInfo> pdump;
+    if(fDump > 0) {
+      --fDump;
+      pdump = std::unique_ptr<mf::LogInfo>(new mf::LogInfo("TrackAna"));
+    }
+
     // Make sure histograms are booked.
 
     bool mc = !evt.isRealData();
@@ -672,6 +685,11 @@ namespace trkf {
       art::ServiceHandle<cheat::BackTracker> bt;
       plist = bt->ParticleList();
 
+      if(pdump) {
+	*pdump << "MC Particles\n"
+	       << "       Id   pdg           x         y         z          dx        dy        dz           p\n"
+	       << "-------------------------------------------------------------------------------------------\n";
+      }
 
       // Loop over mc particles, and fill histograms that depend only
       // on mc particles.  Also, fill a secondary list of mc particles
@@ -719,6 +737,55 @@ namespace trkf {
 	      // This is a good mc particle (capable of making a track).
 
 	      plist2.push_back(part);
+
+	      // Dump MC particle information here.
+
+	      if(pdump) {
+		double pstart = mcstartmom.Mag();
+		double pend = mcendmom.Mag();
+		*pdump << "\nOffset"
+		       << std::setw(3) << part->TrackId()
+		       << std::setw(6) << part->PdgCode()
+		       << "  " 
+		       << std::fixed << std::setprecision(2) 
+		       << std::setw(10) << mcdx
+		       << "\nStart " 
+		       << std::setw(3) << part->TrackId()
+		       << std::setw(6) << part->PdgCode()
+		       << "  " 
+		       << std::fixed << std::setprecision(2) 
+		       << std::setw(10) << mcstart[0]
+		       << std::setw(10) << mcstart[1]
+		       << std::setw(10) << mcstart[2];
+		if(pstart > 0.) {
+		  *pdump << "  "
+			 << std::fixed << std::setprecision(3) 
+			 << std::setw(10) << mcstartmom[0]/pstart
+			 << std::setw(10) << mcstartmom[1]/pstart
+			 << std::setw(10) << mcstartmom[2]/pstart;
+		}
+		else
+		  *pdump << std::setw(32) << " ";
+		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
+		*pdump << "\nEnd   " 
+		       << std::setw(3) << part->TrackId()
+		       << std::setw(6) << part->PdgCode()
+		       << "  " 
+		       << std::fixed << std::setprecision(2)
+		       << std::setw(10) << mcend[0]
+		       << std::setw(10) << mcend[1]
+		       << std::setw(10) << mcend[2];
+		if(pend > 0.01) {
+		  *pdump << "  " 
+			 << std::fixed << std::setprecision(3) 
+			 << std::setw(10) << mcendmom[0]/pend
+			 << std::setw(10) << mcendmom[1]/pend
+			 << std::setw(10) << mcendmom[2]/pend;
+		}
+		else
+		  *pdump << std::setw(32)<< " ";
+		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend << "\n";
+	      }
 
 	      // Fill histograms.
 
@@ -860,6 +927,13 @@ namespace trkf {
 
     // Below is TrackAna as we knew it before we wanted to analyze Stitched trks.
     if(trackh.isValid()) {
+
+      if(pdump) {
+	*pdump << "\nReconstructed Tracks\n"
+	       << "       Id  MCid           x         y         z          dx        dy        dz           p\n"
+	       << "-------------------------------------------------------------------------------------------\n";
+      }
+
       // Loop over tracks.
       
       int ntrack = trackh->size();
@@ -912,13 +986,18 @@ namespace trkf {
 	  rhists.fHmom->Fill(mom);
 	  rhists.fHlen->Fill(tlen);
 
+	  // Id of matching mc particle.
+
+	  int mcid = -1;
+
 	  // Loop over direction.  
+
 	  for(int swap=0; swap<2; ++swap) {
 
 	    // Analyze reversed tracks only if start momentum = end momentum.
 
 	    if(swap != 0 && track.NumberFitMomentum() > 0 &&
-	       track.VertexMomentum() != track.EndMomentum())
+	       std::abs(track.VertexMomentum() - track.EndMomentum()) > 1.e-3)
 	      continue;
 
 	    // Calculate the global-to-local rotation matrix.
@@ -957,7 +1036,7 @@ namespace trkf {
 	    const TMatrixD& cov = (swap == 0 ? track.VertexCovariance() : track.EndCovariance());
 	    
 	    // Loop over track-like mc particles.
-	    
+
 	    for(auto ipart = plist2.begin(); ipart != plist2.end(); ++ipart) {
 	      const simb::MCParticle* part = *ipart;
 	      if (!part)
@@ -1064,6 +1143,7 @@ namespace trkf {
 		  bool good = std::abs(w) <= fWMatchDisp &&
 		    tlen > 0.5 * plen;
 		  if(good) {
+		    mcid = part->TrackId();
 		    mchists.fHgstartx->Fill(mcstart.X());
 		    mchists.fHgstarty->Fill(mcstart.Y());
 		    mchists.fHgstartz->Fill(mcstart.Z());
@@ -1080,6 +1160,61 @@ namespace trkf {
 		}
 	      }
 	    }
+	  }
+
+	  // Dump track information here.
+
+	  if(pdump) {
+	    TVector3 pos = track.Vertex();
+	    TVector3 dir = track.VertexDirection();
+	    TVector3 end = track.End();
+	    pos[0] += trackdx;
+	    end[0] += trackdx;
+	    TVector3 enddir = track.EndDirection();
+	    double pstart = track.VertexMomentum();
+	    double pend = track.EndMomentum();
+	    *pdump << "\nOffset"
+		   << std::setw(3) << track.ID()
+		   << std::setw(6) << mcid
+		   << "  "
+		   << std::fixed << std::setprecision(2) 
+		   << std::setw(10) << trackdx
+		   << "\nStart " 
+		   << std::setw(3) << track.ID()
+		   << std::setw(6) << mcid
+		   << "  "
+		   << std::fixed << std::setprecision(2) 
+		   << std::setw(10) << pos[0]
+		   << std::setw(10) << pos[1]
+		   << std::setw(10) << pos[2];
+	    if(pstart > 0.) {
+	      *pdump << "  "
+		     << std::fixed << std::setprecision(3) 
+		     << std::setw(10) << dir[0]
+		     << std::setw(10) << dir[1]
+		     << std::setw(10) << dir[2];
+	    }
+	    else
+	      *pdump << std::setw(32) << " ";
+	    *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
+	    *pdump << "\nEnd   " 
+		   << std::setw(3) << track.ID()
+		   << std::setw(6) << mcid
+		   << "  "
+		   << std::fixed << std::setprecision(2)
+		   << std::setw(10) << end[0]
+		   << std::setw(10) << end[1]
+		   << std::setw(10) << end[2];
+	    if(pend > 0.01) {
+	      *pdump << "  " 
+		     << std::fixed << std::setprecision(3) 
+		     << std::setw(10) << enddir[0]
+		     << std::setw(10) << enddir[1]
+		     << std::setw(10) << enddir[2];
+	    }
+	    else 
+	      *pdump << std::setw(32)<< " ";
+	    *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend << "\n";
 	  }
 	}
       }

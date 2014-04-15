@@ -858,9 +858,9 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	// Make sure forward extend track momentum is over some
 	// minimum value.
 
-	if(trf.getVector()(4) > 2.) {
-	  trf.getVector()(4) = 2.;
-	  trf.getError()(4,4) = 2.;
+	if(trf.getVector()(4) > 5.) {
+	  trf.getVector()(4) = 5.;
+	  trf.getError()(4,4) = 5.;
 	}
       }
       else {

@@ -1020,7 +1020,10 @@ namespace  trkf{
 
     // depending on the compilation options, might be a mf::LogDebug or a NeverLogger_;
     // note that the line number for the later insertions will be misleading
-    auto debug = LOG_DEBUG("SpacePointAlg") << "Total hits = " << hits.size() << "\n\n";
+    //auto debug = LOG_DEBUG("SpacePointAlg") << "Total hits = " << hits.size() << "\n\n";
+    mf::LogDebug debug("SpacePointAlg");
+    debug << "Total hits = " << hits.size() << "\n\n";
+
 
     for(unsigned int cstat = 0; cstat < ncstat; ++cstat){
       for(unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {

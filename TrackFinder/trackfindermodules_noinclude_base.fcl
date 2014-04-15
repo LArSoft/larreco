@@ -115,6 +115,7 @@ standard_trackana:
 {
   module_type:        "TrackAna"
   TrackModuleLabel:   "trackkalmanhit"
+  Dump:               10
   MinMCKE:            0.05
   MinMCLen:           20.
   MatchColinearity:   0.99

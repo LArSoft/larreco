@@ -408,6 +408,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 	if(seedhits.size() + seederhits.size() == initial_seederhits) {
 
+	  mf::LogDebug log("Track3DKalmanHit");
+
 	  // Convert seed into initial KTracks on surface located at seed point, 
 	  // and normal to seed direction.
 
@@ -428,8 +430,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 	  
 	  // depending on the compilation options, might be a mf::LogDebug or a NeverLogger_;
 	  // note that the line number for the later insertions will be misleading
-	  auto log = LOG_DEBUG("Track3DKalmanHit")
-	      << "Seed found with " << seedhits.size() <<" hits.\n"
+	  //auto log = LOG_DEBUG("Track3DKalmanHit")
+	  log << "Seed found with " << seedhits.size() <<" hits.\n"
 	      << "(x,y,z) = " << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << "\n"
 	      << "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n"
 	      << "(x1, y1, z1)) = ";
@@ -535,10 +537,15 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 		      KGTrack trg2;
 		      ok = fKFAlg.smoothTrack(trg1, &trg2, fProp);
 		      if(ok) {
-			KETrack tremom;
-			bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
-			if(pok)
-			  fKFAlg.updateMomentum(tremom, fProp, trg2);
+
+			// Skip momentum estimate for constant-momentum tracks.
+
+			if(fDoDedx) {
+			  KETrack tremom;
+			  bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
+			  if(pok)
+			    fKFAlg.updateMomentum(tremom, fProp, trg2);
+			}
 			trg1 = trg2;
 		      }
 		    }
@@ -548,10 +555,15 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 		    if(ok) {
 		      ok = fKFAlg.smoothTrack(trg1, 0, fProp);
 		      if(ok) {
-			KETrack tremom;
-			bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
-			if(pok)
-			  fKFAlg.updateMomentum(tremom, fProp, trg1);
+
+			// Skip momentum estimate for constant-momentum tracks.
+
+			if(fDoDedx) {
+			  KETrack tremom;
+			  bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
+			  if(pok)
+			    fKFAlg.updateMomentum(tremom, fProp, trg1);
+			}
 
 			// Save this track.
 
