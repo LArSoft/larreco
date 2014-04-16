@@ -331,7 +331,7 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
 
   for(auto pid : my_geometry.PlaneIDs() ){
 
-    mf::LogDebug("CornerFinderAlg") 
+    LOG_DEBUG("CornerFinderAlg") 
       << "Working plane " << pid.Plane << ".";
 
     int x_bins = WireData_histos_ProjectionX.at(pid.Plane).GetNbinsX();
@@ -376,7 +376,7 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
       
     }
     
-    mf::LogDebug("CornerFinderAlg") 
+    LOG_DEBUG("CornerFinderAlg") 
       << "We have a total of " << cut_points_x.size() << " x cut points."
       << "\nWe have a total of " << cut_points_y.size() << " y cut points.";
     

@@ -120,7 +120,6 @@ namespace trkf {
     std::string     fSpptModuleLabel;// label for input collection
     std::string     fGenieGenModuleLabel;// label for input MC single particle generator
     std::string     fG4ModuleLabel;// label for input MC single particle generator
-    bool            fGenfPRINT;
     std::string     fSortDim; // direction in which to sort spacepoints
 
     TFile *fileGENFIT;
@@ -247,9 +246,9 @@ namespace trkf {
     fPerpLim               = pset.get< double  >("PerpLimit", 1.e6); // PCA cut.
     fDoFit                 = pset.get< bool  >("DoFit", true); // Der.
     fNumIt                 = pset.get< int  >("NumIt", 5); // Number x2 passes per fit.
-    fMinNumSppts            = pset.get< int  >("MinNumSppts", 5); // Min number of sppts in vector to bother fitting
-    fErrScaleS              = pset.get< double >("ErrScaleSim", 1.0); // error scale.
-    fErrScaleM              = pset.get< double >("ErrScaleMeas", 1.0); // error scale.
+    fMinNumSppts           = pset.get< int  >("MinNumSppts", 5); // Min number of sppts in vector to bother fitting
+    fErrScaleS             = pset.get< double >("ErrScaleSim", 1.0); // error scale.
+    fErrScaleM             = pset.get< double >("ErrScaleMeas", 1.0); // error scale.
     fDecimate              = pset.get< int  >("DecimateC", 40); // Sparsify data.
     fMaxUpdate             = pset.get< double >("MaxUpdateC", 0.1); // 0-out. 
     fDecimateU             = pset.get< int  >("DecimateU", 100);// Sparsify data.
@@ -259,11 +258,10 @@ namespace trkf {
     fMomHigh               = pset.get< double >("MomHigh", 20.); // Fit Range. 
     fPdg                   = pset.get< int  >("PdgCode", -13); // mu+ Hypothesis.
     fChi2Thresh            = pset.get< double >("Chi2HitThresh", 12.0E12); //For Re-pass.
-    fGenfPRINT             = pset.get< bool >("GenfPRINT", false);
     fSortDim               = pset.get< std::string> ("SortDirection", "z"); // case sensitive
     fMaxPass               = pset.get< int  >("MaxPass", 2); // mu+ Hypothesis.
-    try {
-      pset.get< std::string >("GenfPRINT"); // if it does not exist, throws
+    bool fGenfPRINT;
+    if (pset.get_if_present("GenfPRINT", fGenfPRINT)) {
       LOG_WARNING("Track3DKalmanSPS_GenFit")
         << "Parameter 'GenfPRINT' has been deprecated.\n"
         "Please use the standard message facility to enable GenFit debug output.";
@@ -276,7 +274,6 @@ namespace trkf {
       //   (assuming there is a LogDebugFile destination already; for example
       //   see the settings in uboonecode/uboone/Utilities/services_microboone.fcl )
     }
-    catch (const fhicl::exception&) {}
   }
 
 //-------------------------------------------------
@@ -670,13 +667,12 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		simb::MCParticle part(mc->GetParticle(jj));
 		MCOrigin.SetXYZ(part.Vx(),part.Vy(),part.Vz()); // V for Vertex
 		MCMomentum.SetXYZ(part.Px(),part.Py(),part.Pz());
-		if(fGenfPRINT || mf::isDebugEnabled()) {
-		  LOG_DEBUG("Track3DKalmanSPS_GenFit")
-		    << "FROM MC TRUTH, the particle's pdg code is: "<<part.PdgCode()<< " with energy = "<<part.E() <<", with energy = "<<part.E()
-		      << "\n  vtx: " << genf::ROOTobjectToString(MCOrigin)
-		      << "\n  momentum: " << genf::ROOTobjectToString(MCMomentum)
-		      << "\n    (both in Global (not volTPC) coords)";
-		}
+		LOG_DEBUG("Track3DKalmanSPS_GenFit")
+		  << "FROM MC TRUTH, the particle's pdg code is: "<<part.PdgCode()<< " with energy = "<<part.E() <<", with energy = "<<part.E()
+		  << "\n  vtx: " << genf::ROOTobjectToString(MCOrigin)
+		  << "\n  momentum: " << genf::ROOTobjectToString(MCMomentum)
+		  << "\n    (both in Global (not volTPC) coords)";
+		
 		repMC = new genf::RKTrackRep(MCOrigin,
 					     MCMomentum,
 					     posErr,
@@ -691,11 +687,9 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  *stMCT = repMC->getState();
 	  covMCT-> ResizeTo(repMC->getCov());
 	  *covMCT = repMC->getCov();
-	  if(fGenfPRINT || mf::isDebugEnabled()) {
-	    LOG_DEBUG("Track3DKalmanSPS_GenFit") << " repMC, covMC are ... \n"
-	      << genf::ROOTobjectToString(repMC->getState())
-	      << genf::ROOTobjectToString(repMC->getCov());
-	  }
+	  LOG_DEBUG("Track3DKalmanSPS_GenFit") << " repMC, covMC are ... \n"
+	    << genf::ROOTobjectToString(repMC->getState())
+	    << genf::ROOTobjectToString(repMC->getCov());
 
 	} // !isRealData
       nTrks = 0;
@@ -718,9 +712,8 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  if (spacepoints.size()<5) 
 	    { sppt++; rePass0 = 3; continue;} // for now...
 		  
-	  if(fGenfPRINT || mf::isDebugEnabled())
-	    LOG_DEBUG("Track3DKalmanSPS_GenFit")
-	      <<"\n\t found "<<spacepoints.size()<<" 3D spacepoint(s) for this element of std::vector<art:PtrVector> spacepoints. \n";
+	  LOG_DEBUG("Track3DKalmanSPS_GenFit")
+	    <<"\n\t found "<<spacepoints.size()<<" 3D spacepoint(s) for this element of std::vector<art:PtrVector> spacepoints. \n";
 	  
 	  //const double resolution = posErr.Mag(); 
 	  //	  
@@ -836,14 +829,13 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	      // track and give large angular deviations which
 	      // will kill the fit.
 	      mom.SetMag(2.0 * mom.Mag()); 
-	      if(fGenfPRINT || mf::isDebugEnabled()) LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Uncontained track ... ";
+	      LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Uncontained track ... ";
 	      fDecimateHere = fDecimateU;
 	      fMaxUpdateHere = fMaxUpdateU;
 	    }
 	  else
 	    {
-	      if(fGenfPRINT || mf::isDebugEnabled())
-	        LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Contained track ... Run "<<evt.run()<<" Event "<<evt.id().event();
+	      LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Contained track ... Run "<<evt.run()<<" Event "<<evt.id().event();
 	      // Don't decimate contained tracks as drastically, 
 	      // and omit only very large corrections ...
 	      // which hurt only high momentum tracks.
@@ -983,8 +975,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		    }
 	      
 	      
-		  if(fGenfPRINT || mf::isDebugEnabled())
-		    LOG_DEBUG("Track3DKalmanSPS_GenFit") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
+		  LOG_DEBUG("Track3DKalmanSPS_GenFit") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
 
 		  fitTrack.addHit(new genf::PointHit(spt3,err3),
 				  1,//dummy detector id
@@ -996,13 +987,11 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  
 	      if (fptsNo<=fMinNumSppts) // Cuz 1st 2 in each direction don't count. Should have, say, 3 more.
 		{ 
-		  if(fGenfPRINT || mf::isWarningEnabled())
-		    mf::LogDebug("Track3DKalmanSPS_GenFit") << "Bailing cuz only " << fptsNo << " spacepoints.";
+		  LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Bailing cuz only " << fptsNo << " spacepoints.";
 		  rePass++;
 		  continue;
 		} 
-	      if(fGenfPRINT || mf::isDebugEnabled())
-	        LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Fitting on " << fptsNo << " spacepoints.";
+	      LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Fitting on " << fptsNo << " spacepoints.";
 	      //      std::cout<<"Track3DKalmanSPS about to do GFKalman."<<std::endl;
 	      genf::GFKalman k;
 	      k.setBlowUpFactor(5); // 500 out of box. EC, 6-Jan-2011.
@@ -1043,23 +1032,22 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  
 	      if(rep->getStatusFlag()==0) // 0 is successful completion
 		{
-		  if(fGenfPRINT || mf::isDebugEnabled()) {
-		    auto dbg = LOG_DEBUG("Track3DKalmanSPS_GenFit");
+		  if(mf::isDebugEnabled()) {
 		    
-		    std::ostringstream sstr;
-		    planeG.Print(sstr);
-		    dbg << "Original plane:" << sstr.str();
+		    std::ostringstream dbgmsg;
+		    dbgmsg << "Original plane:";
+		    planeG.Print(dbgmsg);
 		    
-		    sstr.str("");
-		    rep->getReferencePlane().Print(sstr);
-		    dbg << "Current (fit) reference Plane:" << sstr.str();
+		    dbgmsg << "Current (fit) reference Plane:";
+		    rep->getReferencePlane().Print(dbgmsg);
 		    
-		    sstr.str("");
-		    rep->getLastPlane().Print(sstr);
-		    dbg << "Last reference Plane:" << sstr.str();
+		    dbgmsg << "Last reference Plane:";
+		    rep->getLastPlane().Print(dbgmsg);
 		    
 		    if (planeG != rep->getReferencePlane())
-		      dbg <<"  => original hit plane (not surprisingly) not current reference Plane!";
+		      dbgmsg <<"  => original hit plane (not surprisingly) not current reference Plane!";
+		    
+		    LOG_DEBUG("Track3DKalmanSPS_GenFit") << dbgmsg.str();
 		  }
 		  if (!skipFill)
 		    {
@@ -1106,11 +1094,9 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 			      fCov0[ii*5+jj] = dum2[jj];
 			    }
 			}
-		      if(fGenfPRINT || mf::isDebugEnabled()) {
-		        LOG_DEBUG("Track3DKalmanSPS_GenFit")
-		          << " First State and Cov:" << genf::ROOTobjectToString(*stREC)
-		          << genf::ROOTobjectToString(*covREC);
-		      }
+		      LOG_DEBUG("Track3DKalmanSPS_GenFit")
+		        << " First State and Cov:" << genf::ROOTobjectToString(*stREC)
+		        << genf::ROOTobjectToString(*covREC);
 		      chi2 = (Float_t)(rep->getChiSqu());
 		      ndf = rep->getNDF();
 		      nfail = fitTrack.getFailedHits();
@@ -1119,8 +1105,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		      chi2ndf = (Float_t)(chi2/ndf);
 		  
 		      nTrks++;
-		      if(fGenfPRINT || mf::isDebugEnabled())
-		        LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Track3DKalmanSPS about to do tree->Fill(). Chi2/ndf is " << chi2/ndf << ".";
+		      LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Track3DKalmanSPS about to do tree->Fill(). Chi2/ndf is " << chi2/ndf << ".";
 		      fpMCMom[3] = MCMomentum.Mag();
 		      for (int ii=0;ii<3;++ii)
 			{

@@ -180,7 +180,7 @@ namespace cluster{
                  signal[ii - 1] > signal[ii - 2] &&
                  signal[ii    ] > signal[ii + 1] &&
                  signal[ii + 1] > signal[ii + 2]) bumps.push_back(npt);
-//  if(prt) mf::LogDebug("CCHitFinder")<<"signl "<<ii<<" "<<signl[npt];
+//  if(prt) LOG_DEBUG("CCHitFinder")<<"signl "<<ii<<" "<<signl[npt];
               ++npt;
             }
   // decide if this RAT should be studied
@@ -266,7 +266,7 @@ namespace cluster{
     TGraph *fitn = new TGraph(npt, ticks, signl);
     TF1 *Gn = new TF1("gn",eqn.c_str());
 
-//  if(prt) mf::LogDebug("CCHitFinder")
+//  if(prt) LOG_DEBUG("CCHitFinder")
 //    <<"FitNG nGaus "<<nGaus<<" nBumps "<<bumps.size();
 
     // put in the bump parameters. Assume that nGaus >= bumps.size()
@@ -280,7 +280,7 @@ namespace cluster{
       Gn->SetParLimits(index + 1, 0, (double)npt);
       Gn->SetParameter(index + 2, (double)minRMS);
       Gn->SetParLimits(index + 2, 1., 3*(double)minRMS);
-//  if(prt) mf::LogDebug("CCHitFinder")<<"Bump params "<<ii<<" "<<(short)amp
+//  if(prt) LOG_DEBUG("CCHitFinder")<<"Bump params "<<ii<<" "<<(short)amp
 //    <<" "<<(int)bumptime<<" "<<(int)minRMS;
     } // ii bumps
 
@@ -297,7 +297,7 @@ namespace cluster{
         }
       } // jj
       if(imbig > 0) {
-//  if(prt) mf::LogDebug("CCHitFinder")<<"Found bump "<<ii<<" "<<(short)big
+//  if(prt) LOG_DEBUG("CCHitFinder")<<"Found bump "<<ii<<" "<<(short)big
 //    <<" "<<imbig;
         // set the parameters for the bump
         unsigned short index = ii * 3;
@@ -360,11 +360,11 @@ namespace cluster{
     } // nGaus > 1
 /*
   if(prt) {
-    mf::LogDebug("CCHitFinder")<<"Fit "<<nGaus<<" chi "<<chidof
+    LOG_DEBUG("CCHitFinder")<<"Fit "<<nGaus<<" chi "<<chidof
       <<" npars "<<partmp.size();
-    mf::LogDebug("CCHitFinder")<<"pars    errs ";
+    LOG_DEBUG("CCHitFinder")<<"pars    errs ";
     for(unsigned short ii = 0; ii < partmp.size(); ++ii) {
-      mf::LogDebug("CCHitFinder")<<ii<<" "<<partmp[ii]<<" "
+      LOG_DEBUG("CCHitFinder")<<ii<<" "<<partmp[ii]<<" "
         <<partmperr[ii];
     }
   }
@@ -408,7 +408,7 @@ namespace cluster{
       parerr = partmperr;
     } else {
       chidof = 9999.;
-//      if(prt) mf::LogDebug("CCHitFinder")<<"Bad fit parameters";
+//      if(prt) LOG_DEBUG("CCHitFinder")<<"Bad fit parameters";
     }
     
     delete fitn;
@@ -437,7 +437,7 @@ namespace cluster{
     rms = sqrt(rms / sumS);
     float amp = sumS / (Sqrt2Pi * rms);
     par.clear();
-//  if(prt) mf::LogDebug("CCHitFinder")<<"Crude hit Amp "<<(int)amp<<" mean "
+//  if(prt) LOG_DEBUG("CCHitFinder")<<"Crude hit Amp "<<(int)amp<<" mean "
 //    <<(int)mean<<" rms "<<rms;
     par.push_back(amp);
     par.push_back(mean);
@@ -450,7 +450,7 @@ namespace cluster{
     parerr.push_back(amperr);
     parerr.push_back(meanerr);
     parerr.push_back(rmserr);
-//  if(prt) mf::LogDebug("CCHitFinder")<<" errors Amp "<<amperr<<" mean "
+//  if(prt) LOG_DEBUG("CCHitFinder")<<" errors Amp "<<amperr<<" mean "
 //    <<meanerr<<" rms "<<rmserr;
     chidof = 9999.;
   }
@@ -519,9 +519,9 @@ namespace cluster{
     }
 /*
   if(prt) {
-    mf::LogDebug("CCHitFinder")<<"hit loTime hiTime loHitIDs nMultHits";
+    LOG_DEBUG("CCHitFinder")<<"hit loTime hiTime loHitIDs nMultHits";
     for(unsigned short hit = 0; hit < nhits; ++hit) {
-      mf::LogDebug("CCHitFinder")<<hit<<" "<<(int)loTimes[hit]
+      LOG_DEBUG("CCHitFinder")<<hit<<" "<<(int)loTimes[hit]
         <<" "<<(int)hiTimes[hit]
         <<" "<<loHitIDs[hit]<<" "<<nMultHits[hit];
     }
@@ -554,7 +554,7 @@ namespace cluster{
       onehit.InClus = 0;
 /*
   if(prt) {
-    mf::LogDebug("CCHitFinder")<<"W:T "<<theWireNum<<":"<<(short)onehit.Time
+    LOG_DEBUG("CCHitFinder")<<"W:T "<<theWireNum<<":"<<(short)onehit.Time
       <<" Chg "<<(short)onehit.Charge
       <<" RMS "<<onehit.RMS
       <<" lo ID "<<onehit.LoHitID

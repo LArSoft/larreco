@@ -291,9 +291,9 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
   // Loop over geant particles.
 
   {
-    // depending on the compilation options, might be a mf::LogDebug or a NeverLogger_;
-    // note that the line numbers will be misleading
-    auto log = LOG_DEBUG("TrackKalmanCheater");
+    // use mf::LogDebug instead of LOG_DEBUG because we reuse it in many lines;
+    // insertions are protected by mf::isDebugEnabled()
+    mf::LogDebug log("TrackKalmanCheater");
     for(sim::ParticleList::const_iterator ipart = plist.begin();
 	ipart != plist.end(); ++ipart) {
       const simb::MCParticle* part = (*ipart).second;
@@ -313,25 +313,29 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 	int nhit = 0;
 	if(hitmap.count(trackid) != 0)
 	  nhit = hitmap[trackid].size();
-	log << "Trackid=" << trackid 
-	    << ", pdgid=" << pdg 
-	    << ", status=" << stat
-	    << ", NHit=" << nhit << "\n";
 	const TLorentzVector& pos = part->Position();
+	const TLorentzVector& mom = part->Momentum();
+	
+	if (mf::isDebugEnabled()) {
+	  log << "Trackid=" << trackid 
+	      << ", pdgid=" << pdg 
+	      << ", status=" << stat
+	      << ", NHit=" << nhit << "\n"
+	      << "  x = " << pos.X()
+	      << ", y = " << pos.Y()
+	      << ", z = " << pos.Z() << "\n"
+	      << "  px= " << mom.Px()
+	      << ", py= " << mom.Py()
+	      << ", pz= " << mom.Pz() << "\n";
+	} // if debugging
+	
 	double x = pos.X();
 	double y = pos.Y();
 	double z = pos.Z();
-	const TLorentzVector& mom = part->Momentum();
 	double px = mom.Px();
 	double py = mom.Py();
 	double pz = mom.Pz();
 	double p = std::sqrt(px*px + py*py + pz*pz);
-	log << "  x = " << pos.X()
-	    << ", y = " << pos.Y()
-	    << ", z = " << pos.Z() << "\n"
-	    << "  px= " << mom.Px()
-	    << ", py= " << mom.Py()
-	    << ", pz= " << mom.Pz() << "\n";
 
 	if(nhit > 0 && pz != 0.) {
 	  const art::PtrVector<recob::Hit>& trackhits = hitmap[trackid];
@@ -373,7 +377,8 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 	    if(planehits[i] > planehits[prefplane])
 	      prefplane = i;
 	  }
-	  log << "Preferred plane = " << prefplane << "\n";
+	  if (mf::isDebugEnabled())
+	    log << "Preferred plane = " << prefplane << "\n";
 
 	  // Build and smooth track.
 
@@ -391,11 +396,10 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 	      kalman_tracks.push_back(trg);
 	    }
 	  }
-	  if(ok)
-	    log << "Build track succeeded.\n";
-	  else
-	    log << "Build track failed.\n";
- 	}
+	  if (mf::isDebugEnabled())
+	    log << (ok? "Build track succeeded.": "Build track failed.") << "\n";
+	  
+	}
       }
     }
   }
