@@ -423,7 +423,7 @@ namespace  trkf{
 	  geo::WireID hitWireID = hit.WireID();
 		
 	  const geo::WireGeo& wgeom = geom->WireIDToWireGeo(hit.WireID());
-	  if (hitWireID.TPC == tpc && hitWireID.Cryostat == cstat)
+	  if ((hitWireID.TPC != tpc) || (hitWireID.Cryostat != cstat))
 	    throw cet::exception("SpacePointAlg") << "compatible(): geometry mismatch\n";
 
 	  // Get angles and distance of wire.
