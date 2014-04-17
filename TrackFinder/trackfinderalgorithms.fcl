@@ -69,7 +69,7 @@ standard_kalmanfilteralg:
   MaxEndChisq: 10.   # Maximum incremental chisquare for endpoint hit.
   MinLHits: 20       # Minimum number of measurements for linearized propagation.
   MaxLDist: 10.      # Maximum distance to use linearized propagation using starting guess.
-  MaxPredDist: 2.    # Maximum prediction distance to accept a hit.
+  MaxPredDist: 5.    # Maximum prediction distance to accept a hit.
   MaxPropDist: 50.   # Maximum propagation distance to candidate surface.
   MinSortDist: 0.    # Low threshold to resort hits.
   MaxSortDist: 2.    # High threshold to resort hits.
