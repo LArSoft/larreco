@@ -133,7 +133,7 @@ void cluster::EndPointAlg::VSSaveBMPFile(const char *fileName, unsigned char *pi
 }
 
 //......................................................
-size_t cluster::EndPointAlg::EndPoint(art::PtrVector<recob::Cluster>                 & clusIn, 
+size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>           & clusIn, 
 				      std::vector<recob::EndPoint2D>		     & vtxcol,
 				      std::vector< art::PtrVector<recob::Hit> >      & vtxHitsOut,
 				      art::Event                                const& evt,

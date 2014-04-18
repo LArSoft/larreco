@@ -186,6 +186,8 @@ namespace cluster{
 	
 			//write the leftover hits as a cluster:
 			if (leftoverHits.size() != 0){
+				// pick some information from the first hit
+				geo::PlaneID planeID = leftoverHits.front()->WireID().planeID();
 				if (verbose) std::cout << "Writing leftover hits to cluster ID: " << iplane*100 << std::endl;
 				recob::Cluster leftover( 0,  0, 	//start wire, error in start wire
 								 0,  0,		//start time, error in start time
@@ -194,8 +196,9 @@ namespace cluster{
 								 0., 0.,	//dTdW, error in dTdW ??
 								 0., 0.,	//dQdW, error in dQdW ??
 								 5.,		//Total Q
-								 geom->Plane(iplane,0,0).View(), 	//View (geo::View_t)
-								 iplane*100);	//id for cluster, given as plane here
+								 geom->Plane(iplane,planeID.TPC,planeID.Cryostat).View(), //View (geo::View_t)
+								 iplane*100, //id for cluster, given as plane here
+								 planeID); // plane ID of the first hit of the "cluster"
 	
 				SmallClusterFinder->push_back(leftover);
 				util::CreateAssn(*this, evt, *SmallClusterFinder, leftoverHits, *assn);  
@@ -206,6 +209,9 @@ namespace cluster{
 			smallClusters = fSmallClusterFinderAlg.GetSmallClustersByPlane(iplane);
 		
 			for (unsigned int i = 0; i < smallClusters.size(); i++){
+				// pick some information from the first hit
+				geo::PlaneID planeID; // invalid by default
+				if (!smallClusters.empty()) planeID = smallClusters[i].front()->WireID().planeID();
 				recob::Cluster clust( 0,  0, 	//start wire, error in start wire
 								 0,  0,		//start time, error in start time
 								 0., 0.,	//end   wire, error in end   wire
@@ -213,10 +219,10 @@ namespace cluster{
 								 0., 0.,	//dTdW, error in dTdW ??
 								 0., 0.,	//dQdW, error in dQdW ??
 								 5.,		//Total Q
-								 geom->Plane(iplane,0,0).View(), 	//View (geo::View_t)
-								 iplane*100 + i + 1);	//id for cluster, given as plane here
-
-	
+								 geom->Plane(iplane,planeID.TPC,planeID.Cryostat).View(), 	//View (geo::View_t)
+								 iplane*100 + i + 1, //id for cluster, given as plane here
+								 planeID); // plane ID of the first hit of the small cluster
+				
 				SmallClusterFinder->push_back(clust);
 				// associate the hits to this cluster
 				util::CreateAssn(*this, evt, *SmallClusterFinder, smallClusters[i], *assn);
@@ -234,7 +240,8 @@ namespace cluster{
 								 0., 0.,	//dQdW, error in dQdW ??
 								 0.,		//Total Q
 								 geom->Plane(iplane,0,0).View(), 	//View (geo::View_t)
-								 -iplane);	//id for cluster, given as plane here
+								 -iplane,	//id for cluster, given as plane here
+								 PlaneID()); // invalid plane
 
 	
 				SmallClusterFinder->push_back(clust);

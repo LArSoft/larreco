@@ -142,10 +142,12 @@ namespace cluster {
       clusIn.push_back(cluster);
     }
     
-    // make a std::vector<recob::Cluster> for the output of the 
-    // Hough Transform and a std::vector< art::PtrVector<recob::Hit> >
-    // to hold the associated hits
-    std::vector<recob::Cluster>               clusOut;
+    //Point to a collection of clusters to output.
+    std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>);
+    std::unique_ptr< art::Assns<recob::Cluster, recob::Hit> > assn(new art::Assns<recob::Cluster, recob::Hit>);
+    
+    // make a std::vector< art::PtrVector<recob::Hit> >
+    // to hold the associated hits of the Hough Transform 
     std::vector< art::PtrVector<recob::Hit> > clusHitsOut;
     
     size_t numclus = 0;
@@ -159,7 +161,7 @@ namespace cluster {
       engine.setSeed(fHoughSeed,0);
     } 
 
-    numclus = fHLAlg.FastTransform(clusIn, clusOut, clusHitsOut, evt, fDBScanModuleLabel);
+    numclus = fHLAlg.FastTransform(clusIn, *ccol, clusHitsOut, evt, fDBScanModuleLabel);
 
 
     //size_t Transform(std::vector<art::Ptr<recob::Cluster> >           & clusIn,
@@ -170,9 +172,6 @@ namespace cluster {
   
     LOG_DEBUG("HoughLineClusters") << "found " << numclus << "clusters with HoughBaseAlg";
   
-    //Point to a collection of clusters to output.
-    std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(clusOut));
-    std::unique_ptr< art::Assns<recob::Cluster, recob::Hit> > assn(new art::Assns<recob::Cluster, recob::Hit>);
   
     mf::LogVerbatim("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
     mf::LogVerbatim("Summary") << "HoughLineFinder Summary:";

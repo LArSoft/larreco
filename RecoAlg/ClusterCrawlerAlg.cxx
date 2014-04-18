@@ -131,7 +131,7 @@ namespace cluster {
         for(plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane){
           WireHitRange.clear();
           // define a code to ensure clusters are compared within the same plane
-          clCTP = 100 * cstat + 10 * tpc + plane;
+          clCTP = EncodeCTP(cstat, tpc, plane);
           // fill the WireHitRange vector with first/last hit on each wire
           // dead wires and wires with no hits are flagged < 0
           GetHitRange(allhits, clCTP, WireHitRange, fFirstWire, fLastWire);
@@ -1799,7 +1799,7 @@ namespace cluster {
     myprt<<"  ID CTP nht Stop  Proc  beg_W:T  bTheta Therr"
       <<" begChg  end_W:T  eTheta Therr endChg bVx eVx\n";
     for(unsigned short ii = 0; ii < tcl.size(); ++ii) {
-      if(fDebugPlane >= 0 && fDebugPlane != tcl[ii].CTP) continue;
+      if(fDebugPlane >= 0 && fDebugPlane != (int) tcl[ii].CTP) continue;
       myprt<<std::right<<std::setw(4)<<tcl[ii].ID;
       myprt<<std::right<<std::setw(3)<<tcl[ii].CTP;
       myprt<<std::right<<std::setw(5)<<tcl[ii].tclhits.size();
@@ -3001,7 +3001,7 @@ namespace cluster {
 
 //////////////////////////////////
     void ClusterCrawlerAlg::GetHitRange(std::vector<CCHitFinderAlg::CCHit>& allhits,
-      unsigned short CTP, 
+      CTP_t CTP, 
       std::vector< std::pair<short, short> >& WireHitRange,
       unsigned short& firstwire, unsigned short& lastwire)
     {
@@ -3010,18 +3010,16 @@ namespace cluster {
       bool first = true;
       lastwire = 0;
       unsigned short firsthit = 0;
-      unsigned int cst = CTP / 100;
-      unsigned int tpc = (CTP - 100 * cst) / 10;
-      unsigned int pla = CTP - 100 * cst - 10 * tpc;
+      geo::PlaneID planeID = DecodeCTP(CTP);
       unsigned short lasthit = 0;
       // find the first and last wire with a hit
       for(unsigned short hit = 0; hit < allhits.size(); ++hit) {
         art::Ptr<recob::Wire> theWire = allhits[hit].Wire;
         uint32_t channel = theWire->Channel();
         std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
-        if(wids[0].Plane != pla) continue;
-        if(wids[0].TPC != tpc) continue;
-        if(wids[0].Cryostat != cst) continue;
+        if(wids[0].Plane != planeID.Plane) continue;
+        if(wids[0].TPC != planeID.TPC) continue;
+        if(wids[0].Cryostat != planeID.Cryostat) continue;
         unsigned short theWireNum = allhits[hit].WireNum;
         if(theWireNum != allhits[hit].WireNum)
           mf::LogError("ClusterCrawler")<<"GetHitRange WireNum screwup ";
@@ -3044,7 +3042,8 @@ namespace cluster {
       filter::ChannelFilter cf;
       sflag = -1;
       for(unsigned short wire = firstwire+1; wire < lastwire; ++wire) {
-        uint32_t chan = geom->PlaneWireToChannel((int)pla,(int)wire,(int)tpc,(int)cst);
+        uint32_t chan = geom->PlaneWireToChannel
+          ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
         // remember to offset references to WireHitRange by the FirstWire
         unsigned short index = wire - firstwire;
         if(cf.BadChannel(chan)) WireHitRange[index] = std::make_pair(sflag, sflag);
