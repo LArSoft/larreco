@@ -26,6 +26,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
 
+#include "Utilities/DetectorProperties.h"
 #include "Utilities/LArProperties.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Seed.h"
@@ -101,9 +102,10 @@ namespace {
 		TVector3& start, TVector3& end, TVector3& startmom, TVector3& endmom,
 		unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
   {
-    // Get geometry.
+    // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<util::DetectorProperties> detprop;
 
     // Get fiducial volume boundary.
 
@@ -113,8 +115,6 @@ namespace {
     double ymax = geom->DetHalfHeight();
     double zmin = 0.;
     double zmax = geom->DetLength();
-    double xminframe = -2.*geom->DetHalfWidth();
-    double xmaxframe = 4.*geom->DetHalfWidth();
 
     double result = 0.;
     TVector3 disp;
@@ -135,7 +135,8 @@ namespace {
 	 pos.Z() >= zmin &&
 	 pos.Z() <= zmax) {
 	pos[0] += dx;
-	if(pos[0] >= xminframe && pos[0] <= xmaxframe) {
+	double ticks = detprop->ConvertXToTicks(pos[0], 0, 0, 0);
+	if(ticks >= 0. && ticks < detprop->ReadOutWindowSize()) {
 	  if(first) {
 	    start = pos;
 	    startmom = part.Momentum(i).Vect();
