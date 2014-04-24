@@ -1,5 +1,5 @@
 #ifndef CORNERFINDER_H
-#define CORNDERFINDER_H
+#define CORNERFINDER_H
 /*!
  * Title:   CornerFinder class
  * Author:  wketchum@lanl.gov
