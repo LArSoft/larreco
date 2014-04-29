@@ -433,8 +433,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 	  if (mf::isDebugEnabled()) {
 	    log << "Seed found with " << seedhits.size() <<" hits.\n"
 	        << "(x,y,z) = " << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << "\n"
-	        << "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n"
-	        << "(x1, y1, z1)) = ";
+	        << "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n";
 	  } // if debug
 
 	  // Cut on the seed slope dx/dz.

@@ -318,7 +318,13 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	if(ok) {
 	  double chisq = hit.getChisq();
 	  double preddist = hit.getPredDistance();
-	  if((pref != 0 || best_chisq < fMaxIncChisq) && abs(preddist) < fMaxPredDist &&
+	  if(fTrace) {
+	    log << "Trying Hit.\n"
+		<< hit
+		<< "\nchisq = " << chisq << "\n"
+		<< "preddist = " << preddist << "\n";
+	  }
+	  if(chisq < fMaxIncChisq && abs(preddist) < fMaxPredDist &&
 	     (best_hit.get() == 0 || chisq < best_chisq) ) {
 	    best_hit = *ihit;
 	    best_chisq = chisq;
