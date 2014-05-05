@@ -25,17 +25,33 @@
 /// MinSampleDist - Minimum sample distance (for momentum measurement).
 /// FitMomRange   - Fit momentum using range.
 /// FitMomMS      - Fit momentum using multiple scattering.
+/// GTrace        - Graphical trace flag.
+/// GTraceXMin0   - Graphical trace minimum x, plane 0.
+/// GTraceXMax0   - Graphical trace maximum x, plane 0.
+/// GTraceZMin0   - Graphical trace minimum z, plane 0.
+/// GTraceZMax0   - Graphical trace maximum z, plane 0.
+/// GTraceXMin1   - Graphical trace minimum x, plane 1.
+/// GTraceXMax1   - Graphical trace maximum x, plane 1.
+/// GTraceZMin1   - Graphical trace minimum z, plane 1.
+/// GTraceZMax1   - Graphical trace maximum z, plane 1.
+/// GTraceXMin2   - Graphical trace minimum x, plane 2.
+/// GTraceXMax2   - Graphical trace maximum x, plane 2.
+/// GTraceZMin2   - Graphical trace minimum z, plane 2.
+/// GTraceZMax2   - Graphical trace maximum z, plane 2.
 ///
 ////////////////////////////////////////////////////////////////////////
 
 #ifndef KALMANFILTERALG_H
 #define KALMANFILTERALG_H
 
+#include <vector>
+#include <memory>
 #include "RecoObjects/KGTrack.h"
 #include "RecoObjects/Propagator.h"
 #include "RecoObjects/KHitContainer.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Persistency/Common/PtrVector.h"
+#include "TCanvas.h"
 
 namespace trkf {
 
@@ -129,10 +145,19 @@ namespace trkf {
     double fMinSampleDist;   ///< Minimum sample distance (for momentum measurement).
     bool fFitMomRange;       ///< Fit momentum using range.
     bool fFitMomMS;          ///< Fit momentum using multiple scattering.
+    bool fGTrace;            ///< Graphical trace flag.
+    double fGTraceWW;        ///< Window width.
+    double fGTraceWH;        ///< Window height.
+    std::vector<double> fGTraceXMin;  ///< Graphical trace minimum x for each view.
+    std::vector<double> fGTraceXMax;  ///< Graphical trace maximum x for each view.
+    std::vector<double> fGTraceZMin;  ///< Graphical trace minimum z for each view.
+    std::vector<double> fGTraceZMax;  ///< Graphical trace maximum z for each view.
 
     // Other attributes.
 
-    int fPlane;          ///< Preferred view plane.
+    int fPlane;              ///< Preferred view plane.
+    mutable std::unique_ptr<TCanvas> fCanvas;   ///< Graphical trace canvas.
+    mutable std::vector<TVirtualPad*> fPads;           ///< View pads.
   };
 }
 

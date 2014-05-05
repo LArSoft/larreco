@@ -79,6 +79,18 @@ standard_kalmanfilteralg:
   MinSampleDist: 20. # Minimum sample distance (for momentum measurement).
   FitMomRange: true  # Fit momentum using range.
   FitMomMS: false    # Fit momentum using multiple scattering.
+
+  # Graphical trace options.
+  # For any kine of graphical tracing to work, you need to configure
+  # the event display service to initialize the graphics system.
+
+  GTrace: false      # Graphical trace flag.
+  GTraceWW: 1200      # Window width (pixels).
+  GTraceWH: 800     # Window height (pixels).
+  GTraceXMin: [    0.,    0.,    0.]  # Graphical trace minimum x for each view.
+  GTraceXMax: [  256.,  256.,  256.]  # Graphical trace maximum x for each view.
+  GTraceZMin: [    0.,    0.,    0.]  # Graphical trace minimum z for each view.
+  GTraceZMax: [ 1040., 1040., 1040.]  # Graphical trace maximum z for each view
 }
 
 bo_kalmanfilteralg:          @local::standard_kalmanfilteralg

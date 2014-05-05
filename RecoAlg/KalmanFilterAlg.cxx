@@ -13,10 +13,66 @@
 #include "cetlib/exception.h"
 #include "boost/numeric/ublas/vector_proxy.hpp"
 #include "boost/numeric/ublas/matrix_proxy.hpp"
+#include "lardata/RecoObjects/KHit.h"
+#include "lardata/RecoObjects/SurfYZPlane.h"
+#include "Geometry/Geometry.h"
+#include "TGaxis.h"
+#include "TText.h"
+#include "TMarker.h"
 
 // Local functions.
 
 namespace {
+
+  void hit_position(const trkf::KHitBase& hit, double& z, double &x) {
+
+    // Map hit -> (z,x) for plotting.
+
+    // Default result.
+
+    z = 0.;
+    x = 0.;
+
+
+    // Cast this hit to KHit<1>.  Only know how to handle 1D hits.
+
+    const trkf::KHit<1>* phit1 = dynamic_cast<const trkf::KHit<1>*>(&hit);
+    if(phit1) {
+      const std::shared_ptr<const trkf::Surface>& psurf = hit.getMeasSurface();
+
+      // Currently only handle SurfYZPlane (could add other surfaces if needed in future).
+
+      const trkf::SurfYZPlane* pyz = dynamic_cast<const trkf::SurfYZPlane*>(&*psurf);
+      if(pyz) {
+
+	// Now finished doing casts.
+	// We have a kind of hit and measurement surface that we know how to handle.
+
+	// Get x coordinate from hit.
+
+	x = phit1->getMeasVector()(0);
+
+	// Get z position from surface parameters.
+	// The "z" position is actually calculated as the perpendicular distance 
+	// from a corner, which is a proxy for wire number.
+
+	double z0 = pyz->z0();
+	double y0 = pyz->y0();
+	double phi = pyz->phi();
+	art::ServiceHandle<geo::Geometry> geom;
+	double ymax = geom->DetHalfWidth();
+	z = z0 * std::cos(phi) + std::abs(y0-ymax) * std::sin(phi);
+
+	//std::cout << "pl = " << pl
+	//	  << ", x=" << x
+	//	  << ", z0=" << z0
+	//	  << ", y0=" << y0
+	//	  << ", phi=" << phi
+	//	  << ", z=" << z
+	//	  << std::endl;
+      }
+    }
+  }
 
   void update_momentum(const trkf::KVector<2>::type& defl,
 		       const trkf::KSymMatrix<2>::type& errc,
@@ -135,6 +191,9 @@ trkf::KalmanFilterAlg::KalmanFilterAlg(const fhicl::ParameterSet& pset) :
   fMinSampleDist(0.),
   fFitMomRange(false),
   fFitMomMS(false),
+  fGTrace(false),
+  fGTraceWW(0),
+  fGTraceWH(0),
   fPlane(-1)
 {
   mf::LogInfo("KalmanFilterAlg") << "KalmanFilterAlg instantiated.";
@@ -168,6 +227,15 @@ void trkf::KalmanFilterAlg::reconfigure(const fhicl::ParameterSet& pset)
   fMinSampleDist = pset.get<double>("MinSampleDist");
   fFitMomRange = pset.get<bool>("FitMomRange");
   fFitMomMS = pset.get<bool>("FitMomMS");
+  fGTrace = pset.get<bool>("GTrace");
+  if(fGTrace) {
+    fGTraceWW = pset.get<double>("GTraceWW");
+    fGTraceWH = pset.get<double>("GTraceWH");
+    fGTraceXMin = pset.get<std::vector<double> >("GTraceXMin");
+    fGTraceXMax = pset.get<std::vector<double> >("GTraceXMax");
+    fGTraceZMin = pset.get<std::vector<double> >("GTraceZMin");
+    fGTraceZMax = pset.get<std::vector<double> >("GTraceZMax");
+  }
 }
 
 /// Add hits to track.
@@ -206,6 +274,67 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
   if(dir != Propagator::FORWARD && dir != Propagator::BACKWARD)
     throw cet::exception("KalmanFilterAlg") 
 	<< "No direction for Kalman fit.\n";
+
+  // Set up canvas for graphical trace.
+
+  if(fGTrace) {
+    fCanvas.reset(new TCanvas("khit", "Track3DKalmanHit", fGTraceWW, fGTraceWH));
+    int nview = 3;
+    fCanvas->Divide(2, (nview+1)/2);
+
+    // Make subpad for each view.
+
+    for(int iview=0; iview < nview; ++iview) {
+
+      std::ostringstream ostr;
+      ostr << "Plane " << iview;
+
+      fCanvas->cd(iview+1);
+      double zmin = 0.05;
+      double zmax = 0.95;
+      double xmin = 0.04;
+      double xmax = 0.95;
+      TPad* p = new TPad(ostr.str().c_str(), ostr.str().c_str(), zmin, xmin, zmax, xmax);
+      p->SetBit(kCanDelete);   // Give away ownership.
+      p->Range(fGTraceZMin[iview], fGTraceXMin[iview], fGTraceZMax[iview], fGTraceXMax[iview]);
+      p->SetFillStyle(4000);   // Transparent.
+      p->Draw();
+      fPads.push_back(p);
+
+      // Draw label.
+
+      TText* t = new TText(zmax-0.02, xmax-0.03, ostr.str().c_str());
+      t->SetBit(kCanDelete);   // Give away ownership.
+      t->SetTextAlign(33);
+      t->SetTextFont(42);
+      t->SetTextSize(0.04);
+      t->Draw();
+
+      // Draw axes.
+
+      TGaxis* pz1 = new TGaxis(zmin, xmin, zmax, xmin,
+			      fGTraceZMin[iview], fGTraceZMax[iview], 510, "");
+      pz1->SetBit(kCanDelete);   // Give away ownership.
+      pz1->Draw();
+
+      TGaxis* px1 = new TGaxis(zmin, xmin, zmin, xmax,
+			      fGTraceXMin[iview], fGTraceXMax[iview], 510, "");
+      px1->SetBit(kCanDelete);   // Give away ownership.
+      px1->Draw();
+      
+      TGaxis* pz2 = new TGaxis(zmin, xmax, zmax, xmax,
+			      fGTraceZMin[iview], fGTraceZMax[iview], 510, "-");
+      pz2->SetBit(kCanDelete);   // Give away ownership.
+      pz2->Draw();
+
+      TGaxis* px2 = new TGaxis(zmax, xmin, zmax, xmax,
+			      fGTraceXMin[iview], fGTraceXMax[iview], 510, "L+");
+      px2->SetBit(kCanDelete);   // Give away ownership.
+      px2->Draw();
+      
+    }
+    fCanvas->Update();
+  }
 
   // Sort container using this seed track.
 
@@ -307,9 +436,32 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       const std::vector<std::shared_ptr<const KHitBase> >& hits = gr.getHits();
       double best_chisq = 0.;
       std::shared_ptr<const KHitBase> best_hit;
+      TMarker* best_marker = 0;
       for(std::vector<std::shared_ptr<const KHitBase> >::const_iterator ihit = hits.begin();
 	  ihit != hits.end(); ++ihit) {
 	const KHitBase& hit = **ihit;
+	TMarker* marker = 0;
+
+	// Plot this hit.
+
+	if(fGTrace && fCanvas) {
+
+	  // Get plane number (0-2).
+
+	  int pl = hit.getMeasPlane();
+	  if(pl >= 0 && pl < int(fPads.size())) {
+	    double z = 0.;
+	    double x = 0.;
+	    hit_position(hit, z, x);
+	    fPads[pl]->cd();
+	    marker = new TMarker(z, x, 20);
+	    marker->SetBit(kCanDelete);   // Give away ownership.
+	    marker->SetMarkerSize(0.5);
+	    marker->SetMarkerColor(1);
+	    marker->Draw();
+	    fCanvas->Update();
+	  }
+	}
 
 	// Update predction using current track hypothesis and get
 	// incremental chisquare.
@@ -328,6 +480,13 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	     (best_hit.get() == 0 || chisq < best_chisq) ) {
 	    best_hit = *ihit;
 	    best_chisq = chisq;
+	    if(best_marker)
+	      best_marker->SetMarkerColor(1);
+	    best_marker = marker;
+	    if(best_marker)
+	      best_marker->SetMarkerColor(2);
+	    if(fGTrace && fCanvas)
+	      fCanvas->Update();
 	  }
 	}
       }
@@ -963,9 +1122,32 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	  const std::vector<std::shared_ptr<const KHitBase> >& hits = gr.getHits();
 	  double best_chisq = 0.;
 	  std::shared_ptr<const KHitBase> best_hit;
+	  TMarker* best_marker = 0;
 	  for(std::vector<std::shared_ptr<const KHitBase> >::const_iterator ihit = hits.begin();
 	      ihit != hits.end(); ++ihit) {
 	    const KHitBase& hit = **ihit;
+	    TMarker* marker = 0;
+
+	    // Plot this hit.
+
+	    if(fGTrace && fCanvas) {
+
+	      // Get plane number (0-2).
+
+	      int pl = hit.getMeasPlane();
+	      if(pl >= 0 && pl < int(fPads.size())) {
+		double z = 0.;
+		double x = 0.;
+		hit_position(hit, z, x);
+		fPads[pl]->cd();
+		marker = new TMarker(z, x, 20);
+		marker->SetBit(kCanDelete);   // Give away ownership.
+		marker->SetMarkerSize(0.5);
+		marker->SetMarkerColor(1);
+		marker->Draw();
+		fCanvas->Update();
+	      }
+	    }
 
 	    // Update predction using current track hypothesis and get
 	    // incremental chisquare.
@@ -978,6 +1160,13 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 		 (best_hit.get() == 0 || chisq < best_chisq)) {
 		best_hit = *ihit;
 		best_chisq = chisq;
+		if(best_marker)
+		  best_marker->SetMarkerColor(1);
+		best_marker = marker;
+		if(best_marker)
+		  best_marker->SetMarkerColor(2);
+		if(fGTrace && fCanvas)
+		  fCanvas->Update();
 	      }
 	    }
 	  }
