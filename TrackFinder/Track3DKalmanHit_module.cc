@@ -506,10 +506,13 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 		    art::PtrVector<recob::Hit> trackhits = hits;
 
 		    // Do an extend + smooth loop here.
+		    // Exit after two consecutive failures to extend (i.e. from each end),
+		    // or if the iteration count reaches the maximum.
 
 		    int niter = 6;
+		    int nfail = 0;  // Number of consecutive extend fails.
 
-		    for(int ix = 0; ok && ix < niter; ++ix) {
+		    for(int ix = 0; ok && ix < niter && nfail < 2; ++ix) {
 
 		      // Fill a collection of hits from the last good track
 		      // (initially the seed track).
@@ -529,8 +532,12 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 		      // Extend the track.  It is not an error for the
 		      // extend operation to fail, meaning that no new hits
 		      // were added.
-
-		      fKFAlg.extendTrack(trg1, fProp, trackcont);
+		      
+		      bool extendok = fKFAlg.extendTrack(trg1, fProp, trackcont);
+		      if(extendok)
+			nfail = 0;
+		      else
+			++nfail;
 
 		      // Smooth the extended track, and make a new
 		      // unidirectionally fit track in the opposite
