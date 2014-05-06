@@ -235,8 +235,8 @@ void trkf::KalmanFilterAlg::reconfigure(const fhicl::ParameterSet& pset)
   if(fGTrace) {
     fGTraceWW = pset.get<double>("GTraceWW");
     fGTraceWH = pset.get<double>("GTraceWH");
-    fGTraceXMin = pset.get<std::vector<double> >("GTraceXMin");
-    fGTraceXMax = pset.get<std::vector<double> >("GTraceXMax");
+    fGTraceXMin = pset.get<double>("GTraceXMin");
+    fGTraceXMax = pset.get<double>("GTraceXMax");
     fGTraceZMin = pset.get<std::vector<double> >("GTraceZMin");
     fGTraceZMax = pset.get<std::vector<double> >("GTraceZMax");
   }
@@ -310,7 +310,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       double xmax = 0.95;
       TPad* p = new TPad(ostr.str().c_str(), ostr.str().c_str(), zmin, xmin, zmax, xmax);
       p->SetBit(kCanDelete);   // Give away ownership.
-      p->Range(fGTraceZMin[iview], fGTraceXMin[iview], fGTraceZMax[iview], fGTraceXMax[iview]);
+      p->Range(fGTraceZMin[iview], fGTraceXMin, fGTraceZMax[iview], fGTraceXMax);
       p->SetFillStyle(4000);   // Transparent.
       p->Draw();
       fPads.push_back(p);
@@ -332,7 +332,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       pz1->Draw();
 
       TGaxis* px1 = new TGaxis(zmin, xmin, zmin, xmax,
-			       fGTraceXMin[iview], fGTraceXMax[iview], 510, "");
+			       fGTraceXMin, fGTraceXMax, 510, "");
       px1->SetBit(kCanDelete);   // Give away ownership.
       px1->Draw();
       
@@ -342,7 +342,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       pz2->Draw();
 
       TGaxis* px2 = new TGaxis(zmax, xmin, zmax, xmax,
-			       fGTraceXMin[iview], fGTraceXMax[iview], 510, "L+");
+			       fGTraceXMin, fGTraceXMax, 510, "L+");
       px2->SetBit(kCanDelete);   // Give away ownership.
       px2->Draw();
       

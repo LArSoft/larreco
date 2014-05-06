@@ -26,18 +26,12 @@
 /// FitMomRange   - Fit momentum using range.
 /// FitMomMS      - Fit momentum using multiple scattering.
 /// GTrace        - Graphical trace flag.
-/// GTraceXMin0   - Graphical trace minimum x, plane 0.
-/// GTraceXMax0   - Graphical trace maximum x, plane 0.
-/// GTraceZMin0   - Graphical trace minimum z, plane 0.
-/// GTraceZMax0   - Graphical trace maximum z, plane 0.
-/// GTraceXMin1   - Graphical trace minimum x, plane 1.
-/// GTraceXMax1   - Graphical trace maximum x, plane 1.
-/// GTraceZMin1   - Graphical trace minimum z, plane 1.
-/// GTraceZMax1   - Graphical trace maximum z, plane 1.
-/// GTraceXMin2   - Graphical trace minimum x, plane 2.
-/// GTraceXMax2   - Graphical trace maximum x, plane 2.
-/// GTraceZMin2   - Graphical trace minimum z, plane 2.
-/// GTraceZMax2   - Graphical trace maximum z, plane 2.
+/// GTraceWW      - Graphical trace window width (pixels).
+/// GTraceWH      - Graphical trace window height (pixels).
+/// GTraceXMin    - Graphical trace minimum x (same for each view).
+/// GTraceXMax    - Graphical trace maximum x (same for each view).
+/// GTraceZMin    - Graphical trace minimum z (vector).
+/// GTraceZMax    - Graphical trace maximum z (vector).
 ///
 ////////////////////////////////////////////////////////////////////////
 
@@ -150,8 +144,8 @@ namespace trkf {
     bool fGTrace;            ///< Graphical trace flag.
     double fGTraceWW;        ///< Window width.
     double fGTraceWH;        ///< Window height.
-    std::vector<double> fGTraceXMin;  ///< Graphical trace minimum x for each view.
-    std::vector<double> fGTraceXMax;  ///< Graphical trace maximum x for each view.
+    double fGTraceXMin;      ///< Graphical trace minimum x.
+    double fGTraceXMax;      ///< Graphical trace maximum x.
     std::vector<double> fGTraceZMin;  ///< Graphical trace minimum z for each view.
     std::vector<double> fGTraceZMax;  ///< Graphical trace maximum z for each view.
 
