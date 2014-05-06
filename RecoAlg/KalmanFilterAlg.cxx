@@ -670,6 +670,11 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	      if(marker_it != fMarkerMap.end()) {
 		TMarker* marker = marker_it->second;
 		marker->SetMarkerColor(kRed);
+
+		// Redraw marker so that it will be on top.
+
+		fPads[pl]->cd();
+		marker->Draw();
 	      }
 	    }
 	    fCanvases.back()->Update();
@@ -1464,6 +1469,11 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 		  if(marker_it != fMarkerMap.end()) {
 		    TMarker* marker = marker_it->second;
 		    marker->SetMarkerColor(kRed);
+
+		    // Redraw marker so that it will be on top.
+
+		    fPads[pl]->cd();
+		    marker->Draw();
 		  }
 		}
 		fCanvases.back()->Update();
