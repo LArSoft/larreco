@@ -87,8 +87,8 @@ standard_kalmanfilteralg:
   GTrace: false      # Graphical trace flag.
   GTraceWW: 1200      # Window width (pixels).
   GTraceWH: 800     # Window height (pixels).
-  GTraceXMin: [    0.,    0.,    0.]  # Graphical trace minimum x for each view.
-  GTraceXMax: [  256.,  256.,  256.]  # Graphical trace maximum x for each view.
+  GTraceXMin: [ -256., -256., -256.]  # Graphical trace minimum x for each view.
+  GTraceXMax: [  512.,  512.,  512.]  # Graphical trace maximum x for each view.
   GTraceZMin: [    0.,    0.,    0.]  # Graphical trace minimum z for each view.
   GTraceZMax: [ 1040., 1040., 1040.]  # Graphical trace maximum z for each view
 }

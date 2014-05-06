@@ -365,6 +365,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   // suitable for tracks.
 
   art::PtrVector<recob::Hit> seederhits = hits;
+  //std::cout << "Track3DKalmanHit: " << hits.size() << " total hits." << std::endl;
 
   // Start of loop.
 
