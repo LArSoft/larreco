@@ -53,6 +53,7 @@
 #include "art/Persistency/Common/PtrVector.h"
 #include "TCanvas.h"
 #include "TMarker.h"
+#include "TPaveText.h"
 
 namespace trkf {
 
@@ -159,6 +160,8 @@ namespace trkf {
     int fPlane;              ///< Preferred view plane.
     mutable std::vector<std::unique_ptr<TCanvas> > fCanvases; ///< Graphical trace canvases.
     mutable std::vector<TVirtualPad*> fPads;                  ///< View pads in current canvas.
+    mutable TVirtualPad* fInfoPad;                            ///< Information pad.
+    mutable TPaveText* fMessages;                             ///< Message box.
     mutable std::map<int, TMarker*> fMarkerMap;               ///< Markers in current canvas.
   };
 }

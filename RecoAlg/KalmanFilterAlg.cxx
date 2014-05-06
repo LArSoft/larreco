@@ -18,6 +18,9 @@
 #include "Geometry/Geometry.h"
 #include "TGaxis.h"
 #include "TText.h"
+#include "TLegend.h"
+#include "TLegendEntry.h"
+#include "TText.h"
 
 // Local functions.
 
@@ -193,7 +196,9 @@ trkf::KalmanFilterAlg::KalmanFilterAlg(const fhicl::ParameterSet& pset) :
   fGTrace(false),
   fGTraceWW(0),
   fGTraceWH(0),
-  fPlane(-1)
+  fPlane(-1),
+  fInfoPad(0),
+  fMessages(0)
 {
   mf::LogInfo("KalmanFilterAlg") << "KalmanFilterAlg instantiated.";
 
@@ -289,7 +294,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
     fPads.clear();
     fMarkerMap.clear();
     int nview = 3;
-    fCanvases.back()->Divide(2, (nview+1)/2);
+    fCanvases.back()->Divide(2, nview/2 + 1);
 
     // Make subpad for each view.
 
@@ -342,6 +347,72 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       px2->Draw();
       
     }
+
+    // Draw legend.
+
+    fCanvases.back()->cd(nview+1);
+    fInfoPad = gPad;
+    TLegend* leg = new TLegend(0.6, 0.5, 0.99, 0.99);
+    leg->SetBit(kCanDelete);   // Give away ownership.
+
+    TLegendEntry* entry = 0;
+    TMarker* m = 0;
+
+    m = new TMarker(0., 0., 20);
+    m->SetBit(kCanDelete);
+    m->SetMarkerSize(1.2);
+    m->SetMarkerColor(kRed);
+    entry = leg->AddEntry(m, "Hits on Track", "P");
+    entry->SetBit(kCanDelete);
+
+    m = new TMarker(0., 0., 20);
+    m->SetBit(kCanDelete);
+    m->SetMarkerSize(1.2);
+    m->SetMarkerColor(kBlack);
+    entry = leg->AddEntry(m, "Available Hits", "P");
+    entry->SetBit(kCanDelete);
+
+    m = new TMarker(0., 0., 20);
+    m->SetBit(kCanDelete);
+    m->SetMarkerSize(1.2);
+    m->SetMarkerColor(kBlue);
+    entry = leg->AddEntry(m, "Rejected Hits", "P");
+    entry->SetBit(kCanDelete);
+
+    m = new TMarker(0., 0., 20);
+    m->SetBit(kCanDelete);
+    m->SetMarkerSize(1.2);
+    m->SetMarkerColor(kGreen);
+    entry = leg->AddEntry(m, "Removed Hits", "P");
+    entry->SetBit(kCanDelete);
+
+    m = new TMarker(0., 0., 20);
+    m->SetBit(kCanDelete);
+    m->SetMarkerSize(1.2);
+    m->SetMarkerColor(kMagenta);
+    entry = leg->AddEntry(m, "Seed Hits", "P");
+    entry->SetBit(kCanDelete);
+
+    m = new TMarker(0., 0., 20);
+    m->SetBit(kCanDelete);
+    m->SetMarkerSize(1.2);
+    m->SetMarkerColor(kCyan);
+    entry = leg->AddEntry(m, "Unreachable Seed Hits", "P");
+    entry->SetBit(kCanDelete);
+
+    leg->Draw();
+
+    // Draw message box.
+    
+    fMessages = new TPaveText(0.01, 0.01, 0.55, 0.99, "");
+    fMessages->SetBit(kCanDelete);
+    fMessages->SetTextFont(42);
+    fMessages->SetTextSize(0.04);
+    fMessages->SetTextAlign(12);
+    fMessages->Draw();
+    TText* t = fMessages->AddText("Enter buildTrack");
+    t->SetBit(kCanDelete);
+
     fCanvases.back()->Update();
   }
 
@@ -354,7 +425,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
   if(fGTrace && fCanvases.size() > 0) {
 
     // Loop over sorted KHitGroups.
-    // Paint sorted hits black.
+    // Paint sorted seed hits magenta.
 
     const std::list<KHitGroup>& groups = hits.getSorted();
     for(auto const& gr : groups) {
@@ -374,14 +445,15 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	  fPads[pl]->cd();
 	  marker->SetBit(kCanDelete);   // Give away ownership.
 	  marker->SetMarkerSize(0.5);
-	  marker->SetMarkerColor(1);
+	  marker->SetMarkerColor(kMagenta);
 	  marker->Draw();
 	}
       }
     }
 
     // Loop over unsorted KHitGroups.
-    // Paint unsorted hits blue.    
+    // Paint unsorted seed hits cyan.
+    // There should be few, if any, unsorted seed hits.
 
     const std::list<KHitGroup>& ugroups = hits.getUnsorted();
     for(auto const& gr : ugroups) {
@@ -401,7 +473,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	  fPads[pl]->cd();
 	  marker->SetBit(kCanDelete);   // Give away ownership.
 	  marker->SetMarkerSize(0.5);
-	  marker->SetMarkerColor(4);
+	  marker->SetMarkerColor(kCyan);
 	  marker->Draw();
 	}
       }
@@ -515,7 +587,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	  auto marker_it = fMarkerMap.find(hit.getID());
 	  if(marker_it != fMarkerMap.end()) {
 	    TMarker* marker = marker_it->second;
-	    marker->SetMarkerColor(4);
+	    marker->SetMarkerColor(kBlue);
 	  }
 	  //fCanvases.back()->Update();
 	}
@@ -597,7 +669,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	      auto marker_it = fMarkerMap.find(best_hit->getID());
 	      if(marker_it != fMarkerMap.end()) {
 		TMarker* marker = marker_it->second;
-		marker->SetMarkerColor(2);
+		marker->SetMarkerColor(kRed);
 	      }
 	    }
 	    fCanvases.back()->Update();
@@ -673,7 +745,20 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 
   // Done.  Return success if we added at least one measurement.
 
-  return trg.numHits() > 0;
+  bool ok = trg.numHits() > 0;
+
+  if(fGTrace && fCanvases.size() > 0) {
+    TText* t = 0;
+    if(ok)
+      t = fMessages->AddText("Exit buildTrack, status success");
+    else
+      t = fMessages->AddText("Exit buildTrack, status fail");
+    t->SetBit(kCanDelete);
+    fInfoPad->Modified();
+    fCanvases.back()->Update();
+  }
+
+  return ok;
 }
 
 /// Smooth track.
@@ -719,6 +804,13 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
   // Default result failure.
 
   bool result = false;
+
+  //if(fGTrace && fCanvases.size() > 0) {
+  //  TText* t = fMessages->AddText("Enter smoothTrack");
+  //  t->SetBit(kCanDelete);
+  //  fInfoPad->Modified();
+  //  fCanvases.back()->Update();
+  // }
 
   // It is an error if the KGTrack is not valid.
 
@@ -995,6 +1087,17 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 	<< "Track chisquare = " << fchisq << "\n";
   }
 
+  //if(fGTrace && fCanvases.size() > 0) {
+  //  TText* t = 0;
+  //  if(result)
+  //    t = fMessages->AddText("Exit smoothTrack, status success");
+  //  else
+  //    t = fMessages->AddText("Exit smoothTrack, status fail");
+  //  t->SetBit(kCanDelete);
+  //  fInfoPad->Modified();
+  //  fCanvases.back()->Update();
+  // }
+
   // Done.
 
   return result;
@@ -1026,6 +1129,13 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
   // Default result failure.
 
   bool result = false;
+
+  if(fGTrace && fCanvases.size() > 0) {
+    TText* t = fMessages->AddText("Enter extendTrack");
+    t->SetBit(kCanDelete);
+    fInfoPad->Modified();
+    fCanvases.back()->Update();
+  }
 
   // Remember the original number of measurement.
 
@@ -1144,7 +1254,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	      }
 	      else
 		marker = marker_it->second;
-	      marker->SetMarkerColor(1);
+	      marker->SetMarkerColor(kBlack);
 	    }
 	  }
 	}
@@ -1180,7 +1290,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	      }
 	      else
 		marker = marker_it->second;
-	      marker->SetMarkerColor(4);
+	      marker->SetMarkerColor(kBlue);
 	    }
 	  }
 	}
@@ -1278,7 +1388,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	      auto marker_it = fMarkerMap.find(hit.getID());
 	      if(marker_it != fMarkerMap.end()) {
 		TMarker* marker = marker_it->second;
-		marker->SetMarkerColor(4);
+		marker->SetMarkerColor(kBlue);
 	      }
 	      //fCanvases.back()->Update();
 	    }
@@ -1353,7 +1463,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 		  auto marker_it = fMarkerMap.find(best_hit->getID());
 		  if(marker_it != fMarkerMap.end()) {
 		    TMarker* marker = marker_it->second;
-		    marker->SetMarkerColor(2);
+		    marker->SetMarkerColor(kRed);
 		  }
 		}
 		fCanvases.back()->Update();
@@ -1427,6 +1537,18 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
   // Done.
 
   result = (trg.numHits() > nhits0);
+
+  if(fGTrace && fCanvases.size() > 0) {
+    TText* t = 0;
+    if(result)
+      t = fMessages->AddText("Exit extendTrack, status success");
+    else
+      t = fMessages->AddText("Exit extendTrack, status fail");
+    t->SetBit(kCanDelete);
+    fInfoPad->Modified();
+    fCanvases.back()->Update();
+  }
+
   return result;
 }
 
@@ -1993,7 +2115,7 @@ void trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
 	auto marker_it = fMarkerMap.find(hit.getID());
 	if(marker_it != fMarkerMap.end()) {
 	  TMarker* marker = marker_it->second;
-	  marker->SetMarkerColor(3);
+	  marker->SetMarkerColor(kGreen);
 	}
       }
       trackmap.clear();
@@ -2023,7 +2145,7 @@ void trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
 	auto marker_it = fMarkerMap.find(hit1a.getID());
 	if(marker_it != fMarkerMap.end()) {
 	  TMarker* marker = marker_it->second;
-	  marker->SetMarkerColor(3);
+	  marker->SetMarkerColor(kGreen);
 	}
 	trackmap.erase(trackmap.begin(), it);
 	done = false;
@@ -2049,7 +2171,7 @@ void trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
 	auto marker_it = fMarkerMap.find(hit1b.getID());
 	if(marker_it != fMarkerMap.end()) {
 	  TMarker* marker = marker_it->second;
-	  marker->SetMarkerColor(3);
+	  marker->SetMarkerColor(kGreen);
 	}
 	trackmap.erase(it, trackmap.end());
 	done = false;
@@ -2096,7 +2218,7 @@ void trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
 	      auto marker_it = fMarkerMap.find(hit.getID());
 	      if(marker_it != fMarkerMap.end()) {
 		TMarker* marker = marker_it->second;
-		marker->SetMarkerColor(3);
+		marker->SetMarkerColor(kGreen);
 	      }
 	    }
 	    trackmap.erase(trackmap.begin(), it);
@@ -2113,7 +2235,7 @@ void trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
 	      auto marker_it = fMarkerMap.find(hit.getID());
 	      if(marker_it != fMarkerMap.end()) {
 		TMarker* marker = marker_it->second;
-		marker->SetMarkerColor(3);
+		marker->SetMarkerColor(kGreen);
 	      }
 	    }
 	    trackmap.erase(it, trackmap.end());
