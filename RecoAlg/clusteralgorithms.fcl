@@ -40,28 +40,27 @@ standard_flamelswmsclusteralg:
 standard_clustercrawleralg:
 {
   NumPass:              3  # number of passes through the hit list
-  MaxHitsFit:  [20,  8, 4] # number of hits fitted to a line
-  MinHits:     [20,  8, 3] # minimum size of a cluster
-  NHitsAve:     [8,  8, 0] # number of hits to find the average charge and width  
+  MaxHitsFit: [ 50,  8, 4] # number of hits fitted to a line
+  MinHits:    [ 50,  8, 3] # minimum size of a cluster
+  NHitsAve:   [ 20,  8, 0] # number of hits to find the average charge and width  
                            # at the end of the cluster. NHitsAve should be 1 or 2
-  ChgCut:   [.65, .65, .7] # max fractional hit charge difference for adding hits
-  WidCut:     [1., 1., 1.] # max fractional hit width difference for adding hits
+  ChgCut:    [ .7, .7, .7] # max fractional hit charge difference for adding hits
   ChiCut:     [3., 3., 3.] # stop adding hits to clusters if ChiCut is reached
   MaxWirSkip:   [25, 8, 2] # max number of wires to skip without adding a hit
-  MinWirAfterSkip: [3, 2, 1] # min reqd number of consecutive wires with a hit after a skip
+  MinWirAfterSkip: [2, 2, 1] # min reqd number of consecutive wires with a hit after a skip
   KinkChiRat: [1.2, 1.2, 0.] # Max consecutive chisq increase for the last 3 hits on the cluster
                              # 0. = no kink check when following
   KinkAngCut: [0.35, 0.35, 0.4] # kink angle cut (radians) used to follow and merge
   DoMerge:   [false, true, true] # run cluster merging code?
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
-  FindVertices: [false, true, true]  # make 2D vertices after clustering?
+  MergeChgCut: [0.2, 0.2, 0.2] # max charge ratio for cluster merging
+  FindVertices: [true, true, true]  # make 2D vertices after clustering?
   LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
-  ClHitMergeChiCut:    4.0 # Merge cluster hit-multiplets if the separation chisq
+  HitMergeChiCut:    4.0 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
-  ClGhostHitFrac:     -0.5 # Merge clusters if they share a fraction of hits
-                           # in the same hit multiplet. Set < 0 for no merging
+  MergeGhostClusters: true # Merge clusters that share hits in a multiplet?     
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
-  AllowNoHitWire:        0 # 
+  AllowNoHitWire:        1 # 
   DebugPlane:          -1  # print info only in this plane
   DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
   DebugHit:             0  # out detailed information while crawling

@@ -130,7 +130,7 @@ namespace cluster{
       ChgNorm = fChgNorms[thePlane];
 
       // edit this line to debug hit fitting on a particular plane/wire
-//      prt = (thePlane == 0 && theWireNum == 1864);
+//      prt = (thePlane == 1 && theWireNum == 839);
       std::vector<float> signal(theWire->Signal());
 
       unsigned short nabove = 0;
@@ -144,33 +144,18 @@ namespace cluster{
           break;
         }
       }
-      float maxSig = 0.;
-      unsigned short maxSigT = 0;
       for(unsigned short time = mintime; time < maxtime; ++time) {
         if(signal[time] > minSig) {
-          if(nabove == 0) {
-            tstart = time;
-            maxSig = 0.;
-          }
-          // monitor the max signal and it's time
-          if(signal[time] > maxSig) {
-            maxSig = signal[time];
-            maxSigT = time;
-          }
+          if(nabove == 0) tstart = time;
           ++nabove;
         } else {
           // check for a wide enough signal above threshold
           if(nabove > minSamples) {
-            // skip this section if signal is above threshold on the first tick
-            if(tstart == 3) {
-              nabove = 0;
-              continue;
-            }
             // skip this wire if the RAT is too long
+            if(nabove > maxticks) mf::LogError("CCHitFinder")
+              <<"Long RAT "<<nabove<<" "<<maxticks
+              <<" No signal on wire "<<theWireNum<<" after time "<<time;
             if(nabove > maxticks) break;
-            // skip this wire if the max signal is at the beginning
-            // --> deconvolution failure
-            if(maxSigT < tstart + 2) break;
             unsigned short npt = 0;
             // look for bumps to inform the fit
             bumps.clear();
@@ -180,10 +165,10 @@ namespace cluster{
                  signal[ii - 1] > signal[ii - 2] &&
                  signal[ii    ] > signal[ii + 1] &&
                  signal[ii + 1] > signal[ii + 2]) bumps.push_back(npt);
-//  if(prt) LOG_DEBUG("CCHitFinder")<<"signl "<<ii<<" "<<signl[npt];
+//  if(prt) mf::LogVerbatim("CCHitFinder")<<"signl "<<ii<<" "<<signl[npt];
               ++npt;
             }
-  // decide if this RAT should be studied
+// decide if this RAT should be studied
 //  StudyHits(1, npt, ticks, signl, tstart);
             // just make a crude hit if too many bumps
             if(bumps.size() > fMaxBumps) {
@@ -229,7 +214,7 @@ namespace cluster{
       } // time
     } // wireIter
 
-    // print out
+// print out
 //  StudyHits(4);
 
     delete ticks;
@@ -265,10 +250,10 @@ namespace cluster{
     
     TGraph *fitn = new TGraph(npt, ticks, signl);
     TF1 *Gn = new TF1("gn",eqn.c_str());
-
-//  if(prt) LOG_DEBUG("CCHitFinder")
-//    <<"FitNG nGaus "<<nGaus<<" nBumps "<<bumps.size();
-
+/*
+  if(prt) mf::LogVerbatim("CCHitFinder")
+    <<"FitNG nGaus "<<nGaus<<" nBumps "<<bumps.size();
+*/
     // put in the bump parameters. Assume that nGaus >= bumps.size()
     for(unsigned short ii = 0; ii < bumps.size(); ++ii) {
       unsigned short index = ii * 3;
@@ -280,8 +265,10 @@ namespace cluster{
       Gn->SetParLimits(index + 1, 0, (double)npt);
       Gn->SetParameter(index + 2, (double)minRMS);
       Gn->SetParLimits(index + 2, 1., 3*(double)minRMS);
-//  if(prt) LOG_DEBUG("CCHitFinder")<<"Bump params "<<ii<<" "<<(short)amp
-//    <<" "<<(int)bumptime<<" "<<(int)minRMS;
+/*
+  if(prt) mf::LogVerbatim("CCHitFinder")<<"Bump params "<<ii<<" "<<(short)amp
+    <<" "<<(int)bumptime<<" "<<(int)minRMS;
+*/
     } // ii bumps
 
     // search for other bumps that may be hidden by the already found ones
@@ -297,8 +284,10 @@ namespace cluster{
         }
       } // jj
       if(imbig > 0) {
-//  if(prt) LOG_DEBUG("CCHitFinder")<<"Found bump "<<ii<<" "<<(short)big
-//    <<" "<<imbig;
+/*
+  if(prt) mf::LogVerbatim("CCHitFinder")<<"Found bump "<<ii<<" "<<(short)big
+    <<" "<<imbig;
+*/
         // set the parameters for the bump
         unsigned short index = ii * 3;
         Gn->SetParameter(index    , (double)big);
@@ -360,11 +349,11 @@ namespace cluster{
     } // nGaus > 1
 /*
   if(prt) {
-    LOG_DEBUG("CCHitFinder")<<"Fit "<<nGaus<<" chi "<<chidof
+    mf::LogVerbatim("CCHitFinder")<<"Fit "<<nGaus<<" chi "<<chidof
       <<" npars "<<partmp.size();
-    LOG_DEBUG("CCHitFinder")<<"pars    errs ";
+    mf::LogVerbatim("CCHitFinder")<<"pars    errs ";
     for(unsigned short ii = 0; ii < partmp.size(); ++ii) {
-      LOG_DEBUG("CCHitFinder")<<ii<<" "<<partmp[ii]<<" "
+      mf::LogVerbatim("CCHitFinder")<<ii<<" "<<partmp[ii]<<" "
         <<partmperr[ii];
     }
   }
@@ -408,14 +397,14 @@ namespace cluster{
       parerr = partmperr;
     } else {
       chidof = 9999.;
-//      if(prt) LOG_DEBUG("CCHitFinder")<<"Bad fit parameters";
+//      if(prt) mf::LogVerbatim("CCHitFinder")<<"Bad fit parameters";
     }
     
     delete fitn;
     delete Gn;
     
     return;
-  }
+  } // FitNG
 
 /////////////////////////////////////////
   void CCHitFinderAlg::MakeCrudeHit(unsigned short npt, 
@@ -437,8 +426,10 @@ namespace cluster{
     rms = sqrt(rms / sumS);
     float amp = sumS / (Sqrt2Pi * rms);
     par.clear();
-//  if(prt) LOG_DEBUG("CCHitFinder")<<"Crude hit Amp "<<(int)amp<<" mean "
-//    <<(int)mean<<" rms "<<rms;
+/*
+  if(prt) mf::LogVerbatim("CCHitFinder")<<"Crude hit Amp "<<(int)amp<<" mean "
+    <<(int)mean<<" rms "<<rms;
+*/
     par.push_back(amp);
     par.push_back(mean);
     par.push_back(rms);
@@ -450,10 +441,12 @@ namespace cluster{
     parerr.push_back(amperr);
     parerr.push_back(meanerr);
     parerr.push_back(rmserr);
-//  if(prt) LOG_DEBUG("CCHitFinder")<<" errors Amp "<<amperr<<" mean "
-//    <<meanerr<<" rms "<<rmserr;
+/*
+  if(prt) mf::LogVerbatim("CCHitFinder")<<" errors Amp "<<amperr<<" mean "
+    <<meanerr<<" rms "<<rmserr;
+*/
     chidof = 9999.;
-  }
+  } // MakeCrudeHit
 
 
 /////////////////////////////////////////
@@ -519,9 +512,9 @@ namespace cluster{
     }
 /*
   if(prt) {
-    LOG_DEBUG("CCHitFinder")<<"hit loTime hiTime loHitIDs nMultHits";
+    mf::LogVerbatim("CCHitFinder")<<"hit loTime hiTime loHitIDs nMultHits";
     for(unsigned short hit = 0; hit < nhits; ++hit) {
-      LOG_DEBUG("CCHitFinder")<<hit<<" "<<(int)loTimes[hit]
+      mf::LogVerbatim("CCHitFinder")<<hit<<" "<<(int)loTimes[hit]
         <<" "<<(int)hiTimes[hit]
         <<" "<<loHitIDs[hit]<<" "<<nMultHits[hit];
     }
@@ -554,7 +547,7 @@ namespace cluster{
       onehit.InClus = 0;
 /*
   if(prt) {
-    LOG_DEBUG("CCHitFinder")<<"W:T "<<theWireNum<<":"<<(short)onehit.Time
+    mf::LogVerbatim("CCHitFinder")<<"W:T "<<theWireNum<<":"<<(short)onehit.Time
       <<" Chg "<<(short)onehit.Charge
       <<" RMS "<<onehit.RMS
       <<" lo ID "<<onehit.LoHitID

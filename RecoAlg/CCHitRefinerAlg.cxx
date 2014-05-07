@@ -408,7 +408,6 @@ namespace cluster{
         ncl.ID = tcl.size() + 1;
         // flag the processor code
         ncl.ProcCode = 10000 + tcl[tclID].ProcCode;
-        ncl.Assn = -1;
         ncl.StopCode = tcl[tclID].StopCode;
         ncl.CTP = tcl[tclID].CTP;
         ncl.BeginVtx = tcl[tclID].BeginVtx;
