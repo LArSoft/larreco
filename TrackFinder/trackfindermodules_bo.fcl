@@ -30,7 +30,6 @@ bo_track3Dkalmanhit.MaxSeedChiDF:               50
 bo_track3Dkalmanhit.MinSeedHits:                10
 bo_track3Dkalmanhit.KalmanFilterAlg:            @local::bo_kalmanfilteralg
 bo_track3Dkalmanhit.SeedFinderAlg:              @local::bo_seedfinderalgorithm
-bo_track3Dkalmanhit.SeedFinderAlg.ExtendThresh: 0.
 bo_track3Dkalmanhit.SpacePointAlg:              @local::bo_spacepointalg
 
 bo_kalmansps:                                      @local::standard_track3DkalmanSPS    

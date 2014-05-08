@@ -291,7 +291,6 @@ microboone_trackkalmancheater.SpacePointAlg.MinViews:   2
 microboone_track3Dkalmanhit:                            @local::standard_track3Dkalmanhit
 microboone_track3Dkalmanhit.KalmanFilterAlg:            @local::microboone_kalmanfilteralg
 microboone_track3Dkalmanhit.SeedFinderAlg:              @local::microboone_seedfinderalgorithm
-microboone_track3Dkalmanhit.SeedFinderAlg.ExtendThresh: 0.
 microboone_track3Dkalmanhit.SpacePointAlg:              @local::microboone_spacepointalg
 microboone_track3Dkalmanhit.SpacePointAlg.MinViews:     2
 microboone_seedfindermodule:                            @local::standard_seedfindermodule     

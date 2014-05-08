@@ -23,7 +23,6 @@ argoneut_spacepointcheater.SpacePointAlg:     @local::argoneut_spacepointalg
 argoneut_track3Dkalmanhit:                            @local::standard_track3Dkalmanhit
 argoneut_track3Dkalmanhit.KalmanFilterAlg:            @local::argoneut_kalmanfilteralg
 #argoneut_track3Dkalmanhit.SeedFinderAlg:              @local::argoneut_seedfinderalgorithm
-argoneut_track3Dkalmanhit.SeedFinderAlg.ExtendThresh: 0.
 argoneut_track3Dkalmanhit.SpacePointAlg:              @local::argoneut_spacepointalg
 argoneut_track3Dkalmanhit.SpacePointAlg.MinViews:     2
 
