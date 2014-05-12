@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 ///
 /// \file   KalmanFilterAlg.cxx
 ///
@@ -180,10 +180,13 @@ trkf::KalmanFilterAlg::KalmanFilterAlg(const fhicl::ParameterSet& pset) :
   fMaxPErr(0.),
   fGoodPErr(0.),
   fMaxIncChisq(0.),
+  fMaxSeedIncChisq(0.),
+  fMaxSmoothIncChisq(0.),
   fMaxEndChisq(0.),
   fMinLHits(0),
   fMaxLDist(0.),
   fMaxPredDist(0.),
+  fMaxSeedPredDist(0.),
   fMaxPropDist(0.),
   fMinSortDist(0.),
   fMaxSortDist(0.),
@@ -218,10 +221,13 @@ void trkf::KalmanFilterAlg::reconfigure(const fhicl::ParameterSet& pset)
   fMaxPErr = pset.get<double>("MaxPErr");
   fGoodPErr = pset.get<double>("GoodPErr");
   fMaxIncChisq = pset.get<double>("MaxIncChisq");
+  fMaxSeedIncChisq = pset.get<double>("MaxSeedIncChisq");
+  fMaxSmoothIncChisq = pset.get<double>("MaxSmoothIncChisq");
   fMaxEndChisq = pset.get<double>("MaxEndChisq");
   fMinLHits = pset.get<int>("MinLHits");
   fMaxLDist = pset.get<double>("MaxLDist");
   fMaxPredDist = pset.get<double>("MaxPredDist");
+  fMaxSeedPredDist = pset.get<double>("MaxPredDist");
   fMaxPropDist = pset.get<double>("MaxPropDist");
   fMinSortDist = pset.get<double>("MinSortDist");
   fMaxSortDist = pset.get<double>("MaxSortDist");
@@ -605,7 +611,8 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 		<< "\nchisq = " << chisq << "\n"
 		<< "preddist = " << preddist << "\n";
 	  }
-	  if(chisq < fMaxIncChisq && abs(preddist) < fMaxPredDist &&
+	  if(chisq < fMaxSeedIncChisq && 
+	     (trg.numHits() == 0 || abs(preddist) < fMaxSeedPredDist) &&
 	     (best_hit.get() == 0 || chisq < best_chisq) ) {
 	    best_hit = *ihit;
 	    best_chisq = chisq;
@@ -1024,7 +1031,7 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 	    // but may still be in the smoothed track.
 
 	    double chisq = hit.getChisq();
-	    if(chisq < fMaxIncChisq) {
+	    if(chisq < fMaxSmoothIncChisq) {
 	      tchisq += chisq;
 	      trf.setChisq(tchisq);
 

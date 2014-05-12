@@ -12,10 +12,13 @@
 /// MaxPErr       - Maximum pointing error for free propagation.
 /// GoodPErr      - Pointing error threshold for switching to free propagation.
 /// MaxIncChisq   - Maximum incremental chisquare to accept a hit.
+/// MaxSeedIncChisq - Maximum incremental chisquare to accept in seed phase.
+/// MaxSmoothIncChisq - Maximum incremental chisquare to accept in smooth phase.
 /// MaxEndChisq   - Maximum incremental chisquare for endpoint hit.
 /// MinLHits      - Minimum number of hits to turn off linearized propagation.
 /// MaxLDist      - Maximum distance for linearized propagation.
 /// MaxPredDist   - Maximum prediciton distance to accept a hit.
+/// MaxSeedPredDist - Maximum prediciton distance to accept a hit in seed phase.
 /// MaxPropDist   - Maximum propagation distance to candidate surface.
 /// MinSortDist   - Sort low distance threshold.
 /// MaxSortDist   - Sort high distance threshold.
@@ -128,10 +131,13 @@ namespace trkf {
     double fMaxPErr;         ///< Maximum pointing error for free propagation.
     double fGoodPErr;        ///< Pointing error threshold for switching to free propagation.
     double fMaxIncChisq;     ///< Maximum incremental chisquare to accept a hit.
+    double fMaxSeedIncChisq; ///< Maximum incremental chisquare to accept a hit in seed phase.
+    double fMaxSmoothIncChisq; ///< Maximum incremental chisquare to accept a hit in smooth phase.
     double fMaxEndChisq;     ///< Maximum incremental chisquare for endpoint hit.
     int fMinLHits;           ///< Minimum number of hits to turn off linearized propagation.
     double fMaxLDist;        ///< Maximum distance for linearized propagation.
     double fMaxPredDist;     ///< Maximum prediciton distance to accept a hit.
+    double fMaxSeedPredDist; ///< Maximum prediciton distance to accept a hit in seed phase.
     double fMaxPropDist;     ///< Maximum propagation distance to candidate surface.
     double fMinSortDist;     ///< Sort low distance threshold.
     double fMaxSortDist;     ///< Sort high distance threshold.
