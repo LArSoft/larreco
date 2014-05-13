@@ -66,7 +66,7 @@ standard_kalmanfilteralg:
   MaxPErr: 0.25      # Maximum pointing error for free propagation.
   GoodPErr: 0.1      # Pointing error threshold for switching from linearized to free propataion.
   MaxIncChisq: 10.   # Incremental chisquare cut.
-  MaxSeedIncChisq: 100.   # Incremental chisquare cut in seed phase.
+  MaxSeedIncChisq: 1000.  # Incremental chisquare cut in seed phase.
   MaxSmoothIncChisq: 100. # Incremental chisquare cut in smooth phase.
   MaxEndChisq: 10.   # Maximum incremental chisquare for endpoint hit.
   MinLHits: 20       # Minimum number of measurements for linearized propagation.
