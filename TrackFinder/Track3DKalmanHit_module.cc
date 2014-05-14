@@ -15,6 +15,8 @@
 // MaxTcut            - Maximum delta ray energy in Mev for dE/dx.
 // DoDedx             - Global dE/dx enable flag.
 // MinSeedHits        - Minimum number of hits per track seed.
+// MinSeedChopHits:   - Potentially chop seeds that exceed this length.
+// MaxChopHits        - Maximum number of hits to chop from each end of seed.
 // MaxSeedChiDF       - Maximum seed track chisquare/dof.
 // MinSeedSlope       - Minimum seed slope (dx/dz).
 // InitialMomentum    - Initial momentum guess.
@@ -24,6 +26,7 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
+#include <cmath>
 #include <algorithm>
 #include <vector>
 #include <deque>
@@ -153,7 +156,9 @@ namespace trkf {
     std::string fClusterModuleLabel;    ///< Clustered Hits.
     double fMaxTcut;                    ///< Maximum delta ray energy in MeV for restricted dE/dx.
     bool fDoDedx;                       ///< Global dE/dx enable flag.
-    double fMinSeedHits;                ///< Minimum number of hits per track seed.
+    int fMinSeedHits;                   ///< Minimum number of hits per track seed.
+    int fMinSeedChopHits;               ///< Potentially chop seeds that exceed this length.
+    int fMaxChopHits;                   ///< Maximum number of hits to chop from each end of seed.
     double fMaxSeedChiDF;               ///< Maximum seed track chisquare/dof.
     double fMinSeedSlope;               ///< Minimum seed slope (dx/dz).
     double fInitialMomentum;            ///< Initial (or constant) momentum.
@@ -195,7 +200,9 @@ trkf::Track3DKalmanHit::Track3DKalmanHit(fhicl::ParameterSet const & pset) :
   fUseClusterHits(false),
   fMaxTcut(0.),
   fDoDedx(false),
-  fMinSeedHits(0.),
+  fMinSeedHits(0),
+  fMinSeedChopHits(0),
+  fMaxChopHits(0),
   fMaxSeedChiDF(0.),
   fMinSeedSlope(0.),
   fInitialMomentum(0.),
@@ -247,7 +254,9 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
   fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
   fMaxTcut = pset.get<double>("MaxTcut");
   fDoDedx = pset.get<bool>("DoDedx");
-  fMinSeedHits = pset.get<double>("MinSeedHits");
+  fMinSeedHits = pset.get<int>("MinSeedHits");
+  fMinSeedChopHits = pset.get<int>("MinSeedChopHits");
+  fMaxChopHits = pset.get<int>("MaxChopHits");
   fMaxSeedChiDF = pset.get<double>("MaxSeedChiDF");
   fMinSeedSlope = pset.get<double>("MinSeedSlope");
   fInitialMomentum = pset.get<double>("InitialMomentum");
@@ -396,9 +405,23 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
       for(;sit != seeds.end() && hpsit != hitsperseed.end(); ++sit, ++hpsit) {
 	
 	const recob::Seed& seed = *sit;
-	art::PtrVector<recob::Hit> seedhits = *hpsit;
-      
-	// Filter hits used by seed from hits available to make future seeds.
+
+	// Chop a couple of hits off each end of the seed.
+	// Seems like seeds often end at delta rays, Michel electrons,
+	// or other pathologies.
+
+	int nchopmax = std::max(0, int((hpsit->size() - fMinSeedChopHits)/2));
+	int nchop = std::min(nchopmax, fMaxChopHits);
+	art::PtrVector<recob::Hit>::const_iterator itb = hpsit->begin();
+	art::PtrVector<recob::Hit>::const_iterator ite = hpsit->end();
+	itb += nchop;
+	ite -= nchop;
+	art::PtrVector<recob::Hit> seedhits;
+	seedhits.reserve(hpsit->size());
+	for(art::PtrVector<recob::Hit>::const_iterator it = itb; it != ite; ++it)
+	  seedhits.push_back(*it);
+
+	// Filter hits used by (chopped) seed from hits available to make future seeds.
 	// No matter what, we will never use these hits for another seed.
 	// This eliminates the possibility of an infinite loop.
 
@@ -492,7 +515,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 		  // Do additional quality cuts.
 
 		  size_t n = trg1.numHits();
-		  ok = (n >= fMinSeedHits &&
+		  ok = (int(n) >= fMinSeedHits &&
 			trg0.startTrack().getChisq() <= n * fMaxSeedChiDF &&
 			trg0.endTrack().getChisq() <= n * fMaxSeedChiDF &&
 			trg1.startTrack().getChisq() <= n * fMaxSeedChiDF &&
