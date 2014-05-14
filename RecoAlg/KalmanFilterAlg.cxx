@@ -227,7 +227,7 @@ void trkf::KalmanFilterAlg::reconfigure(const fhicl::ParameterSet& pset)
   fMinLHits = pset.get<int>("MinLHits");
   fMaxLDist = pset.get<double>("MaxLDist");
   fMaxPredDist = pset.get<double>("MaxPredDist");
-  fMaxSeedPredDist = pset.get<double>("MaxPredDist");
+  fMaxSeedPredDist = pset.get<double>("MaxSeedPredDist");
   fMaxPropDist = pset.get<double>("MaxPropDist");
   fMinSortDist = pset.get<double>("MinSortDist");
   fMaxSortDist = pset.get<double>("MaxSortDist");
@@ -494,6 +494,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
   int step = 0;              // Step count.
   int nsame = 0;             // Number of consecutive measurements in same plane.
   int last_plane = -1;       // Last plane.
+  bool has_pref_plane = false; // Set to true when first preferred plane hit is added to track.
 
   // Make a copy of the starting track, in the form of a KFitTrack,
   // which we will update as we go.
@@ -612,7 +613,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 		<< "preddist = " << preddist << "\n";
 	  }
 	  if(chisq < fMaxSeedIncChisq && 
-	     (trg.numHits() == 0 || abs(preddist) < fMaxSeedPredDist) &&
+	     (!has_pref_plane || abs(preddist) < fMaxSeedPredDist) &&
 	     (best_hit.get() == 0 || chisq < best_chisq) ) {
 	    best_hit = *ihit;
 	    best_chisq = chisq;
@@ -691,6 +692,8 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 
 	  KHitTrack trh(trf, best_hit);
 	  trg.addTrack(trh);
+	  if(fPlane == gr.getPlane())
+	    has_pref_plane = true;
 
 	  // Decide if we want to kill the reference track.
 

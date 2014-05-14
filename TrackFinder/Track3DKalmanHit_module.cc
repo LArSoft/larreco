@@ -446,7 +446,14 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 	    int pdg = 13;
 	    std::vector<KTrack> initial_tracks;
-	    int ninit = (fDoDedx ? 2 : 1);
+
+	    // The build_all flag specifies whether we should attempt to make
+	    // tracks from all initial tracks, or alternatively, whether we 
+	    // should declare victory and quit after getting a successful
+	    // track from one initial track.
+
+	    bool build_all = fDoDedx;
+	    int ninit = 2;
 	    initial_tracks.reserve(ninit);
 	    initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
 	    if(ninit > 1)
@@ -585,7 +592,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 	      }
 	      if (mf::isDebugEnabled())
 	        log << (ok? "Find track succeeded.": "Find track failed.") << "\n";
-	    
+	      if(ok && !build_all)
+		break;	    
 	    } // for initial track
 	    
 	    // Loop over newly added tracks and remove hits contained on

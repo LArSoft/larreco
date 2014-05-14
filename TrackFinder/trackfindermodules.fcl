@@ -202,7 +202,7 @@ standard_track3Dkalmanhit:
   DoDedx:             false         # dE/dx enable flag.
   MinSeedHits:        12            # Minimum number of hits per track seed.
   MaxSeedChiDF:       20.           # Maximum seed track chisquare/dof.
-  MinSeedSlope:       0.02          # Minimum seed slope (dx/dz).
+  MinSeedSlope:       0.0           # Minimum seed slope (dx/dz).
   InitialMomentum:    0.2           # Initial momentum (GeV/c).
   KalmanFilterAlg:    @local::standard_kalmanfilteralg
   SeedFinderAlg:      @local::standard_seedfinderalgorithm
