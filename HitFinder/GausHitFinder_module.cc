@@ -398,7 +398,7 @@ void GausHitFinder::produce(art::Event& evt)
       
 
       // --- TH1D HitSignal ---
-      TH1D hitSignal("hitSignal","",size,startT,endT);
+      TH1D hitSignal("hitSignal","",std::max(size,1),startT,endT);
 	  
       for(int i = (int)startT; i < (int)endT; i++){
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
