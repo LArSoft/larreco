@@ -25,6 +25,17 @@ standard_clustercrawler:
  CCHitRefinerAlg:     @local::standard_cchitrefineralg
 }
 
+standard_clustercrawlershower:
+{
+ module_type:              "ClusterCrawlerShower"
+ ClusterCrawlerModuleLabel:       "cccluster"
+ ClusterParamsAlg: 	   @local::standard_clusterparamsalg
+ ClusterMergeAlg:          @local::standard_clustermergealg
+ MinHitListSize:	  15
+ MaxDistance:             0.1
+}
+
+
 standard_fuzzycluster:
 {
  module_type:     "fuzzyCluster"
