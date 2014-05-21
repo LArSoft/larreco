@@ -52,8 +52,6 @@ find_ups_product( art v1_06_00 )
 find_ups_product( cetbuildtools v3_06_00 )
 find_ups_product( geant4 v4_9_6 )
 
-cet_check_gcc()
-
 # macros for dictionary and simple_plugin
 include(ArtDictionary)
 include(ArtMake)
