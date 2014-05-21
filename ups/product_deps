@@ -1,20 +1,20 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v1_01_00
+parent	larreco	v1_02_00
 defaultqual	e5
 #
 fcldir product_dir job
 #
 product         version
-larsim		v1_01_00
-nutools         v1_02_00
+larsim		v1_02_00
+nutools         v1_02_02
 gcc		v4_8_2
 
 # list products required ONLY for the build
 # any products here must NOT have qualifiers
-only_for_build  cetbuildtools   v3_10_01
+only_for_build  cetbuildtools   v3_11_00
   
-# e5  - with gcc 4.8.1 and -std=c++11
+# e5  - with gcc 4.8.2 and -std=c++11
 qualifier	larsim		nutools		gcc	notes
 e5:debug	e5:debug	debug:e5	-nq-
 e5:opt		e5:opt		e5:prof		-nq-
