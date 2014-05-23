@@ -122,8 +122,8 @@ namespace trkf {
   struct SortByWire {
     bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const { 
       return 
-	h1->Wire()->RawDigit()->Channel() < 
-	h2->Wire()->RawDigit()->Channel() ;
+	h1->Channel() < 
+	h2->Channel() ;
     }
   };
 
@@ -832,8 +832,8 @@ namespace trkf {
 	    hitcoord[0] = matchedtime->second*detprop->GetXTicksCoefficient();
 	    hitcoord[1] = -1e10;
 	    hitcoord[2] = -1e10;
-	    geom->ChannelsIntersect((ihit1->second)->Wire()->RawDigit()->Channel(),
-				    (matchedhit->second)->Wire()->RawDigit()->Channel(),
+	    geom->ChannelsIntersect((ihit1->second)->Channel(),
+				    (matchedhit->second)->Channel(),
 				    hitcoord[1],hitcoord[2]);
 	    if (hitcoord[1]>-1e9&&hitcoord[2]>-1e9){
 	      maxhitsMatch[matchedtime->first] = 1;
