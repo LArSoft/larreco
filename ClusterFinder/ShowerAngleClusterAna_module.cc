@@ -1151,8 +1151,10 @@ void cluster::ShowerAngleClusterAna::GetVertexCluster(std::vector < art::Ptr < r
       double xyz1[]={particle->Trajectory().X(0),particle->Trajectory().Y(0),particle->Trajectory().Z(0)};
       double xyz2[]={particle->Trajectory().X(1),particle->Trajectory().Y(1),particle->Trajectory().Z(1)};
       //std::cout << " xyz1,xyz2 " << xyz1[0]<<","<<xyz1[1]<<","<<xyz1[2]<<"||"<<xyz2[0]<<","<<xyz2[1]<<","<<xyz2[2]<<","<<std::endl;
-      util::pxpoint pN1;
-      util::pxpoint pN2;
+      //util::pxpoint pN1;
+      //util::pxpoint pN2;
+      util::PxPoint pN1;
+      util::PxPoint pN2;
      try{
         pN1=gser.Get2DPointProjection(xyz1,mcplane[iClust]);
 	}
@@ -1261,7 +1263,8 @@ void cluster::ShowerAngleClusterAna::GetVertexCluster(std::vector < art::Ptr < r
     mf::LogVerbatim("ShowerAngleClusterAna") <<"particle->Vx()= "<<minx<<" ,y= "<<miny<<" ,z= "<<minz<<std::endl;
   //std::cout << " xyz: " << mcx[iClust]<< ","<< mcy[iClust]<< ","<< mcz[iClust] << std::endl;
   double xyz[]={mcx[iClust],mcy[iClust],mcz[iClust]};
-  util::pxpoint pN;
+  //util::pxpoint pN;
+  util::PxPoint pN;
   try{
         pN=gser.Get2DPointProjection(xyz,mcplane[iClust]);
      }
