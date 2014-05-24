@@ -1,16 +1,6 @@
 
-art_make( LIBRARY_NAME  RecoAlg
-          LIB_LIBRARIES HarrisVertexFinder_module
-                        BackTracker_service
-                        RecoBase
-                        Simulation
-                        Filters
-                        Geometry
-                        Geometry_service
-                        RecoObjects
-                        AnalysisBase
-                        LArProperties_service
-                        DetectorProperties_service
+art_make( LIBRARY_NAME  ClusterRecoUtil
+          LIB_LIBRARIES
                         Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -30,9 +20,6 @@ art_make( LIBRARY_NAME  RecoAlg
 			${ROOT_BASIC_LIB_LIST}
                         ${ROOT_MINUIT}
         )
-
-add_subdirectory(ClusterCluster)
-add_subdirectory(ClusterRecoUtil)
 
 install_headers()
 install_fhicl()

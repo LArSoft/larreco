@@ -24,7 +24,7 @@
 
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
-#include "RecoAlg/ClusterParamsAlg.h" 
+#include "RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h" 
 #include "Utilities/AssociationUtil.h"
 #include "Utilities/SeedCreator.h"
 

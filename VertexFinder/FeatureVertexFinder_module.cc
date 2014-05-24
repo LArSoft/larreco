@@ -63,7 +63,7 @@
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
-#include "RecoAlg/ClusterParamsAlg.h"
+//#include "RecoAlg/ClusterParamsAlg.h"
 
 // #####################
 // ### ROOT Includes ###
@@ -106,7 +106,7 @@ namespace vertex {
    std::string fClusterModuleLabel;
    std::string fHitModuleLabel;
    std::string fCornerFinderModuleLabel;
-   cluster::ClusterParamsAlg fClParAlg;
+   //cluster::ClusterParamsAlg fClParAlg;
   };
     
 }//<---End namespace vertex
@@ -127,8 +127,8 @@ namespace vertex {
 namespace vertex{
 
 //-----------------------------------------------------------------------------
-  FeatureVertexFinder::FeatureVertexFinder(fhicl::ParameterSet const& pset):
-  fClParAlg(pset.get<fhicl::ParameterSet>("ClusterParamsAlg"), pset.get< std::string >("module_type"))
+  FeatureVertexFinder::FeatureVertexFinder(fhicl::ParameterSet const& pset)
+  //: fClParAlg(pset.get<fhicl::ParameterSet>("ClusterParamsAlg"), pset.get< std::string >("module_type"))
   {  
     /*this->*/reconfigure(pset);    
     produces< std::vector<recob::Vertex> >();

@@ -29,7 +29,7 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
-#include "RecoAlg/ClusterParamsAlg.h"
+//#include "RecoAlg/ClusterParamsAlg.h"
 #include "RecoAlg/ClusterMergeAlg.h"
 
 
@@ -58,7 +58,7 @@ namespace cluster {
     double	  fMaxDistance;	 
 
 
-    ClusterParamsAlg fCParAlg;
+    //ClusterParamsAlg fCParAlg;
     ClusterMergeAlg fCMergeAlg;
    
     std::string     fClusterCrawlerModuleLabel;
@@ -78,20 +78,20 @@ namespace cluster {
 
   //-------------------------------------------------
 cluster::ClusterCrawlerShower::ClusterCrawlerShower(fhicl::ParameterSet const& pset) 
-    : fCParAlg(pset.get<fhicl::ParameterSet >("ClusterParamsAlg"),pset.get< std::string > ("module_type"))
-    , fCMergeAlg(pset.get<fhicl::ParameterSet >("ClusterMergeAlg"))
-    , fClusterCrawlerModuleLabel(pset.get<std::string>("ClusterCrawlerModuleLabel"))
-  {
-    this->reconfigure(pset);
-    produces< std::vector<recob::Cluster> >();
-    produces< art::Assns<recob::Cluster, recob::Hit> >();
-  }
+//: fCParAlg(pset.get<fhicl::ParameterSet >("ClusterParamsAlg"),pset.get< std::string > ("module_type"))
+  : fCMergeAlg(pset.get<fhicl::ParameterSet >("ClusterMergeAlg"))
+  , fClusterCrawlerModuleLabel(pset.get<std::string>("ClusterCrawlerModuleLabel"))
+{
+  this->reconfigure(pset);
+  produces< std::vector<recob::Cluster> >();
+  produces< art::Assns<recob::Cluster, recob::Hit> >();
+}
 
 
   void cluster::ClusterCrawlerShower::reconfigure(fhicl::ParameterSet const& pset) 
   {
     fClusterCrawlerModuleLabel	=pset.get< std::string >("ClusterCrawlerModuleLabel");
-    fCParAlg.reconfigure(pset.get< fhicl::ParameterSet >("ClusterParamsAlg"));
+    //fCParAlg.reconfigure(pset.get< fhicl::ParameterSet >("ClusterParamsAlg"));
     fMinHitListSize	  	=pset.get<unsigned int >("MinHitListSize");
     fMaxDistance		=pset.get<double>("MaxDistance");
   }
@@ -173,6 +173,7 @@ cluster::ClusterCrawlerShower::ClusterCrawlerShower(fhicl::ParameterSet const& p
 	}
       }
 
+      /*
       double wire_start = cl->StartPos().front();
       double wire_end = cl->EndPos().front();
       double time_start = cl->StartPos().back();
@@ -185,6 +186,7 @@ cluster::ClusterCrawlerShower::ClusterCrawlerShower(fhicl::ParameterSet const& p
 			    time_end,
 			    showerHitList))
 	continue;
+      */
       
       //// Store this processed shower-like cluster
       //inputShowerClusters.push_back(std::move(temp));

@@ -1,6 +1,6 @@
 
 art_make( BASENAME_ONLY
-          EXCLUDE ShowerSelectorFilter_module.cc
+#          EXCLUDE ShowerSelectorFilter_module.cc
           MODULE_LIBRARIES 
                         LArProperties_service
                         DetectorProperties_service
@@ -29,14 +29,14 @@ art_make( BASENAME_ONLY
                         ${ROOT_BASIC_LIB_LIST}
          )
 
-simple_plugin( ShowerSelectorFilter "module"
-         		  Filters
- 			  RecoAlg
- 		    	  RawData
-                          LArProperties_service
- 			  ${SIMULATIONBASE}
-               BASENAME_ONLY 
- 	     )     
+#simple_plugin( ShowerSelectorFilter "module"
+#         		  Filters
+# 			  RecoAlg
+# 		    	  RawData
+#                          LArProperties_service
+# 			  ${SIMULATIONBASE}
+#               BASENAME_ONLY 
+# 	     )     
 
 install_headers()
 install_fhicl()
