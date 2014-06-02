@@ -30,7 +30,9 @@
 #include "RecoAlg/CMTool/CMergeManager.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/LArProperties.h"
+#include "Utilities/AssociationUtil.h"
 #include "Geometry/Geometry.h"
+
 // STL
 #include <set>
 #include <vector>
@@ -66,13 +68,25 @@ namespace cluster
     void Process();
 
     /// Utility method to retrieve merged clusters in terms of a vector of art::Ptr<recob::Hit>
-    const std::vector<std::vector<art::Ptr<recob::Hit> > >& GetClusters() const;
+    const std::vector<std::vector<art::Ptr<recob::Hit> > >& GetMergedClusterHits() const;
 
+    /// Utility method to retrieve merged clusters in terms of a vector of CPAN
+    const std::vector<cluster::ClusterParamsAlg>& GetMergedCPAN() const;
+
+    /// Utility method to append result set to user's data product storage
+    void AppendResult(art::EDProducer &ed,
+		      art::Event      &ev,
+		      std::vector<recob::Cluster>           &out_clusters,
+		      art::Assns<recob::Cluster,recob::Hit> &assns) const;
+      
   protected:
 
     /// Internal method to transfer input cluster information in the right format to CMergeManager
     void SetClusters(const std::vector<std::vector<util::PxHit> > &clusters)
-    { fMgr.SetClusters(clusters); }
+    { 
+      fMgr.Reset();
+      fMgr.SetClusters(clusters); 
+    }
 
   protected:
 

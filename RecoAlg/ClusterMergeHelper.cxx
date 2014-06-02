@@ -81,22 +81,121 @@ namespace cluster{
   void ClusterMergeHelper::Process()
   //################################
   {
+    if(fMgr.GetClusters().size()) 
+
+      throw cet::exception(__PRETTY_FUNCTION__) << "\033[93m"
+						<< "Merged cluster set not empty... Called Process() twice?"
+						<< "\033[00m"
+						<< std::endl;
+
+    // Process
+    fMgr.Process();
+
+    // Now create output clusters
+    CBookKeeper res = fMgr.GetBookKeeper();
+    
+    std::vector<std::vector<unsigned short> > out_clusters = res.GetResult();
+
+    fOutputClusters.clear();
+    
+    fOutputClusters.reserve(out_clusters.size());
+
+    for(auto const &cluster_index_v : out_clusters) {
+      
+      std::vector<art::Ptr<recob::Hit> > out_cluster;
+
+      for(auto const& cluster_index : cluster_index_v) {
+
+	out_cluster.reserve(out_cluster.size() + fInputClusters.at(cluster_index).size());
+
+	for(auto const& hit_ptr : fInputClusters.at(cluster_index))
+
+	  out_cluster.push_back(hit_ptr);
+
+      }
+
+      fOutputClusters.push_back(out_cluster);
+
+    }
 
   }
 
-  //#############################################################################################
-  const std::vector<std::vector<art::Ptr<recob::Hit> > >& ClusterMergeHelper::GetClusters() const
-  //#############################################################################################
+  //######################################################################################################
+  const std::vector<std::vector<art::Ptr<recob::Hit> > >& ClusterMergeHelper::GetMergedClusterHits() const
+  //######################################################################################################
   { 
     if(!fOutputClusters.size()) 
 
       throw cet::exception(__FUNCTION__) 
 	<< "\033[93m"
-	<< "You must call Process() before calling GetClusters() to retrieve result."
+	<< "You must call Process() before calling " << __FUNCTION__ << " to retrieve result."
 	<< "\033[00m"
 	<< std::endl;
 
     return fOutputClusters;
+  }
+  
+  //#####################################################################################
+  const std::vector<cluster::ClusterParamsAlg>& ClusterMergeHelper::GetMergedCPAN() const
+  //#####################################################################################
+  {
+    if(!fOutputClusters.size()) 
+
+      throw cet::exception(__FUNCTION__) 
+	<< "\033[93m"
+	<< "You must call Process() before calling " << __FUNCTION__ << " to retrieve result."
+	<< "\033[00m"
+	<< std::endl;
+
+    return fMgr.GetClusters();
+  }
+
+  void ClusterMergeHelper::AppendResult(art::EDProducer &ed,
+					art::Event      &ev,
+					std::vector<recob::Cluster>           &out_clusters,
+					art::Assns<recob::Cluster,recob::Hit> &assns) const
+  {
+
+    if(!fOutputClusters.size()) 
+
+      throw cet::exception(__FUNCTION__) 
+	<< "\033[93m"
+	<< "You must call Process() before calling " << __FUNCTION__ << " to retrieve result."
+	<< "\033[00m"
+	<< std::endl;
+
+    art::ServiceHandle<geo::Geometry> geo;
+
+    // Store output
+    for(size_t out_index=0; out_index < GetMergedCPAN().size(); ++out_index) {
+      
+      // To save typing let's just retrieve const cluster_params instance
+      const cluster_params &res = GetMergedCPAN().at(out_index).GetParams();
+      
+      // View_t needed but not a part of cluster_params, so retrieve it here
+      geo::View_t view_id = geo->Plane(GetMergedCPAN().at(out_index).Plane()).View();
+      
+      // Push back a new cluster data product with parameters copied from cluster_params
+      out_clusters.push_back( recob::Cluster( res.start_point.w / fGeoU.WireToCm(), 0,  // start wire & error
+					      res.start_point.t / fGeoU.TimeToCm(), 0,  // start time & error
+					      res.end_point.w   / fGeoU.WireToCm(), 0,  // end   wire & error
+					      res.end_point.t   / fGeoU.TimeToCm(), 0,  // end   time & error
+					      res.cluster_angle_2d,                 0,  // dT/dW (slope)
+					      0,                                    0,  // dQ/dW (what is that?)
+					      res.sum_charge,                           // charge sum
+					      view_id,                                  // geo::View_t
+					      out_clusters.size()                       // Cluster ID
+					      )
+			      );
+      
+      util::CreateAssn(ed,
+		       ev, 
+		       out_clusters,
+		       GetMergedClusterHits().at(out_index), 
+		       assns
+		       );
+    }
+    
   }
 
 } // namespace cluster
