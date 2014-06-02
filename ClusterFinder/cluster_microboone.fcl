@@ -30,4 +30,5 @@ microboone_endpointmod.EndPointAlg:      @local::microboone_endpointalg
 microboone_showeranglecluster:           @local::standard_showeranglecluster
 microboone_showeranglecluster.ClusterMatchAlg:          @local::microboone_clustermatchalg
 microboone_showeranglecluster.ClusterMergeAlg:          @local::microboone_clustermergealg
+microboone_simpleclustermerger:          @local::standard_simpleclustermerger
 END_PROLOG

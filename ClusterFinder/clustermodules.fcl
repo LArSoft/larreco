@@ -151,7 +151,11 @@ standard_showerangleclusterana:
  MinHitListSize:	  15
 }
 
-
+standard_simpleclustermerger:
+{
+ module_type:       "SimpleClusterMerger"
+ InputClusterLabel: "fuzzycluster"
+}
 
 standard_smallclusterfinder:
 {
