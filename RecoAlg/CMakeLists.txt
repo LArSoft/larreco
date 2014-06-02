@@ -12,6 +12,8 @@ art_make( LIBRARY_NAME  RecoAlg
                         LArProperties_service
                         DetectorProperties_service
                         Utilities
+			ClusterRecoUtil
+			CMTool
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
@@ -31,7 +33,7 @@ art_make( LIBRARY_NAME  RecoAlg
                         ${ROOT_MINUIT}
         )
 
-add_subdirectory(ClusterMergeTool)
+add_subdirectory(CMTool)
 add_subdirectory(ClusterRecoUtil)
 
 install_headers()

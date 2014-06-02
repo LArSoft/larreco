@@ -1,5 +1,5 @@
 
-art_make( LIBRARY_NAME  ClusterMergeTool
+art_make( LIBRARY_NAME  CMTool
           LIB_LIBRARIES
 			ClusterRecoUtil
                         Utilities

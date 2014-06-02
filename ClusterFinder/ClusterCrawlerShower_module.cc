@@ -30,7 +30,7 @@
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
 //#include "RecoAlg/ClusterParamsAlg.h"
-#include "RecoAlg/ClusterMergeAlg.h"
+#include "RecoAlg/ClusterMergeHelper.h"
 
 
 
@@ -59,7 +59,7 @@ namespace cluster {
 
 
     //ClusterParamsAlg fCParAlg;
-    ClusterMergeAlg fCMergeAlg;
+    //ClusterMergeAlg fCMergeAlg;
    
     std::string     fClusterCrawlerModuleLabel;
   
@@ -79,8 +79,8 @@ namespace cluster {
   //-------------------------------------------------
 cluster::ClusterCrawlerShower::ClusterCrawlerShower(fhicl::ParameterSet const& pset) 
 //: fCParAlg(pset.get<fhicl::ParameterSet >("ClusterParamsAlg"),pset.get< std::string > ("module_type"))
-  : fCMergeAlg(pset.get<fhicl::ParameterSet >("ClusterMergeAlg"))
-  , fClusterCrawlerModuleLabel(pset.get<std::string>("ClusterCrawlerModuleLabel"))
+//: fCMergeAlg(pset.get<fhicl::ParameterSet >("ClusterMergeAlg"))
+  : fClusterCrawlerModuleLabel(pset.get<std::string>("ClusterCrawlerModuleLabel"))
 {
   this->reconfigure(pset);
   produces< std::vector<recob::Cluster> >();
@@ -131,7 +131,7 @@ cluster::ClusterCrawlerShower::ClusterCrawlerShower(fhicl::ParameterSet const& p
       viewToHits[hitVecHandle->at(i).View()].push_back(art::Ptr<recob::Hit>(hitVecHandle, i));
 
 
-    fCMergeAlg.ClearEventInfo();
+    //fCMergeAlg.ClearEventInfo();
     std::vector<recob::Cluster> inputShowerClusters;
     std::vector<std::vector<art::Ptr<recob::Hit> > > inputShowerClusterHits;
     for(unsigned int iClust = 0; iClust < clusterVecHandle->size(); iClust++){
