@@ -225,6 +225,7 @@ namespace cluster {
 		       fCMerge.GetMergedClusterHits().at(out_index), 
 		       *(out_assn.get())
 		       );
+
     }
     
     // As advertized, the following (commented-out) line does the same thing
@@ -233,7 +234,9 @@ namespace cluster {
     fCMerge.AppendResult( *this, evt, *(out_clusters.get()), *(out_assn.get()) );
     
   */
-    
+
+  evt.put(std::move(out_clusters));
+  evt.put(std::move(out_assn));
     
   }
 }
