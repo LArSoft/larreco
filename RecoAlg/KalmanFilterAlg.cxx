@@ -62,7 +62,10 @@ namespace {
 	double phi = pyz->phi();
 	art::ServiceHandle<geo::Geometry> geom;
 	double ymax = geom->DetHalfWidth();
-	z = z0 * std::cos(phi) + std::abs( (ymax - y0) * std::sin(phi) );
+	if(phi > 0.)
+	  z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
+	else
+	  z = z0 * std::cos(phi) - (ymax + y0) * std::sin(phi);
 
 	//int pl = hit.getMeasPlane();
 	//std::cout << "pl = " << pl
