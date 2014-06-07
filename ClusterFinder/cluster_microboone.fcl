@@ -10,6 +10,9 @@ microboone_houghbasealg.MaxDistance:          1.0
 microboone_houghbasealg.MinHits:              5
 microboone_houghbasealg.NumAngleCells:        20000
 microboone_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+microboone_clustercrawlershower:              @local::standard_clustercrawlershower
+microboone_clustercrawlershower.ClusterParamsAlg:         @local::microboone_clusterparamsalg
+microboone_clustercrawlershower.ClusterMergeAlg:          @local::microboone_clustermergealg
 
 microboone_dbcluster:                    @local::standard_dbcluster      
 microboone_dbcluster.DBScanAlg:          @local::microboone_dbscanalg    

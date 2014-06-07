@@ -13,8 +13,8 @@
 #include "cetlib/exception.h"
 #include "boost/numeric/ublas/vector_proxy.hpp"
 #include "boost/numeric/ublas/matrix_proxy.hpp"
-#include "lardata/RecoObjects/KHit.h"
-#include "lardata/RecoObjects/SurfYZPlane.h"
+#include "RecoObjects/KHit.h"
+#include "RecoObjects/SurfYZPlane.h"
 #include "Geometry/Geometry.h"
 #include "TGaxis.h"
 #include "TText.h"
@@ -62,7 +62,10 @@ namespace {
 	double phi = pyz->phi();
 	art::ServiceHandle<geo::Geometry> geom;
 	double ymax = geom->DetHalfWidth();
-	z = z0 * std::cos(phi) + std::abs( (ymax - y0) * std::sin(phi) );
+	if(phi > 0.)
+	  z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
+	else
+	  z = z0 * std::cos(phi) - (ymax + y0) * std::sin(phi);
 
 	//int pl = hit.getMeasPlane();
 	//std::cout << "pl = " << pl
