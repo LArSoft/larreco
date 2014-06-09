@@ -27,6 +27,7 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/EndPoint2D.h"
+#include "RecoBase/Vertex.h"
 #include "Utilities/AssociationUtil.h"
 // #include "Filters/ChannelFilter.h"
 #include "RecoAlg/CCHitFinderAlg.h"
@@ -67,6 +68,7 @@ namespace cluster {
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< std::vector<recob::EndPoint2D> >();
+    produces< std::vector<recob::Vertex> >();
   }
 
   ClusterCrawler::~ClusterCrawler()
@@ -101,7 +103,7 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
     std::vector<recob::Hit> shcol;
     std::vector<recob::Cluster> sccol;
-    std::vector<recob::EndPoint2D> svcol;
+//    std::vector<recob::EndPoint2D> svcol;
 
     // put clusters and hits into std::vectors
     unsigned short nclus = 0;
@@ -202,11 +204,11 @@ namespace cluster {
     }
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
 
-    // deal with cluster-EndPoint2D assns later (if necessary/desired)
-    std::unique_ptr<std::vector<recob::EndPoint2D> > vcol(new std::vector<recob::EndPoint2D>);
+    // 2D and 3D vertex collections
+    std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>);
+    std::unique_ptr<std::vector<recob::Vertex> > v3col(new std::vector<recob::Vertex>);
 
-    // make the vertex collection
-//  std::cout<<" # vertices "<<fCCAlg.vtx.size()<<std::endl;
+    // make the 2D vertex collection
     for(unsigned short iv = 0; iv < fCCAlg.vtx.size(); iv++) {
       ClusterCrawlerAlg::VtxStore vtx = fCCAlg.vtx[iv];
       if(vtx.Wght <= 0) continue;
@@ -226,19 +228,37 @@ namespace cluster {
       }
       recob::EndPoint2D myvtx((double)vtx.Time, wids[0], (double)vtx.Wght,
         (int)iv, geo->View(channel), 0.);
-      vcol->push_back(myvtx);
+      v2col->push_back(myvtx);
     } // iv
-
+    
+    // make the 3D vertex collection
+    double xyz[3] = {0, 0, 0};
+    int n3v = 0;
+    for(unsigned short iv = 0; iv < fCCAlg.vtx3.size(); iv++) {
+      ClusterCrawlerAlg::Vtx3Store vtx3 = fCCAlg.vtx3[iv];
+      // ignore incomplete vertices
+      if(vtx3.Ptr2D[0] < 0) continue;
+      if(vtx3.Ptr2D[1] < 0) continue;
+      if(vtx3.Ptr2D[2] < 0) continue;
+      ++n3v;
+      xyz[0] = vtx3.X;
+      xyz[1] = vtx3.Y;
+      xyz[2] = vtx3.Z;
+      recob::Vertex myvtx(xyz, n3v);
+      v3col->push_back(myvtx);
+    }
 
     // clean up
     fCCHFAlg.allhits.clear();
     fCCAlg.tcl.clear();
     fCCAlg.vtx.clear();
+    fCCAlg.vtx3.clear();
 
     evt.put(std::move(hcol));
     evt.put(std::move(ccol));
     evt.put(std::move(hc_assn));
-    evt.put(std::move(vcol));
+    evt.put(std::move(v2col));
+    evt.put(std::move(v3col));
 
   } // produce
 } // namespace

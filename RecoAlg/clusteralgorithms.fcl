@@ -19,12 +19,14 @@ standard_clustercrawleralg:
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
   MergeChgCut: [0.2, 0.2, 0.2] # max charge ratio for cluster merging
   FindVertices: [true, true, true]  # make 2D vertices after clustering?
+  LACrawl:     [false, true, true]  # crawl Large Angle clusters?
   LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
   HitMergeChiCut:    4.0 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
   MergeGhostClusters: true # Merge clusters that share hits in a multiplet?     
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
   AllowNoHitWire:        1 # 
+  Vertex3DCut:          1. # 2D vtx -> 3D vtx matching cut (cm)
   DebugPlane:          -1  # print info only in this plane
   DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
   DebugHit:             0  # out detailed information while crawling
