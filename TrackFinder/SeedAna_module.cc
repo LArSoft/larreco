@@ -421,7 +421,7 @@ namespace trkf {
 
     // Book histograms.
 
-    fHx = dir.make<TH1F>("x", "X Position", 100, 0., 2.*geom->DetHalfWidth());
+    fHx = dir.make<TH1F>("x", "X Position", 100, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHy = dir.make<TH1F>("y", "Y Position", 100, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHz = dir.make<TH1F>("z", "Z Position", 100, 0., geom->DetLength());
     fHdist = dir.make<TH1F>("dist", "Position Distance to Boundary", 
@@ -538,13 +538,13 @@ namespace trkf {
     fHmcdvdw = dir.make<TH1F>("mcdvdw", "MV Truth V Slope", 100, -0.2, 0.2);
 
     fHmcstartx = dir.make<TH1F>("mcxstart", "MC X Start Position",
-				10, 0., 2.*geom->DetHalfWidth());
+				10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHmcstarty = dir.make<TH1F>("mcystart", "MC Y Start Position",
 				10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHmcstartz = dir.make<TH1F>("mczstart", "MC Z Start Position",
 				10, 0., geom->DetLength());
     fHmcendx = dir.make<TH1F>("mcxend", "MC X End Position",
-			      10, 0., 2.*geom->DetHalfWidth());
+			      10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHmcendy = dir.make<TH1F>("mcyend", "MC Y End Position",
 			      10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHmcendz = dir.make<TH1F>("mczend", "MC Z End Position",
@@ -557,13 +557,13 @@ namespace trkf {
     fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * geom->DetLength());
 
     fHmstartx = dir.make<TH1F>("mxstart", "Matched X Start Position",
-			       10, 0., 2.*geom->DetHalfWidth());
+			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHmstarty = dir.make<TH1F>("mystart", "Matched Y Start Position",
 			       10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHmstartz = dir.make<TH1F>("mzstart", "Matched Z Start Position",
 			       10, 0., geom->DetLength());
     fHmendx = dir.make<TH1F>("mxend", "Matched X End Position",
-			     10, 0., 2.*geom->DetHalfWidth());
+			     10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHmendy = dir.make<TH1F>("myend", "Matched Y End Position",
 			     10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHmendz = dir.make<TH1F>("mzend", "Matched Z End Position",
@@ -576,13 +576,13 @@ namespace trkf {
     fHmlen = dir.make<TH1F>("mlen", "Matched Particle Length", 10, 0., 1.1 * geom->DetLength());
 
     fHgstartx = dir.make<TH1F>("gxstart", "Good X Start Position",
-			       10, 0., 2.*geom->DetHalfWidth());
+			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHgstarty = dir.make<TH1F>("gystart", "Good Y Start Position",
 			       10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHgstartz = dir.make<TH1F>("gzstart", "Good Z Start Position",
 			       10, 0., geom->DetLength());
     fHgendx = dir.make<TH1F>("gxend", "Good X End Position",
-			     10, 0., 2.*geom->DetHalfWidth());
+			     10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHgendy = dir.make<TH1F>("gyend", "Good Y End Position",
 			     10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHgendz = dir.make<TH1F>("gzend", "Good Z End Position",
@@ -595,13 +595,13 @@ namespace trkf {
     fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * geom->DetLength());
 
     fHmulstartx = dir.make<TH1F>("mulxstart", "Multiplicity vs. X Start Position",
-				 10, 0., 2.*geom->DetHalfWidth());
+				 10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHmulstarty = dir.make<TH1F>("mulystart", "Multiplicity vs. Y Start Position",
 				 10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHmulstartz = dir.make<TH1F>("mulzstart", "Multiplicity vs. Z Start Position",
 				 10, 0., geom->DetLength());
     fHmulendx = dir.make<TH1F>("mulxend", "Multiplicity vs. X End Position",
-			       10, 0., 2.*geom->DetHalfWidth());
+			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHmulendy = dir.make<TH1F>("mulyend", "Multiplicity vs. Y End Position",
 			       10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHmulendz = dir.make<TH1F>("mulzend", "Multiplicity vs. Z End Position",
@@ -615,13 +615,13 @@ namespace trkf {
 			      10, 0., 1.1 * geom->DetLength());
 
     fHestartx = dir.make<TH1F>("exstart", "Efficiency vs. X Start Position",
-			       10, 0., 2.*geom->DetHalfWidth());
+			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHestarty = dir.make<TH1F>("eystart", "Efficiency vs. Y Start Position",
 			       10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHestartz = dir.make<TH1F>("ezstart", "Efficiency vs. Z Start Position",
 			       10, 0., geom->DetLength());
     fHeendx = dir.make<TH1F>("exend", "Efficiency vs. X End Position",
-			     10, 0., 2.*geom->DetHalfWidth());
+			     10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHeendy = dir.make<TH1F>("eyend", "Efficiency vs. Y End Position",
 			     10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHeendz = dir.make<TH1F>("ezend", "Efficiency vs. Z End Position",
