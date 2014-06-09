@@ -3284,8 +3284,10 @@ namespace cluster {
       float wirePitch = geom->WirePitch(0, 1, 0, tpc, cstat);
       
       // Y,Z limits of the detector
-      double YLo = -120., YHi = 120.;
-      double ZLo = 0., ZHi = 9000.;
+      double YHi = geom->DetHalfHeight(tpc, cstat);
+      double YLo = -YHi;
+      double ZLo = 0.;
+      double ZHi = geom->DetLength(tpc, cstat);
       
       // create a vector of vertex indices in each plane
       std::vector<std::vector<unsigned short>> vIndex;
