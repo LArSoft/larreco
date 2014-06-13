@@ -52,6 +52,10 @@ namespace cluster {
 
     void Initialize();
 
+    void SetMinNHits(size_t nhit) { fMinNHits = nhit; }
+    
+    size_t MinNHits() const { return fMinNHits; }
+
     //void SetHits(const std::vector<util::PxHit*>&);
     
     //int SetHits(const std::vector<const larlight::hit*> &);
@@ -185,13 +189,16 @@ namespace cluster {
 
     void DisableFANN(){enableFANN = false;}
 
-    unsigned int GetNHits(){return fHitVector.size();}
+    unsigned int GetNHits() const {return fHitVector.size();}
     const std::vector<util::PxHit>& GetHitVector() const {return fHitVector;}
     int Plane() const {return fPlane;}
     
   protected:
     
     util::GeometryUtilities  fGSer;
+
+    /// Cut value for # hits: below this value clusters are not evaluated
+    size_t fMinNHits;
 
     /**
        This vector holds the pointer to hits. 

@@ -1,18 +1,18 @@
 /**
- * \file CMAlgoStartNearEnd.h
+ * \file CMAlgoStartNearEnd.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoStartNearEnd
  *
  * @author david caratelli
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOSTARTNEAREND_H
-#define CMALGOSTARTNEAREND_H
+#ifndef CMALGOSTARTNEAREND_HH
+#define CMALGOSTARTNEAREND_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
@@ -38,14 +38,11 @@ namespace cluster {
        merged or not.
     */
 
-    /// Function to set verbosity
-    void SetVerbose(bool verbosity) { _verbose=verbosity; }
-
     void SetMaxStartEndSeparation(double d) { _separation=d; }
 
     void SetMaxAngle(double a) { _maxopeningangle=a; }
 
-    void SetMinHits(int n) { _MinHits=n; }
+    void SetMinHits(size_t n) { _MinHits=n; }
 
     virtual bool Bool(const ClusterParamsAlg &cluster1,
 		      const ClusterParamsAlg &cluster2);
@@ -58,10 +55,9 @@ namespace cluster {
 
   protected:
 
-    bool _verbose;
     double _maxopeningangle;
     double _separation;
-    int _MinHits;
+    size_t _MinHits;
 
   };
 }

@@ -19,17 +19,13 @@ namespace cluster {
 			const ClusterParamsAlg &cluster2)
   //--------------------------------------------------------
   {
-    _ctr++;
-    if( (_ctr%64) == 0)
-      _flip = (!_flip);
-    return _flip;
-  }
-
-  //-----------------------
-  void CMAlgoFake::Report()
-  //-----------------------
-  {
-    std::cout<< "  I am just flpping every 64 counts... " << std::endl;
+    if(cluster1.GetNHits() && cluster2.GetNHits()) {
+      _ctr++;
+      if( (_ctr%64) == 0)
+	_flip = (!_flip);
+      return _flip;
+    }
+    else return false;
   }
 
 }

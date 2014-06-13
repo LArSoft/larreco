@@ -1,18 +1,18 @@
 /**
- * \file CMergeManager.h
+ * \file CMergeManager.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMergeManager
  *
  * @author kazuhiro
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMERGEMANAGER_H
-#define CMERGEMANAGER_H
+#ifndef CMERGEMANAGER_HH
+#define CMERGEMANAGER_HH
 
 #include <iostream>
 
@@ -96,7 +96,7 @@ namespace cluster {
     const CBookKeeper& GetBookKeeper() const { return _book_keeper; }
 
     /// A setter for an analysis output file
-    //void SetAnaFile(TFile* fout) { _fout = fout; }
+    void SetAnaFile(TFile* fout) { _fout = fout; }
 
   protected:
 
@@ -137,7 +137,7 @@ namespace cluster {
     CMergePriority_t _priority;
 
     /// Output analysis plot TFile
-    //TFile* _fout;
+    TFile* _fout;
 
   };
 }

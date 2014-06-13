@@ -1,21 +1,22 @@
 /**
- * \file CMAlgoStartInCone.h
+ * \file CMAlgoStartInCone.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoStartInCone
  *
  * @author david
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOSTARTINCONE_H
-#define CMALGOSTARTINCONE_H
+#ifndef CMALGOSTARTINCONE_HH
+#define CMALGOSTARTINCONE_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
+#include "Utilities/GeometryUtilities.h"
 #include <math.h>
 
 namespace cluster {
@@ -42,7 +43,7 @@ namespace cluster {
     void reconfigure();
 
     /// Set Minimum number of hits for cone-cluster
-    void SetMinHits(int n){ _NhitsMin = n; }
+    void SetMinHits(size_t n){ _NhitsMin = n; }
 
     /// Set Minimum number of hits for cone-cluster
     void SetMinLen(double l){ _lenMin = l; }
@@ -61,7 +62,9 @@ namespace cluster {
 
   protected:
 
-    int _NhitsMin;     /// Larger cluster which determines cone must have this many hits
+    double _wire_2_cm, _time_2_cm; /// Conversion factors ogtten from GeometryUtilities
+
+    size_t _NhitsMin;     /// Larger cluster which determines cone must have this many hits
     double _lenMin;    /// Larger cluster which determines cone must be at least this long
     bool _verbose;
     bool _debug;

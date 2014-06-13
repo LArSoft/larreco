@@ -1,18 +1,18 @@
 /**
- * \file CMAlgoMergeAll.h
+ * \file CMAlgoMergeAll.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoMergeAll
  *
  * @author david caratelli
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOMERGEALL_H
-#define CMALGOMERGEALL_H
+#ifndef CMALGOMERGEALL_HH
+#define CMALGOMERGEALL_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
@@ -42,9 +42,6 @@ namespace cluster {
 
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset(){}
-
-    /// Function to report what's going on per merging
-    virtual void Report();
 
   protected:
 

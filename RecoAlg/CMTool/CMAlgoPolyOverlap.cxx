@@ -5,11 +5,12 @@
 
 namespace cluster {
 
-  CMAlgoPolyOverlap::CMAlgoPolyOverlap()
+  CMAlgoPolyOverlap::CMAlgoPolyOverlap() : CBoolAlgoBase()
   {
     // Nothing to be done in the base class
-    SetDebug(true);
-    SetVerbose(true);
+    SetDebug(false);
+    SetMinNumHits(0);
+
     this->reconfigure();
   }
 
@@ -24,6 +25,10 @@ namespace cluster {
   bool CMAlgoPolyOverlap::Bool(const ClusterParamsAlg &cluster1,
 			       const ClusterParamsAlg &cluster2)
   {
+
+    if( (cluster1.GetParams().N_Hits < _min_hits) ||
+	(cluster2.GetParams().N_Hits < _min_hits) )
+      return false;
 
     //if either has < 3 sides do not merge!
     if ( (cluster1.GetParams().PolyObject.Size() < 2) or

@@ -55,7 +55,7 @@ namespace cluster{
     fPlane=fHitVector[0].plane;
     
       
-    if (fHitVector.size()<10)
+    if (fHitVector.size()<fMinNHits)
     {
       if(verbose) std::cout << " the hitlist is too small. Continuing to run may result in crash!!! " <<std::endl;
       return -1;
@@ -703,30 +703,30 @@ namespace cluster{
      //forward loop
     double running_integral=fProfileIntegralForward;
     int startbin,endbin;
-    for(startbin=fProfileMaximumBin;startbin>1;startbin--)
-    {
-      running_integral-=fChargeProfile.at(startbin);
-      if( fChargeProfile.at(startbin)<fChargeCutoffThreshold.at(fPlane) && running_integral/fProfileIntegralForward<0.01 )
-        break;
-       else if(fChargeProfile.at(startbin)<fChargeCutoffThreshold.at(fPlane) 
-	 && startbin-1>0 && fChargeProfile.at(startbin-1)<fChargeCutoffThreshold.at(fPlane)
-         && startbin-2>0 && fChargeProfile.at(startbin-2)<fChargeCutoffThreshold.at(fPlane))
-	 break;
-    }
+    for(startbin=fProfileMaximumBin; startbin>1 && startbin<(int)(fChargeProfile.size());startbin--)
+      {
+	running_integral-=fChargeProfile.at(startbin);
+	if( fChargeProfile.at(startbin)<fChargeCutoffThreshold.at(fPlane) && running_integral/fProfileIntegralForward<0.01 )
+	  break;
+	else if(fChargeProfile.at(startbin)<fChargeCutoffThreshold.at(fPlane) 
+		&& startbin-1>0 && fChargeProfile.at(startbin-1)<fChargeCutoffThreshold.at(fPlane)
+		&& startbin-2>0 && fChargeProfile.at(startbin-2)<fChargeCutoffThreshold.at(fPlane))
+	  break;
+      }
     
     //backward loop
     running_integral=fProfileIntegralBackward;
-    for(endbin=fProfileMaximumBin;endbin<fProfileNbins-1;endbin++)
-    {
-      running_integral-=fChargeProfile.at(endbin);
-      if( fChargeProfile.at(endbin)<fChargeCutoffThreshold.at(fPlane) && running_integral/fProfileIntegralBackward<0.01 )
-	 break;
-      else if(fChargeProfile.at(endbin)<fChargeCutoffThreshold.at(fPlane) 
-	&& endbin+1<fProfileNbins-1 && endbin+2<fProfileNbins-1 
-	&& fChargeProfile.at(endbin+1)<fChargeCutoffThreshold.at(fPlane) 
-	&& fChargeProfile.at(endbin+2)<fChargeCutoffThreshold.at(fPlane))
-	 break;
-    }
+    for(endbin=fProfileMaximumBin; endbin>0 && endbin<fProfileNbins-1; endbin++)
+      {
+	running_integral-=fChargeProfile.at(endbin);
+	if( fChargeProfile.at(endbin)<fChargeCutoffThreshold.at(fPlane) && running_integral/fProfileIntegralBackward<0.01 )
+	  break;
+	else if(fChargeProfile.at(endbin)<fChargeCutoffThreshold.at(fPlane) 
+		&& endbin+1<fProfileNbins-1 && endbin+2<fProfileNbins-1 
+		&& fChargeProfile.at(endbin+1)<fChargeCutoffThreshold.at(fPlane) 
+		&& fChargeProfile.at(endbin+2)<fChargeCutoffThreshold.at(fPlane))
+	  break;
+      }
     
     // now have profile start and endpoints. Now translate to wire/time. 
     // Will use wire/time that are on the rough axis.

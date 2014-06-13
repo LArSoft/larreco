@@ -1,18 +1,18 @@
 /**
- * \file CMAlgoFake.h
+ * \file CMAlgoFake.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoFake
  *
  * @author kazuhiro
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOFAKE_H
-#define CMALGOFAKE_H
+#ifndef CMALGOFAKE_HH
+#define CMALGOFAKE_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
@@ -43,9 +43,6 @@ namespace cluster {
 
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset(){}
-
-    /// Function to report what's going on per merging
-    virtual void Report();
 
   protected:
 

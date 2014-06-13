@@ -8,7 +8,8 @@ namespace cluster {
   CMAlgoAngleCompat::CMAlgoAngleCompat() : CBoolAlgoBase() {
 
     //this just sets default values
-    SetVerbose(true);
+
+    SetDebug(true);
 
     SetAngleCut(30.); // in degrees
 
@@ -18,9 +19,9 @@ namespace cluster {
 
     SetUseOpeningAngle(false);
 
-    angle_dist_histo = 0;
+    //    angle_dist_histo = 0;
 
-    angle_dist_histo = new TH1F("angle_dist_histo","Cluster Angle Differences",100,-360,360);
+    //    angle_dist_histo = new TH1F("angle_dist_histo","Cluster Angle Differences",100,-360,360);
 
   } //end constructor
 
@@ -29,7 +30,7 @@ namespace cluster {
   {
     
     //if number of hits not large enough skip
-    if ( (_minHits > 0) and ((cluster1.GetParams().N_Hits < _minHits) or (cluster2.GetParams().N_Hits < _minHits)) ) {
+    if ( _minHits and ((cluster1.GetHitVector().size() < _minHits) or (cluster2.GetHitVector().size() < _minHits)) ) {
       return false;
     }
 
@@ -37,6 +38,22 @@ namespace cluster {
     //already in cm/cm units, degrees? need to check that
     double angle1 = cluster1.GetParams().angle_2d;// * _time_2_cm / _wire_2_cm;
     double angle2 = cluster2.GetParams().angle_2d;// * _time_2_cm / _wire_2_cm;
+
+    double w_start1 = cluster1.GetParams().start_point.w;// * _wire_2_cm;
+    double t_start1 = cluster1.GetParams().start_point.t;// * _time_2_cm;
+    double w_start2 = cluster2.GetParams().start_point.w;// * _wire_2_cm;
+    double t_start2 = cluster2.GetParams().start_point.t;// * _time_2_cm;
+
+    if (_debug){
+
+      std::cout << "Cluster 1:" << std::endl;
+      std::cout << "\tAngle: " << angle1 << std::endl;
+      std::cout << "\tStart: ( " << w_start1 << ", " << t_start1 << " )" << std::endl;
+      std::cout << "Cluster 2:" << std::endl;
+      std::cout << "\tAngle: " << angle2 << std::endl;
+      std::cout << "\tStart: ( " << w_start2 << ", " << t_start2 << " )" << std::endl;
+
+    }
   
     //for some reason angles are frequently -999.99.
     //if either angle is this, clearly the cluster 2d angle is not well defined
@@ -44,28 +61,26 @@ namespace cluster {
     if(angle1 < -998 || angle2 < -998)
       return false;
 
-    if(angle_dist_histo){
-      angle_dist_histo->Fill(angle1-angle2);
-    }
-    else
-      std::cout<<"\n\n\nSOMETHING WENT HORRIBLY WRONG IN CMALGOANGLECOMPAT\n\n\n\n\n\n\n"<<std::endl;
+    //    if(angle_dist_histo){
+    //      angle_dist_histo->Fill(angle1-angle2);
+    //    }
+    //    else
+    //      std::cout<<"\n\n\nSOMETHING WENT HORRIBLY WRONG IN CMALGOANGLECOMPAT\n\n\n\n\n\n\n"<<std::endl;
 
     bool compatible = false;
-
-    /*
+    
     double my_cut_value = _max_allowed_2D_angle_diff;
     //if using opening angle, have angle cutoff be the smaller of the two opening angles
     if(_use_opening_angle) 
       my_cut_value = std::min(cluster1.GetParams().opening_angle, cluster2.GetParams().opening_angle);
-    */
     
     //if you don't care if clusters have been reconstructed backwards
     if(_allow_180_ambig)
-      compatible = ( abs(angle1-angle2)     < _max_allowed_2D_angle_diff ||
-		     abs(angle1-angle2-180) < _max_allowed_2D_angle_diff ||
-		     abs(angle1-angle2+180) < _max_allowed_2D_angle_diff   );
+      compatible = ( abs(angle1-angle2)     < my_cut_value ||
+		     abs(angle1-angle2-180) < my_cut_value ||
+		     abs(angle1-angle2+180) < my_cut_value   );
     else
-      compatible = ( abs(angle1-angle2)     < _max_allowed_2D_angle_diff );
+      compatible = ( abs(angle1-angle2)     < my_cut_value );
     
   
     if(_verbose) {
@@ -77,12 +92,6 @@ namespace cluster {
     
   } // end Merge function 
   
-  void CMAlgoAngleCompat::IterationBegin(const std::vector<cluster::ClusterParamsAlg> &clusters){
-    
-    if(angle_dist_histo) angle_dist_histo->Reset();
-
-
-  }
 
 }//end namespace cluster
 #endif

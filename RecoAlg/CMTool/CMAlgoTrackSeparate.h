@@ -1,18 +1,18 @@
 /**
- * \file CMAlgoFake.h
+ * \file CMAlgoFake.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoTrackSeparate
  *
  * @author david caratelli
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOTRACKSEPARATE_H
-#define CMALGOTRACKSEPARATE_H
+#ifndef CMALGOTRACKSEPARATE_HH
+#define CMALGOTRACKSEPARATE_HH
 
 #include <iostream>
 #include "math.h"
@@ -43,7 +43,7 @@ namespace cluster {
 
     void SetDebug(bool on) { _debug = on; }
 
-    void SetMinNumHits(int n) { _MinNumHits = n; }
+    void SetMinNumHits(size_t n) { _MinNumHits = n; }
 
     void SetMinAngleDiff(float anglesep) { _MinAngleDiff = anglesep; }
     
@@ -55,6 +55,10 @@ namespace cluster {
 
     void SetMaxWidth(float maxwidth) { _MaxWidth = maxwidth; }
 
+    void SetUseEP(bool flag) { _use_EP = flag; }
+
+    void SetEPCutoff(float epcut) { _ep_cut = epcut; }
+
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset(){}
 
@@ -65,12 +69,16 @@ namespace cluster {
 
     bool _verbose;
     bool _debug;
-    int _MinNumHits;
+    bool _use_EP;
+    float _ep_cut;
+    size_t _MinNumHits;
     float _MinAngleDiff;
     float _MaxOpeningAngle;
     float _MinLength;
     float _MinDensity;
     float _MaxWidth;
+    double _wire_2_cm;
+    double _time_2_cm;
   };
 }
 

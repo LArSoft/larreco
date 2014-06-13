@@ -9,7 +9,6 @@ namespace cluster {
   CMAlgoStartNearEnd::CMAlgoStartNearEnd() : CBoolAlgoBase()
   //----------------------------------------
   {
-    SetVerbose(true);
     SetMaxStartEndSeparation(10); //cm^2
     SetMinHits(40); //cm^2
     SetMaxAngle(20*(3.14/180)); //rad: max angle of end-point cluster
@@ -18,7 +17,7 @@ namespace cluster {
 
   //--------------------------------------------------------
   bool CMAlgoStartNearEnd::Bool(const ClusterParamsAlg &cluster1,
-				const ClusterParamsAlg &cluster2)
+			const ClusterParamsAlg &cluster2)
   //--------------------------------------------------------
   {
 
@@ -35,8 +34,8 @@ namespace cluster {
     double angle_1 = cluster1.GetParams().opening_angle;
     double angle_2 = cluster2.GetParams().opening_angle;
 
-    int hits_1 = cluster1.GetParams().N_Hits;
-    int hits_2 = cluster2.GetParams().N_Hits;
+    size_t hits_1 = cluster1.GetHitVector().size();
+    size_t hits_2 = cluster2.GetHitVector().size();
 
 
     if ( (angle_1 < _maxopeningangle) and (hits_1 > _MinHits) and

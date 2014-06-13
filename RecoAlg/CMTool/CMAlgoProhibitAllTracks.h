@@ -1,39 +1,37 @@
 /**
- * \file CMAlgoStartTrack.hh
+ * \file CMAlgoProhibitAllTracks.hh
  *
  * \ingroup ClusterStudy
  * 
- * \brief This merge algo is looking for short tracks from the 
- *        start of a shower that are overlapping a blob that is
- *        a cluster belonging to the same shower.
+ * \brief Class def header for a class CMAlgoProhibitAllTracks
  *
- * @author davidkaleko
+ * @author davidkaleko_NAME
  */
 
 /** \addtogroup ClusterStudy
 
     @{*/
-#ifndef CMALGOSTARTTRACK_HH
-#define CMALGOSTARTTRACK_HH
+#ifndef CMALGOPROHIBITALLTRACKS_HH
+#define CMALGOPROHIBITALLTRACKS_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
 
 namespace cluster {
   /**
-     \class CMAlgoStartTrack
+     \class CMAlgoProhibitAllTracks
      User implementation for CBoolAlgoBase class
      doxygen documentation!
   */
-  class CMAlgoStartTrack : public CBoolAlgoBase {
+  class CMAlgoProhibitAllTracks : public CBoolAlgoBase {
     
   public:
     
     /// Default constructor
-    CMAlgoStartTrack();
+    CMAlgoProhibitAllTracks();
     
     /// Default destructor
-    virtual ~CMAlgoStartTrack(){};
+    virtual ~CMAlgoProhibitAllTracks(){};
 
     /**
        Optional function: called at the beginning of 1st iteration. This is called per event.
@@ -56,7 +54,7 @@ namespace cluster {
        Optional function: called at the end of each iteration over all pairs of clusters.
      */
     //virtual void IterationEnd();
-
+    
     /**
        Core function: given the CPAN input, return whether a cluster should be
        merged or not.
@@ -72,28 +70,17 @@ namespace cluster {
     
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset();
-
-    bool IsStartTrack(const ClusterParamsAlg &cluster);
-
-    bool IsOverlappingBlob(const ClusterParamsAlg &cluster);
-
-    void SetMinWidth(double value) { _min_width = value; }
-
-    void SetMinOpeningAngle(double value) { _min_opening_angle = value; }
+    
 
     void SetMinEP(double value) { _min_EP = value; }
 
-    void SetMinHits(size_t value) { _min_hits = value; }
-
-    void SetDebug(bool flag) { _debug = flag; }
-
   protected:
-    
-    size_t _min_hits;
-    double _min_width, _min_opening_angle, _min_EP;
-    bool _debug;
+
+    double _min_EP;
 
   };
+
+
 }
 #endif
 /** @} */ // end of doxygen group 

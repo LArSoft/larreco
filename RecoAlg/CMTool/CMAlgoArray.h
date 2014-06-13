@@ -1,18 +1,18 @@
 /**
- * \file CMAlgoArray.h
+ * \file CMAlgoArray.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterStudy
  * 
  * \brief Class def header for a class CMAlgoArray
  *
  * @author kazuhiro_NAME
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterStudy
 
     @{*/
-#ifndef CMALGOARRAY_H
-#define CMALGOARRAY_H
+#ifndef CMALGOARRAY_HH
+#define CMALGOARRAY_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
@@ -77,6 +77,10 @@ namespace cluster {
        CMergeManager is run with verbosity level kPerMerging. Maybe useful for debugging.
     */
     virtual void Report();
+
+    /// Function to set verbosity
+    virtual void SetVerbose(bool doit=true)
+    { for(auto &algo : _algo_array) algo->SetVerbose(doit); }
     
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset();

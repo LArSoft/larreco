@@ -10,7 +10,9 @@ namespace cluster {
     // Nothing to be done in the base class
     this->reconfigure();
 
-    SetVerbose(true);
+    _wire_2_cm = util::GeometryUtilities::GetME()->WireToCm();
+    _time_2_cm = util::GeometryUtilities::GetME()->TimeToCm();
+
     SetDebug(true);
     SetMinHitsCut(40);
 
@@ -29,8 +31,8 @@ namespace cluster {
   {
 
     //skip if both polygons do not have minimum number of hits
-    if ( ( (cluster1.GetParams().N_Hits > _MinHits) and
-	   (cluster2.GetParams().N_Hits > _MinHits) ) or
+    if ( ( (cluster1.GetHitVector().size() > _MinHits) and
+	   (cluster2.GetHitVector().size() > _MinHits) ) or
 	 ( (cluster1.GetParams().PolyObject.Size() < 2) or
 	   (cluster2.GetParams().PolyObject.Size() < 2) ) )
       return false;
@@ -68,14 +70,14 @@ namespace cluster {
     
     
     //check if start point for cluster1 is in Polygon of cluster2
-    if ( ( cluster2.GetParams().PolyObject.PointInside( start1) ) and (cluster1.GetParams().N_Hits > _MinHits) ){
+    if ( ( cluster2.GetParams().PolyObject.PointInside( start1) ) and (cluster1.GetHitVector().size() > _MinHits) ){
       if (_verbose) { 
 	std::cout << "Start point of Cluster 1 in Polygon of Cluster 2!" << std::endl;
       }
       return true;
     }
     //check if start point for cluster1 is in Polygon of cluster2
-    if ( ( cluster1.GetParams().PolyObject.PointInside( start2) ) and (cluster1.GetParams().N_Hits > _MinHits) ){
+    if ( ( cluster1.GetParams().PolyObject.PointInside( start2) ) and (cluster1.GetHitVector().size() > _MinHits) ){
       if (_verbose) { 
 	std::cout << "Start point of Cluster 2 in Polygon of Cluster 1!" << std::endl; 
       }

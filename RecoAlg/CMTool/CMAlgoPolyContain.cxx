@@ -5,7 +5,7 @@
 
 namespace cluster {
 
-  CMAlgoPolyContain::CMAlgoPolyContain()
+  CMAlgoPolyContain::CMAlgoPolyContain() : CBoolAlgoBase()
   {
     // Nothing to be done in the base class
     this->reconfigure();

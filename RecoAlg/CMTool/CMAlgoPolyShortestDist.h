@@ -1,44 +1,42 @@
 /**
- * \file CMAlgoStartTrack.hh
+ * \file CMAlgoPolyShortestDist.hh
  *
  * \ingroup ClusterStudy
  * 
- * \brief This merge algo is looking for short tracks from the 
- *        start of a shower that are overlapping a blob that is
- *        a cluster belonging to the same shower.
+ * \brief Class def header for a class CMAlgoPolyShortestDist
  *
- * @author davidkaleko
+ * @author davidkaleko_NAME
  */
 
 /** \addtogroup ClusterStudy
 
     @{*/
-#ifndef CMALGOSTARTTRACK_HH
-#define CMALGOSTARTTRACK_HH
+#ifndef CMALGOPOLYSHORTESTDIST_HH
+#define CMALGOPOLYSHORTESTDIST_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
 
 namespace cluster {
   /**
-     \class CMAlgoStartTrack
+     \class CMAlgoPolyShortestDist
      User implementation for CBoolAlgoBase class
      doxygen documentation!
   */
-  class CMAlgoStartTrack : public CBoolAlgoBase {
+  class CMAlgoPolyShortestDist : public CBoolAlgoBase {
     
   public:
     
     /// Default constructor
-    CMAlgoStartTrack();
+    CMAlgoPolyShortestDist();
     
     /// Default destructor
-    virtual ~CMAlgoStartTrack(){};
+    virtual ~CMAlgoPolyShortestDist(){};
 
     /**
        Optional function: called at the beginning of 1st iteration. This is called per event.
-     */
-    //virtual void EventBegin(const std::vector<cluster::ClusterParamsAlg> &clusters);
+    */
+    virtual void EventBegin(const std::vector<cluster::ClusterParamsAlg> &clusters);
 
     /**
        Optional function: called at the end of event ... after the last merging iteration is over.
@@ -73,26 +71,22 @@ namespace cluster {
     /// Function to reset the algorithm instance ... maybe implemented via child class
     virtual void Reset();
 
-    bool IsStartTrack(const ClusterParamsAlg &cluster);
+    //both clusters must have > this # of hits to be considered for merging
+    void SetMinNumHits(size_t nhits) { _min_hits = nhits; }
 
-    bool IsOverlappingBlob(const ClusterParamsAlg &cluster);
-
-    void SetMinWidth(double value) { _min_width = value; }
-
-    void SetMinOpeningAngle(double value) { _min_opening_angle = value; }
-
-    void SetMinEP(double value) { _min_EP = value; }
-
-    void SetMinHits(size_t value) { _min_hits = value; }
+    void SetMinDistSquared(double dist) { _dist_sqrd_cut = dist; }
 
     void SetDebug(bool flag) { _debug = flag; }
 
-  protected:
-    
+  private:
+
     size_t _min_hits;
-    double _min_width, _min_opening_angle, _min_EP;
+
+    double _dist_sqrd_cut;
+
     bool _debug;
 
+    double tmp_min_dist;
   };
 }
 #endif

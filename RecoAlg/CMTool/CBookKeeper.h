@@ -1,18 +1,18 @@
 /**
- * \file CBookKeeper.h
+ * \file CBookKeeper.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CBookKeeper
  *
  * @author kazuhiro
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CBOOKKEEPER_H
-#define CBOOKKEEPER_H
+#ifndef CBOOKKEEPER_HH
+#define CBOOKKEEPER_HH
 
 #include <iostream>
 #include <vector>

@@ -1,5 +1,5 @@
-#ifndef CBOOKKEEPER_CXX
-#define CBOOKKEEPER_CXX
+#ifndef CBOOKKEEPER_CC
+#define CBOOKKEEPER_CC
 
 #include "CBookKeeper.h"
 
@@ -280,9 +280,9 @@ namespace cluster {
     this->PassResult(my_result);
     if(my_result.size() != another.size()) {
       throw CRUException(Form("Input has an incompatible size (%zu != %zu)",
-			      my_result.size(),
-			      another.size())
-			 );
+				   my_result.size(),
+				   another.size())
+			      );
       return;
     }
 
@@ -291,9 +291,9 @@ namespace cluster {
     another.PassResult(another_result);
     if(another_result.size() >= my_result.size())
       throw CRUException(Form("The input has equal or more number of output clusters (%zu>=%zu)",
-			      another_result.size(),
-			      my_result.size())
-			 );
+				   another_result.size(),
+				   my_result.size())
+			      );
 
     // Combine
     for(auto const& ares : another_result) {

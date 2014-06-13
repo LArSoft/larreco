@@ -1,5 +1,5 @@
-#ifndef CMERGEMANAGER_CXX
-#define CMERGEMANAGER_CXX
+#ifndef CMERGEMANAGER_CC
+#define CMERGEMANAGER_CC
 
 #include "CMergeManager.h"
 
@@ -7,7 +7,7 @@ namespace cluster {
 
   CMergeManager::CMergeManager(CMergePriority_t priority)
   {
-    //_fout = 0;
+    _fout = 0;
     _debug_mode = kNone;
     _merge_till_converge = false;
     _priority = priority;
@@ -34,6 +34,7 @@ namespace cluster {
     _in_clusters.reserve(clusters.size());
 
     ClusterParamsAlg tmp_alg;
+    tmp_alg.SetMinNHits(0);
     tmp_alg.SetVerbose(false);
 
     for(auto const &c : clusters) {
@@ -58,8 +59,8 @@ namespace cluster {
   {
     if(!_merge_algo) throw CRUException("No algorithm to run!");
 
-    //_merge_algo->SetAnaFile(_fout);
-    //if(_separate_algo) _merge_algo->SetAnaFile(_fout);
+    _merge_algo->SetAnaFile(_fout);
+    if(_separate_algo) _merge_algo->SetAnaFile(_fout);
     
     _merge_algo->EventBegin(_in_clusters);
     if(_separate_algo) _separate_algo->EventBegin(_in_clusters);
@@ -189,10 +190,10 @@ namespace cluster {
   {
     if(merge_flag.size() != in_clusters.size())
       throw CRUException(Form("in_clusters (%zu) and merge_flag (%zu) vectors must be of same length!",
-			      in_clusters.size(),
-			      merge_flag.size()
-			      )
-			 );
+				   in_clusters.size(),
+				   merge_flag.size()
+				   )
+			      );
     if(_debug_mode <= kPerIteration){
       
       std::cout
@@ -218,7 +219,7 @@ namespace cluster {
 	prioritized_index.insert(std::pair<double,size_t>(in_clusters.at(i).GetParams().sum_charge,i));
 	break;
       case ::cluster::CMergeManager::kNHits:
-	prioritized_index.insert(std::pair<double,size_t>((double)(in_clusters.at(i).GetParams().N_Hits),i));
+	prioritized_index.insert(std::pair<double,size_t>((double)(in_clusters.at(i).GetNHits()),i));
 	break;
       }
     }
@@ -308,10 +309,10 @@ namespace cluster {
     /*
     if(separate_flag.size() != in_clusters.size())
       throw CRUException(Form("in_clusters (%zu) and separate_flag (%zu) vectors must be of same length!",
-      in_clusters.size(),
-      separate_flag.size()
-      )
-      );
+				   in_clusters.size(),
+				   separate_flag.size()
+				   )
+			      );
     */
     if(_debug_mode <= kPerIteration){
       
@@ -338,7 +339,7 @@ namespace cluster {
 	prioritized_index.insert(std::pair<double,size_t>(in_clusters.at(i).GetParams().sum_charge,i));
 	break;
       case ::cluster::CMergeManager::kNHits:
-	prioritized_index.insert(std::pair<double,size_t>((double)(in_clusters.at(i).GetParams().N_Hits),i));
+	prioritized_index.insert(std::pair<double,size_t>((double)(in_clusters.at(i).GetNHits()),i));
 	break;
       }
     }

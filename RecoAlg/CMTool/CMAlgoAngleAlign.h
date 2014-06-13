@@ -1,18 +1,18 @@
 /**
- * \file CMAlgoAngleAlign.h
+ * \file CMAlgoAngleAlign.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoAngleCompat
  *
  * @author davidkaleko
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOANGLEALIGN_H
-#define CMALGOANGLEALIGN_H
+#ifndef CMALGOANGLEALIGN_HH
+#define CMALGOANGLEALIGN_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
@@ -37,9 +37,6 @@ namespace cluster {
     virtual bool Bool(const ClusterParamsAlg &cluster1,
 		      const ClusterParamsAlg &cluster2);
 
-    /// Method to set verbose mode
-    void SetVerbose(bool on) { _verbose = on; }
-
     /// Method to set debug mode
     void SetDebug(bool on) { _debug = on; }
 
@@ -48,13 +45,14 @@ namespace cluster {
 
     /// Method to set cut value in degrees for angle compatibility test
     void SetAngleCut(double angle) { _MaxAngleSep = angle; }
-    void SetMinNHits(int n) { _MinNHits = n; }
+
+    void SetMinNHits(size_t n) { _MinNHits = n; }
+
   protected:
 
-    bool _verbose;    /// bool to suppress lots of output if you want
     bool _debug;
-    int _MinNHits;    /// minimum number of hits for cluster to be considered
-
+    size_t _MinNHits;    /// minimum number of hits for cluster to be considered
+    
     ///bool to allow "backwards" clusters (swapped start/end points)
     ///to still match in angle, even though they are 180 degrees apart
     ///only valid for _use_opening_angle==false

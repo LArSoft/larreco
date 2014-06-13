@@ -1,18 +1,18 @@
 /**
- * \file CMAlgoAngleCompat.h
+ * \file CMAlgoAngleCompat.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoAngleCompat
  *
  * @author davidkaleko
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOANGLECOMPAT_H
-#define CMALGOANGLECOMPAT_H
+#ifndef CMALGOANGLECOMPAT_HH
+#define CMALGOANGLECOMPAT_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
@@ -37,13 +37,8 @@ namespace cluster {
     virtual bool Bool(const ClusterParamsAlg &cluster1,
 		      const ClusterParamsAlg &cluster2);
 
-    /// Overloaded function called at beginning of iterating over all pairs of clusters
-    /// Currently using just to initialize some debugging histograms
-    /// should rewrite it to not take an input argument...
-    virtual void IterationBegin(const std::vector<cluster::ClusterParamsAlg> &clusters);
-
-    /// Method to set verbose mode
-    void SetVerbose(bool on) { _verbose = on; }
+    /// Method to set debug mode
+    void SetDebug(bool on) { _debug = on; }
 
     /// Method to set whether you allow angles to match with +/- 180 deg difference
     void SetAllow180Ambig(bool on) { _allow_180_ambig = on; }
@@ -55,13 +50,13 @@ namespace cluster {
     void SetUseOpeningAngle(bool on) { _use_opening_angle = on; }
 
     /// Set Minimum Number of Hits to consider Cluster
-    void SetMinHits(int n) { _minHits = n; }
+    void SetMinHits(size_t n) { _minHits = n; }
 
-    TH1F* GetAngleDistHisto() const{ return angle_dist_histo; };
+    //    TH1F* GetAngleDistHisto() const{ return angle_dist_histo; };
 
   protected:
 
-    bool _verbose;    /// bool to suppress lots of output if you want
+    bool _debug;    /// bool to suppress lots of output if you want
 
     ///bool to allow "backwards" clusters (swapped start/end points)
     ///to still match in angle, even though they are 180 degrees apart
@@ -75,7 +70,7 @@ namespace cluster {
     /// angle instead of whatever you set with SetAngleCut
     bool _use_opening_angle;
 
-    int _minHits;        /// Min Number of hits for cluster to be considered
+    size_t _minHits;        /// Min Number of hits for cluster to be considered
 
     /// Histogram used for debugging/cut value settings
     TH1F *angle_dist_histo;

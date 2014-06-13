@@ -1,21 +1,22 @@
 /**
- * \file CMalgoPolyStartInPoly.h
+ * \file CMalgoPolyStartInPoly.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoStartInPoly
  *
  * @author David Caratelli
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOSTARTINPOLY_H
-#define CMALGOSTARTINPOLY_H
+#ifndef CMALGOSTARTINPOLY_HH
+#define CMALGOSTARTINPOLY_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
+#include "Utilities/GeometryUtilities.h"
 
 namespace cluster {
   /**
@@ -38,9 +39,7 @@ namespace cluster {
     */
 
     /// Method to set cut value on minimum number of hits considered
-    void SetMinHitsCut(int n) { _MinHits = n; }
-
-    void SetVerbose(bool verbosity) { _verbose = verbosity; }
+    void SetMinHitsCut(size_t n) { _MinHits = n; }
 
     void SetDebug(bool debug) { _debug = debug; }
 
@@ -53,8 +52,8 @@ namespace cluster {
 
   protected:
 
-    int _MinHits; /// Minimum number of hits for cluster whose start point is being considered. We want it to be a good start point...
-    bool _verbose;
+    double _wire_2_cm, _time_2_cm; /// Conversion factors ogtten from GeometryUtilities
+    size_t _MinHits; /// Minimum number of hits for cluster whose start point is being considered. We want it to be a good start point...
     bool _debug;
   };
 }

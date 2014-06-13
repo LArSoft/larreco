@@ -1,5 +1,5 @@
-#ifndef CMALGOMERGEALL_CXX
-#define CMALGOMERGEALL_CXX
+#ifndef CMALGOMERGEALL_CC
+#define CMALGOMERGEALL_CC
 
 #include "CMAlgoMergeAll.h"
 
@@ -17,16 +17,10 @@ namespace cluster {
 			    const ClusterParamsAlg &cluster2)
   //--------------------------------------------------------
   {
-    return true;
+    if(cluster1.GetNHits() && cluster2.GetNHits()) return true;
+    else return false;
   }
-
-  //-----------------------
-  void CMAlgoMergeAll::Report()
-  //-----------------------
-  {
-
-  }
-
+  
 }
 
 #endif

@@ -1,20 +1,21 @@
 /**
- * \file CBoolAlgoBase.h
+ * \file CBoolAlgoBase.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CAlgoBase, CBoolAlgoBase and CSeparateAlgoBase
  *
  * @author kazuhiro
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CBOOLALGOBASE_H
-#define CBOOLALGOBASE_H
+#ifndef CBOOLALGOBASE_HH
+#define CBOOLALGOBASE_HH
 
 #include <iostream>
+#include <TFile.h>
 #include "RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 namespace cluster {
@@ -30,13 +31,12 @@ namespace cluster {
   public:
     
     /// Default constructor
-    //CBoolAlgoBase(){ _fout = 0; }
-    CBoolAlgoBase(){}
+    CBoolAlgoBase(){ _fout = 0; _verbose = false; }
     
     /// Default destructor
     virtual ~CBoolAlgoBase(){}
 
-    /// Function to reset the algorithm instance ... maybe implemented via child class
+    /// Function to reset the algorithm instance called within CMergeManager::Reset() ... maybe implemented via child class
     virtual void Reset(){}
 
     /**
@@ -77,20 +77,26 @@ namespace cluster {
     }
 
     /**
-       Optional function: called after each Merge() function call by CMergeManager IFF
-       CMergeManager is run with verbosity level kPerMerging. Maybe useful for debugging.
+       Optional function: called after Bool() function is called for all possible cluster
+       pairs by by CMergeManager IFF CMergeManager is run with verbosity level kPerIteration. 
+       Maybe useful for debugging.       
      */
     virtual void Report()
     {return;}
 
     /// Setter function for an output plot TFile pointer
-    //void SetAnaFile(TFile* fout) { _fout = fout; }
+    void SetAnaFile(TFile* fout) { _fout = fout; }
+
+    /// Setter function for verbosity
+    virtual void SetVerbose(bool doit=true) { _verbose = doit; }
 
   protected:
 
     /// TFile pointer to an output file
-    //TFile* _fout;
+    TFile* _fout;
 
+    /// Boolean to choose verbose mode. Turned on if CMergeManager's verbosity level is >= kPerMerging
+    bool _verbose;
   };
 
 }

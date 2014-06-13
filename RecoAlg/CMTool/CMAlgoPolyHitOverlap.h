@@ -1,21 +1,22 @@
 /**
- * \file CMalgoPolyHitOverlap.h
+ * \file CMalgoPolyHitOverlap.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoPolyHitOverlap
  *
  * @author David Caratelli
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOPOLYHITOVERLAP_H
-#define CMALGOPOLYHITOVERLAP_H
+#ifndef CMALGOPOLYHITOVERLAP_HH
+#define CMALGOPOLYHITOVERLAP_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
+#include "Utilities/GeometryUtilities.h"
 
 namespace cluster {
   /**

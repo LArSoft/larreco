@@ -1,21 +1,23 @@
 /**
- * \file CMalgoPolyOverlap.h
+ * \file CMalgoPolyOverlap.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoPolyOverlap
  *
  * @author David Caratelli
  */
 
-/** \addtogroup ClusterCluster    
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOPOLYOVERLAP_H
-#define CMALGOPOLYOVERLAP_H
+#ifndef CMALGOPOLYOVERLAP_HH
+#define CMALGOPOLYOVERLAP_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
+#include "Utilities/GeometryUtilities.h"
+
 
 namespace cluster {
   /**
@@ -41,16 +43,16 @@ namespace cluster {
 
     void SetDebug(bool debug) { _debug = debug; }
 
-    void SetVerbose(bool verbose) { _verbose = verbose; }
+    //both clusters must have > this # of hits to be considered for merging
+    void SetMinNumHits(size_t nhits) { _min_hits = nhits; }
 
     /// Method to re-configure the instance
     void reconfigure();
 
   private:
     
-    bool _verbose;
     bool _debug;
-
+    size_t _min_hits;
   };
 }
 

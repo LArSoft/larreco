@@ -9,14 +9,22 @@ namespace cluster {
   CMAlgoShortestDist::CMAlgoShortestDist() {
 
     //this just sets default values    
-    SetVerbose(true);
     SetDebug(false);
     SetMinHits(0);
     
     //1e9 is huge; everything will be merged
     SetSquaredDistanceCut(1e9);
 
-    _min_distance_unit = 1.e-3;
+    if(_verbose or _debug)
+      std::cout << "wire2cm: " << _wire_2_cm << " time2cm: " << _time_2_cm << std::endl;
+
+    _wire_2_cm = util::GeometryUtilities::GetME()->WireToCm();
+    _time_2_cm = util::GeometryUtilities::GetME()->TimeToCm();
+
+    //shortest allowable length of a cluster (distance start->end point)
+    //this is used in cases where the start/end points basically overlap
+    _min_distance_unit = (_wire_2_cm < _time_2_cm) ? _wire_2_cm : _time_2_cm;
+
   } //end constructor
 
   bool CMAlgoShortestDist::Bool(const ClusterParamsAlg &cluster1,
@@ -24,26 +32,25 @@ namespace cluster {
   {
     
     //if number of hits not large enough skip
-    if ( (_minHits > 0) and ((cluster1.GetParams().N_Hits < _minHits) or (cluster2.GetParams().N_Hits < _minHits)) ) {
-      if (_debug) { std::cout << "Num of Hits below threshold..." << std::endl; }
+    if ( (_minHits > 0) and ((cluster1.GetNHits() < _minHits) or (cluster2.GetNHits() < _minHits)) ) {
       return false;
     }
 
-    double w_start1 = cluster1.GetParams().start_point.w;
-    double t_start1 = cluster1.GetParams().start_point.t;
-    double w_end1   = cluster1.GetParams().end_point.w;
-    double t_end1   = cluster1.GetParams().end_point.t;
+    double w_start1 = cluster1.GetParams().start_point.w;// * _wire_2_cm;
+    double t_start1 = cluster1.GetParams().start_point.t;// * _time_2_cm;
+    double w_end1   = cluster1.GetParams().end_point.w;//   * _wire_2_cm;
+    double t_end1   = cluster1.GetParams().end_point.t;//   * _time_2_cm;
 
-    double w_start2 = cluster2.GetParams().start_point.w;
-    double t_start2 = cluster2.GetParams().start_point.t;
-    double w_end2   = cluster2.GetParams().end_point.w;
-    double t_end2   = cluster2.GetParams().end_point.t;
+    double w_start2 = cluster2.GetParams().start_point.w;// * _wire_2_cm;
+    double t_start2 = cluster2.GetParams().start_point.t;// * _time_2_cm;
+    double w_end2   = cluster2.GetParams().end_point.w;//   * _wire_2_cm;
+    double t_end2   = cluster2.GetParams().end_point.t;//   * _time_2_cm;
 
     if (_debug){
-      std::cout << "Start point Cluster 1: (" << w_start1 << ", " << t_start1 << ")"  << std::endl;
-      std::cout << "End point Cluster 2: (" << w_end1 << ", " << t_end1 << ")"  << std::endl;
-      std::cout << "Start point Cluster 1: (" << w_start2 << ", " << t_start2 << ")"  << std::endl;
-      std::cout << "End point Cluster 2: (" << w_end2 << ", " << t_end2 << ")"  << std::endl;
+      std::cout << "Start point Cluster 1: (" << cluster1.GetParams().start_point.w << ", " << cluster1.GetParams().start_point.t << ")"  << std::endl;
+      std::cout << "End point Cluster 2: (" << cluster1.GetParams().end_point.w << ", " << cluster1.GetParams().end_point.t << ")"  << std::endl;
+      std::cout << "Start point Cluster 1: (" << cluster2.GetParams().start_point.w << ", " << cluster2.GetParams().start_point.t << ")"  << std::endl;
+      std::cout << "End point Cluster 2: (" << cluster2.GetParams().end_point.w << ", " << cluster2.GetParams().end_point.t << ")"  << std::endl;
     }
     
     //First, pretend the first cluster is a 2D line segment, from its start point to end point
@@ -86,7 +93,7 @@ namespace cluster {
 
     bool compatible = shortest_distance2 < _max_2D_dist2;
 
-    if(_verbose) {
+    if(_verbose or _debug) {
 
       if(compatible) std::cout<<Form(" Compatible in distance (%g).\n",shortest_distance2);
       else std::cout<<Form(" NOT compatible in distance (%g).\n",shortest_distance2);
@@ -114,18 +121,17 @@ namespace cluster {
     double length_squared = pow((end_x - start_x), 2) + pow((end_y - start_y), 2);
     
     // Treat the case start & end point overlaps
-    if(length_squared < _min_distance_unit) {
-      if(_verbose){
-	std::cout << std::endl;
-	std::cout << Form(" Provided very short line segment: (%g,%g) => (%g,%g)",
-			  start_x,start_y,end_x,end_y) << std::endl;
-	std::cout << " Likely this means one of two clusters have start & end point identical." << std::endl;
-	std::cout << " Check the cluster output!" << std::endl;
-	std::cout << std::endl;
-	std::cout << Form(" At this time, the algorithm uses a point (%g,%g)",start_x,start_y) << std::endl;
-	std::cout << " to represent this cluster's location." << std::endl;
-	std::cout << std::endl;
-      }
+    if( (_verbose or _debug) and length_squared < _min_distance_unit) {
+
+      std::cout << std::endl;
+      std::cout << Form(" Provided very short line segment: (%g,%g) => (%g,%g)",
+			start_x,start_y,end_x,end_y) << std::endl;
+      std::cout << " Likely this means one of two clusters have start & end point identical." << std::endl;
+      std::cout << " Check the cluster output!" << std::endl;
+      std::cout << std::endl;
+      std::cout << Form(" At this time, the algorithm uses a point (%g,%g)",start_x,start_y) << std::endl;
+      std::cout << " to represent this cluster's location." << std::endl;
+      std::cout << std::endl;
       
       return (pow((point_x - start_x),2) + pow((point_y - start_y),2));
     }

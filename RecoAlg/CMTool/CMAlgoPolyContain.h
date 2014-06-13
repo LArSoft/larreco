@@ -1,21 +1,22 @@
 /**
- * \file CMalgoPolyContain.h
+ * \file CMalgoPolyContain.hh
  *
- * \ingroup ClusterCluster
+ * \ingroup ClusterRecoUtil
  * 
  * \brief Class def header for a class CMAlgoPolyContain
  *
  * @author David Caratelli
  */
 
-/** \addtogroup ClusterCluster
+/** \addtogroup ClusterRecoUtil
 
     @{*/
-#ifndef CMALGOPOLYCONTAIN_H
-#define CMALGOPOLYCONTAIN_H
+#ifndef CMALGOPOLYCONTAIN_HH
+#define CMALGOPOLYCONTAIN_HH
 
 #include <iostream>
 #include "CBoolAlgoBase.h"
+#include "Utilities/GeometryUtilities.h"
 
 namespace cluster {
   /**
