@@ -132,7 +132,6 @@ namespace trkf {
   public:
     
     explicit CosmicTracker(fhicl::ParameterSet const& pset);
-    ~CosmicTracker();
     
     //////////////////////////////////////////////////////////
     void reconfigure(fhicl::ParameterSet const& p);
@@ -193,11 +192,6 @@ namespace trkf {
     dtime  .resize(3);
     testsig.resize(3);
     testpulse.resize(3);
-  }
-
-  //-------------------------------------------------
-  CosmicTracker::~CosmicTracker()
-  {
   }
 
   //-------------------------------------------------
