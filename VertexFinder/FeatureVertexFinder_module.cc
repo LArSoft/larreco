@@ -83,7 +83,7 @@
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
-#include "RecoAlg/ClusterParamsAlg.h"
+//#include "RecoAlg/ClusterParamsAlg.h"
 
 // #####################
 // ### ROOT Includes ###
@@ -143,7 +143,7 @@ namespace vertex {
    std::string fHitModuleLabel;
    std::string fCornerFinderModuleLabel;
    std::string fCCrawlerEndPoint2dModuleLabel;
-   cluster::ClusterParamsAlg fClParAlg;
+   //cluster::ClusterParamsAlg fClParAlg;
    Double_t fRunningMode;
    
    bool GT2PlaneDetector = false;
@@ -211,8 +211,8 @@ namespace vertex{
 
 //-----------------------------------------------------------------------------
 // fhicl::ParameterSet
-FeatureVertexFinder::FeatureVertexFinder(fhicl::ParameterSet const& pset):
-  fClParAlg(pset.get<fhicl::ParameterSet>("ClusterParamsAlg"), pset.get< std::string >("module_type"))
+FeatureVertexFinder::FeatureVertexFinder(fhicl::ParameterSet const& pset)
+  //fClParAlg(pset.get<fhicl::ParameterSet>("ClusterParamsAlg"), pset.get< std::string >("module_type"))
   {  
     /*this->*/reconfigure(pset);    
     produces< std::vector<recob::Vertex> >();
@@ -246,6 +246,8 @@ void FeatureVertexFinder::reconfigure(fhicl::ParameterSet const& p)
 void FeatureVertexFinder::beginJob(){
     // get access to the TFile service
     art::ServiceHandle<art::TFileService> tfs;
+    
+    std::cout<<"Begin Job"<<std::endl;
 
   }
 
@@ -253,6 +255,7 @@ void FeatureVertexFinder::beginJob(){
 // Produce
 void FeatureVertexFinder::produce(art::Event& evt)
    {
+
    // #########################
    // ### Geometry Services ###
    // #########################
@@ -297,40 +300,55 @@ void FeatureVertexFinder::produce(art::Event& evt)
    std::unique_ptr< art::Assns<recob::Vertex, recob::Shower> >  assnsh(new art::Assns<recob::Vertex, recob::Shower>);
    std::unique_ptr< art::Assns<recob::Vertex, recob::Track> >   assntr(new art::Assns<recob::Vertex, recob::Track>);
    std::unique_ptr< art::Assns<recob::Vertex, recob::Hit> >     assnh(new art::Assns<recob::Vertex, recob::Hit>);  
-
+   
+   std::cout<<"Setup of outputs"<<std::endl;
+   
 //-------------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------- ClusterCrawler EndPoint2d's -------------------------------------------------------------  
 //-------------------------------------------------------------------------------------------------------------------------------------------------
    // ####################################################
    // ### Getting the EndPoint2d's for cluster crawler ###
    // ####################################################
-   art::Handle< std::vector<recob::EndPoint2D> > ccrawlerFinderHandle;
-   evt.getByLabel(fCCrawlerEndPoint2dModuleLabel,ccrawlerFinderHandle);
-   std::vector< art::Ptr<recob::EndPoint2D> > ccrawlerEndPoints;
-   art::fill_ptr_vector(ccrawlerEndPoints, ccrawlerFinderHandle);
+   try
+      {
+      art::Handle< std::vector<recob::EndPoint2D> > ccrawlerFinderHandle;
+      evt.getByLabel(fCCrawlerEndPoint2dModuleLabel,ccrawlerFinderHandle);
+      std::vector< art::Ptr<recob::EndPoint2D> > ccrawlerEndPoints;
+      art::fill_ptr_vector(ccrawlerEndPoints, ccrawlerFinderHandle);
    
-   // ########################################################
-   // ### Passing in the EndPoint2d's from Cluster Crawler ###
-   // ########################################################
-   Get3dVertexCandidates(ccrawlerEndPoints, GT2PlaneDetector);
+      std::cout<<"Getting the EndPoint2d's for cluster crawler"<<std::endl;
    
-   
+      // ########################################################
+      // ### Passing in the EndPoint2d's from Cluster Crawler ###
+      // ########################################################
+      Get3dVertexCandidates(ccrawlerEndPoints, GT2PlaneDetector);
+      std::cout<<"Get3dVertexCandidates Cluster Crawler"<<std::endl;
+      }
+   catch(...)
+      {mf::LogWarning("FeatureVertexFinder") << "Failed to get EndPoint2d's from Cluster Crawler";}
 //-------------------------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------- CornerFinder EndPoint2d's --------------------------------------------------------------  
 //-------------------------------------------------------------------------------------------------------------------------------------------------   
    // ##################################################
    // ### Getting the EndPoint2d's for Corner Finder ###
    // ##################################################
-   art::Handle< std::vector<recob::EndPoint2D> > CornerFinderHandle;
-   evt.getByLabel(fCornerFinderModuleLabel,CornerFinderHandle);
-   std::vector< art::Ptr<recob::EndPoint2D> > cornerEndPoints;
-   art::fill_ptr_vector(cornerEndPoints, CornerFinderHandle);
+   try
+      {
+      art::Handle< std::vector<recob::EndPoint2D> > CornerFinderHandle;
+      evt.getByLabel(fCornerFinderModuleLabel,CornerFinderHandle);
+      std::vector< art::Ptr<recob::EndPoint2D> > cornerEndPoints;
+      art::fill_ptr_vector(cornerEndPoints, CornerFinderHandle);
    
-   // ######################################################
-   // ### Passing in the EndPoint2d's from Corner Finder ###
-   // ######################################################
-   Get3dVertexCandidates(cornerEndPoints, GT2PlaneDetector);
+      std::cout<<"Getting the EndPoint2d's for Corner Finder"<<std::endl;
    
+      // ######################################################
+      // ### Passing in the EndPoint2d's from Corner Finder ###
+      // ######################################################
+      Get3dVertexCandidates(cornerEndPoints, GT2PlaneDetector);
+      std::cout<<"Get3dVertexCandidates Corner Finder"<<std::endl;
+      }
+   catch(...)
+      {mf::LogWarning("FeatureVertexFinder") << "Failed to get EndPoint2d's from Corner Finder";}
 
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -339,40 +357,50 @@ void FeatureVertexFinder::produce(art::Event& evt)
    // ###################################################
    // ### Retreiving the Cluster Module for the event ###
    // ###################################################
-   art::Handle< std::vector<recob::Cluster> > clusterListHandle;
-   evt.getByLabel(fClusterModuleLabel,clusterListHandle);
-    
-   // #################################################
-   // ### Finding hits associated with the clusters ###
-   // #################################################
-   art::FindManyP<recob::Hit> fmh(clusterListHandle, evt, fClusterModuleLabel);
-
-   // ##################################
-   // ### Filling the Cluster Vector ###
-   // ##################################
-   art::PtrVector<recob::Cluster> clusters;
-   for (unsigned int ii = 0; ii <  clusterListHandle->size(); ++ii){
-     art::Ptr<recob::Cluster> clusterHolder(clusterListHandle,ii);
-     clusters.push_back(clusterHolder);
-     }//<---End ii loop
+   try
+      {
+      art::Handle< std::vector<recob::Cluster> > clusterListHandle;
+      evt.getByLabel(fClusterModuleLabel,clusterListHandle);
+   
+      std::cout<<"Retreiving the Cluster Module for the event"<<std::endl;
+   
+      // #################################################
+      // ### Finding hits associated with the clusters ###
+      // #################################################
+      art::FindManyP<recob::Hit> fmh(clusterListHandle, evt, fClusterModuleLabel);
+      std::cout<<"Finding hits associated with the clusters"<<std::endl;
+   
+      // ##################################
+      // ### Filling the Cluster Vector ###
+      // ##################################
+      art::PtrVector<recob::Cluster> clusters;
+      for (unsigned int ii = 0; ii <  clusterListHandle->size(); ++ii){
+     	art::Ptr<recob::Cluster> clusterHolder(clusterListHandle,ii);
+     	clusters.push_back(clusterHolder);
+     	}//<---End ii loop
   
-   // ####################################################
-   // ### Passing in the clusters to find 2d Verticies ###
-   // ####################################################
-   Find2dClusterVertexCandidates(clusters, fmh);
-   
-   // ###############################################################
-   // ### Finding 3d Candidates from 2d cluster vertex candidates ###
-   // ###############################################################
-   Find3dVtxFrom2dClusterVtxCand(TwoDvtx_wire, TwoDvtx_time, TwoDvtx_plane);
-   
+      // ####################################################
+      // ### Passing in the clusters to find 2d Verticies ###
+      // ####################################################
+      Find2dClusterVertexCandidates(clusters, fmh);
+      std::cout<<"Made 2d vertex candidates"<<std::endl;
+      // ###############################################################
+      // ### Finding 3d Candidates from 2d cluster vertex candidates ###
+      // ###############################################################
+      Find3dVtxFrom2dClusterVtxCand(TwoDvtx_wire, TwoDvtx_time, TwoDvtx_plane);
+      std::cout<<"Made 3d vertex candidates from 2d cluster candidates"<<std::endl;
+      
+      
+      }
+   catch(...)
+      {mf::LogWarning("FeatureVertexFinder") << "Failed to get Cluster from default cluster module";}
+  
+  
    // ################################################
    // ### Merging and sorting 3d vertex candidates ###
    // ################################################
-   MergeAndSort3dVtxCandidate(candidate_x, candidate_y, candidate_z, candidate_strength);
-  
-  
-
+   MergeAndSort3dVtxCandidate(candidate_x, candidate_y, candidate_z, candidate_strength);  
+   std::cout<<"Merged and sorted the cadidates"<<std::endl;
 
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1296,7 +1324,7 @@ void vertex::FeatureVertexFinder::MergeAndSort3dVtxCandidate(std::vector<double>
    
    }// End MergeAndSort3dVtxCandidate
 
-   
+  DEFINE_ART_MODULE(FeatureVertexFinder)   
    
 // -----------------------------------------------------------------------------
 
