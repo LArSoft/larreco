@@ -1,6 +1,15 @@
 
 art_make( BASENAME_ONLY
+	  LIBRARY_NAME  HitFinder
+          LIB_LIBRARIES
+			RecoBase 
+			${ART_PERSISTENCY_COMMON}
+			${ART_PERSISTENCY_PROVENANCE}
+			${ART_UTILITIES}
+			${CETLIB}
+                        ${ROOT_BASIC_LIB_LIST}
           MODULE_LIBRARIES 
+	  		HitFinder
                         BackTracker_service
 			RecoAlg
                         RecoBase

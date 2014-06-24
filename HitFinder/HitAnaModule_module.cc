@@ -28,6 +28,8 @@
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
+#include "art/Framework/Services/Optional/TFileService.h"
+
 #include <vector>
 #include <string>
 
@@ -45,15 +47,20 @@ public:
   void analyze(art::Event const & e) override;
 
   void beginJob() override;
-  void endJob() override;
   void reconfigure(fhicl::ParameterSet const & p) override;
 
 private:
 
-  // Declare member data here.
+  void createAssocVector(std::vector< art::Ptr<recob::Hit> > const&,
+			 std::vector< std::vector<int> >&);
 
+  // Declare member data here.
   std::vector<std::string> fHitModuleLabels;
-  std::vector<std::string> fWireModuleLabels;
+  std::string fWireModuleLabel;
+
+  TTree *wireDataTree;
+
+  HitAnaAlg analysisAlg;
 
 };
 
@@ -69,19 +76,61 @@ hit::HitAnaModule::~HitAnaModule()
   // Clean up dynamic memory and other resources here.
 }
 
+void hit::HitAnaModule::createAssocVector( std::vector< art::Ptr<recob::Hit> > const& hitPtrs,
+					   std::vector< std::vector<int> > & WireHitAssocVector){
+
+  for(auto const& hitptr : hitPtrs)
+    {
+      size_t wire_key = ( hitptr->Wire() ).key();
+      WireHitAssocVector.at(wire_key).push_back(hitptr.key());
+    }
+
+}
+
 void hit::HitAnaModule::analyze(art::Event const & e)
 {
-  // Implementation of required member function here.
+  //get event and run numbers
+  unsigned int eventNumber = e.id().event();
+  unsigned int runNumber   = e.run();
+
+  analysisAlg.ClearHitModules();
+
+  //get the wire data
+  art::Handle< std::vector<recob::Wire> > wireHandle;
+  e.getByLabel(fWireModuleLabel,wireHandle);
+  std::vector<recob::Wire> const& wireVector(*wireHandle);
+
+  //get the hit data
+  size_t nHitModules = fHitModuleLabels.size();
+  std::vector< art::Handle< std::vector<recob::Hit> > > hitHandles(nHitModules);
+  std::vector< std::vector< std::vector<int> > > WireHitAssocVectors(nHitModules);
+  for(size_t iter=0; iter < nHitModules; iter++){
+
+    e.getByLabel(fHitModuleLabels[iter],hitHandles[iter]);
+
+    //create association vectors by hand for now
+    std::vector< art::Ptr<recob::Hit> > hitPtrs;
+    art::fill_ptr_vector(hitPtrs,hitHandles[iter]);    
+    WireHitAssocVectors[iter].resize(wireVector.size());
+    createAssocVector(hitPtrs,WireHitAssocVectors[iter]);
+
+    //load in this hit/assoc pair
+    analysisAlg.LoadHitAssocPair( *(hitHandles[iter]),
+				  WireHitAssocVectors[iter],
+				  fHitModuleLabels[iter]);
+    
+  }
+
+  //run the analzyer alg
+  analysisAlg.AnalyzeWires(wireVector,eventNumber,runNumber);
+
 }
 
 void hit::HitAnaModule::beginJob()
 {
-  // Implementation of optional member function here.
-}
-
-void hit::HitAnaModule::endJob()
-{
-  // Implementation of optional member function here.
+  art::ServiceHandle<art::TFileService> tfs;
+  wireDataTree = tfs->make<TTree>("wireDataTree","WireDataTree");
+  analysisAlg.SetWireDataTree(wireDataTree);
 }
 
 void hit::HitAnaModule::reconfigure(fhicl::ParameterSet const & p)
@@ -89,36 +138,7 @@ void hit::HitAnaModule::reconfigure(fhicl::ParameterSet const & p)
   // Implementation of optional member function here.
 
   fHitModuleLabels = p.get< std::vector<std::string> >("HitModuleLabels");
-  size_t NHitModules = fHitModuleLabels.size();
-
-  fWireModuleLabels = p.get< std::vector<std::string> >("WireModuleLabels");
-  size_t NWireModules = fWireModuleLabels.size();
-
-  if( NWireModules==NHitModules ) return;
-
-  if( NWireModules < NHitModules ){
-    mf::LogWarning("HitAnaModule") 
-      << "Number of wire module labels provided is less than hit module labels provided.\n"
-      << "Using last wire module label provided (" << fWireModuleLabels[NWireModules-1] << ")"
-      << " for remaining hit module labels.";
-
-    for(size_t i=NWireModules; i<NHitModules; i++)
-      fWireModuleLabels.push_back( fWireModuleLabels[NWireModules-1] );
-
-    return;
-  }
-
-  if( NWireModules > NHitModules ){
-    mf::LogWarning("HitAnaModule") 
-      << "Number of hit module labels provided is less than wire module labels provided.\n"
-      << "Using last hit module label provided (" << fHitModuleLabels[NHitModules-1] << ")"
-      << " for remaining wire module labels.";
-
-    for(size_t i=NHitModules; i<NWireModules; i++)
-      fHitModuleLabels.push_back( fHitModuleLabels[NHitModules-1] );
-    
-    return;
-  }
+  fWireModuleLabel = p.get< std::string              >("WireModuleLabel");
 
 }
 
