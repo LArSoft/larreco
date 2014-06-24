@@ -116,8 +116,12 @@ namespace hit{
     void SetupWireDataTree();
     TTree* wireDataTree;
 
+    //this is for unit testing...class has no other purpose
+    friend class HitAnaAlgTest;
+
   };
 
-}
+}//end namespace hit
+
 
 #endif
