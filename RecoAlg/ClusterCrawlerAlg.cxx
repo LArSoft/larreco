@@ -345,7 +345,7 @@ namespace cluster {
       } // pass
       
       // merge unused hits on cluster hit multiplets
-      MergeClusterHits(allhits, tcl);
+//      MergeClusterHits(allhits, tcl);
       
       // merge clusters that share a significant fraction of hits in 
       // the same hit multiplet
@@ -661,8 +661,10 @@ namespace cluster {
           unsigned short theHit = tcl[icl].tclhits[ii];
   if(allhits[theHit].InClus != tcl[icl].ID) {
     mf::LogVerbatim("ClusterCrawler")
-      <<"MergeClusterHits bad hit assignment "<<allhits[theHit].InClus<<" "
-      <<tcl[icl].ID<<std::endl;
+      <<"MergeClusterHits bad hit assignment: Inclus "<<allhits[theHit].InClus
+      <<" tcl.ID "<<tcl[icl].ID
+      <<" hit W:T "<<allhits[theHit].WireNum<<":"<<(int)allhits[theHit].Time
+      <<std::endl;
     return;
   }
           // check for hit multiplet
@@ -2075,8 +2077,8 @@ namespace cluster {
       } // fcl2hits.size() == 4
       unsigned short chsiz = chifits.size()-1;
       // chsiz is fcl2hits.size() - 1...
-//  if(prt) mf::LogVerbatim("ClusterCrawler")<<" chsiz "<<chsiz<<" "<<fcl2hits.size();
       if(chsiz < 6) continue;
+      if(fKinkChiRat[pass] <= 0) continue;
       if(chifits.size() != fcl2hits.size()) {
         mf::LogError("ClusterCrawler")
           <<"LACrawlUS: chifits size error "<<chifits.size()<<" "<<fcl2hits.size();
@@ -2129,27 +2131,9 @@ namespace cluster {
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"Removed kink hits";
         } // kinkang check
       } // chifits test
-      // chisq check
-      if(clChisq > fChiCut[pass]) {
-  if(prt)mf::LogVerbatim("ClusterCrawler")<<" Bad chisq "<<clChisq;
-        for(unsigned short nlop = 0; nlop < 4; ++nlop) {
-          unsigned short cfsize = chifits.size() - 1;
-          // stop lopping if chisq is good
-          if(chifits[cfsize] < 1.) break;
-          float chirat = chifits[cfsize] / chifits[cfsize - 1];
-  if(prt) mf::LogVerbatim("ClusterCrawler")<<"chirat "<<chirat
-    <<" last hit "<<fcl2hits[fcl2hits.size()-1];
-          if(chirat < 1.2) break;
-          fcl2hits.pop_back();
-          chifits.pop_back();
-          if(fcl2hits.size() < 4) break;
-          if(chifits.size() < 4) break;
-        } // nlop
-        FitCluster(allhits);
-        clStopCode = 4;
-      } // lChisq > fChiCut[pass]
     } // nextwire
 
+/*
     // Check for a normal stop but there is a systematic chifits increase
     // at the end of the cluster. This will remove hits on sub-threshold
     // kinks (hopefully)
@@ -2176,7 +2160,7 @@ namespace cluster {
         clStopCode = 3;
       } // reFit
     } // clStopCode == 0 && chifits.size() > 4
-
+*/
     clProcCode += 300;
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<"LACrawlUS done. Nhits = "<<fcl2hits.size();
@@ -2548,8 +2532,6 @@ namespace cluster {
       fChgSlp = 0.;
       unsigned short hitcnt = 0;
       bool UseEm = false;
-//      for(unsigned short it = cls.tclhits.size() - 1; it >= 0; --it) {
-//        unsigned short ihit = cls.tclhits[it];
       for(auto it = cls.tclhits.crbegin(); it != cls.tclhits.crend(); ++it) {
         unsigned short ihit = *it;
         if(ihit > allhits.size()-1) {
@@ -2618,11 +2600,8 @@ namespace cluster {
     std::vector<float> xwir;
     std::vector<float> ytim;
     std::vector<float> ytimerr2;
-    // apply an angle dependent scale factor. The error should be
-    // wire pitch / sqrt(12) for a cluster at 90 degrees. This formula 
-    // simply doubles the error, which I think is reasonable for uBooNE and
-    // ArgoNeuT 
-    float angfactor = 2 - 1/(1 + fabs(clpar[1]));
+    // apply an angle dependent scale factor.
+    float angfactor = AngleFactor(clpar[1]);
 
     // load the hits starting at the End of the fcl2hits vector.
     // These are the most upstream hits
@@ -2685,6 +2664,18 @@ namespace cluster {
     <<" "<<clpar[1]<<"+/-"<<slopeerr
     <<" clChisq "<<clChisq;
   
+  }
+/////////////////////////////////////////
+  float ClusterCrawlerAlg::AngleFactor(float slope)
+  {
+    // returns an angle dependent cluster projection error factor for fitting
+    // and hit finding
+    
+    float slp = slope;
+    if(slp > 10.) slp = 10.;
+    // return a value between 1 and 4
+    float angfac = 1 + 0.03 * slp * slp;
+    return angfac;
   }
 
 /////////////////////////////////////////
@@ -2780,6 +2771,8 @@ namespace cluster {
     
     // not in the range of wires with hits
     if(kwire < fFirstWire || kwire > fLastWire) return;
+    
+    if(fcl2hits.size() == 0) return;
 
     unsigned short index = kwire - fFirstWire;
     // return if no signal and no hit
@@ -2792,16 +2785,22 @@ namespace cluster {
     unsigned short firsthit = WireHitRange[index].first;
     unsigned short lasthit = WireHitRange[index].second;
     
+    // max allowable time difference between projected cluster and a hit
+    float timeDiff = 30 * AngleFactor(clpar[1]);
+    
     // the last hit added to the cluster
     unsigned short lastClHit = fcl2hits[fcl2hits.size()-1];
     unsigned short wire0 = allhits[lastClHit].WireNum;
     // the projected time of the cluster on this wire
-    float prtime = clpar[0] + (kwire - wire0) * clpar[1];
+    float twire0 = clpar[0];
+    // use the previous hit time for very large angle clusters
+    if(fabs(clpar[1]) > 5) twire0 = allhits[lastClHit].Time;
+    float prtime = twire0 + (kwire - wire0) * clpar[1];
+    
   if(prt) mf::LogVerbatim("ClusterCrawler")
-    <<"AddLAHit: prtime= "<<(short)prtime;
-
+    <<"AddLAHit: wire "<<kwire<<" prtime "<<(int)prtime
+    <<" clparerr[0] "<<clparerr[0];
     unsigned short imbest = 0;
-    float best = 999.;
     for(unsigned short khit = firsthit; khit < lasthit; ++khit) {
       // obsolete hit?
       if(allhits[khit].InClus < 0) continue;
@@ -2815,17 +2814,16 @@ namespace cluster {
     <<" LoT "<<(int)allhits[khit].LoTime
     <<" HiT "<<(int)allhits[khit].HiTime;
       // projected time within the Signal time window?
-      if(prtime < allhits[khit].LoTime) continue;
-      if(prtime > allhits[khit].HiTime) continue;
+      if(prtime < allhits[khit].LoTime - clparerr[0]) continue;
+      if(prtime > allhits[khit].HiTime + clparerr[0]) continue;
       SigOK = true;
       // hit used?
       if(allhits[khit].InClus > 0) continue;
-      // projected time within the Hit time window?
-      HitOK = true;
       float dtime = fabs(prtime - allhits[khit].Time);
-      if(dtime < best) {
+      if(dtime < timeDiff) {
+        HitOK = true;
         imbest = khit;
-        best = dtime;
+        timeDiff = dtime;
       }
     } // khit
     
@@ -2835,11 +2833,13 @@ namespace cluster {
     if(!HitOK) return;
 
   if(prt) mf::LogVerbatim("ClusterCrawler")
-    <<" Pick hit time "<<(int)allhits[imbest].Time;
+    <<" Pick hit time "<<(int)allhits[imbest].Time
+    <<" hit index "<<imbest;
     
     // merge the hits in a multiplet?
+    bool doMerge = false;
     if(allhits[imbest].numHits > 1) {
-      bool doMerge = true;
+      doMerge = true;
       // don't merge if we are close to a vertex
       for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
         if(vtx[ivx].CTP != clCTP) continue;
@@ -2885,7 +2885,7 @@ namespace cluster {
             float chgrat = multipletChg / allhits[lastClHit].Charge;
   if(prt) mf::LogVerbatim("ClusterCrawler")<<" merge hits charge check "
     <<(int)multipletChg<<" Previous hit charge "<<(int)allhits[lastClHit].Charge;
-            if(chgrat > 1.7) doMerge = false;
+            if(chgrat > 2) doMerge = false;
           }
         } // doMerge && nused == 0
       } // doMerge true
@@ -2900,7 +2900,17 @@ namespace cluster {
     <<" >>ADD W:T "<<kwire<<":"<<(int)allhits[imbest].Time
     <<std::setprecision(3)<<" clChisq "<<clChisq
     <<" charge "<<(int)allhits[imbest].Charge;
-    
+    // back out if a bad fit
+    if(clChisq > fChiCut[pass]) {
+      fcl2hits.pop_back();
+      chifits.pop_back();
+      FitCluster(allhits);
+      HitOK = false;
+  if(prt) mf::LogVerbatim("ClusterCrawler")
+    <<" Bad fit. Removed hit. New clChisq "
+    <<std::setprecision(3)<<clChisq
+    <<" nhits "<<fcl2hits.size();
+    }
 
   } // AddLAHit
 
@@ -2949,8 +2959,8 @@ namespace cluster {
     // error from the last hit added
     float prtimerr2 = fabs(kwire-wire0)*clparerr[1]*clparerr[1];
     // apply an angle dependent scale factor to the hit error
-    float angfactor = 2 - 1/(1 + fabs(clpar[1]));
-    float hiterr = angfactor * fHitErrFac * allhits[lastClHit].RMS;
+//    float angfactor = 2 - 1/(1 + fabs(clpar[1]));
+    float hiterr = AngleFactor(clpar[1]) * fHitErrFac * allhits[lastClHit].RMS;
     float err = sqrt(prtimerr2 + hiterr * hiterr);
     // Time window for accepting a hit.
     float prtimeLo = prtime - 3 * err;
@@ -3011,10 +3021,10 @@ namespace cluster {
       } else {
         imbestn = imbest - 1;
       }
-      // is the neighbor close?
+      // is the neighbor close and unused?
       float hitSep = fabs(allhits[imbest].Time - allhits[imbestn].Time);
       hitSep = hitSep / allhits[imbest].RMS;
-      if(hitSep < fHitMergeChiCut) {
+      if(hitSep < fHitMergeChiCut && allhits[imbestn].InClus == 0) {
         // Is the charge of the doublet more similar to the charge of the
         // previously added hits than the single hit
         float totChg = allhits[imbest].Charge + allhits[imbestn].Charge;
@@ -3339,7 +3349,7 @@ namespace cluster {
                 (int)tpc, (int)cstat);
               // 
               if(fabs(jX - iX) > fVertex3DCut) continue;
-  mf::LogVerbatim("ClusterCrawler")<<"2DMatchX "<<jX - iX;
+//  mf::LogVerbatim("ClusterCrawler")<<"2DMatchX "<<jX - iX;
               jWire = vtx[jvx].Wire;
               geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
               if(y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
@@ -3396,7 +3406,7 @@ namespace cluster {
               } // kk
             } // jj
           } // jpl
-  mf::LogVerbatim("ClusterCrawler")<<"3DMatch best "<<best;
+//  mf::LogVerbatim("ClusterCrawler")<<"3DMatch best "<<best;
           if(best < fVertex3DCut) {
             Vtx3Store v3d;
             v3d.Ptr2D = t2dIndex;
