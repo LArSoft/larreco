@@ -13,6 +13,7 @@ art_make( BASENAME_ONLY
                         BackTracker_service
 			RecoAlg
                         RecoBase
+			MCBase
                         Geometry
                         Geometry_service
                         LArProperties_service
