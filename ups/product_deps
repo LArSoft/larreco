@@ -7,7 +7,7 @@ fcldir product_dir job
 #
 product         version
 larsim		v02_01_01
-nutools         v1_02_02
+nutools         v1_02_03
 gcc		v4_8_2
 
 # list products required ONLY for the build
