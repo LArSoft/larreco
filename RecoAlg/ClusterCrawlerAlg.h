@@ -329,6 +329,7 @@ namespace cluster {
     void LinFit(std::vector<float>& x, std::vector<float>& y, 
       std::vector<float>& ey2, float& Intercept, float& Slope, 
       float& InterceptError, float& SlopeError, float& ChiDOF);
+    float AngleFactor(float slope);
 
   }; // class ClusterCrawlerAlg
 
