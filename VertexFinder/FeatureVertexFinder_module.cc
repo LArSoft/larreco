@@ -247,7 +247,7 @@ void FeatureVertexFinder::beginJob(){
     // get access to the TFile service
     art::ServiceHandle<art::TFileService> tfs;
     
-    std::cout<<"Begin Job"<<std::endl;
+    //std::cout<<"Begin Job"<<std::endl;
 
   }
 
@@ -301,7 +301,6 @@ void FeatureVertexFinder::produce(art::Event& evt)
    std::unique_ptr< art::Assns<recob::Vertex, recob::Track> >   assntr(new art::Assns<recob::Vertex, recob::Track>);
    std::unique_ptr< art::Assns<recob::Vertex, recob::Hit> >     assnh(new art::Assns<recob::Vertex, recob::Hit>);  
    
-   std::cout<<"Setup of outputs"<<std::endl;
    
 //-------------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------- ClusterCrawler EndPoint2d's -------------------------------------------------------------  
@@ -315,14 +314,12 @@ void FeatureVertexFinder::produce(art::Event& evt)
       evt.getByLabel(fCCrawlerEndPoint2dModuleLabel,ccrawlerFinderHandle);
       std::vector< art::Ptr<recob::EndPoint2D> > ccrawlerEndPoints;
       art::fill_ptr_vector(ccrawlerEndPoints, ccrawlerFinderHandle);
-   
-      std::cout<<"Getting the EndPoint2d's for cluster crawler"<<std::endl;
-   
+
       // ########################################################
       // ### Passing in the EndPoint2d's from Cluster Crawler ###
       // ########################################################
       Get3dVertexCandidates(ccrawlerEndPoints, GT2PlaneDetector);
-      std::cout<<"Get3dVertexCandidates Cluster Crawler"<<std::endl;
+
       }
    catch(...)
       {mf::LogWarning("FeatureVertexFinder") << "Failed to get EndPoint2d's from Cluster Crawler";}
@@ -339,13 +336,14 @@ void FeatureVertexFinder::produce(art::Event& evt)
       std::vector< art::Ptr<recob::EndPoint2D> > cornerEndPoints;
       art::fill_ptr_vector(cornerEndPoints, CornerFinderHandle);
    
-      std::cout<<"Getting the EndPoint2d's for Corner Finder"<<std::endl;
+
    
       // ######################################################
       // ### Passing in the EndPoint2d's from Corner Finder ###
       // ######################################################
       Get3dVertexCandidates(cornerEndPoints, GT2PlaneDetector);
-      std::cout<<"Get3dVertexCandidates Corner Finder"<<std::endl;
+
+      
       }
    catch(...)
       {mf::LogWarning("FeatureVertexFinder") << "Failed to get EndPoint2d's from Corner Finder";}
@@ -362,13 +360,12 @@ void FeatureVertexFinder::produce(art::Event& evt)
       art::Handle< std::vector<recob::Cluster> > clusterListHandle;
       evt.getByLabel(fClusterModuleLabel,clusterListHandle);
    
-      std::cout<<"Retreiving the Cluster Module for the event"<<std::endl;
+      
    
       // #################################################
       // ### Finding hits associated with the clusters ###
       // #################################################
       art::FindManyP<recob::Hit> fmh(clusterListHandle, evt, fClusterModuleLabel);
-      std::cout<<"Finding hits associated with the clusters"<<std::endl;
    
       // ##################################
       // ### Filling the Cluster Vector ###
@@ -378,18 +375,18 @@ void FeatureVertexFinder::produce(art::Event& evt)
      	art::Ptr<recob::Cluster> clusterHolder(clusterListHandle,ii);
      	clusters.push_back(clusterHolder);
      	}//<---End ii loop
+      
   
       // ####################################################
       // ### Passing in the clusters to find 2d Verticies ###
       // ####################################################
       Find2dClusterVertexCandidates(clusters, fmh);
-      std::cout<<"Made 2d vertex candidates"<<std::endl;
+
       // ###############################################################
       // ### Finding 3d Candidates from 2d cluster vertex candidates ###
       // ###############################################################
       Find3dVtxFrom2dClusterVtxCand(TwoDvtx_wire, TwoDvtx_time, TwoDvtx_plane);
-      std::cout<<"Made 3d vertex candidates from 2d cluster candidates"<<std::endl;
-      
+
       
       }
    catch(...)
@@ -400,7 +397,6 @@ void FeatureVertexFinder::produce(art::Event& evt)
    // ### Merging and sorting 3d vertex candidates ###
    // ################################################
    MergeAndSort3dVtxCandidate(candidate_x, candidate_y, candidate_z, candidate_strength);  
-   std::cout<<"Merged and sorted the cadidates"<<std::endl;
 
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -428,6 +424,10 @@ void FeatureVertexFinder::produce(art::Event& evt)
 	// ### Push each primary vertex onto the event ###
 	// ###############################################
 	double tempxyz[3] = {MergeSort3dVtx_xpos[pri], MergeSort3dVtx_ypos[pri], MergeSort3dVtx_zpos[pri]};
+	// ######################################
+	// ### Skipping a vertex that is zero ###
+	// ######################################
+	if(tempxyz[0] == 0 && tempxyz[1] == 0 && tempxyz[2] == 0){continue;}
 	recob::Vertex the3Dvertex(tempxyz, vcol->size());
 	vcol->push_back(the3Dvertex);
 	// ---------------------------------------------------------------------
@@ -447,6 +447,10 @@ void FeatureVertexFinder::produce(art::Event& evt)
 	      	{
 		double temp2dXYZ[3] = {MergeSort3dVtx_xpos[pri], MergeSort3dVtx_ypos[pri], MergeSort3dVtx_zpos[pri]};
 		double temp2dStrength = MergeSort3dVtx_strength[pri];
+		// ######################################
+		// ### Skipping a vertex that is zero ###
+		// ######################################
+		if(temp2dXYZ[0] == 0 && temp2dXYZ[1] == 0 && temp2dXYZ[2] == 0){continue;}
 		
 		// ######################################################################
 		// ### Converting the 3d vertex into 2d time ticks, wire, and channel ###
@@ -493,12 +497,30 @@ void FeatureVertexFinder::produce(art::Event& evt)
    // ================================================
    if(fRunningMode != 0)
       {
+      int position = 0;
+      int bail = 0;
+      // ######################################
+      // ### Looping over Primary Verticies ###
+      // ######################################
+      for(size_t pri = 0; pri < MergeSort3dVtx_xpos.size(); pri++)
+	{
 	// ###############################################
 	// ### Push each primary vertex onto the event ###
 	// ###############################################
-	double tempxyz[3] = {MergeSort3dVtx_xpos[0], MergeSort3dVtx_ypos[0], MergeSort3dVtx_zpos[0]};
+	double tempxyz[3] = {MergeSort3dVtx_xpos[pri], MergeSort3dVtx_ypos[pri], MergeSort3dVtx_zpos[pri]};
+	// ######################################
+	// ### Skipping a vertex that is zero ###
+	// ######################################
+	if(bail > 0){continue;}
+	if(tempxyz[0] == 0 && tempxyz[1] == 0 && tempxyz[2] == 0){continue;}
+	position = pri;
+	bail++;
 	recob::Vertex the3Dvertex(tempxyz, vcol->size());
 	vcol->push_back(the3Dvertex);
+	
+	
+	}
+	
 	// ---------------------------------------------------------------------
 	// --- Now go make the 2DEndPoints that correspond to each 3d vertex ---
 	// ---------------------------------------------------------------------
@@ -514,8 +536,8 @@ void FeatureVertexFinder::produce(art::Event& evt)
 	      // ### Loop over the wire planes ###
 	      for (size_t plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane)
 	      	{
-		double temp2dXYZ[3] = {MergeSort3dVtx_xpos[0], MergeSort3dVtx_ypos[0], MergeSort3dVtx_zpos[0]};
-		double temp2dStrength = MergeSort3dVtx_strength[0];
+		double temp2dXYZ[3] = {MergeSort3dVtx_xpos[position], MergeSort3dVtx_ypos[position], MergeSort3dVtx_zpos[position]};
+		double temp2dStrength = MergeSort3dVtx_strength[position];
 		
 		// ######################################################################
 		// ### Converting the 3d vertex into 2d time ticks, wire, and channel ###
@@ -659,7 +681,7 @@ void vertex::FeatureVertexFinder::Get3dVertexCandidates(std::vector< art::Ptr<re
 		      // ### Adding a check to see if I am in a 3-plane detector and therefore need ###
 		      // ###           to check for a match across more than 2 planes               ###
 		      // ##############################################################################
-		      if(!PlaneDet)
+		      if(PlaneDet)
 		      	{
 			// #########################################
 	   		// ### Looping over the rest of the list ###
@@ -813,7 +835,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	// ######################################################
 	// ### Skipping the fitted slope if the Chi2/NDF < 5  ###
 	// ######################################################
-	if( fitGoodness > 5)
+	if( fitGoodness > 10)
 	   {
 	   mf::LogWarning("FeatureVertexFinder") << "Fitter returned poor Chi2/NDF, using the RawClusters default dTdW()";
 	   dtdwstart.push_back(RawClusters[iclu]->dTdW());
@@ -1255,7 +1277,7 @@ void vertex::FeatureVertexFinder::MergeAndSort3dVtxCandidate(std::vector<double>
 	// ### If we didn't find a duplicate then lets save this 3d vertex as ###
 	// ###            a real candidate for consideration                  ###
 	// ######################################################################
-	if(!duplicate_found)
+	if(!duplicate_found && tempX_dup > 0)
 	   {
 	   x_3dVertex_dupRemoved.push_back(tempX_dup);
 	   y_3dVertex_dupRemoved.push_back(tempY_dup);
