@@ -169,7 +169,7 @@ namespace vertex {
    // ##################################
    // ### 2d Cluster based Variables ###
    // ################################## 
-   std::vector<int> Cls[3];				//<---- Index to clusters in each view
+   std::vector<std::vector<int> > Cls;		 	//<---- Index to clusters in each view
    std::vector<double> dtdwstart		= {0.};	//<----Slope (delta Time Tick vs delta Wire) 
    std::vector<double> dtdwstartError 		= {0.};	//<---Error on the slope 
    std::vector<double> Clu_Plane 		= {0.};	//<---Plane of the current cluster
@@ -224,6 +224,9 @@ FeatureVertexFinder::FeatureVertexFinder(fhicl::ParameterSet const& pset)
     produces< art::Assns<recob::Vertex, recob::Hit> >();
     produces< art::Assns<recob::Vertex, recob::Shower> >();
     produces< art::Assns<recob::Vertex, recob::Track> >();
+    
+    art::ServiceHandle<geo::Geometry> geom;
+    Cls.resize(geom->Nplanes(),std::vector<int>());
   }
 //-----------------------------------------------------------------------------
 // Destructor
@@ -301,6 +304,7 @@ void FeatureVertexFinder::produce(art::Event& evt)
    std::unique_ptr< art::Assns<recob::Vertex, recob::Track> >   assntr(new art::Assns<recob::Vertex, recob::Track>);
    std::unique_ptr< art::Assns<recob::Vertex, recob::Hit> >     assnh(new art::Assns<recob::Vertex, recob::Hit>);  
    
+   //std::cout<<"Setup of outputs"<<std::endl;
    
 //-------------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------- ClusterCrawler EndPoint2d's -------------------------------------------------------------  
@@ -314,12 +318,15 @@ void FeatureVertexFinder::produce(art::Event& evt)
       evt.getByLabel(fCCrawlerEndPoint2dModuleLabel,ccrawlerFinderHandle);
       std::vector< art::Ptr<recob::EndPoint2D> > ccrawlerEndPoints;
       art::fill_ptr_vector(ccrawlerEndPoints, ccrawlerFinderHandle);
-
+   
+      //std::cout<<"Getting the EndPoint2d's for cluster crawler"<<std::endl;
+      //std::cout<<"Length of ccrawlerEndPoints vector = "<<ccrawlerEndPoints.size()<<std::endl;
       // ########################################################
       // ### Passing in the EndPoint2d's from Cluster Crawler ###
       // ########################################################
       Get3dVertexCandidates(ccrawlerEndPoints, GT2PlaneDetector);
-
+      //std::cout<<"Get3dVertexCandidates Cluster Crawler"<<std::endl;
+      //std::cout<<"Number of candidate verticies after cluster crawler = "<<candidate_x.size()<<std::endl;
       }
    catch(...)
       {mf::LogWarning("FeatureVertexFinder") << "Failed to get EndPoint2d's from Cluster Crawler";}
@@ -336,13 +343,15 @@ void FeatureVertexFinder::produce(art::Event& evt)
       std::vector< art::Ptr<recob::EndPoint2D> > cornerEndPoints;
       art::fill_ptr_vector(cornerEndPoints, CornerFinderHandle);
    
-
+      //std::cout<<"Getting the EndPoint2d's for Corner Finder"<<std::endl;
+      //std::cout<<"Length of cornerEndPoints vector = "<<cornerEndPoints.size()<<std::endl;
    
       // ######################################################
       // ### Passing in the EndPoint2d's from Corner Finder ###
       // ######################################################
       Get3dVertexCandidates(cornerEndPoints, GT2PlaneDetector);
-
+      //std::cout<<"Get3dVertexCandidates Corner Finder"<<std::endl;
+      //std::cout<<"Number of candidate verticies after corner finder = "<<candidate_x.size()<<std::endl;
       
       }
    catch(...)
@@ -360,12 +369,14 @@ void FeatureVertexFinder::produce(art::Event& evt)
       art::Handle< std::vector<recob::Cluster> > clusterListHandle;
       evt.getByLabel(fClusterModuleLabel,clusterListHandle);
    
+      //std::cout<<"Retreiving the Cluster Module for the event"<<std::endl;
       
    
       // #################################################
       // ### Finding hits associated with the clusters ###
       // #################################################
       art::FindManyP<recob::Hit> fmh(clusterListHandle, evt, fClusterModuleLabel);
+      //std::cout<<"Finding hits associated with the clusters"<<std::endl;
    
       // ##################################
       // ### Filling the Cluster Vector ###
@@ -376,17 +387,20 @@ void FeatureVertexFinder::produce(art::Event& evt)
      	clusters.push_back(clusterHolder);
      	}//<---End ii loop
       
+      //std::cout<<"Number of clusters found = "<<clusters.size()<<std::endl;
   
       // ####################################################
       // ### Passing in the clusters to find 2d Verticies ###
       // ####################################################
       Find2dClusterVertexCandidates(clusters, fmh);
-
+      //std::cout<<"Made 2d vertex candidates"<<std::endl;
+      //std::cout<<"Number of 2d cluster vertex candidates found = "<<TwoDvtx_wire.size()<<std::endl;
       // ###############################################################
       // ### Finding 3d Candidates from 2d cluster vertex candidates ###
       // ###############################################################
       Find3dVtxFrom2dClusterVtxCand(TwoDvtx_wire, TwoDvtx_time, TwoDvtx_plane);
-
+      //std::cout<<"Made 3d vertex candidates from 2d cluster candidates"<<std::endl;
+      //std::cout<<"Number of candidate verticies after cluster step = "<<candidate_x.size()<<std::endl;
       
       }
    catch(...)
@@ -397,6 +411,12 @@ void FeatureVertexFinder::produce(art::Event& evt)
    // ### Merging and sorting 3d vertex candidates ###
    // ################################################
    MergeAndSort3dVtxCandidate(candidate_x, candidate_y, candidate_z, candidate_strength);  
+   /*std::cout<<std::endl;
+   std::cout<<"Merged and sorted the cadidates"<<std::endl;
+   std::cout<<"Number of merged and sorted verticies = "<<MergeSort3dVtx_xpos.size()<<std::endl;
+   std::cout<<"MergeSort3dVtx_xpos[0] = "<<MergeSort3dVtx_xpos[0]<<std::endl;
+   std::cout<<"MergeSort3dVtx_ypos[0] = "<<MergeSort3dVtx_ypos[0]<<std::endl;
+   std::cout<<"MergeSort3dVtx_zpos[0] = "<<MergeSort3dVtx_zpos[0]<<std::endl;*/
 
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -770,11 +790,31 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
    art::ServiceHandle<util::DetectorProperties> detprop;
    
    int nClustersFound = 0;
+   
+   // Initialize Cls
+   for(auto& c : Cls) c.clear();
+      
    for(size_t iclu = 0; iclu < RawClusters.size(); ++iclu)
       {
+      // ### Gathering the hits associated with the current cluster ###
+      std::vector< art::Ptr<recob::Hit> > hit = fmhit.at(iclu);
+   
+      // ### I only want to consider this cluster if it has a sufficient number of hits ###
+      if(hit.size() < 15){continue;}
+         
       // ######################################################
       // ### Determine which view the current cluster is in ###
       // ######################################################
+      const geo::View_t view = RawClusters.at(iclu)->View();
+      if(view >= Cls.size()) {
+          std::cerr << __PRETTY_FUNCTION__
+	  	    <<"\033[93m Logic error in my code ... view " << view << " not supported ! \033[00m"
+		    << std::endl;
+          throw std::exception();      
+      }
+      
+      Cls.at(RawClusters.at(iclu)->View()).push_back(iclu);
+      /*
       switch(RawClusters[iclu]->View())
 	{
 	case geo::kU :
@@ -789,14 +829,13 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	default :
 	  break;
 	}  
+	*/
    // #############################################################
    // ### Filling wires and times into a TGraph for the cluster ###
    // #############################################################	  
    std::vector<double> wires;
    std::vector<double> times;
-	  
-   // ### Gathering the hits associated with the current cluster ###
-   std::vector< art::Ptr<recob::Hit> > hit = fmhit.at(iclu);
+   
    // ### Counting the number of hits in the current cluster (n) ###
    int n = 0;
    // ############################################
@@ -812,7 +851,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
    // ### If there are 2 or more hits in the cluster fill a TGraph ###
    // ###         and fit a from a polynomial or order 1           ###
    // ################################################################
-   if(n>=2)
+   if(n>=15)
       {
       // ###################################
       // ### Push the hits into a TGraph ###
@@ -837,7 +876,6 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	// ######################################################
 	if( fitGoodness > 10)
 	   {
-	   mf::LogWarning("FeatureVertexFinder") << "Fitter returned poor Chi2/NDF, using the RawClusters default dTdW()";
 	   dtdwstart.push_back(RawClusters[iclu]->dTdW());
 	   continue;
 				
@@ -859,7 +897,8 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	   dtdwstart.push_back(RawClusters[iclu]->dTdW());
 	   continue;
 	   }
-	delete the2Dtrack;
+	   
+      delete the2Dtrack;
       }//<---End if the cluster has 2 or more hits
    // #################################################
    // ### If the cluster has fewer than 2 hits just ### 
@@ -876,6 +915,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
    // ##########################################################################################
    // ##########################################################################################
    
+   
    // ##############################
    // ### Looping over cryostats ###
    // ##############################
@@ -886,12 +926,11 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
       // ##########################
       for(size_t tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc)
 	{
-		
     	// #################################
 	// ### Loop over the wire planes ###
 	// #################################
 	for (unsigned int i = 0; i < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++i)
-	   {	
+	   {
 	   // ##############################################
 	   // ### If there is at least one cluster found ###
 	   // ##############################################
@@ -900,32 +939,31 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	      // ##############################
 	      // ### Loop over each cluster ###
 	      // ##############################
-	      for (unsigned j = 0; j<Cls[i].size(); ++j)
+	      for (unsigned int j = 0; j<Cls[i].size(); ++j)
 	      	{
 		// === Current Clusters Plane ===
-	        Clu_Plane.push_back(RawClusters[Cls[i][j]]->View());
+	        Clu_Plane.push_back(RawClusters.at(Cls.at(i).at(j))->View());
 		// === Current Clusters StartPos ===
-	        Clu_StartPos_Wire.push_back(RawClusters[Cls[i][j]]->StartPos()[0]);
-		Clu_StartPos_TimeTick.push_back(RawClusters[Cls[i][j]]->StartPos()[1]);
+	        Clu_StartPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->StartPos()[0]);
+		Clu_StartPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->StartPos()[1]);
 	        // === Current Clusters EndPos ===
-		Clu_EndPos_Wire.push_back(RawClusters[Cls[i][j]]->EndPos()[0]);
-	        Clu_EndPos_TimeTick.push_back(RawClusters[Cls[i][j]]->EndPos()[1]);
+		Clu_EndPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->EndPos()[0]);
+	        Clu_EndPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->EndPos()[1]);
 	        // === Current Clusters Slope (In Wire and Time Tick)
 		Clu_Slope.push_back(dtdwstart[Cls[i][j]]);
-		Clu_Length.push_back(std::sqrt(pow((RawClusters[Cls[i][j]]->StartPos()[0]-RawClusters[Cls[i][j]]->EndPos()[0])*13.5,2) + 
-		                              pow(RawClusters[Cls[i][j]]->StartPos()[1]-RawClusters[Cls[i][j]]->EndPos()[1],2)));
-		
+		Clu_Length.push_back(std::sqrt(pow((RawClusters.at(Cls.at(i).at(j))->StartPos()[0]-RawClusters.at(Cls.at(i).at(j))->EndPos()[0])*13.5,2) + 
+		                              pow(RawClusters.at(Cls.at(i).at(j))->StartPos()[1]-RawClusters.at(Cls.at(i).at(j))->EndPos()[1],2)));
 		// ######################################################
 		// ### Given a slope and a point find the y-intercept ###
 		// ###                   c = y-mx                     ###
 		// ######################################################
-		Clu_Yintercept.push_back(RawClusters[Cls[i][j]]->StartPos()[1] - (dtdwstart[Cls[i][j]] * RawClusters[Cls[i][j]]->StartPos()[0]));
+		Clu_Yintercept.push_back(RawClusters.at(Cls.at(i).at(j))->StartPos()[1] - (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->StartPos()[0]));
 		// #################################################################
 		// ###     Also calculating the y-intercept but using the        ###
 		// ###   end time of the cluster correct for the possibility     ###
 		// ### that the clustering didn't get start and end points right ###
 		// #################################################################
-		Clu_Yintercept2.push_back(RawClusters[Cls[i][j]]->EndPos()[1] - (dtdwstart[Cls[i][j]] * RawClusters[Cls[i][j]]->EndPos()[0]));
+		Clu_Yintercept2.push_back(RawClusters.at(Cls.at(i).at(j))->EndPos()[1] - (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->EndPos()[0]));
 		
 		// #######################################################
 		// ### Iterating on the total number of clusters found ###
@@ -993,31 +1031,45 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	   if(intersection_Y < 0){intersection_Y = -999;}
 	   if(intersection_Y > detprop->NumberTimeSamples() ){intersection_Y = -999;}
 	   
-	   // ### Gathering the hits associated with the current cluster ###
-	   std::vector< art::Ptr<recob::Hit> > hitClu1 = fmhit.at(m);
-	   std::vector< art::Ptr<recob::Hit> > hitClu2 = fmhit.at(n);
+	   // ############################################################
+	   // ### Putting in a protection for the findManyHit function ###
+	   // ############################################################
+	   try
+	      {
+	      // ### Gathering the hits associated with the current cluster ###
+	      std::vector< art::Ptr<recob::Hit> > hitClu1 = fmhit.at(m);
+	      std::vector< art::Ptr<recob::Hit> > hitClu2 = fmhit.at(n);
 	   
-	   // ### If the intersection point is 80 or more wires away from either cluster
-	   // ### and one of the clusters has fewer than 8 hits the intersection
-	   // ### is likely a crap one and we won't save this point
-	   if((abs( Clu_EndPos_Wire[m] - intersection_X2 ) > 80 && hitClu1.size() < 8) ||
-	      (abs( Clu_EndPos_Wire[n] - intersection_X2 ) > 80 && hitClu2.size() < 8) )
-	      {intersection_X2 = -999;intersection_Y2 = -999;}
+	      // ### If the intersection point is 80 or more wires away from either cluster
+	      // ### and one of the clusters has fewer than 8 hits the intersection
+	      // ### is likely a crap one and we won't save this point
+	      if((abs( Clu_EndPos_Wire[m] - intersection_X2 ) > 80 && hitClu1.size() < 8) ||
+	         (abs( Clu_EndPos_Wire[n] - intersection_X2 ) > 80 && hitClu2.size() < 8) )
+	         {intersection_X2 = -999;intersection_Y2 = -999;}
 	      
-	   if((abs( Clu_StartPos_Wire[m] - intersection_X ) > 80 && hitClu1.size() < 8) ||
-	      (abs( Clu_StartPos_Wire[n] - intersection_X ) > 80 && hitClu2.size() < 8) )
-	      {intersection_X = -999;intersection_Y = -999;}
+	      if((abs( Clu_StartPos_Wire[m] - intersection_X ) > 80 && hitClu1.size() < 8) ||
+	         (abs( Clu_StartPos_Wire[n] - intersection_X ) > 80 && hitClu2.size() < 8) )
+	         {intersection_X = -999;intersection_Y = -999;}
 	      
-	   // ### If the intersection point is 50 or more wires away from either cluster
-	   // ### and the one of the clusters has fewer than 3 hits the intersection
-	   // ### is likely a crap one and we won't save this point 
-	   if((abs( Clu_EndPos_Wire[m] - intersection_X2 ) > 50 && hitClu1.size() < 4) ||
-	      (abs( Clu_EndPos_Wire[n] - intersection_X2 ) > 50 && hitClu2.size() < 4) )
-	      {intersection_X2 = -999;intersection_Y2 = -999;}
+	      // ### If the intersection point is 50 or more wires away from either cluster
+	      // ### and the one of the clusters has fewer than 3 hits the intersection
+	      // ### is likely a crap one and we won't save this point 
+	      if((abs( Clu_EndPos_Wire[m] - intersection_X2 ) > 50 && hitClu1.size() < 4) ||
+	         (abs( Clu_EndPos_Wire[n] - intersection_X2 ) > 50 && hitClu2.size() < 4) )
+	         {intersection_X2 = -999;intersection_Y2 = -999;}
 						    
-	   if((abs( Clu_StartPos_Wire[m] - intersection_X ) > 50 && hitClu1.size() < 4) ||
-	      (abs( Clu_StartPos_Wire[n] - intersection_X ) > 50 && hitClu2.size() < 4) )
-	      {intersection_X = -999;intersection_Y = -999;} 
+	      if((abs( Clu_StartPos_Wire[m] - intersection_X ) > 50 && hitClu1.size() < 4) ||
+	         (abs( Clu_StartPos_Wire[n] - intersection_X ) > 50 && hitClu2.size() < 4) )
+	         {intersection_X = -999;intersection_Y = -999;}
+	      
+	      }
+	   catch(...) 
+	      {
+	      mf::LogWarning("FeatureVertexFinder") << "FindManyHit Function faild";
+	      intersection_X = -999;intersection_Y = -999;
+	      intersection_X2 = -999;intersection_Y2 = -999;
+	      continue;
+	      }
 	   
 	   // ##########################################################################
 	   // ### Push back a candidate 2dClusterVertex if it is inside the detector ###
@@ -1026,6 +1078,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	     ( intersection_X2 < geom->Nwires(Clu_Plane[m],0,0) ) &&
 	     ( intersection_Y2 < detprop->NumberTimeSamples() ) )
 	      {
+	      std::cout<<"Recording 2-d Vertex"<<std::endl;
 	      TwoDvtx_wire.push_back(intersection_X2);
 	      TwoDvtx_time.push_back(intersection_Y2);
 	      TwoDvtx_plane.push_back(Clu_Plane[m]);				
@@ -1065,6 +1118,10 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 // ----------------------------------------------------------------------------- 
 void vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(std::vector<double> Wire_2dvtx, std::vector<double> Time_2dvtx, std::vector<double> Plane_2dvtx)
    {
+   
+   //std::cout<<"####################################################################"<<std::endl;
+   //std::cout<<"Get 3d Vertex Candidates from clusters 2d Vertex candidates Function"<<std::endl;
+   //std::cout<<std::endl;
    std::vector<double> vtx_wire_merged;
    std::vector<double> vtx_time_merged;
    std::vector<double> vtx_plane_merged;
@@ -1168,6 +1225,7 @@ void vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(std::vector<doub
 		// === we need to check if the channels intersect and if they are 
 		// === close in time ticks as well...to do this we have to do some 
 		// === converting to use geom->PlaneWireToChannel(PlaneNo, Wire, tpc, cstat)
+		bool match = false;
 			
 		unsigned int vtx1_plane   = vtx_plane_merged[vtx1];
 		unsigned int vtx1_wire    = vtx_wire_merged[vtx1];
@@ -1175,6 +1233,7 @@ void vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(std::vector<doub
 		   {vtx1_channel = geom->PlaneWireToChannel(vtx1_plane, vtx1_wire, tpc, cstat);}
 		catch(...)
 		   {mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
+		   match = false;
 	            continue;}
 		
 		unsigned int vtx2_plane   = vtx_plane_merged[vtx];
@@ -1183,12 +1242,13 @@ void vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(std::vector<doub
 		   {vtx2_channel = geom->PlaneWireToChannel(vtx2_plane, vtx2_wire, tpc, cstat);}
 		catch(...)
 		   {mf::LogWarning("FeatureVertexFinder") << "PlaneWireToChannel Failed";
+		   match = false;
 	            continue;}
 			
 		// ##############################################################################
 		// ### Check to see if the channels intersect and save the y and z coordinate ###
 		// ##############################################################################
-		bool match = false;
+		
 		try
 		   {match = geom->ChannelsIntersect( vtx1_channel, vtx2_channel, y_coord, z_coord);}
 		catch(...)
@@ -1202,10 +1262,12 @@ void vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(std::vector<doub
 		   {
 		   float tempXCluster1 = detprop->ConvertTicksToX(vtx_time_merged[vtx1], vtx1_plane, tpc, cstat);
 		   float tempXCluster2 = detprop->ConvertTicksToX(vtx_time_merged[vtx], vtx2_plane, tpc, cstat);
-		   // #############################################################################
-		   // ### Now check if the matched channels are within 1 cm when projected in X ###
-		   // #############################################################################
-		   if(std::abs(tempXCluster1 - tempXCluster2) < 0.5)
+		   // ###############################################################################
+		   // ### Now check if the matched channels are within 0.5 cm when projected in X ###
+		   // ###         and that we have less than 100 of these candidates...           ###
+		   // ###                 because more than that seems silly                      ###
+		   // ###############################################################################
+		   if(std::abs(tempXCluster1 - tempXCluster2) < 0.5 && candidate_x.size() < 101)
 		      {
 		      //        detprop->ConvertTicksToX(ticks, plane, tpc, cryostat)
 		      candidate_x.push_back( detprop->ConvertTicksToX(vtx_time_merged[vtx1], vtx_plane_merged[vtx1], tpc, cstat) );
