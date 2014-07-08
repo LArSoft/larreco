@@ -103,6 +103,9 @@ namespace hit{
 			   std::vector< std::vector<int> > const&,
 			   std::string const&);
 
+    void SetMCHitAssocPair( std::vector<sim::MCHitCollection> const&, 
+			    std::vector< std::vector<int> > const&);
+
     void ClearHitModules();
     
   private:
@@ -117,10 +120,14 @@ namespace hit{
     void FindAndStoreHitsInRange(std::vector<recob::Hit> const&,
 				 std::vector<int> const&,
 				 size_t,size_t,size_t);
+    void FindAndStoreMCHitsInRange(int,size_t,size_t);
     
     WireROIInfo wireData;
     std::vector<std::string> HitModuleLabels;
     std::vector< HitAssocPair > HitProcessingQueue;
+    std::vector< sim::MCHitCollection > const *mcHitsPointer;
+    std::vector< std::vector<int> > const *mcHitAssociationsPointer;
+
 
     void SetupWireDataTree();
     TTree* wireDataTree;

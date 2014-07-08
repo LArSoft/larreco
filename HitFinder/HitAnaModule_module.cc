@@ -102,11 +102,11 @@ void hit::HitAnaModule::createMCAssocVector( std::vector<recob::Wire> const& wir
   //then, loop through wires, and lookup mchitcollections based on the wire's channel
 
   std::map<unsigned int,std::vector<int> > mcHitIndicesByChannel;
-  for(int icol=0; icol<mcHitVector.size(); icol++)
+  for(unsigned int icol=0; icol<mcHitVector.size(); icol++)
     mcHitIndicesByChannel[mcHitVector[icol].Channel()].push_back(icol);
   
 
-  for(int iwire=0; iwire<wireVector.size(); iwire++)
+  for(unsigned int iwire=0; iwire<wireVector.size(); iwire++)
     WireMCHitAssocVector[iwire].insert(WireMCHitAssocVector[iwire].end(),
 				       mcHitIndicesByChannel[wireVector[iwire].Channel()].begin(),
 				       mcHitIndicesByChannel[wireVector[iwire].Channel()].end());

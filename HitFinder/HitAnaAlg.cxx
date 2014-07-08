@@ -63,6 +63,12 @@ void hit::HitAnaAlg::LoadHitAssocPair( std::vector<recob::Hit> const& HitVector,
 
 }
 
+void hit::HitAnaAlg::SetMCHitAssocPair( std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
+					std::vector< std::vector<int> > const& AssocVector){
+  mcHitsPointer = &MCHitCollectionVector;
+  mcHitAssociationsPointer = &AssocVector;
+}
+
 void hit::HitAnaAlg::AnalyzeWires(std::vector<recob::Wire> const& WireVector,
 				  unsigned int event, unsigned int run){
   
@@ -136,6 +142,10 @@ void hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& ra
 			    range.begin_index(),
 			    range.begin_index()+range.size());
 
+  FindAndStoreMCHitsInRange(WireIndex,
+			    range.begin_index(),
+			    range.begin_index()+range.size());
+
   wireDataTree->Fill();
 }
 
@@ -168,6 +178,37 @@ void hit::HitAnaAlg::FindAndStoreHitsInRange( std::vector<recob::Hit> const& Hit
   wireData.Hits_wAverageTime[hitmodule_iter] = 
     wireData.Hits_wAverageTime[hitmodule_iter]/wireData.Hits_IntegratedCharge[hitmodule_iter];
 
+}
+
+void hit::HitAnaAlg::FindAndStoreMCHitsInRange( int WireIndex,
+						size_t begin_wire_tdc,
+						size_t end_wire_tdc){
+
+  for( auto const& hit_index : mcHitAssociationsPointer->at(WireIndex)){
+    sim::MCHitCollection const& thismchitcol = mcHitsPointer->at(hit_index);
+
+    for( auto const& thishit : thismchitcol){
+
+      //check if this hit is on this ROI
+      if( (thishit.PeakTime()-thishit.PeakWidth()) < begin_wire_tdc ||
+	  (thishit.PeakTime()+thishit.PeakWidth()) > end_wire_tdc )
+	continue;
+      
+      wireData.NMCHits++;
+      wireData.MCHits_IntegratedCharge += thishit.Charge();
+      
+      wireData.MCHits_wAverageCharge += thishit.Charge()*thishit.Charge();
+      wireData.MCHits_wAverageTime   += thishit.Charge()*thishit.PeakTime();
+    }
+    
+    wireData.MCHits_AverageCharge = 
+      wireData.MCHits_IntegratedCharge/wireData.NMCHits;
+    wireData.MCHits_wAverageCharge = 
+      wireData.MCHits_wAverageCharge/wireData.MCHits_IntegratedCharge;
+    wireData.MCHits_wAverageTime = 
+      wireData.MCHits_wAverageTime/wireData.MCHits_IntegratedCharge;
+  }
+  
 }
 
 void hit::HitAnaAlg::FillHitInfo(recob::Hit const& hit, std::vector<HitInfo>& HitInfoVector){
