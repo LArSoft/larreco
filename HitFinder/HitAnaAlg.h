@@ -17,6 +17,7 @@
 #include <string>
 #include <exception>
 
+#include "MCBase/MCHitCollection.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Wire.h"
 
@@ -67,7 +68,15 @@ namespace hit{
     std::vector<std::string> HitModuleLabels;
     std::vector<int> NHits;
     std::vector<float> Hits_IntegratedCharge;
+    std::vector<float> Hits_AverageCharge;
+    std::vector<float> Hits_wAverageCharge;
+    std::vector<float> Hits_wAverageTime;
     std::vector< std::vector<HitInfo> > Hits;
+    int NMCHits;
+    float MCHits_IntegratedCharge;
+    float MCHits_AverageCharge;
+    float MCHits_wAverageCharge;
+    float MCHits_wAverageTime;
   };
 
   class HitAnaAlgException : public std::exception{

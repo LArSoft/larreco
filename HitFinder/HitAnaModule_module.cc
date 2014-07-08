@@ -54,8 +54,13 @@ private:
   void createAssocVector(std::vector< art::Ptr<recob::Hit> > const&,
 			 std::vector< std::vector<int> >&);
 
+  void createMCAssocVector( std::vector<recob::Wire> const&,
+			    std::vector<sim::MCHitCollection> const&,
+			    std::vector< std::vector<int> >&);
+
   // Declare member data here.
   std::vector<std::string> fHitModuleLabels;
+  std::string fMCHitModuleLabel;
   std::string fWireModuleLabel;
 
   TTree *wireDataTree;
@@ -87,6 +92,27 @@ void hit::HitAnaModule::createAssocVector( std::vector< art::Ptr<recob::Hit> > c
 
 }
 
+void hit::HitAnaModule::createMCAssocVector( std::vector<recob::Wire> const& wireVector,
+					     std::vector<sim::MCHitCollection> const& mcHitVector,
+					     std::vector< std::vector<int> > & WireMCHitAssocVector){
+
+  WireMCHitAssocVector.clear(); WireMCHitAssocVector.resize(wireVector.size());
+
+  //first, store all the MCHitCollection indices in a map keyed on channel
+  //then, loop through wires, and lookup mchitcollections based on the wire's channel
+
+  std::map<unsigned int,std::vector<int> > mcHitIndicesByChannel;
+  for(int icol=0; icol<mcHitVector.size(); icol++)
+    mcHitIndicesByChannel[mcHitVector[icol].Channel()].push_back(icol);
+  
+
+  for(int iwire=0; iwire<wireVector.size(); iwire++)
+    WireMCHitAssocVector[iwire].insert(WireMCHitAssocVector[iwire].end(),
+				       mcHitIndicesByChannel[wireVector[iwire].Channel()].begin(),
+				       mcHitIndicesByChannel[wireVector[iwire].Channel()].end());
+
+}
+
 void hit::HitAnaModule::analyze(art::Event const & e)
 {
   //get event and run numbers
@@ -99,6 +125,15 @@ void hit::HitAnaModule::analyze(art::Event const & e)
   art::Handle< std::vector<recob::Wire> > wireHandle;
   e.getByLabel(fWireModuleLabel,wireHandle);
   std::vector<recob::Wire> const& wireVector(*wireHandle);
+
+  //get the MC hits
+  art::Handle< std::vector<sim::MCHitCollection> > mcHitHandle;
+  e.getByLabel(fMCHitModuleLabel,mcHitHandle);
+  std::vector<sim::MCHitCollection> const& mcHitVector(*mcHitHandle);
+
+  //make the association vector. First index is wire index, second is mcHitCollection index
+  std::vector< std::vector<int> > WireMCHitAssocVector;
+  createMCAssocVector(wireVector,mcHitVector,WireMCHitAssocVector);
 
   //get the hit data
   size_t nHitModules = fHitModuleLabels.size();
@@ -137,8 +172,9 @@ void hit::HitAnaModule::reconfigure(fhicl::ParameterSet const & p)
 {
   // Implementation of optional member function here.
 
-  fHitModuleLabels = p.get< std::vector<std::string> >("HitModuleLabels");
-  fWireModuleLabel = p.get< std::string              >("WireModuleLabel");
+  fHitModuleLabels  = p.get< std::vector<std::string> >("HitModuleLabels");
+  fWireModuleLabel  = p.get< std::string              >("WireModuleLabel");
+  fMCHitModuleLabel = p.get< std::string              >("MCHitModuleLabel");
 
 }
 

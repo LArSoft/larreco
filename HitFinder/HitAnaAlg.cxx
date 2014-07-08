@@ -35,6 +35,14 @@ void hit::HitAnaAlg::SetupWireDataTree(){
   wireDataTree->Branch("HitModuleLabels",&wireData.HitModuleLabels);
   wireDataTree->Branch("NHits",&wireData.NHits);
   wireDataTree->Branch("Hits_IntegratedCharge",&wireData.Hits_IntegratedCharge);
+  wireDataTree->Branch("Hits_AverageCharge",&wireData.Hits_AverageCharge);
+  wireDataTree->Branch("Hits_wAverageCharge",&wireData.Hits_wAverageCharge);
+  wireDataTree->Branch("Hits_wAverageTime",&wireData.Hits_wAverageTime);
+  wireDataTree->Branch("NMCHits",&wireData.NMCHits);
+  wireDataTree->Branch("MCHits_IntegratedCharge",&wireData.MCHits_IntegratedCharge);
+  wireDataTree->Branch("MCHits_AverageCharge",&wireData.MCHits_AverageCharge);
+  wireDataTree->Branch("MCHits_wAverageCharge",&wireData.MCHits_wAverageCharge);
+  wireDataTree->Branch("MCHits_wAverageTime",&wireData.MCHits_wAverageTime);
 }
 
 void hit::HitAnaAlg::ClearHitModules(){
@@ -74,9 +82,18 @@ void hit::HitAnaAlg::InitWireData(unsigned int event, unsigned int run){
 }
 
 void hit::HitAnaAlg::ClearWireDataHitInfo(){
-    wireData.NHits.assign(wireData.NHitModules,0);
-    wireData.Hits_IntegratedCharge.assign(wireData.NHitModules,0);
-    wireData.Hits.clear(); wireData.Hits.resize(wireData.NHitModules);
+  wireData.NMCHits = 0;
+  wireData.MCHits_IntegratedCharge = 0;
+  wireData.MCHits_AverageCharge = 0;
+  wireData.MCHits_wAverageCharge = 0;
+  wireData.MCHits_wAverageTime = 0;
+  
+  wireData.NHits.assign(wireData.NHitModules,0);
+  wireData.Hits_IntegratedCharge.assign(wireData.NHitModules,0);
+  wireData.Hits_AverageCharge.assign(wireData.NHitModules,0);
+  wireData.Hits_wAverageCharge.assign(wireData.NHitModules,0);
+  wireData.Hits_wAverageTime.assign(wireData.NHitModules,0);
+  wireData.Hits.clear(); wireData.Hits.resize(wireData.NHitModules);
 }
 
 void hit::HitAnaAlg::FillWireInfo(recob::Wire const& wire, int WireIndex){
@@ -140,7 +157,16 @@ void hit::HitAnaAlg::FindAndStoreHitsInRange( std::vector<recob::Hit> const& Hit
     wireData.NHits[hitmodule_iter]++;
     wireData.Hits_IntegratedCharge[hitmodule_iter] += thishit.Charge();
 
+    wireData.Hits_wAverageCharge[hitmodule_iter] += thishit.Charge()*thishit.Charge();
+    wireData.Hits_wAverageTime[hitmodule_iter]   += thishit.Charge()*thishit.PeakTime();
   }
+
+  wireData.Hits_AverageCharge[hitmodule_iter] = 
+    wireData.Hits_IntegratedCharge[hitmodule_iter]/wireData.NHits[hitmodule_iter];
+  wireData.Hits_wAverageCharge[hitmodule_iter] = 
+    wireData.Hits_wAverageCharge[hitmodule_iter]/wireData.Hits_IntegratedCharge[hitmodule_iter];
+  wireData.Hits_wAverageTime[hitmodule_iter] = 
+    wireData.Hits_wAverageTime[hitmodule_iter]/wireData.Hits_IntegratedCharge[hitmodule_iter];
 
 }
 
