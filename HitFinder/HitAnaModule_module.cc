@@ -121,6 +121,10 @@ void hit::HitAnaModule::analyze(art::Event const & e)
 
   analysisAlg.ClearHitModules();
 
+  //get time service
+  art::ServiceHandle<util::TimeService> TimeServiceHandle;
+  util::TimeService const& TimeService(*TimeServiceHandle);
+
   //get the wire data
   art::Handle< std::vector<recob::Wire> > wireHandle;
   e.getByLabel(fWireModuleLabel,wireHandle);
@@ -157,7 +161,7 @@ void hit::HitAnaModule::analyze(art::Event const & e)
   }
 
   //run the analzyer alg
-  analysisAlg.AnalyzeWires(wireVector,eventNumber,runNumber);
+  analysisAlg.AnalyzeWires(wireVector,mcHitVector,WireMCHitAssocVector,TimeService,eventNumber,runNumber);
 
 }
 

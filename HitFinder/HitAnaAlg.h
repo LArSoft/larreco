@@ -20,6 +20,7 @@
 #include "MCBase/MCHitCollection.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Wire.h"
+#include "Utilities/TimeService.h"
 
 #include "TTree.h"
 
@@ -96,15 +97,15 @@ namespace hit{
     void SetWireDataTree(TTree*);
 
     void AnalyzeWires(std::vector<recob::Wire> const&,
+		      std::vector<sim::MCHitCollection> const&,
+		      std::vector< std::vector<int> > const&,
+		      util::TimeService const&,
 		      unsigned int,
 		      unsigned int);
 
     void LoadHitAssocPair( std::vector<recob::Hit> const&, 
 			   std::vector< std::vector<int> > const&,
 			   std::string const&);
-
-    void SetMCHitAssocPair( std::vector<sim::MCHitCollection> const&, 
-			    std::vector< std::vector<int> > const&);
 
     void ClearHitModules();
     
@@ -114,19 +115,31 @@ namespace hit{
     void ClearWireDataHitInfo();
 
     void FillHitInfo(recob::Hit const&, std::vector<HitInfo>&);
-    void FillWireInfo(recob::Wire const&, int);
-    void ProcessROI(lar::sparse_vector<float>::datarange_t const&, int);
+
+    void FillWireInfo(recob::Wire const&, 
+		      int,
+		      std::vector<sim::MCHitCollection> const&,
+		      std::vector<int> const&,
+		      util::TimeService const&);
+
+    void ProcessROI(lar::sparse_vector<float>::datarange_t const&, int,
+		    std::vector<sim::MCHitCollection> const&,
+		    std::vector<int> const&,
+		    util::TimeService const&);
+
     float ROIIntegral(lar::sparse_vector<float>::datarange_t const&);
+
     void FindAndStoreHitsInRange(std::vector<recob::Hit> const&,
 				 std::vector<int> const&,
 				 size_t,size_t,size_t);
-    void FindAndStoreMCHitsInRange(int,size_t,size_t);
+    void FindAndStoreMCHitsInRange(std::vector<sim::MCHitCollection> const&,
+				   std::vector<int> const&,
+				   size_t,size_t,
+				   util::TimeService const&);
     
     WireROIInfo wireData;
     std::vector<std::string> HitModuleLabels;
     std::vector< HitAssocPair > HitProcessingQueue;
-    std::vector< sim::MCHitCollection > const *mcHitsPointer;
-    std::vector< std::vector<int> > const *mcHitAssociationsPointer;
 
 
     void SetupWireDataTree();
