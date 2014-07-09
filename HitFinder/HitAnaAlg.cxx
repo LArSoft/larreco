@@ -27,6 +27,7 @@ void hit::HitAnaAlg::SetupWireDataTree(){
   wireDataTree->Branch("event", &wireData.event, "event/i");
   wireDataTree->Branch("run", &wireData.run, "run/i");
   wireDataTree->Branch("channel", &wireData.channel, "channel/i");
+  wireDataTree->Branch("channel_type", &wireData.channel_type, "channel_type/i");
   wireDataTree->Branch("roi_index", &wireData.range_index, "roi_index/i");
   wireDataTree->Branch("roi_start", &wireData.range_start, "roi_start/i");
   wireDataTree->Branch("roi_size", &wireData.range_size, "roi_size/i");
@@ -106,6 +107,7 @@ void hit::HitAnaAlg::FillWireInfo(recob::Wire const& wire,
 				  util::TimeService const& TimeService){
 
   wireData.channel = wire.Channel();
+  wireData.channel_type = wire.SignalType();
   unsigned int range_index = 0;
 
   for( auto const& range : wire.SignalROI().get_ranges() ){
