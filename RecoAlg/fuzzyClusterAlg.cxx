@@ -203,6 +203,10 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
 //  Ben Carls' implementation of fuzzyClusterAlg as much like examples as possible
 void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit> >& allhits) {
 
+  // Don't attempt to run the algorithm if we have 1 or fewer hits
+  if(allhits.size() <= 1)
+    return;
+
   Flame *flame;
   flame = Flame_New();
 
@@ -230,8 +234,6 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
 
   if(allhits.size()==0)
     return;
-
-
 
   //factor to make x and y scale the same units
   uint32_t     channel = allhits[0]->Channel();
