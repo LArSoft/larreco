@@ -120,7 +120,7 @@ standard_trackana:
   module_type:        "TrackAna"
   TrackModuleLabel:   "trackkalmanhit"
   SpacepointModuleLabel:  "spacepointfinder"
-  StitchModuleLabel:  "stitch"
+  StitchModule:  "stitch"
   TrkSpptAssocModuleLabel:  "trackkalmanhit"
   HitSpptAssocModuleLabel:  "ffthit"
   Dump:               10
@@ -227,8 +227,7 @@ standard_trackstitcher:
     module_type: "TrackStitcher"
     TrackModuleLabel: "trk3dsps"
     SpptModuleLabel: "spacepts"
-    CosAngTolerance: 0.90
-    SpptSepTolerance: 3.0 # cm
+    StitchAlg:      @local::standard_trackstitcheralg
 }
 
 standard_magdriftana:

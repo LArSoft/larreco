@@ -42,6 +42,14 @@ standard_beziertrackeralgorithm:
 }
 standard_beziertrackeralgorithm.SeedFinder.LengthCut: 2
 
+standard_trackstitcheralg:
+{
+  CosAngTolerance: 0.97
+  SpptSepTolerance: 3.0 # cm
+}
+
+
+
 bo_spacepointalg:          @local::standard_spacepointalg
 bo_spacepointalg.MinViews: 2
 bo_spacepointalg.EnableW:  true
@@ -115,5 +123,6 @@ microboone_seedfinderalgorithm.SpacePointAlg.Filter:     false
 microboone_beziertrackeralgorithm:                       @local::standard_beziertrackeralgorithm
 microboone_beziertrackeralgorithm.SeedFinder:            @local::microboone_seedfinderalgorithm
 
+microboone_trackstitcheralg:  @local::standard_trackstitcheralg
 
 END_PROLOG
