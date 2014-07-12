@@ -203,7 +203,7 @@ namespace cluster {
     size_t Transform(std::vector<art::Ptr<recob::Hit> > const& hits,
                      std::vector<unsigned int>     *fpointId_to_clusterId,
                      unsigned int clusterId, // The id of the cluster we are examining
-                     int *nClusters,
+                     unsigned int *nClusters,
                      std::vector<protoTrack> *protoTracks);
     
     

@@ -17,8 +17,10 @@
 #include <string>
 #include <exception>
 
+#include "MCBase/MCHitCollection.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Wire.h"
+#include "Utilities/TimeService.h"
 
 #include "TTree.h"
 
@@ -59,6 +61,7 @@ namespace hit{
     unsigned int event;
     unsigned int run;
     unsigned int channel;
+    unsigned int channel_type;
     unsigned int range_index;
     unsigned int range_start;
     size_t range_size;
@@ -67,7 +70,15 @@ namespace hit{
     std::vector<std::string> HitModuleLabels;
     std::vector<int> NHits;
     std::vector<float> Hits_IntegratedCharge;
+    std::vector<float> Hits_AverageCharge;
+    std::vector<float> Hits_wAverageCharge;
+    std::vector<float> Hits_wAverageTime;
     std::vector< std::vector<HitInfo> > Hits;
+    int NMCHits;
+    float MCHits_IntegratedCharge;
+    float MCHits_AverageCharge;
+    float MCHits_wAverageCharge;
+    float MCHits_wAverageTime;
   };
 
   class HitAnaAlgException : public std::exception{
@@ -87,6 +98,9 @@ namespace hit{
     void SetWireDataTree(TTree*);
 
     void AnalyzeWires(std::vector<recob::Wire> const&,
+		      std::vector<sim::MCHitCollection> const&,
+		      std::vector< std::vector<int> > const&,
+		      util::TimeService const&,
 		      unsigned int,
 		      unsigned int);
 
@@ -102,16 +116,32 @@ namespace hit{
     void ClearWireDataHitInfo();
 
     void FillHitInfo(recob::Hit const&, std::vector<HitInfo>&);
-    void FillWireInfo(recob::Wire const&, int);
-    void ProcessROI(lar::sparse_vector<float>::datarange_t const&, int);
+
+    void FillWireInfo(recob::Wire const&, 
+		      int,
+		      std::vector<sim::MCHitCollection> const&,
+		      std::vector<int> const&,
+		      util::TimeService const&);
+
+    void ProcessROI(lar::sparse_vector<float>::datarange_t const&, int,
+		    std::vector<sim::MCHitCollection> const&,
+		    std::vector<int> const&,
+		    util::TimeService const&);
+
     float ROIIntegral(lar::sparse_vector<float>::datarange_t const&);
+
     void FindAndStoreHitsInRange(std::vector<recob::Hit> const&,
 				 std::vector<int> const&,
 				 size_t,size_t,size_t);
+    void FindAndStoreMCHitsInRange(std::vector<sim::MCHitCollection> const&,
+				   std::vector<int> const&,
+				   size_t,size_t,
+				   util::TimeService const&);
     
     WireROIInfo wireData;
     std::vector<std::string> HitModuleLabels;
     std::vector< HitAssocPair > HitProcessingQueue;
+
 
     void SetupWireDataTree();
     TTree* wireDataTree;
