@@ -35,28 +35,32 @@ standard_clustercrawlershower:
  MaxDistance:             0.1
 }
 
-
 standard_fuzzycluster:
 {
  module_type:     "fuzzyCluster"
- HitsModuleLabel: "ffthit"
- CalDataModuleLabel: "caldata"
+ HitsModuleLabel: "gaushit"
  HoughSeed:       0      # The user supplied seed the generator uses for the 
                          # Hough transform, if it is zero a seed is randomly created
  fuzzyClusterAlg: @local::standard_fuzzyclusteralg
- CornerFinderAlg: @local::standard_cornerfinderalg
 }
 
-standard_ccclusterana:
+standard_clusterana:
 { 
- module_type:              "CCclusterAna"
+ module_type:              "ClusterAna"
  HitsModuleLabel:          "cccluster"
  ClusterModuleLabel:       "cccluster"
- HitEnergyFraction:        0.1
+ VertexModuleLabel:        "cccluster"
+ ElecKERange:              [50, 10000] # Min, max KE (MeV) for matching Primary only
+ MuonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+ PionKERange:              [50, 10000] # Min, max KE (MeV) for matching
+ KaonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+ ProtKERange:              [50, 10000] # Min, max KE (MeV) for matching
  TrackWeightOption:        1 # 0 = equal weighting, 1 = weight by kinetic energy
- MergeDaughters:           true # merge daughter MC particles with mothers
- MergeAngleCut:            0.2 # radians. Angle cut for MC particle merging
+ MergeDaughters:           true # merge daughter MC particles with mothers (not electrons)
+ SkipCosmics:              true # do not evaluate cosmic rays
+ PrintLevel:               0 # 0 = none, 1 = event summary, 2 += each MC particle, 3 += truth
 }
+
 
 standard_dbclusterana:
 { 

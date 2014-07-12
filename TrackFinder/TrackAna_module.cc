@@ -397,7 +397,7 @@ namespace trkf {
     // Book histograms.
 
     fHstartx = dir.make<TH1F>("xstart", "X Start Position",
-			      100, 0., 2.*geom->DetHalfWidth());
+			      100, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHstarty = dir.make<TH1F>("ystart", "Y Start Position",
 			      100, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHstartz = dir.make<TH1F>("zstart", "Z Start Position",
@@ -405,7 +405,7 @@ namespace trkf {
     fHstartd = dir.make<TH1F>("dstart", "Start Position Distance to Boundary",
 			      100, -10., geom->DetHalfWidth());
     fHendx = dir.make<TH1F>("xend", "X End Position",
-			    100, 0., 2.*geom->DetHalfWidth());
+			    100, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHendy = dir.make<TH1F>("yend", "Y End Position",
 			    100, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHendz = dir.make<TH1F>("zend", "Z End Position",
@@ -546,13 +546,13 @@ namespace trkf {
     fHppullc = dir.make<TH1F>("ppullc", "Momentum Pull (Contained Tracks)", 100, -10., 10.);
 
     fHmcstartx = dir.make<TH1F>("mcxstart", "MC X Start Position",
-				10, 0., 2.*geom->DetHalfWidth());
+				10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHmcstarty = dir.make<TH1F>("mcystart", "MC Y Start Position",
 				10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHmcstartz = dir.make<TH1F>("mczstart", "MC Z Start Position",
 				10, 0., geom->DetLength());
     fHmcendx = dir.make<TH1F>("mcxend", "MC X End Position",
-			      10, 0., 2.*geom->DetHalfWidth());
+			      10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHmcendy = dir.make<TH1F>("mcyend", "MC Y End Position",
 			      10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHmcendz = dir.make<TH1F>("mczend", "MC Z End Position",
@@ -565,13 +565,13 @@ namespace trkf {
     fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * geom->DetLength());
 
     fHgstartx = dir.make<TH1F>("gxstart", "Good X Start Position",
-			       10, 0., 2.*geom->DetHalfWidth());
+			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHgstarty = dir.make<TH1F>("gystart", "Good Y Start Position",
 			       10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHgstartz = dir.make<TH1F>("gzstart", "Good Z Start Position",
 			       10, 0., geom->DetLength());
     fHgendx = dir.make<TH1F>("gxend", "Good X End Position",
-			     10, 0., 2.*geom->DetHalfWidth());
+			     10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHgendy = dir.make<TH1F>("gyend", "Good Y End Position",
 			     10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHgendz = dir.make<TH1F>("gzend", "Good Z End Position",
@@ -584,13 +584,13 @@ namespace trkf {
     fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * geom->DetLength());
 
     fHestartx = dir.make<TH1F>("exstart", "Efficiency vs. X Start Position",
-			       10, 0., 2.*geom->DetHalfWidth());
+			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHestarty = dir.make<TH1F>("eystart", "Efficiency vs. Y Start Position",
 			       10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHestartz = dir.make<TH1F>("ezstart", "Efficiency vs. Z Start Position",
 			       10, 0., geom->DetLength());
     fHeendx = dir.make<TH1F>("exend", "Efficiency vs. X End Position",
-			     10, 0., 2.*geom->DetHalfWidth());
+			     10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
     fHeendy = dir.make<TH1F>("eyend", "Efficiency vs. Y End Position",
 			     10, -geom->DetHalfHeight(), geom->DetHalfHeight());
     fHeendz = dir.make<TH1F>("ezend", "Efficiency vs. Z End Position",

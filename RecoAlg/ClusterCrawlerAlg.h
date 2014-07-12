@@ -66,7 +66,7 @@ namespace cluster {
     }; // ClusterStore
     std::vector< ClusterStore > tcl;
 
-    // struct of temporary vertices
+    // struct of temporary 2D vertices
     struct VtxStore {
       float Wire;
       float Time;
@@ -75,7 +75,18 @@ namespace cluster {
       CTP_t CTP;
     };
     std::vector< VtxStore > vtx;
-    std::vector< std::pair<short, short> > vtxRange;
+    
+    // struct of temporary 3D vertices
+    struct Vtx3Store {
+      std::array<short, 3> Ptr2D; // pointers to 2D vertices in each plane
+      float X;                    // x position
+      float Y;                    // y position
+      float Z;                    // z position
+      short Wire;                 // wire number for an incomplete 3D vertex
+      unsigned short CStat;
+      unsigned short TPC;
+    };
+    std::vector< Vtx3Store > vtx3;
 
     ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
     virtual ~ClusterCrawlerAlg();
@@ -100,6 +111,7 @@ namespace cluster {
     std::vector<float> fTimeDelta;  ///< max time difference for matching
     std::vector<float> fMergeChgCut;  ///< max charge ratio for matching
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
+    std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
 
     // global cuts and parameters 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS
@@ -111,6 +123,7 @@ namespace cluster {
     bool fMergeGhostClusters; ///< Merge clusters if they share hits in a muliplet
                            ///< in the same hit multiplet. Set < 0 for no merging
     unsigned short fAllowNoHitWire; 
+    float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (cm)
     short fDebugPlane;
     short fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
     short fDebugHit;   ///< out detailed information while crawling
@@ -196,7 +209,6 @@ namespace cluster {
     
     std::vector<unsigned short> fcl2hits;  ///< vector of hits used in the cluster
     std::vector<float> chifits;   ///< fit chisq for monitoring kinks, etc
-    bool fCrawlLACluster;   ///< crawl a Large Angle Cluster?
 
     std::string fhitsModuleLabel;
     
@@ -204,7 +216,8 @@ namespace cluster {
     // ******** crawling routines *****************
 
     // Loops over wires looking for seed clusters
-    void ClusterLoop(std::vector<CCHitFinderAlg::CCHit>& allhits);
+    void ClusterLoop(std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
     // Finds a hit on wire kwire, adds it to the cluster and re-fits it
     void AddHit(std::vector<CCHitFinderAlg::CCHit>& allhits, 
       unsigned short kwire, bool& HitOK, bool& SigOK);
@@ -270,6 +283,14 @@ namespace cluster {
     // fit the vertex position
     void FitVtx(std::vector<ClusterStore>& tcl,
         std::vector<VtxStore>& vtx, unsigned short iv, float& ChiDOF);
+    // match vertices between planes
+    void VtxMatch(std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
+      std::vector<Vtx3Store>& vtx3, unsigned int cstat, unsigned int tpc);
+    // split clusters using 3D vertex information
+    void Vtx3ClusterSplit(std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
+      std::vector<Vtx3Store>& vtx3, unsigned int cstat, unsigned int tpc);
 
     // ************** hit routines *******************
 
@@ -288,8 +309,6 @@ namespace cluster {
     // abandoned clusters
     void cl2SortByLength(std::vector<ClusterStore>& tcl,
         std::map<unsigned short, unsigned short>& sortindex);
-    // Do a quality control check on clusters
-    void QACheck(std::vector<CCHitFinderAlg::CCHit>& allhits);
     // Stores cluster information in a temporary vector
     void TmpStore(std::vector<CCHitFinderAlg::CCHit>& allhits, 
       std::vector<ClusterStore>& tcl);
@@ -310,6 +329,7 @@ namespace cluster {
     void LinFit(std::vector<float>& x, std::vector<float>& y, 
       std::vector<float>& ey2, float& Intercept, float& Slope, 
       float& InterceptError, float& SlopeError, float& ChiDOF);
+    float AngleFactor(float slope);
 
   }; // class ClusterCrawlerAlg
 

@@ -19,12 +19,14 @@ standard_clustercrawleralg:
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
   MergeChgCut: [0.2, 0.2, 0.2] # max charge ratio for cluster merging
   FindVertices: [true, true, true]  # make 2D vertices after clustering?
+  LACrawl:     [false, true, true]  # crawl Large Angle clusters?
   LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
-  HitMergeChiCut:    4.0 # Merge cluster hit-multiplets if the separation chisq
+  HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
-  MergeGhostClusters: true # Merge clusters that share hits in a multiplet?     
+  MergeGhostClusters: false # Merge clusters that share hits in a multiplet?     
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
   AllowNoHitWire:        1 # 
+  Vertex3DCut:          1. # 2D vtx -> 3D vtx matching cut (cm)
   DebugPlane:          -1  # print info only in this plane
   DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
   DebugHit:             0  # out detailed information while crawling
@@ -129,12 +131,12 @@ standard_dbscanalg:
 
 standard_fuzzyclusteralg:
 {
-  Fuzzifier:     1.1   # The fuzzifier (m) needed for fuzzy clustering
-  MaxNumClusters:  5   # The maximum number of clusters to try, needed for fuzzy clustering, was 5
-  Iterations:     100  # The maximum number of iterations to try, needed for fuzzy clustering, was 10
-  MergeCutoff:    100  # The maximum distance between clusters prior to merging,  
+  Iterations:     10   # The maximum number of iterations to try, needed for fuzzy clustering, was 10
+  Epsilon:        1e-6 # The limit in the difference between memberships when FLAME clustering stops 
+  KNN:           500
+  DistanceMetric: 2
   HoughBaseAlg:{
-    MaxLines:             50
+    MaxLines:             10
     MaxDistance:          0.1
     MinHits:              5
     NumAngleCells:        10800
@@ -148,8 +150,6 @@ standard_fuzzyclusteralg:
     MissedHitsDistance:       1.0  # 
     MissedHitsToLineSize:     0.5    # Was set to 0
   }
-  DBScanAlg:       @local::standard_dbscanalg 
-  EndPointClusAlg: @local::standard_endpointalg
   DoFuzzyRemnantMerge:      1    # Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
   FuzzyRemnantMergeCutoff: 20    # Cut off on distance from hough line to hit in the remnant of the fuzzy cluster
   
@@ -169,7 +169,6 @@ standard_fuzzyclusteralg:
   MaxVertexLines:          100   # Max number of line end points allowed in a Hough line merge region for a merge to happen 
   VertexLinesCutoff:       5.0   #  Size of the vertex region to count up lines for MaxVertexLines 
 }
-
 
 standard_clusterparamsalg:
  {

@@ -132,7 +132,6 @@ namespace trkf {
   public:
     
     explicit CosmicTracker(fhicl::ParameterSet const& pset);
-    ~CosmicTracker();
     
     //////////////////////////////////////////////////////////
     void reconfigure(fhicl::ParameterSet const& p);
@@ -193,11 +192,6 @@ namespace trkf {
     dtime  .resize(3);
     testsig.resize(3);
     testpulse.resize(3);
-  }
-
-  //-------------------------------------------------
-  CosmicTracker::~CosmicTracker()
-  {
   }
 
   //-------------------------------------------------
@@ -395,6 +389,11 @@ namespace trkf {
 	    // check if both are the same view
 	    if (clusterlist[Cls[i][c1]]->View()==
 		clusterlist[Cls[j][c2]]->View()) continue;
+	    // check if both are in the same cryostat and tpc
+	    if (clusterlist[Cls[i][c1]]->Plane().Cryostat!=
+		clusterlist[Cls[j][c2]]->Plane().Cryostat) continue;
+	    if (clusterlist[Cls[i][c1]]->Plane().TPC!=
+		clusterlist[Cls[j][c2]]->Plane().TPC) continue;
 	    // check if both are already in the matched list
 	    if (matched[Cls[i][c1]]==1&&matched[Cls[j][c2]]==1) continue;
 	    // KS test between two views in time

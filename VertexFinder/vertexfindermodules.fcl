@@ -43,14 +43,17 @@ standard_vertexfinder2d:
 
 standard_featurevertexfinder:
 {
- module_type:        	"FeatureVertexFinder"		# module name
- ClusterModuleLabel: 	"hough"			# clusters the module takes in
- HitModuleLabel:	"ffthit"		# hits the module takes in
- CornerFinderModuleLabel: "corner"	# endpoint2ds from corner finder
- ClusterParamsAlg: 	@local::standard_clusterparamsalg
+ module_type:        		"FeatureVertexFinder"	# module name
+ CornerFinderModuleLabel: 	"corner"		# EndPoint2ds from corner finder
+ ClusterModuleLabel: 		"dbcluster"		# clusters the module takes in
+ HitModuleLabel:		"ffthit"		# hits the module takes in
+ CCrawlerEndPoint2dModuleLabel:	"cccluster"		# EndPoint2d's from ClusterCrawler
+ RunningMode:			0			# 0 = Return all vertex candidates
+ 							# 1 = Return only the likely primary vertex
+ #ClusterParamsAlg: 		@local::standard_clusterparamsalg
 }
 #Setting featurevertexfinder to use ClusterParmsAlg with a smaller hit list size
-standard_featurevertexfinder.ClusterParamsAlg.MinHitListSize: 10
+#standard_featurevertexfinder.ClusterParamsAlg.MinHitListSize: 10
 
 standard_cornerfinder:
 {
@@ -60,6 +63,7 @@ standard_cornerfinder:
 }
 #Setting cornerfinder to use the Harris score (instead of Nobel)
 standard_cornerfinder.CornerAlgParamSet.CornerScore_algorithm: "Harris"
+#standard_cornerfinder.CornerAlgParamSet.CalDataModuleLabel: "caldata"
 
 standard_featurevertexfinderana:
 {

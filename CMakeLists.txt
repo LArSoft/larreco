@@ -69,6 +69,8 @@ add_subdirectory(TrackFinder)
 add_subdirectory(VertexFinder)
 add_subdirectory(SpacePointFinder)
 
+# tests
+add_subdirectory(test)
 
 # ups - table and config files
 add_subdirectory(ups)
