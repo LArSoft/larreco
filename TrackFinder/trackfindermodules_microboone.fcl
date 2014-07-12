@@ -42,8 +42,7 @@ microboone_beziertrackermodule.BezierTrackerAlgorithm:  @local::microboone_bezie
 microboone_trackstitcher:                               @local::standard_trackstitcher
 microboone_trackstitcher.TrackModuleLabel:              "trackkalsps"
 microboone_trackstitcher.SpptModuleLabel:               "spacepointfinder"
-microboone_trackstitcher.CosAngTolerance:               0.95
-microboone_trackstitcher.SpptSepTolerance:              15.0
+microboone_trackstitcher.StitchAlg:                     @local::microboone_trackstitcheralg
 microboone_cosmictracker:                               @local::standard_cosmictracker  
 microboone_cosmictracker.ClusterModuleLabel:            "cccluster"
 microboone_cosmictracker.DirSPS:                        true

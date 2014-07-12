@@ -15,4 +15,5 @@ microboone_seedfinderalgorithm.SpacePointAlg.Filter:     false
 microboone_beziertrackeralgorithm:                       @local::standard_beziertrackeralgorithm
 microboone_beziertrackeralgorithm.SeedFinderAlgorithm:   @local::microboone_seedfinderalgorithm
 
+microboone_trackstitcheralg:          @local::standard_trackstitcheralg
 END_PROLOG

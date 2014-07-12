@@ -38,6 +38,7 @@
 #include "RecoBase/SpacePoint.h"
 #include "MCCheater/BackTracker.h"
 #include "SimulationBase/MCParticle.h"
+#include "Simulation/sim.h"
 
 #include "TH2F.h"
 #include "TFile.h"
@@ -178,7 +179,35 @@ namespace {
     heff->SetMaximum(1.05);
     heff->SetMarkerStyle(20);
   }
-}
+
+
+class flattener : public std::vector<unsigned int> {
+
+public:
+
+ flattener() : std::vector<unsigned int>() {};
+
+ flattener(const std::vector<std::vector<unsigned int> >& input)
+ { Convert(input); }
+
+ ~flattener(){}
+
+ void Convert(const std::vector<std::vector<unsigned int> >& input) 
+  {
+   clear();
+   size_t length=0;
+   for(auto const& vec : input)
+     length += vec.size();
+   reserve(length);
+
+   for(auto const& vec : input)
+     for(auto const& value : vec)
+	push_back(value);
+
+  }
+}; // end class flattener
+
+} // end namespace
 
 namespace trkf {
 
@@ -219,6 +248,10 @@ namespace trkf {
       TH1F* fHHitChg;       // hit charge
       TH1F* fHHitWidth;     // hit width
       TH1F* fHHitPdg;       // Pdg primarily responsible.
+      TH1F* fHHitTrkId;     // TrkId
+      TH1F* fModeFrac;       // mode fraction
+      TH1F* fNTrkIdTrks;    // # of stitched tracks in which unique TrkId appears
+      TH2F* fNTrkIdTrks2;   // same vs. mu/pi/p/K
     };
 
     // Struct for mc particles and mc-matched tracks.
@@ -317,6 +350,7 @@ namespace trkf {
     // Overrides.
 
     void analyze(const art::Event& evt);
+    void anaStitch(const art::Event& evt);
     void endJob();
 
   private:
@@ -373,6 +407,10 @@ namespace trkf {
     ,fHHitChg(0)
     ,fHHitWidth(0)
     ,fHHitPdg(0)
+    ,fHHitTrkId(0)
+    ,fModeFrac(0)
+    ,fNTrkIdTrks(0)
+    ,fNTrkIdTrks2(0)
   {}
 
   TrackAna::RecoHists::RecoHists(const std::string& subdir)
@@ -420,8 +458,11 @@ namespace trkf {
     fHlen = dir.make<TH1F>("len", "Track Length", 100, 0., 1.1 * geom->DetLength());
     fHHitChg = dir.make<TH1F>("hchg", "Hit Charge (ADC counts)", 100, 0., 4000.);
     fHHitWidth = dir.make<TH1F>("hwid", "Hit Width (ticks)", 40, 0., 20.);
-    //    fHHitPdg = dir.make<TH1F>("hpdg", "Hit Pdg code",5001, -2500.5., +2500.5);
-    fHHitPdg = dir.make<TH1F>("hpdg", "Hit Track ID", 401, -200.5, +200.5);
+    fHHitPdg = dir.make<TH1F>("hpdg", "Hit Pdg code",5001, -2500.5, +2500.5);
+    fHHitTrkId = dir.make<TH1F>("htrkid", "Hit Track ID", 401, -200.5, +200.5);
+    fModeFrac = dir.make<TH1F>("hmodefrac", "Fraction of hits in component track with the mode value", 20, 0.0, 1.0);
+    fNTrkIdTrks = dir.make<TH1F>("hntrkids", "Number of stitched tracks in which TrkId appears", 20, 0., +10.0);
+    fNTrkIdTrks2 = dir.make<TH2F>("hntrkids2", "Number of stitched tracks in which TrkId appears vs KE [GeV]", 20, 0., +10.0, 20, 0.0, 1.5);
   }
 
   // MCHists methods.
@@ -656,7 +697,9 @@ namespace trkf {
     art::ServiceHandle<util::DetectorProperties> detprop;
     art::ServiceHandle<util::LArProperties> larprop;
     art::ServiceHandle<cheat::BackTracker> bt;
-    std::map<int, art::PtrVector<recob::Hit> > hitmap;
+    art::ServiceHandle<geo::Geometry> geom;
+
+
     ++fNumEvent;
 
     // Optional dump stream.
@@ -671,10 +714,6 @@ namespace trkf {
 
     bool mc = !evt.isRealData();
 
-    // Get geometry.
-
-    art::ServiceHandle<geo::Geometry> geom;
-
     // Get mc particles.
 
     sim::ParticleList plist;
@@ -682,7 +721,7 @@ namespace trkf {
     plist2.reserve(plist.size());
 
     if(mc) {
-      art::ServiceHandle<cheat::BackTracker> bt;
+
       plist = bt->ParticleList();
 
       if(pdump) {
@@ -820,112 +859,24 @@ namespace trkf {
 	
     // Get tracks and spacepoints and hits
     art::Handle< std::vector<recob::Track> > trackh;
-    art::Handle< std::vector< recob::SpacePoint> > sppth;
     art::Handle< std::vector< art::PtrVector < recob::Track > > > trackvh;
 
     evt.getByLabel(fTrackModuleLabel, trackh);
-    evt.getByLabel(fSpacepointModuleLabel, sppth);
     evt.getByLabel(fStitchModuleLabel,trackvh);
 
 
     // This new top part of TrackAna between two long lines of ************s
     // is particular to analyzing Stitched Tracks.
     // *******************************************************************//
-    int ntv(0);
+
     if (trackvh.isValid() && fStitchedAnalysis) 
       {
 	mf::LogWarning("TrackAna") 
 	  << "TrackAna read "  << trackvh->size()
 	  << "  vectors of Stitched PtrVectorsof tracks.";
-	// If here, we must now get the components of trackvh. I need those
-	// cuz the Spacepoints are associated to _those_ tracks, not the stitched ones.
-	// Much as the Hits are associated to the individual Spacepoints, not
-	// the more conveniently organized (for our purposes here) std::vec Spacepoints.
-	ntv = trackvh->size();
+	anaStitch(evt);
+      }
 
-    
-    std::vector < art::PtrVector<recob::Track> >::const_iterator cti = trackvh->begin();
-    /// art::FindManyP<recob::Hit> fh(sppth, evt, fHitSpptAssocModuleLabel);
-    
-    if(trackh.isValid()) {
-      art::FindManyP<recob::SpacePoint> fswhole(trackh, evt, fTrkSpptAssocModuleLabel);
-      int nsppts_assnwhole = fswhole.size();
-      std::cout << "TrackAna: Number of clumps of Spacepoints from Assn for all Tracks: " << nsppts_assnwhole << std::endl;
-    }
-    
-    // Let's don't lose sight of what we want to do. We want to merely subtract all hits
-    // associated to the stitched tracks. Plots we can make include: fraction of hits per 
-    // plane that remain in cosmics-only events. fraction of hits per MC trackID that remain.
-    // Could make that in bins of costh,phi for cosmic muons.
-
-    for (int o = 0; o < ntv; ++o) // o for outer
-      {
-	const art::PtrVector<recob::Track> pvtrack(*(cti++));
-	auto it = pvtrack.begin();
-	int ntrack = pvtrack.size();
-	for(int i = 0; i < ntrack; ++i) {
-	  const art::Ptr<recob::Track> ptrack(*(it++));
-	  //	  const recob::Track& track = *ptrack;
-	  auto pcoll { ptrack };
-	  art::FindManyP<recob::SpacePoint> fs( pcoll, evt, fTrkSpptAssocModuleLabel);
-	  // From gdb> ptype fs, the vector of Ptr<SpacePoint>s it appears is grabbed after fs.at(0)
-	  bool assns(true);
-	  try {
-	    // Get Spacepoints from this Track, get Hits from those Spacepoints.
-	    //	    int nsppts = track.NumberTrajectoryPoints();
-	    // std::cout << "TrackAna: Number of Spacepoints from Track.NumTrajPts()" << nsppts << std::endl;
-	    int nsppts_assn = fs.at(0).size();
-	    // std::cout << "TrackAna: Number of Spacepoints from Assns for this Track" << nsppts_assn << std::endl;
-	    //assert (nsppts_assn == nsppts);
-	    auto sppt = fs.at(0);//.at(is);
-	    art::FindManyP<recob::Hit> fh( sppt, evt, fHitSpptAssocModuleLabel);
-	    // Importantly, loop on all sppts, though they don't all contribute to the track.
-	    // As opposed to looping on the trajectory pts, which is a lower number. 
-	    // Also, important, in job in whch this runs I set TrackKal3DSPS parameter MaxPass=1, 
-	    // cuz I don't want merely the sparse set of sppts as follows from the uncontained 
-	    // MS-measurement in 2nd pass.
-	    for(int is = 0; is < nsppts_assn; ++is) {
-	      int nhits = fh.at(is).size(); // should be 2 or 3: number of planes.
-	      for(int ih = 0; ih < nhits; ++ih) {
-		auto hit = fh.at(is).at(ih); // Our vector is after the .at(is) this time.
-		if (hit->SignalType()!=geo::kCollection) continue;
-		if(fRecoHistMap.count(0) == 0)
-		  fRecoHistMap[0] = RecoHists("Reco");
-		const RecoHists& rhistsStitched = fRecoHistMap[0];
-		rhistsStitched.fHHitChg->Fill(hit->Charge(false));
-		rhistsStitched.fHHitWidth->Fill(hit->EndTime() - hit->StartTime());
-		if (mc)
-		  {
-		    std::vector<cheat::TrackIDE> tids = bt->HitToTrackID(hit);
-		    // more here.
-		    // Loop over track ids.
-		    
-		    for(std::vector<cheat::TrackIDE>::const_iterator itid = tids.begin();
-			itid != tids.end(); ++itid) {
-		      int trackID = itid->trackID;
-		      // Add hit to PtrVector corresponding to this track id.
-		      hitmap[trackID].push_back(hit);
-		      rhistsStitched.fHHitPdg->Fill(trackID); // needs work, obvi
-		    }
-
-		  } // mc
-	      } //  hits
-
-	    } //    spacepoints
-	    
-	  } 
-	  catch (cet::exception& x)  {
-	    assns = false;
-	  }
-	  if (!assns) throw cet::exception("TrackAna") << "Bad Associations. \n";
-	  
-	} // i
-      } // o
-
-      } // trackvh.isValid()
-    // *******************************************************************//
-
-    // Below is TrackAna as we knew it before we wanted to analyze Stitched trks.
     if(trackh.isValid()) {
 
       if(pdump) {
@@ -1220,6 +1171,174 @@ namespace trkf {
       }
     }   // i
 
+  }
+
+  void TrackAna::anaStitch(const art::Event& evt)
+  {
+
+    art::ServiceHandle<cheat::BackTracker> bt;
+    art::ServiceHandle<geo::Geometry> geom;
+
+    std::map<int, art::PtrVector<recob::Hit> > hitmap;
+    bool mc = !evt.isRealData();
+    art::Handle< std::vector<recob::Track> > trackh;
+    art::Handle< std::vector< recob::SpacePoint> > sppth;
+    art::Handle< std::vector< art::PtrVector < recob::Track > > > trackvh;
+
+    evt.getByLabel(fTrackModuleLabel, trackh);
+    evt.getByLabel(fSpacepointModuleLabel, sppth);
+    evt.getByLabel(fStitchModuleLabel,trackvh);
+    int ntv(trackvh->size());
+    
+    std::vector < art::PtrVector<recob::Track> >::const_iterator cti = trackvh->begin();
+    /// art::FindManyP<recob::Hit> fh(sppth, evt, fHitSpptAssocModuleLabel);
+    
+    if(trackh.isValid()) {
+      art::FindManyP<recob::SpacePoint> fswhole(trackh, evt, fTrkSpptAssocModuleLabel);
+      int nsppts_assnwhole = fswhole.size();
+      std::cout << "TrackAna: Number of clumps of Spacepoints from Assn for all Tracks: " << nsppts_assnwhole << std::endl;
+    }
+    
+    if(fRecoHistMap.count(0) == 0)
+      {
+	fRecoHistMap[0] = RecoHists("Reco");
+	std::cout << "\n" << "\t\t  TrkAna: Fresh fRecoHistMap[0] ******* \n" << std::endl;
+      }
+    const RecoHists& rhistsStitched = fRecoHistMap[0];
+    
+    std::vector < std::vector <unsigned int> >  NtrkIdsAll; 
+    for (int o = 0; o < ntv; ++o) // o for outer
+      {
+
+	const art::PtrVector<recob::Track> pvtrack(*(cti++));
+	auto it = pvtrack.begin();
+	int ntrack = pvtrack.size();
+	if (ntrack>1) 	std::cout << "\t\t  TrkAna: New Stitched Track ******* " << std::endl;
+	std::vector< std::vector <unsigned int> > NtrkId_Hit; // hit IDs in inner tracks
+	std::vector<unsigned int> vecMode;
+	for(int i = 0; i < ntrack; ++i) {
+
+	  const art::Ptr<recob::Track> ptrack(*(it++));
+	  //	  const recob::Track& track = *ptrack;
+	  auto pcoll { ptrack };
+	  art::FindManyP<recob::SpacePoint> fs( pcoll, evt, fTrkSpptAssocModuleLabel);
+	  // From gdb> ptype fs, the vector of Ptr<SpacePoint>s it appears is grabbed after fs.at(0)
+	  bool assns(true);
+	  try {
+	    // Get Spacepoints from this Track, get Hits from those Spacepoints.
+	    int nsppts = ptrack->NumberTrajectoryPoints();
+	    
+	    int nsppts_assn = fs.at(0).size();  
+	    if (ntrack>1) std::cout << "\t\tTrackAna: Number of Spacepoints from Track.NumTrajPts(): " << nsppts << std::endl;
+	    if (ntrack>1)  std::cout << "\t\tTrackAna: Number of Spacepoints from Assns for this Track: " << nsppts_assn << std::endl;
+	    //assert (nsppts_assn == nsppts);
+	    auto sppt = fs.at(0);//.at(is);
+	    art::FindManyP<recob::Hit> fh( sppt, evt, fHitSpptAssocModuleLabel);
+	    // Importantly, loop on all sppts, though they don't all contribute to the track.
+	    // As opposed to looping on the trajectory pts, which is a lower number. 
+	    // Also, important, in job in whch this runs I set TrackKal3DSPS parameter MaxPass=1, 
+	    // cuz I don't want merely the sparse set of sppts as follows from the uncontained 
+	    // MS-measurement in 2nd pass.
+	    std::vector <unsigned int> vecNtrkIds;
+	    for(int is = 0; is < nsppts_assn; ++is) {
+	      int nhits = fh.at(is).size(); // should be 2 or 3: number of planes.
+	      for(int ih = 0; ih < nhits; ++ih) {
+		auto hit = fh.at(is).at(ih); // Our vector is after the .at(is) this time.
+		if (hit->SignalType()!=geo::kCollection) continue;
+		rhistsStitched.fHHitChg->Fill(hit->Charge(false));
+		rhistsStitched.fHHitWidth->Fill(hit->EndTime() - hit->StartTime());
+		if (mc)
+		  {
+		    std::vector<cheat::TrackIDE> tids = bt->HitToTrackID(hit);
+		    // more here.
+		    // Loop over track ids.
+		    bool justOne(true); // Only take first trk that contributed to this hit
+		    //	  std::cout  << "\t\t  TrkAna: TrkId  tids.size() ******* " << tids.size()  <<std::endl;
+		    for(std::vector<cheat::TrackIDE>::const_iterator itid = tids.begin();itid != tids.end(); ++itid) {
+		      int trackID = std::abs(itid->trackID);
+		      hitmap[trackID].push_back(hit);
+		      if (justOne) { vecNtrkIds.push_back(trackID); justOne=false; }
+		      // Add hit to PtrVector corresponding to this track id.
+		      rhistsStitched.fHHitTrkId->Fill(trackID); 
+		      const simb::MCParticle* part = bt->TrackIDToParticle(trackID);
+		      rhistsStitched.fHHitPdg->Fill(part->PdgCode()); 
+		    }
+
+		  } // mc
+	      } //  hits
+
+	    } //    spacepoints
+
+	    if (mc)
+	      {
+		NtrkId_Hit.push_back(vecNtrkIds);	
+		// Find the trkID mode for this i^th track
+		unsigned int ii(1);
+		int max(-12), n(1), ind(0);
+		std::sort(vecNtrkIds.begin(),vecNtrkIds.end());
+		std::vector<unsigned int> strkIds(vecNtrkIds);
+		while ( ii < vecNtrkIds.size() )
+		  { 
+		    if (strkIds.at(ii) != strkIds.at(ii-1)) 
+		      {
+			n=1;
+		      }
+		    else
+		      {
+			n++; 
+		      }
+		    if (n>max) { max = n; ind = ii;}
+		    ii++;
+		  }
+		// std::cout  << "\t\t  TrkAna: TrkId  ind for this track is ******* " << ind  <<std::endl;
+		unsigned int mode(sim::NoParticleId);
+		if (strkIds.begin()!=strkIds.end()) 
+		  mode = strkIds.at(ind);
+		vecMode.push_back(mode);
+		if (ntrack>1)	std::cout  << "\t\t  TrkAna: TrkId  mode for this component track is ******* " << mode <<std::endl;
+		if (strkIds.size()!=0)
+		  rhistsStitched.fModeFrac->Fill(max/strkIds.size());
+		else
+		  rhistsStitched.fModeFrac->Fill(-1.0);
+		} // mc
+
+	  } // end try 
+	  catch (cet::exception& x)  {
+	    assns = false;
+	  }
+	  if (!assns) throw cet::exception("TrackAna") << "Bad Associations. \n";
+
+	} // i
+
+	if (mc)
+	  {
+	    // one vector per o trk, for all modes of stitched i trks
+	    NtrkIdsAll.push_back(vecMode); 
+	    std::unique(NtrkIdsAll.back().begin(),NtrkIdsAll.back().end());
+	  }
+
+      } // o
+
+    // In how many tracks did each trkId appear? Histo it. Would like it to be precisely 1.
+    // Histo it vs. particle KE.
+    flattener flat(NtrkIdsAll);
+    std::vector <unsigned int> &v = flat;
+    auto const it ( std::unique(v.begin(),v.end()) ); // never use this it, perhaps.
+    for (auto const val :  v)
+      {
+	rhistsStitched.fNTrkIdTrks->Fill(std::count(v.begin(),v.end(),val));
+	if (val != (unsigned int)sim::NoParticleId)
+	  {
+	    const simb::MCParticle* part = bt->TrackIDToParticle( val ); 
+	    double T(part->E() - 0.001*part->Mass());
+	    rhistsStitched.fNTrkIdTrks2->Fill(std::count(v.begin(),v.end(),val),T);
+	  }
+	else
+	  {
+	    rhistsStitched.fNTrkIdTrks2->Fill(-1.0,0.0);
+	  }
+      }
+ 
   }
 
   void TrackAna::endJob()
