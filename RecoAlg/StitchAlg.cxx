@@ -360,7 +360,7 @@ void trkf::StitchAlg::WalkStitch()
 	compTrack.push_back(th);
 	// Should there not be an HT.push_back here??
 
-	assert (std::get<1>(fh.at(ii))==ii && std::get<1>(ft.at(ii))==ii && "Head or Tail index from std::tuple is not in agreement with track count");
+	assert (std::get<1>(fh.at(ii))==(int)ii && std::get<1>(ft.at(ii))==(int)ii && "Head or Tail index from std::tuple is not in agreement with track count");
 	
 	// start with track 1: see if head goes anywhere, walk with it. Add to compTrack.
 	// Go until the other tuple's other vtx string says "NA." Then change status string 
