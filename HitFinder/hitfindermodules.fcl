@@ -39,11 +39,13 @@ gaus_hitfinder:
  ColWidth:             7.8              # Initial width for collection fit
  IndMinWidth:          4.0              # Induction Hit width threshold
  ColMinWidth:          6.0              # Collection hit width threshold
- MaxMultiHit:          3                # maximum hits for multi fit   
- AreaMethod:           0                # 0 = area by integral, 1 = area by gaussian area formula
+ MaxMultiHit:          10                # maximum hits for multi fit   
+ AreaMethod:           1                # 0 = area by integral, 1 = area by gaussian area formula
  AreaNorms:            [ 13.25, 26.31 ] # normalizations that put signal area in 
                                         # same scale as peak height. 
- Chi2NDF:              15               # maximum Chisquared / NDF allowed for a hit to be saved
+ TryNplus1Fits:        0		# 0 = will try to re-fit poorly modled hits with n+1 gaussians
+ 					# 1 = will NOT try to re-fit poorly modled hits
+ Chi2NDF:              2000             # maximum Chisquared / NDF allowed for a hit to be saved (Set very high by default)
 }
 
 
