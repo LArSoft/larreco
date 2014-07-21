@@ -27,14 +27,9 @@ standard_clustercrawler:
 
 standard_clustercrawlershower:
 {
- module_type:              "ClusterCrawlerShower"
- ClusterCrawlerModuleLabel:       "cccluster"
- ClusterParamsAlg: 	   @local::standard_clusterparamsalg
- ClusterMergeAlg:          @local::standard_clustermergealg
- MinHitListSize:	  15
- MaxDistance:             0.1
+ module_type:       "ClusterCrawlerShower"
+ InputClusterLabel: "cccluster"
 }
-
 
 standard_fuzzycluster:
 {
