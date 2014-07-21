@@ -106,6 +106,7 @@ namespace hit{
     int             fAreaMethod;    ///<Type of area calculation  
     std::vector<double> fAreaNorms; ///<factors for converting area to same units as peak height 
     int		    fTryNplus1Fits; ///<whether we will (0) or won't (1) try n+1 fits
+    double	    fChi2NDFRetry;  ///<Value at which a second n+1 Fit will be tried
     double	    fChi2NDF;       ///maximum Chisquared / NDF allowed for a hit to be saved
     
     TH1F* fFirstChi2;
@@ -150,6 +151,7 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
   fAreaMethod         = p.get< int          >("AreaMethod");
   fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
   fTryNplus1Fits      = p.get< int	    >("TryNplus1Fits");
+  fChi2NDFRetry       = p.get< double	    >("Chi2NDFRetry");
   fChi2NDF	      = p.get< double       >("Chi2NDF");
   
 }  
@@ -408,8 +410,7 @@ void GausHitFinder::produce(art::Event& evt)
 
 	    // ###      If the start time of the next pulse is one wire away and    ###
 	    // ### the height of that start point is 0.5* the thereshold then merge ###
-	    //if(startTimes[num+npulse] - endTimes[num]  < 2 && signal[endTimes[num]] > threshold/2)
-	    if(startTimes[num+1] - endTimes[num]  < 2 && signal[endTimes[num]] > threshold/2)
+	    if(num < (maxTimes.size() - 1) && startTimes[num+1] - endTimes[num]  < 2 && signal[endTimes[num]] > threshold/2)
 	       {
 	       endT = endTimes[num+1];
 	       peakT.push_back(maxTimes[num+1]);
@@ -448,8 +449,8 @@ void GausHitFinder::produce(art::Event& evt)
 	 // #####################################################
 	 // ### Trying extra gaussians for an initial bad fit ###
 	 // #####################################################
-	 if( (Chi2PerNDF > 55 && fTryNplus1Fits == 0 && nGausForFit == 1)|| 
-	     (Chi2PerNDF > 25 && fTryNplus1Fits == 0 && nGausForFit > 1))
+	 if( (Chi2PerNDF > (2*fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit == 1)|| 
+	     (Chi2PerNDF > (fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit > 1))
 	    {
 	    
 	    nFill = nGausReFit;
