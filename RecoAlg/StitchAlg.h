@@ -47,7 +47,7 @@ class StitchAlg
   void FindHeadsAndTails( const art::Event& e, const std::string& t);
   void FirstStitch(const std::vector<art::PtrVector <recob::Track>>::iterator itvvArg, const std::vector <recob::Track>::iterator itvArg);
   void WalkStitch();
-  void CommonComponentStitch();
+  bool CommonComponentStitch();
 
   void GetTrackComposites(std::vector <art::PtrVector <recob::Track> > & c) { c = fTrackComposite;};
   void GetTracks(std::vector <recob::Track>& t) { t = fTrackVec ;};
