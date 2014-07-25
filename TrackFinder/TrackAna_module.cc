@@ -467,7 +467,10 @@ namespace trkf {
     fModeFrac = dir.make<TH1F>("hmodefrac", "quasi-Purity: Fraction of component tracks with the Track mode value", 20, 0.01, 1.01);
     fNTrkIdTrks = dir.make<TH1F>("hntrkids", "quasi-Efficiency: Number of stitched tracks in which TrkId appears", 20, 0., +10.0);
     fNTrkIdTrks2 = dir.make<TH2F>("hntrkids2", "Number of stitched tracks in which TrkId appears vs KE [GeV]", 20, 0., +10.0, 20, 0.0, 1.5);
-    fNTrkIdTrks3 = dir.make<TH2F>("hntrkids3", "Sorted-by-KE-G4TrkId vs outerTrackNum, wtd by nhits on Collection Plane", 20, -0.5, 19.5, 30, -0.5, 29.5);
+    fNTrkIdTrks3 = dir.make<TH2F>("hntrkids3", "MC Track vs Reco Track, wtd by nhits on Collection Plane", 10, -0.5, 9.5, 10, -0.5, 9.5);
+    fNTrkIdTrks3->GetXaxis()->SetTitle("Sorted-by-Descending-CPlane-Hits outer Track Number");
+    fNTrkIdTrks3->GetYaxis()->SetTitle("Sorted-by-Descending-True-Length G4Track");
+ 
   }
 
   // MCHists methods.
@@ -1181,11 +1184,12 @@ namespace trkf {
   void TrackAna::anaStitch(const art::Event& evt)
   {
 
+    art::ServiceHandle<util::LArProperties> larprop;
     art::ServiceHandle<cheat::BackTracker> bt;
     art::ServiceHandle<geo::Geometry> geom;
 
     std::map<int, std::map<int, art::PtrVector<recob::Hit>> > hitmap; // trkID, otrk, hitvec
-    std::map<int, int > KEmap; // KE(keV), trkID want to sort by KE
+    std::map<int, int > KEmap; // length traveled in det [cm]?, trkID want to sort by KE
     bool mc = !evt.isRealData();
     art::Handle< std::vector<recob::Track> > trackh;
     art::Handle< std::vector< recob::SpacePoint> > sppth;
@@ -1275,7 +1279,19 @@ namespace trkf {
 		      rhistsStitched.fHHitTrkId->Fill(trackID); 
 		      const simb::MCParticle* part = bt->TrackIDToParticle(trackID);
 		      rhistsStitched.fHHitPdg->Fill(part->PdgCode()); 
-		      KEmap[(int)(1e6*(part->E()-part->Mass()))] = trackID; // multiple assignment but always the same, so fine.
+		      // This really needs to be indexed as KE deposited in volTPC, not just KE. EC, 24-July-2014.
+
+		      TVector3 mcstart;
+		      TVector3 mcend;
+		      TVector3 mcstartmom;
+		      TVector3 mcendmom;
+		      double mctime = part->T();                                 // nsec
+		      double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();   // cm
+
+		      double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+
+		      KEmap[(int)(1e6*plen)] = trackID; // multiple assignment but always the same, so fine.
+		      //		      std::cout  << "\t\t  TrkAna: TrkId  trackID, KE [MeV] ******* " << trackID << ", " << (int)(1e3*(part->E()-part->Mass()))  <<std::endl;
 		    }
 
 		  } // mc
@@ -1344,18 +1360,29 @@ namespace trkf {
 	//	
       } // o
 
-    // get o trk indices by their hits. 
+    int vtmp(0);
+	// get KEmap indices by most energetic first, least last.
+	for (auto it = KEmap.rbegin(); it!=KEmap.rend(); ++it) 
+	  {
+	    //	    int tval = it->second; // grab trkIDs in order, since they're sorted by KE
+	    //	    int ke = it->first; // grab trkIDs in order, since they're sorted by KE
+	    //	    const simb::MCParticle* part = bt->TrackIDToParticle(tval);
+	    
+	    //	    std::cout << "TrackAnaStitch: KEmap cntr vtmp, Length ke, tval, pdg : "  << vtmp << ", " << ke <<", " << tval <<", " << part->PdgCode() << ", " << std::endl;
 
+	    vtmp++;
+	  }
 
+    // get o trk indices by their hits. Most populous track first, least last.
     for (auto const o : fsort_indexes(ntvsorted))
       {
-	//	std::cout << "Sorted trk indices by hits in trks: " << o << std::endl;
-	// 	for (unsigned int v = 0 ; v < NtrkIdsAll.at(o).size() ; v++) 
 	int v(0);
-	for (auto it = KEmap.begin(); it!=KEmap.end(); it++) 
+	// get KEmap indices by longest trajectory first, least last.
+	for (auto it = KEmap.rbegin(); it!=KEmap.rend(); ++it) 
 	  {
 	    int val = it->second; // grab trkIDs in order, since they're sorted by KE
-	    //	    std::cout << "TrackAnaStitch: o, v, val  hitmap[val][o].size(): "  << o <<", " << v << ", " << val <<", " << hitmap[val][o].size() << std::endl;
+	    //	    const simb::MCParticle* part = bt->TrackIDToParticle(val);
+	    //	    std::cout << "TrackAnaStitch: trk o, KEmap cntr v, KE val, pdg  hitmap[val][o].size(): "  << o <<", " << v << ", " << val <<", " << part->PdgCode() << ", " << hitmap[val][o].size() << std::endl;
 	    rhistsStitched.fNTrkIdTrks3->Fill(o,v,hitmap[val][o].size());
 	    v++;
 	  }
