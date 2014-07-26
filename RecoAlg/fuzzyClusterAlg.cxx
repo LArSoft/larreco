@@ -146,12 +146,12 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   fBadChannels = badChannels;
   fBadWireSum.clear();
 
-  //------------------------------------------------------------------
-  // Determine spacing between wires (different for each detector)
-  ///get 2 first wires and find their spacing (wire_dist)
-
   art::ServiceHandle<util::LArProperties> larp;
   art::ServiceHandle<util::DetectorProperties> detp;
+
+  fWirePitch.push_back(fGeom->WirePitch(0,1,0));
+  fWirePitch.push_back(fGeom->WirePitch(0,1,1));
+  fWirePitch.push_back(fGeom->WirePitch(0,1,2));
 
   // Collect the hits in a useful form,
   // and take note of the maximum time width
@@ -171,7 +171,10 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   std::vector<double> p(dims);
   for (auto allhitsItr = allhits.begin(); allhitsItr < allhits.end(); allhitsItr++){
         
-    p[0] = ((*allhitsItr)->Channel())*fGeom->WirePitch(fGeom->View((*allhitsItr)->Channel()));
+    //    p[0] = ((*allhitsItr)->Channel())*fGeom->WirePitch(fGeom->View((*allhitsItr)->Channel()));
+    //    std::cout << "plane " << (*allhitsItr)->WireID().Plane << "  pitch " << fWirePitch[(*allhitsItr)->WireID().Plane]
+    //	      << std::endl;
+    p[0] = ((*allhitsItr)->WireID().Wire)*fWirePitch[(*allhitsItr)->WireID().Plane];
     p[1] = (((*allhitsItr)->StartTime()+(*allhitsItr)->EndTime()  )/2.)*tickToDist;
     p[2] = (*allhitsItr)->Charge();   //width of a hit in cm
 
@@ -185,7 +188,8 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
     fpsMat(allhitsItr-allhits.begin(),1) = p[1];
 
     data[allhitsItr-allhits.begin()] = (double*) malloc( MNumOfCols * sizeof(double*) );
-    data[allhitsItr-allhits.begin()][0] = ((*allhitsItr)->Channel())*fGeom->WirePitch(fGeom->View((*allhitsItr)->Channel()));
+    //data[allhitsItr-allhits.begin()][0] = ((*allhitsItr)->Channel())*fGeom->WirePitch(fGeom->View((*allhitsItr)->Channel()));
+    data[allhitsItr-allhits.begin()][0] = ((*allhitsItr)->WireID().Wire)*fWirePitch[(*allhitsItr)->WireID().Plane];
     data[allhitsItr-allhits.begin()][1] = (((*allhitsItr)->StartTime()+(*allhitsItr)->EndTime()  )/2.)*tickToDist;
     //data[allhitsItr-allhits.begin()][3] = (*allhitsItr)->Charge();
   }
@@ -224,6 +228,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
   Flame_MakeClusters( flame, -1.0 );
 
 
+
   fpointId_to_clusterId.resize(fps.size(), kNO_CLUSTER); // Not zero as before!
   fnoise.resize(fps.size(), false);
   fvisited.resize(fps.size(), false);
@@ -236,61 +241,51 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
     return;
 
   //factor to make x and y scale the same units
-  uint32_t     channel = allhits[0]->Channel();
-  double wirePitch = geom->WirePitch(geom->View(channel));
-  double xyScale  = .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
-  xyScale        *= detprop->SamplingRate()/wirePitch;
-  double wire_dist = wirePitch;
-  double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
-  tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+//   uint32_t     channel = allhits[0]->Channel();
+//   double wirePitch = geom->WirePitch(geom->View(channel));
+    uint32_t     channel = allhits[0]->WireID().Wire;
+//     double wirePitch[2];
+//     wirePitch[0] = geom->WirePitch(0);
+//     wirePitch[1] = geom->WirePitch(1);
+//     wirePitch[2] = geom->WirePitch(2);
 
- 
-  double indcolscaling = 0.;       //a parameter to account for the different 
-                                   //characteristic hit width of induction and collection plane
-  /// \todo: the collection plane's characteristic hit width's are, 
-  /// \todo: on average, about 5 time samples wider than the induction plane's. 
+// saw this one
+
+    double xyScale = .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+    xyScale*=detprop->SamplingRate();
+    //  double wire_dist = wirePitch;
+
+    double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+    tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+    
+    
+    double indcolscaling = 0.;       //a parameter to account for the different 
+    //characteristic hit width of induction and collection plane
+    /// \todo: the collection plane's characteristic hit width's are, 
+    /// \todo: on average, about 5 time samples wider than the induction plane's. 
   /// \todo: this is hard-coded for now.
-  geo::SigType_t sigt = geom->SignalType(channel);
-  if(sigt == geo::kInduction)
-    indcolscaling = 0.;
-  else
-    indcolscaling = 1.;
+    geo::SigType_t sigt = geom->SignalType(channel);
+    if(sigt == geo::kInduction)
+      indcolscaling = 0.;
+    else
+      indcolscaling = 1.;
+    
 
-
-
-
-
-
- 
-
-  unsigned int cid = flame->cso_count+1;
-
+    unsigned int cid = flame->cso_count+1;
+    
   // Loop over clusters 
-  for (int i = 0; i<= flame->cso_count; i++){
-    // Loop over hits in cluster
-    for (int j=0; j < flame->clusters[i].size; j++){
-      if(i == flame->cso_count)
-	fpointId_to_clusterId[flame->clusters[i].array[j]] = kNOISE_CLUSTER;
-      else
-	fpointId_to_clusterId[flame->clusters[i].array[j]] = i;
+    for (int i = 0; i<= flame->cso_count; i++){
+      // Loop over hits in cluster
+      for (int j=0; j < flame->clusters[i].size; j++){
+	if(i == flame->cso_count)
+	  fpointId_to_clusterId[flame->clusters[i].array[j]] = kNOISE_CLUSTER;
+	else
+	  fpointId_to_clusterId[flame->clusters[i].array[j]] = i;
+      }
     }
-  }
-  
-
-  unsigned int nClusters = cid;
-
-  unsigned int nClustersTemp = cid;
-
-
-
-
-
-
-
-
-
-
-
+    
+    unsigned int nClusters = cid;    
+    unsigned int nClustersTemp = cid;
   
   // Loop over clusters with the Hough line finder to break the clusters up further
   // list of lines
@@ -299,7 +294,6 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
     for (unsigned int i = 0; i <= (unsigned int)nClustersTemp-1; ++i){
       fHBAlg.Transform(allhits, &fpointId_to_clusterId, i, &nClusters, &protoTracksFound);
     }
-
 
   // Determine the shower likeness of lines
   std::vector<showerCluster> showerClusters; 
@@ -316,7 +310,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
       /// Veto the hit if it already belongs to a line, proto tracks (Hough lines) are added after the fuzzy clusters
       //if(fpointId_to_clusterId.at(hitsItr-allhits.cbegin()) < nClustersTemp)
         //continue;
-      distance = (TMath::Abs((*hitsItr)->PeakTime()-protoTracksFoundItr->clusterSlope*(double)((*hitsItr)->WireID().Wire)-protoTracksFoundItr->clusterIntercept)/(std::sqrt(pow(xyScale*protoTracksFoundItr->clusterSlope,2)+1)));
+      distance = (TMath::Abs((*hitsItr)->PeakTime()-protoTracksFoundItr->clusterSlope*(double)((*hitsItr)->WireID().Wire)-protoTracksFoundItr->clusterIntercept)/(std::sqrt(pow(xyScale/fWirePitch[(*hitsItr)->WireID().Plane]*protoTracksFoundItr->clusterSlope,2)+1)));
       /// Sum up background hits, use smart distance
       peakTimePerpMin=-(1/protoTracksFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTracksFoundItr->iMinWire]->PeakTime()+(1/protoTracksFoundItr->clusterSlope)*(allhits[protoTracksFoundItr->iMinWire]->WireID().Wire);
       peakTimePerpMax=-(1/protoTracksFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTracksFoundItr->iMaxWire]->PeakTime()+(1/protoTracksFoundItr->clusterSlope)*(allhits[protoTracksFoundItr->iMaxWire]->WireID().Wire);
@@ -340,13 +334,6 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
 
 
 
-
-
-
-
-
-
-
   // Merge Hough lines
   bool trackMerged;
   bool showerMerged;
@@ -355,7 +342,9 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
   if(fDoTrackClusterMerge && trackClusters.size() > 1){
     unsigned int i = 0;
     while(i < trackClusters.size()-1){ 
-      trackMerged = mergeTrackClusters(i,&trackClusters,xyScale,wire_dist,tickToDist);
+      int ip = trackClusters[i].clusterProtoTracks[0].planeNumber;
+      trackMerged = mergeTrackClusters(i,&trackClusters,xyScale/fWirePitch[ip],
+				       fWirePitch[ip],tickToDist);
       if(trackMerged)
         continue;
       else
@@ -366,7 +355,9 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
   if(fDoShowerClusterMerge && showerClusters.size() > 1){
     unsigned int i = 0;
     while(i < showerClusters.size()-1){ 
-      showerMerged = mergeShowerClusters(i,&showerClusters,xyScale,wire_dist,tickToDist);
+      int ip = showerClusters[i].clusterProtoTracks[0].planeNumber;
+      showerMerged = mergeShowerClusters(i,&showerClusters,xyScale/fWirePitch[ip],
+					 fWirePitch[ip],tickToDist);
       if(showerMerged)
         continue;
       else
@@ -377,9 +368,13 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
   if(fDoShowerTrackClusterMerge && showerClusters.size() > 0 && trackClusters.size() >0){
     unsigned int i = 0;
     while(i < showerClusters.size()){ 
+      int ip = showerClusters[i].clusterProtoTracks[0].planeNumber;
       unsigned int j = 0;
       while(j < trackClusters.size()){
-        showerTrackMerged = mergeShowerTrackClusters(&showerClusters[i],&trackClusters[j],xyScale,wire_dist,tickToDist);
+	//      int ipt = trackClusters[j].clusterProtoTracks[0].planeNumber;
+        showerTrackMerged = mergeShowerTrackClusters(&showerClusters[i],&trackClusters[j],
+						     xyScale/fWirePitch[ip],
+						     fWirePitch[ip],tickToDist);
         if(showerTrackMerged)
           continue;
         else
@@ -392,7 +387,9 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
   if(fDoShowerClusterMerge && showerClusters.size() > 1){
     unsigned int i = 0;
     while(i < showerClusters.size()-1){ 
-      showerMerged = mergeShowerClusters(i,&showerClusters,xyScale,wire_dist,tickToDist);
+      int ip = showerClusters[i].clusterProtoTracks[0].planeNumber;
+      showerMerged = mergeShowerClusters(i,&showerClusters,xyScale/fWirePitch[ip],
+					 fWirePitch[ip],tickToDist);
       if(showerMerged)
         continue;
       else
@@ -479,7 +476,8 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
         unclustered = false;
         continue;
       }
-      p0 = ((*allhitsItr)->Channel())*wire_dist;
+      int ip = (*allhitsItr)->WireID().Plane;
+      p0 = ((*allhitsItr)->Channel())*fWirePitch[ip];
       p1 = (((*allhitsItr)->StartTime()+(*allhitsItr)->EndTime())/2.)*tickToDist;
 
       // First try to group it with a shower-like cluster
