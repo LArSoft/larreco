@@ -88,6 +88,7 @@ namespace trkf {
     const art::PtrVector<recob::SpacePoint> GetSpacePointsFromComponentTracks(const art::PtrVector<recob::Track> &, const art::Event& evt);
     std::string     fTrackModuleLabel;// label for input collection
     std::string     fSpptModuleLabel;// label for input collection
+    bool            fStizatch; // CommonComponentStitch
     StitchAlg fStitchAlg;
 
   }; // class TrackStitcher
@@ -120,6 +121,7 @@ namespace trkf {
   {
     fTrackModuleLabel    = pset.get< std::string >("TrackModuleLabel");
     fSpptModuleLabel     = pset.get< std::string >("SpptModuleLabel"); 
+    fStizatch            = pset.get< bool >       ("CommonComponentStitch",true); 
     fStitchAlg.reconfigure(pset.get< fhicl::ParameterSet >("StitchAlg"));
   }
   
@@ -163,12 +165,12 @@ namespace trkf {
     fStitchAlg.FindHeadsAndTails(evt,fTrackModuleLabel);
     // walk through each vertex of one track to its match on another, and so on and stitch 'em.
     fStitchAlg.WalkStitch();
-    // search composite tracks and stitch further if there are components in common
-    fStitchAlg.CommonComponentStitch();
-
-      // Now feed headvv and tailvv to a Stitcher and for each trk, push back the match
-      // at each end. Create a same-length vector of strings, like HH, HT, TH, TT, so
-      // that the concatenation orders the hits correctly.
+    // search composite tracks and stitch further if there are components in common. Do it until all are stitched.
+    bool stizatch(fStizatch);
+    while (stizatch)
+      {
+	stizatch = fStitchAlg.CommonComponentStitch();
+      }
     mf::LogVerbatim("TrackStitcher.beginning") << "There are " <<  fStitchAlg.ftListHandle->size() << " Tracks in this event before stitching.";
 
     fStitchAlg.GetTracks(*tcol);    

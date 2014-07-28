@@ -8,18 +8,17 @@
 // jaasaadi@syr.edu
 //
 //  This algorithm is designed to find hits on wires after deconvolution.
-//
-// V 1.0 (JAsaadi Syracuse University)
-// 05/02/12: Fully functional, still need to work on speed of the algorithm
-// 06/14/12: Fixed speed issues by changing ROOT fitting options
-// 07/25/12: Fixed bug in retrieving Amplitude for the Reco Hit
-// 08/06/12: Updating for error calculation on the hits
-// 09/26.12: Fixing a bug with the size of the hit found when looking at Argoneut data (Tingjun and Ornella)
 // -----------------------------------
 // This algorithm is based on the FFTHitFinder written by Brian Page, 
-// Michigan State University, for the ArgoNeuT experimentand keeps many of the 
-// same variable definitions but attempts to clean up many of the 
-// ambiguities and potential problems calculating the Chi^2 and GoodnessOfFit  
+// Michigan State University, for the ArgoNeuT experiment.
+// 
+//
+// The algorithm walks along the wire and looks for pulses above threshold
+// The algorithm then attempts to fit n-gaussians to these pulses where n
+// is set by the number of peaks found in the pulse
+// If the Chi2/NDF returned is "bad" it attempts to fit n+1 gaussians to
+// the pulse. If this is a better fit it then uses the parameters of the 
+// Gaussian fit to characterize the "hit" object 
 //
 // To use this simply include the following in your producers:
 // gaushit:     @local::microboone_gaushitfinder
@@ -50,12 +49,14 @@ extern "C" {
 #include "Utilities/DetectorProperties.h"
 
 // ROOT Includes 
+#include "TGraphErrors.h"
 #include "TH1D.h"
 #include "TDecompSVD.h"
 #include "TMath.h"
 #include "TF1.h"
 #include <string>
 #include "TTree.h"
+#include "TStopwatch.h"
 
 namespace hit{
   class GausHitFinder : public art::EDProducer {
@@ -71,6 +72,29 @@ namespace hit{
     void reconfigure(fhicl::ParameterSet const& p);                
 
   private:
+  
+    // ### This function will fit N-Gaussians to at TH1D where N is set ###
+    // ###            by the number of peaks found in the pulse         ###
+    void FitGaussians(std::vector<float> SignalVector, std::vector<int> PeakTime, int nGauss, int StartTime, int EndTime);
+
+    // ### This function will fit N+1-Gaussians to at TH1D where N+1 is set ###
+    // ###     by the number of peaks found plus one more in the pulse      ###
+    void ReFitGaussians(std::vector<float> ReSignalVector,std::vector<int> RePeakTime, int mGauss, int ReStartTime, int ReEndTime);
+    
+    // load the fit into a temp vector
+    std::vector<double> tempGaus1Par;
+    std::vector<double> tempGaus1ParError;
+    double Chi2PerNDF = 0;
+    
+    // load the fit into a temp vector
+    std::vector<double> tempGaus2Par;
+    std::vector<double> tempGaus2ParError;
+    double Chi2PerNDF2 = 0;
+    
+    
+    double threshold              = 0.;  // minimum signal size for id'ing a hit
+    double fitWidth               = 0.;  // hit fit width initial value
+    double minWidth		  = 0 ;  // hit minimum width
     std::string     fCalDataModuleLabel;
     double          fMinSigInd;     ///<Induction signal height threshold 
     double          fMinSigCol;     ///<Collection signal height threshold 
@@ -81,22 +105,12 @@ namespace hit{
     int             fMaxMultiHit;   ///<maximum hits for multi fit 
     int             fAreaMethod;    ///<Type of area calculation  
     std::vector<double> fAreaNorms; ///<factors for converting area to same units as peak height 
+    int		    fTryNplus1Fits; ///<whether we will (0) or won't (1) try n+1 fits
+    double	    fChi2NDFRetry;  ///<Value at which a second n+1 Fit will be tried
     double	    fChi2NDF;       ///maximum Chisquared / NDF allowed for a hit to be saved
     
-    	double	WireNumber[100000];
-	double 	TotalSignal[100000];
-	double 	StartIime;
-	double 	StartTimeError;
-	double 	EndTime;
-	double 	EndTimeError;
-	int	NumOfHits;
-	double	MeanPosition;
-	double 	MeanPosError;
-	double	Amp;
-	double	AmpError;
-	double	Charge;
-	double	ChargeError;
-	double	FitGoodnes;
+    TH1F* fFirstChi2;
+    TH1F* fChi2;
 		
   protected: 
     
@@ -136,6 +150,8 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
   fMaxMultiHit        = p.get< int          >("MaxMultiHit");
   fAreaMethod         = p.get< int          >("AreaMethod");
   fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
+  fTryNplus1Fits      = p.get< int	    >("TryNplus1Fits");
+  fChi2NDFRetry       = p.get< double	    >("Chi2NDFRetry");
   fChi2NDF	      = p.get< double       >("Chi2NDF");
   
 }  
@@ -144,7 +160,14 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
 //-------------------------------------------------
 void GausHitFinder::beginJob()
 {
-
+// get access to the TFile service
+art::ServiceHandle<art::TFileService> tfs;
+   
+    
+// ======================================
+// === Hit Information for Histograms ===
+fFirstChi2	= tfs->make<TH1F>("fFirstChi2", "#chi^{2}", 10000, 0, 5000);
+fChi2	        = tfs->make<TH1F>("fChi2", "#chi^{2}", 10000, 0, 5000);
 
 
 }
@@ -162,479 +185,649 @@ void GausHitFinder::endJob()
 //-------------------------------------------------
 void GausHitFinder::produce(art::Event& evt)
 {
-  TH1::AddDirectory(kFALSE);
-
-
-  // ---------------------------
-  // --- Seed Fit Functions  --- (This function used to "seed" the mean peak position)
-  // ---------------------------
-  art::ServiceHandle<util::DetectorProperties> detprop;
-  TF1 *hit	= new TF1("hit","gaus",0,detprop->NumberTimeSamples());
-
-  std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
-    
-  // ##########################################
-  // ### Reading in the Wire List object(s) ###
-  // ##########################################
-  art::Handle< std::vector<recob::Wire> > wireVecHandle;
-  evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
-  art::ServiceHandle<geo::Geometry> geom;
-    
-  // #########################################################
-  // ### List of useful variables used throughout the code ###
-  // #########################################################  
-  double threshold              = 0.;               // minimum signal size for id'ing a hit
-  double fitWidth               = 0.;               //hit fit width initial value
-  double minWidth               = 0.;               //minimum hit width
-  uint32_t channel              = 0;                // channel number
-  geo::SigType_t sigType;                           // Signal Type (Collection or Induction)
-  std::vector<int> startTimes;             	    // stores time of 1st local minimum
-  std::vector<int> maxTimes;    	   	    // stores time of local maximum    
-  std::vector<int> endTimes;    	     	    // stores time of 2nd local minimum
-  int time             = 0;                         // current time bin
-  int minTimeHolder    = 0;                         // current start time
-
-  std::string eqn        = "gaus(0)";      // string for equation for gaus fit
-  //std::string seed        = "gaus(0)";      // string for equation seed gaus fit
-  
-  
-  bool maxFound        = false;            // Flag for whether a peak > threshold has been found
-  std::stringstream numConv;
-
-  //##############################
-  //### Looping over the wires ###
-  //############################## 
-  
-  for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++){
-    art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
-	
-	
-    // --- Setting Channel Number and Wire Number as well as signal type ---
-    channel = wire->RawDigit()->Channel();
-    sigType = geom->SignalType(channel);
-      
-    // -----------------------------------------------------------
-    // -- Clearing variables at the start of looping over wires --
-    // -----------------------------------------------------------
-    startTimes.clear();
-    maxTimes.clear();
-    endTimes.clear();
-    std::vector<float> signal(wire->Signal());
-    std::vector<float>::iterator timeIter;  	    // iterator for time bins
-    time          = 0;
-    minTimeHolder = 0;
-    maxFound      = false;
-    // -- Setting the appropriate signal widths and thresholds --
-    // --    for either the collection or induction plane      --
-    if(sigType == geo::kInduction){
-      threshold     = fMinSigInd;
-      fitWidth      = fIndWidth;
-      minWidth      = fIndMinWidth;
-    }//<-- End if Induction Plane
-    else if(sigType == geo::kCollection){
-      threshold = fMinSigCol;
-      fitWidth  = fColWidth;
-      minWidth  = fColMinWidth;
-    }//<-- End if Collection Plane
-      
-      
-    // ##################################
-    // ### Looping over Signal Vector ###
-    // ##################################
-    for(timeIter = signal.begin();timeIter+2<signal.end();timeIter++){
-      // ##########################################################
-      // ###                LOOK FOR A MINIMUM                  ###
-      // ### Testing if the point timeIter+1 is at a minimum by ###
-      // ###  checking if timeIter and timeIter+1 and if it is  ###
-      // ###         then we add this to the endTimes           ###
-      // ##########################################################
-      if(*timeIter > *(timeIter+1) && *(timeIter+1) < *(timeIter+2)){
-	//--- Note: We only keep the a minimum if we've already ---
-	//---          found a point above threshold            ---
-	if(maxFound){
-	  endTimes.push_back(time+1);
-	  maxFound = false;
-	  //keep these in case new hit starts right away
-	  minTimeHolder = time+2; 
-	}
-	else minTimeHolder = time+1; 
-	  
-      }//<---End Checking if this is a minimum
-	
-	
-      // ########################################################	
-      // ### Testing if the point timeIter+1 is a maximum and ###
-      // ###  if it and is above threshold then we add it to  ###
-      // ###                  the startTime                   ###
-      // ########################################################
-      //if not a minimum, test if we are at a local maximum 
-      //if so, and the max value is above threshold, add it and proceed.
-      else if(*timeIter < *(timeIter+1) && *(timeIter+1) > *(timeIter+2) && *(timeIter+1) > threshold){ 
-	maxFound = true;
-	maxTimes.push_back(time+1);
-	startTimes.push_back(minTimeHolder);          
-      }
-	
-      time++;
-	
-    }//end loop over signal vec 
-      
-    // ###########################################################    
-    // ### If there was no minimum found before the end, but a ### 
-    // ###  maximum was found then add an end point to the end ###
-    // ###########################################################
-    while( maxTimes.size() > endTimes.size() ){ 
-      endTimes.push_back(signal.size()-1);
-	
-    }//<---End maxTimes.size > endTimes.size
-	
-    // ####################################################
-    // ### If no startTime hit was found skip this wire ###
-    // ####################################################
-    if( startTimes.size() == 0 ){
-      continue;
-    }  
-		     
-    /////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////
-
-    // ##########################################################
-    // ### PERFORM THE FITTING, ADDING HITS TO THE HIT VECTOR ###
-    // ##########################################################
-
-    //All code below does the fitting, adding of hits
-    //to the hit vector and when all wires are complete 
-    //saving them 
-	
-    double totSig(0); 						//stores the total hit signal
-    double startT(0); 						//stores the start time
-    double endT(0);  						//stores the end time
-    int numHits(0);  						//number of consecutive hits being fitted
-    int size(0);     						//size of data vector for fit
-    int hitIndex(0);						//index of current hit in sequence
-    double amplitude(0);             			        //fit parameters
-    double minPeakHeight(0);  					//lowest peak height in multi-hit fit
-		
-	
-    StartIime = 0; 							// stores the start time of the hit
-    StartTimeError = 0;						// stores the error assoc. with the start time of the hit
-    EndTime = 0;							// stores the end time of the hit
-    EndTimeError = 0;						// stores the error assoc. with the end time of the hit
-    MeanPosition = 0;						// stores the peak time position of the hit
-    MeanPosError = 0;						// stores the error assoc. with thte peak time of the hit
-    Charge = 0;      						// stores the total charge assoc. with the hit
-    ChargeError = 0;              					// stores the error on the charge
-    Amp = 0;							// stores the amplitude of the hit
-    AmpError = 0;							// stores the error assoc. with the amplitude
-    NumOfHits = 0;   						// stores the multiplicity of the hit
-    FitGoodnes = 0;							// stores the Chi2/NDF of the hit
-	
-	
+//==================================================================================================  
+   
+   TH1::AddDirectory(kFALSE);
+   
+   // Instantiate and Reset a stop watch
+    //TStopwatch StopWatch;
+    //StopWatch.Reset();
      
-    //stores gaussian paramters first index is the hit number
-    //the second refers to height, position, and width respectively
-    std::vector<double>  hitSig;	
+   // #########################################################
+   // ### List of useful variables used throughout the code ###
+   // #########################################################
+   
+   //double minWidth               = 0.;  //minimum hit width
+   std::vector<int> startTimes;         // stores time of 1st local minimum
+   std::vector<int> maxTimes;    	// stores time of local maximum    
+   std::vector<int> endTimes;    	// stores time of 2nd local minimum
+   
+   std::vector <int> peakT;
+   
+   std::vector<double> StartTime;      // stores the start time of the hit
+   std::vector<double> StartTimeError; // stores the error assoc. with the start time of the hit
+   std::vector<double> EndTime;	       // stores the end time of the hit
+   std::vector<double> EndTimeError;   // stores the error assoc. with the end time of the hit
+   std::vector<double> MeanPosition;   // stores the peak time position of the hit
+   std::vector<double> MeanPosError;   // stores the error assoc. with thte peak time of the hit
+   std::vector<double> Charge;         // stores the total charge assoc. with the hit
+   std::vector<double> ChargeError;    // stores the error on the charge
+   std::vector<double> Amp;	       // stores the amplitude of the hit
+   std::vector<double> AmpError;       // stores the error assoc. with the amplitude
+   std::vector<double> NumOfHits;      // stores the multiplicity of the hit
+   std::vector<double> FitGoodness;    // stores the Chi2/NDF of the hit
+   std::vector<double>  hitSig;
+   
+   // ###################################
+   // ### Calling Detector Properties ###
+   // ###################################
+   art::ServiceHandle<util::DetectorProperties> detprop;
+   
+   // ################################
+   // ### Calling Geometry service ###
+   // ################################
+   art::ServiceHandle<geo::Geometry> geom;
+
+   // ###############################################
+   // ### Making a ptr vector to put on the event ###
+   // ###############################################
+   std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
+   
+   // ##########################################
+   // ### Reading in the Wire List object(s) ###
+   // ##########################################
+   art::Handle< std::vector<recob::Wire> > wireVecHandle;
+   evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
+   
+   // Signal Type (Collection or Induction)
+   geo::SigType_t sigType;
+   // Channel Number
+   uint32_t channel              = 0;                 
+   //##############################
+   //### Looping over the wires ###
+   //############################## 
+   for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++)
+      {
+      // -----------------------------------------------------------
+      // -- Clearing variables at the start of looping over wires --
+      // -----------------------------------------------------------
+      startTimes.clear();
+      maxTimes.clear();
+      endTimes.clear();
+      
+      StartTime.clear();
+      StartTimeError.clear();
+      EndTime.clear();
+      EndTimeError.clear();
+      MeanPosition.clear();
+      MeanPosError.clear();
+      Amp.clear();
+      AmpError.clear();
+      NumOfHits.clear();
+      hitSig.clear();
+      Charge.clear();
+      ChargeError.clear();
+      tempGaus1Par.clear();
+      
+      
+      
+      // ####################################
+      // ### Getting this particular wire ###
+      // ####################################
+      art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
+      
+      // --- Setting Channel Number and Signal type ---
+      channel = wire->RawDigit()->Channel();
+      sigType = geom->SignalType(channel);
+      // ----------------------------------------------------------
+      // -- Setting the appropriate signal widths and thresholds --
+      // --    for either the collection or induction plane      --
+      // ----------------------------------------------------------
+      if(sigType == geo::kInduction) //<---Induction Plane
+      	{
+      	threshold     = fMinSigInd;
+      	fitWidth      = fIndWidth;
+      	minWidth      = fIndMinWidth;
+    	}//<-- End if Induction Plane
+      else if(sigType == geo::kCollection) //<---Collection Plane
+      	{
+      	threshold = fMinSigCol;
+      	fitWidth  = fColWidth;
+      	minWidth  = fColMinWidth;
+    	}//<-- End if Collection Plane
 	
-    // ########################################
-    // ### Looping over the hitIndex Vector ###
-    // ########################################
-    while( hitIndex < (signed)startTimes.size() ) {
-      // --- Zeroing Start Times and End Times ---
-      startT = 0;
-      endT   = 0;
-      // Note: numHits is hardcoded to one here (Need to fix!)
-      numHits=1;
+	
+      // #################################################
+      // ### Getting a vector of signals for this wire ###
+      // #################################################
+      std::vector<float> signal(wire->Signal());
+      
+      // ##########################################################
+      // ### Making an iterator for the time ticks of this wire ###
+      // ##########################################################
+      std::vector<float>::iterator timeIter;  	    // iterator for time bins
+      
+      // current time bin
+      int time             = 0;
+      
+      // current start time
+      int minTimeHolder    = 0; 
+       
+      // Flag for whether a peak > threshold has been found
+      bool maxFound        = false;                    
+      //std::cout<<std::endl;
+      //std::cout<<" Wire # "<<wireIter<<std::endl;
+      //std::cout<<"===================="<<std::endl; 
+      
+      // ### Starting the StopWatch ###
+      //StopWatch.Start(); 
+          
+      // ##################################
+      // ### Looping over Signal Vector ###
+      // ##################################
+      for(timeIter = signal.begin(); timeIter+2<signal.end(); timeIter++)
+      	 {
+	 
+	 // ##########################################################
+      	 // ###                LOOK FOR A MINIMUM                  ###
+      	 // ### Testing if the point timeIter+1 is at a minimum by ###
+      	 // ###  checking if timeIter and timeIter+2 are greater   ###
+      	 // ###   and if it is then we add this to the endTimes    ###
+      	 // ##########################################################
+	 if(*(timeIter+1) < *timeIter && *(timeIter+1) < *(timeIter+2))
+	    {
+	    //--- Note: We only keep the a minimum if we've already ---
+	    //---          found a point above threshold            ---
+	    if(maxFound)
+	       {
+	       endTimes.push_back(time+1);
+	       maxFound = false;
+	       //keep these in case new hit starts right away
+	       minTimeHolder = time+2; 
+	       }
+	    else 
+	       {minTimeHolder = time+1;} 
 	  
-      minPeakHeight = signal[maxTimes[hitIndex]];
-	  
-      // consider adding pulse to group of consecutive hits if:
-      // 1 less than max consecutive hits
-      // 2 we are not at the last point in the signal vector
-      // 3 the height of the dip between the two is greater than threshold/2
-      // 4 and there is no gap between them
-      while(numHits < fMaxMultiHit && numHits+hitIndex < (signed)endTimes.size() && 
-            signal[endTimes[hitIndex+numHits-1]] >threshold/2.0 &&  
-	    startTimes[hitIndex+numHits] - endTimes[hitIndex+numHits-1] < 2)
-	{
-	if(signal[maxTimes[hitIndex+numHits]] < minPeakHeight)
-		{ 
-	  	minPeakHeight=signal[maxTimes[hitIndex+numHits]];
-	      
-		}//<---Only move the mean peakHeight in this hit
-	    
-	numHits++;//<---Interate the multihit function
-	    
-      	}//<---End multihit while loop
-	  
-	  
-	  
-      // ###########################################################	
-      // ### Finding the first point from the beginning (startT) ###
-      // ###     which is greater then 1/2 the smallest peak     ###
+      	    }//<---End Checking if this is a minimum
+	 
+	 
+         // ########################################################	
+         // ### Testing if the point timeIter+1 is a maximum and ###
+         // ###  if it and is above threshold then we add it to  ###
+         // ###                  the startTime                   ###
+         // ########################################################
+         //if not a minimum, test if we are at a local maximum 
+         //if so, and the max value is above threshold, add it and proceed.
+	 else if(*(timeIter+1) > *timeIter && *(timeIter+1) > *(timeIter+2) && *(timeIter+1) > threshold)
+	    { 
+	    maxFound = true;
+	    maxTimes.push_back(time+1);
+	    startTimes.push_back(minTimeHolder);          
+            }
+	
+	
+         time++;
+         }//<---End timeIter loop
+       
+      // ###########################################################    
+      // ### If there was no minimum found before the end, but a ### 
+      // ###  maximum was found then add an end point to the end ###
       // ###########################################################
-      startT=startTimes[hitIndex];
-      while(signal[(int)startT] < minPeakHeight/2.0)  {startT++;}
-	  
-      // #########################################################	
-      // ### Finding the first point from the end (endT) which ###
-      // ###      is greater then 1/2 the smallest peak        ###
-      // #########################################################
-      endT=endTimes[hitIndex+numHits-1];
-      while(signal[(int)endT] <minPeakHeight/2.0) {endT--;}
-      	
-	  
-      // ###############################################################
-      // ### Putting the current considered hit into a 1-D Histogram ###
-      // ###############################################################
-      //--- Size of hit = endT - startT ---
-      size = (int)(endT-startT);
-      
-      // ###########################################################################
-      // ###    Bug Fix: For ADC counts occuring at the end of the ticks range   ###
-      // ### the hitfinder incorrectly assigns the size of the hit as a negative ###
-      // ###      number...so we fix this to be 0 so that this hit is skipped    ###
-      // ###########################################################################
-      if(size < 0){size = 0;}
-      
-
-      // --- TH1D HitSignal ---
-      TH1D hitSignal("hitSignal","",std::max(size,1),startT,endT);
-	  
-      for(int i = (int)startT; i < (int)endT; i++){
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// ~~~ Filling the pulse signals into TH1D histograms ~~~
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	hitSignal.Fill(i,signal[i]);
-	    
-	//std::cout<<"i = "<<i<<" , signal[i] = "<<signal[i]<<std::endl;
-      }//<---End for looping over startT and endT
-	  
-	  
-      // ##################################################################################################
-      // ### Trying to utilize the old approach of builing my TF1 and then implementing this new method ###
-      // ##################################################################################################
-	  
-      // ########################################################
-      // ### Building TFormula for seedHit and basic Gaussian ###
-      // ########################################################
-      eqn = "gaus(0)";
-      for(int i = 3; i < numHits*3; i+=3){
-	eqn.append("+gaus(");
-	numConv.str("");
-	numConv << i;
-	eqn.append(numConv.str());
-	eqn.append(")");
-      }
-	  
-	  
-	  
-      // --- TF1 function for GausHit  ---
-      TF1 Gaus("Gaus",eqn.c_str(),0,size);
-	  
-      // ##############################################################################
-      // ### For multi-pulse hits we loop over all the hits and fit N Gaus function ###
-      // ##############################################################################
-      if(numHits > 1) {
-	// --- Loop over numHits ---
-	for(int i = 0; i < numHits; ++i){
-		
-	  // ###################################################################
-	  // ### Set the parameters of the Gaus hit based on the seedHit fit ###
-	  // ###################################################################
-	  //amplitude = 0.5*(threshold+signal[maxTimes[hitIndex+i]]);
-	  
-	  amplitude = signal[maxTimes[hitIndex+i]];
-	  Gaus.SetParameter(3*i,amplitude);
-	  Gaus.SetParameter(1+3*i, maxTimes[hitIndex+i]);
-	  Gaus.SetParameter(2+3*i, fitWidth);
-	  Gaus.SetParLimits(3*i, 0.0, 3.0*amplitude);
-	  Gaus.SetParLimits(1+3*i, startT , endT);
-	  Gaus.SetParLimits(2+3*i, 0.0, 10.0*fitWidth);
-	}//end loop over hits
-      }//end if numHits > 1
-	  
-      // ######################################################################
-      // ### For single pulse hits we perform a fit using a single Gaussian ###
-      // ######################################################################
-      else{
-	    
-	Gaus.SetParameters(signal[maxTimes[hitIndex]],maxTimes[hitIndex],fitWidth);
-	Gaus.SetParLimits(0,0.0,1.5*signal[maxTimes[hitIndex]]);
-	Gaus.SetParLimits(1, startT , endT);
-	Gaus.SetParLimits(2,0.0,10.0*fitWidth);
-      }
-	  
+      while( maxTimes.size() > endTimes.size() )
+         { endTimes.push_back(signal.size()-1); }//<---End maxTimes.size > endTimes.size
+	
       // ####################################################
-      // ### PERFORMING THE TOTAL GAUSSIAN FIT OF THE HIT ###
+      // ### If no startTime hit was found skip this wire ###
       // ####################################################
-      hitSignal.Sumw2();
+      if( startTimes.size() == 0 ){continue;}
+
       
-      try
-      	{
-      	hitSignal.Fit(&Gaus,"QNRW","", startT, endT);
-      	//hitSignal.Fit(&Gaus,"QR0LLi","", startT, endT);
-	}
-      catch(...)
-      	{
-	mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";
-	
-	}
-	  
-      for(int hitNumber = 0; hitNumber < numHits; ++hitNumber){
-	totSig = 0;	
+      
+      // #####################################
+      // ### Variables used for each pulse ###
+      // #####################################
+      int startT = 0;
+      int endT = 0;
+      double totSig = 0;
+      peakT.clear();
+
+      // #######################################################
+      // ### Lets loop over the pulses we found on this wire ###
+      // #######################################################
+      for(size_t num = 0; num < maxTimes.size(); num++)
+         {
+	 peakT.clear();
+	 
+	 // ### Setting the start, peak, and end time of the pulse ###
+	 startT = startTimes[num];
+	 endT   = endTimes[num];
+	 peakT.push_back(maxTimes[num]);
+	 
+	 // ###       See if we want to merge pulses together          ###
+	 // ### First check if we have more than one pulse on the wire ###
+	 if(endTimes.size() > 1 )
+	    {
+
+	    // ###      If the start time of the next pulse is one wire away and    ###
+	    // ### the height of that start point is 0.5* the thereshold then merge ###
+	    if(num < (maxTimes.size() - 1) && startTimes[num+1] - endTimes[num]  < 2 && signal[endTimes[num]] > threshold/2)
+	       {
+	       endT = endTimes[num+1];
+	       peakT.push_back(maxTimes[num+1]);
+	       
+	       num++;
+	       }//<---Checking adjacent pulses
+
+	    }//<---End checking if there is more than one pulse on the wire
+
+	 // ### Putting in a protection in case things went wrong ###
+	 if(startT - endT == 0){startT = 0; endT = 9600;}
+	 if(startT > endT){endT = 9999;}
+	 
+	 int nFill = 0;
+	 // #######################################################
+	 // ### Clearing the parameter vector for the new pulse ###
+	 // #######################################################
+	 tempGaus1Par.clear();
+	 
+	 // === Setting the number of Gaussians to try ===
+	 int nGausForFit = peakT.size();
+	 int nGausReFit = nGausForFit + 1;
+	 
+	 nFill = nGausForFit;
+	 // ##################################################
+	 // ### Calling the function for fitting Gaussians ###
+	 // ##################################################
+	 FitGaussians(signal, peakT, nGausForFit, startT, endT);
+	 fFirstChi2->Fill(Chi2PerNDF);
+	 
+	 // #######################################################
+	 // ### Clearing the parameter vector for the new pulse ###
+	 // #######################################################
+	 tempGaus2Par.clear();
+         bool secondTry = false;
+	 // #####################################################
+	 // ### Trying extra gaussians for an initial bad fit ###
+	 // #####################################################
+	 if( (Chi2PerNDF > (2*fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit == 1)|| 
+	     (Chi2PerNDF > (fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit > 1))
+	    {
+	    
+	    nFill = nGausReFit;
+	    // #########################################################
+	    // ### Calling the function for re-fitting n+1 Gaussians ###
+	    // #########################################################
+	    ReFitGaussians(signal, peakT, nGausReFit, startT, endT);
+	    
+	    secondTry = true;
+	    }
 	    
 	    
-	// ###########################################################
-	// ### Record this hit if the amplitude is > threshold/2.0 ###
-	// ###             and the width is > minWidth             ###
-	// ###########################################################
-	if(Gaus.GetParameter(3*hitNumber) > threshold/2.0 && 
-	   Gaus.GetParameter(3*hitNumber+2) > minWidth){
-	  StartIime			= Gaus.GetParameter(3*hitNumber+1) - Gaus.GetParameter(3*hitNumber+2); // position - width
-	      
-	  EndTime			= Gaus.GetParameter(3*hitNumber+1) + Gaus.GetParameter(3*hitNumber+2); // position + width
-	      
-	  MeanPosition		= Gaus.GetParameter(3*hitNumber+1);
-				
-	  //StartTimeError			= TMath::Sqrt( (Gaus.GetParError(3*hitNumber+1)*Gaus.GetParError(3*hitNumber+1)) + 
-	  //					       (Gaus.GetParError(3*hitNumber+2)*Gaus.GetParError(3*hitNumber+2)));
-	      
-	  //EndTimeError			= TMath::Sqrt( (Gaus.GetParError(3*hitNumber+1)*Gaus.GetParError(3*hitNumber+1)) + 
-	  //			                       (Gaus.GetParError(3*hitNumber+2)*Gaus.GetParError(3*hitNumber+2)));
-	      
-	      
-	  //MeanPosError			= Gaus.GetParError(3*hitNumber+1);
-	  
-	  
-		
-	      
-	  hitSig.resize(size);
-	  for(int sigPos = 0; sigPos<size; sigPos++){ //<---Loop over the size (endT - startT)
-		
-	    hitSig[sigPos] = Gaus.GetParameter(3*hitNumber)*TMath::Gaus(sigPos+startT,Gaus.GetParameter(3*hitNumber+1), Gaus.GetParameter(3*hitNumber+2));
-	    totSig+=hitSig[(int)sigPos];
-		
-	  }//<---End Signal postion loop
-	      
-	  // --- Getting the total charge using the area method ---
-	  if(fAreaMethod) {
-	    totSig = std::sqrt(2*TMath::Pi())*Gaus.GetParameter(3*hitNumber)*Gaus.GetParameter(3*hitNumber+2)/fAreaNorms[(size_t)sigType];
-		
-	  }//<---End Area Method
-	  Charge				= totSig;
-	  // ---------------------------------------------------------------------------------
-	  // --- chargeErr=TMath::Sqrt(TMath::Pi())*(amplitudeErr*width+widthErr*amplitude); ---
-	  // -----------------------------------------------------------------------------------
-	  ChargeError			= TMath::Sqrt(TMath::Pi())*(Gaus.GetParError(3*hitNumber+0)*Gaus.GetParameter(3*hitNumber+2)+
-								    Gaus.GetParError(3*hitNumber+2)*Gaus.GetParameter(3*hitNumber+0));   //estimate from area of Gaussian
-	  Amp				= Gaus.GetParameter(3*hitNumber);
-	  AmpError			= Gaus.GetParError(3*hitNumber);
-	  NumOfHits			= numHits;
-	      
-	  // #######################################################
-	  // ### Using seeded values to get a better estimate of ###
-	  // ###        the errors associated with the fit       ###
-	  // #######################################################
-	  // -----------------------------------------
-	  // --- Determing the goodness of the fit ---
-	  // -----------------------------------------
-	  hit->SetParameters(Amp,MeanPosition, Gaus.GetParameter(3*hitNumber+2));
-	  hit->FixParameter(0,Amp);
-	  //hit->SetParLimits(0,Amp/2, Amp*2);
-	  //hit->FixParameter(1,MeanPosition);
-	  hit->SetParLimits(1,MeanPosition - 3, MeanPosition + 3);
-	  //hit->FixParameter(2,Gaus.GetParameter(3*hitNumber+2));//<---Should I be setting the fitWidth initally
-	  // #############################
-	  // ### Perform Hit on Signal ###
-	  // #############################
+	 // ### Creating temperary parameters for storing hits ###
+	 double tempChi2NDF = 0;
+	 std::vector<double> tempPar;
+         std::vector<double> tempParError;
+	 
+	 // #########################################################
+	 // ### Getting the appropriate parameter into the vector ###
+	 // #########################################################
+	 if(secondTry && Chi2PerNDF2 < Chi2PerNDF)
+	    {
+	    nFill = nGausReFit;
+	    tempChi2NDF = Chi2PerNDF2;
+	    // ### Filling the vector of information
+	    for(size_t ab = 0; ab < tempGaus2Par.size(); ab++)
+	       {
+	       tempPar.push_back( tempGaus2Par[ab] );
+               tempParError.push_back( tempGaus2ParError[ab] );  
+		  
+		  
+	       }//<---End ab loop
+	    }//<---End using n+1 Gaussian Fit
+	       
+	 else
+	    {
+	    nFill = nGausForFit;
+	    tempChi2NDF = Chi2PerNDF;
+	    // ### Filling the vector of information
+	    for(size_t ab = 0; ab < tempGaus1Par.size(); ab++)
+	       {
+	       tempPar.push_back( tempGaus1Par[ab] );
+               tempParError.push_back( tempGaus1ParError[ab] );  
+		  
+		  
+	       }//<---End ab loop
 
-	
-	  float TempStartIime = MeanPosition - 4;
-	  float TempEndTime   = MeanPosition  + 4;
-	  
-	  try
-	  	{	
-	  	hitSignal.Fit(hit,"QNRLLi","", TempStartIime, TempEndTime);
-		
-		FitGoodnes			= hit->GetChisquare() / hit->GetNDF();
-	      
-	  	StartTimeError			= TMath::Sqrt( (hit->GetParError(1)*hit->GetParError(1)) + 
-							       (hit->GetParError(2)*hit->GetParError(2)));
-	      
-	  	EndTimeError			= TMath::Sqrt( (hit->GetParError(1)*hit->GetParError(1)) + 
-						       (hit->GetParError(2)*hit->GetParError(2)));
-	      
-	      
-	  	MeanPosError			= hit->GetParError(1);
-		
-		
-		}
-	 // ### Putting in a protection in case the fitter fails ###
-	 catch(...)
-	 	{
-		mf::LogWarning("GausHitFinder") << "Fitter failed to define how good a fit this was";
-		FitGoodnes = -999;
-		
-		StartTimeError = -999;
-		EndTimeError = -999;
-		MeanPosError = -999;
-		}
-	
-	      
-	  
-	      
-	  // ####################################################################################
-	  // ### Skipping hits with a chi2/NDF larger than the value defined in the .fcl file ###
-	  // ####################################################################################
-	  if(FitGoodnes > fChi2NDF){continue;}
-	      
-	  // get the WireID for this hit
-	  std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
-	  ///\todo need to have a disambiguation algorithm somewhere in here
-	  // for now, just take the first option returned from ChannelToWire
-	  geo::WireID wid = wids[0];
-
-	  recob::Hit hit(wire, 
+	    }//<---End using n Gaussian Fit
+	 fChi2->Fill(tempChi2NDF);
+	 
+	 // #################################################
+	 // ### Clearing the variables for this new pulse ###
+	 // #################################################  
+	 totSig = 0;
+	 StartTime.clear();
+	 StartTimeError.clear();
+	 EndTime.clear();
+	 EndTimeError.clear();
+	 MeanPosition.clear();
+	 MeanPosError.clear();
+	 Amp.clear();
+	 AmpError.clear();
+	 NumOfHits.clear();
+	 hitSig.clear();
+	 Charge.clear();
+	 ChargeError.clear();
+	 
+	 int numHits = 0;
+	 // #################################################
+	 // ### Recording all the relevant hit parameters ###
+	 // #################################################
+	 
+	 for(int cc = 0; cc < nFill; cc++)
+	    {
+	    // #############################
+	    // ### Skip poorly made hits ###
+	    // #############################
+	    // Peak Below threshold
+	    if(tempPar[3*cc] < threshold){continue;}
+	    // Poor Chi2
+	    if(tempChi2NDF > fChi2NDF){continue;} 
+	    
+	    // ### Start Time ###
+	    StartTime.push_back( tempPar[(3*cc)+1] - tempPar[(3*cc)+2] ); //<---(Mean - Width)
+	    StartTimeError.push_back(TMath::Sqrt( (tempParError[(3*cc)+1]*tempParError[(3*cc)+1]) + 
+					          (tempParError[(3*cc)+2]*tempParError[(3*cc)+2])) );
+	    
+	    // ### End Time ###	
+	    EndTime.push_back( tempPar[(3*cc)+1] + tempPar[(3*cc)+2] ); //<---(Mean + Width)
+	    EndTimeError.push_back( TMath::Sqrt( (tempParError[(3*cc)+1]*tempParError[(3*cc)+1]) + 
+					         (tempParError[(3*cc)+2]*tempParError[(3*cc)+2])) );
+						 
+	    // ### Mean Time ###
+	    MeanPosition.push_back( tempPar[(3*cc)+1] );
+	    MeanPosError.push_back( tempParError[(3*cc)+1] );
+	    
+	    // ### Amplitude ###
+	    Amp.push_back( tempPar[3*cc] );
+	    AmpError.push_back( tempParError[3*cc] );
+	    
+	    // ### Number of hits in this pulse ###
+	    int mul = nFill;
+	    NumOfHits.push_back( mul );
+	    
+	    // ### Chi^2 / NDF ###
+	    FitGoodness.push_back( tempChi2NDF );
+	    
+	    // ### Charge ###
+	    hitSig.resize(endT - startT);
+	    
+	    // ##################################
+	    // ### Integral Method for charge ###
+	    // ##################################
+	    for(int sigPos = 0; sigPos<(endT - startT); sigPos++)//<---Loop over the size (endT - startT)
+	       { 
+	       hitSig[sigPos] = tempPar[3*cc]*TMath::Gaus(sigPos+startT,tempPar[(3*cc)+1], tempPar[(3*cc)+2]);
+	       totSig+=hitSig[(int)sigPos];
+	       }//<---End Signal postion loop
+	     
+	    // ###################################################### 
+	    // ### Getting the total charge using the area method ###
+	    // ######################################################
+	    if(fAreaMethod) 
+	       {
+	       totSig = std::sqrt(2*TMath::Pi())*tempPar[3*cc]*tempPar[(3*cc)+2]/fAreaNorms[(size_t)sigType];
+	       }//<---End Area Method
+	    
+	    Charge.push_back( totSig );
+	    ChargeError.push_back( TMath::Sqrt(TMath::Pi())*(tempParError[(3*cc)+0]*tempParError[(3*cc)+2]+
+	  			   tempParError[(3*cc)+2]*tempParError[(3*cc)+0]) );   //estimate from area of Gaussian
+	    
+	    
+	    numHits++;
+	    }//<---End cc loop
+	          
+         tempPar.clear();
+	 tempParError.clear();
+	 
+	 // get the WireID for this hit
+	 std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
+	 // for now, just take the first option returned from ChannelToWire
+	 geo::WireID wid = wids[0];
+	 
+	 // ### Recording each hit in the pulse ###
+	 for(size_t dd = 0; dd < MeanPosition.size(); dd++)
+	    {
+	    recob::Hit hit(wire, 
 			 wid,
-			 StartIime, 
-			 StartTimeError,
-			 EndTime, 
-			 EndTimeError,
-			 MeanPosition,
-			 MeanPosError,
-			 Charge,         
-			 ChargeError,                
-			 Amp,
-			 AmpError,
-			 NumOfHits,     
-			 FitGoodnes);   
+			 StartTime[dd], 
+			 StartTimeError[dd],
+			 EndTime[dd], 
+			 EndTimeError[dd],
+			 MeanPosition[dd],
+			 MeanPosError[dd],
+			 Charge[dd],         
+			 ChargeError[dd],                
+			 Amp[dd],
+			 AmpError[dd],
+			 NumOfHits[dd],     
+			 FitGoodness[dd]);
+		   
 	      
 	      
-	  hcol->push_back(hit);
-	      
-	}//<---End looking at hits over threshold
+	    hcol->push_back(hit);
+	    }
 	    
-      }//<---End Looping over numHits
-	  
-		
-      hitIndex+=numHits;
-    }//<---End while hitIndex < startTimes.size()
-	
-	
-	
-  }//<---End looping over wireIter
-  
-  
+	 }//<---End num loop
+	 
+
+      }//<---End looping over all the wires
+
+
+//==================================================================================================  
+// End of the event  
     
-  evt.put(std::move(hcol));
+   evt.put(std::move(hcol));
   
 
 
 
 } // End of produce() 
 
+// --------------------------------------------------------------------------------------------
+// Fit Gaussians
+// --------------------------------------------------------------------------------------------
+void hit::GausHitFinder::FitGaussians(std::vector<float> SignalVector, std::vector<int> PeakTime, int nGauss, int StartTime, int EndTime)
+   {
+   std::string eqn = "gaus(0)";  // string for equation for gaus fit
+   std::stringstream numConv;
+   double amplitude(0); //fit parameters
+   
+   tempGaus1Par.clear();
+   tempGaus1ParError.clear();
+   
+   
+   int size = EndTime - StartTime;
+   // #############################################
+   // ### If size < 0 then set the size to zero ###
+   // #############################################
+   if(EndTime - StartTime < 0){size = 0;}
+   
+   // --- TH1D HitSignal ---
+   TH1F hitSignal("hitSignal","",std::max(size,1),StartTime,EndTime);
+   hitSignal.Sumw2();
+   
+   // #############################
+   // ### Filling the histogram ###
+   // #############################
+   for(int aa = StartTime; aa < EndTime; aa++)
+      {
+      //std::cout<<"Time Tick = "<<aa<<", ADC = "<<signal[aa]<<std::endl;
+      hitSignal.Fill(aa,SignalVector[aa]);
+
+      
+      if(EndTime > 10000){break;}
+      }//<---End aa loop
+
+   // ############################################
+   // ### Building TFormula for basic Gaussian ###
+   // ############################################
+   eqn = "gaus(0)";
+   for(int i = 3; i < (nGauss)*3; i+=3)
+      {
+      eqn.append("+gaus(");
+      numConv.str("");
+      numConv << i;
+      eqn.append(numConv.str());
+      eqn.append(")");
+      }   
+   //std::cout<<"Fit 1 Check 4"<<std::endl;
+   // ---------------------------------	 
+   // --- TF1 function for GausHit  ---
+   // ---------------------------------
+   TF1 Gaus("Gaus",eqn.c_str(),0,std::max(size,1));
+   
+   // ### Setting the parameters for the Gaussian Fit ###
+   for(int bb = 0; bb < nGauss; bb++)
+      {
+      amplitude = SignalVector[PeakTime[bb]];
+      Gaus.SetParameter(3*bb,amplitude);
+      Gaus.SetParameter(1+(3*bb), PeakTime[bb]);
+      Gaus.SetParameter(2+(3*bb), fitWidth);
+      Gaus.SetParLimits(3*bb, 0.0, 3.0*amplitude);
+      Gaus.SetParLimits(1+(3*bb), StartTime , EndTime);
+      Gaus.SetParLimits(2+(3*bb), 0.0, 15.0*fitWidth);
+      }//<---End bb loop
+ 
+   // ####################################################
+   // ### PERFORMING THE TOTAL GAUSSIAN FIT OF THE HIT ###
+   // ####################################################
+   
+   //hitSignal.Fit(&Gaus,"QNRWIB","", StartTime, EndTime);
+   //hitSignal.Fit(&Gaus,"QNRWB","", StartTime, EndTime);
+   //hitGraph.Fit(&Gaus,"QNB","",StartTime, EndTime);
+   
+   try
+      { hitSignal.Fit(&Gaus,"QNRWB","", StartTime, EndTime);}
+   catch(...)
+      {mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";}
+   
+   // ##################################################
+   // ### Getting the fitted parameters from the fit ###
+   // ##################################################
+   Chi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
+   
+   for(unsigned short ipar = 0; ipar < (3 * nGauss); ++ipar)
+      {
+      tempGaus1Par.push_back( Gaus.GetParameter(ipar) );
+      tempGaus1ParError.push_back( Gaus.GetParError(ipar) );
+	 
+      }//<---End ipar loop 
+   
+   Gaus.Delete();
+   hitSignal.Delete();
+   }//<----End FitGaussians
+
+
+
+// --------------------------------------------------------------------------------------------
+// Fit Gaussians
+// --------------------------------------------------------------------------------------------
+void hit::GausHitFinder::ReFitGaussians(std::vector<float> ReSignalVector, std::vector<int> RePeakTime, int mGauss, int ReStartTime, int ReEndTime)
+   {
+   tempGaus2Par.clear();
+   tempGaus2ParError.clear();
+   
+   std::string eqn2        = "gaus(0)";  // string for equation for gaus fit
+   std::stringstream numConv2;
+   
+   double amplitude2(0);        //fit parameters
+   
+   int size2 = ReEndTime - ReStartTime;
+   
+   // #############################################
+   // ### If size < 0 then set the size to zero ###
+   // #############################################
+   if(size2 < 0){size2 = 0;}
+   
+   // --- TH1D HitSignal ---
+   TH1F hitSignal2("hitSignal2","",std::max(size2,1),ReStartTime,ReEndTime);
+   hitSignal2.Sumw2();
+   
+   // #############################
+   // ### Filling the histogram ###
+   // #############################
+   for(int aa = ReStartTime; aa < ReEndTime; aa++)
+      {
+      hitSignal2.Fill(aa,ReSignalVector[aa]);
+      
+      if(ReEndTime > 10000){break;}
+      }//<---End aa loop
+   
+   // ############################################
+   // ### Building TFormula for basic Gaussian ###
+   // ############################################
+   eqn2 = "gaus(0)";
+   for(int i = 3; i < (mGauss)*3; i+=3)
+      {
+      eqn2.append("+gaus(");
+      numConv2.str("");
+      numConv2 << i;
+      eqn2.append(numConv2.str());
+      eqn2.append(")");
+      }
+   
+   // --- TF1 function for GausHit  ---
+   TF1 Gaus2("Gaus2",eqn2.c_str(),0,std::max(size2,1));
+	 
+   // ### Setting the parameters for the Gaussian Fit ###
+   for(int bb = 0; bb < mGauss; bb++)
+      {
+      float TrialPeak = 0;
+      if(bb<mGauss -1){TrialPeak = RePeakTime[bb];}
+      else{TrialPeak = RePeakTime[0]+(bb*5);}
+      
+      amplitude2 = 0.5* ReSignalVector[TrialPeak];
+      Gaus2.SetParameter(3*bb,amplitude2);
+      Gaus2.SetParameter(1+(3*bb), TrialPeak);
+      Gaus2.SetParameter(2+(3*bb), fitWidth);
+      Gaus2.SetParLimits(3*bb, 0.0, 10.0*amplitude2);
+      Gaus2.SetParLimits(1+(3*bb), ReStartTime , ReEndTime);
+      Gaus2.SetParLimits(2+(3*bb), 0.0, 10.0*fitWidth);
+      }//<---End bb loop
+      
+      
+   // ####################################################
+   // ### PERFORMING THE TOTAL GAUSSIAN FIT OF THE HIT ###
+   // ####################################################
+   //hitSignal2.Fit(&Gaus2,"QNRWIB","", ReStartTime, ReEndTime);
+   //hitSignal2.Fit(&Gaus2,"QNRWB","", ReStartTime, ReEndTime);
+   
+   try
+      { hitSignal2.Fit(&Gaus2,"QNRW","", ReStartTime, ReEndTime);}
+      
+   catch(...)
+      {mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";}
+   
+   // ##################################################
+   // ### Getting the fitted parameters from the fit ###
+   // ##################################################
+
+   Chi2PerNDF2 = (Gaus2.GetChisquare() / Gaus2.GetNDF());
+      
+   for(unsigned short ipar = 0; ipar < (3 * mGauss); ++ipar)
+      {
+      tempGaus2Par.push_back( Gaus2.GetParameter(ipar) );
+      tempGaus2ParError.push_back( Gaus2.GetParError(ipar) );
+	 
+      }//<---End ipar loop 
+   
+   Gaus2.Delete();
+   hitSignal2.Delete();
+   }//<---End ReFitGaussians
+
+
 
   DEFINE_ART_MODULE(GausHitFinder)
 
 } // end of hit namespace
-#endif // GausHITFINDER_H
+#endif // GAUSHITFINDER_H

@@ -251,7 +251,8 @@ namespace trkf {
       TH1F* fHHitTrkId;     // TrkId
       TH1F* fModeFrac;       // mode fraction
       TH1F* fNTrkIdTrks;    // # of stitched tracks in which unique TrkId appears
-      TH2F* fNTrkIdTrks2;   // same vs. mu/pi/p/K
+      TH2F* fNTrkIdTrks2;   
+      TH2F* fNTrkIdTrks3;   
     };
 
     // Struct for mc particles and mc-matched tracks.
@@ -355,6 +356,8 @@ namespace trkf {
 
   private:
 
+    template <typename T> std::vector<size_t> fsort_indexes(const std::vector<T> &v) ;
+
     // Fcl Attributes.
 
     std::string fTrackModuleLabel;
@@ -411,6 +414,7 @@ namespace trkf {
     ,fModeFrac(0)
     ,fNTrkIdTrks(0)
     ,fNTrkIdTrks2(0)
+    ,fNTrkIdTrks3(0)
   {}
 
   TrackAna::RecoHists::RecoHists(const std::string& subdir)
@@ -460,9 +464,13 @@ namespace trkf {
     fHHitWidth = dir.make<TH1F>("hwid", "Hit Width (ticks)", 40, 0., 20.);
     fHHitPdg = dir.make<TH1F>("hpdg", "Hit Pdg code",5001, -2500.5, +2500.5);
     fHHitTrkId = dir.make<TH1F>("htrkid", "Hit Track ID", 401, -200.5, +200.5);
-    fModeFrac = dir.make<TH1F>("hmodefrac", "Fraction of hits in component track with the mode value", 20, 0.0, 1.0);
-    fNTrkIdTrks = dir.make<TH1F>("hntrkids", "Number of stitched tracks in which TrkId appears", 20, 0., +10.0);
+    fModeFrac = dir.make<TH1F>("hmodefrac", "quasi-Purity: Fraction of component tracks with the Track mode value", 20, 0.01, 1.01);
+    fNTrkIdTrks = dir.make<TH1F>("hntrkids", "quasi-Efficiency: Number of stitched tracks in which TrkId appears", 20, 0., +10.0);
     fNTrkIdTrks2 = dir.make<TH2F>("hntrkids2", "Number of stitched tracks in which TrkId appears vs KE [GeV]", 20, 0., +10.0, 20, 0.0, 1.5);
+    fNTrkIdTrks3 = dir.make<TH2F>("hntrkids3", "MC Track vs Reco Track, wtd by nhits on Collection Plane", 10, -0.5, 9.5, 10, -0.5, 9.5);
+    fNTrkIdTrks3->GetXaxis()->SetTitle("Sorted-by-Descending-CPlane-Hits outer Track Number");
+    fNTrkIdTrks3->GetYaxis()->SetTitle("Sorted-by-Descending-True-Length G4Track");
+ 
   }
 
   // MCHists methods.
@@ -871,7 +879,7 @@ namespace trkf {
 
     if (trackvh.isValid() && fStitchedAnalysis) 
       {
-	mf::LogWarning("TrackAna") 
+	mf::LogDebug("TrackAna") 
 	  << "TrackAna read "  << trackvh->size()
 	  << "  vectors of Stitched PtrVectorsof tracks.";
 	anaStitch(evt);
@@ -1176,10 +1184,12 @@ namespace trkf {
   void TrackAna::anaStitch(const art::Event& evt)
   {
 
+    art::ServiceHandle<util::LArProperties> larprop;
     art::ServiceHandle<cheat::BackTracker> bt;
     art::ServiceHandle<geo::Geometry> geom;
 
-    std::map<int, art::PtrVector<recob::Hit> > hitmap;
+    std::map<int, std::map<int, art::PtrVector<recob::Hit>> > hitmap; // trkID, otrk, hitvec
+    std::map<int, int > KEmap; // length traveled in det [cm]?, trkID want to sort by KE
     bool mc = !evt.isRealData();
     art::Handle< std::vector<recob::Track> > trackh;
     art::Handle< std::vector< recob::SpacePoint> > sppth;
@@ -1207,15 +1217,21 @@ namespace trkf {
     const RecoHists& rhistsStitched = fRecoHistMap[0];
     
     std::vector < std::vector <unsigned int> >  NtrkIdsAll; 
+    std::vector < double > ntvsorted;
+    hitmap.clear();
+    KEmap.clear();
+    
+
     for (int o = 0; o < ntv; ++o) // o for outer
       {
 
 	const art::PtrVector<recob::Track> pvtrack(*(cti++));
 	auto it = pvtrack.begin();
 	int ntrack = pvtrack.size();
-	if (ntrack>1) 	std::cout << "\t\t  TrkAna: New Stitched Track ******* " << std::endl;
+	//	if (ntrack>1) 	std::cout << "\t\t  TrkAna: New Stitched Track ******* " << std::endl;
 	std::vector< std::vector <unsigned int> > NtrkId_Hit; // hit IDs in inner tracks
 	std::vector<unsigned int> vecMode;
+
 	for(int i = 0; i < ntrack; ++i) {
 
 	  const art::Ptr<recob::Track> ptrack(*(it++));
@@ -1226,11 +1242,11 @@ namespace trkf {
 	  bool assns(true);
 	  try {
 	    // Get Spacepoints from this Track, get Hits from those Spacepoints.
-	    int nsppts = ptrack->NumberTrajectoryPoints();
+	    //	    int nsppts = ptrack->NumberTrajectoryPoints();
 	    
 	    int nsppts_assn = fs.at(0).size();  
-	    if (ntrack>1) std::cout << "\t\tTrackAna: Number of Spacepoints from Track.NumTrajPts(): " << nsppts << std::endl;
-	    if (ntrack>1)  std::cout << "\t\tTrackAna: Number of Spacepoints from Assns for this Track: " << nsppts_assn << std::endl;
+	    //	    if (ntrack>1) std::cout << "\t\tTrackAna: Number of Spacepoints from Track.NumTrajPts(): " << nsppts << std::endl;
+	    //	    if (ntrack>1)  std::cout << "\t\tTrackAna: Number of Spacepoints from Assns for this Track: " << nsppts_assn << std::endl;
 	    //assert (nsppts_assn == nsppts);
 	    auto sppt = fs.at(0);//.at(is);
 	    art::FindManyP<recob::Hit> fh( sppt, evt, fHitSpptAssocModuleLabel);
@@ -1256,12 +1272,26 @@ namespace trkf {
 		    //	  std::cout  << "\t\t  TrkAna: TrkId  tids.size() ******* " << tids.size()  <<std::endl;
 		    for(std::vector<cheat::TrackIDE>::const_iterator itid = tids.begin();itid != tids.end(); ++itid) {
 		      int trackID = std::abs(itid->trackID);
-		      hitmap[trackID].push_back(hit);
+		      hitmap[trackID][o].push_back(hit);
+
 		      if (justOne) { vecNtrkIds.push_back(trackID); justOne=false; }
 		      // Add hit to PtrVector corresponding to this track id.
 		      rhistsStitched.fHHitTrkId->Fill(trackID); 
 		      const simb::MCParticle* part = bt->TrackIDToParticle(trackID);
 		      rhistsStitched.fHHitPdg->Fill(part->PdgCode()); 
+		      // This really needs to be indexed as KE deposited in volTPC, not just KE. EC, 24-July-2014.
+
+		      TVector3 mcstart;
+		      TVector3 mcend;
+		      TVector3 mcstartmom;
+		      TVector3 mcendmom;
+		      double mctime = part->T();                                 // nsec
+		      double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();   // cm
+
+		      double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+
+		      KEmap[(int)(1e6*plen)] = trackID; // multiple assignment but always the same, so fine.
+		      //		      std::cout  << "\t\t  TrkAna: TrkId  trackID, KE [MeV] ******* " << trackID << ", " << (int)(1e3*(part->E()-part->Mass()))  <<std::endl;
 		    }
 
 		  } // mc
@@ -1295,9 +1325,10 @@ namespace trkf {
 		if (strkIds.begin()!=strkIds.end()) 
 		  mode = strkIds.at(ind);
 		vecMode.push_back(mode);
-		if (ntrack>1)	std::cout  << "\t\t  TrkAna: TrkId  mode for this component track is ******* " << mode <<std::endl;
+
+		//	if (ntrack>1)	std::cout  << "\t\t  TrkAna: TrkId mode for this component track is ******* " << mode <<std::endl;
 		if (strkIds.size()!=0)
-		  rhistsStitched.fModeFrac->Fill(max/strkIds.size());
+		  rhistsStitched.fModeFrac->Fill((double)max/(double)strkIds.size());
 		else
 		  rhistsStitched.fModeFrac->Fill(-1.0);
 		} // mc
@@ -1314,23 +1345,62 @@ namespace trkf {
 	  {
 	    // one vector per o trk, for all modes of stitched i trks
 	    NtrkIdsAll.push_back(vecMode); 
+
 	    std::unique(NtrkIdsAll.back().begin(),NtrkIdsAll.back().end());
+	    double sum(0.0);
+	    for (auto const val :  NtrkIdsAll.back())
+	      {
+		//		rhistsStitched.fNTrkIdTrks3->Fill(o,val%100,hitmap[val][o].size());
+		sum += hitmap[val][o].size();
+	      }
+	    ntvsorted.push_back(sum);
+
 	  }
 
+	//	
       } // o
 
-    // In how many tracks did each trkId appear? Histo it. Would like it to be precisely 1.
+    int vtmp(0);
+	// get KEmap indices by most energetic first, least last.
+	for (auto it = KEmap.rbegin(); it!=KEmap.rend(); ++it) 
+	  {
+	    //	    int tval = it->second; // grab trkIDs in order, since they're sorted by KE
+	    //	    int ke = it->first; // grab trkIDs in order, since they're sorted by KE
+	    //	    const simb::MCParticle* part = bt->TrackIDToParticle(tval);
+	    
+	    //	    std::cout << "TrackAnaStitch: KEmap cntr vtmp, Length ke, tval, pdg : "  << vtmp << ", " << ke <<", " << tval <<", " << part->PdgCode() << ", " << std::endl;
+
+	    vtmp++;
+	  }
+
+    // get o trk indices by their hits. Most populous track first, least last.
+    for (auto const o : fsort_indexes(ntvsorted))
+      {
+	int v(0);
+	// get KEmap indices by longest trajectory first, least last.
+	for (auto it = KEmap.rbegin(); it!=KEmap.rend(); ++it) 
+	  {
+	    int val = it->second; // grab trkIDs in order, since they're sorted by KE
+	    //	    const simb::MCParticle* part = bt->TrackIDToParticle(val);
+	    //	    std::cout << "TrackAnaStitch: trk o, KEmap cntr v, KE val, pdg  hitmap[val][o].size(): "  << o <<", " << v << ", " << val <<", " << part->PdgCode() << ", " << hitmap[val][o].size() << std::endl;
+	    rhistsStitched.fNTrkIdTrks3->Fill(o,v,hitmap[val][o].size());
+	    v++;
+	  }
+	
+      }
+
+    // In how many o tracks did each trkId appear? Histo it. Would like it to be precisely 1.
     // Histo it vs. particle KE.
     flattener flat(NtrkIdsAll);
     std::vector <unsigned int> &v = flat;
     auto const it ( std::unique(v.begin(),v.end()) ); // never use this it, perhaps.
     for (auto const val :  v)
       {
-	rhistsStitched.fNTrkIdTrks->Fill(std::count(v.begin(),v.end(),val));
 	if (val != (unsigned int)sim::NoParticleId)
 	  {
 	    const simb::MCParticle* part = bt->TrackIDToParticle( val ); 
 	    double T(part->E() - 0.001*part->Mass());
+	    rhistsStitched.fNTrkIdTrks->Fill(std::count(v.begin(),v.end(),val));
 	    rhistsStitched.fNTrkIdTrks2->Fill(std::count(v.begin(),v.end(),val),T);
 	  }
 	else
@@ -1371,4 +1441,18 @@ namespace trkf {
       effcalc(mchists.fHglen, mchists.fHmclen, mchists.fHelen);
     }
   }
+
+    // Stole this from online. Returns indices sorted by corresponding vector values.
+    template <typename T>
+      std::vector<size_t> TrackAna::fsort_indexes(const std::vector<T> &v) {
+  // initialize original index locations
+      std::vector<size_t> idx(v.size());
+      for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;
+            // sort indexes based on comparing values in v
+      std::sort(idx.begin(), idx.end(),
+		[&v](size_t i1, size_t i2) {return v[i1] > v[i2];}); // Want most occupied trks first. was <, EC, 21-July.
+      return idx;
+    }
+
+
 }

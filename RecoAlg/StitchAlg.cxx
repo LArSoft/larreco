@@ -296,10 +296,12 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
 	    // throughout this whole class! start1, end1 are really T, H, not H, T as I've labeled 'em till now.
 	    // hence flip the direction if this character is a T/H, when expecting H/T! -- EC, 29-June-2014.
 
-	    if ( fHT.back().size() &&
+	    auto itvfHT = fHT.begin() + size_t (itvArg - fTrackVec.begin());
+	    if ( (*itvfHT).size() &&
 		 (
-		  (cnt==1 && !fHT.back().at(cnt-1).compare(0,1,"H")) ||   
-		  (cnt>1  && !fHT.back().at(cnt-2).compare(1,1,"T"))
+		  // was fHT.back()
+		  (cnt==1 && !(*itvfHT).at(cnt-1).compare(0,1,"H")) ||   
+		   (cnt>1  && !(*itvfHT).at(cnt-2).compare(1,1,"T"))
 		  )  
 		 )
 	      ptHere = (*it).get()->NumberTrajectoryPoints() - pt - 1;
@@ -360,8 +362,6 @@ void trkf::StitchAlg::WalkStitch()
 	compTrack.push_back(th);
 	// Should there not be an HT.push_back here??
 
-	assert (std::get<1>(fh.at(ii))==(int)ii && std::get<1>(ft.at(ii))==(int)ii && "Head or Tail index from std::tuple is not in agreement with track count");
-	
 	// start with track 1: see if head goes anywhere, walk with it. Add to compTrack.
 	// Go until the other tuple's other vtx string says "NA." Then change status string 
 	// of vtxsJoined to "Done" for that track.
@@ -500,40 +500,102 @@ void trkf::StitchAlg::WalkStitch()
     // and by its tail in another. This can happen if the common component has a higher track index than either of
     // the the two it is separately stitched to. e.g., ____(1) -------(4) ___________(3).
     // 
-    void  trkf::StitchAlg::CommonComponentStitch()
+bool  trkf::StitchAlg::CommonComponentStitch()
+{
+  // "os" for outer scope.
+  int osciit(-12), oscjit(-12);
+  std::vector < art::PtrVector<recob::Track> >::iterator osiComposite, osjComposite;
+  art::PtrVector < recob::Track >::iterator osiAgg, osjAgg;
+      
+
+  bool match(false);
+  int ciit(0); 
+  for (auto iit = fTrackComposite.begin(); iit!=fTrackComposite.end()&&!match; ++iit)
     {
-      int cjit(0);
-      for (auto iit = fTrackComposite.begin(); iit!=fTrackComposite.end(); ++iit)
+      ciit++;
+      int cjit(ciit);
+      for (auto jit = iit+1; jit!=fTrackComposite.end()&&!match; ++jit)
 	{
 	  cjit++;
-	  for (auto jit = iit+1; jit!=fTrackComposite.end(); ++jit)
+	  for (auto iiit = iit->begin(); iiit!=iit->end()&&!match; ++iiit)
 	    {
-	      for (auto iiit = iit->begin(); iiit!=iit->end(); ++iiit)
+	      for (auto jjit = jit->begin(); jjit!=jit->end()&&!match; ++jjit)
 		{
-		  for (auto jjit = jit->begin(); jjit!=jit->end(); ++jjit)
+		  if (*iiit == *jjit) // 2 components from 2 different composites are the same
 		    {
-		      if (*iiit == *jjit) // 2 components from 2 different composites are the same
-			{
-			  // head is attached to one trk and tail to another. Proceed
-			  // to stitch 'em all together, dropping the one redundant component. Then
-			  // erase the first occurence of the composite and the matching aggregate trk.
-			  std::cout << "StitchAlg::CommonComponentStitch: We have two aggregate tracks that have a common component and need to be further stitched. " << std::endl;
-			  /*
-			  iit.erase(iiit);
-			  jit.insert(jit.begin(),iit);
-			  fTrackComposite.erase(iit);
-			  fTrackVec.erase(cjit-1);
-			  // make Stitch able to take a pointer, not always use back() of fTrackComposite
-			  // and make it not always push_back onto fTrackVec, but replace corresonding  one to jit
-			  // It must also ignore or figure out fHT on this call
-			  FirstStitch();
-			  break;
-			  */
-			}
+		      // head is attached to one trk and tail to another. 
+		      //		      std::cout << "StitchAlg::CommonComponentStitch: We have two aggregate tracks that have a common component and need to be further stitched. " << std::endl;
+		      
+		      match = true;
+		      osiComposite = iit;
+		      osjComposite = jit;
+		      osciit = ciit;
+		      oscjit = cjit;
+		      osiAgg = iiit;
+		      osjAgg = jjit; // yes, unneeded, but we keep it for notational clarity
+		      
 		    }
-		  
 		}
+	      
 	    }
 	}
-
     }
+  if (!match) return match;
+      
+  // Proceed to stitch 'em all together, dropping the one redundant component. Then
+  // erase the first occurence of the composite and the matching aggregate trk.
+
+	  
+  //  std::cout << "StitchAlg::CommonComponentStitch: pre erase: " << osiComposite->size() << std::endl;
+  (*osiComposite).erase(osiAgg);                // erase redundant component track
+                                                // do not erase this fHT element, however
+
+  //  std::cout << "StitchAlg::CommonComponentStitch: post erase: " << osiComposite->size() << std::endl;
+  // std::cout << "StitchAlg::CommonComponentStitch: fHT.size(): " << fHT.size() << std::endl;
+
+  // Next is a loop over all remaining components in osiComposite.
+  // insert the non-redundant osciit tracks onto front (back) of osjit
+  // insert the non-redundant osciit vtx links onto front (back) of fHT.begin()+oscjit-1
+
+  std::vector< std::vector<std::string> >::iterator siit(fHT.begin()+osciit-1);
+  std::vector< std::vector<std::string> >::iterator sjit(fHT.begin()+oscjit-1);
+  size_t itdiff(osiComposite->end()-osiComposite->begin());
+  if (osjAgg == osjComposite->begin())
+    {
+      
+      //      std::cout << "StitchAlg::begin insert starting: " << std::endl;
+      // std::cout << "StitchAlg::CommonComponentStitch: itdiff: " << itdiff << std::endl;
+      //std::cout << "StitchAlg::CommonComponentStitch: osiComposite.end-begin: " <<  osiComposite->end()-osiComposite->begin()<< std::endl;
+      //std::cout << "StitchAlg::CommonComponentStitch: osjComposite.end-begin: " <<  osjComposite->end()-osjComposite->begin()<< std::endl;
+      (*osjComposite).insert(osjComposite->begin(),osiComposite->begin(),osiComposite->begin()+itdiff); 
+      //std::cout << "StitchAlg::CommonComponentStitch: siit.end-begin: " <<  siit->end()-siit->begin()<< std::endl;
+      //std::cout << "StitchAlg::CommonComponentStitch: sjit.end-begin: " <<  sjit->end()-sjit->begin()<< std::endl;
+      (*sjit).insert(sjit->begin(),siit->begin(),siit->begin()+itdiff);
+      //std::cout << "StitchAlg::begin insert done: " << std::endl;
+    }
+  else if (osjAgg == (osjComposite->end()-1))
+    {
+      //      std::cout << "StitchAlg::end insert starting: " << std::endl;
+      (*osjComposite).insert(osjComposite->end(),osiComposite->begin(),osiComposite->begin()+itdiff); 
+      (*sjit).insert(sjit->end(),siit->begin(),siit->begin()+itdiff);
+      //      std::cout << "StitchAlg::end insert done: " << std::endl;
+    }
+
+  //  std::cout << "StitchAlg:: 1: " << std::endl;  
+  fTrackVec.erase(fTrackVec.begin()+oscjit-1);   // erase old Stitched Track, which we'll recreate now...
+
+  //  std::cout << "StitchAlg:: 2: " << std::endl;  
+  FirstStitch(osjComposite,fTrackVec.begin()+oscjit-1); // Create new Stitched Track
+  //  fTrackComposite.insert(fTrackComposite.begin()+oscjit-1-1,*osjComposite);           // erase old composite Track
+  //  std::cout << "StitchAlg:: 3: " << std::endl;  
+  fTrackVec.erase(fTrackVec.begin()+osciit-1);   // erase old Stitched Track
+  //  std::cout << "StitchAlg:: 6: " << std::endl;  
+  fTrackComposite.erase(osiComposite);           // erase old composite Track
+  //  std::cout << "StitchAlg:: 4: " << std::endl;  
+  fHT.erase(fHT.begin()+osciit-1);               // erase old vec of vtx links
+  //  std::cout << "StitchAlg:: 5: " << std::endl;  
+  
+  return match;
+  
+}   // end of bool CommonComponentStitch()
+
