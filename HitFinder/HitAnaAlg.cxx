@@ -142,6 +142,11 @@ void hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& ra
 
   wireData.integrated_charge = ROIIntegral(range);
 
+  //std::cout << "----------------------------------------------------------------" << std::endl;
+  //std::cout << "WireIndex = " << WireIndex << std::endl;
+  //std::cout << "\tRange begin: " << range.begin_index() << std::endl;
+  //std::cout << "\tRange end: " << range.begin_index()+range.size() << std::endl;
+
   for(size_t iter = 0; iter < HitProcessingQueue.size(); iter++)
     FindAndStoreHitsInRange(HitProcessingQueue[iter].first, 
 			    HitProcessingQueue[iter].second.at(WireIndex),
@@ -199,6 +204,10 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
     sim::MCHitCollection const& thismchitcol = MCHitCollectionVector.at(hit_index);
 
     for( auto const& thishit : thismchitcol){
+
+      //std::cout << "\t************************************************************" << std::endl;
+      //std::cout << "\t\tMCHit begin: " << TimeService.TPCTDC2Tick( thishit.PeakTime()-thishit.PeakWidth() ) << std::endl;
+      //std::cout << "\t\tMCHit end: " << TimeService.TPCTDC2Tick( thishit.PeakTime()+thishit.PeakWidth() ) << std::endl;
 
       //check if this hit is on this ROI
       if( TimeService.TPCTDC2Tick( thishit.PeakTime()-thishit.PeakWidth() ) < begin_wire_tdc ||
