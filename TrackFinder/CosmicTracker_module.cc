@@ -306,7 +306,7 @@ namespace trkf {
 
       CluLen clulen;
       clulen.index = iclu;
-      clulen.length = sqrt(pow((w0-w1)*wire_pitch,2)+pow(detprop->ConvertTicksToX(t0,clusterlist[iclu]->View(),1,0)-detprop->ConvertTicksToX(t1,clusterlist[iclu]->View(),1,0),2));
+      clulen.length = sqrt(pow((w0-w1)*wire_pitch,2)+pow(detprop->ConvertTicksToX(t0,clusterlist[iclu]->Plane().Plane,clusterlist[iclu]->Plane().TPC,clusterlist[iclu]->Plane().Cryostat)-detprop->ConvertTicksToX(t1,clusterlist[iclu]->Plane().Plane,clusterlist[iclu]->Plane().TPC,clusterlist[iclu]->Plane().Cryostat),2));
 
 
       std::vector< art::Ptr<recob::Hit> > hitlist = fm.at(iclu);
