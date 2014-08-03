@@ -2,6 +2,11 @@
 
 BEGIN_PROLOG
 
+microboone_clustercrawler:                    @local::standard_clustercrawler
+microboone_clustercrawler.ClusterCrawlerAlg:  @local::microboone_clustercrawleralg
+microboone_clustercrawler.CCHitFinderAlg:     @local::microboone_cchitfinderalg
+microboone_clustercrawler.CCHitRefinerAlg:    @local::microboone_cchitrefineralg
+
 microboone_dbscanalg:                         @local::standard_dbscanalg_fast 
 microboone_endpointalg:                       @local::standard_endpointalg    
 microboone_houghbasealg:                      @local::standard_houghbasealg   
@@ -30,4 +35,7 @@ microboone_endpointmod.EndPointAlg:      @local::microboone_endpointalg
 microboone_showeranglecluster:           @local::standard_showeranglecluster
 microboone_showeranglecluster.ClusterMatchAlg:          @local::microboone_clustermatchalg
 microboone_showeranglecluster.ClusterMergeAlg:          @local::microboone_clustermergealg
+microboone_showerangleclusterana:           @local::standard_showerangleclusterana
+microboone_showerangleclusterana.ClusterParamsAlg:           @local::microboone_clusterparamsalg
+microboone_smallclusterfinder:			 @local::standard_smallclusterfinder
 END_PROLOG

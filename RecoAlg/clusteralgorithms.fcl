@@ -293,9 +293,19 @@ microboone_houghbasealg.NumAngleCells:        20000
 microboone_houghbasealg.DoHoughLineMerge:     1
 microboone_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
 microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
-microboone_clusterparamsalg:                 @local::standard_clusterparamsalg
-microboone_smallclustalg:	   @local::standard_smallclustalg
-microboone_clustercrawleralg:      @local::standard_clustercrawleralg
+microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
+microboone_smallclustalg:	              @local::standard_smallclustalg
+microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
+microboone_cchitfinderalg:                    @local::standard_cchitfinderalg
+microboone_cchitfinderalg.ChiNorms:           [ 0.3, 0.3, 0.5 ]
+microboone_cchitfinderalg.ChgNorms:           [ 1.0, 1.0, 1.0 ]
+microboone_cchitfinderalg.TimeOffsets:        [ 0.0, 0.0, 0.0 ]
+microboone_cchitfinderalg.MinSigCol:          5.
+microboone_cchitfinderalg.MinRMSCol:          4.
+microboone_cchitfinderalg.MinSigInd:          5.
+microboone_cchitfinderalg.MinRMSInd:          4.
+microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
+
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
 
