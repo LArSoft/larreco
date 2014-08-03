@@ -304,7 +304,7 @@ microboone_cchitfinderalg.MinSigCol:          5.
 microboone_cchitfinderalg.MinRMSCol:          4.
 microboone_cchitfinderalg.MinSigInd:          5.
 microboone_cchitfinderalg.MinRMSInd:          4.
-microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
+microboone_cchitrefineralg:                   @local::standard_cchitrefineralg
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
