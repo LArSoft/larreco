@@ -19,6 +19,16 @@
 #include "art/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
+#include "Minuit2/MnUserParameterState.h"
+#include "Minuit2/Minuit2Minimizer.h"
+#include "Minuit2/FunctionMinimum.h" 
+#include "Minuit2/MnMigrad.h" 
+#include "Minuit2/MnUserParameters.h" 
+#include "Minuit2/MnPrint.h" 
+#include "Minuit2/FCNBase.h" 
+#include "Math/Minimizer.h"
+#include "Math/Factory.h"
+#include "Math/Functor.h"
 
 using namespace std;
 
@@ -83,6 +93,8 @@ namespace trkf{
      Int_t GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz );
      
      void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
+     
+     double MyMCSChi2( const double *x );
      
      Double_t GetMomentumMultiScatterChi2( art::Ptr<recob::Track> &trk );
      

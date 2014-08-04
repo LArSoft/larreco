@@ -116,6 +116,48 @@ namespace trkf{
   // MultiScatter business ...
   
   // Author: Leonidas N. Kalousis (August 2014)
+  
+  double TrackMomentumCalculator::MyMCSChi2( const double *x )
+  {
+    Double_t result = 0.0;
+    
+    Double_t p = x[0]; 
+    
+    Double_t theta0 = x[1]; 
+    
+    // xmeas[10000]; Double_t ymeas[10000]; Double_t eymeas[10000]; Int_t nxy;
+    
+    for ( Int_t i=0; i<n_gr; i++ )
+      {
+	Double_t xx = xmeas[i]; 
+	
+	Double_t yy = ymeas[i]; 
+	
+	Double_t ey = eymeas[i]; 
+	
+	Double_t rad_length = 14.0;
+	
+	Double_t l0 = xx/rad_length;
+	
+	Double_t res1 = 0.0;
+	
+	if ( xx>0 && p>0 ) res1 = ( 13.6/p )*sqrt( l0 )*( 1.0+0.038*TMath::Log( l0 ) );
+	
+	res1 = sqrt( res1*res1+theta0*theta0 );
+	
+	Double_t diff = yy-res1;
+	
+	if ( ey==0 ) { cout << " Zero denominator in my_mcs_chi2 ! " << endl; getchar(); }
+	
+	Double_t incre = pow( diff/ey, 2.0 );
+	
+	result += incre;
+	
+      }
+        
+    return result;
+    
+  }
         
   Int_t TrackMomentumCalculator::GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz )
   {
@@ -428,7 +470,37 @@ namespace trkf{
     // c1->Update();
     
     // c1->WaitPrimitive();
-            
+        
+    ROOT::Minuit2::Minuit2Minimizer *mP = new ROOT::Minuit2::Minuit2Minimizer( );
+    
+    ROOT::Math::Functor FCA( &TrackMomentumCalculator::MyMCSChi2, 2 );
+    
+    mP->SetFunction( FCA );
+    
+    mP->SetLimitedVariable( 0, "p", 1.0, 0.001, 0.001, 7.5 ); 
+    	      
+    mP->SetLimitedVariable( 1, "#delta#theta_{0}", 0.0, 1.0, 0, 500.0 );
+    	      
+    mP->SetMaxFunctionCalls( 1.E9 );
+    
+    mP->SetMaxIterations( 1.E9 );
+    
+    mP->SetTolerance( 0.01 );
+    
+    mP->SetStrategy( 2 );
+    
+    mP->SetErrorDef( 1.0 );
+    
+    mP->Minimize();
+    
+    mP->Hesse();
+    
+    // const double *pars = mP->X();  
+    
+    // const double *erpars = mP->Errors(); 
+    
+    delete mP;
+    
     delete recoX; delete recoY; delete recoZ; 
     
     cout << " Speak again ! " << endl;
