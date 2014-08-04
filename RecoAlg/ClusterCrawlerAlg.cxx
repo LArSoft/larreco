@@ -883,7 +883,7 @@ namespace cluster {
               // require vtx in the range of wires with hits AND
               // vtx US of both clusters AND
               // vtx not too far US of both clusters
-              if(vw >= fFirstWire && 
+              if(vw > fFirstWire && 
                  vw <= ew1      && vw <= ew2 &&
                  vw  > ew1 - 10 && vw  > ew2 - 10) {
                 float fvt = et1 + (vw - ew1) * es1;
@@ -962,7 +962,7 @@ namespace cluster {
               // vtx DS of both clusters AND
               // vtx not too far DS of both clusters
               if(vw >= bw1 && 
-                 vw >= bw2 && vw <= fLastWire &&
+                 vw >= bw2 && vw < fLastWire &&
                  vw <  bw2 + 10 && vw <  bw1 + 10) {
                 float fvt = bt1 + (vw - bw1) * bs1;
   if(vtxprt) {
@@ -3157,13 +3157,11 @@ namespace cluster {
       float wv = 0.;
       float wverr = 0.;
       LinFit(x, y, ey2, tv, wv, tverr, wverr, ChiDOF);
-      if(ChiDOF < 5) {
-        vtx[iv].Wire = (int)(wv + 0.5);
-        vtx[iv].Time = -tv;
-        if(vtx[iv].Time < 0 || vtx[iv].Time > 3200) {
-          //mf::LogError("ClusterCrawler")<<"FitVtx: Bad fit time "<<vtx[iv].Time
-	  //<<" on vtx "<<iv; // commenting out as it gives incorrect message in 1-big-window regime
-        }
+      float vtime = -tv;
+      float vwire = wv + 0.5;
+      if(ChiDOF < 5 && fabs(vwire - vtx[iv].Wire) < 5 && fabs(vtime - vtx[iv].Time) < 20) {
+        vtx[iv].Wire = vwire;
+        vtx[iv].Time = vtime;
       } // ChiDOF < 5
     } // FitVtx
 
