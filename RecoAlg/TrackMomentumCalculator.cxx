@@ -116,17 +116,7 @@ namespace trkf{
   // MultiScatter business ...
   
   // Author: Leonidas N. Kalousis (August 2014)
-  
-  Double_t do_steps = 5.0; Int_t nsteps = 9; std::vector<Float_t> *steps = new std::vector<Float_t>; 
-  
-  Double_t stop = -1.0; Double_t seg_size = -1.0; Int_t n_seg = -1; Double_t x_seg[100000]; Double_t y_seg[100000]; Double_t z_seg[100000];
-      
-  TPolyLine3D *gr_seg_xyz = new TPolyLine3D(); TGraph *gr_seg_xy = new TGraph(); TGraph *gr_seg_yz = new TGraph(); TGraph *gr_seg_xz = new TGraph(); 
-  
-  std::vector<Float_t> *segx = new std::vector<Float_t>; std::vector<Float_t> *segy = new std::vector<Float_t>; std::vector<Float_t> *segz = new std::vector<Float_t>;
-  
-  std::vector<Float_t> *segnx = new std::vector<Float_t>; std::vector<Float_t> *segny = new std::vector<Float_t>; std::vector<Float_t> *segnz = new std::vector<Float_t>;
-    
+        
   Int_t TrackMomentumCalculator::GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz )
   {
     Int_t a1 = xxx->size(); Int_t a2 = yyy->size(); Int_t a3 = zzz->size();
@@ -341,7 +331,7 @@ namespace trkf{
     
   }
   
-  Double_t TrackMomentumCalculator::GetMultiScatterChi2( recob::Track *trk )
+  Double_t TrackMomentumCalculator::GetMomentumMultiScatterChi2( art::Ptr<recob::Track> &trk )
   {
     cout << " Nothing will come of nothing, speak again ! " << endl;
     

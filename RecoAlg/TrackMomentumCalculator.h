@@ -9,7 +9,14 @@
 #include "TMath.h"
 #include "RecoBase/Track.h"
 #include "TGraph.h"
-#include "TPolyLine3D.h" 
+#include "TPolyLine3D.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Principal/Handle.h"
+#include "fhiclcpp/ParameterSet.h" 
+#include "art/Persistency/Common/Ptr.h" 
+#include "art/Persistency/Common/PtrVector.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 using namespace std;
 
@@ -67,7 +74,7 @@ namespace trkf{
 
      Int_t GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz );
      
-     Double_t GetMomentumMultiScatterChi2( recob::Track *trk );
+     Double_t GetMomentumMultiScatterChi2( art::Ptr<recob::Track> &trk );
      
      Double_t do_steps2; 
      
