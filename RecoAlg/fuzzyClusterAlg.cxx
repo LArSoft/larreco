@@ -206,7 +206,7 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
 //
 //  Ben Carls' implementation of fuzzyClusterAlg as much like examples as possible
 void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit> >& allhits) {
-
+  
   // Don't attempt to run the algorithm if we have 1 or fewer hits
   if(allhits.size() <= 1)
     return;

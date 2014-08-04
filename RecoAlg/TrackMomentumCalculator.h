@@ -9,6 +9,8 @@
 #include "TMath.h"
 #include "RecoBase/Track.h"
 #include "TGraph.h"
+#include "TGraphErrors.h"
+#include "TAxis.h"
 #include "TPolyLine3D.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
@@ -46,6 +48,8 @@ namespace trkf{
 	 
 	 segnx = new std::vector<Float_t>; segny = new std::vector<Float_t>; segnz = new std::vector<Float_t>;
 	 
+	 n_gr = 0;
+	 
 	 do_steps2 = 10.0;
 	 
        }
@@ -71,8 +75,14 @@ namespace trkf{
      std::vector<Float_t> *segx; std::vector<Float_t> *segy; std::vector<Float_t> *segz; 
      
      std::vector<Float_t> *segnx; std::vector<Float_t> *segny; std::vector<Float_t> *segnz;
+     
+     Double_t xmeas[100]; Double_t ymeas[100]; Double_t eymeas[100]; Int_t n_gr;
+     
+     TGraphErrors *gr_meas;
 
      Int_t GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz );
+     
+     void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
      
      Double_t GetMomentumMultiScatterChi2( art::Ptr<recob::Track> &trk );
      

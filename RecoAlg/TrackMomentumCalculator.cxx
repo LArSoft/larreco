@@ -331,6 +331,14 @@ namespace trkf{
     
   }
   
+  void TrackMomentumCalculator::GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick )
+  {
+    mean = 666.0; rms = 666.0; rmse = 666.0;
+    
+    return;
+    
+  }
+  
   Double_t TrackMomentumCalculator::GetMomentumMultiScatterChi2( art::Ptr<recob::Track> &trk )
   {
     cout << " Nothing will come of nothing, speak again ! " << endl;
@@ -374,7 +382,53 @@ namespace trkf{
     Int_t seg_steps0 = seg_steps-1;
     
     Double_t recoL = seg_steps0*seg_size; cout << recoL << endl;
-        
+    
+    Double_t mean = 666.0; Double_t rms = 666.0; Double_t rmse = 666.0;
+    
+    n_gr = 0; Double_t max1=-999.0; Double_t min1=+999.0;
+	      
+    for ( Int_t j=0; j<nsteps; j++ )
+      {
+	Double_t trial = steps->at( j );
+	
+	GetDeltaThetaRMS( mean, rms, rmse, trial );
+	
+	xmeas[ n_gr ] = trial;
+		  
+	ymeas[ n_gr ] = rms;
+		
+	eymeas[ n_gr ] = sqrt( pow( rmse, 2.0 ) + pow( 0.05*rms, 2.0 ) ); // <--- conservative syst. error to fix chi^{2} behaviour !!!
+	
+	// ymeas[ n_gr ] = 10.0; eymeas[ nxy ] = 1.0; // <--- for debugging !
+	
+	if ( min1>ymeas[ n_gr ] ) min1=ymeas[ n_gr ];
+	
+	if ( max1<ymeas[ n_gr ] ) max1=ymeas[ n_gr ];
+	
+	n_gr++;
+      
+      }
+    
+    gr_meas = new TGraphErrors( n_gr, xmeas, ymeas, 0, eymeas );
+	      
+    gr_meas->SetTitle( "(#Delta#theta)_{rms} versus material thickness; Material thickness in cm; (#Delta#theta)_{rms} in mrad" );
+    
+    gr_meas->SetLineColor( kBlack ); gr_meas->SetMarkerColor( kBlack ); gr_meas->SetMarkerStyle( 20 ); gr_meas->SetMarkerSize( 1.2 ); 
+    
+    gr_meas->GetXaxis()->SetLimits( ( steps->at( 0 )-steps->at( 0 ) ), ( steps->at( nsteps-1 )+steps->at( 0 ) ) );
+    
+    gr_meas->SetMinimum( 0.0 );
+    
+    gr_meas->SetMaximum( 1.80*max1 );
+    
+    // c1->cd();
+    
+    gr_meas->Draw( "APEZ" );
+    
+    // c1->Update();
+    
+    // c1->WaitPrimitive();
+            
     delete recoX; delete recoY; delete recoZ; 
     
     cout << " Speak again ! " << endl;
