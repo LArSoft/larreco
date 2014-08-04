@@ -117,16 +117,226 @@ namespace trkf{
   
   // Author: Leonidas N. Kalousis (August 2014)
   
-  Double_t do_steps = 5.0; Int_t nsteps = 9; 
+  Double_t do_steps = 5.0; Int_t nsteps = 9; std::vector<Float_t> *steps = new std::vector<Float_t>; 
   
-  std::vector<Float_t> *steps = new std::vector<Float_t>; 
+  Double_t stop = -1.0; Double_t seg_size = -1.0; Int_t n_seg = -1; Double_t x_seg[100000]; Double_t y_seg[100000]; Double_t z_seg[100000];
+      
+  TPolyLine3D *gr_seg_xyz = new TPolyLine3D(); TGraph *gr_seg_xy = new TGraph(); TGraph *gr_seg_yz = new TGraph(); TGraph *gr_seg_xz = new TGraph(); 
   
-  Int_t TrackMomentumCalculator::get_seg_tracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz )
+  std::vector<Float_t> *segx = new std::vector<Float_t>; std::vector<Float_t> *segy = new std::vector<Float_t>; std::vector<Float_t> *segz = new std::vector<Float_t>;
+  
+  std::vector<Float_t> *segnx = new std::vector<Float_t>; std::vector<Float_t> *segny = new std::vector<Float_t>; std::vector<Float_t> *segnz = new std::vector<Float_t>;
+    
+  Int_t TrackMomentumCalculator::GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz )
   {
     Int_t a1 = xxx->size(); Int_t a2 = yyy->size(); Int_t a3 = zzz->size();
     
     if ( ( a1!=a2 ) || ( a1!=a3 ) || ( a2!=a3 ) ) { cout << " ( Digitize reco tacks ) Error ! " << endl; return -1; }
-   
+    
+    Int_t stopper = stop / seg_size; 
+    	  
+    Int_t a4 = a1-1;
+        
+    segx->clear(); segy->clear(); segz->clear(); segnx->clear(); segny->clear(); segnz->clear(); 
+        
+    Double_t x0 = xxx->at( 0 ); Double_t y0 = yyy->at( 0 ); Double_t z0 = zzz->at( 0 );
+    
+    segx->push_back( x0 ); segy->push_back( y0 ); segz->push_back( z0 );
+    
+    n_seg = 0; x_seg[ n_seg ] = x0; y_seg[ n_seg ] = y0; z_seg[ n_seg ] = z0;
+    
+    n_seg++;
+    
+    Int_t ntot = 0; 
+    
+    Double_t Sz = 0; Double_t Szz = 0;
+    
+    Double_t Szx = 0; Double_t Sx = 0;
+    
+    Double_t Szy = 0; Double_t Sy = 0;
+    
+    Sz += z0; Szz += z0*z0;
+    
+    Szx += z0*x0; Sx += x0;
+    
+    Szy += z0*y0; Sy += y0;
+    
+    ntot++;
+    
+    for ( Int_t i=1; i<a4; i++ )
+      {
+	Double_t x1 = xxx->at( i ); Double_t y1 = yyy->at( i );	Double_t z1 = zzz->at( i );
+	
+	Double_t dr1 = sqrt( pow( x1-x0, 2 )+pow( y1-y0, 2)+pow( z1-z0, 2 ) ); 
+	
+	Double_t x2 = xxx->at( i+1 ); Double_t y2 = yyy->at( i+1 ); Double_t z2 = zzz->at( i+1 );
+	
+	Double_t dr2 = sqrt( pow( x2-x0, 2 )+pow( y2-y0, 2)+pow( z2-z0, 2 ) ); 
+	
+	if ( dr1<seg_size )
+	  {
+	    Sz += z1; Szz += z1*z1;
+    
+	    Szx += z1*x1; Sx += x1;
+    
+	    Szy += z1*y1; Sy += y1;
+	    
+	    ntot++;
+    
+	  }
+	
+	if ( dr1<seg_size && dr2>seg_size )
+	  {
+	    // ..
+	    
+	    // cout << " 1 " << endl;
+	    
+	    Double_t t = 0.0;
+	    
+	    Double_t dx = x2-x1; Double_t dy = y2-y1; Double_t dz = z2-z1;
+	    
+	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
+	    
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; getchar(); }
+	    
+	    Double_t beta = 2.0*( (x1-x0)*dx+(y1-y0)*dy+(z1-z0)*dz )/( dr*dr );
+	    	    
+	    Double_t gamma = ( dr1*dr1 - seg_size*seg_size )/( dr*dr );
+	    
+	    Double_t delta = beta*beta - 4.0*gamma;
+		
+	    if ( delta<0.0 ) { cout << " ( Discriminant ) Error ! " << endl; getchar(); }
+		
+	    Double_t lysi1 = ( -beta+sqrt( delta ) )/2.0; 
+	    	    
+	    t=lysi1;
+	    	    
+	    Double_t xp = x1+t*dx;
+	    
+	    Double_t yp = y1+t*dy;
+	    
+	    Double_t zp = z1+t*dz;
+	    	    	    	    
+	    segx->push_back( xp ); segy->push_back( yp ); segz->push_back( zp );
+	    
+	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
+	    	    
+	    x0 = xp; y0 = yp; z0 = zp;
+	    	    	     
+	    Sz += z0; Szz += z0*z0;
+	    
+	    Szx += z0*x0; Sx += x0;
+	    
+	    Szy += z0*y0; Sy += y0;
+	    
+	    ntot++;
+	    
+	    Double_t ax = ( Szx*ntot-Sz*Sx )/( Szz*ntot-Sz*Sz );
+	      
+	    Double_t ay = ( Szy*ntot-Sz*Sy )/( Szz*ntot-Sz*Sz );
+	    
+	    segnx->push_back( ax ); segny->push_back( ay ); segnz->push_back( 1.0 );
+	    
+	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
+	    
+	    // cout << angx*0.001*180.0/3.14 << endl;
+	    
+	    ntot = 0; 
+    
+	    Sz = 0; Szz = 0; 
+	    
+	    Szx = 0; Sx = 0; 
+	    
+	    Szy = 0; Sy = 0;
+	    
+	    Sz += z0; Szz += z0*z0;
+	     
+	    Szx += z0*x0; Sx += x0;
+	    
+	    Szy += z0*y0; Sy += y0;
+	    
+	    ntot++;
+	    	    
+	  }
+	
+	else if ( dr1>=seg_size )
+	  {
+	    // ..
+	    
+	    // cout << " 2 " << endl;
+	    
+	    Double_t t = 0.0;
+	    	    
+	    Double_t dx = x1-x0; Double_t dy = y1-y0; Double_t dz = z1-z0;
+	    	    
+	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
+	    
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; getchar(); }
+	    
+	    if ( dr!=0 ) t = seg_size/dr;
+	    	    	    
+	    Double_t xp = x0+t*dx;
+	    
+	    Double_t yp = y0+t*dy;
+	    
+	    Double_t zp = z0+t*dz;
+	    	    	    	    
+	    segx->push_back( xp ); segy->push_back( yp ); segz->push_back( zp );
+	    
+	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
+	    	    
+	    x0 = xp; y0 = yp; z0 = zp;
+	    
+	    i=( i-1 );
+	    
+	    // ..
+	    
+	    Sz += z0; Szz += z0*z0;
+	    
+	    Szx += z0*x0; Sx += x0;
+	    
+	    Szy += z0*y0; Sy += y0;
+	    
+	    ntot++;
+	    
+	    Double_t ax = ( Szx*ntot-Sz*Sx )/( Szz*ntot-Sz*Sz );
+	      
+	    Double_t ay = ( Szy*ntot-Sz*Sy )/( Szz*ntot-Sz*Sz );
+	    
+	    segnx->push_back( ax ); segny->push_back( ay ); segnz->push_back( 1.0 );
+	    
+	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
+	    
+	    // cout << angx*0.001*180.0/3.14 << endl;
+	    
+	    Sz = 0; Szz = 0; 
+	    
+	    Szx = 0; Sx = 0; 
+	    
+	    Szy = 0; Sy = 0;
+	    
+	    Sz += z0; Szz += z0*z0;
+	     
+	    Szx += z0*x0; Sx += x0;
+	    
+	    Szy += z0*y0; Sy += y0;
+	    
+	    ntot++;
+	    	    
+	  }
+	
+	if ( n_seg>=( stopper+1.0 ) && stop!=-1 ) break;
+	
+      }
+        
+    gr_seg_xyz = new TPolyLine3D( n_seg, z_seg, x_seg, y_seg );
+    
+    gr_seg_yz = new TGraph( n_seg, z_seg, y_seg ); gr_seg_xz = new TGraph( n_seg, z_seg, x_seg ); gr_seg_xy = new TGraph( n_seg, x_seg, y_seg );
+    
+    cout << " - Segmented tracks generated ! Segment size : " << seg_size << " cm " << endl;
+    
+    cout << "" << endl;
+    
     return 0;
     
   }
@@ -143,6 +353,8 @@ namespace trkf{
     
     std::vector<Float_t> *recoZ = new std::vector<Float_t>; recoZ->clear();
         
+    steps->clear();
+    
     for ( Int_t i=1; i<=nsteps; i++ ) { steps->push_back( do_steps*i ); }
     
     Double_t L = trk->Length( 0 ); 
@@ -163,15 +375,15 @@ namespace trkf{
     
     seg_size = do_steps;
     
-    Int_t ch = get_seg_tracks( recoX, recoY, recoZ );
+    Int_t ch = GetSegTracks( recoX, recoY, recoZ );
     
     if ( ch!=0 ) return -1.0;
     
-    // Int_t seg_steps = multitools::segx->size();
+    Int_t seg_steps = segx->size();
     
-    // Int_t seg_steps0 = seg_steps-1;
+    Int_t seg_steps0 = seg_steps-1;
     
-    // Double_t recoL = seg_steps0*multitools::seg_size;
+    Double_t recoL = seg_steps0*seg_size; cout << recoL << endl;
         
     delete recoX; delete recoY; delete recoZ; 
     
