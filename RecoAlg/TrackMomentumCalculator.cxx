@@ -3,7 +3,6 @@
 // \author sowjanyag@phys.ksu.edu  
 
 #include "RecoAlg/TrackMomentumCalculator.h"
-#include "TMath.h"
 
 namespace trkf{ 
  
@@ -112,4 +111,76 @@ namespace trkf{
 	     			  
     return ProtonKE;
   }*/
+    
+  
+  // MultiScatter business ...
+  
+  // Author: Leonidas N. Kalousis (August 2014)
+  
+  Double_t do_steps = 5.0; Int_t nsteps = 9; 
+  
+  std::vector<Float_t> *steps = new std::vector<Float_t>; 
+  
+  Int_t TrackMomentumCalculator::get_seg_tracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz )
+  {
+    Int_t a1 = xxx->size(); Int_t a2 = yyy->size(); Int_t a3 = zzz->size();
+    
+    if ( ( a1!=a2 ) || ( a1!=a3 ) || ( a2!=a3 ) ) { cout << " ( Digitize reco tacks ) Error ! " << endl; return -1; }
+   
+    return 0;
+    
+  }
+  
+  Double_t TrackMomentumCalculator::GetMultiScatterChi2( recob::Track *trk )
+  {
+    cout << " Nothing will come of nothing, speak again ! " << endl;
+    
+    Double_t p = -1.0; 
+    
+    std::vector<Float_t> *recoX = new std::vector<Float_t>; recoX->clear();
+    
+    std::vector<Float_t> *recoY = new std::vector<Float_t>; recoY->clear();
+    
+    std::vector<Float_t> *recoZ = new std::vector<Float_t>; recoZ->clear();
+        
+    for ( Int_t i=1; i<=nsteps; i++ ) { steps->push_back( do_steps*i ); }
+    
+    Double_t L = trk->Length( 0 ); 
+    
+    if ( L==0.0 ) return -1.0;
+    
+    Int_t npoints = trk->NumberTrajectoryPoints();
+        
+    for ( Int_t i=0; i<npoints; i++ )
+      {
+	const TVector3 &muP = trk->LocationAtPoint( i );
+	
+	recoX->push_back( muP.X() ); recoY->push_back( muP.Y() ); recoZ->push_back( muP.Z() ); 
+	
+	// cout << " muX, Y, Z : " << muP.X() << ", " << muP.Y() << ", " << muP.Z() << endl;
+	
+      }
+    
+    seg_size = do_steps;
+    
+    Int_t ch = get_seg_tracks( recoX, recoY, recoZ );
+    
+    if ( ch!=0 ) return -1.0;
+    
+    // Int_t seg_steps = multitools::segx->size();
+    
+    // Int_t seg_steps0 = seg_steps-1;
+    
+    // Double_t recoL = seg_steps0*multitools::seg_size;
+        
+    delete recoX; delete recoY; delete recoZ; 
+    
+    cout << " Speak again ! " << endl;
+        
+    return p;
+        
+  }
+  
+
+  
 } // namespace track
