@@ -108,15 +108,16 @@ void cluster::fuzzyClusterAlg::reconfigure(fhicl::ParameterSet const& p)
   fEpsilon                        = p.get< double >("Epsilon");
   fKNN                            = p.get< double >("KNN");
   fDistanceMetric                 = p.get< int    >("DistanceMetric");
+  fThreshold                      = p.get< double >("Threshold");
 
-  fDoFuzzyRemnantMerge            = p.get< int    >("DoFuzzyRemnantMerge"            );
+  fDoFuzzyRemnantMerge            = p.get< bool   >("DoFuzzyRemnantMerge"            );
   fFuzzyRemnantMergeCutoff        = p.get< double >("FuzzyRemnantMergeCutoff"        );
-  fDoTrackClusterMerge            = p.get< int    >("DoTrackClusterMerge"            );
+  fDoTrackClusterMerge            = p.get< bool   >("DoTrackClusterMerge"            );
   fTrackClusterMergeCutoff        = p.get< double >("TrackClusterMergeCutoff"        );
   fChargeAsymAngleCut             = p.get< double >("ChargeAsymAngleCut"             );
   fSigmaChargeAsymAngleCut        = p.get< double >("SigmaChargeAsymAngleCut"        );
-  fDoShowerClusterMerge           = p.get< int    >("DoShowerClusterMerge"           );
-  fDoShowerTrackClusterMerge      = p.get< int    >("DoShowerTrackClusterMerge"      );
+  fDoShowerClusterMerge           = p.get< bool   >("DoShowerClusterMerge"           );
+  fDoShowerTrackClusterMerge      = p.get< bool   >("DoShowerTrackClusterMerge"      );
   fShowerClusterMergeCutoff       = p.get< double >("ShowerClusterMergeCutoff"       );
   fShowerClusterMergeAngle        = p.get< double >("ShowerClusterMergeAngle"        );
   fShowerTrackClusterMergeCutoff  = p.get< double >("ShowerTrackClusterMergeCutoff"  );
@@ -219,7 +220,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
 
   // Detecting Cluster Supporting Objects ...
   //Flame_DefineSupports( flame, 10, -2.0 );
-  Flame_DefineSupports( flame, fKNN, -2.0 );
+  Flame_DefineSupports( flame, fKNN, fThreshold);
 
   // Propagating FLAME memberships ... 
   Flame_LocalApproximation( flame, fIterations, fEpsilon);

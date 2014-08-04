@@ -134,6 +134,7 @@ standard_fuzzyclusteralg:
   Iterations:     10   # The maximum number of iterations to try, needed for fuzzy clustering, was 10
   Epsilon:        1e-6 # The limit in the difference between memberships when FLAME clustering stops 
   KNN:           500
+  Threshold:     -2.0 # Sets the threshold parameter in FLAME cluster, it effectively sets a lower limit on hit density for whether a hit is considered part of a cluster or an outlier
   DistanceMetric: 2
   HoughBaseAlg:{
     MaxLines:             10
@@ -150,19 +151,19 @@ standard_fuzzyclusteralg:
     MissedHitsDistance:       1.0  # 
     MissedHitsToLineSize:     0.5    # Was set to 0
   }
-  DoFuzzyRemnantMerge:      1    # Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
+  DoFuzzyRemnantMerge:      true # Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
   FuzzyRemnantMergeCutoff: 20    # Cut off on distance from hough line to hit in the remnant of the fuzzy cluster
   
-  DoTrackClusterMerge:     1  # Turns on merging of track-like Hough lines (0-off, 1-on)
+  DoTrackClusterMerge:     true # Turns on merging of track-like Hough lines (0-off, 1-on)
   ChargeAsymAngleCut:        0.1 # Cut on product of charge asymmetry and the square of the sin of angle between slopes of lines, only for track-like
   SigmaChargeAsymAngleCut:   1.0  # Cut on product of charge sigma asymmetry and the sin of angle between slopes of lines, only for track-like
   TrackClusterMergeCutoff: 5.0 # The maximum distance between track-like Hough line endpoints before they can be merged,
   
-  DoShowerClusterMerge:     1    # Turns on merging of shower-like Hough line (0-off, 1-on)
+  DoShowerClusterMerge:     true # Turns on merging of shower-like Hough line (0-off, 1-on)
   ShowerClusterMergeAngle: 30    # The maximum angle between slopes of shower-like lines to be merged,
   ShowerClusterMergeCutoff:  7.5 # The maximum distance between shower-like line endpoints before they can be merged,
 
-  DoShowerTrackClusterMerge:     1    # Turns on merging of shower-like and track-like lines (0-off, 1-on)
+  DoShowerTrackClusterMerge:     true # Turns on merging of shower-like and track-like lines (0-off, 1-on)
   ShowerTrackClusterMergeAngle:  15   # The maximum angle between slopes of shower-like and track-like lines to be merged,
   ShowerTrackClusterMergeCutoff: 7.5  # The maximum distance between shower-like and track-like line endpoints before they can be merged,
   ShowerLikenessCut:       0.5   # Cut on shower likeness (the larger the more shower like, the smaller the less shower like)

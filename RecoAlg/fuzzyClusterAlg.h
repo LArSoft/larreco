@@ -283,24 +283,25 @@ namespace cluster{
     int fIterations;
     // The limit in the difference between memberships when FLAME clustering stops
     double fEpsilon;
-    
+    // Sets the threshold parameter in FLAME cluster, it effectively sets a lower limit on hit density for whether a hit is considered part of a cluster or an outlier
+    double fThreshold; 
 
 
 
 
-    int    fDoFuzzyRemnantMerge;           ///< Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
+    bool fDoFuzzyRemnantMerge;           ///< Tell the algorithm to merge fuzzy cluster remnants into showers or tracks 
     double  fFuzzyRemnantMergeCutoff;       ///< cut off on merging the fuzzy cluster remnants into the nearest shower or track 
 
-    int    fDoTrackClusterMerge;           ///< Turn on cut on product of charge asymmetry and sin of angle between slopes of lines
+    bool fDoTrackClusterMerge;           ///< Turn on cut on product of charge asymmetry and sin of angle between slopes of lines
     double  fTrackClusterMergeCutoff;          ///< Max distance between Hough lines before two lines are merged (muon tracks), 
     double  fChargeAsymAngleCut;            ///< Cut on product of charge asymmetry and sin of angle between slopes of lines
     double  fSigmaChargeAsymAngleCut;       ///< Cut on product of charge asymmetry and sin of angle between slopes of lines
   
-    int    fDoShowerClusterMerge;          ///< Turns on shower Hough line merging (0-off, 1-on)
+    bool fDoShowerClusterMerge;          ///< Turns on shower Hough line merging (0-off, 1-on)
     double  fShowerClusterMergeAngle;       ///< Max angle between slopes before two lines are merged, for lines in shower line regions
     double  fShowerClusterMergeCutoff;    ///< Max distance between Hough lines before two lines are merged (electron showers),
 
-    int    fDoShowerTrackClusterMerge;     ///< Turn on cut on product of charge asymmetry and sin of angle between slopes of lines
+    bool fDoShowerTrackClusterMerge;     ///< Turn on cut on product of charge asymmetry and sin of angle between slopes of lines
     double  fShowerTrackClusterMergeCutoff;    ///< Max distance between Hough lines before two lines are merged (electron showers),
     double  fShowerTrackClusterMergeAngle;  ///< Max angle between slopes before two lines are merged, for lines in shower line regions
     
