@@ -125,7 +125,7 @@ namespace trkf{
     
     Double_t theta0 = x[1]; 
     
-    // xmeas[10000]; Double_t ymeas[10000]; Double_t eymeas[10000]; Int_t nxy;
+    // xmeas[10000]; Double_t ymeas[10000]; Double_t eymeas[10000]; Int_t n_gr;
     
     for ( Int_t i=0; i<n_gr; i++ )
       {
@@ -158,7 +158,7 @@ namespace trkf{
     return result;
     
   }
-        
+  
   Int_t TrackMomentumCalculator::GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz )
   {
     Int_t a1 = xxx->size(); Int_t a2 = yyy->size(); Int_t a3 = zzz->size();
@@ -470,14 +470,14 @@ namespace trkf{
     // c1->Update();
     
     // c1->WaitPrimitive();
-        
+    
     ROOT::Minuit2::Minuit2Minimizer *mP = new ROOT::Minuit2::Minuit2Minimizer( );
     
-    ROOT::Math::Functor FCA( &TrackMomentumCalculator::MyMCSChi2, 2 );
+    ROOT::Math::Functor FCA( &trkf::TrackMomentumCalculator::MyMCSChi2, 2 ); 
     
     mP->SetFunction( FCA );
     
-    mP->SetLimitedVariable( 0, "p", 1.0, 0.001, 0.001, 7.5 ); 
+    mP->SetLimitedVariable( 0, "p_{reco}", 1.0, 0.001, 0.001, 7.5 ); 
     	      
     mP->SetLimitedVariable( 1, "#delta#theta_{0}", 0.0, 1.0, 0, 500.0 );
     	      
@@ -490,7 +490,7 @@ namespace trkf{
     mP->SetStrategy( 2 );
     
     mP->SetErrorDef( 1.0 );
-    
+    /*
     mP->Minimize();
     
     mP->Hesse();
@@ -500,7 +500,7 @@ namespace trkf{
     // const double *erpars = mP->Errors(); 
     
     delete mP;
-    
+    */
     delete recoX; delete recoY; delete recoZ; 
     
     cout << " Speak again ! " << endl;

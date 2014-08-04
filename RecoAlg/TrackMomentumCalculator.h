@@ -79,9 +79,9 @@ namespace trkf{
      Double_t seg_size; Double_t stop; Int_t n_seg;
 
      Double_t x_seg[100000]; Double_t y_seg[100000]; Double_t z_seg[100000];
-
+     
      TPolyLine3D *gr_seg_xyz; TGraph *gr_seg_xy; TGraph *gr_seg_yz; TGraph *gr_seg_xz; 
-  
+     
      std::vector<Float_t> *segx; std::vector<Float_t> *segy; std::vector<Float_t> *segz; 
      
      std::vector<Float_t> *segnx; std::vector<Float_t> *segny; std::vector<Float_t> *segnz;
