@@ -40,7 +40,7 @@ gaus_hitfinder:
  IndMinWidth:          4.0              # Induction Hit width threshold
  ColMinWidth:          6.0              # Collection hit width threshold
  MaxMultiHit:          10                # maximum hits for multi fit   
- AreaMethod:           1                # 0 = area by integral, 1 = area by gaussian area formula
+ AreaMethod:           0                # 0 = area by integral, 1 = area by gaussian area formula
  AreaNorms:            [ 13.25, 26.31 ] # normalizations that put signal area in 
                                         # same scale as peak height. 
  TryNplus1Fits:        0		# 0 = will try to re-fit poorly modled hits with n+1 gaussians
