@@ -157,6 +157,8 @@ namespace trkf{
   
   // Author: Leonidas N. Kalousis (August 2014)
   
+  // Email: kalousis@vt.edu
+  
   Int_t TrackMomentumCalculator::GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz )
   {
     Int_t a1 = xxx->size(); Int_t a2 = yyy->size(); Int_t a3 = zzz->size();

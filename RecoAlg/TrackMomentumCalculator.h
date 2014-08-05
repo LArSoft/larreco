@@ -82,10 +82,6 @@ namespace trkf{
      
      double GetTrackMomentum(double trkrange, int pdg);
           
-     // MultiScatter business ...
-     
-     // Author: Leonidas N. Kalousis (August 2014)
-     
      Double_t do_steps; 
      
      Int_t nsteps; std::vector<Float_t> *steps;
