@@ -62,6 +62,26 @@ namespace trkf{
 	 
 	 do_steps2 = 10.0;
 	 
+	 mP = new ROOT::Minuit2::Minuit2Minimizer( );
+	 /*
+	 ROOT::Math::Functor FCA( &MyMCSChi2, 2 ); 
+	 	 
+	 mP->SetFunction( FCA );
+	 
+	 mP->SetLimitedVariable( 0, "p_{reco}", 1.0, 0.001, 0.001, 7.5 ); 
+	 
+	 mP->SetLimitedVariable( 1, "#delta#theta_{0}", 0.0, 1.0, 0, 500.0 );
+	 
+	 mP->SetMaxFunctionCalls( 1.E9 );
+	 
+	 mP->SetMaxIterations( 1.E9 );
+	 
+	 mP->SetTolerance( 0.01 );
+	 
+	 mP->SetStrategy( 2 );
+	 
+	 mP->SetErrorDef( 1.0 );
+	 */	 
        }
      
      virtual ~TrackMomentumCalculator() {}
@@ -77,7 +97,7 @@ namespace trkf{
      Int_t nsteps; std::vector<Float_t> *steps;
      
      Double_t seg_size; Double_t stop; Int_t n_seg;
-
+     
      Double_t x_seg[100000]; Double_t y_seg[100000]; Double_t z_seg[100000];
      
      TPolyLine3D *gr_seg_xyz; TGraph *gr_seg_xy; TGraph *gr_seg_yz; TGraph *gr_seg_xz; 
@@ -89,13 +109,15 @@ namespace trkf{
      Double_t xmeas[100]; Double_t ymeas[100]; Double_t eymeas[100]; Int_t n_gr;
      
      TGraphErrors *gr_meas;
-
+     
+     ROOT::Minuit2::Minuit2Minimizer *mP;
+          
+     double MyMCSChi2( const double *x );
+     
      Int_t GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz );
      
      void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
-     
-     double MyMCSChi2( const double *x );
-     
+          
      Double_t GetMomentumMultiScatterChi2( art::Ptr<recob::Track> &trk );
      
      Double_t do_steps2; 

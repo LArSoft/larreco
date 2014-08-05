@@ -5,7 +5,7 @@
 #include "RecoAlg/TrackMomentumCalculator.h"
 
 namespace trkf{ 
- 
+  
   double TrackMomentumCalculator::GetTrackMomentum(double trkrange, int pdg) 
   {
    
@@ -124,9 +124,7 @@ namespace trkf{
     Double_t p = x[0]; 
     
     Double_t theta0 = x[1]; 
-    
-    // xmeas[10000]; Double_t ymeas[10000]; Double_t eymeas[10000]; Int_t n_gr;
-    
+        
     for ( Int_t i=0; i<n_gr; i++ )
       {
 	Double_t xx = xmeas[i]; 
@@ -471,25 +469,7 @@ namespace trkf{
     
     // c1->WaitPrimitive();
     
-    ROOT::Minuit2::Minuit2Minimizer *mP = new ROOT::Minuit2::Minuit2Minimizer( );
     
-    ROOT::Math::Functor FCA( &trkf::TrackMomentumCalculator::MyMCSChi2, 2 ); 
-    
-    mP->SetFunction( FCA );
-    
-    mP->SetLimitedVariable( 0, "p_{reco}", 1.0, 0.001, 0.001, 7.5 ); 
-    	      
-    mP->SetLimitedVariable( 1, "#delta#theta_{0}", 0.0, 1.0, 0, 500.0 );
-    	      
-    mP->SetMaxFunctionCalls( 1.E9 );
-    
-    mP->SetMaxIterations( 1.E9 );
-    
-    mP->SetTolerance( 0.01 );
-    
-    mP->SetStrategy( 2 );
-    
-    mP->SetErrorDef( 1.0 );
     /*
     mP->Minimize();
     
@@ -508,7 +488,6 @@ namespace trkf{
     return p;
         
   }
-  
 
   
 } // namespace track
