@@ -156,7 +156,7 @@ namespace trkf{
   // MultiScatter business ...
   
   // Author: Leonidas N. Kalousis (August 2014)
-    
+  
   Int_t TrackMomentumCalculator::GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz )
   {
     Int_t a1 = xxx->size(); Int_t a2 = yyy->size(); Int_t a3 = zzz->size();
@@ -475,7 +475,7 @@ namespace trkf{
 		
 		Double_t here_dy = segny->at( j );
 		
-		Double_t here_dz = segnz->at( i );
+		Double_t here_dz = segnz->at( j );
 		
 		std::vector<Double_t> here_vec;
 		
