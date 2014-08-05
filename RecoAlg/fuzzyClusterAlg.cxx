@@ -104,11 +104,11 @@ cluster::fuzzyClusterAlg::~fuzzyClusterAlg()
 //----------------------------------------------------------
 void cluster::fuzzyClusterAlg::reconfigure(fhicl::ParameterSet const& p)
 {
-  fIterations                     = p.get< int    >("Iterations");
-  fEpsilon                        = p.get< double >("Epsilon");
-  fKNN                            = p.get< double >("KNN");
-  fDistanceMetric                 = p.get< int    >("DistanceMetric");
-  fThreshold                      = p.get< double >("Threshold");
+  fIterations                     = p.get< int    >("Iterations"                     );
+  fEpsilon                        = p.get< double >("Epsilon"                        );
+  fKNN                            = p.get< double >("KNN"                            );
+  fDistanceMetric                 = p.get< int    >("DistanceMetric"                 );
+  fThreshold                      = p.get< double >("Threshold"                      );
 
   fDoFuzzyRemnantMerge            = p.get< bool   >("DoFuzzyRemnantMerge"            );
   fFuzzyRemnantMergeCutoff        = p.get< double >("FuzzyRemnantMergeCutoff"        );
@@ -123,8 +123,9 @@ void cluster::fuzzyClusterAlg::reconfigure(fhicl::ParameterSet const& p)
   fShowerTrackClusterMergeCutoff  = p.get< double >("ShowerTrackClusterMergeCutoff"  );
   fShowerTrackClusterMergeAngle   = p.get< double >("ShowerTrackClusterMergeAngle"   );
   fShowerLikenessCut              = p.get< double >("ShowerLikenessCut"              );
-  fMaxVertexLines                 = p.get< int   >("MaxVertexLines"                 );
+  fMaxVertexLines                 = p.get< int    >("MaxVertexLines"                 );
   fVertexLinesCutoff              = p.get< double >("VertexLinesCutoff"              );
+  fRunHough                       = p.get< bool   >("RunHough"                       );
   fHBAlg.reconfigure(p.get< fhicl::ParameterSet >("HoughBaseAlg"));
 }
 
@@ -157,13 +158,11 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   // Collect the hits in a useful form,
   // and take note of the maximum time width
   fMaxWidth=0.0;
-  //fpsMat = TMatrixT<double>(allhits.size(),2);
-  //fpsMembership = TMatrixT<double>(iNumClusters, allhits.size());
-  fpsMat.ResizeTo(allhits.size(),2);
   
   NNumOfRows = allhits.size();
   MNumOfCols = 2;
-  data = (double**) malloc(NNumOfRows * sizeof(double*) );
+  //data = (double**) malloc(NNumOfRows * sizeof(double*) );
+  data.resize(allhits.size());
 
 
   double tickToDist = larp->DriftVelocity(larp->Efield(),larp->Temperature());
@@ -172,9 +171,6 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   std::vector<double> p(dims);
   for (auto allhitsItr = allhits.begin(); allhitsItr < allhits.end(); allhitsItr++){
         
-    //    p[0] = ((*allhitsItr)->Channel())*fGeom->WirePitch(fGeom->View((*allhitsItr)->Channel()));
-    //    std::cout << "plane " << (*allhitsItr)->WireID().Plane << "  pitch " << fWirePitch[(*allhitsItr)->WireID().Plane]
-    //	      << std::endl;
     p[0] = ((*allhitsItr)->WireID().Wire)*fWirePitch[(*allhitsItr)->WireID().Plane];
     p[1] = (((*allhitsItr)->StartTime()+(*allhitsItr)->EndTime()  )/2.)*tickToDist;
     p[2] = (*allhitsItr)->Charge();   //width of a hit in cm
@@ -184,15 +180,11 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
     
     fps.push_back(p);
 
-    // Store hits in the matrix needed for FLAME clustering
-    fpsMat(allhitsItr-allhits.begin(),0) = p[0];
-    fpsMat(allhitsItr-allhits.begin(),1) = p[1];
+    data[allhitsItr-allhits.begin()].resize(MNumOfCols);
 
-    data[allhitsItr-allhits.begin()] = (double*) malloc( MNumOfCols * sizeof(double*) );
-    //data[allhitsItr-allhits.begin()][0] = ((*allhitsItr)->Channel())*fGeom->WirePitch(fGeom->View((*allhitsItr)->Channel()));
     data[allhitsItr-allhits.begin()][0] = ((*allhitsItr)->WireID().Wire)*fWirePitch[(*allhitsItr)->WireID().Plane];
     data[allhitsItr-allhits.begin()][1] = (((*allhitsItr)->StartTime()+(*allhitsItr)->EndTime()  )/2.)*tickToDist;
-    //data[allhitsItr-allhits.begin()][3] = (*allhitsItr)->Charge();
+    
   }
 
   mf::LogInfo("fuzzyCluster") << "Initfuzzy: hits vector size is " << fps.size();
@@ -212,21 +204,26 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
   if(allhits.size() <= 1)
     return;
 
-  Flame *flame;
-  flame = Flame_New();
+  Flame flame;
 
   // Setup data matrix
-  Flame_SetDataMatrix(flame, data, NNumOfRows, MNumOfCols, fDistanceMetric);
+  // This is slow
+  flame.Flame_SetDataMatrix(&data, NNumOfRows, MNumOfCols, fDistanceMetric);
 
   // Detecting Cluster Supporting Objects ...
-  //Flame_DefineSupports( flame, 10, -2.0 );
-  Flame_DefineSupports( flame, fKNN, fThreshold);
+  flame.Flame_DefineSupports( fKNN, fThreshold);
 
   // Propagating FLAME memberships ... 
-  Flame_LocalApproximation( flame, fIterations, fEpsilon);
+  // This is slow
+  flame.Flame_LocalApproximation( fIterations, fEpsilon);
 
   // Defining clusters from FLAME memberships ... 
-  Flame_MakeClusters( flame, -1.0 );
+  flame.Flame_MakeClusters(-1.0 );
+
+
+
+
+
 
 
 
@@ -272,16 +269,16 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
       indcolscaling = 1.;
     
 
-    unsigned int cid = flame->cso_count+1;
+    unsigned int cid = flame.cso_count+1;
     
   // Loop over clusters 
-    for (int i = 0; i<= flame->cso_count; i++){
+    for (int i = 0; i<= flame.cso_count; i++){
       // Loop over hits in cluster
-      for (int j=0; j < flame->clusters[i].size; j++){
-	if(i == flame->cso_count)
-	  fpointId_to_clusterId[flame->clusters[i].array[j]] = kNOISE_CLUSTER;
+      for (unsigned int j=0; j < flame.clusters[i].size(); j++){
+	if(i == flame.cso_count)
+	  fpointId_to_clusterId[flame.clusters[i][j]] = kNOISE_CLUSTER;
 	else
-	  fpointId_to_clusterId[flame->clusters[i].array[j]] = i;
+	  fpointId_to_clusterId[flame.clusters[i][j]] = i;
       }
     }
     
@@ -291,7 +288,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
   // Loop over clusters with the Hough line finder to break the clusters up further
   // list of lines
   std::vector<protoTrack> protoTracksFound;
-  if(nClustersTemp > 0)
+  if(nClustersTemp > 0 && fRunHough)
     for (unsigned int i = 0; i <= (unsigned int)nClustersTemp-1; ++i){
       fHBAlg.Transform(allhits, &fpointId_to_clusterId, i, &nClusters, &protoTracksFound);
     }
@@ -1435,370 +1432,6 @@ bool cluster::fuzzyClusterAlg::mergeShowerClusters(unsigned int clusIndexStart,
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Merges based on the distance between line segments
-void cluster::fuzzyClusterAlg::mergeHoughLinesBySegment(unsigned int clusIndexStart,
-						     std::vector<protoTrack> *tracksFound,
-						     double xyScale,
-                                                     int mergeStyle,
-                                                     double wire_dist,
-                                                     double tickToDist)
-{
-
-
-
-  // If we have zero or one Hough lines, move on 
-  if(tracksFound->size() == 0 || tracksFound->size() == 1)
-    return;
-
-  // If a merge happened, trigger this function again to look at this cluster again!
-  bool lineMerged = false;
-
-  // If we reach the last Hough line, move on 
-  if(tracksFound->size() == clusIndexStart+1)
-    return;
-
-  // Min to merge
-  std::vector<unsigned int> toMerge; 
-  std::vector<double> mergeSlope;
-  std::vector<double> mergeTheta;
-
-  // Check if segments are close enough
-  for(auto tracksFoundToMergeItr = tracksFound->begin(); tracksFoundToMergeItr != tracksFound->end(); ++tracksFoundToMergeItr){
-    if(tracksFound->at(clusIndexStart).clusterNumber == tracksFoundToMergeItr->clusterNumber)
-      continue;
-    double segmentDistance = HoughLineDistance(tracksFound->at(clusIndexStart).pMin0,tracksFound->at(clusIndexStart).pMin1,
-                                               tracksFound->at(clusIndexStart).pMax0,tracksFound->at(clusIndexStart).pMax1, 
-      					       tracksFoundToMergeItr->pMin0,tracksFoundToMergeItr->pMin1,
-                                               tracksFoundToMergeItr->pMax0,tracksFoundToMergeItr->pMax1);
-    if( (segmentDistance<fTrackClusterMergeCutoff && mergeStyle == iMergeNormal) 
-        || (segmentDistance<fShowerClusterMergeCutoff && (mergeStyle == iMergeShower || mergeStyle == iMergeShowerIntercept))
-        || (segmentDistance<fTrackClusterMergeCutoff && mergeStyle == iMergeChargeAsymAngle))
-    {
-      //std::cout << std::endl;
-      //std::cout << tracksFoundClusIndStItr->minWire << " " << tracksFoundClusIndStItr->maxWire << std::endl;
-      //std::cout << tracksFoundToMergeItr->minWire << " " << tracksFoundToMergeItr->maxWire << std::endl;
-      //std::cout << segmentDistance << std::endl;
-      toMerge.push_back(tracksFoundToMergeItr-tracksFound->begin());
-      mergeSlope.push_back(tracksFound->at(clusIndexStart).clusterSlope*xyScale);
-    }
-  }
-
-  mergeTheta.resize(toMerge.size());
-
-  // Find the angle between the slopes
-  for(auto mergeThetaItr = mergeTheta.begin(); mergeThetaItr != mergeTheta.end(); ++mergeThetaItr){
-    double toMergeSlope = tracksFound->at(toMerge[mergeThetaItr-mergeTheta.begin()]).clusterSlope*xyScale;
-    mergeTheta[mergeThetaItr-mergeTheta.begin()] = atan(std::abs(( toMergeSlope - mergeSlope[mergeThetaItr-mergeTheta.begin()])/(1 + toMergeSlope*mergeSlope[mergeThetaItr-mergeTheta.begin()] )))*(180/TMath::Pi());
-    //std::cout << std::endl;
-    //std::cout << "toMergeSlope: " << toMergeSlope/xyScale<< " mergeSlope[clusIndexStart]: " << mergeSlope[mergeThetaItr-mergeTheta.begin()]/tickToDist << std::endl;
-    //std::cout << "mergeTheta: " << mergeTheta[mergeThetaItr-mergeTheta.begin()] << std::endl;
-  }
-
-  // Perform the merge
-  for(auto toMergeItr = toMerge.begin(); toMergeItr != toMerge.end(); ++toMergeItr){
-    if(  
-        (mergeTheta[toMergeItr-toMerge.begin()] < fShowerClusterMergeAngle && mergeStyle == iMergeShower)
-        || mergeStyle == iMergeShowerIntercept
-        || mergeStyle == iMergeChargeAsymAngle){
-     
-
-      // First check averages of charge and sigma charge for hits in lines closest to each other
-      int closestToMerge=-1;
-      int closestClusIndexStart=-1;
-      double closestDistance=999999;
-      for (auto toMergeHitItr = tracksFound->at(*toMergeItr).hits.begin(); toMergeHitItr != tracksFound->at(*toMergeItr).hits.end(); ++toMergeHitItr) {
-        for (auto clusIndStHitItr = tracksFound->at(clusIndexStart).hits.begin(); clusIndStHitItr != tracksFound->at(clusIndexStart).hits.end(); ++clusIndStHitItr) {
-          //double distance = std::sqrt(pow(clusIndStHitItr->first-(*toMergeHitItr).first,2)+
-                    //pow(clusIndStHitItr->second-toMergeHitItr->second,2));
-          double distance = DistanceBetweenHits(*clusIndStHitItr,
-                                                *toMergeHitItr,
-                                                wire_dist,
-                                                tickToDist);
-          if(distance < closestDistance){
-            closestDistance = distance;
-            closestToMerge=toMergeHitItr-tracksFound->at(*toMergeItr).hits.begin();
-            closestClusIndexStart=clusIndStHitItr-tracksFound->at(clusIndexStart).hits.begin();
-          }
-        }
-      }
-
-      // Find up to 9 more points closest to closestToMerge on the toMerge[i] line
-      // check if it's closer, insert, delete
-      std::vector<std::pair<int,double> > closestToMergeDist;
-      for (auto toMergeHitItr = tracksFound->at(*toMergeItr).hits.begin(); toMergeHitItr != tracksFound->at(*toMergeItr).hits.end(); ++toMergeHitItr) {
-        if(closestToMerge==toMergeHitItr-tracksFound->at(*toMergeItr).hits.begin())
-          continue;
-          double distance = DistanceBetweenHits(tracksFound->at(clusIndexStart).hits[closestClusIndexStart],
-                                                *toMergeHitItr,
-                                                wire_dist,
-                                                tickToDist);
-
-        bool foundCloser = false;
-        for(auto closestToMergeDistItr = closestToMergeDist.begin(); closestToMergeDistItr != closestToMergeDist.end(); ++closestToMergeDistItr) {
-          if(closestToMergeDistItr->second > distance){
-            foundCloser = true;
-            break;
-          }
-        }
-        if(foundCloser 
-            || closestToMergeDist.size() < tracksFound->at(*toMergeItr).hits.size()-1
-            || closestToMergeDist.size() < 9){
-          closestToMergeDist.push_back(std::make_pair(toMergeHitItr-tracksFound->at(*toMergeItr).hits.begin(),distance));
-          std::sort(closestToMergeDist.begin(), closestToMergeDist.end(), boost::bind(&std::pair<int,double>::second,_1) < boost::bind(&std::pair<int,double>::second,_2));
-        }
-        if(closestToMergeDist.size() > tracksFound->at(*toMergeItr).hits.size()-1 ||
-          closestToMergeDist.size() > 9)
-          closestToMergeDist.erase(closestToMergeDist.end());
-      }
-      //for(auto closestToMergeDistItr = closestToMergeDist.begin(); closestToMergeDistItr != closestToMergeDist.end();
-        //closestToMergeDistItr++) 
-        //std::cout << closestToMergeDistItr->first << " " << closestToMergeDistItr->second << std::endl;
-
-
-
-      // Find up to 9 more points closest to closestToMerge on the clusIndexStart line
-      std::vector<std::pair<int,double> > closestClusIndexStartDist;
-      for (auto clusIndexStartHitItr = tracksFound->at(clusIndexStart).hits.begin(); clusIndexStartHitItr != tracksFound->at(clusIndexStart).hits.end(); ++clusIndexStartHitItr) {
-        if(closestClusIndexStart==clusIndexStartHitItr-tracksFound->at(clusIndexStart).hits.begin())
-          continue;
-
-        double distance = DistanceBetweenHits(*clusIndexStartHitItr,
-                                              tracksFound->at(*toMergeItr).hits[closestToMerge],
-                                              wire_dist,
-                                              tickToDist);
-
-        bool foundCloser = false;
-        for(auto closestClusIndexStartDistItr = closestClusIndexStartDist.begin(); closestClusIndexStartDistItr != closestClusIndexStartDist.end(); ++closestClusIndexStartDistItr) {
-          if(closestClusIndexStartDistItr->second > distance){
-            foundCloser = true;
-            break;
-          }
-        }
-        if(foundCloser 
-            || closestClusIndexStartDist.size() < tracksFound->at(clusIndexStart).hits.size()-1
-            || closestClusIndexStartDist.size() < 9){
-          closestClusIndexStartDist.push_back(std::make_pair(clusIndexStartHitItr-tracksFound->at(clusIndexStart).hits.begin(),distance));
-          std::sort(closestClusIndexStartDist.begin(), closestClusIndexStartDist.end(), boost::bind(&std::pair<int,double>::second,_1) < boost::bind(&std::pair<int,double>::second,_2));
-        }
-        if(closestClusIndexStartDist.size() > tracksFound->at(clusIndexStart).hits.size()-1 ||
-          closestClusIndexStartDist.size() > 9)
-          closestClusIndexStartDist.erase(closestClusIndexStartDist.end());
-     }
-
-
-
-      double toMergeAveCharge = tracksFound->at(*toMergeItr).hits[closestToMerge]->Charge();
-      double toMergeAveSigmaCharge = tracksFound->at(*toMergeItr).hits[closestToMerge]->SigmaCharge();
-      for(auto closestToMergeDistItr = closestToMergeDist.begin(); closestToMergeDistItr != closestToMergeDist.end(); ++closestToMergeDistItr) {
-        toMergeAveCharge+=tracksFound->at(*toMergeItr).hits[closestToMergeDistItr->first]->Charge();
-        toMergeAveSigmaCharge+=tracksFound->at(*toMergeItr).hits[closestToMergeDistItr->first]->SigmaCharge();
-      }
-      double clusIndexStartAveCharge = tracksFound->at(clusIndexStart).hits[closestClusIndexStart]->Charge();
-      double clusIndexStartAveSigmaCharge = tracksFound->at(clusIndexStart).hits[closestClusIndexStart]->SigmaCharge();
-      for(auto closestClusIndexStartDistItr = closestClusIndexStartDist.begin(); closestClusIndexStartDistItr != closestClusIndexStartDist.end(); ++closestClusIndexStartDistItr) {
-        clusIndexStartAveCharge+=tracksFound->at(clusIndexStart).hits[closestClusIndexStartDistItr->first]->Charge();
-        clusIndexStartAveSigmaCharge+=tracksFound->at(clusIndexStart).hits[closestClusIndexStartDistItr->first]->SigmaCharge();
-      }
-
-
-
-      double chargeAsymmetry = std::abs(toMergeAveCharge-clusIndexStartAveCharge)/(toMergeAveCharge+clusIndexStartAveCharge);
-      double sigmaChargeAsymmetry = std::abs(toMergeAveSigmaCharge-clusIndexStartAveSigmaCharge)/(toMergeAveSigmaCharge+clusIndexStartAveSigmaCharge);
-      double chargeAsymmetrySinAngle = chargeAsymmetry*pow(std::fabs(sin(mergeTheta[toMergeItr-toMerge.begin()]*TMath::Pi()/180)),1);
-      double sigmaChargeAsymmetrySinAngle = sigmaChargeAsymmetry*pow(std::fabs(sin(mergeTheta[toMergeItr-toMerge.begin()]*TMath::Pi()/180)),1);
-
-      //std::cout << std::endl;
-      //std::cout << chargeAsymmetry*pow(std::fabs(sin(mergeTheta[toMergeItr-toMerge.begin()]*TMath::Pi()/180)),1) << std::endl;
-      //std::cout << sigmaChargeAsymmetry*pow(std::fabs(sin(mergeTheta[toMergeItr-toMerge.begin()]*TMath::Pi()/180)),1) << std::endl;
-      
-
-      if(chargeAsymmetrySinAngle > fChargeAsymAngleCut &&
-          mergeStyle == iMergeChargeAsymAngle)
-        continue;
-
-      if(sigmaChargeAsymmetrySinAngle > fSigmaChargeAsymAngleCut  &&
-          mergeStyle == iMergeChargeAsymAngle)
-        continue;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      //double lineLengthAsymm = std::abs((double)tracksFound->at(clusIndexStart).hits.size() - (double)tracksFound->at(*toMergeItr).hits.size())/((double)tracksFound->at(clusIndexStart).hits.size() + (double)tracksFound->at(*toMergeItr).hits.size());
-
-      //std::cout << "Length Asymm: " << lineLengthAsymm << std::endl;
-      //std::cout << tracksFound->at(clusIndexStart).hits.size() << std::endl;
-
-      //if(lineLengthAsymm > 0.75) 
-        //continue; 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      // Veto the merge if the lines are not colinear 
-      if(mergeStyle == iMergeNormal || mergeStyle == iMergeChargeAsymAngle) {
-        // Find where the lines are closest
-  
-        //distance between two segments in the plane:
-        //  one segment is (x11, y11) to (x12, y12) or (p0MinLine1, p1MinLine1) to (p0MaxLine1, p1MaxLine1)
-        //  the other is   (x21, y21) to (x22, y22) or (p0MinLine2, p1MinLine2) to (p0MaxLine2, p1MaxLine2)
-        double x11 = tracksFound->at(*toMergeItr).pMin0; 
-        double y11 = tracksFound->at(*toMergeItr).pMin1; 
-        double x12 = tracksFound->at(*toMergeItr).pMax0; 
-        double y12 = tracksFound->at(*toMergeItr).pMax1; 
-        double x21 = tracksFound->at(clusIndexStart).pMin0; 
-        double y21 = tracksFound->at(clusIndexStart).pMin1; 
-        double x22 = tracksFound->at(clusIndexStart).pMax0; 
-        double y22 = tracksFound->at(clusIndexStart).pMax1; 
-        std::vector<double> distances;
-
-        // Compare toMergerItr min with clusIndexStart min, if this is the min distance, lines are not colinear, merge is vetoed
-        distances.push_back(std::sqrt(pow(x11-x21,2) + pow(y11-y21,2)));
-        // Compare toMergerItr min with clusIndexStart max
-        distances.push_back(std::sqrt(pow(x11-x22,2) + pow(y11-y22,2)));
-        // Compare toMergerItr max with clusIndexStart min
-        distances.push_back(std::sqrt(pow(x12-x21,2) + pow(y12-y21,2)));
-        // Compare toMergerItr max with clusIndexStart max, if this is the min distance, lines are not colinear, merge is vetoed
-        distances.push_back(std::sqrt(pow(x12-x22,2) + pow(y12-y22,2)));
-
-        double minDistance = 999999; 
-        int minDistanceIndex = -1;
-        for(unsigned int j = 0; j < distances.size(); ++j){
-          if (distances[j] < minDistance){
-            minDistance = distances[j];
-            minDistanceIndex = j;
-          }
-        }
-
-        if(minDistanceIndex  == 0 || minDistanceIndex  == 3)
-          continue;
-
-      }
-      //std::cout << tracksFound->at(*toMergeItr).clusterSlope << " " << tracksFound->at(clusIndexStart).clusterSlope << std::endl;
-
-
-
-      // Check if both lines is in region that looks showerlike
-      // Or merge if the distance between the lines is zero and one looks showerlike
-      //double segmentDistance = HoughLineDistance(tracksFound->at(clusIndexStart).pMin0,tracksFound->at(clusIndexStart).pMin1,
-                                                 //tracksFound->at(clusIndexStart).pMax0,tracksFound->at(clusIndexStart).pMax1, 
-                                                 //tracksFound->at(*toMergeItr).pMin0,tracksFound->at(*toMergeItr).pMin1,
-                                                 //tracksFound->at(*toMergeItr).pMax0,tracksFound->at(*toMergeItr).pMax1);
-      //std::cout << "segmentDistance: " << segmentDistance << std::endl;
-      //std::cout << tracksFound->at(*toMergeItr).showerLikeness << " " << tracksFound->at(clusIndexStart).showerLikeness << std::endl;
-
-      
-     
-      // If doing a shower merge, only merge if the Hough lines look showerlike
-      if(mergeStyle == iMergeShower){
-        if(!(tracksFound->at(*toMergeItr).showerLikeness>fShowerLikenessCut) || !(tracksFound->at(clusIndexStart).showerLikeness>fShowerLikenessCut))
-          continue;
-      }
-      
-      
-      //// If not doing a shower merge, only merge if one of the Hough lines doesn't look showerlike
-      //if(mergeStyle == iMergeChargeAsymAngle){
-        //if(tracksFound->at(*toMergeItr).showerLikeness>fShowerLikenessCut && tracksFound->at(clusIndexStart).showerLikeness>fShowerLikenessCut)
-          //continue;
-      //}
-
-      
-      if(mergeStyle == iMergeShowerIntercept){
-        if((tracksFound->at(*toMergeItr).showerLikeness<fShowerLikenessCut) && (tracksFound->at(clusIndexStart).showerLikeness<fShowerLikenessCut))
-          continue;
-        double x11 = tracksFound->at(*toMergeItr).pMin0; 
-        double y11 = tracksFound->at(*toMergeItr).pMin1; 
-        double x12 = tracksFound->at(*toMergeItr).pMax0; 
-        double y12 = tracksFound->at(*toMergeItr).pMax1; 
-        double x21 = tracksFound->at(clusIndexStart).pMin0; 
-        double y21 = tracksFound->at(clusIndexStart).pMin1; 
-        double x22 = tracksFound->at(clusIndexStart).pMax0; 
-        double y22 = tracksFound->at(clusIndexStart).pMax1; 
-        if(HoughLineIntersect(x11, y11, x12, y12, x21, y21, x22, y22) == 0)
-          continue;
-      }
-
-      //std::cout << "Merging" << std::endl;
-      lineMerged = true;
-      tracksFound->at(clusIndexStart).merged = true;
-      tracksFound->at(*toMergeItr).merged = true;
-
-      // For loop over all lines found to reassign lines to clusIndexStart that already belonged to toMerge 
-      for(auto tracksFoundItr = tracksFound->begin(); tracksFoundItr != tracksFound->end(); ++tracksFoundItr){
-        if((unsigned int)(*toMergeItr) == tracksFoundItr-tracksFound->begin())
-          continue;
-
-        if(tracksFoundItr->clusterNumber == tracksFound->at(*toMergeItr).clusterNumber){
-          tracksFoundItr->clusterNumber = tracksFound->at(clusIndexStart).clusterNumber;
-          //std::cout << "tracksFoundItr slope: " << tracksFoundItr->clusterSlope << " clusIndexStart slope: " << tracksFound->at(clusIndexStart).clusterSlope << std::endl;
-
-        }
-      }
-      tracksFound->at(*toMergeItr).clusterNumber = tracksFound->at(clusIndexStart).clusterNumber;
-      //std::cout << "main tracksFoundItr slope: " << tracksFound->at(*toMergeItr).clusterSlope << " clusIndexStart slope: " << tracksFound->at(clusIndexStart).clusterSlope << std::endl;
-     
-    }  
-  }
-
-                                                
-  if(lineMerged)
-    mergeHoughLinesBySegment(clusIndexStart,tracksFound,xyScale,mergeStyle,wire_dist,tickToDist);
-  else
-    mergeHoughLinesBySegment(clusIndexStart+1,tracksFound,xyScale,mergeStyle,wire_dist,tickToDist);
-  
-  return;
-
-}
-
-
 //------------------------------------------------------------------------------
 double cluster::fuzzyClusterAlg::DistanceBetweenHits(art::Ptr<recob::Hit> hit0,
                                                 art::Ptr<recob::Hit> hit1,
@@ -1937,31 +1570,31 @@ double cluster::fuzzyClusterAlg::PointSegmentDistance(double px,
 /* Quick Sort.
  * Adam Drozdek: Data Structures and Algorithms in C++, 2nd Edition.
  */
-void cluster::fuzzyClusterAlg::PartialQuickSort( Indexdouble *data, int first, int last, int part )
+void cluster::Flame::PartialQuickSort( std::vector<Indexdouble> *data, int first, int last, int part )
 {
 	int lower=first+1, upper=last;
 	double pivot;
-	Indexdouble val;
+        Indexdouble val;
 	if( first >= last ) return;
-	val = data[first];
-	data[first] = data[ (first+last)/2 ];
-	data[ (first+last)/2 ] = val;
-	pivot = data[ first ].value;
+	val = (*data)[first];
+	(*data)[first] = (*data)[ (first+last)/2 ];
+	(*data)[ (first+last)/2 ] = val;
+	pivot = (*data)[ first ].value;
 
 	while( lower <= upper ){
-		while( lower <= last && data[lower].value < pivot ) lower ++;
-		while( pivot < data[upper].value ) upper --;
+		while( lower <= last && (*data)[lower].value < pivot ) lower ++;
+		while( pivot < (*data)[upper].value ) upper --;
 		if( lower < upper ){
-			val = data[lower];
-			data[lower] = data[upper];
-			data[upper] = val;
+			val = (*data)[lower];
+			(*data)[lower] = (*data)[upper];
+			(*data)[upper] = val;
 			upper --;
 		}
 		lower ++;
 	}
-	val = data[first];
-	data[first] = data[upper];
-	data[upper] = val;
+	val = (*data)[first];
+	(*data)[first] = (*data)[upper];
+	(*data)[upper] = val;
 	if( first < upper-1 ) PartialQuickSort( data, first, upper-1, part );
 	if( upper >= part ) return;
 	if( upper+1 < last ) PartialQuickSort( data, upper+1, last, part );
@@ -1979,25 +1612,25 @@ DistFunction basicDistFunctions[] =
         cluster::fuzzyClusterAlg::Flame_Manhattan 
 };
 
-double cluster::fuzzyClusterAlg::Flame_Euclidean( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_Euclidean( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	double d = 0;
 	int i;
-	for(i=0; i<m; i++ ) d += ( x[i] - y[i] ) * ( x[i] - y[i] );
+	for(i=0; i<m; i++ ) d += ( (*x)[i] - (*y)[i] ) * ( (*x)[i] - (*y)[i] );
 	return sqrt( d );
 }
-double cluster::fuzzyClusterAlg::Flame_Cosine( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_Cosine( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	double r =0, x2 =0, y2 =0;
 	int i;
 	for(i=0; i<m; i++ ){
-		r += x[i] * y[i];
-		x2 += x[i] * x[i];
-		y2 += y[i] * y[i];
+		r += (*x)[i] * (*y)[i];
+		x2 += (*x)[i] * (*x)[i];
+		y2 += (*y)[i] * (*y)[i];
 	}
 	return r / ( sqrt( x2 * y2 ) + EPSILON );
 }
-double cluster::fuzzyClusterAlg::Flame_Pearson( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_Pearson( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	int i;
 	double r, x2, y2, xavg, yavg;
@@ -2005,19 +1638,19 @@ double cluster::fuzzyClusterAlg::Flame_Pearson( double *x, double *y, int m )
 	xavg = yavg = 0;
 	r = x2 = y2 = 0;
 	for( i=0; i<m; i++ ){
-		xavg += x[i];
-		yavg += y[i];
+		xavg += (*x)[i];
+		yavg += (*y)[i];
 	}
 	xavg = xavg/m;
 	yavg = yavg/m;
 	for( i=0; i<m; i++ ){
-		r  += ( x[i] - xavg ) * ( y[i] - yavg );
-		x2 += ( x[i] - xavg ) * ( x[i] - xavg );
-		y2 += ( y[i] - yavg ) * ( y[i] - yavg );
+		r  += ( (*x)[i] - xavg ) * ( (*y)[i] - yavg );
+		x2 += ( (*x)[i] - xavg ) * ( (*x)[i] - xavg );
+		y2 += ( (*y)[i] - yavg ) * ( (*y)[i] - yavg );
 	}
 	return r / ( sqrt( x2 * y2 ) + EPSILON );
 }
-double cluster::fuzzyClusterAlg::Flame_UCPearson( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_UCPearson( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	int i;
 	double r, x2, y2, xavg, yavg;
@@ -2025,19 +1658,19 @@ double cluster::fuzzyClusterAlg::Flame_UCPearson( double *x, double *y, int m )
 	xavg = yavg = 0;
 	r = x2 = y2 = 0;
 	for( i=0; i<m; i++ ){
-		xavg += x[i];
-		yavg += y[i];
+		xavg += (*x)[i];
+		yavg += (*y)[i];
 	}
 	xavg = xavg/m;
 	yavg = yavg/m;
 	for( i=0; i<m; i++ ){
-		r  += x[i] * y[i];
-		x2 += ( x[i] - xavg ) * ( x[i] - xavg );
-		y2 += ( y[i] - yavg ) * ( y[i] - yavg );
+		r  += (*x)[i] * (*y)[i];
+		x2 += ( (*x)[i] - xavg ) * ( (*x)[i] - xavg );
+		y2 += ( (*y)[i] - yavg ) * ( (*y)[i] - yavg );
 	}
 	return r / ( sqrt( x2 * y2 ) + EPSILON );
 }
-double cluster::fuzzyClusterAlg::Flame_SQPearson( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_SQPearson( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	int i;
 	double r, x2, y2, xavg, yavg;
@@ -2045,27 +1678,27 @@ double cluster::fuzzyClusterAlg::Flame_SQPearson( double *x, double *y, int m )
 	xavg = yavg = 0;
 	r = x2 = y2 = 0;
 	for( i=0; i<m; i++ ){
-		xavg += x[i];
-		yavg += y[i];
+		xavg += (*x)[i];
+		yavg += (*y)[i];
 	}
 	xavg = xavg/m;
 	yavg = yavg/m;
 	for( i=0; i<m; i++ ){
-		r  += ( x[i] - xavg ) * ( y[i] - yavg );
-		x2 += ( x[i] - xavg ) * ( x[i] - xavg );
-		y2 += ( y[i] - yavg ) * ( y[i] - yavg );
+		r  += ( (*x)[i] - xavg ) * ( (*y)[i] - yavg );
+		x2 += ( (*x)[i] - xavg ) * ( (*x)[i] - xavg );
+		y2 += ( (*y)[i] - yavg ) * ( (*y)[i] - yavg );
 	}
 	return r*r / ( x2 * y2 + EPSILON );
 }
-double cluster::fuzzyClusterAlg::Flame_DotProduct( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_DotProduct( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	int i;
 	double r = 0;
-	for(i=0; i<m; i++ ) r += x[i] * y[i];
+	for(i=0; i<m; i++ ) r += (*x)[i] * (*y)[i];
 	if( m == 0 ) return 0;
 	return r / m;
 }
-double cluster::fuzzyClusterAlg::Flame_Covariance( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_Covariance( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	int i;
 	double r, x2, y2, xavg, yavg;
@@ -2073,158 +1706,132 @@ double cluster::fuzzyClusterAlg::Flame_Covariance( double *x, double *y, int m )
 	xavg = yavg = 0;
 	r = x2 = y2 = 0;
 	for( i=0; i<m; i++ ){
-		xavg += x[i];
-		yavg += y[i];
+		xavg += (*x)[i];
+		yavg += (*y)[i];
 	}
 	xavg = xavg/m;
 	yavg = yavg/m;
-	for( i=0; i<m; i++ ) r += ( x[i] - xavg ) * ( y[i] - yavg );
+	for( i=0; i<m; i++ ) r += ( (*x)[i] - xavg ) * ( (*y)[i] - yavg );
 	if( m <= 1 ) return 0;
 	return r / (m-1);
 }
-double cluster::fuzzyClusterAlg::Flame_Manhattan( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_Manhattan( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	double d = 0;
 	int i;
-	for(i=0; i<m; i++ ) d += fabs( x[i] - y[i] );
+	for(i=0; i<m; i++ ) d += fabs( (*x)[i] - (*y)[i] );
 	return d;
 }
-double cluster::fuzzyClusterAlg::Flame_CosineDist( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_CosineDist( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	return 1-Flame_Cosine( x, y, m );
 }
-double cluster::fuzzyClusterAlg::Flame_PearsonDist( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_PearsonDist( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	return 1-Flame_Pearson( x, y, m );
 }
-double cluster::fuzzyClusterAlg::Flame_UCPearsonDist( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_UCPearsonDist( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	return 1-Flame_UCPearson( x, y, m );
 }
-double cluster::fuzzyClusterAlg::Flame_SQPearsonDist( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_SQPearsonDist( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	return 1-Flame_SQPearson( x, y, m );
 }
-double cluster::fuzzyClusterAlg::Flame_DotProductDist( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_DotProductDist( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	return 1-Flame_DotProduct( x, y, m );
 }
-double cluster::fuzzyClusterAlg::Flame_CovarianceDist( double *x, double *y, int m )
+double cluster::fuzzyClusterAlg::Flame_CovarianceDist( std::vector<double> *x, std::vector<double> *y, int m )
 {
 	return 1-Flame_Covariance( x, y, m );
 }
 
-cluster::fuzzyClusterAlg::Flame* cluster::fuzzyClusterAlg::Flame_New()
-{
-	Flame *self = (Flame*) malloc( sizeof(Flame) );
-	memset( self, 0, sizeof(Flame) );
-	return self;
-}
-void cluster::fuzzyClusterAlg::Flame_Clear( Flame *self )
-{
-	int i;
-	for(i=0; i<self->N; i++){
-		free( self->graph[i] );
-		free( self->dists[i] );
-		free( self->weights[i] );
-		free( self->fuzzyships[i] );
-	}
-	if( self->clusters ){
-		for(i=0; i<=self->cso_count; i++){
-			if( self->clusters[i].array ) free( self->clusters[i].array );
-		}
-		free( self->clusters );
-		self->clusters = NULL;
-	}
-	if( self->graph ) free( self->graph );
-	if( self->dists ) free( self->dists );
-	if( self->nncounts ) free( self->nncounts );
-	if( self->weights ) free( self->weights );
-	if( self->fuzzyships ) free( self->fuzzyships );
-	if( self->obtypes ) free( self->obtypes );
-	self->graph = NULL;
-	self->dists = NULL;
-	self->nncounts = NULL;
-	self->weights = NULL;
-	self->obtypes = NULL;
-	self->fuzzyships = NULL;
-	self->N = self->K = self->KMAX = self->cso_count = 0;
-}
-
 /* If m==0, data is distance matrix. */
-void cluster::fuzzyClusterAlg::Flame_SetMatrix( Flame *self, double *data[], int n, int m )
+void cluster::Flame::Flame_SetMatrix(std::vector<std::vector<double>> *data, int n, int m )
 {
 	int i, j;
 	int MAX = sqrt( n ) + 10;
-	Indexdouble *vals = (Indexdouble*) calloc( n, sizeof(Indexdouble) );
+	//Indexdouble *vals = (Indexdouble*) calloc( n, sizeof(Indexdouble) );
+        std::vector<Indexdouble> vals;
+        vals.resize(n);
 	if( MAX >= n ) MAX = n - 1;
 		
-	Flame_Clear( self );
-	self->N = n;
-	self->KMAX = MAX;
+	//Flame_Clear( self );
+	this->N = n;
+	this->KMAX = MAX;
 	
-	self->graph = (int**) calloc( n, sizeof(int*) );
-	self->dists = (double**) calloc( n, sizeof(double*) );
-	self->weights = (double**) calloc( n, sizeof(double*) );
-	self->nncounts = (int*) calloc( n, sizeof(int) );
-	self->obtypes = (char*) calloc( n, sizeof(char) );
-	self->fuzzyships = (double**) calloc( n, sizeof(double*) );
+	//this->graph = (int**) calloc( n, sizeof(int*) );
+	this->graph.resize(n);
+	//this->dists = (double**) calloc( n, sizeof(double*) );
+	this->dists.resize(n);
+        //this->weights = (double**) calloc( n, sizeof(double*) );
+        this->weights.resize(n);
+	//this->nncounts = (int*) calloc( n, sizeof(int) );
+	this->nncounts.resize(n);
+	//this->obtypes = (char*) calloc( n, sizeof(char) );
+	this->obtypes.resize(n);
+	//this->fuzzyships = (double**) calloc( n, sizeof(double*) );
+	this->fuzzyships.resize(n);
 
 	for(i=0; i<n; i++){
-		self->graph[i] = (int*) calloc( MAX, sizeof(int) );
-		self->dists[i] = (double*) calloc( MAX, sizeof(double) );
-		self->weights[i] = (double*) calloc( MAX, sizeof(double) );
+		//this->graph[i] = (int*) calloc( MAX, sizeof(int) );
+		this->graph[i].resize(MAX);
+		//this->dists[i] = (double*) calloc( MAX, sizeof(double) );
+		this->dists[i].resize(MAX);
+		//this->weights[i] = (double*) calloc( MAX, sizeof(double) );
+		this->weights[i].resize(MAX);
 		if( m ==0 ){
 			/* data is distance matrix. */
 			for(j=0; j<n; j++){
 				vals[j].index = j;
-				vals[j].value = data[i][j];
+				vals[j].value = (*data)[i][j];
 			}
 		}else{
 			/* data is raw data matrix. */
 			for(j=0; j<n; j++){
 				vals[j].index = j;
-				vals[j].value = self->distfunc( data[i], data[j], m );
+				vals[j].value = this->distfunc( &(*data)[i], &(*data)[j], m );
 			}
 		}
-		PartialQuickSort( vals, 0, n-1, MAX+1 );
+		this->PartialQuickSort( &vals, 0, n-1, MAX+1 );
 		/* Store MAX number of nearest neighbors. */
 		for(j=0; j<MAX; j++){
-			self->graph[i][j] = vals[j+1].index;
-			self->dists[i][j] = vals[j+1].value;
+			this->graph[i][j] = vals[j+1].index;
+			this->dists[i][j] = vals[j+1].value;
 		}
 	}
-	free( vals );
+	//free( vals );
 }
-void cluster::fuzzyClusterAlg::Flame_SetDataMatrix( Flame *self, double *data[], int n, int m, int dt )
+void cluster::Flame::Flame_SetDataMatrix( std::vector<std::vector<double>> *data, int n, int m, int dt )
 {
-	self->simtype = dt;
-	if( dt >0 && dt < DST_NULL ) self->distfunc = basicDistFunctions[ dt-1 ];
-	if( self->distfunc == NULL ) self->distfunc = basicDistFunctions[0];
-	Flame_SetMatrix( self, data, n, m );
+	this->simtype = dt;
+	if( dt >0 && dt < DST_NULL ) this->distfunc = basicDistFunctions[ dt-1 ];
+	if( this->distfunc == NULL ) this->distfunc = basicDistFunctions[0];
+	Flame_SetMatrix( data, n, m );
 }
-void cluster::fuzzyClusterAlg::Flame_SetDistMatrix( Flame *self, double *data[], int n )
+void cluster::Flame::Flame_SetDistMatrix( std::vector<std::vector<double>> *data, int n )
 {
-	cluster::fuzzyClusterAlg::Flame_SetMatrix( self, data, n, DST_USER );
+	cluster::Flame::Flame_SetMatrix( data, n, DST_USER );
 }
-void cluster::fuzzyClusterAlg::Flame_DefineSupports( Flame *self, int knn, double thd )
+void cluster::Flame::Flame_DefineSupports( int knn, double thd )
 {
 	int i, j, k;
-	int n = self->N;
-	int kmax = self->KMAX;
-	double **dists = self->dists;
-	double *density = (double*) calloc( n, sizeof(double) );
+	int n = this->N;
+	int kmax = this->KMAX;
+        std::vector<double> density;
+        density.resize(n);
 	double d, sum, sum2, fmin, fmax = 0.0;
 	
 	if( knn > kmax ) knn = kmax;
-	self->K = knn;
+	this->K = knn;
 	for(i=0; i<n; i++){
 		/* To include all the neighbors that have distances equal to the
 		 * distance of the most distant one of the K-Nearest Neighbors */
 		k = knn;
-		d = dists[i][knn-1];
-		for(j=knn; j<kmax; j++) if( dists[i][j] == d ) k ++; else break;
-		self->nncounts[i] = k;
+		d = this->dists[i][knn-1];
+		for(j=knn; j<kmax; j++) if( this->dists[i][j] == d ) k ++; else break;
+		this->nncounts[i] = k;
 
 		/* The definition of weights in this implementation is 
 		 * different from the previous implementations where distances 
@@ -2234,10 +1841,10 @@ void cluster::fuzzyClusterAlg::Flame_DefineSupports( Flame *self, int knn, doubl
 		 * the ranking of distances of the neighbors, so it is more 
 		 * robust against distance transformations. */
 		sum = 0.5*k*(k+1.0);
-		for(j=0; j<k; j++) self->weights[i][j] = (k-j) / sum;
+		for(j=0; j<k; j++) this->weights[i][j] = (k-j) / sum;
 		
 		sum = 0.0;
-		for(j=0; j<k; j++) sum += dists[i][j];
+		for(j=0; j<k; j++) sum += this->dists[i][j];
 		density[i] = 1.0 / (sum + EPSILON);
 	}
 	sum = 0.0;
@@ -2250,87 +1857,89 @@ void cluster::fuzzyClusterAlg::Flame_DefineSupports( Flame *self, int knn, doubl
 	/* Density threshold for possible outliers. */
 	thd = sum + thd * sqrt( sum2 / n - sum * sum );
 
-	memset( self->obtypes, 0, n*sizeof(char) );
-	self->cso_count = 0;
+	//memset( this->obtypes, 0, n*sizeof(char) );
+        std::fill(this->obtypes.begin(),this->obtypes.end(),0);
+	this->cso_count = 0;
 	for(i=0; i<n; i++){
-		k = self->nncounts[i];
+		k = this->nncounts[i];
 		fmax = 0.0;
-		fmin = density[i] / density[ self->graph[i][0] ];
+		fmin = density[i] / density[ this->graph[i][0] ];
 		for(j=1; j<k; j++){
-			d = density[i] / density[ self->graph[i][j] ];
+			d = density[i] / density[ this->graph[i][j] ];
 			if( d > fmax ) fmax = d;
 			if( d < fmin ) fmin = d;
 			/* To avoid defining neighboring objects or objects close 
 			 * to an outlier as CSOs.  */
-			if( self->obtypes[ self->graph[i][j] ] ) fmin = 0.0;
+			if( this->obtypes[ this->graph[i][j] ] ) fmin = 0.0;
 		}
 		if( fmin >= 1.0 ){
-			self->cso_count ++;
-			self->obtypes[i] = OBT_SUPPORT;
+			this->cso_count ++;
+			this->obtypes[i] = OBT_SUPPORT;
 		}else if( fmax <= 1.0 && density[i] < thd ){
-			self->obtypes[i] = OBT_OUTLIER;
+			this->obtypes[i] = OBT_OUTLIER;
 		}
 	}
-	free( density );
+	//free( density );
+        //this->dists = dists;
+        
 }
-void cluster::fuzzyClusterAlg::Flame_LocalApproximation( Flame *self, int steps, double epsilon )
+void cluster::Flame::Flame_LocalApproximation( int steps, double epsilon )
 {
 	int i;
         int j;
         int k; 
         int t;
-	int n = self->N;
-        int m = self->cso_count;
-	double **fuzzyships = self->fuzzyships;
-	double **fuzzyships2 = (double**)calloc( n, sizeof(double*) );
-	char *obtypes = self->obtypes;
+	int n = this->N;
+        int m = this->cso_count;
+        std::vector<std::vector<double>> fuzzyships2;
+        fuzzyships2.resize(n);
+        std::vector<char> obtypes = this->obtypes;
 	char even = 0;
 	double dev;
 
+
 	k = 0;
 	for(i=0; i<n; i++){
-		fuzzyships[i] = (double*) realloc( fuzzyships[i], (m+1)*sizeof(double) );
-		fuzzyships2[i] = (double*) calloc( m+1, sizeof(double) );
-		memset( fuzzyships[i], 0, (m+1)*sizeof(double) );
+                this->fuzzyships[i].resize(m+1);
+                fuzzyships2[i].resize(m+1);
+                std::fill(this->fuzzyships[i].begin(),this->fuzzyships[i].end(),0);
 		if( obtypes[i] == OBT_SUPPORT ){
 			/* Full membership to the cluster represented by itself. */
-			fuzzyships[i][k] = 1.0;
+			this->fuzzyships[i][k] = 1.0;
 			fuzzyships2[i][k] = 1.0;
 			k ++;
 		}else if( obtypes[i] == OBT_OUTLIER ){
 			/* Full membership to the outlier group. */
-			fuzzyships[i][m] = 1.0;
+			this->fuzzyships[i][m] = 1.0;
 			fuzzyships2[i][m] = 1.0;
 		}else{
 			/* Equal memberships to all clusters and the outlier group.
 			 * Random initialization does not change the results. */
 			for(j=0; j<=m; j++)
-				fuzzyships[i][j] = fuzzyships2[i][j] = 1.0/(m+1);
+				this->fuzzyships[i][j] = fuzzyships2[i][j] = 1.0/(m+1);
 		}
 	}
 	for(t=0; t<steps; t++){
 		dev = 0;
 		for(i=0; i<n; i++){
-			int knn = self->nncounts[i];
-			int *ids = self->graph[i];
-			double *wt = self->weights[i];
-			double *fuzzy = fuzzyships[i];
-			double **fuzzy2 = fuzzyships2;
+			int knn = this->nncounts[i];
+                        std::vector<double> *fuzzy = &(this->fuzzyships[i]);
+                        std::vector<std::vector<double>> *fuzzy2 = &fuzzyships2;
 			double sum = 0.0;
-			if( self->obtypes[i] != OBT_NORMAL ) continue;
+			if( this->obtypes[i] != OBT_NORMAL ) continue;
 			if( even ){
-				fuzzy = fuzzyships2[i];
-				fuzzy2 = fuzzyships;
+				fuzzy = &fuzzyships2[i];
+				fuzzy2 = &(this->fuzzyships);
 			}
 			/* Update membership of an object by a linear combination of 
 			 * the memberships of its nearest neighbors. */
 			for(j=0; j<=m; j++){
-				fuzzy[j] = 0.0;
-				for(k=0; k<knn; k++) fuzzy[j] += wt[k] * fuzzy2[ ids[k] ][j];
-				dev += (fuzzy[j] - fuzzy2[i][j]) * (fuzzy[j] - fuzzy2[i][j]);
-				sum += fuzzy[j];
+				(*fuzzy)[j] = 0.0;
+				for(k=0; k<knn; k++) (*fuzzy)[j] += this->weights[i][k] * (*fuzzy2)[ this->graph[i][k] ][j];
+				dev += ((*fuzzy)[j] - (*fuzzy2)[i][j]) * ((*fuzzy)[j] - (*fuzzy2)[i][j]);
+				sum += (*fuzzy)[j];
 			}
-			for(j=0; j<=m; j++) fuzzy[j] = fuzzy[j] / sum;
+			for(j=0; j<=m; j++) (*fuzzy)[j] = (*fuzzy)[j] / sum;
 		}
 		even = ! even;
 		if( dev < epsilon ) break;
@@ -2338,57 +1947,62 @@ void cluster::fuzzyClusterAlg::Flame_LocalApproximation( Flame *self, int steps,
 	/* update the membership of all objects to remove clusters 
 	 * that contains only the CSO. */
 	for(i=0; i<n; i++){
-		int knn = self->nncounts[i];
-		int *ids = self->graph[i];
-		double *wt = self->weights[i];
-		double *fuzzy = fuzzyships[i];
-		double **fuzzy2 = fuzzyships2;
+		int knn = this->nncounts[i];
 		for(j=0; j<=m; j++){
-			fuzzy[j] = 0.0;
-			for(k=0; k<knn; k++) fuzzy[j] += wt[k] * fuzzy2[ ids[k] ][j];
-			dev += (fuzzy[j] - fuzzy2[i][j]) * (fuzzy[j] - fuzzy2[i][j]);
+			//fuzzy[j] = 0.0;
+                        this->fuzzyships[i][j]=0.0;
+			for(k=0; k<knn; k++) this->fuzzyships[i][j] += this->weights[i][k] * fuzzyships2[ this->graph[i][k] ][j];
+			dev += (this->fuzzyships[i][j] - fuzzyships2[i][j]) * (this->fuzzyships[i][j] - fuzzyships2[i][j]);
 		}
 	}
-	for(i=0; i<n; i++) free( fuzzyships2[i] );
-	free( fuzzyships2 );
+
 }
 
-void cluster::fuzzyClusterAlg::IntArray_Push( IntArray *self, int value )
+//void cluster::fuzzyClusterAlg::IntArray_Push( IntArray *self, int value )
+//{
+	//if( self->size >= self->bufsize ){
+		//self->bufsize += self->bufsize /10 + 10;
+		//self->array = (int*)realloc( self->array, self->bufsize*sizeof(int));
+	//}
+	//self->array[ self->size ] = value;
+	//self->size ++;
+//}
+void cluster::Flame::Flame_MakeClusters( double thd )
 {
-	if( self->size >= self->bufsize ){
-		self->bufsize += self->bufsize /10 + 10;
-		self->array = (int*)realloc( self->array, self->bufsize*sizeof(int));
-	}
-	self->array[ self->size ] = value;
-	self->size ++;
-}
-void cluster::fuzzyClusterAlg::Flame_MakeClusters( Flame *self, double thd )
-{
+
 	int i, j, imax;
-	int N = self->N;
-	int C = self->cso_count+1;
+	int N = this->N;
+	int C = this->cso_count+1;
 	double fmax;
-	double **fuzzyships = self->fuzzyships;
+	//double **fuzzyships = this->fuzzyships;
+        std::vector<std::vector<double>> fuzzyships1;
+        fuzzyships1 = this->fuzzyships;
+        //std::cout << fuzzyships1.size() << std::endl;
 	//IntArray *clust;
-	Indexdouble *vals = (Indexdouble*) calloc( N, sizeof(Indexdouble) );
-	
+	//Indexdouble *vals = (Indexdouble*) calloc( N, sizeof(Indexdouble) );
+        std::vector<Indexdouble> vals;
+        vals.resize(N);
+
 	/* Sort objects based on the "entropy" of fuzzy memberships. */
 	for(i=0; i<N; i++){
 		vals[i].index = i;
 		vals[i].value = 0.0;
+                //std::cout << "fuzzyships1[i] size: " << fuzzyships1[i].size() << std::endl;
+                //std::cout << "this->fuzzyships[i] size: " << this->fuzzyships[i].size() << std::endl;
 		for(j=0; j<C; j++){
-			double fs = fuzzyships[i][j];
+			double fs = fuzzyships1[i][j];
 			if( fs > EPSILON ) vals[i].value -= fs * log( fs );
 		}
 	}
-	PartialQuickSort( vals, 0, N-1, N );
+	this->PartialQuickSort( &vals, 0, N-1, N );
 
-	if( self->clusters ){
-		for(i=0; i<C; i++)
-			if( self->clusters[i].array ) free( self->clusters[i].array );
-		free( self->clusters );
-	}
-	self->clusters = (IntArray*) calloc( C, sizeof(IntArray) );
+	//if( this->clusters ){
+		//for(i=0; i<C; i++)
+			//if( this->clusters[i].array ) free( this->clusters[i].array );
+		//free( this->clusters );
+	//}
+	//this->clusters = (IntArray*) calloc( C, sizeof(IntArray) );
+	this->clusters.resize(C);
 	if( thd <0 || thd > 1.0 ){
 		/* Assign each object to the cluster 
 		 * in which it has the highest membership. */
@@ -2397,12 +2011,13 @@ void cluster::fuzzyClusterAlg::Flame_MakeClusters( Flame *self, double thd )
 			fmax = 0;
 			imax = -1;
 			for(j=0; j<C; j++){
-				if( fuzzyships[id][j] > fmax ){
+				if( fuzzyships1[id][j] > fmax ){
 					imax = j;
-					fmax = fuzzyships[id][j];
+					fmax = fuzzyships1[id][j];
 				}
 			}
-			IntArray_Push( self->clusters + imax, id );
+                        //IntArray_Push( this->clusters + imax, id );
+                        this->clusters[imax].push_back(id);
 		}
 	}else{
 		/* Assign each object to all the clusters
@@ -2412,28 +2027,30 @@ void cluster::fuzzyClusterAlg::Flame_MakeClusters( Flame *self, double thd )
 			int id = vals[i].index;
 			imax = -1;
 			for(j=0; j<C; j++){
-				if( fuzzyships[id][j] > thd || ( j == C-1 && imax <0 ) ){
+				if( fuzzyships1[id][j] > thd || ( j == C-1 && imax <0 ) ){
 					imax = j;
-					//clust = self->clusters + j;
-					IntArray_Push( self->clusters + j, id );
+					//clust = this->clusters + j;
+                                        //IntArray_Push( this->clusters + j, id );
+                                        this->clusters[j].push_back(id);
 				}
 			}
 		}
 	}
 	/* removing empty clusters */
 	C = 0;
-	for(i=0; i<self->cso_count; i++){
-		if( self->clusters[i].size >0 ){
-			self->clusters[C] = self->clusters[i];
-			C ++;
+	for(i=0; i<this->cso_count; i++){
+		if( this->clusters[i].size() >0 ){
+			this->clusters[C] = this->clusters[i];
+			C++;
 		}
 	}
 	/* keep the outlier group, even if its empty */
-	self->clusters[C] = self->clusters[self->cso_count];
-	C ++;
-	for(i=C; i<self->cso_count+1; i++) memset( self->clusters+i, 0, sizeof(IntArray) );
-	self->count = C;
-	free( vals );
+	this->clusters[C] = this->clusters[this->cso_count];
+	C++;
+	//for(i=C; i<this->cso_count+1; i++) memset( this->clusters+i, 0, sizeof(IntArray) );
+        for(i=C; i<this->cso_count+1; i++) std::fill(this->clusters[i].begin(),this->clusters[i].end(),0);
+	this->count = C;
+	//free( vals );
 }
 
 

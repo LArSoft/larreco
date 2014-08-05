@@ -57,11 +57,61 @@
  */
 #define EPSILON 1E-9
 
-typedef double (*DistFunction)( double *x, double *y, int m );
+typedef double (*DistFunction)( std::vector<double> *x, std::vector<double> *y, int m );
     
 extern DistFunction basicDistFunctions[];
 
 class TH1F;
+
+
+
+
+
+    
+    //struct IntArray
+    //{
+            ////int *array;
+      //std::vector<int> array;
+      //int  size;
+      //int  bufsize;
+    //};
+    
+    /* For sorting and storing the orignal indices. */
+    struct Indexdouble
+    {
+    	int   index;
+    	double value;
+    };
+    
+
+    typedef struct Indexdouble Indexdouble;
+    //typedef struct IntArray IntArray;
+
+
+        enum DistSimTypes
+        {
+        	DST_USER = 0,
+        	DST_EUCLID ,
+        	DST_COSINE ,
+        	DST_PEARSON ,
+        	DST_UC_PEARSON ,
+        	DST_SQ_PEARSON ,
+        	DST_DOT_PROD ,
+        	DST_COVARIANCE ,
+        	DST_MANHATTAN ,
+        	DST_NULL
+        };
+
+
+
+    enum FlameObjectTypes
+    {
+    	OBT_NORMAL ,
+    	OBT_SUPPORT ,
+    	OBT_OUTLIER
+    };
+
+
 
 
 
@@ -121,6 +171,122 @@ namespace cluster{
     };
 
 
+
+
+    class Flame {
+      public:
+
+
+
+        /* Sort until the smallest "part" items are sorted. */
+        void PartialQuickSort( std::vector<Indexdouble> *data, int first, int last, int part );
+
+
+        /* Free allocated memory, and set all fields to zero. */
+        //void Flame_Clear( Flame *self );
+        
+        /* Set a NxM data matrix, and compute distances of type T.
+         * 
+         * If T==DST_USER or T>=DST_NULL, and Flame::distfunc member is set,
+         * then Flame::distfunc is used to compute the distances;
+         * Otherwise, Flame_Euclidean() is used. */
+        void Flame_SetDataMatrix( std::vector<std::vector<double>> *data, int N, int M, int T );
+        
+        /* Set a pre-computed NxN distance matrix. */
+        void Flame_SetDistMatrix( std::vector<std::vector<double>> *data, int N );
+        
+        /* Define knn-nearest neighbors for each object 
+         * and the Cluster Supporting Objects (CSO). 
+         * 
+         * The actual number of nearest neighbors could be large than knn,
+         * if an object has neighbors of the same distances.
+         *
+         * Based on the distances of the neighbors, a density can be computed
+         * for each object. Objects with local maximum density are defined as
+         * CSOs. The initial outliers are defined as objects with local minimum
+         * density which is less than mean( density ) + thd * stdev( density );
+         */
+        void Flame_DefineSupports( int knn, double thd );
+        
+        /* Local Approximation of fuzzy memberships.
+         * Stopped after the maximum steps of iterations;
+         * Or stopped when the overall membership difference between
+         * two iterations become less than epsilon. */
+        void Flame_LocalApproximation( int steps, double epsilon );
+        
+        /* Construct clusters.
+         * If 0<thd<1:
+         *   each object is assigned to all clusters in which
+         *   it has membership higher than thd; if it can not be assigned
+         *   to any clusters, it is then assigned to the outlier group.
+         * Else:
+         *   each object is assigned to the group (clusters/outlier group)
+         *   in which it has the highest membership. */
+        void Flame_MakeClusters( double thd );
+
+        void Flame_SetMatrix( std::vector<std::vector<double>> *data, int n, int m );
+
+
+    	int simtype;
+    
+    	/* Number of objects */
+    	int N;
+    
+    	/* Number of K-Nearest Neighbors */
+    	int K;
+    
+    	/* Upper bound for K defined as: sqrt(N)+10 */
+    	int KMAX;
+    
+    	/* Stores the KMAX nearest neighbors instead of K nearest neighbors
+    	 * for each objects, so that when K is changed, weights and CSOs can be
+    	 * re-computed without referring to the original data.
+    	 */
+            //int   **graph;
+        std::vector<std::vector<int>> graph;
+        /* Distances to the KMAX nearest neighbors. */
+            //double **dists;
+        std::vector<std::vector<double>> dists;
+    
+    	/* Nearest neighbor count.
+    	 * it can be different from K if an object has nearest neighbors with
+    	 * equal distance. */
+            //int    *nncounts;
+        std::vector<double> nncounts;
+            //double **weights;
+        std::vector<std::vector<double>> weights;
+    
+	/* Number of identified Cluster Supporting Objects */
+	int cso_count;
+	//char *obtypes;
+        std::vector<char> obtypes;
+
+	//double **fuzzyships;
+        std::vector<std::vector<double>> fuzzyships;
+	
+	/* Number of clusters including the outlier group */
+	int count;
+	/* The last one is the outlier group. */
+        //std::vector<IntArray> clusters;
+        std::vector<std::vector<int>> clusters;
+	
+	DistFunction distfunc;
+
+
+    
+
+
+
+      private:
+
+
+
+    };/// End Flame class
+
+
+
+
+
   //--------------------------------------------------------------- 
   class fuzzyClusterAlg {
   public:
@@ -144,130 +310,33 @@ namespace cluster{
     double fMaxWidth;
 
     //Needed for Ben's FLAME cluster
-    double **data = NULL;
     int NNumOfRows;
     int MNumOfCols;
-    TMatrixD                         fpsMat;
 
     // Get functions and structures from HoughBaseAlg
     //friend class HoughBaseAlg;
 
-
-    
-    struct IntArray
-    {
-    	int *array;
-    	int  size;
-    	int  bufsize;
-    };
-    
-    /* For sorting and storing the orignal indices. */
-    struct Indexdouble
-    {
-    	int   index;
-    	double value;
-    };
-    
-
-    typedef struct Indexdouble Indexdouble;
-    typedef struct IntArray IntArray;
-
-
    
-    /* Sort until the smallest "part" items are sorted. */
-    void PartialQuickSort( Indexdouble *data, int first, int last, int part );
 
-    static double Flame_Euclidean( double *x, double *y, int m );
-    static double Flame_Cosine( double *x, double *y, int m );
-    static double Flame_Pearson( double *x, double *y, int m );
-    static double Flame_UCPearson( double *x, double *y, int m );
-    static double Flame_SQPearson( double *x, double *y, int m );
-    static double Flame_DotProduct( double *x, double *y, int m );
-    static double Flame_Covariance( double *x, double *y, int m );
-    static double Flame_Manhattan( double *x, double *y, int m );
-    static double Flame_CosineDist( double *x, double *y, int m );
-    static double Flame_PearsonDist( double *x, double *y, int m );
-    static double Flame_UCPearsonDist( double *x, double *y, int m );
-    static double Flame_SQPearsonDist( double *x, double *y, int m );
-    static double Flame_DotProductDist( double *x, double *y, int m );
-    static double Flame_CovarianceDist( double *x, double *y, int m );
-
-    enum DistSimTypes
-    {
-    	DST_USER = 0,
-    	DST_EUCLID ,
-    	DST_COSINE ,
-    	DST_PEARSON ,
-    	DST_UC_PEARSON ,
-    	DST_SQ_PEARSON ,
-    	DST_DOT_PROD ,
-    	DST_COVARIANCE ,
-    	DST_MANHATTAN ,
-    	DST_NULL
-    };
+    static double Flame_Euclidean( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_Cosine( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_Pearson( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_UCPearson( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_SQPearson( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_DotProduct( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_Covariance( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_Manhattan( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_CosineDist( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_PearsonDist( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_UCPearsonDist( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_SQPearsonDist( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_DotProductDist( std::vector<double> *x, std::vector<double> *y, int m );
+    static double Flame_CovarianceDist( std::vector<double> *x, std::vector<double> *y, int m );
 
 
 
-    enum FlameObjectTypes
-    {
-    	OBT_NORMAL ,
-    	OBT_SUPPORT ,
-    	OBT_OUTLIER
-    };
-    
-
-
-    struct Flame
-    {
-    	int simtype;
-    
-    	/* Number of objects */
-    	int N;
-    
-    	/* Number of K-Nearest Neighbors */
-    	int K;
-    
-    	/* Upper bound for K defined as: sqrt(N)+10 */
-    	int KMAX;
-    
-    	/* Stores the KMAX nearest neighbors instead of K nearest neighbors
-    	 * for each objects, so that when K is changed, weights and CSOs can be
-    	 * re-computed without referring to the original data.
-    	 */
-    	int   **graph;
-    	/* Distances to the KMAX nearest neighbors. */
-    	double **dists;
-    
-    	/* Nearest neighbor count.
-    	 * it can be different from K if an object has nearest neighbors with
-    	 * equal distance. */
-    	int    *nncounts;
-    	double **weights;
-    
-	/* Number of identified Cluster Supporting Objects */
-	int cso_count;
-	char *obtypes;
-
-	double **fuzzyships;
-	
-	/* Number of clusters including the outlier group */
-	int count;
-	/* The last one is the outlier group. */
-	IntArray *clusters;
-	
-	DistFunction distfunc;
-    };
-
-
-
-
-    typedef struct Flame Flame;
-
-
-    /* Create a structure for FLAME clustering, and set all fields to zero. */
-    Flame* Flame_New();
-
-
+   //double **data = NULL;
+   std::vector<std::vector<double>> data;
 
 
 
@@ -284,24 +353,26 @@ namespace cluster{
     // The limit in the difference between memberships when FLAME clustering stops
     double fEpsilon;
     // Sets the threshold parameter in FLAME cluster, it effectively sets a lower limit on hit density for whether a hit is considered part of a cluster or an outlier
-    double fThreshold; 
+    double fThreshold;
 
 
+    // Run the Hough line finder?
+    bool    fRunHough;
 
 
-    bool fDoFuzzyRemnantMerge;           ///< Tell the algorithm to merge fuzzy cluster remnants into showers or tracks 
+    bool    fDoFuzzyRemnantMerge;           ///< Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
     double  fFuzzyRemnantMergeCutoff;       ///< cut off on merging the fuzzy cluster remnants into the nearest shower or track 
 
-    bool fDoTrackClusterMerge;           ///< Turn on cut on product of charge asymmetry and sin of angle between slopes of lines
+    bool    fDoTrackClusterMerge;           ///< Turn on cut on product of charge asymmetry and sin of angle between slopes of lines
     double  fTrackClusterMergeCutoff;          ///< Max distance between Hough lines before two lines are merged (muon tracks), 
     double  fChargeAsymAngleCut;            ///< Cut on product of charge asymmetry and sin of angle between slopes of lines
     double  fSigmaChargeAsymAngleCut;       ///< Cut on product of charge asymmetry and sin of angle between slopes of lines
   
-    bool fDoShowerClusterMerge;          ///< Turns on shower Hough line merging (0-off, 1-on)
+    bool    fDoShowerClusterMerge;          ///< Turns on shower Hough line merging (0-off, 1-on)
     double  fShowerClusterMergeAngle;       ///< Max angle between slopes before two lines are merged, for lines in shower line regions
     double  fShowerClusterMergeCutoff;    ///< Max distance between Hough lines before two lines are merged (electron showers),
 
-    bool fDoShowerTrackClusterMerge;     ///< Turn on cut on product of charge asymmetry and sin of angle between slopes of lines
+    bool    fDoShowerTrackClusterMerge;     ///< Turn on cut on product of charge asymmetry and sin of angle between slopes of lines
     double  fShowerTrackClusterMergeCutoff;    ///< Max distance between Hough lines before two lines are merged (electron showers),
     double  fShowerTrackClusterMergeAngle;  ///< Max angle between slopes before two lines are merged, for lines in shower line regions
     
@@ -380,52 +451,9 @@ namespace cluster{
                                            ///< dead wire counting ala fBadChannelSum[m]-fBadChannelSum[n]. 
 
     
-    /* Free allocated memory, and set all fields to zero. */
-    void Flame_Clear( Flame *self );
-    
-    /* Set a NxM data matrix, and compute distances of type T.
-     * 
-     * If T==DST_USER or T>=DST_NULL, and Flame::distfunc member is set,
-     * then Flame::distfunc is used to compute the distances;
-     * Otherwise, Flame_Euclidean() is used. */
-    void Flame_SetDataMatrix( Flame *self, double *data[], int N, int M, int T );
-    
-    /* Set a pre-computed NxN distance matrix. */
-    void Flame_SetDistMatrix( Flame *self, double *data[], int N );
-    
-    /* Define knn-nearest neighbors for each object 
-     * and the Cluster Supporting Objects (CSO). 
-     * 
-     * The actual number of nearest neighbors could be large than knn,
-     * if an object has neighbors of the same distances.
-     *
-     * Based on the distances of the neighbors, a density can be computed
-     * for each object. Objects with local maximum density are defined as
-     * CSOs. The initial outliers are defined as objects with local minimum
-     * density which is less than mean( density ) + thd * stdev( density );
-     */
-    void Flame_DefineSupports( Flame *self, int knn, double thd );
-    
-    /* Local Approximation of fuzzy memberships.
-     * Stopped after the maximum steps of iterations;
-     * Or stopped when the overall membership difference between
-     * two iterations become less than epsilon. */
-    void Flame_LocalApproximation( Flame *self, int steps, double epsilon );
-    
-    /* Construct clusters.
-     * If 0<thd<1:
-     *   each object is assigned to all clusters in which
-     *   it has membership higher than thd; if it can not be assigned
-     *   to any clusters, it is then assigned to the outlier group.
-     * Else:
-     *   each object is assigned to the group (clusters/outlier group)
-     *   in which it has the highest membership. */
-    void Flame_MakeClusters( Flame *self, double thd );
-
-    void Flame_SetMatrix( Flame *self, double *data[], int n, int m );
 
 
-    void IntArray_Push( IntArray *self, int value );
+    //void IntArray_Push( IntArray *self, int value );
 
 
     // Object used for Hough transforms
