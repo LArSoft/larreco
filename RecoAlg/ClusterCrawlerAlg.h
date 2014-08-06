@@ -264,7 +264,7 @@ namespace cluster {
     // vector of existing clusters
     void ChkVertex(std::vector<CCHitFinderAlg::CCHit>& allhits,
         std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-        short vw, float fvt, unsigned short it1, unsigned short it2, short topo);
+        float fvw, float fvt, unsigned short it1, unsigned short it2, short topo);
     // try to attach a cluster to an existing vertex
     void ClusterVertex(std::vector<CCHitFinderAlg::CCHit>& allhits, 
         std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,

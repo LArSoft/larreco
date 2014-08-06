@@ -169,7 +169,6 @@ namespace cluster {
       // associate the hits to this cluster
       util::CreateAssn(*this, evt, sccol, shcol, *hc_assn, firsthit, hitcnt);
     } // cluster iterator
-//  std::cout<<"# clusters "<<nclus<<" # Hits in clusters "<<hitcnt;
     
     // make hits that are not associated with any cluster
     hitcnt = 0;
@@ -195,7 +194,6 @@ namespace cluster {
             (double) theHit.ChiDOF);
       shcol.push_back(hit);
     }
-//  std::cout<<" # Hits NOT in clusters "<<hitcnt;
     
     // convert to unique_ptrs
     std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
@@ -210,10 +208,10 @@ namespace cluster {
 
     // make the 2D vertex collection
     for(unsigned short iv = 0; iv < fCCAlg.vtx.size(); iv++) {
-      ClusterCrawlerAlg::VtxStore vtx = fCCAlg.vtx[iv];
-      if(vtx.Wght <= 0) continue;
-      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(vtx.CTP);
-      unsigned int wire = vtx.Wire;
+      ClusterCrawlerAlg::VtxStore aVtx = fCCAlg.vtx[iv];
+      if(aVtx.Wght <= 0) continue;
+      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(aVtx.CTP);
+      unsigned int wire = (0.5 + aVtx.Wire);
       if(wire > geo->Nwires(planeID.Plane) - 1) {
         mf::LogError("ClusterCrawler")<<"Bad vtx wire "<<wire<<" plane "
           <<planeID.Plane<<" vtx # "<<iv;
@@ -226,7 +224,7 @@ namespace cluster {
         mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<planeID.Plane<<" "<<wire<<" "<<planeID.TPC<<" "<<planeID.Cryostat;
         continue;
       }
-      recob::EndPoint2D myvtx((double)vtx.Time, wids[0], (double)vtx.Wght,
+      recob::EndPoint2D myvtx((double)aVtx.Time, wids[0], (double)aVtx.Wght,
         (int)iv, geo->View(channel), 0.);
       v2col->push_back(myvtx);
     } // iv
