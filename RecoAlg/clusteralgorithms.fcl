@@ -17,9 +17,9 @@ standard_clustercrawleralg:
   KinkAngCut: [0.35, 0.35, 0.4] # kink angle cut (radians) used to follow and merge
   DoMerge:   [false, true, true] # run cluster merging code?
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
-  MergeChgCut: [0.2, 0.2, 0.2] # max charge ratio for cluster merging
+  MergeChgCut: [0.3, 0.3, 0.3] # max charge ratio for cluster merging
   FindVertices: [true, true, true]  # make 2D vertices after clustering?
-  LACrawl:     [false, true, true]  # crawl Large Angle clusters?
+  LACrawl:     [true, true, true]  # crawl Large Angle clusters?
   LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
   HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
@@ -37,14 +37,14 @@ standard_cchitfinderalg:
   CalDataModuleLabel: "caldata"
   MinSigInd:   3.   # min signal peak for induction plane
   MinSigCol:   5.   # min signal peak for collection plane
-  MinRMSInd:   3.   # min signal width for induction plane
-  MinRMSCol:   3.   # min signal width for induction plane
+  MinRMSInd:   1.   # min signal width for induction plane
+  MinRMSCol:   1.   # min signal width for induction plane
   MaxBumps:    5    # make a crude hit if > MaxBumps are found in the RAT
   MaxXtraHits: 1    # max number of hidden hits in Region Above Threshold
   ChiSplit:  10.   # Max chi/DOF for splitting hits for signal rms error = 1
-  ChiNorms: [ 2.7, 20.4, 7.8 ]  # chi/DOF normalization for each plane
-  TimeOffsets: [ 0.48, 0.41, 0.49 ] # hit time offsets
-  ChgNorms: [ 0.733, 0.750, 1.471 ]   # Area -> Charge normalization
+  ChiNorms: [ 0.3, 0.3, 0.5 ]  # chi/DOF normalization for each plane
+  TimeOffsets: [ 0., 0., 0. ] # hit time offsets
+  ChgNorms: [ 1.0, 1.0, 1.0 ]   # Area -> Charge normalization
 }
 
 standard_cchitrefineralg:
