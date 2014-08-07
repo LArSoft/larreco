@@ -41,6 +41,7 @@
 #include "RecoAlg/SpacePointAlg.h"
 #include "Utilities/AssociationUtil.h"
 #include "Utilities/DetectorProperties.h"
+#include "Utilities/LArProperties.h"
 
 #include "TMatrixD.h"
 #include "TDecompSVD.h"
@@ -85,6 +86,7 @@ private:
   // Declare member data here.
 
   int   fReadOutWindowSize;
+  //  int fNumberTimeSamples;
   float fSamplingRate;
 
   // stuff to set in the fcl file
@@ -98,7 +100,7 @@ private:
   int fDoTrackCheck;
   int fDoClusterCheck;
   int fClusterAssociatedToTracks;
-
+  int fDetectorWidthTicks;
 
 
 
@@ -174,7 +176,7 @@ trkf::CosmicTagger::CosmicTagger(fhicl::ParameterSet const & p)
   //  produces< std::vector<recob::Cluster> >();
   produces< std::vector<anab::CosmicTag> >();
   //  produces< std::vector<anab::CosmicTag> >("tracks");
-  //  produces< art::Assns<recob::Track, anab::CosmicTag> >();
+  produces< art::Assns<anab::CosmicTag, recob::Track> >();
 
 
   produces< art::Assns<anab::CosmicTag, recob::Cluster> >();
@@ -195,9 +197,9 @@ void trkf::CosmicTagger::produce(art::Event & e) {
 
   //  std::unique_ptr< std::vector<recob::Track > >      outTracksForTags( new std::vector<recob::Track>);
   //  std::unique_ptr< std::vector<recob::Cluster> >     outClusters( new std::vector<recob::Cluster> );
-  //  std::unique_ptr< std::vector< anab::CosmicTag > > cosmicTagTrackVector( new std::vector<anab::CosmicTag> );
+  std::unique_ptr< std::vector< anab::CosmicTag > > cosmicTagTrackVector( new std::vector<anab::CosmicTag> );
   std::unique_ptr< std::vector< anab::CosmicTag > > cosmicTagClusterVector( new std::vector<anab::CosmicTag> );
-  //  std::unique_ptr< art::Assns<recob::Track, anab::CosmicTag > >    assnOutCosmicTagTrack( new art::Assns<recob::Track, anab::CosmicTag>);
+  std::unique_ptr< art::Assns<recob::Track, anab::CosmicTag > >    assnOutCosmicTagTrack( new art::Assns<recob::Track, anab::CosmicTag>);
   std::unique_ptr< art::Assns<recob::Cluster, anab::CosmicTag > >    assnOutCosmicTagCluster( new art::Assns<recob::Cluster, anab::CosmicTag>);
   //  std::unique_ptr< art::Assns<anab::CosmicTag, recob::Hit > >    assnOutCosmicTagHit( new art::Assns<anab::CosmicTag, recob::Hit>);
 
@@ -261,6 +263,7 @@ void trkf::CosmicTagger::produce(art::Event & e) {
     /////////////////////////////////////////////////////////////
     // Check to see if the cluster is associated to a track
     /////////////////////////////////////////////////////////////
+     std::cerr << "How many tracks are associated to the cluster? " << tracksFromCluster.at(iCluster).size() << std::endl;
      if( tracksFromCluster.at(iCluster).size() > 0 ) {
 
        if( tracksFromCluster.at(iCluster).size() > 1 ) { 
@@ -357,10 +360,10 @@ void trkf::CosmicTagger::produce(art::Event & e) {
      
      double t0 = tCluster->StartPos()[1] < tCluster->EndPos()[1] ? tCluster->StartPos()[1] : tCluster->EndPos()[1];
      double t1 = tCluster->StartPos()[1] > tCluster->EndPos()[1] ? tCluster->StartPos()[1] : tCluster->EndPos()[1]; 
-     if( t0+timeLimit < fReadOutWindowSize ) { // This is into the pre-spill window
+     if( t0+timeLimit < fDetectorWidthTicks ) { // This is into the pre-spill window
        failClusterTickCheck = true;
      }
-     if( t1-timeLimit > 2*fReadOutWindowSize ) { // This is into the post-spill window
+     if( t1-timeLimit > 2*fDetectorWidthTicks ) { // This is into the post-spill window
        failClusterTickCheck = true;
      }
      
@@ -380,7 +383,7 @@ void trkf::CosmicTagger::produce(art::Event & e) {
      
      
      // Making stuff to save!
-     std::cerr << "what the hell am i saving? " << cosmicScore << " " << isCosmic << std::endl;
+     std::cerr << "Cosmic Score, isCosmic, t0, t1: " << cosmicScore << " " << isCosmic << " t's: " << t0 << " " << t1 << " | " << fReadOutWindowSize<< " | " << fDetectorWidthTicks << std::endl;
      cosmicTagClusterVector->push_back( anab::CosmicTag(endPt1,
 							endPt2,
 							cosmicScore,
@@ -401,15 +404,22 @@ void trkf::CosmicTagger::produce(art::Event & e) {
   // LOOPING OVER INSPILL TRACKS
   /////////////////////////////////
   
+  // RESURRECT THIS -- HAVE IT IGNORE CLUSTERS
+  // THIS IS TO HANDLE THE KALMAN STUFF THAT DOESN'T ASSOCIATE TO CLUSTERS
 
 
+  if( fDoTrackCheck && 1) {
 
-  if( fDoTrackCheck && 0) {
+    std::string anotherTrackModuleLabel = "trackkalmanhit";
+    art::Handle<std::vector<recob::Track> > Trk2_h;
+    if(fDoTrackCheck) e.getByLabel( anotherTrackModuleLabel, Trk2_h );
+    std::vector<art::Ptr<recob::Track> > TrkVec;
+    art::fill_ptr_vector(TrkVec, Trk2_h);
 
-    art::FindManyP<recob::Hit>        hitsSpill   (Trk_h, e, fTrackModuleLabel);
-    art::FindManyP<recob::Cluster>    ClusterSpill(Trk_h, e, fTrackModuleLabel);
+    art::FindManyP<recob::Hit>        hitsSpill   (Trk2_h, e, anotherTrackModuleLabel);
+    //    art::FindManyP<recob::Cluster>    ClusterSpill(Trk_h, e, fTrackModuleLabel);
 
-    for( unsigned int iTrack=0; iTrack<Trk_h->size(); iTrack++ ) {
+    for( unsigned int iTrack=0; iTrack<Trk2_h->size(); iTrack++ ) {
 
       //      art::ServiceHandle<geo::Geometry> geo;
       int origin      = -1;
@@ -423,7 +433,7 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       art::Ptr<recob::Track>              tTrack       = TrkVec.at(iTrack);
       std::vector<art::Ptr<recob::Hit> >  HitVec  = hitsSpill.at(iTrack);
 
-      std::vector< art::Ptr< recob::Cluster> > ClusterVect = ClusterSpill.at(iTrack);
+      //      std::vector< art::Ptr< recob::Cluster> > ClusterVect = ClusterSpill.at(iTrack);
 
 
     
@@ -462,16 +472,16 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       //////////////////////////////////////////////////////////////////////
       //Let's check Cluster connections to pre & post spill planes first
 
-      // THIS REQUIRES THAT WE CHECK THE CLUSTERS WITHIN THIS TRACK LOOP
-      // SO DO SOMETHING LIKE:
-      std::vector <double> t1Times, t2Times;
-      std::vector <int> fail;
-      if(fDoClusterCheck) doTrackClusterCheck( ClusterVect, t1Times, t2Times, fail );
-
-
-      if( count( fail.begin(), fail.end(), 1 ) > 0 ) {
-	isCosmic = 4;
-      }
+//      // THIS REQUIRES THAT WE CHECK THE CLUSTERS WITHIN THIS TRACK LOOP
+//      // SO DO SOMETHING LIKE:
+//      std::vector <double> t1Times, t2Times;
+//      std::vector <int> fail;
+//      if(fDoClusterCheck) doTrackClusterCheck( ClusterVect, t1Times, t2Times, fail );
+//
+//
+//      if( count( fail.begin(), fail.end(), 1 ) > 0 ) {
+//	isCosmic = 4;
+//      }
 
 
 
@@ -490,12 +500,12 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       /////////////////////////////////////////////////////////
       // Are any of the ticks outside of the ReadOutWindow ?
       /////////////////////////////////////////////////////////
-      if(tick1 < fReadOutWindowSize || tick2 > 2*fReadOutWindowSize ) {
+      if(tick1 < fDetectorWidthTicks || tick2 > 2*fDetectorWidthTicks ) {
 	isCosmic = 1;
       }
       if(isCosmic == 4) {
 	std::cerr << "I don't know what's going on here. The ticks are " << tick1 << " " << tick2 << std::endl;
-	for( unsigned int mm=0;mm<t1Times.size(); mm++ ) std::cerr << t1Times.at(mm) << ", "<< t2Times.at(mm) <<std::endl;
+	//	for( unsigned int mm=0;mm<t1Times.size(); mm++ ) std::cerr << t1Times.at(mm) << ", "<< t2Times.at(mm) <<std::endl;
       }
 
 
@@ -533,7 +543,7 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       
       
 
-      //      float cosmicScore = isCosmic > 0 ? 1 : 0;
+      float cosmicScore = isCosmic > 0 ? 1 : 0;
 
       //////////////////////////////
       // Now check for X boundary
@@ -546,15 +556,15 @@ void trkf::CosmicTagger::produce(art::Event & e) {
 	if(xBnd1 < bndDist || xBnd2 < bndDist) nXBd++;
 	if( ( 2.*geo->DetHalfWidth() - xBnd1 < bndDist ) || ( 2.*geo->DetHalfWidth() - xBnd1 < bndDist ) ) nXBd++;
        	if(  nXBd+nBd>1 && 0 ) isCosmic = 3; // THIS ISN'T SETUP YET -- NEED A HANDLE TO TIME INFO
-	if( nBd >0 ) {isCosmic=3; /*cosmicScore = 0.5;*/}
+	if( nBd >0 ) {isCosmic=3; cosmicScore = 0.5;}
       }
 
 
- //      cosmicTagTrackVector->push_back( anab::CosmicTag(endPt1,
-// 						       endPt2,
-// 						       cosmicScore,
-// 						       isCosmic
-// 						       ) );
+      cosmicTagTrackVector->push_back( anab::CosmicTag(endPt1,
+ 						       endPt2,
+ 						       cosmicScore,
+ 						       isCosmic
+						       ) );
 
 
     
@@ -578,7 +588,7 @@ void trkf::CosmicTagger::produce(art::Event & e) {
       
 
 
-      //makeAssn = util::CreateAssn(*this, e, *cosmicTagTrackVector, tTrack, *assnOutCosmicTagTrack );
+      util::CreateAssn(*this, e, *cosmicTagTrackVector, tTrack, *assnOutCosmicTagTrack );
       //util::CreateAssn(*this, e, *cosmicTagTrackVector, HitVec, *assnOutCosmicTagHit);
 
 
@@ -629,7 +639,7 @@ void trkf::CosmicTagger::produce(art::Event & e) {
   //  e.put( std::move(outClusters) );
   //  e.put( std::move(cosmicTagTrackVector) ,"tracks");
   e.put( std::move(cosmicTagClusterVector) );
-  //  e.put( std::move(assnOutCosmicTagTrack) );
+  e.put( std::move(assnOutCosmicTagTrack) );
   e.put( std::move(assnOutCosmicTagCluster) );
   //  e.put( std::move(assnOutCosmicTagHit) );
 
@@ -886,7 +896,9 @@ void trkf::CosmicTagger::reconfigure(fhicl::ParameterSet const & p) {
 
 
   art::ServiceHandle<util::DetectorProperties> detp;
-  fReadOutWindowSize = detp->ReadOutWindowSize();
+
+  //fReadOutWindowSize = detp->ReadOutWindowSize();
+  //fNumberTimeSamples = detp->NumberTimeSamples();
   fSamplingRate = detp->SamplingRate();
   fTotalBoundaryLimit = p.get<float>("TPCBoundaryLimit", 15);
   f3DSpillDistance    = p.get<float>("SpillDistance",12); 
@@ -900,6 +912,20 @@ void trkf::CosmicTagger::reconfigure(fhicl::ParameterSet const & p) {
   fDoTrackCheck = p.get< int >("DoTrackCheck", 0);
   fDoClusterCheck = p.get< int >("DoClusterCheck", 1);
   fClusterAssociatedToTracks = p.get< int >("ClustersAssociatedToTracks",1);
+
+
+
+
+
+  art::ServiceHandle<util::LArProperties> larp;
+  art::ServiceHandle<geo::Geometry> geo;
+  double eField = larp->Efield();
+  double temp = larp->Temperature();
+  double driftVelocity = larp->DriftVelocity( eField, temp ); // cm/us
+
+  std::cerr << "Drift velocity is " << driftVelocity << " cm/us.  Sampling rate is: "<< fSamplingRate << " detector width: " <<  2*geo->DetHalfWidth() << std::endl;
+  fDetectorWidthTicks = 2*geo->DetHalfWidth()/(driftVelocity*fSamplingRate/1000); // ~3200 for uB
+  std::cerr << fDetectorWidthTicks<< std::endl;
 }
 
 void trkf::CosmicTagger::endJob() {
