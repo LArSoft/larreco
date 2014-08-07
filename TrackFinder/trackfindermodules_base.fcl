@@ -230,6 +230,7 @@ standard_cosmictagger:
     DoTrackCheck: 1 # 0
     DoClusterCheck: 1 # 1
     ClustersAssociatedToTracks: 1 # make this 1 when tracks are associated to clusters
+    TrackAssocToClusterModuleLabel: "track"
 }
 
 

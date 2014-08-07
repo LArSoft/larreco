@@ -48,7 +48,7 @@
 #include "TVector3.h"
 #include "TTree.h"
 #include "TH1.h"
-
+#include "TStopwatch.h"
 
 
 
@@ -96,6 +96,7 @@ private:
   int   fdTLimit;            // 8
   int   fdWLimit;            // 8
   std::string fTrackModuleLabel;
+  std::string fTrackAssocToClusterModuleLabel;
   std::string fClusterModuleLabel;
   int fDoTrackCheck;
   int fDoClusterCheck;
@@ -206,13 +207,16 @@ void trkf::CosmicTagger::produce(art::Event & e) {
 
 
 
-
+  TStopwatch ts;
 
 
 
 
 
   art::Handle<std::vector<recob::Track> > Trk_h;
+
+
+
 
   if(fDoTrackCheck) e.getByLabel( fTrackModuleLabel, Trk_h );
   std::vector<art::Ptr<recob::Track> > TrkVec;
@@ -247,8 +251,10 @@ void trkf::CosmicTagger::produce(art::Event & e) {
   /////////////////////////////////
 
 
-  art::FindManyP<recob::Track> tracksFromCluster (Cluster_h, e, fTrackModuleLabel);
-  //  art::FindOneP<recob::Track> tracksFromCluster (Cluster_h, e, fTrackModuleLabel);
+
+  art::FindManyP<recob::Track> tracksFromCluster (Cluster_h, e, fTrackAssocToClusterModuleLabel);
+
+
 
   for( unsigned int iCluster = 0; iCluster < Cluster_h->size(); iCluster++ ) {
 
@@ -263,94 +269,96 @@ void trkf::CosmicTagger::produce(art::Event & e) {
     /////////////////////////////////////////////////////////////
     // Check to see if the cluster is associated to a track
     /////////////////////////////////////////////////////////////
-     std::cerr << "How many tracks are associated to the cluster? " << tracksFromCluster.at(iCluster).size() << std::endl;
-     if( tracksFromCluster.at(iCluster).size() > 0 ) {
-
-       if( tracksFromCluster.at(iCluster).size() > 1 ) { 
-	 std::cerr << "Well this is unexpected... The cluster is associated to " << tracksFromCluster.at(iCluster).size() << " tracks." << std::endl; 
-       }
-       
-       std::vector< TVector3 > tempEP;
-
-       for( unsigned int iTrk=0; iTrk < tracksFromCluster.at(iCluster).size(); iTrk++ ) { 
+     if( tracksFromCluster.isValid() ) {
+       std::cerr << "How many tracks are associated to the cluster? " << tracksFromCluster.at(iCluster).size() << std::endl;
+       if( tracksFromCluster.at(iCluster).size() > 0 ) {
 	 
-	 tTrack = tracksFromCluster.at(iCluster).at(0);
-	 //     if( tracksFromCluster.at(iCluster) ) {
-	 //       tTrack = tracksFromCluster.at(iCluster);
-	 
-	 
-	 TVector3 tVector1 = tTrack->Vertex();
-	 TVector3 tVector2 = tTrack->End();
-
-	 tempEP.push_back( tTrack->Vertex() );
-	 tempEP.push_back( tTrack->End() );
-
-
-//	 float trackEndPt1_X = tVector1[0]; 
-//	 float trackEndPt1_Y = tVector1[1]; 
-//	 float trackEndPt1_Z = tVector1[2]; 
-//	 float trackEndPt2_X = tVector2[0]; 
-//	 float trackEndPt2_Y = tVector2[1]; 
-//	 float trackEndPt2_Z = tVector2[2]; 
-	 
-
-	 if( tVector1[0] != tVector1[0] ){
-	   std::cerr << "!!! FOUND A PROBLEM... the length is: " << tTrack->Length() << 
-	     " np: " << tTrack->NumberTrajectoryPoints() << " id: " << tTrack->ID() << " " << tTrack << std::endl;
-	   for( size_t hh=0; hh<tTrack->NumberTrajectoryPoints(); hh++) {
-	     std::cerr << hh << " " << tTrack->LocationAtPoint(hh)[0] << ", " <<
-	       tTrack->LocationAtPoint(hh)[1] << ", " <<
-	       tTrack->LocationAtPoint(hh)[2] << std::endl;
-	   }
-	   continue; // I don't want to deal with these "tracks"
+	 if( tracksFromCluster.at(iCluster).size() > 1 ) { 
+	   std::cerr << "Well this is unexpected... The cluster is associated to " << tracksFromCluster.at(iCluster).size() << " tracks." << std::endl; 
 	 }
 	 
-       }// end of loop over tracks
-
-       float maxDistance = -999;
-       int indxEP1 = -1, indxEP2 =-2;
-       for( unsigned int pp=0; pp<tempEP.size()-1; pp++ ) {
-	 for( unsigned int ww=pp+1; ww<tempEP.size(); ww++ ) {
-	   float distance = sqrt( pow( tempEP.at(pp)[0] - tempEP.at(ww)[0], 2 ) +
-				  pow( tempEP.at(pp)[1] - tempEP.at(ww)[1], 2 ) +
-				  pow( tempEP.at(pp)[2] - tempEP.at(ww)[2], 2 ) );
-	   if( distance > maxDistance ) {
-	     indxEP1 = tempEP.at(pp)[1] > tempEP.at(ww)[1] ? pp : ww;
-	     indxEP2 = tempEP.at(pp)[1] > tempEP.at(ww)[1] ? ww : pp;
-	     maxDistance = distance;
+	 std::vector< TVector3 > tempEP;
+	 
+	 for( unsigned int iTrk=0; iTrk < tracksFromCluster.at(iCluster).size(); iTrk++ ) { 
+	   
+	   tTrack = tracksFromCluster.at(iCluster).at(iTrk);
+	   //     if( tracksFromCluster.at(iCluster) ) {
+	   //       tTrack = tracksFromCluster.at(iCluster);
+	   
+	   
+	   TVector3 tVector1 = tTrack->Vertex();
+	   TVector3 tVector2 = tTrack->End();
+	   
+	   tempEP.push_back( tTrack->Vertex() );
+	   tempEP.push_back( tTrack->End() );
+	   
+	   
+	   //	 float trackEndPt1_X = tVector1[0]; 
+	   //	 float trackEndPt1_Y = tVector1[1]; 
+	   //	 float trackEndPt1_Z = tVector1[2]; 
+	   //	 float trackEndPt2_X = tVector2[0]; 
+	   //	 float trackEndPt2_Y = tVector2[1]; 
+	   //	 float trackEndPt2_Z = tVector2[2]; 
+	   
+	   
+	   if( tVector1[0] != tVector1[0] ){
+	     std::cerr << "!!! FOUND A PROBLEM... the length is: " << tTrack->Length() << 
+	       " np: " << tTrack->NumberTrajectoryPoints() << " id: " << tTrack->ID() << " " << tTrack << std::endl;
+	     for( size_t hh=0; hh<tTrack->NumberTrajectoryPoints(); hh++) {
+	       std::cerr << hh << " " << tTrack->LocationAtPoint(hh)[0] << ", " <<
+		 tTrack->LocationAtPoint(hh)[1] << ", " <<
+		 tTrack->LocationAtPoint(hh)[2] << std::endl;
+	     }
+	     continue; // I don't want to deal with these "tracks"
+	   }
+	   
+	 }// end of loop over tracks
+	 
+	 float maxDistance = -999;
+	 int indxEP1 = -1, indxEP2 =-2;
+	 for( unsigned int pp=0; pp<tempEP.size()-1; pp++ ) {
+	   for( unsigned int ww=pp+1; ww<tempEP.size(); ww++ ) {
+	     float distance = sqrt( pow( tempEP.at(pp)[0] - tempEP.at(ww)[0], 2 ) +
+				    pow( tempEP.at(pp)[1] - tempEP.at(ww)[1], 2 ) +
+				    pow( tempEP.at(pp)[2] - tempEP.at(ww)[2], 2 ) );
+	     if( distance > maxDistance ) {
+	       indxEP1 = tempEP.at(pp)[1] > tempEP.at(ww)[1] ? pp : ww;
+	       indxEP2 = tempEP.at(pp)[1] > tempEP.at(ww)[1] ? ww : pp;
+	       maxDistance = distance;
+	     }
 	   }
 	 }
-       }
-
 	 
-
-       endPt1.push_back( tempEP.at(indxEP1)[0] );
-       endPt1.push_back( tempEP.at(indxEP1)[1] );
-       endPt1.push_back( tempEP.at(indxEP1)[2] );
-       endPt2.push_back( tempEP.at(indxEP2)[0] );
-       endPt2.push_back( tempEP.at(indxEP2)[1] );
-       endPt2.push_back( tempEP.at(indxEP2)[2] );
-       
-       /////////////////////////////////
-       // Now check Y & Z boundaries:
-       /////////////////////////////////
-       int nBd = 0;
-       float bndDist = 5;
-       if(isCosmic==0 ) {
-	 if(fabs( tempEP.at(indxEP1)[1] - geo->DetHalfHeight())<bndDist ) nBd++;
-	 if(fabs( tempEP.at(indxEP2)[1] + geo->DetHalfHeight())<bndDist ) nBd++;
-	 if(fabs( tempEP.at(indxEP1)[2] - geo->DetLength())<bndDist || fabs( tempEP.at(indxEP2)[2]- geo->DetLength())<bndDist ) nBd++;
-	 if(fabs( tempEP.at(indxEP1)[2])<bndDist || fabs( tempEP.at(indxEP2)[2] ) < bndDist ) nBd++;
 	 
-	 if( nBd>1 ) isCosmic = 2;
-	 if( nBd==1 ) isCosmic = 3; // only 1 boundary w/o time information
+	 
+	 endPt1.push_back( tempEP.at(indxEP1)[0] );
+	 endPt1.push_back( tempEP.at(indxEP1)[1] );
+	 endPt1.push_back( tempEP.at(indxEP1)[2] );
+	 endPt2.push_back( tempEP.at(indxEP2)[0] );
+	 endPt2.push_back( tempEP.at(indxEP2)[1] );
+	 endPt2.push_back( tempEP.at(indxEP2)[2] );
+	 
+	 /////////////////////////////////
+	 // Now check Y & Z boundaries:
+	 /////////////////////////////////
+	 int nBd = 0;
+	 float bndDist = 5;
+	 if(isCosmic==0 ) {
+	   if(fabs( tempEP.at(indxEP1)[1] - geo->DetHalfHeight())<bndDist ) nBd++;
+	   if(fabs( tempEP.at(indxEP2)[1] + geo->DetHalfHeight())<bndDist ) nBd++;
+	   if(fabs( tempEP.at(indxEP1)[2] - geo->DetLength())<bndDist || fabs( tempEP.at(indxEP2)[2]- geo->DetLength())<bndDist ) nBd++;
+	   if(fabs( tempEP.at(indxEP1)[2])<bndDist || fabs( tempEP.at(indxEP2)[2] ) < bndDist ) nBd++;
+	   
+	   if( nBd>1 ) isCosmic = 2;
+	   if( nBd==1 ) isCosmic = 3; // only 1 boundary w/o time information
+	 }
+	 
+	 
        }
-       
-       
-     }
-     /////////////////////////////////////////////////////////////
-    // End of track check
-    /////////////////////////////////////////////////////////////
+     } //     if( tracksFromCluster.isValid() )
+       /////////////////////////////////////////////////////////////
+       // End of track check
+       /////////////////////////////////////////////////////////////
 
 
     // Doing some checks on the cluster to determine if it's a cosmic
@@ -393,6 +401,7 @@ void trkf::CosmicTagger::produce(art::Event & e) {
      util::CreateAssn(*this, e, *cosmicTagClusterVector, tCluster, *assnOutCosmicTagCluster );
      
   }
+
   /////////////////////////////////
   // END OF CLUSTER LOOP
   /////////////////////////////////
@@ -908,6 +917,7 @@ void trkf::CosmicTagger::reconfigure(fhicl::ParameterSet const & p) {
   fdWLimit      = p.get<int>("dWLimit",8);
 
   fClusterModuleLabel = p.get< std::string >("ClusterModuleLabel", "cluster");
+  fTrackAssocToClusterModuleLabel =p.get< std::string >("TrackAssocToClusterModuleLabel", "track");
   fTrackModuleLabel   = p.get< std::string >("TrackModuleLabel", "track");
   fDoTrackCheck = p.get< int >("DoTrackCheck", 0);
   fDoClusterCheck = p.get< int >("DoClusterCheck", 1);
@@ -926,6 +936,9 @@ void trkf::CosmicTagger::reconfigure(fhicl::ParameterSet const & p) {
   std::cerr << "Drift velocity is " << driftVelocity << " cm/us.  Sampling rate is: "<< fSamplingRate << " detector width: " <<  2*geo->DetHalfWidth() << std::endl;
   fDetectorWidthTicks = 2*geo->DetHalfWidth()/(driftVelocity*fSamplingRate/1000); // ~3200 for uB
   std::cerr << fDetectorWidthTicks<< std::endl;
+
+
+
 }
 
 void trkf::CosmicTagger::endJob() {
