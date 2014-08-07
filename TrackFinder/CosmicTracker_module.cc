@@ -2,7 +2,7 @@
 //
 //  CosmicTracker
 //
-//  Tracker to reconstruct cosmic ray muons
+//  Tracker to reconstruct cosmic ray muons and neutrino interactions
 // 
 //  tjyang@fnal.gov
 // 
@@ -126,8 +126,8 @@ namespace trkf {
   struct SortByWire {
     bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const { 
       return 
-	h1->Wire()->RawDigit()->Channel() < 
-	h2->Wire()->RawDigit()->Channel() ;
+	h1->Channel() < 
+	h2->Channel() ;
     }
   };
 
@@ -136,7 +136,6 @@ namespace trkf {
   public:
     
     explicit CosmicTracker(fhicl::ParameterSet const& pset);
-    ~CosmicTracker();
     
     //////////////////////////////////////////////////////////
     void reconfigure(fhicl::ParameterSet const& p);
@@ -197,11 +196,6 @@ namespace trkf {
     dtime  .resize(3);
     testsig.resize(3);
     testpulse.resize(3);
-  }
-
-  //-------------------------------------------------
-  CosmicTracker::~CosmicTracker()
-  {
   }
 
   //-------------------------------------------------
@@ -401,42 +395,31 @@ namespace trkf {
 
     std::vector< std::vector<int> > matchedclusters;
 
-    int tpcCheck1=-999;
-    int tpcCheck2=-999;
-
-
     //  for (int i = 0; i<nplanes-1; ++i){
     //    for (int j = i+1; j<nplanes; ++j){
     for (int i = 0; i<nplanes; ++i){
       for (int j = 0; j<nplanes; ++j){
 	for (size_t c1 = 0; c1<Cls[i].size(); ++c1){
-	  //
-	  //ADD check if the clusters are not in the same TPC
-	  //
-	  //
-	  std::vector< art::Ptr<recob::Hit> > hitlist_TPCcheck1 = fm.at(Cls[i][c1]);
-	  std::sort(hitlist_TPCcheck1.begin(), hitlist_TPCcheck1.end(), trkf::SortByWire());
-	  for(auto theHit1 = hitlist_TPCcheck1.begin(); theHit1 != hitlist_TPCcheck1.end();  theHit1++){
-	    tpcCheck1=(*theHit1)->WireID().TPC;
-	    break;
-	  }
 	  for (size_t c2 = 0; c2<Cls[j].size(); ++c2){
-	    std::vector< art::Ptr<recob::Hit> > hitlist_TPCcheck2 = fm.at(Cls[j][c2]);
-	    std::sort(hitlist_TPCcheck2.begin(), hitlist_TPCcheck2.end(), trkf::SortByWire());
-	    for(auto theHit2 = hitlist_TPCcheck2.begin(); theHit2 != hitlist_TPCcheck2.end();  theHit2++){
-	      tpcCheck2=(*theHit2)->WireID().TPC;
-	      break;
-	    }
 	    
 	    // check if both are the same view
 	    if (clusterlist[Cls[i][c1]]->View()==
 		clusterlist[Cls[j][c2]]->View()) continue;
-	    //check if both the same TPC
-	    if(tpcCheck1!=tpcCheck2) continue;
+	    // check if both are in the same cryostat and tpc
+	    if (clusterlist[Cls[i][c1]]->Plane().Cryostat!=
+		clusterlist[Cls[j][c2]]->Plane().Cryostat) continue;
+	    if (clusterlist[Cls[i][c1]]->Plane().TPC!=
+		clusterlist[Cls[j][c2]]->Plane().TPC) continue;
 	    // check if both are already in the matched list
 	    if (matched[Cls[i][c1]]==1&&matched[Cls[j][c2]]==1) continue;
 	    // KS test between two views in time
-	    double ks = signals[i][c1]->KolmogorovTest(signals[j][c2]);
+	    double ks = 0;
+	    if (signals[i][c1]->Integral()
+		&&signals[j][c2]->Integral())
+	      signals[i][c1]->KolmogorovTest(signals[j][c2]);
+	    else{
+	      mf::LogWarning("CosmicTracker") <<"One of the two clusters appears to be empty: "<<clusterlist[Cls[i][c1]]->ID()<<" "<<clusterlist[Cls[j][c2]]->ID();
+	    }
 	    hks->Fill(ks);
 	    int imatch = -1; //track candidate index
 	    int iadd = -1; //cluster index to be inserted
@@ -569,7 +552,7 @@ namespace trkf {
 	      (clusterlist[matchedclusters[itrk][iclu]]->EndPos()[1]-
 	       clusterlist[matchedclusters[itrk][iclu]]->StartPos()[1]);
 	  }
-	  fitter->SetParameter(0,"p0",clusterlist[matchedclusters[itrk][iclu]]->StartPos()[1]-dtdw-detprop->GetXTicksOffset(clusterlist[matchedclusters[itrk][iclu]]->View(),0,1),0.1,0,0);
+	  fitter->SetParameter(0,"p0",clusterlist[matchedclusters[itrk][iclu]]->StartPos()[1]-dtdw-detprop->GetXTicksOffset(clusterlist[matchedclusters[itrk][iclu]]->Plane().Plane,clusterlist[matchedclusters[itrk][iclu]]->Plane().TPC,clusterlist[matchedclusters[itrk][iclu]]->Plane().Cryostat),0.1,0,0);
 	  fitter->SetParameter(1,"p1",clusterlist[matchedclusters[itrk][iclu]]->dTdW(),0.1,0,0);
 	  fitter->SetParameter(2,"p2",0,0.1,0,0);
 	}

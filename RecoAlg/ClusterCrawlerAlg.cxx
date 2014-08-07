@@ -837,6 +837,10 @@ namespace cluster {
     PrintClusters(allhits, tcl, vtx);
   }
 
+      float fvw = 0.;
+      float fvt = 0.;
+      unsigned short vw = 0;
+      bool SigOK = false;
       for(unsigned short ii1 = 0; ii1 < sortindex.size() - 1; ++ii1) {
         unsigned short it1 = sortindex[ii1];
         // ignore obsolete clusters
@@ -876,26 +880,34 @@ namespace cluster {
             float dsl = es2 - es1;
             if(fabs(dsl) < 0.001) dsl = 0.001;
             // find vertex wire and vertex time in float precision (fvw, fvt)
-            float fvw = 0.5 + (et1 - ew1 * es1 - et2 + ew2 * es2) / dsl;
+            fvw = (et1 - ew1 * es1 - et2 + ew2 * es2) / dsl;
             if(fvw > 0. && fvw < nwires) {
               // vertex wire in the detector
-              unsigned short vw = fvw;
+              vw = (unsigned short)(0.5 + fvw);
               // require vtx in the range of wires with hits AND
               // vtx US of both clusters AND
               // vtx not too far US of both clusters
-              if(vw >= fFirstWire && 
-                 vw <= ew1      && vw <= ew2 &&
-                 vw  > ew1 - 10 && vw  > ew2 - 10) {
-                float fvt = et1 + (vw - ew1) * es1;
+              if(vw >= fFirstWire - 1 && vw <= ew1        && vw <= ew2 &&
+                                         vw > (ew1 - 10)  && vw > (ew2 - 10) ) {
+                fvt = et1 + (vw - ew1) * es1;
   if(vtxprt) {
     mf::LogVerbatim("ClusterCrawler")
       <<"Chk clusters "<<tcl[it1].ID<<" "<<tcl[it2].ID
       <<" topo1 vtx wire "<<vw<<" time "<<(int)fvt;
   }
-                if(fvt > 0. && fvt < maxtime) {
-                  // vertex wire US of cluster ends and time in the detector
+                if(fvt > 0 && fvt < maxtime) {
+                  // Vertex wire US of cluster ends and time in the detector.
+                  // Check for signal at the vertex position and adjust the vertex by 1 wire
+                  // if necessary
+                  ChkSignal(allhits, vw, fvt, vw, fvt, SigOK);
+                  if(!SigOK) {
+                    fvw += 1.;
+                    vw = (0.5 + fvw);
+                    ChkSignal(allhits, vw, fvt, vw, fvt, SigOK);
+                  }
                   // Check this against existing vertices and update
-                  ChkVertex(allhits, tcl, vtx, vw, fvt, it1, it2, 1);
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<" SigOK "<<SigOK;
+                  if(SigOK) ChkVertex(allhits, tcl, vtx, fvw, fvt, it1, it2, 1);
                 } // fvt in detector
               } // vw topo 1 check
             } // fvw in detector
@@ -905,21 +917,21 @@ namespace cluster {
           if(tcl[it1].EndVtx < 0 && tcl[it2].BeginVtx < 0 && dth > 0.3) {
             float dsl = bs2 - es1;
             if(fabs(dsl) < 0.001) dsl = 0.001;
-            float fvw = 0.5 + (et1 - ew1 * es1 - bt2 + bw2 * bs2) / dsl;
+            float fvw = (et1 - ew1 * es1 - bt2 + bw2 * bs2) / dsl;
             if(fvw > 0 && fvw < nwires) {
               // vertex wire in the detector
               unsigned short vw = fvw;
               // require vtx US of cluster 1 End AND
               //         vtx DS of cluster 2 Begin 
               if(vw <= ew1      && vw >= bw2) {
-                float fvt = et1 + (vw - ew1) * es1;
+                fvt = et1 + (vw - ew1) * es1;
   if(vtxprt) {
     mf::LogVerbatim("ClusterCrawler")
       <<"Chk clusters "<<tcl[it1].ID<<" "<<tcl[it2].ID
       <<" topo2 vtx wire "<<vw<<" time "<<(int)fvt;
   }
                 if(fvt > 0. && fvt < maxtime) {
-                  ChkVertex(allhits, tcl, vtx, vw, fvt, it1, it2, 2);
+                  ChkVertex(allhits, tcl, vtx, fvw, fvt, it1, it2, 2);
                 } // fvt in detector
               } // vw topo 2 check
             } // fvw in detector
@@ -929,7 +941,7 @@ namespace cluster {
           if(tcl[it1].BeginVtx < 0 && tcl[it2].EndVtx < 0 && dth > 0.3) {
             float dsl = bs1 - es2;
             if(fabs(dsl) < 0.001) dsl = 0.001;
-            float fvw = 0.5 + (et2 - ew2 * es2 - bt1 + bw1 * bs1) / dsl;
+            float fvw = (et2 - ew2 * es2 - bt1 + bw1 * bs1) / dsl;
             if(fvw > 0 && fvw < nwires) {
               unsigned short vw = fvw;
               // require vtx US of cluster 2 Begin AND
@@ -942,7 +954,7 @@ namespace cluster {
       <<" topo3 vtx wire "<<vw<<" time "<<(int)fvt;
   }
                 if(fvt > 0. && fvt < maxtime) {
-                  ChkVertex(allhits, tcl, vtx, vw, fvt, it1, it2, 3);
+                  ChkVertex(allhits, tcl, vtx, fvw, fvt, it1, it2, 3);
                 } // fvt in detector
               } // vw topo 3 check
             } // fvw in detector
@@ -962,7 +974,7 @@ namespace cluster {
               // vtx DS of both clusters AND
               // vtx not too far DS of both clusters
               if(vw >= bw1 && 
-                 vw >= bw2 && vw <= fLastWire &&
+                 vw >= bw2 && vw < fLastWire &&
                  vw <  bw2 + 10 && vw <  bw1 + 10) {
                 float fvt = bt1 + (vw - bw1) * bs1;
   if(vtxprt) {
@@ -973,7 +985,7 @@ namespace cluster {
                 if(fvt > 0. && fvt < maxtime) {
                   // vertex wire US of cluster ends and time in the detector
                   // Check this against existing vertices and update
-                  ChkVertex(allhits, tcl, vtx, vw, fvt, it1, it2, 4);
+                  ChkVertex(allhits, tcl, vtx, fvw, fvt, it1, it2, 4);
                 } // fvt in detector
               } // vw topo 4 check
             } // fvw in detector
@@ -1090,9 +1102,9 @@ namespace cluster {
 /////////////////////////////////////////
     void ClusterCrawlerAlg::ChkVertex(std::vector<CCHitFinderAlg::CCHit>& allhits,
         std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-        short vw, float fvt, unsigned short it1, unsigned short it2, short topo)
+        float fvw, float fvt, unsigned short it1, unsigned short it2, short topo)
       {
-        // Checks the vertex (vw, vt) against the existing set of vertices.
+        // Checks the vertex (vw, fvt) against the existing set of vertices.
         // If there a match, clusters it1 and/or it2 are associated with it
         // if there is signal between the existing vertex and the start of
         // the cluster. The topo flag indicates the type of vertex that was
@@ -1103,13 +1115,15 @@ namespace cluster {
   if(vtxprt) {
     mf::LogVerbatim("ClusterCrawler")
       <<"ChkVertex "<<tcl[it1].ID<<" "<<tcl[it2].ID<<" topo "<<topo
-      <<" vw "<<vw<<" vt "<<(int)fvt;
+      <<" fvw "<<fvw<<" fvt "<<fvt;
   }
-        // check vertex and clusters for proximity to existing vertices
+
         bool SigOK = false;
+        unsigned short vw = (unsigned short)(0.5 + fvw);
+        // check vertex and clusters for proximity to existing vertices
         for(unsigned short iv = 0; iv < vtx.size(); ++iv) {
           if(vtx[iv].CTP != clCTP) continue;
-          if( abs( vw - vtx[iv].Wire) < 4 &&
+          if( abs(fvw - vtx[iv].Wire) < 4 &&
              fabs(fvt - vtx[iv].Time) < 25) {
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"Match to vtx "<<iv;
             // got a match. Check the appropriate cluster end and attach
@@ -3157,13 +3171,11 @@ namespace cluster {
       float wv = 0.;
       float wverr = 0.;
       LinFit(x, y, ey2, tv, wv, tverr, wverr, ChiDOF);
-      if(ChiDOF < 5) {
-        vtx[iv].Wire = (int)(wv + 0.5);
-        vtx[iv].Time = -tv;
-        if(vtx[iv].Time < 0 || vtx[iv].Time > 3200) {
-          //mf::LogError("ClusterCrawler")<<"FitVtx: Bad fit time "<<vtx[iv].Time
-	  //<<" on vtx "<<iv; // commenting out as it gives incorrect message in 1-big-window regime
-        }
+      float vtime = -tv;
+      float vwire = wv + 0.5;
+      if(ChiDOF < 5 && fabs(vwire - vtx[iv].Wire) < 5 && fabs(vtime - vtx[iv].Time) < 20) {
+        vtx[iv].Wire = vwire;
+        vtx[iv].Time = vtime;
       } // ChiDOF < 5
     } // FitVtx
 
@@ -3191,6 +3203,8 @@ namespace cluster {
           if(thePlane > 2) continue;
           float theTime = detprop->ConvertXToTicks((double)vtx3[ivx].X, 
             (int)thePlane, (int)tpc, (int)cstat);
+    if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"3DVtx "<<ivx
+      <<" look for cluster hits near P:W:T "<<thePlane<<":"<<theWire<<":"<<(int)theTime;
           // get the hit range if necessary
           if(thePlane != lastplane) {
             clCTP = EncodeCTP(cstat, tpc, thePlane);
@@ -3199,7 +3213,7 @@ namespace cluster {
           }
           // make a list of clusters that have hits near this point on nearby wires
           std::vector<unsigned short> clIDs;
-          for(unsigned short wire = theWire - 1; wire < theWire + 1; ++wire) {
+          for(unsigned short wire = theWire - 1; wire < theWire + 2; ++wire) {
             unsigned short index = wire - fFirstWire;
             // ignore dead wires or wires with no hits
             if(WireHitRange[index].first < 0) continue;
@@ -3219,16 +3233,18 @@ namespace cluster {
               if(theTime < allhits[khit].LoTime - 10) continue;
               if(theTime > allhits[khit].HiTime + 10) continue;
               // put the cluster in the list if it's not there already
-//    mf::LogVerbatim("ClusterCrawler")<<"Bingo "<<ivx<<" plane "<<thePlane
-//      <<" wire "<<wire<<" khit "<<khit<<" "<<allhits[khit].InClus;
+    if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"Bingo "<<ivx<<" plane "<<thePlane
+      <<" wire "<<wire<<" khit "<<khit<<" "<<allhits[khit].InClus;
               if(std::find(clIDs.begin(), clIDs.end(), allhits[khit].InClus) == clIDs.end())
                 clIDs.push_back(allhits[khit].InClus);
             } // khit
           } // wire
           if(clIDs.size() == 0) continue;
-//    for(unsigned int ii = 0; ii < clIDs.size(); ++ii) {
-//      mf::LogVerbatim("ClusterCrawler")<<" cluster "<<clIDs[ii];
-//    }
+    if(vtxprt) {
+      for(unsigned int ii = 0; ii < clIDs.size(); ++ii) {
+        mf::LogVerbatim("ClusterCrawler")<<" cluster "<<clIDs[ii];
+      }
+    }
           // make a new 2D vertex
           unsigned short nvcl = 0;
           VtxStore vnew;
@@ -3247,11 +3263,11 @@ namespace cluster {
             if(abs(tcl[icl].EndWir - theWire) < 3) {
               tcl[icl].EndVtx = ivnew;
               ++nvcl;
-//  mf::LogVerbatim("ClusterCrawler")<<"Attach to End "<<icl;
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"Attach to End "<<icl;
             } else if(abs(tcl[icl].BeginWir - theWire) < 3) {
               tcl[icl].BeginVtx = ivnew;
               ++nvcl;
-//  mf::LogVerbatim("ClusterCrawler")<<"Attach to Begin "<<icl;
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"Attach to Begin "<<icl;
             } else {
               // split the cluster. Find the split position
               unsigned short pos = 0;
@@ -3265,8 +3281,8 @@ namespace cluster {
                   break;
                 }
               } // jj
-//  mf::LogVerbatim("ClusterCrawler")
-//    <<"Split cluster "<<clIDs[ii]<<" at pos "<<pos;
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")
+    <<"Split cluster "<<clIDs[ii]<<" at pos "<<pos;
               SplitCluster(allhits, tcl, icl, pos, ivnew);
               nvcl += 2;
             }
@@ -3289,6 +3305,8 @@ namespace cluster {
       
       unsigned int nPln = geom->Cryostat(cstat).TPC(tpc).Nplanes();
       if(nPln != 3) return;
+      
+      vtxprt = (fDebugPlane == 666) && (fDebugHit == 666);
       
       // wire spacing in cm
       float wirePitch = geom->WirePitch(0, 1, 0, tpc, cstat);
@@ -3315,7 +3333,8 @@ namespace cluster {
       temp.clear();
       
       // vector of 2D vertices -> 3D vertices.
-      std::vector<short> vPtr(vtx.size(),-1);
+      std::vector<short> vPtr;
+      for(unsigned short ii = 0; ii < vtx.size(); ++ii) vPtr.push_back(-1);
       
       // temp vector of all 2D vertex matches
       std::vector<Vtx3Store> v3temp;
@@ -3334,9 +3353,13 @@ namespace cluster {
           ivx = vIndex[ipl][ii];
           // vertex has been matched already
           if(vPtr[ivx] >= 0) continue;
+  
           iX = detprop->ConvertTicksToX((double)vtx[ivx].Time, (int)ipl, 
             (int)tpc, (int)cstat);
           iWire = vtx[ivx].Wire;
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")
+    <<"ipl "<<ipl<<" ivx "<<ivx<<" W:T "<<(int)vtx[ivx].Wire<<":"<<(int)vtx[ivx].Time
+    <<" iX "<<iX;
           float best = fVertex3DCut;
           // temp array of 2D vertex indices in each plane
           std::array<short, 3> t2dIndex = {-1, -1, -1};
@@ -3347,9 +3370,11 @@ namespace cluster {
               if(vPtr[jvx] >= 0) continue;
               jX = detprop->ConvertTicksToX((double)vtx[jvx].Time, (int)jpl, 
                 (int)tpc, (int)cstat);
-              // 
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")
+    <<"jpl "<<jpl<<" jvx "<<jvx<<" W:T "<<(int)vtx[jvx].Wire<<":"<<(int)vtx[jvx].Time
+    <<" jX "<<jX;
               if(fabs(jX - iX) > fVertex3DCut) continue;
-//  mf::LogVerbatim("ClusterCrawler")<<"2DMatchX "<<jX - iX;
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"2DMatchX "<<jX - iX;
               jWire = vtx[jvx].Wire;
               geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
               if(y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
@@ -3372,12 +3397,13 @@ namespace cluster {
               v3d.CStat = cstat;
               v3d.TPC = tpc;
               v3temp.push_back(v3d);
-/*
-  mf::LogVerbatim("ClusterCrawler")
-    <<"Match ivx "<<ivx<<" ipl "<<ipl<<" iTime "<<(int)iTime
-    <<" jvx "<<jvx<<" jpl "<<jpl<<" jTime "<<(int)jTime
-    <<" --> kpl "<<kpl<<" kWire "<<(int)kWire<<" kTime "<<(int)kTime;
-*/
+
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")
+    <<"Match ivx "<<ivx
+    <<" P:W:T "<<ipl<<":"<<(int)vtx[ivx].Wire<<":"<<(int)vtx[ivx].Time
+    <<" jvx "<<jvx
+    <<" P:W:T "<<jpl<<":"<<(int)vtx[jvx].Wire<<":"<<(int)vtx[jvx].Time;
+
               for(kk = 0; kk < vIndex[kpl].size(); ++kk) {
                 kvx = vIndex[kpl][kk];
                 if(vPtr[kvx] >= 0) continue;
@@ -3397,16 +3423,16 @@ namespace cluster {
                   t2dIndex[jpl] = jvx;
                   t2dIndex[kpl] = kvx;
                 }
-/*
-  mf::LogVerbatim("ClusterCrawler")
+
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")
     <<" kvx "<<kvx<<" kpl "<<kpl
-    <<" wire "<<(int)vtx[kvx].Wire<<" kTime "<<kvt
+    <<" wire "<<(int)vtx[kvx].Wire<<" kTime "<<(int)vtx[kvx].Time
     <<" dr "<<dr;
-*/
+
               } // kk
             } // jj
           } // jpl
-//  mf::LogVerbatim("ClusterCrawler")<<"3DMatch best "<<best;
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"3DMatch best "<<best;
           if(best < fVertex3DCut) {
             Vtx3Store v3d;
             v3d.Ptr2D = t2dIndex;
@@ -3417,12 +3443,12 @@ namespace cluster {
             vtx3.push_back(v3d);
             for(unsigned short jj = 0; jj < 3; ++jj) 
               if(t2dIndex[jj] >= 0) vPtr[t2dIndex[jj]] = vtx3.size() - 1;
-/*
- mf::LogVerbatim("ClusterCrawler")
+
+ if(vtxprt) mf::LogVerbatim("ClusterCrawler")
     <<"New 3D vtx "<<vtx3.size()
-    <<" Y "<<v3d.Y<<" Z "<<v3d.Z<<" Time "<<v3d.Time
+    <<" X "<<v3d.X<<" Y "<<v3d.Y<<" Z "<<v3d.Z
     <<" t2dIndex "<<t2dIndex[0]<<" "<<t2dIndex[1]<<" "<<t2dIndex[2];
-*/
+
           } // best < dRCut
         } // ii
       } // ipl
@@ -3441,21 +3467,17 @@ namespace cluster {
           } // plane
           if(!keepit) break;
         } // i3d
-/*
-  mf::LogVerbatim("ClusterCrawler")
-    <<"Temp "<<it<<" "<<v3temp[it].Ptr2D[0]<<" "<<v3temp[it].Ptr2D[1]<<" "<<v3temp[it].Ptr2D[2]
-    <<" time "<<v3temp[it].Time;
-*/
+
         if(keepit) vtx3.push_back(v3temp[it]);
       } // it
       
-/*
+
       for(unsigned short it = 0; it < vtx3.size(); ++it) {
-  mf::LogVerbatim("ClusterCrawler")
-    <<"Final "<<it<<" "<<vtx3[it].Ptr2D[0]<<" "<<vtx3[it].Ptr2D[1]<<" "<<vtx3[it].Ptr2D[2]
+  if(vtxprt) mf::LogVerbatim("ClusterCrawler")
+    <<"vtx3 "<<it<<" Ptr2D "<<vtx3[it].Ptr2D[0]<<" "<<vtx3[it].Ptr2D[1]<<" "<<vtx3[it].Ptr2D[2]
     <<" wire "<<vtx3[it].Wire;
       }
-*/
+
     } // VtxMatch
 
 /////////////////////////////////////////
