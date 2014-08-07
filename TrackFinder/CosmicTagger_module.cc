@@ -41,6 +41,7 @@
 #include "RecoAlg/SpacePointAlg.h"
 #include "Utilities/AssociationUtil.h"
 #include "Utilities/DetectorProperties.h"
+#include "Utilities/LArProperties.h"
 
 #include "TMatrixD.h"
 #include "TDecompSVD.h"
@@ -912,8 +913,19 @@ void trkf::CosmicTagger::reconfigure(fhicl::ParameterSet const & p) {
   fDoClusterCheck = p.get< int >("DoClusterCheck", 1);
   fClusterAssociatedToTracks = p.get< int >("ClustersAssociatedToTracks",1);
 
-  fDetectorWidthTicks = 3200;//timeServ->fFramePeriod*timeServ->//p.get<int>("FramePeriod")*p.get<int>("ClockSpeedTPC");//timeServ->FramePeriod()*timeServ->ClockSpeedTPC();
 
+
+
+
+  art::ServiceHandle<util::LArProperties> larp;
+  art::ServiceHandle<geo::Geometry> geo;
+  double eField = larp->Efield();
+  double temp = larp->Temperature();
+  double driftVelocity = larp->DriftVelocity( eField, temp ); // cm/us
+
+  std::cerr << "Drift velocity is " << driftVelocity << " cm/us.  Sampling rate is: "<< fSamplingRate << " detector width: " <<  2*geo->DetHalfWidth() << std::endl;
+  fDetectorWidthTicks = 2*geo->DetHalfWidth()/(driftVelocity*fSamplingRate/1000); // ~3200 for uB
+  std::cerr << fDetectorWidthTicks<< std::endl;
 }
 
 void trkf::CosmicTagger::endJob() {
