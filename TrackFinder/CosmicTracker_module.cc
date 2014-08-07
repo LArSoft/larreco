@@ -2,7 +2,7 @@
 //
 //  CosmicTracker
 //
-//  Tracker to reconstruct cosmic ray muons
+//  Tracker to reconstruct cosmic ray muons and neutrino interactions
 // 
 //  tjyang@fnal.gov
 // 
@@ -413,7 +413,13 @@ namespace trkf {
 	    // check if both are already in the matched list
 	    if (matched[Cls[i][c1]]==1&&matched[Cls[j][c2]]==1) continue;
 	    // KS test between two views in time
-	    double ks = signals[i][c1]->KolmogorovTest(signals[j][c2]);
+	    double ks = 0;
+	    if (signals[i][c1]->Integral()
+		&&signals[j][c2]->Integral())
+	      signals[i][c1]->KolmogorovTest(signals[j][c2]);
+	    else{
+	      mf::LogWarning("CosmicTracker") <<"One of the two clusters appears to be empty: "<<clusterlist[Cls[i][c1]]->ID()<<" "<<clusterlist[Cls[j][c2]]->ID();
+	    }
 	    hks->Fill(ks);
 	    int imatch = -1; //track candidate index
 	    int iadd = -1; //cluster index to be inserted
