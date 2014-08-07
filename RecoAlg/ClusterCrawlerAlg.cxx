@@ -201,13 +201,12 @@ namespace cluster {
             if(allhits[ihit].InClus != 0) continue;
             // Check for a hit signal on the next DS wire
             bool SigOK = false;
-            ChkSignal(allhits, iwire + 1, allhits[ihit].Time,
-                               iwire + 1, allhits[ihit].Time, SigOK);
+            ChkSignal(allhits, iwire + 1, allhits[ihit].Time - 5,
+                               iwire + 1, allhits[ihit].Time + 5, SigOK);
             // Don't start a seed cluster with a hit that is part of a multiplet
             // if there is a hit signal DS. This is an indicator that we might be trying
             // to start a cluster just US of shower blob.
             if(SigOK && allhits[ihit].numHits > 1) continue;
-//            if(SigOK && pass < fNumPass - 1 && allhits[ihit].numHits > 1) continue;
             if((iwire - span + 1) < fFirstWire) continue;
             unsigned short jwire = iwire - span + 1;
             unsigned short jindx = jwire - fFirstWire;
@@ -281,12 +280,14 @@ namespace cluster {
               clBeginWir = iwire;
               clBeginTim = allhits[ihit].Time;
               clBeginSlp = clpar[1];
+              // don't do a small angle crawl if the cluster slope is too large
+              // and Large Angle crawling is NOT requested on this pass
+              if(!fLACrawl[pass] && fabs(clBeginSlp) > fLAClusSlopeCut) continue;
               clBeginSlpErr = clparerr[1];
               clBeginChg = (chg0 + chg1 + allhits[fcl2hits[2]].Charge) / 3.;
               // decide whether to crawl a large angle cluster. Requirements are:
               // 1) the user has set the LACluster angle cut > 0, AND
-              // 2) the cluster slope exceeds the cut, AND
-              // 3) this is the last pass
+              // 2) the cluster slope exceeds the cut
               // Note that if condition 1 is met, normal cluster crawling is done
               // only if the slope is less than the cut
               if(fLACrawl[pass] && fLAClusSlopeCut > 0) {
@@ -974,7 +975,7 @@ namespace cluster {
               // vtx DS of both clusters AND
               // vtx not too far DS of both clusters
               if(vw >= bw1 && 
-                 vw >= bw2 && vw < fLastWire &&
+                 vw >= bw2 && vw <= fLastWire + 1 &&
                  vw <  bw2 + 10 && vw <  bw1 + 10) {
                 float fvt = bt1 + (vw - bw1) * bs1;
   if(vtxprt) {
@@ -984,8 +985,16 @@ namespace cluster {
   }
                 if(fvt > 0. && fvt < maxtime) {
                   // vertex wire US of cluster ends and time in the detector
+                  // Check for signal at the vertex position and adjust the vertex by 1 wire
+                  // if necessary
+                  ChkSignal(allhits, vw, fvt, vw, fvt, SigOK);
+                  if(!SigOK) {
+                    fvw -= 1.;
+                    vw = (0.5 + fvw);
+                    ChkSignal(allhits, vw, fvt, vw, fvt, SigOK);
+                  }
                   // Check this against existing vertices and update
-                  ChkVertex(allhits, tcl, vtx, fvw, fvt, it1, it2, 4);
+                  if(SigOK) ChkVertex(allhits, tcl, vtx, fvw, fvt, it1, it2, 4);
                 } // fvt in detector
               } // vw topo 4 check
             } // fvw in detector
@@ -1203,6 +1212,8 @@ namespace cluster {
     {
       // returns SigOK true if there is a signal on the line between
       // (wire1, time1) and (wire2, time2).       SigOK = false;
+      // Be sure to set time1 < time 2 if you are checking for signals on a single wire
+      
       // get the begin and end right
       short wireb = wire1;
       float timeb = time1;
@@ -1224,10 +1235,19 @@ namespace cluster {
       } else {
         clpar[1] = (timeb - timee) / (wireb - wiree);
       }
+      float prTimeLo = 0;
+      float prTimeHi = 0;
       for(short wire = wiree; wire < wireb + 1; ++wire) {
         // assume there is no signal on this wire
         bool WireSigOK = false;
-        float prtime = timee + (wire - wire0) * clpar[1];
+        // checking a single wire?
+        if(wireb == wiree) {
+          prTimeLo = time1;
+          prTimeHi = time2;
+        } else {
+          prTimeLo = timee + (wire - wire0) * clpar[1];
+          prTimeHi = prTimeLo;
+        }
         unsigned short index = wire - fFirstWire;
         // skip dead wires
         if(WireHitRange[index].first == -1) continue;
@@ -1244,8 +1264,8 @@ namespace cluster {
           // skip obsolete hits
           if(allhits[khit].Charge < 0) continue;
           // outside the hit RAT?
-          if(prtime > allhits[khit].HiTime) continue;
-          if(prtime < allhits[khit].LoTime) continue;
+          if(prTimeHi > allhits[khit].HiTime) continue;
+          if(prTimeLo < allhits[khit].LoTime) continue;
           // found a signal. Skip checking on this wire
           WireSigOK = true;
           break;
@@ -2633,7 +2653,9 @@ namespace cluster {
       }
       xwir.push_back(wire - wire0);
       ytim.push_back(allhits[ihit].Time);
-      float terr = fHitErrFac * allhits[ihit].RMS;
+      // Scale error by hit multiplicity to account for bias in hit
+      // multiplet fitting
+      float terr = fHitErrFac * allhits[ihit].RMS * allhits[ihit].numHits;
       ytimerr2.push_back(angfactor * terr * terr);
       if(iht == nht) break;
       ++iht;
@@ -2973,7 +2995,6 @@ namespace cluster {
     // error from the last hit added
     float prtimerr2 = fabs(kwire-wire0)*clparerr[1]*clparerr[1];
     // apply an angle dependent scale factor to the hit error
-//    float angfactor = 2 - 1/(1 + fabs(clpar[1]));
     float hiterr = AngleFactor(clpar[1]) * fHitErrFac * allhits[lastClHit].RMS;
     float err = sqrt(prtimerr2 + hiterr * hiterr);
     // Time window for accepting a hit.
