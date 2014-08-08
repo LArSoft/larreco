@@ -91,7 +91,9 @@ namespace cluster{
 // fuzzyClusterAlg stuff
 //----------------------------------------------------------
 cluster::fuzzyClusterAlg::fuzzyClusterAlg(fhicl::ParameterSet const& pset) 
-   : fHBAlg(pset.get< fhicl::ParameterSet >("HoughBaseAlg"))
+   : fHBAlg(pset.get< fhicl::ParameterSet >("HoughBaseAlg")),
+    fDBScan(pset.get< fhicl::ParameterSet >("DBScanAlg"))
+
 {
  this->reconfigure(pset); 
 }
@@ -127,6 +129,7 @@ void cluster::fuzzyClusterAlg::reconfigure(fhicl::ParameterSet const& p)
   fVertexLinesCutoff              = p.get< double >("VertexLinesCutoff"              );
   fRunHough                       = p.get< bool   >("RunHough"                       );
   fHBAlg.reconfigure(p.get< fhicl::ParameterSet >("HoughBaseAlg"));
+  fDBScan.reconfigure(p.get< fhicl::ParameterSet >("DBScanAlg"));
 }
 
 
@@ -459,6 +462,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
 
   std::vector< art::Ptr<recob::Hit> > unclusteredhits;
   std::vector<unsigned int> unclusteredhitsToallhits;
+  int nDBClusters = 0;
   bool unclustered;
   double p0;
   double p1;
@@ -475,7 +479,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
         continue;
       }
       int ip = (*allhitsItr)->WireID().Plane;
-      p0 = ((*allhitsItr)->Channel())*fWirePitch[ip];
+      p0 = ((*allhitsItr)->WireID().Wire)*fWirePitch[ip];
       p1 = (((*allhitsItr)->StartTime()+(*allhitsItr)->EndTime())/2.)*tickToDist;
 
       // First try to group it with a shower-like cluster
@@ -528,6 +532,21 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
       
     }
 
+    // Setup DBSCAN for noise and extra hits
+    // Start by getting the ChannelFilter
+    filter::ChannelFilter chanFilt;
+    fDBScan.InitScan(unclusteredhits, chanFilt.SetOfBadChannels());
+    fDBScan.run_cluster();
+   
+    nDBClusters = fDBScan.fclusters.size();
+    for(size_t j = 0; j < fDBScan.fpointId_to_clusterId.size(); ++j){          
+      if (fDBScan.fpointId_to_clusterId[j]== kNO_CLUSTER || fDBScan.fpointId_to_clusterId[j]==kNOISE_CLUSTER) {
+        fpointId_to_clusterId.at(unclusteredhitsToallhits[j]) = kNOISE_CLUSTER;
+      } 
+      else {
+        fpointId_to_clusterId.at(unclusteredhitsToallhits[j]) = fDBScan.fpointId_to_clusterId[j] + nClusters;
+      }
+    }
   }
 
 
@@ -542,7 +561,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit
 
 
 
-  cid = nClusters;
+  cid = nClusters + nDBClusters;
   
   //mf::LogInfo("fuzzyCluster") << "cid: " << cid ;
 

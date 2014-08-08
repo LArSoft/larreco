@@ -152,6 +152,7 @@ standard_fuzzyclusteralg:
     MissedHitsDistance:       1.0  # 
     MissedHitsToLineSize:     0.5    # Was set to 0
   }
+  DBScanAlg:                @local::standard_dbscanalg
   DoFuzzyRemnantMerge:      true # Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
   FuzzyRemnantMergeCutoff: 20    # Cut off on distance from hough line to hit in the remnant of the fuzzy cluster
   

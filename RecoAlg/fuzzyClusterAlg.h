@@ -459,6 +459,9 @@ namespace cluster{
     // Object used for Hough transforms
     HoughBaseAlg fHBAlg;        
 
+    // Object used for DBScan
+    DBScanAlg fDBScan;        
+
     art::ServiceHandle<geo::Geometry> fGeom; ///< handle to geometry service
 
   }; // class fuzzyClusterAlg
