@@ -416,7 +416,7 @@ namespace trkf {
 	    double ks = 0;
 	    if (signals[i][c1]->Integral()
 		&&signals[j][c2]->Integral())
-	      signals[i][c1]->KolmogorovTest(signals[j][c2]);
+	      ks = signals[i][c1]->KolmogorovTest(signals[j][c2]);
 	    else{
 	      mf::LogWarning("CosmicTracker") <<"One of the two clusters appears to be empty: "<<clusterlist[Cls[i][c1]]->ID()<<" "<<clusterlist[Cls[j][c2]]->ID();
 	    }
