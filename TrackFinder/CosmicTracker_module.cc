@@ -309,7 +309,7 @@ namespace trkf {
       int hcryo = (*theHit)->WireID().Cryostat;
       int htpc = (*theHit)->WireID().TPC;
 
-      LOG_VERBATIM("CosmicTracker")  <<std::cout << "Cluster " << iclu << " view=" <<clusterlist[iclu]->View() <<  " cryostat=" << hcryo <<" tpc=" << htpc << " length = " << clulen.length <<" start wire=" << w0 << " end wire="<< w1 << " start time=" <<t0 << " end time=" << t1 << std::endl;
+      LOG_DEBUG("CosmicTracker")  << "Cluster " << iclu << " view=" <<clusterlist[iclu]->View() <<  " cryostat=" << hcryo <<" tpc=" << htpc << " length = " << clulen.length <<" start wire=" << w0 << " end wire="<< w1 << " start time=" <<t0 << " end time=" << t1;
 
       switch(clusterlist[iclu]->View()){
       case geo::kU :
@@ -416,7 +416,7 @@ namespace trkf {
 	    double ks = 0;
 	    if (signals[i][c1]->Integral()
 		&&signals[j][c2]->Integral())
-	      signals[i][c1]->KolmogorovTest(signals[j][c2]);
+	      ks = signals[i][c1]->KolmogorovTest(signals[j][c2]);
 	    else{
 	      mf::LogWarning("CosmicTracker") <<"One of the two clusters appears to be empty: "<<clusterlist[Cls[i][c1]]->ID()<<" "<<clusterlist[Cls[j][c2]]->ID();
 	    }
