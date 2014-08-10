@@ -114,10 +114,28 @@ standard_track3DkalmanSPS:
  SortDirection:       "z"
  SpacePointAlg:       @local::standard_spacepointalg
 }
-
 standard_trackana:
 {
-  module_type:        "TrackAna"
+   module_type: "TrackAna"
+   TrackModuleLable: "trackkalmanhit"
+   SpacepointModuleLabl: "spacepointfinder"
+   StitchModuleLable: "stitch"
+   TrkSpptAssocModuleLabel: "trackkalmanhit"
+   HitSpptAssocModuleLable: "ffhit"
+   Dump: 10
+   MinMCKE:  0.05
+   MinMCLen:  20.
+   MatchColinearity: 0.97
+   MatchDisp:  2.0
+   WMatchDisp: 15.0
+   IgnoreSign: true
+}
+
+
+
+standard_trackanact:
+{
+  module_type:        "TrackAnaCT"
   TrackModuleLabel:   "trackkalmanhit"
   SpacepointModuleLabel:  "spacepointfinder"
   StitchModuleLabel:  "stitch"
