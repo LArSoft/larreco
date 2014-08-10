@@ -120,7 +120,7 @@ standard_trackana:
   module_type:        "TrackAna"
   TrackModuleLabel:   "trackkalmanhit"
   SpacepointModuleLabel:  "spacepointfinder"
-  StitchModule:  "stitch"
+  StitchModuleLabel:  "stitch"
   TrkSpptAssocModuleLabel:  "trackkalmanhit"
   HitSpptAssocModuleLabel:  "ffthit"
   Dump:               10
