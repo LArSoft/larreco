@@ -46,9 +46,9 @@ namespace trkf{
        {
 	 do_steps = 5.0; nsteps = 9; 
 	 
-	 steps = new std::vector<Float_t>; steps->clear();
+	 //steps = new std::vector<Float_t>; steps->clear();
 	 
-	 for ( Int_t i=1; i<=nsteps; i++ ) { steps->push_back( do_steps*i ); }
+	 for ( Int_t i=1; i<=nsteps; i++ ) { steps.push_back( do_steps*i ); }
 	 
 	 stop = -1.0; 
 	 
@@ -56,15 +56,15 @@ namespace trkf{
 	 
 	 gr_seg_xyz = new TPolyLine3D(); gr_seg_xy = new TGraph(); gr_seg_yz = new TGraph(); gr_seg_xz = new TGraph(); 
 	 
-	 segx = new std::vector<Float_t>; segy = new std::vector<Float_t>; segz = new std::vector<Float_t>;
+	 //segx = new std::vector<Float_t>; segy = new std::vector<Float_t>; segz = new std::vector<Float_t>;
 	 
-	 segnx = new std::vector<Float_t>; segny = new std::vector<Float_t>; segnz = new std::vector<Float_t>;
+	 //segnx = new std::vector<Float_t>; segny = new std::vector<Float_t>; segnz = new std::vector<Float_t>;
 	 	 
-	 basex.clear(); basex.push_back( 1.0 ); basex.push_back( 0.0 ); basex.push_back( 0.0 );
+	 basex.push_back( 1.0 ); basex.push_back( 0.0 ); basex.push_back( 0.0 );
   
-	 basey.clear(); basey.push_back( 0.0 ); basey.push_back( 1.0 ); basey.push_back( 0.0 );
+	 basey.push_back( 0.0 ); basey.push_back( 1.0 ); basey.push_back( 0.0 );
 	 
-	 basez.clear(); basez.push_back( 0.0 ); basez.push_back( 0.0 ); basez.push_back( 1.0 );
+	 basez.push_back( 0.0 ); basez.push_back( 0.0 ); basez.push_back( 1.0 );
 	 
 	 n_gr = 0;
 	 
@@ -84,7 +84,9 @@ namespace trkf{
           
      Double_t do_steps; 
      
-     Int_t nsteps; std::vector<Float_t> *steps;
+     Int_t nsteps; 
+
+     std::vector<Float_t> steps;
      
      Double_t seg_size; Double_t stop; Int_t n_seg;
      
@@ -92,27 +94,27 @@ namespace trkf{
      
      TPolyLine3D *gr_seg_xyz; TGraph *gr_seg_xy; TGraph *gr_seg_yz; TGraph *gr_seg_xz; 
      
-     std::vector<Float_t> *segx; std::vector<Float_t> *segy; std::vector<Float_t> *segz; 
+     std::vector<Float_t> segx; std::vector<Float_t> segy; std::vector<Float_t> segz; 
      
-     std::vector<Float_t> *segnx; std::vector<Float_t> *segny; std::vector<Float_t> *segnz;
+     std::vector<Float_t> segnx; std::vector<Float_t> segny; std::vector<Float_t> segnz;
      
      std::vector<Double_t> basex; std::vector<Double_t> basey; std::vector<Double_t> basez;
      
      Double_t find_angle( Double_t vz, Double_t vy );
      
-     void normalizer( std::vector<Double_t> *v1 );
+     void normalizer( std::vector<Double_t>& v1 );
      
-     Double_t dot_prod( std::vector<Double_t> v1, std::vector<Double_t> v2 );
+     Double_t dot_prod( const std::vector<Double_t>& v1, const std::vector<Double_t>& v2 );
      
-     void cross_prod( std::vector<Double_t> v1, std::vector<Double_t> v2, std::vector<Double_t> *v3 );
+     void cross_prod( const std::vector<Double_t>& v1, const std::vector<Double_t>& v2, std::vector<Double_t>& v3 );
      
      TGraphErrors *gr_meas;
           
-     Int_t GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz );
+     Int_t GetSegTracks( const std::vector<Float_t>& xxx, const std::vector<Float_t>& yyy, const std::vector<Float_t>& zzz );
      
      void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
           
-     Double_t GetMomentumMultiScatterChi2( art::Ptr<recob::Track> &trk );
+     Double_t GetMomentumMultiScatterChi2(const art::Ptr<recob::Track> &trk );
      
      Double_t do_steps2; 
      

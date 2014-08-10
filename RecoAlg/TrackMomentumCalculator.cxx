@@ -159,9 +159,9 @@ namespace trkf{
   
   // Email: kalousis@vt.edu
   
-  Int_t TrackMomentumCalculator::GetSegTracks( std::vector<Float_t> *xxx, std::vector<Float_t> *yyy, std::vector<Float_t> *zzz )
+  Int_t TrackMomentumCalculator::GetSegTracks( const std::vector<Float_t>& xxx, const std::vector<Float_t>& yyy, const std::vector<Float_t>& zzz )
   {
-    Int_t a1 = xxx->size(); Int_t a2 = yyy->size(); Int_t a3 = zzz->size();
+    Int_t a1 = xxx.size(); Int_t a2 = yyy.size(); Int_t a3 = zzz.size();
     
     if ( ( a1!=a2 ) || ( a1!=a3 ) || ( a2!=a3 ) ) { cout << " ( Digitize reco tacks ) Error ! " << endl; return -1; }
     
@@ -169,11 +169,11 @@ namespace trkf{
     	  
     Int_t a4 = a1-1;
         
-    segx->clear(); segy->clear(); segz->clear(); segnx->clear(); segny->clear(); segnz->clear(); 
+    segx.clear(); segy.clear(); segz.clear(); segnx.clear(); segny.clear(); segnz.clear(); 
         
-    Double_t x0 = xxx->at( 0 ); Double_t y0 = yyy->at( 0 ); Double_t z0 = zzz->at( 0 );
+    Double_t x0 = xxx.at( 0 ); Double_t y0 = yyy.at( 0 ); Double_t z0 = zzz.at( 0 );
     
-    segx->push_back( x0 ); segy->push_back( y0 ); segz->push_back( z0 );
+    segx.push_back( x0 ); segy.push_back( y0 ); segz.push_back( z0 );
     
     n_seg = 0; x_seg[ n_seg ] = x0; y_seg[ n_seg ] = y0; z_seg[ n_seg ] = z0;
     
@@ -197,11 +197,11 @@ namespace trkf{
     
     for ( Int_t i=1; i<a4; i++ )
       {
-	Double_t x1 = xxx->at( i ); Double_t y1 = yyy->at( i );	Double_t z1 = zzz->at( i );
+	Double_t x1 = xxx.at( i ); Double_t y1 = yyy.at( i );	Double_t z1 = zzz.at( i );
 	
 	Double_t dr1 = sqrt( pow( x1-x0, 2 )+pow( y1-y0, 2)+pow( z1-z0, 2 ) ); 
 	
-	Double_t x2 = xxx->at( i+1 ); Double_t y2 = yyy->at( i+1 ); Double_t z2 = zzz->at( i+1 );
+	Double_t x2 = xxx.at( i+1 ); Double_t y2 = yyy.at( i+1 ); Double_t z2 = zzz.at( i+1 );
 	
 	Double_t dr2 = sqrt( pow( x2-x0, 2 )+pow( y2-y0, 2)+pow( z2-z0, 2 ) ); 
 	
@@ -249,7 +249,7 @@ namespace trkf{
 	    
 	    Double_t zp = z1+t*dz;
 	    	    	    	    
-	    segx->push_back( xp ); segy->push_back( yp ); segz->push_back( zp );
+	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
 	    
 	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
 	    	    
@@ -267,7 +267,7 @@ namespace trkf{
 	      
 	    Double_t ay = ( Szy*ntot-Sz*Sy )/( Szz*ntot-Sz*Sz );
 	    
-	    segnx->push_back( ax ); segny->push_back( ay ); segnz->push_back( 1.0 );
+	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( 1.0 );
 	    
 	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
 	    
@@ -313,7 +313,7 @@ namespace trkf{
 	    
 	    Double_t zp = z0+t*dz;
 	    	    	    	    
-	    segx->push_back( xp ); segy->push_back( yp ); segz->push_back( zp );
+	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
 	    
 	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
 	    	    
@@ -335,7 +335,7 @@ namespace trkf{
 	      
 	    Double_t ay = ( Szy*ntot-Sz*Sy )/( Szz*ntot-Sz*Sz );
 	    
-	    segnx->push_back( ax ); segny->push_back( ay ); segnz->push_back( 1.0 );
+	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( 1.0 );
 	    
 	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
 	    
@@ -375,31 +375,31 @@ namespace trkf{
   
   void TrackMomentumCalculator::GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick )
   {
-    Int_t a1 = segx->size(); Int_t a2 = segy->size(); Int_t a3 = segz->size();
+    Int_t a1 = segx.size(); Int_t a2 = segy.size(); Int_t a3 = segz.size();
     
     if ( ( a1!=a2 ) || ( a1!=a3 ) ) { cout << " ( Get RMS ) Error ! " << endl; getchar(); }
     
-    mean = -999.0; rms = -999.0; rmse = -999.0; 
+    mean = 0; rms = 0; rmse = 0; 
     
     Int_t tot = a1-1;
     
     Double_t thick1 = thick+seg_size*0.2;
     
-    vector<Double_t> buf0; buf0.clear();
+    vector<Double_t> buf0; //buf0.clear();
     
     for ( Int_t i=0; i<tot; i++ )
       {
-	Double_t x0 = segx->at( i ); Double_t y0 = segy->at( i ); Double_t z0 = segz->at( i );
+	Double_t x0 = segx.at( i ); Double_t y0 = segy.at( i ); Double_t z0 = segz.at( i );
 	
-	Double_t dx = segnx->at( i ); Double_t dy = segny->at( i ); Double_t dz = segnz->at( i );
+	Double_t dx = segnx.at( i ); Double_t dy = segny.at( i ); Double_t dz = segnz.at( i );
 	
-	std::vector<Double_t> vec_z; vec_z.clear();
+	std::vector<Double_t> vec_z; //vec_z.clear();
 	
-	vec_z.push_back( dx ); vec_z.push_back( dy ); vec_z.push_back( dz ); normalizer( &vec_z );
+	vec_z.push_back( dx ); vec_z.push_back( dy ); vec_z.push_back( dz ); normalizer( vec_z );
 	
-	std::vector<Double_t> vec_x; vec_x.clear();
+	std::vector<Double_t> vec_x; //vec_x.clear();
 	
-	std::vector<Double_t> vec_y; vec_y.clear();
+	std::vector<Double_t> vec_y; //vec_y.clear();
 	
 	// ..
 	
@@ -407,17 +407,17 @@ namespace trkf{
 	
 	if ( switcher<=0.995 ) 
 	  {
-	    cross_prod( vec_z, basex, &vec_y ); normalizer( &vec_y );
+	    cross_prod( vec_z, basex, vec_y ); normalizer( vec_y );
 	    
-	    cross_prod( vec_y, vec_z, &vec_x );
+	    cross_prod( vec_y, vec_z, vec_x );
 	    
 	  }
 	
 	else 
 	  {
-	    cross_prod( basez, vec_z, &vec_y ); normalizer( &vec_y );
+	    cross_prod( basez, vec_z, vec_y ); normalizer( vec_y );
 	    
-	    cross_prod( vec_y, vec_z, &vec_x );
+	    cross_prod( vec_y, vec_z, vec_x );
 	    
 	  }
 	
@@ -459,11 +459,11 @@ namespace trkf{
 	  {
 	    std::vector<Double_t> here;
 	
-	    here.push_back( segx->at( j ) ); here.push_back( segy->at( j ) ); here.push_back( segz->at( j ) );
+	    here.push_back( segx.at( j ) ); here.push_back( segy.at( j ) ); here.push_back( segz.at( j ) );
 	    	    	    
 	    std::vector<Double_t> there;
 	    
-	    there.push_back( segx->at( j+1 ) ); there.push_back( segy->at( j+1 ) ); there.push_back( segz->at( j+1 ) );
+	    there.push_back( segx.at( j+1 ) ); there.push_back( segy.at( j+1 ) ); there.push_back( segz.at( j+1 ) );
 	    	    
 	    Double_t rot_z1 = dot_prod( Rz, here ); Double_t rot_z2 = dot_prod( Rz, there );
 	    	    
@@ -473,11 +473,11 @@ namespace trkf{
 	    
 	    if ( dz1<=thick1 && dz2>thick1 )
 	      {
-	        Double_t here_dx = segnx->at( j );
+	        Double_t here_dx = segnx.at( j );
 		
-		Double_t here_dy = segny->at( j );
+		Double_t here_dy = segny.at( j );
 		
-		Double_t here_dz = segnz->at( j );
+		Double_t here_dz = segnz.at( j );
 		
 		std::vector<Double_t> here_vec;
 		
@@ -498,7 +498,7 @@ namespace trkf{
 		Double_t azx = find_angle( scz, scx );
 		
 		Double_t ULim = 10000.0; Double_t LLim = -10000.0;
-		
+		std::cout<<azx<<" "<<azy<<std::endl;
 		if ( azy<=ULim && azy>=LLim ) { buf0.push_back( azy ); } // hRMS->Fill( azy ); }
 		
 		if ( azx<=ULim && azx>=LLim ) { buf0.push_back( azx ); } // hRMS->Fill( azx ); }
@@ -512,7 +512,7 @@ namespace trkf{
       }
     
     Int_t nmeas = buf0.size();
-    
+    for (size_t i = 0; i<buf0.size(); ++i) std::cout<<buf0[i]<<std::endl;
     Double_t nnn = 0.0;
     
     for ( Int_t i=0; i<nmeas; i++ ) { mean += buf0.at( i ); nnn++; }
@@ -555,7 +555,7 @@ namespace trkf{
     
   }
   
-  Double_t TrackMomentumCalculator::GetMomentumMultiScatterChi2( art::Ptr<recob::Track> &trk )
+  Double_t TrackMomentumCalculator::GetMomentumMultiScatterChi2( const art::Ptr<recob::Track> &trk )
   {
     // cout << " Nothing will come of nothing, speak again ! " << endl;
     
@@ -563,15 +563,15 @@ namespace trkf{
     
     Double_t p = -1.0; 
     
-    std::vector<Float_t> *recoX = new std::vector<Float_t>; recoX->clear();
+    std::vector<Float_t> recoX;// = new std::vector<Float_t>; recoX->clear();
     
-    std::vector<Float_t> *recoY = new std::vector<Float_t>; recoY->clear();
+    std::vector<Float_t> recoY;// = new std::vector<Float_t>; recoY->clear();
     
-    std::vector<Float_t> *recoZ = new std::vector<Float_t>; recoZ->clear();
+    std::vector<Float_t> recoZ;// = new std::vector<Float_t>; recoZ->clear();
         
-    steps->clear();
+    steps.clear();
     
-    for ( Int_t i=1; i<=nsteps; i++ ) { steps->push_back( do_steps*i ); }
+    for ( Int_t i=1; i<=nsteps; i++ ) { steps.push_back( do_steps*i ); }
     
     Double_t L = trk->Length( 0 ); 
     
@@ -583,7 +583,7 @@ namespace trkf{
       {
 	const TVector3 &muP = trk->LocationAtPoint( i );
 	
-	recoX->push_back( muP.X() ); recoY->push_back( muP.Y() ); recoZ->push_back( muP.Z() ); 
+	recoX.push_back( muP.X() ); recoY.push_back( muP.Y() ); recoZ.push_back( muP.Z() ); 
 	
 	// cout << " muX, Y, Z : " << muP.X() << ", " << muP.Y() << ", " << muP.Z() << endl;
 	
@@ -595,7 +595,7 @@ namespace trkf{
     
     if ( ch!=0 ) return -1.0;
     
-    Int_t seg_steps = segx->size();
+    Int_t seg_steps = segx.size();
     
     Int_t seg_steps0 = seg_steps-1;
     
@@ -607,10 +607,10 @@ namespace trkf{
 	      
     for ( Int_t j=0; j<nsteps; j++ )
       {
-	Double_t trial = steps->at( j );
+	Double_t trial = steps.at( j );
 	
 	GetDeltaThetaRMS( mean, rms, rmse, trial );
-	
+	std::cout<<mean<<" "<<rms<<" "<<rmse<<" "<<trial<<std::endl;
 	xmeas[ n_gr ] = trial;
 		  
 	ymeas[ n_gr ] = rms;
@@ -633,7 +633,7 @@ namespace trkf{
     
     gr_meas->SetLineColor( kBlack ); gr_meas->SetMarkerColor( kBlack ); gr_meas->SetMarkerStyle( 20 ); gr_meas->SetMarkerSize( 1.2 ); 
     
-    gr_meas->GetXaxis()->SetLimits( ( steps->at( 0 )-steps->at( 0 ) ), ( steps->at( nsteps-1 )+steps->at( 0 ) ) );
+    gr_meas->GetXaxis()->SetLimits( ( steps.at( 0 )-steps.at( 0 ) ), ( steps.at( nsteps-1 )+steps.at( 0 ) ) );
     
     gr_meas->SetMinimum( 0.0 );
     
@@ -689,7 +689,7 @@ namespace trkf{
     
     delete mP;
     
-    delete recoX; delete recoY; delete recoZ; 
+    //delete recoX; delete recoY; delete recoZ; 
     
     // cout << " Speak again ! " << endl;
     
@@ -723,25 +723,25 @@ namespace trkf{
     
   }
   
-  void TrackMomentumCalculator::normalizer( std::vector<Double_t> *v1 )
+  void TrackMomentumCalculator::normalizer( std::vector<Double_t>& v1 )
   {
     Double_t sum=0.0;
     
     Int_t dime = 3;
     
-    for ( Int_t i=0; i<dime; i++ ) { sum += pow( v1->at(i), 2 ); }
+    for ( Int_t i=0; i<dime; i++ ) { sum += pow( v1.at(i), 2 ); }
   
     sum = sqrt( sum );
     
     if ( sum!=0 )
       {
-	for ( Int_t i=0; i<dime; i++ ) { v1->at(i) = v1->at(i)/sum; }
+	for ( Int_t i=0; i<dime; i++ ) { v1.at(i) = v1.at(i)/sum; }
 	
       }
     
   }
   
-  Double_t TrackMomentumCalculator::dot_prod( std::vector<Double_t> v1, std::vector<Double_t> v2 )
+  Double_t TrackMomentumCalculator::dot_prod( const std::vector<Double_t>& v1, const std::vector<Double_t>& v2 )
   {
     Double_t result = 0.0;
     
@@ -757,15 +757,15 @@ namespace trkf{
     
   }
   
-  void TrackMomentumCalculator::cross_prod( std::vector<Double_t> v1, std::vector<Double_t> v2, std::vector<Double_t> *v3 )
+  void TrackMomentumCalculator::cross_prod( const  std::vector<Double_t>& v1, const std::vector<Double_t>& v2, std::vector<Double_t>& v3 )
   {
-    v3->clear();
+    v3.clear();
     
-    Double_t x = v1.at(1)*v2.at(2)-v1.at(2)*v2.at(1); v3->push_back( x );
+    Double_t x = v1.at(1)*v2.at(2)-v1.at(2)*v2.at(1); v3.push_back( x );
     
-    Double_t y = v1.at(2)*v2.at(0)-v1.at(0)*v2.at(2); v3->push_back( y );
+    Double_t y = v1.at(2)*v2.at(0)-v1.at(0)*v2.at(2); v3.push_back( y );
     
-    Double_t z = v1.at(0)*v2.at(1)-v1.at(1)*v2.at(0); v3->push_back( z );
+    Double_t z = v1.at(0)*v2.at(1)-v1.at(1)*v2.at(0); v3.push_back( z );
     
   }
   
