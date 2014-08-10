@@ -365,9 +365,9 @@ namespace trkf{
     
     gr_seg_yz = new TGraph( n_seg, z_seg, y_seg ); gr_seg_xz = new TGraph( n_seg, z_seg, x_seg ); gr_seg_xy = new TGraph( n_seg, x_seg, y_seg );
     
-    cout << " - Segmented tracks generated ! Segment size : " << seg_size << " cm " << endl;
+    // cout << " - Segmented tracks generated ! Segment size : " << seg_size << " cm " << endl;
     
-    cout << "" << endl;
+    // cout << "" << endl;
     
     return 0;
     
@@ -557,9 +557,9 @@ namespace trkf{
   
   Double_t TrackMomentumCalculator::GetMomentumMultiScatterChi2( art::Ptr<recob::Track> &trk )
   {
-    cout << " Nothing will come of nothing, speak again ! " << endl;
+    // cout << " Nothing will come of nothing, speak again ! " << endl;
     
-    cout << "" << endl;
+    // cout << "" << endl;
     
     Double_t p = -1.0; 
     
@@ -667,7 +667,7 @@ namespace trkf{
     
     mP->SetErrorDef( 1.0 );
     
-    mP->Minimize();
+    bool mstatus = mP->Minimize();
     
     mP->Hesse();
     
@@ -675,23 +675,25 @@ namespace trkf{
     
     const double *erpars = mP->Errors(); 
     
-    Double_t deltap = ( recoL*0.00021 )/2.0;
+    Double_t deltap = ( recoL*0.0021 )/2.0;
     
     p_reco = pars[0]+deltap;
 	      	      
     p_reco_e = erpars[0];
     
-    p = p_reco;
+    if ( mstatus ) p = p_reco;
     
-    chi2 = mP->MinValue()/( n_gr-2.0 );
-      
+    else p = 1.0;
+    
+    if ( n_gr>2.0 ) chi2 = mP->MinValue()/( n_gr-2.0 );
+    
     delete mP;
     
     delete recoX; delete recoY; delete recoZ; 
     
-    cout << " Speak again ! " << endl;
+    // cout << " Speak again ! " << endl;
     
-    cout << "" << endl;
+    // cout << "" << endl;
         
     return p;
         
