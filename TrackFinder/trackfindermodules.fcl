@@ -117,11 +117,11 @@ standard_track3DkalmanSPS:
 standard_trackana:
 {
    module_type: "TrackAna"
-   TrackModuleLable: "trackkalmanhit"
-   SpacepointModuleLabl: "spacepointfinder"
-   StitchModuleLable: "stitch"
+   TrackModuleLabel: "trackkalmanhit"
+   SpacepointModuleLabel: "spacepointfinder"
+   StitchModuleLabel: "stitch"
    TrkSpptAssocModuleLabel: "trackkalmanhit"
-   HitSpptAssocModuleLable: "ffhit"
+   HitSpptAssocModuleLabel: "ffhit"
    Dump: 10
    MinMCKE:  0.05
    MinMCLen:  20.
