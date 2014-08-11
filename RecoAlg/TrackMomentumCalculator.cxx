@@ -401,6 +401,322 @@ namespace trkf{
     
   }
   
+  Int_t TrackMomentumCalculator::GetSegTracks1( const std::vector<Float_t>& xxx, const std::vector<Float_t>& yyy, const std::vector<Float_t>& zzz )
+  {
+    Int_t a1 = xxx.size(); Int_t a2 = yyy.size(); Int_t a3 = zzz.size();
+    
+    if ( ( a1!=a2 ) || ( a1!=a3 ) || ( a2!=a3 ) ) { cout << " ( Digitize reco tacks ) Error ! " << endl; getchar(); }
+    
+    Int_t stopper = stop / seg_size; 
+    	  
+    Int_t a4 = a1-1;
+        
+    segx.clear(); segy.clear(); segz.clear(); segnx.clear(); segny.clear(); segnz.clear(); 
+        
+    Double_t x0 = xxx.at( 0 ); Double_t y0 = yyy.at( 0 ); Double_t z0 = zzz.at( 0 );
+    
+    segx.push_back( x0 ); segy.push_back( y0 ); segz.push_back( z0 );
+    
+    n_seg = 0; x_seg[ n_seg ] = x0; y_seg[ n_seg ] = y0; z_seg[ n_seg ] = z0;
+    
+    n_seg++;
+    
+    Int_t ntot = 0; 
+    
+    std::vector<Float_t> vx; std::vector<Float_t> vy; std::vector<Float_t> vz;
+    
+    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
+        
+    ntot++;
+            
+    for ( Int_t i=1; i<a4; i++ )
+      {
+	Double_t x1 = xxx.at( i ); Double_t y1 = yyy.at( i );	Double_t z1 = zzz.at( i );
+	
+	Double_t dr1 = sqrt( pow( x1-x0, 2 )+pow( y1-y0, 2)+pow( z1-z0, 2 ) ); 
+	
+	Double_t x2 = xxx.at( i+1 ); Double_t y2 = yyy.at( i+1 ); Double_t z2 = zzz.at( i+1 );
+	
+	Double_t dr2 = sqrt( pow( x2-x0, 2 )+pow( y2-y0, 2)+pow( z2-z0, 2 ) ); 
+	
+	if ( dr1<seg_size )
+	  {
+	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
+	    
+	    ntot++;
+    
+	  }
+	
+	if ( dr1<seg_size && dr2>seg_size )
+	  {
+	    // ..
+	    
+	    // cout << " 1 " << endl;
+	    
+	    Double_t t = 0.0;
+	    
+	    Double_t dx = x2-x1; Double_t dy = y2-y1; Double_t dz = z2-z1;
+	    
+	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
+	    
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; getchar(); }
+	    
+	    Double_t beta = 2.0*( (x1-x0)*dx+(y1-y0)*dy+(z1-z0)*dz )/( dr*dr );
+	    	    
+	    Double_t gamma = ( dr1*dr1 - seg_size*seg_size )/( dr*dr );
+	    
+	    Double_t delta = beta*beta - 4.0*gamma;
+		
+	    if ( delta<0.0 ) { cout << " ( Discriminant ) Error ! " << endl; getchar(); }
+		
+	    Double_t lysi1 = ( -beta+sqrt( delta ) )/2.0; 
+	    	    
+	    t=lysi1;
+	    	    
+	    Double_t xp = x1+t*dx;
+	    
+	    Double_t yp = y1+t*dy;
+	    
+	    Double_t zp = z1+t*dz;
+	    	    	    	    
+	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
+	    
+	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
+	    
+	    x0 = xp; y0 = yp; z0 = zp;
+	    
+	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
+	    	    
+	    ntot++;
+	    
+	    Double_t na = vx.size();
+
+	    Double_t sumx = 0.0;
+	    
+	    Double_t sumy = 0.0;
+	    
+	    Double_t sumz = 0.0;
+	    
+	    for ( Int_t i=0; i<na; i++ )
+	      {
+		Double_t xxw1 = vx.at( i ); 
+		
+		Double_t yyw1 = vy.at( i );
+		
+		Double_t zzw1 = vz.at( i );
+		
+		sumx += xxw1; sumy += yyw1; sumz += zzw1;
+		
+	      }
+	    
+	    sumx = sumx/na; sumy = sumy/na; sumz = sumz/na;
+	    
+	    std::vector<Double_t> mx;
+	    
+	    std::vector<Double_t> my;
+	    
+	    std::vector<Double_t> mz;
+	    
+	    TMatrixDSym m( 3 );
+	    
+	    for ( Int_t i=0; i<na; i++ )
+	      {
+		Double_t xxw1 = vx.at( i ); Double_t yyw1 = vy.at( i ); Double_t zzw1 = vz.at( i );
+		
+		mx.push_back( xxw1-sumx ); my.push_back( yyw1-sumy ); mz.push_back( zzw1-sumz );
+		
+		Double_t xxw0 = mx.at( i ); Double_t yyw0 = my.at( i ); Double_t zzw0 = mz.at( i );
+		
+		m( 0, 0 ) += xxw0*xxw0/na; m( 0, 1 ) += xxw0*yyw0/na; m( 0, 2 ) += xxw0*zzw0/na;
+      
+		m( 1, 0 ) += yyw0*xxw0/na; m( 1, 1 ) += yyw0*yyw0/na; m( 1, 2 ) += yyw0*zzw0/na;
+		
+		m( 2, 0 ) += zzw0*xxw0/na; m( 2, 1 ) += zzw0*yyw0/na; m( 2, 2 ) += zzw0*zzw0/na;
+		
+	      }
+	    	    
+	    TMatrixDSymEigen me(m);
+	    
+	    TVectorD eigenval = me.GetEigenValues();
+	    
+	    TMatrixD eigenvec = me.GetEigenVectors();
+	    	    
+	    Double_t max1 = -666.0;
+   
+	    Double_t ind1 = 0;
+	    
+	    for ( Int_t i=0; i<3; i++)
+	      {
+		Double_t p1 = eigenval( i );
+		
+		if ( p1>max1 ) { max1=p1; ind1=i; }
+		
+	      }
+	    
+	    // cout << ind1 << endl;
+	    	    
+	    Double_t ax = eigenvec( 0, ind1 );
+	    
+	    Double_t ay = eigenvec( 1, ind1 ); 
+	    
+	    Double_t az = eigenvec( 2, ind1 );
+	    
+	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( az );
+	    
+	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
+	    
+	    // cout << angx*0.001*180.0/3.14 << endl;
+	    
+	    ntot = 0; 
+	    
+	    vx.clear(); vy.clear(); vz.clear();
+	    
+	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
+	    
+	    ntot++;
+	    	    
+	  }
+	
+	else if ( dr1>=seg_size )
+	  {
+	    // ..
+	    
+	    // cout << " 2 " << endl;
+	    
+	    Double_t t = 0.0;
+	    	    
+	    Double_t dx = x1-x0; Double_t dy = y1-y0; Double_t dz = z1-z0;
+	    	    
+	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
+	    
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; getchar(); }
+	    
+	    if ( dr!=0 ) t = seg_size/dr;
+	    	    	    
+	    Double_t xp = x0+t*dx;
+	    
+	    Double_t yp = y0+t*dy;
+	    
+	    Double_t zp = z0+t*dz;
+	    	    	    	    
+	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
+	    
+	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
+	    	    
+	    x0 = xp; y0 = yp; z0 = zp;
+	    
+	    i=( i-1 );
+	    
+	    // ..
+	    
+	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
+	    	    
+	    ntot++;
+	    	    
+	    Double_t na = vx.size();
+
+	    Double_t sumx = 0.0;
+	    
+	    Double_t sumy = 0.0;
+	    
+	    Double_t sumz = 0.0;
+	    
+	    for ( Int_t i=0; i<na; i++ )
+	      {
+		Double_t xxw1 = vx.at( i ); 
+		
+		Double_t yyw1 = vy.at( i );
+		
+		Double_t zzw1 = vz.at( i );
+		
+		sumx += xxw1; sumy += yyw1; sumz += zzw1;
+		
+	      }
+	    
+	    sumx = sumx/na; sumy = sumy/na; sumz = sumz/na;
+	    
+	    std::vector<Double_t> mx;
+	    
+	    std::vector<Double_t> my;
+	    
+	    std::vector<Double_t> mz;
+	    
+	    TMatrixDSym m( 3 );
+	    
+	    for ( Int_t i=0; i<na; i++ )
+	      {
+		Double_t xxw1 = vx.at( i ); Double_t yyw1 = vy.at( i ); Double_t zzw1 = vz.at( i );
+		
+		mx.push_back( xxw1-sumx ); my.push_back( yyw1-sumy ); mz.push_back( zzw1-sumz );
+		
+		Double_t xxw0 = mx.at( i ); Double_t yyw0 = my.at( i ); Double_t zzw0 = mz.at( i );
+		
+		m( 0, 0 ) += xxw0*xxw0/na; m( 0, 1 ) += xxw0*yyw0/na; m( 0, 2 ) += xxw0*zzw0/na;
+      
+		m( 1, 0 ) += yyw0*xxw0/na; m( 1, 1 ) += yyw0*yyw0/na; m( 1, 2 ) += yyw0*zzw0/na;
+		
+		m( 2, 0 ) += zzw0*xxw0/na; m( 2, 1 ) += zzw0*yyw0/na; m( 2, 2 ) += zzw0*zzw0/na;
+		
+	      }
+	    	    
+	    TMatrixDSymEigen me(m);
+	    
+	    TVectorD eigenval = me.GetEigenValues();
+	    
+	    TMatrixD eigenvec = me.GetEigenVectors();
+	    	    
+	    Double_t max1 = -666.0;
+   
+	    Double_t ind1 = 0;
+	    
+	    for ( Int_t i=0; i<3; i++)
+	      {
+		Double_t p1 = eigenval( i );
+		
+		if ( p1>max1 ) { max1=p1; ind1=i; }
+		
+	      }
+	    
+	    // cout << ind1 << endl;
+	    	    
+	    Double_t ax = eigenvec( 0, ind1 );
+	    
+	    Double_t ay = eigenvec( 1, ind1 ); 
+	    
+	    Double_t az = eigenvec( 2, ind1 );
+	    
+	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( az );
+	    
+	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
+	    
+	    // cout << angx*0.001*180.0/3.14 << endl;
+	    	    
+	    ntot = 0; 
+	    
+	    vx.clear(); vy.clear(); vz.clear();
+	    
+	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
+	    
+	    ntot++;
+	    	    	    
+	  }
+	
+	if ( n_seg>=( stopper+1.0 ) && stop!=-1 ) break;
+	
+      }
+        
+    gr_seg_xyz = new TPolyLine3D( n_seg, z_seg, x_seg, y_seg );
+    
+    gr_seg_yz = new TGraph( n_seg, z_seg, y_seg ); gr_seg_xz = new TGraph( n_seg, z_seg, x_seg ); gr_seg_xy = new TGraph( n_seg, x_seg, y_seg );
+    
+    // cout << " * seg. tracks generated ( 1 ) ... " << seg_size << " cm " << endl;
+    
+    // cout << "" << endl;
+    
+    return 0;
+    
+  }
+   
   void TrackMomentumCalculator::GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick )
   {
     Int_t a1 = segx.size(); Int_t a2 = segy.size(); Int_t a3 = segz.size();
@@ -495,9 +811,13 @@ namespace trkf{
 	    	    
 	    Double_t rot_z1 = dot_prod( Rz, here ); Double_t rot_z2 = dot_prod( Rz, there );
 	    	    
-	    Double_t dz1 = rot_z1 - rot_z0; 
+	    // Double_t dz1 = rot_z1 - rot_z0; 
 	    
-	    Double_t dz2 = rot_z2 - rot_z0; 
+	    // Double_t dz2 = rot_z2 - rot_z0; 
+	    
+	    Double_t dz1 = TMath::Abs( rot_z1 - rot_z0 ); 
+	    
+	    Double_t dz2 = TMath::Abs( rot_z2 - rot_z0 ); 
 	    
 	    if ( dz1<=thick1 && dz2>thick1 )
 	      {
@@ -623,7 +943,7 @@ namespace trkf{
     
     seg_size = do_steps;
     
-    Int_t ch = GetSegTracks( recoX, recoY, recoZ );
+    Int_t ch = GetSegTracks1( recoX, recoY, recoZ );
     
     if ( ch!=0 ) return -1.0;
     
@@ -719,7 +1039,7 @@ namespace trkf{
     
     if ( mstatus ) p = p_reco;
     
-    else p = 1.0;
+    else p = -1.0;
     
     if ( n_gr>2.0 ) chi2 = mP->MinValue()/( n_gr-2.0 );
     

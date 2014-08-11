@@ -29,6 +29,8 @@
 #include "Math/Minimizer.h"
 #include "Math/Factory.h"
 #include "Math/Functor.h"
+#include "TMatrixDSym.h"
+#include "TMatrixDSymEigen.h"
 
 using namespace std;
 
@@ -71,8 +73,10 @@ namespace trkf{
      std::vector<Float_t> segnx; std::vector<Float_t> segny; std::vector<Float_t> segnz;
                
      TGraphErrors *gr_meas;
-          
+     
      Int_t GetSegTracks( const std::vector<Float_t>& xxx, const std::vector<Float_t>& yyy, const std::vector<Float_t>& zzz );
+     
+     Int_t GetSegTracks1( const std::vector<Float_t>& xxx, const std::vector<Float_t>& yyy, const std::vector<Float_t>& zzz );
      
      void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
           
