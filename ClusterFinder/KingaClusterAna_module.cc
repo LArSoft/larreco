@@ -417,7 +417,7 @@ namespace cluster{
     art::ServiceHandle<util::LArProperties> larp;
     art::ServiceHandle<cheat::BackTracker> bt;
   
-    sim::ParticleList _particleList = bt->ParticleList();
+    const sim::ParticleList& _particleList = bt->ParticleList();
     
     mf::LogInfo("KingaClusterAna")<<"geom->Nchannels()= "<<geom->Nchannels();
     //..................................................................
@@ -955,9 +955,9 @@ namespace cluster{
     //--------------------------------------------------------------//
    
     std::vector<const simb::MCParticle*> geant_part;
-    for (size_t ii = 0; ii <  _particleList.size(); ++ii){
-      geant_part.push_back(_particleList.Particle(ii));
-    } 
+    geant_part.reserve(_particleList.size());
+    for (const auto& PartPair: _particleList)
+      geant_part.push_back(PartPair.second);
     std::string pri ("primary");
     int primary=0;
     //determine the number of primary particles from geant:
