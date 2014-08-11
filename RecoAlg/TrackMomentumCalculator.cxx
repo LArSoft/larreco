@@ -727,7 +727,7 @@ namespace trkf{
     
     Int_t tot = a1-1;
     
-    Double_t thick1 = thick+seg_size*0.2;
+    Double_t thick1 = thick+seg_size*0.20001;
     
     vector<Double_t> buf0; //buf0.clear();
     
