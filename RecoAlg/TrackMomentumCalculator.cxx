@@ -46,6 +46,34 @@ double MyMCSChi2( const double *x )
 
 namespace trkf{ 
   
+  TrackMomentumCalculator::TrackMomentumCalculator()
+  {
+    do_steps = 5.0; nsteps = 9; 
+        
+    for ( Int_t i=1; i<=nsteps; i++ ) { steps.push_back( do_steps*i ); }
+    
+    stop = -1.0; 
+    
+    n_seg = 0; 
+    
+    gr_seg_xyz = new TPolyLine3D(); gr_seg_xy = new TGraph(); gr_seg_yz = new TGraph(); gr_seg_xz = new TGraph(); 
+        
+    basex.push_back( 1.0 ); basex.push_back( 0.0 ); basex.push_back( 0.0 );
+    
+    basey.push_back( 0.0 ); basey.push_back( 1.0 ); basey.push_back( 0.0 );
+    
+    basez.push_back( 0.0 ); basez.push_back( 0.0 ); basez.push_back( 1.0 );
+	 
+    n_gr = 0;
+        
+    p_reco = -1.0; 
+	      	      
+    p_reco_e = -1.0; 
+    
+    chi2 = -1.0;
+    
+  }
+  
   double TrackMomentumCalculator::GetTrackMomentum(double trkrange, int pdg) 
   {
    
@@ -168,7 +196,7 @@ namespace trkf{
     Int_t stopper = stop / seg_size; 
     	  
     Int_t a4 = a1-1;
-        
+    
     segx.clear(); segy.clear(); segz.clear(); segnx.clear(); segny.clear(); segnz.clear(); 
         
     Double_t x0 = xxx.at( 0 ); Double_t y0 = yyy.at( 0 ); Double_t z0 = zzz.at( 0 );
@@ -498,7 +526,9 @@ namespace trkf{
 		Double_t azx = find_angle( scz, scx );
 		
 		Double_t ULim = 10000.0; Double_t LLim = -10000.0;
-		std::cout<<azx<<" "<<azy<<std::endl;
+		
+		// std::cout<<azx<<" "<<azy<<std::endl;
+		
 		if ( azy<=ULim && azy>=LLim ) { buf0.push_back( azy ); } // hRMS->Fill( azy ); }
 		
 		if ( azx<=ULim && azx>=LLim ) { buf0.push_back( azx ); } // hRMS->Fill( azx ); }
@@ -512,7 +542,9 @@ namespace trkf{
       }
     
     Int_t nmeas = buf0.size();
-    for (size_t i = 0; i<buf0.size(); ++i) std::cout<<buf0[i]<<std::endl;
+    
+    // for (size_t i = 0; i<buf0.size(); ++i) std::cout<<buf0[i]<<std::endl;
+    
     Double_t nnn = 0.0;
     
     for ( Int_t i=0; i<nmeas; i++ ) { mean += buf0.at( i ); nnn++; }
@@ -601,6 +633,8 @@ namespace trkf{
     
     Double_t recoL = seg_steps0*seg_size; // cout << recoL << endl;
     
+    if ( seg_steps<2 || recoL<100.0 ) return -1;
+    
     Double_t mean = 666.0; Double_t rms = 666.0; Double_t rmse = 666.0;
     
     n_gr = 0; Double_t max1=-999.0; Double_t min1=+999.0;
@@ -610,7 +644,9 @@ namespace trkf{
 	Double_t trial = steps.at( j );
 	
 	GetDeltaThetaRMS( mean, rms, rmse, trial );
-	std::cout<<mean<<" "<<rms<<" "<<rmse<<" "<<trial<<std::endl;
+	
+	// std::cout<<mean<<" "<<rms<<" "<<rmse<<" "<<trial<<std::endl;
+	
 	xmeas[ n_gr ] = trial;
 		  
 	ymeas[ n_gr ] = rms;
