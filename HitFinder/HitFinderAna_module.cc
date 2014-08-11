@@ -244,8 +244,8 @@ namespace hit{
 	fRun = evt.run();
 	fEvt = evt.id().event();
 	  
-	std::vector<cheat::TrackIDE> trackides = bt->HitToTrackID(*itr);
-	std::vector<cheat::TrackIDE>::iterator idesitr = trackides.begin();
+	std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(*itr);
+	std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
 	std::vector<double> xyz = bt->HitToXYZ(*itr);
 	
 	if (pid.Plane == 0 && fNp0 < 9000){

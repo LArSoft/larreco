@@ -363,7 +363,7 @@ namespace hit{
        // ===================================================================
        // Using Track IDE's to locate the XYZ location from truth information
        // ===================================================================
-       std::vector<cheat::TrackIDE> trackides;
+       std::vector<sim::TrackIDE> trackides;
        std::vector<double> xyz;
        try
           {

@@ -1265,12 +1265,12 @@ namespace trkf {
 		rhistsStitched.fHHitWidth->Fill(hit->EndTime() - hit->StartTime());
 		if (mc)
 		  {
-		    std::vector<cheat::TrackIDE> tids = bt->HitToTrackID(hit);
+		    std::vector<sim::TrackIDE> tids = bt->HitToTrackID(hit);
 		    // more here.
 		    // Loop over track ids.
 		    bool justOne(true); // Only take first trk that contributed to this hit
 		    //	  std::cout  << "\t\t  TrkAna: TrkId  tids.size() ******* " << tids.size()  <<std::endl;
-		    for(std::vector<cheat::TrackIDE>::const_iterator itid = tids.begin();itid != tids.end(); ++itid) {
+		    for(std::vector<sim::TrackIDE>::const_iterator itid = tids.begin();itid != tids.end(); ++itid) {
 		      int trackID = std::abs(itid->trackID);
 		      hitmap[trackID][o].push_back(hit);
 

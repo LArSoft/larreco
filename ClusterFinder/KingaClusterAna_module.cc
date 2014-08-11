@@ -641,9 +641,9 @@ namespace cluster{
   	
         //mf::LogInfo("KingaClusterAna")<<"hits[h] channel= "<<hits[h]->Wire()->RawDigit()->Channel();
   	
-        std::vector<cheat::TrackIDE> trackides = bt->HitToTrackID(hits[h]);
+        std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(hits[h]);
   	
-        std::vector<cheat::TrackIDE>::iterator idesitr = trackides.begin();
+        std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
         //mf::LogInfo("KingaClusterAna")<<"trackides= "<<trackides.size();
      
         while( idesitr != trackides.end() ){
@@ -758,9 +758,9 @@ namespace cluster{
   	
         //mf::LogInfo("KingaClusterAna")<<"hits[h] channel= "<<hits[h]->Wire()->RawDigit()->Channel();
   	
-        std::vector<cheat::TrackIDE> trackides = bt->HitToTrackID(hits[h]);
+        std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(hits[h]);
   	
-        std::vector<cheat::TrackIDE>::iterator idesitr = trackides.begin();
+        std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
      
         while( idesitr != trackides.end() ){
   	  
@@ -882,9 +882,9 @@ namespace cluster{
          
         //mf::LogInfo("KingaClusterAna")<<"hits[h] channel= "<<hits[h]->Wire()->RawDigit()->Channel();
          
-        std::vector<cheat::TrackIDE> trackides = bt->HitToTrackID(hits[h]);
+        std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(hits[h]);
          
-        std::vector<cheat::TrackIDE>::iterator idesitr = trackides.begin();
+        std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
         //mf::LogInfo("KingaClusterAna")<<"trackides= "<<trackides.size();
         while( idesitr != trackides.end() ){
   	 

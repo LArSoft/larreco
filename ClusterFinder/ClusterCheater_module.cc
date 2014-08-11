@@ -142,7 +142,7 @@ namespace cluster{
     // loop over all hits and fill in the map
     for( auto const& itr : hits ){
 
-      std::vector<cheat::TrackIDE> eveides = bt->HitToEveID(itr);
+      std::vector<sim::TrackIDE> eveides = bt->HitToEveID(itr);
 
       // loop over all eveides for this hit
       for(size_t e = 0; e < eveides.size(); ++e){
