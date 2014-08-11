@@ -609,21 +609,53 @@ void FeatureVertexFinder::produce(art::Event& evt)
     for(size_t j = 0; j<vcol->size(); ++j) {std::cout<< " Vertex 3d = " << vcol->at(j) << std::endl;}
     std::cout<<std::endl;*/
     
+    
+    
     evt.put(std::move(epcol));
     evt.put(std::move(vcol));
     evt.put(std::move(assnep));
     evt.put(std::move(assntr));
     evt.put(std::move(assnsh));
     evt.put(std::move(assnh));
+    
+    // ################################################
+    // ### Clearing vectors at the end of the event ###
+    // ################################################
+    vcol.reset();
+    epcol.reset();
+    candidate_x.clear();
+    candidate_y.clear();
+    candidate_z.clear();
+    candidate_strength.clear();
+    MergeSort3dVtx_xpos.clear();
+    MergeSort3dVtx_ypos.clear();
+    MergeSort3dVtx_zpos.clear();
+    MergeSort3dVtx_strength.clear();
+    dtdwstart.clear(); 
+    dtdwstartError.clear(); 
+    Clu_Plane.clear();
+    Clu_StartPos_Wire.clear();
+    Clu_StartPos_TimeTick.clear();
+    Clu_EndPos_Wire.clear();
+    Clu_EndPos_TimeTick.clear();
+    Clu_Slope.clear();
+    Clu_Yintercept.clear();
+    Clu_Yintercept2.clear();
+    Clu_Length.clear();
+    TwoDvtx_wire.clear();
+    TwoDvtx_time.clear();
+    TwoDvtx_plane.clear();
+    
   }//<--End FeatureVertexFinder::produce
 
 
 
 
 
-//========================================================================================================================
-//========================================================================================================================
-
+//==============================================================================================================================================================================
+//==============================================================================================================================================================================
+//==============================================================================================================================================================================
+//==============================================================================================================================================================================
 
 
 
@@ -1078,7 +1110,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	     ( intersection_X2 < geom->Nwires(Clu_Plane[m],0,0) ) &&
 	     ( intersection_Y2 < detprop->NumberTimeSamples() ) )
 	      {
-	      std::cout<<"Recording 2-d Vertex"<<std::endl;
+	      
 	      TwoDvtx_wire.push_back(intersection_X2);
 	      TwoDvtx_time.push_back(intersection_Y2);
 	      TwoDvtx_plane.push_back(Clu_Plane[m]);				
