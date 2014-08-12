@@ -29,6 +29,7 @@ art_make( LIBRARY_NAME  RecoAlg
                         ${CLHEP}
 			${ROOT_BASIC_LIB_LIST}
                         ${ROOT_MINUIT}
+			${ROOT_MINUIT2}	
         )
 
 install_headers()
