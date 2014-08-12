@@ -563,7 +563,7 @@ namespace trkf{
 	    
 	    if ( segx.at(n_seg-1)-segx.at(n_seg-2) > 0 ) ax = TMath::Abs( ax );
 	    
-	    else ax = -1.0*TMath::Abs( ax );
+	    else ax = -1.00*TMath::Abs( ax );
 	    
 	    if ( segy.at(n_seg-1)-segy.at(n_seg-2) > 0 ) ay = TMath::Abs( ay );
 	    
