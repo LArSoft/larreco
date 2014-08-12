@@ -561,6 +561,18 @@ namespace trkf{
 	    
 	    Double_t az = eigenvec( 2, ind1 );
 	    
+	    if ( segx.at(n_seg-1)-segx.at(n_seg-2) > 0 ) ax = TMath::Abs( ax );
+	    
+	    else ax = -1.0*TMath::Abs( ax );
+	    
+	    if ( segy.at(n_seg-1)-segy.at(n_seg-2) > 0 ) ay = TMath::Abs( ay );
+	    
+	    else ay = -1.0*TMath::Abs( ay );
+	    
+	    if ( segz.at(n_seg-1)-segz.at(n_seg-2) > 0 ) az = TMath::Abs( az );
+	    
+	    else az = -1.0*TMath::Abs( az );
+	    
 	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( az );
 	    
 	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
@@ -684,6 +696,18 @@ namespace trkf{
 	    Double_t ay = eigenvec( 1, ind1 ); 
 	    
 	    Double_t az = eigenvec( 2, ind1 );
+	    
+	    if ( segx.at(n_seg-1)-segx.at(n_seg-2) > 0 ) ax = TMath::Abs( ax );
+	    
+	    else ax = -1.0*TMath::Abs( ax );
+	    
+	    if ( segy.at(n_seg-1)-segy.at(n_seg-2) > 0 ) ay = TMath::Abs( ay );
+	    
+	    else ay = -1.0*TMath::Abs( ay );
+	    
+	    if ( segz.at(n_seg-1)-segz.at(n_seg-2) > 0 ) az = TMath::Abs( az );
+	    
+	    else az = -1.0*TMath::Abs( az );
 	    
 	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( az );
 	    
@@ -815,9 +839,9 @@ namespace trkf{
 	    
 	    // Double_t dz2 = rot_z2 - rot_z0; 
 	    
-	    Double_t dz1 = TMath::Abs( rot_z1 - rot_z0 ); 
+	    Double_t dz1 = rot_z1 - rot_z0; 
 	    
-	    Double_t dz2 = TMath::Abs( rot_z2 - rot_z0 ); 
+	    Double_t dz2 = rot_z2 - rot_z0; 
 	    
 	    if ( dz1<=thick1 && dz2>thick1 )
 	      {
