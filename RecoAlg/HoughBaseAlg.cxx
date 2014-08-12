@@ -111,7 +111,7 @@ cluster::HoughTransform::HoughTransform()
 size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const& hits,
 					std::vector<unsigned int>                 *fpointId_to_clusterId,
 					unsigned int                               clusterId, // The id of the cluster we are examining
-					int                                       *nClusters,
+				        unsigned int                               *nClusters,
                                         std::vector<protoTrack>                    *linesFound
 					)
 {
@@ -125,9 +125,12 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
   art::ServiceHandle<util::DetectorProperties> detprop;
   filter::ChannelFilter chanFilt;
 
-  uint32_t     channel = hits[0]->Wire()->RawDigit()->Channel();
+  //  uint32_t     channel = hits[0]->Channel();
   unsigned int wire    = 0;
   unsigned int wireMax = 0;
+  unsigned int cs=hits[0]->WireID().Cryostat;
+  unsigned int t=hits[0]->WireID().TPC;
+  unsigned int p=hits[0]->WireID().Plane;   
 
 
   //mf::LogInfo("HoughBaseAlg") << "nClusters is: " << *nClusters;
@@ -135,15 +138,22 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
 
   //size_t cinctr = 0;
   //geo::View_t    view = geom->Cryostat(cs).TPC(t).Plane(p).View();
-  geo::SigType_t sigt = geom->SignalType(channel);
+  //  geo::SigType_t sigt = geom->SignalType(channel);
+  geo::SigType_t sigt = geom->Cryostat(cs).TPC(t).Plane(p).SignalType();   
   std::vector<int> skip;  
   
-  //factor to make x and y scale the same units
-  float wirePitch = geom->WirePitch(geom->View(channel));
-  float xyScale  = 0.001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature())*detprop->SamplingRate()/wirePitch;
-  //xyScale        *= detprop->SamplingRate()/wirePitch;
+  double wire_pitch[3];
+  wire_pitch[0]= geom->WirePitch(0,1,0);
+  wire_pitch[1]= geom->WirePitch(0,1,1);
+  wire_pitch[2]= geom->WirePitch(0,1,2);
 
-  float wire_dist = wirePitch;
+  //factor to make x and y scale the same units
+  double xyScale[3];
+  xyScale[2]= .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  xyScale[0]=xyScale[2] * detprop->SamplingRate()/wire_pitch[0];
+  xyScale[1]=xyScale[2] * detprop->SamplingRate()/wire_pitch[1];
+  xyScale[2]*= detprop->SamplingRate()/wire_pitch[2];
+
   float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature())*1.e-3 * detprop->SamplingRate();
   //tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
 
@@ -155,13 +165,15 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
   //unsigned int channel, plane, wire, tpc, cstat;
   //there must be a better way to find which plane a cluster comes from
   int dx = geom->Cryostat(hits[0]->WireID().Cryostat).TPC(hits[0]->WireID().TPC).Plane(hits[0]->WireID().Plane).Nwires();//number of wires 
-  int dy = hits[0]->Wire()->NSignal();//number of time samples. 
+  //int dy = hits[0]->Wire()->NSignal();//number of time samples. 
+  int dy = detprop->NumberTimeSamples();//number of time samples. 
   skip.clear();
   skip.resize(hits.size());
   std::vector<int> listofxmax;
   std::vector<int> listofymax;  
   std::vector<int> hitsTemp;        //indecies ofcandidate hits
-  std::vector<int> sequenceHolder; //channels of hits in list
+  std::vector<int> sequenceHolder; //wire numbers of hits in list
+  std::vector<int> channelHolder; //channels of hits in list
   std::vector<int> currentHits;    //working vector of hits 
   std::vector<int> lastHits;       //best list of hits
   std::vector<art::Ptr<recob::Hit> > clusterHits;
@@ -299,7 +311,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
     }/// end loop over size of listxmax
   
     /// Find the weightiest cell in the accumulator.
-    uint32_t channel = hits[randInd]->Wire()->RawDigit()->Channel();
+     uint32_t channel = hits[randInd]->Channel();
     wireMax = hits[randInd]->WireID().Wire;
 
     /// Add the randomly selected point to the accumulator
@@ -392,6 +404,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
     float distance;
 
     if(!std::isinf(slope) && !std::isnan(slope)){
+      channelHolder.clear();
       sequenceHolder.clear();
       fMaxWire = 0;
       iMaxWire = 0;
@@ -402,11 +415,12 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
         wire = (*hitsItr)->WireID().Wire;
         if(fpointId_to_clusterId->at(hitsItr - hits.begin()) != clusterId)
           continue;
-        channel = (*hitsItr)->Wire()->RawDigit()->Channel();
-        distance = (std::abs((*hitsItr)->PeakTime()-slope*(float)((*hitsItr)->WireID().Wire)-intercept)/(std::sqrt(xyScale*xyScale*slope*slope+1)));
+        channel = (*hitsItr)->Channel();	
+        distance = (std::abs((*hitsItr)->PeakTime()-slope*(float)((*hitsItr)->WireID().Wire)-intercept)/(std::sqrt(xyScale[(*hitsItr)->WireID().Plane]*xyScale[(*hitsItr)->WireID().Plane]*slope*slope+1)));
         if(distance < fMaxDistance+(((*hitsItr)->EndTime()-(*hitsItr)->StartTime())/2.)+indcolscaling && skip[hitsItr-hits.begin()]!=1){
           hitsTemp.push_back(hitsItr-hits.begin());
-          sequenceHolder.push_back(channel);
+          sequenceHolder.push_back(wire);
+          channelHolder.push_back(channel);
         }
       }/// end iterator over hits
    
@@ -417,7 +431,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
       currentHits.push_back(0);
       for(auto sequenceHolderItr = sequenceHolder.begin(); sequenceHolderItr+1 != sequenceHolder.end(); ++sequenceHolderItr) {
         j = 1;
-        while((chanFilt.BadChannel(*sequenceHolderItr+j)) == true) j++;
+        while((chanFilt.BadChannel(sequenceHolderItr-sequenceHolder.begin()+j)) == true) j++;
         if(sequenceHolder[sequenceHolderItr-sequenceHolder.begin()+1]-sequenceHolder[sequenceHolderItr-sequenceHolder.begin()] <= j + fMissedHits) currentHits.push_back(sequenceHolderItr-sequenceHolder.begin()+1);
         else if(currentHits.size() > lastHits.size()) {
           lastHits = currentHits;
@@ -548,15 +562,17 @@ size_t cluster::HoughBaseAlg::Transform(std::vector<art::Ptr<recob::Hit> > const
           iMaxWire = hitsTemp[(*lastHitsItr)];
         }
       }
-      pCornerMin[0] = (hits[iMinWire]->Wire()->RawDigit()->Channel())*wire_dist;
+      int pnum = hits[iMinWire]->WireID().Plane;    
+      pCornerMin[0] = (hits[iMinWire]->WireID().Wire)*wire_pitch[pnum];
       pCornerMin[1] = ((hits[iMinWire]->StartTime()+hits[iMinWire]->EndTime())/2.)*tickToDist;
-      pCornerMax[0] = (hits[iMaxWire]->Wire()->RawDigit()->Channel())*wire_dist;
+      pCornerMax[0] = (hits[iMaxWire]->WireID().Wire)*wire_pitch[pnum];
       pCornerMax[1] = ((hits[iMaxWire]->StartTime()+hits[iMaxWire]->EndTime())/2.)*tickToDist;
 
       ///std::cout << std::endl;
       ///std::cout << "pCornerMin[0]: " << pCornerMin[0] << " pCornerMin[1]: " << pCornerMin[1] << std::endl;
       ///std::cout << "pCornerMax[0]: " << pCornerMax[0] << " pCornerMax[1]: " << pCornerMax[1] << std::endl;
       protoTrackToLoad.Init(nClustersTemp-1,
+	    pnum,
             slope,
             intercept,
             totalQ,
@@ -747,7 +763,7 @@ inline std::vector<int> cluster::HoughTransform::DoAddPointReturnMax(int x,
       if(lastDist==dist){
         m_accumA = m_accum[angleStepInt].insert(m_accum[angleStepInt].end(),std::pair<int,int>(lastDist,0));
         //val = m_accumA.first->second++;
-        val = m_accumA->second++;
+        val = ++(m_accumA->second);
         
         if( max_val < val){
 	  max_val = val;
@@ -765,7 +781,7 @@ inline std::vector<int> cluster::HoughTransform::DoAddPointReturnMax(int x,
         for (cell=lastDist; cell!=dist; cell+=stepDir){  
           m_accumA = m_accum[angleStepInt].insert(m_accumALast,std::pair<int,int>(cell,0));
           //val = m_accumA.first->second++;
-          val = m_accumA->second++;
+          val = ++(m_accumA->second);
           //// Note, m_accum is a vector of associative containers, "a" calls the vector element, "cell" is the container key, and the ++ iterates the value correspoding to the key
           if(max_val < val){
 	    max_val = val;
@@ -1301,10 +1317,17 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
     return -1; //continue;
   }
   
+  double wire_pitch[3];
+  wire_pitch[0]= geom->WirePitch(0,1,0);
+  wire_pitch[1]= geom->WirePitch(0,1,1);
+  wire_pitch[2]= geom->WirePitch(0,1,2);
+
   //factor to make x and y scale the same units
-  double xyScale  = .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
-  xyScale        *= detprop->SamplingRate()/geom->WirePitch(0,1,p,t,cs);
-  double wirePitch = geom->WirePitch(geom->View(hit[0]->Wire()->RawDigit()->Channel()));
+  double xyScale[3];
+  xyScale[2]= .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  xyScale[0]=xyScale[2] * detprop->SamplingRate()/wire_pitch[0];
+  xyScale[1]=xyScale[2] * detprop->SamplingRate()/wire_pitch[1];
+  xyScale[2]*= detprop->SamplingRate()/wire_pitch[2];
   
   int x, y;
   int dx = geom->Cryostat(cs).TPC(t).Plane(p).Nwires();//number of wires 
@@ -1440,12 +1463,12 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
     //indcolscaling = 0;
     
     
-        
+    // note this doesn't work for wrapped wire planes!
     if(!std::isinf(slope) && !std::isnan(slope)){
       sequenceHolder.clear();
       hitTemp.clear();
       for(size_t i = 0; i < hit.size(); ++i){
-	distance = (TMath::Abs(hit.at(i)->PeakTime()-slope*(double)(hit.at(i)->WireID().Wire)-intercept)/(std::sqrt(pow(xyScale*slope,2)+1)));
+	distance = (TMath::Abs(hit.at(i)->PeakTime()-slope*(double)(hit.at(i)->WireID().Wire)-intercept)/(std::sqrt(pow(xyScale[hit.at(i)->WireID().Plane]*slope,2)+1)));
 	
 	if(distance < fMaxDistance+((hit.at(i)->EndTime()-hit.at(i)->StartTime())/2.)+indcolscaling  && skip.at(i)!=1){
 	  hitTemp.push_back(i);
@@ -1481,7 +1504,6 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       // we have to go back to the first hit (in terms of lastHits[i]) of that channel to find the distance
       // between hits
       //std::cout << "New line" << std::endl;
-      double wire_dist = wirePitch;
       double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
       tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
       int missedHits=0;
@@ -1494,15 +1516,15 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
       double pCorner0[2];
       double pCorner1[2];
-      unsigned int lastChannel = hit.at(hitTemp.at(lastHits.at(0)))->Wire()->RawDigit()->Channel();
+      unsigned int lastChannel = hit.at(hitTemp.at(lastHits.at(0)))->Channel();
 
       for(size_t i = 0; i < lastHits.size()-1; ++i) {
 	bool newChannel = false;
 	if(slope < 0){
-	  if(hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel() != lastChannel){
+	  if(hit.at(hitTemp.at(lastHits.at(i+1)))->Channel() != lastChannel){
 	    newChannel = true;
 	  }
-	  if(hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel() == lastChannel)
+	  if(hit.at(hitTemp.at(lastHits.at(i+1)))->Channel() == lastChannel)
 	    nHitsPerChannel++;
 	}
 	
@@ -1510,9 +1532,9 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 	if(slope > 0 || (!newChannel && nHitsPerChannel <= 1)){
 
 	  //std::cout << hits[hitsTemp[lastHits[i]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[i]]]->StartTime()+hits[hitsTemp[lastHits[i]]]->EndTime())/2.) << std::endl;
-	  pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(i)))->Wire()->RawDigit()->Channel())*wire_dist;
+	  pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(i)))->Channel())*wire_pitch[0];
 	  pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(i)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i)))->EndTime())/2.)*tickToDist;
-	  pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel())*wire_dist;
+	  pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Channel())*wire_pitch[0];
 	  pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i+1)))->EndTime())/2.)*tickToDist;
 	  //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
 	  if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
@@ -1523,14 +1545,14 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 	else if (slope < 0 && newChannel && nHitsPerChannel > 1){
 
 	  //std::cout << hits[hitsTemp[lastHits[lastHitsChannel]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[lastHitsChannel]]]->StartTime()+hits[hitsTemp[lastHits[lastHitsChannel]]]->EndTime())/2.) << std::endl;
-	  pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->Wire()->RawDigit()->Channel())*wire_dist;
+	  pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->Channel())*wire_pitch[0];
 	  pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->StartTime()+hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->EndTime())/2.)*tickToDist;
-	  pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Wire()->RawDigit()->Channel())*wire_dist;
+	  pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Channel())*wire_pitch[0];
 	  pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i+1)))->EndTime())/2.)*tickToDist;
 	  //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
 	  if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
 	    missedHits++;
-	  lastChannel=hit.at(hitTemp.at(lastHits.at(i)))->Wire()->RawDigit()->Channel();
+	  lastChannel=hit.at(hitTemp.at(lastHits.at(i)))->Channel();
 	  lastHitsChannel=i+1;
 	  nHitsPerChannel=0;
 	}
@@ -1556,8 +1578,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       } 
       //protection against very steep uncorrelated hits
       if(std::abs(slope)>fMaxSlope 
-	 && std::abs((*clusterHits.begin())->Wire()->RawDigit()->Channel()-
-		     clusterHits.at(clusterHits.size()-1)->Wire()->RawDigit()->Channel())>=0
+	 && std::abs((*clusterHits.begin())->Channel()-
+		     clusterHits.at(clusterHits.size()-1)->Channel())>=0
 	 )
 	continue;
       

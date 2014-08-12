@@ -2,12 +2,16 @@
 //
 //  CosmicTracker
 //
-//  Tracker to reconstruct cosmic ray muons
+//  Tracker to reconstruct cosmic ray muons and neutrino interactions
 // 
 //  tjyang@fnal.gov
 // 
 //  This algorithm is based on orignal idea in Track3Dreco
-// 
+//
+//  ** Modified by Muhammad Elnimr to check multiple TPCs for the 35t prototype.
+//   
+//  mmelnimr@as.ua.edu
+//  April 2014
 ////////////////////////////////////////////////////////////////////////
 
 // C++ includes
@@ -122,8 +126,8 @@ namespace trkf {
   struct SortByWire {
     bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const { 
       return 
-	h1->Wire()->RawDigit()->Channel() < 
-	h2->Wire()->RawDigit()->Channel() ;
+	h1->Channel() < 
+	h2->Channel() ;
     }
   };
 
@@ -132,7 +136,6 @@ namespace trkf {
   public:
     
     explicit CosmicTracker(fhicl::ParameterSet const& pset);
-    ~CosmicTracker();
     
     //////////////////////////////////////////////////////////
     void reconfigure(fhicl::ParameterSet const& p);
@@ -193,11 +196,6 @@ namespace trkf {
     dtime  .resize(3);
     testsig.resize(3);
     testpulse.resize(3);
-  }
-
-  //-------------------------------------------------
-  CosmicTracker::~CosmicTracker()
-  {
   }
 
   //-------------------------------------------------
@@ -296,12 +294,23 @@ namespace trkf {
       double w1 = clusterlist[iclu]->EndPos()[0];
       double t0 = clusterlist[iclu]->StartPos()[1];
       double t1 = clusterlist[iclu]->EndPos()[1];
-//      t0 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
-//      t1 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
+      //      t0 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
+      //      t1 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
+ 
 
       CluLen clulen;
       clulen.index = iclu;
-      clulen.length = sqrt(pow((w0-w1)*wire_pitch,2)+pow(detprop->ConvertTicksToX(t0,clusterlist[iclu]->View(),0,0)-detprop->ConvertTicksToX(t1,clusterlist[iclu]->View(),0,0),2));
+      clulen.length = sqrt(pow((w0-w1)*wire_pitch,2)+pow(detprop->ConvertTicksToX(t0,clusterlist[iclu]->Plane().Plane,clusterlist[iclu]->Plane().TPC,clusterlist[iclu]->Plane().Cryostat)-detprop->ConvertTicksToX(t1,clusterlist[iclu]->Plane().Plane,clusterlist[iclu]->Plane().TPC,clusterlist[iclu]->Plane().Cryostat),2));
+
+
+      std::vector< art::Ptr<recob::Hit> > hitlist = fm.at(iclu);
+      std::sort(hitlist.begin(), hitlist.end(), trkf::SortByWire());
+      auto theHit = hitlist.begin();
+      int hcryo = (*theHit)->WireID().Cryostat;
+      int htpc = (*theHit)->WireID().TPC;
+
+      LOG_DEBUG("CosmicTracker")  << "Cluster " << iclu << " view=" <<clusterlist[iclu]->View() <<  " cryostat=" << hcryo <<" tpc=" << htpc << " length = " << clulen.length <<" start wire=" << w0 << " end wire="<< w1 << " start time=" <<t0 << " end time=" << t1;
+
       switch(clusterlist[iclu]->View()){
       case geo::kU :
 	if (fEnableU) clulens[0].push_back(clulen);
@@ -392,13 +401,25 @@ namespace trkf {
       for (int j = 0; j<nplanes; ++j){
 	for (size_t c1 = 0; c1<Cls[i].size(); ++c1){
 	  for (size_t c2 = 0; c2<Cls[j].size(); ++c2){
+	    
 	    // check if both are the same view
 	    if (clusterlist[Cls[i][c1]]->View()==
 		clusterlist[Cls[j][c2]]->View()) continue;
+	    // check if both are in the same cryostat and tpc
+	    if (clusterlist[Cls[i][c1]]->Plane().Cryostat!=
+		clusterlist[Cls[j][c2]]->Plane().Cryostat) continue;
+	    if (clusterlist[Cls[i][c1]]->Plane().TPC!=
+		clusterlist[Cls[j][c2]]->Plane().TPC) continue;
 	    // check if both are already in the matched list
 	    if (matched[Cls[i][c1]]==1&&matched[Cls[j][c2]]==1) continue;
 	    // KS test between two views in time
-	    double ks = signals[i][c1]->KolmogorovTest(signals[j][c2]);
+	    double ks = 0;
+	    if (signals[i][c1]->Integral()
+		&&signals[j][c2]->Integral())
+	      ks = signals[i][c1]->KolmogorovTest(signals[j][c2]);
+	    else{
+	      mf::LogWarning("CosmicTracker") <<"One of the two clusters appears to be empty: "<<clusterlist[Cls[i][c1]]->ID()<<" "<<clusterlist[Cls[j][c2]]->ID();
+	    }
 	    hks->Fill(ks);
 	    int imatch = -1; //track candidate index
 	    int iadd = -1; //cluster index to be inserted
@@ -531,7 +552,7 @@ namespace trkf {
 	      (clusterlist[matchedclusters[itrk][iclu]]->EndPos()[1]-
 	       clusterlist[matchedclusters[itrk][iclu]]->StartPos()[1]);
 	  }
-	  fitter->SetParameter(0,"p0",clusterlist[matchedclusters[itrk][iclu]]->StartPos()[1]-dtdw-detprop->GetXTicksOffset(clusterlist[matchedclusters[itrk][iclu]]->View(),0,0),0.1,0,0);
+	  fitter->SetParameter(0,"p0",clusterlist[matchedclusters[itrk][iclu]]->StartPos()[1]-dtdw-detprop->GetXTicksOffset(clusterlist[matchedclusters[itrk][iclu]]->Plane().Plane,clusterlist[matchedclusters[itrk][iclu]]->Plane().TPC,clusterlist[matchedclusters[itrk][iclu]]->Plane().Cryostat),0.1,0,0);
 	  fitter->SetParameter(1,"p1",clusterlist[matchedclusters[itrk][iclu]]->dTdW(),0.1,0,0);
 	  fitter->SetParameter(2,"p2",0,0.1,0,0);
 	}
@@ -832,9 +853,74 @@ namespace trkf {
 	    hitcoord[0] = matchedtime->second*detprop->GetXTicksCoefficient();
 	    hitcoord[1] = -1e10;
 	    hitcoord[2] = -1e10;
-	    geom->ChannelsIntersect((ihit1->second)->Wire()->RawDigit()->Channel(),
+	    /*	    	    geom->ChannelsIntersect((ihit1->second)->Wire()->RawDigit()->Channel(),
 				    (matchedhit->second)->Wire()->RawDigit()->Channel(),
 				    hitcoord[1],hitcoord[2]);
+	    */
+
+
+	    //WireID is the exact segment of the wire where the hit is on (1 out of 3 for the 35t)
+	    geo::WireID c1=(ihit1->second)->WireID();
+	    geo::WireID c2=(matchedhit->second)->WireID();
+	    //	    std::vector< geo::WireID > chan1wires, chan2wires; 
+	    //	    chan1wires = geom->ChannelToWire(c1);
+	    //	    chan2wires = geom->ChannelToWire(c2);
+	    geo::WireIDIntersection tmpWIDI;
+	    
+
+	    //
+	    //   Outputs for debugging purposes.
+	    //
+	    //
+	    //
+	    //
+	    /*
+	    double w1_Start[3] = {0.};
+	    double w1_End[3]   = {0.};
+	    double w2_Start[3] = {0.};
+	    double w2_End[3]   = {0.};
+	    // get the endpoints to see if i1 and i2 even intersect
+	    geom->WireEndPoints(c1.Cryostat, c1.TPC, c1.Plane, c1.Wire, w1_Start, w1_End);
+	    geom->WireEndPoints(c2.Cryostat, c2.TPC, c2.Plane, c2.Wire, w2_Start, w2_End);
+
+	    mf::LogVerbatim("Summary") <<"TPC :c1 " << c1.TPC << "   c2 " << c2.TPC;
+	    mf::LogVerbatim("Summary") <<"Cryo :c1 " << c1.Cryostat << "   c2 " << c2.Cryostat;
+	    mf::LogVerbatim("Summary") <<"Plane:c1 " << c1.Plane << "   c2 " << c2.Plane;
+	    mf::LogVerbatim("Summary") <<"Wire:c1 " << c1.Wire << "   c2 " << c2.Wire;
+
+	    bool overlapY         = geom->ValueInRange( w1_Start[1], w2_Start[1], w2_End[1] ) ||
+	                                  geom->ValueInRange( w1_End[1],   w2_Start[1], w2_End[1] );
+	    bool overlapY_reverse = geom->ValueInRange( w2_Start[1], w1_Start[1], w1_End[1] ) ||
+	                                   geom->ValueInRange( w2_End[1],   w1_Start[1], w1_End[1] );
+	         
+	    bool overlapZ         = geom->ValueInRange( w1_Start[2], w2_Start[2], w2_End[2] ) ||
+	                                   geom->ValueInRange( w1_End[2],   w2_Start[2], w2_End[2] );
+	    bool overlapZ_reverse = geom->ValueInRange( w2_Start[2], w1_Start[2], w1_End[2] ) ||
+	                                   geom->ValueInRange( w2_End[2],   w1_Start[2], w1_End[2] );
+	    if(std::abs(w2_Start[2] - w2_End[2]) < 0.01) overlapZ = overlapZ_reverse;
+	    mf::LogVerbatim("Summary") << "overlapY:" << overlapY << "   " <<
+	      "overlapY_reverse:" << overlapY_reverse <<"    "<<
+	      "overlapZ:" << overlapZ <<"    "<<
+	      "overlapZ_reverse:"<< overlapZ_reverse<<"     ";
+	    */
+	    //
+	    //
+	    //  End of outputs for debugging purposes
+	    //
+	    //
+	   
+		    bool sameTpcOrNot=geom->WireIDsIntersect(c1,c2, tmpWIDI);
+		    
+	    //   	    bool sameTpcOrNot=APAGeometryAlg::APAChannelsIntersect((ihit1->second)->Wire()->RawDigit()->Channel(),
+	    //								   (matchedhit->second)->Wire()->RawDigit()->Channel(),
+	    //		   						   tmpWIDI
+	    //								   )
+		    if(sameTpcOrNot)
+		      {
+			hitcoord[1]=tmpWIDI.y;
+			hitcoord[2]=tmpWIDI.z;
+		      }
+
 	    if (hitcoord[1]>-1e9&&hitcoord[2]>-1e9){
 	      maxhitsMatch[matchedtime->first] = 1;
 	      sp_hits.push_back(matchedhit->second);
@@ -1048,6 +1134,7 @@ namespace trkf {
 			       << std::setfill(' ');
     mf::LogVerbatim("Summary") << "CosmicTracker Summary:";
     for(unsigned int i = 0; i<tcol->size(); ++i) mf::LogVerbatim("Summary") << tcol->at(i) ;
+    mf::LogVerbatim("Summary") << "CosmicTracker Summary End:";
     
     evt.put(std::move(tcol));
     evt.put(std::move(spcol));

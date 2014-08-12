@@ -452,10 +452,10 @@ void RFFHitFinder::produce(art::Event& evt)
 	// ~~~ Filling the pulse signals~~~
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	if(i!=(int)startT && i!=(int)endT){
-	  slope = (signal[i+1]-signal[i-1])/2/signal[i] - prev_dev;
+	  slope = (signal.at(i+1)-signal.at(i-1))/2/signal.at(i) - prev_dev;
 	  if(slope<0) {
 	    sigma = std::sqrt(-1/slope); 
-	    intercept = (signal[i+1]-signal[i-1])/2/signal[i] - slope*i;
+	    intercept = (signal.at(i+1)-signal.at(i-1))/2/signal.at(i) - slope*i;
 	    my_mean = -1*intercept/slope;
 	  }
 	  else if(slope>=0) {
@@ -465,7 +465,7 @@ void RFFHitFinder::produce(art::Event& evt)
 	
 	//std::cout<<"i = "<<i<<" , signal[i] = "<<signal[i]<< " , derivative[i] = " << (signal[i+1]-signal[i-1])/2/signal[i] 
 	//	 << ", slope[i]=" << slope << ", intercept[i]=" << intercept << ", sigma[i]=" << sigma << ", mean[i]=" << my_mean << std::endl;
-	prev_dev=(signal[i+1]-signal[i-1])/2/signal[i];
+	prev_dev=(signal.at(i+1)-signal.at(i-1))/2/signal.at(i);
 	
 	if(my_mean<=0) continue;
 	

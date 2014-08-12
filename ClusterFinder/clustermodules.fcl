@@ -34,24 +34,29 @@ standard_clustercrawlershower:
 standard_fuzzycluster:
 {
  module_type:     "fuzzyCluster"
- HitsModuleLabel: "ffthit"
- CalDataModuleLabel: "caldata"
+ HitsModuleLabel: "gaushit"
  HoughSeed:       0      # The user supplied seed the generator uses for the 
                          # Hough transform, if it is zero a seed is randomly created
  fuzzyClusterAlg: @local::standard_fuzzyclusteralg
- CornerFinderAlg: @local::standard_cornerfinderalg
 }
 
-standard_ccclusterana:
+standard_clusterana:
 { 
- module_type:              "CCclusterAna"
+ module_type:              "ClusterAna"
  HitsModuleLabel:          "cccluster"
  ClusterModuleLabel:       "cccluster"
- HitEnergyFraction:        0.1
+ VertexModuleLabel:        "cccluster"
+ ElecKERange:              [50, 10000] # Min, max KE (MeV) for matching Primary only
+ MuonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+ PionKERange:              [50, 10000] # Min, max KE (MeV) for matching
+ KaonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+ ProtKERange:              [50, 10000] # Min, max KE (MeV) for matching
  TrackWeightOption:        1 # 0 = equal weighting, 1 = weight by kinetic energy
- MergeDaughters:           true # merge daughter MC particles with mothers
- MergeAngleCut:            0.2 # radians. Angle cut for MC particle merging
+ MergeDaughters:           true # merge daughter MC particles with mothers (not electrons)
+ SkipCosmics:              true # do not evaluate cosmic rays
+ PrintLevel:               0 # 0 = none, 1 = event summary, 2 += each MC particle, 3 += truth
 }
+
 
 standard_dbclusterana:
 { 
@@ -222,25 +227,4 @@ argoneut_smallclusterfinder:		   @local::standard_smallclusterfinder
 argoneut_showerangleclusterana:           @local::standard_showerangleclusterana
 argoneut_showerangleclusterana.ClusterParamsAlg:           @local::argoneut_clusterparamsalg
 
-
-
-microboone_clustercrawler:               @local::standard_clustercrawler      
-microboone_clustercrawler.ClusterCrawlerAlg:               @local::microboone_clustercrawleralg
-microboone_dbcluster:                    @local::standard_dbcluster      
-microboone_dbcluster.DBScanAlg:          @local::microboone_dbscanalg    
-microboone_dbclusterana:                 @local::standard_dbclusterana   
-microboone_fuzzycluster:                 @local::standard_fuzzycluster      
-microboone_fuzzycluster.fuzzyClusterAlg: @local::microboone_fuzzyclusteralg      
-microboone_kingacluster:                 @local::standard_kingacluster   
-microboone_kingaclusterana:              @local::standard_kingaclusterana
-microboone_houghlinefinder:              @local::standard_houghlinefinder
-microboone_houghlinefinder.HoughBaseAlg: @local::standard_houghbasealg
-microboone_houghlinefinderana:           @local::standard_houghlinefinderana
-microboone_linemerger:                   @local::standard_linemerger        
-microboone_endpointmod:                  @local::standard_endpointmod       
-microboone_endpointmod.EndPointAlg:      @local::microboone_endpointalg
-microboone_showeranglecluster:           @local::standard_showeranglecluster
-microboone_smallclusterfinder:			 @local::standard_smallclusterfinder
-microboone_showerangleclusterana:           @local::standard_showerangleclusterana
-microboone_showerangleclusterana.ClusterParamsAlg:           @local::microboone_clusterparamsalg
 END_PROLOG

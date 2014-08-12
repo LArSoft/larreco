@@ -217,8 +217,8 @@ namespace cluster{
 // print out
 //  StudyHits(4);
 
-    delete ticks;
-    delete signl;
+    delete[] ticks;
+    delete[] signl;
 
   } //RunCCHitFinder
 

@@ -17,14 +17,16 @@ standard_clustercrawleralg:
   KinkAngCut: [0.35, 0.35, 0.4] # kink angle cut (radians) used to follow and merge
   DoMerge:   [false, true, true] # run cluster merging code?
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
-  MergeChgCut: [0.2, 0.2, 0.2] # max charge ratio for cluster merging
+  MergeChgCut: [0.3, 0.3, 0.3] # max charge ratio for cluster merging
   FindVertices: [true, true, true]  # make 2D vertices after clustering?
+  LACrawl:     [true, true, true]  # crawl Large Angle clusters?
   LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
-  HitMergeChiCut:    4.0 # Merge cluster hit-multiplets if the separation chisq
+  HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
-  MergeGhostClusters: true # Merge clusters that share hits in a multiplet?     
+  MergeGhostClusters: false # Merge clusters that share hits in a multiplet?     
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
   AllowNoHitWire:        1 # 
+  Vertex3DCut:          1. # 2D vtx -> 3D vtx matching cut (cm)
   DebugPlane:          -1  # print info only in this plane
   DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
   DebugHit:             0  # out detailed information while crawling
@@ -35,14 +37,14 @@ standard_cchitfinderalg:
   CalDataModuleLabel: "caldata"
   MinSigInd:   3.   # min signal peak for induction plane
   MinSigCol:   5.   # min signal peak for collection plane
-  MinRMSInd:   3.   # min signal width for induction plane
-  MinRMSCol:   3.   # min signal width for induction plane
+  MinRMSInd:   1.   # min signal width for induction plane
+  MinRMSCol:   1.   # min signal width for induction plane
   MaxBumps:    5    # make a crude hit if > MaxBumps are found in the RAT
   MaxXtraHits: 1    # max number of hidden hits in Region Above Threshold
   ChiSplit:  10.   # Max chi/DOF for splitting hits for signal rms error = 1
-  ChiNorms: [ 2.7, 20.4, 7.8 ]  # chi/DOF normalization for each plane
-  TimeOffsets: [ 0.48, 0.41, 0.49 ] # hit time offsets
-  ChgNorms: [ 0.733, 0.750, 1.471 ]   # Area -> Charge normalization
+  ChiNorms: [ 0.3, 0.3, 0.5 ]  # chi/DOF normalization for each plane
+  TimeOffsets: [ 0., 0., 0. ] # hit time offsets
+  ChgNorms: [ 1.0, 1.0, 1.0 ]   # Area -> Charge normalization
 }
 
 standard_cchitrefineralg:
@@ -129,12 +131,14 @@ standard_dbscanalg:
 
 standard_fuzzyclusteralg:
 {
-  Fuzzifier:     1.1   # The fuzzifier (m) needed for fuzzy clustering
-  MaxNumClusters:  5   # The maximum number of clusters to try, needed for fuzzy clustering, was 5
-  Iterations:     100  # The maximum number of iterations to try, needed for fuzzy clustering, was 10
-  MergeCutoff:    100  # The maximum distance between clusters prior to merging,  
+  Iterations:     10   # The maximum number of iterations to try, needed for fuzzy clustering, was 10
+  Epsilon:        1e-6 # The limit in the difference between memberships when FLAME clustering stops 
+  KNN:           500
+  Threshold:     -20.0 # Sets the threshold parameter in FLAME cluster, it effectively sets a lower limit on hit density for whether a hit is considered part of a cluster or an outlier
+  DistanceMetric: 2
+  RunHough:       true    # Turns on and off the Hough line finder, useful for diagnostics 
   HoughBaseAlg:{
-    MaxLines:             50
+    MaxLines:             10
     MaxDistance:          0.1
     MinHits:              5
     NumAngleCells:        10800
@@ -148,28 +152,26 @@ standard_fuzzyclusteralg:
     MissedHitsDistance:       1.0  # 
     MissedHitsToLineSize:     0.5    # Was set to 0
   }
-  DBScanAlg:       @local::standard_dbscanalg 
-  EndPointClusAlg: @local::standard_endpointalg
-  DoFuzzyRemnantMerge:      1    # Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
+  DBScanAlg:                @local::standard_dbscanalg
+  DoFuzzyRemnantMerge:      true # Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
   FuzzyRemnantMergeCutoff: 20    # Cut off on distance from hough line to hit in the remnant of the fuzzy cluster
   
-  DoTrackClusterMerge:     1  # Turns on merging of track-like Hough lines (0-off, 1-on)
+  DoTrackClusterMerge:     true # Turns on merging of track-like Hough lines (0-off, 1-on)
   ChargeAsymAngleCut:        0.1 # Cut on product of charge asymmetry and the square of the sin of angle between slopes of lines, only for track-like
   SigmaChargeAsymAngleCut:   1.0  # Cut on product of charge sigma asymmetry and the sin of angle between slopes of lines, only for track-like
   TrackClusterMergeCutoff: 5.0 # The maximum distance between track-like Hough line endpoints before they can be merged,
   
-  DoShowerClusterMerge:     1    # Turns on merging of shower-like Hough line (0-off, 1-on)
+  DoShowerClusterMerge:     true # Turns on merging of shower-like Hough line (0-off, 1-on)
   ShowerClusterMergeAngle: 30    # The maximum angle between slopes of shower-like lines to be merged,
   ShowerClusterMergeCutoff:  7.5 # The maximum distance between shower-like line endpoints before they can be merged,
 
-  DoShowerTrackClusterMerge:     1    # Turns on merging of shower-like and track-like lines (0-off, 1-on)
+  DoShowerTrackClusterMerge:     true # Turns on merging of shower-like and track-like lines (0-off, 1-on)
   ShowerTrackClusterMergeAngle:  15   # The maximum angle between slopes of shower-like and track-like lines to be merged,
   ShowerTrackClusterMergeCutoff: 7.5  # The maximum distance between shower-like and track-like line endpoints before they can be merged,
   ShowerLikenessCut:       0.5   # Cut on shower likeness (the larger the more shower like, the smaller the less shower like)
   MaxVertexLines:          100   # Max number of line end points allowed in a Hough line merge region for a merge to happen 
   VertexLinesCutoff:       5.0   #  Size of the vertex region to count up lines for MaxVertexLines 
 }
-
 
 standard_clusterparamsalg:
  {
@@ -293,10 +295,21 @@ microboone_houghbasealg.MinHits:              5
 microboone_houghbasealg.NumAngleCells:        20000
 microboone_houghbasealg.DoHoughLineMerge:     1
 microboone_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+microboone_fuzzyclusteralg.Threshold          : -20.0
 microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
-microboone_clusterparamsalg:                 @local::standard_clusterparamsalg
-microboone_smallclustalg:	   @local::standard_smallclustalg
-microboone_clustercrawleralg:      @local::standard_clustercrawleralg
+microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
+microboone_smallclustalg:	              @local::standard_smallclustalg
+microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
+microboone_cchitfinderalg:                    @local::standard_cchitfinderalg
+microboone_cchitfinderalg.ChiNorms:           [ 1.0, 1.0, 1.0 ]
+microboone_cchitfinderalg.ChgNorms:           [ 1.0, 1.0, 1.0 ]
+microboone_cchitfinderalg.TimeOffsets:        [ 0.0, 0.0, 0.0 ]
+microboone_cchitfinderalg.MinSigCol:          5.
+microboone_cchitfinderalg.MinRMSCol:          2.2
+microboone_cchitfinderalg.MinSigInd:          3.
+microboone_cchitfinderalg.MinRMSInd:          2.2
+microboone_cchitrefineralg:                   @local::standard_cchitrefineralg
+
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
 

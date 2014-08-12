@@ -270,11 +270,11 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
     // Get track ids for this hit.
 
-    std::vector<cheat::TrackIDE> tids = bt->HitToTrackID(*ihit);
+    std::vector<sim::TrackIDE> tids = bt->HitToTrackID(*ihit);
 
     // Loop over track ids.
 
-    for(std::vector<cheat::TrackIDE>::const_iterator itid = tids.begin();
+    for(std::vector<sim::TrackIDE>::const_iterator itid = tids.begin();
 	itid != tids.end(); ++itid) {
       int trackID = itid->trackID;
 

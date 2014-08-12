@@ -1,7 +1,7 @@
 //
 // Name: TrackAna_module.cc
 //
-// Purpose: Module TrackAna.
+// Purpose: Module TrackAnaCT.
 //
 // Configuration parameters.
 //
@@ -49,21 +49,70 @@ namespace {
 
   // Calculate distance to boundary.
   //----------------------------------------------------------------------------
-  double bdist(const TVector3& pos, unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
+  double bdist(const TVector3& pos, unsigned int tpc = 0, unsigned int /*cstat*/ = 0)
   {
     // Get geometry.
 
+    double d3,d4;
     art::ServiceHandle<geo::Geometry> geom;
+    if(!(geom->DetId()==geo::kLBNE35t)) return 0;
+      
+    if(tpc==2 || tpc==3 || tpc==4 || tpc==5)
+      {
+	d3 = pos.Y() - 1.25;     // 1.25cm APA 2/3 distance to horizontal.
+	//    double d3 = pos.Y() + 85.0;     // Distance to bottom.
+	d4 = 113.0 - pos.Y();     // Distance to top.
+	//    double d4 = 113.0 - pos.Y();     // Distance to top.
+      }
+    else  //tpc 0 1  6  7
+      {
+	d3 = pos.Y() + geom->DetHalfHeight(tpc)-15.0;     // Distance to bottom.
+	//    double d3 = pos.Y() + 85.0;     // Distance to bottom.
+	d4 = geom->DetHalfHeight(tpc)+15.0 - pos.Y();     // Distance to top.
+	//    double d4 = 113.0 - pos.Y();     // Distance to top.
+      }
+    
+    mf::LogVerbatim("output") <<"d3" << d3;
+    mf::LogVerbatim("output") <<"d4" << d4;
 
-    double d1 = pos.X();                             // Distance to right side (wires).
-    double d2 = 2.*geom->DetHalfWidth() - pos.X();   // Distance to left side (cathode).
-    double d3 = pos.Y() + geom->DetHalfHeight();     // Distance to bottom.
-    double d4 = geom->DetHalfHeight() - pos.Y();     // Distance to top.
-    double d5 = pos.Z();                             // Distance to front.
-    double d6 = geom->DetLength() - pos.Z();         // Distance to back.
-
+    double d1 = abs(pos.X());          // Distance to right side (wires).
+    double d2=2.*geom->DetHalfWidth(tpc)- abs(pos.X());
+    mf::LogVerbatim("output") <<"d1" << d1;
+    mf::LogVerbatim("output") <<"d2" << d2;
+    //    double d2 = 226.539 - pos.X();   // Distance to left side (cathode).
+    double d5,d6;
+    
+    if(tpc==0 || tpc==1)
+      {
+	d5 = pos.Z()+1.0;                             // Distance to front.
+	d6 = geom->DetLength(tpc) -1.0- pos.Z();         // Distance to back.
+      }
+    else if (tpc==2||tpc==3 || tpc==4 || tpc==5)
+      {
+	d5 = pos.Z()-51.0;                             // Distance to front.     
+	d6 = geom->DetLength(tpc) +51.0- pos.Z();         // Distance to back.   
+      }
+    else if (tpc==6 || tpc==7)
+      {
+	d5 = pos.Z()-103.0;                             // Distance to front.     
+        d6 = geom->DetLength(tpc) +103.0- pos.Z();         // Distance to back.   
+	
+      }
+    if(d6<0){
+      mf::LogVerbatim("output")<< "z"  <<pos.Z();
+      mf::LogVerbatim("output")<< "Tpc" <<tpc;
+      mf::LogVerbatim("output")<< "DetLength" <<geom->DetLength(tpc);
+      
+    }
+    mf::LogVerbatim("output") <<"d5" << d5;
+    mf::LogVerbatim("output") <<"d6" << d6;
     double result = std::min(std::min(std::min(std::min(std::min(d1, d2), d3), d4), d5), d6);
+    mf::LogVerbatim("output")<< "bdist" << result;
+    mf::LogVerbatim("output")<< "Height" << geom->DetHalfHeight(tpc);
+    mf::LogVerbatim("output")<< "Width" << geom->DetHalfWidth(tpc);
+    if(result<0) result=0;
     return result;
+   
   }
 
   // Length of reconstructed track.
@@ -80,7 +129,7 @@ namespace {
       result += disp.Mag();
       disp = pos;
     }
-
+    mf::LogVerbatim("output") << " length (track) " << result;
     return result;
   }
 
@@ -95,14 +144,92 @@ namespace {
     art::ServiceHandle<geo::Geometry> geom;
     art::ServiceHandle<util::DetectorProperties> detprop;
 
-    // Get fiducial volume boundary.
+    double xmin,xmax,ymin,ymax,zmin,zmax;
 
-    double xmin = 0.;
-    double xmax = 2.*geom->DetHalfWidth();
-    double ymin = -geom->DetHalfHeight();
-    double ymax = geom->DetHalfHeight();
-    double zmin = 0.;
-    double zmax = geom->DetLength();
+    /*  if(tpc==0 || tpc==2 || tpc==4 || tpc==6 ) //short tpcs
+      {
+	
+	xmin=-0.9;
+	xmax=xmin-2.*geom->DetHalfWidth(tpc);
+      }
+    else  //long tpcs
+      {
+	xmin=-0.9;
+	xmax=2*geom->DetHalfWidth(tpc)+xmin;
+      }
+
+
+
+
+    if(tpc==2 || tpc==3 )
+      {
+	ymin = 1.25;  //35t
+	ymax = ymin+2*geom->DetHalfHeight(tpc);   //35t
+      }
+    else if( tpc==4 || tpc==5)
+      {
+	ymin=-1.25;
+	ymax=ymin-2*geom->DetHalfHeight(tpc);
+
+      }
+    else // tpcs 0 ,1 ,6 ,7 
+      {
+	ymin=geom->DetHalfHeight(tpc)-1.25;
+	ymax=2* geom->DetHalfHeight(tpc)+ymin;
+      }
+
+
+
+  if(tpc==0 || tpc==1)
+    {
+      zmin=-1.0;
+      zmax=geom->DetLength(tpc)+zmin;
+
+    }    
+  else if (tpc==2||tpc==3 || tpc==4 || tpc==5)
+    {
+      zmin=51;
+      zmax=zmin+geom->DetLength(tpc);
+      
+    }
+   else if (tpc==6 || tpc==7)
+     {
+       zmin=103;
+       zmax=zmin+geom->DetLength(tpc);
+     }
+
+ mf::LogVerbatim("output") << " xmin " << xmin;
+ mf::LogVerbatim("output") << " xmax " << xmax;
+ mf::LogVerbatim("output") << " ymin " << ymin;
+ mf::LogVerbatim("output") << " ymax " << ymax;
+ mf::LogVerbatim("output") << " zmin " << zmin;
+ mf::LogVerbatim("output") << " zmax " << zmax;
+    */
+
+    //
+    // The MC should be independent of the tpc
+    //
+    // It cares only about the Cryostat bounds.
+    //
+    //  However, to be able to use the ConvertXToTicks function
+    //  we need to know the tpc number, will predict it 
+    //  based on the coordinates of this specific point
+    //
+    double origin[3] = {0.};
+    double world[3] = {0.};
+    const int cc=0;
+    geom->Cryostat(cc).LocalToWorld(origin, world);
+    xmin=world[0] - geom->Cryostat(cc).HalfWidth();
+    xmax=world[0] + geom->Cryostat(cc).HalfWidth();
+
+    ymin= world[1] - geom->Cryostat(cc).HalfHeight();
+    ymax=world[1] + geom->Cryostat(cc).HalfHeight();
+
+    zmin=world[2] - geom->Cryostat(cc).Length()/2;
+    zmax=world[2] + geom->Cryostat(cc).Length()/2;
+    //
+    //
+
 
     double result = 0.;
     TVector3 disp;
@@ -116,6 +243,34 @@ namespace {
       // the tpc, and also require the apparent x position to be within the expanded
       // readout frame.
 
+      // predict the tpc number
+      int whichTPC=0;
+      if(pos.Z() >=-1.0 && pos.Z()<=49.0 && pos.Y() >=-85.0 && pos.Y() <= 113.0)   
+	{
+	  if(pos.X() >=-1.0) whichTPC=1;
+	  else if (pos.X() <-1.0) whichTPC=0; 
+	  else whichTPC=-999;
+	}
+      if(pos.Z() >=103.0 && pos.Z()<=153.0 && pos.Y() >=-85.0 && pos.Y() <= 113.0)
+	 {
+	  if(pos.X() >=-1.0) whichTPC=7;
+	  else if (pos.X() <-1.0) whichTPC=6; 
+	  else whichTPC=-999;
+	 }
+      if(pos.Z() >=51.0 && pos.Z()<=101.0 && pos.Y() >= 1.25 && pos.Y() <= 113.0)
+	 {
+	  if(pos.X() >=-1.0) whichTPC=3;
+	  else if (pos.X() <-1.0) whichTPC=2; 
+	  else whichTPC=-999;
+	 }
+      if(pos.Z() >=51.0 && pos.Z()<=101.0 && pos.Y() >= - 85.0 && pos.Y() <= 1.25)
+	 {
+	  if(pos.X() >=-1.0) whichTPC=5;
+	  else if (pos.X() <-1.0) whichTPC=4; 
+	  else whichTPC=-999;
+	 }
+      
+      mf::LogVerbatim("output")<<" whichTPC " << whichTPC;
       if(pos.X() >= xmin &&
 	 pos.X() <= xmax &&
 	 pos.Y() >= ymin &&
@@ -123,7 +278,8 @@ namespace {
 	 pos.Z() >= zmin &&
 	 pos.Z() <= zmax) {
 	pos[0] += dx;
-	double ticks = detprop->ConvertXToTicks(pos[0], 0, 0, 0);
+	//	double ticks = detprop->ConvertXToTicks(pos[0], 0, 0, 0);
+	double ticks = detprop->ConvertXToTicks(pos[0], 0, whichTPC, 0);
 	if(ticks >= 0. && ticks < detprop->ReadOutWindowSize()) {
 	  if(first) {
 	    start = pos;
@@ -140,7 +296,7 @@ namespace {
 	}
       }
     }
-
+    mf::LogVerbatim("output") << " length (MCParticle) " << result;
     return result;
   }
 
@@ -150,9 +306,9 @@ namespace {
   {
     int nbins = hnum->GetNbinsX();
     if (nbins != hden->GetNbinsX())
-      throw cet::exception("TrackAna") << "effcalc[" __FILE__ "]: incompatible histograms (I)\n";
+      throw cet::exception("TrackAnaCT") << "effcalc[" __FILE__ "]: incompatible histograms (I)\n";
     if (nbins != heff->GetNbinsX())
-      throw cet::exception("TrackAna") << "effcalc[" __FILE__ "]: incompatible histograms (II)\n";
+      throw cet::exception("TrackAnaCT") << "effcalc[" __FILE__ "]: incompatible histograms (II)\n";
 
     // Loop over bins, including underflow and overflow.
 
@@ -211,7 +367,7 @@ public:
 
 namespace trkf {
 
-  class TrackAna : public art::EDAnalyzer
+  class TrackAnaCT : public art::EDAnalyzer
   {
   public:
 
@@ -345,8 +501,8 @@ namespace trkf {
 
     // Constructors, destructor
 
-    explicit TrackAna(fhicl::ParameterSet const& pset);
-    virtual ~TrackAna();
+    explicit TrackAnaCT(fhicl::ParameterSet const& pset);
+    virtual ~TrackAnaCT();
 
     // Overrides.
 
@@ -385,11 +541,11 @@ namespace trkf {
     int fNumEvent;
   };
 
-  DEFINE_ART_MODULE(TrackAna)
+  DEFINE_ART_MODULE(TrackAnaCT)
 
   // RecoHists methods.
 
-  TrackAna::RecoHists::RecoHists() :
+  TrackAnaCT::RecoHists::RecoHists() :
     //
     // Purpose: Default constructor.
     //
@@ -417,7 +573,7 @@ namespace trkf {
     ,fNTrkIdTrks3(0)
   {}
 
-  TrackAna::RecoHists::RecoHists(const std::string& subdir)
+  TrackAnaCT::RecoHists::RecoHists(const std::string& subdir)
   //
   // Purpose: Initializing constructor.
   //
@@ -433,33 +589,33 @@ namespace trkf {
 
     // Make histogram directory.
 
-    art::TFileDirectory topdir = tfs->mkdir("trkana", "TrackAna histograms");
+    art::TFileDirectory topdir = tfs->mkdir("trkana", "TrackAnaCT histograms");
     art::TFileDirectory dir = topdir.mkdir(subdir);
 
     // Book histograms.
 
     fHstartx = dir.make<TH1F>("xstart", "X Start Position",
-			      100, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
+			      100, -2.*geom->Cryostat(0).HalfWidth(), 4.*geom->Cryostat(0).HalfWidth());
     fHstarty = dir.make<TH1F>("ystart", "Y Start Position",
-			      100, -geom->DetHalfHeight(), geom->DetHalfHeight());
+			      100, -geom->Cryostat(0).HalfHeight(), geom->Cryostat(0).HalfHeight());
     fHstartz = dir.make<TH1F>("zstart", "Z Start Position",
-			      100, 0., geom->DetLength());
+			      100, 0., geom->Cryostat(0).Length());
     fHstartd = dir.make<TH1F>("dstart", "Start Position Distance to Boundary",
-			      100, -10., geom->DetHalfWidth());
+			      100, -10., geom->Cryostat(0).HalfWidth());
     fHendx = dir.make<TH1F>("xend", "X End Position",
-			    100, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
+			    100, -2.*geom->Cryostat(0).HalfWidth(), 4.*geom->Cryostat(0).HalfWidth());
     fHendy = dir.make<TH1F>("yend", "Y End Position",
-			    100, -geom->DetHalfHeight(), geom->DetHalfHeight());
+			    100, -geom->Cryostat(0).HalfHeight(), geom->Cryostat(0).HalfHeight());
     fHendz = dir.make<TH1F>("zend", "Z End Position",
-			    100, 0., geom->DetLength());
+			    100, 0., geom->Cryostat(0).Length());
     fHendd = dir.make<TH1F>("dend", "End Position Distance to Boundary",
-			    100, -10., geom->DetHalfWidth());
+			    100, -10., geom->Cryostat(0).HalfWidth());
     fHtheta = dir.make<TH1F>("theta", "Theta", 100, 0., 3.142);
     fHphi = dir.make<TH1F>("phi", "Phi", 100, -3.142, 3.142);
     fHtheta_xz = dir.make<TH1F>("theta_xz", "Theta_xz", 100, -3.142, 3.142);
     fHtheta_yz = dir.make<TH1F>("theta_yz", "Theta_yz", 100, -3.142, 3.142);
     fHmom = dir.make<TH1F>("mom", "Momentum", 100, 0., 10.);
-    fHlen = dir.make<TH1F>("len", "Track Length", 100, 0., 1.1 * geom->DetLength());
+    fHlen = dir.make<TH1F>("len", "Track Length", 100, 0., 3.0 * geom->Cryostat(0).Length());
     fHHitChg = dir.make<TH1F>("hchg", "Hit Charge (ADC counts)", 100, 0., 4000.);
     fHHitWidth = dir.make<TH1F>("hwid", "Hit Width (ticks)", 40, 0., 20.);
     fHHitPdg = dir.make<TH1F>("hpdg", "Hit Pdg code",5001, -2500.5, +2500.5);
@@ -475,7 +631,7 @@ namespace trkf {
 
   // MCHists methods.
 
-  TrackAna::MCHists::MCHists() :
+  TrackAnaCT::MCHists::MCHists() :
     //
     // Purpose: Default constructor.
     //
@@ -542,7 +698,7 @@ namespace trkf {
     fHelen(0)
   {}
 
-  TrackAna::MCHists::MCHists(const std::string& subdir)
+  TrackAnaCT::MCHists::MCHists(const std::string& subdir)
   //
   // Purpose: Initializing constructor.
   //
@@ -558,7 +714,7 @@ namespace trkf {
 
     // Make histogram directory.
 
-    art::TFileDirectory topdir = tfs->mkdir("trkana", "TrackAna histograms");
+    art::TFileDirectory topdir = tfs->mkdir("trkana", "TrackAnaCT histograms");
     art::TFileDirectory dir = topdir.mkdir(subdir);
 
     // Book histograms.
@@ -582,7 +738,7 @@ namespace trkf {
     fHenddy = dir.make<TH1F>("enddy", "End Delta y", 100, -10., 10.);
     fHenddz = dir.make<TH1F>("enddz", "End Delta z", 100, -10., 10.);
     fHlvsl = dir.make<TH2F>("lvsl", "Reco Length vs. MC Truth Length",
-			    100, 0., 1.1 * geom->DetLength(), 100, 0., 1.1 * geom->DetLength());
+			    100, 0., 1.1 * geom->Cryostat(0).Length(), 100, 0., 1.1 * geom->Cryostat(0).Length());
     fHdl = dir.make<TH1F>("dl", "Track Length Minus MC Particle Length", 100, -50., 50.);
     fHpvsp = dir.make<TH2F>("pvsp", "Reco Momentum vs. MC Truth Momentum",
 			    100, 0., 5., 100, 0., 5.);
@@ -595,65 +751,65 @@ namespace trkf {
     fHppullc = dir.make<TH1F>("ppullc", "Momentum Pull (Contained Tracks)", 100, -10., 10.);
 
     fHmcstartx = dir.make<TH1F>("mcxstart", "MC X Start Position",
-				10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
+				10, -2.*geom->Cryostat(0).HalfWidth(), 4.*geom->Cryostat(0).HalfWidth());
     fHmcstarty = dir.make<TH1F>("mcystart", "MC Y Start Position",
-				10, -geom->DetHalfHeight(), geom->DetHalfHeight());
+				10, -geom->Cryostat(0).HalfHeight(), geom->Cryostat(0).HalfHeight());
     fHmcstartz = dir.make<TH1F>("mczstart", "MC Z Start Position",
-				10, 0., geom->DetLength());
+				10, 0., geom->Cryostat(0).Length());
     fHmcendx = dir.make<TH1F>("mcxend", "MC X End Position",
-			      10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
+			      10, -2.*geom->Cryostat(0).HalfWidth(), 4.*geom->Cryostat(0).HalfWidth());
     fHmcendy = dir.make<TH1F>("mcyend", "MC Y End Position",
-			      10, -geom->DetHalfHeight(), geom->DetHalfHeight());
+			      10, -geom->Cryostat(0).HalfHeight(), geom->Cryostat(0).HalfHeight());
     fHmcendz = dir.make<TH1F>("mczend", "MC Z End Position",
-			      10, 0., geom->DetLength());
+			      10, 0., geom->Cryostat(0).Length());
     fHmctheta = dir.make<TH1F>("mctheta", "MC Theta", 20, 0., 3.142);
     fHmcphi = dir.make<TH1F>("mcphi", "MC Phi", 10, -3.142, 3.142);
     fHmctheta_xz = dir.make<TH1F>("mctheta_xz", "MC Theta_xz", 40, -3.142, 3.142);
     fHmctheta_yz = dir.make<TH1F>("mctheta_yz", "MC Theta_yz", 40, -3.142, 3.142);
     fHmcmom = dir.make<TH1F>("mcmom", "MC Momentum", 10, 0., 10.);
-    fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * geom->DetLength());
+    fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * geom->Cryostat(0).Length());
 
     fHgstartx = dir.make<TH1F>("gxstart", "Good X Start Position",
-			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
+			       10, -2.*geom->Cryostat(0).HalfWidth(), 4.*geom->Cryostat(0).HalfWidth());
     fHgstarty = dir.make<TH1F>("gystart", "Good Y Start Position",
-			       10, -geom->DetHalfHeight(), geom->DetHalfHeight());
+			       10, -geom->Cryostat(0).HalfHeight(), geom->Cryostat(0).HalfHeight());
     fHgstartz = dir.make<TH1F>("gzstart", "Good Z Start Position",
-			       10, 0., geom->DetLength());
+			       10, 0., geom->Cryostat(0).Length());
     fHgendx = dir.make<TH1F>("gxend", "Good X End Position",
-			     10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
+			     10, -2.*geom->Cryostat(0).HalfWidth(), 4.*geom->Cryostat(0).HalfWidth());
     fHgendy = dir.make<TH1F>("gyend", "Good Y End Position",
-			     10, -geom->DetHalfHeight(), geom->DetHalfHeight());
+			     10, -geom->Cryostat(0).HalfHeight(), geom->Cryostat(0).HalfHeight());
     fHgendz = dir.make<TH1F>("gzend", "Good Z End Position",
-			     10, 0., geom->DetLength());
+			     10, 0., geom->Cryostat(0).Length());
     fHgtheta = dir.make<TH1F>("gtheta", "Good Theta", 20, 0., 3.142);
     fHgphi = dir.make<TH1F>("gphi", "Good Phi", 10, -3.142, 3.142);
     fHgtheta_xz = dir.make<TH1F>("gtheta_xz", "Good Theta_xz", 40, -3.142, 3.142);
     fHgtheta_yz = dir.make<TH1F>("gtheta_yz", "Good Theta_yz", 40, -3.142, 3.142);
     fHgmom = dir.make<TH1F>("gmom", "Good Momentum", 10, 0., 10.);
-    fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * geom->DetLength());
+    fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * geom->Cryostat(0).Length());
 
     fHestartx = dir.make<TH1F>("exstart", "Efficiency vs. X Start Position",
-			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
+			       10, -2.*geom->Cryostat(0).HalfWidth(), 4.*geom->Cryostat(0).HalfWidth());
     fHestarty = dir.make<TH1F>("eystart", "Efficiency vs. Y Start Position",
-			       10, -geom->DetHalfHeight(), geom->DetHalfHeight());
+			       10, -geom->Cryostat(0).HalfHeight(), geom->Cryostat(0).HalfHeight());
     fHestartz = dir.make<TH1F>("ezstart", "Efficiency vs. Z Start Position",
-			       10, 0., geom->DetLength());
+			       10, 0., geom->Cryostat(0).Length());
     fHeendx = dir.make<TH1F>("exend", "Efficiency vs. X End Position",
-			     10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
+			     10, -2.*geom->Cryostat(0).HalfWidth(), 4.*geom->Cryostat(0).HalfWidth());
     fHeendy = dir.make<TH1F>("eyend", "Efficiency vs. Y End Position",
-			     10, -geom->DetHalfHeight(), geom->DetHalfHeight());
+			     10, -geom->Cryostat(0).HalfHeight(), geom->Cryostat(0).HalfHeight());
     fHeendz = dir.make<TH1F>("ezend", "Efficiency vs. Z End Position",
-			     10, 0., geom->DetLength());
+			     10, 0., geom->Cryostat(0).Length());
     fHetheta = dir.make<TH1F>("etheta", "Efficiency vs. Theta", 20, 0., 3.142);
     fHephi = dir.make<TH1F>("ephi", "Efficiency vs. Phi", 10, -3.142, 3.142);
     fHetheta_xz = dir.make<TH1F>("etheta_xz", "Efficiency vs. Theta_xz", 40, -3.142, 3.142);
     fHetheta_yz = dir.make<TH1F>("etheta_yz", "Efficiency vs. Theta_yz", 40, -3.142, 3.142);
     fHemom = dir.make<TH1F>("emom", "Efficiency vs. Momentum", 10, 0., 10.);
     fHelen = dir.make<TH1F>("elen", "Efficiency vs. Particle Length",
-			    10, 0., 1.1 * geom->DetLength());
+			    10, 0., 1.1 * geom->Cryostat(0).Length());
   }
 
-  TrackAna::TrackAna(const fhicl::ParameterSet& pset)
+  TrackAnaCT::TrackAnaCT(const fhicl::ParameterSet& pset)
     //
     // Purpose: Constructor.
     //
@@ -678,8 +834,8 @@ namespace trkf {
 
     // Report.
 
-    mf::LogInfo("TrackAna") 
-      << "TrackAna configured with the following parameters:\n"
+    mf::LogInfo("TrackAnaCT") 
+      << "TrackAnaCT configured with the following parameters:\n"
       << "  TrackModuleLabel = " << fTrackModuleLabel << "\n"
       << "  StitchModuleLabel = " << fStitchModuleLabel << "\n"
       << "  TrkSpptAssocModuleLabel = " << fTrkSpptAssocModuleLabel << "\n"
@@ -689,13 +845,13 @@ namespace trkf {
       << "  MinMCLen = " << fMinMCLen;
   }
 
-  TrackAna::~TrackAna()
+  TrackAnaCT::~TrackAnaCT()
   //
   // Purpose: Destructor.
   //
   {}
 
-  void TrackAna::analyze(const art::Event& evt)
+  void TrackAnaCT::analyze(const art::Event& evt)
   //
   // Purpose: Analyze method.
   //
@@ -715,7 +871,7 @@ namespace trkf {
     std::unique_ptr<mf::LogInfo> pdump;
     if(fDump > 0) {
       --fDump;
-      pdump = std::unique_ptr<mf::LogInfo>(new mf::LogInfo("TrackAna"));
+      pdump = std::unique_ptr<mf::LogInfo>(new mf::LogInfo("TrackAnaCT"));
     }
 
     // Make sure histograms are booked.
@@ -873,14 +1029,14 @@ namespace trkf {
     evt.getByLabel(fStitchModuleLabel,trackvh);
 
 
-    // This new top part of TrackAna between two long lines of ************s
+    // This new top part of TrackAnaCT between two long lines of ************s
     // is particular to analyzing Stitched Tracks.
     // *******************************************************************//
 
     if (trackvh.isValid() && fStitchedAnalysis) 
       {
-	mf::LogDebug("TrackAna") 
-	  << "TrackAna read "  << trackvh->size()
+	mf::LogDebug("TrackAnaCT") 
+	  << "TrackAnaCT read "  << trackvh->size()
 	  << "  vectors of Stitched PtrVectorsof tracks.";
 	anaStitch(evt);
       }
@@ -894,11 +1050,42 @@ namespace trkf {
       }
 
       // Loop over tracks.
-      
+     
+
       int ntrack = trackh->size();
       for(int i = 0; i < ntrack; ++i) {
 	art::Ptr<recob::Track> ptrack(trackh, i);
 	const recob::Track& track = *ptrack;
+	art::FindManyP<recob::Hit> fh(trackh, evt, fTrkSpptAssocModuleLabel);
+
+	////
+	///              figuring out which TPC
+	///
+	///
+	//
+	//	auto pcoll { ptrack };
+	//art::FindManyP<recob::SpacePoint> fs( pcoll, evt, fTrkSpptAssocModuleLabel);
+	//	auto sppt = fs.at(0);//.at(is);
+	//	art::FindManyP<recob::Hit> fh( sppt, evt, fHitSpptAssocModuleLabel);
+	auto hit = fh.at(0).at(0);
+	geo::WireID tmpWireid=hit->WireID();
+	int hit_tpc=tmpWireid.TPC;
+	///
+	///
+	//
+	//
+	//
+	//
+	//
+	//
+	
+	
+ 
+
+	/*	art::Handle< std::vector<recob::Hit> > hitListHandle;
+	std::vector<art::Ptr<recob::Hit> > hitlist;
+	if (evt.getByLabel(fHitsModuleLabel,hitListHandle))
+	art::fill_ptr_vector(hitlist, hitListHandle);*/
 
 	// Calculate the x offset due to nonzero reconstructed time.
 
@@ -916,8 +1103,8 @@ namespace trkf {
 	  pos[0] += trackdx;
 	  end[0] += trackdx;
 	  
-	  double dpos = bdist(pos);
-	  double dend = bdist(end);
+	  double dpos = bdist(pos,hit_tpc);
+	  double dend = bdist(end,hit_tpc);
 	  double tlen = length(track);
 	  double theta_xz = std::atan2(dir.X(), dir.Z());
 	  double theta_yz = std::atan2(dir.Y(), dir.Z());
@@ -981,8 +1168,8 @@ namespace trkf {
 	      pos[0] += trackdx;
 	      end[0] += trackdx;
 	  
-	      dpos = bdist(pos);
-	      dend = bdist(end);
+	      dpos = bdist(pos,hit_tpc);
+	      dend = bdist(end,hit_tpc);
 	      theta_xz = std::atan2(dir.X(), dir.Z());
 	      theta_yz = std::atan2(dir.Y(), dir.Z());
 
@@ -992,7 +1179,7 @@ namespace trkf {
 	  
 	    // Get covariance matrix.
 
-	    const TMatrixD& cov = (swap == 0 ? track.VertexCovariance() : track.EndCovariance());
+	    //	    const TMatrixD& cov = (swap == 0 ? track.VertexCovariance() : track.EndCovariance());
 	    
 	    // Loop over track-like mc particles.
 
@@ -1055,10 +1242,11 @@ namespace trkf {
 
 		mchists.fHmcdudw->Fill(dudw);
 		mchists.fHmcdvdw->Fill(dvdw);
-		mchists.fHdudwpull->Fill(dudw / std::sqrt(cov(2,2)));
-		mchists.fHdvdwpull->Fill(dvdw / std::sqrt(cov(3,3)));
+		//		mchists.fHdudwpull->Fill(dudw / std::sqrt(cov(2,2)));
+		//		mchists.fHdvdwpull->Fill(dvdw / std::sqrt(cov(3,3)));
 	      }
 	      mchists.fHcosth->Fill(colinearity);
+	      mf::LogVerbatim("output")<<"before fMatchColineariy";
 	      if(colinearity > fMatchColinearity) {
 
 		// Fill displacement matching histograms.
@@ -1066,9 +1254,10 @@ namespace trkf {
 		mchists.fHmcu->Fill(u0);
 		mchists.fHmcv->Fill(v0);
 		mchists.fHmcw->Fill(w);
-		mchists.fHupull->Fill(u0 / std::sqrt(cov(0,0)));
-		mchists.fHvpull->Fill(v0 / std::sqrt(cov(1,1)));
+		//		mchists.fHupull->Fill(u0 / std::sqrt(cov(0,0)));
+		//		mchists.fHvpull->Fill(v0 / std::sqrt(cov(1,1)));
 	      
+		mf::LogVerbatim("output")<<"before fMatchDisp";
 		if(std::abs(uv0) < fMatchDisp) {
 
 		  // Fill matching histograms.
@@ -1087,11 +1276,11 @@ namespace trkf {
 		  mchists.fHpvsp->Fill(mcstartmom.Mag(), mom);
 		  double dp = mom - mcstartmom.Mag();
 		  mchists.fHdp->Fill(dp);
-		  mchists.fHppull->Fill(dp / std::sqrt(cov(4,4)));
+		  //		  mchists.fHppull->Fill(dp / std::sqrt(cov(4,4)));
 		  if(std::abs(dpos) >= 5. && std::abs(dend) >= 5.) {
 		    mchists.fHpvspc->Fill(mcstartmom.Mag(), mom);
 		    mchists.fHdpc->Fill(dp);
-		    mchists.fHppullc->Fill(dp / std::sqrt(cov(4,4)));
+		    //		    mchists.fHppullc->Fill(dp / std::sqrt(cov(4,4)));
 		  }
 
 		  // Count this track as well-reconstructed if it is matched to an
@@ -1101,6 +1290,7 @@ namespace trkf {
 
 		  bool good = std::abs(w) <= fWMatchDisp &&
 		    tlen > 0.5 * plen;
+		  mf::LogVerbatim("output")<< ":: good is  "<< good << "w is "<< w << "tlen is  " <<tlen;
 		  if(good) {
 		    mcid = part->TrackId();
 		    mchists.fHgstartx->Fill(mcstart.X());
@@ -1120,6 +1310,9 @@ namespace trkf {
 	      }
 	    }
 	  }
+	  mf::LogVerbatim("output")<<"::Det length  "  <<geom->DetLength();
+	  mf::LogVerbatim("output")<<"::Det length 0 "  <<geom->DetLength(0);
+	  mf::LogVerbatim("output")<<"::Det length 1 "  <<geom->DetLength(1);
 
 	  // Dump track information here.
 
@@ -1181,7 +1374,7 @@ namespace trkf {
 
   }
 
-  void TrackAna::anaStitch(const art::Event& evt)
+  void TrackAnaCT::anaStitch(const art::Event& evt)
   {
 
     art::ServiceHandle<util::LArProperties> larprop;
@@ -1206,7 +1399,7 @@ namespace trkf {
     if(trackh.isValid()) {
       art::FindManyP<recob::SpacePoint> fswhole(trackh, evt, fTrkSpptAssocModuleLabel);
       int nsppts_assnwhole = fswhole.size();
-      std::cout << "TrackAna: Number of clumps of Spacepoints from Assn for all Tracks: " << nsppts_assnwhole << std::endl;
+      std::cout << "TrackAnaCT: Number of clumps of Spacepoints from Assn for all Tracks: " << nsppts_assnwhole << std::endl;
     }
     
     if(fRecoHistMap.count(0) == 0)
@@ -1245,8 +1438,8 @@ namespace trkf {
 	    //	    int nsppts = ptrack->NumberTrajectoryPoints();
 	    
 	    int nsppts_assn = fs.at(0).size();  
-	    //	    if (ntrack>1) std::cout << "\t\tTrackAna: Number of Spacepoints from Track.NumTrajPts(): " << nsppts << std::endl;
-	    //	    if (ntrack>1)  std::cout << "\t\tTrackAna: Number of Spacepoints from Assns for this Track: " << nsppts_assn << std::endl;
+	    //	    if (ntrack>1) std::cout << "\t\tTrackAnaCT: Number of Spacepoints from Track.NumTrajPts(): " << nsppts << std::endl;
+	    //	    if (ntrack>1)  std::cout << "\t\tTrackAnaCT: Number of Spacepoints from Assns for this Track: " << nsppts_assn << std::endl;
 	    //assert (nsppts_assn == nsppts);
 	    auto sppt = fs.at(0);//.at(is);
 	    art::FindManyP<recob::Hit> fh( sppt, evt, fHitSpptAssocModuleLabel);
@@ -1337,7 +1530,7 @@ namespace trkf {
 	  catch (cet::exception& x)  {
 	    assns = false;
 	  }
-	  if (!assns) throw cet::exception("TrackAna") << "Bad Associations. \n";
+	  if (!assns) throw cet::exception("TrackAnaCT") << "Bad Associations. \n";
 
 	} // i
 
@@ -1368,7 +1561,7 @@ namespace trkf {
 	    //	    int ke = it->first; // grab trkIDs in order, since they're sorted by KE
 	    //	    const simb::MCParticle* part = bt->TrackIDToParticle(tval);
 	    
-	    //	    std::cout << "TrackAnaStitch: KEmap cntr vtmp, Length ke, tval, pdg : "  << vtmp << ", " << ke <<", " << tval <<", " << part->PdgCode() << ", " << std::endl;
+	    //	    std::cout << "TrackAnaCTStitch: KEmap cntr vtmp, Length ke, tval, pdg : "  << vtmp << ", " << ke <<", " << tval <<", " << part->PdgCode() << ", " << std::endl;
 
 	    vtmp++;
 	  }
@@ -1382,7 +1575,7 @@ namespace trkf {
 	  {
 	    int val = it->second; // grab trkIDs in order, since they're sorted by KE
 	    //	    const simb::MCParticle* part = bt->TrackIDToParticle(val);
-	    //	    std::cout << "TrackAnaStitch: trk o, KEmap cntr v, KE val, pdg  hitmap[val][o].size(): "  << o <<", " << v << ", " << val <<", " << part->PdgCode() << ", " << hitmap[val][o].size() << std::endl;
+	    //	    std::cout << "TrackAnaCTStitch: trk o, KEmap cntr v, KE val, pdg  hitmap[val][o].size(): "  << o <<", " << v << ", " << val <<", " << part->PdgCode() << ", " << hitmap[val][o].size() << std::endl;
 	    rhistsStitched.fNTrkIdTrks3->Fill(o,v,hitmap[val][o].size());
 	    v++;
 	  }
@@ -1411,15 +1604,15 @@ namespace trkf {
  
   }
 
-  void TrackAna::endJob()
+  void TrackAnaCT::endJob()
   //
   // Purpose: End of job.
   //
   {
     // Print summary.
 
-    mf::LogInfo("TrackAna") 
-      << "TrackAna statistics:\n"
+    mf::LogInfo("TrackAnaCT") 
+      << "TrackAnaCT statistics:\n"
       << "  Number of events = " << fNumEvent;
 
     // Fill efficiency histograms.
@@ -1444,7 +1637,7 @@ namespace trkf {
 
     // Stole this from online. Returns indices sorted by corresponding vector values.
     template <typename T>
-      std::vector<size_t> TrackAna::fsort_indexes(const std::vector<T> &v) {
+      std::vector<size_t> TrackAnaCT::fsort_indexes(const std::vector<T> &v) {
   // initialize original index locations
       std::vector<size_t> idx(v.size());
       for (size_t i = 0; i != idx.size(); ++i) idx[i] = i;

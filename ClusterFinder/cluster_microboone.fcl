@@ -2,6 +2,11 @@
 
 BEGIN_PROLOG
 
+microboone_clustercrawler:                    @local::standard_clustercrawler
+microboone_clustercrawler.ClusterCrawlerAlg:  @local::microboone_clustercrawleralg
+microboone_clustercrawler.CCHitFinderAlg:     @local::microboone_cchitfinderalg
+microboone_clustercrawler.CCHitRefinerAlg:    @local::microboone_cchitrefineralg
+
 microboone_dbscanalg:                         @local::standard_dbscanalg_fast 
 microboone_endpointalg:                       @local::standard_endpointalg    
 microboone_houghbasealg:                      @local::standard_houghbasealg   
@@ -9,7 +14,7 @@ microboone_houghbasealg.MaxLines:             20
 microboone_houghbasealg.MaxDistance:          1.0
 microboone_houghbasealg.MinHits:              5
 microboone_houghbasealg.NumAngleCells:        20000
-microboone_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+microboone_fuzzyclusteralg:                   @local::microboone_fuzzyclusteralg 
 microboone_clustercrawlershower:              @local::standard_clustercrawlershower
 
 microboone_dbcluster:                    @local::standard_dbcluster      
@@ -29,4 +34,7 @@ microboone_showeranglecluster:           @local::standard_showeranglecluster
 microboone_showeranglecluster.ClusterMatchAlg:          @local::microboone_clustermatchalg
 microboone_showeranglecluster.ClusterMergeAlg:          @local::microboone_clustermergealg
 microboone_simpleclustermerger:          @local::standard_simpleclustermerger
+microboone_showerangleclusterana:           @local::standard_showerangleclusterana
+microboone_showerangleclusterana.ClusterParamsAlg:           @local::microboone_clusterparamsalg
+microboone_smallclusterfinder:			 @local::standard_smallclusterfinder
 END_PROLOG

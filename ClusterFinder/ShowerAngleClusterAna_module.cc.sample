@@ -1468,7 +1468,7 @@ void cluster::ShowerAngleClusterAna::HitsPurity(std::vector< art::Ptr<recob::Hit
     art::Ptr<recob::Hit> hit = hits[h];
     std::vector<sim::IDE> ides;
     //bt->HitToSimIDEs(hit,ides);
-    std::vector<cheat::TrackIDE> eveIDs = bt->HitToEveID(hit);
+    std::vector<sim::TrackIDE> eveIDs = bt->HitToEveID(hit);
     for(size_t e = 0; e < eveIDs.size(); ++e){
       ////std::cout<<h<<" "<<e<<" "<<eveIDs[e].trackID<<" "<<eveIDs[e].energy<<" "<<eveIDs[e].energyFrac<<std::endl;
       trkide[eveIDs[e].trackID] += eveIDs[e].energy;

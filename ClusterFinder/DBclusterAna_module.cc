@@ -384,11 +384,11 @@ namespace cluster{
   		
   	      hit_energy=_hits[itr-hits_vec.begin()]->Charge();
   		
-  	      std::vector<cheat::TrackIDE> trackides = bt->HitToTrackID(*itr);
+  	      std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(*itr);
   	 		
-  	      std::vector<cheat::TrackIDE> eveides   = bt->HitToEveID(*itr);
+  	      std::vector<sim::TrackIDE> eveides   = bt->HitToEveID(*itr);
   		
-  	      std::vector<cheat::TrackIDE>::iterator idesitr = trackides.begin();
+  	      std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
   		
   	      while( idesitr != trackides.end() ){
   		    
@@ -801,10 +801,10 @@ namespace cluster{
     std::vector< art::Ptr<recob::Hit> >::iterator itr = hits.begin();
     while(itr != hits.end()) {
      
-      std::vector<cheat::TrackIDE> trackides = bt->HitToTrackID(*itr);
-      std::vector<cheat::TrackIDE> eveides   = bt->HitToEveID(*itr);
+      std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(*itr);
+      std::vector<sim::TrackIDE> eveides   = bt->HitToEveID(*itr);
   		
-      std::vector<cheat::TrackIDE>::iterator idesitr = trackides.begin();
+      std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
   		
       hit_energy=hits[itr-hits.begin()]->Charge();
   		

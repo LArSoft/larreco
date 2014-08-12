@@ -27,6 +27,7 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/EndPoint2D.h"
+#include "RecoBase/Vertex.h"
 #include "Utilities/AssociationUtil.h"
 // #include "Filters/ChannelFilter.h"
 #include "RecoAlg/CCHitFinderAlg.h"
@@ -67,6 +68,7 @@ namespace cluster {
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< std::vector<recob::EndPoint2D> >();
+    produces< std::vector<recob::Vertex> >();
   }
 
   ClusterCrawler::~ClusterCrawler()
@@ -101,7 +103,7 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
     std::vector<recob::Hit> shcol;
     std::vector<recob::Cluster> sccol;
-    std::vector<recob::EndPoint2D> svcol;
+//    std::vector<recob::EndPoint2D> svcol;
 
     // put clusters and hits into std::vectors
     unsigned short nclus = 0;
@@ -167,7 +169,6 @@ namespace cluster {
       // associate the hits to this cluster
       util::CreateAssn(*this, evt, sccol, shcol, *hc_assn, firsthit, hitcnt);
     } // cluster iterator
-//  std::cout<<"# clusters "<<nclus<<" # Hits in clusters "<<hitcnt;
     
     // make hits that are not associated with any cluster
     hitcnt = 0;
@@ -193,7 +194,6 @@ namespace cluster {
             (double) theHit.ChiDOF);
       shcol.push_back(hit);
     }
-//  std::cout<<" # Hits NOT in clusters "<<hitcnt;
     
     // convert to unique_ptrs
     std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
@@ -202,16 +202,16 @@ namespace cluster {
     }
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
 
-    // deal with cluster-EndPoint2D assns later (if necessary/desired)
-    std::unique_ptr<std::vector<recob::EndPoint2D> > vcol(new std::vector<recob::EndPoint2D>);
+    // 2D and 3D vertex collections
+    std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>);
+    std::unique_ptr<std::vector<recob::Vertex> > v3col(new std::vector<recob::Vertex>);
 
-    // make the vertex collection
-//  std::cout<<" # vertices "<<fCCAlg.vtx.size()<<std::endl;
+    // make the 2D vertex collection
     for(unsigned short iv = 0; iv < fCCAlg.vtx.size(); iv++) {
-      ClusterCrawlerAlg::VtxStore vtx = fCCAlg.vtx[iv];
-      if(vtx.Wght <= 0) continue;
-      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(vtx.CTP);
-      unsigned int wire = vtx.Wire;
+      ClusterCrawlerAlg::VtxStore aVtx = fCCAlg.vtx[iv];
+      if(aVtx.Wght <= 0) continue;
+      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(aVtx.CTP);
+      unsigned int wire = (0.5 + aVtx.Wire);
       if(wire > geo->Nwires(planeID.Plane) - 1) {
         mf::LogError("ClusterCrawler")<<"Bad vtx wire "<<wire<<" plane "
           <<planeID.Plane<<" vtx # "<<iv;
@@ -224,21 +224,39 @@ namespace cluster {
         mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<planeID.Plane<<" "<<wire<<" "<<planeID.TPC<<" "<<planeID.Cryostat;
         continue;
       }
-      recob::EndPoint2D myvtx((double)vtx.Time, wids[0], (double)vtx.Wght,
+      recob::EndPoint2D myvtx((double)aVtx.Time, wids[0], (double)aVtx.Wght,
         (int)iv, geo->View(channel), 0.);
-      vcol->push_back(myvtx);
+      v2col->push_back(myvtx);
     } // iv
-
+    
+    // make the 3D vertex collection
+    double xyz[3] = {0, 0, 0};
+    int n3v = 0;
+    for(unsigned short iv = 0; iv < fCCAlg.vtx3.size(); iv++) {
+      ClusterCrawlerAlg::Vtx3Store vtx3 = fCCAlg.vtx3[iv];
+      // ignore incomplete vertices
+      if(vtx3.Ptr2D[0] < 0) continue;
+      if(vtx3.Ptr2D[1] < 0) continue;
+      if(vtx3.Ptr2D[2] < 0) continue;
+      ++n3v;
+      xyz[0] = vtx3.X;
+      xyz[1] = vtx3.Y;
+      xyz[2] = vtx3.Z;
+      recob::Vertex myvtx(xyz, n3v);
+      v3col->push_back(myvtx);
+    }
 
     // clean up
     fCCHFAlg.allhits.clear();
     fCCAlg.tcl.clear();
     fCCAlg.vtx.clear();
+    fCCAlg.vtx3.clear();
 
     evt.put(std::move(hcol));
     evt.put(std::move(ccol));
     evt.put(std::move(hc_assn));
-    evt.put(std::move(vcol));
+    evt.put(std::move(v2col));
+    evt.put(std::move(v3col));
 
   } // produce
 } // namespace

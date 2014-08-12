@@ -205,34 +205,6 @@ standard_track3Dkalmanhit:
   SpacePointAlg:      @local::standard_spacepointalg
 }
 
-standard_cosmictagger:
-{
-    module_type: "CosmicTagger"
-    SpacePointAlg:       @local::standard_spacepointalg
-    TPCBoundaryLimit: 15
-    SpillDistance: 12
-    SpillVetoCounter: 2
-    dTLimit: 8
-    dWLimit: 8
-}
-
-standard_cosmictagger:
-{
-    module_type: "CosmicTagger"
-    SpacePointAlg:       @local::standard_spacepointalg
-    TPCBoundaryLimit: 15
-    SpillDistance: 12
-    SpillVetoCounter: 2
-    dTLimit: 8
-    dWLimit: 8
-    TrackModuleLabel: "track" #"beziertracker"
-    ClusterModuleLabel: "cluster" #"dbcluster"
-    DoTrackCheck: 1 # 0
-    DoClusterCheck: 1 # 1
-    ClustersAssociatedToTracks: 1 # make this 1 when tracks are associated to clusters
-}
-
-
 standard_magdriftana:
 {
  module_type:           "MagDriftAna"

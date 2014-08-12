@@ -42,11 +42,10 @@ microboone_beziertrackermodule.BezierTrackerAlgorithm:  @local::microboone_bezie
 microboone_trackstitcher:                               @local::standard_trackstitcher
 microboone_trackstitcher.TrackModuleLabel:              "trackkalsps"
 microboone_trackstitcher.SpptModuleLabel:               "spacepointfinder"
-microboone_trackstitcher.CosAngTolerance:               0.95
-microboone_trackstitcher.SpptSepTolerance:              15.0
+microboone_trackstitcher.StitchAlg:                     @local::microboone_trackstitcheralg
 microboone_cosmictracker:                               @local::standard_cosmictracker  
-microboone_cosmictracker.ClusterModuleLabel:            "dbcluster"
-
+microboone_cosmictracker.ClusterModuleLabel:            "cccluster"
+microboone_cosmictracker.DirSPS:                        true
 
 microboone_2stg_kalman:
 {
@@ -59,22 +58,6 @@ microboone_2stg_kalman:
  MomStart3:           [0.10,0.10,1.0]    #  Will be Unit norm'd.
  TailPtsFrac:         0.9    # fraction of upstream SpacePoints to ignore in 1st stage fit.
  GenfPRINT:           true
-}
-
-microboone_cosmictagger:
-{
-    module_type: "CosmicTagger"
-    SpacePointAlg:       @local::standard_spacepointalg
-    TPCBoundaryLimit: 15
-    SpillDistance: 12
-    SpillVetoCounter: 2
-    dTLimit: 8
-    dWLimit: 8
-    TrackModuleLabel: "track" #"beziertracker"
-    ClusterModuleLabel: "cluster" #"dbcluster"
-    DoTrackCheck: 1 # 0
-    DoClusterCheck: 1 # 1
-    ClustersAssociatedToTracks: 1 # make this 1 when tracks are associated to clusters
 }
 
 #microboone_cosmicfinder: @local::standard_cosmicfinder

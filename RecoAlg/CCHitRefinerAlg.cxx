@@ -25,10 +25,11 @@ extern "C" {
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
 
+/*
 MinuitStruct gMinStruct;
 
 /////////////////////////////////////////
-  void fcnW(Int_t &/*npar*/, Double_t */*gin*/, Double_t &fval,
+  void fcnW(Int_t &, Double_t *, Double_t &fval,
       double *par, Int_t iflag)
   {
     // Minuit function for fitting the amplitudes of all cluster hits on
@@ -97,8 +98,8 @@ MinuitStruct gMinStruct;
   }
 
 /////////////////////////////////////////
-  void fcnA(Int_t &/*npar*/, Double_t */*gin*/, Double_t &fval,
-      double *par, Int_t /*iflag*/)
+  void fcnA(Int_t &, Double_t *, Double_t &fval,
+      double *par, Int_t )
   {
     // Minuit function for fitting the vertex position and average hit signals
     // on All wires in the RAT range
@@ -184,7 +185,7 @@ MinuitStruct gMinStruct;
 
   } // fcnA
 
-
+*/
 
 namespace cluster{
 
@@ -220,11 +221,13 @@ namespace cluster{
 
 
     // swap Begin/End w/o refining hits?
-    if(!fRefineHits && fBEChgRat > 0.) {
+//    if(!fRefineHits && fBEChgRat > 0.) {
       SetClusterBeginEnd(allhits, tcl);
-      return;
-    }
+//      return;
+//    }
 
+/* BB June 19. This code is not ready for general use. Turn it off for now.
+    
     mf::LogVerbatim("ClusterCrawler")<<"CCHitRefiner ";
     
     unsigned short lastplane = 100;
@@ -286,14 +289,59 @@ namespace cluster{
     gMinStruct.WireSignals.clear();
     gMinStruct.HitSignals.clear();
     gMinStruct.vcl.clear();
-
+*/
   } //RunCCHitFinder
+
+/////////////////////////////////////////
+    void CCHitRefinerAlg::SetClusterBeginEnd(
+        std::vector<CCHitFinderAlg::CCHit>& /*allhits*/,
+        std::vector<ClusterCrawlerAlg::ClusterStore>& tcl)
+    {
+      // This routine prepares the clusters in tcl for stuffing into
+      // recob::cluster. The start and end wire, time and slope are
+      // defined based on the ratio of start and end charge. Tracks are
+      // assumed to be going "downstream" => increasing wire number =>
+      // from the end to the beginning of the tcl hit vector, unless the
+      // charge ratio is significantly different
+      
+      for(unsigned short ii = 0; ii < tcl.size(); ++ii) {
+        // ignore deleted clusters
+        if(tcl[ii].ID < 0) continue;
+        bool GoingDS = true;
+        if(tcl[ii].EndChg > fBEChgRat * tcl[ii].BeginChg) GoingDS = false;
+        // need to swap the beginning/end?
+        if(GoingDS) {
+          // slope
+          float tmp = tcl[ii].BeginSlp;
+          tcl[ii].BeginSlp = tcl[ii].EndSlp;
+          tcl[ii].EndSlp = tmp;
+          // wire
+          unsigned short itmp = tcl[ii].BeginWir;
+          tcl[ii].BeginWir = tcl[ii].EndWir;
+          tcl[ii].EndWir = itmp;
+          // time
+          tmp = tcl[ii].BeginTim;
+          tcl[ii].BeginTim = tcl[ii].EndTim;
+          tcl[ii].EndTim = tmp;
+          // charge
+          tmp = tcl[ii].BeginChg;
+          tcl[ii].BeginChg = tcl[ii].EndChg;
+          tcl[ii].EndChg = tmp;
+          // vertex
+          short jtmp = tcl[ii].BeginVtx;
+          tcl[ii].BeginVtx = tcl[ii].EndVtx;
+          tcl[ii].EndVtx = jtmp;
+        }
+      }
+    } // SetClusterBeginEnd
+
+/*
 
 /////////////////////////////////////////
   void CCHitRefinerAlg::RefineHits(
     std::vector<CCHitFinderAlg::CCHit>& allhits,
     std::vector<ClusterCrawlerAlg::ClusterStore>& tcl,
-    std::vector<ClusterCrawlerAlg::VtxStore>& /*vtx*/)
+    std::vector<ClusterCrawlerAlg::VtxStore>& )
   {
 
     // get the amplitude -> charge normalization from a hit on a cluster
@@ -350,10 +398,8 @@ namespace cluster{
           allhits[theHit].LoHitID = theHit;
           allhits[theHit].LoTime = loTime;
           allhits[theHit].HiTime = hiTime;
-/*
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<"Update hit: ivcl "<<ivcl<<" w "<<w<<" theHit "<<theHit;
-*/
           fclhits.push_back(theHit);
         } // updated an existing hit
         else if(hIndx[w] < 0 && gMinStruct.vcl[ivcl].Time[w] > 0) {
@@ -381,21 +427,17 @@ namespace cluster{
           allhits.push_back(newhit);
           unsigned short theHit = allhits.size() - 1;
           fclhits.push_back(theHit);
-/*
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<"New hit: ivcl "<<ivcl<<" w "<<w<<" theHit "<<theHit
     <<" Time "<<newhit.Time<<" Amp "<<newhit.Amplitude;
-*/
           reMakeCluster = true;
         } // created a new hit
         else if(hIndx[w] >= 0 && gMinStruct.vcl[ivcl].Time[w] < 0) {
           // delete a hit on the cluster
           unsigned short theHit = hIndx[w];
           allhits[theHit].InClus = -1;
-/*
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<"Delete hit: ivcl "<<ivcl<<" w "<<w<<" theHit "<<theHit;
-*/
           reMakeCluster = true;
         } // deleted a hit
         --w;
@@ -438,7 +480,6 @@ namespace cluster{
             nclhits.push_back(iht);
             allhits[iht].InClus = ncl.ID;
           } // ii
-/*
   if(prt) {
     mf::LogVerbatim myprt("ClusterCrawler");
     myprt<<" nclhits ";
@@ -447,7 +488,6 @@ namespace cluster{
     }
     myprt<<"\n";
   }
-*/
           unsigned short lastHit = fclhits[fclhits.size() - 1];
           ncl.EndWir = allhits[lastHit].WireNum;
           ncl.EndTim = allhits[lastHit].Time;
@@ -487,7 +527,7 @@ namespace cluster{
 
 /////////////////////////////////////////
   void CCHitRefinerAlg::FitHitAmplitudes(
-    std::vector<ClusterCrawlerAlg::VtxStore>& /*vtx*/)
+    std::vector<ClusterCrawlerAlg::VtxStore>&)
   {
     // Performs a fit to the wire signal on each wire in the RAT range
     // to find the amplitudes and time offsets of all of the hits
@@ -562,7 +602,6 @@ namespace cluster{
       // pass the wire index to fcnW so it uses the appropriate elements of
       // WireSignals
       gMinStruct.WireIndex = w;
-/*
   if(prt) {
     // call fcn with starting parameters
     arglist[0] = 1;
@@ -573,7 +612,6 @@ namespace cluster{
       <<" "<<(int)par[ii];
     myprt<<" chisq "<<gMinStruct.fcnVal;
   }
-*/
       // Minuit argument list for Migrad, max calls, tolerance
       arglist[0] = 500; // max calls
       arglist[1] = 1.; // tolerance on fval in fcn
@@ -717,11 +755,9 @@ namespace cluster{
     // dE/dx fluctuations
     for(unsigned short w = 0; w < wsize; ++w) {
       if(gMinStruct.WireWght[w] == -2) gMinStruct.WireWght[w] = minwght;
-/*
       float dedxw = 0.;
       if(wsum[w] > 0.) dedxw = 1/(0.3 * wsum[w]);
       gMinStruct.WireWght[w] *= dedxw;
-*/
     } 
 
   if(prt) {
@@ -815,7 +851,7 @@ namespace cluster{
   void CCHitRefinerAlg::FillVcl(
     std::vector<CCHitFinderAlg::CCHit>& allhits,
     std::vector<ClusterCrawlerAlg::ClusterStore>& tcl, 
-    std::vector<ClusterCrawlerAlg::VtxStore>& /*vtx*/)
+    std::vector<ClusterCrawlerAlg::VtxStore>&)
   {
     // refit the clusters associated with theVtx. The fit is done
     // at the boundary of the RAT range. 
@@ -977,7 +1013,7 @@ namespace cluster{
   void CCHitRefinerAlg::FindRATRange(
       std::vector<CCHitFinderAlg::CCHit>& allhits,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl, 
-      std::vector<ClusterCrawlerAlg::VtxStore>& /*vtx*/,
+      std::vector<ClusterCrawlerAlg::VtxStore>& ,
       bool& SkipIt)
   {
     // gets the range of wires and times of the RAT surrounding theVtx.
@@ -999,11 +1035,9 @@ namespace cluster{
         if(allhits[hit].WireNum > hiWire) hiWire = allhits[hit].WireNum;
         if(allhits[hit].HiTime  > hiTime) hiTime = allhits[hit].HiTime;
         // stop looking if the multiplicity = 1 
-/*
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<"End chk "<<tcl[icl].ID<<" "<<allhits[hit].WireNum
     <<":"<<(int)allhits[hit].Time<<" mult "<<allhits[hit].numHits;
-*/
         if(allhits[hit].numHits > 1) {
           ++nMultgt1;
         } else {
@@ -1024,11 +1058,9 @@ namespace cluster{
         if(allhits[hit].WireNum > hiWire) hiWire = allhits[hit].WireNum;
         if(allhits[hit].HiTime  > hiTime) hiTime = allhits[hit].HiTime;
         // stop looking if the multiplicity = 1 
-/*
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<"Begin Chk "<<tcl[icl].ID<<" "<<allhits[hit].WireNum
     <<":"<<(int)allhits[hit].Time<<" mult "<<allhits[hit].numHits;
-*/
         if(allhits[hit].numHits > 1) {
           ++nMultgt1;
         } else {
@@ -1107,49 +1139,6 @@ namespace cluster{
   } // FindRATRange
 
 /////////////////////////////////////////
-    void CCHitRefinerAlg::SetClusterBeginEnd(
-        std::vector<CCHitFinderAlg::CCHit>& /*allhits*/,
-        std::vector<ClusterCrawlerAlg::ClusterStore>& tcl)
-    {
-      // This routine prepares the clusters in tcl for stuffing into
-      // recob::cluster. The start and end wire, time and slope are
-      // defined based on the ratio of start and end charge. Tracks are
-      // assumed to be going "downstream" => increasing wire number =>
-      // from the end to the beginning of the tcl hit vector, unless the
-      // charge ratio is significantly different
-      
-      for(unsigned short ii = 0; ii < tcl.size(); ++ii) {
-        // ignore deleted clusters
-        if(tcl[ii].ID < 0) continue;
-        bool GoingDS = true;
-        if(tcl[ii].EndChg > fBEChgRat * tcl[ii].BeginChg) GoingDS = false;
-        // need to swap the beginning/end?
-        if(GoingDS) {
-          // slope
-          float tmp = tcl[ii].BeginSlp;
-          tcl[ii].BeginSlp = tcl[ii].EndSlp;
-          tcl[ii].EndSlp = tmp;
-          // wire
-          unsigned short itmp = tcl[ii].BeginWir;
-          tcl[ii].BeginWir = tcl[ii].EndWir;
-          tcl[ii].EndWir = itmp;
-          // time
-          tmp = tcl[ii].BeginTim;
-          tcl[ii].BeginTim = tcl[ii].EndTim;
-          tcl[ii].EndTim = tmp;
-          // charge
-          tmp = tcl[ii].BeginChg;
-          tcl[ii].BeginChg = tcl[ii].EndChg;
-          tcl[ii].EndChg = tmp;
-          // vertex
-          short jtmp = tcl[ii].BeginVtx;
-          tcl[ii].BeginVtx = tcl[ii].EndVtx;
-          tcl[ii].EndVtx = jtmp;
-        }
-      }
-    } // SetClusterBeginEnd
-
-/////////////////////////////////////////
 
   void CCHitRefinerAlg::Printvcl(
     std::vector<ClusterCrawlerAlg::VtxStore>& vtx)
@@ -1223,6 +1212,6 @@ namespace cluster{
     } // icl
   } // Printvcl
 
-
+*/
 } // namespace cluster
 

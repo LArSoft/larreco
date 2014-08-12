@@ -78,6 +78,7 @@ namespace recob {
     struct protoTrack
     {
       int clusterNumber=999999;
+      int planeNumber=999999;
       int oldClusterNumber=999999;
       float clusterSlope=999999;
       float clusterIntercept=999999;
@@ -101,6 +102,7 @@ namespace recob {
       }
       
       void Init(unsigned int num=999999, 
+	  unsigned int pnum=999999,
           float slope=999999, 
           float intercept=999999,
           float totalQTemp=-999999,
@@ -115,6 +117,7 @@ namespace recob {
           std::vector<art::Ptr<recob::Hit>> hitsTemp=std::vector<art::Ptr<recob::Hit>>())
       {
         clusterNumber = num;
+        planeNumber = pnum;
         oldClusterNumber = num;
         clusterSlope = slope;
         clusterIntercept = intercept;
@@ -203,7 +206,7 @@ namespace cluster {
     size_t Transform(std::vector<art::Ptr<recob::Hit> > const& hits,
                      std::vector<unsigned int>     *fpointId_to_clusterId,
                      unsigned int clusterId, // The id of the cluster we are examining
-                     int *nClusters,
+                     unsigned int *nClusters,
                      std::vector<protoTrack> *protoTracks);
     
     

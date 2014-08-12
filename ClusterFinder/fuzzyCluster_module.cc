@@ -40,7 +40,6 @@
 #include "Geometry/PlaneGeo.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
-#include "RecoBase/EndPoint2D.h"
 #include "Utilities/AssociationUtil.h"
 #include "Utilities/SeedCreator.h"
 
@@ -66,7 +65,6 @@ namespace cluster{
     TH1F *fhitwidth_coll_test;  
   
     std::string fhitsModuleLabel;
-    std::string fCalDataModuleLabel;
     long int fHoughSeed;
    
     fuzzyClusterAlg ffuzzyCluster; ///< object that implements the fuzzy cluster algorithm
@@ -98,7 +96,6 @@ namespace cluster{
   void fuzzyCluster::reconfigure(fhicl::ParameterSet const& p)
   {
     fhitsModuleLabel  = p.get< std::string >("HitsModuleLabel");
-    fCalDataModuleLabel  = p.get< std::string >("CalDataModuleLabel");
     fHoughSeed = p.get< long int >("HoughSeed");
     ffuzzyCluster.reconfigure(p.get< fhicl::ParameterSet >("fuzzyClusterAlg"));
   }
@@ -126,16 +123,9 @@ namespace cluster{
   
     art::Handle< std::vector<recob::Hit> > hitcol;
     evt.getByLabel(fhitsModuleLabel,hitcol);
-
-    art::Handle< std::vector<recob::Wire> > wirecol;
-    evt.getByLabel(fCalDataModuleLabel,wirecol);
    
     // loop over all hits in the event and look for clusters (for each plane)
     std::vector<art::Ptr<recob::Hit> > allhits;
-
-    // loop over all end points in the event to help look for clusters (for each plane)
-    //std::vector<art::Ptr<recob::EndPoint2D> > allends;
-    std::vector<recob::EndPoint2D> allends;
 
     // If a nonzero random number seed has been provided, 
     // overwrite the seed already initialized
@@ -144,8 +134,6 @@ namespace cluster{
       CLHEP::HepRandomEngine &engine = rng->getEngine();
       engine.setSeed(fHoughSeed,0);
     } 
-
-    std::vector<recob::EndPoint2D> endcol; 
 
     // get the ChannelFilter
     filter::ChannelFilter chanFilt;
@@ -161,24 +149,6 @@ namespace cluster{
       geo::SigType_t sigType = geom->SignalType(itr.first);
       allhits.resize(itr.second.size());
       allhits.swap(itr.second);
-
-      //double maxStrength = 0;
-      //int iMaxStrength = -1;
-      //for(size_t i = 0; i< endcol.size(); ++i){
-      //if(endcol[i].WireID().Plane    == plane && 
-      //endcol[i].WireID().TPC      == tpc   && 
-      //endcol[i].WireID().Cryostat == cstat){allends.push_back(endcol[i]);  
-      //std::cout << "wire: " << endcol[i].WireID().Wire << " time: " << endcol[i].DriftTime() << " strength: " << endcol[i].Strength() << std::endl;
-      //if(maxStrength < endcol[i].Strength()){
-      //maxStrength = endcol[i].Strength();
-      //iMaxStrength = i;
-      //}
-      //}
-      //}  
-
-      //std::cout << "Strongest vertex" << std::endl;
-      //std::cout << "wire: " << endcol[iMaxStrength].WireID().Wire << " time: " << endcol[iMaxStrength].DriftTime() << " strength: " << endcol[iMaxStrength].Strength() << std::endl;
-      
       
       //Begin clustering with fuzzy
       
