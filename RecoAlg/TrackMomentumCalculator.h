@@ -1,5 +1,5 @@
-// \file  TrackMomentumCalculator.h
-// \author  sowjanyag@phys.ksu.edu
+/// \file  TrackMomentumCalculator.h
+//  \author  sowjanyag@phys.ksu.edu
 
 #ifndef TrackMomentumCalculator_H
 #define TrackMomentumCalculator_H
