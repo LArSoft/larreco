@@ -29,263 +29,86 @@
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ===================================================================*/
 ////////////////////////////////////////////////////////////////////
+
 #ifndef fuzzyClusterALG_H
 #define fuzzyClusterALG_H
+
+// Standard C/C++ libraries
 #include <vector>
 #include <cmath>
 #include <iostream>
-#include <stdint.h>
+#include <stdint.h> // uint32_t
 
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "fhiclcpp/ParameterSet.h" 
-#include "art/Persistency/Common/Ptr.h"
-#include "art/Persistency/Common/PtrVector.h"
-
-#include "RecoAlg/HoughBaseAlg.h"
-#include "RecoAlg/DBScanAlg.h"
-#include "Geometry/Geometry.h"
-
+// ROOT libraries
 #include "TMatrixD.h"
 #include "TDecompSVD.h"
 #include "TVectorF.h"
 #include "TVector.h"
 #include "TH1.h"
 
+// ART and support libraries
+#include "fhiclcpp/ParameterSet.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Persistency/Common/Ptr.h"
+#include "art/Persistency/Common/PtrVector.h"
 
-/* Since data for clustering are usually noisy,
- * so it is not very necessary to have EPSILON extremely small.
- */
-#define EPSILON 1E-9
-
-typedef double (*DistFunction)( std::vector<double> *x, std::vector<double> *y, int m );
-    
-extern DistFunction basicDistFunctions[];
-
-class TH1F;
-
-
-
-
-
-    
-    //struct IntArray
-    //{
-            ////int *array;
-      //std::vector<int> array;
-      //int  size;
-      //int  bufsize;
-    //};
-    
-    /* For sorting and storing the orignal indices. */
-    struct Indexdouble
-    {
-    	int   index;
-    	double value;
-    };
-    
-
-    typedef struct Indexdouble Indexdouble;
-    //typedef struct IntArray IntArray;
-
-
-        enum DistSimTypes
-        {
-        	DST_USER = 0,
-        	DST_EUCLID ,
-        	DST_COSINE ,
-        	DST_PEARSON ,
-        	DST_UC_PEARSON ,
-        	DST_SQ_PEARSON ,
-        	DST_DOT_PROD ,
-        	DST_COVARIANCE ,
-        	DST_MANHATTAN ,
-        	DST_NULL
-        };
-
-
-
-    enum FlameObjectTypes
-    {
-    	OBT_NORMAL ,
-    	OBT_SUPPORT ,
-    	OBT_OUTLIER
-    };
-
-
-
+// LArSoft libraries
+#include "Geometry/Geometry.h"
+#include "RecoAlg/HoughBaseAlg.h"
+#include "RecoAlg/DBScanAlg.h"
 
 
 namespace recob { class Hit; }
 
 namespace cluster{
 
+  namespace fuzzy_cluster {
+    
+    // This stores information about a showerlike cluster
+    class baseCluster
+      {
+        public:
+          int clusterNumber=-999999;
+          std::vector<protoTrack> clusterProtoTracks;
+          baseCluster(const protoTrack& protoTrackTemp)
+            {
+              clusterNumber=protoTrackTemp.clusterNumber;
+              clusterProtoTracks.push_back(protoTrackTemp);
+            }
 
-  // This stores information about a showerlike cluster
-  class showerCluster
-    {
-      public:
-        int clusterNumber=-999999;
-        std::vector<protoTrack> clusterProtoTracks;
-        showerCluster (protoTrack protoTrackTemp)
-        {
-          clusterNumber=protoTrackTemp.clusterNumber;
-          clusterProtoTracks.push_back(protoTrackTemp);
-        }
-
-        void addProtoTracks(std::vector<protoTrack> tracksToAdd){
+          void addProtoTracks(const std::vector<protoTrack>& tracksToAdd)
+            {
+              // prepare to expand the list of tracks
+              clusterProtoTracks.reserve(clusterProtoTracks.size() + tracksToAdd.size());
+              for(const protoTrack& track: tracksToAdd) {
+                protoTrack new_track(track);
+                new_track.clusterNumber = clusterNumber;
+                clusterProtoTracks.push_back(std::move(new_track));
+              } // for
+            } // addProtoTracks()
           
-          for(auto tracksToAddItr = tracksToAdd.begin(); tracksToAddItr != tracksToAdd.end(); tracksToAddItr++)
-            tracksToAddItr->clusterNumber = clusterNumber;
-          clusterProtoTracks.insert(clusterProtoTracks.end(),tracksToAdd.begin(),tracksToAdd.end());
-        }
-        
-        void clearProtoTracks(){
-          clusterProtoTracks.clear();
-        }
+          void clearProtoTracks()
+            { clusterProtoTracks.clear(); }
 
-    };
-
-  // This stores information about a tracklike cluster
-  class trackCluster
-    {
+      }; // class baseCluster
+  } // namespace fuzzy_cluster
+  
+  
+  /// This class stores information about a showerlike cluster
+  class showerCluster: public fuzzy_cluster::baseCluster {
       public:
-        int clusterNumber=-999999;
-        std::vector<protoTrack> clusterProtoTracks;
-        trackCluster (protoTrack protoTrackTemp)
-        {
-          clusterNumber=protoTrackTemp.clusterNumber;
-          clusterProtoTracks.push_back(protoTrackTemp);
-        }
+    showerCluster(const protoTrack& protoTrackTemp):
+      fuzzy_cluster::baseCluster(protoTrackTemp) {}
+  }; // class showerCluster
+  
 
-        void addProtoTracks(std::vector<protoTrack> tracksToAdd){
-
-          for(auto tracksToAddItr = tracksToAdd.begin(); tracksToAddItr != tracksToAdd.end(); tracksToAddItr++)
-            tracksToAddItr->clusterNumber = clusterNumber;
-          clusterProtoTracks.insert(clusterProtoTracks.end(),tracksToAdd.begin(),tracksToAdd.end());
-        }
-        
-        void clearProtoTracks(){
-          clusterProtoTracks.clear();
-        }
-
-    };
-
-
-
-
-    class Flame {
+  /// This class stores information about a tracklike cluster
+  class trackCluster: public fuzzy_cluster::baseCluster {
       public:
-
-
-
-        /* Sort until the smallest "part" items are sorted. */
-        void PartialQuickSort( std::vector<Indexdouble> *data, int first, int last, int part );
-
-
-        /* Free allocated memory, and set all fields to zero. */
-        //void Flame_Clear( Flame *self );
-        
-        /* Set a NxM data matrix, and compute distances of type T.
-         * 
-         * If T==DST_USER or T>=DST_NULL, and Flame::distfunc member is set,
-         * then Flame::distfunc is used to compute the distances;
-         * Otherwise, Flame_Euclidean() is used. */
-        void Flame_SetDataMatrix( std::vector<std::vector<double>> *data, int N, int M, int T );
-        
-        /* Set a pre-computed NxN distance matrix. */
-        void Flame_SetDistMatrix( std::vector<std::vector<double>> *data, int N );
-        
-        /* Define knn-nearest neighbors for each object 
-         * and the Cluster Supporting Objects (CSO). 
-         * 
-         * The actual number of nearest neighbors could be large than knn,
-         * if an object has neighbors of the same distances.
-         *
-         * Based on the distances of the neighbors, a density can be computed
-         * for each object. Objects with local maximum density are defined as
-         * CSOs. The initial outliers are defined as objects with local minimum
-         * density which is less than mean( density ) + thd * stdev( density );
-         */
-        void Flame_DefineSupports( int knn, double thd );
-        
-        /* Local Approximation of fuzzy memberships.
-         * Stopped after the maximum steps of iterations;
-         * Or stopped when the overall membership difference between
-         * two iterations become less than epsilon. */
-        void Flame_LocalApproximation( int steps, double epsilon );
-        
-        /* Construct clusters.
-         * If 0<thd<1:
-         *   each object is assigned to all clusters in which
-         *   it has membership higher than thd; if it can not be assigned
-         *   to any clusters, it is then assigned to the outlier group.
-         * Else:
-         *   each object is assigned to the group (clusters/outlier group)
-         *   in which it has the highest membership. */
-        void Flame_MakeClusters( double thd );
-
-        void Flame_SetMatrix( std::vector<std::vector<double>> *data, int n, int m );
-
-
-    	int simtype;
-    
-    	/* Number of objects */
-    	int N;
-    
-    	/* Number of K-Nearest Neighbors */
-    	int K;
-    
-    	/* Upper bound for K defined as: sqrt(N)+10 */
-    	int KMAX;
-    
-    	/* Stores the KMAX nearest neighbors instead of K nearest neighbors
-    	 * for each objects, so that when K is changed, weights and CSOs can be
-    	 * re-computed without referring to the original data.
-    	 */
-            //int   **graph;
-        std::vector<std::vector<int>> graph;
-        /* Distances to the KMAX nearest neighbors. */
-            //double **dists;
-        std::vector<std::vector<double>> dists;
-    
-    	/* Nearest neighbor count.
-    	 * it can be different from K if an object has nearest neighbors with
-    	 * equal distance. */
-            //int    *nncounts;
-        std::vector<double> nncounts;
-            //double **weights;
-        std::vector<std::vector<double>> weights;
-    
-	/* Number of identified Cluster Supporting Objects */
-	int cso_count;
-	//char *obtypes;
-        std::vector<char> obtypes;
-
-	//double **fuzzyships;
-        std::vector<std::vector<double>> fuzzyships;
-	
-	/* Number of clusters including the outlier group */
-	int count;
-	/* The last one is the outlier group. */
-        //std::vector<IntArray> clusters;
-        std::vector<std::vector<int>> clusters;
-	
-	DistFunction distfunc;
-
-
-    
-
-
-
-      private:
-
-
-
-    };/// End Flame class
-
-
-
-
+    trackCluster(const protoTrack& protoTrackTemp):
+      fuzzy_cluster::baseCluster(protoTrackTemp) {}
+  }; // class trackCluster
+  
 
   //--------------------------------------------------------------- 
   class fuzzyClusterAlg {
@@ -318,21 +141,6 @@ namespace cluster{
 
    
 
-    static double Flame_Euclidean( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_Cosine( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_Pearson( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_UCPearson( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_SQPearson( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_DotProduct( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_Covariance( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_Manhattan( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_CosineDist( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_PearsonDist( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_UCPearsonDist( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_SQPearsonDist( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_DotProductDist( std::vector<double> *x, std::vector<double> *y, int m );
-    static double Flame_CovarianceDist( std::vector<double> *x, std::vector<double> *y, int m );
-
 
 
    //double **data = NULL;
@@ -347,7 +155,7 @@ namespace cluster{
     // The distance metric chosen for clustering, you likely do not need to modify this
     int fDistanceMetric;
     // The number of hits to be considered per k-nearest neighbors cluster 
-    int fKNN;
+    unsigned int fKNN;
     // The maximum number of iterations to try, needed for FLAME clustering
     int fIterations;
     // The limit in the difference between memberships when FLAME clustering stops
