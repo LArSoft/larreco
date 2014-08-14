@@ -55,7 +55,6 @@ namespace {
 
     double d3,d4;
     art::ServiceHandle<geo::Geometry> geom;
-    if(!(geom->DetId()==geo::kLBNE35t)) return 0;
       
     if(tpc==2 || tpc==3 || tpc==4 || tpc==5)
       {
@@ -831,6 +830,15 @@ namespace trkf {
     , fStitchedAnalysis(pset.get<bool>("StitchedAnalysis",false))
     , fNumEvent(0)
   {
+
+    ///\todo Move this module to LBNE code and remove it from larreco
+
+    art::ServiceHandle<geo::Geometry> geom;
+    if(!geom->DetectorName().find("lbne"))
+      throw cet::exception("TrackAnaCT") << "TrackAnaCT should only be used with LBNE "
+					 << "geometries, the name for this detector, "
+					 << geom->DetectorName() << ", does not contain "
+					 << "lbne, bail.";
 
     // Report.
 
