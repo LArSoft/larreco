@@ -72,13 +72,13 @@ namespace {
 	//    double d4 = 113.0 - pos.Y();     // Distance to top.
       }
     
-    mf::LogVerbatim("output") <<"d3" << d3;
-    mf::LogVerbatim("output") <<"d4" << d4;
+    //    mf::LogVerbatim("output") <<"d3" << d3;
+    //    mf::LogVerbatim("output") <<"d4" << d4;
 
     double d1 = abs(pos.X());          // Distance to right side (wires).
     double d2=2.*geom->DetHalfWidth(tpc)- abs(pos.X());
-    mf::LogVerbatim("output") <<"d1" << d1;
-    mf::LogVerbatim("output") <<"d2" << d2;
+    //    mf::LogVerbatim("output") <<"d1" << d1;
+    //    mf::LogVerbatim("output") <<"d2" << d2;
     //    double d2 = 226.539 - pos.X();   // Distance to left side (cathode).
     double d5,d6;
     
@@ -99,17 +99,17 @@ namespace {
 	
       }
     if(d6<0){
-      mf::LogVerbatim("output")<< "z"  <<pos.Z();
-      mf::LogVerbatim("output")<< "Tpc" <<tpc;
-      mf::LogVerbatim("output")<< "DetLength" <<geom->DetLength(tpc);
+      //      mf::LogVerbatim("output")<< "z"  <<pos.Z();
+      //      mf::LogVerbatim("output")<< "Tpc" <<tpc;
+      //      mf::LogVerbatim("output")<< "DetLength" <<geom->DetLength(tpc);
       
     }
-    mf::LogVerbatim("output") <<"d5" << d5;
-    mf::LogVerbatim("output") <<"d6" << d6;
+    //    mf::LogVerbatim("output") <<"d5" << d5;
+    //    mf::LogVerbatim("output") <<"d6" << d6;
     double result = std::min(std::min(std::min(std::min(std::min(d1, d2), d3), d4), d5), d6);
-    mf::LogVerbatim("output")<< "bdist" << result;
-    mf::LogVerbatim("output")<< "Height" << geom->DetHalfHeight(tpc);
-    mf::LogVerbatim("output")<< "Width" << geom->DetHalfWidth(tpc);
+    //    mf::LogVerbatim("output")<< "bdist" << result;
+    //    mf::LogVerbatim("output")<< "Height" << geom->DetHalfHeight(tpc);
+    //    mf::LogVerbatim("output")<< "Width" << geom->DetHalfWidth(tpc);
     if(result<0) result=0;
     return result;
    
@@ -129,7 +129,7 @@ namespace {
       result += disp.Mag();
       disp = pos;
     }
-    mf::LogVerbatim("output") << " length (track) " << result;
+    //    mf::LogVerbatim("output") << " length (track) " << result;
     return result;
   }
 
@@ -215,6 +215,7 @@ namespace {
     //  we need to know the tpc number, will predict it 
     //  based on the coordinates of this specific point
     //
+    /*
     double origin[3] = {0.};
     double world[3] = {0.};
     const int cc=0;
@@ -229,7 +230,19 @@ namespace {
     zmax=world[2] + geom->Cryostat(cc).Length()/2;
     //
     //
+mf::LogVerbatim("output") << " xmin " << xmin;
+ mf::LogVerbatim("output") << " xmax " << xmax;
+ mf::LogVerbatim("output") << " ymin " << ymin;
+ mf::LogVerbatim("output") << " ymax " << ymax;
+ mf::LogVerbatim("output") << " zmin " << zmin;
+ mf::LogVerbatim("output") << " zmax " << zmax;*/
 
+    xmin=-50;
+    xmax=230;
+    ymin=-85;
+    ymax=113;
+    zmin=-10;
+    zmax=153;
 
     double result = 0.;
     TVector3 disp;
@@ -270,7 +283,11 @@ namespace {
 	  else whichTPC=-999;
 	 }
       
-      mf::LogVerbatim("output")<<" whichTPC " << whichTPC;
+
+      //      mf::LogVerbatim("output") << " x " << pos.X();
+      //      mf::LogVerbatim("output") << " y " << pos.Y();
+      //      mf::LogVerbatim("output") << " z " << pos.Z();
+
       if(pos.X() >= xmin &&
 	 pos.X() <= xmax &&
 	 pos.Y() >= ymin &&
@@ -296,7 +313,7 @@ namespace {
 	}
       }
     }
-    mf::LogVerbatim("output") << " length (MCParticle) " << result;
+    //    mf::LogVerbatim("output") << " length (MCParticle) " << result;
     return result;
   }
 
@@ -1246,7 +1263,6 @@ namespace trkf {
 		//		mchists.fHdvdwpull->Fill(dvdw / std::sqrt(cov(3,3)));
 	      }
 	      mchists.fHcosth->Fill(colinearity);
-	      mf::LogVerbatim("output")<<"before fMatchColineariy";
 	      if(colinearity > fMatchColinearity) {
 
 		// Fill displacement matching histograms.
@@ -1257,7 +1273,6 @@ namespace trkf {
 		//		mchists.fHupull->Fill(u0 / std::sqrt(cov(0,0)));
 		//		mchists.fHvpull->Fill(v0 / std::sqrt(cov(1,1)));
 	      
-		mf::LogVerbatim("output")<<"before fMatchDisp";
 		if(std::abs(uv0) < fMatchDisp) {
 
 		  // Fill matching histograms.
@@ -1310,10 +1325,7 @@ namespace trkf {
 	      }
 	    }
 	  }
-	  mf::LogVerbatim("output")<<"::Det length  "  <<geom->DetLength();
-	  mf::LogVerbatim("output")<<"::Det length 0 "  <<geom->DetLength(0);
-	  mf::LogVerbatim("output")<<"::Det length 1 "  <<geom->DetLength(1);
-
+	  
 	  // Dump track information here.
 
 	  if(pdump) {
