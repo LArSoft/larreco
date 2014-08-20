@@ -35,81 +35,24 @@
 
 // Standard C/C++ libraries
 #include <vector>
-#include <cmath>
-#include <iostream>
+#include <set>
 #include <stdint.h> // uint32_t
 
-// ROOT libraries
-#include "TMatrixD.h"
-#include "TDecompSVD.h"
-#include "TVectorF.h"
-#include "TVector.h"
-#include "TH1.h"
-
 // ART and support libraries
-#include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Persistency/Common/Ptr.h"
-#include "art/Persistency/Common/PtrVector.h"
 
 // LArSoft libraries
 #include "Geometry/Geometry.h"
 #include "RecoAlg/HoughBaseAlg.h"
 #include "RecoAlg/DBScanAlg.h"
 
+namespace fhicl { class ParameterSet; }
 
 namespace recob { class Hit; }
 
-namespace cluster{
-
-  namespace fuzzy_cluster {
-    
-    // This stores information about a showerlike cluster
-    class baseCluster
-      {
-        public:
-          int clusterNumber=-999999;
-          std::vector<protoTrack> clusterProtoTracks;
-          baseCluster(const protoTrack& protoTrackTemp)
-            {
-              clusterNumber=protoTrackTemp.clusterNumber;
-              clusterProtoTracks.push_back(protoTrackTemp);
-            }
-
-          void addProtoTracks(const std::vector<protoTrack>& tracksToAdd)
-            {
-              // prepare to expand the list of tracks
-              clusterProtoTracks.reserve(clusterProtoTracks.size() + tracksToAdd.size());
-              for(const protoTrack& track: tracksToAdd) {
-                protoTrack new_track(track);
-                new_track.clusterNumber = clusterNumber;
-                clusterProtoTracks.push_back(std::move(new_track));
-              } // for
-            } // addProtoTracks()
-          
-          void clearProtoTracks()
-            { clusterProtoTracks.clear(); }
-
-      }; // class baseCluster
-  } // namespace fuzzy_cluster
+namespace cluster {
   
-  
-  /// This class stores information about a showerlike cluster
-  class showerCluster: public fuzzy_cluster::baseCluster {
-      public:
-    showerCluster(const protoTrack& protoTrackTemp):
-      fuzzy_cluster::baseCluster(protoTrackTemp) {}
-  }; // class showerCluster
-  
-
-  /// This class stores information about a tracklike cluster
-  class trackCluster: public fuzzy_cluster::baseCluster {
-      public:
-    trackCluster(const protoTrack& protoTrackTemp):
-      fuzzy_cluster::baseCluster(protoTrackTemp) {}
-  }; // class trackCluster
-  
-
   //--------------------------------------------------------------- 
   class fuzzyClusterAlg {
   public:
@@ -121,15 +64,15 @@ namespace cluster{
     void reconfigure(fhicl::ParameterSet const& p);
     void InitFuzzy(std::vector<art::Ptr<recob::Hit> >& allhits, std::set<uint32_t> badChannels);
     // Three differnt version of the clustering code
-    void run_fuzzy_cluster(std::vector<art::Ptr<recob::Hit> >& allhits);     
+    void run_fuzzy_cluster(const std::vector<art::Ptr<recob::Hit> >& allhits);
    
 
     std::vector<std::vector<unsigned int> > fclusters;               ///< collection of something
     std::vector<std::vector<double> >       fps;                     ///< the collection of points we are working on     
     std::vector<unsigned int>               fpointId_to_clusterId;   ///< mapping point_id -> clusterId     
     std::vector<std::vector<double> >       fsim;                    ///<
-    std::vector<std::vector<double> >       fsim2;            	     ///<
-    std::vector<std::vector<double> >       fsim3;            	     ///<
+    std::vector<std::vector<double> >       fsim2;                   ///<
+    std::vector<std::vector<double> >       fsim3;                   ///<
     double fMaxWidth;
 
     //Needed for Ben's FLAME cluster
@@ -141,8 +84,6 @@ namespace cluster{
 
    
 
-
-
    //double **data = NULL;
    std::vector<std::vector<double>> data;
 
@@ -150,12 +91,17 @@ namespace cluster{
 
 
   private:
-   
+    
+    // privately defined
+    class baseCluster;
+    class trackCluster;
+    class showerCluster;
+
 
     // The distance metric chosen for clustering, you likely do not need to modify this
     int fDistanceMetric;
     // The number of hits to be considered per k-nearest neighbors cluster 
-    unsigned int fKNN;
+    int fKNN;
     // The maximum number of iterations to try, needed for FLAME clustering
     int fIterations;
     // The limit in the difference between memberships when FLAME clustering stops
@@ -265,10 +211,10 @@ namespace cluster{
 
 
     // Object used for Hough transforms
-    HoughBaseAlg fHBAlg;        
+    HoughBaseAlg fHBAlg;
 
     // Object used for DBScan
-    DBScanAlg fDBScan;        
+    DBScanAlg fDBScan;
 
     art::ServiceHandle<geo::Geometry> fGeom; ///< handle to geometry service
 

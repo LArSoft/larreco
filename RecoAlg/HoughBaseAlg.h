@@ -9,15 +9,20 @@
 #ifndef HOUGHBASEALG_H
 #define HOUGHBASEALG_H
 
-#include "TMath.h"
 #include <vector>
-#include <unordered_map>
+#include <array>
+#include <map>
+#include <utility> // std::pair<>
+
+#include <TMath.h>
 
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Persistency/Common/Ptr.h" 
-#include "art/Persistency/Common/PtrVector.h" 
 
-//#include "RecoBase/Hit.h"
+#include "art/Persistency/Common/PtrVector.h" 
+#include "Utilities/BulkAllocator.h"
+
+namespace art { class Event; }
 
 namespace recob { 
   class Hit;
@@ -147,9 +152,10 @@ namespace cluster {
     ~HoughTransform();
      
     void Init(int dx, int dy, int rhoresfact, int numACells);
-    std::vector<int>  AddPointReturnMax(int x, int y);
+    std::array<int,3> AddPointReturnMax(int x, int y);
     bool SubtractPoint(int x, int y);
-    inline int  GetCell(int row, int col)            { return m_accum[row][col]; }
+//    inline int  GetCell(int row, int col)            { return m_accum[row][col]; } // TODO
+    int  GetCell(int row, int col) const;
     void SetCell(int row, int col, int value) { m_accum[row][col] = value; }
     void IncrementCell(int row, int col)      { m_accum[row][col]++;}
     void GetAccumSize(int &numRows, int &numCols) 
@@ -167,20 +173,34 @@ namespace cluster {
 
     void reconfigure(fhicl::ParameterSet const& pset);
 
-    private:
-         
+  private:
+    
+    typedef std::map<int, int> BaseMap_t; ///< rho -> # hits (for convenience)
+    
+    /// Special allocator for large chunks of pairs (turns out map won't use it)
+    typedef lar::BulkAllocator<std::pair<int,int>> BulkPairAllocator_t;
+    
+    /// Type of map distance (discretized) =># hits (with custom allocator)
+    typedef std::map<int, int, BaseMap_t::key_compare, BulkPairAllocator_t>
+      DistancesMap_t;
+    
+    /// Type of the Hough transform (angle, distance) map with custom allocator
+    typedef std::vector<DistancesMap_t> HoughImage_t;
+    
+    
     int m_dx;
     int m_dy;
     // Note, m_accum is a vector of associative containers, the vector elements are called by rho, theta is the container key, the number of hits is the value corresponding to the key
-    std::vector<std::map<int,int> > m_accum;  // column=rho, row=theta
+    HoughImage_t m_accum;  // column (map key)=rho, row (vector index)=theta
     //std::vector< std::vector<int> > m_accum;  // column=rho, row=theta
     int m_rowLength;
     int m_numAccumulated;
     int m_rhoResolutionFactor;
     int m_numAngleCells;
-    //std::vector<float> m_cosTable;
-    //std::vector<float> m_sinTable;
-    std::vector<int>  DoAddPointReturnMax(int x, int y);
+    std::vector<double> m_cosTable;
+    std::vector<double> m_sinTable;
+    
+    std::array<int,3> DoAddPointReturnMax(int x, int y);
     bool DoSubtractPoint(int x, int y);
 
 
