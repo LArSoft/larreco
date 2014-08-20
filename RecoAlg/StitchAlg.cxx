@@ -12,38 +12,26 @@
 ////////////////////////////////////////////////////////////////////////
 
 
-#include <boost/bind.hpp>
+#include "RecoAlg/StitchAlg.h"
 
-//Framework includes:
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
-
-//#include <TStopwatch.h>
-
-#include "StitchAlg.h"
-#include "fhiclcpp/ParameterSet.h" 
-#include "art/Persistency/Common/Ptr.h" 
-#include "art/Persistency/Common/PtrVector.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "messagefacility/MessageLogger/MessageLogger.h" 
-#include "CLHEP/Random/RandFlat.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
-#include "RecoAlg/fuzzyClusterAlg.h"
-#include "RecoBase/Hit.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
-#include "Utilities/AssociationUtil.h"
-
+// C/C++ standard libraries
 #include <time.h>
 #include <cmath>
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
 #include <vector>
+
+//Framework includes:
+#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Persistency/Common/Ptr.h"
+#include "art/Persistency/Common/PtrVector.h"
+
+// LArSoft libraries
+#include "SimpleTypesAndConstants/geo_types.h" // geo::kZ
+
 
 trkf::StitchAlg::StitchAlg(fhicl::ParameterSet const& pset) 
 {
