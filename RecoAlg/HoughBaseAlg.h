@@ -151,7 +151,8 @@ namespace cluster {
     HoughTransform();
     ~HoughTransform();
      
-    void Init(int dx, int dy, int rhoresfact, int numACells);
+    void Init
+      (unsigned int dx, unsigned int dy, float rhores, unsigned int numACells);
     std::array<int,3> AddPointReturnMax(int x, int y);
     bool SubtractPoint(int x, int y);
 //    inline int  GetCell(int row, int col)            { return m_accum[row][col]; } // TODO
@@ -161,7 +162,7 @@ namespace cluster {
     void GetAccumSize(int &numRows, int &numCols) 
     { 
       numRows = m_accum.size();
-      numCols  = m_rowLength;
+      numCols  = (int) m_rowLength;
     }
     int NumAccumulated()                      { return m_numAccumulated; }
     void GetEquation( float row, float col, float &rho, float &theta)
@@ -188,19 +189,19 @@ namespace cluster {
     typedef std::vector<DistancesMap_t> HoughImage_t;
     
     
-    int m_dx;
-    int m_dy;
+    unsigned int m_dx;
+    unsigned int m_dy;
+    unsigned int m_rowLength;
+    unsigned int m_numAngleCells;
+    float m_rhoResolutionFactor;
     // Note, m_accum is a vector of associative containers, the vector elements are called by rho, theta is the container key, the number of hits is the value corresponding to the key
     HoughImage_t m_accum;  // column (map key)=rho, row (vector index)=theta
     //std::vector< std::vector<int> > m_accum;  // column=rho, row=theta
-    int m_rowLength;
     int m_numAccumulated;
-    int m_rhoResolutionFactor;
-    int m_numAngleCells;
     std::vector<double> m_cosTable;
     std::vector<double> m_sinTable;
     
-    std::array<int,3> DoAddPointReturnMax(int x, int y);
+    std::array<int,3> DoAddPointReturnMax(int x, int y, bool bSubtract = false);
     bool DoSubtractPoint(int x, int y);
 
 

@@ -26,11 +26,12 @@
 #include <algorithm>
 #include <vector>
 #include <stdint.h> // uint32_t
+#include <limits> // std::numeric_limits<>
 
 // Boost library
 #include <boost/bind.hpp>
 
-// ROOT/// CLHEP libraries
+// ROOT/CLHEP libraries
 #include "CLHEP/Random/RandFlat.h"
 #include <TStopwatch.h>
 
@@ -57,7 +58,7 @@
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 
-constexpr double PI = M_PI;
+constexpr double PI = M_PI; // or CLHEP::pi in CLHEP/Units/PhysicalConstants.h
 
 #define a0  0 /*-4.172325e-7f*/   /*(-(float)0x7)/((float)0x1000000); */
 #define a1 1.000025f        /*((float)0x1922253)/((float)0x1000000)*2/Pi; */
@@ -663,7 +664,7 @@ int cluster::HoughTransform::GetCell(int row, int col) const {
 // the second is the max x value, and the third is the max y value.
 inline std::array<int, 3> cluster::HoughTransform::AddPointReturnMax(int x, int y)
 {
-  if (x>m_dx || y>m_dy || x<0.0 || y<0.0) {
+  if ((x > (int) m_dx) || (y > (int) m_dy) || x<0.0 || y<0.0) {
     std::array<int, 3> max;
     max.fill(0);
     return max;
@@ -676,17 +677,17 @@ inline std::array<int, 3> cluster::HoughTransform::AddPointReturnMax(int x, int 
 //------------------------------------------------------------------------------
 inline bool cluster::HoughTransform::SubtractPoint(int x, int y)
 {
-  if (x>m_dx || y>m_dy || x<0.0 || y<0.0)
+  if ((x > (int) m_dx) || (y > (int) m_dy) || x<0.0 || y<0.0)
     return false;
   return DoSubtractPoint(x, y);
 }
 
 
 //------------------------------------------------------------------------------
-void cluster::HoughTransform::Init(int dx, 
-				   int dy, 
-				   int rhores,
-				   int numACells)
+void cluster::HoughTransform::Init(unsigned int dx, 
+                                   unsigned int dy, 
+                                   float rhores,
+                                   unsigned int numACells)
 {
   m_numAngleCells=numACells;
   m_rhoResolutionFactor = rhores;
@@ -708,15 +709,15 @@ void cluster::HoughTransform::Init(int dx,
   //return;
   m_dx = dx;
   m_dy = dy;
-  m_rowLength = (int)(m_rhoResolutionFactor*2 * std::sqrt(dx*dx + dy*dy));
+  m_rowLength = (unsigned int)(m_rhoResolutionFactor*2 * std::sqrt(dx*dx + dy*dy));
   m_accum.resize(m_numAngleCells);
   //for(int i = 0; i < m_numAngleCells; i++)
-    //m_accum[i].resize((int)(m_rowLength));
+    //m_accum[i].resize((unsigned int)(m_rowLength));
 
   double angleStep = PI/m_numAngleCells;
   m_cosTable.resize(m_numAngleCells);
   m_sinTable.resize(m_numAngleCells);
-  for (int iAngleStep = 0; iAngleStep < m_numAngleCells; ++iAngleStep) {
+  for (size_t iAngleStep = 0; iAngleStep < m_numAngleCells; ++iAngleStep) {
     double a = iAngleStep * angleStep;
     m_cosTable[iAngleStep] = cos(a);
     m_sinTable[iAngleStep] = sin(a);
@@ -748,7 +749,8 @@ int cluster::HoughTransform::GetMax(int &xmax,
 //------------------------------------------------------------------------------
 // returns a vector<int> where the first is the overall maximum,
 // the second is the max x value, and the third is the max y value.
-std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax(int x, int y)
+std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
+  (int x, int y, bool bSubtract /* = false */)
 {
   std::array<int, 3> max;
   max.fill(-1);
@@ -817,8 +819,7 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax(int x, int y)
 
 
 //------------------------------------------------------------------------------
-inline bool cluster::HoughTransform::DoSubtractPoint(int x, int y)
-{
+bool cluster::HoughTransform::DoSubtractPoint(int x, int y) {
   int distCenter = (int)(m_rowLength/2.);
  
   // prime the lastDist variable so our linear fill works below
@@ -833,14 +834,14 @@ inline bool cluster::HoughTransform::DoSubtractPoint(int x, int y)
     dist = (int)(distCenter+(m_rhoResolutionFactor*((cos(a)*x + sin(a)*y))));
     // sanity check to make sure we stay within our row
       if(lastDist==dist)
-	m_accum[(int)(a/angleStep)][lastDist]--;
+        m_accum[(int)(a/angleStep)][lastDist]--;
       else{
-	// fill in all values in row a, not just a single cell
-	stepDir = dist>lastDist ? 1 : -1;
-	for (int cell=lastDist; cell!=dist; cell+=stepDir){   
-	  m_accum[(int)(a/angleStep)][cell]--;//maybe add weight of hit here?
+        // fill in all values in row a, not just a single cell
+        stepDir = dist>lastDist ? 1 : -1;
+        for (int cell=lastDist; cell!=dist; cell+=stepDir){   
+          m_accum[(int)(a/angleStep)][cell]--;//maybe add weight of hit here?
           // Note, m_accum is a vector of associative containers, "a" calls the vector element, "cell" is the container key, and the -- iterates the value correspoding to the key
-	}      
+        }      
       }
     lastDist = dist;
   }
