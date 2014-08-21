@@ -185,13 +185,17 @@ standard_track3Dkalmanhit:
   module_type:        "Track3DKalmanHit"
   Hist:               false
   UseClusterHits:     true
+  UsePFParticleHits:  false
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
+  PFParticleModuleLabel: "pandora"
   MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
   DoDedx:             false         # dE/dx enable flag.
-  MinSeedHits:        20            # Minimum number of hits per track seed.
+  MinSeedHits:        12            # Minimum number of hits per track seed.
+  MinSeedChopHits:    50            # Potentially chop seeds that exceed this length.
+  MaxChopHits:        20            # Maximum number of hits to chop from each end of seed.
   MaxSeedChiDF:       20.           # Maximum seed track chisquare/dof.
-  MinSeedSlope:       0.02          # Minimum seed slope (dx/dz).
+  MinSeedSlope:       0.0           # Minimum seed slope (dx/dz).
   InitialMomentum:    0.2           # Initial momentum (GeV/c).
   KalmanFilterAlg:    @local::standard_kalmanfilteralg
   SeedFinderAlg:      @local::standard_seedfinderalgorithm
