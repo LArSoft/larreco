@@ -41,7 +41,7 @@
 
 
 // C/C++ standard library
-#include <cmath> // std::sqrt()
+#include <cmath> // std::sqrt(), std::atan(), std::pow()
 #include <utility> // std::move()
 #include <iterator> // std::back_inserter()
 
@@ -522,7 +522,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
       /// Veto the hit if it already belongs to a line, proto tracks (Hough lines) are added after the fuzzy clusters
       //if(fpointId_to_clusterId.at(hitsItr-allhits.cbegin()) < nClustersTemp)
         //continue;
-      distance = (TMath::Abs((*hitsItr)->PeakTime()-protoTracksFoundItr->clusterSlope*(double)((*hitsItr)->WireID().Wire)-protoTracksFoundItr->clusterIntercept)/(std::sqrt(sqr(xyScale/fWirePitch[(*hitsItr)->WireID().Plane]*protoTracksFoundItr->clusterSlope)+1)));
+      distance = (std::abs((*hitsItr)->PeakTime()-protoTracksFoundItr->clusterSlope*(double)((*hitsItr)->WireID().Wire)-protoTracksFoundItr->clusterIntercept)/(std::sqrt(sqr(xyScale/fWirePitch[(*hitsItr)->WireID().Plane]*protoTracksFoundItr->clusterSlope)+1)));
       /// Sum up background hits, use smart distance
       peakTimePerpMin=-(1/protoTracksFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTracksFoundItr->iMinWire]->PeakTime()+(1/protoTracksFoundItr->clusterSlope)*(allhits[protoTracksFoundItr->iMinWire]->WireID().Wire);
       peakTimePerpMax=-(1/protoTracksFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTracksFoundItr->iMaxWire]->PeakTime()+(1/protoTracksFoundItr->clusterSlope)*(allhits[protoTracksFoundItr->iMaxWire]->WireID().Wire);
@@ -672,7 +672,10 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
           if(distance > fFuzzyRemnantMergeCutoff)
             continue;
 
-          distance/=pow(protoTracksFoundSizes[protoTracksItr->clusterNumber],1/4); // FIXME
+        // This line used to have 1/4 instead of 0.25; wthat made it uneffective
+        // (1/4 = 0); but replacing 0.25 sensibly changes performances;
+        // commenting out the line for now [GP]
+        //  distance /= std::pow(protoTracksFoundSizes[protoTracksItr->clusterNumber], 0.25);
           if(distance < minDistanceShower){
             fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTracksItr->clusterNumber;
             minDistanceShower = distance;
@@ -694,7 +697,8 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
           if(distance > fFuzzyRemnantMergeCutoff)
             continue;
 
-          distance/=pow(protoTracksFoundSizes[protoTracksItr->clusterNumber],1/4); // FIXME
+        // commenting out the line for now (see above) [GP]
+        //  distance /= std::pow(protoTracksFoundSizes[protoTracksItr->clusterNumber], 0.25);
           if(distance < minDistanceTrack){
             fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTracksItr->clusterNumber;
             minDistanceTrack = distance;
@@ -878,7 +882,7 @@ bool cluster::fuzzyClusterAlg::mergeShowerTrackClusters(showerCluster *showerClu
       // Find the angle between the slopes
       for(auto mergeThetaItr = mergeTheta.begin(); mergeThetaItr != mergeTheta.end(); ++mergeThetaItr){
         double toMergeSlope = showerClusterI->clusterProtoTracks[toMerge[mergeThetaItr-mergeTheta.begin()]].clusterSlope*xyScale;
-        mergeTheta[mergeThetaItr-mergeTheta.begin()] = atan(std::abs(( toMergeSlope - mergeSlope[mergeThetaItr-mergeTheta.begin()])/(1 + toMergeSlope*mergeSlope[mergeThetaItr-mergeTheta.begin()] )))*(180/TMath::Pi());
+        mergeTheta[mergeThetaItr-mergeTheta.begin()] = std::atan(std::abs(( toMergeSlope - mergeSlope[mergeThetaItr-mergeTheta.begin()])/(1 + toMergeSlope*mergeSlope[mergeThetaItr-mergeTheta.begin()] )))*(180/TMath::Pi());
       }
 
 
@@ -1125,7 +1129,7 @@ bool cluster::fuzzyClusterAlg::mergeTrackClusters(unsigned int clusIndexStart,
       // Find the angle between the slopes
       for(auto mergeThetaItr = mergeTheta.begin(); mergeThetaItr != mergeTheta.end(); ++mergeThetaItr){
         double toMergeSlope = trackClustersToMergeItr->clusterProtoTracks[toMerge[mergeThetaItr-mergeTheta.begin()]].clusterSlope*xyScale;
-        mergeTheta[mergeThetaItr-mergeTheta.begin()] = atan(std::abs(( toMergeSlope - mergeSlope[mergeThetaItr-mergeTheta.begin()])/(1 + toMergeSlope*mergeSlope[mergeThetaItr-mergeTheta.begin()] )))*(180/TMath::Pi());
+        mergeTheta[mergeThetaItr-mergeTheta.begin()] = std::atan(std::abs(( toMergeSlope - mergeSlope[mergeThetaItr-mergeTheta.begin()])/(1 + toMergeSlope*mergeSlope[mergeThetaItr-mergeTheta.begin()] )))*(180/TMath::Pi());
       }
 
 
@@ -1458,7 +1462,7 @@ bool cluster::fuzzyClusterAlg::mergeShowerClusters(unsigned int clusIndexStart,
       // Find the angle between the slopes
       for(auto mergeThetaItr = mergeTheta.begin(); mergeThetaItr != mergeTheta.end(); ++mergeThetaItr){
         double toMergeSlope = showerClustersToMergeItr->clusterProtoTracks[toMerge[mergeThetaItr-mergeTheta.begin()]].clusterSlope*xyScale;
-        mergeTheta[mergeThetaItr-mergeTheta.begin()] = atan(std::abs(( toMergeSlope - mergeSlope[mergeThetaItr-mergeTheta.begin()])/(1 + toMergeSlope*mergeSlope[mergeThetaItr-mergeTheta.begin()] )))*(180/TMath::Pi());
+        mergeTheta[mergeThetaItr-mergeTheta.begin()] = std::atan(std::abs(( toMergeSlope - mergeSlope[mergeThetaItr-mergeTheta.begin()])/(1 + toMergeSlope*mergeSlope[mergeThetaItr-mergeTheta.begin()] )))*(180/TMath::Pi());
       }
 
 
