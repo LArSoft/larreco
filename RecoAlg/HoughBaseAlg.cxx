@@ -752,6 +752,7 @@ int cluster::HoughTransform::GetMax(int &xmax,
 std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
   (int x, int y, bool bSubtract /* = false */)
 {
+/* // this version is known not to change the results
   std::array<int, 3> max;
   max.fill(-1);
   
@@ -811,6 +812,77 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
     lastDist = dist;
   }
   m_numAccumulated++;
+/*/ // development version
+  std::array<int, 3> max;
+  max.fill(-1);
+  
+  int distCenter = (int)(m_rowLength/2.);
+  
+  // prime the lastDist variable so our linear fill works below
+  int lastDist = (int)(distCenter + (m_rhoResolutionFactor*x));
+  
+  //int max_val = minHits-1;
+  int max_val = 0;
+  
+  // loop through all angles a from 0 to 180 degrees
+#if 1
+  // loop driven by floats;
+  const float angleStep = PI/m_numAngleCells;
+  const float angleStepInverse = m_numAngleCells/PI;
+  // bugged for some rounding errors: angleStepInt may be one step behind a
+  for (float a = angleStep; a < PI; a+=angleStep) {
+    
+    const size_t angleStepInt = size_t(a*angleStepInverse);
+    // Calculate the basic line equation dist = cos(a)*x + sin(a)*y.
+    // Shift to center of row to cover negative values
+    int dist = (int)(distCenter+(m_rhoResolutionFactor*(cos(a)*x + sin(a)*y)));
+#else
+  // loop driven by integers (using trigonometric table)
+  for (size_t angleStepInt = 1; angleStepInt < m_numAngleCells; ++m_numAngleCells) {
+    
+    // Calculate the basic line equation dist = cos(a)*x + sin(a)*y.
+    // Shift to center of row to cover negative values
+    int dist = (int)(distCenter+(m_rhoResolutionFactor*(m_cosTable[angleStepInt]*x + m_sinTable[angleStepInt]*y)));
+#endif
+    
+//    std::cout << "AD " << angleStepInt << " " << dist << std::endl;
+    
+    // sanity check to make sure we stay within our row
+    //if (dist >= 0 && dist<m_rowLength){
+    if(lastDist==dist){
+      std::map<int,int>::iterator m_accumA = m_accum[angleStepInt].insert(std::pair<int,int>(lastDist,0)).first;
+      int val = ++(m_accumA->second);
+      
+      if( max_val < val) {
+        max_val = val;
+        max[0] = val;
+        max[1] = lastDist;
+        max[2] = angleStepInt;
+      } // if new maximum
+      //mf::LogVerbatim("HoughBaseAlg") << "First, a: " << a << " lastDist: " << lastDist << std::endl;
+    }
+    else{
+      // fill in all values in row a, not just a single cell
+      std::map<int,int>::iterator m_accumALast = m_accum[angleStepInt].end();
+      int stepDir = dist>lastDist ? 1 : -1;
+      for (int cell=lastDist; cell!=dist; cell+=stepDir){  
+        std::map<int,int>::iterator m_accumA = m_accum[angleStepInt].insert(m_accumALast,std::pair<int,int>(cell,0));
+        int val = ++(m_accumA->second);
+        //// Note, m_accum is a vector of associative containers, "a" calls the vector element, "cell" is the container key, and the ++ iterates the value correspoding to the key
+        if(max_val < val) {
+          max_val = val;
+          max[0] = val;
+          max[1] = cell;
+          max[2] = angleStepInt;
+        } // if new maximum
+        m_accumALast = m_accumA;
+      } // for cells
+    } // if single ... else
+    //}
+    lastDist = dist;
+  }
+  m_numAccumulated++;
+//*/
   
   //mf::LogVerbatim("HoughBaseAlg") << "Add point says xmax: " << *xmax << " ymax: " << *ymax << std::endl;
   
