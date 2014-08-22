@@ -822,7 +822,9 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
   int lastDist = (int)(distCenter + (m_rhoResolutionFactor*x));
   
   //int max_val = minHits-1;
-  int max_val = 0;
+  // max_val is the current maximum number of hits aligned on a line so far;
+  // currently the code ignores all the lines with just one (!) aligned hit
+  int max_val = 1;
   
   // loop through all angles a from 0 to 180 degrees
 #if 1
@@ -835,7 +837,7 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
     const size_t angleStepInt = size_t(a*angleStepInverse);
     // Calculate the basic line equation dist = cos(a)*x + sin(a)*y.
     // Shift to center of row to cover negative values
-    int dist = (int)(distCenter+(m_rhoResolutionFactor*(cos(a)*x + sin(a)*y)));
+    const int dist = (int)(distCenter+(m_rhoResolutionFactor*(cos(a)*x + sin(a)*y)));
 #else
   // loop driven by integers (using trigonometric table)
   for (size_t angleStepInt = 1; angleStepInt < m_numAngleCells; ++m_numAngleCells) {
@@ -849,9 +851,22 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
     
     // sanity check to make sure we stay within our row
     //if (dist >= 0 && dist<m_rowLength){
-    if(lastDist==dist){
-      std::map<int,int>::iterator m_accumA = m_accum[angleStepInt].insert(std::pair<int,int>(lastDist,0)).first;
-      int val = ++(m_accumA->second);
+    DistancesMap_t& distMap = m_accum[angleStepInt];
+    if(lastDist == dist) {
+    //  std::map<int,int>::iterator iNewDist = m_accum[angleStepInt].insert(std::pair<int,int>(lastDist,0)).first;
+      
+      // We look up by ourselves: std::map::insert()/emplace() create a
+      // temporary node and we don't want that overhead.
+      std::map<int,int>::iterator iNewDist = distMap.lower_bound(lastDist);
+      bool bAtTheEnd = (iNewDist == distMap.end());
+      if (bAtTheEnd || (iNewDist->first != lastDist)) {
+        // in C++11, the optimal hint for insertion is the element
+        // following the one we are inserting, i.e. the one with a key larger
+        // than lastDist (note: in C++0x it was the opposite...)
+        if (!bAtTheEnd) ++iNewDist;
+        iNewDist = distMap.emplace_hint(iNewDist, lastDist, 0);
+      }
+      int val = ++(iNewDist->second);
       
       if( max_val < val) {
         max_val = val;
@@ -863,11 +878,24 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
     }
     else{
       // fill in all values in row a, not just a single cell
-      std::map<int,int>::iterator m_accumALast = m_accum[angleStepInt].end();
-      int stepDir = dist>lastDist ? 1 : -1;
-      for (int cell=lastDist; cell!=dist; cell+=stepDir){  
-        std::map<int,int>::iterator m_accumA = m_accum[angleStepInt].insert(m_accumALast,std::pair<int,int>(cell,0));
-        int val = ++(m_accumA->second);
+      // the range is [ lastDist, dist [ or ] dist, lastDist]
+      const int first_dist = dist > lastDist? lastDist: dist + 1;
+      const int end_dist   = dist > lastDist? dist: lastDist + 1;
+#if 1
+      std::map<int,int>::iterator iNewDist = distMap.lower_bound(first_dist);
+      for (int cell = first_dist; cell < end_dist; ++cell) {
+        bool bAtTheEnd = (iNewDist == distMap.end());
+#else
+      std::map<int,int>::iterator iNewDist = distMap.end();
+      int cell = end_dist;
+      while(cell-- > first_dist) {
+#endif
+      //  iNewDist = distMap.insert(iNewDist, std::pair<int,int>(cell,0));
+        if (bAtTheEnd || (iNewDist->first != cell)) {
+          if (!bAtTheEnd) ++iNewDist;
+          iNewDist = distMap.emplace_hint(iNewDist, cell, 0);
+        }
+        int val = ++(iNewDist->second);
         //// Note, m_accum is a vector of associative containers, "a" calls the vector element, "cell" is the container key, and the ++ iterates the value correspoding to the key
         if(max_val < val) {
           max_val = val;
@@ -875,13 +903,12 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
           max[1] = cell;
           max[2] = angleStepInt;
         } // if new maximum
-        m_accumALast = m_accumA;
       } // for cells
     } // if single ... else
     //}
     lastDist = dist;
   }
-  m_numAccumulated++;
+  ++m_numAccumulated;
 //*/
   
   //mf::LogVerbatim("HoughBaseAlg") << "Add point says xmax: " << *xmax << " ymax: " << *ymax << std::endl;
