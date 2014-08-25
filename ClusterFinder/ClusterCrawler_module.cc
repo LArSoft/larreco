@@ -29,7 +29,6 @@
 #include "RecoBase/EndPoint2D.h"
 #include "RecoBase/Vertex.h"
 #include "Utilities/AssociationUtil.h"
-// #include "Filters/ChannelFilter.h"
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
 #include "RecoAlg/CCHitRefinerAlg.h"
