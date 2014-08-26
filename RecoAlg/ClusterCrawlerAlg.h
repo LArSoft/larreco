@@ -113,6 +113,10 @@ namespace cluster {
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
     std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
 
+    bool fChkClusterDSEnd;
+    bool fVtxClusterSplit;
+    bool fFindStarVertices;
+
     // global cuts and parameters 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS
                         ///< used for cluster fit
@@ -120,10 +124,9 @@ namespace cluster {
     float fLAClusSlopeCut;
     float fHitMergeChiCut; ///< Merge cluster hit-multiplets if the separation chisq
                              ///< is < cut. Set < 0 for no merging
-    bool fMergeGhostClusters; ///< Merge clusters if they share hits in a muliplet
-                           ///< in the same hit multiplet. Set < 0 for no merging
     unsigned short fAllowNoHitWire; 
     float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (cm)
+
     short fDebugPlane;
     short fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
     short fDebugHit;   ///< out detailed information while crawling
@@ -186,13 +189,13 @@ namespace cluster {
                         ///< + 1000 VtxClusterSplit
                         ///< + 2000 failed pass N cuts but passes pass N=1 cuts
                         ///< + 3000 Cluster hits merged
+                        ///< + 5000 CheckClusterDSEnd
                         ///< +10000 modified by CCHitRefiner
     CTP_t clCTP;        ///< Cryostat/TPC/Plane code
     
     unsigned short fFirstWire;    ///< the first wire with a hit
     unsigned short fFirstHit;     ///< first hit used
     unsigned short fLastWire;      ///< the last wire with a hit
-    float fAveWid;  ///< average hit width at the leading edge of the cluster
     unsigned int cstat;         // the current cryostat
     unsigned int tpc;         // the current TPC
     unsigned int plane;         // the current plane
@@ -235,7 +238,6 @@ namespace cluster {
     // Crawls along a trail of hits UpStream - Large Angle version
     void LACrawlUS(std::vector<CCHitFinderAlg::CCHit>& allhits,
       std::vector<VtxStore>& vtx);
-    // returns true if the cluster is nearing a vertex on the next wire
 
     // ************** cluster merging routines *******************
 
@@ -250,15 +252,29 @@ namespace cluster {
       std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
       unsigned short it1, unsigned short it2, 
       short ProcCode);
-    // Merges clusters that share a significant fraction of hits in
-    // a multiplet
-    void MergeGhostClusters(std::vector<CCHitFinderAlg::CCHit>& allhits,
+      
+    // ************** hit merging routines *******************
+
+    // merge the hits in a multiplet into one hit
+    void MergeHits(std::vector<CCHitFinderAlg::CCHit>& allhits,
+      unsigned short theHit);
+    // merge all unused cluster hits in a multiplet into one hit
+    void MergeClusterHits(std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<ClusterStore>& tcl);   
+
+    // ************** cluster finish routines *******************
+
+    // Check for missing hits and ghost clusters at the DS end of clusters
+    void CheckClusterDSEnd(std::vector<CCHitFinderAlg::CCHit>& allhits,
       std::vector<ClusterStore>& tcl);
 
-    // ************** vertex routines *******************
+    // ************** 2D vertex routines *******************
 
     // Find 2D vertices
     void FindVertices(std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    // Find 2D star topology vertices
+    void FindStarVertices(std::vector<CCHitFinderAlg::CCHit>& allhits,
       std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
     // check a vertex (vw, fvt) made with clusters it1, and it2 against the
     // vector of existing clusters
@@ -283,6 +299,12 @@ namespace cluster {
     // fit the vertex position
     void FitVtx(std::vector<ClusterStore>& tcl,
         std::vector<VtxStore>& vtx, unsigned short iv, float& ChiDOF);
+    // weight and fit all vertices
+    void VtxWghtAndFit(std::vector<ClusterStore>& tcl,
+        std::vector<VtxStore>& vtx, CTP_t inCTP);
+
+    // ************** 3D vertex routines *******************
+
     // match vertices between planes
     void VtxMatch(std::vector<CCHitFinderAlg::CCHit>& allhits,
       std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
@@ -292,22 +314,13 @@ namespace cluster {
       std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
       std::vector<Vtx3Store>& vtx3, unsigned int cstat, unsigned int tpc);
 
-    // ************** hit routines *******************
-
-    // merge the hits in a multiplet into one hit
-    void MergeHits(std::vector<CCHitFinderAlg::CCHit>& allhits,
-      unsigned short theHit);
-    // merge all unused cluster hits in a multiplet into one hit
-    void MergeClusterHits(std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<ClusterStore>& tcl);   
-
     // ************** utility routines *******************
 
     // inits everything
     void CrawlInit();
     // Sorts clusters in tcl by decreasing number of hits, while ignoring
     // abandoned clusters
-    void cl2SortByLength(std::vector<ClusterStore>& tcl,
+    void SortByLength(std::vector<ClusterStore>& tcl,
         std::map<unsigned short, unsigned short>& sortindex);
     // Stores cluster information in a temporary vector
     void TmpStore(std::vector<CCHitFinderAlg::CCHit>& allhits, 
@@ -329,6 +342,7 @@ namespace cluster {
     void LinFit(std::vector<float>& x, std::vector<float>& y, 
       std::vector<float>& ey2, float& Intercept, float& Slope, 
       float& InterceptError, float& SlopeError, float& ChiDOF);
+    // returns an angle-dependent scale factor for weighting fits, etc
     float AngleFactor(float slope);
 
   }; // class ClusterCrawlerAlg

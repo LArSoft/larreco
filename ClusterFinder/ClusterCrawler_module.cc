@@ -93,16 +93,17 @@ namespace cluster {
     // look for clusters in all planes
     fCCAlg.RunCrawler(fCCHFAlg.allhits);
   
+/*
     // refine the hits, set cluster Begin/End
     fCCHRAlg.RunCCHitRefiner(fCCHFAlg.allhits, fCCHFAlg.hitcuts, 
                                fCCAlg.tcl, fCCAlg.vtx, fCCAlg);
+*/
 
     art::ServiceHandle<geo::Geometry> geo;
     
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
     std::vector<recob::Hit> shcol;
     std::vector<recob::Cluster> sccol;
-//    std::vector<recob::EndPoint2D> svcol;
 
     // put clusters and hits into std::vectors
     unsigned short nclus = 0;
@@ -152,12 +153,30 @@ namespace cluster {
       art::Ptr<recob::Wire> theWire = theHit.Wire;
       uint32_t channel = theWire->Channel();
       
+      // Stuff 2D vertex info into unused Cluster variables to help
+      // associate the Begin cluster - vertex and End cluster - vertex
+      double clBeginVtxWire = -1;
+      double clBeginVtxTime = -1;
+      double clEndVtxWire = -1;
+      double clEndVtxTime = -1;
+      unsigned int iv = 0;
+      if(clstr.BeginVtx >= 0) {
+        iv = clstr.BeginVtx;
+        clBeginVtxWire = fCCAlg.vtx[iv].Wire;
+        clBeginVtxTime = fCCAlg.vtx[iv].Time;
+      }
+      if(clstr.EndVtx >= 0) {
+        iv = clstr.EndVtx;
+        clEndVtxWire = fCCAlg.vtx[iv].Wire;
+        clEndVtxTime = fCCAlg.vtx[iv].Time;
+      }
+      
       // create the recob::Cluster directly in the vector
-      sccol.emplace_back((double)clstr.BeginWir, 0.,
-                         (double)clstr.BeginTim, 0.,
-                         (double)clstr.EndWir, 0.,
-                         (double)clstr.EndTim, 0.,
-                         (double)clstr.EndSlp, (double)clstr.EndSlpErr,
+      sccol.emplace_back((double)clstr.BeginWir, clBeginVtxWire,
+                         (double)clstr.BeginTim, clBeginVtxTime,
+                         (double)clstr.EndWir, clEndVtxWire,
+                         (double)clstr.EndTim, clEndVtxTime,
+                         (double)clstr.EndSlp, (double)clstr.BeginSlp,
                          -999.,0.,
                          totalQ,
                          geo->View(channel),

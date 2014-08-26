@@ -213,8 +213,10 @@ standard_track3Dkalmanhit:
   module_type:        "Track3DKalmanHit"
   Hist:               false
   UseClusterHits:     true
+  UsePFParticleHits:  false
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
+  PFParticleModuleLabel: "pandora"
   MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
   DoDedx:             false         # dE/dx enable flag.
   MinSeedHits:        12            # Minimum number of hits per track seed.
