@@ -79,7 +79,8 @@ namespace {
     //    mf::LogVerbatim("output") <<"d1" << d1;
     //    mf::LogVerbatim("output") <<"d2" << d2;
     //    double d2 = 226.539 - pos.X();   // Distance to left side (cathode).
-    double d5,d6;
+    double d5 = 0.;
+    double d6 = 0.;
     
     if(tpc==0 || tpc==1)
       {
