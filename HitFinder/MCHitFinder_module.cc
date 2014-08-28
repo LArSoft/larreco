@@ -147,12 +147,14 @@ namespace hit {
 	  if( !(edep_iter.second) ) {
 	    
 	    if( last_tdc+1 != tdc ) {
+	      /*
 	      std::cerr 
 		<< "Found discontinuous TDC! "
 		<< " Last (ADC @ TDC): " << (*(edep_iter.first->second.rbegin())) << " @ " << last_tdc 
 		<< " while current (ADC @ TDC): " << (ide.numElectrons * detp->ElectronsToADC()) << " @ " << tdc
 		<< " ... skipping to store!"
 		<< std::endl;
+	      */
 	      continue;
 	    }
 	  }
