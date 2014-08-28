@@ -852,7 +852,7 @@ namespace trkf {
     ///\todo Move this module to LBNE code and remove it from larreco
 
     art::ServiceHandle<geo::Geometry> geom;
-    if(!geom->DetectorName().find("lbne"))
+    if(geom->DetectorName().find("lbne") == std::string::npos)
       throw cet::exception("TrackAnaCT") << "TrackAnaCT should only be used with LBNE "
 					 << "geometries, the name for this detector, "
 					 << geom->DetectorName() << ", does not contain "
