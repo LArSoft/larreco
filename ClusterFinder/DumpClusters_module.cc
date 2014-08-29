@@ -170,7 +170,7 @@ namespace cluster {
         } // while
         
         mf::LogVerbatim line_out(fOutputCategory);
-        line_out << " ";
+        line_out << " " << output_line.str();
         if (RangeStart == RangeStop)
           line_out << "  " << std::setw(Padding) << RangeStart;
         else {
