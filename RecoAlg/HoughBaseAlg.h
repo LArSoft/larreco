@@ -488,12 +488,8 @@ namespace cluster {
       numCols  = (int) m_rowLength;
     }
     int NumAccumulated()                      { return m_numAccumulated; }
-    void GetEquation( float row, float col, float &rho, float &theta)
-    {
-      theta = (TMath::Pi()*row)/m_numAngleCells;
-      rho   = (col - (m_rowLength/2.))/m_rhoResolutionFactor;
-    }
-    int GetMax(int & xmax, int & ymax);
+    void GetEquation( float row, float col, float &rho, float &theta) const;
+    int GetMax(int & xmax, int & ymax) const;
 
     void reconfigure(fhicl::ParameterSet const& pset);
 
