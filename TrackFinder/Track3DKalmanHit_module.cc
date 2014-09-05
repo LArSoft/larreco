@@ -327,6 +327,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   std::unique_ptr<std::vector<recob::Track> > tracks(new std::vector<recob::Track>);
   std::unique_ptr< art::Assns<recob::Track, recob::Hit> > th_assn(new art::Assns<recob::Track, recob::Hit>);
   std::unique_ptr< art::Assns<recob::Track, recob::SpacePoint> > tsp_assn(new art::Assns<recob::Track, recob::SpacePoint>);
+  std::unique_ptr< art::Assns<recob::PFParticle, recob::Track> >  pfPartTrack_assns(  new art::Assns<recob::PFParticle, recob::Track>);
 
   // Make a collection of space points, plus associations, that will
   // be inserted into the event.
@@ -334,12 +335,15 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   std::unique_ptr<std::vector<recob::SpacePoint> > spts(new std::vector<recob::SpacePoint>);
   std::unique_ptr< art::Assns<recob::SpacePoint, recob::Hit> > sph_assn(new art::Assns<recob::SpacePoint, recob::Hit>);
 
-  // TODO
   // Make associations between PFParticles and the tracks they create
+  // To facilitate this we'll recover the handle to the PFParticle collection - whether it exists or not
+  art::Handle<std::vector<recob::PFParticle> > pfParticleHandle;
+  evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
 
-  // Make a collection of KGTracks where we will save our results.
+  // Make a map of a collection of KGTracks where we will save our results.
+  // The first element of the map is the index of the corresponding hit colleciton.
 
-  std::deque<KGTrack> kalman_tracks;
+  std::map<size_t, std::deque<KGTrack> > kalman_tracks_map;
 
   // Get Services.
 
@@ -356,6 +360,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   // 3.  All hits (produces one hit collection).
 
   std::vector<art::PtrVector<recob::Hit> > hit_collections;
+
+  // In the event we are making PFParticle/Track associations, we'll need the following map.
+  // Hit collection index -> pfParticle index.
+  std::map<size_t, size_t> hitColToPfPartMap;
 
   if(fUseClusterHits) {
 
@@ -392,9 +400,6 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
     // Our program is to drive the track creation/fitting off the PFParticles in the data store
     // We'll use the hits associated to the PFParticles for each track - and only those hits.
-    art::Handle<std::vector<recob::PFParticle> > pfParticleHandle;
-    evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
-    
     // Without a valid collection of PFParticles there is nothing to do here
     if (!pfParticleHandle.isValid()) return;
     
@@ -424,6 +429,9 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
       // Fill this vector by looping over associated clusters and finding the hits associated to them
       std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(pfParticle->Self());
         
+      // Keep track of PFParticle to cluster collection
+      hitColToPfPartMap[partIdx] = pfParticle->Self();
+        
       for(const auto& cluster : clusterVec) {
 	std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster->ID());
 	hits.insert(hits.end(), hitVec.begin(), hitVec.end());
@@ -451,8 +459,12 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   }
 
   // Loop over hit collections.
+  size_t hit_collection_cntr(0);
 
   for(auto& hits: hit_collections) {
+
+    // Recover the kalman tracks double ended queue
+    std::deque<KGTrack>& kalman_tracks = kalman_tracks_map[hit_collection_cntr++];
 
     // The hit collection "hits" (just filled), initially containing all
     // hits, represents hits available for making tracks.  Now we will
@@ -731,23 +743,27 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
     // First loop over tracks.
 
-    for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
-	k != kalman_tracks.end(); ++k) {
-      const KGTrack& trg = *k;
+    for(auto& kalman_tracks_pair : kalman_tracks_map) {
+      std::deque<KGTrack>& kalman_tracks = kalman_tracks_pair.second;
 
-      // Loop over measurements in this track.
+      for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
+	  k != kalman_tracks.end(); ++k) {
+	const KGTrack& trg = *k;
 
-      const std::multimap<double, KHitTrack>& trackmap = trg.getTrackMap();
-      for(std::multimap<double, KHitTrack>::const_iterator ih = trackmap.begin();
-	  ih != trackmap.end(); ++ih) {
-	const KHitTrack& trh = (*ih).second;
-	const std::shared_ptr<const KHitBase>& hit = trh.getHit();
-	double chisq = hit->getChisq();
-	fHIncChisq->Fill(chisq);
-	const KHit<1>* ph1 = dynamic_cast<const KHit<1>*>(&*hit);
-	if(ph1 != 0) {
-	  double pull = ph1->getResVector()(0) / std::sqrt(ph1->getResError()(0, 0));
-	  fHPull->Fill(pull);
+	// Loop over measurements in this track.
+
+	const std::multimap<double, KHitTrack>& trackmap = trg.getTrackMap();
+	for(std::multimap<double, KHitTrack>::const_iterator ih = trackmap.begin();
+	    ih != trackmap.end(); ++ih) {
+	  const KHitTrack& trh = (*ih).second;
+	  const std::shared_ptr<const KHitBase>& hit = trh.getHit();
+	  double chisq = hit->getChisq();
+	  fHIncChisq->Fill(chisq);
+	  const KHit<1>* ph1 = dynamic_cast<const KHit<1>*>(&*hit);
+	  if(ph1 != 0) {
+	    double pull = ph1->getResVector()(0) / std::sqrt(ph1->getResError()(0, 0));
+	    fHPull->Fill(pull);
+	  }
 	}
       }
     }
@@ -755,50 +771,82 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
   // Process Kalman filter tracks into persistent objects.
 
-  tracks->reserve(kalman_tracks.size());
-  for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
-      k != kalman_tracks.end(); ++k) {
-    const KGTrack& kalman_track = *k;
+  size_t tracksSize(0);
+  for(auto kalman_tracks_pair : kalman_tracks_map) {
+    tracksSize += kalman_tracks_pair.second.size();
+  }
+  tracks->reserve(tracksSize);
 
-    // Add Track object to collection.
+  for(auto kalman_tracks_pair : kalman_tracks_map) {
 
-    tracks->push_back(recob::Track());
-    kalman_track.fillTrack(tracks->back(), tracks->size() - 1);
-
-    // Make Track to Hit associations.  
-
-    art::PtrVector<recob::Hit> trhits;
-    kalman_track.fillHits(trhits);
-    util::CreateAssn(*this, evt, *tracks, trhits, *th_assn, tracks->size()-1);
-
-    // Make space points from this track.
-
-    int nspt = spts->size();
-    fSpacePointAlg.fillSpacePoints(*spts, kalman_track.TrackMap());
-
-    // Associate newly created space points with hits.
-    // Also associate track with newly created space points.
-
-    art::PtrVector<recob::SpacePoint> sptvec;
-
-    // Loop over newly created space points.
+    // Recover the kalman tracks double ended queue
+    std::deque<KGTrack>& kalman_tracks = kalman_tracks_pair.second;
       
-    for(unsigned int ispt = nspt; ispt < spts->size(); ++ispt) {
-      const recob::SpacePoint& spt = (*spts)[ispt];
-      art::ProductID sptid = getProductID<std::vector<recob::SpacePoint> >(evt);
-      art::Ptr<recob::SpacePoint> sptptr(sptid, ispt, evt.productGetter(sptid));
-      sptvec.push_back(sptptr);
+    size_t trackColStartIdx(tracks->size());
+      
+    for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
+	k != kalman_tracks.end(); ++k) {
+      const KGTrack& kalman_track = *k;
 
-      // Make space point to hit associations.
+      // Add Track object to collection.
 
-      const art::PtrVector<recob::Hit>& sphits = 
-	fSpacePointAlg.getAssociatedHits(spt);
-      util::CreateAssn(*this, evt, *spts, sphits, *sph_assn, ispt);
+      tracks->push_back(recob::Track());
+      kalman_track.fillTrack(tracks->back(), tracks->size() - 1);
+
+      // Make Track to Hit associations.  
+
+      art::PtrVector<recob::Hit> trhits;
+      kalman_track.fillHits(trhits);
+      util::CreateAssn(*this, evt, *tracks, trhits, *th_assn, tracks->size()-1);
+
+      // Make space points from this track.
+
+      int nspt = spts->size();
+      fSpacePointAlg.fillSpacePoints(*spts, kalman_track.TrackMap());
+
+      // Associate newly created space points with hits.
+      // Also associate track with newly created space points.
+
+      art::PtrVector<recob::SpacePoint> sptvec;
+
+      // Loop over newly created space points.
+      
+      for(unsigned int ispt = nspt; ispt < spts->size(); ++ispt) {
+	const recob::SpacePoint& spt = (*spts)[ispt];
+	art::ProductID sptid = getProductID<std::vector<recob::SpacePoint> >(evt);
+	art::Ptr<recob::SpacePoint> sptptr(sptid, ispt, evt.productGetter(sptid));
+	sptvec.push_back(sptptr);
+
+	// Make space point to hit associations.
+
+	const art::PtrVector<recob::Hit>& sphits = 
+	  fSpacePointAlg.getAssociatedHits(spt);
+	util::CreateAssn(*this, evt, *spts, sphits, *sph_assn, ispt);
+      }
+
+      // Make track to space point associations.
+
+      util::CreateAssn(*this, evt, *tracks, sptvec, *tsp_assn, tracks->size()-1);
+    } // end of loop over a given collection
+
+    if (fUsePFParticleHits) {
+      size_t hitColIdx(kalman_tracks_pair.first);
+      size_t pfPartIdx(hitColToPfPartMap[hitColIdx]);
+      size_t trackColEndIdx(tracks->size());
+          
+      art::Ptr<recob::PFParticle> pfPartPtr(pfParticleHandle, pfPartIdx);
+          
+      // Create a vector of art ptrs to the tracks...
+      std::vector<art::Ptr<recob::Track> > trackVec;
+          
+      for(size_t idx = trackColStartIdx; idx != trackColEndIdx; idx++) {
+	art::ProductID trackId = getProductID<std::vector<recob::Track> >(evt);
+	art::Ptr<recob::Track> trackPtr(trackId, idx, evt.productGetter(trackId));
+	trackVec.push_back(trackPtr);
+      }
+          
+      util::CreateAssn(*this, evt, pfPartPtr, trackVec, *pfPartTrack_assns);
     }
-
-    // Make track to space point associations.
-
-    util::CreateAssn(*this, evt, *tracks, sptvec, *tsp_assn, tracks->size()-1);
   }
 
   // Add tracks and associations to event.
@@ -808,6 +856,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   evt.put(std::move(th_assn));
   evt.put(std::move(tsp_assn));
   evt.put(std::move(sph_assn));
+  evt.put(std::move(pfPartTrack_assns));
 }
 
 //----------------------------------------------------------------------------
