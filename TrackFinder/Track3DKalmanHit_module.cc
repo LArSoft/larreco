@@ -72,6 +72,14 @@
 
 namespace {
 
+  // Local hit collection struct.
+  struct HitCollection
+  {
+    art::Ptr<recob::PFParticle> pfPartPtr;
+    art::PtrVector<recob::Hit> hits;
+    std::deque<trkf::KGTrack> tracks;
+  };
+
   //----------------------------------------------------------------------------
   // Fill a collection of hits used by space points.
   //
@@ -340,10 +348,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   art::Handle<std::vector<recob::PFParticle> > pfParticleHandle;
   evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
 
-  // Make a map of a collection of KGTracks where we will save our results.
-  // The first element of the map is the index of the corresponding hit colleciton.
+  // Make collection of KGTracks where we will save our results, together with
+  // corresponding hit collections.
 
-  std::map<size_t, std::deque<KGTrack> > kalman_tracks_map;
+  std::list<HitCollection> hit_collections;
 
   // Get Services.
 
@@ -359,18 +367,12 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   // 2.  PFParticle hits (products one hit collection for each PFParticle).
   // 3.  All hits (produces one hit collection).
 
-  std::vector<art::PtrVector<recob::Hit> > hit_collections;
-
-  // In the event we are making PFParticle/Track associations, we'll need the following map.
-  // Hit collection index -> pfParticle index.
-  std::map<size_t, size_t> hitColToPfPartMap;
-
   if(fUseClusterHits) {
 
-    // Make one empty hit colleciton.
+    // Make one empty hit collection.
 
     hit_collections.emplace_back();
-    art::PtrVector<recob::Hit>& hits = hit_collections.back();
+    art::PtrVector<recob::Hit>& hits = hit_collections.back().hits;
 
     // Get clusters.
 
@@ -420,17 +422,17 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     
     // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
     for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
-      art::Ptr<recob::PFParticle> pfParticle(pfParticleHandle, partIdx);
 
       // Add a new empty hit collection.
+
       hit_collections.emplace_back();
-      art::PtrVector<recob::Hit>& hits = hit_collections.back();
+      HitCollection& hit_collection = hit_collections.back();
+      hit_collection.pfPartPtr = art::Ptr<recob::PFParticle>(pfParticleHandle, partIdx);
+      art::PtrVector<recob::Hit>& hits = hit_collection.hits;
         
-      // Fill this vector by looping over associated clusters and finding the hits associated to them
-      std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(pfParticle->Self());
-        
-      // Keep track of PFParticle to cluster collection
-      hitColToPfPartMap[partIdx] = pfParticle->Self();
+      // Fill this hit vector by looping over associated clusters and finding the 
+      // hits associated to them
+      std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(partIdx);
         
       for(const auto& cluster : clusterVec) {
 	std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster->ID());
@@ -440,10 +442,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   }
   else {
 
-    // Make one empty hit colleciton.
+    // Make one empty hit collection.
 
     hit_collections.emplace_back();
-    art::PtrVector<recob::Hit>& hits = hit_collections.back();
+    art::PtrVector<recob::Hit>& hits = hit_collections.back().hits;
 
     // Get unclustered hits.
 
@@ -458,13 +460,14 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     }
   }
 
-  // Loop over hit collections.
-  size_t hit_collection_cntr(0);
+  // Loop over hit collection / Kalman track combos.
 
-  for(auto& hits: hit_collections) {
+  for(auto& hit_collection : hit_collections) {
 
     // Recover the kalman tracks double ended queue
-    std::deque<KGTrack>& kalman_tracks = kalman_tracks_map[hit_collection_cntr++];
+
+    std::deque<KGTrack>& kalman_tracks = hit_collection.tracks;
+    art::PtrVector<recob::Hit>& hits = hit_collection.hits;
 
     // The hit collection "hits" (just filled), initially containing all
     // hits, represents hits available for making tracks.  Now we will
@@ -743,8 +746,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
     // First loop over tracks.
 
-    for(auto& kalman_tracks_pair : kalman_tracks_map) {
-      std::deque<KGTrack>& kalman_tracks = kalman_tracks_pair.second;
+    for(const auto& hit_collection : hit_collections) {
+      const std::deque<KGTrack>& kalman_tracks = hit_collection.tracks;
 
       for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
 	  k != kalman_tracks.end(); ++k) {
@@ -772,16 +775,17 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
   // Process Kalman filter tracks into persistent objects.
 
   size_t tracksSize(0);
-  for(auto kalman_tracks_pair : kalman_tracks_map) {
-    tracksSize += kalman_tracks_pair.second.size();
+  for(const auto& hit_collection : hit_collections) {
+    tracksSize += hit_collection.tracks.size();
   }
   tracks->reserve(tracksSize);
 
-  for(auto kalman_tracks_pair : kalman_tracks_map) {
+  for(auto& hit_collection : hit_collections) {
 
     // Recover the kalman tracks double ended queue
-    std::deque<KGTrack>& kalman_tracks = kalman_tracks_pair.second;
-      
+    const std::deque<KGTrack>& kalman_tracks = hit_collection.tracks;
+
+    // Remember how many tracks are already converted
     size_t trackColStartIdx(tracks->size());
       
     for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
@@ -829,16 +833,15 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
       util::CreateAssn(*this, evt, *tracks, sptvec, *tsp_assn, tracks->size()-1);
     } // end of loop over a given collection
 
+    // Optionally fill track-to-PFParticle associations.
+
     if (fUsePFParticleHits) {
-      size_t hitColIdx(kalman_tracks_pair.first);
-      size_t pfPartIdx(hitColToPfPartMap[hitColIdx]);
-      size_t trackColEndIdx(tracks->size());
-          
-      art::Ptr<recob::PFParticle> pfPartPtr(pfParticleHandle, pfPartIdx);
+      art::Ptr<recob::PFParticle>& pfPartPtr = hit_collection.pfPartPtr;
           
       // Create a vector of art ptrs to the tracks...
       std::vector<art::Ptr<recob::Track> > trackVec;
           
+      size_t trackColEndIdx(tracks->size());
       for(size_t idx = trackColStartIdx; idx != trackColEndIdx; idx++) {
 	art::ProductID trackId = getProductID<std::vector<recob::Track> >(evt);
 	art::Ptr<recob::Track> trackPtr(trackId, idx, evt.productGetter(trackId));
