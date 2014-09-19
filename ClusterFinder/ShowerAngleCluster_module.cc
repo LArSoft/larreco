@@ -17,6 +17,7 @@
 #define SHOWERANGLECLUSTER_H
 
 #include "art/Framework/Core/EDProducer.h" // include the proper bit of the framework
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Services/Registry/ActivityRegistry.h"
 #include <utility> // std::move()
 #include <vector>

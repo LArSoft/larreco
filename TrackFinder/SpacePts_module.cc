@@ -7,9 +7,6 @@
 //
 // A very ArgoNeuTy module, for now.
 ////////////////////////////////////////////////////////////////////////
-// Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Core/EDProducer.h" 
 
 #include <vector>
 #include <string>
@@ -19,6 +16,9 @@
 #include <iomanip>
 
 // Framework includes
+#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/EDProducer.h" 
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h" 
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Principal/Handle.h" 
