@@ -28,7 +28,7 @@
 #include "Minuit2/FCNBase.h" 
 #include "Math/Minimizer.h"
 #include "Math/Factory.h"
-#include "Math/Functor.h"
+#include "RecoAlg/RootMathFunctor.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
 
