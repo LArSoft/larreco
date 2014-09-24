@@ -80,6 +80,7 @@ namespace {
     std::deque<trkf::KGTrack> tracks;
   };
 
+/* unused function
   //----------------------------------------------------------------------------
   // Fill a collection of hits used by space points.
   //
@@ -118,6 +119,7 @@ namespace {
       }
     }
   }
+*/
 
   //----------------------------------------------------------------------------
   // Filter a collection of hits (set difference).
