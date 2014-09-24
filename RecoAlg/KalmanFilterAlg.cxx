@@ -9,10 +9,11 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "RecoAlg/KalmanFilterAlg.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 #include "boost/numeric/ublas/vector_proxy.hpp"
 #include "boost/numeric/ublas/matrix_proxy.hpp"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "RecoObjects/KHit.h"
 #include "RecoObjects/SurfYZPlane.h"
 #include "Geometry/Geometry.h"
