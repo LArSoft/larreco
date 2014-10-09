@@ -26,6 +26,7 @@ extern "C" {
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art/Framework/Core/FindManyP.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 #include "RecoBase/Cluster.h"
@@ -145,9 +146,9 @@ namespace vertex {
 
   //-------------------------------------------------------------------------------
   std::unique_ptr< std::vector<recob::Vertex> >  AggregateVertex::MatchV2T(art::Event& evt,
-									 art::Assns<recob::Vertex, recob::Track>& vtassn,
-									 art::Assns<recob::Vertex, recob::Shower>& vsassn,
-									 art::Assns<recob::Vertex, recob::Hit>& vhassn)
+									   art::Assns<recob::Vertex, recob::Track>& vtassn,
+									   art::Assns<recob::Vertex, recob::Shower>& vsassn,
+									   art::Assns<recob::Vertex, recob::Hit>& vhassn)
   {
     mf::LogInfo("AggregateVertex") << "AggregateEvent::MatchV2T(): (strong) vertexlistStrong"
 				   << " and tracklist lengths are " 
@@ -165,11 +166,14 @@ namespace vertex {
     std::unique_ptr< std::vector<recob::Vertex> > verts(new std::vector<recob::Vertex>);
 
     art::FindManyP<recob::Hit> fmht(ftracklist, evt, fTrack3DModuleLabel);
+    art::FindManyP<recob::Hit> fmhs(ftracklist, evt, fTrack3DModuleLabel);
 
     for(size_t epctr = 0; epctr < feplistStrong.size(); ++epctr){            
       art::PtrVector<recob::Track>  tlistAssoc; // Will fill with matching tracks.
       art::PtrVector<recob::Shower> slistAssoc; // Will fill with matching showers.
-      
+      std::vector<size_t> trkIdx;
+      std::vector<size_t> shwIdx;
+
       std::vector< art::Ptr<recob::Hit> > hitvertexlistStrong = fmhst.at(epctr);
       
       // Should be just one hit per vtx, as per Josh, but we loop anyway.
@@ -192,6 +196,7 @@ namespace vertex {
 	      //<< hitt << " " <<hitv << std::endl;
 	      //std::cout << "AggregateEvent::MatchV2T(): vtx, trk " << vtx<< " " <<trk << std::endl;
 	      tlistAssoc.push_back(ftracklist[t]);
+	      trkIdx.push_back(t);
 	      htIter = hittlist.end()-1; // jump to end of track hitlist, since we've satisfied match
 	    }			
 	    htIter++;
@@ -201,7 +206,7 @@ namespace vertex {
        }
 
       // Now if matching tracks were found for this vertex then create the recob::Vertex object.
-      if (tlistAssoc.size()>0){
+      if (tlistAssoc.size() > 0){
 	/// \todo Really need to also determine the xyz position of the found vertex
 	/// \todo Also should determine the ID for this vertex
 	double xyz[3] = {-999., -999., -999.};
@@ -210,16 +215,14 @@ namespace vertex {
 	// associate the tracks to the vertex
 	util::CreateAssn(*this, evt, *verts, tlistAssoc, vtassn);
 
-	art::FindManyP<recob::Hit> fmhtl(tlistAssoc, evt, fTrack3DModuleLabel);
-
 	//associate the track hits to the vertex
-	for(size_t t = 0; t < tlistAssoc.size(); ++t){
-	  std::vector< art::Ptr<recob::Hit> > hits = fmhtl.at(t);
+	for(auto const& t : trkIdx){
+	  std::vector< art::Ptr<recob::Hit> > hits = fmht.at(t);
 	  util::CreateAssn(*this, evt, *verts, hits, vhassn);
 	}
       }// end if there are tracks to be associated
     
-      if (slistAssoc.size()>0){
+      if (slistAssoc.size() > 0){
 	/// \todo Really need to also determine the xyz position of the found vertex
 	/// \todo Also should determine the ID for this vertex
 	double xyz[3] = {-999., -999., -999.};
@@ -228,12 +231,11 @@ namespace vertex {
 	// associate the showers to the vertex
 	util::CreateAssn(*this, evt, *verts, slistAssoc, vsassn);
 
-	art::FindManyP<recob::Hit> fmhsl(slistAssoc, evt, fTrack3DModuleLabel);
-
 	//associate the shower hits to the vertex
-	///\todo get a shower module label in line 196
-	for(size_t t = 0; t < slistAssoc.size(); ++t){
-	  std::vector< art::Ptr<recob::Hit> > hits = fmhsl.at(t);
+	///\todo get a shower module label in line 169 and get a list of showers
+	///\todo from the event
+	for(auto const& s : shwIdx){
+	  std::vector< art::Ptr<recob::Hit> > hits = fmhs.at(s);
 	  util::CreateAssn(*this, evt, *verts, hits, vhassn);
 	}
       }// end if there are showers to be associated

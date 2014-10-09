@@ -82,9 +82,12 @@ namespace cluster{
     this->reconfigure(pset);
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
-  
+    
+    unsigned int seed
+      = pset.get< unsigned int >("Seed", SeedCreator::CreateRandomNumberSeed());
+    
     // Create random number engine needed for PPHT
-    createEngine(SeedCreator::CreateRandomNumberSeed(),"HepJamesRandom");
+    createEngine(seed,"HepJamesRandom");
   }
   
   //-------------------------------------------------

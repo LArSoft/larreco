@@ -24,6 +24,7 @@
 #define GFEXCEPTION_H
 
 #include <exception>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <iostream>

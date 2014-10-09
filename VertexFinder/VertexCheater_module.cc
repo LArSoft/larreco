@@ -31,6 +31,7 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art/Framework/Core/FindManyP.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 namespace vertex {
@@ -117,31 +118,33 @@ namespace vertex{
       mf::LogWarning("VertexCheater") << "tracks: " << e;
     }
 
+    art::FindManyP<recob::Hit> fmhs(showers, evt, fCheatedShowerLabel);
+    art::FindManyP<recob::Hit> fmht(tracks, evt, fCheatedTrackLabel);
+
     // loop over the prongs and figure out which primaries they are associated with
     std::vector< art::Ptr<recob::Shower> >::iterator shwitr = showers.begin();
-    std::vector< art::Ptr<recob::Track> >::iterator trkitr  = tracks.begin();
+    std::vector< art::Ptr<recob::Track>  >::iterator trkitr = tracks.begin();
 
     // protect against events where there are either no tracks or no showers
     if(tracks.size()  < 1) trkitr = tracks.end();
     if(showers.size() < 1) shwitr = showers.end();
 
     // make a map of eve id's to collections of prongs
-    std::map<int, std::vector< art::Ptr<recob::Shower> > > eveShowerMap;
-    std::map<int, std::vector< art::Ptr<recob::Shower> > >::iterator showerMapItr = eveShowerMap.begin();
-
-    std::map<int, std::vector< art::Ptr<recob::Track> > > eveTrackMap;
-    std::map<int, std::vector< art::Ptr<recob::Track> > >::iterator trackMapItr = eveTrackMap.begin();
+    std::map<int, std::vector< std::pair<size_t, art::Ptr<recob::Shower> > > > eveShowerMap;
+    std::map<int, std::vector< std::pair<size_t, art::Ptr<recob::Track>  > > > eveTrackMap;
     
     // make a map of eve id's to the number of prongs corresponding to that id
     std::vector<int> eveIDs;
 
     // loop over all showers
-    while( shwitr != showers.end() ){
+    for(size_t s = 0; s < showers.size(); ++s){
+
+      std::pair<size_t, art::Ptr<recob::Shower> > idxShw(s, showers[s]);
 
       // in the ProngCheater module we set the prong ID to be 
       // the particle track ID creating the energy depositions
       // of the prong
-      int prongID = (*shwitr)->ID();
+      int prongID = showers[s]->ID();
 
       // now get the mother particle of this prong if it exists
       // set the eveID to the mother particle track ID, or to the
@@ -155,32 +158,21 @@ namespace vertex{
       // now we want to associate all prongs having the same 
       // eve ID, so look to see if there are other prongs with that
       // ID
-      showerMapItr = eveShowerMap.find(eveID);
+      eveShowerMap[eveID].push_back(idxShw);
 
       mf::LogInfo("VertexCheater") << "shower: " << prongID << " has mother " << eveID;
 	
-      // is this id already in the map, if so extend the collection 
-      // by one hit, otherwise make a new collection and put it in
-      // the map
-      if( showerMapItr != eveShowerMap.end() ){
-	  ((*showerMapItr).second).push_back((*shwitr));
-      }
-      else{
-	std::vector< art::Ptr<recob::Shower> > showervec;
-	showervec.push_back(*shwitr);
-	eveShowerMap[eveID] = showervec;
-      }
-
-      shwitr++;
     }// end loop over showers
 
     // loop over all tracks
-    while( trkitr != tracks.end() ){
+    for(size_t t = 0; t < tracks.size(); ++t){
+
+      std::pair<size_t, art::Ptr<recob::Track> > idxTrk(t, tracks[t]);
 
       // in the ProngCheater module we set the prong ID to be 
       // the particle track ID creating the energy depositions
       // of the prong
-      int prongID = (*trkitr)->ID();
+      int prongID = tracks[t]->ID();
 
       // now get the mother particle of this prong if it exists
       // set the eveID to the mother particle track ID, or to the
@@ -194,23 +186,10 @@ namespace vertex{
       // now we want to associate all prongs having the same 
       // eve ID, so look to see if there are other prongs with that
       // ID
-      trackMapItr = eveTrackMap.find(eveID);
+      eveTrackMap[eveID].push_back(idxTrk);
 
       mf::LogInfo("VertexCheater") << "track: " << prongID << " has mother " << eveID;
 	
-      // is this id already in the map, if so extend the collection 
-      // by one hit, otherwise make a new collection and put it in
-      // the map
-      if( trackMapItr != eveTrackMap.end() ){
-	  ((*trackMapItr).second).push_back((*trkitr));
-      }
-      else{
-	std::vector< art::Ptr<recob::Track> > trackvec;
-	trackvec.push_back(*trkitr);
-	eveTrackMap[eveID] = trackvec;
-      }
-
-      trkitr++;
     }// end loop over tracks
 
     std::unique_ptr< std::vector<recob::Vertex> > vertexcol(new std::vector<recob::Vertex>);
@@ -219,28 +198,30 @@ namespace vertex{
     std::unique_ptr< art::Assns<recob::Vertex, recob::Hit>    > vhassn(new art::Assns<recob::Vertex, recob::Hit>);
 
     // loop over the eve ID values and make Vertexs
-    for(std::vector<int>::iterator eItr = eveIDs.begin(); eItr != eveIDs.end(); eItr++){
+    for(auto const& eveID : eveIDs){
 
-      int eveID = *eItr;
-      
       // Vertex objects require PtrVectors of showers and tracks as well
       // as a vertex position for their constructor
       art::PtrVector<recob::Shower> ptrvshw;
       art::PtrVector<recob::Track>  ptrvtrk;
+      std::vector<size_t> idxShw;
+      std::vector<size_t> idxTrk;
 
       // first get the showers
       if(eveShowerMap.find(eveID) != eveShowerMap.end()){
-	std::vector< art::Ptr<recob::Shower> > eveShowers( eveShowerMap[eveID] );
-	for(size_t s = 0; s < eveShowers.size(); ++s){
-	  ptrvshw.push_back(eveShowers[s]);
+	auto const& eveShowers = eveShowerMap[eveID];
+	for(auto const& is : eveShowers){
+	  ptrvshw.push_back(is.second);
+	  idxShw.push_back(is.first);
 	} // end loop over showers for this particle
       } // end find showers for this particle
 
       // now the tracks
       if(eveTrackMap.find(eveID) != eveTrackMap.end()){
-	std::vector< art::Ptr<recob::Track> > eveTracks( eveTrackMap[eveID] );
-	for(size_t t = 0; t < eveTracks.size(); ++t){
-	  ptrvtrk.push_back(eveTracks[t]);
+	auto const& eveTracks = eveTrackMap[eveID];
+	for(auto const& it : eveTracks){
+	  ptrvtrk.push_back(it.second);
+	  idxTrk.push_back(it.first);
 	} // end loop over tracks for this particle
       } // end find tracks for this particle
  
@@ -257,9 +238,8 @@ namespace vertex{
 	util::CreateAssn(*this, evt, *vertexcol, ptrvtrk, *vtassn);
 
 	// get the hits associated with each track and associate those with the vertex
-	art::FindManyP<recob::Hit> fmh(ptrvtrk, evt, fCheatedTrackLabel);
-	for(size_t p = 0; p < ptrvtrk.size(); ++p){
-	  std::vector< art::Ptr<recob::Hit> > hits = fmh.at(p);
+	for(auto const& i : idxTrk){
+	  std::vector< art::Ptr<recob::Hit> > hits = fmht.at(i);
 	  util::CreateAssn(*this, evt, *vertexcol, hits, *vhassn);
 	}
       }
@@ -267,9 +247,8 @@ namespace vertex{
       if( ptrvshw.size() > 0 ){
 	util::CreateAssn(*this, evt, *vertexcol, ptrvshw, *vsassn);
 	// get the hits associated with each shower and associate those with the vertex
-	art::FindManyP<recob::Hit> fmh(ptrvshw, evt, fCheatedShowerLabel);
-	for(size_t p = 0; p < ptrvshw.size(); ++p){
-	  std::vector< art::Ptr<recob::Hit> > hits = fmh.at(p);
+	for(auto const& i : idxShw){
+	  std::vector< art::Ptr<recob::Hit> > hits = fmhs.at(i);
 	  util::CreateAssn(*this, evt, *vertexcol, hits, *vhassn);
 	}
       }

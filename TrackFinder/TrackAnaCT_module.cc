@@ -1314,7 +1314,6 @@ namespace trkf {
 
 		  bool good = std::abs(w) <= fWMatchDisp &&
 		    tlen > 0.5 * plen;
-		  mf::LogVerbatim("output")<< ":: good is  "<< good << "w is "<< w << "tlen is  " <<tlen;
 		  if(good) {
 		    mcid = part->TrackId();
 		    mchists.fHgstartx->Fill(mcstart.X());

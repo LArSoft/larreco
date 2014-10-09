@@ -9,8 +9,6 @@
 #ifndef CCHITFINDERALG_H
 #define CCHITFINDERALG_H
 
-#include "TMath.h"
-
 #include <vector>
 
 #include "fhiclcpp/ParameterSet.h" 
@@ -18,11 +16,10 @@
 #include "art/Persistency/Common/PtrVector.h" 
 
 #include "Geometry/Geometry.h"
-#include "RecoBase/Hit.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
+#include "RecoBase/Wire.h"
 
-//namespace recob { class Hit; }
 
 namespace cluster {
 

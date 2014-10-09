@@ -38,6 +38,7 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "art/Framework/Core/FindManyP.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 
@@ -98,6 +99,8 @@ namespace trkf{
     art::Handle< std::vector<recob::Cluster> > clustercol;
     evt.getByLabel(fCheatedClusterLabel, clustercol);
 
+    art::FindManyP<recob::Hit> fmh(clustercol, evt, fCheatedClusterLabel);
+
     // make a vector of them - we aren't writing anything out to a file
     // so no need for a art::PtrVector here
     std::vector< art::Ptr<recob::Cluster> > clusters;
@@ -107,11 +110,12 @@ namespace trkf{
     std::vector< art::Ptr<recob::Cluster> >::iterator itr = clusters.begin();
 
     // make a map of vectors of art::Ptrs keyed by eveID values
-    std::map< int, std::vector< art::Ptr<recob::Cluster> > > eveClusterMap;
-    std::map< int, std::vector< art::Ptr<recob::Cluster> > >::iterator clusterMapItr = eveClusterMap.begin();
+    std::map< int, std::vector< std::pair<size_t, art::Ptr<recob::Cluster> > > > eveClusterMap;
 
     // loop over all clusters and fill in the map
-    while( itr != clusters.end() ){
+    for(size_t c = 0; c < clusters.size(); ++c){
+
+      std::pair<size_t, art::Ptr<recob::Cluster> > idxPtr(c, clusters[c]);
 
       // in the ClusterCheater module we set the cluster ID to be 
       // the eve particle track ID*1000 + plane*100 + tpc*10 + cryostat number.  The
@@ -119,21 +123,8 @@ namespace trkf{
       // the eve track ID
       int eveID = floor((*itr)->ID()/1000.);
 
-      clusterMapItr = eveClusterMap.find(eveID);
+      eveClusterMap[eveID].push_back(idxPtr);
 	
-      // is this id already in the map, if so extend the collection 
-      // by one cluster, otherwise make a new collection and put it in
-      // the map
-      if( clusterMapItr != eveClusterMap.end() ){
-	  ((*clusterMapItr).second).push_back((*itr));
-      }
-      else{
-	std::vector< art::Ptr<recob::Cluster> > clustervec;
-	clustervec.push_back(*itr);
-	eveClusterMap[eveID] = clustervec;
-      }
-
-      itr++;
     }// end loop over clusters
 
     // loop over the map and make prongs
@@ -143,14 +134,12 @@ namespace trkf{
     std::unique_ptr< art::Assns<recob::Track, recob::Cluster> >    tcassn (new art::Assns<recob::Track, recob::Cluster>);
     std::unique_ptr< art::Assns<recob::Track, recob::Hit> >        thassn (new art::Assns<recob::Track, recob::Hit>);
 
-    for(clusterMapItr = eveClusterMap.begin(); clusterMapItr != eveClusterMap.end(); clusterMapItr++){
+    for(auto const& clusterMapItr : eveClusterMap){
 
       // separate out the hits for each particle into the different views
-      std::vector< art::Ptr<recob::Cluster> > eveClusters( (*clusterMapItr).second );
+      std::vector< std::pair<size_t, art::Ptr<recob::Cluster> > > const& eveClusters = clusterMapItr.second;
 
-      art::PtrVector<recob::Cluster> ptrvs;
-
-      simb::MCParticle *part = bt->ParticleList()[(*clusterMapItr).first];
+      simb::MCParticle *part = bt->ParticleList()[clusterMapItr.first];
 
       // is this prong electro-magnetic in nature or 
       // hadronic/muonic?  EM --> shower, everything else is a track
@@ -165,19 +154,23 @@ namespace trkf{
 	size_t nviews = geo->Nviews();
 	std::vector< std::vector<double> > dQdx(nviews);
 
-	mf::LogInfo("TrackCheater") << "G4 id " << (*clusterMapItr).first 
+	mf::LogInfo("TrackCheater") << "G4 id " << clusterMapItr.first 
 				    << " is a track with pdg code "
 				    << part->PdgCode();
 
-	for(size_t c = 0; c < eveClusters.size(); ++c) ptrvs.push_back(eveClusters[c]);
+	art::PtrVector<recob::Cluster> ptrvs;
+	std::vector<size_t> idxs;
+	for(auto const& idxPtr : eveClusters){
+	  ptrvs.push_back(idxPtr.second);
+	  idxs.push_back(idxPtr.first);
+	}
 
 	// grab the hits associated with the collection plane
-	art::FindManyP<recob::Hit> fmh(ptrvs, evt, fCheatedClusterLabel);
 	std::vector< art::Ptr<recob::Hit> > hits;
 	for(size_t p = 0; p < ptrvs.size(); ++p){
 	  hits = fmh.at(p);
 	  if(hits.size() < 2) continue;
-	  if(hits.at(0)->SignalType() == geo::kCollection) break; 
+	  if(hits[0]->SignalType() == geo::kCollection) break; 
 	}
 
 	// need at least 2 hits to make a track
@@ -187,19 +180,19 @@ namespace trkf{
 	size_t spStart = spcol->size();
 	for(size_t t = 0; t < hits.size(); ++t){
 	  
-	  std::vector<double> xyz = bt->HitToXYZ(hits.at(t));
+	  std::vector<double> xyz = bt->HitToXYZ(hits[t]);
 	  points.push_back(TVector3(xyz[0], xyz[1], xyz[2]));
 
 	  std::vector<double> xyz1;
-	  double charge = hits.at(t)->Charge();
+	  double charge = hits[t]->Charge();
 	  double dx     = 0.;
 	  double sign   = 1.;
 
 	  if(t < hits.size()-1){
-	    xyz1 = bt->HitToXYZ(hits.at(t+1));
+	    xyz1 = bt->HitToXYZ(hits[t+1]);
 	  }
 	  else{
-	    xyz1 = bt->HitToXYZ(hits.at(t-1));
+	    xyz1 = bt->HitToXYZ(hits[t-1]);
 	    sign = -1.;
 	  }
 
@@ -221,7 +214,7 @@ namespace trkf{
 	  // make the space point and set its ID and XYZ
 	  double xyzerr[6] = {1.e-3};
 	  double chisqr    = 0.9;
-	  recob::SpacePoint sp(&xyz[0], xyzerr, chisqr, eveClusters[0]->ID()*10000 + t);
+	  recob::SpacePoint sp(&xyz[0], xyzerr, chisqr, clusterMapItr.first*10000 + t);
 	  spcol->push_back(sp);
 	}
 	
@@ -232,7 +225,7 @@ namespace trkf{
 	std::vector<double> momentum(2);
 	momentum[0] = part->P();
 	momentum[1] = part->P(part->NumberTrajectoryPoints()-1);
-	trackcol->push_back(recob::Track(points, dirs, dQdx, momentum, (*clusterMapItr).first));
+	trackcol->push_back(recob::Track(points, dirs, dQdx, momentum, clusterMapItr.first));
 
 	// associate the track with its clusters
 	util::CreateAssn(*this, evt, *trackcol, ptrvs, *tcassn);
