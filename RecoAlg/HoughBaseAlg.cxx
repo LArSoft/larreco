@@ -269,19 +269,20 @@ size_t cluster::HoughBaseAlg::Transform(
   geo::SigType_t sigt = geom->Cryostat(cs).TPC(t).Plane(p).SignalType();
   std::vector<int> skip;  
   
-  double wire_pitch[3];
-  wire_pitch[0]= geom->WirePitch(0,1,0);
-  wire_pitch[1]= geom->WirePitch(0,1,1);
-  wire_pitch[2]= geom->WirePitch(0,1,2);
+  std::vector<double> wire_pitch(geom->Nplanes(t, cs), 0.);
+  for(size_t p = 0; p < wire_pitch.size(); ++p) 
+    wire_pitch[0] = geom->WirePitch(0,1,p);
 
   //factor to make x and y scale the same units
-  double xyScale[3];
-  xyScale[2]= .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
-  xyScale[0]=xyScale[2] * detprop->SamplingRate()/wire_pitch[0];
-  xyScale[1]=xyScale[2] * detprop->SamplingRate()/wire_pitch[1];
-  xyScale[2]*= detprop->SamplingRate()/wire_pitch[2];
+  std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
+  
+  /// \todo provide comment about where the 0.001 comes from
+  double driftVelFactor = 0.001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  
+  for(size_t p = 0; p < xyScale.size(); ++p)
+    xyScale[p] = driftVelFactor * detprop->SamplingRate()/wire_pitch[p];
 
-  float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature())*1.e-3 * detprop->SamplingRate();
+  float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature()) * 1.e-3 * detprop->SamplingRate();
   //tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
 
 
@@ -1473,19 +1474,20 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
     return -1; //continue;
   }
   
-  double wire_pitch[3];
-  wire_pitch[0]= geom->WirePitch(0,1,0);
-  wire_pitch[1]= geom->WirePitch(0,1,1);
-  wire_pitch[2]= geom->WirePitch(0,1,2);
+  std::vector<double> wire_pitch(geom->Nplanes(t, cs), 0.);
+  for(size_t p = 0; p < wire_pitch.size(); ++p) 
+    wire_pitch[p] = geom->WirePitch(0,1,p);
 
   //factor to make x and y scale the same units
-  double xyScale[3];
-  xyScale[2]= .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
-  xyScale[0]=xyScale[2] * detprop->SamplingRate()/wire_pitch[0];
-  xyScale[1]=xyScale[2] * detprop->SamplingRate()/wire_pitch[1];
-  xyScale[2]*= detprop->SamplingRate()/wire_pitch[2];
+  std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
+
+  /// \todo explain where the 0.001 comes from
+  double driftVelFactor = 0.001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+
+  for(size_t p = 0; p < xyScale.size(); ++p) 
+    xyScale[p] = driftVelFactor * detprop->SamplingRate()/wire_pitch[p];
   
-  int x, y;
+  int x = 0, y = 0;
   int dx = geom->Cryostat(cs).TPC(t).Plane(p).Nwires();//number of wires 
   int dy = hit.at(0)->Wire()->NSignal();//number of time samples. 
   skip.clear();
@@ -1690,6 +1692,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
             nHitsPerChannel++;
         }
         
+
+	/// \todo should it really be wire_pitch[0] in the if statements below, or the pitch for the plane of the hit?
 
         if(slope > 0 || (!newChannel && nHitsPerChannel <= 1)){
 
