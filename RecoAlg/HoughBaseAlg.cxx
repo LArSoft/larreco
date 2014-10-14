@@ -271,7 +271,7 @@ size_t cluster::HoughBaseAlg::Transform(
   
   std::vector<double> wire_pitch(geom->Nplanes(t, cs), 0.);
   for(size_t p = 0; p < wire_pitch.size(); ++p) 
-    wire_pitch[0] = geom->WirePitch(0,1,p);
+    wire_pitch[p] = geom->WirePitch(0,1,p);
 
   //factor to make x and y scale the same units
   std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
