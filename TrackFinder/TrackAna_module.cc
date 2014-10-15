@@ -1221,35 +1221,39 @@ namespace trkf {
     hitmap.clear();
     KEmap.clear();
     
-
+    // Look at the components of the stitched tracks. Grab their sppts/hits from Assns.
     for (int o = 0; o < ntv; ++o) // o for outer
       {
 
 	const art::PtrVector<recob::Track> pvtrack(*(cti++));
-	auto it = pvtrack.begin();
+	//	auto it = pvtrack.begin();
 	int ntrack = pvtrack.size();
 	//	if (ntrack>1) 	std::cout << "\t\t  TrkAna: New Stitched Track ******* " << std::endl;
 	std::vector< std::vector <unsigned int> > NtrkId_Hit; // hit IDs in inner tracks
 	std::vector<unsigned int> vecMode;
+	art::FindManyP<recob::SpacePoint> fs( pvtrack, evt, fTrkSpptAssocModuleLabel);
 
 	for(int i = 0; i < ntrack; ++i) {
 
-	  const art::Ptr<recob::Track> ptrack(*(it++));
+	  //const art::Ptr<recob::Track> ptrack(*(it++));
 	  //	  const recob::Track& track = *ptrack;
-	  auto pcoll { ptrack };
-	  art::FindManyP<recob::SpacePoint> fs( pcoll, evt, fTrkSpptAssocModuleLabel);
+	  //	  auto pcoll { ptrack };
+	  // art::FindManyP<recob::SpacePoint> fs( ptrack, evt, fTrkSpptAssocModuleLabel);
 	  // From gdb> ptype fs, the vector of Ptr<SpacePoint>s it appears is grabbed after fs.at(0)
 	  bool assns(true);
 	  try {
-	    // Get Spacepoints from this Track, get Hits from those Spacepoints.
+	    // Got Spacepoints from this Track; now get Hits from those Spacepoints.
 	    //	    int nsppts = ptrack->NumberTrajectoryPoints();
 	    
-	    int nsppts_assn = fs.at(0).size();  
+	    int nsppts_assn = fs.at(i).size();  
 	    //	    if (ntrack>1) std::cout << "\t\tTrackAna: Number of Spacepoints from Track.NumTrajPts(): " << nsppts << std::endl;
 	    //	    if (ntrack>1)  std::cout << "\t\tTrackAna: Number of Spacepoints from Assns for this Track: " << nsppts_assn << std::endl;
-	    //assert (nsppts_assn == nsppts);
-	    auto sppt = fs.at(0);//.at(is);
+
+	    const auto& sppt = fs.at(i);//.at(0);
+	    // since we're in a try and worried about failure, we won't pull the following
+	    // FindManyP out of the loop.
 	    art::FindManyP<recob::Hit> fh( sppt, evt, fHitSpptAssocModuleLabel);
+
 	    // Importantly, loop on all sppts, though they don't all contribute to the track.
 	    // As opposed to looping on the trajectory pts, which is a lower number. 
 	    // Also, important, in job in whch this runs I set TrackKal3DSPS parameter MaxPass=1, 
@@ -1259,7 +1263,7 @@ namespace trkf {
 	    for(int is = 0; is < nsppts_assn; ++is) {
 	      int nhits = fh.at(is).size(); // should be 2 or 3: number of planes.
 	      for(int ih = 0; ih < nhits; ++ih) {
-		auto hit = fh.at(is).at(ih); // Our vector is after the .at(is) this time.
+		const auto& hit = fh.at(is).at(ih); // Our vector is after the .at(is) this time.
 		if (hit->SignalType()!=geo::kCollection) continue;
 		rhistsStitched.fHHitChg->Fill(hit->Charge(false));
 		rhistsStitched.fHHitWidth->Fill(hit->EndTime() - hit->StartTime());
@@ -1278,6 +1282,8 @@ namespace trkf {
 		      // Add hit to PtrVector corresponding to this track id.
 		      rhistsStitched.fHHitTrkId->Fill(trackID); 
 		      const simb::MCParticle* part = bt->TrackIDToParticle(trackID);
+		      if (!part) break;
+
 		      rhistsStitched.fHHitPdg->Fill(part->PdgCode()); 
 		      // This really needs to be indexed as KE deposited in volTPC, not just KE. EC, 24-July-2014.
 
