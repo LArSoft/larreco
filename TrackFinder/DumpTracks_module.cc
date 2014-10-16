@@ -9,6 +9,7 @@
 #include <string>
 #include <sstream>
 #include <iomanip> // std::setw()
+#include <algorithm> // std::max()
 
 // support libraries
 #include "fhiclcpp/ParameterSet.h"
@@ -38,6 +39,8 @@ namespace track {
    *   producer used to create the recob::Track collection to be dumped
    * - <b>OutputCategory</b> (string, default: "DumpTracks"): the category
    *   used for the output (useful for filtering)
+   * - <b>WayPoints</b> (unsigned integer, default: 10): approximate number
+   *   of way points printed in the output
    *
    */
   class DumpTracks : public art::EDAnalyzer {
@@ -53,6 +56,7 @@ namespace track {
 
     std::string fTrackModuleLabel; ///< name of module that produced the tracks
     std::string fOutputCategory; ///< category for LogInfo output
+    unsigned int fPrintWayPoints; ///< number of printed way points
 
   }; // class DumpTracks
 
@@ -76,10 +80,10 @@ namespace track {
 
   //-------------------------------------------------
   DumpTracks::DumpTracks(fhicl::ParameterSet const& pset) 
-    : EDAnalyzer         (pset) 
+    : EDAnalyzer       (pset) 
     , fTrackModuleLabel(pset.get<std::string>("TrackModuleLabel"))
-    , fOutputCategory    (pset.get<std::string>("OutputCategory", "DumpTracks"))
-//    , fHitsPerLine       (pset.get<unsigned int>("HitsPerLine", 20))
+    , fOutputCategory  (pset.get<std::string>("OutputCategory", "DumpTracks"))
+    , fPrintWayPoints  (pset.get<unsigned int>("WayPoints", 10))
     {}
 
 
@@ -134,12 +138,20 @@ namespace track {
 */
       // print a header for the track
       { // limit the scope of log variable
+        const unsigned int nPoints = track.NumberTrajectoryPoints();
         mf::LogVerbatim log(fOutputCategory);
         log
-          << "Track #" << (iTrack++) << " " << track
-          << "ID: " << track.ID()
+          << "Track #" << (iTrack++) << " ID: " << track.ID()
             << std::fixed << std::setprecision(3)
             << " theta: " << track.Theta() << " phi: " << track.Phi()
+            << " length: " << track.Length() << " cm"
+          << "\n  position start: ( " << track.Vertex().X()
+            << " ; " << track.Vertex().Y()
+            << " ; " << track.Vertex().Z()
+            << " ), end: ( " << track.End().X()
+            << " ; " << track.End().Y()
+            << " ; " << track.End().Z()
+            << " )"
           << "\n  direction start: ( " << track.VertexDirection().X()
             << " ; " << track.VertexDirection().Y()
             << " ; " << track.VertexDirection().Z()
@@ -148,21 +160,46 @@ namespace track {
             << " ; " << track.EndDirection().Z()
             << " )"
           << "\n  with "
-            << track.NumberTrajectoryPoints() << " trajectory points, "
+            << nPoints << " trajectory points, "
             << track.NumberCovariance() << " covariance matrices, dQ/dx"
             << " in views";
-        if (track.NumberdQdx(geo::kU) > 0)
-          log << " U: " << track.NumberdQdx(geo::kU);
-        if (track.NumberdQdx(geo::kV) > 0)
-          log << " V: " << track.NumberdQdx(geo::kV);
-        if (track.NumberdQdx(geo::kZ) > 0)
-          log << " Z: " << track.NumberdQdx(geo::kZ);
-        if (track.NumberdQdx(geo::k3D) > 0)
-          log << " 3D: " << track.NumberdQdx(geo::k3D);
+        try {
+          if (track.NumberdQdx(geo::kU) > 0)
+            log << " U: " << track.NumberdQdx(geo::kU);
+        }
+        catch (std::out_of_range) {}
+        try {
+          if (track.NumberdQdx(geo::kV) > 0)
+            log << " V: " << track.NumberdQdx(geo::kV);
+        }
+        catch (std::out_of_range) {}
+        try {
+          if (track.NumberdQdx(geo::kZ) > 0)
+            log << " Z: " << track.NumberdQdx(geo::kZ);
+        }
+        catch (std::out_of_range) {}
+        try {
+          if (track.NumberdQdx(geo::k3D) > 0)
+            log << " 3D: " << track.NumberdQdx(geo::k3D);
+        }
+        catch (std::out_of_range) {}
+        
+        if (fPrintWayPoints > 0) {
+          // print up to 10 (actually, 8 or 9) way points
+          log << "\n  passes through:";
+          unsigned int skip = std::max(nPoints / fPrintWayPoints, 1U);
+          unsigned int iPoint = 0;
+          while ((iPoint += skip) < nPoints) {
+            const TVector3& point = track.LocationAtPoint(iPoint);
+            log << " [#" << iPoint << "] ("
+              << point.X() << ", " << point.Y() << ", " << point.Z()
+              << ")";
+          } // while (iPoint)
+        } // if print way points
+        
       } // unnamed block
       
     } // for tracks
-    
   } // DumpTracks::analyze()
 
   DEFINE_ART_MODULE(DumpTracks)
