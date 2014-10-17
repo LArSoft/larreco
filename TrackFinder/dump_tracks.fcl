@@ -71,6 +71,18 @@ physics: {
       # specify the label of the recob::Track producer
       TrackModuleLabel: "trackkalmanhit"
       
+      # print the number of associated hits? (default: true)
+      # HitAssociations:        true
+      # print the index of associated hits? (default: false)
+      # PrintHits:              true
+      # print the number of associated space points? (default: true)
+      # SpacePointAssociations: true
+      # print the index of associated space points? (default: false)
+      # PrintSpacePoints:       true
+      # print the number of associated particle-flow particles? (default: true)
+      # ParticleAssociations:   true
+      # print the index of associated particle-flow particles? (default: false)
+      # PrintParticles:         true
     } # dumptracks
   } # analyzers
   
