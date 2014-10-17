@@ -103,7 +103,7 @@ namespace {
     double ymax = geom->DetHalfHeight();
     double zmin = 0.;
     double zmax = geom->DetLength();
-
+    //double ticks_max = detprop->ReadOutWindowSize();
     double result = 0.;
     TVector3 disp;
     int n = part.NumberTrajectoryPoints();
@@ -831,7 +831,8 @@ namespace trkf {
 		}
 		else
 		  *pdump << std::setw(32)<< " ";
-		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend << "\n";
+		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend 
+		       << "\nLength: " << plen << "\n";
 	      }
 
 	      // Fill histograms.
@@ -1173,7 +1174,8 @@ namespace trkf {
 	    }
 	    else 
 	      *pdump << std::setw(32)<< " ";
-	    *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend << "\n";
+	    *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend
+		   << "\nLength: " << tlen << "\n";
 	  }
 	}
       }
