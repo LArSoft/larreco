@@ -38,7 +38,7 @@
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Core/EDProducer.h"
-
+#include "art/Framework/Core/FindManyP.h"
 
 // GENFIT includes
 #include "Genfit/GFAbsTrackRep.h"
@@ -1176,8 +1176,9 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		      art::PtrVector<recob::Hit> hits;// = hitAssns;
 		      for (unsigned int ii=0; ii < spacepointss.size(); ++ii)
 			{
-			  for (unsigned int jj=0; jj < hitAssns.at(ii).size(); ++jj)
-			    hits.push_back(hitAssns.at(ii).at(jj));
+			  //			  for (unsigned int jj=0; jj < hitAssns.at(ii).size(); ++jj)
+			    //			    hits.push_back(hitAssns.at(ii).at(jj));
+			  hits.insert(hits.end(),hitAssns.at(ii).begin(),hitAssns.at(ii).end());
 			}
 		      util::CreateAssn(*this, evt, *tcol, hits, *thassn, tcol->size()-1);
 		    } // end !skipFill
