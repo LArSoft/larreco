@@ -10,7 +10,7 @@ larsim		v03_02_01
 nutools         v1_06_03
 gcc		v4_9_1
 
-cetbuildtools	v4_02_02	-	only_for_build
+cetbuildtools	v4_03_00	-	only_for_build
 end_product_list
 
   
