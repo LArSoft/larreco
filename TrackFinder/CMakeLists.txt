@@ -93,12 +93,13 @@ simple_plugin( Track3DKalmanSPS "module"
 
 simple_plugin( DumpTracks "module"
                RecoBase
-               ${CETLIB}
-               ${FHICLCPP}
-               ${MF_MESSAGELOGGER}
-               ${MF_UTILITIES}
                ${ART_FRAMEWORK_CORE}
                ${ART_FRAMEWORK_PRINCIPAL}
+               ${MF_MESSAGELOGGER}
+               ${MF_UTILITIES}
+               ${FHICLCPP}
+               ${CETLIB}
+               ${ROOT_BASIC_LIB_LIST}
                BASENAME_ONLY
         )
 
