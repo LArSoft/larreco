@@ -2,7 +2,7 @@
 include_directories ( $ENV{G4INCLUDE} )
 
 art_make( BASENAME_ONLY 
-          EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc
+          EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc
           MODULE_LIBRARIES  RecoAlg
 			    Simulation
 			    RecoObjects
@@ -89,6 +89,18 @@ simple_plugin( Track3DKalmanSPS "module"
 			 ${CETLIB}
  	   BASENAME_ONLY
        )
+
+
+simple_plugin( DumpTracks "module"
+               RecoBase
+               ${CETLIB}
+               ${FHICLCPP}
+               ${MF_MESSAGELOGGER}
+               ${MF_UTILITIES}
+               ${ART_FRAMEWORK_CORE}
+               ${ART_FRAMEWORK_PRINCIPAL}
+               BASENAME_ONLY
+        )
 
 
 install_headers()
