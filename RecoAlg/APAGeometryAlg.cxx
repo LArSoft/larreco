@@ -22,6 +22,7 @@
 #include "RecoAlg/APAGeometryAlg.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Wire.h"
+#include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"

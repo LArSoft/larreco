@@ -14,6 +14,7 @@
   // Framework includes
 #include "art/Framework/Core/EDFilter.h" 
 #include "art/Framework/Core/ModuleMacros.h" //#include "ClusterFinder/ShowerSelector.h"
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art/Framework/Principal/Handle.h" 

@@ -33,6 +33,7 @@
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/LArProperties.h"
 #include "Geometry/Geometry.h"
+#include "Geometry/CryostatGeo.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/SpacePoint.h"

@@ -17,6 +17,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "RecoAlg/SeedFinderAlgorithm.h"
 #include "TVector3.h"
+#include "Geometry/CryostatGeo.h"
 #include "RecoBase/EndPoint2D.h"
 #include "RecoBase/Wire.h"
 

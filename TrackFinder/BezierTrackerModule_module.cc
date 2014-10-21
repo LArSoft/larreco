@@ -13,6 +13,7 @@
 //
 
 #include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/FindManyP.h"
 #include "RecoAlg/SeedFinderAlgorithm.h"
 #include "Geometry/Geometry.h"
 
