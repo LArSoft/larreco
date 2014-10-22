@@ -25,6 +25,7 @@
 #include "art/Framework/Services/Optional/TFileService.h"
 
 //LArSoft includes:
+#include "SimpleTypesAndConstants/geo_types.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 
