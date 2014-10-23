@@ -24,6 +24,7 @@
 #include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
+#include "art/Utilities/InputTag.h"
 
 // LArSoft includes
 #include "RecoBase/Track.h"
@@ -282,42 +283,45 @@ namespace track {
   void DumpTracks::analyze(const art::Event& evt) {
     
     // fetch the data to be dumped on screen
+    art::InputTag TrackInputTag(fTrackModuleLabel);
     art::ValidHandle<std::vector<recob::Track>> Tracks
-      = evt.getValidHandle<std::vector<recob::Track>>(fTrackModuleLabel);
+      = evt.getValidHandle<std::vector<recob::Track>>(TrackInputTag);
     
     mf::LogInfo(fOutputCategory)
-      << "The event contains " << Tracks->size() << " tracks";
+      << "The event contains " << Tracks->size() << " '"
+      << TrackInputTag.encode() << "'tracks";
     
     std::unique_ptr<art::FindManyP<recob::Hit>> pHits(
       fPrintNHits?
-      new art::FindManyP<recob::Hit>(Tracks, evt, fTrackModuleLabel):
+      new art::FindManyP<recob::Hit>(Tracks, evt, TrackInputTag):
       nullptr
       );
     if (pHits && !pHits->isValid()) {
       throw art::Exception(art::errors::ProductNotFound)
-        << "No hit associated with '" << fTrackModuleLabel << "' tracks.\n";
+        << "No hit associated with '" << TrackInputTag.encode()
+        << "' tracks.\n";
     }
     
     std::unique_ptr<art::FindManyP<recob::SpacePoint>> pSpacePoints(
       fPrintNSpacePoints?
-      new art::FindManyP<recob::SpacePoint>(Tracks, evt, fTrackModuleLabel):
+      new art::FindManyP<recob::SpacePoint>(Tracks, evt, TrackInputTag):
       nullptr
       );
     if (pSpacePoints && !pSpacePoints->isValid()) {
       throw art::Exception(art::errors::ProductNotFound)
-        << "No space point associated with '" << fTrackModuleLabel
+        << "No space point associated with '" << TrackInputTag.encode()
         << "' tracks.\n";
     }
     
     std::unique_ptr<art::FindManyP<recob::PFParticle>> pPFParticles(
       fPrintNParticles?
-      new art::FindManyP<recob::PFParticle>(Tracks, evt, fTrackModuleLabel):
+      new art::FindManyP<recob::PFParticle>(Tracks, evt, TrackInputTag):
       nullptr
       );
     if (pPFParticles && !pPFParticles->isValid()) {
       throw art::Exception(art::errors::ProductNotFound)
-        << "No particle-flow particle associated with '" << fTrackModuleLabel
-        << "' tracks.\n";
+        << "No particle-flow particle associated with '"
+        << TrackInputTag.encode() << "' tracks.\n";
     }
     
     for (unsigned int iTrack = 0; iTrack < Tracks->size(); ++iTrack) {

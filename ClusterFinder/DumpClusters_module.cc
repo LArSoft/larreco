@@ -22,6 +22,7 @@
 #include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
+#include "art/Utilities/InputTag.h"
 
 // LArSoft includes
 #include "RecoBase/Hit.h"
@@ -98,16 +99,20 @@ namespace cluster {
   void DumpClusters::analyze(const art::Event& evt) {
     
     // fetch the data to be dumped on screen
+  //  art::InputTag HitInputTag(fHitsModuleLabel);
+    art::InputTag ClusterInputTag(fClusterModuleLabel);
+    
   //  art::ValidHandle<std::vector<recob::Hit>> Hits
-  //    = evt.getValidHandle<std::vector<recob::Hit>>(fHitsModuleLabel);
+  //    = evt.getValidHandle<std::vector<recob::Hit>>(HitInputTag);
     art::ValidHandle<std::vector<recob::Cluster>> Clusters
-      = evt.getValidHandle<std::vector<recob::Cluster>>(fClusterModuleLabel);
+      = evt.getValidHandle<std::vector<recob::Cluster>>(ClusterInputTag);
     
     // get cluster-hit associations
-    art::FindManyP<recob::Hit> HitAssn(Clusters, evt, fClusterModuleLabel);
+    art::FindManyP<recob::Hit> HitAssn(Clusters, evt, ClusterInputTag);
     
     mf::LogInfo(fOutputCategory)
-      << "The event contains " << Clusters->size() << " clusters";
+      << "The event contains " << Clusters->size() << " '"
+      << ClusterInputTag.encode() << "' clusters";
     
     unsigned int iCluster = 0;
     std::vector<size_t> HitBuffer(fHitsPerLine), LastBuffer;
