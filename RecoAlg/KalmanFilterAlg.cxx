@@ -541,7 +541,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
     if(fTrace) {
       double path_est = gr.getPath();
       log << "Next surface: " << *(gr.getSurface()) << "\n";
-      log << "  Estimated distance = " << path_est << "\n";
+      log << "  Estimated path length of hit group = " << path_est << "\n";
     }
 
     // Get the next prediction surface.  If this KHitGroup is on the
@@ -577,8 +577,8 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       }
       if(fTrace) {
 	log << "After propagation\n";
-	log << "  Incremental distance = " << ds << "\n";
-	log << "  Actual distance = " << path << "\n";
+	log << "  Incremental propagation distance = " << ds << "\n";
+	log << "  Path length of prediction surface = " << path << "\n";
 	log << "KGTrack has " << trg.numHits() << " hits.\n";
 	log << trf;
       }
@@ -614,7 +614,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	    log << "Trying Hit.\n"
 		<< hit
 		<< "\nchisq = " << chisq << "\n"
-		<< "preddist = " << preddist << "\n";
+		<< "prediction distance = " << preddist << "\n";
 	  }
 	  if(chisq < fMaxSeedIncChisq && 
 	     (!has_pref_plane || abs(preddist) < fMaxSeedPredDist) &&
@@ -1350,7 +1350,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	if(fTrace) {
 	  double path_est = gr.getPath();
 	  log << "Next surface: " << *(gr.getSurface()) << "\n";
-	  log << "  Estimated distance = " << path_est << "\n";
+	  log << "  Estimated path length of hit group = " << path_est << "\n";
 	}
 
 	// Get the next prediction surface.  If this KHitGroup is on the
@@ -1387,7 +1387,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	  if(fTrace) {
 	    log << "After propagation\n";
 	    log << "  Incremental distance = " << ds << "\n";
-	    log << "  Actual distance = " << path << "\n";
+	    log << "  Track path length = " << path << "\n";
 	    log << "KGTrack has " << trg.numHits() << " hits.\n";
 	    log << trf;
 	  }

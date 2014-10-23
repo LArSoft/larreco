@@ -563,9 +563,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 		<< "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n";
 	    } // if debug
 
-	    // Cut on the seed slope dx/dz.
+	    // Cut on the seed slope dx/ds.
 
-	    if(std::abs(dir[0]) >= fMinSeedSlope * std::abs(dir[2])) {
+	    dirlen = std::sqrt(dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2]);
+	    if(std::abs(dir[0]) >= fMinSeedSlope * dirlen) {
 
 	      // Make one or two initial KTracks for forward and backward directions.
 	      // Assume muon (pdgid = 13).
@@ -627,10 +628,12 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 		    double mom1[3];
 		    trg0.startTrack().getMomentum(mom0);
 		    trg0.endTrack().getMomentum(mom1);
-		    double dxdz0 = mom0[0] / mom0[2];
-		    double dxdz1 = mom1[0] / mom1[2];
-		    ok = ok && (std::abs(dxdz0) > fMinSeedSlope &&
-				std::abs(dxdz1) > fMinSeedSlope);
+		    double mom0mag = std::sqrt(mom0[0]*mom0[0] + mom0[1]*mom0[1] + mom0[2]*mom0[2]);
+		    double mom1mag = std::sqrt(mom1[0]*mom1[0] + mom1[1]*mom1[1] + mom1[2]*mom1[2]);
+		    double dxds0 = mom0[0] / mom0mag;
+		    double dxds1 = mom1[0] / mom1mag;
+		    ok = ok && (std::abs(dxds0) > fMinSeedSlope &&
+				std::abs(dxds1) > fMinSeedSlope);
 		    if(ok) {
 
 		      // Make a copy of the original hit collection of all
