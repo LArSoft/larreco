@@ -565,7 +565,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 	    // Cut on the seed slope dx/ds.
 
-	    dirlen = std::sqrt(dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2]);
+	    double dirlen = std::sqrt(dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2]);
 	    if(std::abs(dir[0]) >= fMinSeedSlope * dirlen) {
 
 	      // Make one or two initial KTracks for forward and backward directions.
