@@ -761,6 +761,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       << "Track has " << trg.numHits() << " hits.\n"
       << "Track length = " << path << "\n"
       << "Track chisquare = " << fchisq << "\n";
+  // log << trg << "\n";
 
   // Done.  Return success if we added at least one measurement.
 
@@ -1104,6 +1105,7 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 	<< "Track has " << trg.numHits() << " hits.\n"
 	<< "Track length = " << trg.endTrack().getPath() - trg.startTrack().getPath() << "\n"
 	<< "Track chisquare = " << fchisq << "\n";
+    // log << trg << "\n";
   }
 
   //if(fGTrace && fCanvases.size() > 0) {
@@ -1556,6 +1558,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	<< "Track has " << trg.numHits() << " hits.\n"
 	<< "Track length = " << path << "\n"
 	<< "Track chisquare = " << fchisq << "\n";
+    // log << trg << "\n";
   }
 
   // Done.
@@ -2094,7 +2097,7 @@ bool trkf::KalmanFilterAlg::smoothTrackIter(int nsmooth,
   // Call smoothTrack method in a loop.
 
   for(int ismooth = 0; ok && ismooth < nsmooth-1; ++ismooth) {
-    KGTrack trg1;
+    KGTrack trg1(trg.getPrefPlane());
     ok = smoothTrack(trg, &trg1, prop);
     if(ok)
       trg = trg1;
