@@ -14,6 +14,7 @@
 // HitModuleLabel     - Module label for unclustered Hits.
 // ClusterModuleLabel - Module label for Clusters.
 // PFParticleModuleLabel - Module label for PFParticles.
+// StoreNPPlane       - Store nonpreferred planes trajectory points.
 // MaxTcut            - Maximum delta ray energy in Mev for dE/dx.
 // DoDedx             - Global dE/dx enable flag.
 // MinSeedHits        - Minimum number of hits per track seed.
@@ -183,6 +184,7 @@ namespace trkf {
     std::string fHitModuleLabel;        ///< Unclustered Hits.
     std::string fClusterModuleLabel;    ///< Clustered Hits.
     std::string fPFParticleModuleLabel; ///< PFParticle label.
+    bool fStoreNPPlane;                 ///< Store nonpreferred planes trajectory points.
     double fMaxTcut;                    ///< Maximum delta ray energy in MeV for restricted dE/dx.
     bool fDoDedx;                       ///< Global dE/dx enable flag.
     int fMinSeedHits;                   ///< Minimum number of hits per track seed.
@@ -228,6 +230,7 @@ trkf::Track3DKalmanHit::Track3DKalmanHit(fhicl::ParameterSet const & pset) :
   fHist(false),
   fUseClusterHits(false),
   fUsePFParticleHits(false),
+  fStoreNPPlane(true),
   fMaxTcut(0.),
   fDoDedx(false),
   fMinSeedHits(0),
@@ -285,6 +288,7 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
   fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
   fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
   fPFParticleModuleLabel = pset.get<std::string>("PFParticleModuleLabel");
+  fStoreNPPlane = pset.get<bool>("StoreNPPlane");
   fMaxTcut = pset.get<double>("MaxTcut");
   fDoDedx = pset.get<bool>("DoDedx");
   fMinSeedHits = pset.get<int>("MinSeedHits");
@@ -608,10 +612,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 		// Build and smooth seed track.
 
-		KGTrack trg0;
+		KGTrack trg0(prefplane);
 		bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, seedcont);
 		if(ok) {
-		  KGTrack trg1;
+		  KGTrack trg1(prefplane);
 		  ok = fKFAlg.smoothTrack(trg0, &trg1, fProp);
 		  if(ok) {
 
@@ -679,7 +683,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 			// unidirectionally fit track in the opposite
 			// direction.
 
-			KGTrack trg2;
+			KGTrack trg2(prefplane);
 			ok = fKFAlg.smoothTrack(trg1, &trg2, fProp);
 			if(ok) {
 
@@ -799,7 +803,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
       // Add Track object to collection.
 
       tracks->push_back(recob::Track());
-      kalman_track.fillTrack(tracks->back(), tracks->size() - 1);
+      kalman_track.fillTrack(tracks->back(), tracks->size() - 1, fStoreNPPlane);
 
       // Make Track to Hit associations.  
 

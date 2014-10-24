@@ -217,6 +217,7 @@ standard_track3Dkalmanhit:
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
   PFParticleModuleLabel: "pandora"
+  StoreNPPlane:       false         # Store non-preferred-plane hits?
   MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
   DoDedx:             false         # dE/dx enable flag.
   MinSeedHits:        12            # Minimum number of hits per track seed.

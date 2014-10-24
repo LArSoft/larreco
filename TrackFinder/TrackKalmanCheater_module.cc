@@ -383,7 +383,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
 	  // Build and smooth track.
 
-	  KGTrack trg;
+	  KGTrack trg(prefplane);
 	  fKFAlg.setPlane(prefplane);
 	  bool ok = fKFAlg.buildTrack(trk, trg, fProp, Propagator::FORWARD, cont);
 	  if(ok) {
@@ -443,7 +443,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
     // Add Track object to collection.
 
     tracks->push_back(recob::Track());
-    kalman_track.fillTrack(tracks->back(), tracks->size() - 1);
+    kalman_track.fillTrack(tracks->back(), tracks->size() - 1, true);
 
     // Make Track to Hit associations.  
 
