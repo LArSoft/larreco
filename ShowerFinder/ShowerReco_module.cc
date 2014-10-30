@@ -793,14 +793,15 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
    }
   
  
-
-  calorimetrycol->push_back(anab::Calorimetry(Kin_En,
- 						vdEdx,
- 						vdQdx,
- 						vresRange,
- 						deadwire,
- 						Trk_Length,
- 						fTrkPitchC));
+   geo::PlaneID planeID(0,0,fNPlanes-1);
+   calorimetrycol->push_back(anab::Calorimetry(Kin_En,
+					       vdEdx,
+					       vdQdx,
+					       vresRange,
+					       deadwire,
+					       Trk_Length,
+					       fTrkPitchC,
+					       planeID));
 
   art::PtrVector < recob::Shower >  ssvec;
 	
