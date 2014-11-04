@@ -31,7 +31,7 @@
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
-#include "RecoAlg/CCHitRefinerAlg.h"
+//#include "RecoAlg/CCHitRefinerAlg.h"
 
 
 namespace cluster {
@@ -51,7 +51,7 @@ class cluster::ClusterCrawler : public art::EDProducer {
   private:
     CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
     ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
-    CCHitRefinerAlg fCCHRAlg; // define CCHitRefinerAlg object    
+//    CCHitRefinerAlg fCCHRAlg; // define CCHitRefinerAlg object    
 };
 
 
@@ -59,8 +59,8 @@ namespace cluster {
 
   ClusterCrawler::ClusterCrawler(fhicl::ParameterSet const& pset) :
     fCCHFAlg(pset.get< fhicl::ParameterSet >("CCHitFinderAlg" )),
-    fCCAlg(  pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg")),
-    fCCHRAlg(pset.get< fhicl::ParameterSet >("CCHitRefinerAlg" ))
+    fCCAlg(  pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"))
+//    fCCHRAlg(pset.get< fhicl::ParameterSet >("CCHitRefinerAlg" ))
   {  
     this->reconfigure(pset);
     produces< std::vector<recob::Hit> >();
@@ -78,11 +78,15 @@ namespace cluster {
   {
     fCCAlg.reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
     fCCHFAlg.reconfigure(pset.get< fhicl::ParameterSet >("CCHitFinderAlg"));
-    fCCHRAlg.reconfigure(pset.get< fhicl::ParameterSet >("CCHitRefinerAlg"));
+//    fCCHRAlg.reconfigure(pset.get< fhicl::ParameterSet >("CCHitRefinerAlg"));
   }
   
   void ClusterCrawler::beginJob(){
   }
+  
+  // used for sorting clusters by length
+  typedef std::pair<unsigned int, unsigned int> mypair;
+  bool SortByLen(const mypair& L, const mypair& R) {return (L.first > R.first);}
   
   void ClusterCrawler::produce(art::Event & evt)
   {
@@ -108,13 +112,14 @@ namespace cluster {
     // put clusters and hits into std::vectors
     unsigned short nclus = 0;
     unsigned short hitcnt = 0;
-    for(size_t icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
+    double qtot;
+    for(unsigned short icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
       ClusterCrawlerAlg::ClusterStore clstr = fCCAlg.tcl[icl];
       if(clstr.ID < 0) continue;
       // start cluster numbering at 1
       ++nclus;
+      qtot = 0;
       // make the hits on this cluster
-      double totalQ = 0.;
       unsigned short firsthit = hitcnt;
       for(unsigned short itt = 0; itt < clstr.tclhits.size(); ++itt) {
         unsigned short iht = clstr.tclhits[itt];
@@ -137,9 +142,10 @@ namespace cluster {
           mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<theWire<<" "<<channel;
           return;
         }
+// NOTE: hit RMS in SigmaStartTime
         recob::Hit hit(theHit.Wire,  wids[0],
-              (double) theHit.Time - theHit.RMS, 0.,
-              (double) theHit.Time + theHit.RMS, 0.,
+              (double) theHit.LoTime, theHit.RMS,
+              (double) theHit.HiTime, 0.,
               (double) theHit.Time, theHit.TimeErr,
               (double) theHit.Charge, theHit.ChargeErr,
               (double) theHit.Amplitude, theHit.AmplitudeErr,
@@ -147,6 +153,7 @@ namespace cluster {
               (double) theHit.ChiDOF);
         shcol.push_back(hit);
         ++hitcnt;
+        qtot += theHit.Charge;
       } // itt
       // get the view from a hit on the cluster
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[clstr.tclhits[0]];
@@ -154,31 +161,52 @@ namespace cluster {
       uint32_t channel = theWire->Channel();
       
       // Stuff 2D vertex info into unused Cluster variables to help
-      // associate the Begin cluster - vertex and End cluster - vertex
-      double clBeginVtxWire = -1;
-      double clBeginVtxTime = -1;
-      double clEndVtxWire = -1;
-      double clEndVtxTime = -1;
-      unsigned int iv = 0;
+      // associate the Begin cluster - vertex 2D and End cluster - vertex 2D
+      double clBeginEP2Index = -1;
+      double clBeginVtxIndex = -1;
+      double clEndEP2Index = -1;
+      double clEndVtxIndex = -1;
+      short iv2 = 0;
+      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
+      unsigned short cPlane = planeID.Plane;
       if(clstr.BeginVtx >= 0) {
-        iv = clstr.BeginVtx;
-        clBeginVtxWire = fCCAlg.vtx[iv].Wire;
-        clBeginVtxTime = fCCAlg.vtx[iv].Time;
-      }
+        iv2 = clstr.BeginVtx;
+        clBeginEP2Index = iv2;
+        // See if this 2D vertex is associated with a 3D vertex
+        for(unsigned short iv3 = 0; iv3 < fCCAlg.vtx3.size(); ++iv3) {
+          // ignore incomplete vertices
+          if(fCCAlg.vtx3[iv3].Ptr2D[0] < 0) continue;
+          if(fCCAlg.vtx3[iv3].Ptr2D[1] < 0) continue;
+          if(fCCAlg.vtx3[iv3].Ptr2D[2] < 0) continue;
+          if(fCCAlg.vtx3[iv3].Ptr2D[cPlane] == iv2) {
+            clBeginVtxIndex = iv3;
+            break;
+          }
+        } // iv3
+      } // clstr.BeginVtx >= 0
       if(clstr.EndVtx >= 0) {
-        iv = clstr.EndVtx;
-        clEndVtxWire = fCCAlg.vtx[iv].Wire;
-        clEndVtxTime = fCCAlg.vtx[iv].Time;
-      }
+        iv2 = clstr.EndVtx;
+        clEndEP2Index = iv2;
+        for(unsigned short iv3 = 0; iv3 < fCCAlg.vtx3.size(); ++iv3) {
+          // ignore incomplete vertices
+          if(fCCAlg.vtx3[iv3].Ptr2D[0] < 0) continue;
+          if(fCCAlg.vtx3[iv3].Ptr2D[1] < 0) continue;
+          if(fCCAlg.vtx3[iv3].Ptr2D[2] < 0) continue;
+          if(fCCAlg.vtx3[iv3].Ptr2D[cPlane] == iv2) {
+            clEndVtxIndex = iv3;
+            break;
+          }
+        } // iv3
+      } // clstr.EndVtx >= 0
       
       // create the recob::Cluster directly in the vector
-      sccol.emplace_back((double)clstr.BeginWir, clBeginVtxWire,
-                         (double)clstr.BeginTim, clBeginVtxTime,
-                         (double)clstr.EndWir, clEndVtxWire,
-                         (double)clstr.EndTim, clEndVtxTime,
+      sccol.emplace_back((double)clstr.BeginWir, clBeginEP2Index,
+                         (double)clstr.BeginTim, clBeginVtxIndex,
+                         (double)clstr.EndWir, clEndEP2Index,
+                         (double)clstr.EndTim, clEndVtxIndex,
                          (double)clstr.EndSlp, (double)clstr.BeginSlp,
-                         -999.,0.,
-                         totalQ,
+                         (double)clstr.BeginChg, (double)clstr.EndChg,
+                         qtot,
                          geo->View(channel),
                          nclus,
                          ClusterCrawlerAlg::DecodeCTP(clstr.CTP)
@@ -202,9 +230,10 @@ namespace cluster {
       if(!wids[0].isValid) {
         mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<theWire<<" "<<channel;
       }
+// NOTE: hit RMS in SigmaStartTime
       recob::Hit hit(theHit.Wire,  wids[0],
-            (double) theHit.Time - theHit.RMS, 0.,
-            (double) theHit.Time + theHit.RMS, 0.,
+            (double) theHit.LoTime, theHit.RMS,
+            (double) theHit.HiTime, 0.,
             (double) theHit.Time , theHit.TimeErr,
             (double) theHit.Charge , theHit.ChargeErr,
             (double) theHit.Amplitude , theHit.AmplitudeErr,
@@ -242,25 +271,24 @@ namespace cluster {
         mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<planeID.Plane<<" "<<wire<<" "<<planeID.TPC<<" "<<planeID.Cryostat;
         continue;
       }
+      // stuff the (float) wire coordinate into the (not-useful) endpoint charge
       recob::EndPoint2D myvtx((double)aVtx.Time, wids[0], (double)aVtx.Wght,
-        (int)iv, geo->View(channel), 0.);
+        (int)iv, geo->View(channel), aVtx.Wire);
       v2col->push_back(myvtx);
     } // iv
     
     // make the 3D vertex collection
     double xyz[3] = {0, 0, 0};
-    int n3v = 0;
     for(unsigned short iv = 0; iv < fCCAlg.vtx3.size(); iv++) {
       ClusterCrawlerAlg::Vtx3Store vtx3 = fCCAlg.vtx3[iv];
       // ignore incomplete vertices
       if(vtx3.Ptr2D[0] < 0) continue;
       if(vtx3.Ptr2D[1] < 0) continue;
       if(vtx3.Ptr2D[2] < 0) continue;
-      ++n3v;
       xyz[0] = vtx3.X;
       xyz[1] = vtx3.Y;
       xyz[2] = vtx3.Z;
-      recob::Vertex myvtx(xyz, n3v);
+      recob::Vertex myvtx(xyz, iv);
       v3col->push_back(myvtx);
     }
 

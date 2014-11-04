@@ -8,8 +8,8 @@ standard_clustercrawleralg:
   MinHits:    [ 50,  8, 3] # minimum size of a cluster
   NHitsAve:   [ 20,  8, 0] # number of hits to find the average charge and width  
                            # at the end of the cluster. NHitsAve should be 1 or 2
-  ChgCut:    [ .7, .7, .7] # max fractional hit charge difference for adding hits
-  ChiCut:     [3., 3., 3.] # stop adding hits to clusters if ChiCut is reached
+  ChgCut:    [ .8, .8, .8] # max fractional hit charge difference for adding hits
+  ChiCut:     [4., 4., 4.] # stop adding hits to clusters if ChiCut is reached
   MaxWirSkip:   [25, 8, 2] # max number of wires to skip without adding a hit
   MinWirAfterSkip: [2, 2, 1] # min reqd number of consecutive wires with a hit after a skip
   KinkChiRat: [1.2, 1.2, 0.] # Max consecutive chisq increase for the last 3 hits on the cluster
@@ -17,15 +17,16 @@ standard_clustercrawleralg:
   KinkAngCut: [0.35, 0.35, 0.4] # kink angle cut (radians) used to follow and merge
   DoMerge:   [false, true, true] # run cluster merging code?
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
-  MergeChgCut: [0.35, 0.35, 0.35] # max charge ratio for cluster merging
+  MergeChgCut: [0.8, 0.8, 0.8] # max charge ratio for cluster merging
   FindVertices: [true, true, true]  # make 2D vertices after clustering?
-  LACrawl:     [true, true, true]  # crawl Large Angle clusters?
+  LACrawl:     [false, true, true]  # crawl Large Angle clusters?
   LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
   HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
-  ChkClusterDSEnd:    true # Check reconstruction at DS end of clusters?
-  VtxClusterSplit:   false # Split clusters that cross vertices
-  FindStarVertices:  false # Find vertices with a star topology
+  ChkClusterDS:       true # Check reconstruction at DS end of clusters?
+  MergeOverlap:       true # Merge overlapping clusters?
+  VtxClusterSplit:    true # Split clusters that cross vertices
+  FindStarVertices:   true # Find vertices with a star topology
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
   AllowNoHitWire:        1 # Allow skipping N wires w no hits (if poor purity)
   Vertex3DCut:          1. # 2D vtx -> 3D vtx matching cut (cm)
@@ -38,9 +39,9 @@ standard_cchitfinderalg:
 {
   CalDataModuleLabel: "caldata"
   MinSigInd:   3.   # min signal peak for induction plane
-  MinSigCol:   5.   # min signal peak for collection plane
-  MinRMSInd:   2.   # min signal width for induction plane
-  MinRMSCol:   2.   # min signal width for induction plane
+  MinSigCol:   3.   # min signal peak for collection plane
+  MinRMSInd:   1.   # min signal width for induction plane
+  MinRMSCol:   1.   # min signal width for induction plane
   MaxBumps:    5    # make a crude hit if > MaxBumps are found in the RAT
   MaxXtraHits: 1    # max number of hidden hits in Region Above Threshold
   ChiSplit:  10.   # Max chi/DOF for splitting hits for signal rms error = 1

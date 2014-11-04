@@ -10,21 +10,19 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
-
-#include "RecoAlg/CCHitFinderAlg.h"
-
-// C/C++ standard library
-#include <sstream>
-
-// ROOT Includes
-#include "TGraph.h"
-#include "TF1.h"
+extern "C" {
+#include <sys/types.h>
+#include <sys/stat.h>
+}
+#include <stdint.h>
+#include <iostream>
+#include <iomanip>
 
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Principal/Event.h"   
 #include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/EDProducer.h" 
 
 
 // LArSoft Includes
@@ -32,7 +30,15 @@
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
+#include "RecoBase/Hit.h"
 
+// ROOT Includes 
+#include "TGraph.h"
+#include "TMath.h"
+#include "TF1.h"
+// #include "TVirtualFitter.h"
+
+#include "RecoAlg/CCHitFinderAlg.h"
 
 namespace cluster{
 
