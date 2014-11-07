@@ -1,0 +1,7 @@
+#include "trackfindermodules_base.fcl"
+
+BEGIN_PROLOG
+
+lbne35t_trackcheater:        @local::standard_trackcheater
+
+END_PROLOG
