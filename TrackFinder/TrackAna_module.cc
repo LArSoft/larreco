@@ -277,6 +277,8 @@ namespace trkf {
       TH1F* fHmcdvdw;      // Truth dv/dw.
       TH1F* fHdudwpull;    // du/dw pull.
       TH1F* fHdvdwpull;    // dv/dw pull.
+      TH1F* fHHitEff;      // Hit efficiency.
+      TH1F* fHHitPurity;   // Hit purity.
 
       // Histograms for matched tracks.
 
@@ -365,6 +367,7 @@ namespace trkf {
     std::string fStitchModuleLabel;
     std::string fTrkSpptAssocModuleLabel;
     std::string fHitSpptAssocModuleLabel;
+    std::string fHitModuleLabel;
 
     int fDump;                 // Number of events to dump to debug message facility.
     double fMinMCKE;           // Minimum MC particle kinetic energy (GeV).
@@ -490,6 +493,8 @@ namespace trkf {
     fHmcdvdw(0),
     fHdudwpull(0),
     fHdvdwpull(0),
+    fHHitEff(0),
+    fHHitPurity(0),
     fHstartdx(0),
     fHstartdy(0),
     fHstartdz(0),
@@ -575,6 +580,8 @@ namespace trkf {
     fHmcdvdw = dir.make<TH1F>("mcdvdw", "MV Truth V Slope", 100, -0.2, 0.2);
     fHdudwpull = dir.make<TH1F>("dudwpull", "U Slope Pull", 100, -10., 10.);
     fHdvdwpull = dir.make<TH1F>("dvdwpull", "V Slope Pull", 100, -10., 10.);
+    fHHitEff = dir.make<TH1F>("hiteff", "MC Hit Efficiency", 100, 0., 1.0001);
+    fHHitPurity = dir.make<TH1F>("hitpurity", "MC Hit Purity", 100, 0., 1.0001);
     fHstartdx = dir.make<TH1F>("startdx", "Start Delta x", 100, -10., 10.);
     fHstartdy = dir.make<TH1F>("startdy", "Start Delta y", 100, -10., 10.);
     fHstartdz = dir.make<TH1F>("startdz", "Start Delta z", 100, -10., 10.);
@@ -665,6 +672,7 @@ namespace trkf {
     , fStitchModuleLabel(pset.get<std::string>("StitchModuleLabel"))
     , fTrkSpptAssocModuleLabel(pset.get<std::string>("TrkSpptAssocModuleLabel"))
     , fHitSpptAssocModuleLabel(pset.get<std::string>("HitSpptAssocModuleLabel"))
+    , fHitModuleLabel(pset.get<std::string>("HitModuleLabel"))
     , fDump(pset.get<int>("Dump"))
     , fMinMCKE(pset.get<double>("MinMCKE"))
     , fMinMCLen(pset.get<double>("MinMCLen"))
@@ -684,6 +692,7 @@ namespace trkf {
       << "  StitchModuleLabel = " << fStitchModuleLabel << "\n"
       << "  TrkSpptAssocModuleLabel = " << fTrkSpptAssocModuleLabel << "\n"
       << "  HitSpptAssocModuleLabel = " << fHitSpptAssocModuleLabel << "\n"
+      << "  HitModuleLabel = " << fHitModuleLabel << "\n"
       << "  Dump = " << fDump << "\n"
       << "  MinMCKE = " << fMinMCKE << "\n"
       << "  MinMCLen = " << fMinMCLen;
@@ -869,10 +878,25 @@ namespace trkf {
     // Get tracks and spacepoints and hits
     art::Handle< std::vector<recob::Track> > trackh;
     art::Handle< std::vector< art::PtrVector < recob::Track > > > trackvh;
+    art::Handle< std::vector<recob::Hit> > hith;
 
     evt.getByLabel(fTrackModuleLabel, trackh);
     evt.getByLabel(fStitchModuleLabel,trackvh);
+    evt.getByLabel(fHitModuleLabel, hith);
 
+    // Extract all hits into a vector of art::Ptrs (the format used by back tracker).
+
+    std::vector<art::Ptr<recob::Hit> > allhits;
+    if(hith.isValid()) {
+      allhits.reserve(hith->size());
+      for(unsigned int i=0; i<hith->size(); ++i) {
+	allhits.emplace_back(hith, i);
+      }
+    }
+
+    // Construct FindManyP object to be used for finding track-hit associations.
+
+    art::FindManyP<recob::Hit> tkhit_find(trackh, evt, fTrackModuleLabel);
 
     // This new top part of TrackAna between two long lines of ************s
     // is particular to analyzing Stitched Tracks.
@@ -900,6 +924,11 @@ namespace trkf {
       for(int i = 0; i < ntrack; ++i) {
 	art::Ptr<recob::Track> ptrack(trackh, i);
 	const recob::Track& track = *ptrack;
+
+	// Extract hits associated with this track.
+
+	std::vector<art::Ptr<recob::Hit> > trackhits;
+	tkhit_find.get(i, trackhits);
 
 	// Calculate the x offset due to nonzero reconstructed time.
 
@@ -1104,6 +1133,19 @@ namespace trkf {
 		    tlen > 0.5 * plen;
 		  if(good) {
 		    mcid = part->TrackId();
+
+		    // Calculate and fill hit efficiency and purity.
+
+		    std::set<int> tkidset;
+		    tkidset.insert(mcid);
+		    double hiteff = 
+		      bt->HitCollectionEfficiency(tkidset, trackhits, allhits, geo::k3D);
+		    double hitpurity = bt->HitCollectionPurity(tkidset, trackhits);
+		    mchists.fHHitEff->Fill(hiteff);
+		    mchists.fHHitPurity->Fill(hitpurity);
+
+		    // Fill efficiency numerator histograms.
+
 		    mchists.fHgstartx->Fill(mcstart.X());
 		    mchists.fHgstarty->Fill(mcstart.Y());
 		    mchists.fHgstartz->Fill(mcstart.Z());
