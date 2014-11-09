@@ -125,7 +125,7 @@ namespace trkf{
       int eveID = floor((*itr)->ID()/1000.);
 
       eveClusterMap[eveID].push_back(idxPtr);
-	
+      ++itr;
     }// end loop over clusters
 
     // loop over the map and make prongs
@@ -169,9 +169,10 @@ namespace trkf{
 	// grab the hits associated with the collection plane
 	std::vector< art::Ptr<recob::Hit> > hits;
 	for(size_t p = 0; p < ptrvs.size(); ++p){
-	  hits = fmh.at(p);
-	  if(hits.size() < 2) continue;
-	  if(hits[0]->SignalType() == geo::kCollection) break; 
+	  std::vector< art::Ptr<recob::Hit> > chits = fmh.at(idxs[p]);
+	  if (!chits.size()) continue;
+	  if (chits[0]->SignalType() != geo::kCollection) continue;
+	  hits.insert(hits.end(), chits.begin(), chits.end());
 	}
 
 	// need at least 2 hits to make a track
@@ -180,7 +181,6 @@ namespace trkf{
 	// loop over the hits to get the positions and directions
 	size_t spStart = spcol->size();
 	for(size_t t = 0; t < hits.size(); ++t){
-	  
 	  std::vector<double> xyz = bt->HitToXYZ(hits[t]);
 	  points.push_back(TVector3(xyz[0], xyz[1], xyz[2]));
 
@@ -234,7 +234,7 @@ namespace trkf{
 	// assume the input tracks were previously associated with hits
 	hits.clear();
 	for(size_t p = 0; p < ptrvs.size(); ++p){
-	  hits  = fmh.at(p);
+	  hits  = fmh.at(idxs[p]);
 	  util::CreateAssn(*this, evt, *trackcol, hits, *thassn);
 	}
 
