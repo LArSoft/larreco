@@ -802,8 +802,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
       // Add Track object to collection.
 
-      tracks->push_back(recob::Track());
-      kalman_track.fillTrack(tracks->back(), tracks->size() - 1, fStoreNPPlane);
+      recob::Track track;
+      kalman_track.fillTrack(track, tracks->size(), fStoreNPPlane);
+      if(track.NumberTrajectoryPoints() >= 2)
+	tracks->emplace_back(std::move(track));
 
       // Make Track to Hit associations.  
 
