@@ -370,10 +370,17 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
 
   art::ServiceHandle<util::LArProperties> larp;
   art::ServiceHandle<util::DetectorProperties> detp;
+  art::ServiceHandle<geo::Geometry> geom;
 
-  fWirePitch.push_back(fGeom->WirePitch(0,1,0));
-  fWirePitch.push_back(fGeom->WirePitch(0,1,1));
-  fWirePitch.push_back(fGeom->WirePitch(0,1,2));
+
+  unsigned int cs=allhits[0]->WireID().Cryostat;
+  unsigned int t=allhits[0]->WireID().TPC;
+
+  fWirePitch.resize(geom->Nplanes(t, cs), 0.);
+  for(size_t p = 0; p < fWirePitch.size(); ++p) 
+    fWirePitch[p] = geom->WirePitch(0,1,p);
+
+
 
   // Collect the hits in a useful form,
   // and take note of the maximum time width
