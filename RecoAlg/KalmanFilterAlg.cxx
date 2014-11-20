@@ -616,19 +616,22 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 		<< "\nchisq = " << chisq << "\n"
 		<< "prediction distance = " << preddist << "\n";
 	  }
-	  if(chisq < fMaxSeedIncChisq && 
-	     (!has_pref_plane || abs(preddist) < fMaxSeedPredDist) &&
+	  if((!has_pref_plane || abs(preddist) < fMaxSeedPredDist) &&
 	     (best_hit.get() == 0 || chisq < best_chisq) ) {
-	    best_hit = *ihit;
 	    best_chisq = chisq;
+	    if(chisq < fMaxSeedIncChisq)
+	      best_hit = *ihit;
 	  }
 	}
       }
       if(fTrace) {
+	log << "Best hit incremental chisquare = " << best_chisq << "\n";
 	if(best_hit.get() != 0) {
 	  log << "Hit after prediction\n";
 	  log << *best_hit;
 	}
+	else
+	  log << "No hit passed chisquare cut.\n";
       }
       if(fGTrace && fCanvases.size() > 0)
 	fCanvases.back()->Update();
@@ -1421,18 +1424,22 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	    if(ok) {
 	      double chisq = hit.getChisq();
 	      double preddist = hit.getPredDistance();
-	      if(chisq < fMaxIncChisq && abs(preddist) < fMaxPredDist &&
+	      if(abs(preddist) < fMaxPredDist &&
 		 (best_hit.get() == 0 || chisq < best_chisq)) {
-		best_hit = *ihit;
 		best_chisq = chisq;
+		if(chisq < fMaxIncChisq)
+		  best_hit = *ihit;
 	      }
 	    }
 	  }
 	  if(fTrace) {
+	    log << "Best hit incremental chisquare = " << best_chisq << "\n";
 	    if(best_hit.get() != 0) {
 	      log << "Hit after prediction\n";
 	      log << *best_hit;
 	    }
+	    else
+	      log << "No hit passed chisquare cut.\n";
 	  }
 	  if(fGTrace && fCanvases.size() > 0)
 	    fCanvases.back()->Update();
