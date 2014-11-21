@@ -46,6 +46,7 @@ microboone_trackstitcher.StitchAlg:                     @local::microboone_track
 microboone_cosmictracker:                               @local::standard_cosmictracker  
 microboone_cosmictracker.ClusterModuleLabel:            "cccluster"
 microboone_cosmictracker.DirSPS:                        true
+microboone_cctrackmaker:                                @local::standard_cctrackmaker
 
 microboone_2stg_kalman:
 {

@@ -591,16 +591,31 @@ namespace cluster{
     } // flag == 0
     
     if(flag == 1) {
-      // decide if this RAT should be studied. look for a large PH 
       SelRAT = false;
-      for(unsigned short ii = 0; ii < npt; ++ii) {
-        if(signl[ii] > 20.) {
+      if(thePlane == 0) {
+        if(theWireNum > 1700 && theWireNum < 1750 && 
+           tstart > 580 && tstart < 640) {
           SelRAT = true;
           RATCnt[thePlane] += 1;
-          break;
         }
-      }  // ii
-      return;
+        return;
+      } // thePlane == 2
+      if(thePlane == 1) {
+        if(theWireNum > 1350 && theWireNum < 1370 && 
+           tstart > 400 && tstart < 480) {
+          SelRAT = true;
+          RATCnt[thePlane] += 1;
+        }
+        return;
+      } // thePlane == 2
+      if(thePlane == 2) {
+        if(theWireNum > 2250 && theWireNum < 2300 && 
+           tstart > 600 && tstart < 660) {
+          SelRAT = true;
+          RATCnt[thePlane] += 1;
+        }
+        return;
+      } // thePlane == 2
     } // flag == 1
     
     if(flag == 2) {
@@ -691,7 +706,7 @@ namespace cluster{
             <<std::setw(7)<<hitCnt[ipl]
             <<std::setw(7)<<std::setprecision(1)<<hitRMS[ipl]
             <<std::setw(7)<<theta
-            <<std::setw(7)<<std::setprecision(1)
+            <<std::setw(7)<<std::setprecision(2)
             <<bumpChi[ipl]*fChiNorms[ipl]
             <<std::endl;
         } // 
