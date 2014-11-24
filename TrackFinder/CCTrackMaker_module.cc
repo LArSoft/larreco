@@ -486,6 +486,14 @@ namespace trkf {
           PrintTracks();
         }
         for(ipl = 0; ipl < nplanes; ++ipl) {
+          for(icl = 0; icl < cls[ipl].size(); ++icl) {
+            if(cls[ipl][icl].Length > 40 && cls[ipl][icl].InTrack < 0)
+              std::cout<<"Orphan long cluster "<<ipl<<":"<<icl
+                <<":"<<cls[ipl][icl].Wire[0]
+                <<":"<<(int)cls[ipl][icl].Time[0]
+                <<" length "<<cls[ipl][icl].Length
+                <<"\n";
+          } // icl
           cls[ipl].clear();
           ep2[ipl].clear();
         }
@@ -575,6 +583,9 @@ namespace trkf {
                     if(DupMatch(match, matcomb)) continue;
                     // ignore if no signal at the other end
                     if(match.Chg[kpl] <= 0) continue;
+                    // add other end RMS to match end RMS for compatibility
+                    // with SortMatches and PlnMatch
+                    match.RMS += match.oRMS;
                     matcomb.push_back(match);
                     gotkcl = true;
                   } // kend
@@ -583,7 +594,9 @@ namespace trkf {
                   // Try a 2 plane match if a 3 plane match didn't work
                   match.Cls[kpl] = -1; match.End[kpl] = 0;
                   FillEndMatch(allhits, match, cstat, tpc);
-                  if(match.RMS < 100) matcomb.push_back(match);
+                  match.RMS += match.oRMS;
+                  if(match.RMS > 100) continue;
+                  matcomb.push_back(match);
                 }
               } // jend
             } // iend
@@ -593,6 +606,8 @@ namespace trkf {
       if(matcomb.size() == 0) continue;
 
       SortMatches(matcomb, fmCluHits, 1);
+      
+      prt = false;
 
     } // ivx
     
@@ -642,8 +657,8 @@ namespace trkf {
               dXCut = 1;
             }
             dA = fabs(cls[ipl][icl1].Angle[end] - cls[ipl][icl2].Angle[oend]);
-  prt = (ipl == 2 && icl1 == 2 && icl2 == 10);
-  if(prt) std::cout<<"dA "<<dA<<" cut "<<dACut<<"\n";
+//  prt = (ipl == 1 && icl1 == 12 && icl2 == 24);
+//  if(prt) std::cout<<"dA "<<dA<<" cut "<<dACut<<"\n";
             // ignore vertices that have only two associated clusters and
             // the angle is small
             if(dA < 0.1 && cls[ipl][icl1].VtxIndex[end] >= 0) {
@@ -658,8 +673,8 @@ namespace trkf {
             } // dA < 0.1 && ...
             // angle matching
             if(dA > dACut) continue;
-  if(prt) std::cout<<"rough dX "
-    <<fabs(cls[ipl][icl1].X[end] - cls[ipl][icl2].X[oend])<<" cut = 6\n";
+//  if(prt) std::cout<<"rough dX "
+//    <<fabs(cls[ipl][icl1].X[end] - cls[ipl][icl2].X[oend])<<" cut = 6\n";
             // make a rough dX cut
             if(fabs(cls[ipl][icl1].X[end] 
                  - cls[ipl][icl2].X[oend]) > 6) continue;
@@ -671,7 +686,7 @@ namespace trkf {
             } else {
               chgasym = fabs(cls[ipl][icl1].Charge[end] - cls[ipl][icl2].Charge[oend]);
               chgasym /= cls[ipl][icl1].Charge[end] + cls[ipl][icl2].Charge[oend];
-  if(prt) std::cout<<"chgasym "<<chgasym<<" cut "<<fMergeChgAsym<<"\n";
+//  if(prt) std::cout<<"chgasym "<<chgasym<<" cut "<<fMergeChgAsym<<"\n";
               if(chgasym > fMergeChgAsym) continue;
             } // ls1 || ls2
             // project to DS end of icl2 and make a tighter X cut
@@ -679,10 +694,12 @@ namespace trkf {
                                cls[ipl][icl1].Wire[end]);
             dx = cls[ipl][icl1].X[end] + cls[ipl][icl1].Slope[end] * dw 
                - cls[ipl][icl2].X[oend];
+/*
   if(prt) std::cout
     <<" X0 "<<cls[ipl][icl1].X[end]<<" slp "<<cls[ipl][icl1].Slope[end]
     <<" dw "<<dw<<" oX "<<cls[ipl][icl2].X[oend]
     <<" dx "<<dx<<" cut "<<dXCut<<"\n";
+*/
             if(abs(dx) > dXCut) continue;
   if(cls[ipl][icl1].BrkIndex[end] >= 0) {
     mf::LogWarning("CCTM")<<"FBC: Trying to merge already merged cluster "
@@ -1037,8 +1054,9 @@ namespace trkf {
     <<" k "<<match.Pln[2]<<":"<<match.Cls[2]<<":"<<match.End[2]
     <<" oChg "<<match.Chg[kpl]<<" RMS "<<match.RMS + match.oRMS;
                       if(match.Chg[kpl] == 0) continue;
-                      // drop the kpl cluster if the match is poor
-//                      if(match.RMS + match.oRMS > 10) {
+                      if(match.RMS > 10) continue;
+                      if(match.oRMS > 100) continue;
+/*
                       if(match.RMS > 10) {
                         match.Cls[kpl] = -1; match.End[kpl] = 0;
                         FillEndMatch(allhits, match, cstat, tpc);
@@ -1047,6 +1065,7 @@ namespace trkf {
                         match.RMS *= 1.5;
                         if(match.RMS > 10) continue;
                       }
+*/
                       matcomb.push_back(match);
                     } // da < angCut
                   } // kend
