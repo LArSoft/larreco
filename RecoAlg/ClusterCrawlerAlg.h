@@ -276,9 +276,6 @@ namespace cluster {
     // merge the hits in a multiplet into one hit
     void MergeHits(std::vector<CCHitFinderAlg::CCHit>& allhits,
       unsigned short theHit);
-    // merge all unused cluster hits in a multiplet into one hit
-    void MergeClusterHits(std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<ClusterStore>& tcl);   
 
     // ************** cluster finish routines *******************
 

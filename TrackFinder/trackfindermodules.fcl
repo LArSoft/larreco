@@ -10,7 +10,8 @@ standard_cctrackmaker:
   EndPoint2DModuleLabel:  "cccluster"
   VertexModuleLabel:      "cccluster"
   MatchAlgs:        3     # 1 = vtx, 2 = pln, 3 = both
-  MaxDAng:           0.5  # kink angle cut (radians)
+  MaxDAng:           0.55 # kink angle cut (radians)
+  MergeChgAsym:      0.3  # charge asymmetry cut for merging clusters
   XMatchErr:    0.2       # end X match uncertainty
   AngleMatchErr:  0.02    # end angle match uncertainty
   ChgAsymFactor:  1       # scale rms by charge asymmetry * this factor

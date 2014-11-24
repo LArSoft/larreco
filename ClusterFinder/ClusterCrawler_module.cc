@@ -142,10 +142,9 @@ namespace cluster {
           mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<theWire<<" "<<channel;
           return;
         }
-// NOTE: hit RMS in SigmaStartTime
         recob::Hit hit(theHit.Wire,  wids[0],
-              (double) theHit.LoTime, theHit.RMS,
-              (double) theHit.HiTime, 0.,
+              (double) (theHit.Time - theHit.RMS), 0.,
+              (double) (theHit.Time + theHit.RMS), 0.,
               (double) theHit.Time, theHit.TimeErr,
               (double) theHit.Charge, theHit.ChargeErr,
               (double) theHit.Amplitude, theHit.AmplitudeErr,
@@ -169,6 +168,10 @@ namespace cluster {
       short iv2 = 0;
       geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
       unsigned short cPlane = planeID.Plane;
+      if(!planeID.isValid) {
+        mf::LogError("ClusterCrawler")<<"Invalid PlaneID from CTP "<<clstr.CTP;
+        return;
+      } // !planeID.isValid
       if(clstr.BeginVtx >= 0) {
         iv2 = clstr.BeginVtx;
         clBeginEP2Index = iv2;
@@ -209,7 +212,8 @@ namespace cluster {
                          qtot,
                          geo->View(channel),
                          nclus,
-                         ClusterCrawlerAlg::DecodeCTP(clstr.CTP)
+                         planeID
+//                         ClusterCrawlerAlg::DecodeCTP(clstr.CTP)
                          );
       
       // associate the hits to this cluster
@@ -230,10 +234,9 @@ namespace cluster {
       if(!wids[0].isValid) {
         mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<theWire<<" "<<channel;
       }
-// NOTE: hit RMS in SigmaStartTime
       recob::Hit hit(theHit.Wire,  wids[0],
-            (double) theHit.LoTime, theHit.RMS,
-            (double) theHit.HiTime, 0.,
+            (double) (theHit.Time - theHit.RMS), 0.,
+            (double) (theHit.Time + theHit.RMS), 0.,
             (double) theHit.Time , theHit.TimeErr,
             (double) theHit.Charge , theHit.ChargeErr,
             (double) theHit.Amplitude , theHit.AmplitudeErr,

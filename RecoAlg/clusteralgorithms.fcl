@@ -14,7 +14,7 @@ standard_clustercrawleralg:
   MinWirAfterSkip: [2, 2, 1] # min reqd number of consecutive wires with a hit after a skip
   KinkChiRat: [1.2, 1.2, 0.] # Max consecutive chisq increase for the last 3 hits on the cluster
                              # 0. = no kink check when following
-  KinkAngCut: [0.35, 0.35, 0.4] # kink angle cut (radians) used to follow and merge
+  KinkAngCut: [0.55, 0.55, 0.55] # kink angle cut (radians) used to follow and merge
   DoMerge:   [false, true, true] # run cluster merging code?
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
   MergeChgCut: [0.8, 0.8, 0.8] # max charge ratio for cluster merging
@@ -40,12 +40,12 @@ standard_cchitfinderalg:
   CalDataModuleLabel: "caldata"
   MinSigInd:   3.   # min signal peak for induction plane
   MinSigCol:   3.   # min signal peak for collection plane
-  MinRMSInd:   1.   # min signal width for induction plane
-  MinRMSCol:   1.   # min signal width for induction plane
+  MinRMSInd:   3.   # min signal width for induction plane
+  MinRMSCol:   3.   # min signal width for induction plane
   MaxBumps:    5    # make a crude hit if > MaxBumps are found in the RAT
   MaxXtraHits: 1    # max number of hidden hits in Region Above Threshold
-  ChiSplit:  10.   # Max chi/DOF for splitting hits for signal rms error = 1
-  ChiNorms: [ 1.0, 1.0, 1.0 ]  # chi/DOF normalization for each plane
+  ChiSplit:  20.   # Max chi/DOF for splitting hits for signal rms error = 1
+  ChiNorms: [ 0.1, 1.0, 0.1 ]  # chi/DOF normalization for each plane
   TimeOffsets: [ 0., 0., 0. ] # hit time offsets
   ChgNorms: [ 1.0, 1.0, 1.0 ]   # Area -> Charge normalization
 }
