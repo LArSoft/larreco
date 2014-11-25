@@ -219,13 +219,17 @@ namespace trkf {
     bool DupMatch(MatchPars& match, std::vector<MatchPars>& matcomb);
     
     void SortMatches(std::vector<MatchPars>& matcomb,
-                     art::FindManyP<recob::Hit> const& fmCluHits, 
+                     art::FindManyP<recob::Hit> const& fmCluHits,
+                     std::array<std::vector<clPar>, 3>& cls, 
                      unsigned short procCode);
 
     // fill the trkHits array using information
     void FillTrkHits(art::FindManyP<recob::Hit> const& fmCluHits, bool& success);
 
     void FillClmat(unsigned short pln, short cls, unsigned short end);
+    
+    void ChkClmat(std::array<std::vector<clPar>, 3>& cls, 
+                  std::vector<MatchPars>& matcomb);
 
     // store the track in the trk vector
     void StoreTrack(art::FindManyP<recob::Hit> const& fmCluHits, 
@@ -605,7 +609,7 @@ namespace trkf {
       } // ipl
       if(matcomb.size() == 0) continue;
 
-      SortMatches(matcomb, fmCluHits, 1);
+      SortMatches(matcomb, fmCluHits, cls, 1);
       
       prt = false;
 
@@ -657,8 +661,8 @@ namespace trkf {
               dXCut = 1;
             }
             dA = fabs(cls[ipl][icl1].Angle[end] - cls[ipl][icl2].Angle[oend]);
-//  prt = (ipl == 1 && icl1 == 12 && icl2 == 24);
-//  if(prt) std::cout<<"dA "<<dA<<" cut "<<dACut<<"\n";
+  prt = (ipl == 1 && icl1 == 12 && icl2 == 24);
+  if(prt) std::cout<<"dA "<<dA<<" cut "<<dACut<<"\n";
             // ignore vertices that have only two associated clusters and
             // the angle is small
             if(dA < 0.1 && cls[ipl][icl1].VtxIndex[end] >= 0) {
@@ -673,8 +677,8 @@ namespace trkf {
             } // dA < 0.1 && ...
             // angle matching
             if(dA > dACut) continue;
-//  if(prt) std::cout<<"rough dX "
-//    <<fabs(cls[ipl][icl1].X[end] - cls[ipl][icl2].X[oend])<<" cut = 6\n";
+  if(prt) std::cout<<"rough dX "
+    <<fabs(cls[ipl][icl1].X[end] - cls[ipl][icl2].X[oend])<<" cut = 6\n";
             // make a rough dX cut
             if(fabs(cls[ipl][icl1].X[end] 
                  - cls[ipl][icl2].X[oend]) > 6) continue;
@@ -686,7 +690,7 @@ namespace trkf {
             } else {
               chgasym = fabs(cls[ipl][icl1].Charge[end] - cls[ipl][icl2].Charge[oend]);
               chgasym /= cls[ipl][icl1].Charge[end] + cls[ipl][icl2].Charge[oend];
-//  if(prt) std::cout<<"chgasym "<<chgasym<<" cut "<<fMergeChgAsym<<"\n";
+  if(prt) std::cout<<"chgasym "<<chgasym<<" cut "<<fMergeChgAsym<<"\n";
               if(chgasym > fMergeChgAsym) continue;
             } // ls1 || ls2
             // project to DS end of icl2 and make a tighter X cut
@@ -694,12 +698,10 @@ namespace trkf {
                                cls[ipl][icl1].Wire[end]);
             dx = cls[ipl][icl1].X[end] + cls[ipl][icl1].Slope[end] * dw 
                - cls[ipl][icl2].X[oend];
-/*
   if(prt) std::cout
     <<" X0 "<<cls[ipl][icl1].X[end]<<" slp "<<cls[ipl][icl1].Slope[end]
     <<" dw "<<dw<<" oX "<<cls[ipl][icl2].X[oend]
     <<" dx "<<dx<<" cut "<<dXCut<<"\n";
-*/
             if(abs(dx) > dXCut) continue;
   if(cls[ipl][icl1].BrkIndex[end] >= 0) {
     mf::LogWarning("CCTM")<<"FBC: Trying to merge already merged cluster "
@@ -1070,6 +1072,7 @@ namespace trkf {
                     } // da < angCut
                   } // kend
                 } // kcl
+/*
               } else {
                 // No cluster expected
                 MatchPars match;
@@ -1089,6 +1092,7 @@ namespace trkf {
 //                if(match.RMS + match.oRMS > 20) continue;
                 if(match.RMS > 20) continue;
                 matcomb.push_back(match);
+*/
               }
             } // jend
           } // iend
@@ -1099,7 +1103,7 @@ namespace trkf {
     if(matcomb.size() == 0) return;
     
   prt = (fDebugPlane >= 0);
-    SortMatches(matcomb, fmCluHits, 2);
+    SortMatches(matcomb, fmCluHits, cls, 2);
 
   } // PlnMatch
 
@@ -1117,7 +1121,7 @@ namespace trkf {
     <<"\n";
 */
         // compare the rms
-        if((match.RMS + match.oRMS) < (matcomb[imat].RMS + matcomb[imat].oRMS )) {
+        if(match.RMS < matcomb[imat].RMS) {
           // keep the better one
           matcomb[imat].End[0] = match.End[0];
           matcomb[imat].End[1] = match.End[1];
@@ -1140,7 +1144,8 @@ namespace trkf {
 
 ///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::SortMatches(std::vector<MatchPars>& matcomb,
-           art::FindManyP<recob::Hit> const& fmCluHits, 
+           art::FindManyP<recob::Hit> const& fmCluHits,
+           std::array<std::vector<clPar>, 3>& cls, 
            unsigned short procCode)
   {
     // sort by increasing total match RMS using both ends
@@ -1150,7 +1155,6 @@ namespace trkf {
 
     for(ii = 0; ii < matcomb.size(); ++ii) {
       mrms.index = ii;
-//      mrms.length = matcomb[ii].RMS + matcomb[ii].oRMS;
       mrms.length = matcomb[ii].RMS;
       matrms.push_back(mrms);
     } // ii
@@ -1159,7 +1163,7 @@ namespace trkf {
   if(prt) {
     mf::LogVerbatim myprt("CCTM");
     myprt<<"SortMatches\n";
-    myprt<<" ii  Vx   SRMS   RMS   dW     dA     dX oVx   oRMS  odW   odA    odX   Asym   icl   jcl   kcl \n";
+    myprt<<" ii  Vx   RMS   dW     dA     dX oVx   oRMS  odW   odA    odX   Asym   icl   jcl   kcl \n";
     for(ii = 0; ii < matcomb.size(); ++ii) {
       imat = matrms[ii].index;
       float asym = fabs(matcomb[imat].Chg[0] - matcomb[imat].Chg[1]) / 
@@ -1169,7 +1173,7 @@ namespace trkf {
       myprt<<std::fixed<<std::right
         <<std::setw(3)<<ii
         <<std::setw(4)<<matcomb[imat].Vtx
-        <<std::setw(7)<<std::setprecision(2)<<matcomb[imat].RMS + matcomb[imat].oRMS
+//        <<std::setw(7)<<std::setprecision(2)<<matcomb[imat].RMS + matcomb[imat].oRMS
         <<std::setw(7)<<std::setprecision(2)<<matcomb[imat].RMS
         <<std::setw(5)<<std::setprecision(1)<<matcomb[imat].dWir
         <<std::setw(7)<<std::setprecision(2)<<matcomb[imat].dAng
@@ -1206,12 +1210,15 @@ namespace trkf {
       if(skipIt) continue;
   if(prt) {
     mf::LogVerbatim myprt("CCTM");
+    myprt<<"clmat:";
     for(ipl = 0; ipl < 3; ++ipl) {
-      myprt<<"ipl "<<ipl<<" clmat ";
-      for(unsigned short iii = 0; iii < clmat[ipl].size(); ++iii) myprt<<" "<<clmat[ipl][iii];
-      myprt<<"\n";
+      for(unsigned short iii = 0; iii < clmat[ipl].size(); ++iii) 
+        myprt<<ipl<<":"<<clmat[ipl][iii]<<":"<<clend[ipl];
+    myprt<<"\n";
     }
   } // prt
+      // look for missing clusters
+      if(matcomb[imat].oRMS > 5) ChkClmat(cls, matcomb);
       clmatVxID[0] = matcomb[imat].Vtx;
       clmatVxID[1] = matcomb[imat].oVtx;
       StoreTrack(fmCluHits, procCode);
@@ -1453,7 +1460,7 @@ namespace trkf {
       // A cluster in all 3 planes
       dw = okWir - oWir[kpl];
       match.odWir = fabs(dw);
-      if(match.odWir > 100) return;
+//      if(match.odWir > 100) return;
       match.odX = fabs(okX - oX[kpl]);
   if(prt) mf::LogVerbatim("CCTM")<<" odw "<<match.odWir<<" odx "<<match.odX;
       if(ignoreSign) {
@@ -1529,6 +1536,98 @@ namespace trkf {
   } // FillEndMatch
 
 ///////////////////////////////////////////////////////////////////////
+  void CCTrackMaker::ChkClmat(std::array<std::vector<clPar>, 3>& cls, 
+      std::vector<MatchPars>& matcomb)
+  {
+    unsigned short ipl, ii, end, icl, nClInPln = 0;
+
+  mf::LogVerbatim("CCTM")<<"Inside ChkClmat";
+    
+    std::array<float, 3> endX;
+    std::array<float, 3> lenX;
+    for(ipl = 0; ipl < nplanes; ++ipl) {
+      endX[ipl] = -666;
+      if(clmat[ipl].size() < 0) continue;
+      ++nClInPln;
+      end = 1 - clend[ipl];
+      if(end == 0) { ii = 0; } else {ii = clmat[ipl].size() - 1;}
+      icl = clmat[ipl][ii];
+      // get the X position at the other end
+      endX[ipl] = cls[ipl][icl].X[end];
+      // get the X position at the match end to find lenX
+      end = clend[ipl];
+      if(end == 0) { ii = 0; } else {ii = clmat[ipl].size() - 1;}
+      icl = clmat[ipl][ii];
+      lenX[ipl] = fabs(cls[ipl][icl].X[end] - endX[ipl]);
+  mf::LogVerbatim("CCTM")<<ipl<<":"<<icl<<":"<<end
+    <<" endX "<<endX[ipl]<<" lenX "<<lenX[ipl];
+    } // ipl
+    
+    // handle this case if the need arises
+    if(nClInPln != 3) return;
+    
+    // find the odd plane, i.e. the one which is shorter/longer than
+    // the other two
+    
+    short oddPln = -1;
+    if(fabs(endX[1] - endX[2]) < 2 && fabs(endX[2] - endX[0]) > 2) oddPln = 0;
+    if(fabs(endX[2] - endX[0]) < 2 && fabs(endX[0] - endX[1]) > 2) oddPln = 1;
+    if(fabs(endX[0] - endX[1]) < 2 && fabs(endX[1] - endX[2]) > 2) oddPln = 2;
+    if(oddPln < 0) return;
+    
+    // two cases: The odd plane cluster is longer (shorter) than the
+    // other two clusters
+    
+    // The (strangely) easy case where one cluster is longer than the others
+    unsigned short kpl = oddPln, kcl, nm = 0, jcl;
+    short mat = -1;
+    
+    ipl = (kpl + 1) % nplanes;
+    unsigned short jpl = (ipl + 1) % nplanes;
+    
+    if(lenX[kpl] > lenX[ipl] && lenX[kpl] > lenX[jpl]) {
+      // look for a match at the other end of the cluster in kpl in
+      // the matcomb array
+      end = 1 - clend[kpl];
+      if(end == 0) { ii = 0; } else {ii = clmat[kpl].size() - 1;}
+      kcl = clmat[kpl][ii];
+  mf::LogVerbatim("CCTM")<<" look for "<<kpl<<":"<<kcl<<":"<<end
+    <<" in matcomb ";
+      for(unsigned short im = 0; im < matcomb.size(); ++im) {
+        if(matcomb[im].Cls[kpl] == kcl &&
+           matcomb[im].End[kpl] == end) {
+          ++nm;
+          mat = im;
+        }
+      } // im
+  mf::LogVerbatim("CCTM")<<"nm "<<nm<<" mat "<<mat;
+      if(mat >= 0) {
+        icl = matcomb[mat].Cls[ipl];
+        if(cls[ipl][icl].InTrack >= 0) {
+          mf::LogWarning("CCTM")<<"ChkClmat: attempting to re-use cluster "<<ipl<<":"<<icl;
+          return;
+        }
+        clmat[ipl].push_back(icl);
+        jcl = matcomb[mat].Cls[jpl];
+        if(cls[jpl][jcl].InTrack >= 0) {
+          mf::LogWarning("CCTM")<<"ChkClmat: attempting to re-use cluster "<<jpl<<":"<<jcl;
+          return;
+        }
+        clmat[jpl].push_back(matcomb[mat].Cls[jpl]);
+    mf::LogVerbatim myprt("CCTM");
+    myprt<<"clmat:";
+    for(ipl = 0; ipl < 3; ++ipl) {
+      for(unsigned short iii = 0; iii < clmat[ipl].size(); ++iii) 
+        myprt<<" "<<ipl<<":"<<clmat[ipl][iii]<<":"<<clend[ipl];
+    myprt<<"\n";
+    }
+      } // mat >= 0
+    } // lenX test
+    
+  } // ChkClmat
+
+
+///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::FillClmat(unsigned short pln, short cind, unsigned short end)
   {
   
@@ -1565,7 +1664,7 @@ namespace trkf {
     }
 
     // reverse the cluster index order?
-//    if(end == 1) std::reverse(clmat[pln].begin(),clmat[pln].end());
+    if(end == 1) std::reverse(clmat[pln].begin(),clmat[pln].end());
     
   } // FillClmat
 
@@ -1611,22 +1710,23 @@ namespace trkf {
         } // cls[ipl][icl].InTrack != -1
         cls[ipl][icl].InTrack = 0;
         clusterhits = fmCluHits.at(cls[ipl][icl].EvtIndex);
-  if(prt) mf::LogVerbatim("CCTM")<<"FTH: "<<ipl<<":"<<icl<<" size "<<clusterhits.size()<<"\n";
+//  if(prt) mf::LogVerbatim("CCTM")<<"FTH: "<<ipl<<":"<<icl<<" size "<<clusterhits.size()<<"\n";
         for(iht = 0; iht < clusterhits.size(); ++iht) {
           wirnum.index = tmpHits.size();
           wirnum.length = clusterhits[iht]->WireID().Wire;
           wirnums.push_back(wirnum);
           tmpHits.push_back(clusterhits[iht]);
+/*
   if(prt) mf::LogVerbatim("CCTM")<<"tmpHits: "<<tmpHits.size()-1
     <<" ipl:icl "<<ipl<<":"<<icl
     <<" wire "<<clusterhits[iht]->WireID().Wire
     <<" time "<<(int)clusterhits[iht]->PeakTime()
     <<" clend "<<clend[ipl]<<" Bk0 "<<cls[ipl][icl].BrkIndex[0]
     <<" Bk1 "<<cls[ipl][icl].BrkIndex[1];
+*/
         } // iht
       } // im
       
-  if(prt) mf::LogVerbatim("CCTM")<<"wirnums.size "<<wirnums.size()<<"\n";
       if(clend[ipl] == 0) {
         // decreasing wire number - CC convention
         std::sort(wirnums.begin(), wirnums.end(), greaterThan);
@@ -1637,11 +1737,13 @@ namespace trkf {
       trkHits[ipl].resize(wirnums.size());
       for(ii = 0; ii < wirnums.size(); ++ii) {
         iht = wirnums[ii].index;
-  if(prt) mf::LogVerbatim("CCTM")<<"trkHits: ii "<<ii<<" iht "<<iht;
+//  if(prt) mf::LogVerbatim("CCTM")<<"trkHits: ii "<<ii<<" iht "<<iht;
         trkHits[ipl][ii] = tmpHits[iht];
+/*
   if(prt) mf::LogVerbatim("CCTM")
     <<" wire "<<trkHits[ipl][ii]->WireID().Wire
     <<" time "<<(int)trkHits[ipl][ii]->PeakTime();
+*/
       } // ii
 /*      
   std::cout<<" check order \n";
