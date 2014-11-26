@@ -113,6 +113,7 @@ namespace trkf {
       std::array<float, 2> Dir; // Product of end * slope
       std::array<short, 2> EP2Index; // EndPoint2D index
       std::array<short, 2> VtxIndex; // Vertex index
+      std::array<short, 2> mVtxIndex; // "Maybe" Vertex index
       std::array<short, 2> BrkIndex; // Broken cluster index
       std::array<short, 2> mBrkIndex; // Multi broken cluster index
       short EvtIndex;   // index of the cluster in clusterlist
@@ -192,6 +193,12 @@ namespace trkf {
     void PrintTracks();
     
     void FindBustedClusters(std::array<std::vector<clPar>, 3>& cls);
+    
+    // Find clusters that point to vertices but do not have a
+    // cluster-vertex association made by ClusterCrawler
+    void FindMaybeVertices(std::array<std::vector<clPar>, 3>& cls,
+              std::vector<vtxPar>& vtx,
+              unsigned int cstat, unsigned int tpc);
 
     // match clusters associated with vertices
     void VtxMatch(art::Event& evt,
@@ -412,6 +419,7 @@ namespace trkf {
             tmp = clusterlist[icl]->SigmaStartPos();
             clstr.EP2Index[0] = (short)tmp[0];
             clstr.VtxIndex[0] = (short)tmp[1];
+            clstr.mVtxIndex[0] = -1;
             clstr.BrkIndex[0] = -1;
             clstr.mBrkIndex[0] = -1;
             // End info
@@ -426,6 +434,7 @@ namespace trkf {
             tmp = clusterlist[icl]->SigmaEndPos();
             clstr.EP2Index[1] = (short)tmp[0];
             clstr.VtxIndex[1] = (short)tmp[1];
+            clstr.mVtxIndex[1] = -1;
             clstr.BrkIndex[1] = -1;
             clstr.mBrkIndex[1] = -1;
             // other info
@@ -474,9 +483,9 @@ namespace trkf {
         } // ivx
         // Find broken clusters
         FindBustedClusters(cls);
+        FindMaybeVertices(cls, vtx, cstat, tpc);
         if(fMatchAlgs & 1) VtxMatch(evt, allhits, cls, vtx, fmCluHits, tcol, thassn);
         if(fMatchAlgs & 2) PlnMatch(evt, allhits, cls, vtx, fmCluHits, tcol, thassn);
-    mf::LogVerbatim("CCTM")<<"Create tracks "<<trk.size()<<"\n";
         for(unsigned short itr = 0; itr < trk.size(); ++itr) {
           tcol->push_back(recob::Track(trk[itr].trjPos, trk[itr].trjDir, dQdx, mom, trk[itr].ID));
           tmpHits.clear();
@@ -484,7 +493,6 @@ namespace trkf {
             tmpHits.insert(tmpHits.end(), trk[itr].trkHits[ipl].begin(), trk[itr].trkHits[ipl].end());
           util::CreateAssn(*this, evt, *tcol, tmpHits, *thassn);
         } // itr
-    mf::LogVerbatim("CCTM")<<"Create tracks done\n";
         if(fDebugPlane >= 0) {
           PrintStructs();
           PrintTracks();
@@ -492,7 +500,7 @@ namespace trkf {
         for(ipl = 0; ipl < nplanes; ++ipl) {
           for(icl = 0; icl < cls[ipl].size(); ++icl) {
             if(cls[ipl][icl].Length > 40 && cls[ipl][icl].InTrack < 0)
-              std::cout<<"Orphan long cluster "<<ipl<<":"<<icl
+              mf::LogVerbatim("CCTM")<<"Orphan long cluster "<<ipl<<":"<<icl
                 <<":"<<cls[ipl][icl].Wire[0]
                 <<":"<<(int)cls[ipl][icl].Time[0]
                 <<" length "<<cls[ipl][icl].Length
@@ -584,12 +592,12 @@ namespace trkf {
                     if(cls[kpl][kcl].VtxIndex[kend] != vtx[ivx].ID) continue;
                     match.Pln[kpl] = kpl; match.Cls[kpl] = kcl; match.End[kpl] = kend;
                     FillEndMatch(allhits, match, cstat, tpc);
-                    if(DupMatch(match, matcomb)) continue;
                     // ignore if no signal at the other end
                     if(match.Chg[kpl] <= 0) continue;
                     // add other end RMS to match end RMS for compatibility
                     // with SortMatches and PlnMatch
                     match.RMS += match.oRMS;
+                    if(DupMatch(match, matcomb)) continue;
                     matcomb.push_back(match);
                     gotkcl = true;
                   } // kend
@@ -607,7 +615,8 @@ namespace trkf {
           } // jj
         } // ii -> icl
       } // ipl
-      if(matcomb.size() == 0) continue;
+      
+      if(matcomb.size() == 0) return;
 
       SortMatches(matcomb, fmCluHits, cls, 1);
       
@@ -616,6 +625,66 @@ namespace trkf {
     } // ivx
     
   } // VtxMatch
+
+///////////////////////////////////////////////////////////////////////
+  void CCTrackMaker::FindMaybeVertices(std::array<std::vector<clPar>, 3>& cls,
+      std::vector<vtxPar>& vtx, unsigned int cstat, unsigned int tpc)
+  {
+    // Project clusters to vertices and fill mVtxIndex. No requirement is
+    // made that charge exists on the line between the Begin (End) of the
+    // cluster and the vertex
+    unsigned short ipl, icl, ivx;
+    float vWire, dWire, dX;
+    short ibstd, ibstu;
+    float bestd, bestu;
+    
+    if(vtx.size() == 0) return;
+    
+    for(ivx = 0; ivx < vtx.size(); ++ivx) {
+      for(ipl = 0; ipl < nplanes; ++ipl) {
+        vWire = geom->WireCoordinate(vtx[ivx].Y, vtx[ivx].Z, ipl, tpc, cstat);
+        ibstd = -1; ibstu = -1;
+        bestd = 5; bestu = 5;
+//  std::cout<<"Pln "<<ipl<<" vWire "<<vWire<<" X "<<vtx[ivx].X<<"\n";
+        for(icl = 0; icl < cls[ipl].size(); ++icl) {
+          // check DS end
+          if(cls[ipl][icl].VtxIndex[1] < 0) {
+            dWire = vWire - cls[ipl][icl].Wire[1];
+/*
+  if(icl == 0) std::cout<<" cls Wire "<<cls[ipl][icl].Wire[1]
+    <<" slp "<<cls[ipl][icl].Slope[1]<<" X "<<cls[ipl][icl].X[1]
+    <<" dWire "<<dWire<<"\n";
+*/
+            if(dWire > -30 && dWire < 2) {
+              dX = fabs(cls[ipl][icl].X[1] + cls[ipl][icl].Slope[1] * fWirePitch * dWire
+                   - vtx[ivx].X);
+//  if(icl == 0) std::cout<<" dX "<<dX<<"\n";
+              if(dX < bestd) { bestd = dX; ibstd = icl; }
+            } // dWire test
+          } // check DS end
+          // check US end
+          if(cls[ipl][icl].VtxIndex[0] < 0) {
+            dWire = vWire - cls[ipl][icl].Wire[1];
+            if(dWire < 30 && dWire > -2) {
+              dX = fabs(cls[ipl][icl].X[0] + cls[ipl][icl].Slope[0] * fWirePitch * dWire 
+                   - vtx[ivx].X);
+              if(dX < bestu) { bestu = dX; ibstu = icl; }
+            } // dWire test
+          } // check DS end
+        } // icl
+        if(ibstd >= 0) {
+          cls[ipl][ibstd].mVtxIndex[1] = ivx;
+          cls[ipl][ibstd].VtxIndex[1] = ivx;
+        }
+        if(ibstu >= 0) {
+          cls[ipl][ibstu].mVtxIndex[0] = ivx;
+          cls[ipl][ibstu].VtxIndex[0] = ivx;
+        }
+//  std::cout<<"ibstd "<<ibstd<<"\n";
+      } // ipl
+    } // ivx
+    
+  } // FindMaybeVertices
 
 ///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::FindBustedClusters(std::array<std::vector<clPar>, 3>& cls)
@@ -1213,9 +1282,9 @@ namespace trkf {
     myprt<<"clmat:";
     for(ipl = 0; ipl < 3; ++ipl) {
       for(unsigned short iii = 0; iii < clmat[ipl].size(); ++iii) 
-        myprt<<ipl<<":"<<clmat[ipl][iii]<<":"<<clend[ipl];
-    myprt<<"\n";
+        myprt<<" "<<ipl<<":"<<clmat[ipl][iii]<<":"<<clend[ipl];
     }
+    myprt<<"\n";
   } // prt
       // look for missing clusters
       if(matcomb[imat].oRMS > 5) ChkClmat(cls, matcomb);
@@ -1541,7 +1610,7 @@ namespace trkf {
   {
     unsigned short ipl, ii, end, icl, nClInPln = 0;
 
-  mf::LogVerbatim("CCTM")<<"Inside ChkClmat";
+//  mf::LogVerbatim("CCTM")<<"Inside ChkClmat";
     
     std::array<float, 3> endX;
     std::array<float, 3> lenX;
@@ -1559,8 +1628,8 @@ namespace trkf {
       if(end == 0) { ii = 0; } else {ii = clmat[ipl].size() - 1;}
       icl = clmat[ipl][ii];
       lenX[ipl] = fabs(cls[ipl][icl].X[end] - endX[ipl]);
-  mf::LogVerbatim("CCTM")<<ipl<<":"<<icl<<":"<<end
-    <<" endX "<<endX[ipl]<<" lenX "<<lenX[ipl];
+//  mf::LogVerbatim("CCTM")<<ipl<<":"<<icl<<":"<<end
+//    <<" endX "<<endX[ipl]<<" lenX "<<lenX[ipl];
     } // ipl
     
     // handle this case if the need arises
@@ -1578,29 +1647,33 @@ namespace trkf {
     // two cases: The odd plane cluster is longer (shorter) than the
     // other two clusters
     
-    // The (strangely) easy case where one cluster is longer than the others
-    unsigned short kpl = oddPln, kcl, nm = 0, jcl;
-    short mat = -1;
+    unsigned short kpl = oddPln, kcl, jcl;
+    short mat;
+    float best;
     
     ipl = (kpl + 1) % nplanes;
     unsigned short jpl = (ipl + 1) % nplanes;
     
+///////////////////  one longer cluster
     if(lenX[kpl] > lenX[ipl] && lenX[kpl] > lenX[jpl]) {
       // look for a match at the other end of the cluster in kpl in
       // the matcomb array
       end = 1 - clend[kpl];
       if(end == 0) { ii = 0; } else {ii = clmat[kpl].size() - 1;}
       kcl = clmat[kpl][ii];
-  mf::LogVerbatim("CCTM")<<" look for "<<kpl<<":"<<kcl<<":"<<end
-    <<" in matcomb ";
+//  mf::LogVerbatim("CCTM")<<" look for "<<kpl<<":"<<kcl<<":"<<end
+//    <<" in matcomb ";
+      mat = -1;
+      best = 10;
       for(unsigned short im = 0; im < matcomb.size(); ++im) {
+        if(matcomb[im].RMS > best) continue;
         if(matcomb[im].Cls[kpl] == kcl &&
            matcomb[im].End[kpl] == end) {
-          ++nm;
+          best = matcomb[im].RMS;
           mat = im;
         }
       } // im
-  mf::LogVerbatim("CCTM")<<"nm "<<nm<<" mat "<<mat;
+//  mf::LogVerbatim("CCTM")<<" mat "<<mat;
       if(mat >= 0) {
         icl = matcomb[mat].Cls[ipl];
         if(cls[ipl][icl].InTrack >= 0) {
@@ -1614,15 +1687,58 @@ namespace trkf {
           return;
         }
         clmat[jpl].push_back(matcomb[mat].Cls[jpl]);
+/*
     mf::LogVerbatim myprt("CCTM");
-    myprt<<"clmat:";
+    myprt<<"clmat: ";
     for(ipl = 0; ipl < 3; ++ipl) {
       for(unsigned short iii = 0; iii < clmat[ipl].size(); ++iii) 
         myprt<<" "<<ipl<<":"<<clmat[ipl][iii]<<":"<<clend[ipl];
-    myprt<<"\n";
     }
+    myprt<<"\n";
+*/
       } // mat >= 0
-    } // lenX test
+      return;
+    } // one long cluster
+    
+///////////////////  one shorter cluster
+    if(lenX[kpl] < lenX[ipl] && lenX[kpl] < lenX[jpl]) {
+      // look for a match with two long clusters
+      unsigned short ioend = 1 - clend[ipl];
+      if(ioend == 0) { ii = 0; } else {ii = clmat[ipl].size() - 1;}
+      icl = clmat[ipl][ii];
+      unsigned short joend = 1 - clend[jpl];
+      if(joend == 0) { ii = 0; } else {ii = clmat[jpl].size() - 1;}
+      jcl = clmat[jpl][ii];
+      unsigned short koend = 1 - clend[kpl];
+      if(koend == 0) { ii = 0; } else {ii = clmat[kpl].size() - 1;}
+      kcl = clmat[kpl][ii];
+/*
+  mf::LogVerbatim("CCTM")<<" search for "<<ipl<<":"<<icl<<":"<<ioend
+    <<" and "<<jpl<<":"<<jcl<<":"<<joend
+    <<" and "<<kpl<<":*:"<<koend<<" in matcomb ";
+*/
+      mat = -1;
+      best = 10;
+      for(unsigned short im = 0; im < matcomb.size(); ++im) {
+        if(matcomb[im].RMS > best) continue;
+        if(matcomb[im].Cls[ipl] == icl && matcomb[im].End[ipl] == ioend &&
+           matcomb[im].Cls[jpl] == jcl && matcomb[im].End[jpl] == joend &&
+           matcomb[im].Cls[kpl] != kcl && matcomb[im].End[kpl] == koend) {
+          best = matcomb[im].RMS;
+          // just grab the cluster index instead of the match
+          mat = matcomb[im].Cls[kpl];
+        }
+      } // im
+//  mf::LogVerbatim("CCTM")<<" search result "<<mat;
+      if(mat >= 0) {
+        kcl = mat;
+        if(cls[kpl][kcl].InTrack >= 0) {
+          mf::LogWarning("CCTM")<<"ChkClmat: attempting to re-use cluster "<<kpl<<":"<<kcl;
+          return;
+        }
+        clmat[kpl].push_back(kcl);
+      }
+    } // one short cluster
     
   } // ChkClmat
 
@@ -1844,7 +1960,7 @@ namespace trkf {
       } // iep
 */
       myprt<<">>>>>>>>>> Clusters in Plane "<<ipl<<"\n";
-      myprt<<"ipl icl ID  wLen  BBk  EBk BmBk EmBK  BVx  EVx InTk     Chg   BW:T     BAng   EW:T     EAng\n";
+      myprt<<"ipl icl ID  wLen  BBk  EBk BmBk EmBK  BVx  EVx BmVx EmVx InTk     Chg   BW:T     BAng   EW:T     EAng\n";
       for(unsigned short icl = 0; icl < cls[ipl].size(); ++icl) {
         myprt<<std::right<<std::setw(3)<<ipl;
         myprt<<std::right<<std::setw(4)<<icl;
@@ -1857,6 +1973,8 @@ namespace trkf {
         myprt<<std::right<<std::setw(5)<<cls[ipl][icl].mBrkIndex[1];
         myprt<<std::right<<std::setw(5)<<cls[ipl][icl].VtxIndex[0];
         myprt<<std::right<<std::setw(5)<<cls[ipl][icl].VtxIndex[1];
+        myprt<<std::right<<std::setw(5)<<cls[ipl][icl].mVtxIndex[0];
+        myprt<<std::right<<std::setw(5)<<cls[ipl][icl].mVtxIndex[1];
         myprt<<std::right<<std::setw(5)<<cls[ipl][icl].InTrack;
         myprt<<std::right<<std::setw(8)<<(int)cls[ipl][icl].TotChg;
         for(unsigned short end = 0; end < 2; ++end) {
