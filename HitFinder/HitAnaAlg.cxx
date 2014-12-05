@@ -203,6 +203,8 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
   for( auto const& hit_index : HitsOnWire){
     sim::MCHitCollection const& thismchitcol = MCHitCollectionVector.at(hit_index);
 
+    //let's have a map to keep track of the number of total particles
+    std::unordered_map<int,unsigned int> nmchits_per_trackID_map;
     for( auto const& thishit : thismchitcol){
 
       //std::cout << "\t************************************************************" << std::endl;
@@ -213,14 +215,16 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
       if( TimeService.TPCTDC2Tick( thishit.PeakTime()-thishit.PeakWidth() ) < begin_wire_tdc ||
 	  TimeService.TPCTDC2Tick( thishit.PeakTime()+thishit.PeakWidth() ) > end_wire_tdc )
 	continue;
-      
-      wireData.NMCHits++;
+
+      nmchits_per_trackID_map[thishit.PartTrackId()] += 1;
       wireData.MCHits_IntegratedCharge += thishit.Charge();
       
       wireData.MCHits_wAverageCharge += thishit.Charge()*thishit.Charge();
       wireData.MCHits_wAverageTime   += thishit.Charge()*TimeService.TPCTDC2Tick(thishit.PeakTime());
     }
     
+    wireData.NMCHits = nmchits_per_trackID_map.size();
+
     wireData.MCHits_AverageCharge = 
       wireData.MCHits_IntegratedCharge/wireData.NMCHits;
     wireData.MCHits_wAverageCharge = 
