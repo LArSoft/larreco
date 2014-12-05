@@ -61,7 +61,7 @@ namespace hit{
     unsigned int event;
     unsigned int run;
     unsigned int channel;
-    unsigned int channel_type;
+    unsigned int plane;
     unsigned int range_index;
     unsigned int range_start;
     size_t range_size;
