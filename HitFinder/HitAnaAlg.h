@@ -66,17 +66,23 @@ namespace hit{
     unsigned int range_start;
     size_t range_size;
     float integrated_charge;
+    float peak_charge;
+    float peak_time;
     int NHitModules;
     std::vector<std::string> HitModuleLabels;
     std::vector<int> NHits;
     std::vector<float> Hits_IntegratedCharge;
     std::vector<float> Hits_AverageCharge;
+    std::vector<float> Hits_PeakCharge;
+    std::vector<float> Hits_PeakTime;
     std::vector<float> Hits_wAverageCharge;
     std::vector<float> Hits_wAverageTime;
     std::vector< std::vector<HitInfo> > Hits;
     int NMCHits;
     float MCHits_IntegratedCharge;
     float MCHits_AverageCharge;
+    float MCHits_PeakCharge;
+    float MCHits_PeakTime;
     float MCHits_wAverageCharge;
     float MCHits_wAverageTime;
   };
@@ -128,7 +134,8 @@ namespace hit{
 		    std::vector<int> const&,
 		    util::TimeService const&);
 
-    float ROIIntegral(lar::sparse_vector<float>::datarange_t const&);
+    void ROIInfo(lar::sparse_vector<float>::datarange_t const&,
+		 float&,float&,float&);
 
     void FindAndStoreHitsInRange(std::vector<recob::Hit> const&,
 				 std::vector<int> const&,
