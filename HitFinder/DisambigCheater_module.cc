@@ -88,12 +88,14 @@ namespace hit{
     // make the unique_ptr for the hits
     std::unique_ptr< std::vector<recob::Hit> > hits(new std::vector<recob::Hit>);
     
+
     // get hits on channels
     art::Handle< std::vector<recob::Hit> > ChanHits;
     evt.getByLabel(fChanHitLabel, ChanHits);
     std::vector< art::Ptr<recob::Hit> > ChHits;
     art::fill_ptr_vector(ChHits, ChanHits);
     
+
     // find the wireIDs each hit is on
     this->InitHitToWids( ChHits );
     
@@ -137,8 +139,13 @@ namespace hit{
       mf::LogWarning("InvalidWireID") << "wid is invalid, hit not being made\n";
       return; }
     
-    art::Ptr<recob::Wire> wire = hit->Wire();
-    recob::Hit WidHit( wire, 			     wid,
+    // art::Ptr<recob::Wire> wire = hit->Wire();
+    // recob::Hit WidHit( wire, 			     wid,
+    art::Ptr<raw::RawDigit> dVec = hit->RawDigit();
+    geo::PlaneID plid(wid.Cryostat,wid.TPC,wid.Plane);
+    geo::View_t view = geom->View(plid);	      
+    geo::SigType_t st = geom->SignalType(plid);
+    recob::Hit WidHit( dVec,view,st, 			     wid,
 		       hit->StartTime(),     	     hit->SigmaStartTime(),
 		       hit->EndTime(),       	     hit->SigmaEndTime(),
 		       hit->PeakTime(),      	     hit->SigmaPeakTime(),
