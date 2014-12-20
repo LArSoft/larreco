@@ -1,8 +1,8 @@
 
 art_make( LIBRARY_NAME  RecoAlg
-          LIB_LIBRARIES HarrisVertexFinder_module
-                        BackTracker_service
+          LIB_LIBRARIES BackTracker_service
                         RecoBase
+                        RecoBaseArt
                         Simulation
                         Filters
                         Geometry

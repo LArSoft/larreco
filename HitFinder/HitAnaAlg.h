@@ -30,26 +30,28 @@ namespace hit{
     
     //need a constructor here
     HitInfo(float pt, float pt_s,
-	    float st, float st_s,
-	    float et, float et_s,
+	    float w,
+	    int st, int et,
 	    float c, float c_s,
 	    float mc, float mc_s,
 	    float gof)
-    {
-      peaktime = pt; peaktime_sigma = pt_s;
-      starttime = st; starttime_sigma = st_s;
-      endtime = et; endtime_sigma = et_s;
-      charge = c; charge_sigma = c_s;
-      maxcharge = mc; maxcharge = mc_s;
-      goodness_of_fit = gof;
-    }
+      : peaktime(pt)
+      , peaktime_sigma(pt_s)
+      , rms(w)
+      , starttick(st)
+      , endtick(et)
+      , charge(c)
+      , charge_sigma(c_s)
+      , maxcharge(mc)
+      , maxcharge_sigma(mc_s)
+      , goodness_of_fit(gof)
+    {}
 
     float peaktime;
     float peaktime_sigma;
-    float starttime;
-    float starttime_sigma;
-    float endtime;
-    float endtime_sigma;
+    float rms;
+    int starttick;
+    int endtick;
     float charge;
     float charge_sigma;
     float maxcharge;

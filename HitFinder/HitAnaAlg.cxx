@@ -197,21 +197,21 @@ void hit::HitAnaAlg::FindAndStoreHitsInRange( std::vector<recob::Hit> const& Hit
     recob::Hit const& thishit = HitVector.at(hit_index);
 
     //check if this hit is on this ROI
-    if( thishit.StartTime() < begin_wire_tdc ||
-	thishit.EndTime() > end_wire_tdc)
+    if( thishit.PeakTimeMinusRMS() < begin_wire_tdc ||
+	thishit.PeakTimePlusRMS() > end_wire_tdc)
       continue;
 
     FillHitInfo(thishit,wireData.Hits[hitmodule_iter]);
     wireData.NHits[hitmodule_iter]++;
-    wireData.Hits_IntegratedCharge[hitmodule_iter] += thishit.Charge();
+    wireData.Hits_IntegratedCharge[hitmodule_iter] += thishit.Integral();
 
-    if(thishit.Charge(true) > wireData.Hits_PeakCharge[hitmodule_iter]){
-      wireData.Hits_PeakCharge[hitmodule_iter] = thishit.Charge(true);
+    if(thishit.PeakAmplitude() > wireData.Hits_PeakCharge[hitmodule_iter]){
+      wireData.Hits_PeakCharge[hitmodule_iter] = thishit.PeakAmplitude();
       wireData.Hits_PeakTime[hitmodule_iter] = thishit.PeakTime();
     }
 
-    wireData.Hits_wAverageCharge[hitmodule_iter] += thishit.Charge()*thishit.Charge();
-    wireData.Hits_wAverageTime[hitmodule_iter]   += thishit.Charge()*thishit.PeakTime();
+    wireData.Hits_wAverageCharge[hitmodule_iter] += thishit.Integral()*thishit.Integral();
+    wireData.Hits_wAverageTime[hitmodule_iter]   += thishit.Integral()*thishit.PeakTime();
   }
 
   wireData.Hits_AverageCharge[hitmodule_iter] = 
@@ -274,13 +274,12 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
 void hit::HitAnaAlg::FillHitInfo(recob::Hit const& hit, std::vector<HitInfo>& HitInfoVector){
   HitInfoVector.emplace_back(hit.PeakTime(),
 			     hit.SigmaPeakTime(),
-			     hit.StartTime(),
-			     hit.SigmaStartTime(),
-			     hit.EndTime(),
-			     hit.SigmaEndTime(),
-			     hit.Charge(),
-			     hit.SigmaCharge(),
-			     hit.Charge(true),
-			     hit.SigmaCharge(true),
+			     hit.RMS(),
+			     hit.StartTick(),
+			     hit.EndTick(),
+			     hit.Integral(),
+			     hit.SigmaIntegral(),
+			     hit.PeakAmplitude(),
+			     hit.SigmaPeakAmplitude(),
 			     hit.GoodnessOfFit());
 }

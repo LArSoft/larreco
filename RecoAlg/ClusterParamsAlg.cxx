@@ -94,7 +94,7 @@ void cluster::ClusterParamsAlg::FindMinMaxWiresTimes(double &MinWire, double &Ma
     if(wire<MinWire)
 	MinWire=wire;
 
-    mcharge+=(*hitIter)->Charge();
+    mcharge+=(*hitIter)->Integral();
     
   }
   
@@ -248,7 +248,7 @@ int cluster::ClusterParamsAlg::Find2DAxisRough(double &lineslope,double &lineint
     GetPlaneAndTPC((*hitIter),plane,cstat,tpc,wire);
   
     tgxtest->Fill((double)wire*fWiretoCm,
-			      time*fTimetoCm,(*hitIter)->Charge());
+			      time*fTimetoCm,(*hitIter)->Integral());
   }
   
  
@@ -524,10 +524,10 @@ int cluster::ClusterParamsAlg::FindTrunk(std::vector < art::Ptr < recob::Hit> > 
    ////////////////////////////////////////////////////////////////////// 
    //calculate the weight along the axis, to guess the Shower direction  
    /////////////////////////////////////////////////////////////////////// 
-    double weight= (ortdist<1.) ? 10*theHit->Charge() : 5*theHit->Charge()/ortdist;
+    double weight= (ortdist<1.) ? 10*theHit->Integral() : 5*theHit->Integral()/ortdist;
     hithistinv->Fill(linedist,weight);
     
-    fTotalCharge+=(*hitIter)->Charge();  //calculate total charge while we're at it.
+    fTotalCharge+=(*hitIter)->Integral();  //calculate total charge while we're at it.
         
   }
  
@@ -776,7 +776,7 @@ void cluster::ClusterParamsAlg::FindDirectionWeights(double lineslope,double w_o
   
       double linedist=gser.Get2DDistance(wire_on_line,time_on_line,w_on_begin,t_on_begin);
       double ortdist=gser.Get2DDistance(wire_on_line,time_on_line,wire,time);
-      double weight= (ortdist<1.) ? 10*theHit->Charge() : 5*theHit->Charge()/ortdist;
+      double weight= (ortdist<1.) ? 10*theHit->Integral() : 5*theHit->Integral()/ortdist;
       double revweight= (ortdist<1.) ? 0.1 : ortdist;
 
       if(altWeight!=0 && ortdist>0.5) *altWeight+=ortdist; 
@@ -950,7 +950,7 @@ double cluster::ClusterParamsAlg::Get2DAngleForHit( unsigned int swire,double st
       double time = theHit->PeakTime();  
       wire=theHit->WireID().Wire; 
       double omx=gser.Get2Dangle((double)wire,(double)swire,time,stime);
-      fh_omega_single->Fill(180*omx/TMath::Pi(), theHit->Charge());
+      fh_omega_single->Fill(180*omx/TMath::Pi(), theHit->Integral());
      }
     
   double omega = fh_omega_single->GetBinCenter(fh_omega_single->GetMaximumBin());// Mean value of the fit
@@ -1009,7 +1009,7 @@ void cluster::ClusterParamsAlg::FindSideWeights(double lineslope,double lineinte
 	// this is the intercept the line would have if it went through the point
 	double intercept=time*fTimetoCm-at*(double)wire*fWiretoCm;
     
-	side_weight_start_charge+=(intercept-ct)*theHit->Charge();
+	side_weight_start_charge+=(intercept-ct)*theHit->Integral();
 	startctr++;
      	}
     
@@ -1047,7 +1047,7 @@ std::vector< art::Ptr<recob::Hit> > cluster::ClusterParamsAlg::CreateHighHitlist
   
   for(unsigned int ix = 0; ix<  hitlist.size();  ix++){
     	art::Ptr<recob::Hit> theHit = hitlist[ix];
-	if(theHit->Charge()>threshold)
+	if(theHit->Integral()>threshold)
 	  hitlist_high.push_back(theHit);
     }
   

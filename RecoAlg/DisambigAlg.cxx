@@ -229,10 +229,10 @@ void DisambigAlg::MakeDisambigHit( art::Ptr<recob::Hit> hit,
   bool DisambigAlg::HitsOverlapInTime( art::Ptr<recob::Hit> hitA, 
 					      art::Ptr<recob::Hit> hitB )
 {
-    double AsT = hitA->StartTime();
-    double AeT = hitA->EndTime();
-    double BsT = hitB->StartTime();
-    double BeT = hitB->EndTime();
+    double AsT = hitA->PeakTimePlusRMS(-1.);
+    double AeT = hitA->PeakTimePlusRMS(+1.);
+    double BsT = hitB->PeakTimePlusRMS(-1.);
+    double BeT = hitB->PeakTimePlusRMS(+1.);
 
     if( hitA->View() == geo::kU ){ AsT -= detprop->TimeOffsetU(); AeT -= detprop->TimeOffsetU(); }
     else if( hitA->View() == geo::kV ){ AsT -= detprop->TimeOffsetV(); AeT -= detprop->TimeOffsetV(); }
@@ -358,8 +358,8 @@ unsigned int DisambigAlg::MakeCloseHits( int ext, geo::WireID Dwid, double Dmin,
   unsigned int MakeCount(0);
   for(size_t i=0; i<fChannelToHits[chan].size(); i++){
     art::Ptr< recob::Hit > closeHit = fChannelToHits[chan][i];
-    double st = closeHit->StartTime();
-    double et = closeHit->EndTime();
+    double st = closeHit->PeakTimePlusRMS(-1.);
+    double et = closeHit->PeakTimePlusRMS(+1.);
     std::vector<geo::WireID> wids = geom->ChannelToWire(chan);
 
     if( !(Dmin <= st && st <= Dmax) && !(Dmin <= et && et <= Dmax) ) continue;
@@ -412,9 +412,9 @@ void DisambigAlg::Crawl( unsigned int apa )
     for(size_t h=0; h < hits.size(); h++){
       std::pair<double,double> ChanTime( hits[h]->Channel()*1., hits[h]->PeakTime()*1. );
       if( !fHasBeenDisambiged[apa][ChanTime] ) continue;
-      double stD = hits[h]->StartTime();
-      double etD = hits[h]->EndTime();
-      double hitWindow = hits[h]->EndTime() - hits[h]->StartTime();
+      double stD = hits[h]->PeakTimePlusRMS(-1.);
+      double etD = hits[h]->PeakTimePlusRMS(+1.);
+      double hitWindow = etD - stD;
       geo::WireID Dwid = fChanTimeToWid[ChanTime];
             
       // ... and if any neighboring-channel hits are close enough in time,

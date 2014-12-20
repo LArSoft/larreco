@@ -67,9 +67,7 @@ bool myfunction (CluLen c1, CluLen c2) { return (c1.length>c2.length);}
 
 struct SortByWire {
   bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const { 
-    return 
-      h1->Wire()->RawDigit()->Channel() < 
-      h2->Wire()->RawDigit()->Channel() ;
+    return *(h1->Wire()) < *(h2->Wire());
   }
 };
 

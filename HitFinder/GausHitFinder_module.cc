@@ -25,27 +25,31 @@
 // gaushit:	@local::argoneut_gaushitfinder
 ////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-#include <stdint.h>
+
+// C/C++ standard library
+#include <algorithm> // std::accumulate()
+#include <vector>
+#include <utility> // std::move()
+
 
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h"   
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/FindOneP.h"
+#include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Core/EDProducer.h" 
-
 
 
 
 // LArSoft Includes
+#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
+#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
+#include "RecoBaseArt/HitCreator.h"
 #include "Utilities/DetectorProperties.h"
 
 // ROOT Includes 
@@ -84,12 +88,14 @@ namespace hit{
     // load the fit into a temp vector
     std::vector<double> tempGaus1Par;
     std::vector<double> tempGaus1ParError;
-    double Chi2PerNDF = 0;
+    double Chi2PerNDF = 0.;
+    int NDF = -1;
     
     // load the fit into a temp vector
     std::vector<double> tempGaus2Par;
     std::vector<double> tempGaus2ParError;
-    double Chi2PerNDF2 = 0;
+    double Chi2PerNDF2 = 0.;
+    int NDF2 = -1;
     
     
     double threshold              = 0.;  // minimum signal size for id'ing a hit
@@ -122,9 +128,14 @@ namespace hit{
 //-------------------------------------------------
 GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
 {
-    this->reconfigure(pset);
-    produces< std::vector<recob::Hit> >();
-}
+  this->reconfigure(pset);
+  
+  // let HitCollectionCreator declare that we are going to produce
+  // hits and associations with wires and raw digits
+  // (with no particular product label)
+  recob::HitCollectionCreator::declare_products(*this);
+  
+} // GausHitFinder::GausHitFinder()
 
 
 //-------------------------------------------------
@@ -142,17 +153,17 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
   // Implementation of optional member function here.
   fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
   fMinSigInd          = p.get< double       >("MinSigInd");
-  fMinSigCol          = p.get< double       >("MinSigCol"); 
-  fIndWidth           = p.get< double       >("IndWidth");  
+  fMinSigCol          = p.get< double       >("MinSigCol");
+  fIndWidth           = p.get< double       >("IndWidth");
   fColWidth           = p.get< double       >("ColWidth");
   fIndMinWidth        = p.get< double       >("IndMinWidth");
-  fColMinWidth        = p.get< double       >("ColMinWidth"); 	  	
+  fColMinWidth        = p.get< double       >("ColMinWidth");
   fMaxMultiHit        = p.get< int          >("MaxMultiHit");
   fAreaMethod         = p.get< int          >("AreaMethod");
   fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
-  fTryNplus1Fits      = p.get< int	    >("TryNplus1Fits");
-  fChi2NDFRetry       = p.get< double	    >("Chi2NDFRetry");
-  fChi2NDF	      = p.get< double       >("Chi2NDF");
+  fTryNplus1Fits      = p.get< int          >("TryNplus1Fits");
+  fChi2NDFRetry       = p.get< double       >("Chi2NDFRetry");
+  fChi2NDF            = p.get< double       >("Chi2NDF");
   
 }  
 
@@ -208,14 +219,17 @@ void GausHitFinder::produce(art::Event& evt)
    std::vector<double> StartTimeError; // stores the error assoc. with the start time of the hit
    std::vector<double> EndTime;	       // stores the end time of the hit
    std::vector<double> EndTimeError;   // stores the error assoc. with the end time of the hit
+   std::vector<double> RMS;            // stores the sigma parameter of the gaussian
    std::vector<double> MeanPosition;   // stores the peak time position of the hit
    std::vector<double> MeanPosError;   // stores the error assoc. with thte peak time of the hit
-   std::vector<double> Charge;         // stores the total charge assoc. with the hit
+   std::vector<double> SumADC;         // stores the total charge from sum of ADC counts
+   std::vector<double> Charge;         // stores the total charge assoc. with the hit (from the fit)
    std::vector<double> ChargeError;    // stores the error on the charge
    std::vector<double> Amp;	       // stores the amplitude of the hit
    std::vector<double> AmpError;       // stores the error assoc. with the amplitude
    std::vector<double> NumOfHits;      // stores the multiplicity of the hit
    std::vector<double> FitGoodness;    // stores the Chi2/NDF of the hit
+   std::vector<int>    FitNDF;         // stores the NDF of the hit
    std::vector<double>  hitSig;
    
    // ###################################
@@ -231,7 +245,9 @@ void GausHitFinder::produce(art::Event& evt)
    // ###############################################
    // ### Making a ptr vector to put on the event ###
    // ###############################################
-   std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
+   // this contains the hit collection
+   // and its associations to wires and raw digits
+   recob::HitCollectionCreator hcol(*this, evt);
    
    // ##########################################
    // ### Reading in the Wire List object(s) ###
@@ -239,10 +255,16 @@ void GausHitFinder::produce(art::Event& evt)
    art::Handle< std::vector<recob::Wire> > wireVecHandle;
    evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
    
+   // #################################################################
+   // ### Reading in the RawDigit associated with these wires, too  ###
+   // #################################################################
+   art::FindOneP<raw::RawDigit> RawDigits
+     (wireVecHandle, evt, fCalDataModuleLabel);
+   
    // Signal Type (Collection or Induction)
    geo::SigType_t sigType;
    // Channel Number
-   uint32_t channel              = 0;                 
+   raw::ChannelID_t channel = raw::InvalidChannelID;
    //##############################
    //### Looping over the wires ###
    //############################## 
@@ -259,12 +281,14 @@ void GausHitFinder::produce(art::Event& evt)
       StartTimeError.clear();
       EndTime.clear();
       EndTimeError.clear();
+      RMS.clear();
       MeanPosition.clear();
       MeanPosError.clear();
       Amp.clear();
       AmpError.clear();
       NumOfHits.clear();
       hitSig.clear();
+      SumADC.clear();
       Charge.clear();
       ChargeError.clear();
       tempGaus1Par.clear();
@@ -275,9 +299,10 @@ void GausHitFinder::produce(art::Event& evt)
       // ### Getting this particular wire ###
       // ####################################
       art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
+      art::Ptr<raw::RawDigit> rawdigits = RawDigits.at(wireIter);
       
       // --- Setting Channel Number and Signal type ---
-      channel = wire->RawDigit()->Channel();
+      channel = wire->Channel();
       sigType = geom->SignalType(channel);
       // ----------------------------------------------------------
       // -- Setting the appropriate signal widths and thresholds --
@@ -465,6 +490,7 @@ void GausHitFinder::produce(art::Event& evt)
 	    
 	 // ### Creating temperary parameters for storing hits ###
 	 double tempChi2NDF = 0;
+	 int tempNDF = -1;
 	 std::vector<double> tempPar;
          std::vector<double> tempParError;
 	 
@@ -475,6 +501,7 @@ void GausHitFinder::produce(art::Event& evt)
 	    {
 	    nFill = nGausReFit;
 	    tempChi2NDF = Chi2PerNDF2;
+	    tempNDF = NDF2;
 	    // ### Filling the vector of information
 	    for(size_t ab = 0; ab < tempGaus2Par.size(); ab++)
 	       {
@@ -489,6 +516,7 @@ void GausHitFinder::produce(art::Event& evt)
 	    {
 	    nFill = nGausForFit;
 	    tempChi2NDF = Chi2PerNDF;
+	    tempNDF = NDF;
 	    // ### Filling the vector of information
 	    for(size_t ab = 0; ab < tempGaus1Par.size(); ab++)
 	       {
@@ -509,6 +537,7 @@ void GausHitFinder::produce(art::Event& evt)
 	 StartTimeError.clear();
 	 EndTime.clear();
 	 EndTimeError.clear();
+	 RMS.clear();
 	 MeanPosition.clear();
 	 MeanPosError.clear();
 	 Amp.clear();
@@ -516,7 +545,10 @@ void GausHitFinder::produce(art::Event& evt)
 	 NumOfHits.clear();
 	 hitSig.clear();
 	 Charge.clear();
+	 SumADC.clear();
 	 ChargeError.clear();
+	 FitGoodness.clear();
+	 FitNDF.clear();
 	 
 	 int numHits = 0;
 	 // #################################################
@@ -547,6 +579,9 @@ void GausHitFinder::produce(art::Event& evt)
 	    MeanPosition.push_back( tempPar[(3*cc)+1] );
 	    MeanPosError.push_back( tempParError[(3*cc)+1] );
 	    
+	    // ### Width ###
+	    RMS.push_back( tempPar[(3*cc)+2] );
+	    
 	    // ### Amplitude ###
 	    Amp.push_back( tempPar[3*cc] );
 	    AmpError.push_back( tempParError[3*cc] );
@@ -557,6 +592,7 @@ void GausHitFinder::produce(art::Event& evt)
 	    
 	    // ### Chi^2 / NDF ###
 	    FitGoodness.push_back( tempChi2NDF );
+	    FitNDF.push_back( tempNDF );
 	    
 	    // ### Charge ###
 	    hitSig.resize(endT - startT);
@@ -583,6 +619,11 @@ void GausHitFinder::produce(art::Event& evt)
 	  			   tempParError[(3*cc)+2]*tempParError[(3*cc)+0]) );   //estimate from area of Gaussian
 	    
 	    
+	    // ### Sum of ADC counts ### FIXME I don't think this copes well with overlaps
+	    SumADC.push_back(
+	      std::accumulate(signal.begin() + startT, signal.begin() + endT, 0.)
+	      );
+	    
 	    numHits++;
 	    }//<---End cc loop
 	          
@@ -597,24 +638,27 @@ void GausHitFinder::produce(art::Event& evt)
 	 // ### Recording each hit in the pulse ###
 	 for(size_t dd = 0; dd < MeanPosition.size(); dd++)
 	    {
-	    recob::Hit hit(wire, 
-			 wid,
-			 StartTime[dd], 
-			 StartTimeError[dd],
-			 EndTime[dd], 
-			 EndTimeError[dd],
-			 MeanPosition[dd],
-			 MeanPosError[dd],
-			 Charge[dd],         
-			 ChargeError[dd],                
-			 Amp[dd],
-			 AmpError[dd],
-			 NumOfHits[dd],     
-			 FitGoodness[dd]);
-		   
-	      
-	      
-	    hcol->push_back(hit);
+		 recob::HitCreator hit(
+		   *wire,            // wire reference
+		   wid,              // wire ID
+		   startT,           // start_tick TODO check
+		   endT,             // end_tick TODO check
+		   RMS[dd],          // rms
+		   MeanPosition[dd], // peak_time
+		   MeanPosError[dd], // sigma_peak_time
+		   Amp[dd],          // peak_amplitude
+		   AmpError[dd],     // sigma_peak_amplitude
+		   Charge[dd],       // hit_integral
+		   ChargeError[dd],  // hit_sigma_integral
+		   SumADC[dd],       // summedADC FIXME
+		   NumOfHits[dd],    // multiplicity
+		   dd,               // local_index TODO check that the order is correct
+		   FitGoodness[dd],  // goodness_of_fit
+		   FitNDF[dd],       // dof
+		   std::vector<float>(signal.begin() + startT, signal.begin() + endT) // signal
+		   );
+		 
+		 hcol.emplace_back(hit.move(), wire, rawdigits);
 	    }
 	    
 	 }//<---End num loop
@@ -625,8 +669,9 @@ void GausHitFinder::produce(art::Event& evt)
 
 //==================================================================================================  
 // End of the event  
-    
-   evt.put(std::move(hcol));
+   
+   // move the hit collection and the associations into the event
+   hcol.put_into(evt);
   
 
 
@@ -665,7 +710,7 @@ void hit::GausHitFinder::FitGaussians(std::vector<float> SignalVector, std::vect
       hitSignal.Fill(aa,SignalVector[aa]);
 
       
-      if(EndTime > 10000){break;}
+      if(EndTime > 10000){break;} // FIXME why?
       }//<---End aa loop
 
    // ############################################
@@ -715,6 +760,7 @@ void hit::GausHitFinder::FitGaussians(std::vector<float> SignalVector, std::vect
    // ### Getting the fitted parameters from the fit ###
    // ##################################################
    Chi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
+   NDF = Gaus.GetNDF();
    
    for(unsigned short ipar = 0; ipar < (3 * nGauss); ++ipar)
       {
@@ -813,6 +859,7 @@ void hit::GausHitFinder::ReFitGaussians(std::vector<float> ReSignalVector, std::
    // ##################################################
 
    Chi2PerNDF2 = (Gaus2.GetChisquare() / Gaus2.GetNDF());
+   NDF2 = Gaus2.GetNDF();
       
    for(unsigned short ipar = 0; ipar < (3 * mGauss); ++ipar)
       {

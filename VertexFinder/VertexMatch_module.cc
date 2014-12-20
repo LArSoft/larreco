@@ -284,7 +284,7 @@ void vertex::VertexMatch::produce(art::Event& evt)
     for(unsigned int i=0;i < matchedvertex.size(); i++){      
       // I think this is grabbing first item in pair, itself a pointer then grabbing first 
       // (.begin()) one of those. EC, 18-Oct-2010.
-      channel=(matchedvertex[i].first)->Wire()->RawDigit()->Channel();
+      channel=(matchedvertex[i].first)->Wire()->Channel();
       
       // strongvertex, despite name, is a hit vector.
       strongvertex.push_back(matchedvertex[i].first);
