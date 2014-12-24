@@ -12,25 +12,30 @@
 // 
 ////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-#include <stdint.h>
+// C/C++ standard library
+#include <string>
+#include <vector>
+#include <utility> // std::move
+#include <algorithm> // std::accumulate
 
 // Framework includes
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h"   
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Principal/Event.h" 
 #include "art/Framework/Core/EDProducer.h" 
-
+#include "art/Framework/Core/FindOneP.h"
 
 // LArSoft Includes
+#include "SimpleTypesAndConstants/geo_types.h"
+#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
+#include "RawData/RawDigit.h"
+#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
+#include "RecoBaseArt/HitCreator.h"
 
 // ROOT Includes 
 #include "TH1D.h"
@@ -99,7 +104,11 @@ namespace hit{
 RFFHitFinder::RFFHitFinder(fhicl::ParameterSet const& pset)
 {
     this->reconfigure(pset);
-    produces< std::vector<recob::Hit> >();
+    
+    // let HitCollectionCreator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    // (with no particular product label)
+    recob::HitCollectionCreator::declare_products(*this);
 }
 
 
@@ -229,20 +238,27 @@ std::vector<float> RFFHitFinder::GaussianElimination(std::vector< std::vector<fl
 void RFFHitFinder::produce(art::Event& evt)
 {
 
-  std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
-    
+  // this object contains the hit collection
+  // and its associations to wires and raw digits:
+  recob::HitCollectionCreator hcol(*this, evt);
+  
   // ##########################################
   // ### Reading in the Wire List object(s) ###
   // ##########################################
   art::Handle< std::vector<recob::Wire> > wireVecHandle;
   evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
+
+  // also get the raw digits associated with wires
+  art::FindOneP<raw::RawDigit> WireToRawDigits
+    (wireVecHandle, evt, fCalDataModuleLabel);
+    
   art::ServiceHandle<geo::Geometry> geom;
     
   // #########################################################
   // ### List of useful variables used throughout the code ###
   // #########################################################  
   double threshold              = 0.;               // minimum signal size for id'ing a hit
-  uint32_t channel              = 0;                // channel number
+  raw::ChannelID_t channel      = raw::InvalidChannelID; // channel number
   geo::SigType_t sigType;                           // Signal Type (Collection or Induction)
   std::vector<int> startTimes;             	    // stores time of 1st local minimum
   std::vector<int> maxTimes;    	   	    // stores time of local maximum    
@@ -262,7 +278,7 @@ void RFFHitFinder::produce(art::Event& evt)
 	
 	
     // --- Setting Channel Number and Wire Number as well as signal type ---
-    channel = wire->RawDigit()->Channel();
+    channel = wire->Channel();
     sigType = geom->SignalType(channel);
       
     // -----------------------------------------------------------
@@ -580,29 +596,41 @@ void RFFHitFinder::produce(art::Event& evt)
       
       for(unsigned int i=0; i<solutions.size(); i++){
 
-	// get the WireID for this hit
-	std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
-	///\todo need to have a disambiguation algorithm somewhere in here
-	// for now, just take the first option returned from ChannelToWire
-	geo::WireID wid = wids[0];
-	
-	recob::Hit hit(wire, 
-		       wid,
-		       std::get<1>(mean_matches.at(i))-std::get<1>(sigma_matches.at(i)),
-		       std::sqrt(std::get<2>(mean_matches.at(i))+std::get<2>(sigma_matches.at(i))),
-		       std::get<1>(mean_matches.at(i))+std::get<1>(sigma_matches.at(i)),
-		       std::sqrt(std::get<2>(mean_matches.at(i))+std::get<2>(sigma_matches.at(i))),
-		       std::get<1>(mean_matches.at(i)),
-		       std::sqrt(std::get<2>(mean_matches.at(i))),
-		       solutions.at(i)*std::get<1>(sigma_matches.at(i))*SQRT_TWO_PI, 
-		       0,
-		       solutions.at(i),
-		       0, 
-		       std::get<0>(mean_matches.at(i)),
-		       0.);   
-	hcol->push_back(hit);
+        // get the WireID for this hit
+        std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
+        ///\todo need to have a disambiguation algorithm somewhere in here
+        // for now, just take the first option returned from ChannelToWire
+        geo::WireID wid = wids[0];
 
-      }
+        // make the hit
+        recob::HitCreator hit(
+          *wire,                                         // wire
+          wid,                                           // wireID
+	      (int) startT,                                   // start_tick
+	      (int) endT,                                     // end_tick
+          std::get<1>(sigma_matches.at(i)),              // rms
+          std::get<1>(mean_matches.at(i)),               // peak_time
+          std::sqrt(std::get<2>(mean_matches.at(i))),    // sigma_peak_time
+          solutions.at(i),                               // peak_amplitude
+          0.,                                            // sigma_peak_amplitude
+          solutions.at(i)*std::get<1>(sigma_matches.at(i))*SQRT_TWO_PI, 
+                                                         // hit_integral
+          0.,                                            // hit_sigma_integral
+          0.,                                            // summedADC
+                                                         /// @todo summedADC needs to be filled
+          solutions.size(),                              // multiplicity
+          i,                                             // local_index
+          0.,                                            // goodness_of_fit
+          -1,                                            // dof
+          std::vector<float>                             // signal
+            (signal.begin() + (int) startT, signal.begin() + (int) endT)
+          );
+        
+        // get the object associated with the original hit
+        art::Ptr<raw::RawDigit> rawdigits = WireToRawDigits.at(wireIter);
+        
+        hcol.emplace_back(hit.move(), wire, rawdigits);
+       }
       
       //std::cout << "OK, we added the hit." << std::endl;
 
@@ -616,12 +644,10 @@ void RFFHitFinder::produce(art::Event& evt)
   }//<---End looping over wireIter
   
   
-    
-  evt.put(std::move(hcol));
   
-
-
-
+  // put the hit collection and associations into the event
+  hcol.put_into(evt);
+  
 } // End of produce() 
 
 

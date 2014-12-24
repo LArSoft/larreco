@@ -9,21 +9,31 @@
 //  This algorithm is designed to find hits on wires after deconvolution
 //  with an average shape used as the input response.
 ////////////////////////////////////////////////////////////////////////
+
+// C/C++ standard library
 #include <string>
-#include <stdint.h>
+#include <vector>
+#include <utility> // std::move
+#include <algorithm> // std::accumulate
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Principal/Event.h" 
 #include "art/Framework/Core/EDProducer.h" 
+#include "art/Framework/Core/FindOneP.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft Includes
 #include "SimpleTypesAndConstants/geo_types.h"
+#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
+#include "RawData/RawDigit.h"
+#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
+#include "RecoBaseArt/HitCreator.h"
 
 // ROOT Includes 
 #include "TH1D.h"
@@ -66,7 +76,11 @@ namespace hit{
   FFTHitFinder::FFTHitFinder(fhicl::ParameterSet const& pset)
   {
     this->reconfigure(pset);
-    produces< std::vector<recob::Hit> >();
+    
+    // let HitCollectionCreator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    // (with no particular product label)
+    recob::HitCollectionCreator::declare_products(*this);
   }
 
 
@@ -107,18 +121,25 @@ namespace hit{
   void FFTHitFinder::produce(art::Event& evt)
   { 
     
-    std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
+    // this object contains the hit collection
+    // and its associations to wires and raw digits:
+    recob::HitCollectionCreator hcol(*this, evt);
+  
     // Read in the wire List object(s).
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
     art::ServiceHandle<geo::Geometry> geom;
    
+    // also get the raw digits associated with wires
+    art::FindOneP<raw::RawDigit> WireToRawDigits
+      (wireVecHandle, evt, fCalDataModuleLabel);
+    
     std::vector<int> startTimes;             // stores time of 1st local minimum
     std::vector<int> maxTimes;    	     // stores time of local maximum    
     std::vector<int> endTimes;    	     // stores time of 2nd local minimum
     int time               = 0;              // current time bin
     int minTimeHolder      = 0;              // current start time
-    uint32_t channel       = 0;              // channel number
+    raw::ChannelID_t channel = raw::InvalidChannelID; // channel number
     bool maxFound          = false;          // Flag for whether a peak > threshold has been found
     double threshold       = 0.;             // minimum signal size for id'ing a hit
     double fitWidth        = 0.;             // hit fit width initial value
@@ -140,7 +161,7 @@ namespace hit{
       time          = 0;
       minTimeHolder = 0;
       maxFound      = false;
-      channel       = wire->RawDigit()->Channel();
+      channel       = wire->Channel();
       sigType       = geom->SignalType(channel);
 
       //Set the appropriate signal widths and thresholds
@@ -312,6 +333,7 @@ namespace hit{
 	    positionErr   = gSum.GetParError(3*hitNumber+1);
 	    widthErr      = gSum.GetParError(3*hitNumber+2);
             goodnessOfFit = gSum.GetChisquare()/(double)gSum.GetNDF();
+       int DoF = gSum.GetNDF();
 
 	    //estimate error from area of Gaussian
             chargeErr = std::sqrt(TMath::Pi())*(amplitudeErr*width+widthErr*amplitude);   
@@ -333,22 +355,33 @@ namespace hit{
 	    geo::WireID wid = wids[0];
 
 	    // make the hit
-	    recob::Hit hit(wire, 
-			   wid,
-			   position - width, 
-                           widthErr,
-			   position + width, 
-                           widthErr,
-			   position,
-                           positionErr,
-			   totSig,         
-                           chargeErr,                
-			   amplitude,
-                           amplitudeErr,
-			   1,                  /// \todo - mulitplicity has to be determined
-			   goodnessOfFit);               	    
-	    hcol->push_back(hit);
+	    recob::HitCreator hit(
+	      *wire,          // wire
+	      wid,            // wireID
+	      (int) startT,   // start_tick
+	      (int) endT,     // end_tick
+	      width,          // rms
+	      position,       // peak_time
+	      positionErr,    // sigma_peak_time
+	      amplitude,      // peak_amplitude
+	      amplitudeErr,   // sigma_peak_amplitude
+	      totSig,         // hit_integral
+	      chargeErr,      // hit_sigma_integral
+	      std::accumulate // summedADC
+	        (signal.begin() + (int) startT, signal.begin() + (int) endT, 0.),
+	      1,              // multiplicity
+	      -1,             // local_index
+	                      /// \todo - multiplicity and local_index have to be determined
+	      goodnessOfFit,  // goodness_of_fit
+	      DoF,            // dof
+	      std::vector<float>  // signal
+	        (signal.begin() + (int) startT, signal.begin() + (int) endT)
+	      );
 	    
+	    // get the object associated with the original hit
+	    art::Ptr<raw::RawDigit> rawdigits = WireToRawDigits.at(wireIter);
+	    
+	    hcol.emplace_back(hit.move(), wire, rawdigits);
 	  }//end if over threshold
 	}//end loop over hits
 	hitIndex += numHits;	
@@ -356,7 +389,8 @@ namespace hit{
 
     } // while on Wires
     
-    evt.put(std::move(hcol));
+    // put the hit collection and associations into the event
+    hcol.put_into(evt);
 
   } // End of produce()  
   

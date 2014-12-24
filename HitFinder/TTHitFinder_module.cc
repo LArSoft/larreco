@@ -19,11 +19,15 @@
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Principal/Event.h" 
 #include "art/Framework/Core/EDProducer.h" 
+#include "art/Framework/Core/FindOneP.h"
 
 // LArSoft Includes
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
+#include "RawData/RawDigit.h"
+#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
+#include "RecoBaseArt/HitCreator.h"
 
 namespace hit{
 
@@ -58,9 +62,13 @@ namespace hit{
   //-------------------------------------------------
   TTHitFinder::TTHitFinder(fhicl::ParameterSet const& pset) {
     this->reconfigure(pset);
-    produces< std::vector<recob::Hit> >("uhits");
-    produces< std::vector<recob::Hit> >("vhits");
-    produces< std::vector<recob::Hit> >("yhits");
+    
+    // let HitCollectionCreator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    recob::HitCollectionCreator::declare_products(*this, "uhits");
+    recob::HitCollectionCreator::declare_products(*this, "vhits");
+    recob::HitCollectionCreator::declare_products(*this, "yhits");
+    
   }
 
   //-------------------------------------------------
@@ -98,16 +106,21 @@ namespace hit{
   void TTHitFinder::produce(art::Event& evt)
   { 
     
-    //initialize our hit collection
-    std::unique_ptr<std::vector<recob::Hit> > hitCollection_U(new std::vector<recob::Hit>);
-    std::unique_ptr<std::vector<recob::Hit> > hitCollection_V(new std::vector<recob::Hit>);
-    std::unique_ptr<std::vector<recob::Hit> > hitCollection_Y(new std::vector<recob::Hit>);
-
+    // these objects contain the hit collections
+    // and their associations to wires and raw digits:
+    recob::HitCollectionCreator hitCollection_U(*this, evt, "uhits");
+    recob::HitCollectionCreator hitCollection_V(*this, evt, "vhits");
+    recob::HitCollectionCreator hitCollection_Y(*this, evt, "yhits");
+  
     // Read in the wire List object(s).
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
     std::vector<recob::Wire> const& wireVec(*wireVecHandle);
 
+    // also get the raw digits associated with wires
+    art::FindOneP<raw::RawDigit> WireToRawDigits
+      (wireVecHandle, evt, fCalDataModuleLabel);
+    
     art::ServiceHandle<geo::Geometry> geom;
    
     //initialize some variables that will be in the loop.
@@ -120,13 +133,15 @@ namespace hit{
       
       //get our wire
       art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
+      art::Ptr<raw::RawDigit> const& rawdigits = WireToRawDigits.at(wireIter);
+      
       std::vector<float> signal(wire->Signal());
       std::vector<float>::iterator timeIter;   // iterator for time bins
-      geo::WireID wire_id = (geom->ChannelToWire(wire->RawDigit()->Channel())).at(0); //just grabbing the first one
+      geo::WireID wire_id = (geom->ChannelToWire(wire->Channel())).at(0); //just grabbing the first one
       
       
       //set the thresholds and widths based on wire type
-      geo::SigType_t sigType = geom->SignalType(wire->RawDigit()->Channel());
+      geo::SigType_t sigType = geom->SignalType(wire->Channel());
       if(sigType == geo::kInduction){
 	threshold_peak = fMinSigPeakInd;
 	threshold_tail = fMinSigTailInd;
@@ -174,41 +189,57 @@ namespace hit{
 
 	float hit_time = time_bin;
 	if(width%2==0) hit_time = time_bin+0.5;
-
+	
+	// hit time region is 2 widths (4 RMS) wide
+	const raw::TDCtick_t start_tick = hit_time - width,
+	  end_tick = hit_time + width;
+	
 	// make the hit
-	recob::Hit hit(wire, wire_id,     //recob::Wire object and wireID
-		       hit_time-width, 0, //start time, no error
-		       hit_time+width, 0, //end time, no error
-		       hit_time, 0,       //peak time, no error
-		       totalCharge, 0,    //total charge, no error
-		       peak_val, 0,       //peak charge, no error,
-		       1, 1.              //multiplicity and goodness of fit dummy values
-		       );
+	recob::HitCreator hit(
+	  *wire,                     // wire
+	  wire_id,                   // wireID
+	  start_tick,                // start_tick
+	  end_tick,                  // end_tick
+	  width / 2.,                // rms
+	  hit_time,                  // peak_time
+	  0.,                        // sigma_peak_time
+	  peak_val,                  // peak_amplitude
+	  0.,                        // sigma_peak_amplitude
+	  totalCharge,               // hit_integral
+	  0.,                        // hit_sigma_integral
+	  totalCharge,               // summedADC
+	  1,                         // multiplicity (dummy value)
+	  0,                         // local_index (dummy value)
+	  1.,                        // goodness_of_fit (dummy value)
+	  0,                         // dof
+	  std::vector<float>(signal.begin() + start_tick, signal.begin() + end_tick)
+	                             // signal
+	  );
 	if(wire_id.Plane==0)
-	  hitCollection_U->push_back(hit);
+	  hitCollection_U.emplace_back(hit.move(), wire, rawdigits);
 	else if(wire_id.Plane==1)
-	  hitCollection_V->push_back(hit);
+	  hitCollection_V.emplace_back(hit.move(), wire, rawdigits);
 	else if(wire_id.Plane==2)
-	  hitCollection_Y->push_back(hit);
+	  hitCollection_Y.emplace_back(hit.move(), wire, rawdigits);
 
       }//End loop over time ticks on wire
 
       LOG_DEBUG("TTHitFinder") << "Finished wire " << wire_id.Wire << " (plane " << wire_id.Plane << ")"
 			       << "\tTotal hits (U,V,Y)= (" 
-			       << hitCollection_U->size() << ","
-			       << hitCollection_V->size() << ","
-			       << hitCollection_Y->size() << ")";
+			       << hitCollection_U.size() << ","
+			       << hitCollection_V.size() << ","
+			       << hitCollection_Y.size() << ")";
 
     }//End loop over all wires
 
-    //put this hit collection onto the event
+    // put the hit collection and associations into the event
     mf::LogInfo("TTHitFinder") << "Total TTHitFinder hits (U,V,Y)=(" 
-			       << hitCollection_U->size() << ","
-			       << hitCollection_V->size() << ","
-			       << hitCollection_Y->size() << ")";
-    evt.put(std::move(hitCollection_U),"uhits");
-    evt.put(std::move(hitCollection_V),"vhits");
-    evt.put(std::move(hitCollection_Y),"yhits");
+			       << hitCollection_U.size() << ","
+			       << hitCollection_V.size() << ","
+			       << hitCollection_Y.size() << ")";
+    hitCollection_U.put_into(evt); // reminder: instance name was "uhits"
+    hitCollection_V.put_into(evt); // reminder: instance name was "vhits"
+    hitCollection_Y.put_into(evt); // reminder: instance name was "yhits"
 
   } // End of produce()  
   

@@ -874,7 +874,7 @@ namespace trkf {
         xx = detprop->ConvertTicksToX(trkHits[ipl][iht]->PeakTime(), 
                                 ipl, tpc, cstat);
         trkXW[ipl][iht] = std::make_pair(xx, trkHits[ipl][iht]->WireID());
-        trkChg[ipl][iht] = trkHits[ipl][iht]->Charge();
+        trkChg[ipl][iht] = trkHits[ipl][iht]->Integral();
       } // iht
     } // ip
     fTrackTrajectoryAlg.TrackTrajectory(trkXW, trkPos, trkDir, trkChg);
@@ -2037,9 +2037,9 @@ namespace trkf {
       if(wire < wire1) continue;
       if(wire > wire2) continue;
       prtime = t1 + (wire - w1) * slp;
-      if(prtime > allhits[hit]->EndTime() + 20) continue;
-      if(prtime < allhits[hit]->StartTime() - 20) continue;
-      chg += allhits[hit]->Charge();
+      if(prtime > allhits[hit]->PeakTimePlusRMS() + 20) continue;
+      if(prtime < allhits[hit]->PeakTimeMinusRMS() - 20) continue;
+      chg += allhits[hit]->Integral();
     } // hit
     return chg;
   } // ChargeNear

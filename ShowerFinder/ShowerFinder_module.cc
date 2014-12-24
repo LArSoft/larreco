@@ -285,7 +285,7 @@ namespace shwf{
 	for(size_t p = 0; p < protoShowers.size(); ++p){
 	  std::vector< art::Ptr<recob::Hit> > hits = fmhps.at(p);
 	  for(size_t h = 0; h < hits.size(); ++h)
-	    if(hits[h]->SignalType() == geo::kCollection) totalCharge += hits[h]->Charge();
+	    if(hits[h]->SignalType() == geo::kCollection) totalCharge += hits[h]->Integral();
 	}
 	
 	/// \todo really need to determine the values of the arguments of the recob::Shower ctor

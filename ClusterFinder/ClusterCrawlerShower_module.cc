@@ -165,8 +165,8 @@ cluster::ClusterCrawlerShower::ClusterCrawlerShower(fhicl::ParameterSet const& p
 	double peakTimePerpMax=-(1/cl->dTdW())*(double)((*hitsItr)->WireID().Wire)+cl->EndPos().back()+(1/cl->dTdW())*(cl->EndPos().front());
 
 
-	if(distance > 1*(fMaxDistance+(((*hitsItr)->EndTime()-(*hitsItr)->StartTime())/2.))
-         && distance < 25*(fMaxDistance+(((*hitsItr)->EndTime()-(*hitsItr)->StartTime())/2.))){
+	if(distance > 1*(fMaxDistance+(*hitsItr)->RMS())
+         && distance < 25*(fMaxDistance+(*hitsItr)->RMS())){
 	  if((cl->dTdW() < 0 && (*hitsItr)->PeakTime() < peakTimePerpMin && (*hitsItr)->PeakTime() > peakTimePerpMax)
             || (cl->dTdW() > 0 && (*hitsItr)->PeakTime() > peakTimePerpMin && (*hitsItr)->PeakTime() < peakTimePerpMax)){
 	  showerHitList.push_back(*hitsItr);

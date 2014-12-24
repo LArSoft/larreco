@@ -10,15 +10,16 @@
 #include <iostream>
 #include <stdint.h>
 
-#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Persistency/Common/Ptr.h"
 #include "art/Persistency/Common/PtrVector.h"
 #include "art/Framework/Principal/Event.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 
 #include "Geometry/Geometry.h"
 #include "Utilities/DetectorProperties.h"
 #include "SimpleTypesAndConstants/geo_types.h"
+#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
@@ -75,7 +76,7 @@ namespace apa{
     art::ServiceHandle<cheat::BackTracker> bt;                     ///< For *TEMPORARY* monitering of potential problems
 
     // Hits organization
-    std::map< uint32_t, std::vector< art::Ptr< recob::Hit > > >        fChannelToHits; 
+    std::map< raw::ChannelID_t, std::vector< art::Ptr< recob::Hit > > > fChannelToHits; 
     std::map< unsigned int, std::vector< art::Ptr< recob::Hit > > >    fAPAToUVHits, fAPAToZHits; 
     std::map< unsigned int, std::vector< art::Ptr< recob::Hit > > >    fAPAToHits; 
                                                                    ///\ todo: Channel/APA to hits can be done in a unified way

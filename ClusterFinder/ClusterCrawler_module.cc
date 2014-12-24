@@ -15,18 +15,25 @@
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
+#include "art/Framework/Core/FindOneP.h"
 
-#include <memory>
+#include <vector>
+#include <memory> // std::move
+#include <utility> // std::pair<>, std::unique_ptr<>
 
 //LArSoft includes
 #include "SimpleTypesAndConstants/geo_types.h"
+#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
+#include "RawData/RawDigit.h"
 #include "RecoBase/Cluster.h"
+#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/EndPoint2D.h"
+#include "RecoBaseArt/HitCreator.h"
 #include "RecoBase/Vertex.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/CCHitFinderAlg.h"
@@ -63,7 +70,12 @@ namespace cluster {
 //    fCCHRAlg(pset.get< fhicl::ParameterSet >("CCHitRefinerAlg" ))
   {  
     this->reconfigure(pset);
-    produces< std::vector<recob::Hit> >();
+    
+    // let HitCollectionCreator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    // (with no particular product label)
+    recob::HitCollectionCreator::declare_products(*this);
+    
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< std::vector<recob::EndPoint2D> >();
@@ -106,9 +118,19 @@ namespace cluster {
     art::ServiceHandle<geo::Geometry> geo;
     
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
-    std::vector<recob::Hit> shcol;
+    // shcol contains the hit collection
+    // and its associations to wires and raw digits
+    recob::HitCollectionCreator shcol(*this, evt);
     std::vector<recob::Cluster> sccol;
 
+    // learn from the algorithm which wires it used,
+    // and get both wires and their association with raw digits
+    std::string WireCreatorModuleLabel = fCCHFAlg.CalDataModuleLabel();
+    art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
+     = evt.getValidHandle<std::vector<recob::Wire>>(WireCreatorModuleLabel);
+    art::FindOneP<raw::RawDigit> WireToRawDigit
+      (wireVecHandle, evt, WireCreatorModuleLabel);
+    
     // put clusters and hits into std::vectors
     unsigned short nclus = 0;
     unsigned short hitcnt = 0;
@@ -134,30 +156,44 @@ namespace cluster {
             <<" hit ID "<<iht<<" InClus "<<theHit.InClus;
           return;
         }
-        art::Ptr<recob::Wire> theWire = theHit.Wire;
-        uint32_t channel = theWire->Channel();
+        art::Ptr<recob::Wire> const& theWire = theHit.Wire;
+        art::Ptr<raw::RawDigit> const& theRawDigit
+          = WireToRawDigit.at(theWire.key());
+        raw::ChannelID_t channel = theWire->Channel();
         // get the Wire ID from the channel
         std::vector<geo::WireID> wids = geo->ChannelToWire(channel);
         if(!wids[0].isValid) {
           mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<theWire<<" "<<channel;
           return;
         }
-        recob::Hit hit(theHit.Wire,  wids[0],
-              (double) (theHit.Time - theHit.RMS), 0.,
-              (double) (theHit.Time + theHit.RMS), 0.,
-              (double) theHit.Time, theHit.TimeErr,
-              (double) theHit.Charge, theHit.ChargeErr,
-              (double) theHit.Amplitude, theHit.AmplitudeErr,
-              (int)    theHit.numHits, 
-              (double) theHit.ChiDOF);
-        shcol.push_back(hit);
+        
+        recob::HitCreator hit(
+          *theWire,                  // wire reference
+          wids[0],                   // wire ID
+          theHit.LoTime,             // start_tick TODO check
+          theHit.HiTime,             // end_tick TODO check
+          theHit.RMS,                // rms
+          theHit.Time,               // peak_time
+          theHit.TimeErr,            // sigma_peak_time
+          theHit.Amplitude,          // peak_amplitude
+          theHit.AmplitudeErr,       // sigma_peak_amplitude
+          theHit.Charge,             // hit_integral
+          theHit.ChargeErr,          // hit_sigma_integral
+          0.,                        // summedADC FIXME
+          theHit.numHits,            // multiplicity
+          -1,                        // local_index FIXME
+          theHit.ChiDOF,             // goodness_of_fit
+                                     // dof
+          std::vector<float>()       // signal FIXME
+          );
+        shcol.emplace_back(hit.move(), theWire, theRawDigit);
         ++hitcnt;
         qtot += theHit.Charge;
       } // itt
       // get the view from a hit on the cluster
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[clstr.tclhits[0]];
       art::Ptr<recob::Wire> theWire = theHit.Wire;
-      uint32_t channel = theWire->Channel();
+      raw::ChannelID_t channel = theWire->Channel();
       
       // Stuff 2D vertex info into unused Cluster variables to help
       // associate the Begin cluster - vertex 2D and End cluster - vertex 2D
@@ -217,7 +253,7 @@ namespace cluster {
                          );
       
       // associate the hits to this cluster
-      util::CreateAssn(*this, evt, sccol, shcol, *hc_assn, firsthit, hitcnt);
+      util::CreateAssn(*this, evt, sccol, shcol.peek(), *hc_assn, firsthit, hitcnt);
     } // cluster iterator
     
     // make hits that are not associated with any cluster
@@ -228,28 +264,37 @@ namespace cluster {
       if(theHit.InClus != 0) continue;
       ++hitcnt;
       art::Ptr<recob::Wire> theWire = theHit.Wire;
-      uint32_t channel = theWire->Channel();
+      art::Ptr<raw::RawDigit> const& theRawDigit
+        = WireToRawDigit.at(theWire.key());
+      raw::ChannelID_t channel = theWire->Channel();
       // get the Wire ID from the channel
       std::vector<geo::WireID> wids = geo->ChannelToWire(channel);
       if(!wids[0].isValid) {
         mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<theWire<<" "<<channel;
       }
-      recob::Hit hit(theHit.Wire,  wids[0],
-            (double) (theHit.Time - theHit.RMS), 0.,
-            (double) (theHit.Time + theHit.RMS), 0.,
-            (double) theHit.Time , theHit.TimeErr,
-            (double) theHit.Charge , theHit.ChargeErr,
-            (double) theHit.Amplitude , theHit.AmplitudeErr,
-            (int)    theHit.numHits, 
-            (double) theHit.ChiDOF);
-      shcol.push_back(hit);
-    }
+      recob::HitCreator hit(
+        *theWire,                  // wire reference
+        wids[0],                   // wire ID
+        theHit.LoTime,             // start_tick TODO check
+        theHit.HiTime,             // end_tick TODO check
+        theHit.RMS,                // rms
+        theHit.Time,               // peak_time
+        theHit.TimeErr,            // sigma_peak_time
+        theHit.Amplitude,          // peak_amplitude
+        theHit.AmplitudeErr,       // sigma_peak_amplitude
+        theHit.Charge,             // hit_integral
+        theHit.ChargeErr,          // hit_sigma_integral
+        0.,                        // summedADC FIXME
+        theHit.numHits,            // multiplicity
+        -1,                        // local_index FIXME
+        theHit.ChiDOF,             // goodness_of_fit
+                                   // dof
+        std::vector<float>()       // signal FIXME
+        );
+      shcol.emplace_back(hit.move(), theWire, theRawDigit);
+    } // for unassociated hits
     
     // convert to unique_ptrs
-    std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
-    for(unsigned short iht = 0; iht < shcol.size(); ++iht) {
-      hcol->push_back(shcol[iht]);
-    }
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
 
     // 2D and 3D vertex collections
@@ -267,7 +312,7 @@ namespace cluster {
           <<planeID.Plane<<" vtx # "<<iv;
         continue;
       }
-      uint32_t channel = geo->PlaneWireToChannel(planeID.Plane, wire, planeID.TPC, planeID.Cryostat);
+      raw::ChannelID_t channel = geo->PlaneWireToChannel(planeID.Plane, wire, planeID.TPC, planeID.Cryostat);
       // get the Wire ID from the channel
       std::vector<geo::WireID> wids = geo->ChannelToWire(channel);
       if(!wids[0].isValid) {
@@ -301,7 +346,8 @@ namespace cluster {
     fCCAlg.vtx.clear();
     fCCAlg.vtx3.clear();
 
-    evt.put(std::move(hcol));
+    // move the hit collection and the associations into the event:
+    shcol.put_into(evt);
     evt.put(std::move(ccol));
     evt.put(std::move(hc_assn));
     evt.put(std::move(v2col));

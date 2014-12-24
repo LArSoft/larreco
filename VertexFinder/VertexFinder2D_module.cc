@@ -67,7 +67,7 @@ bool myfunction (CluLen c1, CluLen c2) { return (c1.length>c2.length);}
 
 struct SortByWire {
   bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const { 
-    return *(h1->Wire()) < *(h2->Wire());
+    return h1->Channel() < h2->Channel();
   }
 };
 
@@ -399,7 +399,7 @@ namespace vertex{
 	/// \todo for now will get all hits from the current cluster
 	std::vector< art::Ptr<recob::Hit> > hits = fmh.at(Cls[i][0]);
 	double totalQ = 0.;
-	for(size_t h = 0; h < hits.size(); ++h) totalQ += hits[h]->Charge();
+	for(size_t h = 0; h < hits.size(); ++h) totalQ += hits[h]->Integral();
 	
 	geo::WireID wireID(hits[0]->WireID().Cryostat,
 			   hits[0]->WireID().TPC,

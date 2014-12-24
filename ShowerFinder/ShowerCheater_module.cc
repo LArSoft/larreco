@@ -153,7 +153,7 @@ namespace shwf{
 	for(size_t h = 0; h < hits.size(); ++h){
 	  art::Ptr<recob::Hit> hit = hits[h];
 	  // add up the charge from the hits on the collection plane
-	  if(hit->SignalType() == geo::kCollection) totalCharge += hit->Charge();
+	  if(hit->SignalType() == geo::kCollection) totalCharge += hit->Integral();
 	  std::vector<double> xyz = bt->HitToXYZ(hit);
 	  double sperr[6] = {0.01, 0.01, 0.1, 0.001, 0.001, 0.001};
 

@@ -155,7 +155,7 @@ namespace cluster{
 	for(size_t j = 0; j < fDBScan.fpointId_to_clusterId.size(); ++j){	  
 	  if(fDBScan.fpointId_to_clusterId[j]==i){
 	    clusterHits.push_back(allhits[j]);
-	    totalQ += clusterHits.back()->Charge();
+	    totalQ += clusterHits.back()->Integral();
 	  }
 	}
         

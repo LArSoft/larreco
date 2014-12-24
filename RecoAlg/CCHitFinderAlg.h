@@ -41,6 +41,7 @@ namespace cluster {
       float RMS;
       float RMSErr;
       float ChiDOF;
+      int   DOF;
       art::Ptr<recob::Wire> Wire;
       unsigned short WireNum;
       unsigned short numHits;
@@ -70,6 +71,8 @@ namespace cluster {
     void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunCCHitFinder(art::Event & evt);
+    
+    std::string CalDataModuleLabel() const { return fCalDataModuleLabel; }
     
   private:
     
@@ -113,6 +116,7 @@ namespace cluster {
     std::vector<double> parmin;
     std::vector<double> parmax;
     float chidof;
+    int dof;
     std::vector<unsigned short> bumps;
     
     // make a cruddy hit if fitting fails

@@ -181,7 +181,7 @@ namespace cluster{
 	for(size_t j = 0; j < ffuzzyCluster.fpointId_to_clusterId.size(); ++j){
 	  if(ffuzzyCluster.fpointId_to_clusterId[j]==i){ 
 	    clusterHits.push_back(allhits[j]);
-	    totalQ += clusterHits.back()->Charge();
+	    totalQ += clusterHits.back()->Integral();
 	  }
 	} 
 	

@@ -80,7 +80,7 @@ namespace trkf {
   struct SortByWire 
   {
     bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const 
-    { return *(h1->Wire()) < *(h2->Wire()) ;
+    { return h1->Channel() < h2->Channel() ;
     }
   };
 

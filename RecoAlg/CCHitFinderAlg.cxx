@@ -181,6 +181,7 @@ namespace cluster{
             unsigned short nHitsFit = bumps.size();
             unsigned short nfit = 0;
             chidof = 0.;
+            dof = -1;
             bool HitStored = false;
             unsigned short nMaxFit = bumps.size() + fMaxXtraHits;
 //  bool first = true;
@@ -232,6 +233,7 @@ namespace cluster{
     short ndof = npt - 3 * nGaus;
     
     chidof = 9999.;
+    dof = -1;
 
     if(ndof < 3) return;
     if(bumps.size() == 0) return;
@@ -312,6 +314,7 @@ namespace cluster{
       partmperr.push_back(Gn->GetParError(ipar));
     }
     chidof = Gn->GetChisquare() / ( ndof * chinorm);
+    dof = ndof;
 
     // Sort by increasing time if necessary
     if(nGaus > 1) {
@@ -397,6 +400,7 @@ namespace cluster{
       parerr = partmperr;
     } else {
       chidof = 9999.;
+      dof = -1;
 //      if(prt) mf::LogVerbatim("CCHitFinder")<<"Bad fit parameters";
     }
     
@@ -446,6 +450,7 @@ namespace cluster{
     <<meanerr<<" rms "<<rmserr;
 */
     chidof = 9999.;
+    dof = -1;
   } // MakeCrudeHit
 
 
@@ -537,6 +542,7 @@ namespace cluster{
       onehit.RMS = par[index + 2];
       onehit.RMSErr = parerr[index + 2];
       onehit.ChiDOF = chidof;
+      onehit.DOF = dof;
       onehit.Wire = theWire;
       onehit.WireNum = theWireNum;
       onehit.numHits = nhits;
@@ -553,7 +559,7 @@ namespace cluster{
       <<" lo ID "<<onehit.LoHitID
       <<" numHits "<<nhm
       <<" loTime "<<loTime<<" hiTime "<<hiTime
-      <<" chidof "<<chidof;
+      <<" chidof "<<chidof << " DOF " << dof;
   }
 */
       allhits.push_back(onehit);

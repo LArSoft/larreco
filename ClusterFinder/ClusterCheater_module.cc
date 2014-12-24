@@ -224,9 +224,9 @@ namespace cluster{
 
       // set the start and end wires and times
       double startWire = hitMapItr.second.front()->WireID().Wire;
-      double startTime = hitMapItr.second.front()->StartTime();
+      double startTime = hitMapItr.second.front()->PeakTimeMinusRMS();
       double endWire   = hitMapItr.second.back()->WireID().Wire;
-      double endTime   = hitMapItr.second.back()->EndTime();
+      double endTime   = hitMapItr.second.back()->PeakTimePlusRMS();
       double totalQ    =  0.;
       double dTdW      =  1.e6;
       double dQdW      =  1.e6;
@@ -236,7 +236,7 @@ namespace cluster{
 	///\todo now figure out the dQdW      
       }
 
-      for(auto const& h : hitMapItr.second) totalQ += h->Charge();
+      for(auto const& h : hitMapItr.second) totalQ += h->Integral();
 
       // add a cluster to the collection.  Make the ID be the eve particle
       // trackID*1000 + plane number*100 + tpc*10 + cryostat that the current hits are from

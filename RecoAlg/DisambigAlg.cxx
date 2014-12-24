@@ -229,10 +229,10 @@ void DisambigAlg::MakeDisambigHit( art::Ptr<recob::Hit> hit,
   bool DisambigAlg::HitsOverlapInTime( art::Ptr<recob::Hit> hitA, 
 					      art::Ptr<recob::Hit> hitB )
 {
-    double AsT = hitA->PeakTimePlusRMS(-1.);
-    double AeT = hitA->PeakTimePlusRMS(+1.);
-    double BsT = hitB->PeakTimePlusRMS(-1.);
-    double BeT = hitB->PeakTimePlusRMS(+1.);
+    double AsT = hitA->PeakTimeMinusRMS();
+    double AeT = hitA->PeakTimePlusRMS();
+    double BsT = hitB->PeakTimeMinusRMS();
+    double BeT = hitB->PeakTimePlusRMS();
 
     if( hitA->View() == geo::kU ){ AsT -= detprop->TimeOffsetU(); AeT -= detprop->TimeOffsetU(); }
     else if( hitA->View() == geo::kV ){ AsT -= detprop->TimeOffsetV(); AeT -= detprop->TimeOffsetV(); }
@@ -255,7 +255,7 @@ void DisambigAlg::TrivialDisambig( unsigned int apa )
   // Loop through ambiguous hits (U/V) in this APA
   for( size_t h=0; h<fAPAToUVHits[apa].size(); h++ ){
     const art::Ptr<recob::Hit> hit = fAPAToUVHits[apa][h];
-    uint32_t chan = hit->Channel();
+    raw::ChannelID_t chan = hit->Channel();
     unsigned int peakT = hit->PeakTime();
 
     std::vector<geo::WireID> hitwids = geom->ChannelToWire(chan);
@@ -277,11 +277,11 @@ void DisambigAlg::TrivialDisambig( unsigned int apa )
       // get channel range
       TVector3 Min(tpcCenter); Min[2] = zminPos;
       TVector3 Max(tpcCenter); Max[2] = zmaxPos;
-      uint32_t ZminChan = geom->NearestChannel( Min, 2, tpc, cryo );
-      uint32_t ZmaxChan = geom->NearestChannel( Max, 2, tpc, cryo );
+      raw::ChannelID_t ZminChan = geom->NearestChannel( Min, 2, tpc, cryo );
+      raw::ChannelID_t ZmaxChan = geom->NearestChannel( Max, 2, tpc, cryo );
       
       for( size_t z=0; z < fAPAToZHits[apa].size(); z++ ){
-	uint32_t chan = fAPAToZHits[apa][z]->Channel();
+	raw::ChannelID_t chan = fAPAToZHits[apa][z]->Channel();
 	if( chan <= ZminChan || ZmaxChan <= chan ) continue;
 	art::Ptr<recob::Hit> zhit = fAPAToZHits[apa][z];
 
@@ -336,18 +336,18 @@ unsigned int DisambigAlg::MakeCloseHits( int ext, geo::WireID Dwid, double Dmin,
 
 
 
-  uint32_t Dchan = geom->PlaneWireToChannel(Dwid.Plane, Dwid.Wire, Dwid.TPC, Dwid.Cryostat);
+  raw::ChannelID_t Dchan = geom->PlaneWireToChannel(Dwid.Plane, Dwid.Wire, Dwid.TPC, Dwid.Cryostat);
   geo::View_t view = geom->View(Dchan);
   if(view==geo::kZ) 
     throw cet::exception("MakeCloseHits") << "Function not meant for non-wrapped channels.\n";
 
   // Account for wrapping
-  uint32_t firstChan = fAPAGeo.FirstChannelInView(view, Dchan);
+  raw::ChannelID_t firstChan = fAPAGeo.FirstChannelInView(view, Dchan);
   unsigned int ChanPerView = fAPAGeo.ChannelsInView(view);
   int tempchan = Dchan + ext; // need sign for the set of channels starting with channel 0
   if( tempchan < (int)firstChan ) tempchan += ChanPerView;
   if( tempchan > (int)(firstChan+ChanPerView-1) ) tempchan -= ChanPerView;
-  uint32_t chan = (uint32_t)(tempchan);
+  raw::ChannelID_t chan = (raw::ChannelID_t)(tempchan);
 
   // There may just be no hits
   if( fChannelToHits.count(chan) == 0 ) return 0;
@@ -358,8 +358,8 @@ unsigned int DisambigAlg::MakeCloseHits( int ext, geo::WireID Dwid, double Dmin,
   unsigned int MakeCount(0);
   for(size_t i=0; i<fChannelToHits[chan].size(); i++){
     art::Ptr< recob::Hit > closeHit = fChannelToHits[chan][i];
-    double st = closeHit->PeakTimePlusRMS(-1.);
-    double et = closeHit->PeakTimePlusRMS(+1.);
+    double st = closeHit->PeakTimeMinusRMS();
+    double et = closeHit->PeakTimePlusRMS();
     std::vector<geo::WireID> wids = geom->ChannelToWire(chan);
 
     if( !(Dmin <= st && st <= Dmax) && !(Dmin <= et && et <= Dmax) ) continue;
@@ -711,7 +711,7 @@ unsigned int DisambigAlg::CompareViews( unsigned int apa )
   // loop through all hits that are still ambiguous
   for(size_t h=0; h < fAPAToUVHits[apa].size(); h++){
     art::Ptr<recob::Hit>      ambighit  = fAPAToUVHits[apa][h];
-    uint32_t                  ambigchan = ambighit->Channel();
+    raw::ChannelID_t          ambigchan = ambighit->Channel();
     std::pair<double,double>  ambigChanTime(ambigchan*1.,ambighit->PeakTime());
     if( fHasBeenDisambiged[apa][ambigChanTime] ) continue;
     geo::View_t               view      = ambighit->View();
@@ -728,7 +728,7 @@ unsigned int DisambigAlg::CompareViews( unsigned int apa )
 
       // An other-view-hit overlaps in time, see what 
       // wids of the ambiguous hit's channels it overlaps
-      uint32_t                  chan = hit->Channel();
+      raw::ChannelID_t          chan = hit->Channel();
       std::vector<geo::WireID>  wids = geom->ChannelToWire(chan);
       std::pair<double,double>  ChanTime(chan*1.,hit->PeakTime());
       geo::WireIDIntersection   widIntersect; // only so we can use the function

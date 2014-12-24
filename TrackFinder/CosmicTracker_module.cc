@@ -351,7 +351,7 @@ namespace trkf {
                                            (*theHit)->WireID().TPC,
                                            (*theHit)->WireID().Cryostat);
 
-          double charge = (*theHit)->Charge();
+          double charge = (*theHit)->Integral();
           int bin = sig.FindBin(time);
           sig.SetBinContent(bin,sig.GetBinContent(bin)+charge);
           for (int j = bin; j<=sig.GetNbinsX(); ++j){
@@ -566,7 +566,7 @@ namespace trkf {
                                            hits[ihit]->WireID().TPC,
                                            hits[ihit]->WireID().Cryostat);
           vtime.push_back(time);
-          vph.push_back(hits[ihit]->Charge());
+          vph.push_back(hits[ihit]->Integral());
         }
 
         if (fCleanUpHits){
@@ -611,7 +611,7 @@ namespace trkf {
           time -= detprop->GetXTicksOffset(hits[ihit]->WireID().Plane,
                                            hits[ihit]->WireID().TPC,
                                            hits[ihit]->WireID().Cryostat);
-          double ph = hits[ihit]->Charge();
+          double ph = hits[ihit]->Integral();
           if (fCleanUpHits){
             if (ph>(phmap[w])){
               double y = fitter->GetParameter(0)+

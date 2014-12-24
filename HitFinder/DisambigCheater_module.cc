@@ -9,32 +9,24 @@
 #ifndef DisambigCheater_h
 #define DisambigCheater_h
 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Core/FindOneP.h"
+#include "art/Framework/Principal/Event.h"
 
 #include "Geometry/Geometry.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Simulation/SimChannel.h"
+#include "RawData/RawDigit.h"
+#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
+#include "RecoBaseArt/HitCreator.h"
 #include "Utilities/DetectorProperties.h"
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "MCCheater/BackTracker.h"
 
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Principal/Event.h"
-
-#include "TH1.h"
-#include "TString.h"
-
-
-namespace recob {
-  class Hit;
-}
-
-namespace sim {
-  class IDE;
-}
 
 namespace hit{
 
@@ -53,7 +45,6 @@ namespace hit{
     art::ServiceHandle<geo::Geometry> geom;
     art::ServiceHandle<util::DetectorProperties> detprop;
     art::ServiceHandle<cheat::BackTracker> bt;
-    art::ServiceHandle<art::TFileService> tfs;
     
     std::string fChanHitLabel;
     std::string fWidHitLabel;
@@ -61,8 +52,13 @@ namespace hit{
     std::map< std::pair<double,double>, std::vector<geo::WireID> > fHitToWids;
     void InitHitToWids( const std::vector< art::Ptr<recob::Hit> >& ChHits );
 
-    void MakeDisambigHit(art::Ptr<recob::Hit> hit, geo::WireID wid, 
-			 std::unique_ptr< std::vector<recob::Hit> >& hcol);
+    void MakeDisambigHit(
+      art::Ptr<recob::Hit> const& hit,
+      geo::WireID const& wid,
+      art::Ptr<recob::Wire> const& wire,
+      art::Ptr<raw::RawDigit> const& rawdigits,
+      recob::HitCollectionCreator& hcol
+      );
     
     unsigned int fFalseChanHits = 0; // hits with no IDEs - could be noise or other technical problems
     unsigned int fBadIDENearestWire = 0; // Just to count the inconsistent IDE wire returns
@@ -73,7 +69,11 @@ namespace hit{
   DisambigCheater::DisambigCheater(fhicl::ParameterSet const & p)
   {
     this->reconfigure(p);
-    produces< std::vector<recob::Hit> >();
+    
+    // let HitCollectionCreator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    // (with no particular product label)
+    recob::HitCollectionCreator::declare_products(*this);
   }
   
   //-------------------------------------------------------------------
@@ -85,15 +85,21 @@ namespace hit{
   void DisambigCheater::produce(art::Event & evt)
   {
     
-    // make the unique_ptr for the hits
-    std::unique_ptr< std::vector<recob::Hit> > hits(new std::vector<recob::Hit>);
+    // this object contains the hit collection
+    // and its associations to wires and raw digits:
+    recob::HitCollectionCreator hits(*this, evt);
     
-
     // get hits on channels
     art::Handle< std::vector<recob::Hit> > ChanHits;
     evt.getByLabel(fChanHitLabel, ChanHits);
     std::vector< art::Ptr<recob::Hit> > ChHits;
     art::fill_ptr_vector(ChHits, ChanHits);
+  
+    // also get the associated wires and raw digits;
+    // we assume they have been created by the same module as the hits
+    art::FindOneP<raw::RawDigit> ChannelHitRawDigits
+      (ChanHits, evt, fChanHitLabel);
+    art::FindOneP<recob::Wire> ChannelHitWires(ChanHits, evt, fChanHitLabel);
     
 
     // find the wireIDs each hit is on
@@ -103,27 +109,33 @@ namespace hit{
     // make all of the hits
     for(size_t h=0; h<ChHits.size(); h++){
       
+      // get the objects associated with this hit
+      art::Ptr<recob::Wire> wire = ChannelHitWires.at(h);
+      art::Ptr<raw::RawDigit> rawdigits = ChannelHitRawDigits.at(h);
+      
       // the trivial Z hits
       if(ChHits[h]->View()==geo::kZ){
-	this->MakeDisambigHit(ChHits[h], ChHits[h]->WireID(), hits);
-	continue;
+        this->MakeDisambigHit(ChHits[h], ChHits[h]->WireID(), wire, rawdigits, hits);
+        continue;
       }
       
       // make U/V hits if any wire IDs are associated
       // count hits without a wireID
       /// \todo: Decide how to handle the hits with multiple-wid activity. For now, randomly choose.
       std::pair<double,double> ChanTime(ChHits[h]->Channel()*1., ChHits[h]->PeakTime()*1.);
-      if( fHitToWids[ChanTime].size() == 1 ) 
-	this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], hits);
-      else if( fHitToWids[ChanTime].size() == 0 ) 
-	fFalseChanHits++;
-      else if( fHitToWids[ChanTime].size() > 1 ) 
-	this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], hits); // same thing for now
+      if( fHitToWids[ChanTime].size() == 1 )
+        this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, rawdigits, hits);
+      else if( fHitToWids[ChanTime].size() == 0 )
+        fFalseChanHits++;
+      else if( fHitToWids[ChanTime].size() > 1 )
+        this->MakeDisambigHit(ChHits[h], fHitToWids[ChanTime][0], wire, rawdigits, hits); // same thing for now
       
-    }
+    } // for
     
     
-    evt.put(std::move(hits));
+    // put the hit collection and associations into the event
+    hits.put_into(evt);
+    
     fHitToWids.clear();
     return;
     
@@ -131,30 +143,21 @@ namespace hit{
   
   
   //-------------------------------------------------
-  void DisambigCheater::MakeDisambigHit(art::Ptr<recob::Hit> hit, geo::WireID wid, 
-					std::unique_ptr< std::vector<recob::Hit> >& hcol)
+  void DisambigCheater::MakeDisambigHit(
+    art::Ptr<recob::Hit> const& original_hit, geo::WireID const& wid,
+    art::Ptr<recob::Wire> const& wire, art::Ptr<raw::RawDigit> const& rawdigits,
+    recob::HitCollectionCreator& hcol
+    )
   {
     
     if( !wid.isValid ){ 
       mf::LogWarning("InvalidWireID") << "wid is invalid, hit not being made\n";
-      return; }
+      return;
+    }
     
-    // art::Ptr<recob::Wire> wire = hit->Wire();
-    // recob::Hit WidHit( wire, 			     wid,
-    art::Ptr<raw::RawDigit> dVec = hit->RawDigit();
-    geo::PlaneID plid(wid.Cryostat,wid.TPC,wid.Plane);
-    geo::View_t view = geom->View(plid);	      
-    geo::SigType_t st = geom->SignalType(plid);
-    recob::Hit WidHit( dVec,view,st, 			     wid,
-		       hit->StartTime(),     	     hit->SigmaStartTime(),
-		       hit->EndTime(),       	     hit->SigmaEndTime(),
-		       hit->PeakTime(),      	     hit->SigmaPeakTime(),
-		       hit->Charge(),        	     hit->SigmaCharge(),                
-		       hit->Charge(true),   	     hit->SigmaCharge(true),
-		       hit->Multiplicity(),  	     hit->GoodnessOfFit() );     
-    
-    hcol->push_back(WidHit);
-    return;
+    // create a hit copy of the original one, but with a different wire ID
+    recob::HitCreator hit(*original_hit, wid);
+    hcol.emplace_back(hit.move(), wire, rawdigits);
     
   }
   
@@ -182,8 +185,8 @@ namespace hit{
       try{	xyzpos = bt->SimIDEsToXYZ(ides);      }
       catch(...){
 	mf::LogVerbatim("DisambigCheat") << "Hit on channel " << chit->Channel()
-					 << " between " << chit->StartTime()
-					 << " and " << chit->EndTime() << " matches no IDEs.";
+					 << " between " << chit->PeakTimeMinusRMS()
+					 << " and " << chit->PeakTimePlusRMS() << " matches no IDEs.";
 	std::vector< geo::WireID > emptyWids;
 	fHitToWids[ChanTime] = emptyWids;
 	  continue;

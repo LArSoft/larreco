@@ -873,7 +873,7 @@ double cluster::ShowerAngleCluster::Get2DAngleForHit( unsigned int swire,double 
       double time = (*hitIter)->PeakTime();  
       wire=(*hitIter)->WireID().Wire; 
       double omx=gser.Get2Dangle((double)wire,(double)swire,time,stime);
-      fh_omega_single->Fill(180*omx/TMath::Pi(),(*hitIter)->Charge());
+      fh_omega_single->Fill(180*omx/TMath::Pi(),(*hitIter)->Integral());
      }
     
   double omega = fh_omega_single->GetBinCenter(fh_omega_single->GetMaximumBin());// Mean value of the fit

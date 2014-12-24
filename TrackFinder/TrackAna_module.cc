@@ -1309,8 +1309,8 @@ namespace trkf {
 	      for(int ih = 0; ih < nhits; ++ih) {
 		const auto& hit = fh.at(is).at(ih); // Our vector is after the .at(is) this time.
 		if (hit->SignalType()!=geo::kCollection) continue;
-		rhistsStitched.fHHitChg->Fill(hit->Charge(false));
-		rhistsStitched.fHHitWidth->Fill(hit->EndTime() - hit->StartTime());
+		rhistsStitched.fHHitChg->Fill(hit->Integral());
+		rhistsStitched.fHHitWidth->Fill(2. * hit->RMS());
 		if (mc)
 		  {
 		    std::vector<sim::TrackIDE> tids = bt->HitToTrackID(hit);

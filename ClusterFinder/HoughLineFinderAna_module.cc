@@ -245,10 +245,10 @@ namespace cluster {
 	      
 	      fm_hitidZ[i]     = i;         
 	      fm_wireZ[i]      = _hits[i]->WireID().Wire;
-	      fm_mipZ[i]       = (double)_hits[i]->Charge();
+	      fm_mipZ[i]       = (double)_hits[i]->Integral();
 	      fm_drifttimeZ[i] = (double)_hits[i]->PeakTime();
-	      fm_widthZ[i]     = (double)_hits[i]->EndTime()-_hits[i]->StartTime();
-	      fm_upadcZ[i]     = (double)_hits[i]->Charge();
+	      fm_widthZ[i]     = (double) (2. * _hits[i]->RMS());
+	      fm_upadcZ[i]     = (double)_hits[i]->Integral();
 	    } 
 	    
 	    ftree->Fill();  

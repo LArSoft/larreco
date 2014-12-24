@@ -560,7 +560,7 @@ void ShowerReco::produce(art::Event& evt)
     for(art::PtrVector<recob::Hit>::const_iterator a = hitlist.begin(); a != hitlist.end();  a++){
       p=  (*a)->WireID().Plane;
       hitlist_all[p].push_back(*a);
-      ADCcharge+=(*a)->Charge(true);
+      ADCcharge+=(*a)->PeakAmplitude();
     }
       fNhitsperplane[p]=hitlist_all[p].size();
       fTotADCperplane[p]=ADCcharge;
@@ -917,7 +917,7 @@ void ShowerReco::LongTransEnergy(unsigned int set, std::vector < art::Ptr<recob:
   
     vdEdx.push_back(dEdx_new);
     vresRange.push_back(fabs(wdist));
-    vdQdx.push_back((*hitIter)->Charge(true)/newpitch);
+    vdQdx.push_back((*hitIter)->PeakAmplitude()/newpitch);
     Trk_Length=wdist;
     fTrkPitchC=fNPitch[set][plane];
     Kin_En+=dEdx_new*newpitch;
