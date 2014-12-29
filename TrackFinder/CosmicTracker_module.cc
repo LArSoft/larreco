@@ -851,7 +851,14 @@ namespace trkf {
             }
           }//loop over hits2
           if (difference<fsmatch){
-            hitcoord[0] = matchedtime->second*detprop->GetXTicksCoefficient();
+	    //add back XTicksOffset which will be removed in ConvertTicksToX
+            hitcoord[0] = detprop->ConvertTicksToX(matchedtime->second+
+						   detprop->GetXTicksOffset(clusterlist[matchedclusters[itrk][iclu1]]->Plane().Plane,
+									    clusterlist[matchedclusters[itrk][iclu1]]->Plane().TPC,
+									    clusterlist[matchedclusters[itrk][iclu1]]->Plane().Cryostat),
+						   clusterlist[matchedclusters[itrk][iclu1]]->Plane().Plane,
+						   clusterlist[matchedclusters[itrk][iclu1]]->Plane().TPC,
+						   clusterlist[matchedclusters[itrk][iclu1]]->Plane().Cryostat);
             hitcoord[1] = -1e10;
             hitcoord[2] = -1e10;
             /*                        geom->ChannelsIntersect((ihit1->second)->Wire()->RawDigit()->Channel(),
