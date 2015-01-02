@@ -1,7 +1,14 @@
-#include "trackfindermodules_base.fcl"
+#include "trackfindermodules.fcl"
 
 BEGIN_PROLOG
 
-lbne35t_trackcheater:        @local::standard_trackcheater
+lbne35t_trackcheater:                     @local::standard_trackcheater
+
+lbne35t_cosmictracker:                    @local::standard_cosmictracker
+lbne35t_cosmictracker.CleanUpHits:        true
+
+lbne35t_trackstitcher:                    @local::standard_trackstitcher
+lbne35t_trackstitcher.SpptSepTolerance:   100
+lbne35t_trackstitcher.CosAngTolerance:    0.80
 
 END_PROLOG
