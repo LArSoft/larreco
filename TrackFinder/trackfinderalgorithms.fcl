@@ -97,7 +97,7 @@ bo_seedfinderalgorithm.SpacePointAlg :           @local::bo_spacepointalg
 bo_seedfinderalgorithm.SpacePointAlg.PreferColl: true
 bo_seedfinderalgorithm.SpacePointAlg.Filter:     false
 bo_beziertrackeralgorithm:                       @local::standard_beziertrackeralgorithm
-bo_beziertrackeralgorithm.SeedFinderAlgorithm:   @local::bo_seedfinderalgorithm
+bo_beziertrackeralgorithm.SeedFinder:            @local::bo_seedfinderalgorithm
 
 microboone_spacepointalg:          @local::standard_spacepointalg
 microboone_spacepointalg.MinViews: 3
