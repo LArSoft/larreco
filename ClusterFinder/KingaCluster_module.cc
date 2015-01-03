@@ -536,7 +536,7 @@ namespace cluster{
       //mf::LogInfo("KingaCluster")<<"w= "<<w<<" t= "<<std::setprecision(10)<<allhits[i]->PeakTime();
       //   mf::LogInfo("KingaCluster")<<" theta_polar= "<<theta_polar
       //		       <<" hit area= "
-      //		       <<(allhits[i]->EndTime()-allhits[i]->StartTime())*ftimetick*fdriftvelocity*0.4;
+      //		       << 2.*allhits[i]->RMS()*ftimetick*fdriftvelocity*0.4;
   
       if (sigType == geo::kInduction ) {
          
@@ -550,9 +550,9 @@ namespace cluster{
          
         fh_theta_ind->Fill(theta_polar);
         fh_theta_ind_2D->Fill(theta_polar,allhits[i]->Integral());
-        fh_theta_ind_Area->Fill(theta_polar,(allhits[i]->EndTick()-allhits[i]->StartTick())* ftimetick *fdriftvelocity*0.4);
+        fh_theta_ind_Area->Fill(theta_polar,2.*allhits[i]->RMS()* ftimetick *fdriftvelocity*0.4);
          
-        Hit_Area_Ind->Fill((allhits[i]->EndTick()-allhits[i]->StartTick())* ftimetick *fdriftvelocity*0.4);
+        Hit_Area_Ind->Fill(2.*allhits[i]->RMS()* ftimetick *fdriftvelocity*0.4);
       }
       if (sigType == geo::kCollection ) {
          
@@ -567,8 +567,8 @@ namespace cluster{
          
         fh_theta_coll->Fill(theta_polar);
         fh_theta_coll_2D->Fill(theta_polar,allhits[i]->Integral());
-        fh_theta_coll_Area->Fill(theta_polar,(allhits[i]->EndTick()-allhits[i]->StartTick())*ftimetick*fdriftvelocity*0.4);
-        Hit_Area_Coll->Fill((allhits[i]->EndTick()-allhits[i]->StartTick())* ftimetick *fdriftvelocity*0.4);
+        fh_theta_coll_Area->Fill(theta_polar,2.*allhits[i]->RMS()*ftimetick*fdriftvelocity*0.4);
+        Hit_Area_Coll->Fill(2.*allhits[i]->RMS()* ftimetick *fdriftvelocity*0.4);
          
       }// end if kCollection
     } // end loop over all hits
