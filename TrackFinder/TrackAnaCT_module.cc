@@ -33,6 +33,7 @@
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/LArProperties.h"
 #include "Geometry/Geometry.h"
+#include "Geometry/CryostatGeo.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/SpacePoint.h"
@@ -55,7 +56,6 @@ namespace {
 
     double d3,d4;
     art::ServiceHandle<geo::Geometry> geom;
-    if(!(geom->DetId()==geo::kLBNE35t)) return 0;
       
     if(tpc==2 || tpc==3 || tpc==4 || tpc==5)
       {
@@ -80,7 +80,8 @@ namespace {
     //    mf::LogVerbatim("output") <<"d1" << d1;
     //    mf::LogVerbatim("output") <<"d2" << d2;
     //    double d2 = 226.539 - pos.X();   // Distance to left side (cathode).
-    double d5,d6;
+    double d5 = 0.;
+    double d6 = 0.;
     
     if(tpc==0 || tpc==1)
       {
@@ -849,6 +850,15 @@ namespace trkf {
     , fNumEvent(0)
   {
 
+    ///\todo Move this module to LBNE code and remove it from larreco
+
+    art::ServiceHandle<geo::Geometry> geom;
+    if(geom->DetectorName().find("lbne") == std::string::npos)
+      throw cet::exception("TrackAnaCT") << "TrackAnaCT should only be used with LBNE "
+					 << "geometries, the name for this detector, "
+					 << geom->DetectorName() << ", does not contain "
+					 << "lbne, bail.";
+
     // Report.
 
     mf::LogInfo("TrackAnaCT") 
@@ -1305,7 +1315,6 @@ namespace trkf {
 
 		  bool good = std::abs(w) <= fWMatchDisp &&
 		    tlen > 0.5 * plen;
-		  mf::LogVerbatim("output")<< ":: good is  "<< good << "w is "<< w << "tlen is  " <<tlen;
 		  if(good) {
 		    mcid = part->TrackId();
 		    mchists.fHgstartx->Fill(mcstart.X());

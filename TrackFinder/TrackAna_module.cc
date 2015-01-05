@@ -103,7 +103,7 @@ namespace {
     double ymax = geom->DetHalfHeight();
     double zmin = 0.;
     double zmax = geom->DetLength();
-
+    //double ticks_max = detprop->ReadOutWindowSize();
     double result = 0.;
     TVector3 disp;
     int n = part.NumberTrajectoryPoints();
@@ -277,6 +277,8 @@ namespace trkf {
       TH1F* fHmcdvdw;      // Truth dv/dw.
       TH1F* fHdudwpull;    // du/dw pull.
       TH1F* fHdvdwpull;    // dv/dw pull.
+      TH1F* fHHitEff;      // Hit efficiency.
+      TH1F* fHHitPurity;   // Hit purity.
 
       // Histograms for matched tracks.
 
@@ -365,6 +367,7 @@ namespace trkf {
     std::string fStitchModuleLabel;
     std::string fTrkSpptAssocModuleLabel;
     std::string fHitSpptAssocModuleLabel;
+    std::string fHitModuleLabel;
 
     int fDump;                 // Number of events to dump to debug message facility.
     double fMinMCKE;           // Minimum MC particle kinetic energy (GeV).
@@ -490,6 +493,8 @@ namespace trkf {
     fHmcdvdw(0),
     fHdudwpull(0),
     fHdvdwpull(0),
+    fHHitEff(0),
+    fHHitPurity(0),
     fHstartdx(0),
     fHstartdy(0),
     fHstartdz(0),
@@ -575,6 +580,8 @@ namespace trkf {
     fHmcdvdw = dir.make<TH1F>("mcdvdw", "MV Truth V Slope", 100, -0.2, 0.2);
     fHdudwpull = dir.make<TH1F>("dudwpull", "U Slope Pull", 100, -10., 10.);
     fHdvdwpull = dir.make<TH1F>("dvdwpull", "V Slope Pull", 100, -10., 10.);
+    fHHitEff = dir.make<TH1F>("hiteff", "MC Hit Efficiency", 100, 0., 1.0001);
+    fHHitPurity = dir.make<TH1F>("hitpurity", "MC Hit Purity", 100, 0., 1.0001);
     fHstartdx = dir.make<TH1F>("startdx", "Start Delta x", 100, -10., 10.);
     fHstartdy = dir.make<TH1F>("startdy", "Start Delta y", 100, -10., 10.);
     fHstartdz = dir.make<TH1F>("startdz", "Start Delta z", 100, -10., 10.);
@@ -665,6 +672,7 @@ namespace trkf {
     , fStitchModuleLabel(pset.get<std::string>("StitchModuleLabel"))
     , fTrkSpptAssocModuleLabel(pset.get<std::string>("TrkSpptAssocModuleLabel"))
     , fHitSpptAssocModuleLabel(pset.get<std::string>("HitSpptAssocModuleLabel"))
+    , fHitModuleLabel(pset.get<std::string>("HitModuleLabel"))
     , fDump(pset.get<int>("Dump"))
     , fMinMCKE(pset.get<double>("MinMCKE"))
     , fMinMCLen(pset.get<double>("MinMCLen"))
@@ -684,6 +692,7 @@ namespace trkf {
       << "  StitchModuleLabel = " << fStitchModuleLabel << "\n"
       << "  TrkSpptAssocModuleLabel = " << fTrkSpptAssocModuleLabel << "\n"
       << "  HitSpptAssocModuleLabel = " << fHitSpptAssocModuleLabel << "\n"
+      << "  HitModuleLabel = " << fHitModuleLabel << "\n"
       << "  Dump = " << fDump << "\n"
       << "  MinMCKE = " << fMinMCKE << "\n"
       << "  MinMCLen = " << fMinMCLen;
@@ -831,7 +840,8 @@ namespace trkf {
 		}
 		else
 		  *pdump << std::setw(32)<< " ";
-		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend << "\n";
+		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend 
+		       << "\nLength: " << plen << "\n";
 	      }
 
 	      // Fill histograms.
@@ -868,10 +878,25 @@ namespace trkf {
     // Get tracks and spacepoints and hits
     art::Handle< std::vector<recob::Track> > trackh;
     art::Handle< std::vector< art::PtrVector < recob::Track > > > trackvh;
+    art::Handle< std::vector<recob::Hit> > hith;
 
     evt.getByLabel(fTrackModuleLabel, trackh);
     evt.getByLabel(fStitchModuleLabel,trackvh);
+    evt.getByLabel(fHitModuleLabel, hith);
 
+    // Extract all hits into a vector of art::Ptrs (the format used by back tracker).
+
+    std::vector<art::Ptr<recob::Hit> > allhits;
+    if(hith.isValid()) {
+      allhits.reserve(hith->size());
+      for(unsigned int i=0; i<hith->size(); ++i) {
+	allhits.emplace_back(hith, i);
+      }
+    }
+
+    // Construct FindManyP object to be used for finding track-hit associations.
+
+    art::FindManyP<recob::Hit> tkhit_find(trackh, evt, fTrackModuleLabel);
 
     // This new top part of TrackAna between two long lines of ************s
     // is particular to analyzing Stitched Tracks.
@@ -899,6 +924,11 @@ namespace trkf {
       for(int i = 0; i < ntrack; ++i) {
 	art::Ptr<recob::Track> ptrack(trackh, i);
 	const recob::Track& track = *ptrack;
+
+	// Extract hits associated with this track.
+
+	std::vector<art::Ptr<recob::Hit> > trackhits;
+	tkhit_find.get(i, trackhits);
 
 	// Calculate the x offset due to nonzero reconstructed time.
 
@@ -1103,6 +1133,19 @@ namespace trkf {
 		    tlen > 0.5 * plen;
 		  if(good) {
 		    mcid = part->TrackId();
+
+		    // Calculate and fill hit efficiency and purity.
+
+		    std::set<int> tkidset;
+		    tkidset.insert(mcid);
+		    double hiteff = 
+		      bt->HitCollectionEfficiency(tkidset, trackhits, allhits, geo::k3D);
+		    double hitpurity = bt->HitCollectionPurity(tkidset, trackhits);
+		    mchists.fHHitEff->Fill(hiteff);
+		    mchists.fHHitPurity->Fill(hitpurity);
+
+		    // Fill efficiency numerator histograms.
+
 		    mchists.fHgstartx->Fill(mcstart.X());
 		    mchists.fHgstarty->Fill(mcstart.Y());
 		    mchists.fHgstartz->Fill(mcstart.Z());
@@ -1173,7 +1216,8 @@ namespace trkf {
 	    }
 	    else 
 	      *pdump << std::setw(32)<< " ";
-	    *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend << "\n";
+	    *pdump << std::setw(12) << std::fixed << std::setprecision(3) << pend
+		   << "\nLength: " << tlen << "\n";
 	  }
 	}
       }
@@ -1221,35 +1265,39 @@ namespace trkf {
     hitmap.clear();
     KEmap.clear();
     
-
+    // Look at the components of the stitched tracks. Grab their sppts/hits from Assns.
     for (int o = 0; o < ntv; ++o) // o for outer
       {
 
 	const art::PtrVector<recob::Track> pvtrack(*(cti++));
-	auto it = pvtrack.begin();
+	//	auto it = pvtrack.begin();
 	int ntrack = pvtrack.size();
 	//	if (ntrack>1) 	std::cout << "\t\t  TrkAna: New Stitched Track ******* " << std::endl;
 	std::vector< std::vector <unsigned int> > NtrkId_Hit; // hit IDs in inner tracks
 	std::vector<unsigned int> vecMode;
+	art::FindManyP<recob::SpacePoint> fs( pvtrack, evt, fTrkSpptAssocModuleLabel);
 
 	for(int i = 0; i < ntrack; ++i) {
 
-	  const art::Ptr<recob::Track> ptrack(*(it++));
+	  //const art::Ptr<recob::Track> ptrack(*(it++));
 	  //	  const recob::Track& track = *ptrack;
-	  auto pcoll { ptrack };
-	  art::FindManyP<recob::SpacePoint> fs( pcoll, evt, fTrkSpptAssocModuleLabel);
+	  //	  auto pcoll { ptrack };
+	  // art::FindManyP<recob::SpacePoint> fs( ptrack, evt, fTrkSpptAssocModuleLabel);
 	  // From gdb> ptype fs, the vector of Ptr<SpacePoint>s it appears is grabbed after fs.at(0)
 	  bool assns(true);
 	  try {
-	    // Get Spacepoints from this Track, get Hits from those Spacepoints.
+	    // Got Spacepoints from this Track; now get Hits from those Spacepoints.
 	    //	    int nsppts = ptrack->NumberTrajectoryPoints();
 	    
-	    int nsppts_assn = fs.at(0).size();  
+	    int nsppts_assn = fs.at(i).size();  
 	    //	    if (ntrack>1) std::cout << "\t\tTrackAna: Number of Spacepoints from Track.NumTrajPts(): " << nsppts << std::endl;
 	    //	    if (ntrack>1)  std::cout << "\t\tTrackAna: Number of Spacepoints from Assns for this Track: " << nsppts_assn << std::endl;
-	    //assert (nsppts_assn == nsppts);
-	    auto sppt = fs.at(0);//.at(is);
+
+	    const auto& sppt = fs.at(i);//.at(0);
+	    // since we're in a try and worried about failure, we won't pull the following
+	    // FindManyP out of the loop.
 	    art::FindManyP<recob::Hit> fh( sppt, evt, fHitSpptAssocModuleLabel);
+
 	    // Importantly, loop on all sppts, though they don't all contribute to the track.
 	    // As opposed to looping on the trajectory pts, which is a lower number. 
 	    // Also, important, in job in whch this runs I set TrackKal3DSPS parameter MaxPass=1, 
@@ -1259,7 +1307,7 @@ namespace trkf {
 	    for(int is = 0; is < nsppts_assn; ++is) {
 	      int nhits = fh.at(is).size(); // should be 2 or 3: number of planes.
 	      for(int ih = 0; ih < nhits; ++ih) {
-		auto hit = fh.at(is).at(ih); // Our vector is after the .at(is) this time.
+		const auto& hit = fh.at(is).at(ih); // Our vector is after the .at(is) this time.
 		if (hit->SignalType()!=geo::kCollection) continue;
 		rhistsStitched.fHHitChg->Fill(hit->Charge(false));
 		rhistsStitched.fHHitWidth->Fill(hit->EndTime() - hit->StartTime());
@@ -1278,6 +1326,8 @@ namespace trkf {
 		      // Add hit to PtrVector corresponding to this track id.
 		      rhistsStitched.fHHitTrkId->Fill(trackID); 
 		      const simb::MCParticle* part = bt->TrackIDToParticle(trackID);
+		      if (!part) break;
+
 		      rhistsStitched.fHHitPdg->Fill(part->PdgCode()); 
 		      // This really needs to be indexed as KE deposited in volTPC, not just KE. EC, 24-July-2014.
 

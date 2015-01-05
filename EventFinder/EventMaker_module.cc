@@ -2,9 +2,9 @@
 #define EventMaker_h
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
-
-
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
+
 #include "RecoBase/Event.h"
 #include "RecoBase/Vertex.h"
 #include "RecoBase/Hit.h"
@@ -60,9 +60,11 @@ void event::EventMaker::produce(art::Event &e)
   art::Handle< std::vector<recob::Vertex> > vtxHandle;
   e.getByLabel(fVertexModuleLabel, vtxHandle);
 
+  art::FindManyP<recob::Hit> fmhv(vtxHandle, e, fVertexModuleLabel);
+
   // get a collection of art::Ptrs
-  std::list< art::Ptr<recob::Vertex> > vtxs;
-  art::fill_ptr_list(vtxs, vtxHandle);
+  std::vector< art::Ptr<recob::Vertex> > vtxs;
+  art::fill_ptr_vector(vtxs, vtxHandle);
 
   // if only 1 vertex in the event, life is easy
   if(vtxs.size() == 1){
@@ -75,8 +77,7 @@ void event::EventMaker::produce(art::Event &e)
     util::CreateAssn(*this, e, *eventcol, vtxvec, *evassn);
     
     // get the hits associated with the vertex and associate those with the event
-    art::FindManyP<recob::Hit> fmh(vtxvec, e, fVertexModuleLabel);
-    std::vector< art::Ptr<recob::Hit> > hits = fmh.at(0);
+    std::vector< art::Ptr<recob::Hit> > hits = fmhv.at(0);
     util::CreateAssn(*this, e, *eventcol, hits, *ehassn);
 
     e.put(std::move(eventcol));
@@ -92,8 +93,13 @@ void event::EventMaker::produce(art::Event &e)
   // 2. particles coming from decays of another particle, ie the electron from a muon decay
   // 3. pi-zero decay vertex will be offset from the interaction vertex
   int evtctr = 0;
-  std::list< art::Ptr<recob::Vertex> >::iterator itr  = vtxs.begin();
-  std::list< art::Ptr<recob::Vertex> >::iterator itr2 = vtxs.begin();
+  std::vector< art::Ptr<recob::Vertex> >::iterator itr  = vtxs.begin();
+  std::vector< art::Ptr<recob::Vertex> >::iterator itr2 = vtxs.begin();
+
+  // make a map of the Ptr to the index in the original vector
+  std::map<art::Ptr<recob::Vertex>, size_t> ptrToIdx;
+  for(size_t v = 0; v < vtxs.size(); ++v) ptrToIdx[ vtxs[v] ] = v; 
+
   while( itr != vtxs.end() ){
     
     art::PtrVector< recob::Vertex > vtxVec;
@@ -133,9 +139,8 @@ void event::EventMaker::produce(art::Event &e)
     util::CreateAssn(*this, e, *eventcol, vtxVec, *evassn);
     
     // get the hits associated with each vertex and associate those with the event
-    art::FindManyP<recob::Hit> fmhv(vtxVec, e, fVertexModuleLabel);
     for(size_t p = 0; p < vtxVec.size(); ++p){
-      std::vector< art::Ptr<recob::Hit> > hits = fmhv.at(p);
+      std::vector< art::Ptr<recob::Hit> > hits = fmhv.at( ptrToIdx[ vtxVec[p] ] );
       util::CreateAssn(*this, e, *eventcol, hits, *ehassn);
     }
     

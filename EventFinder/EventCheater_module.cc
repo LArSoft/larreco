@@ -25,6 +25,7 @@
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/View.h"
 #include "fhiclcpp/ParameterSet.h"
@@ -33,7 +34,7 @@
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art/Framework/Core/FindOne.h"
+#include "art/Framework/Core/FindOneP.h"
 #include "art/Framework/Core/EDProducer.h"
 
 ///Event finding and building

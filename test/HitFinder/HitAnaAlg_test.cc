@@ -46,8 +46,8 @@ BOOST_AUTO_TEST_CASE(checkConstructor)
 {
   
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHitModules , 0 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 0 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue().size() , 0 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 0U );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue().size() , 0U );
 
 }
 
@@ -65,8 +65,8 @@ BOOST_AUTO_TEST_CASE(LoadHitAssocPair_FirstTime)
   std::string HitModuleLabel = "hit";
 
   myHitAnaAlgTest.LoadHitAssocPair(HitVector,AssocVector,HitModuleLabel);
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 1 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue().size() , 1 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 1U );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue().size() , 1U );
 
 }
 
@@ -91,17 +91,17 @@ BOOST_AUTO_TEST_CASE(LoadHitAssocPair_MultipleHitModules)
   myHitAnaAlgTest.LoadHitAssocPair(HitVector1,AssocVector1,HitModuleLabel1);
   myHitAnaAlgTest.LoadHitAssocPair(HitVector2,AssocVector2,HitModuleLabel2);
 
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 2 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 2U );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels()[0].compare(HitModuleLabel1) , 0 ); 
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels()[1].compare(HitModuleLabel2) , 0 ); 
 
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue().size() , 2 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue().size() , 2U );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[0].second.size() , nWires );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[0].second[0].size() , 1 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[0].second[0].size() , 1U );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[0].second[0][0] , 0 );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[1].second.size() , nWires );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[1].second[0].size() , 1 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[1].second[0][0] , nWires-1 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[1].second[0].size() , 1U );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitProcessingQueue()[1].second[0][0] , (int)(nWires-1) );
 
 }
 
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(LoadHitAssocPair_VectorSizesOff)
 {
   std::string str = "test";
   myHitAnaAlgTest.AddHitModuleLabel(str);
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 1 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetHitModuleLabels().size() , 1U );
 
   size_t nHits  = 10;
   size_t nWires = 10;
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(InitWireData_OneModule)
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().event , event );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().run , run );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHitModules , 1 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().HitModuleLabels.size() , 1 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().HitModuleLabels.size() , 1U );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().HitModuleLabels[0] , HitModuleLabel );
 
 }
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(InitWireData_NoModules)
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().event , event );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().run , run );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHitModules , 0 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().HitModuleLabels.size() , 0 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().HitModuleLabels.size() , 0U );
 
 }
 
@@ -179,9 +179,9 @@ BOOST_AUTO_TEST_CASE(ClearWireDataHitInfo_NoModules)
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().event , event );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().run , run );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHitModules , 0 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHits.size() , 0 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().Hits_IntegratedCharge.size() , 0 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().Hits.size() , 0 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHits.size() , 0U );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().Hits_IntegratedCharge.size() , 0U );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().Hits.size() , 0U );
 
 }
 
@@ -209,11 +209,11 @@ BOOST_AUTO_TEST_CASE(ClearWireDataHitInfo_OneModule)
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().event , event );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().run , run );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHitModules , 1 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHits.size() , 1 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHits.size() , 1U );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().NHits[0] , 0 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().Hits_IntegratedCharge.size() , 1 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().Hits_IntegratedCharge.size() , 1U );
   BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().Hits_IntegratedCharge[0] , 0 );
-  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().Hits.size() , 1 );
+  BOOST_CHECK_EQUAL( myHitAnaAlgTest.GetWireDataStruct().Hits.size() , 1U );
 
 }
 

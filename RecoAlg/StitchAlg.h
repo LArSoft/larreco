@@ -5,31 +5,21 @@
 
 #ifndef STITCHALG_H
 #define STITCHALG_H
-#include <vector>
-#include <cmath>
-#include <iostream>
-#include <stdint.h>
 
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "fhiclcpp/ParameterSet.h" 
+// C/C++ standard libraries
+#include <vector>
+
+// art libraries
 #include "art/Persistency/Common/Ptr.h"
 #include "art/Persistency/Common/PtrVector.h"
+#include "art/Framework/Principal/Handle.h"
 
-#include "Geometry/Geometry.h"
+// LArSoft libraries
 #include "RecoBase/Track.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/SpacePoint.h"
 
-#include "TMatrixD.h"
-#include "TDecompSVD.h"
-#include "TVectorF.h"
-#include "TVector.h"
-#include "TH1.h"
+namespace fhicl { class ParameterSet; }
+namespace art { class Event; }
 
-
-
-//namespace recob { class Hit; }
-//namespace recob { class Track; }
 
 namespace trkf{
 

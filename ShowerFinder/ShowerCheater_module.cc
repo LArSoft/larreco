@@ -27,6 +27,7 @@
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
@@ -34,6 +35,7 @@
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
+#include "art/Framework/Core/FindManyP.h"
 
 namespace shwf {
   class ShowerCheater : public art::EDProducer {
@@ -92,42 +94,29 @@ namespace shwf{
     art::Handle< std::vector<recob::Cluster> > clustercol;
     evt.getByLabel(fCheatedClusterLabel, clustercol);
 
+    art::FindManyP<recob::Hit> fmh(clustercol, evt, fCheatedClusterLabel);
+
     // make a vector of them - we aren't writing anything out to a file
     // so no need for a art::PtrVector here
     std::vector< art::Ptr<recob::Cluster> > clusters;
     art::fill_ptr_vector(clusters, clustercol);
     
-    // loop over the clusters and figure out which particle contributed to each one
-    std::vector< art::Ptr<recob::Cluster> >::iterator itr = clusters.begin();
-
     // make a map of vectors of art::Ptrs keyed by eveID values
-    std::map< int, std::vector< art::Ptr<recob::Cluster> > > eveClusterMap;
-    std::map< int, std::vector< art::Ptr<recob::Cluster> > >::iterator clusterMapItr = eveClusterMap.begin();
+    std::map< int, std::vector<std::pair<size_t, art::Ptr<recob::Cluster> > > > eveClusterMap;
 
     // loop over all clusters and fill in the map
-    while( itr != clusters.end() ){
+    for(size_t c = 0; c < clusters.size(); ++c){
 
       // in the ClusterCheater module we set the cluster ID to be 
       // the eve particle track ID*1000 + plane*100 + tpc*10 + cryostat number.  The
       // floor function on the cluster ID / 1000 will give us
       // the eve track ID
-      int eveID = floor((*itr)->ID()/1000.);
+      int eveID = floor(clusters[c]->ID()/1000.);
 
-      clusterMapItr = eveClusterMap.find(eveID);
+      std::pair<size_t, art::Ptr<recob::Cluster> > indexPtr(c, clusters[c]);
+
+      eveClusterMap[eveID].push_back(indexPtr);
 	
-      // is this id already in the map, if so extend the collection 
-      // by one hit, otherwise make a new collection and put it in
-      // the map
-      if( clusterMapItr != eveClusterMap.end() ){
-	  ((*clusterMapItr).second).push_back((*itr));
-      }
-      else{
-	std::vector< art::Ptr<recob::Cluster> > clustervec;
-	clustervec.push_back(*itr);
-	eveClusterMap[eveID] = clustervec;
-      }
-
-      itr++;
     }// end loop over clusters
 
     // loop over the map and make prongs
@@ -138,27 +127,28 @@ namespace shwf{
     std::unique_ptr< art::Assns<recob::Shower, recob::SpacePoint> > sspassn(new art::Assns<recob::Shower, recob::SpacePoint>);
     std::unique_ptr< art::Assns<recob::Hit, recob::SpacePoint> > sphassn(new art::Assns<recob::Hit, recob::SpacePoint>);
 
-    for(clusterMapItr = eveClusterMap.begin(); clusterMapItr != eveClusterMap.end(); clusterMapItr++){
+    for(auto const& clusterMapItr : eveClusterMap){
 
       // separate out the hits for each particle into the different views
-      std::vector< art::Ptr<recob::Cluster> > eveClusters( (*clusterMapItr).second );
-
-      art::PtrVector<recob::Cluster> ptrvs;
+      std::vector< std::pair<size_t, art::Ptr<recob::Cluster> > > const& eveClusters = clusterMapItr.second;
 
       size_t startSPIndx = spcol->size();
 
       double totalCharge = 0.;
 
-      for(size_t c = 0; c < eveClusters.size(); ++c){
-	ptrvs.push_back(eveClusters[c]);
-	size_t cindx = ptrvs.size() - 1;
+      std::vector< art::Ptr<recob::Cluster> > ptrvs;
+      std::vector< size_t > idxs;
+
+      for(auto const& idxPtr : eveClusters){
+	idxs.push_back(idxPtr.first);
+	ptrvs.push_back(idxPtr.second);
+
 	// need to make the space points for this prong
 	// loop over the hits for this cluster and make 
 	// a space point for each one
 	// set the SpacePoint ID to be the cluster ID*10000 
 	// + the hit index in the cluster PtrVector of hits
-	art::FindManyP<recob::Hit> fmh(ptrvs, evt, fCheatedClusterLabel);
-	std::vector< art::Ptr<recob::Hit> > hits = fmh.at(cindx);
+	std::vector< art::Ptr<recob::Hit> > const& hits = fmh.at(idxPtr.first);
 	
 	for(size_t h = 0; h < hits.size(); ++h){
 	  art::Ptr<recob::Hit> hit = hits[h];
@@ -172,30 +162,30 @@ namespace shwf{
 	  recob::SpacePoint sp(&xyz[0],
 			       sperr,
 			       0.9,
-			       eveClusters[c]->ID()*10000 + h);
+			       idxPtr.second->ID()*10000 + h);
 	  spcol->push_back(sp);
 
 	  // associate the space point to the hit
 	  util::CreateAssn(*this, evt, *spcol, hit, *sphassn);
 
-	}
-      }
+	}// end loop over hits
+      } // end loop over pairs of index values and cluster Ptrs
       
       size_t endSPIndx = spcol->size();
 
       // is this prong electro-magnetic in nature or 
       // hadronic/muonic?  EM --> shower, everything else is a track
-      if( abs(bt->ParticleList()[(*clusterMapItr).first]->PdgCode()) == 11  ||
-	  abs(bt->ParticleList()[(*clusterMapItr).first]->PdgCode()) == 22  ||
-	  abs(bt->ParticleList()[(*clusterMapItr).first]->PdgCode()) == 111 ){
+      if( std::abs(bt->ParticleList()[clusterMapItr.first]->PdgCode()) == 11  ||
+	  std::abs(bt->ParticleList()[clusterMapItr.first]->PdgCode()) == 22  ||
+	  std::abs(bt->ParticleList()[clusterMapItr.first]->PdgCode()) == 111 ){
 
-	mf::LogInfo("ShowerCheater") << "prong of " << (*clusterMapItr).first 
+	mf::LogInfo("ShowerCheater") << "prong of " << clusterMapItr.first 
 				    << " is a shower with pdg code "
-				    << bt->ParticleList()[(*clusterMapItr).first]->PdgCode();
+				    << bt->ParticleList()[clusterMapItr.first]->PdgCode();
 
 	// get the direction cosine for the eve ID particle
 	// just use the same for both the start and end of the prong
-	const TLorentzVector initmom = bt->ParticleList()[(*clusterMapItr).first]->Momentum();
+	const TLorentzVector initmom = bt->ParticleList()[clusterMapItr.first]->Momentum();
 	double dcos[3] = { initmom.Px()/initmom.Mag(),
 			   initmom.Py()/initmom.Mag(),
 			   initmom.Pz()/initmom.Mag() };
@@ -208,16 +198,14 @@ namespace shwf{
 	// add a prong to the collection.  Make the prong
 	// ID be the same as the track ID for the eve particle
 	showercol->push_back(recob::Shower(dcos, dcosErr, maxTransWidth, 
-					   distanceMaxWidth, totalCharge, (*clusterMapItr).first));
+					   distanceMaxWidth, totalCharge, clusterMapItr.first));
 
 	// associate the shower with its clusters
 	util::CreateAssn(*this, evt, *showercol, ptrvs, *scassn);
 
-	art::FindManyP<recob::Hit> fmh(ptrvs, evt, fCheatedClusterLabel);
-
 	// get the hits associated with each cluster and associate those with the shower
-	for(size_t p = 0; p < ptrvs.size(); ++p){
-	  std::vector< art::Ptr<recob::Hit> > hits = fmh.at(p);
+	for(size_t i = 0; i < idxs.size(); ++i){
+	  std::vector< art::Ptr<recob::Hit> > hits = fmh.at(i);
 	  util::CreateAssn(*this, evt, *showercol, hits, *shassn);
 	}
 

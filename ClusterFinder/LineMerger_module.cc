@@ -13,28 +13,27 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include <string>
-#include <math.h>
-#include <algorithm>
-#include <iostream>
+#include <cmath> // std::abs(), std::sqrt()
 #include <iomanip>
-#include <fstream>
 #include <vector>
+#include <array>
+#include <memory> // std::unique_ptr<>
+#include <utility> // std::move()
+
 
 //Framework includes:
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
-#include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Persistency/Common/Ptr.h"
 #include "art/Persistency/Common/PtrVector.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 //LArSoft includes:
-#include "Geometry/Geometry.h"
+#include "SimpleTypesAndConstants/geo_types.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
@@ -64,7 +63,10 @@ namespace cluster {
     double          fEndpointWindow; // tolerance for matching endpoints (in units of time samples) 
    
     bool SlopeCompatibility(double slope1,double slope2);
-    int  EndpointCompatibility(std::vector<double> sclstart, std::vector<double> sclend,std::vector<double> cl2start, std::vector<double> cl2end);
+    int  EndpointCompatibility(
+      const std::vector<double>& sclstart, const std::vector<double>& sclend,
+      const std::vector<double>& cl2start, const std::vector<double>& cl2end
+      );
     
   protected: 
     
@@ -106,14 +108,13 @@ namespace cluster{
     art::Handle< std::vector<recob::Cluster> > clusterVecHandle;
     evt.getByLabel(fClusterModuleLabel,clusterVecHandle);
 
-    art::ServiceHandle<geo::Geometry> geo;
-    int nplanes = geo->Nplanes();
-
-    //one PtrVector for each plane in the geometry
-    std::vector< art::PtrVector<recob::Cluster> > Cls(nplanes);
+    constexpr size_t nViews = 3; // number of views we map
+    
+    //one vector for each view in the geometry (holds the index of the cluster)
+    std::array< std::vector<size_t>, nViews > ClsIndices;
 
     //vector with indicators for whether a cluster has been merged already
-    std::vector< std::vector<int> > Cls_matches(nplanes);
+    std::array< std::vector<int>, nViews > Cls_matches;
 
     // loop over the input Clusters
     for(size_t i = 0; i < clusterVecHandle->size(); ++i){
@@ -121,99 +122,101 @@ namespace cluster{
       //get a art::Ptr to each Cluster
       art::Ptr<recob::Cluster> cl(clusterVecHandle, i);
       
+      size_t view = 0;
       switch(cl->View()){
       case geo::kU :
-	Cls[0].push_back(cl);
-	Cls_matches[0].push_back(0);
-	break;
+        view = 0;
+        break;
       case geo::kV :
-	Cls[1].push_back(cl);
-	Cls_matches[1].push_back(0);
-	break;
+        view = 1;
+        break;
       case geo::kZ :
-	Cls[2].push_back(cl);
-	Cls_matches[2].push_back(0);
-	break;
+        view = 2;
+        break;
       default :
-	break;
+        continue; // ignore this cluster and process the next one
       }// end switch on view
+      
+      Cls_matches[view].push_back(0);
+      ClsIndices[view].push_back(i);
     }// end loop over input clusters
 
     std::unique_ptr<std::vector<recob::Cluster> >             SuperClusters(new std::vector<recob::Cluster>);
     std::unique_ptr< art::Assns<recob::Cluster, recob::Hit> > assn(new art::Assns<recob::Cluster, recob::Hit>);
 
-    for(int i = 0; i < nplanes; ++i){
+    art::FindManyP<recob::Hit> fmh(clusterVecHandle, evt, fClusterModuleLabel);
+    
+    for(size_t i = 0; i < nViews; ++i){
 
       int clustersfound = 0; // how many merged clusters found in each plane
       int clsnum1       = 0;
 
-      for(size_t c = 0; c < Cls[i].size(); ++c){
-	if(Cls_matches[i][clsnum1] == 1){
-	  ++clsnum1;
-	  continue;
-	}
+      for(size_t c = 0; c < ClsIndices[i].size(); ++c){
+        if(Cls_matches[i][clsnum1] == 1){
+          ++clsnum1;
+          continue;
+        }
 
-	art::FindManyP<recob::Hit> fmh(Cls[i], evt, fClusterModuleLabel);
-	
-	// make a new cluster to put into the SuperClusters collection 
-	// because we want to be able to adjust it later
-	recob::Cluster cl1( *( Cls[i][c].get() ) ); 
+        // make a new cluster to put into the SuperClusters collection 
+        // because we want to be able to adjust it later
+        recob::Cluster cl1( clusterVecHandle->at(ClsIndices[i][c]) ); 
+        
+        // find the hits associated with the current cluster
+        std::vector< art::Ptr<recob::Hit> > ptrvs = fmh.at(ClsIndices[i][c]); // copy
 
-	// find the hits associated with the current cluster
-	std::vector< art::Ptr<recob::Hit> > ptrvs = fmh.at(c);
+        Cls_matches[i][clsnum1] = 1; 
+        ++clustersfound;
+        
+        int clsnum2 = 0;
+        for(size_t c2 = 0; c2 < ClsIndices[i].size(); ++c2){
 
-	Cls_matches[i][clsnum1] = 1; 
-	++clustersfound;
-	
-	int clsnum2 = 0;
-	for(size_t c2 = 0; c2 < Cls[i].size(); ++c2){
+          if(Cls_matches[i][clsnum2] == 1){
+            ++clsnum2;
+            continue;
+          }
 
-	  recob::Cluster cl2( *(Cls[i][c2].get()) );
+          const recob::Cluster& cl2( clusterVecHandle->at(ClsIndices[i][c2]) );
 
-	  if(Cls_matches[i][clsnum2] == 1){
-	    ++clsnum2;
-	    continue;
-	  }
+          // find the hits associated with this second cluster
+          std::vector< art::Ptr<recob::Hit> > ptrvs2 = fmh.at(ClsIndices[i][c2]); // copy
+          
+          // check that the slopes are the same
+          // added 13.5 ticks/wirelength in ArgoNeuT. 
+          // \todo need to make this detector agnostic
+          // would be nice to have a LArProperties function that returns ticks/wire.
+          bool sameSlope = SlopeCompatibility(cl1.dTdW()*(1./13.5),
+                                              cl2.dTdW()*(1./13.5));
+          
+          // check that the endpoints fall within a circular window of each other 
+          // done in place of intercept matching
+          int sameEndpoint = EndpointCompatibility(cl1.StartPos(), cl1.EndPos(),
+                                                   cl2.StartPos(), cl2.EndPos());
+          
+          // if the slopes and end points are the same, combine the clusters
+          // note that after 1 combination cl1 is no longer what we started 
+          // with
+          if(sameSlope && sameEndpoint){
+            cl1 = cl1 + cl2;
+            Cls_matches[i][clsnum2] = 1;
 
-	  // find the hits associated with this second cluster
-	  std::vector< art::Ptr<recob::Hit> > ptrvs2 = fmh.at(c2);
-	  
-	  // check that the slopes are the same
-	  // added 13.5 ticks/wirelength in ArgoNeuT. 
-	  // \todo need to make this detector agnostic
-	  // would be nice to have a LArProperties function that returns ticks/wire.
-	  bool sameSlope = SlopeCompatibility(cl1.dTdW()*(1./13.5),
-					      cl2.dTdW()*(1./13.5));  
-	  
-	  // check that the endpoints fall within a circular window of each other 
-	  // done in place of intercept matching
-	  int sameEndpoint = EndpointCompatibility(cl1.StartPos(), cl1.EndPos(),
-						   cl2.StartPos(), cl2.EndPos());
-	  
-	  // if the slopes and end points are the same, combine the clusters
-	  // note that after 1 combination cl1 is no longer what we started 
-	  // with
-	  if(sameSlope && sameEndpoint){
-	    cl1 = cl1 + cl2;
-	    Cls_matches[i][clsnum2] = 1;       
+            // combine the hit collections
+            // take into account order when merging hits from two clusters: doc-1776
+            if (sameEndpoint == 1)
+              ptrvs.insert(ptrvs.begin(), ptrvs2.begin(), ptrvs2.end());
+            else if (sameEndpoint == -1){
+              ptrvs2.insert(ptrvs2.begin(), ptrvs.begin(), ptrvs.end());
+              ptrvs = std::move(ptrvs2);
+            }
+          }
+          
+          ++clsnum2;
+        }// end loop over second cluster iterator
 
-	    // combine the hit collections
-	    // take into account order when merging hits from two clusters: doc-1776
-	    if (sameEndpoint == 1) for(size_t h = 0; h < ptrvs2.size(); ++h) ptrvs.push_back(ptrvs2[h]);
-	    else if (sameEndpoint == -1){
-	      for(size_t h = 0; h < ptrvs.size(); ++h) ptrvs2.push_back(ptrvs[h]);
-	      ptrvs = ptrvs2;
-	    }
-	  }
-	  
-	  ++clsnum2;
-	}// end loop over second cluster iterator
-
-	// now add the final version of cl1 to the collection of SuperClusters
-	// and create the association between the super cluster and the hits
-	SuperClusters->push_back(std::move(cl1));
-	util::CreateAssn(*this, evt, *(SuperClusters.get()), ptrvs, *(assn.get()));	
-	++clsnum1;
+        // now add the final version of cl1 to the collection of SuperClusters
+        // and create the association between the super cluster and the hits
+        SuperClusters->push_back(std::move(cl1));
+        util::CreateAssn(*this, evt, *(SuperClusters.get()), ptrvs, *(assn.get()));        
+        ++clsnum1;
 
       }// end loop over first cluster iterator
     }// end loop over planes
@@ -243,10 +246,10 @@ namespace cluster{
     return comp;
   }
   //------------------------------------------------------------------------------------//
-  int LineMerger::EndpointCompatibility(std::vector<double> sclstart, 
-					 std::vector<double> sclend,
-					 std::vector<double> cl2start, 
-					 std::vector<double> cl2end)
+  int LineMerger::EndpointCompatibility(const std::vector<double>& sclstart, 
+                                        const std::vector<double>& sclend,
+                                        const std::vector<double>& cl2start, 
+                                        const std::vector<double>& cl2end)
   { 
     double sclstartwire = sclstart[0];
     double sclstarttime = sclstart[1];
@@ -265,7 +268,7 @@ namespace cluster{
     double distance2 = std::sqrt((pow(sclstartwire-cl2endwire,2)*13.5) + pow(sclstarttime-cl2endtime,2));
     
 //    bool comp = (distance  < fEndpointWindow ||
-//		 distance2 < fEndpointWindow) ? true : false;
+//                 distance2 < fEndpointWindow) ? true : false;
 
     //determine which way the two clusters should be merged. TY
     int comp = 0;

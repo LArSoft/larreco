@@ -42,6 +42,7 @@
 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Services/Optional/RandomNumberGenerator.h"
 #include <TTree.h>
 #include <TMatrixT.h>
@@ -200,16 +201,15 @@ namespace trkf {
   {
 
     art::PtrVector<recob::Hit> hits;
+    art::FindManyP<recob::Hit> hitAssns(tcomp, evtGHFCT, fTrackModuleLabel); 
+
     for (unsigned int ii=0; ii < tcomp.size(); ++ii )
       {
-	// From the component tracks, get the Hits from the Assns
-	const art::Ptr<recob::Track> ptrack( tcomp.at(ii) );
-	auto p { ptrack };
-	art::FindManyP<recob::Hit> hitAssns(p, evtGHFCT, fTrackModuleLabel); 
-	for (unsigned int jj=0; jj < hitAssns.at(0).size(); ++jj)
-	  hits.push_back(hitAssns.at(0).at(jj));
+	 hits.insert(hits.end(),hitAssns.at(ii).begin(), hitAssns.at(ii).end());
       }
-    
+
+
+
     //    const art::PtrVector<recob::Hit> chits(hits);
     return hits;
   }
@@ -218,14 +218,10 @@ namespace trkf {
   {
 
     art::PtrVector<recob::SpacePoint> sppts;
+    art::FindManyP<recob::SpacePoint> spptAssns(tcomp, evtGHFCT, fTrackModuleLabel); 
     for (unsigned int ii=0; ii < tcomp.size(); ++ii )
       {
-	// From the component tracks, get the Hits from the Assns
-	const art::Ptr<recob::Track> ptrack( tcomp.at(ii) );
-	auto p { ptrack };
-	art::FindManyP<recob::SpacePoint> spptAssns(p, evtGHFCT, fTrackModuleLabel); 
-	for (unsigned int jj=0; jj < spptAssns.at(0).size(); ++jj)
-	  sppts.push_back(spptAssns.at(0).at(jj));
+	sppts.insert(sppts.end(),spptAssns.at(ii).begin(), spptAssns.at(ii).end());
       }
     
     //    const art::PtrVector<recob::Hit> chits(hits);

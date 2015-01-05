@@ -14,7 +14,7 @@
 #include "art/Persistency/Common/Ptr.h"
 #include "art/Persistency/Common/PtrVector.h"
 #include "ClusterFinder/RStarTree/RStarTree.h"
-
+#include "Geometry/Geometry.h"
 
 class TH1F;
 
@@ -39,8 +39,9 @@ namespace cluster{
     virtual ~DBScanAlg();
     
     void reconfigure(fhicl::ParameterSet const& p);
-    void InitScan(std::vector< art::Ptr<recob::Hit> >& allhits, 
-		  std::set<uint32_t> badChannels);
+    void InitScan(const std::vector< art::Ptr<recob::Hit> >& allhits, 
+		  std::set<uint32_t> badChannels,
+		  const std::vector<geo::WireID> & wireids = std::vector< geo::WireID>()); //wireids is optional
     double getSimilarity(const std::vector<double> v1, 
 			 const std::vector<double> v2); 
     std::vector<unsigned int> findNeighbors( unsigned int pid, 

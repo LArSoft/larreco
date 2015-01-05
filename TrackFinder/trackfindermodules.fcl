@@ -2,6 +2,25 @@
 
 BEGIN_PROLOG
 
+# only save standard configuration, save experiment-specific configuration in experiment-specific fcl file
+
+standard_cctrackmaker:
+{
+  module_type:            "CCTrackMaker"
+  HitModuleLabel:         "cccluster"
+  ClusterModuleLabel:     "cccluster"
+  EndPoint2DModuleLabel:  "cccluster"
+  VertexModuleLabel:      "cccluster"
+  MatchAlgs:        3     # 1 = vtx, 2 = pln, 3 = both
+  MaxDAng:           0.55 # kink angle cut (radians)
+  MergeChgAsym:      0.3  # charge asymmetry cut for merging clusters
+  XMatchErr:    0.2       # end X match uncertainty
+  AngleMatchErr:  0.02    # end angle match uncertainty
+  ChgAsymFactor:  1       # scale rms by charge asymmetry * this factor
+  DebugPlane:    -1       # -1 = none
+  DebugCluster:  -1
+}
+
 standard_featuretracker:
 {
  module_type:         "FeatureTracker"
@@ -27,7 +46,12 @@ standard_seedfindermodule:
 standard_beziertrackermodule:
 {
  module_type:         "BezierTrackerModule"
+ SeedModuleLabel:     "seedfinder"
+ HitModuleLabel:      "ffthit"
  ClusterModuleLabel:  "dbcluster"
+ TrackMode:           3
+ MakeHitAssns:        true
+ EnableCalo:          false
  BezierTrackerAlgorithm: @local::standard_beziertrackeralgorithm
 }
 
@@ -113,6 +137,7 @@ standard_track3DkalmanSPS:
  SortDirection:       "z"
  SpacePointAlg:       @local::standard_spacepointalg
 }
+
 standard_trackana:
 {
    module_type: "TrackAna"
@@ -120,7 +145,8 @@ standard_trackana:
    SpacepointModuleLabel: "spacepointfinder"
    StitchModuleLabel: "stitch"
    TrkSpptAssocModuleLabel: "trackkalmanhit"
-   HitSpptAssocModuleLabel: "ffhit"
+   HitSpptAssocModuleLabel: "gaushit"
+   HitModuleLabel: "gaushit"
    Dump: 10
    MinMCKE:  0.05
    MinMCLen:  20.
@@ -129,8 +155,6 @@ standard_trackana:
    WMatchDisp: 15.0
    IgnoreSign: true
 }
-
-
 
 standard_trackanact:
 {
@@ -201,6 +225,15 @@ standard_spacepointcheater:
   SpacePointAlg:      @local::standard_spacepointalg
 }
 
+development_beziertrackjoiner:
+{  
+  module_type:         "BezierTrackJoiner"
+  TrackModuleLabel:    "beziertracker"
+  JoinThreshold:       1
+  VertexAngle:         0.26
+  ExtrapDistance:      10
+
+}
 
 development_beziertrackana:
 {
@@ -213,8 +246,11 @@ standard_track3Dkalmanhit:
   module_type:        "Track3DKalmanHit"
   Hist:               false
   UseClusterHits:     true
+  UsePFParticleHits:  false
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
+  PFParticleModuleLabel: "pandora"
+  StoreNPPlane:       false         # Store non-preferred-plane hits?
   MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
   DoDedx:             false         # dE/dx enable flag.
   MinSeedHits:        12            # Minimum number of hits per track seed.
@@ -241,83 +277,6 @@ standard_magdriftana:
  module_type:           "MagDriftAna"
  HitsModuleLabel:       "ffthit"
  LArGeantModuleLabel:   "largeant"
-}
-
-bo_track:                               @local::standard_track3Dreco  
-bo_kalman:                              @local::standard_track3Dkalman
-bo_spacepts:                            @local::standard_spacepts     
-bo_spacepoint:                          @local::standard_spacepointana
-bo_spacepoint.SpacePointAlgTime:        @local::bo_spacepointalg
-bo_spacepoint.SpacePointAlgTime.MaxDT:  50.
-bo_spacepoint.SpacePointAlgSep:         @local::bo_spacepointalg
-bo_spacepoint.SpacePointAlgSep.MaxS:    10.
-bo_spacepoint.SpacePointAlgDefault:     @local::bo_spacepointalg
-bo_spacepoint_finder:                   @local::standard_spacepointalg    
-bo_spacepoint_finder.SpacePointAlg:     @local::bo_spacepointalg    
-bo_spacepointcheater:                   @local::standard_spacepointcheater
-bo_spacepointcheater.SpacePointAlg:     @local::bo_spacepointalg    
-bo_beziertracker:                       @local::standard_beziertrackermodule
-bo_seedfinder:                          @local::standard_seedfindermodule     
-
-argoneut_track:                               @local::standard_track3Dreco  
-argoneut_kalman:                              @local::standard_track3Dkalman
-argoneut_spacepts:                            @local::standard_spacepts     
-argoneut_spacepoint:                          @local::standard_spacepointana
-argoneut_spacepoint.SpacePointAlgTime:        @local::argoneut_spacepointalg
-argoneut_spacepoint.SpacePointAlgTime.MaxDT:  50.
-argoneut_spacepoint.SpacePointAlgSep:         @local::argoneut_spacepointalg
-argoneut_spacepoint.SpacePointAlgSep.MaxS:    10.
-argoneut_spacepoint.SpacePointAlgDefault:     @local::argoneut_spacepointalg
-argoneut_spacepoint_finder:                   @local::standard_spacepointalg    
-argoneut_spacepoint_finder.SpacePointAlg:     @local::argoneut_spacepointalg    
-argoneut_spacepointcheater:                   @local::standard_spacepointcheater
-argoneut_spacepointcheater.SpacePointAlg:     @local::argoneut_spacepointalg    
-
-microboone_track:                                       @local::standard_track3Dreco
-microboone_spacepts:                                    @local::standard_spacepts
-microboone_spacepts.TicksOffset:                        0.0         
-microboone_spacepts.ClusterModuleLabel:                 "dbcluster" 
-microboone_spacepts.TMatch:                             11.0        
-microboone_spacepts.vertexclusterWindow:                10000000.   
-microboone_kalman:                                      @local::standard_track3DkalmanSPS    
-microboone_kalman.SpacePointAlg:                        @local::microboone_spacepointalg     
-microboone_spacepoint:                                  @local::standard_spacepointana 
-microboone_spacepoint.SpacePointAlgTime:                @local::microboone_spacepointalg     
-microboone_spacepoint.SpacePointAlgTime.MaxDT:          50.
-microboone_spacepoint.SpacePointAlgSep:                 @local::microboone_spacepointalg     
-microboone_spacepoint.SpacePointAlgSep.MaxS:            10.
-microboone_spacepoint.SpacePointAlgDefault:             @local::microboone_spacepointalg     
-microboone_spacepoint_finder:                           @local::standard_spacepointfinder    
-microboone_spacepoint_finder.SpacePointAlg:             @local::microboone_spacepointalg     
-microboone_spacepointcheater:                           @local::standard_spacepointcheater   
-microboone_spacepointcheater.SpacePointAlg:             @local::microboone_spacepointalg     
-microboone_trackkalmancheater:                          @local::standard_trackkalmancheater  
-microboone_trackkalmancheater.KalmanFilterAlg:          @local::microboone_kalmanfilteralg   
-microboone_trackkalmancheater.SpacePointAlg:            @local::microboone_spacepointalg   
-microboone_trackkalmancheater.SpacePointAlg.MinViews:   2
-microboone_track3Dkalmanhit:                            @local::standard_track3Dkalmanhit
-microboone_track3Dkalmanhit.KalmanFilterAlg:            @local::microboone_kalmanfilteralg
-microboone_track3Dkalmanhit.SeedFinderAlg:              @local::microboone_seedfinderalgorithm
-microboone_track3Dkalmanhit.SpacePointAlg:              @local::microboone_spacepointalg
-microboone_track3Dkalmanhit.SpacePointAlg.MinViews:     2
-microboone_seedfindermodule:                            @local::standard_seedfindermodule     
-microboone_seedfindermodule.SeedAlg:                    @local::microboone_seedfinderalgorithm
-microboone_beziertrackermodule:                         @local::standard_beziertrackermodule
-microboone_beziertrackermodule.BezierTrackerAlgorithm:  @local::microboone_beziertrackeralgorithm
-
-microboone_featuretracker: @local::standard_featuretracker
-
-microboone_2stg_kalman:
-{
- module_type:         "Track3DKalmanSPS2stg"
- ClusterModuleLabel:  "dbscan"
- GenieGenModuleLabel: "generator"     # comment out for real data.
- G4ModuleLabel:       "largeant"
- PosErr3:             [0.05,0.05,0.05]   #  position resolution, cm.
- MomErr3:             [0.10,0.10,0.20]   #  momentum resolution, GeV/c.
- MomStart3:           [0.10,0.10,1.0]    #  Will be Unit norm'd.
- TailPtsFrac:         0.9    # fraction of upstream SpacePoints to ignore in 1st stage fit.
- GenfPRINT:           true
 }
 
 END_PROLOG

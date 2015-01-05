@@ -1,4 +1,4 @@
-#include "trackfindermodules_base.fcl"
+#include "trackfindermodules.fcl"
 
 BEGIN_PROLOG
 

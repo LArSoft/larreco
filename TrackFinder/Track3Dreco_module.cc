@@ -22,6 +22,7 @@
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h" 
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Principal/Handle.h" 
@@ -42,6 +43,7 @@
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/AssociationUtil.h"
+#include "art/Framework/Core/FindManyP.h"
 
 // ROOT includes
 #include "TVectorD.h"
@@ -205,7 +207,8 @@ void Track3Dreco::produce(art::Event& evt)
      ///\todo: This is very bad practice and should be changed ASAP
      if (cl->View() == geo::kZ) continue;      
      
-     std::vector< art::Ptr<recob::Hit> > hitlist = fmh.at(ii);
+     // Can not be const, cuz we're gonna sort 'em.
+     std::vector< art::Ptr<recob::Hit> > hitlist (fmh.at(ii));
 
      if(hitlist.size() == 1) continue;//only one Hit in this Cluster...will cause TGraph fit to fail.
 
@@ -559,7 +562,7 @@ void Track3Dreco::produce(art::Event& evt)
 
 	   // get the hits associated with each cluster and associate those with the track
 	   for(size_t p = 0; p < clustersPerTrack.size(); ++p){
-	     std::vector< art::Ptr<recob::Hit> > hits = fmhc.at(p);
+	     const std::vector< art::Ptr<recob::Hit> >& hits = fmhc.at(p);
 	     util::CreateAssn(*this, evt, *tcol, hits, *hassn);
 	   }
 	   

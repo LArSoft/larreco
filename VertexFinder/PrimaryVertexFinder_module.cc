@@ -20,6 +20,8 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/FindMany.h"
+#include "art/Framework/Core/FindManyP.h"
 
 #include <iomanip>
 #include <ios>

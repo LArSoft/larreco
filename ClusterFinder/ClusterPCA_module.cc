@@ -8,31 +8,26 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include <string>
-#include <math.h>
-#include <algorithm>
-#include <iostream>
-#include <iomanip>
-#include <fstream>
 #include <vector>
+#include <array>
 
 //Framework includes:
-#include "art/Framework/Core/EDAnalyzer.h"
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "art/Framework/Principal/Handle.h"
 #include "art/Persistency/Common/Ptr.h"
 #include "art/Persistency/Common/PtrVector.h"
+#include "art/Framework/Core/EDAnalyzer.h"
+#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/FindManyP.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 //LArSoft includes:
-#include "Geometry/Geometry.h"
+#include "SimpleTypesAndConstants/geo_types.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
-#include "Utilities/AssociationUtil.h"
 
 // Root includes
 #include "TPrincipal.h"
@@ -49,7 +44,7 @@ namespace cluster {
     explicit ClusterPCA(fhicl::ParameterSet const& pset); 
     ~ClusterPCA();
 
-    void PerformClusterPCA( std::vector<art::Ptr<recob::Hit> >& HitsThisCluster, double* PrincDirectionWT, double& PrincValue, double& TotalCharge, bool NormPC);
+    void PerformClusterPCA(const std::vector<art::Ptr<recob::Hit> >& HitsThisCluster, double* PrincDirectionWT, double& PrincValue, double& TotalCharge, bool NormPC);
     
     void analyze(art::Event const& evt);
     void beginJob();
@@ -112,11 +107,11 @@ namespace cluster{
     art::Handle< std::vector<recob::Cluster> > clusterVecHandle;
     evt.getByLabel(fClusterModuleLabel,clusterVecHandle);
 
-    art::ServiceHandle<geo::Geometry> geo;
-    int nplanes = geo->Nplanes();
+    constexpr size_t nViews = 3;
 
-    //one PtrVector for each plane in the geometry
-    std::vector< art::PtrVector<recob::Cluster> > Cls(nplanes);
+    // one vector of cluster index in the original collection, per view;
+    // to support all present views, replace with a dynamically growing array
+    std::array<std::vector<size_t>, nViews> ClsIndex;
 
     // loop over the input Clusters
     for(size_t i = 0; i < clusterVecHandle->size(); ++i){
@@ -126,51 +121,52 @@ namespace cluster{
       
       switch(cl->View()){
       case geo::kU :
-	fView=0;
-	break;
+        fView=0;
+        break;
       case geo::kV :
-	fView=1;
-	break;
+        fView=1;
+        break;
       case geo::kZ :
-	fView=2;
-	break;
+        fView=2;
+        break;
       default :
-	break;
+        mf::LogError("ClusterPCA")
+          << "Hit belongs to an unsupported view (#" << cl->View() << ")";
+        break;
       }// end switch on view
 
-      Cls[fView].push_back(cl);
+      ClsIndex[fView].push_back(i);
     }// end loop over input clusters
 
-
-    for(fView = 0; fView < nplanes; ++fView){
+    art::FindManyP<recob::Hit> fm(clusterVecHandle, evt, fClusterModuleLabel);
+    for(fView = 0; fView < (int) nViews; ++fView){
       
-      art::FindManyP<recob::Hit> fmh(Cls[fView], evt, fClusterModuleLabel);
+      const std::vector<size_t>& ClsIndices = ClsIndex[fView];
       
-      for(size_t c = 0; c < Cls[fView].size(); ++c){
-	
-	
-	// find the hits associated with the current cluster
-	std::vector< art::Ptr<recob::Hit> > ptrvs = fmh.at(c);
+      for(size_t c = 0; c < ClsIndices.size(); ++c){
+        
+        // find the hits associated with the current cluster
+        const std::vector<art::Ptr<recob::Hit>>& ptrvs = fm.at(ClsIndices[c]);
 
-	double PrincDir[2], PrincValue=0;
-	double TotalCharge=0;
+        double PrincDir[2], PrincValue=0;
+        double TotalCharge=0;
 
-	PerformClusterPCA( ptrvs, PrincDir, PrincValue, TotalCharge, fNormPC);
-	
-	fPrincDirW   = PrincDir[0];
-	fPrincDirT   = PrincDir[1];
-	fPrincValue  = PrincValue;
-	fTotalCharge = TotalCharge;
-	fNHits       = ptrvs.size();
+        PerformClusterPCA( ptrvs, PrincDir, PrincValue, TotalCharge, fNormPC);
+        
+        fPrincDirW   = PrincDir[0];
+        fPrincDirT   = PrincDir[1];
+        fPrincValue  = PrincValue;
+        fTotalCharge = TotalCharge;
+        fNHits       = ptrvs.size();
 
-	fTree->Fill();
-	
+        fTree->Fill();
+        
       }// end loop over first cluster iterator
      }// end loop over planes
      
     return;
 
-  }
+  } // ClusterPCA::analyze()
 
 
 
@@ -191,7 +187,7 @@ namespace cluster{
 // For NormPC=true direction finding is not properly handled yet (easy to fix later)
 // It is not clear yet whether true or false is more effective for cluster showeriness studies.
 
-  void ClusterPCA::PerformClusterPCA( std::vector<art::Ptr<recob::Hit> >& HitsThisCluster, double* PrincipalDirection, double& PrincipalEigenvalue, double& TotalCharge, bool NormPC)
+  void ClusterPCA::PerformClusterPCA(const std::vector<art::Ptr<recob::Hit> >& HitsThisCluster, double* PrincipalDirection, double& PrincipalEigenvalue, double& TotalCharge, bool NormPC)
   {
   
   double Center[2] = {0,0};

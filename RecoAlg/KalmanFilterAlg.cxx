@@ -9,10 +9,11 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "RecoAlg/KalmanFilterAlg.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 #include "boost/numeric/ublas/vector_proxy.hpp"
 #include "boost/numeric/ublas/matrix_proxy.hpp"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "RecoObjects/KHit.h"
 #include "RecoObjects/SurfYZPlane.h"
 #include "Geometry/Geometry.h"
@@ -540,7 +541,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
     if(fTrace) {
       double path_est = gr.getPath();
       log << "Next surface: " << *(gr.getSurface()) << "\n";
-      log << "  Estimated distance = " << path_est << "\n";
+      log << "  Estimated path length of hit group = " << path_est << "\n";
     }
 
     // Get the next prediction surface.  If this KHitGroup is on the
@@ -576,8 +577,8 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       }
       if(fTrace) {
 	log << "After propagation\n";
-	log << "  Incremental distance = " << ds << "\n";
-	log << "  Actual distance = " << path << "\n";
+	log << "  Incremental propagation distance = " << ds << "\n";
+	log << "  Path length of prediction surface = " << path << "\n";
 	log << "KGTrack has " << trg.numHits() << " hits.\n";
 	log << trf;
       }
@@ -613,21 +614,24 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	    log << "Trying Hit.\n"
 		<< hit
 		<< "\nchisq = " << chisq << "\n"
-		<< "preddist = " << preddist << "\n";
+		<< "prediction distance = " << preddist << "\n";
 	  }
-	  if(chisq < fMaxSeedIncChisq && 
-	     (!has_pref_plane || abs(preddist) < fMaxSeedPredDist) &&
+	  if((!has_pref_plane || abs(preddist) < fMaxSeedPredDist) &&
 	     (best_hit.get() == 0 || chisq < best_chisq) ) {
-	    best_hit = *ihit;
 	    best_chisq = chisq;
+	    if(chisq < fMaxSeedIncChisq)
+	      best_hit = *ihit;
 	  }
 	}
       }
       if(fTrace) {
+	log << "Best hit incremental chisquare = " << best_chisq << "\n";
 	if(best_hit.get() != 0) {
 	  log << "Hit after prediction\n";
 	  log << *best_hit;
 	}
+	else
+	  log << "No hit passed chisquare cut.\n";
       }
       if(fGTrace && fCanvases.size() > 0)
 	fCanvases.back()->Update();
@@ -760,6 +764,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       << "Track has " << trg.numHits() << " hits.\n"
       << "Track length = " << path << "\n"
       << "Track chisquare = " << fchisq << "\n";
+  // log << trg << "\n";
 
   // Done.  Return success if we added at least one measurement.
 
@@ -1103,6 +1108,7 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 	<< "Track has " << trg.numHits() << " hits.\n"
 	<< "Track length = " << trg.endTrack().getPath() - trg.startTrack().getPath() << "\n"
 	<< "Track chisquare = " << fchisq << "\n";
+    // log << trg << "\n";
   }
 
   //if(fGTrace && fCanvases.size() > 0) {
@@ -1349,7 +1355,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	if(fTrace) {
 	  double path_est = gr.getPath();
 	  log << "Next surface: " << *(gr.getSurface()) << "\n";
-	  log << "  Estimated distance = " << path_est << "\n";
+	  log << "  Estimated path length of hit group = " << path_est << "\n";
 	}
 
 	// Get the next prediction surface.  If this KHitGroup is on the
@@ -1386,7 +1392,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	  if(fTrace) {
 	    log << "After propagation\n";
 	    log << "  Incremental distance = " << ds << "\n";
-	    log << "  Actual distance = " << path << "\n";
+	    log << "  Track path length = " << path << "\n";
 	    log << "KGTrack has " << trg.numHits() << " hits.\n";
 	    log << trf;
 	  }
@@ -1418,18 +1424,22 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	    if(ok) {
 	      double chisq = hit.getChisq();
 	      double preddist = hit.getPredDistance();
-	      if(chisq < fMaxIncChisq && abs(preddist) < fMaxPredDist &&
+	      if(abs(preddist) < fMaxPredDist &&
 		 (best_hit.get() == 0 || chisq < best_chisq)) {
-		best_hit = *ihit;
 		best_chisq = chisq;
+		if(chisq < fMaxIncChisq)
+		  best_hit = *ihit;
 	      }
 	    }
 	  }
 	  if(fTrace) {
+	    log << "Best hit incremental chisquare = " << best_chisq << "\n";
 	    if(best_hit.get() != 0) {
 	      log << "Hit after prediction\n";
 	      log << *best_hit;
 	    }
+	    else
+	      log << "No hit passed chisquare cut.\n";
 	  }
 	  if(fGTrace && fCanvases.size() > 0)
 	    fCanvases.back()->Update();
@@ -1555,6 +1565,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	<< "Track has " << trg.numHits() << " hits.\n"
 	<< "Track length = " << path << "\n"
 	<< "Track chisquare = " << fchisq << "\n";
+    // log << trg << "\n";
   }
 
   // Done.
@@ -2093,7 +2104,7 @@ bool trkf::KalmanFilterAlg::smoothTrackIter(int nsmooth,
   // Call smoothTrack method in a loop.
 
   for(int ismooth = 0; ok && ismooth < nsmooth-1; ++ismooth) {
-    KGTrack trg1;
+    KGTrack trg1(trg.getPrefPlane());
     ok = smoothTrack(trg, &trg1, prop);
     if(ok)
       trg = trg1;
