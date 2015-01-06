@@ -177,14 +177,17 @@ namespace trkf {
     fStitchAlg.GetTracks(*tcol);    
     fStitchAlg.GetTrackComposites(*tvcol);
 
+    if (tcol->size()!=tvcol->size())
+      throw cet::exception("TrackStitcher") << "Tracks and TrackComposites do not match: "<<tcol->size()<<" vs "<<tvcol->size()<<"\n";      
+
     for (size_t ii=0; ii<tvcol->size(); ii++)
       {
 	const art::PtrVector<recob::Hit>& hits(GetHitsFromComponentTracks(tvcol->at(ii), evt));
 	// Now make the Assns of relevant Hits to stitched Track
-	util::CreateAssn(*this, evt, *tcol, hits, *thassn, tcol->size()-1);
+	util::CreateAssn(*this, evt, *tcol, hits, *thassn, ii);
 	const art::PtrVector<recob::SpacePoint>& sppts(GetSpacePointsFromComponentTracks(tvcol->at(ii), evt));
 	// Now make the Assns of relevant Sppts to stitched Track
-	util::CreateAssn(*this, evt, *tcol, sppts, *tsptassn, tcol->size()-1);
+	util::CreateAssn(*this, evt, *tcol, sppts, *tsptassn, ii);
       }
 
 
