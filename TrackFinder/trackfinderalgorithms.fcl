@@ -117,8 +117,14 @@ lbne10kt_spacepointalg.EnableW:  true
 lbne10kt_kalmanfilteralg:        @local::standard_kalmanfilteralg
 lbne34kt_spacepointalg:          @local::lbne10kt_spacepointalg
 lbne34kt_kalmanfilteralg:        @local::lbne10kt_kalmanfilteralg
-lbne35t_spacepointalg:           @local::lbne10kt_spacepointalg
-lbne35t_kalmanfilteralg:         @local::lbne10kt_kalmanfilteralg
+lbne35t_spacepointalg: @local::standard_spacepointalg
+lbne35t_spacepointalg.MinViews:  3
+lbne35t_spacepointalg.EnableW:   true
+lbne35t_kalmanfilteralg:         @local::standard_kalmanfilteralg
+lbne35t_seedfinderalgorithm:                          @local::standard_seedfinderalgorithm
+lbne35t_seedfinderalgorithm.SpacePointAlg :           @local::lbne35t_spacepointalg
+lbne35t_seedfinderalgorithm.SpacePointAlg.PreferColl: true
+lbne35t_seedfinderalgorithm.SpacePointAlg.Filter:     false
 
 
 END_PROLOG
