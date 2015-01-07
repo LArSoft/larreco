@@ -59,7 +59,7 @@ namespace trkf {
     std::string fClusterModuleLabel;
     double      fTrajPtPitch;
     
-    trkf::BezierTrackerAlgorithm * fBTrackAlg;
+    std::unique_ptr<trkf::BezierTrackerAlgorithm> fBTrackAlg;
     
 
     void GetHitsFromClusters(std::string ClusterModuleLabel, art::Event& evt,     std::vector< std::vector<art::PtrVector<recob::Hit> > >& ReturnVec, std::vector<std::map<int, int> >& ClusterMap);
@@ -104,12 +104,17 @@ namespace trkf {
   BezierTrackerModule::BezierTrackerModule(const fhicl::ParameterSet& pset)
   {
     reconfigure(pset);
-    produces< std::vector<recob::Track> >();
+    produces< std::vector<recob::Track> >("bezierformat");
     produces< std::vector<recob::Vertex> >();
+    produces< art::Assns<recob::Track, recob::Hit> >("bezierformat");
+    produces< art::Assns<recob::Cluster, recob::Track> >("bezierformat");
+    produces< art::Assns<recob::Track, recob::Vertex> >("bezierformat");
+      
+    produces< std::vector<recob::Track> >();
     produces< art::Assns<recob::Track, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Track> >();
     produces< art::Assns<recob::Track, recob::Vertex> >();
-      
+
   }
 
   BezierTrackerModule::~BezierTrackerModule()
@@ -121,7 +126,7 @@ namespace trkf {
     fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
     fTrajPtPitch        = pset.get<double>("TrajPtPitch",0.1);
     
-    fBTrackAlg = new trkf::BezierTrackerAlgorithm(pset.get<fhicl::ParameterSet>("BezierTrackerAlgorithm"));
+    fBTrackAlg.reset( new trkf::BezierTrackerAlgorithm(pset.get<fhicl::ParameterSet>("BezierTrackerAlgorithm")) );
       
 }
 
@@ -184,14 +189,8 @@ namespace trkf {
 	std::vector<double> fitMomentum(std::vector<double>(2, util::kBogusD));
 	int ID = (int)ub_tracks->size();
 	
-	std::cout << "Made all the vectors " << track_xyz.size() << " " << track_dir.size() << std::endl;
-	recob::Track track_empty;
-	std::cout << "Made the empty track." << std::endl;
-	recob::Track tr(track_xyz,track_dir,dQdx,fitMomentum,ID);
-	std::cout << "Made the track." << std::endl;
-	ub_tracks->push_back(tr);
-	std::cout << "ub_track size is now " << ub_tracks->size() << std::endl;
-	
+	ub_tracks->emplace_back(track_xyz,track_dir,dQdx,fitMomentum,ID);
+
 	util::CreateAssn(*this, evt, *(btracks.get()), HitsForAssns.at(i), *(assnhit.get()));
 	util::CreateAssn(*this, evt, *(ub_tracks), HitsForAssns.at(i), *(assnhit.get()));
       }
@@ -233,9 +232,9 @@ namespace trkf {
     mf::LogVerbatim("BezierTrackerAlgorithm")<<"Storing in evt - check"<<std::endl;
     evt.put(std::move(btracks),"bezierformat");
     evt.put(std::move(vertices));
-    evt.put(std::move(assnhit));
-    evt.put(std::move(assnvtx));
-    evt.put(std::move(assnclus));
+    evt.put(std::move(assnhit),"bezierformat");
+    evt.put(std::move(assnvtx),"bezierformat");
+    evt.put(std::move(assnclus),"bezierformat");
 
     evt.put(std::move(ub_tracks));
     evt.put(std::move(ub_assnhit));
