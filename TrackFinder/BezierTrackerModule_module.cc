@@ -119,7 +119,7 @@ namespace trkf {
   void BezierTrackerModule::reconfigure(fhicl::ParameterSet const& pset)
   {
     fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
-    fTrajPtPitch        = pset.get<double>("TrajPtPitch",0.001);
+    fTrajPtPitch        = pset.get<double>("TrajPtPitch",0.1);
     
     fBTrackAlg = new trkf::BezierTrackerAlgorithm(pset.get<fhicl::ParameterSet>("BezierTrackerAlgorithm"));
       
@@ -176,8 +176,21 @@ namespace trkf {
 	
 	std::unique_ptr<recob::Track>  ToStore = BTracks.at(i).GetBaseTrack();
 	btracks->push_back(*ToStore);
+
+	std::vector<TVector3> track_xyz,track_dir;
+	BTracks.at(i).FillTrackVectors(track_xyz,track_dir,fTrajPtPitch);
+
+	std::vector< std::vector <double> > dQdx;
+	std::vector<double> fitMomentum(std::vector<double>(2, util::kBogusD));
+	int ID = (int)ub_tracks->size();
 	
-	ub_tracks->push_back( BTracks.at(i).GetTrack(fTrajPtPitch));
+	std::cout << "Made all the vectors " << track_xyz.size() << " " << track_dir.size() << std::endl;
+	recob::Track track_empty;
+	std::cout << "Made the empty track." << std::endl;
+	recob::Track tr(track_xyz,track_dir,dQdx,fitMomentum,ID);
+	std::cout << "Made the track." << std::endl;
+	ub_tracks->push_back(tr);
+	std::cout << "ub_track size is now " << ub_tracks->size() << std::endl;
 	
 	util::CreateAssn(*this, evt, *(btracks.get()), HitsForAssns.at(i), *(assnhit.get()));
 	util::CreateAssn(*this, evt, *(ub_tracks), HitsForAssns.at(i), *(assnhit.get()));
