@@ -48,6 +48,8 @@ microboone_cosmictracker.ClusterModuleLabel:            "cccluster"
 microboone_cosmictracker.DirSPS:                        true
 microboone_cctrackmaker:                                @local::standard_cctrackmaker
 
+microboone_featuretracker: @local::standard_featuretracker
+
 microboone_2stg_kalman:
 {
  module_type:         "Track3DKalmanSPS2stg"

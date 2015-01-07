@@ -26,7 +26,6 @@
 #include "Utilities/DetectorProperties.h"
 #include "RecoAlg/DBScanAlg.h"
 #include "RecoBase/Hit.h"
-#include "Geometry/Geometry.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 
@@ -279,9 +278,13 @@ void cluster::DBScanAlg::reconfigure(fhicl::ParameterSet const& p)
 }
 
 //----------------------------------------------------------
-void cluster::DBScanAlg::InitScan(std::vector< art::Ptr<recob::Hit> >& allhits, 
-				  std::set<uint32_t>                   badChannels)
+void cluster::DBScanAlg::InitScan(const std::vector< art::Ptr<recob::Hit> >& allhits, 
+				  std::set<uint32_t>                   badChannels,
+				  const std::vector<geo::WireID> & wireids)
 {
+  if (wireids.size()&&wireids.size()!=allhits.size()){
+    throw cet::exception("DBScanAlg") << "allhits size = "<<allhits.size()<<" wireids size = "<<wireids.size()<<" do not match\n";
+  }
   // clear all the data member vectors for the new set of hits
   fps.clear();
   fpointId_to_clusterId.clear();
@@ -332,9 +335,10 @@ void cluster::DBScanAlg::InitScan(std::vector< art::Ptr<recob::Hit> >& allhits,
         
     double tickToDist = larp->DriftVelocity(larp->Efield(),larp->Temperature());
     tickToDist *= 1.e-3 * detp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-    p[0] = (allhits[j]->Channel())*fWirePitch[allhits[j]->WireID().Plane];
+    if (!wireids.size()) p[0] = (allhits[j]->WireID().Wire)*fWirePitch[allhits[j]->WireID().Plane];
+    else p[0] = (wireids[j].Wire)*fWirePitch[allhits[j]->WireID().Plane];
     p[1] = allhits[j]->PeakTime()*tickToDist;
-    p[2] =  allhits[j]->RMS()*tickToDist;   //width of a hit in cm
+    p[2] = 2.*allhits[j]->RMS()*tickToDist;   //width of a hit in cm
 
     // check on the maximum width condition
     if ( p[2] > fMaxWidth ) fMaxWidth = p[2];
