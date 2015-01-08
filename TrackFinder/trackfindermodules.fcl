@@ -142,6 +142,7 @@ standard_trackana:
 {
    module_type: "TrackAna"
    TrackModuleLabel: "trackkalmanhit"
+   MCTrackModuleLabel: "mcreco"
    SpacepointModuleLabel: "spacepointfinder"
    StitchModuleLabel: "stitch"
    TrkSpptAssocModuleLabel: "trackkalmanhit"

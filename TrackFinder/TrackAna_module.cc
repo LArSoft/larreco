@@ -6,6 +6,7 @@
 // Configuration parameters.
 //
 //  TrackModuleLabel:   Track module label.
+//  MCTrackModuleLabel: MCTrack module label.
 //  MinMCKE:            Minimum MC particle kinetic energy.
 //  MatchColinearity:   Minimum colinearity for mc-track matching.
 //  MatchDisp:          Maximum uv displacement for mc-track matching.
@@ -39,6 +40,7 @@
 #include "MCCheater/BackTracker.h"
 #include "SimulationBase/MCParticle.h"
 #include "Simulation/sim.h"
+#include "MCBase/MCTrack.h"
 
 #include "TH2F.h"
 #include "TFile.h"
@@ -137,6 +139,68 @@ namespace {
 	  disp = pos;
 	  end = pos;
 	  endmom = part.Momentum(i).Vect();
+	}
+      }
+    }
+
+    return result;
+  }
+
+  // Length of MCTrack.
+  // In this function, the extracted start and end momenta are converted to GeV
+  // (MCTrack stores momenta in Mev).
+  //----------------------------------------------------------------------------
+  double length(const sim::MCTrack& mctrk, double dx,
+		TVector3& start, TVector3& end, TVector3& startmom, TVector3& endmom,
+		unsigned int /*tpc*/ = 0, unsigned int /*cstat*/ = 0)
+  {
+    // Get services.
+
+    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<util::DetectorProperties> detprop;
+
+    // Get fiducial volume boundary.
+
+    double xmin = 0.;
+    double xmax = 2.*geom->DetHalfWidth();
+    double ymin = -geom->DetHalfHeight();
+    double ymax = geom->DetHalfHeight();
+    double zmin = 0.;
+    double zmax = geom->DetLength();
+    //double ticks_max = detprop->ReadOutWindowSize();
+    double result = 0.;
+    TVector3 disp;
+    int n = mctrk.size();
+    bool first = true;
+
+    for(int i = 0; i < n; ++i) {
+      TVector3 pos = mctrk[i].Position().Vect();
+
+      // Make fiducial cuts.  Require the particle to be within the physical volume of
+      // the tpc, and also require the apparent x position to be within the expanded
+      // readout frame.
+
+      if(pos.X() >= xmin &&
+	 pos.X() <= xmax &&
+	 pos.Y() >= ymin &&
+	 pos.Y() <= ymax &&
+	 pos.Z() >= zmin &&
+	 pos.Z() <= zmax) {
+	pos[0] += dx;
+	double ticks = detprop->ConvertXToTicks(pos[0], 0, 0, 0);
+	if(ticks >= 0. && ticks < detprop->ReadOutWindowSize()) {
+	  if(first) {
+	    start = pos;
+	    startmom = 0.001 * mctrk[i].Momentum().Vect();
+	  }
+	  else {
+	    disp -= pos;
+	    result += disp.Mag();
+	  }
+	  first = false;
+	  disp = pos;
+	  end = pos;
+	  endmom = 0.001 * mctrk[i].Momentum().Vect();
 	}
       }
     }
@@ -363,6 +427,7 @@ namespace trkf {
     // Fcl Attributes.
 
     std::string fTrackModuleLabel;
+    std::string fMCTrackModuleLabel;
     std::string fSpacepointModuleLabel;
     std::string fStitchModuleLabel;
     std::string fTrkSpptAssocModuleLabel;
@@ -668,6 +733,7 @@ namespace trkf {
     //
     : EDAnalyzer(pset)
     , fTrackModuleLabel(pset.get<std::string>("TrackModuleLabel"))
+    , fMCTrackModuleLabel(pset.get<std::string>("MCTrackModuleLabel"))
     , fSpacepointModuleLabel(pset.get<std::string>("SpacepointModuleLabel"))
     , fStitchModuleLabel(pset.get<std::string>("StitchModuleLabel"))
     , fTrkSpptAssocModuleLabel(pset.get<std::string>("TrkSpptAssocModuleLabel"))
@@ -689,6 +755,7 @@ namespace trkf {
     mf::LogInfo("TrackAna") 
       << "TrackAna configured with the following parameters:\n"
       << "  TrackModuleLabel = " << fTrackModuleLabel << "\n"
+      << "  MCTrackModuleLabel = " << fMCTrackModuleLabel << "\n"
       << "  StitchModuleLabel = " << fStitchModuleLabel << "\n"
       << "  TrkSpptAssocModuleLabel = " << fTrkSpptAssocModuleLabel << "\n"
       << "  HitSpptAssocModuleLabel = " << fHitSpptAssocModuleLabel << "\n"
@@ -731,32 +798,34 @@ namespace trkf {
 
     bool mc = !evt.isRealData();
 
-    // Get mc particles.
+    // Get MCTracks.
 
-    sim::ParticleList plist;
-    std::vector<const simb::MCParticle*> plist2;
-    plist2.reserve(plist.size());
+    art::Handle< std::vector<sim::MCTrack> > mctrackh;
+    evt.getByLabel(fMCTrackModuleLabel, mctrackh);
+    std::cout << "Number of MCTracks:" << mctrackh->size() << std::endl;
+    std::vector<const sim::MCTrack*> selected_mctracks;
+    selected_mctracks.reserve(mctrackh->size());
 
     if(mc) {
 
-      plist = bt->ParticleList();
+      // Dump MCTracks.
 
       if(pdump) {
-	*pdump << "MC Particles\n"
+	*pdump << "MC Tracks\n"
 	       << "       Id   pdg           x         y         z          dx        dy        dz           p\n"
 	       << "-------------------------------------------------------------------------------------------\n";
       }
 
-      // Loop over mc particles, and fill histograms that depend only
-      // on mc particles.  Also, fill a secondary list of mc particles
+      // Loop over mc tracks, and fill histograms that depend only
+      // on mc information.  Also, fill a secondary list of mc tracks
       // that pass various selection criteria.
 
-      for(sim::ParticleList::const_iterator ipart = plist.begin();
-	  ipart != plist.end(); ++ipart) {
-	const simb::MCParticle* part = (*ipart).second;
-	if (!part)
-	  throw cet::exception("SeedAna") << "no particle!\n";
-	int pdg = part->PdgCode();
+      for(std::vector<sim::MCTrack>::const_iterator imctrk = mctrackh->begin();
+	  imctrk != mctrackh->end(); ++imctrk) {
+	const sim::MCTrack* pmctrk = &*imctrk;
+	if (!pmctrk)
+	  throw cet::exception("TrackAna") << "no mctrack!\n";
+	int pdg = pmctrk->PdgCode();
 	if(fIgnoreSign)
 	  pdg = std::abs(pdg);
 
@@ -770,11 +839,11 @@ namespace trkf {
 
 	  // Apply minimum energy cut.
 
-	  if(part->E() >= 0.001*part->Mass() + fMinMCKE) {
+	  if(pmctrk->Start().E() >= pmctrk->Start().Momentum().Mag() + 1000.*fMinMCKE) {
 
 	    // Calculate the x offset due to nonzero mc particle time.
 
-	    double mctime = part->T();                                // nsec
+	    double mctime = pmctrk->Start().T();                      // nsec
 	    double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();  // cm
 
 	    // Calculate the length of this mc particle inside the fiducial volume.
@@ -783,7 +852,7 @@ namespace trkf {
 	    TVector3 mcend;
 	    TVector3 mcstartmom;
 	    TVector3 mcendmom;
-	    double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+	    double plen = length(*pmctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
 	    // Apply minimum fiducial length cut.  Always reject particles that have
 	    // zero length in the tpc regardless of the configured cut.
@@ -792,7 +861,7 @@ namespace trkf {
 
 	      // This is a good mc particle (capable of making a track).
 
-	      plist2.push_back(part);
+	      selected_mctracks.push_back(pmctrk);
 
 	      // Dump MC particle information here.
 
@@ -800,14 +869,14 @@ namespace trkf {
 		double pstart = mcstartmom.Mag();
 		double pend = mcendmom.Mag();
 		*pdump << "\nOffset"
-		       << std::setw(3) << part->TrackId()
-		       << std::setw(6) << part->PdgCode()
+		       << std::setw(3) << pmctrk->TrackID()
+		       << std::setw(6) << pmctrk->PdgCode()
 		       << "  " 
 		       << std::fixed << std::setprecision(2) 
 		       << std::setw(10) << mcdx
 		       << "\nStart " 
-		       << std::setw(3) << part->TrackId()
-		       << std::setw(6) << part->PdgCode()
+		       << std::setw(3) << pmctrk->TrackID()
+		       << std::setw(6) << pmctrk->PdgCode()
 		       << "  " 
 		       << std::fixed << std::setprecision(2) 
 		       << std::setw(10) << mcstart[0]
@@ -824,8 +893,8 @@ namespace trkf {
 		  *pdump << std::setw(32) << " ";
 		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
 		*pdump << "\nEnd   " 
-		       << std::setw(3) << part->TrackId()
-		       << std::setw(6) << part->PdgCode()
+		       << std::setw(3) << pmctrk->TrackID()
+		       << std::setw(6) << pmctrk->PdgCode()
 		       << "  " 
 		       << std::fixed << std::setprecision(2)
 		       << std::setw(10) << mcend[0]
@@ -871,6 +940,12 @@ namespace trkf {
 	    }
 	  }
 	}
+      }
+
+      if(pdump) {
+	*pdump << "MC Particles\n"
+	       << "       Id   pdg           x         y         z          dx        dy        dz           p\n"
+	       << "-------------------------------------------------------------------------------------------\n";
       }
     } //mc
 
@@ -1026,20 +1101,21 @@ namespace trkf {
 	    
 	    // Loop over track-like mc particles.
 
-	    for(auto ipart = plist2.begin(); ipart != plist2.end(); ++ipart) {
-	      const simb::MCParticle* part = *ipart;
-	      if (!part)
-	        throw cet::exception("SeedAna") << "no particle! [II]\n";
-	      int pdg = part->PdgCode();
+	    for(auto imctrk = selected_mctracks.begin(); imctrk != selected_mctracks.end(); 
+		++imctrk) {
+	      const sim::MCTrack* pmctrk = *imctrk;
+	      if (!pmctrk)
+	        throw cet::exception("TrackAna") << "no particle! [II]\n";
+	      int pdg = pmctrk->PdgCode();
 	      if(fIgnoreSign) pdg = std::abs(pdg);
 	      auto iMCHistMap = fMCHistMap.find(pdg);
 	      if (iMCHistMap == fMCHistMap.end())
-	        throw cet::exception("SeedAna") << "no particle with ID=" << pdg << "\n";
+	        throw cet::exception("TrackAna") << "no particle with ID=" << pdg << "\n";
 	      const MCHists& mchists = iMCHistMap->second;
 
 	      // Calculate the x offset due to nonzero mc particle time.
 
-	      double mctime = part->T();                                 // nsec
+	      double mctime = pmctrk->Start().T();                                 // nsec
 	      double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();   // cm
 
 	      // Calculate the points where this mc particle enters and leaves the
@@ -1049,7 +1125,7 @@ namespace trkf {
 	      TVector3 mcend;
 	      TVector3 mcstartmom;
 	      TVector3 mcendmom;
-	      double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+	      double plen = length(*pmctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
 	      // Get the displacement of this mc particle in the global coordinate system.
 
@@ -1132,7 +1208,7 @@ namespace trkf {
 		  bool good = std::abs(w) <= fWMatchDisp &&
 		    tlen > 0.5 * plen;
 		  if(good) {
-		    mcid = part->TrackId();
+		    mcid = pmctrk->TrackID();
 
 		    // Calculate and fill hit efficiency and purity.
 
