@@ -802,7 +802,6 @@ namespace trkf {
 
     art::Handle< std::vector<sim::MCTrack> > mctrackh;
     evt.getByLabel(fMCTrackModuleLabel, mctrackh);
-    std::cout << "Number of MCTracks:" << mctrackh->size() << std::endl;
     std::vector<const sim::MCTrack*> selected_mctracks;
     selected_mctracks.reserve(mctrackh->size());
 
