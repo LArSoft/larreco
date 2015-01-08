@@ -177,7 +177,8 @@ standard_trackanact:
 standard_seedana:
 {
   module_type:        "SeedAna"
-  SeedModuleLabel:   "seedfinder"
+  SeedModuleLabel:    "seedfinder"
+  MCTrackModuleLabel: "mcreco"
   Dump:               10
   MinMCKE:            0.05
   MinMCLen:           20.
