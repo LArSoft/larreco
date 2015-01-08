@@ -821,10 +821,8 @@ namespace trkf {
 
       for(std::vector<sim::MCTrack>::const_iterator imctrk = mctrackh->begin();
 	  imctrk != mctrackh->end(); ++imctrk) {
-	const sim::MCTrack* pmctrk = &*imctrk;
-	if (!pmctrk)
-	  throw cet::exception("TrackAna") << "no mctrack!\n";
-	int pdg = pmctrk->PdgCode();
+	const sim::MCTrack& mctrk = *imctrk;
+	int pdg = mctrk.PdgCode();
 	if(fIgnoreSign)
 	  pdg = std::abs(pdg);
 
@@ -838,11 +836,11 @@ namespace trkf {
 
 	  // Apply minimum energy cut.
 
-	  if(pmctrk->Start().E() >= pmctrk->Start().Momentum().Mag() + 1000.*fMinMCKE) {
+	  if(mctrk.Start().E() >= mctrk.Start().Momentum().Mag() + 1000.*fMinMCKE) {
 
 	    // Calculate the x offset due to nonzero mc particle time.
 
-	    double mctime = pmctrk->Start().T();                      // nsec
+	    double mctime = mctrk.Start().T();                      // nsec
 	    double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();  // cm
 
 	    // Calculate the length of this mc particle inside the fiducial volume.
@@ -851,7 +849,7 @@ namespace trkf {
 	    TVector3 mcend;
 	    TVector3 mcstartmom;
 	    TVector3 mcendmom;
-	    double plen = length(*pmctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+	    double plen = length(mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
 	    // Apply minimum fiducial length cut.  Always reject particles that have
 	    // zero length in the tpc regardless of the configured cut.
@@ -860,7 +858,7 @@ namespace trkf {
 
 	      // This is a good mc particle (capable of making a track).
 
-	      selected_mctracks.push_back(pmctrk);
+	      selected_mctracks.push_back(&mctrk);
 
 	      // Dump MC particle information here.
 
@@ -868,14 +866,14 @@ namespace trkf {
 		double pstart = mcstartmom.Mag();
 		double pend = mcendmom.Mag();
 		*pdump << "\nOffset"
-		       << std::setw(3) << pmctrk->TrackID()
-		       << std::setw(6) << pmctrk->PdgCode()
+		       << std::setw(3) << mctrk.TrackID()
+		       << std::setw(6) << mctrk.PdgCode()
 		       << "  " 
 		       << std::fixed << std::setprecision(2) 
 		       << std::setw(10) << mcdx
 		       << "\nStart " 
-		       << std::setw(3) << pmctrk->TrackID()
-		       << std::setw(6) << pmctrk->PdgCode()
+		       << std::setw(3) << mctrk.TrackID()
+		       << std::setw(6) << mctrk.PdgCode()
 		       << "  " 
 		       << std::fixed << std::setprecision(2) 
 		       << std::setw(10) << mcstart[0]
@@ -892,8 +890,8 @@ namespace trkf {
 		  *pdump << std::setw(32) << " ";
 		*pdump << std::setw(12) << std::fixed << std::setprecision(3) << pstart;
 		*pdump << "\nEnd   " 
-		       << std::setw(3) << pmctrk->TrackID()
-		       << std::setw(6) << pmctrk->PdgCode()
+		       << std::setw(3) << mctrk.TrackID()
+		       << std::setw(6) << mctrk.PdgCode()
 		       << "  " 
 		       << std::fixed << std::setprecision(2)
 		       << std::setw(10) << mcend[0]
@@ -939,12 +937,6 @@ namespace trkf {
 	    }
 	  }
 	}
-      }
-
-      if(pdump) {
-	*pdump << "MC Particles\n"
-	       << "       Id   pdg           x         y         z          dx        dy        dz           p\n"
-	       << "-------------------------------------------------------------------------------------------\n";
       }
     } //mc
 
@@ -1102,10 +1094,8 @@ namespace trkf {
 
 	    for(auto imctrk = selected_mctracks.begin(); imctrk != selected_mctracks.end(); 
 		++imctrk) {
-	      const sim::MCTrack* pmctrk = *imctrk;
-	      if (!pmctrk)
-	        throw cet::exception("TrackAna") << "no particle! [II]\n";
-	      int pdg = pmctrk->PdgCode();
+	      const sim::MCTrack& mctrk = **imctrk;
+	      int pdg = mctrk.PdgCode();
 	      if(fIgnoreSign) pdg = std::abs(pdg);
 	      auto iMCHistMap = fMCHistMap.find(pdg);
 	      if (iMCHistMap == fMCHistMap.end())
@@ -1114,7 +1104,7 @@ namespace trkf {
 
 	      // Calculate the x offset due to nonzero mc particle time.
 
-	      double mctime = pmctrk->Start().T();                                 // nsec
+	      double mctime = mctrk.Start().T();                                 // nsec
 	      double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();   // cm
 
 	      // Calculate the points where this mc particle enters and leaves the
@@ -1124,7 +1114,7 @@ namespace trkf {
 	      TVector3 mcend;
 	      TVector3 mcstartmom;
 	      TVector3 mcendmom;
-	      double plen = length(*pmctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+	      double plen = length(mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 
 	      // Get the displacement of this mc particle in the global coordinate system.
 
@@ -1207,7 +1197,7 @@ namespace trkf {
 		  bool good = std::abs(w) <= fWMatchDisp &&
 		    tlen > 0.5 * plen;
 		  if(good) {
-		    mcid = pmctrk->TrackID();
+		    mcid = mctrk.TrackID();
 
 		    // Calculate and fill hit efficiency and purity.
 
