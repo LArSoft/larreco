@@ -138,7 +138,22 @@ namespace hit{
     if( !wid.isValid ){ 
       mf::LogWarning("InvalidWireID") << "wid is invalid, hit not being made\n";
       return; }
+
+    if ((hit->Wire()).isNonnull()) {
     
+    art::Ptr<recob::Wire> wire = hit->Wire();
+    recob::Hit WidHit( wire, 			     wid,
+		       hit->StartTime(),     	     hit->SigmaStartTime(),
+		       hit->EndTime(),       	     hit->SigmaEndTime(),
+		       hit->PeakTime(),      	     hit->SigmaPeakTime(),
+		       hit->Charge(),        	     hit->SigmaCharge(),                
+		       hit->Charge(true),   	     hit->SigmaCharge(true),
+		       hit->Multiplicity(),  	     hit->GoodnessOfFit() );     
+
+    hcol->push_back(WidHit);
+    }    
+
+    else {
     // art::Ptr<recob::Wire> wire = hit->Wire();
     // recob::Hit WidHit( wire, 			     wid,
     art::Ptr<raw::RawDigit> dVec = hit->RawDigit();
@@ -152,8 +167,12 @@ namespace hit{
 		       hit->Charge(),        	     hit->SigmaCharge(),                
 		       hit->Charge(true),   	     hit->SigmaCharge(true),
 		       hit->Multiplicity(),  	     hit->GoodnessOfFit() );     
-    
+
     hcol->push_back(WidHit);
+    }    
+
+
+
     return;
     
   }
