@@ -34,8 +34,8 @@ lbnefd_gaushitfinder.ColMinWidth: 1.0
 
 lbne35t_fasthitfinder:    @local::standard_hitfinder
 lbne35t_fasthitfinder.module_type: "RawHitFinder"
-lbne35t_fasthitfinder.IndMinWidth: 5.0
-lbne35t_fasthitfinder.ColMinWidth: 5.0
+lbne35t_fasthitfinder.MinSigInd: 5.0
+lbne35t_fasthitfinder.MinSigCol: 5.0
 
 lbne35t_gaushitfinder:    @local::gaus_hitfinder
 lbne35t_apahitfinder:     @local::apa_hitfinder
