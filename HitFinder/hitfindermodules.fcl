@@ -94,6 +94,13 @@ gaus_hitfinderana:
  LArGeantModuleLabel:  "largeant"
 }
 
+standard_fasthitfinder:
+{
+ module_type: "RawHitFinder"
+ MinSigInd: 5.0
+ MinSigCol: 5.0
+}
+
 jp250L_hitfinder:       @local::standard_hitfinder
 jp250L_gaushitfinder:   @local::gaus_hitfinder
 

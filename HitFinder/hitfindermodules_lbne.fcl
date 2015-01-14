@@ -3,6 +3,7 @@
 
 BEGIN_PROLOG
 
+# please use lbnecode/lbne/HitFinderLBNE/hitfindermodules_lbne35t.fcl 
 
 
 standard_disambigcheat:
@@ -32,8 +33,7 @@ lbnefd_gaushitfinder.ColMinWidth: 1.0
 
 
 
-lbne35t_fasthitfinder:    @local::standard_hitfinder
-lbne35t_fasthitfinder.module_type: "RawHitFinder"
+lbne35t_fasthitfinder:    @local::standard_fasthitfinder
 lbne35t_fasthitfinder.MinSigInd: 5.0
 lbne35t_fasthitfinder.MinSigCol: 5.0
 
