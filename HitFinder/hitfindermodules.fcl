@@ -96,9 +96,17 @@ gaus_hitfinderana:
 
 standard_fasthitfinder:
 {
- module_type: "RawHitFinder"
- MinSigInd: 5.0
- MinSigCol: 5.0
+ module_type:         "RawHitFinder"
+ CalDataModuleLabel:  "caldata"      
+ MinSigInd:            5.0              # Induction signal height threshold  
+ MinSigCol:            5.0             # Collection signal height threshold
+ IndWidth:             6.0              # Initial width for induction fit
+ ColWidth:             7.8              # Initial width for collection fit
+ IndMinWidth:          4.0              # Induction Hit width threshold
+ ColMinWidth:          6.0              # Collection hit width threshold
+ MaxMultiHit:          3                # maximum hits for multi fit   
+ AreaMethod:           0                # 0 = area by integral, 1 = area by gaussian area formula
+ AreaNorms:            [ 13.25, 26.31 ] # normalizations that put signal area in
 }
 
 jp250L_hitfinder:       @local::standard_hitfinder
