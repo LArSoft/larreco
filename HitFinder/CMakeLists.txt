@@ -2,6 +2,7 @@
 art_make( BASENAME_ONLY
 	  LIBRARY_NAME  HitFinder
           LIB_LIBRARIES
+			RawData
 			RecoBase 
 			${ART_PERSISTENCY_COMMON}
 			${ART_PERSISTENCY_PROVENANCE}

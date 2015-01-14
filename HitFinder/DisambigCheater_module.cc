@@ -118,6 +118,7 @@ namespace hit{
         this->MakeDisambigHit(ChHits[h], ChHits[h]->WireID(), wire, rawdigits, hits);
         continue;
       }
+
       
       // make U/V hits if any wire IDs are associated
       // count hits without a wireID
@@ -167,11 +168,11 @@ namespace hit{
   {
     
     unsigned int Ucount(0), Vcount(0);
-    
+
     for( size_t h = 0; h < ChHits.size(); h++ ){
       if( ChHits[h]->View() == geo::kZ ) continue;
       if( ChHits[h]->View() == geo::kU ) Ucount++;
-      if( ChHits[h]->View() == geo::kV ) Vcount++;
+      else if( ChHits[h]->View() == geo::kV ) Vcount++;
       art::Ptr<recob::Hit> chit = ChHits[h];
       std::vector<geo::WireID> cwids = geom->ChannelToWire(chit->Channel());
       std::pair<double,double> ChanTime( chit->Channel()*1., chit->PeakTime()*1.); // hit key value 
