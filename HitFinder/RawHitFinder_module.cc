@@ -236,11 +236,11 @@ namespace hit {
 	while (bin<fDataSize) {  // loop over ticks
 	  float thisadc = holder[bin];
 	  if (thisadc<negthr) { // new region
-	    //	    std::cout << "new region" << bin << " " << thisadc << std::endl;
+	    //std::cout << "new region" << bin << " " << thisadc << std::endl;
 	    // step back to find zero crossing
 	    unsigned int place = bin;
 	    while (thisadc<0 && bin>0) {
-	      //	      std::cout << bin << " " << thisadc << std::endl;
+	      //std::cout << bin << " " << thisadc << std::endl;
 	      bin--;
 	      thisadc=holder[bin];
 	    }
@@ -248,15 +248,15 @@ namespace hit {
 	    maxTimes.push_back(hittime);
 	    // step back more to find the hit start time
 	    while (thisadc<threshold && bin>0) {
-	      //	      std::cout << bin << " " << thisadc << std::endl;
+	      //std::cout << bin << " " << thisadc << std::endl;
 	      bin--;
 	      thisadc=holder[bin];
 	    }
-	    bin-=2;
+	    if (bin>=2) bin-=2;
 	    //	    std::cout << bin << " " << thisadc << std::endl;	    bin--;  
 	    //	    std::cout << bin << " " << thisadc << std::endl;	    bin--;  
 	    while (thisadc>threshold && bin>0) {
-	      //	      std::cout << bin << " " << thisadc << std::endl;
+	      //std::cout << bin << " " << thisadc << std::endl;
 	      bin--;
 	      thisadc=holder[bin];
 	    }
