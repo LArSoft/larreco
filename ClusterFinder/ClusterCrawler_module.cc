@@ -183,7 +183,7 @@ namespace cluster {
           theHit.numHits,            // multiplicity
           -1,                        // local_index FIXME
           theHit.ChiDOF,             // goodness_of_fit
-                                     // dof
+          theHit.DOF,                // dof
           std::vector<float>()       // signal FIXME
           );
         shcol.emplace_back(hit.move(), theWire, theRawDigit);
@@ -288,7 +288,7 @@ namespace cluster {
         theHit.numHits,            // multiplicity
         -1,                        // local_index FIXME
         theHit.ChiDOF,             // goodness_of_fit
-                                   // dof
+        theHit.DOF,                // dof
         std::vector<float>()       // signal FIXME
         );
       shcol.emplace_back(hit.move(), theWire, theRawDigit);
