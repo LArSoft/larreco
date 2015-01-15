@@ -29,6 +29,7 @@
 // C/C++ standard library
 #include <algorithm> // std::accumulate()
 #include <vector>
+#include <string>
 #include <utility> // std::move()
 
 
@@ -52,13 +53,12 @@
 #include "RecoBaseArt/HitCreator.h"
 #include "Utilities/DetectorProperties.h"
 
-// ROOT Includes 
+// ROOT Includes
 #include "TGraphErrors.h"
 #include "TH1D.h"
 #include "TDecompSVD.h"
 #include "TMath.h"
 #include "TF1.h"
-#include <string>
 #include "TTree.h"
 #include "TStopwatch.h"
 
