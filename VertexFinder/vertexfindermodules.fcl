@@ -1,3 +1,5 @@
+#include "clusteralgorithms.fcl"
+
 BEGIN_PROLOG
 
 standard_vertexcheater:
