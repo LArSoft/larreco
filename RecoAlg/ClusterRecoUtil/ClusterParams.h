@@ -7,6 +7,10 @@
 
 namespace cluster{
 
+  /**
+     \class cluster_params
+     (Detailed) information holder for 2D cluster, computed by ClusterParamsAlg
+  */
   class cluster_params
   {
   public:

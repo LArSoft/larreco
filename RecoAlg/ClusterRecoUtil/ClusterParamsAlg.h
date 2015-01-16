@@ -11,7 +11,6 @@
 
 //--- std/stl include ---//
 #include <vector>
-
 //--- ROOT include ---//
 #include <TMath.h>
 #include <TH2F.h>
@@ -33,6 +32,9 @@
 //#include "LArUtil-TypeDef.hh"
 //#include "HoughBaseAlg.hh"
 
+#include "TPrincipal.h"
+#include "TStopwatch.h"
+
 namespace cluster {
    
   class ClusterParamsAlg {
@@ -42,23 +44,23 @@ namespace cluster {
     /// Default constructor
     ClusterParamsAlg();
 
-    /// Alternative constructor with larlight's hits
-    //ClusterParamsAlg(const std::vector<const larlight::hit*>&);
+//    /// Alternative constructor with larlight's hits
+//    ClusterParamsAlg(const std::vector<const ::larlite::hit*>&);
 
-    /// Alternative constructor with util::PxHit vector
+    /// Alternative constructor with larutil::PxHit vector
     ClusterParamsAlg(const std::vector<util::PxHit>&);
 
     ~ClusterParamsAlg(){};
 
     void Initialize();
 
-    void SetMinNHits(size_t nhit) { fMinNHits = nhit; }
-    
-    size_t MinNHits() const { return fMinNHits; }
+    //void SetHits(const std::vector<larutil::PxHit*>&);
 
-    //void SetHits(const std::vector<util::PxHit*>&);
+    void SetMinNHits(size_t nhit) { fMinNHits = nhit; }
+
+    size_t MinNHits() const { return fMinNHits; }
     
-    //int SetHits(const std::vector<const larlight::hit*> &);
+   // int SetHits(const std::vector<const ::larlite::hit*> &);
 
     int SetHits(const std::vector<util::PxHit> &);
 
@@ -66,9 +68,11 @@ namespace cluster {
 
     void SetVerbose(bool yes=true){ verbose = yes;}
 
-    //void SetArgoneutGeometry();
+   // void SetArgoneutGeometry();
 
     void Report();
+
+    void TimeReport() const;
 
     /**
      * This function returns a feature vector suitable for a neural net
@@ -171,7 +175,7 @@ namespace cluster {
 
     void RefineStartPointAndDirection(bool override=false);
 
-    //void TrackShowerSeparation(bool override=false);
+    void TrackShowerSeparation(bool override=false);
 
     void setNeuralNetPath(std::string s){fNeuralNetPath = s;}
 
@@ -185,17 +189,18 @@ namespace cluster {
     double RoughSlope() {return fRough2DSlope;}
     double RoughIntercept() {return fRough2DIntercept;}
     
-    //void EnableFANN();
+    void EnableFANN();
 
     void DisableFANN(){enableFANN = false;}
 
-    unsigned int GetNHits() const {return fHitVector.size();}
+    size_t GetNHits() const {return fHitVector.size();}
     const std::vector<util::PxHit>& GetHitVector() const {return fHitVector;}
     int Plane() const {return fPlane;}
-    
+    void SetPlane(int p);
+
   protected:
     
-    util::GeometryUtilities  fGSer;
+    util::GeometryUtilities  *fGSer;
 
     /// Cut value for # hits: below this value clusters are not evaluated
     size_t fMinNHits;
@@ -255,22 +260,17 @@ namespace cluster {
     util::PxPoint fRoughEndPoint;
     bool enableFANN;
 
-    //public:
-  protected:
-    
+    public:
+
     cluster::cluster_params fParams;
 
     std::string fNeuralNetPath;
 
+    std::vector<std::string> fTimeRecord_ProcName;
+    std::vector<double> fTimeRecord_ProcTime;
+
   }; //class ClusterParamsAlg
   
 } //namespace cluster
-
-
-
-
-
-
-
 
 #endif

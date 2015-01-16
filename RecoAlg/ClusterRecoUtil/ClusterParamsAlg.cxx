@@ -7,33 +7,49 @@
 #include <math.h>       
 #define PI 3.14159265
 
-
 namespace cluster{
 
   ClusterParamsAlg::ClusterParamsAlg()
   {
-    //fGSer=nullptr;
+    fMinNHits = 10;
+    fGSer=nullptr;
     enableFANN = false;
     verbose=true;
     Initialize();
   }
 
-  /*
-  ClusterParamsAlg::ClusterParamsAlg(const std::vector<const larlight::hit*> &inhitlist)
+//   ClusterParamsAlg::ClusterParamsAlg(const std::vector<const larlite::hit*> &inhitlist)
+//   {
+//     fMinNHits = 10;
+//     fGSer=nullptr;
+//     enableFANN = false;
+//     verbose=true;
+//     SetHits(inhitlist);
+//   }
+
+  ClusterParamsAlg::ClusterParamsAlg(const std::vector<util::PxHit> &inhitlist)
   {
+    fMinNHits = 10;
     fGSer=nullptr;
     enableFANN = false;
     verbose=true;
     SetHits(inhitlist);
   }
-  */
 
-  ClusterParamsAlg::ClusterParamsAlg(const std::vector<util::PxHit> &inhitlist)
-  {
-    //fGSer=nullptr;
-    enableFANN = false;
-    verbose=true;
-    SetHits(inhitlist);
+  void ClusterParamsAlg::TimeReport() const {
+
+    std::cout<< "  <<ClusterParamsAlg::TimeReport>> starts..."<<std::endl;
+    for(size_t i=0; i<fTimeRecord_ProcName.size(); ++i){
+
+      std::cout << "    Function: " 
+		<< fTimeRecord_ProcName[i].c_str() 
+		<< " ... Time = " 
+		<< fTimeRecord_ProcTime[i]
+		<< " [s]"
+		<< std::endl;
+      
+    }   
+    std::cout<< "  <<ClusterParamsAlg::TimeReport>> ends..."<<std::endl;
   }
 
   int ClusterParamsAlg::SetHits(const std::vector<util::PxHit> &inhitlist){
@@ -55,7 +71,7 @@ namespace cluster{
     fPlane=fHitVector[0].plane;
     
       
-    if (fHitVector.size()<fMinNHits)
+    if (fHitVector.size() < fMinNHits)
     {
       if(verbose) std::cout << " the hitlist is too small. Continuing to run may result in crash!!! " <<std::endl;
       return -1;
@@ -65,42 +81,49 @@ namespace cluster{
     
   }
 
-  /*
-  int ClusterParamsAlg::SetHits(const std::vector<const larlight::hit*> &inhitlist){
+//   int ClusterParamsAlg::SetHits(const std::vector<const larlite::hit*> &inhitlist){
+// 
+//     // Make default values
+//     // Is done by the struct
+//     if(!(inhitlist.size())) {
+//       throw CRUException("Provided empty hit list!");
+//       return -1;
+//     }
+//     
+//     Initialize();
+// 
+//     //UChar_t plane = larutil::Geometry::GetME()->ChannelToPlane((*inhitlist.begin())->Channel());
+//      UChar_t plane = (*inhitlist.begin())->WireID().Plane;
+//     
+//     fHitVector.reserve(inhitlist.size());
+//     for(auto h : inhitlist) {
+//       fHitVector.push_back(util::PxHit());
+// 
+//       (*fHitVector.rbegin()).t = h->PeakTime() * fGSer->TimeToCm();
+//       (*fHitVector.rbegin()).w = h->Wire() * fGSer->WireToCm();
+//       (*fHitVector.rbegin()).charge = h->Charge();
+//       (*fHitVector.rbegin()).peak = h->Charge(true);
+//       (*fHitVector.rbegin()).plane = plane;
+//     }
+//     fPlane=fHitVector[0].plane;
+//     
+//         
+//     if (fHitVector.size()<10)
+//     {
+//       if(verbose) std::cout << " the hitlist is too small. Continuing to run may result in crash!!! " << std::endl;
+//      return -1;
+//     }
+//     else
+//       return fHitVector.size();
+//     
+//   }
 
-    // Make default values
-    // Is done by the struct
-    if(!(inhitlist.size())) {
-      throw CRUException("Provided empty hit list!");
-      return -1;
-    }
-    
-    Initialize();
-
-    UChar_t plane = util::Geometry::GetME()->ChannelToPlane((*inhitlist.begin())->Channel());
-
-    fHitVector.reserve(inhitlist.size());
-    for(auto h : inhitlist) {
-      fHitVector.push_back(util::PxHit());
-
-      (*fHitVector.rbegin()).t = h->PeakTime() * fGSer->TimeToCm();
-      (*fHitVector.rbegin()).w = h->Wire() * fGSer->WireToCm();
-      (*fHitVector.rbegin()).charge = h->Charge();
-      (*fHitVector.rbegin()).plane = plane;
-    }
-    fPlane=fHitVector[0].plane;
-    
-        
-    if (fHitVector.size()<10)
-    {
-      if(verbose) std::cout << " the hitlist is too small. Continuing to run may result in crash!!! " << std::endl;
-     return -1;
-    }
-    else
-      return fHitVector.size();
-    
+  void ClusterParamsAlg::SetPlane(int p) {
+    fPlane = p;
+    for(auto& h : fHitVector) h.plane = p;
+    fRoughBeginPoint.plane = fRoughEndPoint.plane = p;
+    fParams.start_point.plane = fParams.end_point.plane = p;
   }
-  */
 
   void  ClusterParamsAlg::GetFANNVector(std::vector<float> & data){
     unsigned int length = 13;
@@ -150,18 +173,25 @@ namespace cluster{
     return;
   }
 
-  /*
-  void ClusterParamsAlg::SetArgoneutGeometry(){
-    util::LArUtilManager::Reconfigure(larlight::GEO::kArgoNeuT);
-  }
-  */
+
+//   void ClusterParamsAlg::SetArgoneutGeometry(){
+//     util::LArUtilManager::Reconfigure(larlite::geo::kArgoNeuT);
+//   }
+
+
+
 
   void ClusterParamsAlg::Initialize()
   {
 
+    fTimeRecord_ProcName.clear();
+    fTimeRecord_ProcTime.clear();
+
+    TStopwatch localWatch;
+    localWatch.Start();
+
     // Set pointer attributes
-    //if(!fGSer) fGSer = (util::GeometryUtilities*)(util::GeometryUtilities::GetME());
-    fGSer.Reconfigure();
+    if(!fGSer) fGSer = (util::GeometryUtilities*)(util::GeometryUtilities::GetME());
 
     //--- Initilize attributes values ---//
     fFinishedGetAverages       = false;
@@ -201,17 +231,15 @@ namespace cluster{
     
     // Initialize the neural network:
     // enableFANN = false;
-
+    fTimeRecord_ProcName.push_back("Initialize");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
   }
 
-  //---- FANN ----//
-  /*
   void ClusterParamsAlg::EnableFANN(){
       enableFANN = true;
-      ::cluster::FANNService::GetME()->GetFANNModule().LoadFromFile(fNeuralNetPath);
+    //  ::cluster::FANNService::GetME()->GetFANNModule().LoadFromFile(fNeuralNetPath);
       return;
   }
-  */
 
   void ClusterParamsAlg::Report(){
     if(verbose) {
@@ -242,7 +270,7 @@ namespace cluster{
     // RefineDirection  (override_DoRefineDirection  );
     // RefineStartPoints(override_DoRefineStartPoints);
     GetFinalSlope    (override_DoGetFinalSlope    );
-    //TrackShowerSeparation(override_DoTrackShowerSep);
+    TrackShowerSeparation(override_DoTrackShowerSep);
   }
 
   void ClusterParamsAlg::GetAverages(bool override){
@@ -250,6 +278,9 @@ namespace cluster{
       //OK, no override. Stop if we're already finshed.
       if (fFinishedGetAverages) return;
     }
+
+    TStopwatch localWatch;
+    localWatch.Start();
 
     TPrincipal fPrincipal(2,"D");
 
@@ -291,7 +322,7 @@ namespace cluster{
     fParams.charge_wgt_y /= fParams.sum_charge;
 
     if(fPrincipal.GetMeanValues()->GetNrows()<2) {
-      throw CRUException();
+      throw cluster::CRUException();
       return;
     }
 
@@ -306,7 +337,11 @@ namespace cluster{
 
     fFinishedGetAverages = true;
     // Report();
+
+    fTimeRecord_ProcName.push_back("GetAverages");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
   }
+
 
   // Also does the high hitlist
   void ClusterParamsAlg::GetRoughAxis(bool override){
@@ -319,6 +354,9 @@ namespace cluster{
       //Try to run the previous function if not yet done.
       if (!fFinishedGetAverages) GetAverages(true);
     }
+
+    TStopwatch localWatch;
+    localWatch.Start();
 
     double rmsx = 0.0;
     double rmsy = 0.0;
@@ -367,6 +405,9 @@ namespace cluster{
  
     fFinishedGetRoughAxis = true;    
     // Report();
+
+    fTimeRecord_ProcName.push_back("GetRoughAxis");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
     return;
   }
 
@@ -380,15 +421,15 @@ namespace cluster{
     } else {
       if (!fFinishedGetRoughAxis) GetRoughAxis(true);
     }
+
+    TStopwatch localWatch;
+    localWatch.Start();
+
     bool drawOrtHistos = false;
       
     //these variables need to be initialized to other values? 
     if(fRough2DSlope==-999.999 || fRough2DIntercept==-999.999 ) 
       GetRoughAxis(true);      
-    
-    
-    
-  
     
     //get slope of lines orthogonal to those found crossing the shower.
     double inv_2d_slope=0;
@@ -415,7 +456,7 @@ namespace cluster{
 
     //std::cout << " inv_2d_slope " << inv_2d_slope << std::endl;
     
-    for(auto& hit : fHitVector)
+    for(auto const &hit : fHitVector)
     {
       
       //calculate intercepts along   
@@ -424,11 +465,11 @@ namespace cluster{
       
       util::PxPoint OnlinePoint;
       // get coordinates of point on axis.
-      fGSer.GetPointOnLine(fRough2DSlope,fRough2DIntercept,&hit,OnlinePoint);
+      fGSer->GetPointOnLine(fRough2DSlope,fRough2DIntercept,&hit,OnlinePoint);
 
    //   std::cout << "normal point " << hit.w << ","<<hit.t << " online point " <<  OnlinePoint.w << "," <<  OnlinePoint.t << std::endl; 
       
-      double ortdist=fGSer.Get2DDistance(&OnlinePoint,&hit);
+      double ortdist=fGSer->Get2DDistance(&OnlinePoint,&hit);
       if (ortdist < min_ortdist) min_ortdist = ortdist;
       if (ortdist > max_ortdist) max_ortdist = ortdist;
       
@@ -476,17 +517,17 @@ namespace cluster{
     
   if(inv_2d_slope!=-999999)   //almost all cases
      {	
-      fGSer.GetPointOnLineWSlopes(fRough2DSlope,fRough2DIntercept,
+      fGSer->GetPointOnLineWSlopes(fRough2DSlope,fRough2DIntercept,
                                  InterHigh,HighOnlinePoint);
-      fGSer.GetPointOnLineWSlopes(fRough2DSlope,fRough2DIntercept,
+      fGSer->GetPointOnLineWSlopes(fRough2DSlope,fRough2DIntercept,
                                  InterLow,LowOnlinePoint);
      }
   else   //need better treatment of horizontal events.
     {
       util::PxPoint ptemphigh(fPlane,WireHigh,(fInterHigh_side+fInterLow_side)/2);
       util::PxPoint ptemplow(fPlane,WireLow,(fInterHigh_side+fInterLow_side)/2);
-      fGSer.GetPointOnLine(fRough2DSlope,fRough2DIntercept,&ptemphigh,HighOnlinePoint);
-      fGSer.GetPointOnLine(fRough2DSlope,fRough2DIntercept,&ptemplow,LowOnlinePoint);
+      fGSer->GetPointOnLine(fRough2DSlope,fRough2DIntercept,&ptemphigh,HighOnlinePoint);
+      fGSer->GetPointOnLine(fRough2DSlope,fRough2DIntercept,&ptemplow,LowOnlinePoint);
     }
   if(verbose){
     
@@ -519,7 +560,7 @@ namespace cluster{
       fEndIntercept=InterLow;        
     }
   
-  fProjectedLength=fGSer.Get2DDistance(&BeginOnlinePoint,&EndOnlinePoint);
+  fProjectedLength=fGSer->Get2DDistance(&BeginOnlinePoint,&EndOnlinePoint);
      
   //     std::cout << " projected length " << fProjectedLength 
   //                << " Begin Point " << BeginOnlinePoint.w << " " 
@@ -537,8 +578,6 @@ namespace cluster{
   fChargeProfile.resize(fProfileNbins,0);
   fCoarseChargeProfile.resize(fCoarseNbins,0);
   
- 
-  
   
   ////////////////////////// end of new binning
   // Some fitting variables to make a histogram:
@@ -548,7 +587,7 @@ namespace cluster{
   ort_profile.resize(NBINS);
   
   std::vector<double> ort_dist_vect;
-  ort_dist_vect.reserve(fParams.N_Hits);
+  ort_dist_vect.reserve(fHitVector.size());
   
   double current_maximum=0; 
   for(auto& hit : fHitVector)
@@ -558,11 +597,11 @@ namespace cluster{
       // get coordinates of point on axis.
       // std::cout << BeginOnlinePoint << std::endl;
       //std::cout << &OnlinePoint << std::endl;
-      fGSer.GetPointOnLine(fRough2DSlope,&BeginOnlinePoint,&hit,OnlinePoint);
-      double ortdist=fGSer.Get2DDistance(&OnlinePoint,&hit);
+      fGSer->GetPointOnLine(fRough2DSlope,&BeginOnlinePoint,&hit,OnlinePoint);
+      double ortdist=fGSer->Get2DDistance(&OnlinePoint,&hit);
       
-      double linedist=fGSer.Get2DDistance(&OnlinePoint,&BeginOnlinePoint);
-      //  double ortdist=fGSer.Get2DDistance(&OnlinePoint,&hit);
+      double linedist=fGSer->Get2DDistance(&OnlinePoint,&BeginOnlinePoint);
+      //  double ortdist=fGSer->Get2DDistance(&OnlinePoint,&hit);
       ort_dist_vect.push_back(ortdist);
       int ortbin;
       if (ortdist == 0)
@@ -703,30 +742,30 @@ namespace cluster{
      //forward loop
     double running_integral=fProfileIntegralForward;
     int startbin,endbin;
-    for(startbin=fProfileMaximumBin; startbin>1 && startbin<(int)(fChargeProfile.size());startbin--)
-      {
-	running_integral-=fChargeProfile.at(startbin);
-	if( fChargeProfile.at(startbin)<fChargeCutoffThreshold.at(fPlane) && running_integral/fProfileIntegralForward<0.01 )
-	  break;
-	else if(fChargeProfile.at(startbin)<fChargeCutoffThreshold.at(fPlane) 
-		&& startbin-1>0 && fChargeProfile.at(startbin-1)<fChargeCutoffThreshold.at(fPlane)
-		&& startbin-2>0 && fChargeProfile.at(startbin-2)<fChargeCutoffThreshold.at(fPlane))
-	  break;
-      }
+    for(startbin=fProfileMaximumBin; startbin>1 && startbin < (int)(fChargeProfile.size());startbin--)
+    {
+      running_integral-=fChargeProfile.at(startbin);
+      if( fChargeProfile.at(startbin)<fChargeCutoffThreshold.at(fPlane) && running_integral/fProfileIntegralForward<0.01 )
+        break;
+       else if(fChargeProfile.at(startbin)<fChargeCutoffThreshold.at(fPlane) 
+	 && startbin-1>0 && fChargeProfile.at(startbin-1)<fChargeCutoffThreshold.at(fPlane)
+         && startbin-2>0 && fChargeProfile.at(startbin-2)<fChargeCutoffThreshold.at(fPlane))
+	 break;
+    }
     
     //backward loop
     running_integral=fProfileIntegralBackward;
     for(endbin=fProfileMaximumBin; endbin>0 && endbin<fProfileNbins-1; endbin++)
-      {
-	running_integral-=fChargeProfile.at(endbin);
-	if( fChargeProfile.at(endbin)<fChargeCutoffThreshold.at(fPlane) && running_integral/fProfileIntegralBackward<0.01 )
-	  break;
-	else if(fChargeProfile.at(endbin)<fChargeCutoffThreshold.at(fPlane) 
-		&& endbin+1<fProfileNbins-1 && endbin+2<fProfileNbins-1 
-		&& fChargeProfile.at(endbin+1)<fChargeCutoffThreshold.at(fPlane) 
-		&& fChargeProfile.at(endbin+2)<fChargeCutoffThreshold.at(fPlane))
-	  break;
-      }
+    {
+      running_integral-=fChargeProfile.at(endbin);
+      if( fChargeProfile.at(endbin)<fChargeCutoffThreshold.at(fPlane) && running_integral/fProfileIntegralBackward<0.01 )
+	 break;
+      else if(fChargeProfile.at(endbin)<fChargeCutoffThreshold.at(fPlane) 
+	&& endbin+1<fProfileNbins-1 && endbin+2<fProfileNbins-1 
+	&& fChargeProfile.at(endbin+1)<fChargeCutoffThreshold.at(fPlane) 
+	&& fChargeProfile.at(endbin+2)<fChargeCutoffThreshold.at(fPlane))
+	 break;
+    }
     
     // now have profile start and endpoints. Now translate to wire/time. 
     // Will use wire/time that are on the rough axis.
@@ -738,7 +777,7 @@ namespace cluster{
      {	   
     double ort_intercept_begin=fBeginIntercept+(fEndIntercept-fBeginIntercept)/fProfileNbins*startbin;
     //std::cout << " ort_intercept_begin: " << ort_intercept_begin << std::endl;
-    fGSer.GetPointOnLineWSlopes(fRough2DSlope,
+    fGSer->GetPointOnLineWSlopes(fRough2DSlope,
                                  fRough2DIntercept,
                                  ort_intercept_begin,
                                  fRoughBeginPoint);
@@ -747,7 +786,7 @@ namespace cluster{
     fRoughBeginPoint.plane=fPlane;
     
     //std::cout << " ort_intercept_end: " << ort_intercept_end << std::endl;
-    fGSer.GetPointOnLineWSlopes(fRough2DSlope,
+    fGSer->GetPointOnLineWSlopes(fRough2DSlope,
                                  fRough2DIntercept,
                                  ort_intercept_end,
                                  fRoughEndPoint);
@@ -759,14 +798,14 @@ namespace cluster{
     //std::cout << " wire_begin: " << wire_begin << std::endl;
    
     util::PxPoint ptemphigh(fPlane,wire_begin,(fInterHigh_side+fInterLow_side)/2);
-    fGSer.GetPointOnLine(fRough2DSlope,fRough2DIntercept,&ptemphigh,fRoughBeginPoint);
+    fGSer->GetPointOnLine(fRough2DSlope,fRough2DIntercept,&ptemphigh,fRoughBeginPoint);
     fRoughBeginPoint.plane=fPlane;
     
     double wire_end=WireLow+(WireHigh-WireLow)/fProfileNbins*endbin;
     //std::cout << " wire_end: " << wire_end << std::endl;
       
     util::PxPoint ptemplow(fPlane,wire_end,(fInterHigh_side+fInterLow_side)/2);
-    fGSer.GetPointOnLine(fRough2DSlope,fRough2DIntercept,&ptemplow,fRoughEndPoint);
+    fGSer->GetPointOnLine(fRough2DSlope,fRough2DIntercept,&ptemplow,fRoughEndPoint);
     fRoughEndPoint.plane=fPlane;
      
     }
@@ -783,7 +822,10 @@ namespace cluster{
 
     fFinishedGetProfileInfo = true;
     // Report();
-    
+
+    fTimeRecord_ProcName.push_back("GetProfileInfo");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
+
     return;
   }
   
@@ -798,6 +840,9 @@ namespace cluster{
    * @param override [description]
    */
   void ClusterParamsAlg::RefineStartPoints(bool override) {
+
+    TStopwatch localWatch;
+    localWatch.Start();
 
     //
     // Why override is not used here? Kazu 05/01/2014
@@ -847,7 +892,7 @@ namespace cluster{
     //also are we sure this is actually doing what it is supposed to???
     //are we sure this works?
     //is anybody even listening?  Were they eaten by a grue?    
-    fGSer.SelectLocalHitlist(fHitVector,subhit, startHit,
+    fGSer->SelectLocalHitlist(fHitVector,subhit, startHit,
                               linearlimit,ortlimit,lineslopetest,
                               averageHit);
 
@@ -862,6 +907,10 @@ namespace cluster{
       // and use them to get the axis
       
       fFinishedRefineStartPoints = true;
+
+      fTimeRecord_ProcName.push_back("RefineStartPoints");
+      fTimeRecord_ProcTime.push_back(localWatch.RealTime());
+
       return;
     }
     
@@ -960,6 +1009,9 @@ namespace cluster{
       // and use them to get the axis
       
       fFinishedRefineStartPoints = true;
+
+      fTimeRecord_ProcName.push_back("RefineStartPoints");
+      fTimeRecord_ProcTime.push_back(localWatch.RealTime());
       return;
     }
     //need to find the min of the distance of vertex in tilda-space
@@ -1016,7 +1068,7 @@ namespace cluster{
     // double gcept= gtime/n -gslope*(gwire/n);
     
     //should this be here? Id argue this might be done once outside.
-    fParams.length=fGSer.Get2DDistance((util::PxPoint *)&startpoint,&endHit);
+    fParams.length=fGSer->Get2DDistance((util::PxPoint *)&startpoint,&endHit);
     if(fParams.length)
       fParams.hit_density_1D=fParams.N_Hits/fParams.length;
     else
@@ -1036,6 +1088,10 @@ namespace cluster{
 
     fFinishedRefineStartPoints = true;
    // Report();
+
+    fTimeRecord_ProcName.push_back("RefineStartPoints");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
+
     return;
   }
   
@@ -1055,6 +1111,8 @@ namespace cluster{
       if (!fFinishedRefineStartPoints) RefineStartPoints(true);
     }
 
+    TStopwatch localWatch;
+    localWatch.Start();
     /**
      * Calculates the following variables:
      * angle_2d
@@ -1073,7 +1131,7 @@ namespace cluster{
     
     for( auto hit : fHitVector){
       
-      double omx=fGSer.Get2Dangle((util::PxPoint *)&hit,&fParams.start_point);  // in rad and assuming cm/cm space.
+      double omx=fGSer->Get2Dangle((util::PxPoint *)&hit,&fParams.start_point);  // in rad and assuming cm/cm space.
       int nbin=(omx+TMath::Pi())*(NBINS-1)/(2*TMath::Pi());
       if(nbin >= NBINS) nbin=NBINS-1;
       if(nbin < 0) nbin=0;
@@ -1145,7 +1203,7 @@ namespace cluster{
 
       util::PxPoint BeginOnlinePoint; 
 
-      fGSer.GetPointOnLine(fRough2DSlope,fRough2DIntercept,&fParams.start_point,BeginOnlinePoint); 
+      fGSer->GetPointOnLine(fRough2DSlope,fRough2DIntercept,&fParams.start_point,BeginOnlinePoint); 
 
       for( auto hit : fHitVector){
 
@@ -1153,10 +1211,10 @@ namespace cluster{
         // get coordinates of point on axis.
         // std::cout << BeginOnlinePoint << std::endl;
         //std::cout << &OnlinePoint << std::endl;
-        fGSer.GetPointOnLine(fRough2DSlope,&BeginOnlinePoint,&hit,OnlinePoint);
+        fGSer->GetPointOnLine(fRough2DSlope,&BeginOnlinePoint,&hit,OnlinePoint);
 
-        double linedist=fGSer.Get2DDistance(&OnlinePoint,&BeginOnlinePoint);
-        //  double ortdist=fGSer.Get2DDistance(&OnlinePoint,&hit);
+        double linedist=fGSer->Get2DDistance(&OnlinePoint,&BeginOnlinePoint);
+        //  double ortdist=fGSer->Get2DDistance(&OnlinePoint,&hit);
      
 
         int fine_bin  =(int)(linedist/fProjectedLength*(fProfileNbins-1));
@@ -1206,9 +1264,9 @@ namespace cluster{
     }
     
     /// end testing
-    
-    
-    
+       
+    fTimeRecord_ProcName.push_back("GetFinalSlope");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
     
     fFinishedGetFinalSlope = true;
     return;
@@ -1226,6 +1284,9 @@ namespace cluster{
     //
     if(!override) override = true;
 
+    TStopwatch localWatch;
+    localWatch.Start();
+
     // if(!override) { //Override being set, we skip all this logic.
     //   //OK, no override. Stop if we're already finshed.
     //   if (fFinishedRefineDirection) return;
@@ -1236,8 +1297,8 @@ namespace cluster{
     //   if (!fFinishedGetProfileInfo) GetProfileInfo(true);
     // }
     
-    // double wire_2_cm = fGSer.WireToCm();
-    // double time_2_cm = fGSer.TimeToCm();
+    // double wire_2_cm = fGSer->WireToCm();
+    // double time_2_cm = fGSer->TimeToCm();
     
     // Removing the conversion since these points are set above in cm-cm space
     //   -- Corey
@@ -1268,8 +1329,11 @@ namespace cluster{
     double hit_counter_forward  = 0;
     double hit_counter_backward = 0;
     
-    if (endStartDiff_y == 0 && endStartDiff_x == 0) {
+    if (verbose && endStartDiff_y == 0 && endStartDiff_x == 0) {
       std::cerr << "Error:  end point and start point are the same!\n";
+
+      fTimeRecord_ProcName.push_back("RefineDirection");
+      fTimeRecord_ProcTime.push_back(localWatch.RealTime());
       return;
     }
 
@@ -1467,15 +1531,22 @@ namespace cluster{
 
     fFinishedRefineDirection = true;
 
+    fTimeRecord_ProcName.push_back("RefineDirection");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
+
     // return;
   } //end RefineDirection
   
 
   void ClusterParamsAlg::FillPolygon()
   {
+
+    TStopwatch localWatch;
+    localWatch.Start();
+
     if(fHitVector.size()) {
       std::vector<const util::PxHit*> container_polygon;
-      fGSer.SelectPolygonHitList(fHitVector,container_polygon);
+      fGSer->SelectPolygonHitList(fHitVector,container_polygon);
       //now making Polygon Object
       std::pair<float,float> tmpvertex;
       //make Polygon Object as in mac/PolyOverlap.cc
@@ -1487,6 +1558,9 @@ namespace cluster{
       }
       fParams.PolyObject = Polygon2D( vertices );
     }
+
+    fTimeRecord_ProcName.push_back("FillPolygon");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
   }
   
   
@@ -1496,61 +1570,68 @@ namespace cluster{
     // This function is meant to pick the direction.
     // It refines both the start and end point, and then asks 
     // if it should flip.
-    
+
+    TStopwatch localWatch;
+    localWatch.Start();
+
     if(verbose) std::cout << " here!!! "  << std::endl;
     
     if(!override) { //Override being set, we skip all this logic.
       //OK, no override. Stop if we're already finshed.
-    if (fFinishedRefineStartPointAndDirection) return;
+      if (fFinishedRefineStartPointAndDirection) {
+	fTimeRecord_ProcName.push_back("RefineStartPointAndDirection");
+	fTimeRecord_ProcTime.push_back(localWatch.RealTime());
+	return;
+      }
       //Try to run the previous function if not yet done.
-    if (!fFinishedGetProfileInfo) GetProfileInfo(true);
+      if (!fFinishedGetProfileInfo) GetProfileInfo(true);
     } else {
       //Try to run the previous function if not yet done.
       if (!fFinishedGetProfileInfo) GetProfileInfo(true);
     }
     if(verbose){
-    std::cout << "REFINING .... " << std::endl;
-    std::cout << "  Rough start and end point: " << std::endl; 
-    std::cout << "    s: (" << fParams.start_point.w << ", " 
-              << fParams.start_point.t << ")" << std::endl;
-    std::cout << "    e: (" << fParams.end_point.w << ", " 
-              << fParams.end_point.t << ")" << std::endl;
+      std::cout << "REFINING .... " << std::endl;
+      std::cout << "  Rough start and end point: " << std::endl; 
+      std::cout << "    s: (" << fParams.start_point.w << ", " 
+		<< fParams.start_point.t << ")" << std::endl;
+      std::cout << "    e: (" << fParams.end_point.w << ", " 
+		<< fParams.end_point.t << ")" << std::endl;
     }
     RefineStartPoints();
     if(verbose){
-    std::cout << "  Once Refined start and end point: " << std::endl;
-    std::cout << "    s: (" << fParams.start_point.w << ", " 
-              << fParams.start_point.t << ")" << std::endl;
-    std::cout << "    e: (" << fParams.end_point.w << ", " 
-              << fParams.end_point.t << ")" << std::endl;
-    std::swap(fParams.start_point,fParams.end_point);
-    std::swap(fRoughBeginPoint,fRoughEndPoint);
+      std::cout << "  Once Refined start and end point: " << std::endl;
+      std::cout << "    s: (" << fParams.start_point.w << ", " 
+		<< fParams.start_point.t << ")" << std::endl;
+	std::cout << "    e: (" << fParams.end_point.w << ", " 
+		  << fParams.end_point.t << ")" << std::endl;
+	std::swap(fParams.start_point,fParams.end_point);
+	std::swap(fRoughBeginPoint,fRoughEndPoint);
     }
     RefineStartPoints();
     if(verbose) {
-    std::cout << "  Twice Refined start and end point: " << std::endl;
-    std::cout << "    s: (" << fParams.start_point.w << ", " 
-              << fParams.start_point.t << ")" << std::endl;
-    std::cout << "    e: (" << fParams.end_point.w << ", " 
-              << fParams.end_point.t << ")" << std::endl;
-    std::swap(fParams.start_point,fParams.end_point);
-    std::swap(fRoughBeginPoint,fRoughEndPoint);
+      std::cout << "  Twice Refined start and end point: " << std::endl;
+      std::cout << "    s: (" << fParams.start_point.w << ", " 
+		<< fParams.start_point.t << ")" << std::endl;
+      std::cout << "    e: (" << fParams.end_point.w << ", " 
+		<< fParams.end_point.t << ")" << std::endl;
+      std::swap(fParams.start_point,fParams.end_point);
+      std::swap(fRoughBeginPoint,fRoughEndPoint);
     }
     RefineDirection();
     if(verbose) {
-    std::cout << "  Final start and end point: " << std::endl;
-    std::cout << "    s: (" << fParams.start_point.w << ", " 
-              << fParams.start_point.t << ")" << std::endl;
-    std::cout << "    e: (" << fParams.end_point.w << ", " 
-              << fParams.end_point.t << ")" << std::endl;
+      std::cout << "  Final start and end point: " << std::endl;
+      std::cout << "    s: (" << fParams.start_point.w << ", " 
+		<< fParams.start_point.t << ")" << std::endl;
+      std::cout << "    e: (" << fParams.end_point.w << ", " 
+		<< fParams.end_point.t << ")" << std::endl;
     }
     fParams.direction = (fParams.start_point.w < fParams.end_point.w)   ? 1 : -1;     
-	      
+    
+    fTimeRecord_ProcName.push_back("RefineStartPointAndDirection");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
     return;   
   }
-
-  //---- FANN ----//
-  /*
+  
   void ClusterParamsAlg::TrackShowerSeparation(bool override){
     if(!override) return;
     if(verbose) std::cout << " ---- Trying T/S sep. ------ \n";
@@ -1558,17 +1639,18 @@ namespace cluster{
       if(verbose) std::cout << " ---- Doing T/S sep. ------- \n";
       std::vector<float> FeatureVector, outputVector;
       GetFANNVector(FeatureVector);
-      ::cluster::FANNService::GetME()->GetFANNModule().run(FeatureVector,outputVector);
-      fParams.trackness  = outputVector[1];
-      fParams.showerness = outputVector[0];
+//      ::cluster::FANNService::GetME()->GetFANNModule().run(FeatureVector,outputVector);
+ //     fParams.trackness  = outputVector[1];
+ //     fParams.showerness = outputVector[0];
     }
     else{
       if(verbose) std::cout << " ---- Failed T/S sep. ------ \n";
     }
   }
-  */
+
 
   
 } //end namespace
+
 
 #endif
