@@ -323,10 +323,13 @@ lbnefd_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg
 lbnefd_fuzzyclusteralg.HoughBaseAlg:      @local::lbnefd_houghbasealg 
 
 lbne35t_dbscanalg:    @local::standard_dbscanalg_fast
+lbne35t_dbscanalg.eps:    2.0
+lbne35t_dbscanalg.epstwo: 2.0
 lbne35t_houghbasealg: @local::standard_houghbasealg
+#lbne35t_houghbasealg.DoHoughLineMerge:     1
 lbne35t_endpointalg:  @local::standard_endpointalg 
 lbne35t_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
 lbne35t_fuzzyclusteralg.HoughBaseAlg:      @local::lbne35t_houghbasealg 
-
+#lbne35t_fuzzyclusteralg.Threshold:         -50.0
 
 END_PROLOG
