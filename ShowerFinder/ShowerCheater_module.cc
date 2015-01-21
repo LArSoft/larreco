@@ -186,20 +186,26 @@ namespace shwf{
 	// get the direction cosine for the eve ID particle
 	// just use the same for both the start and end of the prong
 	const TLorentzVector initmom = bt->ParticleList()[clusterMapItr.first]->Momentum();
-	double dcos[3] = { initmom.Px()/initmom.Mag(),
-			   initmom.Py()/initmom.Mag(),
-			   initmom.Pz()/initmom.Mag() };
-	double dcosErr[3] = { 1.e-3, 1.e-3, 1.e-3 };
+	TVector3 dcos( initmom.Px()/initmom.Mag(),
+		       initmom.Py()/initmom.Mag(),
+		       initmom.Pz()/initmom.Mag() );
+	TVector3 dcosErr(1.e-3, 1.e-3, 1.e-3 );
 	
 	/// \todo figure out the max transverse width of the shower in the x and y directions
-	double maxTransWidth[2] = { util::kBogusD, util::kBogusD };
-	double distanceMaxWidth = util::kBogusD;
+	//double maxTransWidth[2] = { util::kBogusD, util::kBogusD };
+	//double distanceMaxWidth = util::kBogusD;
 
 	// add a prong to the collection.  Make the prong
 	// ID be the same as the track ID for the eve particle
+	recob::Shower s;
+	s.set_id(showercol->size());
+	s.set_direction(dcos);
+	s.set_direction_err(dcosErr);
+	/*
 	showercol->push_back(recob::Shower(dcos, dcosErr, maxTransWidth, 
 					   distanceMaxWidth, totalCharge, clusterMapItr.first));
-
+	*/
+	showercol->push_back(s);
 	// associate the shower with its clusters
 	util::CreateAssn(*this, evt, *showercol, ptrvs, *scassn);
 
