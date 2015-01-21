@@ -19,11 +19,11 @@
 #include "Geometry/Geometry.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/ClusterMergeHelper.h"
-#include "RecoAlg/CMTool/CMAlgoMergeAll.h"
-#include "RecoAlg/CMTool/CMAlgoArray.h"
-#include "RecoAlg/CMTool/CMAlgoShortestDist.h"
-#include "RecoAlg/CMTool/CMAlgoAngleCompat.h"
-#include "RecoAlg/CMTool/CMAlgoTrackSeparate.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoMergeAll.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoArray.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoShortestDist.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoAngleCompat.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoTrackSeparate.h"
 
 #include <memory>
 
@@ -50,26 +50,26 @@ namespace cluster {
     /// GeometryUtilities instance
     ::util::GeometryUtilities fGeoU;
 
-    //--- CMAlgo instances ---//
+    //--- CBAlgo instances ---//
     /*
       CMergeManager takes pointer to CBoolAlgoBase inherit class instance.
       So the simplest way is to create them on heap and keep the pointers.
       But that has a concern to computation speed (though I think that would
       never be a slow enough to be a concern)... so here we take an example
-      of using CMAlgo instances created on stack.
+      of using CBAlgo instances created on stack.
     */
 
     /// Example merging algorithm: algorithm array container
-    CMAlgoArray fMergeAlg;
+    ::cmtool::CBAlgoArray fMergeAlg;
 
     /// Merging algorithm 1
-    CMAlgoShortestDist fDistAlg;
+    ::cmtool::CBAlgoShortestDist fDistAlg;
 
     /// Merging algorithm 2
-    CMAlgoAngleCompat fAngleAlg;
+    ::cmtool::CBAlgoAngleCompat fAngleAlg;
 
     /// Example prohibit algorithm
-    CMAlgoTrackSeparate fProhibitAlg;
+    ::cmtool::CBAlgoTrackSeparate fProhibitAlg;
   
   };
 }
@@ -103,9 +103,9 @@ namespace cluster {
     fDistAlg.SetMinHits(10);           // Set minimum # hits to be 10 
     fDistAlg.SetSquaredDistanceCut(9); // Set distance-squared cut to be 9 cm^2
 
-    // Attach them to CMAlgoArray to make it into one merging algorithm
-    fMergeAlg.AddAlgo(&fAngleAlg,true); // attach to CMAlgoArray in AND condition
-    fMergeAlg.AddAlgo(&fDistAlg,true);  // attach to CMAlgoArray in AND condition
+    // Attach them to CBAlgoArray to make it into one merging algorithm
+    fMergeAlg.AddAlgo(&fAngleAlg,true); // attach to CBAlgoArray in AND condition
+    fMergeAlg.AddAlgo(&fDistAlg,true);  // attach to CBAlgoArray in AND condition
 
     //--- Configure Prohibit Algorithm ---//
 
@@ -123,14 +123,13 @@ namespace cluster {
 
     fCMerge.GetManager().AddMergeAlgo(&fMergeAlg);        // Attach merging  algorithm
     fCMerge.GetManager().AddSeparateAlgo(&fProhibitAlg);  // Attach prohibit algorithm
-    fCMerge.GetManager().SetMergePriority(::cluster::CMergeManager::kIndex); // Choose input cluster vector ordering as merging priority order
-    fCMerge.GetManager().DebugMode(::cluster::CMergeManager::kPerIteration); // Set verbosity level to be per-merging-iteration report
+    fCMerge.GetManager().DebugMode(::cmtool::CMergeManager::kPerIteration); // Set verbosity level to be per-merging-iteration report
     fCMerge.GetManager().MergeTillConverge(true);         // Set to iterate over till it finds no more newly merged clusters
 
     //
     // FYI there's an algorithm to just-merge-everything if you want to do a simple test (line commented out below)
     //
-    //fCMerge.GetManager().AddMergeAlgo( new CMAlgoMergeAll );
+    //fCMerge.GetManager().AddMergeAlgo( new CBAlgoMergeAll );
 
     
   }

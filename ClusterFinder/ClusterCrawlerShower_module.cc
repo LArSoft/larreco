@@ -20,13 +20,13 @@
 #include "Geometry/Geometry.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/ClusterMergeHelper.h"
-#include "RecoAlg/CMTool/CMAlgoMergeAll.h"
-#include "RecoAlg/CMTool/CMAlgoArray.h"
-#include "RecoAlg/CMTool/CMAlgoShortestDist.h"
-#include "RecoAlg/CMTool/CMAlgoShortestDistSmallCluster.h"
-#include "RecoAlg/CMTool/CMAlgoShortestDistNonEndpoint.h"
-#include "RecoAlg/CMTool/CMAlgoAngleCompat.h"
-#include "RecoAlg/CMTool/CMAlgoTrackSeparate.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoMergeAll.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoArray.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoShortestDist.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoShortestDistSmallCluster.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoShortestDistNonEndPoint.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoAngleCompat.h"
+#include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoTrackSeparate.h"
 
 #include <memory>
 
@@ -71,23 +71,15 @@ namespace cluster {
       of using CMAlgo instances created on stack.
     */
 
-
-
-
     /// Algo 0: Merge clusters that are small in order to do shower recognition
-    CMAlgoArray fMergeAlg0;
+    ::cmtool::CBAlgoArray fMergeAlg0;
     /// Algo 0: Distance algorithm for small cluster merging
-    CMAlgoShortestDistSmallCluster fDistAlg0;
+    ::cmtool::CBAlgoShortestDistSmallCluster fDistAlg0;
 
     /// Algo 1: Merge shower-like clusters that intercept
-    CMAlgoArray fMergeAlg1;
+    ::cmtool::CBAlgoArray fMergeAlg1;
     /// Algo 0: Distance algorithm for shower-like clusters that intercept, it should be 0
-    CMAlgoShortestDist	fDistAlg1;
-
-
-
-
-
+    ::cmtool::CBAlgoShortestDist	fDistAlg1;
   
   };
 }
@@ -119,8 +111,6 @@ namespace cluster {
       parameters but you should in your custom merging module.
     */
 
-
-
     /// Configure algorithm 0, Merges small clusters in order to perform shower recognition
     fDistAlg0.SetVerbose(fDistAlg0Verbose);        // No verbous mode ... annoying
     fDistAlg0.SetMinHits(fDistAlg0MinHits);           // Set minimum # hits 
@@ -135,19 +125,11 @@ namespace cluster {
     fMergeAlg1.AddAlgo(&fDistAlg1,true); // attach to CMAlgoArray in AND condition
 
 
-
-
-
     //--- Configure Merger ---//
     fCMerge.GetManager().AddMergeAlgo(&fMergeAlg0);        // Attach merging  algorithm
     //fCMerge.GetManager().AddMergeAlgo(&fMergeAlg1);        // Attach merging  algorithm
 
-
-
-
-
-    fCMerge.GetManager().SetMergePriority(::cluster::CMergeManager::kIndex); // Choose input cluster vector ordering as merging priority order
-    fCMerge.GetManager().DebugMode(::cluster::CMergeManager::kPerIteration); // Set verbosity level to be per-merging-iteration report
+    fCMerge.GetManager().DebugMode(::cmtool::CMergeManager::kPerIteration); // Set verbosity level to be per-merging-iteration report
     //fCMerge.GetManager().DebugMode(::cluster::CMergeManager::kPerMerging); // Set verbosity level to be per-merging-iteration report
     fCMerge.GetManager().MergeTillConverge(true);         // Set to iterate over till it finds no more newly merged clusters
 
