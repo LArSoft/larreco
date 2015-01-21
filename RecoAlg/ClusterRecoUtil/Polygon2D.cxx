@@ -1,10 +1,6 @@
-#ifndef POLYGON2D_CXX
-#define POLYGON2D_CXX
-
 #include "Polygon2D.h"
 
-
-//****************************************************
+//------------------------------------------------
 float FindSlope( const std::pair<float,float> &p1, 
 		 const std::pair<float,float> &p2 )
 {
@@ -12,13 +8,15 @@ float FindSlope( const std::pair<float,float> &p1,
   return slope;
 }
 
-
+//-------------------------------------------------------------------------
 bool Clockwise(double Ax,double Ay,double Bx,double By,double Cx,double Cy)
 {
   return (Cy-Ay)*(Bx-Ax) > (By-Ay)*(Cx-Ax);
 }
 
-bool SegmentOverlap(double Ax,double Ay,double Bx,double By,double Cx,double Cy, double Dx, double Dy)
+//------------------------------------------------------------
+bool SegmentOverlap(double Ax, double Ay, double Bx, double By,
+		    double Cx, double Cy, double Dx, double Dy)
 {
 
   bool overlap = ( (Clockwise(Ax,Ay,Cx,Cy,Dx,Dy) != Clockwise(Bx,By,Cx,Cy,Dx,Dy))
@@ -26,8 +24,75 @@ bool SegmentOverlap(double Ax,double Ay,double Bx,double By,double Cx,double Cy,
   return overlap;
 }
 
+//---------------------------------------------------------------------------------
+std::pair<float, float> GetIntersection(double Ax, double Ay, double Bx, double By,
+					double Cx, double Cy, double Dx, double Dy)
+{
 
-//****************************************************
+  //get equations for two lines
+  // [Ax,Ay]<--->[Bx,By] : y = s1*x+c1
+  // [Cx,Cy]<--->[Dx,Dy] : y = s2*x+c2
+  double s1 = (By-Ay)/(Bx-Ax);
+  double s2 = (Dy-Cy)/(Dx-Cx);
+  double c1 = By-s1*Bx;
+  double c2 = Dy-s2*Dx;
+
+  double Xintersection = (c2-c1)/(s2-s1);
+  double Yintersection = s1 * Xintersection + c1;
+  std::pair<float,float> intersection;
+  intersection = std::make_pair(Xintersection, Yintersection);
+
+  return intersection;
+}
+
+//------------------------------------------------------------------
+Polygon2D::Polygon2D(const Polygon2D &poly1, const Polygon2D &poly2)
+{
+
+  //figure out if the two polygons overlap at all
+  if ( !(poly1.PolyOverlap(poly2)) ){
+    std::vector< std::pair<float,float> > nullpoint;
+    vertices = nullpoint;
+    return;
+  }
+
+  //The overlap polygon is made up by:
+  //1) all points of poly1 in poly2
+  //2) all points of poly2 in poly1
+  //3) all intersection points between segments
+
+  //make a new set of points and add points
+  //as listed above, if found.
+  std::vector<std::pair<float,float> > IntersectionPoints;
+  //1)
+  for (unsigned int p1=0; p1 < poly1.Size(); p1++){
+    if ( poly2.PointInside( poly1.Point(p1) ) ) { IntersectionPoints.push_back( poly1.Point(p1) ); }
+  }
+  //2)
+  for (unsigned int p2=0; p2 < poly2.Size(); p2++){
+    if ( poly1.PointInside( poly2.Point(p2) ) ) { IntersectionPoints.push_back( poly2.Point(p2) ); }
+  }
+  //3)
+  //FIND SEGMENT INTERSECTIONS
+  for (unsigned int i=0; i < poly1.Size(); i++){
+    for (unsigned int j=0; j < poly2.Size(); j++){
+      if (SegmentOverlap( poly1.Point(i).first, poly1.Point(i).second,
+			  poly1.Point(i+1).first, poly1.Point(i+1).second,
+			  poly2.Point(j).first, poly2.Point(j).second,
+			  poly2.Point(j+1).first, poly2.Point(j+1).second) )
+	//segments overlap...add intersection to list
+	IntersectionPoints.push_back( GetIntersection( poly1.Point(i).first, poly1.Point(i).second,
+						       poly1.Point(i+1).first, poly1.Point(i+1).second,
+						       poly2.Point(j).first, poly2.Point(j).second,
+						       poly2.Point(j+1).first, poly2.Point(j+1).second) );
+    }//for all segments in poly2
+  }//for all segments in poly1
+  
+  vertices = IntersectionPoints;
+  return;
+}
+
+//---------------------------
 float Polygon2D::Area() const
 {
   //how? here:
@@ -44,8 +109,7 @@ float Polygon2D::Area() const
   return area;
 }
 
-
-//****************************************************
+//------------------------------------------------------------------
 const std::pair<float,float>& Polygon2D::Point(unsigned int p) const
 {
   //This function returns the vertex under consideration
@@ -63,9 +127,7 @@ const std::pair<float,float>& Polygon2D::Point(unsigned int p) const
 
 }
 
-
-
-//****************************************************
+//------------------------------------------------------------------------
 std::pair<float,float> Polygon2D::Project(const std::pair<float,float> &p, 
 					float theta) const
 {
@@ -92,8 +154,7 @@ std::pair<float,float> Polygon2D::Project(const std::pair<float,float> &p,
   return range;
 }
 
-
-//*****************************************************
+//---------------------------------------------------------------
 bool Polygon2D::Overlap(float slope, 
 		      const Polygon2D &poly2, 
 		      const std::pair<float,float> &origin) const
@@ -112,9 +173,7 @@ bool Polygon2D::Overlap(float slope,
     return false;    //no....they do not overlap
 }
 
-
-
-//*****************************************************
+//-------------------------------------------------------
 bool Polygon2D::PolyOverlap(const Polygon2D &poly2) const
 {
 
@@ -142,9 +201,7 @@ bool Polygon2D::PolyOverlap(const Polygon2D &poly2) const
   return true;
 } 
 
-
-
-//*****************************************************
+//---------------------------------------------------------------
 bool Polygon2D::PolyOverlapSegments(const Polygon2D &poly2) const
 {
   //if contained in one another then they also overlap:
@@ -166,9 +223,7 @@ bool Polygon2D::PolyOverlapSegments(const Polygon2D &poly2) const
   return false;
 }
 
-
-
-//*****************************************************
+//--------------------------------------------------------------------
 bool Polygon2D::PointInside(const std::pair<float,float> &point) const
 {
 
@@ -190,9 +245,7 @@ bool Polygon2D::PointInside(const std::pair<float,float> &point) const
   
 }
 
-
-
-//*****************************************************
+//-----------------------------------------------------
 bool Polygon2D::Contained(const Polygon2D &poly2) const
 {
 
@@ -206,4 +259,37 @@ bool Polygon2D::Contained(const Polygon2D &poly2) const
   return true;
 
 }
-#endif
+
+//-------------------------------
+void Polygon2D::UntanglePolygon()
+{
+
+  //loop over edges
+  for ( unsigned int i=0; i < vertices.size()-1; i++){
+    double Ax = vertices.at(i).first;
+    double Ay = vertices.at(i).second;
+    double Bx = vertices.at(i+1).first;
+    double By = vertices.at(i+1).second;
+    //loop over edges that have not been checked yet
+    for (unsigned int j=i+2; j < vertices.size()-1; j++){
+      //avoid consecutive segments
+      if ( vertices.at(i) == vertices.at(j+1) )
+	continue;
+      else{
+	double Cx = vertices.at(j).first;
+	double Cy = vertices.at(j).second;
+	double Dx = vertices.at(j+1).first;
+	double Dy = vertices.at(j+1).second;
+
+	if ( SegmentOverlap( Ax, Ay, Bx, By, Cx, Cy, Dx, Dy ) ){
+	  std::pair<float, float> tmp = vertices.at(i+1);
+	  vertices.at(i+1) = vertices.at(j);
+	  vertices.at(j) = tmp;
+	  //swapped polygon, now do recursion to make sure
+	  this->UntanglePolygon();
+	}//if crossing
+      }
+    }//second loop
+  }//first loop
+
+}
