@@ -92,7 +92,7 @@ namespace cluster{
     fMgr.Process();
 
     // Now create output clusters
-    CBookKeeper res = fMgr.GetBookKeeper();
+    auto res = fMgr.GetBookKeeper();
     
     std::vector<std::vector<unsigned short> > out_clusters = res.GetResult();
 

@@ -27,7 +27,7 @@
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
 #include "RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
-#include "RecoAlg/CMTool/CMergeManager.h"
+#include "RecoAlg/CMTool/CMToolBase/CMergeManager.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/AssociationUtil.h"
@@ -56,7 +56,7 @@ namespace cluster
     virtual ~ClusterMergeHelper(){}
 
     /// A method to retrieve Manager
-    CMergeManager& GetManager() { return fMgr; }
+    ::cmtool::CMergeManager& GetManager() { return fMgr; }
 
     /// Utility method to set cluster input information to CMergeManager from LArSoft data product (vector of recob::Hit art::Ptr)
     void SetClusters(const std::vector<std::vector<art::Ptr<recob::Hit> > > &clusters);
@@ -91,7 +91,7 @@ namespace cluster
   protected:
 
     /// CMergeManager instance
-    CMergeManager fMgr;
+    ::cmtool::CMergeManager fMgr;
 
     /// GeometryUtilities 
     ::util::GeometryUtilities fGeoU;

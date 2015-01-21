@@ -13,7 +13,10 @@ art_make( LIBRARY_NAME  RecoAlg
                         DetectorProperties_service
                         Utilities
 			ClusterRecoUtil
-			CMTool
+			CMToolBase
+			CMTAlgMerge
+			CMTAlgPriority
+			CMTAlgMatch
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
