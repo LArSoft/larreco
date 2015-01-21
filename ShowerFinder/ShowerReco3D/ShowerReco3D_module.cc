@@ -98,8 +98,9 @@ ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const & p)
 
   fShowerAlgo->Verbose(p.get<bool>("Verbosity"));
   fShowerAlgo->SetUseArea(p.get<bool>("UseArea"));
-
+  fShowerAlgo->setEcorrection(p.get<bool>("ApplyMCEnergyCorrection"));
   fShowerAlgo->CaloAlgo(fCaloAlgo);
+
   fManager.Algo(fShowerAlgo);
 
 }
