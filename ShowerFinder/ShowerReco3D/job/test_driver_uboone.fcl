@@ -1,0 +1,49 @@
+#include "services_microboone.fcl"
+#include "showerreco3d_uboone.fcl"
+process_name: ShowerTest
+
+services:
+{
+  TFileService: { fileName: "shower_test_hist.root" }
+  Timing:       {}
+  RandomNumberGenerator: {}
+  message:      @local::standard_warning
+  user:         @local::microboone_services 	     
+}
+
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1        # Number of events to create
+}
+
+physics:
+{
+
+ producers: 
+ { 
+#   showerreco:      @local::showerreco3d_uboone
+   pandoraNuShower: @local::showerreco3d_uboone_pandora
+ }
+
+ reco: [ pandoraNuShower ]
+
+ ana:  []
+
+ end_paths:     [ analyzeIt ]
+
+ stream1:  [ out1 ]
+
+ trigger_paths: [reco]
+
+ end_paths:     [ana, stream1]
+}
+
+outputs:
+{
+ out1:
+ {
+   module_type: RootOutput
+   fileName:    "shower_test.root"
+ }
+}
