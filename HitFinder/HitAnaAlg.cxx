@@ -15,13 +15,33 @@
 #include <functional>
 #include <unordered_map>
 
-hit::HitAnaAlg::HitAnaAlg(){
+hit::HitAnaAlg::HitAnaAlg() {
   wireData.NHitModules = 0;
 }
 
 void hit::HitAnaAlg::SetWireDataTree(TTree *wdt){
   wireDataTree = wdt;
   SetupWireDataTree();
+}
+
+void hit::HitAnaAlg::SetHitDataTree(std::vector<TTree*>& trees){
+
+  hitDataTree.clear();
+  hitData.clear();
+
+  hitDataTree.reserve (trees.size());
+  // This is particularly important: to establish the hitData memory -- all before 
+  // individually making the tree->Branch() calls, specifying those addresses.
+  hitData.reserve     (trees.size());
+
+  // Construct the local attribute data container
+  for(auto const& t : trees) {
+    hitDataTree.push_back(t);
+    hitData.push_back(new recob::Hit);
+  }
+
+  for(size_t i=0; i<hitData.size(); ++i)
+    hitDataTree[i]->Branch(hitDataTree[i]->GetName(),"recob::Hit",&(hitData[i]));
 }
 
 void hit::HitAnaAlg::SetupWireDataTree(){
@@ -44,6 +64,8 @@ void hit::HitAnaAlg::SetupWireDataTree(){
   wireDataTree->Branch("Hits_Peak",&wireData.Hits_PeakTime);
   wireDataTree->Branch("Hits_wAverageCharge",&wireData.Hits_wAverageCharge);
   wireDataTree->Branch("Hits_wAverageTime",&wireData.Hits_wAverageTime);
+  wireDataTree->Branch("Hits_MeanMultiplicity",&wireData.Hits_MeanMultiplicity);
+
   wireDataTree->Branch("NMCHits",&wireData.NMCHits);
   wireDataTree->Branch("MCHits_IntegratedCharge",&wireData.MCHits_IntegratedCharge);
   wireDataTree->Branch("MCHits_AverageCharge",&wireData.MCHits_AverageCharge);
@@ -51,7 +73,9 @@ void hit::HitAnaAlg::SetupWireDataTree(){
   wireDataTree->Branch("MCHits_Peak",&wireData.MCHits_PeakTime);
   wireDataTree->Branch("MCHits_wAverageCharge",&wireData.MCHits_wAverageCharge);
   wireDataTree->Branch("MCHits_wAverageTime",&wireData.MCHits_wAverageTime);
+
 }
+
 
 void hit::HitAnaAlg::ClearHitModules(){
   HitModuleLabels.clear();
@@ -108,6 +132,7 @@ void hit::HitAnaAlg::ClearWireDataHitInfo(){
   wireData.Hits_PeakTime.assign(wireData.NHitModules,0);
   wireData.Hits_wAverageCharge.assign(wireData.NHitModules,0);
   wireData.Hits_wAverageTime.assign(wireData.NHitModules,0);
+  wireData.Hits_MeanMultiplicity.assign(wireData.NHitModules,0);
   wireData.Hits.clear(); wireData.Hits.resize(wireData.NHitModules);
 }
 
@@ -212,6 +237,10 @@ void hit::HitAnaAlg::FindAndStoreHitsInRange( std::vector<recob::Hit> const& Hit
 
     wireData.Hits_wAverageCharge[hitmodule_iter] += thishit.Integral()*thishit.Integral();
     wireData.Hits_wAverageTime[hitmodule_iter]   += thishit.Integral()*thishit.PeakTime();
+    wireData.Hits_MeanMultiplicity[hitmodule_iter] += thishit.Multiplicity();
+
+    *(hitData.at(hitmodule_iter)) = thishit;
+    (hitDataTree.at(hitmodule_iter))->Fill();
   }
 
   wireData.Hits_AverageCharge[hitmodule_iter] = 
@@ -220,6 +249,8 @@ void hit::HitAnaAlg::FindAndStoreHitsInRange( std::vector<recob::Hit> const& Hit
     wireData.Hits_wAverageCharge[hitmodule_iter]/wireData.Hits_IntegratedCharge[hitmodule_iter];
   wireData.Hits_wAverageTime[hitmodule_iter] = 
     wireData.Hits_wAverageTime[hitmodule_iter]/wireData.Hits_IntegratedCharge[hitmodule_iter];
+
+    wireData.Hits_MeanMultiplicity[hitmodule_iter] /=wireData.NHits[hitmodule_iter];
 
 }
 
@@ -257,6 +288,7 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
       
       wireData.MCHits_wAverageCharge += thishit.Charge()*thishit.Charge();
       wireData.MCHits_wAverageTime   += thishit.Charge()*TimeService.TPCTDC2Tick(thishit.PeakTime());
+
     }
     
     wireData.NMCHits = nmchits_per_trackID_map.size();
@@ -267,6 +299,7 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
       wireData.MCHits_wAverageCharge/wireData.MCHits_IntegratedCharge;
     wireData.MCHits_wAverageTime = 
       wireData.MCHits_wAverageTime/wireData.MCHits_IntegratedCharge;
+
   }
   
 }
