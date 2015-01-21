@@ -1,4 +1,7 @@
 
+add_subdirectory(ShowerReco3D)
+add_subdirectory(job)
+
 art_make( BASENAME_ONLY
 #          EXCLUDE ShowerSelectorFilter_module.cc
           MODULE_LIBRARIES 
