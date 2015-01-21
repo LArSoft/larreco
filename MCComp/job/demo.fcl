@@ -1,0 +1,34 @@
+#include "services_microboone.fcl"
+
+BEGIN_PROLOG
+demo:
+{ 
+  module_type:    "MCBTDemo"
+}
+END_PROLOG
+
+process_name: mcbtdemo
+
+services:
+{
+  TFileService: { fileName: "out.root" }
+  Timing:       {}
+  user:         @local::microboone_simulation_services
+}
+
+source:
+{
+  module_type: RootInput
+  maxEvents:   -1
+}
+
+physics:
+{
+
+ analyzers: { demo: @local::demo}
+
+ analyzeIt: [demo]
+
+ end_paths: [analyzeIt]
+
+}
