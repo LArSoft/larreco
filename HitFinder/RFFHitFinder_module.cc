@@ -462,7 +462,10 @@ void RFFHitFinder::produce(art::Event& evt)
       std::vector< std::tuple<int,float,float> >mean_matches;
       std::vector< std::tuple<int,float,float> >sigma_matches;
       float prev_dev=0; float slope=0; float sigma=0; float intercept=0; float my_mean=0;
+      int summedADCTotal=0;
       for(int i = (int)startT; i < (int)endT; i++){
+	
+	summedADCTotal += signal.at(i);
 	
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	// ~~~ Filling the pulse signals~~~
@@ -593,6 +596,17 @@ void RFFHitFinder::produce(art::Event& evt)
       std::vector<float> solutions = GaussianElimination(scaled_distances,peak_signals);
       
       //std::cout << "OK, we got the solutions. Size " << solutions.size() << std::endl;
+
+      std::vector<float> areas(solutions.size()),area_errors(solutions.size());
+      float totalArea=0;
+      for(unsigned int i=0; i<solutions.size(); i++){
+	areas[i] = solutions[i]*std::get<1>(sigma_matches[i])*SQRT_TWO_PI;
+	area_errors[i] = solutions[i]*std::get<2>(sigma_matches[i])*SQRT_TWO_PI;
+	totalArea += areas[i];
+      }
+      std::vector<float> area_frac(areas.size());
+      for(unsigned int i=0; i<areas.size(); i++)
+	area_frac[i] = areas[i] / totalArea;
       
       for(unsigned int i=0; i<solutions.size(); i++){
 
@@ -613,15 +627,13 @@ void RFFHitFinder::produce(art::Event& evt)
           std::sqrt(std::get<2>(mean_matches.at(i))),    // sigma_peak_time
           solutions.at(i),                               // peak_amplitude
           0.,                                            // sigma_peak_amplitude
-          solutions.at(i)*std::get<1>(sigma_matches.at(i))*SQRT_TWO_PI, 
-                                                         // hit_integral
-          0.,                                            // hit_sigma_integral
-          0.,                                            // summedADC
-                                                         /// @todo summedADC needs to be filled
+          areas[i],                                      // hit_integral
+          area_errors[i],                                // hit_sigma_integral
+          area_frac[i]*summedADCTotal,                   // summedADC
           solutions.size(),                              // multiplicity
           i,                                             // local_index
-          0.,                                            // goodness_of_fit
-          -1,                                            // dof
+          -999,                                          // goodness_of_fit
+          -999,                                          // dof
           std::vector<float>                             // signal
             (signal.begin() + (int) startT, signal.begin() + (int) endT)
           );
