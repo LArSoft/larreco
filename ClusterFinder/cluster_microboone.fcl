@@ -7,6 +7,14 @@ microboone_clustercrawler.ClusterCrawlerAlg:  @local::microboone_clustercrawlera
 microboone_clustercrawler.CCHitFinderAlg:     @local::microboone_cchitfinderalg
 microboone_clustercrawler.CCHitRefinerAlg:    @local::microboone_cchitrefineralg
 
+microboone_cluster3d:                         @local::standard_cluster3d
+microboone_cluster3d.DBScanAlg:               @local::microboone_cluster3ddbscanalg
+microboone_cluster3d.PrincipalComponentsAlg:  @local::microboone_cluster3dprincipalcomponentsalg
+microboone_cluster3d.SkeletonAlg:             @local::microboone_cluster3dskeletonalg
+microboone_cluster3d.SeedFinderAlg:           @local::microboone_cluster3dhoughseedfinderalg
+microboone_cluster3d.PCASeedFinderAlg:        @local::microboone_cluster3dpcaseedfinderalg
+microboone_cluster3d.ParallelHitsAlg:         @local::microboone_cluster3dparallelhitsseedfinderalg
+
 microboone_dbscanalg:                         @local::standard_dbscanalg_fast 
 microboone_endpointalg:                       @local::standard_endpointalg    
 microboone_houghbasealg:                      @local::standard_houghbasealg   
