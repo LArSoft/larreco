@@ -871,6 +871,7 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
     
     // Create id for space points
     int    spacePointID(0);
+    int    pcaAxisID(0);
     
     // Make sure there is something to do here!
     if (!clusterParametersList.empty())
@@ -1062,7 +1063,7 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
                                      skeletonPCA.getEigenVectors(),
                                      skeletonPCA.getAvePosition(),
                                      skeletonPCA.getAveHitDoca(),
-                                     pfParticle.Self());
+                                     pcaAxisID++);
             
             artPCAxisVector->push_back(skelPcAxis);
             
@@ -1072,7 +1073,7 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
                                      fullPCA.getEigenVectors(),
                                      fullPCA.getAvePosition(),
                                      fullPCA.getAveHitDoca(),
-                                     pfParticle.Self());
+                                     pcaAxisID++);
             
             artPCAxisVector->push_back(fullPcAxis);
             
