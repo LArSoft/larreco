@@ -600,8 +600,8 @@ bool HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPair
     if (!seedPca.getSvdOK()) return false;
     
     m_pcaAlg.PCAAnalysis_calc3DDocas(seedHit3DList, seedPca);
-    seedHit3DList.sort(SeedFinderAlgBase::Sort3DHitsByAbsArcLen3D());
-    //seedHit3DList.sort(SeedFinderAlgBase::Sort3DHitsByArcLen3D());
+    //seedHit3DList.sort(SeedFinderAlgBase::Sort3DHitsByAbsArcLen3D());
+    seedHit3DList.sort(SeedFinderAlgBase::Sort3DHitsByArcLen3D());
     
     // Now translate the seedCenter by the arc len to the first hit
     double seedCenter[3] = {seedPca.getAvePosition()[0],     seedPca.getAvePosition()[1],     seedPca.getAvePosition()[2]};
@@ -610,9 +610,9 @@ bool HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPair
     double arcLen       = seedHit3DList.front()->getArclenToPoca();
     double seedStart[3] = {seedCenter[0]+arcLen*seedDir[0], seedCenter[1]+arcLen*seedDir[1], seedCenter[2]+arcLen*seedDir[2]};
     
-    seedStart[0] = seedHit3DList.front()->getX();
-    seedStart[1] = seedHit3DList.front()->getY();
-    seedStart[2] = seedHit3DList.front()->getZ();
+    //seedStart[0] = seedHit3DList.front()->getX();
+    //seedStart[1] = seedHit3DList.front()->getY();
+    //seedStart[2] = seedHit3DList.front()->getZ();
     
     // Keep track of this seed and the 3D hits that make it up
     seedHitPair = SeedHitPairListPair(recob::Seed(seedStart, seedDir), seedHit3DList);
