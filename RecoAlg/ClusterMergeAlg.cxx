@@ -9,6 +9,24 @@
 
 #include "ClusterMergeAlg.h"
 
+// C/C++ standard libraries
+#include <cmath> // std::abs()
+
+// LArSoft libraries
+#include "SimpleTypesAndConstants/PhysicalConstants.h" // pi()
+
+namespace {
+  
+  /// Returns the smallest difference between two angles, in @f$ [ 0; \pi ] @f$.
+  template <typename T>
+  inline T DeltaAngle(T a, T b) {
+    // let's hope we have M_PI on this platform
+    const T d = std::abs(b - a);
+    return (d <= util::pi<T>())? d: util::pi<T>() * T(2) - d;
+  } // DeltaAngle()
+  
+} // local namespace
+
 namespace cluster{
   
   
@@ -266,14 +284,20 @@ namespace cluster{
 					      const cluster_merge_info &cluster_b) const 
   //######################################################################################
   {
-        
+  /*  // old cluster had dT/dW (non-homogeneous ratio)
     double angle1 = cluster_a.angle * _time_2_cm / _wire_2_cm;
     double angle2 = cluster_b.angle * _time_2_cm / _wire_2_cm;
 
     bool compatible = ( abs(angle1-angle2)     < _max_allowed_2D_angle_diff ||
 			abs(angle1-angle2-180) < _max_allowed_2D_angle_diff ||
 			abs(angle1-angle2+180) < _max_allowed_2D_angle_diff   );
-
+  */
+    // cluster has angle in radians:
+    const double angle1 = cluster_a.angle;
+    const double angle2 = cluster_b.angle;
+    const bool compatible = DeltaAngle(angle1, angle2)
+      < (_max_allowed_2D_angle_diff / 180. * util::pi<>());
+    
     if(_verbose) {
 
       if(compatible) std::cout << " Compatible in angle." << std::endl;

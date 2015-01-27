@@ -32,6 +32,8 @@ art_make( LIBRARY_NAME  RecoAlg
 			${ROOT_MINUIT2}	
         )
 
+add_subdirectory(ClusterRecoUtil)
+
 install_headers()
 install_fhicl()
 install_source()

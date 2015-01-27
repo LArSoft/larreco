@@ -1,6 +1,11 @@
 
 art_make( BASENAME_ONLY
+          LIB_LIBRARIES Geometry
+                        RecoBase
+                        ClusterRecoUtil
           MODULE_LIBRARIES RecoAlg
+                           ClusterRecoUtil
+                           ClusterFinder
                            BackTracker_service
                            Filters
                            RecoBase
@@ -8,17 +13,17 @@ art_make( BASENAME_ONLY
                            Geometry_service
                            ${SIMULATIONBASE}
                            ${ART_FRAMEWORK_CORE}
-			   ${ART_FRAMEWORK_PRINCIPAL}
-			   ${ART_FRAMEWORK_SERVICES_REGISTRY}
-			   ${ART_FRAMEWORK_SERVICES_BASIC}
-			   ${ART_FRAMEWORK_SERVICES_OPTIONAL}
-			   ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
-			   ${ART_PERSISTENCY_COMMON}
-			   ${ART_UTILITIES}
-			   ${MF_MESSAGELOGGER}
-			   ${MF_UTILITIES}
-	                   ${FHICLCPP}
-			   ${CETLIB}
+                           ${ART_FRAMEWORK_PRINCIPAL}
+                           ${ART_FRAMEWORK_SERVICES_REGISTRY}
+                           ${ART_FRAMEWORK_SERVICES_BASIC}
+                           ${ART_FRAMEWORK_SERVICES_OPTIONAL}
+                           ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+                           ${ART_PERSISTENCY_COMMON}
+                           ${ART_UTILITIES}
+                           ${MF_MESSAGELOGGER}
+                           ${MF_UTILITIES}
+                           ${FHICLCPP}
+                           ${CETLIB}
          )
 
 install_headers()
