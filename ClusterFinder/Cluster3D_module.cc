@@ -914,16 +914,21 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
             // rapidly. Now that we have more information we can go back through these hits and do a better job
             // selecting "the right ones". Here we call the "medial skeleton" algorithm which uses a modification
             // of a standard medial skeleton procedure to get the 3D hits we want
-            int nSkeletonPoints = m_skeletonAlg.FindMedialSkeleton(clusterParameters.m_hitPairClusterMapItr->second);
-            
-            // If enough skeleton points then rerun pca with only those
-            if (nSkeletonPoints > 10)
+            // But note that even this is hopeless in the worst case and, in fact, it can be a time waster
+            // So bypass when you recognize that condition
+            if (!(fabs(fullPCA.getEigenVectors()[2][0]) > 0.999 && 3. * sqrt(fullPCA.getEigenValues()[1]) > 20.))
             {
-                // Now rerun the principal components axis on just those points
-                m_pcaAlg.PCAAnalysis_3D(clusterParameters.m_hitPairClusterMapItr->second, skeletonPCA, true);
+                int nSkeletonPoints = m_skeletonAlg.FindMedialSkeleton(clusterParameters.m_hitPairClusterMapItr->second);
+            
+                // If enough skeleton points then rerun pca with only those
+                if (nSkeletonPoints > 10)
+                {
+                    // Now rerun the principal components axis on just those points
+                    m_pcaAlg.PCAAnalysis_3D(clusterParameters.m_hitPairClusterMapItr->second, skeletonPCA, true);
                 
-                // If there was a failure (can that happen?) then restore the full PCA
-                if (!skeletonPCA.getSvdOK()) skeletonPCA = fullPCA;
+                    // If there was a failure (can that happen?) then restore the full PCA
+                    if (!skeletonPCA.getSvdOK()) skeletonPCA = fullPCA;
+                }
             }
             
             // Start loop over views to build out the hit lists and the 2D cluster objects
