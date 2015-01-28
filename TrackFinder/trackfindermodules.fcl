@@ -142,6 +142,7 @@ standard_trackana:
 {
    module_type: "TrackAna"
    TrackModuleLabel: "trackkalmanhit"
+   MCTrackModuleLabel: "mcreco"
    SpacepointModuleLabel: "spacepointfinder"
    StitchModuleLabel: "stitch"
    TrkSpptAssocModuleLabel: "trackkalmanhit"
@@ -160,7 +161,8 @@ standard_trackana:
 standard_seedana:
 {
   module_type:        "SeedAna"
-  SeedModuleLabel:   "seedfinder"
+  SeedModuleLabel:    "seedfinder"
+  MCTrackModuleLabel: "mcreco"
   Dump:               10
   MinMCKE:            0.05
   MinMCLen:           20.
