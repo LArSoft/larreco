@@ -1,8 +1,7 @@
 
-art_make( LIBRARY_NAME  RecoAlg
-          LIB_LIBRARIES BackTracker_service
+art_make( LIBRARY_NAME  Cluster3DAlgs
+          LIB_LIBRARIES HarrisVertexFinder_module
                         RecoBase
-                        RecoBaseArt
                         Simulation
                         Filters
                         Geometry
@@ -35,5 +34,3 @@ art_make( LIBRARY_NAME  RecoAlg
 install_headers()
 install_fhicl()
 install_source()
-
-add_subdirectory(Cluster3DAlgs)

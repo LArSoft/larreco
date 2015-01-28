@@ -31,19 +31,19 @@ lbnefd_hitcheater:	  @local::standard_hitcheater
 lbnefd_gaushitfinder.IndMinWidth: 1.0
 lbnefd_gaushitfinder.ColMinWidth: 1.0
 
-
-
-lbne35t_fasthitfinder:    @local::standard_fasthitfinder
-lbne35t_fasthitfinder.MinSigInd: 5.0
-lbne35t_fasthitfinder.MinSigCol: 5.0
-
-lbne35t_gaushitfinder:    @local::gaus_hitfinder
-lbne35t_apahitfinder:     @local::apa_hitfinder
-lbne35t_hitcheater:	  @local::standard_hitcheater
-
-lbne35t_gaushitfinder.IndMinWidth: 1.0
-lbne35t_gaushitfinder.ColMinWidth: 1.0
-
+#Please #include "hitfindermodules_lbne35t.fcl"
+#Please config lbne35t in /lbnecode/lbne/HitFinderLBNE/hitfindermodules_lbne35t.fcl
+#lbne35t_fasthitfinder:    @local::standard_fasthitfinder
+#lbne35t_fasthitfinder.MinSigInd: 5.0
+#lbne35t_fasthitfinder.MinSigCol: 5.0
+#
+#lbne35t_gaushitfinder:    @local::gaus_hitfinder
+#lbne35t_apahitfinder:     @local::apa_hitfinder
+#lbne35t_hitcheater:	  @local::standard_hitcheater
+#
+#lbne35t_gaushitfinder.IndMinWidth: 1.0
+#lbne35t_gaushitfinder.ColMinWidth: 1.0
+#lbne35t_gaushitfinder.Chi2NDFRetry: 1000.
 
 
 
