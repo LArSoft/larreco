@@ -9,7 +9,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 // C++ includes
-#include <math.h>
+#include <cmath>
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
@@ -375,7 +375,6 @@ namespace trkf {
     for(cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
       for(tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
         nplanes = geom->Cryostat(cstat).TPC(tpc).Nplanes();
-        std::vector<double> tmp;
         double dW, dX;
         for(ipl = 0; ipl < 3; ++ipl) {
           cls[ipl].clear();
@@ -391,9 +390,9 @@ namespace trkf {
             if(clusterlist[icl]->Plane().Cryostat != cstat) continue;
             if(clusterlist[icl]->Plane().TPC != tpc) continue;
             if(clusterlist[icl]->Plane().Plane != ipl) continue;
-            dW = fWirePitch * (clusterlist[icl]->EndPos()[0] - clusterlist[icl]->StartPos()[0]);
-            dX = detprop->ConvertTicksToX(clusterlist[icl]->EndPos()[1], ipl, tpc, cstat) -
-                detprop->ConvertTicksToX(clusterlist[icl]->StartPos()[1], ipl, tpc, cstat);
+            dW = fWirePitch * (clusterlist[icl]->EndWire() - clusterlist[icl]->StartWire());
+            dX = detprop->ConvertTicksToX(clusterlist[icl]->EndTick(), ipl, tpc, cstat) -
+                detprop->ConvertTicksToX(clusterlist[icl]->StartTick(), ipl, tpc, cstat);
             CluLen clulen;
             clulen.index = icl;
             clulen.length = sqrt(dW * dW + dX * dX);
@@ -404,43 +403,40 @@ namespace trkf {
           std::sort (clulens.begin(),clulens.end(), greaterThan);
           if(clulens.size() == 0) continue;
           for(unsigned short ii = 0; ii < clulens.size(); ++ii) {
-            icl = clulens[ii].index;
+            const unsigned short icl = clulens[ii].index;
             clPar clstr;
             clstr.EvtIndex = icl;
+            recob::Cluster const& cluster = *(clusterlist[icl]);
             // Begin info
-            tmp = clusterlist[icl]->StartPos();
-            clstr.Wire[0] = tmp[0];
-            clstr.Time[0] = tmp[1];
-            clstr.X[0] = (float)detprop->ConvertTicksToX(tmp[1], ipl, tpc, cstat);
-            clstr.Slope[0] = fScaleF * clusterlist[icl]->SigmadTdW();
-            clstr.Charge[0] = clusterlist[icl]->dQdW();
-            clstr.Angle[0] = atan(clstr.Slope[0]);
+            clstr.Wire[0] = cluster.StartWire();
+            clstr.Time[0] = cluster.StartTick();
+            clstr.X[0] = (float)detprop->ConvertTicksToX(cluster.StartTick(), ipl, tpc, cstat);
+            clstr.Slope[0] = fScaleF * cluster.SigmadTdW();
+            clstr.Charge[0] = cluster.StartCharge();
+            clstr.Angle[0] = std::atan(clstr.Slope[0]);
             clstr.Dir[0] = -1 * (2*(clstr.Slope[0]>0)-1);
-            tmp = clusterlist[icl]->SigmaStartPos();
-            clstr.EP2Index[0] = (short)tmp[0];
-            clstr.VtxIndex[0] = (short)tmp[1];
+            clstr.EP2Index[0] = (short) cluster.SigmaStartWire();
+            clstr.VtxIndex[0] = (short) cluster.SigmaStartTick();
             clstr.mVtxIndex[0] = -1;
             clstr.BrkIndex[0] = -1;
             clstr.mBrkIndex[0] = -1;
             // End info
-            tmp = clusterlist[icl]->EndPos();
-            clstr.Wire[1] = tmp[0];
-            clstr.Time[1] = tmp[1];
-            clstr.X[1] = (float)detprop->ConvertTicksToX(tmp[1], ipl, tpc, cstat);
-            clstr.Slope[1] = fScaleF * clusterlist[icl]->dTdW();
-            clstr.Charge[1] = clusterlist[icl]->SigmadQdW();
-            clstr.Angle[1] = atan(clstr.Slope[1]);
+            clstr.Wire[1] = cluster.EndWire();
+            clstr.Time[1] = cluster.EndTick();
+            clstr.X[1] = (float)detprop->ConvertTicksToX(cluster.EndTick(), ipl, tpc, cstat);
+            clstr.Slope[1] = fScaleF * std::tan(cluster.StartAngle());
+            clstr.Charge[1] = cluster.SigmadQdW();
+            clstr.Angle[1] = std::atan(clstr.Slope[1]);
             clstr.Dir[1] = 1 * (2*(clstr.Slope[1]>0)-1);
-            tmp = clusterlist[icl]->SigmaEndPos();
-            clstr.EP2Index[1] = (short)tmp[0];
-            clstr.VtxIndex[1] = (short)tmp[1];
+            clstr.EP2Index[1] = (short) cluster.SigmaEndWire();
+            clstr.VtxIndex[1] = (short) cluster.SigmaEndTick();
             clstr.mVtxIndex[1] = -1;
             clstr.BrkIndex[1] = -1;
             clstr.mBrkIndex[1] = -1;
             // other info
             clstr.InTrack = -1;
             clstr.Length = (unsigned short)(0.5 + clstr.Wire[0] - clstr.Wire[1]);
-            clstr.TotChg = clusterlist[icl]->Charge();
+            clstr.TotChg = cluster.Integral();
             if(clstr.TotChg <= 0) clstr.TotChg = 1;
             cls[ipl].push_back(clstr);
           } // ii (icl)

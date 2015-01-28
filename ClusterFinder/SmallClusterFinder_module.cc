@@ -54,6 +54,9 @@
 #include "RecoAlg/SmallClusterFinderAlg.h"
 #include "Geometry/PlaneGeo.h"
 #include "Utilities/AssociationUtil.h"
+#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterParamsImportWrapper.h"
+#include "ClusterFinder/ClusterCreator.h"
 
 
 namespace cluster {
@@ -171,14 +174,19 @@ namespace cluster{
   
 		//Now run the alg to find the gammas:
 		fSmallClusterFinderAlg.FindSmallClusters(hitlist);
-	
-  
- 
+		
+		
+		
 		// make an art::PtrVector of the clusters
 		std::unique_ptr< std::vector<recob::Cluster> > SmallClusterFinder(new std::vector<recob::Cluster>);
 		std::unique_ptr< art::Assns<recob::Cluster, recob::Hit> > assn(new art::Assns<recob::Cluster, recob::Hit>);
-	
-  
+		
+		// prepare the algorithm to compute the cluster characteristics;
+		// we use the "standard" one here; configuration would happen here,
+		// but we are using the default configuration for that algorithm
+		ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
+		
+		
 		for(unsigned int iplane=0;iplane<fNPlanes;iplane++){
 		
 			//Get the leftover hits for this plane:
@@ -189,18 +197,29 @@ namespace cluster{
 				// pick some information from the first hit
 				geo::PlaneID planeID = leftoverHits.front()->WireID().planeID();
 				if (verbose) std::cout << "Writing leftover hits to cluster ID: " << iplane*100 << std::endl;
-				recob::Cluster leftover( 0,  0, 	//start wire, error in start wire
-								 0,  0,		//start time, error in start time
-								 0., 0.,	//end   wire, error in end   wire
-								 0., 0.,  	//end   time, error in end   wire
-								 0., 0.,	//dTdW, error in dTdW ??
-								 0., 0.,	//dQdW, error in dQdW ??
-								 5.,		//Total Q
-								 geom->Plane(iplane,planeID.TPC,planeID.Cryostat).View(), //View (geo::View_t)
-								 iplane*100, //id for cluster, given as plane here
-								 planeID); // plane ID of the first hit of the "cluster"
-	
-				SmallClusterFinder->push_back(leftover);
+				
+				ClusterParamAlgo.ImportHits(leftoverHits);
+				
+				// create the recob::Cluster directly in the vector
+				ClusterCreator leftover(
+				  ClusterParamAlgo,                     // algo
+				  0.,                                   // start_wire
+				  0.,                                   // sigma_start_wire
+				  0.,                                   // start_tick
+				  0.,                                   // sigma_start_tick
+				  0.,                                   // end_wire
+				  0.,                                   // sigma_end_wire,
+				  0.,                                   // end_tick
+				  0.,                                   // sigma_end_tick
+				  iplane*100,                           // ID
+				  geom->Plane(iplane,planeID.TPC,planeID.Cryostat).View(),
+				                                        // view
+				  planeID,                              // plane
+				  recob::Cluster::Sentry                // sentry
+				  );
+				
+				SmallClusterFinder->emplace_back(leftover.move());
+				
 				util::CreateAssn(*this, evt, *SmallClusterFinder, leftoverHits, *assn);  
 			} //leftovers are written for this plane, if they exist.
 		
@@ -212,18 +231,28 @@ namespace cluster{
 				// pick some information from the first hit
 				geo::PlaneID planeID; // invalid by default
 				if (!smallClusters.empty()) planeID = smallClusters[i].front()->WireID().planeID();
-				recob::Cluster clust( 0,  0, 	//start wire, error in start wire
-								 0,  0,		//start time, error in start time
-								 0., 0.,	//end   wire, error in end   wire
-								 0., 0.,  	//end   time, error in end   wire
-								 0., 0.,	//dTdW, error in dTdW ??
-								 0., 0.,	//dQdW, error in dQdW ??
-								 5.,		//Total Q
-								 geom->Plane(iplane,planeID.TPC,planeID.Cryostat).View(), 	//View (geo::View_t)
-								 iplane*100 + i + 1, //id for cluster, given as plane here
-								 planeID); // plane ID of the first hit of the small cluster
 				
-				SmallClusterFinder->push_back(clust);
+				ClusterParamAlgo.ImportHits(smallClusters[i]);
+				
+				// create the recob::Cluster directly in the vector
+				ClusterCreator clust(
+				  ClusterParamAlgo,                     // algo
+				  0.,                                   // start_wire
+				  0.,                                   // sigma_start_wire
+				  0.,                                   // start_tick
+				  0.,                                   // sigma_start_tick
+				  0.,                                   // end_wire
+				  0.,                                   // sigma_end_wire,
+				  0.,                                   // end_tick
+				  0.,                                   // sigma_end_tick
+				  iplane*100 + i + 1,                   // ID
+				  geom->Plane(iplane,planeID.TPC,planeID.Cryostat).View(),
+				                                        // view
+				  planeID,                              // plane
+				  recob::Cluster::Sentry                // sentry
+				  );
+				
+				SmallClusterFinder->emplace_back(clust.move());
 				// associate the hits to this cluster
 				util::CreateAssn(*this, evt, *SmallClusterFinder, smallClusters[i], *assn);
 			}

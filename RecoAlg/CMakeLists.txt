@@ -12,6 +12,7 @@ art_make( LIBRARY_NAME  RecoAlg
                         LArProperties_service
                         DetectorProperties_service
                         Utilities
+                        ClusterRecoUtil
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

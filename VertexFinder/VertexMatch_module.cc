@@ -213,18 +213,18 @@ void vertex::VertexMatch::produce(art::Event& evt)
 	planeID = wireID.planeID();
       }
       if(pid == planeID){
-	slope=(*houghIter)->dTdW();
-	intercept=(*houghIter)->StartPos()[1] - slope*(*houghIter)->StartPos()[0];
+	slope = std::atan((*houghIter)->StartAngle());
+	intercept=(*houghIter)->StartTick() - slope*(*houghIter)->StartWire();
 	for(unsigned int i=0;i < vertexhit.size(); i++){  
 	  
 	  distance=-1;
 	  wire  = vertexhit[i]->WireID().Wire;
 	  wireID = vertexhit[i]->WireID(); //for update to EndPoint2D ... WK 4/22/13
 	  
-	  starttime=(*houghIter)->StartPos()[1];
-	  endtime=(*houghIter)->EndPos()[1];
-	  startwire=(*houghIter)->StartPos()[0];
-	  endwire=(*houghIter)->EndPos()[0];
+	  starttime=(*houghIter)->StartTick();
+	  endtime=(*houghIter)->EndTick();
+	  startwire=(*houghIter)->StartWire();
+	  endwire=(*houghIter)->EndWire();
 	  
 	  //require the vertices found with HarrisVertexFinder to match up with the endpoints 
 	  //(within a window) of a Hough line. A strong vertex matches up with at least two Hough lines. 

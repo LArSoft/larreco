@@ -41,6 +41,9 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
+#include "ClusterFinder/ClusterCreator.h"
+#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterParamsImportWrapper.h"
 
 namespace cluster {
   class ClusterCheater : public art::EDProducer {
@@ -164,6 +167,11 @@ namespace cluster{
     std::unique_ptr< std::vector<recob::Cluster> > clustercol(new std::vector<recob::Cluster>);
     std::unique_ptr< art::Assns<recob::Cluster, recob::Hit> > assn(new art::Assns<recob::Cluster, recob::Hit>);
 
+    // prepare the algorithm to compute the cluster characteristics;
+    // we use the "standard" one here; configuration would happen here,
+    // but we are using the default configuration for that algorithm
+    ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
+    
     for(auto hitMapItr : eveHitMap){
 
       // ================================================================================
@@ -227,36 +235,39 @@ namespace cluster{
       double startTime = hitMapItr.second.front()->PeakTimeMinusRMS();
       double endWire   = hitMapItr.second.back()->WireID().Wire;
       double endTime   = hitMapItr.second.back()->PeakTimePlusRMS();
-      double totalQ    =  0.;
-      double dTdW      =  1.e6;
-      double dQdW      =  1.e6;
-      
-      if(startWire != endWire){
-	dTdW = (endTime - startTime)/(endWire - startWire);
-	///\todo now figure out the dQdW      
-      }
-
-      for(auto const& h : hitMapItr.second) totalQ += h->Integral();
 
       // add a cluster to the collection.  Make the ID be the eve particle
       // trackID*1000 + plane number*100 + tpc*10 + cryostat that the current hits are from
       ///\todo: The above encoding of the ID probably won't work for LBNE and should be revisited
       const geo::PlaneID& planeID = hitMapItr.first.planeID;
-      clustercol->push_back(recob::Cluster(startWire, 0.,
-					   startTime, 0.,
-					   endWire,   0.,
-					   endTime,   0.,
-					   dTdW,      0.,
-					   dQdW,      0.,
-					   totalQ,
-					   hitMapItr.second.at(0)->View(),
-					   (hitMapItr.first.eveID*1000 + 
-					    planeID.Plane*100  + 
-					    planeID.TPC*10     + 
-					    planeID.Cryostat),
-					   planeID
-					   )
-			    );
+      recob::Cluster::ID_t clusterID = (((
+               hitMapItr.first.eveID
+        )*10 + planeID.Plane
+        )*10 + planeID.TPC // 10 is weird choice for LBNE FD... should be 1000! FIXME
+        )*10 + planeID.Cryostat
+        ;
+      
+      // feed the algorithm with all the cluster hits
+      ClusterParamAlgo.ImportHits(hitMapItr.second);
+      
+      // create the recob::Cluster directly in the vector
+      ClusterCreator cluster(
+        ClusterParamAlgo,               // algo
+        startWire,                      // start_wire
+        0.,                             // sigma_start_wire
+        startTime,                      // start_tick
+        0.,                             // sigma_start_tick
+        endWire,                        // end_wire 
+        0.,                             // sigma_end_wire
+        endTime,                        // end_tick
+        0.,                             // sigma_end_tick
+        clusterID,                      // ID
+        hitMapItr.second.at(0)->View(), // view
+        planeID,                        // plane
+        recob::Cluster::Sentry          // sentry
+        );
+      
+      clustercol->emplace_back(cluster.move());
       
       // association the hits to this cluster
       util::CreateAssn(*this, evt, *clustercol, hitMapItr.second, *assn);

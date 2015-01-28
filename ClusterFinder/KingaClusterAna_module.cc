@@ -599,14 +599,14 @@ namespace cluster{
         
       if(cluster->View()==geo::kU){
         flinemergerclusters_planeNo[ii]=0;
-        fStart_pt_w_linemerger[ii]=cluster->StartPos()[0];
-        fStart_pt_t_linemerger[ii]=cluster->StartPos()[1];
+        fStart_pt_w_linemerger[ii]=cluster->StartWire();
+        fStart_pt_t_linemerger[ii]=cluster->StartTick();
   	
       }
       else if(cluster->View()==geo::kV){
         flinemergerclusters_planeNo[ii]=1;
-        fStart_pt_w_linemerger[ii]=cluster->StartPos()[0];
-        fStart_pt_t_linemerger[ii]=cluster->StartPos()[1];
+        fStart_pt_w_linemerger[ii]=cluster->StartWire();
+        fStart_pt_t_linemerger[ii]=cluster->StartTick();
   	
       }
         
@@ -731,7 +731,7 @@ namespace cluster{
         fkingaCl_p0++;
         //mf::LogInfo("KingaClusterAna")<<"p0, cluster# "<<ii<<" startPoint: "<<cluster->StartPos()[0]<<" , "<<cluster->StartPos()[1];
   	
-        if(fabs(cluster->StartPos()[0]-fwire_vertex_true[0])<6 && fabs(cluster->StartPos()[1]-ftime_vertex[0])<90 ){
+        if(fabs(cluster->StartWire()-fwire_vertex_true[0])<6 && fabs(cluster->StartTick()-ftime_vertex[0])<90 ){
   	fkingaCl_near_vertex_p0++;
   	  
         }
@@ -739,12 +739,12 @@ namespace cluster{
       }
       else if(cluster->View()==geo::kV){
         fclusters_planeNo_reco[ii]=1;
-        fStart_pt_w_reco[ii]=cluster->StartPos()[0];
-        fStart_pt_t_reco[ii]=cluster->StartPos()[1];
+        fStart_pt_w_reco[ii]=cluster->StartWire();
+        fStart_pt_t_reco[ii]=cluster->StartTick();
         fkingaCl_p1++;
         // mf::LogInfo("KingaClusterAna")<<"p1, cluster# "<<ii<<" startPoint: "<<cluster->StartPos()[0]<<" , "<<cluster->StartPos()[1];
   	
-        if(fabs(cluster->StartPos()[0]-fwire_vertex_true[1])<6 && fabs(cluster->StartPos()[1]-ftime_vertex[1])<90 ){
+        if(fabs(cluster->StartWire()-fwire_vertex_true[1])<6 && fabs(cluster->StartTick()-ftime_vertex[1])<90 ){
   	fkingaCl_near_vertex_p1++;
   	  
         }
@@ -858,7 +858,7 @@ namespace cluster{
         
         fcheatedCl_p0++;
          
-        if(fabs(cluster->StartPos()[0]-fwire_vertex_true[0])<6 && fabs(cluster->StartPos()[1]-ftime_vertex[0])<90 ){
+        if(fabs(cluster->StartWire()-fwire_vertex_true[0])<6 && fabs(cluster->StartTick()-ftime_vertex[0])<90 ){
   	fcheatedCl_near_vertex_p0++;
   	 
         }
@@ -869,7 +869,7 @@ namespace cluster{
          
         fcheatedCl_p1++;
          
-        if(fabs(cluster->StartPos()[0]-fwire_vertex_true[1])<6 && fabs(cluster->StartPos()[1]-ftime_vertex[1])<90 ){
+        if(fabs(cluster->StartWire()-fwire_vertex_true[1])<6 && fabs(cluster->StartTick()-ftime_vertex[1])<90 ){
   	fcheatedCl_near_vertex_p1++;
   	 
         }

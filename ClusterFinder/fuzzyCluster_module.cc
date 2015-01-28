@@ -42,9 +42,9 @@
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
 #include "Utilities/SeedCreator.h"
-#include "ClusterFinder/ClusterCreator.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
+#include "ClusterFinder/ClusterCreator.h"
 
 
 class TH1F;

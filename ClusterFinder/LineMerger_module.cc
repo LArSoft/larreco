@@ -37,6 +37,9 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
+#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterParamsImportWrapper.h"
+#include "ClusterFinder/ClusterCreator.h"
 
 
 
@@ -64,8 +67,10 @@ namespace cluster {
    
     bool SlopeCompatibility(double slope1,double slope2);
     int  EndpointCompatibility(
-      const std::vector<double>& sclstart, const std::vector<double>& sclend,
-      const std::vector<double>& cl2start, const std::vector<double>& cl2end
+      float sclstartwire, float sclstarttime,
+      float sclendwire,   float sclendtime,
+      float cl2startwire, float cl2starttime,
+      float cl2endwire,   float cl2endtime
       );
     
   protected: 
@@ -144,6 +149,11 @@ namespace cluster{
     std::unique_ptr<std::vector<recob::Cluster> >             SuperClusters(new std::vector<recob::Cluster>);
     std::unique_ptr< art::Assns<recob::Cluster, recob::Hit> > assn(new art::Assns<recob::Cluster, recob::Hit>);
 
+    // prepare the algorithm to compute the cluster characteristics;
+    // we use the "standard" one here; configuration would happen here,
+    // but we are using the default configuration for that algorithm
+    ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
+    
     art::FindManyP<recob::Hit> fmh(clusterVecHandle, evt, fClusterModuleLabel);
     
     for(size_t i = 0; i < nViews; ++i){
@@ -184,13 +194,17 @@ namespace cluster{
           // added 13.5 ticks/wirelength in ArgoNeuT. 
           // \todo need to make this detector agnostic
           // would be nice to have a LArProperties function that returns ticks/wire.
-          bool sameSlope = SlopeCompatibility(cl1.dTdW()*(1./13.5),
-                                              cl2.dTdW()*(1./13.5));
+          bool sameSlope = SlopeCompatibility(cl1.StartAngle(), cl2.EndAngle())
+            || SlopeCompatibility(cl1.EndAngle(), cl2.StartAngle());
           
           // check that the endpoints fall within a circular window of each other 
           // done in place of intercept matching
-          int sameEndpoint = EndpointCompatibility(cl1.StartPos(), cl1.EndPos(),
-                                                   cl2.StartPos(), cl2.EndPos());
+          int sameEndpoint = EndpointCompatibility(
+            cl1.StartWire(), cl1.StartTick(),
+            cl1.EndWire(),   cl1.EndTick(),
+            cl2.StartWire(), cl2.StartTick(),
+            cl2.EndWire(),   cl2.EndTick()
+            );
           
           // if the slopes and end points are the same, combine the clusters
           // note that after 1 combination cl1 is no longer what we started 
@@ -246,26 +260,18 @@ namespace cluster{
     return comp;
   }
   //------------------------------------------------------------------------------------//
-  int LineMerger::EndpointCompatibility(const std::vector<double>& sclstart, 
-                                        const std::vector<double>& sclend,
-                                        const std::vector<double>& cl2start, 
-                                        const std::vector<double>& cl2end)
-  { 
-    double sclstartwire = sclstart[0];
-    double sclstarttime = sclstart[1];
-    double sclendwire   = sclend[0];
-    double sclendtime   = sclend[1];
-    
-    double cl2startwire = cl2start[0];
-    double cl2starttime = cl2start[1];
-    double cl2endwire   = cl2end[0];
-    double cl2endtime   = cl2end[1];
+  int LineMerger::EndpointCompatibility(
+    float sclstartwire, float sclstarttime,
+    float sclendwire,   float sclendtime,
+    float cl2startwire, float cl2starttime,
+    float cl2endwire,   float cl2endtime
+  ) {
 
-    // \todo 13.5 ticks/wire. need to make this detector agnostic--spitz
-    double distance = std::sqrt((pow(sclendwire-cl2startwire,2)*13.5) + pow(sclendtime-cl2starttime,2));
+    /// \todo 13.5 ticks/wire. need to make this detector agnostic--spitz
+    float distance = std::sqrt((pow(sclendwire-cl2startwire,2)*13.5) + pow(sclendtime-cl2starttime,2));
 
     //not sure if this line is necessary--spitz
-    double distance2 = std::sqrt((pow(sclstartwire-cl2endwire,2)*13.5) + pow(sclstarttime-cl2endtime,2));
+    float distance2 = std::sqrt((pow(sclstartwire-cl2endwire,2)*13.5) + pow(sclstarttime-cl2endtime,2));
     
 //    bool comp = (distance  < fEndpointWindow ||
 //                 distance2 < fEndpointWindow) ? true : false;
