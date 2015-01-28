@@ -1,0 +1,14 @@
+#include "showerreco3d.fcl"
+#include "calorimetry_microboone.fcl"
+BEGIN_PROLOG
+
+showerreco3d_uboone: @local::standard_showerreco3d
+showerreco3d_uboone.InputProducer:   "mergedfuzzy"
+showerreco3d_uboone.CalorimetryAlg:  @local::microboone_calorimetryalgmc
+
+showerreco3d_uboone_pandora: @local::standard_showerreco3d
+showerreco3d_uboone_pandora.InputProducer:   "pandoraNu"
+showerreco3d_uboone_pandora.UsePFParticle:   true
+showerreco3d_uboone_pandora.CalorimetryAlg:  @local::microboone_calorimetryalgmc
+
+END_PROLOG

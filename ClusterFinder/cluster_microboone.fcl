@@ -24,8 +24,6 @@ microboone_houghbasealg.MinHits:              5
 microboone_houghbasealg.NumAngleCells:        20000
 microboone_fuzzyclusteralg:                   @local::microboone_fuzzyclusteralg 
 microboone_clustercrawlershower:              @local::standard_clustercrawlershower
-microboone_clustercrawlershower.ClusterParamsAlg:         @local::microboone_clusterparamsalg
-microboone_clustercrawlershower.ClusterMergeAlg:          @local::microboone_clustermergealg
 
 microboone_dbcluster:                    @local::standard_dbcluster      
 microboone_dbcluster.DBScanAlg:          @local::microboone_dbscanalg    
@@ -43,6 +41,7 @@ microboone_endpointmod.EndPointAlg:      @local::microboone_endpointalg
 microboone_showeranglecluster:           @local::standard_showeranglecluster
 microboone_showeranglecluster.ClusterMatchAlg:          @local::microboone_clustermatchalg
 microboone_showeranglecluster.ClusterMergeAlg:          @local::microboone_clustermergealg
+microboone_simpleclustermerger:          @local::standard_simpleclustermerger
 microboone_showerangleclusterana:           @local::standard_showerangleclusterana
 microboone_showerangleclusterana.ClusterParamsAlg:           @local::microboone_clusterparamsalg
 microboone_smallclusterfinder:			 @local::standard_smallclusterfinder

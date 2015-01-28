@@ -769,22 +769,22 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
   double fPhi=xphi;
   double fTheta=xtheta;
   
-  double dcosVtx[3]={TMath::Cos(fPhi*TMath::Pi()/180)*TMath::Sin(fTheta*TMath::Pi()/180),
-                    TMath::Cos(fTheta*TMath::Pi()/180),
-                    TMath::Sin(fPhi*TMath::Pi()/180)*TMath::Sin(fTheta*TMath::Pi()/180)};
+  TVector3 dcosVtx(TMath::Cos(fPhi*TMath::Pi()/180)*TMath::Sin(fTheta*TMath::Pi()/180),
+		   TMath::Cos(fTheta*TMath::Pi()/180),
+		   TMath::Sin(fPhi*TMath::Pi()/180)*TMath::Sin(fTheta*TMath::Pi()/180));
   /// \todo really need to determine the values of the arguments of the recob::Shower ctor
   // fill with bogus values for now
-  double dcosVtxErr[3] = { util::kBogusD };
-  double maxTransWidth[2] = { util::kBogusD };
-  double distMaxWidth = util::kBogusD;
+  TVector3 dcosVtxErr(util::kBogusD, util::kBogusD, util::kBogusD);
+  //double maxTransWidth[2] = { util::kBogusD };
+  //double distMaxWidth = util::kBogusD;
+  //recob::Shower  singShower(dcosVtx, dcosVtxErr, maxTransWidth, distMaxWidth, 1);
+  recob::Shower singShower;
+  singShower.set_direction(dcosVtx);
+  singShower.set_direction_err(dcosVtxErr);
   
-  recob::Shower  singShower(dcosVtx, dcosVtxErr, maxTransWidth, distMaxWidth, 1);
-  
-  
-  
-   Shower3DVector->push_back(singShower);
-   // associate the shower with its clusters
-   util::CreateAssn(*this, evt, *Shower3DVector, prodvec, *cassn);
+  Shower3DVector->push_back(singShower);
+  // associate the shower with its clusters
+  util::CreateAssn(*this, evt, *Shower3DVector, prodvec, *cassn);
   
    // get the hits associated with each cluster and associate those with the shower
    for(size_t p = 0; p < prodvec.size(); ++p){
