@@ -13,6 +13,7 @@ art_make( LIBRARY_NAME  RecoAlg
                         DetectorProperties_service
                         Utilities
                         ClusterRecoUtil
+                        ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
