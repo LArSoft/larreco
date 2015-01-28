@@ -41,6 +41,7 @@ class StitchAlg
 
   void GetTrackComposites(std::vector <art::PtrVector <recob::Track> > & c) { c = fTrackComposite;};
   void GetTracks(std::vector <recob::Track>& t) { t = fTrackVec ;};
+
   art::Handle< std::vector< recob::Track > > ftListHandle;
 
  private:
