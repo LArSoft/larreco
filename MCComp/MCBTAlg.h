@@ -24,6 +24,7 @@
 #include "Utilities/TimeService.h"
 #include "Geometry/Geometry.h"
 #include "MCBTAlgConstants.h"
+#include "MCBTException.h"
 /**
    \class MCBTAlg
    MCBTAlg is meant to back-track reco-ed hits/clusters to MCShower/MCTrack
@@ -52,6 +53,9 @@ namespace btutil {
     
     MCBTAlg(const std::vector<unsigned int>& g4_trackid_v,
 	    const std::vector<sim::SimChannel>& simch_v);
+
+    void Reset(const std::vector<unsigned int>& g4_trackid_v,
+	       const std::vector<sim::SimChannel>& simch_v);
 
     /**
        Returns MC charge sum per MCX for a specified plane

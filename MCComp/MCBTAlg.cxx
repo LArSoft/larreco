@@ -8,6 +8,12 @@ namespace btutil {
   MCBTAlg::MCBTAlg(const std::vector<unsigned int>& g4_trackid_v,
 		   const std::vector<sim::SimChannel>& simch_v)
   {
+    Reset(g4_trackid_v,simch_v);
+  }
+
+  void Reset(const std::vector<unsigned int>& g4_trackid_v,
+	     const std::vector<sim::SimChannel>& simch_v)
+  {
     _num_parts = 0;
     _sum_mcq.clear();
     _trkid_to_index.clear();
@@ -61,10 +67,8 @@ namespace btutil {
 
   const std::vector<double>& MCBTAlg::MCQSum(const size_t plane_id) const
   {
-    if(plane_id > _sum_mcq.size()) {
-      std::cerr<< "Invalid plane requested: " << plane_id << std::endl;
-      throw std::exception();
-    }
+    if(plane_id > _sum_mcq.size())
+      throw MCBTException(Form("Invalid plane requested: %zu",plane_id));
     return _sum_mcq[plane_id];
   }
 
