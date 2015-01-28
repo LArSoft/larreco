@@ -16,8 +16,6 @@ jp250L_fuzzycluster:                 @local::standard_fuzzycluster
 jp250L_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
 jp250L_dbcluster.DBScanAlg:          @local::jp250L_dbscanalg   
 jp250L_dbclusterana:                 @local::standard_dbclusterana   
-jp250L_kingacluster:                 @local::standard_kingacluster   
-jp250L_kingaclusterana:              @local::standard_kingaclusterana
 jp250L_houghlinefinder:              @local::standard_houghlinefinder
 jp250L_houghlinefinder.HoughBaseAlg: @local::jp250L_houghbasealg
 jp250L_houghlinefinderana:           @local::standard_houghlinefinderana 

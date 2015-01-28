@@ -20,8 +20,6 @@ bo_fuzzycluster:                 @local::standard_fuzzycluster
 bo_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
 bo_dbcluster.DBScanAlg:          @local::bo_dbscanalg   
 bo_dbclusterana:                 @local::standard_dbclusterana   
-bo_kingacluster:                 @local::standard_kingacluster   
-bo_kingaclusterana:              @local::standard_kingaclusterana
 bo_houghlinefinder:              @local::standard_houghlinefinder
 bo_houghlinefinder.HoughBaseAlg: @local::bo_houghbasealg
 bo_houghlinefinderana:           @local::standard_houghlinefinderana 

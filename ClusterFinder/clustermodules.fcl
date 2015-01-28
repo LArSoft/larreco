@@ -25,16 +25,6 @@ standard_clustercrawler:
 # CCHitRefinerAlg:     @local::standard_cchitrefineralg
 }
 
-standard_clustercrawlershower:
-{
- module_type:              "ClusterCrawlerShower"
- ClusterCrawlerModuleLabel:       "cccluster"
- ClusterParamsAlg: 	   @local::standard_clusterparamsalg
- ClusterMergeAlg:          @local::standard_clustermergealg
- MinHitListSize:	  15
- MaxDistance:             0.1
-}
-
 standard_fuzzycluster:
 {
  module_type:     "fuzzyCluster"
@@ -116,24 +106,6 @@ standard_endpointmod:
  EndPointAlg:       @local::standard_endpointalg
 }
 
-standard_kingacluster:
-{
- module_type:          "KingaCluster"
- DBScanModuleLabel:    "dbcluster"
- EndPoint2DModuleLabel: "vertex2d"
-}
-
-standard_kingaclusterana:
-{ 
- module_type:               "KingaClusterAna"
- LineMergerModuleLabel:     "linemerger"
- EndPoint2DModuleLabel:     "vertex2d"
- ClusterCheaterModuleLabel: "cluster"
- KingaModuleLabel:          "kingacluster"
- GenieGenModuleLabel:       "generator"
- LArGeantModuleLabel:       "largeant"
-}
-
 standard_showeranglecluster:
 {
  module_type:              "ShowerAngleCluster"
@@ -180,8 +152,6 @@ jp250L_fuzzycluster:                 @local::standard_fuzzycluster
 jp250L_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
 jp250L_dbcluster.DBScanAlg:          @local::jp250L_dbscanalg   
 jp250L_dbclusterana:                 @local::standard_dbclusterana   
-jp250L_kingacluster:                 @local::standard_kingacluster   
-jp250L_kingaclusterana:              @local::standard_kingaclusterana
 jp250L_houghlinefinder:              @local::standard_houghlinefinder
 jp250L_houghlinefinder.HoughBaseAlg: @local::jp250L_houghbasealg
 jp250L_houghlinefinderana:           @local::standard_houghlinefinderana 
@@ -197,8 +167,6 @@ bo_fuzzycluster:                 @local::standard_fuzzycluster
 bo_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
 bo_dbcluster.DBScanAlg:          @local::bo_dbscanalg   
 bo_dbclusterana:                 @local::standard_dbclusterana   
-bo_kingacluster:                 @local::standard_kingacluster   
-bo_kingaclusterana:              @local::standard_kingaclusterana
 bo_houghlinefinder:              @local::standard_houghlinefinder
 bo_houghlinefinder.HoughBaseAlg: @local::bo_houghbasealg
 bo_houghlinefinderana:           @local::standard_houghlinefinderana 
@@ -214,8 +182,6 @@ argoneut_fuzzycluster:                 @local::standard_fuzzycluster
 argoneut_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
 argoneut_dbcluster.DBScanAlg:          @local::argoneut_dbscanalg   
 argoneut_dbclusterana:                 @local::standard_dbclusterana   
-argoneut_kingacluster:                 @local::standard_kingacluster   
-argoneut_kingaclusterana:              @local::standard_kingaclusterana
 argoneut_houghlinefinder:              @local::standard_houghlinefinder
 argoneut_houghlinefinder.HoughBaseAlg: @local::argoneut_houghbasealg
 argoneut_houghlinefinderana:           @local::standard_houghlinefinderana 

@@ -11,8 +11,6 @@ lbnefd_dbcluster.DBScanAlg:          @local::lbnefd_dbscanalg
 lbnefd_dbclusterana:                 @local::standard_dbclusterana   
 lbnefd_fuzzycluster:                 @local::standard_fuzzycluster
 lbnefd_fuzzycluster.HitsModuleLabel: "gaushit"
-lbnefd_kingacluster:                 @local::standard_kingacluster   
-lbnefd_kingaclusterana:              @local::standard_kingaclusterana
 lbnefd_houghlinefinder:              @local::standard_houghlinefinder
 lbnefd_houghlinefinder.HoughBaseAlg: @local::lbnefd_houghbasealg
 lbnefd_houghlinefinderana:           @local::standard_houghlinefinderana
@@ -27,8 +25,6 @@ lbne35t_dbclusterana:                 @local::standard_dbclusterana
 lbne35t_fuzzycluster:                 @local::standard_fuzzycluster
 lbne35t_fuzzycluster.fuzzyClusterAlg: @local::lbne35t_fuzzyclusteralg
 lbne35t_fuzzycluster.HitsModuleLabel: "gaushit" 
-lbne35t_kingacluster:                 @local::standard_kingacluster
-lbne35t_kingaclusterana:              @local::standard_kingaclusterana
 lbne35t_houghlinefinder:              @local::standard_houghlinefinder
 lbne35t_houghlinefinder.HoughBaseAlg: @local::lbne35t_houghbasealg
 lbne35t_houghlinefinderana:           @local::standard_houghlinefinderana
