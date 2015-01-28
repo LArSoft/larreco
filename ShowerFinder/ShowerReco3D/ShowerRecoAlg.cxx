@@ -9,8 +9,8 @@ namespace showerreco {
   {
     
     //if(!fGSer) fGSer = (larutil::GeometryUtilities*)(larutil::GeometryUtilities::GetME());
-    fGSer = new util::GeometryUtilities;
-    
+    fGSer = new ::util::GeometryUtilities;
+
     fcalodEdxlength=1000;
     fdEdxlength=2.4;
     fUseArea = true;
@@ -22,12 +22,12 @@ namespace showerreco {
   ::recob::Shower ShowerRecoAlg::RecoOneShower(const std::vector< ::showerreco::ShowerCluster_t>& clusters)
   {
     
-    ::recob::Shower result;
+    recob::Shower result;
     //
     // Reconstruct and store
     //
-    std::vector < ::util::PxPoint > fStartPoint;    // for each plane
-    std::vector < ::util::PxPoint > fEndPoint;    // for each plane
+    std::vector < util::PxPoint > fStartPoint;    // for each plane
+    std::vector < util::PxPoint > fEndPoint;    // for each plane
     std::vector < double > fOmega2D;    // for each plane
     
     std::vector < double > fEnergy;    // for each plane
@@ -61,16 +61,17 @@ namespace showerreco {
     double max_length=0;
     for (size_t ip=0;ip<fPlaneID.size();ip++)
       {
-	if(fabs( fEndPoint[ip].w - fStartPoint[ip].w ) < min_length )
+	double dist = fabs( fEndPoint[ip].w - fStartPoint[ip].w );
+	if(dist < min_length)
 	  {
-	    min_length=fabs( fEndPoint[ip].w - fStartPoint[ip].w );
-	    worst_plane=fPlaneID.at(ip);
+	    min_length  = dist;
+	    worst_plane = fPlaneID.at(ip);
 	  }
 
-	if(fabs( fEndPoint[ip].w - fStartPoint[ip].w ) > max_length )
+	if(dist > max_length )
 	  {
-	    max_length=fabs( fEndPoint[ip].w - fStartPoint[ip].w );
-	    best_plane=fPlaneID.at(ip);
+	    max_length = dist;
+	    best_plane = fPlaneID.at(ip);
 	  }      
       }
     
@@ -120,7 +121,8 @@ namespace showerreco {
       {
 	int plane = fPlaneID.at(cl_index);
 	double newpitch=fGSer->PitchInView(plane,xphi,xtheta);
-	
+	if(plane == best_plane) max_length *= newpitch;
+
 	if(fVerbosity)
 	  std::cout << std::endl << " Plane: " << plane << std::endl;
 	
@@ -191,7 +193,7 @@ namespace showerreco {
 	   if(fVerbosity && dEdx_new >1.9 && dEdx_new <2.1)
 	    std::cout << "dEdx_new " << dEdx_new << " " <<dEdx_new/theHit.charge*newpitch << " "<< theHit.charge *0.0033*multiplier/newpitch << std::endl;
 	  
-	  ::util::PxPoint OnlinePoint; 
+	  util::PxPoint OnlinePoint; 
 	  // calculate the wire,time coordinates of the hit projection on to the 2D shower axis
 	  fGSer->GetPointOnLine(fOmega2D.at(cl_index),
 				&(fStartPoint.at(cl_index)),
@@ -349,6 +351,7 @@ namespace showerreco {
 
     result.set_total_MIPenergy(fMIPEnergy);
     result.set_total_best_plane(best_plane);
+    result.set_length(max_length);
     result.set_total_energy(fEnergy);
     //result.set_total_energy_err  (std::vector< Double_t > q)            { fSigmaTotalEnergy = q;        }
     
