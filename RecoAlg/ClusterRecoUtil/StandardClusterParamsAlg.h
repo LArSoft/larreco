@@ -54,8 +54,10 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * 
      * Hits are translated into our own internal format.
-     * The original hits are not used afterward, and can disappear.
-     * This method calls Clear() at the beginning.
+     * The original hits are not used afterward, and their distruction will not
+     * affect this object.
+     * This method calls Clear() at the beginning (although the protocol does
+     * not requires it).
      */
     virtual void SetHits(std::vector<recob::Hit const*> const& hits) override;
     

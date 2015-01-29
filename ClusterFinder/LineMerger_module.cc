@@ -48,7 +48,7 @@
 
 
 namespace cluster {
-   
+  
   class LineMerger : public art::EDProducer {
     
   public:
@@ -84,7 +84,315 @@ namespace cluster {
 
 
 namespace cluster{
-
+  
+  
+  /// Class merging clusters: recomputes start and end position and hit list
+  class ClusterMerger {
+      public:
+    // NOTE if you feel like copying this class, move it into its own header
+    // instead, and if you need it for a different hit or hit pointer, make it
+    // a template instead
+    using HitPtr_t = art::Ptr<recob::Hit>; ///< type of pointer to hits
+    using HitVector_t = std::vector<HitPtr_t>; ///< vector of pointers to hits
+    
+    using ID_t = recob::Cluster::ID_t ; ///< Type of cluster ID
+    using ClusterEnds_t = recob::Cluster::ClusterEnds_t;
+    
+    /*
+      typedef enum {
+        clStart,       ///< Represents the most likely start of the cluster
+        clEnd,         ///< Represents the end, or the alternative start, of the cluster
+        NEnds,         ///< End count
+        clFirstEnd = 0 ///< Just an alias for loops
+      } ClusterEnds_t; ///< Used to decide which end to use
+    */
+    
+    ClusterMerger() = default;
+    
+    ClusterMerger(recob::Cluster const& cluster):
+      ClusterMerger()
+      { Add(cluster); }
+    
+    /**
+     * @brief Merges a single cluster into this object
+     * @param cluster the cluster to be merged
+     * @return whether the addition was successful
+     * 
+     * The two ends of the cluster are merged into this one, that gets extended.
+     * 
+     * The new cluster must have the same view as the prevopus ones and must lay
+     * on the same plane.
+     * If the new cluster has invalid plane, the current one is kept; if the
+     * current plane is invalid, it is overwritten (that means that if both are
+     * invalid, the merged cluster will also have an invalid plane).
+     * 
+     * Note that this code is crap unless the cluster is track-like.
+     */
+    bool Add(recob::Cluster const& cluster);
+    
+    
+    /// @{
+    /// @name Accessors
+    
+    /// Returns the wire coordinate of the start of the cluster
+    float StartWire() const { return fEndWires[ClusterEnds_t::clStart]; }
+    
+    /// Returns the tick coordinate of the start of the cluster
+    float StartTick() const { return fEndTicks[ClusterEnds_t::clStart]; }
+    
+    /// Returns the uncertainty on wire coordinate of the start of the cluster
+    float SigmaStartWire() const { return fSigmaEndWires[ClusterEnds_t::clStart]; }
+    
+    // Returns the uncertainty on tick coordinate of the start of the cluster
+    float SigmaStartTick() const { return fSigmaEndTicks[ClusterEnds_t::clStart]; }
+    
+    /// Returns the wire coordinate of the end of the cluster
+    float EndWire() const { return fEndWires[ClusterEnds_t::clEnd]; }
+    
+    /// Returns the tick coordinate of the end of the cluster
+    float EndTick() const { return fEndTicks[ClusterEnds_t::clEnd]; }
+    
+    /// Returns the uncertainty on wire coordinate of the end of the cluster
+    float SigmaEndWire() const { return fSigmaEndWires[ClusterEnds_t::clEnd]; }
+    
+    /// Returns the uncertainty on tick coordinate of the end of the cluster
+    float SigmaEndTick() const { return fSigmaEndTicks[ClusterEnds_t::clEnd]; }
+    
+    /// Returns the wire coordinate of one of the end sides of the cluster
+    float WireCoord(ClusterEnds_t side) const { return fEndWires[side]; }
+  //  float WireCoord(unsigned int side) const { return fEndWires[side]; }
+    
+    /// Returns the tick coordinate of one of the end sides of the cluster
+    float TickCoord(ClusterEnds_t side) const { return fEndTicks[side]; }
+  //  float TickCoord(unsigned int side) const { return fEndTicks[side]; }
+    
+    /// Returns the uncertainty on wire coordinate of one of the end sides of the cluster
+    float SigmaWireCoord(ClusterEnds_t side) const { return fSigmaEndWires[side]; }
+  //  float SigmaWireCoord(unsigned int side) const { return fSigmaEndWires[side]; }
+    
+    /// Returns the uncertainty on tick coordinate of one of the end sides of the cluster
+    float SigmaTickCoord(ClusterEnds_t side) const { return fSigmaEndTicks[side]; }
+  //  float SigmaTickCoord(unsigned int side) const { return fSigmaEndTicks[side]; }
+    
+    
+    /// Returns the charge on the first wire of the cluster
+    float StartCharge() const { return fEndCharges[ClusterEnds_t::clStart]; }
+    
+    /// Returns the starting angle of the cluster
+    float StartAngle() const { return fAngles[ClusterEnds_t::clStart]; }
+    
+    /// Returns the opening angle at the start of the cluster
+    float StartOpeningAngle() const { return fOpeningAngles[ClusterEnds_t::clStart]; }
+    
+    /// Returns the charge on the last wire of the cluster
+    float EndCharge() const { return fEndCharges[ClusterEnds_t::clEnd]; }
+    
+    /// Returns the ending angle of the cluster
+    float EndAngle() const { return fAngles[ClusterEnds_t::clEnd]; }
+    
+    /// Returns the opening angle at the end of the cluster
+    float EndOpeningAngle() const { return fOpeningAngles[ClusterEnds_t::clEnd]; }
+    
+    /// Returns the charge on the first or last wire of the cluster
+    float EdgeCharge(ClusterEnds_t side) const { return fEndCharges[side]; }
+  //  float EdgeCharge(unsigned int side) const { return fEndCharges[side]; }
+    
+    /// Returns the angle at either end of the cluster
+    float Angle(ClusterEnds_t side) const { return fAngles[side]; }
+  //  float Angle(unsigned int side) const { return fAngles[side]; }
+    
+    /// Returns the opening angle at either end of the cluster
+    float OpeningAngle(ClusterEnds_t side) const { return fOpeningAngles[side]; }
+  //  float OpeningAngle(unsigned int side) const { return fOpeningAngles[side]; }
+    
+    
+    /// A measure of the cluster width, in homogenized units.
+    float Width() const { return fWidth; }
+    
+    /// Returns the view for this cluster
+    geo::View_t View() const { return fView; }
+    
+    /// Returns the plane ID this cluster lies on
+    geo::PlaneID Plane() const { return fPlaneID; }
+    
+    /// Returns whether geometry plane is valid
+    bool hasPlane() const { return Plane().isValid; }
+    
+    
+      protected:
+    
+    /// Data referring to start and end of the cluster
+    float fEndWires[ClusterEnds_t::NEnds];
+      
+    /// Uncertainty on wire coordinate of the start and end of the cluster
+    float fSigmaEndWires[ClusterEnds_t::NEnds];
+    
+    /// Tick coordinate of the start and end of the cluster
+    float fEndTicks[ClusterEnds_t::NEnds];
+    
+    /// Uncertainty on tick coordinate of the start and end of the cluster
+    float fSigmaEndTicks[ClusterEnds_t::NEnds];
+    
+    /// Charge on the start and end wire of the cluster.
+    float fEndCharges[ClusterEnds_t::NEnds];
+    
+    /// Angle of the start and end of the cluster, defined in [-pi,pi]
+    float fAngles[ClusterEnds_t::NEnds];
+    
+    /// Opening angle of the cluster shape at the start and end of the cluster.
+    float fOpeningAngles[ClusterEnds_t::NEnds];
+    
+    /// Number of wires covered by the cluster, divided by the number of hits
+    /// in the cluster.
+    float fNWiresOverNHits;
+    
+    /// A measure of the cluster width, in homogenized units.
+    float fWidth;
+    
+    geo::View_t fView; ///< View for this cluster
+    
+    geo::PlaneID fPlaneID; ///< Location of the start of the cluster
+    
+    unsigned int n_clusters = 0; ///< number of clusters added so far
+    
+    /// Imports all the member of the corresponding end
+    void AdoptEnd(recob::Cluster const& cluster, ClusterEnds_t iEnd);
+    
+    template <typename T>
+    static void top(T& var, T value) { if (value > var) var = value; }
+    template <typename T>
+    static void bot(T& var, T value) { if (value < var) var = value; }
+  }; // class ClusterMerger
+  
+  void ClusterMerger::AdoptEnd
+    (recob::Cluster const& cluster, ClusterEnds_t iSrcEnd)
+  {
+    const ClusterEnds_t iDestEnd = iSrcEnd;
+    fEndWires[iDestEnd]      = cluster.WireCoord(iSrcEnd);
+    fSigmaEndWires[iDestEnd] = cluster.SigmaWireCoord(iSrcEnd);
+    fEndTicks[iDestEnd]      = cluster.TickCoord(iSrcEnd);
+    fSigmaEndTicks[iDestEnd] = cluster.SigmaTickCoord(iSrcEnd);
+    fEndCharges[iDestEnd]    = cluster.EdgeCharge(iSrcEnd);
+    fAngles[iDestEnd]        = cluster.Angle(iSrcEnd);
+    fOpeningAngles[iDestEnd] = cluster.OpeningAngle(iSrcEnd);
+  } // ClusterMerger::AdoptEnd()
+  
+  bool ClusterMerger::Add(recob::Cluster const& cluster) {
+    if (!cluster.isValid()) return false;
+    
+    if (n_clusters == 0) { // special case: we are still empty
+      AdoptEnd(cluster, ClusterEnds_t::clStart);
+      AdoptEnd(cluster, ClusterEnds_t::clEnd);
+      fWidth           = cluster.Width();
+      fView            = cluster.View();
+      fPlaneID         = cluster.Plane();
+      ++n_clusters;
+      return true;
+    } // if empty
+    
+    if (cluster.View() != View()) return false;
+    
+    if (cluster.hasPlane() && hasPlane() && (cluster.Plane() != Plane()))
+      return false;
+    
+    // this code has been moved here from the old recon::Cluster::operator+
+    // of recob::Cluster v13.
+    if (cluster.StartWire() < StartWire()) { // adopt the new start
+      AdoptEnd(cluster, ClusterEnds_t::clStart);
+    }
+    if (cluster.EndWire() < EndWire()) { // adopt the new end
+      AdoptEnd(cluster, ClusterEnds_t::clEnd);
+    }
+    
+    top(fWidth, cluster.Width()); // extend width
+    
+    if (!hasPlane()) fPlaneID = cluster.Plane();
+    
+    return true;
+  } // ClusterMerger::Add(Cluster)
+  
+  
+  /// Class merging clusters: recomputes start and end position and hit list
+  class ClusterAndHitMerger: public ClusterMerger {
+      public:
+    // NOTE if you feel like copying this class, move it into its own header
+    // instead, and if you need it for a different hit or hit pointer, make it
+    // a template instead
+    using HitPtr_t = art::Ptr<recob::Hit>; ///< type of pointer to hits
+    using HitVector_t = std::vector<HitPtr_t>; ///< vector of pointers to hits
+    
+    ClusterAndHitMerger() = default;
+    
+    ClusterAndHitMerger
+      (recob::Cluster const& cluster, HitVector_t const& cluster_hits)
+      { Add(cluster, cluster_hits); }
+    
+    /**
+     * @brief Merges a single cluster into this object
+     * @param cluster the cluster to be merged
+     * @param cluster_hits the list of hits in this cluster
+     * @param prepend if true, hits are inserted at the beginning of the list
+     * @return whether the addition was successful
+     * @see ClusterMerger::Add()
+     * 
+     * The two ends of the cluster are merged into this one, that gets extended.
+     * Hit lists are merged too: no check on existing hits nor double addition.
+     * 
+     * Note that this code is crap unless the cluster is track-like.
+     */
+    bool Add(
+      recob::Cluster const& cluster, HitVector_t const& cluster_hits,
+      bool prepend = false
+      );
+    
+    /// @{
+    /// @name Accessors
+    
+    /// Returns a constant reference to the current list of hits
+    HitVector_t const& Hits() const { return hits; }
+    
+    /// Number of hits in the cluster
+    unsigned int NHits() const { return hits.size(); }
+    
+    /// Number of wires covered by the cluster, divided by the number of hits
+    /// in the cluster.
+    float WiresOverHits() const
+      { throw std::runtime_error("ClusterMerger::WiresOverHits() not implemented"); }
+    
+    ///@}
+    
+      protected:
+    
+    HitVector_t hits; ///< hits in the cluster
+    
+    /// Number of wires covered by the cluster, divided by the number of hits
+    /// in the cluster.
+    float fNWiresOverNHits;
+    
+    void AddHits(HitVector_t const& cluster_hits, bool prepend)
+      {
+        hits.insert(prepend? hits.begin(): hits.end(),
+          cluster_hits.begin(), cluster_hits.end());
+      } // AddHits()
+    
+  }; // class ClusterAndHitMerger
+  
+  bool ClusterAndHitMerger::Add(
+    recob::Cluster const& cluster, HitVector_t const& cluster_hits,
+    bool prepend /* = false */
+  ) {
+    if (!ClusterMerger::Add(cluster)) return false;
+    if (n_clusters == 1) { // just added
+      fNWiresOverNHits = cluster.WiresOverHits();
+      return true;
+    }
+    
+    // fNWiresOverNHits?? TODO
+    AddHits(cluster_hits, prepend);
+    return true;
+  } // ClusterAndHitMerger::Add()
+  
+  
   //-------------------------------------------------
   LineMerger::LineMerger(fhicl::ParameterSet const& pset) 
     : fClusterModuleLabel(pset.get<std::string>("ClusterModuleLabel"))
@@ -168,11 +476,12 @@ namespace cluster{
         }
 
         // make a new cluster to put into the SuperClusters collection 
-        // because we want to be able to adjust it later
-        recob::Cluster cl1( clusterVecHandle->at(ClsIndices[i][c]) ); 
-        
-        // find the hits associated with the current cluster
-        std::vector< art::Ptr<recob::Hit> > ptrvs = fmh.at(ClsIndices[i][c]); // copy
+        // because we want to be able to adjust it later;
+        // use the hits associated with the current cluster
+        recob::Cluster const& StartingCluster
+          = clusterVecHandle->at(ClsIndices[i][c]);
+        ClusterAndHitMerger cl1(StartingCluster, fmh.at(ClsIndices[i][c]));
+        const recob::Cluster::ID_t clusterID = StartingCluster.ID();
 
         Cls_matches[i][clsnum1] = 1; 
         ++clustersfound;
@@ -187,8 +496,6 @@ namespace cluster{
 
           const recob::Cluster& cl2( clusterVecHandle->at(ClsIndices[i][c2]) );
 
-          // find the hits associated with this second cluster
-          std::vector< art::Ptr<recob::Hit> > ptrvs2 = fmh.at(ClsIndices[i][c2]); // copy
           
           // check that the slopes are the same
           // added 13.5 ticks/wirelength in ArgoNeuT. 
@@ -209,18 +516,13 @@ namespace cluster{
           // if the slopes and end points are the same, combine the clusters
           // note that after 1 combination cl1 is no longer what we started 
           // with
-          if(sameSlope && sameEndpoint){
-            cl1 = cl1 + cl2;
-            Cls_matches[i][clsnum2] = 1;
-
-            // combine the hit collections
+          if(sameSlope && (sameEndpoint != 0)) {
+            // combine the hit collections too
+            // (find the hits associated with this second cluster);
             // take into account order when merging hits from two clusters: doc-1776
-            if (sameEndpoint == 1)
-              ptrvs.insert(ptrvs.begin(), ptrvs2.begin(), ptrvs2.end());
-            else if (sameEndpoint == -1){
-              ptrvs2.insert(ptrvs2.begin(), ptrvs.begin(), ptrvs.end());
-              ptrvs = std::move(ptrvs2);
-            }
+            // if sameEndpoint is 1, the new hits come first
+            cl1.Add(cl2, fmh.at(ClsIndices[i][c2]), sameEndpoint == 1);
+            Cls_matches[i][clsnum2] = 1;
           }
           
           ++clsnum2;
@@ -228,8 +530,38 @@ namespace cluster{
 
         // now add the final version of cl1 to the collection of SuperClusters
         // and create the association between the super cluster and the hits
-        SuperClusters->push_back(std::move(cl1));
-        util::CreateAssn(*this, evt, *(SuperClusters.get()), ptrvs, *(assn.get()));        
+        ClusterParamAlgo.ImportHits(cl1.Hits());
+        
+        // create the recob::Cluster directly in the vector
+        SuperClusters->emplace_back(
+          cl1.StartWire(),                            // start_wire
+          cl1.SigmaStartWire(),                       // sigma_start_wire
+          cl1.StartTick(),                            // start_tick
+          cl1.SigmaStartTick(),                       // sigma_start_tick
+          cl1.StartCharge(),                          // start_charge
+          cl1.StartAngle(),                           // start_angle
+          cl1.StartOpeningAngle(),                    // start_opening
+          cl1.EndWire(),                              // end_wire
+          cl1.SigmaEndWire(),                         // sigma_end_wire
+          cl1.EndTick(),                              // end_time
+          cl1.SigmaEndTick(),                         // sigma_end_tick
+          cl1.EndCharge(),                            // end_charge
+          cl1.EndAngle(),                             // end_angle
+          cl1.EndOpeningAngle(),                      // end_opening
+          ClusterParamAlgo.Integral().value(),        // integral
+          ClusterParamAlgo.IntegralStdDev().value(),  // integral_stddev
+          ClusterParamAlgo.SummedADC().value(),       // summedADC
+          ClusterParamAlgo.SummedADCStdDev().value(), // summedADC_stddev
+          ClusterParamAlgo.NHits(),                   // n_hits
+          ClusterParamAlgo.NWiresOverNHits(),         // wires_over_hits
+          cl1.Width(),                                // width
+          clusterID,                                  // ID
+          cl1.View(),                                 // view
+          cl1.Plane(),                                // planeID
+          recob::Cluster::Sentry                      // sentry
+          );
+        
+        util::CreateAssn(*this, evt, *(SuperClusters.get()), cl1.Hits(), *(assn.get()));
         ++clsnum1;
 
       }// end loop over first cluster iterator
