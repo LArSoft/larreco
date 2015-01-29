@@ -30,10 +30,5 @@ microboone_houghlinefinderana:           @local::standard_houghlinefinderana
 microboone_linemerger:                   @local::standard_linemerger        
 microboone_endpointmod:                  @local::standard_endpointmod       
 microboone_endpointmod.EndPointAlg:      @local::microboone_endpointalg
-microboone_showeranglecluster:           @local::standard_showeranglecluster
-microboone_showeranglecluster.ClusterMatchAlg:          @local::microboone_clustermatchalg
-microboone_showeranglecluster.ClusterMergeAlg:          @local::microboone_clustermergealg
-microboone_showerangleclusterana:           @local::standard_showerangleclusterana
-microboone_showerangleclusterana.ClusterParamsAlg:           @local::microboone_clusterparamsalg
 microboone_smallclusterfinder:			 @local::standard_smallclusterfinder
 END_PROLOG
