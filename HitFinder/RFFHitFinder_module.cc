@@ -633,9 +633,7 @@ void RFFHitFinder::produce(art::Event& evt)
           solutions.size(),                              // multiplicity
           i,                                             // local_index
           -999,                                          // goodness_of_fit
-          -999,                                          // dof
-          std::vector<float>                             // signal
-            (signal.begin() + (int) startT, signal.begin() + (int) endT)
+          -999                                           // dof
           );
         
         // get the object associated with the original hit
