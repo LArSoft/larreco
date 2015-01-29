@@ -363,9 +363,7 @@ namespace hit {
 	  1,                // multiplicity FIXME
 	  -1,               // local_index FIXME
 	  goodnessOfFit,    // goodness_of_fit
-	  int(end - start), // dof
-	  std::vector<float> // signal
-	    (holder.begin() + (int) start, holder.begin() + (int) end)
+	  int(end - start)  // dof
 	  );
 	hcol.emplace_back(hit.move(), digitVec);
 	

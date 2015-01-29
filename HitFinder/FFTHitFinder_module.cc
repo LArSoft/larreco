@@ -373,9 +373,7 @@ namespace hit{
 	      -1,             // local_index
 	                      /// \todo - multiplicity and local_index have to be determined
 	      goodnessOfFit,  // goodness_of_fit
-	      DoF,            // dof
-	      std::vector<float>  // signal
-	        (signal.begin() + (int) startT, signal.begin() + (int) endT)
+	      DoF             // dof
 	      );
 	    
 	    // get the object associated with the original hit

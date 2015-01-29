@@ -143,7 +143,7 @@ namespace cluster{
     std::map< eveLoc, std::vector< art::Ptr<recob::Hit> > > eveHitMap;
 
     // loop over all hits and fill in the map
-    for( auto const& itr : hits ){
+    for( auto const& itr : hits ){ 
 
       std::vector<sim::TrackIDE> eveides = bt->HitToEveID(itr);
 
