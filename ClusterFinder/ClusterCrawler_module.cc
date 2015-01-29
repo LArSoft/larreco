@@ -39,6 +39,8 @@
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
 //#include "RecoAlg/CCHitRefinerAlg.h"
+#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterParamsImportWrapper.h"
 
 
 namespace cluster {
@@ -123,6 +125,11 @@ namespace cluster {
     recob::HitCollectionCreator shcol(*this, evt);
     std::vector<recob::Cluster> sccol;
 
+    // prepare the algorithm to compute the cluster characteristics;
+    // we use the "standard" one here; configuration would happen here,
+    // but we are using the default configuration for that algorithm
+    ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
+    
     // learn from the algorithm which wires it used,
     // and get both wires and their association with raw digits
     std::string WireCreatorModuleLabel = fCCHFAlg.CalDataModuleLabel();
@@ -193,7 +200,6 @@ namespace cluster {
       // get the view from a hit on the cluster
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[clstr.tclhits[0]];
       art::Ptr<recob::Wire> theWire = theHit.Wire;
-      raw::ChannelID_t channel = theWire->Channel();
       
       // Stuff 2D vertex info into unused Cluster variables to help
       // associate the Begin cluster - vertex 2D and End cluster - vertex 2D
@@ -238,8 +244,16 @@ namespace cluster {
         } // iv3
       } // clstr.EndVtx >= 0
       
-      // create the recob::Cluster directly in the vector
-      sccol.emplace_back((double)clstr.BeginWir, clBeginEP2Index,
+      // feed the algorithm with all the cluster hits
+      // (they are still in the HitCollectionCreator, but we can peek at them)
+      ClusterParamAlgo.ImportHits(shcol.peek());
+      
+      // create the recob::Cluster directly in the vector;
+      // the value of some of the quantities is defined by the track-like nature
+      // imposed on the cluster by the algorithm.
+      sccol.emplace_back(
+      /* FIXME this is the old code
+                         (double)clstr.BeginWir, clBeginEP2Index,
                          (double)clstr.BeginTim, clBeginVtxIndex,
                          (double)clstr.EndWir, clEndEP2Index,
                          (double)clstr.EndTim, clEndVtxIndex,
@@ -250,7 +264,33 @@ namespace cluster {
                          nclus,
                          planeID
 //                         ClusterCrawlerAlg::DecodeCTP(clstr.CTP)
-                         );
+        */
+        (float) clstr.BeginWir,                    // start_wire
+        0.5,                                       // sigma_start_wire FIXME
+        clstr.BeginTim,                            // start_time
+        0.0,                                       // sigma_start_tick FIXME
+        ClusterParamAlgo.StartCharge().value(),    // start_charge     FIXME
+        ClusterParamAlgo.StartAngle().value(),     // start_angle      FIXME
+        0.,                                        // start_opening (by definition)
+        (float) clstr.EndWir,                      // end_wire
+        0.5,                                       // sigma_end_wire   FIXME
+        clstr.EndTim,                              // end_time
+        0.0,                                       // sigma_end_tick   FIXME
+        ClusterParamAlgo.EndCharge().value(),      // end_charge       FIXME
+        ClusterParamAlgo.EndAngle().value(),       // end_angle        FIXME
+        0.,                                        // end_opening (by definition)
+        ClusterParamAlgo.Integral().value(),       // integral
+        ClusterParamAlgo.IntegralStdDev().value(), // integral_stddev
+        ClusterParamAlgo.SummedADC().value(),      // summedADC
+        ClusterParamAlgo.SummedADCStdDev().value(),// summedADC_stddev
+        ClusterParamAlgo.NHits(),                  // n_hits
+        ClusterParamAlgo.NWiresOverNHits(),        // wires_over_hits
+        0.,                                        // width (by definition)
+        nclus,                                     // ID
+        theWire->View(),                           // view
+        planeID,                                   // planeID
+        recob::Cluster::Sentry                     // sentry
+        );
       
       // associate the hits to this cluster
       util::CreateAssn(*this, evt, sccol, shcol.peek(), *hc_assn, firsthit, hitcnt);
