@@ -134,17 +134,18 @@ namespace cluster {
     // put clusters and hits into std::vectors
     unsigned short nclus = 0;
     unsigned short hitcnt = 0;
+    unsigned short icl, firsthit, itt, iht;
     double qtot;
-    for(unsigned short icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
+    for(icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
       ClusterCrawlerAlg::ClusterStore clstr = fCCAlg.tcl[icl];
       if(clstr.ID < 0) continue;
       // start cluster numbering at 1
       ++nclus;
       qtot = 0;
       // make the hits on this cluster
-      unsigned short firsthit = hitcnt;
-      for(unsigned short itt = 0; itt < clstr.tclhits.size(); ++itt) {
-        unsigned short iht = clstr.tclhits[itt];
+      firsthit = hitcnt;
+      for(itt = 0; itt < clstr.tclhits.size(); ++itt) {
+        iht = clstr.tclhits[itt];
         if(iht > fCCHFAlg.allhits.size() - 1) {
           mf::LogError("ClusterCrawler")<<"Bad hit index "<<iht;
           return;
@@ -166,12 +167,11 @@ namespace cluster {
           mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<theWire<<" "<<channel;
           return;
         }
-        
         recob::HitCreator hit(
           *theWire,                  // wire reference
           wids[0],                   // wire ID
-          theHit.LoTime,             // start_tick TODO check
-          theHit.HiTime,             // end_tick TODO check
+          theHit.LoTime,             // start_tick 
+          theHit.HiTime,             // end_tick 
           theHit.RMS,                // rms
           theHit.Time,               // peak_time
           theHit.TimeErr,            // sigma_peak_time
@@ -179,9 +179,9 @@ namespace cluster {
           theHit.AmplitudeErr,       // sigma_peak_amplitude
           theHit.Charge,             // hit_integral
           theHit.ChargeErr,          // hit_sigma_integral
-          0.,                        // summedADC FIXME
+          theHit.ADCSum,             // summed ADC
           theHit.numHits,            // multiplicity
-          -1,                        // local_index FIXME
+          iht - theHit.LoHitID,      // local_index
           theHit.ChiDOF,             // goodness_of_fit
           theHit.DOF,                // dof
           std::vector<float>()       // signal FIXME
@@ -258,7 +258,7 @@ namespace cluster {
     
     // make hits that are not associated with any cluster
     hitcnt = 0;
-    for(unsigned short iht = 0; iht < fCCHFAlg.allhits.size(); ++iht) {
+    for(iht = 0; iht < fCCHFAlg.allhits.size(); ++iht) {
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[iht];
       // obsolete or used hit?
       if(theHit.InClus != 0) continue;
@@ -275,8 +275,8 @@ namespace cluster {
       recob::HitCreator hit(
         *theWire,                  // wire reference
         wids[0],                   // wire ID
-        theHit.LoTime,             // start_tick TODO check
-        theHit.HiTime,             // end_tick TODO check
+        theHit.LoTime,             // start_tick
+        theHit.HiTime,             // end_tick
         theHit.RMS,                // rms
         theHit.Time,               // peak_time
         theHit.TimeErr,            // sigma_peak_time
@@ -284,9 +284,9 @@ namespace cluster {
         theHit.AmplitudeErr,       // sigma_peak_amplitude
         theHit.Charge,             // hit_integral
         theHit.ChargeErr,          // hit_sigma_integral
-        0.,                        // summedADC FIXME
+        theHit.ADCSum,             // summedADC FIXME
         theHit.numHits,            // multiplicity
-        -1,                        // local_index FIXME
+        iht - theHit.LoHitID,      // local_index FIXME
         theHit.ChiDOF,             // goodness_of_fit
         theHit.DOF,                // dof
         std::vector<float>()       // signal FIXME

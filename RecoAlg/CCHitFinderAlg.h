@@ -42,6 +42,7 @@ namespace cluster {
       float RMSErr;
       float ChiDOF;
       int   DOF;
+      float ADCSum;
       art::Ptr<recob::Wire> Wire;
       unsigned short WireNum;
       unsigned short numHits;
@@ -123,7 +124,7 @@ namespace cluster {
     void MakeCrudeHit(unsigned short npt, float *ticks, float *signl);
     // store the hits
     void StoreHits(unsigned short TStart, unsigned short npt, 
-      art::Ptr<recob::Wire>& theWire);
+      art::Ptr<recob::Wire>& theWire, float adcsum);
 /*
     // study hit finding and fitting
     void StudyHits(unsigned short flag, unsigned short npt = 0,
