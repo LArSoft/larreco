@@ -202,16 +202,16 @@ namespace trkf{
 	
       }
     
-    // Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
+    Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
     
-    // if ( check0!=0 ) return -1.0;
-    
+    if ( check0!=0 ) return -1.0;
+        
     seg_size = steps_size;
     
     Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
     
     if ( check1!=0 ) return -1.0;
-    
+        
     Int_t seg_steps = segx.size();
     
     Int_t seg_steps0 = seg_steps-1;
@@ -230,7 +230,7 @@ namespace trkf{
 	
 	GetDeltaThetaRMS( mean, rms, rmse, trial );
 	
-	cout << mean << ",  " << rms << ", " << rmse << ", " << trial << endl;
+	// cout << mean << ",  " << rms << ", " << rmse << ", " << trial << endl;
     
 	xmeas[ nmeas ] = trial;
     
@@ -401,13 +401,17 @@ namespace trkf{
     Int_t ntot = 0; 
     
     n_seg = 0;
-        
-    Double_t x0 = xxx.at( 0 ); Double_t y0 = yyy.at( 0 ); Double_t z0 = zzz.at( 0 );
             
+    Double_t x0 = xxx.at( 0 ); Double_t y0 = yyy.at( 0 ); Double_t z0 = zzz.at( 0 );
+    
+    segx.push_back( x0 ); segy.push_back( y0 ); segz.push_back( z0 );
+    
+    segL.push_back( 0.0 ); n_seg++;
+    
     std::vector<Float_t> vx; std::vector<Float_t> vy; std::vector<Float_t> vz;
     
     vx.clear(); vy.clear(); vz.clear();
-    
+            
     for ( Int_t i=0; i<a4; i++ )
       {
 	Double_t x1 = xxx.at( i ); Double_t y1 = yyy.at( i );	Double_t z1 = zzz.at( i );
@@ -420,12 +424,12 @@ namespace trkf{
 	
 	if ( dr1<seg_size )
 	  {
-	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
+	    vx.push_back( x1 ); vy.push_back( y1 ); vz.push_back( z1 );
 	    
 	    ntot++;
     
 	  }
-	
+		
 	if ( dr1<seg_size && dr2>seg_size )
 	  {
 	    Double_t t = 0.0;
@@ -434,7 +438,7 @@ namespace trkf{
 	    
 	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
 	    
-	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; getchar(); }
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; return -1.0; }
 	    
 	    Double_t beta = 2.0*( (x1-x0)*dx+(y1-y0)*dy+(z1-z0)*dz )/( dr*dr );
 	    	    
@@ -561,9 +565,9 @@ namespace trkf{
 	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
 	    
 	    ntot++;
-	    	    
+	    
 	  }
-	
+		
 	else if ( dr1>=seg_size )
 	  {
 	    Double_t t = 0.0;
@@ -693,7 +697,7 @@ namespace trkf{
 	    ntot++;
 	    	    	    
 	  }
-	
+		
 	if ( n_seg>=( stopper+1.0 ) && seg_stop!=-1 ) break;
 	
       }
