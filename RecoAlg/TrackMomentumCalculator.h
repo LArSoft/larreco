@@ -63,6 +63,8 @@ namespace trkf{
   
     std::vector<Float_t> segnx; std::vector<Float_t> segny; std::vector<Float_t> segnz;
     
+    std::vector<Float_t> segL;
+    
     Double_t find_angle( Double_t vz, Double_t vy );
     
     Float_t steps_size; Int_t n_steps; std::vector<Float_t> steps;
@@ -80,7 +82,7 @@ namespace trkf{
     
     TPolyLine3D *gr_xyz; TGraph *gr_xy; TGraph *gr_yz; TGraph *gr_xz; 
     
-    void GetTracks( std::vector<Float_t> &xxx, std::vector<Float_t> &yyy, std::vector<Float_t> &zzz );
+    Int_t GetTracks( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz );
         
     TPolyLine3D *gr_reco_xyz; TGraph *gr_reco_xy; TGraph *gr_reco_yz; TGraph *gr_reco_xz; 
     

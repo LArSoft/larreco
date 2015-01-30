@@ -48,7 +48,7 @@ namespace trkf{
   
   TrackMomentumCalculator::TrackMomentumCalculator()
   {
-    steps_size = 5.0; n_steps = 9; for ( Int_t i=1; i<=n_steps; i++ ) { steps.push_back( steps_size*i ); }
+    n = 0;
     
     n_reco = 0;
     
@@ -57,6 +57,8 @@ namespace trkf{
     gr_reco_xyz = new TPolyLine3D(); gr_reco_xy = new TGraph(); gr_reco_yz = new TGraph(); gr_reco_xz = new TGraph(); 
     
     gr_seg_xyz = new TPolyLine3D(); gr_seg_xy = new TGraph(); gr_seg_yz = new TGraph(); gr_seg_xz = new TGraph(); 
+    
+    steps_size = 5.0; n_steps = 9; for ( Int_t i=1; i<=n_steps; i++ ) { steps.push_back( steps_size*i ); }
     
     basex.SetXYZ( 1.0, 0.0, 0.0 ); basey.SetXYZ( 0.0, 1.0, 0.0 ); basez.SetXYZ( 0.0, 0.0, 1.0 ); 
     	 
@@ -274,7 +276,7 @@ namespace trkf{
     
     mP->SetLimitedVariable( 0, "p_{MCS}", 1.0, 0.001, 0.001, 7.5 ); 
     
-    mP->SetLimitedVariable( 1, "#delta#theta", 0.0, 1.0, 0, 60.0 );
+    mP->SetLimitedVariable( 1, "#delta#theta", 0.0, 1.0, 0, 45.0 );
 	 
     mP->SetMaxFunctionCalls( 1.E9 );
     
@@ -309,6 +311,40 @@ namespace trkf{
     delete mP;
         
     return p;
+    
+  }
+  
+  Int_t TrackMomentumCalculator::GetTracks( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz )
+  {
+    Int_t a1 = xxx.size(); Int_t a2 = yyy.size(); Int_t a3 = zzz.size();
+    
+    if ( ( a1!=a2 ) || ( a1!=a3 ) || ( a2!=a3 ) ) { cout << " ( Get tracks ) Error ! " << endl; return -1; }
+    
+    n = 0;
+    
+    for ( Int_t i=0; i<a1; i++ )
+      {
+	Double_t nowx = xxx.at( i ); 
+	
+	Double_t nowy = yyy.at( i ); 
+	
+	Double_t nowz = zzz.at( i ); 
+	
+	x[n] = nowx;
+	
+	y[n] = nowy;
+	
+	z[n] = nowz;
+	
+	n++;
+	
+      }
+    
+    gr_xyz = new TPolyLine3D( n, z, x, y );
+    
+    gr_yz = new TGraph( n, z, y ); gr_xz = new TGraph( n, z, x ); gr_xy = new TGraph( n, x, y );
+    
+    return 0;
     
   }
   
@@ -355,26 +391,24 @@ namespace trkf{
     Int_t stopper = seg_stop / seg_size; 
     	  
     Int_t a4 = a1-1;
+    
+    segx.clear(); segy.clear(); segz.clear(); 
+    
+    segnx.clear(); segny.clear(); segnz.clear(); 
+    
+    segL.clear(); 
         
-    segx.clear(); segy.clear(); segz.clear(); segnx.clear(); segny.clear(); segnz.clear(); 
-        
-    Double_t x0 = xxx.at( 0 ); Double_t y0 = yyy.at( 0 ); Double_t z0 = zzz.at( 0 );
-    
-    segx.push_back( x0 ); segy.push_back( y0 ); segz.push_back( z0 );
-    
-    n_seg = 0; x_seg[ n_seg ] = x0; y_seg[ n_seg ] = y0; z_seg[ n_seg ] = z0;
-    
-    n_seg++;
-    
     Int_t ntot = 0; 
     
+    n_seg = 0;
+        
+    Double_t x0 = xxx.at( 0 ); Double_t y0 = yyy.at( 0 ); Double_t z0 = zzz.at( 0 );
+            
     std::vector<Float_t> vx; std::vector<Float_t> vy; std::vector<Float_t> vz;
     
-    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
-        
-    ntot++;
+    vx.clear(); vy.clear(); vz.clear();
     
-    for ( Int_t i=1; i<a4; i++ )
+    for ( Int_t i=0; i<a4; i++ )
       {
 	Double_t x1 = xxx.at( i ); Double_t y1 = yyy.at( i );	Double_t z1 = zzz.at( i );
 	
@@ -389,7 +423,7 @@ namespace trkf{
 	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
 	    
 	    ntot++;
-	    
+    
 	  }
 	
 	if ( dr1<seg_size && dr2>seg_size )
@@ -400,7 +434,7 @@ namespace trkf{
 	    
 	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
 	    
-	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; return -1; }
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; getchar(); }
 	    
 	    Double_t beta = 2.0*( (x1-x0)*dx+(y1-y0)*dy+(z1-z0)*dz )/( dr*dr );
 	    	    
@@ -408,7 +442,7 @@ namespace trkf{
 	    
 	    Double_t delta = beta*beta - 4.0*gamma;
 		
-	    if ( delta<0.0 ) { cout << " ( Discriminant ) Error ! " << endl; return -1; }
+	    if ( delta<0.0 ) { cout << " ( Discriminant ) Error ! " << endl; return -1.0; }
 		
 	    Double_t lysi1 = ( -beta+sqrt( delta ) )/2.0; 
 	    	    
@@ -419,8 +453,10 @@ namespace trkf{
 	    Double_t yp = y1+t*dy;
 	    
 	    Double_t zp = z1+t*dz;
-	    	    	    	    
+	    
 	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
+	    
+	    segL.push_back( 1.0*n_seg*1.0*seg_size );
 	    
 	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
 	    
@@ -493,7 +529,7 @@ namespace trkf{
 		if ( p1>max1 ) { max1=p1; ind1=i; }
 		
 	      }
-	    	    	    
+	    	    
 	    Double_t ax = eigenvec( 0, ind1 );
 	    
 	    Double_t ay = eigenvec( 1, ind1 ); 
@@ -536,7 +572,7 @@ namespace trkf{
 	    	    
 	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
 	    
-	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; return -1; }
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; return -1.0; }
 	    
 	    if ( dr!=0 ) t = seg_size/dr;
 	    	    	    
@@ -547,6 +583,8 @@ namespace trkf{
 	    Double_t zp = z0+t*dz;
 	    	    	    	    
 	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
+	    
+	    segL.push_back( 1.0*n_seg*1.0*seg_size );
 	    
 	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
 	    	    
@@ -653,26 +691,173 @@ namespace trkf{
 	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
 	    
 	    ntot++;
-	    
+	    	    	    
 	  }
 	
 	if ( n_seg>=( stopper+1.0 ) && seg_stop!=-1 ) break;
 	
       }
-    
+        
     gr_seg_xyz = new TPolyLine3D( n_seg, z_seg, x_seg, y_seg );
     
     gr_seg_yz = new TGraph( n_seg, z_seg, y_seg ); gr_seg_xz = new TGraph( n_seg, z_seg, x_seg ); gr_seg_xy = new TGraph( n_seg, x_seg, y_seg );
-    
+        
     return 0;
     
   }
   
   void TrackMomentumCalculator::GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick )
   {
-    mean = 0; rms = 0; rmse = 0; thick*=1.0;
+    Int_t a1 = segx.size(); Int_t a2 = segy.size(); Int_t a3 = segz.size();
+        
+    if ( ( a1!=a2 ) || ( a1!=a3 ) ) { cout << " ( Get RMS ) Error ! " << endl; return; }
     
-    cout << " ! " << endl;
+    mean = 0.0; rms = 0.0; rmse = 0.0; 
+    
+    Int_t tot = a1-1;
+    
+    Double_t thick1 = thick+0.12;
+    
+    vector<Float_t> buf0; buf0.clear();
+    
+    for ( Int_t i=0; i<tot; i++ )
+      {
+	Double_t dx = segnx.at( i ); Double_t dy = segny.at( i ); Double_t dz = segnz.at( i );
+	
+	TVector3 vec_z( dx, dy, dz ); 
+			
+	TVector3 vec_x; 
+	
+	TVector3 vec_y; 
+	
+	Double_t switcher = basex.Dot( vec_z ); 
+	
+	if ( switcher<=0.995 ) 
+	  {
+	    vec_y = vec_z.Cross( basex ); vec_y = vec_y.Unit();  
+	    
+	    vec_x = vec_y.Cross( vec_z );
+	    	    
+	  }
+	
+	else 
+	  {
+	    // cout << " It switched ! Isn't this lovely !!! " << endl; // getchar();
+	    
+	    vec_y = basez.Cross( vec_z ); vec_y = vec_y.Unit();  
+	    
+	    vec_x = vec_y.Cross( vec_z );
+	    	    	    
+	  }
+	
+	TVector3 Rx;
+	
+	Double_t ex = vec_x.Dot( basex ); Rx.SetX( ex );
+	
+	ex = vec_x.Dot( basey ); Rx.SetY( ex );
+	
+	ex = vec_x.Dot( basez ); Rx.SetZ( ex );
+	
+	TVector3 Ry;
+	
+	Double_t ey = vec_y.Dot( basex ); Ry.SetX( ey );
+  
+	ey = vec_y.Dot( basey ); Ry.SetY( ey );
+	
+	ey = vec_y.Dot( basez ); Ry.SetZ( ey );
+	
+	TVector3 Rz;
+	
+	Double_t ez = vec_z.Dot( basex ); Rz.SetX( ez );
+	
+	ez = vec_z.Dot( basey ); Rz.SetY( ez );
+	
+	ez = vec_z.Dot( basez ); Rz.SetZ( ez );
+		
+	Double_t refL = segL.at( i );
+	
+	for ( Int_t j=i; j<tot; j++ )
+	  {
+	    Double_t L1 = segL.at( j );
+	    
+	    Double_t L2 = segL.at( j+1 );
+	    	    	    
+	    Double_t dz1 = L1 - refL; 
+	    
+	    Double_t dz2 = L2 - refL; 
+	    
+	    if ( dz1<=thick1 && dz2>thick1 )
+	      {
+	        Double_t here_dx = segnx.at( j );
+		
+		Double_t here_dy = segny.at( j );
+		
+		Double_t here_dz = segnz.at( j );
+		
+		TVector3 here_vec; here_vec.SetXYZ( here_dx, here_dy, here_dz );
+						
+		TVector3 rot_here; rot_here.SetXYZ( Rx.Dot( here_vec ), Ry.Dot( here_vec ), Rz.Dot( here_vec ) );
+						
+		Double_t scx = rot_here.X(); 
+	    
+		Double_t scy = rot_here.Y();  
+		
+		Double_t scz = rot_here.Z();  
+		
+		Double_t azy = find_angle( scz, scy ); azy *= 1.0;
+		
+		Double_t azx = find_angle( scz, scx );
+		
+		Double_t ULim = 10000.0; Double_t LLim = -10000.0;
+		
+		// if ( azy<=ULim && azy>=LLim ) { buf0.push_back( azy ); } // hRMS->Fill( azy ); }
+		
+		if ( azx<=ULim && azx>=LLim ) { buf0.push_back( azx ); } // hRMS->Fill( azx ); }
+
+		// if ( azy<=ULim && azy>=LLim && azx<=ULim && azx>=LLim && thick==5.0 ) { hSCA->Fill( azx, azy ); }
+		
+		// i=j-1;
+		
+		break; // of course !
+		
+	      }
+	  }
+     
+      }
+    
+    Int_t nmeas = buf0.size(); Double_t nnn = 0.0;
+    
+    for ( Int_t i=0; i<nmeas; i++ ) { mean += buf0.at( i ); nnn++; } mean = mean/nnn;
+    
+    for ( Int_t i=0; i<nmeas; i++ ) rms += ( ( buf0.at( i ) )*( buf0.at( i ) ) );
+    
+    rms = rms/( nnn ); rms = sqrt( rms ); rmse = rms/sqrt( 2.0*tot );
+    
+    Double_t rms1 = rms;
+    
+    rms = 0.0;
+    
+    Double_t ntot1 = 0.0;
+    
+    Double_t lev1 = 2.50;
+ 
+    for ( Int_t i=0; i<nmeas; i++ ) 
+      {
+	Double_t amp = buf0.at( i );
+		
+	if ( amp<( mean+lev1*rms1 ) && amp>( mean-lev1*rms1 )  ) 
+	  {
+	    ntot1++;
+	    
+	    rms += ( amp*amp );
+	    
+	  }
+      
+      }
+    
+    rms = rms/( ntot1 ); rms = sqrt( rms ); rmse = rms/sqrt( 2.0*ntot1 );
+            
+    return;
     
   }
   
