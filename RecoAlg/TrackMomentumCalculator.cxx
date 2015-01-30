@@ -183,7 +183,7 @@ namespace trkf{
   
   // MultiScatter business ...
   
-  // Author: Leonidas N. Kalousis (August 2014)
+  // Author: Leonidas N. Kalousis (January 2015)
   
   // Email: kalousis@vt.edu
   
