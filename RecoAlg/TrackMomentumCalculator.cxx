@@ -672,6 +672,8 @@ namespace trkf{
   {
     mean = 0; rms = 0; rmse = 0; thick*=1.0;
     
+    cout << " ! " << endl;
+    
   }
   
   Double_t TrackMomentumCalculator::find_angle( Double_t vz, Double_t vy )
