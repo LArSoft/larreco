@@ -31,7 +31,9 @@
 #include "RecoAlg/RootMathFunctor.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
-#include "TVector3.h" 
+#include "TVector3.h"
+#include <math.h>
+#include <cmath>
 
 using namespace std;
 

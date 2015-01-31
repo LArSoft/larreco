@@ -40,6 +40,10 @@ double my_mcs_chi2( const double *x )
       
     }
   
+  result += 2.0/( 4.6 )*theta0; // *TMath::Log( 1.0/14.0 );
+  
+  if ( isnan( float(result) ) || isinf( float(result) ) ) { cout << " Is nan in my_mcs_chi2 ! " << endl; return -1; }
+    
   return result;
   
 }
@@ -185,11 +189,7 @@ namespace trkf{
     std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
     
     recoX.clear(); recoY.clear(); recoZ.clear();
-    
-    Double_t L = trk->Length( 0 ); 
-    
-    if ( L<=20.0 ) return -1.0;
-    
+        	  
     Int_t n_points = trk->NumberTrajectoryPoints();
         
     for ( Int_t i=0; i<n_points; i++ )
@@ -202,6 +202,10 @@ namespace trkf{
 	
       }
     
+    Int_t my_steps = recoX.size();
+    
+    if ( my_steps<2 ) return -1.0;
+	  
     Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
     
     if ( check0!=0 ) return -1.0;
@@ -216,8 +220,8 @@ namespace trkf{
     
     Int_t seg_steps0 = seg_steps-1;
     
-    Double_t recoL = seg_steps0*seg_size; 
-    
+    Double_t recoL = segL.at(seg_steps0);
+            
     if ( seg_steps<2 || recoL<100.0 ) return -1;
     
     Double_t mean = 666.0; Double_t rms = 666.0; Double_t rmse = 666.0;
@@ -230,7 +234,7 @@ namespace trkf{
 	
 	GetDeltaThetaRMS( mean, rms, rmse, trial );
 	
-	// cout << mean << ",  " << rms << ", " << rmse << ", " << trial << endl;
+	cout << mean << ",  " << rms << ", " << rmse << ", " << trial << endl;
     
 	xmeas[ nmeas ] = trial;
     
@@ -273,10 +277,10 @@ namespace trkf{
     ROOT::Math::Functor FCA( &my_mcs_chi2, 2 ); 
     
     mP->SetFunction( FCA );
+        
+    mP->SetLimitedVariable( 0, "p_{MCS}", 1.0, 0.01, 0.001, 7.5 ); 
     
-    mP->SetLimitedVariable( 0, "p_{MCS}", 1.0, 0.001, 0.001, 7.5 ); 
-    
-    mP->SetLimitedVariable( 1, "#delta#theta", 0.0, 1.0, 0, 45.0 );
+    mP->SetLimitedVariable( 1, "#delta#theta", 0.0, 1.0, 0.0, 45.0 ); 
 	 
     mP->SetMaxFunctionCalls( 1.E9 );
     
@@ -384,6 +388,8 @@ namespace trkf{
   
   Int_t TrackMomentumCalculator::GetSegTracks2( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz )
   {
+    Double_t stag = 0.0;
+      
     Int_t a1 = xxx.size(); Int_t a2 = yyy.size(); Int_t a3 = zzz.size();
     
     if ( ( a1!=a2 ) || ( a1!=a3 ) || ( a2!=a3 ) ) { cout << " ( Digitize reco tacks ) Error ! " << endl; return -1; }
@@ -392,27 +398,53 @@ namespace trkf{
     	  
     Int_t a4 = a1-1;
     
-    segx.clear(); segy.clear(); segz.clear(); 
-    
-    segnx.clear(); segny.clear(); segnz.clear(); 
+    segx.clear(); segy.clear(); segz.clear(); segnx.clear(); segny.clear(); segnz.clear(); 
     
     segL.clear(); 
         
     Int_t ntot = 0; 
     
     n_seg = 0;
-            
-    Double_t x0 = xxx.at( 0 ); Double_t y0 = yyy.at( 0 ); Double_t z0 = zzz.at( 0 );
     
-    segx.push_back( x0 ); segy.push_back( y0 ); segz.push_back( z0 );
+    Double_t x0; Double_t y0; Double_t z0; 
     
-    segL.push_back( 0.0 ); n_seg++;
+    Double_t x00 = xxx.at( 0 ); Double_t y00 = yyy.at( 0 ); Double_t z00 = zzz.at( 0 );
     
+    Int_t indC=0;
+        
     std::vector<Float_t> vx; std::vector<Float_t> vy; std::vector<Float_t> vz;
     
     vx.clear(); vy.clear(); vz.clear();
-            
-    for ( Int_t i=0; i<a4; i++ )
+
+    for ( Int_t i=0; i<=a4; i++ )
+      {
+	x0 = xxx.at( i ); y0 = yyy.at( i ); z0 = zzz.at( i );
+	
+	Double_t RR0 = sqrt( pow(x00-x0,2.0)+pow(y00-y0,2.0)+pow(z00-z0,2.0) );
+	
+	if ( RR0>=stag )
+	  {
+	    segx.push_back( x0 ); segy.push_back( y0 ); segz.push_back( z0 );
+	    
+	    segL.push_back( stag );
+	    
+	    x_seg[ n_seg ] = x0; y_seg[ n_seg ] = y0; z_seg[ n_seg ] = z0;
+	    
+	    n_seg++;
+	    
+	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
+	    
+	    ntot++;
+	    
+	    indC = i+1; 
+	    
+	    break;
+	    
+	  }
+
+      }
+        
+    for ( Int_t i=indC; i<a4; i++ )
       {
 	Double_t x1 = xxx.at( i ); Double_t y1 = yyy.at( i );	Double_t z1 = zzz.at( i );
 	
@@ -429,16 +461,20 @@ namespace trkf{
 	    ntot++;
     
 	  }
-		
+	
 	if ( dr1<seg_size && dr2>seg_size )
 	  {
+	    // ..
+	    
+	    // cout << " 1 " << endl;
+	    
 	    Double_t t = 0.0;
 	    
 	    Double_t dx = x2-x1; Double_t dy = y2-y1; Double_t dz = z2-z1;
 	    
 	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
 	    
-	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; return -1.0; }
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; return -1; }
 	    
 	    Double_t beta = 2.0*( (x1-x0)*dx+(y1-y0)*dy+(z1-z0)*dz )/( dr*dr );
 	    	    
@@ -446,7 +482,7 @@ namespace trkf{
 	    
 	    Double_t delta = beta*beta - 4.0*gamma;
 		
-	    if ( delta<0.0 ) { cout << " ( Discriminant ) Error ! " << endl; return -1.0; }
+	    if ( delta<0.0 ) { cout << " ( Discriminant ) Error ! " << endl; return -1; }
 		
 	    Double_t lysi1 = ( -beta+sqrt( delta ) )/2.0; 
 	    	    
@@ -460,7 +496,7 @@ namespace trkf{
 	    
 	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
 	    
-	    segL.push_back( 1.0*n_seg*1.0*seg_size );
+	    segL.push_back( 1.0*n_seg*1.0*seg_size+stag );
 	    
 	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
 	    
@@ -533,7 +569,9 @@ namespace trkf{
 		if ( p1>max1 ) { max1=p1; ind1=i; }
 		
 	      }
-	    	    
+	    
+	    // cout << ind1 << endl;
+	    
 	    Double_t ax = eigenvec( 0, ind1 );
 	    
 	    Double_t ay = eigenvec( 1, ind1 ); 
@@ -565,18 +603,22 @@ namespace trkf{
 	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
 	    
 	    ntot++;
-	    
+	    	    
 	  }
-		
+	
 	else if ( dr1>=seg_size )
 	  {
+	    // ..
+	    
+	    // cout << " 2 " << endl;
+	    
 	    Double_t t = 0.0;
 	    	    
 	    Double_t dx = x1-x0; Double_t dy = y1-y0; Double_t dz = z1-z0;
 	    	    
 	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
 	    
-	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; return -1.0; }
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; return -1; }
 	    
 	    if ( dr!=0 ) t = seg_size/dr;
 	    	    	    
@@ -588,14 +630,16 @@ namespace trkf{
 	    	    	    	    
 	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
 	    
-	    segL.push_back( 1.0*n_seg*1.0*seg_size );
+	    segL.push_back( 1.0*n_seg*1.0*seg_size+stag );
 	    
 	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
 	    	    
 	    x0 = xp; y0 = yp; z0 = zp;
 	    
 	    i=( i-1 );
-	    	    
+	    
+	    // ..
+	    
 	    vx.push_back( x0 ); vy.push_back( y0 ); vz.push_back( z0 );
 	    	    
 	    ntot++;
@@ -663,7 +707,9 @@ namespace trkf{
 		if ( p1>max1 ) { max1=p1; ind1=i; }
 		
 	      }
-	    	    	    
+	    
+	    // cout << ind1 << endl;
+	    	    
 	    Double_t ax = eigenvec( 0, ind1 );
 	    
 	    Double_t ay = eigenvec( 1, ind1 ); 
@@ -697,7 +743,7 @@ namespace trkf{
 	    ntot++;
 	    	    	    
 	  }
-		
+	
 	if ( n_seg>=( stopper+1.0 ) && seg_stop!=-1 ) break;
 	
       }
@@ -705,9 +751,9 @@ namespace trkf{
     gr_seg_xyz = new TPolyLine3D( n_seg, z_seg, x_seg, y_seg );
     
     gr_seg_yz = new TGraph( n_seg, z_seg, y_seg ); gr_seg_xz = new TGraph( n_seg, z_seg, x_seg ); gr_seg_xy = new TGraph( n_seg, x_seg, y_seg );
-        
-    return 0;
     
+    return 0;
+  
   }
   
   void TrackMomentumCalculator::GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick )
@@ -720,7 +766,7 @@ namespace trkf{
     
     Int_t tot = a1-1;
     
-    Double_t thick1 = thick+0.12;
+    Double_t thick1 = thick+0.13;
     
     vector<Float_t> buf0; buf0.clear();
     
@@ -808,17 +854,17 @@ namespace trkf{
 		
 		Double_t scz = rot_here.Z();  
 		
-		Double_t azy = find_angle( scz, scy ); azy *= 1.0;
+		Double_t azy = find_angle( scz, scy ); azy*=1.0;
 		
 		Double_t azx = find_angle( scz, scx );
 		
 		Double_t ULim = 10000.0; Double_t LLim = -10000.0;
 		
-		// if ( azy<=ULim && azy>=LLim ) { buf0.push_back( azy ); } // hRMS->Fill( azy ); }
+		// if ( azy<=ULim && azy>=LLim ) { buf0.push_back( azy ); } // hRMS.Fill( azy ); }
 		
-		if ( azx<=ULim && azx>=LLim ) { buf0.push_back( azx ); } // hRMS->Fill( azx ); }
+		if ( azx<=ULim && azx>=LLim ) { buf0.push_back( azx ); } // hRMS.Fill( azx ); }
 
-		// if ( azy<=ULim && azy>=LLim && azx<=ULim && azx>=LLim && thick==5.0 ) { hSCA->Fill( azx, azy ); }
+		// if ( azy<=ULim && azy>=LLim && azx<=ULim && azx>=LLim && thick==5.0 ) { hSCA.Fill( azx, azy ); }
 		
 		// i=j-1;
 		
