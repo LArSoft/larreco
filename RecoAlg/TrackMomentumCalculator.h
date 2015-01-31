@@ -37,9 +37,15 @@
 
 using namespace std;
 
-// Global variables/input for the TMinuit2 chi^2 minimization ..
+// Global variables/input 
+
+// A. ---> for the TMinuit2 chi^2 minimization !
 
 Double_t xmeas[30]; Double_t ymeas[30]; Double_t eymeas[30]; Int_t nmeas;
+
+// B. ---> For the LLHD raster scan !
+
+std::vector<Float_t> dthij; std::vector<Float_t> dEi; std::vector<Float_t> dEj; std::vector<Float_t> ind;
 
 // ..
 
@@ -71,7 +77,10 @@ namespace trkf{
     
     Float_t steps_size; Int_t n_steps; std::vector<Float_t> steps;
     
-    
+    Float_t steps_size2;
+        
+    Float_t kcal;
+        
   public:
     
     // Constructor and destructor  // 
@@ -102,6 +111,12 @@ namespace trkf{
     
     Double_t p_mcs; Double_t p_mcs_e; Double_t chi2;
     
+    Int_t GetDeltaThetaij( std::vector<Float_t> &ei, std::vector<Float_t> &ej, std::vector<Float_t> &th, Double_t thick, std::vector<Float_t> &ind );
+    
+    Double_t GetMomentumMultiScatterLLHD( const art::Ptr<recob::Track> &trk );
+    
+    Double_t p_mcs_2; Double_t LLbf;
+        
   };
   
   

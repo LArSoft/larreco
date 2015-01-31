@@ -48,6 +48,74 @@ double my_mcs_chi2( const double *x )
   
 }
 
+Double_t my_g( Double_t xx, Double_t Q, Double_t s )
+{
+  Double_t arg = 0.0; 
+  
+  if ( s!=0 ) arg = ( xx - Q )/s;    
+  
+  else cout << " Error : The code tries to divide by zero ! " << endl;
+    
+  Double_t result = 0.0; 
+  
+  if ( s!=0 ) result = -0.5*TMath::Log( 2.0*TMath::Pi() ) - TMath::Log( s ) - 0.5*arg*arg;
+  
+  if ( isnan( float( result ) ) || isinf( float( result ) ) ) { cout << " Is nan ! my_g ! " << - TMath::Log( s ) << ", " << s << endl; getchar(); }
+  
+  return result;
+    
+}
+
+double my_mcs_llhd( Double_t x0, Double_t x1 )
+{
+  Double_t p = x0;
+   
+  Double_t theta0x = x1;
+  
+  Double_t result = 0.0;
+  
+  Double_t nnn1 = dEi.size();
+  
+  Double_t red_length = ( 10.0 )/14.0;
+  
+  Double_t addth = 0;
+  
+  for ( Int_t i=0; i<nnn1; i++ )
+    {
+      Double_t Ei = p-dEi.at( i );
+      
+      Double_t Ej = p-dEj.at( i );
+      
+      if ( Ei>0 && Ej<0 ) addth=3.14*1000.0;
+            
+      Ei = TMath::Abs( Ei );
+      
+      Ej = TMath::Abs( Ej );
+      
+      Double_t tH0 = ( 13.6/sqrt( Ei*Ej ) )*( 1.0+0.038*TMath::Log( red_length ) )*sqrt( red_length );
+      
+      Double_t rms = -1.0;
+      	 
+      if ( ind.at( i )==1 ) 
+	{
+	  rms = sqrt( tH0*tH0+pow( theta0x, 2.0 ) );
+	  	              	  
+	  Double_t DT = dthij.at( i )+addth; 
+	  
+	  Double_t prob = my_g( DT, 0.0, rms ); 
+	  	  
+	  result = result - 2.0*prob; 
+	  	  	  
+	}
+      
+    }
+    
+  if ( isnan( float( result ) ) || isinf( float( result ) ) ) { cout << " Is nan ! my_mcs_llhd ( 1 ) ! " << endl; getchar(); }
+      
+  return result;
+  
+}
+
 namespace trkf{ 
   
   TrackMomentumCalculator::TrackMomentumCalculator()
@@ -67,6 +135,12 @@ namespace trkf{
     basex.SetXYZ( 1.0, 0.0, 0.0 ); basey.SetXYZ( 0.0, 1.0, 0.0 ); basez.SetXYZ( 0.0, 0.0, 1.0 ); 
     	 
     nmeas = 0; p_mcs = -1.0; p_mcs_e = -1.0; chi2 = -1.0;
+    
+    steps_size2 = 10.0;
+    
+    p_mcs_2 = -1.0; LLbf = -1.0;
+    
+    kcal = 0.0022;
     
   }
   
@@ -181,7 +255,235 @@ namespace trkf{
   // Author: Leonidas N. Kalousis (January 2015)
   
   // Email: kalousis@vt.edu
-      
+  
+  Double_t TrackMomentumCalculator::GetMomentumMultiScatterLLHD( const art::Ptr<recob::Track> &trk )
+  {
+    Double_t p = -1.0; 
+    
+    std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
+    
+    recoX.clear(); recoY.clear(); recoZ.clear();
+        	  
+    Int_t n_points = trk->NumberTrajectoryPoints();
+        
+    for ( Int_t i=0; i<n_points; i++ )
+      {
+	const TVector3 &pos = trk->LocationAtPoint( i );
+	
+	recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
+	
+	// cout << " posX, Y, Z : " << pos.X() << ", " << pos.Y() << ", " << pos.Z() << endl;
+	
+      }
+    
+    Int_t my_steps = recoX.size();
+    
+    if ( my_steps<2 ) return -1.0;
+	  
+    Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
+    
+    if ( check0!=0 ) return -1.0;
+        
+    seg_size = steps_size2; 
+    
+    Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
+    
+    if ( check1!=0 ) return -1.0;
+        
+    Int_t seg_steps = segx.size();
+    
+    Int_t seg_steps0 = seg_steps-1;
+    
+    Double_t recoL = segL.at(seg_steps0);
+            
+    if ( seg_steps<2 || recoL<100.0 ) return -1;
+    
+    Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
+    
+    if ( check2!=0 ) return -1.0;
+    
+    Double_t logL = 1e+16; 
+    
+    Double_t bf = -666.0; // Double_t errs = -666.0;
+        
+    Double_t start1 = 0.0; Double_t end1 = 750.0; 
+	      
+    Double_t start2 = 0.0; Int_t end2 = 0.0; // 800.0; 
+        
+    for ( Int_t k=start1; k<=end1; k++ )
+      {
+	Double_t p_test = 0.001+k*0.01; 
+	
+	for ( Int_t l=start2; l<=end2; l++ )
+	  {
+	    Double_t res_test = 0.5; // 0.001+l*1.0; 
+	    
+	    Double_t fv = my_mcs_llhd( p_test, res_test ); 
+	    	    
+	    if ( fv<logL )
+	      {
+		bf = p_test;
+		
+		logL = fv;
+		
+		// errs = res_test;
+		
+	      }
+	    
+	  }
+	
+      }
+    
+    p_mcs_2 = bf; LLbf = logL;
+            
+    return p;
+    
+  }
+  
+  Int_t TrackMomentumCalculator::GetDeltaThetaij( std::vector<Float_t> &ei, std::vector<Float_t> &ej, std::vector<Float_t> &th, Double_t thick, std::vector<Float_t> &ind )
+  {
+    Int_t a1 = segx.size(); Int_t a2 = segy.size(); Int_t a3 = segz.size();
+        
+    if ( ( a1!=a2 ) || ( a1!=a3 ) ) { cout << " ( Get thij ) Error ! " << endl; return -1.0; }
+    
+    Int_t tot = a1-1; Double_t thick1 = thick+0.13;
+    
+    ei.clear(); ej.clear(); th.clear(); ind.clear();
+
+    for ( Int_t i=0; i<tot; i++ )
+      {
+	Double_t dx = segnx.at( i ); Double_t dy = segny.at( i ); Double_t dz = segnz.at( i );
+	
+	TVector3 vec_z( dx, dy, dz ); 
+			
+	TVector3 vec_x; 
+	
+	TVector3 vec_y; 
+	
+	Double_t switcher = basex.Dot( vec_z ); 
+	
+	if ( switcher<=0.995 ) 
+	  {
+	    vec_y = vec_z.Cross( basex ); vec_y = vec_y.Unit();  
+	    
+	    vec_x = vec_y.Cross( vec_z );
+	    	    
+	  }
+	
+	else 
+	  {
+	    // cout << " It switched ! Isn't this lovely !!! " << endl; // getchar();
+	    
+	    vec_y = basez.Cross( vec_z ); vec_y = vec_y.Unit();  
+	    
+	    vec_x = vec_y.Cross( vec_z );
+	    	    	    
+	  }
+	
+	TVector3 Rx;
+	
+	Double_t ex = vec_x.Dot( basex ); Rx.SetX( ex );
+	
+	ex = vec_x.Dot( basey ); Rx.SetY( ex );
+	
+	ex = vec_x.Dot( basez ); Rx.SetZ( ex );
+	
+	TVector3 Ry;
+	
+	Double_t ey = vec_y.Dot( basex ); Ry.SetX( ey );
+  
+	ey = vec_y.Dot( basey ); Ry.SetY( ey );
+	
+	ey = vec_y.Dot( basez ); Ry.SetZ( ey );
+	
+	TVector3 Rz;
+	
+	Double_t ez = vec_z.Dot( basex ); Rz.SetX( ez );
+	
+	ez = vec_z.Dot( basey ); Rz.SetY( ez );
+	
+	ez = vec_z.Dot( basez ); Rz.SetZ( ez );
+		
+	Double_t refL = segL.at( i );
+	
+	for ( Int_t j=i; j<tot; j++ )
+	  {
+	    Double_t L1 = segL.at( j );
+	    
+	    Double_t L2 = segL.at( j+1 );
+	    	    	    
+	    Double_t dz1 = L1 - refL; 
+	    
+	    Double_t dz2 = L2 - refL; 
+	    
+	    if ( dz1<=thick1 && dz2>thick1 )
+	      {
+	        Double_t here_dx = segnx.at( j );
+		
+		Double_t here_dy = segny.at( j );
+		
+		Double_t here_dz = segnz.at( j );
+		
+		TVector3 here_vec; here_vec.SetXYZ( here_dx, here_dy, here_dz );
+						
+		TVector3 rot_here; rot_here.SetXYZ( Rx.Dot( here_vec ), Ry.Dot( here_vec ), Rz.Dot( here_vec ) );
+						
+		Double_t scx = rot_here.X(); 
+	    
+		Double_t scy = rot_here.Y();  
+		
+		Double_t scz = rot_here.Z();  
+		
+		Double_t azy = find_angle( scz, scy );
+		
+		Double_t azx = find_angle( scz, scx );
+		
+		Double_t ULim = 10000.0; 
+
+                Double_t LLim = -10000.0;
+		
+		Double_t cL = kcal;
+		
+		Double_t Li = segL.at( i );
+		
+		Double_t Lj = segL.at( j );
+				
+		if ( azy<=ULim && azy>=LLim ) 
+		  { 
+		    ei.push_back( Li*cL ); 
+
+		    ej.push_back( Lj*cL );
+		    
+		    th.push_back( azy );
+		    
+		    ind.push_back( 2 );
+		    		  
+		  }
+		
+		if ( azx<=ULim && azx>=LLim ) 
+		  { 
+		    ei.push_back( Li*cL ); 
+ 
+		    ej.push_back( Lj*cL );
+		    
+		    th.push_back( azx );
+		    
+		    ind.push_back( 1 );
+		  
+		  }
+				
+		break; // of course !
+		
+	      }
+	    
+	  }
+	
+      }
+        
+    return 0.0;
+        
+  }
+  
   Double_t TrackMomentumCalculator::GetMomentumMultiScatterChi2( const art::Ptr<recob::Track> &trk )
   {
     Double_t p = -1.0; 
@@ -300,7 +602,7 @@ namespace trkf{
     
     const double *erpars = mP->Errors(); 
     
-    Double_t deltap = ( recoL*0.0022 )/2.0;
+    Double_t deltap = ( recoL*kcal )/2.0;
     
     p_mcs = pars[0]+deltap;
 	      	      
@@ -758,12 +1060,12 @@ namespace trkf{
   
   void TrackMomentumCalculator::GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick )
   {
+    mean = 0.0; rms = 0.0; rmse = 0.0; 
+    
     Int_t a1 = segx.size(); Int_t a2 = segy.size(); Int_t a3 = segz.size();
         
     if ( ( a1!=a2 ) || ( a1!=a3 ) ) { cout << " ( Get RMS ) Error ! " << endl; return; }
-    
-    mean = 0.0; rms = 0.0; rmse = 0.0; 
-    
+        
     Int_t tot = a1-1;
     
     Double_t thick1 = thick+0.13;
