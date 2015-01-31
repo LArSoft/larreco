@@ -95,7 +95,7 @@ namespace cluster {
       algo.SummedADC().value(),         // summedADC
       algo.SummedADCStdDev().value(),   // summedADC_stddev
       algo.NHits(),                     // n_hits
-      algo.NWiresOverNHits(),           // wires_over_hits
+      algo.MultipleHitWires(),           // multiple_hit_wires
       algo.Width(),                     // width
       ID,
       view,

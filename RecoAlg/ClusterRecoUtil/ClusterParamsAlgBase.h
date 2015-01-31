@@ -218,13 +218,15 @@ namespace cluster {
     
     
     /**
-     * @brief Computes the number of wires divided by the number of cluster hits
-     * @return number of wires divided by the number of cluster hits
-     * @see NHits()
-     * 
-     * Hit charge is obtained by recob::Hit::SummedADC().
+     * @brief Fraction of wires in the cluster with more than one hit
+     * @return fraction of wires with more than one hit, or 0 if no wires
+     *
+     * Returns a quantity defined as NMultiHitWires / NWires,
+     * where NWires is the number of wires hosting at least one hit of this
+     * cluster, and NMultiHitWires is the number of wires which have more
+     * than just one hit.
      */
-    virtual float NWiresOverNHits()       { throw NotImplemented(__func__); }
+    virtual float MultipleHitWires()      { throw NotImplemented(__func__); }
     
     /**
      * @brief Computes the width of the cluster

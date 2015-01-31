@@ -160,10 +160,13 @@ size_t cluster::StandardClusterParamsAlg::NHits() {
 
 
 //------------------------------------------------------------------------------
-// TODO
-float cluster::StandardClusterParamsAlg::NWiresOverNHits() {
-  throw NotImplemented(__func__);
-} // StandardClusterParamsAlg::NWiresOverNHits()
+float cluster::StandardClusterParamsAlg::MultipleHitWires() {
+  // compute all the averages
+  algo.GetAverages();
+  // return the relevant information
+  return algo.GetParams().N_Wires?
+    algo.GetParams().multi_hit_wires / algo.GetParams().N_Wires: 0.;
+} // StandardClusterParamsAlg::MultipleHitWires()
     
 
 //------------------------------------------------------------------------------

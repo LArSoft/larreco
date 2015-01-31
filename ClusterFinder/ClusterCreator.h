@@ -77,7 +77,7 @@ namespace cluster {
        * - `summedADC`: total charge from signal ADC of hits
        * - `summedADC_stddev`: standard deviation of signal ADC of hits
        * - `n_hits`: number of hits in the cluster
-       * - `wires_over_hits`: wires covered by cluster divided by number of hits
+       * - `multiple_hit_wires`: wires covered by cluster divided by number of hits
        * - `width`: a measure of the cluster width
        *
        */
@@ -167,7 +167,7 @@ namespace cluster {
        * - `summedADC`: total charge from signal ADC of hits
        * - `summedADC_stddev`: standard deviation of signal ADC of hits
        * - `n_hits`: number of hits in the cluster
-       * - `wires_over_hits`: wires covered by cluster divided by number of hits
+       * - `multiple_hit_wires`: wires covered by cluster divided by number of hits
        * - `width`: a measure of the cluster width
        *
        */

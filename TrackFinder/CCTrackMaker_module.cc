@@ -411,7 +411,7 @@ namespace trkf {
             clstr.Wire[0] = cluster.StartWire();
             clstr.Time[0] = cluster.StartTick();
             clstr.X[0] = (float)detprop->ConvertTicksToX(cluster.StartTick(), ipl, tpc, cstat);
-            clstr.Slope[0] = fScaleF * cluster.SigmadTdW();
+            clstr.Slope[0] = fScaleF * std::tan(cluster.StartAngle());
             clstr.Charge[0] = cluster.StartCharge();
             clstr.Angle[0] = std::atan(clstr.Slope[0]);
             clstr.Dir[0] = -1 * (2*(clstr.Slope[0]>0)-1);
@@ -424,8 +424,8 @@ namespace trkf {
             clstr.Wire[1] = cluster.EndWire();
             clstr.Time[1] = cluster.EndTick();
             clstr.X[1] = (float)detprop->ConvertTicksToX(cluster.EndTick(), ipl, tpc, cstat);
-            clstr.Slope[1] = fScaleF * std::tan(cluster.StartAngle());
-            clstr.Charge[1] = cluster.SigmadQdW();
+            clstr.Slope[1] = fScaleF * std::tan(cluster.EndAngle());
+            clstr.Charge[1] = cluster.EndCharge();
             clstr.Angle[1] = std::atan(clstr.Slope[1]);
             clstr.Dir[1] = 1 * (2*(clstr.Slope[1]>0)-1);
             clstr.EP2Index[1] = (short) cluster.SigmaEndWire();

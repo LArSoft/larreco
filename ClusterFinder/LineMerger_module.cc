@@ -242,10 +242,6 @@ namespace cluster{
     /// Opening angle of the cluster shape at the start and end of the cluster.
     float fOpeningAngles[ClusterEnds_t::NEnds];
     
-    /// Number of wires covered by the cluster, divided by the number of hits
-    /// in the cluster.
-    float fNWiresOverNHits;
-    
     /// A measure of the cluster width, in homogenized units.
     float fWidth;
     
@@ -354,20 +350,11 @@ namespace cluster{
     /// Number of hits in the cluster
     unsigned int NHits() const { return hits.size(); }
     
-    /// Number of wires covered by the cluster, divided by the number of hits
-    /// in the cluster.
-    float WiresOverHits() const
-      { throw std::runtime_error("ClusterMerger::WiresOverHits() not implemented"); }
-    
     ///@}
     
       protected:
     
     HitVector_t hits; ///< hits in the cluster
-    
-    /// Number of wires covered by the cluster, divided by the number of hits
-    /// in the cluster.
-    float fNWiresOverNHits;
     
     void AddHits(HitVector_t const& cluster_hits, bool prepend)
       {
@@ -382,12 +369,7 @@ namespace cluster{
     bool prepend /* = false */
   ) {
     if (!ClusterMerger::Add(cluster)) return false;
-    if (n_clusters == 1) { // just added
-      fNWiresOverNHits = cluster.WiresOverHits();
-      return true;
-    }
     
-    // fNWiresOverNHits?? TODO
     AddHits(cluster_hits, prepend);
     return true;
   } // ClusterAndHitMerger::Add()
@@ -553,7 +535,7 @@ namespace cluster{
           ClusterParamAlgo.SummedADC().value(),       // summedADC
           ClusterParamAlgo.SummedADCStdDev().value(), // summedADC_stddev
           ClusterParamAlgo.NHits(),                   // n_hits
-          ClusterParamAlgo.NWiresOverNHits(),         // wires_over_hits
+          ClusterParamAlgo.MultipleHitWires(),        // multiple_hit_wires
           cl1.Width(),                                // width
           clusterID,                                  // ID
           cl1.View(),                                 // view

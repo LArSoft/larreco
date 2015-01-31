@@ -141,15 +141,12 @@ namespace cluster {
     // put clusters and hits into std::vectors
     unsigned short nclus = 0;
     unsigned short hitcnt = 0;
-    double qtot;
     for(unsigned short icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
       ClusterCrawlerAlg::ClusterStore clstr = fCCAlg.tcl[icl];
       if(clstr.ID < 0) continue;
       // start cluster numbering at 1
       ++nclus;
-      qtot = 0;
       // make the hits on this cluster
-      unsigned short firsthit = hitcnt;
       for(unsigned short itt = 0; itt < clstr.tclhits.size(); ++itt) {
         unsigned short iht = clstr.tclhits[itt];
         if(iht > fCCHFAlg.allhits.size() - 1) {
@@ -194,7 +191,6 @@ namespace cluster {
           );
         shcol.emplace_back(hit.move(), theWire, theRawDigit);
         ++hitcnt;
-        qtot += theHit.Charge;
       } // itt
       // get the view from a hit on the cluster
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[clstr.tclhits[0]];
@@ -202,10 +198,12 @@ namespace cluster {
       
       // Stuff 2D vertex info into unused Cluster variables to help
       // associate the Begin cluster - vertex 2D and End cluster - vertex 2D
-      double clBeginEP2Index = -1;
-      double clBeginVtxIndex = -1;
-      double clEndEP2Index = -1;
-      double clEndVtxIndex = -1;
+      // FIXME these variables are temporary not saved;
+      // if this goes into v04 of LArSoft, you have reasons to complain!
+      double clBeginEP2Index __attribute__((unused)) = -1;
+      double clBeginVtxIndex __attribute__((unused)) = -1;
+      double clEndEP2Index __attribute__((unused)) = -1;
+      double clEndVtxIndex __attribute__((unused)) = -1;
       short iv2 = 0;
       geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
       unsigned short cPlane = planeID.Plane;
@@ -247,43 +245,31 @@ namespace cluster {
       // (they are still in the HitCollectionCreator, but we can peek at them)
       ClusterParamAlgo.ImportHits(shcol.peek());
       
+      
       // create the recob::Cluster directly in the vector;
       // the value of some of the quantities is defined by the track-like nature
       // imposed on the cluster by the algorithm.
       sccol.emplace_back(
-      /* FIXME this is the old code
-                         (double)clstr.BeginWir, clBeginEP2Index,
-                         (double)clstr.BeginTim, clBeginVtxIndex,
-                         (double)clstr.EndWir, clEndEP2Index,
-                         (double)clstr.EndTim, clEndVtxIndex,
-                         (double)clstr.EndSlp, (double)clstr.BeginSlp,
-                         (double)clstr.BeginChg, (double)clstr.EndChg,
-                         qtot,
-                         geo->View(channel),
-                         nclus,
-                         planeID
-//                         ClusterCrawlerAlg::DecodeCTP(clstr.CTP)
-        */
         (float) clstr.BeginWir,                    // start_wire
         0.5,                                       // sigma_start_wire FIXME
         clstr.BeginTim,                            // start_time
         0.0,                                       // sigma_start_tick FIXME
-        ClusterParamAlgo.StartCharge().value(),    // start_charge     FIXME
-        ClusterParamAlgo.StartAngle().value(),     // start_angle      FIXME
+        clstr.BeginChg,                            // start_charge     FIXME
+        std::atan(clstr.BeginSlp),                 // start_angle      FIXME
         0.,                                        // start_opening (by definition)
         (float) clstr.EndWir,                      // end_wire
         0.5,                                       // sigma_end_wire   FIXME
         clstr.EndTim,                              // end_time
         0.0,                                       // sigma_end_tick   FIXME
-        ClusterParamAlgo.EndCharge().value(),      // end_charge       FIXME
-        ClusterParamAlgo.EndAngle().value(),       // end_angle        FIXME
+        clstr.EndChg,                              // end_charge       FIXME
+        std::atan(clstr.EndSlp),                   // end_angle
         0.,                                        // end_opening (by definition)
         ClusterParamAlgo.Integral().value(),       // integral
         ClusterParamAlgo.IntegralStdDev().value(), // integral_stddev
         ClusterParamAlgo.SummedADC().value(),      // summedADC
         ClusterParamAlgo.SummedADCStdDev().value(),// summedADC_stddev
         ClusterParamAlgo.NHits(),                  // n_hits
-        ClusterParamAlgo.NWiresOverNHits(),        // wires_over_hits
+        ClusterParamAlgo.MultipleHitWires(),        // multiple_hit_wires
         0.,                                        // width (by definition)
         nclus,                                     // ID
         theWire->View(),                           // view
@@ -291,8 +277,16 @@ namespace cluster {
         recob::Cluster::Sentry                     // sentry
         );
       
-      // associate the hits to this cluster
-      util::CreateAssn(*this, evt, sccol, shcol.peek(), *hc_assn, firsthit, hitcnt);
+      // associate the hits to this cluster;
+      // we use here the CreateAssn() with signature "08":
+      util::CreateAssn(
+        *this,    // producer that will write the clusters and hits to the event
+        evt,      // the event
+        *hc_assn, // the association object to be filled
+        sccol.size() - 1, // the index of the cluster to be associated: the last
+        clstr.tclhits.begin(), // iterators to the indices of the hits to be...
+        clstr.tclhits.end()    // ... associated to this cluster
+        );
     } // cluster iterator
     
     // make hits that are not associated with any cluster
