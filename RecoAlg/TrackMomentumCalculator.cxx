@@ -248,7 +248,7 @@ namespace trkf{
 	
 	for ( Int_t l=start2; l<=end2; l++ )
 	  {
-	    Double_t res_test = 3.0; // 0.001+l*1.0; 
+	    Double_t res_test = 4.0; // 0.001+l*1.0; 
 	    
 	    Double_t fv = my_mcs_llhd( p_test, res_test ); 
 	    	    
