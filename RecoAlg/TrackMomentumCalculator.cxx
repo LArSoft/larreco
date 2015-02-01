@@ -48,74 +48,6 @@ double my_mcs_chi2( const double *x )
   
 }
 
-Double_t my_g( Double_t xx, Double_t Q, Double_t s )
-{
-  Double_t arg = 0.0; 
-  
-  if ( s!=0 ) arg = ( xx - Q )/s;    
-  
-  else cout << " Error : The code tries to divide by zero ! " << endl;
-    
-  Double_t result = 0.0; 
-  
-  if ( s!=0 ) result = -0.5*TMath::Log( 2.0*TMath::Pi() ) - TMath::Log( s ) - 0.5*arg*arg;
-  
-  if ( isnan( float( result ) ) || isinf( float( result ) ) ) { cout << " Is nan ! my_g ! " << - TMath::Log( s ) << ", " << s << endl; getchar(); }
-  
-  return result;
-    
-}
-
-double my_mcs_llhd( Double_t x0, Double_t x1 )
-{
-  Double_t p = x0;
-   
-  Double_t theta0x = x1;
-  
-  Double_t result = 0.0;
-  
-  Double_t nnn1 = dEi.size();
-  
-  Double_t red_length = ( 10.0 )/14.0;
-  
-  Double_t addth = 0;
-  
-  for ( Int_t i=0; i<nnn1; i++ )
-    {
-      Double_t Ei = p-dEi.at( i );
-      
-      Double_t Ej = p-dEj.at( i );
-      
-      if ( Ei>0 && Ej<0 ) addth=3.14*1000.0;
-            
-      Ei = TMath::Abs( Ei );
-      
-      Ej = TMath::Abs( Ej );
-      
-      Double_t tH0 = ( 13.6/sqrt( Ei*Ej ) )*( 1.0+0.038*TMath::Log( red_length ) )*sqrt( red_length );
-      
-      Double_t rms = -1.0;
-      	 
-      if ( ind.at( i )==1 ) 
-	{
-	  rms = sqrt( tH0*tH0+pow( theta0x, 2.0 ) );
-	  	              	  
-	  Double_t DT = dthij.at( i )+addth; 
-	  
-	  Double_t prob = my_g( DT, 0.0, rms ); 
-	  	  
-	  result = result - 2.0*prob; 
-	  	  	  
-	}
-      
-    }
-    
-  if ( isnan( float( result ) ) || isinf( float( result ) ) ) { cout << " Is nan ! my_mcs_llhd ( 1 ) ! " << endl; getchar(); }
-      
-  return result;
-  
-}
-
 namespace trkf{ 
   
   TrackMomentumCalculator::TrackMomentumCalculator()
@@ -279,7 +211,7 @@ namespace trkf{
     Int_t my_steps = recoX.size();
     
     if ( my_steps<2 ) return -1.0;
-	  
+    
     Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
     
     if ( check0!=0 ) return -1.0;
@@ -335,7 +267,9 @@ namespace trkf{
       }
     
     p_mcs_2 = bf; LLbf = logL;
-            
+    
+    p = p_mcs_2;
+    
     return p;
     
   }
@@ -349,7 +283,7 @@ namespace trkf{
     Int_t tot = a1-1; Double_t thick1 = thick+0.13;
     
     ei.clear(); ej.clear(); th.clear(); ind.clear();
-
+    
     for ( Int_t i=0; i<tot; i++ )
       {
 	Double_t dx = segnx.at( i ); Double_t dy = segny.at( i ); Double_t dz = segnz.at( i );
@@ -418,7 +352,7 @@ namespace trkf{
 	    
 	    if ( dz1<=thick1 && dz2>thick1 )
 	      {
-	        Double_t here_dx = segnx.at( j );
+		Double_t here_dx = segnx.at( j );
 		
 		Double_t here_dy = segny.at( j );
 		
@@ -451,13 +385,13 @@ namespace trkf{
 		if ( azy<=ULim && azy>=LLim ) 
 		  { 
 		    ei.push_back( Li*cL ); 
-
+		    
 		    ej.push_back( Lj*cL );
 		    
 		    th.push_back( azy );
 		    
 		    ind.push_back( 2 );
-		    		  
+		    
 		  }
 		
 		if ( azx<=ULim && azx>=LLim ) 
@@ -469,19 +403,19 @@ namespace trkf{
 		    th.push_back( azx );
 		    
 		    ind.push_back( 1 );
-		  
+		    
 		  }
-				
+		
 		break; // of course !
 		
 	      }
-	    
+	
 	  }
 	
       }
-        
-    return 0.0;
-        
+    
+    return 0;
+    
   }
   
   Double_t TrackMomentumCalculator::GetMomentumMultiScatterChi2( const art::Ptr<recob::Track> &trk )
@@ -536,7 +470,7 @@ namespace trkf{
 	
 	GetDeltaThetaRMS( mean, rms, rmse, trial );
 	
-	cout << mean << ",  " << rms << ", " << rmse << ", " << trial << endl;
+	// cout << mean << ",  " << rms << ", " << rmse << ", " << trial << endl;
     
 	xmeas[ nmeas ] = trial;
     
@@ -700,7 +634,9 @@ namespace trkf{
     	  
     Int_t a4 = a1-1;
     
-    segx.clear(); segy.clear(); segz.clear(); segnx.clear(); segny.clear(); segnz.clear(); 
+    segx.clear(); segy.clear(); segz.clear(); 
+    
+    segnx.clear(); segny.clear(); segnz.clear(); 
     
     segL.clear(); 
         
@@ -1237,4 +1173,73 @@ namespace trkf{
     
   }
   
+  
+  Double_t TrackMomentumCalculator::my_g( Double_t xx, Double_t Q, Double_t s )
+  {
+    Double_t arg = 0.0; 
+    
+    if ( s!=0 ) arg = ( xx - Q )/s;    
+    
+    else cout << " Error : The code tries to divide by zero ! " << endl;
+    
+    Double_t result = 0.0; 
+    
+    if ( s!=0 ) result = -0.5*TMath::Log( 2.0*TMath::Pi() ) - TMath::Log( s ) - 0.5*arg*arg;
+    
+    if ( isnan( float( result ) ) || isinf( float( result ) ) ) { cout << " Is nan ! my_g ! " << - TMath::Log( s ) << ", " << s << endl; getchar(); }
+    
+    return result;
+    
+  }
+  
+  Double_t TrackMomentumCalculator::my_mcs_llhd( Double_t x0, Double_t x1 )
+  {
+    Double_t p = x0;
+    
+    Double_t theta0x = x1;
+    
+    Double_t result = 0.0;
+    
+    Double_t nnn1 = dEi.size();
+    
+    Double_t red_length = ( 10.0 )/14.0;
+    
+    Double_t addth = 0;
+    
+    for ( Int_t i=0; i<nnn1; i++ )
+      {
+	Double_t Ei = p-dEi.at( i );
+	
+	Double_t Ej = p-dEj.at( i );
+	
+	if ( Ei>0 && Ej<0 ) addth=3.14*1000.0;
+	
+	Ei = TMath::Abs( Ei );
+	
+	Ej = TMath::Abs( Ej );
+	
+	Double_t tH0 = ( 13.6/sqrt( Ei*Ej ) )*( 1.0+0.038*TMath::Log( red_length ) )*sqrt( red_length );
+	
+	Double_t rms = -1.0;
+	
+	if ( ind.at( i )==1 ) 
+	  {
+	    rms = sqrt( tH0*tH0+pow( theta0x, 2.0 ) );
+	    
+	    Double_t DT = dthij.at( i )+addth; 
+	    
+	    Double_t prob = my_g( DT, 0.0, rms ); 
+	    
+	    result = result - 2.0*prob; 
+	    
+	  }
+	
+      }
+    
+    if ( isnan( float( result ) ) || isinf( float( result ) ) ) { cout << " Is nan ! my_mcs_llhd ( 1 ) ! " << endl; getchar(); }
+    
+    return result;
+    
+  }
+    
 } // namespace track
