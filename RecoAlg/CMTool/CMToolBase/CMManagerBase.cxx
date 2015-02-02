@@ -61,7 +61,7 @@ namespace cmtool {
 
       for(auto const& c : _in_clusters)
 
-	c.TimeReport();
+	c.TimeReport(std::cout);
 
     }
     

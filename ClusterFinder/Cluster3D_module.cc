@@ -74,6 +74,9 @@
 #include "RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "RecoAlg/Cluster3DAlgs/SkeletonAlg.h"
 #include "RecoAlg/Cluster3DAlgs/DBScanAlg.h"
+#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterParamsImportWrapper.h"
+#include "ClusterFinder/ClusterCreator.h"
 
 // ROOT includes
 #include "TTree.h"
@@ -106,7 +109,6 @@ public:
         m_sigmaStartTime(1.),
         m_endTime(0.),
         m_sigmaEndTime(1.),
-        m_totalCharge(0.),
         m_startWire(9999999),
         m_endWire(0),
         m_view(geo::kUnknown)
@@ -120,7 +122,6 @@ public:
     double         m_sigmaStartTime;
     double         m_endTime;
     double         m_sigmaEndTime;
-    double         m_totalCharge;
     unsigned int   m_startWire;
     unsigned int   m_endWire;
     geo::View_t    m_view;
@@ -559,18 +560,17 @@ void RecobClusterParameters::UpdateParameters(const reco::ClusterHit2D* clusterH
     if (hit.WireID().Wire < m_startWire)
     {
         m_startWire      = hit.WireID().Wire;
-        m_startTime      = hit.StartTime();
-        m_sigmaStartTime = hit.SigmaStartTime();
+        m_startTime      = hit.PeakTimeMinusRMS();
+        m_sigmaStartTime = hit.SigmaPeakTime();
     }
     
     if (hit.WireID().Wire > m_endWire)
     {
         m_endWire      = hit.WireID().Wire;
-        m_endTime      = hit.EndTime();
-        m_sigmaEndTime = hit.SigmaEndTime();
+        m_endTime      = hit.PeakTimePlusRMS();
+        m_sigmaEndTime = hit.SigmaPeakTime();
     }
     
-    m_totalCharge += hit.Charge();
     m_view         = hit.View();
     
     m_hitVector.push_back(clusterHit);
@@ -869,6 +869,12 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
     std::unique_ptr< art::Assns<recob::Seed,       recob::Hit> >         artSeedHitAssociations(    new art::Assns<recob::Seed,       recob::Hit>         );
     std::unique_ptr< art::Assns<recob::SpacePoint, recob::Hit> >         artSPHitAssociations(      new art::Assns<recob::SpacePoint, recob::Hit>          );
     
+    // prepare the algorithm to compute the cluster characteristics;
+    // we use the "standard" one here; configuration would happen here,
+    // but we are using the default configuration for that algorithm
+    cluster::ClusterParamsImportWrapper<cluster::StandardClusterParamsAlg>
+      ClusterParamAlgo;
+    
     // Create id for space points
     int    spacePointID(0);
     int    pcaAxisID(0);
@@ -990,6 +996,11 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
                 // Finally, use the time corresponding to this position
                 double midTime = m_detector->ConvertXToTicks(skeletonPCA.getAvePosition()[0], clusParams.m_view, 0, 0);
                 
+                // plane ID is not a part of clusParams... get the one from the first hit
+                geo::PlaneID plane; // invalid by default
+                if (!recobHits.empty())
+                  plane = recobHits.front()->WireID().planeID();
+                
                 // Ok, now adjust everything to draw a nice long line through our cluster
                 double deltaWires = 0.5 * (endWire - startWire);
                 
@@ -998,17 +1009,29 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
                 startTime = midTime - dTdW * deltaWires;
                 endTime   = midTime + dTdW * deltaWires;
                 
-                // Create the recob Cluster for the current plane
-                recob::Cluster artCluster(startWire,                0.,
-                                          startTime,                clusParams.m_sigmaStartTime,
-                                          endWire,                  0.,
-                                          endTime,                  clusParams.m_sigmaEndTime,
-                                          dTdW,                     1.,
-                                          -999.,                    0.,
-                                          clusParams.m_totalCharge,
-                                          clusParams.m_view,
-                                          clusterIdx++);
-                artClusterVector->push_back(artCluster);
+                // FIXME StartAngle() should be derived from dTdW!
+                // feed the algorithm with all the cluster hits
+                ClusterParamAlgo.ImportHits(recobHits);
+                
+                // create the recob::Cluster directly in the vector
+                cluster::ClusterCreator artCluster(
+                  ClusterParamAlgo,                     // algo
+                  startWire,                            // start_wire
+                  0.,                                   // sigma_start_wire
+                  startTime,                            // start_tick
+                  clusParams.m_sigmaStartTime,          // sigma_start_tick
+                  endWire,                              // end_wire
+                  0.,                                   // sigma_end_wire,
+                  endTime,                              // end_tick
+                  clusParams.m_sigmaEndTime,            // sigma_end_tick
+                  clusterIdx++,                         // ID
+                  clusParams.m_view,                    // view
+                  plane,                                // plane
+                  recob::Cluster::Sentry                // sentry
+                  );
+                
+                artClusterVector->emplace_back(artCluster.move());
+                             
                 util::CreateAssn(*this, evt, *artClusterVector, recobHits, *artClusterAssociations);
                 clusterEnd++;
             }

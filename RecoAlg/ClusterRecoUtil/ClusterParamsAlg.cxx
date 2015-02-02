@@ -39,23 +39,6 @@ namespace cluster{
     SetHits(inhitlist);
   }
 
-  template <typename Stream>
-  void ClusterParamsAlg::TimeReport(Stream& stream) const {
-
-    stream << "  <<ClusterParamsAlg::TimeReport>> starts..."<<std::endl;
-    for(size_t i=0; i<fTimeRecord_ProcName.size(); ++i){
-
-      stream << "    Function: " 
-		<< fTimeRecord_ProcName[i].c_str() 
-		<< " ... Time = " 
-		<< fTimeRecord_ProcTime[i]
-		<< " [s]"
-		<< std::endl;
-      
-    }   
-    stream<< "  <<ClusterParamsAlg::TimeReport>> ends..."<<std::endl;
-  }
-
   int ClusterParamsAlg::SetHits(const std::vector<util::PxHit> &inhitlist){
 
     Initialize();
@@ -206,6 +189,7 @@ namespace cluster{
     fFinishedGetFinalSlope     = false;
     fFinishedRefineStartPointAndDirection = false;
     fFinishedTrackShowerSep    = false;
+    fFinishedGetEndCharges     = false;
 
     fRough2DSlope=-999.999;    // slope 
     fRough2DIntercept=-999.999;    // slope 
@@ -255,6 +239,7 @@ namespace cluster{
 		<< "\tFinishedRefineStartPoints "  << fFinishedRefineStartPoints << "\n"
 		<< "\tFinishedRefineDirection "    << fFinishedRefineDirection << "\n"
 		<< "\tFinishedGetFinalSlope "      << fFinishedGetFinalSlope << "\n"
+		<< "\tFinishedGetEndCharges "      << fFinishedGetEndCharges << "\n"
 		<< "--------------------------------------" << "\n";
       fParams.Report(stream);
     }
@@ -267,7 +252,8 @@ namespace cluster{
                                        // bool override_DoRefineStartPoints,
                                        bool override_DoStartPointsAndDirection,
                                        bool override_DoGetFinalSlope    ,
-                                       bool override_DoTrackShowerSep   ){
+                                       bool override_DoTrackShowerSep,
+                                       bool override_DoEndCharge){
     GetAverages      (override_DoGetAverages      );
     GetRoughAxis     (override_DoGetRoughAxis     );
     GetProfileInfo   (override_DoGetProfileInfo   );
@@ -275,6 +261,7 @@ namespace cluster{
     // RefineDirection  (override_DoRefineDirection  );
     // RefineStartPoints(override_DoRefineStartPoints);
     GetFinalSlope    (override_DoGetFinalSlope    );
+    GetEndCharges    (override_DoEndCharge);
     TrackShowerSeparation(override_DoTrackShowerSep);
   }
 
@@ -1665,6 +1652,27 @@ namespace cluster{
 
   
   //----------------------------------------------------------------------------
+  void ClusterParamsAlg::GetEndCharges(bool override_ /* = false */ ) {
+    if(!override_) { //Override being set, we skip all this logic.
+      //OK, no override. Stop if we're already finshed.
+      if (fFinishedGetEndCharges) return;
+    }
+    
+    TStopwatch localWatch;
+    localWatch.Start();
+    
+    fParams.start_charge = StartCharge();
+    fParams.end_charge = EndCharge();
+    
+    fFinishedGetEndCharges = true;
+    // Report();
+    
+    fTimeRecord_ProcName.push_back("GetEndCharges");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
+  } // ClusterParamsAlg::GetEndCharges()
+
+
+  //----------------------------------------------------------------------------
   double ClusterParamsAlg::LinearIntegral
     (double m, double q, double x1, double x2)
   {
@@ -1717,7 +1725,7 @@ namespace cluster{
       // would be a singular fit matrix, that should be pretty much impossible
       // given that the bin coordinates are well behaved and there are at least
       // two of them
-      std::cerr << "StartCharge(): linear fit failed!" << std::endl;
+      std::cerr << "IntegrateFitCharge(): linear fit failed!" << std::endl;
       return 0.;
     }
     
