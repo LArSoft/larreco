@@ -19,6 +19,8 @@
 
 #include <memory>
 
+#include "RFFHitFinderAlg.h"
+
 namespace hit{
   class RFFHitFinder;
 }
@@ -41,30 +43,42 @@ namespace hit{
     void produce(art::Event & e) override;
     
     // Selected optional functions.
-    void reconfigure(fhicl::ParameterSet const & p) override;
+    void beginJob() override;
     
   private:
     
-    // Declare member data here.
-    
+    std::string fWireModuleLabel;
+    RFFHitFinderAlg fAlg;
   };
   
 
   RFFHitFinder::RFFHitFinder(fhicl::ParameterSet const & p)
-  // :
-  // Initialize member data here.
+    :
+    fWireModuleLabel(p.get<std::string>("WireModuleLabel")),
+    fAlg(p.get<fhicl::ParameterSet>("RFFHitFinderAlgParams"))
   {
-    // Call appropriate produces<>() functions here.
+    produces< std::vector<recob::Hit> >();
   }
   
   void RFFHitFinder::produce(art::Event & e)
   {
-    // Implementation of required member function here.
+    art::ServiceHandle<geo::Geometry> geoHandle;
+
+    art::Handle< std::vector<recob::Wire> > wireHandle;
+    e.getByLabel(fWireModuleLabel,wireHandle);
+
+    std::unique_ptr< std::vector<recob::Hit> > hitCollection(new std::vector<recob::Hit>);
+
+    fAlg.Run(*wireHandle,*hitCollection,*geoHandle);
+
+    e.put(std::move(hitCollection));
   }
   
-  void RFFHitFinder::reconfigure(fhicl::ParameterSet const & p)
+  void RFFHitFinder::beginJob()
   {
-    // Implementation of optional member function here.
+    art::ServiceHandle<geo::Geometry> geoHandle;
+    geo::Geometry const& geo(*geoHandle);
+    fAlg.SetFitterParamsVectors(geo);
   }
 
 }
