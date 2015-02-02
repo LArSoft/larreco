@@ -11,6 +11,7 @@
 */
 
 #include "RFFHitFinderAlg.h"
+#include <numeric>
 
 hit::RFFHitFinderAlg::RFFHitFinderAlg(fhicl::ParameterSet const& p)
 {
@@ -58,10 +59,65 @@ void hit::RFFHitFinderAlg::Run(std::vector<recob::Wire> const& wireVector,
   hitVector.reserve(wireVector.size());
   for(auto const& wire : wireVector){
 
+    geo::SigType_t const& sigtype = geo.SignalType(wire.Channel());
+    geo::WireID const& wireID = geo.ChannelToWire(wire.Channel()).at(0);
+    
     SetFitterParams(wire.View());
     for(auto const& roi : wire.SignalROI().get_ranges()){
       fFitter.RunFitter(roi.data());
-    }
 
+      const float summedADCTotal = std::accumulate(roi.data().begin(),roi.data().end(),0.0);
+      const raw::TDCtick_t startTick = roi.begin_index();
+      const raw::TDCtick_t endTick = roi.begin_index()+roi.size();
+      
+      EmplaceHit(hitVector,wire,summedADCTotal,startTick,endTick,sigtype,wireID);
+    }//end loop over ROIs on wire
+
+  }//end loop over wires
+  
+}
+
+void hit::RFFHitFinderAlg::EmplaceHit(std::vector<recob::Hit>& hitVector,
+				      recob::Wire const& wire,
+				      float const& summedADCTotal,
+				      raw::TDCtick_t const& startTick, raw::TDCtick_t const& endTick,
+				      geo::SigType_t const& sigtype, geo::WireID const& wireID)
+{
+
+  float totalArea = 0.0;
+  std::vector<float> areaVector(fFitter.NHits());
+  std::vector<float> areaErrorVector(fFitter.NHits());
+  std::vector<float> areaFracVector(fFitter.NHits());
+
+  for(size_t ihit=0; ihit < fFitter.NHits(); ihit++){
+    areaVector[ihit] = fFitter.AmplitudeVector()[ihit]*fFitter.SigmaVector()[ihit]*SQRT_TWO_PI;
+    areaErrorVector[ihit] =
+      SQRT_TWO_PI*std::sqrt(fFitter.AmplitudeVector()[ihit]*fFitter.SigmaErrorVector()[ihit]*fFitter.AmplitudeVector()[ihit]*fFitter.SigmaErrorVector()[ihit] +
+			    fFitter.AmplitudeErrorVector()[ihit]*fFitter.SigmaVector()[ihit]*fFitter.AmplitudeErrorVector()[ihit]*fFitter.SigmaVector()[ihit]);
+    totalArea += areaVector[ihit];
   }
+
+  for(size_t ihit=0; ihit < fFitter.NHits(); ihit++){
+    areaFracVector[ihit] = areaVector[ihit]/totalArea;
+    
+    hitVector.emplace_back(wire.Channel(),
+			   startTick,
+			   endTick,
+			   fFitter.MeanVector()[ihit],
+			   fFitter.MeanErrorVector()[ihit],
+			   fFitter.SigmaVector()[ihit],
+			   fFitter.AmplitudeVector()[ihit],
+			   fFitter.AmplitudeErrorVector()[ihit],
+			   summedADCTotal*areaFracVector[ihit],
+			   areaVector[ihit],
+			   areaErrorVector[ihit],
+			   fFitter.NHits(),
+			   ihit,
+			   -999.,
+			   -999,
+			   wire.View(),
+			   sigtype,
+			   wireID);
+  }
+			 
 }

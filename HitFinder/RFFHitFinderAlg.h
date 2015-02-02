@@ -16,6 +16,9 @@
 #include "fhiclcpp/ParameterSet.h"
 
 #include "Geometry/Geometry.h"
+#include "SimpleTypesAndConstants/geo_types.h"
+#include "SimpleTypesAndConstants/RawTypes.h"
+
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 
@@ -24,6 +27,8 @@
 namespace hit{
 
   class RFFHitFinderAlg{
+
+  const float SQRT_TWO_PI = 2.506628;
 
   public:
     RFFHitFinderAlg(fhicl::ParameterSet const&);
@@ -41,8 +46,15 @@ namespace hit{
 
     void SetFitterParams(unsigned int);
 
-    RFFHitFitter fFitter;
+    void EmplaceHit(std::vector<recob::Hit>&,
+		    recob::Wire const&,
+		    float const&,
+		    raw::TDCtick_t const&, raw::TDCtick_t const&,
+		    geo::SigType_t const&, geo::WireID const&);
 
+    
+    RFFHitFitter fFitter;
+    
   };
 
 }

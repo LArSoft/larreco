@@ -45,6 +45,7 @@ namespace hit{
     const std::vector<float>& MeanErrorVector() { return fMeanErrorVector; }
     const std::vector<float>& SigmaErrorVector() { return fSigmaErrorVector; }
     const std::vector<float>& AmplitudeVector() { return fAmpVector; }
+    const std::vector<float>& AmplitudeErrorVector() { return fAmpErrorVector; }
     unsigned int NHits() { return fMeanVector.size(); }
 
     void ClearResults();
@@ -65,6 +66,7 @@ namespace hit{
     std::vector<float> fMeanErrorVector;
     std::vector<float> fSigmaErrorVector;
     std::vector<float> fAmpVector;
+    std::vector<float> fAmpErrorVector;
 
     std::multiset< MeanSigmaPair, SignalSetComp > fSignalSet;
     std::vector< std::vector< std::multiset<MeanSigmaPair>::iterator > >

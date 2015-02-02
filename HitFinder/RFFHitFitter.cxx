@@ -159,6 +159,8 @@ void hit::RFFHitFitter::CalculateAmplitudes(const std::vector<float>& signal)
     fAmpVector = fGEAlg.SolveEquations(fMeanVector,fSigmaVector,heightVector);
   }
 
+  fAmpErrorVector.resize(fAmpVector.size(),0.0);
+
 }
 
 bool hit::RFFHitFitter::HitsBelowThreshold()
@@ -175,6 +177,7 @@ void hit::RFFHitFitter::ClearResults()
   fMeanErrorVector.clear();
   fSigmaErrorVector.clear();
   fAmpVector.clear();
+  fAmpErrorVector.clear();
   fSignalSet.clear();
   fMergeVector.clear();
 }
@@ -193,6 +196,6 @@ void hit::RFFHitFitter::PrintResults()
     std::cout << "\t" 
 	      << fMeanVector[i] <<  " +- " << fMeanErrorVector[i] << " / " 
 	      << fSigmaVector[i] << " +- " << fSigmaErrorVector[i] << " / "
-	      << fAmpVector[i]
+	      << fAmpVector[i] << " +- " << fAmpErrorVector[i]
 	      << std::endl;
 }

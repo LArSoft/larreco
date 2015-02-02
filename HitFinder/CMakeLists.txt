@@ -12,6 +12,8 @@ art_make( BASENAME_ONLY
 			RawData
 			RecoBase 
 			RFFHitFitter
+                        Geometry
+                        Geometry_service
 			${ART_PERSISTENCY_COMMON}
 			${ART_PERSISTENCY_PROVENANCE}
 			${ART_UTILITIES}
