@@ -1,9 +1,17 @@
+art_make_library( LIBRARY_NAME RFFHitFitter
+                             SOURCE RegionAboveThresholdFinder.cxx
+					   GaussianEliminationAlg.cxx
+					   RFFHitFitter.cxx
+                             LIBRARIES
+                                                     ${ROOT_BASIC_LIB_LIST}
+)
 
 art_make( BASENAME_ONLY
 	  LIBRARY_NAME  HitFinder
           LIB_LIBRARIES
 			RawData
 			RecoBase 
+			RFFHitFitter
 			${ART_PERSISTENCY_COMMON}
 			${ART_PERSISTENCY_PROVENANCE}
 			${ART_UTILITIES}
