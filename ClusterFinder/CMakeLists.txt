@@ -4,6 +4,7 @@ art_make( BASENAME_ONLY
                         RecoBase
                         ClusterRecoUtil
           MODULE_LIBRARIES RecoAlg
+                           Cluster3DAlgs
                            ClusterRecoUtil
                            ClusterFinder
                            BackTracker_service

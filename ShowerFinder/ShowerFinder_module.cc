@@ -290,12 +290,14 @@ namespace shwf{
 	
 	/// \todo really need to determine the values of the arguments of the recob::Shower ctor
 	// fill with bogus values for now
-	double dcosVtx[3]    = { util::kBogusD };
-	double dcosVtxErr[3] = { util::kBogusD };
-	double maxTransWidth[2] = { util::kBogusD };
-	double distMaxWidth = util::kBogusD;
-	showercol->push_back( recob::Shower(dcosVtx, dcosVtxErr, maxTransWidth, totalCharge, distMaxWidth) );
+	//double dcosVtx[3]    = { util::kBogusD };
+	//double dcosVtxErr[3] = { util::kBogusD };
+	//double maxTransWidth[2] = { util::kBogusD };
+	//double distMaxWidth = util::kBogusD;
 	
+	//showercol->push_back( recob::Shower(dcosVtx, dcosVtxErr, maxTransWidth, totalCharge, distMaxWidth) );
+	showercol->push_back(recob::Shower());
+
 	// associate the shower with its clusters
 	util::CreateAssn(*this, evt, *showercol, protoShowers, *cassn);
 	
