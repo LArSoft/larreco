@@ -15,6 +15,7 @@
 #include "RFFHitFitter.h"
 #include <iostream>
 #include <cmath>
+#include <stdexcept>
 
 hit::RFFHitFitter::RFFHitFitter(float step, float max):
   fGEAlg(step,max)
@@ -83,12 +84,12 @@ void hit::RFFHitFitter::CreateMergeVector()
 {
   fMergeVector.clear(); fMergeVector.reserve( fSignalSet.size() );
   
-  float prev_mean=-999;
+  float prev_mean=-9e6;
   for(std::multiset<MeanSigmaPair>::iterator it=fSignalSet.begin();
       it!=fSignalSet.end();
       it++)
     {
-      if( std::abs(it->first - prev_mean) > fMeanMatchThreshold )
+      if( std::abs(it->first - prev_mean) > fMeanMatchThreshold || fMergeVector.size()==0 )
 	fMergeVector.push_back( std::vector< std::multiset<MeanSigmaPair>::iterator >(1,it) );
       else
 	fMergeVector.back().push_back(it);
