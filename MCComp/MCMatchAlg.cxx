@@ -15,7 +15,7 @@ namespace btutil {
   {
     fBTAlgo.Reset(g4_trackid_v,simch_v);
     
-    return BuildMap(hit_v, cluster_hit_association);
+    return BuildMap(cluster_v);
   }
 
   bool MCMatchAlg::BuildMap(const std::vector<std::vector< unsigned int> > &g4_trackid_v,
@@ -25,7 +25,7 @@ namespace btutil {
 
     fBTAlgo.Reset(g4_trackid_v,simch_v);
 
-    return BuildMap(hit_v, cluster_hit_association);
+    return BuildMap(cluster_v);
   }
 
   bool MCMatchAlg::BuildMap(const std::vector<std::vector<art::Ptr<recob::Hit> > > &cluster_v)
