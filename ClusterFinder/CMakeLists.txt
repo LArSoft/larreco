@@ -1,6 +1,7 @@
 
 art_make( BASENAME_ONLY
-          MODULE_LIBRARIES RecoAlg
+          MODULE_LIBRARIES Cluster3DAlgs
+	                   RecoAlg
                            BackTracker_service
                            Filters
                            RecoBase

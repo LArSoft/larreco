@@ -4,6 +4,7 @@ add_subdirectory(job)
 art_make(
 	  LIBRARY_NAME  ShowerReco3D
           LIB_LIBRARIES
+                        RecoBase
                         Utilities
 			AnalysisAlg
                         ClusterRecoUtil

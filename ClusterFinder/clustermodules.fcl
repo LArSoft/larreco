@@ -39,6 +39,20 @@ standard_fuzzycluster:
                          # Hough transform, if it is zero a seed is randomly created
  fuzzyClusterAlg: @local::standard_fuzzyclusteralg
 }
+ 
+standard_cluster3d:
+{
+  module_type:            "Cluster3D"
+  HitFinderModuleLabel:   "gaushit"
+  EnableMonitoring:       false
+  EnableProduction:       false
+  DBScanAlg:              @local::standard_cluster3ddbscanalg
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  SkeletonAlg:            @local::standard_cluster3dskeletonalg
+  SeedFinderAlg:          @local::standard_cluster3dhoughseedfinderalg
+  PCASeedFinderAlg:       @local::standard_cluster3dpcaseedfinderalg
+  ParallelHitsAlg:        @local::standard_cluster3dparallelhitsseedfinderalg
+}
 
 standard_clusterana:
 { 

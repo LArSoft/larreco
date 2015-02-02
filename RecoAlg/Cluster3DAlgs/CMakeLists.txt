@@ -1,7 +1,6 @@
 
-art_make( LIBRARY_NAME  RecoAlg
+art_make( LIBRARY_NAME  Cluster3DAlgs
           LIB_LIBRARIES HarrisVertexFinder_module
-                        BackTracker_service
                         RecoBase
                         Simulation
                         Filters
@@ -12,13 +11,6 @@ art_make( LIBRARY_NAME  RecoAlg
                         LArProperties_service
                         DetectorProperties_service
                         Utilities
-                        ${SIMULATIONBASE}
-			ClusterRecoUtil
-			CMToolBase
-			CMTAlgMerge
-			CMTAlgPriority
-			CMTAlgMatch
-			CMToolApp
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
@@ -39,11 +31,6 @@ art_make( LIBRARY_NAME  RecoAlg
 			${ROOT_MINUIT2}	
         )
 
-add_subdirectory(CMTool)
-add_subdirectory(ClusterRecoUtil)
-
 install_headers()
 install_fhicl()
 install_source()
-
-add_subdirectory(Cluster3DAlgs)

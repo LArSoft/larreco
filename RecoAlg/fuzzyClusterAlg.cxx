@@ -44,6 +44,8 @@
 #include <cmath> // std::sqrt(), std::atan(), std::pow()
 #include <utility> // std::move()
 #include <iterator> // std::back_inserter()
+#include <algorithm> // std::remove_if()
+#include <functional> // std::mem_fn()
 
 // ART and support libraries
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -153,8 +155,8 @@ namespace cluster {
     } DistSimTypes;
 
     typedef enum {
-      OBT_NORMAL ,
-      OBT_SUPPORT ,
+      OBT_NORMAL,
+      OBT_SUPPORT,
       OBT_OUTLIER
     } ObjectTypes;
     
@@ -171,9 +173,10 @@ namespace cluster {
     
     ///@{
     /// @name Accessors
-    size_t nClusters() const { return cso_count; }
+    /// Number of clusters, including the outlier
+    size_t nClusters() const { return count - 1; }
     const std::vector<int>& Cluster(size_t iCluster) const
-      { return clusters[iCluster]; }
+      { return clusters.at(iCluster); }
     ///@}
 
 
@@ -226,52 +229,7 @@ namespace cluster {
     
     void SetMatrix
       (const std::vector<std::vector<double>>& data, bool bDistance = false );
-      
-      
-      int simtype;
-      
-      size_t N; ///< Number of objects
-      size_t K; ///< Number of K-Nearest Neighbors
-      
-      size_t KMAX; ///< Upper bound for K defined as: sqrt(N)+10 
     
-      /**
-       * Stores the KMAX nearest neighbors instead of K nearest neighbors
-       * for each objects, so that when K is changed, weights and CSOs can be
-       * re-computed without referring to the original data.
-       */
-      std::vector<std::vector<int>> graph;
-      
-      /// Distances to the KMAX nearest neighbors
-      std::vector<std::vector<double>> dists;
-      
-      
-      /**
-       * Nearest neighbor count.
-       * it can be different from K if an object has nearest neighbors with
-       * equal distance.
-       */
-      std::vector<double> nncounts;
-      
-      std::vector<std::vector<double>> weights;
-    
-      size_t cso_count; ///< Number of identified Cluster Supporting Objects
-      
-      std::vector<char> obtypes;
-
-      std::vector<std::vector<double>> fuzzyships;
-
-      size_t count; ///< Number of clusters including the outlier group 
-      
-      /// The last one is the outlier group
-      std::vector<std::vector<int>> clusters;
-
-      DistFunction distfunc = nullptr;
-      
-
-
-
-
     
     /// Sort until the smallest "part" items are sorted
     static void PartialQuickSort
@@ -292,6 +250,48 @@ namespace cluster {
     static double DotProductDist(const std::vector<double>& x, const std::vector<double>& y );
     static double CovarianceDist(const std::vector<double>& x, const std::vector<double>& y );
 
+      protected:
+    
+    int simtype;
+    
+    size_t N; ///< Number of objects
+    size_t K; ///< Number of K-Nearest Neighbors
+    
+    size_t KMAX; ///< Upper bound for K defined as: sqrt(N)+10 
+  
+    /**
+     * Stores the KMAX nearest neighbors instead of K nearest neighbors
+     * for each objects, so that when K is changed, weights and CSOs can be
+     * re-computed without referring to the original data.
+     */
+    std::vector<std::vector<int>> graph;
+    
+    /// Distances to the KMAX nearest neighbors
+    std::vector<std::vector<double>> dists;
+    
+    
+    /**
+     * Nearest neighbor count.
+     * it can be different from K if an object has nearest neighbors with
+     * equal distance.
+     */
+    std::vector<double> nncounts;
+    
+    std::vector<std::vector<double>> weights;
+  
+    size_t cso_count; ///< Number of identified Cluster Supporting Objects
+    
+    std::vector<char> obtypes;
+
+    std::vector<std::vector<double>> fuzzyships;
+
+    size_t count; ///< Number of clusters including the outlier group 
+    
+    /// The last one is the outlier group
+    std::vector<std::vector<int>> clusters;
+
+    DistFunction distfunc = nullptr;
+    
   }; /// End Flame class
 
 } // namespace cluster
@@ -1988,7 +1988,7 @@ void cluster::Flame::DefineSupports(size_t knn, double thd )
   // Density threshold for possible outliers
   thd = sum + thd * std::sqrt( sum2 / n - sum * sum );
 
-  std::fill(obtypes.begin(),obtypes.end(),0);
+  std::fill(obtypes.begin(),obtypes.end(),OBT_NORMAL);
   cso_count = 0;
   for(size_t i = 0; i < n; ++i) {
     size_t k = nncounts[i];
@@ -2008,10 +2008,11 @@ void cluster::Flame::DefineSupports(size_t knn, double thd )
       obtypes[i] = OBT_OUTLIER;
     }
   } // for i
+  
 } // cluster::Flame::DefineSupports()
 
 void cluster::Flame::LocalApproximation(unsigned int steps, double epsilon) {
-  size_t n = N, m = nClusters();
+  size_t n = N, m = cso_count;
   std::vector<std::vector<double>> fuzzyships2(n);
   size_t k = 0;
   for(size_t i = 0; i < n; ++i) {
@@ -2109,7 +2110,7 @@ void cluster::Flame::MakeClusters( double thd )
           fmax = fuzzyships1[id][j];
         }
       } // for j
-      clusters[imax].push_back(id);
+      clusters.at(imax).push_back(id);
     } // for i
   }else{
     /* Assign each object to all the clusters
@@ -2128,17 +2129,17 @@ void cluster::Flame::MakeClusters( double thd )
     } // for i
   } // if ... else
   
-  /* removing empty clusters */
-  C = 0;
-  for(size_t i = 0; i < cso_count; i++) {
-    if (clusters[i].size() > 0) {
-      if (C != i) clusters[C] = std::move(clusters[i]);
-      ++C;
-    } // if
-  } // for i
-  // keep the outlier group, even if its empty
-  clusters[C] = clusters[cso_count];
-  ++C;
-  clusters.resize(C);
-  count = C;
+  // removing empty clusters
+  bool bEmptyOutlier = clusters.back().empty();
+  std::vector<std::vector<int>>::iterator end_good_clusters = std::remove_if(
+    clusters.begin(), clusters.end(),
+    std::mem_fn(&std::vector<int>::empty)
+    );
+  // if the last cluster (the outliers) is empty, it has not been moved
+  // and end_good_clusters does not include it;
+  // in that case we need to do that ourselves
+  clusters.erase(end_good_clusters, clusters.end()); // truncate
+  if (bEmptyOutlier) clusters.emplace_back(); // an empty outlier is added
+  
+  count = clusters.size() - 1; // outlier not included
 } // cluster::Flame::MakeClusters()
