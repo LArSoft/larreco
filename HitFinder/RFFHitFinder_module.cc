@@ -48,6 +48,7 @@ namespace hit{
   private:
     
     std::string fWireModuleLabel;
+    bool        fMakeWireHitAssocs;
     RFFHitFinderAlg fAlg;
   };
   
