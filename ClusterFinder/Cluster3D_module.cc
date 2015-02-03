@@ -75,6 +75,7 @@
 #include "RecoAlg/Cluster3DAlgs/SkeletonAlg.h"
 #include "RecoAlg/Cluster3DAlgs/DBScanAlg.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterRecoUtil/OverriddenClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
 #include "ClusterFinder/ClusterCreator.h"
 
@@ -870,9 +871,13 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
     std::unique_ptr< art::Assns<recob::SpacePoint, recob::Hit> >         artSPHitAssociations(      new art::Assns<recob::SpacePoint, recob::Hit>          );
     
     // prepare the algorithm to compute the cluster characteristics;
-    // we use the "standard" one here; configuration would happen here,
-    // but we are using the default configuration for that algorithm
-    cluster::ClusterParamsImportWrapper<cluster::StandardClusterParamsAlg>
+    // we use the "standard" one here, except that we override selected items
+    // (so, thanks to metaprogramming, we finally have wrappers of wrappers);
+    // configuration would happen here, but we are using the default
+    // configuration for that algorithm
+    using OverriddenClusterParamsAlg_t
+      = cluster::OverriddenClusterParamsAlg<cluster::StandardClusterParamsAlg>;
+    cluster::ClusterParamsImportWrapper<OverriddenClusterParamsAlg_t>
       ClusterParamAlgo;
     
     // Create id for space points
@@ -1009,9 +1014,15 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
                 startTime = midTime - dTdW * deltaWires;
                 endTime   = midTime + dTdW * deltaWires;
                 
-                // FIXME StartAngle() should be derived from dTdW!
                 // feed the algorithm with all the cluster hits
                 ClusterParamAlgo.ImportHits(recobHits);
+                
+                // override the end angles: instead of using the standard
+                // algorithm, we use a precomputed value
+                ClusterParamAlgo.OverrideParameter
+                  (OverriddenClusterParamsAlg_t::cpStartAngle, std::tan(dTdW));
+                ClusterParamAlgo.OverrideParameter
+                  (OverriddenClusterParamsAlg_t::cpEndAngle, std::tan(dTdW));
                 
                 // create the recob::Cluster directly in the vector
                 cluster::ClusterCreator artCluster(
