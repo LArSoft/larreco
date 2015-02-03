@@ -9,4 +9,6 @@ microboone_hitfinder.ColMinWidth: 1.0
 microboone_gaushitfinder.IndMinWidth: 1.0
 microboone_gaushitfinder.ColMinWidth: 1.0
 
+microboone_rffhitfinder: @local::rff_hitfinder
+
 END_PROLOG
