@@ -95,6 +95,7 @@ namespace cluster{
       ticks[ii] = ii;
     }
     float *signl = new float[maxticks];
+    float adcsum = 0;
     // initialize the vectors for the hit study
 //  StudyHits(0);
 
@@ -159,8 +160,10 @@ namespace cluster{
             unsigned short npt = 0;
             // look for bumps to inform the fit
             bumps.clear();
+            adcsum = 0;
             for(unsigned short ii = tstart; ii < time; ++ii) {
               signl[npt] = signal[ii];
+              adcsum += signl[npt];
               if(signal[ii    ] > signal[ii - 1] &&
                  signal[ii - 1] > signal[ii - 2] &&
                  signal[ii    ] > signal[ii + 1] &&
@@ -173,7 +176,7 @@ namespace cluster{
             // just make a crude hit if too many bumps
             if(bumps.size() > fMaxBumps) {
               MakeCrudeHit(npt, ticks, signl);
-              StoreHits(tstart, npt, theWire);
+              StoreHits(tstart, npt, theWire, adcsum);
               nabove = 0;
               continue;
             }
@@ -195,7 +198,7 @@ namespace cluster{
 */
               // good chisq so store it
               if(chidof < fChiSplit) {
-                StoreHits(tstart, npt, theWire);
+                StoreHits(tstart, npt, theWire, adcsum);
                 HitStored = true;
                 break;
               }
@@ -207,7 +210,7 @@ namespace cluster{
             if( !HitStored && npt < maxticks) {
               // failed all fitting. Make a crude hit
               MakeCrudeHit(npt, ticks, signl);
-              StoreHits(tstart, npt, theWire);
+              StoreHits(tstart, npt, theWire, adcsum);
             }
           } // nabove > minSamples
           nabove = 0;
@@ -230,12 +233,11 @@ namespace cluster{
   {
     // Fit the signal to n Gaussians
 
-    short ndof = npt - 3 * nGaus;
+    dof = npt - 3 * nGaus;
     
     chidof = 9999.;
-    dof = -1;
 
-    if(ndof < 3) return;
+    if(dof < 3) return;
     if(bumps.size() == 0) return;
 
     // define the fit string to pass to TF1
@@ -313,8 +315,7 @@ namespace cluster{
       partmp.push_back(Gn->GetParameter(ipar));
       partmperr.push_back(Gn->GetParError(ipar));
     }
-    chidof = Gn->GetChisquare() / ( ndof * chinorm);
-    dof = ndof;
+    chidof = Gn->GetChisquare() / ( dof * chinorm);
 
     // Sort by increasing time if necessary
     if(nGaus > 1) {
@@ -456,7 +457,7 @@ namespace cluster{
 
 /////////////////////////////////////////
   void CCHitFinderAlg::StoreHits(unsigned short TStart, unsigned short npt,
-    art::Ptr<recob::Wire>& theWire)
+    art::Ptr<recob::Wire>& theWire, float adcsum)
   {
     // store the hits in the struct
     unsigned short nhits = par.size() / 3;
@@ -468,6 +469,7 @@ namespace cluster{
 
     float loTime = TStart;
     float hiTime = TStart + npt;
+/*
     // check for large separation between hits. These vectors define the
     // boundaries of sub-multiplets
     std::vector<float> loTimes(nhits, loTime);
@@ -515,6 +517,8 @@ namespace cluster{
         }
       }
     }
+*/
+
 /*
   if(prt) {
     mf::LogVerbatim("CCHitFinder")<<"hit loTime hiTime loHitIDs nMultHits";
@@ -530,8 +534,15 @@ namespace cluster{
     // Multiplicity > 1 will reside in a block from
     // lohitid to lohitid + numHits - 1
     unsigned short lohitid = allhits.size();
-    for(unsigned short hit = 0; hit < nhits; ++hit) {
-      unsigned short index = 3 * hit;
+    unsigned short hit, index;
+    // Find sum of the areas of all Gaussians
+    float gsum = 0;
+    for(hit = 0; hit < nhits; ++hit) {
+      index = 3 * hit;
+      gsum += Sqrt2Pi * par[index] * par[index + 2] / ChgNorm;
+    }
+    for(hit = 0; hit < nhits; ++hit) {
+      index = 3 * hit;
       onehit.Charge = Sqrt2Pi * par[index] * par[index + 2] / ChgNorm;
       onehit.ChargeErr = SqrtPi * (parerr[index] * par[index + 2] +
                                    par[index] * parerr[index + 2]);
@@ -543,6 +554,8 @@ namespace cluster{
       onehit.RMSErr = parerr[index + 2];
       onehit.ChiDOF = chidof;
       onehit.DOF = dof;
+      // Allocate a fraction of the total ADC sum if this is a hit multiplet
+      onehit.ADCSum = adcsum * onehit.Charge / gsum;
       onehit.Wire = theWire;
       onehit.WireNum = theWireNum;
       onehit.numHits = nhits;
