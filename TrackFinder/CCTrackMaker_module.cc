@@ -103,23 +103,23 @@ namespace trkf {
 
     // Cluster parameters
     struct clPar{
-      std::array<float, 2> Wire; // Begin/End Wire
-//      std::array<float, 2> Time; // Begin/End Time
-      std::array<float, 2> X; // Begin/End X
-      std::array<short, 2> Time; // Begin/End Time
-      std::array<float, 2> Slope; // Begin/End slope (dT/dW)
-      std::array<float, 2> Charge; // Begin/End charge
-      std::array<float, 2> Angle; // Begin/End angle (radians)
-      std::array<float, 2> Dir; // Product of end * slope
-      std::array<short, 2> EP2Index; // EndPoint2D index
-      std::array<short, 2> VtxIndex; // Vertex index
+      std::array<float, 2> Wire;      // Begin/End Wire
+//      std::array<float, 2> Time;    // Begin/End Time
+      std::array<float, 2> X;         // Begin/End X
+      std::array<short, 2> Time;      // Begin/End Time
+      std::array<float, 2> Slope;     // Begin/End slope (dT/dW)
+      std::array<float, 2> Charge;    // Begin/End charge
+      std::array<float, 2> Angle;     // Begin/End angle (radians)
+      std::array<float, 2> Dir;       // Product of end * slope
+      std::array<short, 2> EP2Index;  // EndPoint2D index
+      std::array<short, 2> VtxIndex;  // Vertex index
       std::array<short, 2> mVtxIndex; // "Maybe" Vertex index
-      std::array<short, 2> BrkIndex; // Broken cluster index
+      std::array<short, 2> BrkIndex;  // Broken cluster index
       std::array<short, 2> mBrkIndex; // Multi broken cluster index
-      short EvtIndex;   // index of the cluster in clusterlist
-      short InTrack;          // cluster -> track ID (-1 if none, 0 if under construction)
-      unsigned short Length;           // cluster length (wires)
-      float TotChg;     // total charge of cluster (or series of clusters)
+      short EvtIndex;                 // index of the cluster in clusterlist
+      short InTrack;                  // cluster -> track ID (-1 if none, 0 if under construction)
+      unsigned short Length;          // cluster length (wires)
+      float TotChg;                   // total charge of cluster (or series of clusters)
     };
     // vector of cluster parameters in each plane
     std::array<std::vector<clPar>, 3> cls;
@@ -264,10 +264,10 @@ namespace trkf {
   {
     this->reconfigure(pset);
     produces< std::vector<recob::Track>                        >();
+    produces< art::Assns<recob::Track,      recob::Hit>        >();
 //    produces< art::Assns<recob::Track,      recob::Cluster>    >();
 //    produces< art::Assns<recob::Track,      recob::SpacePoint> >();
 //    produces< art::Assns<recob::SpacePoint, recob::Hit>        >();
-    produces< art::Assns<recob::Track,      recob::Hit>        >();
   }
 
   //-------------------------------------------------
@@ -338,35 +338,28 @@ namespace trkf {
     // get Clusters
     if (evt.getByLabel(fClusterModuleLabel, clusterListHandle))
       art::fill_ptr_vector(clusterlist, clusterListHandle);
-    art::FindManyP<recob::Hit> fmCluHits(clusterListHandle, evt, fClusterModuleLabel);
     if(clusterlist.size() == 0) return;
+    // get cluster - hit associations
+    art::FindManyP<recob::Hit> fmCluHits(clusterListHandle, evt, fClusterModuleLabel);
+//    art::FindManyP<recob::Vertex> fmCluVertices(clusterListHandle, evt, fVertexModuleLabel);
 
-    // get ClusterCrawler EndPoints
+    // get EndPoints
     if (evt.getByLabel(fEndPoint2DModuleLabel, EP2ListHandle))
       art::fill_ptr_vector(ep2list, EP2ListHandle);
+    art::FindManyP<recob::Cluster, unsigned int> fmEP2Cls(EP2ListHandle, evt, fEndPoint2DModuleLabel);
 
-    // get ClusterCrawler Vertices
+    // get Vertices
     if (evt.getByLabel(fVertexModuleLabel, VtxListHandle))
       art::fill_ptr_vector(vtxlist, VtxListHandle);
+    art::FindManyP<recob::Cluster, unsigned int> fmVtxCls(VtxListHandle, evt, fVertexModuleLabel);
+
+/// how to access data
+//    std::vector<art::Ptr<recob::Cluster>> const& vtxCls = fmVtxCls.at(iVtx);
+//    std::vector<unsigned int*> const& vtxClsEnd = fmVtxCls.data(iVtx);
 
     std::vector<CluLen> clulens;
     
-    unsigned short ipl, icl, end, iep, ivx;
-
-    bool badClus = false;
-    for(icl = 0; icl < clusterlist.size(); ++icl) {
-      if(clusterlist[icl]->Plane().Cryostat != 0) badClus = true;
-      if(clusterlist[icl]->Plane().TPC != 0) badClus = true;
-      if(clusterlist[icl]->Plane().Plane > 2) badClus = true;
-      if(badClus) {
-        mf::LogError("CCTM")<<"Bad cluster PlaneID "<<icl
-          <<" cst "<<clusterlist[icl]->Plane().Cryostat
-          <<" tpc "<<clusterlist[icl]->Plane().TPC
-          <<" pln "<<clusterlist[icl]->Plane().Plane
-          <<" isValid "<<clusterlist[icl]->Plane().isValid<<"\n";
-        return;
-      }
-    } // checking
+    unsigned short ipl, icl, end, iep;
     
     // some junk vectors to satisfy the recob::Track constructor
     std::vector< std::vector<double> > dQdx;
@@ -411,12 +404,12 @@ namespace trkf {
             clstr.Wire[0] = cluster.StartWire();
             clstr.Time[0] = cluster.StartTick();
             clstr.X[0] = (float)detprop->ConvertTicksToX(cluster.StartTick(), ipl, tpc, cstat);
-            clstr.Slope[0] = fScaleF * cluster.SigmadTdW();
-            clstr.Charge[0] = cluster.StartCharge();
-            clstr.Angle[0] = std::atan(clstr.Slope[0]);
+            clstr.Angle[0] = cluster.StartAngle();
+            clstr.Slope[0] = std::tan(cluster.StartAngle()) / fScaleF;
             clstr.Dir[0] = -1 * (2*(clstr.Slope[0]>0)-1);
-            clstr.EP2Index[0] = (short) cluster.SigmaStartWire();
-            clstr.VtxIndex[0] = (short) cluster.SigmaStartTick();
+            clstr.Charge[0] = cluster.StartCharge();
+            clstr.EP2Index[0] = -1;
+            clstr.VtxIndex[0] = -1;
             clstr.mVtxIndex[0] = -1;
             clstr.BrkIndex[0] = -1;
             clstr.mBrkIndex[0] = -1;
@@ -424,12 +417,12 @@ namespace trkf {
             clstr.Wire[1] = cluster.EndWire();
             clstr.Time[1] = cluster.EndTick();
             clstr.X[1] = (float)detprop->ConvertTicksToX(cluster.EndTick(), ipl, tpc, cstat);
-            clstr.Slope[1] = fScaleF * std::tan(cluster.StartAngle());
-            clstr.Charge[1] = cluster.SigmadQdW();
-            clstr.Angle[1] = std::atan(clstr.Slope[1]);
+            clstr.Angle[1] = cluster.EndAngle();
+            clstr.Slope[1] =  std::tan(cluster.EndAngle()) / fScaleF;
             clstr.Dir[1] = 1 * (2*(clstr.Slope[1]>0)-1);
-            clstr.EP2Index[1] = (short) cluster.SigmaEndWire();
-            clstr.VtxIndex[1] = (short) cluster.SigmaEndTick();
+            clstr.Charge[1] = cluster.EndCharge();
+            clstr.EP2Index[1] = -1;
+            clstr.VtxIndex[1] = -1;
             clstr.mVtxIndex[1] = -1;
             clstr.BrkIndex[1] = -1;
             clstr.mBrkIndex[1] = -1;
@@ -441,42 +434,57 @@ namespace trkf {
             cls[ipl].push_back(clstr);
           } // ii (icl)
         } // ipl
+        
         // now get the endpoints
         for(iep = 0; iep < ep2list.size(); ++iep) {
-          for(ipl = 0; ipl < nplanes; ++ipl) {
-            if(ep2list[iep]->WireID().Plane == ipl) {
-              EP2Par endpt;
-              endpt.Wir = (float)ep2list[iep]->Charge();
-              endpt.X = (float)detprop->ConvertTicksToX(ep2list[iep]->DriftTime(), ipl, tpc, cstat);
-              ep2[ipl].push_back(endpt);
-              break;
-            } // ep2list[iep]->WireID().Plane == ipl
-          } // ipl
-        } // ivx
+          EP2Par endpt;
+          ipl = ep2list[iep]->WireID().Plane;
+          unsigned short epWire = ep2list[iep]->WireID().Wire;
+          endpt.Wir = (float)epWire;
+          endpt.X = (float)detprop->ConvertTicksToX(ep2list[iep]->DriftTime(), ipl, tpc, cstat);
+          ep2[ipl].push_back(endpt);
+          // get the cluster -> endpoint associations
+          std::vector<art::Ptr<recob::Cluster>> const& ep2Cls = fmEP2Cls.at(iep);
+          std::vector<const unsigned int*> const& ep2ClsEnd = fmEP2Cls.data(iep);
+          for(unsigned short ecass = 0; ecass < ep2Cls.size(); ++ecass) {
+            icl = ep2Cls[ecass]->ID() - 1;
+            end = *ep2ClsEnd[ecass];
+            if(end > 1) {
+              mf::LogError("CCTM")<<"Bad end value from EP2Cls assn "<<end;
+              return;
+            } // end check
+  std::cout<<"EP2 "<<iep<<" -> cls "<<icl<<" end "<<end<<"\n";
+            // set cluster end info
+            cls[ipl][icl].EP2Index[end] = iep;
+          } // ecass
+        } // iep
+
         // and finally the vertices
         double xyz[3];
-        for(ivx = 0; ivx < vtxlist.size(); ++ivx) {
+        for(unsigned short ivx = 0; ivx < vtxlist.size(); ++ivx) {
           vtxPar aVtx;
           aVtx.ID = vtxlist[ivx]->ID();
           vtxlist[ivx]->XYZ(xyz);
           aVtx.X = xyz[0];
           aVtx.Y = xyz[1];
           aVtx.Z = xyz[2];
-          // make the list of pointers to clusters in each plane
-          for(ipl = 0; ipl < nplanes; ++ipl) {
-            if(cls[ipl].size() == 0) continue;
-            for(icl = 0; icl < cls[ipl].size(); ++icl) {
-              for(end = 0; end < 2; ++end) {
-                if(cls[ipl][icl].VtxIndex[end] == aVtx.ID) {
-                  aVtx.clIndex[ipl].push_back((short)icl);
-                  // point to the index of the vertex - not the vertex ID
-                  cls[ipl][icl].VtxIndex[end] = ivx;
-                }
-              } // end
-            } // icl
-          } // ipl
           vtx.push_back(aVtx);
+          std::vector<art::Ptr<recob::Cluster>> const& vtxCls = fmVtxCls.at(ivx);
+          std::vector<const unsigned int*> const& vtxClsEnd = fmVtxCls.data(ivx);
+          for(unsigned short vcass = 0; vcass < vtxCls.size(); ++vcass) {
+            icl = vtxCls[vcass]->ID() - 1;
+            // the cluster plane
+            ipl = vtxCls[vcass]->Plane().Plane;
+            end = *vtxClsEnd[vcass];
+            if(end > 1) {
+              mf::LogError("CCTM")<<"Bad end value from VtxCls assn "<<end;
+              return;
+            } // end check
+            aVtx.clIndex[ipl].push_back(icl);
+            cls[ipl][icl].VtxIndex[end] = aVtx.ID;
+          } // icl
         } // ivx
+
         // Find broken clusters
         FindBustedClusters(cls);
         FindMaybeVertices(cls, vtx, cstat, tpc);
