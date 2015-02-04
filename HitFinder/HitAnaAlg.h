@@ -3,9 +3,11 @@
 
 /*!
  * Title:   HitAnaModule
- * Author:  wketchum@lanl.gov
+ * Author:  wketchum@lanl.gov. 
  * Inputs:  recob::Wire (calibrated), recob::Hit, Assns<recob::Wire, recob::Hit>
- * Outputs: validation histograms
+ * Outputs: validation histograms for wire aggregated hits.
+ *
+ * Embellished by echurch@fnal.gov for just Hits
  *
  * Description:
  * This module is intended to be yet another hit analyzer module. Its intention is
@@ -79,6 +81,7 @@ namespace hit{
     std::vector<float> Hits_PeakTime;
     std::vector<float> Hits_wAverageCharge;
     std::vector<float> Hits_wAverageTime;
+    std::vector<float> Hits_MeanMultiplicity;
     std::vector< std::vector<HitInfo> > Hits;
     int NMCHits;
     float MCHits_IntegratedCharge;
@@ -88,6 +91,7 @@ namespace hit{
     float MCHits_wAverageCharge;
     float MCHits_wAverageTime;
   };
+
 
   class HitAnaAlgException : public std::exception{
     virtual const char* what() const throw(){
@@ -104,6 +108,8 @@ namespace hit{
     HitAnaAlg();
     
     void SetWireDataTree(TTree*);
+
+    void SetHitDataTree(std::vector<TTree*>& trees);
 
     void AnalyzeWires(std::vector<recob::Wire> const&,
 		      std::vector<sim::MCHitCollection> const&,
@@ -148,12 +154,16 @@ namespace hit{
 				   util::TimeService const&);
     
     WireROIInfo wireData;
+    std::vector<recob::Hit*> hitData;
+
     std::vector<std::string> HitModuleLabels;
     std::vector< HitAssocPair > HitProcessingQueue;
 
 
     void SetupWireDataTree();
     TTree* wireDataTree;
+
+    std::vector<TTree*> hitDataTree;
 
     //this is for unit testing...class has no other purpose
     friend class HitAnaAlgTest;

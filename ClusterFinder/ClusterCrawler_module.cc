@@ -159,8 +159,8 @@ namespace cluster {
         theHit.Amplitude,          // peak_amplitude
         theHit.AmplitudeErr,       // sigma_peak_amplitude
         theHit.Charge,             // hit_integral
+        theHit.ChargeErr,          // sigma hit_integral
         theHit.ADCSum,             // summed ADC
-        0,                         // sigma summed ADC
         theHit.numHits,            // multiplicity
         iht - theHit.LoHitID,      // local_index FIXME LOHITID...
         theHit.ChiDOF,             // goodness_of_fit
@@ -228,7 +228,7 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::Vertex> > v3col(new std::vector<recob::Vertex>(std::move(sv3col)));
     
     // make the clusters and associations
-    float sumChg, sumADC, wovrh;
+    float sumChg, sumADC;
     unsigned int clsID = 0, nclhits, iep;
     for(icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
       ClusterCrawlerAlg::ClusterStore& clstr = fCCAlg.tcl[icl];
@@ -256,7 +256,6 @@ namespace cluster {
       art::Ptr<recob::Wire> const& theWire = theHit.Wire;
       raw::ChannelID_t channel = theWire->Channel();
       std::vector<geo::WireID> wids = geo->ChannelToWire(channel);
-      wovrh = (float)(clstr.BeginWir - clstr.EndWir) / (float)nclhits;
       geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
       unsigned short plane = planeID.Plane;
       sccol.emplace_back(
@@ -279,7 +278,7 @@ namespace cluster {
           sumADC,                 // summed ADC
           0,                      // sigma summed ADC
           nclhits,                // n hits
-          wovrh,                  // wires over hits
+          0,                      // wires over hits
           0,                      // width (0 for line-like clusters)
           clsID,                   // ID
           geo->View(channel),     // view

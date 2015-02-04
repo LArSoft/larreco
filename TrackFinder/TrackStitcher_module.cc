@@ -87,6 +87,7 @@ namespace trkf {
 
     const art::PtrVector<recob::Hit> GetHitsFromComponentTracks(const art::PtrVector<recob::Track> &, const art::Event& evt);
     const art::PtrVector<recob::SpacePoint> GetSpacePointsFromComponentTracks(const art::PtrVector<recob::Track> &, const art::Event& evt);
+    const std::vector<art::Ptr<recob::Hit>> GetHitsFromAssdSpacePoints(const art::PtrVector<recob::SpacePoint> &, const art::Event& evt,  std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > > &vpi);
     std::string     fTrackModuleLabel;// label for input collection
     std::string     fSpptModuleLabel;// label for input collection
     bool            fStizatch; // CommonComponentStitch
@@ -109,6 +110,7 @@ namespace trkf {
     produces<std::vector<art::PtrVector<recob::Track> >  >(); 
     produces<art::Assns<recob::Track, recob::Hit>        >();
     produces<art::Assns<recob::Track, recob::SpacePoint> >();
+    produces<art::Assns<recob::SpacePoint, recob::Hit>   >();
     // get the random number seed, use a random default if not specified    
     // in the configuration file.  
     unsigned int seed = pset.get< unsigned int >("Seed", sim::GetRandomNumberSeed());
@@ -156,10 +158,42 @@ namespace trkf {
     //////////////////////////////////////////////////////
     // tcol is the collection of new tracks
     std::unique_ptr<std::vector<recob::Track> > tcol(new std::vector<recob::Track>);
+    std::unique_ptr<art::PtrVector<recob::SpacePoint> > scol(new art::PtrVector<recob::SpacePoint>);
     // tvcol is the collection of vectors that comprise each tcol
     std::unique_ptr<std::vector< art::PtrVector<recob::Track> > > tvcol(new std::vector< art::PtrVector<recob::Track> >);
     std::unique_ptr< art::Assns<recob::Track, recob::Hit> > thassn(new art::Assns<recob::Track, recob::Hit>);     
     std::unique_ptr< art::Assns<recob::Track, recob::SpacePoint> > tsptassn(new art::Assns<recob::Track, recob::SpacePoint>);     
+    std::unique_ptr< art::Assns<recob::SpacePoint, recob::Hit > > spthassn(new art::Assns<recob::SpacePoint, recob::Hit>);     
+
+
+    // Get the original Spacepoints. Trackers other than CosmicTracker wrote the
+    // SpacePoints as a PtrVec of vecs. If they look like that, flatten into one vec.
+
+    art::Handle< std::vector < recob::SpacePoint > > sppth;
+    try
+      {
+	mf::LogWarning("TrackStitcher_module: Trying to read Track3DKalmanXYZ-style PtrVector of std::vector of SpacePoints") ;
+	art::Handle< std::vector < art::PtrVector <recob::SpacePoint> > > sppth;
+	evt.getByLabel(fSpptModuleLabel, sppth);
+	for (size_t ii=0; ii<sppth->size() ;ii++)
+	  for (size_t jj=0; jj<sppth->at(ii).size() ;ii++) 
+	    {
+	      art::Ptr<recob::SpacePoint> sptmp(sppth->at(ii).at(jj));
+	      scol->push_back(sptmp );
+	    }
+      }
+    catch(...)
+      {
+	mf::LogWarning("TrackStitcher_module: Trying instead to read CosmicTracker-style already-flattened vector of SpacePoints") ;
+	art::Handle< std::vector < recob::SpacePoint > > sppthf;
+	evt.getByLabel(fSpptModuleLabel, sppthf);
+	for (size_t ii=0; ii<sppthf->size() ;ii++)
+	    {
+	      art::Ptr<recob::SpacePoint> sptmpf(sppthf,ii);
+	      scol->push_back(sptmpf);
+	    }
+
+      }
 
 
     // Find the best match for each track's Head and Tail.
@@ -179,6 +213,11 @@ namespace trkf {
 
     if (tcol->size()!=tvcol->size())
       throw cet::exception("TrackStitcher") << "Tracks and TrackComposites do not match: "<<tcol->size()<<" vs "<<tvcol->size()<<"\n";      
+    
+    std::vector<size_t> spIndices(scol->size());
+    // create spIndices, index array for searching into original scol SpacePoints.
+    for ( size_t ii=0; ii<scol->size(); ii++ ) 
+      {spIndices[ii]=ii;}
 
     for (size_t ii=0; ii<tvcol->size(); ii++)
       {
@@ -188,6 +227,38 @@ namespace trkf {
 	const art::PtrVector<recob::SpacePoint>& sppts(GetSpacePointsFromComponentTracks(tvcol->at(ii), evt));
 	// Now make the Assns of relevant Sppts to stitched Track
 	util::CreateAssn(*this, evt, *tcol, sppts, *tsptassn, ii);
+
+	// Now Assns of sppts to hits. For this Sppt 
+	// I call the function to bring back the vec of associated Hits and the vector of 
+	// pairs of iterators that allow to pull those Hits needed from each Sppt.
+	std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > >  pits;
+	const std::vector<art::Ptr<recob::Hit>> hitsFromSppts(GetHitsFromAssdSpacePoints(sppts, evt, pits));
+	//	std::cout << "TrackStitcher_module: scol->size() is " << scol->size() << std::endl;
+	//	std::cout << "TrackStitcher_module: sppts.size() is " << sppts.size() << std::endl;
+	for ( size_t jj=0; jj<sppts.size(); jj++ ) 
+	  {
+	    // find jjth sppt in the list of scol. Meaning, find kkth element of sppth.
+	    size_t ll(scol->size());
+	    // this gives indices into the vector of original spacepoints in which
+	    // to look for our sppts.
+	    size_t off(0);
+	    for ( auto& kk : spIndices ) 
+	      {
+		const art::Ptr<recob::SpacePoint> spptnc(scol->at(kk));
+		if ( spptnc != sppts.at(jj)) { off++; continue;}
+		ll = kk; 
+		//		std::cout << "TrackStitcher_module: index into spacepoints for which to write out sppt-hit Assns is " << ll << std::endl;
+		// drop this one for future searches, since we've used it.
+		spIndices.erase(spIndices.begin()+off); 
+		break;
+	      }
+	    if (ll<scol->size())
+	      {
+		std::vector <art::Ptr  <recob::Hit> > hitsThisSppt;
+		hitsThisSppt.insert(hitsThisSppt.begin(),pits.at(jj).first,pits.at(jj).second);
+		util::CreateAssn(*this, evt, scol->at(ll), hitsThisSppt, *spthassn);
+	      }
+	  }
       }
 
 
@@ -197,6 +268,7 @@ namespace trkf {
     // Add Hit-to-Track and Sppt-to-Track Assns.
     evt.put(std::move(thassn));
     evt.put(std::move(tsptassn));
+    evt.put(std::move(spthassn));
 
   }
   
@@ -210,7 +282,6 @@ namespace trkf {
       {
 	 hits.insert(hits.end(),hitAssns.at(ii).begin(), hitAssns.at(ii).end());
       }
-
 
 
     //    const art::PtrVector<recob::Hit> chits(hits);
@@ -229,6 +300,25 @@ namespace trkf {
     
     //    const art::PtrVector<recob::Hit> chits(hits);
     return sppts;
+  }
+
+  const std::vector<art::Ptr<recob::Hit>> TrackStitcher::GetHitsFromAssdSpacePoints(const art::PtrVector<recob::SpacePoint> &sppts, const art::Event& evtGHFCT, std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > > &pithit) 
+  {
+
+    std::vector<art::Ptr<recob::Hit>> hits;
+    art::FindManyP<recob::Hit> hitAssns(sppts, evtGHFCT, fSpptModuleLabel); 
+
+    size_t start(0), finish(0);
+    for (unsigned int ii=0; ii < sppts.size(); ++ii )
+      {
+	 hits.insert(hits.end(),hitAssns.at(ii).begin(), hitAssns.at(ii).end());
+	 finish = start+(size_t)(hitAssns.at(ii).end() - hitAssns.at(ii).begin());
+	 std::pair< std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > pithittmp(hitAssns.at(ii).begin(),hitAssns.at(ii).end());
+	 pithit.push_back(pithittmp);
+	 start += (finish+1);
+      }
+
+    return hits;
   }
 
   DEFINE_ART_MODULE(TrackStitcher)

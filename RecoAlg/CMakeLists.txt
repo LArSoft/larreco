@@ -13,6 +13,11 @@ art_make( LIBRARY_NAME  RecoAlg
                         DetectorProperties_service
                         Utilities
                         ClusterRecoUtil
+			CMToolBase
+			CMTAlgMerge
+			CMTAlgPriority
+			CMTAlgMatch
+			CMToolApp
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -34,8 +39,11 @@ art_make( LIBRARY_NAME  RecoAlg
 			${ROOT_MINUIT2}	
         )
 
+add_subdirectory(CMTool)
 add_subdirectory(ClusterRecoUtil)
+add_subdirectory(Cluster3DAlgs)
 
 install_headers()
 install_fhicl()
 install_source()
+

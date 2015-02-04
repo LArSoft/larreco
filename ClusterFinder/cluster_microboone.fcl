@@ -7,6 +7,14 @@ microboone_clustercrawler.ClusterCrawlerAlg:  @local::microboone_clustercrawlera
 microboone_clustercrawler.CCHitFinderAlg:     @local::microboone_cchitfinderalg
 microboone_clustercrawler.CCHitRefinerAlg:    @local::microboone_cchitrefineralg
 
+microboone_cluster3d:                         @local::standard_cluster3d
+microboone_cluster3d.DBScanAlg:               @local::microboone_cluster3ddbscanalg
+microboone_cluster3d.PrincipalComponentsAlg:  @local::microboone_cluster3dprincipalcomponentsalg
+microboone_cluster3d.SkeletonAlg:             @local::microboone_cluster3dskeletonalg
+microboone_cluster3d.SeedFinderAlg:           @local::microboone_cluster3dhoughseedfinderalg
+microboone_cluster3d.PCASeedFinderAlg:        @local::microboone_cluster3dpcaseedfinderalg
+microboone_cluster3d.ParallelHitsAlg:         @local::microboone_cluster3dparallelhitsseedfinderalg
+
 microboone_dbscanalg:                         @local::standard_dbscanalg_fast 
 microboone_endpointalg:                       @local::standard_endpointalg    
 microboone_houghbasealg:                      @local::standard_houghbasealg   
@@ -16,8 +24,6 @@ microboone_houghbasealg.MinHits:              5
 microboone_houghbasealg.NumAngleCells:        20000
 microboone_fuzzyclusteralg:                   @local::microboone_fuzzyclusteralg 
 microboone_clustercrawlershower:              @local::standard_clustercrawlershower
-microboone_clustercrawlershower.ClusterParamsAlg:         @local::microboone_clusterparamsalg
-microboone_clustercrawlershower.ClusterMergeAlg:          @local::microboone_clustermergealg
 
 microboone_dbcluster:                    @local::standard_dbcluster      
 microboone_dbcluster.DBScanAlg:          @local::microboone_dbscanalg    
@@ -30,10 +36,5 @@ microboone_houghlinefinderana:           @local::standard_houghlinefinderana
 microboone_linemerger:                   @local::standard_linemerger        
 microboone_endpointmod:                  @local::standard_endpointmod       
 microboone_endpointmod.EndPointAlg:      @local::microboone_endpointalg
-microboone_showeranglecluster:           @local::standard_showeranglecluster
-microboone_showeranglecluster.ClusterMatchAlg:          @local::microboone_clustermatchalg
-microboone_showeranglecluster.ClusterMergeAlg:          @local::microboone_clustermergealg
-microboone_showerangleclusterana:           @local::standard_showerangleclusterana
-microboone_showerangleclusterana.ClusterParamsAlg:           @local::microboone_clusterparamsalg
-microboone_smallclusterfinder:			 @local::standard_smallclusterfinder
+microboone_smallclusterfinder:		 @local::standard_smallclusterfinder
 END_PROLOG

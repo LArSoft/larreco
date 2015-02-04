@@ -211,9 +211,7 @@ namespace hit{
 	  1,                         // multiplicity (dummy value)
 	  0,                         // local_index (dummy value)
 	  1.,                        // goodness_of_fit (dummy value)
-	  0,                         // dof
-	  std::vector<float>(signal.begin() + start_tick, signal.begin() + end_tick)
-	                             // signal
+	  0                          // dof
 	  );
 	if(wire_id.Plane==0)
 	  hitCollection_U.emplace_back(hit.move(), wire, rawdigits);

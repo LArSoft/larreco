@@ -33,6 +33,20 @@ standard_fuzzycluster:
                          # Hough transform, if it is zero a seed is randomly created
  fuzzyClusterAlg: @local::standard_fuzzyclusteralg
 }
+ 
+standard_cluster3d:
+{
+  module_type:            "Cluster3D"
+  HitFinderModuleLabel:   "gaushit"
+  EnableMonitoring:       false
+  EnableProduction:       false
+  DBScanAlg:              @local::standard_cluster3ddbscanalg
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  SkeletonAlg:            @local::standard_cluster3dskeletonalg
+  SeedFinderAlg:          @local::standard_cluster3dhoughseedfinderalg
+  PCASeedFinderAlg:       @local::standard_cluster3dpcaseedfinderalg
+  ParallelHitsAlg:        @local::standard_cluster3dparallelhitsseedfinderalg
+}
 
 standard_clusterana:
 { 
@@ -106,6 +120,24 @@ standard_endpointmod:
  EndPointAlg:       @local::standard_endpointalg
 }
 
+standard_kingacluster:
+{
+ module_type:          "KingaCluster"
+ DBScanModuleLabel:    "dbcluster"
+ EndPoint2DModuleLabel: "vertex2d"
+}
+
+standard_kingaclusterana:
+{ 
+ module_type:               "KingaClusterAna"
+ LineMergerModuleLabel:     "linemerger"
+ EndPoint2DModuleLabel:     "vertex2d"
+ ClusterCheaterModuleLabel: "cluster"
+ KingaModuleLabel:          "kingacluster"
+ GenieGenModuleLabel:       "generator"
+ LArGeantModuleLabel:       "largeant"
+}
+
 standard_showeranglecluster:
 {
  module_type:              "ShowerAngleCluster"
@@ -127,7 +159,12 @@ standard_showerangleclusterana:
  MinHitListSize:	  15
 }
 
-
+standard_simpleclustermerger:
+{
+ module_type:       "SimpleClusterMerger"
+ InputClusterLabel: "fuzzycluster"
+}
+>>>>>>> LARSOFT_SUITE_v03_08_00
 
 standard_smallclusterfinder:
 {
@@ -158,7 +195,6 @@ jp250L_houghlinefinderana:           @local::standard_houghlinefinderana
 jp250L_linemerger:                   @local::standard_linemerger         
 jp250L_endpointmod:                  @local::standard_endpointmod        
 jp250L_endpointmod.EndPointAlg:      @local::jp250L_endpointalg
-jp250L_showeranglecluster:           @local::standard_showeranglecluster
 
 
 bo_clustercrawler:               @local::standard_clustercrawler      
@@ -173,7 +209,6 @@ bo_houghlinefinderana:           @local::standard_houghlinefinderana
 bo_linemerger:                   @local::standard_linemerger         
 bo_endpointmod:                  @local::standard_endpointmod        
 bo_endpointmod.EndPointAlg:      @local::bo_endpointalg
-bo_showeranglecluster:           @local::standard_showeranglecluster
 
 
 argoneut_clustercrawler:               @local::standard_clustercrawler      
@@ -188,9 +223,6 @@ argoneut_houghlinefinderana:           @local::standard_houghlinefinderana
 argoneut_linemerger:                   @local::standard_linemerger         
 argoneut_endpointmod:                  @local::standard_endpointmod        
 argoneut_endpointmod.EndPointAlg:      @local::argoneut_endpointalg
-argoneut_showeranglecluster:           @local::standard_showeranglecluster
 argoneut_smallclusterfinder:		   @local::standard_smallclusterfinder
-argoneut_showerangleclusterana:           @local::standard_showerangleclusterana
-argoneut_showerangleclusterana.ClusterParamsAlg:           @local::argoneut_clusterparamsalg
 
 END_PROLOG

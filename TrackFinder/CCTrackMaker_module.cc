@@ -448,12 +448,14 @@ namespace trkf {
           std::vector<const unsigned int*> const& ep2ClsEnd = fmEP2Cls.data(iep);
           for(unsigned short ecass = 0; ecass < ep2Cls.size(); ++ecass) {
             icl = ep2Cls[ecass]->ID() - 1;
+            unsigned int mykey = ep2Cls[ecass].key();
             end = *ep2ClsEnd[ecass];
             if(end > 1) {
               mf::LogError("CCTM")<<"Bad end value from EP2Cls assn "<<end;
               return;
             } // end check
-  std::cout<<"EP2 "<<iep<<" -> cls "<<icl<<" end "<<end<<"\n";
+  std::cout<<"EP2 "<<iep<<" -> cls "<<icl<<" mykey "<<mykey
+    <<" end "<<end<<"\n";
             // set cluster end info
             cls[ipl][icl].EP2Index[end] = iep;
           } // ecass
@@ -481,6 +483,7 @@ namespace trkf {
               return;
             } // end check
             aVtx.clIndex[ipl].push_back(icl);
+            // TODO search for EvtIndex
             cls[ipl][icl].VtxIndex[end] = aVtx.ID;
           } // icl
         } // ivx

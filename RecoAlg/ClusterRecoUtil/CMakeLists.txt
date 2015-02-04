@@ -1,4 +1,3 @@
-
 art_make( LIBRARY_NAME  ClusterRecoUtil
           LIB_LIBRARIES
                         Utilities

@@ -1,0 +1,73 @@
+#include "services_microboone.fcl"
+#include "caldata_microboone.fcl"
+#include "hitfindermodules_microboone.fcl"
+#include "cluster_microboone.fcl"
+#include "mchitmodules.fcl"
+
+process_name: HitAna
+
+services:
+{
+  # Load the service that manages root files for histograms.
+  TFileService: { fileName: "HitAnaOutput3_hist.root" }
+  Timing:       {}
+  RandomNumberGenerator: {} #ART native random number generator
+  user:         @local::microboone_services
+}
+
+
+#Start each new event with an empty event.
+source:
+{
+  module_type: RootInput
+  fileNames: ["myInputFile.root"]
+  maxEvents:  10        # Number of events to create
+  firstRun:    1           # Run number to use for this file
+  firstEvent:  1           # number of first event in the file
+
+}
+
+# Define and configure some modules to do work on each event.
+# First modules are defined; they are scheduled later.
+# Modules are grouped by type.
+physics:
+{
+
+ producers:
+ {
+  caldata:             @local::microboone_calroi
+  gaushit:             @local::microboone_gaushitfinder
+  rffhit:              @local::microboone_rffhitfinder
+  ccluster:	       @local::microboone_clustercrawler
+  mchit:               @local::standard_mchitfinder
+
+ }
+
+ analyzers:
+ {
+        hitana: { module_type: HitAnaModule 
+                  HitModuleLabels: [ "rffhit", "gaushit", "ccluster" ]  # cccluster
+                  WireModuleLabel: "caldata" 
+		  MCHitModuleLabel: "mchit" }
+ }
+
+ reco:     [caldata, gaushit, rffhit, ccluster, mchit]
+ stream1:  [ out1 ]
+ analyze:  [ hitana ]
+
+ trigger_paths: [ reco ]
+ end_paths:     [ analyze, stream1 ]   
+}
+
+outputs:
+{
+ out1:
+ {
+   module_type: RootOutput
+   fileName:    "HitAnaOutput3.root"
+   compressionLevel: 1
+ }
+}
+
+#physics.producers.caldata.uPlaneROIPad: [10,10]
+#physics.producers.caldata.uPlaneRamp: false

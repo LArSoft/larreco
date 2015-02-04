@@ -45,6 +45,5 @@ argoneut_houghlinefinderana:           @local::standard_houghlinefinderana
 argoneut_linemerger:                   @local::standard_linemerger        
 argoneut_endpointmod:                  @local::standard_endpointmod       
 argoneut_endpointmod.EndPointAlg:      @local::argoneut_endpointalg
-argoneut_showeranglecluster:           @local::standard_showeranglecluster
 
 END_PROLOG

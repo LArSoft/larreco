@@ -26,6 +26,5 @@ bo_houghlinefinderana:           @local::standard_houghlinefinderana
 bo_linemerger:                   @local::standard_linemerger         
 bo_endpointmod:                  @local::standard_endpointmod        
 bo_endpointmod.EndPointAlg:      @local::bo_endpointalg
-bo_showeranglecluster:           @local::standard_showeranglecluster
 
 END_PROLOG

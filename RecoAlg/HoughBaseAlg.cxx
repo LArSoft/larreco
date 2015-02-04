@@ -1402,7 +1402,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 	  ClusterParamAlgo.SummedADC().value(),         // summedADC
 	  ClusterParamAlgo.SummedADCStdDev().value(),   // summedADC_stddev
 	  ClusterParamAlgo.NHits(),                     // n_hits
-	  ClusterParamAlgo.NWiresOverNHits(),           // wires_over_hits
+	  ClusterParamAlgo.MultipleHitWires(),           // multiple_hit_wires
 	  ClusterParamAlgo.Width(),                     // width
 	  clusterID,                                    // ID
 	  FirstHit.View(),                              // view

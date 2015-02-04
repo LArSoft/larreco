@@ -1,7 +1,7 @@
 #ifndef UTIL_CLUSTERPARAMS_H
 #define UTIL_CLUSTERPARAMS_H
 
-#include <ostream>
+
 #include "Utilities/PxUtils.h"
 #include "Polygon2D.h"
 
@@ -42,6 +42,8 @@ namespace cluster{
     double opening_angle_charge_wgt;   ///< Same for charge_wgt
     double closing_angle;              ///< Width of angular distubtion wrt endpoint
     double closing_angle_charge_wgt;   ///< Same for charge_wgt
+    double start_charge;               ///< Charge at the start of the cluster
+    double end_charge;                 ///< Charge at the (other) end of the cluster
     double eigenvalue_principal;       ///< the principal eigenvalue from PCA
     double eigenvalue_secondary;       ///< the secondary eigenvalue from PCA
     double verticalness;               ///< ???
@@ -96,6 +98,8 @@ namespace cluster{
       opening_angle_charge_wgt          = -999.999 ;
       closing_angle                     = -999.999 ;
       closing_angle_charge_wgt          = -999.999 ;
+      start_charge                      = -999.999 ;
+      end_charge                        = -999.999 ;
       offaxis_hits                      = -999.999 ;
       modmeancharge                     = -999.999 ;
       RMS_charge                        = -999.999 ;
@@ -115,9 +119,9 @@ namespace cluster{
     void Report(Stream& os) const {
 
       os << "ClusterParams report: \n"
-	       << "   start_point  ................ : (" << start_point.w <<","<<start_point.t<<")\n"
-	       << "   end_point  .................. : (" << end_point.w <<","<<end_point.t<<")\n"
-	       << "   sum_charge  ................. : "<< sum_charge << "\n"
+         << "   start_point  .............. : (" << start_point.w <<","<<start_point.t<<")\n"
+         << "   end_point  ................ : (" << end_point.w <<","<<end_point.t<<")\n"
+         << "   sum_charge  ............... : "<< sum_charge << "\n"
          << "   mean_charge   ............. : " << mean_charge << "\n"
          << "   mean_x  ................... : " << mean_x << "\n"
          << "   mean_y  ................... : " << mean_y << "\n"
@@ -138,6 +142,8 @@ namespace cluster{
          << "   opening_angle_charge_wgt  . : " << opening_angle_charge_wgt << "\n"
          << "   closing_angle  ............ : " << closing_angle << "\n"
          << "   closing_angle_charge_wgt  . : " << closing_angle_charge_wgt << "\n"
+         << "   start_charge  ............. : " << start_charge << "\n"
+         << "   end_charge  ............... : " << end_charge << "\n"
          << "   offaxis_hits  ............. : " << offaxis_hits << "\n"
          << "   modified_hit_density  ..... : " << modified_hit_density << "\n"
          << "   modified mean charge ...... : " << modmeancharge << "\n"
@@ -151,9 +157,7 @@ namespace cluster{
          << "   direction  ................ : " << direction << "\n";
     }
 
-    void Report() const { Report(std::cout); }
-    
-  };
-}
+  }; // class cluster_params
+} // namespace cluster
 
 #endif

@@ -35,6 +35,8 @@
 #include "TPrincipal.h"
 #include "TStopwatch.h"
 
+// ... more #include in tempimplementation below
+
 namespace cluster {
    
   class ClusterParamsAlg {
@@ -104,6 +106,7 @@ namespace cluster {
       @param override_DoGetProfileInfo    force re-execution of GetProfileInfo()   
       @param override_DoRefineStartPoints force re-execution of RefineStartPoints()
       @param override_DoGetFinalSlope     force re-execution of GetFinalSlope()    
+      @param override_DoEndCharge         force re-execution of GetEndCharges()    
     */
     void FillParams(bool override_DoGetAverages      =false,
                     bool override_DoGetRoughAxis     =false,
@@ -111,7 +114,8 @@ namespace cluster {
                     bool override_DoRefineStartPointsAndDirection=false,
             		    // bool override_DoRefineDirection  =false,
                     bool override_DoGetFinalSlope    =false,
-                    bool override_DoTrackShowerSep   =false );
+                    bool override_DoTrackShowerSep   =false,
+                    bool override_DoEndCharge = false);
 
     const cluster_params& GetParams() const
     { return fParams;}
@@ -172,6 +176,15 @@ namespace cluster {
        @param override [description]
     */
     void GetFinalSlope(bool override=false);
+
+    /**
+       Calculates the following variables:
+       start_charge
+       end_charge
+       @param override_ force recompute the variables
+       @see StartCharge(), EndCharge()
+    */
+    void GetEndCharges(bool override_ = false);
 
     void RefineDirection(bool override=false);
 
@@ -296,6 +309,7 @@ namespace cluster {
     bool fFinishedGetFinalSlope;     
     bool fFinishedRefineStartPointAndDirection;
     bool fFinishedTrackShowerSep;
+    bool fFinishedGetEndCharges;
 
     double fRough2DSlope;        // slope 
     double fRough2DIntercept;    // slope 
@@ -349,6 +363,34 @@ namespace cluster {
     std::vector<double> fTimeRecord_ProcTime;
 
   }; //class ClusterParamsAlg
+  
+} //namespace cluster
+
+
+//------------------------------------------------------------------------------
+//--- template implementation
+//---
+
+#include <ostream> // std::endl
+
+namespace cluster {
+  
+  template <typename Stream>
+  void ClusterParamsAlg::TimeReport(Stream& stream) const {
+    
+    stream << "  <<ClusterParamsAlg::TimeReport>> starts..."<<std::endl;
+    for(size_t i=0; i<fTimeRecord_ProcName.size(); ++i){
+      
+      stream << "    Function: " 
+        << fTimeRecord_ProcName[i].c_str() 
+        << " ... Time = " 
+        << fTimeRecord_ProcTime[i]
+        << " [s]"
+        << std::endl;
+      
+    }
+    stream<< "  <<ClusterParamsAlg::TimeReport>> ends..."<<std::endl;
+  }
   
 } //namespace cluster
 

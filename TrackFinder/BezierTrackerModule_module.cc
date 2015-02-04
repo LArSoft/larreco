@@ -57,9 +57,9 @@ namespace trkf {
     // Fcl Attributes.
 
     std::string fClusterModuleLabel;
-
+    double      fTrajPtPitch;
     
-    trkf::BezierTrackerAlgorithm * fBTrackAlg;
+    std::unique_ptr<trkf::BezierTrackerAlgorithm> fBTrackAlg;
     
 
     void GetHitsFromClusters(std::string ClusterModuleLabel, art::Event& evt,     std::vector< std::vector<art::PtrVector<recob::Hit> > >& ReturnVec, std::vector<std::map<int, int> >& ClusterMap);
@@ -104,12 +104,17 @@ namespace trkf {
   BezierTrackerModule::BezierTrackerModule(const fhicl::ParameterSet& pset)
   {
     reconfigure(pset);
-    produces< std::vector<recob::Track> >();
+    produces< std::vector<recob::Track> >("bezierformat");
     produces< std::vector<recob::Vertex> >();
+    produces< art::Assns<recob::Track, recob::Hit> >("bezierformat");
+    produces< art::Assns<recob::Cluster, recob::Track> >("bezierformat");
+    produces< art::Assns<recob::Track, recob::Vertex> >("bezierformat");
+      
+    produces< std::vector<recob::Track> >();
     produces< art::Assns<recob::Track, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Track> >();
     produces< art::Assns<recob::Track, recob::Vertex> >();
-      
+
   }
 
   BezierTrackerModule::~BezierTrackerModule()
@@ -118,9 +123,10 @@ namespace trkf {
 
   void BezierTrackerModule::reconfigure(fhicl::ParameterSet const& pset)
   {
-    fClusterModuleLabel= pset.get<std::string>("ClusterModuleLabel");
+    fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
+    fTrajPtPitch        = pset.get<double>("TrajPtPitch",0.1);
     
-    fBTrackAlg = new trkf::BezierTrackerAlgorithm(pset.get<fhicl::ParameterSet>("BezierTrackerAlgorithm"));
+    fBTrackAlg.reset( new trkf::BezierTrackerAlgorithm(pset.get<fhicl::ParameterSet>("BezierTrackerAlgorithm")) );
       
 }
 
@@ -139,6 +145,10 @@ namespace trkf {
     std::unique_ptr< art::Assns<recob::Track, recob::Vertex > > assnvtx( new art::Assns<recob::Track, recob::Vertex>);
     std::unique_ptr< art::Assns<recob::Cluster, recob::Track > > assnclus( new art::Assns<recob::Cluster, recob::Track>);
    
+    std::unique_ptr< std::vector<recob::Track > > ub_tracks ( new std::vector<recob::Track>);
+    std::unique_ptr< art::Assns<recob::Track, recob::Hit > >  ub_assnhit( new art::Assns<recob::Track, recob::Hit>);
+    std::unique_ptr< art::Assns<recob::Track, recob::Vertex > > ub_assnvtx( new art::Assns<recob::Track, recob::Vertex>);
+    std::unique_ptr< art::Assns<recob::Cluster, recob::Track > > ub_assnclus( new art::Assns<recob::Cluster, recob::Track>);
 
     std::vector<trkf::BezierTrack >           BTracks;
     
@@ -171,7 +181,18 @@ namespace trkf {
 	
 	std::unique_ptr<recob::Track>  ToStore = BTracks.at(i).GetBaseTrack();
 	btracks->push_back(*ToStore);
+
+	std::vector<TVector3> track_xyz,track_dir;
+	BTracks.at(i).FillTrackVectors(track_xyz,track_dir,fTrajPtPitch);
+
+	std::vector< std::vector <double> > dQdx;
+	std::vector<double> fitMomentum(std::vector<double>(2, util::kBogusD));
+	int ID = (int)ub_tracks->size();
+	
+	ub_tracks->emplace_back(track_xyz,track_dir,dQdx,fitMomentum,ID);
+
 	util::CreateAssn(*this, evt, *(btracks.get()), HitsForAssns.at(i), *(assnhit.get()));
+	util::CreateAssn(*this, evt, *(ub_tracks), HitsForAssns.at(i), *(assnhit.get()));
       }
 
     // Store vertex assns
@@ -181,6 +202,7 @@ namespace trkf {
 	for(size_t t=0; t!=VertexMapping.at(v).size(); ++t)
 	  {
 	    util::CreateAssn(*this, evt, *(btracks), *(vertices), *(assnvtx.get()), v, v, VertexMapping[v][t]);
+	    util::CreateAssn(*this, evt, *(ub_tracks), *(vertices), *(assnvtx.get()), v, v, VertexMapping[v][t]);
 	  }
       }
     
@@ -202,16 +224,22 @@ namespace trkf {
 	      int Index = ClustersUsed[t][i].second;
 	      int ClusterID = ClusterMap[View][Index];
 	      util::CreateAssn(*this, evt, *(btracks), Clusters.at(ClusterID), *(assnclus.get()), t);
+	      util::CreateAssn(*this, evt, *(ub_tracks), Clusters.at(ClusterID), *(assnclus.get()), t);
 	    }
 	}
     }
 
     mf::LogVerbatim("BezierTrackerAlgorithm")<<"Storing in evt - check"<<std::endl;
-    evt.put(std::move(btracks));
+    evt.put(std::move(btracks),"bezierformat");
     evt.put(std::move(vertices));
-    evt.put(std::move(assnhit));
-    evt.put(std::move(assnvtx));
-    evt.put(std::move(assnclus));
+    evt.put(std::move(assnhit),"bezierformat");
+    evt.put(std::move(assnvtx),"bezierformat");
+    evt.put(std::move(assnclus),"bezierformat");
+
+    evt.put(std::move(ub_tracks));
+    evt.put(std::move(ub_assnhit));
+    evt.put(std::move(ub_assnvtx));
+    evt.put(std::move(ub_assnclus));
 
     // Now tidy up
     trkf::SpacePointAlg *Sptalg = fBTrackAlg->GetSeedFinderAlgorithm()->GetSpacePointAlg();

@@ -71,6 +71,7 @@ private:
   std::string fWireModuleLabel;
 
   TTree *wireDataTree;
+  std::vector<TTree *> hitDataTree;
 
   HitAnaAlg analysisAlg;
 
@@ -181,6 +182,21 @@ void hit::HitAnaModule::beginJob()
   art::ServiceHandle<art::TFileService> tfs;
   wireDataTree = tfs->make<TTree>("wireDataTree","WireDataTree");
   analysisAlg.SetWireDataTree(wireDataTree);
+
+  // The below creates a Tree with one branch - a recob::Hit branch - for each 
+  // Hit module specified in the fcl file. So, don't run this module once per Hit
+  // Finder as one normally would. Just run it once and specify all HitFinders.
+  // This was the design for the WireDataTree; we follow it here for the 
+  // Hit trees.
+  for(auto const& label : fHitModuleLabels) {
+    std::string firstArg("hitData_");
+    firstArg += label;
+    std::string secArg("HitDataTree_");
+    secArg += label;
+    TTree* intermediateTree = tfs->make<TTree>(firstArg.c_str(),secArg.c_str());
+    hitDataTree.push_back(intermediateTree);
+  }
+  analysisAlg.SetHitDataTree(hitDataTree);
 }
 
 void hit::HitAnaModule::reconfigure(fhicl::ParameterSet const & p)

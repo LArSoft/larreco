@@ -17,7 +17,6 @@ lbnefd_houghlinefinderana:           @local::standard_houghlinefinderana
 lbnefd_linemerger:                   @local::standard_linemerger        
 lbnefd_endpointmod:                  @local::standard_endpointmod       
 lbnefd_endpointmod.EndPointAlg:      @local::lbnefd_endpointalg
-lbnefd_showeranglecluster:           @local::standard_showeranglecluster
 
 lbne35t_dbcluster:                    @local::standard_dbcluster
 lbne35t_dbcluster.DBScanAlg:          @local::lbne35t_dbscanalg
@@ -31,7 +30,6 @@ lbne35t_houghlinefinderana:           @local::standard_houghlinefinderana
 lbne35t_linemerger:                   @local::standard_linemerger
 lbne35t_endpointmod:                  @local::standard_endpointmod
 lbne35t_endpointmod.EndPointAlg:      @local::lbne35t_endpointalg
-lbne35t_showeranglecluster:           @local::standard_showeranglecluster
 lbne35t_clustercheater:               @local::standard_clustercheater
 
 
