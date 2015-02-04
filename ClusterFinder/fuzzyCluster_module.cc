@@ -1,11 +1,8 @@
-////////////////////////////////////////////////////////////////////////
-// $Id: DBSCANfinderAna.cxx,v 1.36 2010/09/15  bpage Exp $
-//
-// \file fuzzyCluster_module.cc
-//
-// \author kinga.partyka@yale.edu
-//
-////////////////////////////////////////////////////////////////////////
+/**
+ * @file   fuzzyCluster_module.cc
+ * @brief  Cluster based on Hough transform, with pre-clustering and post-merge
+ * @author kinga.partyka@yale.edu , bcarls@fnal.gov
+ */
 
 #include <vector>
 #include <cmath>
