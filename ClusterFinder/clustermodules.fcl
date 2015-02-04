@@ -120,51 +120,32 @@ standard_endpointmod:
  EndPointAlg:       @local::standard_endpointalg
 }
 
-standard_kingacluster:
-{
- module_type:          "KingaCluster"
- DBScanModuleLabel:    "dbcluster"
- EndPoint2DModuleLabel: "vertex2d"
-}
-
-standard_kingaclusterana:
-{ 
- module_type:               "KingaClusterAna"
- LineMergerModuleLabel:     "linemerger"
- EndPoint2DModuleLabel:     "vertex2d"
- ClusterCheaterModuleLabel: "cluster"
- KingaModuleLabel:          "kingacluster"
- GenieGenModuleLabel:       "generator"
- LArGeantModuleLabel:       "largeant"
-}
-
-standard_showeranglecluster:
-{
- module_type:              "ShowerAngleCluster"
- ClusterModuleLabel:       "dbcluster"
- ClusterParamsAlg: 	   @local::standard_clusterparamsalg
- ClusterMatchAlg:          @local::standard_clustermatchalg
- ClusterMergeAlg:          @local::standard_clustermergealg
- ExternalStartPoints:	   false
- MinHitListSize:	  15
-}
-
-
-standard_showerangleclusterana:
-{
- module_type:              "ShowerAngleClusterAna"
- ClusterModuleLabel:       "dbcluster"
- ClusterParamsAlg: 	   @local::standard_clusterparamsalg
- ExternalStartPoints:	   false
- MinHitListSize:	  15
-}
+# standard_showeranglecluster:
+# {
+#  module_type:              "ShowerAngleCluster"
+#  ClusterModuleLabel:       "dbcluster"
+#  ClusterParamsAlg: 	   @local::standard_clusterparamsalg
+#  ClusterMatchAlg:          @local::standard_clustermatchalg
+#  ClusterMergeAlg:          @local::standard_clustermergealg
+#  ExternalStartPoints:	   false
+#  MinHitListSize:	  15
+# }
+# 
+# 
+# standard_showerangleclusterana:
+# {
+#  module_type:              "ShowerAngleClusterAna"
+#  ClusterModuleLabel:       "dbcluster"
+#  ClusterParamsAlg: 	   @local::standard_clusterparamsalg
+#  ExternalStartPoints:	   false
+#  MinHitListSize:	  15
+# }
 
 standard_simpleclustermerger:
 {
  module_type:       "SimpleClusterMerger"
  InputClusterLabel: "fuzzycluster"
 }
->>>>>>> LARSOFT_SUITE_v03_08_00
 
 standard_smallclusterfinder:
 {
