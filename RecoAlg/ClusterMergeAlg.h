@@ -54,17 +54,17 @@ namespace cluster
     geo::View_t  view;          ///< Wire plane ID
     geo::PlaneID planeID;       ///< plane ID
     
-    double start_wire;          ///< Vertex wire
-    double start_time;          ///< Vertex time
-    double end_wire;            ///< End point wire
-    double end_time;            ///< End point time
+    float  start_wire;          ///< Vertex wire
+    float  start_time;          ///< Vertex time
+    float  end_wire;            ///< End point wire
+    float  end_time;            ///< End point time
     
     double start_wire_err;      ///< Vertex wire error
     double start_time_err;      ///< Vertex time error
     double end_wire_err;        ///< End point wire error
     double end_time_err;        ///< End point time error
     
-    double angle;               ///< 2D angle
+    float  angle;               ///< 2D starting angle (in radians)
     
     /// Default constructor
     cluster_merge_info(): planeID() {
@@ -81,11 +81,11 @@ namespace cluster
       :cluster_index(cl.ID())
       ,view(cl.View())
       ,planeID(cl.Plane())
-      ,start_wire(cl.StartPos()[0])
-      ,start_time(cl.StartPos()[1])
-      ,end_wire(cl.EndPos()[0])
-      ,end_time(cl.EndPos()[1])
-      ,angle(cl.dTdW())
+      ,start_wire(cl.StartWire())
+      ,start_time(cl.StartTick())
+      ,end_wire(cl.EndWire())
+      ,end_time(cl.EndTick())
+      ,angle(cl.StartAngle())
       {}
   };
 

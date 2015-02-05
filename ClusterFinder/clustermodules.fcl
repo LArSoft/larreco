@@ -25,12 +25,6 @@ standard_clustercrawler:
 # CCHitRefinerAlg:     @local::standard_cchitrefineralg
 }
 
-standard_clustercrawlershower:
-{
- module_type:       "ClusterCrawlerShower"
- InputClusterLabel: "cccluster"
-}
-
 standard_fuzzycluster:
 {
  module_type:     "fuzzyCluster"
@@ -126,44 +120,26 @@ standard_endpointmod:
  EndPointAlg:       @local::standard_endpointalg
 }
 
-standard_kingacluster:
-{
- module_type:          "KingaCluster"
- DBScanModuleLabel:    "dbcluster"
- EndPoint2DModuleLabel: "vertex2d"
-}
-
-standard_kingaclusterana:
-{ 
- module_type:               "KingaClusterAna"
- LineMergerModuleLabel:     "linemerger"
- EndPoint2DModuleLabel:     "vertex2d"
- ClusterCheaterModuleLabel: "cluster"
- KingaModuleLabel:          "kingacluster"
- GenieGenModuleLabel:       "generator"
- LArGeantModuleLabel:       "largeant"
-}
-
-standard_showeranglecluster:
-{
- module_type:              "ShowerAngleCluster"
- ClusterModuleLabel:       "dbcluster"
- ClusterParamsAlg: 	   @local::standard_clusterparamsalg
- ClusterMatchAlg:          @local::standard_clustermatchalg
- ClusterMergeAlg:          @local::standard_clustermergealg
- ExternalStartPoints:	   false
- MinHitListSize:	  15
-}
-
-
-standard_showerangleclusterana:
-{
- module_type:              "ShowerAngleClusterAna"
- ClusterModuleLabel:       "dbcluster"
- ClusterParamsAlg: 	   @local::standard_clusterparamsalg
- ExternalStartPoints:	   false
- MinHitListSize:	  15
-}
+# standard_showeranglecluster:
+# {
+#  module_type:              "ShowerAngleCluster"
+#  ClusterModuleLabel:       "dbcluster"
+#  ClusterParamsAlg: 	   @local::standard_clusterparamsalg
+#  ClusterMatchAlg:          @local::standard_clustermatchalg
+#  ClusterMergeAlg:          @local::standard_clustermergealg
+#  ExternalStartPoints:	   false
+#  MinHitListSize:	  15
+# }
+# 
+# 
+# standard_showerangleclusterana:
+# {
+#  module_type:              "ShowerAngleClusterAna"
+#  ClusterModuleLabel:       "dbcluster"
+#  ClusterParamsAlg: 	   @local::standard_clusterparamsalg
+#  ExternalStartPoints:	   false
+#  MinHitListSize:	  15
+# }
 
 standard_simpleclustermerger:
 {
@@ -194,15 +170,12 @@ jp250L_fuzzycluster:                 @local::standard_fuzzycluster
 jp250L_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
 jp250L_dbcluster.DBScanAlg:          @local::jp250L_dbscanalg   
 jp250L_dbclusterana:                 @local::standard_dbclusterana   
-jp250L_kingacluster:                 @local::standard_kingacluster   
-jp250L_kingaclusterana:              @local::standard_kingaclusterana
 jp250L_houghlinefinder:              @local::standard_houghlinefinder
 jp250L_houghlinefinder.HoughBaseAlg: @local::jp250L_houghbasealg
 jp250L_houghlinefinderana:           @local::standard_houghlinefinderana 
 jp250L_linemerger:                   @local::standard_linemerger         
 jp250L_endpointmod:                  @local::standard_endpointmod        
 jp250L_endpointmod.EndPointAlg:      @local::jp250L_endpointalg
-jp250L_showeranglecluster:           @local::standard_showeranglecluster
 
 
 bo_clustercrawler:               @local::standard_clustercrawler      
@@ -211,15 +184,12 @@ bo_fuzzycluster:                 @local::standard_fuzzycluster
 bo_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
 bo_dbcluster.DBScanAlg:          @local::bo_dbscanalg   
 bo_dbclusterana:                 @local::standard_dbclusterana   
-bo_kingacluster:                 @local::standard_kingacluster   
-bo_kingaclusterana:              @local::standard_kingaclusterana
 bo_houghlinefinder:              @local::standard_houghlinefinder
 bo_houghlinefinder.HoughBaseAlg: @local::bo_houghbasealg
 bo_houghlinefinderana:           @local::standard_houghlinefinderana 
 bo_linemerger:                   @local::standard_linemerger         
 bo_endpointmod:                  @local::standard_endpointmod        
 bo_endpointmod.EndPointAlg:      @local::bo_endpointalg
-bo_showeranglecluster:           @local::standard_showeranglecluster
 
 
 argoneut_clustercrawler:               @local::standard_clustercrawler      
@@ -228,17 +198,12 @@ argoneut_fuzzycluster:                 @local::standard_fuzzycluster
 argoneut_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
 argoneut_dbcluster.DBScanAlg:          @local::argoneut_dbscanalg   
 argoneut_dbclusterana:                 @local::standard_dbclusterana   
-argoneut_kingacluster:                 @local::standard_kingacluster   
-argoneut_kingaclusterana:              @local::standard_kingaclusterana
 argoneut_houghlinefinder:              @local::standard_houghlinefinder
 argoneut_houghlinefinder.HoughBaseAlg: @local::argoneut_houghbasealg
 argoneut_houghlinefinderana:           @local::standard_houghlinefinderana 
 argoneut_linemerger:                   @local::standard_linemerger         
 argoneut_endpointmod:                  @local::standard_endpointmod        
 argoneut_endpointmod.EndPointAlg:      @local::argoneut_endpointalg
-argoneut_showeranglecluster:           @local::standard_showeranglecluster
 argoneut_smallclusterfinder:		   @local::standard_smallclusterfinder
-argoneut_showerangleclusterana:           @local::standard_showerangleclusterana
-argoneut_showerangleclusterana.ClusterParamsAlg:           @local::argoneut_clusterparamsalg
 
 END_PROLOG

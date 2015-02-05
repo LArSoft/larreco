@@ -232,8 +232,8 @@ namespace cluster {
 	if(clusters[j]->View() == view){
 	  fm_clusterid=clusters[j]->ID();
 	  std::vector< art::Ptr<recob::Hit> > _hits = fmhhl.at(j);
-	  fm_clusterslope=(double)clusters[j]->dTdW();
-	  fm_clusterintercept=(double)clusters[j]->StartPos()[1];
+	  fm_clusterslope=(double) std::tan(clusters[j]->StartAngle());
+	  fm_clusterintercept=(double)clusters[j]->StartTick();
 	  if(_hits.size()!=0){
 	    fm_plane   = _hits.at(0)->WireID().Plane;
 	    firstwire = _hits[0]->WireID().Wire;
@@ -245,10 +245,10 @@ namespace cluster {
 	      
 	      fm_hitidZ[i]     = i;         
 	      fm_wireZ[i]      = _hits[i]->WireID().Wire;
-	      fm_mipZ[i]       = (double)_hits[i]->Charge();
+	      fm_mipZ[i]       = (double)_hits[i]->Integral();
 	      fm_drifttimeZ[i] = (double)_hits[i]->PeakTime();
-	      fm_widthZ[i]     = (double)_hits[i]->EndTime()-_hits[i]->StartTime();
-	      fm_upadcZ[i]     = (double)_hits[i]->Charge();
+	      fm_widthZ[i]     = (double) (2. * _hits[i]->RMS());
+	      fm_upadcZ[i]     = (double)_hits[i]->Integral();
 	    } 
 	    
 	    ftree->Fill();  

@@ -267,7 +267,7 @@ namespace hit {
       auto const &wire_id = hit.WireID();
       
       // Fill purly RecoHit info
-      hRecoHitQ_v.at(wire_id.Plane)->Fill(hit.Charge(true));
+      hRecoHitQ_v.at(wire_id.Plane)->Fill(hit.PeakAmplitude());
       recohit_mult.at(wire_id.Plane) += 1;
       
       // Figure out channel & retrieve MCHitCollection for this channel    
@@ -291,9 +291,9 @@ namespace hit {
       // Locate corresponding MCHit(s) to this RecoHit
       sim::MCHit start_time, end_time, peak_time;
       
-      start_time.SetTime ( ts->TPCTick2TDC( hit.StartTime() ), 0 );
-      peak_time.SetTime  ( ts->TPCTick2TDC( hit.PeakTime()  ), 0 );
-      end_time.SetTime   ( ts->TPCTick2TDC( hit.EndTime()   ), 0 );
+      start_time.SetTime ( ts->TPCTick2TDC( hit.PeakTimeMinusRMS() ), 0 );
+      peak_time.SetTime  ( ts->TPCTick2TDC( hit.PeakTime()         ), 0 );
+      end_time.SetTime   ( ts->TPCTick2TDC( hit.PeakTimePlusRMS()  ), 0 );
       
       fSearchWatch.Start();
       auto start_iter = std::lower_bound ( mchits.begin(), mchits.end(), start_time ); 
@@ -301,7 +301,7 @@ namespace hit {
       search_time_sum += fSearchWatch.RealTime() * 1.e3;
       hMCHitSearchTime->Fill(fSearchWatch.RealTime() * 1.e6);
       
-      double reco_q  = hit.Charge(true);
+      double reco_q  = hit.PeakAmplitude();
       double mc_qsum = 0;
       double mc_q    = 0;
       double mult    = 0;

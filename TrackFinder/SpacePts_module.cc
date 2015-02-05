@@ -11,7 +11,7 @@
 #include <vector>
 #include <string>
 
-#include <math.h>
+#include <cmath>
 #include <algorithm>
 #include <iomanip>
 
@@ -80,9 +80,7 @@ namespace trkf {
   struct SortByWire 
   {
     bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const 
-    { return 
-	h1->Wire()->RawDigit()->Channel() < 
-	h2->Wire()->RawDigit()->Channel() ;
+    { return h1->Channel() < h2->Channel() ;
     }
   };
 
@@ -227,11 +225,11 @@ void SpacePts::produce(art::Event& evt)
       }
     }
     if (found2dvtx){
-      double w = cl->StartPos()[0];
-      double t = cl->StartPos()[1];
-      double dtdw = cl->dTdW();
+      double w = cl->StartWire();
+      double t = cl->StartTick();
+      double dtdw = std::tan(cl->StartAngle());
       double t_vtx = t+dtdw*(vtx2d_w-w);
-      double dis = TMath::Abs(vtx2d_t-t_vtx);
+      double dis = std::abs(vtx2d_t-t_vtx);
       if (dis>fvertexclusterWindow)	  continue;	
     }
     //else continue; //what to do if a 2D vertex is not found? perhaps vertex finder was not even run.

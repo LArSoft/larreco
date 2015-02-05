@@ -6,37 +6,28 @@
 // Written initially for lbne 35t online filter //
 ///////////////////////////////
 
+// C/C++ standard libraries
 #include <string>
 #include <vector>
-#include <stdint.h>
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
 //Framework
+#include "fhiclcpp/ParameterSet.h" 
+#include "messagefacility/MessageLogger/MessageLogger.h" 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Principal/Event.h" 
 #include "art/Framework/Principal/Handle.h" 
 #include "art/Persistency/Common/Ptr.h" 
-#include "art/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
-#include "fhiclcpp/ParameterSet.h" 
-#include "messagefacility/MessageLogger/MessageLogger.h" 
-#include "cetlib/exception.h"
-#include "cetlib/search_path.h"
 
 //LArSoft
-
 #include "Geometry/Geometry.h"
 #include "Filters/ChannelFilter.h"
+#include "Utilities/LArFFT.h"
 #include "RawData/RawDigit.h"
 #include "RawData/raw.h"
-#include "Utilities/LArFFT.h"
 #include "RecoBase/Hit.h"
+#include "RecoBaseArt/HitCreator.h"
 
 //LArSoft From FFT
 
@@ -58,7 +49,6 @@ extern "C" {
 #include "TH1D.h"
 #include "TDecompSVD.h"
 #include "TMath.h"
-#include "TF1.h"
 
 namespace hit {
   
@@ -85,8 +75,6 @@ namespace hit {
     ///< it is set by the DigitModuleLabel
     ///< ex.:  "daq:preSpill" for prespill data
 
-    unsigned int            fMaxSamples; ///< max number of ADC samples possible on the wire
-    
     //FFT Copied Variables
     
     std::string         fCalDataModuleLabel;
@@ -110,8 +98,11 @@ namespace hit {
   RawHitFinder::RawHitFinder(fhicl::ParameterSet const& pset)
   {
     this->reconfigure(pset);
-    //    produces< std::vector<recob::Hit> > (fHitLabelName);
-    produces< std::vector<recob::Hit> > ();
+  
+    // let HitCollectionCreator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    // (with no particular product label)
+    recob::HitCollectionCreator::declare_products(*this);
   }
   
   //-------------------------------------------------
@@ -171,9 +162,14 @@ namespace hit {
     std::vector<float> holder;                // holds signal data
     std::vector<short> rawadc;                // vector holding uncompressed adc values
 
-    // Making a ptr vector to put on the event
-    std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
-
+    // ###############################################
+    // ### Making a ptr vector to put on the event ###
+    // ###############################################
+    // this contains the hit collection
+    // and its associations to wires and raw digits
+    recob::HitCollectionCreator hcol
+      (*this, evt, false /* doWireAssns */, true /* doRawDigitAssns */);
+    
     
     std::vector<float> startTimes;             // stores time of 1st local minimum
     std::vector<float> maxTimes;    	     // stores time of local maximum    
@@ -190,30 +186,27 @@ namespace hit {
 
  
     // loop over all channels    
-    hcol->reserve(digitVecHandle->size());
+    hcol.reserve(digitVecHandle->size());
     for(size_t rdIter = 0; rdIter < digitVecHandle->size(); ++rdIter){ // ++ move
       holder.clear();
       
 	// get the reference to the current raw::RawDigit
       art::Ptr<raw::RawDigit> digitVec(digitVecHandle, rdIter);
       channel =  digitVec->Channel();
-      fMaxSamples = digitVec->Samples();
-      fDataSize = digitVec->fADC.size();
+      fDataSize = digitVec->Samples();
       //      std::cout << " Channel " << channel << std::endl;
 
-
-      // uncompress the data
-      raw::Uncompress(digitVec->fADC, rawadc, digitVec->Compression());
-
-      fDataSize = rawadc.size();
       rawadc.resize(fDataSize);
       holder.resize(fDataSize);
+      
+      // uncompress the data
+      raw::Uncompress(digitVec->ADCs(), rawadc, digitVec->Compression());
 
-       for(unsigned int bin = 0; bin < fDataSize; ++bin) 
+
+      for(unsigned int bin = 0; bin < fDataSize; ++bin) 
       	holder[bin]=(rawadc[bin]-digitVec->GetPedestal());
       //now holder and rawadc should be filled correctly
       
-      channel       = digitVec->Channel();
       sigType       = geom->SignalType(channel);
 	
       peakHeight.clear();
@@ -319,7 +312,7 @@ namespace hit {
       //      double amplitude(0), position(0), width(0);  //fit parameters
       double amplitude(0), position(0);  //fit parameters
       double start(0), end(0);
-      double amplitudeErr(0), positionErr(0), widthErr(0);  //fit errors
+      double amplitudeErr(0), positionErr(0);  //fit errors
       double goodnessOfFit(0), chargeErr(0);  //Chi2/NDF and error on charge
       std::vector<double>  hitSig;
       
@@ -337,7 +330,6 @@ namespace hit {
 	end         = endTimes[i];
 	amplitudeErr  = -1;
 	positionErr   = 1.0;
-	widthErr      = 0.5;
 	goodnessOfFit = -1;
 	chargeErr = -1;
 	
@@ -352,41 +344,41 @@ namespace hit {
 	// get the WireID for this hit
 	std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
 	geo::WireID wid = wids[0];
-	geo::PlaneID plid(wid.Cryostat,wid.TPC,wid.Plane);
-	geo::View_t view = geom->View(plid);	      
-	geo::SigType_t st = geom->SignalType(plid);
 	
 	// make the hit
-	
-	art::Ptr<raw::RawDigit> dv = digitVec;
-	recob::Hit hit(dv,
-		       view,st,wid,
-		       start,
-		       widthErr,
-		       end,
-		       widthErr,
-		       position,
-		       positionErr,
-		       totSig,         
-		       chargeErr,                
-		       amplitude,
-		       amplitudeErr,
-		       1,                  /// \todo - mulitplicity has to be determined
-		       goodnessOfFit);               	    
-	hcol->push_back(hit);
+	recob::HitCreator hit(
+	  *digitVec,        // raw digit reference
+	  wid,              // wire ID
+	  start,            // start_tick FIXME
+	  end,              // end_tick FIXME
+	  -1.,              // rms FIXME
+	  position,         // peak_time
+	  positionErr,      // sigma_peak_time
+	  amplitude,        // peak_amplitude
+	  amplitudeErr,     // sigma_peak_amplitude
+	  totSig,           // hit_integral
+	  chargeErr,        // hit_sigma_integral
+	  std::accumulate   // summedADC FIXME
+	    (holder.begin() + (int) start, holder.begin() + (int) end, 0.),
+	  1,                // multiplicity FIXME
+	  -1,               // local_index FIXME
+	  goodnessOfFit,    // goodness_of_fit
+	  int(end - start)  // dof
+	  );
+	hcol.emplace_back(hit.move(), digitVec);
 	
       }//end loop over hits
       hitIndex += numHits;	
     } // end loop over channels
     
 
-    //    std::cerr << "hcol->size(): " << hcol->size() << std::endl;//jpd
+    //    std::cerr << "hcol.size(): " << hcol.size() << std::endl;//jpd
 
     // std::cerr << "I produced fHitLabelName: " << fHitLabelName << std::endl;
 
 
-    //    evt.put(std::move(hcol), fHitLabelName);
-    evt.put(std::move(hcol));
+    // move the hit collection and the associations into the event
+    hcol.put_into(evt);
 
   }
 
