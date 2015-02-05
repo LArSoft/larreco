@@ -52,9 +52,12 @@
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
+#include "Utilities/StatCollector.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
+#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterParamsImportWrapper.h"
 
 constexpr double PI = M_PI; // or CLHEP::pi in CLHEP/Units/PhysicalConstants.h
 
@@ -71,6 +74,7 @@ constexpr double PI = M_PI; // or CLHEP::pi in CLHEP/Units/PhysicalConstants.h
 
 template <typename T>
 inline T sqr(T v) { return v * v; }
+
 
 //------------------------------------------------------------------------------
 template <typename K, typename C, size_t S, typename A, unsigned int SC>
@@ -1059,6 +1063,11 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   CLHEP::HepRandomEngine & engine = rng -> getEngine();
   CLHEP::RandFlat flat(engine);
 
+  // prepare the algorithm to compute the cluster characteristics;
+  // we use the "standard" one here; configuration would happen here,
+  // but we are using the default configuration for that algorithm
+  ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
+  
   std::vector< art::Ptr<recob::Hit> > hit;
 
   for(auto view : geom->Views() ){
@@ -1351,30 +1360,57 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       
       }// end loop over hits*/
       
-      std::vector<double> slopevec;std::vector<double> totalQvec;
+      std::vector<double> slopevec;
+      std::vector<ChargeInfo_t> totalQvec;
       std::vector< art::PtrVector<recob::Hit> >   planeClusHitsOut;
       this->FastTransform(hit,planeClusHitsOut,slopevec,totalQvec );
       
       LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
 
       for(size_t xx = 0; xx < planeClusHitsOut.size(); ++xx){
-	const recob::Hit& FirstHit(**planeClusHitsOut.at(xx).begin());
-	unsigned int sw = FirstHit.WireID().Wire;
-	unsigned int ew = (*(planeClusHitsOut.at(xx).end()-1))->WireID().Wire;
+	auto const& hits = planeClusHitsOut.at(xx);
+	recob::Hit const& FirstHit = *hits.front();
+	recob::Hit const& LastHit = *hits.back();
+	const unsigned int sw = FirstHit.WireID().Wire;
+	const unsigned int ew = LastHit.WireID().Wire;
+//	ChargeInfo_t const& charge_info = totalQvec.at(xx); // delegating to algos
 	
-	recob::Cluster cluster(sw, 0.,
-			       (*planeClusHitsOut.at(xx).begin())->PeakTime(), 0.,
-			       ew, 0., 
-			       (planeClusHitsOut.at(xx).at(planeClusHitsOut.at(xx).size()-1))->PeakTime(), 0.,
-			       slopevec.at(xx), 0., 
-			       -999., 0., 
-			       totalQvec.at(xx),
-			       geom->View(FirstHit.Channel()),
-			       clusterID,
-			       FirstHit.WireID().planeID());
+	// feed the algorithm with all the cluster hits
+	ClusterParamAlgo.ImportHits(hits);
+	
+	// create the recob::Cluster directly in the vector;
+	// NOTE usually we would use cluster::ClusterCreator to save some typing and
+	// some mistakes. In this case, we don't want to pull in the dependency on
+	// ClusterFinder, where ClusterCreator currently lives
+	ccol.emplace_back(
+	  float(sw),                                    // start_wire
+	  0.,                                           // sigma_start_wire
+	  FirstHit.PeakTime(),                          // start_tick
+	  FirstHit.SigmaPeakTime(),                     // sigma_start_tick
+	  ClusterParamAlgo.StartCharge().value(),       // start_charge
+	  ClusterParamAlgo.StartAngle().value(),        // start_angle
+	  ClusterParamAlgo.StartOpeningAngle().value(), // start_opening
+	  float(ew),                                    // end_wire
+	  0.,                                           // sigma_end_wire,
+	  LastHit.PeakTime(),                           // end_tick
+	  LastHit.SigmaPeakTime(),                      // sigma_end_tick
+	  ClusterParamAlgo.EndCharge().value(),         // end_charge
+	  ClusterParamAlgo.EndAngle().value(),          // end_angle
+	  ClusterParamAlgo.EndOpeningAngle().value(),   // end_opening
+	  ClusterParamAlgo.Integral().value(),          // integral
+	  ClusterParamAlgo.IntegralStdDev().value(),    // integral_stddev
+	  ClusterParamAlgo.SummedADC().value(),         // summedADC
+	  ClusterParamAlgo.SummedADCStdDev().value(),   // summedADC_stddev
+	  ClusterParamAlgo.NHits(),                     // n_hits
+	  ClusterParamAlgo.MultipleHitWires(),           // multiple_hit_wires
+	  ClusterParamAlgo.Width(),                     // width
+	  clusterID,                                    // ID
+	  FirstHit.View(),                              // view
+	  FirstHit.WireID().planeID(),                  // plane
+	  recob::Cluster::Sentry                        // sentry
+	  );
 	
 	++clusterID;
-	ccol.push_back(cluster);
 	clusHitsOut.push_back(planeClusHitsOut.at(xx));
       }
       
@@ -1399,7 +1435,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   size_t cluster::HoughBaseAlg::FastTransform(std::vector < art::Ptr < recob::Hit > >                 & clusIn,
      	             std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut )
   {
-   std::vector<double> slopevec; std::vector<double> totalQvec;
+   std::vector<double> slopevec;
+   std::vector<ChargeInfo_t> totalQvec;
    return  FastTransform( clusIn, clusHitsOut, slopevec, totalQvec );
         
   }
@@ -1409,7 +1446,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 //------------------------------------------------------------------------------
   size_t cluster::HoughBaseAlg::FastTransform(std::vector < art::Ptr < recob::Hit > >                 & clusIn,
      	             std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut, 
-		     std::vector<double> &slopevec, std::vector<double> &totalQvec )
+		     std::vector<double> &slopevec, std::vector<ChargeInfo_t>& totalQvec )
 {
   std::vector<int> skip;  
 
@@ -1738,12 +1775,14 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       
       
       clusterHits.clear();    
-      double totalQ = 0.;
       if(lastHits.size() < 5) continue;
+      
+      lar::util::StatCollector<float> integralQ, summedQ;
       
       for(size_t i = 0; i < lastHits.size(); ++i) {
         clusterHits.push_back(hit.at(hitTemp.at(lastHits.at(i))));
-		totalQ += clusterHits.back()->Integral();
+        integralQ.add(clusterHits.back()->Integral());
+        summedQ.add(clusterHits.back()->SummedADC());
         skip.at(hitTemp.at(lastHits.at(i)))=1;
       } 
       //protection against very steep uncorrelated hits
@@ -1753,26 +1792,12 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
          )
         continue;
       
-      
-      
-      // unsigned int sw = (*clusterHits.begin())->WireID().Wire;
-      // unsigned int ew = (*(clusterHits.end()-1))->WireID().Wire;
-      
-      /*  recob::Cluster cluster(sw, 0.,
-          (*clusterHits.begin())->PeakTime(), 0.,
-          ew, 0., 
-          (clusterHits[clusterHits.size()-1])->PeakTime(), 0.,
-          slope, 0., 
-          -999., 0., 
-          totalQ,
-          geom->View((*clusterHits.begin())->Channel()),
-          clusterID, (*clusterHits.begin())->WireID().planeID()); */
-      
-      //   ++clusterID;
-      //  ccol.push_back(cluster);
       clusHitsOut.push_back(clusterHits);
       slopevec.push_back(slope);
-      totalQvec.push_back(totalQ);
+      totalQvec.emplace_back(
+        integralQ.Sum(), integralQ.RMS(), // TODO biased value; should unbias?
+        summedQ.Sum(), summedQ.RMS() // TODO biased value; should unbias?
+        );
       //Turn off hit sharing. T. Yang 9/14/12
       //	      //allow double assignment of first and last hits
       //	      for(size_t i = 0; i < lastHits.size(); ++i){ 

@@ -51,16 +51,18 @@ gaus_hitfinder:
 }
 
 
+standard_rffhitfinderalg:
+{
+    AmplitudeThreshold:   [ 0.0 ]
+    MeanMatchThreshold:   [ 2.0 ]
+    MinMergeMultiplicity: [ 2 ]
+}
+
 rff_hitfinder:
 {
- module_type:         "RFFHitFinder"
- CalDataModuleLabel:  "caldata"      
- MinSigInd:            6.0              # Induction signal height threshold  
- MinSigCol:            11.0             # Collection signal height threshold
- MaxMultiHit:          3                # maximum hits for multi fit   
- SigmaLimit:           500              # limit on maximum width for fitted hit
- MeanMerge:            2.5              # merge means that are within 2.5 ticks
- MeanMultiplicity:     3                # require at least n nearby "means" to form a hit
+ module_type:           "RFFHitFinder"
+ WireModuleLabel:       "caldata"
+ RFFHitFinderAlgParams: @local::standard_rffhitfinderalg
 }
 
 tt_hitfinder:
@@ -127,8 +129,6 @@ microboone_hitfinder.IndMinWidth: 1.0
 microboone_hitfinder.ColMinWidth: 1.0
 microboone_gaushitfinder.IndMinWidth: 1.0
 microboone_gaushitfinder.ColMinWidth: 1.0
-microboone_rffhitfinder.IndMinWidth: 1.0
-microboone_rffhitfinder.ColMinWidth: 1.0
 
 
 END_PROLOG

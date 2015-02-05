@@ -23,27 +23,17 @@ microboone_houghbasealg.MaxDistance:          1.0
 microboone_houghbasealg.MinHits:              5
 microboone_houghbasealg.NumAngleCells:        20000
 microboone_fuzzyclusteralg:                   @local::microboone_fuzzyclusteralg 
-microboone_clustercrawlershower:              @local::standard_clustercrawlershower
-microboone_clustercrawlershower.ClusterParamsAlg:         @local::microboone_clusterparamsalg
-microboone_clustercrawlershower.ClusterMergeAlg:          @local::microboone_clustermergealg
 
 microboone_dbcluster:                    @local::standard_dbcluster      
 microboone_dbcluster.DBScanAlg:          @local::microboone_dbscanalg    
 microboone_dbclusterana:                 @local::standard_dbclusterana   
 microboone_fuzzycluster:                 @local::standard_fuzzycluster      
 microboone_fuzzycluster.fuzzyClusterAlg: @local::microboone_fuzzyclusteralg      
-microboone_kingacluster:                 @local::standard_kingacluster   
-microboone_kingaclusterana:              @local::standard_kingaclusterana
 microboone_houghlinefinder:              @local::standard_houghlinefinder
 microboone_houghlinefinder.HoughBaseAlg: @local::microboone_houghbasealg
 microboone_houghlinefinderana:           @local::standard_houghlinefinderana
 microboone_linemerger:                   @local::standard_linemerger        
 microboone_endpointmod:                  @local::standard_endpointmod       
 microboone_endpointmod.EndPointAlg:      @local::microboone_endpointalg
-microboone_showeranglecluster:           @local::standard_showeranglecluster
-microboone_showeranglecluster.ClusterMatchAlg:          @local::microboone_clustermatchalg
-microboone_showeranglecluster.ClusterMergeAlg:          @local::microboone_clustermergealg
-microboone_showerangleclusterana:           @local::standard_showerangleclusterana
-microboone_showerangleclusterana.ClusterParamsAlg:           @local::microboone_clusterparamsalg
-microboone_smallclusterfinder:			 @local::standard_smallclusterfinder
+microboone_smallclusterfinder:		 @local::standard_smallclusterfinder
 END_PROLOG

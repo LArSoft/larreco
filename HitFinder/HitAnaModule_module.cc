@@ -61,6 +61,10 @@ private:
     std::vector< std::vector<int> > &
     );
 
+  void createAssocVector(std::vector<recob::Wire> const&,
+			 std::vector<recob::Hit> const&,
+			 std::vector< std::vector<int> > &);
+
   void createMCAssocVector( std::vector<recob::Wire> const&,
 			    std::vector<sim::MCHitCollection> const&,
 			    std::vector< std::vector<int> >&);
@@ -102,25 +106,38 @@ void hit::HitAnaModule::createAssocVector(
 
 }
 
-	void hit::HitAnaModule::createMCAssocVector( std::vector<recob::Wire> const& wireVector,
+void hit::HitAnaModule::createAssocVector(std::vector<recob::Wire> const& wireVector,
+					  std::vector<recob::Hit> const& hitVector,
+					  std::vector< std::vector<int> > & WireHitAssocVector)
+{
+  WireHitAssocVector.resize(wireVector.size());
+  for(size_t iwire=0; iwire<wireVector.size(); iwire++){
+    for(size_t ihit=0; ihit<hitVector.size(); ihit++){
+      if(hitVector[ihit].Channel()==wireVector[iwire].Channel())
+	WireHitAssocVector[iwire].push_back(ihit);
+    }
+  }
+}
+
+void hit::HitAnaModule::createMCAssocVector( std::vector<recob::Wire> const& wireVector,
 					     std::vector<sim::MCHitCollection> const& mcHitVector,
 					     std::vector< std::vector<int> > & WireMCHitAssocVector){
-
+  
   WireMCHitAssocVector.clear(); WireMCHitAssocVector.resize(wireVector.size());
-
+  
   //first, store all the MCHitCollection indices in a map keyed on channel
   //then, loop through wires, and lookup mchitcollections based on the wire's channel
-
+  
   std::map<unsigned int,std::vector<int> > mcHitIndicesByChannel;
   for(unsigned int icol=0; icol<mcHitVector.size(); icol++)
     mcHitIndicesByChannel[mcHitVector[icol].Channel()].push_back(icol);
   
-
+  
   for(unsigned int iwire=0; iwire<wireVector.size(); iwire++)
     WireMCHitAssocVector[iwire].insert(WireMCHitAssocVector[iwire].end(),
 				       mcHitIndicesByChannel[wireVector[iwire].Channel()].begin(),
 				       mcHitIndicesByChannel[wireVector[iwire].Channel()].end());
-
+  
 }
 
 void hit::HitAnaModule::analyze(art::Event const & e)
@@ -160,11 +177,18 @@ void hit::HitAnaModule::analyze(art::Event const & e)
     e.getByLabel(fHitModuleLabels[iter],hitHandles[iter]);
 
     //create association vectors by hand for now
-    art::ValidHandle<HitWireAssns_t> HitToWireAssns
-      = e.getValidHandle<HitWireAssns_t>(fHitModuleLabels[iter]);
-    WireHitAssocVectors[iter].resize(wireVector.size());
-    createAssocVector(*HitToWireAssns,WireHitAssocVectors[iter]);
+    //art::ValidHandle<HitWireAssns_t> HitToWireAssns
+    //= e.getValidHandle<HitWireAssns_t>(fHitModuleLabels[iter]);
+    //WireHitAssocVectors[iter].resize(wireVector.size());
+    //createAssocVector(*HitToWireAssns,WireHitAssocVectors[iter]);
 
+    WireHitAssocVectors[iter].resize(wireVector.size());
+    art::Handle<HitWireAssns_t> HitToWireAssns;
+    if( e.getByLabel(fHitModuleLabels[iter],HitToWireAssns) )
+      createAssocVector(*HitToWireAssns,WireHitAssocVectors[iter]);
+    else
+      createAssocVector(wireVector,*(hitHandles[iter]),WireHitAssocVectors[iter]);
+    
     //load in this hit/assoc pair
     analysisAlg.LoadHitAssocPair( *(hitHandles[iter]),
 				  WireHitAssocVectors[iter],

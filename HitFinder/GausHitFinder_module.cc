@@ -654,8 +654,7 @@ void GausHitFinder::produce(art::Event& evt)
 		   NumOfHits[dd],    // multiplicity
 		   dd,               // local_index TODO check that the order is correct
 		   FitGoodness[dd],  // goodness_of_fit
-		   FitNDF[dd],       // dof
-		   std::vector<float>(signal.begin() + startT, signal.begin() + endT) // signal
+		   FitNDF[dd]        // dof
 		   );
 		 
 		 hcol.emplace_back(hit.move(), wire, rawdigits);

@@ -291,10 +291,10 @@ namespace trkf {
     std::vector< std::vector<CluLen> > clulens(nplanes);
     for (size_t iclu = 0; iclu<clusterlist.size(); ++iclu){
 
-      double w0 = clusterlist[iclu]->StartPos()[0];
-      double w1 = clusterlist[iclu]->EndPos()[0];
-      double t0 = clusterlist[iclu]->StartPos()[1];
-      double t1 = clusterlist[iclu]->EndPos()[1];
+      double w0 = clusterlist[iclu]->StartWire();
+      double w1 = clusterlist[iclu]->EndWire();
+      double t0 = clusterlist[iclu]->StartTick();
+      double t1 = clusterlist[iclu]->EndTick();
       //      t0 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
       //      t1 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
  
@@ -546,15 +546,15 @@ namespace trkf {
         std::sort(hits.begin(), hits.end(), trkf::SortByWire());
         if (fCleanUpHits){
           double dtdw = 0;
-          if (clusterlist[matchedclusters[itrk][iclu]]->StartPos()[1]-
-              clusterlist[matchedclusters[itrk][iclu]]->EndPos()[1]){
-            dtdw = (clusterlist[matchedclusters[itrk][iclu]]->EndPos()[0]-
-                    clusterlist[matchedclusters[itrk][iclu]]->StartPos()[0])/
-              (clusterlist[matchedclusters[itrk][iclu]]->EndPos()[1]-
-               clusterlist[matchedclusters[itrk][iclu]]->StartPos()[1]);
+          if (clusterlist[matchedclusters[itrk][iclu]]->StartTick()-
+              clusterlist[matchedclusters[itrk][iclu]]->EndTick()){
+            dtdw = (clusterlist[matchedclusters[itrk][iclu]]->EndWire()-
+                    clusterlist[matchedclusters[itrk][iclu]]->StartWire())/
+              (clusterlist[matchedclusters[itrk][iclu]]->EndTick()-
+               clusterlist[matchedclusters[itrk][iclu]]->StartTick());
           }
-          fitter->SetParameter(0,"p0",clusterlist[matchedclusters[itrk][iclu]]->StartPos()[1]-dtdw-detprop->GetXTicksOffset(clusterlist[matchedclusters[itrk][iclu]]->Plane().Plane,clusterlist[matchedclusters[itrk][iclu]]->Plane().TPC,clusterlist[matchedclusters[itrk][iclu]]->Plane().Cryostat),0.1,0,0);
-          fitter->SetParameter(1,"p1",clusterlist[matchedclusters[itrk][iclu]]->dTdW(),0.1,0,0);
+          fitter->SetParameter(0,"p0",clusterlist[matchedclusters[itrk][iclu]]->StartTick()-dtdw-detprop->GetXTicksOffset(clusterlist[matchedclusters[itrk][iclu]]->Plane().Plane,clusterlist[matchedclusters[itrk][iclu]]->Plane().TPC,clusterlist[matchedclusters[itrk][iclu]]->Plane().Cryostat),0.1,0,0);
+          fitter->SetParameter(1,"p1",std::tan(clusterlist[matchedclusters[itrk][iclu]]->StartAngle()),0.1,0,0);
           fitter->SetParameter(2,"p2",0,0.1,0,0);
         }
         for (size_t ihit = 0; ihit<hits.size(); ++ihit){//loop over hits

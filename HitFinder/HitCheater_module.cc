@@ -259,8 +259,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
             0.,                               // dof
             view,                             // view
             signal_type,                      // signal_type
-            widitr.first,                     // wireID
-            std::vector<float>(signal)        // signal (a copy)
+            widitr.first                      // wireID
             );
           
           LOG_DEBUG("HitCheater") << "new hit is " << hits.back();
@@ -313,8 +312,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
         0.,                               // dof
         view,                             // view
         signal_type,                      // signal_type
-        widitr.first,                     // wireID
-        std::vector<float>(signal)        // signal (a copy)
+        widitr.first                      // wireID
         );
       
       LOG_DEBUG("HitCheater") << "last hit is " << hits.back();

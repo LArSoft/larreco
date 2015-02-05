@@ -1,0 +1,16 @@
+#include "calorimetry.fcl"
+BEGIN_PROLOG
+
+standard_showerreco3d:
+{
+  module_type:    "ShowerReco3D"
+  Verbosity:      false
+  InputProducer:  ""
+  UsePFParticle:  false
+  CalorimetryAlg: @local::standard_calorimetryalgmc
+  MinHits:        25
+  UseArea:        true
+  ApplyMCEnergyCorrection: true
+}
+
+END_PROLOG

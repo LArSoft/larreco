@@ -39,14 +39,11 @@ argoneut_dbcluster.DBScanAlg:          @local::argoneut_dbscanalg
 argoneut_dbclusterana:                 @local::standard_dbclusterana   
 argoneut_fuzzycluster:                 @local::standard_fuzzycluster      
 argoneut_fuzzycluster.fuzzyClusterAlg: @local::argoneut_fuzzyclusteralg      
-argoneut_kingacluster:                 @local::standard_kingacluster   
-argoneut_kingaclusterana:              @local::standard_kingaclusterana
 argoneut_houghlinefinder:              @local::standard_houghlinefinder
 argoneut_houghlinefinder.HoughBaseAlg: @local::argoneut_houghbasealg
 argoneut_houghlinefinderana:           @local::standard_houghlinefinderana
 argoneut_linemerger:                   @local::standard_linemerger        
 argoneut_endpointmod:                  @local::standard_endpointmod       
 argoneut_endpointmod.EndPointAlg:      @local::argoneut_endpointalg
-argoneut_showeranglecluster:           @local::standard_showeranglecluster
 
 END_PROLOG

@@ -16,7 +16,7 @@
 #include <ios>
 #include <sstream>
 #include <fstream>
-#include <math.h>
+#include <cmath>
 #include <algorithm>
 #include <vector>
 
@@ -189,10 +189,10 @@ namespace vertex{
     //loop over clusters
     for(size_t iclu = 0; iclu < clusters.size(); ++iclu){
       
-      double w0 = clusters[iclu]->StartPos()[0];
-      double w1 = clusters[iclu]->EndPos()[0];
-      double t0 = clusters[iclu]->StartPos()[1];
-      double t1 = clusters[iclu]->EndPos()[1];
+      double w0 = clusters[iclu]->StartWire();
+      double w1 = clusters[iclu]->EndWire();
+      double t0 = clusters[iclu]->StartTick();
+      double t1 = clusters[iclu]->EndTick();
 //      t0 -= detprop->GetXTicksOffset(clusters[iclu]->View(),0,0);
 //      t1 -= detprop->GetXTicksOffset(clusters[iclu]->View(),0,0);
 
@@ -239,12 +239,12 @@ namespace vertex{
 	catch(...){
 	  mf::LogWarning("VertexFinder2D") << "Fitter failed";
 	  delete the2Dtrack;
-	  dtdwstart.push_back(clusters[iclu]->dTdW());
+	  dtdwstart.push_back(std::tan(clusters[iclu]->StartAngle()));
 	  continue;
 	}
 	delete the2Dtrack;
       }
-      else dtdwstart.push_back(clusters[iclu]->dTdW());
+      else dtdwstart.push_back(std::tan(clusters[iclu]->StartAngle()));
     
     }
     
@@ -278,15 +278,15 @@ namespace vertex{
 	double lclu1 = -999;
 	double lclu2 = -999;
 	for (unsigned j = 0; j<Cls[i].size(); ++j){
-	  double lclu = std::sqrt(pow((clusters[Cls[i][j]]->StartPos()[0]-clusters[Cls[i][j]]->EndPos()[0])*13.5,2)
-				  +pow(clusters[Cls[i][j]]->StartPos()[1]-clusters[Cls[i][j]]->EndPos()[1],2));
+	  double lclu = std::sqrt(pow((clusters[Cls[i][j]]->StartWire()-clusters[Cls[i][j]]->EndWire())*13.5,2)
+				  +pow(clusters[Cls[i][j]]->StartTick()-clusters[Cls[i][j]]->EndTick(),2));
 	  bool rev = false;
 	  bool deltaraylike = false;
 	  bool enoughhits = false;
 	  if (c1 != -1){
-	    double wb = clusters[Cls[i][j]]->StartPos()[0];
-	    double we = clusters[Cls[i][j]]->EndPos()[0];
-	    double tt = clusters[Cls[i][j]]->StartPos()[1];
+	    double wb = clusters[Cls[i][j]]->StartWire();
+	    double we = clusters[Cls[i][j]]->EndWire();
+	    double tt = clusters[Cls[i][j]]->StartTick();
 	    double dtdw = dtdwstart[Cls[i][j]];
 	    int nhits = fmh.at(Cls[i][j]).size();
 	    ww0 = (tt-tt1+dtdw1*wb1-dtdw*wb)/(dtdw1-dtdw);
@@ -308,8 +308,8 @@ namespace vertex{
 	  //do not replace the second cluster if the 3rd cluster is not consistent with the existing 2
 	  bool replace = true;
 	  if (c1 != -1 && c2 != -1){
-	    double wb = clusters[Cls[i][j]]->StartPos()[0];
-	    double we = clusters[Cls[i][j]]->EndPos()[0];
+	    double wb = clusters[Cls[i][j]]->StartWire();
+	    double we = clusters[Cls[i][j]]->EndWire();
 	    ww0 = (tt2-tt1+dtdw1*wb1-dtdw2*wb2)/(dtdw1-dtdw2);
 	    if ((std::abs(ww0-wb1) < 10 || std::abs(ww0-we1) < 10) &&
 		(std::abs(ww0-wb2) < 10 || std::abs(ww0-we2) < 10)){
@@ -328,13 +328,13 @@ namespace vertex{
 	    }
 	    lclu1 = lclu;
 	    c1 = Cls[i][j];
-	    wb1 = clusters[Cls[i][j]]->StartPos()[0];
-	    we1 = clusters[Cls[i][j]]->EndPos()[0];
-	    tt1 = clusters[Cls[i][j]]->StartPos()[1];
+	    wb1 = clusters[Cls[i][j]]->StartWire();
+	    we1 = clusters[Cls[i][j]]->EndWire();
+	    tt1 = clusters[Cls[i][j]]->StartTick();
 	    if (wb1>we1){
-	      wb1 = clusters[Cls[i][j]]->EndPos()[0];
-	      we1 = clusters[Cls[i][j]]->StartPos()[0];
-	      tt1 = clusters[Cls[i][j]]->EndPos()[1];
+	      wb1 = clusters[Cls[i][j]]->EndWire();
+	      we1 = clusters[Cls[i][j]]->StartWire();
+	      tt1 = clusters[Cls[i][j]]->EndTick();
 	    }
 	    dtdw1 = dtdwstart[Cls[i][j]];
 	  }
@@ -342,9 +342,9 @@ namespace vertex{
 	    if (!deltaraylike && enoughhits && replace){
 	      lclu2 = lclu;
 	      c2 = Cls[i][j];
-	      wb2 = clusters[Cls[i][j]]->StartPos()[0];
-	      we2 = clusters[Cls[i][j]]->EndPos()[0];
-	      tt2 = clusters[Cls[i][j]]->StartPos()[1];
+	      wb2 = clusters[Cls[i][j]]->StartWire();
+	      we2 = clusters[Cls[i][j]]->EndWire();
+	      tt2 = clusters[Cls[i][j]]->StartTick();
 	      dtdw2 = dtdwstart[Cls[i][j]];
 	    }
 	  }
@@ -353,18 +353,18 @@ namespace vertex{
 	  cluvtx[i].push_back(c1);
 	  cluvtx[i].push_back(c2);
 	  
-	  double w1 = clusters[c1]->StartPos()[0];
-	  double t1 = clusters[c1]->StartPos()[1];
-	  if (clusters[c1]->StartPos()[0]>clusters[c1]->EndPos()[0]){
-	    w1 = clusters[c1]->EndPos()[0];
-	    t1 = clusters[c1]->EndPos()[1];
+	  double w1 = clusters[c1]->StartWire();
+	  double t1 = clusters[c1]->StartTick();
+	  if (clusters[c1]->StartWire()>clusters[c1]->EndWire()){
+	    w1 = clusters[c1]->EndWire();
+	    t1 = clusters[c1]->EndTick();
 	  }
 	  double k1 = dtdwstart[c1];
-	  double w2 = clusters[c2]->StartPos()[0];
-	  double t2 = clusters[c2]->StartPos()[1];
-	  if (clusters[c2]->StartPos()[0]>clusters[c2]->EndPos()[0]){
-	    w1 = clusters[c2]->EndPos()[0];
-	    t1 = clusters[c2]->EndPos()[1];
+	  double w2 = clusters[c2]->StartWire();
+	  double t2 = clusters[c2]->StartTick();
+	  if (clusters[c2]->StartWire()>clusters[c2]->EndWire()){
+	    w1 = clusters[c2]->EndWire();
+	    t1 = clusters[c2]->EndTick();
 	  }
 	  double k2 = dtdwstart[c2];
 //	  std::cout<<c1<<" "<<w1<<" "<<t1<<" "<<k1<<" "<<std::endl;
@@ -389,8 +389,8 @@ namespace vertex{
 	  }
 	  else{
 	    cluvtx[i].push_back(Cls[i][0]);
-	    vtx_w.push_back(clusters[Cls[i][0]]->StartPos()[0]);
-	    vtx_t.push_back(clusters[Cls[i][0]]->StartPos()[1]);
+	    vtx_w.push_back(clusters[Cls[i][0]]->StartWire());
+	    vtx_t.push_back(clusters[Cls[i][0]]->StartTick());
 	  }
 	}
 	//save 2D vertex
