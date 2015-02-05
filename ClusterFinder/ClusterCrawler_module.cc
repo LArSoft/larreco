@@ -79,9 +79,9 @@ namespace cluster {
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< std::vector<recob::EndPoint2D> >();
-    produces< art::Assns<recob::EndPoint2D, recob::Cluster> >();
+    produces< art::Assns<recob::EndPoint2D, recob::Cluster, unsigned short> >();
     produces< std::vector<recob::Vertex> >();
-    produces< art::Assns<recob::Vertex, recob::Cluster> >();
+    produces< art::Assns<recob::Vertex, recob::Cluster, unsigned short> >();
   }
 
   ClusterCrawler::~ClusterCrawler()
