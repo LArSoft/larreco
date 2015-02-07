@@ -85,10 +85,6 @@ namespace hit{
   void DisambigCheater::produce(art::Event & evt)
   {
     
-    // this object contains the hit collection
-    // and its associations to wires and raw digits:
-    recob::HitCollectionCreator hits(*this, evt);
-    
     // get hits on channels
     art::Handle< std::vector<recob::Hit> > ChanHits;
     evt.getByLabel(fChanHitLabel, ChanHits);
@@ -99,7 +95,15 @@ namespace hit{
     // we assume they have been created by the same module as the hits
     art::FindOneP<raw::RawDigit> ChannelHitRawDigits
       (ChanHits, evt, fChanHitLabel);
+    const bool doRawDigitAssns = ChannelHitRawDigits.isValid();
+    
     art::FindOneP<recob::Wire> ChannelHitWires(ChanHits, evt, fChanHitLabel);
+    const bool doWireAssns = ChannelHitWires.isValid();
+    
+    // this object contains the hit collection
+    // and its associations to wires and raw digits
+    // (if the original objects have them):
+    recob::HitCollectionCreator hits(*this, evt, doWireAssns, doRawDigitAssns);
     
 
     // find the wireIDs each hit is on
@@ -110,8 +114,10 @@ namespace hit{
     for(size_t h=0; h<ChHits.size(); h++){
       
       // get the objects associated with this hit
-      art::Ptr<recob::Wire> wire = ChannelHitWires.at(h);
-      art::Ptr<raw::RawDigit> rawdigits = ChannelHitRawDigits.at(h);
+      art::Ptr<recob::Wire> wire;
+      if (doWireAssns) wire = ChannelHitWires.at(h);
+      art::Ptr<raw::RawDigit> rawdigits;
+      if (doRawDigitAssns) rawdigits = ChannelHitRawDigits.at(h);
       
       // the trivial Z hits
       if(ChHits[h]->View()==geo::kZ){
