@@ -52,6 +52,7 @@ void cluster::StandardClusterParamsAlg::SetHits
 cluster::StandardClusterParamsAlg::Measure_t
 cluster::StandardClusterParamsAlg::StartCharge()
 {
+  if (NInputHits() == 0) return { 0.F };
   return { (float) algo.StartCharge() };
 } // StandardClusterParamsAlg::StartCharge()
 
@@ -60,6 +61,7 @@ cluster::StandardClusterParamsAlg::StartCharge()
 cluster::StandardClusterParamsAlg::Measure_t
 cluster::StandardClusterParamsAlg::EndCharge()
 {
+  if (NInputHits() == 0) return { 0.F };
   return { (float) algo.EndCharge() };
 } // StandardClusterParamsAlg::EndCharge()
 
@@ -68,6 +70,8 @@ cluster::StandardClusterParamsAlg::EndCharge()
 cluster::StandardClusterParamsAlg::Measure_t
 cluster::StandardClusterParamsAlg::StartAngle()
 {
+  if (NInputHits() < 2) return { 0.F };
+  
   // compute the rough direction and related quantities
   algo.GetRoughAxis();
   // return the relevant information, no uncertainty
@@ -87,6 +91,8 @@ cluster::StandardClusterParamsAlg::EndAngle()
 cluster::StandardClusterParamsAlg::Measure_t
 cluster::StandardClusterParamsAlg::StartOpeningAngle()
 {
+  if (NInputHits() < 3) return { 0.F };
+  
   // compute the direction and related quantities
   algo.RefineDirection();
   // return the relevant information, no uncertainty
@@ -98,6 +104,8 @@ cluster::StandardClusterParamsAlg::StartOpeningAngle()
 cluster::StandardClusterParamsAlg::Measure_t
 cluster::StandardClusterParamsAlg::EndOpeningAngle()
 {
+  if (NInputHits() < 3) return { 0.F };
+  
   // compute the direction and related quantities
   algo.RefineDirection();
   // return the relevant information, no uncertainty
@@ -109,6 +117,8 @@ cluster::StandardClusterParamsAlg::EndOpeningAngle()
 cluster::StandardClusterParamsAlg::Measure_t
 cluster::StandardClusterParamsAlg::Integral()
 {
+  if (NInputHits() == 0) return { 0.F };
+  
   // compute all the averages
   algo.GetAverages();
   // return the relevant information, no uncertainty
@@ -120,6 +130,8 @@ cluster::StandardClusterParamsAlg::Integral()
 cluster::StandardClusterParamsAlg::Measure_t
 cluster::StandardClusterParamsAlg::IntegralStdDev()
 {
+  if (NInputHits() < 2) return { 0.F };
+  
   // compute all the averages
   algo.GetAverages();
   // return the relevant information, no uncertainty
@@ -131,6 +143,8 @@ cluster::StandardClusterParamsAlg::IntegralStdDev()
 cluster::StandardClusterParamsAlg::Measure_t
 cluster::StandardClusterParamsAlg::SummedADC()
 {
+  if (NInputHits() == 0) return { 0.F };
+  
   // compute all the averages
   algo.GetAverages();
   double sumADC = algo.GetParams().sum_ADC;
@@ -143,6 +157,8 @@ cluster::StandardClusterParamsAlg::SummedADC()
 cluster::StandardClusterParamsAlg::Measure_t
 cluster::StandardClusterParamsAlg::SummedADCStdDev()
 {
+  if (NInputHits() < 2) return { 0.F };
+  
   // compute all the averages
   algo.GetAverages();
   // return the relevant information, no uncertainty
@@ -152,6 +168,8 @@ cluster::StandardClusterParamsAlg::SummedADCStdDev()
 
 //------------------------------------------------------------------------------
 size_t cluster::StandardClusterParamsAlg::NHits() {
+  if (NInputHits() < 2) return NInputHits();
+  
   // compute all the averages
   algo.GetAverages();
   // return the relevant information, no uncertainty
@@ -161,6 +179,8 @@ size_t cluster::StandardClusterParamsAlg::NHits() {
 
 //------------------------------------------------------------------------------
 float cluster::StandardClusterParamsAlg::MultipleHitWires() {
+  if (NInputHits() < 2) return { 0.F };
+  
   // compute all the averages
   algo.GetAverages();
   // return the relevant information
@@ -171,6 +191,8 @@ float cluster::StandardClusterParamsAlg::MultipleHitWires() {
 
 //------------------------------------------------------------------------------
 float cluster::StandardClusterParamsAlg::Width() {
+  if (NInputHits() < 3) return { 0.F };
+  
   // compute all the shower profile information
   algo.GetProfileInfo();
   // return the relevant information, no uncertainty
@@ -179,3 +201,6 @@ float cluster::StandardClusterParamsAlg::Width() {
 
 
 //------------------------------------------------------------------------------
+size_t cluster::StandardClusterParamsAlg::NInputHits() const
+  { return algo.GetNHits(); }
+

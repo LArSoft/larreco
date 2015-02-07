@@ -181,8 +181,12 @@ namespace cluster {
     virtual float Width() override;
     
     
+    /// Returns the number of input hits
+    size_t NInputHits() const;
+    
       protected:
     ClusterParamsAlg algo; ///< the actual algorithm class
+    
     
   }; //class StandardClusterParamsAlg
   

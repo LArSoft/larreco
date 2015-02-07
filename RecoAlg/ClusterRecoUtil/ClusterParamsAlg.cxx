@@ -584,6 +584,7 @@ namespace cluster{
   ////////////////////////// end of new binning
   // Some fitting variables to make a histogram:
   
+  // TODO this is nonsense for small clusters
   std::vector<double> ort_profile;
   const int NBINS=100;
   ort_profile.resize(NBINS);
@@ -608,6 +609,8 @@ namespace cluster{
       int ortbin;
       if (ortdist == 0)
         ortbin = 0;
+      else if (max_ortdist == min_ortdist)
+        ortbin = 0;
       else 
         ortbin =(int)(ortdist-min_ortdist)/(max_ortdist-min_ortdist)*(NBINS-1);
       
@@ -623,8 +626,10 @@ namespace cluster{
       /////////////////////////////////////////////////////////////////////// 
       double weight= (ortdist<1.) ? 10 * (hit.charge) : 5 * (hit.charge) / ortdist;
       
-      int fine_bin  =(int)(linedist/fProjectedLength*(fProfileNbins-1));
-      int coarse_bin=(int)(linedist/fProjectedLength*(fCoarseNbins-1));
+      int fine_bin  = fProjectedLength?
+        (int)(linedist/fProjectedLength*(fProfileNbins-1)): 0;
+      int coarse_bin= fProjectedLength?
+        (int)(linedist/fProjectedLength*(fCoarseNbins-1)): 0;
       /*
 	std::cout << "linedist: " << linedist << std::endl;
 	std::cout << "fProjectedLength: " << fProjectedLength << std::endl;
