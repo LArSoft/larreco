@@ -223,19 +223,16 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
     double         maxCharge    = -1.;
     double         peakTime     = 0.;
     int            multiplicity =  1 ;
-    lar::util::StatCollector<float> time;
-    std::vector<float> signal;
+    lar::util::StatCollector<double> time; // reduce rounding errors
 
     // loop over all the tdcs for this geo::WireID
     for( auto tdcitr : widitr.second){
       unsigned short tdc = tdcitr.first;
-      if (tdc <= prev) {
+      if (tdc < prev) {
         throw art::Exception(art::errors::LogicError)
           << "SimChannel TDCs going backward!";
       }
       
-      double adc = fElectronsToADC*tdcitr.second;
-
       // more than a one tdc gap between times with 
       // signal, start a new hit
       if(tdc - prev > fNewHitTDCGap){
@@ -272,16 +269,16 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
         totCharge = 0.;
         maxCharge = -1.;
         time.clear();
-        signal.clear();
 
       }// end if need to start a new hit
       
-      // if we have skipped TDCs, we need to fill the missing signal with 0's
-      while ((int) signal.size() < tdc - startTime) signal.push_back(0.);
-      signal.push_back(adc);
-      
+      const double adc = fElectronsToADC*tdcitr.second;
+
       totCharge += adc;
-      time.add(tdc, adc); // use ADC as weight
+      // use ADC as weight; the shift reduces the precision needed;
+      // average would need to be shifted back: time.Averatge() + startTime
+      // but RMS is not affected
+      time.add(tdc - startTime, adc);
       if(adc > maxCharge){
         maxCharge = adc;
         peakTime = tdc;
@@ -297,7 +294,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
       hits.emplace_back(
         channel,       // channel
         (raw::TDCtick_t) startTime,       // start_tick
-        (raw::TDCtick_t) prev,            // end_tick
+        (raw::TDCtick_t) prev + 1,        // end_tick; prev included in the hit
         peakTime,                         // peak_time
         1.,                               // sigma_peak_time
         time.RMS(),                       // RMS
