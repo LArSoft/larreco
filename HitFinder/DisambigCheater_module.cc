@@ -176,28 +176,30 @@ namespace hit{
     unsigned int Ucount(0), Vcount(0);
 
     for( size_t h = 0; h < ChHits.size(); h++ ){
+      recob::Hit const& chit = *(ChHits[h]);
       if( ChHits[h]->View() == geo::kZ ) continue;
       if( ChHits[h]->View() == geo::kU ) Ucount++;
       else if( ChHits[h]->View() == geo::kV ) Vcount++;
-      art::Ptr<recob::Hit> chit = ChHits[h];
-      std::vector<geo::WireID> cwids = geom->ChannelToWire(chit->Channel());
-      std::pair<double,double> ChanTime( chit->Channel()*1., chit->PeakTime()*1.); // hit key value 
+      std::vector<geo::WireID> cwids = geom->ChannelToWire(chit.Channel());
+      std::pair<double,double> ChanTime( (double) chit.Channel(), (double) chit.PeakTime()); // hit key value 
       
       // get hit IDEs
       std::vector< sim::IDE > ides;
       bt->HitToSimIDEs( chit, ides );
       
       // catch the hits that have no IDEs
-      std::vector<double> xyzpos;
-      try{	xyzpos = bt->SimIDEsToXYZ(ides);      }
-      catch(...){
-	mf::LogVerbatim("DisambigCheat") << "Hit on channel " << chit->Channel()
-					 << " between " << chit->PeakTimeMinusRMS()
-					 << " and " << chit->PeakTimePlusRMS() << " matches no IDEs.";
-	std::vector< geo::WireID > emptyWids;
-	fHitToWids[ChanTime] = emptyWids;
-	  continue;
-      }
+      bool hasIDEs = !ides.empty();
+      if (hasIDEs) {
+        try        { bt->SimIDEsToXYZ(ides); }
+        catch(...) { hasIDEs = false; }
+      } // if
+      if (!hasIDEs) {
+        mf::LogVerbatim("DisambigCheat") << "Hit on channel " << chit.Channel()
+                                         << " between " << chit.PeakTimeMinusRMS()
+                                         << " and " << chit.PeakTimePlusRMS() << " matches no IDEs.";
+        fHitToWids[ChanTime] = std::vector< geo::WireID >();
+        continue;
+      } // if no IDEs
       
       // see what wire ID(s) the hit-IDEs are on
       //  if none: hit maps to empty vector
@@ -205,17 +207,19 @@ namespace hit{
       //  if more than one: make a vector of all wids
       std::vector<geo::WireID> widsWithIdes; 
       for( size_t i=0; i<ides.size(); i++ ){
-	double xyzIde[] = { ides[i].x, ides[i].y, ides[i].z };
-	unsigned int tpc, cryo;
+	const double xyzIde[] = { ides[i].x, ides[i].y, ides[i].z };
 
 	// Occasionally, ide position is not in TPC
 	/// \todo: Why would an IDE xyz position be outside of a TPC?
-	try{	geom->PositionToTPC( xyzIde, tpc, cryo );     }
-	catch(...){   mf::LogWarning("DisambigCheat") << "IDE at x = " << xyzIde[0] 
-						      << ", y = " << xyzIde[1]
-						      << ", z = " << xyzIde[2]
-						      << " does not correspond to a TPC.";
-	              continue;    }
+	geo::TPCID tpcID = geom->FindTPCAtPosition(xyzIde);
+	if (!tpcID.isValid) {
+	  mf::LogWarning("DisambigCheat") << "IDE at x = " << xyzIde[0] 
+	                                  << ", y = " << xyzIde[1]
+	                                  << ", z = " << xyzIde[2]
+	                                  << " does not correspond to a TPC.";
+	  continue;
+	}
+	unsigned int tpc = tpcID.TPC, cryo = tpcID.Cryostat;
 	
 	// NearestWire seems to be missing some correction that is applied in LArG4, and is
 	// sometimes off by one or two wires. Use it and then correct it given channel
