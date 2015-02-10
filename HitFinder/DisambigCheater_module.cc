@@ -174,7 +174,6 @@ namespace hit{
   {
     
     unsigned int Ucount(0), Vcount(0);
-
     for( size_t h = 0; h < ChHits.size(); h++ ){
       recob::Hit const& chit = *(ChHits[h]);
       if( ChHits[h]->View() == geo::kZ ) continue;
@@ -251,9 +250,10 @@ namespace hit{
       
     } // end U/V channel hit loop
     
-    
-    if(fHitToWids.size() != Ucount + Vcount) throw cet::exception("DisambigCheat");
-    
+    if(fHitToWids.size() != Ucount + Vcount){
+      //throw cet::exception("DisambigCheat");
+      mf::LogWarning("DisambigCheat")<<"Nhits mismatch: "<<fHitToWids.size()<<" "<<Ucount+Vcount;
+    }
     return;
 }
 
