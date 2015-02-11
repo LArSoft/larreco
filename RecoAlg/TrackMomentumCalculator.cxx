@@ -190,7 +190,7 @@ namespace trkf{
   
   Double_t TrackMomentumCalculator::GetMomentumMultiScatterLLHD( const art::Ptr<recob::Track> &trk )
   {
-    Double_t p = -1.0; 
+    Double_t p = -1.0; // cout << "1" << endl;
     
     std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
     
@@ -217,8 +217,8 @@ namespace trkf{
     if ( check0!=0 ) return -1.0;
         
     seg_size = steps_size2; 
-    
-    Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
+        
+    Int_t check1 = GetSegTracks2( recoX, recoY, recoZ ); // cout << "2" << endl;
     
     if ( check1!=0 ) return -1.0;
         
@@ -228,9 +228,9 @@ namespace trkf{
     
     Double_t recoL = segL.at(seg_steps0);
             
-    if ( seg_steps<2 || recoL<100.0 ) return -1;
+    if ( seg_steps<2 || recoL<100.0 || recoL>1350.0 ) return -1;
     
-    Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
+    Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); // cout << "3" << endl;
     
     if ( check2!=0 ) return -1.0;
     
@@ -248,7 +248,7 @@ namespace trkf{
 	
 	for ( Int_t l=start2; l<=end2; l++ )
 	  {
-	    Double_t res_test = 4.0; // 0.001+l*1.0; 
+	    Double_t res_test = 0.5; // 0.001+l*1.0; 
 	    
 	    Double_t fv = my_mcs_llhd( p_test, res_test ); 
 	    	    
@@ -457,9 +457,9 @@ namespace trkf{
     Int_t seg_steps0 = seg_steps-1;
     
     Double_t recoL = segL.at(seg_steps0);
-            
-    if ( seg_steps<2 || recoL<100.0 ) return -1;
     
+    if ( seg_steps<2 || recoL<100.0 || recoL>1350.0 ) return -1;
+        
     Double_t mean = 666.0; Double_t rms = 666.0; Double_t rmse = 666.0;
     
     nmeas = 0; Double_t max1=-999.0; Double_t min1=+999.0;
