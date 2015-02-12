@@ -337,8 +337,8 @@ void cluster::DBScanAlg::InitScan(const std::vector< art::Ptr<recob::Hit> >& all
     tickToDist *= 1.e-3 * detp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
     if (!wireids.size()) p[0] = (allhits[j]->WireID().Wire)*fWirePitch[allhits[j]->WireID().Plane];
     else p[0] = (wireids[j].Wire)*fWirePitch[allhits[j]->WireID().Plane];
-    p[1] = ((allhits[j]->StartTime()+allhits[j]->EndTime()  )/2.)*tickToDist;
-    p[2] =  (allhits[j]->EndTime()  -allhits[j]->StartTime())*tickToDist;   //width of a hit in cm
+    p[1] = allhits[j]->PeakTime()*tickToDist;
+    p[2] = 2.*allhits[j]->RMS()*tickToDist;   //width of a hit in cm
 
     // check on the maximum width condition
     if ( p[2] > fMaxWidth ) fMaxWidth = p[2];

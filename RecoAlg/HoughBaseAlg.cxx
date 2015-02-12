@@ -52,9 +52,12 @@
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
+#include "Utilities/StatCollector.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
+#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterParamsImportWrapper.h"
 
 constexpr double PI = M_PI; // or CLHEP::pi in CLHEP/Units/PhysicalConstants.h
 
@@ -68,6 +71,10 @@ constexpr double PI = M_PI; // or CLHEP::pi in CLHEP/Units/PhysicalConstants.h
 
 #define _sin(x) ((((((a6*(x) + a5)*(x) + a4)*(x) + a3)*(x) + a2)*(x) + a1)*(x) + a0)
 #define _cos(x) _sin(TMath::Pi()*0.5 - (x))
+
+template <typename T>
+inline T sqr(T v) { return v * v; }
+
 
 //------------------------------------------------------------------------------
 template <typename K, typename C, size_t S, typename A, unsigned int SC>
@@ -294,7 +301,7 @@ size_t cluster::HoughBaseAlg::Transform(
   //unsigned int channel, plane, wire, tpc, cstat;
   //there must be a better way to find which plane a cluster comes from
   const int dx = geom->Cryostat(hits[0]->WireID().Cryostat).TPC(hits[0]->WireID().TPC).Plane(hits[0]->WireID().Plane).Nwires();//number of wires 
-  //int dy = hits[0]->Wire()->NSignal();//number of time samples. 
+  //  const int dy = detprop->ReadOutWindowSize(); // number of time samples. 
   const int dy = detprop->NumberTimeSamples();//number of time samples. 
   skip.clear();
   skip.resize(hits.size());
@@ -553,8 +560,8 @@ size_t cluster::HoughBaseAlg::Transform(
         if(fpointId_to_clusterId->at(hitsItr - hits.begin()) != clusterId)
           continue;
         channel = (*hitsItr)->Channel();	
-        distance = (std::abs((*hitsItr)->PeakTime()-slope*(float)((*hitsItr)->WireID().Wire)-intercept)/(std::sqrt(xyScale[(*hitsItr)->WireID().Plane]*xyScale[(*hitsItr)->WireID().Plane]*slope*slope+1)));
-        if(distance < fMaxDistance+(((*hitsItr)->EndTime()-(*hitsItr)->StartTime())/2.)+indcolscaling && skip[hitsItr-hits.begin()]!=1){
+        distance = (std::abs((*hitsItr)->PeakTime()-slope*(float)((*hitsItr)->WireID().Wire)-intercept)/(std::sqrt(sqr(xyScale[(*hitsItr)->WireID().Plane]*slope)+1.)));
+        if(distance < fMaxDistance+(*hitsItr)->RMS()+indcolscaling && skip[hitsItr-hits.begin()]!=1){
           hitsTemp.push_back(hitsItr-hits.begin());
           sequenceHolder.push_back(wire);
           channelHolder.push_back(channel);
@@ -603,22 +610,22 @@ size_t cluster::HoughBaseAlg::Transform(
       //fMinWire = 99999999;
       //iMinWire = -1;
       //newChannel = false;
-      //lastChannel = hits[hitsTemp[lastHits[0]]]->Wire()->RawDigit()->Channel();
+      //lastChannel = hits[hitsTemp[lastHits[0]]]->Channel();
       //for(auto lastHitsItr = lastHits.begin(); lastHitsItr != lastHits.end()-1; ++lastHitsItr) {
 
         //newChannel = false;
         //if(slope < 0){
-          //if(hits[hitsTemp[*lastHitsItr+1]]->Wire()->RawDigit()->Channel() != lastChannel){
+          //if(hits[hitsTemp[*lastHitsItr+1]]->Channel() != lastChannel){
             //newChannel = true;
           //}           
         //}
         //if(slope > 0 || !newChannel){
 
-          ////std::cout << hits[hitsTemp[lastHits[i]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[i]]]->StartTime()+hits[hitsTemp[lastHits[i]]]->EndTime())/2.) << std::endl;
-          //pCorner0[0] = (hits[hitsTemp[*lastHitsItr]]->Wire()->RawDigit()->Channel())*wire_dist;
-          //pCorner0[1] = ((hits[hitsTemp[*lastHitsItr]]->StartTime()+hits[hitsTemp[*lastHitsItr]]->EndTime())/2.)*tickToDist;
-          //pCorner1[0] = (hits[hitsTemp[*lastHitsItr+1]]->Wire()->RawDigit()->Channel())*wire_dist;
-          //pCorner1[1] = ((hits[hitsTemp[*lastHitsItr+1]]->StartTime()+hits[hitsTemp[*lastHitsItr+1]]->EndTime())/2.)*tickToDist;
+          ////std::cout << hits[hitsTemp[lastHits[i]]]->Channel() << " " << hits[hitsTemp[lastHits[i]]]->PeakTime() << std::endl;
+          //pCorner0[0] = (hits[hitsTemp[*lastHitsItr]]->Channel())*wire_dist;
+          //pCorner0[1] = hits[hitsTemp[*lastHitsItr]]->PeakTime()*tickToDist;
+          //pCorner1[0] = (hits[hitsTemp[*lastHitsItr+1]]->Channel())*wire_dist;
+          //pCorner1[1] = hits[hitsTemp[*lastHitsItr+1]]->PeakTime()*tickToDist;
           ////std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
           ////if(std::sqrt(pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance)
           //if((pCorner0[0]-pCorner1[0])*(pCorner0[0]-pCorner1[0]) + (pCorner0[1]-pCorner1[1])*(pCorner0[1]-pCorner1[1]) > fMissedHitsDistance*fMissedHitsDistance)
@@ -626,16 +633,16 @@ size_t cluster::HoughBaseAlg::Transform(
         ////} else if (slope < 0 && newChannel && nHitsInChannel > 1){
         //} else if (slope < 0 && newChannel){
           ////std::cout << lastHitsChannel << " " << lastHits[i+1] << " " << lastChannel << std::endl;
-          ////std::cout << hits[hitsTemp[lastHits[lastHitsChannel]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[lastHitsChannel]]]->StartTime()+hits[hitsTemp[lastHits[lastHitsChannel]]]->EndTime())/2.) << std::endl;
-          //pCorner0[0] = (hits[hitsTemp[lastHits[lastHitsChannel]]]->Wire()->RawDigit()->Channel())*wire_dist;
-          //pCorner0[1] = ((hits[hitsTemp[lastHits[lastHitsChannel]]]->StartTime()+hits[hitsTemp[lastHits[lastHitsChannel]]]->EndTime())/2.)*tickToDist;
-          //pCorner1[0] = (hits[hitsTemp[*lastHitsItr+1]]->Wire()->RawDigit()->Channel())*wire_dist;
-          //pCorner1[1] = ((hits[hitsTemp[*lastHitsItr+1]]->StartTime()+hits[hitsTemp[*lastHitsItr+1]]->EndTime())/2.)*tickToDist;
+          ////std::cout << hits[hitsTemp[lastHits[lastHitsChannel]]]->Channel() << " " << hits[hitsTemp[lastHits[lastHitsChannel]]]->PeakTime() << std::endl;
+          //pCorner0[0] = (hits[hitsTemp[lastHits[lastHitsChannel]]]->Channel())*wire_dist;
+          //pCorner0[1] = hits[hitsTemp[lastHits[lastHitsChannel]]]->PeakTime()*tickToDist;
+          //pCorner1[0] = (hits[hitsTemp[*lastHitsItr+1]]->Channel())*wire_dist;
+          //pCorner1[1] = hits[hitsTemp[*lastHitsItr+1]]->PeakTime()*tickToDist;
           ////std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
           ////if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
           //if((pCorner0[0]-pCorner1[0])*(pCorner0[0]-pCorner1[0]) + (pCorner0[1]-pCorner1[1])*(pCorner0[1]-pCorner1[1]) > fMissedHitsDistance*fMissedHitsDistance)
             //missedHits++;
-          //lastChannel=hits[hitsTemp[*lastHitsItr+1]]->Wire()->RawDigit()->Channel();
+          //lastChannel=hits[hitsTemp[*lastHitsItr+1]]->Channel();
           //lastHitsChannel=lastHitsItr-lastHits.begin()+1;
         //}
       //}
@@ -674,8 +681,8 @@ size_t cluster::HoughBaseAlg::Transform(
       for(auto lastHitsItr = lastHits.begin(); lastHitsItr != lastHits.end(); ++lastHitsItr) {
         fpointId_to_clusterId->at(hitsTemp[(*lastHitsItr)]) = nClustersTemp-1;
         //clusterHits.push_back(hits[hitsTemp[(*lastHitsItr)]]);
-        //totalQ += clusterHits.back()->Charge();
-        totalQ += hits[hitsTemp[(*lastHitsItr)]]->Charge();
+        //totalQ += clusterHits.back()->Integral();
+        totalQ += hits[hitsTemp[(*lastHitsItr)]]->Integral();
         wire = hits[hitsTemp[(*lastHitsItr)]]->WireID().Wire;
 
         if(!accumPoints[hitsTemp[(*lastHitsItr)]])
@@ -701,9 +708,9 @@ size_t cluster::HoughBaseAlg::Transform(
       }
       int pnum = hits[iMinWire]->WireID().Plane;    
       pCornerMin[0] = (hits[iMinWire]->WireID().Wire)*wire_pitch[pnum];
-      pCornerMin[1] = ((hits[iMinWire]->StartTime()+hits[iMinWire]->EndTime())/2.)*tickToDist;
+      pCornerMin[1] = hits[iMinWire]->PeakTime()*tickToDist;
       pCornerMax[0] = (hits[iMaxWire]->WireID().Wire)*wire_pitch[pnum];
-      pCornerMax[1] = ((hits[iMaxWire]->StartTime()+hits[iMaxWire]->EndTime())/2.)*tickToDist;
+      pCornerMax[1] = hits[iMaxWire]->PeakTime()*tickToDist;
 
       ///std::cout << std::endl;
       ///std::cout << "pCornerMin[0]: " << pCornerMin[0] << " pCornerMin[1]: " << pCornerMin[1] << std::endl;
@@ -1056,6 +1063,11 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   CLHEP::HepRandomEngine & engine = rng -> getEngine();
   CLHEP::RandFlat flat(engine);
 
+  // prepare the algorithm to compute the cluster characteristics;
+  // we use the "standard" one here; configuration would happen here,
+  // but we are using the default configuration for that algorithm
+  ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
+  
   std::vector< art::Ptr<recob::Hit> > hit;
 
   for(auto view : geom->Views() ){
@@ -1101,7 +1113,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       
       int x, y;
       int dx = geom->Cryostat(cs).TPC(t).Plane(p).Nwires();//number of wires 
-      int dy = hit[0]->Wire()->NSignal();//number of time samples. 
+      const int dy = detprop->ReadOutWindowSize(); // number of time samples. 
       skip.clear();
       skip.resize(hit.size());
       std::vector<int> listofxmax;
@@ -1234,7 +1246,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       for(size_t i = 0; i < hit.size(); ++i){
       distance = (TMath::Abs(hit[i]->PeakTime()-slope*(double)(hit[i]->WireID().Wire)-intercept)/(std::sqrt(pow(xyScale*slope,2)+1)));
       
-      if(distance < fMaxDistance+((hit[i]->EndTime()-hit[i]->StartTime())/2.)+indcolscaling  && skip[i]!=1){
+      if(distance < fMaxDistance+hit[i]->RMS()+indcolscaling  && skip[i]!=1){
       hitTemp.push_back(i);
       sequenceHolder.push_back(hit[i]->Channel());
       }
@@ -1264,7 +1276,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       
       
       // Check if lastHits has hits with big gaps in it
-      uint32_t     channel = hit[0]->Wire()->RawDigit()->Channel();
+      uint32_t     channel = hit[0]->Channel();
       double wirePitch = geom->WirePitch(geom->View(channel));
       double wire_dist = wirePitch;
       double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
@@ -1272,13 +1284,13 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       //std::cout << "New line" << std::endl;
       int missedHits=0;
       for(size_t i = 0; i < lastHits.size()-1; ++i) {
-      //std::cout << hit[hitTemp[lastHits[i]]]->Wire()->RawDigit()->Channel() << std::endl;
+      //std::cout << hit[hitTemp[lastHits[i]]]->Channel() << std::endl;
       double pCorner0[2];
-      pCorner0[0] = (hit[hitTemp[lastHits[i]]]->Wire()->RawDigit()->Channel())*wire_dist;
-      pCorner0[1] = ((hit[hitTemp[lastHits[i]]]->StartTime()+hit[hitTemp[lastHits[i]]]->EndTime())/2.)*tickToDist;
+      pCorner0[0] = (hit[hitTemp[lastHits[i]]]->Channel())*wire_dist;
+      pCorner0[1] = hit[hitTemp[lastHits[i]]]->PeakTime()*tickToDist;
       double pCorner1[2];
-      pCorner1[0] = (hit[hitTemp[lastHits[i+1]]]->Wire()->RawDigit()->Channel())*wire_dist;
-      pCorner1[1] = ((hit[hitTemp[lastHits[i+1]]]->StartTime()+hit[hitTemp[lastHits[i+1]]]->EndTime())/2.)*tickToDist;
+      pCorner1[0] = (hit[hitTemp[lastHits[i+1]]]->Channel())*wire_dist;
+      pCorner1[1] = hit[hitTemp[lastHits[i+1]]]->PeakTime()*tickToDist;
       //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
       if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
       missedHits++;
@@ -1300,13 +1312,13 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       
       for(size_t i = 0; i < lastHits.size(); ++i) {
       clusterHits.push_back(hit[hitTemp[lastHits[i]]]);
-      totalQ += clusterHits.back()->Charge();
+      totalQ += clusterHits.back()->Integral();
       skip[hitTemp[lastHits[i]]]=1;
       } 
       //protection against very steep uncorrelated hits
       if(std::abs(slope)>fMaxSlope 
-      && std::abs((*clusterHits.begin())->Wire()->RawDigit()->Channel()-
-      clusterHits[clusterHits.size()-1]->Wire()->RawDigit()->Channel())>=0
+      && std::abs((*clusterHits.begin())->Channel()-
+      clusterHits[clusterHits.size()-1]->Channel())>=0
       )
       continue;
       
@@ -1333,7 +1345,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       //	      //allow double assignment of first and last hits
       //	      for(size_t i = 0; i < lastHits.size(); ++i){ 
       //		if(skip[hitTemp[lastHits[i]]] ==1){
-      //		  channel = hit[hitTemp[lastHits[i]]]->Wire()->RawDigit()->Channel();  
+      //		  channel = hit[hitTemp[lastHits[i]]]->Channel();  
       //		  if( channel == sc || channel == ec) skip[i] = 0;
       //		}
       //	      }
@@ -1348,30 +1360,57 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       
       }// end loop over hits*/
       
-      std::vector<double> slopevec;std::vector<double> totalQvec;
+      std::vector<double> slopevec;
+      std::vector<ChargeInfo_t> totalQvec;
       std::vector< art::PtrVector<recob::Hit> >   planeClusHitsOut;
       this->FastTransform(hit,planeClusHitsOut,slopevec,totalQvec );
       
       LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
 
       for(size_t xx = 0; xx < planeClusHitsOut.size(); ++xx){
-	const recob::Hit& FirstHit(**planeClusHitsOut.at(xx).begin());
-	unsigned int sw = FirstHit.WireID().Wire;
-	unsigned int ew = (*(planeClusHitsOut.at(xx).end()-1))->WireID().Wire;
+	auto const& hits = planeClusHitsOut.at(xx);
+	recob::Hit const& FirstHit = *hits.front();
+	recob::Hit const& LastHit = *hits.back();
+	const unsigned int sw = FirstHit.WireID().Wire;
+	const unsigned int ew = LastHit.WireID().Wire;
+//	ChargeInfo_t const& charge_info = totalQvec.at(xx); // delegating to algos
 	
-	recob::Cluster cluster(sw, 0.,
-			       (*planeClusHitsOut.at(xx).begin())->PeakTime(), 0.,
-			       ew, 0., 
-			       (planeClusHitsOut.at(xx).at(planeClusHitsOut.at(xx).size()-1))->PeakTime(), 0.,
-			       slopevec.at(xx), 0., 
-			       -999., 0., 
-			       totalQvec.at(xx),
-			       geom->View(FirstHit.Channel()),
-			       clusterID,
-			       FirstHit.WireID().planeID());
+	// feed the algorithm with all the cluster hits
+	ClusterParamAlgo.ImportHits(hits);
+	
+	// create the recob::Cluster directly in the vector;
+	// NOTE usually we would use cluster::ClusterCreator to save some typing and
+	// some mistakes. In this case, we don't want to pull in the dependency on
+	// ClusterFinder, where ClusterCreator currently lives
+	ccol.emplace_back(
+	  float(sw),                                    // start_wire
+	  0.,                                           // sigma_start_wire
+	  FirstHit.PeakTime(),                          // start_tick
+	  FirstHit.SigmaPeakTime(),                     // sigma_start_tick
+	  ClusterParamAlgo.StartCharge().value(),       // start_charge
+	  ClusterParamAlgo.StartAngle().value(),        // start_angle
+	  ClusterParamAlgo.StartOpeningAngle().value(), // start_opening
+	  float(ew),                                    // end_wire
+	  0.,                                           // sigma_end_wire,
+	  LastHit.PeakTime(),                           // end_tick
+	  LastHit.SigmaPeakTime(),                      // sigma_end_tick
+	  ClusterParamAlgo.EndCharge().value(),         // end_charge
+	  ClusterParamAlgo.EndAngle().value(),          // end_angle
+	  ClusterParamAlgo.EndOpeningAngle().value(),   // end_opening
+	  ClusterParamAlgo.Integral().value(),          // integral
+	  ClusterParamAlgo.IntegralStdDev().value(),    // integral_stddev
+	  ClusterParamAlgo.SummedADC().value(),         // summedADC
+	  ClusterParamAlgo.SummedADCStdDev().value(),   // summedADC_stddev
+	  ClusterParamAlgo.NHits(),                     // n_hits
+	  ClusterParamAlgo.MultipleHitDensity(),           // multiple_hit_density
+	  ClusterParamAlgo.Width(),                     // width
+	  clusterID,                                    // ID
+	  FirstHit.View(),                              // view
+	  FirstHit.WireID().planeID(),                  // plane
+	  recob::Cluster::Sentry                        // sentry
+	  );
 	
 	++clusterID;
-	ccol.push_back(cluster);
 	clusHitsOut.push_back(planeClusHitsOut.at(xx));
       }
       
@@ -1396,7 +1435,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   size_t cluster::HoughBaseAlg::FastTransform(std::vector < art::Ptr < recob::Hit > >                 & clusIn,
      	             std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut )
   {
-   std::vector<double> slopevec; std::vector<double> totalQvec;
+   std::vector<double> slopevec;
+   std::vector<ChargeInfo_t> totalQvec;
    return  FastTransform( clusIn, clusHitsOut, slopevec, totalQvec );
         
   }
@@ -1406,7 +1446,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 //------------------------------------------------------------------------------
   size_t cluster::HoughBaseAlg::FastTransform(std::vector < art::Ptr < recob::Hit > >                 & clusIn,
      	             std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut, 
-		     std::vector<double> &slopevec, std::vector<double> &totalQvec )
+		     std::vector<double> &slopevec, std::vector<ChargeInfo_t>& totalQvec )
 {
   std::vector<int> skip;  
 
@@ -1490,7 +1530,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   
   int x = 0, y = 0;
   int dx = geom->Cryostat(cs).TPC(t).Plane(p).Nwires();//number of wires 
-  int dy = hit.at(0)->Wire()->NSignal();//number of time samples. 
+  const int dy = detprop->ReadOutWindowSize(); // number of time samples. 
   skip.clear();
   skip.resize(hit.size());
   std::vector<int> listofxmax;
@@ -1635,7 +1675,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       for(size_t i = 0; i < hit.size(); ++i){
         distance = (TMath::Abs(hit.at(i)->PeakTime()-slope*(double)(hit.at(i)->WireID().Wire)-intercept)/(std::sqrt(pow(xyScale[hit.at(i)->WireID().Plane]*slope,2)+1)));
         
-        if(distance < fMaxDistance+((hit.at(i)->EndTime()-hit.at(i)->StartTime())/2.)+indcolscaling  && skip.at(i)!=1){
+        if(distance < fMaxDistance+hit.at(i)->RMS()+indcolscaling  && skip.at(i)!=1){
           hitTemp.push_back(i);
           sequenceHolder.push_back(hit.at(i)->Channel());
         }
@@ -1698,11 +1738,11 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
         if(slope > 0 || (!newChannel && nHitsPerChannel <= 1)){
 
-          //std::cout << hits[hitsTemp[lastHits[i]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[i]]]->StartTime()+hits[hitsTemp[lastHits[i]]]->EndTime())/2.) << std::endl;
+          //std::cout << hits[hitsTemp[lastHits[i]]]->Channel() << " " << hits[hitsTemp[lastHits[i]]]->PeakTime() << std::endl;
           pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(i)))->Channel())*wire_pitch[0];
-          pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(i)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i)))->EndTime())/2.)*tickToDist;
+          pCorner0[1] = hit.at(hitTemp.at(lastHits.at(i)))->PeakTime()*tickToDist;
           pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Channel())*wire_pitch[0];
-          pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i+1)))->EndTime())/2.)*tickToDist;
+          pCorner1[1] = hit.at(hitTemp.at(lastHits.at(i+1)))->PeakTime()*tickToDist;
           //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
           if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
             missedHits++;
@@ -1711,11 +1751,11 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
         else if (slope < 0 && newChannel && nHitsPerChannel > 1){
 
-          //std::cout << hits[hitsTemp[lastHits[lastHitsChannel]]]->Wire()->RawDigit()->Channel() << " " << ((hits[hitsTemp[lastHits[lastHitsChannel]]]->StartTime()+hits[hitsTemp[lastHits[lastHitsChannel]]]->EndTime())/2.) << std::endl;
+          //std::cout << hits[hitsTemp[lastHits[lastHitsChannel]]]->Channel() << " " << hits[hitsTemp[lastHits[lastHitsChannel]]]->PeakTime() << std::endl;
           pCorner0[0] = (hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->Channel())*wire_pitch[0];
-          pCorner0[1] = ((hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->StartTime()+hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->EndTime())/2.)*tickToDist;
+          pCorner0[1] = hit.at(hitTemp.at(lastHits.at(lastHitsChannel)))->PeakTime()*tickToDist;
           pCorner1[0] = (hit.at(hitTemp.at(lastHits.at(i+1)))->Channel())*wire_pitch[0];
-          pCorner1[1] = ((hit.at(hitTemp.at(lastHits.at(i+1)))->StartTime()+hit.at(hitTemp.at(lastHits.at(i+1)))->EndTime())/2.)*tickToDist;
+          pCorner1[1] = hit.at(hitTemp.at(lastHits.at(i+1)))->PeakTime()*tickToDist;
           //std::cout << std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) << std::endl;
           if(std::sqrt( pow(pCorner0[0]-pCorner1[0],2) + pow(pCorner0[1]-pCorner1[1],2)) > fMissedHitsDistance             )
             missedHits++;
@@ -1735,12 +1775,15 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       
       
       clusterHits.clear();    
-      double totalQ = 0.;
       if(lastHits.size() < 5) continue;
+      
+      // reduce rounding errors by using double (RMS is very sensitive to them)
+      lar::util::StatCollector<double> integralQ, summedQ;
       
       for(size_t i = 0; i < lastHits.size(); ++i) {
         clusterHits.push_back(hit.at(hitTemp.at(lastHits.at(i))));
-        totalQ += clusterHits.back()->Charge();
+        integralQ.add(clusterHits.back()->Integral());
+        summedQ.add(clusterHits.back()->SummedADC());
         skip.at(hitTemp.at(lastHits.at(i)))=1;
       } 
       //protection against very steep uncorrelated hits
@@ -1750,31 +1793,17 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
          )
         continue;
       
-      
-      
-      // unsigned int sw = (*clusterHits.begin())->WireID().Wire;
-      // unsigned int ew = (*(clusterHits.end()-1))->WireID().Wire;
-      
-      /*  recob::Cluster cluster(sw, 0.,
-          (*clusterHits.begin())->PeakTime(), 0.,
-          ew, 0., 
-          (clusterHits[clusterHits.size()-1])->PeakTime(), 0.,
-          slope, 0., 
-          -999., 0., 
-          totalQ,
-          geom->View((*clusterHits.begin())->Channel()),
-          clusterID, (*clusterHits.begin())->WireID().planeID()); */
-      
-      //   ++clusterID;
-      //  ccol.push_back(cluster);
       clusHitsOut.push_back(clusterHits);
       slopevec.push_back(slope);
-      totalQvec.push_back(totalQ);
+      totalQvec.emplace_back(
+        integralQ.Sum(), integralQ.RMS(), // TODO biased value; should unbias?
+        summedQ.Sum(), summedQ.RMS() // TODO biased value; should unbias?
+        );
       //Turn off hit sharing. T. Yang 9/14/12
       //	      //allow double assignment of first and last hits
       //	      for(size_t i = 0; i < lastHits.size(); ++i){ 
       //		if(skip[hitTemp[lastHits[i]]] ==1){
-      //		  channel = hit[hitTemp[lastHits[i]]]->Wire()->RawDigit()->Channel();  
+      //		  channel = hit[hitTemp[lastHits[i]]]->Channel();  
       //		  if( channel == sc || channel == ec) skip[i] = 0;
       //		}
       //	      }
@@ -1845,8 +1874,10 @@ size_t cluster::HoughBaseAlg::Transform(std::vector< art::Ptr<recob::Hit> > cons
   HoughTransform c;
 
   art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<util::DetectorProperties> detprop;
+  
   int dx = geom->Nwires(0);               //number of wires 
-  int dy = hits[0]->Wire()->NSignal();//number of time samples. 
+  const int dy = detprop->ReadOutWindowSize(); // number of time samples. 
 
   c.Init(dx,dy,fRhoResolutionFactor,fNumAngleCells);
 

@@ -155,7 +155,9 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
   int tindex = 0;//the time index to make sure the end point finder does not fall off the edge of the hit map
   int n      = 0; //index of window cell. There are 49 cells in the 7X7 Gaussian and Gaussian derivative windows
   unsigned int numberwires = 0;
-  double numbertimesamples = 0.;
+  const unsigned int numbertimesamples = detp->ReadOutWindowSize();
+  const float TicksPerBin = numbertimesamples / fTimeBins;
+  
   double MatrixAAsum = 0.;
   double MatrixBBsum = 0.;
   double MatrixCCsum = 0.;
@@ -193,7 +195,6 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 	
     geo::WireID wid = hit[0]->WireID();
     numberwires = geom->Cryostat(wid.Cryostat).TPC(wid.TPC).Plane(wid.Plane).Nwires();
-    numbertimesamples = hit[0]->Wire()->NSignal();
     mf::LogInfo("EndPointAlg") << " --- endpoints check " 
 			       << numberwires << " " 
 			       << numbertimesamples << " " 
@@ -218,8 +219,15 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
     for(unsigned int i = 0; i < hit.size(); ++i){
       wire = hit[i]->WireID().Wire;
       //pixelization using a Gaussian
-      for(int j = 0; j <= (int)(hit[i]->EndTime()-hit[i]->StartTime()+.5); ++j)    
-	hit_map[wire][(int)((hit[i]->StartTime()+j)*(fTimeBins/numbertimesamples)+.5)] += Gaussian((int)(j-((hit[i]->EndTime()-hit[i]->StartTime())/2.)+.5),0,hit[i]->EndTime()-hit[i]->StartTime());      
+    //  for(int j = 0; j <= (int)(hit[i]->EndTime()-hit[i]->StartTime()+.5); ++j)    
+    //    hit_map[wire][(int)((hit[i]->StartTime()+j)*(fTimeBins/numbertimesamples)+.5)] += Gaussian((int)(j-((hit[i]->EndTime()-hit[i]->StartTime())/2.)+.5),0,hit[i]->EndTime()-hit[i]->StartTime());      
+      const float center = hit[i]->PeakTime(), sigma = hit[i]->RMS();
+      const int iFirstBin = int((center - 3*sigma) / TicksPerBin),
+        iLastBin = int((center + 3*sigma) / TicksPerBin);
+      for (int iBin = iFirstBin; iBin <= iLastBin; ++iBin) {
+        const float bin_center = iBin * TicksPerBin;
+        hit_map[wire][iBin] += Gaussian(bin_center, center, sigma);
+      }
     }
     
     // Gaussian derivative convolution  
@@ -285,8 +293,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 	    wire2 = hit[i]->WireID().Wire;	 
 	    //make sure the end point candidate coincides with an actual hit.
 	    if(wire == wire2 
-	       && hit[i]->StartTime() < timebin*(numbertimesamples/fTimeBins) 
-	       && hit[i]->EndTime() > timebin*(numbertimesamples/fTimeBins)){ 	       
+	       && std::abs(hit[i]->TimeDistanceAsRMS(timebin*(numbertimesamples/fTimeBins))) < 1.){
 	      //this index keeps track of the hit number
 	      hit_loc[wire][timebin] = i;
 	      Cornerness2.push_back(Cornerness[wire][timebin]);
@@ -317,7 +324,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 	      
 	      // get the total charge from the associated hits
 	      double totalQ = 0.;
-	      for(size_t vh = 0; vh < vHits.size(); ++vh) totalQ += vHits[vh]->Charge();
+	      for(size_t vh = 0; vh < vHits.size(); ++vh) totalQ += vHits[vh]->Integral();
 	      
 	      recob::EndPoint2D endpoint(hit[hit_loc[wire][timebin]]->PeakTime(),
 					 hit[hit_loc[wire][timebin]]->WireID(),

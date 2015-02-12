@@ -17,6 +17,7 @@
 #include "Geometry/Geometry.h"
 #include "Geometry/PlaneGeo.h"
 #include "MCCheater/BackTracker.h"
+#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
@@ -106,9 +107,7 @@ namespace hit{
     Int_t fnHits; 			// Number of Hits in the Event
     Int_t fWire[kMaxHits];		// Wire Number
     Float_t fStartTime[kMaxHits];	// Start Time
-    Float_t fStartTimeUncert[kMaxHits];	// Start Time Uncertainty
     Float_t fEndTime[kMaxHits];		// End Time
-    Float_t fEndTimeUncert[kMaxHits];	// End Time Uncertainty
     Float_t fPeakTime[kMaxHits];	// Peak Time
     Float_t fPeakTimeUncert[kMaxHits];	// Peak Time Uncertainty
     Float_t fCharge[kMaxHits];		// Charge of this hit
@@ -181,9 +180,7 @@ namespace hit{
     fHTree->Branch("nHits", &fnHits, "nHits/I");
     fHTree->Branch("Wire", &fWire, "Wire[nHits]/I");
     fHTree->Branch("StartTime", &fStartTime, "fStartTime[nHits]/F");
-    fHTree->Branch("StartTimeUncert", &fStartTimeUncert, "fStartTimeUncert[nHits]/F");
     fHTree->Branch("EndTime", &fEndTime, "fEndTime[nHits]/F");
-    fHTree->Branch("EndTimeUncert", &fEndTimeUncert, "fEndTimeUncert[nHits]/F");
     fHTree->Branch("PeakTime", &fPeakTime, "fPeakTime[nHits]/F");
     fHTree->Branch("PeakTimeUncert", &fPeakTimeUncert, "fPeakTimeUncert[nHits]/F");
     fHTree->Branch("Charge", &fCharge, "fCharge[nHits]/F");
@@ -311,21 +308,19 @@ namespace hit{
        art::Ptr<recob::Hit> hit(hitHandle, numHit);
        
        fWire[hitCount] 		= hit->WireID().Wire;
-       fStartTime[hitCount]       = hit->StartTime();
-       fStartTimeUncert[hitCount] = hit->SigmaStartTime();
-       fEndTime[hitCount]         = hit->EndTime();
-       fEndTimeUncert[hitCount]   = hit->SigmaEndTime();
+       fStartTime[hitCount]       = hit->PeakTimeMinusRMS();
+       fEndTime[hitCount]         = hit->PeakTimePlusRMS();
        fPeakTime[hitCount]	= hit->PeakTime();
        fPeakTimeUncert[hitCount]= hit->SigmaPeakTime();
-       fCharge[hitCount]	= hit->Charge();
-       fChargeUncert[hitCount]	= hit->SigmaCharge();
+       fCharge[hitCount]	= hit->Integral();
+       fChargeUncert[hitCount]	= hit->SigmaIntegral();
        fMultiplicity[hitCount]	= hit->Multiplicity();
        fGOF[hitCount]		= hit->GoodnessOfFit();
        //std::cout<<"Hit Charge = "<<hit->Charge()<<std::endl;
        //std::cout<<"StartTime = "<<hit->StartTime()<<std::endl;
        
        hitCount++;
-       TotCharge += hit->Charge();
+       TotCharge += hit->Integral();
        
        fPeakTimeVsWire->Fill(hit->WireID().Wire, hit->PeakTime());
        }//<---End numHit

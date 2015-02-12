@@ -1,11 +1,8 @@
-////////////////////////////////////////////////////////////////////////
-// $Id: DBSCANfinderAna.cxx,v 1.36 2010/09/15  bpage Exp $
-//
-// \file fuzzyCluster_module.cc
-//
-// \author kinga.partyka@yale.edu
-//
-////////////////////////////////////////////////////////////////////////
+/**
+ * @file   fuzzyCluster_module.cc
+ * @brief  Cluster based on Hough transform, with pre-clustering and post-merge
+ * @author kinga.partyka@yale.edu , bcarls@fnal.gov
+ */
 
 #include <vector>
 #include <cmath>
@@ -42,6 +39,9 @@
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
 #include "Utilities/SeedCreator.h"
+#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterParamsImportWrapper.h"
+#include "ClusterFinder/ClusterCreator.h"
 
 
 class TH1F;
@@ -140,7 +140,12 @@ namespace cluster{
 
     // get the ChannelFilter
     filter::ChannelFilter chanFilt;
-      
+    
+    // prepare the algorithm to compute the cluster characteristics;
+    // we use the "standard" one here; configuration would happen here,
+    // but we are using the default configuration for that algorithm
+    ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
+    
     // make a map of the geo::PlaneID to vectors of art::Ptr<recob::Hit>
     std::map<geo::PlaneID, std::vector< art::Ptr<recob::Hit> > > planeIDToHits;
     for(size_t i = 0; i < hitcol->size(); ++i)
@@ -176,34 +181,42 @@ namespace cluster{
       
       for(size_t i = 0; i < ffuzzyCluster.fclusters.size(); ++i){
 	std::vector<art::Ptr<recob::Hit> > clusterHits;
-	double totalQ = 0.;
   	
 	for(size_t j = 0; j < ffuzzyCluster.fpointId_to_clusterId.size(); ++j){
 	  if(ffuzzyCluster.fpointId_to_clusterId[j]==i){ 
 	    clusterHits.push_back(allhits[j]);
-	    totalQ += clusterHits.back()->Charge();
 	  }
 	} 
 	
 	
 	////////
-	if (clusterHits.size()>0){
+	if (!clusterHits.empty()){
 	  /// \todo: need to define start and end positions for this cluster and slopes for dTdW, dQdW
 	  const geo::WireID& wireID = clusterHits.front()->WireID();
 	  unsigned int sw = wireID.Wire;
 	  unsigned int ew = clusterHits.back()->WireID().Wire;
 	  
+	  // feed the algorithm with all the cluster hits
+	  ClusterParamAlgo.ImportHits(clusterHits);
+	  
 	  // create the recob::Cluster directly in the vector
-	  ccol->emplace_back(sw*1., 0.,
-				 clusterHits.front()->PeakTime(), clusterHits.front()->SigmaPeakTime(),
-				 ew*1., 0.,
-				 clusterHits.back()->PeakTime(), clusterHits.back()->SigmaPeakTime(),
-				 -999., 0., 
-				 -999., 0.,
-				 totalQ,
-				 clusterHits.front()->View(),
-				 ccol->size(),
-				 wireID.planeID());
+	  ClusterCreator cluster(
+	    ClusterParamAlgo,                     // algo
+	    float(sw),                            // start_wire
+	    0.,                                   // sigma_start_wire
+	    clusterHits.front()->PeakTime(),      // start_tick
+	    clusterHits.front()->SigmaPeakTime(), // sigma_start_tick
+	    float(ew),                            // end_wire
+	    0.,                                   // sigma_end_wire,
+	    clusterHits.back()->PeakTime(),       // end_tick
+	    clusterHits.back()->SigmaPeakTime(),  // sigma_end_tick
+	    ccol->size(),                         // ID
+	    clusterHits.front()->View(),          // view
+	    wireID.planeID(),                     // plane
+	    recob::Cluster::Sentry                // sentry
+	    );
+	  
+	  ccol->emplace_back(cluster.move());
 	  
 	  // associate the hits to this cluster
 	  util::CreateAssn(*this, evt, *ccol, clusterHits, *assn);

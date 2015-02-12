@@ -14,6 +14,7 @@
 #include <TProfile.h>
 #include <vector>
 #include <string>
+#include <array>
 
 //Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 
@@ -569,11 +570,16 @@ namespace cluster{
         }
       } // jj
       // find the US and DS ends of the cluster for printing
-      std::vector<double> clBeg {0., 0.};
-      std::vector<double> clEnd {0., 0.};
+      std::array<double, 2> clBeg, clEnd;
       if(ep2Cluster >= 0) {
-        clBeg = clusters[ep2Cluster]->StartPos();
-        clEnd = clusters[ep2Cluster]->EndPos();
+        clBeg[0] = clusters[ep2Cluster]->StartWire();
+        clBeg[1] = clusters[ep2Cluster]->StartTick();
+        clEnd[0] = clusters[ep2Cluster]->EndWire();
+        clEnd[1] = clusters[ep2Cluster]->EndTick();
+      }
+      else {
+        clBeg.fill(0.);
+        clEnd.fill(0.);
       }
       // fill histograms
       if(isCosmic) {

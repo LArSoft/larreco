@@ -401,7 +401,7 @@ namespace trkf {
 	  geo::WireID hit1WireID = hit1.WireID();
 	  //	  tpc1 = hit1WireID.TPC;
 	  plane1 = hit1WireID.Plane;
-	  charge = hit1.Charge();
+	  charge = hit1.Integral();
 	  wirePitch = geom->WirePitch(0,1,plane1);
 	  angleToVert = geom->Plane(plane1).Wire(0).ThetaZ(false) - 0.5*TMath::Pi();
 	}

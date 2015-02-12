@@ -30,6 +30,9 @@
 #include "Utilities/AssociationUtil.h"
 #include "Filters/ChannelFilter.h"
 #include "RecoAlg/DBScanAlg.h"
+#include "ClusterFinder/ClusterCreator.h"
+#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "RecoAlg/ClusterParamsImportWrapper.h"
 
 #include <fstream>
 #include <cstdlib>
@@ -109,6 +112,11 @@ namespace cluster{
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>);
     std::unique_ptr< art::Assns<recob::Cluster, recob::Hit> > assn(new art::Assns<recob::Cluster, recob::Hit>);
   
+    // prepare the algorithm to compute the cluster characteristics;
+    // we use the "standard" one here; configuration would happen here,
+    // but we are using the default configuration for that algorithm
+    ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
+    
     art::ServiceHandle<geo::Geometry> geom;
   
     art::Handle< std::vector<recob::Hit> > hitcol;
@@ -155,7 +163,7 @@ namespace cluster{
 	for(size_t j = 0; j < fDBScan.fpointId_to_clusterId.size(); ++j){	  
 	  if(fDBScan.fpointId_to_clusterId[j]==i){
 	    clusterHits.push_back(allhits[j]);
-	    totalQ += clusterHits.back()->Charge();
+	    totalQ += clusterHits.back()->Integral();
 	  }
 	}
         
@@ -167,30 +175,40 @@ namespace cluster{
 	  unsigned int sw = wireID.Wire;
 	  unsigned int ew = clusterHits.back()->WireID().Wire;
 	  
+	  // feed the algorithm with all the cluster hits
+	  ClusterParamAlgo.ImportHits(clusterHits);
+	  
 	  // create the recob::Cluster directly in the vector
-	  ccol->emplace_back(sw*1., 0.,
-				 clusterHits.front()->PeakTime(), clusterHits.front()->SigmaPeakTime(),
-				 ew*1., 0.,
-				 clusterHits.back()->PeakTime(), clusterHits.back()->SigmaPeakTime(),
-				 -999., 0., 
-				 -999., 0.,
-				 totalQ,
-				 geom->View(clusterHits.front()->Channel()),
-				 ccol->size(),
-				 wireID.planeID());
-  
+	  ClusterCreator cluster(
+	    ClusterParamAlgo,                     // algo
+	    float(sw),                            // start_wire
+	    0.,                                   // sigma_start_wire
+	    clusterHits.front()->PeakTime(),      // start_tick
+	    clusterHits.front()->SigmaPeakTime(), // sigma_start_tick
+	    float(ew),                            // end_wire
+	    0.,                                   // sigma_end_wire,
+	    clusterHits.back()->PeakTime(),       // end_tick
+	    clusterHits.back()->SigmaPeakTime(),  // sigma_end_tick
+	    ccol->size(),                         // ID
+	    clusterHits.front()->View(),          // view
+	    wireID.planeID(),                     // plane
+	    recob::Cluster::Sentry                // sentry
+	    );
+	  
+	  ccol->emplace_back(cluster.move());
+	  
 	  // associate the hits to this cluster
 	  util::CreateAssn(*this, evt, *(ccol.get()), clusterHits, *(assn.get()));
 	  
 	  clusterHits.clear();
-  	  
+	  
 	}//end if clusterHits has at least one hit
 	
       }//end loop over fclusters
-  	
+      
       allhits.clear();
     } // end loop over PlaneID map
-  
+    
     mf::LogVerbatim("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
     mf::LogVerbatim("Summary") << "DBcluster Summary:";
     for(unsigned int i = 0; i<ccol->size(); ++i) mf::LogVerbatim("Summary") << ccol->at(i) ;

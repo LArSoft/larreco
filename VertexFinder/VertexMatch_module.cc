@@ -213,18 +213,18 @@ void vertex::VertexMatch::produce(art::Event& evt)
 	planeID = wireID.planeID();
       }
       if(pid == planeID){
-	slope=(*houghIter)->dTdW();
-	intercept=(*houghIter)->StartPos()[1] - slope*(*houghIter)->StartPos()[0];
+	slope = std::atan((*houghIter)->StartAngle());
+	intercept=(*houghIter)->StartTick() - slope*(*houghIter)->StartWire();
 	for(unsigned int i=0;i < vertexhit.size(); i++){  
 	  
 	  distance=-1;
 	  wire  = vertexhit[i]->WireID().Wire;
 	  wireID = vertexhit[i]->WireID(); //for update to EndPoint2D ... WK 4/22/13
 	  
-	  starttime=(*houghIter)->StartPos()[1];
-	  endtime=(*houghIter)->EndPos()[1];
-	  startwire=(*houghIter)->StartPos()[0];
-	  endwire=(*houghIter)->EndPos()[0];
+	  starttime=(*houghIter)->StartTick();
+	  endtime=(*houghIter)->EndTick();
+	  startwire=(*houghIter)->StartWire();
+	  endwire=(*houghIter)->EndWire();
 	  
 	  //require the vertices found with HarrisVertexFinder to match up with the endpoints 
 	  //(within a window) of a Hough line. A strong vertex matches up with at least two Hough lines. 
@@ -236,10 +236,10 @@ void vertex::VertexMatch::produce(art::Event& evt)
 		))          		  
 	    distance=(std::abs(vertexhit[i]->PeakTime()-slope*(double)wire-intercept)/(std::sqrt(pow(.0743*slope,2)+1))); 
 	  
-	  if(distance<(fMaxDistance+((vertexhit[i]->EndTime()-vertexhit[i]->StartTime())/2.))&&distance>-1)
-	    matchedvertex.push_back(std::pair<art::Ptr<recob::Hit>,double>(vertexhit[i], 
+	  if(distance<(fMaxDistance+vertexhit[i]->RMS())&&distance>-1)
+	    matchedvertex.emplace_back(vertexhit[i], 
 									   weakvertexstrength[i]*std::sqrt(std::pow(std::abs(endwire-startwire)*.0743,2)
-													   +std::pow(std::abs(endtime-starttime),2))));
+													   +std::pow(std::abs(endtime-starttime),2)));
 	  //ala strongestvertex.push_back(std::pair<art::PtrVector<recob::Hit>,double>(matchedvertex[i].first,strength));
 	}
       }
@@ -275,7 +275,7 @@ void vertex::VertexMatch::produce(art::Event& evt)
       //make sure there is more than one Hough Line associated with the vertex 
       
       if(strength>matchedvertex[i].second)
-	strongestvertex.push_back(std::pair<art::Ptr<recob::Hit>,double>(matchedvertex[i].first,strength));
+	strongestvertex.emplace_back(matchedvertex[i].first,strength);
     }
     
     
@@ -284,7 +284,7 @@ void vertex::VertexMatch::produce(art::Event& evt)
     for(unsigned int i=0;i < matchedvertex.size(); i++){      
       // I think this is grabbing first item in pair, itself a pointer then grabbing first 
       // (.begin()) one of those. EC, 18-Oct-2010.
-      channel=(matchedvertex[i].first)->Wire()->RawDigit()->Channel();
+      channel=(matchedvertex[i].first)->Channel();
       
       // strongvertex, despite name, is a hit vector.
       strongvertex.push_back(matchedvertex[i].first);
@@ -308,7 +308,7 @@ void vertex::VertexMatch::produce(art::Event& evt)
       
       // strongvertex is a collection of hits
       double totalQ = 0.;
-      for(size_t h = 0; h < strongvertex.size(); ++h) totalQ += strongvertex[h]->Charge();
+      for(size_t h = 0; h < strongvertex.size(); ++h) totalQ += strongvertex[h]->Integral();
       
       recob::EndPoint2D vertex((matchedvertex[i].first)->PeakTime(),
 			       wireID,

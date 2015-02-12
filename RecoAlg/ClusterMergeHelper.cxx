@@ -8,6 +8,7 @@
 #define CLUSTERMERGEHELPER_CXX
 
 #include "ClusterMergeHelper.h"
+#include "RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
 
 namespace cluster{
   
@@ -34,7 +35,7 @@ namespace cluster{
 	px_clusters.at(cluster_index).at(hit_index).plane  = clusters.at(cluster_index).at(hit_index)->WireID().Plane;
 	px_clusters.at(cluster_index).at(hit_index).w      = clusters.at(cluster_index).at(hit_index)->WireID().Wire * fGeoU.WireToCm();
 	px_clusters.at(cluster_index).at(hit_index).t      = clusters.at(cluster_index).at(hit_index)->PeakTime() * fGeoU.TimeToCm();
-	px_clusters.at(cluster_index).at(hit_index).charge = clusters.at(cluster_index).at(hit_index)->Charge();
+	px_clusters.at(cluster_index).at(hit_index).charge = clusters.at(cluster_index).at(hit_index)->Integral();
 
 	fInputClusters.at(cluster_index).at(hit_index) = clusters.at(cluster_index).at(hit_index);
 
@@ -164,29 +165,57 @@ namespace cluster{
 	<< "\033[00m"
 	<< std::endl;
 
+    
     art::ServiceHandle<geo::Geometry> geo;
-
+    
     // Store output
     for(size_t out_index=0; out_index < GetMergedCPAN().size(); ++out_index) {
       
       // To save typing let's just retrieve const cluster_params instance
       const cluster_params &res = GetMergedCPAN().at(out_index).GetParams();
       
+      // this "algo" is actually parroting its cluster_params
+      LazyClusterParamsAlg algo(res);
+      
+      std::vector<art::Ptr<recob::Hit>> const& hits
+        = GetMergedClusterHits().at(out_index);
+      
+      // the full plane needed but not a part of cluster_params...
+      // get the one from the first hit
+      geo::PlaneID plane; // invalid by default
+      if (!hits.empty()) plane = hits.front()->WireID().planeID();
+      
       // View_t needed but not a part of cluster_params, so retrieve it here
-      geo::View_t view_id = geo->Plane(GetMergedCPAN().at(out_index).Plane()).View();
+      geo::View_t view_id = geo->Plane(plane).View();
       
       // Push back a new cluster data product with parameters copied from cluster_params
-      out_clusters.push_back( recob::Cluster( res.start_point.w / fGeoU.WireToCm(), 0,  // start wire & error
-					      res.start_point.t / fGeoU.TimeToCm(), 0,  // start time & error
-					      res.end_point.w   / fGeoU.WireToCm(), 0,  // end   wire & error
-					      res.end_point.t   / fGeoU.TimeToCm(), 0,  // end   time & error
-					      res.cluster_angle_2d,                 0,  // dT/dW (slope)
-					      0,                                    0,  // dQ/dW (what is that?)
-					      res.sum_charge,                           // charge sum
-					      view_id,                                  // geo::View_t
-					      out_clusters.size()                       // Cluster ID
-					      )
-			      );
+      out_clusters.emplace_back(
+        res.start_point.w / fGeoU.WireToCm(), // start_wire
+        0.,                                   // sigma_start_wire
+        res.start_point.t / fGeoU.TimeToCm(), // start_tick
+        0.,                                   // sigma_start_tick
+        algo.StartCharge().value(),           // start_charge
+        algo.StartAngle().value(),            // start_angle
+        algo.StartOpeningAngle().value(),     // start_opening
+        res.end_point.w   / fGeoU.WireToCm(), // end_wire
+        0.,                                   // sigma_end_wire
+        res.end_point.t   / fGeoU.TimeToCm(), // end_tick
+        0.,                                   // sigma_end_tick
+        algo.EndCharge().value(),             // end_charge
+        algo.EndAngle().value(),              // end_angle
+        algo.EndOpeningAngle().value(),       // end_opening
+        algo.Integral().value(),              // integral
+        algo.IntegralStdDev().value(),        // integral_stddev
+        algo.SummedADC().value(),             // summedADC
+        algo.SummedADCStdDev().value(),       // summedADC_stddev
+        algo.NHits(),                         // n_hits
+        algo.MultipleHitDensity(),              // multiple_hit_density
+        algo.Width(),                         // width
+        out_clusters.size(),                  // ID
+        view_id,                              // view
+        plane,                                // plane
+        recob::Cluster::Sentry                // sentry
+        );
       
       util::CreateAssn(ed,
 		       ev, 

@@ -303,7 +303,7 @@ namespace cluster {
     
     /// Pair identifying a counter and its current value
     using PairValue_t = std::pair<const_iterator, SubCounter_t>;
-    
+
     /// Default constructor (empty map)
     HoughTransformCounters(): Base_t() {}
     
@@ -537,6 +537,20 @@ namespace cluster {
     
   public:
     
+    /// Data structure collecting charge information to be filled in cluster
+    struct ChargeInfo_t {
+      float integral         = 0.0F;
+      float integral_stddev  = 0.0F;
+      float summedADC        = 0.0F;
+      float summedADC_stddev = 0.0F;
+      
+      ChargeInfo_t(float in, float in_stdev, float sum, float sum_stdev):
+        integral(in), integral_stddev(in_stdev),
+        summedADC(sum), summedADC_stddev(sum_stdev)
+        {}
+    }; // ChargeInfo_t
+    
+    
     HoughBaseAlg(fhicl::ParameterSet const& pset); 
     virtual ~HoughBaseAlg();
 
@@ -554,15 +568,18 @@ namespace cluster {
     
     
     // interface to look for lines only on a set of hits,without slope and totalQ arrays
-    size_t FastTransform(std::vector < art::Ptr < recob::Hit > >                 & clusIn,
-     	             std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut
-		     );
+    size_t FastTransform(
+      std::vector<art::Ptr<recob::Hit>>      & clusIn,
+      std::vector<art::PtrVector<recob::Hit>>& clusHitsOut
+      );
     
     // interface to look for lines only on a set of hits
-    size_t FastTransform(std::vector < art::Ptr < recob::Hit > >                 & clusIn,
-     	             std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut,
-		     std::vector<double> &slope, std::vector<double> &totalQ
-		     );
+    size_t FastTransform(
+      std::vector<art::Ptr<recob::Hit>>      & clusIn,
+      std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
+      std::vector<double>                    & slope,
+      std::vector<ChargeInfo_t>              & totalQ
+      );
     
 
     size_t Transform(std::vector<art::Ptr<recob::Hit> > const& hits);

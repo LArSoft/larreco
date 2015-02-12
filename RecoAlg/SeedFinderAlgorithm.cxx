@@ -737,8 +737,8 @@ namespace trkf {
     
     double HitX = det->ConvertTicksToX(AHit->PeakTime(), AHit->WireID().Plane, 0, 0);
     
-    double HitXHigh = det->ConvertTicksToX(AHit->EndTime(), AHit->WireID().Plane, 0, 0);    
-    double HitXLow =  det->ConvertTicksToX(AHit->StartTime(), AHit->WireID().Plane, 0, 0);
+    double HitXHigh = det->ConvertTicksToX(AHit->PeakTimePlusRMS(), AHit->WireID().Plane, 0, 0);    
+    double HitXLow =  det->ConvertTicksToX(AHit->PeakTimeMinusRMS(), AHit->WireID().Plane, 0, 0);
     
     double HitWidth = HitXHigh - HitXLow;
     
@@ -955,8 +955,8 @@ namespace trkf {
 	else if((*itHit)->View() == geo::kW) ViewIndex=2;
 	double WireCoord = (*itHit)->WireID().Wire * fPitches.at(ViewIndex);
 	double TimeCoord = det->ConvertTicksToX((*itHit)->PeakTime(),ViewIndex,0,0);
-	double TimeUpper = det->ConvertTicksToX((*itHit)->EndTime(), ViewIndex,0,0);
-	double TimeLower = det->ConvertTicksToX((*itHit)->StartTime(), ViewIndex,0,0);
+	double TimeUpper = det->ConvertTicksToX((*itHit)->PeakTimePlusRMS(), ViewIndex,0,0);
+	double TimeLower = det->ConvertTicksToX((*itHit)->PeakTimeMinusRMS(), ViewIndex,0,0);
 	double Width = fabs(0.5*(TimeUpper-TimeLower));
 	double Width2 = pow(Width,2);
 	

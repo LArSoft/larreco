@@ -369,8 +369,8 @@ namespace cluster{
   	    for(size_t p = 0; p<_hits.size(); ++p){
   	      _hits_ptr=_hits[p];
   	      hits_vec.push_back(_hits_ptr);
-  	      //std::cout<<"hit # "<<p<<" charge= "<<_hits[p]->Charge()<<std::endl;
-  	      total_Q_cluster_hits += _hits[p]->Charge();
+  	      //std::cout<<"hit # "<<p<<" charge= "<<_hits[p]->Integral()<<std::endl;
+  	      total_Q_cluster_hits += _hits[p]->Integral();
   	    }	
   	    
   
@@ -379,11 +379,11 @@ namespace cluster{
   	    
   	    //std::cout<<"hits_vec.size()= "<<hits_vec.size()<<std::endl;
   	    while(itr != hits_vec.end()) {
-  	      //std::cout<<"working on hit # "<<itr-hits_vec.begin()<<" charge= "<<_hits[itr-hits_vec.begin()]->Charge()<<std::endl;
+  	      //std::cout<<"working on hit # "<<itr-hits_vec.begin()<<" charge= "<<_hits[itr-hits_vec.begin()]->Integral()<<std::endl;
   	      diff_vec.clear();
-  	      //std::cout<<"same?, q= "<<hits_vec[itr-hits_vec.begin()]->Charge()<<std::endl;
+  	      //std::cout<<"same?, q= "<<hits_vec[itr-hits_vec.begin()]->Integral()<<std::endl;
   		
-  	      hit_energy=_hits[itr-hits_vec.begin()]->Charge();
+  	      hit_energy=_hits[itr-hits_vec.begin()]->Integral();
   		
   	      std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(*itr);
   	 		
@@ -807,7 +807,7 @@ namespace cluster{
   		
       std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
   		
-      hit_energy=hits[itr-hits.begin()]->Charge();
+      hit_energy=hits[itr-hits.begin()]->Integral();
   		
       while( idesitr != trackides.end() ){
       
