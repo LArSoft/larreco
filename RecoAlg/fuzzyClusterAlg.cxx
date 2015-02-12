@@ -399,8 +399,8 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   for (auto allhitsItr = allhits.begin(); allhitsItr < allhits.end(); allhitsItr++){
         
     p[0] = ((*allhitsItr)->WireID().Wire)*fWirePitch[(*allhitsItr)->WireID().Plane];
-    p[1] = (((*allhitsItr)->StartTime()+(*allhitsItr)->EndTime()  )/2.)*tickToDist;
-    p[2] = (*allhitsItr)->Charge();   //width of a hit in cm
+    p[1] = (*allhitsItr)->PeakTime()*tickToDist;
+    p[2] = (*allhitsItr)->Integral();   //width of a hit in cm
 
     // check on the maximum width condition
     if ( p[2] > fMaxWidth ) fMaxWidth = p[2];
@@ -410,7 +410,7 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
     data[allhitsItr-allhits.begin()].resize(MNumOfCols);
 
     data[allhitsItr-allhits.begin()][0] = ((*allhitsItr)->WireID().Wire)*fWirePitch[(*allhitsItr)->WireID().Plane];
-    data[allhitsItr-allhits.begin()][1] = (((*allhitsItr)->StartTime()+(*allhitsItr)->EndTime()  )/2.)*tickToDist;
+    data[allhitsItr-allhits.begin()][1] = (*allhitsItr)->PeakTime()*tickToDist;
     
   }
 
@@ -535,11 +535,11 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
       /// Sum up background hits, use smart distance
       peakTimePerpMin=-(1/protoTracksFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTracksFoundItr->iMinWire]->PeakTime()+(1/protoTracksFoundItr->clusterSlope)*(allhits[protoTracksFoundItr->iMinWire]->WireID().Wire);
       peakTimePerpMax=-(1/protoTracksFoundItr->clusterSlope)*(double)((*hitsItr)->WireID().Wire)+allhits[protoTracksFoundItr->iMaxWire]->PeakTime()+(1/protoTracksFoundItr->clusterSlope)*(allhits[protoTracksFoundItr->iMaxWire]->WireID().Wire);
-      if(distance > 1*(fMaxDistance+(((*hitsItr)->EndTime()-(*hitsItr)->StartTime())/2.)+indcolscaling)
-         && distance < 25*(fMaxDistance+(((*hitsItr)->EndTime()-(*hitsItr)->StartTime())/2.)+indcolscaling)){
+      if(distance > 1*(fMaxDistance+(*hitsItr)->RMS()+indcolscaling)
+         && distance < 25*(fMaxDistance+(*hitsItr)->RMS()+indcolscaling)){
         if((protoTracksFoundItr->clusterSlope < 0 && (*hitsItr)->PeakTime() < peakTimePerpMin && (*hitsItr)->PeakTime() > peakTimePerpMax)
             || (protoTracksFoundItr->clusterSlope > 0 && (*hitsItr)->PeakTime() > peakTimePerpMin && (*hitsItr)->PeakTime() < peakTimePerpMax)){
-          totalBkgDistCharge+=distance/(*hitsItr)->Charge();
+          totalBkgDistCharge+=distance/(*hitsItr)->Integral();
         }
       }
     }/// end loop over hits
@@ -669,7 +669,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
       }
       int ip = (*allhitsItr)->WireID().Plane;
       p0 = ((*allhitsItr)->WireID().Wire)*fWirePitch[ip];
-      p1 = (((*allhitsItr)->StartTime()+(*allhitsItr)->EndTime())/2.)*tickToDist;
+      p1 = (*allhitsItr)->PeakTime()*tickToDist;
 
       // First try to group it with a shower-like cluster
       minDistanceShower = 999999;
@@ -1237,17 +1237,17 @@ bool cluster::fuzzyClusterAlg::mergeTrackClusters(unsigned int clusIndexStart,
 
 
 
-        double toMergeAveCharge = trackClustersToMergeItr->clusterProtoTracks[*toMergeItr].hits[closestToMerge]->Charge();
-        double toMergeAveSigmaCharge = trackClustersToMergeItr->clusterProtoTracks[*toMergeItr].hits[closestToMerge]->SigmaCharge();
+        double toMergeAveCharge = trackClustersToMergeItr->clusterProtoTracks[*toMergeItr].hits[closestToMerge]->Integral();
+        double toMergeAveSigmaCharge = trackClustersToMergeItr->clusterProtoTracks[*toMergeItr].hits[closestToMerge]->SigmaIntegral();
         for(auto closestToMergeDistItr = closestToMergeDist.begin(); closestToMergeDistItr != closestToMergeDist.end(); ++closestToMergeDistItr) {
-          toMergeAveCharge+= trackClustersToMergeItr->clusterProtoTracks[*toMergeItr].hits[closestToMergeDistItr->first]->Charge();
-          toMergeAveSigmaCharge+= trackClustersToMergeItr->clusterProtoTracks[*toMergeItr].hits[closestToMergeDistItr->first]->SigmaCharge();
+          toMergeAveCharge+= trackClustersToMergeItr->clusterProtoTracks[*toMergeItr].hits[closestToMergeDistItr->first]->Integral();
+          toMergeAveSigmaCharge+= trackClustersToMergeItr->clusterProtoTracks[*toMergeItr].hits[closestToMergeDistItr->first]->SigmaIntegral();
         }
-        double clusIndexStartAveCharge = trackClustersClusIndexStartProtoTrackItr->hits[closestClusIndexStart]->Charge();
-        double clusIndexStartAveSigmaCharge = trackClustersClusIndexStartProtoTrackItr->hits[closestClusIndexStart]->SigmaCharge();
+        double clusIndexStartAveCharge = trackClustersClusIndexStartProtoTrackItr->hits[closestClusIndexStart]->Integral();
+        double clusIndexStartAveSigmaCharge = trackClustersClusIndexStartProtoTrackItr->hits[closestClusIndexStart]->SigmaIntegral();
         for(auto closestClusIndexStartDistItr = closestClusIndexStartDist.begin(); closestClusIndexStartDistItr != closestClusIndexStartDist.end(); ++closestClusIndexStartDistItr) {
-          clusIndexStartAveCharge+= trackClustersClusIndexStartProtoTrackItr->hits[closestClusIndexStartDistItr->first]->Charge();
-          clusIndexStartAveSigmaCharge+=trackClustersClusIndexStartProtoTrackItr->hits[closestClusIndexStartDistItr->first]->SigmaCharge();
+          clusIndexStartAveCharge+= trackClustersClusIndexStartProtoTrackItr->hits[closestClusIndexStartDistItr->first]->Integral();
+          clusIndexStartAveSigmaCharge+=trackClustersClusIndexStartProtoTrackItr->hits[closestClusIndexStartDistItr->first]->SigmaIntegral();
         }
 
 
@@ -1607,11 +1607,11 @@ double cluster::fuzzyClusterAlg::DistanceBetweenHits(art::Ptr<recob::Hit> hit0,
 {
   const double pHit0[2] = {
     (hit0->Channel())*wire_dist,
-    ((hit0->StartTime()+hit0->EndTime())/2.)*tickToDist
+    hit0->PeakTime()*tickToDist
   };
   const double pHit1[2] = {
     (hit1->Channel())*wire_dist,
-    ((hit1->StartTime()+hit1->EndTime())/2.)*tickToDist
+    hit1->PeakTime()*tickToDist
   };
 
   return ::norm( pHit0[0] - pHit1[0], pHit0[1] - pHit1[1]);

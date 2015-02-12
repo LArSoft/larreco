@@ -291,7 +291,7 @@ namespace hit {
       double w0pos[3] = {0.};
       geom->TPC(hitWireID.TPC).Plane(hitWireID.Plane).Wire(0).GetCenter(w0pos);
       double HitZpos = w0pos[2] + hitWireID.Wire * geom->TPC(hitWireID.TPC).WirePitch();
-      double Charge = (*itr)->Charge();
+      double Charge = (*itr)->Integral();
       fHitZpos->Fill(HitZpos,Charge);
 	
       // Charge deposition in the detector

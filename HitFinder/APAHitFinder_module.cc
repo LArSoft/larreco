@@ -14,41 +14,27 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-#include <stdint.h>
+// C/C++ standard libraries
 #include <string>
+#include <vector>
+#include <memory> // std::unique_ptr()
+#include <utility> // std::move()
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h"   
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Principal/Event.h"
 #include "art/Framework/Core/EDProducer.h" 
+#include "art/Framework/Core/FindOneP.h"
 
 
 // LArSoft Includes
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
+#include "RawData/RawDigit.h"
+#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
+#include "RecoBaseArt/HitCreator.h"
 #include "RecoAlg/DisambigAlg.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/DetectorProperties.h"
 
-
-// ROOT Includes 
-#include "TH1D.h"
-#include "TDecompSVD.h"
-#include "TMath.h"
-#include "TF1.h"
-#include "TTree.h"
-#include "TVectorD.h"
-#include "TVector2.h"
-#include "TVector3.h"
 
 namespace apa{
   class APAHitFinder : public art::EDProducer {
@@ -66,7 +52,7 @@ namespace apa{
 
   private:
 
-    apa::DisambigAlg    fDisambigAlg;	
+    apa::DisambigAlg    fDisambigAlg;
     art::ServiceHandle<geo::Geometry> fGeom;
 
     std::string fChanHitLabel;
@@ -83,8 +69,12 @@ namespace apa{
 APAHitFinder::APAHitFinder(fhicl::ParameterSet const& pset)
   : fDisambigAlg(pset.get< fhicl::ParameterSet >("DisambigAlg"))
 {
-    this->reconfigure(pset);
-    produces< std::vector<recob::Hit> >();
+  this->reconfigure(pset);
+  
+  // let HitCollectionCreator declare that we are going to produce
+  // hits and associations with wires and raw digits
+  // (with no particular product label)
+  recob::HitCollectionCreator::declare_products(*this);
 }
 
 
@@ -122,25 +112,31 @@ void APAHitFinder::endJob()
 //-------------------------------------------------
 void APAHitFinder::produce(art::Event& evt)
 {
-
-  std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>);
+  // this object contains the hit collection
+  // and its associations to wires and raw digits:
+  recob::HitCollectionCreator hcol(*this, evt);
+  
   art::Handle< std::vector<recob::Hit> > ChannelHits;
   evt.getByLabel(fChanHitLabel, ChannelHits);
+  
+  // also get the associated wires and raw digits;
+  // we assume they have been created by the same module as the hits
+  art::FindOneP<raw::RawDigit> ChannelHitRawDigits
+    (ChannelHits, evt, fChanHitLabel);
+  art::FindOneP<recob::Wire> ChannelHitWires
+    (ChannelHits, evt, fChanHitLabel);
 
   // Make unambiguous collection hits
   std::vector< art::Ptr<recob::Hit> >  ChHits;
   art::fill_ptr_vector(ChHits, ChannelHits);
   for( size_t h = 0; h < ChHits.size(); h++ ){
     if( ChHits[h]->View() != geo::kZ ) continue;
-    art::Ptr<recob::Wire> wire = ChHits[h]->Wire();
-    recob::Hit WidHit( wire, 			     ChHits[h]->WireID(),
-		       ChHits[h]->StartTime(),       ChHits[h]->SigmaStartTime(),
-		       ChHits[h]->EndTime(),         ChHits[h]->SigmaEndTime(),
-		       ChHits[h]->PeakTime(),        ChHits[h]->SigmaPeakTime(),
-		       ChHits[h]->Charge(),          ChHits[h]->SigmaCharge(),                
-		       ChHits[h]->Charge(true),      ChHits[h]->SigmaCharge(true),
-		       ChHits[h]->Multiplicity(),    ChHits[h]->GoodnessOfFit() );
-    hcol->push_back(WidHit);
+    
+    art::Ptr<recob::Wire> wire = ChannelHitWires.at(h);
+    art::Ptr<raw::RawDigit> rawdigits = ChannelHitRawDigits.at(h);
+    
+    // just copy it
+    hcol.emplace_back(*ChHits[h], wire, rawdigits);
   }
 
 
@@ -151,18 +147,22 @@ void APAHitFinder::produce(art::Event& evt)
   for( size_t t=0; t < fDisambigAlg.fDisambigHits.size(); t++ ){
     art::Ptr<recob::Hit>  hit = fDisambigAlg.fDisambigHits[t].first;
     geo::WireID           wid = fDisambigAlg.fDisambigHits[t].second;
-    art::Ptr<recob::Wire> wire = hit->Wire();
-    recob::Hit WidHit( wire, 			     wid,
-		       hit->StartTime(),     	     hit->SigmaStartTime(),
-		       hit->EndTime(),       	     hit->SigmaEndTime(),
-		       hit->PeakTime(),      	     hit->SigmaPeakTime(),
-		       hit->Charge(),        	     hit->SigmaCharge(),                
-		       hit->Charge(true),   	     hit->SigmaCharge(true),
-		       hit->Multiplicity(),  	     hit->GoodnessOfFit() );
-    hcol->push_back(WidHit);
-  }
+    
+    // create a new hit copy of the original one, but with new wire ID
+    recob::HitCreator disambiguous_hit(*hit, wid);
+    
+    // get the objects associated with the original hit;
+    // since hit comes from ChannelHits, its key is the index in that collection
+    // and also the index for the query of associated objects
+    art::Ptr<recob::Hit>::key_type hit_index = hit.key();
+    art::Ptr<recob::Wire> wire = ChannelHitWires.at(hit_index);
+    art::Ptr<raw::RawDigit> rawdigits = ChannelHitRawDigits.at(hit_index);
+    
+    hcol.emplace_back(disambiguous_hit.move(), wire, rawdigits);
+  } // for
 
-  evt.put(std::move(hcol));  
+  // put the hit collection and associations into the event
+  hcol.put_into(evt);
 
 }
 

@@ -3,8 +3,11 @@
 
 #include "ClusterParamsAlg.h"
 
+// LArSoft includes
+#include "Utilities/StatCollector.h" // StatCollector<>, LinearFit<>
+
 //-----Math-------
-#include <math.h>       
+#include <math.h>
 #define PI 3.14159265
 
 namespace cluster{
@@ -34,22 +37,6 @@ namespace cluster{
     enableFANN = false;
     verbose=true;
     SetHits(inhitlist);
-  }
-
-  void ClusterParamsAlg::TimeReport() const {
-
-    std::cout<< "  <<ClusterParamsAlg::TimeReport>> starts..."<<std::endl;
-    for(size_t i=0; i<fTimeRecord_ProcName.size(); ++i){
-
-      std::cout << "    Function: " 
-		<< fTimeRecord_ProcName[i].c_str() 
-		<< " ... Time = " 
-		<< fTimeRecord_ProcTime[i]
-		<< " [s]"
-		<< std::endl;
-      
-    }   
-    std::cout<< "  <<ClusterParamsAlg::TimeReport>> ends..."<<std::endl;
   }
 
   int ClusterParamsAlg::SetHits(const std::vector<util::PxHit> &inhitlist){
@@ -202,6 +189,7 @@ namespace cluster{
     fFinishedGetFinalSlope     = false;
     fFinishedRefineStartPointAndDirection = false;
     fFinishedTrackShowerSep    = false;
+    fFinishedGetEndCharges     = false;
 
     fRough2DSlope=-999.999;    // slope 
     fRough2DIntercept=-999.999;    // slope 
@@ -241,17 +229,19 @@ namespace cluster{
       return;
   }
 
-  void ClusterParamsAlg::Report(){
+  template <typename Stream>
+  void ClusterParamsAlg::Report(Stream& stream) const {
     if(verbose) {
-      std::cout << "ClusterParamsAlg Report: "  << "\n"
+      stream << "ClusterParamsAlg Report: "  << "\n"
 		<< "\tFinishedGetAverages "        << fFinishedGetAverages << "\n"
 		<< "\tFinishedGetRoughAxis "       << fFinishedGetRoughAxis << "\n"
 		<< "\tFinishedGetProfileInfo "     << fFinishedGetProfileInfo << "\n"
 		<< "\tFinishedRefineStartPoints "  << fFinishedRefineStartPoints << "\n"
 		<< "\tFinishedRefineDirection "    << fFinishedRefineDirection << "\n"
 		<< "\tFinishedGetFinalSlope "      << fFinishedGetFinalSlope << "\n"
+		<< "\tFinishedGetEndCharges "      << fFinishedGetEndCharges << "\n"
 		<< "--------------------------------------" << "\n";
-      fParams.Report();
+      fParams.Report(stream);
     }
   }
 
@@ -262,7 +252,8 @@ namespace cluster{
                                        // bool override_DoRefineStartPoints,
                                        bool override_DoStartPointsAndDirection,
                                        bool override_DoGetFinalSlope    ,
-                                       bool override_DoTrackShowerSep   ){
+                                       bool override_DoTrackShowerSep,
+                                       bool override_DoEndCharge){
     GetAverages      (override_DoGetAverages      );
     GetRoughAxis     (override_DoGetRoughAxis     );
     GetProfileInfo   (override_DoGetProfileInfo   );
@@ -270,6 +261,7 @@ namespace cluster{
     // RefineDirection  (override_DoRefineDirection  );
     // RefineStartPoints(override_DoRefineStartPoints);
     GetFinalSlope    (override_DoGetFinalSlope    );
+    GetEndCharges    (override_DoEndCharge);
     TrackShowerSeparation(override_DoTrackShowerSep);
   }
 
@@ -288,7 +280,8 @@ namespace cluster{
 
     std::map<double, int> wireMap;
 
-    fParams.sum_charge = 0.;
+    lar::util::StatCollector<double> charge, sumADC;
+
     int uniquewires = 0;
     int multi_hit_wires = 0;
     for(auto& hit : fHitVector){
@@ -300,7 +293,8 @@ namespace cluster{
       fPrincipal.AddRow(data);
       fParams.charge_wgt_x += hit.w * hit.charge;
       fParams.charge_wgt_y += hit.t * hit.charge;
-      fParams.sum_charge += hit.charge;
+      charge.add(hit.charge);
+      sumADC.add(hit.sumADC);
 
 
       if (wireMap[hit.w] == 0) {
@@ -313,13 +307,18 @@ namespace cluster{
 
 
     }
+    
+    fParams.sum_charge = charge.Sum();
+    fParams.mean_charge = charge.Average();
+    fParams.rms_charge = charge.RMS();
+    
+    fParams.sum_ADC = sumADC.Sum();
+    fParams.mean_ADC = sumADC.Average();
+    fParams.rms_ADC = sumADC.RMS();
 
 
     fParams.N_Wires = uniquewires;
     fParams.multi_hit_wires = multi_hit_wires;
-
-    fParams.charge_wgt_x /= fParams.sum_charge;
-    fParams.charge_wgt_y /= fParams.sum_charge;
 
     if(fPrincipal.GetMeanValues()->GetNrows()<2) {
       throw cluster::CRUException();
@@ -329,6 +328,15 @@ namespace cluster{
     fParams.mean_x = (* fPrincipal.GetMeanValues())[0];
     fParams.mean_y = (* fPrincipal.GetMeanValues())[1];
     fParams.mean_charge = fParams.sum_charge / fParams.N_Hits;
+
+    if (fParams.sum_charge != 0.) {
+      fParams.charge_wgt_x /= fParams.sum_charge;
+      fParams.charge_wgt_y /= fParams.sum_charge;
+    }
+    else { // "SNAFU"; use the mean
+      fParams.charge_wgt_x = fParams.mean_x;
+      fParams.charge_wgt_y = fParams.mean_y;
+    }
 
     fPrincipal.MakePrincipals();
 
@@ -398,7 +406,11 @@ namespace cluster{
       fRough2DSlope= (ncw*sumwiretime- sumwire*sumtime)/(ncw*sumwirewire-sumwire*sumwire);//slope for cw
     else
       fRough2DSlope=999;
-    fRough2DIntercept= fParams.charge_wgt_y  -fRough2DSlope*(fParams.charge_wgt_x);//intercept for cw
+    fRough2DIntercept =
+      (std::isfinite(fParams.charge_wgt_x) && std::isfinite(fParams.charge_wgt_y))?
+      fParams.charge_wgt_y  -fRough2DSlope*(fParams.charge_wgt_x): //intercept for cw
+      0.;
+    
     //Getthe 2D_angle
     fParams.cluster_angle_2d = atan(fRough2DSlope)*180/PI;
 
@@ -582,6 +594,7 @@ namespace cluster{
   ////////////////////////// end of new binning
   // Some fitting variables to make a histogram:
   
+  // TODO this is nonsense for small clusters
   std::vector<double> ort_profile;
   const int NBINS=100;
   ort_profile.resize(NBINS);
@@ -606,6 +619,8 @@ namespace cluster{
       int ortbin;
       if (ortdist == 0)
         ortbin = 0;
+      else if (max_ortdist == min_ortdist)
+        ortbin = 0;
       else 
         ortbin =(int)(ortdist-min_ortdist)/(max_ortdist-min_ortdist)*(NBINS-1);
       
@@ -621,8 +636,10 @@ namespace cluster{
       /////////////////////////////////////////////////////////////////////// 
       double weight= (ortdist<1.) ? 10 * (hit.charge) : 5 * (hit.charge) / ortdist;
       
-      int fine_bin  =(int)(linedist/fProjectedLength*(fProfileNbins-1));
-      int coarse_bin=(int)(linedist/fProjectedLength*(fCoarseNbins-1));
+      int fine_bin  = fProjectedLength?
+        (int)(linedist/fProjectedLength*(fProfileNbins-1)): 0;
+      int coarse_bin= fProjectedLength?
+        (int)(linedist/fProjectedLength*(fCoarseNbins-1)): 0;
       /*
 	std::cout << "linedist: " << linedist << std::endl;
 	std::cout << "fProjectedLength: " << fProjectedLength << std::endl;
@@ -1648,8 +1665,169 @@ namespace cluster{
     }
   }
 
-
   
+  //----------------------------------------------------------------------------
+  void ClusterParamsAlg::GetEndCharges(bool override_ /* = false */ ) {
+    if(!override_) { //Override being set, we skip all this logic.
+      //OK, no override. Stop if we're already finshed.
+      if (fFinishedGetEndCharges) return;
+    }
+    
+    TStopwatch localWatch;
+    localWatch.Start();
+    
+    fParams.start_charge = StartCharge();
+    fParams.end_charge = EndCharge();
+    
+    fFinishedGetEndCharges = true;
+    // Report();
+    
+    fTimeRecord_ProcName.push_back("GetEndCharges");
+    fTimeRecord_ProcTime.push_back(localWatch.RealTime());
+  } // ClusterParamsAlg::GetEndCharges()
+
+
+  //----------------------------------------------------------------------------
+  double ClusterParamsAlg::LinearIntegral
+    (double m, double q, double x1, double x2)
+  {
+    using lar::util::sqr;
+    return m / 2. * (sqr(x2) - sqr(x1)) + q * (x2 - x1);
+  } // ClusterParamsAlg::LinearIntegral()
+  
+  
+  //----------------------------------------------------------------------------
+  double ClusterParamsAlg::IntegrateFitCharge(
+    double from_length, double to_length,
+    unsigned int fit_first_bin, unsigned int fit_end_bin
+  ) {
+    // first compute the information on the charge profile
+    GetProfileInfo();
+    
+    // first things first
+    if (fit_first_bin > fit_end_bin) std::swap(fit_first_bin, fit_end_bin);
+    
+    // how many bins can we use?
+    const unsigned int nbins = std::min
+      (fit_end_bin - fit_first_bin, (unsigned int) fChargeProfile.size());
+    if (nbins == 0) return 0;
+    
+    // move the specified range within reason
+    if (fit_end_bin > fChargeProfile.size()) {
+      fit_end_bin = fChargeProfile.size();
+      fit_first_bin = fit_end_bin - nbins;
+    }
+    
+    // if we have to use only one bin, so be it
+    if (nbins < 2) return fChargeProfile[fit_first_bin];
+    
+    // fit the charge profile vs. bin number;
+    // we assume that the first bin (#0) starts from the very beginning of the
+    // cluster, that is at axis coordinate 0.
+    lar::util::LinearFit<double> fitter;
+    for (unsigned int iBin = fit_first_bin; iBin < fit_end_bin; ++iBin) {
+      // should we use a Poisson error instead of no error?
+      fitter.add((double) iBin, fChargeProfile[iBin]);
+    } // for
+    
+    // get the linear fit parameters; [0] intercept [1] slope
+    lar::util::LinearFit<double>::FitParameters_t fit;
+    try {
+      fit = fitter.FitParameters();
+    }
+    catch (std::range_error) { // oops...
+      // this is actually unexpected, since the only reason for the fit to fail
+      // would be a singular fit matrix, that should be pretty much impossible
+      // given that the bin coordinates are well behaved and there are at least
+      // two of them
+      std::cerr << "IntegrateFitCharge(): linear fit failed!" << std::endl;
+      return 0.;
+    }
+    
+    // now determine the bins corresponding to the length to integrate;
+    // note that length can be pathologic (0, negative...); not our problem!
+    const double length_to_bin
+      = (double(fChargeProfile.size() - 1) / fProjectedLength);
+    const double from_bin = from_length * length_to_bin,
+      to_bin = to_length * length_to_bin;
+    
+    // we want the integral between from_bin and to_bin now:
+    return LinearIntegral(fit[1] /* m */, fit[0] /* q */, from_bin, to_bin);
+  } // ClusterParamsAlg::IntegrateFitCharge()
+  
+  
+  //----------------------------------------------------------------------------
+  double ClusterParamsAlg::StartCharge
+    (float length /* = 1. */, unsigned int nbins /* = 10 */)
+  {
+    switch (fHitVector.size()) {
+      case 0: return 0.;
+      case 1: return fHitVector.back().charge;
+      // the "default" is the rest of the function
+    } // switch
+    
+    // this is the range of the fit:
+    const unsigned int fit_first_bin = 0, fit_last_bin = nbins;
+    
+    return IntegrateFitCharge(0., length, fit_first_bin, fit_last_bin);
+  } // ClusterParamsAlg::StartCharge()
+  
+  
+  //----------------------------------------------------------------------------
+  double ClusterParamsAlg::EndCharge
+    (float length /* = 1. */, unsigned int nbins /* = 10 */)
+  {
+    switch (fHitVector.size()) {
+      case 0: return 0.;
+      case 1: return fHitVector.back().charge;
+      // the "default" is the rest of the function
+    } // switch
+    
+    
+    // need the available number of bins and the axis length
+    GetProfileInfo();
+    const unsigned int MaxBins = fChargeProfile.size();
+    
+    // this is the range of the fit:
+    const unsigned int fit_first_bin = MaxBins > nbins? MaxBins - nbins: 0,
+      fit_last_bin = MaxBins;
+    
+    // now determine the integration range, in bin units;
+    // get to the end, and go length backward;
+    // note that length can be pathologic (0, negative...); not our problem!
+    const double from = fProjectedLength -length, to = fProjectedLength;
+    
+    return IntegrateFitCharge(from, to, fit_first_bin, fit_last_bin);
+  } // ClusterParamsAlg::EndCharge()
+  
+  
+  //------------------------------------------------------------------------------
+  float ClusterParamsAlg::MultipleHitWires() {
+    if (fHitVector.size() < 2) return { 0.F };
+    
+    // compute all the averages
+    GetAverages();
+    
+    // return the relevant information
+    return std::isnormal(fParams.N_Wires)?
+      fParams.multi_hit_wires / fParams.N_Wires: 0.;
+  } // ClusterParamsAlg::MultipleHitWires()
+  
+  
+  //------------------------------------------------------------------------------
+  float ClusterParamsAlg::MultipleHitDensity() {
+    if (fHitVector.size() < 2) return { 0.F };
+    
+    // compute all the averages
+    GetAverages();
+    RefineStartPoints(); // fParams.length
+    
+    // return the relevant information
+    return std::isnormal(fParams.length)?
+      fParams.multi_hit_wires / fParams.length: 0.;
+  } // ClusterParamsAlg::MultipleHitDensity()
+  
+
 } //end namespace
 
 

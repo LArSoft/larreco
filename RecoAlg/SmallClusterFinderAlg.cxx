@@ -32,10 +32,6 @@
 // 
 ///////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
 #include <iostream>
 
 // Framework includes
@@ -393,7 +389,7 @@ int cluster::SmallClusterFinderAlg::GetPlaneAndTPC(art::Ptr<recob::Hit> a, //the
 						unsigned int &w) //wire
 {
 	art::ServiceHandle<geo::Geometry> geom;
-	unsigned int channel = a->Wire()->RawDigit()->Channel(); 
+	unsigned int channel = a->Channel(); 
 	geom->ChannelToWire(channel);
 	p = a -> WireID().Plane;
  	t = a -> PeakTime();

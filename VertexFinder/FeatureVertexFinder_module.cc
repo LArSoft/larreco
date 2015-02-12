@@ -47,7 +47,7 @@
 #include <ios>
 #include <sstream>
 #include <fstream>
-#include <math.h>
+#include <cmath>
 #include <algorithm>
 #include <vector>
 
@@ -909,7 +909,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	// ######################################################
 	if( fitGoodness > 10)
 	   {
-	   dtdwstart.push_back(RawClusters[iclu]->dTdW());
+	   dtdwstart.push_back(std::tan(RawClusters[iclu]->StartAngle()));
 	   continue;
 				
 	   }//<---End check on chi2/ndf fit
@@ -927,7 +927,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 	   {
 	   mf::LogWarning("FeatureVertexFinder") << "Fitter failed, using the clusters default dTdW()";
 	   delete the2Dtrack;
-	   dtdwstart.push_back(RawClusters[iclu]->dTdW());
+	   dtdwstart.push_back(std::tan(RawClusters[iclu]->StartAngle()));
 	   continue;
 	   }
 	   
@@ -937,7 +937,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
    // ### If the cluster has fewer than 2 hits just ### 
    // ###      take the dT/dW from the cluster      ###
    // #################################################
-   else {dtdwstart.push_back(RawClusters[iclu]->dTdW());}
+   else {dtdwstart.push_back(std::tan(RawClusters[iclu]->StartAngle()));}
    }//<---End loop over clusters iclu
    
    
@@ -977,26 +977,26 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
 		// === Current Clusters Plane ===
 	        Clu_Plane.push_back(RawClusters.at(Cls.at(i).at(j))->View());
 		// === Current Clusters StartPos ===
-	        Clu_StartPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->StartPos()[0]);
-		Clu_StartPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->StartPos()[1]);
+	        Clu_StartPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->StartWire());
+		Clu_StartPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->StartTick());
 	        // === Current Clusters EndPos ===
-		Clu_EndPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->EndPos()[0]);
-	        Clu_EndPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->EndPos()[1]);
+		Clu_EndPos_Wire.push_back(RawClusters.at(Cls.at(i).at(j))->EndWire());
+	        Clu_EndPos_TimeTick.push_back(RawClusters.at(Cls.at(i).at(j))->EndTick());
 	        // === Current Clusters Slope (In Wire and Time Tick)
 		Clu_Slope.push_back(dtdwstart[Cls[i][j]]);
-		Clu_Length.push_back(std::sqrt(pow((RawClusters.at(Cls.at(i).at(j))->StartPos()[0]-RawClusters.at(Cls.at(i).at(j))->EndPos()[0])*13.5,2) + 
-		                              pow(RawClusters.at(Cls.at(i).at(j))->StartPos()[1]-RawClusters.at(Cls.at(i).at(j))->EndPos()[1],2)));
+		Clu_Length.push_back(std::sqrt(pow((RawClusters.at(Cls.at(i).at(j))->StartWire()-RawClusters.at(Cls.at(i).at(j))->EndWire())*13.5,2) + 
+		                              pow(RawClusters.at(Cls.at(i).at(j))->StartTick()-RawClusters.at(Cls.at(i).at(j))->EndTick(),2)));
 		// ######################################################
 		// ### Given a slope and a point find the y-intercept ###
 		// ###                   c = y-mx                     ###
 		// ######################################################
-		Clu_Yintercept.push_back(RawClusters.at(Cls.at(i).at(j))->StartPos()[1] - (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->StartPos()[0]));
+		Clu_Yintercept.push_back(RawClusters.at(Cls.at(i).at(j))->StartTick() - (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->StartWire()));
 		// #################################################################
 		// ###     Also calculating the y-intercept but using the        ###
 		// ###   end time of the cluster correct for the possibility     ###
 		// ### that the clustering didn't get start and end points right ###
 		// #################################################################
-		Clu_Yintercept2.push_back(RawClusters.at(Cls.at(i).at(j))->EndPos()[1] - (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->EndPos()[0]));
+		Clu_Yintercept2.push_back(RawClusters.at(Cls.at(i).at(j))->EndTick() - (dtdwstart[Cls[i][j]] * RawClusters.at(Cls.at(i).at(j))->EndWire()));
 		
 		// #######################################################
 		// ### Iterating on the total number of clusters found ###

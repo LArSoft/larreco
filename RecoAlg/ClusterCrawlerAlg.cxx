@@ -148,7 +148,7 @@ namespace cluster {
           // get the scale factor to convert dTick/dWire to dX/dU. This is used
           // to make the kink and merging cuts
           art::Ptr<recob::Wire> theWire = allhits[fFirstHit].Wire;
-          uint32_t channel = theWire->RawDigit()->Channel();
+          uint32_t channel = theWire->Channel();
           float wirePitch = geom->WirePitch(geom->View(channel));
           float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
           tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns

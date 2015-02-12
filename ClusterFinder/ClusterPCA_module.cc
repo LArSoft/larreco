@@ -197,7 +197,7 @@ namespace cluster{
     {
       Center[0] += (*itHit)->WireID().Wire;
       Center[1] += (*itHit)->PeakTime();
-      TotalCharge += (*itHit)->Charge();
+      TotalCharge += (*itHit)->Integral();
     }
 
   Center[0] /= float(HitsThisCluster.size());

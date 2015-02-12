@@ -128,4 +128,4 @@ namespace cluster {
     							// Remember, this is the *small* cluster finder       
   }; // class SmallAngleFinder
 }
-#endif // SHOWERANGLECLUSTER_H
+#endif // SMALLCLUSTERFINDERALG_H

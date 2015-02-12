@@ -12,11 +12,6 @@
 #ifndef HITFINDERANA_H
 #define HITFINDERANA_H
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-
 // ROOT includes
 #include <TMath.h>
 #include <TH1F.h>
@@ -251,7 +246,7 @@ namespace hit{
 	if (pid.Plane == 0 && fNp0 < 9000){
 	  fTimep0[fNp0] = (*itr)->PeakTime();
 	  fWirep0[fNp0] = (*itr)->WireID().Wire;
-	  fChgp0[fNp0] = (*itr)->Charge();
+	  fChgp0[fNp0] = (*itr)->Integral();
 	  
 	  for (unsigned int kk = 0; kk < 3; ++kk){
 	    fXYZp0[fNp0*3+kk] = xyz[kk];
@@ -274,7 +269,7 @@ namespace hit{
 	else if (pid.Plane == 1 && fNp1 < 9000){
 	  fTimep1[fNp1] = (*itr)->PeakTime();
 	  fWirep1[fNp1] = (*itr)->WireID().Wire;
-	  fChgp1[fNp1] = (*itr)->Charge();
+	  fChgp1[fNp1] = (*itr)->Integral();
 	  
 	  for (unsigned int kk = 0; kk < 3; ++kk){
 	    fXYZp1[fNp1*3+kk] = xyz[kk];
@@ -295,7 +290,7 @@ namespace hit{
 	else if (pid.Plane == 2  && fNp2 < 9000){
 	  fTimep2[fNp2] = (*itr)->PeakTime();
 	  fWirep2[fNp2] = (*itr)->WireID().Wire;
-	  fChgp2[fNp2] = (*itr)->Charge();
+	  fChgp2[fNp2] = (*itr)->Integral();
 	  
 	  for (unsigned int kk = 0; kk < 3; ++kk){
 	    fXYZp2[fNp2*3+kk] = xyz[kk];
