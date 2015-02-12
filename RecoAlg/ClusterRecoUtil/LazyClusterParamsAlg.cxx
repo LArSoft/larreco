@@ -108,9 +108,9 @@ size_t cluster::LazyClusterParamsAlg::NHits() {
 
 
 //------------------------------------------------------------------------------
-float cluster::LazyClusterParamsAlg::MultipleHitWires() {
+float cluster::LazyClusterParamsAlg::MultipleHitDensity() {
   return params.N_Wires? params.multi_hit_wires / params.N_Wires: 0.;
-} // LazyClusterParamsAlg::MultipleHitWires()
+} // LazyClusterParamsAlg::MultipleHitDensity()
     
 
 //------------------------------------------------------------------------------

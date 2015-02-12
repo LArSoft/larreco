@@ -7,7 +7,7 @@
 #include "Utilities/StatCollector.h" // StatCollector<>, LinearFit<>
 
 //-----Math-------
-#include <math.h>       
+#include <math.h>
 #define PI 3.14159265
 
 namespace cluster{
@@ -1801,6 +1801,33 @@ namespace cluster{
   } // ClusterParamsAlg::EndCharge()
   
   
+  //------------------------------------------------------------------------------
+  float ClusterParamsAlg::MultipleHitWires() {
+    if (fHitVector.size() < 2) return { 0.F };
+    
+    // compute all the averages
+    GetAverages();
+    
+    // return the relevant information
+    return std::isnormal(fParams.N_Wires)?
+      fParams.multi_hit_wires / fParams.N_Wires: 0.;
+  } // ClusterParamsAlg::MultipleHitWires()
+  
+  
+  //------------------------------------------------------------------------------
+  float ClusterParamsAlg::MultipleHitDensity() {
+    if (fHitVector.size() < 2) return { 0.F };
+    
+    // compute all the averages
+    GetAverages();
+    RefineStartPoints(); // fParams.length
+    
+    // return the relevant information
+    return std::isnormal(fParams.length)?
+      fParams.multi_hit_wires / fParams.length: 0.;
+  } // ClusterParamsAlg::MultipleHitDensity()
+  
+
 } //end namespace
 
 

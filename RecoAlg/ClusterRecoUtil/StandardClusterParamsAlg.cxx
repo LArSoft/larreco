@@ -178,7 +178,7 @@ size_t cluster::StandardClusterParamsAlg::NHits() {
 
 
 //------------------------------------------------------------------------------
-float cluster::StandardClusterParamsAlg::MultipleHitWires() {
+float cluster::StandardClusterParamsAlg::MultipleHitDensity() {
   if (NInputHits() < 2) return { 0.F };
   
   // compute all the averages
@@ -186,8 +186,8 @@ float cluster::StandardClusterParamsAlg::MultipleHitWires() {
   // return the relevant information
   return algo.GetParams().N_Wires?
     algo.GetParams().multi_hit_wires / algo.GetParams().N_Wires: 0.;
-} // StandardClusterParamsAlg::MultipleHitWires()
-    
+} // StandardClusterParamsAlg::MultipleHitDensity()
+
 
 //------------------------------------------------------------------------------
 float cluster::StandardClusterParamsAlg::Width() {

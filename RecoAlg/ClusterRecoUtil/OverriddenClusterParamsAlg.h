@@ -92,7 +92,7 @@ namespace cluster {
       cpSummedADC,           ///< SummedADC()
       cpSummedADCStdDev,     ///< SummedADCStdDev()
       cpNHits,               ///< NHits()
-      cpMultipleHitWires,    ///< MultipleHitWires()
+      cpMultipleHitDensity,    ///< MultipleHitDensity()
       cpWidth,               ///< Width()
       NParameters            ///< total number of supported parameters
     } ParameterType_t; ///< type of cluster parameters
@@ -257,8 +257,8 @@ namespace cluster {
      * cluster, and NMultiHitWires is the number of wires which have more
      * than just one hit.
      */
-    virtual float MultipleHitWires() override
-      { return ReturnValue(cpMultipleHitWires, &Base_t::MultipleHitWires); }
+    virtual float MultipleHitDensity() override
+      { return ReturnValue(cpMultipleHitDensity, &Base_t::MultipleHitDensity); }
     
     /**
      * @brief Computes the width of the cluster

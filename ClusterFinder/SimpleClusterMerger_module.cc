@@ -229,7 +229,7 @@ namespace cluster {
         algo.SummedADC().value(),             // summedADC
         algo.SummedADCStdDev().value(),       // summedADC_stddev
         algo.NHits(),                         // n_hits
-        algo.MultipleHitWires(),              // multiple_hit_wires
+        algo.MultipleHitDensity(),              // multiple_hit_density
         algo.Width(),                         // width
         out_clusters->size(),                 // ID
         view_id,                              // view

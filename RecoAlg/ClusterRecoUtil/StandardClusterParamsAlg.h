@@ -170,7 +170,7 @@ namespace cluster {
      * cluster, and NMultiHitWires is the number of wires which have more
      * than just one hit.
      */
-    virtual float MultipleHitWires() override;
+    virtual float MultipleHitDensity() override;
     
     /**
      * @brief Computes the width of the cluster

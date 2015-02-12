@@ -226,7 +226,7 @@ namespace cluster {
      * cluster, and NMultiHitWires is the number of wires which have more
      * than just one hit.
      */
-    virtual float MultipleHitWires()      { throw NotImplemented(__func__); }
+    virtual float MultipleHitDensity()      { throw NotImplemented(__func__); }
     
     /**
      * @brief Computes the width of the cluster
