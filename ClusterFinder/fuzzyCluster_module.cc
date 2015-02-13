@@ -38,7 +38,7 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/SeedCreator.h"
+#include "Utilities/FetchRandomSeed.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
 #include "ClusterFinder/ClusterCreator.h"
@@ -65,7 +65,7 @@ namespace cluster{
     TH1F *fhitwidth_coll_test;  
   
     std::string fhitsModuleLabel;
-    long int fHoughSeed;
+    unsigned int fHoughSeed;
    
     fuzzyClusterAlg ffuzzyCluster; ///< object that implements the fuzzy cluster algorithm
   };
@@ -83,8 +83,10 @@ namespace cluster{
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     
-    unsigned int seed
-      = pset.get< unsigned int >("Seed", SeedCreator::CreateRandomNumberSeed());
+    // obtain the random seed from a service,
+    // unless overridden in configuration with key "Seed" (that is default)
+    const unsigned int seed = lar::util::FetchRandomSeed(&pset);
+    createEngine(seed);
     
     // Create random number engine needed for PPHT
     createEngine(seed,"HepJamesRandom");
@@ -99,7 +101,7 @@ namespace cluster{
   void fuzzyCluster::reconfigure(fhicl::ParameterSet const& p)
   {
     fhitsModuleLabel  = p.get< std::string >("HitsModuleLabel");
-    fHoughSeed = p.get< long int >("HoughSeed");
+    fHoughSeed = p.get< unsigned int >("HoughSeed");
     ffuzzyCluster.reconfigure(p.get< fhicl::ParameterSet >("fuzzyClusterAlg"));
   }
   

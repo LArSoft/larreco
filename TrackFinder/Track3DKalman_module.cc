@@ -38,6 +38,7 @@
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/AssociationUtil.h"
+#include "Utilities/FetchRandomSeed.h"
 #include "SimulationBase/MCTruth.h"
 #include "Simulation/sim.h"
 
@@ -148,9 +149,9 @@ Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset)
 
   this->reconfigure(pset);
   
-  // get the random number seed, use a random default if not specified    
-  // in the configuration file.  
-  unsigned int seed = pset.get< unsigned int >("Seed", sim::GetRandomNumberSeed());
+  // obtain the random seed from a service,
+  // unless overridden in configuration with key "Seed" (that is default)
+  const unsigned int seed = lar::util::FetchRandomSeed(&pset);
   
   createEngine(seed);
   

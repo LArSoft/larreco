@@ -57,7 +57,7 @@ extern "C" {
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/HoughBaseAlg.h"
 #include "art/Framework/Core/EDProducer.h"
-#include "Utilities/SeedCreator.h"
+#include "Utilities/FetchRandomSeed.h"
 
 //#ifndef CLUSTER_HOUGHLINEFINDER_H
 //#define CLUSTER_HOUGHLINEFINDER_H
@@ -83,7 +83,7 @@ namespace cluster {
   private:
 
     std::string fDBScanModuleLabel;    
-    long int fHoughSeed;
+    unsigned int fHoughSeed;
 
     HoughBaseAlg fHLAlg;            ///< object that does the Hough Transform
   
@@ -107,7 +107,11 @@ namespace cluster {
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     
     // Create random number engine needed for PPHT
-    createEngine(SeedCreator::CreateRandomNumberSeed(),"HepJamesRandom");
+    // obtain the random seed from a service,
+    // unless overridden in configuration with key "Seed" (that is default);
+    // remember that HoughSeed will override this on each event if specified
+    const unsigned int seed = lar::util::FetchRandomSeed(&pset);
+    createEngine(seed);
   }
   
   //------------------------------------------------------------------------------
@@ -119,7 +123,7 @@ namespace cluster {
   void HoughLineFinder::reconfigure(fhicl::ParameterSet const& p)
   {
     fDBScanModuleLabel = p.get< std::string >("DBScanModuleLabel");
-    fHoughSeed = p.get< long int >("HoughSeed");
+    fHoughSeed = p.get< unsigned int >("HoughSeed", 0);
     fHLAlg.reconfigure(p.get< fhicl::ParameterSet >("HoughBaseAlg"));
   }
   
