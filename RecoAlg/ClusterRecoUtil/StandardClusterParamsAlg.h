@@ -62,6 +62,16 @@ namespace cluster {
     virtual void SetHits(std::vector<recob::Hit const*> const& hits) override;
     
     
+    /**
+     * @brief Sets the list of input hits
+     * @param hits list of hits (hits will not be modified)
+     * @throw undefined in case of error, this method can throw (anything)
+     * @see ClusterParamsAlgBase::SetHits(std::vector<recob::Hit> const&)
+     */
+    virtual void SetHits(std::vector<recob::Hit> const& hits) override
+      { ClusterParamsAlgBase::SetHits(hits); }
+    
+    
     /// Set the verbosity level
     virtual void SetVerbose(int level = 1) override;
     

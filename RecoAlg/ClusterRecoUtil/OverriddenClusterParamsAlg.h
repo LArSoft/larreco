@@ -79,13 +79,13 @@ namespace cluster {
    * the same result, but it's slower and less flexible.
    */
   template <typename AlgoBase>
-  class OverriddenClusterParamsAlg: public AlgoBase {
+  class OverriddenClusterParamsAlg: public ClusterParamsAlgBase {
     static_assert(std::is_base_of<ClusterParamsAlgBase, AlgoBase>::value,
       "OverriddenClusterParamsAlg template parameter must derive"
       " from ClusterParamsAlgBase"
       );
       public:
-    using Base_t = AlgoBase;
+    using Algo_t = AlgoBase;
     using This_t = OverriddenClusterParamsAlg<AlgoBase>;
     using Measure_t = typename AlgoBase::Measure_t;
     
@@ -109,7 +109,7 @@ namespace cluster {
     /// Constructor; just forwards the arguments to the base class
     template <typename... Args>
     explicit OverriddenClusterParamsAlg(Args&&... args):
-      Base_t(std::forward<Args>(args)...),
+      algo(std::forward<Args>(args)...),
       values(NParameters)
       {}
     
@@ -133,6 +133,7 @@ namespace cluster {
         return *this;
       } // OverrideParameter()
     
+    
     /**
      * @brief Cancels the override of the specified cluster parameter
      * @param param which cluster parameter not to override any more
@@ -149,58 +150,84 @@ namespace cluster {
     
     
     /// @{
+    /// @name Standard ClusterParamsAlgBase interface
+    /// 
+    /// The following methods replicate the ones of the templated Algo_t class.
+    /// Except, of course, when they are overridden.
+    
+    /**
+     * @brief Restores the class to post-configuration, pre-initialization state
+     * @see Algo_t::Clear()
+     */
+    virtual void Clear() { algo.Clear(); }
+    
+    
+    /**
+     * @brief Sets the list of input hits
+     * @param hits list of pointers to hits
+     * @throw undefined in case of error, this method can throw (anything)
+     * @see Algo_t::SetHits().
+     */
+    virtual void SetHits(std::vector<recob::Hit const*> const& hits)
+      { algo.SetHits(hits); }
+    
+    /**
+     * @brief Sets the list of input hits
+     * @param hits list of hits (hits will not be modified)
+     * @throw undefined in case of error, this method can throw (anything)
+     * @see Algo_t::SetHits().
+     */
+    virtual void SetHits(std::vector<recob::Hit> const& hits)
+      { algo.SetHits(hits); }
+    
+    
+    /// Set the verbosity level; @see Algo_t::SetVerbose().
+    virtual void SetVerbose(int level = 1)
+      { ClusterParamsAlgBase::SetVerbose(level); algo.SetVerbose(level); }
+    
+    
+    /// @{
     /// @name Algorithm results
     
     //@{
     /**
      * @brief Computes the charge on the first and last wire of the track
      * @return the charge in ADC counts, with uncertainty
-     * 
-     * The implementation in ClusterParamsAlg provides an estimation of the
-     * charge collected in the first or last 1 cm of the cluster, using a linear
-     * fit on the deposited charge to reduce fluctuations.
+     * @see Algo_t::StartCharge(), Algo_t::EndCharge()
      */
     virtual Measure_t StartCharge() override
-      { return ReturnValue(cpStartCharge, &Base_t::StartCharge); }
+      { return ReturnValue(cpStartCharge, &Algo_t::StartCharge); }
     virtual Measure_t EndCharge() override
-      { return ReturnValue(cpEndCharge, &Base_t::EndCharge); }
+      { return ReturnValue(cpEndCharge, &Algo_t::EndCharge); }
     //@}
     
     //@{
     /**
      * @brief Computes the angle of the cluster
      * @return angle of the cluster in the wire x time space, in radians
-     * 
-     * Uses the coordinates from the hits, weighted by charge (Hit::Integral())
-     * to compute a slope in the homogenized wire x time space.
-     * The homogenized space has both wires and ticks converted into a distance
-     * (by using detector parameters: wire pitch and drift velocity).
+     * @see Algo_t::StartAngle(), Algo_t::EndAngle()
      * 
      * The angle is in the @f$ [ -\pi, \pi ] @f$ range, with 0 corresponding to
      * a cluster parallel to the wire plane and @f$ \pi @f$ to a cluster
      * orthogonal to the wire plane, going farther from it.
-     * 
-     * @note Both the methods return the same value.
      */
     virtual Measure_t StartAngle() override
-      { return ReturnValue(cpStartAngle, &Base_t::StartAngle); }
+      { return ReturnValue(cpStartAngle, &Algo_t::StartAngle); }
     
     virtual Measure_t EndAngle() override
-      { return ReturnValue(cpEndAngle, &Base_t::EndAngle); }
+      { return ReturnValue(cpEndAngle, &Algo_t::EndAngle); }
     //@}
     
     //@{
     /**
      * @brief Computes the opening angle at the start or end of the cluster
      * @return angle at the start of the cluster, in radians
-     * 
-     * This algorithm returns an opening angle after weighting the hits by
-     * their charge (as defined bu Hit::Integral());
+     * @see Algo_t::StartOpeningAngle(), Algo_t::EndOpeningAngle()
      */
     virtual Measure_t StartOpeningAngle() override
-      { return ReturnValue(cpStartOpeningAngle, &Base_t::StartOpeningAngle); }
+      { return ReturnValue(cpStartOpeningAngle, &Algo_t::StartOpeningAngle); }
     virtual Measure_t EndOpeningAngle() override
-      { return ReturnValue(cpEndOpeningAngle, &Base_t::EndOpeningAngle); }
+      { return ReturnValue(cpEndOpeningAngle, &Algo_t::EndOpeningAngle); }
     //@}
     
     
@@ -210,89 +237,79 @@ namespace cluster {
      * @brief Computes the total charge of the cluster from Hit::Integral()
      * @return total charge of the cluster, in ADC count units
      * @see IntegralStdDev(), SummedADC()
-     * 
-     * ClusterParamsAlg computes the sum from all hits.
+     * @see Algo_t::Integral()
      */
     virtual Measure_t Integral() override
-      { return ReturnValue(cpIntegral, &Base_t::Integral); }
+      { return ReturnValue(cpIntegral, &Algo_t::Integral); }
     
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
      * @return the standard deviation of charge of hits, in ADC count units
      * @see Integral()
-     * 
-     * ClusterParamsAlg computes the standard deviation of the sample of charges
-     * from all hits.
-     * Hit charge is obtained by recob::Hit::Integral().
+     * @see Algo_t::IntegralStdDev()
      */
     virtual Measure_t IntegralStdDev() override
-      { return ReturnValue(cpIntegralStdDev, &Base_t::IntegralStdDev); }
+      { return ReturnValue(cpIntegralStdDev, &Algo_t::IntegralStdDev); }
     
     /**
      * @brief Computes the total charge of the cluster from Hit::SummedADC()
      * @return total charge of the cluster, in ADC count units
      * @see SummedADCStdDev(), Integral()
-     * 
-     * ClusterParamsAlg computes the sum from all hits.
+     * @see Algo_t::SummedADC()
      */
     virtual Measure_t SummedADC() override
-      { return ReturnValue(cpSummedADC, &Base_t::SummedADC); }
+      { return ReturnValue(cpSummedADC, &Algo_t::SummedADC); }
     
     /**
      * @brief Computes the standard deviation on the charge of the cluster hits
      * @return the standard deviation of charge of hits, in ADC count units
      * @see SummedADC()
-     * 
-     * ClusterParamsAlg computes the standard deviation of the sample of charges
-     * from all hits.
-     * Hit charge is obtained by recob::Hit::SummedADC().
+     * @see Algo_t::SummedADCStdDev()
      */
     virtual Measure_t SummedADCStdDev() override
-      { return ReturnValue(cpSummedADCStdDev, &Base_t::SummedADCStdDev); }
+      { return ReturnValue(cpSummedADCStdDev, &Algo_t::SummedADCStdDev); }
     
     /// @}
     
     
     /// Returns the number of hits in the cluster
     virtual size_t NHits() override
-      { return ReturnValue(cpNHits, &Base_t::NHits); }
+      { return ReturnValue(cpNHits, &Algo_t::NHits); }
     
     
     /**
      * @brief Fraction of wires in the cluster with more than one hit
      * @return fraction of wires with more than one hit, or 0 if no wires
-     *
-     * Returns a quantity defined as NMultiHitWires / NWires,
-     * where NWires is the number of wires hosting at least one hit of this
-     * cluster, and NMultiHitWires is the number of wires which have more
-     * than just one hit.
+     * @see Algo_t::MultipleHitDensity()
      */
     virtual float MultipleHitDensity() override
-      { return ReturnValue(cpMultipleHitDensity, &Base_t::MultipleHitDensity); }
+      { return ReturnValue(cpMultipleHitDensity, &Algo_t::MultipleHitDensity); }
     
     /**
      * @brief Computes the width of the cluster
      * @return width of the cluster
-     * 
-     * @todo provide a description of the algorithm by words
+     * @see Algo_t::Width()
      */
     virtual float Width() override
-      { return ReturnValue(cpWidth, &Base_t::Width); }
+      { return ReturnValue(cpWidth, &Algo_t::Width); }
     
     /// @}
     
+    /// @}
     
       protected:
     
-    using ValueFunction_t = float (Base_t::*) ();
-    using MeasureFunction_t = Measure_t (Base_t::*) ();
+    using ValueFunction_t = float (Algo_t::*) ();
+    using MeasureFunction_t = Measure_t (Algo_t::*) ();
+    
+    Algo_t algo; ///< an instance of the wrapped algorithm class
     
     std::vector<details::MultiValue> values; ///< the overridden values
     std::bitset<NParameters> overridden_set; ///< bits for overriding
     
     template <typename Func>
     auto ReturnValue(ParameterType_t param, Func func)
-      -> decltype((this->*func)())
+      -> decltype((algo.*func)())
       {
         if (isOverridden(param)) {
           // convert here to the return type of the function
@@ -300,7 +317,7 @@ namespace cluster {
           return values[(size_t) param];
         }
         else
-          return (this->*func)();
+          return (algo.*func)();
       } // ReturnValue()
     
   }; // class OverriddenClusterParamsAlg
