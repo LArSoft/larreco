@@ -26,7 +26,18 @@
 namespace cluster {
   
   namespace details {
-    /// Class holding a value of one among some selected types...
+    /**
+     * @brief Class holding a value of one among some selected types...
+     * 
+     * The result of default construction is not defined.
+     * That's basically throwing away one of the pillars of C++.
+     * 
+     * This horrible class is supposed to keep a value that you give to it,
+     * and give it back to you if you ask nicely.
+     * Of course, if you ask something you did not give it first, it will become
+     * naughty. In other words, it's caller's responsibility not to ask float
+     * when it assigned size_t.
+     */
     class MultiValue {
         public:
       using Measure_t = cluster::details::Measure_t<float>;
@@ -38,12 +49,10 @@ namespace cluster {
         size_t    size_t_value;
       };
       
-      // set all the default stuff
-      MultiValue(MultiValue const&) = default;
-      MultiValue(MultiValue&&) = default;
-      MultiValue& operator= (MultiValue const&) = default;
-      MultiValue& operator= (MultiValue &&) = default;
-      ~MultiValue() = default;
+      /// Default constructor; it's here only to allow for vectors to be resized
+      /// and its effect is undefined. This class is not to be considered valid
+      /// until it's assigned a value with the operator= .
+      MultiValue() {}
       
       /// Sets the value from a value of type T; undefined by default
       template <typename T>
@@ -100,7 +109,8 @@ namespace cluster {
     /// Constructor; just forwards the arguments to the base class
     template <typename... Args>
     explicit OverriddenClusterParamsAlg(Args&&... args):
-      Base_t(std::forward<Args>(args)...)
+      Base_t(std::forward<Args>(args)...),
+      values(NParameters)
       {}
     
     /// Destructor
@@ -293,7 +303,6 @@ namespace cluster {
           return (this->*func)();
       } // ReturnValue()
     
-    
   }; // class OverriddenClusterParamsAlg
   
 } // namespace cluster
@@ -307,33 +316,6 @@ namespace cluster {
 namespace cluster {
   
   namespace details {
-/*
-    /// Class holding a value of one among some selected types...
-    class MultiValue {
-        public:
-      // I can't believe I am writing this shit...
-      union {
-        Measure_t measure;
-        float     float_value;
-        size_t    size_t_value;
-      };
-      
-      // set all the default stuff
-      MultiValue(MultiValue const&) = default;
-      MultiValue(MultiValue&&) = default;
-      MultiValue& operator= (MultiValue const&) = default;
-      MultiValue& operator= (MultiValue &&) = default;
-      ~MultiValue() = default;
-      
-      /// Sets the value from a value of type T; undefined by default
-      template <typename T>
-      MultiValue& operator= (T);
-      
-      /// Converts the value to type T; undefined by default
-      template <typename T>
-      operator T() const;
-    };
-*/
     
     // specialization: size_t
     template <>
