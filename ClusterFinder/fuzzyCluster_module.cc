@@ -88,8 +88,6 @@ namespace cluster{
     const unsigned int seed = lar::util::FetchRandomSeed(&pset);
     createEngine(seed);
     
-    // Create random number engine needed for PPHT
-    createEngine(seed,"HepJamesRandom");
   }
   
   //-------------------------------------------------
