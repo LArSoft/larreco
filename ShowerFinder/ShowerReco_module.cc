@@ -19,8 +19,7 @@
 // ### Generic C++ includes ###
 #include <vector>
 #include <string>
-#include <cmath>
-#include <math.h>
+#include <cmath> // std::tan() ...
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -107,6 +106,7 @@ namespace shwf {
  //  calo::CalorimetryAlg calorim;
 //input labels:
   float slope[3];       // in cm, cm
+  float angle[3];       // in radians
  
   
   std::string fClusterModuleLabel;
@@ -560,7 +560,7 @@ void ShowerReco::produce(art::Event& evt)
     for(art::PtrVector<recob::Hit>::const_iterator a = hitlist.begin(); a != hitlist.end();  a++){
       p=  (*a)->WireID().Plane;
       hitlist_all[p].push_back(*a);
-      ADCcharge+=(*a)->Charge(true);
+      ADCcharge+=(*a)->PeakAmplitude();
     }
       fNhitsperplane[p]=hitlist_all[p].size();
       fTotADCperplane[p]=ADCcharge;
@@ -640,7 +640,8 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
     
     
  //std::cout << " angles in:  " << bp1 << " " << bp2 << " "   << slope[bp1]*TMath::Pi()/180. << " " << slope[bp2]*TMath::Pi()/180. << " " << slope[bp1] << " " << slope[bp2] << std::endl;
- gser.Get3DaxisN(bp1,bp2,slope[bp1]*TMath::Pi()/180.,slope[bp2]*TMath::Pi()/180.,xphi,xtheta);
+// gser.Get3DaxisN(bp1,bp2,slope[bp1]*TMath::Pi()/180.,slope[bp2]*TMath::Pi()/180.,xphi,xtheta);
+ gser.Get3DaxisN(bp1,bp2,angle[bp1],angle[bp2],xphi,xtheta);
      
   ///////////////////////////////////////////////////////////
  const double origin[3] = {0.};
@@ -917,7 +918,7 @@ void ShowerReco::LongTransEnergy(unsigned int set, std::vector < art::Ptr<recob:
   
     vdEdx.push_back(dEdx_new);
     vresRange.push_back(fabs(wdist));
-    vdQdx.push_back((*hitIter)->Charge(true)/newpitch);
+    vdQdx.push_back((*hitIter)->PeakAmplitude()/newpitch);
     Trk_Length=wdist;
     fTrkPitchC=fNPitch[set][plane];
     Kin_En+=dEdx_new*newpitch;
@@ -1083,15 +1084,17 @@ void   ShowerReco::GetVertexAndAnglesFromCluster(art::Ptr< recob::Cluster > clus
 // Get shower vertex and slopes.
 {
   //convert to cm/cm units needed in the calculation
-  slope[plane]=clust->dTdW();//*(ftimetick*fdriftvelocity)/fMean_wire_pitch;  
-  fWire_vertex[plane]=clust->StartPos()[0];
-  fTime_vertex[plane]=clust->StartPos()[1];
+//  slope[plane]=clust->dTdW();//*(ftimetick*fdriftvelocity)/fMean_wire_pitch;  
+  angle[plane]=clust->StartAngle();
+  slope[plane]=std::tan(clust->StartAngle());
+  fWire_vertex[plane]=clust->StartWire();
+  fTime_vertex[plane]=clust->StartTick();
 
-  fWire_vertexError[plane]=clust->SigmaStartPos()[0];  // wire coordinate of vertex for each plane
-  fTime_vertexError[plane]=clust->SigmaStartPos()[1];  // time coordinate of vertex for each plane
+  fWire_vertexError[plane]=clust->SigmaStartWire();  // wire coordinate of vertex for each plane
+  fTime_vertexError[plane]=clust->SigmaStartTick();  // time coordinate of vertex for each plane
   
-  fWire_last[plane]=clust->EndPos()[0];  // wire coordinate of last point for each plane
-  fTime_last[plane]=clust->EndPos()[1];
+  fWire_last[plane]=clust->EndWire();  // wire coordinate of last point for each plane
+  fTime_last[plane]=clust->EndTick();
   
   ////////// insert detector offset
 

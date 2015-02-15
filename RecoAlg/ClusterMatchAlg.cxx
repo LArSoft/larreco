@@ -347,11 +347,11 @@ namespace cluster{
     for(auto const hit : in_hit_v){
 
       unsigned int wire = hit->WireID().Wire;
-      double tstart = hit->StartTime() - time_offset;
+      double tstart = hit->PeakTimePlusRMS(-1.) - time_offset;
       double tpeak = hit->PeakTime() - time_offset;
-      double tend = hit->EndTime() - time_offset;
+      double tend = hit->PeakTimePlusRMS(+1.) - time_offset;
 
-      ci.sum_charge += hit->Charge();
+      ci.sum_charge += hit->Integral();
       
       ci.wire_max = (ci.wire_max < wire) ? wire : ci.wire_max;
       ci.wire_min = (ci.wire_min > wire) ? wire : ci.wire_min;

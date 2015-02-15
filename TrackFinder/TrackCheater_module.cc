@@ -185,7 +185,7 @@ namespace trkf{
 	  points.push_back(TVector3(xyz[0], xyz[1], xyz[2]));
 
 	  std::vector<double> xyz1;
-	  double charge = hits[t]->Charge();
+	  double charge = hits[t]->Integral();
 	  double dx     = 0.;
 	  double sign   = 1.;
 

@@ -192,24 +192,24 @@ namespace trkf {
 	    double EffMaxTime =  MaxTime + fPlaneTimeOffsets[0];
 
 	    for(size_t i=0; i!=SortedHits[0][nU].size(); ++i)
-	      if((SortedHits[0][nU][i]->EndTime() > EffMinTime)
-		 &&(SortedHits[0][nU][i]->StartTime()<EffMaxTime))
+	      if((SortedHits[0][nU][i]->PeakTimePlusRMS(+1.) > EffMinTime)
+		 &&(SortedHits[0][nU][i]->PeakTimePlusRMS(-1.)<EffMaxTime))
 		HitsFlat.push_back(SortedHits[0][nU][i]);
 
 	    EffMinTime =  MinTime + fPlaneTimeOffsets[1];
 	    EffMaxTime =  MaxTime + fPlaneTimeOffsets[1];
 
 	    for(size_t i=0; i!=SortedHits[1][nV].size(); ++i)
-	      if((SortedHits[1][nV][i]->EndTime()>EffMinTime)
-	      	 &&(SortedHits[1][nV][i]->StartTime()<EffMaxTime))
+	      if((SortedHits[1][nV][i]->PeakTimePlusRMS(+1.)>EffMinTime)
+	      	 &&(SortedHits[1][nV][i]->PeakTimePlusRMS(-1.)<EffMaxTime))
 		HitsFlat.push_back(SortedHits[1][nV][i]);
 	    
 	    EffMinTime =  MinTime + fPlaneTimeOffsets[2];
 	    EffMaxTime =  MaxTime + fPlaneTimeOffsets[2];
 
 	    for(size_t i=0; i!=SortedHits[2][nW].size(); ++i)
-	      if((SortedHits[2][nW][i]->EndTime()>EffMinTime)
-	      	 &&(SortedHits[2][nW][i]->StartTime()<EffMaxTime))
+	      if((SortedHits[2][nW][i]->PeakTimePlusRMS(+1.)>EffMinTime)
+	      	 &&(SortedHits[2][nW][i]->PeakTimePlusRMS(-1.)<EffMaxTime))
 		HitsFlat.push_back(SortedHits[2][nW][i]);
 		 
 	    std::vector<art::PtrVector<recob::Hit> > HitsPerSeed;

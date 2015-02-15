@@ -296,7 +296,7 @@ size_t DBScanAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, ViewTo
             {
                 const reco::ClusterHit2D* hitPtrU = *hitItrU;
                 
-                if (hitPtrU->getHit().Charge() < minCharge[hitPtrU->getHit().View()]) continue;
+                if (hitPtrU->getHit().Integral() < minCharge[hitPtrU->getHit().View()]) continue;
                 
                 // This will be used in each loop so dereference the peak time here
                 double hitUPeakTime = hitPtrU->getTimeTicks();
@@ -306,7 +306,7 @@ size_t DBScanAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, ViewTo
                 {
                     const reco::ClusterHit2D* hitPtrW = *hitItrW;
                     
-                    if (hitPtrW->getHit().Charge() < minCharge[hitPtrW->getHit().View()]) continue;
+                    if (hitPtrW->getHit().Integral() < minCharge[hitPtrW->getHit().View()]) continue;
                     
                     // Hits are sorted in "peak time order" which we can take advantage of to try to speed
                     // the loops. Basically, we can compare the peak time for the outer loop hit against
@@ -615,15 +615,11 @@ bool DBScanAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Clu
     
     int    pair1UWire      = pair1UHit.WireID().Wire;
     double pair1UPeakTime  = pair1UHit.PeakTime();
-    double pair1UStartTime = pair1UHit.StartTime();
-    double pair1UEndTime   = pair1UHit.EndTime();
-    double pair1ULimit     = pair1UEndTime - pair1UStartTime;
+    double pair1ULimit     = pair1UHit.RMS() * 2.;
     
     int    pair2UWire      = pair2UHit.WireID().Wire;
     double pair2UPeakTime  = pair2UHit.PeakTime();
-    double pair2UStartTime = pair2UHit.StartTime();
-    double pair2UEndTime   = pair2UHit.EndTime();
-    double pair2ULimit     = pair2UEndTime - pair2UStartTime;
+    double pair2ULimit     = pair2UHit.RMS() * 2.;
     
     int    deltaUWire      = fabs(pair1UWire - pair2UWire);
     double limitTotalU     = pair1ULimit + pair2ULimit;
@@ -646,15 +642,11 @@ bool DBScanAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Clu
         
         int    pair1WWire      = pair1WHit.WireID().Wire;
         double pair1WPeakTime  = pair1WHit.PeakTime();
-        double pair1WStartTime = pair1WHit.StartTime();
-        double pair1WEndTime   = pair1WHit.EndTime();
-        double pair1WLimit     = pair1WEndTime - pair1WStartTime;
+        double pair1WLimit     = pair1WHit.RMS() * 2.;
         
         int    pair2WWire      = pair2WHit.WireID().Wire;
         double pair2WPeakTime  = pair2WHit.PeakTime();
-        double pair2WStartTime = pair2WHit.StartTime();
-        double pair2WEndTime   = pair2WHit.EndTime();
-        double pair2WLimit     = pair2WEndTime - pair2WStartTime;
+        double pair2WLimit     = pair2WHit.RMS() * 2.;
         
         int    deltaWWire      = fabs(pair1WWire - pair2WWire);
         double limitTotalW     = pair1WLimit + pair2WLimit;
@@ -680,15 +672,11 @@ bool DBScanAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Clu
                 
                 int    pair1VWire      = pair1VHit.WireID().Wire;
                 double pair1VPeakTime  = pair1VHit.PeakTime();
-                double pair1VStartTime = pair1VHit.StartTime();
-                double pair1VEndTime   = pair1VHit.EndTime();
-                double pair1VLimit     = pair1VEndTime - pair1VStartTime;
+                double pair1VLimit     = pair1VHit.RMS() * 2.;
                 
                 int    pair2VWire      = pair2VHit.WireID().Wire;
                 double pair2VPeakTime  = pair2VHit.PeakTime();
-                double pair2VStartTime = pair2VHit.StartTime();
-                double pair2VEndTime   = pair2VHit.EndTime();
-                double pair2VLimit     = pair2VEndTime - pair2VStartTime;
+                double pair2VLimit     = pair2VHit.RMS() * 2.;
                 
                 int    deltaVWire      = fabs(pair1VWire - pair2VWire);
                 double limitTotalV     = pair1VLimit + pair2VLimit;
@@ -764,20 +752,16 @@ reco::ClusterHit3D DBScanAlg::makeHitPair(const reco::ClusterHit2D* hit1,
         
         // Basically, require that the hit times "overlap"
         // Check here is that they are inconsistent
-        double hit1Start = hit1->getHit().StartTime() - hit1Offset;
-        double hit1Stop  = hit1->getHit().EndTime()   - hit1Offset;
         double hit1Peak  = hit1->getHit().PeakTime()  - hit1Offset;
-        double hit1Sigma = (hit1Stop - hit1Start) / 2.355;                // For Gauss hit finder, stop-start is 1/2 width
+        double hit1Sigma = hit1->getHit().RMS() * 2. / 2.355;
         
-        double hit2Start = hit2->getHit().StartTime() - hit2Offset;
-        double hit2Stop  = hit2->getHit().EndTime()   - hit2Offset;
         double hit2Peak  = hit2->getHit().PeakTime()  - hit2Offset;
-        double hit2Sigma = (hit2Stop - hit2Start) / 2.355;                // For Gauss hit finder, stop-start is 1/2 width
+        double hit2Sigma = hit2->getHit().RMS() * 2. / 2.355;
         
-//        double hit1Width = 2.*0.5*(hit1Stop - hit1Start);
-//        double hit2Width = 2.*0.5*(hit2Stop - hit2Start);
-        double hit1Width = hitWidthSclFctr * (hit1Stop - hit1Start);
-        double hit2Width = hitWidthSclFctr * (hit2Stop - hit2Start);
+//        double hit1Width = 2.*0.5*hit1->getHit().RMS() * 2.;
+//        double hit2Width = 2.*0.5*hit2->getHit().RMS() * 2.;
+        double hit1Width = hitWidthSclFctr * hit1->getHit().RMS() * 2.;
+        double hit2Width = hitWidthSclFctr * hit2->getHit().RMS() * 2.;
         
         // Check hit times are consistent
         if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
@@ -793,7 +777,7 @@ reco::ClusterHit3D DBScanAlg::makeHitPair(const reco::ClusterHit2D* hit1,
                 avePeakTime     = 0.5 * (hit1Peak + hit2Peak);
                 deltaPeakTime   = fabs(hit1Peak - hit2Peak);
                 sigmaPeakTime   = sqrt(hit1Sigma*hit1Sigma + hit2Sigma*hit2Sigma);
-                totalCharge     = hit1->getHit().Charge() + hit2->getHit().Charge();
+                totalCharge     = hit1->getHit().Integral() + hit2->getHit().Integral();
             
                 sigmaPeakTime   = std::max(sigmaPeakTime, 0.1);
             
@@ -851,10 +835,10 @@ reco::ClusterHit3D DBScanAlg::makeHitTriplet(const reco::ClusterHit3D& pairUW,
     // Let's do a quick consistency check on the input hits to make sure we are in range...
     //double uvDeltaT   = std::max(pairUV.getDeltaPeakTime(), 2.);  // Set a lower limit
     //double uvSigma    = pairUV.getSigmaPeakTime();
-    //double wSigma     = (hitW->getHit().EndTime() - hitW->getHit().StartTime()) / 2.355;
+    //double wSigma     = (hitW->getHit().RMS() * 2) / 2.355;
     double uwDeltaT   = 1.;
     double uwSigma    = 2.355 * pairUW.getSigmaPeakTime();
-    double vSigma     = (hitV->getHit().EndTime() - hitV->getHit().StartTime());
+    double vSigma     = 2. * hitV->getHit().RMS();
     
     // Require the W hit to be "in range" with the UV Pair
     if (fabs(hitV->getTimeTicks() - pairUW.getAvePeakTime()) < uwDeltaT * (uwSigma + vSigma))
@@ -954,7 +938,7 @@ const reco::ClusterHit2D* DBScanAlg::FindBestMatchingHit(const Hit2DSet& hit2DSe
     // Idea is to loop through the input set of hits and look for the best combination
     for (const auto& hit2D : hit2DSet)
     {
-        if (hit2D->getHit().Charge() < minCharge) continue;
+        if (hit2D->getHit().Integral() < minCharge) continue;
         
         double hitVPeakTime(hit2D->getTimeTicks());
         double deltaPeakTime(pairAvePeakTime-hitVPeakTime);
@@ -980,7 +964,7 @@ int DBScanAlg::FindNumberInRange(const Hit2DSet& hit2DSet, const reco::ClusterHi
     // Idea is to loop through the input set of hits and look for the best combination
     for (const auto& hit2D : hit2DSet)
     {
-        if (hit2D->getHit().Charge() < minCharge) continue;
+        if (hit2D->getHit().Integral() < minCharge) continue;
         
         double hitVPeakTime(hit2D->getTimeTicks());
         double deltaPeakTime(pairAvePeakTime-hitVPeakTime);

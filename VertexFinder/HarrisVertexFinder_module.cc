@@ -45,6 +45,7 @@ extern "C" {
 #include <vector>
 #include <string>
 
+#include "Utilities/DetectorProperties.h"
 #include "Filters/ChannelFilter.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/EndPoint2D.h"
@@ -170,7 +171,6 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
   int flag   = 0;
   int n      = 0; //index of window cell. There are 49 cells in the 7X7 Gaussian and Gaussian derivative windows
   unsigned int numberwires = 0;
-  double numbertimesamples = 0.;
   double MatrixAAsum = 0.;
   double MatrixBBsum = 0.; 
   double MatrixCCsum = 0.;
@@ -189,6 +189,12 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
     }
   }
   
+  const unsigned int numbertimesamples
+    = art::ServiceHandle<util::DetectorProperties>()->ReadOutWindowSize();
+  
+  const float BinsPerTick = fTimeBins / numbertimesamples;
+  const float TicksPerBin = numbertimesamples / fTimeBins;
+  
   for(auto pid : geom->PlaneIDs()){
     art::PtrVector<recob::Hit> vHits;
     geo::View_t view = geom->View(pid);
@@ -203,7 +209,6 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
     if(hit.size() == 0) continue;
     
     numberwires       = geom->Cryostat(pid.Cryostat).TPC(pid.TPC).Plane(pid.Plane).Nwires();
-    numbertimesamples = hit[0]->Wire()->NSignal();
     std::vector< std::vector<double> > MatrixAsum(numberwires);
     std::vector< std::vector<double> > MatrixBsum(numberwires);
     std::vector< std::vector<double> > hit_map(numberwires);//the map of hits 
@@ -227,9 +232,14 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
     
     for(unsigned int i = 0; i < hit.size(); ++i){
       unsigned int wire = hit[i]->WireID().Wire;
-      //pixelization using a Gaussian
-      for(int j = 0;j <= (int)(hit[i]->EndTime()-hit[i]->StartTime()+.5); ++j)    
-	hit_map[wire][(int)((hit[i]->StartTime()+j)*(fTimeBins/numbertimesamples)+.5)]+=Gaussian((int)(j-((hit[i]->EndTime()-hit[i]->StartTime())/2.)+.5),0,hit[i]->EndTime()-hit[i]->StartTime());      
+      // pixelization using a Gaussian (3 sigmas around peak)
+      const float center = hit[i]->PeakTime(), sigma = hit[i]->RMS();
+      const int iFirstBin = int((center - 3*sigma) / TicksPerBin),
+        iLastBin = int((center + 3*sigma) / TicksPerBin);
+      for (int iBin = iFirstBin; iBin <= iLastBin; ++iBin) {
+        const float bin_center = iBin * TicksPerBin;
+        hit_map[wire][iBin] += Gaussian(bin_center, center, sigma);
+      }
     }
     
     // Gaussian derivative convolution  
@@ -281,10 +291,10 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
 	if(Cornerness[wire][timebin]>0){	  
 	  for(unsigned int i = 0;i < hit.size(); ++i){
 	    unsigned int wire2 = hit[i]->WireID().Wire;
-	    //make sure the vertex candidate coincides with an actual hit.
-	    if(wire == wire2 
-	       && hit[i]->StartTime() < timebin*(numbertimesamples/fTimeBins) 
-	       && hit[i]->EndTime()   > timebin*(numbertimesamples/fTimeBins)){ 	       
+	    // make sure the vertex candidate coincides with an actual hit
+	    // (time within one RMS from the center of the hit)
+	    const float time = timebin / TicksPerBin;
+	    if(wire == wire2 && std::abs(hit[i]->TimeDistanceAsRMS(time)) < 1.){
 	      //this index keeps track of the hit number
 	      hit_loc[wire][timebin] = i;
 	      Cornerness2.push_back(Cornerness[wire][timebin]);
@@ -314,7 +324,7 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
 	      vHits.push_back(hit[hit_loc[wire][timebin]]);
 	      // get the total charge from the associated hits
 	      double totalQ = 0.;
-	      for(size_t vh = 0; vh < vHits.size(); ++vh) totalQ += vHits[vh]->Charge();
+	      for(size_t vh = 0; vh < vHits.size(); ++vh) totalQ += vHits[vh]->Integral();
 	      
 	      recob::EndPoint2D vertex(hit[hit_loc[wire][timebin]]->PeakTime(),
 				       hit[hit_loc[wire][timebin]]->WireID(),  //for update to EndPoint2D ... WK 4/22/13
@@ -334,8 +344,8 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
 	      
 	      /// \todo this is completely specific to ArgoNeuT!!!!
 	      
-	      for(unsigned int wireout=wire-(int)((fWindow*(numbertimesamples/fTimeBins)*.0743)+.5);
-		  wireout <= wire+(int)((fWindow*(numbertimesamples/fTimeBins)*.0743)+.5) ; wireout++)
+	      for(unsigned int wireout=wire-(int)((fWindow*BinsPerTick*.0743)+.5);
+		  wireout <= wire+(int)((fWindow*BinsPerTick*.0743)+.5) ; wireout++)
 		for(int timebinout=timebin-fWindow;timebinout <= timebin+fWindow; timebinout++)
 		  if(std::sqrt(pow(wire-wireout,2)+pow(timebin-timebinout,2))<fWindow)//circular window 
 		    Cornerness[wireout][timebinout]=0;	  

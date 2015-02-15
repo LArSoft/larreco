@@ -3,9 +3,11 @@
 
 /*!
  * Title:   HitAnaModule
- * Author:  wketchum@lanl.gov
+ * Author:  wketchum@lanl.gov. 
  * Inputs:  recob::Wire (calibrated), recob::Hit, Assns<recob::Wire, recob::Hit>
- * Outputs: validation histograms
+ * Outputs: validation histograms for wire aggregated hits.
+ *
+ * Embellished by echurch@fnal.gov for just Hits
  *
  * Description:
  * This module is intended to be yet another hit analyzer module. Its intention is
@@ -30,26 +32,28 @@ namespace hit{
     
     //need a constructor here
     HitInfo(float pt, float pt_s,
-	    float st, float st_s,
-	    float et, float et_s,
+	    float w,
+	    int st, int et,
 	    float c, float c_s,
 	    float mc, float mc_s,
 	    float gof)
-    {
-      peaktime = pt; peaktime_sigma = pt_s;
-      starttime = st; starttime_sigma = st_s;
-      endtime = et; endtime_sigma = et_s;
-      charge = c; charge_sigma = c_s;
-      maxcharge = mc; maxcharge = mc_s;
-      goodness_of_fit = gof;
-    }
+      : peaktime(pt)
+      , peaktime_sigma(pt_s)
+      , rms(w)
+      , starttick(st)
+      , endtick(et)
+      , charge(c)
+      , charge_sigma(c_s)
+      , maxcharge(mc)
+      , maxcharge_sigma(mc_s)
+      , goodness_of_fit(gof)
+    {}
 
     float peaktime;
     float peaktime_sigma;
-    float starttime;
-    float starttime_sigma;
-    float endtime;
-    float endtime_sigma;
+    float rms;
+    int starttick;
+    int endtick;
     float charge;
     float charge_sigma;
     float maxcharge;
@@ -77,6 +81,7 @@ namespace hit{
     std::vector<float> Hits_PeakTime;
     std::vector<float> Hits_wAverageCharge;
     std::vector<float> Hits_wAverageTime;
+    std::vector<float> Hits_MeanMultiplicity;
     std::vector< std::vector<HitInfo> > Hits;
     int NMCHits;
     float MCHits_IntegratedCharge;
@@ -86,6 +91,7 @@ namespace hit{
     float MCHits_wAverageCharge;
     float MCHits_wAverageTime;
   };
+
 
   class HitAnaAlgException : public std::exception{
     virtual const char* what() const throw(){
@@ -102,6 +108,8 @@ namespace hit{
     HitAnaAlg();
     
     void SetWireDataTree(TTree*);
+
+    void SetHitDataTree(std::vector<TTree*>& trees);
 
     void AnalyzeWires(std::vector<recob::Wire> const&,
 		      std::vector<sim::MCHitCollection> const&,
@@ -146,12 +154,16 @@ namespace hit{
 				   util::TimeService const&);
     
     WireROIInfo wireData;
+    std::vector<recob::Hit*> hitData;
+
     std::vector<std::string> HitModuleLabels;
     std::vector< HitAssocPair > HitProcessingQueue;
 
 
     void SetupWireDataTree();
     TTree* wireDataTree;
+
+    std::vector<TTree*> hitDataTree;
 
     //this is for unit testing...class has no other purpose
     friend class HitAnaAlgTest;

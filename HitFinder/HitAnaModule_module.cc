@@ -25,6 +25,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+#include "art/Persistency/Common/Assns.h"
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
@@ -33,7 +34,10 @@
 #include <vector>
 #include <string>
 
-#include "HitAnaAlg.h"
+#include "RecoBase/Wire.h"
+#include "RecoBase/Hit.h"
+#include "MCBase/MCHitCollection.h"
+#include "HitFinder/HitAnaAlg.h"
 
 namespace hit {
   class HitAnaModule;
@@ -50,9 +54,16 @@ public:
   void reconfigure(fhicl::ParameterSet const & p) override;
 
 private:
+  using HitWireAssns_t = art::Assns<recob::Hit, recob::Wire>;
 
-  void createAssocVector(std::vector< art::Ptr<recob::Hit> > const&,
-			 std::vector< std::vector<int> >&);
+  void createAssocVector(
+    HitWireAssns_t const&,
+    std::vector< std::vector<int> > &
+    );
+
+  void createAssocVector(std::vector<recob::Wire> const&,
+			 std::vector<recob::Hit> const&,
+			 std::vector< std::vector<int> > &);
 
   void createMCAssocVector( std::vector<recob::Wire> const&,
 			    std::vector<sim::MCHitCollection> const&,
@@ -64,6 +75,7 @@ private:
   std::string fWireModuleLabel;
 
   TTree *wireDataTree;
+  std::vector<TTree *> hitDataTree;
 
   HitAnaAlg analysisAlg;
 
@@ -81,36 +93,51 @@ hit::HitAnaModule::~HitAnaModule()
   // Clean up dynamic memory and other resources here.
 }
 
-void hit::HitAnaModule::createAssocVector( std::vector< art::Ptr<recob::Hit> > const& hitPtrs,
-					   std::vector< std::vector<int> > & WireHitAssocVector){
+void hit::HitAnaModule::createAssocVector(
+  HitWireAssns_t const& HitToWire,
+  std::vector< std::vector<int> > & WireHitAssocVector
+) {
+  // WireHitAssocVector: for each wire, indices of all the hits associated to it
+  
+  // the iteration to art::Assns<Hit, Wire> points to a art::Ptr pair (assn_t)
+  // with a hit as first element ("left") and a wire as the second one ("right")
+  for (HitWireAssns_t::assn_t const& assn: HitToWire)
+    WireHitAssocVector.at(assn.second.key()).push_back(assn.first.key());
 
-  for(auto const& hitptr : hitPtrs)
-    {
-      size_t wire_key = ( hitptr->Wire() ).key();
-      WireHitAssocVector.at(wire_key).push_back(hitptr.key());
+}
+
+void hit::HitAnaModule::createAssocVector(std::vector<recob::Wire> const& wireVector,
+					  std::vector<recob::Hit> const& hitVector,
+					  std::vector< std::vector<int> > & WireHitAssocVector)
+{
+  WireHitAssocVector.resize(wireVector.size());
+  for(size_t iwire=0; iwire<wireVector.size(); iwire++){
+    for(size_t ihit=0; ihit<hitVector.size(); ihit++){
+      if(hitVector[ihit].Channel()==wireVector[iwire].Channel())
+	WireHitAssocVector[iwire].push_back(ihit);
     }
-
+  }
 }
 
 void hit::HitAnaModule::createMCAssocVector( std::vector<recob::Wire> const& wireVector,
 					     std::vector<sim::MCHitCollection> const& mcHitVector,
 					     std::vector< std::vector<int> > & WireMCHitAssocVector){
-
+  
   WireMCHitAssocVector.clear(); WireMCHitAssocVector.resize(wireVector.size());
-
+  
   //first, store all the MCHitCollection indices in a map keyed on channel
   //then, loop through wires, and lookup mchitcollections based on the wire's channel
-
+  
   std::map<unsigned int,std::vector<int> > mcHitIndicesByChannel;
   for(unsigned int icol=0; icol<mcHitVector.size(); icol++)
     mcHitIndicesByChannel[mcHitVector[icol].Channel()].push_back(icol);
   
-
+  
   for(unsigned int iwire=0; iwire<wireVector.size(); iwire++)
     WireMCHitAssocVector[iwire].insert(WireMCHitAssocVector[iwire].end(),
 				       mcHitIndicesByChannel[wireVector[iwire].Channel()].begin(),
 				       mcHitIndicesByChannel[wireVector[iwire].Channel()].end());
-
+  
 }
 
 void hit::HitAnaModule::analyze(art::Event const & e)
@@ -142,17 +169,26 @@ void hit::HitAnaModule::analyze(art::Event const & e)
   //get the hit data
   size_t nHitModules = fHitModuleLabels.size();
   std::vector< art::Handle< std::vector<recob::Hit> > > hitHandles(nHitModules);
+  // for each hit module output (first index), for each wire (second index)
+  // the list of hits associated with that wire is stored
   std::vector< std::vector< std::vector<int> > > WireHitAssocVectors(nHitModules);
   for(size_t iter=0; iter < nHitModules; iter++){
 
     e.getByLabel(fHitModuleLabels[iter],hitHandles[iter]);
 
     //create association vectors by hand for now
-    std::vector< art::Ptr<recob::Hit> > hitPtrs;
-    art::fill_ptr_vector(hitPtrs,hitHandles[iter]);    
-    WireHitAssocVectors[iter].resize(wireVector.size());
-    createAssocVector(hitPtrs,WireHitAssocVectors[iter]);
+    //art::ValidHandle<HitWireAssns_t> HitToWireAssns
+    //= e.getValidHandle<HitWireAssns_t>(fHitModuleLabels[iter]);
+    //WireHitAssocVectors[iter].resize(wireVector.size());
+    //createAssocVector(*HitToWireAssns,WireHitAssocVectors[iter]);
 
+    WireHitAssocVectors[iter].resize(wireVector.size());
+    art::Handle<HitWireAssns_t> HitToWireAssns;
+    if( e.getByLabel(fHitModuleLabels[iter],HitToWireAssns) )
+      createAssocVector(*HitToWireAssns,WireHitAssocVectors[iter]);
+    else
+      createAssocVector(wireVector,*(hitHandles[iter]),WireHitAssocVectors[iter]);
+    
     //load in this hit/assoc pair
     analysisAlg.LoadHitAssocPair( *(hitHandles[iter]),
 				  WireHitAssocVectors[iter],
@@ -170,6 +206,21 @@ void hit::HitAnaModule::beginJob()
   art::ServiceHandle<art::TFileService> tfs;
   wireDataTree = tfs->make<TTree>("wireDataTree","WireDataTree");
   analysisAlg.SetWireDataTree(wireDataTree);
+
+  // The below creates a Tree with one branch - a recob::Hit branch - for each 
+  // Hit module specified in the fcl file. So, don't run this module once per Hit
+  // Finder as one normally would. Just run it once and specify all HitFinders.
+  // This was the design for the WireDataTree; we follow it here for the 
+  // Hit trees.
+  for(auto const& label : fHitModuleLabels) {
+    std::string firstArg("hitData_");
+    firstArg += label;
+    std::string secArg("HitDataTree_");
+    secArg += label;
+    TTree* intermediateTree = tfs->make<TTree>(firstArg.c_str(),secArg.c_str());
+    hitDataTree.push_back(intermediateTree);
+  }
+  analysisAlg.SetHitDataTree(hitDataTree);
 }
 
 void hit::HitAnaModule::reconfigure(fhicl::ParameterSet const & p)

@@ -18,6 +18,7 @@
 #include "art/Persistency/Common/PtrVector.h" 
 
 #include "Geometry/Geometry.h"
+#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
@@ -40,6 +41,8 @@ namespace cluster {
       float RMS;
       float RMSErr;
       float ChiDOF;
+      int   DOF;
+      float ADCSum;
       art::Ptr<recob::Wire> Wire;
       unsigned short WireNum;
       unsigned short numHits;
@@ -69,6 +72,8 @@ namespace cluster {
     void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunCCHitFinder(art::Event & evt);
+    
+    std::string CalDataModuleLabel() const { return fCalDataModuleLabel; }
     
   private:
     
@@ -112,13 +117,14 @@ namespace cluster {
     std::vector<double> parmin;
     std::vector<double> parmax;
     float chidof;
+    int dof;
     std::vector<unsigned short> bumps;
     
     // make a cruddy hit if fitting fails
     void MakeCrudeHit(unsigned short npt, float *ticks, float *signl);
     // store the hits
     void StoreHits(unsigned short TStart, unsigned short npt, 
-      art::Ptr<recob::Wire>& theWire);
+      art::Ptr<recob::Wire>& theWire, float adcsum);
 /*
     // study hit finding and fitting
     void StudyHits(unsigned short flag, unsigned short npt = 0,
