@@ -49,7 +49,7 @@ namespace btutil {
     
     for(auto const& sch : simch_v) {
       
-      auto const ch = sch->Channel();
+      auto const ch = sch.Channel();
       if(_event_info.size() <= ch) _event_info.resize(ch+1);
       
       auto& ch_info = _event_info[ch];
@@ -57,7 +57,7 @@ namespace btutil {
       size_t plane = geo->ChannelToWire(ch)[0].Plane;
       //size_t plane = geo->ChannelToPlane(ch);
 
-      for(auto const& time_ide : sch->TDCIDEMap()) {
+      for(auto const& time_ide : sch.TDCIDEMap()) {
 	
 	auto const& time  = time_ide.first;
 	auto const& ide_v = time_ide.second;
