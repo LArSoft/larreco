@@ -67,7 +67,8 @@ add_subdirectory(ShowerFinder)
 add_subdirectory(TrackFinder)
 add_subdirectory(VertexFinder)
 add_subdirectory(SpacePointFinder)
-add_subdirectory(MCComp)
+#add_subdirectory(MCComp)
+
 
 # tests
 add_subdirectory(test)
