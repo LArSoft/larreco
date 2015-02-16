@@ -37,7 +37,7 @@
 #include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoPolyOverlap.h"
 #include "RecoAlg/CMTool/CMTAlgMerge/CBAlgoPolyShortestDist.h"
 #include "RecoAlg/CMTool/CMTAlgPriority/CPAlgoIgnoreTracks.h"
-
+#include "RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
 
 
 
@@ -334,8 +334,78 @@ namespace cluster {
     if(merged_clusters.size()!=cpan_v.size())
 
       throw cet::exception(__FUNCTION__) << "LOGIC ERROR: merged cluster id length != output cluster counts..." << std::endl;
+  
+    
+   
+   for(size_t out_index=0; out_index < merged_clusters.size(); ++out_index) {
+      
+      // To save typing let's just retrieve const cluster_params instance
+      const cluster_params &res = cpan_v[out_index].GetParams();
+      
+      // this "algo" is actually parroting its cluster_params
+      LazyClusterParamsAlg algo(res);
+      
+      std::vector<art::Ptr<recob::Hit> > merged_hits;
+      for(auto const& c_index : merged_clusters[out_index]) {
+        const std::vector<art::Ptr<recob::Hit> >& hits = hit_m.at(c_index);
+        merged_hits.reserve(merged_hits.size() + hits.size());
+        for(auto const& ptr : hits) merged_hits.push_back(ptr);
+      }
+      
+      // the full plane needed but not a part of cluster_params...
+      // get the one from the first hit
+      geo::PlaneID plane; // invalid by default
+      if (!merged_hits.empty()) plane = merged_hits.front()->WireID().planeID();
+      
+      // View_t needed but not a part of cluster_params, so retrieve it here
+      geo::View_t view_id = geo->Plane(plane).View();
+      
+      // Push back a new cluster data product with parameters copied from cluster_params
+      out_clusters->emplace_back(
+        res.start_point.w / fGeoU.WireToCm(), // start_wire
+        0.,                                   // sigma_start_wire
+        res.start_point.t / fGeoU.TimeToCm(), // start_tick
+        0.,                                   // sigma_start_tick
+        algo.StartCharge().value(),           // start_charge
+        algo.StartAngle().value(),            // start_angle
+        algo.StartOpeningAngle().value(),     // start_opening
+        res.end_point.w   / fGeoU.WireToCm(), // end_wire
+        0.,                                   // sigma_end_wire
+        res.end_point.t   / fGeoU.TimeToCm(), // end_tick
+        0.,                                   // sigma_end_tick
+        algo.EndCharge().value(),             // end_charge
+        algo.EndAngle().value(),              // end_angle
+        algo.EndOpeningAngle().value(),       // end_opening
+        algo.Integral().value(),              // integral
+        algo.IntegralStdDev().value(),        // integral_stddev
+        algo.SummedADC().value(),             // summedADC
+        algo.SummedADCStdDev().value(),       // summedADC_stddev
+        algo.NHits(),                         // n_hits
+        algo.MultipleHitDensity(),              // multiple_hit_density
+        algo.Width(),                         // width
+        out_clusters->size(),                 // ID
+        view_id,                              // view
+        plane,                                // plane
+        recob::Cluster::Sentry                // sentry
+        );
+       
+      util::CreateAssn(*this, 
+		       evt, 
+		       *(out_clusters.get()), 
+		       merged_hits,
+		       *(out_assn.get())
+		       );
 
-    for(size_t out_index=0; out_index < merged_clusters.size(); ++out_index) {
+    }
+      
+      
+      
+      
+      
+      
+      
+  /*    
+      for(size_t out_index=0; out_index < merged_clusters.size(); ++out_index) {
 
       // To save typing let's just retrieve const cluster_params instance
       const cluster_params &res = cpan_v[out_index].GetParams();
@@ -356,6 +426,7 @@ namespace cluster {
                                                )
                                );
 
+      
 
       std::vector<art::Ptr<recob::Hit> > merged_hits;
 
@@ -376,7 +447,7 @@ namespace cluster {
 		       *(out_assn.get())
                        );
 
-    }
+    }*/
 
     evt.put(std::move(out_clusters));
     evt.put(std::move(out_assn));
