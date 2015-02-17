@@ -508,13 +508,24 @@ void ShowerReco::produce(art::Event& evt)
 //   } 
   
   
+  // find all the hits associated to all the clusters (once and for all);
+  // the index of the query matches the index of the cluster in the collection
+  // (conveniently carried around in its art pointer)
+  art::FindManyP<recob::Hit> ClusterHits(clusterListHandle, evt, fClusterModuleLabel);
   
   std::vector < art::PtrVector<recob::Cluster> >::const_iterator clusterSet = clusterAssociationHandle->begin();
   // loop over vector of vectors (each size of NPlanes) and reconstruct showers from each of those
   for(size_t iClustSet = 0;iClustSet < clusterAssociationHandle->size(); iClustSet++){
  
     const art::PtrVector<recob::Cluster>  CurrentClusters=(*(clusterSet++));
-     
+    
+    // do some error checking - i.e. are the clusters themselves present.
+    if(clusterListHandle->size() < 2 || CurrentClusters.size() < 2) {
+      //std::cout << "not enough clusters to reconstruct" << std::endl;
+      //std::cout << "emergency filling tree @ run, evt," <<  fRun << " " << fEvent << std::endl;
+      ftree_shwf->Fill();
+      return;
+    }
     //std::cout << " Cluster Set: " << iClustSet << " " << std::endl; 
     
     ClearandResizeVectors( fNPlanes);
@@ -522,26 +533,17 @@ void ShowerReco::produce(art::Event& evt)
     std::vector< std::vector< art::Ptr<recob::Hit> > > hitlist_all;
     hitlist_all.resize(fNPlanes);
   
-    auto it = CurrentClusters.begin();
    // int nClusts = CurrentClusters.size();
-  // do some error checking - i.e. are the clusters themselves present.
     for(size_t iClust = 0; iClust < CurrentClusters.size(); iClust++){
+      art::Ptr<recob::Cluster> const& pclust = CurrentClusters[iClust];
         //size_t ii=0; 
 	//std::cout << " clusterListHandle  " << clusterListHandle->size() << " fNPlanes " << fNPlanes << " "<< CurrentClusters.size() << std::endl;
-    
-	if(clusterListHandle->size() < 2 || CurrentClusters.size() < 2)
-	{
-	  //std::cout << "not enough clusters to reconstruct" << std::endl;
-	  //std::cout << "emergency filling tree @ run, evt," <<  fRun << " " << fEvent << std::endl;
-	  ftree_shwf->Fill();
-	  return;
-  
-	 }
-    
-      const art::Ptr<recob::Cluster> pclust(*(it++)); 
-      auto pcoll { pclust };
-      art::FindManyP<recob::Hit> fs( pcoll, evt, fClusterModuleLabel);
-      std::vector< art::Ptr<recob::Hit> > hitlist = fs.at(0);
+      
+      // get all the hits for this cluster;
+      // pclust is a art::Ptr to the original cluster collection stored in the event;
+      // its key corresponds to its index in the collection
+      // (and therefore to the index in the query)
+      std::vector< art::Ptr<recob::Hit> > const& hitlist = ClusterHits.at(pclust.key());
       //std::cout << " hitlist size for coll " << iClustSet << " clust " << iClust << " " << hitlist.size() << std::endl;
     
       unsigned int p(0); //c=channel, p=plane, w=wire
@@ -556,12 +558,12 @@ void ShowerReco::produce(art::Event& evt)
     
       
       double ADCcharge=0;
-    //loop over cluster hits
-    for(art::PtrVector<recob::Hit>::const_iterator a = hitlist.begin(); a != hitlist.end();  a++){
-      p=  (*a)->WireID().Plane;
-      hitlist_all[p].push_back(*a);
-      ADCcharge+=(*a)->PeakAmplitude();
-    }
+      //loop over cluster hits
+      for(art::Ptr<recob::Hit> const& hit: hitlist){
+        p=  hit->WireID().Plane;
+        hitlist_all[p].push_back(hit);
+        ADCcharge+= hit->PeakAmplitude();
+      }
       fNhitsperplane[p]=hitlist_all[p].size();
       fTotADCperplane[p]=ADCcharge;
     //   unsigned int nCollections= clusterAssociationHandle->size();
