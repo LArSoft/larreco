@@ -85,6 +85,9 @@ namespace hit{
     // ###     by the number of peaks found plus one more in the pulse      ###
     void ReFitGaussians(std::vector<float> ReSignalVector,std::vector<int> RePeakTime, int mGauss, int ReStartTime, int ReEndTime);
     
+    void FillOutHitParameterVector(const std::vector<double>& input,
+				   std::vector<double>& output);
+
     // load the fit into a temp vector
     std::vector<double> tempGaus1Par;
     std::vector<double> tempGaus1ParError;
@@ -102,12 +105,11 @@ namespace hit{
     double fitWidth               = 0.;  // hit fit width initial value
     double minWidth		  = 0 ;  // hit minimum width
     std::string     fCalDataModuleLabel;
-    double          fMinSigInd;     ///<Induction signal height threshold 
-    double          fMinSigCol;     ///<Collection signal height threshold 
-    double          fIndWidth;      ///<Initial width for induction fit
-    double          fColWidth;      ///<Initial width for collection fit
-    double          fIndMinWidth;   ///<Minimum induction hit width
-    double          fColMinWidth;   ///<Minimum collection hit width
+
+    std::vector<double> fMinSig;    ///<signal height threshold
+    std::vector<double> fInitWidth; ///<Initial width for fit
+    std::vector<double> fMinWidth;  ///<Minimum hit width
+    
     int             fMaxMultiHit;   ///<maximum hits for multi fit 
     int             fAreaMethod;    ///<Type of area calculation  
     std::vector<double> fAreaNorms; ///<factors for converting area to same units as peak height 
@@ -148,19 +150,40 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
   
 //-------------------------------------------------
 //-------------------------------------------------
+void GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
+					      std::vector<double>& output)
+{
+  if(input.size()==0)
+    throw std::runtime_error("GausHitFinder::FillOutHitParameterVector ERROR! Input config vector has zero size.");
+
+   art::ServiceHandle<geo::Geometry> geom;
+   const unsigned int N_PLANES = geom->Nplanes();
+
+  if(input.size()==1)
+    output.resize(N_PLANES,input[0]);
+  else if(input.size()==N_PLANES)
+    output = input;
+  else
+    throw std::runtime_error("GausHitFinder::FillOutHitParameterVector ERROR! Input config vector size !=1 and !=N_PLANES.");
+      
+}
+						
+  
+//-------------------------------------------------
+//-------------------------------------------------
 void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
 {
   // Implementation of optional member function here.
   fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
-  fMinSigInd          = p.get< double       >("MinSigInd");
-  fMinSigCol          = p.get< double       >("MinSigCol");
-  fIndWidth           = p.get< double       >("IndWidth");
-  fColWidth           = p.get< double       >("ColWidth");
-  fIndMinWidth        = p.get< double       >("IndMinWidth");
-  fColMinWidth        = p.get< double       >("ColMinWidth");
+
+  FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),fMinSig);
+  FillOutHitParameterVector(p.get< std::vector<double> >("InitWidth"),fInitWidth);
+  FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),fMinWidth);
+  FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),fAreaNorms);
+
+  
   fMaxMultiHit        = p.get< int          >("MaxMultiHit");
   fAreaMethod         = p.get< int          >("AreaMethod");
-  fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
   fTryNplus1Fits      = p.get< int          >("TryNplus1Fits");
   fChi2NDFRetry       = p.get< double       >("Chi2NDFRetry");
   fChi2NDF            = p.get< double       >("Chi2NDF");
@@ -261,8 +284,6 @@ void GausHitFinder::produce(art::Event& evt)
    art::FindOneP<raw::RawDigit> RawDigits
      (wireVecHandle, evt, fCalDataModuleLabel);
    
-   // Signal Type (Collection or Induction)
-   geo::SigType_t sigType;
    // Channel Number
    raw::ChannelID_t channel = raw::InvalidChannelID;
    //##############################
@@ -303,24 +324,14 @@ void GausHitFinder::produce(art::Event& evt)
       
       // --- Setting Channel Number and Signal type ---
       channel = wire->Channel();
-      sigType = geom->SignalType(channel);
       // ----------------------------------------------------------
       // -- Setting the appropriate signal widths and thresholds --
-      // --    for either the collection or induction plane      --
+      // --    for the right plane.      --
       // ----------------------------------------------------------
-      if(sigType == geo::kInduction) //<---Induction Plane
-      	{
-      	threshold     = fMinSigInd;
-      	fitWidth      = fIndWidth;
-      	minWidth      = fIndMinWidth;
-    	}//<-- End if Induction Plane
-      else if(sigType == geo::kCollection) //<---Collection Plane
-      	{
-      	threshold = fMinSigCol;
-      	fitWidth  = fColWidth;
-      	minWidth  = fColMinWidth;
-    	}//<-- End if Collection Plane
-	
+
+      threshold     = fMinSig.at(wire->View());
+      fitWidth      = fInitWidth.at(wire->View());
+      minWidth      = fMinWidth.at(wire->View());	
 	
       // #################################################
       // ### Getting a vector of signals for this wire ###
@@ -611,7 +622,7 @@ void GausHitFinder::produce(art::Event& evt)
 	    // ######################################################
 	    if(fAreaMethod) 
 	       {
-	       totSig = std::sqrt(2*TMath::Pi())*tempPar[3*cc]*tempPar[(3*cc)+2]/fAreaNorms[(size_t)sigType];
+		 totSig = std::sqrt(2*TMath::Pi())*tempPar[3*cc]*tempPar[(3*cc)+2]/fAreaNorms[(size_t)(wire->View())];
 	       }//<---End Area Method
 	    
 	    Charge.push_back( totSig );
