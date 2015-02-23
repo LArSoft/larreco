@@ -62,6 +62,16 @@ namespace cluster {
     virtual void SetHits(std::vector<recob::Hit const*> const& hits) override;
     
     
+    /**
+     * @brief Sets the list of input hits
+     * @param hits list of hits (hits will not be modified)
+     * @throw undefined in case of error, this method can throw (anything)
+     * @see ClusterParamsAlgBase::SetHits(std::vector<recob::Hit> const&)
+     */
+    virtual void SetHits(std::vector<recob::Hit> const& hits) override
+      { ClusterParamsAlgBase::SetHits(hits); }
+    
+    
     /// Set the verbosity level
     virtual void SetVerbose(int level = 1) override;
     
@@ -170,7 +180,7 @@ namespace cluster {
      * cluster, and NMultiHitWires is the number of wires which have more
      * than just one hit.
      */
-    virtual float MultipleHitWires() override;
+    virtual float MultipleHitDensity() override;
     
     /**
      * @brief Computes the width of the cluster
@@ -181,8 +191,12 @@ namespace cluster {
     virtual float Width() override;
     
     
+    /// Returns the number of input hits
+    size_t NInputHits() const;
+    
       protected:
     ClusterParamsAlg algo; ///< the actual algorithm class
+    
     
   }; //class StandardClusterParamsAlg
   

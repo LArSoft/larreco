@@ -31,66 +31,99 @@
 #include "RecoAlg/RootMathFunctor.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
+#include "TVector3.h"
+#include <math.h>
+#include <cmath>
 
 using namespace std;
 
-Double_t xmeas[100]; Double_t ymeas[100]; Double_t eymeas[100]; Int_t n_gr;
+// Global variables/input 
+
+// A. ---> for the TMinuit2 chi^2 minimization !
+
+Double_t xmeas[30]; Double_t ymeas[30]; Double_t eymeas[30]; Int_t nmeas;
+
+// B. ---> For the LLHD raster scan !
+
+// ..
 
 namespace trkf{
+  
+  class TrackMomentumCalculator
+  {
+    Int_t n;
+  
+    Double_t x[50000]; Double_t y[50000]; Double_t z[50000];
+        
+    Int_t n_reco;
+  
+    Float_t x_reco[50000]; Float_t y_reco[50000]; Float_t z_reco[50000];
+        
+    Float_t seg_size; Float_t seg_stop; Int_t n_seg;
+    
+    Float_t x_seg[50000]; Float_t y_seg[50000]; Float_t z_seg[50000];
+            
+    TVector3 basex; TVector3 basey; TVector3 basez; 
+       
+    std::vector<Float_t> segx; std::vector<Float_t> segy; std::vector<Float_t> segz; 
+  
+    std::vector<Float_t> segnx; std::vector<Float_t> segny; std::vector<Float_t> segnz;
+    
+    std::vector<Float_t> segL;
+    
+    Double_t find_angle( Double_t vz, Double_t vy );
+    
+    Float_t steps_size; Int_t n_steps; std::vector<Float_t> steps;
+    
+    Float_t steps_size2;
+        
+    Float_t kcal;
+    
+    std::vector<Float_t> dthij; std::vector<Float_t> dEi; std::vector<Float_t> dEj; std::vector<Float_t> ind;
+        
+  public:
+    
+    // Constructor and destructor  // 
+    
+    TrackMomentumCalculator();
+    
+    virtual ~TrackMomentumCalculator() {}
+    
+    double GetTrackMomentum(double trkrange, int pdg);
+    
+    TPolyLine3D *gr_xyz; TGraph *gr_xy; TGraph *gr_yz; TGraph *gr_xz; 
+    
+    Int_t GetTracks( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz );
+        
+    TPolyLine3D *gr_reco_xyz; TGraph *gr_reco_xy; TGraph *gr_reco_yz; TGraph *gr_reco_xz; 
+    
+    Int_t GetRecoTracks( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz );
+        
+    TPolyLine3D *gr_seg_xyz; TGraph *gr_seg_xy; TGraph *gr_seg_yz; TGraph *gr_seg_xz; 
 
-   class TrackMomentumCalculator
-   {
-     Double_t do_steps; Int_t nsteps; std::vector<Float_t> steps;
-     
-     Double_t seg_size; Double_t stop; Int_t n_seg;
-     
-     Double_t x_seg[100000]; Double_t y_seg[100000]; Double_t z_seg[100000];
-     
-     Double_t find_angle( Double_t vz, Double_t vy );
-     
-     void normalizer( std::vector<Double_t>& v1 );
-     
-     Double_t dot_prod( const std::vector<Double_t>& v1, const std::vector<Double_t>& v2 );
-     
-     void cross_prod( const std::vector<Double_t>& v1, const std::vector<Double_t>& v2, std::vector<Double_t>& v3 );
-     
-     std::vector<Double_t> basex; std::vector<Double_t> basey; std::vector<Double_t> basez;
-     
-   public:
-     
-     // Constructor and destructor  // 
-     
-     TrackMomentumCalculator();
-     
-     virtual ~TrackMomentumCalculator() {}
-     
-     double GetTrackMomentum(double trkrange, int pdg);
-          
-     TPolyLine3D *gr_seg_xyz; TGraph *gr_seg_xy; TGraph *gr_seg_yz; TGraph *gr_seg_xz; 
-     
-     std::vector<Float_t> segx; std::vector<Float_t> segy; std::vector<Float_t> segz; 
-     
-     std::vector<Float_t> segnx; std::vector<Float_t> segny; std::vector<Float_t> segnz;
-               
-     TGraphErrors *gr_meas;
-     
-     Int_t GetSegTracks( const std::vector<Float_t>& xxx, const std::vector<Float_t>& yyy, const std::vector<Float_t>& zzz );
-     
-     Int_t GetSegTracks1( const std::vector<Float_t>& xxx, const std::vector<Float_t>& yyy, const std::vector<Float_t>& zzz );
-     
-     void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
-          
-     Double_t GetMomentumMultiScatterChi2(const art::Ptr<recob::Track> &trk );
-          
-     Double_t p_reco; 
-     
-     Double_t p_reco_e; 
-     
-     Double_t chi2;
-     
-   };
-   
+    Int_t GetSegTracks2( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz );
+    
+    void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
+    
+    TGraphErrors *gr_meas;
+
+    Double_t GetMomentumMultiScatterChi2( const art::Ptr<recob::Track> &trk );
+    
+    Double_t p_mcs; Double_t p_mcs_e; Double_t chi2;
+    
+    Int_t GetDeltaThetaij( std::vector<Float_t> &ei, std::vector<Float_t> &ej, std::vector<Float_t> &th, Double_t thick, std::vector<Float_t> &ind );
+    
+    Double_t my_g( Double_t xx, Double_t Q, Double_t s );
+        
+    Double_t my_mcs_llhd( Double_t x0, Double_t x1 );
+        
+    Double_t GetMomentumMultiScatterLLHD( const art::Ptr<recob::Track> &trk );
+    
+    Double_t p_mcs_2; Double_t LLbf;
+        
+  };
+  
+  
 } //namespace trkf
 
-#endif // TrackMomentumCalculator_H         
-	
+#endif // TrackMomentumCalculator_H  

@@ -222,7 +222,7 @@ namespace hit {
 	// minWidth = fIndMinWidth;
 	//	continue;
 	float negthr=-1.0*threshold;
-	unsigned int bin =0;
+	unsigned int bin =1;
 	float minadc=0;
       	
 	// find the dips
@@ -346,6 +346,11 @@ namespace hit {
 	geo::WireID wid = wids[0];
 	
 	// make the hit
+	if (start>=end){
+	  mf::LogWarning("RawHitFinder_module") << "Hit start "<<start<<" is >= hit end "<<end;
+	  continue;
+	}
+	  
 	recob::HitCreator hit(
 	  *digitVec,        // raw digit reference
 	  wid,              // wire ID
@@ -366,9 +371,9 @@ namespace hit {
 	  int(end - start)  // dof
 	  );
 	hcol.emplace_back(hit.move(), digitVec);
-	
+	++hitIndex;
       }//end loop over hits
-      hitIndex += numHits;	
+      //hitIndex += numHits;	
     } // end loop over channels
     
 

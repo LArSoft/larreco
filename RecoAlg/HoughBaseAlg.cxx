@@ -1402,7 +1402,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 	  ClusterParamAlgo.SummedADC().value(),         // summedADC
 	  ClusterParamAlgo.SummedADCStdDev().value(),   // summedADC_stddev
 	  ClusterParamAlgo.NHits(),                     // n_hits
-	  ClusterParamAlgo.MultipleHitWires(),           // multiple_hit_wires
+	  ClusterParamAlgo.MultipleHitDensity(),           // multiple_hit_density
 	  ClusterParamAlgo.Width(),                     // width
 	  clusterID,                                    // ID
 	  FirstHit.View(),                              // view
@@ -1777,7 +1777,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       clusterHits.clear();    
       if(lastHits.size() < 5) continue;
       
-      lar::util::StatCollector<float> integralQ, summedQ;
+      // reduce rounding errors by using double (RMS is very sensitive to them)
+      lar::util::StatCollector<double> integralQ, summedQ;
       
       for(size_t i = 0; i < lastHits.size(); ++i) {
         clusterHits.push_back(hit.at(hitTemp.at(lastHits.at(i))));

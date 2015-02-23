@@ -535,7 +535,7 @@ namespace cluster{
           ClusterParamAlgo.SummedADC().value(),       // summedADC
           ClusterParamAlgo.SummedADCStdDev().value(), // summedADC_stddev
           ClusterParamAlgo.NHits(),                   // n_hits
-          ClusterParamAlgo.MultipleHitWires(),        // multiple_hit_wires
+          ClusterParamAlgo.MultipleHitDensity(),        // multiple_hit_density
           cl1.Width(),                                // width
           clusterID,                                  // ID
           cl1.View(),                                 // view

@@ -174,39 +174,37 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
     if( fReadOutWindowSize != fNumberTimeSamples ) {
       if( tdc < spill*fReadOutWindowSize || 
           tdc > (spill+1)*fReadOutWindowSize )  continue;
+     } else {
+      if ( tdc < 0 || tdc > fReadOutWindowSize) continue;
     }
     
     // figure out which TPC we are in for each voxel
-    std::vector<double> pos(3, 0.);
-    unsigned int tpc   = 0;
-    unsigned int cstat = 0;
-    float        edep  = 0.;
 
     for(auto const& ideitr : mapitr.second){
 
-      edep = ideitr.numElectrons;
+      const float edep = ideitr.numElectrons;
       
+      std::array<double, 3> pos;
       pos[0] = ideitr.x;
       pos[1] = ideitr.y;
       pos[2] = ideitr.z;
 
-      try{
-        geo->PositionToTPC(&pos[0], tpc, cstat);
-      }
-      catch(cet::exception &e){
-        mf::LogWarning("HitCheater") << "caught exception \n"
-                                     << e
-                                     << "when attempting to find TPC for position "
-                                     << "move on to the next sim::IDE";
+      geo::TPCID tpcID = geo->FindTPCAtPosition(pos.data());
+      if (!tpcID.isValid) {
+        mf::LogWarning("HitCheater") << "TPC for position ( "
+          << pos[0] << " ; " << pos[1] << " ; " << pos[2] << " )"
+          << " in no TPC; move on to the next sim::IDE";
         continue;
       }
+      const unsigned int tpc   = tpcID.TPC;
+      const unsigned int cstat = tpcID.Cryostat;
 
       for( auto const& wid : wireids){
         if(wid.TPC == tpc && wid.Cryostat == cstat){
           // in the right TPC, now figure out which wire we want
           // this works because there is only one plane option for 
           // each WireID in each TPC
-          if(wid.Wire == geo->NearestWire(pos, wid.Plane, wid.TPC, wid.Cryostat))
+          if(wid.Wire == geo->NearestWire(pos.data(), wid.Plane, wid.TPC, wid.Cryostat))
             wireIDSignals[wid][tdc] += edep;
         }// end if in the correct TPC and Cryostat
       }// end loop over wireids for this channel
@@ -223,19 +221,16 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
     double         maxCharge    = -1.;
     double         peakTime     = 0.;
     int            multiplicity =  1 ;
-    lar::util::StatCollector<float> time;
-    std::vector<float> signal;
+    lar::util::StatCollector<double> time; // reduce rounding errors
 
     // loop over all the tdcs for this geo::WireID
     for( auto tdcitr : widitr.second){
       unsigned short tdc = tdcitr.first;
-      if (tdc <= prev) {
+      if (tdc < prev) {
         throw art::Exception(art::errors::LogicError)
           << "SimChannel TDCs going backward!";
       }
       
-      double adc = fElectronsToADC*tdcitr.second;
-
       // more than a one tdc gap between times with 
       // signal, start a new hit
       if(tdc - prev > fNewHitTDCGap){
@@ -272,16 +267,16 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
         totCharge = 0.;
         maxCharge = -1.;
         time.clear();
-        signal.clear();
 
       }// end if need to start a new hit
       
-      // if we have skipped TDCs, we need to fill the missing signal with 0's
-      while ((int) signal.size() < tdc - startTime) signal.push_back(0.);
-      signal.push_back(adc);
-      
+      const double adc = fElectronsToADC*tdcitr.second;
+
       totCharge += adc;
-      time.add(tdc, adc); // use ADC as weight
+      // use ADC as weight; the shift reduces the precision needed;
+      // average would need to be shifted back: time.Averatge() + startTime
+      // but RMS is not affected
+      time.add(tdc - startTime, adc);
       if(adc > maxCharge){
         maxCharge = adc;
         peakTime = tdc;
@@ -297,7 +292,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
       hits.emplace_back(
         channel,       // channel
         (raw::TDCtick_t) startTime,       // start_tick
-        (raw::TDCtick_t) prev,            // end_tick
+        (raw::TDCtick_t) prev + 1,        // end_tick; prev included in the hit
         peakTime,                         // peak_time
         1.,                               // sigma_peak_time
         time.RMS(),                       // RMS

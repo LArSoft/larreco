@@ -244,6 +244,24 @@ namespace cluster {
      */
     double EndCharge(float length = 1., unsigned int nbins = 10);
     
+    /**
+     * @brief Returns the number of multiple hits per wire
+     * @return the number of multiple hits per wire
+     * 
+     * This returns the fraction of wires that have more than one hit belonging
+     * to this cluster.
+     */
+    float MultipleHitWires();
+
+    /**
+     * @brief Returns the number of multiple hits per wire
+     * @return the number of multiple hits per wire
+     * 
+     * This returns the number of wires with mmore than one hit belonging
+     * to this cluster, divided by the cluster length in cm.
+     */
+    float MultipleHitDensity();
+
     
     void EnableFANN();
 

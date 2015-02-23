@@ -85,10 +85,6 @@ namespace hit{
   void DisambigCheater::produce(art::Event & evt)
   {
     
-    // this object contains the hit collection
-    // and its associations to wires and raw digits:
-    recob::HitCollectionCreator hits(*this, evt);
-    
     // get hits on channels
     art::Handle< std::vector<recob::Hit> > ChanHits;
     evt.getByLabel(fChanHitLabel, ChanHits);
@@ -99,7 +95,15 @@ namespace hit{
     // we assume they have been created by the same module as the hits
     art::FindOneP<raw::RawDigit> ChannelHitRawDigits
       (ChanHits, evt, fChanHitLabel);
+    const bool doRawDigitAssns = ChannelHitRawDigits.isValid();
+    
     art::FindOneP<recob::Wire> ChannelHitWires(ChanHits, evt, fChanHitLabel);
+    const bool doWireAssns = ChannelHitWires.isValid();
+    
+    // this object contains the hit collection
+    // and its associations to wires and raw digits
+    // (if the original objects have them):
+    recob::HitCollectionCreator hits(*this, evt, doWireAssns, doRawDigitAssns);
     
 
     // find the wireIDs each hit is on
@@ -110,8 +114,10 @@ namespace hit{
     for(size_t h=0; h<ChHits.size(); h++){
       
       // get the objects associated with this hit
-      art::Ptr<recob::Wire> wire = ChannelHitWires.at(h);
-      art::Ptr<raw::RawDigit> rawdigits = ChannelHitRawDigits.at(h);
+      art::Ptr<recob::Wire> wire;
+      if (doWireAssns) wire = ChannelHitWires.at(h);
+      art::Ptr<raw::RawDigit> rawdigits;
+      if (doRawDigitAssns) rawdigits = ChannelHitRawDigits.at(h);
       
       // the trivial Z hits
       if(ChHits[h]->View()==geo::kZ){
@@ -168,30 +174,31 @@ namespace hit{
   {
     
     unsigned int Ucount(0), Vcount(0);
-
     for( size_t h = 0; h < ChHits.size(); h++ ){
+      recob::Hit const& chit = *(ChHits[h]);
       if( ChHits[h]->View() == geo::kZ ) continue;
       if( ChHits[h]->View() == geo::kU ) Ucount++;
       else if( ChHits[h]->View() == geo::kV ) Vcount++;
-      art::Ptr<recob::Hit> chit = ChHits[h];
-      std::vector<geo::WireID> cwids = geom->ChannelToWire(chit->Channel());
-      std::pair<double,double> ChanTime( chit->Channel()*1., chit->PeakTime()*1.); // hit key value 
+      std::vector<geo::WireID> cwids = geom->ChannelToWire(chit.Channel());
+      std::pair<double,double> ChanTime( (double) chit.Channel(), (double) chit.PeakTime()); // hit key value 
       
       // get hit IDEs
       std::vector< sim::IDE > ides;
       bt->HitToSimIDEs( chit, ides );
       
       // catch the hits that have no IDEs
-      std::vector<double> xyzpos;
-      try{	xyzpos = bt->SimIDEsToXYZ(ides);      }
-      catch(...){
-	mf::LogVerbatim("DisambigCheat") << "Hit on channel " << chit->Channel()
-					 << " between " << chit->PeakTimeMinusRMS()
-					 << " and " << chit->PeakTimePlusRMS() << " matches no IDEs.";
-	std::vector< geo::WireID > emptyWids;
-	fHitToWids[ChanTime] = emptyWids;
-	  continue;
-      }
+      bool hasIDEs = !ides.empty();
+      if (hasIDEs) {
+        try        { bt->SimIDEsToXYZ(ides); }
+        catch(...) { hasIDEs = false; }
+      } // if
+      if (!hasIDEs) {
+        mf::LogVerbatim("DisambigCheat") << "Hit on channel " << chit.Channel()
+                                         << " between " << chit.PeakTimeMinusRMS()
+                                         << " and " << chit.PeakTimePlusRMS() << " matches no IDEs.";
+        fHitToWids[ChanTime] = std::vector< geo::WireID >();
+        continue;
+      } // if no IDEs
       
       // see what wire ID(s) the hit-IDEs are on
       //  if none: hit maps to empty vector
@@ -199,17 +206,19 @@ namespace hit{
       //  if more than one: make a vector of all wids
       std::vector<geo::WireID> widsWithIdes; 
       for( size_t i=0; i<ides.size(); i++ ){
-	double xyzIde[] = { ides[i].x, ides[i].y, ides[i].z };
-	unsigned int tpc, cryo;
+	const double xyzIde[] = { ides[i].x, ides[i].y, ides[i].z };
 
 	// Occasionally, ide position is not in TPC
 	/// \todo: Why would an IDE xyz position be outside of a TPC?
-	try{	geom->PositionToTPC( xyzIde, tpc, cryo );     }
-	catch(...){   mf::LogWarning("DisambigCheat") << "IDE at x = " << xyzIde[0] 
-						      << ", y = " << xyzIde[1]
-						      << ", z = " << xyzIde[2]
-						      << " does not correspond to a TPC.";
-	              continue;    }
+	geo::TPCID tpcID = geom->FindTPCAtPosition(xyzIde);
+	if (!tpcID.isValid) {
+	  mf::LogWarning("DisambigCheat") << "IDE at x = " << xyzIde[0] 
+	                                  << ", y = " << xyzIde[1]
+	                                  << ", z = " << xyzIde[2]
+	                                  << " does not correspond to a TPC.";
+	  continue;
+	}
+	unsigned int tpc = tpcID.TPC, cryo = tpcID.Cryostat;
 	
 	// NearestWire seems to be missing some correction that is applied in LArG4, and is
 	// sometimes off by one or two wires. Use it and then correct it given channel
@@ -241,9 +250,10 @@ namespace hit{
       
     } // end U/V channel hit loop
     
-    
-    if(fHitToWids.size() != Ucount + Vcount) throw cet::exception("DisambigCheat");
-    
+    if(fHitToWids.size() != Ucount + Vcount){
+      //throw cet::exception("DisambigCheat");
+      mf::LogWarning("DisambigCheat")<<"Nhits mismatch: "<<fHitToWids.size()<<" "<<Ucount+Vcount;
+    }
     return;
 }
 
