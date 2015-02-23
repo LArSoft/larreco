@@ -29,6 +29,9 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
+// art extensions
+#include "artextensions/SeedService/SeedService.hh"
+
 // LArSoft includes
 
 #include "Geometry/Geometry.h"
@@ -38,7 +41,6 @@
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/FetchRandomSeed.h"
 #include "SimulationBase/MCTruth.h"
 #include "Simulation/sim.h"
 
@@ -149,11 +151,9 @@ Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset)
 
   this->reconfigure(pset);
   
-  // obtain the random seed from a service,
-  // unless overridden in configuration with key "Seed" (that is default)
-  const unsigned int seed = lar::util::FetchRandomSeed(&pset);
-  
-  createEngine(seed);
+  // create a default random engine; obtain the random seed from SeedService,
+  // unless overridden in configuration with key "Seed"
+  art::ServiceHandle<artext::SeedService>()->createEngine(*this, pset, "Seed");
   
   produces< std::vector<recob::Track> >();
   produces< std::vector<recob::SpacePoint>              >();

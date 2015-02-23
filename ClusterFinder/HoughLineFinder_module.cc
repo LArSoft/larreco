@@ -50,6 +50,9 @@ extern "C" {
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 #include "CLHEP/Random/JamesRandom.h"
 
+// art extensions
+#include "artextensions/SeedService/SeedService.hh"
+
 // LArSoft includes 
 #include "RawData/RawDigit.h"
 #include "RecoBase/Cluster.h"
@@ -57,7 +60,6 @@ extern "C" {
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/HoughBaseAlg.h"
 #include "art/Framework/Core/EDProducer.h"
-#include "Utilities/FetchRandomSeed.h"
 
 //#ifndef CLUSTER_HOUGHLINEFINDER_H
 //#define CLUSTER_HOUGHLINEFINDER_H
@@ -106,12 +108,12 @@ namespace cluster {
     produces< std::vector<recob::Cluster> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     
-    // Create random number engine needed for PPHT
-    // obtain the random seed from a service,
-    // unless overridden in configuration with key "Seed" (that is default);
+    // Create random number engine needed for PPHT;
+    // obtain the random seed from SeedService,
+    // unless overridden in configuration with key "Seed"
     // remember that HoughSeed will override this on each event if specified
-    const unsigned int seed = lar::util::FetchRandomSeed(&pset);
-    createEngine(seed);
+    art::ServiceHandle<artext::SeedService>()
+      ->createEngine(*this, pset, "Seed");
   }
   
   //------------------------------------------------------------------------------

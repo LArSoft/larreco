@@ -12,7 +12,7 @@ art_make( BASENAME_ONLY
                            RecoBase
                            Geometry
                            Geometry_service
-                           Utilities
+                           ${SEEDSERVICE_SERVICE} # artextensions
                            ${SIMULATIONBASE}
                            ${ART_FRAMEWORK_CORE}
                            ${ART_FRAMEWORK_PRINCIPAL}
