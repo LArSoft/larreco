@@ -36,8 +36,10 @@
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Track.h"
-#include "RecoBase/EndPoint2D.h"
 #include "RecoBase/Vertex.h"
+#include "RecoBase/PFParticle.h"
+#include "RecoBase/Seed.h"
+
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
@@ -71,7 +73,6 @@ namespace trkf {
 
     std::string     fHitModuleLabel; 
     std::string     fClusterModuleLabel; 
-    std::string     fEndPoint2DModuleLabel; 
     std::string     fVertexModuleLabel;
 
     // services
@@ -85,13 +86,11 @@ namespace trkf {
     short fMatchAlgs;
     float fMaxDAng;
     float fMergeChgAsym;
-    // conversion from dT/dW to dX/dU
-    float fTickToDist;
     float fWirePitch;
-    float fScaleF;
     float fXMatchErr;
     float fAngleMatchErr;
     float fChgAsymFactor;
+    bool fMakePFPs;
     
     short fDebugPlane;
     short fDebugCluster;
@@ -104,14 +103,12 @@ namespace trkf {
     // Cluster parameters
     struct clPar{
       std::array<float, 2> Wire;      // Begin/End Wire
-//      std::array<float, 2> Time;    // Begin/End Time
       std::array<float, 2> X;         // Begin/End X
       std::array<short, 2> Time;      // Begin/End Time
       std::array<float, 2> Slope;     // Begin/End slope (dT/dW)
       std::array<float, 2> Charge;    // Begin/End charge
       std::array<float, 2> Angle;     // Begin/End angle (radians)
       std::array<float, 2> Dir;       // Product of end * slope
-      std::array<short, 2> EP2Index;  // EndPoint2D index
       std::array<short, 2> VtxIndex;  // Vertex index
       std::array<short, 2> mVtxIndex; // "Maybe" Vertex index
       std::array<short, 2> BrkIndex;  // Broken cluster index
@@ -127,39 +124,36 @@ namespace trkf {
     // array of cluster matches in each plane
     std::array<std::vector<short>, 3> clmat;
     // begin and end vertex indices
-    std::array<short, 2> clmatVxID;
+    std::array<short, 2> clmatVxIndex;
     // and the end match ordering
     std::array<unsigned short, 3> clend;
     
-    // EndPoint2D parameters 
-    struct EP2Par{
-      float Wir;
-      float X;
-    };
-    std::array<std::vector<EP2Par>, 3> ep2;
-    
     // 3D Vertex info
     struct vtxPar{
-      unsigned short ID;
+      unsigned short EvtIndex;
       float X;
       float Y;
       float Z;
-      std::array<std::vector<short>, 3> clIndex; // index to clusters in each plane (<0 = DS)
+      std::array<unsigned short, 3> nClusInPln;
+      bool Neutrino;
     };
     
     std::vector<vtxPar> vtx;
     
     struct TrkPar{
-      unsigned short ID;
+      short ID;
       unsigned short Proc; // 1 = VtxMatch, 2 = ...
       std::array< std::vector<art::Ptr<recob::Hit>>, 3> trkHits;
       std::vector<TVector3> trjPos;
       std::vector<TVector3> trjDir;
       std::array<short, 2> VtxIndex;
+      std::vector<unsigned short> ClsEvtIndices;
+      float Length;
       short ChgOrder;
       short MomID;
       short nDtr;
       std::array<short, 20> DtrID;
+      short PDGCode;
     };
     std::vector<TrkPar> trk;
     
@@ -169,6 +163,11 @@ namespace trkf {
     
     // Array of pointers to hits in each plane for one track
     std::array< std::vector<art::Ptr<recob::Hit>>, 3> trkHits;
+    
+    // Array of PFParticle -> track IDs. The first element will be
+    // track ID = 0 indicating that this is a neutrino PFParticle and
+    // there is no associated track
+    std::vector<unsigned short> pfpToTrkID;
 
     // characterize the match between clusters in 2 or 3 planes
     struct MatchPars {
@@ -204,20 +203,21 @@ namespace trkf {
     void VtxMatch(art::Event& evt,
                 std::vector<art::Ptr<recob::Hit>> const& allhits,
                 std::array<std::vector<clPar>, 3>& cls,
+                std::vector<TrkPar>& trk,
                 std::vector<vtxPar>& vtx,
-                art::FindManyP<recob::Hit> const& fmCluHits, 
-                std::unique_ptr<std::vector<recob::Track>>& tcol,
-                std::unique_ptr<art::Assns<recob::Track, recob::Hit>>& thassn);
+                art::FindManyP<recob::Hit> const& fmCluHits);
 
     // match clusters in all planes
     void PlnMatch(art::Event& evt,
                 std::vector<art::Ptr<recob::Hit>> const& allhits,
                 std::array<std::vector<clPar>, 3>& cls,
+                std::vector<TrkPar>& trk,
                 std::vector<vtxPar>& vtx,
-                art::FindManyP<recob::Hit> const& fmCluHits, 
-                std::unique_ptr<std::vector<recob::Track>>& tcol,
-                std::unique_ptr<art::Assns<recob::Track, recob::Hit>>& thassn);
-
+                art::FindManyP<recob::Hit> const& fmCluHits);
+    
+    // Make the track/vertex and mother/daughter relationships
+    void MakeFamily(std::vector<TrkPar>& trk);
+    void TagCosmics(std::vector<TrkPar>& trk, unsigned int cstat, unsigned int tpc);
     
     // fill the end matching parameters in the MatchPars struct
     void FillEndMatch(std::vector<art::Ptr<recob::Hit>> const& allhits,
@@ -227,11 +227,15 @@ namespace trkf {
     
     void SortMatches(std::vector<MatchPars>& matcomb,
                      art::FindManyP<recob::Hit> const& fmCluHits,
-                     std::array<std::vector<clPar>, 3>& cls, 
+                     std::array<std::vector<clPar>, 3>& cls,
+                     std::vector<TrkPar>& trk, 
                      unsigned short procCode);
 
-    // fill the trkHits array using information
-    void FillTrkHits(art::FindManyP<recob::Hit> const& fmCluHits, bool& success);
+    // fill the trkHits array using information. Returns a vector of cluster event
+    // and a success flag
+    void FillTrkHits(std::array<std::vector<clPar>, 3>& cls,
+      art::FindManyP<recob::Hit> const& fmCluHits, 
+      std::vector<unsigned short>& clsEvtIndices, bool& success);
 
     void FillClmat(unsigned short pln, short cls, unsigned short end);
     
@@ -239,8 +243,9 @@ namespace trkf {
                   std::vector<MatchPars>& matcomb);
 
     // store the track in the trk vector
-    void StoreTrack(art::FindManyP<recob::Hit> const& fmCluHits, 
-      unsigned short procCode);
+    void StoreTrack(std::array<std::vector<clPar>, 3>& cls,
+      art::FindManyP<recob::Hit> const& fmCluHits, 
+      std::vector<TrkPar>& trk, unsigned short procCode);
     
     // Updates the spl array (index of plane numbers sorted by decreasing
     // number of hits in trkHits array)
@@ -263,11 +268,13 @@ namespace trkf {
   CCTrackMaker::CCTrackMaker(fhicl::ParameterSet const& pset)
   {
     this->reconfigure(pset);
+    produces< std::vector<recob::PFParticle>                   >();
+    produces< art::Assns<recob::PFParticle, recob::Track>      >();
+    produces< art::Assns<recob::PFParticle, recob::Cluster>    >();
+    produces< art::Assns<recob::PFParticle, recob::Seed>       >();
     produces< std::vector<recob::Track>                        >();
     produces< art::Assns<recob::Track,      recob::Hit>        >();
-//    produces< art::Assns<recob::Track,      recob::Cluster>    >();
-//    produces< art::Assns<recob::Track,      recob::SpacePoint> >();
-//    produces< art::Assns<recob::SpacePoint, recob::Hit>        >();
+    produces<std::vector<recob::Seed>                          >();
   }
 
   //-------------------------------------------------
@@ -275,7 +282,6 @@ namespace trkf {
   {
     fHitModuleLabel         = pset.get< std::string >("HitModuleLabel");
     fClusterModuleLabel     = pset.get< std::string >("ClusterModuleLabel");
-    fEndPoint2DModuleLabel  = pset.get< std::string >("EndPoint2DModuleLabel");
     fVertexModuleLabel      = pset.get< std::string >("VertexModuleLabel");
     fMatchAlgs              = pset.get< short >("MatchAlgs");
     fMaxDAng                = pset.get< float >("MaxDAng");
@@ -283,6 +289,7 @@ namespace trkf {
     fXMatchErr              = pset.get< float >("XMatchErr");
     fAngleMatchErr          = pset.get< float >("AngleMatchErr");
     fChgAsymFactor          = pset.get< float >("ChgAsymFactor");
+    fMakePFPs               = pset.get< bool >("MakePFPs");
     fDebugPlane             = pset.get< short >("DebugPlane");
     fDebugCluster           = pset.get< short >("DebugCluster");
   }
@@ -307,14 +314,19 @@ namespace trkf {
   {
 
     fWirePitch = geom->WirePitch();
-    fTickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
-    fTickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-    // scale factor to convert dT/dW into angle (radians)
-    fScaleF = fTickToDist / fWirePitch;
 
-
-    std::unique_ptr<std::vector<recob::Track>> tcol (new std::vector<recob::Track>);
+    std::unique_ptr<std::vector<recob::Track>> tcol(new std::vector<recob::Track>);
     std::unique_ptr<art::Assns<recob::Track, recob::Hit> > thassn (new art::Assns<recob::Track, recob::Hit>);
+
+//    std::vector<recob::PFParticle> spcol;
+    std::unique_ptr<std::vector<recob::PFParticle>> pcol(new std::vector<recob::PFParticle>);
+
+    std::unique_ptr< art::Assns<recob::PFParticle, recob::Track> > ptassn( new art::Assns<recob::PFParticle, recob::Track> );
+    std::unique_ptr< art::Assns<recob::PFParticle, recob::Cluster> > pcassn( new art::Assns<recob::PFParticle, recob::Cluster> );
+    std::unique_ptr< art::Assns<recob::PFParticle, recob::Seed> > psassn( new art::Assns<recob::PFParticle, recob::Seed> );
+
+    // seed collection
+    std::unique_ptr<std::vector<recob::Seed>> scol(new std::vector<recob::Seed>);
 
     // all hits
     art::Handle< std::vector<recob::Hit> > allhitsListHandle;
@@ -323,10 +335,7 @@ namespace trkf {
     art::Handle< std::vector<recob::Cluster> > clusterListHandle;
     std::vector<art::Ptr<recob::Cluster>> clusterlist;
     // hits associated with clusters
-    std::vector<art::Ptr<recob::Hit>> clusterhits;
-    // ClusterCrawler EndPoints
-    art::Handle< std::vector<recob::EndPoint2D> > EP2ListHandle;
-    std::vector<art::Ptr<recob::EndPoint2D>> ep2list;
+//    std::vector<art::Ptr<recob::Hit>> clusterhits;
     // ClusterCrawler Vertices
     art::Handle< std::vector<recob::Vertex> > VtxListHandle;
     std::vector<art::Ptr<recob::Vertex>> vtxlist;
@@ -341,37 +350,51 @@ namespace trkf {
     if(clusterlist.size() == 0) return;
     // get cluster - hit associations
     art::FindManyP<recob::Hit> fmCluHits(clusterListHandle, evt, fClusterModuleLabel);
-//    art::FindManyP<recob::Vertex> fmCluVertices(clusterListHandle, evt, fVertexModuleLabel);
-
-    // get EndPoints
-    if (evt.getByLabel(fEndPoint2DModuleLabel, EP2ListHandle))
-      art::fill_ptr_vector(ep2list, EP2ListHandle);
-    art::FindManyP<recob::Cluster, unsigned int> fmEP2Cls(EP2ListHandle, evt, fEndPoint2DModuleLabel);
 
     // get Vertices
     if (evt.getByLabel(fVertexModuleLabel, VtxListHandle))
       art::fill_ptr_vector(vtxlist, VtxListHandle);
-    art::FindManyP<recob::Cluster, unsigned int> fmVtxCls(VtxListHandle, evt, fVertexModuleLabel);
-
-/// how to access data
-//    std::vector<art::Ptr<recob::Cluster>> const& vtxCls = fmVtxCls.at(iVtx);
-//    std::vector<unsigned int*> const& vtxClsEnd = fmVtxCls.data(iVtx);
+    art::FindManyP<recob::Cluster, unsigned short> fmVtxCls(VtxListHandle, evt, fVertexModuleLabel);
 
     std::vector<CluLen> clulens;
     
-    unsigned short ipl, icl, end, iep;
+    unsigned short ipl, icl, end, itr, tID, tIndex;
     
     // some junk vectors to satisfy the recob::Track constructor
     std::vector< std::vector<double> > dQdx;
     std::vector<double> mom(2, util::kBogusD);
-    std::vector<art::Ptr<recob::Hit> > tmpHits;    
+    std::vector<art::Ptr<recob::Hit> > tmpHits;
+    std::vector<art::Ptr<recob::Cluster> > tmpCls;
+    // vector for PFParticle constructor
+    std::vector<size_t> dtrIndices;
+
+    // some vectors for recob::Seed
+    double sPos[3], sDir[3];
+    double sErr[3] = {0,0,0};
+
+// check consistency between clusters and associated hits
+    std::vector<art::Ptr<recob::Hit>> clusterhits;
+    for(icl = 0; icl < clusterlist.size(); ++icl) {
+      ipl = clusterlist[icl]->Plane().Plane;
+      clusterhits = fmCluHits.at(icl);
+      for(unsigned short iht = 0; iht < clusterhits.size(); ++iht) {
+//  if(icl == 63) mf::LogVerbatim("CCTM")<<"Hit2 "<<clusterhits[iht]->WireID().Plane<<":"<<clusterhits[iht]->WireID().Wire
+//    <<":"<<(int)clusterhits[iht]->PeakTime();
+        if(clusterhits[iht]->WireID().Plane != ipl) {
+          std::cout<<"CCTM Cluster-Hit plane mis-match "<<ipl<<" vs "<<clusterhits[iht]->WireID().Plane
+            <<" on hit "<<iht<<" Bail out! \n";
+          return;
+        } // hit-cluster plane mis-match
+      } // iht
+    } // icl
+// end check consistency
+
     for(cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
       for(tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
         nplanes = geom->Cryostat(cstat).TPC(tpc).Nplanes();
         double dW, dX;
         for(ipl = 0; ipl < 3; ++ipl) {
           cls[ipl].clear();
-          ep2[ipl].clear();
           clmat[ipl].clear();
           trkHits[ipl].clear();
         } // ipl
@@ -405,10 +428,9 @@ namespace trkf {
             clstr.Time[0] = cluster.StartTick();
             clstr.X[0] = (float)detprop->ConvertTicksToX(cluster.StartTick(), ipl, tpc, cstat);
             clstr.Angle[0] = cluster.StartAngle();
-            clstr.Slope[0] = std::tan(cluster.StartAngle()) / fScaleF;
+            clstr.Slope[0] = std::tan(cluster.StartAngle());
             clstr.Dir[0] = -1 * (2*(clstr.Slope[0]>0)-1);
             clstr.Charge[0] = cluster.StartCharge();
-            clstr.EP2Index[0] = -1;
             clstr.VtxIndex[0] = -1;
             clstr.mVtxIndex[0] = -1;
             clstr.BrkIndex[0] = -1;
@@ -418,10 +440,9 @@ namespace trkf {
             clstr.Time[1] = cluster.EndTick();
             clstr.X[1] = (float)detprop->ConvertTicksToX(cluster.EndTick(), ipl, tpc, cstat);
             clstr.Angle[1] = cluster.EndAngle();
-            clstr.Slope[1] =  std::tan(cluster.EndAngle()) / fScaleF;
+            clstr.Slope[1] =  std::tan(cluster.EndAngle());
             clstr.Dir[1] = 1 * (2*(clstr.Slope[1]>0)-1);
             clstr.Charge[1] = cluster.EndCharge();
-            clstr.EP2Index[1] = -1;
             clstr.VtxIndex[1] = -1;
             clstr.mVtxIndex[1] = -1;
             clstr.BrkIndex[1] = -1;
@@ -435,78 +456,145 @@ namespace trkf {
           } // ii (icl)
         } // ipl
         
-        // now get the endpoints
-        for(iep = 0; iep < ep2list.size(); ++iep) {
-          EP2Par endpt;
-          ipl = ep2list[iep]->WireID().Plane;
-          unsigned short epWire = ep2list[iep]->WireID().Wire;
-          endpt.Wir = (float)epWire;
-          endpt.X = (float)detprop->ConvertTicksToX(ep2list[iep]->DriftTime(), ipl, tpc, cstat);
-          ep2[ipl].push_back(endpt);
-          // get the cluster -> endpoint associations
-          std::vector<art::Ptr<recob::Cluster>> const& ep2Cls = fmEP2Cls.at(iep);
-          std::vector<const unsigned int*> const& ep2ClsEnd = fmEP2Cls.data(iep);
-          for(unsigned short ecass = 0; ecass < ep2Cls.size(); ++ecass) {
-            icl = ep2Cls[ecass]->ID() - 1;
-            unsigned int mykey = ep2Cls[ecass].key();
-            end = *ep2ClsEnd[ecass];
-            if(end > 1) {
-              mf::LogError("CCTM")<<"Bad end value from EP2Cls assn "<<end;
-              return;
-            } // end check
-  std::cout<<"EP2 "<<iep<<" -> cls "<<icl<<" mykey "<<mykey
-    <<" end "<<end<<"\n";
-            // set cluster end info
-            cls[ipl][icl].EP2Index[end] = iep;
-          } // ecass
-        } // iep
-
         // and finally the vertices
         double xyz[3];
         for(unsigned short ivx = 0; ivx < vtxlist.size(); ++ivx) {
           vtxPar aVtx;
-          aVtx.ID = vtxlist[ivx]->ID();
+          aVtx.EvtIndex = ivx;
           vtxlist[ivx]->XYZ(xyz);
           aVtx.X = xyz[0];
           aVtx.Y = xyz[1];
           aVtx.Z = xyz[2];
-          vtx.push_back(aVtx);
+          aVtx.nClusInPln[0] = 0;
+          aVtx.nClusInPln[1] = 0;
+          aVtx.nClusInPln[2] = 0;
           std::vector<art::Ptr<recob::Cluster>> const& vtxCls = fmVtxCls.at(ivx);
-          std::vector<const unsigned int*> const& vtxClsEnd = fmVtxCls.data(ivx);
+          std::vector<const unsigned short*> const& vtxClsEnd = fmVtxCls.data(ivx);
           for(unsigned short vcass = 0; vcass < vtxCls.size(); ++vcass) {
-            icl = vtxCls[vcass]->ID() - 1;
+            icl = vtxCls[vcass].key();
             // the cluster plane
             ipl = vtxCls[vcass]->Plane().Plane;
             end = *vtxClsEnd[vcass];
-            if(end > 1) {
-              mf::LogError("CCTM")<<"Bad end value from VtxCls assn "<<end;
-              return;
-            } // end check
-            aVtx.clIndex[ipl].push_back(icl);
-            // TODO search for EvtIndex
-            cls[ipl][icl].VtxIndex[end] = aVtx.ID;
+            if(end > 1) throw cet::exception("CCTM")
+              <<"Invalid end data from vertex - cluster association"<<end;
+            bool gotit = false;
+            for(unsigned short jcl = 0; jcl < cls[ipl].size(); ++jcl) {
+              if(cls[ipl][jcl].EvtIndex == icl) {
+                cls[ipl][jcl].VtxIndex[end] = ivx;
+                ++aVtx.nClusInPln[ipl];
+                gotit = true;
+                break;
+              } // index check
+            } // jcl
+            if(!gotit) throw cet::exception("CCTM")
+              <<"Bad index from vertex - cluster association"<<icl;
           } // icl
+          vtx.push_back(aVtx);
         } // ivx
-
         // Find broken clusters
         FindBustedClusters(cls);
         FindMaybeVertices(cls, vtx, cstat, tpc);
-        if(fMatchAlgs & 1) VtxMatch(evt, allhits, cls, vtx, fmCluHits, tcol, thassn);
-        if(fMatchAlgs & 2) PlnMatch(evt, allhits, cls, vtx, fmCluHits, tcol, thassn);
+        if(fMatchAlgs & 1) VtxMatch(evt, allhits, cls, trk, vtx, fmCluHits);
+        if(fMatchAlgs & 2) PlnMatch(evt, allhits, cls, trk, vtx, fmCluHits);
+        if(trk.size() == 0) continue;
+        pfpToTrkID.clear();
+        // Determine the vertex/track hierarchy
+        if(fMakePFPs) {
+          MakeFamily(trk);
+          TagCosmics(trk, cstat, tpc);
+        }
+        // Make PFParticles -> tracks
+        for(unsigned short ipf = 0; ipf < pfpToTrkID.size(); ++ipf) {
+          // trackID of this PFP
+          tID = pfpToTrkID[ipf];
+          if(tID > trk.size()+1) {
+            mf::LogWarning("CCTM")<<"Bad track ID";
+            continue;
+          }
+          dtrIndices.clear();
+          // load the daughter PFP indices
+          for(unsigned short jpf = 0; jpf < pfpToTrkID.size(); ++jpf) {
+            itr = pfpToTrkID[jpf];
+            if(trk[itr].MomID == tID) dtrIndices.push_back(jpf);
+          } // jpf
+          unsigned short parentIndex = USHRT_MAX;
+          if(tID == 0) {
+            // make neutrino PFP USHRT_MAX == primary PFP
+  mf::LogVerbatim("CCTM")<<"neutrino "<<" pdg 14 ipf "<<ipf<<" parentIndex "<<parentIndex;
+            recob::PFParticle pfp(14, ipf, parentIndex, dtrIndices);
+            pcol->emplace_back(std::move(pfp));
+          } else if(tID > 0){
+            // make non-neutrino PFP. Need to find the parent PFP index
+            // Track index of this PFP
+            tIndex = tID - 1;
+            // trackID of this PFP parent
+            for(unsigned short ii = 0; ii < pfpToTrkID.size(); ++ii) {
+              if(pfpToTrkID[ii] == trk[tIndex].MomID) {
+                parentIndex = ii;
+                break;
+              }
+            } // ii
+// PFParticle
+  mf::LogVerbatim("CCTM")<<"daughters tID "<<tID<<" pdg "<<trk[tIndex].PDGCode
+    <<" ipf "<<ipf<<" parentIndex "<<parentIndex<<" dtr size "<<dtrIndices.size();
+            recob::PFParticle pfp(trk[tIndex].PDGCode, ipf, parentIndex, dtrIndices);
+            pcol->emplace_back(std::move(pfp));
+// track
+            // make the track
+            size_t tStart = tcol->size();
+            recob::Track track(trk[tIndex].trjPos, trk[tIndex].trjDir, dQdx, mom, tID);
+            tcol->emplace_back(std::move(track));
+            size_t tEnd = tcol->size();
+            // PFParticle - track association
+            util::CreateAssn(*this, evt, *pcol, *tcol, *ptassn, tStart, tEnd);
+            // flag this track as already put in the event
+            trk[tIndex].ID = -trk[tIndex].ID;
+            // track -> hits association
+            tmpHits.clear();
+            for(ipl = 0; ipl < nplanes; ++ipl) 
+              tmpHits.insert(tmpHits.end(), trk[tIndex].trkHits[ipl].begin(), trk[tIndex].trkHits[ipl].end());
+            util::CreateAssn(*this, evt, *tcol, tmpHits, *thassn);
+// seed
+            for(unsigned short ii = 0; ii < 3; ++ii) {
+              sPos[ii] = trk[tIndex].trjPos[0](ii);
+              sDir[ii] = trk[tIndex].trjDir[0](ii);
+            } // ii
+            size_t sStart = scol->size();
+            recob::Seed seed(sPos, sDir, sErr, sErr);
+            scol->emplace_back(std::move(seed));
+            size_t sEnd = scol->size();
+            // PFP-seed association
+            util::CreateAssn(*this, evt, *pcol, *scol, *psassn, sStart, sEnd);
+// cluster association
+            // PFP-cluster association
+            tmpCls.clear();
+            for(unsigned short ii = 0; ii < trk[tIndex].ClsEvtIndices.size(); ++ii) {
+              icl = trk[tIndex].ClsEvtIndices[ii];
+              tmpCls.push_back(clusterlist[icl]);
+            } // ii
+            util::CreateAssn(*this, evt, *pcol, tmpCls, *pcassn);
+          } // non-neutrino PFP
+        } // ipf
+
+        // make non-PFP tracks
         for(unsigned short itr = 0; itr < trk.size(); ++itr) {
-          tcol->push_back(recob::Track(trk[itr].trjPos, trk[itr].trjDir, dQdx, mom, trk[itr].ID));
+          // ignore already saved tracks
+          if(trk[itr].ID < 0) continue;
+          recob::Track track(trk[itr].trjPos, trk[itr].trjDir, dQdx, mom, trk[itr].ID);
+          tcol->emplace_back(std::move(track));
           tmpHits.clear();
           for(ipl = 0; ipl < nplanes; ++ipl) 
             tmpHits.insert(tmpHits.end(), trk[itr].trkHits[ipl].begin(), trk[itr].trkHits[ipl].end());
           util::CreateAssn(*this, evt, *tcol, tmpHits, *thassn);
         } // itr
+
         if(fDebugPlane >= 0) {
           PrintStructs();
           PrintTracks();
         }
         for(ipl = 0; ipl < nplanes; ++ipl) {
           for(icl = 0; icl < cls[ipl].size(); ++icl) {
-            if(cls[ipl][icl].Length > 40 && cls[ipl][icl].InTrack < 0)
+            if(fDebugPlane >= 0 && cls[ipl][icl].Length > 40 && cls[ipl][icl].InTrack < 0)
               mf::LogVerbatim("CCTM")<<"Orphan long cluster "<<ipl<<":"<<icl
                 <<":"<<cls[ipl][icl].Wire[0]
                 <<":"<<(int)cls[ipl][icl].Time[0]
@@ -514,28 +602,265 @@ namespace trkf {
                 <<"\n";
           } // icl
           cls[ipl].clear();
-          ep2[ipl].clear();
-        }
+        } // ipl
         vtx.clear();
         trk.clear();
       } // tpc
     } // cstat
-    
+
+    evt.put(std::move(pcol));
+    evt.put(std::move(ptassn));
+    evt.put(std::move(pcassn));
+    evt.put(std::move(psassn));
     evt.put(std::move(tcol));
     evt.put(std::move(thassn));
+    evt.put(std::move(scol));
+    
     mf::LogVerbatim("CCTM")<<"CCTrackMaker done\n";
 
 
   } // produce
 
 ///////////////////////////////////////////////////////////////////////
+  void CCTrackMaker::MakeFamily(std::vector<TrkPar>& trk)
+  {
+    // define the track/vertex and mother/daughter relationships
+    
+    unsigned short ivx, itr, ipl, ii, jtr;
+    unsigned short nus, nds, nuhs, ndhs;
+    float longUSTrk, longDSTrk, qual;
+    
+    // struct for neutrino vertex candidates
+    struct NuVtx {
+      unsigned short VtxIndex;
+      unsigned short nUSTk;
+      unsigned short nDSTk;
+      unsigned short nUSHit;
+      unsigned short nDSHit;
+      float longUSTrk;
+      float longDSTrk;
+      float Qual;
+    };
+    std::vector<NuVtx> nuVtxCand;
+    NuVtx aNuVtx;
+    
+    // analyze all of the vertices
+    float best = 999;
+    short imbest = -1;
+    bool skipVtx;
+    for(ivx = 0; ivx < vtx.size(); ++ivx) {
+      vtx[ivx].Neutrino = false;
+      nus = 0; nds = 0; nuhs = 0; ndhs = 0;
+      longUSTrk = 0; longDSTrk = 0;
+      skipVtx = false;
+      for(itr = 0; itr < trk.size(); ++itr) {
+        if(trk[itr].ID < 0) continue;
+        if(trk[itr].VtxIndex[0] == ivx) {
+          // DS-going track
+          ++nds;
+          if(trk[itr].Length > longDSTrk) longDSTrk = trk[itr].Length;
+          for(ipl = 0; ipl < nplanes; ++ipl) ndhs += trk[itr].trkHits[ipl].size();
+//  std::cout<<"ivx "<<ivx<<" DS itr "<<itr<<" len "<<trk[itr].Length<<"\n";
+        } // DS-going track
+        // Reject this vertex as a neutrino candidate if the track being
+        // considered has a starting vertex
+        if(trk[itr].VtxIndex[1] == ivx && trk[itr].VtxIndex[0] >= 0) {
+          skipVtx = true;
+          break;
+        } // trk[itr].VtxIndex[0] > 0
+        if(trk[itr].VtxIndex[1] == ivx && trk[itr].VtxIndex[0] < 0) {
+          // US-going track w no US vertex
+          ++nus;
+          if(trk[itr].Length > longUSTrk) longUSTrk = trk[itr].Length;
+          for(ipl = 0; ipl < nplanes; ++ipl) nuhs += trk[itr].trkHits[ipl].size();
+//  std::cout<<"ivx "<<ivx<<" US itr "<<itr<<" len "<<trk[itr].Length<<"\n";
+        } // US-going track
+      } // itr
+      if(skipVtx) continue;
+      if(nds == 0) continue;
+      qual = 1 / (float)nds;
+      qual /= (float)ndhs;
+      if(nus > 0) qual *= (float)nuhs / (float)ndhs;
+      if(qual < best) {
+        best = qual;
+        imbest = ivx;
+      }
+      if(nds > 0 && longDSTrk > 5) {
+        // at least one longish track going DS
+        aNuVtx.VtxIndex = ivx;
+        aNuVtx.nUSTk = nus;
+        aNuVtx.nDSTk = nds;
+        aNuVtx.nUSHit = nuhs;
+        aNuVtx.nDSHit = ndhs;
+        aNuVtx.longUSTrk = longUSTrk;
+        aNuVtx.longDSTrk = longDSTrk;
+        aNuVtx.Qual = qual;
+        nuVtxCand.push_back(aNuVtx);
+      }
+    } // ivx
+/*
+    std::cout<<"Neutrino vtx candidates \n";
+    for(unsigned short ican = 0; ican < nuVtxCand.size(); ++ican) {
+      std::cout<<"Can "<<ican<<" vtx "<<nuVtxCand[ican].VtxIndex
+        <<" nUSTk "<<nuVtxCand[ican].nUSTk
+        <<" nUSHit "<<nuVtxCand[ican].nUSHit
+        <<" longUS "<<nuVtxCand[ican].longUSTrk
+        <<" nDSTk "<<nuVtxCand[ican].nDSTk
+        <<" nDSHit "<<nuVtxCand[ican].nDSHit
+        <<" longDS "<<nuVtxCand[ican].longDSTrk
+        <<" Qual "<<nuVtxCand[ican].Qual
+        <<"\n";
+    }
+*/
+    if(imbest < 0) return;
+    
+    // Found the neutrino interaction vertex
+    ivx = imbest;
+    vtx[ivx].Neutrino = true;
+    // Put a 0 into the PFParticle -> track vector to identify a neutrino
+    // track with no trajectory or hits
+    pfpToTrkID.push_back(0);
+
+    // list of DS-going current generation daughters so we can fix next
+    // generation daughter assignments. This code section assumes that there
+    // are no decays or 2ndry interactions with US-going primary tracks.
+    std::vector<unsigned short> dtrGen;
+    std::vector<unsigned short> dtrNextGen;
+    unsigned short ndtr = 0;
+    for(itr = 0; itr < trk.size(); ++itr) {
+      if(trk[itr].ID < 0) continue;
+      if(trk[itr].VtxIndex[0] == ivx) {
+        // DS-going primary track
+        ++ndtr;
+        trk[itr].MomID = 0;
+        // call every track coming from a neutrino vertex a proton
+        trk[itr].PDGCode = 2212;
+        pfpToTrkID.push_back(trk[itr].ID);
+        dtrGen.push_back(itr);
+      } // DS-going primary track
+      if(trk[itr].VtxIndex[1] == ivx) {
+        // US-going primary track
+        ++ndtr;
+        trk[itr].MomID = 0;
+        // call every track coming from a neutrino vertex a proton
+        trk[itr].PDGCode = 2212;
+        pfpToTrkID.push_back(trk[itr].ID);
+        // reverse the track trajectory
+        std::reverse(trk[itr].trjPos.begin(), trk[itr].trjPos.end());
+        for(ii = 0; ii < trk[itr].trjDir.size(); ++ii) 
+          trk[itr].trjDir[ii] = -trk[itr].trjDir[ii];
+      } // DS-going primary track
+    } // itr
+    
+    if(dtrGen.size() == 0) return;
+    
+    unsigned short tmp;
+    unsigned short nit = 0;
+    
+    // follow daughters through all generations (< 10). Daughter tracks
+    // may go US or DS
+    while(nit < 10) {
+      ++nit;
+      dtrNextGen.clear();
+      // Look for next generation daughters
+      for(ii = 0; ii < dtrGen.size(); ++ii) {
+        itr = dtrGen[ii];
+        if(trk[itr].VtxIndex[1] >= 0) {
+          // found a DS vertex
+          ivx = trk[itr].VtxIndex[1];
+          // look for a track associated with this vertex
+          for(jtr = 0; jtr < trk.size(); ++jtr) {
+            if(jtr == itr) continue;
+            if(trk[jtr].VtxIndex[0] == ivx) {
+              // DS-going track
+              ++trk[itr].nDtr;
+              trk[itr].DtrID[trk[itr].nDtr] = jtr;
+              trk[jtr].MomID = trk[itr].ID;
+              dtrNextGen.push_back(jtr);
+              pfpToTrkID.push_back(trk[jtr].ID);
+            } // DS-going track
+            if(trk[jtr].VtxIndex[1] == ivx) {
+              // US-going track
+              ++trk[itr].nDtr;
+              trk[itr].DtrID[trk[itr].nDtr] = jtr;
+              trk[jtr].MomID = trk[itr].ID;
+              dtrNextGen.push_back(jtr);
+              pfpToTrkID.push_back(trk[jtr].ID);
+              // reverse the track trajectory
+              std::reverse(trk[jtr].trjPos.begin(), trk[jtr].trjPos.end());
+              for(unsigned short jj = 0; jj < trk[jtr].trjDir.size(); ++jj) 
+                trk[jtr].trjDir[jj] = -trk[jtr].trjDir[jj];
+              // interchange the trk - vtx assignments
+              tmp = trk[jtr].VtxIndex[0];
+              trk[jtr].VtxIndex[0] = trk[jtr].VtxIndex[1];
+              trk[jtr].VtxIndex[1] = tmp;
+            } // DS-going track
+          } // jtr
+        } // trk[itr].VtxIndex[0] >= 0
+      } // ii (itr)
+      // break out if no next gen daughters found
+      if(dtrNextGen.size() == 0) break;
+      dtrGen = dtrNextGen;
+    } // nit
+
+  } // MakeFamily
+
+///////////////////////////////////////////////////////////////////////
+  void CCTrackMaker::TagCosmics(std::vector<TrkPar>& trk, unsigned int cstat, unsigned int tpc)
+  { 
+    // Make cosmic ray PFParticles
+    unsigned short ipf, itj;
+    bool skipit = true;
+
+    double fidcut = 5;
+    // fiducial limits of the detector
+    double XLo = detprop->ConvertTicksToX(0, 0, tpc, cstat) + fidcut;
+    double XHi = detprop->ConvertTicksToX(detprop->NumberTimeSamples(), 0, tpc, cstat) - fidcut;
+
+    double YHi = geom->DetHalfHeight(tpc, cstat) - fidcut;
+    double YLo = -YHi;
+    double ZLo = fidcut;
+    double ZHi = geom->DetLength(tpc, cstat) - fidcut;
+    bool startsIn, endsIn;
+
+    for(unsigned short itk = 0; itk < trk.size(); ++itk) {
+      // ignore already used tracks
+      if(trk[itk].ID < 0) continue;
+      // ignore short tracks (< 10 cm)
+      if(trk[itk].Length < 10) continue;
+      skipit = false;
+      for(ipf = 0; ipf < pfpToTrkID.size(); ++ipf) {
+        if(pfpToTrkID[ipf] == trk[itk].ID) {
+          skipit = true;
+          break;
+        }
+      } // ipf
+      if(skipit) continue;
+      startsIn = true;
+      if(trk[itk].trjPos[0](0) < XLo || trk[itk].trjPos[0](0) > XHi) startsIn = false;
+      if(trk[itk].trjPos[0](1) < YLo || trk[itk].trjPos[0](1) > YHi) startsIn = false;
+      if(trk[itk].trjPos[0](2) < ZLo || trk[itk].trjPos[0](2) > ZHi) startsIn = false;
+      endsIn = true;
+      itj = trk[itk].trjPos.size() - 1;
+      if(trk[itk].trjPos[itj](0) < XLo || trk[itk].trjPos[itj](0) > XHi) startsIn = false;
+      if(trk[itk].trjPos[itj](1) < YLo || trk[itk].trjPos[itj](1) > YHi) startsIn = false;
+      if(trk[itk].trjPos[itj](2) < ZLo || trk[itk].trjPos[itj](2) > ZHi) startsIn = false;
+      if(!startsIn || !endsIn) {
+        // call it a cosmic muon
+        trk[itk].PDGCode = 13;
+        pfpToTrkID.push_back(trk[itk].ID);
+      }
+    } // itk
+    
+  } // TagCosmics
+
+///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::VtxMatch(art::Event& evt,
                 std::vector<art::Ptr<recob::Hit>> const& allhits,
                 std::array<std::vector<clPar>, 3>& cls,
+                std::vector<TrkPar>& trk,
                 std::vector<vtxPar>& vtx,
-                art::FindManyP<recob::Hit> const& fmCluHits, 
-                std::unique_ptr<std::vector<recob::Track>>& tcol,
-                std::unique_ptr<art::Assns<recob::Track, recob::Hit>>& thassn)
+                art::FindManyP<recob::Hit> const& fmCluHits)
   { // Use vertex assignments to match clusters
     unsigned short ivx, ii, ipl, icl, jj, jpl, jcl, kk, kpl, kcl;
     short iend, jend, kend;
@@ -551,7 +876,7 @@ namespace trkf {
       for(ipl = 0; ipl < nplanes; ++ipl) {
         for(icl = 0; icl< cls[ipl].size(); ++icl) {
           for(iend = 0; iend < 2; ++iend) {
-            if(cls[ipl][icl].VtxIndex[iend] == vtx[ivx].ID) 
+            if(cls[ipl][icl].VtxIndex[iend] == vtx[ivx].EvtIndex) 
                     vxtk[ipl].push_back(icl);
           } // end
         } // icl
@@ -559,7 +884,7 @@ namespace trkf {
 
   if(prt) {
     mf::LogVerbatim myprt("CCTM");
-    myprt<<"VtxMatch: Vertex ID "<<vtx[ivx].ID<<"\n";
+    myprt<<"VtxMatch: Vertex ID "<<vtx[ivx].EvtIndex<<"\n";
       for(ipl = 0; ipl < nplanes; ++ipl) {
           myprt<<"ipl "<<ipl<<" cls";
         for(unsigned short ii = 0; ii < vxtk[ipl].size(); ++ii) 
@@ -575,6 +900,7 @@ namespace trkf {
       for(ipl = 0; ipl < nplanes; ++ipl) {
         for(ii = 0; ii < vxtk[ipl].size(); ++ii) {
           icl = vxtk[ipl][ii];
+          // ignore used clusters and those under construction
           if(cls[ipl][icl].InTrack >= 0) continue;
           jpl = (ipl + 1) % nplanes;
           kpl = (jpl + 1) % nplanes;
@@ -582,9 +908,9 @@ namespace trkf {
             jcl = vxtk[jpl][jj];
             if(cls[jpl][jcl].InTrack >= 0) continue;
             for(iend = 1; iend >= 0; --iend) {
-              if(cls[ipl][icl].VtxIndex[iend] != vtx[ivx].ID) continue;
+              if(cls[ipl][icl].VtxIndex[iend] != vtx[ivx].EvtIndex) continue;
               for(jend = 1; jend >= 0; --jend) {
-                if(cls[jpl][jcl].VtxIndex[jend] != vtx[ivx].ID) continue;
+                if(cls[jpl][jcl].VtxIndex[jend] != vtx[ivx].EvtIndex) continue;
                 if(cls[ipl][icl].Dir[iend] != cls[jpl][jcl].Dir[jend]) continue;
                 MatchPars match;
                 match.Pln[ipl] = ipl; match.Cls[ipl] = icl; match.End[ipl] = iend;
@@ -596,7 +922,7 @@ namespace trkf {
                   if(cls[kpl][kcl].InTrack >= 0) continue;
                   for(kend = 1; kend >= 0; --kend) {
                     if(cls[kpl][kcl].Dir[kend] != cls[ipl][icl].Dir[iend]) continue;
-                    if(cls[kpl][kcl].VtxIndex[kend] != vtx[ivx].ID) continue;
+                    if(cls[kpl][kcl].VtxIndex[kend] != vtx[ivx].EvtIndex) continue;
                     match.Pln[kpl] = kpl; match.Cls[kpl] = kcl; match.End[kpl] = kend;
                     FillEndMatch(allhits, match, cstat, tpc);
                     // ignore if no signal at the other end
@@ -625,7 +951,7 @@ namespace trkf {
       
       if(matcomb.size() == 0) return;
 
-      SortMatches(matcomb, fmCluHits, cls, 1);
+      SortMatches(matcomb, fmCluHits, cls, trk, 1);
       
       prt = false;
 
@@ -652,26 +978,26 @@ namespace trkf {
         vWire = geom->WireCoordinate(vtx[ivx].Y, vtx[ivx].Z, ipl, tpc, cstat);
         ibstd = -1; ibstu = -1;
         bestd = 5; bestu = 5;
-//  std::cout<<"Pln "<<ipl<<" vWire "<<vWire<<" X "<<vtx[ivx].X<<"\n";
         for(icl = 0; icl < cls[ipl].size(); ++icl) {
           // check DS end
           if(cls[ipl][icl].VtxIndex[1] < 0) {
             dWire = vWire - cls[ipl][icl].Wire[1];
 /*
-  if(icl == 0) std::cout<<" cls Wire "<<cls[ipl][icl].Wire[1]
+  prt = (ivx == 1) && (icl == 6);
+  if(prt) std::cout<<" cls Wire "<<cls[ipl][icl].Wire[1]
     <<" slp "<<cls[ipl][icl].Slope[1]<<" X "<<cls[ipl][icl].X[1]
     <<" dWire "<<dWire<<"\n";
 */
             if(dWire > -30 && dWire < 2) {
               dX = fabs(cls[ipl][icl].X[1] + cls[ipl][icl].Slope[1] * fWirePitch * dWire
                    - vtx[ivx].X);
-//  if(icl == 0) std::cout<<" dX "<<dX<<"\n";
+//  if(prt) std::cout<<" dX "<<dX<<"\n";
               if(dX < bestd) { bestd = dX; ibstd = icl; }
             } // dWire test
           } // check DS end
           // check US end
           if(cls[ipl][icl].VtxIndex[0] < 0) {
-            dWire = vWire - cls[ipl][icl].Wire[1];
+            dWire = vWire - cls[ipl][icl].Wire[0];
             if(dWire < 30 && dWire > -2) {
               dX = fabs(cls[ipl][icl].X[0] + cls[ipl][icl].Slope[0] * fWirePitch * dWire 
                    - vtx[ivx].X);
@@ -679,15 +1005,18 @@ namespace trkf {
             } // dWire test
           } // check DS end
         } // icl
-        if(ibstd >= 0) {
+        // Good match. Ensure that we don't associate this cluster end with a vertex
+        // in which the cluster is already matched at the other end. This can happen for
+        // short clusters
+        if(ibstd >= 0 && cls[ipl][icl].VtxIndex[1-ibstd] != ivx) {
           cls[ipl][ibstd].mVtxIndex[1] = ivx;
           cls[ipl][ibstd].VtxIndex[1] = ivx;
         }
-        if(ibstu >= 0) {
+        if(ibstu >= 0 && cls[ipl][icl].VtxIndex[1-ibstu] != ivx) {
           cls[ipl][ibstu].mVtxIndex[0] = ivx;
           cls[ipl][ibstu].VtxIndex[0] = ivx;
         }
-//  std::cout<<"ibstd "<<ibstd<<"\n";
+//  if(prt) std::cout<<"ibstd "<<ibstd<<"\n";
       } // ipl
     } // ivx
     
@@ -701,7 +1030,7 @@ namespace trkf {
 
     unsigned short ipl, icl, icl1, icl2, end, oend;
     float dw, dx, dWCut, dw1Max, dw2Max;
-    float dA, dACut = fMaxDAng;
+    float dA, dA2, dACut = fMaxDAng;
     float dXCut, chgasym;
     // long straight clusters
     bool ls1, ls2;
@@ -724,7 +1053,9 @@ namespace trkf {
           if(dWCut == 0) dWCut = 2;
           // check both ends
           for(end = 0; end < 2; ++end) {
+            if(cls[ipl][icl1].BrkIndex[end] >= 0) continue;
             oend = 1 - end;
+            if(cls[ipl][icl2].BrkIndex[oend] >= 0) continue;
             // ignore if dWire exceeds the cut
             if(abs(cls[ipl][icl1].Wire[end]  
                  - cls[ipl][icl2].Wire[oend]) > dWCut) continue;
@@ -737,24 +1068,37 @@ namespace trkf {
               dXCut = 1;
             }
             dA = fabs(cls[ipl][icl1].Angle[end] - cls[ipl][icl2].Angle[oend]);
-  prt = (ipl == 1 && icl1 == 12 && icl2 == 24);
-  if(prt) std::cout<<"dA "<<dA<<" cut "<<dACut<<"\n";
+            // compare the match angle at the opposite ends of the clusters.
+            // May have a bad end/begin angle if there is a delta-ray in the middle
+            dA2 = fabs(cls[ipl][icl1].Angle[oend] - cls[ipl][icl2].Angle[end]);
+/*
+  prt = (ipl == 2 && icl1 == 2 && icl2 == 4);
+  if(prt) std::cout<<"FindBustedClusters "<<icl1<<" "<<icl2<<"\n";
+  if(prt) std::cout<<" dA "<<dA<<" dA2 "<<dA2<<" cut "<<dACut<<"\n";
+*/
+            if(dA2 < dA) dA = dA2;
             // ignore vertices that have only two associated clusters and
             // the angle is small
             if(dA < 0.1 && cls[ipl][icl1].VtxIndex[end] >= 0) {
               if(cls[ipl][icl1].VtxIndex[end] ==
                  cls[ipl][icl2].VtxIndex[oend]) {
                 unsigned short ivx = cls[ipl][icl1].VtxIndex[end];
-                if(vtx[ivx].clIndex[ipl].size() == 2) {
+/*
+  std::cout<<"small angle vtx "<<ivx<<" cls "<<icl1<<" and "<<icl2<<" plane "<<ipl
+    <<" nClusInPln "<<vtx[ivx].nClusInPln[ipl]<<"\n";
+*/
+                if(vtx[ivx].nClusInPln[ipl] == 2) {
                   cls[ipl][icl1].VtxIndex[end] = -2;
                   cls[ipl][icl2].VtxIndex[oend] = -2;
-                } //vtx[ivx].clIndex.size() == 2
+                } // vtx[ivx].nClusInPln[ipl] == 2
               } // vertices match
             } // dA < 0.1 && ...
             // angle matching
             if(dA > dACut) continue;
+/*
   if(prt) std::cout<<"rough dX "
     <<fabs(cls[ipl][icl1].X[end] - cls[ipl][icl2].X[oend])<<" cut = 6\n";
+*/
             // make a rough dX cut
             if(fabs(cls[ipl][icl1].X[end] 
                  - cls[ipl][icl2].X[oend]) > 6) continue;
@@ -766,30 +1110,32 @@ namespace trkf {
             } else {
               chgasym = fabs(cls[ipl][icl1].Charge[end] - cls[ipl][icl2].Charge[oend]);
               chgasym /= cls[ipl][icl1].Charge[end] + cls[ipl][icl2].Charge[oend];
-  if(prt) std::cout<<"chgasym "<<chgasym<<" cut "<<fMergeChgAsym<<"\n";
+//  if(prt) std::cout<<"chgasym "<<chgasym<<" cut "<<fMergeChgAsym<<"\n";
               if(chgasym > fMergeChgAsym) continue;
             } // ls1 || ls2
             // project to DS end of icl2 and make a tighter X cut
             dw = fWirePitch * (cls[ipl][icl2].Wire[oend] - 
                                cls[ipl][icl1].Wire[end]);
-            dx = cls[ipl][icl1].X[end] + cls[ipl][icl1].Slope[end] * dw 
+            dx = cls[ipl][icl1].X[end] + cls[ipl][icl1].Slope[end] * dw * fWirePitch
                - cls[ipl][icl2].X[oend];
+/*
   if(prt) std::cout
     <<" X0 "<<cls[ipl][icl1].X[end]<<" slp "<<cls[ipl][icl1].Slope[end]
     <<" dw "<<dw<<" oX "<<cls[ipl][icl2].X[oend]
     <<" dx "<<dx<<" cut "<<dXCut<<"\n";
+*/
             if(abs(dx) > dXCut) continue;
-  if(cls[ipl][icl1].BrkIndex[end] >= 0) {
-    mf::LogWarning("CCTM")<<"FBC: Trying to merge already merged cluster "
-      <<icl2<<" with "<<cls[ipl][icl1].BrkIndex[end];
-    continue;
-  }
+            if(cls[ipl][icl1].BrkIndex[end] >= 0) {
+              mf::LogWarning("CCTM")<<"FBC: Trying to merge already merged cluster "
+                <<icl2<<" with "<<cls[ipl][icl1].BrkIndex[end];
+              continue;
+            }
             cls[ipl][icl1].BrkIndex[end] = icl2;
-  if(cls[ipl][icl2].BrkIndex[oend] >= 0) {
-    mf::LogWarning("CCTM")<<"FBC: Trying to merge already merged cluster "
-      <<icl1<<" with "<<cls[ipl][icl2].BrkIndex[oend];
-    continue;
-  }
+            if(cls[ipl][icl2].BrkIndex[oend] >= 0) {
+              mf::LogWarning("CCTM")<<"FBC: Trying to merge already merged cluster "
+              <<icl1<<" with "<<cls[ipl][icl2].BrkIndex[oend];
+              continue;
+            }
             cls[ipl][icl2].BrkIndex[oend] = icl1;
           } // end
        } // icl2
@@ -849,13 +1195,15 @@ namespace trkf {
   } // SortPlanes
 
 ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::StoreTrack(art::FindManyP<recob::Hit> const& fmCluHits, 
-    unsigned short procCode)
+  void CCTrackMaker::StoreTrack(std::array<std::vector<clPar>, 3>& cls,
+    art::FindManyP<recob::Hit> const& fmCluHits, 
+    std::vector<TrkPar>& trk, unsigned short procCode)
   {
     // store the current "under construction" track in the trk vector
     
     bool success;
-    FillTrkHits(fmCluHits, success);
+    std::vector<unsigned short> clsEvtIndices;
+    FillTrkHits(cls, fmCluHits, clsEvtIndices, success);
   if(prt && !success) mf::LogVerbatim("CCTM")<<"Failed in FillTrkHits\n";
     if(!success) return;
     
@@ -870,8 +1218,14 @@ namespace trkf {
     newtrk.Proc = procCode;
     newtrk.trkHits = trkHits;
     
-    unsigned short ipl, iht;
+    unsigned short debugTrk;
+    debugTrk = 3000;
+    
+    unsigned short ipl, icl, iht;
     double xx;
+
+    // store the cluster indices
+    newtrk.ClsEvtIndices = clsEvtIndices;
 
     // make the track trajectory
     for(ipl = 0; ipl < 3; ++ipl) {
@@ -885,6 +1239,7 @@ namespace trkf {
       } // iht
     } // ip
     fTrackTrajectoryAlg.TrackTrajectory(trkXW, trkPos, trkDir, trkChg);
+//    fTrackTrajectoryAlg.TrackTrajectory(trkXW, trkPos, trkDir);
     // failure occurred?
     if(trkPos.size() < 2 || trkPos.size() != trkDir.size()) {
       TVector3 dum;
@@ -896,8 +1251,16 @@ namespace trkf {
     newtrk.trjPos = trkPos;
     newtrk.trjDir = trkDir;
 
+  if(newtrk.ID == debugTrk) {
+    std::cout<<" traj 1 \n";
+    for(unsigned short ii = 0; ii < newtrk.trjPos.size(); ++ii) {
+      std::cout<<ii<<" "<<newtrk.trjPos[ii](0)<<" "<<newtrk.trjPos[ii](1)
+        <<" "<<newtrk.trjPos[ii](2)<<"\n";
+    }
+  }
+
     // Use the average end positions as the first and last trajectory point
-    unsigned short icl, end, ihit, jhit, jpl, ivx;
+    unsigned short end, ihit, jhit, jpl, ivx;
     double X, aveX, naveX;
     double Y, Z, aveY, aveZ, naveYZ;
     unsigned short itj = 0;
@@ -916,6 +1279,9 @@ namespace trkf {
         X = detprop->ConvertTicksToX(trkHits[ipl][ihit]->PeakTime(), 
                                     ipl, tpc, cstat);
         aveX += X;
+  if(newtrk.ID == debugTrk) std::cout<<"X: end "<<end<<" P:W:T "<<ipl
+    <<":"<<trkHits[ipl][ihit]->WireID().Wire<<":"<<(int)trkHits[ipl][ihit]->PeakTime()
+    <<" "<<X<<"\n";
         ++naveX;
       } // ipl
       newtrk.trjPos[itj](0) = aveX / naveX;
@@ -938,6 +1304,10 @@ namespace trkf {
                                   ipl, jpl, cstat, tpc, Y, Z);
           aveY += Y;
           aveZ += Z;
+  if(newtrk.ID == debugTrk) std::cout<<"YZ: end "<<end<<" P:W:T "
+    <<ipl<<":"<<trkHits[ipl][ihit]->WireID().Wire<<":"<<(int)trkHits[ipl][ihit]->PeakTime()
+    <<" "<<jpl<<":"<<trkHits[jpl][jhit]->WireID().Wire<<":"<<(int)trkHits[jpl][jhit]->PeakTime()
+    <<" "<<Y<<" "<<Z<<"\n";
           ++naveYZ;
           if(naveYZ == 2) break;
         } // jpl
@@ -960,9 +1330,18 @@ namespace trkf {
       } // naveYZ
     } // end
 
+  if(newtrk.ID == debugTrk) {
+    std::cout<<" traj 2 \n";
+    for(unsigned short ii = 0; ii < newtrk.trjPos.size(); ++ii) {
+      std::cout<<ii<<" "<<newtrk.trjPos[ii](0)<<" "<<newtrk.trjPos[ii](1)
+        <<" "<<newtrk.trjPos[ii](2)<<"\n";
+    }
+  }
+
+//    unsigned short itj, ivx, icl;
     // set vertex assignments and update the trajectory ends
-    newtrk.VtxIndex[0] = clmatVxID[0];
-    newtrk.VtxIndex[1] = clmatVxID[1];
+    newtrk.VtxIndex[0] = clmatVxIndex[0];
+    newtrk.VtxIndex[1] = clmatVxIndex[1];
     for(unsigned short end = 0; end < 2; ++end) {
       if(newtrk.VtxIndex[end] >= 0) {
         itj = 0;
@@ -973,6 +1352,16 @@ namespace trkf {
         newtrk.trjPos[itj](2) = vtx[ivx].Z;
       } //
     } // end
+
+    // calculate the length
+    newtrk.Length = 0;
+    for(unsigned short itj = 1; itj < newtrk.trjPos.size(); ++itj) {
+      X = newtrk.trjPos[itj](0) - newtrk.trjPos[itj-1](0);
+      Y = newtrk.trjPos[itj](1) - newtrk.trjPos[itj-1](1);
+      Z = newtrk.trjPos[itj](2) - newtrk.trjPos[itj-1](2);
+      newtrk.Length += sqrt(X*X + Y*Y + Z*Z);
+    }
+
     newtrk.ChgOrder = 0;
 //    newtrk.ChgOrder = ChgHitOrder(prt, myprt);
     // reverse trajectory according to charge?
@@ -990,11 +1379,27 @@ namespace trkf {
     newtrk.MomID = -1;
     newtrk.nDtr = 0;
     for(unsigned short idtr = 0; idtr < 20; ++idtr) newtrk.DtrID[idtr] = 0;
+    newtrk.PDGCode = -1;
+
+  if(newtrk.ID == debugTrk) {
+    std::cout<<" traj 3 \n";
+    for(unsigned short ii = 0; ii < newtrk.trjPos.size(); ++ii) {
+      std::cout<<ii<<" "<<newtrk.trjPos[ii](0)<<" "<<newtrk.trjPos[ii](1)
+        <<" "<<newtrk.trjPos[ii](2)<<"\n";
+    }
+  }
     
     // make the cluster-> track assignment
+    unsigned short ii;
     for(ipl = 0; ipl < nplanes; ++ipl) {
-      for(icl = 0; icl < cls[ipl].size(); ++icl) 
-        if(cls[ipl][icl].InTrack == 0) cls[ipl][icl].InTrack = newtrk.ID;
+      for(icl = 0; icl < cls[ipl].size(); ++icl) {
+        for(ii =  0; ii < clsEvtIndices.size(); ++ii) {
+          if(cls[ipl][icl].EvtIndex == clsEvtIndices[ii]) {
+            cls[ipl][icl].InTrack = newtrk.ID;
+            break;
+          }
+        } // ii
+      } // icl
     } // ipl
     
   if(prt) mf::LogVerbatim("CCTM")<<" track ID "<<newtrk.ID<<" stored in StoreTrack \n";
@@ -1006,10 +1411,9 @@ namespace trkf {
   void CCTrackMaker::PlnMatch(art::Event& evt,
                 std::vector<art::Ptr<recob::Hit>> const& allhits,
                 std::array<std::vector<clPar>, 3>& cls,
+                std::vector<TrkPar>& trk,
                 std::vector<vtxPar>& vtx,
-                art::FindManyP<recob::Hit> const& fmCluHits, 
-                std::unique_ptr<std::vector<recob::Track>>& tcol,
-                std::unique_ptr<art::Assns<recob::Track, recob::Hit>>& thassn)
+                art::FindManyP<recob::Hit> const& fmCluHits)
   {
     // Match clusters in all planes
     unsigned short ipl, icl, jpl, jcl, kpl, kcl, ivx;
@@ -1021,7 +1425,7 @@ namespace trkf {
     float tpcSizeY = geom->DetHalfWidth();
     float tpcSizeZ = geom->DetLength();
     
-    float angCut = 5 * fAngleMatchErr;
+    float angCut = 10 * fAngleMatchErr;
     
     // vector of many match combinations
     std::vector<MatchPars> matcomb;
@@ -1045,7 +1449,9 @@ namespace trkf {
             if(cls[ipl][icl].BrkIndex[iend] >= 0) continue;
             for(jend = 1; jend >= 0; --jend) {
               if(cls[jpl][jcl].BrkIndex[jend] >= 0) continue;
-              if(cls[ipl][icl].Dir[iend] != cls[jpl][jcl].Dir[jend]) continue;
+              if(fabs(cls[ipl][icl].Slope[iend]) > 0.1 && 
+                 fabs(cls[jpl][jcl].Slope[jend]) > 0.1 &&
+                 cls[ipl][icl].Dir[iend] != cls[jpl][jcl].Dir[jend]) continue;
               // make a rough X cut
               if(fabs(cls[ipl][icl].X[iend] - 
                       cls[jpl][jcl].X[jend]) > 40) continue;
@@ -1105,19 +1511,21 @@ namespace trkf {
                     if(cls[kpl][kcl].BrkIndex[kend] >= 0) continue;
                     if(cls[kpl][kcl].Dir[kend] != cls[ipl][icl].Dir[iend]) continue;
                     // rough dX cut
-  if(prt && kcl == 3) mf::LogVerbatim("CCTM")<<" kend "<<kend
+/*
+  if(prt) mf::LogVerbatim("CCTM")<<"kcl "<<kcl<<" kend "<<kend
     <<" dx "<<(cls[kpl][kcl].X[kend] - kX);
+*/
                     if(fabs(cls[kpl][kcl].X[kend] - kX) > 10) continue;
                     // rough dWire cut
-  if(prt && kcl == 3) mf::LogVerbatim("CCTM")<<" dw "
-    <<(cls[kpl][kcl].Wire[kend] - kWir);
+  if(prt) mf::LogVerbatim("CCTM")<<"kcl "<<kcl<<" kend "<<kend<<" dw "
+    <<(cls[kpl][kcl].Wire[kend] - kWir)<<" ignoreSign "<<ignoreSign;
                     if(fabs(cls[kpl][kcl].Wire[kend] - kWir) > 10) continue;
                     if(ignoreSign) {
                       da = fabs(fabs(cls[kpl][kcl].Angle[kend]) - kAng);
                     } else {
                       da = fabs(cls[kpl][kcl].Angle[kend] - kAng);
                     }
-  if(prt) mf::LogVerbatim("CCTM")<<" chk k "<<kpl<<":"<<kcl<<":"<<kend<<" da "<<da;
+  if(prt) mf::LogVerbatim("CCTM")<<" chk k "<<kpl<<":"<<kcl<<":"<<kend<<" da "<<da<<" angCut "<<angCut;
                     if(da < angCut) {
                       MatchPars match;
                       match.Pln[ipl] = ipl; match.Cls[ipl] = icl; match.End[ipl] = iend;
@@ -1126,14 +1534,16 @@ namespace trkf {
                       match.Chg[ipl] =   0; match.Chg[jpl] =   0; match.Chg[kpl] = 0;
                       match.Vtx = cls[ipl][icl].VtxIndex[iend]; 
                       FillEndMatch(allhits, match, cstat, tpc);
-  if(prt) mf::LogVerbatim("CCTM")<<" dup? ";
-                      if(DupMatch(match, matcomb)) continue;
   if(prt) mf::LogVerbatim("CCTM")<<" Match"
     <<" k "<<match.Pln[2]<<":"<<match.Cls[2]<<":"<<match.End[2]
     <<" oChg "<<match.Chg[kpl]<<" RMS "<<match.RMS + match.oRMS;
                       if(match.Chg[kpl] == 0) continue;
                       if(match.RMS > 10) continue;
-                      if(match.oRMS > 100) continue;
+                      if(match.oRMS > 1000) continue;
+                      // de-weight the other end match RMS
+                      match.RMS += 0.05 * match.oRMS;
+  if(prt) mf::LogVerbatim("CCTM")<<" dup? ";
+                      if(DupMatch(match, matcomb)) continue;
 /*
                       if(match.RMS > 10) {
                         match.Cls[kpl] = -1; match.End[kpl] = 0;
@@ -1179,7 +1589,7 @@ namespace trkf {
     if(matcomb.size() == 0) return;
     
   prt = (fDebugPlane >= 0);
-    SortMatches(matcomb, fmCluHits, cls, 2);
+    SortMatches(matcomb, fmCluHits, cls, trk, 2);
 
   } // PlnMatch
 
@@ -1222,6 +1632,7 @@ namespace trkf {
   void CCTrackMaker::SortMatches(std::vector<MatchPars>& matcomb,
            art::FindManyP<recob::Hit> const& fmCluHits,
            std::array<std::vector<clPar>, 3>& cls, 
+           std::vector<TrkPar>& trk,
            unsigned short procCode)
   {
     // sort by increasing total match RMS using both ends
@@ -1295,9 +1706,9 @@ namespace trkf {
   } // prt
       // look for missing clusters
       if(matcomb[imat].oRMS > 5) ChkClmat(cls, matcomb);
-      clmatVxID[0] = matcomb[imat].Vtx;
-      clmatVxID[1] = matcomb[imat].oVtx;
-      StoreTrack(fmCluHits, procCode);
+      clmatVxIndex[0] = matcomb[imat].Vtx;
+      clmatVxIndex[1] = matcomb[imat].oVtx;
+      StoreTrack(cls, fmCluHits, trk, procCode);
     } // ii
     
   } // SortMatches
@@ -1520,9 +1931,16 @@ namespace trkf {
       if(mChg[kpl] <= 0) return;
     }
 
-    // asymmetry factor varies between 1 and 2
-    chgAsym = fabs(mChg[0] - mChg[1]) / (mChg[0] + mChg[1]);
-    chgAsym *= fabs(mChg[1] - mChg[2]) / (mChg[1] + mChg[2]);
+    // find charge asymmetry between the cluster with the highest (lowest)
+    // charge
+    float big = 0, small = 1.E9;
+    for(ii = 0; ii < 3; ++ii) {
+      if(mChg[ii] < small) small = mChg[ii];
+      if(mChg[ii] > big) big = mChg[ii];
+    }
+    // chgAsym varies between 0 (perfect charge match) and 1 (dreadfull)
+    chgAsym = (big - small) / (big + small);
+    // scale by user-defined factor
     chgAsym = 1 + fChgAsymFactor * chgAsym;
 
   if(prt) mf::LogVerbatim("CCTM")<<"FEM: charge asymmetry factor "<<chgAsym;
@@ -1615,6 +2033,7 @@ namespace trkf {
   void CCTrackMaker::ChkClmat(std::array<std::vector<clPar>, 3>& cls, 
       std::vector<MatchPars>& matcomb)
   {
+    // Look for a missing matching cluster in the third plane of a 2-plane match
     unsigned short ipl, ii, end, icl, nClInPln = 0;
 
 //  mf::LogVerbatim("CCTM")<<"Inside ChkClmat";
@@ -1623,7 +2042,7 @@ namespace trkf {
     std::array<float, 3> lenX;
     for(ipl = 0; ipl < nplanes; ++ipl) {
       endX[ipl] = -666;
-      if(clmat[ipl].size() < 0) continue;
+      if(clmat[ipl].size() == 0) continue;
       ++nClInPln;
       end = 1 - clend[ipl];
       if(end == 0) { ii = 0; } else {ii = clmat[ipl].size() - 1;}
@@ -1633,6 +2052,7 @@ namespace trkf {
       // get the X position at the match end to find lenX
       end = clend[ipl];
       if(end == 0) { ii = 0; } else {ii = clmat[ipl].size() - 1;}
+      if(clmat[ipl][ii] < 0) continue;
       icl = clmat[ipl][ii];
       lenX[ipl] = fabs(cls[ipl][icl].X[end] - endX[ipl]);
 //  mf::LogVerbatim("CCTM")<<ipl<<":"<<icl<<":"<<end
@@ -1676,21 +2096,28 @@ namespace trkf {
         if(matcomb[im].RMS > best) continue;
         if(matcomb[im].Cls[kpl] == kcl &&
            matcomb[im].End[kpl] == end) {
-          best = matcomb[im].RMS;
-          mat = im;
-        }
+          // ensure that the other-end clusters aren't already used
+          icl = matcomb[im].Cls[ipl];
+          jcl = matcomb[im].Cls[jpl];
+          if(cls[ipl][icl].InTrack < 0 && cls[jpl][jcl].InTrack < 0) {
+            best = matcomb[im].RMS;
+            mat = im;
+          } // cluster used check
+        } // matcomb check
       } // im
 //  mf::LogVerbatim("CCTM")<<" mat "<<mat;
       if(mat >= 0) {
         icl = matcomb[mat].Cls[ipl];
         if(cls[ipl][icl].InTrack >= 0) {
-          mf::LogWarning("CCTM")<<"ChkClmat: attempting to re-use cluster "<<ipl<<":"<<icl;
+          mf::LogWarning("CCTM")<<"ChkClmat: trying to re-use cluster "<<ipl<<":"<<icl
+            <<" in match "<<mat;
           return;
         }
         clmat[ipl].push_back(icl);
         jcl = matcomb[mat].Cls[jpl];
         if(cls[jpl][jcl].InTrack >= 0) {
-          mf::LogWarning("CCTM")<<"ChkClmat: attempting to re-use cluster "<<jpl<<":"<<jcl;
+          mf::LogWarning("CCTM")<<"ChkClmat: trying to re-use cluster "<<jpl<<":"<<jcl
+            <<" in match "<<mat;
           return;
         }
         clmat[jpl].push_back(matcomb[mat].Cls[jpl]);
@@ -1740,7 +2167,7 @@ namespace trkf {
       if(mat >= 0) {
         kcl = mat;
         if(cls[kpl][kcl].InTrack >= 0) {
-          mf::LogWarning("CCTM")<<"ChkClmat: attempting to re-use cluster "<<kpl<<":"<<kcl;
+          mf::LogWarning("CCTM")<<"ChkClmat: trying to re-use cluster "<<kpl<<":"<<kcl;
           return;
         }
         clmat[kpl].push_back(kcl);
@@ -1780,20 +2207,23 @@ namespace trkf {
         ++nit;
         if(nit > 20) return;
       } // dtr >= 0
-    } else {
+      // reverse the cluster index order?
+      if(end == 1) std::reverse(clmat[pln].begin(),clmat[pln].end());
+      return;
+    } // cls[pln][icl].mBrkIndex[oend] >= 0
+    
+    if(cls[pln][icl].BrkIndex[oend] >= 0) {
       // a simple broken cluster
       dtr = cls[pln][icl].BrkIndex[oend];
       clmat[pln].push_back(dtr);
     }
-
-    // reverse the cluster index order?
-    if(end == 1) std::reverse(clmat[pln].begin(),clmat[pln].end());
     
   } // FillClmat
 
 ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::FillTrkHits(art::FindManyP<recob::Hit> const& fmCluHits,
-    bool& success)
+  void CCTrackMaker::FillTrkHits(std::array<std::vector<clPar>, 3>& cls,
+    art::FindManyP<recob::Hit> const& fmCluHits,
+    std::vector<unsigned short>& clsEvtIndices, bool& success)
   {
     // put hits associated with clusters identified by the clmat array
     unsigned short ii, ipl, icl, im, iht;
@@ -1816,11 +2246,11 @@ namespace trkf {
       if(clmat[ipl].size() == 0) continue;
       wirnums.clear();
       tmpHits.clear();
+//  prt = (clmat[0][0] == 3);
       for(im = 0; im < clmat[ipl].size(); ++im) {
         if(clmat[ipl][im] < 0) continue;
         icl = clmat[ipl][im];
-  if(prt) mf::LogVerbatim("CCTM")<<"ipl "<<ipl<<" clmat icl "<<icl
-    <<" clend "<<clend[ipl];
+//  if(prt) mf::LogVerbatim("CCTM")<<"FillTrkHits "<<ipl<<":"<<icl<<":"<<clend[ipl];
         if(icl > cls[ipl].size()-1) {
           mf::LogError("CCTM")<<"StoreTrack: Bad cluster index "
             <<icl<<" in plane "<<ipl;
@@ -1828,10 +2258,10 @@ namespace trkf {
         }
         if(cls[ipl][icl].InTrack != -1) {
           mf::LogWarning("CCTM")<<"StoreTrack: trying to re-use cluster "
-            <<icl<<" in plane "<<ipl;
+            <<icl<<" in plane "<<ipl<<" Used in track "<<cls[ipl][icl].InTrack;
           return;
         } // cls[ipl][icl].InTrack != -1
-        cls[ipl][icl].InTrack = 0;
+        clsEvtIndices.push_back(cls[ipl][icl].EvtIndex);
         clusterhits = fmCluHits.at(cls[ipl][icl].EvtIndex);
 //  if(prt) mf::LogVerbatim("CCTM")<<"FTH: "<<ipl<<":"<<icl<<" size "<<clusterhits.size()<<"\n";
         for(iht = 0; iht < clusterhits.size(); ++iht) {
@@ -1842,10 +2272,7 @@ namespace trkf {
 /*
   if(prt) mf::LogVerbatim("CCTM")<<"tmpHits: "<<tmpHits.size()-1
     <<" ipl:icl "<<ipl<<":"<<icl
-    <<" wire "<<clusterhits[iht]->WireID().Wire
-    <<" time "<<(int)clusterhits[iht]->PeakTime()
-    <<" clend "<<clend[ipl]<<" Bk0 "<<cls[ipl][icl].BrkIndex[0]
-    <<" Bk1 "<<cls[ipl][icl].BrkIndex[1];
+    <<" W:T "<<clusterhits[iht]->WireID().Wire<<":"<<(int)clusterhits[iht]->PeakTime();
 */
         } // iht
       } // im
@@ -1864,12 +2291,10 @@ namespace trkf {
         trkHits[ipl][ii] = tmpHits[iht];
 /*
   if(prt) mf::LogVerbatim("CCTM")
-    <<" wire "<<trkHits[ipl][ii]->WireID().Wire
-    <<" time "<<(int)trkHits[ipl][ii]->PeakTime();
+    <<"trkHits: "<<trkHits[ipl][ii]->WireID().Wire<<":"<<(int)trkHits[ipl][ii]->PeakTime();
 */
       } // ii
-/*      
-  std::cout<<" check order \n";
+      
       for(unsigned short iht = 0; iht < trkHits[ipl].size() - 1; ++iht) {
         if(clend[ipl] == 0) {
           // wires should be in decreasing order
@@ -1887,7 +2312,7 @@ namespace trkf {
           }
         }
       } // ichk
-*/
+
     } // ipl
     success = true;
     
@@ -1898,9 +2323,9 @@ namespace trkf {
   {
     mf::LogVerbatim myprt("CCTrackmaker");
     myprt<<"********* PrintTracks \n";
-    myprt<<"vtx  ID    X      Y      Z\n";
+    myprt<<"vtx  Index    X      Y      Z\n";
     for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
-      myprt<<std::right<<std::setw(3)<<ivx<<std::setw(4)<<vtx[ivx].ID;
+      myprt<<std::right<<std::setw(3)<<ivx<<std::setw(4)<<vtx[ivx].EvtIndex;
       myprt<<std::fixed;
       myprt<<std::right<<std::setw(7)<<std::setprecision(1)<<vtx[ivx].X;
       myprt<<std::right<<std::setw(7)<<std::setprecision(1)<<vtx[ivx].Y;
@@ -1909,7 +2334,7 @@ namespace trkf {
     } // ivx
     
     myprt<<">>>>>>>>>> Tracks \n";
-    myprt<<"trk  ID  Proc nht nTrj  sX     sY     sZ     eX     eY     eZ  sVx eVx ChgOrder dirZ Mom\n";
+    myprt<<"trk  ID  Proc nht nTrj  sX     sY     sZ     eX     eY     eZ  sVx eVx ChgOrder dirZ Mom PDG\n";
     for(unsigned short itr = 0; itr < trk.size(); ++itr) {
       myprt<<std::right<<std::setw(3)<<itr<<std::setw(4)<<trk[itr].ID;
       myprt<<std::right<<std::setw(5)<<std::setw(4)<<trk[itr].Proc;
@@ -1929,6 +2354,7 @@ namespace trkf {
       myprt<<std::setw(4)<<trk[itr].ChgOrder;
       myprt<<std::right<<std::setw(10)<<std::setprecision(3)<<trk[itr].trjDir[itj](2);
       myprt<<std::right<<std::setw(4)<<trk[itr].MomID;
+      myprt<<std::right<<std::setw(5)<<trk[itr].PDGCode;
       myprt<<"\n";
     } // itr
     
@@ -1941,31 +2367,16 @@ namespace trkf {
 
     mf::LogVerbatim myprt("CCTrackmaker");
     myprt<<"********* PrintStructs nplanes = "<<nplanes<<"\n";
-    myprt<<"vtx  ID    X       Y       Z   clusters \n";
+    myprt<<"vtx  Index    X       Y       Z   clusters \n";
     for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
-      myprt<<std::right<<std::setw(3)<<ivx<<std::setw(4)<<vtx[ivx].ID;
+      myprt<<std::right<<std::setw(3)<<ivx<<std::setw(4)<<ivx;
       myprt<<std::fixed;
       myprt<<std::right<<std::setw(7)<<std::setprecision(1)<<vtx[ivx].X;
       myprt<<std::right<<std::setw(7)<<std::setprecision(1)<<vtx[ivx].Y;
       myprt<<std::right<<std::setw(7)<<std::setprecision(1)<<vtx[ivx].Z;
-      for(unsigned short ipl = 0; ipl < nplanes; ++ipl) {
-        myprt<<" pln"<<ipl;
-        for(unsigned short icl = 0; icl < vtx[ivx].clIndex[ipl].size(); ++icl) {
-          myprt<<" "<<vtx[ivx].clIndex[ipl][icl];
-        }
-      } // ipl
       myprt<<"\n";
     } // ivx
     for(unsigned short ipl = 0; ipl < nplanes; ++ipl) {
-/*
-      myprt<<">>>>>>>>>> EndPoints in Plane "<<ipl<<"\n";
-      myprt<<"iep    W   X \n";
-      for(unsigned short iep = 0; iep < ep2[ipl].size(); ++iep) {
-        myprt<<std::right<<std::setw(3)<<iep;
-        myprt<<std::right<<std::setw(5)<<(int)ep2[ipl][iep].Wir;
-        myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(1)<<ep2[ipl][iep].X<<"\n";
-      } // iep
-*/
       myprt<<">>>>>>>>>> Clusters in Plane "<<ipl<<"\n";
       myprt<<"ipl icl ID  wLen  BBk  EBk BmBk EmBK  BVx  EVx BmVx EmVx InTk     Chg   BW:T     BAng   EW:T     EAng\n";
       for(unsigned short icl = 0; icl < cls[ipl].size(); ++icl) {

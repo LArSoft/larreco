@@ -176,7 +176,7 @@ namespace cluster{
             // just make a crude hit if too many bumps
             if(bumps.size() > fMaxBumps) {
               MakeCrudeHit(npt, ticks, signl);
-              StoreHits(tstart, npt, theWire, adcsum);
+              StoreHits(tstart, npt, theWire, wids[0], adcsum);
               nabove = 0;
               continue;
             }
@@ -198,7 +198,7 @@ namespace cluster{
 */
               // good chisq so store it
               if(chidof < fChiSplit) {
-                StoreHits(tstart, npt, theWire, adcsum);
+                StoreHits(tstart, npt, theWire, wids[0], adcsum);
                 HitStored = true;
                 break;
               }
@@ -210,7 +210,7 @@ namespace cluster{
             if( !HitStored && npt < maxticks) {
               // failed all fitting. Make a crude hit
               MakeCrudeHit(npt, ticks, signl);
-              StoreHits(tstart, npt, theWire, adcsum);
+              StoreHits(tstart, npt, theWire, wids[0], adcsum);
             }
           } // nabove > minSamples
           nabove = 0;
@@ -457,10 +457,15 @@ namespace cluster{
 
 /////////////////////////////////////////
   void CCHitFinderAlg::StoreHits(unsigned short TStart, unsigned short npt,
-    art::Ptr<recob::Wire>& theWire, float adcsum)
+    art::Ptr<recob::Wire> Wire, geo::WireID& wireID, float adcsum)
   {
     // store the hits in the struct
     unsigned short nhits = par.size() / 3;
+    
+    if(allhits.size() + nhits > UINT_MAX) {
+      mf::LogError("CCHitFinder")<<"Too many hits "<<allhits.size();
+      return;
+    }
     
     if(nhits == 0) return;
 
@@ -469,71 +474,11 @@ namespace cluster{
 
     float loTime = TStart;
     float hiTime = TStart + npt;
-/*
-    // check for large separation between hits. These vectors define the
-    // boundaries of sub-multiplets
-    std::vector<float> loTimes(nhits, loTime);
-    std::vector<float> hiTimes(nhits, hiTime);
-    std::vector<unsigned short> loHitIDs(nhits,allhits.size());
-    std::vector<unsigned short> nMultHits(nhits,nhits);
-    unsigned short nhm = 0;
-    // scan for large separation
-    for(unsigned short hit = 1; hit < nhits; ++hit) {
-      // increment the number of hits in this (sub-)multiplet
-      ++nhm;
-      unsigned short index = 3 * hit;
-      // RMS of the previous hit
-      float rms1 = par[index - 1];
-      // significance of the time separation from the previous hit
-      float sep = fabs(par[index + 1] - par[index - 2]) / rms1;
-      if(sep > 5) {
-        // large separation. re-define the boundaries
-        float newLoTime = 0.5 * (par[index + 1] + par[index - 2]);
-        // re-define the previous hit boundaries
-        for(unsigned short phit = 0; phit < hit; ++phit) {
-          // hi times for the previous hits are the new low times for the
-          // next hits
-          hiTimes[phit] = newLoTime;
-          nMultHits[phit] = nhm;
-        } // phit
-        // reset the hit counter
-        nhm = 0;
-        // re-define the lower boundary of the next set of hits
-        for(unsigned short phit = hit; phit < nhits; ++phit) {
-          loTimes[phit] = newLoTime;
-          loHitIDs[phit] = hit;
-          // set the hit multiplicity = 0 as a flag
-          nMultHits[phit] = 0;
-        } // phit
-      } // sep > 5
-    } // hit
-    // correct the high boundary for the last set of hits if necessary
-    if(nhm < nhits) {
-      for(unsigned short hit = nhits - 1; hit > 0; --hit) {
-        if(nMultHits[hit] == 0) {
-          nMultHits[hit] = nhm;
-        } else {
-          break;
-        }
-      }
-    }
-*/
-
-/*
-  if(prt) {
-    mf::LogVerbatim("CCHitFinder")<<"hit loTime hiTime loHitIDs nMultHits";
-    for(unsigned short hit = 0; hit < nhits; ++hit) {
-      mf::LogVerbatim("CCHitFinder")<<hit<<" "<<(int)loTimes[hit]
-        <<" "<<(int)hiTimes[hit]
-        <<" "<<loHitIDs[hit]<<" "<<nMultHits[hit];
-    }
-  }
-*/
     CCHit onehit;
     // lohitid is the index of the first hit that will be added. Hits with
     // Multiplicity > 1 will reside in a block from
     // lohitid to lohitid + numHits - 1
-    unsigned short lohitid = allhits.size();
+    unsigned int lohitid = allhits.size();
     unsigned short hit, index;
     // Find sum of the areas of all Gaussians
     float gsum = 0;
@@ -556,7 +501,6 @@ namespace cluster{
       onehit.DOF = dof;
       // Allocate a fraction of the total ADC sum if this is a hit multiplet
       onehit.ADCSum = adcsum * onehit.Charge / gsum;
-      onehit.Wire = theWire;
       onehit.WireNum = theWireNum;
       onehit.numHits = nhits;
       onehit.LoHitID = lohitid;
@@ -564,6 +508,8 @@ namespace cluster{
       onehit.HiTime = hiTime;
       // set flag indicating hit is not used in a cluster
       onehit.InClus = 0;
+      onehit.WirID = wireID;
+      onehit.Wire = Wire;
 /*
   if(prt) {
     mf::LogVerbatim("CCHitFinder")<<"W:T "<<theWireNum<<":"<<(short)onehit.Time
