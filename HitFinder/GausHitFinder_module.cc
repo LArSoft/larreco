@@ -253,7 +253,7 @@ void GausHitFinder::produce(art::Event& evt)
    std::vector<double> NumOfHits;      // stores the multiplicity of the hit
    std::vector<double> FitGoodness;    // stores the Chi2/NDF of the hit
    std::vector<int>    FitNDF;         // stores the NDF of the hit
-   std::vector<double>  hitSig;
+   std::vector<double> hitSig;
    
    // ###################################
    // ### Calling Detector Properties ###
@@ -290,391 +290,398 @@ void GausHitFinder::produce(art::Event& evt)
    //### Looping over the wires ###
    //############################## 
    for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++)
-      {
-      // -----------------------------------------------------------
-      // -- Clearing variables at the start of looping over wires --
-      // -----------------------------------------------------------
-      startTimes.clear();
-      maxTimes.clear();
-      endTimes.clear();
-      
-      StartTime.clear();
-      StartTimeError.clear();
-      EndTime.clear();
-      EndTimeError.clear();
-      RMS.clear();
-      MeanPosition.clear();
-      MeanPosError.clear();
-      Amp.clear();
-      AmpError.clear();
-      NumOfHits.clear();
-      hitSig.clear();
-      SumADC.clear();
-      Charge.clear();
-      ChargeError.clear();
-      tempGaus1Par.clear();
-      
-      
-      
-      // ####################################
-      // ### Getting this particular wire ###
-      // ####################################
-      art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
-      art::Ptr<raw::RawDigit> rawdigits = RawDigits.at(wireIter);
-      
-      // --- Setting Channel Number and Signal type ---
-      channel = wire->Channel();
-      // ----------------------------------------------------------
-      // -- Setting the appropriate signal widths and thresholds --
-      // --    for the right plane.      --
-      // ----------------------------------------------------------
-
-      threshold     = fMinSig.at(wire->View());
-      fitWidth      = fInitWidth.at(wire->View());
-      minWidth      = fMinWidth.at(wire->View());	
-	
-      // #################################################
-      // ### Getting a vector of signals for this wire ###
-      // #################################################
-      std::vector<float> signal(wire->Signal());
-      
-      // ##########################################################
-      // ### Making an iterator for the time ticks of this wire ###
-      // ##########################################################
-      std::vector<float>::iterator timeIter;  	    // iterator for time bins
-      
-      // current time bin
-      int time             = 0;
-      
-      // current start time
-      int minTimeHolder    = 0; 
+   {
+       // ####################################
+       // ### Getting this particular wire ###
+       // ####################################
+       art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
+       art::Ptr<raw::RawDigit> rawdigits = RawDigits.at(wireIter);
        
-      // Flag for whether a peak > threshold has been found
-      bool maxFound        = false;                    
-      //std::cout<<std::endl;
-      //std::cout<<" Wire # "<<wireIter<<std::endl;
-      //std::cout<<"===================="<<std::endl; 
+       // --- Setting Channel Number and Signal type ---
+       channel = wire->Channel();
+       
+       // ----------------------------------------------------------
+       // -- Setting the appropriate signal widths and thresholds --
+       // --    for the right plane.      --
+       // ----------------------------------------------------------
+       
+       threshold     = fMinSig.at(wire->View());
+       fitWidth      = fInitWidth.at(wire->View());
+       minWidth      = fMinWidth.at(wire->View());
+       
+       // #################################################
+       // ### Set up to loop over ROI's for this wire   ###
+       // #################################################
+       const recob::Wire::RegionsOfInterest_t& signalROI = wire->SignalROI();
+       
+       for(const auto& range : signalROI.get_ranges())
+       {
+           // -------------------------------------------------
+           // -- Clearing variables at the start of each ROI --
+           // -------------------------------------------------
+           startTimes.clear();
+           maxTimes.clear();
+           endTimes.clear();
       
-      // ### Starting the StopWatch ###
-      //StopWatch.Start(); 
+           StartTime.clear();
+           StartTimeError.clear();
+           EndTime.clear();
+           EndTimeError.clear();
+           RMS.clear();
+           MeanPosition.clear();
+           MeanPosError.clear();
+           Amp.clear();
+           AmpError.clear();
+           NumOfHits.clear();
+           hitSig.clear();
+           SumADC.clear();
+           Charge.clear();
+           ChargeError.clear();
+           tempGaus1Par.clear();
+	
+           // #################################################
+           // ### Getting a vector of signals for this wire ###
+           // #################################################
+           //std::vector<float> signal(wire->Signal());
+
+           const std::vector<float>& signal = range.data();
+      
+           // ##########################################################
+           // ### Making an iterator for the time ticks of this wire ###
+           // ##########################################################
+           std::vector<float>::const_iterator timeIter;  	    // iterator for time bins
+           
+           // ROI start time
+           double roiFirstBinTick = range.begin_index();
+      
+           // current time bin
+           int time             = 0;
+      
+           // current start time
+           int minTimeHolder    = 0;
+       
+           // Flag for whether a peak > threshold has been found
+           bool maxFound        = false;
+      
+           // ### Starting the StopWatch ###
+           //StopWatch.Start();
           
-      // ##################################
-      // ### Looping over Signal Vector ###
-      // ##################################
-      for(timeIter = signal.begin(); timeIter+2<signal.end(); timeIter++)
-      	 {
+           // ##################################
+           // ### Looping over Signal Vector ###
+           // ##################################
+           for(timeIter = signal.begin(); timeIter+2<signal.end(); timeIter++)
+           {
 	 
-	 // ##########################################################
-      	 // ###                LOOK FOR A MINIMUM                  ###
-      	 // ### Testing if the point timeIter+1 is at a minimum by ###
-      	 // ###  checking if timeIter and timeIter+2 are greater   ###
-      	 // ###   and if it is then we add this to the endTimes    ###
-      	 // ##########################################################
-	 if(*(timeIter+1) < *timeIter && *(timeIter+1) < *(timeIter+2))
-	    {
-	    //--- Note: We only keep the a minimum if we've already ---
-	    //---          found a point above threshold            ---
-	    if(maxFound)
-	       {
-	       endTimes.push_back(time+1);
-	       maxFound = false;
-	       //keep these in case new hit starts right away
-	       minTimeHolder = time+2; 
-	       }
-	    else 
-	       {minTimeHolder = time+1;} 
+               // ##########################################################
+               // ###                LOOK FOR A MINIMUM                  ###
+               // ### Testing if the point timeIter+1 is at a minimum by ###
+               // ###  checking if timeIter and timeIter+2 are greater   ###
+               // ###   and if it is then we add this to the endTimes    ###
+               // ##########################################################
+               if(*(timeIter+1) < *timeIter && *(timeIter+1) < *(timeIter+2))
+               {
+                   //--- Note: We only keep the a minimum if we've already ---
+                   //---          found a point above threshold            ---
+                   if(maxFound)
+                   {
+                       endTimes.push_back(time+1);
+                       maxFound = false;
+                       //keep these in case new hit starts right away
+                       minTimeHolder = time+2;
+                   }
+                   else
+                   {minTimeHolder = time+1;}
 	  
-      	    }//<---End Checking if this is a minimum
+               }//<---End Checking if this is a minimum
 	 
 	 
-         // ########################################################	
-         // ### Testing if the point timeIter+1 is a maximum and ###
-         // ###  if it and is above threshold then we add it to  ###
-         // ###                  the startTime                   ###
-         // ########################################################
-         //if not a minimum, test if we are at a local maximum 
-         //if so, and the max value is above threshold, add it and proceed.
-	 else if(*(timeIter+1) > *timeIter && *(timeIter+1) > *(timeIter+2) && *(timeIter+1) > threshold)
-	    { 
-	    maxFound = true;
-	    maxTimes.push_back(time+1);
-	    startTimes.push_back(minTimeHolder);          
-            }
+               // ########################################################
+               // ### Testing if the point timeIter+1 is a maximum and ###
+               // ###  if it and is above threshold then we add it to  ###
+               // ###                  the startTime                   ###
+               // ########################################################
+               //if not a minimum, test if we are at a local maximum
+               //if so, and the max value is above threshold, add it and proceed.
+               else if(*(timeIter+1) > *timeIter && *(timeIter+1) > *(timeIter+2) && *(timeIter+1) > threshold)
+               {
+                   maxFound = true;
+                   maxTimes.push_back(time+1);
+                   startTimes.push_back(minTimeHolder);
+               }
 	
 	
-         time++;
-         }//<---End timeIter loop
+               time++;
+           }//<---End timeIter loop
        
-      // ###########################################################    
-      // ### If there was no minimum found before the end, but a ### 
-      // ###  maximum was found then add an end point to the end ###
-      // ###########################################################
-      while( maxTimes.size() > endTimes.size() )
-         { endTimes.push_back(signal.size()-1); }//<---End maxTimes.size > endTimes.size
+           // ###########################################################
+           // ### If there was no minimum found before the end, but a ###
+           // ###  maximum was found then add an end point to the end ###
+           // ###########################################################
+           while( maxTimes.size() > endTimes.size() )
+           { endTimes.push_back(signal.size()-1); }//<---End maxTimes.size > endTimes.size
 	
-      // ####################################################
-      // ### If no startTime hit was found skip this wire ###
-      // ####################################################
-      if( startTimes.size() == 0 ){continue;}
-
+           // ####################################################
+           // ### If no startTime hit was found skip this wire ###
+           // ####################################################
+           if( startTimes.size() == 0 ){continue;}
       
-      
-      // #####################################
-      // ### Variables used for each pulse ###
-      // #####################################
-      int startT = 0;
-      int endT = 0;
-      double totSig = 0;
-      peakT.clear();
+           // #####################################
+           // ### Variables used for each pulse ###
+           // #####################################
+           int startT = 0;
+           int endT = 0;
+           double totSig = 0;
+           peakT.clear();
 
-      // #######################################################
-      // ### Lets loop over the pulses we found on this wire ###
-      // #######################################################
-      for(size_t num = 0; num < maxTimes.size(); num++)
-         {
-	 peakT.clear();
+           // #######################################################
+           // ### Lets loop over the pulses we found on this wire ###
+           // #######################################################
+           for(size_t num = 0; num < maxTimes.size(); num++)
+           {
+               peakT.clear();
 	 
-	 // ### Setting the start, peak, and end time of the pulse ###
-	 startT = startTimes[num];
-	 endT   = endTimes[num];
-	 peakT.push_back(maxTimes[num]);
+               // ### Setting the start, peak, and end time of the pulse ###
+               startT = startTimes[num];
+               endT   = endTimes[num];
+               peakT.push_back(maxTimes[num]);
 	 
-	 // ###       See if we want to merge pulses together          ###
-	 // ### First check if we have more than one pulse on the wire ###
-	 if(endTimes.size() > 1 )
-	    {
+               // ###       See if we want to merge pulses together          ###
+               // ### First check if we have more than one pulse on the wire ###
+               if(endTimes.size() > 1 )
+               {
 
-	    // ###      If the start time of the next pulse is one wire away and    ###
-	    // ### the height of that start point is 0.5* the thereshold then merge ###
-	    if(num < (maxTimes.size() - 1) && startTimes[num+1] - endTimes[num]  < 2 && signal[endTimes[num]] > threshold/2)
-	       {
-	       endT = endTimes[num+1];
-	       peakT.push_back(maxTimes[num+1]);
+                   // ###      If the start time of the next pulse is one wire away and    ###
+                   // ### the height of that start point is 0.5* the thereshold then merge ###
+                   if(num < (maxTimes.size() - 1) && startTimes[num+1] - endTimes[num]  < 2 && signal[endTimes[num]] > threshold/2)
+                   {
+                       endT = endTimes[num+1];
+                       peakT.push_back(maxTimes[num+1]);
 	       
-	       num++;
-	       }//<---Checking adjacent pulses
+                       num++;
+                   }//<---Checking adjacent pulses
 
-	    }//<---End checking if there is more than one pulse on the wire
+               }//<---End checking if there is more than one pulse on the wire
 
-	 // ### Putting in a protection in case things went wrong ###
-	 if(startT - endT == 0){startT = 0; endT = 9600;}
-	 if(startT > endT){endT = 9999;}
+               // ### Putting in a protection in case things went wrong ###
+               if(startT - endT == 0){startT = 0; endT = 9600;}
+               if(startT > endT){endT = 9999;}
 	 
-	 int nFill = 0;
-	 // #######################################################
-	 // ### Clearing the parameter vector for the new pulse ###
-	 // #######################################################
-	 tempGaus1Par.clear();
+               int nFill = 0;
+               // #######################################################
+               // ### Clearing the parameter vector for the new pulse ###
+               // #######################################################
+               tempGaus1Par.clear();
 	 
-	 // === Setting the number of Gaussians to try ===
-	 int nGausForFit = peakT.size();
-	 int nGausReFit = nGausForFit + 1;
+               // === Setting the number of Gaussians to try ===
+               int nGausForFit = peakT.size();
+               int nGausReFit = nGausForFit + 1;
 	 
-	 nFill = nGausForFit;
-	 // ##################################################
-	 // ### Calling the function for fitting Gaussians ###
-	 // ##################################################
-	 FitGaussians(signal, peakT, nGausForFit, startT, endT);
-	 fFirstChi2->Fill(Chi2PerNDF);
+               nFill = nGausForFit;
+               // ##################################################
+               // ### Calling the function for fitting Gaussians ###
+               // ##################################################
+               FitGaussians(signal, peakT, nGausForFit, startT, endT);
+               fFirstChi2->Fill(Chi2PerNDF);
 	 
-	 // #######################################################
-	 // ### Clearing the parameter vector for the new pulse ###
-	 // #######################################################
-	 tempGaus2Par.clear();
-         bool secondTry = false;
-	 // #####################################################
-	 // ### Trying extra gaussians for an initial bad fit ###
-	 // #####################################################
-	 if( (Chi2PerNDF > (2*fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit == 1)|| 
-	     (Chi2PerNDF > (fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit > 1))
-	    {
+               // #######################################################
+               // ### Clearing the parameter vector for the new pulse ###
+               // #######################################################
+               tempGaus2Par.clear();
+               bool secondTry = false;
+               // #####################################################
+               // ### Trying extra gaussians for an initial bad fit ###
+               // #####################################################
+               if( (Chi2PerNDF > (2*fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit == 1)||
+                   (Chi2PerNDF > (fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit > 1))
+               {
 	    
-	    nFill = nGausReFit;
-	    // #########################################################
-	    // ### Calling the function for re-fitting n+1 Gaussians ###
-	    // #########################################################
-	    ReFitGaussians(signal, peakT, nGausReFit, startT, endT);
+                   nFill = nGausReFit;
+                   // #########################################################
+                   // ### Calling the function for re-fitting n+1 Gaussians ###
+                   // #########################################################
+                   ReFitGaussians(signal, peakT, nGausReFit, startT, endT);
 	    
-	    secondTry = true;
-	    }
+                   secondTry = true;
+               }
 	    
 	    
-	 // ### Creating temperary parameters for storing hits ###
-	 double tempChi2NDF = 0;
-	 int tempNDF = -1;
-	 std::vector<double> tempPar;
-         std::vector<double> tempParError;
+               // ### Creating temperary parameters for storing hits ###
+               double tempChi2NDF = 0;
+               int tempNDF = -1;
+               std::vector<double> tempPar;
+               std::vector<double> tempParError;
 	 
-	 // #########################################################
-	 // ### Getting the appropriate parameter into the vector ###
-	 // #########################################################
-	 if(secondTry && Chi2PerNDF2 < Chi2PerNDF)
-	    {
-	    nFill = nGausReFit;
-	    tempChi2NDF = Chi2PerNDF2;
-	    tempNDF = NDF2;
-	    // ### Filling the vector of information
-	    for(size_t ab = 0; ab < tempGaus2Par.size(); ab++)
-	       {
-	       tempPar.push_back( tempGaus2Par[ab] );
-               tempParError.push_back( tempGaus2ParError[ab] );  
+               // #########################################################
+               // ### Getting the appropriate parameter into the vector ###
+               // #########################################################
+               if(secondTry && Chi2PerNDF2 < Chi2PerNDF)
+               {
+                   nFill = nGausReFit;
+                   tempChi2NDF = Chi2PerNDF2;
+                   tempNDF = NDF2;
+                   // ### Filling the vector of information
+                   for(size_t ab = 0; ab < tempGaus2Par.size(); ab++)
+                   {
+                       tempPar.push_back( tempGaus2Par[ab] );
+                       tempParError.push_back( tempGaus2ParError[ab] );
 		  
 		  
-	       }//<---End ab loop
-	    }//<---End using n+1 Gaussian Fit
+                   }//<---End ab loop
+               }//<---End using n+1 Gaussian Fit
 	       
-	 else
-	    {
-	    nFill = nGausForFit;
-	    tempChi2NDF = Chi2PerNDF;
-	    tempNDF = NDF;
-	    // ### Filling the vector of information
-	    for(size_t ab = 0; ab < tempGaus1Par.size(); ab++)
-	       {
-	       tempPar.push_back( tempGaus1Par[ab] );
-               tempParError.push_back( tempGaus1ParError[ab] );  
+               else
+               {
+                   nFill = nGausForFit;
+                   tempChi2NDF = Chi2PerNDF;
+                   tempNDF = NDF;
+                   // ### Filling the vector of information
+                   for(size_t ab = 0; ab < tempGaus1Par.size(); ab++)
+                   {
+                       tempPar.push_back( tempGaus1Par[ab] );
+                       tempParError.push_back( tempGaus1ParError[ab] );
 		  
-		  
-	       }//<---End ab loop
+                   }//<---End ab loop
 
-	    }//<---End using n Gaussian Fit
-	 fChi2->Fill(tempChi2NDF);
+               }//<---End using n Gaussian Fit
+               fChi2->Fill(tempChi2NDF);
 	 
-	 // #################################################
-	 // ### Clearing the variables for this new pulse ###
-	 // #################################################  
-	 totSig = 0;
-	 StartTime.clear();
-	 StartTimeError.clear();
-	 EndTime.clear();
-	 EndTimeError.clear();
-	 RMS.clear();
-	 MeanPosition.clear();
-	 MeanPosError.clear();
-	 Amp.clear();
-	 AmpError.clear();
-	 NumOfHits.clear();
-	 hitSig.clear();
-	 Charge.clear();
-	 SumADC.clear();
-	 ChargeError.clear();
-	 FitGoodness.clear();
-	 FitNDF.clear();
+               // #################################################
+               // ### Clearing the variables for this new pulse ###
+               // #################################################
+               totSig = 0;
+               StartTime.clear();
+               StartTimeError.clear();
+               EndTime.clear();
+               EndTimeError.clear();
+               RMS.clear();
+               MeanPosition.clear();
+               MeanPosError.clear();
+               Amp.clear();
+               AmpError.clear();
+               NumOfHits.clear();
+               hitSig.clear();
+               Charge.clear();
+               SumADC.clear();
+               ChargeError.clear();
+               FitGoodness.clear();
+               FitNDF.clear();
 	 
-	 int numHits = 0;
-	 // #################################################
-	 // ### Recording all the relevant hit parameters ###
-	 // #################################################
+               int numHits = 0;
+               // #################################################
+               // ### Recording all the relevant hit parameters ###
+               // #################################################
 	 
-	 for(int cc = 0; cc < nFill; cc++)
-	    {
-	    // #############################
-	    // ### Skip poorly made hits ###
-	    // #############################
-	    // Peak Below threshold
-	    if(tempPar[3*cc] < threshold){continue;}
-	    // Poor Chi2
-	    if(tempChi2NDF > fChi2NDF){continue;} 
+               for(int cc = 0; cc < nFill; cc++)
+               {
+                   // #############################
+                   // ### Skip poorly made hits ###
+                   // #############################
+                   // Peak Below threshold
+                   if(tempPar[3*cc] < threshold){continue;}
+                   // Poor Chi2
+                   if(tempChi2NDF > fChi2NDF){continue;}
 	    
-	    // ### Start Time ###
-	    StartTime.push_back( tempPar[(3*cc)+1] - tempPar[(3*cc)+2] ); //<---(Mean - Width)
-	    StartTimeError.push_back(TMath::Sqrt( (tempParError[(3*cc)+1]*tempParError[(3*cc)+1]) + 
-					          (tempParError[(3*cc)+2]*tempParError[(3*cc)+2])) );
+                   // ### Start Time ###
+                   StartTime.push_back( tempPar[(3*cc)+1] - tempPar[(3*cc)+2] ); //<---(Mean - Width)
+                   StartTimeError.push_back(TMath::Sqrt( (tempParError[(3*cc)+1]*tempParError[(3*cc)+1]) +
+                                                         (tempParError[(3*cc)+2]*tempParError[(3*cc)+2])) );
 	    
-	    // ### End Time ###	
-	    EndTime.push_back( tempPar[(3*cc)+1] + tempPar[(3*cc)+2] ); //<---(Mean + Width)
-	    EndTimeError.push_back( TMath::Sqrt( (tempParError[(3*cc)+1]*tempParError[(3*cc)+1]) + 
-					         (tempParError[(3*cc)+2]*tempParError[(3*cc)+2])) );
+                   // ### End Time ###
+                   EndTime.push_back( tempPar[(3*cc)+1] + tempPar[(3*cc)+2] ); //<---(Mean + Width)
+                   EndTimeError.push_back( TMath::Sqrt( (tempParError[(3*cc)+1]*tempParError[(3*cc)+1]) +
+                                                        (tempParError[(3*cc)+2]*tempParError[(3*cc)+2])) );
 						 
-	    // ### Mean Time ###
-	    MeanPosition.push_back( tempPar[(3*cc)+1] );
-	    MeanPosError.push_back( tempParError[(3*cc)+1] );
+                   // ### Mean Time ###
+                   MeanPosition.push_back( tempPar[(3*cc)+1] );
+                   MeanPosError.push_back( tempParError[(3*cc)+1] );
 	    
-	    // ### Width ###
-	    RMS.push_back( tempPar[(3*cc)+2] );
+                   // ### Width ###
+                   RMS.push_back( tempPar[(3*cc)+2] );
 	    
-	    // ### Amplitude ###
-	    Amp.push_back( tempPar[3*cc] );
-	    AmpError.push_back( tempParError[3*cc] );
+                   // ### Amplitude ###
+                   Amp.push_back( tempPar[3*cc] );
+                   AmpError.push_back( tempParError[3*cc] );
 	    
-	    // ### Number of hits in this pulse ###
-	    int mul = nFill;
-	    NumOfHits.push_back( mul );
+                   // ### Number of hits in this pulse ###
+                   int mul = nFill;
+                   NumOfHits.push_back( mul );
 	    
-	    // ### Chi^2 / NDF ###
-	    FitGoodness.push_back( tempChi2NDF );
-	    FitNDF.push_back( tempNDF );
+                   // ### Chi^2 / NDF ###
+                   FitGoodness.push_back( tempChi2NDF );
+                   FitNDF.push_back( tempNDF );
 	    
-	    // ### Charge ###
-	    hitSig.resize(endT - startT);
+                   // ### Charge ###
+                   hitSig.resize(endT - startT);
 	    
-	    // ##################################
-	    // ### Integral Method for charge ###
-	    // ##################################
-	    for(int sigPos = 0; sigPos<(endT - startT); sigPos++)//<---Loop over the size (endT - startT)
-	       { 
-	       hitSig[sigPos] = tempPar[3*cc]*TMath::Gaus(sigPos+startT,tempPar[(3*cc)+1], tempPar[(3*cc)+2]);
-	       totSig+=hitSig[(int)sigPos];
-	       }//<---End Signal postion loop
+                   // ##################################
+                   // ### Integral Method for charge ###
+                   // ##################################
+                   for(int sigPos = 0; sigPos<(endT - startT); sigPos++)//<---Loop over the size (endT - startT)
+                   {
+                       hitSig[sigPos] = tempPar[3*cc]*TMath::Gaus(sigPos+startT,tempPar[(3*cc)+1], tempPar[(3*cc)+2]);
+                       totSig+=hitSig[(int)sigPos];
+                   }//<---End Signal postion loop
 	     
-	    // ###################################################### 
-	    // ### Getting the total charge using the area method ###
-	    // ######################################################
-	    if(fAreaMethod) 
-	       {
-		 totSig = std::sqrt(2*TMath::Pi())*tempPar[3*cc]*tempPar[(3*cc)+2]/fAreaNorms[(size_t)(wire->View())];
-	       }//<---End Area Method
+                   // ######################################################
+                   // ### Getting the total charge using the area method ###
+                   // ######################################################
+                   if(fAreaMethod)
+                   {
+                       totSig = std::sqrt(2*TMath::Pi())*tempPar[3*cc]*tempPar[(3*cc)+2]/fAreaNorms[(size_t)(wire->View())];
+                   }//<---End Area Method
 	    
-	    Charge.push_back( totSig );
-	    ChargeError.push_back( TMath::Sqrt(TMath::Pi())*(tempParError[(3*cc)+0]*tempParError[(3*cc)+2]+
-	  			   tempParError[(3*cc)+2]*tempParError[(3*cc)+0]) );   //estimate from area of Gaussian
+                   Charge.push_back( totSig );
+                   ChargeError.push_back( TMath::Sqrt(TMath::Pi())*(tempParError[(3*cc)+0]*tempParError[(3*cc)+2]+
+                                                                    tempParError[(3*cc)+2]*tempParError[(3*cc)+0]) );   //estimate from area of Gaussian
 	    
 	    
-	    // ### Sum of ADC counts ### FIXME I don't think this copes well with overlaps
-	    SumADC.push_back(
-	      std::accumulate(signal.begin() + startT, signal.begin() + endT, 0.)
-	      );
+                   // ### Sum of ADC counts ### FIXME I don't think this copes well with overlaps
+                   SumADC.push_back(
+                                    std::accumulate(signal.begin() + startT, signal.begin() + endT, 0.)
+                                    );
 	    
-	    numHits++;
-	    }//<---End cc loop
+                   numHits++;
+               }//<---End cc loop
 	          
-         tempPar.clear();
-	 tempParError.clear();
+               tempPar.clear();
+               tempParError.clear();
 	 
-	 // get the WireID for this hit
-	 std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
-	 // for now, just take the first option returned from ChannelToWire
-	 geo::WireID wid = wids[0];
+               // get the WireID for this hit
+               std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
+               // for now, just take the first option returned from ChannelToWire
+               geo::WireID wid = wids[0];
 	 
-	 // ### Recording each hit in the pulse ###
-	 for(size_t dd = 0; dd < MeanPosition.size(); dd++)
-	    {
-		 recob::HitCreator hit(
-		   *wire,            // wire reference
-		   wid,              // wire ID
-		   startT,           // start_tick TODO check
-		   endT,             // end_tick TODO check
-		   RMS[dd],          // rms
-		   MeanPosition[dd], // peak_time
-		   MeanPosError[dd], // sigma_peak_time
-		   Amp[dd],          // peak_amplitude
-		   AmpError[dd],     // sigma_peak_amplitude
-		   Charge[dd],       // hit_integral
-		   ChargeError[dd],  // hit_sigma_integral
-		   SumADC[dd],       // summedADC FIXME
-		   NumOfHits[dd],    // multiplicity
-		   dd,               // local_index TODO check that the order is correct
-		   FitGoodness[dd],  // goodness_of_fit
-		   FitNDF[dd]        // dof
-		   );
+               // ### Recording each hit in the pulse ###
+               for(size_t dd = 0; dd < MeanPosition.size(); dd++)
+               {
+                   recob::HitCreator hit(
+                                         *wire,                            // wire reference
+                                         wid,                              // wire ID
+                                         startT+roiFirstBinTick,           // start_tick TODO check
+                                         endT+roiFirstBinTick,             // end_tick TODO check
+                                         RMS[dd],                          // rms
+                                         MeanPosition[dd]+roiFirstBinTick, // peak_time
+                                         MeanPosError[dd],                 // sigma_peak_time
+                                         Amp[dd],                          // peak_amplitude
+                                         AmpError[dd],                     // sigma_peak_amplitude
+                                         Charge[dd],                       // hit_integral
+                                         ChargeError[dd],                  // hit_sigma_integral
+                                         SumADC[dd],                       // summedADC FIXME
+                                         NumOfHits[dd],                    // multiplicity
+                                         dd,                               // local_index TODO check that the order is correct
+                                         FitGoodness[dd],                  // goodness_of_fit
+                                         FitNDF[dd]                        // dof
+                                         );
 		 
-		 hcol.emplace_back(hit.move(), wire, rawdigits);
-	    }
+                   hcol.emplace_back(hit.move(), wire, rawdigits);
+               }
 	    
-	 }//<---End num loop
+           }//<---End num loop
+           
+       } //<---End looping over ROI's
 	 
 
-      }//<---End looping over all the wires
+   }//<---End looping over all the wires
 
 
 //==================================================================================================  
