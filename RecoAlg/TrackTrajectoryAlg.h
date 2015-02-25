@@ -14,6 +14,10 @@
 #include <algorithm>
 #include <vector>
 
+#include "Geometry/Geometry.h"
+#include "Geometry/TPCGeo.h"
+#include "Geometry/PlaneGeo.h"
+#include "Geometry/WireGeo.h"
 #include "RecoAlg/TrackLineFitAlg.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
@@ -34,6 +38,8 @@ namespace trkf {
       std::array<std::vector<double>,3> trkChg = std::array<std::vector<double>,3>());
     
     private:
+
+    art::ServiceHandle<geo::Geometry> geom;
 
     TrackLineFitAlg fTrackLineFitAlg;
     

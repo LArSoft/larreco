@@ -145,7 +145,7 @@ namespace shwf{
     art::Handle< std::vector<recob::EndPoint2D> > vertexStrengthListHandle;
     evt.getByLabel(fVertexStrengthModuleLabel,vertexStrengthListHandle);
     
-    art::PtrVector<recob::Cluster> protoShowers; //vector of clusters associated to a cone
+    std::vector<size_t> protoShowers; //vector of indices of clusters associated to a cone
 
     std::vector< art::Ptr<recob::Hit> > clusterhits; //hits in the cluster
 
@@ -232,9 +232,11 @@ namespace shwf{
 	y2_cone = ya_cone + fScone*(std::sin(scan_angle + cone_angle));
 	
 	//Looking if a cluster is in this cone (loop over all hits of all clusters)
+	protoShowers.clear();
 	for(size_t iclust = 0; iclust < clusterListHandle->size(); ++iclust){
 	  
-	  art::Ptr<recob::Cluster> clust(clusterListHandle, iclust);
+	//  art::Ptr<recob::Cluster> clust(clusterListHandle, iclust);
+	  recob::Cluster const& clust = clusterListHandle->at(iclust);
 	  
 	  //Get the hits vector from the cluster
 	  clusterhits = fmh.at(iclust);
@@ -262,30 +264,28 @@ namespace shwf{
 	  if(clusterhits.size() == 0) continue;
 	  if(((double)hits_cluster_counter / (double)clusterhits.size()) >= 0.5){
 	    mf::LogInfo("ShowerFinder") << "GOT A SHOWER!!!  in scan " << iscan 
-					<< "  cluster: " << iclust << " : " << clust->ID();
+					<< "  cluster: " << iclust << " : " << clust.ID();
 	    
 	    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	    /// \todo NEED TO TAKE OUT THE HOUGH LINES FROM THE PROTOSHOWERS!!!!!  
 	    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	    
-	    protoShowers.push_back(clust);
+	    protoShowers.push_back(iclust);
 	  }
 	  clusterhits.clear();
 	  hits_cluster_counter = 0;
 	  
 	} //end cluster loop
 	
-	if(protoShowers.size() == 0) continue;
+	if(protoShowers.empty()) continue;
 	
 	// loop over hits in the protoShowers to determine the total charge of the shower
 	double totalCharge = 0.;
 	
-	art::FindManyP<recob::Hit> fmhps(protoShowers, evt, fClusterModuleLabel);
-	
 	for(size_t p = 0; p < protoShowers.size(); ++p){
-	  std::vector< art::Ptr<recob::Hit> > hits = fmhps.at(p);
-	  for(size_t h = 0; h < hits.size(); ++h)
-	    if(hits[h]->SignalType() == geo::kCollection) totalCharge += hits[h]->Integral();
+	  const size_t psIndex = protoShowers[p];
+	  for (art::Ptr<recob::Hit> const& hit: fmh.at(psIndex))
+	    if(hit->SignalType() == geo::kCollection) totalCharge += hit->Integral();
 	}
 	
 	/// \todo really need to determine the values of the arguments of the recob::Shower ctor
@@ -299,15 +299,15 @@ namespace shwf{
 	showercol->push_back(recob::Shower());
 
 	// associate the shower with its clusters
-	util::CreateAssn(*this, evt, *showercol, protoShowers, *cassn);
+	util::CreateAssn(*this, evt, *cassn,
+	  showercol->size() - 1, protoShowers.begin(), protoShowers.end());
 	
 	// get the hits associated with each cluster and associate those with the shower
 	for(size_t p = 0; p < protoShowers.size(); ++p){
-	  std::vector< art::Ptr<recob::Hit> > hits = fmhps.at(p);
+	  const size_t psIndex = protoShowers[p];
+	  std::vector< art::Ptr<recob::Hit> > hits = fmh.at(psIndex);
 	  util::CreateAssn(*this, evt, *showercol, hits, *hassn);
 	}
-	
-	protoShowers.clear();
 	
       } //end scan loop
     } //end vertices loop

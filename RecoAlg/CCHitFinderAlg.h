@@ -43,13 +43,14 @@ namespace cluster {
       float ChiDOF;
       int   DOF;
       float ADCSum;
-      art::Ptr<recob::Wire> Wire;
       unsigned short WireNum;
       unsigned short numHits;
-      unsigned short LoHitID;
+      unsigned int LoHitID;
       float LoTime;   // defines the Lo(Hi) time region of the hit
       float HiTime;   // or hit multiplet
       short InClus;
+      geo::WireID WirID;
+      art::Ptr<recob::Wire> Wire;
     };
     std::vector< CCHit > allhits;
     
@@ -124,7 +125,7 @@ namespace cluster {
     void MakeCrudeHit(unsigned short npt, float *ticks, float *signl);
     // store the hits
     void StoreHits(unsigned short TStart, unsigned short npt, 
-      art::Ptr<recob::Wire>& theWire, float adcsum);
+      art::Ptr<recob::Wire>, geo::WireID& wireID, float adcsum);
 /*
     // study hit finding and fitting
     void StudyHits(unsigned short flag, unsigned short npt = 0,
