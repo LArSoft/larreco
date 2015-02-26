@@ -139,7 +139,7 @@ namespace cluster {
       return;
     }
     
-    std::cout<<"CC: number of hits "<<allhits.size()<<"\n";
+//    std::cout<<"CC: number of hits "<<allhits.size()<<"\n";
     
     for(cstat = 0; cstat < geom->Ncryostats(); ++cstat){
       for(tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc){
@@ -152,6 +152,7 @@ namespace cluster {
           GetHitRange(allhits, clCTP, WireHitRange, fFirstWire, fLastWire);
 
 // sanity check
+/*
   std::cout<<"Plane "<<plane<<" wire range "<<fFirstWire<<" "<<fLastWire;
   unsigned int nhts = 0;
   for(unsigned short wire = fFirstWire; wire < fLastWire; ++wire) {
@@ -175,7 +176,7 @@ namespace cluster {
     } // hit
   } // wire
   std::cout<<" is OK. nhits "<<nhts<<"\n";;
-
+*/
           fFirstHit = WireHitRange[0].first;
           uint32_t channel = allhits[fFirstHit].Wire->Channel();
           // get the scale factor to convert dTick/dWire to dX/dU. This is used
@@ -206,7 +207,7 @@ namespace cluster {
         }
       } // tpc
     } // cstat
-
+/*
   cstat = 0; tpc = 0;
   for(plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane){
     WireHitRange.clear();
@@ -228,7 +229,7 @@ namespace cluster {
     std::cout<<"After CC: plane "<<plane<<" nhits "<<nhts
       <<" nhits in Clusters "<<nhtsinCls<<"\n";;
   } // plane
-      
+*/     
     WireHitRange.clear(); 
     fcl2hits.clear();
     chifits.clear();
