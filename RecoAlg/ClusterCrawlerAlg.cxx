@@ -139,6 +139,8 @@ namespace cluster {
       return;
     }
     
+    std::cout<<"CC: number of hits "<<allhits.size()<<"\n";
+    
     for(cstat = 0; cstat < geom->Ncryostats(); ++cstat){
       for(tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc){
         for(plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane){
@@ -148,6 +150,32 @@ namespace cluster {
           // fill the WireHitRange vector with first/last hit on each wire
           // dead wires and wires with no hits are flagged < 0
           GetHitRange(allhits, clCTP, WireHitRange, fFirstWire, fLastWire);
+
+// sanity check
+  std::cout<<"Plane "<<plane<<" wire range "<<fFirstWire<<" "<<fLastWire;
+  unsigned int nhts = 0;
+  for(unsigned short wire = fFirstWire; wire < fLastWire; ++wire) {
+    unsigned short index = wire - fFirstWire;
+    unsigned short fhit = WireHitRange[index].first;
+    unsigned short lhit = WireHitRange[index].second;
+    for(unsigned short hit = fhit; hit < lhit; ++hit) {
+      ++nhts;
+      if(allhits[hit].WirID.Wire != wire) {
+        std::cout<<"Bad wire "<<hit<<" "<<allhits[hit].WirID.Wire<<" "<<wire<<"\n";
+        return;
+      } // check wire
+      if(allhits[hit].WirID.Plane != plane) {
+        std::cout<<"Bad plane "<<hit<<" "<<allhits[hit].WirID.Plane<<" "<<plane<<"\n";
+        return;
+      } // check plane
+      if(allhits[hit].WirID.TPC != tpc) {
+        std::cout<<"Bad tpc "<<hit<<" "<<allhits[hit].WirID.TPC<<" "<<tpc<<"\n";
+        return;
+      } // check tpc
+    } // hit
+  } // wire
+  std::cout<<" is OK. nhits "<<nhts<<"\n";;
+
           fFirstHit = WireHitRange[0].first;
           uint32_t channel = allhits[fFirstHit].Wire->Channel();
           // get the scale factor to convert dTick/dWire to dX/dU. This is used
@@ -178,7 +206,29 @@ namespace cluster {
         }
       } // tpc
     } // cstat
-    
+
+  cstat = 0; tpc = 0;
+  for(plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane){
+    WireHitRange.clear();
+    // define a code to ensure clusters are compared within the same plane
+    clCTP = EncodeCTP(cstat, tpc, plane);
+    // fill the WireHitRange vector with first/last hit on each wire
+    // dead wires and wires with no hits are flagged < 0
+    GetHitRange(allhits, clCTP, WireHitRange, fFirstWire, fLastWire);
+    unsigned int nhts = 0, nhtsinCls = 0;
+    for(unsigned short wire = fFirstWire; wire < fLastWire; ++wire) {
+      unsigned short index = wire - fFirstWire;
+      unsigned short fhit = WireHitRange[index].first;
+      unsigned short lhit = WireHitRange[index].second;
+      for(unsigned short hit = fhit; hit < lhit; ++hit) {
+        if(allhits[hit].InClus >= 0) ++nhts;
+        if(allhits[hit].InClus > 0) ++nhtsinCls;
+      } // hit
+    } // wire
+    std::cout<<"After CC: plane "<<plane<<" nhits "<<nhts
+      <<" nhits in Clusters "<<nhtsinCls<<"\n";;
+  } // plane
+      
     WireHitRange.clear(); 
     fcl2hits.clear();
     chifits.clear();
@@ -995,7 +1045,7 @@ namespace cluster {
       // all hits in the multiplet used?
       if(nGaus == 0) return;
       // no reasonably close hits?
-      if(nhitnear < 4 && nclose == 0) return;
+//      if(nhitnear < 4 && nclose == 0) return;
       if(loTime < 0) loTime = 0;
       ++hiTime;
       // define a signal shape

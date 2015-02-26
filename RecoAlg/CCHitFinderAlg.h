@@ -62,8 +62,6 @@ namespace cluster {
       float MinRMSCol;
       float ChiSplit;
       std::vector<float> ChiNorms;
-      std::vector<float> TimeOffsets;
-      std::vector<float> ChgNorms;
     };
     HitCuts hitcuts;
 
@@ -126,8 +124,12 @@ namespace cluster {
     // store the hits
     void StoreHits(unsigned short TStart, unsigned short npt, 
       art::Ptr<recob::Wire>, geo::WireID& wireID, float adcsum);
-/*
+
     // study hit finding and fitting
+    bool fStudyHits;
+    std::vector< short > fUWireRange, fUTickRange;
+    std::vector< short > fVWireRange, fVTickRange;
+    std::vector< short > fWWireRange, fWTickRange;
     void StudyHits(unsigned short flag, unsigned short npt = 0,
       float *ticks = 0, float *signl = 0, unsigned short tstart = 0);
     std::vector<int> bumpCnt;
@@ -142,7 +144,7 @@ namespace cluster {
     std::vector<float> hiWire;
     std::vector<float> hiTime;
     bool SelRAT; // set true if a Region Above Threshold should be studied
-*/
+
 
   }; // class CCHitFinderAlg
 
