@@ -26,6 +26,9 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "CLHEP/Random/JamesRandom.h"
 
+// art extensions
+#include "artextensions/SeedService/SeedService.hh"
+
 // LArSoft includes
 #include "RawData/raw.h"
 #include "RawData/RawDigit.h"
@@ -38,7 +41,6 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/SeedCreator.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
 #include "ClusterFinder/ClusterCreator.h"
@@ -65,7 +67,7 @@ namespace cluster{
     TH1F *fhitwidth_coll_test;  
   
     std::string fhitsModuleLabel;
-    long int fHoughSeed;
+    unsigned int fHoughSeed;
    
     fuzzyClusterAlg ffuzzyCluster; ///< object that implements the fuzzy cluster algorithm
   };
@@ -83,11 +85,11 @@ namespace cluster{
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     
-    unsigned int seed
-      = pset.get< unsigned int >("Seed", SeedCreator::CreateRandomNumberSeed());
+    // create a default random engine; obtain the random seed from SeedService,
+    // unless overridden in configuration with key "Seed"
+    art::ServiceHandle<artext::SeedService>()
+      ->createEngine(*this, pset, "Seed");
     
-    // Create random number engine needed for PPHT
-    createEngine(seed,"HepJamesRandom");
   }
   
   //-------------------------------------------------
@@ -99,7 +101,7 @@ namespace cluster{
   void fuzzyCluster::reconfigure(fhicl::ParameterSet const& p)
   {
     fhitsModuleLabel  = p.get< std::string >("HitsModuleLabel");
-    fHoughSeed = p.get< long int >("HoughSeed");
+    fHoughSeed = p.get< unsigned int >("HoughSeed");
     ffuzzyCluster.reconfigure(p.get< fhicl::ParameterSet >("fuzzyClusterAlg"));
   }
   
