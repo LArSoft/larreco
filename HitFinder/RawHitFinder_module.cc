@@ -266,9 +266,11 @@ namespace hit {
 	    }
 	    endTimes.push_back(bin-1);
 	    peakHeight.push_back(-1.0*minadc);
+	    // don't look for a new hit until it returns to baseline
 	    while (thisadc<0 && bin<fDataSize) {
 	      //	      std::cout << bin << " " << thisadc << std::endl;
 	      bin++;
+	      thisadc=holder[bin];
 	    }
 	  }// end region
 	  bin++;	  
@@ -356,7 +358,7 @@ namespace hit {
 	  wid,              // wire ID
 	  start,            // start_tick FIXME
 	  end,              // end_tick FIXME
-	  -1.,              // rms FIXME
+	  3.0,              // rms FIXME
 	  position,         // peak_time
 	  positionErr,      // sigma_peak_time
 	  amplitude,        // peak_amplitude
