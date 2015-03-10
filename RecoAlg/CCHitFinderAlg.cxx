@@ -10,37 +10,34 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
-#include <stdint.h>
+
+// class header
+#include "RecoAlg/CCHitFinderAlg.h"
+
+// C/C++ standard libraries
+#include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
+#include <utility> // std::pair<>, std::make_pair()
+#include <algorithm> // std::sort()
 
-// Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h"   
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Core/EDProducer.h" 
-
+// framework libraries
+#include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft Includes
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
-#include "RecoBase/Hit.h"
 
-// ROOT Includes 
+// ROOT Includes
 #include "TGraph.h"
 #include "TMath.h"
 #include "TF1.h"
-// #include "TVirtualFitter.h"
 
-#include "RecoAlg/CCHitFinderAlg.h"
 
-namespace cluster{
+namespace cluster {
 
 //------------------------------------------------------------------------------
   CCHitFinderAlg::CCHitFinderAlg(fhicl::ParameterSet const& pset)

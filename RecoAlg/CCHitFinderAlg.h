@@ -9,14 +9,18 @@
 #ifndef CCHITFINDERALG_H
 #define CCHITFINDERALG_H
 
-#include "TMath.h"
-
+// C/C++ standard libraries
+#include <string>
 #include <vector>
 
+// framework libraries
 #include "fhiclcpp/ParameterSet.h" 
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art/Persistency/Common/Ptr.h" 
 #include "art/Persistency/Common/PtrVector.h" 
 
+// LArSoft libraries
 #include "Geometry/Geometry.h"
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
@@ -90,15 +94,15 @@ namespace cluster {
     std::vector<float> fTimeOffsets;
     std::vector<float> fChgNorms;
 
-    uint32_t theChannel;
+    raw::ChannelID_t theChannel;
     unsigned short theWireNum;
     unsigned short thePlane;
     float minRMS;
     float minSig;
     float chinorm;
     float timeoff;
-    const float Sqrt2Pi = 2.5066;
-    const float SqrtPi  = 1.7725;
+    static constexpr float Sqrt2Pi = 2.5066;
+    static constexpr float SqrtPi  = 1.7725;
 
 
 //    bool prt;
@@ -147,7 +151,7 @@ namespace cluster {
 
 
   }; // class CCHitFinderAlg
-
-} // cchit
+  
+} // namespace cluster
 
 #endif // ifndef CCHITFINDERALG_H
