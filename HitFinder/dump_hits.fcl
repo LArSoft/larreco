@@ -69,6 +69,11 @@ physics: {
       # specify the label of the recob::Hit producer
       HitModuleLabel:  "gaushit"
       
+      # check that the correct raw digit is associated to each hit
+      CheckRawDigitAssociation: true
+      # check that the correct wire is associated to each hit
+      CheckWireAssociation:     true
+      
     } # dumphits
   } # analyzers
   

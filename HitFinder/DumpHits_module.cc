@@ -14,6 +14,7 @@
 // art libraries
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Core/FindOne.h"
 #include "art/Framework/Principal/Event.h"
 
 // ... plus see below ...
@@ -33,6 +34,10 @@ namespace hit {
    *   recob::Hit collection
    * - *OutputCategory* (string, default: "DumpHits"): the category
    *   used for the output (useful for filtering)
+   * - *CheckWireAssociation* (string, default: false): if set, verifies
+   *   that the associated wire are on the same channel as the hit
+   * - *CheckRawDigitAssociation* (string, default: false): if set, verifies
+   *   that the associated raw digits are on the same channel as the hit
    *
    */
   class DumpHits: public art::EDAnalyzer {
@@ -47,7 +52,9 @@ namespace hit {
       private:
     
     std::string fHitsModuleLabel; ///< name of module that produced the hits
-    std::string fOutputCategory; ///< category for LogInfo output
+    std::string fOutputCategory;  ///< category for LogInfo output
+    bool bCheckRawDigits;         ///< check associations with raw digits
+    bool bCheckWires;             ///< check associations with wires
     
   }; // class DumpHits
   
@@ -59,6 +66,7 @@ namespace hit {
 //---
 // C//C++ standard libraries
 #include <vector>
+#include <memory> // std::unique_ptr<>
 
 // support libraries
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -68,7 +76,10 @@ namespace hit {
 #include "art/Utilities/InputTag.h"
 
 // LArSoft includes
+#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "RecoBase/Hit.h"
+#include "RecoBase/Wire.h"
+#include "RawData/RawDigit.h"
 
 
 namespace hit {
@@ -78,6 +89,8 @@ namespace hit {
     : EDAnalyzer         (pset) 
     , fHitsModuleLabel   (pset.get<std::string>("HitModuleLabel"))
     , fOutputCategory    (pset.get<std::string>("OutputCategory", "DumpHits"))
+    , bCheckRawDigits    (pset.get<bool>       ("CheckRawDigitAssociation", false))
+    , bCheckWires        (pset.get<bool>       ("CheckWireAssociation", false))
     {}
   
   
@@ -94,14 +107,55 @@ namespace hit {
       << "The event contains " << Hits->size() << " '"
       << HitInputTag.encode() << "' hits";
     
+    std::unique_ptr<art::FindOne<raw::RawDigit>> HitToRawDigit;
+    if (bCheckRawDigits) {
+      HitToRawDigit.reset
+        (new art::FindOne<raw::RawDigit>(Hits, evt, HitInputTag));
+      if (!HitToRawDigit->isValid()) {
+        throw art::Exception(art::errors::ProductNotFound)
+          << "DumpHits: can't find associations between raw digits and hits from '"
+          << HitInputTag << "'";
+      }
+    } // if check raw digits
+    
+    std::unique_ptr<art::FindOne<recob::Wire>> HitToWire;
+    if (bCheckWires) {
+      HitToWire.reset(new art::FindOne<recob::Wire>(Hits, evt, HitInputTag));
+      if (!HitToWire->isValid()) {
+        throw art::Exception(art::errors::ProductNotFound)
+          << "DumpHits: can't find associations between wires and hits from '"
+          << HitInputTag << "'";
+      }
+    } // if check wires
+    
     unsigned int iHit = 0;
     for (const recob::Hit& hit: *Hits) {
       
       // print a header for the cluster
       mf::LogVerbatim(fOutputCategory)
         << "Hit #" << (iHit++) << ": " << hit;
-    
-    } // for clusters
+      
+      if (HitToRawDigit) {
+        raw::ChannelID_t assChannelID = HitToRawDigit->at(iHit).ref().Channel();
+        if (assChannelID != hit.Channel()) {
+          throw art::Exception(art::errors::DataCorruption)
+            << "Hit #" << iHit << " on channel " << hit.Channel()
+            << " is asociated with raw digit on channel " << assChannelID
+            << "!!";
+        } // mismatch
+      } // raw digit check
+      
+      if (HitToWire) {
+        raw::ChannelID_t assChannelID = HitToWire->at(iHit).ref().Channel();
+        if (assChannelID != hit.Channel()) {
+          throw art::Exception(art::errors::DataCorruption)
+            << "Hit #" << iHit << " on channel " << hit.Channel()
+            << " is asociated with wire on channel " << assChannelID
+            << "!!";
+        } // mismatch
+      } // wire check
+      
+    } // for hits
     
   } // DumpHits::analyze()
   
