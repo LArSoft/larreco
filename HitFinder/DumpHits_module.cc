@@ -133,14 +133,14 @@ namespace hit {
       
       // print a header for the cluster
       mf::LogVerbatim(fOutputCategory)
-        << "Hit #" << (iHit++) << ": " << hit;
+        << "Hit #" << iHit << ": " << hit;
       
       if (HitToRawDigit) {
         raw::ChannelID_t assChannelID = HitToRawDigit->at(iHit).ref().Channel();
         if (assChannelID != hit.Channel()) {
           throw art::Exception(art::errors::DataCorruption)
             << "Hit #" << iHit << " on channel " << hit.Channel()
-            << " is asociated with raw digit on channel " << assChannelID
+            << " is associated with raw digit on channel " << assChannelID
             << "!!";
         } // mismatch
       } // raw digit check
@@ -150,11 +150,12 @@ namespace hit {
         if (assChannelID != hit.Channel()) {
           throw art::Exception(art::errors::DataCorruption)
             << "Hit #" << iHit << " on channel " << hit.Channel()
-            << " is asociated with wire on channel " << assChannelID
+            << " is associated with wire on channel " << assChannelID
             << "!!";
         } // mismatch
       } // wire check
       
+      ++iHit;
     } // for hits
     
   } // DumpHits::analyze()
