@@ -18,8 +18,11 @@
 #include "art/Framework/Core/FindOneP.h"
 
 #include <vector>
+#include <algorithm> // std::max()
+#include <functional> // std::mem_fn()
 #include <memory> // std::move
 #include <utility> // std::pair<>, std::unique_ptr<>
+#include <limits> // std::numeric_limits<>
 
 //LArSoft includes
 #include "SimpleTypesAndConstants/geo_types.h"
@@ -59,15 +62,79 @@ class cluster::ClusterCrawler : public art::EDProducer {
   private:
     CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
     ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
+    std::string fCalDataModuleLabel; ///< label of module producing input wires
 };
+
+
+namespace util {
+  
+  /**
+   * @brief Creates a map of indices from an existing collection
+   * @tparam Coll type of the collection
+   * @tparam KeyOf type of the extractor of the key
+   * @param data the data collection
+   * @param key_of instance of a functor extracting a key value from a datum
+   * @return a vector with indices corresponding to the data keys
+   *
+   * This function maps the index of the items in data to an integral key
+   * extracted from each item.
+   * For example, if the items are wires and the key_of function extracts their
+   * channel ID, the resulting vector will contain for each channel ID
+   * the index in data of the wire with that channel ID.
+   * 
+   * The key is converted into a unsigned integer (`size_t`).
+   * If multiple items have the same key, the outcome for that key is undefined.
+   * If no items has a specific key, the index of that key is assigned as
+   * `std::numeric_limits<size_t>::max()`, i.e. an index larger than the size
+   * of the original data collection.
+   * 
+   * The returned vector is big enough to accommodate indices corresponding to
+   * the keys of all the items in data. It may contain "holes" (that is, some
+   * keys that have no corresponding items have a
+   * `std::numeric_limits<size_t>::max()` value).
+   * The memory allocated for the vector may be larger than necessary (if that
+   * is a problem, `std::vector::shrink_to_fit()` can be used, but it may create
+   * more problems than it solves).
+   * 
+   */
+  template <typename Coll, typename KeyOf>
+  std::vector<size_t> MakeIndex(Coll const& data, KeyOf key_of = KeyOf()) {
+    
+    // we start the index with the best guess that all the items will have
+    // a unique key and they are contiguous:
+    // the index would have the same size as the data
+    std::vector<size_t> Index(data.size(), std::numeric_limits<size_t>::max());
+    
+    size_t min_size = 0; // minimum size needed to hold all keys
+    
+    size_t iDatum = 0;
+    for (auto const& datum: data) {
+      size_t key = size_t(key_of(datum));
+      if (key >= min_size) min_size = key + 1;
+      if (Index.size() <= key) {
+        // make room for the entry: double the size
+        Index.resize(
+          std::max(key + 1, Index.size() * 2),
+          std::numeric_limits<size_t>::max()
+          );
+      } // if expand index
+      Index[key] = iDatum;
+      ++iDatum;
+    } // for datum
+    Index.resize(min_size);
+    return Index;
+  } // MakeIndex()
+  
+} // namespace util
 
 
 namespace cluster {
 
   ClusterCrawler::ClusterCrawler(fhicl::ParameterSet const& pset) :
-    fCCHFAlg(pset.get< fhicl::ParameterSet >("CCHitFinderAlg" )),
-    fCCAlg(  pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"))
-  {  
+    fCCHFAlg           (pset.get<fhicl::ParameterSet>("CCHitFinderAlg")),
+    fCCAlg             (pset.get<fhicl::ParameterSet>("ClusterCrawlerAlg")),
+    fCalDataModuleLabel(pset.get<std::string>("CalDataModuleLabel"))
+  {
     this->reconfigure(pset);
     
     // let HitCollectionCreator declare that we are going to produce
@@ -96,9 +163,14 @@ namespace cluster {
   
   void ClusterCrawler::produce(art::Event & evt)
   {
+    // fetch the wires needed by CCHitFinder
+
+    // make this accessible to ClusterCrawler_module
+    art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
+     = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
 
     // find hits in all planes
-    fCCHFAlg.RunCCHitFinder(evt);
+    fCCHFAlg.RunCCHitFinder(*wireVecHandle);
 
     // look for clusters in all planes
     fCCAlg.RunCrawler(fCCHFAlg.allhits);
@@ -118,11 +190,8 @@ namespace cluster {
     
     // learn from the algorithm which wires it used,
     // and get both wires and their association with raw digits
-    std::string WireCreatorModuleLabel = fCCHFAlg.CalDataModuleLabel();
-    art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
-     = evt.getValidHandle<std::vector<recob::Wire>>(WireCreatorModuleLabel);
     art::FindOneP<raw::RawDigit> WireToRawDigit
-      (wireVecHandle, evt, WireCreatorModuleLabel);
+      (wireVecHandle, evt, fCalDataModuleLabel);
 
     unsigned int icl, iht, itt;
 
@@ -148,6 +217,10 @@ namespace cluster {
     } // ii
   } // icl
 
+    // fill a map of wire index vs. channel number
+    std::vector<size_t> WireMap
+      = util::MakeIndex(*wireVecHandle, std::mem_fn(&recob::Wire::Channel));
+    
     // Temp vector for indexing valid (i.e. not obsolete) hits
     std::vector<int> vhit(fCCHFAlg.allhits.size(), -1);
     unsigned int locIndex, nvhit = 0;
@@ -157,9 +230,27 @@ namespace cluster {
       ++nvhit;
       // store the hit
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[iht];
-      art::Ptr<recob::Wire> const& theWire = theHit.Wire;
-      raw::ChannelID_t channel = theWire->Channel();
+      raw::ChannelID_t channel = theHit.Wire->Channel();
+      size_t WireKey = WireMap.at(channel);
+      if (WireKey == std::numeric_limits<size_t>::max()) {
+        throw art::Exception(art::errors::LogicError)
+          << "There is no wire for channel " << channel << ", yet hit #"
+          << iht << " was created from it!";
+      }
+      const art::Ptr<recob::Wire> theWire(wireVecHandle, WireKey);
       art::Ptr<raw::RawDigit> const& theRawDigit = WireToRawDigit.at(theWire.key());
+      if (theRawDigit->Channel() != channel) {
+        throw art::Exception(art::errors::LogicError)
+          << "I am trying to associate hit #" << iht << " on channel "
+          << channel << " with a raw digit on channel "
+          << theRawDigit->Channel() << "!!!";
+      }
+      if (theWire->Channel() != channel) {
+        throw art::Exception(art::errors::LogicError)
+          << "I am trying to associate hit #" << iht << " on channel "
+          << channel << " with a wire on channel "
+          << theWire->Channel() << "!!!";
+      }
       // find the local index in a hit multiplet
       locIndex = iht - theHit.LoHitID;
       recob::Hit hit(
@@ -229,7 +320,8 @@ namespace cluster {
       // get the wire, plane from a hit
       iht = clstr.tclhits[0];
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[iht];
-      art::Ptr<recob::Wire> const& theWire = theHit.Wire;
+      size_t WireKey = WireMap.at(theHit.Wire->Channel());
+      const art::Ptr<recob::Wire> theWire(wireVecHandle, WireKey);
       raw::ChannelID_t channel = theWire->Channel();
       sccol.emplace_back(
           (float)clstr.BeginWir,  // Start wire

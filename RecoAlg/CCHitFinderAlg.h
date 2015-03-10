@@ -54,7 +54,7 @@ namespace cluster {
       float HiTime;   // or hit multiplet
       short InClus;
       geo::WireID WirID;
-      art::Ptr<recob::Wire> Wire;
+      recob::Wire const* Wire;
     };
     std::vector< CCHit > allhits;
     
@@ -74,13 +74,10 @@ namespace cluster {
 
     void reconfigure(fhicl::ParameterSet const& pset);
 
-    void RunCCHitFinder(art::Event & evt);
-    
-    std::string CalDataModuleLabel() const { return fCalDataModuleLabel; }
+    void RunCCHitFinder(std::vector<recob::Wire> const& Wires);
     
   private:
     
-    std::string     fCalDataModuleLabel;
     float fMinSigInd;     ///<Induction signal height threshold 
     float fMinSigCol;     ///<Collection signal height threshold 
     float fMinRMSInd;      ///<Initial rms for induction fit
@@ -127,7 +124,7 @@ namespace cluster {
     void MakeCrudeHit(unsigned short npt, float *ticks, float *signl);
     // store the hits
     void StoreHits(unsigned short TStart, unsigned short npt, 
-      art::Ptr<recob::Wire>, geo::WireID& wireID, float adcsum);
+      recob::Wire const& Wire, geo::WireID& wireID, float adcsum);
 
     // study hit finding and fitting
     bool fStudyHits;

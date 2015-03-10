@@ -47,7 +47,6 @@ namespace cluster {
 
   void CCHitFinderAlg::reconfigure(fhicl::ParameterSet const& pset)
   {
-    fCalDataModuleLabel = pset.get< std::string  >("CalDataModuleLabel");
     fMinSigInd          = pset.get< float       >("MinSigInd");
     fMinSigCol          = pset.get< float       >("MinSigCol");
     fMinRMSInd          = pset.get< float       >("MinRMSInd");
@@ -91,13 +90,9 @@ namespace cluster {
   {
   }
   
-  void CCHitFinderAlg::RunCCHitFinder(art::Event & evt) {
+  void CCHitFinderAlg::RunCCHitFinder(std::vector<recob::Wire> const& Wires) {
   
     allhits.clear();
-
-    // make this accessible to ClusterCrawler_module
-    art::Handle< std::vector<recob::Wire> > wireVecHandle;
-    evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
 
     unsigned short maxticks = 1000;
     float *ticks = new float[maxticks];
@@ -113,10 +108,10 @@ namespace cluster {
 
 //    prt = false;
 
-    for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++){
+    for(size_t wireIter = 0; wireIter < Wires.size(); wireIter++){
 
-      art::Ptr<recob::Wire> theWire(wireVecHandle, wireIter);
-      theChannel = theWire->Channel();
+      recob::Wire const& theWire = Wires[wireIter];
+      theChannel = theWire.Channel();
       geo::SigType_t SigType = geom->SignalType(theChannel);
       minSig = 0.;
       minRMS = 0.;
@@ -142,7 +137,7 @@ namespace cluster {
 
       // edit this line to debug hit fitting on a particular plane/wire
 //      prt = (thePlane == 1 && theWireNum == 839);
-      std::vector<float> signal(theWire->Signal());
+      std::vector<float> signal(theWire.Signal());
 
       unsigned short nabove = 0;
       unsigned short tstart = 0;
@@ -466,7 +461,7 @@ namespace cluster {
 
 /////////////////////////////////////////
   void CCHitFinderAlg::StoreHits(unsigned short TStart, unsigned short npt,
-    art::Ptr<recob::Wire> Wire, geo::WireID& wireID, float adcsum)
+    recob::Wire const& Wire, geo::WireID& wireID, float adcsum)
   {
     // store the hits in the struct
     unsigned short nhits = par.size() / 3;
@@ -518,7 +513,7 @@ namespace cluster {
       // set flag indicating hit is not used in a cluster
       onehit.InClus = 0;
       onehit.WirID = wireID;
-      onehit.Wire = Wire;
+      onehit.Wire = &Wire;
 /*
   if(prt) {
     mf::LogVerbatim("CCHitFinder")<<"W:T "<<theWireNum<<":"<<(short)onehit.Time
