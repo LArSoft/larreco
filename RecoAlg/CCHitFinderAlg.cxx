@@ -26,6 +26,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft Includes
+#include "SimpleTypesAndConstants/RawTypes.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
@@ -90,9 +91,19 @@ namespace cluster {
   {
   }
   
+//------------------------------------------------------------------------------
+  CCHitFinderAlg::HitChannelInfo_t::HitChannelInfo_t
+    (recob::Wire const* w, geo::WireID wid, geo::Geometry const& geom):
+    wire(w),
+    wireID(wid),
+    sigType(geom.SignalType(w->Channel()))
+    {}
+  
+//------------------------------------------------------------------------------
   void CCHitFinderAlg::RunCCHitFinder(std::vector<recob::Wire> const& Wires) {
   
     allhits.clear();
+    allhits_new.clear();
 
     unsigned short maxticks = 1000;
     float *ticks = new float[maxticks];
@@ -131,6 +142,7 @@ namespace cluster {
       std::vector<geo::WireID> wids = geom->ChannelToWire(theChannel);
       thePlane = wids[0].Plane;
       theWireNum = wids[0].Wire;
+      HitChannelInfo_t WireInfo(&theWire, wids[0], *geom);
 
       // factor used to normalize the chi/dof fits for each plane
       chinorm = fChiNorms[thePlane];
@@ -181,7 +193,7 @@ namespace cluster {
             // just make a crude hit if too many bumps
             if(bumps.size() > fMaxBumps) {
               MakeCrudeHit(npt, ticks, signl);
-              StoreHits(tstart, npt, theWire, wids[0], adcsum);
+              StoreHits(tstart, npt, WireInfo, adcsum);
               nabove = 0;
               continue;
             }
@@ -202,7 +214,7 @@ namespace cluster {
               }
               // good chisq so store it
               if(chidof < fChiSplit) {
-                StoreHits(tstart, npt, theWire, wids[0], adcsum);
+                StoreHits(tstart, npt, WireInfo, adcsum);
                 HitStored = true;
                 break;
               }
@@ -214,7 +226,7 @@ namespace cluster {
             if( !HitStored && npt < maxticks) {
               // failed all fitting. Make a crude hit
               MakeCrudeHit(npt, ticks, signl);
-              StoreHits(tstart, npt, theWire, wids[0], adcsum);
+              StoreHits(tstart, npt, WireInfo, adcsum);
             }
           } // nabove > minSamples
           nabove = 0;
@@ -461,8 +473,8 @@ namespace cluster {
 
 /////////////////////////////////////////
   void CCHitFinderAlg::StoreHits(unsigned short TStart, unsigned short npt,
-    recob::Wire const& Wire, geo::WireID& wireID, float adcsum)
-  {
+    HitChannelInfo_t info, float adcsum
+  ) {
     // store the hits in the struct
     unsigned short nhits = par.size() / 3;
     
@@ -483,18 +495,20 @@ namespace cluster {
     // Multiplicity > 1 will reside in a block from
     // lohitid to lohitid + numHits - 1
     unsigned int lohitid = allhits.size();
-    unsigned short hit, index;
+    unsigned short hit;
     // Find sum of the areas of all Gaussians
     float gsum = 0;
     for(hit = 0; hit < nhits; ++hit) {
-      index = 3 * hit;
+      const unsigned short index = 3 * hit;
       gsum += Sqrt2Pi * par[index] * par[index + 2];
     }
     for(hit = 0; hit < nhits; ++hit) {
-      index = 3 * hit;
-      onehit.Charge = Sqrt2Pi * par[index] * par[index + 2];
-      onehit.ChargeErr = SqrtPi * (parerr[index] * par[index + 2] +
-                                   par[index] * parerr[index + 2]);
+      const unsigned short index = 3 * hit;
+      const float charge = Sqrt2Pi * par[index] * par[index + 2];
+      const float charge_err = SqrtPi
+        * (parerr[index] * par[index + 2] + par[index] * parerr[index + 2]);
+      onehit.Charge = charge;
+      onehit.ChargeErr = charge_err;
       onehit.Amplitude = par[index];
       onehit.AmplitudeErr = parerr[index];
       onehit.Time = par[index + 1] + TStart;
@@ -512,8 +526,29 @@ namespace cluster {
       onehit.HiTime = hiTime;
       // set flag indicating hit is not used in a cluster
       onehit.InClus = 0;
-      onehit.WirID = wireID;
-      onehit.Wire = &Wire;
+      onehit.WirID = info.wireID;
+      onehit.Wire = info.wire;
+      
+      allhits_new.emplace_back(
+        info.wire->Channel(),     // channel
+        loTime,                   // start_tick
+        hiTime,                   // end_tick
+        par[index + 1] + TStart,  // peak_time
+        parerr[index + 1],        // sigma_peak_time
+        par[index + 2],           // rms
+        par[index],               // peak_amplitude
+        parerr[index],            // sigma_peak_amplitude
+        adcsum * charge / gsum,   // summedADC
+        charge,                   // hit_integral
+        charge_err,               // hit_sigma_integral
+        nhits,                    // multiplicity
+        hit,                      // local_index
+        chidof,                   // goodness_of_fit
+        dof,                      // dof
+        info.wire->View(),        // view
+        info.sigType,             // signal_type
+        info.wireID               // wireID
+        );
 /*
   if(prt) {
     mf::LogVerbatim("CCHitFinder")<<"W:T "<<theWireNum<<":"<<(short)onehit.Time

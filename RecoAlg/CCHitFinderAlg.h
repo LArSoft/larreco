@@ -21,6 +21,7 @@
 #include "art/Persistency/Common/PtrVector.h" 
 
 // LArSoft libraries
+#include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
@@ -57,6 +58,7 @@ namespace cluster {
       recob::Wire const* Wire;
     };
     std::vector< CCHit > allhits;
+    std::vector<recob::Hit> allhits_new;
     
     // struct for passing hit fitting cuts to ClusterCrawler
     struct HitCuts {
@@ -75,6 +77,9 @@ namespace cluster {
     void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunCCHitFinder(std::vector<recob::Wire> const& Wires);
+    
+    /// Returns (and loses) the collection of reconstructed hits
+    std::vector<recob::Hit>&& YieldHits() { return std::move(allhits_new); }
     
   private:
     
@@ -120,11 +125,23 @@ namespace cluster {
     int dof;
     std::vector<unsigned short> bumps;
     
+    /// exchange data about the originating wire
+    class HitChannelInfo_t {
+        public:
+      recob::Wire const* wire;
+      geo::WireID wireID;
+      geo::SigType_t sigType;
+      
+      HitChannelInfo_t
+        (recob::Wire const* w, geo::WireID wid, geo::Geometry const& geom);
+    }; // HitChannelInfo_t
+    
     // make a cruddy hit if fitting fails
     void MakeCrudeHit(unsigned short npt, float *ticks, float *signl);
     // store the hits
     void StoreHits(unsigned short TStart, unsigned short npt, 
-      recob::Wire const& Wire, geo::WireID& wireID, float adcsum);
+      HitChannelInfo_t info, float adcsum
+      );
 
     // study hit finding and fitting
     bool fStudyHits;
