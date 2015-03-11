@@ -1,6 +1,6 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v04_01_01
+parent	larreco	v04_01_02
 defaultqual	e6
 #
 fcldir product_dir job
