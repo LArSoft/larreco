@@ -171,9 +171,9 @@ namespace cluster {
         theHit.RMS,                // rms
         theHit.Amplitude,          // peak_amplitude
         theHit.AmplitudeErr,       // sigma_peak_amplitude
+        theHit.ADCSum,             // summed ADC
         theHit.Charge,             // hit_integral
         theHit.ChargeErr,          // sigma hit_integral
-        theHit.ADCSum,             // summed ADC
         theHit.numHits,            // multiplicity
         locIndex,                  // local_index
         theHit.ChiDOF,             // goodness_of_fit
