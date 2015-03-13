@@ -135,7 +135,12 @@ namespace cluster {
       std::vector<ClusterID_t> ClusterIDs;
     
     }; // HitInCluster_t
-    HitInCluster_t const& GetHitInCluster() const { return HitInCluster; }
+    
+    /// Return a reference to our hit-cluster associations; we don't yield it.
+    HitInCluster_t const& GetHitInCluster() const { return fHitInCluster; }
+    
+    /// Returns (and loses) the collection of reconstructed hits
+    std::vector<recob::Hit>&& YieldHits() { return std::move(fHits); }
     
     ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
     virtual ~ClusterCrawlerAlg();
@@ -223,7 +228,8 @@ namespace cluster {
     art::ServiceHandle<util::LArProperties> larprop;
     art::ServiceHandle<util::DetectorProperties> detprop;
     
-    HitInCluster_t HitInCluster; ///< List of the cluster ID each hit belongs to
+    std::vector<recob::Hit> fHits; ///< our version of the hits
+    HitInCluster_t fHitInCluster; ///< List of the cluster ID each hit belongs to
     
     trkf::LinFitAlg fLinFitAlg;
 
@@ -445,11 +451,11 @@ namespace cluster {
     
     // hit-cluster association
     bool isHitInCluster(size_t iHit) const
-      { return HitInCluster.isInCluster(iHit); }
+      { return GetHitInCluster().isInCluster(iHit); }
     bool isHitFree(size_t iHit) const
-      { return HitInCluster.isFree(iHit); }
+      { return GetHitInCluster().isFree(iHit); }
     bool isHitPresent(size_t iHit) const
-      { return HitInCluster.isPresent(iHit); }
+      { return GetHitInCluster().isPresent(iHit); }
   }; // class ClusterCrawlerAlg
 
 

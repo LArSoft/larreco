@@ -146,7 +146,8 @@ namespace cluster {
 
     CrawlInit();
     
-    HitInCluster.reset(srchits.size());
+    fHits = srchits; // plain copy of the sources; it's the base of our hit result
+    fHitInCluster.reset(srchits.size());
     
     // don't make clusters, just hits
     if(fNumPass == 0) return;
@@ -608,7 +609,7 @@ namespace cluster {
           for(unsigned short ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
             // un-assign the hits so that TmpStore will re-assign them
             iht = tcl[icl].tclhits[ii];
-            HitInCluster.setFree(iht);
+            fHitInCluster.setFree(iht);
             fcl2hits.push_back(iht);
           }
           clProcCode += 5000;
@@ -672,10 +673,10 @@ namespace cluster {
             if(allhits[jht].Time > prTimeHi) continue;
             if(allhits[jht].Time < prTimeLo) continue;
             // ignore hits associated with this cluster
-            if(HitInCluster[jht] == tcl[icl].ID) continue;
+            if(fHitInCluster[jht] == tcl[icl].ID) continue;
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<" not "
     <<allhits[jht].WireNum<<":"<<(int)allhits[jht].Time
-    <<" InClus "<<HitInCluster[jht];
+    <<" InClus "<<fHitInCluster[jht];
             if(wire <= tcl[icl].BeginWir) {
               if(isHitInCluster(jht)) {
                 ++nUsInClus;
@@ -761,7 +762,7 @@ namespace cluster {
             for(unsigned short ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
               // un-assign the hits so that TmpStore will re-assign them
               iht = tcl[icl].tclhits[ii];
-              HitInCluster.setFree(iht);
+              fHitInCluster.setFree(iht);
               fcl2hits.push_back(iht);
             } // ii
             clProcCode += 5000;
@@ -991,7 +992,7 @@ namespace cluster {
               TmpGet(tcl, icl);
               for(unsigned short ii = 0; ii < nLop; ++ii) {
                 unsigned short iht = fcl2hits[fcl2hits.size()-1];
-                HitInCluster.setFree(iht);
+                fHitInCluster.setFree(iht);
                 fcl2hits.pop_back();
               }
               // store it
@@ -1064,7 +1065,7 @@ namespace cluster {
     <<" Amp "<<(int)allhits[jht].Amplitude
     <<" RMS "<<allhits[jht].RMS
     <<" Charge "<<(int)allhits[jht].Charge
-    <<" InClus "<<HitInCluster[jht];
+    <<" InClus "<<fHitInCluster[jht];
   }
         // error checking
         if(allhits[jht].LoHitID != allhits[theHit].LoHitID) {
@@ -1099,7 +1100,7 @@ namespace cluster {
           // hit used in another cluster
           if(!isHitFree(jht)) continue;
           // declare this hit obsolete
-          HitInCluster.makeObsolete(jht);
+          fHitInCluster.makeObsolete(jht);
         } // jht != theHit
         // add up the charge
         chgsum += allhits[jht].Charge;
@@ -1127,12 +1128,39 @@ namespace cluster {
         double dtime = time - aveTime;
         sigsumt += signal[time - loTime] * dtime * dtime;
       }
-      allhits[theHit].RMS = sqrt(sigsumt / sigsum);
+      const float RMS = sqrt(sigsumt / sigsum);
+      // find the amplitude from the integrated charge and the RMS
+      const float amplitude = chgsum * chgNorm/ (2.507 * RMS);
+      
+      allhits[theHit].RMS = RMS;
       allhits[theHit].Time = aveTime;
       allhits[theHit].Charge = chgsum;
-      // find the amplitude from the integrated charge and the RMS
-      allhits[theHit].Amplitude = chgsum * chgNorm/ (2.507 * allhits[theHit].RMS);
+      allhits[theHit].Amplitude = amplitude;
       allhits[theHit].numHits = 1;
+      
+      // modify the hit "in place" (actually completely overwrite it...)
+      // TODO a lot of these quantities need revamp!!
+      recob::Hit const& hit = fHits[theHit];
+      fHits[theHit] = recob::Hit(
+        hit.Channel(),
+        hit.StartTick(),
+        hit.EndTick(),
+        aveTime,                // peak_time
+        hit.SigmaPeakTime(),
+        sqrt(sigsumt / sigsum), // rms
+        amplitude,              // peak_amplitude
+        hit.SigmaPeakAmplitude(),
+        hit.SummedADC(),
+        chgsum,                 // hit_integral
+        hit.SigmaIntegral(),
+        1,                      // multiplicity
+        hit.LocalIndex(),
+        hit.GoodnessOfFit(),
+        hit.DegreesOfFreedom(),
+        hit.View(),
+        hit.SignalType(),
+        hit.WireID()
+        );
   if(prt) {
     mf::LogVerbatim("ClusterCrawler")
     <<" theHit "<<allhits[theHit].WireNum<<":"<<(int)aveTime
@@ -1140,7 +1168,7 @@ namespace cluster {
     <<" chg "<<(int)chgsum<<" Amp "<<(int)allhits[theHit].Amplitude;
   }
   
-    } // MergeHits
+    } // MergeHits()
 
 /////////////////////////////////////////
     void ClusterCrawlerAlg::FindStarVertices(
@@ -2039,9 +2067,9 @@ namespace cluster {
       bool didFit = false;
       for(unsigned short ii = pos; ii < tcl[icl].tclhits.size(); ++ii) {
         unsigned short iht = tcl[icl].tclhits[ii];
-  if(HitInCluster[iht] != tcl[icl].ID) {
+  if(fHitInCluster[iht] != tcl[icl].ID) {
     mf::LogError("ClusterCrawler")
-      <<"SplitCluster bad hit "<<iht<<" "<<HitInCluster[iht]
+      <<"SplitCluster bad hit "<<iht<<" "<<fHitInCluster[iht]
       <<" "<<tcl[icl].ID<<" ProcCode "<<clProcCode<<std::endl;
   }
         fcl2hits.push_back(iht);
@@ -2468,7 +2496,7 @@ namespace cluster {
     for(unsigned short iht = 0; iht < cl2.tclhits.size(); ++iht) {
       unsigned short hit = cl2.tclhits[iht];
       // un-assign the hit
-      HitInCluster.setFree(hit);
+      fHitInCluster.setFree(hit);
       unsigned short wire = allhits[hit].WireNum;
       unsigned short index = wire - lowire;
       wirehit[index] = hit;
@@ -2483,7 +2511,7 @@ namespace cluster {
       unsigned short hit = cl1.tclhits[iht];
       unsigned short wire = allhits[hit].WireNum;
       unsigned short index = wire - lowire;
-      HitInCluster.setFree(hit);
+      fHitInCluster.setFree(hit);
       // TODO: Should merge hits instead of clobbering one of them?
       wirehit[index] = hit;
 /*
@@ -2620,11 +2648,11 @@ namespace cluster {
       if(tcl[icl].ID < 0) continue;
       for(unsigned short ii = 0; ii< tcl[icl].tclhits.size(); ++ii) {
         unsigned short iht = tcl[icl].tclhits[ii];
-        if(HitInCluster[iht] != tcl[icl].ID) {
+        if(fHitInCluster[iht] != tcl[icl].ID) {
           mf::LogVerbatim("PrintClusters")
             <<"Association error: cluster "<<tcl[icl].ID
             <<" Hit "<<allhits[iht].WireNum<<":"<<(int)allhits[iht].Time
-            <<" InClus is incorrect "<<HitInCluster[iht]
+            <<" InClus is incorrect "<<fHitInCluster[iht]
             <<" Hit index "<<iht;
           return;
         }
@@ -2682,7 +2710,7 @@ namespace cluster {
         <<" on wire "<<allhits[hit].WireNum<<" on cluster "<<NClusters
         <<" in plane "<<plane<<" ProcCode "<<clProcCode;
       }
-      HitInCluster.setCluster(hit, NClusters);
+      fHitInCluster.setCluster(hit, NClusters);
     }
 
     // ensure that the cluster begin/end info is correct
@@ -3544,7 +3572,7 @@ namespace cluster {
     <<" Chk W:T "<<kwire<<":"<<(short)allhits[khit].Time
     <<" Charge "<<(short)allhits[khit].Charge
     <<" chgrat "<<std::setw(8)<<std::setprecision(2)<<chgrat
-    <<" InClus "<<HitInCluster[khit]
+    <<" InClus "<<fHitInCluster[khit]
     <<" mult "<<allhits[khit].numHits
     <<" RMS "<<std::setprecision(2)<<allhits[khit].RMS
     <<" Chi2 "<<std::setw(8)<<std::setprecision(2)<<allhits[khit].ChiDOF
@@ -3743,7 +3771,7 @@ namespace cluster {
       if(!isHitPresent(khit)) continue;
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<" Chk W:T "<<kwire<<":"<<(short)allhits[khit].Time
-    <<" InClus "<<HitInCluster[khit]
+    <<" InClus "<<fHitInCluster[khit]
     <<" mult "<<allhits[khit].numHits
     <<" RMS "<<std::setprecision(2)<<allhits[khit].RMS
     <<" Chi2 "<<std::setprecision(2)<<allhits[khit].ChiDOF
@@ -4163,15 +4191,15 @@ namespace cluster {
               if(allhits[khit].Charge < 0) continue;
               // ignore un-assigned hits
               if(!isHitInCluster(khit)) continue;
-              if((unsigned short)HitInCluster[khit] > tcl.size() + 1) {
+              if((unsigned short)fHitInCluster[khit] > tcl.size() + 1) {
                 mf::LogError("ClusterCrawler")<<"Invalid hit InClus. "<<khit
-                  <<" "<<HitInCluster[khit];
+                  <<" "<<fHitInCluster[khit];
                 continue;
               }
               // check an expanded time range
               if(theTime < allhits[khit].LoTime - 10) continue;
               if(theTime > allhits[khit].HiTime + 10) continue;
-              kclID = HitInCluster[khit];
+              kclID = fHitInCluster[khit];
               kcl = kclID - 1;
               // ignore obsolete clusters
               if(tcl[kcl].ID < 0) continue;
@@ -4179,7 +4207,7 @@ namespace cluster {
               // put the cluster in the list if it's not there already
     if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"Bingo "<<ivx<<" plane "<<thePlane
       <<" wire "<<wire<<" hit "<<allhits[khit].WireNum<<":"<<(int)allhits[khit].Time
-        <<" inClus "<<HitInCluster[khit]
+        <<" inClus "<<fHitInCluster[khit]
         <<" P:W:T "<<thePlane<<":"<<tcl[kcl].BeginWir<<":"<<(int)tcl[kcl].BeginTim;
               if(std::find(clIDs.begin(), clIDs.end(), kclID) == clIDs.end()) {
                 // ignore long straight clusters
