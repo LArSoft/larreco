@@ -171,9 +171,16 @@ namespace cluster {
 
     // find hits in all planes
     fCCHFAlg.RunCCHitFinder(*wireVecHandle);
+    
+    // extract the result of the algorithm (it's moved)
+    std::vector<recob::Hit> FirstHits = fCCHFAlg.YieldHits();
 
     // look for clusters in all planes
-    fCCAlg.RunCrawler(fCCHFAlg.allhits);
+    fCCAlg.RunCrawler(fCCHFAlg.allhits, FirstHits);
+    
+    // access to the algorithm results
+    ClusterCrawlerAlg::HitInCluster_t const& HitInCluster
+      = fCCAlg.GetHitInCluster();
   
     art::ServiceHandle<geo::Geometry> geo;
     
@@ -209,9 +216,9 @@ namespace cluster {
         <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<"\n";
         return;
       }
-      if(theHit.InClus != clstr.ID) {
-        std::cout<<"CC: InClus mis-match "<<theHit.InClus<<" ID "<<clstr.ID
-        <<" in cluster "<<icl<<"\n";
+      if(HitInCluster[iht] != clstr.ID) {
+        std::cout << "CC: InClus mis-match " << HitInCluster[iht]
+          << " ID " << clstr.ID << " in cluster " << icl << "\n";
         return;
       }
     } // ii
@@ -225,7 +232,7 @@ namespace cluster {
     std::vector<int> vhit(fCCHFAlg.allhits.size(), -1);
     unsigned int locIndex, nvhit = 0;
     for(iht = 0; iht < fCCHFAlg.allhits.size(); ++iht) {
-      if(fCCHFAlg.allhits[iht].InClus < 0) continue;
+      if(!HitInCluster.isPresent(iht)) continue;
       vhit[iht] = nvhit;
       ++nvhit;
       // store the hit

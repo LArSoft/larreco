@@ -220,6 +220,8 @@ namespace cluster{
     // This alg also defines the Begin and End of clusters.
 
 
+    // copy the hit/cluster association information from CC algorithm
+    HitInCluster = fCCAlg.GetHitInCluster();
     // swap Begin/End w/o refining hits?
 //    if(!fRefineHits && fBEChgRat > 0.) {
       SetClusterBeginEnd(allhits, tcl);
@@ -435,7 +437,7 @@ namespace cluster{
         else if(hIndx[w] >= 0 && gMinStruct.vcl[ivcl].Time[w] < 0) {
           // delete a hit on the cluster
           unsigned short theHit = hIndx[w];
-          allhits[theHit].InClus = -1;
+          HitInCluster.makeObsolete(theHit);
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<"Delete hit: ivcl "<<ivcl<<" w "<<w<<" theHit "<<theHit;
           reMakeCluster = true;
@@ -471,14 +473,14 @@ namespace cluster{
             unsigned short iht = tcl[tclID].tclhits[ii];
             if(allhits[iht].WireNum > hiWire) {
               nclhits.push_back(iht);
-              allhits[iht].InClus = ncl.ID;
+              HitInCluster.setCluster(iht, ncl.ID);
             }
           } // ii
           // now append hits inside the RAT range
           for(unsigned short ii = 0; ii < fclhits.size(); ++ii) {
             unsigned short iht = fclhits[ii];
             nclhits.push_back(iht);
-            allhits[iht].InClus = ncl.ID;
+            HitInCluster.setCluster(iht, ncl.ID);
           } // ii
   if(prt) {
     mf::LogVerbatim myprt("ClusterCrawler");
@@ -506,14 +508,14 @@ namespace cluster{
           for(unsigned short ii = 0; ii < fclhits.size(); ++ii) {
             unsigned short iht = fclhits[ii];
             nclhits.push_back(iht);
-            allhits[iht].InClus = ncl.ID;
+            HitInCluster.setCluster(iht, ncl.ID);
           }
           // append the existing tcl hits
           for(unsigned short ii = 0; ii < tcl[tclID].tclhits.size(); ++ii) {
             unsigned short iht = tcl[tclID].tclhits[ii];
             if(allhits[iht].WireNum < loWire) {
               nclhits.push_back(iht);
-              allhits[iht].InClus = ncl.ID;
+              HitInCluster.setCluster(iht, ncl.ID);
             }
           } // ii
         } // cluster is not DS
@@ -1096,7 +1098,7 @@ namespace cluster{
         // ignore obsolete hit
         if(allhits[hit].Charge < 0) continue;
         // ignore used hits
-        if(allhits[hit].InClus > 0) continue;
+        if(HitInCluster.isInCluster(hit)) continue;
         if(allhits[hit].Time > loTime && allhits[hit].Time < hiTime) {
           --loWire;
           gotone = true;
@@ -1122,7 +1124,7 @@ namespace cluster{
         // ignore obsolete hit
         if(allhits[hit].Charge < 0) continue;
         // ignore used hits
-        if(allhits[hit].InClus > 0) continue;
+        if(HitInCluster.isInCluster(hit)) continue;
         if(allhits[hit].Time > loTime && allhits[hit].Time < hiTime) {
           ++hiWire;
           gotone = true;

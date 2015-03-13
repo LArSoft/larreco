@@ -83,6 +83,9 @@ namespace cluster {
     art::ServiceHandle<util::LArProperties> larprop;
     art::ServiceHandle<util::DetectorProperties> detprop;
     
+    /// association between clusters and hits
+    ClusterCrawlerAlg::HitInCluster_t HitInCluster;
+    
     unsigned short plane;
     std::vector< std::pair<short, short> > WireHitRange;
     unsigned short fFirstWire;
