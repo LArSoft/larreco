@@ -251,6 +251,10 @@ namespace cluster {
       <<" nhits in Clusters "<<nhtsinCls<<"\n";;
   } // plane
 */     
+    
+    // remove the hits that have become obsolete
+    RemoveObsoleteHits(allhits, tcl);
+    
     WireHitRange.clear(); 
     fcl2hits.clear();
     chifits.clear();
@@ -523,6 +527,69 @@ namespace cluster {
       } // icl
       
     } // MergeOverlap
+
+//////////////////////////////////////////
+  void ClusterCrawlerAlg::RemoveObsoleteHits(
+    std::vector<CCHitFinderAlg::CCHit>& allhits,
+    std::vector<ClusterStore>& tcl
+  ) {
+    
+    // check that no cluster hosts obsolete hits
+    for (ClusterStore const& cluster: tcl) {
+      for (unsigned short iHit: cluster.tclhits) {
+        if (!isHitPresent(iHit)) {
+          mf::LogError("ClusterCrawlerAlg") << "Cluster ID=" << cluster.ID
+            << " claim to own hit #" << iHit
+            << ", that does not exist any more! [this is called a ***BUG***]";
+        }
+      } // for cluster hit
+    } // for cluster
+    
+    size_t iDestHit = 0, iSrcHit = 0;
+    for (; iSrcHit < allhits.size(); ++iSrcHit) {
+      if (!isHitPresent(iSrcHit)) continue; // this hit is going to disappear
+      
+      if (iDestHit != iSrcHit) { // need to move the hit
+        // move the hit; this is easy
+        allhits[iDestHit] = std::move(allhits[iSrcHit]);
+        fHits[iDestHit] = std::move(fHits[iSrcHit]);
+        fHitInCluster.setCluster(iDestHit, fHitInCluster[iSrcHit]);
+        // update the cluster reference
+        if (!isHitFree(iSrcHit)) {
+          size_t clusterIndex = size_t(fHitInCluster[iSrcHit] - 1);
+          if (clusterIndex >= tcl.size()) {
+            throw art::Exception(art::errors::LogicError)
+              << "Hit #" << iSrcHit << " claims to belong to cluster ID="
+              << clusterIndex
+              << ", that does not exist! [this is called a ***BUG***]";
+          }
+          // tclhits a vector of indices of some type; we don't care which one
+          auto& hits = tcl[clusterIndex].tclhits;
+          auto iHitIndex = std::find(hits.begin(), hits.end(), iSrcHit);
+          if (iHitIndex == hits.end()) {
+            mf::LogError("ClusterCrawlerAlg")
+              << "Hit #" << iSrcHit << " claims to belong to cluster ID="
+              << clusterIndex
+              << ", that does not admit it! [this is called a ***BUG***]";
+          }
+          else {
+            *iHitIndex = iDestHit; // update the index
+          }
+        } // if hit is in a cluster
+      } // if need to move the hit
+      ++iDestHit;
+    } // for iSrcHit
+    
+    // remove for good the invalid hits
+    allhits.resize(iDestHit);
+    fHits.resize(iDestHit);
+    fHitInCluster.resize(iDestHit);
+    
+    LOG_DEBUG("ClusterCrawlerAlg") << "RemoveObsoleteHits(): removed "
+      << (iSrcHit - iDestHit) << "/" << iSrcHit << " hits";
+    
+  } // ClusterCrawlerAlg::RemoveObsoleteHits()
+
 
 //////////////////////////////////////////
     void ClusterCrawlerAlg::ChkClusterDS(

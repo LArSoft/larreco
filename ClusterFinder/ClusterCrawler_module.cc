@@ -36,9 +36,10 @@
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/EndPoint2D.h"
-#include "RecoBaseArt/HitCreator.h"
+#include "RecoBaseArt/HitCreator.h" // recob::HitCollectionCreator
 #include "RecoBase/Vertex.h"
 #include "Utilities/AssociationUtil.h"
+#include "Utilities/MakeIndex.h"
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
@@ -64,68 +65,6 @@ class cluster::ClusterCrawler : public art::EDProducer {
     ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
     std::string fCalDataModuleLabel; ///< label of module producing input wires
 };
-
-
-namespace util {
-  
-  /**
-   * @brief Creates a map of indices from an existing collection
-   * @tparam Coll type of the collection
-   * @tparam KeyOf type of the extractor of the key
-   * @param data the data collection
-   * @param key_of instance of a functor extracting a key value from a datum
-   * @return a vector with indices corresponding to the data keys
-   *
-   * This function maps the index of the items in data to an integral key
-   * extracted from each item.
-   * For example, if the items are wires and the key_of function extracts their
-   * channel ID, the resulting vector will contain for each channel ID
-   * the index in data of the wire with that channel ID.
-   * 
-   * The key is converted into a unsigned integer (`size_t`).
-   * If multiple items have the same key, the outcome for that key is undefined.
-   * If no items has a specific key, the index of that key is assigned as
-   * `std::numeric_limits<size_t>::max()`, i.e. an index larger than the size
-   * of the original data collection.
-   * 
-   * The returned vector is big enough to accommodate indices corresponding to
-   * the keys of all the items in data. It may contain "holes" (that is, some
-   * keys that have no corresponding items have a
-   * `std::numeric_limits<size_t>::max()` value).
-   * The memory allocated for the vector may be larger than necessary (if that
-   * is a problem, `std::vector::shrink_to_fit()` can be used, but it may create
-   * more problems than it solves).
-   * 
-   */
-  template <typename Coll, typename KeyOf>
-  std::vector<size_t> MakeIndex(Coll const& data, KeyOf key_of = KeyOf()) {
-    
-    // we start the index with the best guess that all the items will have
-    // a unique key and they are contiguous:
-    // the index would have the same size as the data
-    std::vector<size_t> Index(data.size(), std::numeric_limits<size_t>::max());
-    
-    size_t min_size = 0; // minimum size needed to hold all keys
-    
-    size_t iDatum = 0;
-    for (auto const& datum: data) {
-      size_t key = size_t(key_of(datum));
-      if (key >= min_size) min_size = key + 1;
-      if (Index.size() <= key) {
-        // make room for the entry: double the size
-        Index.resize(
-          std::max(key + 1, Index.size() * 2),
-          std::numeric_limits<size_t>::max()
-          );
-      } // if expand index
-      Index[key] = iDatum;
-      ++iDatum;
-    } // for datum
-    Index.resize(min_size);
-    return Index;
-  } // MakeIndex()
-  
-} // namespace util
 
 
 namespace cluster {
@@ -181,7 +120,9 @@ namespace cluster {
     // access to the algorithm results
     ClusterCrawlerAlg::HitInCluster_t const& HitInCluster
       = fCCAlg.GetHitInCluster();
-  
+    
+    std::vector<recob::Hit> FinalHits = fCCAlg.YieldHits();
+    
     art::ServiceHandle<geo::Geometry> geo;
     
     // shcol contains the hit collection
@@ -280,6 +221,7 @@ namespace cluster {
         geo->SignalType(channel),  // ...
         theHit.WirID               // wire ID
         );
+      
       shcol.emplace_back(std::move(hit), theWire, theRawDigit);
     } // iht
 

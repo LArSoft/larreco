@@ -125,6 +125,9 @@ namespace cluster {
       /// Marks the hit as belonging to the specified cluster ID
       void setCluster(size_t ihit, ClusterID_t id) { ClusterIDs[ihit] = id; }
       
+      /// Resizes the list to the specified size; new hits are marked free
+      void resize(size_t new_size) { ClusterIDs.resize(new_size, FreeHit); }
+      
       /// ID of a hit in no cluster
       static constexpr ClusterID_t FreeHit = 0 /* std::numeric_limits<int>::max() */;
       /// ID of a hit that has disappeared because merged ("obsolete")
@@ -357,6 +360,12 @@ namespace cluster {
     void MergeOverlap(
       std::vector<CCHitFinderAlg::CCHit> const& allhits,
       std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    
+    /// Removes obsolete hits from hits, updating the indices
+    void RemoveObsoleteHits(
+      std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<ClusterStore>& tcl
+      );
 
     // ************** 2D vertex routines *******************
 
