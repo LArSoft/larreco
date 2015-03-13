@@ -43,7 +43,7 @@ simple_plugin( Track3DKalman "module"
 			 AnalysisAlg
 			 AnalysisBase
 			 Utilities
-			 ${SEEDSERVICE_SERVICE} # artextensions
+			 SeedService_service # artextensions
 			 ${MAGNETICFIELD_SERVICE}
 			 ${SIMULATIONBASE}
 			 ${ART_FRAMEWORK_CORE}
