@@ -346,9 +346,7 @@ namespace cluster {
       std::vector<ClusterStore>& tcl);
 
     // Try to merge overlapping clusters
-    void MergeOverlap(
-      std::vector<CCHitFinderAlg::CCHit> const& allhits,
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void MergeOverlap(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
     
     /// Removes obsolete hits from hits, updating the indices
     void RemoveObsoleteHits(
@@ -359,16 +357,13 @@ namespace cluster {
     // ************** 2D vertex routines *******************
 
     // Find 2D vertices
-    void FindVertices(std::vector<CCHitFinderAlg::CCHit> const& allhits,
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void FindVertices(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
 /*
     // Kill 2D vertices
     void KillVertices(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
 */
     // Find 2D star topology vertices
-    void FindStarVertices(
-      std::vector<CCHitFinderAlg::CCHit> const& allhits,
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void FindStarVertices(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
     // check a vertex (vw, fvt) made with clusters it1, and it2 against the
     // vector of existing clusters
     void ChkVertex(
