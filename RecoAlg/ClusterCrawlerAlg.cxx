@@ -138,7 +138,6 @@ namespace cluster {
 
 
   void ClusterCrawlerAlg::RunCrawler(
-    std::vector<CCHitFinderAlg::CCHit>& allhits,
     std::vector<recob::Hit> const& srchits
   )
   {
@@ -211,7 +210,7 @@ namespace cluster {
           fNumWires = geom->Nwires(plane);
           
           // look for clusters
-          ClusterLoop(allhits, tcl, vtx);
+          ClusterLoop(tcl, vtx);
         } // plane
         if(fVertex3DCut > 0) {
           // Match vertices in 3 planes
@@ -253,7 +252,7 @@ namespace cluster {
 */     
     
     // remove the hits that have become obsolete
-    RemoveObsoleteHits(allhits, tcl);
+    RemoveObsoleteHits(tcl);
     
     WireHitRange.clear(); 
     fcl2hits.clear();
@@ -263,9 +262,9 @@ namespace cluster {
   } // RunCrawler
     
 ////////////////////////////////////////////////
-    void ClusterCrawlerAlg::ClusterLoop(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx) {
+    void ClusterCrawlerAlg::ClusterLoop
+      (std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
+    {
       // looks for seed clusters in a plane and crawls along a trail of hits
 
       unsigned short nHitsUsed = 0;
@@ -354,7 +353,7 @@ namespace cluster {
                   clok = false;
                   break;
                 }
-                AddHit(allhits, kwire, HitOK, SigOK);
+                AddHit(kwire, HitOK, SigOK);
                 // no hit added and no nearby hit either
                 if(!HitOK && !SigOK) {
                   clok = false;
@@ -403,13 +402,13 @@ namespace cluster {
               if(fLACrawl[pass] && fLAClusSlopeCut > 0) {
                 // LA cluster crawling requested
                 if(fabs(clBeginSlp) > fLAClusSlopeCut) {
-                  LACrawlUS(allhits, vtx);
+                  LACrawlUS(vtx);
                 } else {
-                  CrawlUS(allhits, vtx);
+                  CrawlUS(vtx);
                 } // fabs(clBeginSlp) > fLAClusAngleCut
               } else {
                 // allow clusters of any angle
-                CrawlUS(allhits, vtx);
+                CrawlUS(vtx);
               } // fLAClusSlopeCut > 0
               if(fcl2hits.size() >= fMinHits[pass]) {
                 // it's long enough so save it
@@ -439,11 +438,11 @@ namespace cluster {
 
       // Kill vertices that are close to long straight tracks. These
       // spurious vertices are likely due to delta rays on muon tracks
-//      KillVertices(allhits, tcl, vtx);
+//      KillVertices(tcl, vtx);
       // Merge overlapping clusters
       if(fMergeOverlap) MergeOverlap(tcl, vtx);
       // Check the DS end of clusters
-      if(fChkClusterDS) ChkClusterDS(allhits, tcl);
+      if(fChkClusterDS) ChkClusterDS(tcl);
       // split clusters using vertices
       if(fVtxClusterSplit) VtxClusterSplit(tcl, vtx);
       // Look for 2D vertices with star topology - short, back-to-back clusters
@@ -513,10 +512,7 @@ namespace cluster {
     } // MergeOverlap()
 
 //////////////////////////////////////////
-  void ClusterCrawlerAlg::RemoveObsoleteHits(
-    std::vector<CCHitFinderAlg::CCHit>& allhits,
-    std::vector<ClusterStore>& tcl
-  ) {
+  void ClusterCrawlerAlg::RemoveObsoleteHits(std::vector<ClusterStore>& tcl) {
     
     // check that no cluster hosts obsolete hits
     for (ClusterStore const& cluster: tcl) {
@@ -530,12 +526,11 @@ namespace cluster {
     } // for cluster
     
     size_t iDestHit = 0, iSrcHit = 0;
-    for (; iSrcHit < allhits.size(); ++iSrcHit) {
+    for (; iSrcHit < fHits.size(); ++iSrcHit) {
       if (!isHitPresent(iSrcHit)) continue; // this hit is going to disappear
       
       if (iDestHit != iSrcHit) { // need to move the hit
         // move the hit; this is easy
-        allhits[iDestHit] = std::move(allhits[iSrcHit]);
         fHits[iDestHit] = std::move(fHits[iSrcHit]);
         fHitInCluster.setCluster(iDestHit, fHitInCluster[iSrcHit]);
         // update the cluster reference
@@ -565,7 +560,6 @@ namespace cluster {
     } // for iSrcHit
     
     // remove for good the invalid hits
-    allhits.resize(iDestHit);
     fHits.resize(iDestHit);
     fHitInCluster.resize(iDestHit);
     
@@ -576,10 +570,7 @@ namespace cluster {
 
 
 //////////////////////////////////////////
-    void ClusterCrawlerAlg::ChkClusterDS(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<ClusterStore>& tcl)
-    {
+    void ClusterCrawlerAlg::ChkClusterDS(std::vector<ClusterStore>& tcl) {
       // Try to extend clusters DS by a few wires. 
       // DS hits may not have been  included in a cluster if they have high 
       // multiplicity or high charge. 
@@ -759,7 +750,7 @@ namespace cluster {
               ivx = tcl[icl].EndVtx - 1;
               if((fHits[iht].WireID().Wire - vtx[ivx].Wire) < 5) continue;
             } // tcl[icl].EndVtx >= 0
-            if(fHits[iht].Multiplicity() > 1) MergeHits(allhits, iht);
+            if(fHits[iht].Multiplicity() > 1) MergeHits(iht);
           } // ii
         } // nmult > 0
         if(nDsNotInClus > 0) {
@@ -1068,10 +1059,7 @@ namespace cluster {
     } // VtxClusterSplit()
 
 //////////////////////////////////////////
-    void ClusterCrawlerAlg::MergeHits(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
-      const unsigned short theHit)
-    {
+    void ClusterCrawlerAlg::MergeHits(const unsigned short theHit) {
       // Merge unused separate hits in the multiplet of which 
       // theHit is a member into one hit (= theHit). Set the charge of the 
       // merged hits < 0 to indicate they are obsolete. Hits in the multiplet
@@ -1107,7 +1095,6 @@ namespace cluster {
       unsigned short nclose = 0;
       // find the time range for the hit multiplet
       for(unsigned short jj = 0; jj < nhitnear; ++jj) {
-      //  unsigned short jht = allhits[theHit].LoHitID + jj; // CHECKME
         // the index of a hit minus its local index is the first hit in that train
         const unsigned short jht = iMultipletStart + jj;
         
@@ -1185,12 +1172,6 @@ namespace cluster {
       const float RMS = sqrt(sigsumt / sigsum);
       // find the amplitude from the integrated charge and the RMS
       const float amplitude = chgsum * chgNorm/ (2.507 * RMS);
-      
-      allhits[theHit].RMS = RMS;
-      allhits[theHit].Time = aveTime;
-      allhits[theHit].Charge = chgsum;
-      allhits[theHit].Amplitude = amplitude;
-      allhits[theHit].numHits = 1;
       
       // modify the hit "in place" (actually completely overwrite it...)
       // TODO a lot of these quantities need revamp!!
@@ -2807,9 +2788,7 @@ namespace cluster {
   }
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::LACrawlUS(std::vector<CCHitFinderAlg::CCHit>& allhits,
-    std::vector<VtxStore>& vtx)
-  {
+  void ClusterCrawlerAlg::LACrawlUS(std::vector<VtxStore>& vtx) {
     // Crawl a large angle cluster upstream. Similar to CrawlUS but require
     // that a hit be added on each wire
 
@@ -2836,7 +2815,7 @@ namespace cluster {
         if(fHits[fcl2hits[ii]].Multiplicity() > 1) ++nmult;
       if(nmult == fcl2hits.size()) {
         for(ii = 0; ii < fcl2hits.size(); ++ii) {
-          MergeHits(allhits, fcl2hits[ii]);
+          MergeHits(fcl2hits[ii]);
         } // ii
         FitCluster();
         clBeginSlp = clpar[1];
@@ -2862,7 +2841,7 @@ namespace cluster {
         break;
       }
       // AddLAHit will merge the hit on nextwire if necessary
-      AddLAHit(allhits, vtx, nextwire, ChkCharge, HitOK, SigOK);
+      AddLAHit(vtx, nextwire, ChkCharge, HitOK, SigOK);
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"LACrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK;
       if(!SigOK) break;
       if(!HitOK) {
@@ -2879,7 +2858,7 @@ namespace cluster {
       if(fcl2hits.size() == 4) {
         for(unsigned short kk = 0; kk< fcl2hits.size()-1; ++kk) {
           unsigned short hit = fcl2hits[kk];
-          MergeHits(allhits, hit);
+          MergeHits(hit);
         }
         // update the fit
         FitCluster();
@@ -2956,8 +2935,7 @@ namespace cluster {
   } // LACrawlUS
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::CrawlUS(std::vector<CCHitFinderAlg::CCHit>& allhits,
-    std::vector<VtxStore>& vtx)
+  void ClusterCrawlerAlg::CrawlUS(std::vector<VtxStore>& vtx)
   {
     // Crawl along a trail of hits moving upstream
 
@@ -3005,7 +2983,7 @@ namespace cluster {
         break;
       }
       // add hits and check for PH and width consistency
-      AddHit(allhits, nextwire, HitOK, SigOK);
+      AddHit(nextwire, HitOK, SigOK);
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"CrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK;
       if(!HitOK) {
         // no hit on this wire. Was there a signal or dead wire?
@@ -3563,8 +3541,7 @@ namespace cluster {
   } // fitchg
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::AddLAHit(std::vector<CCHitFinderAlg::CCHit>& allhits,
-    std::vector<VtxStore>& vtx,
+  void ClusterCrawlerAlg::AddLAHit(std::vector<VtxStore>& vtx,
     unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK)
   {
     // A variant of AddHit for large angle clusters
@@ -3712,7 +3689,7 @@ namespace cluster {
       if(doMerge) {
         // there is a nearby hit and it will be merged
         hnear = -1;
-        MergeHits(allhits, imbest);
+        MergeHits(imbest);
       }
     } // fHits[imbest].Multiplicity() > 1
     
@@ -3747,8 +3724,7 @@ namespace cluster {
 
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::AddHit(std::vector<CCHitFinderAlg::CCHit>& allhits,
-    unsigned short kwire, bool& HitOK, bool& SigOK)
+  void ClusterCrawlerAlg::AddHit(unsigned short kwire, bool& HitOK, bool& SigOK)
   {
     // Add a hit to the cluster if it meets several criteria:
     // similar pulse height to the cluster (if fAveChg is defined)
@@ -3882,7 +3858,7 @@ namespace cluster {
           if(abs(totChg - lastHitChg) < abs(fHits[imbest].Integral() - lastHitChg)) {
             // the total charge of both hits is a better match than the 
             // charge of the hit selected
-            MergeHits(allhits, imbest);
+            MergeHits(imbest);
             // the nearby hit was merged
             hnear = -1;
       if(prt) mf::LogVerbatim("ClusterCrawler")
@@ -3953,7 +3929,7 @@ namespace cluster {
     chifits.push_back(clChisq);
     hitnear.push_back(hnear);
     // nearby hit check
-    ChkClusterNearbyHits(allhits, prt);
+    ChkClusterNearbyHits(prt);
     HitOK = true;
 
   if(prt) {
@@ -3971,8 +3947,7 @@ namespace cluster {
 
 
 //////////////////////////////////////
-    void ClusterCrawlerAlg::ChkClusterNearbyHits(
-        std::vector<CCHitFinderAlg::CCHit>& allhits, bool prt)
+    void ClusterCrawlerAlg::ChkClusterNearbyHits(bool prt)
     {
       // analyze the hitnear vector
       //  0 = no nearby hit exists
@@ -4028,7 +4003,7 @@ namespace cluster {
             // merge em
             if(chgRat < 4) {
       if(prt) mf::LogVerbatim("ClusterCrawler")<<"Merging hit doublet "<<iht;
-              MergeHits(allhits, iht);
+              MergeHits(iht);
               hitnear[indx] = -1;
             }
           } // hitSep OK and not in a cluster

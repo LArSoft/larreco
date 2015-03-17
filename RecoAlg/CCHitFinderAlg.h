@@ -28,37 +28,61 @@
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 
-//namespace recob { class Hit; }
 
-namespace cluster {
+namespace hit {
 
+  /**
+   * @brief Hit findre algorithm designed to work with Cluster Crawler
+   * 
+   * This algorithm used to store hits in a proprietary `CCHit` data structure.
+   * It has now been changed to use `recob::Hit` class directly.
+   * It is possible to translate the former into the latter, with one exception,
+   * as follows:
+   *     
+   *     // this is the original CCHit definition
+   *     struct CCHit {
+   *       float Charge;            // recob::Hit::Integral()
+   *       float ChargeErr;         // recob::Hit::SigmaIntegral()
+   *       float Amplitude;         // recob::Hit::PeakAmplitude()
+   *       float AmplitudeErr;      // recob::Hit::SigmaPeakAmplitude()
+   *       float Time;              // recob::Hit::PeakTime()
+   *       float TimeErr;           // recob::Hit::SigmaPeakTime()
+   *       float RMS;               // recob::Hit::RMS()
+   *       float RMSErr;            // dropped
+   *       float ChiDOF;            // recob::Hit::GoodnessOfFit()
+   *       int   DOF;               // recob::Hit::DegreesOfFreedom()
+   *       float ADCSum;            // recob::Hit::SummedADC()
+   *       unsigned short WireNum;  // recob::Hit::WireID().Wire
+   *       unsigned short numHits;  // recob::Hit::Multiplicity()
+   *       unsigned int LoHitID;    // see below
+   *       float LoTime;            // recob::Hit::StartTick()
+   *       float HiTime;            // recob::Hit::EndTick()
+   *       short InClus;            // dropped; see below
+   *       geo::WireID WirID;       // recob::Hit::WireID()
+   *       recob::Wire const* Wire; // dropped; see below
+   *     };
+   *     
+   * The uncertainty on RMS has been dropped for good.
+   * 
+   * The `LoHitID` member used to mean the index of the first hit in the "hit
+   * train" (that is the set of hits extracted from the same region of
+   * interest). That is a concept that is not portable. If your hit list is
+   * still the original one as produced by this algorithm, or if at least the
+   * hits from the same train are stored sorted and contiguously, for a hit with
+   * index `iHit`, the equivalent value of `LoHitID` is
+   * `iHit - hit.LocalIndex()`.
+   * 
+   * There is no pointer to the wire any more in `recob::Hit`. The wire can be
+   * obtained through associations, that are typically produced by the art
+   * module that runs CCHitFinderAlg (e.g. `CCHitFinder`). The channel ID is
+   * also directly available as `recob::Hit::Channel()`.
+   */
+  
   class CCHitFinderAlg {
   
   public:
     
-    struct CCHit {
-      float Charge;
-      float ChargeErr;
-      float Amplitude;
-      float AmplitudeErr;
-      float Time;
-      float TimeErr;
-      float RMS;
-      float RMSErr;
-      float ChiDOF;
-      int   DOF;
-      float ADCSum;
-      unsigned short WireNum;
-      unsigned short numHits;
-      unsigned int LoHitID;
-      float LoTime;   // defines the Lo(Hi) time region of the hit
-      float HiTime;   // or hit multiplet
-      short InClus;
-      geo::WireID WirID;
-      recob::Wire const* Wire;
-    };
-    std::vector< CCHit > allhits;
-    std::vector<recob::Hit> allhits_new;
+    std::vector<recob::Hit> allhits;
     
     // struct for passing hit fitting cuts to ClusterCrawler
     struct HitCuts {
@@ -79,7 +103,7 @@ namespace cluster {
     void RunCCHitFinder(std::vector<recob::Wire> const& Wires);
     
     /// Returns (and loses) the collection of reconstructed hits
-    std::vector<recob::Hit>&& YieldHits() { return std::move(allhits_new); }
+    std::vector<recob::Hit>&& YieldHits() { return std::move(allhits); }
     
   private:
     
@@ -166,6 +190,6 @@ namespace cluster {
 
   }; // class CCHitFinderAlg
   
-} // namespace cluster
+} // namespace hit
 
 #endif // ifndef CCHITFINDERALG_H

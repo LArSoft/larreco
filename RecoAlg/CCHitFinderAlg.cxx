@@ -38,7 +38,7 @@
 #include "TF1.h"
 
 
-namespace cluster {
+namespace hit {
 
 //------------------------------------------------------------------------------
   CCHitFinderAlg::CCHitFinderAlg(fhicl::ParameterSet const& pset)
@@ -103,7 +103,6 @@ namespace cluster {
   void CCHitFinderAlg::RunCCHitFinder(std::vector<recob::Wire> const& Wires) {
   
     allhits.clear();
-    allhits_new.clear();
 
     unsigned short maxticks = 1000;
     float *ticks = new float[maxticks];
@@ -476,10 +475,12 @@ namespace cluster {
     HitChannelInfo_t info, float adcsum
   ) {
     // store the hits in the struct
-    unsigned short nhits = par.size() / 3;
+    size_t nhits = par.size() / 3;
     
-    if(allhits.size() + nhits > UINT_MAX) {
-      mf::LogError("CCHitFinder")<<"Too many hits "<<allhits.size();
+    if(allhits.max_size() - allhits.size() < nhits) {
+      mf::LogError("CCHitFinder")
+        << "Too many hits: existing " << allhits.size() << " plus new " << nhits
+        << " beyond the maximum " << allhits.max_size();
       return;
     }
     
@@ -488,48 +489,22 @@ namespace cluster {
     // fill RMS for single hits
     if(fStudyHits) StudyHits(3);
 
-    float loTime = TStart;
-    float hiTime = TStart + npt;
-    CCHit onehit;
-    // lohitid is the index of the first hit that will be added. Hits with
-    // Multiplicity > 1 will reside in a block from
-    // lohitid to lohitid + numHits - 1
-    unsigned int lohitid = allhits.size();
-    unsigned short hit;
+    const float loTime = TStart;
+    const float hiTime = TStart + npt;
+
     // Find sum of the areas of all Gaussians
-    float gsum = 0;
-    for(hit = 0; hit < nhits; ++hit) {
+    float gsum = 0.;
+    for(size_t hit = 0; hit < nhits; ++hit) {
       const unsigned short index = 3 * hit;
       gsum += Sqrt2Pi * par[index] * par[index + 2];
     }
-    for(hit = 0; hit < nhits; ++hit) {
-      const unsigned short index = 3 * hit;
+    for(size_t hit = 0; hit < nhits; ++hit) {
+      const size_t index = 3 * hit;
       const float charge = Sqrt2Pi * par[index] * par[index + 2];
       const float charge_err = SqrtPi
         * (parerr[index] * par[index + 2] + par[index] * parerr[index + 2]);
-      onehit.Charge = charge;
-      onehit.ChargeErr = charge_err;
-      onehit.Amplitude = par[index];
-      onehit.AmplitudeErr = parerr[index];
-      onehit.Time = par[index + 1] + TStart;
-      onehit.TimeErr = parerr[index + 1];
-      onehit.RMS = par[index + 2];
-      onehit.RMSErr = parerr[index + 2];
-      onehit.ChiDOF = chidof;
-      onehit.DOF = dof;
-      // Allocate a fraction of the total ADC sum if this is a hit multiplet
-      onehit.ADCSum = adcsum * onehit.Charge / gsum;
-      onehit.WireNum = theWireNum;
-      onehit.numHits = nhits;
-      onehit.LoHitID = lohitid;
-      onehit.LoTime = loTime;
-      onehit.HiTime = hiTime;
-      // set flag indicating hit is not used in a cluster
-      onehit.InClus = 0;
-      onehit.WirID = info.wireID;
-      onehit.Wire = info.wire;
       
-      allhits_new.emplace_back(
+      allhits.emplace_back(
         info.wire->Channel(),     // channel
         loTime,                   // start_tick
         hiTime,                   // end_tick
@@ -551,16 +526,17 @@ namespace cluster {
         );
 /*
   if(prt) {
-    mf::LogVerbatim("CCHitFinder")<<"W:T "<<theWireNum<<":"<<(short)onehit.Time
-      <<" Chg "<<(short)onehit.Charge
-      <<" RMS "<<onehit.RMS
-      <<" lo ID "<<onehit.LoHitID
-      <<" numHits "<<nhm
-      <<" loTime "<<loTime<<" hiTime "<<hiTime
-      <<" chidof "<<chidof << " DOF " << dof;
+    mf::LogVerbatim("CCHitFinder")<<"W:T "<<allhits.back().WireID().Wire
+      <<":"<<(short)allhits.back().PeakTime()
+      <<" Chg "<<(short)allhits.back().Integral()
+      <<" RMS "<<allhits.back().RMS()
+      <<" lo ID "<<allhits.back().LocalIndex()
+      <<" numHits "<<allhits.back().Multiplicity()
+      <<" loTime "<<allhits.back().StartTick()<<" hiTime "<<allhits.back().EndTick()
+      <<" chidof "<<allhits.back().GoodnessOfFit()
+      << " DOF " << allhits.back().DegreesOfFreedom();
   }
 */
-      allhits.push_back(onehit);
     } // hit
   } // StoreHits
 
@@ -743,5 +719,5 @@ namespace cluster {
   } // StudyHits
 
 
-} // namespace cluster
+} // namespace hit
 

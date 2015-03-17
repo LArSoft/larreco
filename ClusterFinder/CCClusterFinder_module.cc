@@ -1,78 +1,82 @@
-////////////////////////////////////////////////////////////////////////
-// Class:       ClusterCrawler
-// Module Type: producer
-// File:        ClusterCrawler_module.cc
-//
-// Generated at Fri Jun  7 09:44:09 2013 by Bruce Baller using artmod 
-// from cetpkgsupport v1_02_00.
-////////////////////////////////////////////////////////////////////////
+/**
+ * @file   CCClusterFinder_module.cc
+ * @brief  Cluster finder using cluster crawler algorithm
+ * @author Bruce Baller (bballer@fnal.gov)
+ * 
+ * Generated at Fri Jun  7 09:44:09 2013 by Bruce Baller using artmod 
+ * from cetpkgsupport v1_02_00.
+ */
 
+
+// C/C++ standard libraries
+#include <string>
+
+// Framework libraries
+#include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Principal/Run.h"
-#include "art/Framework/Principal/SubRun.h"
 #include "art/Utilities/InputTag.h"
-#include "fhiclcpp/ParameterSet.h"
-#include "art/Framework/Core/FindOneP.h"
 
+//LArSoft includes
+#include "RecoAlg/CCHitFinderAlg.h"
+#include "RecoAlg/ClusterCrawlerAlg.h"
+
+// ... more includes in the implementation section
+
+namespace cluster {
+  class CCClusterFinder;
+}
+
+class cluster::CCClusterFinder: public art::EDProducer {
+
+  public:
+    explicit CCClusterFinder(fhicl::ParameterSet const & pset);
+    virtual ~CCClusterFinder() = default;
+
+    void reconfigure(fhicl::ParameterSet const & pset) override;
+    void produce(art::Event & evt) override;
+
+  private:
+    ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
+    
+    art::InputTag fHitFinderLabel; ///< label of module producing input hits
+}; // class cluster::CCClusterFinder
+
+
+//******************************************************************************
+//*** implementation
+//***
+
+// C/C++ standard libraries
 #include <vector>
-#include <algorithm> // std::max()
-#include <functional> // std::mem_fn()
-#include <memory> // std::move
-#include <utility> // std::pair<>, std::unique_ptr<>
-#include <limits> // std::numeric_limits<>
+#include <memory> // std::move()
+#include <utility> // std::unique_ptr<>
+
+// Framework libraries
+#include "art/Utilities/Exception.h"
+#include "art/Framework/Principal/Handle.h"
+#include "art/Persistency/Common/Assns.h"
 
 //LArSoft includes
 #include "SimpleTypesAndConstants/geo_types.h"
-#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "RawData/RawDigit.h"
+#include "Utilities/AssociationUtil.h"
 #include "RecoBase/Cluster.h"
-#include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/EndPoint2D.h"
-#include "RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
 #include "RecoBase/Vertex.h"
-#include "Utilities/AssociationUtil.h"
-#include "Utilities/MakeIndex.h"
-#include "RecoAlg/CCHitFinderAlg.h"
-#include "RecoAlg/ClusterCrawlerAlg.h"
+#include "RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
 
 
 namespace cluster {
-  class ClusterCrawler;
-}
-
-class cluster::ClusterCrawler : public art::EDProducer {
-
-  public:
-    explicit ClusterCrawler(fhicl::ParameterSet const & pset);
-    virtual ~ClusterCrawler();
-
-    void reconfigure(fhicl::ParameterSet const & pset) override;
-    void produce(art::Event & evt) override;
-    void beginJob();
-
-  private:
-    hit::CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
-    ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
-    std::string fCalDataModuleLabel; ///< label of module producing input wires
-};
-
-
-namespace cluster {
-
-  ClusterCrawler::ClusterCrawler(fhicl::ParameterSet const& pset) :
-    fCCHFAlg           (pset.get<fhicl::ParameterSet>("CCHitFinderAlg")),
-    fCCAlg             (pset.get<fhicl::ParameterSet>("ClusterCrawlerAlg")),
-    fCalDataModuleLabel(pset.get<std::string>("CalDataModuleLabel"))
+  
+  //----------------------------------------------------------------------------
+  CCClusterFinder::CCClusterFinder(fhicl::ParameterSet const& pset) :
+    fCCAlg         (pset.get<fhicl::ParameterSet>("ClusterCrawlerAlg")),
+    // TODO replace with art::InputTag when LArSoft uses art >=1_13_00
+    fHitFinderLabel(pset.get<std::string>("CalDataModuleLabel"))
   {
     this->reconfigure(pset);
     
@@ -81,41 +85,31 @@ namespace cluster {
     // (with no particular product label)
     recob::HitCollectionAssociator::declare_products(*this);
     
-    produces< std::vector<recob::Cluster> >();  
+    produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
-  }
-
-  ClusterCrawler::~ClusterCrawler()
-  {
-  }
-
-  void ClusterCrawler::reconfigure(fhicl::ParameterSet const & pset)
+  } // CCClusterFinder::CCClusterFinder()
+  
+  
+  //----------------------------------------------------------------------------
+  void CCClusterFinder::reconfigure(fhicl::ParameterSet const & pset)
   {
     fCCAlg.reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
-    fCCHFAlg.reconfigure(pset.get< fhicl::ParameterSet >("CCHitFinderAlg"));
   }
   
-  void ClusterCrawler::beginJob(){
-  }
   
-  void ClusterCrawler::produce(art::Event & evt)
+  //----------------------------------------------------------------------------
+  void CCClusterFinder::produce(art::Event & evt)
   {
     // fetch the wires needed by CCHitFinder
 
     // make this accessible to ClusterCrawler_module
-    art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
-     = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
-
-    // find hits in all planes
-    fCCHFAlg.RunCCHitFinder(*wireVecHandle);
-    
-    // extract the result of the algorithm (it's moved)
-    std::vector<recob::Hit> FirstHits = fCCHFAlg.YieldHits();
+    art::ValidHandle< std::vector<recob::Hit>> hitVecHandle
+     = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderLabel);
 
     // look for clusters in all planes
-    fCCAlg.RunCrawler(FirstHits);
+    fCCAlg.RunCrawler(*hitVecHandle);
     
     // access to the algorithm results
     ClusterCrawlerAlg::HitInCluster_t const& HitInCluster
@@ -124,12 +118,10 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::Hit>> FinalHits
       (new std::vector<recob::Hit>(std::move(fCCAlg.YieldHits())));
     
-    art::ServiceHandle<geo::Geometry> geo;
-    
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
-    recob::HitCollectionAssociator shcol(*this, evt, fCalDataModuleLabel, true);
+    recob::HitRefinerAssociator shcol(*this, evt, fHitFinderLabel);
     std::vector<recob::Cluster> sccol;
     std::vector<recob::Vertex> sv3col;
 
@@ -297,13 +289,12 @@ namespace cluster {
     evt.put(std::move(v3col));
     evt.put(std::move(cv_assn));
 
-  } // produce
-} // namespace
-
-
-namespace cluster{
-
-  DEFINE_ART_MODULE(ClusterCrawler)
+  } // CCClusterFinder::produce()
   
-} 
+  
+  
+  //----------------------------------------------------------------------------
+  DEFINE_ART_MODULE(CCClusterFinder)
+  
+} // namespace cluster
 

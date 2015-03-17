@@ -10,10 +10,6 @@
 ////////////////////////////////////////////////////////////////////////
 
 
-extern "C" {
-#include <sys/types.h>
-#include <sys/stat.h>
-}
 #include <stdint.h>
 #include <iostream>
 #include <iomanip>
@@ -187,7 +183,7 @@ MinuitStruct gMinStruct;
 
 */
 
-namespace cluster{
+namespace hit {
 
 //------------------------------------------------------------------------------
   CCHitRefinerAlg::CCHitRefinerAlg(fhicl::ParameterSet const& pset)
@@ -208,7 +204,7 @@ namespace cluster{
 
   
   void CCHitRefinerAlg::RunCCHitRefiner(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<recob::Hit>& allhits,
       CCHitFinderAlg::HitCuts& /*hitcuts*/,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl,
       std::vector<ClusterCrawlerAlg::VtxStore>& vtx, 
@@ -296,7 +292,7 @@ namespace cluster{
 
 /////////////////////////////////////////
     void CCHitRefinerAlg::SetClusterBeginEnd(
-        std::vector<CCHitFinderAlg::CCHit>& /*allhits*/,
+        std::vector<recob::Hit>& /*allhits*/,
         std::vector<ClusterCrawlerAlg::ClusterStore>& tcl)
     {
       // This routine prepares the clusters in tcl for stuffing into
@@ -341,7 +337,7 @@ namespace cluster{
 
 /////////////////////////////////////////
   void CCHitRefinerAlg::RefineHits(
-    std::vector<CCHitFinderAlg::CCHit>& allhits,
+    std::vector<recob::Hit>& allhits,
     std::vector<ClusterCrawlerAlg::ClusterStore>& tcl,
     std::vector<ClusterCrawlerAlg::VtxStore>& )
   {
@@ -350,8 +346,8 @@ namespace cluster{
     // in this plane
     unsigned short icl = gMinStruct.vcl[0].tclID;
     unsigned short iht = tcl[icl].tclhits[0];
-    float ChgNorm = 2.507 * allhits[iht].Amplitude * allhits[iht].RMS
-        / allhits[iht].Charge;
+    float ChgNorm = 2.507 * allhits[iht].PeakAmplitude() * allhits[iht].RMS()
+        / allhits[iht].Integral();
 
     unsigned short wsize = hiWire - loWire + 1;
     for(unsigned short ivcl = 0; ivcl < gMinStruct.vcl.size(); ++ivcl) {
@@ -368,7 +364,7 @@ namespace cluster{
       std::vector<short> hIndx(wsize, -1);
       for(unsigned short ii = 0; ii < tcl[tclID].tclhits.size(); ++ii) {
         unsigned short hit = tcl[tclID].tclhits[ii];
-        unsigned short wire = allhits[hit].WireNum;
+        unsigned short wire = allhits[hit].WireID().Wire;
         if(wire < loWire || wire > hiWire) continue;
         unsigned short w = wire - loWire;
         hIndx[w] = hit;
@@ -387,19 +383,27 @@ namespace cluster{
           unsigned short theHit = hIndx[w];
           float amp = gMinStruct.vcl[ivcl].Amp[w];
           float amperr = gMinStruct.vcl[ivcl].AmpErr[w];
-          allhits[theHit].Charge = 2.507 * amp * rms / ChgNorm;
-          allhits[theHit].ChargeErr = 2.507 * amperr * rms / ChgNorm;
-          allhits[theHit].Amplitude = amp;
-          allhits[theHit].AmplitudeErr = amperr;
-          allhits[theHit].Time = loTime + gMinStruct.vcl[ivcl].Time[w];
-          allhits[theHit].TimeErr = 0.;
-          allhits[theHit].RMS = rms;
-          allhits[theHit].RMSErr = 0.;
-          allhits[theHit].ChiDOF = gMinStruct.vcl[ivcl].HitChiDOF[w];
-          allhits[theHit].numHits = gMinStruct.vcl.size();
-          allhits[theHit].LoHitID = theHit;
-          allhits[theHit].LoTime = loTime;
-          allhits[theHit].HiTime = hiTime;
+          recob::Hit const& hit = allhits[theHit];
+          allhits[theHit] = recob::Hit(
+            hit.Channel(),
+            hit.StartTick(),
+            hit.EndTick(),
+            hit.StartTick() + gMinStruct.vcl[ivcl].Time[w] // peak_time
+            0.,
+            rms,
+            amp,                                           // peak_amplitude
+            amperr,                                        // sigma_peak_amplitude
+            hit.SummedADC(),
+            .507 * amp * rms / ChgNorm,                    // hit_integral
+            2.507 * amperr * rms / ChgNorm,                // hit_sigma_integral
+            gMinStruct.vcl.size(),                         // multiplicity
+            w,                                             // local_index
+            gMinStruct.vcl[ivcl].HitChiDOF[w],             // goodness_of_fit
+            hit.DegreesOfFreedom()                         // dof FIXME
+            hit.View(),
+            hit.SignalType(),
+            hit.WireID()
+            );
   if(prt) mf::LogVerbatim("ClusterCrawler")
     <<"Update hit: ivcl "<<ivcl<<" w "<<w<<" theHit "<<theHit;
           fclhits.push_back(theHit);
@@ -409,7 +413,7 @@ namespace cluster{
           unsigned short wire = w + loWire;
           float amp = gMinStruct.vcl[ivcl].Amp[w];
           float amperr = gMinStruct.vcl[ivcl].AmpErr[w];
-          cluster::CCHitFinderAlg::CCHit newhit;
+          recob::Hit newhit; // fix with a constructor
           newhit.Charge = 2.507 * amp * rms / ChgNorm;
           newhit.Amplitude = amp;
           newhit.AmplitudeErr = amperr;
@@ -471,7 +475,7 @@ namespace cluster{
           // fill with hit IDs DS of the RAT range
           for(unsigned short ii = 0; ii < tcl[tclID].tclhits.size(); ++ii) {
             unsigned short iht = tcl[tclID].tclhits[ii];
-            if(allhits[iht].WireNum > hiWire) {
+            if(allhits[iht].WireID().Wire > hiWire) {
               nclhits.push_back(iht);
               HitInCluster.setCluster(iht, ncl.ID);
             }
@@ -491,16 +495,16 @@ namespace cluster{
     myprt<<"\n";
   }
           unsigned short lastHit = fclhits[fclhits.size() - 1];
-          ncl.EndWir = allhits[lastHit].WireNum;
-          ncl.EndTim = allhits[lastHit].Time;
+          ncl.EndWir = allhits[lastHit].WireID().Wire;
+          ncl.EndTim = allhits[lastHit].PeakTime();
         } // cluster is DS
         else {
           ncl.BeginSlp = gMinStruct.vcl[ivcl].Slope;
           ncl.BeginSlpErr = gMinStruct.vcl[ivcl].SlopeErr;
           unsigned short firstHit = fclhits[0];
-          ncl.BeginWir = allhits[firstHit].WireNum;
-          ncl.BeginTim = allhits[firstHit].Time;
-          ncl.BeginChg = allhits[firstHit].Charge;
+          ncl.BeginWir = allhits[firstHit].WireID().Wire;
+          ncl.BeginTim = allhits[firstHit].PeakTime();
+          ncl.BeginChg = allhits[firstHit].Integral();
           ncl.EndSlp = tcl[tclID].EndSlp;
           ncl.EndSlpErr = tcl[tclID].EndSlpErr;
           ncl.EndChg = tcl[tclID].EndChg;
@@ -513,7 +517,7 @@ namespace cluster{
           // append the existing tcl hits
           for(unsigned short ii = 0; ii < tcl[tclID].tclhits.size(); ++ii) {
             unsigned short iht = tcl[tclID].tclhits[ii];
-            if(allhits[iht].WireNum < loWire) {
+            if(allhits[iht].WireID().Wire < loWire) {
               nclhits.push_back(iht);
               HitInCluster.setCluster(iht, ncl.ID);
             }
@@ -851,7 +855,7 @@ namespace cluster{
 
 /////////////////////////////////////////
   void CCHitRefinerAlg::FillVcl(
-    std::vector<CCHitFinderAlg::CCHit>& allhits,
+    std::vector<recob::Hit>& allhits,
     std::vector<ClusterCrawlerAlg::ClusterStore>& tcl, 
     std::vector<ClusterCrawlerAlg::VtxStore>&)
   {
@@ -869,7 +873,7 @@ namespace cluster{
       if(tcl[icl].BeginWir >= hiWire) {
         for(unsigned short jj = tcl[icl].tclhits.size() - 1; jj > 0; --jj) {
           unsigned short hit = tcl[icl].tclhits[jj];
-          if(allhits[hit].WireNum >= hiWire) {
+          if(allhits[hit].WireID().Wire >= hiWire) {
             hit0 = hit;
             break;
           }
@@ -878,8 +882,8 @@ namespace cluster{
         rcl.tclID = icl;
         // offset the wire and time relative to loWire and hiWire to
         // facilitate fitting
-        rcl.Wire0 = allhits[hit0].WireNum - loWire;
-        rcl.Time0 = allhits[hit0].Time - loTime;
+        rcl.Wire0 = allhits[hit0].WireID().Wire - loWire;
+        rcl.Time0 = allhits[hit0].PeakTime() - loTime;
         rcl.Slope = tcl[icl].EndSlp;
         rcl.SlopeErr = tcl[icl].EndSlpErr;
         if(rcl.SlopeErr <= 0.) rcl.SlopeErr = 0.1 * fabs(rcl.Slope);
@@ -888,10 +892,10 @@ namespace cluster{
         rcl.AmpErr.resize(wsize);
         rcl.HitChiDOF.resize(wsize);
         for(unsigned short w = 0; w < wsize; ++w) {
-          rcl.Amp[w] = allhits[hit0].Amplitude;
+          rcl.Amp[w] = allhits[hit0].PeakAmplitude();
           rcl.AmpErr[w] = 0.;
         }
-        rcl.RMS   = allhits[hit0].RMS;
+        rcl.RMS   = allhits[hit0].RMS();
         // true for clusters that End at the vertex
         rcl.isDS  = true;
   if(prt) {
@@ -915,7 +919,7 @@ namespace cluster{
       if(tcl[icl].EndWir <= loWire) {
         for(unsigned short jj = 0; jj < tcl[icl].tclhits.size(); ++jj) {
           unsigned short hit = tcl[icl].tclhits[jj];
-          if(allhits[hit].WireNum <= loWire) {
+          if(allhits[hit].WireID().Wire <= loWire) {
             hit0 = hit;
             break;
           }
@@ -924,8 +928,8 @@ namespace cluster{
         rcl.tclID = icl;
         // offset the wire and time relative to loWire and hiWire to
         // facilitate fitting
-        rcl.Wire0 = allhits[hit0].WireNum - loWire;
-        rcl.Time0 = allhits[hit0].Time - loTime;
+        rcl.Wire0 = allhits[hit0].WireID().Wire - loWire;
+        rcl.Time0 = allhits[hit0].PeakTime() - loTime;
         // save the slope in case we want to check the deviation between
         // this slope and the one calculated using the vertex fit position
         rcl.Slope = tcl[icl].BeginSlp;
@@ -936,10 +940,10 @@ namespace cluster{
         rcl.AmpErr.resize(wsize);
         rcl.HitChiDOF.resize(wsize);
         for(unsigned short w = 0; w < wsize; ++w) {
-          rcl.Amp[w] = allhits[hit0].Amplitude;
+          rcl.Amp[w] = allhits[hit0].PeakAmplitude();
           rcl.AmpErr[w] = 0.;
         }
-        rcl.RMS   = allhits[hit0].RMS;
+        rcl.RMS   = allhits[hit0].RMS();
         // false for clusters that Begin at the vertex
         rcl.isDS  = false;
   if(prt) {
@@ -960,7 +964,7 @@ namespace cluster{
 
 /////////////////////////////////////////
   void CCHitRefinerAlg::FillWireSignals(
-    std::vector<CCHitFinderAlg::CCHit>& allhits)
+    std::vector<recob::Hit>& allhits)
   {
     // Fill the wire signals vector and initialize the fitted hit
     // signals vector
@@ -978,7 +982,7 @@ namespace cluster{
       }
       // find a hit on the wire to get the wire object
       unsigned short iht = WireHitRange[wire - fFirstWire].first;
-      art::Ptr< recob::Wire> oWire = allhits[iht].Wire;
+      art::Ptr< recob::Wire> oWire = allhits[iht].Wire; // TODO ask associations
       // would be nice to just get the wire signal where we need it...
       std::vector<float> signal( oWire->Signal() );
       // temporary RAT vector
@@ -1013,7 +1017,7 @@ namespace cluster{
 
 /////////////////////////////////////////
   void CCHitRefinerAlg::FindRATRange(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<recob::Hit>& allhits,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl, 
       std::vector<ClusterCrawlerAlg::VtxStore>& ,
       bool& SkipIt)
@@ -1032,15 +1036,15 @@ namespace cluster{
       unsigned short icl = clEnd[ii];
       for(unsigned short jj = tcl[icl].tclhits.size() - 1; jj > 0; --jj) {
         unsigned short hit = tcl[icl].tclhits[jj];
-        if(allhits[hit].WireNum < loWire) loWire = allhits[hit].WireNum;
-        if(allhits[hit].LoTime  < loTime) loTime = allhits[hit].LoTime;
-        if(allhits[hit].WireNum > hiWire) hiWire = allhits[hit].WireNum;
-        if(allhits[hit].HiTime  > hiTime) hiTime = allhits[hit].HiTime;
+        if(allhits[hit].WireID().Wire < loWire) loWire = allhits[hit].WireID().Wire;
+        if(allhits[hit].StartTick() < loTime) loTime = allhits[hit].StartTick();
+        if(allhits[hit].WireID().Wire > hiWire) hiWire = allhits[hit].WireID().Wire;
+        if(allhits[hit].EndTick() > hiTime) hiTime = allhits[hit].EndTick();
         // stop looking if the multiplicity = 1 
   if(prt) mf::LogVerbatim("ClusterCrawler")
-    <<"End chk "<<tcl[icl].ID<<" "<<allhits[hit].WireNum
-    <<":"<<(int)allhits[hit].Time<<" mult "<<allhits[hit].numHits;
-        if(allhits[hit].numHits > 1) {
+    <<"End chk "<<tcl[icl].ID<<" "<<allhits[hit].WireID().Wire
+    <<":"<<(int)allhits[hit].PeakTime()<<" mult "<<allhits[hit].Multiplicity();
+        if(allhits[hit].Multiplicity() > 1) {
           ++nMultgt1;
         } else {
           break;
@@ -1055,15 +1059,15 @@ namespace cluster{
       unsigned short icl = clBeg[ii];
       for(unsigned short jj = 0; jj < tcl[icl].tclhits.size(); ++jj) {
         unsigned short hit = tcl[icl].tclhits[jj];
-        if(allhits[hit].WireNum < loWire) loWire = allhits[hit].WireNum;
-        if(allhits[hit].LoTime  < loTime) loTime = allhits[hit].LoTime;
-        if(allhits[hit].WireNum > hiWire) hiWire = allhits[hit].WireNum;
-        if(allhits[hit].HiTime  > hiTime) hiTime = allhits[hit].HiTime;
+        if(allhits[hit].WireID().Wire < loWire) loWire = allhits[hit].WireID().Wire;
+        if(allhits[hit].StartTick() < loTime) loTime = allhits[hit].StartTick();
+        if(allhits[hit].WireID().Wire > hiWire) hiWire = allhits[hit].WireID().Wire;
+        if(allhits[hit].EndTick() > hiTime) hiTime = allhits[hit].EndTick();
         // stop looking if the multiplicity = 1 
   if(prt) mf::LogVerbatim("ClusterCrawler")
-    <<"Begin Chk "<<tcl[icl].ID<<" "<<allhits[hit].WireNum
-    <<":"<<(int)allhits[hit].Time<<" mult "<<allhits[hit].numHits;
-        if(allhits[hit].numHits > 1) {
+    <<"Begin Chk "<<tcl[icl].ID<<" "<<allhits[hit].WireID().Wire
+    <<":"<<(int)allhits[hit].PeakTime()<<" mult "<<allhits[hit].Multiplicity();
+        if(allhits[hit].Multiplicity() > 1) {
           ++nMultgt1;
         } else {
           break;
@@ -1096,10 +1100,10 @@ namespace cluster{
       bool gotone = false;
       for(unsigned short hit = firsthit; hit < lasthit; ++hit) {
         // ignore obsolete hit
-        if(allhits[hit].Charge < 0) continue;
+        if(allhits[hit].Integral() < 0) continue;
         // ignore used hits
         if(HitInCluster.isInCluster(hit)) continue;
-        if(allhits[hit].Time > loTime && allhits[hit].Time < hiTime) {
+        if(allhits[hit].PeakTime() > loTime && allhits[hit].PeakTime() < hiTime) {
           --loWire;
           gotone = true;
           break;
@@ -1122,10 +1126,10 @@ namespace cluster{
       bool gotone = false;
       for(unsigned short hit = firsthit; hit < lasthit; ++hit) {
         // ignore obsolete hit
-        if(allhits[hit].Charge < 0) continue;
+        if(allhits[hit].Integral() < 0) continue;
         // ignore used hits
         if(HitInCluster.isInCluster(hit)) continue;
-        if(allhits[hit].Time > loTime && allhits[hit].Time < hiTime) {
+        if(allhits[hit].PeakTime() > loTime && allhits[hit].PeakTime() < hiTime) {
           ++hiWire;
           gotone = true;
           break;
@@ -1215,5 +1219,5 @@ namespace cluster{
   } // Printvcl
 
 */
-} // namespace cluster
+} // namespace hit
 

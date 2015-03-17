@@ -22,7 +22,6 @@
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
-#include "RecoAlg/CCHitFinderAlg.h"
 
 struct MinuitStruct{
   
@@ -51,11 +50,13 @@ struct MinuitStruct{
 
 };
 
-namespace cluster {
+namespace hit {
 
   class CCHitRefinerAlg {
   
   public:
+    using ClusterCrawlerAlg = cluster::ClusterCrawlerAlg;
+    using CCHitFinderAlg = hit::CCHitFinderAlg;
 
     CCHitRefinerAlg(fhicl::ParameterSet const& pset);
     virtual ~CCHitRefinerAlg();
@@ -63,7 +64,7 @@ namespace cluster {
     void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunCCHitRefiner(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<recob::Hit>& allhits,
       CCHitFinderAlg::HitCuts& hitcuts,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl,
       std::vector<ClusterCrawlerAlg::VtxStore>& vtx,
@@ -103,7 +104,7 @@ namespace cluster {
     unsigned short hiTime;
     
     void RefineHits(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<recob::Hit>& allhits,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl,
       std::vector<ClusterCrawlerAlg::VtxStore>& vtx);
 
@@ -111,16 +112,16 @@ namespace cluster {
     // and times loTime - hiTime surrounding a vertex in which hit
     // refining will be done
     void FindRATRange(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
+      std::vector<recob::Hit>& allhits,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl, 
       std::vector<ClusterCrawlerAlg::VtxStore>& vtx,
       bool& SkipIt);
 
     // Fills the WireSignals vector in the RAT range
-    void FillWireSignals(std::vector<CCHitFinderAlg::CCHit>& allhits);
+    void FillWireSignals(std::vector<recob::Hit>& allhits);
 
     // Fits clusters at the boundary of the RAT range
-    void FillVcl(std::vector<CCHitFinderAlg::CCHit>& allhits,
+    void FillVcl(std::vector<recob::Hit>& allhits,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl, 
       std::vector<ClusterCrawlerAlg::VtxStore>& vtx);
     
@@ -132,7 +133,7 @@ namespace cluster {
     void FitHitAmplitudes(std::vector<ClusterCrawlerAlg::VtxStore>& vtx);
 
     // Sets the beginning and end direction of the cluster
-    void SetClusterBeginEnd(std::vector<CCHitFinderAlg::CCHit>& allhits,
+    void SetClusterBeginEnd(std::vector<recob::Hit>& allhits,
       std::vector<ClusterCrawlerAlg::ClusterStore>& tcl);
 
     void Printvcl(std::vector<ClusterCrawlerAlg::VtxStore>& vtx);
@@ -140,7 +141,7 @@ namespace cluster {
 
   }; // class CCHitRefinerAlg
 
-} // cluster
+} // hit
 /*
     inline const std::vector< std::vector<float> >& cluster::CCHitRefinerAlg::WireSignals()
           const { return fWireSignals; };

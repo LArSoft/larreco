@@ -149,10 +149,7 @@ namespace cluster {
     virtual ~ClusterCrawlerAlg();
 
     void reconfigure(fhicl::ParameterSet const& pset);
-    void RunCrawler(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<recob::Hit> const& srchits
-      );
+    void RunCrawler(std::vector<recob::Hit> const& srchits);
     // Sorts clusters in tcl by decreasing number of hits, while ignoring
     // abandoned clusters
     void SortByLength(std::vector<ClusterStore>& tcl, CTP_t inCTP,
@@ -293,26 +290,20 @@ namespace cluster {
     // ******** crawling routines *****************
 
     // Loops over wires looking for seed clusters
-    void ClusterLoop(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void ClusterLoop(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
     // Finds a hit on wire kwire, adds it to the cluster and re-fits it
-    void AddHit(std::vector<CCHitFinderAlg::CCHit>& allhits, 
-      unsigned short kwire, bool& HitOK, bool& SigOK);
+    void AddHit(unsigned short kwire, bool& HitOK, bool& SigOK);
     // Finds a hit on wire kwire, adds it to a LargeAngle cluster and re-fits it
-    void AddLAHit(std::vector<CCHitFinderAlg::CCHit>& allhits, 
-      std::vector<VtxStore>& vtx,
+    void AddLAHit(std::vector<VtxStore>& vtx,
       unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK);
     // Fits the cluster hits in fcl2hits to a straight line
     void FitCluster();
     // Fits the charge of the cluster hits in fcl2hits
     void FitClusterChg();
     // Crawls along a trail of hits UpStream
-    void CrawlUS(std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<VtxStore>& vtx);
+    void CrawlUS(std::vector<VtxStore>& vtx);
     // Crawls along a trail of hits UpStream - Large Angle version
-    void LACrawlUS(std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<VtxStore>& vtx);
+    void LACrawlUS(std::vector<VtxStore>& vtx);
 
     // ************** cluster merging routines *******************
 
@@ -331,10 +322,9 @@ namespace cluster {
 
     // check the number of nearby hits to the ones added to the current cluster.
     // If there are too many, merge the hits and re-fit
-    void ChkClusterNearbyHits(std::vector<CCHitFinderAlg::CCHit>& allhits, bool prt);
+    void ChkClusterNearbyHits(bool prt);
     // merge the hits in a multiplet into one hit
-    void MergeHits(std::vector<CCHitFinderAlg::CCHit>& allhits,
-      const unsigned short theHit);
+    void MergeHits(const unsigned short theHit);
 
     // ************** cluster finish routines *******************
 
@@ -342,17 +332,13 @@ namespace cluster {
     void CheckClusterHitFrac(bool prt);
 
     // Try to extend clusters downstream
-    void ChkClusterDS(std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<ClusterStore>& tcl);
+    void ChkClusterDS(std::vector<ClusterStore>& tcl);
 
     // Try to merge overlapping clusters
     void MergeOverlap(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
     
     /// Removes obsolete hits from hits, updating the indices
-    void RemoveObsoleteHits(
-      std::vector<CCHitFinderAlg::CCHit>& allhits,
-      std::vector<ClusterStore>& tcl
-      );
+    void RemoveObsoleteHits(std::vector<ClusterStore>& tcl);
 
     // ************** 2D vertex routines *******************
 

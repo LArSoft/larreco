@@ -7,6 +7,10 @@ microboone_clustercrawler.ClusterCrawlerAlg:  @local::microboone_clustercrawlera
 microboone_clustercrawler.CCHitFinderAlg:     @local::microboone_cchitfinderalg
 microboone_clustercrawler.CCHitRefinerAlg:    @local::microboone_cchitrefineralg
 
+microboone_ccfinder:                          @local::standard_ccfinder
+microboone_ccfinder.ClusterCrawlerAlg:        @local::microboone_clustercrawleralg
+
+
 microboone_cluster3d:                         @local::standard_cluster3d
 microboone_cluster3d.DBScanAlg:               @local::microboone_cluster3ddbscanalg
 microboone_cluster3d.PrincipalComponentsAlg:  @local::microboone_cluster3dprincipalcomponentsalg
