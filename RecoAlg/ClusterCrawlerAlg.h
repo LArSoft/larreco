@@ -45,7 +45,10 @@ namespace cluster {
     static geo::PlaneID DecodeCTP(CTP_t CTP)
       { return { CTP / (CTPpad*CTPpad), CTP / CTPpad % CTPpad, CTP % CTPpad }; }
     
-    // struct of temporary clusters
+    /// @{
+    /// @name Data structures for the reconstruction results
+    
+    /// struct of temporary clusters
     struct ClusterStore {
       short ID;         // Cluster ID. ID < 0 = abandoned cluster
       short ProcCode;   // Processor code for debugging
@@ -67,9 +70,8 @@ namespace cluster {
       short EndVtx;     // ID of the end vertex
       std::vector<unsigned short> tclhits; // hits on the cluster
     }; // ClusterStore
-    std::vector< ClusterStore > tcl;
 
-    // struct of temporary 2D vertices
+    /// struct of temporary 2D vertices (end points)
     struct VtxStore {
       float Wire;
       float Time;
@@ -77,9 +79,8 @@ namespace cluster {
       short Topo;
       CTP_t CTP;
     };
-    std::vector< VtxStore > vtx;
     
-    // struct of temporary 3D vertices
+    /// struct of temporary 3D vertices
     struct Vtx3Store {
       std::array<short, 3> Ptr2D; // pointers to 2D vertices in each plane
       float X;                    // x position
@@ -89,9 +90,8 @@ namespace cluster {
       unsigned short CStat;
       unsigned short TPC;
     };
-    std::vector< Vtx3Store > vtx3;
     
-    /// Simple vector interface to 
+    /// Holds which cluster each hit is in, if any
     class HitInCluster_t {
         public:
       using ClusterID_t = int;
@@ -128,6 +128,9 @@ namespace cluster {
       /// Resizes the list to the specified size; new hits are marked free
       void resize(size_t new_size) { ClusterIDs.resize(new_size, FreeHit); }
       
+      /// Removes all the information
+      void clear() { ClusterIDs.clear(); }
+      
       /// ID of a hit in no cluster
       static constexpr ClusterID_t FreeHit = 0 /* std::numeric_limits<int>::max() */;
       /// ID of a hit that has disappeared because merged ("obsolete")
@@ -138,6 +141,11 @@ namespace cluster {
       std::vector<ClusterID_t> ClusterIDs;
     
     }; // HitInCluster_t
+    /// @}
+    
+    
+    /// @{
+    /// @name Result retrieval
     
     /// Return a reference to our hit-cluster associations; we don't yield it.
     HitInCluster_t const& GetHitInCluster() const { return fHitInCluster; }
@@ -145,15 +153,37 @@ namespace cluster {
     /// Returns (and loses) the collection of reconstructed hits
     std::vector<recob::Hit>&& YieldHits() { return std::move(fHits); }
     
+    /// Returns a constant reference to the clusters found
+    std::vector<ClusterStore> const& GetClusters() const { return tcl; }
+    
+    /// Returns a constant reference to the 2D end points found
+    std::vector<VtxStore> const& GetEndPoints() const { return vtx; }
+    
+    /// Returns a constant reference to the 3D vertices found
+    std::vector<Vtx3Store> const& GetVertices() const { return vtx3; }
+    
+    
+    /// Deletes all the results (might saves memory)
+    /// @note The current implementation typically does NOT save memory.
+    void ClearResults();
+    
+    /// @}
+    
+    
     ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
-    virtual ~ClusterCrawlerAlg();
 
     void reconfigure(fhicl::ParameterSet const& pset);
     void RunCrawler(std::vector<recob::Hit> const& srchits);
-    // Sorts clusters in tcl by decreasing number of hits, while ignoring
-    // abandoned clusters
-    void SortByLength(std::vector<ClusterStore>& tcl, CTP_t inCTP,
-        std::map<unsigned short, unsigned short>& sortindex);
+    
+    /// Sorts clusters in tcl by decreasing number of hits, ignoring abandoned clusters
+    static void SortByLength(std::vector<ClusterStore> const& tcl,
+      CTP_t inCTP, std::map<unsigned short, unsigned short>& sortindex);
+    
+    
+////////////////////////////////////
+
+    private:
+    
     
     unsigned short fNumPass;                 ///< number of passes over the hit collection
     std::vector<unsigned short> fMaxHitsFit; ///< Max number of hits fitted
@@ -199,9 +229,7 @@ namespace cluster {
       unsigned short& firstwire, unsigned short& lastwire);
 
     // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
-    void FitClusterMid(
-      std::vector<ClusterStore>& tcl, unsigned short it1, unsigned short iht,
-      short nhit);
+    void FitClusterMid(unsigned short it1, unsigned short iht, short nhit);
 
     // these variables define the cluster used during crawling
     float clpar[2];     ///< cluster parameters for the current fit with
@@ -210,10 +238,6 @@ namespace cluster {
     float clChisq;     ///< chisq of the current fit
     float fAveChg;  ///< average charge at leading edge of cluster
     float fChgSlp;  ///< slope of the  charge vs wire 
-    
-////////////////////////////////////
-
-    private:
     
     bool prt;
     bool vtxprt;
@@ -225,6 +249,9 @@ namespace cluster {
     
     std::vector<recob::Hit> fHits; ///< our version of the hits
     HitInCluster_t fHitInCluster; ///< List of the cluster ID each hit belongs to
+    std::vector< ClusterStore > tcl; ///< the clusters we are creating
+    std::vector< VtxStore > vtx; ///< the endpoints we are reconstructing
+    std::vector< Vtx3Store > vtx3; ///< the 3D vertices we are reconstructing
     
     trkf::LinFitAlg fLinFitAlg;
 
@@ -290,33 +317,28 @@ namespace cluster {
     // ******** crawling routines *****************
 
     // Loops over wires looking for seed clusters
-    void ClusterLoop(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void ClusterLoop();
     // Finds a hit on wire kwire, adds it to the cluster and re-fits it
     void AddHit(unsigned short kwire, bool& HitOK, bool& SigOK);
     // Finds a hit on wire kwire, adds it to a LargeAngle cluster and re-fits it
-    void AddLAHit(std::vector<VtxStore>& vtx,
-      unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK);
+    void AddLAHit(unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK);
     // Fits the cluster hits in fcl2hits to a straight line
     void FitCluster();
     // Fits the charge of the cluster hits in fcl2hits
     void FitClusterChg();
     // Crawls along a trail of hits UpStream
-    void CrawlUS(std::vector<VtxStore>& vtx);
+    void CrawlUS();
     // Crawls along a trail of hits UpStream - Large Angle version
-    void LACrawlUS(std::vector<VtxStore>& vtx);
+    void LACrawlUS();
 
     // ************** cluster merging routines *******************
 
     // Compares two cluster combinations to see if they should be merged
-    void ChkMerge(std::vector<ClusterStore>& tcl);
+    void ChkMerge();
     // Checks merge for cluster cl2 within the bounds of cl1
-    void ChkMerge12(std::vector<ClusterStore>& tcl,
-      unsigned short it1, unsigned short it2, bool& didit);
+    void ChkMerge12(unsigned short it1, unsigned short it2, bool& didit);
     // Merges clusters cl1 and cl2
-    void DoMerge(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-      unsigned short it1, unsigned short it2, 
-      short ProcCode);
+    void DoMerge(unsigned short it1, unsigned short it2, short ProcCode);
       
     // ************** hit merging routines *******************
 
@@ -332,85 +354,71 @@ namespace cluster {
     void CheckClusterHitFrac(bool prt);
 
     // Try to extend clusters downstream
-    void ChkClusterDS(std::vector<ClusterStore>& tcl);
+    void ChkClusterDS();
 
     // Try to merge overlapping clusters
-    void MergeOverlap(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void MergeOverlap();
     
     /// Removes obsolete hits from hits, updating the indices
-    void RemoveObsoleteHits(std::vector<ClusterStore>& tcl);
+    void RemoveObsoleteHits();
 
     // ************** 2D vertex routines *******************
 
     // Find 2D vertices
-    void FindVertices(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void FindVertices();
 /*
     // Kill 2D vertices
-    void KillVertices(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void KillVertices();
 */
     // Find 2D star topology vertices
-    void FindStarVertices(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void FindStarVertices();
     // check a vertex (vw, fvt) made with clusters it1, and it2 against the
     // vector of existing clusters
     void ChkVertex(
-        std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
         float fvw, float fvt, unsigned short it1, unsigned short it2, short topo);
     // try to attach a cluster to an existing vertex
-    void ClusterVertex(
-        std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-        unsigned short it2);
+    void ClusterVertex(unsigned short it2);
     // try to attach a cluster to a specified vertex
-    void VertexCluster(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-        unsigned short ivx);
+    void VertexCluster(unsigned short ivx);
     // Split clusters that cross a vertex
-    void VtxClusterSplit(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void VtxClusterSplit();
     // returns true if a vertex is encountered while crawling
-    bool CrawlVtxChk(std::vector<VtxStore>& vtx, unsigned short kwire);
+    bool CrawlVtxChk(unsigned short kwire);
     // returns true if this cluster is between a vertex and another
     // cluster that is associated with the vertex
-    bool CrawlVtxChk2(std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    bool CrawlVtxChk2();
     // use a vertex constraint to start a cluster
     void VtxConstraint(
-      std::vector<VtxStore>& vtx, unsigned short iwire, unsigned short ihit,
+      unsigned short iwire, unsigned short ihit,
       unsigned short jwire, unsigned short& useHit, bool& doConstrain);
     // fit the vertex position
-    void FitVtx(std::vector<ClusterStore>& tcl,
-        std::vector<VtxStore>& vtx, unsigned short iv, float& ChiDOF);
+    void FitVtx(unsigned short iv, float& ChiDOF);
     // weight and fit all vertices
-    void VtxWghtAndFit(std::vector<ClusterStore>& tcl,
-        std::vector<VtxStore>& vtx, CTP_t inCTP);
+    void VtxWghtAndFit(CTP_t inCTP);
 
     // ************** 3D vertex routines *******************
 
     // match vertices between planes
-    void VtxMatch(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-      std::vector<Vtx3Store>& vtx3, unsigned int cstat, unsigned int tpc);
+    void VtxMatch(unsigned int cstat, unsigned int tpc);
     // Match clusters to endpoints using 3D vertex information
-    void Vtx3ClusterMatch(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-      std::vector<Vtx3Store>& vtx3, unsigned int cstat, unsigned int tpc);
+    void Vtx3ClusterMatch(unsigned int cstat, unsigned int tpc);
     // split clusters using 3D vertex information
-    void Vtx3ClusterSplit(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-      std::vector<Vtx3Store>& vtx3, unsigned int cstat, unsigned int tpc);
+    void Vtx3ClusterSplit(unsigned int cstat, unsigned int tpc);
 
     // ************** utility routines *******************
 
     // inits everything
     void CrawlInit();
     // Stores cluster information in a temporary vector
-    void TmpStore(std::vector<ClusterStore>& tcl);
+    void TmpStore();
     // Gets a temp cluster and puts it into the working cluster variables
-    void TmpGet(std::vector<ClusterStore>& tcl, unsigned short it1);
+    void TmpGet(unsigned short it1);
     // Splits a cluster into two clusters at position pos. Associates the
     // new clusters with a vertex
-    void SplitCluster(
-      std::vector<ClusterStore>& tcl, unsigned short icl, unsigned short pos,
+    void SplitCluster(unsigned short icl, unsigned short pos,
       unsigned short ivx);
     // Prints cluster information to the screen
-    void PrintClusters
-      (std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx);
+    void PrintClusters();
     // check for a signal on all wires between two points
     void ChkSignal
       (unsigned short wire1, float time1, unsigned short wire2, float time2, bool& SigOK);

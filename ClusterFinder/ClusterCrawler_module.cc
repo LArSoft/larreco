@@ -138,9 +138,13 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
         cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
 
+    
+    std::vector<ClusterCrawlerAlg::ClusterStore> const& tcl
+      = fCCAlg.GetClusters();
+    
 // Consistency check
-  for(unsigned int icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
-    ClusterCrawlerAlg::ClusterStore& clstr = fCCAlg.tcl[icl];
+  for(unsigned int icl = 0; icl < tcl.size(); ++icl) {
+    ClusterCrawlerAlg::ClusterStore const& clstr = tcl[icl];
     if(clstr.ID < 0) continue;
     geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
     unsigned short plane = planeID.Plane;
@@ -161,10 +165,12 @@ namespace cluster {
   } // icl
 
     // make 3D vertices
+    std::vector<ClusterCrawlerAlg::Vtx3Store> const& Vertices
+      = fCCAlg.GetVertices();
+    
     double xyz[3] = {0, 0, 0};
     unsigned int vtxID = 0, end;
-    for(unsigned int iv = 0; iv < fCCAlg.vtx3.size(); iv++) {
-      ClusterCrawlerAlg::Vtx3Store& vtx3 = fCCAlg.vtx3[iv];
+    for(ClusterCrawlerAlg::Vtx3Store const& vtx3: Vertices) {
       // ignore incomplete vertices
       if(vtx3.Ptr2D[0] < 0) continue;
       if(vtx3.Ptr2D[1] < 0) continue;
@@ -174,15 +180,15 @@ namespace cluster {
       xyz[1] = vtx3.Y;
       xyz[2] = vtx3.Z;
       sv3col.emplace_back(xyz, vtxID);
-    } // iv
+    } // 3D vertices
     // convert Vertex vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Vertex> > v3col(new std::vector<recob::Vertex>(std::move(sv3col)));
     
     // make the clusters and associations
     float sumChg, sumADC;
     unsigned int clsID = 0, nclhits;
-    for(unsigned int icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
-      ClusterCrawlerAlg::ClusterStore& clstr = fCCAlg.tcl[icl];
+    for(unsigned int icl = 0; icl < tcl.size(); ++icl) {
+      ClusterCrawlerAlg::ClusterStore const& clstr = tcl[icl];
       if(clstr.ID < 0) continue;
       ++clsID;
       sumChg = 0;
@@ -242,12 +248,12 @@ namespace cluster {
         end = 0;
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
-        for(unsigned short iv3 = 0; iv3 < fCCAlg.vtx3.size(); ++iv3) {
+        for(ClusterCrawlerAlg::Vtx3Store const& vtx3: Vertices) {
           // ignore incomplete vertices
-          if(fCCAlg.vtx3[iv3].Ptr2D[0] < 0) continue;
-          if(fCCAlg.vtx3[iv3].Ptr2D[1] < 0) continue;
-          if(fCCAlg.vtx3[iv3].Ptr2D[2] < 0) continue;
-          if(fCCAlg.vtx3[iv3].Ptr2D[plane] == clstr.BeginVtx) {
+          if(vtx3.Ptr2D[0] < 0) continue;
+          if(vtx3.Ptr2D[1] < 0) continue;
+          if(vtx3.Ptr2D[2] < 0) continue;
+          if(vtx3.Ptr2D[plane] == clstr.BeginVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::InsertFailure)
@@ -256,18 +262,18 @@ namespace cluster {
             break;
           } // vertex match
           ++vtxIndex;
-        } // iv3
+        } // 3D vertices
       } // clstr.BeginVtx >= 0
       if(clstr.EndVtx >= 0) {
         end = 1;
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
-        for(unsigned short iv3 = 0; iv3 < fCCAlg.vtx3.size(); ++iv3) {
+        for(ClusterCrawlerAlg::Vtx3Store const& vtx3: Vertices) {
           // ignore incomplete vertices
-          if(fCCAlg.vtx3[iv3].Ptr2D[0] < 0) continue;
-          if(fCCAlg.vtx3[iv3].Ptr2D[1] < 0) continue;
-          if(fCCAlg.vtx3[iv3].Ptr2D[2] < 0) continue;
-          if(fCCAlg.vtx3[iv3].Ptr2D[plane] == clstr.EndVtx) {
+          if(vtx3.Ptr2D[0] < 0) continue;
+          if(vtx3.Ptr2D[1] < 0) continue;
+          if(vtx3.Ptr2D[2] < 0) continue;
+          if(vtx3.Ptr2D[plane] == clstr.EndVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::InsertFailure)
@@ -276,7 +282,7 @@ namespace cluster {
             break;
           } // vertex match
           ++vtxIndex;
-        } // iv3
+        } // 3D vertices
       } // clstr.BeginVtx >= 0
     } // icl
     
@@ -286,9 +292,7 @@ namespace cluster {
     shcol.use_hits(std::move(FinalHits));
     
     // clean up
-    fCCAlg.tcl.clear();
-    fCCAlg.vtx.clear();
-    fCCAlg.vtx3.clear();
+    fCCAlg.ClearResults();
 
     // move the hit collection and the associations into the event:
     shcol.put_into(evt);

@@ -38,7 +38,7 @@ class hit::CCHitFinder: public art::EDProducer {
     void produce(art::Event & evt) override;
 
   private:
-    std::string fCalDataModuleLabel; ///< label of module producing input wires
+    art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
     CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
 }; // hit::CCHitFinder()
 
@@ -66,8 +66,7 @@ namespace hit {
   
   //----------------------------------------------------------------------------
   CCHitFinder::CCHitFinder(fhicl::ParameterSet const& pset) :
-    // TODO replace with art::InputTag when LArSoft uses art >=1_13_00
-    fCalDataModuleLabel(pset.get<std::string>("CalDataModuleLabel")),
+    fCalDataModuleLabel(pset.get<art::InputTag>("CalDataModuleLabel")),
     fCCHFAlg           (pset.get<fhicl::ParameterSet>("CCHitFinderAlg"))
   {
     this->reconfigure(pset);

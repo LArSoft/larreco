@@ -61,10 +61,6 @@ namespace cluster {
   }
 
 //------------------------------------------------------------------------------
-  ClusterCrawlerAlg::~ClusterCrawlerAlg()
-  {
-  }
-
   void ClusterCrawlerAlg::reconfigure(fhicl::ParameterSet const& pset)
   { 
     fNumPass            = pset.get<             unsigned short  >("NumPass");
@@ -117,7 +113,8 @@ namespace cluster {
     if(badinput) throw cet::exception("ClusterCrawler")<<"Bad input from fcl file ";
 
   } // reconfigure
-
+  
+  
   // used for sorting hits on wires
   bool SortByLowHit(short i, short j) {return ((i > j));}
 
@@ -126,6 +123,17 @@ namespace cluster {
   bool SortByLen(const mypair& L, const mypair& R) {return (L.first > R.first);}
 
 
+//------------------------------------------------------------------------------
+  void ClusterCrawlerAlg::ClearResults() {
+    fHits.clear();
+    tcl.clear();
+    vtx.clear();
+    vtx3.clear();
+    fHitInCluster.clear();
+  } // ClusterCrawlerAlg::ClearResults()
+  
+  
+//------------------------------------------------------------------------------
   void ClusterCrawlerAlg::CrawlInit() {
     prt = false; vtxprt = false;
     NClusters = 0;  clBeginSlp = 0; clBeginSlpErr = 0; clBeginTim = 0;
@@ -133,7 +141,9 @@ namespace cluster {
     clEndTim = 0;   clEndWir = 0;   clEndChg = 0;      clChisq = 0;
     clStopCode = 0; clProcCode = 0; fFirstWire = 0;
     fLastWire = 0; fAveChg = 0.; fChgSlp = 0.; pass = 0;
-    fScaleF = 0; tcl.clear(); vtx.clear(); vtx3.clear(); WireHitRange.clear();
+    fScaleF = 0; WireHitRange.clear();
+    
+    ClearResults();
   }
 
 
@@ -146,7 +156,7 @@ namespace cluster {
     CrawlInit();
     
     fHits = srchits; // plain copy of the sources; it's the base of our hit result
-    fHitInCluster.reset(fHits.size());
+    fHitInCluster.reset(fHits.size()); // initialize all the hits as free
     
     // don't make clusters, just hits
     if(fNumPass == 0) return;
@@ -210,18 +220,18 @@ namespace cluster {
           fNumWires = geom->Nwires(plane);
           
           // look for clusters
-          ClusterLoop(tcl, vtx);
+          ClusterLoop();
         } // plane
         if(fVertex3DCut > 0) {
           // Match vertices in 3 planes
-          VtxMatch(tcl, vtx, vtx3, cstat, tpc);
-          Vtx3ClusterMatch(tcl, vtx, vtx3, cstat, tpc);
+          VtxMatch(cstat, tpc);
+          Vtx3ClusterMatch(cstat, tpc);
           // split clusters using 3D vertices
-          Vtx3ClusterSplit(tcl, vtx, vtx3, cstat, tpc);
+          Vtx3ClusterSplit(cstat, tpc);
         }
         if(vtxprt) {
           mf::LogVerbatim("ClusterCrawler")<<"Clustering done in TPC ";
-          PrintClusters(tcl, vtx);
+          PrintClusters();
         }
       } // tpc
     } // cstat
@@ -252,7 +262,7 @@ namespace cluster {
 */     
     
     // remove the hits that have become obsolete
-    RemoveObsoleteHits(tcl);
+    RemoveObsoleteHits();
     
     WireHitRange.clear(); 
     fcl2hits.clear();
@@ -262,8 +272,7 @@ namespace cluster {
   } // RunCrawler
     
 ////////////////////////////////////////////////
-    void ClusterCrawlerAlg::ClusterLoop
-      (std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
+    void ClusterCrawlerAlg::ClusterLoop()
     {
       // looks for seed clusters in a plane and crawls along a trail of hits
 
@@ -306,7 +315,7 @@ namespace cluster {
             // a nearby vertex and hit ihit. No constraint if useHit < 0
             unsigned short useHit = 0;
             bool doConstrain = false;
-            VtxConstraint(vtx, iwire, ihit, jwire, useHit, doConstrain);
+            VtxConstraint(iwire, ihit, jwire, useHit, doConstrain);
             unsigned short jfirsthit = WireHitRange[jindx].first;
             unsigned short jlasthit = WireHitRange[jindx].second;
             for(unsigned short jhit = jfirsthit; jhit < jlasthit; ++jhit) {
@@ -349,7 +358,7 @@ namespace cluster {
               bool clok = true;
               for(unsigned short kwire = jwire+1; kwire < iwire; ++kwire) {
                 // ensure this cluster doesn't cross a vertex
-                if(CrawlVtxChk(vtx, kwire)) {
+                if(CrawlVtxChk(kwire)) {
                   clok = false;
                   break;
                 }
@@ -391,7 +400,7 @@ namespace cluster {
               if(!fLACrawl[pass] && fabs(clBeginSlp) > fLAClusSlopeCut) continue;
               // See if we are trying to start a cluster between a vertex
               // and a cluster that is associated to that vertex. If so, skip it
-              if(CrawlVtxChk2(tcl, vtx)) continue;
+              if(CrawlVtxChk2()) continue;
               clBeginSlpErr = clparerr[1];
               clBeginChg = 0;
               // decide whether to crawl a large angle cluster. Requirements are:
@@ -402,19 +411,19 @@ namespace cluster {
               if(fLACrawl[pass] && fLAClusSlopeCut > 0) {
                 // LA cluster crawling requested
                 if(fabs(clBeginSlp) > fLAClusSlopeCut) {
-                  LACrawlUS(vtx);
+                  LACrawlUS();
                 } else {
-                  CrawlUS(vtx);
+                  CrawlUS();
                 } // fabs(clBeginSlp) > fLAClusAngleCut
               } else {
                 // allow clusters of any angle
-                CrawlUS(vtx);
+                CrawlUS();
               } // fLAClusSlopeCut > 0
               if(fcl2hits.size() >= fMinHits[pass]) {
                 // it's long enough so save it
                 clEndSlp = clpar[1]; // save the slope at the end
                 clEndSlpErr = clparerr[1];
-                TmpStore(tcl); // store the cluster
+                TmpStore(); // store the cluster
                 ClusterAdded = true;
                 nHitsUsed += fcl2hits.size();
                 AllDone = (nHitsUsed == fHits.size());
@@ -428,9 +437,9 @@ namespace cluster {
         } // iwire
 
         // try to merge clusters 
-        if(fDoMerge[pass]) ChkMerge(tcl);
+        if(fDoMerge[pass]) ChkMerge();
         // form 2D vertices
-        if(fFindVertices[pass]) FindVertices(tcl, vtx);
+        if(fFindVertices[pass]) FindVertices();
 
         if(AllDone) break;
         
@@ -438,26 +447,25 @@ namespace cluster {
 
       // Kill vertices that are close to long straight tracks. These
       // spurious vertices are likely due to delta rays on muon tracks
-//      KillVertices(tcl, vtx);
+//      KillVertices();
       // Merge overlapping clusters
-      if(fMergeOverlap) MergeOverlap(tcl, vtx);
+      if(fMergeOverlap) MergeOverlap();
       // Check the DS end of clusters
-      if(fChkClusterDS) ChkClusterDS(tcl);
+      if(fChkClusterDS) ChkClusterDS();
       // split clusters using vertices
-      if(fVtxClusterSplit) VtxClusterSplit(tcl, vtx);
+      if(fVtxClusterSplit) VtxClusterSplit();
       // Look for 2D vertices with star topology - short, back-to-back clusters
-      if(fFindStarVertices) FindStarVertices(tcl, vtx);
+      if(fFindStarVertices) FindStarVertices();
 
       if(fDebugPlane == (short)plane) {
         mf::LogVerbatim("ClusterCrawler")<<"Clustering done in plane "<<plane;
-        PrintClusters(tcl, vtx);
+        PrintClusters();
       }
     
   } // ClusterLoop()
 
 //////////////////////////////////////////
-    void ClusterCrawlerAlg::MergeOverlap(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
+    void ClusterCrawlerAlg::MergeOverlap()
     {
       unsigned short icl, jcl, jj, jht, tclsize;
       unsigned short imidwir, jmidwir;
@@ -495,7 +503,7 @@ namespace cluster {
             jht = tcl[jcl].tclhits[jj];
             if(fHits[jht].WireID().Wire <= tcl[icl].BeginWir) break;
           } // jj
-          FitClusterMid(tcl, jcl, jht, 5);
+          FitClusterMid(jcl, jht, 5);
           // compare the angle
           da = atan(fScaleF * clpar[1]) - ithb;
           dw = tcl[icl].BeginWir - fHits[jht].WireID().Wire;
@@ -505,14 +513,14 @@ namespace cluster {
           if(fabs(da) > 0.1) continue;
           if(fabs(dt) > 10) continue;
           // merge clusters
-          DoMerge(tcl, vtx, icl, jcl, 600);
+          DoMerge(icl, jcl, 600);
         } // jcl
       } // icl
       
     } // MergeOverlap()
 
 //////////////////////////////////////////
-  void ClusterCrawlerAlg::RemoveObsoleteHits(std::vector<ClusterStore>& tcl) {
+  void ClusterCrawlerAlg::RemoveObsoleteHits() {
     
     // check that no cluster hosts obsolete hits
     for (ClusterStore const& cluster: tcl) {
@@ -570,7 +578,7 @@ namespace cluster {
 
 
 //////////////////////////////////////////
-    void ClusterCrawlerAlg::ChkClusterDS(std::vector<ClusterStore>& tcl) {
+    void ClusterCrawlerAlg::ChkClusterDS() {
       // Try to extend clusters DS by a few wires. 
       // DS hits may not have been  included in a cluster if they have high 
       // multiplicity or high charge. 
@@ -640,7 +648,7 @@ namespace cluster {
         // Found hits not associated with a different cluster
         if(dshits.size() > 0) {
           // put the tcl cluster into the working vectors
-          TmpGet(tcl, icl);
+          TmpGet(icl);
           // clobber the hits
           fcl2hits.clear();
           // sort the DS hits
@@ -658,7 +666,7 @@ namespace cluster {
           pass = fNumPass - 1;
           FitClusterChg();
           clBeginChg = fAveChg;
-          TmpStore(tcl);
+          TmpStore();
           newcl = tcl.size() -1;
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<" Store "<<newcl;
           tcl[newcl].BeginVtx = tcl[icl].BeginVtx;
@@ -795,7 +803,7 @@ namespace cluster {
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<" dshits size "<<dshits.size();
           if(dshits.size() > 0) {
             // put the tcl cluster into the working vectors
-            TmpGet(tcl, icl);
+            TmpGet(icl);
             // clobber the hits
             fcl2hits.clear();
             // sort the DS hits
@@ -811,7 +819,7 @@ namespace cluster {
             pass = fNumPass - 1;
             FitClusterChg();
             clBeginChg = fAveChg;
-            TmpStore(tcl);
+            TmpStore();
             newcl = tcl.size() -1;
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<" Store "<<newcl;
             tcl[newcl].BeginVtx = tcl[icl].BeginVtx;
@@ -826,8 +834,7 @@ namespace cluster {
 
 
 //////////////////////////////////////////
-  bool ClusterCrawlerAlg::CrawlVtxChk2(
-    std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
+  bool ClusterCrawlerAlg::CrawlVtxChk2()
   {
     // returns true if the (presumably short) cluster under construction
     // resides between a vertex and another cluster that is associated with
@@ -862,8 +869,7 @@ namespace cluster {
   } // CrawlVtxChk2()
 
 //////////////////////////////////////////
-  bool ClusterCrawlerAlg::CrawlVtxChk(
-    std::vector<VtxStore>& vtx, unsigned short kwire)
+  bool ClusterCrawlerAlg::CrawlVtxChk(unsigned short kwire)
   {
     
     // returns true if the cluster is near a vertex on wire kwire
@@ -880,7 +886,6 @@ namespace cluster {
   } // CrawlVtxChk()
 //////////////////////////////////////////
     void ClusterCrawlerAlg::VtxConstraint(
-        std::vector<VtxStore>& vtx,
         unsigned short iwire, unsigned short ihit, unsigned short jwire,
         unsigned short& useHit, bool& doConstrain)
     {
@@ -921,8 +926,7 @@ namespace cluster {
 
 
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::VtxClusterSplit(
-        std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
+    void ClusterCrawlerAlg::VtxClusterSplit()
     {
 
       // split clusters that cross vertices
@@ -1028,7 +1032,7 @@ namespace cluster {
             if(nLop < 3) {
               // lop off hits at the US end
               // Put the cluster in the local arrays
-              TmpGet(tcl, icl);
+              TmpGet(icl);
               for(unsigned short ii = 0; ii < nLop; ++ii) {
                 unsigned short iht = fcl2hits[fcl2hits.size()-1];
                 fHitInCluster.setFree(iht);
@@ -1036,7 +1040,7 @@ namespace cluster {
               }
               // store it
               clProcCode += 1000;
-              TmpStore(tcl);
+              TmpStore();
               unsigned short newcl = tcl.size() - 1;
               tcl[newcl].BeginVtx = tcl[icl].BeginVtx;
               tcl[newcl].EndVtx = ivx;
@@ -1046,7 +1050,7 @@ namespace cluster {
               // split the cluster into two
               // correct the split position
               ++nSplit;
-              SplitCluster(tcl, icl, nSplit, ivx);
+              SplitCluster(icl, nSplit, ivx);
               tcl[icl].ProcCode += 1000;
               tcl[tcl.size()-1].ProcCode += 1000;
             }
@@ -1205,8 +1209,7 @@ namespace cluster {
     } // MergeHits()
 
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::FindStarVertices
-      (std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
+    void ClusterCrawlerAlg::FindStarVertices()
     {
       // Make 2D vertices with a star topology with short back-to-back
       // clusters. Vertices must reside on the US end of the longest
@@ -1218,7 +1221,7 @@ namespace cluster {
   vtxprt = (fDebugPlane == (short)plane && fDebugHit < 0);
   if(vtxprt) {
     mf::LogVerbatim("ClusterCrawler")<<"FindStarVertices";
-    PrintClusters(tcl, vtx);
+    PrintClusters();
   }
 
       unsigned short vtxSizeIn = vtx.size();
@@ -1338,12 +1341,12 @@ namespace cluster {
           unsigned short ivx = vtx.size() - 1;
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<" new vertex "<<ivx
     <<" cluster "<<tcl[it1].ID<<" split pos "<<pos1;
-          SplitCluster(tcl, it1, pos1, ivx);
+          SplitCluster(it1, pos1, ivx);
           tcl[it1].ProcCode += 1000;
           tcl[tcl.size()-1].ProcCode += 1000;
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<" new vertex "<<ivx
     <<" cluster "<<tcl[it2].ID<<" split pos "<<pos2;
-          SplitCluster(tcl, it2, pos2, ivx);
+          SplitCluster(it2, pos2, ivx);
           tcl[it2].ProcCode += 1000;
           tcl[tcl.size()-1].ProcCode += 1000;
           break;
@@ -1352,10 +1355,10 @@ namespace cluster {
             
       if(vtx.size() > vtxSizeIn) {
         // try to split other clusters
-        VtxClusterSplit(tcl, vtx);
+        VtxClusterSplit();
         // try to attach other clusters to it
-        VertexCluster(tcl, vtx, vtx.size() - 1);
-        VtxWghtAndFit(tcl, vtx, clCTP);
+        VertexCluster(vtx.size() - 1);
+        VtxWghtAndFit(clCTP);
       } // new vertex
 
   if(vtxprt) {
@@ -1366,14 +1369,13 @@ namespace cluster {
         <<"vtx "<<iv<<" wire "<<vtx[iv].Wire<<" time "<<(int)vtx[iv].Time
         <<" wght "<<(int)vtx[iv].Wght<<" topo "<<vtx[iv].Topo;
     }
-    PrintClusters(tcl, vtx);
+    PrintClusters();
   }
       
     } // FindStarVertices()
 
 //////////////////////////////////////////
-    void ClusterCrawlerAlg::VertexCluster(std::vector<ClusterStore>& tcl,
-        std::vector<VtxStore>& vtx, unsigned short iv)
+    void ClusterCrawlerAlg::VertexCluster(unsigned short iv)
     {
       // try to attach clusters to the specified vertex
       if(vtx[iv].Wght < 0) return;
@@ -1404,8 +1406,7 @@ namespace cluster {
     } // VertexCluster
 
 //////////////////////////////////////////
-    void ClusterCrawlerAlg::VtxWghtAndFit(std::vector<ClusterStore>& tcl,
-        std::vector<VtxStore>& vtx, CTP_t inCTP)
+    void ClusterCrawlerAlg::VtxWghtAndFit(CTP_t inCTP)
       {
 
       for(unsigned short iv = 0; iv < vtx.size(); ++iv) {
@@ -1413,7 +1414,7 @@ namespace cluster {
         if(vtx[iv].Wght < 0) continue;
         // fit the vertices
         float ChiDOF = 0.;
-        FitVtx(tcl, vtx, iv, ChiDOF);
+        FitVtx(iv, ChiDOF);
       }
 
       // set the vertex weights
@@ -1431,8 +1432,7 @@ namespace cluster {
     } // VtxWghtAndFit
 /*
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::KillVertices(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
+    void ClusterCrawlerAlg::KillVertices()
     {
       // kill vertices that are close to long straight clusters. These
       // are most likely due to numerous short delta ray clusters
@@ -1477,8 +1477,7 @@ namespace cluster {
     } // KillVertices
 */
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::FindVertices(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
+    void ClusterCrawlerAlg::FindVertices()
     {
       // try to make 2D vertices
       
@@ -1496,7 +1495,7 @@ namespace cluster {
   vtxprt = (fDebugPlane == (short)plane && fDebugHit < 0);
   if(vtxprt) {
     mf::LogVerbatim("ClusterCrawler")<<"FindVertices plane "<<plane<<" pass "<<pass;
-    PrintClusters(tcl, vtx);
+    PrintClusters();
   }
 
       float es1 = 0, eth1 = 0, ew1 = 0, et1 = 0;
@@ -1532,7 +1531,7 @@ namespace cluster {
           // ignore already attached clusters
           if(tcl[it2].BeginVtx >= 0 && tcl[it2].EndVtx >= 0) continue;
           // try to attach cluster to existing vertices at either end
-          ClusterVertex(tcl, vtx, it2);
+          ClusterVertex(it2);
           // ignore if both clusters are short
           if(tcl[it1].tclhits.size() < 5 &&
              tcl[it2].tclhits.size() < 5) continue;
@@ -1588,7 +1587,7 @@ namespace cluster {
                   }
                   // Check this against existing vertices and update
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<" SigOK "<<SigOK;
-                  if(SigOK) ChkVertex(tcl, vtx, fvw, fvt, it1, it2, 1);
+                  if(SigOK) ChkVertex(fvw, fvt, it1, it2, 1);
                 } // fvt in detector
               } // vw topo 1 check
             } // fvw in detector
@@ -1617,7 +1616,7 @@ namespace cluster {
       <<" topo2 vtx wire "<<vw<<" time "<<(int)fvt;
   }
                   if(fvt > 0. && fvt < maxtime) {
-                    ChkVertex(tcl, vtx, fvw, fvt, it1, it2, 2);
+                    ChkVertex(fvw, fvt, it1, it2, 2);
                   } // fvt in detector
                 } // vw topo 2 check
               } // fvw in detector
@@ -1635,7 +1634,7 @@ namespace cluster {
       <<"Chk clusters topo2 "<<tcl[it1].ID<<" "<<tcl[it2].ID
       <<" topo2 vtx wire "<<vw<<" time "<<(int)fvt<<" small angle";
   }
-                ChkVertex(tcl, vtx, fvw, fvt, it1, it2, 2);
+                ChkVertex(fvw, fvt, it1, it2, 2);
               }
             } // dth < 0.3
 */
@@ -1663,7 +1662,7 @@ namespace cluster {
       <<" topo3 vtx wire "<<vw<<" time "<<(int)fvt;
   }
                   if(fvt > 0. && fvt < maxtime) {
-                    ChkVertex(tcl, vtx, fvw, fvt, it1, it2, 3);
+                    ChkVertex(fvw, fvt, it1, it2, 3);
                   } // fvt in detector
                 } // vw topo 3 check
               } // fvw in detector
@@ -1680,7 +1679,7 @@ namespace cluster {
       <<"Chk clusters topo3 "<<tcl[it1].ID<<" "<<tcl[it2].ID
       <<" topo3 vtx wire "<<vw<<" time "<<(int)fvt<<" small angle";
   }
-                ChkVertex(tcl, vtx, fvw, fvt, it1, it2, 3);
+                ChkVertex(fvw, fvt, it1, it2, 3);
               }
             } // dth < 0.3
 */
@@ -1718,7 +1717,7 @@ namespace cluster {
                     ChkSignal(vw, fvt, vw, fvt, SigOK);
                   }
                   // Check this against existing vertices and update
-                  if(SigOK) ChkVertex(tcl, vtx, fvw, fvt, it1, it2, 4);
+                  if(SigOK) ChkVertex(fvw, fvt, it1, it2, 4);
                 } // fvt in detector
               } // vw topo 4 check
             } // fvw in detector
@@ -1747,14 +1746,12 @@ namespace cluster {
         } // tcl[it].BeginVtx == tcl[it].EndVtx
       } // it
 
-      if(vtx.size() > vtxSizeIn) VtxWghtAndFit(tcl, vtx, clCTP);
+      if(vtx.size() > vtxSizeIn) VtxWghtAndFit(clCTP);
       
     } // FindVertices()
 
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::ClusterVertex(
-        std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-        unsigned short it)
+    void ClusterCrawlerAlg::ClusterVertex(unsigned short it)
     {
       // try to attach cluster it to an existing vertex
       
@@ -1809,7 +1806,7 @@ namespace cluster {
               tcl[it].EndVtx = iv;
               // re-fit it
               ChiDOF = 99.;
-              FitVtx(tcl, vtx, iv, ChiDOF);
+              FitVtx(iv, ChiDOF);
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"Add End "<<tcl[it].ID<<" to vtx "<<iv<<" chi "<<ChiDOF;
               return;
             } // SigOK
@@ -1827,7 +1824,7 @@ namespace cluster {
               tcl[it].BeginVtx = iv;
               // re-fit it
               ChiDOF = 99.;
-              FitVtx(tcl, vtx, iv, ChiDOF);
+              FitVtx(iv, ChiDOF);
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"Add Begin "<<tcl[it].ID<<" to vtx "<<iv<<" chi "<<ChiDOF;
               return;
             } // SigOK
@@ -1841,7 +1838,6 @@ namespace cluster {
 
 /////////////////////////////////////////
     void ClusterCrawlerAlg::ChkVertex(
-        std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
         float fvw, float fvt, unsigned short it1, unsigned short it2, short topo)
       {
         // Checks the vertex (vw, fvt) against the existing set of vertices.
@@ -2031,9 +2027,8 @@ namespace cluster {
     } // ChkSignal()
 
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::SplitCluster(
-        std::vector<ClusterStore>& tcl, 
-        unsigned short icl, unsigned short pos, unsigned short ivx)
+    void ClusterCrawlerAlg::SplitCluster
+      (unsigned short icl, unsigned short pos, unsigned short ivx)
     {
       // split cluster icl into two clusters
 
@@ -2076,7 +2071,7 @@ namespace cluster {
       // find the charge at the end
       FitClusterChg();
       clEndChg = fAveChg;
-      TmpStore(tcl);
+      TmpStore();
       // associate the End with the supplied vertex
       unsigned short iclnew = tcl.size() - 1;
       tcl[iclnew].EndVtx = ivx;
@@ -2124,7 +2119,7 @@ namespace cluster {
         FitClusterChg();
         clBeginChg = fAveChg;
       }
-      TmpStore(tcl);
+      TmpStore();
       // associate the End with the supplied vertex
       iclnew = tcl.size() - 1;
       tcl[iclnew].BeginVtx = ivx;
@@ -2136,7 +2131,7 @@ namespace cluster {
     } // SplitCluster()
 
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::ChkMerge(std::vector<ClusterStore>& tcl)
+    void ClusterCrawlerAlg::ChkMerge()
     {
       // Try to merge clusters. Clusters that have been subsumed in other
       // clusters, i.e. no longer valid, have ID < 0
@@ -2241,7 +2236,7 @@ namespace cluster {
               SigOK = true;
               ChkSignal(ew1,et1,bw2,bt2,SigOK);
               if(SigOK) {
-                DoMerge(tcl, vtx, it2, it1, 10);
+                DoMerge(it2, it1, 10);
                 tclsize = tcl.size();
                 break;
               }
@@ -2276,7 +2271,7 @@ namespace cluster {
               SigOK = true;
               ChkSignal(bw1,bt1,ew2,et2,SigOK);
               if(SigOK) {
-                DoMerge(tcl, vtx, it1, it2, 10);
+                DoMerge(it1, it2, 10);
                 tclsize = tcl.size();
                 break;
               }
@@ -2301,7 +2296,7 @@ namespace cluster {
             // this may not work well for long wandering clusters
             bool didit = false;
             if(dth < 1 && dtim < timecut && nmiss1 >= nin2) 
-                ChkMerge12(tcl, it1, it2, didit);
+                ChkMerge12(it1, it2, didit);
             if(didit) {
               tclsize = tcl.size();
               break;
@@ -2326,7 +2321,7 @@ namespace cluster {
             // this may not work well for long wandering clusters
             bool didit = false;
             if(dth < 1 && dtim < timecut && nmiss2 >= nin1) 
-                ChkMerge12(tcl, it2, it1, didit);
+                ChkMerge12(it2, it1, didit);
             if(didit) {
               tclsize = tcl.size();
               break;
@@ -2340,8 +2335,8 @@ namespace cluster {
     }
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::ChkMerge12(
-     std::vector<ClusterStore>& tcl, unsigned short it1, unsigned short it2, bool& didit)
+  void ClusterCrawlerAlg::ChkMerge12
+    (unsigned short it1, unsigned short it2, bool& didit)
   {
     // Calling routine has done a rough check that cluster it2 is a candidate
     // for merging with cluster it1. The wire range spanned by it2 lies
@@ -2421,7 +2416,7 @@ namespace cluster {
     if(dtim > fTimeDelta[cpass]) return;
     // check the slope difference. First do a local fit on cluster 1 near
     // the matching point
-    FitClusterMid(tcl, it1, hiton1, 3);
+    FitClusterMid(it1, hiton1, 3);
     if(clChisq > 20.) return;
     // fit parameters are now in clpar.
     // check for angle consistency
@@ -2462,7 +2457,7 @@ namespace cluster {
     timon1 = fHits[hiton1].PeakTime();
     dtim = fabs(bt2 - (wiron1 - bw2) *tcl[it2].BeginSlp - timon1);
     if(dtim > fTimeDelta[cpass]) return;
-    FitClusterMid(tcl, it1, hiton1, -3);
+    FitClusterMid(it1, hiton1, -3);
     if(clChisq > 20.) return;
     // check for angle consistency
     dth = fabs(atan(fScaleF * clpar[1]) - atan(fScaleF * tcl[it2].BeginSlp));
@@ -2481,14 +2476,13 @@ namespace cluster {
 
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"Merge em";
     // success. Merge them
-    DoMerge(tcl, vtx, it1, it2, 100);
+    DoMerge(it1, it2, 100);
     didit = true;
   } // ChkMerge12()
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::DoMerge(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-      unsigned short it1, unsigned short it2, short inProcCode)
+  void ClusterCrawlerAlg::DoMerge
+    (unsigned short it1, unsigned short it2, short inProcCode)
   {
     // Merge clusters.
     
@@ -2601,7 +2595,7 @@ namespace cluster {
     }
 
     // append it to the tcl vector
-    TmpStore(tcl);
+    TmpStore();
     unsigned short itnew = tcl.size()-1;
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"DoMerge "<<cl1.ID<<" "<<cl2.ID<<" -> "<<tcl[itnew].ID;
     // stuff the processor code with the current pass
@@ -2615,8 +2609,7 @@ namespace cluster {
   } // DoMerge
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::PrintClusters(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx)
+  void ClusterCrawlerAlg::PrintClusters()
   {
 
     float aveRMS = 0;
@@ -2687,8 +2680,7 @@ namespace cluster {
   } // PrintClusters()
 
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::TmpGet(std::vector<ClusterStore>& tcl, 
-        unsigned short it1)
+    void ClusterCrawlerAlg::TmpGet(unsigned short it1)
     {
       // copies temp cluster it1 into the fcl2hits vector, etc. This is 
       // effectively the inverse of cl2TmpStore
@@ -2716,7 +2708,7 @@ namespace cluster {
 
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::TmpStore(std::vector<ClusterStore>& tcl)
+  void ClusterCrawlerAlg::TmpStore()
   {
 
     if(fcl2hits.size() < 3) return;
@@ -2785,10 +2777,10 @@ namespace cluster {
     clstr.CTP         = clCTP;
     clstr.tclhits     = fcl2hits;
     tcl.push_back(clstr);
-  }
+  } // TmpStore()
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::LACrawlUS(std::vector<VtxStore>& vtx) {
+  void ClusterCrawlerAlg::LACrawlUS() {
     // Crawl a large angle cluster upstream. Similar to CrawlUS but require
     // that a hit be added on each wire
 
@@ -2835,13 +2827,13 @@ namespace cluster {
     for(unsigned short nextwire = lastwire-1; nextwire >= fFirstWire; --nextwire) {
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"LACrawlUS: next wire "<<nextwire;
       // stop crawling if there is a nearby vertex
-      if(CrawlVtxChk(vtx, nextwire)) {
+      if(CrawlVtxChk(nextwire)) {
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"LACrawlUS: stop at vertex";
         clStopCode = 6;
         break;
       }
       // AddLAHit will merge the hit on nextwire if necessary
-      AddLAHit(vtx, nextwire, ChkCharge, HitOK, SigOK);
+      AddLAHit(nextwire, ChkCharge, HitOK, SigOK);
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"LACrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK;
       if(!SigOK) break;
       if(!HitOK) {
@@ -2935,7 +2927,7 @@ namespace cluster {
   } // LACrawlUS
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::CrawlUS(std::vector<VtxStore>& vtx)
+  void ClusterCrawlerAlg::CrawlUS()
   {
     // Crawl along a trail of hits moving upstream
 
@@ -2977,7 +2969,7 @@ namespace cluster {
     for(unsigned short nextwire = lastwire-1; nextwire >= fFirstWire; --nextwire) {
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"CrawlUS: next wire "<<nextwire;
       // stop crawling if there is a nearby vertex
-      if(CrawlVtxChk(vtx, nextwire)) {
+      if(CrawlVtxChk(nextwire)) {
   if(prt) mf::LogVerbatim("ClusterCrawler")<<"CrawlUS: stop at vertex";
         clStopCode = 6;
         break;
@@ -3238,9 +3230,8 @@ namespace cluster {
   } // CheckClusterHitFrac()
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::FitClusterMid(
-    std::vector<ClusterStore>& tcl, unsigned short it1, unsigned short ihtin,
-    short nhit)
+  void ClusterCrawlerAlg::FitClusterMid
+    (unsigned short it1, unsigned short ihtin, short nhit)
   {
     // Fits hits on temp cluster it1 to a line starting at hit ihtin and including
     // nhit hits incrementing towards the hit vector End when nhit > 0 and
@@ -3541,8 +3532,8 @@ namespace cluster {
   } // fitchg
 
 /////////////////////////////////////////
-  void ClusterCrawlerAlg::AddLAHit(std::vector<VtxStore>& vtx,
-    unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK)
+  void ClusterCrawlerAlg::AddLAHit
+    (unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK)
   {
     // A variant of AddHit for large angle clusters
     
@@ -4020,8 +4011,7 @@ namespace cluster {
     } // ChkClusterHitNear()
 
 //////////////////////////////////////
-    void ClusterCrawlerAlg::FitVtx(std::vector<ClusterStore>& tcl,
-        std::vector<VtxStore>& vtx, unsigned short iv, float& ChiDOF)
+    void ClusterCrawlerAlg::FitVtx(unsigned short iv, float& ChiDOF)
     {
       
       std::vector<float> x;
@@ -4072,9 +4062,7 @@ namespace cluster {
     } // FitVtx
 
 //////////////////////////////////////
-    void ClusterCrawlerAlg::Vtx3ClusterMatch(
-       std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-       std::vector<Vtx3Store>& vtx3, unsigned int cstat, unsigned int tpc)
+    void ClusterCrawlerAlg::Vtx3ClusterMatch(unsigned int cstat, unsigned int tpc)
       {
         // Look for clusters that end/begin near the expected wire/time
         // for incomplete 3D vertices
@@ -4149,9 +4137,7 @@ namespace cluster {
       } // Vtx3ClusterMatch
 
 //////////////////////////////////////
-    void ClusterCrawlerAlg::Vtx3ClusterSplit(
-       std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-       std::vector<Vtx3Store>& vtx3, unsigned int cstat, unsigned int tpc)
+    void ClusterCrawlerAlg::Vtx3ClusterSplit(unsigned int cstat, unsigned int tpc)
       {
         // Try to split clusters in a view in which there is no 2D vertex
         // assigned to a 3D vertex
@@ -4254,7 +4240,7 @@ namespace cluster {
               if(fHits[iht].WireID().Wire < theWire) {
                 nhitfit = 3;
                 if(jj > 3) nhitfit = -3;
-                FitClusterMid(tcl, icl, iht, nhitfit);
+                FitClusterMid(icl, iht, nhitfit);
                 dth = clpar[0] + (theWire - fHits[iht].WireID().Wire) * clpar[1] - theTime;
     if(vtxprt) {
       for(unsigned short kk = 0; kk < clIDs.size(); ++kk) {
@@ -4321,7 +4307,7 @@ namespace cluster {
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"Attach to End "<<icl;
             } else {
               // vertex is in the middle of the cluster
-              SplitCluster(tcl, icl, pos, ivnew);
+              SplitCluster(icl, pos, ivnew);
               tcl[icl].ProcCode += 10000;
               tcl[tcl.size()-1].ProcCode += 10000;
               nvcl += 2;
@@ -4330,10 +4316,10 @@ namespace cluster {
             } // pos check
           } // ii
           // try to attach other clusters
-//          VertexCluster(tcl, vtx, ivnew);
+//          VertexCluster(ivnew);
           // Fit the vertex position
           float chisq = 0;
-          FitVtx(tcl, vtx, ivnew, chisq);
+          FitVtx(ivnew, chisq);
           // mark the 3D vertex as complete
           vtx3[ivx].Wire = -1;
         } // ivx
@@ -4342,9 +4328,7 @@ namespace cluster {
 
 
 //////////////////////////////////////
-    void ClusterCrawlerAlg::VtxMatch(
-      std::vector<ClusterStore>& tcl, std::vector<VtxStore>& vtx,
-      std::vector<Vtx3Store>& vtx3, unsigned int cstat, unsigned int tpc)
+    void ClusterCrawlerAlg::VtxMatch(unsigned int cstat, unsigned int tpc)
     {
       // Create 3D vertices from 2D vertices. 3D vertices that are matched
       // in all three planes have Ptr2D >= 0 for all planes
@@ -4606,8 +4590,10 @@ namespace cluster {
 
 
 /////////////////////////////////////////
-    void ClusterCrawlerAlg::SortByLength(std::vector<ClusterStore>& tcl,
-        CTP_t inCTP, std::map<unsigned short, unsigned short>& sortindex)
+    void ClusterCrawlerAlg::SortByLength(
+      std::vector<ClusterStore> const& tcl,
+      CTP_t inCTP, std::map<unsigned short, unsigned short>& sortindex
+      )
     {
       // sorts the temporary cluster vector by decreasing number of hits,
       // while ignoring abandoned clusters. Returns index map with the
