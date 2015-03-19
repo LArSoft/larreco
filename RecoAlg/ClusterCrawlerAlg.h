@@ -399,11 +399,11 @@ namespace cluster {
     // ************** 3D vertex routines *******************
 
     // match vertices between planes
-    void VtxMatch(unsigned int cstat, unsigned int tpc);
+    void VtxMatch(geo::TPCID const& tpcid);
     // Match clusters to endpoints using 3D vertex information
-    void Vtx3ClusterMatch(unsigned int cstat, unsigned int tpc);
+    void Vtx3ClusterMatch(geo::TPCID const& tpcid);
     // split clusters using 3D vertex information
-    void Vtx3ClusterSplit(unsigned int cstat, unsigned int tpc);
+    void Vtx3ClusterSplit(geo::TPCID const& tpcid);
 
     // ************** utility routines *******************
 

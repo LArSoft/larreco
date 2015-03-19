@@ -169,15 +169,15 @@ namespace cluster {
     
 //    std::cout<<"CC: number of hits "<<fHits.size()<<"\n";
     
-    for(cstat = 0; cstat < geom->Ncryostats(); ++cstat){
-      for(tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc){
-        for(plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane){
-          WireHitRange.clear();
-          // define a code to ensure clusters are compared within the same plane
-          clCTP = EncodeCTP(cstat, tpc, plane);
-          // fill the WireHitRange vector with first/last hit on each wire
-          // dead wires and wires with no hits are flagged < 0
-          GetHitRange(clCTP, WireHitRange, fFirstWire, fLastWire);
+    for (geo::TPCID const& tpcid: geom->IterateTPCs()) {
+      geo::TPCGeo const& TPC = geom->TPC(tpcid);
+      for(unsigned int plane = 0; plane < TPC.Nplanes(); ++plane){
+        WireHitRange.clear();
+        // define a code to ensure clusters are compared within the same plane
+        clCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
+        // fill the WireHitRange vector with first/last hit on each wire
+        // dead wires and wires with no hits are flagged < 0
+        GetHitRange(clCTP, WireHitRange, fFirstWire, fLastWire);
 
 // sanity check
 /*
@@ -205,36 +205,36 @@ namespace cluster {
   } // wire
   std::cout<<" is OK. nhits "<<nhts<<"\n";;
 */
-          fFirstHit = WireHitRange[0].first;
-          uint32_t channel = fHits[fFirstHit].Channel();
-          // get the scale factor to convert dTick/dWire to dX/dU. This is used
-          // to make the kink and merging cuts
-          float wirePitch = geom->WirePitch(geom->View(channel));
-          float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
-          tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-          fScaleF = tickToDist / wirePitch;
-          // convert Large Angle Cluster crawling cut to a slope cut
-          if(fLAClusAngleCut > 0) 
-            fLAClusSlopeCut = tan(3.142 * fLAClusAngleCut / 180.) / fScaleF;
-          fMaxTime = detprop->NumberTimeSamples();
-          fNumWires = geom->Nwires(plane);
-          
-          // look for clusters
-          ClusterLoop();
-        } // plane
-        if(fVertex3DCut > 0) {
-          // Match vertices in 3 planes
-          VtxMatch(cstat, tpc);
-          Vtx3ClusterMatch(cstat, tpc);
-          // split clusters using 3D vertices
-          Vtx3ClusterSplit(cstat, tpc);
-        }
-        if(vtxprt) {
-          mf::LogVerbatim("ClusterCrawler")<<"Clustering done in TPC ";
-          PrintClusters();
-        }
-      } // tpc
-    } // cstat
+        fFirstHit = WireHitRange[0].first;
+        raw::ChannelID_t channel = fHits[fFirstHit].Channel();
+        // get the scale factor to convert dTick/dWire to dX/dU. This is used
+        // to make the kink and merging cuts
+        float wirePitch = geom->WirePitch(geom->View(channel));
+        float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+        tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+        fScaleF = tickToDist / wirePitch;
+        // convert Large Angle Cluster crawling cut to a slope cut
+        if(fLAClusAngleCut > 0) 
+          fLAClusSlopeCut = std::tan(3.142 * fLAClusAngleCut / 180.) / fScaleF;
+        fMaxTime = detprop->NumberTimeSamples();
+        fNumWires = geom->Nwires(plane);
+        
+        // look for clusters
+        ClusterLoop();
+      } // plane
+      if(fVertex3DCut > 0) {
+        // Match vertices in 3 planes
+        VtxMatch(tpcid);
+        Vtx3ClusterMatch(tpcid);
+        // split clusters using 3D vertices
+        Vtx3ClusterSplit(tpcid);
+      }
+      if(vtxprt) {
+        mf::LogVerbatim("ClusterCrawler")<<"Clustering done in TPC ";
+        PrintClusters();
+      }
+    } // for all tpcs
+
 /*
   cstat = 0; tpc = 0;
   for(plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane){
@@ -4055,18 +4055,21 @@ namespace cluster {
       float vtime = -tv;
       float vwire = wv + 0.5;
       if(ChiDOF > 5) return;
-      if(fabs(vwire - vtx[iv].Wire) > 2) return;
-      if(fabs(vtime - vtx[iv].Time) > 10) return;
+      if(std::abs(vwire - vtx[iv].Wire) > 2) return;
+      if(std::abs(vtime - vtx[iv].Time) > 10) return;
       vtx[iv].Wire = vwire;
       vtx[iv].Time = vtime;
     } // FitVtx
 
 //////////////////////////////////////
-    void ClusterCrawlerAlg::Vtx3ClusterMatch(unsigned int cstat, unsigned int tpc)
+    void ClusterCrawlerAlg::Vtx3ClusterMatch(geo::TPCID const& tpcid)
       {
         // Look for clusters that end/begin near the expected wire/time
         // for incomplete 3D vertices
         if(vtx3.size() == 0) return;
+        
+        const unsigned int cstat = tpcid.Cryostat;
+        const unsigned int tpc = tpcid.TPC;
         
         unsigned short thePlane, theWire;
         float dw, theTime, dt;
@@ -4137,7 +4140,7 @@ namespace cluster {
       } // Vtx3ClusterMatch
 
 //////////////////////////////////////
-    void ClusterCrawlerAlg::Vtx3ClusterSplit(unsigned int cstat, unsigned int tpc)
+    void ClusterCrawlerAlg::Vtx3ClusterSplit(geo::TPCID const& tpcid)
       {
         // Try to split clusters in a view in which there is no 2D vertex
         // assigned to a 3D vertex
@@ -4166,10 +4169,10 @@ namespace cluster {
           } // plane
           if(thePlane > 2) continue;
           theTime = detprop->ConvertXToTicks((double)vtx3[ivx].X, 
-            (int)thePlane, (int)tpc, (int)cstat);
+            (int)thePlane, (int)tpcid.TPC, (int)tpcid.Cryostat);
           // get the hit range if necessary
           if(thePlane != lastplane) {
-            clCTP = EncodeCTP(cstat, tpc, thePlane);
+            clCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, thePlane);
             GetHitRange(clCTP, WireHitRange, fFirstWire, fLastWire);
             lastplane = thePlane;
           }
@@ -4328,24 +4331,28 @@ namespace cluster {
 
 
 //////////////////////////////////////
-    void ClusterCrawlerAlg::VtxMatch(unsigned int cstat, unsigned int tpc)
+    void ClusterCrawlerAlg::VtxMatch(geo::TPCID const& tpcid)
     {
       // Create 3D vertices from 2D vertices. 3D vertices that are matched
       // in all three planes have Ptr2D >= 0 for all planes
       
-      unsigned int nPln = geom->Cryostat(cstat).TPC(tpc).Nplanes();
+      geo::TPCGeo const& TPC = geom->TPC(tpcid);
+      unsigned int nPln = TPC.Nplanes();
       if(nPln != 3) return;
+      
+      const unsigned int cstat = tpcid.Cryostat;
+      const unsigned int tpc = tpcid.TPC;
       
       vtxprt = (fDebugPlane >= 0) && (fDebugHit == 6666);
       
       // wire spacing in cm
-      float wirePitch = geom->WirePitch(0, 1, 0, tpc, cstat);
+      float wirePitch = geom->WirePitch(0, 1, 0, tpcid.TPC, tpcid.Cryostat);
       
       // Y,Z limits of the detector
-      double YHi = geom->DetHalfHeight(tpc, cstat);
+      double YHi = geom->DetHalfHeight(tpcid);
       double YLo = -YHi;
       double ZLo = 0.;
-      double ZHi = geom->DetLength(tpc, cstat);
+      double ZHi = geom->DetLength(tpcid);
       
       // create a vector of vertex indices in each plane
       std::vector<std::vector<unsigned short>> vIndex;
