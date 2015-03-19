@@ -9,14 +9,19 @@
 #ifndef CLUSTERCRAWLERALG_H
 #define CLUSTERCRAWLERALG_H
 
-#include "TMath.h"
 
+// C/C++ standard libraries
+#include <array>
+#include <map>
 #include <vector>
+#include <memory> // std::move()
+#include <utility> // std::pair<>
 
+// framework libraries
 #include "fhiclcpp/ParameterSet.h" 
-#include "art/Persistency/Common/Ptr.h" 
-#include "art/Persistency/Common/PtrVector.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h" 
 
+// LArSoft libraries
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Hit.h"
@@ -25,8 +30,6 @@
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/LinFitAlg.h"
 
-namespace recob { class Hit; }
-namespace trkf { class LinFitAlg; }
 
 namespace cluster {
 

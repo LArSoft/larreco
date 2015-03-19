@@ -15,7 +15,7 @@
 #include "RecoAlg/CCHitFinderAlg.h"
 
 // C/C++ standard libraries
-#include <cmath>
+#include <cmath> // std::sqrt(), std::abs()
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -402,7 +402,7 @@ namespace hit {
       for(unsigned short jj = 0; jj < nGaus; ++jj) {
         if(jj == ii) continue;
         unsigned short jndex = jj * 3;
-        float timediff = fabs(partmp[jndex + 1] - partmp[index + 1]);
+        float timediff = std::abs(partmp[jndex + 1] - partmp[index + 1]);
         if(timediff < 2.) {
           fitok = false;
           break;
@@ -443,7 +443,7 @@ namespace hit {
       float arg = ticks[ii] - mean;
       rms += signl[ii] * arg * arg;
     }
-    rms = sqrt(rms / sumS);
+    rms = std::sqrt(rms / sumS);
     float amp = sumS / (Sqrt2Pi * rms);
     par.clear();
 /*
@@ -456,7 +456,7 @@ namespace hit {
     // need to do the errors better
     parerr.clear();
     float amperr = npt;
-    float meanerr = sqrt(1/sumS);
+    float meanerr = std::sqrt(1/sumS);
     float rmserr = 0.2 * rms;
     parerr.push_back(amperr);
     parerr.push_back(meanerr);
@@ -651,7 +651,7 @@ namespace hit {
           float dbin = (float)ii - aveb;
           sumt += signl[ii] * dbin * dbin;
         } // ii
-        bumpRMS[thePlane] += sqrt(sumt / sum);
+        bumpRMS[thePlane] += std::sqrt(sumt / sum);
       } // bumps.size() == 1 && chidof < 9999.
       return;
     } // flag == 2    
@@ -684,7 +684,7 @@ namespace hit {
           bumpRMS[ipl] = bumpRMS[ipl] / (float)bumpCnt[ipl];
           hitRMS[ipl]  = hitRMS[ipl]  / (float)hitCnt[ipl];
           // calculate the slope
-          float dTdW = fabs((hiTime[ipl] - loTime[ipl]) / (hiWire[ipl] - loWire[ipl]));
+          float dTdW = std::abs((hiTime[ipl] - loTime[ipl]) / (hiWire[ipl] - loWire[ipl]));
           std::cout<<ipl<<std::right<<std::setw(5)<<RATCnt[ipl]
             <<std::setw(5)<<bumpCnt[ipl]
             <<std::setw(7)<<std::fixed<<std::setprecision(2)<<bumpChi[ipl]
