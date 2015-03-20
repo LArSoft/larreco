@@ -671,9 +671,6 @@ namespace cluster {
       
       // look for isolated stopping clusters. Check for hit multiplets
       // on the DS end and merge them
-      unsigned short nhts, nmult, loWire, hiWire, index, jht, ivx;
-      unsigned short nUsInClus, nUsNotInClus;
-      unsigned short nDsInClus, nDsNotInClus;
       float prTimeLo, prTimeHi;
       for(icl = 0; icl < tcl.size(); ++icl) {
         if(tcl[icl].ID < 0) continue;
@@ -682,35 +679,36 @@ namespace cluster {
         if(tcl[icl].BeginVtx >= 0) continue;
         // ignore short clusters
         if(tcl[icl].tclhits.size() < 6) continue;
-        nhts = 4;
-        nmult = 0;
-        loWire = 9999;
+        const unsigned short nhts = 4;
+        unsigned short nmult = 0;
+        unsigned short loWire = 9999;
+        unsigned short hiWire = 0;
         for(ii = 0; ii < nhts; ++ii) {
           iht = tcl[icl].tclhits[ii];
           // ignore hits close to a vertex
           if(tcl[icl].EndVtx >= 0) {
-            ivx = tcl[icl].EndVtx - 1;
+            unsigned short ivx = tcl[icl].EndVtx - 1;
             if((fHits[iht].WireID().Wire - vtx[ivx].Wire) < 5) continue;
           } // tcl[icl].EndVtx >= 0
           if(fHits[iht].Multiplicity() > 1) ++nmult;
           if(fHits[iht].WireID().Wire < loWire) loWire = fHits[iht].WireID().Wire;
-          if(fHits[iht].WireID().Wire > hiWire) hiWire = fHits[iht].WireID().Wire;
+        //  if(fHits[iht].WireID().Wire > hiWire) hiWire = fHits[iht].WireID().Wire;
         } // ii
         if(nmult == 0) continue;
         // count the number of hits in this region that are not associated
         // with this cluster
         // inspect the 5 wires US of the cluster end and the 5 wires DS
         hiWire = tcl[icl].BeginWir + 5;
-        nDsInClus = 0; nDsNotInClus = 0;
-        nUsInClus = 0; nUsNotInClus = 0;
+        unsigned short nUsInClus = 0, nUsNotInClus = 0;
+        unsigned short nDsInClus = 0, nDsNotInClus = 0;
         for(wire = loWire; wire < hiWire; ++wire) {
-          index = wire - fFirstWire;
+          unsigned short index = wire - fFirstWire;
           // ignore dead wires and those with no hits
           if(WireHitRange[index].first < 0) continue;
           prTimeLo = tcl[icl].BeginTim + tcl[icl].BeginSlp * (wire - tcl[icl].BeginWir);
           prTimeHi = prTimeLo + 30;
           prTimeLo -= 30;
-          for(jht = WireHitRange[index].first; jht < WireHitRange[index].second; ++jht) {
+          for(unsigned short jht = WireHitRange[index].first; jht < WireHitRange[index].second; ++jht) {
             // ignore obsolete hits
             if(!isHitPresent(jht)) continue;
             if(fHits[jht].PeakTime() > prTimeHi) continue;
@@ -748,7 +746,7 @@ namespace cluster {
             iht = tcl[icl].tclhits[ii];
             // ignore hits close to a vertex
             if(tcl[icl].EndVtx >= 0) {
-              ivx = tcl[icl].EndVtx - 1;
+              unsigned short ivx = tcl[icl].EndVtx - 1;
               if((fHits[iht].WireID().Wire - vtx[ivx].Wire) < 5) continue;
             } // tcl[icl].EndVtx >= 0
             if(fHits[iht].Multiplicity() > 1) MergeHits(iht);
@@ -771,7 +769,7 @@ namespace cluster {
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<"ChkClusterDS: Extend "
     <<tcl[icl].ID<<" to W:T "<<wire;
             if(wire > fLastWire) break;
-            index = wire - fFirstWire;
+            unsigned short index = wire - fFirstWire;
             if(WireHitRange[index].first == -2) break;
             bool hitAdded = false;
             for(ih1 = WireHitRange[index].first; ih1 < WireHitRange[index].second; ++ih1) {
@@ -3839,9 +3837,7 @@ namespace cluster {
       if(prt) mf::LogVerbatim("ClusterCrawler")
         <<" merge hits charge check: totChg "<<totChg<<" lastHitChg "<<lastHitChg
         <<" hit chg "<<fHits[imbest].Integral();
-          // FIXME this is a comparison between integers! original code:
-        //  if(abs(totChg - lastHitChg) < abs(fHits[imbest].Integral() - lastHitChg)) {
-          if(std::abs(int(totChg - lastHitChg)) < std::abs(int(fHits[imbest].Integral() - lastHitChg))) {
+          if(std::abs(totChg - lastHitChg) < std::abs(fHits[imbest].Integral() - lastHitChg)) {
             // the total charge of both hits is a better match than the 
             // charge of the hit selected
             MergeHits(imbest);
