@@ -25,12 +25,13 @@ standard_clustercrawler:
 # CCHitRefinerAlg:     @local::standard_cchitrefineralg
 }
 
-standard_ccfinder:
+standard_linecluster:
 {
- module_type:         "CCClusterFinder"
+# this is the cluster finding component of former ClusterCrawler
+ module_type:         "LineCluster"
  CalDataModuleLabel:  "cchit"
  ClusterCrawlerAlg:   @local::standard_clustercrawleralg
-} # standard_ccfinder
+} # standard_linecluster
 
 standard_fuzzycluster:
 {

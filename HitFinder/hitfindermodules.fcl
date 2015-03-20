@@ -114,7 +114,7 @@ standard_fasthitfinder:
 standard_clustercrawlerhit:
 {
  # call this: "cchit"
- module_type:         "CCHitFinder"
+ module_type:         "HitFinder"
  CalDataModuleLabel:  "caldata"
  CCHitFinderAlg:      @local::microboone_cchitfinderalg
 } # standard_clustercrawlerhit

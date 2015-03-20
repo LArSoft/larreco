@@ -1,6 +1,6 @@
 /**
- * @file   CCHitFinder_module.cc
- * @brief  Hit finder for cluster crawler algorithm
+ * @file   HitFinder_module.cc
+ * @brief  Hit finder (originating for cluster crawler algorithm)
  * @author Bruce Baller (bballer@fnal.gov)
  * 
  * Generated at Fri Jun  7 09:44:09 2013 by Bruce Baller using artmod 
@@ -25,23 +25,22 @@
 
 
 namespace hit {
-  class CCHitFinder;
-}
-
-class hit::CCHitFinder: public art::EDProducer {
-
-  public:
-    explicit CCHitFinder(fhicl::ParameterSet const & pset);
-    virtual ~CCHitFinder() = default;
-
-    void reconfigure(fhicl::ParameterSet const & pset) override;
-    void produce(art::Event & evt) override;
-
-  private:
-    art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
-    CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
-}; // hit::CCHitFinder()
-
+  
+  class HitFinder: public art::EDProducer {
+  
+    public:
+      explicit HitFinder(fhicl::ParameterSet const & pset);
+      virtual ~HitFinder() = default;
+  
+      void reconfigure(fhicl::ParameterSet const & pset) override;
+      void produce(art::Event & evt) override;
+  
+    private:
+      art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
+      CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
+  }; // hit::HitFinder()
+  
+} // namespace hit
 
 //******************************************************************************
 //***  implementation
@@ -65,7 +64,7 @@ namespace hit {
   
   
   //----------------------------------------------------------------------------
-  CCHitFinder::CCHitFinder(fhicl::ParameterSet const& pset) :
+  HitFinder::HitFinder(fhicl::ParameterSet const& pset) :
     fCalDataModuleLabel(pset.get<art::InputTag>("CalDataModuleLabel")),
     fCCHFAlg           (pset.get<fhicl::ParameterSet>("CCHitFinderAlg"))
   {
@@ -77,20 +76,20 @@ namespace hit {
     // TODO this should be marked as transient when art will implement issue #8018
     recob::HitCollectionAssociator::declare_products(*this);
     
-  } // CCHitFinder::CCHitFinder()
+  } // HitFinder::HitFinder()
   
   
   //----------------------------------------------------------------------------
-  void CCHitFinder::reconfigure(fhicl::ParameterSet const & pset)
+  void HitFinder::reconfigure(fhicl::ParameterSet const & pset)
   {
     fCCHFAlg.reconfigure(pset.get< fhicl::ParameterSet >("CCHitFinderAlg"));
   }
   
   
   //----------------------------------------------------------------------------
-  void CCHitFinder::produce(art::Event & evt)
+  void HitFinder::produce(art::Event & evt)
   {
-    // fetch the wires needed by CCHitFinder
+    // fetch the wires needed by HitFinder
 
     // make this accessible to ClusterCrawler_module
     art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
@@ -103,7 +102,7 @@ namespace hit {
     std::unique_ptr<std::vector<recob::Hit>> Hits
       (new std::vector<recob::Hit>(std::move(fCCHFAlg.YieldHits())));
     
-    mf::LogInfo("CCHitFinder") << Hits->size() << " hits produced.";
+    mf::LogInfo("HitFinder") << Hits->size() << " hits produced.";
     
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
@@ -118,6 +117,6 @@ namespace hit {
   } // produce()
   
 
-  DEFINE_ART_MODULE(CCHitFinder)
+  DEFINE_ART_MODULE(HitFinder)
   
 } // namespace hit

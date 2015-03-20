@@ -1,5 +1,5 @@
 /**
- * @file   CCClusterFinder_module.cc
+ * @file   LineCluster_module.cc
  * @brief  Cluster finder using cluster crawler algorithm
  * @author Bruce Baller (bballer@fnal.gov)
  * 
@@ -25,24 +25,23 @@
 // ... more includes in the implementation section
 
 namespace cluster {
-  class CCClusterFinder;
-}
-
-class cluster::CCClusterFinder: public art::EDProducer {
-
-  public:
-    explicit CCClusterFinder(fhicl::ParameterSet const & pset);
-    virtual ~CCClusterFinder() = default;
-
-    void reconfigure(fhicl::ParameterSet const & pset) override;
-    void produce(art::Event & evt) override;
-
-  private:
-    ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
+  
+  class LineCluster: public art::EDProducer {
     
-    art::InputTag fHitFinderLabel; ///< label of module producing input hits
-}; // class cluster::CCClusterFinder
-
+    public:
+      explicit LineCluster(fhicl::ParameterSet const & pset);
+      virtual ~LineCluster() = default;
+      
+      void reconfigure(fhicl::ParameterSet const & pset) override;
+      void produce(art::Event & evt) override;
+      
+    private:
+      ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
+      
+      art::InputTag fHitFinderLabel; ///< label of module producing input hits
+  }; // class LineCluster
+  
+} // namespace cluster
 
 //******************************************************************************
 //*** implementation
@@ -73,7 +72,7 @@ class cluster::CCClusterFinder: public art::EDProducer {
 namespace cluster {
   
   //----------------------------------------------------------------------------
-  CCClusterFinder::CCClusterFinder(fhicl::ParameterSet const& pset) :
+  LineCluster::LineCluster(fhicl::ParameterSet const& pset) :
     fCCAlg         (pset.get<fhicl::ParameterSet>("ClusterCrawlerAlg")),
     fHitFinderLabel(pset.get<art::InputTag>("CalDataModuleLabel"))
   {
@@ -88,18 +87,18 @@ namespace cluster {
     produces< std::vector<recob::Vertex> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
-  } // CCClusterFinder::CCClusterFinder()
+  } // LineCluster::LineCluster()
   
   
   //----------------------------------------------------------------------------
-  void CCClusterFinder::reconfigure(fhicl::ParameterSet const & pset)
+  void LineCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
     fCCAlg.reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
   }
   
   
   //----------------------------------------------------------------------------
-  void CCClusterFinder::produce(art::Event & evt)
+  void LineCluster::produce(art::Event & evt)
   {
     // fetch the wires needed by CCHitFinder
 
@@ -291,12 +290,12 @@ namespace cluster {
     evt.put(std::move(v3col));
     evt.put(std::move(cv_assn));
 
-  } // CCClusterFinder::produce()
+  } // LineCluster::produce()
   
   
   
   //----------------------------------------------------------------------------
-  DEFINE_ART_MODULE(CCClusterFinder)
+  DEFINE_ART_MODULE(LineCluster)
   
 } // namespace cluster
 
