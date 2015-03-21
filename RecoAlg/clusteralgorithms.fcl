@@ -294,5 +294,6 @@ lbne35t_endpointalg:  @local::standard_endpointalg
 lbne35t_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
 lbne35t_fuzzyclusteralg.HoughBaseAlg:      @local::lbne35t_houghbasealg 
 #lbne35t_fuzzyclusteralg.Threshold:         -50.0
+lbne35t_clustercrawleralg:                 @local::standard_clustercrawleralg
 
 END_PROLOG

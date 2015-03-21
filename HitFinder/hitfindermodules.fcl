@@ -116,7 +116,7 @@ standard_clustercrawlerhit:
  # call this: "cchit"
  module_type:         "HitFinder"
  CalDataModuleLabel:  "caldata"
- CCHitFinderAlg:      @local::microboone_cchitfinderalg
+ CCHitFinderAlg:      @local::standard_cchitfinderalg
 } # standard_clustercrawlerhit
 
 
@@ -141,5 +141,5 @@ microboone_gaushitfinder.InitWidth: [ 6.0, 6.0, 7.8 ]
 microboone_gaushitfinder.MinWidth:  [ 4.0, 4.0, 6.0 ]
 microboone_gaushitfinder.AreaNorms: [ 13.25, 13.25, 26.31 ]
 microboone_clustercrawlerhit: @local::standard_clustercrawlerhit
-
+microboone_clustercrawlerhit.CCHitFinderAlg:      @local::microboone_cchitfinderalg
 END_PROLOG

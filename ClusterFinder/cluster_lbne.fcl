@@ -32,5 +32,7 @@ lbne35t_endpointmod:                  @local::standard_endpointmod
 lbne35t_endpointmod.EndPointAlg:      @local::lbne35t_endpointalg
 lbne35t_clustercheater:               @local::standard_clustercheater
 
+lbne35t_linecluster:                       @local::standard_linecluster
+lbne35t_linecluster.ClusterCrawlerAlg:     @local::lbne35t_clustercrawleralg
 
 END_PROLOG
