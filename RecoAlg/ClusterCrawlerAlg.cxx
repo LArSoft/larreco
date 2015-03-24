@@ -149,6 +149,24 @@ namespace cluster {
     CrawlInit();
     
     fHits = srchits; // plain copy of the sources; it's the base of our hit result
+    
+    // sort it as needed;
+    // that is, sorted by wire ID number,
+    // then by start of the region of interest in time, then by the multiplet
+    std::sort(fHits.begin(), fHits.end(),
+      [](recob::Hit const& a, recob::Hit const& b) {
+        return (a.WireID() < b.WireID()) // wire ID is "smaller"
+          || ((a.WireID() == b.WireID()) // ... or they are on the same wire and...
+            && ((a.StartTick() < b.StartTick()) // ... the start of RoI is earlier
+              || ((a.StartTick() == b.StartTick()) // ... or it is the same and...
+              && (a.LocalIndex() < b.LocalIndex()) // ... local index is smaller
+              )
+            )
+          );
+      }
+      );
+    
+    
     fHitInCluster.reset(fHits.size()); // initialize all the hits as free
     
     // don't make clusters, just hits
