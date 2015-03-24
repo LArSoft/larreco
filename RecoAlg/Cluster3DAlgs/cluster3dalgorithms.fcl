@@ -46,8 +46,8 @@ standard_cluster3dpcaseedfinderalg:
 
 standard_cluster3dparallelhitsseedfinderalg:
 {
-  MaxNumEdgeHits:         300      # Maximum number hits each end of PCA axis
-  GapDistance:             5.      # Distance to declare a gap in hits
+  MaxNumEdgeHits:        1000      # Maximum number hits each end of PCA axis
+  GapDistance:            20.      # Distance to declare a gap in hits
   NumSeed2DHits:           80      # number of 2D hits in the seed
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
 }

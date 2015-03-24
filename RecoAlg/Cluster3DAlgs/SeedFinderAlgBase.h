@@ -33,13 +33,17 @@ public:
 
     /**
      *  @brief Define the interface to take an input list of 3D hits and return seed candidates
+     *         so hits are ordered along the axis
      */
     virtual bool findTrackSeeds(reco::HitPairListPtr&       hitPairListPtr,
                                 reco::PrincipalComponents&  inputPCA,
-                                SeedHitPairListPairVec&     seedHitPairVec) = 0;
+                                SeedHitPairListPairVec&     seedHitPairVec) const = 0;
 
 protected:
-    
+
+    /**
+     *  @brief Define a comparator which will sort hits by arc length along a PCA axis
+     */
     struct Sort3DHitsByArcLen3D
     {
         bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
@@ -49,6 +53,10 @@ protected:
         
     };
     
+    /**
+     *  @brief Define a comparator which will sort hits by the absolute value of arc length
+     *         so hits are ordered closed to PCA origin to furthest
+     */
     struct Sort3DHitsByAbsArcLen3D
     {
         bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
