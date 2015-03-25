@@ -1101,15 +1101,12 @@ namespace cluster {
       short hiTime = 0;
       unsigned short nGaus = 0;
       // number of hits in this hit multiplet
-      unsigned short nhitnear = hit.Multiplicity();
-      const unsigned short iMultipletStart = theHit - hit.LocalIndex();
+      std::pair<size_t, size_t> MultipletRange = FindHitMultiplet(theHit);
       // number of hits that are close to theHit
       float hitSep;
       unsigned short nclose = 0;
       // find the time range for the hit multiplet
-      for(unsigned short jj = 0; jj < nhitnear; ++jj) {
-        // the index of a hit minus its local index is the first hit in that train
-        const unsigned short jht = iMultipletStart + jj;
+      for(size_t jht = MultipletRange.first; jht < MultipletRange.second; ++jht) {
         
         recob::Hit const& other_hit = fHits[jht];
 
@@ -1122,8 +1119,15 @@ namespace cluster {
     <<" InClus "<<fHitInCluster[jht];
   }
         // error checking
-        if((jht - other_hit.LocalIndex()) != iMultipletStart) {
-          mf::LogError("ClusterCrawler")<<"Hit multiplet ID error "<<jj<<" "<<hit.Multiplicity();
+        if((other_hit.StartTick() != hit.StartTick())
+          || (other_hit.WireID() != hit.WireID()))
+        {
+          mf::LogError("ClusterCrawler")<<"Hit multiplet ID error "
+            << other_hit.WireID() << " @" << other_hit.StartTick()
+              << " " << other_hit.LocalIndex() << "/" << other_hit.Multiplicity()
+            << " vs. " << hit.WireID() << " @" << hit.StartTick()
+              << " " << hit.LocalIndex() << "/" << hit.Multiplicity()
+            ;
           return;
         }
         // hit is not used by another cluster
@@ -1135,7 +1139,7 @@ namespace cluster {
         ++nGaus;
         hitSep = std::abs(other_hit.PeakTime() - hit.PeakTime()) / other_hit.RMS();
         if(jht != theHit && hitSep < 3) ++nclose;
-      } // jj
+      } // jht
       // all hits in the multiplet used?
       if(nGaus == 0) return;
       // no reasonably close hits?
@@ -1146,9 +1150,7 @@ namespace cluster {
       std::vector<double> signal(hiTime - loTime, 0.);
       // now add the Gaussians for each hit
       double chgsum = 0.;
-      for(unsigned short jj = 0; jj < nhitnear; ++jj) {
-        // the index of a hit minus its local index is the first hit in that train
-        const unsigned short jht = iMultipletStart + jj;
+      for(size_t jht = MultipletRange.first; jht < MultipletRange.second; ++jht) {
         recob::Hit const& other_hit = fHits[jht];
         if(jht != theHit) {
           // hit used in another cluster
@@ -3653,23 +3655,23 @@ namespace cluster {
         // 3 sigma at 45 degrees and 6 sigma at 90 degrees
         float chicut = 6 * (1 - 1/(1 + std::abs(clpar[1])));
         // look for a big separation between adjacent hits
-        const unsigned short iMultipletStart = imbest - fHits[imbest].LocalIndex();
-        for(unsigned short jj = 0; jj < fHits[imbest].Multiplicity(); ++jj) {
-          unsigned short jht = iMultipletStart + jj;
+        std::pair<size_t, size_t> MultipletRange = FindHitMultiplet(imbest);
+        for(size_t jht = MultipletRange.first; jht < MultipletRange.second; ++jht) {
           // ignore obsolete hits
           if(!isHitPresent(jht)) continue;
           // count used hits
           if(isHitFree(jht)) multipletChg += fHits[jht].Integral();
           else ++nused;
           // check the neighbor hit separation
-          if(jj > 0) {
+          if(jht > MultipletRange.first) {
             // pick the larger RMS of the two hits
+            // TODO use std::max()
             float hitRMS = fHits[jht].RMS();
             if(fHits[jht - 1].RMS() > hitRMS) hitRMS = fHits[jht-1].RMS();
-            float tdiff = std::abs(fHits[jht].PeakTime() - fHits[jht-1].PeakTime()) / hitRMS;
+            const float tdiff = std::abs(fHits[jht].PeakTime() - fHits[jht-1].PeakTime()) / hitRMS;
             if(tdiff > chicut) doMerge = false;
-          } // jj > 0
-        } // jj
+          } // jht > 0
+        } // jht
   if(prt) {
     if(!doMerge) mf::LogVerbatim("ClusterCrawler")
       <<" Hits are well separated. Don't merge them";
@@ -3818,44 +3820,58 @@ namespace cluster {
 
     if(imbest < 0) return;
 
+    recob::Hit const& hit = fHits[imbest];
+    
     if(prt) mf::LogVerbatim("ClusterCrawler")
-      <<" Best hit time "<<(int)fHits[imbest].PeakTime();
+      <<" Best hit time "<<(int)hit.PeakTime();
 
     // merge hits in a doublet?
     // assume there is no nearby hit
     short hnear = 0;
     bool doMerge = false;
-    if(fHitMergeChiCut > 0 && fHits[imbest].Multiplicity() == 2) {
+    if(fHitMergeChiCut > 0 && hit.Multiplicity() == 2) {
       doMerge = true;
       // don't merge hits if near a vertex
       for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
         if(std::abs(kwire - vtx[ivx].Wire) < 10 &&
-           std::abs(int(fHits[imbest].PeakTime() - vtx[ivx].Time)) < 20 ) doMerge = false;
+           std::abs(int(hit.PeakTime() - vtx[ivx].Time)) < 20 ) doMerge = false;
       } // ivx
       if(doMerge) {
         // find the neighbor hit
         unsigned short imbestn = 0;
-        if(fHits[imbest].LocalIndex() == 0) {
+        if(hit.LocalIndex() == 0) {
           imbestn = imbest + 1;
         } else {
           imbestn = imbest - 1;
         }
+        recob::Hit const& other_hit = fHits[imbestn];
+        if (!areInSameMultiplet(hit, other_hit)) {
+          mf::LogError("ClusterCrawler")
+            << "Trying to merge hits from different multiplets: "
+            << other_hit.WireID() << " @" << other_hit.StartTick()
+              << " " << other_hit.LocalIndex() << "/" << other_hit.Multiplicity()
+            << " and " << hit.WireID() << " @" << hit.StartTick()
+              << " " << hit.LocalIndex() << "/" << hit.Multiplicity()
+            ;
+          doMerge = false;
+        }
         // is the neighbor close and unused?
-        float hitSep = std::abs(fHits[imbest].PeakTime() - fHits[imbestn].PeakTime());
-        hitSep = hitSep / fHits[imbest].RMS();
-        if(hitSep < fHitMergeChiCut && isHitFree(imbestn)) {
+        // TODO use Hit::TimeDistanceAsRMS()
+        float hitSep = std::abs(hit.PeakTime() - other_hit.PeakTime());
+        hitSep = hitSep / hit.RMS();
+        if(doMerge && (hitSep < fHitMergeChiCut) && isHitFree(imbestn)) {
           // there is a nearby hit
           hnear = 1;
           // Is the charge of the doublet more similar to the charge of the
           // previously added hits than the single hit
-          float totChg = fHits[imbest].Integral() + fHits[imbestn].Integral();
+          float totChg = hit.Integral() + other_hit.Integral();
           float lastHitChg = fAveChg;
           if(lastHitChg < 0) lastHitChg = fHits[lastClHit].Integral();
           // decide whether to merge
       if(prt) mf::LogVerbatim("ClusterCrawler")
         <<" merge hits charge check: totChg "<<totChg<<" lastHitChg "<<lastHitChg
-        <<" hit chg "<<fHits[imbest].Integral();
-          if(std::abs(totChg - lastHitChg) < std::abs(fHits[imbest].Integral() - lastHitChg)) {
+        <<" hit chg "<<hit.Integral();
+          if(std::abs(totChg - lastHitChg) < std::abs(hit.Integral() - lastHitChg)) {
             // the total charge of both hits is a better match than the 
             // charge of the hit selected
             MergeHits(imbest);
@@ -3863,18 +3879,18 @@ namespace cluster {
             hnear = -1;
       if(prt) mf::LogVerbatim("ClusterCrawler")
         <<" Merging hits "<<imbest<<" and "<<imbestn
-        <<" New Time "<<fHits[imbest].PeakTime()
-        <<" New Chg "<<fHits[imbest].Integral();
+        <<" New Time "<<hit.PeakTime()
+        <<" New Chg "<<hit.Integral();
           } // merge hit
         } // bestn < fHitMergeChiCut
       } // doMerge true
-    } // fHitMergeChiCut > 0 && fHits[imbest].Multiplicity() == 2
+    } // fHitMergeChiCut > 0 && hit.Multiplicity() == 2
 
     // Make a charge similarity cut if the average charge is defined
     bool fitChg = true;
     if(fAveChg > 0.) {
 
-      float chgrat = (fHits[imbest].Integral() - fAveChg) / fAveChg;
+      float chgrat = (hit.Integral() - fAveChg) / fAveChg;
     if(prt) mf::LogVerbatim("ClusterCrawler")
       <<" Chgrat "<<std::setprecision(2)<<chgrat;
 
@@ -3934,10 +3950,10 @@ namespace cluster {
 
   if(prt) {
     mf::LogVerbatim("ClusterCrawler")
-      <<" >>ADD W:T "<<kwire<<":"<<(short)fHits[imbest].PeakTime()<<" dT "<<best
+      <<" >>ADD W:T "<<kwire<<":"<<(short)hit.PeakTime()<<" dT "<<best
       <<std::setprecision(2)<<" Chisq "<<clChisq
-      <<" Chg "<<(int)fHits[imbest].Integral()<<" AveChg "<<(int)fAveChg
-      <<" hitnear "<<fHits[imbest].Multiplicity()
+      <<" Chg "<<(int)hit.Integral()<<" AveChg "<<(int)fAveChg
+      <<" hitnear "<<hit.Multiplicity()
       <<" fcl2hits size "<<fcl2hits.size();
   }
     if(!fitChg) return;
@@ -3964,6 +3980,7 @@ namespace cluster {
       // Analyze the last 6 hits added but don't consider the first few hits
       if(hitnear.size() < 12) return;
       
+      // TODO move into loops
       unsigned short ii, indx;
       unsigned short merged = 0;
       unsigned short notmerged = 0;
@@ -3982,24 +3999,26 @@ namespace cluster {
       // a number of nearby hits were not merged while crawling, so the 
       // average charge is probably wrong. Look at the last 6 hits added
       // and merge them if they are close
-      unsigned short iht, oht;
-      float hitSep, chgRat;
       for(ii = 0; ii < 6; ++ii) {
         indx = fcl2hits.size() - 1 - ii;
-        iht = fcl2hits[indx];
-        if(fHits[iht].Multiplicity() == 2) {
+        const unsigned short iht = fcl2hits[indx];
+        recob::Hit const& hit = fHits[iht];
+        if(hit.Multiplicity() == 2) {
           // hit doublet. Get the index of the other hit
-          if(fHits[iht].LocalIndex() == 0) {
+          unsigned short oht;
+          if(hit.LocalIndex() == 0) {
             oht = iht + 1;
           } else {
             oht = iht - 1;
-          } // fHits[iht].LocalIndex() == 0
-          hitSep = std::abs(fHits[iht].PeakTime() - fHits[oht].PeakTime());
-          hitSep /= fHits[iht].RMS();
+          } // hit.LocalIndex() == 0
+          recob::Hit const& other_hit = fHits[oht];
+          // TODO use Hit::TimeDistanceAsRMS()
+          float hitSep = std::abs(hit.PeakTime() - other_hit.PeakTime());
+          hitSep /= hit.RMS();
           if(hitSep < fHitMergeChiCut && isHitFree(oht)) {
             // check charge assuming the hits are merged
-            chgRat = fHits[iht].Integral() + fHits[oht].Integral();
-            chgRat /= fHits[iht].Integral();
+            float chgRat = hit.Integral() + other_hit.Integral();
+            chgRat /= hit.Integral();
             // merge em
             if(chgRat < 4) {
       if(prt) mf::LogVerbatim("ClusterCrawler")<<"Merging hit doublet "<<iht;
@@ -4604,6 +4623,42 @@ namespace cluster {
     } // GetHitRange()
 
 
+//////////////////////////////////////////
+    bool ClusterCrawlerAlg::areInSameMultiplet
+      (recob::Hit const& first_hit, recob::Hit const& second_hit)
+    {
+      return (first_hit.StartTick() == second_hit.StartTick())
+        && (first_hit.WireID() == second_hit.WireID())
+    //   && (first_hit.StopTick() == second_hit.StopTick())
+        ;
+    } // ClusterCrawlerAlg::areInSameMultiplet()
+    
+    
+    std::pair<size_t, size_t> ClusterCrawlerAlg::FindHitMultiplet
+      (size_t iHit) const
+    {
+      std::pair<size_t, size_t> range{ iHit, iHit };
+      
+      const raw::TDCtick_t MultipletStartTime = fHits[iHit].StartTick();
+      geo::WireID const& wid = fHits[iHit].WireID();
+      
+      // detect the first hit with the same start time as the reference hit
+      while (range.first > 0) {
+        if (fHits[range.first - 1].StartTick() != MultipletStartTime) break;
+        if (fHits[range.first - 1].WireID() != wid) break;
+        --range.first;
+      } // while
+      
+      // detect the last hit with the same start time as the reference hit
+      while (++range.second < fHits.size()) {
+        if (fHits[range.second].StartTick() != MultipletStartTime) break;
+        if (fHits[range.second].WireID() != wid) break;
+      } // while
+      
+      return range;
+    } // ClusterCrawlerAlg::FindHitMultiplet()
+    
+    
 /////////////////////////////////////////
     void ClusterCrawlerAlg::SortByLength(
       std::vector<ClusterStore> const& tcl,

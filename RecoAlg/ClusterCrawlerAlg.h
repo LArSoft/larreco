@@ -428,6 +428,10 @@ namespace cluster {
     // returns an angle-dependent scale factor for weighting fits, etc
     float AngleFactor(float slope);
     
+    /// Returns a pair of first and past-the-last index
+    /// of all the contiguous hits belonging to the same multiplet
+    std::pair<size_t, size_t> FindHitMultiplet(size_t iHit) const;
+    
     // hit-cluster association
     bool isHitInCluster(size_t iHit) const
       { return GetHitInCluster().isInCluster(iHit); }
@@ -435,6 +439,12 @@ namespace cluster {
       { return GetHitInCluster().isFree(iHit); }
     bool isHitPresent(size_t iHit) const
       { return GetHitInCluster().isPresent(iHit); }
+    
+    /// Returns whether the two hits belong to the same multiplet
+    static bool areInSameMultiplet
+      (recob::Hit const& first_hit, recob::Hit const& second_hit);
+
+    
   }; // class ClusterCrawlerAlg
 
 
