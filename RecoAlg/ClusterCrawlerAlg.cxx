@@ -116,6 +116,19 @@ namespace cluster {
   bool SortByLen(const mypair& L, const mypair& R) {return (L.first > R.first);}
 
 
+  bool ClusterCrawlerAlg::SortByMultiplet
+    (recob::Hit const& a, recob::Hit const& b)
+  {
+    // compare the wire IDs first:
+    int cmp_res = a.WireID().cmp(b.WireID());
+    if (cmp_res != 0) return cmp_res < 0; // order is decided, unless equal
+    // decide by start time
+    if (a.StartTick() != b.StartTick()) return a.StartTick() < b.StartTick();
+    // if still undecided, resolve by local index
+    return a.LocalIndex() < b.LocalIndex(); // if still unresolved, it's a bug!
+  } // ClusterCrawlerAlg::SortByMultiplet()
+  
+  
 //------------------------------------------------------------------------------
   void ClusterCrawlerAlg::ClearResults() {
     fHits.clear();
@@ -153,19 +166,7 @@ namespace cluster {
     // sort it as needed;
     // that is, sorted by wire ID number,
     // then by start of the region of interest in time, then by the multiplet
-    std::sort(fHits.begin(), fHits.end(),
-      [](recob::Hit const& a, recob::Hit const& b) {
-        return (a.WireID() < b.WireID()) // wire ID is "smaller"
-          || ((a.WireID() == b.WireID()) // ... or they are on the same wire and...
-            && ((a.StartTick() < b.StartTick()) // ... the start of RoI is earlier
-              || ((a.StartTick() == b.StartTick()) // ... or it is the same and...
-              && (a.LocalIndex() < b.LocalIndex()) // ... local index is smaller
-              )
-            )
-          );
-      }
-      );
-    
+    std::sort(fHits.begin(), fHits.end(), &SortByMultiplet);
     
     fHitInCluster.reset(fHits.size()); // initialize all the hits as free
     
@@ -173,7 +174,7 @@ namespace cluster {
     if(fNumPass == 0) return;
     
     if(fHits.size() < 3) return;
-    if(fHits.size() > USHRT_MAX) {
+    if(fHits.size() > USHRT_MAX) { // not really, but let's keep things sane
       mf::LogWarning("CC")<<"Too many hits for ClusterCrawler "<<fHits.size();
       return;
     }

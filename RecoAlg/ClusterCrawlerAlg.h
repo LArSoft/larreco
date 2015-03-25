@@ -182,6 +182,9 @@ namespace cluster {
     static void SortByLength(std::vector<ClusterStore> const& tcl,
       CTP_t inCTP, std::map<unsigned short, unsigned short>& sortindex);
     
+    /// Comparison for sorting hits by wire and hit multiplet
+    static bool SortByMultiplet(recob::Hit const& a, recob::Hit const& b);
+    
     
 ////////////////////////////////////
 
