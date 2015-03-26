@@ -39,10 +39,18 @@
 
 
 namespace hit {
-
+  
+  constexpr unsigned int CCHitFinderAlg::MaxGaussians; // definition
+  
 //------------------------------------------------------------------------------
   CCHitFinderAlg::CCHitFinderAlg(fhicl::ParameterSet const& pset):
-    FitCache("GausFitCache_CCHitFinderAlg")
+    FitCache(new
+      GausFitCache // run-time, on demand TFormula cache
+    //  CompiledGausFitCache<MaxGaussians> // precompiled Gaussian set
+    //  CompiledTruncatedGausFitCache<MaxGaussians, 4> // precompiled truncated Gaussian set
+    //  CompiledTruncatedGausFitCache<MaxGaussians, 5> // precompiled truncated Gaussian set
+      ("GausFitCache_CCHitFinderAlg")
+      )
   {
     this->reconfigure(pset);
   }
@@ -74,6 +82,20 @@ namespace hit {
     hitcuts.MinRMSCol = fMinRMSCol;
     hitcuts.ChiSplit  = fChiSplit;
     hitcuts.ChiNorms  = fChiNorms;
+    
+    if (fMaxBumps > MaxGaussians) {
+      // LOG_WARNING will point the user to this line of code.
+      // Any value of MaxGaussians can be used.
+      // That value is defined in the header file.
+      LOG_WARNING("CCHitFinderAlg")
+        << "CCHitFinder algorithm is currently hard-coded to support at most "
+        << MaxGaussians << " bumps per region of interest, but " << fMaxBumps
+        << " have been requested.\n"
+        << "We are forcing the parameter to " << MaxGaussians
+        << ". If this is not acceptable, increase CCHitFinderAlg::MaxGaussians"
+        << " value and recompile.";
+      fMaxBumps = MaxGaussians;
+    } // if too many gaussians
     
     // sanity check for StudyHits mode
     if(fStudyHits) {
@@ -253,6 +275,7 @@ namespace hit {
 
   
     // define the fit string to pass to TF1
+    /*
     std::stringstream numConv;
     std::string eqn = "gaus";
     if(nGaus > 1) eqn = "gaus(0)";
@@ -264,10 +287,9 @@ namespace hit {
       eqn.append(")");
     }
     
-    TF1 *Gn = new TF1("gn",eqn.c_str());
-  /*
-    TF1* Gn = FitCache.Get(nGaus);
-  */
+    std::unique_ptr<TF1> Gn(new TF1("gn",eqn.c_str()));
+    */
+    TF1* Gn = FitCache->Get(nGaus);
     TGraph *fitn = new TGraph(npt, ticks, signl);
 /*
   if(prt) mf::LogVerbatim("CCHitFinder")
@@ -320,7 +342,7 @@ namespace hit {
     
     // W = set weights to 1, N = no drawing or storing, Q = quiet
     // B = bounded parameters
-    fitn->Fit(Gn,"WNQB");
+    fitn->Fit(&*Gn,"WNQB");
     
     // load the fit into a temp vector
     std::vector<double> partmp;
@@ -421,7 +443,7 @@ namespace hit {
     }
     
     delete fitn;
-    delete Gn;
+  //  delete Gn;
     
     return;
   } // FitNG

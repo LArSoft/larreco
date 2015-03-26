@@ -12,6 +12,7 @@
 // C/C++ standard libraries
 #include <string>
 #include <vector>
+#include <memory> // std::unique_ptr<>
 
 // framework libraries
 #include "fhiclcpp/ParameterSet.h" 
@@ -188,7 +189,9 @@ namespace hit {
     std::vector<float> hiTime;
     bool SelRAT; // set true if a Region Above Threshold should be studied
     
-    GausFitCache FitCache; ///< a set of functions ready to be used
+    std::unique_ptr<GausFitCache> FitCache; ///< a set of functions ready to be used
+    
+    static constexpr unsigned int MaxGaussians = 20;
     
   }; // class CCHitFinderAlg
   
