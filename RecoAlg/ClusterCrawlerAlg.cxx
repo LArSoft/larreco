@@ -48,8 +48,7 @@ namespace cluster {
 //------------------------------------------------------------------------------
   ClusterCrawlerAlg::ClusterCrawlerAlg(fhicl::ParameterSet const& pset)
   {
-    this->reconfigure(pset);
-    CrawlInit();
+    reconfigure(pset);
   }
 
 //------------------------------------------------------------------------------
@@ -639,6 +638,7 @@ namespace cluster {
           unsigned short index = wire - fFirstWire;
           // stop if no hits on this wire
           if(WireHitRange[index].first == -2) break;
+        //  if(WireHitRange[index].first == -1) break; // FIXME: trouble; why??
           unsigned short firsthit = WireHitRange[index].first;
           unsigned short lasthit = WireHitRange[index].second;
           bool hitAdded = false;
@@ -797,6 +797,7 @@ namespace cluster {
             if(wire > fLastWire) break;
             unsigned short index = wire - fFirstWire;
             if(WireHitRange[index].first == -2) break;
+          //  if(WireHitRange[index].first == -1) break; // FIXME trouble, why?
             bool hitAdded = false;
             for(ih1 = WireHitRange[index].first; ih1 < WireHitRange[index].second; ++ih1) {
               if(!isHitFree(ih1)) continue;

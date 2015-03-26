@@ -27,12 +27,13 @@
 #include "RecoBase/Hit.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
+#include "RecoAlg/GausFitCache.h"
 
 
 namespace hit {
-
+  
   /**
-   * @brief Hit findre algorithm designed to work with Cluster Crawler
+   * @brief Hit finder algorithm designed to work with Cluster Crawler
    * 
    * This algorithm used to store hits in a proprietary `CCHit` data structure.
    * It has now been changed to use `recob::Hit` class directly.
@@ -96,9 +97,9 @@ namespace hit {
     HitCuts hitcuts;
 
     CCHitFinderAlg(fhicl::ParameterSet const& pset);
-    virtual ~CCHitFinderAlg();
+    virtual ~CCHitFinderAlg() = default;
 
-    void reconfigure(fhicl::ParameterSet const& pset);
+    virtual void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunCCHitFinder(std::vector<recob::Wire> const& Wires);
     
@@ -186,8 +187,9 @@ namespace hit {
     std::vector<float> hiWire;
     std::vector<float> hiTime;
     bool SelRAT; // set true if a Region Above Threshold should be studied
-
-
+    
+    GausFitCache FitCache; ///< a set of functions ready to be used
+    
   }; // class CCHitFinderAlg
   
 } // namespace hit

@@ -41,7 +41,8 @@
 namespace hit {
 
 //------------------------------------------------------------------------------
-  CCHitFinderAlg::CCHitFinderAlg(fhicl::ParameterSet const& pset)
+  CCHitFinderAlg::CCHitFinderAlg(fhicl::ParameterSet const& pset):
+    FitCache("GausFitCache_CCHitFinderAlg")
   {
     this->reconfigure(pset);
   }
@@ -86,11 +87,6 @@ namespace hit {
 
   }
 
-//------------------------------------------------------------------------------
-  CCHitFinderAlg::~CCHitFinderAlg()
-  {
-  }
-  
 //------------------------------------------------------------------------------
   CCHitFinderAlg::HitChannelInfo_t::HitChannelInfo_t
     (recob::Wire const* w, geo::WireID wid, geo::Geometry const& geom):
@@ -255,6 +251,7 @@ namespace hit {
     if(dof < 3) return;
     if(bumps.size() == 0) return;
 
+  
     // define the fit string to pass to TF1
     std::stringstream numConv;
     std::string eqn = "gaus";
@@ -267,8 +264,11 @@ namespace hit {
       eqn.append(")");
     }
     
-    TGraph *fitn = new TGraph(npt, ticks, signl);
     TF1 *Gn = new TF1("gn",eqn.c_str());
+  /*
+    TF1* Gn = FitCache.Get(nGaus);
+  */
+    TGraph *fitn = new TGraph(npt, ticks, signl);
 /*
   if(prt) mf::LogVerbatim("CCHitFinder")
     <<"FitNG nGaus "<<nGaus<<" nBumps "<<bumps.size();
