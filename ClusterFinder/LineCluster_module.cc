@@ -10,6 +10,7 @@
 
 // C/C++ standard libraries
 #include <string>
+#include <utility> // std::unique_ptr<>
 
 // Framework libraries
 #include "fhiclcpp/ParameterSet.h"
@@ -36,9 +37,10 @@ namespace cluster {
       void produce(art::Event & evt) override;
       
     private:
-      ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
+      std::unique_ptr<ClusterCrawlerAlg> fCCAlg; // define ClusterCrawlerAlg object
       
       art::InputTag fHitFinderLabel; ///< label of module producing input hits
+      
   }; // class LineCluster
   
 } // namespace cluster
@@ -50,7 +52,6 @@ namespace cluster {
 // C/C++ standard libraries
 #include <vector>
 #include <memory> // std::move()
-#include <utility> // std::unique_ptr<>
 
 // Framework libraries
 #include "art/Utilities/Exception.h"
@@ -72,11 +73,8 @@ namespace cluster {
 namespace cluster {
   
   //----------------------------------------------------------------------------
-  LineCluster::LineCluster(fhicl::ParameterSet const& pset) :
-    fCCAlg         (pset.get<fhicl::ParameterSet>("ClusterCrawlerAlg")),
-    fHitFinderLabel(pset.get<art::InputTag>("CalDataModuleLabel"))
-  {
-    this->reconfigure(pset);
+  LineCluster::LineCluster(fhicl::ParameterSet const& pset) {
+    reconfigure(pset);
     
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -93,9 +91,16 @@ namespace cluster {
   //----------------------------------------------------------------------------
   void LineCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
-    fCCAlg.reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
-  }
-  
+    fHitFinderLabel = pset.get<art::InputTag>("CalDataModuleLabel");
+    
+    // this trick avoids double configuration on construction
+    if (fCCAlg)
+      fCCAlg->reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
+    else {
+      fCCAlg.reset(new ClusterCrawlerAlg
+        (pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg")));
+    }
+  } // LineCluster::reconfigure()
   
   //----------------------------------------------------------------------------
   void LineCluster::produce(art::Event & evt)
@@ -107,14 +112,14 @@ namespace cluster {
      = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderLabel);
 
     // look for clusters in all planes
-    fCCAlg.RunCrawler(*hitVecHandle);
+    fCCAlg->RunCrawler(*hitVecHandle);
     
     // access to the algorithm results
     ClusterCrawlerAlg::HitInCluster_t const& HitInCluster
-      = fCCAlg.GetHitInCluster();
+      = fCCAlg->GetHitInCluster();
     
     std::unique_ptr<std::vector<recob::Hit>> FinalHits
-      (new std::vector<recob::Hit>(std::move(fCCAlg.YieldHits())));
+      (new std::vector<recob::Hit>(std::move(fCCAlg->YieldHits())));
     
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
@@ -129,7 +134,7 @@ namespace cluster {
         cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
 
     std::vector<ClusterCrawlerAlg::ClusterStore> const& Clusters
-      = fCCAlg.GetClusters();
+      = fCCAlg->GetClusters();
 
 // Consistency check
   for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
@@ -155,7 +160,7 @@ namespace cluster {
 
     // make 3D vertices
     std::vector<ClusterCrawlerAlg::Vtx3Store> const& Vertices
-      = fCCAlg.GetVertices();
+      = fCCAlg->GetVertices();
     
     double xyz[3] = {0, 0, 0};
     unsigned int vtxID = 0, end;
@@ -281,7 +286,7 @@ namespace cluster {
     shcol.use_hits(std::move(FinalHits));
     
     // clean up
-    fCCAlg.ClearResults();
+    fCCAlg->ClearResults();
 
     // move the hit collection and the associations into the event:
     shcol.put_into(evt);
