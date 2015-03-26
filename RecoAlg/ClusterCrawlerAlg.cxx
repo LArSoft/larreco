@@ -216,6 +216,13 @@ namespace cluster {
   } // wire
   std::cout<<" is OK. nhits "<<nhts<<"\n";;
 */
+	if (WireHitRange.empty()||(fFirstWire == fLastWire)){
+	  mf::LogWarning("ClusterCrawler")<<"No hits in "<<tpcid<<" plane "<<plane;
+	  continue;
+	}
+	if (WireHitRange[0].first<0){
+	  throw art::Exception(art::errors::LogicError)<<"ClusterCrawler WireHitRange[0].first = "<<WireHitRange[0].first;
+	}
         fFirstHit = WireHitRange[0].first;
         raw::ChannelID_t channel = fHits[fFirstHit].Channel();
         // get the scale factor to convert dTick/dWire to dX/dU. This is used
@@ -4106,6 +4113,7 @@ namespace cluster {
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
           // A complete 3D vertex with matching 2D vertices in all planes?
           if(vtx3[ivx].Wire < 0) continue;
+	  if(vtx3[ivx].CStat != cstat || vtx3[ivx].TPC != tpc) continue;
           // Find the plane that is missing a 2D vertex
           thePlane = 3;
           theWire = vtx3[ivx].Wire;
@@ -4173,8 +4181,10 @@ namespace cluster {
         // Try to split clusters in a view in which there is no 2D vertex
         // assigned to a 3D vertex
         if(vtx3.size() == 0) return;
-        
-      vtxprt = (fDebugPlane >= 0) && (fDebugHit == 6666);
+	const unsigned int cstat = tpcid.Cryostat;
+        const unsigned int tpc = tpcid.TPC;
+	
+	vtxprt = (fDebugPlane >= 0) && (fDebugHit == 6666);
         
         unsigned short lastplane = 5, kcl, kclID;
         float dth, theTime;
@@ -4182,7 +4192,8 @@ namespace cluster {
         unsigned short loWire, hiWire;
 
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
-          // Complete 3D vertex with matching 2D vertices in all planes?
+	  if(vtx3[ivx].CStat != cstat || vtx3[ivx].TPC != tpc) continue;
+	  // Complete 3D vertex with matching 2D vertices in all planes?
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"Vtx3ClusterSplit ivx "<<ivx
     <<" Ptr2D "<<vtx3[ivx].Ptr2D[0]<<" "<<vtx3[ivx].Ptr2D[1]<<" "<<vtx3[ivx].Ptr2D[2]
         <<" wire "<<vtx3[ivx].Wire;
@@ -4390,6 +4401,7 @@ namespace cluster {
         for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
           if(vtx[ivx].Wght < 0) continue;
           geo::PlaneID iplID = DecodeCTP(vtx[ivx].CTP);
+	  if (iplID.TPC != tpc || iplID.Cryostat != cstat) continue;
           unsigned int vpl = iplID.Plane;
           if(ipl == vpl) temp.push_back(ivx);
         }
@@ -4601,6 +4613,10 @@ namespace cluster {
       // next overwrite with the index of the first/last hit on each wire
       for(unsigned short hit = firsthit; hit <= lasthit; ++hit) {
         recob::Hit const& theHit = fHits[hit];
+        if(theHit.WireID().Plane != planeID.Plane) continue;
+        if(theHit.WireID().TPC != planeID.TPC) continue;
+        if(theHit.WireID().Cryostat != planeID.Cryostat) continue;
+	
         unsigned short thiswire = theHit.WireID().Wire;
         if(thiswire > lastwire) {
           unsigned short index = lastwire - firstwire;
