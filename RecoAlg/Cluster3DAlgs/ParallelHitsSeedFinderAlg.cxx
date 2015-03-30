@@ -22,9 +22,9 @@
 
 // ROOT includes
 #include "TTree.h"
-#include "TCanvas.h"
-#include "TFrame.h"
-#include "TH2D.h"
+#include "TVectorD.h"
+#include "TMatrixD.h"
+#include "TDecompSVD.h"
 
 // std includes
 #include <string>
@@ -40,8 +40,8 @@
 namespace lar_cluster3d {
 
 ParallelHitsSeedFinderAlg::ParallelHitsSeedFinderAlg(fhicl::ParameterSet const &pset) :
-     m_maxNumEdgeHits(300),
-     m_gapDistance(5.),
+     m_maxNumEdgeHits(1000),
+     m_gapDistance(20.),
      m_numSeed2DHits(80),
      m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"))
 {
@@ -62,15 +62,15 @@ ParallelHitsSeedFinderAlg::~ParallelHitsSeedFinderAlg()
     
 void ParallelHitsSeedFinderAlg::reconfigure(fhicl::ParameterSet const &pset)
 {
-    m_maxNumEdgeHits = pset.get<size_t>("MaxNumEdgeHits", 300);
-    m_gapDistance    = pset.get<double>("GapDistance",     5.);
-    m_numSeed2DHits  = pset.get<size_t>("NumSeed2DHits",   80);
+    m_maxNumEdgeHits = pset.get<size_t>("MaxNumEdgeHits", 1000);
+    m_gapDistance    = pset.get<double>("GapDistance",     20.);
+    m_numSeed2DHits  = pset.get<size_t>("NumSeed2DHits",    80);
     m_pcaAlg.reconfigure(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"));
 }
     
 bool ParallelHitsSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputHitPairListPtr,
                                                reco::PrincipalComponents& inputPCA,
-                                               SeedHitPairListPairVec&    seedHitPairVec)
+                                               SeedHitPairListPairVec&    seedHitPairVec) const
 {
     // This routine can fail...
     bool foundGoodSeeds(false);
@@ -80,6 +80,9 @@ bool ParallelHitsSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputH
     
     if (pca.getSvdOK())
     {
+        // Presume CR muons will be "downward going"...
+        if (pca.getEigenVectors()[0][1] > 0.) pca.flipAxis(0);
+        
         // This routine is typically called when there are LOTS of hits... so we are going to try
         // to reduce the number of operations on the full list as much as possible. However, we
         // really need the input hit list to be sorted by th input PCA so do that now
@@ -89,108 +92,103 @@ bool ParallelHitsSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputH
         // Note that this will sort hits from the "middle" to the "outside"
         inputHitPairListPtr.sort(SeedFinderAlgBase::Sort3DHitsByArcLen3D());
         
-        // Now, we like to keep 20% of the total number of hits at the ends
-        size_t numHitsToDrop = 4 * inputHitPairListPtr.size() / 5;
-        size_t numEdgeHits   = std::min(size_t((inputHitPairListPtr.size() - numHitsToDrop) / 2), m_maxNumEdgeHits);
+        // We need to determine the number of hits to drop... and this is really driven by the number of unique
+        // 2D hits we want to keep at one end of the cluster. So, make some containers and do some looping
+        reco::HitPairListPtr                seedHit3DList;
+        std::set<const reco::ClusterHit2D*> hit2DSet;
         
-        // Get an iterator for the hits
-        reco::HitPairListPtr::iterator edgeHitItr = inputHitPairListPtr.begin();
+        // Look for numSeed2DHits which are continuous
+        double lastArcLen = inputHitPairListPtr.front()->getArclenToPoca();
         
-        std::advance(edgeHitItr, numEdgeHits);
-        
-        // Make a container for copying in the edge hits and size it to hold all the hits
-        reco::HitPairListPtr hit3DList;
-        
-        hit3DList.resize(2*numEdgeHits);
-        
-        // Copy the low edge hit range into the list
-        reco::HitPairListPtr::iterator nextHit3DItr = std::copy(inputHitPairListPtr.begin(), edgeHitItr, hit3DList.begin());
-        
-        // Now advance the iterator into the main container and copy the rest of the elements
-        std::advance(edgeHitItr, inputHitPairListPtr.size() - 2 * numEdgeHits);
-        
-        std::copy(edgeHitItr, inputHitPairListPtr.end(), nextHit3DItr);
-        
-        // Now rerun the PCA
-        reco::PrincipalComponents edgePCA;
-        
-        m_pcaAlg.PCAAnalysis_3D(hit3DList, edgePCA, true);
-        
-        if (edgePCA.getSvdOK())
+        for(const auto& hit3D : inputHitPairListPtr)
         {
-            // Still looking to point "down"
-            if (edgePCA.getEigenVectors()[0][1] > 0.) edgePCA.flipAxis(0);
+            double arcLen = hit3D->getArclenToPoca();
             
-            // Recompute the 3D docas and arc lengths
-            m_pcaAlg.PCAAnalysis_calc3DDocas(hit3DList, edgePCA);
-            
-            // Now sort hits in regular order
-            hit3DList.sort(SeedFinderAlgBase::Sort3DHitsByArcLen3D());
-            
-            // Use a set to count 2D hits by keeping only a single copy
-            std::set<const reco::ClusterHit2D*> hit2DSet;
-        
-            // Look for numSeed2DHits which are continuous
-            double lastArcLen = hit3DList.front()->getArclenToPoca();
-        
-            reco::HitPairListPtr::iterator startItr = hit3DList.begin();
-            reco::HitPairListPtr::iterator lastItr  = hit3DList.begin();
-        
-            while(++lastItr != hit3DList.end())
+            if (fabs(arcLen-lastArcLen) > m_gapDistance)
             {
-                const reco::ClusterHit3D* hit3D  = *lastItr;
-                double                    arcLen = hit3D->getArclenToPoca();
-            
-                if (fabs(arcLen-lastArcLen) > m_gapDistance)
-                {
-                    startItr = lastItr;
-                    hit2DSet.clear();
-                }
-            
-                for(const auto& hit2D : hit3D->getHits())
-                {
-                    hit2DSet.insert(hit2D);
-                }
-           
-                if (hit2DSet.size() > m_numSeed2DHits) break;
-            
-                lastArcLen = arcLen;
+                seedHit3DList.clear();
+                hit2DSet.clear();
             }
-        
-            if (hit2DSet.size() > m_numSeed2DHits)
-            {
-                if (startItr != hit3DList.begin()) hit3DList.erase(hit3DList.begin(), startItr);
-                if (lastItr  != hit3DList.end()  ) hit3DList.erase(lastItr,           hit3DList.end());
-        
-                reco::PrincipalComponents seedPca;
-        
-                m_pcaAlg.PCAAnalysis_3D(hit3DList, seedPca, true);
-        
-                if (seedPca.getSvdOK())
-                {
-                    // Still looking to point "down"
-                    if (seedPca.getEigenVectors()[0][1] > 0.) seedPca.flipAxis(0);
-                    
-                    // We want our seed to be in the middle of our seed points
-                    // First step to getting there is to reorder the hits along the
-                    // new pca axis
-                    m_pcaAlg.PCAAnalysis_calc3DDocas(hit3DList, seedPca);
-                    
-                    // Use this info to sort the hits along the principle axis - note by absolute value of arc length
-                    hit3DList.sort(SeedFinderAlgBase::Sort3DHitsByAbsArcLen3D());
-                    
-                    // Now translate the seedCenter by the arc len to the first hit
-                    double seedDir[3]   = {seedPca.getEigenVectors()[0][0], seedPca.getEigenVectors()[0][1], seedPca.getEigenVectors()[0][2]};
-                    double seedStart[3] = {hit3DList.front()->getX(), hit3DList.front()->getY(), hit3DList.front()->getZ()};
-                    
-                    for(const auto& hit3D : hit3DList) hit3D->setStatusBit(0x40000000);
             
-                    seedHitPairVec.emplace_back(std::pair<recob::Seed, reco::HitPairListPtr>(recob::Seed(seedStart, seedDir), hit3DList));
-                    
-                    inputPCA = edgePCA;
-                    
-                    foundGoodSeeds = true;
-                }
+            seedHit3DList.push_back(hit3D);
+            
+            for(const auto& hit2D : hit3D->getHits())
+            {
+                hit2DSet.insert(hit2D);
+            }
+            
+            if (hit2DSet.size() > m_numSeed2DHits) break;
+            
+            lastArcLen = arcLen;
+        }
+        
+        // We require a minimum number of seed hits in order to proceed
+        if (hit2DSet.size() > m_numSeed2DHits)
+        {
+            // The above derivation determines the number of hits to keep each side of the cloud
+            size_t num3DHitsToKeep = std::min(2*seedHit3DList.size(), inputHitPairListPtr.size());
+            size_t numEdgeHits     = std::min(size_t(num3DHitsToKeep/2), m_maxNumEdgeHits);
+        
+            // Get an iterator for the hits
+            reco::HitPairListPtr::iterator edgeHitItr = inputHitPairListPtr.begin();
+        
+            std::advance(edgeHitItr, numEdgeHits);
+        
+            // Make a container for copying in the edge hits and size it to hold all the hits
+            reco::HitPairListPtr hit3DList;
+        
+            hit3DList.resize(2*numEdgeHits);
+        
+            // Copy the low edge hit range into the list
+            reco::HitPairListPtr::iterator nextHit3DItr = std::copy(inputHitPairListPtr.begin(), edgeHitItr, hit3DList.begin());
+            
+            // reset the "seed hits"
+            seedHit3DList.clear();
+            seedHit3DList.resize(numEdgeHits);
+            
+            std::copy(inputHitPairListPtr.begin(), edgeHitItr, seedHit3DList.begin());
+        
+            // Now advance the iterator into the main container and copy the rest of the elements
+            std::advance(edgeHitItr, inputHitPairListPtr.size() - 2 * numEdgeHits);
+        
+            std::copy(edgeHitItr, inputHitPairListPtr.end(), nextHit3DItr);
+        
+            // At this point we should now have trimmed out the bulk of the 3D hits from the middle
+            // of the input cloud of hits. Next step is to rerun the PCA on our reduced set of hits
+            reco::PrincipalComponents seedPCA;
+        
+            m_pcaAlg.PCAAnalysis_3D(hit3DList, seedPCA, false);
+        
+            if (seedPCA.getSvdOK())
+            {
+                // Still looking to point "down"
+                if (seedPCA.getEigenVectors()[0][1] > 0.) seedPCA.flipAxis(0);
+            
+                // Recompute the 3D docas and arc lengths
+                m_pcaAlg.PCAAnalysis_calc3DDocas(hit3DList, seedPCA);
+            
+                // Now sort hits in regular order
+                //hit3DList.sort(SeedFinderAlgBase::Sort3DHitsByArcLen3D());
+                seedHit3DList.sort(SeedFinderAlgBase::Sort3DHitsByArcLen3D());
+                
+                // Now translate the seedCenter by the arc len to the first hit
+                double seedDir[3]   = {seedPCA.getEigenVectors()[0][0], seedPCA.getEigenVectors()[0][1], seedPCA.getEigenVectors()[0][2]};
+                double seedStart[3] = {seedHit3DList.front()->getX(), seedHit3DList.front()->getY(), seedHit3DList.front()->getZ()};
+                
+                // Move from the first hit to the halfway point but from the first hit, not from the axis position
+                double halfArcLen = 0.5 * fabs(seedHit3DList.back()->getArclenToPoca() - seedHit3DList.front()->getArclenToPoca());
+                
+                seedStart[0] += halfArcLen * seedDir[0];
+                seedStart[1] += halfArcLen * seedDir[1];
+                seedStart[2] += halfArcLen * seedDir[2];
+                
+                for(const auto& hit3D : seedHit3DList) hit3D->setStatusBit(0x40000000);
+            
+                seedHitPairVec.emplace_back(std::pair<recob::Seed, reco::HitPairListPtr>(recob::Seed(seedStart, seedDir), seedHit3DList));
+                
+                inputPCA = seedPCA;
+                
+                foundGoodSeeds = true;
             }
         }
     }

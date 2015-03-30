@@ -165,16 +165,11 @@ namespace vertex{
     std::unique_ptr< art::Assns<recob::Vertex, recob::Shower> > vsassn(new art::Assns<recob::Vertex, recob::Shower>);
     
 
-    art::PtrVector<recob::Track> trkIn;
-    for(size_t ii = 0; ii < trackListHandle->size(); ++ii){
-      art::Ptr<recob::Track> track(trackListHandle, ii);
-      trkIn.push_back(track);
-    }
+    std::vector<recob::Track> const& trkIn = *trackListHandle;
 
     mf::LogInfo("PrimaryVertexFinder") << "number of tracks in this event = " << trkIn.size();
     fNoTracks->Fill(evt.id().event(),trkIn.size());
 
-    std::vector<const recob::SpacePoint*> spacepoints;  // space points associated to each track 
     std::vector<recob::SpacePoint> startpoints_vec; // first space point of each track
 
     std::vector<double> start;
@@ -191,15 +186,18 @@ namespace vertex{
 
     std::vector< std::pair<art::Ptr<recob::Track>, double> > trackpair;
     
+    art::FindMany<recob::SpacePoint> TrackSpacePoints
+      (trackListHandle, evt, fTrackModuleLabel);
+    
     for(unsigned int i = 0; i<trkIn.size(); ++i){
-      trkIn[i]->Extent(start, end);
+      trkIn[i].Extent(start, end);
       startXYZ.SetXYZ(start[0],start[1],start[2]);
       endXYZ.SetXYZ(end[0],end[1],end[2]);
 
 
       double length = (endXYZ-startXYZ).Mag();// (endvec[i]-startvec[i]).Mag();
       //mf::LogInfo("PrimaryVertexFinder") << "Track length calculated = " << length << std::endl;
-      trackpair.push_back(std::pair<art::Ptr<recob::Track>,double>(trkIn[i],length));
+      trackpair.push_back(std::pair<art::Ptr<recob::Track>,double>({ trackListHandle, i },length));
     }
     
     for(size_t i = 0; i<trackpair.size(); ++i){
@@ -231,13 +229,12 @@ namespace vertex{
     fLength_5thTrack->Fill(trackpair[4].second);
 
     for(size_t j = 0; j < trackpair.size(); ++j) { //loop over tracks
-      art::PtrVector<recob::Track> trvec;
-      trvec.push_back(trackpair[j].first);
+      art::Ptr<recob::Track> const& track = trackpair[j].first;
 
-      art::FindMany<recob::SpacePoint> fmsp(trvec, evt, fTrackModuleLabel);
-
-      //trvec has only 1 entry, hence the 0 argument for indx of the FindMany
-      spacepoints = fmsp.at(0);
+      // the index of this track in the query is the same as its position in
+      // the data product:
+      std::vector<recob::SpacePoint const*> const& spacepoints
+        = TrackSpacePoints.at(track.key());
 
       startXYZ  = trackpair[j].first->Vertex();
       endXYZ    = trackpair[j].first->End();
@@ -255,9 +252,10 @@ namespace vertex{
 					 <<" 3D spacepoint(s) from Track3Dreco.cxx";
             
       // save the first SpacePoint of each Track... from now the SpacePoint ID represents the Track ID!!
-      double xyz[3]  = {spacepoints[0]->XYZ()[0], spacepoints[0]->XYZ()[1], spacepoints[0]->XYZ()[2]};
-      double exyz[3] = {spacepoints[0]->ErrXYZ()[0], spacepoints[0]->ErrXYZ()[1], spacepoints[0]->ErrXYZ()[2]};
-      startpoints_vec.push_back(recob::SpacePoint(xyz, exyz, spacepoints[0]->Chisq(), startpoints_vec.size()));
+      startpoints_vec.emplace_back(
+        spacepoints[0]->XYZ(), spacepoints[0]->ErrXYZ(),
+        spacepoints[0]->Chisq(), startpoints_vec.size()
+        );
     
     }// loop over tracks
 
@@ -337,18 +335,27 @@ namespace vertex{
       }
     }
 
-    art::PtrVector<recob::Track> vTracks_vec;
-    art::PtrVector<recob::Shower> vShowers_vec;
+    // indices (in their data products) of tracks and showers connected to the vertex
+    std::vector<size_t> vTrackIndices, vShowerIndices;
 
+    // find the hits of all the tracks
+    art::FindManyP<recob::Hit> TrackHits(trackListHandle, evt, fTrackModuleLabel);
+    
+    // find the hits of all the showers
+  //  art::FindManyP<recob::Hit> ShowerHits(showerListHandle, evt, fShowerModuleLabel);
+    ///\todo replace with the real query when this module is updated to look for showers too
+    art::FindManyP<recob::Hit> ShowerHits(std::vector<art::Ptr<recob::Shower>>(), evt, fTrackModuleLabel);
+    
     for(size_t i = 0; i < vertex_collection_int.size(); ++i){
       double x = 0.;
       double y = 0.;
       double z = 0.;
       int elemsize = 0.;
       for(std::vector<int>::iterator itr = vertex_collection_int[i].begin(); itr < vertex_collection_int[i].end(); ++itr){
-	mf::LogInfo("PrimaryVertexFinder") << "vector elements at index " << i << " are " << *itr
-					   << "\ntrack original ID = " << (trackpair[*itr].first)->ID();
-	vTracks_vec.push_back(trackpair[*itr].first);
+        mf::LogInfo("PrimaryVertexFinder") << "vector elements at index " << i << " are " << *itr
+                                           << "\ntrack original ID = " << (trackpair[*itr].first)->ID();
+        // save the index in the data product of this track
+        vTrackIndices.push_back(trackpair[*itr].first.key());
       }
       mf::LogInfo("PrimaryVertexFinder") << "------------";
 
@@ -373,30 +380,27 @@ namespace vertex{
       recob::Vertex the3Dvertex(vtxcoord, vcol->size());
       vcol->push_back(the3Dvertex);
 
-      art::FindManyP<recob::Hit> fmht(vTracks_vec, evt, fTrackModuleLabel);
+      if(!vTrackIndices.empty()){
+        // associate the tracks and their hits with the vertex
+        util::CreateAssn(*this, evt, *vtassn,
+          vcol->size() - 1, vTrackIndices.begin(), vTrackIndices.end());
+        for(size_t tIndex: vTrackIndices) {
+          std::vector<art::Ptr<recob::Hit>> const& hits = TrackHits.at(tIndex);
+          util::CreateAssn(*this, evt, *vcol, hits, *vhassn);
+        }
+        vTrackIndices.clear();
+      } // if tracks
 
-      if(vTracks_vec.size() > 0){
-	// associate the tracks and showers and their hits with the vertex
-	util::CreateAssn(*this, evt, *vcol, vTracks_vec, *vtassn);
-	for(size_t t = 0; t < vTracks_vec.size(); ++t){
-	  std::vector< art::Ptr<recob::Hit> > hits = fmht.at(t);
-	  util::CreateAssn(*this, evt, *vcol, hits, *vhassn);
-	}
-	vTracks_vec.clear();
-      }
-
-      art::FindManyP<recob::Hit> fmhs(vShowers_vec, evt, fTrackModuleLabel);      
-
-      if(vShowers_vec.size() > 0){
-	// associate the tracks and showers and their hits with the vertex
-	util::CreateAssn(*this, evt, *vcol, vShowers_vec, *vsassn);
-	for(size_t t = 0; t < vShowers_vec.size(); ++t){
-	  ///\todo change fTrackModuleLabel to fShowerModuleLabel when this module is updated to look for showers too
-	  std::vector< art::Ptr<recob::Hit> > hits = fmhs.at(t);
-	  util::CreateAssn(*this, evt, *vcol, hits, *vhassn);
-	}
-	vShowers_vec.clear();
-      }
+      if(!vShowerIndices.empty()){
+        // associate the showers and their hits with the vertex
+        util::CreateAssn(*this, evt, *vsassn,
+          vcol->size() - 1, vShowerIndices.begin(), vShowerIndices.end());
+        for(size_t sIndex: vShowerIndices){
+          std::vector<art::Ptr<recob::Hit>> const& hits = ShowerHits.at(sIndex);
+          util::CreateAssn(*this, evt, *vcol, hits, *vhassn);
+        }
+        vShowerIndices.clear();
+      } // if showers
 
       
     }// end loop over vertex_collection_ind

@@ -110,6 +110,7 @@ public:
         m_sigmaStartTime(1.),
         m_endTime(0.),
         m_sigmaEndTime(1.),
+        m_totalCharge(0.),
         m_startWire(9999999),
         m_endWire(0),
         m_view(geo::kUnknown)
@@ -123,6 +124,7 @@ public:
     double         m_sigmaStartTime;
     double         m_endTime;
     double         m_sigmaEndTime;
+    double         m_totalCharge;
     unsigned int   m_startWire;
     unsigned int   m_endWire;
     geo::View_t    m_view;
@@ -137,7 +139,12 @@ typedef std::map<geo::View_t, RecobClusterParameters> ViewToClusterParamsMap;
 class ClusterParameters
 {
 public:
-    ClusterParameters(reco::HitPairClusterMap::iterator& mapItr) : m_hitPairClusterMapItr(mapItr)
+    ClusterParameters(reco::HitPairClusterMap::iterator& mapItr) : m_hitPairListPtr(mapItr->second)
+    {
+        m_clusterParams.clear();
+    }
+    
+    ClusterParameters(reco::HitPairListPtr& hitList) : m_hitPairListPtr(hitList)
     {
         m_clusterParams.clear();
     }
@@ -147,10 +154,10 @@ public:
         m_clusterParams[hit->getHit().View()].UpdateParameters(hit);
     }
     
-    ViewToClusterParamsMap            m_clusterParams;
-    reco::HitPairClusterMap::iterator m_hitPairClusterMapItr;
-    reco::PrincipalComponents         m_fullPCA;
-    reco::PrincipalComponents         m_skeletonPCA;
+    ViewToClusterParamsMap    m_clusterParams;
+    reco::HitPairListPtr&     m_hitPairListPtr;
+    reco::PrincipalComponents m_fullPCA;
+    reco::PrincipalComponents m_skeletonPCA;
 };
     
 typedef std::list<ClusterParameters> ClusterParametersList;
@@ -200,8 +207,13 @@ private:
      *  @param  hit2DVector           A container for the internal Cluster3D 2D hit objects
      *  @param  viewToHitVectorMap    A map between view and the internal Cluster3D 2D hit objects
      *  @param  viewToWireToHitSetMap This maps 2D hits to wires and stores by view
+     *  @param  hitToPtrMap           This maps our Cluster2D hits back to art Ptr's to reco Hits
      */
-    void CollectArtHits(art::Event &evt, Hit2DVector& hit2DVector, ViewToHitVectorMap& viewToHitVector, ViewToWireToHitSetMap& viewToWireToHitSetMap);
+    void CollectArtHits(art::Event&            evt,
+                        Hit2DVector&           hit2DVector,
+                        ViewToHitVectorMap&    viewToHitVector,
+                        ViewToWireToHitSetMap& viewToWireToHitSetMap,
+                        RecobHitToPtrMap&      hitToPtrMap) const;
 
     /**
      *  @brief Initialize the internal monitoring
@@ -215,47 +227,85 @@ private:
      *  @param hitPairClusterMap      map between view and a list of 3D hits
      *  @param clusterParametersList  a container for our candidate 3D clusters
      *  @param rejectionFraction      Used for determine "hit purity" when rejecting clusters
-     *  @param doca3DScl              Gives a maximum 3D doca to the PCA axis cut
      *
      *                                The last two parameters are passed through to the FillClusterParams method
      */
-    void BuildClusterInfo(reco::HitPairClusterMap& hitPairClusterMap, ClusterParametersList& clusterParametersList, double rejectFraction = 0.5, double doca3DScl = 5.);
+    void BuildClusterInfo(reco::HitPairClusterMap& hitPairClusterMap, ClusterParametersList& clusterParametersList, double rejectFraction = 0.5) const;
     
     /**
      *  @brief A generic routine to actually fill the clusterParams
      *
      *  @param clusterParametersList  a container for our candidate 3D clusters
      *  @param rejectionFraction      Used for determine "hit purity" when rejecting clusters
-     *  @param doca3DScl              Gives a maximum 3D doca to the PCA axis cut
      */
-    void FillClusterParams(ClusterParameters& clusterParams, double rejectFraction = 0.5, double doca3DScl = 3.);
+    void FillClusterParams(ClusterParameters& clusterParams, double rejectFraction = 0.5, double maxLostRatio = 0.75) const;
     
     /**
      *  @brief An interface to the seed finding algorithm
      *
      *  @param evt          the ART event
      *  @param cluster      structure of information representing a single cluster
+     *  @param hitToPtrMap  This maps our Cluster2D hits back to art Ptr's to reco Hits
      *  @param seedVec      the output vector of candidate seeds
      *  @param seedHitAssns the associations between the seeds and the 2D hits making them
      */
     void findTrackSeeds(art::Event&                         evt,
                         ClusterParameters&                  cluster,
+                        RecobHitToPtrMap&                   hitToPtrMap,
                         std::vector<recob::Seed>&           seedVec,
-                        art::Assns<recob::Seed,recob::Hit>& seedHitAssns);
+                        art::Assns<recob::Seed,recob::Hit>& seedHitAssns) const;
+    
+    /**
+     *  @brief Attempt to split clusters by using a minimum spanning tree
+     *
+     *  @param clusterParameters     The given cluster parameters object to try to split
+     *  @param clusterParametersList The list of clusters
+     */
+    void splitClustersWithMST(ClusterParameters& clusterParameters, ClusterParametersList& clusterParametersList) const;
+    
+    /**
+     *  @brief Attempt to split clusters using the output of the Hough Filter
+     *
+     *  @param clusterParameters     The given cluster parameters object to try to split
+     *  @param clusterParametersList The list of clusters
+     */
+    void splitClustersWithHough(ClusterParameters&       clusterParameters,
+                                reco::HitPairClusterMap& hitPairClusterMap,
+                                ClusterParametersList&   clusterParametersList) const;
+    
     /**
      *  @brief Produces the art output from all the work done in this producer module
      *
      *  @param evt                   the ART event
      *  @param hitPairList           List of all 3D Hits in internal Cluster3D format
      *  @param clusterParametersList Data structure containing the cluster information to output
+     *  @param  hitToPtrMap           This maps our Cluster2D hits back to art Ptr's to reco Hits
      */
-    void ProduceArtClusters(art::Event &evt, HitPairList& hitPairList, ClusterParametersList& clusterParametersList);
+    void ProduceArtClusters(art::Event&              evt,
+                            HitPairList&             hitPairList,
+                            reco::HitPairClusterMap& hitPairClusterMap,
+                            ClusterParametersList&   clusterParametersList,
+                            RecobHitToPtrMap&        hitToPtrMap) const;
+    
+    /**
+     *  @brief There are several places we will want to know if a candidate cluster is a
+     *         "parallel hits" type of cluster so encapsulate that here.
+     *
+     *  @param pca  The Principal Components Analysis parameters for the cluster
+     */
+    bool aParallelHitsCluster(const reco::PrincipalComponents& pca) const
+    {
+        return fabs(pca.getEigenVectors()[2][0]) > m_parallelHitsCosAng && 3. * sqrt(pca.getEigenValues()[1]) > m_parallelHitsTransWid;
+    }
 
     /**
      *   Algorithm parameters
      */
-    bool                      m_enableMonitoring;      ///<
-    std::string               m_hitfinderModuleLabel;  ///<
+    bool                      m_enableMonitoring;      ///< Turn on monitoring of this algorithm
+    std::string               m_hitfinderModuleLabel;  ///< Producer of the reco hits
+    double                    m_clusHitRejectionFrac;  ///< Cluster hit purity must exceed this to be kept
+    double                    m_parallelHitsCosAng;    ///< Cut for PCA 3rd axis angle to X axis
+    double                    m_parallelHitsTransWid;  ///< Cut on transverse width of cluster (PCA 2nd eigenvalue)
 
     /**
      *   Tree variables for output
@@ -274,8 +324,6 @@ private:
     /** 
      *   Other useful variables
      */
-    RecobHitToPtrMap          m_hitToPtrMap;           ///<  Mapping for recovering art::Ptr to hits
-
     geo::Geometry*            m_geometry;              ///<  pointer to the Geometry service
     util::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
     
@@ -330,8 +378,11 @@ Cluster3D::~Cluster3D()
 
 void Cluster3D::reconfigure(fhicl::ParameterSet const &pset)
 {
-    m_hitfinderModuleLabel = pset.get<std::string>("HitFinderModuleLabel","gaushit");
-    m_enableMonitoring     = pset.get<bool>("EnableMonitoring",false);
+    m_hitfinderModuleLabel = pset.get<std::string>("HitFinderModuleLabel", "gaushit");
+    m_enableMonitoring     = pset.get<bool>       ("EnableMonitoring",         false);
+    m_clusHitRejectionFrac = pset.get<double>     ("ClusterHitRejectionFrac",    0.5);
+    m_parallelHitsCosAng   = pset.get<double>     ("ParallelHitsCosAng",       0.999);
+    m_parallelHitsTransWid = pset.get<double>     ("ParallelHitsTransWid",      25.0);
     
     m_dbScanAlg.reconfigure(pset.get<fhicl::ParameterSet>("DBScanAlg"));
     m_pcaAlg.reconfigure(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"));
@@ -395,14 +446,12 @@ void Cluster3D::produce(art::Event &evt)
     ViewToWireToHitSetMap        viewToWireToHitSetMap;
     reco::HitPairClusterMap      hitPairClusterMap;
     ClusterParametersList        clusterParametersList;
+    RecobHitToPtrMap             clusterHitToArtPtrMap;
     std::auto_ptr< HitPairList > hitPairList(new HitPairList); // Potentially lots of hits, use heap instead of stack
-    
-    // Paranoia... clear clear cleeeaaar
-    m_hitToPtrMap.clear();
     
     // Recover the 2D hits and then organize them into data structures which will be used in the
     // DBscan algorithm for building the 3D clusters
-    this->CollectArtHits(evt, clusterHit2DMasterVec, viewToHitVectorMap, viewToWireToHitSetMap);
+    this->CollectArtHits(evt, clusterHit2DMasterVec, viewToHitVectorMap, viewToWireToHitSetMap, clusterHitToArtPtrMap);
     
     if (m_enableMonitoring) theClockArtHits.stop();
     
@@ -413,19 +462,16 @@ void Cluster3D::produce(art::Event &evt)
         m_dbScanAlg.ClusterHitsDBScan(viewToHitVectorMap, viewToWireToHitSetMap, *hitPairList, hitPairClusterMap);
         
         // Given the work above, process and build the list of 3D clusters to output
-        BuildClusterInfo(hitPairClusterMap, clusterParametersList);
+        BuildClusterInfo(hitPairClusterMap, clusterParametersList, m_clusHitRejectionFrac);
     }
     
     if(m_enableMonitoring) theClockFinish.start();
 
     // Call the module that does the end processing (of which there is quite a bit of work!)
     // This goes here to insure that something is always written to the data store
-    ProduceArtClusters(evt, *hitPairList, clusterParametersList);
+    ProduceArtClusters(evt, *hitPairList, hitPairClusterMap, clusterParametersList, clusterHitToArtPtrMap);
     
     if (m_enableMonitoring) theClockFinish.stop();
-    
-    // We are done with this map
-    m_hitToPtrMap.clear();
     
     // If monitoring then deal with the fallout
     if (m_enableMonitoring)
@@ -489,7 +535,7 @@ bool SetHitTimeOrder(const reco::ClusterHit2D* left, const reco::ClusterHit2D* r
     // Sort by "modified start time" of pulse
     return left->getHit().PeakTime() < right->getHit().PeakTime();
 }
-
+    
 bool Hit2DSetCompare::operator() (const reco::ClusterHit2D* left, const reco::ClusterHit2D* right) const
 {
     return left->getHit().PeakTime() < right->getHit().PeakTime();
@@ -499,7 +545,8 @@ bool Hit2DSetCompare::operator() (const reco::ClusterHit2D* left, const reco::Cl
 void Cluster3D::CollectArtHits(art::Event&            evt,
                                Hit2DVector&           hitVector,
                                ViewToHitVectorMap&    viewToHitVectorMap,
-                               ViewToWireToHitSetMap& viewToWireToHitSetMap)
+                               ViewToWireToHitSetMap& viewToWireToHitSetMap,
+                               RecobHitToPtrMap&      hitToPtrMap) const
 {
     /**
      *  @brief Recover the 2D hits from art and fill out the local data structures for the 3D clustering
@@ -536,7 +583,7 @@ void Cluster3D::CollectArtHits(art::Event&            evt,
         viewToWireToHitSetMap[recobHit->View()][recobHit->WireID().Wire].insert(&hitVector.back());
         
         const recob::Hit* recobHitPtr = recobHit.get();
-        m_hitToPtrMap[recobHitPtr]    = recobHit;
+        hitToPtrMap[recobHitPtr]      = recobHit;
     }
     
     // Make a loop through to sort the recover hits in time order
@@ -572,6 +619,7 @@ void RecobClusterParameters::UpdateParameters(const reco::ClusterHit2D* clusterH
         m_sigmaEndTime = hit.SigmaPeakTime();
     }
     
+    m_totalCharge += hit.Integral();
     m_view         = hit.View();
     
     m_hitVector.push_back(clusterHit);
@@ -591,7 +639,7 @@ struct HitPairClusterOrder
     }
 };
     
-void Cluster3D::BuildClusterInfo(reco::HitPairClusterMap& hitPairClusterMap, ClusterParametersList& clusterParametersList, double rejectFraction, double doca3DScl)
+void Cluster3D::BuildClusterInfo(reco::HitPairClusterMap& hitPairClusterMap, ClusterParametersList& clusterParametersList, double rejectFraction) const
 {
     /** 
      *  @brief Given a list of a list of candidate cluster hits, build these out into the intermediate 
@@ -640,7 +688,7 @@ void Cluster3D::BuildClusterInfo(reco::HitPairClusterMap& hitPairClusterMap, Clu
             ClusterParameters& clusterParams = clusterParametersList.back();
             
             // Do the actual work of filling the parameters
-            FillClusterParams(clusterParams, rejectFraction, doca3DScl);
+            FillClusterParams(clusterParams, rejectFraction);
             
             // If this cluster is rejected then the parameters will be empty
             if (clusterParams.m_clusterParams.empty() || !clusterParams.m_fullPCA.getSvdOK())
@@ -653,7 +701,7 @@ void Cluster3D::BuildClusterInfo(reco::HitPairClusterMap& hitPairClusterMap, Clu
     return;
 }
     
-void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejectFraction, double doca3DScl)
+void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejectFraction, double maxLostRatio) const
 {
     /**
      *  @brief Given a list of hits fill out the remaining parameters for this cluster and evaluate the
@@ -662,7 +710,7 @@ void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejec
     
     // Recover the HitPairListPtr from the input clusterParams (which will be the
     // only thing that has been provided)
-    reco::HitPairListPtr& hitPairVector = clusterParams.m_hitPairClusterMapItr->second;
+    reco::HitPairListPtr& hitPairVector = clusterParams.m_hitPairListPtr;
     
     // To be sure, we should clear the other data members
     clusterParams.m_clusterParams.clear();
@@ -675,6 +723,9 @@ void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejec
     int numUniqueHits(0);
     int numSharedHits(0);
     int numLostHits(0);
+    
+    // Create a list to hold 3D hits which are already in use (criteria below)
+    reco::HitPairListPtr usedHitPairList;
     
     // First loop through the 3D hits
     // The goal of this loop is to build a set of unique hits from the hit pairs (which may contain many
@@ -694,7 +745,7 @@ void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejec
         
         numSharedHits += nHitsAlreadyUsed;
         
-        if (nHitsAlreadyUsed < 2) //int(hit3D->getHits().size()))
+        if (nHitsAlreadyUsed < int(hit3D->getHits().size())-1)   // was 2
         {
             numUniqueHits += int(hit3D->getHits().size()) - nHitsAlreadyUsed;
             for(const auto& hit2D : hit3D->getHits()) hitSet.insert(hit2D);
@@ -702,7 +753,8 @@ void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejec
         else
         {
             numLostHits += hit3D->getHits().size();
-            hit3D->setStatusBit(0x80000000);
+//            hit3D->setStatusBit(reco::ClusterHit3D::REJECTED);
+            usedHitPairList.emplace_back(hit3D);
         }
     }
     
@@ -719,7 +771,7 @@ void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejec
         // Arbitrary rejection criteria... need to understand
         // Anyway, if we get past this we're making a cluster
         //if (rejectToAccept < rejectFraction)
-        if (acceptRatio > rejectFraction && lostRatio < 1.)
+        if (acceptRatio > rejectFraction && lostRatio < maxLostRatio)  // lostRatio cut was 1. - off
         {
             // Why do we need to explicitly define this?
             unsigned int usedBit(0x1);
@@ -732,13 +784,45 @@ void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejec
             }
             
             // Final selection cut, need at least 3 hits each view
-            if (clusterParams.m_clusterParams[geo::kU].m_hitVector.size() > 3 &&
-                clusterParams.m_clusterParams[geo::kV].m_hitVector.size() > 3 &&
-                clusterParams.m_clusterParams[geo::kW].m_hitVector.size() > 3)
+            if (!(clusterParams.m_clusterParams[geo::kU].m_hitVector.size() < 2 ||
+                  clusterParams.m_clusterParams[geo::kV].m_hitVector.size() < 2 ||
+                  clusterParams.m_clusterParams[geo::kW].m_hitVector.size() < 2)  )
             {
+                // First task is to remove the hits already in use
+                if (!usedHitPairList.empty())
+                {
+                    hitPairVector.sort();
+                    usedHitPairList.sort();
+                    
+                    reco::HitPairListPtr::iterator newListEnd =
+                    std::set_difference(hitPairVector.begin(),   hitPairVector.end(),
+                                        usedHitPairList.begin(), usedHitPairList.end(),
+                                        hitPairVector.begin() );
+                    
+                    hitPairVector.erase(newListEnd, hitPairVector.end());
+                }
+                
                 // First stage of feature extraction runs here
-                //PCAAnalysis(clusterParams, doca3DScl);
-                m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairClusterMapItr->second, clusterParams.m_fullPCA);
+                m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairListPtr, clusterParams.m_fullPCA);
+                
+                // If any hits were thrown away, see if we can rescue them
+                if (!usedHitPairList.empty())
+                {
+                    double maxDoca = 2. * sqrt(clusterParams.m_fullPCA.getEigenValues()[1]);
+                    
+                    if (maxDoca < 5.)
+                    {
+                        size_t curHitVectorSize = hitPairVector.size();
+                        
+                        m_pcaAlg.PCAAnalysis_calc3DDocas(usedHitPairList, clusterParams.m_fullPCA);
+                        
+                        for(const auto& hit3D : usedHitPairList)
+                            if (hit3D->getDocaToAxis() < maxDoca) hitPairVector.push_back(hit3D);
+                        
+                        if (hitPairVector.size() > curHitVectorSize)
+                            m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairListPtr, clusterParams.m_fullPCA);
+                    }
+                }
                 
                 // Set the skeleton PCA to make sure it has some value
                 clusterParams.m_skeletonPCA = clusterParams.m_fullPCA;
@@ -751,8 +835,9 @@ void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejec
     
 void Cluster3D::findTrackSeeds(art::Event&                         evt,
                                ClusterParameters&                  cluster,
+                               RecobHitToPtrMap&                   hitToPtrMap,
                                std::vector<recob::Seed>&           seedVec,
-                               art::Assns<recob::Seed,recob::Hit>& seedHitAssns)
+                               art::Assns<recob::Seed,recob::Hit>& seedHitAssns) const
 {
     /**
      *  @brief This method provides an interface to various algorithms for finding candiate 
@@ -762,7 +847,7 @@ void Cluster3D::findTrackSeeds(art::Event&                         evt,
     // Make sure we are using the right pca
     reco::PrincipalComponents& fullPCA        = cluster.m_fullPCA;
     reco::PrincipalComponents& skeletonPCA    = cluster.m_skeletonPCA;
-    reco::HitPairListPtr       hitPairListPtr = cluster.m_hitPairClusterMapItr->second;
+    reco::HitPairListPtr&      hitPairListPtr = cluster.m_hitPairListPtr;
     reco::HitPairListPtr       skeletonListPtr;
 
     // We want to work with the "skeleton" hits so first step is to call the algorithm to
@@ -786,13 +871,13 @@ void Cluster3D::findTrackSeeds(art::Event&                         evt,
 
     // Choose a method for finding the seeds based on the PCA that was run...
     // Currently we have an ad hoc if-else block which I hope will be improved soon!
-    if (fabs(fullPCA.getEigenVectors()[2][0]) > 0.999 && 3. * sqrt(fullPCA.getEigenValues()[1]) > 20.)
+    if (aParallelHitsCluster(fullPCA))
     {
         // In this case we have a track moving relatively parallel to the wire plane with lots of
         // ambiguous 3D hits. Your best bet here is to use the "parallel hits" algorithm to get the
         // best axis and seeds
         // This algorithm does not fail (foundGoodSeed will always return true)
-        foundGoodSeed = m_parallelHitsAlg.findTrackSeeds(skeletonListPtr, skeletonPCA, seedHitPairVec);
+        foundGoodSeed = m_parallelHitsAlg.findTrackSeeds(hitPairListPtr, skeletonPCA, seedHitPairVec);
     }
     else if (eigenVal0 > 40. && transRMS < 5.)
     {
@@ -826,7 +911,7 @@ void Cluster3D::findTrackSeeds(art::Event&                         evt,
             {
                 const recob::Hit* recobHit = &hit2D->getHit();
                 
-                seedHitSet.insert(m_hitToPtrMap[recobHit]);
+                seedHitSet.insert(hitToPtrMap[recobHit]);
             }
         }
         
@@ -839,16 +924,353 @@ void Cluster3D::findTrackSeeds(art::Event&                         evt,
     
     return;
 }
-
-struct ClusterOrder
+    
+struct Hit3DDistanceOrder
 {
-    bool operator()(HitClusterMap::const_iterator left, HitClusterMap::const_iterator right)
+    bool operator()(const std::pair<double, const reco::ClusterHit3D*>& left, const std::pair<double, const reco::ClusterHit3D*>& right)
     {
-        return left->second.size() > right->second.size();
+        return left.first < right.first;
     }
 };
     
-void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, ClusterParametersList& clusterParametersList)
+void Cluster3D::splitClustersWithMST(ClusterParameters& clusterParameters, ClusterParametersList& clusterParametersList) const
+{
+    // This is being left in place for future development. Essentially, it was an attempt to implement
+    // a Minimum Spanning Tree as a way to split a particular cluster topology, one where two straight
+    // tracks cross closely enought to appear as one cluster. As of Feb 2, 2015 I think the idea is still
+    // worth merit so am leaving this module in place for now.
+    //
+    // If this routine is called then we believe we have a cluster which needs splitting.
+    // The way we will do this is to use a Minimum Spanning Tree algorithm to associate all
+    // hits together by their distance apart. In theory, we should be able to split the cluster
+    // by finding the largest distance and splitting at that point.
+    //
+    // Typedef some data structures that we will use.
+    // Start with the adjacency map
+    typedef std::pair<double, const reco::ClusterHit3D*>                DistanceHit3DPair;
+    typedef std::list<DistanceHit3DPair >                               DistanceHit3DPairList;
+    typedef std::map<const reco::ClusterHit3D*, DistanceHit3DPairList > Hit3DToDistanceMap;
+    
+    // Now typedef the lists we'll keep
+    typedef std::list<const reco::ClusterHit3D*>                        Hit3DList;
+    typedef std::pair<Hit3DList::iterator, Hit3DList::iterator>         Hit3DEdgePair;
+    typedef std::pair<double, Hit3DEdgePair >                           DistanceEdgePair;
+    typedef std::list<DistanceEdgePair >                                DistanceEdgePairList;
+    
+    struct DistanceEdgePairOrder
+    {
+        bool operator()(const DistanceEdgePair& left, const DistanceEdgePair& right) const
+        {
+            return left.first > right.first;
+        }
+    };
+    
+    // Recover the hits we'll work on.
+    // Note that we use on the skeleton hits so will need to recover them
+    reco::HitPairListPtr& hitPairListPtr = clusterParameters.m_hitPairListPtr;
+    reco::HitPairListPtr  skeletonListPtr;
+    
+    // We want to work with the "skeleton" hits so first step is to call the algorithm to
+    // recover only these hits from the entire input collection
+    m_skeletonAlg.GetSkeletonHits(hitPairListPtr, skeletonListPtr);
+    
+    // Skeleton hits are nice but we can do better if we then make a pass through to "average"
+    // the skeleton hits position in the Y-Z plane
+    m_skeletonAlg.AverageSkeletonPositions(skeletonListPtr);
+    
+    // First task is to define and build the adjacency map
+    Hit3DToDistanceMap hit3DToDistanceMap;
+    
+    for(reco::HitPairListPtr::const_iterator hit3DOuterItr = skeletonListPtr.begin(); hit3DOuterItr != skeletonListPtr.end(); )
+    {
+        const reco::ClusterHit3D* hit3DOuter   = *hit3DOuterItr++;
+        DistanceHit3DPairList&    outerHitList = hit3DToDistanceMap[hit3DOuter];
+        TVector3                  outerPos(hit3DOuter->getPosition()[0], hit3DOuter->getPosition()[1], hit3DOuter->getPosition()[2]);
+        
+        for(reco::HitPairListPtr::const_iterator hit3DInnerItr = hit3DOuterItr; hit3DInnerItr != skeletonListPtr.end(); hit3DInnerItr++)
+        {
+            const reco::ClusterHit3D* hit3DInner = *hit3DInnerItr;
+            TVector3                  innerPos(hit3DInner->getPosition()[0], hit3DInner->getPosition()[1], hit3DInner->getPosition()[2]);
+            TVector3                  deltaPos = innerPos - outerPos;
+            double                    hitDistance(deltaPos.Mag());
+            
+            if (hitDistance > 20.) continue;
+            
+            hit3DToDistanceMap[hit3DInner].emplace_back(DistanceHit3DPair(hitDistance,hit3DOuter));
+            outerHitList.emplace_back(DistanceHit3DPair(hitDistance,hit3DInner));
+        }
+        
+        // Make sure our membership bit is clear
+        hit3DOuter->clearStatusBits(reco::ClusterHit3D::SELECTEDBYMST);
+    }
+    
+    // Make pass through again to order each of the lists
+    for(auto& mapPair : hit3DToDistanceMap)
+    {
+        mapPair.second.sort(Hit3DDistanceOrder());
+    }
+    
+    // Get the containers for the MST to operate on/with
+    Hit3DList            hit3DList;
+    DistanceEdgePairList distanceEdgePairList;
+    
+    // Initialize with first element
+    hit3DList.emplace_back(skeletonListPtr.front());
+    distanceEdgePairList.emplace_back(DistanceEdgePair(0.,Hit3DEdgePair(hit3DList.begin(),hit3DList.begin())));
+    
+    skeletonListPtr.front()->setStatusBit(reco::ClusterHit3D::SELECTEDBYMST);
+    
+    double largestDistance(0.);
+    double averageDistance(0.);
+    
+    // Now run the MST
+    // Basically, we loop until the MST list is the same size as the input list
+    while(hit3DList.size() < skeletonListPtr.size())
+    {
+        Hit3DList::iterator bestHit3DIter = hit3DList.begin();
+        double              bestDist      = 10000000.;
+        
+        // Loop through all hits currently in the list and look for closest hit not in the list
+        for(Hit3DList::iterator hit3DIter = hit3DList.begin(); hit3DIter != hit3DList.end(); hit3DIter++)
+        {
+            const reco::ClusterHit3D* hit3D = *hit3DIter;
+            
+            // For the given 3D hit, find the closest to it that is not already in the list
+            DistanceHit3DPairList& nearestList = hit3DToDistanceMap[hit3D];
+            
+            while(!nearestList.empty())
+            {
+                const reco::ClusterHit3D* hit3DToCheck = nearestList.front().second;
+                
+                if (!hit3DToCheck->bitsAreSet(reco::ClusterHit3D::SELECTEDBYMST))
+                {
+                    if (nearestList.front().first < bestDist)
+                    {
+                        bestHit3DIter = hit3DIter;
+                        bestDist      = nearestList.front().first;
+                    }
+                    
+                    break;
+                }
+                else nearestList.pop_front();
+            }
+        }
+        
+        if (bestDist > largestDistance) largestDistance = bestDist;
+        
+        averageDistance += bestDist;
+        
+        // Now we add the best hit not in the list to our list, keep track of the distance
+        // to the object it was closest to
+        const reco::ClusterHit3D* bestHit3D = *bestHit3DIter;                               // "best" hit already in the list
+        const reco::ClusterHit3D* nextHit3D = hit3DToDistanceMap[bestHit3D].front().second; // "next" hit we are adding to the list
+        
+        Hit3DList::iterator nextHit3DIter = hit3DList.insert(hit3DList.end(),nextHit3D);
+        
+        distanceEdgePairList.emplace_back(DistanceEdgePair(bestDist,Hit3DEdgePair(bestHit3DIter,nextHit3DIter)));
+        
+        nextHit3D->setStatusBit(reco::ClusterHit3D::SELECTEDBYMST);
+    }
+    
+    averageDistance /= double(hit3DList.size());
+    
+    double thirdDist = 2.*sqrt(clusterParameters.m_skeletonPCA.getEigenValues()[2]);
+    
+    // Ok, find the largest distance in the iterator map
+    distanceEdgePairList.sort(DistanceEdgePairOrder());
+    
+    DistanceEdgePairList::iterator largestDistIter = distanceEdgePairList.begin();
+    
+    for(DistanceEdgePairList::iterator edgeIter = distanceEdgePairList.begin(); edgeIter != distanceEdgePairList.end(); edgeIter++)
+    {
+        if (edgeIter->first < thirdDist) break;
+        
+        largestDistIter = edgeIter;
+    }
+    
+    reco::HitPairListPtr::iterator breakIter = largestDistIter->second.second;
+    reco::HitPairListPtr bestList;
+    
+    bestList.resize(std::distance(hit3DList.begin(), breakIter));
+    
+    std::copy(hit3DList.begin(), breakIter, bestList.begin());
+    
+    // Remove from the grand hit list and see what happens...
+    // The pieces below are incomplete and were really for testing only.
+    hitPairListPtr.sort();
+    bestList.sort();
+    
+    reco::HitPairListPtr::iterator newListEnd =
+    std::set_difference(hitPairListPtr.begin(), hitPairListPtr.end(),
+                        bestList.begin(),       bestList.end(),
+                        hitPairListPtr.begin() );
+    
+    hitPairListPtr.erase(newListEnd, hitPairListPtr.end());
+    
+    return;
+}
+
+class CopyIfInRange
+{
+public:
+    CopyIfInRange(double maxRange) : m_maxRange(maxRange) {}
+    
+    bool operator()(const reco::ClusterHit3D* hit3D)
+    {
+        return hit3D->getDocaToAxis() < m_maxRange;
+    }
+private:
+    double m_maxRange;
+};
+
+void Cluster3D::splitClustersWithHough(ClusterParameters&       clusterParameters,
+                                       reco::HitPairClusterMap& hitPairClusterMap,
+                                       ClusterParametersList&   clusterParametersList) const
+{
+    // @brief A method for splitted "crossed tracks" clusters into separate clusters
+    //
+    // If this routine is called then we believe we have a cluster which needs splitting.
+    // The specific topology we are looking for is two long straight tracks which cross at some
+    // point in close proximity so their hits were joined into a single 3D cluster. The method
+    // to split this topology is to let the hough transform algorithm find the two leading candidates
+    // and then to see if we use those to build two clusters instead of one.
+    
+    // Recover the hits we'll work on.
+    // Note that we use on the skeleton hits so will need to recover them
+    reco::HitPairListPtr& hitPairListPtr = clusterParameters.m_hitPairListPtr;
+    reco::HitPairListPtr  skeletonListPtr;
+    
+    // We want to work with the "skeleton" hits so first step is to call the algorithm to
+    // recover only these hits from the entire input collection
+    m_skeletonAlg.GetSkeletonHits(hitPairListPtr, skeletonListPtr);
+    
+    // Skeleton hits are nice but we can do better if we then make a pass through to "average"
+    // the skeleton hits position in the Y-Z plane
+    m_skeletonAlg.AverageSkeletonPositions(skeletonListPtr);
+    
+    // Define the container for our lists of hits
+    reco::HitPairListPtrList hitPairListPtrList;
+    
+    // Now feed this to the Hough Transform to find candidate straight lines
+    m_seedFinderAlg.findTrackHits(skeletonListPtr, clusterParameters.m_skeletonPCA, hitPairListPtrList);
+    
+    // We need at least two lists or else there is nothing to do
+    if (hitPairListPtrList.size() < 2) return;
+    
+    // The game plan will be the following:
+    // 1) Take the first list of hits and run the PCA on this to get an axis
+    //    - Then calculate the 3d doca for ALL hits in the cluster to this axis
+    //    - Move all hits within "3 sigam" of the axis to a new list
+    // 2) run the PCA on the second list of hits to get that axis
+    //    - Then calculate the 3d doca for all hits in our first list
+    //    - Copy hits in the first list which are within 3 sigma of the new axis
+    //      back into our original cluster - these are shared hits
+    reco::HitPairListPtrList::iterator hitPairListIter = hitPairListPtrList.begin();
+    reco::HitPairListPtr&              firstHitList    = *hitPairListIter++;
+    reco::PrincipalComponents          firstHitListPCA;
+    
+    m_pcaAlg.PCAAnalysis_3D(firstHitList, firstHitListPCA);
+    
+    // Make sure we have a successful calculation.
+    if (firstHitListPCA.getSvdOK())
+    {
+        // The fill routines below will expect to see unused 2D hits so we need to clear the
+        // status bits... and I am not sure of a better way...
+        for(const auto& hit3D : hitPairListPtr)
+        {
+            for(const auto& hit2D : hit3D->getHits()) hit2D->clearStatusBits(0x1);
+        }
+        
+        // Calculate the 3D doca's for the hits which were used to make this PCA
+        m_pcaAlg.PCAAnalysis_calc3DDocas(firstHitList, firstHitListPCA);
+        
+        // Divine from the ether some maximum allowed range for transfering hits
+        double allowedHitRange = 6. * firstHitListPCA.getAveHitDoca();
+        
+        // Now go through and calculate the 3D doca's for ALL the hits in the original cluster
+        m_pcaAlg.PCAAnalysis_calc3DDocas(hitPairListPtr, firstHitListPCA);
+        
+        // Get a new container for these hits, assume worst case that everything transfers
+        // We'll make this new cluster the last in the list
+        int newClusterKey = hitPairClusterMap.rbegin()->first + 1;
+        
+        reco::HitPairListPtr& newClusterHitList = hitPairClusterMap[newClusterKey];
+        
+        newClusterHitList.resize(hitPairListPtr.size());
+        
+        // Do the actual copy of the hits we want
+        reco::HitPairListPtr::iterator newListEnd =
+            std::copy_if(hitPairListPtr.begin(), hitPairListPtr.end(), newClusterHitList.begin(), CopyIfInRange(allowedHitRange));
+        
+        // Shrink to fit
+        newClusterHitList.resize(std::distance(newClusterHitList.begin(), newListEnd));
+        
+        // And now remove these hits from the original cluster
+        hitPairListPtr.remove_if(CopyIfInRange(allowedHitRange));
+        
+        // Let's make a new cluster from this set of hits
+        clusterParametersList.push_back(ClusterParameters(newClusterHitList));
+        
+        // Can we get a reference to what we just created?
+        ClusterParameters& newClusterParams = clusterParametersList.back();
+
+        // Now "fill" the cluster parameters but turn off the hit rejection
+        FillClusterParams(newClusterParams, 0., 1.);
+
+        // Set the skeleton pca to the value calculated above on input
+        clusterParameters.m_skeletonPCA = firstHitListPCA;
+
+        // We are done with splitting out one track. Because the two tracks cross in
+        // close proximity, this is the one case where we might consider sharing 3D hits
+        // So let's make a little detour here to try to copy some of those hits back into
+        // the main hit list
+        reco::HitPairListPtr&     secondHitList = *hitPairListIter;
+        reco::PrincipalComponents secondHitListPCA;
+        
+        m_pcaAlg.PCAAnalysis_3D(secondHitList, secondHitListPCA);
+        
+        // Make sure we have a successful calculation.
+        if (secondHitListPCA.getSvdOK())
+        {
+            // Calculate the 3D doca's for the hits which were used to make this PCA
+            m_pcaAlg.PCAAnalysis_calc3DDocas(secondHitList, secondHitListPCA);
+            
+            // Since this is the "other" cluster, we'll be a bit more generous in adding back hits
+            double newAllowedHitRange = 6. * secondHitListPCA.getAveHitDoca();
+            
+            // Go through and calculate the 3D doca's for the hits in our new candidate cluster
+            m_pcaAlg.PCAAnalysis_calc3DDocas(newClusterHitList, secondHitListPCA);
+            
+            // Create a temporary list to fill with the hits we might want to save
+            reco::HitPairListPtr tempHitList(newClusterHitList.size());
+            
+            // Do the actual copy of the hits we want...
+            reco::HitPairListPtr::iterator tempListEnd =
+                std::copy_if(newClusterHitList.begin(), newClusterHitList.end(), tempHitList.begin(), CopyIfInRange(newAllowedHitRange));
+
+            hitPairListPtr.insert(hitPairListPtr.end(), tempHitList.begin(), tempListEnd);
+        }
+ 
+        // Of course, now we need to modify the original cluster parameters
+        ClusterParameters originalParams(hitPairListPtr);
+        
+        // Now "fill" the cluster parameters but turn off the hit rejection
+        FillClusterParams(originalParams, 0., 1.);
+
+        // Overwrite original cluster parameters with our new values
+        clusterParameters.m_clusterParams = originalParams.m_clusterParams;
+        clusterParameters.m_fullPCA       = originalParams.m_fullPCA;
+        clusterParameters.m_skeletonPCA   = secondHitListPCA;
+    }
+
+    return;
+}
+    
+void Cluster3D::ProduceArtClusters(art::Event&              evt,
+                                   HitPairList&             hitPairVector,
+                                   reco::HitPairClusterMap& hitPairClusterMap,
+                                   ClusterParametersList&   clusterParametersList,
+                                   RecobHitToPtrMap&        hitToPtrMap) const
 {
     /**
      *  @brief The workhorse to take the candidate 3D clusters and produce all of the necessary art output
@@ -902,8 +1324,15 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
         int    spacePointID(0);
         
         // This is the loop over candidate 3D clusters
-        for(auto& clusterParameters : clusterParametersList)
+        // Note that it might be that the list of candidate clusters is modified by splitting
+        // So we use the following construct to make sure we get all of them
+        ClusterParametersList::iterator clusterParametersListItr = clusterParametersList.begin();
+        
+        while(clusterParametersListItr != clusterParametersList.end())
         {
+            // Dereference to get the cluster paramters
+            ClusterParameters& clusterParameters = *clusterParametersListItr++;
+            
             // It should be straightforward at this point to transfer information from our vector of clusters
             // to the larsoft objects... of course we still have some work to do first, in particular to
             // find the candidate seeds and their seed hits
@@ -927,21 +1356,37 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
             // of a standard medial skeleton procedure to get the 3D hits we want
             // But note that even this is hopeless in the worst case and, in fact, it can be a time waster
             // So bypass when you recognize that condition
-            if (!(fabs(fullPCA.getEigenVectors()[2][0]) > 0.999 && 3. * sqrt(fullPCA.getEigenValues()[1]) > 20.))
+            if (!aParallelHitsCluster(fullPCA))
             {
-                int nSkeletonPoints = m_skeletonAlg.FindMedialSkeleton(clusterParameters.m_hitPairClusterMapItr->second);
+                int nSkeletonPoints = m_skeletonAlg.FindMedialSkeleton(clusterParameters.m_hitPairListPtr);
             
                 // If enough skeleton points then rerun pca with only those
                 if (nSkeletonPoints > 10)
                 {
                     // Now rerun the principal components axis on just those points
-                    m_pcaAlg.PCAAnalysis_3D(clusterParameters.m_hitPairClusterMapItr->second, skeletonPCA, true);
+                    m_pcaAlg.PCAAnalysis_3D(clusterParameters.m_hitPairListPtr, skeletonPCA, true);
                 
                     // If there was a failure (can that happen?) then restore the full PCA
                     if (!skeletonPCA.getSvdOK()) skeletonPCA = fullPCA;
                 }
-            }
             
+                // Here we can try to handle a specific case. It can happen that two tracks (think CR muons here) pass so
+                // close together at some point to get merged into one cluster. Now that we have skeletonized the hits and
+                // have run the PCA on the skeleton points we can try to divide these two tracks. The signature will be that
+                // their are a large number of total hits, that the PCA will have a large spread in two dimensions. The
+                // spread in the third dimension will be an indicator of the actual separation between the two tracks
+                // which we might try to exploit in the actual algorithm.
+                // hardwire for now to see what is going on...
+                if (skeletonPCA.getNumHitsUsed() > 1000 && skeletonPCA.getEigenValues()[1] > 100. && fabs(skeletonPCA.getEigenVectors()[2][0]) < m_parallelHitsCosAng)
+                {
+                    mf::LogDebug("Cluster3D") << "--> Detected crossed axes!! Total # hits: " << fullPCA.getNumHitsUsed() <<
+                        "\n    Skeleton PCA # hits: " << skeletonPCA.getNumHitsUsed() << ", eigenValues: " <<
+                        skeletonPCA.getEigenValues()[0] << ", " <<skeletonPCA.getEigenValues()[1] << ", " <<skeletonPCA.getEigenValues()[2] << std::endl;
+                    
+                    splitClustersWithHough(clusterParameters, hitPairClusterMap, clusterParametersList);
+                }
+            }
+        
             // Start loop over views to build out the hit lists and the 2D cluster objects
             for(ViewToClusterParamsMap::const_iterator viewItr = clusterParameters.m_clusterParams.begin(); viewItr != clusterParameters.m_clusterParams.end(); viewItr++)
             {
@@ -952,7 +1397,7 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
                 
                 for(HitVectorConst::const_iterator hitItr = clusParams.m_hitVector.begin(); hitItr != clusParams.m_hitVector.end(); hitItr++)
                 {
-                    art::Ptr<recob::Hit> hitPtr = m_hitToPtrMap[&(*hitItr)->getHit()];
+                    art::Ptr<recob::Hit> hitPtr = hitToPtrMap[&(*hitItr)->getHit()];
                     recobHits.push_back(hitPtr);
                 }
                 
@@ -1019,10 +1464,12 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
                 
                 // override the end angles: instead of using the standard
                 // algorithm, we use a precomputed value
+                double tan_dTdW(std::tan(dTdW));
+                
                 ClusterParamAlgo.OverrideParameter
-                  (OverriddenClusterParamsAlg_t::cpStartAngle, std::tan(dTdW));
+                  (OverriddenClusterParamsAlg_t::cpStartAngle, tan_dTdW);
                 ClusterParamAlgo.OverrideParameter
-                  (OverriddenClusterParamsAlg_t::cpEndAngle, std::tan(dTdW));
+                  (OverriddenClusterParamsAlg_t::cpEndAngle, tan_dTdW);
                 
                 // create the recob::Cluster directly in the vector
                 cluster::ClusterCreator artCluster(
@@ -1049,14 +1496,14 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
             
             // Deal with converting the Hit Pairs to art
             // Recover the hit pairs and start looping! Love to loop!
-            reco::HitPairListPtr& clusHitPairVector = clusterParameters.m_hitPairClusterMapItr->second;
+            reco::HitPairListPtr& clusHitPairVector = clusterParameters.m_hitPairListPtr;
             
             // Last, let's try to get seeds for tracking..
             // Keep track of how many we have so far
             size_t numSeedsStart = artSeedVector->size();
             
             // Call the magical algorith to do the dirty work
-            findTrackSeeds(evt, clusterParameters, *artSeedVector, *artSeedHitAssociations);
+            findTrackSeeds(evt, clusterParameters, hitToPtrMap, *artSeedVector, *artSeedHitAssociations);
             
             // Right now error matrix is uniform...
             double spError[] = {1., 0., 1., 0., 0., 1.};
@@ -1068,20 +1515,20 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
             for (auto& hitPair : clusHitPairVector)
             {
                 // Don't make space point if this hit was "rejected"
-                if (hitPair->getStatusBits() & 0x80000000) continue;
+                if (hitPair->bitsAreSet(reco::ClusterHit3D::REJECTEDHIT)) continue;
                 
                 double chisq = 1.;    // secret handshake...
                 
-                if      ((hitPair->getStatusBits() & 0x30000000) == 0x10000000) chisq = -1.;  // pure skeleton point
-                else if ((hitPair->getStatusBits() & 0x30000000) == 0x20000000) chisq = -2.;  // pure edge point
-                else if ((hitPair->getStatusBits() & 0x30000000) == 0x30000000) chisq = -3.;  // both skeleton and edge
+                if      ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) && !hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -1.;  // pure skeleton point
+                else if (!hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -2.;  // pure edge point
+                else if ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -3.;  // skeleton and edge point
 
-                if      ((hitPair->getStatusBits() & 0x40000000) == 0x40000000) chisq = -4.;  // Seed point
+                if      (hitPair->bitsAreSet(reco::ClusterHit3D::SEEDHIT)                                                          ) chisq = -4.;  // Seed point
                 
                 if (hitPair->getHits().size() < 3) chisq = -10.;
                 
                 // Mark this hit pair as in use
-                hitPair->setStatusBit(0x800000);
+                hitPair->setStatusBit(reco::ClusterHit3D::MADESPACEPOINT);
                 double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
                 artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, spacePointID++));
             }
@@ -1138,9 +1585,7 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
     // Run through the HitPairVector and add any unused hit pairs to the list
     for(auto& hitPair : hitPairVector)
     {
-        unsigned statusBits = hitPair->getStatusBits();
-        
-        if (!(statusBits & 0x800000))
+        if (!hitPair->bitsAreSet(reco::ClusterHit3D::MADESPACEPOINT))
         {
             double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
             artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, 1., spacePointID++));
@@ -1163,6 +1608,5 @@ void Cluster3D::ProduceArtClusters(art::Event &evt, HitPairList& hitPairVector, 
     
     return;
 }
-
 
 } // namespace lar_cluster3d

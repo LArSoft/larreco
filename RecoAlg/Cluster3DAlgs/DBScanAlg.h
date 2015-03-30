@@ -41,7 +41,7 @@ public:
     void setCount(int count)  {m_count     = count;}
     
     void clearVisited()                   const {m_visited   = false;}
-    void incrementCount(size_t count = 1) const {m_count += count;}
+    void incrementCount(size_t count = 1) const {m_count    += count;}
         
     bool   visited()   const {return m_visited;}
     bool   isNoise()   const {return m_noise;}

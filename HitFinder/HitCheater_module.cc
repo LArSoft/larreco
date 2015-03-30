@@ -174,6 +174,8 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
     if( fReadOutWindowSize != fNumberTimeSamples ) {
       if( tdc < spill*fReadOutWindowSize || 
           tdc > (spill+1)*fReadOutWindowSize )  continue;
+     } else {
+      if ( tdc < 0 || tdc > fReadOutWindowSize) continue;
     }
     
     // figure out which TPC we are in for each voxel

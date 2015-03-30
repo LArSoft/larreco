@@ -50,6 +50,9 @@ extern "C" {
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 #include "CLHEP/Random/JamesRandom.h"
 
+// art extensions
+#include "artextensions/SeedService/SeedService.hh"
+
 // LArSoft includes 
 #include "RawData/RawDigit.h"
 #include "RecoBase/Cluster.h"
@@ -57,7 +60,6 @@ extern "C" {
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/HoughBaseAlg.h"
 #include "art/Framework/Core/EDProducer.h"
-#include "Utilities/SeedCreator.h"
 
 //#ifndef CLUSTER_HOUGHLINEFINDER_H
 //#define CLUSTER_HOUGHLINEFINDER_H
@@ -83,7 +85,7 @@ namespace cluster {
   private:
 
     std::string fDBScanModuleLabel;    
-    long int fHoughSeed;
+    unsigned int fHoughSeed;
 
     HoughBaseAlg fHLAlg;            ///< object that does the Hough Transform
   
@@ -106,8 +108,12 @@ namespace cluster {
     produces< std::vector<recob::Cluster> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     
-    // Create random number engine needed for PPHT
-    createEngine(SeedCreator::CreateRandomNumberSeed(),"HepJamesRandom");
+    // Create random number engine needed for PPHT;
+    // obtain the random seed from SeedService,
+    // unless overridden in configuration with key "Seed"
+    // remember that HoughSeed will override this on each event if specified
+    art::ServiceHandle<artext::SeedService>()
+      ->createEngine(*this, pset, "Seed");
   }
   
   //------------------------------------------------------------------------------
@@ -119,7 +125,7 @@ namespace cluster {
   void HoughLineFinder::reconfigure(fhicl::ParameterSet const& p)
   {
     fDBScanModuleLabel = p.get< std::string >("DBScanModuleLabel");
-    fHoughSeed = p.get< long int >("HoughSeed");
+    fHoughSeed = p.get< unsigned int >("HoughSeed", 0);
     fHLAlg.reconfigure(p.get< fhicl::ParameterSet >("HoughBaseAlg"));
   }
   

@@ -164,6 +164,8 @@ namespace trkf{
     else
        Momentum = TMath::Sqrt((KE*KE)+(2*M*KE));
        
+    Momentum = Momentum/1000;  
+       
     return Momentum;       	  		 	     			  
   }
   

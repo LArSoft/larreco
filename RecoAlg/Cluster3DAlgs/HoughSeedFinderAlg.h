@@ -48,13 +48,20 @@ public:
      *  @brief a handler for the case where the algorithm control parameters are to be reset
      */
     virtual void reconfigure(fhicl::ParameterSet const &pset);
-
+    
     /**
      *  @brief Given the list of hits this will search for candidate Seed objects and return them
      */
     virtual bool findTrackSeeds(reco::HitPairListPtr&      hitPairListPtr,
                                 reco::PrincipalComponents& inputPCA,
-                                SeedHitPairListPairVec&    seedHitPairVec);
+                                SeedHitPairListPairVec&    seedHitPairVec) const;
+    
+    /**
+     *  @brief Given the list of hits this will return the sets of hits which belong on the same line
+     */
+    virtual bool findTrackHits(reco::HitPairListPtr&      hitPairListPtr,
+                               reco::PrincipalComponents& inputPCA,
+                               reco::HitPairListPtrList&  hitPairListPtrList) const;
 
 private:
     
@@ -94,34 +101,35 @@ private:
                            reco::PrincipalComponents&  pca,
                            int&                        nLoops,
                            RhoThetaAccumulatorBinMap&  rhoThetaMap,
-                           HoughClusterList&           clusterList);
+                           HoughClusterList&           clusterList) const;
     
     /**
      *  @brief Given a list of candidate "seed" 3D hits, build the seed and get associated unique 2D hits
      */
     bool buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPairListPair& seedHitPair) const;
 
+    void LineFit2DHits(std::set<const reco::ClusterHit2D*>& hitList, double XOrigin, TVector3& Pos, TVector3& Dir, double& ChiDOF) const;
     
-    size_t                                 m_minimum3DHits;      ///<
-    int                                    m_thetaBins;          ///<
-    int                                    m_rhoBins;            ///<
-    size_t                                 m_hiThresholdMin;     ///<
-    double                                 m_hiThresholdFrac;    ///<
-    double                                 m_loThresholdFrac;    ///<
-    size_t                                 m_numSeed2DHits;      ///<
-    double                                 m_numAveDocas;        ///<
-    int                                    m_numSkippedHits;     ///<
-    int                                    m_maxLoopsPerCluster; ///<
-    double                                 m_maximumGap;         ///<
+    size_t                                         m_minimum3DHits;      ///<
+    int                                            m_thetaBins;          ///<
+    int                                            m_rhoBins;            ///<
+    size_t                                         m_hiThresholdMin;     ///<
+    double                                         m_hiThresholdFrac;    ///<
+    double                                         m_loThresholdFrac;    ///<
+    size_t                                         m_numSeed2DHits;      ///<
+    double                                         m_numAveDocas;        ///<
+    int                                            m_numSkippedHits;     ///<
+    int                                            m_maxLoopsPerCluster; ///<
+    double                                         m_maximumGap;         ///<
 
-    geo::Geometry*                         m_geometry;           // pointer to the Geometry service
-    util::DetectorProperties*              m_detector;           // Pointer to the detector properties
+    geo::Geometry*                                 m_geometry;           // pointer to the Geometry service
+    util::DetectorProperties*                      m_detector;           // Pointer to the detector properties
     
-    PrincipalComponentsAlg                 m_pcaAlg;             // For running Principal Components Analysis
+    PrincipalComponentsAlg                         m_pcaAlg;             // For running Principal Components Analysis
     
-    bool                                   m_displayHist;
-    std::vector<std::unique_ptr<TCanvas> > m_Canvases;           ///< Graphical trace canvases.
-    std::vector<TVirtualPad*>              m_Pads;               ///< View pads in current canvas.
+    bool                                           m_displayHist;
+    mutable std::vector<std::unique_ptr<TCanvas> > m_Canvases;           ///< Graphical trace canvases.
+    mutable std::vector<TVirtualPad*>              m_Pads;               ///< View pads in current canvas.
 };
 
 } // namespace lar_cluster3d

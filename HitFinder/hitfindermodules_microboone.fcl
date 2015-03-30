@@ -6,8 +6,10 @@ microboone_hitfinder:     @local::standard_hitfinder
 microboone_gaushitfinder: @local::gaus_hitfinder
 microboone_hitfinder.IndMinWidth: 1.0
 microboone_hitfinder.ColMinWidth: 1.0
-microboone_gaushitfinder.IndMinWidth: 1.0
-microboone_gaushitfinder.ColMinWidth: 1.0
+microboone_gaushitfinder.MinSig: [ 6.0, 6.0, 11.0 ]
+microboone_gaushitfinder.InitWidth: [ 6.0, 6.0, 7.8 ]
+microboone_gaushitfinder.MinWidth:  [ 4.0, 4.0, 6.0 ]
+microboone_gaushitfinder.AreaNorms: [ 13.25, 13.25, 26.31 ]
 
 microboone_rffhitfinder: @local::rff_hitfinder
 

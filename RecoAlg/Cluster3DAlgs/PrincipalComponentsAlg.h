@@ -65,6 +65,8 @@ public:
     
     void PCAAnalysis_calc3DDocas(const reco::HitPairListPtr& hitPairVector, const reco::PrincipalComponents& pca)                         const;
     
+    void PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr& hit2DVector, const reco::PrincipalComponents& pca)                             const;
+    
     int  PCAAnalysis_reject2DOutliers(const reco::HitPairListPtr& hitPairVector, reco::PrincipalComponents& pca, double aveHitDoca)       const;
     
     int  PCAAnalysis_reject3DOutliers(const reco::HitPairListPtr& hitPairVector, const reco::PrincipalComponents& pca, double aveHitDoca) const;

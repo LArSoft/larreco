@@ -72,8 +72,6 @@ namespace hit {
     // int          fPostsample;            ///< number of postsample bins
     std::string  fDigitModuleLabel;     ///< module that made digits (constants)
     std::string  fSpillName;           ///< nominal spill is an empty string
-    ///< it is set by the DigitModuleLabel
-    ///< ex.:  "daq:preSpill" for prespill data
 
     //FFT Copied Variables
     
@@ -145,7 +143,7 @@ namespace hit {
   void RawHitFinder::endJob()
   {  
   }
-  
+
   void RawHitFinder::produce(art::Event& evt)
   {      
     
@@ -175,10 +173,17 @@ namespace hit {
     std::vector<float> maxTimes;    	     // stores time of local maximum    
     std::vector<float> endTimes;    	     // stores time of 2nd local minimum
     std::vector<float> peakHeight;    	     // stores time of 2nd local minimum
+   
+    
+   
+    std::vector<double> charge;         // stores the total charge assoc. with the hit (from the fit)
+    
+    
     uint32_t channel      = 0;              // channel number
 
-
+   
     double threshold       = 0.;             // minimum signal size for id'ing a hit
+    double totSig = 0;
     // double fitWidth        = 0.;             // hit fit width initial value
     // double minWidth        = 0.;             // minimum hit width
     geo::SigType_t sigType = geo::kInduction;// type of plane we are looking at
@@ -190,7 +195,7 @@ namespace hit {
     for(size_t rdIter = 0; rdIter < digitVecHandle->size(); ++rdIter){ // ++ move
       holder.clear();
       
-	// get the reference to the current raw::RawDigit
+      // get the reference to the current raw::RawDigit
       art::Ptr<raw::RawDigit> digitVec(digitVecHandle, rdIter);
       channel =  digitVec->Channel();
       fDataSize = digitVec->Samples();
@@ -213,17 +218,23 @@ namespace hit {
       endTimes.clear();
       startTimes.clear();
       maxTimes.clear();
+      charge.clear();
 
 
-      //Set the appropriate signal widths and thresholds
+    // ###############################################
+    // ###             Induction Planes            ###
+    // ###############################################
+
       if(sigType == geo::kInduction){
 	threshold = fMinSigInd;
+	//	std::cout<< "Threshold is " << threshold << std::endl;
 	// fitWidth = fIndWidth;
 	// minWidth = fIndMinWidth;
 	//	continue;
 	float negthr=-1.0*threshold;
 	unsigned int bin =1;
 	float minadc=0;
+	
       	
 	// find the dips
 	while (bin<fDataSize) {  // loop over ticks
@@ -233,23 +244,23 @@ namespace hit {
 	    // step back to find zero crossing
 	    unsigned int place = bin;
 	    while (thisadc<0 && bin>0) {
-	      //std::cout << bin << " " << thisadc << std::endl;
+	      //  std::cout << bin << " " << thisadc << std::endl;
 	      bin--;
 	      thisadc=holder[bin];
 	    }
 	    float hittime = bin+thisadc/(thisadc-holder[bin+1]);
 	    maxTimes.push_back(hittime);
+
 	    // step back more to find the hit start time
 	    while (thisadc<threshold && bin>0) {
-	      //std::cout << bin << " " << thisadc << std::endl;
+	      //  std::cout << bin << " " << thisadc << std::endl;
 	      bin--;
 	      thisadc=holder[bin];
 	    }
 	    if (bin>=2) bin-=2;
-	    //	    std::cout << bin << " " << thisadc << std::endl;	    bin--;  
-	    //	    std::cout << bin << " " << thisadc << std::endl;	    bin--;  
 	    while (thisadc>threshold && bin>0) {
-	      //std::cout << bin << " " << thisadc << std::endl;
+	      
+	      //  std::cout << bin << " " << thisadc << std::endl;
 	      bin--;
 	      thisadc=holder[bin];
 	    }
@@ -258,22 +269,37 @@ namespace hit {
 	    bin=place; 	      
 	    thisadc=holder[bin];
 	    minadc=thisadc;
+
+	    totSig = 0;
 	    while (thisadc<negthr && bin<fDataSize) {
-	      //	      std::cout << bin << " " << thisadc << std::endl;
+	      //  std::cout << bin << " " << thisadc << std::endl;
+	      totSig += fabs(thisadc); 
 	      bin++;
 	      thisadc=holder[bin];
+	      //    std::cout << "ADC VALUE INDUCTION" << thisadc << std::endl;
 	      if (thisadc<minadc) minadc=thisadc;		
 	    }
 	    endTimes.push_back(bin-1);
 	    peakHeight.push_back(-1.0*minadc);
+	    charge.push_back(totSig);
+	    //std::cout << "TOTAL SIGNAL INDUCTION " << totSig << std::endl; 
+	    // std::cout << "filled end times " << bin-1 << "peak height vector size " << peakHeight.size() << std::endl;
+	    
+	    // don't look for a new hit until it returns to baseline
 	    while (thisadc<0 && bin<fDataSize) {
-	      //	      std::cout << bin << " " << thisadc << std::endl;
-	      bin++;
+	    //   std::cout << bin << " " << thisadc << std::endl;
+	       bin++;
+	       thisadc=holder[bin];
 	    }
-	  }// end region
+	  } // end region
 	  bin++;	  
 	}// loop over ticks
       }
+
+    // ###############################################
+    // ###             Collection Plane            ###
+    // ###############################################    
+
       else if(sigType == geo::kCollection){
 	threshold = fMinSigCol;
 	// fitWidth  = fColWidth;
@@ -282,13 +308,18 @@ namespace hit {
 	//find local maxima
 	float madc=threshold;
 	int ibin=0;
+	//	int nohits = 0;
 	unsigned int bin =0;
+	int start = 0;
+	int end = 0;
       	
 	while (bin<fDataSize) {
 	  float thisadc = holder[bin];
 	  madc=threshold;
 	  if (thisadc>madc) { // new region
 	    startTimes.push_back(bin);
+	    start = bin;
+	    
 	    while (thisadc>madc && bin<fDataSize) {
 	      madc=thisadc; ibin=bin;
 	      bin++;
@@ -296,17 +327,36 @@ namespace hit {
 	    }
 	    maxTimes.push_back(ibin-1);
 	    peakHeight.push_back(madc);
+	    
+
 	    while (thisadc>threshold && bin<fDataSize) {
 	      bin++;
 	      thisadc=holder[bin];
 	    }
 	    endTimes.push_back(bin-1);
+	    end = bin-1;
+
+	    totSig = 0;
+	  
+	    for (int i = start; i <= end; i++){
+	      // std::cout << "CHARGE ON ADC####################### " << holder[i] << std::endl;
+	     totSig += holder[i];
+	    	}
+	    charge.push_back(totSig);
+
+	    //  nohits++;
+	    
+	    
 	  }// end region
+	  //nohits = 0;
+	  start = 0;
+	  end = 0;
 	  bin++;
 	}
+
       }
       //      std::cout << "channel " << channel << "hits found  " <<  maxTimes.size() << std::endl;
-      double totSig(0); // stores the total hit signal
+     
       int numHits(0);   // number of consecutive hits being fitted
       int hitIndex(0);  // index of current hit in sequence
       //      double amplitude(0), position(0), width(0);  //fit parameters
@@ -314,32 +364,34 @@ namespace hit {
       double start(0), end(0);
       double amplitudeErr(0), positionErr(0);  //fit errors
       double goodnessOfFit(0), chargeErr(0);  //Chi2/NDF and error on charge
-      std::vector<double>  hitSig;
+      
+      
       
       numHits = maxTimes.size();
       for (int i=0;i<numHits;++i) {
 	//	int index = int(maxTimes[i]+0.5);
-	// std::cout << channel << " " << i+1 << " " << maxTimes[i] << " " <<
-	//   startTimes[i] << " " << endTimes[i] 
-	// 	  << " " << peakHeight[i] << std::endl;
+	// std::cout << " Channel " << channel << " Hit " << i+1 << " Max Time " << maxTimes[i] << " Start Time " <<
+	//   startTimes[i] << " End Time " << endTimes[i] << " Peak Height " << peakHeight[i] << " Charge " << charge[i] << std::endl;
 	
 	//	amplitude     = holder[index];
 	amplitude     = peakHeight[i];
 	position      = maxTimes[i];
 	start         = startTimes[i];
-	end         = endTimes[i];
+	end           = endTimes[i];
 	amplitudeErr  = -1;
 	positionErr   = 1.0;
 	goodnessOfFit = -1;
 	chargeErr = -1;
+	totSig = charge[i];
+
 	
 	// hitSig.resize(3);
-	
+ 	
 	// for(int sigPos = 0; sigPos < 3; ++sigPos){
 	//   hitSig[sigPos] = holder[position-1+sigPos];
 	// }              	    
 	
-	// totSig = -1;
+
 	
 	// get the WireID for this hit
 	std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
@@ -352,24 +404,24 @@ namespace hit {
 	}
 	  
 	recob::HitCreator hit(
-	  *digitVec,        // raw digit reference
-	  wid,              // wire ID
-	  start,            // start_tick FIXME
-	  end,              // end_tick FIXME
-	  -1.,              // rms FIXME
-	  position,         // peak_time
-	  positionErr,      // sigma_peak_time
-	  amplitude,        // peak_amplitude
-	  amplitudeErr,     // sigma_peak_amplitude
-	  totSig,           // hit_integral
-	  chargeErr,        // hit_sigma_integral
-	  std::accumulate   // summedADC FIXME
-	    (holder.begin() + (int) start, holder.begin() + (int) end, 0.),
-	  1,                // multiplicity FIXME
-	  -1,               // local_index FIXME
-	  goodnessOfFit,    // goodness_of_fit
-	  int(end - start)  // dof
-	  );
+			      *digitVec,        // raw digit reference
+			      wid,              // wire ID
+			      start,            // start_tick FIXME
+			      end,              // end_tick FIXME
+			      1.,              // rms FIXME
+			      position,         // peak_time
+			      positionErr,      // sigma_peak_time
+			      amplitude,        // peak_amplitude
+			      amplitudeErr,     // sigma_peak_amplitude
+			      totSig,           // hit_integral
+			      chargeErr,        // hit_sigma_integral
+			      std::accumulate   // summedADC FIXME
+			      (holder.begin() + (int) start, holder.begin() + (int) end, 0.), 
+			      1,                // multiplicity FIXME
+			      -1,               // local_index FIXME
+			      goodnessOfFit,    // goodness_of_fit
+			      int(end - start)  // dof
+			      );
 	hcol.emplace_back(hit.move(), digitVec);
 	++hitIndex;
       }//end loop over hits

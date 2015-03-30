@@ -48,9 +48,6 @@
 #include <TMatrixT.h>
 
 
-#include "CLHEP/Random/RandFlat.h"
-#include "CLHEP/Random/RandGaussQ.h"
-
 #include <vector>
 #include <string>
 
@@ -64,7 +61,6 @@
 #include "TMath.h"
 #include "TPrincipal.h"
 #include "TDatabasePDG.h"
-#include "Utilities/AssociationUtil.h"
 
 class StitchAlg;
 
@@ -111,11 +107,6 @@ namespace trkf {
     produces<art::Assns<recob::Track, recob::Hit>        >();
     produces<art::Assns<recob::Track, recob::SpacePoint> >();
     produces<art::Assns<recob::SpacePoint, recob::Hit>   >();
-    // get the random number seed, use a random default if not specified    
-    // in the configuration file.  
-    unsigned int seed = pset.get< unsigned int >("Seed", sim::GetRandomNumberSeed());
-
-    createEngine( seed );
 
   }
 
