@@ -2636,7 +2636,7 @@ namespace cluster {
     myprt<<"  ID CTP nht Stop  Proc  beg_W:T  bTheta"
       <<" begChg end_W:T  eTheta eChg  bVx  eVx aveRMS\n";
     for(unsigned short ii = 0; ii < tcl.size(); ++ii) {
-      if(fDebugPlane >= 0 && fDebugPlane != (int) tcl[ii].CTP) continue;
+      if(fDebugPlane >= 0 && fDebugPlane != (int) DecodeCTP(tcl[ii].CTP).Plane) continue;
       myprt<<std::right<<std::setw(4)<<tcl[ii].ID;
       myprt<<std::right<<std::setw(3)<<tcl[ii].CTP;
       myprt<<std::right<<std::setw(5)<<tcl[ii].tclhits.size();
