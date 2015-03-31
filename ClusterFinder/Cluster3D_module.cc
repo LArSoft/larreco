@@ -1420,6 +1420,7 @@ void Cluster3D::ProduceArtClusters(art::Event&              evt,
                     midWire = 1.*m_geometry->NearestWire(skeletonPCA.getAvePosition(), clusParams.m_view);
                 } catch (cet::exception& e)
                 {
+                    mf::LogWarning("Cluster3D") << "Exception caught finding nearest wire, position - " << e.what() << std::endl;
                     midWire  = skeletonPCA.getAvePosition()[2];
                     midWire /= wirePitch;
                 }

@@ -336,8 +336,7 @@ size_t DBScanAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, ViewTo
                         bool hitInVNotFound(true);
                         
                         // Recover the WireID nearest in the V plane to the position of the pair
-                        try {
-                        const geo::WireID wireIDV = m_geometry->NearestWireID(pair.getPosition(), geo::kV);
+                        const geo::WireID wireIDV = NearestWireID(pair.getPosition(), geo::kV);
                             
                         // We believe the code that returns the ID is offset by one
                         WireToHitSetMap::iterator wireToHitSetMapVItr = viewToWireToHitSetMap[geo::kV].find(wireIDV.Wire);
@@ -443,10 +442,6 @@ size_t DBScanAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, ViewTo
                                 hitPairList.emplace_back(std::unique_ptr<reco::ClusterHit3D>(new reco::ClusterHit3D(pair)));
                             }
                         }
-                        } catch(...)
-                        {
-                            std::cout << "-->NearestWireID throws an exception! position: " << pair.getPosition()[0] << "," << pair.getPosition()[1] << "," << pair.getPosition()[2] << std::endl;
-                        }
                     }
                 }
             }
@@ -504,7 +499,7 @@ size_t DBScanAlg::BuildNeighborhoodMap(HitPairList& hitPairList, EpsPairNeighbor
             pairOWireV = hitPairO->getHits()[1]->getHit().WireID().Wire;
         else
         {
-            const geo::WireID wireIDV = m_geometry->NearestWireID(hitPairO->getPosition(), geo::kV);
+            const geo::WireID wireIDV = NearestWireID(hitPairO->getPosition(), geo::kV);
             
             pairOWireV = wireIDV.Wire;
         }
@@ -530,7 +525,7 @@ size_t DBScanAlg::BuildNeighborhoodMap(HitPairList& hitPairList, EpsPairNeighbor
                 pairIWireV = hitPairI->getHits()[1]->getHit().WireID().Wire;
             else
             {
-                const geo::WireID wireIDV = m_geometry->NearestWireID(hitPairI->getPosition(), geo::kV);
+                const geo::WireID wireIDV = NearestWireID(hitPairI->getPosition(), geo::kV);
                 
                 pairIWireV = wireIDV.Wire;
             }
@@ -996,6 +991,26 @@ int DBScanAlg::FindNumberInRange(const Hit2DSet& hit2DSet, const reco::ClusterHi
     return numberInRange;
 }
 
+geo::WireID DBScanAlg::NearestWireID(const double* position, const geo::View_t& view) const
+{
+    geo::WireID wireID(0,view,0,0);
+    
+    // Embed the call to the geometry's services nearest wire id method in a try-catch block
+    try {
+        wireID =  m_geometry->NearestWireID(position, view);
+    }
+    catch(std::exception& exc)
+    {
+        // This can happen, almost always because the coordinates are **just** out of range
+        mf::LogWarning("Cluster3D") << "Exception caught finding nearest wire, position - " << exc.what() << std::endl;
+        
+        // Assume extremum for wire number depending on z coordinate
+        if (position[2] < 0.5 * m_geometry->DetLength()) wireID.Wire = 0;
+        else                                             wireID.Wire = m_geometry->Nwires(view) - 1;
+    }
+    
+    return wireID;
+}
     
 
 } // namespace lar_cluster3d

@@ -177,6 +177,12 @@ private:
      */
     size_t BuildNeighborhoodMap(HitPairList& hitPairList, EpsPairNeighborhoodMapVec& epsPairNeighborhoodMapVec) const;
     
+    /** 
+     *  @brief Jacket the calls to finding the nearest wire in order to intercept the exceptions if out of range
+     */
+    geo::WireID NearestWireID(const double* position, const geo::View_t& view) const;
+
+    
     /**
      *  @brief Data members to follow
      */
