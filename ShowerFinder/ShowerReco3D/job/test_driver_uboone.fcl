@@ -23,13 +23,13 @@ physics:
 
  producers: 
  { 
-#   showerreco:      @local::showerreco3d_uboone
+   showerreco:      @local::showerreco3d_uboone
    pandoraNuShower: @local::showerreco3d_uboone_pandora
  }
 
  analyzers:
  {
-#   showerrecoQuality:      @local::showerquality_uboone
+   showerrecoQuality:      @local::showerquality_uboone
    pandoraNuShowerQuality: @local::showerquality_uboone
  }
 
@@ -58,3 +58,4 @@ outputs:
 physics.analyzers.showerrecoQuality.ShowerProducer: "showerreco"
 
 physics.analyzers.pandoraNuShowerQuality.ShowerProducer: "pandoraNuShower"
+

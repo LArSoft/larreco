@@ -77,6 +77,7 @@ public:
     if(!h.isValid()) {
       std::string msg;
       msg += "Could not find a data product by: " + producer;
+      std::cout<<msg.c_str()<<std::endl;
       throw showerreco::ShowerRecoException(msg);
     }
     return h;
@@ -172,15 +173,15 @@ ShowerQuality::ShowerQuality(fhicl::ParameterSet const & p)
  // More initializers here.
 {
 
+  //fShowerProducer   = "";
+  //fMCShowerProducer = "";
+  //fSimChannelProducer = "";
   SetShowerProducer(p.get<std::string>("ShowerProducer"));
   SetMCShowerProducer(p.get<std::string>("MCShowerProducer"));
   SetSimChannelProducer(p.get<std::string>("SimChannelProducer"));
   SetMinEnergyCut(p.get<double>("MCShowerEnergyMin"));
   SetMaxEnergyCut(p.get<double>("MCShowerEnergyMax"));
 
-  fShowerProducer   = "";
-  fMCShowerProducer = "";
-  fSimChannelProducer = "";
   hMatchCorrectness = nullptr;
   
   hVtxDX = nullptr;
@@ -214,6 +215,7 @@ void ShowerQuality::beginJob()
     msg += "\033[93m[ERROR]\033[00m <<";
     msg += __FUNCTION__;
     msg += ">> Producer's name not set!";
+    std::cout<<msg.c_str()<<std::endl;
     throw ::showerreco::ShowerRecoException(msg.c_str());
   }
 
