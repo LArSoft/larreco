@@ -176,15 +176,15 @@ namespace cluster {
     fPO2MinHits = p.get<int>("PO2MinHits");
     
     fPSD2MinHits = p.get<int>("PSD2MinHits");
-    fPSD2MaxHits = p.get<int>("fPSD2MaxHits");
-    fPSD2MinDistSqd = p.get<double>("fPSD2MinDistSqd");
+    fPSD2MaxHits = p.get<int>("PSD2MaxHits");
+    fPSD2MinDistSqd = p.get<double>("PSD2MinDistSqd");
  
  
     
     //--- Configure Merging Algorithm ---//
    
 
-  fCMerge.GetManager(0).MergeTillConverge(true);
+    fCMerge.GetManager(0).MergeTillConverge(true);
     //fCMerge.GetManager(0).DebugMode(::cmtool::CMergeManager::kPerIteration);
 
     // Prohibit algorithms    

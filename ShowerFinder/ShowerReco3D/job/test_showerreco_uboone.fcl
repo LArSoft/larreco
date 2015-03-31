@@ -33,9 +33,9 @@ physics:
    pandoraNuShowerQuality: @local::showerquality_uboone
  }
 
- reco: [ pandoraNuShower ]
+ reco: [ showerreco, pandoraNuShower ]
 
- ana:  [ pandoraNuShowerQuality ]
+ ana:  [ showerrecoQuality, pandoraNuShowerQuality ]
 
  end_paths:     [ analyzeIt ]
 
