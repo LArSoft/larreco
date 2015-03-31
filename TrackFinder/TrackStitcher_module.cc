@@ -163,26 +163,26 @@ namespace trkf {
     art::Handle< std::vector < recob::SpacePoint > > sppth;
     try
       {
-	mf::LogWarning("TrackStitcher_module: Trying to read Track3DKalmanXYZ-style PtrVector of std::vector of SpacePoints") ;
-	art::Handle< std::vector < art::PtrVector <recob::SpacePoint> > > sppth;
-	evt.getByLabel(fSpptModuleLabel, sppth);
-	for (size_t ii=0; ii<sppth->size() ;ii++)
-	  for (size_t jj=0; jj<sppth->at(ii).size() ;ii++) 
-	    {
-	      art::Ptr<recob::SpacePoint> sptmp(sppth->at(ii).at(jj));
-	      scol->push_back(sptmp );
-	    }
+          mf::LogWarning("TrackStitcher") << "Trying to read Track3DKalmanXYZ-style PtrVector of std::vector of SpacePoints" << std::endl;
+          art::Handle< std::vector < art::PtrVector <recob::SpacePoint> > > sppth;
+          evt.getByLabel(fSpptModuleLabel, sppth);
+          for (size_t ii=0; ii<sppth->size() ;ii++)
+            for (size_t jj=0; jj<sppth->at(ii).size() ;ii++)
+            {
+                art::Ptr<recob::SpacePoint> sptmp(sppth->at(ii).at(jj));
+                scol->push_back(sptmp );
+            }
       }
     catch(...)
       {
-	mf::LogWarning("TrackStitcher_module: Trying instead to read CosmicTracker-style already-flattened vector of SpacePoints") ;
-	art::Handle< std::vector < recob::SpacePoint > > sppthf;
-	evt.getByLabel(fSpptModuleLabel, sppthf);
-	for (size_t ii=0; ii<sppthf->size() ;ii++)
-	    {
-	      art::Ptr<recob::SpacePoint> sptmpf(sppthf,ii);
-	      scol->push_back(sptmpf);
-	    }
+          mf::LogWarning("TrackStitcher") << "Trying instead to read CosmicTracker-style already-flattened vector of SpacePoints" << std::endl;
+          art::Handle< std::vector < recob::SpacePoint > > sppthf;
+          evt.getByLabel(fSpptModuleLabel, sppthf);
+          for (size_t ii=0; ii<sppthf->size() ;ii++)
+          {
+              art::Ptr<recob::SpacePoint> sptmpf(sppthf,ii);
+              scol->push_back(sptmpf);
+          }
 
       }
 
