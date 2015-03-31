@@ -415,7 +415,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
         // We need a handle to the collection of clusters in the data store so we can
         // handle associations to hits.
         art::Handle<std::vector<recob::Cluster> > clusterHandle;
-        evt.getByLabel(fPFParticleModuleLabel, clusterHandle);
+        evt.getByLabel(fClusterModuleLabel, clusterHandle);
     
         // If there are no clusters then something is really wrong
         if (clusterHandle.isValid())
@@ -425,7 +425,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
             art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
     
             // Likewise, recover the collection of associations to hits
-            art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fPFParticleModuleLabel);
+            art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fClusterModuleLabel);
     
             // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
             for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
@@ -442,7 +442,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                 std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(partIdx);
         
                 for(const auto& cluster : clusterVec) {
-                    std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster->ID());
+                    std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster.key());
                     hits.insert(hits.end(), hitVec.begin(), hitVec.end());
                 }
             }
