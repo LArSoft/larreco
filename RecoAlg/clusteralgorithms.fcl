@@ -20,12 +20,12 @@ standard_clustercrawleralg:
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
   MergeChgCut: [0.8, 0.8, 0.8] # max charge ratio for cluster merging
   FindVertices: [true, true, true]  # make 2D vertices after clustering?
-  LACrawl:     [false, true, true]  # crawl Large Angle clusters?
+  LACrawl:     [true, true, true]  # crawl Large Angle clusters?
   LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
   HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
   ChkClusterDS:       true # Check reconstruction at DS end of clusters?
-  MergeOverlap:       true # Merge overlapping clusters?
+  MergeOverlap:      false # Merge overlapping clusters?
   VtxClusterSplit:    true # Split clusters that cross vertices
   FindStarVertices:   true # Find vertices with a star topology
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
@@ -41,14 +41,19 @@ standard_cchitfinderalg:
   CalDataModuleLabel: "caldata"
   MinSigInd:   3.   # min signal peak for induction plane
   MinSigCol:   3.   # min signal peak for collection plane
-  MinRMSInd:   3.   # min signal width for induction plane
-  MinRMSCol:   3.   # min signal width for induction plane
+  MinRMSInd:   2.   # min signal width for induction plane
+  MinRMSCol:   2.   # min signal width for induction plane
   MaxBumps:    5    # make a crude hit if > MaxBumps are found in the RAT
   MaxXtraHits: 1    # max number of hidden hits in Region Above Threshold
   ChiSplit:  20.   # Max chi/DOF for splitting hits for signal rms error = 1
-  ChiNorms: [ 0.1, 1.0, 0.1 ]  # chi/DOF normalization for each plane
-  TimeOffsets: [ 0., 0., 0. ] # hit time offsets
-  ChgNorms: [ 1.0, 1.0, 1.0 ]   # Area -> Charge normalization
+  ChiNorms: [ 1.0, 1.0, 1.0 ]  # chi/DOF normalization for each plane
+  StudyHits:  false       # study hit fits on a selected (W,T) range on one event
+  UWireRange:   [ 300, 350]  # Study mode: wire range in the U plane
+  UTickRange: [ 5200, 5500]  # Study mode: tick range in the U plane
+  VWireRange:  [1050, 1080]  # Study mode: wire range in the V plane
+  VTickRange: [ 1500, 1750]  # Study mode: tick range in the V plane
+  WWireRange:   [ 200, 250]  # Study mode: wire range in the W plane
+  WTickRange: [ 5200, 5400]  # Study mode: tick range in the W plane
 }
 
 standard_cchitrefineralg:
@@ -305,13 +310,12 @@ microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
 microboone_cchitfinderalg:                    @local::standard_cchitfinderalg
-microboone_cchitfinderalg.ChiNorms:           [ 1.0, 1.0, 1.0 ]
-microboone_cchitfinderalg.ChgNorms:           [ 1.0, 1.0, 1.0 ]
-microboone_cchitfinderalg.TimeOffsets:        [ 0.0, 0.0, 0.0 ]
-microboone_cchitfinderalg.MinSigCol:          5.
+microboone_cchitfinderalg.ChiNorms:           [ 0.1, 0.4, 0.1 ]
+microboone_cchitfinderalg.MinSigCol:          3.
 microboone_cchitfinderalg.MinRMSCol:          2.2
 microboone_cchitfinderalg.MinSigInd:          3.
 microboone_cchitfinderalg.MinRMSInd:          2.2
+microboone_cchitfinderalg.AllowNoHitWire:     2
 microboone_cchitrefineralg:                   @local::standard_cchitrefineralg
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg

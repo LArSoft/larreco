@@ -59,8 +59,14 @@ namespace cluster{
     fMaxXtraHits        = pset.get< unsigned short >("MaxXtraHits");
     fChiSplit           = pset.get< float       >("ChiSplit");
     fChiNorms           = pset.get< std::vector< float > >("ChiNorms");
-    fTimeOffsets        = pset.get< std::vector< float > >("TimeOffsets");
-    fChgNorms           = pset.get< std::vector< float > >("ChgNorms");
+    fStudyHits          = pset.get< bool        >("StudyHits");
+    // The following variables are only used in StudyHits mode
+    fUWireRange         = pset.get< std::vector< short >>("UWireRange");
+    fUTickRange         = pset.get< std::vector< short >>("UTickRange");
+    fVWireRange         = pset.get< std::vector< short >>("VWireRange");
+    fVTickRange         = pset.get< std::vector< short >>("VTickRange");
+    fWWireRange         = pset.get< std::vector< short >>("WWireRange");
+    fWTickRange         = pset.get< std::vector< short >>("WTickRange");
 
     // stuff these parameters into the hitcut struct so they can be accessed
     // by other CC algs
@@ -70,8 +76,16 @@ namespace cluster{
     hitcuts.MinRMSCol = fMinRMSCol;
     hitcuts.ChiSplit  = fChiSplit;
     hitcuts.ChiNorms  = fChiNorms;
-    hitcuts.TimeOffsets = fTimeOffsets;
-    hitcuts.ChgNorms  = fChgNorms;
+    
+    // sanity check for StudyHits mode
+    if(fStudyHits) {
+      if(fUWireRange.size() != 2 || fUTickRange.size() != 2 ||
+         fVWireRange.size() != 2 || fVTickRange.size() != 2 ||
+         fWWireRange.size() != 2 || fWTickRange.size() != 2) {
+        mf::LogError("CCHF")<<"Invalid vector size for StudyHits. Must be 2";
+        return;
+      }
+    } // fStudyHits
 
   }
 
@@ -97,7 +111,8 @@ namespace cluster{
     float *signl = new float[maxticks];
     float adcsum = 0;
     // initialize the vectors for the hit study
-//  StudyHits(0);
+    if(fStudyHits) StudyHits(0);
+    bool first;
 
 //    prt = false;
 
@@ -127,8 +142,6 @@ namespace cluster{
 
       // factor used to normalize the chi/dof fits for each plane
       chinorm = fChiNorms[thePlane];
-      timeoff = fTimeOffsets[thePlane];
-      ChgNorm = fChgNorms[thePlane];
 
       // edit this line to debug hit fitting on a particular plane/wire
 //      prt = (thePlane == 1 && theWireNum == 839);
@@ -171,12 +184,12 @@ namespace cluster{
 //  if(prt) mf::LogVerbatim("CCHitFinder")<<"signl "<<ii<<" "<<signl[npt];
               ++npt;
             }
-// decide if this RAT should be studied
-//  StudyHits(1, npt, ticks, signl, tstart);
+            // decide if this RAT should be studied
+            if(fStudyHits) StudyHits(1, npt, ticks, signl, tstart);
             // just make a crude hit if too many bumps
             if(bumps.size() > fMaxBumps) {
               MakeCrudeHit(npt, ticks, signl);
-              StoreHits(tstart, npt, theWire, adcsum);
+              StoreHits(tstart, npt, theWire, wids[0], adcsum);
               nabove = 0;
               continue;
             }
@@ -187,18 +200,17 @@ namespace cluster{
             dof = -1;
             bool HitStored = false;
             unsigned short nMaxFit = bumps.size() + fMaxXtraHits;
-//  bool first = true;
+            // only used in StudyHits mode
+            first = true;
             while(nHitsFit <= nMaxFit) {
               FitNG(nHitsFit, npt, ticks, signl);
-/*
-  if(first && SelRAT) {
-    first = false;
-    StudyHits(2, npt, ticks, signl, tstart);
-  }
-*/
+              if(fStudyHits && first && SelRAT) {
+                first = false;
+                StudyHits(2, npt, ticks, signl, tstart);
+              }
               // good chisq so store it
               if(chidof < fChiSplit) {
-                StoreHits(tstart, npt, theWire, adcsum);
+                StoreHits(tstart, npt, theWire, wids[0], adcsum);
                 HitStored = true;
                 break;
               }
@@ -210,7 +222,7 @@ namespace cluster{
             if( !HitStored && npt < maxticks) {
               // failed all fitting. Make a crude hit
               MakeCrudeHit(npt, ticks, signl);
-              StoreHits(tstart, npt, theWire, adcsum);
+              StoreHits(tstart, npt, theWire, wids[0], adcsum);
             }
           } // nabove > minSamples
           nabove = 0;
@@ -218,8 +230,8 @@ namespace cluster{
       } // time
     } // wireIter
 
-// print out
-//  StudyHits(4);
+    // print out
+    if(fStudyHits) StudyHits(4);
 
     delete[] ticks;
     delete[] signl;
@@ -457,98 +469,43 @@ namespace cluster{
 
 /////////////////////////////////////////
   void CCHitFinderAlg::StoreHits(unsigned short TStart, unsigned short npt,
-    art::Ptr<recob::Wire>& theWire, float adcsum)
+    art::Ptr<recob::Wire> Wire, geo::WireID& wireID, float adcsum)
   {
     // store the hits in the struct
     unsigned short nhits = par.size() / 3;
     
+    if(allhits.size() + nhits > UINT_MAX) {
+      mf::LogError("CCHitFinder")<<"Too many hits "<<allhits.size();
+      return;
+    }
+    
     if(nhits == 0) return;
 
-  // fill RMS for single hits
-//  StudyHits(3);
+    // fill RMS for single hits
+    if(fStudyHits) StudyHits(3);
 
     float loTime = TStart;
     float hiTime = TStart + npt;
-/*
-    // check for large separation between hits. These vectors define the
-    // boundaries of sub-multiplets
-    std::vector<float> loTimes(nhits, loTime);
-    std::vector<float> hiTimes(nhits, hiTime);
-    std::vector<unsigned short> loHitIDs(nhits,allhits.size());
-    std::vector<unsigned short> nMultHits(nhits,nhits);
-    unsigned short nhm = 0;
-    // scan for large separation
-    for(unsigned short hit = 1; hit < nhits; ++hit) {
-      // increment the number of hits in this (sub-)multiplet
-      ++nhm;
-      unsigned short index = 3 * hit;
-      // RMS of the previous hit
-      float rms1 = par[index - 1];
-      // significance of the time separation from the previous hit
-      float sep = fabs(par[index + 1] - par[index - 2]) / rms1;
-      if(sep > 5) {
-        // large separation. re-define the boundaries
-        float newLoTime = 0.5 * (par[index + 1] + par[index - 2]);
-        // re-define the previous hit boundaries
-        for(unsigned short phit = 0; phit < hit; ++phit) {
-          // hi times for the previous hits are the new low times for the
-          // next hits
-          hiTimes[phit] = newLoTime;
-          nMultHits[phit] = nhm;
-        } // phit
-        // reset the hit counter
-        nhm = 0;
-        // re-define the lower boundary of the next set of hits
-        for(unsigned short phit = hit; phit < nhits; ++phit) {
-          loTimes[phit] = newLoTime;
-          loHitIDs[phit] = hit;
-          // set the hit multiplicity = 0 as a flag
-          nMultHits[phit] = 0;
-        } // phit
-      } // sep > 5
-    } // hit
-    // correct the high boundary for the last set of hits if necessary
-    if(nhm < nhits) {
-      for(unsigned short hit = nhits - 1; hit > 0; --hit) {
-        if(nMultHits[hit] == 0) {
-          nMultHits[hit] = nhm;
-        } else {
-          break;
-        }
-      }
-    }
-*/
-
-/*
-  if(prt) {
-    mf::LogVerbatim("CCHitFinder")<<"hit loTime hiTime loHitIDs nMultHits";
-    for(unsigned short hit = 0; hit < nhits; ++hit) {
-      mf::LogVerbatim("CCHitFinder")<<hit<<" "<<(int)loTimes[hit]
-        <<" "<<(int)hiTimes[hit]
-        <<" "<<loHitIDs[hit]<<" "<<nMultHits[hit];
-    }
-  }
-*/
     CCHit onehit;
     // lohitid is the index of the first hit that will be added. Hits with
     // Multiplicity > 1 will reside in a block from
     // lohitid to lohitid + numHits - 1
-    unsigned short lohitid = allhits.size();
+    unsigned int lohitid = allhits.size();
     unsigned short hit, index;
     // Find sum of the areas of all Gaussians
     float gsum = 0;
     for(hit = 0; hit < nhits; ++hit) {
       index = 3 * hit;
-      gsum += Sqrt2Pi * par[index] * par[index + 2] / ChgNorm;
+      gsum += Sqrt2Pi * par[index] * par[index + 2];
     }
     for(hit = 0; hit < nhits; ++hit) {
       index = 3 * hit;
-      onehit.Charge = Sqrt2Pi * par[index] * par[index + 2] / ChgNorm;
+      onehit.Charge = Sqrt2Pi * par[index] * par[index + 2];
       onehit.ChargeErr = SqrtPi * (parerr[index] * par[index + 2] +
                                    par[index] * parerr[index + 2]);
       onehit.Amplitude = par[index];
       onehit.AmplitudeErr = parerr[index];
-      onehit.Time = par[index + 1] + TStart + timeoff;
+      onehit.Time = par[index + 1] + TStart;
       onehit.TimeErr = parerr[index + 1];
       onehit.RMS = par[index + 2];
       onehit.RMSErr = parerr[index + 2];
@@ -556,7 +513,6 @@ namespace cluster{
       onehit.DOF = dof;
       // Allocate a fraction of the total ADC sum if this is a hit multiplet
       onehit.ADCSum = adcsum * onehit.Charge / gsum;
-      onehit.Wire = theWire;
       onehit.WireNum = theWireNum;
       onehit.numHits = nhits;
       onehit.LoHitID = lohitid;
@@ -564,6 +520,8 @@ namespace cluster{
       onehit.HiTime = hiTime;
       // set flag indicating hit is not used in a cluster
       onehit.InClus = 0;
+      onehit.WirID = wireID;
+      onehit.Wire = Wire;
 /*
   if(prt) {
     mf::LogVerbatim("CCHitFinder")<<"W:T "<<theWireNum<<":"<<(short)onehit.Time
@@ -579,11 +537,22 @@ namespace cluster{
     } // hit
   } // StoreHits
 
-/*
+
 //////////////////////////////////////////////////
   void CCHitFinderAlg::StudyHits(unsigned short flag, unsigned short npt,
       float *ticks, float *signl, unsigned short tstart) {
-    // study hits
+    // study hits in user-selected ranges of wires and ticks in each plane. The user should identify
+    // a shallow-angle isolated track, e.g. using the event display, to determine the wire/tick ranges.
+    // One hit should be reconstructed on each wire when the hit finding fcl parameters are set correctly.
+    // The intent of this study is to determine the correct fcl parameters. The flag variable determines
+    // the operation performed.
+    // flag = 0: Initialize study vectors
+    // flag = 1: Set SelRat true if the Region Above Threshold resides within a wire/hit range
+    // flag = 2: Find the maximum signal and calculate the RMS. Also find the low and high ticks of signals
+    //           in the wire range to allow a later calculation of the track angle. This isn't strictly 
+    //           necessary for the study and presumes that the user has selected compatible regions in each plane.
+    // flag = 3: Accumulate the RMS from the first Gaussian fit
+    // flag = 4: Calculate recommended fcl parameters and print the results to the screen
 
     // init
     if(flag == 0) {
@@ -612,24 +581,24 @@ namespace cluster{
     if(flag == 1) {
       SelRAT = false;
       if(thePlane == 0) {
-        if(theWireNum > 1700 && theWireNum < 1750 && 
-           tstart > 580 && tstart < 640) {
+        if(theWireNum > fUWireRange[0] && theWireNum < fUWireRange[1] && 
+           tstart     > fUTickRange[0] && tstart     < fUTickRange[1]) {
           SelRAT = true;
           RATCnt[thePlane] += 1;
         }
         return;
-      } // thePlane == 2
+      } // thePlane == 0
       if(thePlane == 1) {
-        if(theWireNum > 1350 && theWireNum < 1370 && 
-           tstart > 400 && tstart < 480) {
+        if(theWireNum > fVWireRange[0] && theWireNum < fVWireRange[1] && 
+           tstart     > fVTickRange[0] && tstart     < fVTickRange[1]) {
           SelRAT = true;
           RATCnt[thePlane] += 1;
         }
         return;
-      } // thePlane == 2
+      } // thePlane == 1
       if(thePlane == 2) {
-        if(theWireNum > 2250 && theWireNum < 2300 && 
-           tstart > 600 && tstart < 660) {
+        if(theWireNum > fWWireRange[0] && theWireNum < fWWireRange[1] && 
+           tstart     > fWTickRange[0] && tstart     < fWTickRange[1]) {
           SelRAT = true;
           RATCnt[thePlane] += 1;
         }
@@ -639,11 +608,8 @@ namespace cluster{
     
     if(flag == 2) {
       if(!SelRAT) return;
-      // in this section we find the low/hi wire/time for a large PH
-      // signal (e.g. proton track). This will be used to calculate
-      // the slope dT/dW to study hit width, fraction of crude hits, etc
-      // vs dT/dW
-      // find the peak value and time of the peak value
+      // in this section we find the low/hi wire/time for a signal. This can be used to calculate
+      // the slope dT/dW to study hit width, fraction of crude hits, etc vs dT/dW
       float big = 0.;
       float imbig = 0.;
       for(unsigned short ii = 0; ii < npt; ++ii) {
@@ -653,7 +619,7 @@ namespace cluster{
         }
       } // ii
       // require a significant PH 
-      if(big > 20) {
+      if(big > fMinSigCol) {
         // get the Lo info
         if(theWireNum < loWire[thePlane]) {
           loWire[thePlane] = theWireNum;
@@ -664,7 +630,7 @@ namespace cluster{
           hiWire[thePlane] = theWireNum;
           hiTime[thePlane] = tstart + imbig;
         }
-      } // big > 20
+      } // big > fMinSigCol
       if(bumps.size() == 1 && chidof < 9999.) {
         bumpCnt[thePlane] += bumps.size();
         bumpChi[thePlane] += chidof;
@@ -708,7 +674,7 @@ namespace cluster{
         std::cout<<ipl<<" lo "<<loWire[ipl]<<" "<<loTime[ipl]
           <<" hi "<<hiWire[ipl]<<" "<<hiTime[ipl]<<std::endl;
       }
-      std::cout<<" ipl nRAT bCnt   bChi   bRMS 1hCnt   1hRMS  Theta New_ChiNorm"<<std::endl;
+      std::cout<<" ipl nRAT bCnt   bChi   bRMS hCnt   hRMS  dT/dW New_ChiNorm"<<std::endl;
       for(unsigned short ipl = 0; ipl < 3; ++ipl) {
         if(bumpCnt[ipl] > 0) {
           bumpChi[ipl] = bumpChi[ipl] / (float)bumpCnt[ipl];
@@ -716,22 +682,26 @@ namespace cluster{
           hitRMS[ipl]  = hitRMS[ipl]  / (float)hitCnt[ipl];
           // calculate the slope
           float dTdW = fabs((hiTime[ipl] - loTime[ipl]) / (hiWire[ipl] - loWire[ipl]));
-          // scale factor is for MicroBooNE 
-          int theta = atan(0.273 * dTdW) * 180. / 3.142;
-          std::cout<<"BB "<<ipl<<std::right<<std::setw(5)<<RATCnt[ipl]
+          std::cout<<ipl<<std::right<<std::setw(5)<<RATCnt[ipl]
             <<std::setw(5)<<bumpCnt[ipl]
             <<std::setw(7)<<std::fixed<<std::setprecision(2)<<bumpChi[ipl]
             <<std::setw(7)<<bumpRMS[ipl]
             <<std::setw(7)<<hitCnt[ipl]
             <<std::setw(7)<<std::setprecision(1)<<hitRMS[ipl]
-            <<std::setw(7)<<theta
+            <<std::setw(7)<<dTdW
             <<std::setw(7)<<std::setprecision(2)
             <<bumpChi[ipl]*fChiNorms[ipl]
             <<std::endl;
         } // 
       } // ipl
-      std::cout<<"Set MinRMSInd and MinRMSCol in the fcl file to the "
-               <<"values of hRMS printed above"<<std::endl;
+      std::cout<<"nRAT is the number of Regions Above Threshold (RAT) used in the study.\n";
+      std::cout<<"bCnt is the number of single bumps that were successfully fitted \n";
+      std::cout<<"bChi is the average chisq/DOF of the first fit\n";
+      std::cout<<"bRMS is the average calculated RMS of the bumps\n";
+      std::cout<<"hCnt is the number of RATs that have a single hit\n";
+      std::cout<<"hRMS is the average RMS from the Gaussian fit -> use this value for MinRMSInd or MinRMSCol in the fcl file\n";
+      std::cout<<"dTdW is the slope of the track\n";
+      std::cout<<"New_ChiNorm is the recommended values of ChiNorm that should be used in the fcl file\n";
       bumpChi.clear();
       bumpRMS.clear();
       bumpCnt.clear();
@@ -744,7 +714,7 @@ namespace cluster{
       hiTime.clear();
     }
   } // StudyHits
-*/
+
 
 } // namespace cluster
 

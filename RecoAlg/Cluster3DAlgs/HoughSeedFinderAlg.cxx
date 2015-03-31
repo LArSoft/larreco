@@ -29,6 +29,10 @@
 #include "TCanvas.h"
 #include "TFrame.h"
 #include "TH2D.h"
+#include "TVectorD.h"
+#include "TMatrixD.h"
+#include "TDecompSVD.h"
+
 
 // std includes
 #include <string>
@@ -365,7 +369,7 @@ void HoughSeedFinderAlg::findHoughClusters(const reco::HitPairListPtr& hitPairLi
                                            reco::PrincipalComponents&  pca,
                                            int&                        nLoops,
                                            RhoThetaAccumulatorBinMap&  rhoThetaAccumulatorBinMap,
-                                           HoughClusterList&           houghClusters)
+                                           HoughClusterList&           houghClusters) const
 {
     // The goal of this function is to do a basic Hough Transform on the input list of 3D hits.
     // In order to transform this to a 2D problem, the 3D hits are projected to the plane of the two
@@ -558,10 +562,10 @@ bool HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPair
     
     // The idea here is to search for the first hit that lies "close" to the principle axis
     // At that point we count out n hits to use as the seed
-    reco::HitPairListPtr        seedHit3DList;
-    std::set<const recob::Hit*> seedHitSet;
-    double                      aveDocaToAxis = seedFullPca.getAveHitDoca();
-    int                         gapCount(0);
+    reco::HitPairListPtr                seedHit3DList;
+    std::set<const reco::ClusterHit2D*> seedHitSet;
+    double                              aveDocaToAxis = seedFullPca.getAveHitDoca();
+    int                                 gapCount(0);
     
     // Now loop through hits to search for a "continuous" block of at least m_numSeed2DHits
     // We'll arrive at that number by collecting 2D hits in an stl set which will keep track of unique occurances
@@ -580,7 +584,7 @@ bool HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPair
             
             seedHit3DList.push_back(hit3D);
             
-            for(const auto& hit : hit3D->getHits()) seedHitSet.insert(&hit->getHit());
+            for(const auto& hit : hit3D->getHits()) seedHitSet.insert(hit);
             
             gapCount = 0;
         }
@@ -614,6 +618,30 @@ bool HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPair
     //seedStart[1] = seedHit3DList.front()->getY();
     //seedStart[2] = seedHit3DList.front()->getZ();
     
+    if (seedHitSet.size() >= 10)
+    {
+        TVector3 newSeedPos;
+        TVector3 newSeedDir;
+        double   chiDOF;
+    
+        LineFit2DHits(seedHitSet, seedStart[0], newSeedPos, newSeedDir, chiDOF);
+    
+        if (chiDOF > 0.)
+        {
+            // check angles between new/old directions
+            double cosAng = seedDir[0]*newSeedDir[0]+seedDir[1]*newSeedDir[1]+seedDir[2]*newSeedDir[2];
+            
+            if (cosAng < 0.) newSeedDir *= -1.;
+            
+            seedStart[0] = newSeedPos[0];
+            seedStart[1] = newSeedPos[1];
+            seedStart[2] = newSeedPos[2];
+            seedDir[0]   = newSeedDir[0];
+            seedDir[1]   = newSeedDir[1];
+            seedDir[2]   = newSeedDir[2];
+        }
+    }
+
     // Keep track of this seed and the 3D hits that make it up
     seedHitPair = SeedHitPairListPair(recob::Seed(seedStart, seedDir), seedHit3DList);
     
@@ -641,7 +669,7 @@ bool HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPair
     
 bool HoughSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputHitPairListPtr,
                                         reco::PrincipalComponents& inputPCA,
-                                        SeedHitPairListPairVec&    seedHitPairVec)
+                                        SeedHitPairListPairVec&    seedHitPairVec) const
 {
     // This will be a busy routine... the basic tasks are:
     // 1) loop through hits and project to the plane defined by the two largest eigen values, accumulate in Hough space
@@ -772,12 +800,12 @@ bool HoughSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputHitPairL
                     seedHitPairMap[peakBinHits.size()].push_back(seedHitPair);
                 
                     // For visual testing in event display, mark all the hits in the first seed so we can see them
-//                    if (seedHitPairMap.size() == 1)
-//                    {
-//                        for(const auto& hit3D : peakBinHits) hit3D->setStatusBit(0x40000000);
-//                    }
+                    if (seedHitPairMap.size() == 1)
+                    {
+                        for(const auto& hit3D : peakBinHits) hit3D->setStatusBit(0x40000000);
+                    }
                     
-                    for(const auto& hit3D : seedHitPair.second) hit3D->setStatusBit(0x40000000);
+//                    for(const auto& hit3D : seedHitPair.second) hit3D->setStatusBit(0x40000000);
                 }
                 
                 // Our peakBinHits collection will most likely be a subset of the localHitPtrList collection
@@ -835,6 +863,242 @@ bool HoughSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputHitPairL
     return true;
 }
     
+bool HoughSeedFinderAlg::findTrackHits(reco::HitPairListPtr&      inputHitPairListPtr,
+                                       reco::PrincipalComponents& inputPCA,
+                                       reco::HitPairListPtrList&  hitPairListPtrList) const
+{
+    // The goal of this routine is run the Hough Transform on the input set of hits
+    // and then to return a list of lists of hits which are associated to a given line
+    
+    // Make sure we are using the right pca
+    reco::HitPairListPtr hitPairListPtr = inputHitPairListPtr;
+    
+    int nLoops(0);
+    
+    // Make a local copy of the input PCA
+    reco::PrincipalComponents pca = inputPCA;
+    
+    // We also require that there be some spread in the data, otherwise not worth running?
+    double eigenVal0 = 3. * sqrt(pca.getEigenValues()[0]);
+    double eigenVal1 = 3. * sqrt(pca.getEigenValues()[1]);
+    
+    if (eigenVal0 > 5. && eigenVal1 > 0.001)
+    {
+        // **********************************************************************
+        // Part I: Build Hough space and find Hough clusters
+        // **********************************************************************
+        RhoThetaAccumulatorBinMap rhoThetaAccumulatorBinMap;
+        HoughClusterList          houghClusters;
+        
+        findHoughClusters(hitPairListPtr, pca, nLoops, rhoThetaAccumulatorBinMap, houghClusters);
+        
+        // **********************************************************************
+        // Part II: Go through the clusters to find the peak bins
+        // **********************************************************************
+        
+        // We need to use a set so we can be sure to have unique hits
+        reco::HitPairListPtr                clusterHitsList;
+        std::set<const reco::ClusterHit3D*> masterHitPtrList;
+        std::set<const reco::ClusterHit3D*> peakBinPtrList;
+        
+        size_t firstPeakCount(0);
+        
+        // Loop through the list of all clusters found above
+        for(auto& houghCluster : houghClusters)
+        {
+            BinIndex peakBin   = houghCluster.front();
+            size_t   peakCount = 0;
+            size_t   totalHits = 0;
+            
+            // Make a local (to this cluster) set of of hits
+            std::set<const reco::ClusterHit3D*> localHitPtrList;
+            
+            // Now loop through the bins that were attached to this cluster
+            for(auto& binIndex : houghCluster)
+            {
+                // An even more local list so we can keep track of peak values
+                std::set<const reco::ClusterHit3D*> tempHitPtrList;
+                
+                // Recover the hits associated to this cluster
+                for(auto& hitItr : rhoThetaAccumulatorBinMap[binIndex].getAccumulatorValues())
+                {
+                    reco::HitPairListPtr::const_iterator hit3DItr = hitItr.getHitIterator();
+                    
+                    tempHitPtrList.insert(*hit3DItr);
+                }
+                
+                // count hits before we remove any
+                totalHits += tempHitPtrList.size();
+                
+                // Trim out any hits already used by a bigger/better cluster
+                std::set<const reco::ClusterHit3D*> tempHit3DSet;
+                
+                std::set_difference(tempHitPtrList.begin(),   tempHitPtrList.end(),
+                                    masterHitPtrList.begin(), masterHitPtrList.end(),
+                                    std::inserter(tempHit3DSet, tempHit3DSet.end()) );
+                
+                tempHitPtrList = tempHit3DSet;
+                
+                size_t binCount = tempHitPtrList.size();
+                
+                if (peakCount < binCount)
+                {
+                    peakCount      = binCount;
+                    peakBin        = binIndex;
+                    peakBinPtrList = tempHitPtrList;
+                }
+                
+                // Add this to our local list
+                localHitPtrList.insert(tempHitPtrList.begin(),tempHitPtrList.end());
+            }
+            
+            if (localHitPtrList.size() < m_minimum3DHits) continue;
+            
+            if (!firstPeakCount) firstPeakCount = peakCount;
+            
+            // If the peak counts are significantly less than the first cluster's peak then skip
+            if (peakCount < firstPeakCount / 10) continue;
+            
+            // **********************************************************************
+            // Part III: Make a list of hits from the total number associated
+            // **********************************************************************
+            
+            hitPairListPtrList.push_back(reco::HitPairListPtr());
+            
+            hitPairListPtrList.back().resize(localHitPtrList.size());
+            std::copy(localHitPtrList.begin(), localHitPtrList.end(), hitPairListPtrList.back().begin());
+            
+            // We want to remove the hits which have been used from further contention
+            masterHitPtrList.insert(localHitPtrList.begin(),localHitPtrList.end());
+            
+            if (hitPairListPtr.size() - masterHitPtrList.size() < m_minimum3DHits) break;
+        } // end loop over hough clusters
+    }
+    
+    return true;
+}
+    
+    
+//------------------------------------------------------------------------------
+void HoughSeedFinderAlg::LineFit2DHits(std::set<const reco::ClusterHit2D*>& hit2DSet,
+                                       double                               XOrigin,
+                                       TVector3&                            Pos,
+                                       TVector3&                            Dir,
+                                       double&                              ChiDOF) const
+{
+    // The following is lifted from Bruce Baller to try to get better
+    // initial parameters for a candidate Seed. It is slightly reworked
+    // which is why it is included here instead of used as is.
+    //
+    // Linear fit using X as the independent variable. Hits to be fitted
+    // are passed in the hits vector in a pair form (X, WireID). The
+    // fitted track position at XOrigin is returned in the Pos vector.
+    // The direction cosines are returned in the Dir vector.
+    //
+    // SVD fit adapted from $ROOTSYS/tutorials/matrix/solveLinear.C
+    // Fit equation is w = A(X)v, where w is a vector of hit wires, A is
+    // a matrix to calculate a track projected to a point at X, and v is
+    // a vector (Yo, Zo, dY/dX, dZ/dX).
+    //
+    // Note: The covariance matrix should also be returned
+    // B. Baller August 2014
+    
+    // assume failure
+    ChiDOF = -1;
+    
+    if(hit2DSet.size() < 4) return;
+    
+    const unsigned int nvars = 4;
+    unsigned int       npts  = hit2DSet.size();
+    
+    TMatrixD A(npts, nvars);
+    // vector holding the Wire number
+    TVectorD w(npts);
+    unsigned short ninpl[3] = {0};
+    unsigned short nok = 0;
+    unsigned short iht(0), cstat, tpc, ipl;
+    double x, cw, sw, off;
+    
+    // Loop over unique 2D hits from the input list of 3D hits
+    for (const auto& hit : hit2DSet)
+    {
+        geo::WireID wireID = hit->getHit().WireID();
+    
+        cstat = wireID.Cryostat;
+        tpc   = wireID.TPC;
+        ipl   = wireID.Plane;
+    
+        // get the wire plane offset
+        off = m_geometry->WireCoordinate(0, 0, ipl, tpc, cstat);
+    
+        // get the "cosine-like" component
+        cw  = m_geometry->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
+    
+        // the "sine-like" component
+        sw  = m_geometry->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
+    
+        x = hit->getXPosition() - XOrigin;
+        
+        A[iht][0] = cw;
+        A[iht][1] = sw;
+        A[iht][2] = cw * x;
+        A[iht][3] = sw * x;
+        w[iht]    = wireID.Wire - off;
+        
+        ++ninpl[ipl];
+        
+        // need at least two points in a plane
+        if(ninpl[ipl] == 2) ++nok;
+    
+        iht++;
+    }
+    
+    // need at least 2 planes with at least two points
+    if(nok < 2) return;
+    
+    TDecompSVD svd(A);
+    bool ok;
+    TVectorD tVec = svd.Solve(w, ok);
+    
+    ChiDOF = 0;
+    
+    // not enough points to calculate Chisq
+    if(npts <= 4) return;
+    
+    double ypr, zpr, diff;
+    
+    for (const auto& hit : hit2DSet)
+    {
+        geo::WireID wireID = hit->getHit().WireID();
+        
+        cstat = wireID.Cryostat;
+        tpc   = wireID.TPC;
+        ipl   = wireID.Plane;
+        off   = m_geometry->WireCoordinate(0, 0, ipl, tpc, cstat);
+        cw    = m_geometry->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
+        sw    = m_geometry->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
+        x     = hit->getXPosition() - XOrigin;
+        ypr   = tVec[0] + tVec[2] * x;
+        zpr   = tVec[1] + tVec[3] * x;
+        diff  = ypr * cw + zpr * sw - (wireID.Wire - off);
+        ChiDOF += diff * diff;
+    }
+
+    
+    float werr2 = m_geometry->WirePitch() * m_geometry->WirePitch();
+    ChiDOF /= werr2;
+    ChiDOF /= (float)(npts - 4);
+    
+    double norm = sqrt(1 + tVec[2] * tVec[2] + tVec[3] * tVec[3]);
+    Dir[0] = 1 / norm;
+    Dir[1] = tVec[2] / norm;
+    Dir[2] = tVec[3] / norm;
+    
+    Pos[0] = XOrigin;
+    Pos[1] = tVec[0];
+    Pos[2] = tVec[1];
+    
+} // TrkLineFit()
     
 
 } // namespace lar_cluster3d

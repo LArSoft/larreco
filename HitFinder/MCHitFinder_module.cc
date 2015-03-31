@@ -21,7 +21,6 @@
 #include "Simulation/SimChannel.h"
 
 #include "Geometry/Geometry.h"
-#include "Utilities/DetectorProperties.h"
 #include "MCBase/MCDataHolder.h"
 #include "MCBase/MCHitCollection.h"
 #include "MCBase/MCWireCollection.h"
@@ -64,8 +63,6 @@ namespace hit {
   {
     
     art::ServiceHandle<geo::Geometry> geo;
-    
-    art::ServiceHandle<util::DetectorProperties> detp;
     
     const unsigned int nch = geo->Nchannels();
     
@@ -158,7 +155,7 @@ namespace hit {
 	      continue;
 	    }
 	  }
-	  (edep_iter).first->second.push_back(ide.numElectrons * detp->ElectronsToADC());
+	  (edep_iter).first->second.push_back(ide.numElectrons);
 	}// Done looping over IDEs in a particular TDC
       }// Done looping over TDC
       

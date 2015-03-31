@@ -396,10 +396,10 @@ namespace trkf {
 
     std::vector< std::vector<int> > matchedclusters;
 
-    //  for (int i = 0; i<nplanes-1; ++i){
-    //    for (int j = i+1; j<nplanes; ++j){
-    for (int i = 0; i<nplanes; ++i){
-      for (int j = 0; j<nplanes; ++j){
+    for (int i = 0; i<nplanes-1; ++i){
+      for (int j = i+1; j<nplanes; ++j){
+	  //for (int i = 0; i<nplanes; ++i){
+	  //for (int j = 0; j<nplanes; ++j){
         for (size_t c1 = 0; c1<Cls[i].size(); ++c1){
           for (size_t c2 = 0; c2<Cls[j].size(); ++c2){
             
@@ -802,6 +802,8 @@ namespace trkf {
       
         std::map<int,int> maxhitsMatch;
 
+	auto besthit2 = vhitmap[iclu2].end();
+
         auto ihit1 = vhitmap[iclu1].begin();
         for (auto itime1 = vtimemap[iclu1].begin(); 
              itime1 != vtimemap[iclu1].end(); 
@@ -830,27 +832,34 @@ namespace trkf {
                itime2!=vtimemap[iclu2].end(); 
                ++itime2, ++ihit2){//loop over max-hits
             if (maxhitsMatch[itime2->first]) continue;
-            double length2 = 0;
-            if (vtimemap[iclu2].size()==1){
-              length2 = wire_pitch;
-            }
-            else{
-              for (auto iw1 = vtimemap[iclu2].begin(); iw1!=itime2; ++iw1){
-                auto iw2 = iw1;
-                ++iw2;
-                length2 += std::sqrt(std::pow((iw1->first-iw2->first)*wire_pitch,2)+std::pow((iw1->second-iw2->second)*timepitch,2));
-              }
-            }
-            if (rev) length2 = vtracklength[iclu2] - length2;
-            length2 = vtracklength[iclu1]/vtracklength[iclu2]*length2;
+	    if (besthit2!=vhitmap[iclu2].end()){
+	      if (std::abs(besthit2->first-ihit2->first)>100) continue;
+	    }
             bool timematch = std::abs(itime1->second-itime2->second)<ftmatch;
-            if (timematch &&std::abs(length2-length1)<difference){
-              difference = std::abs(length2-length1);
-              matchedtime = itime2;
-              matchedhit = ihit2;
+            if (timematch){
+	      double length2 = 0;
+	      if (vtimemap[iclu2].size()==1){
+		length2 = wire_pitch;
+	      }
+	      else{
+		for (auto iw1 = vtimemap[iclu2].begin(); iw1!=itime2; ++iw1){
+		  auto iw2 = iw1;
+		  ++iw2;
+		  length2 += std::sqrt(std::pow((iw1->first-iw2->first)*wire_pitch,2)+std::pow((iw1->second-iw2->second)*timepitch,2));
+		}
+	      }
+	      if (rev) length2 = vtracklength[iclu2] - length2;
+	      length2 = vtracklength[iclu1]/vtracklength[iclu2]*length2;
+
+	      if(std::abs(length2-length1)<difference){
+		difference = std::abs(length2-length1);
+		matchedtime = itime2;
+		matchedhit = ihit2;
+	      }
             }
           }//loop over hits2
           if (difference<fsmatch){
+	    besthit2 = matchedhit;
 	    //add back XTicksOffset which will be removed in ConvertTicksToX
             hitcoord[0] = detprop->ConvertTicksToX(matchedtime->second+
 						   detprop->GetXTicksOffset(clusterlist[matchedclusters[itrk][iclu1]]->Plane().Plane,
@@ -861,79 +870,26 @@ namespace trkf {
 						   clusterlist[matchedclusters[itrk][iclu1]]->Plane().Cryostat);
             hitcoord[1] = -1e10;
             hitcoord[2] = -1e10;
-            /*                        geom->ChannelsIntersect((ihit1->second)->Wire()->RawDigit()->Channel(),
-                                    (matchedhit->second)->Wire()->RawDigit()->Channel(),
-                                    hitcoord[1],hitcoord[2]);
-            */
-
 
             //WireID is the exact segment of the wire where the hit is on (1 out of 3 for the 35t)
             geo::WireID c1=(ihit1->second)->WireID();
             geo::WireID c2=(matchedhit->second)->WireID();
-            //            std::vector< geo::WireID > chan1wires, chan2wires; 
-            //            chan1wires = geom->ChannelToWire(c1);
-            //            chan2wires = geom->ChannelToWire(c2);
-            geo::WireIDIntersection tmpWIDI;
-            
-
-            //
-            //   Outputs for debugging purposes.
-            //
-            //
-            //
-            //
-            /*
-            double w1_Start[3] = {0.};
-            double w1_End[3]   = {0.};
-            double w2_Start[3] = {0.};
-            double w2_End[3]   = {0.};
-            // get the endpoints to see if i1 and i2 even intersect
-            geom->WireEndPoints(c1.Cryostat, c1.TPC, c1.Plane, c1.Wire, w1_Start, w1_End);
-            geom->WireEndPoints(c2.Cryostat, c2.TPC, c2.Plane, c2.Wire, w2_Start, w2_End);
-
-            mf::LogVerbatim("Summary") <<"TPC :c1 " << c1.TPC << "   c2 " << c2.TPC;
-            mf::LogVerbatim("Summary") <<"Cryo :c1 " << c1.Cryostat << "   c2 " << c2.Cryostat;
-            mf::LogVerbatim("Summary") <<"Plane:c1 " << c1.Plane << "   c2 " << c2.Plane;
-            mf::LogVerbatim("Summary") <<"Wire:c1 " << c1.Wire << "   c2 " << c2.Wire;
-
-            bool overlapY         = geom->ValueInRange( w1_Start[1], w2_Start[1], w2_End[1] ) ||
-                                          geom->ValueInRange( w1_End[1],   w2_Start[1], w2_End[1] );
-            bool overlapY_reverse = geom->ValueInRange( w2_Start[1], w1_Start[1], w1_End[1] ) ||
-                                           geom->ValueInRange( w2_End[1],   w1_Start[1], w1_End[1] );
-                 
-            bool overlapZ         = geom->ValueInRange( w1_Start[2], w2_Start[2], w2_End[2] ) ||
-                                           geom->ValueInRange( w1_End[2],   w2_Start[2], w2_End[2] );
-            bool overlapZ_reverse = geom->ValueInRange( w2_Start[2], w1_Start[2], w1_End[2] ) ||
-                                           geom->ValueInRange( w2_End[2],   w1_Start[2], w1_End[2] );
-            if(std::abs(w2_Start[2] - w2_End[2]) < 0.01) overlapZ = overlapZ_reverse;
-            mf::LogVerbatim("Summary") << "overlapY:" << overlapY << "   " <<
-              "overlapY_reverse:" << overlapY_reverse <<"    "<<
-              "overlapZ:" << overlapZ <<"    "<<
-              "overlapZ_reverse:"<< overlapZ_reverse<<"     ";
-            */
-            //
-            //
-            //  End of outputs for debugging purposes
-            //
-            //
-           
-                    bool sameTpcOrNot=geom->WireIDsIntersect(c1,c2, tmpWIDI);
+            geo::WireIDIntersection tmpWIDI;            
+	    bool sameTpcOrNot=geom->WireIDsIntersect(c1,c2, tmpWIDI);
                     
-            //               bool sameTpcOrNot=APAGeometryAlg::APAChannelsIntersect((ihit1->second)->Wire()->RawDigit()->Channel(),
-            //                                                                   (matchedhit->second)->Wire()->RawDigit()->Channel(),
-            //                                                                      tmpWIDI
-            //                                                                   )
-                    if(sameTpcOrNot)
-                      {
-                        hitcoord[1]=tmpWIDI.y;
-                        hitcoord[2]=tmpWIDI.z;
-                      }
+	    if(sameTpcOrNot){
+	      hitcoord[1]=tmpWIDI.y;
+	      hitcoord[2]=tmpWIDI.z;
+	    }
 
             if (hitcoord[1]>-1e9&&hitcoord[2]>-1e9){
               maxhitsMatch[matchedtime->first] = 1;
               sp_hits.push_back(matchedhit->second);
             }
           }
+	  else{
+	    besthit2 = vhitmap[iclu2].end();
+	  }
           if (sp_hits.size()>1){
             double err[6] = {util::kBogusD};
             recob::SpacePoint mysp(hitcoord, 

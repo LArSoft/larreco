@@ -62,9 +62,9 @@ double SkeletonAlg::FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>
     double maxDeltaTicks = referenceTicks - hitVec.front()->getHits()[viewToCheck]->getTimeTicks();
     double minDeltaTicks = referenceTicks - hitVec.back()->getHits()[viewToCheck]->getTimeTicks();
     
-    if (minDeltaTicks < maxDeltaTicks) std::swap(maxDeltaTicks, minDeltaTicks);
+    if (minDeltaTicks > maxDeltaTicks) std::swap(maxDeltaTicks, minDeltaTicks);
 
-    double bestDeltaTicks = fabs(maxDeltaTicks);
+    double bestDeltaTicks = 1000000.;
     
     // Can't have a gap if only one element
     if (hitVec.size() > 1)
@@ -74,7 +74,7 @@ double SkeletonAlg::FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>
         lastWire = firstWire;
         
         // Keep track of all the deltas
-        double nextBestDeltaTicks = 10. * bestDeltaTicks;
+        double nextBestDeltaTicks = bestDeltaTicks;
         
         for(const auto& hitPair : hitVec)
         {
@@ -109,7 +109,7 @@ double SkeletonAlg::FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>
                 nextBestDeltaTicks = bestDeltaTicks;
             }
             
-            lastWire       = curWire;
+            lastWire = curWire;
         }
         
         bestDeltaTicks = nextBestDeltaTicks;
@@ -159,7 +159,7 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
     for(const auto& hitPair : hitPairList)
     {
         // Don't consider points "rejected" earlier
-        if (hitPair->getStatusBits() & 0x80000000) continue;
+        if (hitPair->bitsAreSet(reco::ClusterHit3D::REJECTEDHIT)) continue;
         
         for(const auto& hit2D : hitPair->getHits())
         {
@@ -187,7 +187,7 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
     for(const auto& hitPair : hitPairList)
     {
         // Don't consider points "rejected" earlier
-        if (hitPair->getStatusBits() & 0x80000000) continue;
+        if (hitPair->bitsAreSet(reco::ClusterHit3D::REJECTEDHIT)) continue;
         
         // If a hit pair we skip for now
         if (hitPair->getHits().size() < 3) continue;
@@ -241,14 +241,14 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
                 int deltaLast  = wireNumByView[viewToCheck] - lastWire;
                 
                 // If either distance to the first or last wire is zero then we are an edge point
-                if (deltaFirst == 0 || deltaLast == 0) hitPair->setStatusBit(0x20000000);
+                if (deltaFirst == 0 || deltaLast == 0) hitPair->setStatusBit(reco::ClusterHit3D::EDGEHIT);
                 
                 deltaWires[viewIdx]  = deltaFirst + deltaLast;
                 numHitPairs[viewIdx] = lastWire - firstWire + 1;
                 viewDeltaT[viewIdx]  = fabs(hit2DTimeTicks - hitPair->getHits()[viewToCheck]->getTimeTicks());
             }
             // Otherwise, by definition, it is both a skeleton point and an edge point
-            else hitPair->setStatusBit(0x30000000);
+            else hitPair->setStatusBit(reco::ClusterHit3D::SKELETONHIT | reco::ClusterHit3D::EDGEHIT);
             
             if (numHitPairs[viewIdx] < numHitPairs[bestViewIdx])
             {
@@ -271,7 +271,7 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
                 // If exactly in the middle then we are done
                 // Set a bit in the ClusterHit3D word to signify
 //                if (fabs(deltaWires[bestViewIdx]) < maxBestWires || numHitPairs[bestViewIdx] < 3)
-//                    hitPair->setStatusBit(0x10000000);
+//                    hitPair->setStatusBit(reco::ClusterHit3D::SKELETONHIT);
 
                 // Otherwise we can try to look at the other view
 //                else
@@ -291,24 +291,15 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
                         std::cout << "***** invalid next best view: " << nextBestIdx << " *******" << std::endl;
                         continue;
                     }
-//                    if (viewDeltaT[bestViewIdx] < 1.01*bestDeltaTicks[bestViewIdx] && viewDeltaT[nextBestIdx] < 4.01*bestDeltaTicks[nextBestIdx])
-                    if (viewDeltaT[bestViewIdx] < 1.01*bestDeltaTicks[bestViewIdx] && viewDeltaT[nextBestIdx] < 6.01*bestDeltaTicks[nextBestIdx])
-                        hitPair->setStatusBit(0x10000000);
-                   
-//                    int maxNextBestWires = 0.05 * numHitPairs[nextBestIdx] + 2;
                     
-                    // Only consider case where next best has a few wires
-                    //if (fabs(deltaWires[nextBestIdx]) < maxNextBestWires || nextBestNumHitPairs > numHitPairs[bestViewIdx] + 1)
-//                    if (fabs(deltaWires[nextBestIdx]) < maxNextBestWires && nextBestNumHitPairs > numHitPairs[bestViewIdx] + 1)
-//                    {
-//                        hitPair->setStatusBit(0x10000000);
-//                    }
+                    if (viewDeltaT[bestViewIdx] < 1.01*bestDeltaTicks[bestViewIdx] && viewDeltaT[nextBestIdx] < 6.01*bestDeltaTicks[nextBestIdx])
+                        hitPair->setStatusBit(reco::ClusterHit3D::SKELETONHIT);
                 }
             }
         }
         
         // We want to keep count of "pure" skeleton points only
-        if ((hitPair->getStatusBits() & 0x30000000) == 0x10000000) nSkeletonPoints++;
+        if (hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) && !hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) nSkeletonPoints++;
     }
     
     return nSkeletonPoints;
@@ -316,7 +307,7 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
     
 void SkeletonAlg::GetSkeletonHits(const reco::HitPairListPtr& inputHitList, reco::HitPairListPtr& skeletonHitList) const
 {
-    for(const auto& hit3D : inputHitList) if (hit3D->getStatusBits() & 0x10000000) skeletonHitList.emplace_back(hit3D);
+    for(const auto& hit3D : inputHitList) if (hit3D->bitsAreSet(reco::ClusterHit3D::SKELETONHIT)) skeletonHitList.emplace_back(hit3D);
     
     return;
 }
@@ -332,11 +323,17 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
     // We want to keep track of this mapping by view
     Hit2DtoHit3DMap hit2DToHit3DMap[3];
     
+    // Keep count of the number of skeleton hits selected
+    unsigned int nSkeletonHits(0);
+    
     // Execute the first loop through the hits to build the map
     for(const auto& hitPair : skeletonHitList)
     {
         // Don't consider points "rejected" earlier
-        if (hitPair->getStatusBits() & 0x80000000) continue;
+        if (hitPair->bitsAreSet(reco::ClusterHit3D::REJECTEDHIT)) continue;
+        
+        // Count only those skeleton hits which have not been averaged
+        if (!hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONPOSAVE)) nSkeletonHits++;
         
         for(const auto& hit2D : hitPair->getHits())
         {
@@ -345,6 +342,9 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
             hit2DToHit3DMap[view][hit2D].push_back(hitPair);
         }
     }
+    
+    // Exit early if no skeleton hits to process
+    if (!nSkeletonHits) return;
     
     // The list of 3D hits associated to any given 2D hit is most useful to us if it is ordered
     // So this will loop through entries in the map and do the ordering
@@ -422,7 +422,11 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
             hit3DToHit3DMap[tempHitPairListPtr.back()] = hit3D;
         }
         
-        for(const auto& pair : hit3DToHit3DMap) pair.second->setPosition(pair.first->getPosition());
+        for(const auto& pair : hit3DToHit3DMap)
+        {
+            pair.second->setPosition(pair.first->getPosition());
+            pair.second->setStatusBit(reco::ClusterHit3D::SKELETONPOSAVE);
+        }
     }
     
     return;

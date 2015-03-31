@@ -38,7 +38,6 @@
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
-//#include "RecoAlg/CCHitRefinerAlg.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
 
@@ -77,11 +76,9 @@ namespace cluster {
     recob::HitCollectionCreator::declare_products(*this);
     
     produces< std::vector<recob::Cluster> >();  
-    produces< art::Assns<recob::Cluster, recob::Hit> >();
-    produces< std::vector<recob::EndPoint2D> >();
-    produces< art::Assns<recob::EndPoint2D, recob::Cluster, unsigned short> >();
     produces< std::vector<recob::Vertex> >();
-    produces< art::Assns<recob::Vertex, recob::Cluster, unsigned short> >();
+    produces< art::Assns<recob::Cluster, recob::Hit> >();
+    produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
   }
 
   ClusterCrawler::~ClusterCrawler()
@@ -112,13 +109,10 @@ namespace cluster {
     // and its associations to wires and raw digits
     recob::HitCollectionCreator shcol(*this, evt);
     std::vector<recob::Cluster> sccol;
-    std::vector<recob::EndPoint2D> sv2col;
     std::vector<recob::Vertex> sv3col;
 
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > 
         hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short>> 
-       cep_assn(new art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
         cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
     
@@ -130,9 +124,33 @@ namespace cluster {
     art::FindOneP<raw::RawDigit> WireToRawDigit
       (wireVecHandle, evt, WireCreatorModuleLabel);
 
+    unsigned int icl, iht, itt;
+
+// Consistency check
+  for(icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
+    ClusterCrawlerAlg::ClusterStore& clstr = fCCAlg.tcl[icl];
+    if(clstr.ID < 0) continue;
+    geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
+    unsigned short plane = planeID.Plane;
+    for(unsigned short ii = 0; ii < clstr.tclhits.size(); ++ii) {
+      iht = clstr.tclhits[ii];
+      CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[iht];
+      if(theHit.WirID.Plane != plane) {
+        std::cout<<"CC: cluster-hit plane mis-match "<<theHit.WirID.Plane<<" "<<plane
+        <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<"\n";
+        return;
+      }
+      if(theHit.InClus != clstr.ID) {
+        std::cout<<"CC: InClus mis-match "<<theHit.InClus<<" ID "<<clstr.ID
+        <<" in cluster "<<icl<<"\n";
+        return;
+      }
+    } // ii
+  } // icl
+
     // Temp vector for indexing valid (i.e. not obsolete) hits
     std::vector<int> vhit(fCCHFAlg.allhits.size(), -1);
-    unsigned int icl, iht, itt, nvhit = 0;
+    unsigned int locIndex, nvhit = 0;
     for(iht = 0; iht < fCCHFAlg.allhits.size(); ++iht) {
       if(fCCHFAlg.allhits[iht].InClus < 0) continue;
       vhit[iht] = nvhit;
@@ -140,15 +158,10 @@ namespace cluster {
       // store the hit
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[iht];
       art::Ptr<recob::Wire> const& theWire = theHit.Wire;
-      art::Ptr<raw::RawDigit> const& theRawDigit
-        = WireToRawDigit.at(theWire.key());
       raw::ChannelID_t channel = theWire->Channel();
-      // get the Wire ID from the channel
-      std::vector<geo::WireID> wids = geo->ChannelToWire(channel);
-      if(!wids[0].isValid) {
-        mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<theWire<<" "<<channel;
-        return;
-      }
+      art::Ptr<raw::RawDigit> const& theRawDigit = WireToRawDigit.at(theWire.key());
+      // find the local index in a hit multiplet
+      locIndex = iht - theHit.LoHitID;
       recob::Hit hit(
         channel,                   // channel
         theHit.LoTime,             // start_tick 
@@ -158,60 +171,23 @@ namespace cluster {
         theHit.RMS,                // rms
         theHit.Amplitude,          // peak_amplitude
         theHit.AmplitudeErr,       // sigma_peak_amplitude
+        theHit.ADCSum,             // summed ADC
         theHit.Charge,             // hit_integral
         theHit.ChargeErr,          // sigma hit_integral
-        theHit.ADCSum,             // summed ADC
         theHit.numHits,            // multiplicity
-        iht - theHit.LoHitID,      // local_index FIXME LOHITID...
+        locIndex,                  // local_index
         theHit.ChiDOF,             // goodness_of_fit
         theHit.DOF,                // dof
         theWire->View(),           // view
         geo->SignalType(channel),  // ...
-        wids[0]                    // wire ID
+        theHit.WirID               // wire ID
         );
       shcol.emplace_back(std::move(hit), theWire, theRawDigit);
     } // iht
-    
-    // make the endpoints
-    // Temp vector for indexing valid (i.e. not obsolete) endpoints
-    std::vector<int> vep2(fCCAlg.vtx.size(), -1);
-    unsigned int ep2ID = 0;
-    unsigned short end;
-    for(unsigned int iep = 0; iep < fCCAlg.vtx.size(); iep++) {
-      ClusterCrawlerAlg::VtxStore& aVtx = fCCAlg.vtx[iep];
-      if(aVtx.Wght <= 0) continue;
-      vep2[iep] = ep2ID;
-      ++ep2ID;
-      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(aVtx.CTP);
-      unsigned int wire = (0.5 + aVtx.Wire);
-      if(wire > geo->Nwires(planeID.Plane) - 1) {
-        mf::LogError("ClusterCrawler")<<"Bad vtx wire "<<wire<<" plane "
-          <<planeID.Plane<<" vtx # "<<iep;
-        continue;
-      }
-      raw::ChannelID_t channel = geo->PlaneWireToChannel(planeID.Plane, wire, planeID.TPC, planeID.Cryostat);
-      // get the Wire ID from the channel
-      std::vector<geo::WireID> wids = geo->ChannelToWire(channel);
-      if(!wids[0].isValid) {
-        mf::LogError("ClusterCrawler")<<"Invalid Wire ID "<<planeID.Plane
-          <<" "<<wire<<" "<<planeID.TPC<<" "<<planeID.Cryostat;
-        continue;
-      }
-      sv2col.emplace_back(
-        (double)aVtx.Time,     // time
-        wids[0],              // wire ID
-        (double)aVtx.Wght,    // strength - whatever that is...
-        (int)ep2ID,           // endpoint ID
-        geo->View(channel),   // view
-        (double)aVtx.Wire     // total charge --> wire number in double precision
-      );
-    } // iep
-    // convert EndPoint2D vector to unique_ptrs
-    std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>(std::move(sv2col)));
 
     // make 3D vertices
     double xyz[3] = {0, 0, 0};
-    unsigned int vtxID = 0;
+    unsigned int vtxID = 0, end;
     for(unsigned int iv = 0; iv < fCCAlg.vtx3.size(); iv++) {
       ClusterCrawlerAlg::Vtx3Store& vtx3 = fCCAlg.vtx3[iv];
       // ignore incomplete vertices
@@ -229,35 +205,32 @@ namespace cluster {
     
     // make the clusters and associations
     float sumChg, sumADC;
-    unsigned int clsID = 0, nclhits, iep;
+    unsigned int clsID = 0, nclhits;
     for(icl = 0; icl < fCCAlg.tcl.size(); ++icl) {
       ClusterCrawlerAlg::ClusterStore& clstr = fCCAlg.tcl[icl];
       if(clstr.ID < 0) continue;
       ++clsID;
       sumChg = 0;
       sumADC = 0;
+      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
+      unsigned short plane = planeID.Plane;
       nclhits = clstr.tclhits.size();
+      std::vector<unsigned int> clsHitIndices;
       // correct the hit indices to refer to the valid hits that were just added
       for(itt = 0; itt < nclhits; ++itt) {
         iht = clstr.tclhits[itt];
-        if(iht > fCCHFAlg.allhits.size() - 1 || vhit[iht] < 0) {
-          mf::LogError("ClusterCrawler")<<"Bad hit index "<<iht;
-          return;
-        } // bad hit index
-        // set iht to the valid hit index
-        iht = vhit[iht];
-        clstr.tclhits[itt] = iht;
+        if(iht > fCCHFAlg.allhits.size() - 1 || vhit[iht] < 0 || 
+           vhit[iht] > (int)fCCHFAlg.allhits.size() - 1) 
+          throw cet::exception("ClusterCrawler")<<"Bad hit index "<<iht;
         sumChg += fCCHFAlg.allhits[iht].Charge;
         sumADC += fCCHFAlg.allhits[iht].ADCSum;
+        clsHitIndices.push_back(vhit[iht]);
       } // itt
       // get the wire, plane from a hit
       iht = clstr.tclhits[0];
       CCHitFinderAlg::CCHit& theHit = fCCHFAlg.allhits[iht];
       art::Ptr<recob::Wire> const& theWire = theHit.Wire;
       raw::ChannelID_t channel = theWire->Channel();
-      std::vector<geo::WireID> wids = geo->ChannelToWire(channel);
-      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
-      unsigned short plane = planeID.Plane;
       sccol.emplace_back(
           (float)clstr.BeginWir,  // Start wire
           0,                      // sigma start wire
@@ -287,7 +260,7 @@ namespace cluster {
           );
       // make the cluster - hit association
       if(!util::CreateAssn(
-        *this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end())
+        *this, evt, *hc_assn, sccol.size()-1, clsHitIndices.begin(), clsHitIndices.end())
         )
       {
         throw art::Exception(art::errors::InsertFailure)
@@ -295,63 +268,43 @@ namespace cluster {
       } // exception
       // make the cluster - endpoint associations
       if(clstr.BeginVtx >= 0) {
-        iep = vep2[clstr.BeginVtx];
         end = 0;
-        if(iep < 0) {
-          mf::LogError("ClusterCrawler")<<"Invalid cluster -> endpoint association ";
-          return;
-        } // iep < 0
-        if(!util::CreateAssnD(*this, evt, *cep_assn, clsID - 1, iep, end))
-        {
-          throw art::Exception(art::errors::InsertFailure)
-            <<"Failed to associate cluster "<<icl<<" with endpoint";
-        } // exception
         // See if this endpoint is associated with a 3D vertex
-        unsigned short iv = 0;
+        unsigned short vtxIndex = 0;
         for(unsigned short iv3 = 0; iv3 < fCCAlg.vtx3.size(); ++iv3) {
           // ignore incomplete vertices
           if(fCCAlg.vtx3[iv3].Ptr2D[0] < 0) continue;
           if(fCCAlg.vtx3[iv3].Ptr2D[1] < 0) continue;
           if(fCCAlg.vtx3[iv3].Ptr2D[2] < 0) continue;
           if(fCCAlg.vtx3[iv3].Ptr2D[plane] == clstr.BeginVtx) {
-            if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, iv3, end))
+            if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::InsertFailure)
-                <<"Failed to associate cluster "<<icl<<" with endpoint";
+                <<"Failed to associate cluster "<<icl<<" with vertex";
             } // exception
             break;
           } // vertex match
-          ++iv;
+          ++vtxIndex;
         } // iv3
       } // clstr.BeginVtx >= 0
       if(clstr.EndVtx >= 0) {
-        iep = vep2[clstr.EndVtx];
         end = 1;
-        if(iep < 0) {
-          mf::LogError("ClusterCrawler")<<"Invalid cluster -> endpoint association ";
-          return;
-        } // iep < 0
-        if(!util::CreateAssnD(*this, evt, *cep_assn, clsID - 1, iep, end))
-        {
-          throw art::Exception(art::errors::InsertFailure)
-            <<"Failed to associate cluster "<<icl<<" with endpoint";
-        } // exception
         // See if this endpoint is associated with a 3D vertex
-        unsigned short iv = 0;
+        unsigned short vtxIndex = 0;
         for(unsigned short iv3 = 0; iv3 < fCCAlg.vtx3.size(); ++iv3) {
           // ignore incomplete vertices
           if(fCCAlg.vtx3[iv3].Ptr2D[0] < 0) continue;
           if(fCCAlg.vtx3[iv3].Ptr2D[1] < 0) continue;
           if(fCCAlg.vtx3[iv3].Ptr2D[2] < 0) continue;
           if(fCCAlg.vtx3[iv3].Ptr2D[plane] == clstr.EndVtx) {
-            if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, iv3, end))
+            if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::InsertFailure)
                 <<"Failed to associate cluster "<<icl<<" with endpoint";
             } // exception
             break;
           } // vertex match
-          ++iv;
+          ++vtxIndex;
         } // iv3
       } // clstr.BeginVtx >= 0
     } // icl
@@ -369,8 +322,6 @@ namespace cluster {
     shcol.put_into(evt);
     evt.put(std::move(ccol));
     evt.put(std::move(hc_assn));
-    evt.put(std::move(v2col));
-    evt.put(std::move(cep_assn));
     evt.put(std::move(v3col));
     evt.put(std::move(cv_assn));
 
