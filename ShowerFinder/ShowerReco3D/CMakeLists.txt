@@ -4,6 +4,7 @@ add_subdirectory(job)
 art_make(
 	  LIBRARY_NAME  ShowerReco3D
           LIB_LIBRARIES
+			MCBase
                         RecoBase
                         Utilities
 			AnalysisAlg
@@ -30,6 +31,8 @@ art_make(
                         ${ROOT_BASIC_LIB_LIST}
                         ${ROOT_MINUIT}
           MODULE_LIBRARIES 
+	  		   MCComp
+	  		   MCBase
 	  		   ShowerReco3D
 	  		   RecoAlg
                            BackTracker_service

@@ -76,6 +76,7 @@ ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const & p)
   fUsePFParticle = p.get<bool>("UsePFParticle");
   produces< std::vector<recob::Shower> >();
   produces< art::Assns<recob::Shower,recob::Cluster> >();
+  produces< art::Assns<recob::Shower,recob::Hit> >();
   if(fUsePFParticle)
     produces< art::Assns<recob::PFParticle,recob::Shower> >();
 
@@ -112,6 +113,7 @@ void ShowerReco3D::produce(art::Event & e)
   //
   std::unique_ptr<std::vector<recob::Shower> > out_shower_v(new std::vector<recob::Shower>);
   std::unique_ptr<art::Assns<recob::Shower, recob::Cluster> > sc_assn(new art::Assns<recob::Shower, recob::Cluster>);
+  std::unique_ptr<art::Assns<recob::Shower, recob::Hit> > sh_assn(new art::Assns<recob::Shower, recob::Hit>);
   std::unique_ptr<art::Assns<recob::PFParticle, recob::Shower> > sp_assn(new art::Assns<recob::PFParticle, recob::Shower>);
 
   //
@@ -214,17 +216,30 @@ void ShowerReco3D::produce(art::Event & e)
     out_shower_v->push_back(shower_v[i]);
 
     // Create shower=>cluster association
-    std::vector<art::Ptr<recob::Cluster> > clusters;
+    std::vector<art::Ptr<recob::Cluster> > ass_clusters;
+    // Create shower=>hit association
+    std::vector<art::Ptr<recob::Hit> > ass_hits;
+    for(auto const& cindex : matched_pairs[i]) {
 
-    for(auto const& cindex : matched_pairs[i])
+      ass_clusters.push_back( art::Ptr<recob::Cluster>(cHandle,cindex) );
 
-      clusters.push_back( art::Ptr<recob::Cluster>(cHandle,cindex) );
-
+      const std::vector<art::Ptr<recob::Hit> >& hits = hit_m.at(cindex);
+      
+      for(auto const& ptr : hits) ass_hits.push_back(ptr);
+    }
+    // Shower=>Cluster
     util::CreateAssn(*this,
 		     e,
 		     *(out_shower_v.get()),
-		     clusters,
+		     ass_clusters,
 		     *(sc_assn.get())
+		     );
+    // Shower=>Hits
+    util::CreateAssn(*this,
+		     e,
+		     *(out_shower_v.get()),
+		     ass_hits,
+		     *(sh_assn.get())
 		     );
 
     if(fUsePFParticle) {
@@ -245,6 +260,7 @@ void ShowerReco3D::produce(art::Event & e)
 
   // Store in an event record
   e.put(std::move(out_shower_v));
+  e.put(std::move(sh_assn));
   e.put(std::move(sc_assn));
   if(fUsePFParticle)
     e.put(std::move(sp_assn));

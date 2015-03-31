@@ -1,0 +1,14 @@
+#include "calorimetry.fcl"
+BEGIN_PROLOG
+
+standard_showerquality:
+{
+  module_type:        "ShowerQuality"
+  ShowerProducer:     "showerreco"
+  MCShowerProducer:   "mcreco"
+  SimChannelProducer: "largeant"
+  MCShowerEnergyMin:  20.
+  MCShowerEnergyMax:  1.e12
+}
+
+END_PROLOG

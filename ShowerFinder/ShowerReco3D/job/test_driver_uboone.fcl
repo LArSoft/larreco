@@ -1,5 +1,6 @@
 #include "services_microboone.fcl"
 #include "showerreco3d_uboone.fcl"
+#include "showerquality_uboone.fcl"
 process_name: ShowerTest
 
 services:
@@ -26,9 +27,15 @@ physics:
    pandoraNuShower: @local::showerreco3d_uboone_pandora
  }
 
+ analyzers:
+ {
+#   showerrecoQuality:      @local::showerquality_uboone
+   pandoraNuShowerQuality: @local::showerquality_uboone
+ }
+
  reco: [ pandoraNuShower ]
 
- ana:  []
+ ana:  [ pandoraNuShowerQuality ]
 
  end_paths:     [ analyzeIt ]
 
@@ -47,3 +54,7 @@ outputs:
    fileName:    "shower_test.root"
  }
 }
+
+physics.analyzers.showerrecoQuality.ShowerProducer: "showerreco"
+
+physics.analyzers.pandoraNuShowerQuality.ShowerProducer: "pandoraNuShower"
