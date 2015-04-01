@@ -28,9 +28,9 @@ standard_clustercrawler:
 standard_linecluster:
 {
 # this is the cluster finding component of former ClusterCrawler
- module_type:         "LineCluster"
- CalDataModuleLabel:  "cchit"
- ClusterCrawlerAlg:   @local::standard_clustercrawleralg
+ module_type:          "LineCluster"
+ HitFinderModuleLabel: "cchit"
+ ClusterCrawlerAlg:    @local::standard_clustercrawleralg
 } # standard_linecluster
 
 standard_fuzzycluster:

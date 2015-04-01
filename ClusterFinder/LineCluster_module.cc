@@ -26,7 +26,18 @@
 // ... more includes in the implementation section
 
 namespace cluster {
-  
+  /**
+   * @brief Produces clusters by ClusterCrawler algorithm
+   * 
+   * Configuration parameters
+   * -------------------------
+   * 
+   * - *HitFinderModuleLabel* (InputTag, mandatory): label of the hits to be
+   *   used as input (usually the label of the producing module is enough)
+   * - *ClusterCrawlerAlg* (parameter set, mandatory): full configuration for
+   *   ClusterCrawlerAlg algorithm
+   * 
+   */
   class LineCluster: public art::EDProducer {
     
     public:
@@ -91,7 +102,7 @@ namespace cluster {
   //----------------------------------------------------------------------------
   void LineCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
-    fHitFinderLabel = pset.get<art::InputTag>("CalDataModuleLabel");
+    fHitFinderLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
     
     // this trick avoids double configuration on construction
     if (fCCAlg)
