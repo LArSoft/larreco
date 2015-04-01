@@ -3,7 +3,7 @@
 BEGIN_PROLOG
 
 showerreco3d_uboone: @local::standard_showerreco3d
-showerreco3d_uboone.InputProducer:   "mergedfuzzy"
+showerreco3d_uboone.InputProducer:   "fuzzyclustermerger"
 showerreco3d_uboone.CalorimetryAlg:  @local::microboone_calorimetryalgmc
 
 showerreco3d_uboone_pandora: @local::standard_showerreco3d

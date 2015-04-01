@@ -52,7 +52,12 @@ PrincipalComponentsAlg::~PrincipalComponentsAlg()
     
 void PrincipalComponentsAlg::reconfigure(fhicl::ParameterSet const &pset)
 {
+    art::ServiceHandle<geo::Geometry>            geometry;
+    art::ServiceHandle<util::DetectorProperties> detectorProperties;
+    
     m_parallel = pset.get<double>("ParallelLines", 0.00001);
+    m_geometry = &*geometry;
+    m_detector = &*detectorProperties;
 }
     
 void PrincipalComponentsAlg::getHit2DPocaToAxis(const TVector3&            axisPos,
@@ -338,7 +343,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
         recobEigenVecs.push_back(tempVec);
         
         // Store away
-        pca = reco::PrincipalComponents(svdOk, int(hitPairVector.size()), recobEigenVals, recobEigenVecs, meanPos);
+        pca = reco::PrincipalComponents(svdOk, numPairsInt, recobEigenVals, recobEigenVecs, meanPos);
     }
     else
     {
@@ -658,6 +663,119 @@ void PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr&
     aveDoca3D /= double(hitPairVector.size());
     
     pca.setAveHitDoca(aveDoca3D);
+    
+    return;
+}
+    
+void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&        hit2DListPtr,
+                                                     const reco::PrincipalComponents& pca         ) const
+{
+    // Our mission, should we choose to accept it, is to scan through the 2D hits and reject
+    // any outliers. Basically, any hit outside a scaled range of the average doca from the
+    // first pass is marked by setting the bit in the status word.
+    
+    // We'll need the current PCA axis to determine doca and arclen
+    TVector3 avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
+    TVector3 axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    
+    // We want to keep track of the average
+    double aveHitDoca(0.);
+    
+    // Outer loop over views
+    for (const auto* hit : hit2DListPtr)
+    {
+        // Step one is to set up to determine the point of closest approach of this 2D hit to
+        // the cluster's current axis.
+        // Get this wire's geometry object
+        const geo::WireID&  hitID     = hit->getHit().WireID();
+        const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
+        
+        // From this, get the parameters of the line for the wire
+        double wirePosArr[3] = {0.,0.,0.};
+        wire_geom.GetCenter(wirePosArr);
+        
+        TVector3 wireCenter(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
+        TVector3 wireDirVec(wire_geom.Direction());
+        
+        // Correct the wire position in x to set to correspond to the drift time
+        double hitPeak(hit->getHit().PeakTime());
+        
+        TVector3 wirePos(m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat), wireCenter[1], wireCenter[2]);
+        
+        // Compute the wire plane normal for this view
+        TVector3 xAxis(1.,0.,0.);
+        TVector3 planeNormal = xAxis.Cross(wireDirVec);   // This gives a normal vector in +z for a Y wire
+        
+        double docaInPlane(wirePos[0] - avePosition[0]);
+        double arcLenToPlane(0.);
+        double cosAxisToPlaneNormal = axisDirVec.Dot(planeNormal);
+        
+        TVector3 axisPlaneIntersection = wirePos;
+        TVector3 hitPosTVec            = wirePos;
+        
+        if (fabs(cosAxisToPlaneNormal) > 0.)
+        {
+            TVector3 deltaPos = wirePos - avePosition;
+            
+            arcLenToPlane         = deltaPos.Dot(planeNormal) / cosAxisToPlaneNormal;
+            axisPlaneIntersection = avePosition + arcLenToPlane * axisDirVec;
+            docaInPlane           = wirePos[0] - axisPlaneIntersection[0];
+            
+            TVector3 axisToInter  = axisPlaneIntersection - wirePos;
+            double   arcLenToDoca = axisToInter.Dot(wireDirVec);
+            
+            hitPosTVec += arcLenToDoca * wireDirVec;
+        }
+        
+        // Get a vector from the wire position to our cluster's current average position
+        TVector3 wVec = avePosition - wirePos;
+        
+        // Get the products we need to compute the arc lengths to the distance of closest approach
+        double a(axisDirVec.Dot(axisDirVec));
+        double b(axisDirVec.Dot(wireDirVec));
+        double c(wireDirVec.Dot(wireDirVec));
+        double d(axisDirVec.Dot(wVec));
+        double e(wireDirVec.Dot(wVec));
+        
+        double den(a*c - b*b);
+        double arcLen1(0.);
+        double arcLen2(0.);
+        
+        // Parallel lines is a special case
+        if (fabs(den) > m_parallel)
+        {
+            arcLen1 = (b*e - c*d) / den;
+            arcLen2 = (a*e - b*d) / den;
+        }
+        else
+        {
+            mf::LogDebug("Cluster3D") << "** Parallel lines, need a better solution here" << std::endl;
+            
+            arcLen1 = 0.;
+            arcLen2 = 0.;
+        }
+
+        TVector3 hitPos  = wirePos + arcLen2 * wireDirVec;
+        TVector3 axisPos = avePosition + arcLen1 * axisDirVec;
+        double   deltaX  = hitPos[0] - axisPos[0];
+        double   deltaY  = hitPos[1] - axisPos[1];
+        double   deltaZ  = hitPos[2] - axisPos[2];
+        double   doca2   = deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ;
+        double   doca    = sqrt(doca2);
+        
+        docaInPlane = doca;
+        
+        aveHitDoca += fabs(docaInPlane);
+        
+        // Set the hit's doca and arclen
+        hit->setDocaToAxis(fabs(docaInPlane));
+        hit->setArcLenToPoca(arcLenToPlane);
+    }
+    
+    // Compute the average and store
+    aveHitDoca /= double(hit2DListPtr.size());
+    
+    pca.setAveHitDoca(aveHitDoca);
     
     return;
 }

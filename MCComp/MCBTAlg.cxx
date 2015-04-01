@@ -11,8 +11,8 @@ namespace btutil {
     Reset(g4_trackid_v,simch_v);
   }
 
-  void Reset(const std::vector<unsigned int>& g4_trackid_v,
-	     const std::vector<sim::SimChannel>& simch_v)
+  void MCBTAlg::Reset(const std::vector<unsigned int>& g4_trackid_v,
+		      const std::vector<sim::SimChannel>& simch_v)
   {
     _num_parts = 0;
     _sum_mcq.clear();
@@ -21,11 +21,32 @@ namespace btutil {
     // 
     for(auto const& id : g4_trackid_v)
       Register(id);
+    _num_parts++;
+    ProcessSimChannel(simch_v);
+
+  }
+
+  void MCBTAlg::Reset(const std::vector<std::vector<unsigned int> >& g4_trackid_v,
+		      const std::vector<sim::SimChannel>& simch_v)
+  {
+    _num_parts = 0;
+    _sum_mcq.clear();
+    _trkid_to_index.clear();
+    _event_info.clear();
+    // 
+    for(auto const& id : g4_trackid_v)
+      Register(id);
+    _num_parts++;
+    ProcessSimChannel(simch_v);
+  }
+
+  void MCBTAlg::ProcessSimChannel(const std::vector<sim::SimChannel>& simch_v)
+  {
 
     art::ServiceHandle<geo::Geometry> geo;
-    _num_parts = g4_trackid_v.size() + 1;
+    //auto geo = ::larutil::Geometry::GetME();
     _sum_mcq.resize(geo->Nplanes(),std::vector<double>(_num_parts,0));
-
+    
     for(auto const& sch : simch_v) {
       
       auto const ch = sch.Channel();
@@ -34,18 +55,17 @@ namespace btutil {
       auto& ch_info = _event_info[ch];
 
       size_t plane = geo->ChannelToWire(ch)[0].Plane;
+      //size_t plane = geo->ChannelToPlane(ch);
 
       for(auto const& time_ide : sch.TDCIDEMap()) {
 	
 	auto const& time  = time_ide.first;
 	auto const& ide_v = time_ide.second;
-	
-	if(ch_info.size() <= time) ch_info.resize(time+1);
-	
+
 	auto& edep_info = ch_info[time];
-	
-	edep_info.resize(_num_parts,0);
-	
+
+	if(!edep_info.size()) edep_info.resize(_num_parts,0);
+
 	for(auto const& ide : ide_v) {
 	  
 	  size_t index = kINVALID_INDEX;
@@ -81,19 +101,20 @@ namespace btutil {
     auto const& ch_info = _event_info[hit.ch];
 
     art::ServiceHandle<util::TimeService> ts;
+    //auto ts = ::larutil::TimeService::GetME();
 
-    size_t start = (size_t)(ts->TPCTick2TDC(hit.start));
-    size_t end   = (size_t)(ts->TPCTick2TDC(hit.end))+1;
-    for(size_t tick=start; tick<end && tick<ch_info.size(); ++tick) {
+    auto itlow = ch_info.lower_bound((unsigned int)(ts->TPCTick2TDC(hit.start)));
+    auto itup  = ch_info.upper_bound((unsigned int)(ts->TPCTick2TDC(hit.end))+1);
+
+    while(itlow != ch_info.end() && itlow != itup) {
       
-      auto const& edep_info = ch_info[tick];
-      
-      if(!edep_info.size()) continue;
+      auto const& edep_info = (*itlow).second;
       
       for(size_t part_index = 0; part_index<_num_parts; ++part_index)
 	
 	res[part_index] += edep_info[part_index];
       
+      ++itlow;
     }
     return res;
   }
@@ -141,7 +162,7 @@ namespace btutil {
     return _trkid_to_index[g4_track_id];
   }
 
-  void MCBTAlg::Register(unsigned int g4_track_id)
+  void MCBTAlg::Register(const unsigned int& g4_track_id)
   { 
     if(_trkid_to_index.size() <= g4_track_id)
       _trkid_to_index.resize(g4_track_id+1,kINVALID_INDEX);
@@ -150,8 +171,27 @@ namespace btutil {
       _trkid_to_index[g4_track_id] = _num_parts;
       ++_num_parts;
     }
-    std::cout<<"Registered: "<<g4_track_id<<" => "<<_trkid_to_index[g4_track_id]<<std::endl;
-    return;
+  }
+
+  void MCBTAlg::Register(const std::vector<unsigned int>& track_id_v)
+  { 
+    unsigned int max_id = 0;
+    for(auto const& id : track_id_v) if(max_id < id) max_id = id;
+    if(_trkid_to_index.size() <= max_id)
+      _trkid_to_index.resize(max_id+1,kINVALID_INDEX);
+
+    for(auto const& id : track_id_v) {
+
+      if(_trkid_to_index[id] == kINVALID_INDEX)
+
+	_trkid_to_index[id] = _num_parts;
+
+      else
+
+	throw MCBTException(Form("Doubly used TrackID: %d",id));
+
+    }
+    ++_num_parts;
   }
 
 }

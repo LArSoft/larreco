@@ -410,41 +410,43 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     // Our program is to drive the track creation/fitting off the PFParticles in the data store
     // We'll use the hits associated to the PFParticles for each track - and only those hits.
     // Without a valid collection of PFParticles there is nothing to do here
-    if (!pfParticleHandle.isValid()) return;
+    if (pfParticleHandle.isValid())
+    {
+        // We need a handle to the collection of clusters in the data store so we can
+        // handle associations to hits.
+        art::Handle<std::vector<recob::Cluster> > clusterHandle;
+        evt.getByLabel(fClusterModuleLabel, clusterHandle);
     
-    // We need a handle to the collection of clusters in the data store so we can
-    // handle associations to hits.
-    art::Handle<std::vector<recob::Cluster> > clusterHandle;
-    evt.getByLabel(fPFParticleModuleLabel, clusterHandle);
+        // If there are no clusters then something is really wrong
+        if (clusterHandle.isValid())
+        {
+            // Recover the collection of associations between PFParticles and clusters, this will
+            // be the mechanism by which we actually deal with clusters
+            art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
     
-    // If there are no clusters then something is really wrong
-    if (!clusterHandle.isValid()) return;
+            // Likewise, recover the collection of associations to hits
+            art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fClusterModuleLabel);
     
-    // Recover the collection of associations between PFParticles and clusters, this will
-    // be the mechanism by which we actually deal with clusters
-    art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
-    
-    // Likewise, recover the collection of associations to hits
-    art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fPFParticleModuleLabel);
-    
-    // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
-    for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
+            // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
+            for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
 
-      // Add a new empty hit collection.
+                // Add a new empty hit collection.
 
-      hit_collections.emplace_back();
-      HitCollection& hit_collection = hit_collections.back();
-      hit_collection.pfPartPtr = art::Ptr<recob::PFParticle>(pfParticleHandle, partIdx);
-      art::PtrVector<recob::Hit>& hits = hit_collection.hits;
+                hit_collections.emplace_back();
+                HitCollection& hit_collection = hit_collections.back();
+                hit_collection.pfPartPtr = art::Ptr<recob::PFParticle>(pfParticleHandle, partIdx);
+                art::PtrVector<recob::Hit>& hits = hit_collection.hits;
         
-      // Fill this hit vector by looping over associated clusters and finding the 
-      // hits associated to them
-      std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(partIdx);
+                // Fill this hit vector by looping over associated clusters and finding the
+                // hits associated to them
+                std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(partIdx);
         
-      for(const auto& cluster : clusterVec) {
-	std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster->ID());
-	hits.insert(hits.end(), hitVec.begin(), hitVec.end());
-      }
+                for(const auto& cluster : clusterVec) {
+                    std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster.key());
+                    hits.insert(hits.end(), hitVec.begin(), hitVec.end());
+                }
+            }
+        }
     }
   }
   else {

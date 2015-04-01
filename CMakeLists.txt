@@ -31,8 +31,6 @@ set(CMAKE_MODULE_PATH $ENV{ART_DIR}/Modules
 include(CetCMakeEnv)
 cet_cmake_env()
 
-set_install_root()
-
 cet_set_compiler_flags(DIAGS CAUTIOUS
   WERROR
   NO_UNDEFINED
@@ -49,7 +47,7 @@ find_ups_product( larsim v1_00_00 )
 find_ups_product( nutools v1_00_00 )
 find_ups_product( art v1_09_00 )
 find_ups_product( artextensions v1_00_01 )
-find_ups_product( cetbuildtools v3_10_00 )
+find_ups_product( cetbuildtools v4_09_00 )
 find_ups_product( geant4 v4_9_6 )
 find_ups_product( postgresql v9_1_5 )
 
@@ -68,7 +66,8 @@ add_subdirectory(ShowerFinder)
 add_subdirectory(TrackFinder)
 add_subdirectory(VertexFinder)
 add_subdirectory(SpacePointFinder)
-#add_subdirectory(MCComp)
+add_subdirectory(MCComp)
+
 
 # tests
 add_subdirectory(test)

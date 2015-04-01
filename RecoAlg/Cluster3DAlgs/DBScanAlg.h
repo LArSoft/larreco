@@ -41,7 +41,7 @@ public:
     void setCount(int count)  {m_count     = count;}
     
     void clearVisited()                   const {m_visited   = false;}
-    void incrementCount(size_t count = 1) const {m_count += count;}
+    void incrementCount(size_t count = 1) const {m_count    += count;}
         
     bool   visited()   const {return m_visited;}
     bool   isNoise()   const {return m_noise;}
@@ -176,6 +176,12 @@ private:
      *  @brief Given an input HitPairList, build out the map of nearest neighbors
      */
     size_t BuildNeighborhoodMap(HitPairList& hitPairList, EpsPairNeighborhoodMapVec& epsPairNeighborhoodMapVec) const;
+    
+    /** 
+     *  @brief Jacket the calls to finding the nearest wire in order to intercept the exceptions if out of range
+     */
+    geo::WireID NearestWireID(const double* position, const geo::View_t& view) const;
+
     
     /**
      *  @brief Data members to follow

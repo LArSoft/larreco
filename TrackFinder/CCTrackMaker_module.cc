@@ -312,7 +312,7 @@ namespace trkf {
   //------------------------------------------------------------------------------------//
   void CCTrackMaker::produce(art::Event& evt)
   {
-
+    std::cout<<"CCTrackMaker"<<std::endl;
     fWirePitch = geom->WirePitch();
 
     std::unique_ptr<std::vector<recob::Track>> tcol(new std::vector<recob::Track>);
@@ -391,6 +391,7 @@ namespace trkf {
 
     for(cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
       for(tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
+	std::cout<<cstat<<" "<<tpc<<std::endl;
         nplanes = geom->Cryostat(cstat).TPC(tpc).Nplanes();
         double dW, dX;
         for(ipl = 0; ipl < 3; ++ipl) {
@@ -452,10 +453,14 @@ namespace trkf {
             clstr.Length = (unsigned short)(0.5 + clstr.Wire[0] - clstr.Wire[1]);
             clstr.TotChg = cluster.Integral();
             if(clstr.TotChg <= 0) clstr.TotChg = 1;
-            cls[ipl].push_back(clstr);
+	    std::cout<<ipl<<" "<<clstr.InTrack<<" "<<cls[ipl].size()<<std::endl;
+	    cls[ipl].push_back(clstr);
           } // ii (icl)
         } // ipl
         
+	for (size_t ip = 0; ip<3; ++ip){
+	  std::cout<<ip<<" "<<cls[ip].size()<<std::endl;
+	}
         // and finally the vertices
         double xyz[3];
         for(unsigned short ivx = 0; ivx < vtxlist.size(); ++ivx) {
@@ -491,9 +496,18 @@ namespace trkf {
           } // icl
           vtx.push_back(aVtx);
         } // ivx
+	for (size_t ip = 0; ip<3; ++ip){
+	  std::cout<<ip<<" "<<cls[ip].size()<<std::endl;
+	}
         // Find broken clusters
         FindBustedClusters(cls);
+	for (size_t ip = 0; ip<3; ++ip){
+	  std::cout<<ip<<" "<<cls[ip].size()<<std::endl;
+	}
         FindMaybeVertices(cls, vtx, cstat, tpc);
+	for (size_t ip = 0; ip<3; ++ip){
+	  std::cout<<ip<<" "<<cls[ip].size()<<std::endl;
+	}
         if(fMatchAlgs & 1) VtxMatch(evt, allhits, cls, trk, vtx, fmCluHits);
         if(fMatchAlgs & 2) PlnMatch(evt, allhits, cls, trk, vtx, fmCluHits);
         if(trk.size() == 0) continue;

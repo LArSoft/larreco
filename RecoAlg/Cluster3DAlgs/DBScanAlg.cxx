@@ -336,8 +336,8 @@ size_t DBScanAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, ViewTo
                         bool hitInVNotFound(true);
                         
                         // Recover the WireID nearest in the V plane to the position of the pair
-                        const geo::WireID wireIDV = m_geometry->NearestWireID(pair.getPosition(), geo::kV);
-                                                
+                        const geo::WireID wireIDV = NearestWireID(pair.getPosition(), geo::kV);
+                            
                         // We believe the code that returns the ID is offset by one
                         WireToHitSetMap::iterator wireToHitSetMapVItr = viewToWireToHitSetMap[geo::kV].find(wireIDV.Wire);
                         
@@ -349,7 +349,7 @@ size_t DBScanAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, ViewTo
                             if (hit2DV)
                             {
                                 reco::ClusterHit3D triplet = makeHitTriplet(pair, hit2DV);
-                                
+                            
                                 if (triplet.getAvePeakTime() > 0.)
                                 {
                                     triplet.setID(hitPairCntr++);
@@ -433,7 +433,7 @@ size_t DBScanAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, ViewTo
                                     else hiSideGap++;
                                 }
                             }
-                            
+                        
                             // Condition to keep the hit pair instead of requiring a triplet is that there is a partner hit
                             // on one side and a gap of no more than 2 wires on the other
                             if ((nLowSideHits > 0 && nHiSideHits > 0) && (lowSideGap == 0 || hiSideGap == 0))
@@ -499,11 +499,10 @@ size_t DBScanAlg::BuildNeighborhoodMap(HitPairList& hitPairList, EpsPairNeighbor
             pairOWireV = hitPairO->getHits()[1]->getHit().WireID().Wire;
         else
         {
-            const geo::WireID wireIDV = m_geometry->NearestWireID(hitPairO->getPosition(), geo::kV);
+            const geo::WireID wireIDV = NearestWireID(hitPairO->getPosition(), geo::kV);
             
             pairOWireV = wireIDV.Wire;
         }
-        
         
         // Set maximums
         int maxDeltaW(2);
@@ -526,7 +525,7 @@ size_t DBScanAlg::BuildNeighborhoodMap(HitPairList& hitPairList, EpsPairNeighbor
                 pairIWireV = hitPairI->getHits()[1]->getHit().WireID().Wire;
             else
             {
-                const geo::WireID wireIDV = m_geometry->NearestWireID(hitPairI->getPosition(), geo::kV);
+                const geo::WireID wireIDV = NearestWireID(hitPairI->getPosition(), geo::kV);
                 
                 pairIWireV = wireIDV.Wire;
             }
@@ -551,7 +550,7 @@ size_t DBScanAlg::BuildNeighborhoodMap(HitPairList& hitPairList, EpsPairNeighbor
             // This is the tight constraint on the hits
             if (consistentPairs(hitPairO, hitPairI))
             {
-                int    bestBin  = 4 * deltaW + deltaV;
+                int    bestBin  = 100 * deltaW + 10 * deltaU + deltaV;
                 double bestDist = 10000.;
                 
                 if (bestTripletMap.find(bestBin) != bestTripletMap.end())
@@ -561,8 +560,10 @@ size_t DBScanAlg::BuildNeighborhoodMap(HitPairList& hitPairList, EpsPairNeighbor
                 
                 double newDist = fabs(hitPairI->getX() - hitPairO->getX());
                 
-                if (newDist < bestDist) bestTripletMap[bestBin] = std::pair<double, const reco::ClusterHit3D*>(newDist, hitPairI);
+                // This is an attempt to "prefer" triplets over pairs
+                if (hitPairI->getHits().size() < 3) newDist += 25.;
                 
+                if (newDist < bestDist) bestTripletMap[bestBin] = std::pair<double, const reco::ClusterHit3D*>(newDist, hitPairI);
                 
                 // Check limits
                 if      (deltaW == 0 && deltaU == -1 && deltaV == 1) maxSumAbsUV = 2;
@@ -624,9 +625,12 @@ bool DBScanAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Clu
     int    deltaUWire      = fabs(pair1UWire - pair2UWire);
     double limitTotalU     = pair1ULimit + pair2ULimit;
     
+    // Do we need to constrain this?
+    limitTotalU = std::min(limitTotalU, 100.);
+    
     // Special conditions
-    if      (deltaUWire == 0) limitTotalU *= 3.;
-    else if (deltaUWire >  1) limitTotalU *= 2.;
+    if      (deltaUWire == 0) limitTotalU *= 1.5; //3.;
+    else if (deltaUWire >  1) limitTotalU *= 3.;  //2.;
     
     // If we are happy with U wires then go to the next step
     if (deltaUWire < maxDeltaWires && fabs(pair1UPeakTime - pair2UPeakTime) < limitTotalU) matchedHits[0] = true;
@@ -651,9 +655,12 @@ bool DBScanAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Clu
         int    deltaWWire      = fabs(pair1WWire - pair2WWire);
         double limitTotalW     = pair1WLimit + pair2WLimit;
         
+        // Do we need to constrain this?
+        limitTotalW = std::min(limitTotalW, 100.);
+        
         // Special conditions
-        if      (deltaWWire == 0) limitTotalW *= 3.;
-        else if (deltaWWire >  1) limitTotalW *= 2.;
+        if      (deltaWWire == 0) limitTotalW *= 1.5; //3.;
+        else if (deltaWWire >  1) limitTotalW *= 3.0; //2.;
         
         // If we are happy with U wires then go to the next step
         if (deltaWWire < maxDeltaWires && fabs(pair1WPeakTime - pair2WPeakTime) < limitTotalW) matchedHits[1] = true;
@@ -681,9 +688,12 @@ bool DBScanAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Clu
                 int    deltaVWire      = fabs(pair1VWire - pair2VWire);
                 double limitTotalV     = pair1VLimit + pair2VLimit;
                 
+                // Do we need to constrain this?
+                limitTotalV = std::min(limitTotalV, 100.);
+                
                 // Special conditions
-                if      (deltaVWire == 0) limitTotalV *= 4.;
-                else if (deltaVWire >  1) limitTotalV *= 2.;
+                if      (deltaVWire == 0) limitTotalV *= 2.; //4.;
+                else if (deltaVWire >  1) limitTotalV *= 4.; //2.;
                 
                 // If we are happy with U wires then go to the next step
                 if (deltaVWire < maxDeltaWires)
@@ -709,7 +719,9 @@ bool DBScanAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Clu
     if      (numMatches > 2) consistent = true;
     else if (numMatches > 1)
     {
-        if (maxDeltaT < 5. * maxAllowedDeltaT) consistent = true;
+        maxAllowedDeltaT = std::min(5.*maxAllowedDeltaT, 50.);
+
+        if (maxDeltaT < maxAllowedDeltaT) consistent = true;
     }
  
     return consistent;
@@ -979,6 +991,26 @@ int DBScanAlg::FindNumberInRange(const Hit2DSet& hit2DSet, const reco::ClusterHi
     return numberInRange;
 }
 
+geo::WireID DBScanAlg::NearestWireID(const double* position, const geo::View_t& view) const
+{
+    geo::WireID wireID(0,view,0,0);
+    
+    // Embed the call to the geometry's services nearest wire id method in a try-catch block
+    try {
+        wireID =  m_geometry->NearestWireID(position, view);
+    }
+    catch(std::exception& exc)
+    {
+        // This can happen, almost always because the coordinates are **just** out of range
+        mf::LogWarning("Cluster3D") << "Exception caught finding nearest wire, position - " << exc.what() << std::endl;
+        
+        // Assume extremum for wire number depending on z coordinate
+        if (position[2] < 0.5 * m_geometry->DetLength()) wireID.Wire = 0;
+        else                                             wireID.Wire = m_geometry->Nwires(view) - 1;
+    }
+    
+    return wireID;
+}
     
 
 } // namespace lar_cluster3d

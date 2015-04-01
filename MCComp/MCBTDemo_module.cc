@@ -105,7 +105,7 @@ void MCBTDemo::analyze(art::Event const & e)
 
 	if(geo->ChannelToWire(h_ptr->Channel())[0].Plane != ::geo::kW) continue;
 
-	hits.emplace_back(h_ptr->Channel(),h_ptr->StartTime(), h_ptr->EndTime());
+	hits.emplace_back(h_ptr->Channel(),h_ptr->StartTick(), h_ptr->EndTick());
 
       }
 

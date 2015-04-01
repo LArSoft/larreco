@@ -61,7 +61,7 @@ public:
      */
     virtual bool findTrackSeeds(reco::HitPairListPtr&      hitPairListPtr,
                                 reco::PrincipalComponents& inputPCA,
-                                SeedHitPairListPairVec&    seedHitMap);
+                                SeedHitPairListPairVec&    seedHitMap) const;
 
 private:
 

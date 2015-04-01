@@ -5,6 +5,7 @@ art_make( BASENAME_ONLY
           LIB_LIBRARIES    Geometry
 			   Geometry_service
 			   Simulation
+			   RecoBase
 			   Utilities
 			   ${ART_FRAMEWORK_CORE}
                            ${ART_FRAMEWORK_PRINCIPAL}
