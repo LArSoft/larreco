@@ -607,7 +607,7 @@ namespace cluster {
           iht = tcl[icl].tclhits[ii];
           // ignore hits close to a vertex
           if(tcl[icl].EndVtx >= 0) {
-            ivx = tcl[icl].EndVtx - 1;
+            ivx = tcl[icl].EndVtx;
             if((allhits[iht].WireNum - vtx[ivx].Wire) < 5) continue;
           } // tcl[icl].EndVtx >= 0
           if(allhits[iht].numHits > 1) ++nmult;
