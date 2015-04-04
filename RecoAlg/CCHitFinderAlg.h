@@ -189,7 +189,33 @@ namespace hit {
     std::vector<float> hiTime;
     bool SelRAT; // set true if a Region Above Threshold should be studied
     
+    bool fUseFastFit; ///< whether to attempt using a fast fit on single gauss.
+    
     std::unique_ptr<GausFitCache> FitCache; ///< a set of functions ready to be used
+    
+    /**
+     * @brief Performs a "fast" fit
+     * @param npt number of points to be fitted
+     * @param ticks tick coordinates
+     * @param signl signal amplitude
+     * @param params an array where the fit parameters will be stored
+     * @param paramerrors an array where the fit parameter errors will be stored
+     * @param chidof a variable where to store chi^2 over degrees of freedom
+     * @return whether the fit was successful or not
+     * 
+     * Note that the fit will bail out and rteurn false if any of the input
+     * signal amplitudes is zero or negative.
+     * 
+     * Also note that currently the chi^2 is not the one from comparing the
+     * Gaussian to the signal, but from comparing a fitted parabola to the
+     * logarithm of the signal.
+     */
+    static bool FastGaussianFit(
+      unsigned short npt, float const*ticks, float const*signl,
+      std::array<double, 3>& params,
+      std::array<double, 3>& paramerrors,
+      float& chidof
+      );
     
     static constexpr unsigned int MaxGaussians = 20;
     

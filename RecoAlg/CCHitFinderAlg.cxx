@@ -19,8 +19,10 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <array>
+#include <vector>
 #include <utility> // std::pair<>, std::make_pair()
-#include <algorithm> // std::sort()
+#include <algorithm> // std::sort(), std::copy()
 
 // framework libraries
 #include "messagefacility/MessageLogger/MessageLogger.h" 
@@ -31,6 +33,7 @@
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
+#include "Utilities/SimpleFits.h" // lar::util::GaussianFit<>
 
 // ROOT Includes
 #include "TGraph.h"
@@ -65,6 +68,7 @@ namespace hit {
     fMaxXtraHits        = pset.get< unsigned short >("MaxXtraHits");
     fChiSplit           = pset.get< float       >("ChiSplit");
     fChiNorms           = pset.get< std::vector< float > >("ChiNorms");
+    fUseFastFit         = pset.get< bool        >("UseFastFit", false);
     fStudyHits          = pset.get< bool        >("StudyHits");
     // The following variables are only used in StudyHits mode
     fUWireRange         = pset.get< std::vector< short >>("UWireRange");
@@ -261,6 +265,55 @@ namespace hit {
 
 
 /////////////////////////////////////////
+  bool CCHitFinderAlg::FastGaussianFit(
+    unsigned short npt, float const*ticks, float const*signl,
+    std::array<double, 3>& params,
+    std::array<double, 3>& paramerrors,
+    float& chidof
+  ) {
+    // parameters: amplitude, mean, sigma
+    
+    lar::util::GaussianFit<double> fitter; // probably "double" is overdoing
+    
+    // apply a time shift so that the center of the time interval is 0
+    const float time_shift = (ticks[npt - 1] + ticks[0]) / 2.F;
+    
+    // fill the input data, no uncertainty
+    for (size_t i = 0; i < npt; ++i) {
+      if (signl[i] <= 0) {
+        LOG_DEBUG("CCHitFinderAlg")
+          << "Non-positive charge encountered. Backing up to ROOT fit.";
+        return false;
+      }
+      // we could freely add a Poisson uncertainty (as third parameter)
+      fitter.add(ticks[i] - time_shift, signl[i]);
+    } // for
+    
+    // we might have found that we don't want the fast fit after all...
+    if (!fitter.FillResults(params, paramerrors)) {
+      // something went wrong...
+      LOG_DEBUG("CCHitFinderAlg") << "Fast Gaussian fit failed.";
+      return false;
+    }
+    
+    // note that this is not the full chi^2, but it is the chi^2 of the
+    // parabolic fit underlying the Gaussian one
+    const double chi2 = fitter.ChiSquare();
+    chidof = chi2 / fitter.NDF();
+    
+    // remove the time shift
+    params[1] += time_shift; // mean
+    
+    // GP: inflate the uncertainties on the fit parameters according to chi2/NDF
+    // (not sure if this is in any way justified)
+    if (chidof > 1.)
+      for (double& par: paramerrors) par *= std::sqrt(chidof);
+    
+    return true;
+  } // FastGaussianFit()
+  
+  
+/////////////////////////////////////////
   void CCHitFinderAlg::FitNG(unsigned short nGaus, unsigned short npt, 
     float *ticks, float *signl)
   {
@@ -272,88 +325,116 @@ namespace hit {
 
     if(dof < 3) return;
     if(bumps.size() == 0) return;
-
-  
-    // define the fit string to pass to TF1
-    /*
-    std::stringstream numConv;
-    std::string eqn = "gaus";
-    if(nGaus > 1) eqn = "gaus(0)";
-    for(unsigned short ii = 3; ii < nGaus*3; ii+=3){
-      eqn.append(" + gaus(");
-      numConv.str("");
-      numConv << ii;
-      eqn.append(numConv.str());
-      eqn.append(")");
-    }
-    
-    std::unique_ptr<TF1> Gn(new TF1("gn",eqn.c_str()));
-    */
-    TF1* Gn = FitCache->Get(nGaus);
-    TGraph *fitn = new TGraph(npt, ticks, signl);
-/*
-  if(prt) mf::LogVerbatim("CCHitFinder")
-    <<"FitNG nGaus "<<nGaus<<" nBumps "<<bumps.size();
-*/
-    // put in the bump parameters. Assume that nGaus >= bumps.size()
-    for(unsigned short ii = 0; ii < bumps.size(); ++ii) {
-      unsigned short index = ii * 3;
-      unsigned short bumptime = bumps[ii];
-      double amp = signl[bumptime];
-      Gn->SetParameter(index    , amp);
-      Gn->SetParLimits(index, 0., 9999.);
-      Gn->SetParameter(index + 1, (double)bumptime);
-      Gn->SetParLimits(index + 1, 0, (double)npt);
-      Gn->SetParameter(index + 2, (double)minRMS);
-      Gn->SetParLimits(index + 2, 1., 3*(double)minRMS);
-/*
-  if(prt) mf::LogVerbatim("CCHitFinder")<<"Bump params "<<ii<<" "<<(short)amp
-    <<" "<<(int)bumptime<<" "<<(int)minRMS;
-*/
-    } // ii bumps
-
-    // search for other bumps that may be hidden by the already found ones
-    for(unsigned short ii = bumps.size(); ii < nGaus; ++ii) {
-      // bump height must exceed minSig
-      float big = minSig;
-      unsigned short imbig = 0;
-      for(unsigned short jj = 0; jj < npt; ++jj) {
-        float diff = signl[jj] - Gn->Eval((Double_t)jj, 0, 0, 0);
-        if(diff > big) {
-          big = diff;
-          imbig = jj;
-        }
-      } // jj
-      if(imbig > 0) {
-/*
-  if(prt) mf::LogVerbatim("CCHitFinder")<<"Found bump "<<ii<<" "<<(short)big
-    <<" "<<imbig;
-*/
-        // set the parameters for the bump
-        unsigned short index = ii * 3;
-        Gn->SetParameter(index    , (double)big);
-        Gn->SetParLimits(index, 0., 9999.);
-        Gn->SetParameter(index + 1, (double)imbig);
-        Gn->SetParLimits(index + 1, 0, (double)npt);
-        Gn->SetParameter(index + 2, (double)minRMS);
-        Gn->SetParLimits(index + 2, 1., 5*(double)minRMS);
-      } // imbig > 0
-    } // ii 
-    
-    // W = set weights to 1, N = no drawing or storing, Q = quiet
-    // B = bounded parameters
-    fitn->Fit(&*Gn,"WNQB");
     
     // load the fit into a temp vector
     std::vector<double> partmp;
     std::vector<double> partmperr;
+    
+    //
+    // if it is possible, we try first with the quick single Gaussian fit
+    //
+    bool bNeedROOTfit = (nGaus > 1) || !fUseFastFit;
+    if (!bNeedROOTfit) {
+      // so, we need only one puny Gaussian;
+      std::array<double, 3> params, paramerrors;
+      
+      if (FastGaussianFit(npt, ticks, signl, params, paramerrors, chidof)) {
+        // success? copy the results in the proper structures
+        partmp.resize(3);
+        std::copy(params.begin(), params.end(), partmp.begin());
+        partmperr.resize(3);
+        std::copy(paramerrors.begin(), paramerrors.end(), partmperr.begin());
+      }
+      else bNeedROOTfit = true; // if we fail, let's schedule ROOT to back us up
+      
+    } // if we don't need ROOT to fit
+    
+    if (bNeedROOTfit) {
+      // we may land here either because the simple Gaussian fit did not work
+      // (either failed, or we chose not to trust it)
+      // or because the fit is multi-Gaussian
 
-    for(unsigned short ipar = 0; ipar < 3 * nGaus; ++ipar) {
-      partmp.push_back(Gn->GetParameter(ipar));
-      partmperr.push_back(Gn->GetParError(ipar));
-    }
-    chidof = Gn->GetChisquare() / ( dof * chinorm);
-
+      // define the fit string to pass to TF1
+      /*
+      std::stringstream numConv;
+      std::string eqn = "gaus";
+      if(nGaus > 1) eqn = "gaus(0)";
+      for(unsigned short ii = 3; ii < nGaus*3; ii+=3){
+        eqn.append(" + gaus(");
+        numConv.str("");
+        numConv << ii;
+        eqn.append(numConv.str());
+        eqn.append(")");
+      }
+      
+      std::unique_ptr<TF1> Gn(new TF1("gn",eqn.c_str()));
+      */
+      TF1* Gn = FitCache->Get(nGaus);
+      TGraph *fitn = new TGraph(npt, ticks, signl);
+  /*
+    if(prt) mf::LogVerbatim("CCHitFinder")
+      <<"FitNG nGaus "<<nGaus<<" nBumps "<<bumps.size();
+  */
+      // put in the bump parameters. Assume that nGaus >= bumps.size()
+      for(unsigned short ii = 0; ii < bumps.size(); ++ii) {
+        unsigned short index = ii * 3;
+        unsigned short bumptime = bumps[ii];
+        double amp = signl[bumptime];
+        Gn->SetParameter(index    , amp);
+        Gn->SetParLimits(index, 0., 9999.);
+        Gn->SetParameter(index + 1, (double)bumptime);
+        Gn->SetParLimits(index + 1, 0, (double)npt);
+        Gn->SetParameter(index + 2, (double)minRMS);
+        Gn->SetParLimits(index + 2, 1., 3*(double)minRMS);
+  /*
+    if(prt) mf::LogVerbatim("CCHitFinder")<<"Bump params "<<ii<<" "<<(short)amp
+      <<" "<<(int)bumptime<<" "<<(int)minRMS;
+  */
+      } // ii bumps
+  
+      // search for other bumps that may be hidden by the already found ones
+      for(unsigned short ii = bumps.size(); ii < nGaus; ++ii) {
+        // bump height must exceed minSig
+        float big = minSig;
+        unsigned short imbig = 0;
+        for(unsigned short jj = 0; jj < npt; ++jj) {
+          float diff = signl[jj] - Gn->Eval((Double_t)jj, 0, 0, 0);
+          if(diff > big) {
+            big = diff;
+            imbig = jj;
+          }
+        } // jj
+        if(imbig > 0) {
+  /*
+    if(prt) mf::LogVerbatim("CCHitFinder")<<"Found bump "<<ii<<" "<<(short)big
+      <<" "<<imbig;
+  */
+          // set the parameters for the bump
+          unsigned short index = ii * 3;
+          Gn->SetParameter(index    , (double)big);
+          Gn->SetParLimits(index, 0., 9999.);
+          Gn->SetParameter(index + 1, (double)imbig);
+          Gn->SetParLimits(index + 1, 0, (double)npt);
+          Gn->SetParameter(index + 2, (double)minRMS);
+          Gn->SetParLimits(index + 2, 1., 5*(double)minRMS);
+        } // imbig > 0
+      } // ii 
+      
+      // W = set weights to 1, N = no drawing or storing, Q = quiet
+      // B = bounded parameters
+      fitn->Fit(&*Gn,"WNQB");
+      
+      for(unsigned short ipar = 0; ipar < 3 * nGaus; ++ipar) {
+        partmp.push_back(Gn->GetParameter(ipar));
+        partmperr.push_back(Gn->GetParError(ipar));
+      }
+      chidof = Gn->GetChisquare() / ( dof * chinorm);
+      
+      delete fitn;
+    //  delete Gn;
+      
+    } // if ROOT fit
+    
     // Sort by increasing time if necessary
     if(nGaus > 1) {
       std::vector< std::pair<unsigned short, unsigned short> > times;
@@ -441,9 +522,6 @@ namespace hit {
       dof = -1;
 //      if(prt) mf::LogVerbatim("CCHitFinder")<<"Bad fit parameters";
     }
-    
-    delete fitn;
-  //  delete Gn;
     
     return;
   } // FitNG
