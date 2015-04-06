@@ -496,7 +496,10 @@ namespace trkf {
         FindMaybeVertices(cls, vtx, cstat, tpc);
         if(fMatchAlgs & 1) VtxMatch(evt, allhits, cls, trk, vtx, fmCluHits);
         if(fMatchAlgs & 2) PlnMatch(evt, allhits, cls, trk, vtx, fmCluHits);
-        if(trk.size() == 0) continue;
+        if(trk.size() == 0) {
+          if(fDebugPlane >= 0) PrintStructs();
+          continue;
+        }
         pfpToTrkID.clear();
         // Determine the vertex/track hierarchy
         if(fMakePFPs) {
@@ -1855,7 +1858,7 @@ namespace trkf {
     // and with/without an other end vertex
     
     double ypos, zpos;
-    unsigned short kWir, okWir;
+    double kWir, okWir;
     float kSlp, okSlp, kAng, okAng, okX, kX, kTim, okTim;
 
     if(nClInPln == 3) {
@@ -1954,7 +1957,7 @@ namespace trkf {
       // A cluster in all 3 planes
       dw = okWir - oWir[kpl];
       match.odWir = fabs(dw);
-//      if(match.odWir > 100) return;
+//      if(match.odWir > 100) return; 
       match.odX = fabs(okX - oX[kpl]);
   if(prt) mf::LogVerbatim("CCTM")<<" odw "<<match.odWir<<" odx "<<match.odX;
       if(ignoreSign) {
