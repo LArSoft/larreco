@@ -1965,7 +1965,7 @@ namespace trkf {
       // A cluster in all 3 planes
       dw = okWir - oWir[kpl];
       match.odWir = fabs(dw);
-//      if(match.odWir > 100) return;
+//      if(match.odWir > 100) return; 
       match.odX = fabs(okX - oX[kpl]);
   if(prt) mf::LogVerbatim("CCTM")<<" odw "<<match.odWir<<" odx "<<match.odX;
       if(ignoreSign) {

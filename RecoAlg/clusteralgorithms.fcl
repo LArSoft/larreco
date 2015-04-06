@@ -275,6 +275,15 @@ microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
+microboone_cchitfinderalg:                    @local::standard_cchitfinderalg
+microboone_cchitfinderalg.ChiSplit:           3.
+microboone_cchitfinderalg.ChiNorms:           [ 0.7, 1.2, 0.3 ]
+microboone_cchitfinderalg.MinSigCol:          3.
+microboone_cchitfinderalg.MinRMSCol:          2.
+microboone_cchitfinderalg.MinSigInd:          3.
+microboone_cchitfinderalg.MinRMSInd:          2.
+microboone_cchitfinderalg.AllowNoHitWire:     2
+microboone_cchitrefineralg:                   @local::standard_cchitrefineralg
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
