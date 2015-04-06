@@ -147,6 +147,11 @@ namespace cluster {
     /// @}
     
     
+    ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
+
+    virtual void reconfigure(fhicl::ParameterSet const& pset);
+    void RunCrawler(std::vector<recob::Hit> const& srchits);
+    
     /// @{
     /// @name Result retrieval
     
@@ -173,14 +178,12 @@ namespace cluster {
     /// @}
     
     
-    ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
-
-    void reconfigure(fhicl::ParameterSet const& pset);
-    void RunCrawler(std::vector<recob::Hit> const& srchits);
-    
     /// Sorts clusters in tcl by decreasing number of hits, ignoring abandoned clusters
     static void SortByLength(std::vector<ClusterStore> const& tcl,
       CTP_t inCTP, std::map<unsigned short, unsigned short>& sortindex);
+    
+    /// Comparison for sorting hits by wire and hit multiplet
+    static bool SortByMultiplet(recob::Hit const& a, recob::Hit const& b);
     
     
 ////////////////////////////////////

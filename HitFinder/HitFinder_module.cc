@@ -10,6 +10,7 @@
 
 // C/C++ standard libraries
 #include <string>
+#include <utility> // std::unique_ptr<>
 
 // Framework libraries
 #include "fhiclcpp/ParameterSet.h"
@@ -37,7 +38,8 @@ namespace hit {
   
     private:
       art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
-      CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
+      std::unique_ptr<CCHitFinderAlg> fCCHFAlg; // define CCHitFinderAlg object
+      
   }; // hit::HitFinder()
   
 } // namespace hit
@@ -49,7 +51,6 @@ namespace hit {
 // C/C++ standard libraries
 #include <vector>
 #include <memory> // std::move()
-#include <utility> // std::unique_ptr<>
 
 // Framework libraries
 #include "art/Framework/Principal/Handle.h"
@@ -64,11 +65,9 @@ namespace hit {
   
   
   //----------------------------------------------------------------------------
-  HitFinder::HitFinder(fhicl::ParameterSet const& pset) :
-    fCalDataModuleLabel(pset.get<art::InputTag>("CalDataModuleLabel")),
-    fCCHFAlg           (pset.get<fhicl::ParameterSet>("CCHitFinderAlg"))
+  HitFinder::HitFinder(fhicl::ParameterSet const& pset)
   {
-    this->reconfigure(pset);
+    reconfigure(pset);
     
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
@@ -82,8 +81,16 @@ namespace hit {
   //----------------------------------------------------------------------------
   void HitFinder::reconfigure(fhicl::ParameterSet const & pset)
   {
-    fCCHFAlg.reconfigure(pset.get< fhicl::ParameterSet >("CCHitFinderAlg"));
-  }
+    fCalDataModuleLabel = pset.get<art::InputTag>("CalDataModuleLabel");
+    
+    // this trick avoids double configuration on construction
+    if (fCCHFAlg)
+      fCCHFAlg->reconfigure(pset.get<fhicl::ParameterSet>("CCHitFinderAlg"));
+    else {
+      fCCHFAlg.reset
+        (new CCHitFinderAlg(pset.get<fhicl::ParameterSet>("CCHitFinderAlg")));
+    }
+  } // HitFinder::reconfigure()
   
   
   //----------------------------------------------------------------------------
@@ -96,11 +103,11 @@ namespace hit {
      = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
 
     // find hits in all planes
-    fCCHFAlg.RunCCHitFinder(*wireVecHandle);
+    fCCHFAlg->RunCCHitFinder(*wireVecHandle);
     
     // extract the result of the algorithm (it's moved)
     std::unique_ptr<std::vector<recob::Hit>> Hits
-      (new std::vector<recob::Hit>(std::move(fCCHFAlg.YieldHits())));
+      (new std::vector<recob::Hit>(std::move(fCCHFAlg->YieldHits())));
     
     mf::LogInfo("HitFinder") << Hits->size() << " hits produced.";
     

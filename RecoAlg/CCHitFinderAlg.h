@@ -12,6 +12,7 @@
 // C/C++ standard libraries
 #include <string>
 #include <vector>
+#include <memory> // std::unique_ptr<>
 
 // framework libraries
 #include "fhiclcpp/ParameterSet.h" 
@@ -27,12 +28,13 @@
 #include "RecoBase/Hit.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
+#include "RecoAlg/GausFitCache.h"
 
 
 namespace hit {
-
+  
   /**
-   * @brief Hit findre algorithm designed to work with Cluster Crawler
+   * @brief Hit finder algorithm designed to work with Cluster Crawler
    * 
    * This algorithm used to store hits in a proprietary `CCHit` data structure.
    * It has now been changed to use `recob::Hit` class directly.
@@ -96,9 +98,9 @@ namespace hit {
     HitCuts hitcuts;
 
     CCHitFinderAlg(fhicl::ParameterSet const& pset);
-    virtual ~CCHitFinderAlg();
+    virtual ~CCHitFinderAlg() = default;
 
-    void reconfigure(fhicl::ParameterSet const& pset);
+    virtual void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunCCHitFinder(std::vector<recob::Wire> const& Wires);
     
@@ -186,8 +188,37 @@ namespace hit {
     std::vector<float> hiWire;
     std::vector<float> hiTime;
     bool SelRAT; // set true if a Region Above Threshold should be studied
-
-
+    
+    bool fUseFastFit; ///< whether to attempt using a fast fit on single gauss.
+    
+    std::unique_ptr<GausFitCache> FitCache; ///< a set of functions ready to be used
+    
+    /**
+     * @brief Performs a "fast" fit
+     * @param npt number of points to be fitted
+     * @param ticks tick coordinates
+     * @param signl signal amplitude
+     * @param params an array where the fit parameters will be stored
+     * @param paramerrors an array where the fit parameter errors will be stored
+     * @param chidof a variable where to store chi^2 over degrees of freedom
+     * @return whether the fit was successful or not
+     * 
+     * Note that the fit will bail out and rteurn false if any of the input
+     * signal amplitudes is zero or negative.
+     * 
+     * Also note that currently the chi^2 is not the one from comparing the
+     * Gaussian to the signal, but from comparing a fitted parabola to the
+     * logarithm of the signal.
+     */
+    static bool FastGaussianFit(
+      unsigned short npt, float const*ticks, float const*signl,
+      std::array<double, 3>& params,
+      std::array<double, 3>& paramerrors,
+      float& chidof
+      );
+    
+    static constexpr unsigned int MaxGaussians = 20;
+    
   }; // class CCHitFinderAlg
   
 } // namespace hit

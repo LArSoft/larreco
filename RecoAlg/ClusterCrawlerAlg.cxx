@@ -48,8 +48,7 @@ namespace cluster {
 //------------------------------------------------------------------------------
   ClusterCrawlerAlg::ClusterCrawlerAlg(fhicl::ParameterSet const& pset)
   {
-    this->reconfigure(pset);
-    CrawlInit();
+    reconfigure(pset);
   }
 
 //------------------------------------------------------------------------------
@@ -116,6 +115,19 @@ namespace cluster {
   bool SortByLen(const mypair& L, const mypair& R) {return (L.first > R.first);}
 
 
+  bool ClusterCrawlerAlg::SortByMultiplet
+    (recob::Hit const& a, recob::Hit const& b)
+  {
+    // compare the wire IDs first:
+    int cmp_res = a.WireID().cmp(b.WireID());
+    if (cmp_res != 0) return cmp_res < 0; // order is decided, unless equal
+    // decide by start time
+    if (a.StartTick() != b.StartTick()) return a.StartTick() < b.StartTick();
+    // if still undecided, resolve by local index
+    return a.LocalIndex() < b.LocalIndex(); // if still unresolved, it's a bug!
+  } // ClusterCrawlerAlg::SortByMultiplet()
+  
+  
 //------------------------------------------------------------------------------
   void ClusterCrawlerAlg::ClearResults() {
     fHits.clear();
@@ -153,19 +165,7 @@ namespace cluster {
     // sort it as needed;
     // that is, sorted by wire ID number,
     // then by start of the region of interest in time, then by the multiplet
-    std::sort(fHits.begin(), fHits.end(),
-      [](recob::Hit const& a, recob::Hit const& b) {
-        return (a.WireID() < b.WireID()) // wire ID is "smaller"
-          || ((a.WireID() == b.WireID()) // ... or they are on the same wire and...
-            && ((a.StartTick() < b.StartTick()) // ... the start of RoI is earlier
-              || ((a.StartTick() == b.StartTick()) // ... or it is the same and...
-              && (a.LocalIndex() < b.LocalIndex()) // ... local index is smaller
-              )
-            )
-          );
-      }
-      );
-    
+    std::sort(fHits.begin(), fHits.end(), &SortByMultiplet);
     
     fHitInCluster.reset(fHits.size()); // initialize all the hits as free
     
@@ -173,7 +173,7 @@ namespace cluster {
     if(fNumPass == 0) return;
     
     if(fHits.size() < 3) return;
-    if(fHits.size() > USHRT_MAX) {
+    if(fHits.size() > USHRT_MAX) { // not really, but let's keep things sane
       mf::LogWarning("CC")<<"Too many hits for ClusterCrawler "<<fHits.size();
       return;
     }
@@ -606,31 +606,29 @@ namespace cluster {
 
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<"ChkClusterDS clCTP "<<clCTP;
 
-      unsigned short icl, tclsize, ih0, ih1, iht, wire;
-      unsigned short ii, newcl;
-      float slp, thhits, prevth, hitrms, rmsrat;
+      float thhits, prevth, hitrms, rmsrat;
       bool ratOK;
       std::vector<unsigned short> dshits;
-      tclsize = tcl.size();
-      for(icl = 0; icl < tclsize; ++icl) {
+      const unsigned short tclsize = tcl.size();
+      for(unsigned short icl = 0; icl < tclsize; ++icl) {
         if(tcl[icl].ID < 0) continue;
         if(tcl[icl].CTP != clCTP) continue;
         // ignore clusters that have a Begin vertex
         if(tcl[icl].BeginVtx >= 0) continue;
         // find the angle using the first 2 hits
-        ih0 = tcl[icl].tclhits[1];
-        ih1 = tcl[icl].tclhits[0];
-        slp = (fHits[ih1].PeakTime()    - fHits[ih0].PeakTime()) / 
-              (fHits[ih1].WireID().Wire - fHits[ih0].WireID().Wire);
+        unsigned short ih0 = tcl[icl].tclhits[1];
+        unsigned short ih1 = tcl[icl].tclhits[0];
+        const float slp = (fHits[ih1].PeakTime()    - fHits[ih0].PeakTime()) / 
+                          (fHits[ih1].WireID().Wire - fHits[ih0].WireID().Wire);
         prevth = std::atan(fScaleF * slp);
         // move the "origin" to the first hit
         ih0 = ih1;
-        wire = fHits[ih0].WireID().Wire;
+        unsigned short wire = fHits[ih0].WireID().Wire;
         hitrms = fHits[ih0].RMS();
         dshits.clear();
         // follow DS a few wires. Stop and do nothing if any encountered 
         // hit is associated with a cluster
-        for(ii = 0; ii < 2; ++ii) {
+        for(unsigned short ii = 0; ii < 2; ++ii) {
           ++wire;
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<"ChkClusterDS: Extend "
     <<tcl[icl].ID<<" to W:T "<<wire;
@@ -638,13 +636,14 @@ namespace cluster {
           unsigned short index = wire - fFirstWire;
           // stop if no hits on this wire
           if(WireHitRange[index].first == -2) break;
+        //  if(WireHitRange[index].first == -1) break; // FIXME: trouble; why??
           unsigned short firsthit = WireHitRange[index].first;
           unsigned short lasthit = WireHitRange[index].second;
           bool hitAdded = false;
           for(ih1 = firsthit; ih1 < lasthit; ++ih1) {
             if(!isHitFree(ih1)) continue;
-            slp = (fHits[ih1].PeakTime() - fHits[ih0].PeakTime()) /
-                  (fHits[ih1].WireID().Wire - fHits[ih0].WireID().Wire);
+            const float slp = (fHits[ih1].PeakTime() - fHits[ih0].PeakTime()) /
+                              (fHits[ih1].WireID().Wire - fHits[ih0].WireID().Wire);
             thhits = std::atan(fScaleF * slp);
             rmsrat = fHits[ih1].RMS() / hitrms;
             ratOK = rmsrat > 0.3 && rmsrat < 3;
@@ -676,7 +675,7 @@ namespace cluster {
           // Append the existing hits
           for(unsigned short ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
             // un-assign the hits so that TmpStore will re-assign them
-            iht = tcl[icl].tclhits[ii];
+            unsigned short iht = tcl[icl].tclhits[ii];
             fHitInCluster.setFree(iht);
             fcl2hits.push_back(iht);
           }
@@ -685,7 +684,7 @@ namespace cluster {
           FitClusterChg();
           clBeginChg = fAveChg;
           TmpStore();
-          newcl = tcl.size() -1;
+          const size_t newcl = tcl.size() -1;
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<" Store "<<newcl;
           tcl[newcl].BeginVtx = tcl[icl].BeginVtx;
           tcl[newcl].EndVtx = tcl[icl].EndVtx;
@@ -697,7 +696,7 @@ namespace cluster {
       // look for isolated stopping clusters. Check for hit multiplets
       // on the DS end and merge them
       float prTimeLo, prTimeHi;
-      for(icl = 0; icl < tcl.size(); ++icl) {
+      for(unsigned short icl = 0; icl < tcl.size(); ++icl) {
         if(tcl[icl].ID < 0) continue;
         if(tcl[icl].CTP != clCTP) continue;
         // ignore clusters that have a Begin vertex
@@ -708,8 +707,8 @@ namespace cluster {
         unsigned short nmult = 0;
         unsigned short loWire = 9999;
         unsigned short hiWire = 0;
-        for(ii = 0; ii < nhts; ++ii) {
-          iht = tcl[icl].tclhits[ii];
+        for(unsigned short ii = 0; ii < nhts; ++ii) {
+          unsigned short iht = tcl[icl].tclhits[ii];
           // ignore hits close to a vertex
           if(tcl[icl].EndVtx >= 0) {
             unsigned short ivx = tcl[icl].EndVtx - 1;
@@ -726,7 +725,7 @@ namespace cluster {
         hiWire = tcl[icl].BeginWir + 5;
         unsigned short nUsInClus = 0, nUsNotInClus = 0;
         unsigned short nDsInClus = 0, nDsNotInClus = 0;
-        for(wire = loWire; wire < hiWire; ++wire) {
+        for(unsigned short wire = loWire; wire < hiWire; ++wire) {
           unsigned short index = wire - fFirstWire;
           // ignore dead wires and those with no hits
           if(WireHitRange[index].first < 0) continue;
@@ -767,8 +766,8 @@ namespace cluster {
     <<" nUsNotInClus "<<nUsNotInClus
     <<" nDsNotInClus "<<nDsNotInClus;
         if(nmult > 0) {
-          for(ii = 0; ii < nhts; ++ii) {
-            iht = tcl[icl].tclhits[ii];
+          for(unsigned short ii = 0; ii < nhts; ++ii) {
+            unsigned short iht = tcl[icl].tclhits[ii];
             // ignore hits close to a vertex
             if(tcl[icl].EndVtx >= 0) {
               unsigned short ivx = tcl[icl].EndVtx - 1;
@@ -779,28 +778,29 @@ namespace cluster {
         } // nmult > 0
         if(nDsNotInClus > 0) {
           // DS hits found that are not included. Try to attach
-          ih0 = tcl[icl].tclhits[1];
-          ih1 = tcl[icl].tclhits[0];
-          slp = (fHits[ih1].PeakTime()    - fHits[ih0].PeakTime()) /
-                (fHits[ih1].WireID().Wire - fHits[ih0].WireID().Wire);
+          unsigned short ih0 = tcl[icl].tclhits[1];
+          const unsigned short ih1 = tcl[icl].tclhits[0];
+          const float slp = (fHits[ih1].PeakTime()    - fHits[ih0].PeakTime()) /
+                            (fHits[ih1].WireID().Wire - fHits[ih0].WireID().Wire);
           prevth = std::atan(fScaleF * slp);
           // move the "origin" to the first hit
           ih0 = ih1;
-          wire = fHits[ih0].WireID().Wire;
+          unsigned short wire = fHits[ih0].WireID().Wire;
           hitrms = fHits[ih0].RMS();
           dshits.clear();
-          for(ii = 0; ii < 2; ++ii) {
+          for(unsigned short ii = 0; ii < 2; ++ii) {
             ++wire;
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<"ChkClusterDS: Extend "
     <<tcl[icl].ID<<" to W:T "<<wire;
             if(wire > fLastWire) break;
             unsigned short index = wire - fFirstWire;
             if(WireHitRange[index].first == -2) break;
+          //  if(WireHitRange[index].first == -1) break; // FIXME trouble, why?
             bool hitAdded = false;
-            for(ih1 = WireHitRange[index].first; ih1 < WireHitRange[index].second; ++ih1) {
+            for(unsigned short ih1 = WireHitRange[index].first; ih1 < WireHitRange[index].second; ++ih1) {
               if(!isHitFree(ih1)) continue;
-              slp = (fHits[ih1].PeakTime() - fHits[ih0].PeakTime()) /
-                    (fHits[ih1].WireID().Wire - fHits[ih0].WireID().Wire);
+              const float slp = (fHits[ih1].PeakTime() - fHits[ih0].PeakTime()) /
+                                (fHits[ih1].WireID().Wire - fHits[ih0].WireID().Wire);
               thhits = std::atan(fScaleF * slp);
               if(std::abs(thhits - prevth) > 0.4) continue;
               rmsrat = fHits[ih1].RMS() / hitrms;
@@ -827,7 +827,7 @@ namespace cluster {
             fcl2hits = dshits;
             for(unsigned short ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
               // un-assign the hits so that TmpStore will re-assign them
-              iht = tcl[icl].tclhits[ii];
+              unsigned short iht = tcl[icl].tclhits[ii];
               fHitInCluster.setFree(iht);
               fcl2hits.push_back(iht);
             } // ii
@@ -836,7 +836,7 @@ namespace cluster {
             FitClusterChg();
             clBeginChg = fAveChg;
             TmpStore();
-            newcl = tcl.size() -1;
+            const size_t newcl = tcl.size() -1;
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<" Store "<<newcl;
             tcl[newcl].BeginVtx = tcl[icl].BeginVtx;
             tcl[newcl].EndVtx = tcl[icl].EndVtx;

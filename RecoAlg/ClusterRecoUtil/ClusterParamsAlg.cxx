@@ -4,11 +4,21 @@
 #include "ClusterParamsAlg.h"
 
 // LArSoft includes
-#include "Utilities/StatCollector.h" // StatCollector<>, LinearFit<>
+#include "Utilities/StatCollector.h" // StatCollector<>
+#include "Utilities/SimpleFits.h" // LinearFit<>
 
 //-----Math-------
 #include <math.h>
 #define PI 3.14159265
+
+
+namespace {
+  
+  template <typename T>
+  inline constexpr T sqr(T const& v) { return v*v; }
+  
+} // local namespace
+
 
 namespace cluster{
 
@@ -1691,7 +1701,6 @@ namespace cluster{
   double ClusterParamsAlg::LinearIntegral
     (double m, double q, double x1, double x2)
   {
-    using lar::util::sqr;
     return m / 2. * (sqr(x2) - sqr(x1)) + q * (x2 - x1);
   } // ClusterParamsAlg::LinearIntegral()
   
