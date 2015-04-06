@@ -355,7 +355,7 @@ namespace hit {
       // or because the fit is multi-Gaussian
 
       // define the fit string to pass to TF1
-      /*
+      
       std::stringstream numConv;
       std::string eqn = "gaus";
       if(nGaus > 1) eqn = "gaus(0)";
@@ -368,8 +368,9 @@ namespace hit {
       }
       
       std::unique_ptr<TF1> Gn(new TF1("gn",eqn.c_str()));
-      */
+      /*
       TF1* Gn = FitCache->Get(nGaus);
+      */
       TGraph *fitn = new TGraph(npt, ticks, signl);
   /*
     if(prt) mf::LogVerbatim("CCHitFinder")
