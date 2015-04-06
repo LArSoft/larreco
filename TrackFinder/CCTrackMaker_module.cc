@@ -312,7 +312,7 @@ namespace trkf {
   //------------------------------------------------------------------------------------//
   void CCTrackMaker::produce(art::Event& evt)
   {
-    std::cout<<"CCTrackMaker"<<std::endl;
+
     fWirePitch = geom->WirePitch();
 
     std::unique_ptr<std::vector<recob::Track>> tcol(new std::vector<recob::Track>);
@@ -391,7 +391,6 @@ namespace trkf {
 
     for(cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
       for(tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
-	std::cout<<cstat<<" "<<tpc<<std::endl;
         nplanes = geom->Cryostat(cstat).TPC(tpc).Nplanes();
         double dW, dX;
         for(ipl = 0; ipl < 3; ++ipl) {
@@ -453,14 +452,10 @@ namespace trkf {
             clstr.Length = (unsigned short)(0.5 + clstr.Wire[0] - clstr.Wire[1]);
             clstr.TotChg = cluster.Integral();
             if(clstr.TotChg <= 0) clstr.TotChg = 1;
-	    std::cout<<ipl<<" "<<clstr.InTrack<<" "<<cls[ipl].size()<<std::endl;
-	    cls[ipl].push_back(clstr);
+            cls[ipl].push_back(clstr);
           } // ii (icl)
         } // ipl
         
-	for (size_t ip = 0; ip<3; ++ip){
-	  std::cout<<ip<<" "<<cls[ip].size()<<std::endl;
-	}
         // and finally the vertices
         double xyz[3];
         for(unsigned short ivx = 0; ivx < vtxlist.size(); ++ivx) {
@@ -496,21 +491,15 @@ namespace trkf {
           } // icl
           vtx.push_back(aVtx);
         } // ivx
-	for (size_t ip = 0; ip<3; ++ip){
-	  std::cout<<ip<<" "<<cls[ip].size()<<std::endl;
-	}
         // Find broken clusters
         FindBustedClusters(cls);
-	for (size_t ip = 0; ip<3; ++ip){
-	  std::cout<<ip<<" "<<cls[ip].size()<<std::endl;
-	}
         FindMaybeVertices(cls, vtx, cstat, tpc);
-	for (size_t ip = 0; ip<3; ++ip){
-	  std::cout<<ip<<" "<<cls[ip].size()<<std::endl;
-	}
         if(fMatchAlgs & 1) VtxMatch(evt, allhits, cls, trk, vtx, fmCluHits);
         if(fMatchAlgs & 2) PlnMatch(evt, allhits, cls, trk, vtx, fmCluHits);
-        if(trk.size() == 0) continue;
+        if(trk.size() == 0){
+	  if(fDebugPlane >= 0) PrintStructs();
+	  continue;
+	}
         pfpToTrkID.clear();
         // Determine the vertex/track hierarchy
         if(fMakePFPs) {
@@ -1436,8 +1425,16 @@ namespace trkf {
     short iend, ioend, jend, joend, kend;
     
     double yp, zp;
-    float tpcSizeY = geom->DetHalfWidth();
-    float tpcSizeZ = geom->DetLength();
+    double local[3] = {0.,0.,0.};
+    double world[3] = {0.,0.,0.};
+    const geo::TPCGeo &thetpc = geom->TPC(tpc, cstat);
+    thetpc.LocalToWorld(local,world);
+    float tpcy0 = world[1]-geom->DetHalfWidth(tpc,cstat);
+    float tpcy1 = world[1]+geom->DetHalfWidth(tpc,cstat);
+    float tpcz0 = world[2]-geom->DetLength(tpc,cstat)/2;
+    float tpcz1 = world[2]+geom->DetLength(tpc,cstat)/2;
+//    float tpcSizeY = geom->DetHalfWidth();
+//    float tpcSizeZ = geom->DetLength();
     
     float angCut = 10 * fAngleMatchErr;
     
@@ -1455,14 +1452,14 @@ namespace trkf {
         if(cls[ipl][icl].InTrack >= 0) continue;
         jpl = (ipl + 1) % nplanes;
         kpl = (jpl + 1) % nplanes;
-  prt = (ipl == fDebugPlane && icl == fDebugCluster);
+	prt = (ipl == fDebugPlane && icl == fDebugCluster);
         for(jcl = 0; jcl < cls[jpl].size(); ++jcl) {
           if(cls[jpl][jcl].InTrack >= 0) continue;
           for(iend = 1; iend >= 0; --iend) {
             // don't try to match if the cluster is broken on this end
             if(cls[ipl][icl].BrkIndex[iend] >= 0) continue;
             for(jend = 1; jend >= 0; --jend) {
-              if(cls[jpl][jcl].BrkIndex[jend] >= 0) continue;
+	      if(cls[jpl][jcl].BrkIndex[jend] >= 0) continue;
               if(fabs(cls[ipl][icl].Slope[iend]) > 0.1 && 
                  fabs(cls[jpl][jcl].Slope[jend]) > 0.1 &&
                  cls[ipl][icl].Dir[iend] != cls[jpl][jcl].Dir[jend]) continue;
@@ -1487,8 +1484,8 @@ namespace trkf {
                 geom->IntersectionPoint((0.5+cls[ipl][icl].Wire[iend]), 
                                         (0.5+cls[jpl][jcl].Wire[jend]),
                                         ipl, jpl, cstat, tpc, yp, zp);
-                if(yp > tpcSizeY || yp < -tpcSizeY) continue;
-                if(zp < 0 || zp > tpcSizeZ) continue;
+                if(yp > tpcy1 || yp < tpcy0) continue;
+                if(zp < tpcz0 || zp > tpcz1) continue;
                 kX = 0.5 * (cls[ipl][icl].X[iend] + cls[jpl][jcl].X[jend]);
                 kWir = geom->WireCoordinate(yp, zp, kpl, tpc, cstat);
               }
@@ -1502,8 +1499,8 @@ namespace trkf {
                 geom->IntersectionPoint((0.5+cls[ipl][icl].Wire[ioend]), 
                                         (0.5+cls[jpl][jcl].Wire[joend]),
                                         ipl, jpl, cstat, tpc, yp, zp);
-                if(yp > tpcSizeY || yp < -tpcSizeY) continue;
-                if(zp < 0 || zp > tpcSizeZ) continue;
+                if(yp > tpcy1 || yp < tpcy0) continue;
+                if(zp < tpcz0 || zp > tpcz1) continue;
                 okWir = geom->WireCoordinate(yp, zp, kpl, tpc, cstat);
               }
   if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk i "<<ipl<<":"<<icl<<":"<<iend
@@ -1869,7 +1866,7 @@ namespace trkf {
     // and with/without an other end vertex
     
     double ypos, zpos;
-    unsigned short kWir, okWir;
+    double kWir, okWir;
     float kSlp, okSlp, kAng, okAng, okX, kX, kTim, okTim;
 
     if(nClInPln == 3) {

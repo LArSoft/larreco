@@ -182,7 +182,7 @@ namespace cluster {
     
     for (geo::TPCID const& tpcid: geom->IterateTPCs()) {
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
-      for(unsigned int plane = 0; plane < TPC.Nplanes(); ++plane){
+      for(plane = 0; plane < TPC.Nplanes(); ++plane){
         WireHitRange.clear();
         // define a code to ensure clusters are compared within the same plane
         clCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
@@ -712,13 +712,8 @@ namespace cluster {
           iht = tcl[icl].tclhits[ii];
           // ignore hits close to a vertex
           if(tcl[icl].EndVtx >= 0) {
-<<<<<<< HEAD
             unsigned short ivx = tcl[icl].EndVtx - 1;
             if((fHits[iht].WireID().Wire - vtx[ivx].Wire) < 5) continue;
-=======
-            ivx = tcl[icl].EndVtx;
-            if((allhits[iht].WireNum - vtx[ivx].Wire) < 5) continue;
->>>>>>> develop
           } // tcl[icl].EndVtx >= 0
           if(fHits[iht].Multiplicity() > 1) ++nmult;
           if(fHits[iht].WireID().Wire < loWire) loWire = fHits[iht].WireID().Wire;
