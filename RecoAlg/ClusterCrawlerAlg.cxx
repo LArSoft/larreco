@@ -4388,10 +4388,14 @@ namespace cluster {
       float wirePitch = geom->WirePitch(0, 1, 0, tpcid.TPC, tpcid.Cryostat);
       
       // Y,Z limits of the detector
-      double YHi = geom->DetHalfHeight(tpcid);
-      double YLo = -YHi;
-      double ZLo = 0.;
-      double ZHi = geom->DetLength(tpcid);
+      double local[3] = {0.,0.,0.};
+      double world[3] = {0.,0.,0.};
+      const geo::TPCGeo &thetpc = geom->TPC(tpcid.TPC, tpcid.Cryostat);
+      thetpc.LocalToWorld(local,world);
+      float YLo = world[1]-geom->DetHalfWidth(tpcid);
+      float YHi = world[1]+geom->DetHalfWidth(tpcid);
+      float ZLo = world[2]-geom->DetLength(tpcid)/2;
+      float ZHi = world[2]+geom->DetLength(tpcid)/2;
       
       // create a vector of vertex indices in each plane
       std::vector<std::vector<unsigned short>> vIndex;
