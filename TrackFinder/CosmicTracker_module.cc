@@ -64,7 +64,7 @@ std::vector<double> vph;
 
 struct CluLen{
   int index;
-  double length;
+  float length;
 };
 
 bool myfunction (CluLen c1, CluLen c2) { return (c1.length>c2.length);}
@@ -291,10 +291,10 @@ namespace trkf {
     std::vector< std::vector<CluLen> > clulens(nplanes);
     for (size_t iclu = 0; iclu<clusterlist.size(); ++iclu){
 
-      double w0 = clusterlist[iclu]->StartWire();
-      double w1 = clusterlist[iclu]->EndWire();
-      double t0 = clusterlist[iclu]->StartTick();
-      double t1 = clusterlist[iclu]->EndTick();
+      float w0 = clusterlist[iclu]->StartWire();
+      float w1 = clusterlist[iclu]->EndWire();
+      float t0 = clusterlist[iclu]->StartTick();
+      float t1 = clusterlist[iclu]->EndTick();
       //      t0 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
       //      t1 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
  
