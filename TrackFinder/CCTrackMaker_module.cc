@@ -459,6 +459,15 @@ namespace trkf {
         // and finally the vertices
         double xyz[3];
         for(unsigned short ivx = 0; ivx < vtxlist.size(); ++ivx) {
+          
+          std::vector<art::Ptr<recob::Cluster>> const& vtxCls = fmVtxCls.at(ivx);
+          if (vtxCls.empty()) continue; // why is this even here??
+          
+          // if the vertex is not in the TPC we are working on, skip it
+          geo::PlaneID VertexPlaneID = vtxCls.front()->Plane(); // from first cluster
+          if ((VertexPlaneID.Cryostat != cstat) || (VertexPlaneID.TPC != tpc))
+            continue;
+          
           vtxPar aVtx;
           aVtx.EvtIndex = ivx;
           vtxlist[ivx]->XYZ(xyz);
@@ -468,7 +477,8 @@ namespace trkf {
           aVtx.nClusInPln[0] = 0;
           aVtx.nClusInPln[1] = 0;
           aVtx.nClusInPln[2] = 0;
-          std::vector<art::Ptr<recob::Cluster>> const& vtxCls = fmVtxCls.at(ivx);
+          // get the additional information:
+          // 0 for vertex associated with start of cluster, 1 for end
           std::vector<const unsigned short*> const& vtxClsEnd = fmVtxCls.data(ivx);
           for(unsigned short vcass = 0; vcass < vtxCls.size(); ++vcass) {
             icl = vtxCls[vcass].key();
