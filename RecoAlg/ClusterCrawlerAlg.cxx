@@ -4392,10 +4392,10 @@ namespace cluster {
       double world[3] = {0.,0.,0.};
       const geo::TPCGeo &thetpc = geom->TPC(tpcid.TPC, tpcid.Cryostat);
       thetpc.LocalToWorld(local,world);
-      float YLo = world[1]-geom->DetHalfWidth(tpcid);
-      float YHi = world[1]+geom->DetHalfWidth(tpcid);
-      float ZLo = world[2]-geom->DetLength(tpcid)/2;
-      float ZHi = world[2]+geom->DetLength(tpcid)/2;
+      const float YLo = world[1]-geom->DetHalfWidth(tpcid);
+      const float YHi = world[1]+geom->DetHalfWidth(tpcid);
+      const float ZLo = world[2]-geom->DetLength(tpcid)/2;
+      const float ZHi = world[2]+geom->DetLength(tpcid)/2;
       
       // create a vector of vertex indices in each plane
       std::vector<std::vector<unsigned short>> vIndex;
@@ -4438,6 +4438,7 @@ namespace cluster {
           iX = detprop->ConvertTicksToX((double)vtx[ivx].Time, (int)ipl, 
             (int)tpc, (int)cstat);
           iWire = vtx[ivx].Wire;
+          geo::WireID iWireID(tpcid.Cryostat, tpcid.TPC, ipl, iWire);
 /*
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")
     <<"ipl "<<ipl<<" ivx "<<ivx<<" W:T "<<(int)vtx[ivx].Wire<<":"<<(int)vtx[ivx].Time
@@ -4459,8 +4460,22 @@ namespace cluster {
               if(std::abs(jX - iX) > fVertex3DCut) continue;
   if(vtxprt) mf::LogVerbatim("ClusterCrawler")<<"2DMatchX "<<jX - iX;
               jWire = vtx[jvx].Wire;
-              geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
-              if(y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
+            // IntersectionPoint() does not provide any feedback in case of errors:
+            //  geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+              geo::WireID jWireID(tpcid.Cryostat, tpcid.TPC, jpl, jWire);
+              geo::WireIDIntersection wiresIntersection;
+              if (!geom->WireIDsIntersect(iWireID, jWireID, wiresIntersection)) {
+                // the wires do not intersect (within the physical TPC)
+                continue;
+              }
+              y = wiresIntersection.y;
+              z = wiresIntersection.z;
+              if(y < YLo || y > YHi || z < ZLo || z > ZHi) {
+                // the previous check is supposed to do all the work
+                LOG_WARNING("ClusterCrawler")
+                  << "BUG: this check SHOULD HAVE been unnecessary!";
+                continue;
+              }
               WPos[1] = y;
               WPos[2] = z;
               // look for the matching vertex in the 3rd plane
