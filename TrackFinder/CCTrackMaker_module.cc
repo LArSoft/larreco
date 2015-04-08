@@ -827,13 +827,16 @@ namespace trkf {
 
     double fidcut = 5;
     // fiducial limits of the detector
-    double XLo = detprop->ConvertTicksToX(0, 0, tpc, cstat) + fidcut;
-    double XHi = detprop->ConvertTicksToX(detprop->NumberTimeSamples(), 0, tpc, cstat) - fidcut;
-
-    double YHi = geom->DetHalfHeight(tpc, cstat) - fidcut;
-    double YLo = -YHi;
-    double ZLo = fidcut;
-    double ZHi = geom->DetLength(tpc, cstat) - fidcut;
+    double local[3] = {0.,0.,0.};
+    double world[3] = {0.,0.,0.};
+    const geo::TPCGeo &thetpc = geom->TPC(tpc, cstat);
+    thetpc.LocalToWorld(local,world);
+    double XLo = world[0]-geom->DetHalfWidth(tpc,cstat) + fidcut;
+    double XHi = world[0]+geom->DetHalfWidth(tpc,cstat) - fidcut;
+    double YLo = world[1]-geom->DetHalfHeight(tpc,cstat) + fidcut;
+    double YHi = world[1]+geom->DetHalfHeight(tpc,cstat) - fidcut;
+    double ZLo = world[2]-geom->DetLength(tpc,cstat)/2 + fidcut;
+    double ZHi = world[2]+geom->DetLength(tpc,cstat)/2 - fidcut;
     bool startsIn, endsIn;
 
     for(unsigned short itk = 0; itk < trk.size(); ++itk) {
@@ -1439,8 +1442,8 @@ namespace trkf {
     double world[3] = {0.,0.,0.};
     const geo::TPCGeo &thetpc = geom->TPC(tpc, cstat);
     thetpc.LocalToWorld(local,world);
-    float tpcy0 = world[1]-geom->DetHalfWidth(tpc,cstat);
-    float tpcy1 = world[1]+geom->DetHalfWidth(tpc,cstat);
+    float tpcy0 = world[1]-geom->DetHalfHeight(tpc,cstat);
+    float tpcy1 = world[1]+geom->DetHalfHeight(tpc,cstat);
     float tpcz0 = world[2]-geom->DetLength(tpc,cstat)/2;
     float tpcz1 = world[2]+geom->DetLength(tpc,cstat)/2;
 //    float tpcSizeY = geom->DetHalfWidth();
