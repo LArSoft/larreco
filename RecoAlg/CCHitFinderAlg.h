@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <memory> // std::unique_ptr<>
+#include <ostream> // std::endl
 
 // framework libraries
 #include "fhiclcpp/ParameterSet.h" 
@@ -107,6 +108,10 @@ namespace hit {
     /// Returns (and loses) the collection of reconstructed hits
     std::vector<recob::Hit>&& YieldHits() { return std::move(allhits); }
     
+    /// Print the fit statistics
+    template <typename Stream>
+    void PrintStats(Stream& out) const;
+    
   private:
     
     float fMinSigInd;     ///<Induction signal height threshold 
@@ -193,6 +198,22 @@ namespace hit {
     
     std::unique_ptr<GausFitCache> FitCache; ///< a set of functions ready to be used
     
+    
+    typedef struct {
+      unsigned int FastFits; ///< count of single-Gaussian fast fits
+      std::vector<unsigned int> MultiGausFits; ///< multi-Gaussian stats
+      
+      void Reset(unsigned int nGaus);
+      
+      void AddMultiGaus(unsigned int nGaus);
+      
+      void AddFast() { ++FastFits; }
+      
+    } FitStats_t;
+    
+    FitStats_t FinalFitStats; ///< counts of the good fits
+    FitStats_t TriedFitStats; ///< counts of the tried fits
+    
     /**
      * @brief Performs a "fast" fit
      * @param npt number of points to be fitted
@@ -222,5 +243,39 @@ namespace hit {
   }; // class CCHitFinderAlg
   
 } // namespace hit
+
+
+//==============================================================================
+//===  Template implementation
+//===
+template <typename Stream>
+void hit::CCHitFinderAlg::PrintStats(Stream& out) const {
+  
+  out << "CCHitFinderAlg fit statistics:";
+  if (fUseFastFit) {
+    out << "\n  fast 1-Gaussian fits: " << FinalFitStats.FastFits
+      << " succeeded (" << TriedFitStats.FastFits << " tried)";
+  }
+  else
+    out << "\n  fast 1-Gaussian fits: disabled";
+  
+  for (unsigned int nGaus = 1; nGaus < MaxGaussians; ++nGaus) {
+    if (TriedFitStats.MultiGausFits[nGaus-1] == 0) continue;
+    out << "\n  " << nGaus << "-Gaussian fits: "
+      << FinalFitStats.MultiGausFits[nGaus-1]
+      << " accepted (" << TriedFitStats.MultiGausFits[nGaus-1] << " tried)";
+  } // for nGaus
+  if (TriedFitStats.MultiGausFits.back() > 0) {
+    out << "\n  " << FinalFitStats.MultiGausFits.size()
+      << "-Gaussian fits or higher: " << FinalFitStats.MultiGausFits.back()
+      << " accepted (" << TriedFitStats.MultiGausFits.back() << " tried)";
+  }
+  out << std::endl;
+  
+} // CCHitFinderAlg::FitStats_t::Print()
+
+
+
+/////////////////////////////////////////
 
 #endif // ifndef CCHITFINDERALG_H
