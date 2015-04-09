@@ -4387,15 +4387,15 @@ namespace cluster {
       // wire spacing in cm
       float wirePitch = geom->WirePitch(0, 1, 0, tpcid.TPC, tpcid.Cryostat);
       
-      // Y,Z limits of the detector
-      double local[3] = {0.,0.,0.};
-      double world[3] = {0.,0.,0.};
-      const geo::TPCGeo &thetpc = geom->TPC(tpcid.TPC, tpcid.Cryostat);
-      thetpc.LocalToWorld(local,world);
-      const float YLo = world[1]-geom->DetHalfWidth(tpcid);
-      const float YHi = world[1]+geom->DetHalfWidth(tpcid);
-      const float ZLo = world[2]-geom->DetLength(tpcid)/2;
-      const float ZHi = world[2]+geom->DetLength(tpcid)/2;
+//      // Y,Z limits of the detector
+//      double local[3] = {0.,0.,0.};
+//      double world[3] = {0.,0.,0.};
+//      const geo::TPCGeo &thetpc = geom->TPC(tpcid);
+//      thetpc.LocalToWorld(local,world);
+//      const float YLo = world[1]-geom->DetHalfWidth(tpcid);
+//      const float YHi = world[1]+geom->DetHalfWidth(tpcid);
+//      const float ZLo = world[2]-geom->DetLength(tpcid)/2;
+//      const float ZHi = world[2]+geom->DetLength(tpcid)/2;
       
       // create a vector of vertex indices in each plane
       std::vector<std::vector<unsigned short>> vIndex;
@@ -4470,7 +4470,8 @@ namespace cluster {
               }
               y = wiresIntersection.y;
               z = wiresIntersection.z;
-              if(y < YLo || y > YHi || z < ZLo || z > ZHi) {
+	      if (!TPC.ContainsYZ(y,z)){
+		//if(y < YLo || y > YHi || z < ZLo || z > ZHi) {
                 // the previous check is supposed to do all the work
                 LOG_WARNING("ClusterCrawler")
                   << "BUG: this check SHOULD HAVE been unnecessary!";

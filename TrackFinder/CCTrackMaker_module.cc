@@ -1438,14 +1438,14 @@ namespace trkf {
     short iend, ioend, jend, joend, kend;
     
     double yp, zp;
-    double local[3] = {0.,0.,0.};
-    double world[3] = {0.,0.,0.};
     const geo::TPCGeo &thetpc = geom->TPC(tpc, cstat);
-    thetpc.LocalToWorld(local,world);
-    float tpcy0 = world[1]-geom->DetHalfHeight(tpc,cstat);
-    float tpcy1 = world[1]+geom->DetHalfHeight(tpc,cstat);
-    float tpcz0 = world[2]-geom->DetLength(tpc,cstat)/2;
-    float tpcz1 = world[2]+geom->DetLength(tpc,cstat)/2;
+//    double local[3] = {0.,0.,0.};
+//    double world[3] = {0.,0.,0.};
+//    thetpc.LocalToWorld(local,world);
+//    float tpcy0 = world[1]-geom->DetHalfHeight(tpc,cstat);
+//    float tpcy1 = world[1]+geom->DetHalfHeight(tpc,cstat);
+//    float tpcz0 = world[2]-geom->DetLength(tpc,cstat)/2;
+//    float tpcz1 = world[2]+geom->DetLength(tpc,cstat)/2;
 //    float tpcSizeY = geom->DetHalfWidth();
 //    float tpcSizeZ = geom->DetLength();
     
@@ -1497,8 +1497,9 @@ namespace trkf {
                 geom->IntersectionPoint((0.5+cls[ipl][icl].Wire[iend]), 
                                         (0.5+cls[jpl][jcl].Wire[jend]),
                                         ipl, jpl, cstat, tpc, yp, zp);
-                if(yp > tpcy1 || yp < tpcy0) continue;
-                if(zp < tpcz0 || zp > tpcz1) continue;
+		if (!thetpc.ContainsYZ(yp,zp)) continue;
+//                if(yp > tpcy1 || yp < tpcy0) continue;
+//                if(zp < tpcz0 || zp > tpcz1) continue;
                 kX = 0.5 * (cls[ipl][icl].X[iend] + cls[jpl][jcl].X[jend]);
                 kWir = geom->WireCoordinate(yp, zp, kpl, tpc, cstat);
               }
@@ -1512,8 +1513,9 @@ namespace trkf {
                 geom->IntersectionPoint((0.5+cls[ipl][icl].Wire[ioend]), 
                                         (0.5+cls[jpl][jcl].Wire[joend]),
                                         ipl, jpl, cstat, tpc, yp, zp);
-                if(yp > tpcy1 || yp < tpcy0) continue;
-                if(zp < tpcz0 || zp > tpcz1) continue;
+		if (!thetpc.ContainsYZ(yp,zp)) continue;
+//                if(yp > tpcy1 || yp < tpcy0) continue;
+//                if(zp < tpcz0 || zp > tpcz1) continue;
                 okWir = geom->WireCoordinate(yp, zp, kpl, tpc, cstat);
               }
   if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk i "<<ipl<<":"<<icl<<":"<<iend
