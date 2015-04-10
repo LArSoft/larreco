@@ -226,11 +226,13 @@ namespace trkf{
         
     Int_t seg_steps = segx.size();
     
+    if ( seg_steps<2 ) return -1;
+    
     Int_t seg_steps0 = seg_steps-1;
     
     Double_t recoL = segL.at(seg_steps0);
-            
-    if ( seg_steps<2 || recoL<100.0 || recoL>1350.0 ) return -1;
+    
+    if ( recoL<100.0 || recoL>1350.0 ) return -1;
     
     Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); // cout << "3" << endl;
     
@@ -455,6 +457,8 @@ namespace trkf{
     if ( check1!=0 ) return -1.0;
         
     Int_t seg_steps = segx.size();
+    
+    if ( seg_steps<2 ) return -1;
     
     Int_t seg_steps0 = seg_steps-1;
     
