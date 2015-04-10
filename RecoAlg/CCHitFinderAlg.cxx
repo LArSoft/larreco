@@ -101,6 +101,9 @@ namespace hit {
       fMaxBumps = MaxGaussians;
     } // if too many gaussians
     
+    FinalFitStats.Reset(MaxGaussians);
+    TriedFitStats.Reset(MaxGaussians);
+    
     // sanity check for StudyHits mode
     if(fStudyHits) {
       if(fUWireRange.size() != 2 || fUTickRange.size() != 2 ||
@@ -228,6 +231,7 @@ namespace hit {
             // only used in StudyHits mode
             first = true;
             while(nHitsFit <= nMaxFit) {
+      
               FitNG(nHitsFit, npt, ticks, signl);
               if(fStudyHits && first && SelRAT) {
                 first = false;
@@ -249,6 +253,7 @@ namespace hit {
               MakeCrudeHit(npt, ticks, signl);
               StoreHits(tstart, npt, WireInfo, adcsum);
             }
+            else if (nHitsFit > 0) FinalFitStats.AddMultiGaus(nHitsFit);
           } // nabove > minSamples
           nabove = 0;
         } // signal < minSig
@@ -333,10 +338,14 @@ namespace hit {
     //
     // if it is possible, we try first with the quick single Gaussian fit
     //
+    TriedFitStats.AddMultiGaus(nGaus);
+    
     bool bNeedROOTfit = (nGaus > 1) || !fUseFastFit;
     if (!bNeedROOTfit) {
       // so, we need only one puny Gaussian;
       std::array<double, 3> params, paramerrors;
+      
+      TriedFitStats.AddFast();
       
       if (FastGaussianFit(npt, ticks, signl, params, paramerrors, chidof)) {
         // success? copy the results in the proper structures
@@ -347,13 +356,15 @@ namespace hit {
       }
       else bNeedROOTfit = true; // if we fail, let's schedule ROOT to back us up
       
+      if (!bNeedROOTfit) FinalFitStats.AddFast();
+      
     } // if we don't need ROOT to fit
     
     if (bNeedROOTfit) {
       // we may land here either because the simple Gaussian fit did not work
       // (either failed, or we chose not to trust it)
       // or because the fit is multi-Gaussian
-
+      
       // define the fit string to pass to TF1
       
       std::stringstream numConv;
@@ -820,5 +831,19 @@ namespace hit {
   } // StudyHits
 
 
+//////////////////////////////////////////////////
+  void CCHitFinderAlg::FitStats_t::Reset(unsigned int nGaus) {
+    if (nGaus == 0) return;
+    MultiGausFits.resize(nGaus);
+    std::fill(MultiGausFits.begin(), MultiGausFits.end(), 0);
+    FastFits = 0;
+  } // CCHitFinderAlg::FitStats_t::Reset()
+  
+  
+  void CCHitFinderAlg::FitStats_t::AddMultiGaus(unsigned int nGaus) {
+    ++MultiGausFits[std::min(nGaus, (unsigned int) MultiGausFits.size()) - 1];
+  } // CCHitFinderAlg::FitStats_t::AddMultiGaus()
+  
+  
 } // namespace hit
 

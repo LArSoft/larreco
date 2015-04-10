@@ -33,8 +33,10 @@ namespace hit {
       explicit HitFinder(fhicl::ParameterSet const & pset);
       virtual ~HitFinder() = default;
   
-      void reconfigure(fhicl::ParameterSet const & pset) override;
-      void produce(art::Event & evt) override;
+      virtual void reconfigure(fhicl::ParameterSet const & pset) override;
+      virtual void produce(art::Event & evt) override;
+      
+      virtual void endJob() override;
   
     private:
       art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
@@ -100,7 +102,7 @@ namespace hit {
 
     // make this accessible to ClusterCrawler_module
     art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
-     = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
+      = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
 
     // find hits in all planes
     fCCHFAlg->RunCCHitFinder(*wireVecHandle);
@@ -120,10 +122,18 @@ namespace hit {
     
     // move the hit collection and the associations into the event:
     shcol.put_into(evt);
-
+    
   } // produce()
   
-
+  
+  //----------------------------------------------------------------------------
+  void HitFinder::endJob() {
+    // print the statistics about fits
+    mf::LogInfo log("HitFinder"); // messages are printed on "log" destruction
+    fCCHFAlg->PrintStats(log);
+  } // HitFinder::endJob()
+  
+  
   DEFINE_ART_MODULE(HitFinder)
   
 } // namespace hit
