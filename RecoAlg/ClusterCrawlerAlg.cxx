@@ -770,7 +770,7 @@ namespace cluster {
             unsigned short iht = tcl[icl].tclhits[ii];
             // ignore hits close to a vertex
             if(tcl[icl].EndVtx >= 0) {
-              unsigned short ivx = tcl[icl].EndVtx - 1;
+              unsigned short ivx = tcl[icl].EndVtx;
               if((fHits[iht].WireID().Wire - vtx[ivx].Wire) < 5) continue;
             } // tcl[icl].EndVtx >= 0
             if(fHits[iht].Multiplicity() > 1) MergeHits(iht);
@@ -3845,12 +3845,16 @@ namespace cluster {
       } // ivx
       if(doMerge) {
         // find the neighbor hit
-        unsigned short imbestn = 0;
+        short imbestn = 0;
         if(hit.LocalIndex() == 0) {
           imbestn = imbest + 1;
         } else {
           imbestn = imbest - 1;
         }
+	if (imbestn<0){
+	  mf::LogError("ClusterCrawler")<<"AddHit imbestn = "<<imbestn;
+	  return;
+	}
         recob::Hit const& other_hit = fHits[imbestn];
         if (!areInSameMultiplet(hit, other_hit)) {
           mf::LogError("ClusterCrawler")
