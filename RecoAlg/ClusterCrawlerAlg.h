@@ -121,6 +121,15 @@ namespace cluster {
       bool isInCluster(size_t ihit) const
         { return isPresent(ihit) && !isFree(ihit); }
       
+      /// Returns the index of the n-th next non-obsolete hit, or invalid index
+      size_t NextPresent(size_t iHit, size_t n = 1) const;
+      /// Returns the index of the n-th previous non-obsolete hit, or invalid index
+      size_t PrevPresent(size_t iHit, size_t n = 1) const;
+      /// Returns the index of the n-th next free hit, or invalid index
+      size_t NextFree(size_t iHit, size_t n = 1) const;
+      /// Returns the index of the n-th previous free hit, or invalid index
+      size_t PrevFree(size_t iHit, size_t n = 1) const;
+      
       /// Marks the hit as obsolete
       void makeObsolete(size_t ihit) { ClusterIDs[ihit] = NoHit; }
       /// Marks the hit as belonging to no cluster (free)
@@ -138,6 +147,9 @@ namespace cluster {
       static constexpr ClusterID_t FreeHit = 0 /* std::numeric_limits<int>::max() */;
       /// ID of a hit that has disappeared because merged ("obsolete")
       static constexpr ClusterID_t NoHit = FreeHit - 1;
+      /// invalid index
+      static constexpr size_t InvalidHitIndex
+        = std::numeric_limits<size_t>::max();
       
         protected:
       /// ID of the cluster each hit is in (0: none; -1: merged away)
@@ -353,6 +365,9 @@ namespace cluster {
     void ChkClusterNearbyHits(bool prt);
     // merge the hits in a multiplet into one hit
     void MergeHits(const unsigned short theHit);
+    /// Resets the local index and multiplicity of all the hits in [begin;end[
+    void FixMultipletLocalIndices
+      (size_t begin, size_t end, short int multiplicity = -1);
 
     // ************** cluster finish routines *******************
 
@@ -442,6 +457,19 @@ namespace cluster {
       { return GetHitInCluster().isFree(iHit); }
     bool isHitPresent(size_t iHit) const
       { return GetHitInCluster().isPresent(iHit); }
+    /// Returns the index of the n-th next non-obsolete hit, or invalid index
+    size_t NextHitPresent(size_t iHit, size_t n = 1) const
+      { return GetHitInCluster().NextPresent(iHit, n); }
+    /// Returns the index of the n-th previous non-obsolete hit, or invalid index
+    size_t PrevHitPresent(size_t iHit, size_t n = 1) const
+      { return GetHitInCluster().PrevPresent(iHit, n); }
+    /// Returns the index of the n-th next free hit, or invalid index
+    size_t NextHitFree(size_t iHit, size_t n = 1) const
+      { return GetHitInCluster().NextFree(iHit, n); }
+    /// Returns the index of the n-th previous free hit, or invalid index
+    size_t PrevHitFree(size_t iHit, size_t n = 1) const
+      { return GetHitInCluster().PrevFree(iHit, n); }
+    
     
     /// Returns whether the two hits belong to the same multiplet
     static bool areInSameMultiplet
