@@ -3870,7 +3870,7 @@ namespace cluster {
     <<" fAveChg "<<(int)fAveChg;
 
     // loop through the hits
-    int imbest = -1;
+    size_t imbest = HitInCluster_t::InvalidHitIndex; // invalid by default
     float best = 9999.;
     for(unsigned short khit = firsthit; khit < lasthit; ++khit) {
       // obsolete hit?
@@ -3906,7 +3906,7 @@ namespace cluster {
       SigOK = true;
     }
 
-    if(imbest < 0) return;
+    if(imbest == HitInCluster_t::InvalidHitIndex) return;
 
     recob::Hit const& hit = fHits[imbest];
     
@@ -3937,7 +3937,7 @@ namespace cluster {
       if (!doMerge) break; // do not merge
       
       // find the neighbor hit
-      unsigned short imbestn = 0;
+      size_t imbestn = HitInCluster_t::InvalidHitIndex;
       if(hit.LocalIndex() == 0) {
         imbestn = NextHitPresent(imbest);
         if (imbestn == HitInCluster_t::InvalidHitIndex) {
@@ -4006,7 +4006,7 @@ namespace cluster {
       }
       // the total charge of both hits is a better match than the 
       // charge of the hit selected
-      MergeHits(imbest);
+      MergeHits((unsigned short) imbest);
       // the nearby hit was merged
       hnear = -1;
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")
