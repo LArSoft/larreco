@@ -826,17 +826,17 @@ namespace trkf {
     bool skipit = true;
 
     double fidcut = 5;
-    // fiducial limits of the detector
-    double local[3] = {0.,0.,0.};
-    double world[3] = {0.,0.,0.};
     const geo::TPCGeo &thetpc = geom->TPC(tpc, cstat);
-    thetpc.LocalToWorld(local,world);
-    double XLo = world[0]-geom->DetHalfWidth(tpc,cstat) + fidcut;
-    double XHi = world[0]+geom->DetHalfWidth(tpc,cstat) - fidcut;
-    double YLo = world[1]-geom->DetHalfHeight(tpc,cstat) + fidcut;
-    double YHi = world[1]+geom->DetHalfHeight(tpc,cstat) - fidcut;
-    double ZLo = world[2]-geom->DetLength(tpc,cstat)/2 + fidcut;
-    double ZHi = world[2]+geom->DetLength(tpc,cstat)/2 - fidcut;
+    // fiducial limits of the detector
+//    double local[3] = {0.,0.,0.};
+//    double world[3] = {0.,0.,0.};
+//    thetpc.LocalToWorld(local,world);
+    double XLo = thetpc.MinX() + fidcut;
+    double XHi = thetpc.MaxX() - fidcut;
+    double YLo = thetpc.MinY() + fidcut;
+    double YHi = thetpc.MaxY() - fidcut;
+    double ZLo = thetpc.MinZ() + fidcut;
+    double ZHi = thetpc.MaxZ() - fidcut;
     bool startsIn, endsIn;
 
     for(unsigned short itk = 0; itk < trk.size(); ++itk) {
