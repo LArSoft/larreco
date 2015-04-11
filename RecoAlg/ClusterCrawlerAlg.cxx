@@ -613,7 +613,7 @@ namespace cluster {
 
       float thhits, prevth, hitrms, rmsrat;
       bool ratOK;
-      std::vector<unsigned short> dshits;
+      my_vector<unsigned short> dshits;
       const unsigned short tclsize = tcl.size();
       for(unsigned short icl = 0; icl < tclsize; ++icl) {
         if(tcl[icl].ID < 0) continue;
@@ -726,8 +726,8 @@ namespace cluster {
         if(nmult == 0) continue;
         // count the number of hits in this region that are not associated
         // with this cluster
-        // inspect the 5 wires US of the cluster end and the 5 wires DS
-        hiWire = tcl[icl].BeginWir + 5;
+        // inspect (at most) the 5 wires US of the cluster end and the 5 wires DS
+        hiWire = std::min(tcl[icl].BeginWir + 5, (int) WireHitRange.size()); // or fLastWire+1?
         unsigned short nUsInClus = 0, nUsNotInClus = 0;
         unsigned short nDsInClus = 0, nDsNotInClus = 0;
         for(unsigned short wire = loWire; wire < hiWire; ++wire) {
@@ -1177,7 +1177,7 @@ namespace cluster {
       if(loTime < 0) loTime = 0;
       ++hiTime;
       // define a signal shape, fill it with zeros
-      std::vector<double> signal(hiTime - loTime, 0.);
+      my_vector<double> signal(hiTime - loTime, 0.);
       // now add the Gaussians for each hit
       double chgsum = 0.;
       for(size_t jht = MultipletRange.first; jht < MultipletRange.second; ++jht) {
@@ -2451,7 +2451,7 @@ namespace cluster {
     // fill a vector spanning the length of cluster 1 and filled with the hit time
     unsigned short ew1 = tcl[it1].EndWir;
     unsigned short bw1 = tcl[it1].BeginWir;
-    std::vector<unsigned short> cl1hits;
+    my_vector<unsigned short> cl1hits;
     // fill the vector with 0s
     for(unsigned short wire = ew1; wire <= bw1; ++wire) {
       cl1hits.push_back(0);
@@ -2607,7 +2607,7 @@ namespace cluster {
     if(cl2.EndWir < lowire) lowire = cl2.EndWir;
 
     // make a vector of wire hits
-    std::vector<short> wirehit;
+    my_vector<short> wirehit;
     for(unsigned short wire = lowire; wire < hiwire + 2; ++wire) {
       wirehit.push_back(-1);
     }
@@ -2641,7 +2641,7 @@ namespace cluster {
     } // iht
     // make the new cluster
     fcl2hits.clear();
-    for(std::vector<short>::reverse_iterator rit = wirehit.rbegin(); 
+    for(my_vector<short>::reverse_iterator rit = wirehit.rbegin(); 
         rit != wirehit.rend(); ++rit) {
       if(*rit < 0) continue;
       unsigned short hit = *rit;
@@ -2848,9 +2848,9 @@ namespace cluster {
       clBeginChg = clBeginChg / 2.;
     }
     
-    std::vector<unsigned short>::const_iterator ibg = fcl2hits.begin();
+    my_vector<unsigned short>::const_iterator ibg = fcl2hits.begin();
     unsigned short hitb = *ibg;
-    std::vector<unsigned short>::const_iterator iend = fcl2hits.end() - 1;
+    my_vector<unsigned short>::const_iterator iend = fcl2hits.end() - 1;
     unsigned short hite = *iend;
 
     // store the cluster in the temporary ClusterStore struct
@@ -3345,9 +3345,9 @@ namespace cluster {
     ClusterStore cls = tcl[it1];
     if(cls.tclhits.size() < 3) return;
 
-    std::vector<float> xwir;
-    std::vector<float> ytim;
-    std::vector<float> ytimerr2;
+    my_vector<float> xwir;
+    my_vector<float> ytim;
+    my_vector<float> ytimerr2;
     
     short nht = 0;
     unsigned short wire0 = 0;
@@ -3455,9 +3455,9 @@ namespace cluster {
     }
     if(nht < 2) return;
 
-    std::vector<float> xwir;
-    std::vector<float> ytim;
-    std::vector<float> ytimerr2;
+    my_vector<float> xwir;
+    my_vector<float> ytim;
+    my_vector<float> ytimerr2;
     // apply an angle dependent scale factor.
     float angfactor = AngleFactor(clpar[1]);
 
@@ -3467,7 +3467,7 @@ namespace cluster {
 
     bool first = true;
     unsigned short wire0 = 0;
-    for(std::vector<unsigned short>::reverse_iterator it = fcl2hits.rbegin();
+    for(my_vector<unsigned short>::reverse_iterator it = fcl2hits.rbegin();
        it != fcl2hits.rend(); ++it) {
       unsigned short ihit = *it;
       unsigned short wire = fHits[ihit].WireID().Wire;
@@ -3489,7 +3489,7 @@ namespace cluster {
     mf::LogVerbatim myprt("ClusterCrawlerAlg");
     myprt<<"FitCluster W:T ";
     unsigned short cnt = 0;
-    for(std::vector<unsigned short>::reverse_iterator it = fcl2hits.rbegin();
+    for(my_vector<unsigned short>::reverse_iterator it = fcl2hits.rbegin();
        it != fcl2hits.rend(); ++it) {
       unsigned short ihit = *it;
       unsigned short wire = fHits[ihit].WireID().Wire;
@@ -3574,9 +3574,9 @@ namespace cluster {
       fChgSlp = 0.;
     } else if((unsigned short)fcl2hits.size() > fitLen){
       // do a real fit
-      std::vector<float> xwir;
-      std::vector<float> ychg;
-      std::vector<float> ychgerr2;
+      my_vector<float> xwir;
+      my_vector<float> ychg;
+      my_vector<float> ychgerr2;
       // origin of the fit
       unsigned short wire0 = fHits[fcl2hits[fcl2hits.size()-1]].WireID().Wire;
       // find the mean and rms of the charge
@@ -4172,9 +4172,9 @@ namespace cluster {
     void ClusterCrawlerAlg::FitVtx(unsigned short iv, float& ChiDOF)
     {
       
-      std::vector<float> x;
-      std::vector<float> y;
-      std::vector<float> ey2;
+      my_vector<float> x;
+      my_vector<float> y;
+      my_vector<float> ey2;
       
       for(unsigned short icl = 0; icl < tcl.size(); ++icl) {
         if(tcl[icl].ID < 0) continue;
@@ -4339,7 +4339,7 @@ namespace cluster {
             lastplane = thePlane;
           }
           // make a list of clusters that have hits near this point on nearby wires xxx
-          std::vector<short> clIDs;
+          my_vector<short> clIDs;
           if(theWire > fFirstWire + 5) { loWire = theWire - 5; } else { loWire = fFirstWire; }
           if(theWire < fLastWire  - 5) { hiWire = theWire + 5; } else { hiWire = fLastWire; }
     if(vtxprt) mf::LogVerbatim("ClusterCrawlerAlg")<<"3DVtx "<<ivx
@@ -4521,8 +4521,8 @@ namespace cluster {
 //      const float ZHi = world[2]+geom->DetLength(tpcid)/2;
       
       // create a vector of vertex indices in each plane
-      std::vector<std::vector<unsigned short>> vIndex;
-      std::vector<unsigned short> temp;
+      my_vector<my_vector<unsigned short>> vIndex;
+      my_vector<unsigned short> temp;
       for(unsigned short ipl = 0; ipl < 3; ++ipl) {
         temp.clear();
         for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
@@ -4537,11 +4537,11 @@ namespace cluster {
       temp.clear();
       
       // vector of 2D vertices -> 3D vertices.
-      std::vector<short> vPtr;
+      my_vector<short> vPtr;
       for(unsigned short ii = 0; ii < vtx.size(); ++ii) vPtr.push_back(-1);
       
       // temp vector of all 2D vertex matches
-      std::vector<Vtx3Store> v3temp;
+      my_vector<Vtx3Store> v3temp;
       
       double y = 0, z = 0;
       TVector3 WPos = {0, 0, 0};
@@ -4708,12 +4708,13 @@ namespace cluster {
 //////////////////////////////////
     void ClusterCrawlerAlg::GetHitRange(
       CTP_t CTP, 
-      std::vector< std::pair<short, short> >& WireHitRange,
+      my_vector< std::pair<short, short> >& WireHitRange,
       unsigned short& firstwire, unsigned short& lastwire)
     {
       // fills the WireHitRange vector for the supplied Cryostat/TPC/Plane code
+      firstwire = lastwire = 0;
+      WireHitRange.clear();
       bool first = true;
-      lastwire = 0;
       unsigned short firsthit = 0;
       geo::PlaneID planeID = DecodeCTP(CTP);
       unsigned short lasthit = 0;
@@ -4732,6 +4733,8 @@ namespace cluster {
         lastwire = theWireNum;
         lasthit = hit;
       } //hit
+      
+      if (first) return; // we collected nothing
 
       // now we can define the WireHitRange vector.
       // start by defining the "no hits on wire" condition
@@ -4820,7 +4823,7 @@ namespace cluster {
     
 /////////////////////////////////////////
     void ClusterCrawlerAlg::SortByLength(
-      std::vector<ClusterStore> const& tcl,
+      my_vector<ClusterStore> const& tcl,
       CTP_t inCTP, std::map<unsigned short, unsigned short>& sortindex
       )
     {
@@ -4829,7 +4832,7 @@ namespace cluster {
       // sort order
       
       // form a vector of pairs of the number of hits and the index
-      std::vector< std::pair<unsigned short, unsigned short> > index;
+      my_vector< std::pair<unsigned short, unsigned short> > index;
       for(unsigned short ii = 0; ii < tcl.size(); ++ii) {
         if(tcl[ii].ID > 0 && tcl[ii].CTP == inCTP) 
           index.push_back(std::make_pair(tcl[ii].tclhits.size(),ii));

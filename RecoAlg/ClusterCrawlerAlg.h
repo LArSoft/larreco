@@ -32,10 +32,37 @@
 
 
 namespace cluster {
-
+  
+  /// A STD vector that always checks boundary on element access
+  template <typename T>
+  class checked_vector: public std::vector<T> {
+      public:
+    using size_type = typename std::vector<T>::size_type;
+    using reference = typename std::vector<T>::reference;
+    using const_reference = typename std::vector<T>::const_reference;
+    
+    using std::vector<T>::vector; // inherit all constructors
+    
+    checked_vector<T>& operator= (std::vector<T> const& from)
+      { std::vector<T>::operator= (from); return *this; }
+    checked_vector<T>& operator= (std::vector<T>&& from)
+      { std::vector<T>::operator= (from); return *this; }
+    
+    reference operator[] (size_type n) { return this->at(n); }
+    const_reference operator[] (size_type n) const  { return this->at(n); }
+    
+  }; // checked_vector<T>
+  
+  
+  
+  
 
   class ClusterCrawlerAlg {
     public:
+    
+    template <typename T>
+  //  using my_vector = checked_vector<T>; // for debugging
+    using my_vector = std::vector<T>; // for regular run
 
     // some functions to handle the CTP_t type
     typedef unsigned int CTP_t;
@@ -71,7 +98,7 @@ namespace cluster {
       float EndChg;     // ending average charge
       short BeginVtx;   // ID of the begin vertex
       short EndVtx;     // ID of the end vertex
-      std::vector<unsigned short> tclhits; // hits on the cluster
+      my_vector<unsigned short> tclhits; // hits on the cluster
     }; // ClusterStore
 
     /// struct of temporary 2D vertices (end points)
@@ -153,7 +180,7 @@ namespace cluster {
       
         protected:
       /// ID of the cluster each hit is in (0: none; -1: merged away)
-      std::vector<ClusterID_t> ClusterIDs;
+      my_vector<ClusterID_t> ClusterIDs;
     
     }; // HitInCluster_t
     /// @}
@@ -171,16 +198,16 @@ namespace cluster {
     HitInCluster_t const& GetHitInCluster() const { return fHitInCluster; }
     
     /// Returns (and loses) the collection of reconstructed hits
-    std::vector<recob::Hit>&& YieldHits() { return std::move(fHits); }
+    my_vector<recob::Hit>&& YieldHits() { return std::move(fHits); }
     
     /// Returns a constant reference to the clusters found
-    std::vector<ClusterStore> const& GetClusters() const { return tcl; }
+    my_vector<ClusterStore> const& GetClusters() const { return tcl; }
     
     /// Returns a constant reference to the 2D end points found
-    std::vector<VtxStore> const& GetEndPoints() const { return vtx; }
+    my_vector<VtxStore> const& GetEndPoints() const { return vtx; }
     
     /// Returns a constant reference to the 3D vertices found
-    std::vector<Vtx3Store> const& GetVertices() const { return vtx3; }
+    my_vector<Vtx3Store> const& GetVertices() const { return vtx3; }
     
     
     /// Deletes all the results (might saves memory)
@@ -191,7 +218,7 @@ namespace cluster {
     
     
     /// Sorts clusters in tcl by decreasing number of hits, ignoring abandoned clusters
-    static void SortByLength(std::vector<ClusterStore> const& tcl,
+    static void SortByLength(my_vector<ClusterStore> const& tcl,
       CTP_t inCTP, std::map<unsigned short, unsigned short>& sortindex);
     
     /// Comparison for sorting hits by wire and hit multiplet
@@ -204,23 +231,23 @@ namespace cluster {
     
     
     unsigned short fNumPass;                 ///< number of passes over the hit collection
-    std::vector<unsigned short> fMaxHitsFit; ///< Max number of hits fitted
-    std::vector<unsigned short> fMinHits;    ///< Min number of hits to make a cluster
-    std::vector<unsigned short> fNHitsAve;   ///< number of US hits used to compute fAveChg
+    my_vector<unsigned short> fMaxHitsFit; ///< Max number of hits fitted
+    my_vector<unsigned short> fMinHits;    ///< Min number of hits to make a cluster
+    my_vector<unsigned short> fNHitsAve;   ///< number of US hits used to compute fAveChg
                                     ///< set to > 2 to do a charge fit using fNHitsAve hits
-    std::vector<float> fChiCut;     ///< stop adding hits to clusters if chisq too high
-    std::vector<float> fKinkChiRat; ///< Max consecutive chisq increase for the last 
+    my_vector<float> fChiCut;     ///< stop adding hits to clusters if chisq too high
+    my_vector<float> fKinkChiRat; ///< Max consecutive chisq increase for the last 
                                     ///< 3 hits on the cluster
-    std::vector<float> fKinkAngCut; ///< kink angle cut made after fKinkChiRat
-    std::vector<float> fChgCut;     ///< charge difference cut for adding a hit to a cluster
-    std::vector<unsigned short> fMaxWirSkip; ///< max number of wires that can be skipped while crawling
-    std::vector<unsigned short> fMinWirAfterSkip; ///< minimum number of hits on consecutive wires
+    my_vector<float> fKinkAngCut; ///< kink angle cut made after fKinkChiRat
+    my_vector<float> fChgCut;     ///< charge difference cut for adding a hit to a cluster
+    my_vector<unsigned short> fMaxWirSkip; ///< max number of wires that can be skipped while crawling
+    my_vector<unsigned short> fMinWirAfterSkip; ///< minimum number of hits on consecutive wires
                                     ///< after skipping
-    std::vector<bool> fDoMerge;     ///< try to merge clusters?
-    std::vector<float> fTimeDelta;  ///< max time difference for matching
-    std::vector<float> fMergeChgCut;  ///< max charge ratio for matching
-    std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
-    std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
+    my_vector<bool> fDoMerge;     ///< try to merge clusters?
+    my_vector<float> fTimeDelta;  ///< max time difference for matching
+    my_vector<float> fMergeChgCut;  ///< max charge ratio for matching
+    my_vector<bool> fFindVertices;    ///< run vertexing code after clustering?
+    my_vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
 
     bool fChkClusterDS;
     bool fMergeOverlap;
@@ -243,7 +270,7 @@ namespace cluster {
 
     // fills a wirehitrange vector for the supplied Cryostat/TPC/Plane code
     void GetHitRange(CTP_t CTP,
-      std::vector< std::pair<short, short> >& wirehitrange,
+      my_vector< std::pair<short, short> >& wirehitrange,
       unsigned short& firstwire, unsigned short& lastwire);
 
     // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
@@ -265,11 +292,11 @@ namespace cluster {
     art::ServiceHandle<util::LArProperties> larprop;
     art::ServiceHandle<util::DetectorProperties> detprop;
     
-    std::vector<recob::Hit> fHits; ///< our version of the hits
+    my_vector<recob::Hit> fHits; ///< our version of the hits
     HitInCluster_t fHitInCluster; ///< List of the cluster ID each hit belongs to
-    std::vector< ClusterStore > tcl; ///< the clusters we are creating
-    std::vector< VtxStore > vtx; ///< the endpoints we are reconstructing
-    std::vector< Vtx3Store > vtx3; ///< the 3D vertices we are reconstructing
+    my_vector< ClusterStore > tcl; ///< the clusters we are creating
+    my_vector< VtxStore > vtx; ///< the endpoints we are reconstructing
+    my_vector< Vtx3Store > vtx3; ///< the 3D vertices we are reconstructing
     
     trkf::LinFitAlg fLinFitAlg;
 
@@ -322,11 +349,11 @@ namespace cluster {
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
-    std::vector< std::pair<short, short> > WireHitRange;
+    my_vector< std::pair<short, short> > WireHitRange;
     
-    std::vector<unsigned short> fcl2hits;  ///< vector of hits used in the cluster
-    std::vector<float> chifits;   ///< fit chisq for monitoring kinks, etc
-    std::vector<short> hitnear;   ///< Number of nearby
+    my_vector<unsigned short> fcl2hits;  ///< vector of hits used in the cluster
+    my_vector<float> chifits;   ///< fit chisq for monitoring kinks, etc
+    my_vector<short> hitnear;   ///< Number of nearby
                                   ///< hits that were merged have hitnear < 0
 
     std::string fhitsModuleLabel;
