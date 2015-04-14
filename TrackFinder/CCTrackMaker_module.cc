@@ -984,55 +984,55 @@ namespace trkf {
     // cluster and the vertex
     unsigned short ipl, icl, ivx;
     float vWire, dWire, dX;
-    short ibstd, ibstu;
-    float bestd, bestu;
+    short ibst0, ibst1;
+    float best0, best1;
     
     if(vtx.size() == 0) return;
     
     for(ivx = 0; ivx < vtx.size(); ++ivx) {
       for(ipl = 0; ipl < nplanes; ++ipl) {
         vWire = geom->WireCoordinate(vtx[ivx].Y, vtx[ivx].Z, ipl, tpc, cstat);
-        ibstd = -1; ibstu = -1;
-        bestd = 5; bestu = 5;
+        ibst0 = -1; ibst1 = -1;
+        best0 = 5; best1 = 5;
+//  prt = (ipl == 0);
         for(icl = 0; icl < cls[ipl].size(); ++icl) {
-          // check DS end
-          if(cls[ipl][icl].VtxIndex[1] < 0) {
-            dWire = vWire - cls[ipl][icl].Wire[1];
-/*
-  prt = (ivx == 1) && (icl == 6);
-  if(prt) std::cout<<" cls Wire "<<cls[ipl][icl].Wire[1]
-    <<" slp "<<cls[ipl][icl].Slope[1]<<" X "<<cls[ipl][icl].X[1]
-    <<" dWire "<<dWire<<"\n";
-*/
-            if(dWire > -30 && dWire < 2) {
-              dX = fabs(cls[ipl][icl].X[1] + cls[ipl][icl].Slope[1] * fWirePitch * dWire
-                   - vtx[ivx].X);
-//  if(prt) std::cout<<" dX "<<dX<<"\n";
-              if(dX < bestd) { bestd = dX; ibstd = icl; }
-            } // dWire test
-          } // check DS end
-          // check US end
+          // check end 0
           if(cls[ipl][icl].VtxIndex[0] < 0) {
             dWire = vWire - cls[ipl][icl].Wire[0];
-            if(dWire < 30 && dWire > -2) {
-              dX = fabs(cls[ipl][icl].X[0] + cls[ipl][icl].Slope[0] * fWirePitch * dWire 
+//  if(prt) std::cout<<"vtx "<<ivx<<" P:C:E "<<ipl<<":"<<icl<<":0"<<" cls Wire "<<cls[ipl][icl].Wire[0]
+//    <<" slp "<<cls[ipl][icl].Slope[0]<<" X "<<cls[ipl][icl].X[0]<<" dWire "<<dWire<<"\n";
+            if(dWire > -30 && dWire < 2) {
+              dX = fabs(cls[ipl][icl].X[0] + cls[ipl][icl].Slope[0] * fWirePitch * dWire
                    - vtx[ivx].X);
-              if(dX < bestu) { bestu = dX; ibstu = icl; }
+              if(dX < best0) { best0 = dX; ibst0 = icl; }
+//  if(prt) std::cout<<" dX "<<dX<<" best0 "<<best0<<" ibst0 "<<ibst0<<"\n";
             } // dWire test
-          } // check DS end
+          } // check end 0
+          // check end 1
+          if(cls[ipl][icl].VtxIndex[1] < 0) {
+            dWire = vWire - cls[ipl][icl].Wire[1];
+//  if(prt) std::cout<<"vtx "<<ivx<<" P:C:E "<<ipl<<":"<<icl<<":0"<<" cls Wire "<<cls[ipl][icl].Wire[0]
+//    <<" slp "<<cls[ipl][icl].Slope[0]<<" X "<<cls[ipl][icl].X[0]<<" dWire "<<dWire<<"\n";
+            if(dWire < 30 && dWire > -2) {
+              dX = fabs(cls[ipl][icl].X[1] + cls[ipl][icl].Slope[1] * fWirePitch * dWire
+                   - vtx[ivx].X);
+              if(dX < best1) { best1 = dX; ibst1 = icl; }
+//  if(prt) std::cout<<" dX "<<dX<<" best1 "<<best1<<" ibst1 "<<ibst1<<"\n";
+            } // dWire test
+          } // check end 1
         } // icl
         // Good match. Ensure that we don't associate this cluster end with a vertex
         // in which the cluster is already matched at the other end. This can happen for
         // short clusters
-        if(ibstd >= 0 && cls[ipl][icl].VtxIndex[1-ibstd] != ivx) {
-          cls[ipl][ibstd].mVtxIndex[1] = ivx;
-          cls[ipl][ibstd].VtxIndex[1] = ivx;
+//  if(prt) std::cout<<"ibst0 "<<ibst0<<" cls[ipl][icl].VtxIndex[1] "<<cls[ipl][icl].VtxIndex[1]<<"\n";
+        if(ibst0 >= 0 && cls[ipl][ibst0].VtxIndex[1] != ivx) {
+          cls[ipl][ibst0].mVtxIndex[0] = ivx;
+          cls[ipl][ibst0].VtxIndex[0] = ivx;
         }
-        if(ibstu >= 0 && cls[ipl][icl].VtxIndex[1-ibstu] != ivx) {
-          cls[ipl][ibstu].mVtxIndex[0] = ivx;
-          cls[ipl][ibstu].VtxIndex[0] = ivx;
+        if(ibst1 >= 0 && cls[ipl][ibst1].VtxIndex[0] != ivx) {
+          cls[ipl][ibst1].mVtxIndex[1] = ivx;
+          cls[ipl][ibst1].VtxIndex[1] = ivx;
         }
-//  if(prt) std::cout<<"ibstd "<<ibstd<<"\n";
       } // ipl
     } // ivx
     
