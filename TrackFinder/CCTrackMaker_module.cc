@@ -1439,15 +1439,6 @@ namespace trkf {
     
     double yp, zp;
     const geo::TPCGeo &thetpc = geom->TPC(tpc, cstat);
-//    double local[3] = {0.,0.,0.};
-//    double world[3] = {0.,0.,0.};
-//    thetpc.LocalToWorld(local,world);
-//    float tpcy0 = world[1]-geom->DetHalfHeight(tpc,cstat);
-//    float tpcy1 = world[1]+geom->DetHalfHeight(tpc,cstat);
-//    float tpcz0 = world[2]-geom->DetLength(tpc,cstat)/2;
-//    float tpcz1 = world[2]+geom->DetLength(tpc,cstat)/2;
-//    float tpcSizeY = geom->DetHalfWidth();
-//    float tpcSizeZ = geom->DetLength();
     
     float angCut = 10 * fAngleMatchErr;
     
