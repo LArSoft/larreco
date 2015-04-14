@@ -74,6 +74,11 @@ namespace cluster {
     fCCAlg             (pset.get<fhicl::ParameterSet>("ClusterCrawlerAlg")),
     fCalDataModuleLabel(pset.get<std::string>("CalDataModuleLabel"))
   {
+    mf::LogWarning("ClusterCrawler") <<
+      "\nClusterCrawler module has been deprecated and will be removed."
+      "\nIt is now replaced by HitFinder and LineCluster modules."
+      ;
+    
     this->reconfigure(pset);
     
     // let HitCollectionAssociator declare that we are going to produce
