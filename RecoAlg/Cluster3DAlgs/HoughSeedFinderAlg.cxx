@@ -317,6 +317,14 @@ void HoughSeedFinderAlg::findHitGaps(reco::HitPairListPtr&      inputHitList,
     reco::PrincipalComponents pca;
     
     m_pcaAlg.PCAAnalysis_3D(inputHitList, pca, true);
+    
+    // It would seem that the analysis can fail!
+    if (!pca.getSvdOK())
+    {
+        outputList = inputHitList;
+        return;
+    }
+    
     m_pcaAlg.PCAAnalysis_calc3DDocas(inputHitList, pca);
     
     inputHitList.sort(SeedFinderAlgBase::Sort3DHitsByArcLen3D());
