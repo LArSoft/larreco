@@ -4456,7 +4456,7 @@ namespace cluster {
 //////////////////////////////////
     void ClusterCrawlerAlg::GetHitRange(std::vector<CCHitFinderAlg::CCHit>& allhits,
       CTP_t CTP, 
-      std::vector< std::pair<short, short> >& WireHitRange,
+      std::vector< std::pair<int, int> >& WireHitRange,
       unsigned short& firstwire, unsigned short& lastwire)
     {
       art::ServiceHandle<geo::Geometry> geom;
@@ -4509,8 +4509,8 @@ namespace cluster {
         unsigned short thiswire = theHit.WireNum;
         if(thiswire > lastwire) {
           unsigned short index = lastwire - firstwire;
-          short itmp1 = lastfirsthit;
-          short itmp2 = thishit;
+          int itmp1 = lastfirsthit;
+          int itmp2 = thishit;
           WireHitRange[index] = std::make_pair(itmp1,itmp2);
           lastwire = thiswire;
           lastfirsthit = thishit;
@@ -4522,8 +4522,8 @@ namespace cluster {
       } //hit
       // define for the last wire
       unsigned short index = lastwire - firstwire;
-      short itmp1 = lastfirsthit;
-      short itmp2 = thishit;
+      int itmp1 = lastfirsthit;
+      int itmp2 = thishit;
       WireHitRange[index] = std::make_pair(itmp1,itmp2);
     } // GetHitRange
 
