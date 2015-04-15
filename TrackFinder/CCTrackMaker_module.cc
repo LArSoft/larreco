@@ -1011,11 +1011,11 @@ namespace trkf {
         // Good match. Ensure that we don't associate this cluster end with a vertex
         // in which the cluster is already matched at the other end. This can happen for
         // short clusters
-        if(ibstd >= 0 && cls[ipl][icl].VtxIndex[1-ibstd] != ivx) {
+        if(ibstd >= 0 && cls[ipl][icl].VtxIndex[0] != ivx) {
           cls[ipl][ibstd].mVtxIndex[1] = ivx;
           cls[ipl][ibstd].VtxIndex[1] = ivx;
         }
-        if(ibstu >= 0 && cls[ipl][icl].VtxIndex[1-ibstu] != ivx) {
+        if(ibstu >= 0 && cls[ipl][icl].VtxIndex[1] != ivx) {
           cls[ipl][ibstu].mVtxIndex[0] = ivx;
           cls[ipl][ibstu].VtxIndex[0] = ivx;
         }
