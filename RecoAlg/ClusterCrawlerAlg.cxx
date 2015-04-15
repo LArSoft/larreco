@@ -4701,7 +4701,7 @@ namespace cluster {
 //////////////////////////////////
     void ClusterCrawlerAlg::GetHitRange(
       CTP_t CTP, 
-      std::vector< std::pair<short, short> >& WireHitRange,
+      std::vector< std::pair<int, int> >& WireHitRange,
       unsigned short& firstwire, unsigned short& lastwire)
     {
       // fills the WireHitRange vector for the supplied Cryostat/TPC/Plane code
@@ -4759,8 +4759,11 @@ namespace cluster {
         unsigned short thiswire = theHit.WireID().Wire;
         if(thiswire > lastwire) {
           unsigned short index = lastwire - firstwire;
-          short itmp1 = lastfirsthit;
-          short itmp2 = thishit;
+          int itmp1 = lastfirsthit;
+          int itmp2 = thishit;
+	  if (itmp1<0||itmp2<0){
+	    throw art::Exception(art::errors::LogicError)<<"ClusterCrawlerAlg::GetHitRange() index= "<<index<<" itmp1= "<<itmp1<<" itmp2= "<<itmp2<<" lastfirsthit= "<<lastfirsthit<<" thishit= "<<thishit;
+	  }
           WireHitRange[index] = std::make_pair(itmp1,itmp2);
           lastwire = thiswire;
           lastfirsthit = thishit;
@@ -4772,9 +4775,10 @@ namespace cluster {
       } //hit
       // define for the last wire
       unsigned short index = lastwire - firstwire;
-      short itmp1 = lastfirsthit;
-      short itmp2 = thishit;
+      int itmp1 = lastfirsthit;
+      int itmp2 = thishit;
       WireHitRange[index] = std::make_pair(itmp1,itmp2);
+      if (itmp1<0||itmp2<0) std::cout<<index<<" "<<itmp1<<" "<<itmp2<<std::endl;
     } // GetHitRange()
 
 

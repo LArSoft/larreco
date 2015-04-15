@@ -243,7 +243,7 @@ namespace cluster {
 
     // fills a wirehitrange vector for the supplied Cryostat/TPC/Plane code
     void GetHitRange(CTP_t CTP,
-      std::vector< std::pair<short, short> >& wirehitrange,
+      std::vector< std::pair<int, int> >& wirehitrange,
       unsigned short& firstwire, unsigned short& lastwire);
 
     // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
@@ -322,7 +322,7 @@ namespace cluster {
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
-    std::vector< std::pair<short, short> > WireHitRange;
+    std::vector< std::pair<int, int> > WireHitRange;
     
     std::vector<unsigned short> fcl2hits;  ///< vector of hits used in the cluster
     std::vector<float> chifits;   ///< fit chisq for monitoring kinks, etc
