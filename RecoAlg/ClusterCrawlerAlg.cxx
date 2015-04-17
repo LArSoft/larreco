@@ -697,7 +697,7 @@ namespace cluster {
           tcl[newcl].BeginVtx = tcl[icl].BeginVtx;
           tcl[newcl].EndVtx = tcl[icl].EndVtx;
           // declare the old one obsolete
-          tcl[icl].ID = -tcl[icl].ID;
+          MakeClusterObsolete(icl);
         } // dshits.size() > 0
       } // icl
       
@@ -849,7 +849,7 @@ namespace cluster {
             tcl[newcl].BeginVtx = tcl[icl].BeginVtx;
             tcl[newcl].EndVtx = tcl[icl].EndVtx;
             // declare the old one obsolete
-            tcl[icl].ID = -tcl[icl].ID;
+            MakeClusterObsolete(icl);
           } // dshits.size() > 0
         } // nDsNotInClus > 0
       } // icl
@@ -1069,7 +1069,7 @@ namespace cluster {
               tcl[newcl].BeginVtx = tcl[icl].BeginVtx;
               tcl[newcl].EndVtx = ivx;
               // declare this cluster obsolete
-              tcl[icl].ID = -tcl[icl].ID;
+              MakeClusterObsolete(icl);
             } else {
               // split the cluster into two
               // correct the split position
@@ -2228,7 +2228,7 @@ namespace cluster {
       tcl[iclnew].EndVtx = tcl[icl].EndVtx;
 //  mf::LogVerbatim("ClusterCrawlerAlg")<<"ClusterSplit split "<<tcl[icl].ID;
       // declare icl obsolete
-      tcl[icl].ID = -tcl[icl].ID;
+      MakeClusterObsolete(icl);
 
     } // SplitCluster()
 
@@ -2595,8 +2595,8 @@ namespace cluster {
     if(plane == 1 && cl1.ID == 84 && cl2.ID == 63) myprt = true;
 */
     // mark cl1 and cl2 obsolete
-    cl1.ID = -cl1.ID;
-    cl2.ID = -cl2.ID;
+    MakeClusterObsolete(it1);
+    MakeClusterObsolete(it2);
     
     // Find the low and high wire for both clusters.
     // Assume that cluster 1 is DS
@@ -4698,6 +4698,25 @@ namespace cluster {
 
     } // VtxMatch
 
+//////////////////////////////////
+  void ClusterCrawlerAlg::FreeObsoleteClusterHits(unsigned short icl) {
+    // Frees hits used by obsolete cluster icl.
+    // The cluster ID should be set < 0 by the calling routine
+    
+    short ClusterID = tcl[icl].ID;
+    if(ClusterID >= 0) return; // if the cluster is still good, do not bother
+    
+    for (unsigned short iht: tcl[icl].tclhits) {
+      // Free the hit if it used by this cluster
+      if (fHitInCluster[iht] == -ClusterID) fHitInCluster.setFree(iht);
+    //  else LOG_DEBUG("ClusterCrawlerAlg")
+    //    << "Hit #" << iht << " now actually belongs to cluster ID="
+    //    << fHitInCluster[iht];
+    } // ii
+    
+  } // ClusterCrawlerAlg::FreeObsoleteClusterHits()
+
+  
 //////////////////////////////////
     void ClusterCrawlerAlg::GetHitRange(
       CTP_t CTP, 

@@ -158,6 +158,8 @@ namespace cluster {
     }; // HitInCluster_t
     /// @}
     
+    using ClusterID_t = HitInCluster_t::ClusterID_t;
+    
     
     ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
 
@@ -380,6 +382,9 @@ namespace cluster {
     // Try to merge overlapping clusters
     void MergeOverlap();
     
+    /// Marks the cluster as obsolete and frees hits still associated with it
+    void MakeClusterObsolete(unsigned short icl);
+    
     /// Removes obsolete hits from hits, updating the indices
     void RemoveObsoleteHits();
 
@@ -469,6 +474,11 @@ namespace cluster {
     /// Returns the index of the n-th previous free hit, or invalid index
     size_t PrevHitFree(size_t iHit, size_t n = 1) const
       { return GetHitInCluster().PrevFree(iHit, n); }
+    /// Mark all hits belonging to the obsoleted cluster at index icl as free
+    void FreeObsoleteClusterHits(unsigned short icl);
+    /// Prints errors (or throws) in case of inconsistent hit <-> cluster
+    bool CheckHitClusterAssociation
+      (bool bClusterToHit = true, bool bHitToCluster = true) const;
     
     
     /// Returns whether the two hits belong to the same multiplet
