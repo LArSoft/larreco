@@ -184,11 +184,11 @@ namespace trkf{
     return ProtonKE;
   }*/
   
-  // Momentum measurement via Multiple Coulomb Scattering
+  // Momentum measurement via Multiple Coulomb Scattering (MCS)
   
-  // Author: Leonidas N. Kalousis (January 2015)
+  // author: Leonidas N. Kalousis (April 2015)
   
-  // Email: kalousis@vt.edu
+  // email: kalousis@vt.edu
   
   Double_t TrackMomentumCalculator::GetMomentumMultiScatterLLHD( const art::Ptr<recob::Track> &trk )
   {
@@ -278,6 +278,122 @@ namespace trkf{
     
   }
   
+  Double_t TrackMomentumCalculator::GetMuMultiScatterLLHD( const art::Ptr<recob::Track> &trk )
+  {
+    Double_t LLHD = -1.0; 
+    
+    std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
+    
+    recoX.clear(); recoY.clear(); recoZ.clear();
+        	  
+    Int_t n_points = trk->NumberTrajectoryPoints();
+        
+    for ( Int_t i=0; i<n_points; i++ )
+      {
+	const TVector3 &pos = trk->LocationAtPoint( i );
+	
+	recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
+	
+	// cout << " posX, Y, Z : " << pos.X() << ", " << pos.Y() << ", " << pos.Z() << endl;
+	
+      }
+    
+    Int_t my_steps = recoX.size();
+    
+    if ( my_steps<2 ) return -1.0;
+    
+    Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
+    
+    if ( check0!=0 ) return -1.0;
+    
+    seg_size = steps_size2; 
+    
+    Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
+    
+    if ( check1!=0 ) return -1.0;
+        
+    Int_t seg_steps = segx.size();
+    
+    if ( seg_steps<2 ) return -1;
+    
+    Int_t seg_steps0 = seg_steps-1;
+    
+    Double_t recoL = segL.at(seg_steps0);
+    
+    if ( recoL<20.0 || recoL>1350.0 ) return -1;
+        
+    Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
+    
+    if ( check2!=0 ) return -1.0;
+    
+    Double_t p_range = recoL*kcal;
+    
+    Double_t logL = my_mcs_llhd( p_range, 0.5 ); 
+    
+    LLHD = logL;
+    
+    return LLHD;
+    
+  }
+  
+  Double_t TrackMomentumCalculator::GetMuMultiScatterLLHD2( const recob::Track &trk )
+  {
+    Double_t LLHD = -1.0; 
+    
+    std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
+    
+    recoX.clear(); recoY.clear(); recoZ.clear();
+   
+    Int_t n_points = trk.NumberTrajectoryPoints();
+        
+    for ( Int_t i=0; i<n_points; i++ )
+      {
+	const TVector3 &pos = trk.LocationAtPoint( i );
+	
+	recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
+	
+	// cout << " posX, Y, Z : " << pos.X() << ", " << pos.Y() << ", " << pos.Z() << endl;
+	
+      }
+    
+    Int_t my_steps = recoX.size();
+    
+    if ( my_steps<2 ) return -1.0;
+    
+    Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
+    
+    if ( check0!=0 ) return -1.0;
+    
+    seg_size = steps_size2; 
+    
+    Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
+    
+    if ( check1!=0 ) return -1.0;
+        
+    Int_t seg_steps = segx.size();
+    
+    if ( seg_steps<2 ) return -1;
+    
+    Int_t seg_steps0 = seg_steps-1;
+    
+    Double_t recoL = segL.at(seg_steps0);
+    
+    if ( recoL<20.0 || recoL>1350.0 ) return -1;
+        
+    Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
+    
+    if ( check2!=0 ) return -1.0;
+    
+    Double_t p_range = recoL*kcal;
+    
+    Double_t logL = my_mcs_llhd( p_range, 0.5 ); 
+    
+    LLHD = logL;
+    
+    return LLHD;
+    
+  }
+    
   Int_t TrackMomentumCalculator::GetDeltaThetaij( std::vector<Float_t> &ei, std::vector<Float_t> &ej, std::vector<Float_t> &th, Double_t thick, std::vector<Float_t> &ind )
   {
     Int_t a1 = segx.size(); Int_t a2 = segy.size(); Int_t a3 = segz.size();

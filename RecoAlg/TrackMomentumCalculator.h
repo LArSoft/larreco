@@ -120,6 +120,10 @@ namespace trkf{
     Double_t GetMomentumMultiScatterLLHD( const art::Ptr<recob::Track> &trk );
     
     Double_t p_mcs_2; Double_t LLbf;
+    
+    Double_t GetMuMultiScatterLLHD( const art::Ptr<recob::Track> &trk );
+    
+    Double_t GetMuMultiScatterLLHD2( const recob::Track &trk );
         
   };
   
