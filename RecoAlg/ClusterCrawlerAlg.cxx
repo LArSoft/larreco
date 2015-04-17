@@ -549,7 +549,7 @@ namespace cluster {
   void ClusterCrawlerAlg::MakeClusterObsolete(unsigned short icl) {
     short& ID = tcl[icl].ID;
     if (ID <= 0) return; // already obsolete
-    mf::LogDebug("ClusterCrawlerAlg") << "Obsoleting cluster ID=" << ID;
+    LOG_DEBUG("ClusterCrawlerAlg") << "Obsoleting cluster ID=" << ID;
     ID = -ID;                     // mark the cluster as obsolete
     FreeObsoleteClusterHits(icl); // free the remaining associated hits
   } // ClusterCrawlerAlg::MakeClusterObsolete()
@@ -580,8 +580,9 @@ namespace cluster {
         }
         
         // 2. now we check all the hits the cluster includes:
-        mf::LogTrace log("ClusterCrawlerAlg");
-        log << "Cluster #" << iCluster << " (ID=" << cluster.ID << ")";
+        auto log = LOG_TRACE("ClusterCrawlerAlg")
+          << "Cluster #" << iCluster << " (ID=" << cluster.ID << ") on "
+          << DecodeCTP(cluster.CTP);
         if (cluster.ID < 0) {
           log << " is obsolete";
           continue;
@@ -687,8 +688,7 @@ namespace cluster {
     
     size_t iDestHit = 0, iSrcHit = 0;
     for (; iSrcHit < fHits.size(); ++iSrcHit) {
-    //  mf::LogTrace log("ClusterCrawlerAlg");
-    //  log << "Hit #" << iSrcHit;
+    //  auto log = LOG_TRACE("ClusterCrawlerAlg") << "Hit #" << iSrcHit;
       if (!isHitPresent(iSrcHit)) {
     //    log << ": not present, will be forgotten";
         continue; // this hit is going to disappear
@@ -712,7 +712,7 @@ namespace cluster {
               << clusterIndex
               << ", that does not exist! [this is called a ***BUG***]";
           }
-    //      log << "; in cluster #" << clusterIndex << " (ID=" << tcl[clusterIndex].ID << "):";
+    //      log << "; in cluster #" << clusterIndex << " (ID=" << tcl[clusterIndex].ID << ")";
           // tclhits a vector of indices of some type; we don't care which one
           auto& hits = tcl[clusterIndex].tclhits;
           auto iHitIndex = std::find(hits.begin(), hits.end(), iSrcHit);
