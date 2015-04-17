@@ -106,7 +106,7 @@ namespace cluster {
   } // reconfigure
 
   // used for sorting hits on wires
-  bool SortByLowHit(short i, short j) {return ((i > j));}
+  bool SortByLowHit(unsigned short i, unsigned short j) {return ((i > j));}
 
   // used for sorting clusters by length
   typedef std::pair<unsigned int, unsigned int> mypair;
