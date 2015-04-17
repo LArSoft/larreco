@@ -108,6 +108,9 @@ namespace cluster {
       /// Returns the ID of the cluster the specified hit belongs to
       ClusterID_t operator[] (size_t iHit) const { return ClusterIDs[iHit]; }
       ClusterID_t& operator[] (size_t iHit) { return ClusterIDs[iHit]; }
+      
+      ClusterID_t at(size_t iHit) const { return ClusterIDs.at(iHit); }
+      ClusterID_t& at(size_t iHit) { return ClusterIDs.at(iHit); }
       //@}
       
       /// Returns the number of registered hits (including obsolete ones)
@@ -450,6 +453,9 @@ namespace cluster {
       (unsigned short wire1, float time1, unsigned short wire2, float time2, bool& SigOK);
     // returns an angle-dependent scale factor for weighting fits, etc
     float AngleFactor(float slope);
+    /// Returns true if there are no duplicates in the hit list for next cluster
+    bool CheckHitDuplicates
+      (std::string location, std::string marker = "") const;
     
     /// Returns a pair of first and past-the-last index
     /// of all the contiguous hits belonging to the same multiplet

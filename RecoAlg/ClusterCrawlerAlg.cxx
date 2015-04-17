@@ -546,24 +546,160 @@ namespace cluster {
     } // MergeOverlap()
 
 //////////////////////////////////////////
+  void ClusterCrawlerAlg::MakeClusterObsolete(unsigned short icl) {
+    short& ID = tcl[icl].ID;
+    if (ID <= 0) return; // already obsolete
+    mf::LogDebug("ClusterCrawlerAlg") << "Obsoleting cluster ID=" << ID;
+    ID = -ID;                     // mark the cluster as obsolete
+    FreeObsoleteClusterHits(icl); // free the remaining associated hits
+  } // ClusterCrawlerAlg::MakeClusterObsolete()
+
+//////////////////////////////////////////
+  bool ClusterCrawlerAlg::CheckHitClusterAssociation(
+    bool bClusterToHit /* = true */, bool bHitToCluster /* = true */
+  ) const {
+    
+    unsigned int nErrors = 0;
+    
+    // Check that cluster own only valid hits, and that hits are aware
+    //   of being owned
+    if (bClusterToHit) {
+      LOG_DEBUG("ClusterCrawlerAlg")
+        << "checking " << tcl.size() << " clusters";
+      for (size_t iCluster = 0; iCluster < tcl.size(); ++iCluster) {
+        ClusterStore const& cluster = tcl[iCluster];
+        
+        // 1. The assumption that cluster ID mirrors its position in the list
+        //    is heavily used; for example, the used hit map contains IDs rather
+        //    than indices. Better to check!
+        if (std::abs(cluster.ID) != (int) iCluster + 1) {
+          mf::LogError("ClusterCrawlerAlg") << "Cluster ID=" << cluster.ID
+            << " is at position " << iCluster << " rather than the assumed "
+            << (std::abs(cluster.ID) - 1) << " [this is called a ***BUG***]";
+          ++nErrors;
+        }
+        
+        // 2. now we check all the hits the cluster includes:
+        mf::LogTrace log("ClusterCrawlerAlg");
+        log << "Cluster #" << iCluster << " (ID=" << cluster.ID << ")";
+        if (cluster.ID < 0) {
+          log << " is obsolete";
+          continue;
+        }
+        log << " has " << cluster.tclhits.size() << " hits:";
+        unsigned int HitLiner = 0;
+        for (unsigned short iHit: cluster.tclhits) {
+          if ((HitLiner++ % 15) == 0) log << "\n ";
+          log << " " << iHit;
+          
+          // 2.1 the hit must be valid (as opposed to obsolete)
+          if (!isHitPresent(iHit)) {
+            mf::LogError("ClusterCrawlerAlg") << "Cluster ID=" << cluster.ID
+              << " claim to own hit #" << iHit
+              << ", that does not exist any more! [this is called a ***BUG***]";
+            ++nErrors;
+          }
+          // 2.2 the hit must be not free
+          else if (isHitFree(iHit)) {
+            mf::LogError("ClusterCrawlerAlg") << "Cluster ID=" << cluster.ID
+              << " claim to own hit #" << iHit
+              << ", that believes to be free! [this is called a ***BUG***]";
+            ++nErrors;
+          }
+          // 2.3 the hit must be, in fact, in this very cluster
+          else if (fHitInCluster.at(iHit) != cluster.ID) {
+            mf::LogError("ClusterCrawlerAlg") << "Cluster #" << iCluster
+              << " (ID=" << cluster.ID << ") claims to own hit #" << iHit
+              << ", that believes to be owned by cluster ID="
+              << fHitInCluster[iHit]
+              << " instead! [this is called a ***BUG***]";
+            ++nErrors;
+          }
+        } // for cluster hit
+      } // for cluster
+    } // if bClusterToHit
+    
+    if (bHitToCluster) {
+      LOG_DEBUG("ClusterCrawlerAlg")
+        << "checking " << fHitInCluster.nHits() << " hits";
+      
+      // we check all the hit-in-cluster records
+      for (size_t iHit = 0; iHit < fHitInCluster.nHits(); ++iHit) {
+        if (!isHitInCluster(iHit)) continue;
+        ClusterID_t ClusterID = fHitInCluster[iHit];
+        if (ClusterID <= 0) {
+          mf::LogError("ClusterCrawlerAlg")
+            << "Hit #" << iHit << " claims to belong to an invalid cluster (ID="
+            << ClusterID << ")! [this is called a ***BUG***]";
+          ++nErrors;
+          continue;
+        }
+        
+        // here assuming again to find the cluster in the list based on its ID
+        ClusterStore const& cluster = tcl.at(ClusterID - 1);
+        
+        // 1. check that the ID of the alleged owning cluster is valid
+        if (cluster.ID <= 0) {
+          mf::LogError("ClusterCrawlerAlg") << "Cluster #" << (ClusterID - 1)
+            << " (ID=" << cluster.ID
+            << " ) is not valid, yet hit #" << iHit
+            << " believes it belongs to it! [this is called a ***BUG***]";
+          ++nErrors;
+          continue;
+        }
+        
+        // 2. check that the cluster ID is the expected one
+        //    (may be redundant with a previous check)
+        if (cluster.ID != ClusterID) {
+          mf::LogError("ClusterCrawlerAlg") << "Cluster #" << (ClusterID - 1)
+            << " (ID=" << cluster.ID
+            << " ) was expected to have ID=" << ClusterID
+            << " [this is called a ***BUG***]";
+          ++nErrors;
+        }
+        
+        // 3. check that this hit is in the clusters' list
+        if (std::find(cluster.tclhits.begin(), cluster.tclhits.end(), iHit)
+          == cluster.tclhits.end())
+        {
+          mf::LogError("ClusterCrawlerAlg") << "Cluster #" << (ClusterID - 1)
+            << " (ID=" << cluster.ID
+            << " ) claims not to include hit #" << iHit
+            << ", that claims to belong to cluster ID=" << ClusterID
+            << " [this is called a ***BUG***]";
+          ++nErrors;
+        }
+      } // for hit
+    } // if bHitToCluster
+    
+    return nErrors == 0;
+  } // ClusterCrawlerAlg::CheckHitClusterAssociation()
+  
+  
+//////////////////////////////////////////
   void ClusterCrawlerAlg::RemoveObsoleteHits() {
     
+    LOG_DEBUG("ClusterCrawlerAlg") << "RemoveObsoleteHits() working on "
+      << fHits.size() << " hits for " << tcl.size() << " clusters";
+    
     // check that no cluster hosts obsolete hits
-    for (ClusterStore const& cluster: tcl) {
-      for (unsigned short iHit: cluster.tclhits) {
-        if (!isHitPresent(iHit)) {
-          mf::LogError("ClusterCrawlerAlg") << "Cluster ID=" << cluster.ID
-            << " claim to own hit #" << iHit
-            << ", that does not exist any more! [this is called a ***BUG***]";
-        }
-      } // for cluster hit
-    } // for cluster
+    CheckHitClusterAssociation();
     
     size_t iDestHit = 0, iSrcHit = 0;
     for (; iSrcHit < fHits.size(); ++iSrcHit) {
-      if (!isHitPresent(iSrcHit)) continue; // this hit is going to disappear
-      
+    //  mf::LogTrace log("ClusterCrawlerAlg");
+    //  log << "Hit #" << iSrcHit;
+      if (!isHitPresent(iSrcHit)) {
+    //    log << ": not present, will be forgotten";
+        continue; // this hit is going to disappear
+      }
+    //  recob::Hit const& hit = fHits[iSrcHit];
+    //  log << " " << hit.WireID().planeID()
+    //    << " W:T " << (int) hit.WireID().Wire << ":" << ((int) hit.PeakTime());
+    //  if (isHitFree(iSrcHit)) log << ": free";
+    //  else log << ": in cluster ID=" << fHitInCluster[iSrcHit];
       if (iDestHit != iSrcHit) { // need to move the hit
+    //    log << ": moving to #" << iDestHit;
         // move the hit; this is easy
         fHits[iDestHit] = std::move(fHits[iSrcHit]);
         fHitInCluster.setCluster(iDestHit, fHitInCluster[iSrcHit]);
@@ -576,6 +712,7 @@ namespace cluster {
               << clusterIndex
               << ", that does not exist! [this is called a ***BUG***]";
           }
+    //      log << "; in cluster #" << clusterIndex << " (ID=" << tcl[clusterIndex].ID << "):";
           // tclhits a vector of indices of some type; we don't care which one
           auto& hits = tcl[clusterIndex].tclhits;
           auto iHitIndex = std::find(hits.begin(), hits.end(), iSrcHit);
@@ -599,6 +736,9 @@ namespace cluster {
     
     LOG_DEBUG("ClusterCrawlerAlg") << "RemoveObsoleteHits(): removed "
       << (iSrcHit - iDestHit) << "/" << iSrcHit << " hits";
+    
+    // check again
+    CheckHitClusterAssociation();
     
   } // ClusterCrawlerAlg::RemoveObsoleteHits()
 
@@ -2699,6 +2839,8 @@ namespace cluster {
     // append it to the tcl vector
     TmpStore();
     unsigned short itnew = tcl.size()-1;
+    LOG_DEBUG("ClusterCrawler") << "DoMerge() merged clusters "
+      << -cl1.ID << " and " << -cl2.ID << " as ID=" << tcl[itnew].ID;
   if(prt) mf::LogVerbatim("ClusterCrawlerAlg")<<"DoMerge "<<cl1.ID<<" "<<cl2.ID<<" -> "<<tcl[itnew].ID;
     // stuff the processor code with the current pass
     tcl[itnew].ProcCode = inProcCode + pass;
@@ -2819,17 +2961,31 @@ namespace cluster {
     
     ++NClusters;
 
-    // flag all the hits as used
+    LOG_DEBUG("ClusterCrawlerAlg")
+      << "Cluster ID=" << NClusters << " being stored with "
+      << fcl2hits.size() << " hits";
+  /*
+    // flag all the hits as used (for debugging)
+    std::set<unsigned short> HitsAlreadyIn;
+  */
     for(unsigned short it = 0; it < fcl2hits.size(); ++it) {
       unsigned short hit = fcl2hits[it];
       if(!isHitPresent(hit)) {
         mf::LogError("ClusterCrawlerAlg")<<"Trying to use obsolete hit "<<hit
-        <<" on wire "<<fHits[hit].WireID().Wire<<" on cluster "<<NClusters
-        <<" in plane "<<plane<<" ProcCode "<<clProcCode;
+          <<" on wire "<<fHits[hit].WireID().Wire<<" on cluster "<<NClusters
+          <<" in plane "<<plane<<" ProcCode "<<clProcCode;
       }
+  /*
+      if (HitsAlreadyIn.count(hit)) {
+        mf::LogError("ClusterCrawlerAlg")
+          << "TmpStore(): cluster ID=" << NClusters << " is trying to use hit #"
+          << hit << " twice (ProcCode=" << clProcCode << ")";
+      }
+      HitsAlreadyIn.insert(hit);
+  */
       fHitInCluster.setCluster(hit, NClusters);
     }
-
+    
     // ensure that the cluster begin/end info is correct
 
     // define the begin/end charge if it wasn't done already
@@ -3686,7 +3842,8 @@ namespace cluster {
     <<" RMS "<<std::setprecision(2)<<fHits[khit].RMS()
     <<" Chi2 "<<std::setw(8)<<std::setprecision(2)<<fHits[khit].GoodnessOfFit()
     <<" LoT "<<(int)fHits[khit].StartTick()
-    <<" HiT "<<(int)fHits[khit].EndTick();
+    <<" HiT "<<(int)fHits[khit].EndTick()
+    <<" index " << khit;
       // projected time outside the Signal time window?
       if(prtime < fHits[khit].StartTick() - 20) continue;
       if(prtime > fHits[khit].EndTick() + 20) continue;
@@ -3886,7 +4043,8 @@ namespace cluster {
     <<" Chi2 "<<std::setprecision(2)<<fHits[khit].GoodnessOfFit()
     <<" Charge "<<(int)fHits[khit].Integral()
     <<" LoT "<<(int)fHits[khit].StartTick()
-    <<" HiT "<<(int)fHits[khit].EndTick();
+    <<" HiT "<<(int)fHits[khit].EndTick()
+    <<" index " << khit;
       // check for signal
       if(prtime < fHits[khit].StartTick()) continue;
       if(prtime > fHits[khit].EndTick()) continue;
@@ -4837,6 +4995,26 @@ namespace cluster {
     } // ClusterCrawlerAlg::FindHitMultiplet()
     
     
+    bool ClusterCrawlerAlg::CheckHitDuplicates
+      (std::string location, std::string marker /* = "" */) const
+    {
+      // currently unused, only for debug
+      unsigned int nDuplicates = 0;
+      std::set<unsigned short> hits;
+      for (unsigned short hit: fcl2hits) {
+        if (hits.count(hit)) {
+          ++nDuplicates;
+          mf::LogProblem log("ClusterCrawlerAlg");
+          log << "Hit #" << hit
+            << " being included twice in the future cluster (ID="
+            << (tcl.size() + 1) << "?) at location: " << location;
+         if (!marker.empty()) log << " (marker: '" << marker << "')";
+        }
+        hits.insert(hit);
+      } // for
+      return nDuplicates > 0;
+    } // ClusterCrawlerAlg::CheckHitDuplicates()
+
 /////////////////////////////////////////
     void ClusterCrawlerAlg::SortByLength(
       std::vector<ClusterStore> const& tcl,
