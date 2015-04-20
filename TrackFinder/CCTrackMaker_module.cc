@@ -777,6 +777,10 @@ namespace trkf {
             if(trk[jtr].VtxIndex[0] == ivx) {
               // DS-going track
               ++trk[itr].nDtr;
+	      if (trk[itr].nDtr>=20){
+		mf::LogError("CCTrackMake")<<"CCTrackMaker itr = "<<itr<<" trk[itr].nDtr = "<<trk[itr].nDtr;
+		break;
+	      }
               trk[itr].DtrID[trk[itr].nDtr] = jtr;
               trk[jtr].MomID = trk[itr].ID;
               dtrNextGen.push_back(jtr);
@@ -785,6 +789,10 @@ namespace trkf {
             if(trk[jtr].VtxIndex[1] == ivx) {
               // US-going track
               ++trk[itr].nDtr;
+	      if (trk[itr].nDtr>=20){
+		mf::LogError("CCTrackMake")<<"CCTrackMaker itr = "<<itr<<" trk[itr].nDtr = "<<trk[itr].nDtr;
+		break;
+	      }
               trk[itr].DtrID[trk[itr].nDtr] = jtr;
               trk[jtr].MomID = trk[itr].ID;
               dtrNextGen.push_back(jtr);
