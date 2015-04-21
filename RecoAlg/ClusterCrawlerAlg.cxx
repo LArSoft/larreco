@@ -4756,7 +4756,13 @@ namespace cluster {
               // look for the matching vertex in the 3rd plane
               kpl = 3 - ipl - jpl;
               kX = 0.5 * (iX + jX);
-              kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
+	      try{
+		kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
+	      }
+	      catch (...){
+		mf::LogWarning("ClusterCrawlerAlg")<<"Cannot find nearest wire";
+		continue;
+	      }
               // save this incomplete 3D vertex
               Vtx3Store v3d;
               tmpIndex[ipl] = ivx;
