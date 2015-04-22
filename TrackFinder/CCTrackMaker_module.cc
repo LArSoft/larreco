@@ -1607,7 +1607,7 @@ namespace trkf {
 ///////////////////////////////////////////////////////////////////////
   bool CCTrackMaker::DupMatch(MatchPars& match, std::vector<MatchPars>& matcomb)
   {
-    for(unsigned short imat = 0; imat < matcomb.size(); ++imat) {
+    for(unsigned int imat = 0; imat < matcomb.size(); ++imat) {
       if(match.Cls[0] == matcomb[imat].Cls[0] && 
          match.Cls[1] == matcomb[imat].Cls[1] &&
          match.Cls[2] == matcomb[imat].Cls[2]) {
@@ -1649,7 +1649,7 @@ namespace trkf {
     // sort by increasing total match RMS using both ends
     CluLen mrms;
     std::vector<CluLen> matrms;
-    unsigned short ii, imat, ipl, icl;
+    unsigned int ii, imat, ipl, icl;
 
     for(ii = 0; ii < matcomb.size(); ++ii) {
       mrms.index = ii;
@@ -2103,7 +2103,7 @@ namespace trkf {
 //    <<" in matcomb ";
       mat = -1;
       best = 10;
-      for(unsigned short im = 0; im < matcomb.size(); ++im) {
+      for(unsigned int im = 0; im < matcomb.size(); ++im) {
         if(matcomb[im].RMS > best) continue;
         if(matcomb[im].Cls[kpl] == kcl &&
            matcomb[im].End[kpl] == end) {
@@ -2164,7 +2164,7 @@ namespace trkf {
 */
       mat = -1;
       best = 10;
-      for(unsigned short im = 0; im < matcomb.size(); ++im) {
+      for(unsigned int im = 0; im < matcomb.size(); ++im) {
         if(matcomb[im].RMS > best) continue;
         if(matcomb[im].Cls[ipl] == icl && matcomb[im].End[ipl] == ioend &&
            matcomb[im].Cls[jpl] == jcl && matcomb[im].End[jpl] == joend &&
