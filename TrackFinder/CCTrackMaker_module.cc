@@ -1254,6 +1254,8 @@ namespace trkf {
     // failure occurred?
     if(trkPos.size() < 2 || trkPos.size() != trkDir.size()) {
       TVector3 dum;
+      while(trkPos.size()<trkDir.size()) trkPos.push_back(dum);
+      while(trkDir.size()<trkPos.size()) trkDir.push_back(dum);
       while(trkPos.size() < 3) {
         trkPos.push_back(dum);
         trkDir.push_back(dum);
