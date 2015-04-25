@@ -623,6 +623,7 @@ namespace cluster {
         nUsInClus = 0; nUsNotInClus = 0;
         for(wire = loWire; wire < hiWire; ++wire) {
           index = wire - fFirstWire;
+          if(index > WireHitRange.size()-1) break;
           // ignore dead wires and those with no hits
           if(WireHitRange[index].first < 0) continue;
           prTimeLo = tcl[icl].BeginTim + tcl[icl].BeginSlp * (wire - tcl[icl].BeginWir);
