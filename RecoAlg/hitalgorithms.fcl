@@ -51,5 +51,12 @@ microboone_cchitfinderalg.MinRMSInd:          2.2
 microboone_cchitfinderalg.AllowNoHitWire:     2
 microboone_cchitrefineralg:                   @local::standard_cchitrefineralg
 
+argoneut_cchitfinderalg:             @local::standard_cchitfinderalg
+argoneut_cchitfinderalg.MinSigInd:   1.8
+argoneut_cchitfinderalg.MinSigCol:   2.5
+argoneut_cchitfinderalg.MinRMSInd:   5.
+argoneut_cchitfinderalg.MinRMSCol:  10.
+argoneut_cchitfinderalg.ChiNorms:  [ 0.5, 2.7]
+argoneut_cchitfinderalg.ChgNorms:  [ 1.0, 1.0]
 
 END_PROLOG
