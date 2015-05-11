@@ -1,3 +1,4 @@
+#include "hitalgorithms.fcl"
 #include "clustermodules.fcl"
 
 BEGIN_PROLOG
