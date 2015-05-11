@@ -369,7 +369,7 @@ namespace cluster {
               clpar[1] = (hit.PeakTime() - other_hit.PeakTime()) / (iwire - jwire);
               // check for hit width consistency. Large angle clusters should have
               // large rms hits or smaller rms hits if they part of a multiplet
-              if(std::abs(clpar[1]) > 5) {
+              if(std::abs(clpar[1]) > 5*geom->WirePitch(hit.View())/0.3) {
                 if(pass == 0) continue;
                 if(hit.RMS() < 4 && hit.Multiplicity() < 3) continue;
                 if(other_hit.RMS() < 4 && other_hit.Multiplicity() < 3) continue;
