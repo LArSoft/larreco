@@ -7,6 +7,9 @@
 /// Algorithm for matching clusters between different views
 /// based on time and charge information
 ///
+/// Input: a list of clusters and all hits associated with clusters
+/// Output: a vector of index vectors. Each group of indices represent
+///         a particle candidate
 ////////////////////////////////////////////////////////////////////////
 #ifndef CLUSTERMATCHTQ_H
 #define CLUSTERMATCHTQ_H
@@ -28,8 +31,8 @@ namespace cluster
 
     void reconfigure(fhicl::ParameterSet const& p);
 
-    void ClusterMatch(std::vector<art::Ptr<recob::Cluster> > clusterlist,
-		      art::FindManyP<recob::Hit> fm);
+    void ClusterMatch(const std::vector<art::Ptr<recob::Cluster> > &clusterlist,
+		      const art::FindManyP<recob::Hit> &fm);
 
     std::vector<std::vector<unsigned int> > matchedclusters;
 

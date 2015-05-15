@@ -41,11 +41,12 @@ namespace cluster{
     fEnableU = pset.get< bool   >("EnableU");
     fEnableV = pset.get< bool   >("EnableV");
     fEnableZ = pset.get< bool   >("EnableZ");
-
   }
 
   //---------------------------------------------------------------------
-  void ClusterMatchTQ::ClusterMatch(std::vector<art::Ptr<recob::Cluster> > clusterlist, art::FindManyP<recob::Hit> fm){
+  void ClusterMatchTQ::ClusterMatch(const std::vector<art::Ptr<recob::Cluster> > &clusterlist, const art::FindManyP<recob::Hit> &fm){
+
+    matchedclusters.clear();
 
     // get services
     art::ServiceHandle<geo::Geometry> geom;
@@ -56,12 +57,12 @@ namespace cluster{
 
     std::vector< std::vector<TH1D*> > signals(nplanes);
 
-    std::vector< std::vector<int> > Cls(nplanes);
+    std::vector< std::vector<unsigned int> > Cls(nplanes);
     std::vector< std::vector<CluLen> > clulens(nplanes);
  
     for (size_t iclu = 0; iclu<clusterlist.size(); ++iclu){
 
-      double wire_pitch = geom->WirePitch(clusterlist[iclu]->Plane());
+      float wire_pitch = geom->WirePitch(clusterlist[iclu]->Plane());
 
       float w0 = clusterlist[iclu]->StartWire();
       float w1 = clusterlist[iclu]->EndWire();
@@ -97,10 +98,11 @@ namespace cluster{
 
     for (int i = 0; i<nplanes; ++i){
       for (size_t ic = 0; ic < Cls[i].size(); ++ic){
-        TH1D sig(Form("sig_%d_%d",i,int(ic)),Form("sig_%d_%d",i,int(ic)),nts,0,nts);
-        TH1D sigint(Form("sigint_%d_%d",i,int(ic)),Form("sigint_%d_%d",i,int(ic)),nts,0,nts);    
+        TH1D sig(Form("sig_%d_%d",i,int(ic)),Form("sig_%d_%d",i,int(ic)),nts+100,-100,nts);
+        TH1D sigint(Form("sigint_%d_%d",i,int(ic)),Form("sigint_%d_%d",i,int(ic)),nts+100,-100,nts);    
         std::vector< art::Ptr<recob::Hit> > hitlist = fm.at(Cls[i][ic]);
         std::sort(hitlist.begin(), hitlist.end(), SortByWire);
+
         for(auto theHit = hitlist.begin(); theHit != hitlist.end();  theHit++){
         
           double time = (*theHit)->PeakTime();
@@ -124,8 +126,6 @@ namespace cluster{
     std::vector<int> matched(clusterlist.size());
     for (size_t i = 0; i<clusterlist.size(); ++i) matched[i] = 0;
 
-    std::vector< std::vector<int> > matchedclusters;
-
     for (int i = 0; i<nplanes-1; ++i){
       for (int j = i+1; j<nplanes; ++j){
         for (size_t c1 = 0; c1<Cls[i].size(); ++c1){
@@ -147,7 +147,7 @@ namespace cluster{
                 &&signals[j][c2]->Integral())
               ks = signals[i][c1]->KolmogorovTest(signals[j][c2]);
             else{
-              mf::LogWarning("ClusterMatchTQ") <<"One of the two clusters appears to be empty: "<<clusterlist[Cls[i][c1]]->ID()<<" "<<clusterlist[Cls[j][c2]]->ID();
+              mf::LogWarning("ClusterMatchTQ") <<"One of the two clusters appears to be empty: "<<clusterlist[Cls[i][c1]]->ID()<<" "<<clusterlist[Cls[j][c2]]->ID()<<" "<<i<<" "<<j<<" "<<c1<<" "<<c2<<" "<<signals[i][c1]->Integral()<<" "<<signals[j][c2]->Integral();
             }
             //hks->Fill(ks);
             int imatch = -1; //track candidate index
@@ -210,7 +210,7 @@ namespace cluster{
                 }
               }
               else{
-                std::vector<int> tmp;
+                std::vector<unsigned int> tmp;
                 tmp.push_back(Cls[i][c1]);
                 tmp.push_back(Cls[j][c2]);
                 matchedclusters.push_back(tmp);
@@ -222,6 +222,14 @@ namespace cluster{
         }//c1
       }//j
     }//i
+
+    for (size_t i = 0; i<matchedclusters.size(); ++i){
+      if (matchedclusters[i].size()) mf::LogVerbatim("CosmicTracker")<<"Cluster group "<<i<<":";
+      for (size_t j = 0; j<matchedclusters[i].size(); ++j){
+        mf::LogVerbatim("CosmicTracker")<<matchedclusters[i][j];
+      }
+    } 
+
 
     for (int i = 0; i<nplanes; ++i){
       for (size_t j = 0; j<signals[i].size(); ++j){

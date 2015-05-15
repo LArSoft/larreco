@@ -202,6 +202,13 @@ standard_smallclustalg:
   Verbose:			false
  }
 
+standard_clustermatchtq:
+{
+  KSCut: 0.9
+  EnableU: true
+  EnableV: true
+  EnableZ: true
+}
 
 standard_dbscanalg_fast:        @local::standard_dbscanalg
 standard_dbscanalg_fast.eps:    1.25
@@ -240,6 +247,7 @@ bo_clustercrawleralg.DoMerge:  [ true ]
 bo_clustercrawleralg.TimeDelta:  [ 10. ]
 bo_clustercrawleralg.FindVertices: [ false ]
 bo_clustercrawleralg.HitErrFac: 1.
+bo_clustermatchtq:             @local::standard_clustermatchtq
 
 argoneut_dbscanalg:                  @local::standard_dbscanalg       
 argoneut_fuzzyclusteralg:            @local::standard_fuzzyclusteralg
@@ -258,6 +266,7 @@ argoneut_clusterparamsalg.HoughBaseAlg.MaxLines:       100
 argoneut_clusterparamsalg.ChargeCutoffThreshold:  [200,400]
 argoneut_clusterparamsalg.ForceRightGoing:   true
 argoneut_smallclustalg:	@local::standard_smallclustalg
+argoneut_clustermatchtq:             @local::standard_clustermatchtq
 
 
 
@@ -278,6 +287,7 @@ microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
+microboone_clustermatchtq:                    @local::standard_clustermatchtq
 
 lbnefd_dbscanalg:    @local::standard_dbscanalg_fast
 lbnefd_houghbasealg: @local::standard_houghbasealg
@@ -295,5 +305,5 @@ lbne35t_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg
 lbne35t_fuzzyclusteralg.HoughBaseAlg:      @local::lbne35t_houghbasealg 
 #lbne35t_fuzzyclusteralg.Threshold:         -50.0
 lbne35t_clustercrawleralg:                 @local::standard_clustercrawleralg
-
+lbne35t_clustermatchtq:                    @local::standard_clustermatchtq
 END_PROLOG
