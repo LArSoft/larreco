@@ -306,7 +306,7 @@ namespace trkf{
     
     if ( check0!=0 ) return -1.0;
     
-    seg_size = steps_size2; 
+    seg_size = 5.0; 
     
     Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
     
@@ -320,7 +320,7 @@ namespace trkf{
     
     Double_t recoL = segL.at(seg_steps0);
     
-    if ( recoL<20.0 || recoL>1350.0 ) return -1;
+    if ( recoL<15.0 || recoL>1350.0 ) return -1;
         
     Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
     
@@ -364,7 +364,7 @@ namespace trkf{
     
     if ( check0!=0 ) return -1.0;
     
-    seg_size = steps_size2; 
+    seg_size = 5.0;
     
     Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
     
@@ -378,7 +378,7 @@ namespace trkf{
     
     Double_t recoL = segL.at(seg_steps0);
     
-    if ( recoL<20.0 || recoL>1350.0 ) return -1;
+    if ( recoL<15.0 || recoL>1350.0 ) return -1;
         
     Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
     
@@ -803,7 +803,7 @@ namespace trkf{
 	  }
 
       }
-        
+    
     for ( Int_t i=indC; i<a4; i++ )
       {
 	Double_t x1 = xxx.at( i ); Double_t y1 = yyy.at( i );	Double_t z1 = zzz.at( i );
@@ -938,23 +938,29 @@ namespace trkf{
 	    
 	    Double_t az = eigenvec( 2, ind1 );
 	    
-	    if ( segx.at(n_seg-1)-segx.at(n_seg-2) > 0 ) ax = TMath::Abs( ax );
+	    if ( n_seg>1 )
+	      {
+		if ( segx.at(n_seg-1)-segx.at(n_seg-2) > 0 ) ax = TMath::Abs( ax );
+		
+		else ax = -1.0*TMath::Abs( ax );
+		
+		if ( segy.at(n_seg-1)-segy.at(n_seg-2) > 0 ) ay = TMath::Abs( ay );
+		
+		else ay = -1.0*TMath::Abs( ay );
+		
+		if ( segz.at(n_seg-1)-segz.at(n_seg-2) > 0 ) az = TMath::Abs( az );
+		
+		else az = -1.0*TMath::Abs( az );
+		
+		segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( az );
+		
+		// Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
+		
+		// cout << angx*0.001*180.0/3.14 << endl;
+		
+	      }
 	    
-	    else ax = -1.0*TMath::Abs( ax );
-	    
-	    if ( segy.at(n_seg-1)-segy.at(n_seg-2) > 0 ) ay = TMath::Abs( ay );
-	    
-	    else ay = -1.0*TMath::Abs( ay );
-	    
-	    if ( segz.at(n_seg-1)-segz.at(n_seg-2) > 0 ) az = TMath::Abs( az );
-	    
-	    else az = -1.0*TMath::Abs( az );
-	    
-	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( az );
-	    
-	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
-	    
-	    // cout << angx*0.001*180.0/3.14 << endl;
+	    else return -1;
 	    
 	    ntot = 0; 
 	    
@@ -1076,24 +1082,31 @@ namespace trkf{
 	    
 	    Double_t az = eigenvec( 2, ind1 );
 	    
-	    if ( segx.at(n_seg-1)-segx.at(n_seg-2) > 0 ) ax = TMath::Abs( ax );
+	    if ( n_seg>1 )
+	      {
+		
+		if ( segx.at(n_seg-1)-segx.at(n_seg-2) > 0 ) ax = TMath::Abs( ax );
+		
+		else ax = -1.0*TMath::Abs( ax );
+		
+		if ( segy.at(n_seg-1)-segy.at(n_seg-2) > 0 ) ay = TMath::Abs( ay );
+		
+		else ay = -1.0*TMath::Abs( ay );
+		
+		if ( segz.at(n_seg-1)-segz.at(n_seg-2) > 0 ) az = TMath::Abs( az );
+		
+		else az = -1.0*TMath::Abs( az );
+		
+		segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( az );
+		
+		// Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
+		
+		// cout << angx*0.001*180.0/3.14 << endl;
+		
+	      }
 	    
-	    else ax = -1.0*TMath::Abs( ax );
+	    else return -1;
 	    
-	    if ( segy.at(n_seg-1)-segy.at(n_seg-2) > 0 ) ay = TMath::Abs( ay );
-	    
-	    else ay = -1.0*TMath::Abs( ay );
-	    
-	    if ( segz.at(n_seg-1)-segz.at(n_seg-2) > 0 ) az = TMath::Abs( az );
-	    
-	    else az = -1.0*TMath::Abs( az );
-	    
-	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( az );
-	    
-	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
-	    
-	    // cout << angx*0.001*180.0/3.14 << endl;
-	    	    
 	    ntot = 0; 
 	    
 	    vx.clear(); vy.clear(); vz.clear();
