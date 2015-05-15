@@ -60,7 +60,7 @@
 
 struct CluLen{
   int index;
-  double length;
+  float length;
 };
 
 bool myfunction (CluLen c1, CluLen c2) { return (c1.length>c2.length);}
@@ -189,10 +189,10 @@ namespace vertex{
     //loop over clusters
     for(size_t iclu = 0; iclu < clusters.size(); ++iclu){
       
-      double w0 = clusters[iclu]->StartWire();
-      double w1 = clusters[iclu]->EndWire();
-      double t0 = clusters[iclu]->StartTick();
-      double t1 = clusters[iclu]->EndTick();
+      float w0 = clusters[iclu]->StartWire();
+      float w1 = clusters[iclu]->EndWire();
+      float t0 = clusters[iclu]->StartTick();
+      float t1 = clusters[iclu]->EndTick();
 //      t0 -= detprop->GetXTicksOffset(clusters[iclu]->View(),0,0);
 //      t1 -= detprop->GetXTicksOffset(clusters[iclu]->View(),0,0);
 
