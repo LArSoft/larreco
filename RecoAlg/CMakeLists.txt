@@ -18,6 +18,7 @@ art_make( LIBRARY_NAME  RecoAlg
 			CMTAlgPriority
 			CMTAlgMatch
 			CMToolApp
+			PMAlg
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -42,6 +43,7 @@ art_make( LIBRARY_NAME  RecoAlg
 add_subdirectory(CMTool)
 add_subdirectory(ClusterRecoUtil)
 add_subdirectory(Cluster3DAlgs)
+add_subdirectory(PMAlg)
 
 install_headers()
 install_fhicl()
