@@ -48,6 +48,7 @@
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
+#include "RecoAlg/ClusterMatchTQ.h"
 
 // ROOT includes
 #include "TVectorD.h"
@@ -62,13 +63,6 @@ std::vector<double> vwire;
 std::vector<double> vtime;
 std::vector<double> vph;
 
-struct CluLen{
-  int index;
-  float length;
-};
-
-bool myfunction (CluLen c1, CluLen c2) { return (c1.length>c2.length);}
-
 void myfcn(Int_t &, Double_t *, Double_t &f, Double_t *par, Int_t) {
   //minimisation function computing the sum of squares of residuals
   f = 0;
@@ -78,6 +72,10 @@ void myfcn(Int_t &, Double_t *, Double_t &f, Double_t *par, Int_t) {
     //using ph^2 to suppress low ph hits
     f += vph[i]*vph[i]*(vtime[i]-y)*(vtime[i]-y);
   }
+}
+
+bool SortByWire (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) { 
+  return h1->WireID().Wire < h2->WireID().Wire;
 }
 
 bool sp_sort_x0(const recob::SpacePoint h1, const recob::SpacePoint h2)
@@ -123,14 +121,6 @@ bool sp_sort_z1(const recob::SpacePoint h1, const recob::SpacePoint h2)
 }
 
 namespace trkf {
-   
-  struct SortByWire {
-    bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const { 
-      return 
-        h1->Channel() < 
-        h2->Channel() ;
-    }
-  };
 
   class CosmicTracker : public art::EDProducer {
     
@@ -146,7 +136,9 @@ namespace trkf {
 
   private:
 
-    double          fKScut;              ///< tolerance for cluster matching based on KS test.
+    cluster::ClusterMatchTQ  fClusterMatch;
+
+    //double          fKScut;              ///< tolerance for cluster matching based on KS test.
 
     double          ftmatch;             ///< tolerance for time matching (in time samples) 
     
@@ -160,10 +152,6 @@ namespace trkf {
     
     bool             fdebug;
 
-    bool            fEnableU;
-    bool            fEnableV;
-    bool            fEnableZ;
-
     int             fisohitcut;
     
     std::string     fSortDir;            ///< sort space points 
@@ -171,11 +159,6 @@ namespace trkf {
     bool            fCleanUpHits;        ///< flag to remove outlier hits
 
     bool            fDirSPS;             ///< calculate direction cosine for each space point
-    //testing histograms
-    std::vector<TH1D *> dtime;
-    std::vector<TH1D *> testsig;
-    std::vector<TH1D *> testpulse;
-    TH1D *hks;
   
   }; // class CosmicTracker
 
@@ -184,7 +167,8 @@ namespace trkf {
 namespace trkf {
 
   //-------------------------------------------------
-  CosmicTracker::CosmicTracker(fhicl::ParameterSet const& pset)
+  CosmicTracker::CosmicTracker(fhicl::ParameterSet const& pset) :
+    fClusterMatch(pset.get< fhicl::ParameterSet >("ClusterMatch"))
   {
     this->reconfigure(pset);
     produces< std::vector<recob::Track>                        >();
@@ -194,24 +178,17 @@ namespace trkf {
     produces< art::Assns<recob::SpacePoint, recob::Hit>        >();
     produces< art::Assns<recob::Track,      recob::Hit>        >();
 
-    dtime  .resize(3);
-    testsig.resize(3);
-    testpulse.resize(3);
   }
 
   //-------------------------------------------------
   void CosmicTracker::reconfigure(fhicl::ParameterSet const& pset)
   {
     fClusterModuleLabel     = pset.get< std::string >("ClusterModuleLabel");
-    fKScut                  = pset.get< double >("KScut");
     ftmatch                 = pset.get< double >("TMatch");
     fsmatch                 = pset.get< double >("SMatch");
     ftoler1                 = pset.get< double >("Toler1");
     ftoler2                 = pset.get< double >("Toler2");
     fdebug                  = pset.get< bool   >("Debug");
-    fEnableU                = pset.get< bool   >("EnableU");
-    fEnableV                = pset.get< bool   >("EnableV");
-    fEnableZ                = pset.get< bool   >("EnableZ");
     fisohitcut              = pset.get< int    >("IsoHitCut");
     fSortDir                = pset.get< std::string >("SortDirection","+z");
     fCleanUpHits            = pset.get< bool   >("CleanUpHits");
@@ -221,26 +198,6 @@ namespace trkf {
   //-------------------------------------------------
   void CosmicTracker::beginJob()
   {
-    art::ServiceHandle<art::TFileService> tfs;
- 
-    dtime[0] = tfs->make<TH1D>("dtime0","dtime0",100,-50,50);
-    dtime[1] = tfs->make<TH1D>("dtime1","dtime1",100,-50,50);
-    dtime[2] = tfs->make<TH1D>("dtime2","dtime2",100,-50,50);
-
-    testsig[0] = tfs->make<TH1D>("testsig0","testsig0",4096,0,4096);
-    testsig[1] = tfs->make<TH1D>("testsig1","testsig1",4096,0,4096);
-    testsig[2] = tfs->make<TH1D>("testsig2","testsig2",4096,0,4096);
-
-    testpulse[0] = tfs->make<TH1D>("testpulse0","testpulse0",4096,0,4096);
-    testpulse[1] = tfs->make<TH1D>("testpulse1","testpulse1",4096,0,4096);
-    testpulse[2] = tfs->make<TH1D>("testpulse2","testpulse2",4096,0,4096);
-
-
-    hks = tfs->make<TH1D>("hks","hks",100,0,1);
-
-    for (int i = 0; i<3; ++i) dtime[i]->Sumw2();
-
-
   }
 
   //-------------------------------------------------
@@ -273,11 +230,6 @@ namespace trkf {
     double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
     double timepitch = driftvelocity*timetick;                         //time sample (cm) 
 
-    int nts = detprop->NumberTimeSamples();
-    int nplanes = geom->Nplanes();
-
-    std::vector< std::vector<TH1D*> > signals(nplanes);
-    std::vector< std::vector<TH1D*> > pulses(nplanes);
 
     // get input Cluster object(s).
     art::Handle< std::vector<recob::Cluster> > clusterListHandle;
@@ -287,227 +239,8 @@ namespace trkf {
 
     art::FindManyP<recob::Hit> fm(clusterListHandle, evt, fClusterModuleLabel);
 
-    std::vector< std::vector<int> > Cls(nplanes);
-    std::vector< std::vector<CluLen> > clulens(nplanes);
-    for (size_t iclu = 0; iclu<clusterlist.size(); ++iclu){
-
-      float w0 = clusterlist[iclu]->StartWire();
-      float w1 = clusterlist[iclu]->EndWire();
-      float t0 = clusterlist[iclu]->StartTick();
-      float t1 = clusterlist[iclu]->EndTick();
-      //      t0 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
-      //      t1 -= detprop->GetXTicksOffset(clusterlist[iclu]->View(),0,0);
- 
-
-      CluLen clulen;
-      clulen.index = iclu;
-      clulen.length = sqrt(pow((w0-w1)*wire_pitch,2)+pow(detprop->ConvertTicksToX(t0,clusterlist[iclu]->Plane().Plane,clusterlist[iclu]->Plane().TPC,clusterlist[iclu]->Plane().Cryostat)-detprop->ConvertTicksToX(t1,clusterlist[iclu]->Plane().Plane,clusterlist[iclu]->Plane().TPC,clusterlist[iclu]->Plane().Cryostat),2));
-
-
-      std::vector< art::Ptr<recob::Hit> > hitlist = fm.at(iclu);
-      std::sort(hitlist.begin(), hitlist.end(), trkf::SortByWire());
-      auto theHit = hitlist.begin();
-      int hcryo = (*theHit)->WireID().Cryostat;
-      int htpc = (*theHit)->WireID().TPC;
-
-      LOG_DEBUG("CosmicTracker")  << "Cluster " << iclu << " view=" <<clusterlist[iclu]->View() <<  " cryostat=" << hcryo <<" tpc=" << htpc << " length = " << clulen.length <<" start wire=" << w0 << " end wire="<< w1 << " start time=" <<t0 << " end time=" << t1;
-
-      switch(clusterlist[iclu]->View()){
-      case geo::kU :
-        if (fEnableU) clulens[0].push_back(clulen);
-        break;
-      case geo::kV :
-        if (fEnableV) clulens[1].push_back(clulen);
-        break;
-      case geo::kZ :
-        if (fEnableZ) clulens[2].push_back(clulen);
-        break;
-      default :
-        break;
-      }
-
-    }
-
-    //sort clusters based on 2D length
-    for (size_t i = 0; i<clulens.size(); ++i){
-      std::sort (clulens[i].begin(),clulens[i].end(), myfunction);
-      for (size_t j = 0; j<clulens[i].size(); ++j){
-        Cls[i].push_back(clulens[i][j].index);
-      }
-    }
-
-    //calibrate drift times between wire planes using single muons
-    std::vector< std::vector<double> > meantime(nplanes);
-    for (int i = 0; i<nplanes; ++i){
-      for (size_t ic = 0; ic < Cls[i].size(); ++ic){
-        TH1D sig(Form("sig_%d_%d",i,int(ic)),Form("sig_%d_%d",i,int(ic)),nts,0,nts);
-        TH1D sigint(Form("sigint_%d_%d",i,int(ic)),Form("sigint_%d_%d",i,int(ic)),nts,0,nts);    
-        std::vector< art::Ptr<recob::Hit> > hitlist = fm.at(Cls[i][ic]);
-        std::sort(hitlist.begin(), hitlist.end(), trkf::SortByWire());
-        for(auto theHit = hitlist.begin(); theHit != hitlist.end();  theHit++){
-        
-          double time = (*theHit)->PeakTime();
-          time -= detprop->GetXTicksOffset((*theHit)->WireID().Plane,
-                                           (*theHit)->WireID().TPC,
-                                           (*theHit)->WireID().Cryostat);
-
-          double charge = (*theHit)->Integral();
-          int bin = sig.FindBin(time);
-          sig.SetBinContent(bin,sig.GetBinContent(bin)+charge);
-          for (int j = bin; j<=sig.GetNbinsX(); ++j){
-            sigint.SetBinContent(j,sigint.GetBinContent(j)+charge);
-          }
-        }
-        if (sigint.Integral()) sigint.Scale(1./sigint.GetBinContent(sigint.GetNbinsX()));
-        pulses[i].push_back(new TH1D(sig));
-        signals[i].push_back(new TH1D(sigint));
-        if (hitlist.size()>10){
-          meantime[i].push_back(sig.GetMean());
-        }
-      }
-    }
-
-    bool singletrack = true;
-    for (int i = 0; i<nplanes; ++i){
-      singletrack = singletrack && meantime[i].size()==1;
-    }
-    if (singletrack){
-      for (int i = 0; i<nplanes; ++i){
-        for (int j = i+1; j<nplanes; ++j){
-          dtime[i+j-1]->Fill(meantime[j][0]-meantime[i][0]);
-        }
-      }
-      for (int i = 0; i<nplanes; ++i){
-        for (size_t k = 0; k<signals[i].size(); ++k){
-          if (fm.at(Cls[i][k]).size()<10) continue;
-          for (int j = 0; j<signals[i][k]->GetNbinsX(); ++j){
-            double binc = signals[i][k]->GetBinContent(j+1);
-            testsig[i]->SetBinContent(j+1,binc);
-            testpulse[i]->SetBinContent(j+1,pulses[i][k]->GetBinContent(j+1));
-          }
-        }
-      }
-    }
-
-
-    //matching clusters between different views
-    std::vector<int> matched(clusterlist.size());
-    for (size_t i = 0; i<clusterlist.size(); ++i) matched[i] = 0;
-
-    std::vector< std::vector<int> > matchedclusters;
-
-    for (int i = 0; i<nplanes-1; ++i){
-      for (int j = i+1; j<nplanes; ++j){
-	  //for (int i = 0; i<nplanes; ++i){
-	  //for (int j = 0; j<nplanes; ++j){
-        for (size_t c1 = 0; c1<Cls[i].size(); ++c1){
-          for (size_t c2 = 0; c2<Cls[j].size(); ++c2){
-            
-            // check if both are the same view
-            if (clusterlist[Cls[i][c1]]->View()==
-                clusterlist[Cls[j][c2]]->View()) continue;
-            // check if both are in the same cryostat and tpc
-            if (clusterlist[Cls[i][c1]]->Plane().Cryostat!=
-                clusterlist[Cls[j][c2]]->Plane().Cryostat) continue;
-            if (clusterlist[Cls[i][c1]]->Plane().TPC!=
-                clusterlist[Cls[j][c2]]->Plane().TPC) continue;
-            // check if both are already in the matched list
-            if (matched[Cls[i][c1]]==1&&matched[Cls[j][c2]]==1) continue;
-            // KS test between two views in time
-            double ks = 0;
-            if (signals[i][c1]->Integral()
-                &&signals[j][c2]->Integral())
-              ks = signals[i][c1]->KolmogorovTest(signals[j][c2]);
-            else{
-              mf::LogWarning("CosmicTracker") <<"One of the two clusters appears to be empty: "<<clusterlist[Cls[i][c1]]->ID()<<" "<<clusterlist[Cls[j][c2]]->ID();
-            }
-            hks->Fill(ks);
-            int imatch = -1; //track candidate index
-            int iadd = -1; //cluster index to be inserted
-            if (ks>fKScut){//pass KS test
-              // check both clusters with all matched clusters
-              // if one is already matched, 
-              // check if need to add the other to the same track candidate
-              for (size_t l = 0; l<matchedclusters.size(); ++l){
-                for (size_t m = 0; m<matchedclusters[l].size(); ++m){
-                  if (matchedclusters[l][m]==Cls[i][c1]){
-                    imatch = l; //track candidate
-                    iadd = j; //consider the other cluster
-                  }
-                  else if (matchedclusters[l][m]==Cls[j][c2]){
-                    imatch = l; //track candidate
-                    iadd = i; //consider the other cluster
-                  }
-                }
-              }
-              if (imatch>=0){
-                if (iadd == i){
-                  bool matchview = false;
-                  // check if one matched cluster has the same view
-                  for (size_t ii = 0; ii<matchedclusters[imatch].size(); ++ii){
-                    if (clusterlist[matchedclusters[imatch][ii]]->View()==
-                        clusterlist[Cls[i][c1]]->View()){
-                      matchview = true;
-                      //replace if the new cluster has more hits
-                      if (fm.at(Cls[i][c1]).size()>fm.at(matchedclusters[imatch][ii]).size()){
-                        matched[matchedclusters[imatch][ii]] = 0;
-                        matchedclusters[imatch][ii] = Cls[i][c1];
-                        matched[Cls[i][c1]] = 1;
-                      }
-                    }
-                  }
-                  if (!matchview){//not matched view found, just add
-                    matchedclusters[imatch].push_back(Cls[i][c1]);
-                    matched[Cls[i][c1]] = 1;
-                  }
-                }
-                else {
-                  bool matchview = false;
-                  for (size_t jj = 0; jj<matchedclusters[imatch].size(); ++jj){
-                    if (clusterlist[matchedclusters[imatch][jj]]->View()==
-                        clusterlist[Cls[j][c2]]->View()){
-                      matchview = true;
-                      //replace if it has more hits
-                      if (fm.at(Cls[j][c2]).size()>fm.at(matchedclusters[imatch][jj]).size()){
-                        matched[matchedclusters[imatch][jj]] = 0;
-                        matchedclusters[imatch][jj] = Cls[j][c2];
-                        matched[Cls[j][c2]] = 1;
-                      }
-                    }
-                  }
-                  if (!matchview){
-                    matchedclusters[imatch].push_back(Cls[j][c2]);
-                    matched[Cls[j][c2]] = 1;
-                  }                
-                }
-              }
-              else{
-                std::vector<int> tmp;
-                tmp.push_back(Cls[i][c1]);
-                tmp.push_back(Cls[j][c2]);
-                matchedclusters.push_back(tmp);
-                matched[Cls[i][c1]]=1;
-                matched[Cls[j][c2]]=1;
-              }
-            }//pass KS test
-          }//c2
-        }//c1
-      }//j
-    }//i
-
-    for (size_t i = 0; i<matchedclusters.size(); ++i){
-      if (matchedclusters[i].size()) mf::LogVerbatim("CosmicTracker")<<"Track candidate "<<i<<":";
-      for (size_t j = 0; j<matchedclusters[i].size(); ++j){
-        mf::LogVerbatim("CosmicTracker")<<matchedclusters[i][j];
-      }
-    } 
-
-    for (int i = 0; i<nplanes; ++i){
-      for (size_t j = 0; j<signals[i].size(); ++j){
-        delete signals[i][j];
-        delete pulses[i][j];
-      }
-    }
+    fClusterMatch.ClusterMatch(clusterlist,fm);
+    std::vector<std::vector<unsigned int> > &matchedclusters = fClusterMatch.matchedclusters;
 
     /////////////////////////////////////////////////////
     /////// 2D Track Matching and 3D Track Reconstruction
@@ -543,7 +276,7 @@ namespace trkf {
         vph.clear();
         //fit hits time vs wire with pol2
         std::vector< art::Ptr<recob::Hit> > hits = fm.at(matchedclusters[itrk][iclu]);
-        std::sort(hits.begin(), hits.end(), trkf::SortByWire());
+        std::sort(hits.begin(), hits.end(), SortByWire);
         if (fCleanUpHits){
           double dtdw = 0;
           if (clusterlist[matchedclusters[itrk][iclu]]->StartTick()-
@@ -1074,7 +807,7 @@ namespace trkf {
         
           // and the hits and track
           if (!fdebug){
-            const std::vector<int>& TrackClusters = matchedclusters[itrk];
+            const std::vector<unsigned int>& TrackClusters = matchedclusters[itrk];
             for (size_t cpt = 0; cpt < TrackClusters.size(); ++cpt) {
               util::CreateAssn
                 (*this, evt, *tcol, fm.at(TrackClusters[cpt]), *thassn);
