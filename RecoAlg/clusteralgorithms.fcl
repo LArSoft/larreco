@@ -36,6 +36,16 @@ standard_clustercrawleralg:
   DebugHit:             0  # out detailed information while crawling
 }
 
+standard_blurredclusteringalg:
+{
+  BlurN:               4
+  BlurSigma:           2
+  NeighboursThreshold: 0
+  MinNeighbours:       0
+  MinSize:             2
+  TimeThreshold:       20
+}
+
 standard_houghbasealg:
 {
   MaxLines:                 50   # The maximum number of Hough lines to look for, 20 had been working!
