@@ -1,5 +1,7 @@
 /**
  *  @file   PmaTrack3D.cxx
+ *
+ *  @author D.Stefan and R.Sulej
  * 
  *  @brief  Implementation of the Projection Matching Algorithm
  *

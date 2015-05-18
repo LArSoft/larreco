@@ -1,18 +1,57 @@
 /**
  *  @file   PmaHit3D.h
+ *
+ *  @author D.Stefan and R.Sulej
  * 
  *  @brief  Implementation of the Projection Matching Algorithm
  *
- *          Build 3D segments and whole tracks by simultaneous matching hits in 2D projections.
+ *          Hit 3D wrapped around recob::Hit. Adds support for PMA optimizations.
  */
 
 #include "RecoAlg/PMAlg/PmaHit3D.h"
 
 #include "Utilities/DetectorProperties.h"
-#include "Geometry/Geometry.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
+
+double pma::Dist2(const TVector2& v1, const TVector2& v2)
+{
+	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
+	return dx * dx + dy * dy;
+}
+
+double pma::Dist2(const TVector3& v1, const TVector3& v2)
+{
+	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y(), dz = v1.Z() - v2.Z();
+	return dx * dx + dy * dy + dz * dz;
+}
+
+size_t pma::GetHitsCount(const std::vector< pma::Hit3D >& hits, unsigned int view)
+{
+	size_t n = 0;
+	for (auto const& hit : hits)
+		if ((view == geo::kUnknown) || (view == hit.View2D())) n++;
+	return n;
+}
+
+double pma::GetSummedADC(const std::vector< pma::Hit3D >& hits, unsigned int view)
+{
+	double sum = 0.0;
+	for (auto const& hit : hits)
+		if ((view == geo::kUnknown) || (view == hit.View2D()))
+			sum += hit.SummedADC();
+	return sum;
+}
+
+double pma::GetSummedAmpl(const std::vector< pma::Hit3D >& hits, unsigned int view)
+{
+	double sum = 0.0;
+	for (auto const& hit : hits)
+		if ((view == geo::kUnknown) || (view == hit.View2D()))
+			sum += hit.PeakAmplitude();
+	return sum;
+}
 
 pma::Hit3D::Hit3D(void) :
 	fTPC(0), fPlane(0),

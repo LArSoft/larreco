@@ -1,9 +1,11 @@
 /**
  *  @file   PmaHit3D.h
+ *
+ *  @author D.Stefan and R.Sulej
  * 
  *  @brief  Implementation of the Projection Matching Algorithm
  *
- *          Build 3D segments and whole tracks by simultaneous matching hits in 2D projections.
+ *          Hit 3D wrapped around recob::Hit. Adds support for PMA optimizations.
  */
 
 #ifndef PmaHit3D_h
@@ -11,33 +13,31 @@
 
 #include "RecoBase/Hit.h"
 
+#include "Geometry/Geometry.h"
+
+#include <functional>
+
 #include "TVector2.h"
 #include "TVector3.h"
 
 namespace pma
 {
+	class Hit3D;
+	struct bTrajectory3DOrderLess;
+
+	class Track3D;
+	
 	double Dist2(const TVector2& v1, const TVector2& v2);
 	double Dist2(const TVector3& v1, const TVector3& v2);
-
-	class Hit3D;
-	class Track3D;
-}
-
-double pma::Dist2(const TVector2& v1, const TVector2& v2)
-{
-	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
-	return dx * dx + dy * dy;
-}
-
-double pma::Dist2(const TVector3& v1, const TVector3& v2)
-{
-	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y(), dz = v1.Z() - v2.Z();
-	return dx * dx + dy * dy + dz * dz;
+	size_t GetHitsCount(const std::vector< pma::Hit3D >& hits, unsigned int view);
+	double GetSummedADC(const std::vector< pma::Hit3D >& hits, unsigned int view = geo::kUnknown);
+	double GetSummedAmpl(const std::vector< pma::Hit3D >& hits, unsigned int view = geo::kUnknown);
 }
 
 class pma::Hit3D : public recob::Hit
 {
 	friend class Track3D;
+	friend struct bTrajectory3DOrderLess;
 
 public:
 	Hit3D(void);
@@ -46,11 +46,14 @@ public:
 
 	TVector3 const & Point3D(void) const { return fPoint3D; }
 
+	void SetPoint3D(const TVector3& p3d) { fPoint3D = p3d; }
+
 	TVector2 const & Point2D(void) const { return fPoint2D; }
 	TVector2 const & Projection2D(void) const { return fProjection2D; }
 
 	unsigned int TPC(void) const { return fTPC; }
 	unsigned int View2D(void) const { return fPlane; }
+	unsigned int Wire(void) const { return WireID().Wire; }
 
 	float GetAmplitude(void) const { return PeakAmplitude(); }
 	float GetSigmaFactor(void) const { return fSigmaFactor; }
@@ -85,4 +88,15 @@ private:
 
 };
 
+struct pma::bTrajectory3DOrderLess :
+	public std::binary_function<pma::Hit3D*, pma::Hit3D*, bool>
+{
+	bool operator() (pma::Hit3D* h1, pma::Hit3D* h2)
+	{
+		if (h1 && h2) return h1->fSegFraction < h2->fSegFraction;
+		else return false;
+	}
+};
+
 #endif
+

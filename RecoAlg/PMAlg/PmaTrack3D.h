@@ -1,5 +1,7 @@
 /**
  *  @file   PmaTrack3D.h
+ *
+ *  @author D.Stefan and R.Sulej
  * 
  *  @brief  Implementation of the Projection Matching Algorithm
  *
@@ -8,6 +10,8 @@
 
 #ifndef PmaTrack3D_h
 #define PmaTrack3D_h
+
+#include "RecoAlg/PMAlg/PmaHit3D.h"
 
 namespace pma
 {
@@ -20,7 +24,7 @@ public:
 	Track3D(void);
 
 private:
-
+	std::vector< pma::Hit3D > fHits;
 };
 
 #endif
