@@ -126,12 +126,5 @@ int pma::SortedBranchBase::RemoveNext(pma::SortedObjectBase* nextElement)
 	}
 	return index;
 }
-
-pma::SortedObjectBase* pma::SortedBranchBase::Next(void) const
-{
-	std::cout << "Consider using Next(unsigned int index)." << std::endl;
-	if (next_vector.size()) return next_vector.back();
-	else return 0;
-}
 //******************************************************************
 

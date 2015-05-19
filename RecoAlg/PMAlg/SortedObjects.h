@@ -37,12 +37,11 @@ public:
 	virtual bool AddNext(pma::SortedObjectBase* nextElement);
 	virtual int RemoveNext(pma::SortedObjectBase* nextElement);
 
-	virtual pma::SortedObjectBase* Next(void) const { return next; }
-	virtual pma::SortedObjectBase* Prev(void) const { return prev; }
 	virtual bool IsFirst(void) const { return !prev; }
 	virtual bool IsLast(void) const { return !next; }
 
-	virtual pma::SortedObjectBase* Next(unsigned int index) const { return next; }
+	virtual pma::SortedObjectBase* Prev(void) const { return prev; }
+	virtual pma::SortedObjectBase* Next(unsigned int index = 0) const { return next; }
 	virtual unsigned int NextCount(void) const
 	{
 		if (next) return 1;
@@ -76,8 +75,7 @@ public:
 	virtual bool AddNext(pma::SortedObjectBase* nextElement);
 	virtual int RemoveNext(pma::SortedObjectBase* nextElement);
 
-	virtual pma::SortedObjectBase* Next(void) const;
-	virtual pma::SortedObjectBase* Next(unsigned int index) const
+	virtual pma::SortedObjectBase* Next(unsigned int index = 0) const
 	{
 		if (next_vector.size()) return next_vector[index];
 		else return 0;

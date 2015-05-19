@@ -29,9 +29,11 @@ namespace pma
 	
 	double Dist2(const TVector2& v1, const TVector2& v2);
 	double Dist2(const TVector3& v1, const TVector3& v2);
-	size_t GetHitsCount(const std::vector< pma::Hit3D >& hits, unsigned int view);
-	double GetSummedADC(const std::vector< pma::Hit3D >& hits, unsigned int view = geo::kUnknown);
-	double GetSummedAmpl(const std::vector< pma::Hit3D >& hits, unsigned int view = geo::kUnknown);
+	size_t GetHitsCount(const std::vector< pma::Hit3D* >& hits, unsigned int view);
+	double GetSummedADC(const std::vector< pma::Hit3D* >& hits, unsigned int view = geo::kUnknown);
+	double GetSummedAmpl(const std::vector< pma::Hit3D* >& hits, unsigned int view = geo::kUnknown);
+
+	double GetHitsRadius(const std::vector< pma::Hit3D* >& hits, bool exact = false);
 }
 
 class pma::Hit3D : public recob::Hit

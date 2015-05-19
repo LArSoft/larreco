@@ -17,9 +17,6 @@
 #include "Geometry/Geometry.h"
 #include "Utilities/DetectorProperties.h"
 
-#include "TVector2.h"
-#include "TVector3.h"
-
 namespace pma
 {
 	class Node3D;
@@ -41,7 +38,7 @@ public:
 
 	TVector2 const & Projection2D(unsigned int view) const { return fProj2D[view]; }
 
-	/// Distance [cm] from the 3D point to the object 3D.
+	/// Distance [cm] from the 3D point to the point 3D.
 	virtual double GetDistance2To(const TVector3& p3d) const;
 
 	/// Distance [cm] from the 2D point to the object's 2D projection in one of wire views.
@@ -49,6 +46,10 @@ public:
 
 	/// Set hit 3D position and its 2D projection to the vertex.
 	virtual void SetProjection(pma::Hit3D& h) const;
+
+	/// Squared sum of half-lengths of connected 3D segments
+	/// (used in the vertex position optimization).
+	virtual double Length2(void) const;
 
 private:
 	void LimitPoint3D(float margin = -3.0F); // default: let the node go out by 3cm

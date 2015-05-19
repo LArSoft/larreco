@@ -27,30 +27,52 @@ double pma::Dist2(const TVector3& v1, const TVector3& v2)
 	return dx * dx + dy * dy + dz * dz;
 }
 
-size_t pma::GetHitsCount(const std::vector< pma::Hit3D >& hits, unsigned int view)
+size_t pma::GetHitsCount(const std::vector< pma::Hit3D* >& hits, unsigned int view)
 {
 	size_t n = 0;
 	for (auto const& hit : hits)
-		if ((view == geo::kUnknown) || (view == hit.View2D())) n++;
+		if ((view == geo::kUnknown) || (view == hit->View2D())) n++;
 	return n;
 }
 
-double pma::GetSummedADC(const std::vector< pma::Hit3D >& hits, unsigned int view)
+double pma::GetSummedADC(const std::vector< pma::Hit3D* >& hits, unsigned int view)
 {
 	double sum = 0.0;
 	for (auto const& hit : hits)
-		if ((view == geo::kUnknown) || (view == hit.View2D()))
-			sum += hit.SummedADC();
+		if ((view == geo::kUnknown) || (view == hit->View2D()))
+			sum += hit->SummedADC();
 	return sum;
 }
 
-double pma::GetSummedAmpl(const std::vector< pma::Hit3D >& hits, unsigned int view)
+double pma::GetSummedAmpl(const std::vector< pma::Hit3D* >& hits, unsigned int view)
 {
 	double sum = 0.0;
 	for (auto const& hit : hits)
-		if ((view == geo::kUnknown) || (view == hit.View2D()))
-			sum += hit.PeakAmplitude();
+		if ((view == geo::kUnknown) || (view == hit->View2D()))
+			sum += hit->PeakAmplitude();
 	return sum;
+}
+
+double pma::GetHitsRadius(const std::vector< pma::Hit3D* >& hits, bool exact)
+{
+	if (!exact && (hits.size() < 5)) return 0.0;
+
+	if (hits.size() == 0) return 0.0;
+
+	TVector3 mean(0, 0, 0);
+	for (size_t i = 0; i < hits.size(); i++)
+	{
+		mean += hits[i]->Point3D();
+	}
+	mean *= (1.0 / hits.size());
+
+	double r2, max_r2 = pma::Dist2(hits.front()->Point3D(), mean);
+	for (size_t i = 1; i < hits.size(); i++)
+	{
+		r2 = pma::Dist2(hits[i]->Point3D(), mean);
+		if (r2 > max_r2) max_r2 = r2;
+	}
+	return sqrt(max_r2);
 }
 
 pma::Hit3D::Hit3D(void) :

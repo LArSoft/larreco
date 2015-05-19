@@ -39,6 +39,9 @@ public:
 
 	virtual void SetProjection(pma::Hit3D& h) const = 0;
 
+	virtual double Length2(void) const = 0;
+	double Length(void) const { return sqrt(Length2()); }
+
 	pma::Hit3D& Hit(size_t index) { return *(fAssignedHits[index]); }
 	void AddHit(pma::Hit3D* h)
 	{
@@ -61,10 +64,20 @@ public:
 	void UpdateProjection(void);
 	void SortHits(void);
 
+	double SumDist2(void) const;
+	double SumHitsQ(unsigned int view) const { return fSumHitsQ[view]; }
+	unsigned int NHits(unsigned int view) const { return fNHits[view]; }
+	unsigned int NThisHits(unsigned int view) const { return fNThisHits[view]; }
+
+	double HitsRadius3D(unsigned int view) const;
+
 	/// Check if the vertex 3D position is fixed.
 	bool IsFrozen(void) const { return fFrozen; }
 	/// Fix / relese vertex 3D position.
 	void SetFrozen(bool state) { fFrozen = state; }
+
+	static float OptFactor(unsigned int view) { return fOptFactors[view]; }
+	static void SetOptFactor(unsigned int view, float value) { fOptFactors[view] = value; }
 
 protected:
 	bool fFrozen;
@@ -74,6 +87,8 @@ protected:
 	unsigned int fNHits[3];
 	double fSumHitsQ[3];
 	double fHitsRadius;
+
+	static float fOptFactors[3]; // impact factors of data from various 2D views
 };
 
 #endif

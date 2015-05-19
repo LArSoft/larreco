@@ -9,6 +9,7 @@
  */
 
 #include "RecoAlg/PMAlg/PmaNode3D.h"
+#include "RecoAlg/PMAlg/PmaSegment3D.h"
 
 #include "Geometry/TPCGeo.h"
 
@@ -151,5 +152,15 @@ void pma::Node3D::SetProjection(pma::Hit3D& h) const
 		g3d -= fPoint3D;
 		h.SetPoint3D(fPoint3D + (g3d * b));
 	}
+}
+
+double pma::Node3D::Length2(void) const
+{
+	double l = 0.0;
+	if (next) l += (static_cast< pma::Segment3D* >(next))->Length();
+	if (prev) l += (static_cast< pma::Segment3D* >(prev))->Length();
+
+	if (next && prev) return 0.25 * l * l;
+	else return l * l;
 }
 
