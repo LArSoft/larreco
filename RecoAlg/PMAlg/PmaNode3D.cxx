@@ -164,3 +164,139 @@ double pma::Node3D::Length2(void) const
 	else return l * l;
 }
 
+double pma::Node3D::SegmentCos(void) const
+{
+	if (prev && next)
+	{
+		pma::Node3D* vStop1 = static_cast< pma::Node3D* >(prev->Prev());
+		pma::Node3D* vStop2 = static_cast< pma::Node3D* >(next->Next());
+		TVector3 v1(vStop1->fPoint3D); v1 -= fPoint3D;
+		TVector3 v2(vStop2->fPoint3D); v2 -= fPoint3D;
+		double mag = sqrt(v1.Mag2() * v2.Mag2());
+		double cosine = 0.0;
+		if (mag != 0.0) cosine = v1 * v2 / mag;
+		return cosine;
+	}
+	else
+	{
+		std::cout << "PlVertex3D::SegmentCos(): neighbours not initialized." << std::endl;
+		return -1.0;
+	}
+}
+
+double pma::Node3D::SegmentCosWirePlane(void) const
+{
+	if (prev && next)
+	{
+		pma::Node3D* vStop1 = static_cast< pma::Node3D* >(prev->Prev());
+		pma::Node3D* vStop2 = static_cast< pma::Node3D* >(next->Next());
+		TVector2 v1, v2;
+		v1.Set( vStop1->fPoint3D.Y() - fPoint3D.Y(),
+		        vStop1->fPoint3D.Z() - fPoint3D.Z());
+		v2.Set( vStop2->fPoint3D.Y() - fPoint3D.Y(),
+		        vStop2->fPoint3D.Z() - fPoint3D.Z());
+		double mag = sqrt(v1.Mod2() * v2.Mod2());
+		double cosine = 0.0;
+		if (mag != 0.0) cosine = v1 * v2 / mag;
+		return cosine;
+	}
+	else
+	{
+		std::cout << "PlVertex3D::SegmentCosZX(): neighbours not initialized." << std::endl;
+		return -1.0;
+	}
+}
+
+double pma::Node3D::SegmentCosHorizontal(void) const
+{
+	if (prev && next)
+	{
+		pma::Node3D* vStop1 = static_cast< pma::Node3D* >(prev->Prev());
+		pma::Node3D* vStop2 = static_cast< pma::Node3D* >(next->Next());
+		TVector2 v1, v2;
+		v1.Set( vStop1->fPoint3D.X() - fPoint3D.X(),
+		        vStop1->fPoint3D.Z() - fPoint3D.Z());
+		v2.Set( vStop2->fPoint3D.X() - fPoint3D.X(),
+		        vStop2->fPoint3D.Z() - fPoint3D.Z());
+		double mag = sqrt(v1.Mod2() * v2.Mod2());
+		double cosine = 0.0;
+		if (mag != 0.0) cosine = v1 * v2 / mag;
+		return cosine;
+	}
+	else
+	{
+		std::cout << "PlVertex3D::SegmentCosZY(): neighbours not initialized." << std::endl;
+		return -1.0;
+	}
+}
+
+double pma::Node3D::GetObjFunction(float penaltyValue, float endSegWeight) const
+{
+	return 0.;
+}
+
+void pma::Node3D::Optimize(float penaltyValue, float endSegWeight)
+{
+}
+
+void pma::Node3D::ClearAssigned(pma::Track3D* trk)
+{
+	if (!trk)
+	{
+		// like in the base class:
+		fAssignedPoints.clear();
+		fAssignedHits.clear();
+	}
+/*	else
+	{
+		std::vector< AF::PolygonalLine3D* > to_check;
+		AF::PlSegment3D* seg;
+		if (Prev())
+		{
+			seg = static_cast< AF::PlSegment3D* >(Prev());
+			if (seg->Parent() != pl) to_check.push_back(seg->Parent());
+		}
+		for (unsigned int i = 0; i < NextCount(); i++)
+		{
+			seg = static_cast< AF::PlSegment3D* >(Next(i));
+			if (seg->Parent() != pl) to_check.push_back(seg->Parent());
+		}
+			
+		unsigned int p = 0;
+		while (p < fAssignedPoints.size())
+		{
+			bool found = false;
+			for (unsigned int t = 0; t < to_check.size(); t++)
+				if (to_check[t]->HasRefPoint(fAssignedPoints[p]))
+				{
+					found = true; break;
+				}
+
+			if (!found) fAssignedPoints.erase(fAssignedPoints.begin() + p);
+			else p++;
+		}
+
+		unsigned int h = 0;
+		while (h < fAssignedHits.size())
+		{
+			bool found = false;
+			AF::PlHit3D* hit = fAssignedHits[h];
+
+			for (unsigned int t = 0; (t < to_check.size()) && !found; t++)
+				for (unsigned int i = 0; i < to_check[t]->size(); i++)
+				{
+					AF::PlHit3D* plHit = static_cast< AF::PlHit3D* >((*(to_check[t]))[i]);
+					if (hit == plHit)
+					{
+						found = true; break;
+					}
+				}
+
+			if (!found) fAssignedHits.erase(fAssignedHits.begin() + h);
+			else h++;
+		}
+	}
+*/
+	fHitsRadius = 0.0F;
+}
+

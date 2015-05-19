@@ -51,6 +51,23 @@ public:
 	/// (used in the vertex position optimization).
 	virtual double Length2(void) const;
 
+	/// Cosine of 3D angle between connected segments.
+	double SegmentCos(void) const;
+	/// Cosine of 2D angle (in plane parallel to wire planes) between connected segments.
+	double SegmentCosWirePlane(void) const;
+	/// Cosine of 2D angle (in horizontal plane, parallel to drift) between connected segments.
+	double SegmentCosHorizontal(void) const;
+
+	/// Objective function minimized during oprimization.
+	double GetObjFunction(float penaltyValue, float endSegWeight) const;
+
+	/// Optimize vertex 3D position with given penalty on connected
+	/// segments angle and weight assigned to the outermost segments.
+	/// Only MSE is used in case of branching nodes.
+	void Optimize(float penaltyValue, float endSegWeight);
+
+	virtual void ClearAssigned(pma::Track3D* trk = 0);
+
 private:
 	void LimitPoint3D(float margin = -3.0F); // default: let the node go out by 3cm
 	void UpdateProj2D(void);
