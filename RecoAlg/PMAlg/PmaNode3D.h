@@ -1,0 +1,70 @@
+/**
+ *  @file   PmaNode3D.h
+ *
+ *  @author D.Stefan and R.Sulej
+ * 
+ *  @brief  Implementation of the Projection Matching Algorithm
+ *
+ *          3D track node.
+ */
+
+#ifndef PmaNode3D_h
+#define PmaNode3D_h
+
+#include "RecoAlg/PMAlg/PmaElement3D.h"
+#include "RecoAlg/PMAlg/SortedObjects.h"
+
+#include "Geometry/Geometry.h"
+#include "Utilities/DetectorProperties.h"
+
+#include "TVector2.h"
+#include "TVector3.h"
+
+namespace pma
+{
+	class Node3D;
+}
+
+class pma::Node3D : public pma::Element3D, public pma::SortedBranchBase
+{
+public:
+	Node3D(void);
+	Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo = 0);
+	virtual ~Node3D(void) {}
+
+	unsigned int TPC(void) const { return fTPC; }
+	unsigned int Cryo(void) const { return fCryo; }
+
+	TVector3 const & Point3D(void) const { return fPoint3D; }
+
+	void SetPoint3D(const TVector3& p3d);
+
+	TVector2 const & Projection2D(unsigned int view) const { return fProj2D[view]; }
+
+	/// Distance [cm] from the 3D point to the object 3D.
+	virtual double GetDistance2To(const TVector3& p3d) const;
+
+	/// Distance [cm] from the 2D point to the object's 2D projection in one of wire views.
+	virtual double GetDistance2To(const TVector2& p2d, unsigned int view) const;
+
+	/// Set hit 3D position and its 2D projection to the vertex.
+	virtual void SetProjection(pma::Hit3D& h) const;
+
+private:
+	void LimitPoint3D(float margin = -3.0F); // default: let the node go out by 3cm
+	void UpdateProj2D(void);
+
+	art::ServiceHandle<geo::Geometry> fGeom;
+	art::ServiceHandle<util::DetectorProperties> fDetProp;
+
+	unsigned int fTPC, fCryo;
+
+	double fMinX, fMaxX, fMinY, fMaxY, fMinZ, fMaxZ; // TPC boundaries to limit the node position (+margin)
+	
+	TVector3 fPoint3D;       // node position in 3D space in [cm]
+	TVector2 fProj2D[3];     // node projections to 2D views, scaled to [cm], updated on each change of 3D position
+
+};
+
+#endif
+
