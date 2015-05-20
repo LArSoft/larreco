@@ -14,3 +14,10 @@ pma::Track3D::Track3D(void)
 {
 }
 
+bool pma::Track3D::HasRefPoint(TVector3* p) const
+{
+	for (size_t i = 0; i < fAssignedPoints.size(); i++)
+		if (fAssignedPoints[i] == p) return true;
+	return false;
+}
+

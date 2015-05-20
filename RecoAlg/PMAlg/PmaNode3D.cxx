@@ -8,17 +8,20 @@
  *          3D track node.
  */
 
-#include "RecoAlg/PMAlg/PmaNode3D.h"
-#include "RecoAlg/PMAlg/PmaSegment3D.h"
+#include "RecoAlg/PMAlg/PmaTrack3D.h"
 
 #include "Geometry/TPCGeo.h"
+
+// Fixed optimization directions:     X      Y      Z
+bool pma::Node3D::fGradFixed[3] = { false, false, false };
 
 pma::Node3D::Node3D(void) :
 	fTPC(0), fCryo(0),
 	fMinX(0), fMaxX(0),
 	fMinY(0), fMaxY(0),
 	fMinZ(0), fMaxZ(0),
-	fPoint3D(0, 0, 0)
+	fPoint3D(0, 0, 0),
+	fGradM(3, 3)
 {
 	fProj2D[0].Set(0);
 	fProj2D[1].Set(0);
@@ -26,7 +29,8 @@ pma::Node3D::Node3D(void) :
 }
 
 pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo) :
-	fTPC(tpc), fCryo(cryo)
+	fTPC(tpc), fCryo(cryo),
+	fGradM(3, 3)
 {
 	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
 	fMinX = tpcGeo.MinX(); fMaxX = tpcGeo.MaxX();
@@ -207,7 +211,7 @@ double pma::Node3D::SegmentCosWirePlane(void) const
 	}
 }
 
-double pma::Node3D::SegmentCosHorizontal(void) const
+double pma::Node3D::SegmentCosTransverse(void) const
 {
 	if (prev && next)
 	{
@@ -230,13 +234,464 @@ double pma::Node3D::SegmentCosHorizontal(void) const
 	}
 }
 
+// *** Note: should be changed / generalized for horizontal wire planes (e.g. 2-phase LAr). ***
+double pma::Node3D::EndPtCos2Transverse(void) const
+{
+	if (prev && next)
+	{
+		pma::Node3D* vStart = static_cast< pma::Node3D* >(prev->Prev());
+		pma::Node3D* vStop = static_cast< pma::Node3D* >(next->Next());
+
+		double dy = vStop->Point3D().X() - vStart->Point3D().X();
+		double dz = vStop->Point3D().Z() - vStart->Point3D().Z();
+		double len2 = dy * dy + dz * dz;
+		double cosine2 = 0.0;
+		if (len2 > 0.0) cosine2 = dz * dz / len2;
+		return cosine2;
+	}
+	else return 0.0;
+}
+
+double pma::Node3D::PiInWirePlane(void) const
+{
+	if (prev && NextCount())
+	{
+		pma::Segment3D* seg0 = dynamic_cast< pma::Segment3D* >(prev);
+		pma::Segment3D* seg1 = dynamic_cast< pma::Segment3D* >(Next(0));
+		unsigned int nInd1 = NHits(geo::kU) + seg0->NHits(geo::kU) + seg1->NHits(geo::kU);
+
+		if (fHitsRadius > 0.0F)
+			return (1.0 + SegmentCosWirePlane()) * fHitsRadius * fHitsRadius / (4 * nInd1 + 1.0);
+		else return (1.0 + SegmentCosWirePlane()) * Length2() / (4 * nInd1 + 1.0);
+	}
+	else return 0.0;
+}
+
+// Constraint on two segments angle in projection to plane parallel to wire plane, suppressed by
+// the orientation in the plane transverse to wire plane (only sections with low variation of
+// drift time are penalized with this constraint); PiInWirePlane() components are reduced if
+// there are Ind1 / geo::kU hits which add information to the object shape.
+// *** Note: should be changed / generalized for horizontal wire planes (e.g. 2-phase LAr). ***
+double pma::Node3D::PenaltyInWirePlane(void) const
+{
+	unsigned int nseg = 1;
+	double penalty = PiInWirePlane();
+	pma::Node3D* v;
+	if (next)
+	{
+		v = static_cast< pma::Node3D* >(next->Next());
+		penalty += v->PiInWirePlane(); nseg++;
+	}
+	if (prev)
+	{
+		v = static_cast< pma::Node3D* >(prev->Prev());
+		penalty += v->PiInWirePlane(); nseg++;
+	}
+	if (penalty > 0.0) return pow(EndPtCos2Transverse(), 10) * penalty / nseg;
+	else return 0.0;
+}
+
+double pma::Node3D::Pi(float endSegWeight) const
+{
+	if (prev && NextCount())
+	{
+		pma::Segment3D* segPrev = static_cast< pma::Segment3D* >(prev);
+		pma::Segment3D* segNext = static_cast< pma::Segment3D* >(Next(0));
+
+		if ((NextCount() == 1) && (segNext->Parent() == segPrev->Parent()))
+		{
+			double segCos = SegmentCos();
+
+			double lPrev = segPrev->Length();
+			double lNext = segNext->Length();
+			double lAsymm = (1.0 - segCos) * (lPrev - lNext) / (lPrev + lNext);
+
+			if (fHitsRadius > 0.0F) return (1.0 + segCos + 0.05 * lAsymm * lAsymm) * fHitsRadius * fHitsRadius;
+			else return (1.0 + segCos + 0.05 * lAsymm * lAsymm) * Length2();
+		}
+		else return 0.0;
+	}
+	else
+	{
+		double pi_result = 0.0;
+		unsigned int nSeg = 0;
+		pma::Segment3D* seg = NULL;
+		if (prev)
+		{
+			seg = static_cast< pma::Segment3D* >(prev);
+
+			SortedObjectBase* prevVtx = seg->Prev();
+			if (prevVtx->Prev()) nSeg++;
+			nSeg += prevVtx->NextCount();
+		}
+		else if (next)
+		{
+			seg = static_cast< pma::Segment3D* >(next);
+			
+			SortedObjectBase* nextVtx = seg->Next(0);
+			nSeg += nextVtx->NextCount() + 1;
+		}
+		else
+		{
+			std::cout << "PlVertex3D::Pi(): an isolated vertex?" << std::endl;
+			return 0.0;
+		}
+		if (nSeg == 1) pi_result = endSegWeight * seg->Length2();
+		return pi_result;
+	}
+}
+
+double pma::Node3D::Penalty(float endSegWeight) const
+{
+	unsigned int nseg = 1;
+	double penalty = Pi(endSegWeight);
+
+	pma::Node3D* v;
+	for (unsigned int i = 0; i < NextCount(); i++)
+	{
+		v = static_cast< pma::Node3D* >(Next(i)->Next());
+		penalty += v->Pi(endSegWeight); nseg++;
+	}
+	if (prev)
+	{
+		v = static_cast< pma::Node3D* >(prev->Prev());
+		penalty += v->Pi(endSegWeight); nseg++;
+	}
+	return penalty / nseg;
+}
+
+double pma::Node3D::Mse(void) const
+{
+	unsigned int nhits = NEnabledHits();
+	double mse = SumDist2();
+	for (unsigned int i = 0; i < NextCount(); i++)
+	{
+		pma::Segment3D* seg = static_cast< pma::Segment3D* >(Next(i));
+		nhits += seg->NEnabledHits();
+		mse += seg->SumDist2();
+	}
+	if (prev)
+	{
+		pma::Segment3D* seg = static_cast< pma::Segment3D* >(prev);
+		nhits += seg->NEnabledHits();
+		mse += seg->SumDist2();
+	}
+	if (!nhits) return 0.0;
+	else return mse / nhits;
+}
+
 double pma::Node3D::GetObjFunction(float penaltyValue, float endSegWeight) const
 {
-	return 0.;
+	return Mse() + penaltyValue * (Penalty(endSegWeight) + PenaltyInWirePlane());
+}
+
+double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
+{
+	double l, minLength2 = 0.0;
+	TVector3 tmp(fPoint3D), gpoint(fPoint3D);
+
+	pma::Segment3D* seg;
+	pma::Node3D* vtx;
+	if (prev)
+	{
+		seg = static_cast< pma::Segment3D* >(prev);
+		minLength2 = seg->Length2();
+
+		vtx = static_cast< pma::Node3D* >(seg->Prev());
+		fGDirX = vtx->Point3D();
+	}
+	if (next)
+	{
+		seg = static_cast< pma::Segment3D* >(next);
+		l = seg->Length2();
+		if (l < minLength2) minLength2 = l;
+		else if (minLength2 == 0.0) minLength2 = l;
+
+		vtx = static_cast< pma::Node3D* >(seg->Next());
+		fGDirX -= vtx->Point3D();
+	}
+	double dxi = 0.001 * sqrt(minLength2);
+
+	if (dxi < 6.0E-37) return 0.0;
+
+	double gi, g0, gz;
+	gz = g0 = GetObjFunction(penaltyValue, endSegWeight);
+
+	//if (fQPenaltyFactor > 0.0F) gz += fQPenaltyFactor * QPenalty(); <----------------------- maybe later..
+
+	// rotated fin-diff gradient calculation, a really nice addition to the original formulas,
+	// more computations, but fewer steps and more accurate result
+	if (prev && next) // && (fQPenaltyFactor == 0.0F))
+	{
+		double gnorm = fGDirX.Mag();
+		if (gnorm > 0.0)
+		{
+			fGDirX *= (-1.0 / gnorm);
+			fGradM(0, 0) = fGDirX.X();
+			fGradM(0, 1) = fGDirX.Y();
+			fGradM(0, 2) = fGDirX.Z();
+
+			unsigned int min_idx = 0;
+			double v, min_v = fabs(fGDirX[0]);
+			v = fabs(fGDirX[1]);
+			if (v < min_v) { min_v = v; min_idx = 1; }
+			v = fabs(fGDirX[2]);
+			if (v < min_v) { min_idx = 2; }
+			fGDirZ.SetXYZ(0.0, 0.0, 0.0);
+			fGDirZ[min_idx] = 1.0;
+
+			fGDirY[0] = fGDirX.Y() * fGDirZ.Z() - fGDirX.Z() * fGDirZ.Y();
+			fGDirY[1] = -(fGDirX.X() * fGDirZ.Z() - fGDirX.Z() * fGDirZ.X());
+			fGDirY[2] = fGDirX.X() * fGDirZ.Y() - fGDirX.Y() * fGDirZ.X();
+			fGDirY *= (1.0 / fGDirY.Mag());
+			fGradM(1, 0) = fGDirY.X();
+			fGradM(1, 1) = fGDirY.Y();
+			fGradM(1, 2) = fGDirY.Z();
+
+			fGDirZ[0] = fGDirX.Y() * fGDirY.Z() - fGDirX.Z() * fGDirY.Y();
+			fGDirZ[1] = -(fGDirX.X() * fGDirY.Z() - fGDirX.Z() * fGDirY.X());
+			fGDirZ[2] = fGDirX.X() * fGDirY.Y() - fGDirX.Y() * fGDirY.X();
+			fGDirZ *= (1.0 / fGDirZ.Mag());
+			fGradM(2, 0) = fGDirZ.X();
+			fGradM(2, 1) = fGDirZ.Y();
+			fGradM(2, 2) = fGDirZ.Z();
+
+			fGradM.InvertFast();
+
+			fGDirX *= dxi; fGDirY *= dxi; fGDirZ *= dxi;
+		}
+		else
+		{
+			fGDirX[0] = dxi; fGDirX[1] = 0.0; fGDirX[2] = 0.0;
+		    fGDirY[0] = 0.0; fGDirY[1] = dxi; fGDirY[2] = 0.0;
+			fGDirZ[0] = 0.0; fGDirZ[1] = 0.0; fGDirZ[2] = dxi;
+
+			fGradM(0, 0) = 1.0; fGradM(0, 1) = 0.0; fGradM(0, 2) = 0.0;
+			fGradM(1, 0) = 0.0; fGradM(1, 1) = 1.0; fGradM(1, 2) = 0.0;
+			fGradM(2, 0) = 0.0; fGradM(2, 1) = 0.0; fGradM(2, 2) = 1.0;
+		}
+
+		if (!fGradFixed[0]) // gradX
+		{
+			gpoint += fGDirX; SetPoint3D(gpoint);
+			gi = GetObjFunction(penaltyValue, endSegWeight);
+			fGradV[0] = (g0 - gi) / dxi;
+
+			gpoint = tmp;
+			gpoint -= fGDirX; SetPoint3D(gpoint);
+			gi = GetObjFunction(penaltyValue, endSegWeight);
+			fGradV[0] = 0.5 * (fGradV[0] + (gi - g0) / dxi);
+
+			gpoint = tmp;
+		}
+
+		if (!fGradFixed[1]) // gradY
+		{
+			gpoint += fGDirY; SetPoint3D(gpoint);
+			gi = GetObjFunction(penaltyValue, endSegWeight);
+			fGradV[1] = (g0 - gi) / dxi;
+
+			gpoint = tmp;
+			gpoint -= fGDirY; SetPoint3D(gpoint);
+			gi = GetObjFunction(penaltyValue, endSegWeight);
+			fGradV[1] = 0.5 * (fGradV[1] + (gi - g0) / dxi);
+
+			gpoint = tmp;
+		}
+
+		if (!fGradFixed[2]) // gradZ
+		{
+			gpoint += fGDirZ; SetPoint3D(gpoint);
+			gi = GetObjFunction(penaltyValue, endSegWeight);
+			fGradV[2] = (g0 - gi) / dxi;
+
+			gpoint = tmp;
+			gpoint += fGDirZ; SetPoint3D(gpoint);
+			gi = GetObjFunction(penaltyValue, endSegWeight);
+			fGradV[2] = 0.5 * (fGradV[2] + (gi - g0) / dxi);
+
+			gpoint = tmp;
+		}
+
+		fGradV *= fGradM;
+		fGradient[0] = fGradV[0];
+		fGradient[1] = fGradV[1];
+		fGradient[2] = fGradV[2];
+	}
+	else // no rotations in the gradient calculation
+	{
+	if (!fGradFixed[0]) // gradX
+	{
+		gpoint[0] = tmp[0] + dxi;
+		SetPoint3D(gpoint);
+		gi = GetObjFunction(penaltyValue, endSegWeight);
+		fGradient[0] = (g0 - gi) / dxi;
+
+		gpoint[0] = tmp[0] - dxi;
+		SetPoint3D(gpoint);
+		gi = GetObjFunction(penaltyValue, endSegWeight);
+		fGradient[0] = 0.5 * (fGradient[0] + (gi - g0) / dxi);
+
+		gpoint[0] = tmp[0];
+	}
+
+	if (!fGradFixed[1]) // gradY
+	{
+		gpoint[1] = tmp[1] + dxi;
+		SetPoint3D(gpoint);
+		gi = GetObjFunction(penaltyValue, endSegWeight);
+		fGradient[1] = (g0 - gi) / dxi;
+
+		gpoint[1] = tmp[1] - dxi;
+		SetPoint3D(gpoint);
+		gi = GetObjFunction(penaltyValue, endSegWeight);
+		fGradient[1] = 0.5 * (fGradient[1] + (gi - g0) / dxi);
+
+		gpoint[1] = tmp[1];
+	}
+
+	if (!fGradFixed[2]) // gradZ
+	{
+		gpoint[2] = tmp[2] + dxi;
+		SetPoint3D(gpoint);
+		gi = GetObjFunction(penaltyValue, endSegWeight);
+		//if (fQPenaltyFactor > 0.0F) gi += fQPenaltyFactor * QPenalty();
+		fGradient[2] = (gz - gi) / dxi;
+
+		gpoint[2] = tmp[2] - dxi;
+		SetPoint3D(gpoint);
+		gi = GetObjFunction(penaltyValue, endSegWeight);
+		//if (fQPenaltyFactor > 0.0F) gi += fQPenaltyFactor * QPenalty();
+		fGradient[2] = 0.5 * (fGradient[2] + (gi - gz) / dxi);
+
+		gpoint[2] = tmp[2];
+	}
+	}
+
+	SetPoint3D(tmp);
+
+	if (fGradient.Mag2() < 6.0E-37) return 0.0;
+
+	return g0;
+}
+
+double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float weight)
+{
+	unsigned int steps = 0;
+	double t, t1, t2, t3, g, g0, g1, g2, g3, p1, p2;
+	double eps = 6.0E-37; // ~50 * min_float
+	TVector3 tmp(fPoint3D), gpoint(fPoint3D);
+
+	g = MakeGradient(penalty, weight);
+	if (g == 0.0) return 0.0;
+	g0 = g;
+
+	//**** first three points ****//
+	alfa *= 0.8F;
+	t2 = 0.0; g2 = g;
+	t3 = 0.0; g3 = g;
+	do
+	{
+		t1 = t2; g1 = g2;
+		t2 = t3; g2 = g3;
+
+		alfa *= 1.25F;
+		t3 += alfa;
+		gpoint = tmp;
+		gpoint += (fGradient * t3);
+		SetPoint3D(gpoint);
+
+		g3 = GetObjFunction(penalty, weight);
+		if (g3 == 0.0) return 0.0;
+		steps++;
+
+		if (steps > 1000) { SetPoint3D(tmp); return 0.0; }
+
+	} while (g3 < g2);
+	//****************************//
+
+	//** first step overshoot ***//
+	if (steps == 1)
+	{
+		t2 = t3; g2 = g3;
+		do
+		{
+			t3 = t2; g3 = g2;
+			t2 = (t1 * g3 + t3 * g1) / (g1 + g3);
+
+			// small shift...
+			t2 = 0.05 * t3 + 0.95 * t2;
+
+			// break: starting point is at the minimum
+			//if (t2 == t1) { SetPoint3D(tmp); return 0.0F; }
+
+			// break: starting point is very close to the minimum
+			if (fabs(t2 - t1) < tol) { SetPoint3D(tmp); return 0.0; }
+
+			gpoint = tmp;
+			gpoint += (fGradient * t2);
+			SetPoint3D(gpoint);
+
+			g2 = GetObjFunction(penalty, weight);
+			if (g == 0.0) return 0.0;
+			steps++;
+
+		} while (g2 >= g1);
+	}
+	//****************************//
+
+	while (fabs(t1 - t3) > tol)
+	{
+		//*** 3-point minimization ***//
+		if ((fabs(t2 - t1) < eps) || (fabs(t2 - t3) < eps))
+			break; // minimum on the edge
+		if ((fabs(g2 - g1) < eps) && (fabs(g2 - g3) < eps))
+			break; // ~singularity
+
+		p1 = (t2 - t1) * (g2 - g3);
+		p2 = (t2 - t3) * (g2 - g1);
+		if (fabs(p1 - p2) < eps) break; // ~linearity
+
+		t = t2 + ((t2 - t1) * p1 - (t2 - t3) * p2) / (2 * (p2 - p1));
+		if ((t <= t1) || (t >= t3))
+			t = (t1 * g3 + t3 * g1) / (g1 + g3);
+
+		gpoint = tmp;
+		gpoint += (fGradient * t);
+		SetPoint3D(gpoint);
+
+		g = GetObjFunction(penalty, weight);
+		if (g == 0.0) return 0.0;
+		steps++;
+		//****************************//
+
+		//*** select next 3 points ***//
+		if (fabs(t - t2) < 0.2 * tol) break; // start in a new direction
+		if (g < g2)
+		{
+			if (t < t2) { t3 = t2; g3 = g2; }
+			else { t1 = t2; g1 = g2; }
+			t2 = t; g2 = g;
+		}
+		else
+		{
+			if (t < t2) { t1 = t; g1 = g; }
+			else { t3 = t; g3 = g; }
+		}
+		//****************************//
+	}
+
+	return (g0 - g) / g;
 }
 
 void pma::Node3D::Optimize(float penaltyValue, float endSegWeight)
 {
+	if (!fFrozen)
+	{
+		double dg = StepWithGradient(0.1F, 0.002F, penaltyValue, endSegWeight);
+		if (dg > 0.01) StepWithGradient(0.03F, 0.0001F, penaltyValue, endSegWeight);
+		dg = StepWithGradient(0.03F, 0.0001F, penaltyValue, endSegWeight);
+	}
 }
 
 void pma::Node3D::ClearAssigned(pma::Track3D* trk)
@@ -247,26 +702,26 @@ void pma::Node3D::ClearAssigned(pma::Track3D* trk)
 		fAssignedPoints.clear();
 		fAssignedHits.clear();
 	}
-/*	else
+	else
 	{
-		std::vector< AF::PolygonalLine3D* > to_check;
-		AF::PlSegment3D* seg;
+		std::vector< pma::Track3D* > to_check;
+		pma::Segment3D* seg;
 		if (Prev())
 		{
-			seg = static_cast< AF::PlSegment3D* >(Prev());
-			if (seg->Parent() != pl) to_check.push_back(seg->Parent());
+			seg = static_cast< pma::Segment3D* >(Prev());
+			if (seg->Parent() != trk) to_check.push_back(seg->Parent());
 		}
 		for (unsigned int i = 0; i < NextCount(); i++)
 		{
-			seg = static_cast< AF::PlSegment3D* >(Next(i));
-			if (seg->Parent() != pl) to_check.push_back(seg->Parent());
+			seg = static_cast< pma::Segment3D* >(Next(i));
+			if (seg->Parent() != trk) to_check.push_back(seg->Parent());
 		}
 			
 		unsigned int p = 0;
 		while (p < fAssignedPoints.size())
 		{
 			bool found = false;
-			for (unsigned int t = 0; t < to_check.size(); t++)
+			for (size_t t = 0; t < to_check.size(); t++)
 				if (to_check[t]->HasRefPoint(fAssignedPoints[p]))
 				{
 					found = true; break;
@@ -280,13 +735,13 @@ void pma::Node3D::ClearAssigned(pma::Track3D* trk)
 		while (h < fAssignedHits.size())
 		{
 			bool found = false;
-			AF::PlHit3D* hit = fAssignedHits[h];
+			pma::Hit3D* hit = fAssignedHits[h];
 
-			for (unsigned int t = 0; (t < to_check.size()) && !found; t++)
-				for (unsigned int i = 0; i < to_check[t]->size(); i++)
+			for (size_t t = 0; (t < to_check.size()) && !found; t++)
+				for (size_t i = 0; i < to_check[t]->size(); i++)
 				{
-					AF::PlHit3D* plHit = static_cast< AF::PlHit3D* >((*(to_check[t]))[i]);
-					if (hit == plHit)
+					pma::Hit3D* pmaHit = static_cast< pma::Hit3D* >((*(to_check[t]))[i]);
+					if (hit == pmaHit)
 					{
 						found = true; break;
 					}
@@ -296,7 +751,7 @@ void pma::Node3D::ClearAssigned(pma::Track3D* trk)
 			else h++;
 		}
 	}
-*/
+
 	fHitsRadius = 0.0F;
 }
 

@@ -17,6 +17,9 @@
 #include "Geometry/Geometry.h"
 #include "Utilities/DetectorProperties.h"
 
+#include "TVectorT.h"
+#include "TMatrixT.h"
+
 namespace pma
 {
 	class Node3D;
@@ -54,9 +57,11 @@ public:
 	/// Cosine of 3D angle between connected segments.
 	double SegmentCos(void) const;
 	/// Cosine of 2D angle (in plane parallel to wire planes) between connected segments.
+	/// Should be changed / generalized for horizontal wire planes (e.g. 2-phase LAr).
 	double SegmentCosWirePlane(void) const;
 	/// Cosine of 2D angle (in horizontal plane, parallel to drift) between connected segments.
-	double SegmentCosHorizontal(void) const;
+	/// Should be changed / generalized for horizontal wire planes (e.g. 2-phase LAr).
+	double SegmentCosTransverse(void) const;
 
 	/// Objective function minimized during oprimization.
 	double GetObjFunction(float penaltyValue, float endSegWeight) const;
@@ -72,16 +77,32 @@ private:
 	void LimitPoint3D(float margin = -3.0F); // default: let the node go out by 3cm
 	void UpdateProj2D(void);
 
+	double EndPtCos2Transverse(void) const;
+	double PiInWirePlane(void) const;
+	double PenaltyInWirePlane(void) const;
+
+	double Pi(float endSegWeight) const;
+	double Penalty(float endSegWeight) const;
+	double Mse(void) const;
+
+	double MakeGradient(float penaltyValue, float endSegWeight);
+	double StepWithGradient(float alfa, float tol, float penalty, float weight);
+
 	art::ServiceHandle<geo::Geometry> fGeom;
 	art::ServiceHandle<util::DetectorProperties> fDetProp;
 
 	unsigned int fTPC, fCryo;
 
 	double fMinX, fMaxX, fMinY, fMaxY, fMinZ, fMaxZ; // TPC boundaries to limit the node position (+margin)
-	
+
 	TVector3 fPoint3D;       // node position in 3D space in [cm]
 	TVector2 fProj2D[3];     // node projections to 2D views, scaled to [cm], updated on each change of 3D position
 
+	TVector3 fGradient, fGDirX, fGDirY, fGDirZ;
+	TVectorT<double> fGradV;
+	TMatrixT<double> fGradM;
+
+	static bool fGradFixed[3];
 };
 
 #endif
