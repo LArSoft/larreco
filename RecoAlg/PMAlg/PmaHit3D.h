@@ -37,7 +37,7 @@ namespace pma
 	double GetHitsRadius(const std::vector< pma::Hit3D* >& hits, bool exact = false);
 }
 
-class pma::Hit3D : public recob::Hit
+class pma::Hit3D
 {
 	friend class Track3D;
 	friend struct bTrajectory3DOrderLess;
@@ -46,6 +46,7 @@ public:
 	Hit3D(void);
 	Hit3D(const recob::Hit& src);
 	Hit3D(const pma::Hit3D& src);
+	virtual ~Hit3D(void) {}
 
 	TVector3 const & Point3D(void) const { return fPoint3D; }
 
@@ -56,9 +57,11 @@ public:
 
 	unsigned int TPC(void) const { return fTPC; }
 	unsigned int View2D(void) const { return fPlane; }
-	unsigned int Wire(void) const { return WireID().Wire; }
+	unsigned int Wire(void) const { return fWire; }
+	float PeakTime(void) const { return fHit.PeakTime(); }
 
-	float GetAmplitude(void) const { return PeakAmplitude(); }
+	float SummedADC(void) const { return fHit.SummedADC(); }
+	float GetAmplitude(void) const { return fHit.PeakAmplitude(); }
 	float GetSigmaFactor(void) const { return fSigmaFactor; }
 	void SetSigmaFactor(float value) { fSigmaFactor = value; }
 
@@ -78,7 +81,9 @@ public:
 
 private:
 
-	unsigned int fTPC, fPlane;
+	recob::Hit fHit;  // source 2D hit
+
+	unsigned int fTPC, fPlane, fWire;
 
 	TVector3 fPoint3D;       // hit position in 3D space
 	TVector2 fPoint2D;       // hit position in 2D wire view, scaled to [cm]

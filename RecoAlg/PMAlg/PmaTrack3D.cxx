@@ -30,7 +30,10 @@ bool pma::Track3D::push_back(const recob::Hit& hit)
 		if ((h3d->PeakTime() == hit_i->PeakTime()) &&
 		    (h3d->Wire() == hit_i->Wire()) &&
 		    (h3d->View2D() == hit_i->View2D()) &&
-		    (h3d->TPC() == hit_i->TPC())) return false;
+		    (h3d->TPC() == hit_i->TPC()))
+		{
+			delete h3d; return false;
+		}
 	}
 	fHits.push_back(h3d);
 	return true;

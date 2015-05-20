@@ -50,7 +50,7 @@ double pma::GetSummedAmpl(const std::vector< pma::Hit3D* >& hits, unsigned int v
 	double sum = 0.0;
 	for (auto const& hit : hits)
 		if ((view == geo::kUnknown) || (view == hit->View2D()))
-			sum += hit->PeakAmplitude();
+			sum += hit->GetAmplitude();
 	return sum;
 }
 
@@ -77,7 +77,7 @@ double pma::GetHitsRadius(const std::vector< pma::Hit3D* >& hits, bool exact)
 }
 
 pma::Hit3D::Hit3D(void) :
-	fTPC(0), fPlane(0),
+	fTPC(0), fPlane(0), fWire(0),
 	fPoint3D(0, 0, 0),
 	fPoint2D(0, 0), fProjection2D(0, 0),
 	fSegFraction(0), fSigmaFactor(1),
@@ -86,7 +86,7 @@ pma::Hit3D::Hit3D(void) :
 }
 
 pma::Hit3D::Hit3D(const recob::Hit& src) :
-	recob::Hit(src),
+	fHit(src),
 	fPoint3D(0, 0, 0),
 	fProjection2D(0, 0),
 	fSegFraction(0), fSigmaFactor(1),
@@ -94,6 +94,7 @@ pma::Hit3D::Hit3D(const recob::Hit& src) :
 {
 	fTPC = src.WireID().TPC;
 	fPlane = src.WireID().Plane;
+	fWire = src.WireID().Wire;
 
 	art::ServiceHandle<geo::Geometry> geom;
 	art::ServiceHandle<util::DetectorProperties> detprop;
@@ -101,12 +102,12 @@ pma::Hit3D::Hit3D(const recob::Hit& src) :
 	double wpitch = geom->TPC(fTPC).Plane(fPlane).WirePitch();
 	double dpitch = fabs(detprop->GetXTicksCoefficient(fTPC, 0));
 
-	fPoint2D.Set(wpitch * src.WireID().Wire, dpitch * src.PeakTime());
+	fPoint2D.Set(wpitch * fWire, dpitch * src.PeakTime());
 }
 
 pma::Hit3D::Hit3D(const pma::Hit3D& src) :
-	recob::Hit(src),
-	fTPC(src.fTPC), fPlane(src.fPlane),
+	fHit(src.fHit),
+	fTPC(src.fTPC), fPlane(src.fPlane), fWire(src.fWire),
 	fPoint3D(src.fPoint3D),
 	fPoint2D(src.fPoint2D), fProjection2D(src.fProjection2D),
 	fSegFraction(src.fSegFraction), fSigmaFactor(src.fSigmaFactor),
