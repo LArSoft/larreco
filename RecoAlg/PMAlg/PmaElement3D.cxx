@@ -5,7 +5,8 @@
  * 
  *  @brief  Implementation of the Projection Matching Algorithm
  *
- *          Base for 3D segments and track nodes.
+ *          Base for 3D segments and track nodes. See PmaTrack3D.h file for details.
+ *          See PmaTrack3D.h file for details.
  */
 
 #include "RecoAlg/PMAlg/PmaElement3D.h"

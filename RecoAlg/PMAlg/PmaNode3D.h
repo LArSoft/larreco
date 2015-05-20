@@ -5,7 +5,7 @@
  * 
  *  @brief  Implementation of the Projection Matching Algorithm
  *
- *          3D track node.
+ *          3D track node. See PmaTrack3D.h file for details.
  */
 
 #ifndef PmaNode3D_h

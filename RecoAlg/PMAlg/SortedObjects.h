@@ -6,6 +6,7 @@
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Base classes for chains and branched chains of nodes and segments.
+ *          See PmaTrack3D.h file for details.
  */
 
 #ifndef SortedObjects_h

@@ -6,8 +6,8 @@
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Build 3D segments and whole tracks by simultaneous matching hits in 2D projections.
- *          Based on the "Precise 3D track reco..." AHEP (2013) 260820, with all tricks that we
- *          developed later and with the work for full-event topology optimization that is still
+ *          Based on the "Precise 3D track reco..." AHEP (2013) 260820, with all the tricks that we
+ *          developed later and with the work for the full-event topology optimization that is still
  *          under construction.
  *
  *          Current status: basic functionality for single segment optimization.
@@ -29,6 +29,9 @@ class pma::Track3D
 {
 public:
 	Track3D(void);
+	~Track3D(void);
+
+	bool push_back(const recob::Hit & hit);
 
 	pma::Hit3D* & operator [] (size_t index) { return fHits[index]; }
 	pma::Hit3D* const & operator [] (size_t index) const { return fHits[index]; }

@@ -6,6 +6,7 @@
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Hit 3D wrapped around recob::Hit. Adds support for PMA optimizations.
+ *          See PmaTrack3D.h file for details.
  */
 
 #include "RecoAlg/PMAlg/PmaHit3D.h"
