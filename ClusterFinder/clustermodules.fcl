@@ -2,6 +2,14 @@
 
 BEGIN_PROLOG
 
+standard_blurredclustering:
+{
+ module_type:          "BlurredClustering"
+ CreateDebugPDF:       "true"
+ HitsModuleLabel:      "gaushit"
+ BlurredClusteringAlg: @local::standard_blurredclusteringalg                              
+}
+
 standard_clusterpca:
 {
  module_type:        "ClusterPCA"
