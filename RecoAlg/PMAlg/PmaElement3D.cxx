@@ -95,10 +95,10 @@ void pma::Element3D::UpdateHitParams(void)
 		}
 	}
 
-	fHitsRadius = GetHitsRadius(hitsColl);
-	double r = GetHitsRadius(hitsInd2);
+	fHitsRadius = GetHitsRadius2D(hitsColl);
+	double r = GetHitsRadius2D(hitsInd2);
 	if (r > fHitsRadius) fHitsRadius = r;
-	r = GetHitsRadius(hitsInd1);
+	r = GetHitsRadius2D(hitsInd1);
 	if (r > fHitsRadius) fHitsRadius = r;
 
 	float amp, sigmaMax = 0.0F;

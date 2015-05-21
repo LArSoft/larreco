@@ -34,7 +34,8 @@ namespace pma
 	double GetSummedADC(const std::vector< pma::Hit3D* >& hits, unsigned int view = geo::kUnknown);
 	double GetSummedAmpl(const std::vector< pma::Hit3D* >& hits, unsigned int view = geo::kUnknown);
 
-	double GetHitsRadius(const std::vector< pma::Hit3D* >& hits, bool exact = false);
+	double GetHitsRadius3D(const std::vector< pma::Hit3D* >& hits, bool exact = false);
+	double GetHitsRadius2D(const std::vector< pma::Hit3D* >& hits, bool exact = false);
 }
 
 class pma::Hit3D

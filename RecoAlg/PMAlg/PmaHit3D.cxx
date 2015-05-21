@@ -54,7 +54,7 @@ double pma::GetSummedAmpl(const std::vector< pma::Hit3D* >& hits, unsigned int v
 	return sum;
 }
 
-double pma::GetHitsRadius(const std::vector< pma::Hit3D* >& hits, bool exact)
+double pma::GetHitsRadius3D(const std::vector< pma::Hit3D* >& hits, bool exact)
 {
 	if (!exact && (hits.size() < 5)) return 0.0;
 
@@ -71,6 +71,28 @@ double pma::GetHitsRadius(const std::vector< pma::Hit3D* >& hits, bool exact)
 	for (size_t i = 1; i < hits.size(); i++)
 	{
 		r2 = pma::Dist2(hits[i]->Point3D(), mean);
+		if (r2 > max_r2) max_r2 = r2;
+	}
+	return sqrt(max_r2);
+}
+
+double pma::GetHitsRadius2D(const std::vector< pma::Hit3D* >& hits, bool exact)
+{
+	if (!exact && (hits.size() < 5)) return 0.0;
+
+	if (hits.size() == 0) return 0.0;
+
+	TVector2 mean(0, 0);
+	for (size_t i = 0; i < hits.size(); i++)
+	{
+		mean += hits[i]->Point2D();
+	}
+	mean *= (1.0 / hits.size());
+
+	double r2, max_r2 = pma::Dist2(hits.front()->Point2D(), mean);
+	for (size_t i = 1; i < hits.size(); i++)
+	{
+		r2 = pma::Dist2(hits[i]->Point2D(), mean);
 		if (r2 > max_r2) max_r2 = r2;
 	}
 	return sqrt(max_r2);
