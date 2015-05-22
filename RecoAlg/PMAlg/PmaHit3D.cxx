@@ -98,7 +98,56 @@ double pma::GetHitsRadius2D(const std::vector< pma::Hit3D* >& hits, bool exact)
 	return sqrt(max_r2);
 }
 
+double pma::GetSegmentProjVector(const TVector2& p, const TVector2& p0, const TVector2& p1)
+{
+	TVector2 v0(p); v0 -= p0;
+	TVector2 v1(p1); v1 -= p0;
+
+	double v0Norm = v0.Mod();
+	double v1Norm = v1.Mod();
+	double mag = v0Norm * v1Norm;
+	double cosine = 0.0;
+	if (mag != 0.0) cosine = v0 * v1 / mag;
+
+	return v0Norm * cosine / v1Norm;
+}
+
+double pma::GetSegmentProjVector(const TVector3& p, const TVector3& p0, const TVector3& p1)
+{
+	TVector3 v0(p); v0 -= p0;
+	TVector3 v1(p1); v1 -= p0;
+
+	double v0Norm = v0.Mag();
+	double v1Norm = v1.Mag();
+	double mag = v0Norm * v1Norm;
+	double cosine = 0.0;
+	if (mag != 0.0) cosine = v0 * v1 / mag;
+
+	return v0Norm * cosine / v1Norm;
+}
+
+TVector2 pma::GetProjectionToSegment(const TVector2& p, const TVector2& p0, const TVector2& p1)
+{
+	TVector2 v1(p1); v1 -= p0;
+
+	double b = GetSegmentProjVector(p, p0, p1);
+	TVector2 r(p0);
+	r += (v1 * b);
+	return r;
+}
+
+TVector3 pma::GetProjectionToSegment(const TVector3& p, const TVector3& p0, const TVector3& p1)
+{
+	TVector3 v1(p1); v1 -= p0;
+
+	double b = GetSegmentProjVector(p, p0, p1);
+	TVector3 r(p0);
+	r += (v1 * b);
+	return r;
+}
+
 pma::Hit3D::Hit3D(void) :
+	fHit(0),
 	fTPC(0), fPlane(0), fWire(0),
 	fPoint3D(0, 0, 0),
 	fPoint2D(0, 0), fProjection2D(0, 0),
@@ -107,16 +156,16 @@ pma::Hit3D::Hit3D(void) :
 {
 }
 
-pma::Hit3D::Hit3D(const recob::Hit& src) :
+pma::Hit3D::Hit3D(recob::Hit const* src) :
 	fHit(src),
 	fPoint3D(0, 0, 0),
 	fProjection2D(0, 0),
 	fSegFraction(0), fSigmaFactor(1),
 	fEnabled(true), fOutlier(false)
 {
-	fTPC = src.WireID().TPC;
-	fPlane = src.WireID().Plane;
-	fWire = src.WireID().Wire;
+	fTPC = src->WireID().TPC;
+	fPlane = src->WireID().Plane;
+	fWire = src->WireID().Wire;
 
 	art::ServiceHandle<geo::Geometry> geom;
 	art::ServiceHandle<util::DetectorProperties> detprop;
@@ -124,7 +173,7 @@ pma::Hit3D::Hit3D(const recob::Hit& src) :
 	double wpitch = geom->TPC(fTPC).Plane(fPlane).WirePitch();
 	double dpitch = fabs(detprop->GetXTicksCoefficient(fTPC, 0));
 
-	fPoint2D.Set(wpitch * fWire, dpitch * src.PeakTime());
+	fPoint2D.Set(wpitch * fWire, dpitch * src->PeakTime());
 }
 
 pma::Hit3D::Hit3D(const pma::Hit3D& src) :

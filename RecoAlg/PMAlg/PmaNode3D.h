@@ -29,7 +29,7 @@ class pma::Node3D : public pma::Element3D, public pma::SortedBranchBase
 {
 public:
 	Node3D(void);
-	Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo = 0);
+	Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo);
 	virtual ~Node3D(void) {}
 
 	unsigned int TPC(void) const { return fTPC; }

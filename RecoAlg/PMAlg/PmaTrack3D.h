@@ -33,7 +33,9 @@ public:
 	Track3D(void);
 	~Track3D(void);
 
-	bool push_back(const recob::Hit & hit);
+	void Initialize(float initEndSegW = 0.05F);
+
+	bool push_back(recob::Hit const* hit);
 
 	pma::Hit3D* & operator [] (size_t index) { return fHits[index]; }
 	pma::Hit3D* const & operator [] (size_t index) const { return fHits[index]; }
@@ -44,9 +46,13 @@ public:
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
 
+	void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
 	bool HasRefPoint(TVector3* p) const;
 
 	double GetObjFunction(bool suppressPenalty = false) const;
+
+	/// Main optimization method.
+	double Optimize(int newVertices = -1, double eps = 0.01, bool selAllHits = true);
 
 	pma::Segment3D* NextSegment(pma::Node3D* vtx) const;
 	pma::Segment3D* PrevSegment(pma::Node3D* vtx) const;
@@ -55,9 +61,14 @@ public:
 	pma::Node3D* FirstElement(void) const { return fNodes.front(); }
 	pma::Node3D* LastElement(void) const { return fNodes.back(); }
 
+	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo);
+	bool AddNode(void);
+
 	void MakeProjection(void);
 	void UpdateProjection(void);
 	void SortHits(void);
+
+	void SelectHits(float fraction = 1.0F);
 
 	float GetEndSegWeight(void) { return fEndSegWeight; }
 	void SetEndSegWeight(float value) { fEndSegWeight = value; }
@@ -71,6 +82,11 @@ public:
 private:
 	void UpdateHitsRadius(void);
 	double AverageDist2(void) const;
+
+	bool PCEndpoints(TVector2 & start, TVector2 & stop, unsigned int view) const;
+	bool InitFromHits(float initEndSegW = 0.05F);
+	bool InitFromRefPoints(void);
+	void InitFromMiddle(void);
 
 	void RebuildSegments(void);
 	bool SwapVertices(size_t v0, size_t v1);

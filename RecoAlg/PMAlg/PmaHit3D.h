@@ -25,9 +25,10 @@ namespace pma
 {
 	class Hit3D;
 	struct bTrajectory3DOrderLess;
+	struct bTrajectory3DDistLess;
 
 	class Track3D;
-	
+
 	double Dist2(const TVector2& v1, const TVector2& v2);
 	double Dist2(const TVector3& v1, const TVector3& v2);
 	size_t GetHitsCount(const std::vector< pma::Hit3D* >& hits, unsigned int view);
@@ -36,6 +37,11 @@ namespace pma
 
 	double GetHitsRadius3D(const std::vector< pma::Hit3D* >& hits, bool exact = false);
 	double GetHitsRadius2D(const std::vector< pma::Hit3D* >& hits, bool exact = false);
+
+	double GetSegmentProjVector(const TVector2& p, const TVector2& p0, const TVector2& p1);
+	double GetSegmentProjVector(const TVector3& p, const TVector3& p0, const TVector3& p1);
+	TVector2 GetProjectionToSegment(const TVector2& p, const TVector2& p0, const TVector2& p1);
+	TVector3 GetProjectionToSegment(const TVector3& p, const TVector3& p0, const TVector3& p1);
 }
 
 class pma::Hit3D
@@ -45,7 +51,7 @@ class pma::Hit3D
 
 public:
 	Hit3D(void);
-	Hit3D(const recob::Hit& src);
+	Hit3D(recob::Hit const* src);
 	Hit3D(const pma::Hit3D& src);
 	virtual ~Hit3D(void) {}
 
@@ -56,13 +62,14 @@ public:
 	TVector2 const & Point2D(void) const { return fPoint2D; }
 	TVector2 const & Projection2D(void) const { return fProjection2D; }
 
+	unsigned int Cryo(void) const { return fHit->WireID().Cryostat; }
 	unsigned int TPC(void) const { return fTPC; }
 	unsigned int View2D(void) const { return fPlane; }
 	unsigned int Wire(void) const { return fWire; }
-	float PeakTime(void) const { return fHit.PeakTime(); }
+	float PeakTime(void) const { return fHit->PeakTime(); }
 
-	float SummedADC(void) const { return fHit.SummedADC(); }
-	float GetAmplitude(void) const { return fHit.PeakAmplitude(); }
+	float SummedADC(void) const { return fHit->SummedADC(); }
+	float GetAmplitude(void) const { return fHit->PeakAmplitude(); }
 	float GetSigmaFactor(void) const { return fSigmaFactor; }
 	void SetSigmaFactor(float value) { fSigmaFactor = value; }
 
@@ -82,7 +89,7 @@ public:
 
 private:
 
-	recob::Hit fHit;  // source 2D hit
+	recob::Hit const* fHit;  // source 2D hit
 
 	unsigned int fTPC, fPlane, fWire;
 
@@ -103,6 +110,16 @@ struct pma::bTrajectory3DOrderLess :
 	bool operator() (pma::Hit3D* h1, pma::Hit3D* h2)
 	{
 		if (h1 && h2) return h1->fSegFraction < h2->fSegFraction;
+		else return false;
+	}
+};
+
+struct pma::bTrajectory3DDistLess :
+	public std::binary_function<pma::Hit3D*, pma::Hit3D*, bool>
+{
+	bool operator() (pma::Hit3D* h1, pma::Hit3D* h2)
+	{
+		if (h1 && h2) return h1->GetDist2ToProj() < h2->GetDist2ToProj();
 		else return false;
 	}
 };
