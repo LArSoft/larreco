@@ -46,6 +46,9 @@ public:
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
 
+	std::vector< int > TPCs(void) const;
+	std::vector< int > Cryos(void) const;
+
 	void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
 	bool HasRefPoint(TVector3* p) const;
 
@@ -80,6 +83,8 @@ public:
 	void SetMaxHitsPerSeg(unsigned int value) { fMaxHitsPerSeg = value; }
 
 private:
+	void ClearNodes(void);
+
 	void UpdateHitsRadius(void);
 	double AverageDist2(void) const;
 
