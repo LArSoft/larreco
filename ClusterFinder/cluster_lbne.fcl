@@ -18,6 +18,7 @@ lbnefd_linemerger:                   @local::standard_linemerger
 lbnefd_endpointmod:                  @local::standard_endpointmod       
 lbnefd_endpointmod.EndPointAlg:      @local::lbnefd_endpointalg
 
+lbne35t_blurredclustering:            @local::standard_blurredclustering
 lbne35t_dbcluster:                    @local::standard_dbcluster
 lbne35t_dbcluster.DBScanAlg:          @local::lbne35t_dbscanalg
 lbne35t_dbclusterana:                 @local::standard_dbclusterana
