@@ -206,13 +206,13 @@ namespace trkf{
         for(ip = 0; ip < nplanes; ++ip) {
           ipl = spl[ip].index;
           firsthit = itp * nhtp[ipl];
-          xOrigin += trkXW[ipl][firsthit].first;
           for(ii = 0; ii < nhtp[ipl]; ++ii) {
+	    xOrigin += trkXW[ipl][firsthit].first;
             iht = firsthit + ii;
             fitHits.push_back(trkXW[ipl][iht]);
           } // iht
         } // ipl
-        xOrigin /= (double)nplanes;
+        xOrigin /= (double)fitHits.size();
         fTrackLineFitAlg.TrkLineFit(fitHits, xOrigin, xyz, dir, ChiDOF);
         if(ChiDOF < 0) continue;
         if(first) {
@@ -247,15 +247,15 @@ namespace trkf{
       // array of hit start indices
       std::array<unsigned short, 3> hstart = {0,0,0};
       bool first = true;
-      for(unsigned short itp = 0; itp < ntp - 1; ++itp) {
+      for(unsigned short itp = 0; itp < ntp-1; ++itp) {
         fitHits.clear();
         xOrigin = 0;
         for(ip = 0; ip < nplanes; ++ip) {
           ipl = spl[ip].index;
           chgSum = 0;
           firsthit = hstart[ipl];
-          xOrigin += trkXW[ipl][firsthit].first;
           for(iht = firsthit; iht < trkChg[ipl].size(); ++iht) {
+	    xOrigin += trkXW[ipl][iht].first;
             fitHits.push_back(trkXW[ipl][iht]);
             chgSum += trkChg[ipl][iht];
             if(chgSum > totChg[ipl]) {
@@ -265,11 +265,11 @@ namespace trkf{
           } // iht
           // hit the end of trkChg without reaching totChg. Indicates an
           // incomplete set of hits. Break out and fit the last trajectory point
-          if(iht == trkChg[ipl].size()) hitTheEnd = true;
+          if(iht == trkChg[ipl].size()&&chgSum<0.8*totChg[ipl]) hitTheEnd = true;
           if(hitTheEnd) break;
         } // ip
         if(hitTheEnd) break;
-        xOrigin /= (double)nplanes;
+        xOrigin /= (double)fitHits.size();
         fTrackLineFitAlg.TrkLineFit(fitHits, xOrigin, xyz, dir, ChiDOF);
         if(ChiDOF < 0) continue;
         if(first) {
