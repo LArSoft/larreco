@@ -101,6 +101,7 @@ standard_cosmictracker:
  CleanUpHits:        false
  DirSPS:             false
  ClusterMatch:       @local::standard_clustermatchtq
+ CTAlg:              @local::standard_cosmictrackeralg
 }
 
 standard_track3Dkalman:

@@ -49,6 +49,7 @@
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/ClusterMatchTQ.h"
+#include "RecoAlg/CosmicTrackerAlg.h"
 
 // ROOT includes
 #include "TVectorD.h"
@@ -137,7 +138,7 @@ namespace trkf {
   private:
 
     cluster::ClusterMatchTQ  fClusterMatch;
-
+    trkf::CosmicTrackerAlg   fCTAlg;
     //double          fKScut;              ///< tolerance for cluster matching based on KS test.
 
     double          ftmatch;             ///< tolerance for time matching (in time samples) 
@@ -168,7 +169,8 @@ namespace trkf {
 
   //-------------------------------------------------
   CosmicTracker::CosmicTracker(fhicl::ParameterSet const& pset) :
-    fClusterMatch(pset.get< fhicl::ParameterSet >("ClusterMatch"))
+    fClusterMatch(pset.get< fhicl::ParameterSet >("ClusterMatch")),
+    fCTAlg(pset.get< fhicl::ParameterSet >("CTAlg"))
   {
     this->reconfigure(pset);
     produces< std::vector<recob::Track>                        >();
@@ -220,15 +222,15 @@ namespace trkf {
     std::unique_ptr<art::Assns<recob::Track, recob::Hit> >        thassn(new art::Assns<recob::Track, recob::Hit>);
     std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit> >   shassn(new art::Assns<recob::SpacePoint, recob::Hit>);
 
-    double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
+    //double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
     //double presamplings = detprop->TriggerOffset(); // presamplings in ticks  
     //double plane_pitch = geom->PlanePitch(0,1);   //wire plane pitch in cm 
-    double wire_pitch = geom->WirePitch(0,1,0);    //wire pitch in cm
-    double Efield_drift = larprop->Efield(0);  // Electric Field in the drift region in kV/cm
-    double Temperature = larprop->Temperature();  // LAr Temperature in K
+    //double wire_pitch = geom->WirePitch(0,1,0);    //wire pitch in cm
+    //double Efield_drift = larprop->Efield(0);  // Electric Field in the drift region in kV/cm
+    //double Temperature = larprop->Temperature();  // LAr Temperature in K
 
-    double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
-    double timepitch = driftvelocity*timetick;                         //time sample (cm) 
+    //double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
+    //double timepitch = driftvelocity*timetick;                         //time sample (cm) 
 
 
     // get input Cluster object(s).
@@ -242,6 +244,7 @@ namespace trkf {
     fClusterMatch.ClusterMatch(clusterlist,fm);
     std::vector<std::vector<unsigned int> > &matchedclusters = fClusterMatch.matchedclusters;
 
+    /*
     /////////////////////////////////////////////////////
     /////// 2D Track Matching and 3D Track Reconstruction
     /////////////////////////////////////////////////////
@@ -255,6 +258,7 @@ namespace trkf {
       arglist[0] = -1;
       fitter->ExecuteCommand("SET PRIN",arglist,1);
     }
+    */
     //fit each cluster in 2D using pol2, iterate once to remove outliers
     for (size_t itrk = 0; itrk<matchedclusters.size(); ++itrk){//loop over tracks
 
@@ -264,18 +268,111 @@ namespace trkf {
         art::Ptr <recob::Cluster> cluster(clusterListHandle,matchedclusters[itrk][iclu]);
         clustersPerTrack.push_back(cluster);
       }
+//
+//      //save time/hit information along track trajectory
+//      std::vector<std::map<int,double> > vtimemap;
+//      std::vector<std::map<int,art::Ptr<recob::Hit> > > vhitmap;
 
-      //save time/hit information along track trajectory
-      std::vector<std::map<int,double> > vtimemap;
-      std::vector<std::map<int,art::Ptr<recob::Hit> > > vhitmap;
-
+      std::vector<art::Ptr<recob::Hit> > hitlist;
       for (size_t iclu = 0; iclu<matchedclusters[itrk].size(); ++iclu){//loop over clusters
+	
 
-        vwire.clear();
-        vtime.clear();
-        vph.clear();
+//        vwire.clear();
+//        vtime.clear();
+//        vph.clear();
         //fit hits time vs wire with pol2
         std::vector< art::Ptr<recob::Hit> > hits = fm.at(matchedclusters[itrk][iclu]);
+	for (size_t ihit = 0; ihit<hits.size(); ++ihit){
+	  hitlist.push_back(hits[ihit]);
+	}
+      }
+      fCTAlg.SPTReco(hitlist);
+      size_t spStart = spcol->size();
+      std::vector<recob::SpacePoint> spacepoints;
+//      for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
+//	if (fCTAlg.usehit[ihit] == 1){
+      for (size_t ipt = 0; ipt<fCTAlg.trkPos.size(); ++ipt){
+	art::PtrVector<recob::Hit> sp_hits;
+	//sp_hits.push_back(hitlist[ihit]);
+	double hitcoord[3];
+	hitcoord[0] = fCTAlg.trkPos[ipt].X();
+	hitcoord[1] = fCTAlg.trkPos[ipt].Y();
+	hitcoord[2] = fCTAlg.trkPos[ipt].Z();
+	std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
+	double err[6] = {util::kBogusD};
+	recob::SpacePoint mysp(hitcoord, 
+			       err, 
+			       util::kBogusD, 
+			       spStart + spacepoints.size());//3d point at end of track
+	spacepoints.push_back(mysp);
+	spcol->push_back(mysp);        
+	//util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
+	//}//
+      }//ihit
+      size_t spEnd = spcol->size();
+      //sort in z direction
+      std::sort(spacepoints.begin(),spacepoints.end(),sp_sort_z0);
+      std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,sp_sort_z0);
+      if(spacepoints.size()>0){
+
+	// make a vector of the trajectory points along the track
+	std::vector<TVector3> xyz(spacepoints.size());
+	for(size_t s = 0; s < spacepoints.size(); ++s){
+	  xyz[s] = TVector3(spacepoints[s].XYZ());
+	}        
+	//Calculate track direction cosines 
+	TVector3 startpointVec,endpointVec, DirCos;
+	startpointVec = xyz[0];
+	endpointVec = xyz.back();
+	DirCos = endpointVec - startpointVec;
+	//SetMag casues a crash if the magnitude of the vector is zero
+	try
+	  {
+	    DirCos.SetMag(1.0);//normalize vector
+	  }
+	catch(...){std::cout<<"The Spacepoint is infinitely small"<<std::endl;
+	  continue;
+	}
+	//std::cout<<DirCos.x()<<" "<<DirCos.y()<<" "<<DirCos.z()<<std::endl;
+	std::vector<TVector3> dircos(spacepoints.size(), DirCos);
+      
+	std::vector< std::vector<double> > dQdx;
+	std::vector<double> mom(2, util::kBogusD);
+	tcol->push_back(recob::Track(xyz, dircos, dQdx, mom, tcol->size()));
+	
+	// make associations between the track and space points
+	util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
+	
+	// now the track and clusters
+	util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
+	
+	// and the hits and track
+	std::vector<art::Ptr<recob::Hit> > trkhits;       
+	for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
+	  //if (fCTAlg.usehit[ihit] == 1){
+	  trkhits.push_back(hitlist[ihit]);
+	    //}
+	}
+	util::CreateAssn(*this, evt, *tcol, trkhits, *thassn);
+      }
+    }//itrk
+
+    mf::LogVerbatim("Summary") << std::setfill('-') 
+                               << std::setw(175) 
+                               << "-" 
+                               << std::setfill(' ');
+    mf::LogVerbatim("Summary") << "CosmicTracker Summary:";
+    for(unsigned int i = 0; i<tcol->size(); ++i) mf::LogVerbatim("Summary") << tcol->at(i) ;
+    mf::LogVerbatim("Summary") << "CosmicTracker Summary End:";
+    
+    evt.put(std::move(tcol));
+    evt.put(std::move(spcol));
+    evt.put(std::move(tspassn));
+    evt.put(std::move(tcassn));
+    evt.put(std::move(thassn));
+    evt.put(std::move(shassn));
+
+    /*
         std::sort(hits.begin(), hits.end(), SortByWire);
         if (fCleanUpHits){
           double dtdw = 0;
@@ -841,7 +938,7 @@ namespace trkf {
     evt.put(std::move(tcassn));
     evt.put(std::move(thassn));
     evt.put(std::move(shassn));
-    
+    */    
     return;
   }
   
