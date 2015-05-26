@@ -25,7 +25,7 @@ standard_cctrackmaker:
 standard_pmalgtrackmaker:
 {
  module_type:         "PMAlgTrackMaker"
- CheatedClusterLabel: "cluster"
+ ClusterModuleLabel:  "cluster"
 }
 
 standard_featuretracker:
