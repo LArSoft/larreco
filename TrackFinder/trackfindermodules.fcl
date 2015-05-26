@@ -22,6 +22,12 @@ standard_cctrackmaker:
   DebugCluster:  -1
 }
 
+standard_pmalgtrackmaker:
+{
+ module_type:         "PMAlgTrackMaker"
+ CheatedClusterLabel: "cluster"
+}
+
 standard_featuretracker:
 {
  module_type:         "FeatureTracker"
