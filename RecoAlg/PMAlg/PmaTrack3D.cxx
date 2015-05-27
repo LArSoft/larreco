@@ -36,11 +36,11 @@ pma::Track3D::~Track3D(void)
 
 void pma::Track3D::Initialize(float initEndSegW)
 {
-	if (InitFromRefPoints()) std::cout << "PLA3D initialized with 3D reference points." << std::endl;
+	if (InitFromRefPoints()) std::cout << "pma::Track3D initialized with 3D reference points." << std::endl;
 	else
 	{
-		if (InitFromHits(initEndSegW)) std::cout << "PLA3D initialized with hit positions." << std::endl;
-		else { InitFromMiddle(); std::cout << "PLA3D initialized in the module center." <<std::endl; }
+		if (InitFromHits(initEndSegW)) std::cout << "pma::Track3D initialized with hit positions." << std::endl;
+		else { InitFromMiddle(); std::cout << "pma::Track3D initialized in the module center." <<std::endl; }
 	}
 	UpdateHitsRadius();
 }

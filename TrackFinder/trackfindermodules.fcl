@@ -26,6 +26,8 @@ standard_pmalgtrackmaker:
 {
  module_type:         "PMAlgTrackMaker"
  ClusterModuleLabel:  "cluster"
+ CluMatchingAlg:      1   # 1: max cluster from each view, single track (just for tests)
+                          # 2: use existing assocs of clusters (from external algorithm)
 }
 
 standard_featuretracker:
