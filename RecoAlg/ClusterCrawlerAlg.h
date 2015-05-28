@@ -63,13 +63,15 @@ namespace cluster {
       unsigned short BeginWir;   // begin wire
       float BeginTim;   // begin time
       float BeginChg;   // beginning average charge
+			float BeginChgNear; // charge near the cluster Begin
+			short BeginVtx; 	// ID of the Begin vertex
       float EndSlp;     // end slope (= US end = low  wire number)
       float EndAng;
       float EndSlpErr;  // error
       unsigned short EndWir;     // end wire
       float EndTim;     // ending time
       float EndChg;     // ending average charge
-      short BeginVtx;   // ID of the begin vertex
+			float EndChgNear; // charge near the cluster End
       short EndVtx;     // ID of the end vertex
       std::vector<unsigned short> tclhits; // hits on the cluster
     }; // ClusterStore
@@ -77,9 +79,13 @@ namespace cluster {
     /// struct of temporary 2D vertices (end points)
     struct VtxStore {
       float Wire;
+			float WireErr;
       float Time;
+			float TimeErr;
       float Wght;       // Wght < 0 for abandoned vertices 
-      short Topo;
+			float ChiDOF;
+      short Topo; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star,
+												// 6 = hammer, 7 = vtx3clustermatch, 8 = vtx3clustersplit
       CTP_t CTP;
     };
     
@@ -87,8 +93,11 @@ namespace cluster {
     struct Vtx3Store {
       std::array<short, 3> Ptr2D; // pointers to 2D vertices in each plane
       float X;                    // x position
+      float XErr;                 // x position error
       float Y;                    // y position
+      float YErr;                 // y position error
       float Z;                    // z position
+      float ZErr;                 // z position error
       short Wire;                 // wire number for an incomplete 3D vertex
       unsigned short CStat;
       unsigned short TPC;
@@ -193,12 +202,7 @@ namespace cluster {
     void ClearResults();
     
     /// @}
-    
-    
-    /// Sorts clusters in tcl by decreasing number of hits, ignoring abandoned clusters
-    static void SortByLength(std::vector<ClusterStore> const& tcl,
-      CTP_t inCTP, std::map<unsigned short, unsigned short>& sortindex);
-    
+        
     /// Comparison for sorting hits by wire and hit multiplet
     static bool SortByMultiplet(recob::Hit const& a, recob::Hit const& b);
     
@@ -226,6 +230,9 @@ namespace cluster {
     std::vector<float> fMergeChgCut;  ///< max charge ratio for matching
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
     std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
+		bool fHammerCluster;					 ///< look for hammer type clusters
+		
+		float fMinAmp;									///< expected minimum signal
 
     bool fChkClusterDS;
     bool fMergeOverlap;
@@ -233,13 +240,15 @@ namespace cluster {
     bool fFindStarVertices;
 
     // global cuts and parameters 
-    float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS
-                        ///< used for cluster fit
+    float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
+    float fMinHitFrac;
     float fLAClusAngleCut;  ///< call Large Angle Clustering code if > 0
+		unsigned short fLAClusMaxHitsFit; ///< max hits fitted on a Large Angle cluster
     float fLAClusSlopeCut;
     float fHitMergeChiCut; ///< Merge cluster hit-multiplets if the separation chisq
                              ///< is < cut. Set < 0 for no merging
     unsigned short fAllowNoHitWire; 
+		float fVertex2DCut; 	///< 2D vtx -> cluster matching cut (ticks)
     float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (cm)
 
     short fDebugPlane;
@@ -247,6 +256,7 @@ namespace cluster {
     short fDebugHit;   ///< out detailed information while crawling
 
     // fills a wirehitrange vector for the supplied Cryostat/TPC/Plane code
+
     void GetHitRange(CTP_t CTP,
       std::vector< std::pair<int, int> >& wirehitrange,
       unsigned short& firstwire, unsigned short& lastwire);
@@ -255,8 +265,8 @@ namespace cluster {
     void FitClusterMid(unsigned short it1, unsigned short iht, short nhit);
 
     // these variables define the cluster used during crawling
-    float clpar[2];     ///< cluster parameters for the current fit with
-                        ///< origin at the US wire on the cluster
+    float clpar[3];     ///< cluster parameters for the current fit with
+                        ///< origin at the US wire on the cluster (in clpar[2])
     float clparerr[2];  ///< cluster parameter errors
     float clChisq;     ///< chisq of the current fit
     float fAveChg;  ///< average charge at leading edge of cluster
@@ -284,12 +294,14 @@ namespace cluster {
     unsigned short clBeginWir;  ///< begin wire
     float clBeginTim;  ///< begin time
     float clBeginChg;  ///< begin average charge
+		float clBeginChgNear; ///< nearby charge
     float clEndSlp;    ///< slope at the end   (= US end = low  wire number)
     float clEndAng;
     float clEndSlpErr; 
     unsigned short clEndWir;    ///< begin wire
     float clEndTim;    ///< begin time
     float clEndChg;    ///< end average charge
+		float clEndChgNear;  ///< nearby charge
     short clStopCode;     ///< code for the reason for stopping cluster tracking
                         ///< 0 = no signal on the next wire
                         ///< 1 = skipped too many occupied/dead wires
@@ -298,6 +310,7 @@ namespace cluster {
                         ///< 4 = failed the fChiCut cut
                         ///< 5 = cluster split by VtxClusterSplit
                         ///< 6 = stop at a vertex
+												///< 7 = LA crawl stopped due to slope cut
     short clProcCode;     ///< Processor code = pass number
                         ///< +   10 ChkMerge
                         ///< +   20 ChkMerge with overlapping hits
@@ -311,6 +324,7 @@ namespace cluster {
                         ///< + 5000 ChkClusterDS
                         ///< +10000 Vtx3ClusterSplit
     CTP_t clCTP;        ///< Cryostat/TPC/Plane code
+		bool clLA;					///< using Large Angle crawling code
     
     unsigned short fFirstWire;    ///< the first wire with a hit
     unsigned short fFirstHit;     ///< first hit used
@@ -331,8 +345,13 @@ namespace cluster {
     
     std::vector<unsigned short> fcl2hits;  ///< vector of hits used in the cluster
     std::vector<float> chifits;   ///< fit chisq for monitoring kinks, etc
-    std::vector<short> hitnear;   ///< Number of nearby
+    std::vector<short> hitNear;   ///< Number of nearby
                                   ///< hits that were merged have hitnear < 0
+
+    std::vector<float> chgNear; ///< charge near a cluster on each wire
+		float fChgNearWindow; 		///< window (ticks) for finding nearby charge
+		float fChgNearCut;				///< cut on ratio of nearby/cluster charge to
+															///< to define a shower-like cluster
 
     std::string fhitsModuleLabel;
     
@@ -369,7 +388,7 @@ namespace cluster {
     // If there are too many, merge the hits and re-fit
     void ChkClusterNearbyHits(bool prt);
     // merge the hits in a multiplet into one hit
-    void MergeHits(const unsigned short theHit);
+    void MergeHits(const unsigned short theHit, bool& didMerge);
     /// Resets the local index and multiplicity of all the hits in [begin;end[
     void FixMultipletLocalIndices
       (size_t begin, size_t end, short int multiplicity = -1);
@@ -395,16 +414,11 @@ namespace cluster {
 
     // Find 2D vertices
     void FindVertices();
-/*
-    // Kill 2D vertices
-    void KillVertices();
-*/
     // Find 2D star topology vertices
     void FindStarVertices();
     // check a vertex (vw, fvt) made with clusters it1, and it2 against the
     // vector of existing clusters
-    void ChkVertex(
-        float fvw, float fvt, unsigned short it1, unsigned short it2, short topo);
+    void ChkVertex(float fvw, float fvt, unsigned short it1, unsigned short it2, short topo);
     // try to attach a cluster to an existing vertex
     void ClusterVertex(unsigned short it2);
     // try to attach a cluster to a specified vertex
@@ -417,11 +431,10 @@ namespace cluster {
     // cluster that is associated with the vertex
     bool CrawlVtxChk2();
     // use a vertex constraint to start a cluster
-    void VtxConstraint(
-      unsigned short iwire, unsigned short ihit,
+    void VtxConstraint(unsigned short iwire, unsigned short ihit,
       unsigned short jwire, unsigned short& useHit, bool& doConstrain);
     // fit the vertex position
-    void FitVtx(unsigned short iv, float& ChiDOF);
+    void FitVtx(unsigned short iv);
     // weight and fit all vertices
     void VtxWghtAndFit(CTP_t inCTP);
 
@@ -433,6 +446,8 @@ namespace cluster {
     void Vtx3ClusterMatch(geo::TPCID const& tpcid);
     // split clusters using 3D vertex information
     void Vtx3ClusterSplit(geo::TPCID const& tpcid);
+		// look for a long cluster that stops at a short cluster in two views
+		void FindHammerClusters();
 
     // ************** utility routines *******************
 
@@ -444,18 +459,18 @@ namespace cluster {
     void TmpGet(unsigned short it1);
     // Splits a cluster into two clusters at position pos. Associates the
     // new clusters with a vertex
-    void SplitCluster(unsigned short icl, unsigned short pos,
-      unsigned short ivx);
+    bool SplitCluster(unsigned short icl, unsigned short pos, unsigned short ivx);
     // Prints cluster information to the screen
     void PrintClusters();
     // check for a signal on all wires between two points
-    void ChkSignal
-      (unsigned short wire1, float time1, unsigned short wire2, float time2, bool& SigOK);
+    bool ChkSignal(unsigned short wire1, float time1, unsigned short wire2, float time2);
     // returns an angle-dependent scale factor for weighting fits, etc
     float AngleFactor(float slope);
     /// Returns true if there are no duplicates in the hit list for next cluster
     bool CheckHitDuplicates
       (std::string location, std::string marker = "") const;
+    // Find the distance of closest approach between the end of a cluster and a (wire,tick) position
+    float DoCA(short icl, unsigned short end, float vwire, float vtick);
     
     /// Returns a pair of first and past-the-last index
     /// of all the contiguous hits belonging to the same multiplet
