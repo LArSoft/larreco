@@ -5,7 +5,7 @@ BEGIN_PROLOG
 standard_clustercrawleralg:
 {
   NumPass:              3  # number of passes through the hit list. 0 = no cluster reco
-  MaxHitsFit: [ 50,  8, 4] # number of hits fitted to a line
+  MaxHitsFit: [ 100,  8, 4] # number of hits fitted to a line
   MinHits:    [ 50,  8, 3] # minimum size of a cluster
   NHitsAve:   [ 20,  8, 0] # number of hits to find the average charge and width  
                            # at the end of the cluster. NHitsAve should be 1 or 2
@@ -15,13 +15,18 @@ standard_clustercrawleralg:
   MinWirAfterSkip: [2, 2, 1] # min reqd number of consecutive wires with a hit after a skip
   KinkChiRat: [1.2, 1.2, 0.] # Max consecutive chisq increase for the last 3 hits on the cluster
                              # 0. = no kink check when following
-  KinkAngCut: [0.55, 0.55, 0.55] # kink angle cut (radians) used to follow and merge
+  KinkAngCut: [0.3, 0.3, 0.3] # kink angle cut (radians) used to follow and merge
   DoMerge:   [false, true, true] # run cluster merging code?
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
   MergeChgCut: [0.8, 0.8, 0.8] # max charge ratio for cluster merging
   FindVertices: [true, true, true]  # make 2D vertices after clustering?
   LACrawl:     [true, true, true]  # crawl Large Angle clusters?
-  LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
+  LAClusAngleCut:       60 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
+	LAClusMaxHitsFit: 		10 # 
+	MinHitFrac: 				 0.6 # Drop clusters having < (#hits/#wires)
+	MinAmp: 						   5 # Min hit signal amplitude for merging
+	ChgNearWindow:				40 # #of ticks for summing charge near a cluster
+	ChgNearCut: 				 1.5 # Cluster end is shower-like if (nearby chg)/(cls chg)> cut
   HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
   ChkClusterDS:       true # Check reconstruction at DS end of clusters?
@@ -30,7 +35,9 @@ standard_clustercrawleralg:
   FindStarVertices:   true # Find vertices with a star topology
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
   AllowNoHitWire:        1 # Allow skipping N wires w no hits (if poor purity)
+	Vertex2DCut:					10 # Max equiv dTick cut for attaching a cluster to a vtx
   Vertex3DCut:          1. # 2D vtx -> 3D vtx matching cut (cm)
+	HammerCluster:			true # look for hammer type clusters
   DebugPlane:          -1  # print info only in this plane
   DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
   DebugHit:             0  # out detailed information while crawling
