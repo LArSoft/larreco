@@ -123,17 +123,17 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     std::vector<art::Ptr<recob::Hit> > *allHits(&planeIt->second);
 
     // Implement the algorithm
-    if (allHits->size() >= fBlurredClusteringAlg.fMinHits) {
+    if (allHits->size() >= fBlurredClusteringAlg.GetMinSize()) {
 
       // Convert hit map to TH2 histogram
       TH2F image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(allHits);
 
-      /// Find clusters in histogram
+      // Find clusters in histogram
       std::vector<std::vector<int> > allClusterBins; /// Vector of clusters (clusters are vectors of hits)
       int numClusters = fBlurredClusteringAlg.FindClusters(&image, allClusterBins);
-      mf::LogVerbatim("Blurred Clustering") << "Found "<< numClusters << " clusters" << std::endl;
+      mf::LogVerbatim("Blurred Clustering") << "Found " << numClusters << " clusters" << std::endl;
 
-      /// Create output clusters from the vector of clusters made in FindClusters
+      // Create output clusters from the vector of clusters made in FindClusters
       std::vector<art::PtrVector<recob::Hit> > planeClusters = fBlurredClusteringAlg.ConvertBinsToClusters(&image, allHits, allClusterBins); // returns vector of clusters
 
       for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = planeClusters.begin(); clusIt != planeClusters.end(); ++clusIt) {
@@ -144,7 +144,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 	  // Get the start and end wires of the cluster
 	  unsigned int startWire = clusterHits.front()->WireID().Wire;
 	  unsigned int endWire = clusterHits.back()->WireID().Wire;
-	
+
 	  // Put cluster hits in the algorithm
 	  ClusterParamAlgo.ImportHits(clusterHits);
 	
