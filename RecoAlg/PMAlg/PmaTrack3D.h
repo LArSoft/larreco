@@ -35,14 +35,14 @@ public:
 
 	void Initialize(float initEndSegW = 0.05F);
 
-	bool push_back(recob::Hit const* hit);
+	bool push_back(art::Ptr< recob::Hit > hit);
 
 	pma::Hit3D* & operator [] (size_t index) { return fHits[index]; }
 	pma::Hit3D* const & operator [] (size_t index) const { return fHits[index]; }
 
 	size_t size() const { return fHits.size(); }
 
-	void AddHits(const std::vector< recob::Hit const* >& hits);
+	void AddHits(const std::vector< art::Ptr<recob::Hit> >& hits);
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
 

@@ -10,6 +10,8 @@
 
 #include "RecoAlg/PMAlg/PmaSegment3D.h"
 
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
 double pma::Segment3D::GetDistance2To(const TVector3& p3d) const
 {
 	pma::Node3D* v0 = static_cast< pma::Node3D* >(prev);
@@ -62,7 +64,7 @@ TVector3 pma::Segment3D::GetProjection(const TVector2& p, unsigned int view) con
 	}
 	else // segment 2D projection is almost a point
 	{
-		std::cout << "Short segment projection." << std::endl;
+		mf::LogWarning("pma::Segment3D") << "Short segment projection.";
 
 		result = v3dStart;
 		result += v3dStop;
@@ -105,7 +107,7 @@ void pma::Segment3D::SetProjection(pma::Hit3D& h) const
 	}
 	else // segment 2D projection is almost a point
 	{
-		std::cout << "Short segment projection." << std::endl;
+		mf::LogWarning("pma::Segment3D") << "Short segment projection." << std::endl;
 
 		p += vStop->Projection2D(h.View2D());
 		p *= 0.5F; h.SetProjection(p, 0.0F);
@@ -123,7 +125,7 @@ double pma::Segment3D::Length2(void) const
 		return pma::Dist2( ((pma::Node3D*)prev)->Point3D(), ((pma::Node3D*)next)->Point3D() );
 	else
 	{
-		std::cout << "Segment endpoints not set." << std::endl;
+		mf::LogError("pma::Segment3D") << "Segment endpoints not set.";
 		return 0.0;
 	}
 }
@@ -143,7 +145,7 @@ double pma::Segment3D::GetDist2(const TVector3& psrc, const TVector3& p0, const 
 	double eps = 1.0E-6; // 0.01mm
 	if (v1Norm2 < eps)
 	{
-		std::cout << "Short segment or its projection." << std::endl;
+		mf::LogWarning("pma::Segment3D") << "Short segment or its projection.";
 		v1 = p0; v1 += p1; v1 *= 0.5;
 		return pma::Dist2(v1, psrc);
 	}
@@ -186,7 +188,7 @@ double pma::Segment3D::GetDist2(const TVector2& psrc, const TVector2& p0, const 
 	double eps = 1.0E-6; // 0.01mm
 	if (v1Norm2 < eps)
 	{
-		std::cout << "Short segment or its projection." << std::endl;
+		mf::LogWarning("pma::Segment3D") << "Short segment or its projection.";
 		v1 = p0; v1 += p1; v1 *= 0.5;
 		return pma::Dist2(v1, psrc);
 	}

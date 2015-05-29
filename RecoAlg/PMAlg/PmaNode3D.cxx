@@ -11,6 +11,9 @@
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 
 #include "Geometry/TPCGeo.h"
+#include "Geometry/PlaneGeo.h"
+
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // Fixed optimization directions:     X      Y      Z
 bool pma::Node3D::fGradFixed[3] = { false, false, false };
@@ -33,9 +36,17 @@ pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo) :
 	fGradM(3, 3)
 {
 	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
+
 	fMinX = tpcGeo.MinX(); fMaxX = tpcGeo.MaxX();
 	fMinY = tpcGeo.MinY(); fMaxY = tpcGeo.MaxY();
 	fMinZ = tpcGeo.MinZ(); fMaxZ = tpcGeo.MaxZ();
+
+	fWirePitch[0] = tpcGeo.Plane(geo::kU).WirePitch();
+	fWirePitch[1] = tpcGeo.Plane(geo::kV).WirePitch();
+	fWirePitch[2] = tpcGeo.Plane(geo::kZ).WirePitch();
+
+	fDriftPitch = fDetProp->GetXTicksCoefficient(tpc, cryo);
+
 	SetPoint3D(p3d);
 }
 
@@ -54,18 +65,18 @@ void pma::Node3D::LimitPoint3D(float margin)
 void pma::Node3D::UpdateProj2D(void)
 {
 	fProj2D[0].Set(
-		fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kU, fTPC, fCryo),
-		fDetProp->ConvertXToTicks(fPoint3D.X(), geo::kU, fTPC, fCryo)
+		fWirePitch[0] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kU, fTPC, fCryo),
+		fDriftPitch * fDetProp->ConvertXToTicks(fPoint3D.X(), geo::kU, fTPC, fCryo)
 	);
 
 	fProj2D[1].Set(
-		fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kV, fTPC, fCryo),
-		fDetProp->ConvertXToTicks(fPoint3D.X(), geo::kV, fTPC, fCryo)
+		fWirePitch[1] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kV, fTPC, fCryo),
+		fDriftPitch * fDetProp->ConvertXToTicks(fPoint3D.X(), geo::kV, fTPC, fCryo)
 	);
 
 	fProj2D[2].Set(
-		fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kZ, fTPC, fCryo),
-		fDetProp->ConvertXToTicks(fPoint3D.X(), geo::kZ, fTPC, fCryo)
+		fWirePitch[2] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kZ, fTPC, fCryo),
+		fDriftPitch * fDetProp->ConvertXToTicks(fPoint3D.X(), geo::kZ, fTPC, fCryo)
 	);
 }
 
@@ -109,7 +120,7 @@ void pma::Node3D::SetProjection(pma::Hit3D& h) const
 	}
 	else
 	{
-		std::cout << "Isolated vertex." << std::endl;
+		mf::LogError("pma::Node3D") << "Isolated vertex.";
 		TVector2 p(Projection2D(h.View2D()));
 		h.SetProjection(p, 0.0F);
 		h.SetPoint3D(fPoint3D);
@@ -183,7 +194,7 @@ double pma::Node3D::SegmentCos(void) const
 	}
 	else
 	{
-		std::cout << "PlVertex3D::SegmentCos(): neighbours not initialized." << std::endl;
+		mf::LogError("pma::Node3D") << "PlVertex3D::SegmentCos(): neighbours not initialized.";
 		return -1.0;
 	}
 }
@@ -206,7 +217,7 @@ double pma::Node3D::SegmentCosWirePlane(void) const
 	}
 	else
 	{
-		std::cout << "PlVertex3D::SegmentCosZX(): neighbours not initialized." << std::endl;
+		mf::LogError("pma::Node3D") << "PlVertex3D::SegmentCosZX(): neighbours not initialized.";
 		return -1.0;
 	}
 }
@@ -229,7 +240,7 @@ double pma::Node3D::SegmentCosTransverse(void) const
 	}
 	else
 	{
-		std::cout << "PlVertex3D::SegmentCosZY(): neighbours not initialized." << std::endl;
+		mf::LogError("pma::Node3D") << "PlVertex3D::SegmentCosZY(): neighbours not initialized.";
 		return -1.0;
 	}
 }
@@ -333,7 +344,7 @@ double pma::Node3D::Pi(float endSegWeight) const
 		}
 		else
 		{
-			std::cout << "PlVertex3D::Pi(): an isolated vertex?" << std::endl;
+			mf::LogWarning("pma::Node3D") << "PlVertex3D::Pi(): an isolated vertex?";
 			return 0.0;
 		}
 		if (nSeg == 1) pi_result = endSegWeight * seg->Length2();

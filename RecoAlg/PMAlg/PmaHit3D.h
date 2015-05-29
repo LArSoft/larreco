@@ -51,9 +51,11 @@ class pma::Hit3D
 
 public:
 	Hit3D(void);
-	Hit3D(recob::Hit const* src);
+	Hit3D(art::Ptr< recob::Hit > src);
 	Hit3D(const pma::Hit3D& src);
 	virtual ~Hit3D(void) {}
+
+	art::Ptr< recob::Hit > Hit2DPtr(void) const { return fHit; }
 
 	TVector3 const & Point3D(void) const { return fPoint3D; }
 
@@ -76,6 +78,7 @@ public:
 	double GetDistToProj(void) const { return sqrt(GetDist2ToProj()); }
 	double GetDist2ToProj(void) const { return pma::Dist2(fPoint2D, fProjection2D); }
 
+	float GetSegFraction() const { return fSegFraction; }
 	void SetProjection(const TVector2& p, float b)
 	{
 		fProjection2D.Set(p); fSegFraction = b;
@@ -89,7 +92,7 @@ public:
 
 private:
 
-	recob::Hit const* fHit;  // source 2D hit
+	art::Ptr< recob::Hit > fHit;  // source 2D hit
 
 	unsigned int fTPC, fPlane, fWire;
 

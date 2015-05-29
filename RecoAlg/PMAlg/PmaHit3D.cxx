@@ -147,7 +147,6 @@ TVector3 pma::GetProjectionToSegment(const TVector3& p, const TVector3& p0, cons
 }
 
 pma::Hit3D::Hit3D(void) :
-	fHit(0),
 	fTPC(0), fPlane(0), fWire(0),
 	fPoint3D(0, 0, 0),
 	fPoint2D(0, 0), fProjection2D(0, 0),
@@ -156,7 +155,7 @@ pma::Hit3D::Hit3D(void) :
 {
 }
 
-pma::Hit3D::Hit3D(recob::Hit const* src) :
+pma::Hit3D::Hit3D(art::Ptr< recob::Hit > src) :
 	fHit(src),
 	fPoint3D(0, 0, 0),
 	fProjection2D(0, 0),
@@ -167,11 +166,11 @@ pma::Hit3D::Hit3D(recob::Hit const* src) :
 	fPlane = src->WireID().Plane;
 	fWire = src->WireID().Wire;
 
-	art::ServiceHandle<geo::Geometry> geom;
-	art::ServiceHandle<util::DetectorProperties> detprop;
+	art::ServiceHandle< geo::Geometry > geom;
+	art::ServiceHandle< util::DetectorProperties > detprop;
 
 	double wpitch = geom->TPC(fTPC).Plane(fPlane).WirePitch();
-	double dpitch = fabs(detprop->GetXTicksCoefficient(fTPC, 0));
+	double dpitch = detprop->GetXTicksCoefficient(fTPC, src->WireID().Cryostat); // or abs??
 
 	fPoint2D.Set(wpitch * fWire, dpitch * src->PeakTime());
 }
