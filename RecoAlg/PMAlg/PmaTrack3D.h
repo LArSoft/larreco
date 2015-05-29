@@ -39,7 +39,10 @@ public:
 
 	pma::Hit3D* & operator [] (size_t index) { return fHits[index]; }
 	pma::Hit3D* const & operator [] (size_t index) const { return fHits[index]; }
-
+	pma::Hit3D* & front() { return fHits.front(); }
+	pma::Hit3D* const & front() const { return fHits.front(); }
+	pma::Hit3D* & back() { return fHits.back(); }
+	pma::Hit3D* const & back() const { return fHits.back(); }
 	size_t size() const { return fHits.size(); }
 
 	void AddHits(const std::vector< art::Ptr<recob::Hit> >& hits);
@@ -88,10 +91,11 @@ private:
 	void UpdateHitsRadius(void);
 	double AverageDist2(void) const;
 
-	bool PCEndpoints(TVector2 & start, TVector2 & stop, unsigned int view) const;
-	bool InitFromHits(float initEndSegW = 0.05F);
-	bool InitFromRefPoints(void);
-	void InitFromMiddle(void);
+	bool PCEndpoints(TVector2 & start, TVector2 & stop,
+		unsigned int view, double wpitch, double dpitch) const;
+	bool InitFromHits(int tpc, int cryo, float initEndSegW = 0.05F);
+	bool InitFromRefPoints(int tpc, int cryo);
+	void InitFromMiddle(int tpc, int cryo);
 
 	void RebuildSegments(void);
 	bool SwapVertices(size_t v0, size_t v1);

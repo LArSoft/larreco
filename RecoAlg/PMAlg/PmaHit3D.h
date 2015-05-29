@@ -24,6 +24,7 @@
 namespace pma
 {
 	class Hit3D;
+	class bSegmentProjLess;
 	struct bTrajectory3DOrderLess;
 	struct bTrajectory3DDistLess;
 
@@ -125,6 +126,31 @@ struct pma::bTrajectory3DDistLess :
 		if (h1 && h2) return h1->GetDist2ToProj() < h2->GetDist2ToProj();
 		else return false;
 	}
+};
+
+class pma::bSegmentProjLess :
+	public std::binary_function<TVector3*, TVector3*, bool>
+{
+public:
+	bSegmentProjLess(const TVector3& s0, const TVector3& s1) :
+		segStart(s0), segStop(s1)
+	{
+		if (s0 == s1) std::cout << "Vectors equal!" << std::endl;
+	}
+
+	bool operator() (TVector3* p1, TVector3* p2)
+	{
+		if (p1 && p2)
+		{
+			double b1 = pma::GetSegmentProjVector(*p1, segStart, segStop);
+			double b2 = pma::GetSegmentProjVector(*p1, segStart, segStop);
+			return b1 < b2;
+		}
+		else return false;
+	}
+
+private:
+	TVector3 segStart, segStop;
 };
 
 #endif
