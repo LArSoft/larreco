@@ -16,7 +16,7 @@ end_product_list
   
 # e7  - with gcc 4.9.1 and -std=c++1y
 qualifier	larsim		nutools		gcc	notes
-e7:debug	e7:debug	e7:debug	-nq-
+e7:debug	e7:debug:noifdh	e7:debug:noifdh	-nq-
 e7:opt		e7:opt		e7:opt		-nq-
 e7:prof		e7:prof		e7:prof		-nq-
 e7:noifdh:debug	e7:noifdh:debug	e7:noifdh:debug	-nq-
