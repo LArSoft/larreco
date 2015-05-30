@@ -239,7 +239,7 @@ namespace trkf {
     void TagCosmics();
     
     // fill the end matching parameters in the MatchPars struct
-    void FillEndMatch(art::FindManyP<recob::Hit> const& fmCluHits, MatchPars& match);
+    void FillEndMatch(MatchPars& match);
     
     float ChargeAsym(std::array<float, 3>& mChg);
     
@@ -475,6 +475,8 @@ namespace trkf {
           } // ii (icl)
         } // ipl
         
+        
+        std::cout<<"FillChgNear "<<evt.event()<<"\n";
         FillChgNear();
         
         // and finally the vertices
@@ -513,9 +515,12 @@ namespace trkf {
           vtx.push_back(aVtx);
         } // ivx
         // Find broken clusters
+        std::cout<<"MakeClusterChains "<<evt.event()<<"\n";
         MakeClusterChains(fmCluHits);
         FindMaybeVertices();
+        std::cout<<"VtxMatch ";
         if(fMatchAlgs & 1) VtxMatch(fmCluHits);
+        std::cout<<" done \n PlnMatch";
         if(fMatchAlgs & 2) {
           for(unsigned short pass = 0; pass < fPlnMatchMinLen.size(); ++pass) PlnMatch(fmCluHits, pass);
         }
@@ -1038,6 +1043,7 @@ namespace trkf {
                 match.Cls[kpl] = -1;  match.End[kpl] = 0;
                 match.Vtx = ivx;
                 match.Err = 100;
+                std::cout<<"VtxMatch: check "<<ipl<<":"<<icl<<":"<<iend<<" and "<<jpl<<":"<<jcl<<":"<<jend<<" for cluster in kpl "<<kpl<<"\n";
                 if(prt) mf::LogVerbatim("CCTM")<<"VtxMatch: check "<<ipl<<":"<<icl<<":"<<iend<<" and "<<jpl<<":"<<jcl<<":"<<jend<<" for cluster in kpl "<<kpl;
                 gotkcl = false;
                 for(kk = 0; kk < vxCls[kpl].size(); ++kk) {
@@ -1053,8 +1059,9 @@ namespace trkf {
                     match.Cls[kpl] = kcl; match.End[kpl] = kend;
                     // first call to ignore redundant matches
                     if(DupMatch(match)) continue;
-                    //                    mf::LogVerbatim("CCTM")<<" try k "<<kpl<<":"<<kcl<<":"<<kend;
-                    FillEndMatch(fmCluHits, match);
+                    std::cout<<"FEM0 ";
+                    FillEndMatch(match);
+                    std::cout<<"done\n";
                     //                    mf::LogVerbatim("CCTM")<<" Chg "<<match.Chg[kpl]<<" Err "<<match.Err<<" oErr "<<match.oErr;
                     // ignore if no signal at the other end
                     if(match.Chg[kpl] <= 0) continue;
@@ -1064,7 +1071,7 @@ namespace trkf {
                     // second call to keep matches with better error
                     if(DupMatch(match)) continue;
                     matcomb.push_back(match);
-                    if(prt) mf::LogVerbatim("CCTM")<<"VtxMatch: gotkcl 1";
+                    std::cout<<"VtxMatch: gotkcl 1\n";
                     gotkcl = true;
                     break;
                   } // kend
@@ -1088,7 +1095,9 @@ namespace trkf {
                       // check the error
                       match.Cls[kpl] = kcl; match.End[kpl] = kend;
                       if(DupMatch(match)) continue;
-                      FillEndMatch(fmCluHits, match);
+                      std::cout<<"FEM1 ";
+                      FillEndMatch(match);
+                      std::cout<<"done\n";
                       match.Err += match.oErr;
                       if(prt) {
                         mf::LogVerbatim myprt("CCTM");
@@ -1105,10 +1114,13 @@ namespace trkf {
                       }
                     } // kend
                   } // kcl
+                  std::cout<<"kbst "<<kbst<<"\n";
                   if(kbst >= 0) {
                     // found a decent match
                     match.Cls[kpl] = kbst; match.End[kpl] = kbend;
-                    FillEndMatch(fmCluHits, match);
+                    std::cout<<"FEM2 ";
+                    FillEndMatch(match);
+                    std::cout<<"done\n";
                     match.Err += match.oErr;
                     matcomb.push_back(match);
                     // assign the vertex to this cluster
@@ -1119,20 +1131,26 @@ namespace trkf {
                     // Try a 2 plane match if a 3 plane match didn't work
                     match.Cls[kpl] = -1; match.End[kpl] = 0;
                     if(DupMatch(match)) continue;
-                    FillEndMatch(fmCluHits, match);
+                    std::cout<<"FEM3 ";
+                    FillEndMatch(match);
+                    std::cout<<"done "<<matcomb.size()<<"\n";
                     match.Err += match.oErr;
-                    if(match.Err > 100) continue;
-                    matcomb.push_back(match);
+                    if(match.Err < 100) matcomb.push_back(match);
                   }
                 } // !gotkcl
+                std::cout<<"!gotkcl\n";
               } // jend
+              std::cout<<"jend\n";
             } // iend
+            std::cout<<"iend\n";
           } // jj
+          std::cout<<"jj\n";
         } // ii -> icl
+        std::cout<<"ii\n";
       } // ipl
       
       if(matcomb.size() == 0) continue;
-      
+      std::cout<<"Sortmatches ";
       SortMatches(fmCluHits, 2);
       std::cout<<"VtxMatch vtx "<<ivx<<" done trk size "<<trk.size()<<"\n";
       prt = false;
@@ -1567,7 +1585,8 @@ namespace trkf {
     newtrk.TrjDir = trkDir;
 
     // set trajectory end points to a vertex if one exists
-    unsigned short ivx, ccl, itjEnd, itjoEnd;
+    unsigned short ivx, ccl, itj;
+    float dx, dy, dz, dr0, dr1;
     for(unsigned short end = 0; end < 2; ++end) {
       ivx = USHRT_MAX;
       for(unsigned short ipl = 0; ipl < 3; ++ipl) {
@@ -1576,21 +1595,21 @@ namespace trkf {
       }
       if(ivx == USHRT_MAX) continue;
       newtrk.VtxIndex[end] = ivx;
-      if(end == 0) {
-        itjEnd = 0;
-        itjoEnd = newtrk.TrjPos.size() - 1;
-      } else {
-        itjEnd = newtrk.TrjPos.size() - 1;
-        itjoEnd = 0;
-      }
-      // some error checking
-      if(fabs(vtx[ivx].X - newtrk.TrjPos[itjEnd](0)) > fabs(vtx[ivx].X - newtrk.TrjPos[itjoEnd](0))) {
-        mf::LogError("CCTM")<<" Trying to attach the wrong end to a vertex ";
-        continue;
-      } // error check
-      newtrk.TrjPos[itjEnd](0) = vtx[ivx].X;
-      newtrk.TrjPos[itjEnd](1) = vtx[ivx].Y;
-      newtrk.TrjPos[itjEnd](2) = vtx[ivx].Z;
+      // determine the proper end using the TrjPos order and brute force
+      itj = 0;
+      dx = vtx[ivx].X - newtrk.TrjPos[itj](0);
+      dy = vtx[ivx].Y - newtrk.TrjPos[itj](1);
+      dz = vtx[ivx].Z - newtrk.TrjPos[itj](2);
+      dr0 = dx*dx + dy*dy + dz*dz;
+      itj = newtrk.TrjPos.size() - 1;
+      dx = vtx[ivx].X - newtrk.TrjPos[itj](0);
+      dy = vtx[ivx].Y - newtrk.TrjPos[itj](1);
+      dz = vtx[ivx].Z - newtrk.TrjPos[itj](2);
+      dr1 = dx*dx + dy*dy + dz*dz;
+      if(dr0 < dr1) itj = 0;
+      newtrk.TrjPos[itj](0) = vtx[ivx].X;
+      newtrk.TrjPos[itj](1) = vtx[ivx].Y;
+      newtrk.TrjPos[itj](2) = vtx[ivx].Z;
       newtrk.VtxIndex[end] = ivx;
     } // end
 
@@ -1731,7 +1750,7 @@ namespace trkf {
                   match.Chg[ipl] =   0; match.Chg[jpl] =   0; match.Chg[kpl] = 0;
                   match.Vtx = clsChain[ipl][icl].VtxIndex[iend];
                   //                  std::cout<<"FEM in\n";
-                  FillEndMatch(fmCluHits, match);
+                  FillEndMatch(match);
                   //                  std::cout<<"FEM out\n";
                   if(prt) mf::LogVerbatim("CCTM")<<" Match k "<<kpl<<":"<<match.Cls[kpl]<<":"<<match.End[kpl]<<" oChg "<<match.Chg[kpl]<<" mErr "<<match.Err<<" oErr "<<match.oErr;
                   if(match.Chg[kpl] == 0) continue;
@@ -1753,7 +1772,7 @@ namespace trkf {
                 match.Chg[ipl] = 0; match.Chg[jpl] = 0; match.Chg[kpl] = 0;
 //                match.Vtx = clsChain[ipl][icl].VtxIndex[iend]; // TODO check this
                 //                std::cout<<"FEM in\n";
-                FillEndMatch(fmCluHits, match);
+                FillEndMatch(match);
                 //                std::cout<<"FEM out\n";
                 if(prt) mf::LogVerbatim("CCTM")<<" Tried 2-plane match"<<" k "<<kpl<<":"<<match.Cls[kpl]<<":"<<match.End[kpl]<<" Chg "<<match.Chg[kpl]<<" Err "<<match.Err<<" match.oErr "<<match.oErr;
                 if(match.Chg[kpl] <= 0) continue;
@@ -1989,23 +2008,27 @@ namespace trkf {
     } // im
     
     if(bestTotErr > 9000) return;
-    
+    std::cout<<"make some trks\n";
     for(ii = 0; ii < bestMatIndex.size(); ++ii) {
       im = bestMatIndex[ii];
       //      if(prt) mf::LogVerbatim("CCTM")<<"SM: "<<ii<<" im "<<im<<" 0:"<<matcomb[im].Cls[0]<<":"<<matcomb[im].End[0]<<" 1:"<<matcomb[im].Cls[1]<<":"<<matcomb[im].End[1]<<" 2:"<<matcomb[im].Cls[2]<<":"<<matcomb[im].End[2];
       //      std::cout<<"FillTrkHits "<<ii<<"\n";
+      std::cout<<"FTH ";
       FillTrkHits(fmCluHits, im);
+      std::cout<<"done\n";
       //      std::cout<<"StoreTrack\n";
       // look for missing clusters?
       // store this track with processor code 1
+      std::cout<<"StoreTrack ";
       StoreTrack(fmCluHits, im, procCode);
+      std::cout<<"done\n";
     } // ii
     std::cout<<"SortMatches done "<<bestMatIndex.size()<<" ntracks "<<trk.size()<<"\n";
     
   } // SortMatches
   
   ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::FillEndMatch(art::FindManyP<recob::Hit> const& fmCluHits, MatchPars& match)
+  void CCTrackMaker::FillEndMatch(MatchPars& match)
   {
     // fill the matching parameters for this cluster match. The calling routine
     // should set the match end vertex ID (if applicable) as well as the
@@ -2428,6 +2451,10 @@ namespace trkf {
       // loop over all clusters in the chain
       for(unsigned short ii = 0; ii < clsChain[kkpl][ccl].ClsIndex.size(); ++ii) {
         icl = clsChain[kkpl][ccl].ClsIndex[ii];
+        if(cls[ipl][icl].EvtIndex > fmCluHits.size() -1) {
+          std::cout<<"Bad ClsIndex in FMPM\n";
+          exit(1);
+        }
         clusterhits = fmCluHits.at(cls[ipl][icl].EvtIndex);
         // loop over all the hits in each cluster
         for(unsigned short iht = 0; iht < clusterhits.size(); ++iht) {
@@ -2520,7 +2547,7 @@ namespace trkf {
     
     unsigned short indx;
     std::vector<art::Ptr<recob::Hit>> clusterhits;
-    unsigned short icc, ccl, icl, iht, ii;
+    unsigned short icc, ccl, icl, ecl, iht, ii;
     short endOrder, fillOrder;
     
     mf::LogVerbatim("CCTM")<<"In FillTrkHits: matcomb "<<imat<<" cluster chains "<<matcomb[imat].Cls[0]<<" "<<matcomb[imat].Cls[1]<<" "<<matcomb[imat].Cls[2];
@@ -2543,11 +2570,12 @@ namespace trkf {
           std::cout<<"oops in FTH "<<icl<<" clsChain size "<<clsChain[ipl].size()<<"\n";
           exit(1);
         }
-        if(cls[ipl][icl].EvtIndex > fmCluHits.size() - 1) {
-          std::cout<<"FTH bad EvtIndex "<<cls[ipl][icl].EvtIndex<<" fmCluHits size "<<fmCluHits.size()<<"\n";
+        ecl = cls[ipl][icl].EvtIndex;
+        if(ecl > fmCluHits.size() - 1) {
+          std::cout<<"FTH bad EvtIndex "<<ecl<<" fmCluHits size "<<fmCluHits.size()<<"\n";
           continue;
         }
-        clusterhits = fmCluHits.at(cls[ipl][icl].EvtIndex);
+        clusterhits = fmCluHits.at(ecl);
         if(clusterhits.size() == 0) {
           std::cout<<"FTH no cluster hits for EvtIndex "<<cls[ipl][icl].EvtIndex<<"\n";
           continue;
