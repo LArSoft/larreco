@@ -86,7 +86,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p)
 	produces< std::vector<recob::SpacePoint> >();
 	produces< art::Assns<recob::Track, recob::Hit> >();
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
-	produces< art::Assns<recob::Hit, recob::SpacePoint> >();
+	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 }
 // ------------------------------------------------------
 
@@ -147,7 +147,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 		std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit(new art::Assns< recob::Track, recob::Hit >);
 		std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
-		std::unique_ptr< art::Assns< recob::Hit, recob::SpacePoint > > hit2sp(new art::Assns< recob::Hit, recob::SpacePoint >);
+		std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
 
 		size_t spStart = 0, spEnd = 0;
 		double sp_pos[3], sp_err[6];
@@ -157,7 +157,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		{
 			tracks->push_back(convertFrom(*(result[t])));
 
-			std::vector<art::Ptr<recob::Hit> > hits2d;
+			std::vector< art::Ptr< recob::Hit > > hits2d;
+			art::PtrVector< recob::Hit > sp_hits;
 
 			spStart = allsp->size();
 			for (size_t h = 0; h < result[t]->size(); h++)
@@ -165,10 +166,26 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				pma::Hit3D* h3d = (*result[t])[h];
 				hits2d.push_back(h3d->Hit2DPtr());
 
-				sp_pos[0] = h3d->Point3D().X();
-				sp_pos[1] = h3d->Point3D().Y();
-				sp_pos[2] = h3d->Point3D().Z();
-				allsp->push_back(recob::SpacePoint(sp_pos, sp_err, 1.0));
+				if ((h == 0) ||
+				      (sp_pos[0] != h3d->Point3D().X()) ||
+				      (sp_pos[1] != h3d->Point3D().Y()) ||
+				      (sp_pos[2] != h3d->Point3D().Z()))
+				{
+					if (sp_hits.size()) // hits assigned to the previous sp
+					{
+						util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
+						sp_hits.clear();
+					}
+					sp_pos[0] = h3d->Point3D().X();
+					sp_pos[1] = h3d->Point3D().Y();
+					sp_pos[2] = h3d->Point3D().Z();
+					allsp->push_back(recob::SpacePoint(sp_pos, sp_err, 1.0));
+				}
+				sp_hits.push_back(h3d->Hit2DPtr());
+			}
+			if (sp_hits.size()) // hits assigned to the last sp
+			{
+				util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
 			}
 			spEnd = allsp->size();
 
@@ -179,7 +196,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			}
 		}
 
-		// delete all pma::Track3D's
+		// data prods done, delete all pma::Track3D's
 		for (size_t t = 0; t < result.size(); t++) delete result[t];
 
 		evt.put(std::move(tracks));
@@ -187,7 +204,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 		evt.put(std::move(trk2hit));
 		evt.put(std::move(trk2sp));
-		evt.put(std::move(hit2sp));
+		evt.put(std::move(sp2hit));
 	}
 }
 // ------------------------------------------------------
