@@ -1590,6 +1590,7 @@ namespace trkf {
     for(unsigned short end = 0; end < 2; ++end) {
       ivx = USHRT_MAX;
       for(unsigned short ipl = 0; ipl < 3; ++ipl) {
+        if(matcomb[imat].Cls[ipl] < 0) continue;
         ccl = matcomb[imat].Cls[ipl];
         if(clsChain[ipl][ccl].VtxIndex[end] >= 0) ivx = clsChain[ipl][ccl].VtxIndex[end];
       }
