@@ -188,7 +188,7 @@ namespace cluster {
       return;
     }
     
-    for (geo::TPCID const& tpcid: geom->IterateTPCs()) {
+    for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
       for(plane = 0; plane < TPC.Nplanes(); ++plane){
         WireHitRange.clear();
