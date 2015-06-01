@@ -179,6 +179,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			}
 		}
 
+		// delete all pma::Track3D's
+		for (size_t t = 0; t < result.size(); t++) delete result[t];
+
 		evt.put(std::move(tracks));
 		evt.put(std::move(allsp));
 
@@ -235,7 +238,11 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 				<< "  #ind2:" << trk->NHits(geo::kV)
 				<< "  #ind1:" << trk->NHits(geo::kU);
 
+			mf::LogVerbatim("PMAlgTrackMaker") << "  initialize trk";
 			trk->Initialize();
+			mf::LogVerbatim("PMAlgTrackMaker") << "  optimize trk";
+			trk->Optimize(2);
+			mf::LogVerbatim("PMAlgTrackMaker") << "  sort trk";
 			trk->SortHits();
 
 			result.push_back(trk);

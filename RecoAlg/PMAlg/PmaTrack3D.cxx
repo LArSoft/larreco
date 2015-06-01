@@ -10,13 +10,14 @@
  */
 
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
+#include "RecoAlg/PMAlg/Utilities.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 pma::Track3D::Track3D(void) :
 	fMaxHitsPerSeg(70),
 	fPenaltyFactor(2.0F),
-	fMaxSegStopFactor(3.0F),
+	fMaxSegStopFactor(8.0F),
 
 	fSegStopValue(2), fMinSegStop(2), fMaxSegStop(2),
 	fSegStopFactor(0.2F),
@@ -160,16 +161,17 @@ bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 	//TVector2 p00(0.0F, 0.0F);
 
 	// endpoints for the first combination:
-	TVector3 v3d_1(0., 0., 0.);
-	TVector3 v3d_2(0., 0., 0.);
+	TVector3 v3d_1(0., 0., 0.), v3d_2(0., 0., 0.);
+
 	// endpoints for the inverted combination
-	//TVector3 v3d_3(0., 0., 0.);
-	//TVector3 v3d_4(0., 0., 0.);
+	//TVector3 v3d_3(0., 0., 0.), v3d_4(0., 0., 0.);
 
 	//unsigned int wireU_idx, wireV_idx, wireZ_idx;
 	double x, y, z;
 
 /*
+//  another way of initialization:
+
 	bool useColl = true, useInd2 = true, tryInd1 = false;
 
 	const unsigned int nColl = NHits(geo::kZ);
@@ -548,6 +550,11 @@ bool pma::Track3D::InitFromRefPoints(int tpc, int cryo)
 
 	RebuildSegments();
 	MakeProjection();
+
+	if (size()) UpdateHitsRadius();
+
+	Optimize(0, 0.01F);
+
 	return true;
 }
 
@@ -580,9 +587,9 @@ void pma::Track3D::InitFromMiddle(int tpc, int cryo)
 
 bool pma::Track3D::push_back(art::Ptr< recob::Hit > hit)
 {
-	for (size_t i = 0; i < fHits.size(); i++)
+	for (auto const& trk_hit : fHits)
 	{
-		if (fHits[i]->fHit == hit) return false;
+		if (trk_hit->fHit == hit) return false;
 	}
 	fHits.push_back(new pma::Hit3D(hit));
 	return true;
@@ -683,7 +690,7 @@ void pma::Track3D::AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int 
 bool pma::Track3D::AddNode(void)
 {
 	pma::Segment3D* seg;
-	pma::Segment3D* maxSeg = NULL;
+	pma::Segment3D* maxSeg = 0;
 
 	size_t si = 0;
 	while (si < fSegments.size())
@@ -719,6 +726,7 @@ bool pma::Track3D::AddNode(void)
 		}
 
 		nHits = fNodes[i]->NEnabledHits() + seg->NEnabledHits() + fNodes[i-1]->NEnabledHits();
+
 		if (nHits > maxHits)
 		{
 			maxHits = nHits;
@@ -748,6 +756,7 @@ bool pma::Track3D::AddNode(void)
 		nHitsByView[1] = maxSeg->NEnabledHits(geo::kV);
 		nHitsByView[2] = maxSeg->NEnabledHits(geo::kZ);
 
+
 		unsigned int maxViewIdx = 2, midViewIdx = 2;
 		if ((nHitsByView[2] >= nHitsByView[1]) && (nHitsByView[1] >= nHitsByView[0])) { maxViewIdx = 2; midViewIdx = 1; }
 		else if ((nHitsByView[1] >= nHitsByView[2]) && (nHitsByView[2] >= nHitsByView[0])) { maxViewIdx = 1; midViewIdx = 2; }
@@ -775,6 +784,7 @@ bool pma::Track3D::AddNode(void)
 			}
 			i++;
 		}
+		
 		i0 = i; i++;
 		while ((i < maxSeg->NHits()) && !((maxSeg->Hit(i).View2D() == midViewIdx) && maxSeg->Hit(i).IsEnabled()))
 		{
@@ -796,7 +806,7 @@ bool pma::Track3D::AddNode(void)
 
 		pma::Node3D* p = new pma::Node3D((maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5, tpc, cryo);
 		fNodes.insert(fNodes.begin() + vIndex, p);
-
+		
 		maxSeg->AddNext(fNodes[vIndex]);
 
 		seg = new pma::Segment3D(this, fNodes[vIndex], fNodes[vIndex + 1]);
@@ -834,11 +844,11 @@ double pma::Track3D::Optimize(int newVertices, double eps, bool selAllHits )
 	double g0 = GetObjFunction(), g1 = 0.0;
 	if (g0 == 0.0) return g0;
 
-	//std::cout << "objective function: " << g0 << std::endl;
+	//mf::LogVerbatim("pma::Track3D") << "objective function at opt start: " << g0;
 
 	bool stop = false;
 	fMinSegStop = fSegments.size();
-	fMaxSegStop = (int)(fMaxSegStopFactor * size());
+	fMaxSegStop = (int)(size() / fMaxSegStopFactor) + 1;
 	do
 	{
 		bool stepDone = true;
@@ -850,7 +860,6 @@ double pma::Track3D::Optimize(int newVertices, double eps, bool selAllHits )
 			while ((gstep > eps) && (iter < 60))
 			{
 				MakeProjection();
-
 				UpdateParams();
 
 				for (unsigned int j = 0; j < fNodes.size(); j++)
@@ -860,7 +869,8 @@ double pma::Track3D::Optimize(int newVertices, double eps, bool selAllHits )
 
 				g1 = g0;
 				g0 = GetObjFunction();
-				//mf::LogError("pma::Track3D") << "obj fn: " << g0;
+
+				//mf::LogVerbatim("pma::Track3D") << "obj fn: " << g0;
 				if (g0 == 0.0F) { MakeProjection(); break; }
 				gstep = fabs(g0 - g1) / g0;
 				iter++;
@@ -893,8 +903,6 @@ double pma::Track3D::Optimize(int newVertices, double eps, bool selAllHits )
 				break;
 
 			default: // grow and optimize until fixed number of vertices is added
-				//std::cout << "vertices to add:" << newVertices << std::endl;
-
 				if (newVertices > 12)
 				{
 					if (AddNode()) { MakeProjection(); newVertices--; }
@@ -922,7 +930,7 @@ double pma::Track3D::Optimize(int newVertices, double eps, bool selAllHits )
 		}
 
 	} while (!stop);
-	//std::cout << "Done (optimized segments: " << fSegments.size() << ")." << std::endl << std::endl;
+	//mf::LogVerbatim("pma::Track3D") << "Done (optimized segments: " << fSegments.size() << ").";
 
 	MakeProjection();
 	return GetObjFunction();

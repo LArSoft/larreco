@@ -11,6 +11,7 @@
 
 #include "RecoAlg/PMAlg/PmaElement3D.h"
 #include "RecoAlg/PMAlg/SortedObjects.h"
+#include "RecoAlg/PMAlg/Utilities.h"
 
 // Impact factors on the objective function:  U     V     Z
 float pma::Element3D::fOptFactors[3] =     { 0.2F, 0.8F, 1.0F };

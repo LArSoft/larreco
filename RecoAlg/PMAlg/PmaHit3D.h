@@ -24,25 +24,9 @@
 namespace pma
 {
 	class Hit3D;
-	class bSegmentProjLess;
 	struct bTrajectory3DOrderLess;
-	struct bTrajectory3DDistLess;
 
 	class Track3D;
-
-	double Dist2(const TVector2& v1, const TVector2& v2);
-	double Dist2(const TVector3& v1, const TVector3& v2);
-	size_t GetHitsCount(const std::vector< pma::Hit3D* >& hits, unsigned int view);
-	double GetSummedADC(const std::vector< pma::Hit3D* >& hits, unsigned int view = geo::kUnknown);
-	double GetSummedAmpl(const std::vector< pma::Hit3D* >& hits, unsigned int view = geo::kUnknown);
-
-	double GetHitsRadius3D(const std::vector< pma::Hit3D* >& hits, bool exact = false);
-	double GetHitsRadius2D(const std::vector< pma::Hit3D* >& hits, bool exact = false);
-
-	double GetSegmentProjVector(const TVector2& p, const TVector2& p0, const TVector2& p1);
-	double GetSegmentProjVector(const TVector3& p, const TVector3& p0, const TVector3& p1);
-	TVector2 GetProjectionToSegment(const TVector2& p, const TVector2& p0, const TVector2& p1);
-	TVector3 GetProjectionToSegment(const TVector3& p, const TVector3& p0, const TVector3& p1);
 }
 
 class pma::Hit3D
@@ -77,7 +61,7 @@ public:
 	void SetSigmaFactor(float value) { fSigmaFactor = value; }
 
 	double GetDistToProj(void) const { return sqrt(GetDist2ToProj()); }
-	double GetDist2ToProj(void) const { return pma::Dist2(fPoint2D, fProjection2D); }
+	double GetDist2ToProj(void) const;
 
 	float GetSegFraction() const { return fSegFraction; }
 	void SetProjection(const TVector2& p, float b)
@@ -106,51 +90,6 @@ private:
 	bool fEnabled; // used or not in the optimisation - due to various reasons
 	bool fOutlier; // tagged as not really hit of this track (like delta ray)
 
-};
-
-struct pma::bTrajectory3DOrderLess :
-	public std::binary_function<pma::Hit3D*, pma::Hit3D*, bool>
-{
-	bool operator() (pma::Hit3D* h1, pma::Hit3D* h2)
-	{
-		if (h1 && h2) return h1->fSegFraction < h2->fSegFraction;
-		else return false;
-	}
-};
-
-struct pma::bTrajectory3DDistLess :
-	public std::binary_function<pma::Hit3D*, pma::Hit3D*, bool>
-{
-	bool operator() (pma::Hit3D* h1, pma::Hit3D* h2)
-	{
-		if (h1 && h2) return h1->GetDist2ToProj() < h2->GetDist2ToProj();
-		else return false;
-	}
-};
-
-class pma::bSegmentProjLess :
-	public std::binary_function<TVector3*, TVector3*, bool>
-{
-public:
-	bSegmentProjLess(const TVector3& s0, const TVector3& s1) :
-		segStart(s0), segStop(s1)
-	{
-		if (s0 == s1) std::cout << "Vectors equal!" << std::endl;
-	}
-
-	bool operator() (TVector3* p1, TVector3* p2)
-	{
-		if (p1 && p2)
-		{
-			double b1 = pma::GetSegmentProjVector(*p1, segStart, segStop);
-			double b2 = pma::GetSegmentProjVector(*p1, segStart, segStop);
-			return b1 < b2;
-		}
-		else return false;
-	}
-
-private:
-	TVector3 segStart, segStop;
 };
 
 #endif

@@ -9,6 +9,7 @@
  */
 
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
+#include "RecoAlg/PMAlg/Utilities.h"
 
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
@@ -24,8 +25,12 @@ pma::Node3D::Node3D(void) :
 	fMinY(0), fMaxY(0),
 	fMinZ(0), fMaxZ(0),
 	fPoint3D(0, 0, 0),
-	fGradM(3, 3)
+	fGradV(3), fGradM(3, 3)
 {
+	fGradV[0] = 0.;
+	fGradV[1] = 0.;
+	fGradV[2] = 0.;
+
 	fProj2D[0].Set(0);
 	fProj2D[1].Set(0);
 	fProj2D[2].Set(0);
@@ -33,8 +38,12 @@ pma::Node3D::Node3D(void) :
 
 pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo) :
 	fTPC(tpc), fCryo(cryo),
-	fGradM(3, 3)
+	fGradV(3), fGradM(3, 3)
 {
+	fGradV[0] = 0.;
+	fGradV[1] = 0.;
+	fGradV[2] = 0.;
+
 	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
 
 	fMinX = tpcGeo.MinX(); fMaxX = tpcGeo.MaxX();
@@ -397,7 +406,7 @@ double pma::Node3D::GetObjFunction(float penaltyValue, float endSegWeight) const
 }
 
 double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
-{
+{	
 	double l, minLength2 = 0.0;
 	TVector3 tmp(fPoint3D), gpoint(fPoint3D);
 
@@ -468,7 +477,6 @@ double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
 			fGradM(2, 2) = fGDirZ.Z();
 
 			fGradM.InvertFast();
-
 			fGDirX *= dxi; fGDirY *= dxi; fGDirZ *= dxi;
 		}
 		else
