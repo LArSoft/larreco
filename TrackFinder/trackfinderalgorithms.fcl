@@ -87,8 +87,6 @@ standard_kalmanfilteralg:
 
 standard_cosmictrackeralg:
 {
-    MinNumCluHits: 2
-    SegmentSize:   3
 }
 
 argoneut_spacepointalg:      @local::standard_spacepointalg

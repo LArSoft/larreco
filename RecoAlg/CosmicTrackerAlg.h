@@ -16,6 +16,7 @@
 
 #include "RecoBase/Hit.h"
 #include "Geometry/Geometry.h"
+#include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "RecoAlg/TrackTrajectoryAlg.h"
 
@@ -38,33 +39,30 @@ namespace trkf
     std::vector<double> spy;
     std::vector<double> spz;
 
+    //position and direction of each point on a track trajectory
     std::vector<TVector3> trkPos;
     std::vector<TVector3> trkDir;
 
   private:
     
-    void GetClusterSegment(std::vector<art::Ptr<recob::Hit> >&fHits);
-
-    void GetSPs(std::vector<art::Ptr<recob::Hit> >&fHits, 
-		unsigned int ipl0, unsigned int ipl1);
-
-    unsigned int fMinNumCluHits;  ///< minimal number of hits in the cluster
-    unsigned int fSegmentSize;    ///< number of hits in cluster segments
-
-    //index of hits on each plane
-    std::vector<std::vector<unsigned int> > hitindex;
-
-    //wire and time ranges for cluster segments
-    std::vector<std::vector<double> > w0;
-    std::vector<std::vector<double> > w1;
-    std::vector<std::vector<double> > t0;
-    std::vector<std::vector<double> > t1;
+    void MakeSPT(std::vector<art::Ptr<recob::Hit> >&fHits);
 
     // track trajectory for a track under construction
 
     TrackTrajectoryAlg fTrackTrajectoryAlg;
 
+    //trajectory position and direction returned by TrackTrajectoryAlg
+    std::vector<TVector3> trajPos;
+    std::vector<TVector3> trajDir;
+
+    //projection of trajectory points on wire planes
+    std::vector<std::vector<std::vector<std::vector<double>>>> vw;
+    std::vector<std::vector<std::vector<std::vector<double>>>> vt;
+    std::vector<std::vector<std::vector<std::vector<unsigned int>>>> vtraj;
+
+
     art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<util::LArProperties> larprop;
     art::ServiceHandle<util::DetectorProperties> detprop;
 
 

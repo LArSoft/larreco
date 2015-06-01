@@ -298,7 +298,7 @@ namespace trkf {
 	hitcoord[0] = fCTAlg.trkPos[ipt].X();
 	hitcoord[1] = fCTAlg.trkPos[ipt].Y();
 	hitcoord[2] = fCTAlg.trkPos[ipt].Z();
-	std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
+	//std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
 	double err[6] = {util::kBogusD};
 	recob::SpacePoint mysp(hitcoord, 
 			       err, 
