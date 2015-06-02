@@ -253,6 +253,8 @@ namespace cluster {
         
         // look for clusters
         ClusterLoop();
+        // analyze hits
+//        AnalyzeHits();
       } // plane
       if(fVertex3DCut > 0) {
         // Match vertices in 3 planes
@@ -267,32 +269,6 @@ namespace cluster {
         PrintClusters();
       }
     } // for all tpcs
-
-/*
-  cstat = 0; tpc = 0;
-  for(plane = 0; plane < geom->Cryostat(cstat).TPC(tpc).Nplanes(); ++plane){
-    WireHitRange.clear();
-    // define a code to ensure clusters are compared within the same plane
-    clCTP = EncodeCTP(cstat, tpc, plane);
-    // fill the WireHitRange vector with first/last hit on each wire
-    // dead wires and wires with no hits are flagged < 0
-    GetHitRange(clCTP, WireHitRange, fFirstWire, fLastWire);
-    unsigned int nhts = 0, nhtsinCls = 0;
-    for(unsigned short wire = fFirstWire; wire < fLastWire; ++wire) {
-      unsigned short index = wire - fFirstWire;
-      unsigned short fhit = WireHitRange[index].first;
-      unsigned short lhit = WireHitRange[index].second;
-      for(unsigned short hit = fhit; hit < lhit; ++hit) {
-        if (isHitPresent(hit)) {
-          ++nhts; // there is a hit
-          if(!isHitFree(hit)) ++nhtsinCls;
-        }
-      } // hit
-    } // wire
-    std::cout<<"After CC: plane "<<plane<<" nhits "<<nhts
-      <<" nhits in Clusters "<<nhtsinCls<<"\n";;
-  } // plane
-*/     
     
     // remove the hits that have become obsolete
     RemoveObsoleteHits();
@@ -331,6 +307,9 @@ namespace cluster {
               mf::LogError("CC")<<"ClusterLoop bad ihit "<<ihit;
               return;
             }
+            if(fDebugPlane == (short)plane && iwire == fDebugWire && fDebugHit > 0)
+              prt = std::abs(hit.PeakTime() - fDebugHit) < 20;
+            if(prt && !isHitFree(ihit)) mf::LogVerbatim("CC")<<"Seed hit is used\n";
             // skip used and obsolete hits
             if (!isHitFree(ihit)) continue;
             // Check for a hit signal on the next DS wire
@@ -338,12 +317,16 @@ namespace cluster {
             // Don't start a seed cluster if there is a hit signal DS. 
             // This is an indicator that we might be trying
             // to start a cluster just US of shower blob.
+            if(prt) {
+              if(SigOK) mf::LogVerbatim()<<"Seed hit is near DS hits\n";
+              if(hit.Multiplicity() > 1) mf::LogVerbatim()<<"Seed hit has multiplicity "<<hit.Multiplicity()<<"\n";
+            }
             if(SigOK && hit.Multiplicity() > 1) continue;
             if((iwire - span + 1) < fFirstWire) continue;
             unsigned short jwire = iwire - span + 1;
             unsigned short jindx = jwire - fFirstWire;
             if(WireHitRange[jindx].first < 0) continue;
-            // Find the hit on wire jwire that best matches a line between
+            // Find the hit on wire jwire that best matches a line between xxx
             // a nearby vertex and hit ihit. No constraint if useHit < 0
             unsigned short useHit = 0;
             bool doConstrain = false;
@@ -383,8 +366,9 @@ namespace cluster {
               clpar[2] = fHits[jhit].WireID().Wire;
               // check for hit width consistency. Large angle clusters should have
               // large rms hits or smaller rms hits if they part of a multiplet
-              if(std::abs(clpar[1]) > 5*geom->WirePitch(hit.View())/0.3) {
+              if(std::abs(clpar[1]) > 10*geom->WirePitch(hit.View())/0.3) {
                 if(pass == 0) continue;
+                if(prt) mf::LogVerbatim("CC")<<" other_hit "<<other_hit.WireID().Wire<<":"<<(int)other_hit.PeakTime()<<" slope "<<clpar[1]<<" hit.RMS "<<hit.RMS()<<" other_hit multiplicity "<<other_hit.Multiplicity();
                 if(hit.RMS() < 4 && hit.Multiplicity() < 3) continue;
                 if(other_hit.RMS() < 4 && other_hit.Multiplicity() < 3) continue;
               } // std::abs(clpar[1]) > 5
@@ -3061,70 +3045,6 @@ namespace cluster {
       myprt<<"\n";
     } // ii
     
-/*
-    float aveRMS = 0;
-    myprt<<"  ID CTP nht Stop  Proc  beg_W:T  bTheta"
-      <<" begChg end_W:T  eTheta eChg  bVx  eVx aveRMS\n";
-    for(unsigned short ii = 0; ii < tcl.size(); ++ii) {
-      if(fDebugPlane >= 0 && fDebugPlane != (int) DecodeCTP(tcl[ii].CTP).Plane) continue;
-      myprt<<std::right<<std::setw(4)<<tcl[ii].ID;
-      myprt<<std::right<<std::setw(3)<<tcl[ii].CTP;
-      myprt<<std::right<<std::setw(5)<<tcl[ii].tclhits.size();
-      myprt<<std::right<<std::setw(4)<<tcl[ii].StopCode;
-      myprt<<std::right<<std::setw(6)<<tcl[ii].ProcCode;
-      unsigned short iTime = tcl[ii].BeginTim;
-      myprt<<std::right<<std::setw(6)<<tcl[ii].BeginWir<<":"<<iTime;
-      if(iTime < 10) {
-        myprt<<"   ";
-      } else if(iTime < 100) {
-        myprt<<"  ";
-      } else if(iTime < 1000) myprt<<" ";
-      myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginAng;
-      myprt<<std::right<<std::setw(5)<<(short)tcl[ii].BeginChg;
-      iTime = tcl[ii].EndTim;
-      myprt<<std::right<<std::setw(6)<<tcl[ii].EndWir<<":"<<iTime;
-      if(iTime < 10) {
-        myprt<<"   ";
-      } else if(iTime < 100) {
-        myprt<<"  ";
-      } else if(iTime < 1000) myprt<<" ";
-      myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndAng;
-      myprt<<std::right<<std::setw(5)<<(short)tcl[ii].EndChg;
-      myprt<<std::right<<std::setw(5)<<tcl[ii].BeginVtx;
-      myprt<<std::right<<std::setw(5)<<tcl[ii].EndVtx;
-      aveRMS = 0;
-      unsigned short iht = 0;
-      for(unsigned short jj = 0; jj < tcl[ii].tclhits.size(); ++jj) {
-        iht = tcl[ii].tclhits[jj];
-        aveRMS += fHits[iht].RMS();
-      }
-      aveRMS /= (float)tcl[ii].tclhits.size();
-      myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<aveRMS;
-      myprt<<"\n";
-    } // ii
-    // print out vertices
-    for(unsigned short iv = 0; iv < vtx.size(); ++iv) {
-      if(vtx[iv].CTP != clCTP) continue;
-      mf::LogVerbatim("CC")
-        <<"vtx "<<iv<<" wire "<<vtx[iv].Wire<<" time "<<(int)vtx[iv].Time
-        <<" wght "<<(int)vtx[iv].Wght<<" topo "<<vtx[iv].Topo;
-    }    
-    // Check for incompatible hit->cluster cluster->hit associations
-    for(unsigned short icl = 0; icl < tcl.size(); ++icl) {
-      if(tcl[icl].ID < 0) continue;
-      for(unsigned short ii = 0; ii< tcl[icl].tclhits.size(); ++ii) {
-        unsigned short iht = tcl[icl].tclhits[ii];
-        if(fHitInCluster[iht] != tcl[icl].ID) {
-          mf::LogVerbatim("PrintClusters")
-            <<"Association error: cluster "<<tcl[icl].ID
-            <<" Hit "<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()
-            <<" InClus is incorrect "<<fHitInCluster[iht]
-            <<" Hit index "<<iht;
-          return;
-        }
-      } // ii
-    } // icl
-*/
   } // PrintClusters()
 
 /////////////////////////////////////////
@@ -4832,7 +4752,7 @@ namespace cluster {
       }
     }
 
-          // do a local fit near the crossing point and make a tighter cut xxx
+          // do a local fit near the crossing point and make a tighter cut
           unsigned short ii, icl, jj, iht;
           short nhitfit;
           bool didit;
@@ -5334,7 +5254,28 @@ namespace cluster {
   }
 
     } // VtxMatch
-
+/*
+  //////////////////////////////////
+  void ClusterCrawlerAlg::AnalyzeHits() {
+    // Find average hit rms vs angle in this plane xxx
+    // Ideally this would be done in a hit ana module
+    for(unsigned short icl = 0; icl < tcl.size(); ++icl) {
+      if(tcl[icl].CTP != clCTP) continue;
+      if(tcl[icl].ID < 0) continue;
+      if(tcl[icl].tclhits.size() < 50) continue;
+      float aveRMS = 0;
+      unsigned short iht = 0;
+      for(unsigned short jj = 0; jj < tcl[icl].tclhits.size(); ++jj) {
+        iht = tcl[icl].tclhits[jj];
+        aveRMS += fHits[iht].RMS();
+      }
+      aveRMS /= (float)tcl[icl].tclhits.size();
+      geo::PlaneID iplID = DecodeCTP(clCTP);
+      unsigned int ipl = iplID.Plane;
+      mf::LogVerbatim("CC")<<"ntup "<<ipl<<" "<<fabs(tcl[icl].BeginAng)<<" "<<fabs(tcl[icl].BeginSlp)<<" "<<aveRMS;
+    } // icl
+  } // AnalyzeHits
+*/
 //////////////////////////////////
   void ClusterCrawlerAlg::FreeObsoleteClusterHits(unsigned short icl) {
     // Frees hits used by obsolete cluster icl.
