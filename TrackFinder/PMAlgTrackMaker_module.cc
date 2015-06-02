@@ -105,13 +105,43 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	std::map< size_t, std::vector<double> > src_dQdx;
 	src.GetRawdEdxSequence(src_dQdx, geo::kZ);
 
-	std::cout << "***************" << std::endl;
-	for (auto const& entry : src_dQdx)
+	for (size_t i = 0; i < src.size(); i++)
 	{
-		std::cout << entry.first << " " << entry.second[5] << " " << entry.second[6] << std::endl;
+		xyz.push_back(src[i]->Point3D());
+
+		if (i < src.size() - 1)
+		{
+			TVector3 dc(src[i + 1]->Point3D());
+			dc -= src[i]->Point3D();
+			dc *= 1.0 / dc.Mag();
+			dircos.push_back(dc);
+		}
+		else dircos.push_back(dircos.back());
+
+		double dQ = 0., dx = 0., r = 0.;
+		std::vector<double> dqdx_entry;
+		auto it = src_dQdx.find(i);
+		if (it != src_dQdx.end())
+		{
+			dQ = it->second[5];
+			dx = it->second[6];
+			r = it->second[7];
+
+			if (dx > 0.) dqdx_entry.push_back(dQ/dx);
+			else dqdx_entry.push_back(0.);
+
+			dqdx_entry.push_back(r);
+		}
+		else
+		{
+			dqdx_entry.push_back(0.);
+			dqdx_entry.push_back(src.Length(0, i));
+		}
+		dst_dQdx.push_back(dqdx_entry);
 	}
 
-	for (size_t i = 0; i < src.Nodes().size() - 1; i++)
+//  only track nodes
+/*	for (size_t i = 0; i < src.Nodes().size() - 1; i++)
 		if (src.Nodes()[i]->Point3D() != src.Nodes()[i + 1]->Point3D())
 		{
 			xyz.push_back(src.Nodes()[i]->Point3D());
@@ -123,6 +153,7 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 		}
 	xyz.push_back(src.Nodes().back()->Point3D());
 	dircos.push_back(dircos.back());
+*/
 
 	return recob::Track(xyz, dircos, dst_dQdx);
 }
