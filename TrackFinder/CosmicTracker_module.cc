@@ -65,6 +65,28 @@ public:
   art::Ptr<recob::Hit> hit;
 };
 
+// compare end points and directions
+bool MatchTrack(const std::vector<trkPoint>& trkpts1, const std::vector<trkPoint>& trkpts2, double discut, double angcut){
+  bool match = false;
+  if (!trkpts1.size()) return match;
+  if (!trkpts2.size()) return match;
+  if ((trkpts1[0].hit)->WireID().Cryostat == (trkpts2[0].hit)->WireID().Cryostat &&
+      (trkpts1[0].hit)->WireID().TPC == (trkpts2[0].hit)->WireID().TPC) return match; 
+  double dis = (trkpts1[0].pos-trkpts2[0].pos).Mag();
+  double angle = trkpts1[0].dir.Angle(trkpts2[0].dir);
+  if (dis<discut&&(angle<angcut||TMath::Pi()-angle<angcut)) match = true;
+  dis = (trkpts1[0].pos-trkpts2.back().pos).Mag();
+  angle = trkpts1[0].dir.Angle(trkpts2.back().dir);
+  if (dis<discut&&(angle<angcut||TMath::Pi()-angle<angcut)) match = true;
+  dis = (trkpts1.back().pos-trkpts2[0].pos).Mag();
+  angle = trkpts1.back().dir.Angle(trkpts2[0].dir);
+  if (dis<discut&&(angle<angcut||TMath::Pi()-angle<angcut)) match = true;
+  dis = (trkpts1.back().pos-trkpts2.back().pos).Mag();
+  angle = trkpts1.back().dir.Angle(trkpts2.back().dir);
+  if (dis<discut&&(angle<angcut||TMath::Pi()-angle<angcut)) match = true;
+  return match;
+}
+
 bool SortByWire (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) { 
   return h1->WireID().Wire < h2->WireID().Wire;
 }
@@ -121,10 +143,13 @@ namespace trkf {
     std::string     fClusterModuleLabel; ///< label for input cluster collection
     
     std::string     fSortDir;            ///< sort space points 
+
+    bool            fStitchTracks;       ///< Stitch tracks from different TPCs
+    double          fDisCut;             ///< Distance cut for track merging
+    double          fAngCut;             ///< Angle cut for track merging
+
+    bool            fTrajOnly;           ///< Only use trajectory points from TrackTrajectoryAlg for debugging
   
-    bool            fStitchTracks;        ///< Stitch tracks from different TPCs
-    double          fDisCut;            ///< Distance cut for track merging
-    double          fAngCut;            ///< Angle cut for track merging
 
   }; // class CosmicTracker
 
@@ -155,6 +180,7 @@ namespace trkf {
     fStitchTracks           = pset.get< bool   >("StitchTracks");
     fDisCut                 = pset.get< double >("DisCut");
     fAngCut                 = pset.get< double >("AngCut");
+    fTrajOnly               = pset.get< bool   >("TrajOnly");
   }
 
   //-------------------------------------------------
@@ -231,238 +257,222 @@ namespace trkf {
       if (fSortDir=="-y") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_y1);
       if (fSortDir=="+z") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_z0);
       if (fSortDir=="-z") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_z1);
-      /*
-      size_t spStart = spcol->size();
-      std::vector<recob::SpacePoint> spacepoints;
-//      for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
-//	if (fCTAlg.usehit[ihit] == 1){
-      for (size_t ipt = 0; ipt<fCTAlg.trkPos.size(); ++ipt){
-	art::PtrVector<recob::Hit> sp_hits;
-	//sp_hits.push_back(hitlist[ihit]);
-	double hitcoord[3];
-	hitcoord[0] = fCTAlg.trkPos[ipt].X();
-	hitcoord[1] = fCTAlg.trkPos[ipt].Y();
-	hitcoord[2] = fCTAlg.trkPos[ipt].Z();
-	//std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
-	double err[6] = {util::kBogusD};
-	recob::SpacePoint mysp(hitcoord, 
-			       err, 
-			       util::kBogusD, 
-			       spStart + spacepoints.size());//3d point at end of track
-	spacepoints.push_back(mysp);
-	spcol->push_back(mysp);        
-	//util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
-	//}//
-      }//ihit
-      size_t spEnd = spcol->size();
-      //sort in z direction
-      std::sort(spacepoints.begin(),spacepoints.end(),sp_sort_z0);
-      std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,sp_sort_z0);
-      if(spacepoints.size()>0){
 
-	// make a vector of the trajectory points along the track
-	std::vector<TVector3> xyz(spacepoints.size());
-	for(size_t s = 0; s < spacepoints.size(); ++s){
-	  xyz[s] = TVector3(spacepoints[s].XYZ());
-	}        
-	//Calculate track direction cosines 
-	TVector3 startpointVec,endpointVec, DirCos;
-	startpointVec = xyz[0];
-	endpointVec = xyz.back();
-	DirCos = endpointVec - startpointVec;
-	//SetMag casues a crash if the magnitude of the vector is zero
-	try
-	  {
-	    DirCos.SetMag(1.0);//normalize vector
+      if (fTrajOnly){//debug only
+	size_t spStart = spcol->size();
+	std::vector<recob::SpacePoint> spacepoints;
+	//      for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
+	//	if (fCTAlg.usehit[ihit] == 1){
+	for (size_t ipt = 0; ipt<fCTAlg.trajPos.size(); ++ipt){
+	  art::PtrVector<recob::Hit> sp_hits;
+	  //sp_hits.push_back(hitlist[ihit]);
+	  double hitcoord[3];
+	  hitcoord[0] = fCTAlg.trajPos[ipt].X();
+	  hitcoord[1] = fCTAlg.trajPos[ipt].Y();
+	  hitcoord[2] = fCTAlg.trajPos[ipt].Z();
+	  //std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
+	  double err[6] = {util::kBogusD};
+	  recob::SpacePoint mysp(hitcoord, 
+				 err, 
+				 util::kBogusD, 
+				 spStart + spacepoints.size());//3d point at end of track
+	  spacepoints.push_back(mysp);
+	  spcol->push_back(mysp);        
+	  //util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
+	  //}//
+	}//ihit
+	size_t spEnd = spcol->size();
+	//sort in z direction
+	//std::sort(spacepoints.begin(),spacepoints.end(),sp_sort_z0);
+	//std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,sp_sort_z0);
+	if(spacepoints.size()>0){
+	  
+	  // make a vector of the trajectory points along the track
+	  std::vector<TVector3> xyz(spacepoints.size());
+	  for(size_t s = 0; s < spacepoints.size(); ++s){
+	    xyz[s] = TVector3(spacepoints[s].XYZ());
+	  }        
+	  //Calculate track direction cosines 
+	  TVector3 startpointVec,endpointVec, DirCos;
+	  startpointVec = xyz[0];
+	  endpointVec = xyz.back();
+	  DirCos = endpointVec - startpointVec;
+	  //SetMag casues a crash if the magnitude of the vector is zero
+	  try
+	    {
+	      DirCos.SetMag(1.0);//normalize vector
+	    }
+	  catch(...){std::cout<<"The Spacepoint is infinitely small"<<std::endl;
+	    continue;
 	  }
-	catch(...){std::cout<<"The Spacepoint is infinitely small"<<std::endl;
-	  continue;
-	}
-	//std::cout<<DirCos.x()<<" "<<DirCos.y()<<" "<<DirCos.z()<<std::endl;
-	std::vector<TVector3> dircos(spacepoints.size(), DirCos);
-      
-	std::vector< std::vector<double> > dQdx;
-	std::vector<double> mom(2, util::kBogusD);
-	tcol->push_back(recob::Track(xyz, dircos, dQdx, mom, tcol->size()));
-	
-	// make associations between the track and space points
-	util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
-	
-	// now the track and clusters
-	util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
-	
-	// and the hits and track
-	std::vector<art::Ptr<recob::Hit> > trkhits;       
-	for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
-	  //if (fCTAlg.usehit[ihit] == 1){
-	  trkhits.push_back(hitlist[ihit]);
+	  //std::cout<<DirCos.x()<<" "<<DirCos.y()<<" "<<DirCos.z()<<std::endl;
+	  std::vector<TVector3> dircos(spacepoints.size(), DirCos);
+	  
+	  std::vector< std::vector<double> > dQdx;
+	  std::vector<double> mom(2, util::kBogusD);
+	  tcol->push_back(recob::Track(xyz, dircos, dQdx, mom, tcol->size()));
+	  
+	  // make associations between the track and space points
+	  util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
+	  
+	  // now the track and clusters
+	  //util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
+	  
+	  // and the hits and track
+	  std::vector<art::Ptr<recob::Hit> > trkhits;       
+	  for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
+	    //if (fCTAlg.usehit[ihit] == 1){
+	    trkhits.push_back(hitlist[ihit]);
 	    //}
+	  }
+	  util::CreateAssn(*this, evt, *tcol, trkhits, *thassn);
 	}
-	util::CreateAssn(*this, evt, *tcol, trkhits, *thassn);
       }
-
-
-      */
     }//itrk
 
-    std::vector<std::vector<unsigned int>> trkidx;
-    if (fStitchTracks){//merge tracks from different TPCs
-      for (size_t itrk1 = 0; itrk1<trkpts.size(); ++itrk1){
-	int itrk = -1;
-	for (size_t i = 0; i<trkidx.size(); ++i){
-	  for (size_t j = 0; j<trkidx[i].size(); ++j){
-	    if (trkidx[i][j] == itrk1){
-	      itrk = i;
+    if (!fTrajOnly){
+      std::vector<std::vector<unsigned int>> trkidx;
+      if (fStitchTracks){//merge tracks from different TPCs
+	for (size_t itrk1 = 0; itrk1<trkpts.size(); ++itrk1){
+	  for (size_t itrk2 = itrk1+1; itrk2<trkpts.size(); ++itrk2){
+	    if (MatchTrack(trkpts[itrk1], trkpts[itrk2], fDisCut, fAngCut)){
+	      int found1 = -1;
+	      int found2 = -1;
+	      for (size_t i = 0; i<trkidx.size(); ++i){
+		for (size_t j = 0; j<trkidx[i].size(); ++j){
+		  if (trkidx[i][j]==itrk1) found1 = i;
+		  if (trkidx[i][j]==itrk2) found2 = i;
+		}
+	      }
+	      if (found1==-1&&found2==-1){
+		std::vector<unsigned int> tmp;
+		tmp.push_back(itrk1);
+		tmp.push_back(itrk2);
+		trkidx.push_back(tmp);
+	      }
+	      else if(found1==-1&&found2!=-1){
+		trkidx[found2].push_back(itrk1);
+	      }
+	      else if(found1!=-1&&found2==-1){
+		trkidx[found1].push_back(itrk2);
+	      }
+	    }//found match
+	  }//itrk2
+	}//itrk1
+	for (size_t itrk = 0; itrk<trkpts.size(); ++itrk){
+	  bool found = false;
+	  for (size_t i = 0; i<trkidx.size(); ++i){
+	    for (size_t j = 0; j<trkidx[i].size(); ++j){
+	      if (trkidx[i][j]==itrk) found = true;
 	    }
 	  }
+	  if (!found) {
+	    std::vector<unsigned int> tmp;
+	    tmp.push_back(itrk);
+	    trkidx.push_back(tmp);
+	  }
 	}
-	if (itrk==-1){
-	  std::vector<unsigned int> tmp;
-	  tmp.push_back(itrk1);
-	  trkidx.push_back(tmp);
+      }//stitch
+      else{
+	trkidx.resize(trkpts.size());
+	for (size_t i = 0; i<trkpts.size(); ++i){
+	  trkidx[i].push_back(i);
 	}
-	if (!trkpts[itrk1].size()) continue;
-	for (size_t itrk2 = itrk1+1; itrk2<trkpts.size(); ++itrk2){
-	  // quit if no points
-	  if (!trkpts[itrk2].size()) continue; 
-	  // only merge tracks from different TPCs
-	  if ((trkpts[itrk1][0].hit)->WireID().Cryostat == (trkpts[itrk2][0].hit)->WireID().Cryostat &&
-	      (trkpts[itrk1][0].hit)->WireID().TPC == (trkpts[itrk2][0].hit)->WireID().TPC) continue; 
-	  // compare end points and directions
-	  bool match = false;
-	  bool dis = (trkpts[itrk1][0].pos-trkpts[itrk2][0].pos).Mag();
-	  bool angle = trkpts[itrk1][0].dir.Angle(trkpts[itrk2][0].dir);
-	  if (dis<fDisCut&&(angle<fAngCut||TMath::Pi()-angle<fAngCut)) match = true;
-	  dis = (trkpts[itrk1][0].pos-trkpts[itrk2].back().pos).Mag();
-	  angle = trkpts[itrk1][0].dir.Angle(trkpts[itrk2].back().dir);
-	  if (dis<fDisCut&&(angle<fAngCut||TMath::Pi()-angle<fAngCut)) match = true;
-	  dis = (trkpts[itrk1].back().pos-trkpts[itrk2][0].pos).Mag();
-	  angle = trkpts[itrk1].back().dir.Angle(trkpts[itrk2][0].dir);
-	  if (dis<fDisCut&&(angle<fAngCut||TMath::Pi()-angle<fAngCut)) match = true;
-	  dis = (trkpts[itrk1].back().pos-trkpts[itrk2].back().pos).Mag();
-	  angle = trkpts[itrk1].back().dir.Angle(trkpts[itrk2].back().dir);
-	  if (dis<fDisCut&&(angle<fAngCut||TMath::Pi()-angle<fAngCut)) match = true;
-	  if (match){
-	    int itrk = -1;
-	    for (size_t i = 0; i<trkidx.size(); ++i){
-	      for (size_t j = 0; j<trkidx[i].size(); ++j){
-		if (trkidx[i][j] == itrk1){
-		  itrk = i;
+      }
+      
+      //make recob::track and associations
+      for (size_t i = 0; i<trkidx.size(); ++i){
+	//all track points
+	std::vector<trkPoint> finaltrkpts;
+	//all the clusters associated with the current track
+	std::vector<art::Ptr<recob::Cluster>> clustersPerTrack;
+	//all hits
+	std::vector<art::Ptr<recob::Hit> > hitlist;
+	for(size_t j = 0; j<trkidx[i].size(); ++j){
+	  for (size_t k = 0; k<trkpts[trkidx[i][j]].size(); ++k){
+	    finaltrkpts.push_back(trkpts[trkidx[i][j]][k]);
+	    hitlist.push_back(trkpts[trkidx[i][j]][k].hit);
+	    for (size_t iclu = 0; iclu<matchedclusters[trkidx[i][j]].size(); ++iclu){
+	      art::Ptr <recob::Cluster> cluster(clusterListHandle,matchedclusters[trkidx[i][j]][iclu]);
+	      clustersPerTrack.push_back(cluster);
+	    }
+	  }//k
+	}//j
+	if (fStitchTracks){
+	  if (fSortDir=="+x") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_x0);
+	  if (fSortDir=="-x") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_x1);
+	  if (fSortDir=="+y") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_y0);
+	  if (fSortDir=="-y") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_y1);
+	  if (fSortDir=="+z") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_z0);
+	  if (fSortDir=="-z") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_z1);
+	}
+	size_t spStart = spcol->size();
+	std::vector<recob::SpacePoint> spacepoints;
+	for (size_t ipt = 0; ipt<finaltrkpts.size(); ++ipt){
+	  art::PtrVector<recob::Hit> sp_hits;
+	  sp_hits.push_back(finaltrkpts[ipt].hit);
+	  double hitcoord[3];
+	  hitcoord[0] = finaltrkpts[ipt].pos.X();
+	  hitcoord[1] = finaltrkpts[ipt].pos.Y();
+	  hitcoord[2] = finaltrkpts[ipt].pos.Z();
+	  //std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
+	  double err[6] = {util::kBogusD};
+	  recob::SpacePoint mysp(hitcoord, 
+				 err, 
+				 util::kBogusD, 
+				 spStart + spacepoints.size());//3d point at end of track
+	  spacepoints.push_back(mysp);
+	  spcol->push_back(mysp);   
+	  util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
+	}//ipt
+	size_t spEnd = spcol->size();
+	if(spacepoints.size()>0){
+	  // make a vector of the trajectory points along the track
+	  std::vector<TVector3> xyz(spacepoints.size());
+	  std::vector<TVector3> dircos(spacepoints.size());
+	  for(size_t s = 0; s < spacepoints.size(); ++s){
+	    xyz[s] = TVector3(spacepoints[s].XYZ());
+	    dircos[s] = finaltrkpts[s].dir;
+	    //flip direction if needed.
+	    if (spacepoints.size()>1){
+	      if (s==0){
+		TVector3 xyz1 = TVector3(spacepoints[s+1].XYZ());
+		TVector3 dir = xyz1-xyz[s];
+		if (dir.Angle(dircos[s])>0.8*TMath::Pi()){
+		  dircos[s] = -dircos[s];
+		}
+	      }
+	      else{
+		TVector3 dir = xyz[s]-xyz[s-1];
+		if (dir.Angle(dircos[s])>0.8*TMath::Pi()){
+		  dircos[s] = -dircos[s];
 		}
 	      }
 	    }
-	    if (itrk==-1){
-	      throw cet::exception("CosmicTracker")<<"Insistent track index";
-	    }
-	    bool found = false;
-	    for (size_t i = 0; i<trkidx[itrk].size(); ++i){
-	      if (trkidx[itrk][i]==itrk2) found = true;
-	    }
-	    if (!found) trkidx[itrk].push_back(itrk2);
-	  }
-	}//itrk2
-      }//itrk1
-    }//stitch
-    else{
-      trkidx.resize(trkpts.size());
-      for (size_t i = 0; i<trkpts.size(); ++i){
-	trkidx[i].push_back(i);
-      }
-    }
-
-    //make recob::track and associations
-    for (size_t i = 0; i<trkidx.size(); ++i){
-      //all track points
-      std::vector<trkPoint> finaltrkpts;
-      //all the clusters associated with the current track
-      std::vector<art::Ptr<recob::Cluster>> clustersPerTrack;
-      //all hits
-      std::vector<art::Ptr<recob::Hit> > hitlist;
-      for(size_t j = 0; j<trkidx[i].size(); ++j){
-	for (size_t k = 0; k<trkpts[trkidx[i][j]].size(); ++k){
-	  finaltrkpts.push_back(trkpts[trkidx[i][j]][k]);
-	  hitlist.push_back(trkpts[trkidx[i][j]][k].hit);
-	  for (size_t iclu = 0; iclu<matchedclusters[trkidx[i][j]].size(); ++iclu){
-	    art::Ptr <recob::Cluster> cluster(clusterListHandle,matchedclusters[trkidx[i][j]][iclu]);
-	    clustersPerTrack.push_back(cluster);
-	  }
-	}//k
-      }//j
-      if (fStitchTracks){
-	if (fSortDir=="+x") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_x0);
-	if (fSortDir=="-x") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_x1);
-	if (fSortDir=="+y") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_y0);
-	if (fSortDir=="-y") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_y1);
-	if (fSortDir=="+z") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_z0);
-	if (fSortDir=="-z") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_z1);
-      }
-      size_t spStart = spcol->size();
-      std::vector<recob::SpacePoint> spacepoints;
-      for (size_t ipt = 0; ipt<finaltrkpts.size(); ++ipt){
-	art::PtrVector<recob::Hit> sp_hits;
-	sp_hits.push_back(finaltrkpts[ipt].hit);
-	double hitcoord[3];
-	hitcoord[0] = finaltrkpts[ipt].pos.X();
-	hitcoord[1] = finaltrkpts[ipt].pos.Y();
-	hitcoord[2] = finaltrkpts[ipt].pos.Z();
-	//std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
-	double err[6] = {util::kBogusD};
-	recob::SpacePoint mysp(hitcoord, 
-			       err, 
-			       util::kBogusD, 
-			       spStart + spacepoints.size());//3d point at end of track
-	spacepoints.push_back(mysp);
-	spcol->push_back(mysp);   
-	util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
-      }//ipt
-      size_t spEnd = spcol->size();
-      if(spacepoints.size()>0){
-	// make a vector of the trajectory points along the track
-	std::vector<TVector3> xyz(spacepoints.size());
-	std::vector<TVector3> dircos(spacepoints.size());
-	for(size_t s = 0; s < spacepoints.size(); ++s){
-	  xyz[s] = TVector3(spacepoints[s].XYZ());
-	  dircos[s] = finaltrkpts[s].dir;
-	  //flip direction if needed.
-	  if (spacepoints.size()>1){
-	    if (s==0){
-	      TVector3 xyz1 = TVector3(spacepoints[s+1].XYZ());
-	      TVector3 dir = xyz1-xyz[s];
-	      if (dir.Angle(dircos[s])>0.8*TMath::Pi()){
-		dircos[s] = -dircos[s];
-	      }
-	    }
-	    else{
-	      TVector3 dir = xyz[s]-xyz[s-1];
-	      if (dir.Angle(dircos[s])>0.8*TMath::Pi()){
-		dircos[s] = -dircos[s];
-	      }
-	    }
-	  }
-	  //std::cout<<s<<" "<<xyz[s].X()<<" "<<xyz[s].Y()<<" "<<xyz[s].Z()<<" "<<dircos[s].X()<<" "<<dircos[s].Y()<<" "<<dircos[s].Z()<<std::endl;
-	}        
-	std::vector< std::vector<double> > dQdx;
-	std::vector<double> mom(2, util::kBogusD);
-	tcol->push_back(recob::Track(xyz, dircos, dQdx, mom, tcol->size()));
-	
-	// make associations between the track and space points
-	util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
-	
-	// now the track and clusters
-	util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
-	
-	// and the hits and track
-	std::vector<art::Ptr<recob::Hit> > trkhits;       
-	for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
-	  //if (fCTAlg.usehit[ihit] == 1){
-	  trkhits.push_back(hitlist[ihit]);
+	    //std::cout<<s<<" "<<xyz[s].X()<<" "<<xyz[s].Y()<<" "<<xyz[s].Z()<<" "<<dircos[s].X()<<" "<<dircos[s].Y()<<" "<<dircos[s].Z()<<std::endl;
+	  }        
+	  std::vector< std::vector<double> > dQdx;
+	  std::vector<double> mom(2, util::kBogusD);
+	  tcol->push_back(recob::Track(xyz, dircos, dQdx, mom, tcol->size()));
+	  
+	  // make associations between the track and space points
+	  util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
+	  
+	  // now the track and clusters
+	  util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
+	  
+	  // and the hits and track
+	  std::vector<art::Ptr<recob::Hit> > trkhits;       
+	  for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
+	    //if (fCTAlg.usehit[ihit] == 1){
+	    trkhits.push_back(hitlist[ihit]);
 	    //}
+	  }
+	  util::CreateAssn(*this, evt, *tcol, trkhits, *thassn);
 	}
-	util::CreateAssn(*this, evt, *tcol, trkhits, *thassn);
-      }
-
-    }//i
-
+	
+      }//i
+    }
     mf::LogVerbatim("Summary") << std::setfill('-') 
                                << std::setw(175) 
                                << "-" 

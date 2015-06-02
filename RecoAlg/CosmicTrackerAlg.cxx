@@ -28,6 +28,12 @@ bool SortByMultiplet(art::Ptr<recob::Hit> const& a,
   return a->LocalIndex() < b->LocalIndex(); // if still unresolved, it's a bug!
 }   
 */
+struct PlnLen{
+  unsigned short index;
+  float length;
+};
+
+bool greaterThan1 (PlnLen p1, PlnLen p2) { return (p1.length > p2.length);}
 
 namespace trkf{
 
@@ -41,9 +47,6 @@ namespace trkf{
   
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::SPTReco(std::vector<art::Ptr<recob::Hit> >&fHits){
-
-    //this sorting is for clustercrawler input so that the hit list starts from downstream
-    std::reverse(fHits.begin(), fHits.end());
 
     trajPos.clear();
     trajDir.clear();
@@ -59,8 +62,47 @@ namespace trkf{
     for (size_t i = 0; i<fHits.size(); ++i){
       trajHits[fHits[i]->WireID().Plane].push_back(fHits[i]);
     }
+
+    std::vector<PlnLen> spl;
+    PlnLen plnlen;
+    for(unsigned int ipl = 0; ipl < 3; ++ipl) {
+      plnlen.index = ipl;
+      plnlen.length = trajHits[ipl].size();
+      //if(plnlen.length > 0)
+      spl.push_back(plnlen);
+    }
+    std::sort (spl.begin(),spl.end(), greaterThan1);
+    // spl[0] has the most hits and spl.back() has the least
+
+    for (size_t ipl = 0; ipl <3; ++ipl){
+      if (!trajHits[ipl].size()) continue;
+      //if (ipl == spl[0].index) continue;
+      double xbeg0 = detprop->ConvertTicksToX(trajHits[spl[0].index][0]->PeakTime(),
+					      trajHits[spl[0].index][0]->WireID().Plane,
+					      trajHits[spl[0].index][0]->WireID().TPC,
+					      trajHits[spl[0].index][0]->WireID().Cryostat);
+      double xend0 = detprop->ConvertTicksToX(trajHits[spl[0].index].back()->PeakTime(),
+					      trajHits[spl[0].index].back()->WireID().Plane,
+					      trajHits[spl[0].index].back()->WireID().TPC,
+					      trajHits[spl[0].index].back()->WireID().Cryostat);
+      double xbeg1 = detprop->ConvertTicksToX(trajHits[ipl][0]->PeakTime(),
+					      trajHits[ipl][0]->WireID().Plane,
+					      trajHits[ipl][0]->WireID().TPC,
+					      trajHits[ipl][0]->WireID().Cryostat);
+      double xend1 = detprop->ConvertTicksToX(trajHits[ipl].back()->PeakTime(),
+					      trajHits[ipl].back()->WireID().Plane,
+					      trajHits[ipl].back()->WireID().TPC,
+					      trajHits[ipl].back()->WireID().Cryostat);
+      double dx1 = std::abs(xbeg0-xbeg1)+std::abs(xend0-xend1);
+      double dx2 = std::abs(xbeg0-xend1)+std::abs(xend0-xbeg1);
+      if (std::abs(xbeg1-xend1)>1&&dx2<dx1){
+	std::reverse(trajHits[ipl].begin(),trajHits[ipl].end());
+      }
+    }	
+
     // make the track trajectory
     for(size_t ipl = 0; ipl < 3; ++ipl) {
+      if (ipl == spl.back().index) continue;
       trajXW[ipl].resize(trajHits[ipl].size());
       trajChg[ipl].resize(trajHits[ipl].size());
       for(size_t iht = 0; iht < trajHits[ipl].size(); ++iht) {

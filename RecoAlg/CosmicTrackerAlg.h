@@ -34,10 +34,9 @@ namespace trkf
 
     void SPTReco(std::vector<art::Ptr<recob::Hit> >&fHits);
 
-    std::vector<unsigned int> usehit;
-    std::vector<double> spx;
-    std::vector<double> spy;
-    std::vector<double> spz;
+    //trajectory position and direction returned by TrackTrajectoryAlg
+    std::vector<TVector3> trajPos;
+    std::vector<TVector3> trajDir;
 
     //position and direction of each point on a track trajectory
     std::vector<TVector3> trkPos;
@@ -50,10 +49,6 @@ namespace trkf
     // track trajectory for a track under construction
 
     TrackTrajectoryAlg fTrackTrajectoryAlg;
-
-    //trajectory position and direction returned by TrackTrajectoryAlg
-    std::vector<TVector3> trajPos;
-    std::vector<TVector3> trajDir;
 
     //projection of trajectory points on wire planes
     std::vector<std::vector<std::vector<std::vector<double>>>> vw;
