@@ -471,6 +471,8 @@ namespace cluster {
       (std::string location, std::string marker = "") const;
     // Find the distance of closest approach between the end of a cluster and a (wire,tick) position
     float DoCA(short icl, unsigned short end, float vwire, float vtick);
+    // analyze hits in clusters
+//    void AnalyzeHits();
     
     /// Returns a pair of first and past-the-last index
     /// of all the contiguous hits belonging to the same multiplet
