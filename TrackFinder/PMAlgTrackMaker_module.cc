@@ -100,6 +100,16 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 {
 	std::vector< TVector3 > xyz, dircos;
+	std::vector< std::vector<double> > dst_dQdx;
+
+	std::map< size_t, std::vector<double> > src_dQdx;
+	src.GetRawdEdxSequence(src_dQdx, geo::kZ);
+
+	std::cout << "***************" << std::endl;
+	for (auto const& entry : src_dQdx)
+	{
+		std::cout << entry.first << " " << entry.second[5] << " " << entry.second[6] << std::endl;
+	}
 
 	for (size_t i = 0; i < src.Nodes().size() - 1; i++)
 		if (src.Nodes()[i]->Point3D() != src.Nodes()[i + 1]->Point3D())
@@ -114,7 +124,7 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	xyz.push_back(src.Nodes().back()->Point3D());
 	dircos.push_back(dircos.back());
 
-	return recob::Track(xyz, dircos);
+	return recob::Track(xyz, dircos, dst_dQdx);
 }
 // ------------------------------------------------------
 

@@ -29,6 +29,7 @@ class pma::Track3D
 {
 public:
 	enum ETrackEnd { kBegin = -1, kEnd = 1 };
+	enum EDirection { kForward = -1, kBackward = 1 };
 
 	Track3D(void);
 	~Track3D(void);
@@ -45,12 +46,56 @@ public:
 	pma::Hit3D* const & back() const { return fHits.back(); }
 	size_t size() const { return fHits.size(); }
 
+	double Length(size_t step = 1) const { return Length(0, size() - 1, step); }
+	double Length(size_t start, size_t stop, size_t step = 1) const;
+
 	void AddHits(const std::vector< art::Ptr<recob::Hit> >& hits);
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
 
 	std::vector< int > TPCs(void) const;
 	std::vector< int > Cryos(void) const;
+
+	int NextHit(int index, unsigned int view = geo::kZ, bool inclDisabled = false) const;
+	int PrevHit(int index, unsigned int view = geo::kZ, bool inclDisabled = false) const;
+
+	/// Length of the track part associated with index'th hit. Calculated as a half distance to
+	/// the preceding hit plus half distance to the subsequent hit. In case of the first (last)
+	/// hit - missing part is estimated as 1/4 of the distance to the next (previous) hit.
+	/// NOTE: only hits from a given view are considered; other hits are accounted for
+	/// segment lengths but overall dx is calculated between hits in given view.
+	double HitDxByView(size_t index, unsigned int view) const;
+
+	/// Sequence of <hit_index, (wire, drift, X, Y, Z, dE, dx, range)> values for the track,
+	/// hits tagged as outliers are skipped by default.
+	/** Results are pushed into the dedx vector given in the function arguments:
+
+	    hit (segment middle if many hits) 2D projection in view:
+	      dedx[n][0] = wire;
+	      dedx[n][1] = drift;
+
+	    hit (segment middle if many hits) 3D position [cm]:
+	      dedx[n][2] = X;
+	      dedx[n][3] = Y;
+	      dedx[n][4] = Z;
+
+	      dedx[n][5] = dE [now ADC], energy assigned to the segment;
+
+	      dedx[n][6] = dx [cm], length of the segment.
+
+	      dedx[n][7] = range, total length to the track endpoint;
+
+	    Parameters:
+	      dedx  - vector to store results (empty at the begining);
+	      view  - view (U, V or Z) from which dedx is created;
+	      skip  - number of hits to skip at the begining (first hit has poorly estimated segment
+	              length so it can be convenient to set skip=1 and handle first hit charge manually);
+	      inclDisabled - if true then artificial hits added with CompleteMissingWires() are used,
+	                     otherwise only true hits found in ADC are used.
+
+	    Return value: sum of ADC's of hits skipped at the begining. */
+	double GetRawdEdxSequence(std::map< size_t, std::vector<double> >& dedx, unsigned int view = geo::kZ,
+		unsigned int skip = 0, bool inclDisabled = false) const;
 
 	void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
 	bool HasRefPoint(TVector3* p) const;
@@ -96,6 +141,11 @@ private:
 	bool InitFromHits(int tpc, int cryo, float initEndSegW = 0.05F);
 	bool InitFromRefPoints(int tpc, int cryo);
 	void InitFromMiddle(int tpc, int cryo);
+
+	/// Distance to the nearest subsequent (dir = Track3D::kForward) or preceeding (dir = Track3D::kBackward)
+	/// hit in given view. In case of last (first) hit in this view the half-distance in opposite direction is
+	/// returned. Parameter secondDir is only for internal protection - please leave the default value.
+	double HitDxByView(size_t index, unsigned int view, Track3D::EDirection dir, bool secondDir = false) const;
 
 	void RebuildSegments(void);
 	bool SwapVertices(size_t v0, size_t v1);

@@ -655,6 +655,141 @@ std::vector< int > pma::Track3D::Cryos(void) const
 	return cryo_idxs;
 }
 
+double pma::Track3D::Length(size_t start, size_t stop, size_t step) const
+{
+	if (size() < 2) return 0.0;
+
+	if (start > stop)
+	{
+		size_t tmp = stop; stop = start; start = tmp;
+	}
+	if (start >= size() - 1) return 0.0;
+	if (stop >= size()) stop = size() - 1;
+
+	double result = 0.0;
+	pma::Hit3D *h1 = 0, *h0 = (*this)[start];
+
+	if (!step) step = 1;
+	size_t i = start + step;
+	while (i <= stop)
+	{
+		h1 = (*this)[i];
+		result += sqrt(pma::Dist2(h1->Point3D(), h0->Point3D()));
+		h0 = h1;
+		i += step;
+	}
+	if (i - step < stop) // last step jumped beyond the stop point
+	{                    // so need to add the last short segment
+		result += sqrt(pma::Dist2(h0->Point3D(), back()->Point3D()));
+	}
+	return result;
+}
+
+int pma::Track3D::NextHit(int index, unsigned int view, bool inclDisabled) const
+{
+	pma::Hit3D* hit = 0;
+	if (index < -1) index = -1;
+	while (++index < (int)size()) // look for the next index of hit from the view
+	{
+		hit = (*this)[index];
+		if (hit->View2D() == view)
+		{
+			if (inclDisabled) break;
+			else if (hit->IsEnabled()) break;
+		}
+	}
+	return index;
+}
+
+int pma::Track3D::PrevHit(int index, unsigned int view, bool inclDisabled) const
+{
+	pma::Hit3D* hit = 0;
+	if (index > (int)size()) index = (int)size();
+	while (--index >= 0) // look for the prev index of hit from the view
+	{
+		hit = (*this)[index];
+		if (hit->View2D() == view)
+		{
+			if (inclDisabled) break;
+			else if (hit->IsEnabled()) break;
+		}
+	}
+	return index;
+}
+
+double pma::Track3D::HitDxByView(size_t index, unsigned int view,
+	pma::Track3D::EDirection dir, bool secondDir) const
+{
+	pma::Hit3D* nexthit = 0;
+	pma::Hit3D* hit = (*this)[index];
+
+	if (hit->View2D() != view)
+	{
+		mf::LogWarning("pma::Track3D") << "Function used with the hit not matching specified view.";
+	}
+
+	double dx = 0.0; // [cm]
+	bool hitFound = false;
+	int i = index;
+	switch (dir)
+	{
+		case pma::Track3D::kForward:
+			while (!hitFound && (++i < (int)size()))
+			{
+				nexthit = (*this)[i];
+				dx += sqrt(pma::Dist2(hit->Point3D(), nexthit->Point3D()));
+				
+				if (nexthit->View2D() == view) hitFound = true;
+				else hitFound = false;
+
+				hit = nexthit;
+			}
+			if (!hitFound)
+			{
+				if (!secondDir) dx = 0.5 * HitDxByView(index, view, pma::Track3D::kBackward, true);
+				else { dx = Length(); mf::LogWarning("pma::Track3D") << "Single hit in this view."; }
+			}
+			break;
+
+		case pma::Track3D::kBackward:
+			while (!hitFound && (--i >= 0))
+			{
+				nexthit = (*this)[i];
+				dx += sqrt(pma::Dist2(hit->Point3D(), nexthit->Point3D()));
+
+				if (nexthit->View2D() == view) hitFound = true;
+				else hitFound = false;
+
+				hit = nexthit;
+			}
+			if (!hitFound)
+			{
+				if (!secondDir) dx = 0.5 * HitDxByView(index, view, pma::Track3D::kForward, true);
+				else { dx = Length(); mf::LogWarning("pma::Track3D") << "Single hit in this view."; }
+			}
+			break;
+
+		default:
+			mf::LogError("pma::Track3D") << "Direction undefined.";
+			break;
+	}
+	return dx;
+}
+
+double pma::Track3D::HitDxByView(size_t index, unsigned int view) const
+{
+	if (index < size())
+	{
+		return 0.5 * (HitDxByView(index, view, pma::Track3D::kForward)
+			+ HitDxByView(index, view, pma::Track3D::kBackward));
+	}
+	else
+	{
+		mf::LogError("pma::Track3D") << "Hit index out of range.";
+		return 0.0;
+	}
+}
+
 pma::Segment3D* pma::Track3D::NextSegment(pma::Node3D* vtx) const
 {
 	pma::Segment3D* seg = 0;
@@ -677,6 +812,105 @@ pma::Segment3D* pma::Track3D::PrevSegment(pma::Node3D* vtx) const
 		if (seg->Parent() == this) return seg;
 	}
 	return 0;
+}
+
+double pma::Track3D::GetRawdEdxSequence(
+		std::map< size_t, std::vector<double> >& dedx,
+		unsigned int view, unsigned int skip,
+		bool inclDisabled) const
+{
+	dedx.clear();
+
+	if (!size()) return 0.0;
+
+	size_t step = 1;
+
+	pma::Hit3D* hit = 0;
+
+	double dr, dR, dq, dEq, qSkipped = 0.0;
+
+	size_t j = NextHit(-1, view, inclDisabled), s = skip;
+	if (j >= size()) return 0.0F; // no charged hits at all
+	while (j < size()) // look for the first hit index
+	{
+		hit = (*this)[j];
+		dq = hit->SummedADC();
+		if (s) { qSkipped += dq; s--; }
+		else break;
+
+		j = NextHit(j, view, inclDisabled);
+	}
+
+	size_t jmax = PrevHit(size(), view, inclDisabled);
+
+	std::vector< size_t > indexes;
+	TVector3 p0(0., 0., 0.), p1(0., 0., 0.);
+	TVector2 c0(0., 0.), c1(0., 0.);
+	while (j <= jmax)
+	{
+		indexes.clear(); // prepare to collect hit indexes for used for this dE/dx entry
+
+		indexes.push_back(j);
+		hit = (*this)[j];
+
+		p0 = hit->Point3D();
+		p1 = hit->Point3D();
+
+		c0.Set(hit->Wire(), hit->PeakTime());
+		c1.Set(hit->Wire(), hit->PeakTime());
+
+		dEq = hit->SummedADC(); // [now it is ADC sum]
+
+		dr = HitDxByView(j, view, pma::Track3D::kForward); // protection against hits on the same position
+		dR = HitDxByView(j, view); // dx seen by j-th hit
+
+		size_t m = 1; // number of hits with charge > 0
+		while (((m < step) || (dR < 0.1) || (dr == 0.0)) && (j <= jmax))
+		{
+			j = NextHit(j, view); // just next, even if tagged as outlier
+			if (j > jmax) break; // no more hits in this view
+
+			hit = (*this)[j];
+			if (!inclDisabled && !hit->IsEnabled())
+			{
+				if (dr == 0.0) continue;
+				else break;
+			}
+			indexes.push_back(j);
+
+			p1 = hit->Point3D();
+
+			c1.Set(hit->Wire(), hit->PeakTime());
+
+			dq = hit->SummedADC();
+
+			dEq += dq;
+
+			dr = HitDxByView(j, view, pma::Track3D::kForward);
+			dR += HitDxByView(j, view);
+			m++;
+		}
+		p0 += p1; p0 *= 0.5;
+		c0 += c1; c0 *= 0.5;
+
+		double range = Length(0, j);
+
+		std::vector<double> trk_section;
+		trk_section.push_back(c0.X());
+		trk_section.push_back(c0.Y());
+		trk_section.push_back(p0.X());
+		trk_section.push_back(p0.Y());
+		trk_section.push_back(p0.Z());
+		trk_section.push_back(dEq);
+		trk_section.push_back(dR);
+		trk_section.push_back(range);
+
+		for (auto const idx : indexes) dedx[idx] = trk_section;
+
+		j = NextHit(j, view, inclDisabled);
+	}
+
+	return qSkipped;
 }
 
 void pma::Track3D::AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo)
