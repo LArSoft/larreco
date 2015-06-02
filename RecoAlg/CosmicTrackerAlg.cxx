@@ -189,16 +189,16 @@ namespace trkf{
       double ratio = v1.Dot(v2)/v2.Mag2();
       TVector3 pos = trajPos[ip1]+ratio*(trajPos[ip2]-trajPos[ip1]);
       trkPos.push_back(pos);
-      if (!trajDir[ip1].Mag()){
+      if (trajDir[ip1].Mag()){
 	trkDir.push_back(trajDir[ip1]);
       }
-      else if (!trajDir[ip2].Mag()){
+      else if (trajDir[ip2].Mag()){
 	trkDir.push_back(trajDir[ip2]);
       }
       else{//only got two trajectory points?
 	trkDir.push_back((trajPos[ip2]-trajPos[ip1]).Unit());
       }
-    }
+    }//i
   }
 
 }//namespace trkf
