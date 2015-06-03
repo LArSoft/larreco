@@ -81,6 +81,12 @@ standard_clusterana:
  PrintLevel:               0 # 0 = none, 1 = event summary, 2 += each MC particle, 3 += truth
 }
 
+standard_clusteringvalidation:
+{
+ module_type:        "ClusteringValidation"
+ HitsModuleLabel:    "dcheat"
+ ClusterModuleLabel: "blurredclustering"
+}
 
 standard_dbclusterana:
 { 
