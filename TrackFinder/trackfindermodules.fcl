@@ -25,9 +25,13 @@ standard_cctrackmaker:
 standard_pmalgtrackmaker:
 {
  module_type:         "PMAlgTrackMaker"
+ HitModuleLabel:      "hits"
  ClusterModuleLabel:  "cluster"
- CluMatchingAlg:      1   # 1: max cluster from each view, single track (just for tests)
-                          # 2: use existing assocs of clusters (from external algorithm)
+ CluMatchingAlg:      1           # 1: max cluster from each view, single track (just for tests)
+                                  # 2: use existing assocs of clusters (from external algorithm)
+ DebugMode:           false       # if set to true:
+                                  # - trajectory made from pma::Track3D nodes instead of hits
+                                  # - dQ/dx not saved
 }
 
 standard_featuretracker:

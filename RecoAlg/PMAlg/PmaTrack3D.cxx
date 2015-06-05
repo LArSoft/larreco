@@ -332,7 +332,7 @@ bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 	UpdateHitsRadius();
 	
 	//double g1 = GetObjFunction(true);
-	double g1 = Optimize(0, 0.0001F);
+	double g1 = Optimize(0, 0.01F);
 	mf::LogVerbatim("pma::Track3D") << "  g1 = " << g1;
 	//--------------------------------------------------
 
@@ -354,7 +354,7 @@ bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 	UpdateHitsRadius();
 
 	//double g2 = GetObjFunction(true);
-	double g2 = Optimize(0, 0.0001F);
+	double g2 = Optimize(0, 0.01F);
 	mf::LogVerbatim("pma::Track3D") << "  g2 = " << g2;
 	//--------------------------------------------------
 
@@ -454,7 +454,7 @@ bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 
 			MakeProjection();
 			UpdateHitsRadius();
-			Optimize(0, 0.0001F);
+			Optimize(0, 0.01F);
 		}
 		else
 		{
@@ -582,7 +582,7 @@ void pma::Track3D::InitFromMiddle(int tpc, int cryo)
 	MakeProjection();
 	UpdateHitsRadius();
 
-	Optimize(0, 0.0001F);
+	Optimize(0, 0.01F);
 }
 
 bool pma::Track3D::push_back(art::Ptr< recob::Hit > hit)
@@ -1070,7 +1070,7 @@ double pma::Track3D::GetObjFunction(bool suppressPenalty) const
 	return sum / fNodes.size();
 }
 
-double pma::Track3D::Optimize(int newVertices, double eps, bool selAllHits )
+double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits)
 {
 	if (!fNodes.size()) { mf::LogError("pma::Track3D") << "Track3D not initialized."; return 0.0; }
 
@@ -1119,7 +1119,7 @@ double pma::Track3D::Optimize(int newVertices, double eps, bool selAllHits )
 		} while (!stepDone && (stepIter < 5));
 
 		if (selAllHits && (size() / fNodes.size() < 300)) { SelectHits(); selAllHits = false; }
-		switch (newVertices)
+		switch (nNodes)
 		{
 			case 0: stop = true; break; // just optimize existing vertices
 
@@ -1137,27 +1137,27 @@ double pma::Track3D::Optimize(int newVertices, double eps, bool selAllHits )
 				break;
 
 			default: // grow and optimize until fixed number of vertices is added
-				if (newVertices > 12)
+				if (nNodes > 12)
 				{
-					if (AddNode()) { MakeProjection(); newVertices--; }
+					if (AddNode()) { MakeProjection(); nNodes--; }
 					else { mf::LogVerbatim("pma::Track3D") << "stop (3)"; stop = true; break; }
 
 					if (AddNode())
 					{
-						MakeProjection(); newVertices--;
-						if (AddNode()) newVertices--;
+						MakeProjection(); nNodes--;
+						if (AddNode()) nNodes--;
 					}
 				}
-				else if (newVertices > 4)
+				else if (nNodes > 4)
 				{
-					if (AddNode()) { MakeProjection(); newVertices--; }
+					if (AddNode()) { MakeProjection(); nNodes--; }
 					else { mf::LogVerbatim("pma::Track3D") << "stop (2)"; stop = true; break; }
 
-					if (AddNode()) newVertices--;
+					if (AddNode()) nNodes--;
 				}
 				else
 				{
-					if (AddNode()) { newVertices--; }
+					if (AddNode()) { nNodes--; }
 					else { mf::LogVerbatim("pma::Track3D") << "stop (1)"; stop = true; break; }
 				}
 				break;
@@ -1273,12 +1273,14 @@ void pma::Track3D::SortHits(void)
 		for (size_t i = 0; i < size(); i++)
 		{
 			(*this)[i] = hits_tmp[i];
-			std::cout
+			/*mf::LogVerbatim("pma::Track3D")
 				<< " w:" << hits_tmp[i]->Wire()
-				<< " d:" << hits_tmp[i]->PeakTime()
+				<< " d:["
+					<< hits_tmp[i]->Hit2DPtr()->StartTick()
+					<< "; " << hits_tmp[i]->PeakTime()
+					<< "; " << hits_tmp[i]->Hit2DPtr()->EndTick() << "]"
 				<< " f:" << hits_tmp[i]->GetSegFraction()
-				<< " p:" << hits_tmp[i]->View2D()
-				<< std::endl;
+				<< " p:" << hits_tmp[i]->View2D();*/
 		}
 	}
 	else mf::LogError("pma::Track3D") << "Hit sorting problem.";

@@ -12,6 +12,8 @@
 #include "RecoAlg/PMAlg/Utilities.h"
 #include "RecoAlg/PMAlg/PmaHit3D.h"
 
+#include "Utilities/DetectorProperties.h"
+
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 double pma::Dist2(const TVector2& v1, const TVector2& v2)
@@ -142,6 +144,28 @@ TVector3 pma::GetProjectionToSegment(const TVector3& p, const TVector3& p0, cons
 	TVector3 r(p0);
 	r += (v1 * b);
 	return r;
+}
+
+TVector2 pma::GetProjectionToPlane(const TVector3& p, unsigned int view, unsigned int tpc, unsigned int cryo)
+{
+	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<util::DetectorProperties> detprop;
+
+	return TVector2(
+		geom->TPC(tpc, cryo).Plane(view).WirePitch() * geom->WireCoordinate(p.Y(), p.Z(), view, tpc, cryo),
+		detprop->GetXTicksCoefficient(tpc, cryo) * detprop->ConvertXToTicks(p.X(), view, tpc, cryo)
+	);
+}
+
+TVector2 pma::WireDriftToCm(unsigned int wire, float drift, unsigned int view, unsigned int tpc, unsigned int cryo)
+{
+	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<util::DetectorProperties> detprop;
+
+	return TVector2(
+		geom->TPC(tpc, cryo).Plane(view).WirePitch() * wire,
+		detprop->GetXTicksCoefficient(tpc, cryo) * (drift - detprop->GetXTicksOffset(view, tpc, cryo))
+	);
 }
 
 bool pma::bTrajectory3DOrderLess::operator() (pma::Hit3D* h1, pma::Hit3D* h2)

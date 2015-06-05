@@ -42,7 +42,7 @@ pma::Hit3D::Hit3D(art::Ptr< recob::Hit > src) :
 	art::ServiceHandle< util::DetectorProperties > detprop;
 
 	double wpitch = geom->TPC(fTPC).Plane(fPlane).WirePitch();
-	double dpitch = detprop->GetXTicksCoefficient(fTPC, src->WireID().Cryostat); // or abs??
+	double dpitch = detprop->GetXTicksCoefficient(fTPC, src->WireID().Cryostat);
 
 	fPoint2D.Set(wpitch * fWire, dpitch * src->PeakTime());
 }

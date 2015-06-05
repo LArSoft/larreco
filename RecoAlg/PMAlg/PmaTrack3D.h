@@ -10,7 +10,8 @@
  *          developed later and with the work for the full-event topology optimization that is still
  *          under construction.
  *
- *          Current status: basic functionality for single segment optimization.
+ *          Progress:
+ *             May-June 2015:  basic functionality for single track 3D optimization and dQ/dx.
  */
 
 #ifndef PmaTrack3D_h
@@ -103,7 +104,7 @@ public:
 	double GetObjFunction(bool suppressPenalty = false) const;
 
 	/// Main optimization method.
-	double Optimize(int newVertices = -1, double eps = 0.01, bool selAllHits = true);
+	double Optimize(int nNodes = -1, double eps = 0.01, bool selAllHits = true);
 
 	pma::Segment3D* NextSegment(pma::Node3D* vtx) const;
 	pma::Segment3D* PrevSegment(pma::Node3D* vtx) const;

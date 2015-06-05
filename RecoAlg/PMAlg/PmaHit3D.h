@@ -84,11 +84,11 @@ private:
 	TVector3 fPoint3D;       // hit position in 3D space
 	TVector2 fPoint2D;       // hit position in 2D wire view, scaled to [cm]
 	TVector2 fProjection2D;  // projection to polygonal line in 2D wire view, scaled to [cm]
-	float fSegFraction;      // segment fraction set by projection
+	float fSegFraction;      // segment fraction set by the projection
 	float fSigmaFactor;      // impact factor on the objective function
 
 	bool fEnabled; // used or not in the optimisation - due to various reasons
-	bool fOutlier; // tagged as not really hit of this track (like delta ray)
+	bool fOutlier; // tagged as a not really hit of this track (like delta ray)
 
 };
 

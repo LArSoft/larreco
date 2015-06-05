@@ -6,6 +6,11 @@
 //
 // Creates 3D tracks using Projection Matching Algorithm,
 // see RecoAlg/PMAlg/PmaTrack3D.h for details.
+//
+// Progress:
+//    May-June 2015:  track finding and validating, no attempts to build
+//                    complex structures yet
+//
 ////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDProducer.h"
@@ -31,11 +36,17 @@
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 
+#include "RecoAlg/PMAlg/Utilities.h"
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 
 #include <memory>
 
 namespace trkf {
+
+typedef std::map< size_t, std::vector<double> > dedx_map;
+typedef std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > view_hitmap;
+typedef std::map< unsigned int, view_hitmap > tpc_view_hitmap;
+typedef std::map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
 
 class PMAlgTrackMaker : public art::EDProducer {
 public:
@@ -59,22 +70,36 @@ private:
 
 
   // ************* some common functionality **************
+  cryo_tpc_view_hitmap c_t_v_hits;
+  bool splitHits(const art::Event& evt);
+
+  std::vector<size_t> used_clusters, tried_clusters;
+  bool has(const std::vector<size_t>& v, size_t idx)
+  {
+  	for (auto c : v) if (c == idx) return true;
+  	return false;
+  }
+
   int maxCluster(
     art::Handle< std::vector<recob::Cluster> > clusters,
-    const art::FindManyP< recob::Hit >& fb,
+    const art::FindManyP< recob::Hit >& fbp,
     geo::View_t view, int* tpc);
   int maxCluster(
     art::Handle< std::vector<recob::Cluster> > clusters,
-    const art::FindManyP< recob::Hit >& fb,
-    float tmin, float tmax,
+    const art::FindManyP< recob::Hit >& fbp,
+    float tmin, float tmax, size_t min_clu_size,
     geo::View_t view, int tpc);
 
+  bool validate(const pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
   // ------------------------------------------------------
 
+  art::ServiceHandle< geo::Geometry > fGeom;
 
+  std::string fHitModuleLabel; // label for hits collection (used for trk validation)
   std::string fCluModuleLabel; // label for input cluster collection
   int fCluMatchingAlg;         // which algorithm for cluster association
+  bool fDebugMode;             // for debugging purposes, off by default
 
 };
 // ------------------------------------------------------
@@ -92,81 +117,182 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p)
 
 void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 {
+	fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
 	fCluModuleLabel = pset.get< std::string >("ClusterModuleLabel");
 	fCluMatchingAlg = pset.get< int >("CluMatchingAlg");
+	fDebugMode = pset.get< bool >("DebugMode");
 }
 // ------------------------------------------------------
 
 recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 {
 	std::vector< TVector3 > xyz, dircos;
-	std::vector< std::vector<double> > dst_dQdx;
+	std::vector< std::vector<double> > dst_dQdx; // [view][dQ/dx]
+	dst_dQdx.push_back(std::vector<double>()); // kU
+	dst_dQdx.push_back(std::vector<double>()); // kV
+	dst_dQdx.push_back(std::vector<double>()); // kZ
 
-	std::map< size_t, std::vector<double> > src_dQdx;
-	src.GetRawdEdxSequence(src_dQdx, geo::kZ);
+	unsigned int cryo = (unsigned int)src.Cryos().front();
+	unsigned int tpc = (unsigned int)src.TPCs().front();
 
-	for (size_t i = 0; i < src.size(); i++)
+	std::map< unsigned int, dedx_map > src_dQdx;
+	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kU))
 	{
-		xyz.push_back(src[i]->Point3D());
-
-		if (i < src.size() - 1)
-		{
-			TVector3 dc(src[i + 1]->Point3D());
-			dc -= src[i]->Point3D();
-			dc *= 1.0 / dc.Mag();
-			dircos.push_back(dc);
-		}
-		else dircos.push_back(dircos.back());
-
-		double dQ = 0., dx = 0., r = 0.;
-		std::vector<double> dqdx_entry;
-		auto it = src_dQdx.find(i);
-		if (it != src_dQdx.end())
-		{
-			dQ = it->second[5];
-			dx = it->second[6];
-			r = it->second[7];
-
-			if (dx > 0.) dqdx_entry.push_back(dQ/dx);
-			else dqdx_entry.push_back(0.);
-
-			dqdx_entry.push_back(r);
-		}
-		else
-		{
-			dqdx_entry.push_back(0.);
-			dqdx_entry.push_back(src.Length(0, i));
-		}
-		dst_dQdx.push_back(dqdx_entry);
+		src_dQdx[geo::kU] = dedx_map();
+		src.GetRawdEdxSequence(src_dQdx[geo::kU], geo::kU);
+	}
+	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kV))
+	{
+		src_dQdx[geo::kV] = dedx_map();
+		src.GetRawdEdxSequence(src_dQdx[geo::kV], geo::kV);
+	}
+	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kZ))
+	{
+		src_dQdx[geo::kZ] = dedx_map();
+		src.GetRawdEdxSequence(src_dQdx[geo::kZ], geo::kZ);
 	}
 
-//  only track nodes
-/*	for (size_t i = 0; i < src.Nodes().size() - 1; i++)
-		if (src.Nodes()[i]->Point3D() != src.Nodes()[i + 1]->Point3D())
+	if (fDebugMode) // trajectory from nodes (for debuging, dQ/dx not saved)
+	{
+		mf::LogVerbatim("PMAlgTrackMaker") << "DEBUG: save only nodes.";
+		for (size_t i = 0; i < src.Nodes().size(); i++)
 		{
 			xyz.push_back(src.Nodes()[i]->Point3D());
 
-			TVector3 dc(src.Nodes()[i + 1]->Point3D());
-			dc -= src.Nodes()[i]->Point3D();
-			dc *= 1.0 / dc.Mag();
-			dircos.push_back(dc);
+			if (i < src.Nodes().size() - 1)
+			{
+				TVector3 dc(src.Nodes()[i + 1]->Point3D());
+				dc -= src.Nodes()[i]->Point3D();
+				dc *= 1.0 / dc.Mag();
+				dircos.push_back(dc);
+			}
+			else dircos.push_back(dircos.back());
 		}
-	xyz.push_back(src.Nodes().back()->Point3D());
-	dircos.push_back(dircos.back());
-*/
+		return recob::Track(xyz, dircos);
+	}
+	else // trajectory from hits (use this!)
+	{
+		for (size_t i = 0; i < src.size(); i++)
+		{
+			xyz.push_back(src[i]->Point3D());
 
-	return recob::Track(xyz, dircos, dst_dQdx);
+			if (i < src.size() - 1)
+			{
+				TVector3 dc(src[i + 1]->Point3D());
+				dc -= src[i]->Point3D();
+				dc *= 1.0 / dc.Mag();
+				dircos.push_back(dc);
+			}
+			else dircos.push_back(dircos.back());
+
+			double dQ = 0., dx = 0.;
+			dst_dQdx[geo::kU].push_back(0.);
+			dst_dQdx[geo::kV].push_back(0.);
+			dst_dQdx[geo::kZ].push_back(0.);
+
+			for (auto const& m : src_dQdx)
+			{
+				auto it = m.second.find(i);
+				if (it != m.second.end())
+				{
+					dQ = it->second[5];
+					dx = it->second[6];
+					if (dx > 0.) dst_dQdx[m.first][i] = dQ/dx;
+					break;
+				}
+			}
+		}
+		if (xyz.size() != dircos.size())
+		{
+			mf::LogError("PMAlgTrackMaker") << "pma::Track3D to recob::Track conversion problem.";
+		}
+		return recob::Track(xyz, dircos, dst_dQdx);
+	}
 }
 // ------------------------------------------------------
+
+bool PMAlgTrackMaker::validate(const pma::Track3D& trk, unsigned int testView)
+{
+	double step = 0.3;
+	double max_d = 1.0;
+	double d2, max_d2 = max_d * max_d;
+	unsigned int nAll = 0, nPassed = 0;
+
+	TVector3 p(trk.front()->Point3D());
+	for (size_t i = 0; i < trk.Nodes().size() - 1; i++)
+	{
+		unsigned int tpc = trk.Nodes()[i]->TPC();
+		unsigned int cryo = trk.Nodes()[i]->Cryo();
+
+		std::vector< art::Ptr<recob::Hit> >& hits = c_t_v_hits[cryo][tpc][testView];
+
+		TVector3 vNext(trk.Nodes()[i + 1]->Point3D());
+		TVector3 vThis(trk.Nodes()[i]->Point3D());
+		TVector3 dc(vNext); dc -= vThis;
+		dc *= step / dc.Mag();
+
+		double f = pma::GetSegmentProjVector(p, vThis, vNext);
+		while (f < 1.0)
+		{
+			TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
+
+			for (const auto& h : hits)
+			{
+				d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
+				if (d2 < max_d2) { nPassed++; break; }
+			}
+			nAll++;
+
+			p += dc; f = pma::GetSegmentProjVector(p, vThis, vNext);
+		}
+		p = vNext;
+	}
+	double v = nPassed / (double)nAll;
+	mf::LogError("PMAlgTrackMaker") << "validate trk: " << v;
+
+	if (v > 0.8) return true;
+	else return false;
+}
+// ------------------------------------------------------
+
+bool PMAlgTrackMaker::splitHits(const art::Event& evt)
+{
+	art::Handle< std::vector<recob::Hit> > hitListHandle;
+	std::vector< art::Ptr<recob::Hit> > hitlist;
+	if (evt.getByLabel(fHitModuleLabel, hitListHandle))
+	{
+		art::fill_ptr_vector(hitlist, hitListHandle);
+		
+		unsigned int cryo, tpc, view;
+		for (auto const& h : hitlist)
+		{
+			cryo = h->WireID().Cryostat;
+			tpc = h->WireID().TPC;
+			view = h->WireID().Plane;
+
+			c_t_v_hits[cryo][tpc][view].push_back(h);
+		}
+		return true;
+	}
+	else return false;
+}
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
 	std::vector< pma::Track3D* > result;
 
+	if (!splitHits(evt))
+	{
+		mf::LogError("PMAlgTrackMaker") << "Hits not found in the event.";
+		return;
+	}
+
 	int retCode = 0;
 	switch (fCluMatchingAlg)
 	{
+		default:
 		case 1: retCode = fromMaxCluster(evt, result); break;
+
 		case 2: retCode = fromExistingAssocs(evt, result); break;
 	}
 	switch (retCode)
@@ -194,17 +320,17 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		double sp_pos[3], sp_err[6];
 		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
 
-		for (size_t t = 0; t < result.size(); t++)
+		for (auto const& trk : result)
 		{
-			tracks->push_back(convertFrom(*(result[t])));
+			tracks->push_back(convertFrom(*trk));
 
 			std::vector< art::Ptr< recob::Hit > > hits2d;
 			art::PtrVector< recob::Hit > sp_hits;
 
 			spStart = allsp->size();
-			for (size_t h = 0; h < result[t]->size(); h++)
+			for (size_t h = 0; h < trk->size(); h++)
 			{
-				pma::Hit3D* h3d = (*result[t])[h];
+				pma::Hit3D* h3d = (*trk)[h];
 				hits2d.push_back(h3d->Hit2DPtr());
 
 				if ((h == 0) ||
@@ -253,16 +379,28 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Track3D* >& result)
 {
+	size_t minBuildSize = 4;
+
 	art::Handle< std::vector<recob::Cluster> > cluListHandle;
 	if (evt.getByLabel(fCluModuleLabel, cluListHandle))
 	{
 		art::FindManyP< recob::Hit > fbp(cluListHandle, evt, fCluModuleLabel);
 
+		tried_clusters.clear();
+		used_clusters.clear();  // start matching
+
 		int max_clu_tpc = -1;
-		int max_clu_idx = maxCluster(cluListHandle, fbp, geo::kZ, &max_clu_tpc);
-		if (max_clu_idx >= 0)
-		{	
-			std::vector< art::Ptr<recob::Hit> > v_coll = fbp.at(max_clu_idx);
+		int max_Coll_idx = maxCluster(cluListHandle, fbp, geo::kZ, &max_clu_tpc);
+		unsigned int nCollHits = (*cluListHandle)[max_Coll_idx].NHits();
+
+		if ((max_Coll_idx >= 0) && (nCollHits > minBuildSize))
+		{
+			tried_clusters.clear(); // tried for selected coll cluster
+
+			int idx, max_Ind2_idx, max_Ind1_idx;
+			std::vector< int > trk_clusters;
+
+			std::vector< art::Ptr<recob::Hit> > v_ind, v_coll = fbp.at(max_Coll_idx);
 
 			float tmax = v_coll.front()->PeakTime(), tmin = v_coll.front()->PeakTime(), t;
 			for (size_t j = 0; j < v_coll.size(); ++j)
@@ -272,38 +410,87 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 				if (t < tmin) { tmin = t; }
 			}
 
-			std::vector< art::Ptr<recob::Hit> > v_ind2;
-			max_clu_idx = maxCluster(cluListHandle, fbp, tmin, tmax, geo::kV, max_clu_tpc);
-			if (max_clu_idx >= 0) v_ind2 = fbp.at(max_clu_idx);
+			pma::Track3D* trk = new pma::Track3D(); // track candidate
+			tried_clusters.push_back(max_Coll_idx);
+			trk_clusters.push_back(max_Coll_idx);
 
-			std::vector< art::Ptr<recob::Hit> > v_ind1;
-			max_clu_idx = maxCluster(cluListHandle, fbp, tmin, tmax, geo::kU, max_clu_tpc);
-			if (max_clu_idx >= 0) v_ind1 = fbp.at(max_clu_idx);
+			mf::LogVerbatim("PMAlgTrackMaker") << "add coll:" << v_coll.size();
+			trk->AddHits(v_coll);
 
-			pma::Track3D* trk = new pma::Track3D();
-			if (v_coll.size() > 10) { trk->AddHits(v_coll); mf::LogVerbatim("PMAlgTrackMaker") << "add coll:" << v_coll.size(); }
-			if (v_ind2.size() > 10) { trk->AddHits(v_ind2); mf::LogVerbatim("PMAlgTrackMaker") << "add ind2:" << v_ind2.size(); }
-			if (v_ind1.size() > 10) { trk->AddHits(v_ind1); mf::LogVerbatim("PMAlgTrackMaker") << "add ind1:" << v_ind1.size(); }
+			// start matching here
 
-			mf::LogVerbatim("PMAlgTrackMaker") << "track size: " << trk->size();
-			std::vector< int > tpcs = trk->TPCs();
-			for (size_t t = 0; t < tpcs.size(); ++t)
+			max_Ind2_idx = maxCluster(cluListHandle, fbp, tmin, tmax, minBuildSize, geo::kV, max_clu_tpc);
+			max_Ind1_idx = maxCluster(cluListHandle, fbp, tmin, tmax, minBuildSize, geo::kU, max_clu_tpc);
+
+			unsigned int nInd2Hits = 0, nInd1Hits = 0;
+			if (max_Ind2_idx >= 0) nInd2Hits = (*cluListHandle)[max_Ind2_idx].NHits();
+			if (max_Ind1_idx >= 0) nInd1Hits = (*cluListHandle)[max_Ind1_idx].NHits();
+
+			bool try_build = true;
+			unsigned int testView = geo::kUnknown;
+			if ((nInd2Hits > nInd1Hits) && (nInd2Hits > minBuildSize))
 			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "  tpc:" << tpcs[t];
+				mf::LogVerbatim("PMAlgTrackMaker") << "add ind2" << nInd2Hits;
+				idx = max_Ind2_idx;
+				testView = geo::kU;
 			}
-			mf::LogVerbatim("PMAlgTrackMaker")
-				<< "  #coll:" << trk->NHits(geo::kZ)
-				<< "  #ind2:" << trk->NHits(geo::kV)
-				<< "  #ind1:" << trk->NHits(geo::kU);
+			else if (nInd1Hits > minBuildSize)
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "add ind1:" << nInd1Hits;
+				idx = max_Ind1_idx;
+				testView = geo::kV;
+			}
+			else try_build = false;
 
-			mf::LogVerbatim("PMAlgTrackMaker") << "  initialize trk";
-			trk->Initialize();
-			mf::LogVerbatim("PMAlgTrackMaker") << "  optimize trk";
-			trk->Optimize(2);
-			mf::LogVerbatim("PMAlgTrackMaker") << "  sort trk";
-			trk->SortHits();
+			if (try_build)
+			{
+				v_ind = fbp.at(idx);
+				tried_clusters.push_back(idx);
+				trk_clusters.push_back(idx);
+				trk->AddHits(v_ind);
 
-			result.push_back(trk);
+				mf::LogVerbatim("PMAlgTrackMaker") << "track size: " << trk->size();
+				std::vector< int > tpcs = trk->TPCs();
+				for (size_t t = 0; t < tpcs.size(); ++t)
+				{
+					mf::LogVerbatim("PMAlgTrackMaker") << "  tpc:" << tpcs[t];
+				}
+				mf::LogVerbatim("PMAlgTrackMaker")
+					<< "  #coll:" << trk->NHits(geo::kZ)
+					<< "  #ind2:" << trk->NHits(geo::kV)
+					<< "  #ind1:" << trk->NHits(geo::kU);
+
+
+				int nNodes, nSegments = nCollHits / (2 * (int)sqrt(nCollHits));
+				if (nSegments > 1) nNodes = nSegments - 1;
+				else nNodes = 0;
+
+				mf::LogVerbatim("PMAlgTrackMaker") << "  initialize trk";
+				trk->Initialize();
+				mf::LogVerbatim("PMAlgTrackMaker") << "  optimize trk (" << nSegments << " seg)";
+				if (nNodes) trk->Optimize(nNodes, 0.01F);   // build nodes
+				double g = trk->Optimize(0, 0.0001F);       // final tuning
+				mf::LogVerbatim("PMAlgTrackMaker") << "  done, g = " << g;
+				mf::LogVerbatim("PMAlgTrackMaker") << "  sort trk";
+				trk->SortHits();
+
+				if (validate(*trk, testView))
+				{
+					for (auto c : trk_clusters) used_clusters.push_back(c);
+					result.push_back(trk);
+				}
+				else
+				{
+					mf::LogVerbatim("PMAlgTrackMaker") << "track rejected";
+					delete trk;
+				}
+				// go to next matching
+			}
+			else
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "no matching clusters";
+				delete trk;
+			}
 		}
 		else
 		{
@@ -331,6 +518,8 @@ int PMAlgTrackMaker::maxCluster(
 
 	for (size_t i = 0; i < clusters->size(); ++i)
 	{
+		if (has(used_clusters, i) || has(tried_clusters, i)) continue;
+
 		std::vector< art::Ptr<recob::Hit> > v = fbp.at(i);
 
 		if ((v.front()->WireID().Plane == view) &&
@@ -352,14 +541,17 @@ int PMAlgTrackMaker::maxCluster(
 int PMAlgTrackMaker::maxCluster(
 	art::Handle< std::vector<recob::Cluster> > clusters,
 	const art::FindManyP< recob::Hit >& fbp,
-	float tmin, float tmax,
+	float tmin, float tmax, size_t min_clu_size,
 	geo::View_t view, int tpc)
 {
 	int idx = -1;
-	size_t min_clu_size = 10, s_max = 0, s;
+	size_t s_max = 0, s;
+	double fraction = 0.0;
 
 	for (size_t i = 0; i < clusters->size(); ++i)
 	{
+		if (has(used_clusters, i) || has(tried_clusters, i)) continue;
+
 		std::vector< art::Ptr<recob::Hit> > v = fbp.at(i);
 
 		if ((v.front()->WireID().Plane == view) &&
@@ -372,11 +564,12 @@ int PMAlgTrackMaker::maxCluster(
 
 			if ((s > min_clu_size) && (s > s_max))
 			{
-				s_max = s; idx = i;
+				s_max = s; idx = i; fraction = s / (double)v.size();
 			}
 		}
 	}
-	return idx;
+	if (fraction > 0.5) return idx;
+	else return -1;
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
