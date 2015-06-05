@@ -279,7 +279,7 @@ argoneut_clusterparamsalg.ChargeCutoffThreshold:  [200,400]
 argoneut_clusterparamsalg.ForceRightGoing:   true
 argoneut_smallclustalg:	@local::standard_smallclustalg
 argoneut_clustermatchtq:             @local::standard_clustermatchtq
-
+argoneut_clustermatchtq.KSCut:              0.5
 
 
 microboone_dbscanalg:                         @local::standard_dbscanalg_fast 
@@ -318,5 +318,5 @@ lbne35t_fuzzyclusteralg.HoughBaseAlg:      @local::lbne35t_houghbasealg
 #lbne35t_fuzzyclusteralg.Threshold:         -50.0
 lbne35t_clustercrawleralg:                 @local::standard_clustercrawleralg
 lbne35t_clustermatchtq:                    @local::standard_clustermatchtq
-
+lbne35t_clustermatchtq.KSCut:              0.7
 END_PROLOG
