@@ -1,14 +1,18 @@
-//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
 // Class:       ClusteringValidation
 // Module type: analyser
 // File:        ClusteringValidation_module.cc
 // Author:      Mike Wallbank (m.wallbank@sheffied.ac.uk), May 2015
 //
 // A module to validate clustering algorithms.
-// Compares the output of the clustering to the output of the hit finding
-// (specified in fcl files) and makes all validation plots.
-// Written to work over a pi0 sample.
-//////////////////////////////////////////////////////////////////////////////
+// Compares the output of different clustering algorithms run over a pi0 sample.
+// 
+// Usage: Specify the hit finder (HitsModuleLabel) and the clustering outputs
+// to validate (ClusterModuleLabels) in the fhicl file.
+// Module will make validation plots for all clusterings specified and also
+// produce comparison plots. Numbers of clusterings to analyse can be one or more.
+// Saves everything in the file validationHistograms.root.
+//////////////////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h" 
@@ -21,6 +25,7 @@
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "art/Framework/Core/FindManyP.h"
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
@@ -49,6 +54,8 @@
 #include "TCanvas.h"
 #include "TProfile.h"
 #include "TEfficiency.h"
+#include "TLegend.h"
+#include "TFolder.h"
 
 #include <map>
 #include <iostream>
@@ -58,6 +65,7 @@
 
 namespace ClusteringValidation {
   class ClusteringValidation;
+  class ClusterAnalyser;
   class ClusterCounter;
 }
 
@@ -69,8 +77,7 @@ typedef std::vector<TrackID> TrackIDs;
 class ClusteringValidation::ClusterCounter {
 public:
 
-  explicit ClusterCounter(unsigned int tpc, unsigned int plane);
-  ~ClusterCounter();
+  explicit ClusterCounter(unsigned int &tpc, unsigned int &plane);
 
   void				              AddHitPreClustering       (TrackID id);
   void				              AddSignalHitPostClustering(ClusterID id);
@@ -106,54 +113,9 @@ private:
 
 };
 
-class ClusteringValidation::ClusteringValidation : public art::EDAnalyzer {
-public:
-
-  explicit ClusteringValidation(fhicl::ParameterSet const &p);
-  virtual ~ClusteringValidation();
-
-  void                    analyze(art::Event const &evt);
-  TrackID                 FindTrackID(art::Ptr<recob::Hit> &hit);
-  TrackID                 FindTrueTrack(std::vector<art::Ptr<recob::Hit> > &clusterHits);
-  double                  FindPhotonAngle();
-  const simb::MCParticle* GetPi0();
-  double                  GetEndTrackDistance(TrackID id1, TrackID id2);
-  void                    beginJob();
-  void                    endJob();
-  void                    reconfigure(fhicl::ParameterSet const &p);
-
-private:
-
-  // Clustering to validate and the hits which the clustering was run over
-  std::string fClusterModuleLabel, fHitsModuleLabel;
-
-  // hists
-  TH1 *hCompleteness, *hCleanliness;
-  TH1 *hPi0Angle, *hPi0Energy, *hPi0ConversionDistance, *hPi0ConversionSeparation, *hPi0AngleCut, *hPi0EnergyCut, *hPi0ConversionDistanceCut, *hPi0ConversionSeparationCut;
-  TH2 *hNumHitsCompleteness, *hNumHitsEnergy;
-  TProfile *hCompletenessEnergy, *hCompletenessAngle, *hCompletenessConversionDistance, *hCompletenessConversionSeparation;
-  TProfile *hCleanlinessEnergy, *hCleanlinessAngle, *hCleanlinessConversionDistance, *hCleanlinessConversionSeparation;
-  TEfficiency *hEfficiencyAngle, *hEfficiencyEnergy, *hEfficiencyConversionDistance, *hEfficiencyConversionSeparation;
-  TCanvas *fCanvas;
-  TObjArray fHistArray;
-
-  std::map<unsigned int,std::map<unsigned int,ClusterCounter*> > clusterMap;
-  std::map<TrackID,const simb::MCParticle*>                      trueParticles;
-
-  art::ServiceHandle<geo::Geometry>      geometry;
-  art::ServiceHandle<cheat::BackTracker> backtracker;
-
-  // Average completenesses and cleanlinesses for all events
-  double totCompleteness = 0, totCleanliness = 0;
-  int nClusters = 0;
-
-};
-
-ClusteringValidation::ClusterCounter::ClusterCounter(unsigned int t, unsigned int p)  {
+ClusteringValidation::ClusterCounter::ClusterCounter(unsigned int &t, unsigned int &p) {
   tpc   = t;
   plane = p;
-}
-ClusteringValidation::ClusterCounter::~ClusterCounter() {
 }
 void ClusteringValidation::ClusterCounter::AddHitPreClustering(TrackID trackID) { ++numHitsPreClustering[trackID]; }
 void ClusteringValidation::ClusterCounter::AddSignalHitPostClustering(ClusterID clusID) { ++numSignalHitsPostClustering[clusID]; }
@@ -186,59 +148,101 @@ bool ClusteringValidation::ClusterCounter::PassesCut() {
   return pass;
 }
 
-ClusteringValidation::ClusteringValidation::ClusteringValidation(fhicl::ParameterSet const &pset) :  EDAnalyzer(pset) {
-  this->reconfigure(pset);
-  fCanvas = new TCanvas("fCanvas","",800,600);
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+class ClusteringValidation::ClusterAnalyser {
+public:
+
+  explicit ClusterAnalyser(std::string &label);
+
+  void                    Analyse(std::vector<art::Ptr<recob::Hit> > &hits, std::vector<art::Ptr<recob::Cluster> > &clusters, const art::FindManyP<recob::Hit> &fmh);
+  TrackID                 FindTrackID(art::Ptr<recob::Hit> &hit);
+  TrackID                 FindTrueTrack(std::vector<art::Ptr<recob::Hit> > &clusterHits);
+  double                  FindPhotonAngle();
+  double                  GetEndTrackDistance(TrackID id1, TrackID id2);
+  const simb::MCParticle* GetPi0();
+  TObjArray               GetHistograms();
+  void                    MakeHistograms();
+
+private:
+
+  // Clustering properties
+  std::string fClusterLabel;
+
+  // hists
+  TH1 *hCompleteness, *hCleanliness;
+  TH1 *hPi0Angle, *hPi0Energy, *hPi0ConversionDistance, *hPi0ConversionSeparation, *hPi0AngleCut, *hPi0EnergyCut, *hPi0ConversionDistanceCut, *hPi0ConversionSeparationCut;
+  TH2 *hNumHitsCompleteness, *hNumHitsEnergy;
+  TProfile *hCompletenessEnergy, *hCompletenessAngle, *hCompletenessConversionDistance, *hCompletenessConversionSeparation;
+  TProfile *hCleanlinessEnergy, *hCleanlinessAngle, *hCleanlinessConversionDistance, *hCleanlinessConversionSeparation;
+  TEfficiency *hEfficiencyAngle, *hEfficiencyEnergy, *hEfficiencyConversionDistance, *hEfficiencyConversionSeparation;
+  TObjArray fHistArray;
+
+  std::map<unsigned int,std::map<unsigned int,std::unique_ptr<ClusterCounter> > > clusterMap;
+  std::map<TrackID,const simb::MCParticle*>                                       trueParticles;
+
+  // Average completenesses and cleanlinesses for all events
+  double totCompleteness = 0, totCleanliness = 0;
+  int nClusters = 0;
+
+  // Services
+  art::ServiceHandle<geo::Geometry> geometry;
+  art::ServiceHandle<cheat::BackTracker> backtracker;
+
+};
+
+ClusteringValidation::ClusterAnalyser::ClusterAnalyser(std::string &clusterLabel) {
+
+  fClusterLabel = clusterLabel;
+
+  // Make the histograms
+  hCompleteness                     = new TH1D("Completeness",";Completeness;",101,0,1.01);
+  hCompletenessEnergy               = new TProfile("CompletenessEnergy",";True Energy (GeV);Completeness",100,0,2);
+  hCompletenessAngle                = new TProfile("CompletenessAngle",";True Angle (deg);Completeness;",100,0,180);
+  hCompletenessConversionDistance   = new TProfile("CompletenessConversionDistance",";True Distance from Vertex (cm);Completeness",100,0,200);
+  hCompletenessConversionSeparation = new TProfile("CompletenessConversionSeparation",";True Conversion Separation (cm);Completeness",100,0,200);
+  hCleanliness                      = new TH1D("Cleanliness",";Cleanliness;",101,0,1.01);
+  hCleanlinessEnergy                = new TProfile("CleanlinessEnergy",";True Energy (GeV);Cleanliness",100,0,2);
+  hCleanlinessAngle                 = new TProfile("CleanlinessAngle",";True Angle (deg);Cleanliness;",100,0,180);
+  hCleanlinessConversionDistance    = new TProfile("CleanlinessConversionDistance",";True Distance from Vertex (cm);Cleanliness",100,0,200);
+  hCleanlinessConversionSeparation  = new TProfile("CleanlinessConversionSeparation",";True Conversion Separation (cm);Cleanliness",100,0,200);
+  hPi0Energy                        = new TH1D("Pi0EnergyCut",";True Energy (GeV);",25,0,2);                                          hPi0Energy                 ->Sumw2();
+  hPi0Angle                         = new TH1D("Pi0AngleCut",";True Angle (deg);",25,0,180);                                          hPi0Angle                  ->Sumw2();
+  hPi0ConversionDistance            = new TH1D("Pi0ConversionDistanceCut",";True Distance from Vertex (cm);",25,0,200);               hPi0ConversionDistance     ->Sumw2();
+  hPi0ConversionSeparation          = new TH1D("Pi0ConversionSeparationCut",";True Separation from Vertex (cm);",25,0,200);           hPi0ConversionSeparation   ->Sumw2();
+  hPi0EnergyCut                     = new TH1D("Pi0EnergyCut",";True Energy (GeV);Efficiency",25,0,2);                                hPi0EnergyCut              ->Sumw2();
+  hPi0AngleCut                      = new TH1D("Pi0AngleCut",";True Angle (deg);Efficiency",25,0,180);                                hPi0AngleCut               ->Sumw2();
+  hPi0ConversionDistanceCut         = new TH1D("Pi0ConversionDistanceCut",";True Distance from Vertex (cm);Efficiency",25,0,200);     hPi0ConversionDistanceCut  ->Sumw2();
+  hPi0ConversionSeparationCut       = new TH1D("Pi0ConversionSeparationCut",";True Separation from Vertex (cm);Efficiency",25,0,200); hPi0ConversionSeparationCut->Sumw2();
+  hNumHitsCompleteness              = new TH2D("NumHitsCompleteness",";Completeness;Size of Cluster",101,0,1.01,100,0,100);
+  hNumHitsEnergy                    = new TH2D("NumHitsEnergy",";True Energy (GeV);Size of Cluster",100,0,2,100,0,100);
+
 }
 
-ClusteringValidation::ClusteringValidation::~ClusteringValidation() { }
-
-void ClusteringValidation::ClusteringValidation::reconfigure(fhicl::ParameterSet const& p) {
-  fClusterModuleLabel = p.get<std::string>("ClusterModuleLabel");
-  fHitsModuleLabel    = p.get<std::string>("HitsModuleLabel");
-}
-
-void ClusteringValidation::ClusteringValidation::analyze(art::Event const &evt)
-{
-  // Get the hits from the event
-  art::Handle<std::vector<recob::Hit> > hitHandle;
-  std::vector<art::Ptr<recob::Hit> > hits;
-  if (evt.getByLabel(fHitsModuleLabel,hitHandle))
-    art::fill_ptr_vector(hits, hitHandle);
-
-  // Get the clusters from the event
-  art::Handle<std::vector<recob::Cluster> > clusterHandle;
-  std::vector<art::Ptr<recob::Cluster> > clusters;
-  if (evt.getByLabel(fClusterModuleLabel,clusterHandle))
-    art::fill_ptr_vector(clusters, clusterHandle);
-
-  // Find the associations (the hits) for the clusters
-  art::FindManyP<recob::Hit> fmh(clusterHandle,evt,fClusterModuleLabel);
+void ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::Hit> > &hits, std::vector<art::Ptr<recob::Cluster> > &clusters, const art::FindManyP<recob::Hit> &fmh) {
 
   // Make a map of cluster counters in TPC/plane space
   for (unsigned int tpc = 0; tpc < geometry->NTPC(0); ++tpc) {
     for (unsigned int plane = 0; plane < geometry->Nplanes(tpc,0); ++plane) {
-      clusterMap[tpc][plane] = new ClusterCounter(tpc, plane);
+      clusterMap[tpc][plane] = (std::unique_ptr<ClusterCounter>) new ClusterCounter(tpc, plane);
     }
   }
 
-  // Loop over the preclustered hits first to save the info
+  // Save preclustered hits
   for (size_t hitIt = 0; hitIt < hits.size(); ++hitIt) {
     art::Ptr<recob::Hit> hit = hits.at(hitIt);
     TrackID trackID = FindTrackID(hit);
     clusterMap[hit->WireID().TPC][hit->WireID().Plane]->AddHitPreClustering(trackID);
   }
 
-  // Look at true particles in the event
+  // Save true tracks
   trueParticles.clear();
   const sim::ParticleList& particles = backtracker->ParticleList();
   for (sim::ParticleList::const_iterator particleIt = particles.begin(); particleIt != particles.end(); ++particleIt) {
     const simb::MCParticle *particle = particleIt->second;
     trueParticles[(TrackID)particle->TrackId()] = particle;
-    //std::cout << "True particle " << particle->TrackId() << " with pdg " << particle->PdgCode() << " which came from a " << particle->Mother() << " and process " << particle->Process() << std::endl;
   }
 
-  // Loop over clusters
+  // Save the clustered hits
   for (size_t clusIt = 0; clusIt < clusters.size(); ++clusIt) {
 
     // Get cluster information
@@ -260,49 +264,13 @@ void ClusteringValidation::ClusteringValidation::analyze(art::Event const &evt)
       if (trackID == trueTrackID) clusterMap[tpc][plane]->AddSignalHitPostClustering(id);
       else                        clusterMap[tpc][plane]->AddNoiseHitPostClustering (id);
     }
-
-  } // cluster loop
-
-  // Make plots
-  for (unsigned int tpc = 0; tpc < geometry->NTPC(0); ++tpc) {
-    for (unsigned int plane = 0; plane < geometry->Nplanes(tpc,0); ++plane) {
-      ClusterIDs clusterIDs = clusterMap[tpc][plane]->GetListOfClusterIDs();
-      if (clusterMap[tpc][plane]->GetPhotons().size() == 2) {
-	hPi0Angle               ->Fill(FindPhotonAngle());
-	hPi0Energy              ->Fill(GetPi0()->Momentum().E());
-	hPi0ConversionDistance  ->Fill(std::min(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, (TrackID)GetPi0()->TrackId()),
-						GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(1).first, (TrackID)GetPi0()->TrackId())));
-	hPi0ConversionSeparation->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first));
-	if (clusterMap[tpc][plane]->PassesCut()) {
-	  hPi0AngleCut               ->Fill(FindPhotonAngle());
-	  hPi0EnergyCut              ->Fill(GetPi0()->Momentum().E());
-	  hPi0ConversionDistanceCut  ->Fill(std::min(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, (TrackID)GetPi0()->TrackId()),
-						     GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(1).first, (TrackID)GetPi0()->TrackId())));
-	  hPi0ConversionSeparationCut->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first));
-	}
-      }
-      for (unsigned int cluster = 0; cluster < clusterIDs.size(); ++cluster) {
-	ClusterID clusID = clusterIDs.at(cluster); ++nClusters;
-	hCompleteness                  ->Fill(clusterMap[tpc][plane]->GetCompleteness(clusID)); totCompleteness += clusterMap[tpc][plane]->GetCompleteness(clusID);
-	hCleanliness                   ->Fill(clusterMap[tpc][plane]->GetCleanliness (clusID)); totCleanliness  += clusterMap[tpc][plane]->GetCleanliness (clusID);
-	hNumHitsCompleteness           ->Fill(clusterMap[tpc][plane]->GetCompleteness(clusID), clusterMap[tpc][plane]->GetNumberHitsInCluster(clusID));
-	if (clusterMap[tpc][plane]->IsNoise(clusID)) continue;
-	hCompletenessEnergy            ->Fill(GetPi0()->Momentum().E(),                                                                    clusterMap[tpc][plane]->GetCompleteness       (clusID));
-	hCompletenessAngle             ->Fill(FindPhotonAngle(),                                                                           clusterMap[tpc][plane]->GetCompleteness       (clusID));
-	hCompletenessConversionDistance->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetTrack(clusID), (TrackID)GetPi0()->TrackId()), clusterMap[tpc][plane]->GetCompleteness       (clusID));
-	hCleanlinessEnergy             ->Fill(GetPi0()->Momentum().E(),                                                                    clusterMap[tpc][plane]->GetCleanliness        (clusID));
-	hCleanlinessAngle              ->Fill(FindPhotonAngle(),                                                                           clusterMap[tpc][plane]->GetCleanliness        (clusID));
-	hCleanlinessConversionDistance ->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetTrack(clusID), (TrackID)GetPi0()->TrackId()), clusterMap[tpc][plane]->GetCleanliness        (clusID));
-	hNumHitsEnergy                 ->Fill(GetPi0()->Momentum().E(),                                                                    clusterMap[tpc][plane]->GetNumberHitsInCluster(clusID));
-	if (clusterMap[tpc][plane]->GetPhotons().size() != 2) continue;
-	hCompletenessConversionSeparation->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first), clusterMap[tpc][plane]->GetCompleteness(clusID));
-	hCleanlinessConversionSeparation ->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first), clusterMap[tpc][plane]->GetCleanliness (clusID));
-      }
-    }
   }
+
+  this->MakeHistograms();
+
 }
 
-TrackID ClusteringValidation::ClusteringValidation::FindTrackID(art::Ptr<recob::Hit> &hit) {
+TrackID ClusteringValidation::ClusterAnalyser::FindTrackID(art::Ptr<recob::Hit> &hit) {
   double particleEnergy = 0;
   TrackID likelyTrackID = (TrackID)0;
   std::vector<sim::TrackIDE> trackIDs = backtracker->HitToTrackID(hit);
@@ -315,7 +283,7 @@ TrackID ClusteringValidation::ClusteringValidation::FindTrackID(art::Ptr<recob::
   return likelyTrackID;
 }
 
-TrackID ClusteringValidation::ClusteringValidation::FindTrueTrack(std::vector<art::Ptr<recob::Hit> > &clusterHits) {
+TrackID ClusteringValidation::ClusterAnalyser::FindTrueTrack(std::vector<art::Ptr<recob::Hit> > &clusterHits) {
   std::map<TrackID,double> trackMap;
   for (std::vector<art::Ptr<recob::Hit> >::iterator clusHitIt = clusterHits.begin(); clusHitIt != clusterHits.end(); ++clusHitIt) {
     art::Ptr<recob::Hit> hit = *clusHitIt;
@@ -333,14 +301,14 @@ TrackID ClusteringValidation::ClusteringValidation::FindTrueTrack(std::vector<ar
   return clusterTrack;
 }
 
-double ClusteringValidation::ClusteringValidation::FindPhotonAngle() {
+double ClusteringValidation::ClusterAnalyser::FindPhotonAngle() {
   const simb::MCParticle* pi0 = GetPi0();
   if (pi0->NumberDaughters() != 2) return -999;
   double angle = (trueParticles.at((TrackID)pi0->Daughter(0))->Momentum().Angle(trueParticles.at((TrackID)pi0->Daughter(1))->Momentum().Vect()) * (180/TMath::Pi()));
   return angle;
 }
 
-const simb::MCParticle* ClusteringValidation::ClusteringValidation::GetPi0() {
+const simb::MCParticle* ClusteringValidation::ClusterAnalyser::GetPi0() {
   const simb::MCParticle* pi0 = nullptr;
   for (std::map<TrackID,const simb::MCParticle*>::iterator particleIt = trueParticles.begin(); particleIt != trueParticles.end(); ++particleIt)
     if (particleIt->second->PdgCode() == 111)
@@ -348,37 +316,15 @@ const simb::MCParticle* ClusteringValidation::ClusteringValidation::GetPi0() {
   return pi0;
 }
 
-double ClusteringValidation::ClusteringValidation::GetEndTrackDistance(TrackID id1, TrackID id2) {
+double ClusteringValidation::ClusterAnalyser::GetEndTrackDistance(TrackID id1, TrackID id2) {
   return TMath::Sqrt(TMath::Power(trueParticles.at(id1)->EndPosition().X() - trueParticles.at(id2)->EndPosition().X(),2)+
                      TMath::Power(trueParticles.at(id1)->EndPosition().Y() - trueParticles.at(id2)->EndPosition().Y(),2)+
 		     TMath::Power(trueParticles.at(id1)->EndPosition().Z() - trueParticles.at(id2)->EndPosition().Z(),2));
 }
 
-void ClusteringValidation::ClusteringValidation::beginJob() {
-  hCompleteness                     = new TH1D("Completeness",";Completeness;",101,0,1.01);
-  hCompletenessEnergy               = new TProfile("CompletenessEnergy",";True Energy (GeV);Completeness",100,0,2);
-  hCompletenessAngle                = new TProfile("CompletenessAngle",";True Angle (deg);Completeness;",100,0,180);
-  hCompletenessConversionDistance   = new TProfile("CompletenessConversionDistance",";True Distance from Vertex (cm);Completeness",100,0,200);
-  hCompletenessConversionSeparation = new TProfile("CompletenessConversionSeparation",";True Conversion Separation (cm);Completeness",100,0,200);
-  hCleanliness                      = new TH1D("Cleanliness",";Cleanliness;",101,0,1.01);
-  hCleanlinessEnergy                = new TProfile("CleanlinessEnergy",";True Energy (GeV);Cleanliness",100,0,2);
-  hCleanlinessAngle                 = new TProfile("CleanlinessAngle",";True Angle (deg);Cleanliness;",100,0,180);
-  hCleanlinessConversionDistance    = new TProfile("CleanlinessConversionDistance",";True Distance from Vertex (cm);Cleanliness",100,0,200);
-  hCleanlinessConversionSeparation  = new TProfile("CleanlinessConversionSeparation",";True Conversion Separation (cm);Cleanliness",100,0,200);
-  hPi0Energy                        = new TH1D("Pi0EnergyCut",";True Energy (GeV);",25,0,2);                                          hPi0Energy                 ->Sumw2();
-  hPi0Angle                         = new TH1D("Pi0AngleCut",";True Angle (deg);",25,0,180);                                          hPi0Angle                  ->Sumw2();
-  hPi0ConversionDistance            = new TH1D("Pi0ConversionDistanceCut",";True Distance from Vertex (cm);",25,0,200);               hPi0ConversionDistance     ->Sumw2();
-  hPi0ConversionSeparation          = new TH1D("Pi0ConversionSeparationCut",";True Separation from Vertex (cm);",25,0,200);           hPi0ConversionSeparation   ->Sumw2();
-  hPi0EnergyCut                     = new TH1D("Pi0EnergyCut",";True Energy (GeV);Efficiency",25,0,2);                                hPi0EnergyCut              ->Sumw2();
-  hPi0AngleCut                      = new TH1D("Pi0AngleCut",";True Angle (deg);Efficiency",25,0,180);                                hPi0AngleCut               ->Sumw2();
-  hPi0ConversionDistanceCut         = new TH1D("Pi0ConversionDistanceCut",";True Distance from Vertex (cm);Efficiency",25,0,200);     hPi0ConversionDistanceCut  ->Sumw2();
-  hPi0ConversionSeparationCut       = new TH1D("Pi0ConversionSeparationCut",";True Separation from Vertex (cm);Efficiency",25,0,200); hPi0ConversionSeparationCut->Sumw2();
-  hNumHitsCompleteness              = new TH2D("NumHitsCompleteness",";Completeness;Size of Cluster",101,0,1.01,100,0,100);
-  hNumHitsEnergy                    = new TH2D("NumHitsEnergy",";True Energy (GeV);Size of Cluster",100,0,2,100,0,100);
-}
+TObjArray ClusteringValidation::ClusterAnalyser::GetHistograms() {
 
-void ClusteringValidation::ClusteringValidation::endJob()
-{
+  // Make efficiency histograms
   hEfficiencyEnergy               = new TEfficiency(*hPi0EnergyCut,*hPi0Energy);
   hEfficiencyAngle                = new TEfficiency(*hPi0AngleCut,*hPi0Angle);
   hEfficiencyConversionDistance   = new TEfficiency(*hPi0ConversionDistanceCut,*hPi0ConversionDistance);
@@ -389,26 +335,198 @@ void ClusteringValidation::ClusteringValidation::endJob()
   hEfficiencyConversionDistance  ->SetName("EfficiencyConversionDistance");
   hEfficiencyConversionSeparation->SetName("EfficiencyConversionSeparation");
 
+  // Add all the histograms to the object array
   fHistArray.Add(hCompleteness);     fHistArray.Add(hCompletenessEnergy); fHistArray.Add(hCompletenessAngle); fHistArray.Add(hCompletenessConversionDistance); fHistArray.Add(hCompletenessConversionSeparation);
   fHistArray.Add(hCleanliness);      fHistArray.Add(hCleanlinessEnergy);  fHistArray.Add(hCleanlinessAngle);  fHistArray.Add(hCleanlinessConversionDistance);  fHistArray.Add(hCleanlinessConversionSeparation);
   fHistArray.Add(hEfficiencyEnergy); fHistArray.Add(hEfficiencyAngle);    fHistArray.Add(hEfficiencyConversionDistance); fHistArray.Add(hEfficiencyConversionSeparation);
-  fHistArray.Add(hNumHitsCompleteness); fHistArray.Add(hNumHitsEnergy);
+  fHistArray.Add(hNumHitsCompleteness); fHistArray.Add(hNumHitsEnergy);  
 
-  for (int histIt = 0; histIt < fHistArray.GetEntriesFast(); ++histIt) {
-    fCanvas->cd();
-    TH1* h = (TH1*)fHistArray.At(histIt);
-    h->Draw();
-    fCanvas->SaveAs(h->GetName()+TString(".png"));
+  return fHistArray;
+}
+
+void ClusteringValidation::ClusterAnalyser::MakeHistograms() {
+
+  // Loop over the tpcs and planes in the geometry
+  for (unsigned int tpc = 0; tpc < geometry->NTPC(0); ++tpc) {
+    for (unsigned int plane = 0; plane < geometry->Nplanes(tpc,0); ++plane) {
+
+      ClusterIDs clusterIDs = clusterMap[tpc][plane]->GetListOfClusterIDs();
+
+      // Save histograms for the efficiency
+      if (clusterMap[tpc][plane]->GetPhotons().size() == 2) {
+	hPi0Angle               ->Fill(FindPhotonAngle());
+	hPi0Energy              ->Fill(GetPi0()->Momentum().E());
+	hPi0ConversionDistance  ->Fill(std::min(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, (TrackID)GetPi0()->TrackId()),
+						GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(1).first, (TrackID)GetPi0()->TrackId())));
+	hPi0ConversionSeparation->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first));
+	if (clusterMap[tpc][plane]->PassesCut()) {
+	  hPi0AngleCut               ->Fill(FindPhotonAngle());
+	  hPi0EnergyCut              ->Fill(GetPi0()->Momentum().E());
+	  hPi0ConversionDistanceCut  ->Fill(std::min(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, (TrackID)GetPi0()->TrackId()),
+						     GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(1).first, (TrackID)GetPi0()->TrackId())));
+	  hPi0ConversionSeparationCut->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first));
+	}
+      }
+
+      // Look at all the clusters
+      for (unsigned int cluster = 0; cluster < clusterIDs.size(); ++cluster) {
+
+	ClusterID clusID = clusterIDs.at(cluster); ++nClusters;
+
+	// Fill histograms for this cluster
+	hCompleteness                  ->Fill(clusterMap[tpc][plane]->GetCompleteness(clusID)); totCompleteness += clusterMap[tpc][plane]->GetCompleteness(clusID);
+	hCleanliness                   ->Fill(clusterMap[tpc][plane]->GetCleanliness (clusID)); totCleanliness  += clusterMap[tpc][plane]->GetCleanliness (clusID);
+	hNumHitsCompleteness           ->Fill(clusterMap[tpc][plane]->GetCompleteness(clusID), clusterMap[tpc][plane]->GetNumberHitsInCluster(clusID));
+
+	// Is this cluster doesn't correspond to a true particle continue
+	if (clusterMap[tpc][plane]->IsNoise(clusID)) continue;
+
+	hCompletenessEnergy            ->Fill(GetPi0()->Momentum().E(),                                                                    clusterMap[tpc][plane]->GetCompleteness       (clusID));
+	hCompletenessAngle             ->Fill(FindPhotonAngle(),                                                                           clusterMap[tpc][plane]->GetCompleteness       (clusID));
+	hCompletenessConversionDistance->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetTrack(clusID), (TrackID)GetPi0()->TrackId()), clusterMap[tpc][plane]->GetCompleteness       (clusID));
+	hCleanlinessEnergy             ->Fill(GetPi0()->Momentum().E(),                                                                    clusterMap[tpc][plane]->GetCleanliness        (clusID));
+	hCleanlinessAngle              ->Fill(FindPhotonAngle(),                                                                           clusterMap[tpc][plane]->GetCleanliness        (clusID));
+	hCleanlinessConversionDistance ->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetTrack(clusID), (TrackID)GetPi0()->TrackId()), clusterMap[tpc][plane]->GetCleanliness        (clusID));
+	hNumHitsEnergy                 ->Fill(GetPi0()->Momentum().E(),                                                                    clusterMap[tpc][plane]->GetNumberHitsInCluster(clusID));
+
+	// Continue if there are not two photons in the view
+	if (clusterMap[tpc][plane]->GetPhotons().size() != 2) continue;
+
+	hCompletenessConversionSeparation->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first), clusterMap[tpc][plane]->GetCompleteness(clusID));
+	hCleanlinessConversionSeparation ->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first), clusterMap[tpc][plane]->GetCleanliness (clusID));
+      }
+
+    }
   }
 
-  // Average completeness/cleanliness
-  double avCompleteness = totCompleteness / nClusters;
-  double avCleanliness  = totCleanliness  / nClusters;
+}
 
-  // Write file
-  ofstream outFile("effpur");
-  outFile << avCompleteness << " " << avCleanliness;
-  outFile.close();
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+class ClusteringValidation::ClusteringValidation : public art::EDAnalyzer {
+public:
+
+  explicit ClusteringValidation(fhicl::ParameterSet const &p);
+
+  void analyze(art::Event const &evt);
+  void analyseClusters();
+  void beginJob();
+  void endJob();
+  void reconfigure(fhicl::ParameterSet const &p);
+
+private:
+
+  // Clusterings to compare and the hits which the clustering was run over
+  std::vector<std::string> fClusterModuleLabels;
+  std::string fHitsModuleLabel;
+
+  // Services
+  art::ServiceHandle<geo::Geometry>      geometry;
+  art::ServiceHandle<cheat::BackTracker> backtracker;
+
+  // Canvas to save histograms on
+  TCanvas *fCanvas;
+
+  // The cluster analysers
+  // -- one for each clustering type being compared
+  std::map<std::string,std::unique_ptr<ClusterAnalyser> > clusterAnalysis;
+
+};
+
+ClusteringValidation::ClusteringValidation::ClusteringValidation(fhicl::ParameterSet const &pset) :  EDAnalyzer(pset) {
+  this->reconfigure(pset);
+  fCanvas = new TCanvas("fCanvas","",800,600);
+}
+
+void ClusteringValidation::ClusteringValidation::reconfigure(fhicl::ParameterSet const& p) {
+  fClusterModuleLabels = p.get<std::vector<std::string> >("ClusterModuleLabels");
+  fHitsModuleLabel     = p.get<std::string>              ("HitsModuleLabel");
+}
+
+void ClusteringValidation::ClusteringValidation::analyze(art::Event const &evt)
+{
+  // Get the hits from the event
+  art::Handle<std::vector<recob::Hit> > hitHandle;
+  std::vector<art::Ptr<recob::Hit> > hits;
+  if (evt.getByLabel(fHitsModuleLabel,hitHandle))
+    art::fill_ptr_vector(hits, hitHandle);
+
+  // Get clustering information from event
+  // and give to the ClusterAnalyser to analyse
+  for (auto clustering : fClusterModuleLabels) {
+
+    // Get the clusters from the event
+    art::Handle<std::vector<recob::Cluster> > clusterHandle;
+    std::vector<art::Ptr<recob::Cluster> > clusters;
+    if (evt.getByLabel(clustering,clusterHandle))
+      art::fill_ptr_vector(clusters, clusterHandle);
+
+    // Find the associations (the hits) for the clusters
+    art::FindManyP<recob::Hit> fmh(clusterHandle,evt,clustering);
+
+    // Analyse this particular clustering
+    clusterAnalysis.at(clustering)->Analyse(hits, clusters, fmh);
+
+  }
+}
+
+void ClusteringValidation::ClusteringValidation::beginJob() {
+
+  // Construct the cluster analysers here
+  // -- one for each of the clustering types to compare
+  for (auto clustering : fClusterModuleLabels)
+    clusterAnalysis[clustering] = (std::unique_ptr<ClusterAnalyser>) new ClusterAnalyser(clustering);
+
+}
+
+void ClusteringValidation::ClusteringValidation::endJob() {
+
+  // Make a map of all the histograms for each clustering
+  std::map<std::string,TObjArray> allHistograms;
+  for (auto clustering : fClusterModuleLabels)
+    allHistograms[clustering] = clusterAnalysis.at(clustering)->GetHistograms();
+
+  // Write histograms to file
+  TFile *file = TFile::Open("validationHistograms.root","RECREATE");
+  for (auto clustering : fClusterModuleLabels) {
+    file->cd();
+    file->mkdir(clustering.c_str());
+    file->cd(clustering.c_str());
+    for (int histIt = 0; histIt < allHistograms.begin()->second.GetEntriesFast(); ++histIt)
+      allHistograms.at(clustering).At(histIt)->Write();
+  }
+
+  // Save images of overlaid histograms
+  for (int histIt = 0; histIt < allHistograms.begin()->second.GetEntriesFast(); ++histIt) {
+    fCanvas->cd();
+    fCanvas->Clear();
+    const char *name = allHistograms.begin()->second.At(histIt)->GetName();
+    TLegend *l = new TLegend(0.6,0.7,0.9,0.9,name,"brNDC");
+    int clusterings = 1;
+    for (std::map<std::string,TObjArray>::iterator clusteringIt = allHistograms.begin(); clusteringIt != allHistograms.end(); ++clusteringIt, ++clusterings) {
+      TH1* h = (TH1*)allHistograms.at(clusteringIt->first).At(histIt);
+      h->SetLineColor(clusterings);
+      h->SetMarkerColor(clusterings);
+      if (clusterings == 1) h->Draw();
+      else h->Draw("same");
+      l->AddEntry(h,clusteringIt->first.c_str(),"lp");
+    }
+    l->Draw("same");
+    //fCanvas->SaveAs(name+TString(".png"));
+    file->cd();
+    fCanvas->Write(name);
+  }
+
+  file->Close();
+  delete file;
+
+  // // Average completeness/cleanliness
+  // double avCompleteness = totCompleteness / nClusters;
+  // double avCleanliness  = totCleanliness  / nClusters;
+
+  // // Write file
+  // ofstream outFile("effpur");
+  // outFile << avCompleteness << " " << avCleanliness;
+  // outFile.close();
 
 }
 
