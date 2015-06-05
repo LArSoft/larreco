@@ -11,6 +11,10 @@
 //   
 //  mmelnimr@as.ua.edu
 //  April 2014
+//
+//  Major modifications to separate algorithms from the module and 
+//  use Bruce's TrackTrajectoryAlg to get trajectory points. T. Yang
+//  June 2015
 ////////////////////////////////////////////////////////////////////////
 
 // C++ includes
@@ -65,6 +69,15 @@ public:
   art::Ptr<recob::Hit> hit;
 };
 
+bool AnglesConsistent(const TVector3& p1, const TVector3& p2, const TVector3& a1, const TVector3& a2, double angcut){
+  double angle1 = a1.Angle(a2);
+  if (angle1>TMath::PiOver2()) angle1 = TMath::Pi() - angle1;
+  double angle2 = a1.Angle(p1-p2);
+  if (angle2>TMath::PiOver2()) angle2 = TMath::Pi() - angle2;
+  if (angle1<angcut&&angle2<angcut) return true;
+  else return false;
+}
+
 // compare end points and directions
 bool MatchTrack(const std::vector<trkPoint>& trkpts1, const std::vector<trkPoint>& trkpts2, double discut, double angcut){
   bool match = false;
@@ -72,18 +85,33 @@ bool MatchTrack(const std::vector<trkPoint>& trkpts1, const std::vector<trkPoint
   if (!trkpts2.size()) return match;
   if ((trkpts1[0].hit)->WireID().Cryostat == (trkpts2[0].hit)->WireID().Cryostat &&
       (trkpts1[0].hit)->WireID().TPC == (trkpts2[0].hit)->WireID().TPC) return match; 
-  double dis = (trkpts1[0].pos-trkpts2[0].pos).Mag();
-  double angle = trkpts1[0].dir.Angle(trkpts2[0].dir);
-  if (dis<discut&&(angle<angcut||TMath::Pi()-angle<angcut)) match = true;
-  dis = (trkpts1[0].pos-trkpts2.back().pos).Mag();
-  angle = trkpts1[0].dir.Angle(trkpts2.back().dir);
-  if (dis<discut&&(angle<angcut||TMath::Pi()-angle<angcut)) match = true;
-  dis = (trkpts1.back().pos-trkpts2[0].pos).Mag();
-  angle = trkpts1.back().dir.Angle(trkpts2[0].dir);
-  if (dis<discut&&(angle<angcut||TMath::Pi()-angle<angcut)) match = true;
-  dis = (trkpts1.back().pos-trkpts2.back().pos).Mag();
-  angle = trkpts1.back().dir.Angle(trkpts2.back().dir);
-  if (dis<discut&&(angle<angcut||TMath::Pi()-angle<angcut)) match = true;
+//  art::ServiceHandle<geo::Geometry> geom;
+//  const geo::TPCGeo &thetpc1 = geom->TPC((trkpts1[0].hit)->WireID().TPC, (trkpts1[0].hit)->WireID().Cryostat);
+//  const geo::TPCGeo &thetpc2 = geom->TPC((trkpts2[0].hit)->WireID().TPC, (trkpts2[0].hit)->WireID().Cryostat);
+
+  //std::cout<<trkpts1[0].pos.Y()<<" "<<trkpts1.back().pos.Y()<<" "<<trkpts1[0].pos.Z()<<" "<<trkpts1.back().pos.Z()<<std::endl;
+  //std::cout<<trkpts2[0].pos.Y()<<" "<<trkpts2.back().pos.Y()<<" "<<trkpts2[0].pos.Z()<<" "<<trkpts2.back().pos.Z()<<std::endl;
+
+//  if (thetpc1.InFiducialY(trkpts1[0].pos.Y(),5)&&
+//      thetpc1.InFiducialY(trkpts1.back().pos.Y(),5)&&
+//      thetpc1.InFiducialZ(trkpts1[0].pos.Z(),5)&&
+//      thetpc1.InFiducialZ(trkpts1.back().pos.Z(),5)) return match;
+//  //std::cout<<"pass 1"<<std::endl;
+//  if (thetpc2.InFiducialY(trkpts2[0].pos.Y(),5)&&
+//      thetpc2.InFiducialY(trkpts2.back().pos.Y(),5)&&
+//      thetpc2.InFiducialZ(trkpts2[0].pos.Z(),5)&&
+//      thetpc2.InFiducialZ(trkpts2.back().pos.Z(),5)) return match;
+//  //std::cout<<"pass 2"<<std::endl;
+
+  if (AnglesConsistent(trkpts1[0].pos, trkpts2[0].pos, 
+		       trkpts1[0].dir, trkpts2[0].dir, angcut)) match = true;
+  if (AnglesConsistent(trkpts1.back().pos, trkpts2[0].pos, 
+		       trkpts1.back().dir, trkpts2[0].dir, angcut)) match = true;
+  if (AnglesConsistent(trkpts1[0].pos, trkpts2.back().pos, 
+		       trkpts1[0].dir, trkpts2.back().dir, angcut)) match = true;
+  if (AnglesConsistent(trkpts1.back().pos, trkpts2.back().pos, 
+		       trkpts1.back().dir, trkpts2.back().dir, angcut)) match = true;
+
   return match;
 }
 
@@ -243,6 +271,7 @@ namespace trkf {
 	  hitlist.push_back(hits[ihit]);
 	}
       }
+      //reconstruct space points and directions
       fCTAlg.SPTReco(hitlist);
       for (size_t i = 0; i<hitlist.size(); ++i){
 	trkPoint trkpt;
@@ -270,7 +299,9 @@ namespace trkf {
 	  hitcoord[0] = fCTAlg.trajPos[ipt].X();
 	  hitcoord[1] = fCTAlg.trajPos[ipt].Y();
 	  hitcoord[2] = fCTAlg.trajPos[ipt].Z();
-	  //std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
+//	  if (itrk==1){
+//	    std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
+//	  }
 	  double err[6] = {util::kBogusD};
 	  recob::SpacePoint mysp(hitcoord, 
 				 err, 
@@ -330,9 +361,11 @@ namespace trkf {
       }
     }//itrk
 
+    // by default creates a spacepoint and direction for each hit
     if (!fTrajOnly){
       std::vector<std::vector<unsigned int>> trkidx;
-      if (fStitchTracks){//merge tracks from different TPCs
+      //stitch tracks from different TPCs
+      if (fStitchTracks){
 	for (size_t itrk1 = 0; itrk1<trkpts.size(); ++itrk1){
 	  for (size_t itrk2 = itrk1+1; itrk2<trkpts.size(); ++itrk2){
 	    if (MatchTrack(trkpts[itrk1], trkpts[itrk2], fDisCut, fAngCut)){
@@ -344,6 +377,7 @@ namespace trkf {
 		  if (trkidx[i][j]==itrk2) found2 = i;
 		}
 	      }
+	      //std::cout<<itrk1<<" "<<itrk2<<" "<<found1<<" "<<found2<<std::endl;
 	      if (found1==-1&&found2==-1){
 		std::vector<unsigned int> tmp;
 		tmp.push_back(itrk1);
@@ -355,6 +389,12 @@ namespace trkf {
 	      }
 	      else if(found1!=-1&&found2==-1){
 		trkidx[found1].push_back(itrk2);
+	      }
+	      else if (found1!=found2){//merge two vectors
+		trkidx[found1].insert(trkidx[found1].end(),
+				      trkidx[found2].begin(),
+				      trkidx[found2].end());
+		trkidx.erase(trkidx.begin()+found2);
 	      }
 	    }//found match
 	  }//itrk2

@@ -95,14 +95,15 @@ namespace trkf{
 					      trajHits[ipl].back()->WireID().Cryostat);
       double dx1 = std::abs(xbeg0-xbeg1)+std::abs(xend0-xend1);
       double dx2 = std::abs(xbeg0-xend1)+std::abs(xend0-xbeg1);
-      if (std::abs(xbeg1-xend1)>1&&dx2<dx1){
+      if (std::abs(xbeg1-xend1)>0.2 // this is to make sure the track is not completely flat in t, different by ~2.5 ticks
+	  &&dx2<dx1){
 	std::reverse(trajHits[ipl].begin(),trajHits[ipl].end());
       }
     }	
 
     // make the track trajectory
     for(size_t ipl = 0; ipl < 3; ++ipl) {
-      if (ipl == spl.back().index) continue;
+      //if (ipl == spl.back().index) continue;
       trajXW[ipl].resize(trajHits[ipl].size());
       trajChg[ipl].resize(trajHits[ipl].size());
       for(size_t iht = 0; iht < trajHits[ipl].size(); ++iht) {
