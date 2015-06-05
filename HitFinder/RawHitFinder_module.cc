@@ -169,21 +169,21 @@ namespace hit {
       (*this, evt, false /* doWireAssns */, true /* doRawDigitAssns */);
     
     
-    std::vector<float> startTimes;             // stores time of 1st local minimum
+    std::vector<float> startTimes;             // stores time of window start
     std::vector<float> maxTimes;    	     // stores time of local maximum    
-    std::vector<float> endTimes;    	     // stores time of 2nd local minimum
-    std::vector<float> peakHeight;    	     // stores time of 2nd local minimum
-   
-    
-   
-    std::vector<double> charge;         // stores the total charge assoc. with the hit (from the fit)
-    
+    std::vector<float> endTimes;    	     // stores time of window end
+    std::vector<float> peakHeight;    	     // stores adc counts at maximum
+    std::vector<float> hitrms;    	     // stores charge-weighted rms of time across hit
+    std::vector<double> charge;         // stores the total charge assoc. with the hit
+                             //   calculated as the sum of the ADC counts over the window    
     
     uint32_t channel      = 0;              // channel number
 
    
     double threshold       = 0.;             // minimum signal size for id'ing a hit
     double totSig = 0;
+    double myrms = 0;
+    double mynorm = 0;
     // double fitWidth        = 0.;             // hit fit width initial value
     // double minWidth        = 0.;             // minimum hit width
     geo::SigType_t sigType = geo::kInduction;// type of plane we are looking at
@@ -213,7 +213,7 @@ namespace hit {
       //now holder and rawadc should be filled correctly
       
       sigType       = geom->SignalType(channel);
-	
+      
       peakHeight.clear();
       endTimes.clear();
       startTimes.clear();
@@ -240,11 +240,11 @@ namespace hit {
 	while (bin<fDataSize) {  // loop over ticks
 	  float thisadc = holder[bin];
 	  if (thisadc<negthr) { // new region
-	    //std::cout << "new region" << bin << " " << thisadc << std::endl;
+	    //	    std::cout << "new region" << bin << " " << thisadc << std::endl;
 	    // step back to find zero crossing
 	    unsigned int place = bin;
-	    while (thisadc<0 && bin>0) {
-	      //  std::cout << bin << " " << thisadc << std::endl;
+	    while (thisadc<=0 && bin>0) {
+	      //	      std::cout << bin << " " << thisadc << std::endl;
 	      bin--;
 	      thisadc=holder[bin];
 	    }
@@ -253,14 +253,14 @@ namespace hit {
 
 	    // step back more to find the hit start time
 	    while (thisadc<threshold && bin>0) {
-	      //  std::cout << bin << " " << thisadc << std::endl;
+	      //	      std::cout << bin << " " << thisadc << std::endl;
 	      bin--;
 	      thisadc=holder[bin];
 	    }
 	    if (bin>=2) bin-=2;
 	    while (thisadc>threshold && bin>0) {
 	      
-	      //  std::cout << bin << " " << thisadc << std::endl;
+	      //	        std::cout << bin << " " << thisadc << std::endl;
 	      bin--;
 	      thisadc=holder[bin];
 	    }
@@ -272,22 +272,23 @@ namespace hit {
 
 	    totSig = 0;
 	    while (thisadc<negthr && bin<fDataSize) {
-	      //  std::cout << bin << " " << thisadc << std::endl;
+	      //	        std::cout << bin << " " << thisadc << std::endl;
 	      totSig += fabs(thisadc); 
 	      bin++;
 	      thisadc=holder[bin];
-	      //    std::cout << "ADC VALUE INDUCTION" << thisadc << std::endl;
+	      //	          std::cout << "ADC VALUE INDUCTION" << thisadc << std::endl;
 	      if (thisadc<minadc) minadc=thisadc;		
 	    }
 	    endTimes.push_back(bin-1);
 	    peakHeight.push_back(-1.0*minadc);
 	    charge.push_back(totSig);
-	    //std::cout << "TOTAL SIGNAL INDUCTION " << totSig << std::endl; 
+	    hitrms.push_back(5.0);
+	    // std::cout << "TOTAL SIGNAL INDUCTION " << totSig << std::endl; 
 	    // std::cout << "filled end times " << bin-1 << "peak height vector size " << peakHeight.size() << std::endl;
 	    
 	    // don't look for a new hit until it returns to baseline
 	    while (thisadc<0 && bin<fDataSize) {
-	    //   std::cout << bin << " " << thisadc << std::endl;
+	      //	      std::cout << bin << " " << thisadc << std::endl;
 	       bin++;
 	       thisadc=holder[bin];
 	    }
@@ -319,30 +320,39 @@ namespace hit {
 	  if (thisadc>madc) { // new region
 	    startTimes.push_back(bin);
 	    start = bin;
-	    
-	    while (thisadc>madc && bin<fDataSize) {
-	      madc=thisadc; ibin=bin;
-	      bin++;
-	      thisadc=holder[bin];
-	    }
-	    maxTimes.push_back(ibin-1);
-	    peakHeight.push_back(madc);
-	    
+	    bin++;
+	    // while (thisadc>madc && bin<fDataSize) {
+	    //   madc=thisadc; ibin=bin;
+	    //   bin++;
+	    //   thisadc=holder[bin];
+	    // }
 
 	    while (thisadc>threshold && bin<fDataSize) {
 	      bin++;
 	      thisadc=holder[bin];
+	      if (thisadc>madc) {ibin=bin; madc=thisadc;}
 	    }
+	    maxTimes.push_back(ibin-1);
+	    peakHeight.push_back(madc);	    
 	    endTimes.push_back(bin-1);
 	    end = bin-1;
 
 	    totSig = 0;
-	  
+	    myrms = 0;
+	    mynorm =0;
+
 	    for (int i = start; i <= end; i++){
 	      // std::cout << "CHARGE ON ADC####################### " << holder[i] << std::endl;
 	     totSig += holder[i];
-	    	}
+	     float temp2 = holder[i]*holder[i];
+	     mynorm += temp2;
+	     float temp = ibin-i-1;
+	     myrms += temp*temp*temp2;
+	     
+	    }
 	    charge.push_back(totSig);
+	    myrms/=mynorm;
+	    hitrms.push_back(myrms);
 
 	    //  nohits++;
 	    
@@ -364,7 +374,7 @@ namespace hit {
       double start(0), end(0);
       double amplitudeErr(0), positionErr(0);  //fit errors
       double goodnessOfFit(0), chargeErr(0);  //Chi2/NDF and error on charge
-      
+      double hrms(0);
       
       
       numHits = maxTimes.size();
@@ -378,20 +388,12 @@ namespace hit {
 	position      = maxTimes[i];
 	start         = startTimes[i];
 	end           = endTimes[i];
+	hrms = hitrms[i];
 	amplitudeErr  = -1;
 	positionErr   = 1.0;
 	goodnessOfFit = -1;
 	chargeErr = -1;
 	totSig = charge[i];
-
-	
-	// hitSig.resize(3);
- 	
-	// for(int sigPos = 0; sigPos < 3; ++sigPos){
-	//   hitSig[sigPos] = holder[position-1+sigPos];
-	// }              	    
-	
-
 	
 	// get the WireID for this hit
 	std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
@@ -408,7 +410,7 @@ namespace hit {
 			      wid,              // wire ID
 			      start,            // start_tick FIXME
 			      end,              // end_tick FIXME
-			      1.,              // rms FIXME
+			      hrms,              // rms FIXME
 			      position,         // peak_time
 			      positionErr,      // sigma_peak_time
 			      amplitude,        // peak_amplitude
