@@ -265,7 +265,7 @@ namespace trkf{
           } // iht
           // hit the end of trkChg without reaching totChg. Indicates an
           // incomplete set of hits. Break out and fit the last trajectory point
-          if(iht == trkChg[ipl].size()&&chgSum<0.8*totChg[ipl]) hitTheEnd = true;
+          if(iht == trkChg[ipl].size()&&chgSum<0.5*totChg[ipl]) hitTheEnd = true;
           if(hitTheEnd) break;
         } // ip
         if(hitTheEnd) break;
