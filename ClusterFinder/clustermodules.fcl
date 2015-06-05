@@ -5,7 +5,7 @@ BEGIN_PROLOG
 standard_blurredclustering:
 {
  module_type:          "BlurredClustering"
- CreateDebugPDF:       "true"
+ CreateDebugPDF:       "false"
  HitsModuleLabel:      "gaushit"
  BlurredClusteringAlg: @local::standard_blurredclusteringalg                              
 }
@@ -81,6 +81,12 @@ standard_clusterana:
  PrintLevel:               0 # 0 = none, 1 = event summary, 2 += each MC particle, 3 += truth
 }
 
+standard_clusteringvalidation:
+{
+ module_type:        "ClusteringValidation"
+ HitsModuleLabel:    "dcheat"
+ ClusterModuleLabel: "blurredclustering"
+}
 
 standard_dbclusterana:
 { 

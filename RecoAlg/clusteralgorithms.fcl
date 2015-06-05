@@ -39,11 +39,13 @@ standard_clustercrawleralg:
 standard_blurredclusteringalg:
 {
   BlurN:               4
-  BlurSigma:           2
+  BlurSigma:           4
   NeighboursThreshold: 0
   MinNeighbours:       0
   MinSize:             2
-  TimeThreshold:       20
+  MinSeed:             0.1
+  TimeThreshold:       40
+  ChargeThreshold:     0.07
 }
 
 standard_houghbasealg:
@@ -316,4 +318,5 @@ lbne35t_fuzzyclusteralg.HoughBaseAlg:      @local::lbne35t_houghbasealg
 #lbne35t_fuzzyclusteralg.Threshold:         -50.0
 lbne35t_clustercrawleralg:                 @local::standard_clustercrawleralg
 lbne35t_clustermatchtq:                    @local::standard_clustermatchtq
+
 END_PROLOG

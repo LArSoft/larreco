@@ -20,9 +20,6 @@ cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& p
   fLastKernel.clear();
   fLastBlurN = -1000;
   fLastSigma = -1000;
-  fMinHits = 3;
-  fMinSeed = 0.1;
-  fBlurredMin = 0.07;
 
   // For the debug PDF
   fDebugCanvas = NULL;
@@ -35,7 +32,9 @@ cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& p
   mf::LogInfo("Blurred Clustering") << "NeighboursThreshold: " << fNeighboursThreshold;
   mf::LogInfo("Blurred Clustering") << "MinNeighbours:       " << fMinNeighbours;
   mf::LogInfo("Blurred Clustering") << "MinSize:             " << fMinSize;
+  mf::LogInfo("Blurred Clustering") << "MinSeed:             " << fMinSeed;
   mf::LogInfo("Blurred Clustering") << "TimeThreshold:       " << fTimeThreshold;
+  mf::LogInfo("Blurred Clustering") << "ChargeThreshold:     " << fChargeThreshold;
 }
 
 cluster::BlurredClusteringAlg::~BlurredClusteringAlg() {
@@ -55,7 +54,9 @@ void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
   fNeighboursThreshold = p.get<int>   ("NeighboursThreshold");
   fMinNeighbours       = p.get<int>   ("MinNeighbours");
   fMinSize             = p.get<int>   ("MinSize");
+  fMinSeed             = p.get<double>("MinSeed");
   fTimeThreshold       = p.get<double>("TimeThreshold");
+  fChargeThreshold     = p.get<double>("ChargeThreshold");
 }
 
 
@@ -176,11 +177,9 @@ std::vector<art::PtrVector<recob::Hit> > cluster::BlurredClusteringAlg::ConvertB
 /// Takes hit map and returns a TH2 histogram of bar vs layer, with charge on z-axis
 TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> >* hits) {
 
-  // Define the size of this particular plane
+  // Define the size of this particular plane -- dynamically for the tick dimension to avoid huge histograms
   art::Ptr<recob::Hit> firstHit = *(hits->begin());
   fNWires = fGeom->Nwires(firstHit->WireID().Plane,firstHit->WireID().TPC,firstHit->WireID().Cryostat);
-  //fNTicks = fDetProp->ReadOutWindowSize();
-  // Try looping over all hits so the histogram isn't so huge!
   int lowerTick = fDetProp->ReadOutWindowSize(), upperTick = 0;
   for (std::vector<art::Ptr<recob::Hit> >::iterator hitIt = hits->begin(); hitIt != hits->end(); ++hitIt) {
     art::Ptr<recob::Hit> hit = *hitIt;
@@ -197,7 +196,6 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   planeImage << "blurred_plane" << firstHit->WireID().Plane << "_image";
 
   // Create a TH2 histogram
-  //TH2F image(planeImage.str().c_str(), planeImage.str().c_str(), fNWires, -0.5, fNWires - 0.5, fNTicks, -0.5, fNTicks - 0.5);
   TH2F image(planeImage.str().c_str(), planeImage.str().c_str(), fNWires, -0.5, fNWires - 0.5, (fUpperHistTick-fLowerHistTick), fLowerHistTick-0.5, fUpperHistTick-0.5);
   image.Clear();
   image.SetXTitle("Wire number");
@@ -376,7 +374,7 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
 	      continue;
 
 	    // Add to cluster if bin value is above threshold
-            if (blurred_binval > fBlurredMin) {
+            if (blurred_binval > fChargeThreshold) {
               used[bin] = true;
               cluster.push_back(bin);
               nadded++;
@@ -487,7 +485,7 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
 
 
 // Applies Gaussian blur to image
-TH2 *cluster::BlurredClusteringAlg::GaussianBlur(TH2 *image) {
+TH2* cluster::BlurredClusteringAlg::GaussianBlur(TH2* image) {
 
   // Create Gaussian kernel
   std::map<int,double> kernel;
@@ -605,7 +603,7 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F *image, std::vector<art::PtrV
       unsigned int wire = hit->WireID().Wire;
       float tick = hit->PeakTime();
       int bin = image->GetBin(wire+1,(tick-fLowerHistTick)+1);
-      if (cluster.size() < fMinHits)
+      if (cluster.size() < fMinSize)
         bin *= -1;
 
       clusterBins.push_back(bin);
@@ -650,11 +648,11 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F *image, std::vector<std::vect
   }
 
   std::stringstream title;
-  title << stage << " - TPC " << fTPC << ", Plane " << fPlane;
+  title << stage << " -- TPC " << fTPC << ", Plane " << fPlane;
 
   image->SetName(title.str().c_str());
   image->SetTitle(title.str().c_str());
-  image->DrawClone("COLZ");
+  image->DrawCopy("colz");
 
   int clusterNum = 2;
 
@@ -680,6 +678,9 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F *image, std::vector<std::vect
     }
   }
 
-  if (pad == 4)
+  if (pad == 4) {
     fDebugCanvas->Print(fDebugPDFName.c_str());
+    fDebugCanvas->Clear("D");
+  }
+
 }
