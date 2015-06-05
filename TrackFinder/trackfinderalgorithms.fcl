@@ -85,8 +85,13 @@ standard_kalmanfilteralg:
   GTraceZMax: [ 1040., 1040., 1040.]  # Graphical trace maximum z for each view
 }
 
+standard_cosmictrackeralg:
+{
+}
+
 argoneut_spacepointalg:      @local::standard_spacepointalg
 argoneut_kalmanfilteralg:    @local::standard_kalmanfilteralg
+argoneut_cosmictrackeralg:   @local::standard_cosmictrackeralg
 
 bo_spacepointalg: @local::standard_spacepointalg
 bo_spacepointalg.MinViews: 2
