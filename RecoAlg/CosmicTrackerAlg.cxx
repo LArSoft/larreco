@@ -115,6 +115,18 @@ namespace trkf{
       } // iht
     } // ip
     fTrackTrajectoryAlg.TrackTrajectory(trajXW, trajPos, trajDir, trajChg);
+    //remove duplicated points
+    for (auto ipos = trajPos.begin(), idir = trajDir.begin(); ipos != trajPos.end() - 1; ){
+      auto ipos1 = ipos +1;
+      if (*ipos1 == *ipos){
+	ipos = trajPos.erase(ipos);
+	idir = trajDir.erase(idir);
+      }
+      else{
+	++ipos;
+	++idir;
+      }
+    }
     vw.clear();
     vt.clear();
     vtraj.clear();
@@ -226,6 +238,7 @@ namespace trkf{
       TVector3 v2(wire_pitch*(vw[cstat][tpc][plane][ih2]-vw[cstat][tpc][plane][ih1]),
 		  time_pitch*(vt[cstat][tpc][plane][ih2]-vt[cstat][tpc][plane][ih1]),
 		  0);
+      //std::cout<<v1.X()<<" "<<v1.Y()<<" "<<v2.X()<<" "<<v2.Y()<<" "<<v1.Mag()<<" "<<v2.Mag()<<std::endl;
       if (!v2.Mag()){
 	throw cet::exception("CosmicTrackerAlg")<<"Two identical trajectory points.";
       }	
