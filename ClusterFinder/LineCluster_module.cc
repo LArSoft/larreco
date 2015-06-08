@@ -162,7 +162,7 @@ namespace cluster {
         return;
       }
       if(HitInCluster[iht] != clstr.ID) {
-        std::cout << "CC: InClus mis-match " << HitInCluster[iht]
+        mf::LogError("LineCluster") << "CC: InClus mis-match " << HitInCluster[iht]
           << " ID " << clstr.ID << " in cluster " << icl << "\n";
         return;
       }
