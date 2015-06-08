@@ -74,7 +74,7 @@ public:
 	virtual void ClearAssigned(pma::Track3D* trk = 0);
 
 private:
-	void LimitPoint3D(float margin = -3.0F); // default: let the node go out by 3cm
+	void LimitPoint3D(float margin = 3.0F); // default: let the node go out by 3cm
 	void UpdateProj2D(void);
 
 	double EndPtCos2Transverse(void) const;

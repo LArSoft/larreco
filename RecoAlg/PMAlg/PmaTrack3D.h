@@ -33,6 +33,7 @@ public:
 	enum EDirection { kForward = -1, kBackward = 1 };
 
 	Track3D(void);
+	Track3D(const Track3D& src);
 	~Track3D(void);
 
 	void Initialize(float initEndSegW = 0.05F);
