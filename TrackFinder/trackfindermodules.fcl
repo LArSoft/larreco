@@ -20,6 +20,7 @@ standard_cctrackmaker:
   AngleMatchErr:    0.02  # end angle match uncertainty
   ChgAsymFactor:  1       # scale rms by charge asymmetry * this factor
   PlnMatchMinLen: [10]    # match clusters > cut in PlnMatch on several passes
+  AngMatchMinLen:   10    # match clusters > cut in AngMatch
   MakePFPs:       true    # make PFParticles
   DebugPlane:    -1       # -1 = none
   DebugCluster:  -1
