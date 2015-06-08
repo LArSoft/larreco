@@ -73,7 +73,7 @@ namespace cluster {
       float EndChg;     // ending average charge
 			float EndChgNear; // charge near the cluster End
       short EndVtx;     // ID of the end vertex
-      std::vector<unsigned short> tclhits; // hits on the cluster
+      std::vector<unsigned int> tclhits; // hits on the cluster
     }; // ClusterStore
 
     /// struct of temporary 2D vertices (end points)
@@ -262,7 +262,7 @@ namespace cluster {
       unsigned short& firstwire, unsigned short& lastwire);
 
     // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
-    void FitClusterMid(unsigned short it1, unsigned short iht, short nhit);
+    void FitClusterMid(unsigned short it1, unsigned int iht, short nhit);
 
     // these variables define the cluster used during crawling
     float clpar[3];     ///< cluster parameters for the current fit with
@@ -327,11 +327,11 @@ namespace cluster {
 		bool clLA;					///< using Large Angle crawling code
     
     unsigned short fFirstWire;    ///< the first wire with a hit
-    unsigned short fFirstHit;     ///< first hit used
+    unsigned int fFirstHit;     ///< first hit used
     unsigned short fLastWire;      ///< the last wire with a hit
-    unsigned int cstat;         // the current cryostat
-    unsigned int tpc;         // the current TPC
-    unsigned int plane;         // the current plane
+    unsigned short cstat;         // the current cryostat
+    unsigned short tpc;         // the current TPC
+    unsigned short plane;         // the current plane
     unsigned short fNumWires;   // number of wires in the current plane
     unsigned short fMaxTime;    // number of time samples in the current plane
     float fScaleF;     ///< scale factor from Tick/Wire to dx/du
@@ -343,7 +343,7 @@ namespace cluster {
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector< std::pair<int, int> > WireHitRange;
     
-    std::vector<unsigned short> fcl2hits;  ///< vector of hits used in the cluster
+    std::vector<unsigned int> fcl2hits;  ///< vector of hits used in the cluster
     std::vector<float> chifits;   ///< fit chisq for monitoring kinks, etc
     std::vector<short> hitNear;   ///< Number of nearby
                                   ///< hits that were merged have hitnear < 0
@@ -388,7 +388,7 @@ namespace cluster {
     // If there are too many, merge the hits and re-fit
     void ChkClusterNearbyHits(bool prt);
     // merge the hits in a multiplet into one hit
-    void MergeHits(const unsigned short theHit, bool& didMerge);
+    void MergeHits(const unsigned int theHit, bool& didMerge);
     /// Resets the local index and multiplicity of all the hits in [begin;end[
     void FixMultipletLocalIndices
       (size_t begin, size_t end, short int multiplicity = -1);
@@ -431,8 +431,8 @@ namespace cluster {
     // cluster that is associated with the vertex
     bool CrawlVtxChk2();
     // use a vertex constraint to start a cluster
-    void VtxConstraint(unsigned short iwire, unsigned short ihit,
-      unsigned short jwire, unsigned short& useHit, bool& doConstrain);
+    void VtxConstraint(unsigned short iwire, unsigned int ihit,
+      unsigned short jwire, unsigned int& useHit, bool& doConstrain);
     // fit the vertex position
     void FitVtx(unsigned short iv);
     // weight and fit all vertices
@@ -471,8 +471,6 @@ namespace cluster {
       (std::string location, std::string marker = "") const;
     // Find the distance of closest approach between the end of a cluster and a (wire,tick) position
     float DoCA(short icl, unsigned short end, float vwire, float vtick);
-    // analyze hits in clusters
-//    void AnalyzeHits();
     
     /// Returns a pair of first and past-the-last index
     /// of all the contiguous hits belonging to the same multiplet
