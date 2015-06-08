@@ -30,7 +30,7 @@ standard_clustercrawleralg:
   HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
   ChkClusterDS:       true # Check reconstruction at DS end of clusters?
-  MergeOverlap:      false # Merge overlapping clusters?
+  MergeOverlap:       true # Merge overlapping clusters?
   VtxClusterSplit:    true # Split clusters that cross vertices
   FindStarVertices:   true # Find vertices with a star topology
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
@@ -301,6 +301,7 @@ microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
+# microboone_clustercrawleralg. TODO SPECIFY 4 PASSES HERE
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
