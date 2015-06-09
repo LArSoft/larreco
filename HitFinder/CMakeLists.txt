@@ -4,6 +4,7 @@ art_make_library( LIBRARY_NAME RFFHitFitter
 					   RFFHitFitter.cxx
                              LIBRARIES
                                                      ${ROOT_BASIC_LIB_LIST}
+						     ${Boost_SYSTEM_LIBRARY}
 )
 
 art_make( BASENAME_ONLY
