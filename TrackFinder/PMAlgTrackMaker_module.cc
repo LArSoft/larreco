@@ -5,13 +5,7 @@
 // Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl) and R.Sulej (Robert.Sulej@cern.ch), May 2015
 //
 // Creates 3D tracks using Projection Matching Algorithm,
-// see RecoAlg/PMAlg/PmaTrack3D.h for details.
-//
-// Progress:
-//    May-June 2015:  track finding and validation, quite a conservative iterative merging
-//                    of matching clusters and growing tracks, no attempts to consciously
-//                    build multi-track structures yet, however:
-//                    cosmic tracking works fine since they are sets of independent tracks
+// see RecoAlg/ProjectionMatchingAlg.h for details.
 //
 ////////////////////////////////////////////////////////////////////////
 
@@ -37,6 +31,8 @@
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
+
+#include "RecoAlg/ProjectionMatchingAlg.h"
 
 #include "RecoAlg/PMAlg/Utilities.h"
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
@@ -65,7 +61,7 @@ public:
 
 
 private:
-  // *** various methods to create tracks from clusters ***
+  // *** methods to create tracks from clusters ***
 
   // main function:
   int fromMaxCluster(const art::Event& evt, std::vector< pma::Track3D* >& result);
@@ -129,6 +125,8 @@ private:
   art::ServiceHandle< geo::Geometry > fGeom;
   art::ServiceHandle<util::DetectorProperties> fDetProp;
 
+  pma::ProjectionMatchingAlg fProjectionMatchingAlg;
+
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
   std::string fCluModuleLabel; // label for input cluster collection
   int fCluMatchingAlg;         // which algorithm for cluster association
@@ -137,7 +135,8 @@ private:
 };
 // ------------------------------------------------------
 
-PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p)
+PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
+	fProjectionMatchingAlg(p.get<fhicl::ParameterSet>("ProjectionMatchingAlg"))
 {
 	this->reconfigure(p);
 	produces< std::vector<recob::Track> >();
@@ -154,6 +153,8 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fCluModuleLabel = pset.get< std::string >("ClusterModuleLabel");
 	fCluMatchingAlg = pset.get< int >("CluMatchingAlg");
 	fDebugMode = pset.get< bool >("DebugMode");
+
+	fProjectionMatchingAlg.reconfigure(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg"));
 }
 // ------------------------------------------------------
 
