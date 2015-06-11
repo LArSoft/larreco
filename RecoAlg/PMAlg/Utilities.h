@@ -44,6 +44,7 @@ namespace pma
 
 	TVector2 GetProjectionToPlane(const TVector3& p, unsigned int view, unsigned int tpc, unsigned int cryo);
 	TVector2 WireDriftToCm(unsigned int wire, float drift, unsigned int view, unsigned int tpc, unsigned int cryo);
+	TVector2 CmToWireDrift(float xw, float yd, unsigned int view, unsigned int tpc, unsigned int cryo);
 }
 
 

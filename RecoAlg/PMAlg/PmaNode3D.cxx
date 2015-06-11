@@ -54,8 +54,6 @@ pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo) :
 	fWirePitch[1] = tpcGeo.Plane(geo::kV).WirePitch();
 	fWirePitch[2] = tpcGeo.Plane(geo::kZ).WirePitch();
 
-	fDriftPitch = fDetProp->GetXTicksCoefficient(tpc, cryo);
-
 	SetPoint3D(p3d);
 }
 
@@ -75,17 +73,17 @@ void pma::Node3D::UpdateProj2D(void)
 {
 	fProj2D[0].Set(
 		fWirePitch[0] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kU, fTPC, fCryo),
-		fDriftPitch * fDetProp->ConvertXToTicks(fPoint3D.X(), geo::kU, fTPC, fCryo)
+		fPoint3D.X()
 	);
 
 	fProj2D[1].Set(
 		fWirePitch[1] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kV, fTPC, fCryo),
-		fDriftPitch * fDetProp->ConvertXToTicks(fPoint3D.X(), geo::kV, fTPC, fCryo)
+		fPoint3D.X()
 	);
 
 	fProj2D[2].Set(
 		fWirePitch[2] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kZ, fTPC, fCryo),
-		fDriftPitch * fDetProp->ConvertXToTicks(fPoint3D.X(), geo::kZ, fTPC, fCryo)
+		fPoint3D.X()
 	);
 }
 

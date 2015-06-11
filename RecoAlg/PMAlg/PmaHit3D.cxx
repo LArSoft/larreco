@@ -5,7 +5,7 @@
  * 
  *  @brief  Implementation of the Projection Matching Algorithm
  *
- *          Hit 3D wrapped around recob::Hit. Adds support for PMA optimizations.
+ *          Hit 3D wrapped around recob::Hit. Support for PMA optimizations.
  *          See PmaTrack3D.h file for details.
  */
 
@@ -38,13 +38,7 @@ pma::Hit3D::Hit3D(art::Ptr< recob::Hit > src) :
 	fPlane = src->WireID().Plane;
 	fWire = src->WireID().Wire;
 
-	art::ServiceHandle< geo::Geometry > geom;
-	art::ServiceHandle< util::DetectorProperties > detprop;
-
-	double wpitch = geom->TPC(fTPC).Plane(fPlane).WirePitch();
-	double dpitch = detprop->GetXTicksCoefficient(fTPC, src->WireID().Cryostat);
-
-	fPoint2D.Set(wpitch * fWire, dpitch * src->PeakTime());
+	fPoint2D = pma::WireDriftToCm(fWire, src->PeakTime(), fPlane, fTPC, src->WireID().Cryostat);
 }
 
 pma::Hit3D::Hit3D(const pma::Hit3D& src) :

@@ -11,7 +11,7 @@
  *          under construction.
  *
  *          Progress:
- *             May-June 2015:  basic functionality for single track 3D optimization and dQ/dx.
+ *             May-June 2015:  basic functionality for single (not-branching) track 3D optimization and dQ/dx.
  */
 
 #ifndef PmaTrack3D_h
@@ -51,12 +51,23 @@ public:
 	double Length(size_t step = 1) const { return Length(0, size() - 1, step); }
 	double Length(size_t start, size_t stop, size_t step = 1) const;
 
+	double Dist2(const TVector2& p2d, unsigned int view) const;
+	double Dist2(const TVector3& p3d) const;
+
 	void AddHits(const std::vector< art::Ptr<recob::Hit> >& hits);
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
 
 	std::vector< int > TPCs(void) const;
 	std::vector< int > Cryos(void) const;
+
+	/// MSE of 2D hits.
+	double TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits,
+		bool normalized = true) const; // normalize to the number of hits
+
+	/// Count close 2D hits.
+	unsigned int TestHits(const std::vector< art::Ptr<recob::Hit> >& hits,
+		double dist = 0.4) const; // max acceptable distance [cm]
 
 	int NextHit(int index, unsigned int view = geo::kZ, bool inclDisabled = false) const;
 	int PrevHit(int index, unsigned int view = geo::kZ, bool inclDisabled = false) const;

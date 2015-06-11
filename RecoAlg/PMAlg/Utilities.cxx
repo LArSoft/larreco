@@ -149,11 +149,10 @@ TVector3 pma::GetProjectionToSegment(const TVector3& p, const TVector3& p0, cons
 TVector2 pma::GetProjectionToPlane(const TVector3& p, unsigned int view, unsigned int tpc, unsigned int cryo)
 {
 	art::ServiceHandle<geo::Geometry> geom;
-	art::ServiceHandle<util::DetectorProperties> detprop;
 
 	return TVector2(
 		geom->TPC(tpc, cryo).Plane(view).WirePitch() * geom->WireCoordinate(p.Y(), p.Z(), view, tpc, cryo),
-		detprop->GetXTicksCoefficient(tpc, cryo) * detprop->ConvertXToTicks(p.X(), view, tpc, cryo)
+		p.X()
 	);
 }
 
@@ -164,7 +163,18 @@ TVector2 pma::WireDriftToCm(unsigned int wire, float drift, unsigned int view, u
 
 	return TVector2(
 		geom->TPC(tpc, cryo).Plane(view).WirePitch() * wire,
-		detprop->GetXTicksCoefficient(tpc, cryo) * (drift - detprop->GetXTicksOffset(view, tpc, cryo))
+		detprop->ConvertTicksToX(drift, view, tpc, cryo)
+	);
+}
+
+TVector2 pma::CmToWireDrift(float xw, float yd, unsigned int view, unsigned int tpc, unsigned int cryo)
+{
+	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<util::DetectorProperties> detprop;
+
+	return TVector2(
+		xw / geom->TPC(tpc, cryo).Plane(view).WirePitch(),
+		detprop->ConvertXToTicks(yd, view, tpc, cryo)
 	);
 }
 
