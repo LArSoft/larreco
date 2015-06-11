@@ -157,13 +157,13 @@ namespace cluster {
       unsigned int iht = clstr.tclhits[ii];
       recob::Hit const& theHit = FinalHits->at(iht);
       if(theHit.WireID().Plane != plane) {
-        std::cout<<"CC: cluster-hit plane mis-match "<<theHit.WireID().Plane<<" "<<plane
-        <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<"\n";
+        mf::LogError("LineCluster")<<"Cluster-hit plane mis-match "<<theHit.WireID().Plane<<" "<<plane
+        <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" cluster CTP "<<clstr.CTP;
         return;
       }
       if(HitInCluster[iht] != clstr.ID) {
-        mf::LogError("LineCluster") << "CC: InClus mis-match " << HitInCluster[iht]
-          << " ID " << clstr.ID << " in cluster " << icl << "\n";
+        mf::LogError("LineCluster") << "InClus mis-match " << HitInCluster[iht]
+          << " ID " << clstr.ID << " in cluster ID " << clstr.ID<<" cluster ProcCode "<<clstr.ProcCode;;
         return;
       }
     } // ii
