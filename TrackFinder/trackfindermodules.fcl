@@ -102,20 +102,13 @@ standard_cosmictracker:
 {
  module_type:        "CosmicTracker"
  ClusterModuleLabel: "linemerger"
- #KScut:              0.9
- TMatch:             35
- SMatch:             1.0
- Toler1:             30    #tolerance in fit, 1st iteration
- Toler2:             20    #tolerance in fit, 2nd iteration
- #EnableU:            true
- #EnableV:            true
- #EnableZ:            true
- Debug:              false
- IsoHitCut:          100000
  SortDirection:      "+z"
- CleanUpHits:        false
- DirSPS:             false
+ StitchTracks:       false
+ DisCut:             20
+ AngCut:             0.1
+ TrajOnly:           false
  ClusterMatch:       @local::standard_clustermatchtq
+ CTAlg:              @local::standard_cosmictrackeralg
 }
 
 standard_track3Dkalman:

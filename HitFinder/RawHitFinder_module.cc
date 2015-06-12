@@ -219,6 +219,7 @@ namespace hit {
       startTimes.clear();
       maxTimes.clear();
       charge.clear();
+      hitrms.clear();
 
 
     // ###############################################
@@ -283,7 +284,7 @@ namespace hit {
 	    peakHeight.push_back(-1.0*minadc);
 	    charge.push_back(totSig);
 	    hitrms.push_back(5.0);
-	    // std::cout << "TOTAL SIGNAL INDUCTION " << totSig << std::endl; 
+	    //	    std::cout << "TOTAL SIGNAL INDUCTION " << totSig << "  5.0" << std::endl; 
 	    // std::cout << "filled end times " << bin-1 << "peak height vector size " << peakHeight.size() << std::endl;
 	    
 	    // don't look for a new hit until it returns to baseline
@@ -342,18 +343,18 @@ namespace hit {
 	    mynorm =0;
 
 	    for (int i = start; i <= end; i++){
-	      // std::cout << "CHARGE ON ADC####################### " << holder[i] << std::endl;
 	     totSig += holder[i];
 	     float temp2 = holder[i]*holder[i];
 	     mynorm += temp2;
-	     float temp = ibin-i-1;
+	     float temp = ibin-i-1.0;
 	     myrms += temp*temp*temp2;
 	     
 	    }
 	    charge.push_back(totSig);
 	    myrms/=mynorm;
-	    hitrms.push_back(myrms);
-
+	    hitrms.push_back(sqrt(myrms));
+	    //   std::cout << "CHARGE ON ADC####################### " << totSig 
+	    // << " RMS " << myrms << std::endl;
 	    //  nohits++;
 	    
 	    
@@ -380,8 +381,8 @@ namespace hit {
       numHits = maxTimes.size();
       for (int i=0;i<numHits;++i) {
 	//	int index = int(maxTimes[i]+0.5);
-	// std::cout << " Channel " << channel << " Hit " << i+1 << " Max Time " << maxTimes[i] << " Start Time " <<
-	//   startTimes[i] << " End Time " << endTimes[i] << " Peak Height " << peakHeight[i] << " Charge " << charge[i] << std::endl;
+	//	 std::cout << " Channel " << channel << " Hit " << i+1 << " Max Time " << maxTimes[i] << " Start//  Time " <<
+	   // startTimes[i] << " End Time " << endTimes[i] << " Peak Height " << peakHeight[i] << " Charge " << charge[i] << "  RMS  "  << hitrms[i] << std::endl;
 	
 	//	amplitude     = holder[index];
 	amplitude     = peakHeight[i];

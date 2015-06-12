@@ -224,9 +224,9 @@ namespace cluster{
     }//i
 
     for (size_t i = 0; i<matchedclusters.size(); ++i){
-      if (matchedclusters[i].size()) mf::LogVerbatim("CosmicTracker")<<"Cluster group "<<i<<":";
+      if (matchedclusters[i].size()) mf::LogVerbatim("ClusterMatchTQ")<<"Cluster group "<<i<<":";
       for (size_t j = 0; j<matchedclusters[i].size(); ++j){
-        mf::LogVerbatim("CosmicTracker")<<matchedclusters[i][j];
+        mf::LogVerbatim("ClusterMatchTQ")<<matchedclusters[i][j];
       }
     } 
 

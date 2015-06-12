@@ -85,7 +85,7 @@ standard_clusteringvalidation:
 {
  module_type:        "ClusteringValidation"
  HitsModuleLabel:    "dcheat"
- ClusterModuleLabel: "blurredclustering"
+ ClusterModuleLabel: [ "dbcluster", "blurredclustering" ]
 }
 
 standard_dbclusterana:
