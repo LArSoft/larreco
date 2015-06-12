@@ -8,13 +8,16 @@
 //      Build 3D segments and whole tracks by simultaneous matching hits in 2D projections.
 //      Based on the "Precise 3D track reco..." AHEP (2013) 260820, with all the tricks that we
 //      developed later and with the work for the full-event topology optimization that is still
-//      under construction.
+//      under construction (and porting to LArSoft implementation).
 //
-// Progress:
-//    May-June 2015:  track finding and validation, quite a conservative iterative merging
-//                    of matching clusters and growing tracks, no attempts to consciously
-//                    build multi-track structures yet, however:
-//                    cosmic tracking works fine since they are sets of independent tracks
+//      The algorithm class provides functionality to build the track from selected hits. These
+//      can be detailed tracks or just simple segments. The parameters of optimization algorithm,
+//      fixed nodes and 3D reference points can be configured here.
+//      Please, check the track finding modules to find a way of selecting appropriate clusteres:
+//        - PMAlgTrackMaker_module.cc
+//
+//      Note: not all parameters of the track optimization are available through .fcl, soon there
+//      will be more.
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -42,7 +45,6 @@
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 
-#include "RecoAlg/PMAlg/Utilities.h"
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 
 // ROOT & C++
@@ -62,14 +64,42 @@ public:
 
 	void reconfigure(const fhicl::ParameterSet& p);
 
+	double validate(const pma::Track3D& trk,
+		const std::vector< art::Ptr<recob::Hit> >& hits,
+		unsigned int testView) const;
+
+	unsigned int testHits(const pma::Track3D& trk,
+		const std::vector< art::Ptr<recob::Hit> >& hits) const
+	{ return trk.TestHits(hits, fHitTestingDist2D); }
+
+	pma::Track3D* buildTrack(
+		const std::vector< art::Ptr<recob::Hit> >& hits_1,
+		const std::vector< art::Ptr<recob::Hit> >& hits_2,
+		unsigned int testView) const;
+
+	pma::Track3D* extendTrack(
+		const pma::Track3D& trk,
+		const std::vector< art::Ptr<recob::Hit> >& hits,
+		bool add_nodes) const;
+
 private:
 
-  // Parameters used in the algorithm
+	// Parameters used in the algorithm
 
-  // Geometry and detector properties
-  art::ServiceHandle<geo::Geometry> fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
+	double fOptimizationEps;       // relative change in the obj.function that ends optimization,
+	                               // then next nodes are added or track building is finished
 
+	double fFineTuningEps;         // relative change in the obj.function that ends final tuning
+
+	double fTrkValidationDist2D;   // max. distance [cm] used in the track validation in the "third" plane
+	double fHitTestingDist2D;      // max. distance [cm] used in testing comp. of hits with the track
+
+	// Geometry and detector properties
+	art::ServiceHandle<geo::Geometry> fGeom;
+	art::ServiceHandle<util::DetectorProperties> fDetProp;
+
+
+	static size_t getSegCount(size_t trk_size);
 };
 
 #endif

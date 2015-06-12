@@ -58,8 +58,14 @@ public:
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
 
-	std::vector< int > TPCs(void) const;
-	std::vector< int > Cryos(void) const;
+	std::vector< unsigned int > TPCs(void) const;
+	std::vector< unsigned int > Cryos(void) const;
+
+	unsigned int FrontTPC(void) const { return fNodes.front()->TPC(); }
+	unsigned int FrontCryo(void) const { return fNodes.front()->Cryo(); }
+
+	unsigned int BackTPC(void) const { return fNodes.back()->TPC(); }
+	unsigned int BackCryo(void) const { return fNodes.back()->Cryo(); }
 
 	/// MSE of 2D hits.
 	double TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits,

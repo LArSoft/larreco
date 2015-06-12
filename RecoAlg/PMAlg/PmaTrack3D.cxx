@@ -646,12 +646,12 @@ unsigned int pma::Track3D::NEnabledHits(unsigned int view) const
 	return n;
 }
 
-std::vector< int > pma::Track3D::TPCs(void) const
+std::vector< unsigned int > pma::Track3D::TPCs(void) const
 {
-	std::vector< int > tpc_idxs;
+	std::vector< unsigned int > tpc_idxs;
 	for (size_t i = 0; i < size(); i++)
 	{
-		int tpc = (*this)[i]->TPC();
+		unsigned int tpc = (*this)[i]->TPC();
 
 		bool found = false;
 		for (size_t j = 0; j < tpc_idxs.size(); j++)
@@ -662,12 +662,12 @@ std::vector< int > pma::Track3D::TPCs(void) const
 	return tpc_idxs;
 }
 
-std::vector< int > pma::Track3D::Cryos(void) const
+std::vector< unsigned int > pma::Track3D::Cryos(void) const
 {
-	std::vector< int > cryo_idxs;
+	std::vector< unsigned int > cryo_idxs;
 	for (size_t i = 0; i < size(); i++)
 	{
-		int cryo = (*this)[i]->Cryo();
+		unsigned int cryo = (*this)[i]->Cryo();
 
 		bool found = false;
 		for (size_t j = 0; j < cryo_idxs.size(); j++)

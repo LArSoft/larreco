@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       PMAlgTrackMaker
 // Module Type: producer
 // File:        PMAlgTrackMaker_module.cc
@@ -7,7 +7,16 @@
 // Creates 3D tracks using Projection Matching Algorithm,
 // see RecoAlg/ProjectionMatchingAlg.h for details.
 //
-////////////////////////////////////////////////////////////////////////
+// The module is intended to loop over clusters wiht various logics. The ProjectionMatchingAlg
+// class is used to build / modify / verify tracks using settings that are configured for it.
+//
+// Progress:
+//    May-June 2015:  track finding and validation, quite a conservative iterative merging
+//                    of matching clusters and growing tracks, no attempts to consciously
+//                    build multi-track structures yet, however:
+//                    cosmic tracking works fine since they are sets of independent tracks
+//
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
@@ -34,7 +43,6 @@
 
 #include "RecoAlg/ProjectionMatchingAlg.h"
 
-#include "RecoAlg/PMAlg/Utilities.h"
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 
 #include <memory>
@@ -63,25 +71,20 @@ public:
 private:
   // *** methods to create tracks from clusters ***
 
-  // main function:
+  // loop over all clusters and build as much as possible to find
   int fromMaxCluster(const art::Event& evt, std::vector< pma::Track3D* >& result);
 
-  // loop over tpc's:
   void fromMaxCluster_tpc(
     std::vector< pma::Track3D* >& result,
     art::Handle< std::vector<recob::Cluster> > clusters,
     const art::FindManyP< recob::Hit >& fbp,
     size_t minBuildSize, unsigned int tpc, unsigned int cryo);
 
-  pma::Track3D* buildTrack(
-    const std::vector< art::Ptr<recob::Hit> >& hits1,
-    const std::vector< art::Ptr<recob::Hit> >& hits2,
-    unsigned int testView);
-
   pma::Track3D* extendTrack(
-    const pma::Track3D& trk,
-    double gmax, double vmin, unsigned int testView,
-    const std::vector< art::Ptr<recob::Hit> >& hits);
+	const pma::Track3D& trk,
+	const std::vector< art::Ptr<recob::Hit> >& hits,
+	double gmax, double vmin, unsigned int testView,
+	bool add_nodes);
 
   int matchCluster(
     const pma::Track3D& trk,
@@ -90,7 +93,9 @@ private:
 	size_t minSize, unsigned int preferedView, unsigned int testView,
 	unsigned int tpc, unsigned int cryo,
 	double fraction);
+  // ------------------------------------------------------
 
+  // build tracks from clusters associated by any other module - not yet implemented
   int fromExistingAssocs(const art::Event& evt, std::vector< pma::Track3D* >& result);
   // ------------------------------------------------------
 
@@ -125,18 +130,18 @@ private:
   art::ServiceHandle< geo::Geometry > fGeom;
   art::ServiceHandle<util::DetectorProperties> fDetProp;
 
-  pma::ProjectionMatchingAlg fProjectionMatchingAlg;
-
+  // ******************** parameters **********************
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
   std::string fCluModuleLabel; // label for input cluster collection
   int fCluMatchingAlg;         // which algorithm for cluster association
   bool fDebugMode;             // for debugging purposes, off by default
 
+  pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 };
 // ------------------------------------------------------
 
 PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
-	fProjectionMatchingAlg(p.get<fhicl::ParameterSet>("ProjectionMatchingAlg"))
+	fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg"))
 {
 	this->reconfigure(p);
 	produces< std::vector<recob::Track> >();
@@ -166,8 +171,8 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	dst_dQdx.push_back(std::vector<double>()); // kV
 	dst_dQdx.push_back(std::vector<double>()); // kZ
 
-	unsigned int cryo = (unsigned int)src.Cryos().front();
-	unsigned int tpc = (unsigned int)src.TPCs().front();
+	unsigned int cryo = src.FrontCryo();
+	unsigned int tpc = src.FrontTPC();
 
 	std::map< unsigned int, dedx_map > src_dQdx;
 	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kU))
@@ -254,51 +259,40 @@ double PMAlgTrackMaker::validate(const pma::Track3D& trk, unsigned int testView)
 	}
 	else mf::LogVerbatim("PMAlgTrackMaker") << "Validation in plane: " << testView;
 
-	double step = 0.3;
-	double max_d = 1.0;
-	double d2, max_d2 = max_d * max_d;
-	unsigned int nAll = 0, nPassed = 0;
-
-	TVector3 p(trk.front()->Point3D());
-	for (size_t i = 0; i < trk.Nodes().size() - 1; i++)
+	std::vector< art::Ptr<recob::Hit> >& hits = c_t_v_hits[trk.FrontCryo()][trk.FrontTPC()][testView];
+	if (hits.size() > 10)
 	{
-		unsigned int tpc = trk.Nodes()[i]->TPC();
-		unsigned int cryo = trk.Nodes()[i]->Cryo();
-
-		TVector3 vNext(trk.Nodes()[i + 1]->Point3D());
-		TVector3 vThis(trk.Nodes()[i]->Point3D());
-
-		std::vector< art::Ptr<recob::Hit> >& hits = c_t_v_hits[cryo][tpc][testView];
-		if (hits.size() > 10)
-		{
-			TVector3 dc(vNext); dc -= vThis;
-			dc *= step / dc.Mag();
-
-			double f = pma::GetSegmentProjVector(p, vThis, vNext);
-			while (f < 1.0)
-			{
-				TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
-
-				for (const auto& h : hits)
-				{
-					d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
-					if (d2 < max_d2) { nPassed++; break; }
-				}
-				nAll++;
-
-				p += dc; f = pma::GetSegmentProjVector(p, vThis, vNext);
-			}
-		}
-		else mf::LogWarning("PMAlgTrackMaker") << "  too few hits for validation: " << hits.size();
-		p = vNext;
+		return fProjectionMatchingAlg.validate(trk, hits, testView);
 	}
-	if (nAll > 3) // validate actually only if there are some hits in testView
+	else
 	{
-		double v = nPassed / (double)nAll;
-		mf::LogVerbatim("PMAlgTrackMaker") << "  trk fraction ok: " << v;
-		return v;
+		mf::LogWarning("PMAlgTrackMaker") << "  too few hits for validation: " << hits.size();
+		return 1.0;
 	}
-	else return 1.0;
+}
+// ------------------------------------------------------
+
+pma::Track3D* PMAlgTrackMaker::extendTrack(const pma::Track3D& trk,
+	const std::vector< art::Ptr<recob::Hit> >& hits,
+	double gmax, double vmin, unsigned int testView,
+	bool add_nodes)
+{
+	pma::Track3D* copy = fProjectionMatchingAlg.extendTrack(trk, hits, add_nodes);
+	double g1 = copy->GetObjFunction();
+	double v1 = validate(*copy, testView);
+
+	if ((g1 < 0.15) && (g1 <= gmax) && (v1 >= vmin))
+	{
+		mf::LogVerbatim("PMAlgTrackMaker") << "  track EXTENDED";
+		copy->SortHits();
+		return copy;
+	}
+	else
+	{
+		mf::LogVerbatim("PMAlgTrackMaker") << "  track NOT extended";
+		delete copy;
+		return 0;
+	}
 }
 // ------------------------------------------------------
 
@@ -309,7 +303,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 	if (evt.getByLabel(fHitModuleLabel, hitListHandle))
 	{
 		art::fill_ptr_vector(hitlist, hitListHandle);
-		
+
 		unsigned int cryo, tpc, view;
 		for (auto const& h : hitlist)
 		{
@@ -323,6 +317,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 	}
 	else return false;
 }
+// ------------------------------------------------------
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
@@ -423,6 +418,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
+// ------------------------------------------------------
 
 int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Track3D* >& result)
 {
@@ -483,7 +479,7 @@ int PMAlgTrackMaker::matchCluster(const pma::Track3D& trk,
 		    continue;
 
 		std::vector< art::Ptr<recob::Hit> > v = fbp.at(i);
-		n = trk.TestHits(v);
+		n = fProjectionMatchingAlg.testHits(trk, v);
 		f = n / (double)v.size();
 		if ((f > fraction) && (n > max))
 		{
@@ -497,76 +493,6 @@ int PMAlgTrackMaker::matchCluster(const pma::Track3D& trk,
 	return idx;
 }
 
-pma::Track3D* PMAlgTrackMaker::extendTrack(const pma::Track3D& trk,
-	double gmax, double vmin, unsigned int testView,
-	const std::vector< art::Ptr<recob::Hit> >& hits)
-{
-	pma::Track3D* copy = new pma::Track3D(trk);
-	copy->AddHits(hits);
-
-	size_t csize = copy->size();
-	mf::LogVerbatim("PMAlgTrackMaker") << "ext. track size: " << csize
-		<< "  #coll:" << copy->NHits(geo::kZ)
-		<< "  #ind2:" << copy->NHits(geo::kV)
-		<< "  #ind1:" << copy->NHits(geo::kU);
-
-	int nsegs = csize / (2 * (int)sqrt( csize ));
-	int nnodes = nsegs - copy->Nodes().size() + 1;
-	if (nnodes < 0) nnodes = 0;
-
-	double g1 = copy->Optimize(nnodes, 0.0001F);
-	double v1 = validate(*copy, testView);
-	mf::LogVerbatim("PMAlgTrackMaker") << "  reopt done, g = " << g1 << "; v = " << v1;
-
-	if ((g1 < 0.15) && (g1 <= gmax) && (v1 >= vmin))
-	{
-		mf::LogVerbatim("PMAlgTrackMaker") << "  track EXTENDED";
-		copy->SortHits();
-		return copy;
-	}
-	else
-	{
-		mf::LogVerbatim("PMAlgTrackMaker") << "  track NOT extended";
-		delete copy;
-		return 0;
-	}
-}
-
-pma::Track3D* PMAlgTrackMaker::buildTrack(
-	const std::vector< art::Ptr<recob::Hit> >& v_coll,
-	const std::vector< art::Ptr<recob::Hit> >& v_ind,
-	unsigned int testView)
-{
-	pma::Track3D* trk = new pma::Track3D(); // track candidate
-	trk->AddHits(v_coll);
-	trk->AddHits(v_ind);
-
-	mf::LogVerbatim("PMAlgTrackMaker") << "track size: " << trk->size();
-	std::vector< int > tpcs = trk->TPCs();
-	for (size_t t = 0; t < tpcs.size(); ++t)
-	{
-		mf::LogVerbatim("PMAlgTrackMaker") << "  tpc:" << tpcs[t];
-	}
-	mf::LogVerbatim("PMAlgTrackMaker")
-		<< "  #coll:" << trk->NHits(geo::kZ)
-		<< "  #ind2:" << trk->NHits(geo::kV)
-		<< "  #ind1:" << trk->NHits(geo::kU);
-
-
-	int nNodes, nSegments = trk->size() / (2 * (int)sqrt( trk->size() ));
-	if (nSegments > 1) nNodes = nSegments - 1;
-	else nNodes = 0;
-
-	mf::LogVerbatim("PMAlgTrackMaker") << "  initialize trk";
-	trk->Initialize();
-	mf::LogVerbatim("PMAlgTrackMaker") << "  optimize trk (" << nSegments << " seg)";
-	if (nNodes) trk->Optimize(nNodes, 0.01F);   // build nodes
-	double g = trk->Optimize(0, 0.0001F);       // final tuning
-	mf::LogVerbatim("PMAlgTrackMaker") << "  done, g = " << g;
-	mf::LogVerbatim("PMAlgTrackMaker") << "  sort trk";
-	trk->SortHits();
-	return trk;
-}
 
 void PMAlgTrackMaker::fromMaxCluster_tpc(
 	std::vector< pma::Track3D* >& result,
@@ -634,7 +560,8 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 				if (try_build)
 				{
 					if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) testView = geo::kUnknown;
-					pma::Track3D* trk = buildTrack(v_coll, fbp.at(idx), testView);
+
+					pma::Track3D* trk = fProjectionMatchingAlg.buildTrack(v_coll, fbp.at(idx), testView);
 
 					double g0 = trk->GetObjFunction();
 					double v0 = validate(*trk, testView);
@@ -647,13 +574,13 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 						double fraction = 0.4; // min fraction of close hits
 						
 						idx = 0;
-						while (idx >= 0) // try to collect matching clusters, use **any** plane except validation plane
+						while (idx >= 0) // try to collect matching clusters, use **any** plane except validation
 						{
 							idx = matchCluster(*trk, clusters, fbp, minSize, geo::kUnknown, testView, tpc, cryo, fraction);
 							if (idx >= 0)
 							{
-								// try building extended copy:    src, max.obj.fn, min.valid, valid.plane,    hits
-								pma::Track3D* copy = extendTrack(*trk, 2.0 * g0,  0.98 * v0,  testView,   fbp.at(idx));
+								// try building extended copy:    src,    hits,    max.obj.fn, min.valid, valid.plane, add nodes
+								pma::Track3D* copy = extendTrack(*trk, fbp.at(idx), 2.0 * g0,  0.98 * v0,  testView,    true);
 								if (copy)
 								{
 									used_clusters.push_back(idx);
@@ -672,8 +599,8 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 							idx = matchCluster(*trk, clusters, fbp, minSize, testView, geo::kUnknown, tpc, cryo, fraction);
 							if (idx >= 0)
 							{
-								// only loose validation using kZ:
-								pma::Track3D* copy = extendTrack(*trk, 2.0 * g0, 0.7, geo::kZ, fbp.at(idx));
+								// only loose validation using kZ, no new nodes:
+								pma::Track3D* copy = extendTrack(*trk, fbp.at(idx), 2.0 * g0, 0.7, geo::kZ, false);
 								if (copy)
 								{
 									used_clusters.push_back(idx);

@@ -24,17 +24,19 @@ standard_cctrackmaker:
 
 standard_pmalgtrackmaker:
 {
- module_type:         "PMAlgTrackMaker"
- HitModuleLabel:      "hits"      # unclustered hits are used for trk validation
- ClusterModuleLabel:  "cluster"
- CluMatchingAlg:      1           # 1: loop over clusters from each view, produces independent tracks:
-                                  #    clusters are processed from the largest, best time-matching down
-                                  #    to small pieces which are merged with existing tracks or used
-                                  #    to create smaller tracks at the end
-                                  # 2: use existing assocs of clusters (from external algorithm)
- DebugMode:           false       # if set to true:
-                                  # - trajectory made from pma::Track3D nodes instead of hits
-                                  # - dQ/dx not saved
+ module_type:            "PMAlgTrackMaker"
+ ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+                                     #
+ HitModuleLabel:         "hits"      # unclustered hits are used for trk validation
+ ClusterModuleLabel:     "cluster"
+ CluMatchingAlg:         1           # 1: loop over clusters from each view, produces independent tracks:
+                                     #    clusters are processed from the largest, best time-matching down
+                                     #    to small pieces which are merged with existing tracks or used
+                                     #    to create smaller tracks at the end
+                                     # 2: use existing assocs of clusters (from external algorithm)
+ DebugMode:              false       # if set to true:
+                                     # - trajectory made from pma::Track3D nodes instead of hits
+                                     # - dQ/dx not saved
 }
 
 standard_featuretracker:

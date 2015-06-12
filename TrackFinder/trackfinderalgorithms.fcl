@@ -29,7 +29,8 @@ standard_seedfinderalgorithm.SpacePointAlg.Filter: false
 
 standard_projectionmatchingalg:
 {
-
+  OptimizationEps:        0.01
+  FineTuningEps:          0.0001
 }
 
 standard_beziertrackeralgorithm:
