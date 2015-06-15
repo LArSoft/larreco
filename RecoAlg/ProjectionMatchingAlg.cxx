@@ -24,7 +24,7 @@ void pma::ProjectionMatchingAlg::reconfigure(const fhicl::ParameterSet& p)
 	fFineTuningEps = p.get< double >("FineTuningEps");
 
 	fTrkValidationDist2D = 1.0;
-	fHitTestingDist2D = 0.4;
+	fHitTestingDist2D = 0.5;
 }
 // ------------------------------------------------------
 
@@ -154,4 +154,67 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 }
 // ------------------------------------------------------
 
+void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
+	pma::Track3D::EDirection dir, unsigned int n) const
+{
+	std::map< size_t, std::vector<double> > dedx_map;
+	trk.GetRawdEdxSequence(dedx_map, geo::kZ, 1);
+
+	std::vector< std::vector<double> > dedx;
+	for (size_t i = 0; i < trk.size(); i++)
+	{
+		auto it = dedx_map.find(i);
+		if (it != dedx_map.end())
+		{
+			dedx.push_back(it->second);
+		}
+	}
+
+	float dEdxStart = 0.0F, dEdxStop = 0.0F;
+	float dEStart = 0.0F, dxStart = 0.0F;
+	float dEStop = 0.0F, dxStop = 0.0F;
+	if (dedx.size() > 4)
+	{
+		if (!n) // use default options
+		{
+			if (dedx.size() > 30) n = 10;
+			else if (dedx.size() > 20) n = 6;
+			else if (dedx.size() > 10) n = 4;
+			else n = 3;
+		}
+
+		size_t k = (dedx.size() - 2) >> 1;
+		if (n > k) n = k;
+
+		for (size_t i = 1, j = 0; j < n; i++, j++)
+		{
+			dEStart += dedx[i][0]; dxStart += dedx[i][2];
+		}
+		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
+
+		for (size_t i = dedx.size() - 2, j = 0; j < n; i--, j++)
+		{
+			dEStop += dedx[i][0]; dxStop += dedx[i][2];
+		}
+		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
+	}
+	else if (dedx.size() == 4)
+	{
+		dEStart = dedx[0][0] + dedx[1][0]; dxStart = dedx[0][2] + dedx[1][2];
+		dEStop = dedx[2][0] + dedx[3][0]; dxStop = dedx[2][2] + dedx[3][2];
+		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
+		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
+
+	}
+	else if (dedx.size() > 1)
+	{
+		if (dedx.front()[2] > 0.0F) dEdxStart = dedx.front()[0] / dedx.front()[2];
+		if (dedx.back()[2] > 0.0F) dEdxStop = dedx.back()[0] / dedx.back()[2];
+	}
+	else return;
+
+	if ((dir == pma::Track3D::kForward) && (dEdxStop < dEdxStart)) trk.Flip();  // particle stop at the end of the track
+	if ((dir == pma::Track3D::kBackward) && (dEdxStop > dEdxStart)) trk.Flip(); // particle stop at the front of the track
+}
+// ------------------------------------------------------
 

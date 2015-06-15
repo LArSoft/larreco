@@ -82,6 +82,14 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		bool add_nodes) const;
 
+	/// Try to correct track direction of the stopping particle:
+	///   dir: kForward  - particle stop is at the end of the track
+	///        kBackward - particle stop is at the begining of the track
+	/// compares dQ/dx of n hits at each end of the track (default is based on the track length).
+	void autoFlip(pma::Track3D& trk,
+		pma::Track3D::EDirection dir = Track3D::kForward,
+		unsigned int n = 0) const;
+
 private:
 
 	// Parameters used in the algorithm

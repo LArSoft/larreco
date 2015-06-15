@@ -678,6 +678,64 @@ std::vector< unsigned int > pma::Track3D::Cryos(void) const
 	return cryo_idxs;
 }
 
+void pma::Track3D::InternalFlip(std::vector< pma::Track3D* >& toSort)
+{
+	bool branching = false;
+	for (size_t i = 0; i < fNodes.size() - 1; i++)
+	{
+		if (fNodes[i]->NextCount() > 1)
+		{
+			for (size_t j = 0; j < fNodes[i]->NextCount(); j++)
+			{
+				pma::Segment3D* s = static_cast< pma::Segment3D* >(fNodes[i]->Next(j));
+				if (s->Parent() != this) toSort.push_back(s->Parent());
+			}
+			branching = true;
+		}
+	}
+	if (fNodes.back()->NextCount())
+	{
+		for (size_t j = 0; j < fNodes.back()->NextCount(); j++)
+		{
+			pma::Segment3D* s = static_cast< pma::Segment3D* >(fNodes.back()->Next(j));
+			toSort.push_back(s->Parent());
+		}
+		branching = true;
+	}
+
+	if (fNodes.front()->Prev())
+	{
+		pma::Segment3D* s = static_cast< pma::Segment3D* >(fNodes.front()->Prev());
+		toSort.push_back(s->Parent());
+		s->Parent()->InternalFlip(toSort);
+	}
+
+	if (branching) mf::LogWarning("pma::Track3D") << "Branched track flipped.";
+
+	std::reverse(fNodes.begin(), fNodes.end());
+	toSort.push_back(this);
+	RebuildSegments();
+}
+
+void pma::Track3D::Flip(void)
+{
+	std::vector< pma::Track3D* > toSort;
+	InternalFlip(toSort);
+	toSort.push_back(this);
+
+	for (size_t t = 0; t < toSort.size(); t++)
+	{
+		bool sorted = false;
+		for (size_t u = 0; u < t; u++)
+			if (toSort[u] == toSort[t]) { sorted = true; break; }
+		if (!sorted)
+		{
+			toSort[t]->MakeProjection();
+			toSort[t]->SortHits();
+		}
+	}
+}
+
 double pma::Track3D::TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits, bool normalized) const
 {
 	if (!hits.size())

@@ -67,6 +67,9 @@ public:
 	unsigned int BackTPC(void) const { return fNodes.back()->TPC(); }
 	unsigned int BackCryo(void) const { return fNodes.back()->Cryo(); }
 
+	/// Invert the order of hits and vertices in the track.
+	void Flip(void);
+
 	/// MSE of 2D hits.
 	double TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits,
 		bool normalized = true) const; // normalize to the number of hits
@@ -151,6 +154,8 @@ public:
 
 private:
 	void ClearNodes(void);
+
+	void InternalFlip(std::vector< pma::Track3D* >& toSort);
 
 	void UpdateHitsRadius(void);
 	double AverageDist2(void) const;
