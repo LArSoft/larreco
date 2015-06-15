@@ -13,8 +13,8 @@
 // Progress:
 //    May-June 2015:  track finding and validation, quite a conservative iterative merging
 //                    of matching clusters and growing tracks, no attempts to consciously
-//                    build multi-track structures yet, however:
-//                    cosmic tracking works fine since they are sets of independent tracks
+//                    build multi-track structures yet, however cosmic tracking works fine
+//                    as they are sets of independent tracks
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -40,6 +40,10 @@
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
+
+#include "MCCheater/BackTracker.h"
+#include "Simulation/ParticleList.h"
+#include "SimulationBase/MCParticle.h"
 
 #include "RecoAlg/ProjectionMatchingAlg.h"
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
@@ -75,6 +79,9 @@ private:
   // *** methods to create tracks from clusters ***
 
   // loop over all clusters and build as much as possible to find
+  // the logic implemented here for sure is not exhaustive, it was
+  // checked on long cosmic tracks and low energy stopping tracks
+  // and seems to be a good example how to use the algorithm
   int fromMaxCluster(const art::Event& evt, std::vector< pma::Track3D* >& result);
 
   void fromMaxCluster_tpc(
@@ -128,22 +135,27 @@ private:
 
   double validate(const pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
+
+  bool isMcStopping(void) const;
   // ------------------------------------------------------
 
   art::ServiceHandle< geo::Geometry > fGeom;
   art::ServiceHandle<util::DetectorProperties> fDetProp;
 
   // ******************* tree output **********************
-  int fTrkIndex;            // track index in the event
-  double fdQdx[3];          // stored for each plane
-  double fRange;            // residual range, tracks are auto-flipped
+  int fTrkIndex;        // track index in the event, same for all dQ/dx points of the track
+  int fPlaneIndex;      // wire plane index of the dQ/dx data point
+  int fIsStopping;      // tag tracks of stopping particles
+  double fdQdx;         // dQ/dx data point stored for each plane
+  double fRange;        // residual range at dQ/dx data point, tracks are auto-flipped
   TTree* fTree;
 
   // ******************** parameters **********************
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
   std::string fCluModuleLabel; // label for input cluster collection
   int fCluMatchingAlg;         // which algorithm for cluster association
-  bool fDebugMode;             // for debugging purposes, off by default
+  bool fAutoFlip_dQdx;         // set the track direction to increasing dQ/dx
+  bool fSave_dQdx;             // for debugging purposes, off by default
 
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 };
@@ -166,7 +178,9 @@ void PMAlgTrackMaker::beginJob()
 	art::ServiceHandle<art::TFileService> tfs;
 	fTree = tfs->make<TTree>("PMAlgTrackMaker", "tracks info");
 	fTree->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
-	fTree->Branch("fdQdx[3]", fdQdx, "fdQdx[3]/D");
+	fTree->Branch("fPlaneIndex", &fPlaneIndex, "fPlaneIndex/I");
+	fTree->Branch("fIsStopping", &fIsStopping, "fIsStopping/I");
+	fTree->Branch("fdQdx", &fdQdx, "fdQdx/D");
 	fTree->Branch("fRange", &fRange, "fRange/D");
 }
 
@@ -175,9 +189,10 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
 	fCluModuleLabel = pset.get< std::string >("ClusterModuleLabel");
 	fCluMatchingAlg = pset.get< int >("CluMatchingAlg");
-	fDebugMode = pset.get< bool >("DebugMode");
+	fAutoFlip_dQdx = pset.get< bool >("AutoFlip_dQdx");
+	fSave_dQdx = pset.get< bool >("Save_dQdx");
 
-	fProjectionMatchingAlg.reconfigure(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg"));
+	fProjectionMatchingAlg.reconfigure(pset.get< fhicl::ParameterSet >("ProjectionMatchingAlg"));
 }
 // ------------------------------------------------------
 
@@ -209,7 +224,7 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 		src.GetRawdEdxSequence(src_dQdx[geo::kZ], geo::kZ);
 	}
 
-	// trajectory from nodes (for debuging, dQ/dx not saved)
+	// trajectory from nodes (for debuging only, dQ/dx not saved)
 /*	{
 		mf::LogVerbatim("PMAlgTrackMaker") << "DEBUG: save only nodes.";
 		for (size_t i = 0; i < src.Nodes().size(); i++)
@@ -248,8 +263,6 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 			dst_dQdx[geo::kV].push_back(0.);
 			dst_dQdx[geo::kZ].push_back(0.);
 
-			fdQdx[0] = 0.; fdQdx[1] = 0.; fdQdx[2] = 0.;
-
 			double dQdx;
 			for (auto const& m : src_dQdx)
 			{
@@ -263,23 +276,50 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 
 					dst_dQdx[m.first][i] = dQdx;
 
-					if (fDebugMode)
-					{
-						fdQdx[m.first] = dQdx;
-						fRange = it->second[7];
-						fTree->Fill();
-					}
-
 					break;
 				}
 			}
 		}
+
+		if (fSave_dQdx)
+		{
+			fIsStopping = (int)isMcStopping();
+			for (unsigned int view = 0; view < fGeom->Nviews(); view++)
+				if (fGeom->TPC(tpc, cryo).HasPlane(view))
+				{
+					fPlaneIndex = view;
+					for (auto const& data : src_dQdx[view])
+						for (size_t i = 0; i < data.second.size() - 1; i++)
+						{
+							double dQ = data.second[5];
+							double dx = data.second[6];
+							fRange = data.second[7];
+							if (dx > 0.)
+							{
+								fdQdx = dQ/dx;
+								fTree->Fill();
+							}
+						}
+				}
+		}
+
 		if (xyz.size() != dircos.size())
 		{
 			mf::LogError("PMAlgTrackMaker") << "pma::Track3D to recob::Track conversion problem.";
 		}
 		return recob::Track(xyz, dircos, dst_dQdx);
 	}
+}
+// ------------------------------------------------------
+
+bool PMAlgTrackMaker::isMcStopping(void) const
+{
+	art::ServiceHandle< cheat::BackTracker > bt;
+	const sim::ParticleList& plist = bt->ParticleList();
+	const simb::MCParticle* particle = plist.Primary(0);
+
+	if (particle) return (particle->NumberDaughters() == 0);
+	else return false;
 }
 // ------------------------------------------------------
 
@@ -399,7 +439,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		for (auto const& trk : result)
 		{
 			// flip the track by dQ/dx
-			fProjectionMatchingAlg.autoFlip(trk, pma::Track3D::kBackward);
+			if (fAutoFlip_dQdx) fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward);
 
 			tracks->push_back(convertFrom(*trk));
 			fTrkIndex++;
@@ -617,7 +657,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 				{
 					if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) testView = geo::kUnknown;
 
-					pma::Track3D* trk = fProjectionMatchingAlg.buildTrack(v_first, fbp.at(idx), testView);
+					pma::Track3D* trk = fProjectionMatchingAlg.buildTrack(v_first, fbp.at(idx));
 
 					double g0 = trk->GetObjFunction();
 					double v0 = validate(*trk, testView);

@@ -87,8 +87,7 @@ size_t pma::ProjectionMatchingAlg::getSegCount(size_t trk_size)
 
 pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 	const std::vector< art::Ptr<recob::Hit> >& hits_1,
-	const std::vector< art::Ptr<recob::Hit> >& hits_2,
-	unsigned int testView) const
+	const std::vector< art::Ptr<recob::Hit> >& hits_2) const
 {
 	pma::Track3D* trk = new pma::Track3D(); // track candidate
 	trk->AddHits(hits_1);
@@ -157,14 +156,20 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
 	pma::Track3D::EDirection dir, unsigned int n) const
 {
-	std::map< size_t, std::vector<double> > dedx_map;
-	trk.GetRawdEdxSequence(dedx_map, geo::kZ, 1);
+	unsigned int nViews = 3;
+	std::map< size_t, std::vector<double> > dedx_map[3];
+	for (unsigned int i = 0; i < nViews; i++)
+	{
+		trk.GetRawdEdxSequence(dedx_map[i], i, 1);
+	}
+	unsigned int bestView = 2;
+	if (dedx_map[1].size() > 2 * dedx_map[2].size()) bestView = 1;
 
 	std::vector< std::vector<double> > dedx;
 	for (size_t i = 0; i < trk.size(); i++)
 	{
-		auto it = dedx_map.find(i);
-		if (it != dedx_map.end())
+		auto it = dedx_map[bestView].find(i);
+		if (it != dedx_map[bestView].end())
 		{
 			dedx.push_back(it->second);
 		}

@@ -8,16 +8,16 @@
 //      Build 3D segments and whole tracks by simultaneous matching hits in 2D projections.
 //      Based on the "Precise 3D track reco..." AHEP (2013) 260820, with all the tricks that we
 //      developed later and with the work for the full-event topology optimization that is still
-//      under construction (and porting to LArSoft implementation).
+//      under construction.
 //
-//      The algorithm class provides functionality to build the track from selected hits. These
-//      can be detailed tracks or just simple segments. The parameters of optimization algorithm,
-//      fixed nodes and 3D reference points can be configured here.
-//      Please, check the track finding modules to find a way of selecting appropriate clusteres:
-//        - PMAlgTrackMaker_module.cc
+//      The algorithm class provides functionality to build a track from selected hits. These
+//      can be detailed tracks or just simple segments (if the number of nodes to add is set to 0).
+//      The parameters of optimization algorithm, fixed nodes and 3D reference points can be configured here.
+//      Please, check the track finding module to find a way of selecting appropriate clusteres:
+//        PMAlgTrackMaker_module.cc
 //
-//      Note: not all parameters of the track optimization are available through .fcl, soon there
-//      will be more.
+//      Note: not all parameters of the track optimization are available through .fcl, soon more
+//      will be added, thanks for patience...
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -64,19 +64,23 @@ public:
 
 	void reconfigure(const fhicl::ParameterSet& p);
 
+	/// Calculate the fraction of the track that is closer than fTrkValidationDist2D
+	/// to any hit from hits in the testView (a view that was not used to build the track).
 	double validate(const pma::Track3D& trk,
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		unsigned int testView) const;
 
+	/// Count the number of hits that are closer than fHitTestingDist2D to the track 2D projection.
 	unsigned int testHits(const pma::Track3D& trk,
 		const std::vector< art::Ptr<recob::Hit> >& hits) const
 	{ return trk.TestHits(hits, fHitTestingDist2D); }
 
+	/// Build the track from two sets of hits (they should origin from two wire planes).
 	pma::Track3D* buildTrack(
 		const std::vector< art::Ptr<recob::Hit> >& hits_1,
-		const std::vector< art::Ptr<recob::Hit> >& hits_2,
-		unsigned int testView) const;
+		const std::vector< art::Ptr<recob::Hit> >& hits_2) const;
 
+	/// Add more hits to the existing track, reoptimize, add more nodes if neccessary.
 	pma::Track3D* extendTrack(
 		const pma::Track3D& trk,
 		const std::vector< art::Ptr<recob::Hit> >& hits,
@@ -106,7 +110,7 @@ private:
 	art::ServiceHandle<geo::Geometry> fGeom;
 	art::ServiceHandle<util::DetectorProperties> fDetProp;
 
-
+	// Calculate good number of segments depending on the number of hits.
 	static size_t getSegCount(size_t trk_size);
 };
 
