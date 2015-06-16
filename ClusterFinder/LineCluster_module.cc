@@ -94,8 +94,10 @@ namespace cluster {
     
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
+    produces< std::vector<recob::EndPoint2D> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
+    produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
   } // LineCluster::LineCluster()
   
   
@@ -138,6 +140,7 @@ namespace cluster {
     recob::HitRefinerAssociator shcol(*this, evt, fHitFinderLabel);
     std::vector<recob::Cluster> sccol;
     std::vector<recob::Vertex> sv3col;
+    std::vector<recob::EndPoint2D> sv2col;
 
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > 
         hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
@@ -148,33 +151,52 @@ namespace cluster {
       = fCCAlg->GetClusters();
 
 // Consistency check
-  for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
-    ClusterCrawlerAlg::ClusterStore const& clstr = Clusters[icl];
-    if(clstr.ID < 0) continue;
-    geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
-    unsigned short plane = planeID.Plane;
-    for(unsigned short ii = 0; ii < clstr.tclhits.size(); ++ii) {
-      unsigned int iht = clstr.tclhits[ii];
-      recob::Hit const& theHit = FinalHits->at(iht);
-      if(theHit.WireID().Plane != plane) {
-        mf::LogError("LineCluster")<<"Cluster-hit plane mis-match "<<theHit.WireID().Plane<<" "<<plane
-        <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" cluster CTP "<<clstr.CTP;
-        return;
-      }
-      if(HitInCluster[iht] != clstr.ID) {
-        mf::LogError("LineCluster") << "InClus mis-match " << HitInCluster[iht]
-          << " ID " << clstr.ID << " in cluster ID " << clstr.ID<<" cluster ProcCode "<<clstr.ProcCode;;
-        return;
-      }
-    } // ii
-  } // icl
+      for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
+        ClusterCrawlerAlg::ClusterStore const& clstr = Clusters[icl];
+        if(clstr.ID < 0) continue;
+        geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
+        unsigned short plane = planeID.Plane;
+        for(unsigned short ii = 0; ii < clstr.tclhits.size(); ++ii) {
+          unsigned int iht = clstr.tclhits[ii];
+          recob::Hit const& theHit = FinalHits->at(iht);
+          if(theHit.WireID().Plane != plane) {
+            mf::LogError("LineCluster")<<"Cluster-hit plane mis-match "<<theHit.WireID().Plane<<" "<<plane
+            <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" cluster CTP "<<clstr.CTP;
+            return;
+          }
+          if(HitInCluster[iht] != clstr.ID) {
+            mf::LogError("LineCluster") << "InClus mis-match " << HitInCluster[iht]
+            << " ID " << clstr.ID << " in cluster ID " << clstr.ID<<" cluster ProcCode "<<clstr.ProcCode;;
+            return;
+          }
+        } // ii
+      } // icl
+    
+    // make EndPoints (aka 2D vertices)
+    std::vector<ClusterCrawlerAlg::VtxStore> const& EndPts = fCCAlg->GetEndPoints();
+    art::ServiceHandle<geo::Geometry> geom;
+    unsigned int vtxID = 0, end, wire;
+    for(ClusterCrawlerAlg::VtxStore const& vtx2: EndPts) {
+      if(vtx2.NClusters == 0) continue;
+      ++vtxID;
+      wire = (0.5 + vtx2.Wire);
+      geo::PlaneID plID = ClusterCrawlerAlg::DecodeCTP(vtx2.CTP);
+      geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
+      geo::View_t view = geom->View(wID);
+      sv2col.emplace_back((double)vtx2.Time,    // Time
+                          wID,                  // WireID
+                          0,                    // strength - not relevant
+                          vtxID,                // ID
+                          view,                 // View
+                          0);                   // total charge - not relevant
+    } // Endpoints
+    // convert 2D Vertex vector to unique_ptrs
+    std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>(std::move(sv2col)));
 
     // make 3D vertices
-    std::vector<ClusterCrawlerAlg::Vtx3Store> const& Vertices
-      = fCCAlg->GetVertices();
-    
+    std::vector<ClusterCrawlerAlg::Vtx3Store> const& Vertices = fCCAlg->GetVertices();
     double xyz[3] = {0, 0, 0};
-    unsigned int vtxID = 0, end;
+    vtxID = 0;
     for(ClusterCrawlerAlg::Vtx3Store const& vtx3: Vertices) {
       // ignore incomplete vertices
       if(vtx3.Ptr2D[0] < 0) continue;
@@ -303,6 +325,7 @@ namespace cluster {
     shcol.put_into(evt);
     evt.put(std::move(ccol));
     evt.put(std::move(hc_assn));
+    evt.put(std::move(v2col));
     evt.put(std::move(v3col));
     evt.put(std::move(cv_assn));
 
