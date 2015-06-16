@@ -82,7 +82,7 @@ namespace cluster {
 			float WireErr;
       float Time;
 			float TimeErr;
-      float Wght;       // Wght < 0 for abandoned vertices 
+      unsigned short NClusters;  // = 0 for abandoned vertices
 			float ChiDOF;
       short Topo; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star,
 												// 6 = hammer, 7 = vtx3clustermatch, 8 = vtx3clustersplit
@@ -101,6 +101,7 @@ namespace cluster {
       short Wire;                 // wire number for an incomplete 3D vertex
       unsigned short CStat;
       unsigned short TPC;
+      unsigned short ProcCode;
     };
     
     /// Holds which cluster each hit is in, if any
@@ -436,7 +437,7 @@ namespace cluster {
     // fit the vertex position
     void FitVtx(unsigned short iv);
     // weight and fit all vertices
-    void VtxWghtAndFit(CTP_t inCTP);
+    void FitAllVtx(CTP_t inCTP);
 
     // ************** 3D vertex routines *******************
 
@@ -454,7 +455,7 @@ namespace cluster {
     // inits everything
     void CrawlInit();
     // Stores cluster information in a temporary vector
-    void TmpStore();
+    bool TmpStore();
     // Gets a temp cluster and puts it into the working cluster variables
     void TmpGet(unsigned short it1);
     // Splits a cluster into two clusters at position pos. Associates the
@@ -471,6 +472,10 @@ namespace cluster {
       (std::string location, std::string marker = "") const;
     // Find the distance of closest approach between the end of a cluster and a (wire,tick) position
     float DoCA(short icl, unsigned short end, float vwire, float vtick);
+    // Find the Chisq/DOF between the end of a cluster and a (wire,tick) position
+    float ClusterVertexChi(short icl, unsigned short end, unsigned short ivx);
+    // Find the Chisq/DOF between a point and a vertex
+    float PointVertexChi(float wire, float tick, unsigned short ivx);
     
     /// Returns a pair of first and past-the-last index
     /// of all the contiguous hits belonging to the same multiplet
