@@ -31,17 +31,28 @@ namespace trkf {
     TrackTrajectoryAlg();
     
     virtual ~TrackTrajectoryAlg();
-    
-    void TrackTrajectory(
-      std::array<std::vector<std::pair<double, geo::WireID>>,3>& trkXW,
-      std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir,
-      std::array<std::vector<double>,3> trkChg = std::array<std::vector<double>,3>());
+
+    void TrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
+                         std::array<std::vector<double>,3> trkX,
+                         std::array<std::vector<double>,3> trkXErr,
+                         std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir);
     
     private:
 
     art::ServiceHandle<geo::Geometry> geom;
+    
+    double minX;
+    unsigned short minXPln;
+    double maxX;
+    unsigned short maxXPln;
+
 
     TrackLineFitAlg fTrackLineFitAlg;
+    
+    void ShortTrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
+                              std::array<std::vector<double>,3> trkX,
+                              std::array<std::vector<double>,3> trkXErr,
+                              std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir);
     
   }; // class TrackTrajectoryAlg
 
