@@ -27,9 +27,8 @@ namespace trkf{
 
 
 //------------------------------------------------------------------------------
-  void TrackLineFitAlg::TrkLineFit(
-    std::vector<std::pair<double, geo::WireID>>& hits, double XOrigin,
-    TVector3& Pos, TVector3& Dir, float& ChiDOF)
+  void TrackLineFitAlg::TrkLineFit(std::vector<geo::WireID>& hitWID, std::vector<double>& hitX, std::vector<double>& hitXErr,
+                                   double XOrigin, TVector3& Pos, TVector3& Dir, float& ChiDOF)
   {
     // Linear fit using X as the independent variable. Hits to be fitted
     // are passed in the hits vector in a pair form (X, WireID). The
@@ -40,41 +39,46 @@ namespace trkf{
     // Fit equation is w = A(X)v, where w is a vector of hit wires, A is
     // a matrix to calculate a track projected to a point at X, and v is
     // a vector (Yo, Zo, dY/dX, dZ/dX).
-    //
-    // Note: The covariance matrix should also be returned
-    // B. Baller August 2014
 
     // assume failure
     ChiDOF = -1;
     
-    if(hits.size() < 4) return;
+    if(hitX.size() < 4) return;
+    if(hitX.size() != hitWID.size()) return;
+    if(hitX.size() != hitXErr.size()) return;
     
     const unsigned int nvars = 4;
-    unsigned int npts = hits.size();
+    unsigned int npts = hitX.size();
   
     TMatrixD A(npts, nvars);
     // vector holding the Wire number
     TVectorD w(npts);
     unsigned short ninpl[3] = {0};
     unsigned short nok = 0;
-    unsigned short iht, cstat, tpc, ipl;
-    double x, cw, sw, off;
-    for(iht = 0; iht < hits.size(); ++iht) {
-      cstat = hits[iht].second.Cryostat;
-      tpc = hits[iht].second.TPC;
-      ipl = hits[iht].second.Plane;
+    unsigned short iht;
+    unsigned int ipl, tpc, cstat;
+    double x, cw, sw, off, wght;
+    for(iht = 0; iht < hitX.size(); ++iht) {
+      cstat = hitWID[iht].Cryostat;
+      tpc = hitWID[iht].TPC;
+      ipl = hitWID[iht].Plane;
       // get the wire plane offset
       off = geom->WireCoordinate(0, 0, ipl, tpc, cstat);
       // get the "cosine-like" component
       cw = geom->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
       // the "sine-like" component
       sw = geom->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
-      x = hits[iht].first - XOrigin;
-      A[iht][0] = cw;
-      A[iht][1] = sw;
-      A[iht][2] = cw * x;
-      A[iht][3] = sw * x;
-      w[iht] = (hits[iht].second.Wire - off);
+      x = hitX[iht] - XOrigin;
+      if(hitXErr[iht] > 0) {
+        wght = 1 / hitXErr[iht];
+      } else {
+        wght = 1;
+      }
+      A[iht][0] = wght * cw;
+      A[iht][1] = wght * sw;
+      A[iht][2] = wght * cw * x;
+      A[iht][3] = wght * sw * x;
+      w[iht] = wght * (hitWID[iht].Wire - off);
       ++ninpl[ipl];
       // need at least two points in a plane
       if(ninpl[ipl] == 2) ++nok;
@@ -90,26 +94,29 @@ namespace trkf{
     ChiDOF = 0;
     
     // not enough points to calculate Chisq
-    if(hits.size() == 4) return;
+    if(hitX.size() == 4) return;
     
     double ypr, zpr, diff;
-    for(iht = 0; iht < hits.size(); ++iht) {
-      cstat = hits[iht].second.Cryostat;
-      tpc = hits[iht].second.TPC;
-      ipl = hits[iht].second.Plane;
+    for(iht = 0; iht < hitX.size(); ++iht) {
+      cstat = hitWID[iht].Cryostat;
+      tpc = hitWID[iht].TPC;
+      ipl = hitWID[iht].Plane;
       off = geom->WireCoordinate(0, 0, ipl, tpc, cstat);
       cw = geom->WireCoordinate(1, 0, ipl, tpc, cstat) - off;
       sw = geom->WireCoordinate(0, 1, ipl, tpc, cstat) - off;
-      x = hits[iht].first - XOrigin;
+      x = hitX[iht] - XOrigin;
       ypr = tVec[0] + tVec[2] * x;
       zpr = tVec[1] + tVec[3] * x;
-      diff = ypr * cw + zpr * sw - (hits[iht].second.Wire - off);
+      wght = hitXErr[iht];
+      if(wght <= 0) wght = 1;
+      diff = (ypr * cw + zpr * sw - (hitWID[iht].Wire - off)) / wght;
       ChiDOF += diff * diff;
     }
 
-    float werr2 = geom->WirePitch() * geom->WirePitch();
+    double werr2 = geom->WirePitch(0, tpc, cstat);
+    werr2 *= werr2;
     ChiDOF /= werr2;
-    ChiDOF /= (float)(npts - 4);
+    ChiDOF /= (double)(npts - 4);
     
     double norm = sqrt(1 + tVec[2] * tVec[2] + tVec[3] * tVec[3]);
     Dir[0] = 1 / norm;
@@ -119,6 +126,16 @@ namespace trkf{
     Pos[0] = XOrigin;
     Pos[1] = tVec[0];
     Pos[2] = tVec[1];
+/*
+    // covariance matrix
+    TMatrixD fV = svd.GetV();
+    PosCov(1, 1) = fV(0, 0);
+    PosCov(2, 1) = fV(1, 0);
+    PosCov(1, 2) = fV(0, 1);
+    PosCov(2, 2) = fV(1, 1);
+    // A conservative fake for Pos[0]
+    PosCov(0, 0) = PosCov(1,1);
+*/
     
   } // TrkLineFit()
 
