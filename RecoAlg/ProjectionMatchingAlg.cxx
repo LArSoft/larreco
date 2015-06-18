@@ -163,6 +163,7 @@ void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
 		trk.GetRawdEdxSequence(dedx_map[i], i, 1);
 	}
 	unsigned int bestView = 2;
+	if (dedx_map[0].size() > 2 * dedx_map[2].size()) bestView = 0;
 	if (dedx_map[1].size() > 2 * dedx_map[2].size()) bestView = 1;
 
 	std::vector< std::vector<double> > dedx;
@@ -193,28 +194,28 @@ void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
 
 		for (size_t i = 1, j = 0; j < n; i++, j++)
 		{
-			dEStart += dedx[i][0]; dxStart += dedx[i][2];
+			dEStart += dedx[i][5]; dxStart += dedx[i][6];
 		}
 		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
 
 		for (size_t i = dedx.size() - 2, j = 0; j < n; i--, j++)
 		{
-			dEStop += dedx[i][0]; dxStop += dedx[i][2];
+			dEStop += dedx[i][5]; dxStop += dedx[i][6];
 		}
 		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
 	}
 	else if (dedx.size() == 4)
 	{
-		dEStart = dedx[0][0] + dedx[1][0]; dxStart = dedx[0][2] + dedx[1][2];
-		dEStop = dedx[2][0] + dedx[3][0]; dxStop = dedx[2][2] + dedx[3][2];
+		dEStart = dedx[0][5] + dedx[1][5]; dxStart = dedx[0][6] + dedx[1][6];
+		dEStop = dedx[2][5] + dedx[3][5]; dxStop = dedx[2][6] + dedx[3][6];
 		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
 		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
 
 	}
 	else if (dedx.size() > 1)
 	{
-		if (dedx.front()[2] > 0.0F) dEdxStart = dedx.front()[0] / dedx.front()[2];
-		if (dedx.back()[2] > 0.0F) dEdxStop = dedx.back()[0] / dedx.back()[2];
+		if (dedx.front()[2] > 0.0F) dEdxStart = dedx.front()[5] / dedx.front()[6];
+		if (dedx.back()[2] > 0.0F) dEdxStop = dedx.back()[5] / dedx.back()[6];
 	}
 	else return;
 
