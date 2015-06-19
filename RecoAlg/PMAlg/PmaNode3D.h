@@ -98,9 +98,7 @@ private:
 	TVector3 fPoint3D;       // node position in 3D space in [cm]
 	TVector2 fProj2D[3];     // node projections to 2D views, scaled to [cm], updated on each change of 3D position
 
-	TVector3 fGradient, fGDirX, fGDirY, fGDirZ;
-	TVectorT<double> fGradV;
-	TMatrixT<double> fGradM;
+	TVector3 fGradient;
 
 	static bool fGradFixed[3];
 };

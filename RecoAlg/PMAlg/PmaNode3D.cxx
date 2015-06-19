@@ -24,26 +24,16 @@ pma::Node3D::Node3D(void) :
 	fMinX(0), fMaxX(0),
 	fMinY(0), fMaxY(0),
 	fMinZ(0), fMaxZ(0),
-	fPoint3D(0, 0, 0),
-	fGradV(3), fGradM(3, 3)
+	fPoint3D(0, 0, 0)
 {
-	fGradV[0] = 0.;
-	fGradV[1] = 0.;
-	fGradV[2] = 0.;
-
 	fProj2D[0].Set(0);
 	fProj2D[1].Set(0);
 	fProj2D[2].Set(0);
 }
 
 pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo) :
-	fTPC(tpc), fCryo(cryo),
-	fGradV(3), fGradM(3, 3)
+	fTPC(tpc), fCryo(cryo)
 {
-	fGradV[0] = 0.;
-	fGradV[1] = 0.;
-	fGradV[2] = 0.;
-
 	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
 
 	fMinX = tpcGeo.MinX(); fMaxX = tpcGeo.MaxX();
@@ -405,29 +395,24 @@ double pma::Node3D::GetObjFunction(float penaltyValue, float endSegWeight) const
 
 double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
 {	
-	double l, minLength2 = 0.0;
+	double l1 = 0.0, l2 = 0.0, minLength2 = 0.0;
 	TVector3 tmp(fPoint3D), gpoint(fPoint3D);
 
 	pma::Segment3D* seg;
-	pma::Node3D* vtx;
 	if (prev)
 	{
 		seg = static_cast< pma::Segment3D* >(prev);
-		minLength2 = seg->Length2();
-
-		vtx = static_cast< pma::Node3D* >(seg->Prev());
-		fGDirX = vtx->Point3D();
+		l1 = seg->Length2();
 	}
 	if (next)
 	{
 		seg = static_cast< pma::Segment3D* >(next);
-		l = seg->Length2();
-		if (l < minLength2) minLength2 = l;
-		else if (minLength2 == 0.0) minLength2 = l;
-
-		vtx = static_cast< pma::Node3D* >(seg->Next());
-		fGDirX -= vtx->Point3D();
+		l2 = seg->Length2();
 	}
+	if ((l1 > 0.01) && (l1 < l2)) minLength2 = l1;
+	else if ((l2 > 0.01) && (l2 < l1)) minLength2 = l2;
+	else minLength2 = 0.01;
+
 	double dxi = 0.001 * sqrt(minLength2);
 
 	if (dxi < 6.0E-37) return 0.0;
@@ -437,106 +422,6 @@ double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
 
 	//if (fQPenaltyFactor > 0.0F) gz += fQPenaltyFactor * QPenalty(); <----------------------- maybe later..
 
-	// rotated fin-diff gradient calculation, a really nice addition to the original formulas,
-	// more computations, but fewer steps and more accurate result
-	if (prev && next) // && (fQPenaltyFactor == 0.0F))
-	{
-		double gnorm = fGDirX.Mag();
-		if (gnorm > 0.0)
-		{
-			fGDirX *= (-1.0 / gnorm);
-			fGradM(0, 0) = fGDirX.X();
-			fGradM(0, 1) = fGDirX.Y();
-			fGradM(0, 2) = fGDirX.Z();
-
-			unsigned int min_idx = 0;
-			double v, min_v = fabs(fGDirX[0]);
-			v = fabs(fGDirX[1]);
-			if (v < min_v) { min_v = v; min_idx = 1; }
-			v = fabs(fGDirX[2]);
-			if (v < min_v) { min_idx = 2; }
-			fGDirZ.SetXYZ(0.0, 0.0, 0.0);
-			fGDirZ[min_idx] = 1.0;
-
-			fGDirY[0] = fGDirX.Y() * fGDirZ.Z() - fGDirX.Z() * fGDirZ.Y();
-			fGDirY[1] = -(fGDirX.X() * fGDirZ.Z() - fGDirX.Z() * fGDirZ.X());
-			fGDirY[2] = fGDirX.X() * fGDirZ.Y() - fGDirX.Y() * fGDirZ.X();
-			fGDirY *= (1.0 / fGDirY.Mag());
-			fGradM(1, 0) = fGDirY.X();
-			fGradM(1, 1) = fGDirY.Y();
-			fGradM(1, 2) = fGDirY.Z();
-
-			fGDirZ[0] = fGDirX.Y() * fGDirY.Z() - fGDirX.Z() * fGDirY.Y();
-			fGDirZ[1] = -(fGDirX.X() * fGDirY.Z() - fGDirX.Z() * fGDirY.X());
-			fGDirZ[2] = fGDirX.X() * fGDirY.Y() - fGDirX.Y() * fGDirY.X();
-			fGDirZ *= (1.0 / fGDirZ.Mag());
-			fGradM(2, 0) = fGDirZ.X();
-			fGradM(2, 1) = fGDirZ.Y();
-			fGradM(2, 2) = fGDirZ.Z();
-
-			fGradM.InvertFast();
-			fGDirX *= dxi; fGDirY *= dxi; fGDirZ *= dxi;
-		}
-		else
-		{
-			fGDirX[0] = dxi; fGDirX[1] = 0.0; fGDirX[2] = 0.0;
-		    fGDirY[0] = 0.0; fGDirY[1] = dxi; fGDirY[2] = 0.0;
-			fGDirZ[0] = 0.0; fGDirZ[1] = 0.0; fGDirZ[2] = dxi;
-
-			fGradM(0, 0) = 1.0; fGradM(0, 1) = 0.0; fGradM(0, 2) = 0.0;
-			fGradM(1, 0) = 0.0; fGradM(1, 1) = 1.0; fGradM(1, 2) = 0.0;
-			fGradM(2, 0) = 0.0; fGradM(2, 1) = 0.0; fGradM(2, 2) = 1.0;
-		}
-
-		if (!fGradFixed[0]) // gradX
-		{
-			gpoint += fGDirX; SetPoint3D(gpoint);
-			gi = GetObjFunction(penaltyValue, endSegWeight);
-			fGradV[0] = (g0 - gi) / dxi;
-
-			gpoint = tmp;
-			gpoint -= fGDirX; SetPoint3D(gpoint);
-			gi = GetObjFunction(penaltyValue, endSegWeight);
-			fGradV[0] = 0.5 * (fGradV[0] + (gi - g0) / dxi);
-
-			gpoint = tmp;
-		}
-
-		if (!fGradFixed[1]) // gradY
-		{
-			gpoint += fGDirY; SetPoint3D(gpoint);
-			gi = GetObjFunction(penaltyValue, endSegWeight);
-			fGradV[1] = (g0 - gi) / dxi;
-
-			gpoint = tmp;
-			gpoint -= fGDirY; SetPoint3D(gpoint);
-			gi = GetObjFunction(penaltyValue, endSegWeight);
-			fGradV[1] = 0.5 * (fGradV[1] + (gi - g0) / dxi);
-
-			gpoint = tmp;
-		}
-
-		if (!fGradFixed[2]) // gradZ
-		{
-			gpoint += fGDirZ; SetPoint3D(gpoint);
-			gi = GetObjFunction(penaltyValue, endSegWeight);
-			fGradV[2] = (g0 - gi) / dxi;
-
-			gpoint = tmp;
-			gpoint += fGDirZ; SetPoint3D(gpoint);
-			gi = GetObjFunction(penaltyValue, endSegWeight);
-			fGradV[2] = 0.5 * (fGradV[2] + (gi - g0) / dxi);
-
-			gpoint = tmp;
-		}
-
-		fGradV *= fGradM;
-		fGradient[0] = fGradV[0];
-		fGradient[1] = fGradV[1];
-		fGradient[2] = fGradV[2];
-	}
-	else // no rotations in the gradient calculation
-	{
 	if (!fGradFixed[0]) // gradX
 	{
 		gpoint[0] = tmp[0] + dxi;
@@ -583,7 +468,6 @@ double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
 
 		gpoint[2] = tmp[2];
 	}
-	}
 
 	SetPoint3D(tmp);
 
@@ -596,7 +480,7 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 {
 	unsigned int steps = 0;
 	double t, t1, t2, t3, g, g0, g1, g2, g3, p1, p2;
-	double eps = 6.0E-37; // ~50 * min_float
+	double eps = 6.0E-37;
 	TVector3 tmp(fPoint3D), gpoint(fPoint3D);
 
 	g = MakeGradient(penalty, weight);

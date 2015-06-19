@@ -122,7 +122,7 @@ public:
 	void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
 	bool HasRefPoint(TVector3* p) const;
 
-	double GetObjFunction(bool suppressPenalty = false) const;
+	double GetObjFunction(float penaltyFactor = 1.0F) const;
 
 	/// Main optimization method.
 	double Optimize(int nNodes = -1, double eps = 0.01, bool selAllHits = true);

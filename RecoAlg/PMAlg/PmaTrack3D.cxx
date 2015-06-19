@@ -1166,6 +1166,9 @@ bool pma::Track3D::AddNode(void)
 		unsigned int cryo = maxSeg->Hit(i0).Cryo();
 
 		pma::Node3D* p = new pma::Node3D((maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5, tpc, cryo);
+
+		//mf::LogVerbatim("pma::Track3D") << "add node x:" << p->Point3D().X()
+		//	<< " y:" << p->Point3D().Y() << " z:" << p->Point3D().Z();
 		fNodes.insert(fNodes.begin() + vIndex, p);
 		
 		maxSeg->AddNext(fNodes[vIndex]);
@@ -1185,11 +1188,10 @@ bool pma::Track3D::HasRefPoint(TVector3* p) const
 	return false;
 }
 
-double pma::Track3D::GetObjFunction(bool suppressPenalty) const
+double pma::Track3D::GetObjFunction(float penaltyFactor) const
 {
 	double sum = 0.0;
-	float p = fPenaltyValue;
-	if (suppressPenalty) p *= 0.33F;
+	float p = penaltyFactor * fPenaltyValue;
 	for (size_t i = 0; i < fNodes.size(); i++)
 	{
 		sum += fNodes[i]->GetObjFunction(p, fEndSegWeight);
@@ -1218,18 +1220,17 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits)
 		{
 			double gstep = 1.0;
 			unsigned int iter = 0;
-			while ((gstep > eps) && (iter < 60))
+			while ((gstep > eps) && (iter < 1000))
 			{
 				MakeProjection();
 				UpdateParams();
 
-				for (unsigned int j = 0; j < fNodes.size(); j++)
+				for (size_t j = 0; j < fNodes.size(); j++)
 				{
 					fNodes[j]->Optimize(fPenaltyValue, fEndSegWeight);
 				}
 
-				g1 = g0;
-				g0 = GetObjFunction();
+				g1 = g0; g0 = GetObjFunction();
 
 				//mf::LogVerbatim("pma::Track3D") << "obj fn: " << g0;
 				if (g0 == 0.0F) { MakeProjection(); break; }
