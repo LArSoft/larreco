@@ -129,6 +129,43 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 }
 // ------------------------------------------------------
 
+pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
+	const std::vector< art::Ptr<recob::Hit> >& hits_1,
+	const std::vector< art::Ptr<recob::Hit> >& hits_2) const
+{
+	pma::Track3D* trk = new pma::Track3D();
+	trk->SetEndSegWeight(0.001F);
+	trk->AddHits(hits_1);
+	trk->AddHits(hits_2);
+
+	trk->Initialize(0.001F);
+	trk->Optimize(0, fFineTuningEps);
+
+	trk->SortHits();
+	return trk;
+}
+// ------------------------------------------------------
+
+pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
+	const std::vector< art::Ptr<recob::Hit> >& hits_1,
+	const std::vector< art::Ptr<recob::Hit> >& hits_2,
+	const TVector3& point) const
+{
+	pma::Track3D* trk = buildSegment(hits_1, hits_2);
+
+	double dfront = pma::Dist2(trk->front()->Point3D(), point);
+	double dback = pma::Dist2(trk->back()->Point3D(), point);
+	if (dfront > dback) trk->Flip();
+
+	trk->Nodes().front()->SetPoint3D(point);
+	trk->Nodes().front()->SetFrozen(true);
+	trk->Optimize(0, fFineTuningEps);
+
+	trk->SortHits();
+	return trk;
+}
+// ------------------------------------------------------
+
 pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 	const pma::Track3D& trk,
 	const std::vector< art::Ptr<recob::Hit> >& hits,
