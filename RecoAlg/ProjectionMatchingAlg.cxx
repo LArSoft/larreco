@@ -23,8 +23,12 @@ void pma::ProjectionMatchingAlg::reconfigure(const fhicl::ParameterSet& p)
 	fOptimizationEps = p.get< double >("OptimizationEps");
 	fFineTuningEps = p.get< double >("FineTuningEps");
 
-	fTrkValidationDist2D = 1.0;
-	fHitTestingDist2D = 0.5;
+	fTrkValidationDist2D = p.get< double >("TrkValidationDist2D");
+	fHitTestingDist2D = p.get< double >("HitTestingDist2D");
+
+	pma::Element3D::SetOptFactor(geo::kZ, p.get< double >("HitWeightZ"));
+	pma::Element3D::SetOptFactor(geo::kV, p.get< double >("HitWeightV"));
+	pma::Element3D::SetOptFactor(geo::kU, p.get< double >("HitWeightU"));
 }
 // ------------------------------------------------------
 
@@ -78,7 +82,7 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 
 size_t pma::ProjectionMatchingAlg::getSegCount(size_t trk_size)
 {
-	int nSegments = trk_size / (2 * (int)sqrt( trk_size ));
+	int nSegments = (int)( 0.8 * trk_size / sqrt(trk_size) );
 
 	if (nSegments > 1) return (size_t)nSegments;
 	else return 1;
@@ -110,11 +114,15 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 	mf::LogVerbatim("ProjectionMatchingAlg") << "  initialize trk";
 	trk->Initialize();
 
+	double g = 0.0;
 	mf::LogVerbatim("ProjectionMatchingAlg") << "  optimize trk (" << nSegments << " seg)";
-	if (nNodes) trk->Optimize(nNodes, fOptimizationEps);   // build nodes
-	double g = trk->Optimize(0, fFineTuningEps);           // final tuning
-	mf::LogVerbatim("ProjectionMatchingAlg") << "  done, g = " << g;
-	mf::LogVerbatim("ProjectionMatchingAlg") << "  sort trk";
+	if (nNodes)
+	{
+		g = trk->Optimize(nNodes, fOptimizationEps);   // build nodes
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  nodes done, g = " << g;
+	}
+	g = trk->Optimize(0, fFineTuningEps);              // final tuning
+	mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
 
 	trk->SortHits();
 	return trk;
