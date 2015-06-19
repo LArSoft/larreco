@@ -103,6 +103,9 @@ private:
 	size_t minSize, unsigned int preferedView, unsigned int testView,
 	unsigned int tpc, unsigned int cryo,
 	double fraction);
+
+  // display what was used and what is left, just for development and debugging
+  void listUsedClusters(art::Handle< std::vector<recob::Cluster> > clusters) const;
   // ------------------------------------------------------
 
   // build tracks from clusters associated by any other module - not yet implemented
@@ -116,7 +119,7 @@ private:
 
   std::vector< size_t > used_clusters, checked_clusters;
   std::map< unsigned int, std::vector<size_t> > tried_clusters;
-  bool has(const std::vector<size_t>& v, size_t idx)
+  bool has(const std::vector<size_t>& v, size_t idx) const
   {
   	for (auto c : v) if (c == idx) return true;
   	return false;
@@ -136,13 +139,14 @@ private:
   double validate(const pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
 
-  bool isMcStopping(void) const;
+  bool isMcStopping(void) const; // to be moved to the testing module
   // ------------------------------------------------------
 
   art::ServiceHandle< geo::Geometry > fGeom;
   art::ServiceHandle<util::DetectorProperties> fDetProp;
 
   // ******************* tree output **********************
+  int fEvNumber;        // event number
   int fTrkIndex;        // track index in the event, same for all dQ/dx points of the track
   int fPlaneIndex;      // wire plane index of the dQ/dx data point
   int fIsStopping;      // tag tracks of stopping particles
@@ -177,6 +181,7 @@ void PMAlgTrackMaker::beginJob()
 {
 	art::ServiceHandle<art::TFileService> tfs;
 	fTree = tfs->make<TTree>("PMAlgTrackMaker", "tracks info");
+	fTree->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
 	fTree->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
 	fTree->Branch("fPlaneIndex", &fPlaneIndex, "fPlaneIndex/I");
 	fTree->Branch("fIsStopping", &fIsStopping, "fIsStopping/I");
@@ -318,7 +323,15 @@ bool PMAlgTrackMaker::isMcStopping(void) const
 	const sim::ParticleList& plist = bt->ParticleList();
 	const simb::MCParticle* particle = plist.Primary(0);
 
-	if (particle) return (particle->NumberDaughters() == 0);
+	if (particle)
+	{
+//		std::cout << "...:SIM:... " << particle->EndProcess()
+//			<< " n:" << particle->NumberDaughters()
+//			<< " m:" << particle->Mass()
+//			<< " E:" << particle->EndE() << std::endl;
+		return (particle->NumberDaughters() == 0);
+		//return (particle->EndE() - particle->Mass() < 0.001);
+	}
 	else return false;
 }
 // ------------------------------------------------------
@@ -394,6 +407,8 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
+	fEvNumber = evt.id().event();
+
 	std::vector< pma::Track3D* > result;
 
 	if (!sortHits(evt))
@@ -527,6 +542,9 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		{
 			fromMaxCluster_tpc(result, cluListHandle, fbp, minBuildSizeSmall, tpc_iter->TPC, tpc_iter->Cryostat);
 		}
+
+		// used for development
+		//listUsedClusters(cluListHandle);
 	}
 	else
 	{
@@ -690,7 +708,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 						fraction = 0.7; // only well matching the existing track
 
 						idx = 0;
-						while (idx >= 0)
+						while ((idx >= 0) && (testView != geo::kUnknown))
 						{	//                     match clusters from the plane used previously for the validation
 							idx = matchCluster(*trk, clusters, fbp, minSize, testView, geo::kUnknown, tpc, cryo, fraction);
 							if (idx >= 0)
@@ -803,6 +821,28 @@ int PMAlgTrackMaker::maxCluster(
 	}
 	if (fraction > 0.4) return idx;
 	else return -1;
+}
+// ------------------------------------------------------
+
+void PMAlgTrackMaker::listUsedClusters(art::Handle< std::vector<recob::Cluster> > clusters) const
+{
+	mf::LogVerbatim("PMAlgTrackMaker") << std::endl << "----------- matched clusters: -----------";
+	for (size_t i = 0; i < clusters->size(); ++i)
+		if (has(used_clusters, i))
+		{
+			mf::LogVerbatim("PMAlgTrackMaker")
+				<< "    view: " << (*clusters)[i].View()
+				<< "; size: " << (*clusters)[i].NHits();
+		}
+	mf::LogVerbatim("PMAlgTrackMaker") << "--------- not matched clusters: ---------";
+	for (size_t i = 0; i < clusters->size(); ++i)
+		if (!has(used_clusters, i))
+		{
+			mf::LogVerbatim("PMAlgTrackMaker")
+				<< "    view: " << (*clusters)[i].View()
+				<< "; size: " << (*clusters)[i].NHits();
+		}
+	mf::LogVerbatim("PMAlgTrackMaker") << "-----------------------------------------";
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
