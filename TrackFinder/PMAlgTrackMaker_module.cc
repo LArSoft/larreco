@@ -229,91 +229,69 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 		src.GetRawdEdxSequence(src_dQdx[geo::kZ], geo::kZ);
 	}
 
-	// trajectory from nodes (for debuging only, dQ/dx not saved)
-/*	{
-		mf::LogVerbatim("PMAlgTrackMaker") << "DEBUG: save only nodes.";
-		for (size_t i = 0; i < src.Nodes().size(); i++)
-		{
-			xyz.push_back(src.Nodes()[i]->Point3D());
-
-			if (i < src.Nodes().size() - 1)
-			{
-				TVector3 dc(src.Nodes()[i + 1]->Point3D());
-				dc -= src.Nodes()[i]->Point3D();
-				dc *= 1.0 / dc.Mag();
-				dircos.push_back(dc);
-			}
-			else dircos.push_back(dircos.back());
-		}
-		return recob::Track(xyz, dircos);
-	} */
-
-	// trajectory from hits (use this!)
+	for (size_t i = 0; i < src.size(); i++)
 	{
-		for (size_t i = 0; i < src.size(); i++)
+		xyz.push_back(src[i]->Point3D());
+
+		if (i < src.size() - 1)
 		{
-			xyz.push_back(src[i]->Point3D());
+			TVector3 dc(src[i + 1]->Point3D());
+			dc -= src[i]->Point3D();
+			dc *= 1.0 / dc.Mag();
+			dircos.push_back(dc);
+		}
+		else dircos.push_back(dircos.back());
 
-			if (i < src.size() - 1)
+		double dQ = 0., dx = 0.;
+		dst_dQdx[geo::kU].push_back(0.);
+		dst_dQdx[geo::kV].push_back(0.);
+		dst_dQdx[geo::kZ].push_back(0.);
+
+		double dQdx;
+		for (auto const& m : src_dQdx)
+		{
+			auto it = m.second.find(i);
+			if (it != m.second.end())
 			{
-				TVector3 dc(src[i + 1]->Point3D());
-				dc -= src[i]->Point3D();
-				dc *= 1.0 / dc.Mag();
-				dircos.push_back(dc);
-			}
-			else dircos.push_back(dircos.back());
+				dQ = it->second[5];
+				dx = it->second[6];
+				if (dx > 0.) dQdx = dQ/dx;
+				else dQdx = 0.;
 
-			double dQ = 0., dx = 0.;
-			dst_dQdx[geo::kU].push_back(0.);
-			dst_dQdx[geo::kV].push_back(0.);
-			dst_dQdx[geo::kZ].push_back(0.);
+				dst_dQdx[m.first][i] = dQdx;
 
-			double dQdx;
-			for (auto const& m : src_dQdx)
-			{
-				auto it = m.second.find(i);
-				if (it != m.second.end())
-				{
-					dQ = it->second[5];
-					dx = it->second[6];
-					if (dx > 0.) dQdx = dQ/dx;
-					else dQdx = 0.;
-
-					dst_dQdx[m.first][i] = dQdx;
-
-					break;
-				}
+				break;
 			}
 		}
-
-		if (fSave_dQdx)
-		{
-			fIsStopping = (int)isMcStopping();
-			for (unsigned int view = 0; view < fGeom->Nviews(); view++)
-				if (fGeom->TPC(tpc, cryo).HasPlane(view))
-				{
-					fPlaneIndex = view;
-					for (auto const& data : src_dQdx[view])
-						for (size_t i = 0; i < data.second.size() - 1; i++)
-						{
-							double dQ = data.second[5];
-							double dx = data.second[6];
-							fRange = data.second[7];
-							if (dx > 0.)
-							{
-								fdQdx = dQ/dx;
-								fTree->Fill();
-							}
-						}
-				}
-		}
-
-		if (xyz.size() != dircos.size())
-		{
-			mf::LogError("PMAlgTrackMaker") << "pma::Track3D to recob::Track conversion problem.";
-		}
-		return recob::Track(xyz, dircos, dst_dQdx);
 	}
+
+	if (fSave_dQdx)
+	{
+		fIsStopping = (int)isMcStopping();
+		for (unsigned int view = 0; view < fGeom->Nviews(); view++)
+			if (fGeom->TPC(tpc, cryo).HasPlane(view))
+			{
+				fPlaneIndex = view;
+				for (auto const& data : src_dQdx[view])
+					for (size_t i = 0; i < data.second.size() - 1; i++)
+					{
+						double dQ = data.second[5];
+						double dx = data.second[6];
+						fRange = data.second[7];
+						if (dx > 0.)
+						{
+							fdQdx = dQ/dx;
+							fTree->Fill();
+						}
+					}
+			}
+	}
+
+	if (xyz.size() != dircos.size())
+	{
+		mf::LogError("PMAlgTrackMaker") << "pma::Track3D to recob::Track conversion problem.";
+	}
+	return recob::Track(xyz, dircos, dst_dQdx);
 }
 // ------------------------------------------------------
 
@@ -364,7 +342,7 @@ pma::Track3D* PMAlgTrackMaker::extendTrack(const pma::Track3D& trk,
 	bool add_nodes)
 {
 	pma::Track3D* copy = fProjectionMatchingAlg.extendTrack(trk, hits, add_nodes);
-	double g1 = copy->GetObjFunction();
+	double g1 = copy->GetObjFunction(0.0F); // 0.0F for pure MSE of hits (no penalty on angles)
 	double v1 = validate(*copy, testView);
 
 	if ((g1 < 0.15) && (g1 <= gmax) && (v1 >= vmin))
@@ -544,7 +522,7 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		}
 
 		// used for development
-		//listUsedClusters(cluListHandle);
+		listUsedClusters(cluListHandle);
 	}
 	else
 	{
@@ -677,15 +655,17 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 
 					pma::Track3D* trk = fProjectionMatchingAlg.buildTrack(v_first, fbp.at(idx));
 
-					double g0 = trk->GetObjFunction();
+					double g0 = trk->GetObjFunction(0.0F); // 0.0F for pure MSE of hits (no penalty on angles)
 					double v0 = validate(*trk, testView);
-					if ((g0 < 0.1) && (v0 > 0.7)) // good track, try to extend it and then save to results
+					if ((g0 < 0.15) && (v0 > 0.7)) // good track, try to extend it and then save to results
 					{
 						used_clusters.push_back(max_first_idx);
 						used_clusters.push_back(idx);
 
-						size_t minSize = 5;    // min size for clusters matching
-						double fraction = 0.4; // min fraction of close hits
+						size_t minSize = 5;      // min size for clusters matching
+						double fraction = 0.4;   // min fraction of close hits
+						double g_max = 2.0 * g0; // max acceptable obj.fn. value
+						if (g_max < 0.05) g_max = 0.05; // this is still good, low value
 						
 						idx = 0;
 						while (idx >= 0) // try to collect matching clusters, use **any** plane except validation
@@ -694,7 +674,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 							if (idx >= 0)
 							{
 								// try building extended copy:    src,    hits,    max.obj.fn, min.valid, valid.plane, add nodes
-								pma::Track3D* copy = extendTrack(*trk, fbp.at(idx), 2.0 * g0,  0.98 * v0,  testView,    true);
+								pma::Track3D* copy = extendTrack(*trk, fbp.at(idx),   g_max,   0.98 * v0,   testView,    true);
 								if (copy)
 								{
 									used_clusters.push_back(idx);
@@ -714,7 +694,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 							if (idx >= 0)
 							{
 								// only loose validation using kZ, no new nodes:
-								pma::Track3D* copy = extendTrack(*trk, fbp.at(idx), 2.0 * g0, 0.7, geo::kZ, false);
+								pma::Track3D* copy = extendTrack(*trk, fbp.at(idx), g_max, 0.7, geo::kZ, false);
 								if (copy)
 								{
 									used_clusters.push_back(idx);
