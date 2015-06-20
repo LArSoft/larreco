@@ -107,7 +107,11 @@ namespace trkf{
       x = hitX[iht] - XOrigin;
       ypr = tVec[0] + tVec[2] * x;
       zpr = tVec[1] + tVec[3] * x;
-      wght = hitXErr[iht];
+      if(hitXErr[iht] > 0) {
+        wght = 1 / hitXErr[iht];
+      } else {
+        wght = 1;
+      }
       if(wght <= 0) wght = 1;
       diff = (ypr * cw + zpr * sw - (hitWID[iht].Wire - off)) / wght;
       ChiDOF += diff * diff;
