@@ -22,7 +22,8 @@ standard_cctrackmaker:
   PlnMatchMinLen: [10]    # match clusters > cut in PlnMatch on several passes
   AngMatchMinLen:   10    # match clusters > cut in AngMatch
   MakePFPs:       true    # make PFParticles
-  NVtxTrkHitsFit:    3    # number of hits/plane fitted to a vertex
+  NVtxTrkHitsFit:    4    # number of hits/plane fitted to a vertex, 0 = no vertex fit
+  HitFitErrFac:   1       # Factor applied to SigmaPeakTime for vertex fit
   DebugPlane:    -1       # -1 = none
   DebugCluster:  -1
   PrintAllClusters: false # print clusters as well as cluster chains
