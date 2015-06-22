@@ -1331,7 +1331,7 @@ void Cluster3D::ProduceArtClusters(art::Event&              evt,
         while(clusterParametersListItr != clusterParametersList.end())
         {
             // Dereference to get the cluster paramters
-            ClusterParameters& clusterParameters = *clusterParametersListItr++;
+            ClusterParameters& clusterParameters = *clusterParametersListItr;
             
             // It should be straightforward at this point to transfer information from our vector of clusters
             // to the larsoft objects... of course we still have some work to do first, in particular to
@@ -1347,6 +1347,7 @@ void Cluster3D::ProduceArtClusters(art::Event&              evt,
             if (!fullPCA.getSvdOK())
             {
                 mf::LogDebug("Cluster3D") << "--> no feature extraction done on this cluster!!" << std::endl;
+                clusterParametersListItr++;
                 continue;
             }
             
@@ -1577,6 +1578,9 @@ void Cluster3D::ProduceArtClusters(art::Event&              evt,
             
             // Update the start/end indices
             clusterStart = clusterEnd;
+            
+            // Go to next cluster parameters object
+            clusterParametersListItr++;
         }
     }
     
