@@ -29,6 +29,24 @@ standard_cctrackmaker:
   PrintAllClusters: false # print clusters as well as cluster chains
 }
 
+standard_pmalgtrackmaker:
+{
+  module_type:            "PMAlgTrackMaker"
+  ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+                                      #
+  HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
+  ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
+  CluMatchingAlg:         1           # 1: loop over clusters from each view, produces independent tracks:
+                                      #    clusters are processed from the largest, best time-matching down
+                                      #    to small pieces which are merged with existing tracks or used
+                                      #    to create smaller tracks at the end
+                                      # 2: use existing assocs of clusters (from external algorithm, to be
+                                      #    used by the shower reconstruction but not yet ready)
+                                      #
+  AutoFlip_dQdx:          false       # set the track direction to increasing dQ/dx
+  Save_dQdx:              false       # store dQ/dx vs range in the tree, if set to true
+}
+
 standard_featuretracker:
 {
  module_type:         "FeatureTracker"
@@ -94,20 +112,13 @@ standard_cosmictracker:
 {
  module_type:        "CosmicTracker"
  ClusterModuleLabel: "linemerger"
- #KScut:              0.9
- TMatch:             35
- SMatch:             1.0
- Toler1:             30    #tolerance in fit, 1st iteration
- Toler2:             20    #tolerance in fit, 2nd iteration
- #EnableU:            true
- #EnableV:            true
- #EnableZ:            true
- Debug:              false
- IsoHitCut:          100000
  SortDirection:      "+z"
- CleanUpHits:        false
- DirSPS:             false
+ StitchTracks:       false
+ DisCut:             20
+ AngCut:             0.1
+ TrajOnly:           false
  ClusterMatch:       @local::standard_clustermatchtq
+ CTAlg:              @local::standard_cosmictrackeralg
 }
 
 standard_track3Dkalman:

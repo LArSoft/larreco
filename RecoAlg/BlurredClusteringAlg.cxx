@@ -18,7 +18,8 @@ cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& p
   fNWires = -1;
   fNTicks = -1;
   fLastKernel.clear();
-  fLastBlurN = -1000;
+  fLastBlurWire = -1000;
+  fLastBlurTick = -1000;
   fLastSigma = -1000;
   fMinHits = 3;
   fMinSeed = 0.1;
@@ -30,8 +31,11 @@ cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& p
 
   std::cout << "Beginning blurred" << std::endl;
   mf::LogInfo("Blurred Clustering") << "*** Parameters for Blurred Clustering: ***";
-  mf::LogInfo("Blurred Clustering") << "BlurN:               " << fBlurN;
+  mf::LogInfo("Blurred Clustering") << "BlurWire:            " << fBlurWire;
+  mf::LogInfo("Blurred Clustering") << "BlurTick:            " << fBlurTick;
   mf::LogInfo("Blurred Clustering") << "BlurSigma:           " << fBlurSigma;
+  mf::LogInfo("Blurred Clustering") << "ClusterWireDistance: " << fClusterWireDistance;
+  mf::LogInfo("Blurred Clustering") << "ClusterTickDistance: " << fClusterTickDistance;
   mf::LogInfo("Blurred Clustering") << "NeighboursThreshold: " << fNeighboursThreshold;
   mf::LogInfo("Blurred Clustering") << "MinNeighbours:       " << fMinNeighbours;
   mf::LogInfo("Blurred Clustering") << "MinSize:             " << fMinSize;
@@ -50,8 +54,11 @@ cluster::BlurredClusteringAlg::~BlurredClusteringAlg() {
 }
 
 void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
-  fBlurN               = p.get<int>   ("BlurN");
+  fBlurWire            = p.get<int>   ("BlurWire");
+  fBlurTick            = p.get<int>   ("BlurTick");
   fBlurSigma           = p.get<double>("BlurSigma");
+  fClusterWireDistance = p.get<int>   ("ClusterWireDistance");
+  fClusterTickDistance = p.get<int>   ("ClusterTickDistance");
   fNeighboursThreshold = p.get<int>   ("NeighboursThreshold");
   fMinNeighbours       = p.get<int>   ("MinNeighbours");
   fMinSize             = p.get<int>   ("MinSize");
@@ -357,8 +364,8 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
         biny = ((cluster[clusBin] - binx) / nbinsx) % nbinsy;
 
 	// Look for hits in the directly neighbouring x/y bins
-        for (int x = binx - 1; x <= binx + 1; x++) {
-          for (int y = biny - 1; y <= biny + 1; y++) {
+        for (int x = binx - fClusterWireDistance; x <= binx + fClusterWireDistance; x++) {
+          for (int y = biny - fClusterTickDistance; y <= biny + fClusterTickDistance; y++) {
             if (x == binx && y == biny)
               continue;
 
@@ -491,14 +498,14 @@ TH2 *cluster::BlurredClusteringAlg::GaussianBlur(TH2 *image) {
 
   // Create Gaussian kernel
   std::map<int,double> kernel;
-  int width = 2 * fBlurN + 1;
-  int height = 2 * fBlurN + 1;
+  int width = 2 * fBlurWire + 1;
+  int height = 2 * fBlurTick + 1;
 
   if (fBlurSigma == 0)
     return (TH2F*) image->Clone(image->GetName() + TString("_blur"));
 
   // If the parameters match the last parameters, used the same last kernel
-  if (fLastBlurN == fBlurN && fLastSigma == fBlurSigma && !fLastKernel.empty())
+  if (fLastBlurWire == fBlurWire && fLastBlurTick == fBlurTick && fLastSigma == fBlurSigma && !fLastKernel.empty())
     kernel = fLastKernel;
 
   // Otherwise, allocate and compute a new kernel, freeing the fLastKernel if it has been allocated.
@@ -507,9 +514,9 @@ TH2 *cluster::BlurredClusteringAlg::GaussianBlur(TH2 *image) {
     if (!fLastKernel.empty())
       fLastKernel.clear();
 
-    // Smear out according to the blur radius fBlurN
-    for (int i = -fBlurN; i <= fBlurN; i++) {
-      for (int j = -fBlurN; j <= fBlurN; j++) {
+    // Smear out according to the blur radii in each direction
+    for (int i = -fBlurWire; i <= fBlurWire; i++) {
+      for (int j = -fBlurTick; j <= fBlurTick; j++) {
         double sigmai = fBlurSigma / 1.5;
         double sigmaj = fBlurSigma;
 
@@ -517,16 +524,17 @@ TH2 *cluster::BlurredClusteringAlg::GaussianBlur(TH2 *image) {
 	double sig2i = 2. * sigmai * sigmai;
 	double sig2j = 2. * sigmaj * sigmaj;
 
-	int key = (width * (j + fBlurN)) + (i + fBlurN);
+	int key = (width * (j + fBlurTick)) + (i + fBlurWire);
 	double value = 1. / sqrt(sig2i * M_PI) * exp(-i * i / sig2i) * 1. / sqrt(sig2j * M_PI) * exp(-j * j / sig2j);
 	kernel[key] = value;
 
       }
     } // End loop over blurring region
 
-    fLastKernel = kernel;
-    fLastBlurN  = fBlurN;
-    fLastSigma  = fBlurSigma;
+    fLastKernel   = kernel;
+    fLastBlurWire = fBlurWire;
+    fLastBlurTick = fBlurTick;
+    fLastSigma    = fBlurSigma;
   }
 
   // Return a convolution of this Gaussian kernel with the unblurred hit map
