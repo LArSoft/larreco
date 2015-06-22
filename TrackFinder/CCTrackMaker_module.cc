@@ -103,6 +103,7 @@ namespace trkf {
     float fAngMatchMinLen;
     bool fMakePFPs;
     unsigned short fNVtxTrkHitsFit;
+    float fHitFitErrFac;
     
     
     short fDebugPlane;
@@ -200,6 +201,8 @@ namespace trkf {
     
     // Array of pointers to hits in each plane for one track
     std::array< std::vector<art::Ptr<recob::Hit>>, 3> trkHits;
+    // relative charge normalization between planes
+    std::array< float, 3> ChgNorm;
     
     // Array of PFParticle -> track IDs. The first element will be
     // track ID = 0 indicating that this is a neutrino PFParticle and
@@ -315,6 +318,7 @@ namespace trkf {
     fAngMatchMinLen         = pset.get< float >("AngMatchMinLen");
     fMakePFPs               = pset.get< bool  >("MakePFPs");
     fNVtxTrkHitsFit         = pset.get< unsigned short  >("NVtxTrkHitsFit");
+    fHitFitErrFac           = pset.get< float >("HitFitErrFac");
     fDebugPlane             = pset.get< short >("DebugPlane");
     fDebugCluster           = pset.get< short >("DebugCluster");
     fPrintAllClusters       = pset.get< bool  >("PrintAllClusters");
@@ -441,11 +445,13 @@ namespace trkf {
     for(cstat = 0; cstat < geom->Ncryostats(); ++cstat) {
       for(tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
         nplanes = geom->Cryostat(cstat).TPC(tpc).Nplanes();
+        if(nplanes > 3) continue;
         for(ipl = 0; ipl < 3; ++ipl) {
           cls[ipl].clear();
           clsChain[ipl].clear();
           trkHits[ipl].clear();
         } // ipl
+        // FillWireHitRange also calculates the charge in each plane
         FillWireHitRange();
         for(ipl = 0; ipl < nplanes; ++ipl) {
           clulens.clear();
@@ -476,7 +482,7 @@ namespace trkf {
             clstr.Slope[1] = std::tan(cluster.StartAngle());
             clstr.Dir[1] = 0;
             if(fabs(clstr.Slope[1]) > 0.1) clstr.Dir[1] = -1 * (2*(clstr.Slope[1]>0)-1);
-            clstr.Charge[1] = cluster.StartCharge();
+            clstr.Charge[1] = ChgNorm[ipl] * cluster.StartCharge();
             // this will be filled later
             clstr.ChgNear[1] = 0;
             clstr.VtxIndex[1] = -1;
@@ -491,7 +497,7 @@ namespace trkf {
             clstr.Slope[0] =  std::tan(cluster.EndAngle());
             clstr.Dir[0] = 0;
             if(fabs(clstr.Slope[0]) > 0.1) clstr.Dir[0] = 1 * (2*(clstr.Slope[0]>0)-1);
-            clstr.Charge[0] = cluster.EndCharge();
+            clstr.Charge[0] = ChgNorm[ipl] * cluster.EndCharge();
             // this will be filled later
             clstr.ChgNear[1] = 0;
             clstr.VtxIndex[0] = -1;
@@ -501,7 +507,7 @@ namespace trkf {
             // other info
             clstr.InTrack = -1;
             clstr.Length = (unsigned short)(0.5 + clstr.Wire[1] - clstr.Wire[0]);
-            clstr.TotChg = cluster.Integral();
+            clstr.TotChg = ChgNorm[ipl] * cluster.Integral();
             if(clstr.TotChg <= 0) clstr.TotChg = 1;
             // shower-like?
             clusterhits = fmCluHits.at(icl);
@@ -734,9 +740,11 @@ namespace trkf {
     std::vector<TVector3> trkDirErr;
     float ChiDOF;
     
+    if(fNVtxTrkHitsFit == 0) return;
+    
     unsigned short indx, indx2, iht, nHitsFit;
     
-    std::cout<<"Inside FitVertices "<<vtx.size()<<" trks "<<trk.size()<<"\n";
+    mf::LogVerbatim("CCTM")<<"Inside FitVertices "<<vtx.size()<<" trks "<<trk.size()<<"\n";
     
     for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
       if(!vtx[ivx].Neutrino) continue;
@@ -751,8 +759,9 @@ namespace trkf {
           if(trk[itk].VtxIndex[end] != ivx) continue;
           unsigned short itj = 0;
           if(end == 1) itj = trk[itk].TrjPos.size() - 1;
-          std::cout<<"ivx "<<ivx<<" trk "<<itk<<" end "<<end<<" TrjPos "<<trk[itk].TrjPos[itj](0)<<" "<<trk[itk].TrjPos[itj](1)<<" "
-            <<trk[itk].TrjPos[itj](2)<<"\n";
+//          std::cout<<"ivx "<<ivx<<" trk "<<itk<<" end "<<end<<" TrjPos "<<trk[itk].TrjPos[itj](0)<<" "<<trk[itk].TrjPos[itj](1)<<" "
+//          <<trk[itk].TrjPos[itj](2)<<" TrjDir "<<trk[itk].TrjDir[itj](0)<<" "<<trk[itk].TrjDir[itj](1)<<" "
+//          <<trk[itk].TrjDir[itj](2)<<"\n";
           // increase the size of the hit vectors by 1 for this track
           indx = hitX.size();
           hitWID.resize(indx + 1);
@@ -780,24 +789,26 @@ namespace trkf {
               theTPC = trk[itk].TrkHits[ipl][iht]->WireID().TPC;
               theCst = trk[itk].TrkHits[ipl][iht]->WireID().Cryostat;
               hitX[indx][indx2 + ii] = detprop->ConvertTicksToX(trk[itk].TrkHits[ipl][iht]->PeakTime(), thePln, theTPC, theCst);
-              hitXErr[indx][indx2 + ii] = 0.2 * trk[itk].TrkHits[ipl][iht]->RMS() * trk[itk].TrkHits[ipl][iht]->Multiplicity();
-//              hitXErr[indx][indx2 + ii] = trk[itk].TrkHits[ipl][iht]->SigmaPeakTime() * trk[itk].TrkHits[ipl][iht]->Multiplicity();
- std::cout<<"CCTM "<<itk<<" indx "<<indx<<" ii "<<ii<<" WID "<<trk[itk].TrkHits[ipl][iht]->WireID()<<" X "<<hitX[indx][indx2 + ii]<<"\n";
+              hitXErr[indx][indx2 + ii] = fHitFitErrFac * trk[itk].TrkHits[ipl][iht]->SigmaPeakTime() * trk[itk].TrkHits[ipl][iht]->Multiplicity();
+// std::cout<<"CCTM "<<itk<<" indx "<<indx<<" ii "<<ii<<" WID "<<trk[itk].TrkHits[ipl][iht]->WireID()<<" X "<<hitX[indx][indx2 + ii]<<" XErr "<<hitXErr[indx][indx2 + ii]<<"\n";
             } // ii
           } // ipl
         } // end
       } // itk
       if(hitX.size() < 2) {
-        std::cout<<"Not enuf hits for vtx "<<ivx<<"\n";
+        mf::LogVerbatim("CCTM")<<"Not enuf hits for vtx "<<ivx<<"\n";
         continue;
       } // hitX.size() < 2
       pos(0) = vtx[ivx].X;
       pos(1) = vtx[ivx].Y;
       pos(2) = vtx[ivx].Z;
       fVertexFitAlg.VertexFit(hitWID, hitX, hitXErr, pos, posErr, trkDir, trkDirErr, ChiDOF);
-      std::cout<<"CC Vtx pos "<<vtx[ivx].X<<" "<<vtx[ivx].Y<<" "<<vtx[ivx].Z<<"\n";
-      std::cout<<"Fitted     "<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<" ChiDOF "<<ChiDOF<<"\n";
-      std::cout<<"Errors     "<<posErr[0]<<" "<<posErr[1]<<" "<<posErr[2]<<"\n";
+
+      mf::LogVerbatim("CCTM")<<"CC Vtx pos "<<vtx[ivx].X<<" "<<vtx[ivx].Y<<" "<<vtx[ivx].Z<<"\n";
+      mf::LogVerbatim("CCTM")<<"Fitted     "<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<" ChiDOF "<<ChiDOF<<"\n";
+      mf::LogVerbatim("CCTM")<<"Errors     "<<posErr[0]<<" "<<posErr[1]<<" "<<posErr[2]<<"\n";
+
+      if(ChiDOF > 3) continue;
       // update the vertex position
       vtx[ivx].X = pos(0);
       vtx[ivx].Y = pos(1);
@@ -858,7 +869,7 @@ namespace trkf {
           } // w
           cnear /= (float)(nwires-1);
           if(cnear > cls[ipl][icl].Charge[end]) {
-            cls[ipl][icl].ChgNear[end] = cnear / cls[ipl][icl].Charge[end];
+            cls[ipl][icl].ChgNear[end] = ChgNorm[ipl] * cnear / cls[ipl][icl].Charge[end];
           } else {
             cls[ipl][icl].ChgNear[end] = 0;
           }
@@ -1158,6 +1169,7 @@ namespace trkf {
       iend = 0; jend = 0;
       bool gotkcl;
       for(ipl = 0; ipl < nplanes; ++ipl) {
+        if(nplanes == 2 && ipl > 0) continue;
         for(ii = 0; ii < vxCls[ipl].size(); ++ii) {
           icl = vxCls[ipl][ii];
           // ignore used clusters
@@ -1180,17 +1192,18 @@ namespace trkf {
                 MatchPars match;
                 match.Cls[ipl] = icl; match.End[ipl] = iend;
                 match.Cls[jpl] = jcl; match.End[jpl] = jend;
-                match.Cls[kpl] = -1;  match.End[kpl] = 0;
                 match.Vtx = ivx;
-                match.Err = 100;
                 if(nplanes == 2) {
+//                  mf::LogVerbatim("CCTM")<<"chk "<<ipl<<":"<<match.Cls[ipl]<<":"<<match.End[ipl]<<" and "<<jpl<<":"<<match.Cls[jpl]<<":"<<match.End[jpl];
                   FillEndMatch2(match);
+                  if(prt)  mf::LogVerbatim("CCTM")<<"FillEndMatch2: Err "<<match.Err<<" oErr "<<match.oErr;
                   match.Err += match.oErr;
-                  if(match.Err > 100) continue;
+                  if(match.Err + match.oErr > 100) continue;
                   if(DupMatch(match)) continue;
                   matcomb.push_back(match);
                   continue;
                 }
+                match.Cls[kpl] = -1;  match.End[kpl] = 0;
                 if(prt) mf::LogVerbatim("CCTM")<<"VtxMatch: check "<<ipl<<":"<<icl<<":"<<iend<<" and "<<jpl<<":"<<jcl<<":"<<jend<<" for cluster in kpl "<<kpl;
                 gotkcl = false;
                 for(kk = 0; kk < vxCls[kpl].size(); ++kk) {
@@ -2259,8 +2272,8 @@ namespace trkf {
         <<std::setw(7)<<std::setprecision(3)<<asym
         <<" 0:"<<matcomb[im].Cls[0]<<":"<<matcomb[im].End[0]
         <<" 1:"<<matcomb[im].Cls[1]<<":"<<matcomb[im].End[1];
-        if(nplanes > 2) myprt<<" 2:"<<matcomb[im].Cls[2]<<":"<<matcomb[im].End[2]
-        <<"\n";
+        if(nplanes > 2) myprt<<" 2:"<<matcomb[im].Cls[2]<<":"<<matcomb[im].End[2];
+        myprt<<"\n";
       } // ii
     } // prt
     
@@ -2412,32 +2425,50 @@ namespace trkf {
     match.Chg[2] = 0;
     match.dWir = 0; match.dAng = 0;
     match.odWir = 0; match.odAng = 0;
-    
-    if(match.Cls[0] < 0 && match.Cls[1] < 0) return;
-    
+
     unsigned short ipl = 0;
+    unsigned short jpl = 1;
+//    mf::LogVerbatim("CCTM")<<"chk "<<ipl<<":"<<match.Cls[ipl]<<":"<<match.End[ipl]<<" and "<<jpl<<":"<<match.Cls[jpl]<<":"<<match.End[jpl];
+
+    if(match.Cls[0] < 0 || match.Cls[1] < 0) return;
+    
     unsigned short icl = match.Cls[ipl];
     unsigned short iend = match.End[ipl];
     match.Chg[ipl] = clsChain[ipl][icl].TotChg;
     // cluster i match end
     float miX = clsChain[ipl][icl].X[iend];
-    if(match.Vtx >= 0) miX = vtx[match.Vtx].X;
     // cluster i other end
     unsigned short oiend = 1 - iend;
     float oiX = clsChain[ipl][icl].X[oiend];
-    if(match.oVtx >= 0) oiX = vtx[match.oVtx].X;
 
-    unsigned short jpl = 1;
     unsigned short jcl = match.Cls[jpl];
     unsigned short jend = match.End[jpl];
     match.Chg[jpl] = clsChain[jpl][jcl].TotChg;
     // cluster j match end
     float mjX = clsChain[jpl][jcl].X[jend];
-    if(match.Vtx >= 0) mjX = vtx[match.Vtx].X;
     // cluster j other end
     unsigned short ojend = 1 - jend;
     float ojX = clsChain[jpl][jcl].X[ojend];
-
+    
+    // look for a match end vertex match
+    match.Vtx = -1;
+    if(clsChain[ipl][icl].VtxIndex[iend] >= 0 &&
+       clsChain[ipl][icl].VtxIndex[iend] == clsChain[jpl][jcl].VtxIndex[jend]) {
+      match.Vtx = clsChain[ipl][icl].VtxIndex[iend];
+      miX = vtx[match.Vtx].X;
+      mjX = vtx[match.Vtx].X;
+    }
+    
+    // look for an other end vertex match
+    match.oVtx = -1;
+    if(clsChain[ipl][icl].VtxIndex[oiend] >= 0 &&
+       clsChain[ipl][icl].VtxIndex[oiend] == clsChain[jpl][jcl].VtxIndex[ojend]) {
+      match.oVtx = clsChain[ipl][icl].VtxIndex[oiend];
+      oiX = vtx[match.oVtx].X;
+      ojX = vtx[match.oVtx].X;
+    }
+    
+    // find the charge asymmetry
     float chgAsym = fabs(match.Chg[ipl] - match.Chg[jpl]) / (match.Chg[ipl] + match.Chg[jpl]);
     if(chgAsym > 0.5) return;
     chgAsym = 1 + fChgAsymFactor * chgAsym;
@@ -2449,12 +2480,19 @@ namespace trkf {
     match.dX = fabs(miX - mjX);
     match.Err = chgAsym * match.dX / sigmaX;
     
+    
     // find the error at the other end
     maxSlp = fabs(clsChain[ipl][icl].Slope[oiend]);
     if(fabs(clsChain[jpl][jcl].Slope[ojend]) > maxSlp) maxSlp = fabs(clsChain[jpl][jcl].Slope[ojend]);
     sigmaX = fXMatchErr + std::max(maxSlp, (float)20);
     match.odX = fabs(oiX - ojX);
     match.oErr = chgAsym * match.odX / sigmaX;
+    
+    if(prt) mf::LogVerbatim("CCTM")<<"FEM2: m "<<ipl<<":"<<icl<<":"<<iend<<" miX "<<miX
+      <<" - "<<jpl<<":"<<jcl<<":"<<jend<<" mjX "<<mjX<<" match.dX "<<match.dX
+      <<" match.Err "<<match.Err<<" chgAsym "<<chgAsym<<" o "<<" oiX "<<oiX
+      <<" ojX "<<ojX<<" match.odX "<<match.odX<<" match.oErr "<<match.oErr<<"\n";
+    
 
 }
   
@@ -3235,7 +3273,7 @@ namespace trkf {
       //      std::cout<<"prtime "<<wire<<":"<<(int)prtime<<" hit "<<allhits[hit]->PeakTimeMinusRMS(3)<<" "<<allhits[hit]->PeakTimePlusRMS(3)<<"\n";
       if(prtime > allhits[hit]->PeakTimePlusRMS(3)) continue;
       if(prtime < allhits[hit]->PeakTimeMinusRMS(3)) continue;
-      chg += allhits[hit]->Integral();
+      chg += ChgNorm[ipl] * allhits[hit]->Integral();
     } // hit
     return chg;
   } // ChargeNear
@@ -3254,6 +3292,7 @@ namespace trkf {
       firstHit[ipl] = INT_MAX;
       lastHit[ipl] = 0;
       WireHitRange[ipl].clear();
+      ChgNorm[ipl] = 0;
     }
     
     // find the first and last wire with a hit
@@ -3262,6 +3301,7 @@ namespace trkf {
       if(allhits[hit]->WireID().Cryostat != cstat) continue;
       if(allhits[hit]->WireID().TPC != tpc) continue;
       ipl = allhits[hit]->WireID().Plane;
+      ChgNorm[ipl] += allhits[hit]->Integral();
       if(ipl < oldipl) {
         mf::LogError("CCTM")<<"Hits are not in proper order\n";
         return;
@@ -3274,6 +3314,9 @@ namespace trkf {
       lastHit[ipl] = hit;
       lastWire[ipl] = allhits[hit]->WireID().Wire;
     } // hit
+    
+    // normalize charge in induction planes to the collection plane
+    for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = ChgNorm[nplanes - 1] / ChgNorm[ipl];
     
     filter::ChannelFilter cf;
     
@@ -3320,7 +3363,6 @@ namespace trkf {
       int tmp1 = lastFirstHit;
       ++lastHit[ipl];
       int tmp2 = lastHit[ipl];
-//      std::cout<<ipl<<" Last wire "<<lastWire[ipl]<<" lastHit "<<lastHit[ipl]<<" last wire range "<<indx<<" "<<tmp1<<" "<<tmp2<<"\n";
       WireHitRange[ipl][indx] = std::make_pair(tmp1, tmp2);
       // add one to lastWire and lastHit for more standard indexing
       ++lastWire[ipl];
@@ -3372,7 +3414,7 @@ namespace trkf {
     }
     
   } // FillWireHitRange
-  
+
   ///////////////////////////////////////////////////////////////////////
   float CCTrackMaker::TPS(unsigned short plane1, double slope1, unsigned short plane2, double slope2)
   {
@@ -3383,11 +3425,6 @@ namespace trkf {
     if(first) {
       first = false;
       for(size_t ii = 0; ii < 3; ++ii) angle[ii] = geom->Cryostat(cstat).TPC(tpc).Plane(ii).Wire(0).ThetaZ();
-      /*
-       std::cout<<"Angle ";
-       for(size_t ii = 0; ii < 3; ++ii) std::cout<<" "<<angle[ii];
-       std::cout<<"\n";
-       */
     } // first
     
     unsigned short plane3 = 10;
@@ -3404,7 +3441,7 @@ namespace trkf {
     return (float)slope3;
     
   } // TPS
-  
+
   DEFINE_ART_MODULE(CCTrackMaker)
   
 } // namespace
