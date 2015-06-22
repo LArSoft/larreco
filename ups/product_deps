@@ -6,7 +6,7 @@ defaultqual	e7
 fcldir product_dir job
 #
 product         version
-larsim		v04_07_01
+larsim		v04_07_03
 nutools         v1_10_02
 gcc		v4_9_2
 
@@ -16,9 +16,9 @@ end_product_list
   
 # e7  - with gcc 4.9.1 and -std=c++1y
 qualifier	larsim		nutools		gcc	notes
-e7:debug	e7:debug	e7:debug	-nq-
-e7:opt		e7:opt		e7:opt		-nq-
-e7:prof		e7:prof		e7:prof		-nq-
+#e7:debug	e7:debug	e7:debug	-nq-
+#e7:opt		e7:opt		e7:opt		-nq-
+#e7:prof		e7:prof		e7:prof		-nq-
 e7:noifdh:debug	e7:noifdh:debug	e7:noifdh:debug	-nq-
 e7:noifdh:opt	e7:noifdh:opt	e7:noifdh:opt	-nq-
 e7:noifdh:prof	e7:noifdh:prof	e7:noifdh:prof	-nq-

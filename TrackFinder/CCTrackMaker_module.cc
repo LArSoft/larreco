@@ -168,7 +168,7 @@ namespace trkf {
     
     // 3D Vertex info
     struct vtxPar{
-      unsigned short ID;
+      short ID;
       unsigned short EvtIndex;
       float X;
       float Y;
@@ -438,7 +438,7 @@ namespace trkf {
     } // icl
     // end check consistency
     
-    std::cout<<"************ event "<<evt.event()<<"\n";
+//    std::cout<<"************ event "<<evt.event()<<"\n";
     
     vtx.clear();
     trk.clear();
@@ -715,7 +715,6 @@ namespace trkf {
     evt.put(std::move(vcol));
     
     //    mf::LogVerbatim("CCTM")<<"CCTrackMaker done\n";
-    std::cout<<"CCTM done w event "<<evt.event()<<" ntracks "<<trk.size()<<"\n";
 
     
     // final cleanup
@@ -759,9 +758,8 @@ namespace trkf {
           if(trk[itk].VtxIndex[end] != ivx) continue;
           unsigned short itj = 0;
           if(end == 1) itj = trk[itk].TrjPos.size() - 1;
-//          std::cout<<"ivx "<<ivx<<" trk "<<itk<<" end "<<end<<" TrjPos "<<trk[itk].TrjPos[itj](0)<<" "<<trk[itk].TrjPos[itj](1)<<" "
-//          <<trk[itk].TrjPos[itj](2)<<" TrjDir "<<trk[itk].TrjDir[itj](0)<<" "<<trk[itk].TrjDir[itj](1)<<" "
-//          <<trk[itk].TrjDir[itj](2)<<"\n";
+ mf::LogVerbatim("CCTM")<<"ivx "<<ivx<<" trk "<<itk<<" end "<<end<<" TrjPos "<<trk[itk].TrjPos[itj](0)<<" "<<trk[itk].TrjPos[itj](1)<<" "
+            <<trk[itk].TrjPos[itj](2)<<" TrjDir "<<trk[itk].TrjDir[itj](0)<<" "<<trk[itk].TrjDir[itj](1)<<" "<<trk[itk].TrjDir[itj](2);
           // increase the size of the hit vectors by 1 for this track
           indx = hitX.size();
           hitWID.resize(indx + 1);
@@ -782,15 +780,16 @@ namespace trkf {
               if(end == 0) {
                 iht = ii;
               } else {
-                iht = trk[itk].TrkHits[ipl].size() - iht - 1;
+                iht = trk[itk].TrkHits[ipl].size() - ii - 1;
               }
               hitWID[indx][indx2 + ii] = trk[itk].TrkHits[ipl][iht]->WireID();
               thePln = trk[itk].TrkHits[ipl][iht]->WireID().Plane;
               theTPC = trk[itk].TrkHits[ipl][iht]->WireID().TPC;
               theCst = trk[itk].TrkHits[ipl][iht]->WireID().Cryostat;
               hitX[indx][indx2 + ii] = detprop->ConvertTicksToX(trk[itk].TrkHits[ipl][iht]->PeakTime(), thePln, theTPC, theCst);
-              hitXErr[indx][indx2 + ii] = fHitFitErrFac * trk[itk].TrkHits[ipl][iht]->SigmaPeakTime() * trk[itk].TrkHits[ipl][iht]->Multiplicity();
-// std::cout<<"CCTM "<<itk<<" indx "<<indx<<" ii "<<ii<<" WID "<<trk[itk].TrkHits[ipl][iht]->WireID()<<" X "<<hitX[indx][indx2 + ii]<<" XErr "<<hitXErr[indx][indx2 + ii]<<"\n";
+//              hitXErr[indx][indx2 + ii] = fHitFitErrFac * trk[itk].TrkHits[ipl][iht]->SigmaPeakTime() * trk[itk].TrkHits[ipl][iht]->Multiplicity();
+              hitXErr[indx][indx2 + ii] = fHitFitErrFac * trk[itk].TrkHits[ipl][iht]->RMS();
+ mf::LogVerbatim("CCTM")<<"CCTM "<<itk<<" indx "<<indx<<" ii "<<ii<<" WID "<<trk[itk].TrkHits[ipl][iht]->WireID()<<" X "<<hitX[indx][indx2 + ii]<<" XErr "<<hitXErr[indx][indx2 + ii]<<" RMS "<<trk[itk].TrkHits[ipl][iht]->RMS()<<" SigmaPeakTime "<<trk[itk].TrkHits[ipl][iht]->SigmaPeakTime();
             } // ii
           } // ipl
         } // end
@@ -804,11 +803,11 @@ namespace trkf {
       pos(2) = vtx[ivx].Z;
       fVertexFitAlg.VertexFit(hitWID, hitX, hitXErr, pos, posErr, trkDir, trkDirErr, ChiDOF);
 
-      mf::LogVerbatim("CCTM")<<"CC Vtx pos "<<vtx[ivx].X<<" "<<vtx[ivx].Y<<" "<<vtx[ivx].Z<<"\n";
-      mf::LogVerbatim("CCTM")<<"Fitted     "<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<" ChiDOF "<<ChiDOF<<"\n";
-      mf::LogVerbatim("CCTM")<<"Errors     "<<posErr[0]<<" "<<posErr[1]<<" "<<posErr[2]<<"\n";
+      mf::LogVerbatim("CCTM")<<"FV: CC Vtx pos "<<vtx[ivx].X<<" "<<vtx[ivx].Y<<" "<<vtx[ivx].Z;
+      mf::LogVerbatim("CCTM")<<"FV: Fitted     "<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<" ChiDOF "<<ChiDOF;
+      mf::LogVerbatim("CCTM")<<"FV: Errors     "<<posErr[0]<<" "<<posErr[1]<<" "<<posErr[2];
 
-      if(ChiDOF > 3) continue;
+      if(ChiDOF > 3000) continue;
       // update the vertex position
       vtx[ivx].X = pos(0);
       vtx[ivx].Y = pos(1);
@@ -1138,8 +1137,6 @@ namespace trkf {
     unsigned short ivx, ii, ipl, icl, jj, jpl, jcl, kk, kpl, kcl;
     short idir, iend, jdir, jend, kdir, kend, ioend;
     
-    std::cout<<"VtxMatch\n";
-    
     prt = (fDebugPlane == 3);
     
     for(ivx = 0; ivx < vtx.size(); ++ivx) {
@@ -1305,9 +1302,7 @@ namespace trkf {
       } // ipl
       
       if(matcomb.size() == 0) continue;
-      std::cout<<"Call Sortmatches with matcomb size "<<matcomb.size()<<"\n";
       SortMatches(fmCluHits, 2);
-      std::cout<<"VtxMatch vtx "<<ivx<<" done trk size "<<trk.size()<<"\n";
       prt = false;
       
     } // ivx
@@ -1315,7 +1310,6 @@ namespace trkf {
     matcomb.clear();
     for(ipl = 0; ipl < 3; ++ipl) vxCls[ipl].clear();
     
-//    std::cout<<"VtxMatch done "<<trk.size()<<"\n";
     prt = false;
     
   } // VtxMatch
@@ -1806,7 +1800,7 @@ namespace trkf {
     
      unsigned short ipl, icl, iht;
     
-    std::cout<<"CCTM: Make traj for track "<<newtrk.ID<<" nhits in planes "<<trkHits[0].size()<<" "<<trkHits[1].size()<<" "<<trkHits[2].size()<<"\n";
+//    std::cout<<"CCTM: Make traj for track "<<newtrk.ID<<" nhits in planes "<<trkHits[0].size()<<" "<<trkHits[1].size()<<" "<<trkHits[2].size()<<"\n";
     // make the track trajectory
     if(nplanes == 2) {
       trkWID[2].resize(0);
@@ -1922,8 +1916,6 @@ namespace trkf {
   {
     // look for long unused cluster chains and match them using angle
     std::array<std::vector<unsigned short>, 3> ccUnused;
-    
-    std::cout<<"AngMatch minlen "<<fAngMatchMinLen<<"\n";
     
     unsigned short ipl, icc, jpl, kpl, ii, jj, kk, icl, jcl, kcl, iend, jend, kend;
     short idir, jdir, kdir;
@@ -2041,7 +2033,6 @@ namespace trkf {
     prt = false;
     // turn on printing in SortMatches?
     bool gotprt = false;
-    std::cout<<"PlnMatch pass "<<pass<<" minlen "<<fPlnMatchMinLen[pass]<<"\n";
     
     float dxcut = 2;
     float dxkcut;
