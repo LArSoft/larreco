@@ -28,7 +28,7 @@ namespace trkf{
   /////////////////////////////////////////
   void VertexFitAlg::fcnVtxPos(Int_t &, Double_t *, Double_t &fval, double *par, Int_t flag)
   {
-    // Minuit function for fitting the vertex position
+    // Minuit function for fitting the vertex position and vertex track directions
     
     fval = 0;
     double vWire, DirX, DirY, DirZ, DirU, dX, dU, arg;
@@ -36,36 +36,37 @@ namespace trkf{
     
     for(unsigned short itk = 0; itk < fVtxFitMinStr.HitX.size(); ++itk) {
       lastpl = 4;
+      // index of the track Y direction vector. Z direction is the next one
+      indx = 3 + 2 * itk;
       for(unsigned short iht = 0; iht < fVtxFitMinStr.HitX[itk].size(); ++iht) {
         ipl = fVtxFitMinStr.Plane[itk][iht];
         if(ipl != lastpl) {
           // get the vertex position in this plane
           // vertex wire number in the Detector coordinate system (equivalent to WireCoordinate)
-          //vtx wir = vtx Y  * OrthY                 + vtx Z  * OrthZ                 - wire offset
+          //vtx wir = vtx Y  * OrthY                + vtx Z  * OrthZ                    - wire offset
           vWire = par[1] * fVtxFitMinStr.OrthY[ipl] + par[2] * fVtxFitMinStr.OrthZ[ipl] - fVtxFitMinStr.FirstWire[ipl];
 //          std::cout<<"fcn vtx "<<par[0]<<" "<<par[1]<<" "<<par[2]<<" vWire "<<vWire<<" OrthY "<<fVtxFitMinStr.OrthY[ipl]<<" OrthZ "<<fVtxFitMinStr.OrthZ[ipl]<<"\n";
           lastpl = ipl;
         } // ipl != lastpl
-        indx = 3 + 2 * itk;
-        // calculate the X component of the track direction. The OrthVectors in ChannelMapStandardAlg
-        // are divided by the wire pitch so correct for that
         DirY = par[indx];
         DirZ = par[indx + 1];
-        DirX = 1 - DirY * DirY - DirZ * DirZ;
-        // DirX should be > 0 but the bounds on DirY and DirZ are +/- 1 so it is possible for a non-physical result.
-        // TODO See if this is the proper way of handling this situation
-        if(DirX < 0) DirX = 0;
-        DirX = sqrt(DirX);
-        // rotate the track direction DirY, DirZ into the wire coordinate of this plane
+        // rotate the track direction DirY, DirZ into the wire coordinate of this plane. The OrthVectors in ChannelMapStandardAlg
+        // are divided by the wire pitch so we need to correct for that here
         DirU = fVtxFitMinStr.WirePitch * (DirY * fVtxFitMinStr.OrthY[ipl] + DirZ * fVtxFitMinStr.OrthZ[ipl]);
-        // distance (cm) between the wire and the vertex
+        // distance (cm) between the wire and the vertex in the wire coordinate system (U)
         dU = fVtxFitMinStr.WirePitch * (fVtxFitMinStr.Wire[itk][iht] - vWire);
-        if(DirU < 1E-3 || dU < 1E-3) {
+        if(std::abs(DirU) < 1E-3 || std::abs(dU) < 1E-3) {
           // vertex is on the wire
           dX = par[0] - fVtxFitMinStr.HitX[itk][iht];
         } else {
-          // project from vertex to the wire
-          dX = par[0] + dU * DirX / DirU - fVtxFitMinStr.HitX[itk][iht];
+          // project from vertex to the wire. We need to find dX/dU so first find DirX
+          DirX = 1 - DirY * DirY - DirZ * DirZ;
+          // DirX should be > 0 but the bounds on DirY and DirZ are +/- 1 so it is possible for a non-physical result.
+          if(DirX < 0) DirX = 0;
+          DirX = sqrt(DirX);
+          // Get the DirX sign from the relative X position of the hit and the vertex
+          if(fVtxFitMinStr.HitX[itk][iht] < par[0]) DirX = -DirX;
+          dX = par[0] + (dU * DirX / DirU) - fVtxFitMinStr.HitX[itk][iht];
         }
         arg = dX / fVtxFitMinStr.HitXErr[itk][iht];
 //        std::cout<<"fcn itk "<<itk<<" iht "<<iht<<" ipl "<<ipl<<" DirX "<<DirX<<" DirY "<<DirY<<" DirZ "<<DirZ
@@ -96,7 +97,7 @@ namespace trkf{
                                float& ChiDOF)
   {
     // The passed set of hit WireIDs, X positions and X errors associated with a Track
-    // are fitted to a vertex position VtxPos. The fitted track direction vectors trkDir
+    // are fitted to a vertex position VtxPos. The fitted track direction vectors trkDir, TrkDirErr
     // and ChiDOF are returned to the calling routine
 
     // assume failure
@@ -166,9 +167,9 @@ namespace trkf{
     double arglist[10];
     
     // print level (-1 = none, 1 = yes)
-    arglist[0] = -1.;
+    arglist[0] = -1;
     //
-    // ***** remember to delete gMin if returning on an error
+    // ***** remember to delete gMin before returning on an error
     //
     gMin->mnexcm("SET PRINT", arglist, 1, errFlag);
     
@@ -190,10 +191,12 @@ namespace trkf{
       stp[ipar] = 0.05;
       gMin->mnparm(ipar,"", par[ipar], stp[ipar], -1, 1, errFlag);
     } // itk
+
+/*
+    // Single call to fcnVtxPos 
     std::cout<<"Starting: par  ";
     for(unsigned short ip = 0; ip < par.size(); ++ip) std::cout<<" "<<std::fixed<<std::setprecision(2)<<par[ip];
     std::cout<<"\n";
-/*
     // call fcn with starting parameters
     arglist[0] = 1;
     gMin->mnexcm("CALL", arglist, 1, errFlag);
@@ -213,7 +216,6 @@ namespace trkf{
     arglist[0] = 3;
     gMin->mnexcm("CALL", arglist, 1, errFlag);
     ChiDOF = fVtxFitMinStr.ChiDoF;
-    std::cout<<" chisq "<<fVtxFitMinStr.ChiDoF<<" "<<ChiDOF<<"\n";
     
     // get the parameters
     for(unsigned short ip = 0; ip < par.size(); ++ip) {
@@ -243,6 +245,8 @@ namespace trkf{
         TrkDirErr[itk](2) = parerr[ipar + 1];
       }
     } // itk
+    
+    delete gMin;
 
   } // VertexFit()
 
