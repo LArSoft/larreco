@@ -18,11 +18,9 @@ cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& p
   fNWires = -1;
   fNTicks = -1;
   fLastKernel.clear();
-  fLastBlurN = -1000;
+  fLastBlurWire = -1000;
+  fLastBlurTick = -1000;
   fLastSigma = -1000;
-  fMinHits = 3;
-  fMinSeed = 0.1;
-  fBlurredMin = 0.07;
 
   // For the debug PDF
   fDebugCanvas = NULL;
@@ -30,12 +28,17 @@ cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& p
 
   std::cout << "Beginning blurred" << std::endl;
   mf::LogInfo("Blurred Clustering") << "*** Parameters for Blurred Clustering: ***";
-  mf::LogInfo("Blurred Clustering") << "BlurN:               " << fBlurN;
+  mf::LogInfo("Blurred Clustering") << "BlurWire:            " << fBlurWire;
+  mf::LogInfo("Blurred Clustering") << "BlurTick:            " << fBlurTick;
   mf::LogInfo("Blurred Clustering") << "BlurSigma:           " << fBlurSigma;
+  mf::LogInfo("Blurred Clustering") << "ClusterWireDistance: " << fClusterWireDistance;
+  mf::LogInfo("Blurred Clustering") << "ClusterTickDistance: " << fClusterTickDistance;
   mf::LogInfo("Blurred Clustering") << "NeighboursThreshold: " << fNeighboursThreshold;
   mf::LogInfo("Blurred Clustering") << "MinNeighbours:       " << fMinNeighbours;
   mf::LogInfo("Blurred Clustering") << "MinSize:             " << fMinSize;
+  mf::LogInfo("Blurred Clustering") << "MinSeed:             " << fMinSeed;
   mf::LogInfo("Blurred Clustering") << "TimeThreshold:       " << fTimeThreshold;
+  mf::LogInfo("Blurred Clustering") << "ChargeThreshold:     " << fChargeThreshold;
 }
 
 cluster::BlurredClusteringAlg::~BlurredClusteringAlg() {
@@ -50,12 +53,17 @@ cluster::BlurredClusteringAlg::~BlurredClusteringAlg() {
 }
 
 void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
-  fBlurN               = p.get<int>   ("BlurN");
+  fBlurWire            = p.get<int>   ("BlurWire");
+  fBlurTick            = p.get<int>   ("BlurTick");
   fBlurSigma           = p.get<double>("BlurSigma");
+  fClusterWireDistance = p.get<int>   ("ClusterWireDistance");
+  fClusterTickDistance = p.get<int>   ("ClusterTickDistance");
   fNeighboursThreshold = p.get<int>   ("NeighboursThreshold");
   fMinNeighbours       = p.get<int>   ("MinNeighbours");
   fMinSize             = p.get<int>   ("MinSize");
+  fMinSeed             = p.get<double>("MinSeed");
   fTimeThreshold       = p.get<double>("TimeThreshold");
+  fChargeThreshold     = p.get<double>("ChargeThreshold");
 }
 
 
@@ -176,11 +184,9 @@ std::vector<art::PtrVector<recob::Hit> > cluster::BlurredClusteringAlg::ConvertB
 /// Takes hit map and returns a TH2 histogram of bar vs layer, with charge on z-axis
 TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> >* hits) {
 
-  // Define the size of this particular plane
+  // Define the size of this particular plane -- dynamically for the tick dimension to avoid huge histograms
   art::Ptr<recob::Hit> firstHit = *(hits->begin());
   fNWires = fGeom->Nwires(firstHit->WireID().Plane,firstHit->WireID().TPC,firstHit->WireID().Cryostat);
-  //fNTicks = fDetProp->ReadOutWindowSize();
-  // Try looping over all hits so the histogram isn't so huge!
   int lowerTick = fDetProp->ReadOutWindowSize(), upperTick = 0;
   for (std::vector<art::Ptr<recob::Hit> >::iterator hitIt = hits->begin(); hitIt != hits->end(); ++hitIt) {
     art::Ptr<recob::Hit> hit = *hitIt;
@@ -197,7 +203,6 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   planeImage << "blurred_plane" << firstHit->WireID().Plane << "_image";
 
   // Create a TH2 histogram
-  //TH2F image(planeImage.str().c_str(), planeImage.str().c_str(), fNWires, -0.5, fNWires - 0.5, fNTicks, -0.5, fNTicks - 0.5);
   TH2F image(planeImage.str().c_str(), planeImage.str().c_str(), fNWires, -0.5, fNWires - 0.5, (fUpperHistTick-fLowerHistTick), fLowerHistTick-0.5, fUpperHistTick-0.5);
   image.Clear();
   image.SetXTitle("Wire number");
@@ -357,8 +362,8 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
         biny = ((cluster[clusBin] - binx) / nbinsx) % nbinsy;
 
 	// Look for hits in the directly neighbouring x/y bins
-        for (int x = binx - 1; x <= binx + 1; x++) {
-          for (int y = biny - 1; y <= biny + 1; y++) {
+        for (int x = binx - fClusterWireDistance; x <= binx + fClusterWireDistance; x++) {
+          for (int y = biny - fClusterTickDistance; y <= biny + fClusterTickDistance; y++) {
             if (x == binx && y == biny)
               continue;
 
@@ -376,7 +381,7 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
 	      continue;
 
 	    // Add to cluster if bin value is above threshold
-            if (blurred_binval > fBlurredMin) {
+            if (blurred_binval > fChargeThreshold) {
               used[bin] = true;
               cluster.push_back(bin);
               nadded++;
@@ -487,18 +492,18 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
 
 
 // Applies Gaussian blur to image
-TH2 *cluster::BlurredClusteringAlg::GaussianBlur(TH2 *image) {
+TH2* cluster::BlurredClusteringAlg::GaussianBlur(TH2* image) {
 
   // Create Gaussian kernel
   std::map<int,double> kernel;
-  int width = 2 * fBlurN + 1;
-  int height = 2 * fBlurN + 1;
+  int width = 2 * fBlurWire + 1;
+  int height = 2 * fBlurTick + 1;
 
   if (fBlurSigma == 0)
     return (TH2F*) image->Clone(image->GetName() + TString("_blur"));
 
   // If the parameters match the last parameters, used the same last kernel
-  if (fLastBlurN == fBlurN && fLastSigma == fBlurSigma && !fLastKernel.empty())
+  if (fLastBlurWire == fBlurWire && fLastBlurTick == fBlurTick && fLastSigma == fBlurSigma && !fLastKernel.empty())
     kernel = fLastKernel;
 
   // Otherwise, allocate and compute a new kernel, freeing the fLastKernel if it has been allocated.
@@ -507,9 +512,9 @@ TH2 *cluster::BlurredClusteringAlg::GaussianBlur(TH2 *image) {
     if (!fLastKernel.empty())
       fLastKernel.clear();
 
-    // Smear out according to the blur radius fBlurN
-    for (int i = -fBlurN; i <= fBlurN; i++) {
-      for (int j = -fBlurN; j <= fBlurN; j++) {
+    // Smear out according to the blur radii in each direction
+    for (int i = -fBlurWire; i <= fBlurWire; i++) {
+      for (int j = -fBlurTick; j <= fBlurTick; j++) {
         double sigmai = fBlurSigma / 1.5;
         double sigmaj = fBlurSigma;
 
@@ -517,16 +522,17 @@ TH2 *cluster::BlurredClusteringAlg::GaussianBlur(TH2 *image) {
 	double sig2i = 2. * sigmai * sigmai;
 	double sig2j = 2. * sigmaj * sigmaj;
 
-	int key = (width * (j + fBlurN)) + (i + fBlurN);
+	int key = (width * (j + fBlurTick)) + (i + fBlurWire);
 	double value = 1. / sqrt(sig2i * M_PI) * exp(-i * i / sig2i) * 1. / sqrt(sig2j * M_PI) * exp(-j * j / sig2j);
 	kernel[key] = value;
 
       }
     } // End loop over blurring region
 
-    fLastKernel = kernel;
-    fLastBlurN  = fBlurN;
-    fLastSigma  = fBlurSigma;
+    fLastKernel   = kernel;
+    fLastBlurWire = fBlurWire;
+    fLastBlurTick = fBlurTick;
+    fLastSigma    = fBlurSigma;
   }
 
   // Return a convolution of this Gaussian kernel with the unblurred hit map
@@ -605,7 +611,7 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F *image, std::vector<art::PtrV
       unsigned int wire = hit->WireID().Wire;
       float tick = hit->PeakTime();
       int bin = image->GetBin(wire+1,(tick-fLowerHistTick)+1);
-      if (cluster.size() < fMinHits)
+      if (cluster.size() < fMinSize)
         bin *= -1;
 
       clusterBins.push_back(bin);
@@ -650,11 +656,11 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F *image, std::vector<std::vect
   }
 
   std::stringstream title;
-  title << stage << " - TPC " << fTPC << ", Plane " << fPlane;
+  title << stage << " -- TPC " << fTPC << ", Plane " << fPlane;
 
   image->SetName(title.str().c_str());
   image->SetTitle(title.str().c_str());
-  image->DrawClone("COLZ");
+  image->DrawCopy("colz");
 
   int clusterNum = 2;
 
@@ -680,6 +686,9 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F *image, std::vector<std::vect
     }
   }
 
-  if (pad == 4)
+  if (pad == 4) {
     fDebugCanvas->Print(fDebugPDFName.c_str());
+    fDebugCanvas->Clear("D");
+  }
+
 }
