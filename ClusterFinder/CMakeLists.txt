@@ -1,5 +1,6 @@
 
 art_make( BASENAME_ONLY
+          LIBRARY_NAME ClusterFinder
           LIB_LIBRARIES Geometry
                         RecoBase
                         ClusterRecoUtil

@@ -90,13 +90,17 @@ private:
   bool fCreateDebugPDF;
 
   // Blurring stuff
-  int fLastBlurN;
+  int fLastBlurWire;
+  int fLastBlurTick;
   double fLastSigma;
   std::map<int,double> fLastKernel;
 
   /// Parameters used in the Blurred Clustering algorithm
-  int          fBlurN;
-  double       fBlurSigma;             // parameters for gaussian blur
+  int          fBlurWire;              // blur radius for Gauss kernel in the wire direction
+  int          fBlurTick;              // blur radius for Gauss kernel in the tick direction
+  double       fBlurSigma;             // sigma for Gaussian kernel
+  int          fClusterWireDistance;   // how far to cluster from seed in wire direction
+  int          fClusterTickDistance;   // how far to cluster from seed in tick direction
   unsigned int fNeighboursThreshold;   // min. number of neighbors to add to cluster
   int          fMinNeighbours;         // minumum number of neighbors to keep in the cluster
   unsigned int fMinSize;               // minimum size for cluster
