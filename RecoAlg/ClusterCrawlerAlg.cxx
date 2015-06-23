@@ -659,8 +659,6 @@ namespace cluster {
               if(jclHit[indx] >= 0 && (unsigned int)jclHit[indx] == goodHit) jclHit[indx] = -1;
               ++nadd;
             }
-//            if(best < hiterr) std::cout<<" goodHit "<<(int)fHits[goodHit].PeakTime();
-//            std::cout<<"\n";
           } // ii
           float hitFrac = (float)nadd / float(eWire - bWire + 1);
           if(prt) mf::LogVerbatim("CC")<<" #hits added in overlap region "<<nadd<<" hitFrac "<<hitFrac;
@@ -677,7 +675,6 @@ namespace cluster {
           // re-assign the hits to the soon-to-be new cluster
           ++NClusters;
           for(ii = 0; ii < fcl2hits.size(); ++ii) fHitInCluster.setCluster(fcl2hits[ii], NClusters);
-//          for(ii = 0; ii < fcl2hits.size(); ++ii) mf::LogVerbatim("CC")<<"hit W "<<fHits[fcl2hits[ii]].WireID().Wire;
           ClusterStore clstr;
           clstr.ID = NClusters;
           clstr.CTP = tcl[jcl].CTP;
@@ -787,6 +784,15 @@ namespace cluster {
     FreeObsoleteClusterHits(icl); // free the remaining associated hits
   } // ClusterCrawlerAlg::MakeClusterObsolete()
 
+  //////////////////////////////////////////
+  void ClusterCrawlerAlg::RestoreObsoleteCluster(unsigned short icl) {
+    short& ID = tcl[icl].ID;
+    if(ID > 0) return;
+    ID = -ID;
+//    for(unsigned short iht: tcl[icl].tclhits) fHitInCluster.setCluster(tcl[icl].tclhits[iht], ID);
+    for(unsigned short iht = 0; iht < tcl[icl].tclhits.size(); ++iht) fHitInCluster.setCluster(tcl[icl].tclhits[iht], ID);
+  }
+  
 //////////////////////////////////////////
   bool ClusterCrawlerAlg::CheckHitClusterAssociation(
     bool bClusterToHit /* = true */, bool bHitToCluster /* = true */
@@ -1335,9 +1341,10 @@ namespace cluster {
               // split the cluster into two
               // correct the split position
               ++nSplit;
-              SplitCluster(icl, nSplit, ivx);
-              tcl[icl].ProcCode += 1000;
-              tcl[tcl.size()-1].ProcCode += 1000;
+              if(SplitCluster(icl, nSplit, ivx)) {
+                tcl[tcl.size()-1].ProcCode += 1000;
+                tcl[tcl.size()-2].ProcCode += 1000;
+              }
             }
             didit = true;
           } // angOK
@@ -1703,13 +1710,13 @@ namespace cluster {
           vtx.push_back(newvx);
           unsigned short ivx = vtx.size() - 1;
           if(vtxprt) mf::LogVerbatim("CC")<<" new vertex "<<ivx<<" cluster "<<tcl[it1].ID<<" split pos "<<pos1;
-          SplitCluster(it1, pos1, ivx);
-          tcl[it1].ProcCode += 1000;
+          if(!SplitCluster(it1, pos1, ivx)) continue;
           tcl[tcl.size()-1].ProcCode += 1000;
+          tcl[tcl.size()-2].ProcCode += 1000;
           if(vtxprt) mf::LogVerbatim("CC")<<" new vertex "<<ivx<<" cluster "<<tcl[it2].ID<<" split pos "<<pos2;
-          SplitCluster(it2, pos2, ivx);
-          tcl[it2].ProcCode += 1000;
+          if(!SplitCluster(it2, pos2, ivx)) continue;
           tcl[tcl.size()-1].ProcCode += 1000;
+          tcl[tcl.size()-2].ProcCode += 1000;
           FitVtx(ivx);
           break;
         } // it2
@@ -2405,17 +2412,12 @@ namespace cluster {
     {
       // split cluster icl into two clusters
 
-      if(tcl[icl].ID < 0) {
-        mf::LogError("CC")<<"Trying to split obsolete cluster "
-          <<icl;
-        return false;
-      }
+      if(tcl[icl].ID < 0) return false;
 
-      if(pos > tcl[icl].tclhits.size()) {
-        mf::LogError("CC")<<"SplitCluster bad split position "
-          <<pos<<" in cluster "<<tcl[icl].ID<<" size "<<tcl[icl].tclhits.size();
-        return false;
-      }
+      if(pos < 3 || pos > tcl[icl].tclhits.size() - 3) return false;
+      
+      // declare icl obsolete
+      MakeClusterObsolete(icl);
 
       // Create the first cluster (DS) using the Begin info
       clBeginSlp = tcl[icl].BeginSlp;
@@ -2445,10 +2447,12 @@ namespace cluster {
       // find the charge at the end
       FitClusterChg();
       clEndChg = fAveChg;
-      if(!TmpStore()) return false;
+      if(!TmpStore()) {
+        RestoreObsoleteCluster(icl);
+        return false;
+      }
       // associate the End with the supplied vertex
       unsigned short iclnew = tcl.size() - 1;
-//      std::cout<<"SplitCluster attach cluster "<<tcl[iclnew].ID<<" to vtx "<<ivx<<"\n";
       tcl[iclnew].EndVtx = ivx;
       tcl[iclnew].BeginVtx = tcl[icl].BeginVtx;
 
@@ -2468,12 +2472,6 @@ namespace cluster {
       bool didFit = false;
       for(unsigned short ii = pos; ii < tcl[icl].tclhits.size(); ++ii) {
         unsigned int iht = tcl[icl].tclhits[ii];
-  if(fHitInCluster[iht] != tcl[icl].ID) {
-    mf::LogError("CC")
-      <<"SplitCluster bad hit "<<iht<<" "<<fHitInCluster[iht]
-      <<" "<<tcl[icl].ID<<" ProcCode "<<clProcCode;
-			return false;
-  }
         fcl2hits.push_back(iht);
         // define the Begin parameters
         if(fcl2hits.size() == fMaxHitsFit[pass] ||
@@ -2498,17 +2496,14 @@ namespace cluster {
       }
       if(!TmpStore()) {
         // clobber the previously store cluster
-        tcl.pop_back();
+        MakeClusterObsolete(tcl.size() - 1);
+        RestoreObsoleteCluster(icl);
         return false;
       }
       // associate the End with the supplied vertex
       iclnew = tcl.size() - 1;
       tcl[iclnew].BeginVtx = ivx;
-//      std::cout<<"SplitCluster attach cluster "<<tcl[iclnew].ID<<" to vtx "<<ivx<<"\n";
       tcl[iclnew].EndVtx = tcl[icl].EndVtx;
-//  mf::LogVerbatim("CC")<<"ClusterSplit split "<<tcl[icl].ID;
-      // declare icl obsolete
-      MakeClusterObsolete(icl);
 			return true;
     } // SplitCluster()
 
