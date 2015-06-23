@@ -407,6 +407,8 @@ namespace cluster {
     
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);
+    /// Restores an obsolete cluster
+    void RestoreObsoleteCluster(unsigned short icl);
     
     /// Removes obsolete hits from hits, updating the indices
     void RemoveObsoleteHits();
