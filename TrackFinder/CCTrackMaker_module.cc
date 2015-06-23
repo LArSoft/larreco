@@ -787,9 +787,10 @@ namespace trkf {
               theTPC = trk[itk].TrkHits[ipl][iht]->WireID().TPC;
               theCst = trk[itk].TrkHits[ipl][iht]->WireID().Cryostat;
               hitX[indx][indx2 + ii] = detprop->ConvertTicksToX(trk[itk].TrkHits[ipl][iht]->PeakTime(), thePln, theTPC, theCst);
-//              hitXErr[indx][indx2 + ii] = fHitFitErrFac * trk[itk].TrkHits[ipl][iht]->SigmaPeakTime() * trk[itk].TrkHits[ipl][iht]->Multiplicity();
               hitXErr[indx][indx2 + ii] = fHitFitErrFac * trk[itk].TrkHits[ipl][iht]->RMS();
- mf::LogVerbatim("CCTM")<<"CCTM "<<itk<<" indx "<<indx<<" ii "<<ii<<" WID "<<trk[itk].TrkHits[ipl][iht]->WireID()<<" X "<<hitX[indx][indx2 + ii]<<" XErr "<<hitXErr[indx][indx2 + ii]<<" RMS "<<trk[itk].TrkHits[ipl][iht]->RMS()<<" SigmaPeakTime "<<trk[itk].TrkHits[ipl][iht]->SigmaPeakTime();
+// mf::LogVerbatim("CCTM")<<"CCTM "<<itk<<" indx "<<indx<<" ii "<<ii<<" WID "<<trk[itk].TrkHits[ipl][iht]->WireID()
+//              <<" X "<<hitX[indx][indx2 + ii]<<" XErr "<<hitXErr[indx][indx2 + ii]<<" RMS "<<trk[itk].TrkHits[ipl][iht]->RMS()
+//              <<" SigmaPeakTime "<<trk[itk].TrkHits[ipl][iht]->SigmaPeakTime();
             } // ii
           } // ipl
         } // end
@@ -1404,9 +1405,9 @@ namespace trkf {
               chgAsymCut = fMergeChgAsym;
               oend = 1 - end;
               // ignore if dWire exceeds the cut
-              
+/*
               if(prt) mf::LogVerbatim("CCTM")<<"MCC P:C:W icl1 "<<ipl<<":"<<icl1<<":"<<cls[ipl][icl1].Wire[end]<<":"<<end<<" vtx "<<cls[ipl][icl1].VtxIndex[end]<<" ls1 "<<ls1<<" icl2 "<<ipl<<":"<<icl2<<":"<<cls[ipl][icl2].Wire[oend]<<":"<<oend<<" vtx "<<cls[ipl][icl2].VtxIndex[oend]<<" ls2 "<<ls2<<" dWCut "<<dWCut;
-              
+*/
               if(abs(cls[ipl][icl1].Wire[end]  - cls[ipl][icl2].Wire[oend]) > dWCut) continue;
               // ignore if the clusters begin/end on the same wire
               if(cls[ipl][icl1].Wire[end]  == cls[ipl][icl2].Wire[oend]) continue;
@@ -1555,12 +1556,12 @@ namespace trkf {
               // Ignore already identified broken clusters
               if(cls[ipl][icl1].BrkIndex[end] >= 0) continue;
               if(cls[ipl][icl2].BrkIndex[end] >= 0) continue;
-              if(prt) mf::LogVerbatim("CCTM")<<"BrokenC: clusters "<<cls[ipl][icl1].Wire[end]<<":"<<(int)cls[ipl][icl1].Time[end]<<" "<<cls[ipl][icl2].Wire[end]<<":"<<(int)cls[ipl][icl2].Time[end]<<" angles "<<cls[ipl][icl1].Angle[end]<<" "<<cls[ipl][icl2].Angle[end];
+//              if(prt) mf::LogVerbatim("CCTM")<<"BrokenC: clusters "<<cls[ipl][icl1].Wire[end]<<":"<<(int)cls[ipl][icl1].Time[end]<<" "<<cls[ipl][icl2].Wire[end]<<":"<<(int)cls[ipl][icl2].Time[end]<<" angles "<<cls[ipl][icl1].Angle[end]<<" "<<cls[ipl][icl2].Angle[end];
               // require a large angle cluster
               if(fabs(cls[ipl][icl1].Angle[end]) < 1) continue;
               // and a second large angle cluster
               if(fabs(cls[ipl][icl2].Angle[end]) < 1) continue;
-              if(prt) mf::LogVerbatim("CCTM")<<" dWire "<<fabs(cls[ipl][icl1].Wire[end] - cls[ipl][icl2].Wire[end]);
+              if(prt) mf::LogVerbatim("CCTM")<<"BrokenC: clusters "<<cls[ipl][icl1].Wire[end]<<":"<<(int)cls[ipl][icl1].Time[end]<<" "<<cls[ipl][icl2].Wire[end]<<":"<<(int)cls[ipl][icl2].Time[end]<<" angles "<<cls[ipl][icl1].Angle[end]<<" "<<cls[ipl][icl2].Angle[end]<<" dWire "<<fabs(cls[ipl][icl1].Wire[end] - cls[ipl][icl2].Wire[end]);
               if(fabs(cls[ipl][icl1].Wire[end] - cls[ipl][icl2].Wire[end]) > 5) continue;
               // This is really crude but maybe OK
               // project 1 -> 2
@@ -1622,8 +1623,9 @@ namespace trkf {
             // determine which end of the dtr should be attached to mom
             for(dtrBrkEnd = 0; dtrBrkEnd < 2; ++dtrBrkEnd) if(cls[ipl][dtr].BrkIndex[dtrBrkEnd] == mom) break;
             if(dtrBrkEnd == 2) {
-              mf::LogError("CCTM")<<"Coding error\n";
-              return;
+              mf::LogError("CCTM")<<"Cant find dtrBrkEnd for cluster "<<icl<<" dtr "<<dtr<<" in plane "<<ipl;
+              gotcl[icl] = false;
+              break;
             }
             // check for reasonable merge error
             if(cls[ipl][dtr].MergeError[dtrBrkEnd] < fMergeErrorCut) {
@@ -1646,6 +1648,7 @@ namespace trkf {
             dtr = cls[ipl][mom].BrkIndex[momBrkEnd];
 //            std::cout<<" new mom:momBrkEnd "<<mom<<":"<<momBrkEnd<<" new dtr "<<dtr<<"\n";
           } // dtr >= 0 ...
+          if(dtrBrkEnd == 2) continue;
         } // end
         
         if(!gotcl[icl]) {
