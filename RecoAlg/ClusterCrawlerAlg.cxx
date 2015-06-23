@@ -564,7 +564,7 @@ namespace cluster {
             if(fHits[iht].WireID().Wire > eWire) break;
             indx = fHits[iht].WireID().Wire - bWire;
             if(indx > overlapSize - 1) {
-              mf::LogError("CCTM")<<"MergeOverlap: jcl indx error "<<indx<<" overlapSize "<<overlapSize;
+              mf::LogError("CC")<<"MergeOverlap: jcl indx error "<<indx<<" overlapSize "<<overlapSize;
               return;
             } // bad indx
             jclHit[indx] = iht;
@@ -2472,6 +2472,10 @@ namespace cluster {
       bool didFit = false;
       for(unsigned short ii = pos; ii < tcl[icl].tclhits.size(); ++ii) {
         unsigned int iht = tcl[icl].tclhits[ii];
+        if(!fHitInCluster.isFree(iht)) {
+          RestoreObsoleteCluster(icl);
+          return false;
+        }
         fcl2hits.push_back(iht);
         // define the Begin parameters
         if(fcl2hits.size() == fMaxHitsFit[pass] ||
