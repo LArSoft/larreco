@@ -111,6 +111,10 @@ public:
 		pma::Track3D::EDirection dir = Track3D::kForward,
 		unsigned int n = 0) const;
 
+	/// Intendet to calculate dQ/dx in the initial part of EM cascade.
+	/// Not yet tested, please wait a few more days before using it.
+	double selectInitialHits(pma::Track3D& trk) const;
+
 private:
 
 	// Parameters used in the algorithm

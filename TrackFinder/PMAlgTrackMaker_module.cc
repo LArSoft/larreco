@@ -291,7 +291,7 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	{
 		mf::LogError("PMAlgTrackMaker") << "pma::Track3D to recob::Track conversion problem.";
 	}
-	return recob::Track(xyz, dircos, dst_dQdx);
+	return recob::Track(xyz, dircos, dst_dQdx, std::vector< double >(2, util::kBogusD), fTrkIndex);
 }
 // ------------------------------------------------------
 
@@ -307,8 +307,8 @@ bool PMAlgTrackMaker::isMcStopping(void) const
 //			<< " n:" << particle->NumberDaughters()
 //			<< " m:" << particle->Mass()
 //			<< " E:" << particle->EndE() << std::endl;
-		return (particle->NumberDaughters() == 0);
-		//return (particle->EndE() - particle->Mass() < 0.001);
+		return (particle->EndE() - particle->Mass() < 0.001);
+		//return (particle->NumberDaughters() == 0);
 	}
 	else return false;
 }
