@@ -214,18 +214,6 @@ namespace trkf{
       std::reverse(TrajPos.begin(), TrajPos.end());
       std::reverse(TrajDir.begin(), TrajDir.end());
     } // !posX
-/*
-    // smooth trajectory Y points
-    if(TrajPos.size() > 4) {
-      unsigned short ii;
-      std::vector<double> ypts(TrajPos.size());
-      ypts[0] = (3 * TrajPos[0](1) +  TrajPos[1](1)) / 4;
-      ii = TrajPos.size() - 1;
-      ypts[ii] = (3 * TrajPos[ii](1) + TrajPos[ii-1](1)) / 4;
-      for(ii = 1; ii < ypts.size() - 1; ++ii) ypts[ii] = (TrajPos[ii-1](1) + 2 * TrajPos[ii](1) + TrajPos[ii+1](1)) / 4;
-      for(ii = 1; ii < ypts.size(); ++ii)  TrajPos[ii](1) = ypts[ii];
-    }
-*/
     
   } // TrackTrajectoryAlg
 
