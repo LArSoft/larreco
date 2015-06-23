@@ -76,7 +76,6 @@ public:
 
   unsigned int fPlane;
   unsigned int fTPC;
-  unsigned int fMinHits;
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
 
 private:
@@ -95,8 +94,6 @@ private:
   int fLastBlurTick;
   double fLastSigma;
   std::map<int,double> fLastKernel;
-  double fMinSeed;
-  double fBlurredMin;
 
   /// Parameters used in the Blurred Clustering algorithm
   int          fBlurWire;              // blur radius for Gauss kernel in the wire direction

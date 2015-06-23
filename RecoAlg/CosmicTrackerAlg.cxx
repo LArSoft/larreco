@@ -54,11 +54,13 @@ namespace trkf{
     trkPos.clear();
     trkDir.clear();
 
-    // Track hit X and WireIDs in each plane
-    std::array<std::vector<std::pair<double, geo::WireID>>,3> trajXW;
-    // Track hit charge ...
-    std::array<std::vector<double>,3> trajChg;
+    // Track hit vectors for fitting the trajectory
+    std::array<std::vector<geo::WireID>,3> trkWID;
+    std::array<std::vector<double>,3> trkX;
+    std::array<std::vector<double>,3> trkXErr;
+
     std::array< std::vector<art::Ptr<recob::Hit>>,3> trajHits;
+
     for (size_t i = 0; i<fHits.size(); ++i){
       trajHits[fHits[i]->WireID().Plane].push_back(fHits[i]);
     }
@@ -104,17 +106,16 @@ namespace trkf{
     // make the track trajectory
     for(size_t ipl = 0; ipl < 3; ++ipl) {
       //if (ipl == spl.back().index) continue;
-      trajXW[ipl].resize(trajHits[ipl].size());
-      trajChg[ipl].resize(trajHits[ipl].size());
+      trkWID[ipl].resize(trajHits[ipl].size());
+      trkX[ipl].resize(trajHits[ipl].size());
+      trkXErr[ipl].resize(trajHits[ipl].size());
       for(size_t iht = 0; iht < trajHits[ipl].size(); ++iht) {
-        double xx = detprop->ConvertTicksToX(trajHits[ipl][iht]->PeakTime(), 
-					     ipl, trajHits[ipl][iht]->WireID().TPC, 
-					     trajHits[ipl][iht]->WireID().Cryostat);
-        trajXW[ipl][iht] = std::make_pair(xx, trajHits[ipl][iht]->WireID());
-        trajChg[ipl][iht] = trajHits[ipl][iht]->Integral();
+        trkWID[ipl][iht] = trajHits[ipl][iht]->WireID();
+        trkX[ipl][iht] = detprop->ConvertTicksToX(trajHits[ipl][iht]->PeakTime(),ipl, trajHits[ipl][iht]->WireID().TPC, trajHits[ipl][iht]->WireID().Cryostat);
+        trkXErr[ipl][iht] = 0.2 * trajHits[ipl][iht]->RMS() * trajHits[ipl][iht]->Multiplicity();
       } // iht
     } // ip
-    fTrackTrajectoryAlg.TrackTrajectory(trajXW, trajPos, trajDir, trajChg);
+    fTrackTrajectoryAlg.TrackTrajectory(trkWID, trkX, trkXErr, trajPos, trajDir);
     //remove duplicated points
     for (auto ipos = trajPos.begin(), idir = trajDir.begin(); ipos != trajPos.end() - 1; ){
       auto ipos1 = ipos +1;
