@@ -116,8 +116,12 @@ namespace trkf{
       } // iht
     } // ip
     fTrackTrajectoryAlg.TrackTrajectory(trkWID, trkX, trkXErr, trajPos, trajDir);
+    if (!trajPos.size()||!trajDir.size()){
+      mf::LogWarning("CosmicTrackerAlg")<<"Failed to reconstruction trajectory points.";
+      return;
+    }
     //remove duplicated points
-    for (auto ipos = trajPos.begin(), idir = trajDir.begin(); ipos != trajPos.end() - 1; ){
+    for (auto ipos = trajPos.begin(), idir = trajDir.begin(); ipos <= trajPos.end() - 1; ){
       auto ipos1 = ipos +1;
       if (*ipos1 == *ipos){
 	ipos = trajPos.erase(ipos);

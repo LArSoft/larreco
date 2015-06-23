@@ -273,6 +273,9 @@ namespace trkf {
       }
       //reconstruct space points and directions
       fCTAlg.SPTReco(hitlist);
+      if (!fCTAlg.trkPos.size()){
+	return;
+      }
       for (size_t i = 0; i<hitlist.size(); ++i){
 	trkPoint trkpt;
 	trkpt.pos = fCTAlg.trkPos[i];
