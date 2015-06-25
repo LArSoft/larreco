@@ -16,7 +16,7 @@
 
 pma::Track3D::Track3D(void) :
 	fMaxHitsPerSeg(70),
-	fPenaltyFactor(2.0F),
+	fPenaltyFactor(1.0F),
 	fMaxSegStopFactor(8.0F),
 
 	fSegStopValue(2), fMinSegStop(2), fMaxSegStop(2),
@@ -1186,6 +1186,25 @@ bool pma::Track3D::HasRefPoint(TVector3* p) const
 	for (size_t i = 0; i < fAssignedPoints.size(); i++)
 		if (fAssignedPoints[i] == p) return true;
 	return false;
+}
+
+double pma::Track3D::GetMse(void) const
+{
+	double sumMse = 0.0;
+	unsigned int nEnabledHits = 0;
+	for (size_t i = 0; i < fNodes.size(); i++)
+	{
+		sumMse += fNodes[i]->SumDist2();
+		nEnabledHits += fNodes[i]->NEnabledHits();
+	}
+	for (size_t i = 0; i < fSegments.size(); i++)
+	{
+		sumMse += fSegments[i]->SumDist2();
+		nEnabledHits += fSegments[i]->NEnabledHits();
+	}
+
+	if (nEnabledHits) return sumMse / nEnabledHits;
+	else return 0.0;
 }
 
 double pma::Track3D::GetObjFunction(float penaltyFactor) const

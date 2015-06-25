@@ -36,8 +36,10 @@ standard_pmalgtrackmaker:
                                       # 2: use existing assocs of clusters (from external algorithm, to be
                                       #    used by the shower reconstruction but not yet ready)
                                       #
-  AutoFlip_dQdx:          false       # set the track direction to increasing dQ/dx
-  Save_dQdx:              false       # store dQ/dx vs range in the tree, if set to true
+  FlipToBeam:             false       # set the track direction to increasing Z values
+  AutoFlip_dQdx:          false       # set the track direction to increasing dQ/dx (overrides FlipToBeam
+                                      # if significant rise of dQ/dx at the track end)
+  Save_dQdx:              false       # store dQ/dx vs range in the tree
 }
 
 standard_featuretracker:

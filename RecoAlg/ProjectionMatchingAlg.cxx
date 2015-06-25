@@ -199,7 +199,7 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 // ------------------------------------------------------
 
 void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
-	pma::Track3D::EDirection dir, unsigned int n) const
+	pma::Track3D::EDirection dir, double thr, unsigned int n) const
 {
 	unsigned int nViews = 3;
 	std::map< size_t, std::vector<double> > dedx_map[3];
@@ -264,8 +264,8 @@ void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
 	}
 	else return;
 
-	if ((dir == pma::Track3D::kForward) && (dEdxStop < dEdxStart)) trk.Flip();  // particle stop at the end of the track
-	if ((dir == pma::Track3D::kBackward) && (dEdxStop > dEdxStart)) trk.Flip(); // particle stop at the front of the track
+	if ((dir == pma::Track3D::kForward) && ((1.0 + thr) * dEdxStop < dEdxStart)) trk.Flip();  // particle stops at the end of the track
+	if ((dir == pma::Track3D::kBackward) && (dEdxStop > (1.0 + thr) * dEdxStart)) trk.Flip(); // particle stops at the front of the track
 }
 // ------------------------------------------------------
 
