@@ -104,12 +104,17 @@ public:
 		bool add_nodes) const;
 
 	/// Try to correct track direction of the stopping particle:
-	///   dir: kForward  - particle stop is at the end of the track
-	///        kBackward - particle stop is at the begining of the track
+	///   dir: kForward  - particle stop is at the end of the track;
+	///        kBackward - particle stop is at the beginning of the track;
+    /// dQ/dx difference has to be above thr to actually flip the track;
 	/// compares dQ/dx of n hits at each end of the track (default is based on the track length).
 	void autoFlip(pma::Track3D& trk,
 		pma::Track3D::EDirection dir = Track3D::kForward,
-		unsigned int n = 0) const;
+		 double thr = 0.0, unsigned int n = 0) const;
+
+	/// Intendet to calculate dQ/dx in the initial part of EM cascade.
+	/// Not yet tested, please wait a few more days before using it.
+	double selectInitialHits(pma::Track3D& trk) const;
 
 private:
 

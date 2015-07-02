@@ -122,6 +122,10 @@ public:
 	void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
 	bool HasRefPoint(TVector3* p) const;
 
+	/// MSE of hits weighted with hit amplidudes and wire plane coefficients.
+	double GetMse(void) const;
+
+	/// Objective function optimized in track reconstruction.
 	double GetObjFunction(float penaltyFactor = 1.0F) const;
 
 	/// Main optimization method.

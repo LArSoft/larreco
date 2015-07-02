@@ -199,7 +199,7 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 // ------------------------------------------------------
 
 void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
-	pma::Track3D::EDirection dir, unsigned int n) const
+	pma::Track3D::EDirection dir, double thr, unsigned int n) const
 {
 	unsigned int nViews = 3;
 	std::map< size_t, std::vector<double> > dedx_map[3];
@@ -264,8 +264,74 @@ void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
 	}
 	else return;
 
-	if ((dir == pma::Track3D::kForward) && (dEdxStop < dEdxStart)) trk.Flip();  // particle stop at the end of the track
-	if ((dir == pma::Track3D::kBackward) && (dEdxStop > dEdxStart)) trk.Flip(); // particle stop at the front of the track
+	if ((dir == pma::Track3D::kForward) && ((1.0 + thr) * dEdxStop < dEdxStart)) trk.Flip();  // particle stops at the end of the track
+	if ((dir == pma::Track3D::kBackward) && (dEdxStop > (1.0 + thr) * dEdxStart)) trk.Flip(); // particle stops at the front of the track
 }
 // ------------------------------------------------------
+
+double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk) const
+{
+	for (size_t i = 0; i < trk.size(); i++)
+	{
+		pma::Hit3D* hit = trk[i];
+		if (hit->View2D() == geo::kZ)
+		{
+			if ((hit->GetDistToProj() > 0.5) || // more than 0.5cm away away from the segment
+			    (hit->GetSegFraction() < -1.0)) // projects before segment start (to check!!!)
+				hit->TagOutlier(true);
+			else hit->TagOutlier(false);
+		}
+	}
+
+	unsigned int view = geo::kZ;
+	unsigned int nhits = 0;
+	double last_x, dx = 0.0, last_q, dq = 0.0, dqdx = 0.0;
+	int ih = trk.NextHit(-1, view);
+
+	pma::Hit3D* hit = trk[ih];
+	pma::Hit3D* lastHit = hit;
+
+	if ((ih >= 0) && (ih < (int)trk.size()))
+	{
+		hit->TagOutlier(true);
+
+		ih = trk.NextHit(ih, view);
+		while ((dx < 2.5) && (ih >= 0) && (ih < (int)trk.size()))
+		{
+			hit = trk[ih];
+
+			if (abs(hit->Wire() - lastHit->Wire()) > 2)
+				break; // break on gap in wire direction
+
+			last_x = trk.HitDxByView(ih, view);
+			last_q = hit->SummedADC();
+			if (dx + last_x < 3.0)
+			{
+				dq += last_q;
+				dx += last_x;
+				nhits++;
+			}
+			else break;
+
+			lastHit = hit;
+			ih = trk.NextHit(ih, view);
+		}
+		while ((ih >= 0) && (ih < (int)trk.size()))
+		{
+			hit = trk[ih];
+			hit->TagOutlier(true);
+			ih = trk.NextHit(ih, view);
+		}
+	}
+	else { mf::LogError("ProjectionMatchingAlg") << "Initial part selection failed."; }
+
+	if (!nhits) { mf::LogError("ProjectionMatchingAlg") << "Initial part too short to select useful hits."; }
+
+	if (dx > 0.0) dqdx = dq / dx;
+
+	//std::cout << "nhits=" << nhits << ", dq=" << dq << ", dx=" << dx << std::endl;
+	return dqdx;
+}
+// ------------------------------------------------------
+
 
