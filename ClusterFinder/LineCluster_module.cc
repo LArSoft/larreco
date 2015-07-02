@@ -127,10 +127,6 @@ namespace cluster {
     // look for clusters in all planes
     fCCAlg->RunCrawler(*hitVecHandle);
     
-    // access to the algorithm results
-    ClusterCrawlerAlg::HitInCluster_t const& HitInCluster
-      = fCCAlg->GetHitInCluster();
-    
     std::unique_ptr<std::vector<recob::Hit>> FinalHits
       (new std::vector<recob::Hit>(std::move(fCCAlg->YieldHits())));
     
@@ -149,6 +145,8 @@ namespace cluster {
 
     std::vector<ClusterCrawlerAlg::ClusterStore> const& Clusters
       = fCCAlg->GetClusters();
+    
+    std::vector<short> const& inClus = fCCAlg->GetinClus();
 
 // Consistency check
       for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
@@ -164,8 +162,8 @@ namespace cluster {
             <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" cluster CTP "<<clstr.CTP;
             return;
           }
-          if(HitInCluster[iht] != clstr.ID) {
-            mf::LogError("LineCluster") << "InClus mis-match " << HitInCluster[iht]
+          if(inClus[iht] != clstr.ID) {
+            mf::LogError("LineCluster") << "InClus mis-match " << inClus[iht]
             << " ID " << clstr.ID << " in cluster ID " << clstr.ID<<" cluster ProcCode "<<clstr.ProcCode;;
             return;
           }
