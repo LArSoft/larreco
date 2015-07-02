@@ -1378,7 +1378,7 @@ namespace trkf {
     // Setting this true produces copious output...
     prt = false;
     
-    unsigned short ipl, icl, icl1, icl2, end, oend;
+    unsigned short ipl, icl, icl1, icl2;
     float dw, dx, dWCut, dw1Max, dw2Max;
     float dA, dA2, dACut = fMaxDAng, chgAsymCut;
     float dXCut, chgasym, mrgErr;
@@ -1387,7 +1387,6 @@ namespace trkf {
     for(ipl = 0; ipl < nplanes; ++ipl) {
       if(cls[ipl].size() > 1) {
         for(icl1 = 0; icl1 < cls[ipl].size() - 1; ++icl1) {
-          //        prt =  (ipl == 0 && icl1 == 16);
           // maximum delta Wire overlap is 10% of the total length
           dw1Max = 0.1 * cls[ipl][icl1].Length;
           ls1 = (cls[ipl][icl1].Length > 100 && fabs(cls[ipl][icl1].Angle[0] - cls[ipl][icl1].Angle[1]) < 0.04);
@@ -1400,148 +1399,142 @@ namespace trkf {
             // but not exceeding 20 for very long clusters
             if(dWCut > 20) dWCut = 20;
             if(dWCut < 2) dWCut = 2;
-            // check both ends
-            for(end = 0; end < 2; ++end) {
-              chgAsymCut = fMergeChgAsym;
-              oend = 1 - end;
-              // ignore if dWire exceeds the cut
-/*
-              if(prt) mf::LogVerbatim("CCTM")<<"MCC P:C:W icl1 "<<ipl<<":"<<icl1<<":"<<cls[ipl][icl1].Wire[end]<<":"<<end<<" vtx "<<cls[ipl][icl1].VtxIndex[end]<<" ls1 "<<ls1<<" icl2 "<<ipl<<":"<<icl2<<":"<<cls[ipl][icl2].Wire[oend]<<":"<<oend<<" vtx "<<cls[ipl][icl2].VtxIndex[oend]<<" ls2 "<<ls2<<" dWCut "<<dWCut;
-*/
-              if(abs(cls[ipl][icl1].Wire[end]  - cls[ipl][icl2].Wire[oend]) > dWCut) continue;
-              // ignore if the clusters begin/end on the same wire
-              if(cls[ipl][icl1].Wire[end]  == cls[ipl][icl2].Wire[oend]) continue;
-              // or if the angle exceeds the cut
-              float af = AngleFactor(cls[ipl][icl1].Slope[end]);
-              dACut = fMaxDAng * af;
-              dXCut = fChainMaxdX * 5 * af;
-              dA = fabs(cls[ipl][icl1].Angle[end] - cls[ipl][icl2].Angle[oend]);
-              // compare the match angle at the opposite ends of the clusters.
-              // May have a bad end/begin angle if there is a delta-ray in the middle
-              dA2 = fabs(cls[ipl][icl1].Angle[oend] - cls[ipl][icl2].Angle[end]);
-              
-              if(prt) mf::LogVerbatim("CCTM")<<" dA "<<dA<<" dA2 "<<dA2<<" DACut "<<dACut<<" dXCut "<<dXCut;
-              
-              if(dA2 < dA) dA = dA2;
-              // ignore vertices that have only two associated clusters and
-              // the angle is small
-              if(dA < fChainVtxAng && cls[ipl][icl1].VtxIndex[end] >= 0) {
-                dw = fWirePitch * (cls[ipl][icl2].Wire[oend] - cls[ipl][icl1].Wire[end]);
-                dx = cls[ipl][icl1].X[end] + cls[ipl][icl1].Slope[end] * dw * fWirePitch - cls[ipl][icl2].X[oend];
-                unsigned short ivx = cls[ipl][icl1].VtxIndex[end];
-                if(vtx[ivx].nClusInPln[ipl] == 2 && fabs(dx) < 1) {
-                  cls[ipl][icl1].VtxIndex[end] = -2;
-                  cls[ipl][icl2].VtxIndex[oend] = -2;
-                  vtx[ivx].nClusInPln[ipl] = 0;
-                  if(prt) mf::LogVerbatim("CCTM")<<" clobbered vertex "<<ivx;
-                } // vertices match
-              } // dA < 0.1 && ...
-              
-              // don't merge if a vertex exists at these ends
-              if(cls[ipl][icl1].VtxIndex[end] >= 0) continue;
-              if(cls[ipl][icl2].VtxIndex[oend] >= 0) continue;
-              
-              // expand the angle match cut for clusters that appear to be stopping
-              if(cls[ipl][icl2].Wire[oend] - cls[ipl][icl1].Wire[end] < 3 && cls[ipl][icl1].VtxIndex[end] < 0 &&
-                 (cls[ipl][icl1].Length < 3 || cls[ipl][icl2].Length < 3) ) {
-                if(prt) mf::LogVerbatim("CCTM")<<"Stopping cluster";
-                dACut *= 1.5;
-                chgAsymCut *= 1.5;
-                dXCut *= 3;
-              } // stopping US cluster
-              
-              // find the angle made by the endpoints of the clusters
-              dw = fWirePitch * (cls[ipl][icl2].Wire[oend] - cls[ipl][icl1].Wire[end]);
-              if(dw != 0) {
-                dx = cls[ipl][icl2].X[oend] - cls[ipl][icl1].X[end];
-                float dA3 = std::abs(atan(dx / dw) - cls[ipl][icl1].Angle[end]);
-                if(prt) mf::LogVerbatim("CCTM")<<" dA3 "<<dA3;
-                if(dA3 > dA) dA = dA3;
+            chgAsymCut = fMergeChgAsym;
+            // Compare end 1 of icl1 with end 0 of icl2
+            
+            if(prt) mf::LogVerbatim("CCTM")<<"MCC P:C:W icl1 "<<ipl<<":"<<icl1<<":"<<cls[ipl][icl1].Wire[1]<<" vtx "<<cls[ipl][icl1].VtxIndex[1]<<" ls1 "<<ls1<<" icl2 "<<ipl<<":"<<icl2<<":"<<cls[ipl][icl2].Wire[0]<<" vtx "<<cls[ipl][icl2].VtxIndex[0]<<" ls2 "<<ls2<<" dWCut "<<dWCut;
+            if(abs(cls[ipl][icl1].Wire[1]  - cls[ipl][icl2].Wire[0]) > dWCut) continue;
+            // ignore if the clusters begin/end on the same wire
+            if(cls[ipl][icl1].Wire[1]  == cls[ipl][icl2].Wire[0]) continue;
+            // or if the angle exceeds the cut
+            float af = AngleFactor(cls[ipl][icl1].Slope[1]);
+            dACut = fMaxDAng * af;
+            dXCut = fChainMaxdX * 5 * af;
+            dA = fabs(cls[ipl][icl1].Angle[1] - cls[ipl][icl2].Angle[0]);
+            // compare the match angle at the opposite ends of the clusters.
+            // May have a bad end/begin angle if there is a delta-ray in the middle
+            dA2 = fabs(cls[ipl][icl1].Angle[0] - cls[ipl][icl2].Angle[1]);
+            
+            if(prt) mf::LogVerbatim("CCTM")<<" dA "<<dA<<" dA2 "<<dA2<<" DACut "<<dACut<<" dXCut "<<dXCut;
+            
+            if(dA2 < dA) dA = dA2;
+            // ignore vertices that have only two associated clusters and
+            // the angle is small
+            if(dA < fChainVtxAng && cls[ipl][icl1].VtxIndex[1] >= 0) {
+              dw = fWirePitch * (cls[ipl][icl2].Wire[0] - cls[ipl][icl1].Wire[1]);
+              dx = cls[ipl][icl1].X[1] + cls[ipl][icl1].Slope[1] * dw * fWirePitch - cls[ipl][icl2].X[0];
+              unsigned short ivx = cls[ipl][icl1].VtxIndex[1];
+              if(vtx[ivx].nClusInPln[ipl] == 2 && fabs(dx) < 1) {
+                cls[ipl][icl1].VtxIndex[1] = -2;
+                cls[ipl][icl2].VtxIndex[0] = -2;
+                vtx[ivx].nClusInPln[ipl] = 0;
+                if(prt) mf::LogVerbatim("CCTM")<<" clobbered vertex "<<ivx;
+              } // vertices match
+            } // dA < 0.1 && ...
+            
+            // don't merge if a vertex exists at these ends
+            if(cls[ipl][icl1].VtxIndex[1] >= 0) continue;
+            if(cls[ipl][icl2].VtxIndex[0] >= 0) continue;
+            
+            // expand the angle match cut for clusters that appear to be stopping
+            if(cls[ipl][icl2].Wire[0] - cls[ipl][icl1].Wire[1] < 3 &&
+               (cls[ipl][icl1].Length < 3 || cls[ipl][icl2].Length < 3) ) {
+              if(prt) mf::LogVerbatim("CCTM")<<"Stopping cluster";
+              dACut *= 1.5;
+              chgAsymCut *= 1.5;
+              dXCut *= 3;
+            } // stopping US cluster
+            
+            // find the angle made by the endpoints of the clusters
+            dw = fWirePitch * (cls[ipl][icl2].Wire[0] - cls[ipl][icl1].Wire[1]);
+            if(dw != 0) {
+              dx = cls[ipl][icl2].X[0] - cls[ipl][icl1].X[1];
+              float dA3 = std::abs(atan(dx / dw) - cls[ipl][icl1].Angle[1]);
+              if(prt) mf::LogVerbatim("CCTM")<<" dA3 "<<dA3;
+              if(dA3 > dA) dA = dA3;
+            }
+            
+            // angle matching
+            if(dA > dACut) continue;
+            
+            if(prt) mf::LogVerbatim("CCTM")<<" rough dX "<<fabs(cls[ipl][icl1].X[1] - cls[ipl][icl2].X[0])<<" cut = 20";
+            
+            // make a rough dX cut
+            if(fabs(cls[ipl][icl1].X[1] - cls[ipl][icl2].X[0]) > 20) continue;
+            
+            // handle cosmic ray clusters that are broken at delta rays
+            if(ls1 || ls2) {
+              // tighter angle cuts but no charge cut
+              if(dA > fChainVtxAng) continue;
+            } else {
+              chgasym = fabs(cls[ipl][icl1].Charge[1] - cls[ipl][icl2].Charge[0]);
+              chgasym /= cls[ipl][icl1].Charge[1] + cls[ipl][icl2].Charge[0];
+              if(prt) mf::LogVerbatim("CCTM")<<" chgasym "<<chgasym<<" cut "<<chgAsymCut;
+              if(chgasym > chgAsymCut) continue;
+            } // ls1 || ls2
+            // project the longer cluster to the end of the shorter one
+            if(cls[ipl][icl1].Length > cls[ipl][icl2].Length) {
+              dw = fWirePitch * (cls[ipl][icl2].Wire[0] - cls[ipl][icl1].Wire[1]);
+              dx = cls[ipl][icl1].X[1] + cls[ipl][icl1].Slope[1] * dw * fWirePitch - cls[ipl][icl2].X[0];
+            } else {
+              dw = fWirePitch * (cls[ipl][icl1].Wire[1] - cls[ipl][icl2].Wire[0]);
+              dx = cls[ipl][icl2].X[0] + cls[ipl][icl2].Slope[0] * dw * fWirePitch - cls[ipl][icl1].X[1];
+            }
+            
+            // handle overlapping clusters
+            if(dA2 < 0.01 && abs(dx) > dXCut && dx < -1) {
+              dx = dXClTraj(fmCluHits, ipl, icl1, 1, icl2);
+              if(prt) mf::LogVerbatim("CCTM")<<" new dx from dXClTraj "<<dx;
+            }
+            
+            if(prt) mf::LogVerbatim("CCTM")<<" X0 "<<cls[ipl][icl1].X[1]<<" slp "<<cls[ipl][icl1].Slope[1]<<" dw "<<dw<<" oX "<<cls[ipl][icl2].X[0]<<" dx "<<dx<<" cut "<<dXCut;
+            
+            if(fabs(dx) > dXCut) continue;
+            
+            // calculate a merge error that will be used to adjudicate between multiple merge attempts AngleFactor
+            float xerr = dx / dXCut;
+            float aerr = dA / dACut;
+            mrgErr = xerr * xerr + aerr * aerr;
+            
+            if(prt) mf::LogVerbatim("CCTM")<<"icl1 mrgErr "<<mrgErr<<" MergeError "<<cls[ipl][icl1].MergeError[1]<<" icl2 MergeError "<<cls[ipl][icl2].MergeError[0];
+            
+            // this merge better than a previous one?
+            if(mrgErr > cls[ipl][icl1].MergeError[1]) continue;
+            if(mrgErr > cls[ipl][icl2].MergeError[0]) continue;
+            
+            // un-merge icl1 - this should always be true but check anyway
+            if(cls[ipl][icl1].BrkIndex[1] >= 0) {
+              unsigned short ocl = cls[ipl][icl1].BrkIndex[1];
+              if(prt) mf::LogVerbatim("CCTM")<<"clobber old icl1 BrkIndex "<<ocl;
+              if(cls[ipl][ocl].BrkIndex[0] == icl1) {
+                cls[ipl][ocl].BrkIndex[0] = -1;
+                cls[ipl][ocl].MergeError[0] = fMaxMergeError;
               }
-              
-              // angle matching
-              if(dA > dACut) continue;
-              
-              if(prt) mf::LogVerbatim("CCTM")<<" rough dX "<<fabs(cls[ipl][icl1].X[end] - cls[ipl][icl2].X[oend])<<" cut = 20";
-              
-              // make a rough dX cut
-              if(fabs(cls[ipl][icl1].X[end] - cls[ipl][icl2].X[oend]) > 20) continue;
-              
-              // handle cosmic ray clusters that are broken at delta rays
-              if(ls1 || ls2) {
-                // tighter angle cuts but no charge cut
-                if(dA > fChainVtxAng) continue;
-              } else {
-                chgasym = fabs(cls[ipl][icl1].Charge[end] - cls[ipl][icl2].Charge[oend]);
-                chgasym /= cls[ipl][icl1].Charge[end] + cls[ipl][icl2].Charge[oend];
-                if(prt) mf::LogVerbatim("CCTM")<<" chgasym "<<chgasym<<" cut "<<chgAsymCut;
-                if(chgasym > chgAsymCut) continue;
-              } // ls1 || ls2
-              // project the longer cluster to the end of the shorter one
-              if(cls[ipl][icl1].Length > cls[ipl][icl2].Length) {
-                dw = fWirePitch * (cls[ipl][icl2].Wire[oend] - cls[ipl][icl1].Wire[end]);
-                dx = cls[ipl][icl1].X[end] + cls[ipl][icl1].Slope[end] * dw * fWirePitch - cls[ipl][icl2].X[oend];
-              } else {
-                dw = fWirePitch * (cls[ipl][icl1].Wire[end] - cls[ipl][icl2].Wire[oend]);
-                dx = cls[ipl][icl2].X[oend] + cls[ipl][icl2].Slope[oend] * dw * fWirePitch - cls[ipl][icl1].X[end];
+              if(cls[ipl][ocl].BrkIndex[1] == icl1) {
+                cls[ipl][ocl].BrkIndex[1] = -1;
+                cls[ipl][ocl].MergeError[1] = fMaxMergeError;
               }
-              
-              // handle overlapping clusters
-              if(dA2 < 0.01 && abs(dx) > dXCut && dx < -1) {
-                dx = dXClTraj(fmCluHits, ipl, icl1, end, icl2);
-                if(prt) mf::LogVerbatim("CCTM")<<" new dx from dXClTraj "<<dx;
+            } // cls[ipl][icl1].BrkIndex[1] >= 0
+            cls[ipl][icl1].BrkIndex[1] = icl2;
+            cls[ipl][icl1].MergeError[1] = mrgErr;
+            
+            // un-merge icl2
+            if(cls[ipl][icl2].BrkIndex[0] >= 0) {
+              unsigned short ocl = cls[ipl][icl2].BrkIndex[0];
+              if(prt) mf::LogVerbatim("CCTM")<<"clobber old icl2 BrkIndex "<<ocl;
+              if(cls[ipl][ocl].BrkIndex[0] == icl1) {
+                cls[ipl][ocl].BrkIndex[0] = -1;
+                cls[ipl][ocl].MergeError[0] = fMaxMergeError;
               }
-              
-              
-              if(prt) mf::LogVerbatim("CCTM")<<" X0 "<<cls[ipl][icl1].X[end]<<" slp "<<cls[ipl][icl1].Slope[end]<<" dw "<<dw<<" oX "<<cls[ipl][icl2].X[oend]<<" dx "<<dx<<" cut "<<dXCut;
-              
-              if(fabs(dx) > dXCut) continue;
-              
-              // calculate a merge error that will be used to adjudicate between multiple merge attempts AngleFactor
-              float xerr = dx / dXCut;
-              float aerr = dA / dACut;
-              mrgErr = xerr * xerr + aerr * aerr;
-              
-              if(prt) mf::LogVerbatim("CCTM")<<"icl1 mrgErr "<<mrgErr<<" MergeError "<<cls[ipl][icl1].MergeError[end]<<" icl2 MergeError "<<cls[ipl][icl2].MergeError[oend];
-//              if(prt) mf::LogVerbatim("CCTM")<<"icl1 mrgErr "<<mrgErr<<" mergeErr "<<mergeErr[icl1][end]<<" icl2 mergeErr "<<mergeErr[icl1][end];
-              
-              // this merge better than a previous one?
-              if(mrgErr > cls[ipl][icl1].MergeError[end]) continue;
-              if(mrgErr > cls[ipl][icl2].MergeError[oend]) continue;
-              
-              // un-merge icl1 - this should always be true but check anyway
-              if(cls[ipl][icl1].BrkIndex[end] >= 0) {
-                unsigned short ocl = cls[ipl][icl1].BrkIndex[end];
-                if(prt) mf::LogVerbatim("CCTM")<<"clobber old icl1 BrkIndex "<<ocl;
-                if(cls[ipl][ocl].BrkIndex[0] == icl1) {
-                  cls[ipl][ocl].BrkIndex[0] = -1;
-                  cls[ipl][ocl].MergeError[0] = fMaxMergeError;
-                }
-                if(cls[ipl][ocl].BrkIndex[1] == icl1) {
-                  cls[ipl][ocl].BrkIndex[1] = -1;
-                  cls[ipl][ocl].MergeError[1] = fMaxMergeError;
-                }
-              } // cls[ipl][icl1].BrkIndex[end] >= 0
-              cls[ipl][icl1].BrkIndex[end] = icl2;
-              cls[ipl][icl1].MergeError[end] = mrgErr;
-              
-              // un-merge icl2
-              if(cls[ipl][icl2].BrkIndex[oend] >= 0) {
-                unsigned short ocl = cls[ipl][icl2].BrkIndex[oend];
-                if(prt) mf::LogVerbatim("CCTM")<<"clobber old icl2 BrkIndex "<<ocl;
-                if(cls[ipl][ocl].BrkIndex[0] == icl1) {
-                  cls[ipl][ocl].BrkIndex[0] = -1;
-                  cls[ipl][ocl].MergeError[0] = fMaxMergeError;
-                }
-                if(cls[ipl][ocl].BrkIndex[1] == icl1) {
-                  cls[ipl][ocl].BrkIndex[1] = -1;
-                  cls[ipl][ocl].MergeError[1] = fMaxMergeError;
-                }
-              } // cls[ipl][icl2].BrkIndex[oend] >= 0
-              cls[ipl][icl2].BrkIndex[oend] = icl1;
-              cls[ipl][icl2].MergeError[oend] = mrgErr;
-              if(prt) mf::LogVerbatim("CCTM")<<" merge "<<icl1<<" and "<<icl2;
-            } // end
+              if(cls[ipl][ocl].BrkIndex[1] == icl1) {
+                cls[ipl][ocl].BrkIndex[1] = -1;
+                cls[ipl][ocl].MergeError[1] = fMaxMergeError;
+              }
+            } // cls[ipl][icl2].BrkIndex[0] >= 0
+            cls[ipl][icl2].BrkIndex[0] = icl1;
+            cls[ipl][icl2].MergeError[0] = mrgErr;
+            if(prt) mf::LogVerbatim("CCTM")<<" merge "<<icl1<<" and "<<icl2;
+            
           } // icl2
         } // icl1
         
@@ -1552,7 +1545,7 @@ namespace trkf {
           gotone = false;
           for(icl2 = icl1 + 1; icl2 < cls[ipl].size(); ++icl2) {
             // check both ends
-            for(end = 0; end < 2; ++end) {
+            for(unsigned short end = 0; end < 2; ++end) {
               // Ignore already identified broken clusters
               if(cls[ipl][icl1].BrkIndex[end] >= 0) continue;
               if(cls[ipl][icl2].BrkIndex[end] >= 0) continue;
