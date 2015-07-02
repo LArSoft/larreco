@@ -104,76 +104,6 @@ namespace cluster {
       unsigned short ProcCode;
     };
     
-    /// Holds which cluster each hit is in, if any
-    class HitInCluster_t {
-        public:
-      using ClusterID_t = int;
-      
-      HitInCluster_t() = default; // everything else is also default
-      
-      /// Resizes the list to the specified size and sets all the hits as free
-      void reset(size_t new_hits);
-      
-      //@{
-      /// Returns the ID of the cluster the specified hit belongs to
-      ClusterID_t operator[] (size_t iHit) const { return ClusterIDs[iHit]; }
-      ClusterID_t& operator[] (size_t iHit) { return ClusterIDs[iHit]; }
-      
-      ClusterID_t at(size_t iHit) const { return ClusterIDs.at(iHit); }
-      ClusterID_t& at(size_t iHit) { return ClusterIDs.at(iHit); }
-      //@}
-      
-      /// Returns the number of registered hits (including obsolete ones)
-      size_t nHits() const { return ClusterIDs.size(); }
-      
-      /// Returns whether the specified hit is present
-      bool isPresent(size_t ihit) const { return ClusterIDs[ihit] != NoHit; }
-      /// Returns whether the specified hit is present and not assigned to cluster
-      bool isFree(size_t ihit) const { return ClusterIDs[ihit] == FreeHit; }
-      /// Returns whether the specified hit is known to be in a cluster
-      bool isInCluster(size_t ihit) const
-        { return isPresent(ihit) && !isFree(ihit); }
-      
-      /// Returns the index of the n-th next non-obsolete hit, or invalid index
-      size_t NextPresent(size_t iHit, size_t n = 1) const;
-      /// Returns the index of the n-th previous non-obsolete hit, or invalid index
-      size_t PrevPresent(size_t iHit, size_t n = 1) const;
-      /// Returns the index of the n-th next free hit, or invalid index
-      size_t NextFree(size_t iHit, size_t n = 1) const;
-      /// Returns the index of the n-th previous free hit, or invalid index
-      size_t PrevFree(size_t iHit, size_t n = 1) const;
-      
-      /// Marks the hit as obsolete
-      void makeObsolete(size_t ihit) { ClusterIDs[ihit] = NoHit; }
-      /// Marks the hit as belonging to no cluster (free)
-      void setFree(size_t ihit) { ClusterIDs[ihit] = FreeHit; }
-      /// Marks the hit as belonging to the specified cluster ID
-      void setCluster(size_t ihit, ClusterID_t id) { ClusterIDs[ihit] = id; }
-      
-      /// Resizes the list to the specified size; new hits are marked free
-      void resize(size_t new_size) { ClusterIDs.resize(new_size, FreeHit); }
-      
-      /// Removes all the information
-      void clear() { ClusterIDs.clear(); }
-      
-      /// ID of a hit in no cluster
-      static constexpr ClusterID_t FreeHit = 0 /* std::numeric_limits<int>::max() */;
-      /// ID of a hit that has disappeared because merged ("obsolete")
-      static constexpr ClusterID_t NoHit = FreeHit - 1;
-      /// invalid index
-      static constexpr size_t InvalidHitIndex
-        = std::numeric_limits<size_t>::max();
-      
-        protected:
-      /// ID of the cluster each hit is in (0: none; -1: merged away)
-      std::vector<ClusterID_t> ClusterIDs;
-    
-    }; // HitInCluster_t
-    /// @}
-    
-    using ClusterID_t = HitInCluster_t::ClusterID_t;
-    
-    
     ClusterCrawlerAlg(fhicl::ParameterSet const& pset);
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
@@ -182,8 +112,7 @@ namespace cluster {
     /// @{
     /// @name Result retrieval
     
-    /// Return a reference to our hit-cluster associations; we don't yield it.
-    HitInCluster_t const& GetHitInCluster() const { return fHitInCluster; }
+    std::vector<short> const& GetinClus() const {return inClus; }
     
     /// Returns (and loses) the collection of reconstructed hits
     std::vector<recob::Hit>&& YieldHits() { return std::move(fHits); }
@@ -282,7 +211,7 @@ namespace cluster {
     art::ServiceHandle<util::DetectorProperties> detprop;
     
     std::vector<recob::Hit> fHits; ///< our version of the hits
-    HitInCluster_t fHitInCluster; ///< List of the cluster ID each hit belongs to
+    std::vector<short> inClus;    ///< Hit used in cluster (-1 = obsolete, 0 = free)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< the endpoints we are reconstructing
     std::vector< Vtx3Store > vtx3; ///< the 3D vertices we are reconstructing
@@ -318,7 +247,7 @@ namespace cluster {
                         ///< +  100 ChkMerge12
                         ///< +  200 ClusterFix
                         ///< +  300 LACrawlUS
-                        ///< +  600 MergeOverlap
+                        ///< +  500 MergeOverlap
                         ///< + 1000 VtxClusterSplit
                         ///< + 2000 failed pass N cuts but passes pass N=1 cuts
                         ///< + 3000 Cluster hits merged
@@ -482,36 +411,11 @@ namespace cluster {
     /// Returns a pair of first and past-the-last index
     /// of all the contiguous hits belonging to the same multiplet
     std::pair<size_t, size_t> FindHitMultiplet(size_t iHit) const;
-    
-    // hit-cluster association
-    bool isHitInCluster(size_t iHit) const
-      { return GetHitInCluster().isInCluster(iHit); }
-    bool isHitFree(size_t iHit) const
-      { return GetHitInCluster().isFree(iHit); }
-    bool isHitPresent(size_t iHit) const
-      { return GetHitInCluster().isPresent(iHit); }
-    /// Returns the index of the n-th next non-obsolete hit, or invalid index
-    size_t NextHitPresent(size_t iHit, size_t n = 1) const
-      { return GetHitInCluster().NextPresent(iHit, n); }
-    /// Returns the index of the n-th previous non-obsolete hit, or invalid index
-    size_t PrevHitPresent(size_t iHit, size_t n = 1) const
-      { return GetHitInCluster().PrevPresent(iHit, n); }
-    /// Returns the index of the n-th next free hit, or invalid index
-    size_t NextHitFree(size_t iHit, size_t n = 1) const
-      { return GetHitInCluster().NextFree(iHit, n); }
-    /// Returns the index of the n-th previous free hit, or invalid index
-    size_t PrevHitFree(size_t iHit, size_t n = 1) const
-      { return GetHitInCluster().PrevFree(iHit, n); }
-    /// Mark all hits belonging to the obsoleted cluster at index icl as free
-    void FreeObsoleteClusterHits(unsigned short icl);
-    /// Prints errors (or throws) in case of inconsistent hit <-> cluster
-    bool CheckHitClusterAssociation
-      (bool bClusterToHit = true, bool bHitToCluster = true) const;
-    
+
+    void CheckHitClusterAssociations();
     
     /// Returns whether the two hits belong to the same multiplet
-    static bool areInSameMultiplet
-      (recob::Hit const& first_hit, recob::Hit const& second_hit);
+    static bool areInSameMultiplet(recob::Hit const& first_hit, recob::Hit const& second_hit);
 
     
   }; // class ClusterCrawlerAlg
