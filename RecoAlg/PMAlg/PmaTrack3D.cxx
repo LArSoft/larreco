@@ -608,6 +608,13 @@ void pma::Track3D::InitFromMiddle(int tpc, int cryo)
 	Optimize(0, 0.01F);
 }
 
+int pma::Track3D::index_of(const pma::Hit3D* hit) const
+{
+	for (size_t i = 0; i < size(); i++)
+		if (fHits[i] == hit) return (int)i;
+	return -1;
+}
+
 bool pma::Track3D::push_back(art::Ptr< recob::Hit > hit)
 {
 	for (auto const& trk_hit : fHits)
@@ -794,13 +801,13 @@ double pma::Track3D::Length(size_t start, size_t stop, size_t step) const
 	if (stop >= size()) stop = size() - 1;
 
 	double result = 0.0;
-	pma::Hit3D *h1 = 0, *h0 = (*this)[start];
+	pma::Hit3D *h1 = 0, *h0 = fHits[start];
 
 	if (!step) step = 1;
 	size_t i = start + step;
 	while (i <= stop)
 	{
-		h1 = (*this)[i];
+		h1 = fHits[i];
 		result += sqrt(pma::Dist2(h1->Point3D(), h0->Point3D()));
 		h0 = h1;
 		i += step;
@@ -818,7 +825,7 @@ int pma::Track3D::NextHit(int index, unsigned int view, bool inclDisabled) const
 	if (index < -1) index = -1;
 	while (++index < (int)size()) // look for the next index of hit from the view
 	{
-		hit = (*this)[index];
+		hit = fHits[index];
 		if (hit->View2D() == view)
 		{
 			if (inclDisabled) break;
@@ -834,7 +841,7 @@ int pma::Track3D::PrevHit(int index, unsigned int view, bool inclDisabled) const
 	if (index > (int)size()) index = (int)size();
 	while (--index >= 0) // look for the prev index of hit from the view
 	{
-		hit = (*this)[index];
+		hit = fHits[index];
 		if (hit->View2D() == view)
 		{
 			if (inclDisabled) break;
@@ -848,7 +855,7 @@ double pma::Track3D::HitDxByView(size_t index, unsigned int view,
 	pma::Track3D::EDirection dir, bool secondDir) const
 {
 	pma::Hit3D* nexthit = 0;
-	pma::Hit3D* hit = (*this)[index];
+	pma::Hit3D* hit = fHits[index];
 
 	if (hit->View2D() != view)
 	{
@@ -863,7 +870,7 @@ double pma::Track3D::HitDxByView(size_t index, unsigned int view,
 		case pma::Track3D::kForward:
 			while (!hitFound && (++i < (int)size()))
 			{
-				nexthit = (*this)[i];
+				nexthit = fHits[i];
 				dx += sqrt(pma::Dist2(hit->Point3D(), nexthit->Point3D()));
 				
 				if (nexthit->View2D() == view) hitFound = true;
@@ -881,7 +888,7 @@ double pma::Track3D::HitDxByView(size_t index, unsigned int view,
 		case pma::Track3D::kBackward:
 			while (!hitFound && (--i >= 0))
 			{
-				nexthit = (*this)[i];
+				nexthit = fHits[i];
 				dx += sqrt(pma::Dist2(hit->Point3D(), nexthit->Point3D()));
 
 				if (nexthit->View2D() == view) hitFound = true;
@@ -960,7 +967,7 @@ double pma::Track3D::GetRawdEdxSequence(
 	if (j >= size()) return 0.0F; // no charged hits at all
 	while (j < size()) // look for the first hit index
 	{
-		hit = (*this)[j];
+		hit = fHits[j];
 		dq = hit->SummedADC();
 		if (s) { qSkipped += dq; s--; }
 		else break;
@@ -978,7 +985,7 @@ double pma::Track3D::GetRawdEdxSequence(
 		indexes.clear(); // prepare to collect hit indexes for used for this dE/dx entry
 
 		indexes.push_back(j);
-		hit = (*this)[j];
+		hit = fHits[j];
 
 		p0 = hit->Point3D();
 		p1 = hit->Point3D();
@@ -997,7 +1004,7 @@ double pma::Track3D::GetRawdEdxSequence(
 			j = NextHit(j, view); // just next, even if tagged as outlier
 			if (j > jmax) break; // no more hits in this view
 
-			hit = (*this)[j];
+			hit = fHits[j];
 			if (!inclDisabled && !hit->IsEnabled())
 			{
 				if (dr == 0.0) continue;
@@ -1329,6 +1336,88 @@ void pma::Track3D::RebuildSegments(void)
 	}
 }
 
+bool pma::Track3D::ShiftEndsToHits(void)
+{
+	pma::Element3D* el;
+	pma::Node3D* vtx;
+
+	if (!(fNodes.front()->Prev()))
+	{
+		el = GetNearestElement(front()->Point3D());
+		vtx = dynamic_cast< pma::Node3D* >(el);
+		if (vtx)
+		{
+			if (vtx == fNodes.front()) fNodes.front()->SetPoint3D(front()->Point3D());
+			else
+			{
+				mf::LogWarning("pma::Track3D") << "First hit is projected to inner node.";
+				return false;
+			}
+		}
+		else
+		{
+			pma::Segment3D* seg = dynamic_cast< pma::Segment3D* >(el);
+			if (seg)
+			{
+				if (seg->Prev() == fNodes.front())
+				{
+					double l0 = seg->Length();
+					fNodes.front()->SetPoint3D(front()->Point3D());
+					if ((seg->Length() < 0.2 * l0) && (fNodes.size() > 2))
+					{
+						mf::LogWarning("pma::Track3D") << "ShiftEndsToHits(): Short segment, node removed.";
+						fNodes.erase(fNodes.begin() + 1);
+					}
+				}
+				else
+				{
+					mf::LogWarning("pma::Track3D") << "First hit is projected to inner segment.";
+					return false;
+				}
+			}
+		}
+	}
+
+	if (!(fNodes.back()->NextCount()))
+	{
+		el = GetNearestElement(back()->Point3D());
+		vtx = dynamic_cast< pma::Node3D* >(el);
+		if (vtx)
+		{
+			if (vtx == fNodes.back()) fNodes.back()->SetPoint3D(back()->Point3D());
+			else
+			{
+				mf::LogWarning("pma::Track3D") << "First hit is projected to inner node.";
+				return false;
+			}
+		}
+		else
+		{
+			pma::Segment3D* seg = dynamic_cast< pma::Segment3D* >(el);
+			if (seg)
+			{
+				if (seg->Next() == fNodes.back())
+				{
+					double l0 = seg->Length();
+					fNodes.back()->SetPoint3D(back()->Point3D());
+					if ((seg->Length() < 0.2 * l0) && (fNodes.size() > 2))
+					{
+						mf::LogWarning("pma::Track3D") << "ShiftEndsToHits(): Short segment, node removed.";
+						fNodes.erase(fNodes.end() - 1);
+					}
+				}
+				else
+				{
+					mf::LogWarning("pma::Track3D") << "First hit is projected to inner segment.";
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
 double pma::Track3D::Dist2(const TVector2& p2d, unsigned int view) const
 {
 	pma::Element3D* pe_min = fNodes.front();
@@ -1479,6 +1568,145 @@ void pma::Track3D::SortHits(void)
 	else mf::LogError("pma::Track3D") << "Hit sorting problem.";
 }
 
+unsigned int pma::Track3D::DisableSingleViewEnds(void)
+{
+	SortHits();
+
+	unsigned int nDisabled = 0;
+
+	int hasHits[4];
+
+	pma::Hit3D* nextHit = 0;
+	int hitIndex = -1;
+
+	bool stop = false;
+	int nViews = 0;
+	hasHits[0] = hasHits[1] = hasHits[2] = hasHits[3] = 0;
+	do
+	{
+		pma::Node3D* vtx = fNodes.front();
+		pma::Segment3D* seg = NextSegment(vtx);
+		if (!seg) break;
+
+		if (vtx->NPoints() + seg->NPoints() > 0) hasHits[3] = 1;
+
+		for (size_t i = 0; i < vtx->NHits(); i++)
+		{
+			hitIndex = index_of(&(vtx->Hit(i)));
+			if ((hitIndex >= 0) && (hitIndex + 1 < (int)size())) nextHit = fHits[hitIndex + 1];
+			else nextHit = 0;
+
+			if (vtx->Hit(i).IsEnabled()) hasHits[vtx->Hit(i).View2D()] = 1;
+			if (nextHit && nextHit->IsEnabled()) hasHits[nextHit->View2D()] = 1;
+			nViews = hasHits[0] + hasHits[1] + hasHits[2] + hasHits[3];
+			if (nViews < 2)
+			{
+				if (vtx->Hit(i).IsEnabled())
+				{
+					vtx->Hit(i).SetEnabled(false);
+					nDisabled++;
+				}
+			}
+		}
+		for (size_t i = 0; i < seg->NHits(); i++)
+		{
+			hitIndex = index_of(&(seg->Hit(i)));
+			if ((hitIndex >= 0) && (hitIndex + 1 < (int)size())) nextHit = fHits[hitIndex + 1];
+			else nextHit = 0;
+
+			if (seg->Hit(i).IsEnabled()) hasHits[seg->Hit(i).View2D()] = 1;
+			if (nextHit && nextHit->IsEnabled()) hasHits[nextHit->View2D()] = 1;
+			nViews = hasHits[0] + hasHits[1] + hasHits[2] + hasHits[3];
+			if (nViews < 2)
+			{
+				if (seg->Hit(i).IsEnabled())
+				{
+					seg->Hit(i).SetEnabled(false);
+					nDisabled++;
+				}
+			}
+		}
+
+		if (fNodes.size() < 3) break;
+
+		nViews = hasHits[1] + hasHits[2] + hasHits[3];
+		if (hasHits[0] || (nViews > 1)) stop = true;
+		else
+		{
+			pma::Node3D* vtx_front = fNodes.front();
+			fNodes.erase(fNodes.begin());
+			delete vtx_front;
+		}
+
+	} while (!stop);
+
+	stop = false;
+	nViews = 0;
+	hasHits[0] = hasHits[1] = hasHits[2] = hasHits[3] = 0;
+	do
+	{
+		pma::Node3D* vtx = fNodes.back();
+		pma::Segment3D* seg = PrevSegment(vtx);
+		if (!seg) break;
+
+		if (vtx->NPoints() || seg->NPoints()) hasHits[3] = 1;
+
+		for (int i = vtx->NHits() - 1; i >= 0; i--)
+		{
+			hitIndex = index_of(&(vtx->Hit(i)));
+			if ((hitIndex >= 0) && (hitIndex - 1 >= 0)) nextHit = fHits[hitIndex - 1];
+			else nextHit = 0;
+
+			if (vtx->Hit(i).IsEnabled()) hasHits[vtx->Hit(i).View2D()] = 1;
+			if (nextHit && nextHit->IsEnabled()) hasHits[nextHit->View2D()] = 1;
+			nViews = hasHits[0] + hasHits[1] + hasHits[2] + hasHits[3];
+			if (nViews < 2)
+			{
+				if (vtx->Hit(i).IsEnabled())
+				{
+					vtx->Hit(i).SetEnabled(false);
+					nDisabled++;
+				}
+			}
+		}
+		for (int i = seg->NHits() - 1; i >= 0; i--)
+		{
+			hitIndex = index_of(&(seg->Hit(i)));
+			if ((hitIndex >= 0) && (hitIndex - 1 >= 0)) nextHit = fHits[hitIndex - 1];
+			else nextHit = 0;
+
+			if (seg->Hit(i).IsEnabled()) hasHits[seg->Hit(i).View2D()] = 1;
+			if (nextHit && nextHit->IsEnabled()) hasHits[nextHit->View2D()] = 1;
+			nViews = hasHits[0] + hasHits[1] + hasHits[2] + hasHits[3];
+			if (nViews < 2)
+			{
+				if (seg->Hit(i).IsEnabled())
+				{
+					seg->Hit(i).SetEnabled(false);
+					nDisabled++;
+				}
+			}
+		}
+
+		if (fNodes.size() < 3) break;
+
+		nViews = hasHits[1] + hasHits[2] + hasHits[3];
+		if (hasHits[0] || (nViews > 1)) stop = true;
+		else
+		{
+			pma::Node3D* vtx_back = fNodes.back();
+			fNodes.pop_back();
+			delete vtx_back;
+		}
+
+	} while (!stop);
+
+	RebuildSegments();
+	MakeProjection();
+
+	return nDisabled;
+}
+
 void pma::Track3D::SelectHits(float fraction)
 {
 	if (fraction < 0.0F) fraction = 0.0F;
@@ -1492,7 +1720,7 @@ void pma::Track3D::SelectHits(float fraction)
 
 	for (size_t i = 0; i < size(); i++)
 	{
-		pma::Hit3D* hit = (*this)[i];
+		pma::Hit3D* hit = fHits[i];
 		if (fraction < 1.0F)
 		{
 			hit->SetEnabled(false);
@@ -1506,13 +1734,16 @@ void pma::Track3D::SelectHits(float fraction)
 		else hit->SetEnabled(true);
 	}
 
-	pma::Element3D* pe = FirstElement();
-	for (unsigned int i = 0; i < pe->NHits(); i++)
-		pe->Hit(i).SetEnabled(true);
+	if (fraction < 1.0F)
+	{
+		pma::Element3D* pe = FirstElement();
+		for (unsigned int i = 0; i < pe->NHits(); i++)
+			pe->Hit(i).SetEnabled(true);
 
-	pe = LastElement();
-	for (unsigned int i = 0; i < pe->NHits(); i++)
-		pe->Hit(i).SetEnabled(true);
+		pe = LastElement();
+		for (unsigned int i = 0; i < pe->NHits(); i++)
+			pe->Hit(i).SetEnabled(true);
+	}
 }
 
 void pma::Track3D::MakeProjection(void)

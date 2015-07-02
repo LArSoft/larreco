@@ -4,17 +4,14 @@
 // File:        PMAlgTrackMaker_module.cc
 // Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl) and R.Sulej (Robert.Sulej@cern.ch), May 2015
 //
-// Creates 3D tracks using Projection Matching Algorithm,
-// see RecoAlg/ProjectionMatchingAlg.h for details.
-//
-// The module is intended to loop over clusters wiht various logics. The ProjectionMatchingAlg
-// class is used to build / modify / verify tracks using settings that are configured for it.
+// Creates 3D tracks using Projection Matching Algorithm, see RecoAlg/ProjectionMatchingAlg.h
+// for basics of the PMA algorithm and its possible settings.
 //
 // Progress:
-//    May-June 2015:  track finding and validation, quite a conservative iterative merging
-//                    of matching clusters and growing tracks, no attempts to consciously
-//                    build multi-track structures yet, however cosmic tracking works fine
-//                    as they are sets of independent tracks
+//    May-June 2015:   track finding and validation, growing tracks by iterative merging of matching
+//                     clusters, no attempts to build multi-track structures, however cosmic tracking
+//                     works fine as they are sets of independent tracks
+//    June-July 2015:  merging track parts within a single tpc and across tpc's
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -59,6 +56,8 @@ typedef std::map< size_t, std::vector<double> > dedx_map;
 typedef std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > view_hitmap;
 typedef std::map< unsigned int, view_hitmap > tpc_view_hitmap;
 typedef std::map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
+
+typedef std::map< size_t, std::vector<pma::Track3D*> > tpc_track_map;
 
 struct TrkCandidate {
 	pma::Track3D* Track;
@@ -146,7 +145,16 @@ private:
     float tmin, float tmax, size_t min_clu_size,
     geo::View_t view, unsigned int tpc, unsigned int cryo);
 
-  double validate(const pma::Track3D& trk, unsigned int testView);
+  bool areCoLinear(
+	pma::Track3D* trk1, pma::Track3D* trk2,
+	double& dist, double& cos,
+	double distThr, double distThrMin,
+	double distProjThr,
+	double cosThr);
+  void mergeCoLinear(std::vector< pma::Track3D* >& tracks);
+  void mergeCoLinear(tpc_track_map tracks);
+
+  double validate(pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
 
   bool isMcStopping(void) const; // to be moved to the testing module
@@ -173,6 +181,7 @@ private:
   bool fSave_dQdx;             // for debugging purposes, off by default
 
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
+  double fMinTwoViewFraction;  // ProjectionMatchingAlg used also in the module
 };
 // ------------------------------------------------------
 
@@ -210,6 +219,7 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fSave_dQdx = pset.get< bool >("Save_dQdx");
 
 	fProjectionMatchingAlg.reconfigure(pset.get< fhicl::ParameterSet >("ProjectionMatchingAlg"));
+	fMinTwoViewFraction = pset.get< double >("ProjectionMatchingAlg.MinTwoViewFraction");
 }
 // ------------------------------------------------------
 
@@ -326,23 +336,17 @@ bool PMAlgTrackMaker::isMcStopping(void) const
 }
 // ------------------------------------------------------
 
-double PMAlgTrackMaker::validate(const pma::Track3D& trk, unsigned int testView)
+double PMAlgTrackMaker::validate(pma::Track3D& trk, unsigned int testView)
 {
-	if (testView == geo::kUnknown)
-	{
-		mf::LogVerbatim("PMAlgTrackMaker") << "Skip validation.";
-		return 1.0;
-	}
-	else mf::LogVerbatim("PMAlgTrackMaker") << "Validation in plane: " << testView;
+	if (testView != geo::kUnknown)
+		mf::LogVerbatim("PMAlgTrackMaker") << "validation in plane: " << testView;
+	else return 1.0;
 
 	std::vector< art::Ptr<recob::Hit> >& hits = c_t_v_hits[trk.FrontCryo()][trk.FrontTPC()][testView];
-	if (hits.size() > 10)
-	{
-		return fProjectionMatchingAlg.validate(trk, hits, testView);
-	}
+	if (hits.size() > 10) return fProjectionMatchingAlg.validate(trk, hits, testView);
 	else
 	{
-		mf::LogWarning("PMAlgTrackMaker") << "  too few hits for validation: " << hits.size();
+		mf::LogWarning("PMAlgTrackMaker") << "   too few hits (" << hits.size() << ")";
 		return 1.0;
 	}
 }
@@ -382,6 +386,185 @@ bool PMAlgTrackMaker::extendTrack(TrkCandidate& candidate,
 			<< "  track NOT extended, MSE = " << m1 << ", v = " << v1;
 		delete copy;
 		return false;
+	}
+}
+// ------------------------------------------------------
+
+bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
+	double& dist, double& cos,
+	double distThr, double distThrMin,
+	double distProjThr,
+	double cosThr)
+{
+	double lmax;
+	double l1 = trk1->Length();
+	double l2 = trk2->Length();
+
+	if (l1 > l2) lmax = l1;
+	else lmax = l2;
+
+	double d = lmax * distThr;
+	if (d < distThrMin) d = distThrMin;
+
+	unsigned int k = 0;
+	double distFF = pma::Dist2(trk1->front()->Point3D(), trk2->front()->Point3D());
+	dist = distFF;
+
+	double distFB = pma::Dist2(trk1->front()->Point3D(), trk2->back()->Point3D());
+	if (distFB < dist) { k = 1; dist = distFB; }
+
+	double distBF = pma::Dist2(trk1->back()->Point3D(), trk2->front()->Point3D());
+	if (distBF < dist) { k = 2; dist = distBF; }
+
+	double distBB = pma::Dist2(trk1->back()->Point3D(), trk2->back()->Point3D());
+	if (distBB < dist) { k = 3; dist = distBB; }
+
+	dist = sqrt(dist);
+	cos = 0.0;
+
+	std::cout << "  min dist:" << dist << " d:" << d << std::endl;
+	if (dist < d)
+	{
+		pma::Track3D* tmp = 0;
+		switch (k) // swap or flip to get trk1 end before trk2 start
+		{
+			case 0:	trk1->Flip(); break;
+			case 1: tmp = trk1;	trk1 = trk2; trk2 = tmp; break;
+			case 2: break;
+			case 3: trk2->Flip(); break;
+			default: mf::LogError("PMAlgTrackMaker") << "Should never happen.";
+		}
+
+		size_t nodeEndIdx = trk1->Nodes().size() - 1;
+
+		double distProj1 = pma::Dist2(
+			trk1->back()->Point3D(),
+			pma::GetProjectionToSegment(trk1->back()->Point3D(),
+				trk2->Nodes()[0]->Point3D(), trk2->Nodes()[1]->Point3D()));
+
+		double distProj2 = pma::Dist2(
+			trk2->front()->Point3D(),
+			pma::GetProjectionToSegment(trk2->front()->Point3D(),
+				trk1->Nodes()[nodeEndIdx - 1]->Point3D(), trk1->Nodes()[nodeEndIdx]->Point3D()));
+
+		TVector3 dir1 = trk1->Nodes()[nodeEndIdx]->Point3D() - trk1->Nodes()[nodeEndIdx - 1]->Point3D();
+		TVector3 dir2 = trk2->Nodes()[1]->Point3D() - trk2->Nodes()[0]->Point3D();
+
+		cos = (dir1 * dir2) / (dir1.Mag() * dir2.Mag());
+
+		std::cout << "     cos:" << cos << " p1:" << distProj1 << " p2:" << distProj2 << std::endl;
+		if ((cos > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
+			return true;
+	}
+	return false;
+}
+// ------------------------------------------------------
+
+void PMAlgTrackMaker::mergeCoLinear(std::vector< pma::Track3D* >& tracks)
+{
+	double distThr = 0.05;    // max gap as a fraction of the longer track length
+	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
+	double cosThr = cos(2.0); // max 2 deg between directions
+	double distProjThr = 0.5; // max projection dist [cm]
+
+	double d, c;
+	size_t t = 0, u = 0;
+	while (t < tracks.size())
+	{
+		pma::Track3D* trk1 = tracks[t];
+
+		pma::Track3D* trk2 = 0;
+		for (u = t + 1; u < tracks.size(); u++)
+		{
+			trk2 = tracks[u];
+
+			if (areCoLinear(trk1, trk2, d, c, distThr, distThrMin, distProjThr, cosThr)) break;
+
+			trk2 = 0;
+		}
+
+		if (trk2)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Merge track ("
+				<< trk1->size() << ") with track (" << trk2->size() << ")";
+			fProjectionMatchingAlg.mergeTracks(*trk1, *trk2, true); // merge with reoptimization
+			//tracks[t] = trk1;
+			tracks.erase(tracks.begin() + u);
+			delete trk2;
+		}
+		else t++;
+	}
+}
+// ------------------------------------------------------
+
+void PMAlgTrackMaker::mergeCoLinear(tpc_track_map tracks)
+{
+	double distThr = 0.15;     // max gap as a fraction of the longer track length
+	double distThrMin = 0.5;   // lower limit of max gap threshold [cm]
+	double cosThr = cos(10.0); // max 10 deg between directions
+	double distProjThr = 1.0;  // max projection dist [cm]
+
+	double wallDistThr = 2.0; // max track front/end distance to tpc wall
+	double dfront1, dback1, dfront2, dback2;
+
+	for (auto & tpc_entry1 : tracks)
+	{
+		unsigned int tpc1 = tpc_entry1.first;
+		std::vector< pma::Track3D* >& tracks1 = tpc_entry1.second;
+
+		size_t t = 0;
+		while (t < tracks1.size())
+		{
+			double d, c, cmax = 0.0;
+			pma::Track3D* best_trk2 = 0;
+			unsigned int best_tpc = 0;
+			size_t best_idx = 0;
+
+			pma::Track3D* trk1 = tracks1[t];
+			dfront1 = trk1->Nodes().front()->GetDistToWall();
+			dback1 = trk1->Nodes().back()->GetDistToWall();
+			if ((dfront1 < wallDistThr) || (dback1 < wallDistThr))
+			{
+				for (auto & tpc_entry2 : tracks)
+				{
+					unsigned int tpc2 = tpc_entry2.first;
+					std::vector< pma::Track3D* >& tracks2 = tpc_entry2.second;
+					if (tpc2 == tpc1) continue;
+
+					for (size_t u = 0; u < tracks2.size(); u++)
+					{
+						pma::Track3D* trk2 = tracks2[u];
+						dfront2 = trk2->Nodes().front()->GetDistToWall();
+						dback2 = trk2->Nodes().back()->GetDistToWall();
+						if ((dfront2 < wallDistThr) || (dback2 < wallDistThr))
+						{
+							if (areCoLinear(trk1, trk2, d, c, distThr, distThrMin, distProjThr, cosThr))
+							{
+								if (c > cmax)
+								{
+									cmax = c;
+									best_trk2 = trk2;
+									best_tpc = tpc2;
+									best_idx = u;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (best_trk2)
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "Merge track ("
+					<< tpc1 << ":" << tracks1.size() << ":" << trk1->size() << ") with track ("
+					<< best_tpc  << ":" << tracks[best_tpc].size() << ":" << best_trk2->size() << ")";
+				fProjectionMatchingAlg.mergeTracks(*trk1, *best_trk2, false); // no reoptimization
+				//tracks1[t] = trk1;
+				tracks[best_tpc].erase(tracks[best_tpc].begin() + best_idx);
+				delete best_trk2;
+			}
+			else t++;
+		}
 	}
 }
 // ------------------------------------------------------
@@ -455,19 +638,19 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
 
 		double dQdxFlipThr = 0.0;
-		if (fFlipToBeam) dQdxFlipThr = 0.25;
+		if (fFlipToBeam) dQdxFlipThr = 0.4;
 
 		fTrkIndex = 0;
 		for (auto const& trk : result)
 		{
-			// flip the track by dQ/dx
-			if (fFlipToBeam)
+			if (fFlipToBeam)    // flip the track to the beam direction
 			{
 				double z0 = trk->front()->Point3D().Z();
 				double z1 = trk->back()->Point3D().Z();
-				if (z0 < z1) trk->Flip(); // track points stored backwards, so start shold be higher z...
+				if (z0 > z1) trk->Flip();
 			}
-			if (fAutoFlip_dQdx) fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr);
+			if (fAutoFlip_dQdx) // flip the track by dQ/dx
+				fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
 
 			tracks->push_back(convertFrom(*trk));
 			fTrkIndex++;
@@ -476,7 +659,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			art::PtrVector< recob::Hit > sp_hits;
 
 			spStart = allsp->size();
-			for (size_t h = 0; h < trk->size(); h++)
+			for (int h = trk->size() - 1; h >= 0; h--)
 			{
 				pma::Hit3D* h3d = (*trk)[h];
 				hits2d.push_back(h3d->Hit2DPtr());
@@ -506,8 +689,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			if (hits2d.size())
 			{
-				util::CreateAssn(*this, evt, *tracks, hits2d, *trk2hit);
+				
 				util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
+				util::CreateAssn(*this, evt, *tracks, hits2d, *trk2hit);
 			}
 		}
 
@@ -540,12 +724,14 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		size_t minBuildSizeLarge = 20;
 		size_t minBuildSizeSmall = 5;
 
+		tpc_track_map tracks; // track parts in tpc's
+
 		// find reasonably large parts
 		for (auto tpc_iter = fGeom->begin_TPC_id();
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
 		{
-			fromMaxCluster_tpc(result, cluListHandle, fbp, minBuildSizeLarge, tpc_iter->TPC, tpc_iter->Cryostat);
+			fromMaxCluster_tpc(tracks[tpc_iter->TPC], cluListHandle, fbp, minBuildSizeLarge, tpc_iter->TPC, tpc_iter->Cryostat);
 		}
 
 		// loop again to find small things
@@ -553,8 +739,24 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
 		{
-			fromMaxCluster_tpc(result, cluListHandle, fbp, minBuildSizeSmall, tpc_iter->TPC, tpc_iter->Cryostat);
+			fromMaxCluster_tpc(tracks[tpc_iter->TPC], cluListHandle, fbp, minBuildSizeSmall, tpc_iter->TPC, tpc_iter->Cryostat);
 		}
+
+		// merge co-linear parts inside each tpc
+		/*for (auto tpc_iter = fGeom->begin_TPC_id();
+		          tpc_iter != fGeom->end_TPC_id();
+		          tpc_iter++)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Merge co-linear tracks within TPC " << tpc_iter->TPC;
+			mergeCoLinear(tracks[tpc_iter->TPC]);
+		}*/
+
+		// merge co-linear parts between tpc's
+		//mergeCoLinear(tracks);
+
+		for (auto const & tpc_entry : tracks)
+			for (auto const & trk : tpc_entry.second)
+				result.push_back(trk);
 
 		// used for development
 		listUsedClusters(cluListHandle);
@@ -614,7 +816,8 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 {
 	initial_clusters.clear();
 
-	size_t minSizeCompl = minBuildSize / 5; // smaller minimum required in complementary views
+	size_t minSizeCompl = minBuildSize / 10; // smaller minimum required in complementary views
+	if (minSizeCompl < 3) minSizeCompl = 3;  // but not too small, otherwise showers can kill the loop
 
 	int max_first_idx = 0;
 	while (max_first_idx >= 0) // loop over clusters, any view, starting from the largest
@@ -695,12 +898,17 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 				{
 					if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) testView = geo::kUnknown;
 
+					double m0 = 0.0, v0 = 0.0;
+
 					candidate.Clusters.push_back(idx);
 					candidate.Track = fProjectionMatchingAlg.buildTrack(v_first, fbp.at(idx));
 
-					double m0 = candidate.Track->GetMse();
-					double v0 = validate(*(candidate.Track), testView);
-					if ((m0 < 0.15) && (v0 > 0.7)) // good candidate, try to extend it
+					if (candidate.Track) // no track if hits from 2 views do not alternate
+					{
+						m0 = candidate.Track->GetMse();
+						v0 = validate(*(candidate.Track), testView);
+					}
+					if (candidate.Track && (m0 < 0.15) && (v0 > 0.7)) // good candidate, try to extend it
 					{
 						mf::LogVerbatim("PMAlgTrackMaker")
 							<< "  track candidate, MSE = " << m0 << ", v = " << v0;
@@ -762,32 +970,34 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 			} // end loop over complementary views
 
 			if (fCandidates.size()) // save best candidate, release other tracks and clusters
-			{                       // now "best" = min. MSE, but other condition might be better (validation, length, etc)
-
-				std::cout << " *********** " << fCandidates.size() << " candidates" << std::endl;
-
+			{
 				size_t best_trk = 0;
-				double min_mse = 10.;
+				double f, max_f = 0., min_mse = 10., max_v = 0.;
 				for (size_t t = 0; t < fCandidates.size(); t++)
-					if (fCandidates[t].Good && (fCandidates[t].Mse < min_mse))
+					if (fCandidates[t].Good)
+				{
+					f = fProjectionMatchingAlg.twoViewFraction(*(fCandidates[t].Track));
+
+					if ((f > max_f) || ((f == max_f) &&
+						((fCandidates[t].Validation > max_v) || (fCandidates[t].Mse < min_mse))))
 					{
+						max_f = f;
 						min_mse = fCandidates[t].Mse;
+						max_v = fCandidates[t].Validation;
 						best_trk = t;
 					}
+				}
 
 				for (size_t t = 0; t < fCandidates.size(); t++)
 				{
-					if (fCandidates[t].Good)
+					if (fCandidates[t].Good &&
+					    (max_f > fMinTwoViewFraction) &&
+					    (t == best_trk))
 					{
-						std::cout << "             "
-							<< fCandidates[t].Mse << " "
-							<< fCandidates[t].Track->size() << " "
-							<< fCandidates[t].Track->Length() << std::endl;
-					}
+						fCandidates[best_trk].Track->ShiftEndsToHits();
 
-					if (fCandidates[t].Good && (t == best_trk))
-					{
 						result.push_back(fCandidates[best_trk].Track);
+
 						for (auto c : fCandidates[best_trk].Clusters)
 							used_clusters.push_back(c);
 					}

@@ -26,6 +26,8 @@ void pma::ProjectionMatchingAlg::reconfigure(const fhicl::ParameterSet& p)
 	fTrkValidationDist2D = p.get< double >("TrkValidationDist2D");
 	fHitTestingDist2D = p.get< double >("HitTestingDist2D");
 
+	fMinTwoViewFraction = p.get< double >("MinTwoViewFraction");
+
 	pma::Element3D::SetOptFactor(geo::kZ, p.get< double >("HitWeightZ"));
 	pma::Element3D::SetOptFactor(geo::kV, p.get< double >("HitWeightV"));
 	pma::Element3D::SetOptFactor(geo::kU, p.get< double >("HitWeightU"));
@@ -80,6 +82,25 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 }
 // ------------------------------------------------------
 
+double pma::ProjectionMatchingAlg::twoViewFraction(pma::Track3D& trk) const
+{
+	trk.SelectHits();
+	trk.DisableSingleViewEnds();
+
+	size_t idx = 0;
+	while ((idx < trk.size() - 1) && !trk[idx]->IsEnabled()) idx++;
+	double l0 = trk.Length(0, idx + 1);
+
+	idx = trk.size() - 1;
+	while ((idx > 1) && !trk[idx]->IsEnabled()) idx--;
+	double l1 = trk.Length(idx - 1, trk.size() - 1);
+
+	trk.SelectHits();
+
+	return 1.0 - (l0 + l1) / trk.Length();
+}
+// ------------------------------------------------------
+
 size_t pma::ProjectionMatchingAlg::getSegCount(size_t trk_size)
 {
 	int nSegments = (int)( 0.8 * trk_size / sqrt(trk_size) );
@@ -114,18 +135,27 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 	mf::LogVerbatim("ProjectionMatchingAlg") << "  initialize trk";
 	trk->Initialize();
 
-	double g = 0.0;
-	mf::LogVerbatim("ProjectionMatchingAlg") << "  optimize trk (" << nSegments << " seg)";
-	if (nNodes)
+	double f = twoViewFraction(*trk);
+	if (f > fMinTwoViewFraction)
 	{
-		g = trk->Optimize(nNodes, fOptimizationEps);   // build nodes
-		mf::LogVerbatim("ProjectionMatchingAlg") << "  nodes done, g = " << g;
-	}
-	g = trk->Optimize(0, fFineTuningEps);              // final tuning
-	mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
+		double g = 0.0;
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  optimize trk (" << nSegments << " seg)";
+		if (nNodes)
+		{
+			g = trk->Optimize(nNodes, fOptimizationEps);   // build nodes
+			mf::LogVerbatim("ProjectionMatchingAlg") << "  nodes done, g = " << g;
+		}
+		g = trk->Optimize(0, fFineTuningEps);              // final tuning
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
 
-	trk->SortHits();
-	return trk;
+		trk->SortHits();
+		return trk;
+	}
+	else
+	{
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  clusters do not match, f = " << f;
+		return 0;
+	}
 }
 // ------------------------------------------------------
 
@@ -198,6 +228,35 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 }
 // ------------------------------------------------------
 
+void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, const pma::Track3D& src, bool reopt) const
+{
+	unsigned int tpc = src.FrontTPC();
+	unsigned int cryo = src.FrontCryo();
+	double lmean = dst.Length() / (dst.Nodes().size() - 1);
+	if ((pma::Dist2(
+			dst.Nodes().back()->Point3D(),
+			src.Nodes().front()->Point3D()) > 0.5 * lmean) ||
+	    (tpc != dst.BackTPC()) || (cryo != dst.BackCryo()))
+	{
+		dst.AddNode(src.Nodes().front()->Point3D(), tpc, cryo);
+	}
+	for (size_t n = 1; n < src.Nodes().size(); n++)
+	{
+		dst.AddNode(src.Nodes()[n]->Point3D(), tpc, cryo);
+	}
+	for (size_t h = 0; h < src.size(); h++)
+	{
+		dst.push_back(src[h]->Hit2DPtr());
+	}
+	if (reopt)
+	{
+		double g = dst.Optimize(0, fFineTuningEps);
+		dst.ShiftEndsToHits();
+
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging done, g = " << g;
+	}
+}
+
 void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
 	pma::Track3D::EDirection dir, double thr, unsigned int n) const
 {
@@ -228,8 +287,8 @@ void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
 	{
 		if (!n) // use default options
 		{
-			if (dedx.size() > 30) n = 10;
-			else if (dedx.size() > 20) n = 6;
+			if (dedx.size() > 30) n = 12;
+			else if (dedx.size() > 20) n = 8;
 			else if (dedx.size() > 10) n = 4;
 			else n = 3;
 		}
@@ -269,12 +328,12 @@ void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
 }
 // ------------------------------------------------------
 
-double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk) const
+double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk, unsigned int view) const
 {
 	for (size_t i = 0; i < trk.size(); i++)
 	{
 		pma::Hit3D* hit = trk[i];
-		if (hit->View2D() == geo::kZ)
+		if (hit->View2D() == view)
 		{
 			if ((hit->GetDistToProj() > 0.5) || // more than 0.5cm away away from the segment
 			    (hit->GetSegFraction() < -1.0)) // projects before segment start (to check!!!)
@@ -283,7 +342,6 @@ double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk) const
 		}
 	}
 
-	unsigned int view = geo::kZ;
 	unsigned int nhits = 0;
 	double last_x, dx = 0.0, last_q, dq = 0.0, dqdx = 0.0;
 	int ih = trk.NextHit(-1, view);

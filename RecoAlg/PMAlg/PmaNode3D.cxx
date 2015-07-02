@@ -47,6 +47,25 @@ pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo) :
 	SetPoint3D(p3d);
 }
 
+double pma::Node3D::GetDistToWall(void) const
+{
+	double d, dmin = fPoint3D.X() - fMinX;
+	d = fMaxX - fPoint3D.X();
+	if (d < dmin) dmin = d;
+
+	d = fPoint3D.Y() - fMinY;
+	if (d < dmin) dmin = d;
+	d = fMaxY - fPoint3D.Y();
+	if (d < dmin) dmin = d;
+
+	d = fPoint3D.Z() - fMinZ;
+	if (d < dmin) dmin = d;
+	d = fMaxZ - fPoint3D.Z();
+	if (d < dmin) dmin = d;
+
+	return dmin;
+}
+
 void pma::Node3D::LimitPoint3D(float margin)
 {
 	if (fPoint3D.X() < fMinX - margin) fPoint3D.SetX(fMinX - margin);

@@ -41,6 +41,8 @@ public:
 
 	TVector2 const & Projection2D(unsigned int view) const { return fProj2D[view]; }
 
+	double GetDistToWall(void) const;
+
 	/// Distance [cm] from the 3D point to the point 3D.
 	virtual double GetDistance2To(const TVector3& p3d) const;
 
