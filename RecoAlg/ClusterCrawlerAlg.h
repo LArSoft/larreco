@@ -165,7 +165,6 @@ namespace cluster {
 		float fMinAmp;									///< expected minimum signal
 
     bool fChkClusterDS;
-    bool fMergeOverlap;
     bool fVtxClusterSplit;
     bool fFindStarVertices;
 
@@ -177,7 +176,8 @@ namespace cluster {
     float fLAClusSlopeCut;
     float fHitMergeChiCut; ///< Merge cluster hit-multiplets if the separation chisq
                              ///< is < cut. Set < 0 for no merging
-    unsigned short fAllowNoHitWire; 
+    bool fMergeOverlapAngCut;   ///< angle cut for merging overlapping clusters
+    unsigned short fAllowNoHitWire;
 		float fVertex2DCut; 	///< 2D vtx -> cluster matching cut (ticks)
     float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (cm)
 
