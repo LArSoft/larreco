@@ -45,7 +45,7 @@ namespace trkf{
           // vertex wire number in the Detector coordinate system (equivalent to WireCoordinate)
           //vtx wir = vtx Y  * OrthY                + vtx Z  * OrthZ                    - wire offset
           vWire = par[1] * fVtxFitMinStr.OrthY[ipl] + par[2] * fVtxFitMinStr.OrthZ[ipl] - fVtxFitMinStr.FirstWire[ipl];
-          if(flag == 1) mf::LogVerbatim("VF")<<"fcn vtx "<<par[0]<<" "<<par[1]<<" "<<par[2]<<" vWire "<<vWire<<" OrthY "<<fVtxFitMinStr.OrthY[ipl]<<" OrthZ "<<fVtxFitMinStr.OrthZ[ipl];
+//          if(flag == 1) mf::LogVerbatim("VF")<<"fcn vtx "<<par[0]<<" "<<par[1]<<" "<<par[2]<<" vWire "<<vWire<<" OrthY "<<fVtxFitMinStr.OrthY[ipl]<<" OrthZ "<<fVtxFitMinStr.OrthZ[ipl];
           lastpl = ipl;
         } // ipl != lastpl
         DirY = par[indx];
@@ -69,8 +69,8 @@ namespace trkf{
           dX = par[0] + (dU * DirX / DirU) - fVtxFitMinStr.HitX[itk][iht];
         }
         arg = dX / fVtxFitMinStr.HitXErr[itk][iht];
-        if(flag == 1) mf::LogVerbatim("VF")<<"fcn itk "<<itk<<" iht "<<iht<<" ipl "<<ipl<<" DirX "<<DirX<<" DirY "<<DirY<<" DirZ "<<DirZ
-        <<" DirU "<<DirU<<" W "<<fVtxFitMinStr.Wire[itk][iht]<<" X "<<fVtxFitMinStr.HitX[itk][iht]<<" dU "<<dU<<" dX "<<dX<<" arg "<<arg;
+//        if(flag == 1) mf::LogVerbatim("VF")<<"fcn itk "<<itk<<" iht "<<iht<<" ipl "<<ipl<<" DirX "<<DirX<<" DirY "<<DirY<<" DirZ "<<DirZ
+//        <<" DirU "<<DirU<<" W "<<fVtxFitMinStr.Wire[itk][iht]<<" X "<<fVtxFitMinStr.HitX[itk][iht]<<" dU "<<dU<<" dX "<<dX<<" arg "<<arg;
         fval += arg * arg;
       } // iht
     } //itk
@@ -178,19 +178,21 @@ namespace trkf{
       stp[ipar] = 0.1;  // 1 mm initial step
       gMin->mnparm(ipar,"", par[ipar], stp[ipar], -1E6, 1E6, errFlag);
     }
-    // use Y, Z track directions
+    // use Y, Z track directions. There is no constraint that the direction vector is unit-normalized
+    // since we are only passing two of the components. Minuit could violate this requirement when
+    // fitting. fcnVtxPos prevents non-physical values and Minuit may throw error messages as a result.
     for(itk = 0; itk < ntrks; ++itk) {
       ipar = 3 + 2 * itk;
       par[ipar]     = fVtxFitMinStr.Dir[itk](1);
-      stp[ipar]     = 0.05;
-      gMin->mnparm(ipar,"", par[ipar], stp[ipar], -1.001, 1.001, errFlag);
+      stp[ipar]     = 0.03;
+      gMin->mnparm(ipar,"", par[ipar], stp[ipar], -1.05, 1.05, errFlag);
       ++ipar;
       par[ipar] = fVtxFitMinStr.Dir[itk](2);
-      stp[ipar] = 0.05;
-      gMin->mnparm(ipar,"", par[ipar], stp[ipar], -1.001, 1.001, errFlag);
+      stp[ipar] = 0.03;
+      gMin->mnparm(ipar,"", par[ipar], stp[ipar], -1.05, 1.05, errFlag);
     } // itk
 
-
+/*
     // Single call to fcnVtxPos for debugging it
     std::cout<<"Starting: par  ";
     for(unsigned short ip = 0; ip < par.size(); ++ip) std::cout<<" "<<std::fixed<<std::setprecision(2)<<par[ip];
@@ -198,7 +200,7 @@ namespace trkf{
     // call fcn with starting parameters
     arglist[0] = 1;
     gMin->mnexcm("CALL", arglist, 1, errFlag);
-
+*/
     // set strategy 0 for faster Minuit fitting
     arglist[0] = 0.;
     gMin->mnexcm("SET STRATEGY", arglist, 1, errFlag);
@@ -208,7 +210,7 @@ namespace trkf{
     arglist[1] = 1.; // tolerance on fval in fcn
     gMin->mnexcm("MIGRAD", arglist, 2, errFlag);
     
-    // call fcn with ending parameters
+    // call fcn to get final fit values
     arglist[0] = 3;
     gMin->mnexcm("CALL", arglist, 1, errFlag);
     ChiDOF = fVtxFitMinStr.ChiDoF;
