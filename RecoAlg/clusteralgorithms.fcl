@@ -29,8 +29,8 @@ standard_clustercrawleralg:
 	ChgNearCut: 				 1.5 # Cluster end is shower-like if (nearby chg)/(cls chg)> cut
   HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
+  MergeOverlapAngCut:  0.1 # Set <= 0 to turn off overlapping cluster merging
   ChkClusterDS:       true # Check reconstruction at DS end of clusters?
-  MergeOverlap:       true # Merge overlapping clusters?
   VtxClusterSplit:    true # Split clusters that cross vertices
   FindStarVertices:   true # Find vertices with a star topology
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
