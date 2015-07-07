@@ -335,7 +335,7 @@ namespace trkf{
 	  tracklength = wire_pitch;
 	}
 	else{
-	  double t0, w0;
+	  double t0 = 0., w0 = 0.;
 	  for (auto iw = vtimemap[iclu].begin(); iw!=vtimemap[iclu].end(); ++iw){
 	    if (iw==vtimemap[iclu].begin()){
 	      w0 = iw->first;
