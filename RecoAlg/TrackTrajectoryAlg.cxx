@@ -65,7 +65,7 @@ namespace trkf{
     unsigned short minLen = 9999;
     unsigned short maxLen = 0;
     unsigned short nPlnsWithHits = 0;
-    unsigned short ipl;
+    unsigned short ipl, aPlane = 3;
     for(ipl = 0; ipl < 3; ++ipl) {
       if(trkX[ipl].size() == 0) continue;
       ++nPlnsWithHits;
@@ -74,18 +74,20 @@ namespace trkf{
       }
       if(trkX[ipl].size() > maxLen) {
         maxLen = trkX[ipl].size();
+        aPlane = ipl;
       }
     } // ipl
-    if(prt) std::cout<<"nPlnsWithHits "<<nPlnsWithHits<<"\n";
+    if(prt) std::cout<<"trkX sizes "<<trkX[0].size()<<" "<<trkX[1].size()<<" "<<trkX[2].size()<<" "<<" nPlnsWithHits "<<nPlnsWithHits<<"\n";
     if(nPlnsWithHits < 2) return;
+    if(aPlane > 2) return;
 
     unsigned short iht;
     
     // reverse the order of the hit arrays if necessary so that the minimum X end is at trk[][0] end.
     // We will use posX to reverse the trajectory later if necessary
     bool posX = true;
-    iht = trkX[0].size() - 1;
-    if(trkX[0][0] > trkX[0][iht]) {
+    iht = trkX[aPlane].size() - 1;
+    if(trkX[aPlane][0] > trkX[aPlane][iht]) {
       posX = false;
       for(ipl = 0; ipl < 3; ++ipl) {
         if(trkX[ipl].size() == 0) continue;
@@ -161,13 +163,51 @@ namespace trkf{
     std::vector<double> hitX;
     std::vector<double> hitXErr;
     float ChiDOF;
+    
+    // make a short track trajectory (end points only) to use in case an error occurs
+    std::vector<TVector3> STPos;
+    std::vector<TVector3> STDir;
+    ShortTrackTrajectory(trkWID, trkX, trkXErr, STPos, STDir);
+    if(prt && (STPos.size() != 2 || STDir.size() != STPos.size())) {
+      std::cout<<"******* Bad STPos "<<STPos.size()<<" and/or STDir "<<STDir.size()<<"\n";
+      std::cout<<"trkX sizes "<<trkX[0].size()<<" "<<trkX[1].size()<<" "<<trkX[2].size()<<" "<<" nPlnsWithHits "<<nPlnsWithHits<<"\n";
+      for(ipl = 0; ipl < 3; ++ipl) {
+        if(trkX[ipl].size() == 0) continue;
+        std::cout<<" Start P:W "<<trkWID[ipl][0].Plane<<":"<<trkWID[ipl][0].Wire<<" X "<<trkX[ipl][0];
+        unsigned short jj = trkWID[ipl].size() - 1;
+        std::cout<<" End P:W "<<trkWID[ipl][jj].Plane<<":"<<trkWID[ipl][jj].Wire<<" X "<<trkX[ipl][jj]<<"\n";
+      }
+      TrajPos.clear();
+      TrajDir.clear();
+      if(posX) {
+        for(ipl = 0; ipl < 3; ++ipl) {
+          if(trkX[ipl].size() == 0) continue;
+          std::reverse(trkWID[ipl].begin(), trkWID[ipl].end());
+          std::reverse(trkX[ipl].begin(), trkX[ipl].end());
+          std::reverse(trkXErr[ipl].begin(), trkXErr[ipl].end());
+        } // ipl
+      } // posX
+      return;
+    } // bad STPos, STDir
+    
+    if(prt) {
+      std::cout<<"STPos\n";
+      for(unsigned short ii = 0; ii < STPos.size(); ++ii) std::cout<<ii<<" "<<std::fixed<<std::setprecision(1)<<STPos[ii](0)<<" "<<STPos[ii](1)<<" "<<STPos[ii](2)<<"\n";
+    }
 
     if(maxLen < 4 || npt < 2) {
-      ShortTrackTrajectory(trkWID, trkX, trkXErr, TrajPos, TrajDir);
+      TrajPos = STPos;
+      TrajDir = STDir;
       if(!posX) {
         // reverse everything
         std::reverse(TrajPos.begin(), TrajPos.end());
         std::reverse(TrajDir.begin(), TrajDir.end());
+        for(ipl = 0; ipl < 3; ++ipl) {
+          if(trkX[ipl].size() == 0) continue;
+          std::reverse(trkWID[ipl].begin(), trkWID[ipl].end());
+          std::reverse(trkX[ipl].begin(), trkX[ipl].end());
+          std::reverse(trkXErr[ipl].begin(), trkXErr[ipl].end());
+        } // ipl
       }
       return;
     } // maxLen < 4
@@ -176,6 +216,7 @@ namespace trkf{
     std::array<unsigned short, 3> hStart;
     for(ipl = 0; ipl < 3; ++ipl) hStart[ipl] = 0;
     
+    bool gotLastPoint = false;
     for(unsigned short ipt = 0; ipt < npt + 1; ++ipt) {
       hitWID.clear();
       hitX.clear();
@@ -190,11 +231,18 @@ namespace trkf{
           hStart[ipl] =iht;
         } // iht
       } // ipl
-      if(hitX.size() < 4) continue;
-      fTrackLineFitAlg.TrkLineFit(hitWID, hitX, hitXErr, xOrigin, xyz, dir, ChiDOF);
-      if(prt) std::cout<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2)<<" dir "<<dir(0)<<" "<<dir(1)<<" "<<dir(2)<<" ChiDOF "<<ChiDOF<<" hitX size "<<hitX.size()<<"\n";
-      // tweak xOrigin if we are close to the end
+      if(prt) std::cout<<"ipt "<<ipt<<" xOrigin "<<xOrigin<<" binX "<<binX<<" hitX size "<<hitX.size();
+      if(hitX.size() > 3) {
+        fTrackLineFitAlg.TrkLineFit(hitWID, hitX, hitXErr, xOrigin, xyz, dir, ChiDOF);
+        if(prt) std::cout<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2)<<" dir "<<dir(0)<<" "<<dir(1)<<" "<<dir(2)<<" ChiDOF "<<ChiDOF<<" hitX size "<<hitX.size()<<"\n";
+      } else if(ipt == 0 && STPos.size() == 2) {
+        // failure on the first traj point. Use STPos
+        xyz = STPos[0];
+        dir = STDir[0];
+      }
+      if(prt && hitX.size() < 4) std::cout<<"\n";
       if(xOrigin >= maxX) break;
+      // tweak xOrigin if we are close to the end
       if(maxX - xOrigin < binX) {
         xOrigin = maxX;
       } else {
@@ -203,18 +251,39 @@ namespace trkf{
       if(ChiDOF < 0 || ChiDOF > 100) continue;
       TrajPos.push_back(xyz);
       TrajDir.push_back(dir);
+      if(ipt == npt) gotLastPoint = true;
     } // ipt
-    if(TrajPos.size() < 2) {
-      TrajPos.clear();
-      TrajDir.clear();
-      ShortTrackTrajectory(trkWID, trkX, trkXErr, TrajPos, TrajDir);
+/*
+    std::cout<<"gotLastPoint "<<gotLastPoint<<" TTA Traj \n";
+    for(unsigned short ii = 0; ii < TrajPos.size(); ++ii) std::cout<<ii<<" "<<std::fixed<<std::setprecision(1)<<TrajPos[ii](0)<<" "<<TrajPos[ii](1)<<" "<<TrajPos[ii](2)<<"\n";
+*/
+    if(!gotLastPoint && STPos.size() == 2) {
+      // failure on the last point. Use STPos, etc
+      TrajPos.push_back(STPos[1]);
+      TrajDir.push_back(STDir[1]);
     }
+    
+    if(TrajPos.size() < 2) {
+      TrajPos = STPos;
+      TrajDir = STDir;
+    }
+    
     if(!posX) {
       // reverse everything
       std::reverse(TrajPos.begin(), TrajPos.end());
       std::reverse(TrajDir.begin(), TrajDir.end());
+      for(ipl = 0; ipl < 3; ++ipl) {
+        if(trkX[ipl].size() == 0) continue;
+        std::reverse(trkWID[ipl].begin(), trkWID[ipl].end());
+        std::reverse(trkX[ipl].begin(), trkX[ipl].end());
+        std::reverse(trkXErr[ipl].begin(), trkXErr[ipl].end());
+      } // ipl
+      
     } // !posX
-    
+/*
+    std::cout<<"TTA Traj2\n";
+    for(unsigned short ii = 0; ii < TrajPos.size(); ++ii) std::cout<<ii<<" "<<std::fixed<<std::setprecision(1)<<TrajPos[ii](0)<<" "<<TrajPos[ii](1)<<" "<<TrajPos[ii](2)<<"\n";
+*/    
   } // TrackTrajectoryAlg
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -237,7 +306,7 @@ namespace trkf{
       if(trkX[ipl][0] < xCut) usePlns.push_back(ipl);
     } // ipl
     // Not enough information to find a space point
-//    std::cout<<"ShortTrack minX end "<<xCut<<" usePlns size "<<usePlns.size()<<"\n";
+    std::cout<<"ShortTrack minX end "<<xCut<<" usePlns size "<<usePlns.size()<<"\n";
     if(usePlns.size() < 2) return;
     endY = 0; endZ = 0; nend = 0;
     iht = 0;
@@ -262,7 +331,7 @@ namespace trkf{
     xyz(0) = endX / (float)(nend + 1);
     xyz(1) = endY / (float)nend;
     xyz(2) = endZ / (float)nend;
-//    std::cout<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2)<<"\n";
+    std::cout<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2)<<"\n";
     TrajPos.push_back(xyz);
     
     // do the same for the other end
@@ -270,10 +339,11 @@ namespace trkf{
     usePlns.clear();
     for(ipl = 0; ipl < 3; ++ipl) {
       if(trkX[ipl].size() == 0) continue;
-      if(trkX[ipl][0] > xCut) usePlns.push_back(ipl);
+      iht = trkX[ipl].size() - 1;
+      if(trkX[ipl][iht] > xCut) usePlns.push_back(ipl);
     } // ipl
     // Not enough information to find a space point
-//    std::cout<<"ShortTrack maxX end "<<xCut<<" usePlns size "<<usePlns.size()<<"\n";
+    std::cout<<"ShortTrack maxX end "<<xCut<<" usePlns size "<<usePlns.size()<<"\n";
     if(usePlns.size() < 2) {
       TrajPos.clear();
       TrajDir.clear();
@@ -300,14 +370,14 @@ namespace trkf{
     xyz(0) = endX / (float)(nend + 1);
     xyz(1) = endY / (float)nend;
     xyz(2) = endZ / (float)nend;
-//    std::cout<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2)<<"\n";
+    std::cout<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2)<<"\n";
     TrajPos.push_back(xyz);
     TVector3 dir = TrajPos[1] - TrajPos[0];
     dir = dir.Unit();
     TrajDir.push_back(dir);
     TrajDir.push_back(dir);
   
-//    std::cout<<">>>> Short track ("<<TrajPos[0](0)<<", "<<TrajPos[0](1)<<", "<<TrajPos[0](2)<<") to ("<<TrajPos[1](0)<<", "<<TrajPos[1](1)<<", "<<TrajPos[1](2)<<")\n";
+    std::cout<<">>>> Short track ("<<TrajPos[0](0)<<", "<<TrajPos[0](1)<<", "<<TrajPos[0](2)<<") to ("<<TrajPos[1](0)<<", "<<TrajPos[1](1)<<", "<<TrajPos[1](2)<<")\n";
   }
 
   
