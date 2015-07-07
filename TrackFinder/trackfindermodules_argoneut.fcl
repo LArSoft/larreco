@@ -3,11 +3,10 @@
 BEGIN_PROLOG
 
 argoneut_track:                               @local::standard_track3Dreco  
-argoneut_cosmictracker:                       @local::standard_cosmictracker  
-argoneut_cosmictracker.TMatch:                2.5
-argoneut_cosmictracker.SMatch:                1.0
-argoneut_cosmictracker.Toler1:                60
-argoneut_cosmictracker.Toler2:                40
+argoneut_cosmictracker:                       @local::standard_cosmictracker
+argoneut_cosmictracker.TrajOnly:              true
+argoneut_cosmictracker.ClusterMatch:          @local::argoneut_clustermatchtq
+argoneut_cosmictracker.CTAlg:                 @local::argoneut_cosmictrackeralg
 argoneut_kalman:                              @local::standard_track3Dkalman
 argoneut_spacepts:                            @local::standard_spacepts     
 argoneut_spacepoint:                          @local::standard_spacepointana
