@@ -28,6 +28,11 @@ bool SortByMultiplet(art::Ptr<recob::Hit> const& a,
   return a->LocalIndex() < b->LocalIndex(); // if still unresolved, it's a bug!
 }   
 */
+namespace {
+  template <typename T>
+  inline T sqr(T v) { return v*v; }
+} // local namespace
+
 struct PlnLen{
   unsigned short index;
   float length;
@@ -328,26 +333,21 @@ namespace trkf{
       //find out 2d track length for all clusters associated with track candidate
       std::vector<double> vtracklength;      
       for (size_t iclu = 0; iclu<vtimemap.size(); ++iclu){
-
 	
-	double tracklength = 0;
-	if (vtimemap[iclu].size()==1){
-	  tracklength = wire_pitch;
-	}
-	else{
-	  double t0 = 0., w0 = 0.;
-	  for (auto iw = vtimemap[iclu].begin(); iw!=vtimemap[iclu].end(); ++iw){
-	    if (iw==vtimemap[iclu].begin()){
-	      w0 = iw->first;
-	      t0 = iw->second;
-	    }
-	    else{
-	      tracklength += std::sqrt(std::pow((iw->first-w0)*wire_pitch,2)+std::pow((iw->second-t0)*timepitch,2));
-	      w0 = iw->first;
-	      t0 = iw->second;	     
-	    }
-	  }
-	}
+        double tracklength = 0;
+        if (vtimemap[iclu].size()==1){
+          tracklength = wire_pitch;
+        }
+        else if (!vtimemap[iclu].empty()) {
+          std::map<int,double>::const_iterator iw = vtimemap[iclu].cbegin(),
+            wend = vtimemap[iclu].cend();
+          double t0 = iw->first, w0 = iw->second;
+          while (++iw != wend) {
+            tracklength += std::sqrt(sqr((iw->first-w0)*wire_pitch)+sqr((iw->second-t0)*timepitch));
+            w0 = iw->first;
+            t0 = iw->second;
+          } // while
+        }
 	vtracklength.push_back(tracklength);
       }
       
