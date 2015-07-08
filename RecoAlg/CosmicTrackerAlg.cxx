@@ -28,6 +28,11 @@ bool SortByMultiplet(art::Ptr<recob::Hit> const& a,
   return a->LocalIndex() < b->LocalIndex(); // if still unresolved, it's a bug!
 }   
 */
+namespace {
+  template <typename T>
+  inline T sqr(T v) { return v*v; }
+} // local namespace
+
 struct PlnLen{
   unsigned short index;
   float length;
@@ -43,6 +48,10 @@ namespace trkf{
 
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::reconfigure(fhicl::ParameterSet const& pset){
+    fSPTAlg   = pset.get< int    >("SPTAlg",   0    );
+    fTrajOnly = pset.get< bool   >("TrajOnly", false);
+    ftmatch   = pset.get< double >("TMatch");
+    fsmatch   = pset.get< double >("SMatch");
   }
   
   //---------------------------------------------------------------------
@@ -50,10 +59,31 @@ namespace trkf{
 
     trajPos.clear();
     trajDir.clear();
+    trajHit.clear();
 
     trkPos.clear();
     trkDir.clear();
 
+    if (fSPTAlg==0){
+      TrackTrajectory(fHits);
+    }
+    else if (fSPTAlg==1){
+      Track3D(fHits);
+    }
+    else{
+      throw cet::exception("CosmicTrackerAlg")<<"Unknown SPTAlg "<<fSPTAlg<<", needs to be 0 or 1"; 
+    }
+
+    if (!fTrajOnly) MakeSPT(fHits);
+    else{
+      trkPos = trajPos;
+      trkDir = trajDir;
+    }
+  }
+
+  //---------------------------------------------------------------------
+  void CosmicTrackerAlg::TrackTrajectory(std::vector<art::Ptr<recob::Hit> >&fHits){
+    
     // Track hit X and WireIDs in each plane
     std::array<std::vector<std::pair<double, geo::WireID>>,3> trajXW;
     // Track hit charge ...
@@ -160,9 +190,256 @@ namespace trkf{
       }//tpc
     }//cstat
 
-    MakeSPT(fHits);
+  }
+
+  //---------------------------------------------------------------------
+  void CosmicTrackerAlg::Track3D(std::vector<art::Ptr<recob::Hit> >&fHits){
+    
+    //save time/hit information along track trajectory
+    std::vector<std::map<int,double> > vtimemap(3);
+    std::vector<std::map<int,art::Ptr<recob::Hit> > > vhitmap(3);
+
+    //find hit on each wire along the fitted line
+    for (size_t ihit = 0; ihit<fHits.size(); ++ihit){//loop over hits
+      geo::WireID hitWireID = fHits[ihit]->WireID();
+      unsigned int w = hitWireID.Wire;
+      unsigned int pl = hitWireID.Plane;
+      double time = fHits[ihit]->PeakTime();
+      time -= detprop->GetXTicksOffset(fHits[ihit]->WireID().Plane,
+				       fHits[ihit]->WireID().TPC,
+				       fHits[ihit]->WireID().Cryostat);
+      vtimemap[pl][w] = time;
+      vhitmap[pl][w] = fHits[ihit];
+    }
+
+    // Find two clusters with the most numbers of hits, and time ranges
+    int iclu1 = -1;
+    int iclu2 = -1;
+    int iclu3 = -1;
+    unsigned maxnumhits0 = 0;
+    unsigned maxnumhits1 = 0;
+    
+    std::vector<double> tmin(vtimemap.size());
+    std::vector<double> tmax(vtimemap.size());
+    for (size_t iclu = 0; iclu<vtimemap.size(); ++iclu){
+      tmin[iclu] = 1e9;
+      tmax[iclu] = -1e9;
+    }
+    
+    for (size_t iclu = 0; iclu<vtimemap.size(); ++iclu){
+      for (auto itime = vtimemap[iclu].begin(); itime!=vtimemap[iclu].end(); ++itime){
+	if (itime->second>tmax[iclu]){
+	  tmax[iclu] = itime->second;
+	}
+	if (itime->second<tmin[iclu]){
+	  tmin[iclu] = itime->second;
+	}
+      }
+      if (vtimemap[iclu].size()>maxnumhits0){
+	if (iclu1!=-1){
+	  iclu2 = iclu1;
+	  maxnumhits1 = maxnumhits0;
+	}
+	iclu1 = iclu;
+	maxnumhits0 = vtimemap[iclu].size();
+      }
+      else if (vtimemap[iclu].size()>maxnumhits1){
+	iclu2 = iclu;
+	maxnumhits1 = vtimemap[iclu].size();
+      }
+    }
+    
+    std::swap(iclu1,iclu2); //now iclu1 has fewer hits than iclu2
+    
+    //find iclu3
+    for (int iclu = 0; iclu<(int)vtimemap.size(); ++iclu){
+      if (iclu!=iclu1&&iclu!=iclu2) iclu3 = iclu;
+    }
+    
+    if (iclu1!=-1&&iclu2!=-1){//at least two good clusters
+      //select hits in a common time range
+      auto ihit = vhitmap[iclu1].begin();
+      auto itime = vtimemap[iclu1].begin();
+      while (itime!=vtimemap[iclu1].end()){
+	if (itime->second<std::max(tmin[iclu1],tmin[iclu2])-ftmatch||
+	    itime->second>std::min(tmax[iclu1],tmax[iclu2])+ftmatch){
+	  vtimemap[iclu1].erase(itime++);
+	  vhitmap[iclu1].erase(ihit++);
+	}
+	else{
+	  ++itime;
+	  ++ihit;
+	}
+      }
+      
+      ihit = vhitmap[iclu2].begin();
+      itime = vtimemap[iclu2].begin();
+      while (itime!=vtimemap[iclu2].end()){
+	if (itime->second<std::max(tmin[iclu1],tmin[iclu2])-ftmatch||
+	    itime->second>std::min(tmax[iclu1],tmax[iclu2])+ftmatch){
+	  vtimemap[iclu2].erase(itime++);
+	  vhitmap[iclu2].erase(ihit++);
+	}
+	else{
+	  ++itime;
+	  ++ihit;
+	}
+      }
+      
+      //if one cluster is empty, replace it with iclu3
+      if (!vtimemap[iclu1].size()){
+	if (iclu3!=-1){
+	  std::swap(iclu3,iclu1);
+	}
+      }
+      if (!vtimemap[iclu2].size()){
+	if (iclu3!=-1){
+	  std::swap(iclu3,iclu2);
+	  std::swap(iclu1,iclu2);
+	}
+      }
+      if ((!vtimemap[iclu1].size())||(!vtimemap[iclu2].size())) return;
+      
+      bool rev = false;
+      auto times1 = vtimemap[iclu1].begin();
+      auto timee1 = vtimemap[iclu1].end();
+      --timee1;
+      auto times2 = vtimemap[iclu2].begin();
+      auto timee2 = vtimemap[iclu2].end();
+      --timee2;
+      
+      double ts1 = times1->second;
+      double te1 = timee1->second;
+      double ts2 = times2->second;
+      double te2 = timee2->second;
+      
+      //find out if we need to flip ends
+      if (std::abs(ts1-ts2)+std::abs(te1-te2)>std::abs(ts1-te2)+std::abs(te1-ts2)){
+	rev = true;
+      }
+
+      double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
+      double Efield_drift = larprop->Efield(0);  // Electric Field in the drift region in kV/cm
+      double Temperature = larprop->Temperature();  // LAr Temperature in K
+      
+      double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
+      double timepitch = driftvelocity*timetick;         
+
+      double wire_pitch = geom->WirePitch(0,1,
+					  vhitmap[0].begin()->second->WireID().Plane,
+					  vhitmap[0].begin()->second->WireID().TPC,
+					  vhitmap[0].begin()->second->WireID().Cryostat);    //wire pitch in cm
+      
+      //find out 2d track length for all clusters associated with track candidate
+      std::vector<double> vtracklength;      
+      for (size_t iclu = 0; iclu<vtimemap.size(); ++iclu){
+	
+        double tracklength = 0;
+        if (vtimemap[iclu].size()==1){
+          tracklength = wire_pitch;
+        }
+        else if (!vtimemap[iclu].empty()) {
+          std::map<int,double>::const_iterator iw = vtimemap[iclu].cbegin(),
+            wend = vtimemap[iclu].cend();
+          double t0 = iw->first, w0 = iw->second;
+          while (++iw != wend) {
+            tracklength += std::sqrt(sqr((iw->first-w0)*wire_pitch)+sqr((iw->second-t0)*timepitch));
+            w0 = iw->first;
+            t0 = iw->second;
+          } // while
+        }
+	vtracklength.push_back(tracklength);
+      }
+      
+      std::map<int,int> maxhitsMatch;
+      
+      auto ihit1 = vhitmap[iclu1].begin();
+      for (auto itime1 = vtimemap[iclu1].begin(); 
+	   itime1 != vtimemap[iclu1].end(); 
+	   ++itime1, ++ihit1){//loop over min-hits
+	std::vector<art::Ptr<recob::Hit>> sp_hits;
+	sp_hits.push_back(ihit1->second);
+	double hitcoord[3];
+	double length1 = 0;
+	if (vtimemap[iclu1].size()==1){
+	  length1 = wire_pitch;
+	}
+	else{
+	  for (auto iw1 = vtimemap[iclu1].begin(); iw1!=itime1; ++iw1){
+	    auto iw2 = iw1;
+	    ++iw2;
+	    length1 += std::sqrt(std::pow((iw1->first-iw2->first)*wire_pitch,2)
+				 +std::pow((iw1->second-iw2->second)*timepitch,2));
+	  }
+	}
+	double difference = 1e10; //distance between two matched hits
+	auto matchedtime = vtimemap[iclu2].end();
+	auto matchedhit  = vhitmap[iclu2].end();
+	
+	auto ihit2 = vhitmap[iclu2].begin();
+	for (auto itime2 = vtimemap[iclu2].begin(); 
+	     itime2!=vtimemap[iclu2].end(); 
+	     ++itime2, ++ihit2){//loop over max-hits
+	  if (maxhitsMatch[itime2->first]) continue;
+	  double length2 = 0;
+	  if (vtimemap[iclu2].size()==1){
+	    length2 = wire_pitch;
+	  }
+	  else{
+	    for (auto iw1 = vtimemap[iclu2].begin(); iw1!=itime2; ++iw1){
+	      auto iw2 = iw1;
+	      ++iw2;
+	      length2 += std::sqrt(std::pow((iw1->first-iw2->first)*wire_pitch,2)+std::pow((iw1->second-iw2->second)*timepitch,2));
+	    }
+	  }
+	  if (rev) length2 = vtracklength[iclu2] - length2;
+	  length2 = vtracklength[iclu1]/vtracklength[iclu2]*length2;
+	  bool timematch = std::abs(itime1->second-itime2->second)<ftmatch;
+	  if (timematch &&std::abs(length2-length1)<difference){
+	    difference = std::abs(length2-length1);
+	    matchedtime = itime2;
+	    matchedhit = ihit2;
+	  }
+	}//loop over hits2
+	if (difference<fsmatch){
+	  hitcoord[0] = detprop->ConvertTicksToX(matchedtime->second+
+						 detprop->GetXTicksOffset((matchedhit->second)->WireID().Plane,
+									  (matchedhit->second)->WireID().TPC,
+									  (matchedhit->second)->WireID().Cryostat),
+						 (matchedhit->second)->WireID().Plane,
+						 (matchedhit->second)->WireID().TPC,
+						 (matchedhit->second)->WireID().Cryostat);
+
+	  hitcoord[1] = -1e10;
+	  hitcoord[2] = -1e10;
+
+	  //WireID is the exact segment of the wire where the hit is on (1 out of 3 for the 35t)
+
+	  geo::WireID c1=(ihit1->second)->WireID();
+	  geo::WireID c2=(matchedhit->second)->WireID();
+	  
+	  geo::WireIDIntersection tmpWIDI;            
+	  bool sameTpcOrNot=geom->WireIDsIntersect(c1,c2, tmpWIDI);
+	  
+	  if(sameTpcOrNot){
+	    hitcoord[1]=tmpWIDI.y;
+	    hitcoord[2]=tmpWIDI.z;
+	  }
+	  
+	  if (hitcoord[1]>-1e9&&hitcoord[2]>-1e9){
+	    maxhitsMatch[matchedtime->first] = 1;
+	    sp_hits.push_back(matchedhit->second);
+	  }
+	}//if (difference<fsmatch)
+	if (sp_hits.size()>1){
+	  trajPos.push_back(TVector3(hitcoord));
+	  trajHit.push_back(sp_hits);
+	}
+      }//loop over hits1
+    }//if (iclu1!=-1&&iclu2!=-1){//at least two good clusters
 
   }
+
 
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::MakeSPT(std::vector<art::Ptr<recob::Hit> >&fHits){
