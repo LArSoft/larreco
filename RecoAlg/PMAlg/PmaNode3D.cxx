@@ -509,11 +509,11 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 {
 	unsigned int steps = 0;
 	double t, t1, t2, t3, g, g0, g1, g2, g3, p1, p2;
-	double eps = 6.0E-37;
+	double eps = 6.0E-37, zero_tol = 1.0E-15;
 	TVector3 tmp(fPoint3D), gpoint(fPoint3D);
 
 	g = MakeGradient(penalty, weight);
-	if (g == 0.0) return 0.0;
+	if (g < zero_tol) return 0.0;
 	g0 = g;
 
 	//**** first three points ****//
@@ -532,15 +532,14 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 		SetPoint3D(gpoint);
 
 		g3 = GetObjFunction(penalty, weight);
-		if (g3 == 0.0) return 0.0;
-		steps++;
+		if (g3 < zero_tol) return 0.0;
 
-		if (steps > 1000) { SetPoint3D(tmp); return 0.0; }
+		if (++steps > 1000) { SetPoint3D(tmp); return 0.0; }
 
 	} while (g3 < g2);
 	//****************************//
 
-	//** first step overshoot ***//
+	//*** first step overshoot ***//
 	if (steps == 1)
 	{
 		t2 = t3; g2 = g3;
@@ -563,7 +562,7 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 			SetPoint3D(gpoint);
 
 			g2 = GetObjFunction(penalty, weight);
-			if (g == 0.0) return 0.0;
+			if (g2 < zero_tol) return 0.0;
 			steps++;
 
 		} while (g2 >= g1);
@@ -591,7 +590,7 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 		SetPoint3D(gpoint);
 
 		g = GetObjFunction(penalty, weight);
-		if (g == 0.0) return 0.0;
+		if (g < zero_tol) return 0.0;
 		steps++;
 		//****************************//
 
@@ -619,8 +618,8 @@ void pma::Node3D::Optimize(float penaltyValue, float endSegWeight)
 	if (!fFrozen)
 	{
 		double dg = StepWithGradient(0.1F, 0.002F, penaltyValue, endSegWeight);
-		if (dg > 0.01) StepWithGradient(0.03F, 0.0001F, penaltyValue, endSegWeight);
-		dg = StepWithGradient(0.03F, 0.0001F, penaltyValue, endSegWeight);
+		if (dg > 0.01) dg = StepWithGradient(0.03F, 0.0001F, penaltyValue, endSegWeight);
+		if (dg > 0.0) dg = StepWithGradient(0.03F, 0.0001F, penaltyValue, endSegWeight);
 	}
 }
 
