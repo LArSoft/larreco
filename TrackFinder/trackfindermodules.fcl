@@ -12,18 +12,20 @@ standard_cctrackmaker:
   ClusterModuleLabel:     "cccluster"
   VertexModuleLabel:      "cccluster"
   MatchAlgs:           7  # 1 = vtx, 2 = pln, 7 = vtx, pln, ang
-  MaxDAng:           0.5  # kink angle cut (radians)
-  ChainMaxdX:        0.5  # max dX for merging broken clusters
+  MaxDAng:           0.6  # kink angle cut (radians)
+  ChainMaxdX:        1.0  # max dX for merging broken clusters
   ChainVtxAng:       0.1  # kill 2-cluster US-DS vertices if angle diff < this cut
-  MergeChgAsym:      0.5  # charge asymmetry cut for merging clusters
+  MergeChgAsym:      0.7  # charge asymmetry cut for merging clusters
   XMatchErr:         0.2  # end X match uncertainty
   AngleMatchErr:    0.02  # end angle match uncertainty
   ChgAsymFactor:  1       # scale rms by charge asymmetry * this factor
-  PlnMatchMinLen: [10]    # match clusters > cut in PlnMatch on several passes
-  AngMatchMinLen:   10    # match clusters > cut in AngMatch
+  PlnMatchMinLen: [20]    # match clusters > cut in PlnMatch on several passes
+  AngMatchMinLen:   20    # match clusters > cut in AngMatch
   MakePFPs:       true    # make PFParticles
   NVtxTrkHitsFit:    4    # number of hits/plane fitted to a vertex, 0 = no vertex fit
-  HitFitErrFac:   1       # Factor applied to SigmaPeakTime for vertex fit
+  FiducialCut:      5     # cut (cm) for tagging cosmic rays
+  DeltaRayCut:      5     # cut (cm) for tagging delta-rays
+  HitFitErrFac:   0.1     # Factor applied to SigmaPeakTime for vertex fit
   DebugPlane:    -1       # -1 = none
   DebugCluster:  -1
   PrintAllClusters: false # print clusters as well as cluster chains
