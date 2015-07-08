@@ -101,6 +101,8 @@ namespace trkf {
     float fChgWindow;
     std::vector<float> fPlnMatchMinLen;
     float fAngMatchMinLen;
+    float fFiducialCut;
+    float fDeltaRayCut;
     bool fMakePFPs;
     unsigned short fNVtxTrkHitsFit;
     float fHitFitErrFac;
@@ -204,7 +206,7 @@ namespace trkf {
     // relative charge normalization between planes
     std::array< float, 3> ChgNorm;
     
-    // Array of PFParticle -> track IDs. The first element will be
+    // Vector of PFParticle -> track IDs. The first element will be
     // track ID = 0 indicating that this is a neutrino PFParticle and
     // there is no associated track
     std::vector<unsigned short> pfpToTrkID;
@@ -316,6 +318,8 @@ namespace trkf {
     fChgAsymFactor          = pset.get< float >("ChgAsymFactor");
     fPlnMatchMinLen         = pset.get< std::vector<float> >("PlnMatchMinLen");
     fAngMatchMinLen         = pset.get< float >("AngMatchMinLen");
+    fFiducialCut            = pset.get< float >("FiducialCut");
+    fDeltaRayCut            = pset.get< float >("DeltaRayCut");
     fMakePFPs               = pset.get< bool  >("MakePFPs");
     fNVtxTrkHitsFit         = pset.get< unsigned short  >("NVtxTrkHitsFit");
     fHitFitErrFac           = pset.get< float >("HitFitErrFac");
@@ -803,11 +807,11 @@ namespace trkf {
       pos(1) = vtx[ivx].Y;
       pos(2) = vtx[ivx].Z;
       fVertexFitAlg.VertexFit(hitWID, hitX, hitXErr, pos, posErr, trkDir, trkDirErr, ChiDOF);
-
+/*
       mf::LogVerbatim("CCTM")<<"FV: CC Vtx pos "<<vtx[ivx].X<<" "<<vtx[ivx].Y<<" "<<vtx[ivx].Z;
       mf::LogVerbatim("CCTM")<<"FV: Fitted     "<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<" ChiDOF "<<ChiDOF;
       mf::LogVerbatim("CCTM")<<"FV: Errors     "<<posErr[0]<<" "<<posErr[1]<<" "<<posErr[2];
-
+*/
       if(ChiDOF > 3000) continue;
       // update the vertex position
       vtx[ivx].X = pos(0);
@@ -1079,21 +1083,21 @@ namespace trkf {
     unsigned short ipf, itj;
     bool skipit = true;
     
-    double fidcut = 5;
-    // fiducial bounds of the detector
-    double XLo = detprop->ConvertTicksToX(0, 0, tpc, cstat) + fidcut;
-    double XHi = detprop->ConvertTicksToX(detprop->NumberTimeSamples(), 0, tpc, cstat) - fidcut;
-    
     // Y,Z limits of the detector
     double local[3] = {0.,0.,0.};
     double world[3] = {0.,0.,0.};
     
     const geo::TPCGeo &thetpc = geom->TPC(tpc, cstat);
     thetpc.LocalToWorld(local,world);
-    float YLo = world[1] - geom->DetHalfHeight(tpc,cstat) + fidcut;
-    float YHi = world[1] + geom->DetHalfHeight(tpc,cstat) - fidcut;
-    float ZLo = world[2] - geom->DetLength(tpc,cstat)/2 + fidcut;
-    float ZHi = world[2] + geom->DetLength(tpc,cstat)/2 - fidcut;
+    float XLo = world[0] - geom->DetHalfWidth(tpc,cstat) + fFiducialCut;
+    float XHi = world[0] + geom->DetHalfWidth(tpc,cstat) - fFiducialCut;
+    float YLo = world[1] - geom->DetHalfHeight(tpc,cstat) + fFiducialCut;
+    float YHi = world[1] + geom->DetHalfHeight(tpc,cstat) - fFiducialCut;
+    float ZLo = world[2] - geom->DetLength(tpc,cstat)/2 + fFiducialCut;
+    float ZHi = world[2] + geom->DetLength(tpc,cstat)/2 - fFiducialCut;
+    std::cout<<"X Lo/Hi "<<XLo<<" "<<XHi;
+    std::cout<<" Y Lo/Hi "<<YLo<<" "<<YHi;
+    std::cout<<" Z Lo/Hi "<<ZLo<<" "<<ZHi<<"\n";
     
     bool startsIn, endsIn;
     
@@ -1116,17 +1120,25 @@ namespace trkf {
       if(trk[itk].TrjPos[0](1) < YLo || trk[itk].TrjPos[0](1) > YHi) startsIn = false;
       if(trk[itk].TrjPos[0](2) < ZLo || trk[itk].TrjPos[0](2) > ZHi) startsIn = false;
       //      std::cout<<"Trk "<<trk[itk].ID<<" X0 "<<(int)trk[itk].trjPos[0](0)<<" Y0 "<<(int)trk[itk].trjPos[0](1)<<" Z0 "<<(int)trk[itk].trjPos[0](2)<<" startsIn "<<startsIn;
+      if(!startsIn) continue;
       endsIn = true;
       itj = trk[itk].TrjPos.size() - 1;
       if(trk[itk].TrjPos[itj](0) < XLo || trk[itk].TrjPos[itj](0) > XHi) endsIn = false;
       if(trk[itk].TrjPos[itj](1) < YLo || trk[itk].TrjPos[itj](1) > YHi) endsIn = false;
       if(trk[itk].TrjPos[itj](2) < ZLo || trk[itk].TrjPos[itj](2) > ZHi) endsIn = false;
       //      std::cout<<" X1 "<<(int)trk[itk].trjPos[itj](0)<<" Y1 "<<(int)trk[itk].trjPos[itj](1)<<" Z1 "<<(int)trk[itk].trjPos[itj](2)<<" endsIn "<<endsIn<<"\n";
-      if(!startsIn && !endsIn) {
-        // call it a cosmic muon
-        trk[itk].PDGCode = 13;
-        pfpToTrkID.push_back(trk[itk].ID);
-      }
+      if(!endsIn) continue;
+      // call it a cosmic muon
+      trk[itk].PDGCode = 13;
+      pfpToTrkID.push_back(trk[itk].ID);
+    } // itk
+    
+    if(fDeltaRayCut <= 0) return;
+    
+    for(unsigned short itk = 0; itk < trk.size(); ++itk) {
+      // find a tagged cosmic ray
+      if(trk[itk].PDGCode != 13) continue;
+      
     } // itk
     
   } // TagCosmics
@@ -1796,7 +1808,7 @@ namespace trkf {
     
      unsigned short ipl, icl, iht;
     
-//    std::cout<<"CCTM: Make traj for track "<<newtrk.ID<<" nhits in planes "<<trkHits[0].size()<<" "<<trkHits[1].size()<<" "<<trkHits[2].size()<<"\n";
+    mf::LogVerbatim("CCTM")<<"CCTM: Make traj for track "<<newtrk.ID<<" procCode "<<procCode<<" nhits in planes "<<trkHits[0].size()<<" "<<trkHits[1].size()<<" "<<trkHits[2].size();
     // make the track trajectory
     if(nplanes == 2) {
       trkWID[2].resize(0);
@@ -1807,19 +1819,20 @@ namespace trkf {
       trkWID[ipl].resize(trkHits[ipl].size());
       trkX[ipl].resize(trkHits[ipl].size());
       trkXErr[ipl].resize(trkHits[ipl].size());
-//      if(trk.size() == 0) std::cout<<"StoreTrack ipl "<<ipl<<"\n";
       for(iht = 0; iht < trkHits[ipl].size(); ++iht) {
         trkWID[ipl][iht] = trkHits[ipl][iht]->WireID();
         trkX[ipl][iht] = detprop->ConvertTicksToX(trkHits[ipl][iht]->PeakTime(),ipl, tpc, cstat);
         trkXErr[ipl][iht] = 0.2 * trkHits[ipl][iht]->RMS() * trkHits[ipl][iht]->Multiplicity();
-//        if(trk.size() == 0) std::cout<<iht<<" "<<trkWID[ipl][iht]<<" "<<trkX[ipl][iht]<<" "<<trkXErr[ipl][iht]<<"\n";
+//        std::cout<<iht<<" "<<trkWID[ipl][iht]<<" "<<trkX[ipl][iht]<<" "<<trkXErr[ipl][iht]<<"\n";
       } // iht
     } // ipl
     fTrackTrajectoryAlg.TrackTrajectory(trkWID, trkX, trkXErr, trkPos, trkDir);
     if(trkPos.size() < 2) {
-      mf::LogError("CCTM")<<"StoreTrack: No trajectory points on track";
+      mf::LogError("CCTM")<<"StoreTrack: No trajectory points on track "<<newtrk.ID;
       return;
     }
+//    std::cout<<"StoreTrack Traj\n";
+//    for(unsigned short ii = 0; ii < trkPos.size(); ++ii) std::cout<<ii<<" "<<std::fixed<<std::setprecision(1)<<trkPos[ii](0)<<" "<<trkPos[ii](1)<<" "<<trkPos[ii](2)<<"\n";
     newtrk.TrjPos = trkPos;
     newtrk.TrjDir = trkDir;
 
