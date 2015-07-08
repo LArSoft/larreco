@@ -16,8 +16,10 @@
 // Impact factors on the objective function:  U     V     Z
 float pma::Element3D::fOptFactors[3] =     { 0.2F, 0.8F, 1.0F };
 
-pma::Element3D::Element3D(void) :
-	fFrozen(false), fHitsRadius(0)
+pma::Element3D::Element3D() :
+	fTPC(-1), fCryo(-1),
+	fFrozen(false),
+	fHitsRadius(0)
 {
 	for (unsigned int i = 0; i < 3; i++)
 	{

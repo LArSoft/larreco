@@ -70,6 +70,12 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		unsigned int testView) const;
 
+	/// Calculate the fraction of the 3D segment that is closer than fTrkValidationDist2D
+	/// to any hit from hits in the testView of TPC/Cryo.
+	double validate(const TVector3& p0, const TVector3& p1,
+		const std::vector< art::Ptr<recob::Hit> >& hits,
+		unsigned int testView, unsigned int tpc, unsigned int cryo) const;
+
 	/// Calculate the fraction of trajectory seen by two 2D projections at least; even a
 	/// prfect track starts/stops with the hit from one 2D view, then hits from other views
 	/// come, which results with the fraction value high, but always < 1.0; wrong cluster
@@ -110,9 +116,13 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		bool add_nodes) const;
 
+	/// Flip tracks to get second as a continuation of first; returns false if not
+	/// possible (tracks in reversed order).
+	bool alignTracks(pma::Track3D& first, pma::Track3D& second) const;
+
 	/// Add src to dst as it was its continuation; nodes of src are added to dst after
 	/// its own nodes, hits of src are added to hits of dst, then dst is reoptimized.
-	void mergeTracks(pma::Track3D& dst, const pma::Track3D& src, bool reopt) const;
+	void mergeTracks(pma::Track3D& dst, pma::Track3D& src, bool reopt) const;
 
 	/// Try to correct track direction of the stopping particle:
 	///   dir: kForward  - particle stop is at the end of the track;
@@ -121,7 +131,7 @@ public:
 	/// compares dQ/dx of n hits at each end of the track (default is based on the track length).
 	void autoFlip(pma::Track3D& trk,
 		pma::Track3D::EDirection dir = Track3D::kForward,
-		 double thr = 0.0, unsigned int n = 0) const;
+		double thr = 0.0, unsigned int n = 0) const;
 
 	/// Intendet to calculate dQ/dx in the initial part of EM cascade; collection
 	/// view is used by default, but it works also with other projections.
@@ -139,7 +149,7 @@ private:
 	double fTrkValidationDist2D;   // max. distance [cm] used in the track validation in the "third" plane
 	double fHitTestingDist2D;      // max. distance [cm] used in testing comp. of hits with the track
 
-	double fMinTwoViewFraction;    // min. length fraction covered with multiple 2D view hits intertwinded with each other
+	double fMinTwoViewFraction;    // min. length fraction covered with multiple 2D view hits intertwinted with each other
 
 	// Geometry and detector properties
 	art::ServiceHandle<geo::Geometry> fGeom;

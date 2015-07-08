@@ -25,9 +25,7 @@ class pma::Segment3D : public pma::Element3D, public pma::SortedObjectBase
 {
 public:
 	Segment3D(void) : fParent(0) {}
-	Segment3D(pma::Track3D* trk, pma::Node3D* vstart, pma::Node3D* vstop) :
-		SortedObjectBase(vstart, vstop),
-		fParent(trk) {}
+	Segment3D(pma::Track3D* trk, pma::Node3D* vstart, pma::Node3D* vstop);
 	virtual ~Segment3D(void) {}
 
 	/// Distance [cm] from the 3D segment to the point 3D.

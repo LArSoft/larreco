@@ -11,7 +11,7 @@
 //    May-June 2015:   track finding and validation, growing tracks by iterative merging of matching
 //                     clusters, no attempts to build multi-track structures, however cosmic tracking
 //                     works fine as they are sets of independent tracks
-//    June-July 2015:  merging track parts within a single tpc and across tpc's
+//    June-July 2015:  merging track parts within a single tpc and stitching tracks across tpc's
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -147,12 +147,12 @@ private:
 
   bool areCoLinear(
 	pma::Track3D* trk1, pma::Track3D* trk2,
-	double& dist, double& cos,
+	double& dist, double& cos, bool& reverseOrder,
 	double distThr, double distThrMin,
 	double distProjThr,
 	double cosThr);
   void mergeCoLinear(std::vector< pma::Track3D* >& tracks);
-  void mergeCoLinear(tpc_track_map tracks);
+  void mergeCoLinear(tpc_track_map& tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
@@ -180,8 +180,17 @@ private:
   bool fAutoFlip_dQdx;         // set the track direction to increasing dQ/dx
   bool fSave_dQdx;             // for debugging purposes, off by default
 
+  bool fMergeWithinTPC;          // merge witnin single TPC; finds tracks best matching by angle, with limits:
+  double fMergeTransverseShift;  //   - max. transverse displacement [cm] between tracks
+  double fMergeAngle;            //   - max. angle [degree] between tracks (nearest segments)
+
+  bool fStitchBetweenTPCs;       // stitch between TPCs; finds tracks best matching by angle, with limits:
+  double fStitchDistToWall;      //   - max. track endpoint distance [cm] to TPC boundary
+  double fStitchTransverseShift; //   - max. transverse displacement [cm] between tracks
+  double fStitchAngle;           //   - max. angle [degree] between tracks (nearest segments)
+
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
-  double fMinTwoViewFraction;  // ProjectionMatchingAlg used also in the module
+  double fMinTwoViewFraction;  // ProjectionMatchingAlg parameter used also in the module
 };
 // ------------------------------------------------------
 
@@ -217,6 +226,15 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fFlipToBeam = pset.get< bool >("FlipToBeam");
 	fAutoFlip_dQdx = pset.get< bool >("AutoFlip_dQdx");
 	fSave_dQdx = pset.get< bool >("Save_dQdx");
+
+	fMergeWithinTPC = pset.get< bool >("MergeWithinTPC");
+	fMergeTransverseShift = pset.get< double >("MergeTransverseShift");
+	fMergeAngle = pset.get< double >("MergeAngle");
+
+	fStitchBetweenTPCs = pset.get< bool >("StitchBetweenTPCs");
+	fStitchDistToWall = pset.get< double >("StitchDistToWall");
+	fStitchTransverseShift = pset.get< double >("StitchTransverseShift");
+	fStitchAngle = pset.get< double >("StitchAngle");
 
 	fProjectionMatchingAlg.reconfigure(pset.get< fhicl::ParameterSet >("ProjectionMatchingAlg"));
 	fMinTwoViewFraction = pset.get< double >("ProjectionMatchingAlg.MinTwoViewFraction");
@@ -391,7 +409,7 @@ bool PMAlgTrackMaker::extendTrack(TrkCandidate& candidate,
 // ------------------------------------------------------
 
 bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
-	double& dist, double& cos,
+	double& dist, double& cos, bool& reverseOrder,
 	double distThr, double distThrMin,
 	double distProjThr,
 	double cosThr)
@@ -422,7 +440,7 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 	dist = sqrt(dist);
 	cos = 0.0;
 
-	std::cout << "  min dist:" << dist << " d:" << d << std::endl;
+	//std::cout << "  min dist:" << dist << " d:" << d << ", trk len:" << lmax << std::endl;
 	if (dist < d)
 	{
 		pma::Track3D* tmp = 0;
@@ -434,6 +452,8 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 			case 3: trk2->Flip(); break;
 			default: mf::LogError("PMAlgTrackMaker") << "Should never happen.";
 		}
+		if (k == 1) reverseOrder = true;
+		else reverseOrder = false;
 
 		size_t nodeEndIdx = trk1->Nodes().size() - 1;
 
@@ -452,7 +472,7 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 
 		cos = (dir1 * dir2) / (dir1.Mag() * dir2.Mag());
 
-		std::cout << "     cos:" << cos << " p1:" << distProj1 << " p2:" << distProj2 << std::endl;
+		//std::cout << "     cos:" << cos << " p1:" << distProj1 << " p2:" << distProj2 << std::endl;
 		if ((cos > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
 			return true;
 	}
@@ -464,9 +484,11 @@ void PMAlgTrackMaker::mergeCoLinear(std::vector< pma::Track3D* >& tracks)
 {
 	double distThr = 0.05;    // max gap as a fraction of the longer track length
 	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
-	double cosThr = cos(2.0); // max 2 deg between directions
-	double distProjThr = 0.5; // max projection dist [cm]
 
+	double distProjThr = fMergeTransverseShift;
+	double cosThr = cos(fMergeAngle);
+
+	bool r;
 	double d, c;
 	size_t t = 0, u = 0;
 	while (t < tracks.size())
@@ -478,7 +500,7 @@ void PMAlgTrackMaker::mergeCoLinear(std::vector< pma::Track3D* >& tracks)
 		{
 			trk2 = tracks[u];
 
-			if (areCoLinear(trk1, trk2, d, c, distThr, distThrMin, distProjThr, cosThr)) break;
+			if (areCoLinear(trk1, trk2, d, c, r, distThr, distThrMin, distProjThr, cosThr)) break;
 
 			trk2 = 0;
 		}
@@ -487,8 +509,17 @@ void PMAlgTrackMaker::mergeCoLinear(std::vector< pma::Track3D* >& tracks)
 		{
 			mf::LogVerbatim("PMAlgTrackMaker") << "Merge track ("
 				<< trk1->size() << ") with track (" << trk2->size() << ")";
-			fProjectionMatchingAlg.mergeTracks(*trk1, *trk2, true); // merge with reoptimization
-			//tracks[t] = trk1;
+			if (r)
+			{
+				fProjectionMatchingAlg.mergeTracks(*trk2, *trk1, true);
+				tracks[t] = trk2;
+				trk2 = trk1;
+			}
+			else
+			{
+				fProjectionMatchingAlg.mergeTracks(*trk1, *trk2, true);
+			}
+
 			tracks.erase(tracks.begin() + u);
 			delete trk2;
 		}
@@ -497,14 +528,15 @@ void PMAlgTrackMaker::mergeCoLinear(std::vector< pma::Track3D* >& tracks)
 }
 // ------------------------------------------------------
 
-void PMAlgTrackMaker::mergeCoLinear(tpc_track_map tracks)
+void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 {
-	double distThr = 0.15;     // max gap as a fraction of the longer track length
-	double distThrMin = 0.5;   // lower limit of max gap threshold [cm]
-	double cosThr = cos(10.0); // max 10 deg between directions
-	double distProjThr = 1.0;  // max projection dist [cm]
+	double distThr = 0.25;    // max gap as a fraction of the longer track length
+	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
 
-	double wallDistThr = 2.0; // max track front/end distance to tpc wall
+	double distProjThr = fStitchTransverseShift;
+	double cosThr = cos(fStitchAngle);
+
+	double wallDistThr = fStitchDistToWall;
 	double dfront1, dback1, dfront2, dback2;
 
 	for (auto & tpc_entry1 : tracks)
@@ -515,6 +547,7 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map tracks)
 		size_t t = 0;
 		while (t < tracks1.size())
 		{
+			bool r, reverse = false;
 			double d, c, cmax = 0.0;
 			pma::Track3D* best_trk2 = 0;
 			unsigned int best_tpc = 0;
@@ -528,8 +561,9 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map tracks)
 				for (auto & tpc_entry2 : tracks)
 				{
 					unsigned int tpc2 = tpc_entry2.first;
-					std::vector< pma::Track3D* >& tracks2 = tpc_entry2.second;
 					if (tpc2 == tpc1) continue;
+
+					std::vector< pma::Track3D* >& tracks2 = tpc_entry2.second;
 
 					for (size_t u = 0; u < tracks2.size(); u++)
 					{
@@ -538,7 +572,7 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map tracks)
 						dback2 = trk2->Nodes().back()->GetDistToWall();
 						if ((dfront2 < wallDistThr) || (dback2 < wallDistThr))
 						{
-							if (areCoLinear(trk1, trk2, d, c, distThr, distThrMin, distProjThr, cosThr))
+							if (areCoLinear(trk1, trk2, d, c, r, distThr, distThrMin, distProjThr, cosThr))
 							{
 								if (c > cmax)
 								{
@@ -546,6 +580,7 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map tracks)
 									best_trk2 = trk2;
 									best_tpc = tpc2;
 									best_idx = u;
+									reverse = r;
 								}
 							}
 						}
@@ -558,8 +593,17 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map tracks)
 				mf::LogVerbatim("PMAlgTrackMaker") << "Merge track ("
 					<< tpc1 << ":" << tracks1.size() << ":" << trk1->size() << ") with track ("
 					<< best_tpc  << ":" << tracks[best_tpc].size() << ":" << best_trk2->size() << ")";
-				fProjectionMatchingAlg.mergeTracks(*trk1, *best_trk2, false); // no reoptimization
-				//tracks1[t] = trk1;
+				if (reverse)
+				{
+					fProjectionMatchingAlg.mergeTracks(*best_trk2, *trk1, true);
+					tracks1[t] = best_trk2;
+					best_trk2 = trk1;
+				}
+				else
+				{
+					fProjectionMatchingAlg.mergeTracks(*trk1, *best_trk2, true);
+				}
+
 				tracks[best_tpc].erase(tracks[best_tpc].begin() + best_idx);
 				delete best_trk2;
 			}
@@ -743,16 +787,23 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		}
 
 		// merge co-linear parts inside each tpc
-		/*for (auto tpc_iter = fGeom->begin_TPC_id();
+		if (fMergeWithinTPC)
+		{
+			for (auto tpc_iter = fGeom->begin_TPC_id();
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
-		{
-			mf::LogVerbatim("PMAlgTrackMaker") << "Merge co-linear tracks within TPC " << tpc_iter->TPC;
-			mergeCoLinear(tracks[tpc_iter->TPC]);
-		}*/
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "Merge co-linear tracks within TPC " << tpc_iter->TPC << ".";
+				mergeCoLinear(tracks[tpc_iter->TPC]);
+			}
+		}
 
 		// merge co-linear parts between tpc's
-		//mergeCoLinear(tracks);
+		if (fStitchBetweenTPCs)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Stitch co-linear tracks between TPCs.";
+			mergeCoLinear(tracks);
+		}
 
 		for (auto const & tpc_entry : tracks)
 			for (auto const & trk : tpc_entry.second)

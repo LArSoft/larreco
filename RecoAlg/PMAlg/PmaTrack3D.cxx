@@ -1479,6 +1479,8 @@ pma::Element3D* pma::Track3D::GetNearestElement(
 	}
 	for (size_t i = 0; i < fSegments.size(); i++)
 	{
+		if (fSegments[i]->TPC() < 0) continue; // segment between TPC's
+
 		dist = fSegments[i]->GetDistance2To(p2d, view);
 		if (dist < min_dist)
 		{
@@ -1773,7 +1775,6 @@ void pma::Track3D::MakeProjection(void)
 			fSegments.front()->AddHit(&(fNodes.front()->Hit(i)));
 		fNodes.front()->ClearAssigned();
 	}
-
 	if (fNodes.back()->NextCount() == 0)
 	{
 		for (size_t i = 0; i < fNodes.back()->NHits(); i++)

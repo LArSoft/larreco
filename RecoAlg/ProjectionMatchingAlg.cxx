@@ -52,23 +52,26 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		TVector3 vNext(trk.Nodes()[i + 1]->Point3D());
 		TVector3 vThis(trk.Nodes()[i]->Point3D());
 
-		TVector3 dc(vNext); dc -= vThis;
-		dc *= step / dc.Mag();
-
-		double f = pma::GetSegmentProjVector(p, vThis, vNext);
-		while (f < 1.0)
+		if (trk.Nodes()[i + 1]->TPC() == (int)tpc) // skip segments between tpc's
 		{
-			TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
+			TVector3 dc(vNext); dc -= vThis;
+			dc *= step / dc.Mag();
 
-			for (const auto& h : hits)
-				if (h->WireID().Plane == testView)
+			double f = pma::GetSegmentProjVector(p, vThis, vNext);
+			while ((f < 1.0) && trk.Nodes()[i]->SameTPC(p))
 			{
-				d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
-				if (d2 < max_d2) { nPassed++; break; }
-			}
-			nAll++;
+				TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
 
-			p += dc; f = pma::GetSegmentProjVector(p, vThis, vNext);
+				for (const auto & h : hits)
+					if (h->WireID().Plane == testView)
+				{
+					d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
+					if (d2 < max_d2) { nPassed++; break; }
+				}
+				nAll++;
+
+				p += dc; f = pma::GetSegmentProjVector(p, vThis, vNext);
+			}
 		}
 		p = vNext;
 	}
@@ -76,6 +79,46 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	{
 		double v = nPassed / (double)nAll;
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  trk fraction ok: " << v;
+		return v;
+	}
+	else return 1.0;
+}
+// ------------------------------------------------------
+
+double pma::ProjectionMatchingAlg::validate(
+	const TVector3& p0, const TVector3& p1,
+	const std::vector< art::Ptr<recob::Hit> >& hits,
+	unsigned int testView, unsigned int tpc, unsigned int cryo) const
+{
+	double step = 0.3;
+	double max_d = fTrkValidationDist2D;
+	double d2, max_d2 = max_d * max_d;
+	unsigned int nAll = 0, nPassed = 0;
+
+	TVector3 p(p0);
+	TVector3 dc(p1); dc -= p;
+	dc *= step / dc.Mag();
+
+	double f = pma::GetSegmentProjVector(p, p0, p1);
+	while (f < 1.0)
+	{
+		TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
+
+		for (const auto & h : hits)
+			if (h->WireID().Plane == testView)
+		{
+			d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
+			if (d2 < max_d2) { nPassed++; break; }
+		}
+		nAll++;
+
+		p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
+	}
+
+	if (nAll > 3) // validate actually only if there are some hits in testView
+	{
+		double v = nPassed / (double)nAll;
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  segment fraction ok: " << v;
 		return v;
 	}
 	else return 1.0;
@@ -228,8 +271,36 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 }
 // ------------------------------------------------------
 
-void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, const pma::Track3D& src, bool reopt) const
+bool pma::ProjectionMatchingAlg::alignTracks(pma::Track3D& first, pma::Track3D& second) const
 {
+	unsigned int k = 0;
+	double distFF = pma::Dist2(first.front()->Point3D(), second.front()->Point3D());
+	double dist = distFF;
+
+	double distFB = pma::Dist2(first.front()->Point3D(), second.back()->Point3D());
+	if (distFB < dist) { k = 1; dist = distFB; }
+
+	double distBF = pma::Dist2(first.back()->Point3D(), second.front()->Point3D());
+	if (distBF < dist) { k = 2; dist = distBF; }
+
+	double distBB = pma::Dist2(first.back()->Point3D(), second.back()->Point3D());
+	if (distBB < dist) { k = 3; dist = distBB; }
+
+	switch (k) // flip to get dst end before src start, do not merge if track's order reversed
+	{
+		case 0:	first.Flip(); break;
+		case 1: mf::LogError("PMAlgTrackMaker") << "Tracks in reversed order."; return false;
+		case 2: break;
+		case 3: second.Flip(); break;
+		default: mf::LogError("PMAlgTrackMaker") << "Should never happen."; return false;
+	}
+	return true;
+}
+
+void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, pma::Track3D& src, bool reopt) const
+{
+	if (!alignTracks(dst, src)) return;
+
 	unsigned int tpc = src.FrontTPC();
 	unsigned int cryo = src.FrontCryo();
 	double lmean = dst.Length() / (dst.Nodes().size() - 1);
@@ -242,6 +313,8 @@ void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, const pma::Track
 	}
 	for (size_t n = 1; n < src.Nodes().size(); n++)
 	{
+		tpc = src.Nodes()[n]->TPC();
+		cryo = src.Nodes()[n]->Cryo();
 		dst.AddNode(src.Nodes()[n]->Point3D(), tpc, cryo);
 	}
 	for (size_t h = 0; h < src.size(); h++)
@@ -254,6 +327,11 @@ void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, const pma::Track
 		dst.ShiftEndsToHits();
 
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging done, g = " << g;
+	}
+	else
+	{
+		dst.MakeProjection();
+		dst.SortHits();
 	}
 }
 
