@@ -169,17 +169,8 @@ namespace trkf{
     std::vector<TVector3> STPos;
     std::vector<TVector3> STDir;
     ShortTrackTrajectory(trkWID, trkX, trkXErr, STPos, STDir);
-/*
-    if(prt && (STPos.size() != 2 || STDir.size() != STPos.size())) {
-      mf::LogVerbatim("TTA")<<"******* Bad STPos "<<STPos.size()<<" and/or STDir "<<STDir.size()<<"\n";
-      mf::LogVerbatim("TTA")<<"trkX sizes "<<trkX[0].size()<<" "<<trkX[1].size()<<" "<<trkX[2].size()<<" "<<" nPlnsWithHits "<<nPlnsWithHits<<"\n";
-      for(ipl = 0; ipl < 3; ++ipl) {
-        if(trkX[ipl].size() == 0) continue;
-        mf::LogVerbatim("TTA")<<" Start P:W "<<trkWID[ipl][0].Plane<<":"<<trkWID[ipl][0].Wire<<" X "<<trkX[ipl][0];
-        unsigned short jj = trkWID[ipl].size() - 1;
-        mf::LogVerbatim("TTA")<<" End P:W "<<trkWID[ipl][jj].Plane<<":"<<trkWID[ipl][jj].Wire<<" X "<<trkX[ipl][jj];
-      }
-*/
+
+    if(STPos.size() != 2 || STDir.size() != STPos.size()) {
       TrajPos.clear();
       TrajDir.clear();
       if(posX) {
