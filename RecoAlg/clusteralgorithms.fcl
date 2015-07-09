@@ -38,11 +38,11 @@ standard_clustercrawleralg:
 
 standard_blurredclusteringalg:
 {
-  BlurWire:            2
-  BlurTick:            4
+  BlurWire:            10
+  BlurTick:            10
   BlurSigma:           4
-  ClusterWireDistance: 10
-  ClusterTickDistance: 30
+  ClusterWireDistance: 6
+  ClusterTickDistance: 3
   NeighboursThreshold: 0
   MinNeighbours:       0
   MinSize:             2

@@ -14,7 +14,6 @@
 cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset); 
 
-  fClusterCount = 0;
   fNWires = -1;
   fNTicks = -1;
   fLastKernel.clear();
@@ -28,17 +27,17 @@ cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& p
 
   std::cout << "Beginning blurred" << std::endl;
   mf::LogInfo("Blurred Clustering") << "*** Parameters for Blurred Clustering: ***";
-  mf::LogInfo("Blurred Clustering") << "BlurWire:            " << fBlurWire;
-  mf::LogInfo("Blurred Clustering") << "BlurTick:            " << fBlurTick;
-  mf::LogInfo("Blurred Clustering") << "BlurSigma:           " << fBlurSigma;
-  mf::LogInfo("Blurred Clustering") << "ClusterWireDistance: " << fClusterWireDistance;
-  mf::LogInfo("Blurred Clustering") << "ClusterTickDistance: " << fClusterTickDistance;
-  mf::LogInfo("Blurred Clustering") << "NeighboursThreshold: " << fNeighboursThreshold;
-  mf::LogInfo("Blurred Clustering") << "MinNeighbours:       " << fMinNeighbours;
-  mf::LogInfo("Blurred Clustering") << "MinSize:             " << fMinSize;
-  mf::LogInfo("Blurred Clustering") << "MinSeed:             " << fMinSeed;
-  mf::LogInfo("Blurred Clustering") << "TimeThreshold:       " << fTimeThreshold;
-  mf::LogInfo("Blurred Clustering") << "ChargeThreshold:     " << fChargeThreshold;
+  mf::LogInfo("Blurred Clustering") << "BlurWire:                 " << fBlurWire;
+  mf::LogInfo("Blurred Clustering") << "BlurTick:                 " << fBlurTick;
+  mf::LogInfo("Blurred Clustering") << "BlurSigma:                " << fBlurSigma;
+  mf::LogInfo("Blurred Clustering") << "ClusterWireDistance:      " << fClusterWireDistance;
+  mf::LogInfo("Blurred Clustering") << "ClusterTickDistance:      " << fClusterTickDistance;
+  mf::LogInfo("Blurred Clustering") << "NeighboursThreshold:      " << fNeighboursThreshold;
+  mf::LogInfo("Blurred Clustering") << "MinNeighbours:            " << fMinNeighbours;
+  mf::LogInfo("Blurred Clustering") << "MinSize:                  " << fMinSize;
+  mf::LogInfo("Blurred Clustering") << "MinSeed:                  " << fMinSeed;
+  mf::LogInfo("Blurred Clustering") << "TimeThreshold:            " << fTimeThreshold;
+  mf::LogInfo("Blurred Clustering") << "ChargeThreshold:          " << fChargeThreshold;
 }
 
 cluster::BlurredClusteringAlg::~BlurredClusteringAlg() {
@@ -53,17 +52,17 @@ cluster::BlurredClusteringAlg::~BlurredClusteringAlg() {
 }
 
 void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
-  fBlurWire            = p.get<int>   ("BlurWire");
-  fBlurTick            = p.get<int>   ("BlurTick");
-  fBlurSigma           = p.get<double>("BlurSigma");
-  fClusterWireDistance = p.get<int>   ("ClusterWireDistance");
-  fClusterTickDistance = p.get<int>   ("ClusterTickDistance");
-  fNeighboursThreshold = p.get<int>   ("NeighboursThreshold");
-  fMinNeighbours       = p.get<int>   ("MinNeighbours");
-  fMinSize             = p.get<int>   ("MinSize");
-  fMinSeed             = p.get<double>("MinSeed");
-  fTimeThreshold       = p.get<double>("TimeThreshold");
-  fChargeThreshold     = p.get<double>("ChargeThreshold");
+  fBlurWire                 = p.get<int>   ("BlurWire");
+  fBlurTick                 = p.get<int>   ("BlurTick");
+  fBlurSigma                = p.get<double>("BlurSigma");
+  fClusterWireDistance      = p.get<int>   ("ClusterWireDistance");
+  fClusterTickDistance      = p.get<int>   ("ClusterTickDistance");
+  fNeighboursThreshold      = p.get<int>   ("NeighboursThreshold");
+  fMinNeighbours            = p.get<int>   ("MinNeighbours");
+  fMinSize                  = p.get<int>   ("MinSize");
+  fMinSeed                  = p.get<double>("MinSeed");
+  fTimeThreshold            = p.get<double>("TimeThreshold");
+  fChargeThreshold          = p.get<double>("ChargeThreshold");
 }
 
 
@@ -172,6 +171,12 @@ std::vector<art::PtrVector<recob::Hit> > cluster::BlurredClusteringAlg::ConvertB
 
     mf::LogInfo("BlurredClustering") << "Cluster made from " << bins.size() << " bins, of which " << clusHits.size() << " were real hits";
 
+    // Make sure the clusters are above the minimum cluster size
+    if (clusHits.size() < fMinSize) {
+      mf::LogVerbatim("BlurredClustering") << "Cluster of size " << clusHits.size() << " not saved since it is smaller than the minimum cluster size, set to " << fMinSize;
+      continue;
+    }
+
     clusters.push_back(clusHits);
   }
 
@@ -279,7 +284,43 @@ TH2 *cluster::BlurredClusteringAlg::Convolve(TH2* image, std::map<int,double> ke
 }
 
 
-/// Find clusters in the histogram
+// Dynamically find the blurring radii in each direction
+void cluster::BlurredClusteringAlg::FindBlurringParameters(int *blurwire, int *blurtick) {
+
+  TPrincipal *fPCA = new TPrincipal(2,"");
+
+  double hits[2];
+  for (const auto &wireIt : fHitMap) {
+    for (const auto &tickIt : wireIt.second) {
+      hits[0] = wireIt.first;
+      hits[1] = tickIt.first;
+      fPCA->AddRow(hits);
+    }
+  }
+
+  fPCA->MakePrincipals();
+
+  //const TVectorD* eigenvalues = fPCA->GetEigenValues();
+  const TMatrixD* eigenvectors = fPCA->GetEigenVectors();
+
+  // std::cout << "The PCA winner for tpc " << fTPC << ", plane " << fPlane << " are:" << std::endl
+  // 	    << "Eigenvalues: " << (*eigenvalues)[0] << std::endl
+  // 	    << "Eigenvectors: (" << (*eigenvectors)[0][0] << "," << (*eigenvectors)[1][0] << ")" << std::endl;
+
+  *blurwire = std::abs(fBlurWire * (*eigenvectors)[0][0]);
+  *blurtick = std::abs(fBlurTick * (*eigenvectors)[1][0]);
+
+  // std::cout << "Recommended blurring: wire " << *blurwire << " and tick " << *blurtick << std::endl;
+
+  return;
+
+  // CONSIDER DIRECTIONAL BLURRING -- i.e. BLURRING IN NEGATIVE DIRECTION!
+  // ALSO DYNAMICALLY FINDING SIGMA!
+
+}
+
+
+// Find clusters in the histogram
 int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::vector<int> > &allcluster) {
 
   // Save images to debug pdf if fCreateDebugPDF is true
@@ -327,7 +368,7 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
     cluster.clear();
     times.clear();
 
-    // Get the highest charge bin (go no further if below seed threshold) [currently 0.1]
+    // Get the highest charge bin (go no further if below seed threshold)
     double blurred_binval = values[niter].first;
     if (blurred_binval < fMinSeed)
       break;
@@ -361,7 +402,7 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
         binx = cluster[clusBin] % nbinsx;
         biny = ((cluster[clusBin] - binx) / nbinsx) % nbinsy;
 
-	// Look for hits in the directly neighbouring x/y bins
+	// Look for hits in the neighbouring x/y bins
         for (int x = binx - fClusterWireDistance; x <= binx + fClusterWireDistance; x++) {
           for (int y = biny - fClusterTickDistance; y <= biny + fClusterTickDistance; y++) {
             if (x == binx && y == biny)
@@ -393,7 +434,7 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
             } // End of adding blurred bin to cluster
 
           }
-       } // End of looking at directly neighbouring bins
+	} // End of looking at directly neighbouring bins
 
       } // End of looping over bins already in this cluster
 
@@ -486,7 +527,7 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
 
   blurred->Delete();
 
-  /// Return the number of clusters found in this hit map
+  // Return the number of clusters found in this hit map
   return allcluster.size();
 }
 
@@ -494,27 +535,31 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *image, std::vector<std::ve
 // Applies Gaussian blur to image
 TH2* cluster::BlurredClusteringAlg::GaussianBlur(TH2* image) {
 
-  // Create Gaussian kernel
-  std::map<int,double> kernel;
-  int width = 2 * fBlurWire + 1;
-  int height = 2 * fBlurTick + 1;
-
   if (fBlurSigma == 0)
     return (TH2F*) image->Clone(image->GetName() + TString("_blur"));
 
+  // Find the blurring parameters
+  int blurwire, blurtick;
+  FindBlurringParameters(&blurwire, &blurtick);
+
+  // Create Gaussian kernel
+  std::map<int,double> kernel;
+  int width = 2 * blurwire + 1;
+  int height = 2 * blurtick + 1;
+
   // If the parameters match the last parameters, used the same last kernel
-  if (fLastBlurWire == fBlurWire && fLastBlurTick == fBlurTick && fLastSigma == fBlurSigma && !fLastKernel.empty())
+  if (fLastBlurWire == blurwire && fLastBlurTick == blurtick && fLastSigma == fBlurSigma && !fLastKernel.empty())
     kernel = fLastKernel;
 
-  // Otherwise, allocate and compute a new kernel, freeing the fLastKernel if it has been allocated.
+  // Otherwise, compute a new kernel
   else {
 
     if (!fLastKernel.empty())
       fLastKernel.clear();
 
     // Smear out according to the blur radii in each direction
-    for (int i = -fBlurWire; i <= fBlurWire; i++) {
-      for (int j = -fBlurTick; j <= fBlurTick; j++) {
+    for (int i = -blurwire; i <= blurwire; i++) {
+      for (int j = -blurtick; j <= blurtick; j++) {
         double sigmai = fBlurSigma / 1.5;
         double sigmaj = fBlurSigma;
 
@@ -522,7 +567,7 @@ TH2* cluster::BlurredClusteringAlg::GaussianBlur(TH2* image) {
 	double sig2i = 2. * sigmai * sigmai;
 	double sig2j = 2. * sigmaj * sigmaj;
 
-	int key = (width * (j + fBlurTick)) + (i + fBlurWire);
+	int key = (width * (j + blurtick)) + (i + blurwire);
 	double value = 1. / sqrt(sig2i * M_PI) * exp(-i * i / sig2i) * 1. / sqrt(sig2j * M_PI) * exp(-j * j / sig2j);
 	kernel[key] = value;
 
@@ -530,8 +575,8 @@ TH2* cluster::BlurredClusteringAlg::GaussianBlur(TH2* image) {
     } // End loop over blurring region
 
     fLastKernel   = kernel;
-    fLastBlurWire = fBlurWire;
-    fLastBlurTick = fBlurTick;
+    fLastBlurWire = blurwire;
+    fLastBlurTick = blurtick;
     fLastSigma    = fBlurSigma;
   }
 
@@ -656,14 +701,14 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F *image, std::vector<std::vect
   }
 
   std::stringstream title;
-  title << stage << " -- TPC " << fTPC << ", Plane " << fPlane;
+  title << stage << " -- TPC " << fTPC << ", Plane " << fPlane << " (Event " << fEvent << ")";
 
   image->SetName(title.str().c_str());
   image->SetTitle(title.str().c_str());
   image->DrawCopy("colz");
 
+  // Draw the clustered hits on the histograms
   int clusterNum = 2;
-
   for (std::vector<std::vector<int> >::iterator it = allClusterBins.begin(); it != allClusterBins.end(); it++, clusterNum++) {
     std::vector<int> bins = *it;
     TMarker mark(0, 0, 20);
@@ -674,7 +719,7 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F *image, std::vector<std::vect
       int bin = *binIt;
       int wire, tick, z;
 
-      /// Hit from a cluster that we aren't going to save
+      // Hit from a cluster that we aren't going to save
       if (bin < 0) {
         bin *= -1;
         mark.SetMarkerStyle(24);
