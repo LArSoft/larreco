@@ -17,7 +17,7 @@ extern "C" {
 #include <iomanip>
 
 #include "RecoAlg/TrackTrajectoryAlg.h"
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+//#include "messagefacility/MessageLogger/MessageLogger.h" 
 
 namespace trkf{
 
@@ -300,7 +300,7 @@ namespace trkf{
       if(trkX[ipl][0] < xCut) usePlns.push_back(ipl);
     } // ipl
     // Not enough information to find a space point
-    mf::LogVerbatim("TTA")<<"ShortTrack minX end "<<xCut<<" usePlns size "<<usePlns.size();
+//    mf::LogVerbatim("TTA")<<"ShortTrack minX end "<<xCut<<" usePlns size "<<usePlns.size();
     if(usePlns.size() < 2) return;
     endY = 0; endZ = 0; nend = 0;
     iht = 0;
@@ -325,7 +325,7 @@ namespace trkf{
     xyz(0) = endX / (float)(nend + 1);
     xyz(1) = endY / (float)nend;
     xyz(2) = endZ / (float)nend;
-    mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
+//    mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
     TrajPos.push_back(xyz);
     
     // do the same for the other end
@@ -337,7 +337,7 @@ namespace trkf{
       if(trkX[ipl][iht] > xCut) usePlns.push_back(ipl);
     } // ipl
     // Not enough information to find a space point
-    mf::LogVerbatim("TTA")<<"ShortTrack maxX end "<<xCut<<" usePlns size "<<usePlns.size();
+//    mf::LogVerbatim("TTA")<<"ShortTrack maxX end "<<xCut<<" usePlns size "<<usePlns.size();
     if(usePlns.size() < 2) {
       TrajPos.clear();
       TrajDir.clear();
@@ -364,14 +364,14 @@ namespace trkf{
     xyz(0) = endX / (float)(nend + 1);
     xyz(1) = endY / (float)nend;
     xyz(2) = endZ / (float)nend;
-    mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
+//    mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
     TrajPos.push_back(xyz);
     TVector3 dir = TrajPos[1] - TrajPos[0];
     dir = dir.Unit();
     TrajDir.push_back(dir);
     TrajDir.push_back(dir);
   
-    mf::LogVerbatim("TTA")<<">>>> Short track ("<<TrajPos[0](0)<<", "<<TrajPos[0](1)<<", "<<TrajPos[0](2)<<") to ("<<TrajPos[1](0)<<", "<<TrajPos[1](1)<<", "<<TrajPos[1](2)<<")";
+//    mf::LogVerbatim("TTA")<<">>>> Short track ("<<TrajPos[0](0)<<", "<<TrajPos[0](1)<<", "<<TrajPos[0](2)<<") to ("<<TrajPos[1](0)<<", "<<TrajPos[1](1)<<", "<<TrajPos[1](2)<<")";
   }
 
   
