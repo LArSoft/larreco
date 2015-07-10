@@ -149,6 +149,49 @@ bool sp_sort_z1(const trkPoint &tp1, const trkPoint &tp2)
   return tp1.pos.Z() > tp2.pos.Z();
 }
 
+bool spt_sort_x0(const recob::SpacePoint h1, const recob::SpacePoint h2)
+{
+  const double* xyz1 = h1.XYZ();
+  const double* xyz2 = h2.XYZ();
+  return xyz1[0] < xyz2[0];
+}
+
+bool spt_sort_x1(const recob::SpacePoint h1, const recob::SpacePoint h2)
+{
+  const double* xyz1 = h1.XYZ();
+  const double* xyz2 = h2.XYZ();
+  return xyz1[0] > xyz2[0];
+}
+
+bool spt_sort_y0(const recob::SpacePoint h1, const recob::SpacePoint h2)
+{
+  const double* xyz1 = h1.XYZ();
+  const double* xyz2 = h2.XYZ();
+  return xyz1[1] < xyz2[1];
+}
+
+bool spt_sort_y1(const recob::SpacePoint h1, const recob::SpacePoint h2)
+{
+  const double* xyz1 = h1.XYZ();
+  const double* xyz2 = h2.XYZ();
+  return xyz1[1] > xyz2[1];
+}
+
+bool spt_sort_z0(const recob::SpacePoint h1, const recob::SpacePoint h2)
+{
+  const double* xyz1 = h1.XYZ();
+  const double* xyz2 = h2.XYZ();
+  return xyz1[2] < xyz2[2];
+}
+
+bool spt_sort_z1(const recob::SpacePoint h1, const recob::SpacePoint h2)
+{
+  const double* xyz1 = h1.XYZ();
+  const double* xyz2 = h2.XYZ();
+  return xyz1[2] > xyz2[2];
+}
+
+
 namespace trkf {
 
   class CosmicTracker : public art::EDProducer {
@@ -273,22 +316,21 @@ namespace trkf {
       }
       //reconstruct space points and directions
       fCTAlg.SPTReco(hitlist);
-      if (!fCTAlg.trkPos.size()){
-	return;
+      if (!fTrajOnly){
+	for (size_t i = 0; i<hitlist.size(); ++i){
+	  trkPoint trkpt;
+	  trkpt.pos = fCTAlg.trkPos[i];
+	  trkpt.dir = fCTAlg.trkDir[i];
+	  trkpt.hit = hitlist[i];
+	  trkpts[itrk].push_back(trkpt);
+	}
+	if (fSortDir=="+x") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_x0);
+	if (fSortDir=="-x") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_x1);
+	if (fSortDir=="+y") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_y0);
+	if (fSortDir=="-y") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_y1);
+	if (fSortDir=="+z") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_z0);
+	if (fSortDir=="-z") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_z1);
       }
-      for (size_t i = 0; i<hitlist.size(); ++i){
-	trkPoint trkpt;
-	trkpt.pos = fCTAlg.trkPos[i];
-	trkpt.dir = fCTAlg.trkDir[i];
-	trkpt.hit = hitlist[i];
-	trkpts[itrk].push_back(trkpt);
-      }
-      if (fSortDir=="+x") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_x0);
-      if (fSortDir=="-x") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_x1);
-      if (fSortDir=="+y") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_y0);
-      if (fSortDir=="-y") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_y1);
-      if (fSortDir=="+z") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_z0);
-      if (fSortDir=="-z") std::sort(trkpts[itrk].begin(),trkpts[itrk].end(),sp_sort_z1);
 
       if (fTrajOnly){//debug only
 	size_t spStart = spcol->size();
@@ -312,13 +354,38 @@ namespace trkf {
 				 spStart + spacepoints.size());//3d point at end of track
 	  spacepoints.push_back(mysp);
 	  spcol->push_back(mysp);        
-	  //util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
+	  util::CreateAssn(*this, evt, *spcol, fCTAlg.trajHit[ipt], *shassn);
 	  //}//
 	}//ihit
 	size_t spEnd = spcol->size();
 	//sort in z direction
 	//std::sort(spacepoints.begin(),spacepoints.end(),sp_sort_z0);
 	//std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,sp_sort_z0);
+	if (fSortDir == "+x"){
+	  std::sort(spacepoints.begin(),spacepoints.end(),spt_sort_x0);
+	  std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,spt_sort_x0);
+	}
+	if (fSortDir == "-x"){
+	  std::sort(spacepoints.begin(),spacepoints.end(),spt_sort_x1);
+	  std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,spt_sort_x1);
+	}
+	if (fSortDir == "+y"){
+	  std::sort(spacepoints.begin(),spacepoints.end(),spt_sort_y0);
+	  std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,spt_sort_y0);
+	}
+	if (fSortDir == "-y"){
+	  std::sort(spacepoints.begin(),spacepoints.end(),spt_sort_y1);
+	  std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,spt_sort_y1);
+	}
+	if (fSortDir == "+z"){
+	  std::sort(spacepoints.begin(),spacepoints.end(),spt_sort_z0);
+	  std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,spt_sort_z0);
+	}
+	if (fSortDir == "-z"){
+	  std::sort(spacepoints.begin(),spacepoints.end(),spt_sort_z1);
+	  std::sort(spcol->begin()+spStart,spcol->begin()+spEnd,spt_sort_z1);
+	}
+
 	if(spacepoints.size()>0){
 	  
 	  // make a vector of the trajectory points along the track

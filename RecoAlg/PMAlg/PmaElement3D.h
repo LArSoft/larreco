@@ -29,8 +29,12 @@ namespace pma
 class pma::Element3D
 {
 public:
-	Element3D(void);
 	virtual ~Element3D(void) {}
+
+	/// TPC index or -1 if out of any TPC.
+	int TPC(void) const { return fTPC; }
+	/// Cryostat index or -1 if out of any cryostat.
+	int Cryo(void) const { return fCryo; }
 
 	/// Distance [cm] from the 3D point to the object 3D.
 	virtual double GetDistance2To(const TVector3& p3d) const = 0;
@@ -81,6 +85,9 @@ public:
 	static void SetOptFactor(unsigned int view, float value) { fOptFactors[view] = value; }
 
 protected:
+	Element3D(void); // Element3D is only a common base for nodes and segments
+	int fTPC, fCryo; // -1 if out of any TPC or cryostat
+
 	bool fFrozen;
 	std::vector< pma::Hit3D* > fAssignedHits;  // 2D hits
 	std::vector< TVector3* > fAssignedPoints;  // 3D peculiar points reconstructed elsewhere

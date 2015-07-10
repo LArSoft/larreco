@@ -33,6 +33,7 @@ standard_projectionmatchingalg:
   FineTuningEps:          0.0001  # relative change of the obj.fn which stops fine-tuning of optimized track
   TrkValidationDist2D:    1.0     # max. distance [cm] used in the track validation in the "third" plane
   HitTestingDist2D:       0.5     # max. distance [cm] used in testing compatibility of hits with the track
+  MinTwoViewFraction:     0.4     # min. fraction of track length covered with hits from many 2D views intertwinted with each other
   HitWeightZ:             1.0     # weights used for hits in U, V, Z planes:
   HitWeightV:             0.8     #    - use lower values for planes where hit position is less reliable (e.g. due to S/N)
   HitWeightU:             0.2     #    - relative ratios matter, sum does not need to be 1.0
@@ -97,11 +98,17 @@ standard_kalmanfilteralg:
 
 standard_cosmictrackeralg:
 {
+    SPTAlg:   0
+    TrajOnly: false
+    TMatch:   2.5
+    SMatch:   1
 }
 
 argoneut_spacepointalg:      @local::standard_spacepointalg
 argoneut_kalmanfilteralg:    @local::standard_kalmanfilteralg
 argoneut_cosmictrackeralg:   @local::standard_cosmictrackeralg
+argoneut_cosmictrackeralg.SPTAlg:   1
+argoneut_cosmictrackeralg.TrajOnly: true
 
 bo_spacepointalg: @local::standard_spacepointalg
 bo_spacepointalg.MinViews: 2

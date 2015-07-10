@@ -32,14 +32,16 @@ public:
 	Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo);
 	virtual ~Node3D(void) {}
 
-	unsigned int TPC(void) const { return fTPC; }
-	unsigned int Cryo(void) const { return fCryo; }
-
 	TVector3 const & Point3D(void) const { return fPoint3D; }
 
 	void SetPoint3D(const TVector3& p3d);
 
 	TVector2 const & Projection2D(unsigned int view) const { return fProj2D[view]; }
+
+	double GetDistToWall(void) const;
+
+	/// Check if p3d is in the same TPC as the node.
+	bool SameTPC(const TVector3& p3d) const;
 
 	/// Distance [cm] from the 3D point to the point 3D.
 	virtual double GetDistance2To(const TVector3& p3d) const;
@@ -89,8 +91,6 @@ private:
 	double StepWithGradient(float alfa, float tol, float penalty, float weight);
 
 	art::ServiceHandle<geo::Geometry> fGeom;
-
-	unsigned int fTPC, fCryo;
 
 	double fMinX, fMaxX, fMinY, fMaxY, fMinZ, fMaxZ; // TPC boundaries to limit the node position (+margin)
 	double fWirePitch[3];                            // TPC params to scale do [cm] domain

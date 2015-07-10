@@ -372,7 +372,7 @@ namespace trkf {
     // ClusterCrawler Vertices
     art::Handle< std::vector<recob::Vertex> > VtxListHandle;
     std::vector<art::Ptr<recob::Vertex>> vtxlist;
-\
+
     // get Hits
     allhits.clear();
     if (evt.getByLabel(fHitModuleLabel, allhitsListHandle))

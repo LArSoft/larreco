@@ -122,10 +122,18 @@ public:
 	void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
 	bool HasRefPoint(TVector3* p) const;
 
+	/// MSE of hits weighted with hit amplidudes and wire plane coefficients.
+	double GetMse(void) const;
+
+	/// Objective function optimized in track reconstruction.
 	double GetObjFunction(float penaltyFactor = 1.0F) const;
 
 	/// Main optimization method.
 	double Optimize(int nNodes = -1, double eps = 0.01, bool selAllHits = true);
+
+	/// Move the first/last Node3D to the first/last hit in the track;
+	/// returns true if all OK, false if empty segments found.
+	bool ShiftEndsToHits(void);
 
 	pma::Segment3D* NextSegment(pma::Node3D* vtx) const;
 	pma::Segment3D* PrevSegment(pma::Node3D* vtx) const;
@@ -141,6 +149,7 @@ public:
 	void UpdateProjection(void);
 	void SortHits(void);
 
+	unsigned int DisableSingleViewEnds(void);
 	void SelectHits(float fraction = 1.0F);
 
 	float GetEndSegWeight(void) { return fEndSegWeight; }
@@ -177,7 +186,9 @@ private:
 
 	bool CheckEndSegment(pma::Track3D::ETrackEnd endCode);
 
+	int index_of(const pma::Hit3D* hit) const;
 	std::vector< pma::Hit3D* > fHits;
+
 	std::vector< TVector3* > fAssignedPoints;
 
 	pma::Element3D* GetNearestElement(const TVector2& p2d, unsigned int view) const;

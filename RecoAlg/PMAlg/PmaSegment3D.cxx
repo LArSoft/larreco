@@ -13,6 +13,14 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+pma::Segment3D::Segment3D(pma::Track3D* trk, pma::Node3D* vstart, pma::Node3D* vstop) :
+	SortedObjectBase(vstart, vstop),
+	fParent(trk)
+{
+	if (vstart->TPC() == vstop->TPC()) fTPC = vstart->TPC();
+	if (vstart->Cryo() == vstop->Cryo()) fCryo = vstart->Cryo();
+}
+
 double pma::Segment3D::GetDistance2To(const TVector3& p3d) const
 {
 	pma::Node3D* v0 = static_cast< pma::Node3D* >(prev);

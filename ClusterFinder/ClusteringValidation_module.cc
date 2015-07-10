@@ -10,7 +10,7 @@
 // Usage: Specify the hit finder (HitsModuleLabel) and the clustering outputs
 // to validate (ClusterModuleLabels) in the fhicl file.
 // Module will make validation plots for all clusterings specified and also
-// produce comparison plots. Numbers of clusterings to analyse can be one or more.
+// produce comparison plots. Number of clusterings to analyse can be one or more.
 // Saves everything in the file validationHistograms.root.
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -56,6 +56,7 @@
 #include "TEfficiency.h"
 #include "TLegend.h"
 #include "TFolder.h"
+#include "TStyle.h"
 
 #include <map>
 #include <iostream>
@@ -117,17 +118,29 @@ ClusteringValidation::ClusterCounter::ClusterCounter(unsigned int &t, unsigned i
   tpc   = t;
   plane = p;
 }
+
 void ClusteringValidation::ClusterCounter::AddHitPreClustering(TrackID trackID) { ++numHitsPreClustering[trackID]; }
+
 void ClusteringValidation::ClusterCounter::AddSignalHitPostClustering(ClusterID clusID) { ++numSignalHitsPostClustering[clusID]; }
+
 void ClusteringValidation::ClusterCounter::AddNoiseHitPostClustering(ClusterID clusID) { ++numNoiseHitsPostClustering[clusID]; }
+
 void ClusteringValidation::ClusterCounter::AssociateClusterAndTrack(ClusterID clusID, TrackID trackID) { clusterToTrackID[clusID] = trackID; trackToClusterIDs[trackID].push_back(clusID); }
+
 double ClusteringValidation::ClusterCounter::GetCompleteness(ClusterID clusID) { return (double)numSignalHitsPostClustering[clusID]/(double)numHitsPreClustering[clusterToTrackID[clusID]]; }
+
 double ClusteringValidation::ClusterCounter::GetCleanliness(ClusterID clusID) { return (double)numSignalHitsPostClustering[clusID]/(double)(GetNumberHitsInCluster(clusID)); }
+
 double ClusteringValidation::ClusterCounter::GetEfficiency(TrackID trackID) { return 1/(double)trackToClusterIDs.at(trackID).size(); }
+
 int ClusteringValidation::ClusterCounter::GetNumberHitsFromTrack(TrackID trackID) { return numHitsPreClustering[trackID]; }
+
 int ClusteringValidation::ClusterCounter::GetNumberHitsInCluster(ClusterID clusID) { return numSignalHitsPostClustering[clusID] + numNoiseHitsPostClustering[clusID]; }
+
 ClusterIDs ClusteringValidation::ClusterCounter::GetListOfClusterIDs() { ClusterIDs v; for (std::map<ClusterID,TrackID>::iterator i = clusterToTrackID.begin(); i != clusterToTrackID.end(); i++) v.push_back(i->first); return v; }
+
 TrackIDs ClusteringValidation::ClusterCounter::GetListOfTrackIDs() { TrackIDs v; for (std::map<TrackID,ClusterIDs>::iterator i = trackToClusterIDs.begin(); i != trackToClusterIDs.end(); i++) v.push_back(i->first); return v; }
+
 std::vector<std::pair<TrackID,ClusterIDs> > ClusteringValidation::ClusterCounter::GetPhotons() {
   std::vector<std::pair<TrackID,ClusterIDs> > photonVector;
   for (unsigned int track = 0; track < GetListOfTrackIDs().size(); ++track)
@@ -135,15 +148,20 @@ std::vector<std::pair<TrackID,ClusterIDs> > ClusteringValidation::ClusterCounter
       photonVector.push_back(std::pair<TrackID,ClusterIDs>(GetListOfTrackIDs().at(track),trackToClusterIDs.at(GetListOfTrackIDs().at(track))));
   return photonVector;
 }
+
 TrackID ClusteringValidation::ClusterCounter::GetTrack(ClusterID id) { return clusterToTrackID.at(id); }
+
 bool ClusteringValidation::ClusterCounter::IsNoise(ClusterID clusID) { return IsNoise(clusterToTrackID.at(clusID)); }
+
 bool ClusteringValidation::ClusterCounter::IsNoise(TrackID trackID) { return (int)trackID == 0 ? true : false; }
+
 bool ClusteringValidation::ClusterCounter::PassesCut() {
   if (GetPhotons().size() > 2 || GetPhotons().size() == 0) return false;
   TrackIDs goodPhotons;
   for (unsigned int photon = 0; photon < GetPhotons().size(); ++photon)
     for (unsigned int cluster = 0; cluster < GetPhotons().at(photon).second.size(); ++cluster)
       if (GetCompleteness(GetPhotons().at(photon).second.at(cluster)) > 0.5) goodPhotons.push_back(GetPhotons().at(photon).first);
+  if ( (GetPhotons().size() == 2 && goodPhotons.size() > 2) || (GetPhotons().size() == 1 && goodPhotons.size() > 1) ) std::cout << "More than 2 with >50%?!" << std::endl;
   bool pass = ( (GetPhotons().size() == 2 && goodPhotons.size() == 2) || (GetPhotons().size() == 1 && goodPhotons.size() == 1) );
   return pass;
 }
@@ -162,6 +180,7 @@ public:
   const simb::MCParticle* GetPi0();
   TObjArray               GetHistograms();
   void                    MakeHistograms();
+  void                    WriteFile();
 
 private:
 
@@ -352,7 +371,7 @@ void ClusteringValidation::ClusterAnalyser::MakeHistograms() {
 
       ClusterIDs clusterIDs = clusterMap[tpc][plane]->GetListOfClusterIDs();
 
-      // Save histograms for the efficiency
+      // Fill histograms for the efficiency
       if (clusterMap[tpc][plane]->GetPhotons().size() == 2) {
 	hPi0Angle               ->Fill(FindPhotonAngle());
 	hPi0Energy              ->Fill(GetPi0()->Momentum().E());
@@ -366,6 +385,8 @@ void ClusteringValidation::ClusterAnalyser::MakeHistograms() {
 						     GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(1).first, (TrackID)GetPi0()->TrackId())));
 	  hPi0ConversionSeparationCut->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first));
 	}
+	else
+	  std::cout << "TPC " << tpc << ", Plane " << plane << " fails the cut" << std::endl;
       }
 
       // Look at all the clusters
@@ -401,6 +422,19 @@ void ClusteringValidation::ClusterAnalyser::MakeHistograms() {
 
 }
 
+void ClusteringValidation::ClusterAnalyser::WriteFile() {
+
+  // Average completeness/cleanliness
+  double avCompleteness = totCompleteness / nClusters;
+  double avCleanliness  = totCleanliness  / nClusters;
+
+  // Write file
+  ofstream outFile("effpur");
+  outFile << avCompleteness << " " << avCleanliness;
+  outFile.close();
+
+}
+
 // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class ClusteringValidation::ClusteringValidation : public art::EDAnalyzer {
 public:
@@ -408,7 +442,6 @@ public:
   explicit ClusteringValidation(fhicl::ParameterSet const &p);
 
   void analyze(art::Event const &evt);
-  void analyseClusters();
   void beginJob();
   void endJob();
   void reconfigure(fhicl::ParameterSet const &p);
@@ -419,11 +452,7 @@ private:
   std::vector<std::string> fClusterModuleLabels;
   std::string fHitsModuleLabel;
 
-  // Services
-  art::ServiceHandle<geo::Geometry>      geometry;
-  art::ServiceHandle<cheat::BackTracker> backtracker;
-
-  // Canvas to save histograms on
+  // Canvas on which to save histograms
   TCanvas *fCanvas;
 
   // The cluster analysers
@@ -435,6 +464,7 @@ private:
 ClusteringValidation::ClusteringValidation::ClusteringValidation(fhicl::ParameterSet const &pset) :  EDAnalyzer(pset) {
   this->reconfigure(pset);
   fCanvas = new TCanvas("fCanvas","",800,600);
+  gStyle->SetOptStat(0);
 }
 
 void ClusteringValidation::ClusteringValidation::reconfigure(fhicl::ParameterSet const& p) {
@@ -495,7 +525,7 @@ void ClusteringValidation::ClusteringValidation::endJob() {
       allHistograms.at(clustering).At(histIt)->Write();
   }
 
-  // Save images of overlaid histograms
+  // Write images of overlaid histograms
   for (int histIt = 0; histIt < allHistograms.begin()->second.GetEntriesFast(); ++histIt) {
     fCanvas->cd();
     fCanvas->Clear();
@@ -509,6 +539,7 @@ void ClusteringValidation::ClusteringValidation::endJob() {
       if (clusterings == 1) h->Draw();
       else h->Draw("same");
       l->AddEntry(h,clusteringIt->first.c_str(),"lp");
+      if (strcmp(name,"Completeness") == 0) h->SetMaximum(850);
     }
     l->Draw("same");
     //fCanvas->SaveAs(name+TString(".png"));
@@ -519,14 +550,8 @@ void ClusteringValidation::ClusteringValidation::endJob() {
   file->Close();
   delete file;
 
-  // // Average completeness/cleanliness
-  // double avCompleteness = totCompleteness / nClusters;
-  // double avCleanliness  = totCleanliness  / nClusters;
-
-  // // Write file
-  // ofstream outFile("effpur");
-  // outFile << avCompleteness << " " << avCleanliness;
-  // outFile.close();
+  if (clusterAnalysis.find("blurredclusteringdc") != clusterAnalysis.end())
+    clusterAnalysis.at("blurredclusteringdc")->WriteFile();
 
 }
 
