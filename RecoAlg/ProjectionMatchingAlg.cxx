@@ -331,8 +331,8 @@ void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, pma::Track3D& sr
 	else
 	{
 		dst.MakeProjection();
-		dst.SortHits();
 	}
+	dst.SortHits();
 }
 
 void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
