@@ -655,8 +655,6 @@ int cluster::BlurredClusteringAlg::MergeClusters(std::vector<art::PtrVector<reco
 
 	pca->MakePrincipals();
 
-	std::cout << "Event " << fEvent << ", tpc " << fTPC << ", plane " << fPlane << ": eigenvalue is " << (*pca->GetEigenValues())[0] << std::endl;
-
 	// Merge these clusters if they are part of the same straight line
 	if ((*pca->GetEigenValues())[0] > fMergingThreshold) {
 
