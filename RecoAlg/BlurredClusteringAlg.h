@@ -75,6 +75,7 @@ public:
   TH2* GaussianBlur(TH2 *image);
   unsigned int GetMinSize() { return fMinSize; }
   double GetTimeOfBin(TH2F *image, int bin);
+  int MergeClusters(std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters);
   unsigned int NumNeighbours(int nx, std::vector<bool> *used, int bin);
   bool PassesTimeCut(std::vector<double> &times, double time);
   void SaveImage(TH2F *image, std::vector<art::PtrVector<recob::Hit> > &allClusters, int pad);
@@ -108,6 +109,8 @@ private:
   double       fBlurSigma;                // sigma for Gaussian kernel
   int          fClusterWireDistance;      // how far to cluster from seed in wire direction
   int          fClusterTickDistance;      // how far to cluster from seed in tick direction
+  unsigned int fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
+  double       fMergingThreshold;        // the PCA eigenvalue needed to consider two clusters a merge
   unsigned int fNeighboursThreshold;      // min. number of neighbors to add to cluster
   int          fMinNeighbours;            // minumum number of neighbors to keep in the cluster
   unsigned int fMinSize;                  // minimum size for cluster

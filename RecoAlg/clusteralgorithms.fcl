@@ -43,6 +43,8 @@ standard_blurredclusteringalg:
   BlurSigma:           4
   ClusterWireDistance: 6
   ClusterTickDistance: 3
+  MinMatchClusterSize: 0
+  MatchingThreshold:   0.99
   NeighboursThreshold: 0
   MinNeighbours:       0
   MinSize:             2

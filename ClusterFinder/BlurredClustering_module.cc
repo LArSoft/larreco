@@ -129,14 +129,19 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       TH2F image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(allHits);
 
       // Find clusters in histogram
-      std::vector<std::vector<int> > allClusterBins; /// Vector of clusters (clusters are vectors of hits)
+      std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
       int numClusters = fBlurredClusteringAlg.FindClusters(&image, allClusterBins);
       mf::LogVerbatim("Blurred Clustering") << "Found " << numClusters << " clusters" << std::endl;
 
       // Create output clusters from the vector of clusters made in FindClusters
-      std::vector<art::PtrVector<recob::Hit> > planeClusters = fBlurredClusteringAlg.ConvertBinsToClusters(&image, allHits, allClusterBins); // returns vector of clusters
+      std::vector<art::PtrVector<recob::Hit> > planeClusters = fBlurredClusteringAlg.ConvertBinsToClusters(&image, allHits, allClusterBins);
 
-      for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = planeClusters.begin(); clusIt != planeClusters.end(); ++clusIt) {
+      // Merge clusters which lie on the same straight line
+      std::vector<art::PtrVector<recob::Hit> > mergedClusters;
+      int numMergedClusters = fBlurredClusteringAlg.MergeClusters(&planeClusters, mergedClusters);
+      mf::LogVerbatim("Blurred Clustering") << "After merging, there are " << numMergedClusters << " clusters" << std::endl;
+
+      for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = mergedClusters.begin(); clusIt != mergedClusters.end(); ++clusIt) {
 
 	art::PtrVector<recob::Hit> clusterHits = *clusIt;
 	if (clusterHits.size() > 0) {
@@ -166,7 +171,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 	  );
 
 	  clusters->emplace_back(cluster.move());
-	
+
 	  // Associate the hits to this cluster
 	  util::CreateAssn(*this, evt, *(clusters.get()), clusterHits, *(associations.get()));
 
