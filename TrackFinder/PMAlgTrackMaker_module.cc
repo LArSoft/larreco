@@ -154,6 +154,11 @@ private:
   void mergeCoLinear(std::vector< pma::Track3D* >& tracks);
   void mergeCoLinear(tpc_track_map& tracks);
 
+  void reassignHits(
+	const std::vector< art::Ptr<recob::Hit> >& hits,
+	std::vector< pma::Track3D* >& tracks, size_t trk_idx);
+  void reassignSingleViewEnds(std::vector< pma::Track3D* >& tracks);
+
   double validate(pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
 
@@ -613,6 +618,109 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 }
 // ------------------------------------------------------
 
+void PMAlgTrackMaker::reassignHits(
+	const std::vector< art::Ptr<recob::Hit> >& hits,
+	std::vector< pma::Track3D* >& tracks, size_t trk_idx)
+{
+	pma::Track3D* trk1 = tracks[trk_idx];
+	pma::Track3D* best_trk = 0;
+
+	size_t best_u = 0, n_max = 0;
+	for (size_t u = 0; u < tracks.size(); u++)
+		if (trk_idx != u)
+	{
+		pma::Track3D* trk2 = tracks[u];
+		size_t n = fProjectionMatchingAlg.testHits(*trk2, hits);
+		if (n > n_max) { n_max = n; best_u = u; best_trk = trk2; }
+	}
+
+	if (best_trk && (n_max >= hits.size() / 2))
+	{
+		mf::LogVerbatim("PMAlgTrackMaker") << "  Reassign " << n_max << " hits." << std::endl;
+
+		trk1->RemoveHits(hits);
+		trk1->CleanupTails();
+		trk1->ShiftEndsToHits();
+
+		pma::Track3D* ext = fProjectionMatchingAlg.extendTrack(*best_trk, hits,	false);
+		ext->SortHits(); ext->ShiftEndsToHits();
+		tracks[best_u] = ext;
+		delete best_trk;
+	}
+}
+
+void PMAlgTrackMaker::reassignSingleViewEnds(std::vector< pma::Track3D* >& tracks)
+{
+	for (size_t t = 0; t < tracks.size(); t++)
+	{
+		pma::Track3D* trk = tracks[t];
+		if (trk->size() < 5) continue;
+
+		trk->DisableSingleViewEnds();
+
+		std::vector< art::Ptr<recob::Hit> > hits;
+
+		size_t idx = 0;
+		while ((idx < trk->size() - 1) && !((*trk)[idx]->IsEnabled()))
+		{
+			hits.push_back((*trk)[idx++]->Hit2DPtr());
+		}
+
+		double d2;
+		if (idx > 0)
+		{
+			if ((idx < trk->size() - 1) &&
+			    ((*trk)[idx]->View2D() == (*trk)[idx - 1]->View2D()))
+			{
+				double dprev = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx - 1]->Point3D());
+				double dnext = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx + 1]->Point3D());
+				if (dprev < dnext)
+				{
+					hits.push_back((*trk)[idx++]->Hit2DPtr());
+				}
+			}
+			d2 = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx - 1]->Point3D());
+		}
+		else d2 = 0.0;
+
+		if ((hits.size() > 1) || (d2 > 1.0)) // min. 2 hits or single hit separated from the rest
+		{
+			reassignHits(hits, tracks, t);
+		}
+
+		hits.clear();
+		idx = trk->size() - 1;
+		while ((idx > 0) && !((*trk)[idx]->IsEnabled()))
+		{
+			hits.push_back((*trk)[idx--]->Hit2DPtr());
+		}
+
+		if (idx < trk->size() - 1)
+		{
+			if ((idx > 0) &&
+			    ((*trk)[idx]->View2D() == (*trk)[idx + 1]->View2D()))
+			{
+				double dprev = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx + 1]->Point3D());
+				double dnext = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx - 1]->Point3D());
+				if (dprev < dnext)
+				{
+					hits.push_back((*trk)[idx--]->Hit2DPtr());
+				}
+			}
+			d2 = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx + 1]->Point3D());
+		}
+		else d2 = 0.0;
+
+		if ((hits.size() > 1) || (d2 > 1.0))  // min. 2 hits or single hit separated from the rest
+		{
+			reassignHits(hits, tracks, t);
+		}
+
+		trk->SelectHits();
+	}
+}
+// ------------------------------------------------------
+
 bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 {
 	art::Handle< std::vector<recob::Hit> > hitListHandle;
@@ -786,12 +894,21 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 			fromMaxCluster_tpc(tracks[tpc_iter->TPC], cluListHandle, fbp, minBuildSizeSmall, tpc_iter->TPC, tpc_iter->Cryostat);
 		}
 
+		// try correcting track ends:
+		//   - single-view sections spuriously merged on 2D clusters level
+		for (auto tpc_iter = fGeom->begin_TPC_id();
+		          tpc_iter != fGeom->end_TPC_id();
+		          tpc_iter++)
+		{
+			reassignSingleViewEnds(tracks[tpc_iter->TPC]);
+		}
+
 		// merge co-linear parts inside each tpc
 		if (fMergeWithinTPC)
 		{
 			for (auto tpc_iter = fGeom->begin_TPC_id();
-		          tpc_iter != fGeom->end_TPC_id();
-		          tpc_iter++)
+			          tpc_iter != fGeom->end_TPC_id();
+			          tpc_iter++)
 			{
 				mf::LogVerbatim("PMAlgTrackMaker") << "Merge co-linear tracks within TPC " << tpc_iter->TPC << ".";
 				mergeCoLinear(tracks[tpc_iter->TPC]);

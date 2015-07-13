@@ -39,6 +39,7 @@ public:
 	void Initialize(float initEndSegW = 0.05F);
 
 	bool push_back(art::Ptr< recob::Hit > hit);
+	bool erase(art::Ptr< recob::Hit > hit);
 
 	pma::Hit3D* & operator [] (size_t index) { return fHits[index]; }
 	pma::Hit3D* const & operator [] (size_t index) const { return fHits[index]; }
@@ -54,7 +55,13 @@ public:
 	double Dist2(const TVector2& p2d, unsigned int view) const;
 	double Dist2(const TVector3& p3d) const;
 
+	/// Add hits; does not update hit->node/seg assignments nor hit projection to track,
+	/// so MakeProjection() and SortHits() should be called as needed.
 	void AddHits(const std::vector< art::Ptr<recob::Hit> >& hits);
+
+	/// Remove hits; removes also hit->node/seg assignments.
+	void RemoveHits(const std::vector< art::Ptr<recob::Hit> >& hits);
+
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
 
@@ -130,6 +137,9 @@ public:
 
 	/// Main optimization method.
 	double Optimize(int nNodes = -1, double eps = 0.01, bool selAllHits = true);
+
+	/// Cut out tails with no hits assigned.
+	void CleanupTails(void);
 
 	/// Move the first/last Node3D to the first/last hit in the track;
 	/// returns true if all OK, false if empty segments found.
