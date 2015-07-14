@@ -40,11 +40,11 @@ standard_blurredclusteringalg:
 {
   BlurWire:            10
   BlurTick:            10
-  BlurSigma:           4
-  ClusterWireDistance: 6
-  ClusterTickDistance: 3
-  MinMergeClusterSize: 0
-  MergingThreshold:    0.99
+  BlurSigma:           3
+  ClusterWireDistance: 2
+  ClusterTickDistance: 2
+  MinMergeClusterSize: 3
+  MergingThreshold:    0.9981
   NeighboursThreshold: 0
   MinNeighbours:       0
   MinSize:             2
