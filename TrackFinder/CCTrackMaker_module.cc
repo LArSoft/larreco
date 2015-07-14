@@ -1804,7 +1804,7 @@ namespace trkf {
       for(iht = 0; iht < trkHits[ipl].size(); ++iht) {
         trkWID[ipl][iht] = trkHits[ipl][iht]->WireID();
         trkX[ipl][iht] = detprop->ConvertTicksToX(trkHits[ipl][iht]->PeakTime(),ipl, tpc, cstat);
-        trkXErr[ipl][iht] = 0.2 * trkHits[ipl][iht]->RMS() * trkHits[ipl][iht]->Multiplicity();
+        trkXErr[ipl][iht] = fHitFitErrFac * trkHits[ipl][iht]->RMS() * trkHits[ipl][iht]->Multiplicity();
 //        std::cout<<iht<<" "<<trkWID[ipl][iht]<<" "<<trkX[ipl][iht]<<" "<<trkXErr[ipl][iht]<<"\n";
       } // iht
     } // ipl
