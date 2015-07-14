@@ -45,6 +45,9 @@ namespace trkf {
     unsigned short minXPln;
     double maxX;
     unsigned short maxXPln;
+    
+    unsigned short fMaxTrajPoints;  // maximum number of trajectory points
+    double fHitWidthFactor;         // scales the number of trajectory points to the hit rms
 
 
     TrackLineFitAlg fTrackLineFitAlg;
