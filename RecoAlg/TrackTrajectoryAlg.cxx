@@ -21,11 +21,11 @@ extern "C" {
 
 namespace trkf{
 
-  TrackTrajectoryAlg::TrackTrajectoryAlg() { }
+  TrackTrajectoryAlg::TrackTrajectoryAlg()  { }
 
   TrackTrajectoryAlg::~TrackTrajectoryAlg() { }
 
-//------------------------------------------------------------------------------
+  //------------------------------------------------------------------------------
   void TrackTrajectoryAlg::TrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
                                            std::array<std::vector<double>,3> trkX,
                                            std::array<std::vector<double>,3> trkXErr,
@@ -41,8 +41,8 @@ namespace trkf{
     // points of the trajectory. The ordering of planes in the array is irrelevant since the
     // plane number is extracted from the WireID. This algorithm will return with a failed condition
     // (TrajPos, TrajDir size = 0) if there are fewer than 2 planes with hits at each end that are less
-    // than 5 * trkXErr apart. Valid and invalid conditions are shown schematically below where a . represents
-    // hits that are separated by X values > 5 * trkXErr
+    // than fHitWidthFactor * trkXErr apart. Valid and invalid conditions are shown schematically below
+    // where a . represents hits that are separated by X values > fHitWidthFactor * trkXErr
     //
     //      minX            maxX         maxX            minX          minX            maxX
     // Pln0 ....................    Pln0 ....................     Pln0 ...................
@@ -80,6 +80,9 @@ namespace trkf{
 //    if(prt) mf::LogVerbatim("TTA")<<"trkX sizes "<<trkX[0].size()<<" "<<trkX[1].size()<<" "<<trkX[2].size()<<" "<<" nPlnsWithHits "<<nPlnsWithHits;
     if(nPlnsWithHits < 2) return;
     if(aPlane > 2) return;
+    
+    fMaxTrajPoints = 100;
+    fHitWidthFactor = 5.;
 
     unsigned short iht;
     
@@ -151,7 +154,7 @@ namespace trkf{
     unsigned short npt = (maxX - minX) / (1 * aveHitXErr);
     if(npt < 2) npt = 2;
     if(npt > maxLen) npt = maxLen;
-    if(npt > 100) npt = 100;
+    if(npt > fMaxTrajPoints) npt = fMaxTrajPoints;
 //    if(prt) mf::LogVerbatim("TTA")<<" aveHitXErr "<<aveHitXErr<<" number of traj points ";
 
     double maxBinX = (maxX - minX) / (double)(npt - 1);
@@ -294,7 +297,7 @@ namespace trkf{
     unsigned int iWire, jWire;
     
     // do the min X end first
-    float xCut = minX + 5 * trkXErr[minXPln][0];
+    float xCut = minX + fHitWidthFactor * trkXErr[minXPln][0];
     for(ipl = 0; ipl < 3; ++ipl) {
       if(trkX[ipl].size() == 0) continue;
       if(trkX[ipl][0] < xCut) usePlns.push_back(ipl);
@@ -329,7 +332,7 @@ namespace trkf{
     TrajPos.push_back(xyz);
     
     // do the same for the other end
-    xCut = maxX - 5 * trkXErr[maxXPln][0];
+    xCut = maxX - fHitWidthFactor * trkXErr[maxXPln][0];
     usePlns.clear();
     for(ipl = 0; ipl < 3; ++ipl) {
       if(trkX[ipl].size() == 0) continue;
