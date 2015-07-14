@@ -75,7 +75,7 @@ public:
   TH2* GaussianBlur(TH2 *image);
   unsigned int GetMinSize() { return fMinSize; }
   double GetTimeOfBin(TH2F *image, int bin);
-  int MergeClusters(std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters);
+  int MergeClusters(TH2F *image, std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters);
   unsigned int NumNeighbours(int nx, std::vector<bool> *used, int bin);
   bool PassesTimeCut(std::vector<double> &times, double time);
   void SaveImage(TH2F *image, std::vector<art::PtrVector<recob::Hit> > &allClusters, int pad);

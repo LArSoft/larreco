@@ -84,6 +84,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   fRun    = evt.run();
   fSubrun = evt.subRun();
 
+  fBlurredClusteringAlg.fEvent = fEvent;
+
   // Create debug pdf to illustrate the blurring process
   if (fCreateDebugPDF)
     fBlurredClusteringAlg.CreateDebugPDF(fEvent, fRun, fSubrun, fCreateDebugPDF);
@@ -138,7 +140,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 
       // Merge clusters which lie on the same straight line
       std::vector<art::PtrVector<recob::Hit> > mergedClusters;
-      int numMergedClusters = fBlurredClusteringAlg.MergeClusters(&planeClusters, mergedClusters);
+      int numMergedClusters = fBlurredClusteringAlg.MergeClusters(&image, &planeClusters, mergedClusters);
       mf::LogVerbatim("Blurred Clustering") << "After merging, there are " << numMergedClusters << " clusters" << std::endl;
 
       for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = mergedClusters.begin(); clusIt != mergedClusters.end(); ++clusIt) {

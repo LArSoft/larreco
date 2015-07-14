@@ -59,7 +59,6 @@ void cluster::BlurredClusteringAlg::CreateDebugPDF(int event, int run, int subru
 
   /// Create the PDF to save debug images
 
-  fEvent = event;
   fCreateDebugPDF = debug;
 
   if (!fDebugCanvas) {
@@ -174,7 +173,7 @@ std::vector<art::PtrVector<recob::Hit> > cluster::BlurredClusteringAlg::ConvertB
     clusters.push_back(clusHits);
   }
 
-  SaveImage(image, clusters, 4);
+  // SaveImage(image, clusters, 4);
 
   return clusters;
 }
@@ -599,7 +598,7 @@ double cluster::BlurredClusteringAlg::GetTimeOfBin(TH2F *image, int bin) {
 }
 
 
-int cluster::BlurredClusteringAlg::MergeClusters(std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters) {
+int cluster::BlurredClusteringAlg::MergeClusters(TH2F *image, std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters) {
 
   /// Merges clusters which lie along a straight line
 
@@ -678,6 +677,8 @@ int cluster::BlurredClusteringAlg::MergeClusters(std::vector<art::PtrVector<reco
     if (mergedClusters.size() == nclusters) mergedAllClusters = true;
 
   }
+
+  SaveImage(image, clusters, 4);
 
   return clusters.size();
 
