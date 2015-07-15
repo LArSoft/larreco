@@ -449,7 +449,7 @@ namespace trkf {
     double fMatchColinearity;  // Minimum matching colinearity.
     double fMatchDisp;         // Maximum matching displacement.
     double fWMatchDisp;        // Maximum matching displacement in the w direction.
-    doubel fMatchLength;       // Minimum length fraction.
+    double fMatchLength;       // Minimum length fraction.
     bool fIgnoreSign;          // Ignore sign of mc particle if true.
     bool fStitchedAnalysis;    // if true, do the whole drill-down from stitched track to assd hits
 
