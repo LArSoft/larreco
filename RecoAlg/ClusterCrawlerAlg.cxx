@@ -4587,17 +4587,18 @@ namespace cluster {
             if(tcl[icl].CTP != clCTP) continue;
             dwb = std::abs(theWire - tcl[icl].BeginWir);
             dwe = std::abs(theWire - tcl[icl].EndWir);
-            if(dwb < dwe && dwb < 5 && tcl[icl].BeginVtx < 0) {
+            // rough cut to start
+            if(dwb > 10 && dwe > 10) continue;
+            if(dwb < dwe && dwb < 10 && tcl[icl].BeginVtx < 0) {
               // cluster begin is closer
-              if(theWire < tcl[icl].BeginWir) continue;
-              if(ClusterVertexChi(icl, 0, ivnew) > 3) continue;
+              if(theWire < tcl[icl].BeginWir + 5) continue;
+              if(ClusterVertexChi(icl, 0, ivnew) > fVertex3DCut) continue;
               tcl[icl].BeginVtx = ivnew;
               vclIndex.push_back(icl);
-            } else if(dwe < 5 && tcl[icl].EndVtx < 0) {
+            } else if(dwe < 10 && tcl[icl].EndVtx < 0) {
               // cluster end is closer
-              if(theWire > tcl[icl].EndWir) continue;
-              if(ClusterVertexChi(icl, 1, ivnew) > 3) continue;
-              if(ClusterVertexChi(icl, 1, ivnew) > 3) continue;
+              if(theWire > tcl[icl].EndWir - 5) continue;
+              if(ClusterVertexChi(icl, 1, ivnew) > fVertex3DCut) continue;
               tcl[icl].EndVtx = ivnew;
               vclIndex.push_back(icl);
             } // dwb/dwe check
@@ -4605,7 +4606,7 @@ namespace cluster {
           bool goodVtx = false;
           if(vclIndex.size() > 0) {
             FitVtx(ivnew);
-            goodVtx = (vtx[ivnew].ChiDOF < 5);
+            goodVtx = (vtx[ivnew].ChiDOF < fVertex3DCut);
             vtx3[ivx].Ptr2D[thePlane] = ivnew;
           }
           if(goodVtx) {
