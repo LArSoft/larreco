@@ -5084,7 +5084,7 @@ namespace cluster {
       unsigned short ii, jpl, jj, kpl, kk, ivx, jvx, kvx;
       unsigned int iWire, jWire;
       unsigned short v3dBest = 0;
-      float xbest, ybest, zbest;
+      float xbest = 0, ybest = 0, zbest = 0;
       float kX, kWire;
       // compare vertices in each view
       bool gotit = false;
