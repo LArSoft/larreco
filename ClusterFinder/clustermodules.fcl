@@ -5,7 +5,7 @@ BEGIN_PROLOG
 standard_blurredclustering:
 {
  module_type:          "BlurredClustering"
- CreateDebugPDF:       "false"
+ CreateDebugPDF:       "true"
  HitsModuleLabel:      "gaushit"
  BlurredClusteringAlg: @local::standard_blurredclusteringalg                              
 }

@@ -25,6 +25,7 @@
 // LArSoft libraries
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
+#include "Filters/ChannelFilter.h"
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/LArProperties.h"

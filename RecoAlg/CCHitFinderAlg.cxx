@@ -142,11 +142,14 @@ namespace hit {
     bool first;
 
 //    prt = false;
+    filter::ChannelFilter cf;
 
     for(size_t wireIter = 0; wireIter < Wires.size(); wireIter++){
 
       recob::Wire const& theWire = Wires[wireIter];
       theChannel = theWire.Channel();
+      // ignore bad channels
+      if(cf.BadChannel(theChannel)) continue;
       geo::SigType_t SigType = geom->SignalType(theChannel);
       minSig = 0.;
       minRMS = 0.;
