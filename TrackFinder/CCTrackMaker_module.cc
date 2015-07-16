@@ -1112,15 +1112,15 @@ namespace trkf {
       if(trk[itk].TrjPos[0](0) < XLo || trk[itk].TrjPos[0](0) > XHi) startsIn = false;
       if(trk[itk].TrjPos[0](1) < YLo || trk[itk].TrjPos[0](1) > YHi) startsIn = false;
       if(trk[itk].TrjPos[0](2) < ZLo || trk[itk].TrjPos[0](2) > ZHi) startsIn = false;
-      //      std::cout<<"Trk "<<trk[itk].ID<<" X0 "<<(int)trk[itk].trjPos[0](0)<<" Y0 "<<(int)trk[itk].trjPos[0](1)<<" Z0 "<<(int)trk[itk].trjPos[0](2)<<" startsIn "<<startsIn;
-      if(!startsIn) continue;
+//      std::cout<<"Trk "<<trk[itk].ID<<" X0 "<<(int)trk[itk].TrjPos[0](0)<<" Y0 "<<(int)trk[itk].TrjPos[0](1)<<" Z0 "<<(int)trk[itk].TrjPos[0](2)<<" startsIn "<<startsIn<<"\n";
+      if(startsIn) continue;
       endsIn = true;
       itj = trk[itk].TrjPos.size() - 1;
       if(trk[itk].TrjPos[itj](0) < XLo || trk[itk].TrjPos[itj](0) > XHi) endsIn = false;
       if(trk[itk].TrjPos[itj](1) < YLo || trk[itk].TrjPos[itj](1) > YHi) endsIn = false;
       if(trk[itk].TrjPos[itj](2) < ZLo || trk[itk].TrjPos[itj](2) > ZHi) endsIn = false;
-      //      std::cout<<" X1 "<<(int)trk[itk].trjPos[itj](0)<<" Y1 "<<(int)trk[itk].trjPos[itj](1)<<" Z1 "<<(int)trk[itk].trjPos[itj](2)<<" endsIn "<<endsIn<<"\n";
-      if(!endsIn) continue;
+//      std::cout<<"     X1 "<<(int)trk[itk].TrjPos[itj](0)<<" Y1 "<<(int)trk[itk].TrjPos[itj](1)<<" Z1 "<<(int)trk[itk].TrjPos[itj](2)<<" endsIn "<<endsIn<<"\n";
+      if(endsIn) continue;
       // call it a cosmic muon
       trk[itk].PDGCode = 13;
       pfpToTrkID.push_back(trk[itk].ID);
@@ -1171,6 +1171,7 @@ namespace trkf {
       matcomb.clear();
       iend = 0; jend = 0;
       bool gotkcl;
+      float totErr;
       for(ipl = 0; ipl < nplanes; ++ipl) {
         if(nplanes == 2 && ipl > 0) continue;
         for(ii = 0; ii < vxCls[ipl].size(); ++ii) {
@@ -1196,11 +1197,12 @@ namespace trkf {
                 match.Cls[ipl] = icl; match.End[ipl] = iend;
                 match.Cls[jpl] = jcl; match.End[jpl] = jend;
                 match.Vtx = ivx;
+                // set large so that DupMatch doesn't get confused when called before FillEndMatch
+                match.Err = 1E6; match.oErr = 1E6;
                 if(nplanes == 2) {
 //                  mf::LogVerbatim("CCTM")<<"chk "<<ipl<<":"<<match.Cls[ipl]<<":"<<match.End[ipl]<<" and "<<jpl<<":"<<match.Cls[jpl]<<":"<<match.End[jpl];
                   FillEndMatch2(match);
                   if(prt)  mf::LogVerbatim("CCTM")<<"FillEndMatch2: Err "<<match.Err<<" oErr "<<match.oErr;
-                  match.Err += match.oErr;
                   if(match.Err + match.oErr > 100) continue;
                   if(DupMatch(match)) continue;
                   matcomb.push_back(match);
@@ -1225,71 +1227,66 @@ namespace trkf {
 //                    mf::LogVerbatim("CCTM")<<" Chg "<<match.Chg[kpl]<<" Err "<<match.Err<<" oErr "<<match.oErr;
                     // ignore if no signal at the other end
                     if(match.Chg[kpl] <= 0) continue;
-                    // add other end error to match end error
-                    match.Err += match.oErr;
-                    if(match.Err > 100) continue;
+                    if(match.Err + match.oErr > 100) continue;
                     // second call to keep matches with better error
                     if(DupMatch(match)) continue;
                     matcomb.push_back(match);
                     gotkcl = true;
-                    break;
+//                    break;
                   } // kend
                 } // kk -> kcl
-                if(!gotkcl) {
-                  // look for a cluster that missed the vertex assignment
-                  float best = 10;
-                  short kbst = -1;
-                  unsigned short kbend = 0;
-                  if(prt) mf::LogVerbatim("CCTM")<<"VtxMatch: look for missed cluster chain in kpl";
-                  for(kcl = 0; kcl < clsChain[kpl].size(); ++kcl) {
-                    if(clsChain[kpl][kcl].InTrack >= 0) continue;
-                    for(kend = 0; kend < 2; ++kend) {
-                      kdir = clsChain[kpl][kcl].Dir[kend];
-                      if(idir != 0 && kdir != 0 && idir != kdir) continue;
-                      if(clsChain[kpl][kcl].VtxIndex[kend] >= 0) continue;
-                      // make a rough dX cut at the match end
-                      if(fabs(clsChain[kpl][kcl].X[kend] - vtx[ivx].X) > 5) continue;
-                      // and at the other end
-                      if(fabs(clsChain[kpl][kcl].X[1 - kend] - clsChain[ipl][icl].X[ioend]) > 50) continue;
-                      // check the error
-                      match.Cls[kpl] = kcl; match.End[kpl] = kend;
-                      if(DupMatch(match)) continue;
-                      FillEndMatch(match);
-                      match.Err += match.oErr;
-                      if(prt) {
-                        mf::LogVerbatim myprt("CCTM");
-                        myprt<<"VtxMatch: Chk missing cluster match ";
-                        for(unsigned short ii = 0; ii < nplanes; ++ii)
-                          myprt<<" "<<ii<<":"<<match.Cls[ii]<<":"<<match.End[ii];
-                        myprt<<" Err "<<match.Err<<"\n";
-                      }
-                      if(match.Err > 100) continue;
-                      if(match.Err < best) {
-                        best = match.Err;
-                        kbst = kcl;
-                        kbend = kend;
-                      }
-                    } // kend
-                  } // kcl
-                    if(kbst >= 0) {
-                    // found a decent match
-                    match.Cls[kpl] = kbst; match.End[kpl] = kbend;
-                    FillEndMatch(match);
-                    match.Err += match.oErr;
-                    matcomb.push_back(match);
-                    // assign the vertex to this cluster
-                    clsChain[kpl][kbst].VtxIndex[kbend] = ivx;
-                    // and update vxCls
-                    vxCls[kpl].push_back(kbst);
-                  } else {
-                    // Try a 2 plane match if a 3 plane match didn't work
-                    match.Cls[kpl] = -1; match.End[kpl] = 0;
+                if(gotkcl) continue;
+                // look for a cluster that missed the vertex assignment
+                float best = 10;
+                short kbst = -1;
+                unsigned short kbend = 0;
+                if(prt) mf::LogVerbatim("CCTM")<<"VtxMatch: look for missed cluster chain in kpl";
+                for(kcl = 0; kcl < clsChain[kpl].size(); ++kcl) {
+                  if(clsChain[kpl][kcl].InTrack >= 0) continue;
+                  for(kend = 0; kend < 2; ++kend) {
+                    kdir = clsChain[kpl][kcl].Dir[kend];
+                    if(idir != 0 && kdir != 0 && idir != kdir) continue;
+                    if(clsChain[kpl][kcl].VtxIndex[kend] >= 0) continue;
+                    // make a rough dX cut at the match end
+                    if(fabs(clsChain[kpl][kcl].X[kend] - vtx[ivx].X) > 5) continue;
+                    // and at the other end
+                    if(fabs(clsChain[kpl][kcl].X[1 - kend] - clsChain[ipl][icl].X[ioend]) > 50) continue;
+                    // check the error
+                    match.Cls[kpl] = kcl; match.End[kpl] = kend;
                     if(DupMatch(match)) continue;
                     FillEndMatch(match);
-                    match.Err += match.oErr;
-                    if(match.Err < 100) matcomb.push_back(match);
-                  }
-                } // !gotkcl
+                    totErr = match.Err + match.oErr;
+                    if(prt) {
+                      mf::LogVerbatim myprt("CCTM");
+                      myprt<<"VtxMatch: Chk missing cluster match ";
+                      for(unsigned short ii = 0; ii < nplanes; ++ii)
+                        myprt<<" "<<ii<<":"<<match.Cls[ii]<<":"<<match.End[ii];
+                      myprt<<" Err "<<match.Err<<"\n";
+                    }
+                    if(totErr > 100) continue;
+                    if(totErr < best) {
+                      best = totErr;
+                      kbst = kcl;
+                      kbend = kend;
+                    }
+                  } // kend
+                } // kcl
+                if(kbst >= 0) {
+                  // found a decent match
+                  match.Cls[kpl] = kbst; match.End[kpl] = kbend;
+                  FillEndMatch(match);
+                  matcomb.push_back(match);
+                  // assign the vertex to this cluster
+                  clsChain[kpl][kbst].VtxIndex[kbend] = ivx;
+                  // and update vxCls
+                  vxCls[kpl].push_back(kbst);
+                } else {
+                  // Try a 2 plane match if a 3 plane match didn't work
+                  match.Cls[kpl] = -1; match.End[kpl] = 0;
+                  if(DupMatch(match)) continue;
+                  FillEndMatch(match);
+                  if(match.Err + match.oErr < 100) matcomb.push_back(match);
+                }
               } // jend
             } // iend
           } // jj
@@ -1297,8 +1294,7 @@ namespace trkf {
       } // ipl
       
       if(matcomb.size() == 0) continue;
-      SortMatches(fmCluHits, 2);
-      prt = false;
+      SortMatches(fmCluHits, 1);
       
     } // ivx
     
@@ -1610,7 +1606,7 @@ namespace trkf {
             // determine which end of the dtr should be attached to mom
             for(dtrBrkEnd = 0; dtrBrkEnd < 2; ++dtrBrkEnd) if(cls[ipl][dtr].BrkIndex[dtrBrkEnd] == mom) break;
             if(dtrBrkEnd == 2) {
-              mf::LogError("CCTM")<<"Cant find dtrBrkEnd for cluster "<<icl<<" dtr "<<dtr<<" in plane "<<ipl;
+//              mf::LogError("CCTM")<<"Cant find dtrBrkEnd for cluster "<<icl<<" dtr "<<dtr<<" in plane "<<ipl;
               gotcl[icl] = false;
               break;
             }
@@ -1810,8 +1806,8 @@ namespace trkf {
     } // ipl
     fTrackTrajectoryAlg.TrackTrajectory(trkWID, trkX, trkXErr, trkPos, trkDir);
     if(trkPos.size() < 2) {
-      mf::LogError("CCTM")<<"StoreTrack: No trajectory points on track "<<newtrk.ID
-      <<" in StoreTrack: matcomb "<<imat<<" cluster chains "<<matcomb[imat].Cls[0]<<" "<<matcomb[imat].Cls[1]<<" "<<matcomb[imat].Cls[2];
+//      mf::LogError("CCTM")<<"StoreTrack: No trajectory points on failed track "<<newtrk.ID
+//      <<" in StoreTrack: matcomb "<<imat<<" cluster chains "<<matcomb[imat].Cls[0]<<" "<<matcomb[imat].Cls[1]<<" "<<matcomb[imat].Cls[2];
       return;
     }
 //    std::cout<<"StoreTrack Traj\n";
@@ -1825,11 +1821,8 @@ namespace trkf {
     unsigned short attachEnd;
     for(unsigned short end = 0; end < 2; ++end) {
       ivx = USHRT_MAX;
-      for(unsigned short ipl = 0; ipl < nplanes; ++ipl) {
-        if(matcomb[imat].Cls[ipl] < 0) continue;
-        ccl = matcomb[imat].Cls[ipl];
-        if(clsChain[ipl][ccl].VtxIndex[end] >= 0) ivx = clsChain[ipl][ccl].VtxIndex[end];
-      }
+      if(end == 0 && matcomb[imat].Vtx >= 0) ivx = matcomb[imat].Vtx;
+      if(end == 1 && matcomb[imat].oVtx >= 0) ivx = matcomb[imat].oVtx;
       if(ivx == USHRT_MAX) continue;
       // determine the proper end using the TrjPos order and brute force
       itj = 0;
@@ -1846,6 +1839,11 @@ namespace trkf {
       if(dr0 < dr1) {
         itj = 0;
         attachEnd = 0;
+        // a really bad match to the vertex
+        if(dr0 > 5) return;
+      } else {
+        // a really bad match to the vertex
+        if(dr1 > 5) return;
       }
       newtrk.TrjPos[itj](0) = vtx[ivx].X;
       newtrk.TrjPos[itj](1) = vtx[ivx].Y;
@@ -1861,6 +1859,7 @@ namespace trkf {
         newtrk.TrjDir[itj] = dir.Unit();
       }
     } // end
+    
     if(newtrk.VtxIndex[0] >= 0 && newtrk.VtxIndex[0] == newtrk.VtxIndex[1]) {
       mf::LogError("CCTM")<<"StoreTrack: Trying to attach a vertex to both ends of a track. imat = "<<imat;
       return;
@@ -2177,6 +2176,7 @@ namespace trkf {
           matcomb[imat].End[0] = match.End[0];
           matcomb[imat].End[1] = match.End[1];
           matcomb[imat].End[2] = match.End[2];
+          matcomb[imat].Vtx = match.Vtx;
           matcomb[imat].dWir = match.dWir;
           matcomb[imat].dAng = match.dAng;
           matcomb[imat].dX = match.dX;
@@ -2544,6 +2544,11 @@ namespace trkf {
       oAng[ipl] = clsChain[ipl][icl].Angle[oend];
       oSlp[ipl] = clsChain[ipl][icl].Slope[oend];
       oX[ipl] = clsChain[ipl][icl].X[oend];
+      oVtx[ipl] = clsChain[ipl][icl].VtxIndex[oend];
+      if(oVtx[ipl] >= 0) {
+        if(aoVtx < 0) aoVtx = oVtx[ipl];
+        if(oVtx[ipl] == aoVtx) ++novxmat;
+      }
       
       if(prt) mf::LogVerbatim("CCTM")<<"     o "<<ipl<<":"<<icl<<":"<<oend<<" oVtx "<<oVtx[ipl]<<" oWir "<<oWir[ipl]<<std::fixed<<std::setprecision(3)<<" oSlp "<<oSlp[ipl]<<std::fixed<<std::setprecision(1)<<" oX "<<oX[ipl]<<" Chg "<<(int)mChg[ipl];
       
@@ -2968,7 +2973,6 @@ namespace trkf {
         // ensure the hit fill ordering is consistent
         fillOrder = 1 - 2 * clsChain[ipl][ccl].Order[icc];
 //        mf::LogVerbatim("CCTM")<<"FillOrder ipl "<<ipl<<" ccl "<<ccl<<" icl "<<icl<<" endOrder "<<endOrder<<" fillOrder "<<fillOrder;
-        if(fillOrder != -1 && fillOrder != 1) std::cout<<"Bad fillOrder\n";
         if(fillOrder == 1) {
 //          mf::LogVerbatim("CCTM")<<" first hit "<<clusterhits[0]->WireID().Wire<<":"<<(int)clusterhits[0]->PeakTime();
           for(iht = 0; iht < clusterhits.size(); ++iht) {
