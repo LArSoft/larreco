@@ -91,6 +91,7 @@ public:
   TrackIDs		                      GetListOfTrackIDs         ();
   int				              GetNumberHitsFromTrack    (TrackID id);
   int	                                      GetNumberHitsInCluster    (ClusterID id);
+  int                                         GetNumberHitsInPlane      ();
   std::vector<std::pair<TrackID,ClusterIDs> > GetPhotons                ();
   TrackID                                     GetTrack                  (ClusterID id);
   bool		                              IsNoise                   (ClusterID id);
@@ -137,6 +138,8 @@ int ClusteringValidation::ClusterCounter::GetNumberHitsFromTrack(TrackID trackID
 
 int ClusteringValidation::ClusterCounter::GetNumberHitsInCluster(ClusterID clusID) { return numSignalHitsPostClustering[clusID] + numNoiseHitsPostClustering[clusID]; }
 
+int ClusteringValidation::ClusterCounter::GetNumberHitsInPlane() { int nHits = 0; for (auto &trackHits : numHitsPreClustering) nHits += trackHits.second; return nHits; }
+
 ClusterIDs ClusteringValidation::ClusterCounter::GetListOfClusterIDs() { ClusterIDs v; for (std::map<ClusterID,TrackID>::iterator i = clusterToTrackID.begin(); i != clusterToTrackID.end(); i++) v.push_back(i->first); return v; }
 
 TrackIDs ClusteringValidation::ClusterCounter::GetListOfTrackIDs() { TrackIDs v; for (std::map<TrackID,ClusterIDs>::iterator i = trackToClusterIDs.begin(); i != trackToClusterIDs.end(); i++) v.push_back(i->first); return v; }
@@ -172,7 +175,7 @@ public:
 
   explicit ClusterAnalyser(std::string &label);
 
-  void                    Analyse(std::vector<art::Ptr<recob::Hit> > &hits, std::vector<art::Ptr<recob::Cluster> > &clusters, const art::FindManyP<recob::Hit> &fmh);
+  void                    Analyse(std::vector<art::Ptr<recob::Hit> > &hits, std::vector<art::Ptr<recob::Cluster> > &clusters, const art::FindManyP<recob::Hit> &fmh, int numHits);
   TrackID                 FindTrackID(art::Ptr<recob::Hit> &hit);
   TrackID                 FindTrueTrack(std::vector<art::Ptr<recob::Hit> > &clusterHits);
   double                  FindPhotonAngle();
@@ -188,20 +191,17 @@ private:
   std::string fClusterLabel;
 
   // hists
-  TH1 *hCompleteness, *hCleanliness;
+  TH1 *hCompleteness, *hCleanliness, *hComplCleanl;
   TH1 *hPi0Angle, *hPi0Energy, *hPi0ConversionDistance, *hPi0ConversionSeparation, *hPi0AngleCut, *hPi0EnergyCut, *hPi0ConversionDistanceCut, *hPi0ConversionSeparationCut;
   TH2 *hNumHitsCompleteness, *hNumHitsEnergy;
   TProfile *hCompletenessEnergy, *hCompletenessAngle, *hCompletenessConversionDistance, *hCompletenessConversionSeparation;
   TProfile *hCleanlinessEnergy, *hCleanlinessAngle, *hCleanlinessConversionDistance, *hCleanlinessConversionSeparation;
+  TProfile *hComplCleanlEnergy, *hComplCleanlAngle, *hComplCleanlConversionDistance, *hComplCleanlConversionSeparation;
   TEfficiency *hEfficiencyAngle, *hEfficiencyEnergy, *hEfficiencyConversionDistance, *hEfficiencyConversionSeparation;
   TObjArray fHistArray;
 
   std::map<unsigned int,std::map<unsigned int,std::unique_ptr<ClusterCounter> > > clusterMap;
   std::map<TrackID,const simb::MCParticle*>                                       trueParticles;
-
-  // Average completenesses and cleanlinesses for all events
-  double totCompleteness = 0, totCleanliness = 0;
-  int nClusters = 0;
 
   // Services
   art::ServiceHandle<geo::Geometry> geometry;
@@ -224,6 +224,11 @@ ClusteringValidation::ClusterAnalyser::ClusterAnalyser(std::string &clusterLabel
   hCleanlinessAngle                 = new TProfile("CleanlinessAngle",";True Angle (deg);Cleanliness;",100,0,180);
   hCleanlinessConversionDistance    = new TProfile("CleanlinessConversionDistance",";True Distance from Vertex (cm);Cleanliness",100,0,200);
   hCleanlinessConversionSeparation  = new TProfile("CleanlinessConversionSeparation",";True Conversion Separation (cm);Cleanliness",100,0,200);
+  hComplCleanl                      = new TH1D("CompletenessCleanliness",";Completeness * Cleanliness;",101,0,1.01);
+  hComplCleanlEnergy                = new TProfile("CompletenessCleanlinessEnergy",";True Energy (GeV);Completeness * Cleanliness",100,0,2);
+  hComplCleanlAngle                 = new TProfile("CompletenessCleanlinessAngle",";True Angle (deg);Completeness * Cleanliness;",100,0,180);
+  hComplCleanlConversionDistance    = new TProfile("CompletenessCleanlinessConversionDistance",";True Distance from Vertex (cm);Completeness * Cleanliness",100,0,200);
+  hComplCleanlConversionSeparation  = new TProfile("CompletenessCleanlinessConversionSeparation",";True Conversion Separation (cm);Completeness * Cleanliness",100,0,200);
   hPi0Energy                        = new TH1D("Pi0EnergyCut",";True Energy (GeV);",25,0,2);                                          hPi0Energy                 ->Sumw2();
   hPi0Angle                         = new TH1D("Pi0AngleCut",";True Angle (deg);",25,0,180);                                          hPi0Angle                  ->Sumw2();
   hPi0ConversionDistance            = new TH1D("Pi0ConversionDistanceCut",";True Distance from Vertex (cm);",25,0,200);               hPi0ConversionDistance     ->Sumw2();
@@ -237,7 +242,7 @@ ClusteringValidation::ClusterAnalyser::ClusterAnalyser(std::string &clusterLabel
 
 }
 
-void ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::Hit> > &hits, std::vector<art::Ptr<recob::Cluster> > &clusters, const art::FindManyP<recob::Hit> &fmh) {
+void ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::Hit> > &hits, std::vector<art::Ptr<recob::Cluster> > &clusters, const art::FindManyP<recob::Hit> &fmh, int minHits) {
 
   // Make a map of cluster counters in TPC/plane space
   for (unsigned int tpc = 0; tpc < geometry->NTPC(0); ++tpc) {
@@ -268,6 +273,9 @@ void ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::
     unsigned int tpc   = clusters.at(clusIt)->Plane().TPC;
     unsigned int plane = clusters.at(clusIt)->Plane().Plane;
     ClusterID    id    = (ClusterID)clusters.at(clusIt)->ID();
+
+    // Only analyse planes with enough hits in to fairly represent the clustering
+    if (clusterMap[tpc][plane]->GetNumberHitsInPlane() < minHits) continue;
 
     // Get the hits from the cluster
     std::vector<art::Ptr<recob::Hit> > clusterHits = fmh.at(clusIt);
@@ -357,6 +365,7 @@ TObjArray ClusteringValidation::ClusterAnalyser::GetHistograms() {
   // Add all the histograms to the object array
   fHistArray.Add(hCompleteness);     fHistArray.Add(hCompletenessEnergy); fHistArray.Add(hCompletenessAngle); fHistArray.Add(hCompletenessConversionDistance); fHistArray.Add(hCompletenessConversionSeparation);
   fHistArray.Add(hCleanliness);      fHistArray.Add(hCleanlinessEnergy);  fHistArray.Add(hCleanlinessAngle);  fHistArray.Add(hCleanlinessConversionDistance);  fHistArray.Add(hCleanlinessConversionSeparation);
+  fHistArray.Add(hComplCleanl);      fHistArray.Add(hComplCleanlEnergy);  fHistArray.Add(hComplCleanlAngle);  fHistArray.Add(hComplCleanlConversionDistance);  fHistArray.Add(hComplCleanlConversionSeparation);
   fHistArray.Add(hEfficiencyEnergy); fHistArray.Add(hEfficiencyAngle);    fHistArray.Add(hEfficiencyConversionDistance); fHistArray.Add(hEfficiencyConversionSeparation);
   fHistArray.Add(hNumHitsCompleteness); fHistArray.Add(hNumHitsEnergy);  
 
@@ -392,29 +401,42 @@ void ClusteringValidation::ClusterAnalyser::MakeHistograms() {
       // Look at all the clusters
       for (unsigned int cluster = 0; cluster < clusterIDs.size(); ++cluster) {
 
-	ClusterID clusID = clusterIDs.at(cluster); ++nClusters;
+	ClusterID clusID = clusterIDs.at(cluster);
+	double completeness = clusterMap[tpc][plane]->GetCompleteness(clusID);
+	double cleanliness = clusterMap[tpc][plane]->GetCleanliness(clusID);
+	int numClusterHits = clusterMap[tpc][plane]->GetNumberHitsInCluster(clusID);
 
 	// Fill histograms for this cluster
-	hCompleteness                  ->Fill(clusterMap[tpc][plane]->GetCompleteness(clusID)); totCompleteness += clusterMap[tpc][plane]->GetCompleteness(clusID);
-	hCleanliness                   ->Fill(clusterMap[tpc][plane]->GetCleanliness (clusID)); totCleanliness  += clusterMap[tpc][plane]->GetCleanliness (clusID);
-	hNumHitsCompleteness           ->Fill(clusterMap[tpc][plane]->GetCompleteness(clusID), clusterMap[tpc][plane]->GetNumberHitsInCluster(clusID));
+	hCompleteness                  ->Fill(completeness, numClusterHits);
+	hCleanliness                   ->Fill(cleanliness, numClusterHits);
+	hComplCleanl                   ->Fill(completeness*cleanliness, numClusterHits);
+	hNumHitsCompleteness           ->Fill(completeness, numClusterHits);
 
 	// Is this cluster doesn't correspond to a true particle continue
 	if (clusterMap[tpc][plane]->IsNoise(clusID)) continue;
 
-	hCompletenessEnergy            ->Fill(GetPi0()->Momentum().E(),                                                                    clusterMap[tpc][plane]->GetCompleteness       (clusID));
-	hCompletenessAngle             ->Fill(FindPhotonAngle(),                                                                           clusterMap[tpc][plane]->GetCompleteness       (clusID));
-	hCompletenessConversionDistance->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetTrack(clusID), (TrackID)GetPi0()->TrackId()), clusterMap[tpc][plane]->GetCompleteness       (clusID));
-	hCleanlinessEnergy             ->Fill(GetPi0()->Momentum().E(),                                                                    clusterMap[tpc][plane]->GetCleanliness        (clusID));
-	hCleanlinessAngle              ->Fill(FindPhotonAngle(),                                                                           clusterMap[tpc][plane]->GetCleanliness        (clusID));
-	hCleanlinessConversionDistance ->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetTrack(clusID), (TrackID)GetPi0()->TrackId()), clusterMap[tpc][plane]->GetCleanliness        (clusID));
-	hNumHitsEnergy                 ->Fill(GetPi0()->Momentum().E(),                                                                    clusterMap[tpc][plane]->GetNumberHitsInCluster(clusID));
+	double pi0Energy = GetPi0()->Momentum().E();
+	double pi0DecayAngle = FindPhotonAngle();
+	double conversionDistance = GetEndTrackDistance(clusterMap[tpc][plane]->GetTrack(clusID), (TrackID)GetPi0()->TrackId());
+
+	hCompletenessEnergy            ->Fill(pi0Energy, completeness, numClusterHits);
+	hCompletenessAngle             ->Fill(pi0DecayAngle, completeness, numClusterHits);
+	hCompletenessConversionDistance->Fill(conversionDistance, completeness, numClusterHits);
+	hCleanlinessEnergy             ->Fill(pi0Energy, cleanliness, numClusterHits);
+	hCleanlinessAngle              ->Fill(pi0DecayAngle, cleanliness, numClusterHits);
+	hCleanlinessConversionDistance ->Fill(conversionDistance, cleanliness, numClusterHits);
+	hComplCleanlEnergy             ->Fill(pi0Energy, cleanliness * completeness, numClusterHits);
+	hComplCleanlAngle              ->Fill(pi0DecayAngle, cleanliness * completeness, numClusterHits);
+	hComplCleanlConversionDistance ->Fill(conversionDistance, cleanliness * completeness, numClusterHits);
+	hNumHitsEnergy                 ->Fill(pi0Energy, numClusterHits);
 
 	// Continue if there are not two photons in the view
 	if (clusterMap[tpc][plane]->GetPhotons().size() != 2) continue;
 
-	hCompletenessConversionSeparation->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first), clusterMap[tpc][plane]->GetCompleteness(clusID));
-	hCleanlinessConversionSeparation ->Fill(GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first), clusterMap[tpc][plane]->GetCleanliness (clusID));
+	double conversionSeparation = GetEndTrackDistance(clusterMap[tpc][plane]->GetPhotons().at(0).first, clusterMap[tpc][plane]->GetPhotons().at(1).first);
+
+	hCompletenessConversionSeparation->Fill(conversionSeparation, completeness, numClusterHits);
+	hCleanlinessConversionSeparation ->Fill(conversionSeparation, cleanliness, numClusterHits);
       }
 
     }
@@ -425,8 +447,8 @@ void ClusteringValidation::ClusterAnalyser::MakeHistograms() {
 void ClusteringValidation::ClusterAnalyser::WriteFile() {
 
   // Average completeness/cleanliness
-  double avCompleteness = totCompleteness / nClusters;
-  double avCleanliness  = totCleanliness  / nClusters;
+  double avCompleteness = hCompleteness->GetMean();
+  double avCleanliness  = hCleanliness ->GetMean();
 
   // Write file
   ofstream outFile("effpur");
@@ -452,6 +474,9 @@ private:
   std::vector<std::string> fClusterModuleLabels;
   std::string fHitsModuleLabel;
 
+  // Minimum hits needed to analyse a plane
+  int fMinHitsInPlane;
+
   // Canvas on which to save histograms
   TCanvas *fCanvas;
 
@@ -468,6 +493,7 @@ ClusteringValidation::ClusteringValidation::ClusteringValidation(fhicl::Paramete
 }
 
 void ClusteringValidation::ClusteringValidation::reconfigure(fhicl::ParameterSet const& p) {
+  fMinHitsInPlane      = p.get<int>                      ("MinHitsInPlane");
   fClusterModuleLabels = p.get<std::vector<std::string> >("ClusterModuleLabels");
   fHitsModuleLabel     = p.get<std::string>              ("HitsModuleLabel");
 }
@@ -494,7 +520,7 @@ void ClusteringValidation::ClusteringValidation::analyze(art::Event const &evt)
     art::FindManyP<recob::Hit> fmh(clusterHandle,evt,clustering);
 
     // Analyse this particular clustering
-    clusterAnalysis.at(clustering)->Analyse(hits, clusters, fmh);
+    clusterAnalysis.at(clustering)->Analyse(hits, clusters, fmh, fMinHitsInPlane);
 
   }
 }
@@ -530,7 +556,7 @@ void ClusteringValidation::ClusteringValidation::endJob() {
     fCanvas->cd();
     fCanvas->Clear();
     const char *name = allHistograms.begin()->second.At(histIt)->GetName();
-    TLegend *l = new TLegend(0.6,0.7,0.9,0.9,name,"brNDC");
+    TLegend *l = new TLegend(0.6,0.8,0.8,0.9,name,"brNDC");
     int clusterings = 1;
     for (std::map<std::string,TObjArray>::iterator clusteringIt = allHistograms.begin(); clusteringIt != allHistograms.end(); ++clusteringIt, ++clusterings) {
       TH1* h = (TH1*)allHistograms.at(clusteringIt->first).At(histIt);
@@ -539,7 +565,6 @@ void ClusteringValidation::ClusteringValidation::endJob() {
       if (clusterings == 1) h->Draw();
       else h->Draw("same");
       l->AddEntry(h,clusteringIt->first.c_str(),"lp");
-      if (strcmp(name,"Completeness") == 0) h->SetMaximum(850);
     }
     l->Draw("same");
     //fCanvas->SaveAs(name+TString(".png"));

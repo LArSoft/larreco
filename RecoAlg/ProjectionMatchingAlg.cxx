@@ -324,15 +324,15 @@ void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, pma::Track3D& sr
 	if (reopt)
 	{
 		double g = dst.Optimize(0, fFineTuningEps);
-		dst.ShiftEndsToHits();
-
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging done, g = " << g;
 	}
 	else
 	{
 		dst.MakeProjection();
-		dst.SortHits();
 	}
+
+	dst.SortHits();
+	dst.ShiftEndsToHits();
 }
 
 void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,

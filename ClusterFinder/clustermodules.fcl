@@ -84,6 +84,7 @@ standard_clusterana:
 standard_clusteringvalidation:
 {
  module_type:        "ClusteringValidation"
+ MinHitsInPlane:     0
  HitsModuleLabel:    "dcheat"
  ClusterModuleLabel: [ "dbcluster", "blurredclustering" ]
 }

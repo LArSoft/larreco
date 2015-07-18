@@ -625,9 +625,30 @@ bool pma::Track3D::push_back(art::Ptr< recob::Hit > hit)
 	return true;
 }
 
+bool pma::Track3D::erase(art::Ptr< recob::Hit > hit)
+{
+	for (size_t i = 0; i < size(); i++)
+	{
+		if (hit == fHits[i]->Hit2DPtr())
+		{
+			pma::Hit3D* h3d = fHits[i];
+			fHits.erase(fHits.begin() + i);
+			delete h3d;	return true;
+		}
+	}
+	return false;
+}
+
 void pma::Track3D::AddHits(const std::vector< art::Ptr<recob::Hit> >& hits)
 {
 	for (auto const& hit : hits) push_back(hit);
+}
+
+void pma::Track3D::RemoveHits(const std::vector< art::Ptr<recob::Hit> >& hits)
+{
+	unsigned int n = 0;
+	for (auto const& hit : hits) { if (erase(hit)) n++; }
+	if (n) MakeProjection();
 }
 
 unsigned int pma::Track3D::NHits(unsigned int view) const
@@ -635,7 +656,7 @@ unsigned int pma::Track3D::NHits(unsigned int view) const
 	unsigned int n = 0;
 	for (size_t i = 0; i < size(); i++)
 	{
-		pma::Hit3D* hit = (*this)[i];
+		pma::Hit3D* hit = fHits[i];
 		if (hit->View2D() == view) n++;
 	}
 	return n;
@@ -646,7 +667,7 @@ unsigned int pma::Track3D::NEnabledHits(unsigned int view) const
 	unsigned int n = 0;
 	for (size_t i = 0; i < size(); i++)
 	{
-		pma::Hit3D* hit = (*this)[i];
+		pma::Hit3D* hit = fHits[i];
 		if (hit->IsEnabled() &&
 		    ((view == geo::kUnknown) || (view == hit->View2D()))) n++;
 	}
@@ -658,7 +679,7 @@ std::vector< unsigned int > pma::Track3D::TPCs(void) const
 	std::vector< unsigned int > tpc_idxs;
 	for (size_t i = 0; i < size(); i++)
 	{
-		unsigned int tpc = (*this)[i]->TPC();
+		unsigned int tpc = fHits[i]->TPC();
 
 		bool found = false;
 		for (size_t j = 0; j < tpc_idxs.size(); j++)
@@ -674,7 +695,7 @@ std::vector< unsigned int > pma::Track3D::Cryos(void) const
 	std::vector< unsigned int > cryo_idxs;
 	for (size_t i = 0; i < size(); i++)
 	{
-		unsigned int cryo = (*this)[i]->Cryo();
+		unsigned int cryo = fHits[i]->Cryo();
 
 		bool found = false;
 		for (size_t j = 0; j < cryo_idxs.size(); j++)
@@ -1336,6 +1357,52 @@ void pma::Track3D::RebuildSegments(void)
 	}
 }
 
+void pma::Track3D::CleanupTails(void)
+{
+	unsigned int nhits = 0;
+	while (!nhits && (fNodes.size() > 2))
+	{
+		pma::Node3D* vtx = fNodes.front();
+		nhits = vtx->NHits();
+
+		pma::Segment3D* seg = NextSegment(vtx);
+		nhits += seg->NHits();
+
+		if (!nhits)
+		{
+			if (vtx->NextCount() < 2) delete vtx;
+			fNodes.erase(fNodes.begin());
+
+			delete seg;
+			fSegments.erase(fSegments.begin());
+
+			MakeProjection();
+		}
+	}
+
+	nhits = 0;
+	while (!nhits && (fNodes.size() > 2))
+	{
+		pma::Node3D* vtx = fNodes.back();
+		nhits = vtx->NHits();
+
+		pma::Segment3D* seg = PrevSegment(vtx);
+		nhits += seg->NHits();
+
+		if (!nhits)
+		{
+			if (vtx->NextCount() < 1) delete fNodes.back();
+			fNodes.pop_back();
+
+			delete seg;
+			fSegments.pop_back();
+
+			MakeProjection();
+		}
+	}
+}
+
+
 bool pma::Track3D::ShiftEndsToHits(void)
 {
 	pma::Element3D* el;
@@ -1525,7 +1592,7 @@ void pma::Track3D::SortHits(void)
 		{
 			pma::Hit3D* h3d = &(vtx->Hit(i));
 			for (size_t j = 0; j < size(); j++)
-				if ((*this)[j] == h3d)
+				if (fHits[j] == h3d)
 				{
 					hits_tmp.push_back(h3d);
 					break;
@@ -1539,7 +1606,7 @@ void pma::Track3D::SortHits(void)
 			{
 				pma::Hit3D* h3d = &(seg->Hit(i));
 				for (size_t j = 0; j < size(); j++)
-					if ((*this)[j] == h3d)
+					if (fHits[j] == h3d)
 					{
 						hits_tmp.push_back(h3d);
 						break;
@@ -1556,7 +1623,7 @@ void pma::Track3D::SortHits(void)
 	{
 		for (size_t i = 0; i < size(); i++)
 		{
-			(*this)[i] = hits_tmp[i];
+			fHits[i] = hits_tmp[i];
 			/*mf::LogVerbatim("pma::Track3D")
 				<< " w:" << hits_tmp[i]->Wire()
 				<< " d:["

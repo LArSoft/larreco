@@ -40,6 +40,12 @@
 #include <TStyle.h>
 #include <TVirtualPad.h>
 #include <TLatex.h>
+#include <TGraph.h>
+#include <TF1.h>
+#include <TLine.h>
+#include <TPrincipal.h>
+#include <TVector.h>
+#include <TVectorD.h>
 
 #include <string>
 #include <vector>
@@ -64,16 +70,19 @@ public:
   void CreateDebugPDF(int fEvent, int fRun, int fSubrun, bool debug);
   TH2F ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > *hits);
   TH2* Convolve(TH2 *image, std::map<int,double> kernel, int width, int height, const char *new_name = 0);
+  void FindBlurringParameters(int *blurwire, int *blurtick);
   int FindClusters(TH2F *image, std::vector<std::vector<int> > &allcluster);
   TH2* GaussianBlur(TH2 *image);
   unsigned int GetMinSize() { return fMinSize; }
   double GetTimeOfBin(TH2F *image, int bin);
+  int MergeClusters(TH2F *image, std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters);
   unsigned int NumNeighbours(int nx, std::vector<bool> *used, int bin);
   bool PassesTimeCut(std::vector<double> &times, double time);
   void SaveImage(TH2F *image, std::vector<art::PtrVector<recob::Hit> > &allClusters, int pad);
   void SaveImage(TH2F *image, int pad);
   void SaveImage(TH2F *image, std::vector<std::vector<int> > &allClusterBins, int pad);
 
+  unsigned int fEvent;
   unsigned int fPlane;
   unsigned int fTPC;
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
@@ -82,7 +91,6 @@ private:
 
   unsigned int fNWires, fNTicks;
   int fLowerHistTick, fUpperHistTick;
-  int fClusterCount; // not being used right now
 
   // For the debug pdf
   TCanvas *fDebugCanvas;
@@ -96,17 +104,19 @@ private:
   std::map<int,double> fLastKernel;
 
   /// Parameters used in the Blurred Clustering algorithm
-  int          fBlurWire;              // blur radius for Gauss kernel in the wire direction
-  int          fBlurTick;              // blur radius for Gauss kernel in the tick direction
-  double       fBlurSigma;             // sigma for Gaussian kernel
-  int          fClusterWireDistance;   // how far to cluster from seed in wire direction
-  int          fClusterTickDistance;   // how far to cluster from seed in tick direction
-  unsigned int fNeighboursThreshold;   // min. number of neighbors to add to cluster
-  int          fMinNeighbours;         // minumum number of neighbors to keep in the cluster
-  unsigned int fMinSize;               // minimum size for cluster
-  double       fMinSeed;               // minimum seed after blurring needed before clustering proceeds
-  double       fTimeThreshold;         // time threshold for clustering
-  double       fChargeThreshold;       // charge threshold for clustering
+  int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
+  int          fBlurTick;                 // blur radius for Gauss kernel in the tick direction
+  double       fBlurSigma;                // sigma for Gaussian kernel
+  int          fClusterWireDistance;      // how far to cluster from seed in wire direction
+  int          fClusterTickDistance;      // how far to cluster from seed in tick direction
+  unsigned int fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
+  double       fMergingThreshold;        // the PCA eigenvalue needed to consider two clusters a merge
+  unsigned int fNeighboursThreshold;      // min. number of neighbors to add to cluster
+  int          fMinNeighbours;            // minumum number of neighbors to keep in the cluster
+  unsigned int fMinSize;                  // minimum size for cluster
+  double       fMinSeed;                  // minimum seed after blurring needed before clustering proceeds
+  double       fTimeThreshold;            // time threshold for clustering
+  double       fChargeThreshold;          // charge threshold for clustering
 
   // Create geometry and detector property handle
   art::ServiceHandle<geo::Geometry> fGeom;

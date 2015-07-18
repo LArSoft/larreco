@@ -16,6 +16,9 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "TVectorT.h"
+#include "TMatrixT.h"
+
 double pma::Dist2(const TVector2& v1, const TVector2& v2)
 {
 	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
@@ -144,6 +147,93 @@ TVector3 pma::GetProjectionToSegment(const TVector3& p, const TVector3& p0, cons
 	TVector3 r(p0);
 	r += (v1 * b);
 	return r;
+}
+
+double pma::SolveLeastSquares3D(const std::vector< std::pair<TVector3, TVector3> >& lines, TVector3& result)
+{
+	// RS: please, ask me if you need examples/explanation of formulas as they
+	// are not easy to derive from the code solely; I have Mathcad sources that
+	// were used to test the solving method, weighting, etc.
+
+	double m;
+	std::vector< TVectorT<double> > U, P;
+	for (size_t v = 0; v < lines.size(); v++)
+	{
+		TVector3 point = lines[v].first;
+		TVector3 dir = lines[v].second;
+		dir -= point; m = dir.Mag();
+		if (m > 0.0)
+		{
+			dir *= 1.0 / m;
+
+			P.push_back(TVectorT<double>(3));
+			P.back()[0] = point.X(); P.back()[1] = point.Y(); P.back()[2] = point.Z();
+
+			U.push_back(TVectorT<double>(3));
+			U.back()[0] = dir.X(); U.back()[1] = dir.Y(); U.back()[2] = dir.Z();
+		}
+	}
+
+	TVectorT<double> x(3), y(3), w(3);
+	TMatrixT<double> A(3, 3);
+	double ur, uc, pc;
+	double s_uc2[3], s_ur_uc[3];
+	double s_p_uc2[3], s_p_ur_uc[3];
+
+	w[0] = 1.0; w[1] = 1.0; w[2] = 1.0;
+	for (size_t r = 0; r < 3; r++)
+	{
+		y[r] = 0.0;
+		for (size_t c = 0; c < 3; c++)
+		{
+			s_uc2[c] = 0.0; s_ur_uc[c] = 0.0;
+			s_p_uc2[c] = 0.0; s_p_ur_uc[c] = 0.0;
+
+			for (size_t v = 0; v < P.size(); v++)
+			{
+				//w[1] = fWeights[v]; // to remember that individual coordinates can be supressed...
+				//w[2] = fWeights[v];
+
+				ur = U[v][r];
+				uc = U[v][c];
+				pc = P[v][c];
+
+				s_uc2[c] += w[r] * w[c] * (1 - uc * uc);
+				s_p_uc2[c] += w[r] * w[r] * pc * (1 - uc * uc);
+
+				s_ur_uc[c] += w[r] * w[c] * ur * uc;
+				s_p_ur_uc[c] += w[r] * w[r] * pc * ur * uc;
+			}
+
+			if (r == c)
+			{
+				y[r] += s_p_uc2[c];
+				A(r, c) = s_uc2[c];
+			}
+			else
+			{
+				y[r] -= s_p_ur_uc[c];
+				A(r, c) = -s_ur_uc[c];
+			}
+		}
+	}
+	x = A.InvertFast() * y;
+
+	result.SetXYZ(x[0], x[1], x[2]);
+
+	TVector3 pproj;
+	double dx, dy, dz, mse = 0.0;
+	for (size_t v = 0; v < lines.size(); v++)
+	{
+		pproj = pma::GetProjectionToSegment(result, lines[v].first, lines[v].second);
+
+		dx = result.X() - pproj.X(); // dx, dy, dz and the result point can be weighted
+		dy = result.Y() - pproj.Y(); // here (linearly) by each line uncertainty
+		dz = result.Z() - pproj.Z();
+
+		mse += dx * dx + dy * dy + dz * dz;
+	}
+	return mse / lines.size();
 }
 
 TVector2 pma::GetProjectionToPlane(const TVector3& p, unsigned int view, unsigned int tpc, unsigned int cryo)

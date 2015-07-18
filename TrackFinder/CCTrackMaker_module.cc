@@ -1933,7 +1933,11 @@ namespace trkf {
     
     unsigned short ipl, icc, jpl, kpl, ii, jj, kk, icl, jcl, kcl, iend, jend, kend;
     short idir, jdir, kdir;
+<<<<<<< HEAD
     float islp = 0, jslp = 0, kslp = 0, kAng = 0, sigmaA = 0, matchErr = 0;
+=======
+    float islp=0., jslp=0, kslp=0., kAng=0., sigmaA=0., matchErr=0.;
+>>>>>>> develop
     
     prt = (fDebugPlane >= 0);
     

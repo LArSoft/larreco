@@ -202,11 +202,12 @@ standard_trackana:
    HitSpptAssocModuleLabel: "gaushit"
    HitModuleLabel: "gaushit"
    Dump: 10
-   MinMCKE:  0.05
-   MinMCLen:  20.
-   MatchColinearity: 0.97
+   MinMCKE:  0.02
+   MinMCLen:  10.
+   MatchColinearity: 0.98
    MatchDisp:  2.0
    WMatchDisp: 15.0
+   MatchLength: 0.8
    IgnoreSign: true
 }
 
