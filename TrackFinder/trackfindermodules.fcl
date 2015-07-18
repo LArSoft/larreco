@@ -171,6 +171,26 @@ standard_track3DkalmanSPS:
  SpacePointAlg:       @local::standard_spacepointalg
 }
 
+standard_pfpana:
+{
+  module_type:              "PFPAna"
+  HitsModuleLabel:          "linecluster"
+  ClusterModuleLabel:       "linecluster"
+  TrackModuleLabel:         "cctrackmaker"
+  PFParticleModuleLabel:    "cctrackmaker"
+  VertexModuleLabel:        "cctrackmaker"
+  ElecKERange:              [50, 10000] # Min, max KE (MeV) for matching Primary only
+  MuonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  PionKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  KaonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  ProtKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  TrackWeightOption:        1 # 0 = equal weighting, 1 = weight by kinetic energy
+  MergeDaughters:           true # merge daughter MC particles with mothers (not electrons)
+  SkipCosmics:              true # do not evaluate cosmic rays
+  PrintLevel:               0 # 0 = none, 1 = event summary, 2 += each MC particle, 3 += truth
+}
+
+
 standard_trackana:
 {
    module_type: "TrackAna"
