@@ -572,8 +572,8 @@ namespace trkf {
         pfpToTrkID.clear();
         // Determine the vertex/track hierarchy
         if(fMakePFPs) {
-          MakeFamily();
           TagCosmics();
+          MakeFamily();
         }
         FitVertices();
         
@@ -587,19 +587,20 @@ namespace trkf {
           }
           dtrIndices.clear();
           // load the daughter PFP indices
+          mf::LogVerbatim("CCTM")<<"PFParticle "<<ipf<<" tID "<<tID;
           for(unsigned short jpf = 0; jpf < pfpToTrkID.size(); ++jpf) {
             itr = pfpToTrkID[jpf];
             if(trk[itr].MomID == tID) dtrIndices.push_back(jpf);
+            if(trk[itr].MomID == tID) mf::LogVerbatim("CCTM")<<" dtr jpf "<<jpf<<" itr "<<itr;
           } // jpf
           unsigned short parentIndex = USHRT_MAX;
           if(tID == 0) {
             // make neutrino PFP USHRT_MAX == primary PFP
-//            mf::LogVerbatim("CCTM")<<"neutrino "<<" pdg 14 ipf "<<ipf<<" parentIndex "<<parentIndex;
             recob::PFParticle pfp(14, ipf, parentIndex, dtrIndices);
             pcol->emplace_back(std::move(pfp));
             for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
               if(!vtx[ivx].Neutrino) continue;
-              // make the vertex xxx
+              // make the vertex
               xyz[0] = vtx[ivx].X;
               xyz[1] = vtx[ivx].Y;
               xyz[2] = vtx[ivx].Z;
@@ -624,7 +625,7 @@ namespace trkf {
               }
             } // ii
             // PFParticle
-            //  mf::LogVerbatim("CCTM")<<"daughters tID "<<tID<<" pdg "<<trk[tIndex].PDGCode<<" ipf "<<ipf<<" parentIndex "<<parentIndex<<" dtr size "<<dtrIndices.size();
+            mf::LogVerbatim("CCTM")<<"daughters tID "<<tID<<" pdg "<<trk[tIndex].PDGCode<<" ipf "<<ipf<<" parentIndex "<<parentIndex<<" dtr size "<<dtrIndices.size();
             recob::PFParticle pfp(trk[tIndex].PDGCode, ipf, parentIndex, dtrIndices);
             pcol->emplace_back(std::move(pfp));
             // track
@@ -715,7 +716,6 @@ namespace trkf {
       } // tpc
     } // cstat
 
-    
     evt.put(std::move(pcol));
     evt.put(std::move(ptassn));
     evt.put(std::move(pcassn));
@@ -805,7 +805,7 @@ namespace trkf {
         } // end
       } // itk
       if(hitX.size() < 2) {
-        mf::LogVerbatim("CCTM")<<"Not enough hits to fit vtx "<<ivx<<"\n";
+        mf::LogVerbatim("CCTM")<<"Not enough hits to fit vtx "<<ivx;
         continue;
       } // hitX.size() < 2
       pos(0) = vtx[ivx].X;
@@ -898,6 +898,10 @@ namespace trkf {
     unsigned short nus, nds, nuhs, ndhs;
     float longUSTrk, longDSTrk, qual;
     
+    // min distance^2 between a neutrino vertex candidate and a through
+    // going muon
+    float tgMuonCut2 = 9;
+    
     // struct for neutrino vertex candidates
     struct NuVtx {
       unsigned short VtxIndex;
@@ -914,14 +918,33 @@ namespace trkf {
     NuVtx aNuVtx;
     
     // analyze all of the vertices
-    float best = 999;
+    float best = 999, dx, dy, dz, dr;
     short imbest = -1;
     bool skipVtx;
+    unsigned short itj;
     for(ivx = 0; ivx < vtx.size(); ++ivx) {
       vtx[ivx].Neutrino = false;
       nus = 0; nds = 0; nuhs = 0; ndhs = 0;
       longUSTrk = 0; longDSTrk = 0;
       skipVtx = false;
+      // skip vertices that are close to through-going muons
+      for(itr = 0; itr < trk.size(); ++itr) {
+        if(trk[itr].ID < 0) continue;
+        if(trk[itr].PDGCode != 13) continue;
+        for(itj = 0; itj < trk[itr].TrjPos.size(); ++itj) {
+          dx = trk[itr].TrjPos[itj](0) - vtx[ivx].X;
+          dy = trk[itr].TrjPos[itj](1) - vtx[ivx].Y;
+          dz = trk[itr].TrjPos[itj](2) - vtx[ivx].Z;
+          dr = dx * dx + dy * dy + dz * dz;
+          if(dr < tgMuonCut2) {
+            skipVtx = true;
+            break;
+          }
+          if(skipVtx) break;
+        } // itj
+        if(skipVtx) break;
+      } // itr
+      if(skipVtx) continue;
       for(itr = 0; itr < trk.size(); ++itr) {
         if(trk[itr].ID < 0) continue;
         if(trk[itr].VtxIndex[0] == ivx) {
@@ -1910,7 +1933,7 @@ namespace trkf {
     
     unsigned short ipl, icc, jpl, kpl, ii, jj, kk, icl, jcl, kcl, iend, jend, kend;
     short idir, jdir, kdir;
-    float islp, jslp, kslp, kAng, sigmaA, matchErr;
+    float islp = 0, jslp = 0, kslp = 0, kAng = 0, sigmaA = 0, matchErr = 0;
     
     prt = (fDebugPlane >= 0);
     
