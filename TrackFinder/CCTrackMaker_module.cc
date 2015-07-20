@@ -1168,6 +1168,8 @@ namespace trkf {
     
     prt = (fDebugPlane == 3);
     
+    matcomb.clear();
+    
     for(ivx = 0; ivx < vtx.size(); ++ivx) {
       
       // list of cluster chains associated with this vertex in each plane
@@ -1219,7 +1221,7 @@ namespace trkf {
                 MatchPars match;
                 match.Cls[ipl] = icl; match.End[ipl] = iend;
                 match.Cls[jpl] = jcl; match.End[jpl] = jend;
-                match.Vtx = ivx;
+                match.Vtx = ivx; match.oVtx = -1;
                 // set large so that DupMatch doesn't get confused when called before FillEndMatch
                 match.Err = 1E6; match.oErr = 1E6;
                 if(nplanes == 2) {
@@ -1933,11 +1935,7 @@ namespace trkf {
     
     unsigned short ipl, icc, jpl, kpl, ii, jj, kk, icl, jcl, kcl, iend, jend, kend;
     short idir, jdir, kdir;
-<<<<<<< HEAD
     float islp = 0, jslp = 0, kslp = 0, kAng = 0, sigmaA = 0, matchErr = 0;
-=======
-    float islp=0., jslp=0, kslp=0., kAng=0., sigmaA=0., matchErr=0.;
->>>>>>> develop
     
     prt = (fDebugPlane >= 0);
     
@@ -1957,7 +1955,6 @@ namespace trkf {
     
     std::array<float, 3> mchg;
     matcomb.clear();
-    MatchPars match;
     
     for(ipl = 0; ipl < nplanes; ++ipl) {
       jpl = (ipl + 1) % nplanes;
@@ -1999,6 +1996,7 @@ namespace trkf {
                   matchErr = fabs(clsChain[kpl][kcl].Angle[kend] - kAng) / sigmaA;
                   if(prt) mf::LogVerbatim("CCTM")<<" ipl:icl:iend "<<ipl<<":"<<icl<<":"<<iend<<" jpl:jcl:jend "<<jpl<<":"<<jcl<<":"<<jend<<" kpl:kcl:kend "<<kpl<<":"<<kcl<<":"<<kend<<" matchErr "<<matchErr;
                   if(matchErr > 5) continue;
+                  MatchPars match;
                   match.Cls[ipl] = icl; match.End[ipl] = iend;
                   match.Cls[jpl] = jcl; match.End[jpl] = jend;
                   match.Cls[kpl] = kcl; match.End[kpl] = kend;
@@ -2085,7 +2083,9 @@ namespace trkf {
             idir = clsChain[ipl][icl].Dir[iend];
             for(unsigned short jend = 0; jend < 2; ++jend) {
               jdir = clsChain[jpl][jcl].Dir[jend];
-              if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk i "<<ipl<<":"<<icl<<":"<<iend<<" idir "<<idir<<" X "<<clsChain[ipl][icl].X[iend]<<" j "<<jpl<<":"<<jcl<<":"<<jend<<" jdir "<<jdir<<" X "<<clsChain[jpl][jcl].X[jend];
+              if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk i "<<ipl<<":"<<icl<<":"<<iend
+                <<" idir "<<idir<<" X "<<clsChain[ipl][icl].X[iend]<<" j "<<jpl<<":"<<jcl<<":"<<jend
+                <<" jdir "<<jdir<<" X "<<clsChain[jpl][jcl].X[jend];
               
               if(idir != 0 && jdir != 0 && idir != jdir) continue;
               // make an X cut
@@ -2110,7 +2110,11 @@ namespace trkf {
               if(zp < 0 || zp > tpcSizeZ) continue;
               okWir = geom->WireCoordinate(yp, zp, kpl, tpc, cstat);
               
-              if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk j "<<ipl<<":"<<icl<<":"<<iend<<" "<<jpl<<":"<<jcl<<":"<<jend<<" iSlp "<<std::setprecision(2)<<clsChain[ipl][icl].Slope[iend]<<" jSlp "<<std::setprecision(2)<<clsChain[jpl][jcl].Slope[jend]<<" kWir "<<(int)kWir<<" okWir "<<(int)okWir<<" kSlp "<<std::setprecision(2)<<kSlp<<" kAng "<<std::setprecision(2)<<kAng<<" kX "<<std::setprecision(1)<<kX;
+              if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk j "<<ipl<<":"<<icl<<":"<<iend
+                <<" "<<jpl<<":"<<jcl<<":"<<jend<<" iSlp "<<std::setprecision(2)<<clsChain[ipl][icl].Slope[iend]
+                <<" jSlp "<<std::setprecision(2)<<clsChain[jpl][jcl].Slope[jend]<<" kWir "<<(int)kWir
+                <<" okWir "<<(int)okWir<<" kSlp "<<std::setprecision(2)<<kSlp<<" kAng "
+                <<std::setprecision(2)<<kAng<<" kX "<<std::setprecision(1)<<kX;
               
               // handle the case near pi/2, where the errors on large slopes
               // could result in a wrong-sign kAng
@@ -2128,10 +2132,12 @@ namespace trkf {
                 for(unsigned short kend = 0; kend < 2; ++kend) {
                   kdir = clsChain[kpl][kcl].Dir[kend];
                   if(idir != 0 && kdir != 0 && idir != kdir) continue;
-                  if(prt) mf::LogVerbatim("CCTM")<<" kcl "<<kcl<<" kend "<<kend<<" dx "<<(clsChain[kpl][kcl].X[kend] - kX)<<" dxkcut "<<dxkcut;
+                  if(prt) mf::LogVerbatim("CCTM")<<" kcl "<<kcl<<" kend "<<kend
+                    <<" dx "<<(clsChain[kpl][kcl].X[kend] - kX)<<" dxkcut "<<dxkcut;
                   if(fabs(clsChain[kpl][kcl].X[kend] - kX) > dxkcut) continue;
                   // rough dWire cut
-                  if(prt) mf::LogVerbatim("CCTM")<<" kcl "<<kcl<<" kend "<<kend<<" dw "<<(clsChain[kpl][kcl].Wire[kend] - kWir)<<" ignoreSign "<<ignoreSign;
+                  if(prt) mf::LogVerbatim("CCTM")<<" kcl "<<kcl<<" kend "<<kend
+                    <<" dw "<<(clsChain[kpl][kcl].Wire[kend] - kWir)<<" ignoreSign "<<ignoreSign;
                   if(fabs(clsChain[kpl][kcl].Wire[kend] - kWir) > dwcut) continue;
                   //                  if(prt) mf::LogVerbatim("CCTM")<<" chk k "<<kpl<<":"<<kcl<<":"<<kend;
                   MatchPars match;
@@ -2142,10 +2148,12 @@ namespace trkf {
                   if(DupMatch(match)) continue;
                   match.Chg[ipl] =   0; match.Chg[jpl] =   0; match.Chg[kpl] = 0;
                   match.Vtx = clsChain[ipl][icl].VtxIndex[iend];
+                  match.oVtx = -1;
                   //                  std::cout<<"FEM in\n";
                   FillEndMatch(match);
                   //                  std::cout<<"FEM out\n";
-                  if(prt) mf::LogVerbatim("CCTM")<<" PlnMatch: match k "<<kpl<<":"<<match.Cls[kpl]<<":"<<match.End[kpl]<<" oChg "<<match.Chg[kpl]<<" mErr "<<match.Err<<" oErr "<<match.oErr;
+                  if(prt) mf::LogVerbatim("CCTM")<<" PlnMatch: match k "<<kpl<<":"<<match.Cls[kpl]
+                    <<":"<<match.End[kpl]<<" oChg "<<match.Chg[kpl]<<" mErr "<<match.Err<<" oErr "<<match.oErr;
                   if(match.Chg[kpl] == 0) continue;
                   if(match.Err > 10 || match.oErr > 10) continue;
                   if(prt) mf::LogVerbatim("CCTM")<<" dup? ";
@@ -2164,8 +2172,11 @@ namespace trkf {
                 match.Err = 100;
                 if(DupMatch(match)) continue;
                 match.Chg[ipl] = 0; match.Chg[jpl] = 0; match.Chg[kpl] = 0;
+                match.Vtx = clsChain[ipl][icl].VtxIndex[iend];
+                match.oVtx = -1;
                 FillEndMatch(match);
-                if(prt) mf::LogVerbatim("CCTM")<<" Tried 2-plane match"<<" k "<<kpl<<":"<<match.Cls[kpl]<<":"<<match.End[kpl]<<" Chg "<<match.Chg[kpl]<<" Err "<<match.Err<<" match.oErr "<<match.oErr;
+                if(prt) mf::LogVerbatim("CCTM")<<" Tried 2-plane match"<<" k "<<kpl<<":"<<match.Cls[kpl]
+                  <<":"<<match.End[kpl]<<" Chg "<<match.Chg[kpl]<<" Err "<<match.Err<<" match.oErr "<<match.oErr;
                 if(match.Chg[kpl] <= 0) continue;
                 if(match.Err > 10 || match.oErr > 10) continue;
                 matcomb.push_back(match);
@@ -2682,6 +2693,10 @@ namespace trkf {
     kAng = atan(kSlp);
     if(ignoreSign) kAng = fabs(kAng);
     if(match.Vtx >= 0) {
+      if(vtx.size() == 0 || (unsigned int)match.Vtx > vtx.size() - 1) {
+        mf::LogError("CCTM")<<"FEM: Bad match.Vtx "<<match.Vtx<<" vtx size "<<vtx.size();
+        return;
+      }
       // a vertex exists at the match end
       kWir = geom->WireCoordinate(vtx[match.Vtx].Y, vtx[match.Vtx].Z, kpl, tpc, cstat);
       kX = vtx[match.Vtx].X;
