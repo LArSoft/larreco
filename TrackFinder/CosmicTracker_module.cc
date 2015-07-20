@@ -502,11 +502,12 @@ namespace trkf {
 	  for (size_t k = 0; k<trkpts[trkidx[i][j]].size(); ++k){
 	    finaltrkpts.push_back(trkpts[trkidx[i][j]][k]);
 	    hitlist.push_back(trkpts[trkidx[i][j]][k].hit);
-	    for (size_t iclu = 0; iclu<matchedclusters[trkidx[i][j]].size(); ++iclu){
-	      art::Ptr <recob::Cluster> cluster(clusterListHandle,matchedclusters[trkidx[i][j]][iclu]);
-	      clustersPerTrack.push_back(cluster);
-	    }
 	  }//k
+	  for (size_t iclu = 0; iclu<matchedclusters[trkidx[i][j]].size(); ++iclu){
+	    art::Ptr <recob::Cluster> cluster(clusterListHandle,matchedclusters[trkidx[i][j]][iclu]);
+	    clustersPerTrack.push_back(cluster);
+	  }
+	  
 	}//j
 	if (fStitchTracks){
 	  if (fSortDir=="+x") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_x0);

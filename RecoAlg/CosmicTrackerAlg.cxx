@@ -84,6 +84,7 @@ namespace trkf{
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::TrackTrajectory(std::vector<art::Ptr<recob::Hit> >&fHits){
     
+/*
     // Track hit X and WireIDs in each plane
     std::array<std::vector<std::pair<double, geo::WireID>>,3> trajXW;
     // Track hit charge ...
@@ -92,7 +93,18 @@ namespace trkf{
     for (size_t i = 0; i<fHits.size(); ++i){
       trajHits[fHits[i]->WireID().Plane].push_back(fHits[i]);
     }
-
+*/
+    // Track hit vectors for fitting the trajectory
+    std::array<std::vector<geo::WireID>,3> trkWID;
+    std::array<std::vector<double>,3> trkX;
+    std::array<std::vector<double>,3> trkXErr;
+    
+    std::array< std::vector<art::Ptr<recob::Hit>>,3> trajHits;
+    
+    for (size_t i = 0; i<fHits.size(); ++i){
+      trajHits[fHits[i]->WireID().Plane].push_back(fHits[i]);
+    }
+    
     std::vector<PlnLen> spl;
     PlnLen plnlen;
     for(unsigned int ipl = 0; ipl < 3; ++ipl) {
@@ -130,7 +142,7 @@ namespace trkf{
 	std::reverse(trajHits[ipl].begin(),trajHits[ipl].end());
       }
     }	
-
+/*
     // make the track trajectory
     for(size_t ipl = 0; ipl < 3; ++ipl) {
       //if (ipl == spl.back().index) continue;
@@ -145,6 +157,24 @@ namespace trkf{
       } // iht
     } // ip
     fTrackTrajectoryAlg.TrackTrajectory(trajXW, trajPos, trajDir, trajChg);
+*/
+    // make the track trajectory
+    for(size_t ipl = 0; ipl < 3; ++ipl) {
+      //if (ipl == spl.back().index) continue;
+      trkWID[ipl].resize(trajHits[ipl].size());
+      trkX[ipl].resize(trajHits[ipl].size());
+      trkXErr[ipl].resize(trajHits[ipl].size());
+      for(size_t iht = 0; iht < trajHits[ipl].size(); ++iht) {
+        trkWID[ipl][iht] = trajHits[ipl][iht]->WireID();
+        trkX[ipl][iht] = detprop->ConvertTicksToX(trajHits[ipl][iht]->PeakTime(),ipl, trajHits[ipl][iht]->WireID().TPC, trajHits[ipl][iht]->WireID().Cryostat);
+        trkXErr[ipl][iht] = 0.2 * trajHits[ipl][iht]->RMS() * trajHits[ipl][iht]->Multiplicity();
+      } // iht
+    } // ip
+    fTrackTrajectoryAlg.TrackTrajectory(trkWID, trkX, trkXErr, trajPos, trajDir);
+    if (!trajPos.size()||!trajDir.size()){
+      mf::LogWarning("CosmicTrackerAlg")<<"Failed to reconstruct trajectory points.";
+      return;
+    }
     //remove duplicated points
     for (auto ipos = trajPos.begin(), idir = trajDir.begin(); ipos != trajPos.end() - 1; ){
       auto ipos1 = ipos +1;

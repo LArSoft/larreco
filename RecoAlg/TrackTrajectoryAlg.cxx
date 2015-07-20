@@ -4,7 +4,7 @@
 ///
 /// Bruce Baller, baller@fnal.gov
 ///
-/// Algorithm fitting a 3D trajectory through a set of hit pairs
+/// Algorithm fitting a 3D trajectory through a set of hits
 ///
 ////////////////////////////////////////////////////////////////////////
 
@@ -17,291 +17,365 @@ extern "C" {
 #include <iomanip>
 
 #include "RecoAlg/TrackTrajectoryAlg.h"
-#include "messagefacility/MessageLogger/MessageLogger.h" 
-
-struct PlnLen{
-  unsigned short index;
-  float length;
-};
-
-bool greaterThan (PlnLen p1, PlnLen p2) { return (p1.length > p2.length);}
+//#include "messagefacility/MessageLogger/MessageLogger.h" 
 
 namespace trkf{
 
-  TrackTrajectoryAlg::TrackTrajectoryAlg() { }
+  TrackTrajectoryAlg::TrackTrajectoryAlg()  { }
 
   TrackTrajectoryAlg::~TrackTrajectoryAlg() { }
 
-//------------------------------------------------------------------------------
-  void TrackTrajectoryAlg::TrackTrajectory(
-      std::array<std::vector<std::pair<double, geo::WireID>>,3>& trkXW,
-      std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir,
-      std::array<std::vector<double>,3> trkChg)
+  //------------------------------------------------------------------------------
+  void TrackTrajectoryAlg::TrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
+                                           std::array<std::vector<double>,3> trkX,
+                                           std::array<std::vector<double>,3> trkXErr,
+                                           std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir)
   {
-    // Make a track trajectory (position, direction) and put it in the TrajPos
-    // and TrajDir vectors
+
+    // Make a track trajectory (position, direction) and return it in the TrajPos
+    // and TrajDir vectors. The track hits are received as 3 vectors (one vector per wire plane)
+    // of Wire ID's, hit X and X position errors. The X position errors are used to 1) determine
+    // the significance of the X difference between the beginning and end of the track trajectory
+    // 2) determine the number of trajectory points and 3) weight the track line fit in TrackLineFitAlg.
+    // This code assumes that hits at each end (e.g. trkXW[Plane][0]) of the vectors define the end
+    // points of the trajectory. The ordering of planes in the array is irrelevant since the
+    // plane number is extracted from the WireID. This algorithm will return with a failed condition
+    // (TrajPos, TrajDir size = 0) if there are fewer than 2 planes with hits at each end that are less
+    // than fHitWidthFactor * trkXErr apart. Valid and invalid conditions are shown schematically below
+    // where a . represents hits that are separated by X values > fHitWidthFactor * trkXErr
+    //
+    //      minX            maxX         maxX            minX          minX            maxX
+    // Pln0 ....................    Pln0 ....................     Pln0 ...................
+    // Pln1 ...............         Pln1 ....................     Pln1
+    // Pln2 ....................    Pln2 ................         Pln2 ...................
+    // VALID                        VALID                         VALID - no hits in one plane is OK
+    //
+    //      minX            maxX
+    // Pln0 .................
+    // Pln1 ...............
+    // Pln2 ....................
+    // NOT VALID - Only one plane has a hit at MaxX
     
-    // Track hits must be ordered such that the first trkHit (X, WireID) in each
-    // plane is at the start (or end) of the track. The trajectory is returned
-    // in the same order. The number of trajectory points is set so that there
-    // are 8 - 20 hits in each trajectory point in the plane with the 2nd-most hits.
-    
-    // If the trkChg array is NOT supplied, equidistant trajectory points are made.
-    // If the trkChg array IS supplied, trajectory points are made so that the 
-    // normalized charge is the same in all planes for each point.
-    
-    unsigned short ip, ipl, iht, ii;
-    
+
     TrajPos.clear();
     TrajDir.clear();
-  
-    // sort the planes by decreasing number of hits
-    std::vector<PlnLen> spl;
-    PlnLen plnlen;
-    // the number of planes that have hits
-    unsigned short nplanes = 0;
-    for(ipl = 0; ipl < 3; ++ipl) {
-      plnlen.index = ipl;
-      plnlen.length = trkXW[ipl].size();
-      if(plnlen.length > 0) ++nplanes;
-      spl.push_back(plnlen);
-    }
-    std::sort (spl.begin(),spl.end(), greaterThan);
-
-    // spl[0] has the most hits and spl[2] has the least
-    if(spl[1].length < 3) {
-      mf::LogWarning("TrackTrajectoryAlg")<<"Not enough hits in two planes\n";
-      return;
-    } // spl[1].length < 3
-
-    std::vector< std::pair<double, geo::WireID> > fitHits;
     
-    // TrackLineFit results will be passed to these variables
+//    bool prt = false;
+    
+    unsigned short minLen = 9999;
+    unsigned short maxLen = 0;
+    unsigned short nPlnsWithHits = 0;
+    unsigned short ipl, aPlane = 3;
+    for(ipl = 0; ipl < 3; ++ipl) {
+      if(trkX[ipl].size() == 0) continue;
+      ++nPlnsWithHits;
+      if(trkX[ipl].size() < minLen) {
+        minLen = trkX[ipl].size();
+      }
+      if(trkX[ipl].size() > maxLen) {
+        maxLen = trkX[ipl].size();
+        aPlane = ipl;
+      }
+    } // ipl
+//    if(prt) mf::LogVerbatim("TTA")<<"trkX sizes "<<trkX[0].size()<<" "<<trkX[1].size()<<" "<<trkX[2].size()<<" "<<" nPlnsWithHits "<<nPlnsWithHits;
+    if(nPlnsWithHits < 2) return;
+    if(aPlane > 2) return;
+    
+    fMaxTrajPoints = 100;
+    fHitWidthFactor = 5.;
+
+    unsigned short iht;
+    
+    // reverse the order of the hit arrays if necessary so that the minimum X end is at trk[][0] end.
+    // We will use posX to reverse the trajectory later if necessary
+    bool posX = true;
+    iht = trkX[aPlane].size() - 1;
+    if(trkX[aPlane][0] > trkX[aPlane][iht]) {
+      posX = false;
+      for(ipl = 0; ipl < 3; ++ipl) {
+        if(trkX[ipl].size() == 0) continue;
+        std::reverse(trkWID[ipl].begin(), trkWID[ipl].end());
+        std::reverse(trkX[ipl].begin(), trkX[ipl].end());
+        std::reverse(trkXErr[ipl].begin(), trkXErr[ipl].end());
+      } // ipl
+//      if(prt) mf::LogVerbatim("TTA")<<"Swapped order";
+    } // posX check
+/*
+    if(prt) {
+      mf::LogVerbatim myprt("TTA");
+      myprt<<"TrkXW end0";
+      for(ipl = 0; ipl < 3; ++ipl) {
+        if(trkX[ipl].size() == 0) continue;
+        myprt<<" "<<trkX[ipl][0];
+      }
+      myprt<<"\n";
+      myprt<<"TrkXW end1";
+      for(ipl = 0; ipl < 3; ++ipl) {
+        if(trkX[ipl].size() == 0) continue;
+        iht = trkX[ipl].size() - 1;
+        myprt<<" "<<trkX[ipl][iht];
+      }
+      myprt<<"\n";
+    }
+*/
+    // find the min/max X
+    minX = 1E6;
+    minXPln = 0;
+    maxX = -1E6;
+    maxXPln = 0;
+    
+    for(unsigned short ipl = 0; ipl < 3; ++ipl) {
+      if(trkX[ipl].size() == 0) continue;
+      if(trkX[ipl][0] < minX) {
+        minX = trkX[ipl][0];
+        minXPln = ipl;
+      }
+      iht = trkX[ipl].size() - 1;
+      if(trkX[ipl][iht] > maxX) {
+        maxX = trkX[ipl][iht];
+        maxXPln = ipl;
+      }
+    } // ipl
+    
+//    if(prt) mf::LogVerbatim("TTA")<<"minX "<<minX<<" in plane "<<minXPln<<" maxX "<<maxX<<" in plane "<<maxXPln;
+    
+    // estimate the number of trajectory points we will want based on the delta T and the
+    // hit errors
+    double aveHitXErr = 0;
+    unsigned short nHit = 0;
+    for(ipl = 0; ipl < 3; ++ipl) {
+      for(iht = 0; iht < trkXErr[ipl].size(); ++iht) {
+        aveHitXErr += trkXErr[ipl][iht];
+        ++nHit;
+      }
+    } // ipl
+    aveHitXErr /= (double)nHit;
+    
+    unsigned short npt = (maxX - minX) / (1 * aveHitXErr);
+    if(npt < 2) npt = 2;
+    if(npt > maxLen) npt = maxLen;
+    if(npt > fMaxTrajPoints) npt = fMaxTrajPoints;
+//    if(prt) mf::LogVerbatim("TTA")<<" aveHitXErr "<<aveHitXErr<<" number of traj points ";
+
+    double maxBinX = (maxX - minX) / (double)(npt - 1);
+    double binX = maxBinX;
+    double xOrigin = minX;
+    
     TVector3 xyz, dir;
+    // working vectors passed to TrackLineFitAlg
+    std::vector<geo::WireID> hitWID;
+    std::vector<double> hitX;
+    std::vector<double> hitXErr;
     float ChiDOF;
     
-    // determine how many hits should be included in the trajectory fit for each
-    // range and in each plane. 
-    ipl = spl[1].index;
-    unsigned short nhtraj = 5;
-    if(trkXW[ipl].size() > 50) {
-      nhtraj = 20;
-    } else if(trkXW[ipl].size() > 20) {
-      nhtraj = 8;
-    }
-    // number of trajectory points in the plane with the 2nd-most hits
-    unsigned short ntp = trkXW[ipl].size() / nhtraj;
-    
-    unsigned int cstat = trkXW[ipl][0].second.Cryostat;
-    unsigned int tpc = trkXW[ipl][0].second.TPC;
-    
-    // x,y,z of the endpoints
-    TVector3 begpt, endpt;
-    // Find the first and last trajectory points using hits in two planes that have the most
-    // similar times. Check for the case where there are hits in only two planes
-    unsigned int wire1, wire2, plane1, plane2, iht1, iht2;
-    if(spl[2].length == 0) {
-      // 2 planes - first end
-      plane1 = spl[0].index; 
-      plane2 = spl[1].index;
-      wire1 = trkXW[plane1][0].second.Wire;
-      wire2 = trkXW[plane2][0].second.Wire;
-      begpt(0) = 0.5 * (trkXW[plane1][0].first + trkXW[plane2][0].first);
-      geom->IntersectionPoint(wire1, wire2, plane1, plane2, cstat, tpc, 
-        begpt(1), begpt(2));
-      // other end
-      iht1 = trkXW[plane1].size() - 1;
-      iht2 = trkXW[plane2].size() - 1;
-      wire1 = trkXW[plane1][iht1].second.Wire;
-      wire2 = trkXW[plane2][iht2].second.Wire;
-      endpt(0) = 0.5 * (trkXW[plane1][iht1].first + trkXW[plane2][iht2].first);
-      geom->IntersectionPoint(wire1, wire2, plane1, plane2, cstat, tpc, 
-        endpt(1), endpt(2));
-    } else {
-      // sort the X positions of the first hit in each plane
-      std::vector<PlnLen> xpl;
-      for(ipl = 0; ipl < 3; ++ipl) {
-        plnlen.index = ipl;
-        plnlen.length = trkXW[ipl][0].first;
-        xpl.push_back(plnlen);
-      } // ipl
-      std::sort (xpl.begin(),xpl.end(), greaterThan);
-      // find which two hits have the most similar times
-      if(fabs(xpl[xpl[0].index].length - xpl[xpl[1].index].length) < 
-         fabs(xpl[xpl[1].index].length - xpl[xpl[2].index].length)) {
-        plane1 = xpl[0].index;
-        plane2 = xpl[1].index;
-      } else {
-        plane1 = xpl[1].index;
-        plane2 = xpl[2].index;
-      }
-      wire1 = trkXW[plane1][0].second.Wire;
-      wire2 = trkXW[plane2][0].second.Wire;
-      begpt(0) = 0.5 * (trkXW[plane1][0].first + trkXW[plane2][0].first);
-      geom->IntersectionPoint(wire1, wire2, plane1, plane2, cstat, tpc,
-        begpt(1), begpt(2));
-/*
-  std::cout<<"begpt using P:W "<<plane1<<":"<<wire1<<" "<<plane2<<":"<<wire2
-    <<" X1 "<<trkXW[plane1][0].first<<" X2 "<<trkXW[plane2][0].first
-    <<" Y "<<begpt(1)<<" Z "<<begpt(2)<<"\n";
-*/
-      // now for the other end using the last hit
-      xpl.clear();
-      for(ipl = 0; ipl < 3; ++ipl) {
-        plnlen.index = ipl;
-        plnlen.length = trkXW[ipl][trkXW[ipl].size()-1].first;
-        xpl.push_back(plnlen);
-      } // ipl
-      std::sort (xpl.begin(),xpl.end(), greaterThan);
-      // find which two hits have the most similar times
-      if(fabs(xpl[xpl[0].index].length - xpl[xpl[1].index].length) < 
-         fabs(xpl[xpl[1].index].length - xpl[xpl[2].index].length)) {
-        plane1 = xpl[0].index;
-        plane2 = xpl[1].index;
-      } else {
-        plane1 = xpl[1].index;
-        plane2 = xpl[2].index;
-      }
-      iht1 = trkXW[plane1].size() - 1;
-      iht2 = trkXW[plane2].size() - 1;
-      wire1 = trkXW[plane1][iht1].second.Wire;
-      wire2 = trkXW[plane2][iht2].second.Wire;
-      endpt(0) = 0.5 * (trkXW[plane1][iht1].first + trkXW[plane2][iht2].first);
-      geom->IntersectionPoint(wire1, wire2, plane1, plane2, cstat, tpc,
-        endpt(1), endpt(2));
-/*
-  std::cout<<"endpt using P:W "<<plane1<<":"<<wire1<<" "<<plane2<<":"<<wire2
-    <<" X1 "<<trkXW[plane1][iht1].first<<" X2 "<<trkXW[plane2][iht2].first
-    <<" Y "<<endpt(1)<<" Z "<<endpt(2)<<"\n";
-*/
-    } // spl[2].length
+    // make a short track trajectory (end points only) to use in case an error occurs
+    std::vector<TVector3> STPos;
+    std::vector<TVector3> STDir;
+    ShortTrackTrajectory(trkWID, trkX, trkXErr, STPos, STDir);
 
-    // start the trajectory with the first end point
-    TrajPos.push_back(begpt);
-
-    // Handle short tracks. Two trajectory points
-    if(ntp < 3) {
-      // the other end point
-      TrajPos.push_back(endpt);
-      dir = endpt - begpt;
-      dir = dir.Unit();
-      TrajDir.push_back(dir);
-      TrajDir.push_back(dir);
-      return;
-    }
-
-    unsigned short firsthit;
-    double xOrigin;
-
-    if(trkChg[0].size() == 0) {
-/////////////////////// No trkChg ////////////////////////////////////////////////
-      ipl = spl[1].index;
-      std::array<unsigned short, 3> nhtp;
-      for(ii = 0; ii < 3; ++ii) nhtp[ii] = nhtraj * trkXW[ii].size() / trkXW[ipl].size();
-
-      bool first = true;
-      for(unsigned short itp = 1; itp < ntp; ++itp) {
-        fitHits.clear();
-        xOrigin = 0;
-        for(ip = 0; ip < nplanes; ++ip) {
-          ipl = spl[ip].index;
-          firsthit = itp * nhtp[ipl];
-          for(ii = 0; ii < nhtp[ipl]; ++ii) {
-	    xOrigin += trkXW[ipl][firsthit].first;
-            iht = firsthit + ii;
-            fitHits.push_back(trkXW[ipl][iht]);
-          } // iht
+    if(STPos.size() != 2 || STDir.size() != STPos.size()) {
+      TrajPos.clear();
+      TrajDir.clear();
+      if(posX) {
+        for(ipl = 0; ipl < 3; ++ipl) {
+          if(trkX[ipl].size() == 0) continue;
+          std::reverse(trkWID[ipl].begin(), trkWID[ipl].end());
+          std::reverse(trkX[ipl].begin(), trkX[ipl].end());
+          std::reverse(trkXErr[ipl].begin(), trkXErr[ipl].end());
         } // ipl
-        xOrigin /= (double)fitHits.size();
-        fTrackLineFitAlg.TrkLineFit(fitHits, xOrigin, xyz, dir, ChiDOF);
-        if(ChiDOF < 0) continue;
-        if(first) {
-          // put in the first traj point direction
-          TVector3 tmp;
-          tmp = xyz - begpt;
-          tmp = tmp.Unit();
-          TrajDir.push_back(tmp);
-          first = false;
-        }
-        TrajPos.push_back(xyz);
-        TrajDir.push_back(dir);
-      } // itp
-    } else {
-/////////////////////// Use trkChg ////////////////////////////////////////////////
-      // sum the charge in each plane
-      std::array<double, 3> totChg;
-      for(ip = 0; ip < nplanes; ++ip) {
-        ipl = spl[ip].index;
-        if(trkChg[ipl].size() != trkXW[ipl].size()) {
-          mf::LogWarning("TrackTrajectoryAlg")<<"Incompatible trkChg length ";
-          return;
-        }
-        totChg[ipl] = 0;
-        for(iht = 0; iht < trkChg[ipl].size(); ++iht) totChg[ipl] += trkChg[ipl][iht];
-        // divide by the number of trajectory points - 1
-        totChg[ipl] /= (double)(ntp - 1);
-      } // ii
-
-      double chgSum;
-      bool hitTheEnd = false;
-      // array of hit start indices
-      std::array<unsigned short, 3> hstart = {0,0,0};
-      bool first = true;
-      for(unsigned short itp = 0; itp < ntp-1; ++itp) {
-        fitHits.clear();
-        xOrigin = 0;
-        for(ip = 0; ip < nplanes; ++ip) {
-          ipl = spl[ip].index;
-          chgSum = 0;
-          firsthit = hstart[ipl];
-          for(iht = firsthit; iht < trkChg[ipl].size(); ++iht) {
-	    xOrigin += trkXW[ipl][iht].first;
-            fitHits.push_back(trkXW[ipl][iht]);
-            chgSum += trkChg[ipl][iht];
-            if(chgSum > totChg[ipl]) {
-              hstart[ipl] = iht + 1;
-              break;
-            } // chgSum > totChg[ipl]
-          } // iht
-          // hit the end of trkChg without reaching totChg. Indicates an
-          // incomplete set of hits. Break out and fit the last trajectory point
-          if(iht == trkChg[ipl].size()&&chgSum<0.5*totChg[ipl]) hitTheEnd = true;
-          if(hitTheEnd) break;
-        } // ip
-        if(hitTheEnd) break;
-        xOrigin /= (double)fitHits.size();
-        fTrackLineFitAlg.TrkLineFit(fitHits, xOrigin, xyz, dir, ChiDOF);
-        if(ChiDOF < 0) continue;
-        if(first) {
-          // put in the first traj point direction
-          TVector3 tmp;
-          tmp = TrajPos[TrajPos.size()-1] - begpt;
-          tmp = tmp.Unit();
-          TrajDir.push_back(tmp);
-          first = false;
-        }
-        TrajPos.push_back(xyz);
-        TrajDir.push_back(dir);
-      } // itp
-    } // use trkChg
-
-    // make the last traj point
-    TrajPos.push_back(endpt);
-    dir = endpt - TrajPos[TrajPos.size()-1];
-    dir = dir.Unit();
-    TrajDir.push_back(dir);
+      } // posX
+      return;
+    } // bad STPos, STDir
+/*
+    if(prt) {
+      mf::LogVerbatim("TTA")<<"STPos";
+      for(unsigned short ii = 0; ii < STPos.size(); ++ii) mf::LogVerbatim("TTA")<<ii<<" "<<std::fixed<<std::setprecision(1)<<STPos[ii](0)<<" "<<STPos[ii](1)<<" "<<STPos[ii](2);
+    }
+*/
+    if(maxLen < 4 || npt < 2) {
+      TrajPos = STPos;
+      TrajDir = STDir;
+      if(!posX) {
+        // reverse everything
+        std::reverse(TrajPos.begin(), TrajPos.end());
+        std::reverse(TrajDir.begin(), TrajDir.end());
+        for(ipl = 0; ipl < 3; ++ipl) {
+          if(trkX[ipl].size() == 0) continue;
+          std::reverse(trkWID[ipl].begin(), trkWID[ipl].end());
+          std::reverse(trkX[ipl].begin(), trkX[ipl].end());
+          std::reverse(trkXErr[ipl].begin(), trkXErr[ipl].end());
+        } // ipl
+      }
+      return;
+    } // maxLen < 4
     
-    if(TrajPos.size() > 4) {
-      // smooth the YZ points since they are less well known than the XZ points
-      std::vector<double> ypts(TrajPos.size());
-      ypts[0] = (3 * TrajPos[0](1) +  TrajPos[1](1)) / 4;
-      ii = TrajPos.size() - 1;
-      ypts[ii] = (3 * TrajPos[ii](1) + TrajPos[ii-1](1)) / 4;
-      for(ii = 1; ii < ypts.size() - 1; ++ii) 
-        ypts[ii] = (TrajPos[ii-1](1) + 2 * TrajPos[ii](1) + TrajPos[ii+1](1)) / 4;
-      for(ii = 1; ii < ypts.size(); ++ii)  TrajPos[ii](1) = ypts[ii];
-    } // TrajPos.size() > 4
-
+    // Start index of hits to include in the next fit
+    std::array<unsigned short, 3> hStart;
+    for(ipl = 0; ipl < 3; ++ipl) hStart[ipl] = 0;
+    
+    bool gotLastPoint = false;
+    for(unsigned short ipt = 0; ipt < npt + 1; ++ipt) {
+      hitWID.clear();
+      hitX.clear();
+      hitXErr.clear();
+      for(ipl = 0; ipl < 3; ++ipl) {
+        for(iht = hStart[ipl]; iht < trkX[ipl].size(); ++iht) {
+          if(trkX[ipl][iht] < xOrigin - binX) continue;
+          if(trkX[ipl][iht] > xOrigin + binX) break;
+          hitWID.push_back(trkWID[ipl][iht]);
+          hitX.push_back(trkX[ipl][iht]);
+          hitXErr.push_back(trkXErr[ipl][iht]);
+          hStart[ipl] =iht;
+        } // iht
+      } // ipl
+//      if(prt) mf::LogVerbatim("TTA")<<"ipt "<<ipt<<" xOrigin "<<xOrigin<<" binX "<<binX<<" hitX size "<<hitX.size();
+      if(hitX.size() > 3) {
+        fTrackLineFitAlg.TrkLineFit(hitWID, hitX, hitXErr, xOrigin, xyz, dir, ChiDOF);
+//        if(prt) mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2)<<" dir "<<dir(0)<<" "<<dir(1)<<" "<<dir(2)<<" ChiDOF "<<ChiDOF<<" hitX size "<<hitX.size();
+      } else if(ipt == 0 && STPos.size() == 2) {
+        // failure on the first traj point. Use STPos
+        xyz = STPos[0];
+        dir = STDir[0];
+      }
+//      if(prt && hitX.size() < 4) mf::LogVerbatim("TTA")<<"\n";
+      if(xOrigin >= maxX) break;
+      // tweak xOrigin if we are close to the end
+      if(maxX - xOrigin < binX) {
+        xOrigin = maxX;
+      } else {
+        xOrigin += binX;
+      }
+      if(ChiDOF < 0 || ChiDOF > 100) continue;
+      TrajPos.push_back(xyz);
+      TrajDir.push_back(dir);
+      if(ipt == npt) gotLastPoint = true;
+    } // ipt
+/*
+    mf::LogVerbatim("TTA")<<"gotLastPoint "<<gotLastPoint<<" TTA Traj \n";
+    for(unsigned short ii = 0; ii < TrajPos.size(); ++ii) mf::LogVerbatim("TTA")<<ii<<" "<<std::fixed<<std::setprecision(1)<<TrajPos[ii](0)<<" "<<TrajPos[ii](1)<<" "<<TrajPos[ii](2)<<"\n";
+*/
+    if(!gotLastPoint && STPos.size() == 2) {
+      // failure on the last point. Use STPos, etc
+      TrajPos.push_back(STPos[1]);
+      TrajDir.push_back(STDir[1]);
+    }
+    
+    if(TrajPos.size() < 2) {
+      TrajPos = STPos;
+      TrajDir = STDir;
+    }
+    
+    if(!posX) {
+      // reverse everything
+      std::reverse(TrajPos.begin(), TrajPos.end());
+      std::reverse(TrajDir.begin(), TrajDir.end());
+      for(ipl = 0; ipl < 3; ++ipl) {
+        if(trkX[ipl].size() == 0) continue;
+        std::reverse(trkWID[ipl].begin(), trkWID[ipl].end());
+        std::reverse(trkX[ipl].begin(), trkX[ipl].end());
+        std::reverse(trkXErr[ipl].begin(), trkXErr[ipl].end());
+      } // ipl
+      
+    } // !posX
+/*
+    mf::LogVerbatim("TTA")<<"TTA Traj2\n";
+    for(unsigned short ii = 0; ii < TrajPos.size(); ++ii) mf::LogVerbatim("TTA")<<ii<<" "<<std::fixed<<std::setprecision(1)<<TrajPos[ii](0)<<" "<<TrajPos[ii](1)<<" "<<TrajPos[ii](2)<<"\n";
+*/    
   } // TrackTrajectoryAlg
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  void TrackTrajectoryAlg::ShortTrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
+                                                std::array<std::vector<double>,3> trkX,
+                                                std::array<std::vector<double>,3> trkXErr,
+                                                std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir)
+  {
+    // Make a short track trajectory composed of a space point at each end.
+    
+    std::vector<unsigned short> usePlns;
+    double y, z, endX, endY, endZ;
+    unsigned short ipl, iht, nend, jpl, iPlane, jPlane;
+    unsigned int iWire, jWire;
+    
+    // do the min X end first
+    float xCut = minX + fHitWidthFactor * trkXErr[minXPln][0];
+    for(ipl = 0; ipl < 3; ++ipl) {
+      if(trkX[ipl].size() == 0) continue;
+      if(trkX[ipl][0] < xCut) usePlns.push_back(ipl);
+    } // ipl
+    // Not enough information to find a space point
+//    mf::LogVerbatim("TTA")<<"ShortTrack minX end "<<xCut<<" usePlns size "<<usePlns.size();
+    if(usePlns.size() < 2) return;
+    endY = 0; endZ = 0; nend = 0;
+    iht = 0;
+    ipl = usePlns[0];
+    endX   = trkX[ipl][iht];
+    iPlane = trkWID[ipl][iht].Plane;
+    iWire  = trkWID[ipl][iht].Wire;
+    unsigned int cstat = trkWID[ipl][iht].Cryostat;
+    unsigned int tpc = trkWID[ipl][iht].TPC;
+    for(unsigned short jj = 1; jj < usePlns.size(); ++jj) {
+      jpl = usePlns[jj];
+      endX  += trkX[jpl][iht];
+      jPlane = trkWID[jpl][iht].Plane;
+      jWire  = trkWID[jpl][iht].Wire;
+      geom->IntersectionPoint(iWire, jWire, iPlane, jPlane, cstat, tpc, y, z);
+      endY += y;
+      endZ += z;
+      ++nend;
+    } // ii
+    // nend is the number of y,z values. There are (nend + 1) X values
+    TVector3 xyz;
+    xyz(0) = endX / (float)(nend + 1);
+    xyz(1) = endY / (float)nend;
+    xyz(2) = endZ / (float)nend;
+//    mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
+    TrajPos.push_back(xyz);
+    
+    // do the same for the other end
+    xCut = maxX - fHitWidthFactor * trkXErr[maxXPln][0];
+    usePlns.clear();
+    for(ipl = 0; ipl < 3; ++ipl) {
+      if(trkX[ipl].size() == 0) continue;
+      iht = trkX[ipl].size() - 1;
+      if(trkX[ipl][iht] > xCut) usePlns.push_back(ipl);
+    } // ipl
+    // Not enough information to find a space point
+//    mf::LogVerbatim("TTA")<<"ShortTrack maxX end "<<xCut<<" usePlns size "<<usePlns.size();
+    if(usePlns.size() < 2) {
+      TrajPos.clear();
+      TrajDir.clear();
+      return;
+    }
+    endY = 0; endZ = 0; nend = 0;
+    ipl = usePlns[0];
+    iht = trkX[ipl].size() - 1;
+    endX = trkX[ipl][iht];
+    iPlane = trkWID[ipl][iht].Plane;
+    iWire  = trkWID[ipl][iht].Wire;
+    for(unsigned short jj = 1; jj < usePlns.size(); ++jj) {
+      jpl = usePlns[jj];
+      iht = trkX[jpl].size() - 1;
+      endX += trkX[jpl][iht];
+      jPlane = trkWID[jpl][iht].Plane;
+      jWire  = trkWID[jpl][iht].Wire;
+      geom->IntersectionPoint(iWire, jWire, iPlane, jPlane, cstat, tpc, y, z);
+      endY += y;
+      endZ += z;
+      ++nend;
+    } // ii
+    // nend is the number of y,z values. There are nend + 1 X values
+    xyz(0) = endX / (float)(nend + 1);
+    xyz(1) = endY / (float)nend;
+    xyz(2) = endZ / (float)nend;
+//    mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
+    TrajPos.push_back(xyz);
+    TVector3 dir = TrajPos[1] - TrajPos[0];
+    dir = dir.Unit();
+    TrajDir.push_back(dir);
+    TrajDir.push_back(dir);
+  
+//    mf::LogVerbatim("TTA")<<">>>> Short track ("<<TrajPos[0](0)<<", "<<TrajPos[0](1)<<", "<<TrajPos[0](2)<<") to ("<<TrajPos[1](0)<<", "<<TrajPos[1](1)<<", "<<TrajPos[1](2)<<")";
+  }
+
+  
 } // trkf
