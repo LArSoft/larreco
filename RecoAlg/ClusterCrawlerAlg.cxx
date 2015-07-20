@@ -2311,6 +2311,7 @@ namespace cluster {
             if(fHits[khit].PeakTime() - prTime > 500) continue;
             bin = fabs(fHits[khit].PeakTime() - prTime) / fHits[khit].RMS();
             if(bin > 19) continue;
+	    if(bin < 0) continue;
             // add amplitude from all hits
             amp += fHits[khit].PeakAmplitude() * gausAmp[bin];
           }
