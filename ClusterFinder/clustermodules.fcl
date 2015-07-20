@@ -5,9 +5,11 @@ BEGIN_PROLOG
 standard_blurredclustering:
 {
  module_type:          "BlurredClustering"
- CreateDebugPDF:       "true"
+ CreateDebugPDF:       "false"
+ MergeClusters:        "true"
  HitsModuleLabel:      "gaushit"
- BlurredClusteringAlg: @local::standard_blurredclusteringalg                              
+ BlurredClusteringAlg: @local::standard_blurredclusteringalg
+ MergeClusterAlg:      @local::standard_mergeclusteralg
 }
 
 standard_clusterpca:

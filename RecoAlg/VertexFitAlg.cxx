@@ -31,7 +31,7 @@ namespace trkf{
     // Minuit function for fitting the vertex position and vertex track directions
     
     fval = 0;
-    double vWire = 0., DirX, DirY, DirZ, DirU, dX, dU, arg;
+    double vWire = 0, DirX, DirY, DirZ, DirU, dX, dU, arg;
     unsigned short ipl, lastpl, indx;
     
     for(unsigned short itk = 0; itk < fVtxFitMinStr.HitX.size(); ++itk) {

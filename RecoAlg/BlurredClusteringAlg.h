@@ -46,6 +46,7 @@
 #include <TPrincipal.h>
 #include <TVector.h>
 #include <TVectorD.h>
+#include <TVector2.h>
 
 #include <string>
 #include <vector>
@@ -69,13 +70,14 @@ public:
   std::vector<art::PtrVector<recob::Hit> > ConvertBinsToClusters(TH2F *image, std::vector<art::Ptr<recob::Hit> > *allHits, std::vector<std::vector<int> > &allClusterBins);
   void CreateDebugPDF(int fEvent, int fRun, int fSubrun, bool debug);
   TH2F ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > *hits);
+  TVector2 ConvertWireDriftToCm(unsigned int wire, float drift) { return ConvertWireDriftToCm(wire, drift, fPlane, fTPC, fCryostat); }
+  TVector2 ConvertWireDriftToCm(unsigned int wire, float drift, unsigned int plane, unsigned int tpc, unsigned int cryo);
   TH2* Convolve(TH2 *image, std::map<int,double> kernel, int width, int height, const char *new_name = 0);
   void FindBlurringParameters(int *blurwire, int *blurtick);
   int FindClusters(TH2F *image, std::vector<std::vector<int> > &allcluster);
   TH2* GaussianBlur(TH2 *image);
   unsigned int GetMinSize() { return fMinSize; }
   double GetTimeOfBin(TH2F *image, int bin);
-  int MergeClusters(TH2F *image, std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters);
   unsigned int NumNeighbours(int nx, std::vector<bool> *used, int bin);
   bool PassesTimeCut(std::vector<double> &times, double time);
   void SaveImage(TH2F *image, std::vector<art::PtrVector<recob::Hit> > &allClusters, int pad);
@@ -85,6 +87,7 @@ public:
   unsigned int fEvent;
   unsigned int fPlane;
   unsigned int fTPC;
+  unsigned int fCryostat=0;
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
 
 private:
