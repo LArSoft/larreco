@@ -321,7 +321,7 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int *blurwire, int *b
 
   // std::cout << "Recommended blurring: wire " << *blurwire << " and tick " << *blurtick << std::endl;
 
-  std::cout << "Event " << fEvent << ", tpc " << fTPC << ", plane " << fPlane << ". Eigenvector is (" << (*eigenvectors)[0][0] << "," << (*eigenvectors)[1][0] << ") and the dynamic blurring is " << *blurwire << " in the wire direction and " << *blurtick << " in the tick direction." << std::endl;
+  // std::cout << "Event " << fEvent << ", tpc " << fTPC << ", plane " << fPlane << ". Eigenvector is (" << (*eigenvectors)[0][0] << "," << (*eigenvectors)[1][0] << ") and the dynamic blurring is " << *blurwire << " in the wire direction and " << *blurtick << " in the tick direction." << std::endl;
 
   return;
 

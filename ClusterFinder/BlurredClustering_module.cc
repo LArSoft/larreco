@@ -58,7 +58,7 @@ private:
 
   int fEvent, fRun, fSubrun;
   std::string fHitsModuleLabel;
-  bool fCreateDebugPDF;
+  bool fCreateDebugPDF, fMergeClusters;
 
   // Create instances of algorithm classes to perform the clustering
   cluster::BlurredClusteringAlg fBlurredClusteringAlg;
@@ -78,6 +78,7 @@ cluster::BlurredClustering::~BlurredClustering() { }
 void cluster::BlurredClustering::reconfigure(fhicl::ParameterSet const& p) {
   fHitsModuleLabel = p.get<std::string>("HitsModuleLabel");
   fCreateDebugPDF  = p.get<bool>       ("CreateDebugPDF");
+  fMergeClusters   = p.get<bool>       ("MergeClusters");
   fBlurredClusteringAlg.reconfigure(p.get<fhicl::ParameterSet>("BlurredClusteringAlg"));
   fMergeClusterAlg.reconfigure(p.get<fhicl::ParameterSet>("MergeClusterAlg"));
 }
@@ -143,11 +144,14 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       std::vector<art::PtrVector<recob::Hit> > planeClusters = fBlurredClusteringAlg.ConvertBinsToClusters(&image, allHits, allClusterBins);
 
       // Merge clusters which lie on the same straight line
-      std::vector<art::PtrVector<recob::Hit> > mergedClusters;
-      int numMergedClusters = fMergeClusterAlg.MergeClusters(&planeClusters, mergedClusters, planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
-      mf::LogVerbatim("Blurred Clustering") << "After merging, there are " << numMergedClusters << " clusters" << std::endl;
+      std::vector<art::PtrVector<recob::Hit> > finalClusters;
+      if (fMergeClusters) {
+	int numMergedClusters = fMergeClusterAlg.MergeClusters(&planeClusters, finalClusters, planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
+	mf::LogVerbatim("Blurred Clustering") << "After merging, there are " << numMergedClusters << " clusters" << std::endl;
+      }
+      else finalClusters = planeClusters;
 
-      for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = mergedClusters.begin(); clusIt != mergedClusters.end(); ++clusIt) {
+      for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = finalClusters.begin(); clusIt != finalClusters.end(); ++clusIt) {
 
 	art::PtrVector<recob::Hit> clusterHits = *clusIt;
 	if (clusterHits.size() > 0) {
