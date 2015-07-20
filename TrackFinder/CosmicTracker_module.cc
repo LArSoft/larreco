@@ -317,6 +317,7 @@ namespace trkf {
       //reconstruct space points and directions
       fCTAlg.SPTReco(hitlist);
       if (!fTrajOnly){
+	if (!fCTAlg.trkPos.size()) continue;
 	for (size_t i = 0; i<hitlist.size(); ++i){
 	  trkPoint trkpt;
 	  trkpt.pos = fCTAlg.trkPos[i];
@@ -333,6 +334,7 @@ namespace trkf {
       }
 
       if (fTrajOnly){//debug only
+	if (!fCTAlg.trajPos.size()) continue;
 	size_t spStart = spcol->size();
 	std::vector<recob::SpacePoint> spacepoints;
 	//      for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){

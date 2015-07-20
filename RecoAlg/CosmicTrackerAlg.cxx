@@ -74,7 +74,7 @@ namespace trkf{
       throw cet::exception("CosmicTrackerAlg")<<"Unknown SPTAlg "<<fSPTAlg<<", needs to be 0 or 1"; 
     }
 
-    if (!fTrajOnly) MakeSPT(fHits);
+    if (!fTrajOnly&&trajPos.size()) MakeSPT(fHits);
     else{
       trkPos = trajPos;
       trkDir = trajDir;
