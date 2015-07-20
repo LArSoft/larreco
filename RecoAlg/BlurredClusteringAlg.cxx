@@ -44,8 +44,6 @@ void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
   fBlurSigma           = p.get<double>("BlurSigma");
   fClusterWireDistance = p.get<int>   ("ClusterWireDistance");
   fClusterTickDistance = p.get<int>   ("ClusterTickDistance");
-  fMinMergeClusterSize = p.get<int>   ("MinMergeClusterSize");
-  fMergingThreshold    = p.get<double>("MergingThreshold");
   fNeighboursThreshold = p.get<int>   ("NeighboursThreshold");
   fMinNeighbours       = p.get<int>   ("MinNeighbours");
   fMinSize             = p.get<int>   ("MinSize");
@@ -173,7 +171,7 @@ std::vector<art::PtrVector<recob::Hit> > cluster::BlurredClusteringAlg::ConvertB
     clusters.push_back(clusHits);
   }
 
-  // SaveImage(image, clusters, 4);
+  SaveImage(image, clusters, 4);
 
   return clusters;
 }
@@ -223,6 +221,17 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   }
 
   return image;
+}
+
+
+TVector2 cluster::BlurredClusteringAlg::ConvertWireDriftToCm(unsigned int wire, float drift, unsigned int plane, unsigned int tpc, unsigned int cryo) {
+
+  /// Convert the wire/tick coordinates roughly into cm
+  /// Taken from RecoAlg/PMAlg/Utilities.cxx (written by D.Stefan & R.Sulej)
+
+  return TVector2(fGeom->TPC(tpc, cryo).Plane(plane).WirePitch() * wire,
+		  fDetProp->ConvertTicksToX(drift, plane, tpc, cryo)
+		  );
 }
 
 
@@ -285,9 +294,13 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int *blurwire, int *b
 
   TPrincipal *fPCA = new TPrincipal(2,"");
 
+  //int fCryostat = 0;
+
   double hits[2];
   for (const auto &wireIt : fHitMap) {
     for (const auto &tickIt : wireIt.second) {
+      //hits[0] = (fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch()) * wireIt.first;
+      //hits[1] = fDetProp->ConvertTicksToX(tickIt.first, fPlane, fTPC, fCryostat);
       hits[0] = wireIt.first;
       hits[1] = tickIt.first;
       fPCA->AddRow(hits);
@@ -307,6 +320,8 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int *blurwire, int *b
   *blurtick = std::abs(fBlurTick * (*eigenvectors)[1][0]);
 
   // std::cout << "Recommended blurring: wire " << *blurwire << " and tick " << *blurtick << std::endl;
+
+  std::cout << "Event " << fEvent << ", tpc " << fTPC << ", plane " << fPlane << ". Eigenvector is (" << (*eigenvectors)[0][0] << "," << (*eigenvectors)[1][0] << ") and the dynamic blurring is " << *blurwire << " in the wire direction and " << *blurtick << " in the tick direction." << std::endl;
 
   return;
 
@@ -594,93 +609,6 @@ double cluster::BlurredClusteringAlg::GetTimeOfBin(TH2F *image, int bin) {
     time = hit->PeakTime();
 
   return time;
-
-}
-
-
-int cluster::BlurredClusteringAlg::MergeClusters(TH2F *image, std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters) {
-
-  /// Merges clusters which lie along a straight line
-
-  std::vector<unsigned int> mergedClusters;
-
-  // Sort the clusters by size
-  std::sort(planeClusters->begin(), planeClusters->end(), [](const art::PtrVector<recob::Hit> &a, const art::PtrVector<recob::Hit> &b) {return a.size() > b.size();} );
-
-  // Find the numbers of clusters above size threshold
-  unsigned int nclusters = 0;
-  for (auto &cluster : *planeClusters)
-    if (cluster.size() >= fMinMergeClusterSize) ++nclusters;
-
-  // Until all clusters are merged, create new clusters
-  bool mergedAllClusters = false;
-  while (!mergedAllClusters) {
-
-    // New cluster
-    art::PtrVector<recob::Hit> cluster;
-
-    // Put the largest unmerged cluster in this new cluster
-    for (unsigned int initCluster = 0; initCluster < planeClusters->size(); ++initCluster) {
-      if (planeClusters->at(initCluster).size() < fMinMergeClusterSize or std::find(mergedClusters.begin(), mergedClusters.end(), initCluster) != mergedClusters.end()) continue;
-      cluster = planeClusters->at(initCluster);
-      mergedClusters.push_back(initCluster);
-      break;
-    }
-    
-    // Merge all aligned clusters to this
-    bool mergedAllToThisCluster = false;
-    while (!mergedAllToThisCluster) {
-
-      // Look at all clusters and merge
-      int nadded = 0;
-      for (unsigned int trialCluster = 0; trialCluster < planeClusters->size(); ++trialCluster) {
-
-  	if (planeClusters->at(trialCluster).size() < fMinMergeClusterSize or std::find(mergedClusters.begin(), mergedClusters.end(), trialCluster) != mergedClusters.end()) continue;
-
-	// Calculate the PCA for each
-	TPrincipal *pca = new TPrincipal(2,"");
-	double hits[2];
-
-	for (auto &mergedClusterHits : cluster) {
-	  hits[0] = mergedClusterHits->WireID().Wire;
-	  hits[1] = (int)mergedClusterHits->PeakTime();
-	  pca->AddRow(hits);
-	}
-	for (auto &trialClusterHits : planeClusters->at(trialCluster)) {
-	  hits[0] = trialClusterHits->WireID().Wire;
-	  hits[1] = (int)trialClusterHits->PeakTime();
-	  pca->AddRow(hits);
-	}
-
-	pca->MakePrincipals();
-
-	// Merge these clusters if they are part of the same straight line
-	if ((*pca->GetEigenValues())[0] > fMergingThreshold) {
-
-	  for (auto &hit : planeClusters->at(trialCluster))
-	    cluster.push_back(hit);
-
-	  mergedClusters.push_back(trialCluster);
-	  ++nadded;
-
-	}
-
-	delete pca;
-
-      } // loop over clusters to add
-
-      if (nadded == 0) mergedAllToThisCluster = true;
-
-    } // while loop
-
-    clusters.push_back(cluster);
-    if (mergedClusters.size() == nclusters) mergedAllClusters = true;
-
-  }
-
-  SaveImage(image, clusters, 4);
-
-  return clusters.size();
 
 }
 

@@ -7,7 +7,8 @@ standard_blurredclustering:
  module_type:          "BlurredClustering"
  CreateDebugPDF:       "false"
  HitsModuleLabel:      "gaushit"
- BlurredClusteringAlg: @local::standard_blurredclusteringalg                              
+ BlurredClusteringAlg: @local::standard_blurredclusteringalg
+ MergeClusterAlg:      @local::standard_mergeclusteralg
 }
 
 standard_clusterpca:

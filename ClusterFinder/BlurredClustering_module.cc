@@ -30,10 +30,11 @@
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
 #include "Filters/ChannelFilter.h"
-#include "RecoAlg/BlurredClusteringAlg.h"
 #include "ClusterFinder/ClusterCreator.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
+#include "RecoAlg/BlurredClusteringAlg.h"
+#include "RecoAlg/MergeClusterAlg.h"
 
 // ROOT & C++ includes
 #include <string>
@@ -59,12 +60,14 @@ private:
   std::string fHitsModuleLabel;
   bool fCreateDebugPDF;
 
-  // Create instance of algorithm class to perform the clustering
+  // Create instances of algorithm classes to perform the clustering
   cluster::BlurredClusteringAlg fBlurredClusteringAlg;
+  cluster::MergeClusterAlg fMergeClusterAlg;
 
 };
 
-cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const &pset) : fBlurredClusteringAlg(pset.get<fhicl::ParameterSet>("BlurredClusteringAlg")) {
+cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const &pset) : fBlurredClusteringAlg(pset.get<fhicl::ParameterSet>("BlurredClusteringAlg")),
+                                                                                 fMergeClusterAlg(pset.get<fhicl::ParameterSet>("MergeClusterAlg")) {
   this->reconfigure(pset);
   produces<std::vector<recob::Cluster> >();
   produces<art::Assns<recob::Cluster,recob::Hit> >();
@@ -76,6 +79,7 @@ void cluster::BlurredClustering::reconfigure(fhicl::ParameterSet const& p) {
   fHitsModuleLabel = p.get<std::string>("HitsModuleLabel");
   fCreateDebugPDF  = p.get<bool>       ("CreateDebugPDF");
   fBlurredClusteringAlg.reconfigure(p.get<fhicl::ParameterSet>("BlurredClusteringAlg"));
+  fMergeClusterAlg.reconfigure(p.get<fhicl::ParameterSet>("MergeClusterAlg"));
 }
 
 void cluster::BlurredClustering::produce(art::Event &evt) {
@@ -140,7 +144,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 
       // Merge clusters which lie on the same straight line
       std::vector<art::PtrVector<recob::Hit> > mergedClusters;
-      int numMergedClusters = fBlurredClusteringAlg.MergeClusters(&image, &planeClusters, mergedClusters);
+      int numMergedClusters = fMergeClusterAlg.MergeClusters(&planeClusters, mergedClusters, planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
       mf::LogVerbatim("Blurred Clustering") << "After merging, there are " << numMergedClusters << " clusters" << std::endl;
 
       for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = mergedClusters.begin(); clusIt != mergedClusters.end(); ++clusIt) {

@@ -43,14 +43,19 @@ standard_blurredclusteringalg:
   BlurSigma:           3
   ClusterWireDistance: 2
   ClusterTickDistance: 2
-  MinMergeClusterSize: 3
-  MergingThreshold:    0.9981
   NeighboursThreshold: 0
   MinNeighbours:       0
   MinSize:             2
   MinSeed:             0.1
   TimeThreshold:       50
   ChargeThreshold:     0.07
+}
+
+standard_mergeclusteralg:
+{
+  MinMergeClusterSize: 3
+  MaxMergeSeparation:  30
+  MergingThreshold:    0.985
 }
 
 standard_houghbasealg:
