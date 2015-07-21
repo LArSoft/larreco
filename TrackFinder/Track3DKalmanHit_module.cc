@@ -11,6 +11,7 @@
 // Hist               - Histogram flag (generate histograms if true).
 // UseClusterHits     - Use clustered hits if true.
 // UsePFParticleHits  - Use PFParticle hits if true.
+// UsePFParticleSeeds - If true, use seeds associated with PFParticles.
 // HitModuleLabel     - Module label for unclustered Hits.
 // ClusterModuleLabel - Module label for Clusters.
 // PFParticleModuleLabel - Module label for PFParticles.
@@ -39,6 +40,8 @@
 // 3.  If PFParticle hits are used as input, then tracks do not span
 //     PFParticles.  However, it is possible for one the hits from
 //     one PFParticle to give rise to multiple Tracks.
+//
+// 4.  UsePFParticleSeeds has no effect unless UsePFParticleHits is true.
 //
 ////////////////////////////////////////////////////////////////////////
 
@@ -79,6 +82,8 @@ namespace {
   {
     art::Ptr<recob::PFParticle> pfPartPtr;
     art::PtrVector<recob::Hit> hits;
+    art::PtrVector<recob::Seed> seeds;
+    std::vector<art::PtrVector<recob::Hit> > seedhits;
     std::deque<trkf::KGTrack> tracks;
   };
 
@@ -181,6 +186,7 @@ namespace trkf {
     bool fHist;                         ///< Make histograms.
     bool fUseClusterHits;               ///< Use clustered hits as input.
     bool fUsePFParticleHits;            ///< Use PFParticle hits as input.
+    bool fUsePFParticleSeeds;           ///< Use PFParticle seeds.
     std::string fHitModuleLabel;        ///< Unclustered Hits.
     std::string fClusterModuleLabel;    ///< Clustered Hits.
     std::string fPFParticleModuleLabel; ///< PFParticle label.
@@ -230,6 +236,7 @@ trkf::Track3DKalmanHit::Track3DKalmanHit(fhicl::ParameterSet const & pset) :
   fHist(false),
   fUseClusterHits(false),
   fUsePFParticleHits(false),
+  fUsePFParticleSeeds(false),
   fStoreNPPlane(true),
   fMaxTcut(0.),
   fDoDedx(false),
@@ -285,6 +292,7 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
   fSpacePointAlg.reconfigure(pset.get<fhicl::ParameterSet>("SpacePointAlg"));
   fUseClusterHits = pset.get<bool>("UseClusterHits");
   fUsePFParticleHits = pset.get<bool>("UsePFParticleHits");
+  fUsePFParticleSeeds = pset.get<bool>("UsePFParticleSeeds");
   fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
   fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
   fPFParticleModuleLabel = pset.get<std::string>("PFParticleModuleLabel");
@@ -424,9 +432,12 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
             // be the mechanism by which we actually deal with clusters
             art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
     
+	    // Associations to seeds.
+	    art::FindManyP<recob::Seed> seedAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
+
             // Likewise, recover the collection of associations to hits
             art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fClusterModuleLabel);
-    
+
             // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
             for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
 
@@ -445,6 +456,27 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                     std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster.key());
                     hits.insert(hits.end(), hitVec.begin(), hitVec.end());
                 }
+
+		// If requested, fill associated seeds.
+
+		if(fUsePFParticleSeeds) {
+		    art::PtrVector<recob::Seed>& seeds = hit_collection.seeds;
+		    std::vector<art::Ptr<recob::Seed> > seedVec = seedAssns.at(partIdx);
+		    seeds.insert(seeds.end(), seedVec.begin(), seedVec.end());
+		    art::FindManyP<recob::Hit> seedHitAssns(seedVec, evt, fPFParticleModuleLabel);
+		    for(size_t seedIdx = 0; seedIdx < seedVec.size(); ++seedIdx) {
+		        std::vector<art::Ptr<recob::Hit> > seedHitVec;
+			try {
+			  seedHitVec = seedHitAssns.at(seedIdx);
+			}
+			catch(art::Exception x) {
+			  seedHitVec.clear();
+			}
+			hit_collection.seedhits.emplace_back();
+			art::PtrVector<recob::Hit>& seedhits = hit_collection.seedhits.back();
+			seedhits.insert(seedhits.end(), seedHitVec.begin(), seedHitVec.end());
+		    }
+		}
             }
         }
     }
@@ -490,6 +522,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
     // Start of loop.
 
+    bool first = true;
     bool done = false;
     while(!done) {
 
@@ -497,9 +530,30 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
       std::vector<art::PtrVector<recob::Hit> > hitsperseed;
       std::vector<recob::Seed> seeds;
-      if(seederhits.size()>0)
-	seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
+
+      // On the first trip through this loop, try to use pfparticle-associated seeds.
+      // Do this, provided the list of pfparticle-associated seeds and associated
+      // hits are not empty.
+
+      bool pfseed = false;
+      if(first && hit_collection.seeds.size() > 0 && hit_collection.seedhits.size() > 0) {
+	pfseed = true;
+	seeds.reserve(hit_collection.seeds.size());
+	for(const auto& pseed : hit_collection.seeds)
+	  seeds.push_back(*pseed);
+	hitsperseed.insert(hitsperseed.end(),
+			   hit_collection.seedhits.begin(), hit_collection.seedhits.end());
+      }
+      else {
+
+	// On subsequent trips, or if there were no usable pfparticle-associated seeds,
+	// attempt to generate our own seeds.
+
+	if(seederhits.size()>0)
+	  seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
+      }
       assert(seeds.size() == hitsperseed.size());
+      first = false;
     
       if(seeds.size() == 0) {
 
@@ -522,7 +576,11 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 	  // Seems like seeds often end at delta rays, Michel electrons,
 	  // or other pathologies.
 
+	  // Don't chop pfparticle seeds.
+
 	  int nchopmax = std::max(0, int((hpsit->size() - fMinSeedChopHits)/2));
+	  if(pfseed)
+	    nchopmax = 0;
 	  int nchop = std::min(nchopmax, fMaxChopHits);
 	  art::PtrVector<recob::Hit>::const_iterator itb = hpsit->begin();
 	  art::PtrVector<recob::Hit>::const_iterator ite = hpsit->end();
