@@ -46,8 +46,9 @@ standard_pmalgtrackmaker:
                                       #    used by the shower reconstruction but not yet ready)
                                       #
   FlipToBeam:             false       # set the track direction to increasing Z values
+  FlipDownward:           false       # set the track direction to decreasing Y values (like cosmic rays)
   AutoFlip_dQdx:          false       # set the track direction to increasing dQ/dx (overrides FlipToBeam
-                                      # if significant rise of dQ/dx at the track end)
+                                      # and FlipDownward if significant rise of dQ/dx at the track end)
   Save_dQdx:              false       # store dQ/dx vs range in the tree
                                       #
   MergeWithinTPC:         false       # merge witnin single TPC; finds tracks best matching by angle, with limits:
