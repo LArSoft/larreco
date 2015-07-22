@@ -179,7 +179,10 @@ private:
   double fdQdx;         // dQ/dx data point stored for each plane
   double fRange;        // residual range at dQ/dx data point, tracks are auto-flipped
   double fLength;       // track length
-  TTree* fTree;
+  double fHitsMse;      // MSE of hits: mean dist^2 of hit to 2D track projection
+  double fSegAngMean;   // Mean segment-segment 3D angle.
+  TTree* fTree_dQdx;    // dQ/dx info (saved optionally)
+  TTree* fTree_trk;     // overall info
 
   // ******************** parameters **********************
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
@@ -219,16 +222,24 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 void PMAlgTrackMaker::beginJob()
 {
 	art::ServiceHandle<art::TFileService> tfs;
-	fTree = tfs->make<TTree>("PMAlgTrackMaker", "tracks info");
-	fTree->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
-	fTree->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
-	fTree->Branch("fPlaneIndex", &fPlaneIndex, "fPlaneIndex/I");
-	fTree->Branch("fPlaneNPoints", &fPlaneNPoints, "fPlaneNPoints/I");
-	fTree->Branch("fIsStopping", &fIsStopping, "fIsStopping/I");
-	fTree->Branch("fMcPdg", &fMcPdg, "fMcPdg/I");
-	fTree->Branch("fdQdx", &fdQdx, "fdQdx/D");
-	fTree->Branch("fRange", &fRange, "fRange/D");
-	fTree->Branch("fLength", &fLength, "fLength/D");
+	fTree_dQdx = tfs->make<TTree>("PMAlgTrackMaker_dQdx", "tracks dQ/dx info");
+	fTree_dQdx->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
+	fTree_dQdx->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
+	fTree_dQdx->Branch("fPlaneIndex", &fPlaneIndex, "fPlaneIndex/I");
+	fTree_dQdx->Branch("fPlaneNPoints", &fPlaneNPoints, "fPlaneNPoints/I");
+	fTree_dQdx->Branch("fIsStopping", &fIsStopping, "fIsStopping/I");
+	fTree_dQdx->Branch("fMcPdg", &fMcPdg, "fMcPdg/I");
+	fTree_dQdx->Branch("fdQdx", &fdQdx, "fdQdx/D");
+	fTree_dQdx->Branch("fRange", &fRange, "fRange/D");
+	fTree_dQdx->Branch("fLength", &fLength, "fLength/D");
+
+	fTree_trk = tfs->make<TTree>("PMAlgTrackMaker_trk", "tracks overall info");
+	fTree_trk->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
+	fTree_trk->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
+	fTree_trk->Branch("fMcPdg", &fMcPdg, "fMcPdg/I");
+	fTree_trk->Branch("fLength", &fLength, "fLength/D");
+	fTree_trk->Branch("fHitsMse", &fHitsMse, "fHitsMse/D");
+	fTree_trk->Branch("fSegAngMean", &fSegAngMean, "fSegAngMean/D");
 }
 
 void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
@@ -337,11 +348,14 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 					if (dx > 0.)
 					{
 						fdQdx = dQ/dx;
-						fTree->Fill();
+						fTree_dQdx->Fill();
 					}
 				}
 			}
 	}
+	fHitsMse = src.GetMse();
+	fSegAngMean = 0.0;
+	fTree_trk->Fill();
 
 	if (xyz.size() != dircos.size())
 	{
@@ -823,15 +837,16 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			break;
 	}
 
+
+	std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
+	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
+
+	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit(new art::Assns< recob::Track, recob::Hit >);
+	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
+	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
+
 	if (result.size()) // ok, there is something to save
 	{
-		std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
-		std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
-
-		std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit(new art::Assns< recob::Track, recob::Hit >);
-		std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
-		std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
-
 		size_t spStart = 0, spEnd = 0;
 		double sp_pos[3], sp_err[6];
 		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
@@ -848,7 +863,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				double z1 = trk->back()->Point3D().Z();
 				if (z0 > z1) trk->Flip();
 			}
-			if (fFlipDownward)
+			if (fFlipDownward)  // flip the track to point downward
 			{
 				double y0 = trk->front()->Point3D().Y();
 				double y1 = trk->back()->Point3D().Y();
@@ -895,7 +910,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			if (hits2d.size())
 			{
-				
 				util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
 				util::CreateAssn(*this, evt, *tracks, hits2d, *trk2hit);
 			}
@@ -903,14 +917,14 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 		// data prods done, delete all pma::Track3D's
 		for (size_t t = 0; t < result.size(); t++) delete result[t];
-
-		evt.put(std::move(tracks));
-		evt.put(std::move(allsp));
-
-		evt.put(std::move(trk2hit));
-		evt.put(std::move(trk2sp));
-		evt.put(std::move(sp2hit));
 	}
+
+	evt.put(std::move(tracks));
+	evt.put(std::move(allsp));
+
+	evt.put(std::move(trk2hit));
+	evt.put(std::move(trk2sp));
+	evt.put(std::move(sp2hit));
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
