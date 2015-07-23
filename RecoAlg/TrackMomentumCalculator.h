@@ -71,6 +71,8 @@ namespace trkf{
     
     std::vector<Float_t> segL;
     
+    std::vector<Float_t> azx0; std::vector<Float_t> azy0;
+        
     Double_t find_angle( Double_t vz, Double_t vy );
     
     Float_t steps_size; Int_t n_steps; std::vector<Float_t> steps;
