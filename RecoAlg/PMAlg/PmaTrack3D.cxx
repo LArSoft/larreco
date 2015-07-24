@@ -1235,6 +1235,19 @@ double pma::Track3D::GetMse(void) const
 	else return 0.0;
 }
 
+double pma::Track3D::GetMeanAng(void) const
+{
+	double a = 0.0;
+	if (fNodes.size() > 2)
+	{
+		for (size_t i = 1; i < fNodes.size() - 1; i++)
+			a += acos(fNodes[i]->SegmentCos());
+
+		a /= (fNodes.size() - 2);
+	}
+	return a;
+}
+
 double pma::Track3D::GetObjFunction(float penaltyFactor) const
 {
 	double sum = 0.0;

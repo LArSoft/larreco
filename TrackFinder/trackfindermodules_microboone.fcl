@@ -63,6 +63,11 @@ microboone_2stg_kalman:
  GenfPRINT:           true
 }
 
+microboone_pmalgtrackmaker:                     @local::standard_pmalgtrackmaker
+microboone_pmalgtrackmaker.HitModuleLabel:      "cccluster"
+microboone_pmalgtrackmaker.ClusterModuleLabel:  "cccluster"
+microboone_pmalgtrackmaker.FlipDownward:        true
+
 #microboone_cosmicfinder: @local::standard_cosmicfinder
 
 END_PROLOG
