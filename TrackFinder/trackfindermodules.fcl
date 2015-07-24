@@ -209,6 +209,9 @@ standard_trackana:
    WMatchDisp: 15.0
    MatchLength: 0.8
    IgnoreSign: true
+   StitchedAnalysis: false
+   MCTrackOrigin: "Any"
+   PrintLevel: 0
 }
 
 
