@@ -319,12 +319,6 @@ microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
 microboone_clustermatchtq:                    @local::standard_clustermatchtq
 
-lbnefd_dbscanalg:    @local::standard_dbscanalg_fast
-lbnefd_houghbasealg: @local::standard_houghbasealg
-lbnefd_endpointalg:  @local::standard_endpointalg 
-lbnefd_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
-lbnefd_fuzzyclusteralg.HoughBaseAlg:      @local::lbnefd_houghbasealg 
-
 lbne35t_dbscanalg:    @local::standard_dbscanalg_fast
 lbne35t_dbscanalg.eps:    2.0
 lbne35t_dbscanalg.epstwo: 2.0
@@ -337,4 +331,13 @@ lbne35t_fuzzyclusteralg.HoughBaseAlg:      @local::lbne35t_houghbasealg
 lbne35t_clustercrawleralg:                 @local::standard_clustercrawleralg
 lbne35t_clustermatchtq:                    @local::standard_clustermatchtq
 lbne35t_clustermatchtq.KSCut:              0.7
+
+dunefd_dbscanalg:    @local::standard_dbscanalg_fast
+dunefd_houghbasealg: @local::standard_houghbasealg
+dunefd_endpointalg:  @local::standard_endpointalg 
+dunefd_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+dunefd_fuzzyclusteralg.HoughBaseAlg:      @local::dunefd_houghbasealg 
+dunefd_clustercrawleralg:                 @local::standard_clustercrawleralg
+
+
 END_PROLOG
