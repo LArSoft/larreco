@@ -43,16 +43,33 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	double d2, max_d2 = max_d * max_d;
 	unsigned int nAll = 0, nPassed = 0;
 
+	unsigned int tpc, cryo;
+	std::map< std::pair< unsigned int, unsigned int >, std::vector< TVector2 > > all_close_points;
+
+	for (const auto h : hits)
+		if (h->WireID().Plane == testView)
+	{
+		tpc = h->WireID().TPC;
+		cryo = h->WireID().Cryostat;
+
+		TVector2 p2d = pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo);
+
+		d2 = trk.Dist2(p2d, testView);
+
+		if (d2 < max_d2) all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)].push_back(p2d);
+	}
+
 	TVector3 p(trk.front()->Point3D());
 	for (size_t i = 0; i < trk.Nodes().size() - 1; i++)
 	{
-		unsigned int tpc = trk.Nodes()[i]->TPC();
-		unsigned int cryo = trk.Nodes()[i]->Cryo();
+		tpc = trk.Nodes()[i]->TPC();
+		cryo = trk.Nodes()[i]->Cryo();
 
 		TVector3 vNext(trk.Nodes()[i + 1]->Point3D());
 		TVector3 vThis(trk.Nodes()[i]->Point3D());
 
-		if (trk.Nodes()[i + 1]->TPC() == (int)tpc) // skip segments between tpc's
+		const std::vector< TVector2 >& points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
+		if (points.size() && (trk.Nodes()[i + 1]->TPC() == (int)tpc)) // skip segments between tpc's
 		{
 			TVector3 dc(vNext); dc -= vThis;
 			dc *= step / dc.Mag();
@@ -62,10 +79,9 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 			{
 				TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
 
-				for (const auto & h : hits)
-					if (h->WireID().Plane == testView)
+				for (const auto & h : points)
 				{
-					d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
+					d2 = pma::Dist2(p2d, h);
 					if (d2 < max_d2) { nPassed++; break; }
 				}
 				nAll++;
@@ -75,6 +91,7 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		}
 		p = vNext;
 	}
+
 	if (nAll > 3) // validate actually only if there are some hits in testView
 	{
 		double v = nPassed / (double)nAll;
