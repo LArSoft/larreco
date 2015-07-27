@@ -176,6 +176,7 @@ private:
   int fPlaneNPoints;    // number of data points in this plane
   int fIsStopping;      // tag tracks of stopping particles
   int fMcPdg;           // MC truth PDG matched for a track
+  int fPidTag;          // Tag: 0=trk-like, 1=cascade-like
   double fdQdx;         // dQ/dx data point stored for each plane
   double fRange;        // residual range at dQ/dx data point, tracks are auto-flipped
   double fLength;       // track length
@@ -240,6 +241,7 @@ void PMAlgTrackMaker::beginJob()
 	fTree_trk->Branch("fLength", &fLength, "fLength/D");
 	fTree_trk->Branch("fHitsMse", &fHitsMse, "fHitsMse/D");
 	fTree_trk->Branch("fSegAngMean", &fSegAngMean, "fSegAngMean/D");
+	fTree_trk->Branch("fPidTag", &fPidTag, "fPidTag/I");
 }
 
 void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
@@ -330,11 +332,19 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 		}
 	}
 
+	fLength = src.Length();
+	fHitsMse = src.GetMse();
+	fSegAngMean = src.GetMeanAng();
+	fMcPdg = getMcPdg(src);
+
+	fPidTag = 0;             // 0 is track-like (long and/or very straight, well matching 2D hits)
+	if ((fLength < 80.0) &&  // 0x10000 is EM shower-like trajectory
+	    ((fHitsMse > 0.0001 * fLength) || (fSegAngMean < 3.0)))
+		fPidTag = 0x10000;
+
 	if (fSave_dQdx)
 	{
-		fMcPdg = getMcPdg(src);
 		fIsStopping = (int)isMcStopping();
-		fLength = src.Length();
 		for (unsigned int view = 0; view < fGeom->Nviews(); view++)
 			if (fGeom->TPC(tpc, cryo).HasPlane(view))
 			{
@@ -353,15 +363,13 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 				}
 			}
 	}
-	fHitsMse = src.GetMse();
-	fSegAngMean = 0.0;
 	fTree_trk->Fill();
 
 	if (xyz.size() != dircos.size())
 	{
 		mf::LogError("PMAlgTrackMaker") << "pma::Track3D to recob::Track conversion problem.";
 	}
-	return recob::Track(xyz, dircos, dst_dQdx, std::vector< double >(2, util::kBogusD), fTrkIndex);
+	return recob::Track(xyz, dircos, dst_dQdx, std::vector< double >(2, util::kBogusD), fTrkIndex + fPidTag);
 }
 // ------------------------------------------------------
 
@@ -385,6 +393,8 @@ bool PMAlgTrackMaker::isMcStopping(void) const
 
 int PMAlgTrackMaker::getMcPdg(const pma::Track3D& trk) const
 {
+	// return 0; // would be good in case of real data...
+
 	art::ServiceHandle< cheat::BackTracker > bt;
 	std::map< int, size_t > pdg_counts;
 	for (size_t i = 0; i < trk.size(); i++)
@@ -784,6 +794,8 @@ bool PMAlgTrackMaker::reassignSingleViewEnds(std::vector< pma::Track3D* >& track
 
 bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 {
+	c_t_v_hits.clear();
+
 	art::Handle< std::vector<recob::Hit> > hitListHandle;
 	std::vector< art::Ptr<recob::Hit> > hitlist;
 	if (evt.getByLabel(fHitModuleLabel, hitListHandle))
@@ -811,33 +823,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	std::vector< pma::Track3D* > result;
 
-	if (!sortHits(evt))
-	{
-		mf::LogError("PMAlgTrackMaker") << "Hits not found in the event.";
-		return;
-	}
-
-	int retCode = 0;
-	switch (fCluMatchingAlg)
-	{
-		default:
-		case 1: retCode = fromMaxCluster(evt, result); break;
-
-		case 2: retCode = fromExistingAssocs(evt, result); break;
-	}
-	switch (retCode)
-	{
-		case -2: mf::LogError("Summary") << "problem"; break;
-		case -1: mf::LogWarning("Summary") << "no input"; break;
-		case  0: mf::LogVerbatim("Summary") << "no tracks done"; break;
-		default:
-			if (retCode < 0) mf::LogVerbatim("Summary") << "unknown result";
-			else if (retCode == 1) mf::LogVerbatim("Summary") << retCode << " track ready";
-			else mf::LogVerbatim("Summary") << retCode << " tracks ready";
-			break;
-	}
-
-
 	std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
 	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
 
@@ -845,79 +830,103 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
 	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
 
-	if (result.size()) // ok, there is something to save
+	if (sortHits(evt))
 	{
-		size_t spStart = 0, spEnd = 0;
-		double sp_pos[3], sp_err[6];
-		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
-
-		double dQdxFlipThr = 0.0;
-		if (fFlipToBeam) dQdxFlipThr = 0.4;
-
-		fTrkIndex = 0;
-		for (auto const& trk : result)
+		int retCode = 0;
+		switch (fCluMatchingAlg)
 		{
-			if (fFlipToBeam)    // flip the track to the beam direction
-			{
-				double z0 = trk->front()->Point3D().Z();
-				double z1 = trk->back()->Point3D().Z();
-				if (z0 > z1) trk->Flip();
-			}
-			if (fFlipDownward)  // flip the track to point downward
-			{
-				double y0 = trk->front()->Point3D().Y();
-				double y1 = trk->back()->Point3D().Y();
-				if (y0 < y1) trk->Flip();
-			}
-			if (fAutoFlip_dQdx) // flip the track by dQ/dx
-				fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
-				/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
+			default:
+			case 1: retCode = fromMaxCluster(evt, result); break;
 
-			tracks->push_back(convertFrom(*trk));
-			fTrkIndex++;
-
-			std::vector< art::Ptr< recob::Hit > > hits2d;
-			art::PtrVector< recob::Hit > sp_hits;
-
-			spStart = allsp->size();
-			for (int h = trk->size() - 1; h >= 0; h--)
-			{
-				pma::Hit3D* h3d = (*trk)[h];
-				hits2d.push_back(h3d->Hit2DPtr());
-
-				if ((h == 0) ||
-				      (sp_pos[0] != h3d->Point3D().X()) ||
-				      (sp_pos[1] != h3d->Point3D().Y()) ||
-				      (sp_pos[2] != h3d->Point3D().Z()))
-				{
-					if (sp_hits.size()) // hits assigned to the previous sp
-					{
-						util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
-						sp_hits.clear();
-					}
-					sp_pos[0] = h3d->Point3D().X();
-					sp_pos[1] = h3d->Point3D().Y();
-					sp_pos[2] = h3d->Point3D().Z();
-					allsp->push_back(recob::SpacePoint(sp_pos, sp_err, 1.0));
-				}
-				sp_hits.push_back(h3d->Hit2DPtr());
-			}
-			if (sp_hits.size()) // hits assigned to the last sp
-			{
-				util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
-			}
-			spEnd = allsp->size();
-
-			if (hits2d.size())
-			{
-				util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
-				util::CreateAssn(*this, evt, *tracks, hits2d, *trk2hit);
-			}
+			case 2: retCode = fromExistingAssocs(evt, result); break;
+		}
+		switch (retCode)
+		{
+			case -2: mf::LogError("Summary") << "problem"; break;
+			case -1: mf::LogWarning("Summary") << "no input"; break;
+			case  0: mf::LogVerbatim("Summary") << "no tracks done"; break;
+			default:
+				if (retCode < 0) mf::LogVerbatim("Summary") << "unknown result";
+				else if (retCode == 1) mf::LogVerbatim("Summary") << retCode << " track ready";
+				else mf::LogVerbatim("Summary") << retCode << " tracks ready";
+				break;
 		}
 
-		// data prods done, delete all pma::Track3D's
-		for (size_t t = 0; t < result.size(); t++) delete result[t];
+		if (result.size()) // ok, there is something to save
+		{
+			size_t spStart = 0, spEnd = 0;
+			double sp_pos[3], sp_err[6];
+			for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
+
+			double dQdxFlipThr = 0.0;
+			if (fFlipToBeam) dQdxFlipThr = 0.4;
+
+			fTrkIndex = 0;
+			for (auto const& trk : result)
+			{
+				if (fFlipToBeam)    // flip the track to the beam direction
+				{
+					double z0 = trk->front()->Point3D().Z();
+					double z1 = trk->back()->Point3D().Z();
+					if (z0 > z1) trk->Flip();
+				}
+				if (fFlipDownward)  // flip the track to point downward
+				{
+					double y0 = trk->front()->Point3D().Y();
+					double y1 = trk->back()->Point3D().Y();
+					if (y0 < y1) trk->Flip();
+				}
+				if (fAutoFlip_dQdx) // flip the track by dQ/dx
+					fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
+					/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
+
+				tracks->push_back(convertFrom(*trk));
+				fTrkIndex++;
+
+				std::vector< art::Ptr< recob::Hit > > hits2d;
+				art::PtrVector< recob::Hit > sp_hits;
+
+				spStart = allsp->size();
+				for (int h = trk->size() - 1; h >= 0; h--)
+				{
+					pma::Hit3D* h3d = (*trk)[h];
+					hits2d.push_back(h3d->Hit2DPtr());
+
+					if ((h == 0) ||
+					      (sp_pos[0] != h3d->Point3D().X()) ||
+					      (sp_pos[1] != h3d->Point3D().Y()) ||
+					      (sp_pos[2] != h3d->Point3D().Z()))
+					{
+						if (sp_hits.size()) // hits assigned to the previous sp
+						{
+							util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
+							sp_hits.clear();
+						}
+						sp_pos[0] = h3d->Point3D().X();
+						sp_pos[1] = h3d->Point3D().Y();
+						sp_pos[2] = h3d->Point3D().Z();
+						allsp->push_back(recob::SpacePoint(sp_pos, sp_err, 1.0));
+					}
+					sp_hits.push_back(h3d->Hit2DPtr());
+				}
+				if (sp_hits.size()) // hits assigned to the last sp
+				{
+					util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
+				}
+				spEnd = allsp->size();
+
+				if (hits2d.size())
+				{
+					util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
+					util::CreateAssn(*this, evt, *tracks, hits2d, *trk2hit);
+				}
+			}
+
+			// data prods done, delete all pma::Track3D's
+			for (size_t t = 0; t < result.size(); t++) delete result[t];
+		}
 	}
+	else mf::LogError("PMAlgTrackMaker") << "Hits not found in the event.";
 
 	evt.put(std::move(tracks));
 	evt.put(std::move(allsp));
