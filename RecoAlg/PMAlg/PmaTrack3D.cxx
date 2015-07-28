@@ -14,6 +14,8 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "TMath.h"
+
 pma::Track3D::Track3D(void) :
 	fMaxHitsPerSeg(70),
 	fPenaltyFactor(1.0F),
@@ -629,7 +631,7 @@ bool pma::Track3D::erase(art::Ptr< recob::Hit > hit)
 {
 	for (size_t i = 0; i < size(); i++)
 	{
-		if (hit == fHits[i]->Hit2DPtr())
+		if (hit == fHits[i]->fHit)
 		{
 			pma::Hit3D* h3d = fHits[i];
 			fHits.erase(fHits.begin() + i);
@@ -704,6 +706,20 @@ std::vector< unsigned int > pma::Track3D::Cryos(void) const
 		if (!found) cryo_idxs.push_back(cryo);
 	}
 	return cryo_idxs;
+}
+
+std::pair< int, int > pma::Track3D::WireRange(unsigned int tpc, unsigned int cryo) const
+{
+	std::pair< int, int > range;
+
+	return range;
+}
+
+std::pair< double, double > pma::Track3D::DriftRange(unsigned int tpc, unsigned int cryo) const
+{
+	std::pair< double, double > range;
+
+	return range;
 }
 
 void pma::Track3D::InternalFlip(std::vector< pma::Track3D* >& toSort)
@@ -1237,15 +1253,15 @@ double pma::Track3D::GetMse(void) const
 
 double pma::Track3D::GetMeanAng(void) const
 {
-	double a = 0.0;
 	if (fNodes.size() > 2)
 	{
+		double a = 0.0;
 		for (size_t i = 1; i < fNodes.size() - 1; i++)
 			a += acos(fNodes[i]->SegmentCos());
 
-		a /= (fNodes.size() - 2);
+		return a / (fNodes.size() - 2);
 	}
-	return a;
+	else return TMath::Pi();
 }
 
 double pma::Track3D::GetObjFunction(float penaltyFactor) const

@@ -74,6 +74,9 @@ public:
 	unsigned int BackTPC(void) const { return fNodes.back()->TPC(); }
 	unsigned int BackCryo(void) const { return fNodes.back()->Cryo(); }
 
+	std::pair< int, int > WireRange(unsigned int tpc, unsigned int cryo) const;
+	std::pair< double, double > DriftRange(unsigned int tpc, unsigned int cryo) const;
+
 	/// Invert the order of hits and vertices in the track.
 	void Flip(void);
 
