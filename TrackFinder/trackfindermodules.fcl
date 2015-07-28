@@ -11,15 +11,24 @@ standard_cctrackmaker:
   HitModuleLabel:         "cccluster"
   ClusterModuleLabel:     "cccluster"
   VertexModuleLabel:      "cccluster"
-  MatchAlgs:        3     # 1 = vtx, 2 = pln, 3 = both
-  MaxDAng:           0.55 # kink angle cut (radians)
-  MergeChgAsym:      0.5  # charge asymmetry cut for merging clusters
-  XMatchErr:    0.2       # end X match uncertainty
-  AngleMatchErr:  0.02    # end angle match uncertainty
+  MatchAlgs:           7  # 1 = vtx, 2 = pln, 7 = vtx, pln, ang
+  MaxDAng:           0.6  # kink angle cut (radians)
+  ChainMaxdX:        1.0  # max dX for merging broken clusters
+  ChainVtxAng:       0.1  # kill 2-cluster US-DS vertices if angle diff < this cut
+  MergeChgAsym:      0.7  # charge asymmetry cut for merging clusters
+  XMatchErr:         0.2  # end X match uncertainty
+  AngleMatchErr:    0.02  # end angle match uncertainty
   ChgAsymFactor:  1       # scale rms by charge asymmetry * this factor
+  PlnMatchMinLen: [20]    # match clusters > cut in PlnMatch on several passes
+  AngMatchMinLen:   20    # match clusters > cut in AngMatch
   MakePFPs:       true    # make PFParticles
+  NVtxTrkHitsFit:    4    # number of hits/plane fitted to a vertex, 0 = no vertex fit
+  FiducialCut:      5     # cut (cm) for tagging cosmic rays
+  DeltaRayCut:      5     # cut (cm) for tagging delta-rays
+  HitFitErrFac:   0.1     # Factor applied to SigmaPeakTime for vertex fit
   DebugPlane:    -1       # -1 = none
   DebugCluster:  -1
+  PrintAllClusters: false # print clusters as well as cluster chains
 }
 
 standard_pmalgtrackmaker:
@@ -37,8 +46,9 @@ standard_pmalgtrackmaker:
                                       #    used by the shower reconstruction but not yet ready)
                                       #
   FlipToBeam:             false       # set the track direction to increasing Z values
+  FlipDownward:           false       # set the track direction to decreasing Y values (like cosmic rays)
   AutoFlip_dQdx:          false       # set the track direction to increasing dQ/dx (overrides FlipToBeam
-                                      # if significant rise of dQ/dx at the track end)
+                                      # and FlipDownward if significant rise of dQ/dx at the track end)
   Save_dQdx:              false       # store dQ/dx vs range in the tree
                                       #
   MergeWithinTPC:         false       # merge witnin single TPC; finds tracks best matching by angle, with limits:
@@ -162,6 +172,26 @@ standard_track3DkalmanSPS:
  SpacePointAlg:       @local::standard_spacepointalg
 }
 
+standard_pfpana:
+{
+  module_type:              "PFPAna"
+  HitsModuleLabel:          "linecluster"
+  ClusterModuleLabel:       "linecluster"
+  TrackModuleLabel:         "cctrackmaker"
+  PFParticleModuleLabel:    "cctrackmaker"
+  VertexModuleLabel:        "cctrackmaker"
+  ElecKERange:              [50, 10000] # Min, max KE (MeV) for matching Primary only
+  MuonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  PionKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  KaonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  ProtKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  TrackWeightOption:        1 # 0 = equal weighting, 1 = weight by kinetic energy
+  MergeDaughters:           true # merge daughter MC particles with mothers (not electrons)
+  SkipCosmics:              true # do not evaluate cosmic rays
+  PrintLevel:               0 # 0 = none, 1 = event summary, 2 += each MC particle, 3 += truth
+}
+
+
 standard_trackana:
 {
    module_type: "TrackAna"
@@ -173,11 +203,12 @@ standard_trackana:
    HitSpptAssocModuleLabel: "gaushit"
    HitModuleLabel: "gaushit"
    Dump: 10
-   MinMCKE:  0.05
-   MinMCLen:  20.
-   MatchColinearity: 0.97
+   MinMCKE:  0.02
+   MinMCLen:  10.
+   MatchColinearity: 0.98
    MatchDisp:  2.0
    WMatchDisp: 15.0
+   MatchLength: 0.8
    IgnoreSign: true
 }
 
@@ -257,6 +288,7 @@ standard_track3Dkalmanhit:
   Hist:               false
   UseClusterHits:     true
   UsePFParticleHits:  false
+  UsePFParticleSeeds: true
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
   PFParticleModuleLabel: "pandora"

@@ -35,13 +35,13 @@ namespace trkf{
     if(y.size() < 2) return;
     if(x.size() < y.size() || ey2.size() < y.size()) return;
     
-    float sum = 0.;
-    float sumx = 0.;
-    float sumy = 0.;
-    float sumxy = 0.;
-    float sumx2 = 0.;
-    float sumy2 = 0.;
-    float weight, arg;
+    double sum = 0.;
+    double sumx = 0.;
+    double sumy = 0.;
+    double sumxy = 0.;
+    double sumx2 = 0.;
+    double sumy2 = 0.;
+    double weight, arg;
     unsigned short ii;
 
     for(ii = 0; ii < y.size(); ++ii) {
@@ -54,19 +54,18 @@ namespace trkf{
       sumy2 += weight * y[ii] * y[ii];
     }
     // calculate coefficients and std dev
-    float delta = sum * sumx2 - sumx * sumx;
+    double delta = sum * sumx2 - sumx * sumx;
     if(delta == 0.) return;
-    float A = (sumx2 * sumy - sumx * sumxy) / delta;
-    float B = (sumxy * sum  - sumx * sumy) / delta;
+    double A = (sumx2 * sumy - sumx * sumxy) / delta;
+    double B = (sumxy * sum  - sumx * sumy) / delta;
     Intercept = A;
     Slope = B;
     if(x.size() == 2) {
       ChiDOF = 0.;
       return;
     }
-    float ndof = x.size() - 2;
-    float varnce = (sumy2 + A*A*sum + B*B*sumx2 - 
-                    2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
+    double ndof = x.size() - 2;
+    double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
     if(varnce > 0.) {
       InterceptError = sqrt(varnce * sumx2 / delta);
       SlopeError = sqrt(varnce * sum / delta);

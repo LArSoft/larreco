@@ -5,7 +5,7 @@ BEGIN_PROLOG
 standard_clustercrawleralg:
 {
   NumPass:              3  # number of passes through the hit list. 0 = no cluster reco
-  MaxHitsFit: [ 50,  8, 4] # number of hits fitted to a line
+  MaxHitsFit: [ 100,  8, 4] # number of hits fitted to a line
   MinHits:    [ 50,  8, 3] # minimum size of a cluster
   NHitsAve:   [ 20,  8, 0] # number of hits to find the average charge and width  
                            # at the end of the cluster. NHitsAve should be 1 or 2
@@ -15,22 +15,29 @@ standard_clustercrawleralg:
   MinWirAfterSkip: [2, 2, 1] # min reqd number of consecutive wires with a hit after a skip
   KinkChiRat: [1.2, 1.2, 0.] # Max consecutive chisq increase for the last 3 hits on the cluster
                              # 0. = no kink check when following
-  KinkAngCut: [0.55, 0.55, 0.55] # kink angle cut (radians) used to follow and merge
+  KinkAngCut: [0.4, 0.4, 0.4] # kink angle cut (radians) used to follow and merge
   DoMerge:   [false, true, true] # run cluster merging code?
   TimeDelta: [2., 3., 10.] # max time difference for cluster merging
   MergeChgCut: [0.8, 0.8, 0.8] # max charge ratio for cluster merging
   FindVertices: [true, true, true]  # make 2D vertices after clustering?
   LACrawl:     [true, true, true]  # crawl Large Angle clusters?
-  LAClusAngleCut:       45 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
+  LAClusAngleCut:       60 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
+	LAClusMaxHitsFit: 		10 # 
+	MinHitFrac: 				 0.6 # Drop clusters having < (#hits/#wires)
+	MinAmp: 						  10 # Min hit signal amplitude for merging
+	ChgNearWindow:				40 # #of ticks for summing charge near a cluster
+	ChgNearCut: 				 1.5 # Cluster end is shower-like if (nearby chg)/(cls chg)> cut
   HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
+  MergeOverlapAngCut:  0.1 # Set <= 0 to turn off overlapping cluster merging
   ChkClusterDS:       true # Check reconstruction at DS end of clusters?
-  MergeOverlap:      false # Merge overlapping clusters?
   VtxClusterSplit:    true # Split clusters that cross vertices
   FindStarVertices:   true # Find vertices with a star topology
   HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
   AllowNoHitWire:        1 # Allow skipping N wires w no hits (if poor purity)
-  Vertex3DCut:          1. # 2D vtx -> 3D vtx matching cut (cm)
+	Vertex2DCut:					10 # Max equiv dTick cut for attaching a cluster to a vtx
+  Vertex3DCut:          3 # 2D vtx -> 3D vtx matching cut (chisq)
+	HammerCluster:			true # look for hammer type clusters
   DebugPlane:          -1  # print info only in this plane
   DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
   DebugHit:             0  # out detailed information while crawling
@@ -40,15 +47,22 @@ standard_blurredclusteringalg:
 {
   BlurWire:            10
   BlurTick:            10
-  BlurSigma:           4
-  ClusterWireDistance: 6
-  ClusterTickDistance: 3
+  BlurSigma:           3
+  ClusterWireDistance: 2
+  ClusterTickDistance: 2
   NeighboursThreshold: 0
   MinNeighbours:       0
   MinSize:             2
   MinSeed:             0.1
   TimeThreshold:       50
   ChargeThreshold:     0.07
+}
+
+standard_mergeclusteralg:
+{
+  MinMergeClusterSize: 3
+  MaxMergeSeparation:  30
+  MergingThreshold:    0.985
 }
 
 standard_houghbasealg:
@@ -299,16 +313,11 @@ microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
+# microboone_clustercrawleralg. TODO SPECIFY 4 PASSES HERE
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
 microboone_clustermatchtq:                    @local::standard_clustermatchtq
-
-lbnefd_dbscanalg:    @local::standard_dbscanalg_fast
-lbnefd_houghbasealg: @local::standard_houghbasealg
-lbnefd_endpointalg:  @local::standard_endpointalg 
-lbnefd_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
-lbnefd_fuzzyclusteralg.HoughBaseAlg:      @local::lbnefd_houghbasealg 
 
 lbne35t_dbscanalg:    @local::standard_dbscanalg_fast
 lbne35t_dbscanalg.eps:    2.0
@@ -322,4 +331,15 @@ lbne35t_fuzzyclusteralg.HoughBaseAlg:      @local::lbne35t_houghbasealg
 lbne35t_clustercrawleralg:                 @local::standard_clustercrawleralg
 lbne35t_clustermatchtq:                    @local::standard_clustermatchtq
 lbne35t_clustermatchtq.KSCut:              0.7
+
+dunefd_dbscanalg:    @local::standard_dbscanalg_fast
+dunefd_houghbasealg: @local::standard_houghbasealg
+dunefd_endpointalg:  @local::standard_endpointalg 
+dunefd_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+dunefd_fuzzyclusteralg.HoughBaseAlg:      @local::dunefd_houghbasealg 
+dunefd_clustercrawleralg:                 @local::standard_clustercrawleralg
+dunefd_clustermatchtq:                    @local::standard_clustermatchtq
+dunefd_clustermatchtq.KSCut:              0.7
+
+
 END_PROLOG

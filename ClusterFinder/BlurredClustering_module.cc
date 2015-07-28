@@ -30,10 +30,11 @@
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
 #include "Filters/ChannelFilter.h"
-#include "RecoAlg/BlurredClusteringAlg.h"
 #include "ClusterFinder/ClusterCreator.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
+#include "RecoAlg/BlurredClusteringAlg.h"
+#include "RecoAlg/MergeClusterAlg.h"
 
 // ROOT & C++ includes
 #include <string>
@@ -57,14 +58,16 @@ private:
 
   int fEvent, fRun, fSubrun;
   std::string fHitsModuleLabel;
-  bool fCreateDebugPDF;
+  bool fCreateDebugPDF, fMergeClusters;
 
-  // Create instance of algorithm class to perform the clustering
+  // Create instances of algorithm classes to perform the clustering
   cluster::BlurredClusteringAlg fBlurredClusteringAlg;
+  cluster::MergeClusterAlg fMergeClusterAlg;
 
 };
 
-cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const &pset) : fBlurredClusteringAlg(pset.get<fhicl::ParameterSet>("BlurredClusteringAlg")) {
+cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const &pset) : fBlurredClusteringAlg(pset.get<fhicl::ParameterSet>("BlurredClusteringAlg")),
+                                                                                 fMergeClusterAlg(pset.get<fhicl::ParameterSet>("MergeClusterAlg")) {
   this->reconfigure(pset);
   produces<std::vector<recob::Cluster> >();
   produces<art::Assns<recob::Cluster,recob::Hit> >();
@@ -75,7 +78,9 @@ cluster::BlurredClustering::~BlurredClustering() { }
 void cluster::BlurredClustering::reconfigure(fhicl::ParameterSet const& p) {
   fHitsModuleLabel = p.get<std::string>("HitsModuleLabel");
   fCreateDebugPDF  = p.get<bool>       ("CreateDebugPDF");
+  fMergeClusters   = p.get<bool>       ("MergeClusters");
   fBlurredClusteringAlg.reconfigure(p.get<fhicl::ParameterSet>("BlurredClusteringAlg"));
+  fMergeClusterAlg.reconfigure(p.get<fhicl::ParameterSet>("MergeClusterAlg"));
 }
 
 void cluster::BlurredClustering::produce(art::Event &evt) {
@@ -83,6 +88,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   fEvent  = evt.event();
   fRun    = evt.run();
   fSubrun = evt.subRun();
+
+  fBlurredClusteringAlg.fEvent = fEvent;
 
   // Create debug pdf to illustrate the blurring process
   if (fCreateDebugPDF)
@@ -129,14 +136,22 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       TH2F image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(allHits);
 
       // Find clusters in histogram
-      std::vector<std::vector<int> > allClusterBins; /// Vector of clusters (clusters are vectors of hits)
+      std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
       int numClusters = fBlurredClusteringAlg.FindClusters(&image, allClusterBins);
       mf::LogVerbatim("Blurred Clustering") << "Found " << numClusters << " clusters" << std::endl;
 
       // Create output clusters from the vector of clusters made in FindClusters
-      std::vector<art::PtrVector<recob::Hit> > planeClusters = fBlurredClusteringAlg.ConvertBinsToClusters(&image, allHits, allClusterBins); // returns vector of clusters
+      std::vector<art::PtrVector<recob::Hit> > planeClusters = fBlurredClusteringAlg.ConvertBinsToClusters(&image, allHits, allClusterBins);
 
-      for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = planeClusters.begin(); clusIt != planeClusters.end(); ++clusIt) {
+      // Merge clusters which lie on the same straight line
+      std::vector<art::PtrVector<recob::Hit> > finalClusters;
+      if (fMergeClusters) {
+	int numMergedClusters = fMergeClusterAlg.MergeClusters(&planeClusters, finalClusters, planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
+	mf::LogVerbatim("Blurred Clustering") << "After merging, there are " << numMergedClusters << " clusters" << std::endl;
+      }
+      else finalClusters = planeClusters;
+
+      for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = finalClusters.begin(); clusIt != finalClusters.end(); ++clusIt) {
 
 	art::PtrVector<recob::Hit> clusterHits = *clusIt;
 	if (clusterHits.size() > 0) {
@@ -166,7 +181,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 	  );
 
 	  clusters->emplace_back(cluster.move());
-	
+
 	  // Associate the hits to this cluster
 	  util::CreateAssn(*this, evt, *(clusters.get()), clusterHits, *(associations.get()));
 

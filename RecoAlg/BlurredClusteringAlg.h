@@ -46,6 +46,7 @@
 #include <TPrincipal.h>
 #include <TVector.h>
 #include <TVectorD.h>
+#include <TVector2.h>
 
 #include <string>
 #include <vector>
@@ -69,6 +70,8 @@ public:
   std::vector<art::PtrVector<recob::Hit> > ConvertBinsToClusters(TH2F *image, std::vector<art::Ptr<recob::Hit> > *allHits, std::vector<std::vector<int> > &allClusterBins);
   void CreateDebugPDF(int fEvent, int fRun, int fSubrun, bool debug);
   TH2F ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > *hits);
+  TVector2 ConvertWireDriftToCm(unsigned int wire, float drift) { return ConvertWireDriftToCm(wire, drift, fPlane, fTPC, fCryostat); }
+  TVector2 ConvertWireDriftToCm(unsigned int wire, float drift, unsigned int plane, unsigned int tpc, unsigned int cryo);
   TH2* Convolve(TH2 *image, std::map<int,double> kernel, int width, int height, const char *new_name = 0);
   void FindBlurringParameters(int *blurwire, int *blurtick);
   int FindClusters(TH2F *image, std::vector<std::vector<int> > &allcluster);
@@ -84,6 +87,7 @@ public:
   unsigned int fEvent;
   unsigned int fPlane;
   unsigned int fTPC;
+  unsigned int fCryostat=0;
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
 
 private:
@@ -108,6 +112,8 @@ private:
   double       fBlurSigma;                // sigma for Gaussian kernel
   int          fClusterWireDistance;      // how far to cluster from seed in wire direction
   int          fClusterTickDistance;      // how far to cluster from seed in tick direction
+  unsigned int fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
+  double       fMergingThreshold;        // the PCA eigenvalue needed to consider two clusters a merge
   unsigned int fNeighboursThreshold;      // min. number of neighbors to add to cluster
   int          fMinNeighbours;            // minumum number of neighbors to keep in the cluster
   unsigned int fMinSize;                  // minimum size for cluster

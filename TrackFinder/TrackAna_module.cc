@@ -10,7 +10,8 @@
 //  MinMCKE:            Minimum MC particle kinetic energy.
 //  MatchColinearity:   Minimum colinearity for mc-track matching.
 //  MatchDisp:          Maximum uv displacement for mc-track matching.
-//  WMatchDisp:         maximum w displacement of mc-track matching.
+//  WMatchDisp:         maximum w displacement for mc-track matching.
+//  MatchLength:        Minimum length fraction for mc-track matching.
 //
 // Created: 2-Aug-2011  H. Greenlee
 //
@@ -305,7 +306,9 @@ namespace trkf {
       TH1F* fHtheta_xz;    // Theta_xz.
       TH1F* fHtheta_yz;    // Theta_yz.
       TH1F* fHmom;         // Momentum.
+      TH1F* fHmoml;        // Momentum (low momentum).
       TH1F* fHlen;         // Length.
+      TH1F* fHlens;        // Length (short tracks).
 
       // Histograms for the consituent Hits
 
@@ -374,7 +377,11 @@ namespace trkf {
       TH1F* fHmctheta_xz;  // Theta_xz.
       TH1F* fHmctheta_yz;  // Theta_yz.
       TH1F* fHmcmom;       // Momentum.
+      TH1F* fHmcmoml;      // Momentum (low momentum).
+      TH1F* fHmcke;        // Kinetic energy.
+      TH1F* fHmckel;       // Kinetic energy (low energy).
       TH1F* fHmclen;       // Length.
+      TH1F* fHmclens;      // Length (short tracks).
 
       // Histograms for well-reconstructed matched tracks (efficiency numerator).
 
@@ -389,7 +396,11 @@ namespace trkf {
       TH1F* fHgtheta_xz;   // Theta_xz.
       TH1F* fHgtheta_yz;   // Theta_yz.
       TH1F* fHgmom;        // Momentum.
+      TH1F* fHgmoml;       // Momentum (low momentum).
+      TH1F* fHgke;         // Kinetic energy.
+      TH1F* fHgkel;        // Kinetic energy (low momentum).
       TH1F* fHglen;        // Length.
+      TH1F* fHglens;       // Length (short tracks).
 
       // Efficiency histograms.
 
@@ -404,7 +415,11 @@ namespace trkf {
       TH1F* fHetheta_xz;   // Theta_xz.
       TH1F* fHetheta_yz;   // Theta_yz.
       TH1F* fHemom;        // Momentum.
+      TH1F* fHemoml;       // Momentum (low momentum).
+      TH1F* fHeke;         // Kinetic energy.
+      TH1F* fHekel;        // Kinetic energy (low momentum).
       TH1F* fHelen;        // Length.
+      TH1F* fHelens;       // Length (short tracks).
 
 
     };
@@ -440,6 +455,7 @@ namespace trkf {
     double fMatchColinearity;  // Minimum matching colinearity.
     double fMatchDisp;         // Maximum matching displacement.
     double fWMatchDisp;        // Maximum matching displacement in the w direction.
+    double fMatchLength;       // Minimum length fraction.
     bool fIgnoreSign;          // Ignore sign of mc particle if true.
     bool fStitchedAnalysis;    // if true, do the whole drill-down from stitched track to assd hits
 
@@ -474,7 +490,9 @@ namespace trkf {
     fHtheta_xz(0),
     fHtheta_yz(0),
     fHmom(0),
-    fHlen(0)
+    fHmoml(0),
+    fHlen(0),
+    fHlens(0)
     ,fHHitChg(0)
     ,fHHitWidth(0)
     ,fHHitPdg(0)
@@ -527,7 +545,9 @@ namespace trkf {
     fHtheta_xz = dir.make<TH1F>("theta_xz", "Theta_xz", 100, -3.142, 3.142);
     fHtheta_yz = dir.make<TH1F>("theta_yz", "Theta_yz", 100, -3.142, 3.142);
     fHmom = dir.make<TH1F>("mom", "Momentum", 100, 0., 10.);
+    fHmoml = dir.make<TH1F>("moml", "Momentum", 100, 0., 1.);
     fHlen = dir.make<TH1F>("len", "Track Length", 100, 0., 1.1 * geom->DetLength());
+    fHlens = dir.make<TH1F>("lens", "Track Length", 100, 0., 0.1 * geom->DetLength());
     fHHitChg = dir.make<TH1F>("hchg", "Hit Charge (ADC counts)", 100, 0., 4000.);
     fHHitWidth = dir.make<TH1F>("hwid", "Hit Width (ticks)", 40, 0., 20.);
     fHHitPdg = dir.make<TH1F>("hpdg", "Hit Pdg code",5001, -2500.5, +2500.5);
@@ -585,7 +605,11 @@ namespace trkf {
     fHmctheta_xz(0),
     fHmctheta_yz(0),
     fHmcmom(0),
+    fHmcmoml(0),
+    fHmcke(0),
+    fHmckel(0),
     fHmclen(0),
+    fHmclens(0),
     fHgstartx(0),
     fHgstarty(0),
     fHgstartz(0),
@@ -597,7 +621,11 @@ namespace trkf {
     fHgtheta_xz(0),
     fHgtheta_yz(0),
     fHgmom(0),
+    fHgmoml(0),
+    fHgke(0),
+    fHgkel(0),
     fHglen(0),
+    fHglens(0),
     fHestartx(0),
     fHestarty(0),
     fHestartz(0),
@@ -609,7 +637,11 @@ namespace trkf {
     fHetheta_xz(0),
     fHetheta_yz(0),
     fHemom(0),
-    fHelen(0)
+    fHemoml(0),
+    fHeke(0),
+    fHekel(0),
+    fHelen(0),
+    fHelens(0)
   {}
 
   TrackAna::MCHists::MCHists(const std::string& subdir)
@@ -683,7 +715,11 @@ namespace trkf {
     fHmctheta_xz = dir.make<TH1F>("mctheta_xz", "MC Theta_xz", 40, -3.142, 3.142);
     fHmctheta_yz = dir.make<TH1F>("mctheta_yz", "MC Theta_yz", 40, -3.142, 3.142);
     fHmcmom = dir.make<TH1F>("mcmom", "MC Momentum", 10, 0., 10.);
+    fHmcmoml = dir.make<TH1F>("mcmoml", "MC Momentum", 10, 0., 1.);
+    fHmcke = dir.make<TH1F>("mcke", "MC Kinetic Energy", 10, 0., 10.);
+    fHmckel = dir.make<TH1F>("mckel", "MC Kinetic Energy", 10, 0., 1.);
     fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * geom->DetLength());
+    fHmclens = dir.make<TH1F>("mclens", "MC Particle Length", 10, 0., 0.1 * geom->DetLength());
 
     fHgstartx = dir.make<TH1F>("gxstart", "Good X Start Position",
 			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
@@ -702,7 +738,11 @@ namespace trkf {
     fHgtheta_xz = dir.make<TH1F>("gtheta_xz", "Good Theta_xz", 40, -3.142, 3.142);
     fHgtheta_yz = dir.make<TH1F>("gtheta_yz", "Good Theta_yz", 40, -3.142, 3.142);
     fHgmom = dir.make<TH1F>("gmom", "Good Momentum", 10, 0., 10.);
+    fHgmoml = dir.make<TH1F>("gmoml", "Good Momentum", 10, 0., 1.);
+    fHgke = dir.make<TH1F>("gke", "Good Kinetic Energy", 10, 0., 10.);
+    fHgkel = dir.make<TH1F>("gkel", "Good Kinetic Energy", 10, 0., 1.);
     fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * geom->DetLength());
+    fHglens = dir.make<TH1F>("glens", "Good Particle Length", 10, 0., 0.1 * geom->DetLength());
 
     fHestartx = dir.make<TH1F>("exstart", "Efficiency vs. X Start Position",
 			       10, -2.*geom->DetHalfWidth(), 4.*geom->DetHalfWidth());
@@ -721,8 +761,13 @@ namespace trkf {
     fHetheta_xz = dir.make<TH1F>("etheta_xz", "Efficiency vs. Theta_xz", 40, -3.142, 3.142);
     fHetheta_yz = dir.make<TH1F>("etheta_yz", "Efficiency vs. Theta_yz", 40, -3.142, 3.142);
     fHemom = dir.make<TH1F>("emom", "Efficiency vs. Momentum", 10, 0., 10.);
+    fHemoml = dir.make<TH1F>("emoml", "Efficiency vs. Momentum", 10, 0., 1.);
+    fHeke = dir.make<TH1F>("eke", "Efficiency vs. Kinetic Energy", 10, 0., 10.);
+    fHekel = dir.make<TH1F>("ekel", "Efficiency vs. Kinetic Energy", 10, 0., 1.);
     fHelen = dir.make<TH1F>("elen", "Efficiency vs. Particle Length",
 			    10, 0., 1.1 * geom->DetLength());
+    fHelens = dir.make<TH1F>("elens", "Efficiency vs. Particle Length",
+			     10, 0., 0.1 * geom->DetLength());
   }
 
   TrackAna::TrackAna(const fhicl::ParameterSet& pset)
@@ -745,6 +790,7 @@ namespace trkf {
     , fMatchColinearity(pset.get<double>("MatchColinearity"))
     , fMatchDisp(pset.get<double>("MatchDisp"))
     , fWMatchDisp(pset.get<double>("WMatchDisp"))
+    , fMatchLength(pset.get<double>("MatchLength"))
     , fIgnoreSign(pset.get<bool>("IgnoreSign"))
     , fStitchedAnalysis(pset.get<bool>("StitchedAnalysis",false))
     , fNumEvent(0)
@@ -921,6 +967,9 @@ namespace trkf {
 
 	      double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
 	      double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
+	      double mcmom = mcstartmom.Mag();
+	      double mcmass = 0.001 * mctrk.Start().Momentum().Mag();
+	      double mcke = mcmom*mcmom / (std::sqrt(mcmom*mcmom + mcmass*mcmass) + mcmass);
 
 	      mchists.fHmcstartx->Fill(mcstart.X());
 	      mchists.fHmcstarty->Fill(mcstart.Y());
@@ -932,8 +981,12 @@ namespace trkf {
 	      mchists.fHmcphi->Fill(mcstartmom.Phi());
 	      mchists.fHmctheta_xz->Fill(mctheta_xz);
 	      mchists.fHmctheta_yz->Fill(mctheta_yz);
-	      mchists.fHmcmom->Fill(mcstartmom.Mag());
+	      mchists.fHmcmom->Fill(mcmom);
+	      mchists.fHmcmoml->Fill(mcmom);
+	      mchists.fHmcke->Fill(mcke);
+	      mchists.fHmckel->Fill(mcke);
 	      mchists.fHmclen->Fill(plen);
+	      mchists.fHmclens->Fill(plen);
 	    }
 	  }
 	}
@@ -1039,7 +1092,9 @@ namespace trkf {
 	  if(track.NumberFitMomentum() > 0)
 	    mom = track.VertexMomentum();
 	  rhists.fHmom->Fill(mom);
+	  rhists.fHmoml->Fill(mom);
 	  rhists.fHlen->Fill(tlen);
+	  rhists.fHlens->Fill(tlen);
 
 	  // Id of matching mc particle.
 
@@ -1170,6 +1225,9 @@ namespace trkf {
 
 		  double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
 		  double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
+		  double mcmom = mcstartmom.Mag();
+		  double mcmass = 0.001 * mctrk.Start().Momentum().Mag();
+		  double mcke = mcmom*mcmom / (std::sqrt(mcmom*mcmom + mcmass*mcmass) + mcmass);
 
 		  mchists.fHstartdx->Fill(pos.X() - mcstart.X());
 		  mchists.fHstartdy->Fill(pos.Y() - mcstart.Y());
@@ -1179,12 +1237,12 @@ namespace trkf {
 		  mchists.fHenddz->Fill(end.Z() - mcend.Z());
 		  mchists.fHlvsl->Fill(plen, tlen);
 		  mchists.fHdl->Fill(tlen - plen);
-		  mchists.fHpvsp->Fill(mcstartmom.Mag(), mom);
-		  double dp = mom - mcstartmom.Mag();
+		  mchists.fHpvsp->Fill(mcmom, mom);
+		  double dp = mom - mcmom;
 		  mchists.fHdp->Fill(dp);
 		  mchists.fHppull->Fill(dp / std::sqrt(cov(4,4)));
 		  if(std::abs(dpos) >= 5. && std::abs(dend) >= 5.) {
-		    mchists.fHpvspc->Fill(mcstartmom.Mag(), mom);
+		    mchists.fHpvspc->Fill(mcmom, mom);
 		    mchists.fHdpc->Fill(dp);
 		    mchists.fHppullc->Fill(dp / std::sqrt(cov(4,4)));
 		  }
@@ -1195,7 +1253,7 @@ namespace trkf {
 		  // is more than 0.5 of the mc particle trajectory length.
 
 		  bool good = std::abs(w) <= fWMatchDisp &&
-		    tlen > 0.5 * plen;
+		    tlen > fMatchLength * plen;
 		  if(good) {
 		    mcid = mctrk.TrackID();
 
@@ -1221,8 +1279,12 @@ namespace trkf {
 		    mchists.fHgphi->Fill(mcstartmom.Phi());
 		    mchists.fHgtheta_xz->Fill(mctheta_xz);
 		    mchists.fHgtheta_yz->Fill(mctheta_yz);
-		    mchists.fHgmom->Fill(mcstartmom.Mag());
+		    mchists.fHgmom->Fill(mcmom);
+		    mchists.fHgmoml->Fill(mcmom);
+		    mchists.fHgke->Fill(mcke);
+		    mchists.fHgkel->Fill(mcke);
 		    mchists.fHglen->Fill(plen);
+		    mchists.fHglens->Fill(plen);
 		  }
 		}
 	      }
@@ -1553,7 +1615,11 @@ namespace trkf {
       effcalc(mchists.fHgtheta_xz, mchists.fHmctheta_xz, mchists.fHetheta_xz);
       effcalc(mchists.fHgtheta_yz, mchists.fHmctheta_yz, mchists.fHetheta_yz);
       effcalc(mchists.fHgmom, mchists.fHmcmom, mchists.fHemom);
+      effcalc(mchists.fHgmoml, mchists.fHmcmoml, mchists.fHemoml);
+      effcalc(mchists.fHgke, mchists.fHmcke, mchists.fHeke);
+      effcalc(mchists.fHgkel, mchists.fHmckel, mchists.fHekel);
       effcalc(mchists.fHglen, mchists.fHmclen, mchists.fHelen);
+      effcalc(mchists.fHglens, mchists.fHmclens, mchists.fHelens);
     }
   }
 

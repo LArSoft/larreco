@@ -246,6 +246,15 @@ TVector2 pma::GetProjectionToPlane(const TVector3& p, unsigned int view, unsigne
 	);
 }
 
+TVector2 pma::GetVectorProjectionToPlane(const TVector3& v, unsigned int view, unsigned int tpc, unsigned int cryo)
+{
+	TVector3 v0_3d(0., 0., 0.);
+	TVector2 v0_2d = GetProjectionToPlane(v0_3d, view, tpc, cryo);
+	TVector2 v1_2d = GetProjectionToPlane(v, view, tpc, cryo);
+
+	return v1_2d - v0_2d;
+}
+
 TVector2 pma::WireDriftToCm(unsigned int wire, float drift, unsigned int view, unsigned int tpc, unsigned int cryo)
 {
 	art::ServiceHandle<geo::Geometry> geom;

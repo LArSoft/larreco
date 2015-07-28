@@ -72,7 +72,7 @@ namespace trkf{
     
     p_mcs_2 = -1.0; LLbf = -1.0;
     
-    kcal = 0.0022;
+    kcal = 0.0024;
     
   }
   
@@ -186,13 +186,13 @@ namespace trkf{
   
   // Momentum measurement via Multiple Coulomb Scattering (MCS)
   
-  // author: Leonidas N. Kalousis (April 2015)
+  // author: Leonidas N. Kalousis (July 2015)
   
   // email: kalousis@vt.edu
   
   Double_t TrackMomentumCalculator::GetMomentumMultiScatterLLHD( const art::Ptr<recob::Track> &trk )
   {
-    Double_t p = -1.0; // cout << "1" << endl;
+    Double_t p = -1.0; 
     
     std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
     
@@ -206,7 +206,7 @@ namespace trkf{
 	
 	recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
 	
-	// cout << " posX, Y, Z : " << pos.X() << ", " << pos.Y() << ", " << pos.Z() << endl;
+	// cout << " posX, Y, Z : " << pos.X() << ", " << pos.Y() << ", " << pos.Z() << endl; getchar();
 	
       }
     
@@ -220,7 +220,7 @@ namespace trkf{
         
     seg_size = steps_size2; 
         
-    Int_t check1 = GetSegTracks2( recoX, recoY, recoZ ); // cout << "2" << endl;
+    Int_t check1 = GetSegTracks2( recoX, recoY, recoZ ); 
     
     if ( check1!=0 ) return -1.0;
         
@@ -234,7 +234,7 @@ namespace trkf{
     
     if ( recoL<100.0 || recoL>1350.0 ) return -1;
     
-    Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); // cout << "3" << endl;
+    Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
     
     if ( check2!=0 ) return -1.0;
     
@@ -404,6 +404,8 @@ namespace trkf{
     
     ei.clear(); ej.clear(); th.clear(); ind.clear();
     
+    azx0.clear(); azy0.clear();
+    
     for ( Int_t i=0; i<tot; i++ )
       {
 	Double_t dx = segnx.at( i ); Double_t dy = segny.at( i ); Double_t dz = segnz.at( i );
@@ -416,7 +418,7 @@ namespace trkf{
 	
 	Double_t switcher = basex.Dot( vec_z ); 
 	
-	if ( switcher<=0.995 ) 
+	if ( TMath::Abs( switcher )<=0.995 ) 
 	  {
 	    vec_y = vec_z.Cross( basex ); vec_y = vec_y.Unit();  
 	    
@@ -478,6 +480,10 @@ namespace trkf{
 		
 		Double_t here_dz = segnz.at( j );
 		
+		Double_t ac1 =	0.001*180.0/3.14159*find_angle( here_dz, here_dx );
+		
+		Double_t ac2 =	0.001*180.0/3.14159*find_angle( here_dz, here_dy );
+		
 		TVector3 here_vec; here_vec.SetXYZ( here_dx, here_dy, here_dz );
 						
 		TVector3 rot_here; rot_here.SetXYZ( Rx.Dot( here_vec ), Ry.Dot( here_vec ), Rz.Dot( here_vec ) );
@@ -512,6 +518,10 @@ namespace trkf{
 		    
 		    ind.push_back( 2 );
 		    
+		    azx0.push_back( ac1 );
+		    
+		    azy0.push_back( ac2 );
+		    
 		  }
 		
 		if ( azx<=ULim && azx>=LLim ) 
@@ -523,6 +533,10 @@ namespace trkf{
 		    th.push_back( azx );
 		    
 		    ind.push_back( 1 );
+		    
+		    azx0.push_back( ac1 );
+		    
+		    azy0.push_back( ac2 );
 		    
 		  }
 		
@@ -761,7 +775,7 @@ namespace trkf{
     segnx.clear(); segny.clear(); segnz.clear(); 
     
     segL.clear(); 
-        
+            
     Int_t ntot = 0; 
     
     n_seg = 0;
@@ -822,7 +836,7 @@ namespace trkf{
     
 	  }
 	
-	if ( dr1<seg_size && dr2>seg_size )
+	if ( dr1<=seg_size && dr2>seg_size )
 	  {
 	    // ..
 	    
@@ -972,7 +986,7 @@ namespace trkf{
 	    	    
 	  }
 	
-	else if ( dr1>=seg_size )
+	else if ( dr1>seg_size )
 	  {
 	    // ..
 	    
@@ -1307,8 +1321,7 @@ namespace trkf{
     return result; 
     
   }
-  
-  
+    
   Double_t TrackMomentumCalculator::my_g( Double_t xx, Double_t Q, Double_t s )
   {
     Double_t arg = 0.0; 
@@ -1359,6 +1372,8 @@ namespace trkf{
 	
 	if ( ind.at( i )==1 ) 
 	  {
+	    theta0x = 2.0; 
+	    	    	    
 	    rms = sqrt( tH0*tH0+pow( theta0x, 2.0 ) );
 	    
 	    Double_t DT = dthij.at( i )+addth; 

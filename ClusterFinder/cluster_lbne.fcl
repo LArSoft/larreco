@@ -6,17 +6,20 @@ lbne_dbscanalg:    @local::standard_dbscanalg_fast
 lbne_houghbasealg: @local::standard_houghbasealg
 lbne_endpointalg:  @local::standard_endpointalg 
 
-lbnefd_dbcluster:                    @local::standard_dbcluster      
-lbnefd_dbcluster.DBScanAlg:          @local::lbnefd_dbscanalg          
-lbnefd_dbclusterana:                 @local::standard_dbclusterana   
-lbnefd_fuzzycluster:                 @local::standard_fuzzycluster
-lbnefd_fuzzycluster.HitsModuleLabel: "gaushit"
-lbnefd_houghlinefinder:              @local::standard_houghlinefinder
-lbnefd_houghlinefinder.HoughBaseAlg: @local::lbnefd_houghbasealg
-lbnefd_houghlinefinderana:           @local::standard_houghlinefinderana
-lbnefd_linemerger:                   @local::standard_linemerger        
-lbnefd_endpointmod:                  @local::standard_endpointmod       
-lbnefd_endpointmod.EndPointAlg:      @local::lbnefd_endpointalg
+dunefd_dbcluster:                    @local::standard_dbcluster      
+dunefd_dbcluster.DBScanAlg:          @local::dunefd_dbscanalg          
+dunefd_dbclusterana:                 @local::standard_dbclusterana   
+dunefd_fuzzycluster:                 @local::standard_fuzzycluster
+dunefd_fuzzycluster.HitsModuleLabel: "gaushit"
+dunefd_houghlinefinder:              @local::standard_houghlinefinder
+dunefd_houghlinefinder.HoughBaseAlg: @local::dunefd_houghbasealg
+dunefd_houghlinefinderana:           @local::standard_houghlinefinderana
+dunefd_linemerger:                   @local::standard_linemerger        
+dunefd_endpointmod:                  @local::standard_endpointmod       
+dunefd_endpointmod.EndPointAlg:      @local::dunefd_endpointalg
+dunefd_clustercheater:               @local::standard_clustercheater
+dunefd_linecluster:                       @local::standard_linecluster
+dunefd_linecluster.ClusterCrawlerAlg:     @local::dunefd_clustercrawleralg
 
 lbne35t_blurredclustering:            @local::standard_blurredclustering
 lbne35t_dbcluster:                    @local::standard_dbcluster
@@ -32,7 +35,6 @@ lbne35t_linemerger:                   @local::standard_linemerger
 lbne35t_endpointmod:                  @local::standard_endpointmod
 lbne35t_endpointmod.EndPointAlg:      @local::lbne35t_endpointalg
 lbne35t_clustercheater:               @local::standard_clustercheater
-
 lbne35t_linecluster:                       @local::standard_linecluster
 lbne35t_linecluster.ClusterCrawlerAlg:     @local::lbne35t_clustercrawleralg
 

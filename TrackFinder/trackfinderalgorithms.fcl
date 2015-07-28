@@ -35,8 +35,8 @@ standard_projectionmatchingalg:
   HitTestingDist2D:       0.5     # max. distance [cm] used in testing compatibility of hits with the track
   MinTwoViewFraction:     0.4     # min. fraction of track length covered with hits from many 2D views intertwinted with each other
   HitWeightZ:             1.0     # weights used for hits in U, V, Z planes:
-  HitWeightV:             0.8     #    - use lower values for planes where hit position is less reliable (e.g. due to S/N)
-  HitWeightU:             0.2     #    - relative ratios matter, sum does not need to be 1.0
+  HitWeightV:             1.0     #    - use lower values for planes where hit position is less reliable (e.g. due to S/N)
+  HitWeightU:             1.0     #    - relative ratios matter, sum does not need to be 1.0
 }
 
 standard_beziertrackeralgorithm:
