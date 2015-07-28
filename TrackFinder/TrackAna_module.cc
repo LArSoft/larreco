@@ -378,6 +378,8 @@ namespace trkf {
       TH1F* fHmctheta_yz;  // Theta_yz.
       TH1F* fHmcmom;       // Momentum.
       TH1F* fHmcmoml;      // Momentum (low momentum).
+      TH1F* fHmcke;        // Kinetic energy.
+      TH1F* fHmckel;       // Kinetic energy (low energy).
       TH1F* fHmclen;       // Length.
       TH1F* fHmclens;      // Length (short tracks).
 
@@ -395,6 +397,8 @@ namespace trkf {
       TH1F* fHgtheta_yz;   // Theta_yz.
       TH1F* fHgmom;        // Momentum.
       TH1F* fHgmoml;       // Momentum (low momentum).
+      TH1F* fHgke;         // Kinetic energy.
+      TH1F* fHgkel;        // Kinetic energy (low momentum).
       TH1F* fHglen;        // Length.
       TH1F* fHglens;       // Length (short tracks).
 
@@ -412,6 +416,8 @@ namespace trkf {
       TH1F* fHetheta_yz;   // Theta_yz.
       TH1F* fHemom;        // Momentum.
       TH1F* fHemoml;       // Momentum (low momentum).
+      TH1F* fHeke;         // Kinetic energy.
+      TH1F* fHekel;        // Kinetic energy (low momentum).
       TH1F* fHelen;        // Length.
       TH1F* fHelens;       // Length (short tracks).
 
@@ -600,6 +606,8 @@ namespace trkf {
     fHmctheta_yz(0),
     fHmcmom(0),
     fHmcmoml(0),
+    fHmcke(0),
+    fHmckel(0),
     fHmclen(0),
     fHmclens(0),
     fHgstartx(0),
@@ -614,6 +622,8 @@ namespace trkf {
     fHgtheta_yz(0),
     fHgmom(0),
     fHgmoml(0),
+    fHgke(0),
+    fHgkel(0),
     fHglen(0),
     fHglens(0),
     fHestartx(0),
@@ -628,6 +638,8 @@ namespace trkf {
     fHetheta_yz(0),
     fHemom(0),
     fHemoml(0),
+    fHeke(0),
+    fHekel(0),
     fHelen(0),
     fHelens(0)
   {}
@@ -704,6 +716,8 @@ namespace trkf {
     fHmctheta_yz = dir.make<TH1F>("mctheta_yz", "MC Theta_yz", 40, -3.142, 3.142);
     fHmcmom = dir.make<TH1F>("mcmom", "MC Momentum", 10, 0., 10.);
     fHmcmoml = dir.make<TH1F>("mcmoml", "MC Momentum", 10, 0., 1.);
+    fHmcke = dir.make<TH1F>("mcke", "MC Kinetic Energy", 10, 0., 10.);
+    fHmckel = dir.make<TH1F>("mckel", "MC Kinetic Energy", 10, 0., 1.);
     fHmclen = dir.make<TH1F>("mclen", "MC Particle Length", 10, 0., 1.1 * geom->DetLength());
     fHmclens = dir.make<TH1F>("mclens", "MC Particle Length", 10, 0., 0.1 * geom->DetLength());
 
@@ -725,6 +739,8 @@ namespace trkf {
     fHgtheta_yz = dir.make<TH1F>("gtheta_yz", "Good Theta_yz", 40, -3.142, 3.142);
     fHgmom = dir.make<TH1F>("gmom", "Good Momentum", 10, 0., 10.);
     fHgmoml = dir.make<TH1F>("gmoml", "Good Momentum", 10, 0., 1.);
+    fHgke = dir.make<TH1F>("gke", "Good Kinetic Energy", 10, 0., 10.);
+    fHgkel = dir.make<TH1F>("gkel", "Good Kinetic Energy", 10, 0., 1.);
     fHglen = dir.make<TH1F>("glen", "Good Particle Length", 10, 0., 1.1 * geom->DetLength());
     fHglens = dir.make<TH1F>("glens", "Good Particle Length", 10, 0., 0.1 * geom->DetLength());
 
@@ -746,6 +762,8 @@ namespace trkf {
     fHetheta_yz = dir.make<TH1F>("etheta_yz", "Efficiency vs. Theta_yz", 40, -3.142, 3.142);
     fHemom = dir.make<TH1F>("emom", "Efficiency vs. Momentum", 10, 0., 10.);
     fHemoml = dir.make<TH1F>("emoml", "Efficiency vs. Momentum", 10, 0., 1.);
+    fHeke = dir.make<TH1F>("eke", "Efficiency vs. Kinetic Energy", 10, 0., 10.);
+    fHekel = dir.make<TH1F>("ekel", "Efficiency vs. Kinetic Energy", 10, 0., 1.);
     fHelen = dir.make<TH1F>("elen", "Efficiency vs. Particle Length",
 			    10, 0., 1.1 * geom->DetLength());
     fHelens = dir.make<TH1F>("elens", "Efficiency vs. Particle Length",
@@ -949,6 +967,9 @@ namespace trkf {
 
 	      double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
 	      double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
+	      double mcmom = mcstartmom.Mag();
+	      double mcmass = 0.001 * mctrk.Start().Momentum().Mag();
+	      double mcke = mcmom*mcmom / (std::sqrt(mcmom*mcmom + mcmass*mcmass) + mcmass);
 
 	      mchists.fHmcstartx->Fill(mcstart.X());
 	      mchists.fHmcstarty->Fill(mcstart.Y());
@@ -960,8 +981,10 @@ namespace trkf {
 	      mchists.fHmcphi->Fill(mcstartmom.Phi());
 	      mchists.fHmctheta_xz->Fill(mctheta_xz);
 	      mchists.fHmctheta_yz->Fill(mctheta_yz);
-	      mchists.fHmcmom->Fill(mcstartmom.Mag());
-	      mchists.fHmcmoml->Fill(mcstartmom.Mag());
+	      mchists.fHmcmom->Fill(mcmom);
+	      mchists.fHmcmoml->Fill(mcmom);
+	      mchists.fHmcke->Fill(mcke);
+	      mchists.fHmckel->Fill(mcke);
 	      mchists.fHmclen->Fill(plen);
 	      mchists.fHmclens->Fill(plen);
 	    }
@@ -1202,6 +1225,9 @@ namespace trkf {
 
 		  double mctheta_xz = std::atan2(mcstartmom.X(), mcstartmom.Z());
 		  double mctheta_yz = std::atan2(mcstartmom.Y(), mcstartmom.Z());
+		  double mcmom = mcstartmom.Mag();
+		  double mcmass = 0.001 * mctrk.Start().Momentum().Mag();
+		  double mcke = mcmom*mcmom / (std::sqrt(mcmom*mcmom + mcmass*mcmass) + mcmass);
 
 		  mchists.fHstartdx->Fill(pos.X() - mcstart.X());
 		  mchists.fHstartdy->Fill(pos.Y() - mcstart.Y());
@@ -1211,12 +1237,12 @@ namespace trkf {
 		  mchists.fHenddz->Fill(end.Z() - mcend.Z());
 		  mchists.fHlvsl->Fill(plen, tlen);
 		  mchists.fHdl->Fill(tlen - plen);
-		  mchists.fHpvsp->Fill(mcstartmom.Mag(), mom);
-		  double dp = mom - mcstartmom.Mag();
+		  mchists.fHpvsp->Fill(mcmom, mom);
+		  double dp = mom - mcmom;
 		  mchists.fHdp->Fill(dp);
 		  mchists.fHppull->Fill(dp / std::sqrt(cov(4,4)));
 		  if(std::abs(dpos) >= 5. && std::abs(dend) >= 5.) {
-		    mchists.fHpvspc->Fill(mcstartmom.Mag(), mom);
+		    mchists.fHpvspc->Fill(mcmom, mom);
 		    mchists.fHdpc->Fill(dp);
 		    mchists.fHppullc->Fill(dp / std::sqrt(cov(4,4)));
 		  }
@@ -1253,8 +1279,10 @@ namespace trkf {
 		    mchists.fHgphi->Fill(mcstartmom.Phi());
 		    mchists.fHgtheta_xz->Fill(mctheta_xz);
 		    mchists.fHgtheta_yz->Fill(mctheta_yz);
-		    mchists.fHgmom->Fill(mcstartmom.Mag());
-		    mchists.fHgmoml->Fill(mcstartmom.Mag());
+		    mchists.fHgmom->Fill(mcmom);
+		    mchists.fHgmoml->Fill(mcmom);
+		    mchists.fHgke->Fill(mcke);
+		    mchists.fHgkel->Fill(mcke);
 		    mchists.fHglen->Fill(plen);
 		    mchists.fHglens->Fill(plen);
 		  }
@@ -1588,6 +1616,8 @@ namespace trkf {
       effcalc(mchists.fHgtheta_yz, mchists.fHmctheta_yz, mchists.fHetheta_yz);
       effcalc(mchists.fHgmom, mchists.fHmcmom, mchists.fHemom);
       effcalc(mchists.fHgmoml, mchists.fHmcmoml, mchists.fHemoml);
+      effcalc(mchists.fHgke, mchists.fHmcke, mchists.fHeke);
+      effcalc(mchists.fHgkel, mchists.fHmckel, mchists.fHekel);
       effcalc(mchists.fHglen, mchists.fHmclen, mchists.fHelen);
       effcalc(mchists.fHglens, mchists.fHmclens, mchists.fHelens);
     }
