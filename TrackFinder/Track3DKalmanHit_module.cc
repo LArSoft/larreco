@@ -67,7 +67,7 @@
 #include "RecoAlg/SeedFinderAlgorithm.h"
 #include "RecoObjects/KHitContainerWireX.h"
 #include "RecoObjects/SurfXYZPlane.h"
-#include "RecoObjects/PropXYZPlane.h"
+#include "RecoObjects/PropAny.h"
 #include "RecoObjects/KHit.h"
 #include "Utilities/AssociationUtil.h"
 
@@ -307,7 +307,7 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
   fInitialMomentum = pset.get<double>("InitialMomentum");
   if(fProp != 0)
     delete fProp;
-  fProp = new PropXYZPlane(fMaxTcut, fDoDedx);
+  fProp = new PropAny(fMaxTcut, fDoDedx);
   if(fUseClusterHits && fUsePFParticleHits) {
     throw cet::exception("Track3DKalmanHit")
       << "Using input from both clustered and PFParticle hits.\n";
