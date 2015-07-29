@@ -288,7 +288,7 @@ standard_track3Dkalmanhit:
   Hist:               false
   UseClusterHits:     true
   UsePFParticleHits:  false
-  UsePFParticleSeeds: true
+  UsePFParticleSeeds: false
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
   PFParticleModuleLabel: "pandora"
