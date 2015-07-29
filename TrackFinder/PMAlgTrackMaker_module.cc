@@ -1144,6 +1144,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 					if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) testView = geo::kUnknown;
 
 					double m0 = 0.0, v0 = 0.0;
+					double mseThr = 0.15, validThr = 0.7; // cuts for a good track candidate
 
 					candidate.Clusters.push_back(idx);
 					candidate.Track = fProjectionMatchingAlg.buildTrack(v_first, fbp.at(idx));
@@ -1151,9 +1152,10 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 					if (candidate.Track) // no track if hits from 2 views do not alternate
 					{
 						m0 = candidate.Track->GetMse();
-						v0 = validate(*(candidate.Track), testView);
+						if (m0 < mseThr) // check validation only if MSE is passing - thanks for Tracy for noticing this
+							v0 = validate(*(candidate.Track), testView);
 					}
-					if (candidate.Track && (m0 < 0.15) && (v0 > 0.7)) // good candidate, try to extend it
+					if (candidate.Track && (m0 < mseThr) && (v0 > validThr)) // good candidate, try to extend it
 					{
 						mf::LogVerbatim("PMAlgTrackMaker")
 							<< "  track candidate, MSE = " << m0 << ", v = " << v0;
