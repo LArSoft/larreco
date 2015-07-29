@@ -458,6 +458,11 @@ namespace trkf {
     double fMatchLength;       // Minimum length fraction.
     bool fIgnoreSign;          // Ignore sign of mc particle if true.
     bool fStitchedAnalysis;    // if true, do the whole drill-down from stitched track to assd hits
+    
+    std::string fOrigin;
+    bool fCheckOrigin;
+    simb::Origin_t fOriginValue;
+    int fPrintLevel;           // 0 = none, 1 = event summary, 2 = track detail
 
     // Histograms.
 
@@ -793,9 +798,28 @@ namespace trkf {
     , fMatchLength(pset.get<double>("MatchLength"))
     , fIgnoreSign(pset.get<bool>("IgnoreSign"))
     , fStitchedAnalysis(pset.get<bool>("StitchedAnalysis",false))
+    , fOrigin(pset.get<std::string>("MCTrackOrigin", "Any"))
+    , fPrintLevel(pset.get<int>("PrintLevel",0))
     , fNumEvent(0)
   {
-
+    
+    // Decide whether to check MCTrack origin
+    fCheckOrigin = false;
+    fOriginValue = simb::kUnknown;
+    if(fOrigin.find("Beam") != std::string::npos) {
+      fCheckOrigin = true;
+      fOriginValue = simb::kBeamNeutrino;
+    } else if(fOrigin.find("Cosmic") != std::string::npos) {
+      fCheckOrigin = true;
+      fOriginValue = simb::kCosmicRay;
+    } else if(fOrigin.find("Super") != std::string::npos) {
+      fCheckOrigin = true;
+      fOriginValue = simb::kSuperNovaNeutrino;
+    } else if(fOrigin.find("Single") != std::string::npos) {
+      fCheckOrigin = true;
+      fOriginValue = simb::kSingleParticle;
+    }
+      
     // Report.
 
     mf::LogInfo("TrackAna") 
@@ -808,7 +832,8 @@ namespace trkf {
       << "  HitModuleLabel = " << fHitModuleLabel << "\n"
       << "  Dump = " << fDump << "\n"
       << "  MinMCKE = " << fMinMCKE << "\n"
-      << "  MinMCLen = " << fMinMCLen;
+      << "  MinMCLen = " << fMinMCLen
+      << "  Origin = " << fOrigin<<" Origin value "<<fOriginValue;
   }
 
   TrackAna::~TrackAna()
@@ -848,7 +873,8 @@ namespace trkf {
 
     art::Handle< std::vector<sim::MCTrack> > mctrackh;
     evt.getByLabel(fMCTrackModuleLabel, mctrackh);
-    std::vector<const sim::MCTrack*> selected_mctracks;
+    // pair of MCTrack and index of matched reco track
+    std::vector<std::pair<const sim::MCTrack*, int>> selected_mctracks;
     selected_mctracks.reserve(mctrackh->size());
 
     if(mc) {
@@ -880,6 +906,9 @@ namespace trkf {
 	   apdg == 321 ||    // Charged kaon
 	   apdg == 2212) {   // (Anti)proton
 
+    // check MC track origin?
+    if(fCheckOrigin && mctrk.Origin() != fOriginValue) continue;
+    
 	  // Apply minimum energy cut.
 
 	  if(mctrk.Start().E() >= mctrk.Start().Momentum().Mag() + 1000.*fMinMCKE) {
@@ -904,7 +933,7 @@ namespace trkf {
 
 	      // This is a good mc particle (capable of making a track).
 
-	      selected_mctracks.push_back(&mctrk);
+        selected_mctracks.push_back(std::make_pair(&mctrk, -1));
 
 	      // Dump MC particle information here.
 
@@ -1052,8 +1081,9 @@ namespace trkf {
 	// Calculate the x offset due to nonzero reconstructed time.
 
 	//double recotime = track.Time() * detprop->SamplingRate();       // nsec
-	double recotime = 0.;
-	double trackdx = recotime * 1.e-3 * larprop->DriftVelocity();  // cm
+//	double recotime = 0.;
+//	double trackdx = recotime * 1.e-3 * larprop->DriftVelocity();  // cm
+  double trackdx = 0;
 
 	// Fill histograms involving reco tracks only.
 	
@@ -1137,8 +1167,7 @@ namespace trkf {
 	      theta_xz = std::atan2(dir.X(), dir.Z());
 	      theta_yz = std::atan2(dir.Y(), dir.Z());
 
-	      if(track.NumberFitMomentum() > 0)
-		mom = track.EndMomentum();
+	      if(track.NumberFitMomentum() > 0) mom = track.EndMomentum();
 	    }
 	  
 	    // Get covariance matrix.
@@ -1147,9 +1176,8 @@ namespace trkf {
 	    
 	    // Loop over track-like mc particles.
 
-	    for(auto imctrk = selected_mctracks.begin(); imctrk != selected_mctracks.end(); 
-		++imctrk) {
-	      const sim::MCTrack& mctrk = **imctrk;
+      for(unsigned int imc = 0; imc < selected_mctracks.size(); ++imc) {
+        const sim::MCTrack& mctrk = *selected_mctracks[imc].first;
 	      int pdg = mctrk.PdgCode();
 	      if(fIgnoreSign) pdg = std::abs(pdg);
 	      auto iMCHistMap = fMCHistMap.find(pdg);
@@ -1199,6 +1227,7 @@ namespace trkf {
 	      double uv0 = std::sqrt(u0*u0 + v0*v0);
 
 	      mchists.fHduvcosth->Fill(colinearity, uv0);
+        
 	      if(std::abs(uv0) < fMatchDisp) {
 
 		// Fill slope matching histograms.
@@ -1285,7 +1314,38 @@ namespace trkf {
 		    mchists.fHgkel->Fill(mcke);
 		    mchists.fHglen->Fill(plen);
 		    mchists.fHglens->Fill(plen);
-		  }
+        
+        // set the match flag
+        selected_mctracks[imc].second = i;
+        
+        if(fPrintLevel > 0) {
+          const simb::MCParticle* ptkl = bt->TrackIDToParticle(mcid);
+          float KE = ptkl->E() - ptkl->Mass();
+          std::string KEUnits = " GeV";
+          if(mctrk.Origin() != simb::kCosmicRay) {
+            // MeV for low energy particles
+            KE *= 1000;
+            KEUnits = " MeV";
+          }
+          mf::LogVerbatim("TrackAna")
+          <<evt.run()<<"."<<evt.event()
+          <<" Match MCTkID "<<std::setw(6)<<mctrk.TrackID()
+          <<" Origin "<<mctrk.Origin()
+          <<" PDG"<<std::setw(5)<<mctrk.PdgCode()
+          <<" KE"<<std::setw(4)<<(int)KE<<KEUnits
+          <<" RecoTrkID "<<track.ID()
+          <<" hitEff "<<std::setprecision(2)<<hiteff<<" hitPur "<<hitpurity;
+          int sWire, sTick, eWire, eTick;
+          // this won't work for DUNE
+          for(unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
+            sWire = geom->NearestWire(mcstart, ipl, 0, 0);
+            sTick = detprop->ConvertXToTicks(mcstart[0], ipl, 0, 0);
+            eWire = geom->NearestWire(mcend, ipl, 0, 0);
+            eTick = detprop->ConvertXToTicks(mcend[0], ipl, 0, 0);
+            mf::LogVerbatim("TrackAna")<<"   Wire:Tick in Pln "<<ipl<<" W:T "<<sWire<<":"<<sTick<<" - "<<eWire<<":"<<eTick;
+          } // ipl
+        } // fPrintLevel == 2
+		  } // good
 		}
 	      }
 	    }
@@ -1349,6 +1409,44 @@ namespace trkf {
 	}
       }
     }   // i
+
+    // print out un-matched MC tracks
+    if(fPrintLevel > 0) {
+      for(unsigned int imc = 0; imc < selected_mctracks.size(); ++imc) {
+        if(selected_mctracks[imc].second >= 0) continue;
+        const sim::MCTrack& mctrk = *selected_mctracks[imc].first;
+        const simb::MCParticle* ptkl = bt->TrackIDToParticle(mctrk.TrackID());
+        float KE = ptkl->E() - ptkl->Mass();
+        std::string KEUnits = " GeV";
+        if(mctrk.Origin() != simb::kCosmicRay) {
+          // MeV for low energy particles
+          KE *= 1000;
+          KEUnits = " MeV";
+        }
+        // find the start/end wire:time in each plane
+        TVector3 mcstart, mcend, mcstartmom, mcendmom;
+        double mcdx = mctrk.Start().T() * 1.e-3 * larprop->DriftVelocity();  // cm
+        double plen = length(mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
+        mf::LogVerbatim("TrackAna")<<evt.run()<<"."<<evt.event()
+          <<" NoMat MCTkID "<<std::setw(6)<<mctrk.TrackID()
+          <<" Origin "<<mctrk.Origin()
+          <<" PDG"<<std::setw(5)<<mctrk.PdgCode()
+          <<" KE"<<std::setw(4)<<(int)KE<<KEUnits
+          <<" Length "<<std::fixed<<std::setprecision(1)<<plen<<" cm";
+        if(fPrintLevel > 1) {
+          int sWire, sTick, eWire, eTick;
+          // this won't work for DUNE
+          for(unsigned short ipl = 0; ipl < geom->Nplanes(); ++ipl) {
+            sWire = geom->NearestWire(mcstart, ipl, 0, 0);
+            sTick = detprop->ConvertXToTicks(mcstart[0], ipl, 0, 0);
+            eWire = geom->NearestWire(mcend, ipl, 0, 0);
+            eTick = detprop->ConvertXToTicks(mcend[0], ipl, 0, 0);
+            mf::LogVerbatim("TrackAna")<<"   Wire:Tick in Pln "<<ipl
+              <<" W:T "<<sWire<<":"<<sTick<<" - "<<eWire<<":"<<eTick;
+          } // ipl
+        } // fPrintLevel > 1
+      } // imc
+    } // fPrintLevel > 0
 
   }
 

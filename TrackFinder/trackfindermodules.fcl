@@ -210,6 +210,9 @@ standard_trackana:
    WMatchDisp: 15.0
    MatchLength: 0.8
    IgnoreSign: true
+   StitchedAnalysis: false
+   MCTrackOrigin: "Any"
+   PrintLevel: 0
 }
 
 
@@ -288,7 +291,7 @@ standard_track3Dkalmanhit:
   Hist:               false
   UseClusterHits:     true
   UsePFParticleHits:  false
-  UsePFParticleSeeds: true
+  UsePFParticleSeeds: false
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
   PFParticleModuleLabel: "pandora"
