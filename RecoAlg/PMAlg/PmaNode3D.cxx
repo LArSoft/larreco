@@ -36,9 +36,12 @@ pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo)
 {
 	fTPC = tpc; fCryo = cryo;
 
-	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
+	art::ServiceHandle< util::DetectorProperties > detprop;
+	fMinX = detprop->ConvertTicksToX(0, geo::kZ, tpc, cryo);
+	fMaxX = detprop->ConvertTicksToX(detprop->NumberTimeSamples() - 1, geo::kZ, tpc, cryo);
+	if (fMaxX < fMinX) { double tmp = fMaxX; fMaxX = fMinX; fMinX = tmp; }
 
-	fMinX = tpcGeo.MinX(); fMaxX = tpcGeo.MaxX();
+	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
 	fMinY = tpcGeo.MinY(); fMaxY = tpcGeo.MaxY();
 	fMinZ = tpcGeo.MinZ(); fMaxZ = tpcGeo.MaxZ();
 
