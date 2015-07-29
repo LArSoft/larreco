@@ -36,18 +36,24 @@ pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo)
 {
 	fTPC = tpc; fCryo = cryo;
 
+	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
+
+	unsigned int lastPlane = geo::kZ;
+	while ((lastPlane > 0) && !tpcGeo.HasPlane(lastPlane)) lastPlane--;
+
 	art::ServiceHandle< util::DetectorProperties > detprop;
-	fMinX = detprop->ConvertTicksToX(0, geo::kZ, tpc, cryo);
-	fMaxX = detprop->ConvertTicksToX(detprop->NumberTimeSamples() - 1, geo::kZ, tpc, cryo);
+	fMinX = detprop->ConvertTicksToX(0, lastPlane, tpc, cryo);
+	fMaxX = detprop->ConvertTicksToX(detprop->NumberTimeSamples() - 1, lastPlane, tpc, cryo);
 	if (fMaxX < fMinX) { double tmp = fMaxX; fMaxX = fMinX; fMinX = tmp; }
 
-	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
 	fMinY = tpcGeo.MinY(); fMaxY = tpcGeo.MaxY();
 	fMinZ = tpcGeo.MinZ(); fMaxZ = tpcGeo.MaxZ();
 
-	fWirePitch[0] = tpcGeo.Plane(geo::kU).WirePitch();
-	fWirePitch[1] = tpcGeo.Plane(geo::kV).WirePitch();
-	fWirePitch[2] = tpcGeo.Plane(geo::kZ).WirePitch();
+	for (size_t i = 0; i < 3; i++)
+	{
+		if (tpcGeo.HasPlane(i)) fWirePitch[i] = tpcGeo.Plane(i).WirePitch();
+		else fWirePitch[i] = 0.0;
+	}
 
 	SetPoint3D(p3d);
 }
