@@ -123,10 +123,14 @@ namespace trkf{
     
     Double_t p_mcs_2; Double_t LLbf;
     
-    Double_t GetMuMultiScatterLLHD( const art::Ptr<recob::Track> &trk );
+    // Double_t GetMuMultiScatterLLHD( const art::Ptr<recob::Track> &trk );
     
-    Double_t GetMuMultiScatterLLHD2( const recob::Track &trk );
-        
+    // Double_t GetMuMultiScatterLLHD2( const recob::Track &trk );
+    
+    Double_t GetMuMultiScatterLLHD3( const art::Ptr<recob::Track> &trk, bool dir );
+    
+    TVector3 GetMultiScatterStartingPoint( const art::Ptr<recob::Track> &trk );
+    
   };
   
   

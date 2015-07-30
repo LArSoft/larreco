@@ -11,7 +11,7 @@ double my_mcs_chi2( const double *x )
   Double_t p = x[0]; 
   
   Double_t theta0 = x[1]; 
-        
+  
   for ( Int_t i=0; i<nmeas; i++ )
     {
       Double_t xx = xmeas[i]; 
@@ -252,7 +252,7 @@ namespace trkf{
 	
 	for ( Int_t l=start2; l<=end2; l++ )
 	  {
-	    Double_t res_test = 0.5; // 0.001+l*1.0; 
+	    Double_t res_test = 2.0; // 0.001+l*1.0; 
 	    
 	    Double_t fv = my_mcs_llhd( p_test, res_test ); 
 	    	    
@@ -278,6 +278,47 @@ namespace trkf{
     
   }
   
+  TVector3 TrackMomentumCalculator::GetMultiScatterStartingPoint( const art::Ptr<recob::Track> &trk )
+  {
+    TVector3 start;
+    
+    Double_t LLHDp = GetMuMultiScatterLLHD3( trk, true );
+    
+    Double_t LLHDm = GetMuMultiScatterLLHD3( trk, false );
+    
+    if ( LLHDp!=-1 && LLHDm!=-1 )
+      {
+	if ( LLHDp>LLHDm )
+	  {
+	    Int_t n_points = trk->NumberTrajectoryPoints();
+	    
+	    const TVector3 &pos = trk->LocationAtPoint( n_points-1 );
+		
+	    start.SetXYZ( pos.X(), pos.Y(), pos.Z() );
+	    
+	  }
+	else 
+	  { 
+	    const TVector3 &pos = trk->LocationAtPoint( 0 );
+	    
+	    start.SetXYZ( pos.X(), pos.Y(), pos.Z() );
+	    
+	  }
+        
+      }
+    
+    else 
+      { 
+	const TVector3 &pos = trk->LocationAtPoint( 0 );
+		
+	start.SetXYZ( pos.X(), pos.Y(), pos.Z() );
+	
+      }
+    
+    return start;
+    
+  }
+  /*
   Double_t TrackMomentumCalculator::GetMuMultiScatterLLHD( const art::Ptr<recob::Track> &trk )
   {
     Double_t LLHD = -1.0; 
@@ -285,9 +326,9 @@ namespace trkf{
     std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
     
     recoX.clear(); recoY.clear(); recoZ.clear();
-        	  
+    
     Int_t n_points = trk->NumberTrajectoryPoints();
-        
+    
     for ( Int_t i=0; i<n_points; i++ )
       {
 	const TVector3 &pos = trk->LocationAtPoint( i );
@@ -393,7 +434,82 @@ namespace trkf{
     return LLHD;
     
   }
+  */
+  Double_t TrackMomentumCalculator::GetMuMultiScatterLLHD3( const art::Ptr<recob::Track> &trk , bool dir )
+  {
+    Double_t LLHD = -1.0; 
     
+    std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
+    
+    recoX.clear(); recoY.clear(); recoZ.clear();
+    
+    Int_t n_points = trk->NumberTrajectoryPoints();
+        
+    if ( dir )
+      {
+	for ( Int_t i=0; i<n_points; i++ )
+	  {
+	    const TVector3 &pos = trk->LocationAtPoint( i );
+	    
+	    recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
+	    
+	    // cout << " posX, Y, Z : " << pos.X() << ", " << pos.Y() << ", " << pos.Z() << endl;
+	    
+	  }
+	
+      }
+    else 
+      {
+	for ( Int_t i=0; i<n_points; i++ )
+	  {
+	    const TVector3 &pos = trk->LocationAtPoint( n_points-1-i );
+	    
+	    recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
+	    
+	    // cout << " posX, Y, Z : " << pos.X() << ", " << pos.Y() << ", " << pos.Z() << endl;
+	    
+	  }
+	
+      }
+    
+    Int_t my_steps = recoX.size();
+    
+    if ( my_steps<2 ) return -1.0;
+    
+    Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
+    
+    if ( check0!=0 ) return -1.0;
+    
+    seg_size = 5.0;
+    
+    Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
+    
+    if ( check1!=0 ) return -1.0;
+        
+    Int_t seg_steps = segx.size();
+    
+    if ( seg_steps<2 ) return -1;
+    
+    Int_t seg_steps0 = seg_steps-1;
+    
+    Double_t recoL = segL.at(seg_steps0);
+    
+    if ( recoL<15.0 || recoL>1350.0 ) return -1;
+        
+    Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
+    
+    if ( check2!=0 ) return -1.0;
+    
+    Double_t p_range = recoL*kcal;
+    
+    Double_t logL = my_mcs_llhd( p_range, 0.5 ); 
+    
+    LLHD = logL;
+    
+    return LLHD;
+    
+  }
+  
   Int_t TrackMomentumCalculator::GetDeltaThetaij( std::vector<Float_t> &ei, std::vector<Float_t> &ej, std::vector<Float_t> &th, Double_t thick, std::vector<Float_t> &ind )
   {
     Int_t a1 = segx.size(); Int_t a2 = segy.size(); Int_t a3 = segz.size();
@@ -1370,10 +1486,8 @@ namespace trkf{
 	
 	Double_t rms = -1.0;
 	
-	if ( ind.at( i )==1 ) 
+	if ( ind.at( i )==1 )
 	  {
-	    theta0x = 2.0; 
-	    	    	    
 	    rms = sqrt( tH0*tH0+pow( theta0x, 2.0 ) );
 	    
 	    Double_t DT = dthij.at( i )+addth; 
