@@ -219,7 +219,7 @@ namespace trkf{
     if ( check0!=0 ) return -1.0;
         
     seg_size = steps_size2; 
-        
+    
     Int_t check1 = GetSegTracks2( recoX, recoY, recoZ ); 
     
     if ( check1!=0 ) return -1.0;
@@ -502,7 +502,7 @@ namespace trkf{
     
     Double_t p_range = recoL*kcal;
     
-    Double_t logL = my_mcs_llhd( p_range, 0.5 ); 
+    Double_t logL = my_mcs_llhd( p_range, 5.65 );
     
     LLHD = logL;
     
