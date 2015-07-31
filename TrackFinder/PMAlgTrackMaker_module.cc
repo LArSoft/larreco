@@ -428,6 +428,13 @@ int PMAlgTrackMaker::getMcPdg(const pma::Track3D& trk) const
 
 double PMAlgTrackMaker::validate(pma::Track3D& trk, unsigned int testView)
 {
+	if ((trk.FirstElement()->GetDistToWall() < -3.0) ||
+	    (trk.LastElement()->GetDistToWall() < -3.0))
+	{
+		mf::LogVerbatim("PMAlgTrackMaker") << "first or last node too far out of its initial TPC";
+		return 0.0;
+	}
+
 	if (testView != geo::kUnknown)
 		mf::LogVerbatim("PMAlgTrackMaker") << "validation in plane: " << testView;
 	else return 1.0;
@@ -711,11 +718,15 @@ bool PMAlgTrackMaker::reassignHits(
 
 		pma::Track3D* ext = fProjectionMatchingAlg.extendTrack(*best_trk, hits,	false);
 		ext->SortHits(); ext->ShiftEndsToHits();
-		tracks[best_u] = ext;
-		delete best_trk;
-		return true;
+		if (fProjectionMatchingAlg.isContained(*ext))
+		{
+			tracks[best_u] = ext;
+			delete best_trk;
+			return true;
+		}
+		else delete ext;
 	}
-	else return false;
+	return false;
 }
 
 bool PMAlgTrackMaker::reassignSingleViewEnds(std::vector< pma::Track3D* >& tracks)
@@ -783,7 +794,7 @@ bool PMAlgTrackMaker::reassignSingleViewEnds(std::vector< pma::Track3D* >& track
 
 		if ((hits.size() > 1) || (d2 > 1.0))  // min. 2 hits or single hit separated from the rest
 		{
-			reassignHits(hits, tracks, t);
+			result |= reassignHits(hits, tracks, t);
 		}
 
 		trk->SelectHits();
@@ -1149,7 +1160,8 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 					candidate.Clusters.push_back(idx);
 					candidate.Track = fProjectionMatchingAlg.buildTrack(v_first, fbp.at(idx));
 
-					if (candidate.Track) // no track if hits from 2 views do not alternate
+					if (candidate.Track && // no track if hits from 2 views do not alternate
+					    fProjectionMatchingAlg.isContained(*(candidate.Track))) // sticks out of TPC's?
 					{
 						m0 = candidate.Track->GetMse();
 						if (m0 < mseThr) // check validation only if MSE is passing - thanks for Tracy for noticing this
@@ -1218,7 +1230,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 
 			if (fCandidates.size()) // save best candidate, release other tracks and clusters
 			{
-				size_t best_trk = 0;
+				int best_trk = -1;
 				double f, max_f = 0., min_mse = 10., max_v = 0.;
 				for (size_t t = 0; t < fCandidates.size(); t++)
 					if (fCandidates[t].Good)
@@ -1235,21 +1247,21 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 					}
 				}
 
+				if ((best_trk > -1) && fCandidates[best_trk].Good && (max_f > fMinTwoViewFraction))
+				{
+					fCandidates[best_trk].Track->ShiftEndsToHits();
+
+					result.push_back(fCandidates[best_trk].Track);
+
+					for (auto c : fCandidates[best_trk].Clusters)
+						used_clusters.push_back(c);
+                }
+
 				for (size_t t = 0; t < fCandidates.size(); t++)
 				{
-					if (fCandidates[t].Good &&
-					    (max_f > fMinTwoViewFraction) &&
-					    (t == best_trk))
-					{
-						fCandidates[best_trk].Track->ShiftEndsToHits();
-
-						result.push_back(fCandidates[best_trk].Track);
-
-						for (auto c : fCandidates[best_trk].Clusters)
-							used_clusters.push_back(c);
-					}
-					else fCandidates[t].Track;
+					if (int(t) != best_trk) delete fCandidates[t].Track;
 				}
+				fCandidates.clear();
 			}
 		}
 		else
@@ -1283,7 +1295,7 @@ int PMAlgTrackMaker::maxCluster(
 		    (v.front()->WireID().Cryostat == cryo))
 		{
 			s = v.size();
-			if ((s > min_clu_size) && (s > s_max))
+			if ((s >= min_clu_size) && (s > s_max))
 			{
 				s_max = s; idx = i;
 			}
