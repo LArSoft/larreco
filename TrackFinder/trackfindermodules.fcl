@@ -295,6 +295,7 @@ standard_track3Dkalmanhit:
   StoreNPPlane:       false         # Store non-preferred-plane hits?
   MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
   DoDedx:             false         # dE/dx enable flag.
+  SelfSeed:           false         # Generate seeds internally.
   MinSeedHits:        12            # Minimum number of hits per track seed.
   MinSeedChopHits:    50            # Potentially chop seeds that exceed this length.
   MaxChopHits:        20            # Maximum number of hits to chop from each end of seed.

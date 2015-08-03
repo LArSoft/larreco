@@ -385,7 +385,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
 	  KGTrack trg(prefplane);
 	  fKFAlg.setPlane(prefplane);
-	  bool ok = fKFAlg.buildTrack(trk, trg, fProp, Propagator::FORWARD, cont);
+	  bool ok = fKFAlg.buildTrack(trk, trg, fProp, Propagator::FORWARD, cont, false);
 	  if(ok) {
 	    ok = fKFAlg.smoothTrackIter(5, trg, fProp);
 	    if(ok) {
