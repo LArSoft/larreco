@@ -65,7 +65,7 @@
 #include "RecoBase/Seed.h"
 #include "RecoAlg/KalmanFilterAlg.h"
 #include "RecoAlg/SeedFinderAlgorithm.h"
-#include "RecoObjects/KHitContainerWireX.h"
+#include "RecoObjects/KHitContainerWireLine.h"
 #include "RecoObjects/SurfXYZPlane.h"
 #include "RecoObjects/PropAny.h"
 #include "RecoObjects/KHit.h"
@@ -660,7 +660,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 		// Fill hit container with current seed hits.
 
-		KHitContainerWireX seedcont;
+		KHitContainerWireLine seedcont;
 		seedcont.fill(seedhits, -1);
 
 		// Set the preferred plane to be the one with the most hits.
@@ -726,7 +726,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 			// Fill hit container using filtered hits.
 
-			KHitContainerWireX trackcont;
+			KHitContainerWireLine trackcont;
 			trackcont.fill(trackhits, -1);
 
 			// Extend the track.  It is not an error for the
