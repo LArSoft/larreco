@@ -278,7 +278,8 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 				       KGTrack& trg,
 				       const Propagator* prop,
 				       const Propagator::PropDirection dir,
-				       KHitContainer& hits) const
+				       KHitContainer& hits,
+				       bool linear) const
 {
   if (!prop)
     throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::buildTrack(): no propagator\n";
@@ -704,7 +705,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 
 	  // Decide if we want to kill the reference track.
 
-	  if(pref != 0 && int(trg.numHits()) >= fMinLHits &&
+	  if(!linear && pref != 0 && int(trg.numHits()) >= fMinLHits &&
 	     (trf.PointingError() < fGoodPErr || path > fMaxLDist)) {
 	    pref = 0;
 	    if(fTrace)
