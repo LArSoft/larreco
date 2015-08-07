@@ -3,7 +3,7 @@
 
 ///////////////////////////////
 //Hit finder that runs on raw signals instead of deconvolutes ones //
-// Written initially for lbne 35t online filter //
+// Written initially for dune 35t online filter //
 ///////////////////////////////
 
 // C/C++ standard libraries
