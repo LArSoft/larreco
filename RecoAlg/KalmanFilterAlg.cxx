@@ -15,6 +15,7 @@
 #include "boost/numeric/ublas/matrix_proxy.hpp"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "RecoObjects/KHit.h"
+#include "RecoObjects/SurfYZLine.h"
 #include "RecoObjects/SurfYZPlane.h"
 #include "Geometry/Geometry.h"
 #include "TGaxis.h"
@@ -42,17 +43,48 @@ namespace {
     if(phit1) {
       const std::shared_ptr<const trkf::Surface>& psurf = hit.getMeasSurface();
 
-      // Currently only handle SurfYZPlane (could add other surfaces if needed in future).
+      // Handle SurfYZPlane.
 
-      const trkf::SurfYZPlane* pyz = dynamic_cast<const trkf::SurfYZPlane*>(&*psurf);
-      if(pyz) {
+      if(const trkf::SurfYZPlane* pyz = dynamic_cast<const trkf::SurfYZPlane*>(&*psurf)) {
 
 	// Now finished doing casts.
 	// We have a kind of hit and measurement surface that we know how to handle.
 
-	// Get x coordinate from hit.
+	// Get x coordinate from hit and surface.
 
-	x = phit1->getMeasVector()(0);
+	x = pyz->x0() + phit1->getMeasVector()(0);
+
+	// Get z position from surface parameters.
+	// The "z" position is actually calculated as the perpendicular distance 
+	// from a corner, which is a proxy for wire number.
+
+	double z0 = pyz->z0();
+	double y0 = pyz->y0();
+	double phi = pyz->phi();
+	art::ServiceHandle<geo::Geometry> geom;
+	double ymax = geom->DetHalfWidth();
+	if(phi > 0.)
+	  z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
+	else
+	  z = z0 * std::cos(phi) - (ymax + y0) * std::sin(phi);
+
+	//int pl = hit.getMeasPlane();
+	//std::cout << "pl = " << pl
+	//	  << ", x=" << x
+	//	  << ", z0=" << z0
+	//	  << ", y0=" << y0
+	//	  << ", phi=" << phi
+	//	  << ", z=" << z
+	//	  << std::endl;
+      }
+      else if(const trkf::SurfYZLine* pyz = dynamic_cast<const trkf::SurfYZLine*>(&*psurf)) {
+
+	// Now finished doing casts.
+	// We have a kind of hit and measurement surface that we know how to handle.
+
+	// Get x coordinate from surface.
+
+	x = pyz->x0();
 
 	// Get z position from surface parameters.
 	// The "z" position is actually calculated as the perpendicular distance 
