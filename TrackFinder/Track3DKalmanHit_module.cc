@@ -19,6 +19,7 @@
 // MaxTcut            - Maximum delta ray energy in Mev for dE/dx.
 // DoDedx             - Global dE/dx enable flag.
 // SelfSeed           - Self seed flag.
+// LineSurface        - Hits on line surfaces (true) or plane surfaces (false).
 // MinSeedHits        - Minimum number of hits per track seed.
 // MinSeedChopHits:   - Potentially chop seeds that exceed this length.
 // MaxChopHits        - Maximum number of hits to chop from each end of seed.
@@ -70,6 +71,7 @@
 #include "RecoAlg/KalmanFilterAlg.h"
 #include "RecoAlg/SeedFinderAlgorithm.h"
 #include "RecoObjects/KHitContainerWireLine.h"
+#include "RecoObjects/KHitContainerWireX.h"
 #include "RecoObjects/SurfXYZPlane.h"
 #include "RecoObjects/PropAny.h"
 #include "RecoObjects/KHit.h"
@@ -202,6 +204,7 @@ namespace trkf {
     double fMaxTcut;                    ///< Maximum delta ray energy in MeV for restricted dE/dx.
     bool fDoDedx;                       ///< Global dE/dx enable flag.
     bool fSelfSeed;                     ///< Self seed flag.
+    bool fLineSurface;                  ///< Line surface flag.
     int fMinSeedHits;                   ///< Minimum number of hits per track seed.
     int fMinSeedChopHits;               ///< Potentially chop seeds that exceed this length.
     int fMaxChopHits;                   ///< Maximum number of hits to chop from each end of seed.
@@ -250,6 +253,7 @@ trkf::Track3DKalmanHit::Track3DKalmanHit(fhicl::ParameterSet const & pset) :
   fMaxTcut(0.),
   fDoDedx(false),
   fSelfSeed(false),
+  fLineSurface(false),
   fMinSeedHits(0),
   fMinSeedChopHits(0),
   fMaxChopHits(0),
@@ -310,6 +314,7 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
   fMaxTcut = pset.get<double>("MaxTcut");
   fDoDedx = pset.get<bool>("DoDedx");
   fSelfSeed = pset.get<bool>("SelfSeed");
+  fLineSurface = pset.get<bool>("LineSurface");
   fMinSeedHits = pset.get<int>("MinSeedHits");
   fMinSeedChopHits = pset.get<int>("MinSeedChopHits");
   fMaxChopHits = pset.get<int>("MaxChopHits");
@@ -682,12 +687,21 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 		// Fill hit container with current seed hits.
 
-		KHitContainerWireLine seedcont;
-		seedcont.fill(seedhits, -1);
+		std::unique_ptr<KHitContainer> pseedcont;
+		if(fLineSurface) {
+		  KHitContainerWireLine* p = new KHitContainerWireLine;
+		  p->fill(seedhits, -1);
+		  pseedcont.reset(p);
+		}
+		else {
+		  KHitContainerWireX* p = new KHitContainerWireX;
+		  p->fill(seedhits, -1);
+		  pseedcont.reset(p);
+		}
 
 		// Set the preferred plane to be the one with the most hits.
 
-		unsigned int prefplane = seedcont.getPreferredPlane();
+		unsigned int prefplane = pseedcont->getPreferredPlane();
 		fKFAlg.setPlane(prefplane);
 		if (mf::isDebugEnabled())
 		  mf::LogDebug("Track3DKalmanHit") << "Preferred plane = " << prefplane << "\n";
@@ -695,7 +709,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 		// Build and smooth seed track.
 
 		KGTrack trg0(prefplane);
-		bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, seedcont,
+		bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, *pseedcont,
 					    fSelfSeed);
 		if(ok) {
 		  KGTrack trg1(prefplane);
@@ -749,14 +763,23 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 			// Fill hit container using filtered hits.
 
-			KHitContainerWireLine trackcont;
-			trackcont.fill(trackhits, -1);
+			std::unique_ptr<KHitContainer> ptrackcont;
+			if(fLineSurface) {
+			  KHitContainerWireLine* p = new KHitContainerWireLine;
+			  p->fill(trackhits, -1);
+			  ptrackcont.reset(p);
+			}
+			else {
+			  KHitContainerWireX* p = new KHitContainerWireX;
+			  p->fill(trackhits, -1);
+			  ptrackcont.reset(p);
+			}
 
 			// Extend the track.  It is not an error for the
 			// extend operation to fail, meaning that no new hits
 			// were added.
 		      
-			bool extendok = fKFAlg.extendTrack(trg1, fProp, trackcont);
+			bool extendok = fKFAlg.extendTrack(trg1, fProp, *ptrackcont);
 			if(extendok)
 			  nfail = 0;
 			else

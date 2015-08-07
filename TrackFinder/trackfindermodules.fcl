@@ -299,6 +299,7 @@ standard_track3Dkalmanhit:
   MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
   DoDedx:             false         # dE/dx enable flag.
   SelfSeed:           false         # Generate seeds internally.
+  LineSurface:        false         # Store hits on line surfaces.
   MinSeedHits:        12            # Minimum number of hits per track seed.
   MinSeedChopHits:    50            # Potentially chop seeds that exceed this length.
   MaxChopHits:        20            # Maximum number of hits to chop from each end of seed.
