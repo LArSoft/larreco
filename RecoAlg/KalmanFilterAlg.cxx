@@ -641,9 +641,16 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       // chisquare passes the cut, add it to the track and update 
       // fit information.
 
+      bool update_ok = false;
       if(best_hit.get() != 0) {
-	ds += best_hit->getPredDistance();
+	KFitTrack trf0(trf);
 	best_hit->update(trf);
+	update_ok = trf.isValid();
+	if(!update_ok)
+	  trf = trf0;
+      }
+      if(update_ok) {
+	ds += best_hit->getPredDistance();
 	tchisq += best_chisq;
 	trf.setChisq(tchisq);
 	if(dir == Propagator::FORWARD)
@@ -1044,29 +1051,36 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 
 	    double chisq = hit.getChisq();
 	    if(chisq < fMaxSmoothIncChisq) {
-	      tchisq += chisq;
-	      trf.setChisq(tchisq);
 
 	      // Update the reverse fitting track using the current measurement
 	      // (both track parameters and status).
 
+	      KFitTrack trf0(trf);	      
 	      hit.update(trf);
-	      if(dir == Propagator::FORWARD)
-		trf.setStat(KFitTrack::FORWARD);
+	      bool update_ok = trf.isValid();
+	      if(!update_ok)
+		trf = trf0;
 	      else {
-		trf.setStat(KFitTrack::BACKWARD);
-	      }
-	      if(fTrace) {
-		log << "Reverse fit track after update:\n";
-		log << trf;
-	      }
+		tchisq += chisq;
+		trf.setChisq(tchisq);
 
-	      // If unidirectional track pointer is not null, make a
-	      // KHitTrack and save it in the unidirectional track.
+		if(dir == Propagator::FORWARD)
+		  trf.setStat(KFitTrack::FORWARD);
+		else {
+		  trf.setStat(KFitTrack::BACKWARD);
+		}
+		if(fTrace) {
+		  log << "Reverse fit track after update:\n";
+		  log << trf;
+		}
 
-	      if(trg1 != 0) {
-		KHitTrack trh1(trf, trh.getHit());
-		trg1->addTrack(trh1);
+		// If unidirectional track pointer is not null, make a
+		// KHitTrack and save it in the unidirectional track.
+
+		if(trg1 != 0) {
+		  KHitTrack trh1(trf, trh.getHit());
+		  trg1->addTrack(trh1);
+		}
 	      }
 	    }
 	  }
@@ -1449,9 +1463,16 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	  // chisquare passes the cut, add it to the track and update 
 	  // fit information.
 
+	  bool update_ok = false;
 	  if(best_hit.get() != 0) {
-	    ds += best_hit->getPredDistance();
+	    KFitTrack trf0(trf);
 	    best_hit->update(trf);
+	    update_ok = trf.isValid();
+	    if(!update_ok)
+	      trf = trf0;
+	  }
+	  if(update_ok) {
+	    ds += best_hit->getPredDistance();
 	    tchisq += best_chisq;
 	    trf.setChisq(tchisq);
 	    if(dir == Propagator::FORWARD)
