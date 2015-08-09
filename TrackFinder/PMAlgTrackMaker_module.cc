@@ -75,9 +75,9 @@ public:
   PMAlgTrackMaker & operator = (PMAlgTrackMaker const &) = delete;
   PMAlgTrackMaker & operator = (PMAlgTrackMaker &&) = delete;
 
-  void beginJob();
+  void beginJob() override;
 
-  void reconfigure(fhicl::ParameterSet const& p);
+  void reconfigure(fhicl::ParameterSet const& p) override;
 
   void produce(art::Event & e) override;
 
@@ -189,6 +189,10 @@ private:
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
   std::string fCluModuleLabel; // label for input cluster collection
   int fCluMatchingAlg;         // which algorithm for cluster association
+
+  size_t fMinSeedSize1stPass;  // min. cluster size used to start building a track in the 1st pass
+  size_t fMinSeedSize2ndPass;  // min. cluster size used to start building a track in the 2nd pass
+
   bool fFlipToBeam;            // set the track direction to increasing Z values
   bool fFlipDownward;          // set the track direction to decreasing Y values
   bool fAutoFlip_dQdx;         // set the track direction to increasing dQ/dx
@@ -249,6 +253,10 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
 	fCluModuleLabel = pset.get< std::string >("ClusterModuleLabel");
 	fCluMatchingAlg = pset.get< int >("CluMatchingAlg");
+
+	fMinSeedSize1stPass = pset.get< size_t >("MinSeedSize1stPass");
+	fMinSeedSize2ndPass = pset.get< size_t >("MinSeedSize2ndPass");
+
 	fFlipToBeam = pset.get< bool >("FlipToBeam");
 	fFlipDownward = pset.get< bool >("FlipDownward");
 	fAutoFlip_dQdx = pset.get< bool >("AutoFlip_dQdx");
@@ -961,9 +969,6 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 
 		art::FindManyP< recob::Hit > fbp(cluListHandle, evt, fCluModuleLabel);
 
-		size_t minBuildSizeLarge = 20;
-		size_t minBuildSizeSmall = 5;
-
 		tpc_track_map tracks; // track parts in tpc's
 
 		// find reasonably large parts
@@ -971,7 +976,7 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
 		{
-			fromMaxCluster_tpc(tracks[tpc_iter->TPC], cluListHandle, fbp, minBuildSizeLarge, tpc_iter->TPC, tpc_iter->Cryostat);
+			fromMaxCluster_tpc(tracks[tpc_iter->TPC], cluListHandle, fbp, fMinSeedSize1stPass, tpc_iter->TPC, tpc_iter->Cryostat);
 		}
 
 		// loop again to find small things
@@ -979,7 +984,7 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
 		{
-			fromMaxCluster_tpc(tracks[tpc_iter->TPC], cluListHandle, fbp, minBuildSizeSmall, tpc_iter->TPC, tpc_iter->Cryostat);
+			fromMaxCluster_tpc(tracks[tpc_iter->TPC], cluListHandle, fbp, fMinSeedSize2ndPass, tpc_iter->TPC, tpc_iter->Cryostat);
 		}
 
 		// try correcting track ends:
@@ -1072,8 +1077,8 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 {
 	initial_clusters.clear();
 
-	size_t minSizeCompl = minBuildSize / 10; // smaller minimum required in complementary views
-	if (minSizeCompl < 3) minSizeCompl = 3;  // but not too small, otherwise showers can kill the loop
+	size_t minSizeCompl = minBuildSize / 8;  // smaller minimum required in complementary views
+	if (minSizeCompl < 2) minSizeCompl = 2;  // but at least two hits!
 
 	int max_first_idx = 0;
 	while (max_first_idx >= 0) // loop over clusters, any view, starting from the largest
@@ -1134,14 +1139,14 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 				if (max_sec_b_idx >= 0) nSecHitsB = (*clusters)[max_sec_b_idx].NHits();
 
 				unsigned int testView = geo::kUnknown;
-				if ((nSecHitsA > nSecHitsB) && (nSecHitsA > minSizeCompl))
+				if ((nSecHitsA > nSecHitsB) && (nSecHitsA >= minSizeCompl))
 				{
 					mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << sec_view_a << " ***  size: " << nSecHitsA;
 					tried_clusters[sec_view_a].push_back(max_sec_a_idx);
 					idx = max_sec_a_idx;
 					testView = sec_view_b;
 				}
-				else if (nSecHitsB > minSizeCompl)
+				else if (nSecHitsB >= minSizeCompl)
 				{
 					mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << sec_view_b << " ***  size: " << nSecHitsB;
 					tried_clusters[sec_view_b].push_back(max_sec_b_idx);
@@ -1362,16 +1367,18 @@ void PMAlgTrackMaker::listUsedClusters(art::Handle< std::vector<recob::Cluster> 
 		if (has(used_clusters, i))
 		{
 			mf::LogVerbatim("PMAlgTrackMaker")
-				<< "    view: " << (*clusters)[i].View()
-				<< "; size: " << (*clusters)[i].NHits();
+				<< "    tpc: " << (*clusters)[i].Plane().TPC
+				<< ";\tview: " << (*clusters)[i].View()
+				<< ";\tsize: " << (*clusters)[i].NHits();
 		}
 	mf::LogVerbatim("PMAlgTrackMaker") << "--------- not matched clusters: ---------";
 	for (size_t i = 0; i < clusters->size(); ++i)
 		if (!has(used_clusters, i))
 		{
 			mf::LogVerbatim("PMAlgTrackMaker")
-				<< "    view: " << (*clusters)[i].View()
-				<< "; size: " << (*clusters)[i].NHits();
+				<< "    tpc: " << (*clusters)[i].Plane().TPC
+				<< ";\tview: " << (*clusters)[i].View()
+				<< ";\tsize: " << (*clusters)[i].NHits();
 		}
 	mf::LogVerbatim("PMAlgTrackMaker") << "-----------------------------------------";
 }
