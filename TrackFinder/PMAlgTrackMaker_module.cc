@@ -345,8 +345,8 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	fSegAngMean = src.GetMeanAng();
 	fMcPdg = getMcPdg(src);
 
-	fPidTag = 0;             // 0 is track-like (long and/or very straight, well matching 2D hits)
-	if ((fLength < 80.0) &&  // 0x10000 is EM shower-like trajectory
+	fPidTag = 0;                 // 0 is track-like (long and/or very straight, well matching 2D hits); 0x10000 is EM shower-like trajectory
+	if ( // (fLength < 80.0) &&  // tag only short tracks as EM shower-like
 	    ((fHitsMse > 0.0001 * fLength) || (fSegAngMean < 3.0)))
 		fPidTag = 0x10000;
 
