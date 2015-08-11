@@ -209,7 +209,8 @@ namespace hit {
 
 
       for(unsigned int bin = 0; bin < fDataSize; ++bin) 
-      	holder[bin]=(rawadc[bin]-digitVec->GetPedestal());
+      	//holder[bin]=(rawadc[bin]-digitVec->GetPedestal());
+      	holder[bin]=rawadc[bin];
       //now holder and rawadc should be filled correctly
       
       sigType       = geom->SignalType(channel);
