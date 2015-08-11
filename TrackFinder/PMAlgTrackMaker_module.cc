@@ -448,12 +448,18 @@ double PMAlgTrackMaker::validate(pma::Track3D& trk, unsigned int testView)
 	else return 1.0;
 
 	std::vector< art::Ptr<recob::Hit> >& hits = c_t_v_hits[trk.FrontCryo()][trk.FrontTPC()][testView];
-	if (hits.size() > 10) return fProjectionMatchingAlg.validate(trk, hits, testView);
+
+	// always validate (needed for disambiguation postponed to 3D step):
+	return fProjectionMatchingAlg.validate(trk, hits, testView);
+
+	// in case of usual disambig on hit level one may validate only if there are at least a few hits:
+/*	if (hits.size() > 10) return fProjectionMatchingAlg.validate(trk, hits, testView);
 	else
 	{
 		mf::LogWarning("PMAlgTrackMaker") << "   too few hits (" << hits.size() << ")";
 		return 1.0;
 	}
+*/
 }
 // ------------------------------------------------------
 
