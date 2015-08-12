@@ -411,6 +411,13 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
     m = new TMarker(0., 0., 20);
     m->SetBit(kCanDelete);
     m->SetMarkerSize(1.2);
+    m->SetMarkerColor(kOrange);
+    entry = leg->AddEntry(m, "Smoothed Hits on Track", "P");
+    entry->SetBit(kCanDelete);
+
+    m = new TMarker(0., 0., 20);
+    m->SetBit(kCanDelete);
+    m->SetMarkerSize(1.2);
     m->SetMarkerColor(kBlack);
     entry = leg->AddEntry(m, "Available Hits", "P");
     entry->SetBit(kCanDelete);
@@ -1104,6 +1111,14 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 		if(fTrace) {
 		  log << "Reverse fit track after update:\n";
 		  log << trf;
+		}
+		if(fGTrace && fCanvases.size() > 0) {
+		  auto marker_it = fMarkerMap.find(hit.getID());
+		  if(marker_it != fMarkerMap.end()) {
+		    TMarker* marker = marker_it->second;
+		    marker->SetMarkerColor(kOrange);
+		  }
+		  fCanvases.back()->Update();
 		}
 
 		// If unidirectional track pointer is not null, make a
