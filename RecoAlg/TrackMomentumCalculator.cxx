@@ -11,7 +11,7 @@ double my_mcs_chi2( const double *x )
   Double_t p = x[0]; 
   
   Double_t theta0 = x[1]; 
-        
+  
   for ( Int_t i=0; i<nmeas; i++ )
     {
       Double_t xx = xmeas[i]; 
@@ -219,7 +219,7 @@ namespace trkf{
     if ( check0!=0 ) return -1.0;
         
     seg_size = steps_size2; 
-        
+    
     Int_t check1 = GetSegTracks2( recoX, recoY, recoZ ); 
     
     if ( check1!=0 ) return -1.0;
@@ -252,7 +252,7 @@ namespace trkf{
 	
 	for ( Int_t l=start2; l<=end2; l++ )
 	  {
-	    Double_t res_test = 0.5; // 0.001+l*1.0; 
+	    Double_t res_test = 2.0; // 0.001+l*1.0; 
 	    
 	    Double_t fv = my_mcs_llhd( p_test, res_test ); 
 	    	    
@@ -278,6 +278,47 @@ namespace trkf{
     
   }
   
+  TVector3 TrackMomentumCalculator::GetMultiScatterStartingPoint( const art::Ptr<recob::Track> &trk )
+  {
+    TVector3 start;
+    
+    Double_t LLHDp = GetMuMultiScatterLLHD3( trk, true );
+    
+    Double_t LLHDm = GetMuMultiScatterLLHD3( trk, false );
+    
+    if ( LLHDp!=-1 && LLHDm!=-1 )
+      {
+	if ( LLHDp>LLHDm )
+	  {
+	    Int_t n_points = trk->NumberTrajectoryPoints();
+	    
+	    const TVector3 &pos = trk->LocationAtPoint( n_points-1 );
+		
+	    start.SetXYZ( pos.X(), pos.Y(), pos.Z() );
+	    
+	  }
+	else 
+	  { 
+	    const TVector3 &pos = trk->LocationAtPoint( 0 );
+	    
+	    start.SetXYZ( pos.X(), pos.Y(), pos.Z() );
+	    
+	  }
+        
+      }
+    
+    else 
+      { 
+	const TVector3 &pos = trk->LocationAtPoint( 0 );
+		
+	start.SetXYZ( pos.X(), pos.Y(), pos.Z() );
+	
+      }
+    
+    return start;
+    
+  }
+  /*
   Double_t TrackMomentumCalculator::GetMuMultiScatterLLHD( const art::Ptr<recob::Track> &trk )
   {
     Double_t LLHD = -1.0; 
@@ -285,9 +326,9 @@ namespace trkf{
     std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
     
     recoX.clear(); recoY.clear(); recoZ.clear();
-        	  
+    
     Int_t n_points = trk->NumberTrajectoryPoints();
-        
+    
     for ( Int_t i=0; i<n_points; i++ )
       {
 	const TVector3 &pos = trk->LocationAtPoint( i );
@@ -393,7 +434,82 @@ namespace trkf{
     return LLHD;
     
   }
+  */
+  Double_t TrackMomentumCalculator::GetMuMultiScatterLLHD3( const art::Ptr<recob::Track> &trk , bool dir )
+  {
+    Double_t LLHD = -1.0; 
     
+    std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
+    
+    recoX.clear(); recoY.clear(); recoZ.clear();
+    
+    Int_t n_points = trk->NumberTrajectoryPoints();
+        
+    if ( dir )
+      {
+	for ( Int_t i=0; i<n_points; i++ )
+	  {
+	    const TVector3 &pos = trk->LocationAtPoint( i );
+	    
+	    recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
+	    
+	    // cout << " posX, Y, Z : " << pos.X() << ", " << pos.Y() << ", " << pos.Z() << endl;
+	    
+	  }
+	
+      }
+    else 
+      {
+	for ( Int_t i=0; i<n_points; i++ )
+	  {
+	    const TVector3 &pos = trk->LocationAtPoint( n_points-1-i );
+	    
+	    recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
+	    
+	    // cout << " posX, Y, Z : " << pos.X() << ", " << pos.Y() << ", " << pos.Z() << endl;
+	    
+	  }
+	
+      }
+    
+    Int_t my_steps = recoX.size();
+    
+    if ( my_steps<2 ) return -1.0;
+    
+    Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
+    
+    if ( check0!=0 ) return -1.0;
+    
+    seg_size = 5.0;
+    
+    Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
+    
+    if ( check1!=0 ) return -1.0;
+        
+    Int_t seg_steps = segx.size();
+    
+    if ( seg_steps<2 ) return -1;
+    
+    Int_t seg_steps0 = seg_steps-1;
+    
+    Double_t recoL = segL.at(seg_steps0);
+    
+    if ( recoL<15.0 || recoL>1350.0 ) return -1;
+        
+    Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
+    
+    if ( check2!=0 ) return -1.0;
+    
+    Double_t p_range = recoL*kcal;
+    
+    Double_t logL = my_mcs_llhd( p_range, 5.65 );
+    
+    LLHD = logL;
+    
+    return LLHD;
+    
+  }
+  
   Int_t TrackMomentumCalculator::GetDeltaThetaij( std::vector<Float_t> &ei, std::vector<Float_t> &ej, std::vector<Float_t> &th, Double_t thick, std::vector<Float_t> &ind )
   {
     Int_t a1 = segx.size(); Int_t a2 = segy.size(); Int_t a3 = segz.size();
@@ -756,6 +872,212 @@ namespace trkf{
     
     return 0;
     
+  }
+  
+  Int_t TrackMomentumCalculator::GetSegTracks( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz )
+  {
+    Int_t a1 = xxx.size(); Int_t a2 = yyy.size(); Int_t a3 = zzz.size();
+    
+    if ( ( a1!=a2 ) || ( a1!=a3 ) || ( a2!=a3 ) ) { cout << " ( Digitize reco tacks ) Error ! " << endl; return -1; } 
+    
+    Int_t stopper = seg_stop / seg_size; 
+    	  
+    Int_t a4 = a1-1;
+        
+    segx.clear(); segy.clear(); segz.clear(); 
+    
+    segnx.clear(); segny.clear(); segnz.clear(); 
+    
+    segL.clear(); 
+            
+    Double_t x0 = xxx.at( 0 ); Double_t y0 = yyy.at( 0 ); Double_t z0 = zzz.at( 0 );
+    
+    segx.push_back( x0 ); segy.push_back( y0 ); segz.push_back( z0 ); segL.push_back( 0.0 );
+    
+    n_seg = 0; x_seg[ n_seg ] = x0; y_seg[ n_seg ] = y0; z_seg[ n_seg ] = z0;
+    
+    n_seg++;
+    
+    Int_t ntot = 0; 
+    
+    Double_t Sz = 0; Double_t Szz = 0;
+    
+    Double_t Szx = 0; Double_t Sx = 0;
+    
+    Double_t Szy = 0; Double_t Sy = 0;
+    
+    Sz += z0; Szz += z0*z0;
+    
+    Szx += z0*x0; Sx += x0;
+    
+    Szy += z0*y0; Sy += y0;
+        
+    ntot++;
+            
+    for ( Int_t i=1; i<a4; i++ )
+      {
+	Double_t x1 = xxx.at( i ); Double_t y1 = yyy.at( i ); Double_t z1 = zzz.at( i );
+	
+	Double_t dr1 = sqrt( pow( x1-x0, 2 )+pow( y1-y0, 2)+pow( z1-z0, 2 ) ); 
+	
+	Double_t x2 = xxx.at( i+1 ); Double_t y2 = yyy.at( i+1 ); Double_t z2 = zzz.at( i+1 );
+	
+	Double_t dr2 = sqrt( pow( x2-x0, 2 )+pow( y2-y0, 2)+pow( z2-z0, 2 ) ); 
+	
+	if ( dr1<seg_size )
+	  {
+	    Sz += z1; Szz += z1*z1;
+    
+	    Szx += z1*x1; Sx += x1;
+    
+	    Szy += z1*y1; Sy += y1;
+	    
+	    ntot++;
+    
+	  }
+	
+	if ( dr1<=seg_size && dr2>seg_size )
+	  {
+	    Double_t t = 0.0;
+	    
+	    Double_t dx = x2-x1; Double_t dy = y2-y1; Double_t dz = z2-z1;
+	    
+	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
+	    
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; return -1; }
+	    
+	    Double_t beta = 2.0*( (x1-x0)*dx+(y1-y0)*dy+(z1-z0)*dz )/( dr*dr );
+	    	    
+	    Double_t gamma = ( dr1*dr1 - seg_size*seg_size )/( dr*dr );
+	    
+	    Double_t delta = beta*beta - 4.0*gamma;
+		
+	    if ( delta<0.0 ) { cout << " ( Discriminant ) Error ! " << endl; return -1; }
+		
+	    Double_t lysi1 = ( -beta+sqrt( delta ) )/2.0; 
+	    
+	    t=lysi1;
+	    	    
+	    Double_t xp = x1+t*dx;
+	    
+	    Double_t yp = y1+t*dy;
+	    
+	    Double_t zp = z1+t*dz;
+	    
+	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
+	    
+	    segL.push_back( 1.0*n_seg*1.0*seg_size );
+	    
+	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
+	    	    
+	    x0 = xp; y0 = yp; z0 = zp;
+	    	    	     
+	    Sz += z0; Szz += z0*z0;
+	    
+	    Szx += z0*x0; Sx += x0;
+	    
+	    Szy += z0*y0; Sy += y0;
+	    
+	    ntot++;
+	    
+	    Double_t ax = ( Szx*ntot-Sz*Sx )/( Szz*ntot-Sz*Sz );
+	      
+	    Double_t ay = ( Szy*ntot-Sz*Sy )/( Szz*ntot-Sz*Sz );
+	    
+	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( 1.0 );
+	    	    
+	    ntot = 0; 
+    
+	    Sz = 0; Szz = 0; 
+	    
+	    Szx = 0; Sx = 0; 
+	    
+	    Szy = 0; Sy = 0;
+	    
+	    Sz += z0; Szz += z0*z0;
+	     
+	    Szx += z0*x0; Sx += x0;
+	    
+	    Szy += z0*y0; Sy += y0;
+	    
+	    ntot++;
+	    	    
+	  }
+	
+	else if ( dr1>seg_size )
+	  {
+	    Double_t t = 0.0;
+	    	    
+	    Double_t dx = x1-x0; Double_t dy = y1-y0; Double_t dz = z1-z0;
+	    	    
+	    Double_t dr = sqrt( dx*dx+dy*dy+dz*dz );
+	    
+	    if ( dr==0 ) { cout << " ( Zero ) Error ! " << endl; getchar(); }
+	    
+	    if ( dr!=0 ) t = seg_size/dr;
+	    	    	    
+	    Double_t xp = x0+t*dx;
+	    
+	    Double_t yp = y0+t*dy;
+	    
+	    Double_t zp = z0+t*dz;
+	    	    	    	    
+	    segx.push_back( xp ); segy.push_back( yp ); segz.push_back( zp );
+	    
+	    segL.push_back( 1.0*n_seg*1.0*seg_size );
+	    
+	    x_seg[ n_seg ] = xp; y_seg[ n_seg ] = yp; z_seg[ n_seg ] = zp; n_seg++; 
+	    	    
+	    x0 = xp; y0 = yp; z0 = zp;
+	    
+	    i=( i-1 );
+	    	    
+	    Sz += z0; Szz += z0*z0;
+	    
+	    Szx += z0*x0; Sx += x0;
+	    
+	    Szy += z0*y0; Sy += y0;
+	    
+	    ntot++;
+	    
+	    Double_t ax = ( Szx*ntot-Sz*Sx )/( Szz*ntot-Sz*Sz );
+	      
+	    Double_t ay = ( Szy*ntot-Sz*Sy )/( Szz*ntot-Sz*Sz );
+	    
+	    segnx.push_back( ax ); segny.push_back( ay ); segnz.push_back( 1.0 );
+	    
+	    // Double_t angx = find_angle( 1.0, ax ); Double_t angy = find_angle( 1.0, ay );
+	    
+	    // cout << angx*0.001*180.0/3.14 << endl;
+	    
+	    ntot = 0; 
+	    
+	    Sz = 0; Szz = 0; 
+	    
+	    Szx = 0; Sx = 0; 
+	    
+	    Szy = 0; Sy = 0;
+	    
+	    Sz += z0; Szz += z0*z0;
+	     
+	    Szx += z0*x0; Sx += x0;
+	    
+	    Szy += z0*y0; Sy += y0;
+	    
+	    ntot++;
+	    	    
+	  }
+	
+	if ( n_seg>=( stopper+1.0 ) && seg_stop!=-1 ) break;
+		
+      }
+    
+    gr_seg_xyz = new TPolyLine3D( n_seg, z_seg, x_seg, y_seg );
+    
+    gr_seg_yz = new TGraph( n_seg, z_seg, y_seg ); gr_seg_xz = new TGraph( n_seg, z_seg, x_seg ); gr_seg_xy = new TGraph( n_seg, x_seg, y_seg );
+    
+    return 0;
+  
   }
   
   Int_t TrackMomentumCalculator::GetSegTracks2( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz )
@@ -1370,10 +1692,8 @@ namespace trkf{
 	
 	Double_t rms = -1.0;
 	
-	if ( ind.at( i )==1 ) 
+	if ( ind.at( i )==1 )
 	  {
-	    theta0x = 2.0; 
-	    	    	    
 	    rms = sqrt( tH0*tH0+pow( theta0x, 2.0 ) );
 	    
 	    Double_t DT = dthij.at( i )+addth; 

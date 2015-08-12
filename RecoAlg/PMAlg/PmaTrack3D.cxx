@@ -14,6 +14,8 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "TMath.h"
+
 pma::Track3D::Track3D(void) :
 	fMaxHitsPerSeg(70),
 	fPenaltyFactor(1.0F),
@@ -629,7 +631,7 @@ bool pma::Track3D::erase(art::Ptr< recob::Hit > hit)
 {
 	for (size_t i = 0; i < size(); i++)
 	{
-		if (hit == fHits[i]->Hit2DPtr())
+		if (hit == fHits[i]->fHit)
 		{
 			pma::Hit3D* h3d = fHits[i];
 			fHits.erase(fHits.begin() + i);
@@ -704,6 +706,36 @@ std::vector< unsigned int > pma::Track3D::Cryos(void) const
 		if (!found) cryo_idxs.push_back(cryo);
 	}
 	return cryo_idxs;
+}
+
+std::pair< TVector2, TVector2 > pma::Track3D::WireDriftRange(unsigned int view, unsigned int tpc, unsigned int cryo) const
+{
+	std::pair< TVector2, TVector2 > range(TVector2(0., 0.), TVector2(0., 0.));
+
+	size_t n0 = 0;
+	while ((n0 < fNodes.size()) && (fNodes[n0]->TPC() != (int)tpc)) n0++;
+
+	if (n0 < fNodes.size())
+	{
+		size_t n1 = n0;
+		while ((n1 < fNodes.size()) && (fNodes[n1]->TPC() == (int)tpc)) n1++;
+
+		if (n0 > 0) n0--;
+		if (n1 == fNodes.size()) n1--;
+
+		TVector2 p0 = fNodes[n0]->Projection2D(view);
+		p0 = pma::CmToWireDrift(p0.X(), p0.Y(), view, tpc, cryo);
+
+		TVector2 p1 = fNodes[n1]->Projection2D(view);
+		p1 = pma::CmToWireDrift(p1.X(), p1.Y(), view, tpc, cryo);
+
+		if (p0.X() > p1.X()) { double tmp = p0.X(); p0.Set(p1.X(), p0.Y()); p1.Set(tmp, p1.Y()); }
+		if (p0.Y() > p1.Y()) { double tmp = p0.Y(); p0.Set(p0.X(), p1.Y()); p1.Set(p1.X(), tmp); }
+
+		range.first = p0;
+		range.second = p1;
+	}
+	return range;
 }
 
 void pma::Track3D::InternalFlip(std::vector< pma::Track3D* >& toSort)
@@ -795,18 +827,15 @@ unsigned int pma::Track3D::TestHits(const std::vector< art::Ptr<recob::Hit> >& h
 		return 0;
 	}
 
-	double d2 = dist * dist;
+	TVector3 p3d;
+	double tst, d2 = dist * dist;
 	unsigned int nhits = 0;
 	for (auto const & h : hits)
-	{
-		unsigned int cryo = h->WireID().Cryostat;
-		unsigned int tpc = h->WireID().TPC;
-		unsigned int view = h->WireID().Plane;
-		unsigned int wire = h->WireID().Wire;
-		float drift = h->PeakTime();
+		if (GetUnconstrainedProj3D(h, p3d, tst))
+		{
+			if (tst < d2) nhits++;
+		}
 
-		if (Dist2(pma::WireDriftToCm(wire, drift, view, tpc, cryo), view) < d2) nhits++;
-	}
 	return nhits;
 }
 
@@ -1237,15 +1266,15 @@ double pma::Track3D::GetMse(void) const
 
 double pma::Track3D::GetMeanAng(void) const
 {
-	double a = 0.0;
 	if (fNodes.size() > 2)
 	{
+		double a = 0.0;
 		for (size_t i = 1; i < fNodes.size() - 1; i++)
 			a += acos(fNodes[i]->SegmentCos());
 
-		a /= (fNodes.size() - 2);
+		return a / (fNodes.size() - 2);
 	}
-	return a;
+	else return TMath::Pi();
 }
 
 double pma::Track3D::GetObjFunction(float penaltyFactor) const
@@ -1500,46 +1529,22 @@ bool pma::Track3D::ShiftEndsToHits(void)
 
 double pma::Track3D::Dist2(const TVector2& p2d, unsigned int view) const
 {
-	pma::Element3D* pe_min = fNodes.front();
-	double dist, min_dist = pe_min->GetDistance2To(p2d, view);
-	for (size_t i = 1; i < fNodes.size(); i++)
-	{
-		dist = fNodes[i]->GetDistance2To(p2d, view);
-		if (dist < min_dist)
-		{
-			min_dist = dist; pe_min = fNodes[i];
-		}
-	}
-	for (size_t i = 0; i < fSegments.size(); i++)
+	double dist, min_dist = fSegments.front()->GetDistance2To(p2d, view);
+	for (size_t i = 1; i < fSegments.size(); i++)
 	{
 		dist = fSegments[i]->GetDistance2To(p2d, view);
-		if (dist < min_dist)
-		{
-			min_dist = dist; pe_min = fSegments[i];
-		}
+		if (dist < min_dist) min_dist = dist;
 	}
 	return min_dist;
 }
 
 double pma::Track3D::Dist2(const TVector3& p3d) const
 {
-	pma::Element3D* pe_min = fNodes.front();
-	double dist, min_dist = pe_min->GetDistance2To(p3d);
-	for (size_t i = 1; i < fNodes.size(); i++)
-	{
-		dist = fNodes[i]->GetDistance2To(p3d);
-		if (dist < min_dist)
-		{
-			min_dist = dist; pe_min = fNodes[i];
-		}
-	}
-	for (size_t i = 0; i < fSegments.size(); i++)
+	double dist, min_dist = fSegments.front()->GetDistance2To(p3d);
+	for (size_t i = 1; i < fSegments.size(); i++)
 	{
 		dist = fSegments[i]->GetDistance2To(p3d);
-		if (dist < min_dist)
-		{
-			min_dist = dist; pe_min = fSegments[i];
-		}
+		if (dist < min_dist) min_dist = dist;
 	}
 	return min_dist;
 }
@@ -1591,6 +1596,36 @@ pma::Element3D* pma::Track3D::GetNearestElement(const TVector3& p3d) const
 		}
 	}
 	return pe_min;
+}
+
+bool pma::Track3D::GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3d, double& dist2) const
+{
+	TVector2 p2d = pma::WireDriftToCm(
+		hit->WireID().Wire, hit->PeakTime(),
+		hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
+
+	pma::Segment3D* seg = 0;
+	double d2, min_d2 = 1.0e100;
+	for (size_t i = 0; i < fSegments.size(); i++)
+	{
+		if (fSegments[i]->TPC() != (int)hit->WireID().TPC) continue;
+
+		d2 = fSegments[i]->GetDistance2To(p2d, hit->WireID().Plane);
+		if (d2 < min_d2)
+		{
+			min_d2 = d2; seg = fSegments[i];
+		}
+	}
+	if (seg)
+	{
+		p3d = seg->GetUnconstrainedProj3D(p2d, hit->WireID().Plane);
+		dist2 = min_d2;
+
+		pma::Node3D* prev = static_cast< pma::Node3D* >(seg->Prev());
+		return prev->SameTPC(p3d); // 3D can be beyond the segment endpoints => in other TPC
+	}
+
+	return false;
 }
 
 void pma::Track3D::SortHits(void)

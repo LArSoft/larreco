@@ -49,6 +49,9 @@ public:
 	/// Distance [cm] from the 2D point to the object's 2D projection in one of wire views.
 	virtual double GetDistance2To(const TVector2& p2d, unsigned int view) const;
 
+	/// In case of a node it is simply 3D position of the node.
+	virtual TVector3 GetUnconstrainedProj3D(const TVector2& p2d, unsigned int view) const { return fPoint3D; }
+
 	/// Set hit 3D position and its 2D projection to the vertex.
 	virtual void SetProjection(pma::Hit3D& h) const;
 
@@ -75,8 +78,11 @@ public:
 
 	virtual void ClearAssigned(pma::Track3D* trk = 0);
 
+	/// Set allowed node position margin around TPC.
+	static void SetMargin(double m) { if (m >= 0.0) fMargin = m; }
+
 private:
-	void LimitPoint3D(float margin = 3.0F); // default: let the node go out by 3cm
+	void LimitPoint3D(void);
 	void UpdateProj2D(void);
 
 	double EndPtCos2Transverse(void) const;
@@ -101,6 +107,7 @@ private:
 	TVector3 fGradient;
 
 	static bool fGradFixed[3];
+	static double fMargin;
 };
 
 #endif
