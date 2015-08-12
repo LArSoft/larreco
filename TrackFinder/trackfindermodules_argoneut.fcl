@@ -28,6 +28,6 @@ argoneut_pmalgtrackmaker:                     @local::standard_pmalgtrackmaker
 argoneut_pmalgtrackmaker.HitModuleLabel:      "cccluster"
 argoneut_pmalgtrackmaker.ClusterModuleLabel:  "cccluster"
 argoneut_pmalgtrackmaker.FlipToBeam:          true
-argoneut_pmalgtrackmaker.AutoFlip_dQdx:       true
+argoneut_pmalgtrackmaker.AutoFlip_dQdx:       false
 
 END_PROLOG
