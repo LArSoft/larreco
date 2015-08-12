@@ -358,6 +358,7 @@ namespace cluster {
               clpar[0] = other_hit.PeakTime();
               clpar[1] = (hit.PeakTime() - other_hit.PeakTime()) / (iwire - jwire);
               clpar[2] = fHits[jhit].WireID().Wire;
+/*
               // check for hit width consistency. Large angle clusters should have
               // large rms hits or smaller rms hits if they part of a multiplet
               if(std::abs(clpar[1]) > 10*geom->WirePitch(hit.View())/0.3) {
@@ -366,6 +367,7 @@ namespace cluster {
                 if(hit.RMS() < 4 && hit.Multiplicity() < 3) continue;
                 if(other_hit.RMS() < 4 && other_hit.Multiplicity() < 3) continue;
               } // std::abs(clpar[1]) > 5
+*/
               clChisq = 0;
               // now look for hits to add on the intervening wires
               SigOK = false;
@@ -3171,7 +3173,7 @@ namespace cluster {
       unsigned short ii, nmult = 0;
       for(ii = 0; ii < fcl2hits.size(); ++ii) 
         if(fHits[fcl2hits[ii]].Multiplicity() > 1) ++nmult;
-      if(nmult == fcl2hits.size()) {
+      if(nmult > 0.5 * fcl2hits.size()) {
         bool didMerge;
         for(ii = 0; ii < fcl2hits.size(); ++ii) {
           MergeHits(fcl2hits[ii], didMerge);
@@ -3201,8 +3203,10 @@ namespace cluster {
       }
       // AddLAHit will merge the hit on nextwire if necessary
       AddLAHit(nextwire, ChkCharge, HitOK, SigOK);
-  if(prt) mf::LogVerbatim("CC")<<"LACrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK;
-      if(!SigOK) break;
+  if(prt) mf::LogVerbatim("CC")<<"LACrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK<<" nmissed "<<nmissed;
+      // BB hack early data
+      SigOK = true;
+//      if(!SigOK) break;
       if(!HitOK) {
         ++nmissed;
         if(nmissed > fMaxWirSkip[pass]) {
@@ -3948,7 +3952,8 @@ namespace cluster {
 
     unsigned short index = kwire - fFirstWire;
     // return if no signal and no hit
-    if(WireHitRange[index].first == -2) return;
+    // BB temporary hack for early data
+//    if(WireHitRange[index].first == -2) return;
     // skip bad wire, but assume the track was there
     if(WireHitRange[index].first == -1) {
       SigOK = true;
@@ -3964,6 +3969,14 @@ namespace cluster {
     // the last hit added to the cluster
     unsigned int lastClHit = fcl2hits[fcl2hits.size()-1];
     unsigned short wire0 = fHits[lastClHit].WireID().Wire;
+    
+    // BB temporary hack for early data
+    if(prt) std::cout<<"kwire "<<kwire<<" "<<firsthit<<" "<<lasthit<<"\n";
+    if(firsthit == lasthit && (wire0 - kwire) < fMaxWirSkip[pass]) {
+      SigOK = true;
+      return;
+    }
+
     // the projected time of the cluster on this wire
     float prtime = clpar[0] + (kwire - wire0) * clpar[1];
     float chgWinLo = prtime - fChgNearWindow;
