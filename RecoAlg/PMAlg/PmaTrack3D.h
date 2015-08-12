@@ -74,6 +74,11 @@ public:
 	unsigned int BackTPC(void) const { return fNodes.back()->TPC(); }
 	unsigned int BackCryo(void) const { return fNodes.back()->Cryo(); }
 
+	/// Rectangular region of the track 2D projection in view/tpc/cryo; first in the returned
+	/// pair is (min_wire; min_drift), second is (max_wire; max_drift). Used for preselection
+	/// of neighbouring hits in the track validation functions.
+	std::pair< TVector2, TVector2 > WireDriftRange(unsigned int view, unsigned int tpc, unsigned int cryo) const;
+
 	/// Invert the order of hits and vertices in the track.
 	void Flip(void);
 
@@ -132,6 +137,9 @@ public:
 	/// MSE of hits weighted with hit amplidudes and wire plane coefficients.
 	double GetMse(void) const;
 
+	/// Mean angle between consecutive segments, [rad].
+	double GetMeanAng(void) const;
+
 	/// Objective function optimized in track reconstruction.
 	double GetObjFunction(float penaltyFactor = 1.0F) const;
 
@@ -189,6 +197,12 @@ private:
 	/// hit in given view. In case of last (first) hit in this view the half-distance in opposite direction is
 	/// returned. Parameter secondDir is only for internal protection - please leave the default value.
 	double HitDxByView(size_t index, unsigned int view, Track3D::EDirection dir, bool secondDir = false) const;
+
+	/// Calculate 3D position corresponding to 2D hit, return true if the 3D point is
+	/// in the same TPC as the hit, false otherwise. Calculates also distance^2 between
+	/// the hit and 2D projection of the track. NOTE: results are meaningful only if
+	/// the function returns true.
+	bool GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3d, double& dist2) const;
 
 	void RebuildSegments(void);
 	bool SwapVertices(size_t v0, size_t v1);

@@ -19,6 +19,8 @@
 // Fixed optimization directions:     X      Y      Z
 bool pma::Node3D::fGradFixed[3] = { false, false, false };
 
+double pma::Node3D::fMargin = 3.0;
+
 pma::Node3D::Node3D(void) :
 	fMinX(0), fMaxX(0),
 	fMinY(0), fMaxY(0),
@@ -38,13 +40,22 @@ pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo)
 
 	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
 
-	fMinX = tpcGeo.MinX(); fMaxX = tpcGeo.MaxX();
+	unsigned int lastPlane = geo::kZ;
+	while ((lastPlane > 0) && !tpcGeo.HasPlane(lastPlane)) lastPlane--;
+
+	art::ServiceHandle< util::DetectorProperties > detprop;
+	fMinX = detprop->ConvertTicksToX(0, lastPlane, tpc, cryo);
+	fMaxX = detprop->ConvertTicksToX(detprop->NumberTimeSamples() - 1, lastPlane, tpc, cryo);
+	if (fMaxX < fMinX) { double tmp = fMaxX; fMaxX = fMinX; fMinX = tmp; }
+
 	fMinY = tpcGeo.MinY(); fMaxY = tpcGeo.MaxY();
 	fMinZ = tpcGeo.MinZ(); fMaxZ = tpcGeo.MaxZ();
 
-	fWirePitch[0] = tpcGeo.Plane(geo::kU).WirePitch();
-	fWirePitch[1] = tpcGeo.Plane(geo::kV).WirePitch();
-	fWirePitch[2] = tpcGeo.Plane(geo::kZ).WirePitch();
+	for (size_t i = 0; i < 3; i++)
+	{
+		if (tpcGeo.HasPlane(i)) fWirePitch[i] = tpcGeo.Plane(i).WirePitch();
+		else fWirePitch[i] = 0.0;
+	}
 
 	SetPoint3D(p3d);
 }
@@ -76,16 +87,16 @@ bool pma::Node3D::SameTPC(const TVector3& p3d) const
 	else return false;
 }
 
-void pma::Node3D::LimitPoint3D(float margin)
+void pma::Node3D::LimitPoint3D(void)
 {
-	if (fPoint3D.X() < fMinX - margin) fPoint3D.SetX(fMinX - margin);
-	if (fPoint3D.X() > fMaxX + margin) fPoint3D.SetX(fMaxX + margin);
+	if (fPoint3D.X() < fMinX - fMargin) fPoint3D.SetX(fMinX - fMargin);
+	if (fPoint3D.X() > fMaxX + fMargin) fPoint3D.SetX(fMaxX + fMargin);
 
-	if (fPoint3D.Y() < fMinY - margin) fPoint3D.SetY(fMinY - margin);
-	if (fPoint3D.Y() > fMaxY + margin) fPoint3D.SetY(fMaxY + margin);
+	if (fPoint3D.Y() < fMinY - fMargin) fPoint3D.SetY(fMinY - fMargin);
+	if (fPoint3D.Y() > fMaxY + fMargin) fPoint3D.SetY(fMaxY + fMargin);
 
-	if (fPoint3D.Z() < fMinZ - margin) fPoint3D.SetZ(fMinZ - margin);
-	if (fPoint3D.Z() > fMaxZ + margin) fPoint3D.SetZ(fMaxZ + margin);
+	if (fPoint3D.Z() < fMinZ - fMargin) fPoint3D.SetZ(fMinZ - fMargin);
+	if (fPoint3D.Z() > fMaxZ + fMargin) fPoint3D.SetZ(fMaxZ + fMargin);
 }
 
 void pma::Node3D::UpdateProj2D(void)

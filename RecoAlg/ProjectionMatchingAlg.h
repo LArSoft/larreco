@@ -87,6 +87,14 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits) const
 	{ return trk.TestHits(hits, fHitTestingDist2D); }
 
+	/// Test if hits at the track endpoinds do not stick out of TPC which they belong to.
+	/// Here one can implement some configurable margin if needed for real data imeprfections.
+	bool isContained(const pma::Track3D& trk) const
+	{
+		return (trk.FirstElement()->SameTPC(trk.front()->Point3D()) &&
+			trk.LastElement()->SameTPC(trk.back()->Point3D()));
+	}
+
 	/// Build a track from two sets of hits (they should origin from two wire planes);
 	/// number of segments used to create the track depends on the number of hits;
 	/// optional vmin is the minimum fraction of hits seen from two views.

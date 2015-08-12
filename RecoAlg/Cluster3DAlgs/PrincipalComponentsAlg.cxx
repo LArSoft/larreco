@@ -678,6 +678,9 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
     TVector3 avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
     TVector3 axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
     
+    // Recover the principle eigen value for range constraints
+    double maxArcLen = 4.*sqrt(pca.getEigenValues()[0]);
+
     // We want to keep track of the average
     double aveHitDoca(0.);
     
@@ -685,7 +688,8 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
     for (const auto* hit : hit2DListPtr)
     {
         // Step one is to set up to determine the point of closest approach of this 2D hit to
-        // the cluster's current axis.
+        // the cluster's current axis. We do that by finding the point of intersection of the
+        // cluster's axis with a plane defined by the wire the hit is associated with.
         // Get this wire's geometry object
         const geo::WireID&  hitID     = hit->getHit().WireID();
         const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
@@ -698,72 +702,37 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
         TVector3 wireDirVec(wire_geom.Direction());
         
         // Correct the wire position in x to set to correspond to the drift time
-        double hitPeak(hit->getHit().PeakTime());
-        
-        TVector3 wirePos(m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat), wireCenter[1], wireCenter[2]);
-        
+        TVector3 wirePos(hit->getXPosition(), wireCenter[1], wireCenter[2]);
+
         // Compute the wire plane normal for this view
         TVector3 xAxis(1.,0.,0.);
         TVector3 planeNormal = xAxis.Cross(wireDirVec);   // This gives a normal vector in +z for a Y wire
         
-        double docaInPlane(wirePos[0] - avePosition[0]);
         double arcLenToPlane(0.);
+        double docaInPlane(wirePos[0] - avePosition[0]);
         double cosAxisToPlaneNormal = axisDirVec.Dot(planeNormal);
         
         TVector3 axisPlaneIntersection = wirePos;
-        TVector3 hitPosTVec            = wirePos;
-        
+
+        // If current cluster axis is not parallel to wire plane then find intersection point
         if (fabs(cosAxisToPlaneNormal) > 0.)
         {
             TVector3 deltaPos = wirePos - avePosition;
             
-            arcLenToPlane         = deltaPos.Dot(planeNormal) / cosAxisToPlaneNormal;
+            arcLenToPlane         = std::min(deltaPos.Dot(planeNormal) / cosAxisToPlaneNormal, maxArcLen);
             axisPlaneIntersection = avePosition + arcLenToPlane * axisDirVec;
-            docaInPlane           = wirePos[0] - axisPlaneIntersection[0];
-            
             TVector3 axisToInter  = axisPlaneIntersection - wirePos;
             double   arcLenToDoca = axisToInter.Dot(wireDirVec);
-            
-            hitPosTVec += arcLenToDoca * wireDirVec;
-        }
-        
-        // Get a vector from the wire position to our cluster's current average position
-        TVector3 wVec = avePosition - wirePos;
-        
-        // Get the products we need to compute the arc lengths to the distance of closest approach
-        double a(axisDirVec.Dot(axisDirVec));
-        double b(axisDirVec.Dot(wireDirVec));
-        double c(wireDirVec.Dot(wireDirVec));
-        double d(axisDirVec.Dot(wVec));
-        double e(wireDirVec.Dot(wVec));
-        
-        double den(a*c - b*b);
-        double arcLen1(0.);
-        double arcLen2(0.);
-        
-        // Parallel lines is a special case
-        if (fabs(den) > m_parallel)
-        {
-            arcLen1 = (b*e - c*d) / den;
-            arcLen2 = (a*e - b*d) / den;
-        }
-        else
-        {
-            mf::LogDebug("Cluster3D") << "** Parallel lines, need a better solution here" << std::endl;
-            
-            arcLen1 = 0.;
-            arcLen2 = 0.;
-        }
 
-        TVector3 hitPos  = wirePos + arcLen2 * wireDirVec;
-        TVector3 axisPos = avePosition + arcLen1 * axisDirVec;
-        double   deltaX  = hitPos[0] - axisPos[0];
-        double   deltaY  = hitPos[1] - axisPos[1];
-        double   deltaZ  = hitPos[2] - axisPos[2];
-        double   doca2   = deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ;
-        double   doca    = sqrt(doca2);
-        
-        docaInPlane = doca;
+            // If the arc length along the wire to the poca is outside the TPC then reset
+            if (fabs(arcLenToDoca) > wire_geom.HalfL()) arcLenToDoca = wire_geom.HalfL();
+
+            // If we were successful in getting to the wire plane then the doca is simply the
+            // difference in x coordinates... but we hvae to worry about the special cases so
+            // we calculate a 3D doca based on arclengths above...
+            TVector3 docaVec = axisPlaneIntersection - (wirePos + arcLenToDoca * wireDirVec);
+            docaInPlane = docaVec.Mag();
+        }
         
         aveHitDoca += fabs(docaInPlane);
         

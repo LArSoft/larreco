@@ -4252,6 +4252,7 @@ namespace cluster {
       if (doMerge) {
         // find the neighbor hit
         unsigned int oht;
+	if (imbest == 0 && hit.LocalIndex() != 0) return; //please comment this line to investigate
         if(hit.LocalIndex() == 0) {
           oht = imbest + 1;
         } else {

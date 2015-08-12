@@ -44,6 +44,8 @@ public:
 
   TVector2 ConvertWireDriftToCm(unsigned int wire, float drift, unsigned int plane, unsigned int tpc, unsigned int cryo);
   int MergeClusters(std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters, unsigned int plane, unsigned int tpc, unsigned int cryo);
+  double MinSeparation(art::PtrVector<recob::Hit> &cluster1, art::PtrVector<recob::Hit> &cluster2, unsigned int plane, unsigned int tpc, unsigned int cryo);
+  double MinSeparation(art::PtrVector<recob::Hit> &cluster1, art::PtrVector<recob::Hit> &cluster2);
   void reconfigure(fhicl::ParameterSet const& p);
 
 private:

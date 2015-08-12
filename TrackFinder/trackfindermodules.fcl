@@ -45,9 +45,16 @@ standard_pmalgtrackmaker:
                                       # 2: use existing assocs of clusters (from external algorithm, to be
                                       #    used by the shower reconstruction but not yet ready)
                                       #
+  MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
+  MinSeedSize2ndPass:     5           # ..and in the 2nd pass: differentiate to speed up finding long tracks
+                                      # w/o checking large number of possibilities, then use as small size
+                                      # as reasonnable for used clustering algorithm to complete the search
+                                      # in the second pass
+                                      #
   FlipToBeam:             false       # set the track direction to increasing Z values
+  FlipDownward:           false       # set the track direction to decreasing Y values (like cosmic rays)
   AutoFlip_dQdx:          false       # set the track direction to increasing dQ/dx (overrides FlipToBeam
-                                      # if significant rise of dQ/dx at the track end)
+                                      # and FlipDownward if significant rise of dQ/dx at the track end)
   Save_dQdx:              false       # store dQ/dx vs range in the tree
                                       #
   MergeWithinTPC:         false       # merge witnin single TPC; finds tracks best matching by angle, with limits:
@@ -209,6 +216,9 @@ standard_trackana:
    WMatchDisp: 15.0
    MatchLength: 0.8
    IgnoreSign: true
+   StitchedAnalysis: false
+   MCTrackOrigin: "Any"
+   PrintLevel: 0
 }
 
 
@@ -287,6 +297,7 @@ standard_track3Dkalmanhit:
   Hist:               false
   UseClusterHits:     true
   UsePFParticleHits:  false
+  UsePFParticleSeeds: false
   HitModuleLabel:     "ffthit"
   ClusterModuleLabel: "dbcluster"
   PFParticleModuleLabel: "pandora"

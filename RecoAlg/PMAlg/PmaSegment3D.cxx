@@ -82,6 +82,45 @@ TVector3 pma::Segment3D::GetProjection(const TVector2& p, unsigned int view) con
 	return result;
 }
 
+TVector3 pma::Segment3D::GetUnconstrainedProj3D(const TVector2& p2d, unsigned int view) const
+{
+	pma::Node3D* vStart = static_cast< pma::Node3D* >(prev);
+	pma::Node3D* vStop = static_cast< pma::Node3D* >(next);
+
+	TVector2 v0(p2d);
+	v0 -= vStart->Projection2D(view);
+
+	TVector2 v1(vStop->Projection2D(view));
+	v1 -= vStart->Projection2D(view);
+
+	TVector3 v3d(vStop->Point3D());
+	v3d -= vStart->Point3D();
+
+	double v0Norm = v0.Mod();
+	double v1Norm = v1.Mod();
+
+	double eps = 1.0E-6; // 0.01mm
+	if (v1Norm > eps)
+	{
+		double mag = v0Norm * v1Norm;
+		double cosine = 0.0;
+		if (mag != 0.0) cosine = v0 * v1 / mag;
+		double b = v0Norm * cosine / v1Norm;
+
+		return vStart->Point3D() + (v3d * b);
+	}
+	else // segment 2D projection is almost a point
+	{
+		mf::LogWarning("pma::Segment3D") << "Short segment projection." << std::endl;
+
+		v3d = vStart->Point3D();
+		v3d += vStop->Point3D();
+		v3d *= 0.5;
+
+		return v3d;
+	}
+}
+
 void pma::Segment3D::SetProjection(pma::Hit3D& h) const
 {
 	pma::Node3D* vStart = static_cast< pma::Node3D* >(prev);

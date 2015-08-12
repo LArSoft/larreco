@@ -481,6 +481,10 @@ void GausHitFinder::produce(art::Event& evt)
                // ### Calling the function for fitting Gaussians ###
                // ##################################################
                FitGaussians(signal, peakT, nGausForFit, startT, endT);
+               
+               // If the chi2 is infinite then there is a real problem so we bail
+               if (!(Chi2PerNDF < std::numeric_limits<double>::infinity())) break;
+                   
                fFirstChi2->Fill(Chi2PerNDF);
 	 
                // #######################################################
@@ -843,11 +847,19 @@ void hit::GausHitFinder::ReFitGaussians(std::vector<float> ReSignalVector, std::
    TF1 Gaus2("Gaus2",eqn2.c_str(),0,std::max(size2,1));
 	 
    // ### Setting the parameters for the Gaussian Fit ###
+   bool goodPeaks(true);
+       
    for(int bb = 0; bb < mGauss; bb++)
       {
       float TrialPeak = 0;
       if(bb<mGauss -1){TrialPeak = RePeakTime[bb];}
       else{TrialPeak = RePeakTime[0]+(bb*5);}
+          
+      if (TrialPeak > ReEndTime)
+      {
+          goodPeaks = false;
+          break;
+      }
       
       amplitude2 = 0.5* ReSignalVector[TrialPeak];
       Gaus2.SetParameter(3*bb,amplitude2);
@@ -858,6 +870,11 @@ void hit::GausHitFinder::ReFitGaussians(std::vector<float> ReSignalVector, std::
       Gaus2.SetParLimits(2+(3*bb), 0.0, 10.0*fitWidth);
       }//<---End bb loop
       
+      if (!goodPeaks)
+      {
+          Chi2PerNDF2 = std::numeric_limits<double>::infinity();
+          return;
+      }
       
    // ####################################################
    // ### PERFORMING THE TOTAL GAUSSIAN FIT OF THE HIT ###

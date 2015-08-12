@@ -28,6 +28,8 @@ void pma::ProjectionMatchingAlg::reconfigure(const fhicl::ParameterSet& p)
 
 	fMinTwoViewFraction = p.get< double >("MinTwoViewFraction");
 
+	pma::Node3D::SetMargin(p.get< double >("NodeMargin3D"));
+
 	pma::Element3D::SetOptFactor(geo::kZ, p.get< double >("HitWeightZ"));
 	pma::Element3D::SetOptFactor(geo::kV, p.get< double >("HitWeightV"));
 	pma::Element3D::SetOptFactor(geo::kU, p.get< double >("HitWeightU"));
@@ -43,15 +45,49 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	double d2, max_d2 = max_d * max_d;
 	unsigned int nAll = 0, nPassed = 0;
 
+	std::vector< unsigned int > trkTPCs = trk.TPCs();
+	std::vector< unsigned int > trkCryos = trk.Cryos();
+	std::map< std::pair< unsigned int, unsigned int >, std::pair< TVector2, TVector2 > > ranges;
+	for (auto c : trkCryos)
+		for (auto t : trkTPCs)
+		{
+			ranges[std::pair< unsigned int, unsigned int >(t, c)] = trk.WireDriftRange(testView, t, c);
+		}
+
+	unsigned int tpc, cryo;
+	std::map< std::pair< unsigned int, unsigned int >, std::vector< TVector2 > > all_close_points;
+
+	for (const auto h : hits)
+		if (h->WireID().Plane == testView)
+	{
+		std::pair< unsigned int, unsigned int > tpc_cryo(h->WireID().TPC, h->WireID().Cryostat);
+		std::pair< TVector2, TVector2 > rect = ranges[tpc_cryo];
+
+		if ((h->WireID().Wire > rect.first.X() - 10) &&  // chceck only hits in the rectangle around
+		    (h->WireID().Wire < rect.second.X() + 10) && // the track projection, it is faster than
+		    (h->PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testView)
+		    (h->PeakTime() < rect.second.Y() + 100))
+		{
+			TVector2 p2d = pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc_cryo.first, tpc_cryo.second);
+
+			d2 = trk.Dist2(p2d, testView);
+
+			if (d2 < max_d2) all_close_points[tpc_cryo].push_back(p2d);
+		}
+	}
+
+	// then check how points close to the track projection are distributed along the
+	// track, namely: are there track sections crossing empty spaces?
 	TVector3 p(trk.front()->Point3D());
 	for (size_t i = 0; i < trk.Nodes().size() - 1; i++)
 	{
-		unsigned int tpc = trk.Nodes()[i]->TPC();
-		unsigned int cryo = trk.Nodes()[i]->Cryo();
+		tpc = trk.Nodes()[i]->TPC();
+		cryo = trk.Nodes()[i]->Cryo();
 
 		TVector3 vNext(trk.Nodes()[i + 1]->Point3D());
 		TVector3 vThis(trk.Nodes()[i]->Point3D());
 
+		const std::vector< TVector2 >& points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
 		if (trk.Nodes()[i + 1]->TPC() == (int)tpc) // skip segments between tpc's
 		{
 			TVector3 dc(vNext); dc -= vThis;
@@ -60,13 +96,15 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 			double f = pma::GetSegmentProjVector(p, vThis, vNext);
 			while ((f < 1.0) && trk.Nodes()[i]->SameTPC(p))
 			{
-				TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
-
-				for (const auto & h : hits)
-					if (h->WireID().Plane == testView)
+				if (points.size())
 				{
-					d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
-					if (d2 < max_d2) { nPassed++; break; }
+					TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
+
+					for (const auto & h : points)
+					{
+						d2 = pma::Dist2(p2d, h);
+						if (d2 < max_d2) { nPassed++; break; }
+					}
 				}
 				nAll++;
 
@@ -75,7 +113,8 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		}
 		p = vNext;
 	}
-	if (nAll > 3) // validate actually only if there are some hits in testView
+
+	if (nAll > 3) // validate actually only if 2D projection in testView has some minimum length
 	{
 		double v = nPassed / (double)nAll;
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  trk fraction ok: " << v;
@@ -115,7 +154,7 @@ double pma::ProjectionMatchingAlg::validate(
 		p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
 	}
 
-	if (nAll > 3) // validate actually only if there are some hits in testView
+	if (nAll > 3) // validate actually only if 2D projection in testView has some minimum length
 	{
 		double v = nPassed / (double)nAll;
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  segment fraction ok: " << v;
@@ -192,11 +231,13 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
 
 		trk->SortHits();
+		// trk->ShiftEndsToHits(); // not sure if useful already here
 		return trk;
 	}
 	else
 	{
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  clusters do not match, f = " << f;
+		delete trk;
 		return 0;
 	}
 }

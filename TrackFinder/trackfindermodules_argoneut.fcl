@@ -29,5 +29,6 @@ argoneut_pmalgtrackmaker.HitModuleLabel:      "cccluster"
 argoneut_pmalgtrackmaker.ClusterModuleLabel:  "cccluster"
 argoneut_pmalgtrackmaker.FlipToBeam:          true
 argoneut_pmalgtrackmaker.AutoFlip_dQdx:       true
+argoneut_pmalgtrackmaker.ProjectionMatchingAlg.NodeMargin3D: 1.0
 
 END_PROLOG

@@ -37,6 +37,10 @@ public:
 	/// Get 3D projection of a 2D point from the view.
 	TVector3 GetProjection(const TVector2& p, unsigned int view) const;
 
+	/// Get 3D projection of a 2D point from the view, no limitations if it falls beyond
+	/// the segment endpoints.
+	virtual TVector3 GetUnconstrainedProj3D(const TVector2& p2d, unsigned int view) const;
+
 	/// Set hit 3D position and its 2D projection to the vertex.
 	virtual void SetProjection(pma::Hit3D& h) const;
 

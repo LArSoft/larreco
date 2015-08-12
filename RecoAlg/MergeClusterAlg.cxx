@@ -75,20 +75,15 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 	TPrincipal *pca = new TPrincipal(2,"");
 	double hits[2];
 	TVector2 pos;
-	std::pair<double,double> mergedPos(1000,0), trialPos(1000,0);
 
 	for (auto &mergedClusterHits : cluster) {
 	  pos = ConvertWireDriftToCm(mergedClusterHits->WireID().Wire, (int)mergedClusterHits->PeakTime(), plane, tpc, cryo);
-	  if (pos.Mod() < mergedPos.first) mergedPos.first = pos.Mod();
-	  else if (pos.Mod() > mergedPos.second) mergedPos.second = pos.Mod();
 	  hits[0] = pos.X();
 	  hits[1] = pos.Y();
 	  pca->AddRow(hits);
 	}
 	for (auto &trialClusterHits : planeClusters->at(trialCluster)) {
 	  pos = ConvertWireDriftToCm(trialClusterHits->WireID().Wire, (int)trialClusterHits->PeakTime(), plane, tpc, cryo);
-	  if (pos.Mod() < trialPos.first) trialPos.first = pos.Mod();
-	  else if (pos.Mod() > trialPos.second) trialPos.second = pos.Mod();
 	  hits[0] = pos.X();
 	  hits[1] = pos.Y();
 	  pca->AddRow(hits);
@@ -98,7 +93,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
 	// Merge these clusters if they are part of the same straight line
 	bool passParallelCut = (*pca->GetEigenValues())[0] > fMergingThreshold;
-	bool passProximityCut = (std::abs(trialPos.first - mergedPos.second) < fMaxMergeSeparation) or (std::abs(trialPos.second - mergedPos.first) < fMaxMergeSeparation);
+	bool passProximityCut = this->MinSeparation(cluster, planeClusters->at(trialCluster), plane, tpc, cryo) < fMaxMergeSeparation;
 
 	//std::cout << "Event " << fEvent << ", tpc " << fTPC << " and plane " << fPlane << ". Clusters have eigenvalue of " << (*pca->GetEigenValues())[0] << " and are separated by a distance of around " << std::abs(trialPos.second - mergedPos.first) << " but do they pass the proximity cut? " << passProximityCut << std::endl;
 
@@ -126,5 +121,29 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
   }
 
   return clusters.size();
+
+}
+
+double cluster::MergeClusterAlg::MinSeparation(art::PtrVector<recob::Hit> &cluster1, art::PtrVector<recob::Hit> &cluster2, unsigned int plane, unsigned int tpc, unsigned int cryo) {
+
+  /// Calculates the minimum separation between two clusters
+
+  double minDistance = 100000;
+
+  // Loop over the two clusters to find the smallest distance
+  for (auto const& hit1 : cluster1) {
+    for (auto const& hit2 : cluster2) {
+
+      TVector2 pos1 = ConvertWireDriftToCm(hit1->WireID().Wire, (int)hit1->PeakTime(), plane, tpc, cryo);
+      TVector2 pos2 = ConvertWireDriftToCm(hit2->WireID().Wire, (int)hit2->PeakTime(), plane, tpc, cryo);
+
+      double distance = pos1.Mod() - pos2.Mod();
+
+      if (distance < minDistance) minDistance = distance;
+
+    }
+  }
+
+  return minDistance;
 
 }
