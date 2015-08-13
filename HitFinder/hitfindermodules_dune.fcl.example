@@ -1,0 +1,50 @@
+#include "hitfindermodules.fcl"
+#include "disambigalgorithms.fcl"
+
+BEGIN_PROLOG
+
+# please use dunetpc/dune/HitFinderDUNE/hitfindermodules_dune35t.fcl 
+
+
+standard_disambigcheat:
+{
+ module_type:         "DisambigCheater"
+ ChanHitLabel:        "gaushit"
+}
+
+
+apa_hitfinder:
+{
+ module_type:         "APAHitFinder"
+ DisambigAlg:         @local::apa_disambigalg
+ ChanHitLabel:        "gaushit"
+ ClusLabel:           "fuzzy"
+}
+
+
+
+
+dunefd_gaushitfinder:   @local::gaus_hitfinder
+dunefd_apahitfinder:    @local::apa_hitfinder
+dunefd_hitcheater:	  @local::standard_hitcheater
+
+dunefd_gaushitfinder.IndMinWidth: 1.0
+dunefd_gaushitfinder.ColMinWidth: 1.0
+
+#Please #include "hitfindermodules_dune35t.fcl"
+#Please config dune35t in /dunetpc/dune/HitFinderDUNE/hitfindermodules_dune35t.fcl
+#dune35t_fasthitfinder:    @local::standard_fasthitfinder
+#dune35t_fasthitfinder.MinSigInd: 5.0
+#dune35t_fasthitfinder.MinSigCol: 5.0
+#
+#dune35t_gaushitfinder:    @local::gaus_hitfinder
+#dune35t_apahitfinder:     @local::apa_hitfinder
+#dune35t_hitcheater:	  @local::standard_hitcheater
+#
+#dune35t_gaushitfinder.IndMinWidth: 1.0
+#dune35t_gaushitfinder.ColMinWidth: 1.0
+#dune35t_gaushitfinder.Chi2NDFRetry: 1000.
+
+
+
+END_PROLOG

@@ -134,20 +134,20 @@ microboone_beziertrackeralgorithm:                       @local::standard_bezier
 microboone_beziertrackeralgorithm.SeedFinder:            @local::microboone_seedfinderalgorithm
 microboone_trackstitcheralg:  @local::standard_trackstitcheralg
 
-lbne10kt_spacepointalg:          @local::standard_spacepointalg
-lbne10kt_spacepointalg.MinViews: 3
-lbne10kt_spacepointalg.EnableW:  true
-lbne10kt_kalmanfilteralg:        @local::standard_kalmanfilteralg
-lbne34kt_spacepointalg:          @local::lbne10kt_spacepointalg
-lbne34kt_kalmanfilteralg:        @local::lbne10kt_kalmanfilteralg
-lbne35t_spacepointalg: @local::standard_spacepointalg
-lbne35t_spacepointalg.MinViews:  3
-lbne35t_spacepointalg.EnableW:   true
-lbne35t_kalmanfilteralg:         @local::standard_kalmanfilteralg
-lbne35t_seedfinderalgorithm:                          @local::standard_seedfinderalgorithm
-lbne35t_seedfinderalgorithm.SpacePointAlg :           @local::lbne35t_spacepointalg
-lbne35t_seedfinderalgorithm.SpacePointAlg.PreferColl: true
-lbne35t_seedfinderalgorithm.SpacePointAlg.Filter:     false
+dune10kt_spacepointalg:          @local::standard_spacepointalg
+dune10kt_spacepointalg.MinViews: 3
+dune10kt_spacepointalg.EnableW:  true
+dune10kt_kalmanfilteralg:        @local::standard_kalmanfilteralg
+dune34kt_spacepointalg:          @local::dune10kt_spacepointalg
+dune34kt_kalmanfilteralg:        @local::dune10kt_kalmanfilteralg
+dune35t_spacepointalg: @local::standard_spacepointalg
+dune35t_spacepointalg.MinViews:  3
+dune35t_spacepointalg.EnableW:   true
+dune35t_kalmanfilteralg:         @local::standard_kalmanfilteralg
+dune35t_seedfinderalgorithm:                          @local::standard_seedfinderalgorithm
+dune35t_seedfinderalgorithm.SpacePointAlg :           @local::dune35t_spacepointalg
+dune35t_seedfinderalgorithm.SpacePointAlg.PreferColl: true
+dune35t_seedfinderalgorithm.SpacePointAlg.Filter:     false
 
 
 END_PROLOG
