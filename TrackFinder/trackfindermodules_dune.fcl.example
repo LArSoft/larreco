@@ -1,0 +1,22 @@
+#include "trackfindermodules.fcl"
+
+BEGIN_PROLOG
+
+dune35t_trackcheater:                     @local::standard_trackcheater
+
+dune35t_cosmictracker:                    @local::standard_cosmictracker
+dune35t_cosmictracker.CleanUpHits:        true
+dune35t_cosmictracker.SortDirection:      "-y"
+dune35t_trackstitcher:                    @local::standard_trackstitcher
+dune35t_trackstitcher.SpptSepTolerance:   100
+dune35t_trackstitcher.CosAngTolerance:    0.80
+
+dune35t_track3Dkalmanhit:                            @local::standard_track3Dkalmanhit
+dune35t_track3Dkalmanhit.MaxSeedChiDF:               50
+dune35t_track3Dkalmanhit.MinSeedHits:                10
+dune35t_track3Dkalmanhit.KalmanFilterAlg:            @local::dune35t_kalmanfilteralg
+dune35t_track3Dkalmanhit.SeedFinderAlg:              @local::dune35t_seedfinderalgorithm
+dune35t_track3Dkalmanhit.SpacePointAlg:              @local::dune35t_spacepointalg
+
+
+END_PROLOG
