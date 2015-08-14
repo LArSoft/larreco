@@ -163,6 +163,9 @@ public:
 	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo);
 	bool AddNode(void);
 
+	bool AttachTo(pma::Node3D* vStart);
+	bool IsAttachedTo(pma::Track3D const * trk, bool skipFirst = false) const;
+
 	void MakeProjection(void);
 	void UpdateProjection(void);
 	void SortHits(void);

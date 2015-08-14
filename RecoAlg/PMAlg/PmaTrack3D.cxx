@@ -1238,6 +1238,84 @@ bool pma::Track3D::AddNode(void)
 	else return false;
 }
 
+bool pma::Track3D::AttachTo(pma::Node3D* vStart)
+{
+	pma::Node3D* vtx = fNodes.front();
+	if (vtx == vStart) return true;
+	if (vtx->Prev())
+	{
+		mf::LogError("pma::Track3D") << "Track was already attached to another track.";
+		return false;
+	}
+
+	for (size_t i = 0; i < fNodes.size(); i++)
+	{
+		if (fNodes[i] == vStart) { mf::LogError("pma::Track3D") << "Aaaaaa!"; return false; }
+	}
+
+	if ( (pma::Dist2(vtx->Point3D(), vStart->Point3D()) > pma::Dist2(fNodes.back()->Point3D(), vStart->Point3D())) &&
+	     (fNodes.back()->NextCount() == 0) )
+	{
+		Flip(); // flip the track if its endpoint is closer to vStart than the startpoint
+		vtx = fNodes.front();
+	}
+
+	mf::LogVerbatim("pma::Track3D") << "Attach: " << vtx->NextCount() << " -> " << vStart->NextCount();
+
+	for (size_t i = 0; i < vtx->NextCount(); i++)
+	{
+		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtx->Next(i));
+		pma::Track3D* trk = seg->Parent();
+		vtx->RemoveNext(seg);
+		trk->fNodes[0] = vStart; // checked above, but note again: each trk was *starting* from vtx
+		vStart->AddNext(seg);
+	}
+
+	if (!vtx->NextCount()) { delete vtx; }
+	else
+	{
+		mf::LogVerbatim("pma::Track3D") << "Something is still using this vertex.";
+	}
+
+	MakeProjection();
+	SortHits();
+	return true;
+}
+
+bool pma::Track3D::IsAttachedTo(pma::Track3D const * trk, bool skipFirst) const
+{
+	if (trk == this) return true;
+
+	size_t i0 = 0;
+	if (skipFirst) i0 = 1;
+	for (size_t i = i0; i < fNodes.size(); i++)
+		for (size_t n = 0; n < fNodes[i]->NextCount(); n++)
+		{
+			pma::Segment3D* seg = static_cast< pma::Segment3D* >(fNodes[i]->Next(n));
+			if (seg->Parent() != this)
+			{
+				if ((seg->Parent() == trk) ||
+				    seg->Parent()->IsAttachedTo(trk, true)) return true;
+			}
+		}
+
+	if (!skipFirst)
+	{
+		for (size_t i = 0; i < trk->fNodes.size(); i++)
+			for (size_t n = 0; n < trk->fNodes[i]->NextCount(); n++)
+			{
+				pma::Segment3D* seg = static_cast< pma::Segment3D* >(trk->fNodes[i]->Next(n));
+				if (seg->Parent() != trk)
+				{
+					if ((seg->Parent() == this) ||
+					    seg->Parent()->IsAttachedTo(this, true)) return true;
+				}
+			}
+	}
+
+	return false;
+}
+
 bool pma::Track3D::HasRefPoint(TVector3* p) const
 {
 	for (size_t i = 0; i < fAssignedPoints.size(); i++)
