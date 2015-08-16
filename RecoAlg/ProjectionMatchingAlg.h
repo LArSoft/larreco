@@ -16,9 +16,6 @@
 //      Please, check the track making module to find a way of selecting appropriate clusteres:
 //        PMAlgTrackMaker_module.cc
 //
-//      Note: not all parameters of the track optimization are available through .fcl, more are
-//      being added still, thanks for patience...
-//
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef ProjectionMatchingAlg_h
@@ -107,7 +104,7 @@ public:
 	/// per plane are available and there is no chance to see a curvature or any other features.
 	pma::Track3D* buildSegment(
 		const std::vector< art::Ptr<recob::Hit> >& hits_1,
-		const std::vector< art::Ptr<recob::Hit> >& hits_2) const;
+		const std::vector< art::Ptr<recob::Hit> >& hits_2 = std::vector< art::Ptr<recob::Hit> >()) const;
 
 	/// Build a straight segment from two sets of hits (they should origin from two wire planes),
 	/// starting from a given point (like vertex known from another algorithm); method is intendet
@@ -116,6 +113,12 @@ public:
 	pma::Track3D* buildSegment(
 		const std::vector< art::Ptr<recob::Hit> >& hits_1,
 		const std::vector< art::Ptr<recob::Hit> >& hits_2,
+		const TVector3& point) const;
+
+	/// Build a straight segment from set of hits (they should origin from two wire planes at least),
+	/// starting from a given point.
+	pma::Track3D* buildSegment(
+		const std::vector< art::Ptr<recob::Hit> >& hits,
 		const TVector3& point) const;
 
 	/// Add more hits to an existing track, reoptimize, optionally add more nodes.

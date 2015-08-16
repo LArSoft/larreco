@@ -3,7 +3,7 @@
 
 ///////////////////////////////
 //Hit finder that runs on raw signals instead of deconvolutes ones //
-// Written initially for lbne 35t online filter //
+// Written initially for dune 35t online filter //
 ///////////////////////////////
 
 // C/C++ standard libraries
@@ -209,7 +209,8 @@ namespace hit {
 
 
       for(unsigned int bin = 0; bin < fDataSize; ++bin) 
-      	holder[bin]=(rawadc[bin]-digitVec->GetPedestal());
+      	//holder[bin]=(rawadc[bin]-digitVec->GetPedestal());
+      	holder[bin]=rawadc[bin];
       //now holder and rawadc should be filled correctly
       
       sigType       = geom->SignalType(channel);
