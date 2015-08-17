@@ -16,6 +16,6 @@ standard_eventmaker:
 
 argoneut_eventmaker:   @local::standard_eventmaker
 microboone_eventmaker: @local::standard_eventmaker
-lbne_eventmaker:       @local::standard_eventmaker
+dune_eventmaker:       @local::standard_eventmaker
 
 END_PROLOG
