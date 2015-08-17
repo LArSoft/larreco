@@ -3961,6 +3961,12 @@ namespace cluster {
     }
     unsigned int firsthit = WireHitRange[index].first;
     unsigned int lasthit = WireHitRange[index].second;
+    // BB hack. Skip no hit on wire condition
+    if(firsthit > fHits.size()) return;
+    if(firsthit == lasthit - 1) {
+      SigOK = true;
+      return;
+    }
     
     // max allowable time difference between projected cluster and a hit
     float timeDiff = 40 * AngleFactor(clpar[1]);
@@ -3971,11 +3977,7 @@ namespace cluster {
     unsigned short wire0 = fHits[lastClHit].WireID().Wire;
     
     // BB temporary hack for early data
-    if(prt) std::cout<<"kwire "<<kwire<<" "<<firsthit<<" "<<lasthit<<"\n";
-    if(firsthit == lasthit && (wire0 - kwire) < fMaxWirSkip[pass]) {
-      SigOK = true;
-      return;
-    }
+    if((wire0 - kwire) > fMaxWirSkip[pass]) return;
 
     // the projected time of the cluster on this wire
     float prtime = clpar[0] + (kwire - wire0) * clpar[1];
@@ -4032,11 +4034,13 @@ namespace cluster {
   if(prt) mf::LogVerbatim("CC")<<" Pick hit time "<<(int)fHits[imbest].PeakTime()<<" hit index "<<imbest;
     
     // merge the hits in a multiplet?
-    bool doMerge = false;
-    // assume there is no nearby hit
+    // BB hack
+    bool doMerge = true;
     short hnear = 0;
+    // assume there is no nearby hit
     if(fHits[imbest].Multiplicity() > 1) {
       doMerge = true;
+      /*
       // don't merge if we are close to a vertex
       for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
         if(vtx[ivx].CTP != clCTP) continue;
@@ -4080,7 +4084,7 @@ namespace cluster {
         } // jht
   if(prt) {
     if(!doMerge) mf::LogVerbatim("CC")
-      <<" Hits are well separated. Don't merge them";
+      <<" Hits are well separated. Don't merge them ";
   }
         if(doMerge && nused == 0) {
           // compare the charge with the last hit added?
@@ -4094,12 +4098,14 @@ namespace cluster {
           }
         } // doMerge && nused == 0
       } // doMerge true
-      if(doMerge) {
+*/
+    if(doMerge) {
         // there is a nearby hit and it will be merged
         hnear = -1;
         bool didMerge;
         MergeHits(imbest, didMerge);
-      }
+      if(!didMerge) std::cout<<"Didnt merge\n";
+    }
     } // fHits[imbest].Multiplicity() > 1
     
     // attach to the cluster and fit
@@ -4183,8 +4189,8 @@ namespace cluster {
     float hiterr = AngleFactor(clpar[1]) * fHitErrFac * fHits[lastClHit].RMS();
     float err = std::sqrt(prtimerr2 + hiterr * hiterr);
     // Time window for accepting a hit.
-    float prtimeLo = prtime - 5 * err;
-    float prtimeHi = prtime + 5 * err;
+    float prtimeLo = prtime - 8 * err;
+    float prtimeHi = prtime + 8 * err;
     float chgWinLo = prtime - fChgNearWindow;
     float chgWinHi = prtime + fChgNearWindow;
     if(prt) mf::LogVerbatim("CC")<<"AddHit: wire "<<kwire<<" prtime Lo "<<(int)prtimeLo<<" Hi "<<(int)prtimeHi<<" fAveChg "<<(int)fAveChg;
@@ -4252,7 +4258,6 @@ namespace cluster {
       if (doMerge) {
         // find the neighbor hit
         unsigned int oht;
-	if (imbest == 0 && hit.LocalIndex() != 0) return; //please comment this line to investigate
         if(hit.LocalIndex() == 0) {
           oht = imbest + 1;
         } else {

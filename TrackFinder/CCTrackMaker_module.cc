@@ -196,6 +196,7 @@ namespace trkf {
       short ChgOrder;
       short MomID;
       std::array<bool, 2> EndInTPC;
+      std::array<bool, 2> GoodEnd;    // set true if there are hits in all planes at the end point
       std::vector<short> DtrID;
       short PDGCode;
     };
@@ -203,6 +204,8 @@ namespace trkf {
     
     // Array of pointers to hits in each plane for one track
     std::array< std::vector<art::Ptr<recob::Hit>>, 3> trkHits;
+    // and for one seed
+    std::array< std::vector<art::Ptr<recob::Hit>>, 3> seedHits;
     // relative charge normalization between planes
     std::array< float, 3> ChgNorm;
     
@@ -273,6 +276,9 @@ namespace trkf {
     // fill the trkHits array using information.
     void FillTrkHits(art::FindManyP<recob::Hit> const& fmCluHits, unsigned short imat);
     
+    // Seed hits for the seed - hit association
+//    void FindSeedHits(unsigned short itk, unsigned short& end);
+    
     // store the track in the trk vector
     void StoreTrack(art::FindManyP<recob::Hit> const& fmCluHits, unsigned short imat, unsigned short procCode);
     
@@ -297,6 +303,7 @@ namespace trkf {
     produces< std::vector<recob::Track>                        >();
     produces< art::Assns<recob::Track,      recob::Hit>        >();
     produces<std::vector<recob::Seed>                          >();
+    produces< art::Assns<recob::Seed,       recob::Hit>        >();
   }
   
   //-------------------------------------------------
@@ -363,6 +370,7 @@ namespace trkf {
     
     // seed collection
     std::unique_ptr<std::vector<recob::Seed>> scol(new std::vector<recob::Seed>);
+    std::unique_ptr<art::Assns<recob::Seed, recob::Hit> > shassn (new art::Assns<recob::Seed, recob::Hit>);
     
     // all hits
     art::Handle< std::vector<recob::Hit> > allhitsListHandle;
@@ -643,10 +651,13 @@ namespace trkf {
             for(ipl = 0; ipl < nplanes; ++ipl)
               tmpHits.insert(tmpHits.end(), trk[tIndex].TrkHits[ipl].begin(), trk[tIndex].TrkHits[ipl].end());
             util::CreateAssn(*this, evt, *tcol, tmpHits, *thassn);
-            // seed
+            // Find seed hits and the end of the track that is best
+//            FindSeedHits(tIndex, end);
+            unsigned short itj = 0;
+            if(end > 0) itj = trk[tIndex].TrjPos.size() - 1;
             for(unsigned short ii = 0; ii < 3; ++ii) {
-              sPos[ii] = trk[tIndex].TrjPos[0](ii);
-              sDir[ii] = trk[tIndex].TrjDir[0](ii);
+              sPos[ii] = trk[tIndex].TrjPos[itj](ii);
+              sDir[ii] = trk[tIndex].TrjDir[itj](ii);
             } // ii
             size_t sStart = scol->size();
             recob::Seed seed(sPos, sDir, sErr, sErr);
@@ -654,6 +665,11 @@ namespace trkf {
             size_t sEnd = scol->size();
             // PFP-seed association
             util::CreateAssn(*this, evt, *pcol, *scol, *psassn, sStart, sEnd);
+            // Seed-hit association
+            tmpHits.clear();
+            for(ipl = 0; ipl < nplanes; ++ipl)
+              tmpHits.insert(tmpHits.end(), seedHits[ipl].begin(), seedHits[ipl].end());
+            util::CreateAssn(*this, evt, *scol, tmpHits, *shassn);
             // cluster association
             // PFP-cluster association
             tmpCls.clear();
@@ -712,6 +728,7 @@ namespace trkf {
           clsChain[ipl].clear();
         } // ipl
         trkHits[ipl].clear();
+        seedHits[ipl].clear();
         vxCls[ipl].clear();
       } // tpc
     } // cstat
@@ -736,6 +753,57 @@ namespace trkf {
     
   } // produce
 
+  ///////////////////////////////////////////////////////////////////////
+/*
+  void CCTrackMaker::FindSeedHits(unsigned short itk, unsigned short& end)
+  {
+    // Returns a subset of track hits that are near the start position and form
+    // a decently fit line
+    
+    unsigned short ipl;
+    for(ipl = 0; ipl < 3; ++ipl) seedHits[ipl].clear();
+    
+    unsigned short maxLen = 0, minLen = USHRT_MAX, midLen = 0;
+    for(unsigned short tEnd = 0; tEnd < 2; ++tEnd) {
+      if(!trk[itk].GoodEnd[tEnd]) continue;
+      for(ipl = 0; ipl < nplanes; ++ipl) {
+        if(trkHits[ipl].size() > maxLen) maxLen = trkHits[ipl].size();
+        if(trkHits[ipl].size() < minLen) minLen = trkHits[ipl].size();
+      }
+      // Return all track hits if it is short
+      if(maxLen < 10) {
+        for(ipl = 0; ipl < nplanes; ++ipl) seedHits[ipl] = trkHits[ipl];
+        end = tEnd;
+        return;
+      } // short track
+      // start a seed using 2 hits in the "middle length" plane
+      unsigned short midLenPln = 0;
+      for(ipl = 0; ipl < nplanes; ++ipl) {
+        if(trkHits[ipl].size() >= minLen && trkHits[ipl].size() <= maxLen) {
+          midLenPln = ipl;
+          midLen = trkHits[ipl].size();
+          break;
+        }
+      } // ipl
+      // ratio of hit lengths in each plane
+      std::array<float, 3> hitRat;
+      for(ipl = 0; ipl < nplanes; ++ipl) hitRat[ipl] = (float)trkHits[ipl].size() / float(midLen);
+      // working vectors passed to TrackLineFitAlg
+      std::vector<geo::WireID> hitWID;
+      std::vector<double> hitX;
+      std::vector<double> hitXErr;
+      TVector3 xyz, dir;
+      float ChiDOF;
+      double xOrigin = TrjPos[tEnd](0);
+      fTrackLineFitAlg.TrkLineFit(hitWID, hitX, hitXErr, xOrigin, xyz, dir, ChiDOF);
+
+      end = tEnd;
+      return;
+    } // tend
+    
+  } // FindSeedHits
+*/
+  
   ///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::FitVertices()
   {
@@ -1806,10 +1874,11 @@ namespace trkf {
     newtrk.ChgOrder = 0;
     newtrk.MomID = -1;
     newtrk.EndInTPC = {false};
+    newtrk.GoodEnd = {false};
     newtrk.DtrID = {0};
     newtrk.PDGCode = -1;
     
-     unsigned short ipl, icl, iht;
+    unsigned short ipl, icl, iht;
     
     if(prt) mf::LogVerbatim("CCTM")<<"CCTM: Make traj for track "<<newtrk.ID<<" procCode "<<procCode<<" nhits in planes "<<trkHits[0].size()<<" "<<trkHits[1].size()<<" "<<trkHits[2].size();
     // make the track trajectory
@@ -1835,16 +1904,38 @@ namespace trkf {
 //      <<" in StoreTrack: matcomb "<<imat<<" cluster chains "<<matcomb[imat].Cls[0]<<" "<<matcomb[imat].Cls[1]<<" "<<matcomb[imat].Cls[2];
       return;
     }
-//    std::cout<<"StoreTrack Traj\n";
-//    for(unsigned short ii = 0; ii < trkPos.size(); ++ii) std::cout<<ii<<" "<<std::fixed<<std::setprecision(1)<<trkPos[ii](0)<<" "<<trkPos[ii](1)<<" "<<trkPos[ii](2)<<"\n";
     newtrk.TrjPos = trkPos;
     newtrk.TrjDir = trkDir;
 
+    // determine if each end is good in the sense that there are hits in each plane
+    // that are consistent in time and are presumed to form a good 3D space point
+    unsigned short end, nClose, indx, jndx;
+    float xErr;
+    for(end = 0; end < 2; ++end) {
+      nClose = 0;
+      for(ipl = 0; ipl < nplanes - 1; ++ipl) {
+        if(trkX[ipl].size() == 0) continue;
+        for(unsigned short jpl = ipl + 1; jpl < nplanes; ++jpl) {
+          if(trkX[jpl].size() == 0) continue;
+          if(end == 0) {
+            indx = 0;
+            jndx = 0;
+          } else {
+            indx = trkXErr[ipl].size() - 1;
+            jndx = trkXErr[jpl].size() - 1;
+          }
+          xErr = 3 * (trkXErr[ipl][indx] + trkXErr[jpl][jndx]);
+          if(std::abs(trkX[ipl][indx] - trkX[jpl][jndx]) <  xErr) ++nClose;
+        } // jpl
+      } // ipl
+      if(nClose == nplanes) newtrk.GoodEnd[end] = true;
+    } // end
+    
     // set trajectory end points to a vertex if one exists
     unsigned short ivx, itj, ccl;
     float dx, dy, dz, dr0, dr1;
     unsigned short attachEnd;
-    for(unsigned short end = 0; end < 2; ++end) {
+    for(end = 0; end < 2; ++end) {
       ivx = USHRT_MAX;
       if(end == 0 && matcomb[imat].Vtx >= 0) ivx = matcomb[imat].Vtx;
       if(end == 1 && matcomb[imat].oVtx >= 0) ivx = matcomb[imat].oVtx;
@@ -1924,7 +2015,6 @@ namespace trkf {
     //  if(prt) mf::LogVerbatim("CCTM")<<" track ID "<<newtrk.ID<<" stored in StoreTrack";
     
     trk.push_back(newtrk);
-//    std::cout<<"New trk "<<newtrk.ID<<"\n";
   } // StoreTrack
   
   ///////////////////////////////////////////////////////////////////////
@@ -2149,9 +2239,7 @@ namespace trkf {
                   match.Chg[ipl] =   0; match.Chg[jpl] =   0; match.Chg[kpl] = 0;
                   match.Vtx = clsChain[ipl][icl].VtxIndex[iend];
                   match.oVtx = -1;
-                  //                  std::cout<<"FEM in\n";
                   FillEndMatch(match);
-                  //                  std::cout<<"FEM out\n";
                   if(prt) mf::LogVerbatim("CCTM")<<" PlnMatch: match k "<<kpl<<":"<<match.Cls[kpl]
                     <<":"<<match.End[kpl]<<" oChg "<<match.Chg[kpl]<<" mErr "<<match.Err<<" oErr "<<match.oErr;
                   if(match.Chg[kpl] == 0) continue;
@@ -3058,7 +3146,7 @@ namespace trkf {
     } // ivx
     
     myprt<<">>>>>>>>>> Tracks \n";
-    myprt<<"trk  ID  Proc nht nTrj  sX     sY     sZ     eX     eY     eZ  sVx eVx ChgOrder dirZ Mom PDG     ClsIndices\n";
+    myprt<<"trk  ID  Proc nht nTrj  sX     sY     sZ     eX     eY     eZ  sVx eVx sGd eGd ChgOrd  dirZ Mom PDG     ClsIndices\n";
     for(unsigned short itr = 0; itr < trk.size(); ++itr) {
       myprt<<std::right<<std::setw(3)<<itr<<std::setw(4)<<trk[itr].ID;
       myprt<<std::right<<std::setw(5)<<std::setw(4)<<trk[itr].Proc;
@@ -3075,6 +3163,8 @@ namespace trkf {
       myprt<<std::right<<std::setw(7)<<std::setprecision(1)<<trk[itr].TrjPos[itj](1);
       myprt<<std::right<<std::setw(7)<<std::setprecision(1)<<trk[itr].TrjPos[itj](2);
       myprt<<std::setw(4)<<trk[itr].VtxIndex[0]<<std::setw(4)<<trk[itr].VtxIndex[1];
+      myprt<<std::setw(4)<<trk[itr].GoodEnd[0];
+      myprt<<std::setw(4)<<trk[itr].GoodEnd[1];
       myprt<<std::setw(4)<<trk[itr].ChgOrder;
       myprt<<std::right<<std::setw(10)<<std::setprecision(3)<<trk[itr].TrjDir[itj](2);
       myprt<<std::right<<std::setw(4)<<trk[itr].MomID;
