@@ -43,10 +43,10 @@ standard_clustercrawleralg:
   DebugHit:             0  # out detailed information while crawling
 }
 
-standard_blurredclusteringalg:
+standard_blurredclusteralg:
 {
-  BlurWire:            10
-  BlurTick:            10
+  BlurWire:            9
+  BlurTick:            9
   BlurSigma:           3
   ClusterWireDistance: 2
   ClusterTickDistance: 2
