@@ -2,13 +2,14 @@
 
 BEGIN_PROLOG
 
-standard_blurredclustering:
+standard_blurredcluster:
 {
  module_type:          "BlurredClustering"
  CreateDebugPDF:       "false"
  MergeClusters:        "true"
  HitsModuleLabel:      "gaushit"
- BlurredClusteringAlg: @local::standard_blurredclusteringalg
+ GlobalTPCRecon:       "true"
+ BlurredClusteringAlg: @local::standard_blurredclusteralg
  MergeClusterAlg:      @local::standard_mergeclusteralg
 }
 

@@ -14,36 +14,308 @@
 
 cluster::MergeClusterAlg::MergeClusterAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset);
+  fTree = tfs->make<TTree>("MatchingVariables","MatchingVariables");
+  fTree->Branch("Angle",&fAngle);
+  fTree->Branch("Eigenvalue",&fEigenvalue);
+  fTree->Branch("Cluster1Size",&fCluster1Size);
+  fTree->Branch("Cluster2Size",&fCluster2Size);
+  fTree->Branch("Length1",&fLength1);
+  fTree->Branch("Length2",&fLength2);
+  fTree->Branch("Separation",&fSeparation);
+  fTree->Branch("CrossingDistance",&fCrossingDistance);
+  fTree->Branch("ProjectedWidth",&fProjectedWidth);
+  fTree->Branch("Overlap",&fOverlap);
+  fTree->Branch("TrueMerge",&fTrueMerge);
 }
 
-void cluster::MergeClusterAlg::reconfigure(fhicl::ParameterSet const& p) {
-  fMinMergeClusterSize = p.get<int>   ("MinMergeClusterSize");
-  fMaxMergeSeparation  = p.get<double>("MaxMergeSeparation");
-  fMergingThreshold    = p.get<double>("MergingThreshold");
-}
-
-TVector2 cluster::MergeClusterAlg::ConvertWireDriftToCm(unsigned int wire, float drift, unsigned int plane, unsigned int tpc, unsigned int cryo) {
+TVector2 cluster::MergeClusterAlg::ConvertWireDriftToCm(unsigned int wire, double drift) {
 
   /// Convert the wire/tick coordinates roughly into cm
   /// Taken from RecoAlg/PMAlg/Utilities.cxx (written by D.Stefan & R.Sulej)
 
-  return TVector2(fGeom->TPC(tpc, cryo).Plane(plane).WirePitch() * wire,
-		  fDetProp->ConvertTicksToX(drift, plane, tpc, cryo)
+  return TVector2(fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch() * wire,
+		  fDetProp->ConvertTicksToX(drift, fPlane, fTPC, fCryostat)
 		  );
 }
 
-int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hit> > *planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters, unsigned int plane, unsigned int tpc, unsigned int cryo) {
+TVector2 cluster::MergeClusterAlg::CmToWireDrift(double x, double y) {
+
+  /// Convert the cm roughly into wire/tick coordinates
+  /// Taken from RecoAlg/PMAlg/Utilities.cxx (written by D.Stefan & R.Sulej)
+
+  return TVector2(
+		  x / fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch(),
+		  fDetProp->ConvertXToTicks(y, fPlane, fTPC, fCryostat)
+		  );
+}
+
+void cluster::MergeClusterAlg::FindClusterEndPoints(art::PtrVector<recob::Hit> const& cluster, TVector2 const& centre, TVector2 const& direction, TVector2& start, TVector2& end) {
+
+  /// Find estimates of cluster start/end points
+
+  TVector2 pos;
+  std::map<double,TVector2> hitProjection;
+
+  // Project all hits onto line to determine end points
+  for (auto &hit : cluster) {
+    pos = ConvertWireDriftToCm(FindGlobalWire(hit->WireID()), (int)hit->PeakTime()) - centre;
+    //pos = TVector2(FindGlobalWire(hit->WireID()), (int)hit->PeakTime()) - centre;
+    hitProjection[direction*pos] = pos;
+  }
+
+  // Project end points onto line which passes through centre of cluster
+  start = hitProjection.begin()->second.Proj(direction) + centre;
+  end = hitProjection.rbegin()->second.Proj(direction) + centre;
+
+  return;
+
+}
+
+double cluster::MergeClusterAlg::FindClusterOverlap(TVector2 const& direction, TVector2 const& centre, TVector2 const& start1, TVector2 const& end1, TVector2 const& start2, TVector2 const& end2) {
+
+  /// Calculates the overlap of the clusters on the line projected between them
+
+  double clusterOverlap = 0;
+
+  // Project onto the average direction through both clusters
+  double s1 = (start1-centre)*direction;
+  double e1 = (end1-centre)*direction;
+  double s2 = (start2-centre)*direction;
+  double e2 = (end2-centre)*direction;
+
+  // Make sure end > start
+  if (s1 > e1) {
+    std::cout << "s1>e1: " << s1 << " and " << e1 << std::endl;
+    double tmp = e1;
+    e1 = s1;
+    s1 = tmp;
+  }
+  if (s2 > e2) {
+    std::cout << "s1>e1: " << s1 << " and " << e1 << std::endl;
+    double tmp = e2;
+    e2 = s2;
+    s2 = tmp;
+  }
+
+  // Find the overlap of the clusters on the centre line
+  if ((e1 > s2) && (e2 > s1))
+    clusterOverlap = std::min((e1 - s2), (e2 - s1));
+
+  return clusterOverlap;
+
+}
+
+double cluster::MergeClusterAlg::FindCrossingDistance(TVector2 const &direction1, TVector2 const &centre1, TVector2 const  &direction2, TVector2 const &centre2) {
+
+  /// Finds the distance between the crossing point of the lines and the closest line centre
+
+  // Find intersection point of two lines drawn through the centre of the clusters
+  double dcross = (direction1.X() * direction2.Y()) - (direction1.Y() * direction2.X());
+  TVector2 p = centre2 - centre1;
+  double pcrossd = (p.X() * direction2.Y()) - (p.Y() * direction2.X());
+  TVector2 crossing = centre1 + ((pcrossd/dcross) * direction1);
+
+  // Get distance from this point to the clusters
+  double crossingDistance = std::min((centre1-crossing).Mod(),(centre2-crossing).Mod());
+
+  return crossingDistance;
+
+}
+
+int cluster::MergeClusterAlg::FindGlobalWire(geo::WireID wireID) {
+
+  /// Find the global wire position
+
+  double wireCentre[3];
+  fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
+  double globalWire;
+  if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.planeID().Plane, 0, fCryostat);
+  else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.planeID().Plane, 1, fCryostat);
+
+  return globalWire;
+
+}
+
+double cluster::MergeClusterAlg::FindMinSeparation(art::PtrVector<recob::Hit> const& cluster1, art::PtrVector<recob::Hit> const& cluster2) {
+
+  /// Calculates the minimum separation between two clusters
+
+  double minDistance = 99999.;
+
+  // Loop over the two clusters to find the smallest distance
+  for (auto const& hit1 : cluster1) {
+    for (auto const& hit2 : cluster2) {
+
+      TVector2 pos1 = ConvertWireDriftToCm(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
+      TVector2 pos2 = ConvertWireDriftToCm(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
+
+      double distance = (pos1 - pos2).Mod();
+
+      if (distance < minDistance) minDistance = distance;
+
+    }
+  }
+
+  return minDistance;
+
+}
+
+double cluster::MergeClusterAlg::FindProjectedWidth(TVector2 const& centre1, TVector2 const& start1, TVector2 const& end1, TVector2 const& centre2, TVector2 const& start2, TVector2 const& end2) {
+
+  /// Projects clusters parallel to the line which runs through their centres and finds the minimum containing width
+
+  // Get the line running through the centre of the two clusters
+  TVector2 parallel = (centre2 - centre1).Unit();
+  TVector2 perpendicular = parallel.Rotate(TMath::Pi()/2);
+
+  // Project the cluster vector onto this perpendicular line
+  double s1 = (start1-centre1)*perpendicular;
+  double e1 = (end1-centre1)*perpendicular;
+  double s2 = (start2-centre2)*perpendicular;
+  double e2 = (end2-centre2)*perpendicular;
+
+  // Find the width in each direction
+  double projectionStart = std::max(TMath::Abs(s1), TMath::Abs(s2));
+  double projectionEnd = std::max(TMath::Abs(e1), TMath::Abs(e2));
+
+  double projectionWidth = projectionStart + projectionEnd;
+
+  return projectionWidth;
+
+}
+
+int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hit> > const &planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters) {
 
   /// Merges clusters which lie along a straight line
 
+  // ////// MAKE SOME MESSY CODE! CHECK FEATURES OF THESE CLUSTERS
+
+  // // Truth matching
+  // for (unsigned int cluster = 0; cluster < planeClusters.size(); ++cluster) {
+  //   std::map<int,double> trackMap;
+  //   art::PtrVector<recob::Hit> hits = planeClusters.at(cluster);
+  //   for (auto &hit : hits) {
+  //     std::vector<sim::TrackIDE> ides = backtracker->HitToTrackID(hit);
+  //     for (auto &ide : ides)
+  // 	trackMap[ide.trackID] += ide.energy;
+  //   }
+  //   // Find the true particle associated with this track
+  //   double highEnergy = 0;
+  //   int bestTrack = 0;
+  //   for (auto &track : trackMap) {
+  //     if (track.second > highEnergy) {
+  // 	highEnergy = track.second;
+  // 	bestTrack = track.first;
+  //     }
+  //   }
+  //   trueClusterMap[cluster] = bestTrack;
+  // }
+
+  // for (unsigned int cluster1It = 0; cluster1It < planeClusters.size(); ++cluster1It) {
+  //   for (unsigned int cluster2It = cluster1It+1; cluster2It < planeClusters.size(); ++cluster2It) {
+      
+  //     const art::PtrVector<recob::Hit> cluster1 = planeClusters.at(cluster1It);
+  //     const art::PtrVector<recob::Hit> cluster2 = planeClusters.at(cluster2It);
+
+  //     // true merge
+  //     if (trueClusterMap[cluster1It] == trueClusterMap[cluster2It])
+  // 	fTrueMerge = true;
+  //     else fTrueMerge = false;
+
+  //     // geometry
+  //     fCluster1Size = cluster1.size();
+  //     fCluster2Size = cluster2.size();
+  //     fSeparation = this->FindMinSeparation(cluster1, cluster2);
+
+  //     // PCA
+  //     TPrincipal *pca = new TPrincipal(2,"");
+  //     TPrincipal *pca1 = new TPrincipal(2,"");
+  //     TPrincipal *pca2 = new TPrincipal(2,"");
+  //     double hits[2];
+  //     TVector2 pos;
+
+  //     // Cluster centre
+  //     TVector2 chargePoint1 = TVector2(0,0), chargePoint2 = TVector2(0,0);
+  //     double totalCharge1 = 0, totalCharge2 = 0;
+
+  //     for (auto &hit1 : cluster1) {
+  // 	pos = ConvertWireDriftToCm(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
+  // 	//pos = TVector2(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
+  // 	hits[0] = pos.X();
+  // 	hits[1] = pos.Y();
+  // 	pca->AddRow(hits);
+  // 	pca1->AddRow(hits);
+  // 	chargePoint1 += hit1->Integral() * pos;
+  // 	totalCharge1 += hit1->Integral();
+  //     }
+  //     for (auto &hit2 : cluster2) {
+  // 	pos = ConvertWireDriftToCm(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
+  // 	//pos = TVector2(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
+  // 	hits[0] = pos.X();
+  // 	hits[1] = pos.Y();
+  // 	pca->AddRow(hits);
+  // 	pca2->AddRow(hits);
+  // 	chargePoint2 += hit2->Integral() * pos;
+  // 	totalCharge2 += hit2->Integral();
+  //     }
+
+  //     pca->MakePrincipals();
+  //     pca1->MakePrincipals();
+  //     pca2->MakePrincipals();
+
+  //     // Properties of these clusters
+  //     TVector2 direction1 = TVector2( (*pca1->GetEigenVectors())[0][0], (*pca1->GetEigenVectors())[1][0] ).Unit();
+  //     TVector2 direction2 = TVector2( (*pca2->GetEigenVectors())[0][0], (*pca2->GetEigenVectors())[1][0] ).Unit();
+  //     TVector2 directionAv = ((direction1+direction2)/2).Unit();
+  //     TVector2 centre1 = chargePoint1 / totalCharge1;
+  //     TVector2 centre2 = chargePoint2 / totalCharge2;
+  //     TVector2 centre = (centre1+centre2)/2;
+  //     TVector2 start1, end1;
+  //     TVector2 start2, end2;
+  //     FindClusterEndPoints(cluster1, centre1, direction1, start1, end1);
+  //     FindClusterEndPoints(cluster2, centre2, direction2, start2, end2);
+  //     fLength1 = (end1-start1).Mod();
+  //     fLength2 = (end2-start2).Mod();
+
+  //     // Properties of the pair of clusters
+  //     fCrossingDistance = FindCrossingDistance(direction1, centre1, direction2, centre2);
+  //     fProjectedWidth = FindProjectedWidth(centre1, start1, end1, centre2, start2, end2);
+  //     fAngle = direction1.DeltaPhi(direction2);
+  //     if (fAngle > 1.57) fAngle = 3.14159 - fAngle;
+  //     fOverlap = FindClusterOverlap(directionAv, centre, start1, end1, start2, end2);
+  //     fSeparation = FindMinSeparation(cluster1, cluster2);
+  //     fEigenvalue = (*pca->GetEigenValues())[0];
+
+  //     fTree->Fill();
+
+  //     // std::cout << std::endl << "Plane " << fPlane << ": Clusters " << cluster1It << " and " << cluster2It << " have overlap " << fOverlap << " and start and end ... " << std::endl;
+  //     // start1.Print();
+  //     // end1.Print();
+  //     // start2.Print();
+  //     // end2.Print();
+
+  //     // // Find if this is merged!
+  //     // if (fCrossingDistance < 6 + (5 / (fAngle - 0.05)))
+  //     // 	fMerge = true;
+  //     // else fMerge = false;
+
+  //     // if (fCluster1Size >= 10 && fCluster2Size >= 10) std::cout << "Merge " << fMerge << " and true merge " << fTrueMerge << std::endl;
+
+  //   }
+  // }
+    
+  // ----------------------------- END OF MESSY CODE! --------------------------------------------------------------------------------------------------------------
+
   std::vector<unsigned int> mergedClusters;
 
+  std::vector<art::PtrVector<recob::Hit> > oldClusters = planeClusters;
+
   // Sort the clusters by size
-  std::sort(planeClusters->begin(), planeClusters->end(), [](const art::PtrVector<recob::Hit> &a, const art::PtrVector<recob::Hit> &b) {return a.size() > b.size();} );
+  std::sort(oldClusters.begin(), oldClusters.end(), [](const art::PtrVector<recob::Hit> &a, const art::PtrVector<recob::Hit> &b) {return a.size() > b.size();} );
 
   // Find the numbers of clusters above size threshold
   unsigned int nclusters = 0;
-  for (auto &cluster : *planeClusters)
+  for (auto &cluster : oldClusters)
     if (cluster.size() >= fMinMergeClusterSize) ++nclusters;
 
   // Until all clusters are merged, create new clusters
@@ -54,9 +326,9 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
     art::PtrVector<recob::Hit> cluster;
 
     // Put the largest unmerged cluster in this new cluster
-    for (unsigned int initCluster = 0; initCluster < planeClusters->size(); ++initCluster) {
-      if (planeClusters->at(initCluster).size() < fMinMergeClusterSize or std::find(mergedClusters.begin(), mergedClusters.end(), initCluster) != mergedClusters.end()) continue;
-      cluster = planeClusters->at(initCluster);
+    for (unsigned int initCluster = 0; initCluster < oldClusters.size(); ++initCluster) {
+      if (oldClusters.at(initCluster).size() < fMinMergeClusterSize or std::find(mergedClusters.begin(), mergedClusters.end(), initCluster) != mergedClusters.end()) continue;
+      cluster = oldClusters.at(initCluster);
       mergedClusters.push_back(initCluster);
       break;
     }
@@ -67,39 +339,72 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
       // Look at all clusters and merge
       int nadded = 0;
-      for (unsigned int trialCluster = 0; trialCluster < planeClusters->size(); ++trialCluster) {
+      for (unsigned int trialCluster = 0; trialCluster < oldClusters.size(); ++trialCluster) {
 
-  	if (planeClusters->at(trialCluster).size() < fMinMergeClusterSize or std::find(mergedClusters.begin(), mergedClusters.end(), trialCluster) != mergedClusters.end()) continue;
+  	if (oldClusters.at(trialCluster).size() < fMinMergeClusterSize or std::find(mergedClusters.begin(), mergedClusters.end(), trialCluster) != mergedClusters.end()) continue;
 
 	// Calculate the PCA for each
-	TPrincipal *pca = new TPrincipal(2,"");
+	TPrincipal *pca = new TPrincipal(2,""), *pca1 = new TPrincipal(2,""), *pca2 = new TPrincipal(2,"");
 	double hits[2];
 	TVector2 pos;
 
-	for (auto &mergedClusterHits : cluster) {
-	  pos = ConvertWireDriftToCm(mergedClusterHits->WireID().Wire, (int)mergedClusterHits->PeakTime(), plane, tpc, cryo);
+	// Cluster centre
+	TVector2 chargePoint1 = TVector2(0,0), chargePoint2 = TVector2(0,0);
+	double totalCharge1 = 0, totalCharge2 = 0;
+
+	for (auto &hit1 : cluster) {
+	  pos = ConvertWireDriftToCm(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
+	  //pos = TVector2(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
 	  hits[0] = pos.X();
 	  hits[1] = pos.Y();
 	  pca->AddRow(hits);
+	  pca1->AddRow(hits);
+	  chargePoint1 += hit1->Integral() * pos;
+	  totalCharge1 += hit1->Integral();
 	}
-	for (auto &trialClusterHits : planeClusters->at(trialCluster)) {
-	  pos = ConvertWireDriftToCm(trialClusterHits->WireID().Wire, (int)trialClusterHits->PeakTime(), plane, tpc, cryo);
+	for (auto &hit2 : oldClusters.at(trialCluster)) {
+	  pos = ConvertWireDriftToCm(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
+	  //pos = TVector2(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
 	  hits[0] = pos.X();
 	  hits[1] = pos.Y();
 	  pca->AddRow(hits);
+	  pca2->AddRow(hits);
+	  chargePoint2 += hit2->Integral() * pos;
+	  totalCharge2 += hit2->Integral();
 	}
 
 	pca->MakePrincipals();
+	pca1->MakePrincipals();
+	pca2->MakePrincipals();
 
-	// Merge these clusters if they are part of the same straight line
-	bool passParallelCut = (*pca->GetEigenValues())[0] > fMergingThreshold;
-	bool passProximityCut = this->MinSeparation(cluster, planeClusters->at(trialCluster), plane, tpc, cryo) < fMaxMergeSeparation;
+	// Properties of these clusters
+	TVector2 direction1 = TVector2( (*pca1->GetEigenVectors())[0][0], (*pca1->GetEigenVectors())[1][0] ).Unit();
+	TVector2 direction2 = TVector2( (*pca2->GetEigenVectors())[0][0], (*pca2->GetEigenVectors())[1][0] ).Unit();
+	TVector2 direction = ((direction1+direction2)/2).Unit();
+	TVector2 centre1 = chargePoint1 / totalCharge1;
+	TVector2 centre2 = chargePoint2 / totalCharge2;
+	TVector2 centre = (centre1+centre2)/2;
+	TVector2 start1, end1;
+	TVector2 start2, end2;
+	FindClusterEndPoints(cluster, centre1, direction1, start1, end1);
+	FindClusterEndPoints(oldClusters.at(trialCluster), centre2, direction2, start2, end2);
+	double length1 = (end1-start1).Mod();
+	double length2 = (end2-start2).Mod();
 
-	//std::cout << "Event " << fEvent << ", tpc " << fTPC << " and plane " << fPlane << ". Clusters have eigenvalue of " << (*pca->GetEigenValues())[0] << " and are separated by a distance of around " << std::abs(trialPos.second - mergedPos.first) << " but do they pass the proximity cut? " << passProximityCut << std::endl;
+	// Properties of the pair of clusters
+	double eigenvalue = (*pca->GetEigenValues())[0];
+ 	double crossingDistance = FindCrossingDistance(direction1, centre1, direction2, centre2);
+	double projectedWidth = FindProjectedWidth(centre1, start1, end1, centre2, start2, end2);
+	double angle = direction1.DeltaPhi(direction2);
+	if (angle > 1.57) angle = 3.14159 - angle;
+	double overlap = FindClusterOverlap(direction, centre, start1, end1, start2, end2);
+	double separation = FindMinSeparation(cluster, oldClusters.at(trialCluster));
 
-	if (passParallelCut and passProximityCut) {
+	if (separation > fMaxMergeSeparation)
+	  continue;
+	if (PassCuts(angle, crossingDistance, projectedWidth, separation, overlap, eigenvalue, TMath::Max(length1, length2))) {
 
-	  for (auto &hit : planeClusters->at(trialCluster))
+	  for (auto &hit : oldClusters.at(trialCluster))
 	    cluster.push_back(hit);
 
 	  mergedClusters.push_back(trialCluster);
@@ -108,6 +413,8 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 	}
 
 	delete pca;
+	delete pca1;
+	delete pca2;
 
       } // loop over clusters to add
 
@@ -124,26 +431,28 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
 }
 
-double cluster::MergeClusterAlg::MinSeparation(art::PtrVector<recob::Hit> &cluster1, art::PtrVector<recob::Hit> &cluster2, unsigned int plane, unsigned int tpc, unsigned int cryo) {
+bool cluster::MergeClusterAlg::PassCuts(double const& angle, double const& crossingDistance, double const& projectedWidth, double const& separation, double const& overlap, double const& eigenvalue, double const& longLength) {
 
-  /// Calculates the minimum separation between two clusters
+  bool pass = false;
 
-  double minDistance = 100000;
+  if (crossingDistance < (-2 + (5 / (1 * TMath::Abs(angle)) - 0) ) )
+    pass = true;
 
-  // Loop over the two clusters to find the smallest distance
-  for (auto const& hit1 : cluster1) {
-    for (auto const& hit2 : cluster2) {
+  if (eigenvalue > 0.9999)
+    pass = true;
 
-      TVector2 pos1 = ConvertWireDriftToCm(hit1->WireID().Wire, (int)hit1->PeakTime(), plane, tpc, cryo);
-      TVector2 pos2 = ConvertWireDriftToCm(hit2->WireID().Wire, (int)hit2->PeakTime(), plane, tpc, cryo);
+  if (separation > (200 * TMath::Abs(angle) + 40))
+    pass = false;
 
-      double distance = pos1.Mod() - pos2.Mod();
+  if (((double)projectedWidth/(double)longLength) > 0.3)
+    pass = false;
 
-      if (distance < minDistance) minDistance = distance;
+  return pass;
 
-    }
-  }
+}
 
-  return minDistance;
-
+void cluster::MergeClusterAlg::reconfigure(fhicl::ParameterSet const& p) {
+  fMinMergeClusterSize = p.get<int>   ("MinMergeClusterSize");
+  fMaxMergeSeparation  = p.get<double>("MaxMergeSeparation");
+  fMergingThreshold    = p.get<double>("MergingThreshold");
 }

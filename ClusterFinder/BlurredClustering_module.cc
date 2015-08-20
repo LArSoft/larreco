@@ -51,6 +51,7 @@ public:
   explicit BlurredClustering(fhicl::ParameterSet const& pset);
   virtual ~BlurredClustering();
 
+  void cluster(std::vector<art::Ptr<recob::Hit> > const &hits, std::vector<art::PtrVector<recob::Hit> > &clusters);
   void produce(art::Event &evt);
   void reconfigure(fhicl::ParameterSet const &p);
 
@@ -58,11 +59,15 @@ private:
 
   int fEvent, fRun, fSubrun;
   std::string fHitsModuleLabel;
-  bool fCreateDebugPDF, fMergeClusters;
+  bool fCreateDebugPDF, fMergeClusters, fGlobalTPCRecon;
 
   // Create instances of algorithm classes to perform the clustering
   cluster::BlurredClusteringAlg fBlurredClusteringAlg;
   cluster::MergeClusterAlg fMergeClusterAlg;
+
+  // Output containers to place in event
+  std::unique_ptr<std::vector<recob::Cluster> > clusters;
+  std::unique_ptr<art::Assns<recob::Cluster,recob::Hit> > associations;
 
 };
 
@@ -79,6 +84,7 @@ void cluster::BlurredClustering::reconfigure(fhicl::ParameterSet const& p) {
   fHitsModuleLabel = p.get<std::string>("HitsModuleLabel");
   fCreateDebugPDF  = p.get<bool>       ("CreateDebugPDF");
   fMergeClusters   = p.get<bool>       ("MergeClusters");
+  fGlobalTPCRecon  = p.get<bool>       ("GlobalTPCRecon");
   fBlurredClusteringAlg.reconfigure(p.get<fhicl::ParameterSet>("BlurredClusteringAlg"));
   fMergeClusterAlg.reconfigure(p.get<fhicl::ParameterSet>("MergeClusterAlg"));
 }
@@ -89,15 +95,15 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   fRun    = evt.run();
   fSubrun = evt.subRun();
 
-  fBlurredClusteringAlg.fEvent = fEvent;
+  fBlurredClusteringAlg.SetEventParameters(fEvent, fRun, fSubrun, fGlobalTPCRecon);
 
   // Create debug pdf to illustrate the blurring process
   if (fCreateDebugPDF)
-    fBlurredClusteringAlg.CreateDebugPDF(fEvent, fRun, fSubrun, fCreateDebugPDF);
+    fBlurredClusteringAlg.CreateDebugPDF();
 
   // Output containers -- collection of clusters and associations
-  std::unique_ptr<std::vector<recob::Cluster> > clusters(new std::vector<recob::Cluster>);
-  std::unique_ptr<art::Assns<recob::Cluster,recob::Hit> > associations(new art::Assns<recob::Cluster,recob::Hit>);
+  clusters.reset(new std::vector<recob::Cluster>);
+  associations.reset(new art::Assns<recob::Cluster,recob::Hit>);
 
   // Compute the cluster characteristics
   // Just use default for now, but configuration will go here
@@ -113,43 +119,24 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   // Get the channel filter
   filter::ChannelFilter channelFilter;
 
-  // Make a map between the planes and the hits on each
-  std::map<geo::PlaneID,std::vector<art::Ptr<recob::Hit> > > planeIDToHits;
-  for(size_t hitIt = 0; hitIt < hitCollection->size(); ++hitIt)
-    planeIDToHits[hitCollection->at(hitIt).WireID().planeID()].push_back(art::Ptr<recob::Hit>(hitCollection,hitIt));
+  // Global recon -- merged TPCs
+  if (fGlobalTPCRecon) {
 
-  // Loop over the planes
-  for (std::map<geo::PlaneID,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeIDToHits.begin(); planeIt != planeIDToHits.end(); ++planeIt) {
+    // Make a map between the planes and the hits on each
+    std::map<int,std::vector<art::Ptr<recob::Hit> > > planeToHits;
+    for (size_t hitIt = 0; hitIt < hitCollection->size(); ++hitIt)
+      if (hitCollection->at(hitIt).WireID().TPC % 2 != 0)
+	planeToHits[hitCollection->at(hitIt).WireID().Plane].push_back(art::Ptr<recob::Hit>(hitCollection,hitIt));
 
-    // Find the plane type
-    //geo::SigType_t sigType = geom->SignalType(planeIt->first);
-    fBlurredClusteringAlg.fPlane = planeIt->first.Plane;
-    fBlurredClusteringAlg.fTPC   = planeIt->first.TPC;
+    // Loop over views
+    for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeToHits.begin(); planeIt != planeToHits.end(); ++planeIt) {
 
-    // Vector to hold all hits in event for particular plane
-    std::vector<art::Ptr<recob::Hit> > *allHits(&planeIt->second);
+      fBlurredClusteringAlg.SetPlaneParameters(planeIt->first, 0, 0);
+      fMergeClusterAlg.SetPlaneParameters(planeIt->first, 0, 0);
 
-    // Implement the algorithm
-    if (allHits->size() >= fBlurredClusteringAlg.GetMinSize()) {
-
-      // Convert hit map to TH2 histogram
-      TH2F image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(allHits);
-
-      // Find clusters in histogram
-      std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
-      int numClusters = fBlurredClusteringAlg.FindClusters(&image, allClusterBins);
-      mf::LogVerbatim("Blurred Clustering") << "Found " << numClusters << " clusters" << std::endl;
-
-      // Create output clusters from the vector of clusters made in FindClusters
-      std::vector<art::PtrVector<recob::Hit> > planeClusters = fBlurredClusteringAlg.ConvertBinsToClusters(&image, allHits, allClusterBins);
-
-      // Merge clusters which lie on the same straight line
+      // Make the clusters
       std::vector<art::PtrVector<recob::Hit> > finalClusters;
-      if (fMergeClusters) {
-	int numMergedClusters = fMergeClusterAlg.MergeClusters(&planeClusters, finalClusters, planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
-	mf::LogVerbatim("Blurred Clustering") << "After merging, there are " << numMergedClusters << " clusters" << std::endl;
-      }
-      else finalClusters = planeClusters;
+      cluster(planeIt->second, finalClusters);
 
       for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = finalClusters.begin(); clusIt != finalClusters.end(); ++clusIt) {
 
@@ -157,28 +144,28 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 	if (clusterHits.size() > 0) {
 
 	  // Get the start and end wires of the cluster
-	  unsigned int startWire = clusterHits.front()->WireID().Wire;
-	  unsigned int endWire = clusterHits.back()->WireID().Wire;
+	  unsigned int startWire = fBlurredClusteringAlg.FindGlobalWire(clusterHits.front()->WireID());
+	  unsigned int endWire = fBlurredClusteringAlg.FindGlobalWire(clusterHits.back()->WireID());
 
 	  // Put cluster hits in the algorithm
 	  ClusterParamAlgo.ImportHits(clusterHits);
-	
+
 	  // Create the recob::Cluster and place in the vector of clusters
 	  ClusterCreator cluster(
-	    ClusterParamAlgo,                        // algo
-	    float(startWire),                        // start_wire
-	    0.,                                      // sigma_start_wire
-	    clusterHits.front()->PeakTime(),         // start_tick
-	    clusterHits.front()->SigmaPeakTime(),    // sigma_start_tick
-	    float(endWire),                          // end_wire
-	    0.,                                      // sigma_end_wire,
-	    clusterHits.back()->PeakTime(),          // end_tick
-	    clusterHits.back()->SigmaPeakTime(),     // sigma_end_tick
-	    clusters->size(),                        // ID
-	    clusterHits.front()->View(),             // view
-	    clusterHits.front()->WireID().planeID(), // plane
-	    recob::Cluster::Sentry                   // sentry
-	  );
+				 ClusterParamAlgo,                        // algo
+				 float(startWire),                        // start_wire
+				 0.,                                      // sigma_start_wire
+				 clusterHits.front()->PeakTime(),         // start_tick
+				 clusterHits.front()->SigmaPeakTime(),    // sigma_start_tick
+				 float(endWire),                          // end_wire
+				 0.,                                      // sigma_end_wire,
+				 clusterHits.back()->PeakTime(),          // end_tick
+				 clusterHits.back()->SigmaPeakTime(),     // sigma_end_tick
+				 clusters->size(),                        // ID
+				 clusterHits.front()->View(),             // view
+				 clusterHits.front()->WireID().planeID(), // plane
+				 recob::Cluster::Sentry                   // sentry
+				 );
 
 	  clusters->emplace_back(cluster.move());
 
@@ -189,18 +176,119 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 
       } // End loop over all clusters
 
-    } // End min hits check
+    }
+  }
 
-    fBlurredClusteringAlg.fHitMap.clear();
-    allHits->clear();
+  // Classic recon -- separate TPCs
+  else {
 
-  } // End loop over planes
+    // Make a map between the planes and TPCs and hits on each
+    std::map<geo::PlaneID,std::vector<art::Ptr<recob::Hit> > > planeIDToHits;
+    for (size_t hitIt = 0; hitIt < hitCollection->size(); ++hitIt)
+      if (hitCollection->at(hitIt).WireID().TPC % 2 != 0)
+	planeIDToHits[hitCollection->at(hitIt).WireID().planeID()].push_back(art::Ptr<recob::Hit>(hitCollection,hitIt));
+
+    // Loop over views
+    for (std::map<geo::PlaneID,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeIDToHits.begin(); planeIt != planeIDToHits.end(); ++planeIt) {
+
+      fBlurredClusteringAlg.SetPlaneParameters(planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
+      fMergeClusterAlg.SetPlaneParameters(planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
+
+      // Make the clusters
+      std::vector<art::PtrVector<recob::Hit> > finalClusters;
+      cluster(planeIt->second, finalClusters);
+
+      for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = finalClusters.begin(); clusIt != finalClusters.end(); ++clusIt) {
+
+	art::PtrVector<recob::Hit> clusterHits = *clusIt;
+	if (clusterHits.size() > 0) {
+
+	  // Get the start and end wires of the cluster
+	  unsigned int startWire = fBlurredClusteringAlg.FindGlobalWire(clusterHits.front()->WireID());
+	  unsigned int endWire = fBlurredClusteringAlg.FindGlobalWire(clusterHits.back()->WireID());
+
+	  // Put cluster hits in the algorithm
+	  ClusterParamAlgo.ImportHits(clusterHits);
+	
+	  // Create the recob::Cluster and place in the vector of clusters
+	  ClusterCreator cluster(
+				 ClusterParamAlgo,                        // algo
+				 float(startWire),                        // start_wire
+				 0.,                                      // sigma_start_wire
+				 clusterHits.front()->PeakTime(),         // start_tick
+				 clusterHits.front()->SigmaPeakTime(),    // sigma_start_tick
+				 float(endWire),                          // end_wire
+				 0.,                                      // sigma_end_wire,
+				 clusterHits.back()->PeakTime(),          // end_tick
+				 clusterHits.back()->SigmaPeakTime(),     // sigma_end_tick
+				 clusters->size(),                        // ID
+				 clusterHits.front()->View(),             // view
+				 clusterHits.front()->WireID().planeID(), // plane
+				 recob::Cluster::Sentry                   // sentry
+				 );
+
+	  clusters->emplace_back(cluster.move());
+
+	  // Associate the hits to this cluster
+	  util::CreateAssn(*this, evt, *(clusters.get()), clusterHits, *(associations.get()));
+
+	} // End this cluster
+
+      } // End loop over all clusters
+
+    }
+  }
 
   evt.put(std::move(clusters));
   evt.put(std::move(associations));
 
   return;
     
+}
+
+void cluster::BlurredClustering::cluster(std::vector<art::Ptr<recob::Hit> > const &allHits, std::vector<art::PtrVector<recob::Hit> > &finalClusters) {
+
+  /// Takes vector of recob::Hits and returns vector of clusters
+
+  // Implement the algorithm
+  if (allHits.size() >= fBlurredClusteringAlg.GetMinSize()) {
+
+    // Convert hit map to TH2 histogram and blur it
+    TH2F image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(allHits);
+    TH2F* blurred = fBlurredClusteringAlg.GaussianBlur(&image);
+
+    // Find clusters in histogram
+    std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
+    int numClusters = fBlurredClusteringAlg.FindClusters(blurred, allClusterBins);
+    mf::LogVerbatim("Blurred Clustering") << "Found " << numClusters << " clusters" << std::endl;
+
+    // Create output clusters from the vector of clusters made in FindClusters
+    std::vector<art::PtrVector<recob::Hit> > planeClusters;
+    fBlurredClusteringAlg.ConvertBinsToClusters(&image, allClusterBins, planeClusters);
+
+    // Use the cluster merging algorithm
+    if (fMergeClusters) {
+      int numMergedClusters = fMergeClusterAlg.MergeClusters(planeClusters, finalClusters);
+      mf::LogVerbatim("Blurred Clustering") << "After merging, there are " << numMergedClusters << " clusters" << std::endl;
+    }
+    else finalClusters = planeClusters;
+
+    // Make the debug PDF
+    if (fCreateDebugPDF) {
+      fBlurredClusteringAlg.SaveImage(&image, 1);
+      fBlurredClusteringAlg.SaveImage(blurred, 2);
+      fBlurredClusteringAlg.SaveImage(blurred, allClusterBins, 3);
+      fBlurredClusteringAlg.SaveImage(&image, finalClusters, 4);
+    }
+
+    blurred->Delete();
+
+  } // End min hits check
+
+  fBlurredClusteringAlg.fHitMap.clear();
+
+  return;
+
 }
 
 DEFINE_ART_MODULE(cluster::BlurredClustering)

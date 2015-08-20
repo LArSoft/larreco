@@ -21,7 +21,7 @@ dunefd_clustercheater:               @local::standard_clustercheater
 dunefd_linecluster:                       @local::standard_linecluster
 dunefd_linecluster.ClusterCrawlerAlg:     @local::dunefd_clustercrawleralg
 
-dune35t_blurredclustering:            @local::standard_blurredclustering
+dune35t_blurredcluster:               @local::standard_blurredcluster
 dune35t_dbcluster:                    @local::standard_dbcluster
 dune35t_dbcluster.DBScanAlg:          @local::dune35t_dbscanalg
 dune35t_dbclusterana:                 @local::standard_dbclusterana
