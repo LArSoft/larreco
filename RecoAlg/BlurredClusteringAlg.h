@@ -65,40 +65,49 @@ public:
   virtual ~BlurredClusteringAlg();
 
   void reconfigure(fhicl::ParameterSet const&p);
-  art::PtrVector<recob::Hit> ConvertBinsToRecobHits(TH2F *image, std::vector<int> &bins);
-  art::Ptr<recob::Hit> ConvertBinToRecobHit(TH2F * image, int bin);
-  std::vector<art::PtrVector<recob::Hit> > ConvertBinsToClusters(TH2F *image, std::vector<art::Ptr<recob::Hit> > *allHits, std::vector<std::vector<int> > &allClusterBins);
-  void CreateDebugPDF(int fEvent, int fRun, int fSubrun, bool debug);
-  TH2F ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > *hits);
-  TVector2 ConvertWireDriftToCm(unsigned int wire, float drift) { return ConvertWireDriftToCm(wire, drift, fPlane, fTPC, fCryostat); }
-  TVector2 ConvertWireDriftToCm(unsigned int wire, float drift, unsigned int plane, unsigned int tpc, unsigned int cryo);
-  TH2* Convolve(TH2 *image, std::map<int,double> kernel, int width, int height, const char *new_name = 0);
-  void FindBlurringParameters(int *blurwire, int *blurtick);
-  int FindClusters(TH2F *image, std::vector<std::vector<int> > &allcluster);
-  TH2* GaussianBlur(TH2 *image);
+  art::PtrVector<recob::Hit> ConvertBinsToRecobHits(TH2F* image, std::vector<int> const& bins);
+  art::Ptr<recob::Hit> ConvertBinToRecobHit(TH2F* image, int const& bin);
+  void ConvertBinsToClusters(TH2F *image, std::vector<std::vector<int> > const& allClusterBins, std::vector<art::PtrVector<recob::Hit> >& clusters);
+  void CreateDebugPDF();
+  TH2F ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > const& hits);
+  TH2F* Convolve(TH2F* image, std::map<int,double> const& kernel, int const& width, int const& height, const char *new_name = 0);
+  void FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick);
+  int FindClusters(TH2F* image, std::vector<std::vector<int> >& allcluster);
+  int FindGlobalWire(geo::WireID const& wireID);
+  TH2F* GaussianBlur(TH2F* image);
   unsigned int GetMinSize() { return fMinSize; }
-  double GetTimeOfBin(TH2F *image, int bin);
-  unsigned int NumNeighbours(int nx, std::vector<bool> *used, int bin);
-  bool PassesTimeCut(std::vector<double> &times, double time);
-  void SaveImage(TH2F *image, std::vector<art::PtrVector<recob::Hit> > &allClusters, int pad);
-  void SaveImage(TH2F *image, int pad);
-  void SaveImage(TH2F *image, std::vector<std::vector<int> > &allClusterBins, int pad);
+  double GetTimeOfBin(TH2F* image, int const& bin);
+  unsigned int NumNeighbours(int const& nx, std::vector<bool> const& used, int const& bin);
+  bool PassesTimeCut(std::vector<double> const& times, double const& time);
+  void SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int const& pad);
+  void SaveImage(TH2F* image, int const& pad);
+  void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int const& pad);
+  void SetEventParameters(unsigned int event, unsigned int run, unsigned int subrun, bool global) { fEvent = event; fRun = run; fSubrun = subrun; fGlobalTPCRecon = global; }
+  void SetPlaneParameters(unsigned int plane, unsigned int tpc, unsigned int cryostat) { fPlane = plane; fTPC = tpc; fCryostat = cryostat; fNTicks = fDetProp->ReadOutWindowSize(); fNWires = fGeom->Nwires(plane, tpc, cryostat); }
 
-  unsigned int fEvent;
-  unsigned int fPlane;
-  unsigned int fTPC;
-  unsigned int fCryostat=0;
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
 
 private:
 
+  // Event/plane information
+  unsigned int fEvent;
+  unsigned int fRun;
+  unsigned int fSubrun;
+
+  unsigned int fPlane;
+  unsigned int fTPC;
+  unsigned int fCryostat;
+
   unsigned int fNWires, fNTicks;
   int fLowerHistTick, fUpperHistTick;
+  int fLowerHistWire, fUpperHistWire;
+
+  // Global TPC
+  bool fGlobalTPCRecon;
 
   // For the debug pdf
   TCanvas *fDebugCanvas;
   std::string fDebugPDFName;
-  bool fCreateDebugPDF;
 
   // Blurring stuff
   int fLastBlurWire;
@@ -106,7 +115,7 @@ private:
   double fLastSigma;
   std::map<int,double> fLastKernel;
 
-  /// Parameters used in the Blurred Clustering algorithm
+  // Parameters used in the Blurred Clustering algorithm
   int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
   int          fBlurTick;                 // blur radius for Gauss kernel in the tick direction
   double       fBlurSigma;                // sigma for Gaussian kernel
