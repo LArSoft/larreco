@@ -41,6 +41,7 @@ standard_clustercrawleralg:
   DebugPlane:          -1  # print info only in this plane
   DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
   DebugHit:             0  # out detailed information while crawling
+  uBCode:            true  # use MicroBooNE-specific code
 }
 
 standard_blurredclusteringalg:
