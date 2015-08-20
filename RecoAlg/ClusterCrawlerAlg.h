@@ -161,6 +161,8 @@ namespace cluster {
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
     std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
 		bool fHammerCluster;					 ///< look for hammer type clusters
+    
+    bool fuBCode;     ///< patch in MicroBooNE-specific code
 		
 		float fMinAmp;									///< expected minimum signal
 
