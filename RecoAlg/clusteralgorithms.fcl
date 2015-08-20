@@ -44,10 +44,10 @@ standard_clustercrawleralg:
   uBCode:            true  # use MicroBooNE-specific code
 }
 
-standard_blurredclusteringalg:
+standard_blurredclusteralg:
 {
-  BlurWire:            10
-  BlurTick:            10
+  BlurWire:            9
+  BlurTick:            9
   BlurSigma:           3
   ClusterWireDistance: 2
   ClusterTickDistance: 2
