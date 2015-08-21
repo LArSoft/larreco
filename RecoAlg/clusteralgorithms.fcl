@@ -41,7 +41,7 @@ standard_clustercrawleralg:
   DebugPlane:          -1  # print info only in this plane
   DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
   DebugHit:             0  # out detailed information while crawling
-  uBCode:            true  # use MicroBooNE-specific code
+  uBCode:           false  # use MicroBooNE-specific code
 }
 
 standard_blurredclusteralg:
@@ -314,7 +314,22 @@ microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
-# microboone_clustercrawleralg. TODO SPECIFY 4 PASSES HERE
+# temporary settings
+microboone_clustercrawleralg.MinAmp:          5
+microboone_clustercrawleralg.NumPass:         1
+microboone_clustercrawleralg.HitErrFac:       0.8
+microboone_clustercrawleralg.MinHitFrac:      0.1
+microboone_clustercrawleralg.DoMerge:         [true]
+microboone_clustercrawleralg.MaxHitsFit:      [20]
+microboone_clustercrawleralg.MinHits:         [10]
+microboone_clustercrawleralg.ChgCut:          [4]
+microboone_clustercrawleralg.MergeChgCut:     [4]
+microboone_clustercrawleralg.TimeDelta:       [20]
+microboone_clustercrawleralg.AllowNoHitWire:  80
+microboone_clustercrawleralg.MaxWirSkip:      [80]
+microboone_clustercrawleralg.KinkAngCut:      [0.4]
+microboone_clustercrawleralg.Vertex3DCut:     5
+microboone_clustercrawleralg.uBCode:          true
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
