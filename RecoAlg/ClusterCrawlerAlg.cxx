@@ -86,7 +86,7 @@ namespace cluster {
     fDebugWire          = pset.get< short  >("DebugWire");
     fDebugHit           = pset.get< short  >("DebugHit");
 
-    fuBCode             = pset.get< bool >("uBCode");
+    fuBCode             = pset.get< bool >("uBCode", false);
 
     
     // some error checking
@@ -246,16 +246,6 @@ namespace cluster {
         
         // look for clusters
         ClusterLoop();
-        if(fuBCode && plane == 1) {
-          for(unsigned short icl = 0; icl < tcl.size(); ++icl) {
-            if(tcl[icl].CTP != 1) continue;
-            if(tcl[icl].ID < 0) continue;
-            if(tcl[icl].tclhits.size() > 200) continue;
-            if(std::abs(tcl[icl].BeginTim - tcl[icl].EndTim) > 30) continue;
-            if(std::abs(tcl[icl].BeginAng - tcl[icl].EndAng) > 0.1) continue;
-            MakeClusterObsolete(icl);
-          }
-        } // plane == 1
         // analyze hits
 //        AnalyzeHits();
       } // plane
@@ -2902,8 +2892,6 @@ namespace cluster {
     clCTP = cl1.CTP;
     if(!TmpStore()) return;
     unsigned short itnew = tcl.size()-1;
-    LOG_DEBUG("ClusterCrawler") << "DoMerge() merged clusters "
-      << -cl1.ID << " and " << -cl2.ID << " as ID=" << tcl[itnew].ID;
   if(prt) mf::LogVerbatim("CC")<<"DoMerge "<<cl1.ID<<" "<<cl2.ID<<" -> "<<tcl[itnew].ID;
     // stuff the processor code with the current pass
     tcl[itnew].ProcCode = inProcCode + pass;
@@ -3070,8 +3058,6 @@ namespace cluster {
     if(NClusters == USHRT_MAX) return false;
     
     ++NClusters;
-
-    LOG_DEBUG("CC")<< "Cluster ID=" << NClusters << " being stored with "<< fcl2hits.size() << " hits";
     
     unsigned int hit0 = fcl2hits[0];
     unsigned int tCST = fHits[hit0].WireID().Cryostat;
@@ -3969,17 +3955,17 @@ namespace cluster {
     if(fcl2hits.size() == 0) return;
 
     unsigned short index = kwire - fFirstWire;
-    // skip bad wire, but assume the track was there
-    if(WireHitRange[index].first == -1) {
-      SigOK = true;
-      return;
-    }
     // check for signal on a known good wire
     if(fuBCode) {
       // List of uB bad wires not defined yet so assume all
       // wires have a signal
       SigOK = true;
     } else {
+      // skip bad wire, but assume the track was there
+      if(WireHitRange[index].first == -1) {
+        SigOK = true;
+        return;
+      }
       // return SigOK false if no hit on a good wire
       if(WireHitRange[index].first == -2) return;
     }
@@ -3987,11 +3973,8 @@ namespace cluster {
     unsigned int firsthit = WireHitRange[index].first;
     unsigned int lasthit = WireHitRange[index].second;
     if(fuBCode) {
+      if(prt && firsthit > fHits.size()) mf::LogError("CC")<<"AddLAHit: Bad firsthit "<<firsthit<<" size "<<fHits.size();
       if(firsthit > fHits.size()) return;
-      if(firsthit == lasthit - 1) {
-        SigOK = true;
-        return;
-      }
     } // fuBCode
     
     // max allowable time difference between projected cluster and a hit
