@@ -43,10 +43,10 @@ standard_clustercrawleralg:
   DebugHit:             0  # out detailed information while crawling
 }
 
-standard_blurredclusteringalg:
+standard_blurredclusteralg:
 {
-  BlurWire:            10
-  BlurTick:            10
+  BlurWire:            9
+  BlurTick:            9
   BlurSigma:           3
   ClusterWireDistance: 2
   ClusterTickDistance: 2
@@ -319,18 +319,18 @@ microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
 microboone_clustermatchtq:                    @local::standard_clustermatchtq
 
-lbne35t_dbscanalg:    @local::standard_dbscanalg_fast
-lbne35t_dbscanalg.eps:    2.0
-lbne35t_dbscanalg.epstwo: 2.0
-lbne35t_houghbasealg: @local::standard_houghbasealg
-#lbne35t_houghbasealg.DoHoughLineMerge:     1
-lbne35t_endpointalg:  @local::standard_endpointalg 
-lbne35t_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
-lbne35t_fuzzyclusteralg.HoughBaseAlg:      @local::lbne35t_houghbasealg 
-#lbne35t_fuzzyclusteralg.Threshold:         -50.0
-lbne35t_clustercrawleralg:                 @local::standard_clustercrawleralg
-lbne35t_clustermatchtq:                    @local::standard_clustermatchtq
-lbne35t_clustermatchtq.KSCut:              0.7
+dune35t_dbscanalg:    @local::standard_dbscanalg_fast
+dune35t_dbscanalg.eps:    2.0
+dune35t_dbscanalg.epstwo: 2.0
+dune35t_houghbasealg: @local::standard_houghbasealg
+#dune35t_houghbasealg.DoHoughLineMerge:     1
+dune35t_endpointalg:  @local::standard_endpointalg 
+dune35t_fuzzyclusteralg:                   @local::standard_fuzzyclusteralg 
+dune35t_fuzzyclusteralg.HoughBaseAlg:      @local::dune35t_houghbasealg 
+#dune35t_fuzzyclusteralg.Threshold:         -50.0
+dune35t_clustercrawleralg:                 @local::standard_clustercrawleralg
+dune35t_clustermatchtq:                    @local::standard_clustermatchtq
+dune35t_clustermatchtq.KSCut:              0.7
 
 dunefd_dbscanalg:    @local::standard_dbscanalg_fast
 dunefd_houghbasealg: @local::standard_houghbasealg

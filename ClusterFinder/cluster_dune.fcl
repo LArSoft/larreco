@@ -1,0 +1,41 @@
+#include "clustermodules.fcl"
+
+BEGIN_PROLOG
+
+dune_dbscanalg:    @local::standard_dbscanalg_fast
+dune_houghbasealg: @local::standard_houghbasealg
+dune_endpointalg:  @local::standard_endpointalg 
+
+dunefd_dbcluster:                    @local::standard_dbcluster      
+dunefd_dbcluster.DBScanAlg:          @local::dunefd_dbscanalg          
+dunefd_dbclusterana:                 @local::standard_dbclusterana   
+dunefd_fuzzycluster:                 @local::standard_fuzzycluster
+dunefd_fuzzycluster.HitsModuleLabel: "gaushit"
+dunefd_houghlinefinder:              @local::standard_houghlinefinder
+dunefd_houghlinefinder.HoughBaseAlg: @local::dunefd_houghbasealg
+dunefd_houghlinefinderana:           @local::standard_houghlinefinderana
+dunefd_linemerger:                   @local::standard_linemerger        
+dunefd_endpointmod:                  @local::standard_endpointmod       
+dunefd_endpointmod.EndPointAlg:      @local::dunefd_endpointalg
+dunefd_clustercheater:               @local::standard_clustercheater
+dunefd_linecluster:                       @local::standard_linecluster
+dunefd_linecluster.ClusterCrawlerAlg:     @local::dunefd_clustercrawleralg
+
+dune35t_blurredcluster:               @local::standard_blurredcluster
+dune35t_dbcluster:                    @local::standard_dbcluster
+dune35t_dbcluster.DBScanAlg:          @local::dune35t_dbscanalg
+dune35t_dbclusterana:                 @local::standard_dbclusterana
+dune35t_fuzzycluster:                 @local::standard_fuzzycluster
+dune35t_fuzzycluster.fuzzyClusterAlg: @local::dune35t_fuzzyclusteralg
+dune35t_fuzzycluster.HitsModuleLabel: "gaushit" 
+dune35t_houghlinefinder:              @local::standard_houghlinefinder
+dune35t_houghlinefinder.HoughBaseAlg: @local::dune35t_houghbasealg
+dune35t_houghlinefinderana:           @local::standard_houghlinefinderana
+dune35t_linemerger:                   @local::standard_linemerger
+dune35t_endpointmod:                  @local::standard_endpointmod
+dune35t_endpointmod.EndPointAlg:      @local::dune35t_endpointalg
+dune35t_clustercheater:               @local::standard_clustercheater
+dune35t_linecluster:                       @local::standard_linecluster
+dune35t_linecluster.ClusterCrawlerAlg:     @local::dune35t_clustercrawleralg
+
+END_PROLOG

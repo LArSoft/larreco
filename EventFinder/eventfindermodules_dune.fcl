@@ -2,6 +2,6 @@
 
 BEGIN_PROLOG
 
-lbne_eventmaker:       @local::standard_eventmaker
+dune_eventmaker:       @local::standard_eventmaker
 
 END_PROLOG

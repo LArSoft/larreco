@@ -238,12 +238,12 @@ namespace cluster{
 
       // add a cluster to the collection.  Make the ID be the eve particle
       // trackID*1000 + plane number*100 + tpc*10 + cryostat that the current hits are from
-      ///\todo: The above encoding of the ID probably won't work for LBNE and should be revisited
+      ///\todo: The above encoding of the ID probably won't work for DUNE and should be revisited
       const geo::PlaneID& planeID = hitMapItr.first.planeID;
       recob::Cluster::ID_t clusterID = (((
                hitMapItr.first.eveID
         )*10 + planeID.Plane
-        )*10 + planeID.TPC // 10 is weird choice for LBNE FD... should be 1000! FIXME
+        )*10 + planeID.TPC // 10 is weird choice for DUNE FD... should be 1000! FIXME
         )*10 + planeID.Cryostat
         ;
       
