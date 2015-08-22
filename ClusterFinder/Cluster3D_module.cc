@@ -805,27 +805,31 @@ void Cluster3D::FillClusterParams(ClusterParameters& clusterParams, double rejec
                 // First stage of feature extraction runs here
                 m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairListPtr, clusterParams.m_fullPCA);
                 
-                // If any hits were thrown away, see if we can rescue them
-                if (!usedHitPairList.empty())
+                // Must have a valid pca
+                if (clusterParams.m_fullPCA.getSvdOK())
                 {
-                    double maxDoca = 2. * sqrt(clusterParams.m_fullPCA.getEigenValues()[1]);
-                    
-                    if (maxDoca < 5.)
+                    // If any hits were thrown away, see if we can rescue them
+                    if (!usedHitPairList.empty())
                     {
-                        size_t curHitVectorSize = hitPairVector.size();
+                        double maxDoca = 2. * sqrt(clusterParams.m_fullPCA.getEigenValues()[1]);
+                    
+                        if (maxDoca < 5.)
+                        {
+                            size_t curHitVectorSize = hitPairVector.size();
                         
-                        m_pcaAlg.PCAAnalysis_calc3DDocas(usedHitPairList, clusterParams.m_fullPCA);
+                            m_pcaAlg.PCAAnalysis_calc3DDocas(usedHitPairList, clusterParams.m_fullPCA);
+                            
+                            for(const auto& hit3D : usedHitPairList)
+                                if (hit3D->getDocaToAxis() < maxDoca) hitPairVector.push_back(hit3D);
                         
-                        for(const auto& hit3D : usedHitPairList)
-                            if (hit3D->getDocaToAxis() < maxDoca) hitPairVector.push_back(hit3D);
-                        
-                        if (hitPairVector.size() > curHitVectorSize)
-                            m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairListPtr, clusterParams.m_fullPCA);
+                            if (hitPairVector.size() > curHitVectorSize)
+                                m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairListPtr, clusterParams.m_fullPCA);
+                        }
                     }
-                }
                 
-                // Set the skeleton PCA to make sure it has some value
-                clusterParams.m_skeletonPCA = clusterParams.m_fullPCA;
+                    // Set the skeleton PCA to make sure it has some value
+                    clusterParams.m_skeletonPCA = clusterParams.m_fullPCA;
+                }
             }
         }
     }
