@@ -107,6 +107,9 @@ namespace trkf {
     unsigned short fNVtxTrkHitsFit;
     float fHitFitErrFac;
     
+    // temp
+    bool fuBCode;
+    
     
     short fDebugPlane;
     short fDebugCluster;
@@ -356,6 +359,8 @@ namespace trkf {
     
     fChgWindow = 40; // window (ticks) for identifying shower-like clusters
     
+    fuBCode = false;
+    
     std::unique_ptr<std::vector<recob::Track>> tcol(new std::vector<recob::Track>);
     std::unique_ptr<art::Assns<recob::Track, recob::Hit> > thassn (new art::Assns<recob::Track, recob::Hit>);
 
@@ -518,8 +523,13 @@ namespace trkf {
             clstr.Length = (unsigned short)(0.5 + clstr.Wire[1] - clstr.Wire[0]);
             clstr.TotChg = ChgNorm[ipl] * cluster.Integral();
             if(clstr.TotChg <= 0) clstr.TotChg = 1;
-            // shower-like?
             clusterhits = fmCluHits.at(icl);
+            if(clusterhits.size() == 0) {
+              mf::LogError("CCTM")<<"No associated cluster hits "<<icl;
+              continue;
+            }
+            // correct charge for missing cluster hits
+            clstr.TotChg *= clstr.Length / (float)clusterhits.size();
             cls[ipl].push_back(clstr);
           } // ii (icl)
         } // ipl
@@ -1471,16 +1481,16 @@ namespace trkf {
       if(cls[ipl].size() > 1) {
         for(icl1 = 0; icl1 < cls[ipl].size() - 1; ++icl1) {
           // maximum delta Wire overlap is 10% of the total length
-          dw1Max = 0.1 * cls[ipl][icl1].Length;
+          dw1Max = 0.6 * cls[ipl][icl1].Length;
           ls1 = (cls[ipl][icl1].Length > 100 && fabs(cls[ipl][icl1].Angle[0] - cls[ipl][icl1].Angle[1]) < 0.04);
           for(icl2 = icl1 + 1; icl2 < cls[ipl].size(); ++icl2) {
             ls2 = (cls[ipl][icl2].Length > 100 && fabs(cls[ipl][icl2].Angle[0] - cls[ipl][icl2].Angle[1]) < 0.04);
-            dw2Max = 0.1 * cls[ipl][icl2].Length;
+            dw2Max = 0.6 * cls[ipl][icl2].Length;
             // set overlap cut to be the shorter of the two
             dWCut = dw1Max;
             if(dw2Max < dWCut) dWCut = dw2Max;
             // but not exceeding 20 for very long clusters
-            if(dWCut > 20) dWCut = 20;
+            if(dWCut > 100) dWCut = 100;
             if(dWCut < 2) dWCut = 2;
             chgAsymCut = fMergeChgAsym;
             // Compare end 1 of icl1 with end 0 of icl2
@@ -2046,6 +2056,9 @@ namespace trkf {
     std::array<float, 3> mchg;
     matcomb.clear();
     
+    float xMatchWght = 1;
+    if(fuBCode) xMatchWght = 0.1;
+    
     for(ipl = 0; ipl < nplanes; ++ipl) {
       jpl = (ipl + 1) % nplanes;
       kpl = (jpl + 1) % nplanes;
@@ -2067,7 +2080,7 @@ namespace trkf {
             mchg[0] = clsChain[ipl][icl].TotChg;
             mchg[1] = clsChain[jpl][jcl].TotChg;
             mchg[2] = clsChain[kpl][kcl].TotChg;
-            if(ChargeAsym(mchg) > 0.5) continue;
+            if(!fuBCode && ChargeAsym(mchg) > 0.5) continue;
             // check the ends
             for(iend = 0; iend < 2; ++iend) {
               idir = clsChain[ipl][icl].Dir[iend];
@@ -2097,11 +2110,12 @@ namespace trkf {
                   match.Vtx = -1;
                   match.dWir = fabs(0.5 * (clsChain[ipl][icl].Wire[iend] + clsChain[jpl][jcl].Wire[jend]) - clsChain[kpl][kcl].Wire[kend]);
                   match.dAng = fabs(clsChain[kpl][kcl].Angle[kend] - kAng);
-                  match.dX = fabs(0.5 * (clsChain[ipl][icl].X[iend] + clsChain[jpl][jcl].X[jend]) - clsChain[kpl][kcl].X[kend]);
+                  match.dX = xMatchWght * fabs(0.5 * (clsChain[ipl][icl].X[iend] + clsChain[jpl][jcl].X[jend]) - clsChain[kpl][kcl].X[kend]);
                   if(prt) mf::LogVerbatim("CCTM")<<" match.dX "<<match.dX;
-                  if(match.dX > 20) continue;
+                  if(!fuBCode && match.dX > 20) continue;
+                  if(std::abs(kAng) > 0.3 && match.dAng < 0.03) std::cout<<"match "<<ipl<<":"<<icl<<" "<<jpl<<":"<<jcl<<" "<<kpl<<":"<<kcl<<" "<<match.dAng<<"\n";
                   // add X match error with 1 cm rms
-                  match.Err = matchErr + match.dX;
+//                  match.Err = matchErr + match.dX;
                   match.oVtx = -1;
                   match.odWir = 0;
                   match.odAng = 0;
@@ -2142,9 +2156,14 @@ namespace trkf {
     // turn on printing in SortMatches?
     bool gotprt = false;
     
+    
     float dxcut = 2;
     float dxkcut;
     float dwcut = 6;
+    if(fuBCode) {
+      dxcut = 20;
+      dwcut = 60;
+    }
     
     matcomb.clear();
     
@@ -2154,7 +2173,7 @@ namespace trkf {
     for(unsigned short ipl = 0; ipl < nplanes; ++ipl) {
       for(unsigned short icl = 0; icl < clsChain[ipl].size(); ++icl) {
         if(clsChain[ipl][icl].InTrack >= 0) continue;
-        prt = (ipl == fDebugPlane && icl == fDebugCluster);
+//        prt = (ipl == fDebugPlane && icl == fDebugCluster);
         if(prt) gotprt = true;
         // skip short clusters
         if(clsChain[ipl][icl].Length < fPlnMatchMinLen[pass]) continue;
@@ -2168,14 +2187,14 @@ namespace trkf {
           mchg[0] = clsChain[ipl][icl].TotChg;
           mchg[1] = clsChain[jpl][jcl].TotChg;
           mchg[2] = mchg[1];
-          if(ChargeAsym(mchg) > 0.5) continue;
+          if(fChgAsymFactor > 0 && ChargeAsym(mchg) > 0.5) continue;
           for(unsigned short iend = 0; iend < 2; ++iend) {
             idir = clsChain[ipl][icl].Dir[iend];
             for(unsigned short jend = 0; jend < 2; ++jend) {
               jdir = clsChain[jpl][jcl].Dir[jend];
-              if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk i "<<ipl<<":"<<icl<<":"<<iend
-                <<" idir "<<idir<<" X "<<clsChain[ipl][icl].X[iend]<<" j "<<jpl<<":"<<jcl<<":"<<jend
-                <<" jdir "<<jdir<<" X "<<clsChain[jpl][jcl].X[jend];
+//              if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk i "<<ipl<<":"<<icl<<":"<<iend
+//                <<" idir "<<idir<<" X "<<clsChain[ipl][icl].X[iend]<<" j "<<jpl<<":"<<jcl<<":"<<jend
+//                <<" jdir "<<jdir<<" X "<<clsChain[jpl][jcl].X[jend];
               
               if(idir != 0 && jdir != 0 && idir != jdir) continue;
               // make an X cut
@@ -2199,6 +2218,11 @@ namespace trkf {
               if(yp > tpcSizeY || yp < -tpcSizeY) continue;
               if(zp < 0 || zp > tpcSizeZ) continue;
               okWir = geom->WireCoordinate(yp, zp, kpl, tpc, cstat);
+//              prt = true;
+              gotprt = true;
+              if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk i "<<ipl<<":"<<icl<<":"<<iend
+                <<" idir "<<idir<<" X "<<clsChain[ipl][icl].X[iend]<<" j "<<jpl<<":"<<jcl<<":"<<jend
+                <<" jdir "<<jdir<<" X "<<clsChain[jpl][jcl].X[jend];
               
               if(prt) mf::LogVerbatim("CCTM")<<"PlnMatch: chk j "<<ipl<<":"<<icl<<":"<<iend
                 <<" "<<jpl<<":"<<jcl<<":"<<jend<<" iSlp "<<std::setprecision(2)<<clsChain[ipl][icl].Slope[iend]
@@ -2218,18 +2242,18 @@ namespace trkf {
                 mchg[0] = clsChain[ipl][icl].TotChg;
                 mchg[1] = clsChain[jpl][jcl].TotChg;
                 mchg[2] = clsChain[kpl][kcl].TotChg;
-                if(ChargeAsym(mchg) > 0.5) continue;
+                if(fChgAsymFactor > 0 && ChargeAsym(mchg) > 0.5) continue;
                 for(unsigned short kend = 0; kend < 2; ++kend) {
                   kdir = clsChain[kpl][kcl].Dir[kend];
                   if(idir != 0 && kdir != 0 && idir != kdir) continue;
                   if(prt) mf::LogVerbatim("CCTM")<<" kcl "<<kcl<<" kend "<<kend
-                    <<" dx "<<(clsChain[kpl][kcl].X[kend] - kX)<<" dxkcut "<<dxkcut;
-                  if(fabs(clsChain[kpl][kcl].X[kend] - kX) > dxkcut) continue;
+                    <<" dx "<<std::abs(clsChain[kpl][kcl].X[kend] - kX)<<" dxkcut "<<dxkcut<<" im here";
+                  if(std::abs(clsChain[kpl][kcl].X[kend] - kX) > dxkcut) continue;
                   // rough dWire cut
                   if(prt) mf::LogVerbatim("CCTM")<<" kcl "<<kcl<<" kend "<<kend
                     <<" dw "<<(clsChain[kpl][kcl].Wire[kend] - kWir)<<" ignoreSign "<<ignoreSign;
                   if(fabs(clsChain[kpl][kcl].Wire[kend] - kWir) > dwcut) continue;
-                  //                  if(prt) mf::LogVerbatim("CCTM")<<" chk k "<<kpl<<":"<<kcl<<":"<<kend;
+                  if(prt) mf::LogVerbatim("CCTM")<<" chk k "<<kpl<<":"<<kcl<<":"<<kend;
                   MatchPars match;
                   match.Cls[ipl] = icl; match.End[ipl] = iend;
                   match.Cls[jpl] = jcl; match.End[jpl] = jend;
@@ -2565,9 +2589,12 @@ namespace trkf {
     }
     
     // find the charge asymmetry
-    float chgAsym = fabs(match.Chg[ipl] - match.Chg[jpl]) / (match.Chg[ipl] + match.Chg[jpl]);
-    if(chgAsym > 0.5) return;
-    chgAsym = 1 + fChgAsymFactor * chgAsym;
+    float chgAsym = 1;
+    if(fChgAsymFactor > 0) {
+      chgAsym = fabs(match.Chg[ipl] - match.Chg[jpl]) / (match.Chg[ipl] + match.Chg[jpl]);
+      if(chgAsym > 0.5) return;
+      chgAsym = 1 + fChgAsymFactor * chgAsym;
+    }
     
     // find the error at the match end
     float maxSlp = fabs(clsChain[ipl][icl].Slope[iend]);
@@ -2818,7 +2845,7 @@ namespace trkf {
     
     // Calculate the cluster charge asymmetry. This factor will be applied
     // to the error of the end matches
-    float chgAsym;
+    float chgAsym = 1;
     // Get the charge in the plane without a matching cluster
     if(nClInPln < 3 && mChg[missingPlane] <= 0) {
       if(missingPlane != kpl) mf::LogError("CCTM")<<"FEM bad missingPlane "<<missingPlane<<" "<<kpl<<"\n";
@@ -2829,15 +2856,16 @@ namespace trkf {
       if(mChg[kpl] <= 0) return;
     }
     
-    chgAsym = ChargeAsym(mChg);
-    if(chgAsym > 0.5) return;
-    chgAsym = 1 + fChgAsymFactor * chgAsym;
+    if(fChgAsymFactor > 0) {
+      chgAsym = ChargeAsym(mChg);
+      if(chgAsym > 0.5) return;
+      chgAsym = 1 + fChgAsymFactor * chgAsym;
+    }
     
     if(prt) mf::LogVerbatim("CCTM")<<"FEM: charge asymmetry factor "<<chgAsym;
     float sigmaX, sigmaA;
     float da, dx, dw;
     
-    //    std::cout<<"Check match end "<<nClInPln<<"\n";
     /////////// Matching error at the Match end
     // check for vertex consistency at the match end
     aVtx = -1;
@@ -3341,7 +3369,7 @@ namespace trkf {
       if(allhits[hit]->WireID().Cryostat != cstat) continue;
       if(allhits[hit]->WireID().TPC != tpc) continue;
       ipl = allhits[hit]->WireID().Plane;
-      ChgNorm[ipl] += allhits[hit]->Integral();
+//      ChgNorm[ipl] += allhits[hit]->Integral();
       if(ipl < oldipl) {
         mf::LogError("CCTM")<<"Hits are not in proper order\n";
         return;
@@ -3356,7 +3384,8 @@ namespace trkf {
     } // hit
     
     // normalize charge in induction planes to the collection plane
-    for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = ChgNorm[nplanes - 1] / ChgNorm[ipl];
+//    for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = ChgNorm[nplanes - 1] / ChgNorm[ipl];
+    for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = 1;
     
     filter::ChannelFilter cf;
     

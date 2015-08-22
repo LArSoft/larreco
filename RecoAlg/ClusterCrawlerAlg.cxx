@@ -2533,12 +2533,16 @@ namespace cluster {
   }
             if(chgrat < chgcut && dtim < timecut) {
               // ensure there is a signal between cluster ends
-              if(ChkSignal(ew1,et1,bw2,bt2)) {
+              if(fuBCode) {
+                DoMerge(it2, it1, 10);
+                tclsize = tcl.size();
+                break;
+              } else if(ChkSignal(ew1,et1,bw2,bt2)) {
                 DoMerge(it2, it1, 10);
                 tclsize = tcl.size();
                 break;
               }
-            }
+            } // chgrat < chgcut ...
           } // US cluster 2 merge with DS cluster 1?
           
           // look for US and DS broken clusters w similar angle
@@ -2563,10 +2567,16 @@ namespace cluster {
     <<" dtim "<<dtim<<" err "<<dtim<<" timecut "<<(int)timecut
     <<" chgrat "<<chgrat<<" chgcut "<<chgcut;
   }
-            if(chgrat < chgcut && dtim < timecut && ChkSignal(bw1,bt1,ew2,et2)) {
-              DoMerge(it1, it2, 10);
-              tclsize = tcl.size();
-              break;
+            if(chgrat < chgcut && dtim < timecut) {
+              if(fuBCode ) {
+                DoMerge(it1, it2, 10);
+                tclsize = tcl.size();
+                break;
+              } else if(ChkSignal(bw1,bt1,ew2,et2)) {
+                DoMerge(it1, it2, 10);
+                tclsize = tcl.size();
+                break;
+              }
             }
           } // US cluster 1 merge with DS cluster 2
           
@@ -2719,7 +2729,12 @@ namespace cluster {
     float chgrat = 2 * std::abs(fAveChg - tcl[it2].EndChg) / (fAveChg + tcl[it2].EndChg);
   if(prt) mf::LogVerbatim("CC")<<"US chgrat "<<chgrat<<" cut "<<fMergeChgCut[pass];
     // ensure that there is a signal on any missing wires at the US end of 1
-    bool SigOK = ChkSignal(wiron1, timon1, ew2, et2);
+    bool SigOK;
+    if(fuBCode) {
+      SigOK = true;
+    } else {
+      SigOK = ChkSignal(wiron1, timon1, ew2, et2);
+    }
   if(prt) mf::LogVerbatim("CC")<<"US SigOK? "<<SigOK;
     if( !SigOK ) return;
 
@@ -2760,7 +2775,11 @@ namespace cluster {
   if(prt) mf::LogVerbatim("CC")
       <<"DS chgrat "<<chgrat<<" cut "<<fMergeChgCut[pass];
     // ensure that there is a signal on any missing wires at the US end of 1
-    SigOK = ChkSignal(wiron1, timon1, bw2, bt2);
+    if(fuBCode) {
+      SigOK = true;
+    } else {
+      SigOK = ChkSignal(wiron1, timon1, bw2, bt2);
+    }
   if(prt) mf::LogVerbatim("CC")<<"DS SigOK? "<<SigOK;
     if( !SigOK ) return;
 
@@ -3208,6 +3227,7 @@ namespace cluster {
       } else {
         if(!SigOK) break;
       }
+      if(HitOK) nmissed = 0;
       if(!HitOK) {
         ++nmissed;
         if(nmissed > fMaxWirSkip[pass]) {
@@ -3989,11 +4009,12 @@ namespace cluster {
 
     // the projected time of the cluster on this wire
     float prtime = clpar[0] + (kwire - wire0) * clpar[1];
+    float prtimeErr = (kwire - wire0) * clparerr[1];
     float chgWinLo = prtime - fChgNearWindow;
     float chgWinHi = prtime + fChgNearWindow;
     float chgrat;
     float cnear = 0;
-    if(prt) mf::LogVerbatim("CC")<<"AddLAHit: wire "<<kwire<<" prtime "<<(int)prtime<<" max time diff "<<timeDiff;
+    if(prt) mf::LogVerbatim("CC")<<"AddLAHit: wire "<<kwire<<" prtime "<<(int)prtime<<" prtimeErr "<<prtimeErr;
     unsigned int imbest = 0;
     for(unsigned short khit = firsthit; khit < lasthit; ++khit) {
       // obsolete hit?
@@ -4188,16 +4209,24 @@ namespace cluster {
     float prtime = clpar[0] + (kwire - wire0) * clpar[1];
     // Find the projected time error including the projection error and the
     // error from the last hit added
-    float prtimerr2 = std::abs(kwire-wire0)*clparerr[1]*clparerr[1];
+    float prtimerr2, nerr;
+    if(fuBCode) {
+      prtimerr2 = 10 * std::abs(kwire-wire0)*clparerr[1];
+      nerr = 20;
+    } else {
+      prtimerr2 = std::abs(kwire-wire0)*clparerr[1]*clparerr[1];
+      nerr = 6;
+    }
     // apply an angle dependent scale factor to the hit error
     float hiterr = AngleFactor(clpar[1]) * fHitErrFac * fHits[lastClHit].RMS();
     float err = std::sqrt(prtimerr2 + hiterr * hiterr);
     // Time window for accepting a hit.
-    float prtimeLo = prtime - 8 * err;
-    float prtimeHi = prtime + 8 * err;
+    float prtimeLo = prtime - nerr * err;
+    float prtimeHi = prtime + nerr * err;
     float chgWinLo = prtime - fChgNearWindow;
     float chgWinHi = prtime + fChgNearWindow;
-    if(prt) mf::LogVerbatim("CC")<<"AddHit: wire "<<kwire<<" prtime Lo "<<(int)prtimeLo<<" Hi "<<(int)prtimeHi<<" fAveChg "<<(int)fAveChg;
+    if(prt) mf::LogVerbatim("CC")<<"AddHit: wire "<<kwire<<" prtime Lo "<<(int)prtimeLo<<" Hi "<<(int)prtimeHi<<" prtimerr "<<sqrt(prtimerr2)
+      <<" fAveChg "<<(int)fAveChg;
 
     // loop through the hits
     unsigned int imbest = INT_MAX;
