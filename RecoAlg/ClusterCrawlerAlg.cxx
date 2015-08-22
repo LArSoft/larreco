@@ -86,6 +86,9 @@ namespace cluster {
     fDebugWire          = pset.get< short  >("DebugWire");
     fDebugHit           = pset.get< short  >("DebugHit");
 
+    fuBCode             = pset.get< bool >("uBCode", false);
+
+    
     // some error checking
     bool badinput = false;
     if(fNumPass > fMaxHitsFit.size()) badinput = true;
@@ -358,6 +361,7 @@ namespace cluster {
               clpar[0] = other_hit.PeakTime();
               clpar[1] = (hit.PeakTime() - other_hit.PeakTime()) / (iwire - jwire);
               clpar[2] = fHits[jhit].WireID().Wire;
+/*
               // check for hit width consistency. Large angle clusters should have
               // large rms hits or smaller rms hits if they part of a multiplet
               if(std::abs(clpar[1]) > 10*geom->WirePitch(hit.View())/0.3) {
@@ -366,6 +370,7 @@ namespace cluster {
                 if(hit.RMS() < 4 && hit.Multiplicity() < 3) continue;
                 if(other_hit.RMS() < 4 && other_hit.Multiplicity() < 3) continue;
               } // std::abs(clpar[1]) > 5
+*/
               clChisq = 0;
               // now look for hits to add on the intervening wires
               SigOK = false;
@@ -2528,12 +2533,16 @@ namespace cluster {
   }
             if(chgrat < chgcut && dtim < timecut) {
               // ensure there is a signal between cluster ends
-              if(ChkSignal(ew1,et1,bw2,bt2)) {
+              if(fuBCode) {
+                DoMerge(it2, it1, 10);
+                tclsize = tcl.size();
+                break;
+              } else if(ChkSignal(ew1,et1,bw2,bt2)) {
                 DoMerge(it2, it1, 10);
                 tclsize = tcl.size();
                 break;
               }
-            }
+            } // chgrat < chgcut ...
           } // US cluster 2 merge with DS cluster 1?
           
           // look for US and DS broken clusters w similar angle
@@ -2558,10 +2567,16 @@ namespace cluster {
     <<" dtim "<<dtim<<" err "<<dtim<<" timecut "<<(int)timecut
     <<" chgrat "<<chgrat<<" chgcut "<<chgcut;
   }
-            if(chgrat < chgcut && dtim < timecut && ChkSignal(bw1,bt1,ew2,et2)) {
-              DoMerge(it1, it2, 10);
-              tclsize = tcl.size();
-              break;
+            if(chgrat < chgcut && dtim < timecut) {
+              if(fuBCode ) {
+                DoMerge(it1, it2, 10);
+                tclsize = tcl.size();
+                break;
+              } else if(ChkSignal(bw1,bt1,ew2,et2)) {
+                DoMerge(it1, it2, 10);
+                tclsize = tcl.size();
+                break;
+              }
             }
           } // US cluster 1 merge with DS cluster 2
           
@@ -2714,7 +2729,12 @@ namespace cluster {
     float chgrat = 2 * std::abs(fAveChg - tcl[it2].EndChg) / (fAveChg + tcl[it2].EndChg);
   if(prt) mf::LogVerbatim("CC")<<"US chgrat "<<chgrat<<" cut "<<fMergeChgCut[pass];
     // ensure that there is a signal on any missing wires at the US end of 1
-    bool SigOK = ChkSignal(wiron1, timon1, ew2, et2);
+    bool SigOK;
+    if(fuBCode) {
+      SigOK = true;
+    } else {
+      SigOK = ChkSignal(wiron1, timon1, ew2, et2);
+    }
   if(prt) mf::LogVerbatim("CC")<<"US SigOK? "<<SigOK;
     if( !SigOK ) return;
 
@@ -2755,7 +2775,11 @@ namespace cluster {
   if(prt) mf::LogVerbatim("CC")
       <<"DS chgrat "<<chgrat<<" cut "<<fMergeChgCut[pass];
     // ensure that there is a signal on any missing wires at the US end of 1
-    SigOK = ChkSignal(wiron1, timon1, bw2, bt2);
+    if(fuBCode) {
+      SigOK = true;
+    } else {
+      SigOK = ChkSignal(wiron1, timon1, bw2, bt2);
+    }
   if(prt) mf::LogVerbatim("CC")<<"DS SigOK? "<<SigOK;
     if( !SigOK ) return;
 
@@ -2887,8 +2911,6 @@ namespace cluster {
     clCTP = cl1.CTP;
     if(!TmpStore()) return;
     unsigned short itnew = tcl.size()-1;
-    LOG_DEBUG("ClusterCrawler") << "DoMerge() merged clusters "
-      << -cl1.ID << " and " << -cl2.ID << " as ID=" << tcl[itnew].ID;
   if(prt) mf::LogVerbatim("CC")<<"DoMerge "<<cl1.ID<<" "<<cl2.ID<<" -> "<<tcl[itnew].ID;
     // stuff the processor code with the current pass
     tcl[itnew].ProcCode = inProcCode + pass;
@@ -3055,8 +3077,6 @@ namespace cluster {
     if(NClusters == USHRT_MAX) return false;
     
     ++NClusters;
-
-    LOG_DEBUG("CC")<< "Cluster ID=" << NClusters << " being stored with "<< fcl2hits.size() << " hits";
     
     unsigned int hit0 = fcl2hits[0];
     unsigned int tCST = fHits[hit0].WireID().Cryostat;
@@ -3171,7 +3191,7 @@ namespace cluster {
       unsigned short ii, nmult = 0;
       for(ii = 0; ii < fcl2hits.size(); ++ii) 
         if(fHits[fcl2hits[ii]].Multiplicity() > 1) ++nmult;
-      if(nmult == fcl2hits.size()) {
+      if(nmult > 0.5 * fcl2hits.size()) {
         bool didMerge;
         for(ii = 0; ii < fcl2hits.size(); ++ii) {
           MergeHits(fcl2hits[ii], didMerge);
@@ -3201,8 +3221,13 @@ namespace cluster {
       }
       // AddLAHit will merge the hit on nextwire if necessary
       AddLAHit(nextwire, ChkCharge, HitOK, SigOK);
-  if(prt) mf::LogVerbatim("CC")<<"LACrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK;
-      if(!SigOK) break;
+  if(prt) mf::LogVerbatim("CC")<<"LACrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK<<" nmissed "<<nmissed;
+      if(fuBCode) {
+        SigOK = true;
+      } else {
+        if(!SigOK) break;
+      }
+      if(HitOK) nmissed = 0;
       if(!HitOK) {
         ++nmissed;
         if(nmissed > fMaxWirSkip[pass]) {
@@ -3333,29 +3358,31 @@ namespace cluster {
       mf::LogError("CC")<<"CrawlUS bad lasthit "<<lasthit;
     }
     unsigned short lastwire = fHits[lasthit].WireID().Wire;
-  if(prt) mf::LogVerbatim("CC")<<"CrawlUS: last wire "<<lastwire<<" hit "<<lasthit;
+    if(prt) mf::LogVerbatim("CC")<<"CrawlUS: last wire "<<lastwire<<" hit "<<lasthit;
     
     for(unsigned short nextwire = lastwire-1; nextwire >= fFirstWire; --nextwire) {
-  if(prt) mf::LogVerbatim("CC")<<"CrawlUS: next wire "<<nextwire;
+      if(prt) mf::LogVerbatim("CC")<<"CrawlUS: next wire "<<nextwire;
       // stop crawling if there is a nearby vertex
       if(CrawlVtxChk(nextwire)) {
-  if(prt) mf::LogVerbatim("CC")<<"CrawlUS: stop at vertex";
+        if(prt) mf::LogVerbatim("CC")<<"CrawlUS: stop at vertex";
         clStopCode = 6;
         break;
       }
       // add hits and check for PH and width consistency
       AddHit(nextwire, HitOK, SigOK);
-  if(prt) mf::LogVerbatim("CC")<<"CrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK;
+      if(prt) mf::LogVerbatim("CC")<<"CrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK<<" nmissed "<<nmissed;
       if(!HitOK) {
         // no hit on this wire. Was there a signal or dead wire?
         if(SigOK) {
         // no hit on the wire but there is a signal
           ++nmissed;
           // stop if too many missed wires
+          if(prt) mf::LogVerbatim("CC")<<" nmissed "<<nmissed<<" cut "<<fMaxWirSkip[pass];
           if(nmissed > fMaxWirSkip[pass]) {
             clStopCode = 1;
             break;
           }
+/*
           // see if we are in the PostSkip phase and missed more than 1 wire
 // is this an error?
 //          if(PostSkip && nmissed > 1) {
@@ -3385,6 +3412,7 @@ namespace cluster {
             DidaSkip = true;
             PostSkip = false;
           }
+*/
         } // SigOK
         else {
           // SigOK is false
@@ -3947,15 +3975,27 @@ namespace cluster {
     if(fcl2hits.size() == 0) return;
 
     unsigned short index = kwire - fFirstWire;
-    // return if no signal and no hit
-    if(WireHitRange[index].first == -2) return;
-    // skip bad wire, but assume the track was there
-    if(WireHitRange[index].first == -1) {
+    // check for signal on a known good wire
+    if(fuBCode) {
+      // List of uB bad wires not defined yet so assume all
+      // wires have a signal
       SigOK = true;
-      return;
+    } else {
+      // skip bad wire, but assume the track was there
+      if(WireHitRange[index].first == -1) {
+        SigOK = true;
+        return;
+      }
+      // return SigOK false if no hit on a good wire
+      if(WireHitRange[index].first == -2) return;
     }
+
     unsigned int firsthit = WireHitRange[index].first;
     unsigned int lasthit = WireHitRange[index].second;
+    if(fuBCode) {
+      if(prt && firsthit > fHits.size()) mf::LogError("CC")<<"AddLAHit: Bad firsthit "<<firsthit<<" size "<<fHits.size();
+      if(firsthit > fHits.size()) return;
+    } // fuBCode
     
     // max allowable time difference between projected cluster and a hit
     float timeDiff = 40 * AngleFactor(clpar[1]);
@@ -3964,13 +4004,17 @@ namespace cluster {
     // the last hit added to the cluster
     unsigned int lastClHit = fcl2hits[fcl2hits.size()-1];
     unsigned short wire0 = fHits[lastClHit].WireID().Wire;
+    
+    if(fuBCode && (wire0 - kwire) > fMaxWirSkip[pass]) return;
+
     // the projected time of the cluster on this wire
     float prtime = clpar[0] + (kwire - wire0) * clpar[1];
+    float prtimeErr = (kwire - wire0) * clparerr[1];
     float chgWinLo = prtime - fChgNearWindow;
     float chgWinHi = prtime + fChgNearWindow;
     float chgrat;
     float cnear = 0;
-    if(prt) mf::LogVerbatim("CC")<<"AddLAHit: wire "<<kwire<<" prtime "<<(int)prtime<<" max time diff "<<timeDiff;
+    if(prt) mf::LogVerbatim("CC")<<"AddLAHit: wire "<<kwire<<" prtime "<<(int)prtime<<" prtimeErr "<<prtimeErr;
     unsigned int imbest = 0;
     for(unsigned short khit = firsthit; khit < lasthit; ++khit) {
       // obsolete hit?
@@ -4011,83 +4055,83 @@ namespace cluster {
       }
     } // khit
     
-  if(prt) {
-    if(!HitOK) mf::LogVerbatim("CC")<<" no hit found ";
-  }
+    if(prt && !HitOK) mf::LogVerbatim("CC")<<" no hit found ";
+
     if(!HitOK) return;
 
-  if(prt) mf::LogVerbatim("CC")<<" Pick hit time "<<(int)fHits[imbest].PeakTime()<<" hit index "<<imbest;
+    if(prt) mf::LogVerbatim("CC")<<" Pick hit time "<<(int)fHits[imbest].PeakTime()<<" hit index "<<imbest;
     
-    // merge the hits in a multiplet?
-    bool doMerge = false;
-    // assume there is no nearby hit
+    // merge hits in a multiplet?
     short hnear = 0;
     if(fHits[imbest].Multiplicity() > 1) {
-      doMerge = true;
-      // don't merge if we are close to a vertex
-      for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
-        if(vtx[ivx].CTP != clCTP) continue;
-  if(prt) mf::LogVerbatim("CC")
-    <<" close vtx chk W:T "<<vtx[ivx].Wire<<":"<<(int)vtx[ivx].Time;
-        if(std::abs(kwire - vtx[ivx].Wire) < 5 &&
-           std::abs(int(fHits[imbest].PeakTime() - vtx[ivx].Time)) < 20 ) {
-  if(prt) mf::LogVerbatim("CC")
-    <<" Close to a vertex. Don't merge hits";
-          doMerge = false;
-        }
-      } // ivx
-      // Decide which hits in the multiplet to merge. Hits that are well
-      // separated from each other should not be merged
-      if(doMerge) {
-        unsigned short nused = 0;
-        // the total charge of the hit multiplet
-        float multipletChg = 0.;
-        // make an angle dependent chisq cut that varies between
-        // 3 sigma at 45 degrees and 6 sigma at 90 degrees
-        float chicut = 6 * (1 - 1/(1 + std::abs(clpar[1])));
-        // look for a big separation between adjacent hits
-        std::pair<size_t, size_t> MultipletRange = FindHitMultiplet(imbest);
-        for(size_t jht = MultipletRange.first; jht < MultipletRange.second; ++jht) {
-          // ignore obsolete hits
-          if(inClus[jht] < 0) continue;
-//          if(!isHitPresent(jht)) continue;
-          // count used hits
-//          if(isHitFree(jht)) multipletChg += fHits[jht].Integral();
-          if(inClus[jht] == 0) multipletChg += fHits[jht].Integral();
-          else ++nused;
-          // check the neighbor hit separation
-          if(jht > MultipletRange.first) {
-            // pick the larger RMS of the two hits
-            // TODO use std::max()
-            float hitRMS = fHits[jht].RMS();
-            if(fHits[jht - 1].RMS() > hitRMS) hitRMS = fHits[jht-1].RMS();
-            const float tdiff = std::abs(fHits[jht].PeakTime() - fHits[jht-1].PeakTime()) / hitRMS;
-            if(tdiff > chicut) doMerge = false;
-          } // jht > 0
-        } // jht
-  if(prt) {
-    if(!doMerge) mf::LogVerbatim("CC")
-      <<" Hits are well separated. Don't merge them";
-  }
-        if(doMerge && nused == 0) {
-          // compare the charge with the last hit added?
-          if(ChkCharge) {
-            // there is a nearby hit
-            hnear = 1;
-            float chgrat = multipletChg / fHits[lastClHit].Integral();
-  if(prt) mf::LogVerbatim("CC")<<" merge hits charge check "
-    <<(int)multipletChg<<" Previous hit charge "<<(int)fHits[lastClHit].Integral();
-            if(chgrat > 2) doMerge = false;
+      bool doMerge = true;
+      if(!fuBCode) {
+        // Standard code
+        // don't merge if we are close to a vertex
+        for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
+          if(vtx[ivx].CTP != clCTP) continue;
+          if(prt) mf::LogVerbatim("CC")
+            <<" close vtx chk W:T "<<vtx[ivx].Wire<<":"<<(int)vtx[ivx].Time;
+          if(std::abs(kwire - vtx[ivx].Wire) < 5 &&
+             std::abs(int(fHits[imbest].PeakTime() - vtx[ivx].Time)) < 20 ) {
+            if(prt) mf::LogVerbatim("CC")
+              <<" Close to a vertex. Don't merge hits";
+            doMerge = false;
           }
-        } // doMerge && nused == 0
-      } // doMerge true
+        } // ivx
+        // Decide which hits in the multiplet to merge. Hits that are well
+        // separated from each other should not be merged
+        if(doMerge) {
+          unsigned short nused = 0;
+          // the total charge of the hit multiplet
+          float multipletChg = 0.;
+          // make an angle dependent chisq cut that varies between
+          // 3 sigma at 45 degrees and 6 sigma at 90 degrees
+          float chicut = 6 * (1 - 1/(1 + std::abs(clpar[1])));
+          // look for a big separation between adjacent hits
+          std::pair<size_t, size_t> MultipletRange = FindHitMultiplet(imbest);
+          for(size_t jht = MultipletRange.first; jht < MultipletRange.second; ++jht) {
+            // ignore obsolete hits
+            if(inClus[jht] < 0) continue;
+            //          if(!isHitPresent(jht)) continue;
+            // count used hits
+            //          if(isHitFree(jht)) multipletChg += fHits[jht].Integral();
+            if(inClus[jht] == 0) multipletChg += fHits[jht].Integral();
+            else ++nused;
+            // check the neighbor hit separation
+            if(jht > MultipletRange.first) {
+              // pick the larger RMS of the two hits
+              // TODO use std::max()
+              float hitRMS = fHits[jht].RMS();
+              if(fHits[jht - 1].RMS() > hitRMS) hitRMS = fHits[jht-1].RMS();
+              const float tdiff = std::abs(fHits[jht].PeakTime() - fHits[jht-1].PeakTime()) / hitRMS;
+              if(tdiff > chicut) doMerge = false;
+            } // jht > 0
+          } // jht
+          if(prt) {
+            if(!doMerge) mf::LogVerbatim("CC")
+              <<" Hits are well separated. Don't merge them ";
+          }
+          if(doMerge && nused == 0) {
+            // compare the charge with the last hit added?
+            if(ChkCharge) {
+              // there is a nearby hit
+              hnear = 1;
+              float chgrat = multipletChg / fHits[lastClHit].Integral();
+              if(prt) mf::LogVerbatim("CC")<<" merge hits charge check "
+                <<(int)multipletChg<<" Previous hit charge "<<(int)fHits[lastClHit].Integral();
+              if(chgrat > 2) doMerge = false;
+            }
+          } // doMerge && nused == 0
+        } // doMerge true
+      } // !fuBCode
       if(doMerge) {
         // there is a nearby hit and it will be merged
         hnear = -1;
         bool didMerge;
         MergeHits(imbest, didMerge);
-      }
-    } // fHits[imbest].Multiplicity() > 1
+      } // doMerge
+    } // Hits[imbest].Multiplicity() > 1
     
     // attach to the cluster and fit
     fcl2hits.push_back(imbest);
@@ -4165,16 +4209,24 @@ namespace cluster {
     float prtime = clpar[0] + (kwire - wire0) * clpar[1];
     // Find the projected time error including the projection error and the
     // error from the last hit added
-    float prtimerr2 = std::abs(kwire-wire0)*clparerr[1]*clparerr[1];
+    float prtimerr2, nerr;
+    if(fuBCode) {
+      prtimerr2 = 10 * std::abs(kwire-wire0)*clparerr[1];
+      nerr = 20;
+    } else {
+      prtimerr2 = std::abs(kwire-wire0)*clparerr[1]*clparerr[1];
+      nerr = 6;
+    }
     // apply an angle dependent scale factor to the hit error
     float hiterr = AngleFactor(clpar[1]) * fHitErrFac * fHits[lastClHit].RMS();
     float err = std::sqrt(prtimerr2 + hiterr * hiterr);
     // Time window for accepting a hit.
-    float prtimeLo = prtime - 5 * err;
-    float prtimeHi = prtime + 5 * err;
+    float prtimeLo = prtime - nerr * err;
+    float prtimeHi = prtime + nerr * err;
     float chgWinLo = prtime - fChgNearWindow;
     float chgWinHi = prtime + fChgNearWindow;
-    if(prt) mf::LogVerbatim("CC")<<"AddHit: wire "<<kwire<<" prtime Lo "<<(int)prtimeLo<<" Hi "<<(int)prtimeHi<<" fAveChg "<<(int)fAveChg;
+    if(prt) mf::LogVerbatim("CC")<<"AddHit: wire "<<kwire<<" prtime Lo "<<(int)prtimeLo<<" Hi "<<(int)prtimeHi<<" prtimerr "<<sqrt(prtimerr2)
+      <<" fAveChg "<<(int)fAveChg;
 
     // loop through the hits
     unsigned int imbest = INT_MAX;
@@ -4196,8 +4248,8 @@ namespace cluster {
       // count charge in the window
       if(fHits[khit].StartTick() > chgWinLo && fHits[khit].EndTick() < chgWinHi) cnear += fHits[khit].Integral();
       // check for signal
-      if(prtime < fHits[khit].StartTick()) continue;
-      if(prtime > fHits[khit].EndTick()) continue;
+      if(prtimeHi < fHits[khit].StartTick()) continue;
+      if(prtimeLo > fHits[khit].EndTick()) continue;
       SigOK = true;
       // check for good hit
       if(fHits[khit].PeakTime() < prtimeLo) continue;
@@ -4205,6 +4257,7 @@ namespace cluster {
       // hit used?
       if(inClus[khit] > 0) continue;
       float dtime = std::abs(fHits[khit].PeakTime() - prtime);
+      if(prt) mf::LogVerbatim("CC")<<" dtime "<<dtime<<" best "<<best<<" imbest "<<imbest;
       if(dtime < best) {
         best = dtime;
         imbest = khit;
@@ -4213,6 +4266,7 @@ namespace cluster {
     
     if(!SigOK) {
       if(fAllowNoHitWire == 0) return;
+      if(prt) mf::LogVerbatim("CC")<<" wire0 "<<wire0<<" kwire "<<kwire<<" max "<<fAllowNoHitWire<<" imbest "<<imbest;
       if((wire0 - kwire) > fAllowNoHitWire) return;
       SigOK = true;
     }
@@ -4239,7 +4293,6 @@ namespace cluster {
       if (doMerge) {
         // find the neighbor hit
         unsigned int oht;
-	if (imbest == 0 && hit.LocalIndex() != 0) return; //please comment this line to investigate
         if(hit.LocalIndex() == 0) {
           oht = imbest + 1;
         } else {
