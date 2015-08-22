@@ -7,11 +7,11 @@
  *
  *          Build 3D segments and whole tracks by simultaneous matching hits in 2D projections.
  *          Based on the "Precise 3D track reco..." AHEP (2013) 260820, with all the tricks that we
- *          developed later and with the work for the full-event topology optimization that is still
- *          under construction.
+ *          developed later and with the work for the track-vertex topology optimization.
  *
  *          Progress:
  *             May-June 2015:  basic functionality for single (not-branching) track 3D optimization and dQ/dx.
+ *             August 2015:    branching tracks optimization and 3D vertex finding.
  */
 
 #ifndef PmaTrack3D_h
