@@ -617,6 +617,13 @@ int pma::Track3D::index_of(const pma::Hit3D* hit) const
 	return -1;
 }
 
+pma::Hit3D* pma::Track3D::release_at(size_t index)
+{
+	pma::Hit3D* h3d = fHits[index];
+	fHits.erase(fHits.begin() + index);
+	return h3d;
+}
+
 bool pma::Track3D::push_back(art::Ptr< recob::Hit > hit)
 {
 	for (auto const& trk_hit : fHits)
@@ -1238,6 +1245,31 @@ bool pma::Track3D::AddNode(void)
 	else return false;
 }
 
+void pma::Track3D::InsertNode(
+	TVector3 const & p3d, size_t after_idx,
+	unsigned int tpc, unsigned int cryo)
+{
+	pma::Node3D* vtx = new pma::Node3D(p3d, tpc, cryo);
+	fNodes.insert(fNodes.begin() + after_idx, vtx);
+
+	if (fNodes.size() > 1) RebuildSegments();
+}
+
+bool pma::Track3D::RemoveNode(size_t idx)
+{
+	if ((fNodes.size() > 1) && (idx < fNodes.size()))
+	{
+		pma::Node3D* vtx = fNodes[idx];
+		fNodes.erase(fNodes.begin() + idx);
+		RebuildSegments();
+
+		if (!vtx->NextCount() && !vtx->Prev()) { delete vtx; }
+
+		return true;
+	}
+	else return false;
+}
+
 bool pma::Track3D::AttachTo(pma::Node3D* vStart)
 {
 	pma::Node3D* vtx = fNodes.front();
@@ -1463,6 +1495,297 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits)
 
 	MakeProjection();
 	return GetObjFunction();
+}
+
+void pma::Track3D::UpdateParamsInTree(bool skipFirst)
+{
+	pma::Node3D* vtx = fNodes.front();
+	pma::Segment3D* seg = 0;
+	pma::Segment3D* segThis = 0;
+
+	if (skipFirst)
+	{
+		segThis = NextSegment(vtx);
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+	}
+
+	while (vtx)
+	{
+		segThis = NextSegment(vtx);
+
+		for (size_t i = 0; i < vtx->NextCount(); i++)
+		{
+			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
+			if (seg != segThis) seg->Parent()->UpdateParamsInTree(true);
+		}
+
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next());
+		else break;
+	}
+
+	UpdateParams();
+}
+
+double pma::Track3D::TuneSinglePass(bool skipFirst)
+{
+	pma::Node3D* vtx = fNodes.front();
+	pma::Segment3D* seg = 0;
+	pma::Segment3D* segThis = 0;
+
+	if (skipFirst)
+	{
+		segThis = NextSegment(vtx);
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+	}
+
+	double g = 0.0;
+	while (vtx)
+	{
+		vtx->Optimize(fPenaltyValue, fEndSegWeight);
+		segThis = NextSegment(vtx);
+
+		for (size_t i = 0; i < vtx->NextCount(); i++)
+		{
+			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
+			if (seg != segThis) g += seg->Parent()->TuneSinglePass(true);
+		}
+
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+		else break;
+	}
+
+	return g + GetObjFunction();
+}
+
+pma::Track3D* pma::Track3D::GetNearestTrkInTree(
+	const TVector3& p3d_cm, double& dist, bool skipFirst)
+{
+	pma::Node3D* vtx = fNodes.front();
+	pma::Segment3D* seg = NULL;
+	pma::Segment3D* segThis = NULL;
+
+	if (skipFirst)
+	{
+		segThis = NextSegment(vtx);
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+	}
+
+	pma::Track3D* result = this;
+	dist = sqrt( Dist2(p3d_cm) );
+
+	pma::Track3D* candidate = 0;
+	while (vtx)
+	{
+		segThis = NextSegment(vtx);
+
+		double d;
+		for (size_t i = 0; i < vtx->NextCount(); i++)
+		{
+			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
+			if (seg != segThis)
+			{
+				candidate = seg->Parent()->GetNearestTrkInTree(p3d_cm, d, true);
+				if (d < dist) { dist = d; result = candidate; }
+			}
+		}
+
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+		else break;
+	}
+
+	return result;
+}
+
+pma::Track3D* pma::Track3D::GetNearestTrkInTree(
+	const TVector2& p2d_cm, unsigned view, double& dist, bool skipFirst)
+{
+	pma::Node3D* vtx = fNodes.front();
+	pma::Segment3D* seg = 0;
+	pma::Segment3D* segThis = 0;
+
+	if (skipFirst)
+	{
+		segThis = NextSegment(vtx);
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+	}
+
+	pma::Track3D* result = this;
+	dist = Dist2(p2d_cm, view);
+
+	pma::Track3D* candidate = 0;
+	while (vtx)
+	{
+		segThis = NextSegment(vtx);
+
+		double d;
+		for (size_t i = 0; i < vtx->NextCount(); i++)
+		{
+			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
+			if (seg != segThis)
+			{
+				candidate = seg->Parent()->GetNearestTrkInTree(p2d_cm, view, d, true);
+				if (d < dist) { dist = d; result = candidate; }
+			}
+		}
+
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+		else break;
+	}
+
+	dist = sqrt(dist);
+	return result;
+}
+
+void pma::Track3D::ReassignHitsInTree(pma::Track3D* trkRoot)
+{
+	bool skipFirst;
+	if (trkRoot) skipFirst = true;
+	else { trkRoot = this; skipFirst = false; }
+
+	pma::Node3D* vtx = fNodes.front();
+	pma::Segment3D* seg = 0;
+	pma::Segment3D* segThis = 0;
+
+	if (skipFirst)
+	{
+		segThis = NextSegment(vtx);
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+	}
+
+	while (vtx)
+	{
+		segThis = NextSegment(vtx);
+
+		for (size_t i = 0; i < vtx->NextCount(); i++)
+		{
+			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
+			if (seg != segThis) seg->Parent()->ReassignHitsInTree(trkRoot);
+		}
+
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+		else break;
+	}
+
+	double dist;
+	pma::Hit3D* hit = 0;
+	pma::Track3D* nearestTrk = 0;
+	size_t i = 0;
+	while (i < size())
+	{
+		hit = fHits[i];
+		nearestTrk = GetNearestTrkInTree(hit->Point2D(), hit->View2D(), dist);
+		if (nearestTrk != this)
+		{
+			nearestTrk->push_back(release_at(i));
+			mf::LogVerbatim("pma::Track3D") << "********* hit moved to another track *********";
+		}
+		else i++;
+	}
+	if (!size())
+	{
+		mf::LogError("pma::Track3D") << "ALL hits moved to other tracks.";
+	}
+}
+
+void pma::Track3D::MakeProjectionInTree(bool skipFirst)
+{
+	pma::Node3D* vtx = fNodes.front();
+	pma::Segment3D* seg = 0;
+	pma::Segment3D* segThis = 0;
+
+	if (skipFirst)
+	{
+		segThis = NextSegment(vtx);
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+	}
+
+	while (vtx)
+	{
+		segThis = NextSegment(vtx);
+
+		for (size_t i = 0; i < vtx->NextCount(); i++)
+		{
+			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
+			if (seg != segThis) seg->Parent()->MakeProjectionInTree(true);
+		}
+
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+		else break;
+	}
+
+	MakeProjection();
+}
+
+double pma::Track3D::GetObjFnInTree(bool skipFirst)
+{
+	pma::Node3D* vtx = fNodes.front();
+	pma::Segment3D* seg = 0;
+	pma::Segment3D* segThis = 0;
+
+	if (skipFirst)
+	{
+		segThis = NextSegment(vtx);
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next(0));
+	}
+
+	double g = 0.0;
+	while (vtx)
+	{
+		segThis = NextSegment(vtx);
+
+		for (size_t i = 0; i < vtx->NextCount(); i++)
+		{
+			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
+			if (seg != segThis) g += seg->Parent()->GetObjFnInTree(true);
+		}
+
+		if (segThis) vtx = static_cast< pma::Node3D* >(segThis->Next());
+		else break;
+	}
+
+	return g + GetObjFunction();
+}
+
+double pma::Track3D::TuneFullTree(double eps)
+{
+	UpdateParamsInTree();
+	double g0 = GetObjFnInTree(), g1 = 0.0;
+	if (!std::isfinite(g0))
+	{
+		mf::LogError("pma::Track3D") << "Objective fn crazy value!";
+		return g0;
+	}
+	if (g0 == 0.0) return g0;
+
+	mf::LogVerbatim("pma::Track3D") << "tune obj fn start: " << g0;
+	unsigned int stepIter = 0;
+	do
+	{
+		double gstep = 1.0;
+		unsigned int iter = 0;
+		while ((gstep > eps) && (iter < 60))
+		{
+			//ReassignHitsInTree();
+
+			MakeProjectionInTree();
+
+			UpdateParamsInTree();
+
+			g1 = g0;
+			g0 = TuneSinglePass();
+
+			mf::LogVerbatim("pma::Track3D") << "step:" << stepIter << " iter:" << iter << " obj fn: " << g0;
+			if (g0 == 0.0F) { MakeProjectionInTree(); break; }
+			gstep = fabs(g0 - g1) / g0;
+			iter++;
+		}
+
+		stepIter++;
+
+	} while (stepIter < 5);
+
+	MakeProjectionInTree();
+	return g0;
 }
 
 void pma::Track3D::RebuildSegments(void)

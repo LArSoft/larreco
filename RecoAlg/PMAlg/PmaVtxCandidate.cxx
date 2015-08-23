@@ -51,7 +51,7 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 	double mse, min_mse = kMaxDist * kMaxDist;
 	if (fAssigned.size() > 2)
 	{
-		size_t n_best;
+		size_t n_best = 0;
 		d_best = kMaxDist;
 		for (size_t n = 0; n < trk->Nodes().size() - 1; n++)
 		{
@@ -91,7 +91,7 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 	{
 		pma::Track3D* p0 = fAssigned.front().first;
 
-		size_t n_best, m_best;
+		size_t n_best = 0, m_best = 0;
 		d_best = kMaxDist;
 
 		double lm, ln, l_best = 0;
@@ -301,17 +301,18 @@ double pma::VtxCandidate::Compute(void)
 	fCenter.SetXYZ(0., 0., 0.); fErr.SetXYZ(0., 0., 0.);
 
 	TVector3 pproj;
-	double dx, dy, dz, wsum = 0.0;
+	//double dx, dy, dz
+	double wsum = 0.0;
 	for (size_t s = 0; s < segments.size(); s++)
 	{
 		pma::Node3D* vprev = static_cast< pma::Node3D* >(segments[s]->Prev());
 		pma::Node3D* vnext = static_cast< pma::Node3D* >(segments[s]->Next(0));
 
-		pproj = pma::GetProjectionToSegment(result, vprev->Point3D(), vnext->Point3D()));
+		pproj = pma::GetProjectionToSegment(result, vprev->Point3D(), vnext->Point3D());
 
-		dx = fWeights[s] * (result.X() - pproj.X());
-		dy = result.Y() - pproj.Y();
-		dz = result.Z() - pproj.Z();
+		//dx = fWeights[s] * (result.X() - pproj.X());
+		//dy = result.Y() - pproj.Y();
+		//dz = result.Z() - pproj.Z();
 
 		fErr[0] += fWeights[s] * fWeights[s];
 		fErr[1] += 1.0;
@@ -326,7 +327,7 @@ double pma::VtxCandidate::Compute(void)
 	fCenter[1] /= segments.size();
 	fCenter[2] /= segments.size();
 
-	fErr.Scale(1.0 / segments.size());
+	fErr *= 1.0 / segments.size();
 	fErr[0] = sqrt(fErr[0]);
 	fErr[1] = sqrt(fErr[1]);
 	fErr[2] = sqrt(fErr[2]);
@@ -369,7 +370,7 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 
 		double f = pma::GetSegmentProjVector(fCenter, p0, p1);
 		TVector3 proj = pma::GetProjectionToSegment(fCenter, p0, p1);
-		double d_proj = sqrt( pma::Dist2(fCenter, proj) );
+		//double d_proj = sqrt( pma::Dist2(fCenter, proj) );
 
 		//p0.ls(); p1.ls(); proj.ls();
 		mf::LogVerbatim("pma::VtxCandidate") << "  idx:" << idx << " f:" << f;
@@ -417,9 +418,7 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 			if ((f >= 0.0F) && (f <= 1.0) && (f * ds > 1.0) && ((1.0 - f) * ds > 1.0))
 			{
 				mf::LogVerbatim("pma::VtxCandidate") << "  add center inside segment";
-				// --------------------- !!!
-				//trk->InsertNode(fCenter, ++idx); // <----------------------------------------- ???
-				// --------------------- !!!
+				trk->InsertNode(fCenter, ++idx, fTPC, fCryo);
 				trk0->AddNode(fCenter, fTPC, fCryo);
 			}
 			else
@@ -449,9 +448,7 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 			}
 
 			mf::LogVerbatim("pma::VtxCandidate") << "  remove vtxs from trk";
-			// --------------------- !!!
-			//for (size_t j = 0; j < idx; j++) trk->RemoveVertex(0); // <--------------------- ???
-			// --------------------- !!!
+			for (size_t j = 0; j < idx; j++) trk->RemoveNode(0);
 
 			mf::LogVerbatim("pma::VtxCandidate") << "  reassign hits";
 			size_t j = 0;
@@ -461,13 +458,11 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 				double dist2D_old = trk->Dist2(h3d->Point2D(), h3d->View2D()); //pl->GetDistance2To(h3d->Point());
 				double dist2D_new = trk0->Dist2(h3d->Point2D(), h3d->View2D()); //pl0->GetDistance2To(h3d->Point());
 
-				// --------------------- !!!
-				if (dist2D_new < dist2D_old) trk0->push_back(NULL); //trk0->push_back(trk->release_at(j)); // <--------------------- !!!!
+				if (dist2D_new < dist2D_old) trk0->push_back(trk->release_at(j));
 				else j++;
-				// --------------------- !!!
 			}
-			mf::LogVerbatim("pma::VtxCandidate") << "  trk size:" << trk->size() << " #vtxs:" << trk->Vertices().size();
-			mf::LogVerbatim("pma::VtxCandidate") << "  trk0 size:" << trk0->size() << " #vtxs:" << trk0->Vertices().size();
+			mf::LogVerbatim("pma::VtxCandidate") << "  trk size:" << trk->size() << " #vtxs:" << trk->Nodes().size();
+			mf::LogVerbatim("pma::VtxCandidate") << "  trk0 size:" << trk0->size() << " #vtxs:" << trk0->Nodes().size();
 
 			if (trk0->size() > 1)
 			{
@@ -476,9 +471,7 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 			}
 			else
 			{
-				// --------------------- !!!
-				//while (trk0->size()) trk->push_back(trk0->release_at(0));  // <--------------------- !!!!
-				// --------------------- !!!
+				while (trk0->size()) trk->push_back(trk0->release_at(0));
 			}
 
 			if (trk->size() > 1)
@@ -488,34 +481,35 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 			}
 			else
 			{
-				// --------------------- !!!
-				while (trk->size()) trk0->push_back(NULL); // trk0->push_back(trk->release_at(0)); // <--------------------- !!!!
-				// --------------------- !!!
+				while (trk->size()) trk0->push_back(trk->release_at(0));
 			}
 
 			if (trk0->size())
 			{
 				trk0->MakeProjection();
-				tracks->push_back(trk0);
+				tracks.push_back(trk0);
 			}
 			else delete trk0;
 
 			if (trk->size()) trk->MakeProjection();
 			else
 			{
-				// --------------------- !!!
-				//tracks->release(trk); // <--------------------- !!!!
-				// --------------------- !!!
-				delete trk;
+				for (size_t t = 0; t < tracks.size(); ++t)
+					if (tracks[t] == trk)
+					{
+						tracks.erase(tracks.begin() + t);
+						delete trk;
+						break;
+					}
 			}
 
 			mf::LogVerbatim("pma::VtxCandidate") << "  done";
 		}
 	}
-	// --------------------- !!!
-	//fAssigned.front().first->TuneFullTree(); // <--------------------- !!!!
-	// --------------------- !!!
-	fCenter = fAssigned.front().first->Vertices().front()->Point();
+
+	fAssigned.front().first->TuneFullTree();
+
+	fCenter = fAssigned.front().first->Nodes().front()->Point3D();
 	fMse = 0.0; fMse2D = 0.0;
 }
 
