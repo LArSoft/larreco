@@ -168,6 +168,7 @@ private:
 
   void setTrackTag(pma::Track3D& trk);
 
+  bool fIsRealData;
   bool isMcStopping(void) const; // to be moved to the testing module
   int getMcPdg(const pma::Track3D& trk) const; // to be moved to the testing module
   // ------------------------------------------------------
@@ -293,6 +294,7 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 {
 	c_t_v_hits.clear();
 	fEvNumber = evt.id().event();
+	fIsRealData = evt.isRealData();
 	fTrkIndex = 0;
 	fPlaneIndex = 0;
 	fPlaneNPoints = 0;
@@ -433,25 +435,33 @@ void PMAlgTrackMaker::setTrackTag(pma::Track3D& trk)
 
 bool PMAlgTrackMaker::isMcStopping(void) const
 {
-	art::ServiceHandle< cheat::BackTracker > bt;
-	const sim::ParticleList& plist = bt->ParticleList();
-	const simb::MCParticle* particle = plist.Primary(0);
-
-	if (particle)
+	if (fIsRealData)
 	{
-//		std::cout << "...:SIM:... " << particle->EndProcess()
-//			<< " n:" << particle->NumberDaughters()
-//			<< " m:" << particle->Mass()
-//			<< " E:" << particle->EndE() << std::endl;
-		return (particle->EndE() - particle->Mass() < 0.001);
-		//return (particle->NumberDaughters() == 0);
+		// maybe possible to apply check here
+		return false;
 	}
-	else return false;
+	else
+	{
+		art::ServiceHandle< cheat::BackTracker > bt;
+		const sim::ParticleList& plist = bt->ParticleList();
+		const simb::MCParticle* particle = plist.Primary(0);
+
+		if (particle)
+		{
+		//	std::cout << "...:SIM:... " << particle->EndProcess()
+		//		<< " n:" << particle->NumberDaughters()
+		//		<< " m:" << particle->Mass()
+		//		<< " E:" << particle->EndE() << std::endl;
+			return (particle->EndE() - particle->Mass() < 0.001);
+		//	return (particle->NumberDaughters() == 0);
+		}
+		else return false;
+	}
 }
 
 int PMAlgTrackMaker::getMcPdg(const pma::Track3D& trk) const
 {
-	// return 0; // would be good in case of real data...
+	if (fIsRealData) return 0;
 
 	art::ServiceHandle< cheat::BackTracker > bt;
 	std::map< int, size_t > pdg_counts;
@@ -894,7 +904,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
-	reset(evt);
+	reset(evt); // set default values at the beginning of each event
 
 	std::vector< pma::Track3D* > result;
 
