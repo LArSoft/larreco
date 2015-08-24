@@ -662,6 +662,7 @@ namespace trkf {
               tmpHits.insert(tmpHits.end(), trk[tIndex].TrkHits[ipl].begin(), trk[tIndex].TrkHits[ipl].end());
             util::CreateAssn(*this, evt, *tcol, tmpHits, *thassn);
             // Find seed hits and the end of the track that is best
+            end = 0;
 //            FindSeedHits(tIndex, end);
             unsigned short itj = 0;
             if(end > 0) itj = trk[tIndex].TrjPos.size() - 1;
