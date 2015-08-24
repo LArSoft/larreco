@@ -31,6 +31,7 @@ class pma::Track3D
 public:
 	enum ETrackEnd { kBegin = -1, kEnd = 1 };
 	enum EDirection { kForward = -1, kBackward = 1 };
+	enum ETag { kNotTagged = -1, kTrackLike = 0, kEmLike = 1, kStopping = 2 };
 
 	Track3D(void);
 	Track3D(const Track3D& src);
@@ -186,14 +187,17 @@ public:
 	unsigned int DisableSingleViewEnds(void);
 	void SelectHits(float fraction = 1.0F);
 
-	float GetEndSegWeight(void) { return fEndSegWeight; }
+	float GetEndSegWeight(void) const { return fEndSegWeight; }
 	void SetEndSegWeight(float value) { fEndSegWeight = value; }
 
-	float GetPenalty(void) { return fPenaltyFactor; }
+	float GetPenalty(void) const { return fPenaltyFactor; }
 	void SetPenalty(float value) { fPenaltyFactor = value; }
 
-	unsigned int GetMaxHitsPerSeg(void) { return fMaxHitsPerSeg; }
+	unsigned int GetMaxHitsPerSeg(void) const { return fMaxHitsPerSeg; }
 	void SetMaxHitsPerSeg(unsigned int value) { fMaxHitsPerSeg = value; }
+
+	ETag GetTag(void) const { return fTag; }
+	void SetTag(ETag value) { fTag = value; }
 
 private:
 	void ClearNodes(void);
@@ -252,6 +256,8 @@ private:
 	float fPenaltyValue;
 	float fEndSegWeight;
 	float fHitsRadius;
+
+	ETag fTag;
 };
 
 #endif

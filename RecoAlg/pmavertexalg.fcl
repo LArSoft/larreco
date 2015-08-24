@@ -1,7 +1,7 @@
 BEGIN_PROLOG
 
 # separate fcl since there is no other place for vertexing algorithm configurations yet
-# please, feel free to move this configuration to a common place when it is ready
+# please, feel free to move this configuration to a common place when there is such
 
 standard_pmavertexalg:
 {

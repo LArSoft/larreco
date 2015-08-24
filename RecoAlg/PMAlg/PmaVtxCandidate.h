@@ -24,7 +24,7 @@ class pma::VtxCandidate
 public:
 	static const double kMaxDist;
 
-	VtxCandidate(double segMinLength = 5.0) :
+	VtxCandidate(double segMinLength = 2.0) :
 		fSegMinLength(segMinLength),
 		fMse(0.0), fMse2D(0.0),
 		fCenter(0., 0., 0.),

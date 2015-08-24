@@ -25,7 +25,9 @@ pma::Track3D::Track3D(void) :
 	fSegStopFactor(0.2F),
 	fPenaltyValue(0.1F),
 	fEndSegWeight(0.05F),
-	fHitsRadius(1.0F)
+	fHitsRadius(1.0F),
+
+	fTag(pma::Track3D::kNotTagged)
 {
 }
 
@@ -40,7 +42,9 @@ pma::Track3D::Track3D(const Track3D& src) :
 	fSegStopFactor(src.fSegStopFactor),
 	fPenaltyValue(src.fPenaltyValue),
 	fEndSegWeight(src.fEndSegWeight),
-	fHitsRadius(src.fHitsRadius)
+	fHitsRadius(src.fHitsRadius),
+
+	fTag(src.fTag)
 {
 	for (auto const& hit : src.fHits) fHits.push_back(new pma::Hit3D(*hit));
 	for (auto const& point : src.fAssignedPoints) fAssignedPoints.push_back(new TVector3(*point));

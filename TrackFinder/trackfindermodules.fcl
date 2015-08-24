@@ -1,5 +1,6 @@
 #include "trackfinderalgorithms.fcl"
 #include "clusteralgorithms.fcl"
+#include "pmavertexalg.fcl"
 
 BEGIN_PROLOG
 
@@ -35,6 +36,8 @@ standard_pmalgtrackmaker:
 {
   module_type:            "PMAlgTrackMaker"
   ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+  PMAlgVertexing:         @local::standard_pmavertexalg
+  RunVertexing:           false       # find vertices, join with tracks, reoptimize track-vertex structure
                                       #
   HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
   ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building

@@ -283,14 +283,16 @@ double pma::VtxCandidate::Compute(void)
 		pma::Track3D* trk = fAssigned[v].first;
 		int vIdx = fAssigned[v].second;
 
-		pma::Node3D* vtx = trk->Nodes()[vIdx];
+		pma::Node3D* vtx1 = trk->Nodes()[vIdx];
 
-		pma::Segment3D* seg = trk->NextSegment(vtx);
+		pma::Segment3D* seg = trk->NextSegment(vtx1);
 		segments.push_back(seg);
 
 		pma::Node3D* vtx2 = static_cast< pma::Node3D* >(seg->Next(0));
-		double dy = vtx->Point3D().Y() - vtx2->Point3D().Y();
 
+		lines.push_back( std::pair<TVector3, TVector3>(vtx1->Point3D(), vtx2->Point3D()) );
+
+		double dy = vtx1->Point3D().Y() - vtx2->Point3D().Y();
 		double fy_norm = asin(fabs(dy) / seg->Length()) / (0.5 * TMath::Pi());
 		fWeights[v] = 1.0 - pow(fy_norm - 1.0, 12);
 		if (fWeights[v] < 0.3) fWeights[v] = 0.3;
