@@ -3370,9 +3370,15 @@ namespace trkf {
       if(allhits[hit]->WireID().Cryostat != cstat) continue;
       if(allhits[hit]->WireID().TPC != tpc) continue;
       ipl = allhits[hit]->WireID().Plane;
+      if(allhits[hit]->WireID().Wire > geom->Nwires(ipl, tpc, cstat)) {
+        if(lastWire[ipl] < firstWire[ipl]) {
+          mf::LogError("CCTM")<<"Invalid WireID().Wire "<<allhits[hit]->WireID().Wire;
+          return;
+        }
+      }
 //      ChgNorm[ipl] += allhits[hit]->Integral();
       if(ipl < oldipl) {
-        mf::LogError("CCTM")<<"Hits are not in proper order\n";
+        mf::LogError("CCTM")<<"Hits are not in increasing-plane order\n";
         return;
       }
       oldipl = ipl;
@@ -3383,6 +3389,14 @@ namespace trkf {
       lastHit[ipl] = hit;
       lastWire[ipl] = allhits[hit]->WireID().Wire;
     } // hit
+    
+    // xxx
+    for(ipl = 0; ipl < nplanes; ++ipl) {
+      if(lastWire[ipl] < firstWire[ipl]) {
+        mf::LogError("CCTM")<<"Invalid first/last wire in plane "<<ipl;
+        return;
+      }
+    } // ipl
     
     // normalize charge in induction planes to the collection plane
 //    for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = ChgNorm[nplanes - 1] / ChgNorm[ipl];
