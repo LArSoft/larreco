@@ -22,6 +22,13 @@ pma::PMAlgVertexing::~PMAlgVertexing(void)
 }
 // ------------------------------------------------------
 
+void pma::PMAlgVertexing::reconfigure(const fhicl::ParameterSet& pset)
+{
+	fInputVtxDist2D = pset.get< double >("InputVtxDist2D");
+	fInputVtxDistY = pset.get< double >("InputVtxDistY");
+}
+// ------------------------------------------------------
+
 void pma::PMAlgVertexing::cleanTracks(void)
 {
 	fOutVertices.clear();
@@ -37,10 +44,25 @@ void pma::PMAlgVertexing::cleanTracks(void)
 }
 // ------------------------------------------------------
 
-void pma::PMAlgVertexing::reconfigure(const fhicl::ParameterSet& pset)
+void pma::PMAlgVertexing::sortTracks(
+	const std::vector< pma::Track3D* >& trk_input)
 {
-	fInputVtxDist2D = pset.get< double >("InputVtxDist2D");
-	fInputVtxDistY = pset.get< double >("InputVtxDistY");
+	cleanTracks();
+
+	for (auto t : trk_input)
+	{
+		if (t->GetTag() != pma::Track3D::kEmLike)
+		{
+			if (t->Length() > 3.0)
+				fOutTracks.push_back(new pma::Track3D(*t));
+			else
+				fShortTracks.push_back(new pma::Track3D(*t));
+		}
+		else
+		{
+			fEmTracks.push_back(new pma::Track3D(*t));
+		}
+	}
 }
 // ------------------------------------------------------
 
@@ -149,28 +171,13 @@ bool pma::PMAlgVertexing::findOneVtx(void)
 size_t pma::PMAlgVertexing::run(
 	const std::vector< pma::Track3D* >& trk_input)
 {
-	cleanTracks();
-
 	if (trk_input.size() < 2)
 	{
 		mf::LogWarning("pma::PMAlgVertexing") << "no source tracks!" << std::endl;
 		return 0;
 	}
 
-	for (auto t : trk_input)
-	{
-		if (t->GetTag() != pma::Track3D::kEmLike)
-		{
-			if (t->Length() > 3.0)
-				fOutTracks.push_back(new pma::Track3D(*t));
-			else
-				fShortTracks.push_back(new pma::Track3D(*t));
-		}
-		else
-		{
-			fEmTracks.push_back(new pma::Track3D(*t));
-		}
-	}
+	sortTracks(trk_input);
 
 	findOneVtx();
 
@@ -182,9 +189,7 @@ size_t pma::PMAlgVertexing::run(
 	const std::vector< pma::Track3D* >& trk_input,
 	const std::vector< TVector3 >& vtx_input)
 {
-	cleanTracks();
-
-	for (auto t : trk_input) fOutTracks.push_back(new pma::Track3D(*t));
+	sortTracks(trk_input);
 
 	return 0;
 }

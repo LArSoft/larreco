@@ -56,6 +56,8 @@ private:
 	std::vector< pma::Track3D* > fEmTracks;
 	void cleanTracks(void);
 
+	void sortTracks(const std::vector< pma::Track3D* >& trk_input);
+
 	// Parameters used in the algorithm
 
 	double fInputVtxDist2D; // use vtx given at input if dist. [cm] to track in all 2D projections is below this max. value
