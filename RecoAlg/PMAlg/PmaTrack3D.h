@@ -67,6 +67,7 @@ public:
 
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
+	bool HasTwoViews(void) const;
 
 	std::vector< unsigned int > TPCs(void) const;
 	std::vector< unsigned int > Cryos(void) const;
@@ -161,6 +162,8 @@ public:
 	/// Move the first/last Node3D to the first/last hit in the track;
 	/// returns true if all OK, false if empty segments found.
 	bool ShiftEndsToHits(void);
+
+	std::vector< pma::Segment3D* > const & Segments(void) const { return fSegments; }
 
 	pma::Segment3D* NextSegment(pma::Node3D* vtx) const;
 	pma::Segment3D* PrevSegment(pma::Node3D* vtx) const;

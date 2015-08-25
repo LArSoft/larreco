@@ -236,7 +236,7 @@ double pma::Segment3D::GetDist2(const TVector2& psrc, const TVector2& p0, const 
 	double eps = 1.0E-6; // 0.01mm
 	if (v1Norm2 < eps)
 	{
-		mf::LogWarning("pma::Segment3D") << "Short segment or its projection.";
+		mf::LogVerbatim("pma::Segment3D") << "Short segment or its projection.";
 		v1 = p0; v1 += p1; v1 *= 0.5;
 		return pma::Dist2(v1, psrc);
 	}

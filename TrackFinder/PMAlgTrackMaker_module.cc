@@ -945,8 +945,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			if (fRunVertexing)
 			{
 				mf::LogVerbatim("PMAlgTrackMaker") << "Vertex finding / track-vertex reoptimization.";
-
-				size_t nvtx = fPMAlgVertexing.run(result);
+				size_t nvtx = fPMAlgVertexing.run(result); // tracks are rearranged if any vtx found
 				if (nvtx)
 				{
 					int vidx = 0;
@@ -957,6 +956,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 						vtxs->push_back(recob::Vertex(xyz, vidx++));
 					}
 				}
+				else mf::LogVerbatim("PMAlgTrackMaker") << "No vertices found.";
 			}
 
 			size_t spStart = 0, spEnd = 0;
@@ -1076,7 +1076,7 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 
 		// try correcting track ends:
 		//   - single-view sections spuriously merged on 2D clusters level
-		//   - ... some other corrections to implement
+		//   - ... some other track corrections to implement
 		for (auto tpc_iter = fGeom->begin_TPC_id();
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)

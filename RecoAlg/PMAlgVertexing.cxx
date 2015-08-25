@@ -24,8 +24,10 @@ pma::PMAlgVertexing::~PMAlgVertexing(void)
 
 void pma::PMAlgVertexing::reconfigure(const fhicl::ParameterSet& pset)
 {
-	fInputVtxDist2D = pset.get< double >("InputVtxDist2D");
-	fInputVtxDistY = pset.get< double >("InputVtxDistY");
+	fMinTrackLength = pset.get< double >("MinTrackLength");
+
+	//fInputVtxDist2D = pset.get< double >("InputVtxDist2D");
+	//fInputVtxDistY = pset.get< double >("InputVtxDistY");
 }
 // ------------------------------------------------------
 
@@ -44,6 +46,23 @@ void pma::PMAlgVertexing::cleanTracks(void)
 }
 // ------------------------------------------------------
 
+void pma::PMAlgVertexing::collectTracks(
+	std::vector< pma::Track3D* >& result)
+{
+	for (auto t : result) delete t;
+	result.clear();
+
+	for (auto t : fOutTracks) result.push_back(t);
+	fOutTracks.clear();
+
+	for (auto t : fShortTracks) result.push_back(t);
+	fShortTracks.clear();
+
+	for (auto t : fEmTracks) result.push_back(t);
+	fEmTracks.clear();
+}
+// ------------------------------------------------------
+
 void pma::PMAlgVertexing::sortTracks(
 	const std::vector< pma::Track3D* >& trk_input)
 {
@@ -51,12 +70,11 @@ void pma::PMAlgVertexing::sortTracks(
 
 	for (auto t : trk_input)
 	{
-		if (t->GetTag() != pma::Track3D::kEmLike)
+		double l = t->Length();
+		if ((t->GetTag() != pma::Track3D::kEmLike) || (l > fMinTrackLength))
 		{
-			if (t->Length() > 3.0)
-				fOutTracks.push_back(new pma::Track3D(*t));
-			else
-				fShortTracks.push_back(new pma::Track3D(*t));
+			if (l > fMinTrackLength) fOutTracks.push_back(new pma::Track3D(*t));
+			else fShortTracks.push_back(new pma::Track3D(*t));
 		}
 		else
 		{
@@ -169,27 +187,37 @@ bool pma::PMAlgVertexing::findOneVtx(void)
 // ------------------------------------------------------
 
 size_t pma::PMAlgVertexing::run(
-	const std::vector< pma::Track3D* >& trk_input)
+	std::vector< pma::Track3D* >& trk_input)
 {
 	if (trk_input.size() < 2)
 	{
-		mf::LogWarning("pma::PMAlgVertexing") << "no source tracks!" << std::endl;
+		mf::LogWarning("pma::PMAlgVertexing") << "no source tracks!";
 		return 0;
 	}
 
 	sortTracks(trk_input);
 
-	findOneVtx();
+	size_t iters = 0;
+	while (findOneVtx()) iters++;
+	mf::LogVerbatim("pma::PMAlgVertexing") << "  " << iters << " findOneVtx() iterations";
+
+	//findOneVtx();
+
+	collectTracks(trk_input);
 
 	return fOutVertices.size();
 }
 // ------------------------------------------------------
 
 size_t pma::PMAlgVertexing::run(
-	const std::vector< pma::Track3D* >& trk_input,
+	std::vector< pma::Track3D* >& trk_input,
 	const std::vector< TVector3 >& vtx_input)
 {
 	sortTracks(trk_input);
+
+	// ....
+
+	collectTracks(trk_input);
 
 	return 0;
 }

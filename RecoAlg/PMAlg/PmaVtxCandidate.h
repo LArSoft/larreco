@@ -22,9 +22,11 @@ namespace pma
 class pma::VtxCandidate
 {
 public:
-	static const double kMaxDist;
+	static const double kMaxDistToTrack;
+	static const double kMinDistToNode;
 
 	VtxCandidate(double segMinLength = 2.0) :
+		tracksJoined(false),
 		fSegMinLength(segMinLength),
 		fMse(0.0), fMse2D(0.0),
 		fCenter(0., 0., 0.),
@@ -61,6 +63,7 @@ public:
 	std::pair< pma::Track3D*, size_t > Track(size_t i) const { return fAssigned[i]; }
 
 private:
+	bool tracksJoined;
 	double fSegMinLength, fMse, fMse2D;
 	std::vector< double > fWeights;
 	std::vector< std::pair< pma::Track3D*, size_t > > fAssigned;
