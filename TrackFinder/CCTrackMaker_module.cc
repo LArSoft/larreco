@@ -3370,9 +3370,15 @@ namespace trkf {
       if(allhits[hit]->WireID().Cryostat != cstat) continue;
       if(allhits[hit]->WireID().TPC != tpc) continue;
       ipl = allhits[hit]->WireID().Plane;
+      if(allhits[hit]->WireID().Wire > geom->Nwires(ipl, tpc, cstat)) {
+        if(lastWire[ipl] < firstWire[ipl]) {
+          mf::LogError("CCTM")<<"Invalid WireID().Wire "<<allhits[hit]->WireID().Wire;
+          return;
+        }
+      }
 //      ChgNorm[ipl] += allhits[hit]->Integral();
       if(ipl < oldipl) {
-        mf::LogError("CCTM")<<"Hits are not in proper order\n";
+        mf::LogError("CCTM")<<"Hits are not in increasing-plane order\n";
         return;
       }
       oldipl = ipl;
@@ -3384,6 +3390,14 @@ namespace trkf {
       lastWire[ipl] = allhits[hit]->WireID().Wire;
     } // hit
     
+    // xxx
+    for(ipl = 0; ipl < nplanes; ++ipl) {
+      if(lastWire[ipl] < firstWire[ipl]) {
+        mf::LogError("CCTM")<<"Invalid first/last wire in plane "<<ipl;
+        return;
+      }
+    } // ipl
+    
     // normalize charge in induction planes to the collection plane
 //    for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = ChgNorm[nplanes - 1] / ChgNorm[ipl];
     for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = 1;
@@ -3393,7 +3407,7 @@ namespace trkf {
     // now we can define the WireHitRange vector.
     int sflag, nwires, wire;
     unsigned int indx, thisWire, thisHit, lastFirstHit;
-    uint32_t chan;
+    //uint32_t chan;
     for(ipl = 0; ipl < nplanes; ++ipl) {
       nwires = lastWire[ipl] - firstWire[ipl] + 1;
       WireHitRange[ipl].resize(nwires);
@@ -3403,11 +3417,11 @@ namespace trkf {
       // overwrite with the "dead wires" condition
       sflag = -1;
       for(wire = 0; wire < nwires; ++wire) {
-        chan = geom->PlaneWireToChannel(ipl, wire, tpc, cstat);
-        if(cf.BadChannel(chan)) {
-          indx = wire - firstWire[ipl];
-          WireHitRange[ipl][indx] = std::make_pair(sflag, sflag);
-        }
+        //chan = geom->PlaneWireToChannel(ipl, wire, tpc, cstat);
+        //if(cf.BadChannel(chan)) {
+        //  indx = wire - firstWire[ipl];
+        //  WireHitRange[ipl][indx] = std::make_pair(sflag, sflag);
+	//}
       } // wire
       // next overwrite with the index of the first/last hit on each wire
       lastWire[ipl] = firstWire[ipl];
