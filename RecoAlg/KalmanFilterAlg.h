@@ -83,7 +83,8 @@ namespace trkf {
 		    KGTrack& trg,                          // Result global track.
 		    const Propagator* prop,                // Propagator.
 		    const Propagator::PropDirection dir,   // Direction.
-		    KHitContainer& hits) const;            // Candidate measurements.
+		    KHitContainer& hits,                   // Candidate measurements.
+		    bool linear) const;                    // Linear flag.
 
     /// Smooth track.
     bool smoothTrack(KGTrack& trg,                         // Global track to be smoothed.

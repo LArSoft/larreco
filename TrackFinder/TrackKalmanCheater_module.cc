@@ -345,7 +345,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
 	  // Make a seed track (KTrack).
 
-	  std::shared_ptr<const Surface> psurf(new SurfYZPlane(y, z, 0.));
+	  std::shared_ptr<const Surface> psurf(new SurfYZPlane(0., y, z, 0.));
 	  TrackVector vec(5);
 	  vec(0) = x;
 	  vec(1) = 0.;
@@ -385,7 +385,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
 	  KGTrack trg(prefplane);
 	  fKFAlg.setPlane(prefplane);
-	  bool ok = fKFAlg.buildTrack(trk, trg, fProp, Propagator::FORWARD, cont);
+	  bool ok = fKFAlg.buildTrack(trk, trg, fProp, Propagator::FORWARD, cont, false);
 	  if(ok) {
 	    ok = fKFAlg.smoothTrackIter(5, trg, fProp);
 	    if(ok) {
