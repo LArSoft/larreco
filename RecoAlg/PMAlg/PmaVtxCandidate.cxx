@@ -12,6 +12,8 @@
 #include "RecoAlg/PMAlg/PmaVtxCandidate.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
+#include "Geometry/Geometry.h"
+
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TMath.h"
@@ -168,8 +170,10 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 
 double pma::VtxCandidate::ComputeMse2D(void)
 {
+	art::ServiceHandle< geo::Geometry > geom;
+
 	double mse = 0.0;
-	TVector2 center2d_U, center2d_V, center2d_Z;
+	TVector2 center2d;
 	for (size_t i = 0; i < fAssigned.size(); i++)
 	{
 		pma::Track3D* trk = fAssigned[i].first;
@@ -178,15 +182,27 @@ double pma::VtxCandidate::ComputeMse2D(void)
 		int tpc = trk->Nodes()[fAssigned[i].second]->TPC();
 		int cryo = trk->Nodes()[fAssigned[i].second]->Cryo();
 
-		center2d_U = GetProjectionToPlane(fCenter, geo::kU, tpc, cryo);
-		center2d_V = GetProjectionToPlane(fCenter, geo::kV, tpc, cryo);
-		center2d_Z = GetProjectionToPlane(fCenter, geo::kZ, tpc, cryo);
-
-		mse += seg->GetDistance2To(center2d_U, geo::kU);
-		mse += seg->GetDistance2To(center2d_V, geo::kV);
-		mse += seg->GetDistance2To(center2d_Z, geo::kZ);
+		size_t k = 0;
+		double m = 0.0;
+		if (geom->TPC(tpc, cryo).HasPlane(geo::kU))
+		{
+			center2d = GetProjectionToPlane(fCenter, geo::kU, tpc, cryo);
+			m += seg->GetDistance2To(center2d, geo::kU); k++;
+		}
+		if (geom->TPC(tpc, cryo).HasPlane(geo::kV))
+		{
+			center2d = GetProjectionToPlane(fCenter, geo::kV, tpc, cryo);
+			m += seg->GetDistance2To(center2d, geo::kV); k++;
+		}
+		if (geom->TPC(tpc, cryo).HasPlane(geo::kZ))
+		{
+			center2d = GetProjectionToPlane(fCenter, geo::kZ, tpc, cryo);
+			m += seg->GetDistance2To(center2d, geo::kZ); k++;
+		}
+		mse += m / (double)k;
 	}
-	return (mse / fAssigned.size()) / 3.0;
+
+	return mse / fAssigned.size();
 }
 
 double pma::VtxCandidate::Test(const VtxCandidate& other) const
