@@ -331,6 +331,17 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 }
 // ------------------------------------------------------
 
+std::vector< pma::Hit3D* > pma::ProjectionMatchingAlg::trimTrackToVolume(
+	pma::Track3D& trk, TVector3 p0, TVector3 p1) const
+{
+	std::vector< pma::Hit3D* > trimmedHits;
+
+
+
+	return trimmedHits;
+}
+// ------------------------------------------------------
+
 bool pma::ProjectionMatchingAlg::alignTracks(pma::Track3D& first, pma::Track3D& second) const
 {
 	unsigned int k = 0;
