@@ -3407,7 +3407,7 @@ namespace trkf {
     // now we can define the WireHitRange vector.
     int sflag, nwires, wire;
     unsigned int indx, thisWire, thisHit, lastFirstHit;
-    uint32_t chan;
+    //uint32_t chan;
     for(ipl = 0; ipl < nplanes; ++ipl) {
       nwires = lastWire[ipl] - firstWire[ipl] + 1;
       WireHitRange[ipl].resize(nwires);
@@ -3417,11 +3417,11 @@ namespace trkf {
       // overwrite with the "dead wires" condition
       sflag = -1;
       for(wire = 0; wire < nwires; ++wire) {
-        chan = geom->PlaneWireToChannel(ipl, wire, tpc, cstat);
-        if(cf.BadChannel(chan)) {
-          indx = wire - firstWire[ipl];
-          WireHitRange[ipl][indx] = std::make_pair(sflag, sflag);
-        }
+        //chan = geom->PlaneWireToChannel(ipl, wire, tpc, cstat);
+        //if(cf.BadChannel(chan)) {
+        //  indx = wire - firstWire[ipl];
+        //  WireHitRange[ipl][indx] = std::make_pair(sflag, sflag);
+	//}
       } // wire
       // next overwrite with the index of the first/last hit on each wire
       lastWire[ipl] = firstWire[ipl];
