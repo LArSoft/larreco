@@ -17,7 +17,7 @@
 #include "TMath.h"
 
 const double pma::VtxCandidate::kMaxDistToTrack = 4.0; // max. dist. track to center to create vtx
-const double pma::VtxCandidate::kMinDistToNode = 2.0;  // min. dist. to node needed to split segment
+const double pma::VtxCandidate::kMinDistToNode = 1.5;  // min. dist. to node needed to split segment
 
 bool pma::VtxCandidate::Has(pma::Track3D* trk) const
 {
@@ -155,8 +155,6 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 			pma::Segment3D* seg = trk->NextSegment(trk->Nodes()[n]);
 			if (seg->Length() >= fSegMinLength)
 			{
-				fTPC = trk->FrontTPC();
-				fCryo = trk->FrontCryo();
 				return true;
 			}
 		}
@@ -164,7 +162,6 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 		fWeights.pop_back();
 		fCenter.SetXYZ(0., 0., 0.);
 		fMse = 0; fMse2D = 0;
-		fTPC = -1; fCryo = -1;
 		return false;
 	}
 }
@@ -178,9 +175,12 @@ double pma::VtxCandidate::ComputeMse2D(void)
 		pma::Track3D* trk = fAssigned[i].first;
 		pma::Segment3D* seg = trk->NextSegment(trk->Nodes()[fAssigned[i].second]);
 
-		center2d_U = GetProjectionToPlane(fCenter, geo::kU, fTPC, fCryo);
-		center2d_V = GetProjectionToPlane(fCenter, geo::kV, fTPC, fCryo);
-		center2d_Z = GetProjectionToPlane(fCenter, geo::kZ, fTPC, fCryo);
+		int tpc = trk->Nodes()[fAssigned[i].second]->TPC();
+		int cryo = trk->Nodes()[fAssigned[i].second]->Cryo();
+
+		center2d_U = GetProjectionToPlane(fCenter, geo::kU, tpc, cryo);
+		center2d_V = GetProjectionToPlane(fCenter, geo::kV, tpc, cryo);
+		center2d_Z = GetProjectionToPlane(fCenter, geo::kZ, tpc, cryo);
 
 		mse += seg->GetDistance2To(center2d_U, geo::kU);
 		mse += seg->GetDistance2To(center2d_V, geo::kV);
@@ -370,10 +370,14 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 		mf::LogVerbatim("pma::VtxCandidate") << "  track size:" << trk->size()
 			<< " (nodes:" << trk->Nodes().size() << ")";
 
-		if ((int)trk->FrontTPC() != fTPC) mf::LogError("pma::VtxCandidate") << "*** WRONG TPC ***";
-
 		TVector3 p0(trk->Nodes()[idx]->Point3D());
 		TVector3 p1(trk->Nodes()[idx + 1]->Point3D());
+
+		int tpc0 = trk->Nodes()[idx]->TPC();
+		int tpc1 = trk->Nodes()[idx + 1]->TPC();
+
+		int cryo0 = trk->Nodes()[idx]->Cryo();
+		int cryo1 = trk->Nodes()[idx + 1]->Cryo();
 
 		double d0 = sqrt( pma::Dist2(p0, fCenter) );
 		double d1 = sqrt( pma::Dist2(p1, fCenter) );
@@ -430,8 +434,12 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 			{
 				mf::LogVerbatim("pma::VtxCandidate") << "  add center inside segment";
 
-				trk->InsertNode(fCenter, ++idx, fTPC, fCryo);
-				trk0->AddNode(fCenter, fTPC, fCryo);
+				int tpc, cryo;
+				if (f < 0.5) { tpc = tpc0; cryo = cryo0; }
+				else { tpc = tpc1; cryo = cryo1; }
+
+				trk->InsertNode(fCenter, ++idx, tpc, cryo);
+				trk0->AddNode(fCenter, tpc, cryo);
 			}
 			else
 			{

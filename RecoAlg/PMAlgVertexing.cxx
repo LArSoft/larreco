@@ -33,8 +33,6 @@ void pma::PMAlgVertexing::reconfigure(const fhicl::ParameterSet& pset)
 
 void pma::PMAlgVertexing::cleanTracks(void)
 {
-	fOutVertices.clear();
-
 	for (auto t : fOutTracks) delete t;
 	fOutTracks.clear();
 
@@ -71,10 +69,12 @@ void pma::PMAlgVertexing::sortTracks(
 	for (auto t : trk_input)
 	{
 		double l = t->Length();
-		if ((t->GetTag() != pma::Track3D::kEmLike) || (l > fMinTrackLength))
+		if ((t->GetTag() != pma::Track3D::kEmLike) || (l > 2 * fMinTrackLength))
 		{
-			if (l > fMinTrackLength) fOutTracks.push_back(new pma::Track3D(*t));
-			else fShortTracks.push_back(new pma::Track3D(*t));
+			fOutTracks.push_back(new pma::Track3D(*t));
+
+			//if (l > fMinTrackLength) fOutTracks.push_back(new pma::Track3D(*t));
+			//else fShortTracks.push_back(new pma::Track3D(*t));
 		}
 		else
 		{
@@ -86,9 +86,13 @@ void pma::PMAlgVertexing::sortTracks(
 
 bool pma::PMAlgVertexing::findOneVtx(void)
 {
+	if (fOutTracks.size() < 2) return false;
+
 	std::vector< pma::VtxCandidate > candidates;
 	for (size_t t = 0; t < fOutTracks.size() - 1; t++)
 	{
+		if (fOutTracks[t]->Length() < 2 * fMinTrackLength) continue;
+
 		size_t u = t + 1;
 		while (u < fOutTracks.size())
 		{
@@ -195,17 +199,15 @@ size_t pma::PMAlgVertexing::run(
 		return 0;
 	}
 
-	sortTracks(trk_input);
+	sortTracks(trk_input); // copy input and split by tag/size
 
-	size_t iters = 0;
-	while (findOneVtx()) iters++;
-	mf::LogVerbatim("pma::PMAlgVertexing") << "  " << iters << " findOneVtx() iterations";
-
-	//findOneVtx();
+	size_t nvtx = 0;
+	while (findOneVtx()) nvtx++;
+	mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
 
 	collectTracks(trk_input);
 
-	return fOutVertices.size();
+	return nvtx;
 }
 // ------------------------------------------------------
 
@@ -213,11 +215,11 @@ size_t pma::PMAlgVertexing::run(
 	std::vector< pma::Track3D* >& trk_input,
 	const std::vector< TVector3 >& vtx_input)
 {
-	sortTracks(trk_input);
+	sortTracks(trk_input); // copy input and split by tag/size
 
 	// ....
 
-	collectTracks(trk_input);
+	//collectTracks(trk_input); // return output in place of (deleted) input
 
 	return 0;
 }

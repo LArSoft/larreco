@@ -22,6 +22,8 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -149,6 +151,9 @@ private:
     float tmin, float tmax, size_t min_clu_size,
     geo::View_t view, unsigned int tpc, unsigned int cryo);
 
+  void freezeBranchingNodes(std::vector< pma::Track3D* >& tracks);
+  void releaseAllNodes(std::vector< pma::Track3D* >& tracks);
+
   bool areCoLinear(
 	pma::Track3D* trk1, pma::Track3D* trk2,
 	double& dist, double& cos, bool& reverseOrder,
@@ -165,8 +170,6 @@ private:
 
   double validate(pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
-
-  void setTrackTag(pma::Track3D& trk);
 
   bool fIsRealData;
   bool isMcStopping(void) const; // to be moved to the testing module
@@ -306,6 +309,8 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 	fLength = 0.0;
 	fHitsMse = 0.0;
 	fSegAngMean = 0.0;
+
+	fPMAlgVertexing.reset();
 }
 // ------------------------------------------------------
 
@@ -415,23 +420,6 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	return recob::Track(xyz, dircos, dst_dQdx, std::vector< double >(2, util::kBogusD), fTrkIndex + fPidTag);
 }
 // ------------------------------------------------------
-
-void PMAlgTrackMaker::setTrackTag(pma::Track3D& trk)
-{
-	double length = trk.Length();
-	double mse = trk.GetMse();
-	double meanAngle = trk.GetMeanAng();
-
-	if ( // (length < 80.0) &&  // tag only short tracks as EM shower-like
-	    ((mse > 0.0001 * length) || (meanAngle < 3.0)))
-	{
-		trk.SetTag(pma::Track3D::kEmLike);
-	}
-	else
-	{
-		trk.SetTag(pma::Track3D::kTrackLike);
-	}
-}
 
 bool PMAlgTrackMaker::isMcStopping(void) const
 {
@@ -558,6 +546,25 @@ bool PMAlgTrackMaker::extendTrack(TrkCandidate& candidate,
 		delete copy;
 		return false;
 	}
+}
+// ------------------------------------------------------
+
+void PMAlgTrackMaker::freezeBranchingNodes(
+	std::vector< pma::Track3D* >& tracks)
+{
+	for (auto trk : tracks)
+		for (auto node : trk->Nodes())
+			if (node->IsBranching())
+				node->SetFrozen(true);
+}
+// ------------------------------------------------------
+
+void PMAlgTrackMaker::releaseAllNodes(
+	std::vector< pma::Track3D* >& tracks)
+{
+	for (auto trk : tracks)
+		for (auto node : trk->Nodes())
+			node->SetFrozen(false);
 }
 // ------------------------------------------------------
 
@@ -692,6 +699,8 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 	double wallDistThr = fStitchDistToWall;
 	double dfront1, dback1, dfront2, dback2;
 
+	//for (auto & tpc_entry : tracks) freezeBranchingNodes(tpc_entry.second);
+
 	for (auto & tpc_entry1 : tracks)
 	{
 		unsigned int tpc1 = tpc_entry1.first;
@@ -763,6 +772,8 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 			else t++;
 		}
 	}
+
+	//for (auto & tpc_entry : tracks) releaseAllNodes(tpc_entry.second);
 }
 // ------------------------------------------------------
 
@@ -904,7 +915,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
-	reset(evt); // set default values at the beginning of each event
+	reset(evt); // set default values, clear containers at the beginning of each event
 
 	std::vector< pma::Track3D* > result;
 
@@ -940,23 +951,14 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 		if (result.size()) // ok, there is something to save
 		{
-			for (auto trk : result) setTrackTag(*trk); // tag EM-like tracks
-
-			if (fRunVertexing)
+			if (fRunVertexing) // save vertices if found
 			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "Vertex finding / track-vertex reoptimization.";
-				size_t nvtx = fPMAlgVertexing.run(result); // tracks are rearranged if any vtx found
-				if (nvtx)
+				int vidx = 0; double xyz[3];
+				for (auto const& v : fPMAlgVertexing.getVertices())
 				{
-					int vidx = 0;
-					double xyz[3];
-					for (auto const& v : fPMAlgVertexing.getVertices())
-					{
-						xyz[0] = v.X(); xyz[1] = v.Y(); xyz[2] = v.Z();
-						vtxs->push_back(recob::Vertex(xyz, vidx++));
-					}
+					xyz[0] = v.X(); xyz[1] = v.Y(); xyz[2] = v.Z();
+					vtxs->push_back(recob::Vertex(xyz, vidx++));
 				}
-				else mf::LogVerbatim("PMAlgTrackMaker") << "No vertices found.";
 			}
 
 			size_t spStart = 0, spEnd = 0;
@@ -1102,8 +1104,17 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		}
 
 		for (auto const & tpc_entry : tracks)
-			for (auto const & trk : tpc_entry.second)
+			for (auto trk : tpc_entry.second)
+			{
+				fProjectionMatchingAlg.setTrackTag(*trk); // finally tag EM-like tracks
 				result.push_back(trk);
+			}
+
+		if (fRunVertexing)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Vertex finding / track-vertex reoptimization.";
+			fPMAlgVertexing.run(result);
+		}
 
 		listUsedClusters(cluListHandle); // used for development
 	}

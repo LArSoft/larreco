@@ -22,12 +22,8 @@
 #define ProjectionMatchingAlg_h
 
 // Framework includes
-#include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
@@ -35,12 +31,9 @@
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 #include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
-#include "Utilities/AssociationUtil.h"
 
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 
@@ -149,6 +142,9 @@ public:
 	/// Intendet to calculate dQ/dx in the initial part of EM cascade; collection
 	/// view is used by default, but it works also with other projections.
 	double selectInitialHits(pma::Track3D& trk, unsigned int view = geo::kZ) const;
+
+	/// Set cascade- or track-like tag.
+	void setTrackTag(pma::Track3D& trk) const;
 
 private:
 

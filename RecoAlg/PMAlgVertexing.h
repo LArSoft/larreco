@@ -31,6 +31,8 @@ public:
 
 	void reconfigure(const fhicl::ParameterSet& pset);
 
+	void reset(void) { cleanTracks(); fOutVertices.clear(); }
+
 	/// Copy input tracks, find 3D vertices, connect tracks, break them or flip if needed,
 	/// reoptimize track structures. Result is returned as a collection of new tracks, that
 	/// replaces content of trk_input (old tracks are deleted).

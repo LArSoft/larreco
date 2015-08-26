@@ -30,8 +30,7 @@ public:
 		fSegMinLength(segMinLength),
 		fMse(0.0), fMse2D(0.0),
 		fCenter(0., 0., 0.),
-		fErr(0., 0., 0.),
-		fTPC(-1), fCryo(-1)
+		fErr(0., 0., 0.)
 	{}
 
 	bool Has(pma::Track3D* trk) const;
@@ -68,8 +67,6 @@ private:
 	std::vector< double > fWeights;
 	std::vector< std::pair< pma::Track3D*, size_t > > fAssigned;
 	TVector3 fCenter, fErr;
-
-	int fTPC, fCryo;
 };
 
 #endif

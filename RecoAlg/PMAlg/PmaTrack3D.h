@@ -150,6 +150,7 @@ public:
 	/// Main optimization method.
 	double Optimize(int nNodes = -1, double eps = 0.01, bool selAllHits = true);
 
+	void SortHitsInTree(bool skipFirst = false);
 	void MakeProjectionInTree(bool skipFirst = false);
 	void UpdateParamsInTree(bool skipFirst = false);
 	double GetObjFnInTree(bool skipFirst = false);
