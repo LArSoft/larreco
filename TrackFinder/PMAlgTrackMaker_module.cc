@@ -861,7 +861,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
 	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
 
-	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit(new art::Assns< recob::Track, recob::Hit >);
+	std::unique_ptr< art::Assns< recob::Track, recob::Hit, size_t > > trk2hit(new art::Assns< recob::Track, recob::Hit, size_t >);
 	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
 	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
 
@@ -952,8 +952,13 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				if (hits2d.size())
 				{
+					size_t trkIdx = tracks->size() - 1;
+					art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
+					art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
+					for (size_t hidx = 0; hidx < hits2d.size(); hidx++)
+						trk2hit->addSingle(trkPtr, hits2d[hidx], hidx);
+
 					util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
-					util::CreateAssn(*this, evt, *tracks, hits2d, *trk2hit);
 				}
 			}
 
