@@ -219,7 +219,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	this->reconfigure(p);
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
-	produces< art::Assns<recob::Track, recob::Hit> >();
+	produces< art::Assns<recob::Track, recob::Hit, size_t> >();
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 }
