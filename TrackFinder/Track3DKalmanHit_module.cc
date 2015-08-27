@@ -18,6 +18,8 @@
 // StoreNPPlane       - Store nonpreferred planes trajectory points.
 // MaxTcut            - Maximum delta ray energy in Mev for dE/dx.
 // DoDedx             - Global dE/dx enable flag.
+// SelfSeed           - Self seed flag.
+// LineSurface        - Hits on line surfaces (true) or plane surfaces (false).
 // MinSeedHits        - Minimum number of hits per track seed.
 // MinSeedChopHits:   - Potentially chop seeds that exceed this length.
 // MaxChopHits        - Maximum number of hits to chop from each end of seed.
@@ -56,6 +58,9 @@
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "TMath.h"
+
+#include "Utilities/DetectorProperties.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
@@ -65,9 +70,10 @@
 #include "RecoBase/Seed.h"
 #include "RecoAlg/KalmanFilterAlg.h"
 #include "RecoAlg/SeedFinderAlgorithm.h"
+#include "RecoObjects/KHitContainerWireLine.h"
 #include "RecoObjects/KHitContainerWireX.h"
 #include "RecoObjects/SurfXYZPlane.h"
-#include "RecoObjects/PropXYZPlane.h"
+#include "RecoObjects/PropAny.h"
 #include "RecoObjects/KHit.h"
 #include "Utilities/AssociationUtil.h"
 
@@ -181,6 +187,10 @@ namespace trkf {
 
   private:
 
+    // Private methods.
+
+    recob::Seed makeSeed(const art::PtrVector<recob::Hit>& hits) const;
+
     // Fcl parameters.
 
     bool fHist;                         ///< Make histograms.
@@ -193,6 +203,8 @@ namespace trkf {
     bool fStoreNPPlane;                 ///< Store nonpreferred planes trajectory points.
     double fMaxTcut;                    ///< Maximum delta ray energy in MeV for restricted dE/dx.
     bool fDoDedx;                       ///< Global dE/dx enable flag.
+    bool fSelfSeed;                     ///< Self seed flag.
+    bool fLineSurface;                  ///< Line surface flag.
     int fMinSeedHits;                   ///< Minimum number of hits per track seed.
     int fMinSeedChopHits;               ///< Potentially chop seeds that exceed this length.
     int fMaxChopHits;                   ///< Maximum number of hits to chop from each end of seed.
@@ -240,6 +252,8 @@ trkf::Track3DKalmanHit::Track3DKalmanHit(fhicl::ParameterSet const & pset) :
   fStoreNPPlane(true),
   fMaxTcut(0.),
   fDoDedx(false),
+  fSelfSeed(false),
+  fLineSurface(false),
   fMinSeedHits(0),
   fMinSeedChopHits(0),
   fMaxChopHits(0),
@@ -299,6 +313,8 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
   fStoreNPPlane = pset.get<bool>("StoreNPPlane");
   fMaxTcut = pset.get<double>("MaxTcut");
   fDoDedx = pset.get<bool>("DoDedx");
+  fSelfSeed = pset.get<bool>("SelfSeed");
+  fLineSurface = pset.get<bool>("LineSurface");
   fMinSeedHits = pset.get<int>("MinSeedHits");
   fMinSeedChopHits = pset.get<int>("MinSeedChopHits");
   fMaxChopHits = pset.get<int>("MaxChopHits");
@@ -307,7 +323,7 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
   fInitialMomentum = pset.get<double>("InitialMomentum");
   if(fProp != 0)
     delete fProp;
-  fProp = new PropXYZPlane(fMaxTcut, fDoDedx);
+  fProp = new PropAny(fMaxTcut, fDoDedx);
   if(fUseClusterHits && fUsePFParticleHits) {
     throw cet::exception("Track3DKalmanHit")
       << "Using input from both clustered and PFParticle hits.\n";
@@ -549,8 +565,19 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 	// On subsequent trips, or if there were no usable pfparticle-associated seeds,
 	// attempt to generate our own seeds.
 
-	if(seederhits.size()>0)
-	  seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
+	if(seederhits.size()>0) {
+	  if(fSelfSeed) {
+
+	    // Self seed - convert all hits into one big seed.
+
+	    seeds.emplace_back(makeSeed(seederhits));
+	    hitsperseed.emplace_back();
+	    hitsperseed.back().insert(hitsperseed.back().end(),
+				      seederhits.begin(), seederhits.end());
+	  }
+	  else
+	    seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
+	}
       }
       assert(seeds.size() == hitsperseed.size());
       first = false;
@@ -576,10 +603,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 	  // Seems like seeds often end at delta rays, Michel electrons,
 	  // or other pathologies.
 
-	  // Don't chop pfparticle seeds.
+	  // Don't chop pfparticle seeds or self seeds.
 
 	  int nchopmax = std::max(0, int((hpsit->size() - fMinSeedChopHits)/2));
-	  if(pfseed)
+	  if(pfseed || fSelfSeed)
 	    nchopmax = 0;
 	  int nchop = std::min(nchopmax, fMaxChopHits);
 	  art::PtrVector<recob::Hit>::const_iterator itb = hpsit->begin();
@@ -660,12 +687,21 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 		// Fill hit container with current seed hits.
 
-		KHitContainerWireX seedcont;
-		seedcont.fill(seedhits, -1);
+		std::unique_ptr<KHitContainer> pseedcont;
+		if(fLineSurface) {
+		  KHitContainerWireLine* p = new KHitContainerWireLine;
+		  p->fill(seedhits, -1);
+		  pseedcont.reset(p);
+		}
+		else {
+		  KHitContainerWireX* p = new KHitContainerWireX;
+		  p->fill(seedhits, -1);
+		  pseedcont.reset(p);
+		}
 
 		// Set the preferred plane to be the one with the most hits.
 
-		unsigned int prefplane = seedcont.getPreferredPlane();
+		unsigned int prefplane = pseedcont->getPreferredPlane();
 		fKFAlg.setPlane(prefplane);
 		if (mf::isDebugEnabled())
 		  mf::LogDebug("Track3DKalmanHit") << "Preferred plane = " << prefplane << "\n";
@@ -673,7 +709,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 		// Build and smooth seed track.
 
 		KGTrack trg0(prefplane);
-		bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, seedcont);
+		bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, *pseedcont,
+					    fSelfSeed);
 		if(ok) {
 		  KGTrack trg1(prefplane);
 		  ok = fKFAlg.smoothTrack(trg0, &trg1, fProp);
@@ -726,14 +763,23 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
 
 			// Fill hit container using filtered hits.
 
-			KHitContainerWireX trackcont;
-			trackcont.fill(trackhits, -1);
+			std::unique_ptr<KHitContainer> ptrackcont;
+			if(fLineSurface) {
+			  KHitContainerWireLine* p = new KHitContainerWireLine;
+			  p->fill(trackhits, -1);
+			  ptrackcont.reset(p);
+			}
+			else {
+			  KHitContainerWireX* p = new KHitContainerWireX;
+			  p->fill(trackhits, -1);
+			  ptrackcont.reset(p);
+			}
 
 			// Extend the track.  It is not an error for the
 			// extend operation to fail, meaning that no new hits
 			// were added.
 		      
-			bool extendok = fKFAlg.extendTrack(trg1, fProp, trackcont);
+			bool extendok = fKFAlg.extendTrack(trg1, fProp, *ptrackcont);
 			if(extendok)
 			  nfail = 0;
 			else
@@ -940,4 +986,119 @@ void trkf::Track3DKalmanHit::endJob()
     << "Track3DKalmanHit statistics:\n"
     << "  Number of events = " << fNumEvent << "\n"
     << "  Number of tracks created = " << fNumTrack;
+}
+
+//----------------------------------------------------------------------------
+/// Make seed method.
+recob::Seed trkf::Track3DKalmanHit::makeSeed(const art::PtrVector<recob::Hit>& hits) const
+{
+  // Get Services.
+
+  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<util::DetectorProperties> detprop;
+
+  // Do a linear 3D least squares for of y and z vs. x.
+  // y = y0 + ay*(x-x0)
+  // z = z0 + az*(x-x0)
+  // Here x0 is the global average x coordinate of all hits in all planes.
+  // Parameters y0, z0, ay, and az are determined by a simultaneous least squares
+  // fit in all planes.
+
+  // First, determine x0 by looping over every hit.
+
+  double x0 = 0.;
+  int n = 0;
+  for(auto const& phit : hits) {
+    const recob::Hit& hit = *phit;
+    geo::WireID wire_id = hit.WireID();
+    double time = hit.PeakTime();
+    double x = detprop->ConvertTicksToX(time, wire_id);
+    x0 += x;
+    ++n;
+  }
+
+  // If there are no hits, return invalid seed.
+
+  if(n == 0)
+    return recob::Seed();
+
+  // Find the average x.
+
+  x0 /= n;
+
+  // Now do the least squares fit proper.
+
+  KSymMatrix<4>::type sm(4);
+  KVector<4>::type sv(4);
+  sm.clear();
+  sv.clear();
+
+  // Loop over hits (again).
+
+  for(auto const& phit : hits) {
+    const recob::Hit& hit = *phit;
+
+    // Extract the angle, w and x coordinates from hit.
+
+    geo::WireID wire_id = hit.WireID();
+    const geo::WireGeo& wgeom = geom->Wire(wire_id);
+    double xyz[3];
+    wgeom.GetCenter(xyz);
+
+    // Phi convention is the one documented in SurfYZPlane.h.
+
+    double phi = TMath::PiOver2() - wgeom.ThetaZ();
+    double sphi = std::sin(phi);
+    double cphi = std::cos(phi);
+    double w = -xyz[1]*sphi + xyz[2]*cphi;
+
+    double time = hit.PeakTime();
+    double x = detprop->ConvertTicksToX(time, wire_id);
+
+    // Accumulate data for least squares fit.
+
+    double dx = x-x0;
+
+    sm(0, 0) += sphi*sphi;
+    sm(1, 0) -= sphi*cphi;
+    sm(1, 1) += cphi*cphi;
+    sm(2, 0) += sphi*sphi * dx;
+    sm(2, 1) -= sphi*cphi * dx;
+    sm(2, 2) += sphi*sphi * dx*dx;
+    sm(3, 0) -= sphi*cphi * dx;
+    sm(3, 1) += cphi*cphi * dx;
+    sm(3, 2) -= sphi*cphi * dx*dx;
+    sm(3, 3) += cphi*cphi * dx*dx;
+
+    sv(0) -= sphi * w;
+    sv(1) += cphi * w;
+    sv(2) -= sphi * w*dx;
+    sv(3) += cphi * w*dx;
+  }
+
+  // Solve.
+
+  bool ok = syminvert(sm);
+  if(!ok)
+    return recob::Seed();
+  KVector<4>::type par(4);
+  par = prod(sm, sv);
+
+  double y0 = par(0);
+  double z0 = par(1);
+  double dydx = par(2);
+  double dzdx = par(3);
+
+  // Make seed.
+
+  double dsdx = std::hypot(1., std::hypot(dydx, dzdx));
+
+  double pos[3] = {x0, y0, z0};
+  double dir[3] = {1./dsdx, dydx/dsdx, dzdx/dsdx};
+  double poserr[3] = {0., 0., 0.};
+  double direrr[3] = {0., 0., 0.};
+
+  recob::Seed result(pos, dir, poserr, direrr);
+
+  return result;
 }
