@@ -1324,6 +1324,13 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart)
 	return true;
 }
 
+pma::Track3D* pma::Track3D::GetRoot(void)
+{
+	pma::Segment3D* seg = static_cast< pma::Segment3D* >(fNodes.front()->Prev());
+	if (seg) return seg->Parent()->GetRoot();
+	else return this;
+}
+
 bool pma::Track3D::IsAttachedTo(pma::Track3D const * trk, bool skipFirst) const
 {
 	if (trk == this) return true;

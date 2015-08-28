@@ -205,6 +205,9 @@ size_t pma::PMAlgVertexing::run(
 	while (findOneVtx()) nvtx++;
 	mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
 
+	//if (findOneVtx()) nvtx++;
+	//if (findOneVtx()) nvtx++;
+
 	collectTracks(trk_input);
 
 	return nvtx;

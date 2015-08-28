@@ -38,8 +38,11 @@ bool pma::VtxCandidate::Has(const pma::VtxCandidate& other) const
 bool pma::VtxCandidate::IsAttached(pma::Track3D* trk) const
 {
 	for (size_t i = 0; i < fAssigned.size(); i++)
+	{
 		if ((trk == fAssigned[i].first) ||
-		    trk->IsAttachedTo(fAssigned[i].first)) return true;
+	         trk->GetRoot()->IsAttachedTo(fAssigned[i].first))
+			return true;
+	}
 	return false;
 }
 

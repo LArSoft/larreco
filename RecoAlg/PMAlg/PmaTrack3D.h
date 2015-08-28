@@ -183,6 +183,7 @@ public:
 
 	bool AttachTo(pma::Node3D* vStart);
 	bool IsAttachedTo(pma::Track3D const * trk, bool skipFirst = false) const;
+	pma::Track3D* GetRoot(void);
 
 	void MakeProjection(void);
 	void UpdateProjection(void);
