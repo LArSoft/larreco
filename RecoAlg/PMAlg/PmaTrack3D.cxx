@@ -684,12 +684,12 @@ unsigned int pma::Track3D::NEnabledHits(unsigned int view) const
 	return n;
 }
 
-bool pma::Track3D::HasTwoViews(void) const
+bool pma::Track3D::HasTwoViews(size_t nmin) const
 {
 	unsigned int nviews = 0;
-	if (NHits(geo::kU)) nviews++;
-	if (NHits(geo::kV)) nviews++;
-	if (NHits(geo::kZ)) nviews++;
+	if (NHits(geo::kU) >= nmin) nviews++;
+	if (NHits(geo::kV) >= nmin) nviews++;
+	if (NHits(geo::kZ) >= nmin) nviews++;
 	return (nviews > 1);
 }
 
@@ -1331,37 +1331,30 @@ pma::Track3D* pma::Track3D::GetRoot(void)
 	else return this;
 }
 
-bool pma::Track3D::IsAttachedTo(pma::Track3D const * trk, bool skipFirst) const
+void pma::Track3D::GetBranches(std::vector< pma::Track3D const * >& branches) const
 {
-	if (trk == this) return true;
+	for (auto trk : branches) if (trk == this) return;
 
-	size_t i0 = 0;
-	if (skipFirst) i0 = 1;
-	for (size_t i = i0; i < fNodes.size(); i++)
+	branches.push_back(this);
+	for (size_t i = 0; i < fNodes.size(); i++)
 		for (size_t n = 0; n < fNodes[i]->NextCount(); n++)
 		{
 			pma::Segment3D* seg = static_cast< pma::Segment3D* >(fNodes[i]->Next(n));
-			if (seg->Parent() != this)
-			{
-				if ((seg->Parent() == trk) ||
-				    seg->Parent()->IsAttachedTo(trk, true)) return true;
-			}
+			if (seg->Parent() != this) seg->Parent()->GetBranches(branches);
 		}
+}
 
-	if (!skipFirst)
-	{
-		for (size_t i = 0; i < trk->fNodes.size(); i++)
-			for (size_t n = 0; n < trk->fNodes[i]->NextCount(); n++)
-			{
-				pma::Segment3D* seg = static_cast< pma::Segment3D* >(trk->fNodes[i]->Next(n));
-				if (seg->Parent() != trk)
-				{
-					if ((seg->Parent() == this) ||
-					    seg->Parent()->IsAttachedTo(this, true)) return true;
-				}
-			}
-	}
+bool pma::Track3D::IsAttachedTo(pma::Track3D const * trk) const
+{
+	if (trk == this) return true;
 
+	std::vector< pma::Track3D const * > branchesThis, branchesTrk;
+	trk->GetBranches(branchesTrk);
+	GetBranches(branchesThis);
+
+	for (auto bThis : branchesThis)
+		for (auto bTrk : branchesTrk)
+			if (bThis == bTrk) return true;
 	return false;
 }
 
@@ -1686,13 +1679,13 @@ void pma::Track3D::ReassignHitsInTree(pma::Track3D* trkRoot)
 	pma::Hit3D* hit = 0;
 	pma::Track3D* nearestTrk = 0;
 	size_t i = 0;
-	while (i < size())
+	while (HasTwoViews(2) && (i < size()))
 	{
 		hit = fHits[i];
 		d0 = hit->GetDistToProj();
 
 		nearestTrk = GetNearestTrkInTree(hit->Point2D(), hit->View2D(), dmin);
-		if ((nearestTrk != this) && (dmin < 0.7 * d0))
+		if ((nearestTrk != this) && (dmin < 0.5 * d0))
 		{
 			nearestTrk->push_back(release_at(i));
 			mf::LogVerbatim("pma::Track3D") << "*** hit moved to another track ***";
@@ -1816,7 +1809,7 @@ double pma::Track3D::TuneFullTree(double eps)
 			g0 = TuneSinglePass();
 
 			MakeProjectionInTree();
-			ReassignHitsInTree();
+			//ReassignHitsInTree();
 			UpdateParamsInTree();
 
 			if (g0 == 0.0F) break;

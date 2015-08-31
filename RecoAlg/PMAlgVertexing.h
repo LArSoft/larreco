@@ -13,6 +13,7 @@
 #define PMAlgVertexing_h
 
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
+#include "RecoAlg/PMAlg/PmaVtxCandidate.h"
 
 // ROOT & C++
 #include <memory>
@@ -31,7 +32,7 @@ public:
 
 	void reconfigure(const fhicl::ParameterSet& pset);
 
-	void reset(void) { cleanTracks(); fOutVertices.clear(); }
+	void reset(void) { cleanTracks(); }
 
 	/// Copy input tracks, find 3D vertices, connect tracks, break them or flip if needed,
 	/// reoptimize track structures. Result is returned as a collection of new tracks, that
@@ -47,13 +48,13 @@ public:
 	size_t run(std::vector< pma::Track3D* >& trk_input,
 	           const std::vector< TVector3 >& vtx_input);
 
-	const std::vector< TVector3 >& getVertices(void) const { return fOutVertices; }
-	size_t getNumberVertices(void) const { return fOutVertices.size(); }
+	std::vector< pma::Node3D const * > getVertices(const std::vector< pma::Track3D* >& tracks) const;
 
 private:
-	bool findOneVtx(void);
+	std::vector< pma::VtxCandidate > firstPassCandidates(void);
+	std::vector< pma::VtxCandidate > secondPassCandidates(void);
+	bool findOneVtx(std::vector< pma::VtxCandidate >& candidates);
 
-	std::vector< TVector3 > fOutVertices;
 	std::vector< pma::Track3D* > fOutTracks;
 	std::vector< pma::Track3D* > fShortTracks;
 	std::vector< pma::Track3D* > fEmTracks;

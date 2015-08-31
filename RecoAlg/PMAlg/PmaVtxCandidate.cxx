@@ -19,7 +19,7 @@
 #include "TMath.h"
 
 const double pma::VtxCandidate::kMaxDistToTrack = 4.0; // max. dist. track to center to create vtx
-const double pma::VtxCandidate::kMinDistToNode = 1.5;  // min. dist. to node needed to split segment
+const double pma::VtxCandidate::kMinDistToNode = 3.0;  // min. dist. to node needed to split segment
 
 bool pma::VtxCandidate::Has(pma::Track3D* trk) const
 {
@@ -37,13 +37,21 @@ bool pma::VtxCandidate::Has(const pma::VtxCandidate& other) const
 
 bool pma::VtxCandidate::IsAttached(pma::Track3D* trk) const
 {
+	pma::Track3D const * rootTrk = trk->GetRoot();
 	for (size_t i = 0; i < fAssigned.size(); i++)
 	{
-		if ((trk == fAssigned[i].first) ||
-	         trk->GetRoot()->IsAttachedTo(fAssigned[i].first))
-			return true;
+		pma::Track3D const * rootAssn = fAssigned[i].first->GetRoot();
+		if (rootTrk->IsAttachedTo(rootAssn)) return true;
 	}
 	return false;
+}
+
+size_t pma::VtxCandidate::Size(double minLength) const
+{
+	size_t n = 0;
+	for (auto const & c : fAssigned)
+		if (c.first->Length() > minLength) n++;
+	return n;
 }
 
 bool pma::VtxCandidate::Add(pma::Track3D* trk)
@@ -219,27 +227,38 @@ double pma::VtxCandidate::Test(const VtxCandidate& other) const
 	return sqrt(dw);
 }
 
-double pma::VtxCandidate::MaxAngle(void) const
+double pma::VtxCandidate::MaxAngle(double minLength) const
 {
-	double a, min = 1.0;
+	TVector3 dir_i;
+	size_t max_l_idx = 0;
+	double l, max_l = 0.0;
 	for (size_t i = 0; i < fAssigned.size() - 1; i++)
 	{
-		pma::Track3D* trk_i = fAssigned[i].first;
-		pma::Node3D* vtx_i0 = trk_i->Nodes()[fAssigned[i].second];
-		pma::Node3D* vtx_i1 = trk_i->Nodes()[fAssigned[i].second + 1];
-		TVector3 dir_i = vtx_i1->Point3D() - vtx_i0->Point3D();
-		dir_i *= 1.0 / dir_i.Mag();
-		for (size_t j = i + 1; j < fAssigned.size(); j++)
+		l = fAssigned[i].first->Length();
+		if (l > max_l)
 		{
-			pma::Track3D* trk_j = fAssigned[j].first;
-			pma::Node3D* vtx_j0 = trk_j->Nodes()[fAssigned[j].second];
-			pma::Node3D* vtx_j1 = trk_j->Nodes()[fAssigned[j].second + 1];
-			TVector3 dir_j = vtx_j1->Point3D() - vtx_j0->Point3D();
-			dir_j *= 1.0 / dir_j.Mag();
-			a = fabs(dir_i * dir_j);
-			if (a < min) min = a;
+			max_l = l; max_l_idx = i;
+			pma::Track3D* trk_i = fAssigned[i].first;
+			pma::Node3D* vtx_i0 = trk_i->Nodes()[fAssigned[i].second];
+			pma::Node3D* vtx_i1 = trk_i->Nodes()[fAssigned[i].second + 1];
+			dir_i = vtx_i1->Point3D() - vtx_i0->Point3D();
+			dir_i *= 1.0 / dir_i.Mag();
 		}
 	}
+
+	double a, min = 1.0;
+	for (size_t j = 0; j < fAssigned.size(); j++)
+		if ((j != max_l_idx) && (fAssigned[j].first->Length() > minLength))
+	{
+		pma::Track3D* trk_j = fAssigned[j].first;
+		pma::Node3D* vtx_j0 = trk_j->Nodes()[fAssigned[j].second];
+		pma::Node3D* vtx_j1 = trk_j->Nodes()[fAssigned[j].second + 1];
+		TVector3 dir_j = vtx_j1->Point3D() - vtx_j0->Point3D();
+		dir_j *= 1.0 / dir_j.Mag();
+		a = fabs(dir_i * dir_j);
+		if (a < min) min = a;
+	}
+
 	return 180.0 * acos(min) / TMath::Pi();
 }
 
@@ -256,12 +275,19 @@ bool pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
 
 	size_t ntrk = 0;
 	for (size_t t = 0; t < other.Size(); t++)
+	{
+		if (IsAttached(other.fAssigned[t].first))
+		{
+			mf::LogVerbatim("pma::VtxCandidate") << "already attached..";
+			return false;
+		}
 		if (!Has(other.fAssigned[t].first))
 		{
 			fAssigned.push_back(other.fAssigned[t]);
 			fWeights.push_back(other.fWeights[t]);
 			ntrk++;
 		}
+	}
 	if (ntrk)
 	{
 		double mse0 = fMse, mse1 = other.fMse;
@@ -364,7 +390,9 @@ double pma::VtxCandidate::Compute(void)
 	return resultMse;
 }
 
-void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
+void pma::VtxCandidate::JoinTracks(
+	std::vector< pma::Track3D* >& tracks,
+	std::vector< pma::Track3D* >& src)
 {
 	if (tracksJoined)
 	{
@@ -376,9 +404,17 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 	pma::Node3D* vtxCenter = 0;
 
 	mf::LogVerbatim("pma::VtxCandidate") << "JoinTracks at:"
-		<< " vx:" << fCenter.X()
-		<< " vy:" << fCenter.Y()
-		<< " vx:" << fCenter.Z();
+		<< " vx:" << fCenter.X() << " vy:" << fCenter.Y() << " vx:" << fCenter.Z();
+
+	for (size_t i = 0; i < fAssigned.size(); i++)
+		for (size_t t = 0; t < src.size(); t++)
+			if (fAssigned[i].first == src[t])
+		{
+			tracks.push_back(src[t]);
+			src.erase(src.begin() + t);
+			break;
+		}
+
 	for (size_t i = 0; i < fAssigned.size(); i++)
 	{
 		mf::LogVerbatim("pma::VtxCandidate") << "----------> track #" << i;
@@ -553,7 +589,7 @@ void pma::VtxCandidate::JoinTracks(std::vector< pma::Track3D* >& tracks)
 		fMse = 0.0; fMse2D = 0.0;
 
 		pma::Segment3D* rootSeg = static_cast< pma::Segment3D* >(vtxCenter->Next(0));
-		rootSeg->Parent()->TuneFullTree();
+		rootSeg->Parent()->GetRoot()->TuneFullTree();
 	}
 	else
 	{

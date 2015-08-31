@@ -51,6 +51,7 @@
 #include "RecoAlg/PMAlg/Utilities.h"
 
 #include "TTree.h"
+#include "TMath.h"
 
 #include <memory>
 
@@ -569,7 +570,7 @@ void PMAlgTrackMaker::releaseAllNodes(
 // ------------------------------------------------------
 
 bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
-	double& dist, double& cos, bool& reverseOrder,
+	double& dist, double& cos3d, bool& reverseOrder,
 	double distThr, double distThrMin,
 	double distProjThr,
 	double cosThr)
@@ -598,7 +599,7 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 	if (distBB < dist) { k = 3; dist = distBB; }
 
 	dist = sqrt(dist);
-	cos = 0.0;
+	cos3d = 0.0;
 
 	//std::cout << "  min dist:" << dist << " d:" << d << ", trk len:" << lmax << std::endl;
 	if (dist < d)
@@ -617,24 +618,61 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 
 		size_t nodeEndIdx = trk1->Nodes().size() - 1;
 
-		double distProj1 = pma::Dist2(
-			trk1->back()->Point3D(),
-			pma::GetProjectionToSegment(trk1->back()->Point3D(),
-				trk2->Nodes()[0]->Point3D(), trk2->Nodes()[1]->Point3D()));
+		TVector3 endpoint1 = trk1->back()->Point3D();
+		TVector3 proj1 = pma::GetProjectionToSegment(endpoint1,
+				trk2->Nodes()[0]->Point3D(), trk2->Nodes()[1]->Point3D());
+		double distProj1 = sqrt( pma::Dist2(endpoint1, proj1) );
 
-		double distProj2 = pma::Dist2(
-			trk2->front()->Point3D(),
-			pma::GetProjectionToSegment(trk2->front()->Point3D(),
-				trk1->Nodes()[nodeEndIdx - 1]->Point3D(), trk1->Nodes()[nodeEndIdx]->Point3D()));
+		TVector3 endpoint2 = trk2->front()->Point3D();
+		TVector3 proj2 = pma::GetProjectionToSegment(endpoint2,
+				trk1->Nodes()[nodeEndIdx - 1]->Point3D(), trk1->Nodes()[nodeEndIdx]->Point3D());
+		double distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 
 		TVector3 dir1 = trk1->Nodes()[nodeEndIdx]->Point3D() - trk1->Nodes()[nodeEndIdx - 1]->Point3D();
 		TVector3 dir2 = trk2->Nodes()[1]->Point3D() - trk2->Nodes()[0]->Point3D();
 
-		cos = (dir1 * dir2) / (dir1.Mag() * dir2.Mag());
+		cos3d = (dir1 * dir2) / (dir1.Mag() * dir2.Mag());
+
+		if (cos3d <= cosThr) mf::LogVerbatim("PMAlgTrackMaker") << "...high cos";
+		if ((distProj1 >= distProjThr) || (distProj2 >= distProjThr))
+			mf::LogVerbatim("PMAlgTrackMaker") << "...high proj";
 
 		//std::cout << "     cos:" << cos << " p1:" << distProj1 << " p2:" << distProj2 << std::endl;
-		if ((cos > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
+		if ((cos3d > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
 			return true;
+		else // check if parallel to wires & colinear in 2D
+		{
+			const double maxCosXZ = 0.996195; // 5 deg
+
+			TVector3 dir1_xz(dir1.X(), 0., dir1.Y());
+			dir1_xz *= 1.0 / dir1_xz.Mag();
+
+			TVector3 dir2_xz(dir2.X(), 0., dir2.Y());
+			dir2_xz *= 1.0 / dir2_xz.Mag();
+
+			if ((fabs(dir1_xz.Z()) > maxCosXZ) && (fabs(dir2_xz.Z()) > maxCosXZ))
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "Check colinear XZ.";
+
+				endpoint1.SetXYZ(endpoint1.X(), 0., endpoint1.Z());
+				proj1.SetXYZ(proj1.X(), 0., proj1.Z());
+				distProj1 = sqrt( pma::Dist2(endpoint1, proj1) );
+
+				endpoint2.SetXYZ(endpoint2.X(), 0., endpoint2.Z());
+				proj2.SetXYZ(proj2.X(), 0., proj2.Z());
+				distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
+			
+				double cosThrXZ = cos(0.5 * acos(cosThr));
+				double distProjThrXZ = 0.5 * distProjThr;
+
+				double cosXZ = dir1_xz * dir2_xz;
+				if (cosXZ <= cosThrXZ) mf::LogVerbatim("PMAlgTrackMaker") << "...high cos";
+				if ((distProj1 >= distProjThrXZ) || (distProj2 >= distProjThrXZ))
+					mf::LogVerbatim("PMAlgTrackMaker") << "...high proj";
+				if ((cosXZ > cosThrXZ) && (distProj1 < distProjThrXZ) && (distProj2 < distProjThrXZ))
+					return true;
+			}
+		}
 	}
 	return false;
 }
@@ -646,7 +684,7 @@ void PMAlgTrackMaker::mergeCoLinear(std::vector< pma::Track3D* >& tracks)
 	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
 
 	double distProjThr = fMergeTransverseShift;
-	double cosThr = cos(fMergeAngle);
+	double cosThr = cos(TMath::Pi() * fMergeAngle / 180.0);
 
 	bool r;
 	double d, c;
@@ -691,10 +729,10 @@ void PMAlgTrackMaker::mergeCoLinear(std::vector< pma::Track3D* >& tracks)
 void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 {
 	double distThr = 0.25;    // max gap as a fraction of the longer track length
-	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
+	double distThrMin = 2.5;  // lower limit of max gap threshold [cm]
 
 	double distProjThr = fStitchTransverseShift;
-	double cosThr = cos(fStitchAngle);
+	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
 
 	double wallDistThr = fStitchDistToWall;
 	double dfront1, dback1, dfront2, dback2;
@@ -954,11 +992,16 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			if (fRunVertexing) // save vertices if found
 			{
 				int vidx = 0; double xyz[3];
-				for (auto const& v : fPMAlgVertexing.getVertices())
+				auto vsel = fPMAlgVertexing.getVertices(result);
+				for (auto v : vsel)
 				{
-					xyz[0] = v.X(); xyz[1] = v.Y(); xyz[2] = v.Z();
+					xyz[0] = v->Point3D().X();
+					xyz[1] = v->Point3D().Y();
+					xyz[2] = v->Point3D().Z();
+					mf::LogVerbatim("Summary") << "  vtx:" << xyz[0] << ":" << xyz[1] << ":" << xyz[2];
 					vtxs->push_back(recob::Vertex(xyz, vidx++));
 				}
+				mf::LogVerbatim("Summary") << vtxs->size() << " vertices ready";
 			}
 
 			size_t spStart = 0, spEnd = 0;

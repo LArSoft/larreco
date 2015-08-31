@@ -67,7 +67,7 @@ public:
 
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
-	bool HasTwoViews(void) const;
+	bool HasTwoViews(size_t nmin = 1) const;
 
 	std::vector< unsigned int > TPCs(void) const;
 	std::vector< unsigned int > Cryos(void) const;
@@ -182,8 +182,10 @@ public:
 	bool RemoveNode(size_t idx);
 
 	bool AttachTo(pma::Node3D* vStart);
-	bool IsAttachedTo(pma::Track3D const * trk, bool skipFirst = false) const;
+	bool IsAttachedTo(pma::Track3D const * trk) const;
+
 	pma::Track3D* GetRoot(void);
+	void GetBranches(std::vector< pma::Track3D const * >& branches) const;
 
 	void MakeProjection(void);
 	void UpdateProjection(void);

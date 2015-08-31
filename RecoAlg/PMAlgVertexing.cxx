@@ -5,7 +5,6 @@
 
 #include "RecoAlg/PMAlgVertexing.h"
 
-#include "RecoAlg/PMAlg/PmaVtxCandidate.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -69,43 +68,63 @@ void pma::PMAlgVertexing::sortTracks(
 	for (auto t : trk_input)
 	{
 		double l = t->Length();
-		if ((t->GetTag() != pma::Track3D::kEmLike) || (l > 2 * fMinTrackLength))
+		if (t->GetTag() == pma::Track3D::kEmLike)
 		{
-			fOutTracks.push_back(new pma::Track3D(*t));
-
-			//if (l > fMinTrackLength) fOutTracks.push_back(new pma::Track3D(*t));
-			//else fShortTracks.push_back(new pma::Track3D(*t));
+			if (l > 2 * fMinTrackLength) fOutTracks.push_back(new pma::Track3D(*t));
+			else fEmTracks.push_back(new pma::Track3D(*t));
 		}
 		else
 		{
-			fEmTracks.push_back(new pma::Track3D(*t));
+			if (l > fMinTrackLength) fOutTracks.push_back(new pma::Track3D(*t));
+			else fEmTracks.push_back(new pma::Track3D(*t));
 		}
 	}
+	mf::LogVerbatim("pma::PMAlgVertexing") << "long tracks: " << fOutTracks.size() << std::endl;
+	mf::LogVerbatim("pma::PMAlgVertexing") << "em and short tracks: " << fEmTracks.size() << std::endl;
 }
 // ------------------------------------------------------
 
-bool pma::PMAlgVertexing::findOneVtx(void)
+std::vector< pma::VtxCandidate > pma::PMAlgVertexing::firstPassCandidates(void)
 {
-	if (fOutTracks.size() < 2) return false;
-
 	std::vector< pma::VtxCandidate > candidates;
 	for (size_t t = 0; t < fOutTracks.size() - 1; t++)
 	{
-		if (fOutTracks[t]->Length() < 2 * fMinTrackLength) continue;
-
-		size_t u = t + 1;
-		while (u < fOutTracks.size())
+		for (size_t u = t + 1; u < fOutTracks.size(); u++)
 		{
 			pma::VtxCandidate candidate;
 			if (!candidate.Add(fOutTracks[t])) break; // no segments with length > thr
 
 			// **************************** try Mse2D / or only Mse ************************************
-			if (candidate.Add(fOutTracks[u++]) && (sqrt(candidate.Mse()) < 1.0))
-			//if (candidate.Add(fOutTracks[u++]) && (sqrt(candidate.Mse()) < 2.0) && (candidate.Mse2D() < 1.0))
+			if (candidate.Add(fOutTracks[u]) && (sqrt(candidate.Mse()) < 1.0))
+			//if (candidate.Add(fOutTracks[u]) && (sqrt(candidate.Mse()) < 2.0) && (candidate.Mse2D() < 1.0))
 				candidates.push_back(candidate);
 		}
 	}
+	return candidates;
+}
 
+std::vector< pma::VtxCandidate > pma::PMAlgVertexing::secondPassCandidates(void)
+{
+	std::vector< pma::VtxCandidate > candidates;
+	for (size_t t = 0; t < fOutTracks.size(); t++)
+		if (fOutTracks[t]->Length() > fMinTrackLength)
+	{
+		for (size_t u = 0; u < fEmTracks.size(); u++)
+		{
+			pma::VtxCandidate candidate;
+			if (!candidate.Add(fOutTracks[t])) break; // no segments with length > thr
+
+			if (candidate.Add(fEmTracks[u]) && (sqrt(candidate.Mse()) < 1.0))
+			{
+				candidates.push_back(candidate);
+			}
+		}
+	}
+	return candidates;
+}
+
+bool pma::PMAlgVertexing::findOneVtx(std::vector< pma::VtxCandidate >& candidates)
+{
 	bool merged = true;
 	while (merged && (candidates.size() > 1))
 	{
@@ -147,20 +166,19 @@ bool pma::PMAlgVertexing::findOneVtx(void)
 		}
 	}
 
-	int nmax = 0, c_best = -1;
-	double amax = 0.0;
+	int s, nmax = 0, c_best = -1;
+	double a, amax = 0.0;
+	//bool pure_endpoints = false;
 
 	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx candidates: " << candidates.size();
 	for (size_t v = 0; v < candidates.size(); v++)
 	{
-		//vtxSel->push_back(new Vertex(candidates[v].Center()));
+		s = (int)candidates[v].Size(2 * fMinTrackLength);
+		a = candidates[v].MaxAngle(1.0);
 
-		if (((int)candidates[v].Size() > nmax) ||
-			(((int)candidates[v].Size() == nmax) && (candidates[v].MaxAngle() > amax)))
+		if ((s > nmax) || ((s == nmax) && (a > amax)))
 		{
-			nmax = candidates[v].Size();
-			amax = candidates[v].MaxAngle();
-			c_best = v;
+			nmax = s; amax = a; c_best = v;
 		}
 
 		mf::LogVerbatim("pma::PMAlgVertexing")
@@ -177,13 +195,12 @@ bool pma::PMAlgVertexing::findOneVtx(void)
 		mf::LogVerbatim("pma::PMAlgVertexing")
 			<< " dist 3D:" << sqrt(candidates[v].Mse())
 			<< " 2D:" << sqrt(candidates[v].Mse2D())
-			<< " " << candidates[v].MaxAngle();
+			<< " max ang:" << a;
 	}
 
 	if (c_best >= 0)
 	{
-		candidates[c_best].JoinTracks(fOutTracks);
-		fOutVertices.push_back(candidates[c_best].Center());
+		candidates[c_best].JoinTracks(fOutTracks, fEmTracks);
 		return true;
 	}
 	else return false;
@@ -195,18 +212,49 @@ size_t pma::PMAlgVertexing::run(
 {
 	if (trk_input.size() < 2)
 	{
-		mf::LogWarning("pma::PMAlgVertexing") << "no source tracks!";
+		mf::LogWarning("pma::PMAlgVertexing") << "need min two source tracks!";
 		return 0;
 	}
 
 	sortTracks(trk_input); // copy input and split by tag/size
 
 	size_t nvtx = 0;
-	while (findOneVtx()) nvtx++;
-	mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
+	mf::LogVerbatim("pma::PMAlgVertexing") << "Pass #1:";
+	if (fOutTracks.size() > 1)
+	{
+		bool found = true;
+		while (found)
+		{
+			auto candidates = firstPassCandidates();
+			if (candidates.size())
+			{
+				if (findOneVtx(candidates)) nvtx++;
+				else found = false;
+			}
+			else found = false;
+		}
+		mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
+	}
+	else mf::LogVerbatim("pma::PMAlgVertexing") << " ...short tracks only.";
 
-	//if (findOneVtx()) nvtx++;
-	//if (findOneVtx()) nvtx++;
+	mf::LogVerbatim("pma::PMAlgVertexing") << "Pass #2:";
+	if (fOutTracks.size() && fEmTracks.size())
+	{
+		bool found = true;
+		while (found && fEmTracks.size())
+		{
+			auto candidates = secondPassCandidates();
+			if (candidates.size())
+			{
+				if (findOneVtx(candidates)) nvtx++;
+				else found = false;
+			}
+			else found = false;
+		}
+
+		mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
+	}
+	else mf::LogVerbatim("pma::PMAlgVertexing") << " ...no tracks.";
 
 	collectTracks(trk_input);
 
@@ -225,6 +273,28 @@ size_t pma::PMAlgVertexing::run(
 	//collectTracks(trk_input); // return output in place of (deleted) input
 
 	return 0;
+}
+// ------------------------------------------------------
+
+std::vector< pma::Node3D const * > pma::PMAlgVertexing::getVertices(
+	const std::vector< pma::Track3D* >& tracks) const
+{
+	std::vector< pma::Node3D const * > vsel;
+
+	for (auto trk : tracks)
+		for (auto node : trk->Nodes())
+			if (node->IsBranching())
+	{
+		bool found = false;
+		for (auto v : vsel)
+			if (node == v)
+		{
+			found = true; break;
+		}
+		if (!found) vsel.push_back(node);
+	}
+
+	return vsel;
 }
 // ------------------------------------------------------
 

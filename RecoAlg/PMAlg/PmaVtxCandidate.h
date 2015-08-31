@@ -25,7 +25,7 @@ public:
 	static const double kMaxDistToTrack;
 	static const double kMinDistToNode;
 
-	VtxCandidate(double segMinLength = 2.0) :
+	VtxCandidate(double segMinLength = 0.5) :
 		tracksJoined(false),
 		fSegMinLength(segMinLength),
 		fMse(0.0), fMse2D(0.0),
@@ -45,17 +45,20 @@ public:
 
 	double Test(const VtxCandidate& other) const;
 
-	double MaxAngle(void) const;
+	double MaxAngle(double minLength = 0.0) const;
+
+	size_t Size(double minLength = 0.0) const;
 
 	bool MergeWith(const VtxCandidate& other);
 
 	double Compute(void);
 
-	void JoinTracks(std::vector< pma::Track3D* >& tracks);
+	void JoinTracks(
+		std::vector< pma::Track3D* >& tracks,
+		std::vector< pma::Track3D* >& src);
 
 	const TVector3& Center(void) const { return fCenter; }
 	double Weight(size_t i) const { return fWeights[i]; }
-	size_t Size(void) const { return fAssigned.size(); }
 	double Mse(void) const { return fMse; }
 	double Mse2D(void) const { return fMse2D; }
 

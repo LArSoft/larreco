@@ -62,12 +62,12 @@ standard_pmalgtrackmaker:
                                       #
   MergeWithinTPC:         false       # merge witnin single TPC; finds tracks best matching by angle, with limits:
   MergeTransverseShift:   2.0         #    - max. transverse displacement [cm] between tracks
-  MergeAngle:             0.5         #    - max. angle [degree] between tracks (nearest segments)
+  MergeAngle:             2.0         #    - max. angle [degree] between tracks (nearest segments)
                                       #
   StitchBetweenTPCs:      true        # stitch between TPCs; finds tracks best matching by angle, with limits:
   StitchDistToWall:       3.0         #    - max. track endpoint distance [cm] to TPC boundary
   StitchTransverseShift:  3.0         #    - max. transverse displacement [cm] between tracks
-  StitchAngle:            7.0         #    - max. angle [degree] between tracks (nearest segments)
+  StitchAngle:           10.0         #    - max. angle [degree] between tracks (nearest segments)
 }
 
 standard_featuretracker:
