@@ -390,14 +390,14 @@ double pma::VtxCandidate::Compute(void)
 	return resultMse;
 }
 
-void pma::VtxCandidate::JoinTracks(
+bool pma::VtxCandidate::JoinTracks(
 	std::vector< pma::Track3D* >& tracks,
 	std::vector< pma::Track3D* >& src)
 {
 	if (tracksJoined)
 	{
 		mf::LogError("pma::VtxCandidate") << "Tracks already attached to the vertex.";
-		return;
+		return false;
 	}
 	tracksJoined = true;
 
@@ -590,10 +590,12 @@ void pma::VtxCandidate::JoinTracks(
 
 		pma::Segment3D* rootSeg = static_cast< pma::Segment3D* >(vtxCenter->Next(0));
 		rootSeg->Parent()->GetRoot()->TuneFullTree();
+		return true;
 	}
 	else
 	{
 		mf::LogError("pma::VtxCandidate") << "No common vertex";
+		return false;
 	}
 }
 

@@ -1300,8 +1300,9 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart)
 
 	if (vtx->Prev())
 	{
-		mf::LogError("pma::Track3D") << "Track was already attached to another track.";
-		return false;
+		//mf::LogVerbatim("pma::Track3D") << "Track was already attached to another track.";
+		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtx->Prev());
+		seg->Parent()->Flip();
 	}
 
 	//mf::LogVerbatim("pma::Track3D") << "Attach: " << vtx->NextCount() << " -> " << vStart->NextCount();

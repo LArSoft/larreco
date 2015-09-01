@@ -53,7 +53,7 @@ public:
 
 	double Compute(void);
 
-	void JoinTracks(
+	bool JoinTracks(
 		std::vector< pma::Track3D* >& tracks,
 		std::vector< pma::Track3D* >& src);
 

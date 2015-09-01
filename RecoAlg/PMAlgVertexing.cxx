@@ -200,8 +200,7 @@ bool pma::PMAlgVertexing::findOneVtx(std::vector< pma::VtxCandidate >& candidate
 
 	if (c_best >= 0)
 	{
-		candidates[c_best].JoinTracks(fOutTracks, fEmTracks);
-		return true;
+		return candidates[c_best].JoinTracks(fOutTracks, fEmTracks);
 	}
 	else return false;
 }
@@ -228,8 +227,8 @@ size_t pma::PMAlgVertexing::run(
 			auto candidates = firstPassCandidates();
 			if (candidates.size())
 			{
-				if (findOneVtx(candidates)) nvtx++;
-				else found = false;
+				found = findOneVtx(candidates);
+				if (found) nvtx++;
 			}
 			else found = false;
 		}
@@ -246,8 +245,8 @@ size_t pma::PMAlgVertexing::run(
 			auto candidates = secondPassCandidates();
 			if (candidates.size())
 			{
-				if (findOneVtx(candidates)) nvtx++;
-				else found = false;
+				found = findOneVtx(candidates);
+				if (found) nvtx++;
 			}
 			else found = false;
 		}
