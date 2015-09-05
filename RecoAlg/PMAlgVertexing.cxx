@@ -275,22 +275,33 @@ size_t pma::PMAlgVertexing::run(
 }
 // ------------------------------------------------------
 
-std::vector< pma::Node3D const * > pma::PMAlgVertexing::getVertices(
+std::vector< std::pair< TVector3, std::vector< size_t > > > pma::PMAlgVertexing::getVertices(
 	const std::vector< pma::Track3D* >& tracks) const
 {
-	std::vector< pma::Node3D const * > vsel;
+	std::vector< std::pair< TVector3, std::vector< size_t > > > vsel;
+	std::vector< pma::Node3D const * > bnodes;
 
-	for (auto trk : tracks)
+	for (size_t t = 0; t < tracks.size(); t++)
+	{
+		pma::Track3D const * trk = tracks[t];
 		for (auto node : trk->Nodes())
 			if (node->IsBranching())
-	{
-		bool found = false;
-		for (auto v : vsel)
-			if (node == v)
 		{
-			found = true; break;
+			bool found = false;
+			for (size_t n = 0; n < bnodes.size(); n++)
+				if (node == bnodes[n])
+			{
+				vsel[n].second.push_back(t);
+				found = true; break;
+			}
+			if (!found)
+			{
+				std::vector< size_t > tidx;
+				tidx.push_back(t);
+				vsel.push_back(std::pair< TVector3, std::vector< size_t > >(node->Point3D(), tidx));
+				bnodes.push_back(node);
+			}
 		}
-		if (!found) vsel.push_back(node);
 	}
 
 	return vsel;

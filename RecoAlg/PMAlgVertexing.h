@@ -48,7 +48,8 @@ public:
 	size_t run(std::vector< pma::Track3D* >& trk_input,
 	           const std::vector< TVector3 >& vtx_input);
 
-	std::vector< pma::Node3D const * > getVertices(const std::vector< pma::Track3D* >& tracks) const;
+	std::vector< std::pair< TVector3, std::vector< size_t > > >
+		getVertices(const std::vector< pma::Track3D* >& tracks) const;
 
 private:
 	std::vector< pma::VtxCandidate > firstPassCandidates(void);

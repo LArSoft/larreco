@@ -237,6 +237,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	produces< art::Assns<recob::Track, recob::Hit> >();
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
+	produces< art::Assns<recob::Vertex, recob::Track> >();
 }
 // ------------------------------------------------------
 
@@ -964,6 +965,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit(new art::Assns< recob::Track, recob::Hit >);
 	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
 	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
+	std::unique_ptr< art::Assns< recob::Vertex, recob::Track > > vtx2trk(new art::Assns< recob::Vertex, recob::Track >);
 
 	if (sortHits(evt))
 	{
@@ -989,21 +991,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 		if (result.size()) // ok, there is something to save
 		{
-			if (fRunVertexing) // save vertices if found
-			{
-				int vidx = 0; double xyz[3];
-				auto vsel = fPMAlgVertexing.getVertices(result);
-				for (auto v : vsel)
-				{
-					xyz[0] = v->Point3D().X();
-					xyz[1] = v->Point3D().Y();
-					xyz[2] = v->Point3D().Z();
-					mf::LogVerbatim("Summary") << "  vtx:" << xyz[0] << ":" << xyz[1] << ":" << xyz[2];
-					vtxs->push_back(recob::Vertex(xyz, vidx++));
-				}
-				mf::LogVerbatim("Summary") << vtxs->size() << " vertices ready";
-			}
-
 			size_t spStart = 0, spEnd = 0;
 			double sp_pos[3], sp_err[6];
 			for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
@@ -1011,9 +998,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			double dQdxFlipThr = 0.0;
 			if (fFlipToBeam) dQdxFlipThr = 0.4;
 
-			fTrkIndex = 0;
-			for (auto trk : result)
+			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); fTrkIndex++)
 			{
+				pma::Track3D* trk = result[fTrkIndex];
+
 				if (fFlipToBeam)    // flip the track to the beam direction
 				{
 					double z0 = trk->front()->Point3D().Z();
@@ -1031,7 +1019,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
 
 				tracks->push_back(convertFrom(*trk));
-				fTrkIndex++;
 
 				std::vector< art::Ptr< recob::Hit > > hits2d;
 				art::PtrVector< recob::Hit > sp_hits;
@@ -1072,6 +1059,35 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				}
 			}
 
+			if (fRunVertexing) // save vertices and vtx-trk assns
+			{
+				art::ProductID vid = getProductID< std::vector<recob::Vertex> >(evt);
+				art::ProductID tid = getProductID< std::vector<recob::Track> >(evt);
+				auto const* getter = evt.productGetter(tid);
+
+				int vidx = 0; double xyz[3];
+				auto vsel = fPMAlgVertexing.getVertices(result);
+				for (auto const & v : vsel)
+				{
+					xyz[0] = v.first.X();
+					xyz[1] = v.first.Y();
+					xyz[2] = v.first.Z();
+					mf::LogVerbatim("Summary")
+						<< "  vtx:" << xyz[0] << ":" << xyz[1] << ":" << xyz[2]
+						<< "  (" << v.second.size() << " tracks)";
+					vtxs->push_back(recob::Vertex(xyz, vidx++));
+
+					size_t vidx = (size_t)(vtxs->size() - 1);
+					art::Ptr<recob::Vertex> vptr(vid, vidx, evt.productGetter(vid));
+					for (size_t tidx : v.second)
+					{
+						art::Ptr<recob::Track> tptr(tid, tidx, getter);
+						vtx2trk->addSingle(vptr, tptr);
+					}
+				}
+				mf::LogVerbatim("Summary") << vtxs->size() << " vertices ready";
+			}
+
 			// data prods done, delete all pma::Track3D's
 			for (size_t t = 0; t < result.size(); t++) delete result[t];
 		}
@@ -1085,6 +1101,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(trk2hit));
 	evt.put(std::move(trk2sp));
 	evt.put(std::move(sp2hit));
+	evt.put(std::move(vtx2trk));
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
