@@ -49,7 +49,7 @@ standard_pmalgtrackmaker:
                                       #    used by the shower reconstruction but not yet ready)
                                       #
   MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
-  MinSeedSize2ndPass:     5           # ..and in the 2nd pass: differentiate to speed up finding long tracks
+  MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks
                                       # w/o checking large number of possibilities, then use as small size
                                       # as reasonnable for used clustering algorithm to complete the search
                                       # in the second pass
