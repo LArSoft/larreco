@@ -24,6 +24,7 @@ outputs:
  {
     module_type: RootOutput
     fileName:    "wirecellmerged.root"
+    fastCloning: true
  }      
 }
 
@@ -37,3 +38,4 @@ physics:
 }
 
 physics.producers.wirecell:  @local::standard_mergewirecell
+physics.producers.wirecell.WireCellInput: "/uboone/app/users/tjyang/larsoft_dev/job/wirecell/rootfiles"
