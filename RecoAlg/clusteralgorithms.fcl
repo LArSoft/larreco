@@ -148,7 +148,7 @@ standard_fuzzyclusteralg:
   NumberWireBoundaries:             3	# Number of boundaries in wires for the drift window to be divided up to make the Hough line finder easier on memory
   GenerateHoughLinesOnly:       false # Show only the results of the Hough line finder, hits not in a line will not be clustered
   HoughBaseAlg:{
-    MaxLines:             25
+    MaxLines:             100
     MaxDistance:          1
     MinHits:              5
     NumAngleCells:        10800
@@ -178,7 +178,7 @@ standard_fuzzyclusteralg:
   DoShowerTrackClusterMerge:     true # Turns on merging of shower-like and track-like lines (0-off, 1-on)
   ShowerTrackClusterMergeAngle:  15   # The maximum angle between slopes of shower-like and track-like lines to be merged,
   ShowerTrackClusterMergeCutoff: 7.5  # The maximum distance between shower-like and track-like line endpoints before they can be merged,
-  ShowerLikenessCut:       0.5   # Cut on shower likeness (the larger the more shower like, the smaller the less shower like)
+  ShowerLikenessCut:       10    # Cut on shower likeness (the larger the more shower like, the smaller the less shower like)
   MaxVertexLines:          100   # Max number of line end points allowed in a Hough line merge region for a merge to happen 
   VertexLinesCutoff:       5.0   #  Size of the vertex region to count up lines for MaxVertexLines 
 }
