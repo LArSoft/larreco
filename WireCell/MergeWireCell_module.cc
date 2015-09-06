@@ -56,7 +56,7 @@ public:
 private:
 
   // Declare member data here.
-  std::string fDir;
+  std::string fInput;
 
   static constexpr float Sqrt2Pi = 2.5066;
   static constexpr float SqrtPi  = 1.7725;
@@ -65,7 +65,7 @@ private:
 
 
 wc::MergeWireCell::MergeWireCell(fhicl::ParameterSet const & p) :
-  fDir(p.get<std::string>("WireCellFileDir"))
+  fInput(p.get<std::string>("WireCellInput"))
 {
   // Call appropriate produces<>() functions here.
   produces<std::vector<recob::Hit>                    >();
@@ -85,7 +85,7 @@ void wc::MergeWireCell::produce(art::Event & evt){
   std::unique_ptr<std::vector<recob::SpacePoint>> spt_coll(new std::vector<recob::SpacePoint>);
   std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit> >   shassn(new art::Assns<recob::SpacePoint, recob::Hit>);
 
-  std::string path(fDir);
+  std::string path(fInput);
   path=(path+"/");
 
   DIR *pDIR;
@@ -109,8 +109,11 @@ void wc::MergeWireCell::produce(art::Event & evt){
       Trun->SetBranchAddress("subRunNo",&subRunNo);
       if (!Trun->GetEntries()) continue;
       Trun->GetEntry(0);
-      std::cout<<run<<" "<<subrun<<" "<<event<<" "<<runNo<<" "<<subRunNo<<" "<<eventNo<<std::endl;
-      if (runNo!=run||eventNo!=event||subRunNo!=subrun) continue;
+      //std::cout<<run<<" "<<subrun<<" "<<event<<" "<<runNo<<" "<<subRunNo<<" "<<eventNo<<std::endl;
+      if (runNo!=run||eventNo!=event||subRunNo!=subrun) {
+	f->Close();
+	continue;
+      }
       TTree *TC = (TTree*)f->Get("TC");
       Int_t           time_slice;
       Double_t        charge;
@@ -126,6 +129,9 @@ void wc::MergeWireCell::produce(art::Event & evt){
       Double_t        u_charge_err;
       Double_t        v_charge_err;
       Double_t        w_charge_err;
+      Int_t           tpc_no;
+      Int_t           cryostat_no;
+
       TC->SetBranchAddress("time_slice", &time_slice);
       TC->SetBranchAddress("charge", &charge);
       TC->SetBranchAddress("xx", &xx);
@@ -140,16 +146,19 @@ void wc::MergeWireCell::produce(art::Event & evt){
       TC->SetBranchAddress("u_charge_err", &u_charge_err);
       TC->SetBranchAddress("v_charge_err", &v_charge_err);
       TC->SetBranchAddress("w_charge_err", &w_charge_err);
+      TC->SetBranchAddress("tpc_no", &tpc_no);
+      TC->SetBranchAddress("cryostat_no", &cryostat_no);
+
       for (int i = 0; i<TC->GetEntries(); ++i){
 	TC->GetEntry(i);
 	double xyz[3] = {xx,yy,zz};
 	double err[3] = {0,0,0};
 	spt_coll->push_back(recob::SpacePoint(xyz,err,charge));
-	geo::WireID wireu(0,1,0,u_index);
+	geo::WireID wireu(cryostat_no,tpc_no,0,u_index);
 	raw::ChannelID_t chanu = geom->PlaneWireToChannel(wireu);
-	geo::WireID wirev(0,1,1,v_index);
+	geo::WireID wirev(cryostat_no,tpc_no,1,v_index);
 	raw::ChannelID_t chanv = geom->PlaneWireToChannel(wirev);
-	geo::WireID wirew(0,1,2,w_index);
+	geo::WireID wirew(cryostat_no,tpc_no,2,w_index);
 	raw::ChannelID_t chanw = geom->PlaneWireToChannel(wirew);
 	size_t hitStart = hit_coll->size();
 //	raw::TDCtick_t start_tick = time_slice*4;
@@ -216,8 +225,11 @@ void wc::MergeWireCell::produce(art::Event & evt){
 	size_t hitEnd = hit_coll->size();
 	util::CreateAssn(*this, evt, *spt_coll, *hit_coll, *shassn, hitStart, hitEnd);
       }
+      f->Close();
       break;
     }
+    closedir(pDIR);
+
   }
   evt.put(std::move(spt_coll));
   evt.put(std::move(hit_coll));
