@@ -15,6 +15,7 @@
 #include "boost/numeric/ublas/matrix_proxy.hpp"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "RecoObjects/KHit.h"
+#include "RecoObjects/SurfYZLine.h"
 #include "RecoObjects/SurfYZPlane.h"
 #include "Geometry/Geometry.h"
 #include "TGaxis.h"
@@ -42,17 +43,48 @@ namespace {
     if(phit1) {
       const std::shared_ptr<const trkf::Surface>& psurf = hit.getMeasSurface();
 
-      // Currently only handle SurfYZPlane (could add other surfaces if needed in future).
+      // Handle SurfYZPlane.
 
-      const trkf::SurfYZPlane* pyz = dynamic_cast<const trkf::SurfYZPlane*>(&*psurf);
-      if(pyz) {
+      if(const trkf::SurfYZPlane* pyz = dynamic_cast<const trkf::SurfYZPlane*>(&*psurf)) {
 
 	// Now finished doing casts.
 	// We have a kind of hit and measurement surface that we know how to handle.
 
-	// Get x coordinate from hit.
+	// Get x coordinate from hit and surface.
 
-	x = phit1->getMeasVector()(0);
+	x = pyz->x0() + phit1->getMeasVector()(0);
+
+	// Get z position from surface parameters.
+	// The "z" position is actually calculated as the perpendicular distance 
+	// from a corner, which is a proxy for wire number.
+
+	double z0 = pyz->z0();
+	double y0 = pyz->y0();
+	double phi = pyz->phi();
+	art::ServiceHandle<geo::Geometry> geom;
+	double ymax = geom->DetHalfWidth();
+	if(phi > 0.)
+	  z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
+	else
+	  z = z0 * std::cos(phi) - (ymax + y0) * std::sin(phi);
+
+	//int pl = hit.getMeasPlane();
+	//std::cout << "pl = " << pl
+	//	  << ", x=" << x
+	//	  << ", z0=" << z0
+	//	  << ", y0=" << y0
+	//	  << ", phi=" << phi
+	//	  << ", z=" << z
+	//	  << std::endl;
+      }
+      else if(const trkf::SurfYZLine* pyz = dynamic_cast<const trkf::SurfYZLine*>(&*psurf)) {
+
+	// Now finished doing casts.
+	// We have a kind of hit and measurement surface that we know how to handle.
+
+	// Get x coordinate from surface.
+
+	x = pyz->x0();
 
 	// Get z position from surface parameters.
 	// The "z" position is actually calculated as the perpendicular distance 
@@ -278,7 +310,8 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 				       KGTrack& trg,
 				       const Propagator* prop,
 				       const Propagator::PropDirection dir,
-				       KHitContainer& hits) const
+				       KHitContainer& hits,
+				       bool linear) const
 {
   if (!prop)
     throw cet::exception("KalmanFilterAlg") << "trkf::KalmanFilterAlg::buildTrack(): no propagator\n";
@@ -373,6 +406,13 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
     m->SetMarkerSize(1.2);
     m->SetMarkerColor(kRed);
     entry = leg->AddEntry(m, "Hits on Track", "P");
+    entry->SetBit(kCanDelete);
+
+    m = new TMarker(0., 0., 20);
+    m->SetBit(kCanDelete);
+    m->SetMarkerSize(1.2);
+    m->SetMarkerColor(kOrange);
+    entry = leg->AddEntry(m, "Smoothed Hits on Track", "P");
     entry->SetBit(kCanDelete);
 
     m = new TMarker(0., 0., 20);
@@ -640,9 +680,16 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
       // chisquare passes the cut, add it to the track and update 
       // fit information.
 
+      bool update_ok = false;
       if(best_hit.get() != 0) {
-	ds += best_hit->getPredDistance();
+	KFitTrack trf0(trf);
 	best_hit->update(trf);
+	update_ok = trf.isValid();
+	if(!update_ok)
+	  trf = trf0;
+      }
+      if(update_ok) {
+	ds += best_hit->getPredDistance();
 	tchisq += best_chisq;
 	trf.setChisq(tchisq);
 	if(dir == Propagator::FORWARD)
@@ -704,7 +751,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 
 	  // Decide if we want to kill the reference track.
 
-	  if(pref != 0 && int(trg.numHits()) >= fMinLHits &&
+	  if(!linear && pref != 0 && int(trg.numHits()) >= fMinLHits &&
 	     (trf.PointingError() < fGoodPErr || path > fMaxLDist)) {
 	    pref = 0;
 	    if(fTrace)
@@ -1043,29 +1090,44 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 
 	    double chisq = hit.getChisq();
 	    if(chisq < fMaxSmoothIncChisq) {
-	      tchisq += chisq;
-	      trf.setChisq(tchisq);
 
 	      // Update the reverse fitting track using the current measurement
 	      // (both track parameters and status).
 
+	      KFitTrack trf0(trf);	      
 	      hit.update(trf);
-	      if(dir == Propagator::FORWARD)
-		trf.setStat(KFitTrack::FORWARD);
+	      bool update_ok = trf.isValid();
+	      if(!update_ok)
+		trf = trf0;
 	      else {
-		trf.setStat(KFitTrack::BACKWARD);
-	      }
-	      if(fTrace) {
-		log << "Reverse fit track after update:\n";
-		log << trf;
-	      }
+		tchisq += chisq;
+		trf.setChisq(tchisq);
 
-	      // If unidirectional track pointer is not null, make a
-	      // KHitTrack and save it in the unidirectional track.
+		if(dir == Propagator::FORWARD)
+		  trf.setStat(KFitTrack::FORWARD);
+		else {
+		  trf.setStat(KFitTrack::BACKWARD);
+		}
+		if(fTrace) {
+		  log << "Reverse fit track after update:\n";
+		  log << trf;
+		}
+		if(fGTrace && fCanvases.size() > 0) {
+		  auto marker_it = fMarkerMap.find(hit.getID());
+		  if(marker_it != fMarkerMap.end()) {
+		    TMarker* marker = marker_it->second;
+		    marker->SetMarkerColor(kOrange);
+		  }
+		  fCanvases.back()->Update();
+		}
 
-	      if(trg1 != 0) {
-		KHitTrack trh1(trf, trh.getHit());
-		trg1->addTrack(trh1);
+		// If unidirectional track pointer is not null, make a
+		// KHitTrack and save it in the unidirectional track.
+
+		if(trg1 != 0) {
+		  KHitTrack trh1(trf, trh.getHit());
+		  trg1->addTrack(trh1);
+		}
 	      }
 	    }
 	  }
@@ -1448,9 +1510,16 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	  // chisquare passes the cut, add it to the track and update 
 	  // fit information.
 
+	  bool update_ok = false;
 	  if(best_hit.get() != 0) {
-	    ds += best_hit->getPredDistance();
+	    KFitTrack trf0(trf);
 	    best_hit->update(trf);
+	    update_ok = trf.isValid();
+	    if(!update_ok)
+	      trf = trf0;
+	  }
+	  if(update_ok) {
+	    ds += best_hit->getPredDistance();
 	    tchisq += best_chisq;
 	    trf.setChisq(tchisq);
 	    if(dir == Propagator::FORWARD)

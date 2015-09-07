@@ -537,6 +537,7 @@ namespace trkf{
       }
       //std::cout<<i<<" "<<ip1<<" "<<ip2<<std::endl;
       if (ip1==-1||ip2==-1){
+	return;
 	throw cet::exception("CosmicTrackerAlg")<<"Cannot find two nearest trajectory points.";
       }
       TVector3 v1(wire_pitch*(wire-vw[cstat][tpc][plane][ih1]),
