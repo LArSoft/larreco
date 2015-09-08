@@ -48,7 +48,7 @@ standard_fuzzycluster:
 {
  module_type:     "fuzzyCluster"
  HitsModuleLabel: "gaushit"
- HoughSeed:       0      # The user supplied seed the generator uses for the 
+ HoughSeed:       10      # The user supplied seed the generator uses for the 
                          # Hough transform, if it is zero a seed is randomly created
  fuzzyClusterAlg: @local::standard_fuzzyclusteralg
 }
