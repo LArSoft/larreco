@@ -402,7 +402,7 @@ void GausHitFinder::produce(art::Event& evt)
                // ########################################################
                //if not a minimum, test if we are at a local maximum
                //if so, and the max value is above threshold, add it and proceed.
-               else if(*(timeIter+1) > *timeIter && *(timeIter+1) > *(timeIter+2) && *(timeIter+1) > threshold)
+               else if(*(timeIter+1) > *timeIter && *(timeIter+1) >= *(timeIter+2) && *(timeIter+1) > threshold)
                {
                    maxFound = true;
                    maxTimes.push_back(time+1);
