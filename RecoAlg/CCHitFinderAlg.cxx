@@ -60,16 +60,15 @@ namespace hit {
 
   void CCHitFinderAlg::reconfigure(fhicl::ParameterSet const& pset)
   {
-    fMinSigInd          = pset.get< float       >("MinSigInd");
-    fMinSigCol          = pset.get< float       >("MinSigCol");
-    fMinRMSInd          = pset.get< float       >("MinRMSInd");
-    fMinRMSCol          = pset.get< float       >("MinRMSCol");
-    fMaxBumps           = pset.get< unsigned short >("MaxBumps");
-    fMaxXtraHits        = pset.get< unsigned short >("MaxXtraHits");
-    fChiSplit           = pset.get< float       >("ChiSplit");
-    fChiNorms           = pset.get< std::vector< float > >("ChiNorms");
-    fUseFastFit         = pset.get< bool        >("UseFastFit", false);
-    fStudyHits          = pset.get< bool        >("StudyHits");
+    fMinPeak            = pset.get<std::vector<float>>("MinPeak");
+    fMinRMS             = pset.get<std::vector<float>>("MinRMS");
+    fMaxBumps           = pset.get<unsigned short>("MaxBumps");
+    fMaxXtraHits        = pset.get<unsigned short>("MaxXtraHits");
+    fChiSplit           = pset.get<float>("ChiSplit");
+    fChiNorms           = pset.get<std::vector< float > >("ChiNorms");
+    fUseFastFit         = pset.get<bool>("UseFastFit", false);
+    fuBCode             = pset.get<bool>("uBCode",false);
+    fStudyHits          = pset.get<bool>("StudyHits", false);
     // The following variables are only used in StudyHits mode
     fUWireRange         = pset.get< std::vector< short >>("UWireRange");
     fUTickRange         = pset.get< std::vector< short >>("UTickRange");
@@ -77,15 +76,11 @@ namespace hit {
     fVTickRange         = pset.get< std::vector< short >>("VTickRange");
     fWWireRange         = pset.get< std::vector< short >>("WWireRange");
     fWTickRange         = pset.get< std::vector< short >>("WTickRange");
-
-    // stuff these parameters into the hitcut struct so they can be accessed
-    // by other CC algs
-    hitcuts.MinSigInd = fMinSigInd;
-    hitcuts.MinSigCol = fMinSigCol;
-    hitcuts.MinRMSInd = fMinRMSInd;
-    hitcuts.MinRMSCol = fMinRMSCol;
-    hitcuts.ChiSplit  = fChiSplit;
-    hitcuts.ChiNorms  = fChiNorms;
+    
+    if(fMinPeak.size() != fMinRMS.size()) {
+      mf::LogError("CCTF")<<"MinPeak size != MinRMS size";
+      return;
+    }
     
     if (fMaxBumps > MaxGaussians) {
       // LOG_WARNING will point the user to this line of code.
@@ -143,33 +138,25 @@ namespace hit {
 
 //    prt = false;
     filter::ChannelFilter cf;
-
+    
     for(size_t wireIter = 0; wireIter < Wires.size(); wireIter++){
 
       recob::Wire const& theWire = Wires[wireIter];
       theChannel = theWire.Channel();
       // ignore bad channels
-      if(cf.BadChannel(theChannel)) continue;
-      geo::SigType_t SigType = geom->SignalType(theChannel);
-      minSig = 0.;
-      minRMS = 0.;
-      if(SigType == geo::kInduction){
-        minSig = fMinSigInd;
-        minRMS = fMinRMSInd;
-      }//<-- End if Induction Plane
-      else if(SigType == geo::kCollection){
-        minSig = fMinSigCol;
-        minRMS  = fMinRMSCol;
-      }//<-- End if Collection Plane
-
-
-      // minimum number of time samples
-      unsigned short minSamples = 2 * minRMS;
+      if(!fuBCode && cf.BadChannel(theChannel)) continue;
 
       std::vector<geo::WireID> wids = geom->ChannelToWire(theChannel);
       thePlane = wids[0].Plane;
+      if(thePlane > fMinPeak.size() - 1) {
+        mf::LogError("CCHF")<<"MinPeak vector too small for plane "<<thePlane;
+        return;
+      }
       theWireNum = wids[0].Wire;
       HitChannelInfo_t WireInfo(&theWire, wids[0], *geom);
+      
+      // minimum number of time samples
+      unsigned short minSamples = 2 * fMinRMS[thePlane];
 
       // factor used to normalize the chi/dof fits for each plane
       chinorm = fChiNorms[thePlane];
@@ -177,20 +164,20 @@ namespace hit {
       // edit this line to debug hit fitting on a particular plane/wire
 //      prt = (thePlane == 1 && theWireNum == 839);
       std::vector<float> signal(theWire.Signal());
-
+      
       unsigned short nabove = 0;
       unsigned short tstart = 0;
       unsigned short maxtime = signal.size() - 2;
       // find the min time when the signal is below threshold
       unsigned short mintime = 3;
       for(unsigned short time = 3; time < maxtime; ++time) {
-        if(signal[time] < minSig) {
+        if(signal[time] < fMinPeak[thePlane]) {
           mintime = time;
           break;
         }
       }
       for(unsigned short time = mintime; time < maxtime; ++time) {
-        if(signal[time] > minSig) {
+        if(signal[time] > fMinPeak[thePlane]) {
           if(nabove == 0) tstart = time;
           ++nabove;
         } else {
@@ -259,7 +246,7 @@ namespace hit {
             else if (nHitsFit > 0) FinalFitStats.AddMultiGaus(nHitsFit);
           } // nabove > minSamples
           nabove = 0;
-        } // signal < minSig
+        } // signal < fMinPeak
       } // time
     } // wireIter
 
@@ -399,18 +386,18 @@ namespace hit {
         Gn->SetParLimits(index, 0., 9999.);
         Gn->SetParameter(index + 1, (double)bumptime);
         Gn->SetParLimits(index + 1, 0, (double)npt);
-        Gn->SetParameter(index + 2, (double)minRMS);
-        Gn->SetParLimits(index + 2, 1., 3*(double)minRMS);
+        Gn->SetParameter(index + 2, (double)fMinRMS[thePlane]);
+        Gn->SetParLimits(index + 2, 1., 3*(double)fMinRMS[thePlane]);
   /*
     if(prt) mf::LogVerbatim("CCHitFinder")<<"Bump params "<<ii<<" "<<(short)amp
-      <<" "<<(int)bumptime<<" "<<(int)minRMS;
+      <<" "<<(int)bumptime<<" "<<(int)fMinRMS[thePlane];
   */
       } // ii bumps
   
       // search for other bumps that may be hidden by the already found ones
       for(unsigned short ii = bumps.size(); ii < nGaus; ++ii) {
-        // bump height must exceed minSig
-        float big = minSig;
+        // bump height must exceed fMinPeak
+        float big = fMinPeak[thePlane];
         unsigned short imbig = 0;
         for(unsigned short jj = 0; jj < npt; ++jj) {
           float diff = signl[jj] - Gn->Eval((Double_t)jj, 0, 0, 0);
@@ -430,8 +417,8 @@ namespace hit {
           Gn->SetParLimits(index, 0., 9999.);
           Gn->SetParameter(index + 1, (double)imbig);
           Gn->SetParLimits(index + 1, 0, (double)npt);
-          Gn->SetParameter(index + 2, (double)minRMS);
-          Gn->SetParLimits(index + 2, 1., 5*(double)minRMS);
+          Gn->SetParameter(index + 2, (double)fMinRMS[thePlane]);
+          Gn->SetParLimits(index + 2, 1., 5*(double)fMinRMS[thePlane]);
         } // imbig > 0
       } // ii 
       
@@ -506,13 +493,13 @@ namespace hit {
         break;
       }
       // ensure that the signal peak is large enough
-      if(partmp[index] < minSig) {
+      if(partmp[index] < fMinPeak[thePlane]) {
         fitok = false;
         break;
       }
       // ensure that the RMS is large enough but not too large
       float rms = partmp[index + 2];
-      if(rms < 0.5 * minRMS || rms > 5 * minRMS) {
+      if(rms < 0.5 * fMinRMS[thePlane] || rms > 5 * fMinRMS[thePlane]) {
         fitok = false;
         break;
       }
@@ -737,7 +724,7 @@ namespace hit {
         }
       } // ii
       // require a significant PH 
-      if(big > fMinSigCol) {
+      if(big > fMinPeak[0]) {
         // get the Lo info
         if(theWireNum < loWire[thePlane]) {
           loWire[thePlane] = theWireNum;
@@ -748,7 +735,7 @@ namespace hit {
           hiWire[thePlane] = theWireNum;
           hiTime[thePlane] = tstart + imbig;
         }
-      } // big > fMinSigCol
+      } // big > fMinPeak[0]
       if(bumps.size() == 1 && chidof < 9999.) {
         bumpCnt[thePlane] += bumps.size();
         bumpChi[thePlane] += chidof;
@@ -817,7 +804,7 @@ namespace hit {
       std::cout<<"bChi is the average chisq/DOF of the first fit\n";
       std::cout<<"bRMS is the average calculated RMS of the bumps\n";
       std::cout<<"hCnt is the number of RATs that have a single hit\n";
-      std::cout<<"hRMS is the average RMS from the Gaussian fit -> use this value for MinRMSInd or MinRMSCol in the fcl file\n";
+      std::cout<<"hRMS is the average RMS from the Gaussian fit -> use this value for fMinRMS[plane] in the fcl file\n";
       std::cout<<"dTdW is the slope of the track\n";
       std::cout<<"New_ChiNorm is the recommended values of ChiNorm that should be used in the fcl file\n";
       bumpChi.clear();
