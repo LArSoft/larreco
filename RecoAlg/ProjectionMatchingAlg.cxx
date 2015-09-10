@@ -7,6 +7,8 @@
 
 #include "RecoAlg/PMAlg/Utilities.h"
 
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
 pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const fhicl::ParameterSet& pset)
 {
 	this->reconfigure(pset); 
@@ -381,12 +383,18 @@ void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, pma::Track3D& sr
 	    (tpc != dst.BackTPC()) || (cryo != dst.BackCryo()))
 	{
 		dst.AddNode(src.Nodes().front()->Point3D(), tpc, cryo);
+		if (src.Nodes().front()->IsFrozen())
+			dst.Nodes().back()->SetFrozen(true);
 	}
 	for (size_t n = 1; n < src.Nodes().size(); n++)
 	{
-		tpc = src.Nodes()[n]->TPC();
-		cryo = src.Nodes()[n]->Cryo();
-		dst.AddNode(src.Nodes()[n]->Point3D(), tpc, cryo);
+		pma::Node3D* node = src.Nodes()[n];
+
+		dst.AddNode(src.Nodes()[n]->Point3D(),
+		            node->TPC(), node->Cryo());
+
+		if (node->IsFrozen())
+			dst.Nodes().back()->SetFrozen(true);
 	}
 	for (size_t h = 0; h < src.size(); h++)
 	{
@@ -538,6 +546,24 @@ double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk, unsigned
 
 	//std::cout << "nhits=" << nhits << ", dq=" << dq << ", dx=" << dx << std::endl;
 	return dqdx;
+}
+// ------------------------------------------------------
+
+void pma::ProjectionMatchingAlg::setTrackTag(pma::Track3D& trk) const
+{
+	double length = trk.Length();
+	double mse = trk.GetMse();
+	double meanAngle = trk.GetMeanAng();
+
+	if ( // (length < 80.0) &&  // tag only short tracks as EM shower-like
+	    ((mse > 0.0001 * length) || (meanAngle < 3.0)))
+	{
+		trk.SetTag(pma::Track3D::kEmLike);
+	}
+	else
+	{
+		trk.SetTag(pma::Track3D::kTrackLike);
+	}
 }
 // ------------------------------------------------------
 
