@@ -33,7 +33,6 @@ standard_clustercrawler:
  CalDataModuleLabel:  "caldata"
  ClusterCrawlerAlg:   @local::standard_clustercrawleralg
  CCHitFinderAlg:      @local::standard_cchitfinderalg
-# CCHitRefinerAlg:     @local::standard_cchitrefineralg
 }
 
 standard_linecluster:
