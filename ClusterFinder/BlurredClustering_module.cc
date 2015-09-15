@@ -71,7 +71,7 @@ private:
 
 };
 
-cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const &pset) : fBlurredClusteringAlg(pset.get<fhicl::ParameterSet>("BlurredClusteringAlg")),
+cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const &pset) : fBlurredClusteringAlg(pset.get<fhicl::ParameterSet>("BlurredClusterAlg")),
                                                                                  fMergeClusterAlg(pset.get<fhicl::ParameterSet>("MergeClusterAlg")) {
   this->reconfigure(pset);
   produces<std::vector<recob::Cluster> >();
@@ -85,7 +85,7 @@ void cluster::BlurredClustering::reconfigure(fhicl::ParameterSet const& p) {
   fCreateDebugPDF  = p.get<bool>       ("CreateDebugPDF");
   fMergeClusters   = p.get<bool>       ("MergeClusters");
   fGlobalTPCRecon  = p.get<bool>       ("GlobalTPCRecon");
-  fBlurredClusteringAlg.reconfigure(p.get<fhicl::ParameterSet>("BlurredClusteringAlg"));
+  fBlurredClusteringAlg.reconfigure(p.get<fhicl::ParameterSet>("BlurredClusterAlg"));
   fMergeClusterAlg.reconfigure(p.get<fhicl::ParameterSet>("MergeClusterAlg"));
 }
 

@@ -188,7 +188,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
   /// Merges clusters which lie along a straight line
 
-  // ////// MAKE SOME MESSY CODE! CHECK FEATURES OF THESE CLUSTERS
+  // // ////// MAKE SOME MESSY CODE! CHECK FEATURES OF THESE CLUSTERS
 
   // // Truth matching
   // for (unsigned int cluster = 0; cluster < planeClusters.size(); ++cluster) {
@@ -344,7 +344,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
   	if (oldClusters.at(trialCluster).size() < fMinMergeClusterSize or std::find(mergedClusters.begin(), mergedClusters.end(), trialCluster) != mergedClusters.end()) continue;
 
 	// Calculate the PCA for each
-	TPrincipal *pca = new TPrincipal(2,""), *pca1 = new TPrincipal(2,""), *pca2 = new TPrincipal(2,"");
+	TPrincipal *pca1 = new TPrincipal(2,""), *pca2 = new TPrincipal(2,"");
 	double hits[2];
 	TVector2 pos;
 
@@ -357,7 +357,6 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 	  //pos = TVector2(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
 	  hits[0] = pos.X();
 	  hits[1] = pos.Y();
-	  pca->AddRow(hits);
 	  pca1->AddRow(hits);
 	  chargePoint1 += hit1->Integral() * pos;
 	  totalCharge1 += hit1->Integral();
@@ -367,13 +366,11 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 	  //pos = TVector2(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
 	  hits[0] = pos.X();
 	  hits[1] = pos.Y();
-	  pca->AddRow(hits);
 	  pca2->AddRow(hits);
 	  chargePoint2 += hit2->Integral() * pos;
 	  totalCharge2 += hit2->Integral();
 	}
 
-	pca->MakePrincipals();
 	pca1->MakePrincipals();
 	pca2->MakePrincipals();
 
@@ -392,7 +389,6 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 	double length2 = (end2-start2).Mod();
 
 	// Properties of the pair of clusters
-	double eigenvalue = (*pca->GetEigenValues())[0];
  	double crossingDistance = FindCrossingDistance(direction1, centre1, direction2, centre2);
 	double projectedWidth = FindProjectedWidth(centre1, start1, end1, centre2, start2, end2);
 	double angle = direction1.DeltaPhi(direction2);
@@ -402,7 +398,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
 	if (separation > fMaxMergeSeparation)
 	  continue;
-	if (PassCuts(angle, crossingDistance, projectedWidth, separation, overlap, eigenvalue, TMath::Max(length1, length2))) {
+	if (PassCuts(angle, crossingDistance, projectedWidth, separation, overlap, TMath::Max(length1, length2))) {
 
 	  for (auto &hit : oldClusters.at(trialCluster))
 	    cluster.push_back(hit);
@@ -412,7 +408,6 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
 	}
 
-	delete pca;
 	delete pca1;
 	delete pca2;
 
@@ -431,28 +426,28 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
 }
 
-bool cluster::MergeClusterAlg::PassCuts(double const& angle, double const& crossingDistance, double const& projectedWidth, double const& separation, double const& overlap, double const& eigenvalue, double const& longLength) {
+bool cluster::MergeClusterAlg::PassCuts(double const& angle, double const& crossingDistance, double const& projectedWidth, double const& separation, double const& overlap, double const& longLength) {
 
-  bool pass = false;
+  /// Boolean function which decides whether or not two clusters should be merged, depending on their properties
 
+  bool passCrossingDistanceAngle = false;
   if (crossingDistance < (-2 + (5 / (1 * TMath::Abs(angle)) - 0) ) )
-    pass = true;
+    passCrossingDistanceAngle = true;
 
-  if (eigenvalue > 0.9999)
-    pass = true;
+  bool passSeparationAngle = false;
+  if (separation < (200 * TMath::Abs(angle) + 40))
+    passSeparationAngle = true;
 
-  if (separation > (200 * TMath::Abs(angle) + 40))
-    pass = false;
+  bool passProjectedWidth = false;
+  if (((double)projectedWidth/(double)longLength) < fProjWidthThreshold)
+    passProjectedWidth = true;
 
-  if (((double)projectedWidth/(double)longLength) > 0.3)
-    pass = false;
-
-  return pass;
+  return passCrossingDistanceAngle and passSeparationAngle and passProjectedWidth;
 
 }
 
 void cluster::MergeClusterAlg::reconfigure(fhicl::ParameterSet const& p) {
   fMinMergeClusterSize = p.get<int>   ("MinMergeClusterSize");
   fMaxMergeSeparation  = p.get<double>("MaxMergeSeparation");
-  fMergingThreshold    = p.get<double>("MergingThreshold");
+  fProjWidthThreshold  = p.get<double>("ProjWidthThreshold");
 }
