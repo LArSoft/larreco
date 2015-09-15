@@ -4,39 +4,6 @@
 //
 // Ben Carls, bcarls@fnal.gov
 //
-// This is an adpatation of the FLAME clustering algorithm, see the 
-// notes below
-//
-/*===================================================================
-  The standard implementation of FLAME data clustering algorithm.
-
-  FLAME (FLAME clustering by Local Approximation of MEmberships)
-  was first described in:
-  "FLAME, a novel FLAME clustering method for the analysis of DNA
-  microarray data", BMC Bioinformatics, 2007, 8:3.
-  Available from: http://www.biomedcentral.com/1471-2105/8/3
-  
-  Copyright(C) 2007, Fu Limin (phoolimin@gmail.com).
-  All rights reserved.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. Redistributions of source code must retain the above copyright
-     notice, this list of conditions and the following disclaimer.
-  2. The origin of this software must not be misrepresented; you must 
-     not claim that you wrote the original software. If you use this 
-     software in a product, an acknowledgment in the product 
-     documentation would be appreciated but is not required.
-  3. Altered source versions must be plainly marked as such, and must
-     not be misrepresented as being the original software.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-===================================================================*/
-//
 ////////////////////////////////////////////////////////////////////////
 
 
@@ -135,165 +102,6 @@ namespace cluster {
   }; // class fuzzyClusterAlg::trackCluster
   
 
-
-  class Flame {
-      public:
-    
-    typedef double (*DistFunction)(const std::vector<double>& x, const std::vector<double>& y);
-      
-    typedef enum {
-      DST_USER = 0,
-      DST_EUCLID ,
-      DST_COSINE ,
-      DST_PEARSON ,
-      DST_UC_PEARSON ,
-      DST_SQ_PEARSON ,
-      DST_DOT_PROD ,
-      DST_COVARIANCE ,
-      DST_MANHATTAN ,
-      DST_NULL
-    } DistSimTypes;
-
-    typedef enum {
-      OBT_NORMAL,
-      OBT_SUPPORT,
-      OBT_OUTLIER
-    } ObjectTypes;
-    
-    
-    /// For sorting and storing the orignal indices
-    struct Indexdouble {
-      int   index;
-      double value;
-    }; // struct Indexdouble
-    
-    
-    /// Default constructor
-    Flame() = default;
-    
-    ///@{
-    /// @name Accessors
-    /// Number of clusters, including the outlier
-    size_t nClusters() const { return count - 1; }
-    const std::vector<int>& Cluster(size_t iCluster) const
-      { return clusters.at(iCluster); }
-    ///@}
-
-
-  
-    /**
-     * @brief Set a NxM data matrix, and compute distances of type T.
-     * 
-     * If dt==DST_USER or dt>=DST_NULL, and Flame::distfunc member is set,
-     * then Flame::distfunc is used to compute the distances;
-     * Otherwise, Euclidean() is used.
-     */
-    void SetDataMatrix(const std::vector<std::vector<double>>& data, int dt );
-    
-  /// Set a pre-computed NxN distance matrix
-    void SetDistMatrix(const std::vector<std::vector<double>>& data);
-    
-  
-    /* Define knn-nearest neighbors for each object 
-     * and the Cluster Supporting Objects (CSO). 
-     * 
-     * The actual number of nearest neighbors could be large than knn,
-     * if an object has neighbors of the same distances.
-     *
-     * Based on the distances of the neighbors, a density can be computed
-     * for each object. Objects with local maximum density are defined as
-     * CSOs. The initial outliers are defined as objects with local minimum
-     * density which is less than mean( density ) + thd * stdev( density );
-     */
-    void DefineSupports( size_t knn, double thd );
-    
-    /* Local Approximation of fuzzy memberships.
-     * Stopped after the maximum steps of iterations;
-     * Or stopped when the overall membership difference between
-     * two iterations become less than epsilon. */
-    void LocalApproximation(unsigned int steps, double epsilon);
-    
-    /**
-     * @brief Construct clusters.
-     * 
-     * If 0 < thd < 1:
-     *   each object is assigned to all clusters in which
-     *   it has membership higher than thd; if it can not be assigned
-     *   to any clusters, it is then assigned to the outlier group.
-     * Else:
-     *   each object is assigned to the group (clusters/outlier group)
-     *   in which it has the highest membership.
-     */
-    void MakeClusters( double thd );
-    
-    
-    void SetMatrix
-      (const std::vector<std::vector<double>>& data, bool bDistance = false );
-    
-    
-    /// Sort until the smallest "part" items are sorted
-    static void PartialQuickSort
-      (std::vector<Indexdouble>& data, int first, int last, int part);
-    
-    static double Euclidean(const std::vector<double>& x, const std::vector<double>& y );
-    static double Cosine(const std::vector<double>& x, const std::vector<double>& y );
-    static double Pearson(const std::vector<double>& x, const std::vector<double>& y );
-    static double UCPearson(const std::vector<double>& x, const std::vector<double>& y );
-    static double SQPearson(const std::vector<double>& x, const std::vector<double>& y );
-    static double DotProduct(const std::vector<double>& x, const std::vector<double>& y );
-    static double Covariance(const std::vector<double>& x, const std::vector<double>& y );
-    static double Manhattan(const std::vector<double>& x, const std::vector<double>& y );
-    static double CosineDist(const std::vector<double>& x, const std::vector<double>& y );
-    static double PearsonDist(const std::vector<double>& x, const std::vector<double>& y );
-    static double UCPearsonDist(const std::vector<double>& x, const std::vector<double>& y );
-    static double SQPearsonDist(const std::vector<double>& x, const std::vector<double>& y );
-    static double DotProductDist(const std::vector<double>& x, const std::vector<double>& y );
-    static double CovarianceDist(const std::vector<double>& x, const std::vector<double>& y );
-
-      protected:
-    
-    int simtype;
-    
-    size_t N; ///< Number of objects
-    size_t K; ///< Number of K-Nearest Neighbors
-    
-    size_t KMAX; ///< Upper bound for K defined as: sqrt(N)+10 
-  
-    /**
-     * Stores the KMAX nearest neighbors instead of K nearest neighbors
-     * for each objects, so that when K is changed, weights and CSOs can be
-     * re-computed without referring to the original data.
-     */
-    std::vector<std::vector<int>> graph;
-    
-    /// Distances to the KMAX nearest neighbors
-    std::vector<std::vector<double>> dists;
-    
-    
-    /**
-     * Nearest neighbor count.
-     * it can be different from K if an object has nearest neighbors with
-     * equal distance.
-     */
-    std::vector<double> nncounts;
-    
-    std::vector<std::vector<double>> weights;
-  
-    size_t cso_count; ///< Number of identified Cluster Supporting Objects
-    
-    std::vector<char> obtypes;
-
-    std::vector<std::vector<double>> fuzzyships;
-
-    size_t count; ///< Number of clusters including the outlier group 
-    
-    /// The last one is the outlier group
-    std::vector<std::vector<int>> clusters;
-
-    DistFunction distfunc = nullptr;
-    
-  }; /// End Flame class
-
 } // namespace cluster
 
 
@@ -323,12 +131,9 @@ cluster::fuzzyClusterAlg::~fuzzyClusterAlg()
 //----------------------------------------------------------
 void cluster::fuzzyClusterAlg::reconfigure(fhicl::ParameterSet const& p)
 {
-  fIterations                     = p.get< int    >("Iterations"                     );
-  fEpsilon                        = p.get< double >("Epsilon"                        );
-  fKNN                            = p.get< unsigned int >("KNN"                      );
-  fDistanceMetric                 = p.get< int    >("DistanceMetric"                 );
-  fThreshold                      = p.get< double >("Threshold"                      );
 
+  fNumberTimeBoundaries           = p.get< double >("NumberTimeBoundaries"           );
+  fNumberWireBoundaries           = p.get< double >("NumberWireBoundaries"           );
   fDoFuzzyRemnantMerge            = p.get< bool   >("DoFuzzyRemnantMerge"            );
   fFuzzyRemnantMergeCutoff        = p.get< double >("FuzzyRemnantMergeCutoff"        );
   fDoTrackClusterMerge            = p.get< bool   >("DoTrackClusterMerge"            );
@@ -345,6 +150,7 @@ void cluster::fuzzyClusterAlg::reconfigure(fhicl::ParameterSet const& p)
   fMaxVertexLines                 = p.get< int    >("MaxVertexLines"                 );
   fVertexLinesCutoff              = p.get< double >("VertexLinesCutoff"              );
   fRunHough                       = p.get< bool   >("RunHough"                       );
+  fGenerateHoughLinesOnly         = p.get< bool   >("GenerateHoughLinesOnly"         );
   fHBAlg.reconfigure(p.get< fhicl::ParameterSet >("HoughBaseAlg"));
   fDBScan.reconfigure(p.get< fhicl::ParameterSet >("DBScanAlg"));
 }
@@ -385,12 +191,6 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   // Collect the hits in a useful form,
   // and take note of the maximum time width
   fMaxWidth=0.0;
-  
-  NNumOfRows = allhits.size();
-  MNumOfCols = 2;
-  //data = (double**) malloc(NNumOfRows * sizeof(double*) );
-  data.resize(allhits.size());
-
 
   double tickToDist = larp->DriftVelocity(larp->Efield(),larp->Temperature());
   tickToDist *= 1.e-3 * detp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
@@ -407,11 +207,6 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
     
     fps.push_back(p);
 
-    data[allhitsItr-allhits.begin()].resize(MNumOfCols);
-
-    data[allhitsItr-allhits.begin()][0] = ((*allhitsItr)->WireID().Wire)*fWirePitch[(*allhitsItr)->WireID().Plane];
-    data[allhitsItr-allhits.begin()][1] = (*allhitsItr)->PeakTime()*tickToDist;
-    
   }
 
   mf::LogInfo("fuzzyCluster") << "Initfuzzy: hits vector size is " << fps.size();
@@ -433,25 +228,6 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
 
   mf::LogInfo("fuzzyClusterAlg") << "Clustering " << allhits.size() << " hits";
   
-  Flame flame;
-
-  // Setup data matrix
-  // This is slow
-  flame.SetDataMatrix(data, fDistanceMetric);
-
-  // Detecting Cluster Supporting Objects ...
-  flame.DefineSupports( fKNN, fThreshold);
-
-  // Propagating FLAME memberships ... 
-  // This is slow
-  flame.LocalApproximation( fIterations, fEpsilon);
-
-  // Defining clusters from FLAME memberships ... 
-  flame.MakeClusters(-1.0 );
-
-  LOG_DEBUG("fuzzyClusterAlg")
-    << "Flame identified " << flame.nClusters() << " proto-clusters";
-
   
   fpointId_to_clusterId.resize(fps.size(), kNO_CLUSTER); // Not zero as before!
   fnoise.resize(fps.size(), false);
@@ -492,20 +268,40 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
   else
     indcolscaling = 1.;
   
-  unsigned int cid = flame.nClusters() + 1;
-  
-  // Loop over clusters
-  for (size_t i = 0; i<= flame.nClusters(); i++){
-    LOG_DEBUG("fuzzyClusterAlg")
-      << "protocluster #" << i << " has " << flame.Cluster(i).size() << " hits";
-    // Loop over hits in cluster
-    int ClusterID = (i == flame.nClusters())? kNOISE_CLUSTER: (int) i;
-    for (int hit: flame.Cluster(i)) fpointId_to_clusterId[hit] = ClusterID;
-  } // for i
-  
-  unsigned int nClusters = cid;
-  unsigned int nClustersTemp = cid;
-  
+
+  unsigned int nClusters = 1;
+  unsigned int nClustersTemp = 1;
+
+  // Divide up readout window into 9 sections that the Hough transform will be run over individually
+  nClusters = fNumberTimeBoundaries*fNumberWireBoundaries;
+  nClustersTemp = fNumberTimeBoundaries*fNumberWireBoundaries;
+  unsigned int nWires = geom->Nwires(allhits[0]->WireID().Plane);
+  unsigned int nTicks = detprop->ReadOutWindowSize();
+  std::vector<unsigned int> wireBoundaries;
+  std::vector<unsigned int> timeBoundaries;
+  for(size_t i = 0; i < fNumberWireBoundaries+1; i++){
+    wireBoundaries.push_back(i*nWires/fNumberWireBoundaries);
+  }
+  for(size_t i = 0; i < fNumberTimeBoundaries + 1; i++){
+    timeBoundaries.push_back(i*nTicks/fNumberTimeBoundaries);
+  }
+  for(auto hitsItr = allhits.cbegin(); hitsItr != allhits.cend(); ++hitsItr){
+    for(size_t i = 0; i < fNumberWireBoundaries; i++){
+      if(( *hitsItr)->WireID().Wire >= wireBoundaries[i] && (*hitsItr)->WireID().Wire < wireBoundaries[i+1]){
+        for(size_t j = 0; j < fNumberTimeBoundaries; j++){
+          if((*hitsItr)->PeakTime() >= timeBoundaries[j] && (*hitsItr)->PeakTime() < timeBoundaries[j+1]){
+            fpointId_to_clusterId[hitsItr-allhits.cbegin()] = j*fNumberTimeBoundaries+i;
+          }
+        }
+      }
+    }
+  }
+
+
+
+
+
+
   // Loop over clusters with the Hough line finder to break the clusters up further
   // list of lines
   std::vector<protoTrack> protoTracksFound;
@@ -539,7 +335,9 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
          && distance < 25*(fMaxDistance+(*hitsItr)->RMS()+indcolscaling)){
         if((protoTracksFoundItr->clusterSlope < 0 && (*hitsItr)->PeakTime() < peakTimePerpMin && (*hitsItr)->PeakTime() > peakTimePerpMax)
             || (protoTracksFoundItr->clusterSlope > 0 && (*hitsItr)->PeakTime() > peakTimePerpMin && (*hitsItr)->PeakTime() < peakTimePerpMax)){
-          totalBkgDistCharge+=distance/(*hitsItr)->Integral();
+          if((*hitsItr)->Integral() > 0.1){
+            totalBkgDistCharge+=distance/(*hitsItr)->Integral();
+          }
         }
       }
     }/// end loop over hits
@@ -649,15 +447,24 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
   }
 
 
+
+  // If only showing Hough lines, set the fuzzy cluster remnants to have no cluster
+  if(fGenerateHoughLinesOnly){
+    for(auto allhitsItr = allhits.cbegin(); allhitsItr != allhits.cend(); ++allhitsItr){
+      if(fpointId_to_clusterId.at(allhitsItr-allhits.begin()) < (unsigned int) nClustersTemp )
+        fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = kNO_CLUSTER;
+      }
+  }
+
   std::vector< art::Ptr<recob::Hit> > unclusteredhits;
-  std::vector<unsigned int> unclusteredhitsToallhits;
+  std::vector<unsigned int> unclusteredhitsToAllhits;
   int nDBClusters = 0;
   bool unclustered;
   double p0;
   double p1;
   double minDistanceShower;
-  double minDistanceTrack;
-  if(fDoFuzzyRemnantMerge){
+  // double minDistanceTrack;
+  if(fDoFuzzyRemnantMerge && !fGenerateHoughLinesOnly){
     for(auto allhitsItr = allhits.cbegin(); allhitsItr != allhits.cend(); ++allhitsItr){
       unclustered = true;
       // nClusters is the number of fuzzy clusters we found, we only assign hits to lines here
@@ -697,51 +504,52 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
         continue;
       
       // Failing to group it with a shower-like cluster, try with a track-like cluster
-      minDistanceTrack = 999999;
-      for(auto trackClustersItr = trackClusters.begin(); trackClustersItr != trackClusters.end(); ++trackClustersItr){
-        for(auto protoTracksItr = trackClustersItr->clusterProtoTracks.begin(); protoTracksItr < trackClustersItr->clusterProtoTracks.end(); ++protoTracksItr){
+      // minDistanceTrack = 999999;
+      // for(auto trackClustersItr = trackClusters.begin(); trackClustersItr != trackClusters.end(); ++trackClustersItr){
+      //   for(auto protoTracksItr = trackClustersItr->clusterProtoTracks.begin(); protoTracksItr < trackClustersItr->clusterProtoTracks.end(); ++protoTracksItr){
           
-          distance = PointSegmentDistance( p0, p1, protoTracksItr->pMin0, protoTracksItr->pMin1, protoTracksItr->pMax0, protoTracksItr->pMax1);
+      //     distance = PointSegmentDistance( p0, p1, protoTracksItr->pMin0, protoTracksItr->pMin1, protoTracksItr->pMax0, protoTracksItr->pMax1);
 
-          if(distance > fFuzzyRemnantMergeCutoff)
-            continue;
+      //     if(distance > fFuzzyRemnantMergeCutoff)
+      //       continue;
 
-        // commenting out the line for now (see above) [GP]
-        //  distance /= std::pow(protoTracksFoundSizes[protoTracksItr->clusterNumber], 0.25);
-          if(distance < minDistanceTrack){
-            fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTracksItr->clusterNumber;
-            minDistanceTrack = distance;
-            unclustered = false;
-          }
-        }
-      }
+      //   // commenting out the line for now (see above) [GP]
+      //   //  distance /= std::pow(protoTracksFoundSizes[protoTracksItr->clusterNumber], 0.25);
+      //     if(distance < minDistanceTrack){
+      //       fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = protoTracksItr->clusterNumber;
+      //       minDistanceTrack = distance;
+      //       unclustered = false;
+      //     }
+      //   }
+      // }
 
 
       if(unclustered){
-        unclusteredhitsToallhits.push_back(allhitsItr-allhits.begin());
+        unclusteredhitsToAllhits.push_back(allhitsItr-allhits.begin());
         unclusteredhits.push_back(*allhitsItr);
+        fpointId_to_clusterId.at(allhitsItr-allhits.begin()) = kNOISE_CLUSTER;
       }
       
     }
 
     // Setup DBSCAN for noise and extra hits
     // Start by getting the ChannelFilter
-    filter::ChannelFilter chanFilt;
-    fDBScan.InitScan(unclusteredhits, chanFilt.SetOfBadChannels());
-    fDBScan.run_cluster();
+    // filter::ChannelFilter chanFilt;
+    // fDBScan.InitScan(unclusteredhits, chanFilt.SetOfBadChannels());
+    // fDBScan.run_cluster();
    
-    nDBClusters = fDBScan.fclusters.size();
-    for(size_t j = 0; j < fDBScan.fpointId_to_clusterId.size(); ++j){          
-      if (fDBScan.fpointId_to_clusterId[j]== kNO_CLUSTER || fDBScan.fpointId_to_clusterId[j]==kNOISE_CLUSTER) {
-        fpointId_to_clusterId.at(unclusteredhitsToallhits[j]) = kNOISE_CLUSTER;
-      } 
-      else {
-        fpointId_to_clusterId.at(unclusteredhitsToallhits[j]) = fDBScan.fpointId_to_clusterId[j] + nClusters;
-      }
-    }
+    // nDBClusters = fDBScan.fclusters.size();
+    // for(size_t j = 0; j < fDBScan.fpointId_to_clusterId.size(); ++j){          
+    //   if (fDBScan.fpointId_to_clusterId[j]== kNO_CLUSTER || fDBScan.fpointId_to_clusterId[j]==kNOISE_CLUSTER) {
+    //     fpointId_to_clusterId.at(unclusteredhitsToAllhits[j]) = kNOISE_CLUSTER;
+    //   } 
+    //   else {
+    //     fpointId_to_clusterId.at(unclusteredhitsToAllhits[j]) = fDBScan.fpointId_to_clusterId[j] + nClusters;
+    //   }
+    // }
   }
 
-  cid = nClusters + nDBClusters;
+  size_t cid = nClusters + nDBClusters;
   
   //mf::LogInfo("fuzzyCluster") << "cid: " << cid ;
 
@@ -1732,414 +1540,3 @@ double cluster::fuzzyClusterAlg::PointSegmentDistance(double px,
 
 
 
-
-
-/**
- * Quick Sort.
- * Adam Drozdek: Data Structures and Algorithms in C++, 2nd Edition.
- */
-void cluster::Flame::PartialQuickSort
-  (std::vector<Indexdouble>& data, int first, int last, int part )
-{
-  if( first >= last ) return;
-  int lower=first+1, upper=last;
-  double pivot;
-  std::swap(data[first], data[ (first+last)/2 ]);
-  pivot = data[ first ].value;
-
-  while( lower <= upper ){
-    while( lower <= last && data[lower].value < pivot ) ++lower;
-    while( pivot < data[upper].value ) --upper;
-    if( lower < upper ){
-      std::swap(data[lower], data[upper]);
-      --upper;
-    }
-    ++lower;
-  }
-  std::swap(data[first], data[upper]);
-  if( first < upper-1 ) PartialQuickSort( data, first, upper-1, part );
-  if( upper >= part ) return;
-  if( upper+1 < last ) PartialQuickSort( data, upper+1, last, part );
-} // cluster::Flame::PartialQuickSort()
-
-const std::vector<cluster::Flame::DistFunction> basicDistFunctions = {
-  cluster::Flame::Euclidean ,
-  cluster::Flame::CosineDist ,
-  cluster::Flame::PearsonDist ,
-  cluster::Flame::UCPearsonDist ,
-  cluster::Flame::SQPearsonDist ,
-  cluster::Flame::DotProductDist ,
-  cluster::Flame::CovarianceDist ,
-  cluster::Flame::Manhattan 
-};
-
-double cluster::Flame::Euclidean(const std::vector<double>& x, const std::vector<double>& y)
-{
-  size_t m = std::min(x.size(), y.size());
-  double d2 = 0.;
-  for(size_t i = 0; i < m; ++i)
-    d2 += sqr( x[i] - y[i] );
-  return std::sqrt( d2 );
-}
-double cluster::Flame::Cosine(const std::vector<double>& x, const std::vector<double>& y)
-{
-  size_t m = std::min(x.size(), y.size());
-  if( m == 0 ) return 0.;
-  double r = 0., x2 = 0., y2 = 0.;
-  for(size_t i = 0; i < m; ++i) {
-    r += x[i] * y[i];
-    x2 += sqr(x[i]);
-    y2 += sqr(y[i]);
-  }
-  return r / ( std::sqrt( x2 * y2 ) + EPSILON );
-}
-double cluster::Flame::Pearson( const std::vector<double>& x, const std::vector<double>& y)
-{
-  return std::sqrt(SQPearson(x, y));
-}
-double cluster::Flame::UCPearson( const std::vector<double>& x, const std::vector<double>& y)
-{
-  size_t m = std::min(x.size(), y.size());
-  if( m == 0 ) return 0.;
-  double r = 0., x2 = 0., y2 = 0., xavg = 0., yavg = 0.;
-  for(size_t i = 0; i < m; ++i) {
-    xavg += x[i];
-    yavg += y[i];
-  }
-  xavg /= m;
-  yavg /= m;
-  for(size_t i = 0; i < m; ++i) {
-    r  += x[i] * y[i];
-    x2 += sqr(x[i] - xavg);
-    y2 += sqr(y[i] - yavg);
-  }
-  return r / ( std::sqrt( x2 * y2 ) + EPSILON );
-}
-double cluster::Flame::SQPearson( const std::vector<double>& x, const std::vector<double>& y)
-{
-  size_t m = std::min(x.size(), y.size());
-  if( m == 0 ) return 0.;
-  double r = 0., x2 = 0., y2 = 0., xavg = 0., yavg = 0.;
-  for(size_t i = 0; i < m; ++i) {
-    xavg += x[i];
-    yavg += y[i];
-  }
-  xavg /= m;
-  yavg /= m;
-  for(size_t i = 0; i < m; ++i) {
-    register double dx = ( x[i] - xavg ), dy = ( y[i] - yavg );
-    r  += dx * dy;
-    x2 += sqr(dx);
-    y2 += sqr(dy);
-  }
-  return sqr(r) / ( x2 * y2 + EPSILON );
-}
-double cluster::Flame::DotProduct( const std::vector<double>& x, const std::vector<double>& y)
-{
-  size_t m = std::min(x.size(), y.size());
-  if( m == 0 ) return 0.;
-  double r = 0.;
-  for(size_t i = 0; i < m; ++i) r += x[i] * y[i];
-  return r / m;
-}
-double cluster::Flame::Covariance( const std::vector<double>& x, const std::vector<double>& y)
-{
-  size_t m = std::min(x.size(), y.size());
-  if( m <= 1 ) return 0.;
-  double r = 0., xavg = 0., yavg = 0.;
-  for(size_t i = 0; i < m; ++i) {
-    xavg += x[i];
-    yavg += y[i];
-  }
-  xavg /= m;
-  yavg /= m;
-  for(size_t i = 0; i < m; ++i) r += ( x[i] - xavg ) * ( y[i] - yavg );
-  return r / (m - 1);
-}
-double cluster::Flame::Manhattan( const std::vector<double>& x, const std::vector<double>& y)
-{
-  size_t m = std::min(x.size(), y.size());
-  double d = 0.;
-  for(size_t i = 0; i < m; ++i) d += std::abs( x[i] - y[i] );
-  return d;
-}
-inline double cluster::Flame::CosineDist( const std::vector<double>& x, const std::vector<double>& y)
-{
-  return 1-Cosine( x, y );
-}
-inline double cluster::Flame::PearsonDist( const std::vector<double>& x, const std::vector<double>& y)
-{
-  return 1-Pearson( x, y );
-}
-inline double cluster::Flame::UCPearsonDist( const std::vector<double>& x, const std::vector<double>& y)
-{
-  return 1-UCPearson( x, y );
-}
-inline double cluster::Flame::SQPearsonDist( const std::vector<double>& x, const std::vector<double>& y)
-{
-  return 1-SQPearson( x, y );
-}
-inline double cluster::Flame::DotProductDist( const std::vector<double>& x, const std::vector<double>& y)
-{
-  return 1-DotProduct( x, y );
-}
-inline double cluster::Flame::CovarianceDist( const std::vector<double>& x, const std::vector<double>& y)
-{
-  return 1-Covariance( x, y );
-}
-
-/* If m==0, data is distance matrix. */
-void cluster::Flame::SetMatrix
-  (const std::vector<std::vector<double>>& data, bool bDistance )
-{
-  const size_t n = data.size();
-  
-  size_t MAX = std::sqrt( n ) + 10;
-  
-  std::vector<Indexdouble> vals(n);
-  if( MAX >= n ) MAX = n - 1;
-    
-  N = n;
-  KMAX = MAX;
-  
-  graph.resize(n);
-  dists.resize(n);
-  weights.resize(n);
-  nncounts.resize(n);
-  obtypes.resize(n);
-  fuzzyships.resize(n);
-
-  for(size_t i = 0; i < n; ++i) {
-    graph[i].resize(MAX);
-    dists[i].resize(MAX);
-    weights[i].resize(MAX);
-    if( bDistance ){
-      // data is distance matrix
-      for(size_t j = 0; j < n; ++j){
-        vals[j].index = j;
-        vals[j].value = data[i][j];
-      }
-    }else{
-      // data is raw data matrix
-      for(size_t j = 0; j < n; ++j) {
-        vals[j].index = j;
-        vals[j].value = distfunc( data[i], data[j] );
-      }
-    }
-    PartialQuickSort( vals, 0, n-1, MAX+1 );
-    /* Store MAX number of nearest neighbors. */
-    for(size_t j = 0; j < MAX; ++j){
-      graph[i][j] = vals[j+1].index;
-      dists[i][j] = vals[j+1].value;
-    }
-  } // for i
-} // cluster::Flame::SetMatrix()
-void cluster::Flame::SetDataMatrix
-  (const std::vector<std::vector<double>>& data, int dt)
-{
-  simtype = dt;
-  if( dt > 0 && dt < DST_NULL ) distfunc = basicDistFunctions.at(dt-1);
-  if( !distfunc ) distfunc = basicDistFunctions.at(0);
-  SetMatrix( data );
-}
-void cluster::Flame::SetDistMatrix
-  (const std::vector<std::vector<double>>& data)
-{
-  SetMatrix( data, true );
-}
-void cluster::Flame::DefineSupports(size_t knn, double thd )
-{
-  const size_t n = N, kmax = KMAX;
-  std::vector<double> density(n);
-  
-  if( knn > kmax ) knn = kmax;
-  K = knn;
-  for(size_t i = 0; i < n; ++i) {
-    /* To include all the neighbors that have distances equal to the
-     * distance of the most distant one of the K-Nearest Neighbors */
-    size_t k = knn;
-    const double d = dists[i][knn-1];
-    for(size_t j = knn; j < kmax; ++j) {
-      if( dists[i][j] != d ) break;
-      ++k;
-    } // for j
-    nncounts[i] = k;
-
-    /* The definition of weights in this implementation is 
-     * different from the previous implementations where distances 
-     * or similarities often have to be transformed in some way.
-     *
-     * But in this definition, the weights are only dependent on 
-     * the ranking of distances of the neighbors, so it is more 
-     * robust against distance transformations. */
-    double sum = 0.5*k*(k+1.0);
-    for(size_t j = 0; j < k; ++j) weights[i][j] = (k-j) / sum;
-    
-    sum = 0.0;
-    for(size_t j = 0; j < k; ++j) sum += dists[i][j];
-    density[i] = 1.0 / (sum + EPSILON);
-  }
-  double sum = 0.0, sum2 = 0.0;
-  for(size_t i = 0; i < n; ++i) {
-    sum += density[i];
-    sum2 += sqr(density[i]);
-  }
-  sum /= n;
-  // Density threshold for possible outliers
-  thd = sum + thd * std::sqrt( sum2 / n - sum * sum );
-
-  std::fill(obtypes.begin(),obtypes.end(),OBT_NORMAL);
-  cso_count = 0;
-  for(size_t i = 0; i < n; ++i) {
-    size_t k = nncounts[i];
-    double fmax = 0.0, fmin = density[i] / density[ graph[i][0] ];
-    for(size_t j = 1; j < k; ++j) {
-      const double d = density[i] / density[ graph[i][j] ];
-      if( d > fmax ) fmax = d;
-      if( d < fmin ) fmin = d;
-      /* To avoid defining neighboring objects or objects close 
-       * to an outlier as CSOs.  */
-      if( obtypes[ graph[i][j] ] ) fmin = 0.0;
-    }
-    if( fmin >= 1.0 ){
-      ++cso_count;
-      obtypes[i] = OBT_SUPPORT;
-    }else if( fmax <= 1.0 && density[i] < thd ){
-      obtypes[i] = OBT_OUTLIER;
-    }
-  } // for i
-  
-} // cluster::Flame::DefineSupports()
-
-void cluster::Flame::LocalApproximation(unsigned int steps, double epsilon) {
-  size_t n = N, m = cso_count;
-  std::vector<std::vector<double>> fuzzyships2(n);
-  size_t k = 0;
-  for(size_t i = 0; i < n; ++i) {
-    fuzzyships[i].resize(m+1);
-    fuzzyships2[i].resize(m+1, 0);
-    std::fill(fuzzyships[i].begin(), fuzzyships[i].end(), 0);
-    switch (obtypes[i]) {
-      case OBT_SUPPORT: // Full membership to the cluster represented by itself
-        fuzzyships[i][k] = 1.0;
-        fuzzyships2[i][k] = 1.0;
-        ++k;
-        break;
-      case OBT_OUTLIER: // Full membership to the outlier group
-        fuzzyships[i][m] = 1.0;
-        fuzzyships2[i][m] = 1.0;
-        break;
-      case OBT_NORMAL:
-        // Equal memberships to all clusters and the outlier group.
-        // Random initialization does not change the results.
-        double f = 1.0/(m+1);
-        std::fill(fuzzyships[i].begin(), fuzzyships[i].end(), f);
-        std::fill(fuzzyships2[i].begin(), fuzzyships2[i].end(), f);
-        break;
-    } // switch
-  } // for i
-  for(unsigned int t = 0; t < steps; ++t) {
-    double dev = 0.;
-    for(size_t i = 0; i < n; ++i) {
-      if (obtypes[i] != OBT_NORMAL ) continue;
-      std::vector<double>& fuzzy = (t & 1)? fuzzyships2[i]: fuzzyships[i];
-      std::vector<std::vector<double>>& fuzzy2
-        = (t & 1)? fuzzyships: fuzzyships2;
-      // Update membership of an object by a linear combination of
-      // the memberships of its nearest neighbors.
-      const size_t knn = nncounts[i];
-      double sum = 0.0;
-      for(size_t j = 0; j <= m; ++j) {
-        double ws = 0.0;
-        for(size_t k = 0; k < knn; ++k)
-          ws += weights[i][k] * fuzzy2[ graph[i][k] ][j];
-        fuzzy[j] = ws;
-        sum += ws;
-        dev += sqr(ws - fuzzy2[i][j]);
-      } // for j
-      for(size_t j = 0; j <= m; ++j) fuzzy[j] /= sum;
-    } // for i
-    if( dev < epsilon ) break;
-  } // for t
-  // update the membership of all objects to remove clusters 
-  // that contains only the CSO
-  for(size_t i = 0; i < n; ++i) {
-    const size_t knn = nncounts[i];
-    for(size_t j = 0; j <= m; ++j) {
-      double ws = 0.0;
-      for(size_t k = 0; k < knn; ++k)
-        ws += weights[i][k] * fuzzyships2[ graph[i][k] ][j];
-      fuzzyships[i][j] = ws;
-    } // for j
-  } // for i
-} // cluster::Flame::LocalApproximation()
-
-void cluster::Flame::MakeClusters( double thd )
-{
-
-  size_t C = cso_count + 1;
-  
-  std::vector<std::vector<double>> fuzzyships1(fuzzyships);
-  std::vector<Indexdouble> vals(N);
-  
-  /* Sort objects based on the "entropy" of fuzzy memberships. */
-  for(size_t i = 0; i < N; ++i) {
-    vals[i].index = i;
-    vals[i].value = 0.0;
-    //std::cout << "fuzzyships1[i] size: " << fuzzyships1[i].size() << std::endl;
-    //std::cout << "this->fuzzyships[i] size: " << this->fuzzyships[i].size() << std::endl;
-    for(size_t j = 0; j < C; ++j){
-      register double fs = fuzzyships1[i][j];
-      if( fs > EPSILON ) vals[i].value -= fs * log( fs );
-    } // for j
-  } // for t
-  PartialQuickSort( vals, 0, N-1, N );
-
-  int imax = -1;
-  clusters.clear();
-  clusters.resize(C);
-  if( thd < 0.0 || thd > 1.0 ){
-    /* Assign each object to the cluster 
-     * in which it has the highest membership. */
-    for(size_t i = 0; i < N; ++i) {
-      int id = vals[i].index;
-      double fmax = 0.;
-      for(size_t j = 0; j < C; ++j) {
-        if( fuzzyships1[id][j] > fmax ){
-          imax = j;
-          fmax = fuzzyships1[id][j];
-        }
-      } // for j
-      clusters.at(imax).push_back(id);
-    } // for i
-  }else{
-    /* Assign each object to all the clusters
-     * in which it has membership higher than thd,
-     * otherwise, assign it to the outlier group.*/
-    for(size_t i = 0; i < N; ++i) {
-      int id = vals[i].index;
-      for(size_t j = 0; j < C; ++j) {
-        if( fuzzyships1[id][j] > thd || ( j == C-1 && imax <0 ) ){
-          imax = j;
-          //clust = this->clusters + j;
-          //IntArray_Push( this->clusters + j, id );
-          clusters[j].push_back(id);
-        } // if
-      } // for j
-    } // for i
-  } // if ... else
-  
-  // removing empty clusters
-  bool bEmptyOutlier = clusters.back().empty();
-  std::vector<std::vector<int>>::iterator end_good_clusters = std::remove_if(
-    clusters.begin(), clusters.end(),
-    std::mem_fn(&std::vector<int>::empty)
-    );
-  // if the last cluster (the outliers) is empty, it has not been moved
-  // and end_good_clusters does not include it;
-  // in that case we need to do that ourselves
-  clusters.erase(end_good_clusters, clusters.end()); // truncate
-  if (bEmptyOutlier) clusters.emplace_back(); // an empty outlier is added
-  
-  count = clusters.size() - 1; // outlier not included
-} // cluster::Flame::MakeClusters()
