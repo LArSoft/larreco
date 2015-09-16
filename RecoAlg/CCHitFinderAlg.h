@@ -161,8 +161,6 @@ namespace hit {
       HitChannelInfo_t info, float adcsum
       );
 
-    // MicroBooNE-specific code
-    bool fuBCode;
     // study hit finding and fitting
     bool fStudyHits;
     std::vector< short > fUWireRange, fUTickRange;
