@@ -358,7 +358,7 @@ namespace cluster {
     // try to attach a cluster to a specified vertex
     void VertexCluster(unsigned short ivx);
     // Split clusters that cross a vertex
-    void VtxClusterSplit();
+    bool VtxClusterSplit();
     // returns true if a vertex is encountered while crawling
     bool CrawlVtxChk(unsigned short kwire);
     // returns true if this cluster is between a vertex and another
@@ -400,6 +400,9 @@ namespace cluster {
     bool ChkSignal(unsigned short wire1, float time1, unsigned short wire2, float time2);
     // returns an angle-dependent scale factor for weighting fits, etc
     float AngleFactor(float slope);
+    // calculate the kink angle between hits 0-2 and 3 - 5 on the leading edge of
+    // the cluster under construction
+    float EndKinkAngle();
     /// Returns true if there are no duplicates in the hit list for next cluster
     bool CheckHitDuplicates
       (std::string location, std::string marker = "") const;
