@@ -63,7 +63,7 @@ standard_mergeclusteralg:
 {
   MinMergeClusterSize: 3
   MaxMergeSeparation:  30
-  MergingThreshold:    0.985
+  ProjWidthThreshold:  0.2
 }
 
 standard_houghbasealg:
