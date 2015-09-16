@@ -67,7 +67,6 @@ namespace hit {
     fChiSplit           = pset.get<float>("ChiSplit");
     fChiNorms           = pset.get<std::vector< float > >("ChiNorms");
     fUseFastFit         = pset.get<bool>("UseFastFit", false);
-    fuBCode             = pset.get<bool>("uBCode",false);
     fStudyHits          = pset.get<bool>("StudyHits", false);
     // The following variables are only used in StudyHits mode
     fUWireRange         = pset.get< std::vector< short >>("UWireRange");
@@ -144,7 +143,7 @@ namespace hit {
       recob::Wire const& theWire = Wires[wireIter];
       theChannel = theWire.Channel();
       // ignore bad channels
-      if(!fuBCode && cf.BadChannel(theChannel)) continue;
+      if(cf.GetChannelStatus(theChannel) != filter::ChannelFilter::GOOD) continue;
 
       std::vector<geo::WireID> wids = geom->ChannelToWire(theChannel);
       thePlane = wids[0].Plane;
