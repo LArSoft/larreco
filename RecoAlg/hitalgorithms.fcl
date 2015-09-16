@@ -15,7 +15,6 @@ standard_cchitfinderalg:
   ChiSplit:  20.   # Max chi/DOF for splitting hits for signal rms error = 1
   ChiNorms: [ 1.0, 1.0, 1.0 ]  # chi/DOF normalization for each plane
   StudyHits:  false       # study hit fits on a selected (W,T) range on one event
-  uBCode: false           # MicroBooNE-specific code
   UWireRange:   [ 300, 350]  # Study mode: wire range in the U plane
   UTickRange: [ 5200, 5500]  # Study mode: tick range in the U plane
   VWireRange:  [1050, 1080]  # Study mode: wire range in the V plane
@@ -32,7 +31,6 @@ bo_cchitfinderalg.ChiNorms:     [1.8, 3.3, 4.3]
 
 
 microboone_cchitfinderalg:                    @local::standard_cchitfinderalg
-microboone_cchitfinderalg.uBCode:             true
 microboone_cchitfinderalg.MinPeak:            [10., 5., 5.]
 microboone_cchitfinderalg.MinRMS:             [2.2, 2.2, 2.2]
 microboone_cchitfinderalg.ChiNorms:           [0.1, 0.4, 0.1]
