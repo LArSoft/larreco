@@ -123,7 +123,8 @@ namespace hit {
     float timeoff;
     static constexpr float Sqrt2Pi = 2.5066;
     static constexpr float SqrtPi  = 1.7725;
-
+    
+    bool fUseChannelFilter;
 
 //    bool prt;
     
