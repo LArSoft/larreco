@@ -1,10 +1,10 @@
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 // Class:       EMShower
 // Module Type: producer
 // File:        EMShower_module.cc
 // Author:      Mike Wallbank (m.wallbank@sheffield.ac.uk), September 2015
 //
-//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 
 // Framework includes:
 #include "art/Framework/Core/ModuleMacros.h"
@@ -81,7 +81,7 @@ void shower::EMShower::produce(art::Event &evt) {
   // Hits
   art::Handle<std::vector<recob::Hit> > hitHandle;
   std::vector<art::Ptr<recob::Hit> > hits;
-  if (evt.getByLabel("dcheat",hitHandle))
+  if (evt.getByLabel("lineclusterdc",hitHandle))
     art::fill_ptr_vector(hits, hitHandle);
 
   // Tracks
@@ -97,14 +97,14 @@ void shower::EMShower::produce(art::Event &evt) {
     art::fill_ptr_vector(clusters, clusterHandle);
 
   // Associations
-  art::FindManyP<recob::Hit> fmh(clusterHandle, evt, "dcheat");
-  art::FindManyP<recob::Track> fmt(hitHandle, evt, "pmtrack");
+  art::FindManyP<recob::Hit> fmh(clusterHandle, evt, "blurredclusterdc");
+  art::FindManyP<recob::Track> fmt(hitHandle, evt, "pmtrackdc");
+
+  // Map between tracks and clusters
+  std::map<int,std::vector<int> > trackToClusters;
 
   // Look through all the clusters
   for (std::vector<art::Ptr<recob::Cluster> >::iterator clusterIt = clusters.begin(); clusterIt != clusters.end(); ++clusterIt) {
-
-    // Make a list of tracks which are associated with this cluster
-    std::vector<int> associatedTracks;
 
     // Get the hits in this cluster
     std::vector<art::Ptr<recob::Hit> > clusterHits = fmh.at(clusterIt->key());
@@ -115,18 +115,64 @@ void shower::EMShower::produce(art::Event &evt) {
       // Get the tracks associated with this hit
       std::vector<art::Ptr<recob::Track> > clusterHitTracks = fmt.at(clusterHitIt->key());
       if (clusterHitTracks.size() > 1) { std::cout << "More than one track associated with this hit!" << std::endl; continue; }
+      if (clusterHitTracks.size() < 1) continue;
 
-      if (std::find(associatedTracks.begin(), associatedTracks.end(), clusterHitTracks.at(0)->ID()) == associatedTracks.end())
-	associatedTracks.push_back(clusterHitTracks.at(0)->ID());
+      // Add this cluster to the track map
+      int track = clusterHitTracks.at(0)->ID();
+      if (std::find(trackToClusters[track].begin(), trackToClusters[track].end(), (*clusterIt)->ID()) == trackToClusters[track].end())
+	trackToClusters[track].push_back((*clusterIt)->ID());
 
     }     
 
-    std::cout << "Cluster " << (*clusterIt)->ID() << " is associated with the following tracks: " << std::endl;
+  }
 
-    for (std::vector<int>::iterator associatedTrackIt = associatedTracks.begin(); associatedTrackIt != associatedTracks.end(); ++associatedTrackIt)
-      std::cout << *associatedTrackIt << ", ";
-    std::cout << std::endl;
+  std::cout << "End of event " << evt.event() << "; here are the clusters associated with each track..." << std::endl;
+  for (std::map<int,std::vector<int> >::iterator trackToClusterIt = trackToClusters.begin(); trackToClusterIt != trackToClusters.end(); ++trackToClusterIt) {
+    std::cout << "Track " << trackToClusterIt->first << " has the following clusters: " << std::endl;
+    for (std::vector<int>::iterator clusterIt = trackToClusterIt->second.begin(); clusterIt != trackToClusterIt->second.end(); ++clusterIt)
+      std::cout << *clusterIt << ", ";
+    std::cout << std::endl << std::endl;
+  }
 
+  // Make showers
+
+  // Shower vector
+  std::vector<std::vector<int> > newShowers;
+
+  // Loop over all tracks 
+  for (std::map<int,std::vector<int> >::iterator trackToClusterIt = trackToClusters.begin(); trackToClusterIt != trackToClusters.end(); ++ trackToClusterIt) {
+
+    // Find which showers already made are associated with this track
+    std::vector<int> matchingShowers;
+    for (unsigned int shower = 0; shower < newShowers.size(); ++shower)
+      for (std::vector<int>::iterator cluster = trackToClusterIt->second.begin(); cluster != trackToClusterIt->second.end(); ++cluster)
+	if ( (std::find(newShowers.at(shower).begin(), newShowers.at(shower).end(), *cluster) != newShowers.at(shower).end()) and
+	     (std::find(matchingShowers.begin(), matchingShowers.end(), shower)) == matchingShowers.end() )
+	  matchingShowers.push_back(shower);
+
+    // Shouldn't be more than one
+    if (matchingShowers.size() > 1)
+      std::cout << "WARNING! Number of showers this track matches is " << matchingShowers.size() << std::endl;
+
+    // New shower
+    if (matchingShowers.size() < 1)
+      newShowers.push_back(trackToClusterIt->second);
+
+    // Add to existing shower
+    else {
+      for (std::vector<int>::iterator cluster = trackToClusterIt->second.begin(); cluster != trackToClusterIt->second.end(); ++cluster)
+	if (std::find(newShowers.at(matchingShowers.at(0)).begin(), newShowers.at(matchingShowers.at(0)).end(), *cluster) == newShowers.at(matchingShowers.at(0)).end())
+	  newShowers.at(matchingShowers.at(0)).push_back(*cluster);
+    }
+
+  }
+
+  std::cout << "There are " << newShowers.size() << " showers: " << std::endl;
+  for (unsigned int shower = 0; shower < newShowers.size(); ++shower) {
+    std::cout << "Shower " << shower << " is composed of the following clusters..." << std::endl;
+    for (std::vector<int>::iterator clusterIt = newShowers.at(shower).begin(); clusterIt != newShowers.at(shower).end(); ++clusterIt)
+      std::cout << *clusterIt << ", ";
+    std::cout << std::endl << std::endl;
   }
 
 }
