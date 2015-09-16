@@ -71,7 +71,7 @@ public:
   double   FindProjectedWidth(TVector2 const& centre1, TVector2 const& start1, TVector2 const& end1, TVector2 const& centre2, TVector2 const& start2, TVector2 const& end2);
   int      MergeClusters(std::vector<art::PtrVector<recob::Hit> > const &planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters);
   void     reconfigure(fhicl::ParameterSet const& p);
-  bool     PassCuts(double const& angle, double const& crossingDistance, double const& projectedWidth, double const& separation, double const& overlap, double const& eigenvalue, double const& longLength);
+  bool     PassCuts(double const& angle, double const& crossingDistance, double const& projectedWidth, double const& separation, double const& overlap, double const& longLength);
   void     SetPlaneParameters(unsigned int const plane, unsigned int const tpc, unsigned int const cryostat) { fPlane = plane; fTPC = tpc; fCryostat = cryostat; }
 
 private:
@@ -83,7 +83,7 @@ private:
   // Merging parameters
   unsigned int fMinMergeClusterSize; // Minimum size of a cluster for it to be considered for merging
   double fMaxMergeSeparation;        // Maximum separation of clusters for merging
-  double fMergingThreshold;          // Threshold for merging
+  double fProjWidthThreshold;        // Maximum projected width (width of a tube parallel to the line connecting centres of clusters which just encompasses the clusters) for merging
 
   // Create geometry and detector property handle
   art::ServiceHandle<geo::Geometry> fGeom;
