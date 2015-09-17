@@ -4,13 +4,13 @@ BEGIN_PROLOG
 
 standard_blurredcluster:
 {
- module_type:          "BlurredClustering"
- CreateDebugPDF:       "false"
- MergeClusters:        "true"
- HitsModuleLabel:      "gaushit"
- GlobalTPCRecon:       "true"
- BlurredClusteringAlg: @local::standard_blurredclusteralg
- MergeClusterAlg:      @local::standard_mergeclusteralg
+ module_type:       "BlurredClustering"
+ CreateDebugPDF:    "false"
+ MergeClusters:     "true"
+ HitsModuleLabel:   "gaushit"
+ GlobalTPCRecon:    "true"
+ BlurredClusterAlg: @local::standard_blurredclusteralg
+ MergeClusterAlg:   @local::standard_mergeclusteralg
 }
 
 standard_clusterpca:

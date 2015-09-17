@@ -875,9 +875,10 @@ namespace trkf {
     evt.getByLabel(fMCTrackModuleLabel, mctrackh);
     // pair of MCTrack and index of matched reco track
     std::vector<std::pair<const sim::MCTrack*, int>> selected_mctracks;
-    selected_mctracks.reserve(mctrackh->size());
 
-    if(mc) {
+    if(mc && mctrackh.isValid()) {
+
+      selected_mctracks.reserve(mctrackh->size());
 
       // Dump MCTracks.
 
