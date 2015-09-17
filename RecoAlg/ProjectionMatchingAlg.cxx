@@ -333,6 +333,12 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 }
 // ------------------------------------------------------
 
+void pma::ProjectionMatchingAlg::fixReadoutPlanesParallel(
+		pma::Track3D& trk, const std::vector< art::Ptr<recob::Hit> >& hits) const
+{
+}
+// ------------------------------------------------------
+
 std::vector< pma::Hit3D* > pma::ProjectionMatchingAlg::trimTrackToVolume(
 	pma::Track3D& trk, TVector3 p0, TVector3 p1) const
 {

@@ -120,6 +120,10 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		bool add_nodes) const;
 
+	/// Try fixing inclination of a track parallel to readout planes.
+	void fixReadoutPlanesParallel(
+		pma::Track3D& trk, const std::vector< art::Ptr<recob::Hit> >& hits) const;
+
 	std::vector< pma::Hit3D* > trimTrackToVolume(pma::Track3D& trk, TVector3 p0, TVector3 p1) const;
 
 	/// Flip tracks to get second as a continuation of first; returns false if not
