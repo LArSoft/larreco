@@ -121,7 +121,7 @@ public:
 		bool add_nodes) const;
 
 	/// Try fixing inclination of a track parallel to readout planes.
-	void fixReadoutPlanesParallel(
+	void fixParallelToReadoutPlanes(
 		pma::Track3D& trk, const std::vector< art::Ptr<recob::Hit> >& hits) const;
 
 	std::vector< pma::Hit3D* > trimTrackToVolume(pma::Track3D& trk, TVector3 p0, TVector3 p1) const;

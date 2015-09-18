@@ -333,9 +333,78 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 }
 // ------------------------------------------------------
 
-void pma::ProjectionMatchingAlg::fixReadoutPlanesParallel(
+void pma::ProjectionMatchingAlg::fixParallelToReadoutPlanes(
 		pma::Track3D& trk, const std::vector< art::Ptr<recob::Hit> >& hits) const
 {
+	unsigned int tpc = trk.FrontTPC(), cryo = trk.FrontCryo();
+	if ((tpc != trk.BackTPC()) || (cryo != trk.BackCryo()))
+	{
+		mf::LogWarning("ProjectionMatchingAlg") << "Please, apply before TPC stitching.";
+		return;
+	}
+
+	const double maxCosXZ = 0.996195; // 5 deg
+
+	TVector3 dirFront = trk->Segments().front().GetDirection3D();
+	TVector3 dirFrontXZ(dirFront.X(), 0., dirFront.Z());
+	dirFrontXZ *= 1.0 / dirFrontXZ.Mag();
+
+	TVector3 dirBack = trk->Segments().back().GetDirection3D();
+	TVector3 dirBackXZ(dirBack.X(), 0., dirBack.Z());
+	dirBackXZ *= 1.0 / dirBackXZ.Mag();
+
+	if ((fabs(dirFrontXZ.Z()) < maxCosXZ) && (fabs(dirBackXZ.Z()) > maxCosXZ))
+		return; // front & back are not parallel to wire planes => exit
+
+	unsigned int nPlanes = 0;
+	std::pair<int, int> wiresFront[3], wiresBack[3]; // wire index; index direction
+
+	for (unsigned int i = 0; i < 3; i++)
+	{
+		bool present = false;
+		if (fGeom->TPC(tpc, cryo).HasPlane(i))
+		{
+			int idxFront0 = trk.NextHit(-1, i);
+			int idxBack0 = trk.PrevHit(trk.size(), i);
+			if ((idxFront0 >= 0) && (idxBack0 >= 0))
+			{
+				int idxFront1 = trk.NextHit(idxFront0, i);
+				int idxBack1 = trk.PrevHit(idxBack0, i);
+				if ((idxFront1 >= 0) && (idxBack1 >= 0))
+				{
+					int wFront0 = trk[idxFront0]->Wire();
+					int wBack0 = trk[idxBack0]->Wire();
+
+					int wFront1 = trk[idxFront1]->Wire();
+					int wBack1 = trk[idxBack1]->Wire();
+
+					wiresFront[i].first = wFront0;
+					wiresFront[i].second = wFront0 - wFront1;
+
+					wiresBack[i].first = wBack0;
+					wiresBack[i].second = wBack0 - wBack1;
+
+					if (wiresFront[i].second && wiresBack[i].second)
+					{
+						if (wiresFront[i].second > 0) wiresFront[i].second = 1;
+						else wiresFront[i].second = -1;
+
+						if (wiresBack[i].second > 0) wiresBack[i].second = 1;
+						else wiresBack[i].second = -1;
+
+						present = true;
+						nPlanes++;
+					}
+				}
+			}
+		}
+		if (!present) { wiresFront[i].first = -1; wiresBack[i].first = -1; }
+	}
+	if (nPlanes < 2)
+	{
+		mf::LogWarning("ProjectionMatchingAlg") << "Need min. 2 planes crossing multiple wires.";
+		return;
+	}
 }
 // ------------------------------------------------------
 

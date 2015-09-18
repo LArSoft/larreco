@@ -629,10 +629,10 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 				trk1->Nodes()[nodeEndIdx - 1]->Point3D(), trk1->Nodes()[nodeEndIdx]->Point3D());
 		double distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 
-		TVector3 dir1 = trk1->Nodes()[nodeEndIdx]->Point3D() - trk1->Nodes()[nodeEndIdx - 1]->Point3D();
-		TVector3 dir2 = trk2->Nodes()[1]->Point3D() - trk2->Nodes()[0]->Point3D();
+		TVector3 dir1 = trk1->Segments().back().GetDirection3D();
+		TVector3 dir2 = trk2->Segments().front().GetDirection3D();
 
-		cos3d = (dir1 * dir2) / (dir1.Mag() * dir2.Mag());
+		cos3d = dir1 * dir2;
 
 		if (cos3d <= cosThr) mf::LogVerbatim("PMAlgTrackMaker") << "...high cos";
 		if ((distProj1 >= distProjThr) || (distProj2 >= distProjThr))
