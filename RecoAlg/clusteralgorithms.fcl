@@ -312,24 +312,6 @@ microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
-# temporary settings - TURNED OFF
-#microboone_clustercrawleralg.MinAmp:          5
-#microboone_clustercrawleralg.NumPass:         1
-#microboone_clustercrawleralg.HitErrFac:       0.8
-#microboone_clustercrawleralg.MinHitFrac:      0.1
-#microboone_clustercrawleralg.DoMerge:         [true]
-#microboone_clustercrawleralg.MaxHitsFit:      [20]
-#microboone_clustercrawleralg.MinHits:         [10]
-#microboone_clustercrawleralg.ChgCut:          [4]
-#microboone_clustercrawleralg.MergeChgCut:     [4]
-#microboone_clustercrawleralg.TimeDelta:       [20]
-#microboone_clustercrawleralg.AllowNoHitWire:  80
-#microboone_clustercrawleralg.MaxWirSkip:      [80]
-#microboone_clustercrawleralg.KinkAngCut:      [0.4]
-#microboone_clustercrawleralg.Vertex3DCut:     5
-#microboone_clustercrawleralg.HitMergeChiCut:  10
-#microboone_clustercrawleralg.ChiCut:          [20]
-#microboone_clustercrawleralg.uBCode:          true
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg

@@ -47,8 +47,9 @@ namespace cluster {
 
 //------------------------------------------------------------------------------
   void ClusterCrawlerAlg::reconfigure(fhicl::ParameterSet const& pset)
-  { 
-    fNumPass            = pset.get<             unsigned short  >("NumPass");
+  {
+    
+    fNumPass            = pset.get< unsigned short >("NumPass");
     fMaxHitsFit         = pset.get< std::vector<unsigned short> >("MaxHitsFit");
     fMinHits            = pset.get< std::vector<unsigned short> >("MinHits");
     fNHitsAve           = pset.get< std::vector<unsigned short> >("NHitsAve");
@@ -151,7 +152,25 @@ namespace cluster {
     ClearResults();
   }
 
-
+  //------------------------------------------------------------------------------
+  void ClusterCrawlerAlg::ClearFilteredWires()
+  {
+    fFilteredWires.clear();
+  }
+  
+  //------------------------------------------------------------------------------
+  void ClusterCrawlerAlg::CheckFilteredWires(std::vector<recob::Wire> const& Wires)
+  {
+    // Check the set of (GOOD) wires passed by the calling routine
+    mf::LogVerbatim("CC")<<"CheckFilteredWires: good wires "<<Wires.size();
+    fFilteredWires.clear();
+    for(auto const& aWire : Wires) {
+      std::vector<geo::WireID> wids = geom->ChannelToWire(aWire.Channel());
+      fFilteredWires.push_back(wids[0]);
+    }
+  } // CheckFilteredWires
+  
+//------------------------------------------------------------------------------
   void ClusterCrawlerAlg::RunCrawler(
     std::vector<recob::Hit> const& srchits
   )
@@ -169,6 +188,12 @@ namespace cluster {
     
     inClus.resize(fHits.size());
     for(unsigned int iht = 0; iht < inClus.size(); ++iht) inClus[iht] = 0;
+    
+    if(fFilteredWires.size() == 0) {
+      mf::LogVerbatim("CC")<<"Using ChannelFilter";
+    } else {
+      mf::LogVerbatim("CC")<<"Using filtered recob::Wires";
+    }
     
     // don't do anything...
     if(fNumPass == 0) return;
@@ -189,18 +214,16 @@ namespace cluster {
         tpc = tpcid.TPC;
         // fill the WireHitRange vector with first/last hit on each wire
         // dead wires and wires with no hits are flagged < 0
-        GetHitRange(clCTP, WireHitRange, fFirstWire, fLastWire);
+        GetHitRange(clCTP);
 
 // sanity check
-/*
-  std::cout<<"Plane "<<plane<<" wire range "<<fFirstWire<<" "<<fLastWire;
+
+  std::cout<<"Plane "<<plane<<" sanity check. Wire range "<<fFirstWire<<" "<<fLastWire;
   unsigned int nhts = 0;
   for(unsigned short wire = fFirstWire; wire < fLastWire; ++wire) {
-    unsigned short index = wire - fFirstWire;
-    if(index > fHits.size() - 1) continue;
-    if(WireHitRange[index].first < 0) continue;
-    unsigned int fhit = WireHitRange[index].first;
-    unsigned int lhit = WireHitRange[index].second;
+    if(WireHitRange[wire].first < 0) continue;
+    unsigned int fhit = WireHitRange[wire].first;
+    unsigned int lhit = WireHitRange[wire].second;
     for(unsigned short hit = fhit; hit < lhit; ++hit) {
       ++nhts;
       if(fHits[hit].WireID().Wire != wire) {
@@ -218,7 +241,7 @@ namespace cluster {
     } // hit
   } // wire
   std::cout<<" is OK. nhits "<<nhts<<"\n";
-*/
+
 	if (WireHitRange.empty()||(fFirstWire == fLastWire)){
 	  mf::LogWarning("CC")<<"No hits in "<<tpcid<<" plane "<<plane;
 	  continue;
@@ -227,10 +250,6 @@ namespace cluster {
 	  LOG_DEBUG("CC")
 	    << WireHitRange.size() << " hits in " << tpcid << " plane " << plane;
 	}
-	if (WireHitRange[0].first<0){
-	  throw art::Exception(art::errors::LogicError)<<"ClusterCrawler WireHitRange[0].first = "<<WireHitRange[0].first;
-	}
-        fFirstHit = WireHitRange[0].first;
         raw::ChannelID_t channel = fHits[fFirstHit].Channel();
         // get the scale factor to convert dTick/dWire to dX/dU. This is used
         // to make the kink and merging cuts
@@ -286,15 +305,16 @@ namespace cluster {
         // look for a starting cluster that spans a block of wires
         unsigned int span = 3;
         if(fMinHits[pass] < span) span = fMinHits[pass];
-        for(auto iwire = fLastWire; iwire > fFirstWire + span; iwire--) {
-          auto index = iwire - fFirstWire;
+        for(auto iwire = fLastWire; iwire > fFirstWire + span; --iwire) {
           // skip bad wires or no hits on the wire
-          if(WireHitRange[index].first < 0) continue;
-          auto ifirsthit = (unsigned int)WireHitRange[index].first;
-          auto ilasthit = (unsigned int)WireHitRange[index].second;
+          if(WireHitRange[iwire].first < 0) continue;
+          auto ifirsthit = (unsigned int)WireHitRange[iwire].first;
+          auto ilasthit = (unsigned int)WireHitRange[iwire].second;
           for(auto ihit = ifirsthit; ihit < ilasthit; ++ihit) {
             bool ClusterAdded = false;
             recob::Hit const& hit = fHits[ihit];
+            if(plane == 0 && iwire != hit.WireID().Wire) mf::LogVerbatim("CC")<<"Whoops wire "<<iwire<<" "<<hit.WireID().Wire<<"\n";
+            if(plane == 0 && iwire == 1035) std::cout<<"Hit "<<ihit<<" time "<<(short)hit.PeakTime()<<" "<<inClus[ihit]<<"\n";
             // skip used hits
             if(ihit > fHits.size()-1) {
               mf::LogError("CC")<<"ClusterLoop bad ihit "<<ihit;
@@ -302,34 +322,43 @@ namespace cluster {
             }
             // skip used and obsolete hits
             if(inClus[ihit] != 0) continue;
-            if(fDebugPlane == (short)plane && (short)iwire == fDebugWire && fDebugHit > 0)
-              prt = std::abs(hit.PeakTime() - fDebugHit) < 20;
+            prt = (fDebugPlane == (short)plane && (short)iwire == fDebugWire && std::abs((short)hit.PeakTime() - fDebugHit) < 20);
+//            if(hit.PeakTime() > 3960 && hit.PeakTime() < 3970) std::cout<<"Chk "<<plane<<" "<<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime()<<" inClus "<<inClus[ihit]<<" prt "<<prt<<" fDebugPlane "<<fDebugPlane<<" fDebugWire "<<fDebugWire<<" fDebugHit "<<fDebugHit<<"\n";
             // Check for a hit signal on the next DS wire
             bool SigOK = ChkSignal(iwire + 1, hit.PeakTime() - 10,iwire + 1, hit.PeakTime() + 10);
             // Don't start a seed cluster if there is a hit signal DS. 
             // This is an indicator that we might be trying
             // to start a cluster just US of shower blob.
-            if(prt) {
-              if(SigOK) mf::LogVerbatim()<<"Seed hit is near DS hits";
-              if(hit.Multiplicity() > 1) mf::LogVerbatim()<<"Seed hit has multiplicity "<<hit.Multiplicity();
-            }
+            if(prt) mf::LogVerbatim("CC")<<"Seed hit SigOK "<<SigOK<<" Hit mult "<<hit.Multiplicity()<<" try jwire "<<(iwire - span + 1)<<" fFirstWire "<<fFirstWire;
             if(SigOK && hit.Multiplicity() > 1) continue;
-            if((iwire - span + 1) < fFirstWire) continue;
+            if((iwire - span + 1) < 0) continue;
             unsigned short jwire = iwire - span + 1;
+            if(prt) mf::LogVerbatim("CC")<<" jwire "<<jwire<<" fLastWire "<<fLastWire<<" WireHitRange "<<WireHitRange[jwire].first;
             if(jwire > fLastWire) continue;
-            unsigned short jindx = jwire - fFirstWire;
-            if(WireHitRange[jindx].first < 0) continue;
+            // skip if good wire and no hit
+            if(WireHitRange[jwire].first == -2) continue;
+            if(WireHitRange[jwire].first == -1) {
+              // Found a dead jwire. Keep looking upstream until we find a good wire
+              unsigned int nmissed = 0;
+              while(WireHitRange[jwire].first == -1 && jwire > 1 && nmissed < fMaxWirSkip[pass]) {
+                --jwire;
+                ++nmissed;
+              }
+              if(prt) mf::LogVerbatim("CC")<<" new jwire "<<jwire<<" dead? "<<WireHitRange[jwire].first;
+              if(WireHitRange[jwire].first < 0) continue;
+            } // dead jwire
             // Find the hit on wire jwire that best matches a line between
             // a nearby vertex and hit ihit. No constraint if useHit < 0
             unsigned int useHit = 0;
             bool doConstrain = false;
             VtxConstraint(iwire, ihit, jwire, useHit, doConstrain);
-            unsigned int jfirsthit = (unsigned int)WireHitRange[jindx].first;
-            unsigned int jlasthit = (unsigned int)WireHitRange[jindx].second;
+            unsigned int jfirsthit = (unsigned int)WireHitRange[jwire].first;
+            unsigned int jlasthit = (unsigned int)WireHitRange[jwire].second;
             if(jfirsthit > fHits.size()-1 || jfirsthit > fHits.size()-1) {
               mf::LogError("CC")<<"ClusterLoop jwire "<<jwire<<" bad firsthit "<<jfirsthit<<" lasthit "<<jlasthit<<" fhits size "<<fHits.size();
               exit(1);
             }
+            if(prt) mf::LogVerbatim("CC")<<" jhit range "<<jfirsthit<<" "<<jlasthit;
             for(unsigned int jhit = jfirsthit; jhit < jlasthit; ++jhit) {
               if(jhit > fHits.size()-1) {
                 mf::LogError("CC")<<"ClusterLoop bad jhit "<<jhit<<" firsthit "<<jfirsthit<<" lasthit "<<jlasthit<<" fhits size"<<fHits.size();
@@ -966,12 +995,10 @@ namespace cluster {
           prtime = time0 + slp;
           if(prt) mf::LogVerbatim("CC")<<"ChkClusterDS: Try to extend "
             <<tcl[icl].ID<<" to W:T "<<wire<<" hitrms "<<hitrms<<" prevth "<<prevth<<" prtime "<<(int)prtime;
-          unsigned short indx = wire - fFirstWire;
           // stop if no hits on this wire
-          if(WireHitRange[indx].first == -2) break;
-        //  if(WireHitRange[index].first == -1) break; // FIXME: trouble; why??
-          unsigned int firsthit = WireHitRange[indx].first;
-          unsigned int lasthit = WireHitRange[indx].second;
+          if(WireHitRange[wire].first == -2) break;
+          unsigned int firsthit = WireHitRange[wire].first;
+          unsigned int lasthit = WireHitRange[wire].second;
           bool hitAdded = false;
           for(ih1 = firsthit; ih1 < lasthit; ++ih1) {
             if(inClus[ih1] != 0) continue;
@@ -1103,9 +1130,13 @@ namespace cluster {
       // skip if vertices were not requested to be made on the previous pass
       if( !fFindVertices[pass - 1] ) return;
       
-      unsigned short jindx = jwire - fFirstWire;
-      unsigned int jfirsthit = WireHitRange[jindx].first;
-      unsigned int jlasthit = WireHitRange[jindx].second;
+      if(jwire > WireHitRange.size() - 1) {
+        mf::LogError("CC")<<"VtxConstraint fed bad jwire "<<jwire<<" WireHitRange size "<<WireHitRange.size();
+        return;
+      }
+      
+      unsigned int jfirsthit = WireHitRange[jwire].first;
+      unsigned int jlasthit = WireHitRange[jwire].second;
       for(unsigned short iv = 0; iv < vtx.size(); ++iv) {
         if(vtx[iv].CTP != clCTP) continue;
         // vertex must be US of the cluster
@@ -2307,13 +2338,13 @@ namespace cluster {
       int bin;
       for(short wire = wiree; wire < wireb + 1; ++wire) {
         prTime = timee + (wire - wire0) * slope;
-        unsigned short index = wire - fFirstWire;
+//        unsigned short index = wire - fFirstWire;
         // skip dead wires
-        if(WireHitRange[index].first == -1) continue;
+        if(WireHitRange[wire].first == -1) continue;
         // no hits on this wire
-        if(WireHitRange[index].first == -2) return false;
-        unsigned int firsthit = WireHitRange[index].first;
-        unsigned int lasthit = WireHitRange[index].second;
+        if(WireHitRange[wire].first == -2) return false;
+        unsigned int firsthit = WireHitRange[wire].first;
+        unsigned int lasthit = WireHitRange[wire].second;
         float amp = 0;
         for(unsigned short khit = firsthit; khit < lasthit; ++khit) {
           if(oneWire) {
@@ -3222,7 +3253,7 @@ namespace cluster {
     unsigned short lastwire = fHits[lasthit].WireID().Wire;
     bool ChkCharge = false;
     for(unsigned short nextwire = lastwire-1; nextwire >= fFirstWire; --nextwire) {
-  if(prt) mf::LogVerbatim("CC")<<"LACrawlUS: next wire "<<nextwire;
+  if(prt) mf::LogVerbatim("CC")<<"LACrawlUS: next wire "<<nextwire<<" HitRange "<<WireHitRange[nextwire].first;
       // stop crawling if there is a nearby vertex
       if(CrawlVtxChk(nextwire)) {
   if(prt) mf::LogVerbatim("CC")<<"LACrawlUS: stop at vertex";
@@ -3325,8 +3356,7 @@ namespace cluster {
     CheckClusterHitFrac(prt);
 
     clProcCode += 300;
-  if(prt) mf::LogVerbatim("CC")
-    <<"LACrawlUS done. Nhits = "<<fcl2hits.size();
+    if(prt) mf::LogVerbatim("CC")<<"LACrawlUS done. Nhits = "<<fcl2hits.size();
     prt = false;
   } // LACrawlUS
 
@@ -3371,7 +3401,7 @@ namespace cluster {
     if(prt) mf::LogVerbatim("CC")<<"CrawlUS: last wire "<<lastwire<<" hit "<<lasthit;
     
     for(unsigned short nextwire = lastwire-1; nextwire >= fFirstWire; --nextwire) {
-      if(prt) mf::LogVerbatim("CC")<<"CrawlUS: next wire "<<nextwire;
+      if(prt) mf::LogVerbatim("CC")<<"CrawlUS: next wire "<<nextwire<<" HitRange "<<WireHitRange[nextwire].first;
       // stop crawling if there is a nearby vertex
       if(CrawlVtxChk(nextwire)) {
         if(prt) mf::LogVerbatim("CC")<<"CrawlUS: stop at vertex";
@@ -4023,7 +4053,7 @@ namespace cluster {
     
     if(fcl2hits.size() == 0) return;
 
-    unsigned short index = kwire - fFirstWire;
+//    unsigned short index = kwire - fFirstWire;
     // check for signal on a known good wire
     if(fuBCode) {
       // List of uB bad wires not defined yet so assume all
@@ -4031,16 +4061,16 @@ namespace cluster {
       SigOK = true;
     } else {
       // skip bad wire, but assume the track was there
-      if(WireHitRange[index].first == -1) {
+      if(WireHitRange[kwire].first == -1) {
         SigOK = true;
         return;
       }
       // return SigOK false if no hit on a good wire
-      if(WireHitRange[index].first == -2) return;
+      if(WireHitRange[kwire].first == -2) return;
     }
 
-    unsigned int firsthit = WireHitRange[index].first;
-    unsigned int lasthit = WireHitRange[index].second;
+    unsigned int firsthit = WireHitRange[kwire].first;
+    unsigned int lasthit = WireHitRange[kwire].second;
     if(fuBCode) {
       if(prt && firsthit > fHits.size()) mf::LogError("CC")<<"AddLAHit: Bad firsthit "<<firsthit<<" size "<<fHits.size();
       if(firsthit > fHits.size()) return;
@@ -4231,26 +4261,26 @@ namespace cluster {
     unsigned int lastClHit = fcl2hits[fcl2hits.size()-1];
     unsigned short wire0 = fHits[lastClHit].WireID().Wire;
 
-    unsigned short index = kwire - fFirstWire;
+//    unsigned short index = kwire - fFirstWire;
     // return if no signal and no hit
     if(fAllowNoHitWire == 0) {
-      if(WireHitRange[index].first == -2) return;
+      if(WireHitRange[kwire].first == -2) return;
     } else {
       // allow a number of wires with no hits
-      if(WireHitRange[index].first == -2 && 
+      if(WireHitRange[kwire].first == -2 &&
         (wire0 - kwire) > fAllowNoHitWire) {
         SigOK = true;
         return;
       }
     }
     // skip bad wire, but assume the track was there
-    if(WireHitRange[index].first == -1) {
+    if(WireHitRange[kwire].first == -1) {
       SigOK = true;
       return;
     }
 
-    unsigned int firsthit = WireHitRange[index].first;
-    unsigned int lasthit = WireHitRange[index].second;
+    unsigned int firsthit = WireHitRange[kwire].first;
+    unsigned int lasthit = WireHitRange[kwire].second;
 
     
     // the projected time of the cluster on this wire
@@ -4754,7 +4784,7 @@ namespace cluster {
           // get the hit range if necessary
           if(thePlane != lastplane) {
             clCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, thePlane);
-            GetHitRange(clCTP, WireHitRange, fFirstWire, fLastWire);
+            GetHitRange(clCTP);
             lastplane = thePlane;
           }
           // make a list of clusters that have hits near this point on nearby wires
@@ -4765,11 +4795,11 @@ namespace cluster {
       <<" look for cluster hits near P:W:T "<<thePlane<<":"<<theWire<<":"<<(int)theTime
       <<" Wire range "<<loWire<<" to "<<hiWire;
           for(unsigned short wire = loWire; wire < hiWire; ++wire) {
-            unsigned short index = wire - fFirstWire;
+//            unsigned short index = wire - fFirstWire;
             // ignore dead wires or wires with no hits
-            if(WireHitRange[index].first < 0) continue;
-            unsigned int firsthit = WireHitRange[index].first;
-            unsigned int lasthit = WireHitRange[index].second;
+            if(WireHitRange[wire].first < 0) continue;
+            unsigned int firsthit = WireHitRange[wire].first;
+            unsigned int lasthit = WireHitRange[wire].second;
             for(unsigned int khit = firsthit; khit < lasthit; ++khit) {
               // ignore obsolete and un-assigned hits
               if(inClus[khit] <= 0) continue;
@@ -5339,89 +5369,91 @@ namespace cluster {
     } // VtxMatch
   
 //////////////////////////////////
-    void ClusterCrawlerAlg::GetHitRange(CTP_t CTP, std::vector< std::pair<int, int> >& WireHitRange,
-      unsigned short& firstwire, unsigned short& lastwire)
+    void ClusterCrawlerAlg::GetHitRange(CTP_t CTP)
     {
       // fills the WireHitRange vector for the supplied Cryostat/TPC/Plane code
-      fFirstWire = fLastWire = 0;
 			fFirstHit = 0;
-			unsigned int lastHit = 0;
-      WireHitRange.clear();
-      bool first = true;
       geo::PlaneID planeID = DecodeCTP(clCTP);
-      // find the first and last wire with a hit
-      for(unsigned int hit = 0; hit < fHits.size(); ++hit) {
-        // TODO change to planeID()
-        if(fHits[hit].WireID().Plane != planeID.Plane) continue;
-        if(fHits[hit].WireID().TPC != planeID.TPC) continue;
-        if(fHits[hit].WireID().Cryostat != planeID.Cryostat) continue;
-        unsigned short theWireNum = fHits[hit].WireID().Wire;
-        if(first) {
-          fFirstHit = hit;
-          fFirstWire = theWireNum;
-          first = false;
-        }
-        fLastWire = theWireNum;
-        lastHit = hit;
-      } //hit
+      unsigned int nwires = geom->Nwires(planeID.Plane, planeID.TPC, planeID.Cryostat);
+      WireHitRange.resize(nwires + 1);
+      // the following assumes that there
+      fFirstWire = 0;
+      fLastWire = nwires - 1;
       
-      if (first) return; // we collected nothing
-
-      // now we can define the WireHitRange vector.
-      // start by defining the "no hits on wire" condition
-      short sflag = -2;
-      for(unsigned short wire = fFirstWire; wire <= fLastWire; ++wire) {
-        WireHitRange.push_back(std::make_pair(sflag, sflag));
-      }
-      // overwrite with the "dead wires" condition
-      filter::ChannelFilter cf;
-      sflag = -1;
-      unsigned short nChan = 0;
+      short sflag;
+      unsigned short wire;
       unsigned short nGood = 0;
-      for(unsigned short wire = fFirstWire+1; wire < fLastWire; ++wire) {
-        raw::ChannelID_t chan = geom->PlaneWireToChannel
+      if(fFilteredWires.size() == 0) {
+        // start with good wire - no hit
+        sflag = -2;
+        for(wire = 0; wire < WireHitRange.size(); ++wire)
+          WireHitRange[wire] = std::make_pair(sflag, sflag);
+        // overwrite with the "dead wires" condition
+        filter::ChannelFilter cf;
+        sflag = -1;
+        for(wire = 0; wire < WireHitRange.size(); ++wire) {
+          raw::ChannelID_t chan = geom->PlaneWireToChannel
           ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
-        // remember to offset references to WireHitRange by the FirstWire
-        unsigned short indx = wire - fFirstWire;
-        ++nChan;
-//        if(cf.GetChannelStatus(chan) != filter::ChannelFilter::GOOD) mf::LogVerbatim("CC")<<"BadWire "<<CTP<<":"<<wire;
-        if(cf.GetChannelStatus(chan) != filter::ChannelFilter::GOOD) continue;
-        WireHitRange[indx] = std::make_pair(sflag, sflag);
-        ++nGood;
-      }
-      std::cout<<"Number of channels Tot "<<nChan<<" good "<<nGood<<"\n";
-      fLastWire = fFirstWire;
-      unsigned int thishit = fFirstHit;
-      unsigned int lastfirsthit = fFirstHit;
-      // next overwrite with the index of the first/last hit on each wire
-      for(unsigned int hit = fFirstHit; hit <= lastHit; ++hit) {
+          if(cf.GetChannelStatus(chan) != filter::ChannelFilter::GOOD) continue;
+          ++nGood;
+          WireHitRange[wire] = std::make_pair(sflag, sflag);
+        }
+        std::cout<<"ChannelFilter nDead "<<nwires - nGood<<" in plane "<<planeID.Plane<<"\n";
+      } else {
+        // Use already filtered wires or no filter
+        // In this case we first assume that all wires are dead
+        sflag = -1;
+        for(wire = 0; wire < WireHitRange.size(); ++wire) {
+          WireHitRange[wire] = std::make_pair(sflag, sflag);
+        } // wire
+        // Next overwrite with the "good channel" and "no hit" condition
+        sflag = -2;
+        for(unsigned int ii = 0; ii < fFilteredWires.size(); ++ii) {
+          if(fFilteredWires[ii].TPC != planeID.TPC) continue;
+          if(fFilteredWires[ii].Plane != planeID.Plane) continue;
+          wire = fFilteredWires[ii].Wire;
+          if(wire > WireHitRange.size() - 1) {
+            mf::LogError("CC")<<"GetHitRange: Crazy wire number "<<wire<<" in plane "<<planeID.Plane;
+            return;
+          }
+          ++nGood;
+          WireHitRange[wire] = std::make_pair(sflag, sflag);
+        } // ii
+        std::cout<<"NoiseFilter nDead "<<nwires - nGood<<" in plane "<<planeID.Plane<<"\n";
+      } //
+
+      bool first = true;
+      unsigned short hitWire, nextHitWire;
+      for(unsigned int hit = 0; hit < fHits.size() - 1; ++hit) {
         recob::Hit const& theHit = fHits[hit];
-        if(theHit.WireID().Plane != planeID.Plane) continue;
+        
         if(theHit.WireID().TPC != planeID.TPC) continue;
         if(theHit.WireID().Cryostat != planeID.Cryostat) continue;
-	
-        unsigned short thiswire = theHit.WireID().Wire;
-        if(thiswire > fLastWire) {
-          unsigned short indx = fLastWire - fFirstWire;
-          int itmp1 = lastfirsthit;
-          int itmp2 = thishit;
-          if (itmp1<0||itmp2<0) {
-            throw art::Exception(art::errors::LogicError)<<"ClusterCrawlerAlg::GetHitRange() indx= "<<indx<<" itmp1= "<<itmp1<<" itmp2= "<<itmp2<<" lastfirsthit= "<<lastfirsthit<<" thishit= "<<thishit;
-          }
-          WireHitRange[indx] = std::make_pair(itmp1,itmp2);
-          fLastWire = thiswire;
-          lastfirsthit = thishit;
-        } else if(thiswire < fLastWire) {
-          mf::LogError("CC")<<"ERROR: Hits not sorted!!";
-          return;
+        if(theHit.WireID().Plane < planeID.Plane) continue;
+        if(theHit.WireID().Plane > planeID.Plane) {
+          WireHitRange[fLastWire].second = hit;
+          break;
         }
-        ++thishit;
-      } //hit
-      // define for the last wire
-      unsigned short indx = fLastWire - fFirstWire;
-      int itmp1 = lastfirsthit;
-      int itmp2 = thishit;
-      WireHitRange[indx] = std::make_pair(itmp1,itmp2);
+        hitWire = theHit.WireID().Wire;
+        if(first) {
+          WireHitRange[hitWire].first = hit;
+          fFirstWire = hitWire;
+          fFirstHit = hit;
+          first = false;
+        }
+        fLastWire = hitWire;
+        
+        // see if the next hit is on a different wire
+        recob::Hit const& theNextHit = fHits[hit + 1];
+        nextHitWire = theNextHit.WireID().Wire;
+        
+        if(nextHitWire > hitWire) {
+          WireHitRange[hitWire].second = hit + 1;
+          WireHitRange[nextHitWire].first = hit + 1;
+//          mf::LogVerbatim("CC")<<"hitWire "<<hitWire<<" hit "<<hit<<" nextHitWire "<<nextHitWire;
+        }
+      } // hit
+
     } // GetHitRange()
 
 

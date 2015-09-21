@@ -109,6 +109,10 @@ namespace cluster {
     virtual void reconfigure(fhicl::ParameterSet const& pset);
     void RunCrawler(std::vector<recob::Hit> const& srchits);
     
+    // initializes the vector of filtered wires
+    void ClearFilteredWires();
+    void CheckFilteredWires(std::vector<recob::Wire> const& Wires);
+
     /// @{
     /// @name Result retrieval
     
@@ -163,6 +167,7 @@ namespace cluster {
 		bool fHammerCluster;					 ///< look for hammer type clusters
     
     bool fuBCode;     ///< patch in MicroBooNE-specific code
+    bool fUseChannelFilter;
 		
 		float fMinAmp;									///< expected minimum signal
 
@@ -178,7 +183,7 @@ namespace cluster {
     float fLAClusSlopeCut;
     float fHitMergeChiCut; ///< Merge cluster hit-multiplets if the separation chisq
                              ///< is < cut. Set < 0 for no merging
-    bool fMergeOverlapAngCut;   ///< angle cut for merging overlapping clusters
+    float fMergeOverlapAngCut;   ///< angle cut for merging overlapping clusters
     unsigned short fAllowNoHitWire;
 		float fVertex2DCut; 	///< 2D vtx -> cluster matching cut (ticks)
     float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (cm)
@@ -186,12 +191,13 @@ namespace cluster {
     short fDebugPlane;
     short fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
     short fDebugHit;   ///< out detailed information while crawling
+    
+    // Wires that have been determined by some filter (e.g. NoiseFilter) to be good
+    std::vector<geo::WireID> fFilteredWires;
 
-    // fills a wirehitrange vector for the supplied Cryostat/TPC/Plane code
+    // fills the wirehitrange vector for the supplied Cryostat/TPC/Plane code
 
-    void GetHitRange(CTP_t CTP,
-      std::vector< std::pair<int, int> >& wirehitrange,
-      unsigned short& firstwire, unsigned short& lastwire);
+    void GetHitRange(CTP_t CTP);
 
     // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
     void FitClusterMid(unsigned short it1, unsigned int iht, short nhit);
