@@ -197,7 +197,7 @@ double pma::Element3D::SumDist2(void) const
 
 				float driftSpan = fAssignedHits[i]->SpanDrift();
 
-				if (driftSpan <= 0.0F) LOG_ERROR("Hit drift-length is <= zero.\n");
+				if (driftSpan <= 0.0F) mf::LogError("pma::Element3D") << "Hit drift-length is below zero.";
 
 				dx = (d3 - d1) / 10.0;
 				dt = (d2 - d1) / driftSpan;
@@ -218,18 +218,24 @@ double pma::Element3D::SumDist2(void) const
 		}
 	}
 
-	double ref_sum = 0.0F;
 	if (fAssignedPoints.size())
 	{
-		double factor = 0.2 * fAssignedHits.size() / fAssignedPoints.size();
+		double d, ref_sum = 0.0F;
 		for (size_t i = 0; i < fAssignedPoints.size(); i++)
 		{
-			ref_sum += GetDistance2To(*(fAssignedPoints[i]));
+			d = sqrt( GetDistance2To(*(fAssignedPoints[i])) ) - 0.3; // ref points used up to ~ 3D resolution
+			if (d < 0.0) d = 0.0;
+			ref_sum += d * d;
 		}
-		if (fAssignedHits.size()) ref_sum *= factor;
+		if (fAssignedHits.size())
+		{
+			double factor = 0.2 * fAssignedHits.size() / fAssignedPoints.size();
+			ref_sum *= factor;
+		}
+		hit_sum += ref_sum;
 	}
 
-	return hit_sum + ref_sum;
+	return hit_sum;
 }
 
 double pma::Element3D::HitsRadius3D(unsigned int view) const

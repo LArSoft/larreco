@@ -168,6 +168,7 @@ private:
 	const std::vector< art::Ptr<recob::Hit> >& hits,
 	std::vector< pma::Track3D* >& tracks, size_t trk_idx);
   bool reassignSingleViewEnds(std::vector< pma::Track3D* >& tracks);
+  void guideEndpoints(std::vector< pma::Track3D* >& tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
@@ -629,8 +630,8 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 				trk1->Nodes()[nodeEndIdx - 1]->Point3D(), trk1->Nodes()[nodeEndIdx]->Point3D());
 		double distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 
-		TVector3 dir1 = trk1->Segments().back().GetDirection3D();
-		TVector3 dir2 = trk2->Segments().front().GetDirection3D();
+		TVector3 dir1 = trk1->Segments().back()->GetDirection3D();
+		TVector3 dir2 = trk2->Segments().front()->GetDirection3D();
 
 		cos3d = dir1 * dir2;
 
@@ -927,6 +928,16 @@ bool PMAlgTrackMaker::reassignSingleViewEnds(std::vector< pma::Track3D* >& track
 }
 // ------------------------------------------------------
 
+void PMAlgTrackMaker::guideEndpoints(std::vector< pma::Track3D* >& tracks)
+{
+	for (size_t t = 0; t < tracks.size(); t++)
+	{
+		pma::Track3D& trk = *(tracks[t]);
+		fProjectionMatchingAlg.guideEndpoints(trk, c_t_v_hits[trk.FrontCryo()][trk.FrontTPC()]);
+	}
+}
+// ------------------------------------------------------
+
 bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 {
 	c_t_v_hits.clear();
@@ -1137,12 +1148,13 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		}
 
 		// try correcting track ends:
+		//   - 3D ref.points for clean endpoints of wire-plae parallel tracks
 		//   - single-view sections spuriously merged on 2D clusters level
-		//   - ... some other track corrections to implement
 		for (auto tpc_iter = fGeom->begin_TPC_id();
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
 		{
+			guideEndpoints(tracks[tpc_iter->TPC]);
 			reassignSingleViewEnds(tracks[tpc_iter->TPC]);
 		}
 

@@ -42,7 +42,6 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	const std::vector< art::Ptr<recob::Hit> >& hits,
 	unsigned int testView) const
 {
-	double step = 0.3;
 	double max_d = fTrkValidationDist2D;
 	double d2, max_d2 = max_d * max_d;
 	unsigned int nAll = 0, nPassed = 0;
@@ -78,6 +77,7 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		}
 	}
 
+	double step = 0.3;
 	// then check how points close to the track projection are distributed along the
 	// track, namely: are there track sections crossing empty spaces?
 	TVector3 p(trk.front()->Point3D());
@@ -116,7 +116,7 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		p = vNext;
 	}
 
-	if (nAll > 3) // validate actually only if 2D projection in testView has some minimum length
+	if (nAll > 0)
 	{
 		double v = nPassed / (double)nAll;
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  trk fraction ok: " << v;
@@ -333,8 +333,75 @@ pma::Track3D* pma::ProjectionMatchingAlg::extendTrack(
 }
 // ------------------------------------------------------
 
-void pma::ProjectionMatchingAlg::fixParallelToReadoutPlanes(
-		pma::Track3D& trk, const std::vector< art::Ptr<recob::Hit> >& hits) const
+bool pma::ProjectionMatchingAlg::chkEndpointHits(
+	int wire, int wdir, double drift_x, int view,
+	unsigned int tpc, unsigned int cryo,
+	const pma::Track3D& trk,
+	const std::vector< art::Ptr<recob::Hit> >& hits) const
+{
+	int forwWires = 3, backWires = -1;
+	double xMargin = 0.4;
+	for (auto h : hits)
+		if ((view == (int)h->WireID().Plane) && (tpc == h->WireID().TPC))
+	{
+		bool found = false;
+		for (size_t ht = 0; ht < trk.size(); ht++)
+			if (trk[ht]->Hit2DPtr().key() == h.key())
+		{
+			found = true; break;
+		}
+		if (found) continue;
+
+		int dw = wdir * (h->WireID().Wire - wire);
+		if ((dw <= forwWires) && (dw >= backWires))
+		{
+			double x = fDetProp->ConvertTicksToX(h->PeakTime(), view, tpc, cryo);
+			if (fabs(x - drift_x) < xMargin) return false;
+		}
+	}
+	return true;
+}
+
+bool pma::ProjectionMatchingAlg::addEndpointRef(pma::Track3D& trk,
+	const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits,
+	std::pair<int, int> const * wires, double const * xPos,
+	unsigned int tpc, unsigned int cryo) const
+{
+	bool clean = true;
+	double x = 0.0, y = 0.0, z = 0.0;
+	std::vector< std::pair<int, unsigned int> > wire_view;
+	for (unsigned int i = 0; i < 3; i++)
+		if (wires[i].first >= 0)
+	{
+		const auto hiter = hits.find(i);
+		if (hiter != hits.end())
+		{
+			clean &= chkEndpointHits(wires[i].first, wires[i].second, xPos[i], i, tpc, cryo, trk, hiter->second);
+			std::cout << i << " w:" << wires[i].first << ":" << wires[i].second << ":" << xPos[i] << "  clean:" << clean << std::endl;
+			if (clean)
+			{
+				x += xPos[i];
+				wire_view.push_back(std::pair<int, unsigned int>(wires[i].first, i));
+			}
+		}
+		else break; // for now add ref.point only if all views clean
+	}
+	if (clean && (wire_view.size() > 1))
+	{
+		x /= wire_view.size();
+		fGeom->IntersectionPoint(
+			wire_view[0].first, wire_view[1].first,
+			wire_view[0].second, wire_view[1].second,
+			cryo, tpc, y, z);
+		TVector3 ref(x, y, z);
+		trk.AddRefPoint(ref);
+		return true;
+	}
+	return false;
+}
+
+void pma::ProjectionMatchingAlg::guideEndpoints(
+	pma::Track3D& trk, const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits) const
 {
 	unsigned int tpc = trk.FrontTPC(), cryo = trk.FrontCryo();
 	if ((tpc != trk.BackTPC()) || (cryo != trk.BackCryo()))
@@ -343,25 +410,42 @@ void pma::ProjectionMatchingAlg::fixParallelToReadoutPlanes(
 		return;
 	}
 
-	const double maxCosXZ = 0.996195; // 5 deg
+	const double maxCosXZ = 0.992546; // 7 deg
 
-	TVector3 dirFront = trk->Segments().front().GetDirection3D();
+	pma::Segment3D* segFront = trk.Segments().front();
+	if (trk.Segments().size() > 2)
+	{
+		pma::Segment3D* segFront1 = trk.Segments()[1];
+		if ((segFront->Length() < 0.8) && (segFront1->Length() > 5.0))
+			segFront = segFront1;
+	}
+	TVector3 dirFront = segFront->GetDirection3D();
 	TVector3 dirFrontXZ(dirFront.X(), 0., dirFront.Z());
 	dirFrontXZ *= 1.0 / dirFrontXZ.Mag();
 
-	TVector3 dirBack = trk->Segments().back().GetDirection3D();
+	pma::Segment3D* segBack = trk.Segments().back();
+	if (trk.Segments().size() > 2)
+	{
+		pma::Segment3D* segBack1 = trk.Segments()[trk.Segments().size() - 2];
+		if ((segBack->Length() < 0.8) && (segBack1->Length() > 5.0))
+			segBack = segBack1;
+	}
+	TVector3 dirBack = segBack->GetDirection3D();
 	TVector3 dirBackXZ(dirBack.X(), 0., dirBack.Z());
 	dirBackXZ *= 1.0 / dirBackXZ.Mag();
 
-	if ((fabs(dirFrontXZ.Z()) < maxCosXZ) && (fabs(dirBackXZ.Z()) > maxCosXZ))
+	if ((fabs(dirFrontXZ.Z()) < maxCosXZ) && (fabs(dirBackXZ.Z()) < maxCosXZ))
+	{
 		return; // front & back are not parallel to wire planes => exit
+	}
 
-	unsigned int nPlanes = 0;
+	unsigned int nPlanesFront = 0, nPlanesBack = 0;
 	std::pair<int, int> wiresFront[3], wiresBack[3]; // wire index; index direction
+	double xFront[3], xBack[3];
 
 	for (unsigned int i = 0; i < 3; i++)
 	{
-		bool present = false;
+		bool frontPresent = false, backPresent = false;
 		if (fGeom->TPC(tpc, cryo).HasPlane(i))
 		{
 			int idxFront0 = trk.NextHit(-1, i);
@@ -380,30 +464,49 @@ void pma::ProjectionMatchingAlg::fixParallelToReadoutPlanes(
 
 					wiresFront[i].first = wFront0;
 					wiresFront[i].second = wFront0 - wFront1;
+					xFront[i] = fDetProp->ConvertTicksToX(trk[idxFront0]->PeakTime(), i, tpc, cryo);
 
 					wiresBack[i].first = wBack0;
 					wiresBack[i].second = wBack0 - wBack1;
+					xBack[i] = fDetProp->ConvertTicksToX(trk[idxBack0]->PeakTime(), i, tpc, cryo);
 
-					if (wiresFront[i].second && wiresBack[i].second)
+					if (wiresFront[i].second)
 					{
 						if (wiresFront[i].second > 0) wiresFront[i].second = 1;
 						else wiresFront[i].second = -1;
 
+						frontPresent = true;
+						nPlanesFront++;
+					}
+
+					if (wiresBack[i].second)
+					{
 						if (wiresBack[i].second > 0) wiresBack[i].second = 1;
 						else wiresBack[i].second = -1;
 
-						present = true;
-						nPlanes++;
+						backPresent = true;
+						nPlanesBack++;
 					}
 				}
 			}
 		}
-		if (!present) { wiresFront[i].first = -1; wiresBack[i].first = -1; }
+		if (!frontPresent) { wiresFront[i].first = -1; }
+		if (!backPresent) { wiresBack[i].first = -1; }
 	}
-	if (nPlanes < 2)
+
+	bool refAdded = false;
+	if ((nPlanesFront > 1) && (fabs(dirFrontXZ.Z()) >= maxCosXZ))
 	{
-		mf::LogWarning("ProjectionMatchingAlg") << "Need min. 2 planes crossing multiple wires.";
-		return;
+		refAdded |= addEndpointRef(trk, hits, wiresFront, xFront, tpc, cryo);
+	}
+
+	if ((nPlanesBack > 1) && (fabs(dirBackXZ.Z()) >= maxCosXZ))
+	{
+		refAdded |= addEndpointRef(trk, hits, wiresBack, xBack, tpc, cryo);
+	}
+	if (refAdded)
+	{
+		trk.Optimize(0, fFineTuningEps);
 	}
 }
 // ------------------------------------------------------
