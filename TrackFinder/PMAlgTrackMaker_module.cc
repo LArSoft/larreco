@@ -646,10 +646,10 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 		{
 			const double maxCosXZ = 0.996195; // 5 deg
 
-			TVector3 dir1_xz(dir1.X(), 0., dir1.Y());
+			TVector3 dir1_xz(dir1.X(), 0., dir1.Z());
 			dir1_xz *= 1.0 / dir1_xz.Mag();
 
-			TVector3 dir2_xz(dir2.X(), 0., dir2.Y());
+			TVector3 dir2_xz(dir2.X(), 0., dir2.Z());
 			dir2_xz *= 1.0 / dir2_xz.Mag();
 
 			if ((fabs(dir1_xz.Z()) > maxCosXZ) && (fabs(dir2_xz.Z()) > maxCosXZ))
@@ -673,6 +673,12 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 					mf::LogVerbatim("PMAlgTrackMaker") << "...high proj";
 				if ((cosXZ > cosThrXZ) && (distProj1 < distProjThrXZ) && (distProj2 < distProjThrXZ))
 					return true;
+			}
+			else
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "Not co-linear, XZ angles: "
+					<< trk1->BackTPC() << ":" << 180.0 * acos(fabs(dir1_xz.Z())) / TMath::Pi() << ", "
+					<< trk2->FrontTPC() << ":" << 180.0 * acos(fabs(dir2_xz.Z())) / TMath::Pi();
 			}
 		}
 	}
