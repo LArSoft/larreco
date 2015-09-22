@@ -377,7 +377,6 @@ bool pma::ProjectionMatchingAlg::addEndpointRef(pma::Track3D& trk,
 		if (hiter != hits.end())
 		{
 			clean &= chkEndpointHits(wires[i].first, wires[i].second, xPos[i], i, tpc, cryo, trk, hiter->second);
-			std::cout << i << " w:" << wires[i].first << ":" << wires[i].second << ":" << xPos[i] << "  clean:" << clean << std::endl;
 			if (clean)
 			{
 				x += xPos[i];
@@ -395,9 +394,14 @@ bool pma::ProjectionMatchingAlg::addEndpointRef(pma::Track3D& trk,
 			cryo, tpc, y, z);
 		TVector3 ref(x, y, z);
 		trk.AddRefPoint(ref);
+		mf::LogVerbatim("ProjectionMatchingAlg") << "add 3D ref.point at wire-plane-parallel track endpoint";
 		return true;
 	}
-	return false;
+	else
+	{
+		mf::LogVerbatim("ProjectionMatchingAlg") << "wire-plane-parallel track, but not enough clean endpoint";
+		return false;
+	}
 }
 
 void pma::ProjectionMatchingAlg::guideEndpoints(
@@ -506,7 +510,9 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 	}
 	if (refAdded)
 	{
-		trk.Optimize(0, fFineTuningEps);
+		mf::LogVerbatim("ProjectionMatchingAlg") << "guide wire-plane-parallel track endpoints";
+		double g = trk.Optimize(0, fFineTuningEps);
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  done, g = " << g;
 	}
 }
 // ------------------------------------------------------

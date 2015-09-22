@@ -223,7 +223,7 @@ double pma::Element3D::SumDist2(void) const
 		double d, ref_sum = 0.0F;
 		for (size_t i = 0; i < fAssignedPoints.size(); i++)
 		{
-			d = sqrt( GetDistance2To(*(fAssignedPoints[i])) ) - 0.3; // ref points used up to ~ 3D resolution
+			d = sqrt( GetDistance2To(*(fAssignedPoints[i])) ) - 0.5; // ref points used up to ~ 3D resolution
 			if (d < 0.0) d = 0.0;
 			ref_sum += d * d;
 		}
