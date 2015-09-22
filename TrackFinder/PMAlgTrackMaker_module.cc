@@ -621,13 +621,15 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 		size_t nodeEndIdx = trk1->Nodes().size() - 1;
 
 		TVector3 endpoint1 = trk1->back()->Point3D();
-		TVector3 proj1 = pma::GetProjectionToSegment(endpoint1,
-				trk2->Nodes()[0]->Point3D(), trk2->Nodes()[1]->Point3D());
+		TVector3 trk2front0 = trk2->Nodes()[0]->Point3D();
+		TVector3 trk2front1 = trk2->Nodes()[1]->Point3D();
+		TVector3 proj1 = pma::GetProjectionToSegment(endpoint1, trk2front0, trk2front1);
 		double distProj1 = sqrt( pma::Dist2(endpoint1, proj1) );
 
 		TVector3 endpoint2 = trk2->front()->Point3D();
-		TVector3 proj2 = pma::GetProjectionToSegment(endpoint2,
-				trk1->Nodes()[nodeEndIdx - 1]->Point3D(), trk1->Nodes()[nodeEndIdx]->Point3D());
+		TVector3 trk1back0 = trk1->Nodes()[nodeEndIdx]->Point3D();
+		TVector3 trk1back1 = trk1->Nodes()[nodeEndIdx - 1]->Point3D();
+		TVector3 proj2 = pma::GetProjectionToSegment(endpoint2, trk1back1, trk1back0);
 		double distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 
 		TVector3 dir1 = trk1->Segments().back()->GetDirection3D();
@@ -635,11 +637,16 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 
 		cos3d = dir1 * dir2;
 
-		if (cos3d <= cosThr) mf::LogVerbatim("PMAlgTrackMaker") << "...high cos";
-		if ((distProj1 >= distProjThr) || (distProj2 >= distProjThr))
-			mf::LogVerbatim("PMAlgTrackMaker") << "...high proj";
+		if (cos3d <= cosThr)
+			mf::LogVerbatim("PMAlgTrackMaker") << "Large 3D angle "
+				<< trk1->BackTPC() << "->" << trk2->FrontTPC() << ": "
+				<< 180.0 * acos(cos3d) / TMath::Pi();
 
-		//std::cout << "     cos:" << cos << " p1:" << distProj1 << " p2:" << distProj2 << std::endl;
+		if ((distProj1 >= distProjThr) || (distProj2 >= distProjThr))
+			mf::LogVerbatim("PMAlgTrackMaker") << "Above proj.thr., "
+				<< trk1->BackTPC() << ": " << distProj1 << ", "
+				<< trk2->FrontTPC() << ": " << distProj2;
+
 		if ((cos3d > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
 			return true;
 		else // check if parallel to wires & colinear in 2D
@@ -657,20 +664,31 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 				mf::LogVerbatim("PMAlgTrackMaker") << "Check colinear XZ.";
 
 				endpoint1.SetXYZ(endpoint1.X(), 0., endpoint1.Z());
-				proj1.SetXYZ(proj1.X(), 0., proj1.Z());
+				trk2front0.SetXYZ(trk2front0.X(), 0., trk2front0.Z());
+				trk2front1.SetXYZ(trk2front1.X(), 0., trk2front1.Z());
+				proj1 = pma::GetProjectionToSegment(endpoint1, trk2front0, trk2front1);
 				distProj1 = sqrt( pma::Dist2(endpoint1, proj1) );
 
 				endpoint2.SetXYZ(endpoint2.X(), 0., endpoint2.Z());
-				proj2.SetXYZ(proj2.X(), 0., proj2.Z());
+				trk1back0.SetXYZ(trk1back0.X(), 0., trk1back0.Z());
+				trk1back1.SetXYZ(trk1back1.X(), 0., trk1back1.Z());
+				proj2 = pma::GetProjectionToSegment(endpoint2, trk1back1, trk1back0);
 				distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 			
 				double cosThrXZ = cos(0.5 * acos(cosThr));
 				double distProjThrXZ = 0.5 * distProjThr;
 
 				double cosXZ = dir1_xz * dir2_xz;
-				if (cosXZ <= cosThrXZ) mf::LogVerbatim("PMAlgTrackMaker") << "...high cos";
+				if (cosXZ <= cosThrXZ)
+					mf::LogVerbatim("PMAlgTrackMaker") << "Large XZ angle "
+						<< trk1->BackTPC() << "->" << trk2->FrontTPC() << ": "
+						<< 180.0 * acos(cosXZ) / TMath::Pi();
+
 				if ((distProj1 >= distProjThrXZ) || (distProj2 >= distProjThrXZ))
-					mf::LogVerbatim("PMAlgTrackMaker") << "...high proj";
+					mf::LogVerbatim("PMAlgTrackMaker") << "Above proj.thr., "
+						<< trk1->BackTPC() << ": " << distProj1 << ", "
+						<< trk2->FrontTPC() << ": " << distProj2;
+
 				if ((cosXZ > cosThrXZ) && (distProj1 < distProjThrXZ) && (distProj2 < distProjThrXZ))
 					return true;
 			}
