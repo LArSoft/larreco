@@ -82,6 +82,10 @@ namespace trkf{
     Float_t kcal;
     
     std::vector<Float_t> dthij; std::vector<Float_t> dEi; std::vector<Float_t> dEj; std::vector<Float_t> ind;
+
+    Double_t minLength;
+
+    Double_t maxLength;
         
   public:
     
@@ -132,7 +136,11 @@ namespace trkf{
     Double_t GetMuMultiScatterLLHD3( const art::Ptr<recob::Track> &trk, bool dir );
     
     TVector3 GetMultiScatterStartingPoint( const art::Ptr<recob::Track> &trk );
-    
+
+    void SetMinLength(double minLen) {minLength = minLen;}
+
+    void SetMaxLength(double maxLen) {maxLength = maxLen;}
+
   };
   
   
