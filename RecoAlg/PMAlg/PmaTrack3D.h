@@ -136,6 +136,7 @@ public:
 		unsigned int skip = 0, bool inclDisabled = false) const;
 
 	void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
+	void AddRefPoint(double x, double y, double z) { fAssignedPoints.push_back(new TVector3(x, y, z)); }
 	bool HasRefPoint(TVector3* p) const;
 
 	/// MSE of hits weighted with hit amplidudes and wire plane coefficients.

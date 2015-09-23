@@ -339,10 +339,13 @@ bool pma::ProjectionMatchingAlg::chkEndpointHits(
 	const pma::Track3D& trk,
 	const std::vector< art::Ptr<recob::Hit> >& hits) const
 {
+	size_t nCloseHits = 0;
 	int forwWires = 3, backWires = -1;
 	double xMargin = 0.4;
 	for (auto h : hits)
-		if ((view == (int)h->WireID().Plane) && (tpc == h->WireID().TPC))
+		if ((view == (int)h->WireID().Plane) &&
+		    (tpc == h->WireID().TPC) &&
+			(cryo == h->WireID().Cryostat))
 	{
 		bool found = false;
 		for (size_t ht = 0; ht < trk.size(); ht++)
@@ -356,10 +359,11 @@ bool pma::ProjectionMatchingAlg::chkEndpointHits(
 		if ((dw <= forwWires) && (dw >= backWires))
 		{
 			double x = fDetProp->ConvertTicksToX(h->PeakTime(), view, tpc, cryo);
-			if (fabs(x - drift_x) < xMargin) return false;
+			if (fabs(x - drift_x) < xMargin) nCloseHits++;
 		}
 	}
-	return true;
+	if (nCloseHits > 1) return false;
+	else return true;
 }
 
 bool pma::ProjectionMatchingAlg::addEndpointRef(pma::Track3D& trk,
@@ -367,7 +371,6 @@ bool pma::ProjectionMatchingAlg::addEndpointRef(pma::Track3D& trk,
 	std::pair<int, int> const * wires, double const * xPos,
 	unsigned int tpc, unsigned int cryo) const
 {
-	bool clean = true;
 	double x = 0.0, y = 0.0, z = 0.0;
 	std::vector< std::pair<int, unsigned int> > wire_view;
 	for (unsigned int i = 0; i < 3; i++)
@@ -376,30 +379,29 @@ bool pma::ProjectionMatchingAlg::addEndpointRef(pma::Track3D& trk,
 		const auto hiter = hits.find(i);
 		if (hiter != hits.end())
 		{
-			clean &= chkEndpointHits(wires[i].first, wires[i].second, xPos[i], i, tpc, cryo, trk, hiter->second);
-			if (clean)
+			if (chkEndpointHits(wires[i].first, wires[i].second, xPos[i], i, tpc, cryo, trk, hiter->second))
 			{
 				x += xPos[i];
 				wire_view.push_back(std::pair<int, unsigned int>(wires[i].first, i));
 			}
 		}
-		else break; // for now add ref.point only if all views clean
 	}
-	if (clean && (wire_view.size() > 1))
+	if (wire_view.size() > 1)
 	{
 		x /= wire_view.size();
 		fGeom->IntersectionPoint(
 			wire_view[0].first, wire_view[1].first,
 			wire_view[0].second, wire_view[1].second,
 			cryo, tpc, y, z);
-		TVector3 ref(x, y, z);
-		trk.AddRefPoint(ref);
-		mf::LogVerbatim("ProjectionMatchingAlg") << "add 3D ref.point at wire-plane-parallel track endpoint";
+		trk.AddRefPoint(x, y, z);
+		mf::LogVerbatim("ProjectionMatchingAlg") << "trk tpc:" << tpc << " size:" << trk.size()
+			<< " add ref.point (" << x << "; " << y << "; " << z << ")";
 		return true;
 	}
 	else
 	{
-		mf::LogVerbatim("ProjectionMatchingAlg") << "wire-plane-parallel track, but not enough clean endpoint";
+		mf::LogVerbatim("ProjectionMatchingAlg") << "trk tpc:" << tpc << " size:" << trk.size()
+			<< " wire-plane-parallel track, but need two clean views of endpoint";
 		return false;
 	}
 }
@@ -511,7 +513,7 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 	if (refAdded)
 	{
 		mf::LogVerbatim("ProjectionMatchingAlg") << "guide wire-plane-parallel track endpoints";
-		double g = trk.Optimize(0, fFineTuningEps);
+		double g = trk.Optimize(0, 0.1 * fFineTuningEps);
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  done, g = " << g;
 	}
 }

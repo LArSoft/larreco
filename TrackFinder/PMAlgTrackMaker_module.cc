@@ -603,7 +603,6 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 	dist = sqrt(dist);
 	cos3d = 0.0;
 
-	//std::cout << "  min dist:" << dist << " d:" << d << ", trk len:" << lmax << std::endl;
 	if (dist < d)
 	{
 		pma::Track3D* tmp = 0;
@@ -636,7 +635,7 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 		TVector3 dir2 = trk2->Segments().front()->GetDirection3D();
 
 		cos3d = dir1 * dir2;
-
+/*
 		if (cos3d <= cosThr)
 			mf::LogVerbatim("PMAlgTrackMaker") << "Large 3D angle "
 				<< trk1->BackTPC() << "->" << trk2->FrontTPC() << ": "
@@ -646,7 +645,7 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 			mf::LogVerbatim("PMAlgTrackMaker") << "Above proj.thr., "
 				<< trk1->BackTPC() << ": " << distProj1 << ", "
 				<< trk2->FrontTPC() << ": " << distProj2;
-
+*/
 		if ((cos3d > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
 			return true;
 		else // check if parallel to wires & colinear in 2D
@@ -661,7 +660,7 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 
 			if ((fabs(dir1_xz.Z()) > maxCosXZ) && (fabs(dir2_xz.Z()) > maxCosXZ))
 			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "Check colinear XZ.";
+//				mf::LogVerbatim("PMAlgTrackMaker") << "Check colinear XZ.";
 
 				endpoint1.SetXYZ(endpoint1.X(), 0., endpoint1.Z());
 				trk2front0.SetXYZ(trk2front0.X(), 0., trk2front0.Z());
@@ -679,7 +678,7 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 				double distProjThrXZ = 0.5 * distProjThr;
 
 				double cosXZ = dir1_xz * dir2_xz;
-				if (cosXZ <= cosThrXZ)
+/*				if (cosXZ <= cosThrXZ)
 					mf::LogVerbatim("PMAlgTrackMaker") << "Large XZ angle "
 						<< trk1->BackTPC() << "->" << trk2->FrontTPC() << ": "
 						<< 180.0 * acos(cosXZ) / TMath::Pi();
@@ -688,16 +687,17 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 					mf::LogVerbatim("PMAlgTrackMaker") << "Above proj.thr., "
 						<< trk1->BackTPC() << ": " << distProj1 << ", "
 						<< trk2->FrontTPC() << ": " << distProj2;
-
+*/
 				if ((cosXZ > cosThrXZ) && (distProj1 < distProjThrXZ) && (distProj2 < distProjThrXZ))
 					return true;
 			}
-			else
+/*			else
 			{
 				mf::LogVerbatim("PMAlgTrackMaker") << "Not co-linear, XZ angles: "
 					<< trk1->BackTPC() << ":" << 180.0 * acos(fabs(dir1_xz.Z())) / TMath::Pi() << ", "
 					<< trk2->FrontTPC() << ":" << 180.0 * acos(fabs(dir2_xz.Z())) / TMath::Pi();
 			}
+*/
 		}
 	}
 	return false;
