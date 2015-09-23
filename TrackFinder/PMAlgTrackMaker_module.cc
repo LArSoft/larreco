@@ -168,6 +168,7 @@ private:
 	const std::vector< art::Ptr<recob::Hit> >& hits,
 	std::vector< pma::Track3D* >& tracks, size_t trk_idx);
   bool reassignSingleViewEnds(std::vector< pma::Track3D* >& tracks);
+  void guideEndpoints(std::vector< pma::Track3D* >& tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
@@ -602,7 +603,6 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 	dist = sqrt(dist);
 	cos3d = 0.0;
 
-	//std::cout << "  min dist:" << dist << " d:" << d << ", trk len:" << lmax << std::endl;
 	if (dist < d)
 	{
 		pma::Track3D* tmp = 0;
@@ -620,59 +620,84 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 		size_t nodeEndIdx = trk1->Nodes().size() - 1;
 
 		TVector3 endpoint1 = trk1->back()->Point3D();
-		TVector3 proj1 = pma::GetProjectionToSegment(endpoint1,
-				trk2->Nodes()[0]->Point3D(), trk2->Nodes()[1]->Point3D());
+		TVector3 trk2front0 = trk2->Nodes()[0]->Point3D();
+		TVector3 trk2front1 = trk2->Nodes()[1]->Point3D();
+		TVector3 proj1 = pma::GetProjectionToSegment(endpoint1, trk2front0, trk2front1);
 		double distProj1 = sqrt( pma::Dist2(endpoint1, proj1) );
 
 		TVector3 endpoint2 = trk2->front()->Point3D();
-		TVector3 proj2 = pma::GetProjectionToSegment(endpoint2,
-				trk1->Nodes()[nodeEndIdx - 1]->Point3D(), trk1->Nodes()[nodeEndIdx]->Point3D());
+		TVector3 trk1back0 = trk1->Nodes()[nodeEndIdx]->Point3D();
+		TVector3 trk1back1 = trk1->Nodes()[nodeEndIdx - 1]->Point3D();
+		TVector3 proj2 = pma::GetProjectionToSegment(endpoint2, trk1back1, trk1back0);
 		double distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 
-		TVector3 dir1 = trk1->Nodes()[nodeEndIdx]->Point3D() - trk1->Nodes()[nodeEndIdx - 1]->Point3D();
-		TVector3 dir2 = trk2->Nodes()[1]->Point3D() - trk2->Nodes()[0]->Point3D();
+		TVector3 dir1 = trk1->Segments().back()->GetDirection3D();
+		TVector3 dir2 = trk2->Segments().front()->GetDirection3D();
 
-		cos3d = (dir1 * dir2) / (dir1.Mag() * dir2.Mag());
+		cos3d = dir1 * dir2;
+/*
+		if (cos3d <= cosThr)
+			mf::LogVerbatim("PMAlgTrackMaker") << "Large 3D angle "
+				<< trk1->BackTPC() << "->" << trk2->FrontTPC() << ": "
+				<< 180.0 * acos(cos3d) / TMath::Pi();
 
-		if (cos3d <= cosThr) mf::LogVerbatim("PMAlgTrackMaker") << "...high cos";
 		if ((distProj1 >= distProjThr) || (distProj2 >= distProjThr))
-			mf::LogVerbatim("PMAlgTrackMaker") << "...high proj";
-
-		//std::cout << "     cos:" << cos << " p1:" << distProj1 << " p2:" << distProj2 << std::endl;
+			mf::LogVerbatim("PMAlgTrackMaker") << "Above proj.thr., "
+				<< trk1->BackTPC() << ": " << distProj1 << ", "
+				<< trk2->FrontTPC() << ": " << distProj2;
+*/
 		if ((cos3d > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
 			return true;
 		else // check if parallel to wires & colinear in 2D
 		{
 			const double maxCosXZ = 0.996195; // 5 deg
 
-			TVector3 dir1_xz(dir1.X(), 0., dir1.Y());
+			TVector3 dir1_xz(dir1.X(), 0., dir1.Z());
 			dir1_xz *= 1.0 / dir1_xz.Mag();
 
-			TVector3 dir2_xz(dir2.X(), 0., dir2.Y());
+			TVector3 dir2_xz(dir2.X(), 0., dir2.Z());
 			dir2_xz *= 1.0 / dir2_xz.Mag();
 
 			if ((fabs(dir1_xz.Z()) > maxCosXZ) && (fabs(dir2_xz.Z()) > maxCosXZ))
 			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "Check colinear XZ.";
+//				mf::LogVerbatim("PMAlgTrackMaker") << "Check colinear XZ.";
 
 				endpoint1.SetXYZ(endpoint1.X(), 0., endpoint1.Z());
-				proj1.SetXYZ(proj1.X(), 0., proj1.Z());
+				trk2front0.SetXYZ(trk2front0.X(), 0., trk2front0.Z());
+				trk2front1.SetXYZ(trk2front1.X(), 0., trk2front1.Z());
+				proj1 = pma::GetProjectionToSegment(endpoint1, trk2front0, trk2front1);
 				distProj1 = sqrt( pma::Dist2(endpoint1, proj1) );
 
 				endpoint2.SetXYZ(endpoint2.X(), 0., endpoint2.Z());
-				proj2.SetXYZ(proj2.X(), 0., proj2.Z());
+				trk1back0.SetXYZ(trk1back0.X(), 0., trk1back0.Z());
+				trk1back1.SetXYZ(trk1back1.X(), 0., trk1back1.Z());
+				proj2 = pma::GetProjectionToSegment(endpoint2, trk1back1, trk1back0);
 				distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 			
 				double cosThrXZ = cos(0.5 * acos(cosThr));
 				double distProjThrXZ = 0.5 * distProjThr;
 
 				double cosXZ = dir1_xz * dir2_xz;
-				if (cosXZ <= cosThrXZ) mf::LogVerbatim("PMAlgTrackMaker") << "...high cos";
+/*				if (cosXZ <= cosThrXZ)
+					mf::LogVerbatim("PMAlgTrackMaker") << "Large XZ angle "
+						<< trk1->BackTPC() << "->" << trk2->FrontTPC() << ": "
+						<< 180.0 * acos(cosXZ) / TMath::Pi();
+
 				if ((distProj1 >= distProjThrXZ) || (distProj2 >= distProjThrXZ))
-					mf::LogVerbatim("PMAlgTrackMaker") << "...high proj";
+					mf::LogVerbatim("PMAlgTrackMaker") << "Above proj.thr., "
+						<< trk1->BackTPC() << ": " << distProj1 << ", "
+						<< trk2->FrontTPC() << ": " << distProj2;
+*/
 				if ((cosXZ > cosThrXZ) && (distProj1 < distProjThrXZ) && (distProj2 < distProjThrXZ))
 					return true;
 			}
+/*			else
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "Not co-linear, XZ angles: "
+					<< trk1->BackTPC() << ":" << 180.0 * acos(fabs(dir1_xz.Z())) / TMath::Pi() << ", "
+					<< trk2->FrontTPC() << ":" << 180.0 * acos(fabs(dir2_xz.Z())) / TMath::Pi();
+			}
+*/
 		}
 	}
 	return false;
@@ -927,6 +952,16 @@ bool PMAlgTrackMaker::reassignSingleViewEnds(std::vector< pma::Track3D* >& track
 }
 // ------------------------------------------------------
 
+void PMAlgTrackMaker::guideEndpoints(std::vector< pma::Track3D* >& tracks)
+{
+	for (size_t t = 0; t < tracks.size(); t++)
+	{
+		pma::Track3D& trk = *(tracks[t]);
+		fProjectionMatchingAlg.guideEndpoints(trk, c_t_v_hits[trk.FrontCryo()][trk.FrontTPC()]);
+	}
+}
+// ------------------------------------------------------
+
 bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 {
 	c_t_v_hits.clear();
@@ -1137,12 +1172,13 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		}
 
 		// try correcting track ends:
+		//   - 3D ref.points for clean endpoints of wire-plae parallel tracks
 		//   - single-view sections spuriously merged on 2D clusters level
-		//   - ... some other track corrections to implement
 		for (auto tpc_iter = fGeom->begin_TPC_id();
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
 		{
+			guideEndpoints(tracks[tpc_iter->TPC]);
 			reassignSingleViewEnds(tracks[tpc_iter->TPC]);
 		}
 

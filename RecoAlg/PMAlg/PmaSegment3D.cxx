@@ -35,6 +35,15 @@ double pma::Segment3D::GetDistance2To(const TVector2& p2d, unsigned int view) co
 	return GetDist2(p2d, v0->Projection2D(view), v1->Projection2D(view));
 }
 
+TVector3 pma::Segment3D::GetDirection3D(void) const
+{
+	pma::Node3D* v0 = static_cast< pma::Node3D* >(prev);
+	pma::Node3D* v1 = static_cast< pma::Node3D* >(next);
+	TVector3 dir = v1->Point3D() - v0->Point3D();
+	dir *= 1.0 / dir.Mag();
+	return dir;
+}
+
 TVector3 pma::Segment3D::GetProjection(const TVector2& p, unsigned int view) const
 {
 	pma::Node3D* vStart = static_cast< pma::Node3D* >(prev);
