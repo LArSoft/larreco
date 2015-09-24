@@ -404,7 +404,7 @@ bool pma::VtxCandidate::JoinTracks(
 	pma::Node3D* vtxCenter = 0;
 
 	mf::LogVerbatim("pma::VtxCandidate") << "JoinTracks at:"
-		<< " vx:" << fCenter.X() << " vy:" << fCenter.Y() << " vx:" << fCenter.Z();
+		<< " vx:" << fCenter.X() << " vy:" << fCenter.Y() << " vz:" << fCenter.Z();
 
 	for (size_t i = 0; i < fAssigned.size(); i++)
 		for (size_t t = 0; t < src.size(); t++)
@@ -479,10 +479,7 @@ bool pma::VtxCandidate::JoinTracks(
 
 			pma::Track3D* trk0 = new pma::Track3D();
 			for (size_t j = 0; j <= idx; j++)
-				trk0->AddNode(
-					trk->Nodes()[j]->Point3D(),
-					trk->Nodes()[j]->TPC(),
-					trk->Nodes()[j]->Cryo());
+				trk0->AddNode(trk->ExtractNodeCopy(j));
 
 			if ((f >= 0.0F) && (f <= 1.0) &&
 			    (f * ds > kMinDistToNode) && ((1.0 - f) * ds > kMinDistToNode))
@@ -503,10 +500,7 @@ bool pma::VtxCandidate::JoinTracks(
 					mf::LogVerbatim("pma::VtxCandidate") << "  add center at end of segment";
 
 					++idx;
-					trk0->AddNode(
-						trk->Nodes()[idx]->Point3D(),
-						trk->Nodes()[idx]->TPC(),
-						trk->Nodes()[idx]->Cryo());
+					trk0->AddNode(trk->ExtractNodeCopy(idx));
 				}
 				else
 				{
@@ -523,7 +517,11 @@ bool pma::VtxCandidate::JoinTracks(
 			}
 
 			mf::LogVerbatim("pma::VtxCandidate") << "  remove vtxs from trk";
-			for (size_t j = 0; j < idx; j++) trk->RemoveNode(0);
+			for (size_t j = 0; j < idx; j++)
+			{
+				if (trk->Nodes().front()->IsBranching()) mf::LogVerbatim("pma::VtxCandidate") << "  branching vtx deleted";
+				trk->RemoveNode(0);
+			}
 
 			mf::LogVerbatim("pma::VtxCandidate") << "  reassign hits";
 			size_t j = 0;

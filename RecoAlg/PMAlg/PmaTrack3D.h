@@ -174,12 +174,14 @@ public:
 	pma::Node3D* FirstElement(void) const { return fNodes.front(); }
 	pma::Node3D* LastElement(void) const { return fNodes.back(); }
 
-	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo);
+	void AddNode(pma::Node3D* node);
+	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo) { AddNode(new pma::Node3D(p3d, tpc, cryo)); }
 	bool AddNode(void);
 
 	void InsertNode(
 		TVector3 const & p3d, size_t after_idx,
 		unsigned int tpc, unsigned int cryo);
+	pma::Node3D* ExtractNodeCopy(size_t idx);
 	bool RemoveNode(size_t idx);
 
 	bool AttachTo(pma::Node3D* vStart);
