@@ -1114,11 +1114,9 @@ double pma::Track3D::GetRawdEdxSequence(
 	return qSkipped;
 }
 
-void pma::Track3D::AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo)
+void pma::Track3D::AddNode(pma::Node3D* node)
 {
-	pma::Node3D* vtx = new pma::Node3D(p3d, tpc, cryo);
-	fNodes.push_back(vtx);
-
+	fNodes.push_back(node);
 	if (fNodes.size() > 1) RebuildSegments();
 }
 
@@ -1263,6 +1261,28 @@ void pma::Track3D::InsertNode(
 	fNodes.insert(fNodes.begin() + after_idx, vtx);
 
 	if (fNodes.size() > 1) RebuildSegments();
+}
+
+pma::Node3D* pma::Track3D::ExtractNodeCopy(size_t idx)
+{
+	pma::Node3D* node = fNodes[idx];
+	node->ClearAssigned();
+
+	pma::Segment3D* sprev = static_cast< pma::Segment3D* >(node->Prev());
+	if (sprev && (sprev->Parent() == this)) sprev->RemoveNext(node);
+
+	size_t i = 0;
+	while (i < node->NextCount())
+	{
+		pma::Segment3D* snext = static_cast< pma::Segment3D* >(node->Next(i));
+		if (snext->Parent() == this) node->RemoveNext(snext);
+		else i++;
+	}
+
+	fNodes[idx] = new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo());
+	if (fNodes.size() > 1) RebuildSegments();
+
+	return node;
 }
 
 bool pma::Track3D::RemoveNode(size_t idx)
