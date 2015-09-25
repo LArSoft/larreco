@@ -38,5 +38,6 @@ argoneut_houghlinefinderana:           @local::standard_houghlinefinderana
 argoneut_linemerger:                   @local::standard_linemerger        
 argoneut_endpointmod:                  @local::standard_endpointmod       
 argoneut_endpointmod.EndPointAlg:      @local::argoneut_endpointalg
-
+argoneut_linecluster:                  @local::standard_linecluster
+argoneut_linecluster.ClusterCrawlerAlg:@local::argoneut_clustercrawleralg
 END_PROLOG
