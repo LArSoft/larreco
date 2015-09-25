@@ -73,7 +73,10 @@ namespace trkf{
     p_mcs_2 = -1.0; LLbf = -1.0;
     
     kcal = 0.0024;
+
+    minLength = 100;
     
+    maxLength = 1350.0;
   }
   
   double TrackMomentumCalculator::GetTrackMomentum(double trkrange, int pdg) 
@@ -232,7 +235,7 @@ namespace trkf{
     
     Double_t recoL = segL.at(seg_steps0);
     
-    if ( recoL<100.0 || recoL>1350.0 ) return -1;
+    if ( recoL<minLength || recoL>maxLength ) return -1;
     
     Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
     
@@ -494,7 +497,7 @@ namespace trkf{
     
     Double_t recoL = segL.at(seg_steps0);
     
-    if ( recoL<15.0 || recoL>1350.0 ) return -1;
+    if ( recoL<15.0 || recoL>maxLength ) return -1;
         
     Int_t check2 = GetDeltaThetaij( dEi, dEj, dthij, seg_size, ind ); 
     
@@ -710,7 +713,7 @@ namespace trkf{
     
     Double_t recoL = segL.at(seg_steps0);
     
-    if ( seg_steps<2 || recoL<100.0 || recoL>1350.0 ) return -1;
+    if ( seg_steps<2 || recoL<minLength || recoL>maxLength ) return -1;
         
     Double_t mean = 666.0; Double_t rms = 666.0; Double_t rmse = 666.0;
     

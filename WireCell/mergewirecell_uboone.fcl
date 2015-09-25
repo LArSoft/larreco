@@ -1,0 +1,41 @@
+#include "mergewirecellmodule.fcl"
+#include "services_microboone.fcl"
+
+process_name: MergeWireCell
+
+services:
+{
+  #TFileService: {fileName: "mergedata_hist.root"}
+  TimeTracker:       {}
+  @table::microboone_services
+}
+
+source:
+{
+ module_type: RootInput
+ dirName:     "."
+ fileNames:    ["argoneutdata.root"]
+ maxEvents: -1
+}
+
+outputs:
+{
+ out1:
+ {
+    module_type: RootOutput
+    fileName:    "wirecellmerged.root"
+    fastCloning: true
+ }      
+}
+
+physics:
+{
+  producers:{}
+  merge: [wirecell]  
+  stream1: [out1]
+  trigger_paths: [merge]
+  end_paths: [stream1]
+}
+
+physics.producers.wirecell:  @local::standard_mergewirecell
+physics.producers.wirecell.WireCellInput: "/uboone/app/users/tjyang/larsoft_dev/job/wirecell/rootfiles"
