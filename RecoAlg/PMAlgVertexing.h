@@ -28,7 +28,7 @@ class pma::PMAlgVertexing
 public:
 
 	PMAlgVertexing(const fhicl::ParameterSet& pset);
-	virtual ~PMAlgVertexing(void); // delete last produced tracks
+	virtual ~PMAlgVertexing(void); // delete last produced tracks (if not passed to output)
 
 	void reconfigure(const fhicl::ParameterSet& pset);
 

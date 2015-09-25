@@ -757,9 +757,7 @@ std::pair< TVector2, TVector2 > pma::Track3D::WireDriftRange(unsigned int view, 
 
 void pma::Track3D::InternalFlip(std::vector< pma::Track3D* >& toSort)
 {
-	bool branching = false;
 	for (size_t i = 0; i < fNodes.size() - 1; i++)
-	{
 		if (fNodes[i]->NextCount() > 1)
 		{
 			for (size_t j = 0; j < fNodes[i]->NextCount(); j++)
@@ -767,18 +765,14 @@ void pma::Track3D::InternalFlip(std::vector< pma::Track3D* >& toSort)
 				pma::Segment3D* s = static_cast< pma::Segment3D* >(fNodes[i]->Next(j));
 				if (s->Parent() != this) toSort.push_back(s->Parent());
 			}
-			branching = true;
 		}
-	}
+
 	if (fNodes.back()->NextCount())
-	{
 		for (size_t j = 0; j < fNodes.back()->NextCount(); j++)
 		{
 			pma::Segment3D* s = static_cast< pma::Segment3D* >(fNodes.back()->Next(j));
 			toSort.push_back(s->Parent());
 		}
-		branching = true;
-	}
 
 	if (fNodes.front()->Prev())
 	{
@@ -786,8 +780,6 @@ void pma::Track3D::InternalFlip(std::vector< pma::Track3D* >& toSort)
 		toSort.push_back(s->Parent());
 		s->Parent()->InternalFlip(toSort);
 	}
-
-	if (branching) mf::LogWarning("pma::Track3D") << "Branched track flipped.";
 
 	std::reverse(fNodes.begin(), fNodes.end());
 	toSort.push_back(this);

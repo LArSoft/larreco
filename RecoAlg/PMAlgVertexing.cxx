@@ -189,8 +189,7 @@ bool pma::PMAlgVertexing::findOneVtx(std::vector< pma::VtxCandidate >& candidate
 		for (size_t i = 0; i < candidates[v].Size(); i++)
 			mf::LogVerbatim("pma::PMAlgVertexing")
 				<< "     trk:" << i << " "
-				<< candidates[v].Track(i).first->size()
-				<< "(" << candidates[v].Weight(i) << ")";
+				<< candidates[v].Track(i).first->size();
 
 		mf::LogVerbatim("pma::PMAlgVertexing")
 			<< " dist 3D:" << sqrt(candidates[v].Mse())
