@@ -58,7 +58,6 @@ public:
 		std::vector< pma::Track3D* >& src);
 
 	const TVector3& Center(void) const { return fCenter; }
-	double Weight(size_t i) const { return fWeights[i]; }
 	double Mse(void) const { return fMse; }
 	double Mse2D(void) const { return fMse2D; }
 
@@ -67,7 +66,6 @@ public:
 private:
 	bool tracksJoined;
 	double fSegMinLength, fMse, fMse2D;
-	std::vector< double > fWeights;
 	std::vector< std::pair< pma::Track3D*, size_t > > fAssigned;
 	TVector3 fCenter, fErr;
 };

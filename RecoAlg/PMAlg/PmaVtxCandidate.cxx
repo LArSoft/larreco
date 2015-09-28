@@ -59,7 +59,6 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 	if (IsAttached(trk)) return false;
 
 	fAssigned.push_back(std::pair< pma::Track3D*, size_t >(trk, 0));
-	fWeights.push_back(1.0);
 
 	double d, d_best;
 	double mse, min_mse = kMaxDistToTrack * kMaxDistToTrack;
@@ -95,7 +94,6 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 		else
 		{
 			fAssigned.pop_back();
-			fWeights.pop_back();
 			fMse = Compute();
 			fMse2D = ComputeMse2D();
 			return false;
@@ -155,7 +153,6 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 		else
 		{
 			fAssigned.pop_back();
-			fWeights.pop_back();
 			fCenter.SetXYZ(0., 0., 0.);
 			fMse = 0; fMse2D = 0;
 			return false;
@@ -172,7 +169,6 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 			}
 		}
 		fAssigned.pop_back();
-		fWeights.pop_back();
 		fCenter.SetXYZ(0., 0., 0.);
 		fMse = 0; fMse2D = 0;
 		return false;
@@ -284,7 +280,6 @@ bool pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
 		if (!Has(other.fAssigned[t].first))
 		{
 			fAssigned.push_back(other.fAssigned[t]);
-			fWeights.push_back(other.fWeights[t]);
 			ntrk++;
 		}
 	}
@@ -307,7 +302,7 @@ bool pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
 		else
 		{
 			mf::LogVerbatim("pma::VtxCandidate") << "high mse..";
-			while (ntrk--) { fAssigned.pop_back(); fWeights.pop_back(); }
+			while (ntrk--) { fAssigned.pop_back(); }
 			fMse = Compute();
 			fMse2D = ComputeMse2D();
 			return false;
@@ -324,29 +319,40 @@ double pma::VtxCandidate::Compute(void)
 {
 	std::vector< pma::Segment3D* > segments;
 	std::vector< std::pair<TVector3, TVector3> > lines;
+	std::vector< double > weights;
 	for (size_t v = 0; v < fAssigned.size(); v++)
 	{
 		pma::Track3D* trk = fAssigned[v].first;
 		int vIdx = fAssigned[v].second;
 
 		pma::Node3D* vtx1 = trk->Nodes()[vIdx];
-
 		pma::Segment3D* seg = trk->NextSegment(vtx1);
-		segments.push_back(seg);
+		double segLength = seg->Length();
+		if (segLength >= fSegMinLength)
+		{
+			pma::Node3D* vtx2 = static_cast< pma::Node3D* >(seg->Next(0));
 
-		pma::Node3D* vtx2 = static_cast< pma::Node3D* >(seg->Next(0));
+			std::pair<TVector3, TVector3> endpoints(vtx1->Point3D(), vtx2->Point3D());
+			double dy = endpoints.first.Y() - endpoints.second.Y();
+			double fy_norm = asin(fabs(dy) / segLength) / (0.5 * TMath::Pi());
+			double w = 1.0 - pow(fy_norm - 1.0, 12);
+			if (w < 0.3) w = 0.3;
 
-		lines.push_back( std::pair<TVector3, TVector3>(vtx1->Point3D(), vtx2->Point3D()) );
-
-		double dy = vtx1->Point3D().Y() - vtx2->Point3D().Y();
-		double fy_norm = asin(fabs(dy) / seg->Length()) / (0.5 * TMath::Pi());
-		fWeights[v] = 1.0 - pow(fy_norm - 1.0, 12);
-		if (fWeights[v] < 0.3) fWeights[v] = 0.3;
+			lines.push_back(endpoints);
+			segments.push_back(seg);
+			weights.push_back(w);
+		}
 	}
-	TVector3 result;
-	double resultMse = pma::SolveLeastSquares3D(lines, result);
 
 	fCenter.SetXYZ(0., 0., 0.); fErr.SetXYZ(0., 0., 0.);
+
+	TVector3 result;
+	double resultMse = pma::SolveLeastSquares3D(lines, result);
+	if (resultMse < 0.0)
+	{
+		mf::LogWarning("pma::VtxCandidate") << "Cannot compute crossing point.";
+		return 1.0E+6;
+	}
 
 	TVector3 pproj;
 	//double dx, dy, dz
@@ -358,18 +364,18 @@ double pma::VtxCandidate::Compute(void)
 
 		pproj = pma::GetProjectionToSegment(result, vprev->Point3D(), vnext->Point3D());
 
-		//dx = fWeights[s] * (result.X() - pproj.X());
+		//dx = weights[s] * (result.X() - pproj.X());
 		//dy = result.Y() - pproj.Y();
 		//dz = result.Z() - pproj.Z();
 
-		fErr[0] += fWeights[s] * fWeights[s];
+		fErr[0] += weights[s] * weights[s];
 		fErr[1] += 1.0;
 		fErr[2] += 1.0;
 
-		fCenter[0] += fWeights[s] * pproj.X();
+		fCenter[0] += weights[s] * pproj.X();
 		fCenter[1] += pproj.Y();
 		fCenter[2] += pproj.Z();
-		wsum += fWeights[s];
+		wsum += weights[s];
 	}
 	fCenter[0] /= wsum;
 	fCenter[1] /= segments.size();
@@ -380,13 +386,6 @@ double pma::VtxCandidate::Compute(void)
 	fErr[1] = sqrt(fErr[1]);
 	fErr[2] = sqrt(fErr[2]);
 
-	//std::cout << fAssigned[0].first->size() << " "
-	//	<< fAssigned[1].first->size() << " "
-	//	<< sqrt(resultMse) << std::endl;
-	//std::cout
-	//	<< " vx:" << fCenter.X()
-	//	<< " vy:" << fCenter.Y()
-	//	<< " vx:" << fCenter.Z() << std::endl;
 	return resultMse;
 }
 
@@ -440,8 +439,8 @@ bool pma::VtxCandidate::JoinTracks(
 		double f = pma::GetSegmentProjVector(fCenter, p0, p1);
 		TVector3 proj = pma::GetProjectionToSegment(fCenter, p0, p1);
 
-		mf::LogVerbatim("pma::VtxCandidate") << "  seg len:" << ds << " d0:" << d0 << " d1:" << d1;
-		mf::LogVerbatim("pma::VtxCandidate") << "  idx:" << idx << " f:" << f << " df0:" << f*ds << " df1:" << (1.0-f)*ds;
+		//mf::LogVerbatim("pma::VtxCandidate") << "  seg len:" << ds << " d0:" << d0 << " d1:" << d1;
+		//mf::LogVerbatim("pma::VtxCandidate") << "  idx:" << idx << " f:" << f << " df0:" << f*ds << " df1:" << (1.0-f)*ds;
 
 		if ((idx == 0) && (f * ds <= kMinDistToNode))
 		{
@@ -517,19 +516,15 @@ bool pma::VtxCandidate::JoinTracks(
 			}
 
 			mf::LogVerbatim("pma::VtxCandidate") << "  remove vtxs from trk";
-			for (size_t j = 0; j < idx; j++)
-			{
-				if (trk->Nodes().front()->IsBranching()) mf::LogVerbatim("pma::VtxCandidate") << "  branching vtx deleted";
-				trk->RemoveNode(0);
-			}
+			for (size_t j = 0; j < idx; j++) trk->RemoveNode(0);
 
 			mf::LogVerbatim("pma::VtxCandidate") << "  reassign hits";
 			size_t j = 0;
 			while (j < trk->size())
 			{
 				pma::Hit3D* h3d = (*trk)[j];
-				double dist2D_old = trk->Dist2(h3d->Point2D(), h3d->View2D()); //pl->GetDistance2To(h3d->Point());
-				double dist2D_new = trk0->Dist2(h3d->Point2D(), h3d->View2D()); //pl0->GetDistance2To(h3d->Point());
+				double dist2D_old = trk->Dist2(h3d->Point2D(), h3d->View2D());
+				double dist2D_new = trk0->Dist2(h3d->Point2D(), h3d->View2D());
 
 				if (dist2D_new < dist2D_old) trk0->push_back(trk->release_at(j));
 				else j++;

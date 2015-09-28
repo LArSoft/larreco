@@ -181,7 +181,7 @@ public:
 	void InsertNode(
 		TVector3 const & p3d, size_t after_idx,
 		unsigned int tpc, unsigned int cryo);
-	pma::Node3D* ExtractNodeCopy(size_t idx);
+	pma::Node3D* ExtractNodeCopy(size_t idx); // used to split branching track, *** need to be reorganised ***
 	bool RemoveNode(size_t idx);
 
 	bool AttachTo(pma::Node3D* vStart);
