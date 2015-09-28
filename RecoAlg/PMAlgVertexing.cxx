@@ -256,6 +256,8 @@ size_t pma::PMAlgVertexing::run(
 
 	collectTracks(trk_input);
 
+	mergeBrokenTracks(trk_input);
+
 	return nvtx;
 }
 // ------------------------------------------------------
@@ -271,6 +273,34 @@ size_t pma::PMAlgVertexing::run(
 	//collectTracks(trk_input); // return output in place of (deleted) input
 
 	return 0;
+}
+// ------------------------------------------------------
+
+void pma::PMAlgVertexing::mergeBrokenTracks(std::vector< pma::Track3D* >& trk_input) const
+{
+	if (trk_input.size() < 2) return;
+
+	mf::LogVerbatim("pma::PMAlgVertexing") << "Find and merge tracks broken by vertices.";
+	bool merged = true;
+	while (merged)
+	{
+		merged = false;
+		for (size_t t = 0; t < trk_input.size(); t++)
+		{
+		}
+	}
+}
+// ------------------------------------------------------
+
+void pma::PMAlgVertexing::splitMergedTracks(std::vector< pma::Track3D* >& trk_input) const
+{
+	if (trk_input.size() < 1) return;
+
+	mf::LogVerbatim("pma::PMAlgVertexing") << "Find missed vtx by dQ/dx steps along merged tracks.";
+	size_t t = 0;
+	while (t < trk_input.size())
+	{
+	}
 }
 // ------------------------------------------------------
 

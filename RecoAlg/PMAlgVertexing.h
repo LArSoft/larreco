@@ -56,6 +56,13 @@ private:
 	std::vector< pma::VtxCandidate > secondPassCandidates(void);
 	bool findOneVtx(std::vector< pma::VtxCandidate >& candidates);
 
+	/// Find elastic scattering vertices on tracks, merge back tracks that were split
+	/// during vertex finding. 3D angle between two tracks and dQ/dx is checked.
+	void mergeBrokenTracks(std::vector< pma::Track3D* >& trk_input) const;
+
+	/// Split track and add vertex and reoptimize when dQ/dx step detected.
+	void splitMergedTracks(std::vector< pma::Track3D* >& trk_input) const;
+
 	std::vector< pma::Track3D* > fOutTracks;
 	std::vector< pma::Track3D* > fShortTracks;
 	std::vector< pma::Track3D* > fEmTracks;
