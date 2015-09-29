@@ -39,7 +39,6 @@
 #include "RecoBase/Hit.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
-#include "Utilities/LArProperties.h"
 #include "Utilities/AssociationUtil.h"
 #include "SimulationBase/MCTruth.h"
 #include "Simulation/sim.h"
@@ -272,7 +271,6 @@ void Track3DKalman::produce(art::Event& evt)
 
   // get services
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
   // get the random number generator service and make some CLHEP generators
   art::ServiceHandle<art::RandomNumberGenerator> rng;
   CLHEP::HepRandomEngine &engine = rng->getEngine();

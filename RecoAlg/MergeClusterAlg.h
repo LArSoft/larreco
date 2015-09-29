@@ -21,8 +21,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "RecoBase/Hit.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
@@ -87,7 +86,7 @@ private:
 
   // Create geometry and detector property handle
   art::ServiceHandle<geo::Geometry> fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
+  const dataprov::DetectorProperties* fDetProp;
   art::ServiceHandle<art::TFileService> tfs;
   art::ServiceHandle<cheat::BackTracker> backtracker;
 

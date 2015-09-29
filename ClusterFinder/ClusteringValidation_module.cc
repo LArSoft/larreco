@@ -35,8 +35,6 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 #include "RawData/ExternalTrigger.h"
 #include "MCCheater/BackTracker.h"

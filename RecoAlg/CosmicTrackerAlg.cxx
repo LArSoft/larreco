@@ -84,6 +84,8 @@ namespace trkf{
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::TrackTrajectory(std::vector<art::Ptr<recob::Hit> >&fHits){
     
+    detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
 /*
     // Track hit X and WireIDs in each plane
     std::array<std::vector<std::pair<double, geo::WireID>>,3> trajXW;
@@ -224,7 +226,10 @@ namespace trkf{
 
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::Track3D(std::vector<art::Ptr<recob::Hit> >&fHits){
-    
+
+    larprop = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+    detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
     //save time/hit information along track trajectory
     std::vector<std::map<int,double> > vtimemap(3);
     std::vector<std::map<int,art::Ptr<recob::Hit> > > vhitmap(3);
@@ -349,10 +354,10 @@ namespace trkf{
       }
 
       double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
-      double Efield_drift = larprop->Efield(0);  // Electric Field in the drift region in kV/cm
+      double Efield_drift = detprop->Efield(0);  // Electric Field in the drift region in kV/cm
       double Temperature = larprop->Temperature();  // LAr Temperature in K
       
-      double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
+      double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
       double timepitch = driftvelocity*timetick;         
 
       double wire_pitch = geom->WirePitch(0,1,
@@ -474,10 +479,13 @@ namespace trkf{
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::MakeSPT(std::vector<art::Ptr<recob::Hit> >&fHits){
     
+    larprop = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+    detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
     double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
-    double Efield_drift = larprop->Efield(0);  // Electric Field in the drift region in kV/cm
+    double Efield_drift = detprop->Efield(0);  // Electric Field in the drift region in kV/cm
     double Temperature = larprop->Temperature();  // LAr Temperature in K
-    double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
+    double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
     double time_pitch = driftvelocity*timetick;   //time sample (cm) 
 
     for (size_t i = 0; i<fHits.size(); ++i){

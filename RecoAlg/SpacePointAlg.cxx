@@ -22,11 +22,10 @@
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
-#include "Utilities/LArProperties.h"
 #include "art/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Principal/View.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 //\todo Remove include of BackTracker.h once this algorithm is stripped of test for MC
 #include "MCCheater/BackTracker.h"
 #include "RecoBase/Hit.h"
@@ -114,8 +113,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
-    art::ServiceHandle<util::LArProperties> larprop;
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
     // Calculate and print geometry information.
 
@@ -175,7 +173,6 @@ namespace  trkf{
 	  else
 	    throw cet::exception("SpacePointAlg") << "Bad orientation = " 
 						  << orient << "\n";
-	  art::ServiceHandle<util::DetectorProperties> detprop;
 
 	  if(report) {
 	    const double* xyz = tpcgeom.PlaneLocation(plane);
@@ -213,7 +210,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
     // Correct time for trigger offset and plane-dependent time offsets.
 
@@ -313,7 +310,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
     int nhits = hits.size();
 
@@ -466,8 +463,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
-    art::ServiceHandle<util::LArProperties> larprop;
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
     double timePitch=detprop->GetXTicksCoefficient();
 
@@ -677,8 +673,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
-    art::ServiceHandle<util::LArProperties> larprop;
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
     // Calculate time pitch.
 
@@ -875,7 +870,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
     // Clear space point to hit map.
 

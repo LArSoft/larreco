@@ -25,8 +25,8 @@
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Hit.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/LinFitAlg.h"
 
@@ -209,8 +209,6 @@ namespace cluster {
     unsigned short NClusters;
     
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
     
     std::vector<recob::Hit> fHits; ///< our version of the hits
     std::vector<short> inClus;    ///< Hit used in cluster (-1 = obsolete, 0 = free)

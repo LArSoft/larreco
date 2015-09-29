@@ -34,8 +34,7 @@
 #include "Geometry/Geometry.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
-#include "Utilities/DetectorProperties.h"
-#include "Utilities/LArProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
@@ -225,8 +224,7 @@ namespace trkf {
     // Get Services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
-    art::ServiceHandle<util::LArProperties> larprop;
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
     // Get Hits.
 

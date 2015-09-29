@@ -26,8 +26,6 @@
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Utilities/AssociationUtil.h"
 #include "Simulation/EmEveIdCalculator.h"
-#include "Utilities/DetectorProperties.h"
-#include "Utilities/LArProperties.h"
 #include "Utilities/GeometryUtilities.h"
 
 

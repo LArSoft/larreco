@@ -5,9 +5,7 @@
 #define CELLTREE_MODULE
 
 // LArSoft includes
-#include "Utilities/DetectorProperties.h"
 #include "Utilities/GeometryUtilities.h"
-// #include "Utilities/LArProperties.h"
 
 #include "Simulation/SimChannel.h"
 #include "Simulation/LArG4Parameters.h"

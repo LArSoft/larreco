@@ -38,6 +38,7 @@
 #include "RecoBase/Hit.h"
 #include "MCBase/MCHitCollection.h"
 #include "HitFinder/HitAnaAlg.h"
+#include "Utilities/DetectorClocksService.h"
 
 namespace hit {
   class HitAnaModule;
@@ -149,8 +150,7 @@ void hit::HitAnaModule::analyze(art::Event const & e)
   analysisAlg.ClearHitModules();
 
   //get time service
-  art::ServiceHandle<util::TimeService> TimeServiceHandle;
-  util::TimeService const& TimeService(*TimeServiceHandle);
+  const dataprov::DetectorClocks* ts = art::ServiceHandle<util::DetectorClocksService>()->getDetectorClocks();
 
   //get the wire data
   art::Handle< std::vector<recob::Wire> > wireHandle;
@@ -197,7 +197,7 @@ void hit::HitAnaModule::analyze(art::Event const & e)
   }
 
   //run the analzyer alg
-  analysisAlg.AnalyzeWires(wireVector,mcHitVector,WireMCHitAssocVector,TimeService,eventNumber,runNumber);
+  analysisAlg.AnalyzeWires(wireVector,mcHitVector,WireMCHitAssocVector,ts,eventNumber,runNumber);
 
 }
 

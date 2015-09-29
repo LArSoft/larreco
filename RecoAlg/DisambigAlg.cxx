@@ -21,8 +21,6 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/DisambigAlg.h"
 #include "RecoBase/Hit.h"
@@ -234,6 +232,8 @@ void DisambigAlg::MakeDisambigHit( art::Ptr<recob::Hit> hit,
     double BsT = hitB->PeakTimeMinusRMS();
     double BeT = hitB->PeakTimePlusRMS();
 
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    
     if( hitA->View() == geo::kU ){ AsT -= detprop->TimeOffsetU(); AeT -= detprop->TimeOffsetU(); }
     else if( hitA->View() == geo::kV ){ AsT -= detprop->TimeOffsetV(); AeT -= detprop->TimeOffsetV(); }
     else if( hitA->View() == geo::kZ ){ AsT -= detprop->TimeOffsetZ(); AeT -= detprop->TimeOffsetZ(); }
@@ -451,7 +451,9 @@ unsigned int DisambigAlg::FindChanTimeEndPts( unsigned int apa )
 
   double pi = 3.14159265;
   double fMaxEndPRadRange = fMaxEndPDegRange/180. * (2*pi);
-  
+
+  const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
   for(size_t h=0; h<fAPAToHits[apa].size(); h++){
     art::Ptr<recob::Hit> centhit = fAPAToHits[apa][h];
     geo::View_t view = centhit->View();

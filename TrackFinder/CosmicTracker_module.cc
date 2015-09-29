@@ -48,8 +48,6 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/ClusterMatchTQ.h"
 #include "RecoAlg/CosmicTrackerAlg.h"
@@ -269,8 +267,6 @@ namespace trkf {
   
     // get services
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
 
     std::unique_ptr<std::vector<recob::Track>      >              tcol (new std::vector<recob::Track>);           
     std::unique_ptr<std::vector<recob::SpacePoint> >                 spcol(new std::vector<recob::SpacePoint>);

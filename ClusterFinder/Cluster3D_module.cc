@@ -52,8 +52,7 @@
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "SimulationBase/MCTruth.h"
 #include "MCCheater/BackTracker.h"
@@ -325,7 +324,7 @@ private:
      *   Other useful variables
      */
     geo::Geometry*            m_geometry;              ///<  pointer to the Geometry service
-    util::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
+  const dataprov::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
     
     DBScanAlg                 m_dbScanAlg;             ///<  Algorithm to cluster hits
     PrincipalComponentsAlg    m_pcaAlg;                ///<  Principal Components algorithm
@@ -404,10 +403,10 @@ void Cluster3D::beginJob()
         this->InitializeMonitoring();
     
     art::ServiceHandle<geo::Geometry>            geometry;
-    art::ServiceHandle<util::DetectorProperties> detectorProperties;
+    art::ServiceHandle<util::DetectorPropertiesService> detectorProperties;
     
     m_geometry = &*geometry;
-    m_detector = &*detectorProperties;
+    m_detector = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -1314,7 +1313,6 @@ void Cluster3D::ProduceArtClusters(art::Event&              evt,
     if (!clusterParametersList.empty())
     {
         // Grab an instance of the Geometry as it is needed for the association of hits
-        art::ServiceHandle<util::LArProperties> theLarProperties;
 
         // indices for the clusters created
         int    clusterIdx(0);
@@ -1433,7 +1431,7 @@ void Cluster3D::ProduceArtClusters(art::Event&              evt,
                 // Now sort out the slope in this view
                 // This follows the code in the display pacakage
                 double thetaWire     = m_geometry->Plane(clusParams.m_view).Wire(0).ThetaZ();
-                double driftVelocity = theLarProperties->DriftVelocity();
+                double driftVelocity = m_detector->DriftVelocity();
                 double timeTick      = m_detector->SamplingRate()*1.e-3;
                 
                 //rotate coord system CCW around x-axis by pi-thetawire

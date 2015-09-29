@@ -27,8 +27,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
 
-#include "Utilities/DetectorProperties.h"
-#include "Utilities/LArProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Seed.h"
 #include "MCCheater/BackTracker.h"
@@ -73,10 +72,10 @@ namespace {
     seed.GetPoint(pos, err);
 
     // Calculate the x offset due to nonzero mc particle time.
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
-    art::ServiceHandle<util::LArProperties> larprop;
     double mctime = mctrk.Start().T();                         // nsec
-    double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();  // cm
+    double mcdx = mctime * 1.e-3 * detprop->DriftVelocity();  // cm
 
     // Loop over trajectory points.
 
@@ -108,7 +107,7 @@ namespace {
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
     // Get fiducial volume boundary.
 
@@ -681,7 +680,6 @@ namespace trkf {
   // Arguments: event - Art event.
   //
   {
-    art::ServiceHandle<util::LArProperties> larprop;
     ++fNumEvent;
 
     // Optional dump stream.
@@ -701,6 +699,8 @@ namespace trkf {
     art::Handle< std::vector<recob::Seed> > seedh;
     evt.getByLabel(fSeedModuleLabel, seedh);
 
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    
     // Seed->mc track matching map.
 
     std::map<const recob::Seed*, int> seedmap;
@@ -745,7 +745,7 @@ namespace trkf {
 	    // Calculate the x offset due to nonzero mc particle time.
 
 	    double mctime = mctrk.Start().T();                                // nsec
-	    double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();  // cm
+	    double mcdx = mctime * 1.e-3 * detprop->DriftVelocity();  // cm
 
 	    // Calculate the length of this mc particle inside the fiducial volume.
 

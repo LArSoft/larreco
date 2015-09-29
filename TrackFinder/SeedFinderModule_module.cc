@@ -92,7 +92,6 @@ namespace trkf {
 #include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/DetectorProperties.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
 

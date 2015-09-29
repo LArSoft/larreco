@@ -28,8 +28,6 @@
 #include "Filters/ChannelFilter.h"
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
 #include "RecoAlg/GausFitCache.h"
 
 
@@ -142,8 +140,6 @@ namespace hit {
 //    bool prt;
     
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
 
     // fit n Gaussians possibly with bounds setting (parmin, parmax)
     void FitNG(unsigned short nGaus, unsigned short npt, float *ticks,

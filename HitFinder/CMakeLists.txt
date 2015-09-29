@@ -29,8 +29,8 @@ art_make( BASENAME_ONLY
 			MCBase
                         Geometry
                         Geometry_service
-                        LArProperties_service
-                        DetectorProperties_service
+                        LArPropertiesService_service
+                        DetectorPropertiesService_service
                         Utilities
                         Simulation
                         ${SIMULATIONBASE}

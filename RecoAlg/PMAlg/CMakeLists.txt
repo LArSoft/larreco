@@ -7,8 +7,8 @@ art_make( LIBRARY_NAME  PMAlg
                         Geometry_service
                         RecoObjects
                         AnalysisBase
-                        LArProperties_service
-                        DetectorProperties_service
+                        LArPropertiesService_service
+                        DetectorPropertiesService_service
                         Utilities
            		${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

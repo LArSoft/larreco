@@ -12,7 +12,7 @@
 #include "RecoAlg/PMAlg/Utilities.h"
 #include "RecoAlg/PMAlg/PmaHit3D.h"
 
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -258,7 +258,7 @@ TVector2 pma::GetVectorProjectionToPlane(const TVector3& v, unsigned int view, u
 TVector2 pma::WireDriftToCm(unsigned int wire, float drift, unsigned int view, unsigned int tpc, unsigned int cryo)
 {
 	art::ServiceHandle<geo::Geometry> geom;
-	art::ServiceHandle<util::DetectorProperties> detprop;
+	const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
 	return TVector2(
 		geom->TPC(tpc, cryo).Plane(view).WirePitch() * wire,
@@ -269,7 +269,7 @@ TVector2 pma::WireDriftToCm(unsigned int wire, float drift, unsigned int view, u
 TVector2 pma::CmToWireDrift(float xw, float yd, unsigned int view, unsigned int tpc, unsigned int cryo)
 {
 	art::ServiceHandle<geo::Geometry> geom;
-	art::ServiceHandle<util::DetectorProperties> detprop;
+	const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
 	return TVector2(
 		xw / geom->TPC(tpc, cryo).Plane(view).WirePitch(),

@@ -60,7 +60,7 @@
 
 #include "TMath.h"
 
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
@@ -995,7 +995,7 @@ recob::Seed trkf::Track3DKalmanHit::makeSeed(const art::PtrVector<recob::Hit>& h
   // Get Services.
 
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
   // Do a linear 3D least squares for of y and z vs. x.
   // y = y0 + ay*(x-x0)

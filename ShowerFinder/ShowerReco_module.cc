@@ -68,9 +68,9 @@ extern "C" {
 #include "RecoBase/SpacePoint.h"
 #include "AnalysisBase/Calorimetry.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/LArProperties.h"
+#include "Utilities/LArPropertiesService.h"
 #include "Utilities/GeometryUtilities.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "AnalysisAlg/CalorimetryAlg.h"
 #include "SimulationBase/MCTruth.h"
 
@@ -190,9 +190,10 @@ namespace shwf {
   std::vector< int > fNhitsperplane;
   std::vector< double > fTotADCperplane;
   //services 
-  art::ServiceHandle<util::LArProperties> larp;
+    const dataprov::LArProperties* larp;
+    
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
   
 //    //temporary
 //     int mcpdg;
@@ -255,6 +256,9 @@ void ShowerReco::beginJob()
 
   /** Get Geometry*/
   art::ServiceHandle<geo::Geometry> geo;
+
+  larp = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+  detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
   /// \todo the call to geo->Nplanes() assumes this is a single cryostat and single TPC detector
   /// \todo need to generalize to multiple cryostats and TPCs
@@ -331,12 +335,14 @@ void ShowerReco::beginJob()
 
 void ShowerReco::beginRun(art::Run&)
 {
+ larp = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+ detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
  fWirePitch = geom->WirePitch(0,1,0);    //wire pitch in cm
  fTimeTick=detprop->SamplingRate()/1000.;  
- fDriftVelocity=larp->DriftVelocity(larp->Efield(),larp->Temperature());
+ fDriftVelocity=detprop->DriftVelocity(detprop->Efield(),larp->Temperature());
  fWireTimetoCmCm=(fTimeTick*fDriftVelocity)/fWirePitch; 
- 
-  
+   
 }
 
 
@@ -461,6 +467,9 @@ void ShowerReco::beginRun(art::Run&)
 // ***************** //
 void ShowerReco::produce(art::Event& evt)
 { 
+
+  larp = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+  detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
   util::GeometryUtilities gser;
   fNPlanes = geom->Nplanes();
@@ -651,7 +660,7 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
  // art::ServiceHandle<util::LArProperties> larp;
  // art::ServiceHandle<util::DetectorProperties> detprop;
  double fTimeTick=detprop->SamplingRate()/1000.; 
- double fDriftVelocity=larp->DriftVelocity(larp->Efield(),larp->Temperature());
+ double fDriftVelocity=detprop->DriftVelocity(detprop->Efield(),larp->Temperature());
  // get starting positions for all planes
  for(unsigned int xx=0;xx<fNPlanes;xx++){
       double pos1[3];
@@ -707,9 +716,9 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
 	
 	
 	
-     double drifttick=(xyz_vertex_fit[0]/larp->DriftVelocity(larp->Efield(),larp->Temperature()))*(1./fTimeTick);
+     double drifttick=(xyz_vertex_fit[0]/detprop->DriftVelocity(detprop->Efield(),larp->Temperature()))*(1./fTimeTick);
      fWire_vertex[fNPlanes-1]= wirevertex;  // wire coordinate of vertex for each plane
-     fTime_vertex[fNPlanes-1] = drifttick-(pos[0]/larp->DriftVelocity(larp->Efield(),larp->Temperature()))*(1./fTimeTick)+detprop->TriggerOffset();
+     fTime_vertex[fNPlanes-1] = drifttick-(pos[0]/detprop->DriftVelocity(detprop->Efield(),larp->Temperature()))*(1./fTimeTick)+detprop->TriggerOffset();
 	
 	
       }

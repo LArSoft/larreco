@@ -24,7 +24,7 @@
 #include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
 #include "TPrincipal.h"
@@ -728,7 +728,7 @@ namespace trkf {
 
   void SeedFinderAlgorithm::GetHitDistAndProj( recob::Seed const& ASeed,  art::Ptr<recob::Hit> const& AHit, double& disp, double& s)
   {
-    art::ServiceHandle<util::DetectorProperties> det;
+    const dataprov::DetectorProperties* det = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
     art::ServiceHandle<geo::Geometry> geom;
     
     double xyzStart[3], xyzEnd[3];
@@ -925,7 +925,7 @@ namespace trkf {
   void  SeedFinderAlgorithm::GetCenterAndDirection(art::PtrVector<recob::Hit> const& HitsFlat, std::vector<int>&  HitsToUse, TVector3& Center, TVector3& Direction, std::vector<double>& ViewRMS, std::vector<int>& N)
   {
     // Initialize the services we need
-    art::ServiceHandle<util::DetectorProperties>     det;
+    const dataprov::DetectorProperties* det = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
  
     N.resize(3);

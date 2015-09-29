@@ -11,8 +11,6 @@
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 #include "SimulationBase/MCTruth.h"
 #include "MCCheater/BackTracker.h"
@@ -53,11 +51,11 @@ PrincipalComponentsAlg::~PrincipalComponentsAlg()
 void PrincipalComponentsAlg::reconfigure(fhicl::ParameterSet const &pset)
 {
     art::ServiceHandle<geo::Geometry>            geometry;
-    art::ServiceHandle<util::DetectorProperties> detectorProperties;
+    art::ServiceHandle<util::DetectorPropertiesService> detectorProperties;
     
     m_parallel = pset.get<double>("ParallelLines", 0.00001);
     m_geometry = &*geometry;
-    m_detector = &*detectorProperties;
+    m_detector = detectorProperties->getDetectorProperties();
 }
     
 void PrincipalComponentsAlg::getHit2DPocaToAxis(const TVector3&            axisPos,

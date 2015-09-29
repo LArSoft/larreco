@@ -16,8 +16,8 @@
 
 #include "RecoBase/Hit.h"
 #include "Geometry/Geometry.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "RecoAlg/TrackTrajectoryAlg.h"
 
 #include <vector>
@@ -71,8 +71,8 @@ namespace trkf
 
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const dataprov::LArProperties* larprop;
+    const dataprov::DetectorProperties* detprop;
 
 
   }; //class CosmicTrackerAlg

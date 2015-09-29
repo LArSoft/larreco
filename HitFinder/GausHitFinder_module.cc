@@ -51,7 +51,6 @@
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "RecoBaseArt/HitCreator.h"
-#include "Utilities/DetectorProperties.h"
 
 // ROOT Includes
 #include "TGraphErrors.h"
@@ -254,12 +253,7 @@ void GausHitFinder::produce(art::Event& evt)
    std::vector<double> FitGoodness;    // stores the Chi2/NDF of the hit
    std::vector<int>    FitNDF;         // stores the NDF of the hit
    std::vector<double> hitSig;
-   
-   // ###################################
-   // ### Calling Detector Properties ###
-   // ###################################
-   art::ServiceHandle<util::DetectorProperties> detprop;
-   
+      
    // ################################
    // ### Calling Geometry service ###
    // ################################

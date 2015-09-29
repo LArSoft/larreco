@@ -23,7 +23,6 @@
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "RecoBaseArt/HitCreator.h"
-#include "Utilities/DetectorProperties.h"
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "MCCheater/BackTracker.h"
 
@@ -43,7 +42,6 @@ namespace hit{
   private:
     
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
     art::ServiceHandle<cheat::BackTracker> bt;
     
     std::string fChanHitLabel;

@@ -53,8 +53,8 @@
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 #include "Utilities/StatCollector.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
@@ -256,8 +256,9 @@ size_t cluster::HoughBaseAlg::Transform(
   int nClustersTemp = *nClusters;
   
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const dataprov::LArProperties* larprop = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+  const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
   filter::ChannelFilter chanFilt;
 
   //  uint32_t     channel = hits[0]->Channel();
@@ -285,12 +286,12 @@ size_t cluster::HoughBaseAlg::Transform(
   std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
   
   /// \todo provide comment about where the 0.001 comes from
-  double driftVelFactor = 0.001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  double driftVelFactor = 0.001*detprop->DriftVelocity(detprop->Efield(),larprop->Temperature());
   
   for(size_t p = 0; p < xyScale.size(); ++p)
     xyScale[p] = driftVelFactor * detprop->SamplingRate()/wire_pitch[p];
 
-  float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature()) * 1.e-3 * detprop->SamplingRate();
+  float tickToDist = driftVelFactor * detprop->SamplingRate();
   //tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
 
 
@@ -1053,8 +1054,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  //  const dataprov::LArProperties* larprop = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+  //  const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
   filter::ChannelFilter chanFilt;
   HoughTransform c;
 
@@ -1453,8 +1454,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   //art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const dataprov::LArProperties* larprop = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+  const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
   filter::ChannelFilter chanFilt;
 
   // Get the random number generator
@@ -1523,7 +1524,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
 
   /// \todo explain where the 0.001 comes from
-  double driftVelFactor = 0.001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  double driftVelFactor = 0.001*detprop->DriftVelocity(detprop->Efield(),larprop->Temperature());
 
   for(size_t p = 0; p < xyScale.size(); ++p) 
     xyScale[p] = driftVelFactor * detprop->SamplingRate()/wire_pitch[p];
@@ -1709,7 +1710,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       // we have to go back to the first hit (in terms of lastHits[i]) of that channel to find the distance
       // between hits
       //std::cout << "New line" << std::endl;
-      double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+      double tickToDist = detprop->DriftVelocity(detprop->Efield(),larprop->Temperature());
       tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
       int missedHits=0;
       int lastHitsChannel = 0;//lastHits.at(0);
@@ -1874,7 +1875,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector< art::Ptr<recob::Hit> > cons
   HoughTransform c;
 
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
   
   int dx = geom->Nwires(0);               //number of wires 
   const int dy = detprop->ReadOutWindowSize(); // number of time samples. 

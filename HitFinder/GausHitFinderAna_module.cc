@@ -19,8 +19,8 @@
 #include "MCCheater/BackTracker.h"
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 
 // ROOT includes
 #include <TMath.h>
@@ -219,12 +219,12 @@ namespace hit{
     // #######################################
     // ### Getting Liquid Argon Properites ###
     // #######################################
-    art::ServiceHandle<util::LArProperties> larp;
+    const dataprov::LArProperties* larp = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
   
     // ###################################
     // ### Getting Detector Properties ###
     // ###################################
-    art::ServiceHandle<util::DetectorProperties> detp;
+    const dataprov::DetectorProperties* detp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
     
     // ##########################################
     // ### Reading in the Wire List object(s) ###
@@ -345,7 +345,7 @@ namespace hit{
     // === Calculating Time Tick and Drift Velocity ===
     // ================================================
     double time_tick      = detp->SamplingRate()/1000.;
-    double drift_velocity = larp->DriftVelocity(larp->Efield(),larp->Temperature());
+    double drift_velocity = detp->DriftVelocity(detp->Efield(),larp->Temperature());
     
     for(size_t nh = 0; nh < hitHandle->size(); nh++)
        {

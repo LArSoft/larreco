@@ -9,8 +9,8 @@ art_make( LIBRARY_NAME  RecoAlg
                         Geometry_service
                         RecoObjects
                         AnalysisBase
-                        LArProperties_service
-                        DetectorProperties_service
+                        LArPropertiesService_service
+                        DetectorPropertiesService_service
                         Utilities
                         ClusterRecoUtil
 			CMToolBase

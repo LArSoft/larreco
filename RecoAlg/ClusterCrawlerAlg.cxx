@@ -178,7 +178,10 @@ namespace cluster {
       mf::LogWarning("CC")<<"Too many hits for ClusterCrawler "<<fHits.size();
       return;
     }
-    
+
+    const dataprov::LArProperties* larprop = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
     for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
       for(plane = 0; plane < TPC.Nplanes(); ++plane){
@@ -235,7 +238,7 @@ namespace cluster {
         // get the scale factor to convert dTick/dWire to dX/dU. This is used
         // to make the kink and merging cuts
         float wirePitch = geom->WirePitch(geom->View(channel));
-        float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+        float tickToDist = detprop->DriftVelocity(detprop->Efield(),larprop->Temperature());
         tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
         fScaleF = tickToDist / wirePitch;
         // convert Large Angle Cluster crawling cut to a slope cut
@@ -4613,6 +4616,8 @@ namespace cluster {
         float theTime;
         short dwb, dwe;
 
+	const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
           // A complete 3D vertex with matching 2D vertices in all planes?
           if(vtx3[ivx].Wire < 0) continue;
@@ -4694,6 +4699,8 @@ namespace cluster {
         float dth, theTime;
         unsigned short thePlane, theWire, plane;
         unsigned short loWire, hiWire;
+
+	const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
           if(vtx3[ivx].CStat != cstat || vtx3[ivx].TPC != tpc) continue;
@@ -4910,6 +4917,8 @@ namespace cluster {
     };
     std::array< std::vector<Hammer>, 3> hamrVec;
     
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
     unsigned short ipl;
     bool useit = false;
     for(ipl = 0; ipl < 3; ++ipl) {
@@ -5077,6 +5086,8 @@ namespace cluster {
       // in all three planes have Ptr2D >= 0 for all planes
       
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
+      
+      const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
       
       const unsigned int cstat = tpcid.Cryostat;
       const unsigned int tpc = tpcid.TPC;

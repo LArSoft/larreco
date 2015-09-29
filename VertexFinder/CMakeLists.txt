@@ -7,8 +7,8 @@ art_make( BASENAME_ONLY
                         RecoBase
                         Geometry
                         Geometry_service
-                        LArProperties_service
-                        DetectorProperties_service
+                        LArPropertiesService_service
+                        DetectorPropertiesService_service
                         Utilities
                         Simulation
                         ${SIMULATIONBASE}
@@ -35,8 +35,8 @@ simple_plugin ( FeatureVertexFinder "module"
                         RecoBase
                         Geometry
                         Geometry_service
-                        LArProperties_service
-                        DetectorProperties_service
+                        LArPropertiesService_service
+                        DetectorPropertiesService_service
                         Utilities
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}

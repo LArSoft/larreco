@@ -12,7 +12,7 @@
 
 #include "RecoAlg/ClusterMatchTQ.h"
 #include "Geometry/Geometry.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 
 #include "TH1D.h"
 
@@ -50,7 +50,7 @@ namespace cluster{
 
     // get services
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
     int nplanes = geom->Nplanes();
     int nts = detprop->NumberTimeSamples();

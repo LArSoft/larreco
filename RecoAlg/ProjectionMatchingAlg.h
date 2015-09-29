@@ -38,8 +38,6 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
@@ -166,7 +164,6 @@ private:
 
 	// Geometry and detector properties
 	art::ServiceHandle<geo::Geometry> fGeom;
-	art::ServiceHandle<util::DetectorProperties> fDetProp;
 
 	// Calculate good number of segments depending on the number of hits.
 	static size_t getSegCount(size_t trk_size);

@@ -42,8 +42,7 @@
 #include "RecoBase/PFParticle.h"
 #include "RecoBase/Seed.h"
 
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/TrackTrajectoryAlg.h"
 #include "RecoAlg/VertexFitAlg.h"
@@ -79,8 +78,7 @@ namespace trkf {
     
     // services
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const dataprov::DetectorProperties* detprop;
     
     TrackTrajectoryAlg fTrackTrajectoryAlg;
     VertexFitAlg fVertexFitAlg;
@@ -355,6 +353,8 @@ namespace trkf {
   void CCTrackMaker::produce(art::Event& evt)
   {
     
+    detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+
     fWirePitch = geom->WirePitch();
     
     fChgWindow = 40; // window (ticks) for identifying shower-like clusters

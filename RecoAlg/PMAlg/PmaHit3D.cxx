@@ -12,7 +12,6 @@
 #include "RecoAlg/PMAlg/PmaHit3D.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
-#include "Utilities/DetectorProperties.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"

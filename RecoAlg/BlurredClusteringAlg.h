@@ -21,8 +21,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "RecoBase/Hit.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
@@ -83,7 +82,9 @@ public:
   void SaveImage(TH2F* image, int const& pad);
   void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int const& pad);
   void SetEventParameters(unsigned int event, unsigned int run, unsigned int subrun, bool global) { fEvent = event; fRun = run; fSubrun = subrun; fGlobalTPCRecon = global; }
-  void SetPlaneParameters(unsigned int plane, unsigned int tpc, unsigned int cryostat) { fPlane = plane; fTPC = tpc; fCryostat = cryostat; fNTicks = fDetProp->ReadOutWindowSize(); fNWires = fGeom->Nwires(plane, tpc, cryostat); }
+  void SetPlaneParameters(unsigned int plane, unsigned int tpc, unsigned int cryostat) { fPlane = plane; fTPC = tpc; fCryostat = cryostat;
+    const dataprov::DetectorProperties* fDetProp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    fNTicks = fDetProp->ReadOutWindowSize(); fNWires = fGeom->Nwires(plane, tpc, cryostat); }
 
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
 
@@ -132,7 +133,6 @@ private:
 
   // Create geometry and detector property handle
   art::ServiceHandle<geo::Geometry> fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
 
 };
 

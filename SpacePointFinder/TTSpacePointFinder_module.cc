@@ -31,7 +31,6 @@
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/DetectorProperties.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/AssociationUtil.h"

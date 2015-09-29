@@ -288,7 +288,6 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
   for (const auto &wireIt : fHitMap) {
     for (const auto &tickIt : wireIt.second) {
       //hits[0] = (fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch()) * wireIt.first;
-      //hits[1] = fDetProp->ConvertTicksToX(tickIt.first, fPlane, fTPC, fCryostat);
       hits[0] = wireIt.first;
       hits[1] = tickIt.first;
       fPCA->AddRow(hits);

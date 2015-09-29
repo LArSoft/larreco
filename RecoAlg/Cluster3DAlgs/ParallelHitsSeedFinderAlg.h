@@ -15,7 +15,7 @@
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "RecoBase/Seed.h"
 #include "RecoObjects/Cluster3D.h"
 
@@ -66,7 +66,7 @@ public:
 private:
 
     geo::Geometry*                         m_geometry;        // pointer to the Geometry service
-    util::DetectorProperties*              m_detector;        // Pointer to the detector properties
+    const dataprov::DetectorProperties*    m_detector;        // Pointer to the detector properties
 
     size_t                                 m_maxNumEdgeHits;  ///< Maximum number hits each end of PCA axis
     double                                 m_gapDistance;     ///< Maximum allowed distance between hits

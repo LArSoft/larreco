@@ -15,7 +15,7 @@
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "RecoBase/Seed.h"
 #include "RecoObjects/Cluster3D.h"
 
@@ -69,7 +69,7 @@ private:
     void LineFit2DHits(const reco::HitPairListPtr& hitList, double XOrigin, TVector3& Pos, TVector3& Dir, double& ChiDOF) const;
 
     geo::Geometry*                         m_geometry;         // pointer to the Geometry service
-    util::DetectorProperties*              m_detector;         // Pointer to the detector properties
+    const dataprov::DetectorProperties*    m_detector;         // Pointer to the detector properties
 
     double                                 m_gapDistance;      ///<
     size_t                                 m_numSeed2DHits;    ///<

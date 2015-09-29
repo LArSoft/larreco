@@ -28,7 +28,6 @@
 #include "Utilities/AssociationUtil.h"
 #include "SimulationBase/MCParticle.h"
 #include "SimpleTypesAndConstants/PhysicalConstants.h"
-#include "Utilities/DetectorProperties.h"
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"
@@ -94,7 +93,6 @@ namespace trkf{
   {
     art::ServiceHandle<cheat::BackTracker>       bt;
     art::ServiceHandle<geo::Geometry>            geo;
-    art::ServiceHandle<util::DetectorProperties> detp;
 
     // grab the clusters that have been reconstructed
     art::Handle< std::vector<recob::Cluster> > clustercol;

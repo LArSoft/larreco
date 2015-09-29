@@ -32,7 +32,8 @@ TVector2 cluster::MergeClusterAlg::ConvertWireDriftToCm(unsigned int wire, doubl
 
   /// Convert the wire/tick coordinates roughly into cm
   /// Taken from RecoAlg/PMAlg/Utilities.cxx (written by D.Stefan & R.Sulej)
-
+  fDetProp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+ 
   return TVector2(fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch() * wire,
 		  fDetProp->ConvertTicksToX(drift, fPlane, fTPC, fCryostat)
 		  );
@@ -42,6 +43,7 @@ TVector2 cluster::MergeClusterAlg::CmToWireDrift(double x, double y) {
 
   /// Convert the cm roughly into wire/tick coordinates
   /// Taken from RecoAlg/PMAlg/Utilities.cxx (written by D.Stefan & R.Sulej)
+  fDetProp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
 
   return TVector2(
 		  x / fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch(),

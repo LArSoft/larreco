@@ -51,6 +51,8 @@
 #include "RecoAlg/SmallClusterFinderAlg.h"
 #include "Geometry/geo.h"
 #include "Utilities/AssociationUtil.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 //#include "SimulationBase/simbase.h"
 //#include "RawData/RawDigit.h"
 //#include "SummaryData/summary.h"
@@ -96,8 +98,11 @@ void cluster::SmallClusterFinderAlg::reconfigure(fhicl::ParameterSet const& pset
 // This method actually makes the clusters.
 void cluster::SmallClusterFinderAlg::FindSmallClusters(std::vector<art::Ptr<recob::Hit> > allHits)
 { 
- 	///These lines determine the conversion factors to take wires and times to CMs
-  	fDriftVelocity=larp->DriftVelocity(larp->Efield(),larp->Temperature());
+  const dataprov::DetectorProperties* detp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+  const dataprov::LArProperties* larp = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+  
+  ///These lines determine the conversion factors to take wires and times to CMs
+  	fDriftVelocity=detp->DriftVelocity(detp->Efield(),larp->Temperature());
   	fWirePitch = geom -> WirePitch();
   	fTimeTick=detp->SamplingRate()/1000.;
   	fWiretoCm=fWirePitch;

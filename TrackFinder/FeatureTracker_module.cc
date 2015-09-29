@@ -119,7 +119,7 @@ namespace trkf {
 #include "RecoBase/Seed.h"
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 
 
 
@@ -392,7 +392,7 @@ namespace trkf {
   void FeatureTracker::GetProjectedEnds(TVector3 xyz, std::vector<double>& uvw, std::vector<double>&t, int tpc, int cryo)
   {
     
-    art::ServiceHandle<util::DetectorProperties>   det;
+    const dataprov::DetectorProperties* det = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
     art::ServiceHandle<geo::Geometry>              geo;
 
     int NPlanes=geo->Cryostat(cryo).TPC(tpc).Nplanes();
@@ -415,7 +415,6 @@ namespace trkf {
       
       art::PtrVector<recob::Hit> HitsForEndPoints;
       
-
       // Loop through the hits looking for the ones which match corners
       for(std::vector<recob::EndPoint2D>::const_iterator itEP=EndPoints.begin(); itEP!=EndPoints.end(); ++itEP)
 	{
@@ -440,7 +439,8 @@ namespace trkf {
       fSP.makeSpacePoints(HitsForEndPoints, spts);
 
       // This is temporary for debugging purposes
-    art::ServiceHandle<util::DetectorProperties>   det;
+      const dataprov::DetectorProperties* det = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+      
       for(size_t i=0; i!=spts.size(); ++i)
 	{
 	  for(size_t p=0; p!=3; ++p)

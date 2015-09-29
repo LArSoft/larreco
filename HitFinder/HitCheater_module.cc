@@ -35,7 +35,7 @@
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "RecoBaseArt/HitCreator.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/StatCollector.h"
 
 namespace hit {
@@ -334,7 +334,7 @@ void hit::HitCheater::reconfigure(fhicl::ParameterSet const & p)
   fMinCharge       = p.get< double      >("MinimumCharge",   5.        );
   fNewHitTDCGap    = p.get< int         >("NewHitTDCGap",    1         );
 
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
   fElectronsToADC = detprop->ElectronsToADC();
   fSamplingRate   = detprop->SamplingRate();
   fTriggerOffset  = detprop->TriggerOffset();

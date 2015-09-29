@@ -5,8 +5,8 @@ add_subdirectory(job)
 art_make( BASENAME_ONLY
 #          EXCLUDE ShowerSelectorFilter_module.cc
           MODULE_LIBRARIES 
-                        LArProperties_service
-                        DetectorProperties_service
+                        LArPropertiesService_service
+                        DetectorPropertiesService_service
                         BackTracker_service
                         AnalysisBase
                         RecoBase

@@ -253,7 +253,7 @@ namespace cluster{
       
       // Ask DetectorPrperties about time-offset among different wire planes ... used to correct timing
       // difference among different wire planes in the following loop.
-      art::ServiceHandle<util::DetectorProperties> det_h;
+      const dataprov::DetectorProperties* det_h = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
       _time_offset_uplane = det_h->GetXTicksOffset(geo::kU,0,0);
       _time_offset_vplane = det_h->GetXTicksOffset(geo::kV,0,0);
       _time_offset_wplane=0;

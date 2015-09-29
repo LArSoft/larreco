@@ -39,11 +39,7 @@
 
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
-#include "Utilities/LArProperties.h"
 #include "Utilities/GeometryUtilities.h"
-#include "Utilities/DetectorProperties.h"
-
-
 
 namespace cluster {
 
@@ -108,8 +104,6 @@ namespace cluster {
 
     //The various art grabbed Larsoft stuff to get physical properties.
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detp;
-    art::ServiceHandle<util::LArProperties> larp;
     util::GeometryUtilities gser;
    
    	//The vectors that actually get used to hold hits, sets of hits, etc.

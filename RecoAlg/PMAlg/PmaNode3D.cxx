@@ -13,6 +13,7 @@
 
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
+#include "Utilities/DetectorPropertiesService.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -43,7 +44,7 @@ pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo)
 	unsigned int lastPlane = geo::kZ;
 	while ((lastPlane > 0) && !tpcGeo.HasPlane(lastPlane)) lastPlane--;
 
-	art::ServiceHandle< util::DetectorProperties > detprop;
+	const dataprov::DetectorProperties* detprop = art::ServiceHandle< util::DetectorPropertiesService>()->getDetectorProperties();
 	fMinX = detprop->ConvertTicksToX(0, lastPlane, tpc, cryo);
 	fMaxX = detprop->ConvertTicksToX(detprop->NumberTimeSamples() - 1, lastPlane, tpc, cryo);
 	if (fMaxX < fMinX) { double tmp = fMaxX; fMaxX = fMinX; fMinX = tmp; }

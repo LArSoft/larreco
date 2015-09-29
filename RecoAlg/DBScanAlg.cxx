@@ -22,8 +22,8 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "RecoAlg/DBScanAlg.h"
 #include "RecoBase/Hit.h"
 #include "Geometry/PlaneGeo.h"
@@ -308,8 +308,8 @@ void cluster::DBScanAlg::InitScan(const std::vector< art::Ptr<recob::Hit> >& all
   // Determine spacing between wires (different for each detector)
   ///get 2 first wires and find their spacing (wire_dist)
 
-  art::ServiceHandle<util::LArProperties> larp;
-  art::ServiceHandle<util::DetectorProperties> detp;
+  const dataprov::LArProperties* larp = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+  const dataprov::DetectorProperties* detp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
   art::ServiceHandle<geo::Geometry> geom;
 
   for(size_t p = 0; p < geom->Nplanes(); ++p)
@@ -333,7 +333,7 @@ void cluster::DBScanAlg::InitScan(const std::vector< art::Ptr<recob::Hit> >& all
     int dims = 3;//our point is defined by 3 elements:wire#,center of the hit, and the hit width
     std::vector<double> p(dims);
         
-    double tickToDist = larp->DriftVelocity(larp->Efield(),larp->Temperature());
+    double tickToDist = detp->DriftVelocity(detp->Efield(),larp->Temperature());
     tickToDist *= 1.e-3 * detp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
     if (!wireids.size()) p[0] = (allhits[j]->WireID().Wire)*fWirePitch[allhits[j]->WireID().Plane];
     else p[0] = (wireids[j].Wire)*fWirePitch[allhits[j]->WireID().Plane];

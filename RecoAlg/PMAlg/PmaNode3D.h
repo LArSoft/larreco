@@ -15,7 +15,6 @@
 #include "RecoAlg/PMAlg/SortedObjects.h"
 
 #include "Geometry/Geometry.h"
-#include "Utilities/DetectorProperties.h"
 
 #include "TVectorT.h"
 #include "TMatrixT.h"

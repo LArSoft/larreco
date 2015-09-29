@@ -28,8 +28,6 @@
 #include "RecoBase/Cluster.h"
 #include "RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include "RecoAlg/CMTool/CMToolBase/CMergeManager.h"
-#include "Utilities/DetectorProperties.h"
-#include "Utilities/LArProperties.h"
 #include "Utilities/AssociationUtil.h"
 #include "Geometry/Geometry.h"
 

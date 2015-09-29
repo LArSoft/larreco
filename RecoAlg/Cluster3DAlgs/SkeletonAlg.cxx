@@ -14,7 +14,6 @@
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
-#include "Utilities/DetectorProperties.h"
 #include "RecoBase/Hit.h"
 #include "RecoObjects/Cluster3D.h"
 
