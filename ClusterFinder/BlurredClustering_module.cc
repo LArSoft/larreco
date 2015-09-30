@@ -83,7 +83,7 @@ cluster::BlurredClustering::~BlurredClustering() { }
 
 void cluster::BlurredClustering::reconfigure(fhicl::ParameterSet const& p) {
   fHitsModuleLabel  = p.get<std::string>("HitsModuleLabel");
-  fTrackModuleLabel = p.get<bool>       ("TrackModuleLabel");
+  fTrackModuleLabel = p.get<std::string>("TrackModuleLabel");
   fCreateDebugPDF   = p.get<bool>       ("CreateDebugPDF");
   fMergeClusters    = p.get<bool>       ("MergeClusters");
   fGlobalTPCRecon   = p.get<bool>       ("GlobalTPCRecon");
@@ -119,12 +119,11 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   art::Handle<std::vector<recob::Hit> > hitCollection;
   evt.getByLabel(fHitsModuleLabel,hitCollection);
 
-  // Get the tracks and associations from the event
+  // Get the tracks from the event
   art::Handle<std::vector<recob::Track> > trackCollection;
   std::vector<art::Ptr<recob::Track> > tracks;
   if (evt.getByLabel(fTrackModuleLabel,trackCollection))
     art::fill_ptr_vector(tracks, trackCollection);
-  art::FindManyP<recob::Track> fmt(hitCollection, evt, fTrackModuleLabel);
 
   // Get the channel filter
   filter::ChannelFilter channelFilter;
@@ -147,8 +146,10 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       // Make the clusters
       std::vector<art::PtrVector<recob::Hit> > finalClusters;
       std::vector<art::Ptr<recob::Hit> > hitsToCluster;
-      if (fShowerReconOnly)
+      if (fShowerReconOnly and trackCollection.isValid()) {
+	art::FindManyP<recob::Track> fmt(hitCollection, evt, fTrackModuleLabel);
 	showerHits(planeIt->second, fmt, hitsToCluster);
+      }
       else
 	hitsToCluster = planeIt->second;
       cluster(hitsToCluster, finalClusters);
@@ -212,8 +213,10 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       // Make the clusters
       std::vector<art::PtrVector<recob::Hit> > finalClusters;
       std::vector<art::Ptr<recob::Hit> > hitsToCluster;
-      if (fShowerReconOnly)
+      if (fShowerReconOnly and trackCollection.isValid()) {
+	art::FindManyP<recob::Track> fmt(hitCollection, evt, fTrackModuleLabel);
 	showerHits(planeIt->second, fmt, hitsToCluster);
+      }
       else
 	hitsToCluster = planeIt->second;
       cluster(hitsToCluster, finalClusters);
@@ -316,10 +319,11 @@ void cluster::BlurredClustering::showerHits(std::vector<art::Ptr<recob::Hit> > c
   /// Takes all hits and track associations and returns just hits which are not determined to be track-like
 
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator initialHit = initialHits.begin(); initialHit != initialHits.end(); ++initialHit) {
-    int associatedTrackID = fmt.at(initialHit->key()).at(0)->ID();
+    std::vector<art::Ptr<recob::Track> > tracks = fmt.at(initialHit->key());
     // Shower-like tracks have this bit set
-    if ((associatedTrackID&65536) != 0)
-      hitsToCluster.push_back(*initialHit);
+    if (tracks.size() and (tracks.at(0)->ID() & 65536) == 0)
+      continue;
+    hitsToCluster.push_back(*initialHit);
   }
 
 }
