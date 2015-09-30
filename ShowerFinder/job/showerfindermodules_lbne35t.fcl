@@ -1,0 +1,22 @@
+# #include "showerfindermodules.fcl"
+
+BEGIN_PROLOG
+
+test_shower:
+{
+ module_type: "TestShower"
+}
+
+standard_showervalidation:
+{
+ module_type: "ShowerValidation"
+}
+
+emshower_makepdf:
+{
+ module_type: "EMShowerPDF"
+}
+
+lbne35t_shower:   @local::test_shower 
+
+END_PROLOG
