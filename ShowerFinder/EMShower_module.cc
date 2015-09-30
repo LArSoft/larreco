@@ -175,6 +175,46 @@ void shower::EMShower::produce(art::Event &evt) {
     std::cout << std::endl << std::endl;
   }
 
+  // Make output larsoft products
+
+  int showerNum = 0;
+  for (std::vector<std::vector<int> >::iterator newShower = newShowers.begin(); newShower != newShowers.end(); ++newShower, ++showerNum) {
+
+    // New shower
+
+    // New associations
+    art::PtrVector<recob::Hit> showerHits;
+    art::PtrVector<recob::Cluster> showerClusters;
+
+    for (std::vector<int>::iterator showerCluster = (*newShower).begin(); showerCluster != (*newShower).end(); ++showerCluster) {
+      art::Ptr<recob::Cluster> cluster = clusters.at(*showerCluster);
+      showerClusters.push_back(cluster);
+      std::vector<art::Ptr<recob::Hit> > showerClusterHits = fmh.at(cluster.key());
+      for (std::vector<art::Ptr<recob::Hit> >::iterator showerClusterHit = showerClusterHits.begin(); showerClusterHit != showerClusterHits.end(); ++showerClusterHit)
+	showerHits.push_back(*showerClusterHit);
+    }
+
+    // std::vector<double> v = {0.0};
+    // std::vector<double> energy = {charge[0],charge[1],charge[2]};
+    // TVector3 v3 = TVector3(0,0,0);
+    // TVector3 VertexDirection = showerTracks.at(0)->VertexDirection();
+    // TVector3 Vertex = showerTracks.at(0)->Vertex();
+    // showers->emplace_back(VertexDirection, v3, Vertex, v3, energy, v, v, v, 0, showers->size());
+
+    recob::Shower shower = recob::Shower();
+    shower.set_id(showerNum);
+    showers->push_back(shower);
+
+    util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
+    util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
+
+  }
+
+  // Put in event
+  evt.put(std::move(showers));
+  evt.put(std::move(hitAssociations));
+  evt.put(std::move(clusterAssociations));
+
 }
 
 
