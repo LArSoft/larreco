@@ -281,26 +281,30 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
   /// Dynamically find the blurring radii in each direction
 
   /// There is stuff to sort out here!  Dynamic radii needs to be fixed; sigma needs to be understood!
+  /// 29/9/15 MW: fixed the first of these; changed from PCA to LS for determining particle direction
 
-  TPrincipal *fPCA = new TPrincipal(2,"");
-
-  double hits[2];
+  // Calculate least squares slope
+  int x, y;
+  double nhits, sumx, sumy, sumx2, sumxy;
   for (const auto &wireIt : fHitMap) {
     for (const auto &tickIt : wireIt.second) {
       //hits[0] = (fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch()) * wireIt.first;
       //hits[1] = fDetProp->ConvertTicksToX(tickIt.first, fPlane, fTPC, fCryostat);
-      hits[0] = wireIt.first;
-      hits[1] = tickIt.first;
-      fPCA->AddRow(hits);
+      ++nhits;
+      x = wireIt.first;
+      y = tickIt.first;
+      sumx += x;
+      sumy += y;
+      sumx2 += x*x;
+      sumxy += x*y;
     }
   }
+  double gradient = (nhits * sumxy - sumx * sumy) / nhits * sumx2 - sumx * sumx;
 
-  fPCA->MakePrincipals();
+  TVector2 unit = TVector2(1,gradient).Unit();
 
-  const TMatrixD* eigenvectors = fPCA->GetEigenVectors();
-
-  blurwire = std::abs(fBlurWire * (*eigenvectors)[0][0]);
-  blurtick = std::abs(fBlurTick * (*eigenvectors)[1][0]);
+  blurwire = std::abs(fBlurWire * unit.X());
+  blurtick = std::abs(fBlurTick * unit.Y());
 
   //std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << std::endl;
 
