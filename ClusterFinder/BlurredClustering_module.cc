@@ -185,8 +185,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     // Make a map between the planes and TPCs and hits on each
     std::map<geo::PlaneID,std::vector<art::Ptr<recob::Hit> > > planeIDToHits;
     for (size_t hitIt = 0; hitIt < hitCollection->size(); ++hitIt)
-      if (hitCollection->at(hitIt).WireID().TPC % 2 != 0)
-	planeIDToHits[hitCollection->at(hitIt).WireID().planeID()].push_back(art::Ptr<recob::Hit>(hitCollection,hitIt));
+      planeIDToHits[hitCollection->at(hitIt).WireID().planeID()].push_back(art::Ptr<recob::Hit>(hitCollection,hitIt));
 
     // Loop over views
     for (std::map<geo::PlaneID,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeIDToHits.begin(); planeIt != planeIDToHits.end(); ++planeIt) {
