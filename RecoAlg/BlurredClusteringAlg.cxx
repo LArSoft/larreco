@@ -285,7 +285,7 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
 
   // Calculate least squares slope
   int x, y;
-  double nhits, sumx, sumy, sumx2, sumxy;
+  double nhits=0, sumx=0., sumy=0., sumx2=0., sumxy=0.;
   for (const auto &wireIt : fHitMap) {
     for (const auto &tickIt : wireIt.second) {
       //hits[0] = (fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch()) * wireIt.first;
