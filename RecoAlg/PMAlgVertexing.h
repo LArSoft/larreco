@@ -56,6 +56,12 @@ private:
 	std::vector< pma::VtxCandidate > secondPassCandidates(void);
 	bool findOneVtx(std::vector< pma::VtxCandidate >& candidates);
 
+	/// Get dQ/dx sequence to detect various features.
+	std::vector< std::pair<double, double> > getdQdx(const pma::Track3D& trk) const;
+
+	/// Check if colinear in 3D and dQ/dx with no significant step.
+	bool isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk2) const;
+
 	/// Find elastic scattering vertices on tracks, merge back tracks that were split
 	/// during vertex finding. 3D angle between two tracks and dQ/dx is checked.
 	void mergeBrokenTracks(std::vector< pma::Track3D* >& trk_input) const;
