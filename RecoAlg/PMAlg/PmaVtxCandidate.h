@@ -47,7 +47,8 @@ public:
 
 	double MaxAngle(double minLength = 0.0) const;
 
-	size_t Size(double minLength = 0.0) const;
+	size_t Size() const { return fAssigned.size(); }
+	size_t Size(double minLength) const;
 
 	bool MergeWith(const VtxCandidate& other);
 

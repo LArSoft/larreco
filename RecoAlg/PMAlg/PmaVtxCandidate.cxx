@@ -270,7 +270,7 @@ bool pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
 	double dw = Test(other);
 
 	size_t ntrk = 0;
-	for (size_t t = 0; t < other.Size(); t++)
+	for (size_t t = 0; t < other.fAssigned.size(); t++)
 	{
 		if (IsAttached(other.fAssigned[t].first))
 		{
