@@ -276,6 +276,49 @@ size_t pma::PMAlgVertexing::run(
 }
 // ------------------------------------------------------
 
+std::vector< std::pair<double, double> > pma::PMAlgVertexing::getdQdx(
+	const pma::Track3D& trk) const
+{
+	std::vector< std::pair<double, double> > result;
+
+	unsigned int view = geo::kZ;
+	unsigned int nhits = trk.NHits(view);
+	unsigned int max = nhits;
+
+	nhits = trk.NHits(geo::kV);
+	if (nhits > max) { max = nhits; view = geo::kV; }
+
+	nhits = trk.NHits(geo::kU);
+	if (nhits > max) { max = nhits; view = geo::kU; }
+
+	if (max >= 16)
+	{
+		std::map< size_t, std::vector<double> > dqdx;
+		trk.GetRawdEdxSequence(dqdx, view);
+
+		for (size_t i = 0; i < trk.size(); i++)
+		{
+			auto it = dqdx.find(i);
+			if (it != dqdx.end())
+			{
+				if (it->second[6] > 0.0) // dx > 0
+				{
+					double dvalue = it->second[5] / it->second[6];
+					result.emplace_back(std::pair<double, double>(dvalue, it->second[7]));
+				}
+			}
+		}
+	}
+
+	return result;
+}
+// ------------------------------------------------------
+
+bool pma::PMAlgVertexing::isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk2) const
+{
+	return false;
+}
+
 void pma::PMAlgVertexing::mergeBrokenTracks(std::vector< pma::Track3D* >& trk_input) const
 {
 	if (trk_input.size() < 2) return;
@@ -287,6 +330,35 @@ void pma::PMAlgVertexing::mergeBrokenTracks(std::vector< pma::Track3D* >& trk_in
 		merged = false;
 		for (size_t t = 0; t < trk_input.size(); t++)
 		{
+			pma::Track3D* trk1 = trk_input[t];
+
+			pma::Node3D* node = trk1->Nodes().front();
+			if (node->Prev())
+			{
+				pma::Segment3D* seg = static_cast< pma::Segment3D* >(node->Prev());
+				pma::Track3D* trk2 = seg->Parent();
+				if ((trk1 != trk2) && isSingleParticle(trk2, trk1)) // note: reverse order
+				{
+				}
+			}
+			for (size_t n = 0; n < node->NextCount(); n++)
+			{
+				pma::Segment3D* seg = static_cast< pma::Segment3D* >(node->Next(n));
+				pma::Track3D* trk2 = seg->Parent();
+				if ((trk1 != trk2) && isSingleParticle(trk1, trk2))
+				{
+				}
+			}
+
+			node = trk1->Nodes().back();
+			for (size_t n = 0; n < node->NextCount(); n++)
+			{
+				pma::Segment3D* seg = static_cast< pma::Segment3D* >(node->Next(n));
+				pma::Track3D* trk2 = seg->Parent();
+				if ((trk1 != trk2) && isSingleParticle(trk1, trk2))
+				{
+				}
+			}
 		}
 	}
 }
@@ -300,6 +372,7 @@ void pma::PMAlgVertexing::splitMergedTracks(std::vector< pma::Track3D* >& trk_in
 	size_t t = 0;
 	while (t < trk_input.size())
 	{
+		t++;
 	}
 }
 // ------------------------------------------------------
