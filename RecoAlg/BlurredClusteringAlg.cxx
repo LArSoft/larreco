@@ -285,7 +285,7 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
 
   // Calculate least squares slope
   int x, y;
-  double nhits, sumx, sumy, sumx2, sumxy;
+  double nhits=0, sumx=0., sumy=0., sumx2=0., sumxy=0.;
   for (const auto &wireIt : fHitMap) {
     for (const auto &tickIt : wireIt.second) {
       //hits[0] = (fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch()) * wireIt.first;
@@ -526,9 +526,16 @@ int cluster::BlurredClusteringAlg::FindGlobalWire(geo::WireID const& wireID) {
 
   double wireCentre[3];
   fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
+
   double globalWire;
-  if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.planeID().Plane, 0, 0);
-  else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.planeID().Plane, 1, 0);
+  if (fGeom->SignalType(wireID) == geo::kInduction) {
+    if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
+    else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+  }
+  else {
+    if (wireID.TPC % 2 == 0) globalWire = wireID.Wire + ((wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat));
+    else globalWire = wireID.Wire + ((int)(wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 1, wireID.Cryostat));
+  }
 
   return globalWire;
 
