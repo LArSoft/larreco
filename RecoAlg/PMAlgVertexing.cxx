@@ -314,9 +314,83 @@ std::vector< std::pair<double, double> > pma::PMAlgVertexing::getdQdx(
 }
 // ------------------------------------------------------
 
+double pma::PMAlgVertexing::convolute(size_t idx, size_t len, double* adc, double const* shape) const
+{
+	size_t half = len >> 1;
+	double v, mean = 0.0, stdev = 0.0;
+	for (size_t i = 0; i < len; i++)
+	{
+		v = adc[idx - half + i];
+		mean += v; stdev += v * v;
+	}
+	mean /= len;
+	stdev /= len;
+	stdev -= mean;
+
+	double sum = 0.0;
+	for (size_t i = 0; i < len; i++)
+		sum += (adc[idx - half + i] - mean) * shape[i];
+
+	return sum / sqrt(stdev);
+}
+
 bool pma::PMAlgVertexing::isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk2) const
 {
-	return false;
+	const double minCos = 0.996194698; // 5 deg (is it ok?)
+	double segCos = trk1->Segments().back()->GetDirection3D() * trk2->Segments().front()->GetDirection3D();
+	if (segCos < minCos)
+	{
+		mf::LogVerbatim("pma::PMAlgVertexing") << "  has large cos: " << segCos;
+		return false;
+	}
+
+	const size_t stepShapeLen = 16;
+	const size_t stepShapeHalf = stepShapeLen >> 1;
+	const double stepShape[stepShapeLen] =
+		{ -1., -1., -1., -1., -1., -1., -1., -1.,
+		   1.,  1.,  1.,  1.,  1.,  1.,  1.,  1. };
+
+	auto dqdx1 = getdQdx(*trk1); if (dqdx1.size() < stepShapeHalf) return false;
+	auto dqdx2 = getdQdx(*trk2); if (dqdx2.size() < stepShapeHalf) return false;
+
+	const size_t adcLen = stepShapeLen + 2; // 1 sample before/after to check convolution at 3 points in total
+	const size_t adcHalf = adcLen >> 1;
+
+	double dqdx[adcLen];
+	for (size_t i = 0; i < adcLen; i++) dqdx[i] = 0.0;
+
+	bool has_m = true;
+	for (int i = adcHalf - 1, j = dqdx1.size() - 1; i >= 0; i--, j--)
+	{
+		if (j >= 0) dqdx[i] = dqdx1[j].first;
+		else { dqdx[i] = dqdx[i+1]; has_m = false; }
+	}
+	bool has_p = true;
+	for (size_t i = adcHalf, j = 0; i < adcLen; i++, j++)
+	{
+		if (j < dqdx2.size()) dqdx[i] = dqdx2[j].first;
+		else { dqdx[i] = dqdx[i-1]; has_p = false; }
+	}
+
+	double sum_m = 0.0; if (has_m) sum_m = convolute(adcHalf - 1, stepShapeLen, dqdx, stepShape);
+	double sum_0 = convolute(adcHalf, stepShapeLen, dqdx, stepShape);
+	double sum_p = 0.0; if (has_p) sum_p = convolute(adcHalf + 1, stepShapeLen, dqdx, stepShape);
+
+	const double convMin = 0.8;
+	if ((fabs(sum_m) >= convMin) ||
+	    (fabs(sum_0) >= convMin) ||
+	    (fabs(sum_p) >= convMin))
+	{
+		mf::LogVerbatim("pma::PMAlgVertexing") << "  has step in conv.values: "
+			<< sum_m << ", " << sum_0 << ", " << sum_p;
+		return false;
+	}
+	else
+	{
+		mf::LogVerbatim("pma::PMAlgVertexing") << "  single particle, conv.values: "
+			<< sum_m << ", " << sum_0 << ", " << sum_p;
+		return true;
+	}
 }
 
 void pma::PMAlgVertexing::mergeBrokenTracks(std::vector< pma::Track3D* >& trk_input) const
@@ -331,33 +405,38 @@ void pma::PMAlgVertexing::mergeBrokenTracks(std::vector< pma::Track3D* >& trk_in
 		for (size_t t = 0; t < trk_input.size(); t++)
 		{
 			pma::Track3D* trk1 = trk_input[t];
+			pma::Track3D* trk2 = 0;
 
 			pma::Node3D* node = trk1->Nodes().front();
 			if (node->Prev())
 			{
 				pma::Segment3D* seg = static_cast< pma::Segment3D* >(node->Prev());
-				pma::Track3D* trk2 = seg->Parent();
+				trk2 = seg->Parent();
 				if ((trk1 != trk2) && isSingleParticle(trk2, trk1)) // note: reverse order
 				{
-				}
-			}
-			for (size_t n = 0; n < node->NextCount(); n++)
-			{
-				pma::Segment3D* seg = static_cast< pma::Segment3D* >(node->Next(n));
-				pma::Track3D* trk2 = seg->Parent();
-				if ((trk1 != trk2) && isSingleParticle(trk1, trk2))
-				{
+					//merged = true;
+					break;
 				}
 			}
 
+			trk2 = 0;
+			double c, maxc = 0.0;
+			TVector3 dir1 = trk1->Segments().back()->GetDirection3D();
 			node = trk1->Nodes().back();
 			for (size_t n = 0; n < node->NextCount(); n++)
 			{
 				pma::Segment3D* seg = static_cast< pma::Segment3D* >(node->Next(n));
-				pma::Track3D* trk2 = seg->Parent();
-				if ((trk1 != trk2) && isSingleParticle(trk1, trk2))
+				pma::Track3D* tst = seg->Parent();
+				if (tst != trk1) // should always be true: the last node of trk1 is tested
 				{
+					c = dir1 * tst->Segments().front()->GetDirection3D();
+					if (c > maxc) { maxc = c; trk2 = tst; }
 				}
+			}
+			if ((trk2) && isSingleParticle(trk1, trk2))
+			{
+				//merged = true;
+				break;
 			}
 		}
 	}

@@ -59,6 +59,9 @@ private:
 	/// Get dQ/dx sequence to detect various features.
 	std::vector< std::pair<double, double> > getdQdx(const pma::Track3D& trk) const;
 
+	/// Get convolution value.
+	double convolute(size_t idx, size_t len, double* adc, double const* shape) const;
+
 	/// Check if colinear in 3D and dQ/dx with no significant step.
 	bool isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk2) const;
 
