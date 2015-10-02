@@ -168,6 +168,7 @@ namespace cluster {
       std::vector<geo::WireID> wids = geom->ChannelToWire(aWire.Channel());
       fFilteredWires.push_back(wids[0]);
     }
+    std::cout<<"CheckFilteredWires: size "<<fFilteredWires.size()<<"\n";
   } // CheckFilteredWires
   
 //------------------------------------------------------------------------------
@@ -180,6 +181,12 @@ namespace cluster {
     CrawlInit();
     
     fHits = srchits; // plain copy of the sources; it's the base of our hit result
+    
+    if(fHits.size() < 3) return;
+    if(fHits.size() > 32768) { // not really, but let's keep things sane
+      mf::LogWarning("CC")<<"Too many hits for ClusterCrawler "<<fHits.size();
+      return;
+    }
     
     // sort it as needed;
     // that is, sorted by wire ID number,
@@ -198,12 +205,6 @@ namespace cluster {
     // don't do anything...
     if(fNumPass == 0) return;
     
-    if(fHits.size() < 3) return;
-    if(fHits.size() > USHRT_MAX) { // not really, but let's keep things sane
-      mf::LogWarning("CC")<<"Too many hits for ClusterCrawler "<<fHits.size();
-      return;
-    }
-    
     for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
       for(plane = 0; plane < TPC.Nplanes(); ++plane){
@@ -217,7 +218,7 @@ namespace cluster {
         GetHitRange(clCTP);
 
 // sanity check
-
+/*
   std::cout<<"Plane "<<plane<<" sanity check. Wire range "<<fFirstWire<<" "<<fLastWire;
   unsigned int nhts = 0;
   for(unsigned short wire = fFirstWire; wire < fLastWire; ++wire) {
@@ -241,7 +242,7 @@ namespace cluster {
     } // hit
   } // wire
   std::cout<<" is OK. nhits "<<nhts<<"\n";
-
+*/
 	if (WireHitRange.empty()||(fFirstWire == fLastWire)){
 	  mf::LogWarning("CC")<<"No hits in "<<tpcid<<" plane "<<plane;
 	  continue;
@@ -291,6 +292,35 @@ namespace cluster {
     hitNear.clear();
     chgNear.clear();
     
+    // TEMP. Print out cluster info for tuning CalWireROI
+    std::array<unsigned short, 3> ncl;
+    std::array<unsigned short, 3> nht;
+    std::array<unsigned short, 3> nhtTot;
+    unsigned short ipl;
+    for(ipl = 0; ipl < 3; ++ipl) {
+      ncl[ipl] = 0;
+      nht[ipl] = 0;
+      nhtTot[ipl] = 0;
+    }
+    
+    // hits in clusters
+    for(unsigned short icl = 0; icl < tcl.size(); ++icl) {
+      if(tcl[icl].ID < 0) continue;
+      geo::PlaneID iplID = DecodeCTP(tcl[icl].CTP);
+      ipl = iplID.Plane;
+      ++ncl[ipl];
+      nht[ipl] += tcl[icl].tclhits.size();
+    }
+    // total number of hits
+    for(unsigned short iht = 0; iht < fHits.size(); ++iht) {
+      ipl = fHits[iht].WireID().Plane;
+      ++nhtTot[ipl];
+    }
+    
+    for(ipl = 0; ipl < 3; ++ipl) {
+      std::cout<<"plane "<<ipl<<" ncl "<<ncl[ipl]<<" nht in Cls "<<nht[ipl]<<" nht Tot "<<nhtTot[ipl]<<"\n";
+    }
+    
   } // RunCrawler
     
 ////////////////////////////////////////////////
@@ -314,10 +344,9 @@ namespace cluster {
             bool ClusterAdded = false;
             recob::Hit const& hit = fHits[ihit];
             if(plane == 0 && iwire != hit.WireID().Wire) mf::LogVerbatim("CC")<<"Whoops wire "<<iwire<<" "<<hit.WireID().Wire<<"\n";
-            if(plane == 0 && iwire == 1035) std::cout<<"Hit "<<ihit<<" time "<<(short)hit.PeakTime()<<" "<<inClus[ihit]<<"\n";
             // skip used hits
             if(ihit > fHits.size()-1) {
-              mf::LogError("CC")<<"ClusterLoop bad ihit "<<ihit;
+              mf::LogError("CC")<<"ClusterLoop bad ihit "<<ihit<<" fHits size "<<fHits.size();
               return;
             }
             // skip used and obsolete hits
@@ -2574,6 +2603,12 @@ namespace cluster {
   }
             if(chgrat < chgcut && dtim < timecut) {
               // ensure there is a signal between cluster ends
+              if(ChkSignal(ew1,et1,bw2,bt2)) {
+                DoMerge(it2, it1, 10);
+                tclsize = tcl.size();
+                break;
+              }
+/*
               if(fuBCode) {
                 DoMerge(it2, it1, 10);
                 tclsize = tcl.size();
@@ -2583,6 +2618,7 @@ namespace cluster {
                 tclsize = tcl.size();
                 break;
               }
+*/
             } // chgrat < chgcut ...
           } // US cluster 2 merge with DS cluster 1?
           
@@ -2771,12 +2807,15 @@ namespace cluster {
   if(prt) mf::LogVerbatim("CC")<<"US chgrat "<<chgrat<<" cut "<<fMergeChgCut[pass];
     // ensure that there is a signal on any missing wires at the US end of 1
     bool SigOK;
+    SigOK = ChkSignal(wiron1, timon1, ew2, et2);
+/*
     if(fuBCode) {
       SigOK = true;
     } else {
       SigOK = ChkSignal(wiron1, timon1, ew2, et2);
     }
-  if(prt) mf::LogVerbatim("CC")<<"US SigOK? "<<SigOK;
+*/
+    if(prt) mf::LogVerbatim("CC")<<"US SigOK? "<<SigOK;
     if( !SigOK ) return;
 
 
@@ -2816,12 +2855,15 @@ namespace cluster {
   if(prt) mf::LogVerbatim("CC")
       <<"DS chgrat "<<chgrat<<" cut "<<fMergeChgCut[pass];
     // ensure that there is a signal on any missing wires at the US end of 1
+    SigOK = ChkSignal(wiron1, timon1, bw2, bt2);
+/*
     if(fuBCode) {
       SigOK = true;
     } else {
       SigOK = ChkSignal(wiron1, timon1, bw2, bt2);
     }
-  if(prt) mf::LogVerbatim("CC")<<"DS SigOK? "<<SigOK;
+*/
+ if(prt) mf::LogVerbatim("CC")<<"DS SigOK? "<<SigOK;
     if( !SigOK ) return;
 
   if(prt) mf::LogVerbatim("CC")<<"Merge em";
@@ -5386,6 +5428,8 @@ namespace cluster {
       if(fFilteredWires.size() == 0) {
         // start with good wire - no hit
         sflag = -2;
+        // call all wires dead
+        if(fuBCode) sflag = -1;
         for(wire = 0; wire < WireHitRange.size(); ++wire)
           WireHitRange[wire] = std::make_pair(sflag, sflag);
         // overwrite with the "dead wires" condition
@@ -5398,7 +5442,7 @@ namespace cluster {
           ++nGood;
           WireHitRange[wire] = std::make_pair(sflag, sflag);
         }
-        std::cout<<"ChannelFilter nDead "<<nwires - nGood<<" in plane "<<planeID.Plane<<"\n";
+//        std::cout<<"Using ChannelFilter nDead "<<nwires - nGood<<" in plane "<<planeID.Plane<<"\n";
       } else {
         // Use already filtered wires or no filter
         // In this case we first assume that all wires are dead
@@ -5406,25 +5450,29 @@ namespace cluster {
         for(wire = 0; wire < WireHitRange.size(); ++wire) {
           WireHitRange[wire] = std::make_pair(sflag, sflag);
         } // wire
-        // Next overwrite with the "good channel" and "no hit" condition
-        sflag = -2;
-        for(unsigned int ii = 0; ii < fFilteredWires.size(); ++ii) {
-          if(fFilteredWires[ii].TPC != planeID.TPC) continue;
-          if(fFilteredWires[ii].Plane != planeID.Plane) continue;
-          wire = fFilteredWires[ii].Wire;
-          if(wire > WireHitRange.size() - 1) {
-            mf::LogError("CC")<<"GetHitRange: Crazy wire number "<<wire<<" in plane "<<planeID.Plane;
-            return;
-          }
-          ++nGood;
-          WireHitRange[wire] = std::make_pair(sflag, sflag);
-        } // ii
-        std::cout<<"NoiseFilter nDead "<<nwires - nGood<<" in plane "<<planeID.Plane<<"\n";
-      } //
+        // Next overwrite with the "good channel" and "no hit" condition, unless we are using
+        // the mode that ignores this condition
+        if(!fuBCode) {
+          sflag = -2;
+          for(unsigned int ii = 0; ii < fFilteredWires.size(); ++ii) {
+            if(fFilteredWires[ii].TPC != planeID.TPC) continue;
+            if(fFilteredWires[ii].Plane != planeID.Plane) continue;
+            wire = fFilteredWires[ii].Wire;
+            if(wire > WireHitRange.size() - 1) {
+              mf::LogError("CC")<<"GetHitRange: Crazy wire number "<<wire<<" in plane "<<planeID.Plane;
+              return;
+            }
+            ++nGood;
+            WireHitRange[wire] = std::make_pair(sflag, sflag);
+          } // ii
+//          std::cout<<"Using NoiseFilter nDead "<<nwires - nGood<<" in plane "<<planeID.Plane<<"\n";
+        } // !fuBCode
+      } // Filtered wires
 
       bool first = true;
       unsigned short hitWire, nextHitWire;
-      for(unsigned int hit = 0; hit < fHits.size() - 1; ++hit) {
+      unsigned int nhpl = 0;
+      for(unsigned int hit = 0; hit < fHits.size(); ++hit) {
         recob::Hit const& theHit = fHits[hit];
         
         if(theHit.WireID().TPC != planeID.TPC) continue;
@@ -5442,17 +5490,36 @@ namespace cluster {
           first = false;
         }
         fLastWire = hitWire;
+        ++nhpl;
         
-        // see if the next hit is on a different wire
-        recob::Hit const& theNextHit = fHits[hit + 1];
-        nextHitWire = theNextHit.WireID().Wire;
+        if(hit == fHits.size() - 1) {
+          // handle the last hit
+          WireHitRange[hitWire].second = fHits.size();
+        } else {
+          // see if the next hit is on a different wire
+          recob::Hit const& theNextHit = fHits[hit + 1];
+          nextHitWire = theNextHit.WireID().Wire;
+          if(nextHitWire > hitWire) {
+            WireHitRange[hitWire].second = hit + 1;
+            WireHitRange[nextHitWire].first = hit + 1;
+            //          mf::LogVerbatim("CC")<<"hitWire "<<hitWire<<" hit "<<hit<<" nextHitWire "<<nextHitWire;
+          }
+        } // hit < fHits.size() - 1
         
-        if(nextHitWire > hitWire) {
-          WireHitRange[hitWire].second = hit + 1;
-          WireHitRange[nextHitWire].first = hit + 1;
-//          mf::LogVerbatim("CC")<<"hitWire "<<hitWire<<" hit "<<hit<<" nextHitWire "<<nextHitWire;
-        }
+        
       } // hit
+      
+      // temp: print out the results
+      unsigned int nDead = 0;
+      unsigned int nHasHits = 0;
+      unsigned int nNoHit = 0;
+      for(wire = 0; wire < WireHitRange.size(); ++wire) {
+        if(WireHitRange[wire].first == -2) ++nNoHit;
+        if(WireHitRange[wire].first == -1) ++nDead;
+        if(WireHitRange[wire].first >= 0) ++nHasHits;
+      }
+      
+      std::cout<<"GHR: Plane "<<planeID.Plane<<" nDead "<<nDead<<" nNoHit "<<nNoHit<<" nHasHits "<<nHasHits<<" nhpl "<<nhpl<<" fuBCode "<<fuBCode<<" last hit "<<WireHitRange[fLastWire].second<<"\n";
 
     } // GetHitRange()
 
