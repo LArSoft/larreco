@@ -220,7 +220,7 @@ namespace cluster {
   std::cout<<" is OK. nhits "<<nhts<<"\n";
 */
 	if (WireHitRange.empty()||(fFirstWire == fLastWire)){
-	  mf::LogWarning("CC")<<"No hits in "<<tpcid<<" plane "<<plane;
+	  LOG_DEBUG("CC")<<"No hits in "<<tpcid<<" plane "<<plane;
 	  continue;
 	}
 	else {
