@@ -4290,6 +4290,10 @@ namespace cluster {
           break;
         }
       } // ivx
+      // quit if localindex does not make sense. 
+      if (hit.LocalIndex() != 0 && imbest == 0){
+	doMerge = false;
+      }
       if (doMerge) {
         // find the neighbor hit
         unsigned int oht;
@@ -4437,6 +4441,10 @@ namespace cluster {
         const unsigned int iht = fcl2hits[indx];
         recob::Hit const& hit = fHits[iht];
         if(hit.Multiplicity() == 2) {
+	  // quit if localindex does not make sense. 
+	  if (hit.LocalIndex() != 0 && iht == 0){
+	    continue;
+	  }
           // hit doublet. Get the index of the other hit
           unsigned int oht;
           if(hit.LocalIndex() == 0) {
