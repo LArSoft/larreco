@@ -1,3 +1,4 @@
+#include "showeralgorithms.fcl"
 
 BEGIN_PROLOG
 
@@ -34,7 +35,7 @@ standard_emshower:
  module_type:        "EMShower"
  HitsModuleLabel:    "linecluster"
  ClusterModuleLabel: "blurredcluster"
- TrackModuleLable:   "pmtrack"
+ TrackModuleLabel:   "pmtrack"
 }
 
 argoneut_shower:     @local::standard_shower
