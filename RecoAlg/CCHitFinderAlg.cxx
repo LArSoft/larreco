@@ -34,6 +34,8 @@
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Utilities/SimpleFits.h" // lar::util::GaussianFit<>
+#include "CalibrationDBI/Interface/IChannelStatusService.h"
+#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 
 // ROOT Includes
 #include "TGraph.h"
@@ -142,14 +144,15 @@ namespace hit {
     bool first;
 
 //    prt = false;
-    filter::ChannelFilter cf;
+    lariov::IChannelStatusProvider const& channelStatus
+      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
 
     for(size_t wireIter = 0; wireIter < Wires.size(); wireIter++){
 
       recob::Wire const& theWire = Wires[wireIter];
       theChannel = theWire.Channel();
       // ignore bad channels
-      if(cf.BadChannel(theChannel)) continue;
+      if(channelStatus.IsBad(theChannel)) continue;
       geo::SigType_t SigType = geom->SignalType(theChannel);
       minSig = 0.;
       minRMS = 0.;

@@ -46,7 +46,6 @@ extern "C" {
 #include <string>
 
 #include "Utilities/DetectorProperties.h"
-#include "Filters/ChannelFilter.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/EndPoint2D.h"
 #include "RecoBase/Hit.h"
@@ -156,7 +155,6 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
   std::unique_ptr<std::vector<recob::EndPoint2D> > vtxcol(new std::vector<recob::EndPoint2D>);
   std::unique_ptr< art::Assns<recob::EndPoint2D, recob::Hit> > assn(new art::Assns<recob::EndPoint2D, recob::Hit>);
 
-  filter::ChannelFilter chanFilt;  
   std::vector< art::Ptr<recob::Hit> > cHits;
   art::PtrVector<recob::Hit> hit;
    

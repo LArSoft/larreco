@@ -29,7 +29,6 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
-#include "Filters/ChannelFilter.h"
 #include "ClusterFinder/ClusterCreator.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
@@ -124,9 +123,6 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   std::vector<art::Ptr<recob::Track> > tracks;
   if (evt.getByLabel(fTrackModuleLabel,trackCollection))
     art::fill_ptr_vector(tracks, trackCollection);
-
-  // Get the channel filter
-  filter::ChannelFilter channelFilter;
 
   // Global recon -- merged TPCs
   if (fGlobalTPCRecon) {
