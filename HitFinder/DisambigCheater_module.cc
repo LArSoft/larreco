@@ -184,8 +184,11 @@ namespace hit{
       
       // get hit IDEs
       std::vector< sim::IDE > ides;
-      bt->HitToSimIDEs( chit, ides );
-      
+      try{
+	bt->HitToSimIDEs( chit, ides );
+      }
+      catch(...){};
+
       // catch the hits that have no IDEs
       bool hasIDEs = !ides.empty();
       if (hasIDEs) {
