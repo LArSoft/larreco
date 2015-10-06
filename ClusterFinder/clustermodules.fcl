@@ -4,13 +4,15 @@ BEGIN_PROLOG
 
 standard_blurredcluster:
 {
- module_type:          "BlurredClustering"
- CreateDebugPDF:       "false"
- MergeClusters:        "true"
- HitsModuleLabel:      "gaushit"
- GlobalTPCRecon:       "true"
- BlurredClusteringAlg: @local::standard_blurredclusteralg
- MergeClusterAlg:      @local::standard_mergeclusteralg
+ module_type:       "BlurredClustering"
+ CreateDebugPDF:    "false"
+ MergeClusters:     "true"
+ HitsModuleLabel:   "gaushit"
+ TrackModuleLabel:  "pmtrack"
+ GlobalTPCRecon:    "true"
+ ShowerReconOnly:   "false"
+ BlurredClusterAlg: @local::standard_blurredclusteralg
+ MergeClusterAlg:   @local::standard_mergeclusteralg
 }
 
 standard_clusterpca:
@@ -48,7 +50,7 @@ standard_fuzzycluster:
 {
  module_type:     "fuzzyCluster"
  HitsModuleLabel: "gaushit"
- HoughSeed:       0      # The user supplied seed the generator uses for the 
+ HoughSeed:       10      # The user supplied seed the generator uses for the 
                          # Hough transform, if it is zero a seed is randomly created
  fuzzyClusterAlg: @local::standard_fuzzyclusteralg
 }

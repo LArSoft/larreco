@@ -1,34 +1,3 @@
-/////////////////////////////////////////////////////////////////
-/*===================================================================
-  The standard implementation of FLAME data clustering algorithm.
-
-  FLAME (Fuzzy clustering by Local Approximation of MEmberships)
-  was first described in:
-  "FLAME, a novel fuzzy clustering method for the analysis of DNA
-  microarray data", BMC Bioinformatics, 2007, 8:3.
-  Available from: http://www.biomedcentral.com/1471-2105/8/3
-  
-  Copyright(C) 2007, Fu Limin (phoolimin@gmail.com).
-  All rights reserved.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. Redistributions of source code must retain the above copyright
-     notice, this list of conditions and the following disclaimer.
-  2. The origin of this software must not be misrepresented; you must 
-     not claim that you wrote the original software. If you use this 
-     software in a product, an acknowledgment in the product 
-     documentation would be appreciated but is not required.
-  3. Altered source versions must be plainly marked as such, and must
-     not be misrepresented as being the original software.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-===================================================================*/
-////////////////////////////////////////////////////////////////////
 
 #ifndef fuzzyClusterALG_H
 #define fuzzyClusterALG_H
@@ -75,10 +44,6 @@ namespace cluster {
     std::vector<std::vector<double> >       fsim3;                   ///<
     double fMaxWidth;
 
-    //Needed for Ben's FLAME cluster
-    int NNumOfRows;
-    int MNumOfCols;
-
     // Get functions and structures from HoughBaseAlg
     //friend class HoughBaseAlg;
 
@@ -98,21 +63,12 @@ namespace cluster {
     class showerCluster;
 
 
-    // The distance metric chosen for clustering, you likely do not need to modify this
-    int fDistanceMetric;
-    // The number of hits to be considered per k-nearest neighbors cluster 
-    int fKNN;
-    // The maximum number of iterations to try, needed for FLAME clustering
-    int fIterations;
-    // The limit in the difference between memberships when FLAME clustering stops
-    double fEpsilon;
-    // Sets the threshold parameter in FLAME cluster, it effectively sets a lower limit on hit density for whether a hit is considered part of a cluster or an outlier
-    double fThreshold;
-
+    double  fNumberTimeBoundaries;          ///< Number of boundaries in ticks for the drift window to be divided up to make the Hough line finder easier on memory
+    double  fNumberWireBoundaries;          ///< Number of boundaries in wires for the drift window to be divided up to make the Hough line finder easier on memory
 
     // Run the Hough line finder?
     bool    fRunHough;
-
+    bool    fGenerateHoughLinesOnly;            ///< Show only the results of the Hough line finder, hits not in a line will not be clustered
 
     bool    fDoFuzzyRemnantMerge;           ///< Tell the algorithm to merge fuzzy cluster remnants into showers or tracks (0-off, 1-on)
     double  fFuzzyRemnantMergeCutoff;       ///< cut off on merging the fuzzy cluster remnants into the nearest shower or track 

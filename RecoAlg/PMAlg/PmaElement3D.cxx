@@ -232,6 +232,25 @@ double pma::Element3D::SumDist2(void) const
 	return hit_sum + ref_sum;
 }
 
+double pma::Element3D::SumDist2(unsigned int view) const
+{
+	double hit_sum = 0.0F;
+	for (size_t i = 0; i < fAssignedHits.size(); i++)
+	{
+		if (fAssignedHits[i]->IsEnabled())
+		{
+			unsigned int hitView = fAssignedHits[i]->View2D();
+			if ((view == geo::kUnknown) || (view == hitView))
+			{
+				hit_sum += OptFactor(hitView) *                             // alpha_i
+					fAssignedHits[i]->GetSigmaFactor() *                    // hit_amp / hit_max_amp
+					GetDistance2To(fAssignedHits[i]->Point2D(), hitView);   // hit_to_fit_dist^2
+			}
+		}
+	}
+	return hit_sum;
+}
+
 double pma::Element3D::HitsRadius3D(unsigned int view) const
 {
 	TVector3 mean3D(0, 0, 0);
