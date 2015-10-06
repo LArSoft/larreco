@@ -1240,24 +1240,24 @@ bool pma::Track3D::AddNode(void)
 
 bool pma::Track3D::HasRefPoint(TVector3* p) const
 {
-	for (size_t i = 0; i < fAssignedPoints.size(); i++)
-		if (fAssignedPoints[i] == p) return true;
+	for (auto point : fAssignedPoints)
+		if (point == p) return true;
 	return false;
 }
 
-double pma::Track3D::GetMse(void) const
+double pma::Track3D::GetMse(unsigned int view) const
 {
 	double sumMse = 0.0;
 	unsigned int nEnabledHits = 0;
-	for (size_t i = 0; i < fNodes.size(); i++)
+	for (auto n : fNodes)
 	{
-		sumMse += fNodes[i]->SumDist2();
-		nEnabledHits += fNodes[i]->NEnabledHits();
+		sumMse += n->SumDist2(view);
+		nEnabledHits += n->NEnabledHits(view);
 	}
-	for (size_t i = 0; i < fSegments.size(); i++)
+	for (auto s : fSegments)
 	{
-		sumMse += fSegments[i]->SumDist2();
-		nEnabledHits += fSegments[i]->NEnabledHits();
+		sumMse += s->SumDist2(view);
+		nEnabledHits += s->NEnabledHits(view);
 	}
 
 	if (nEnabledHits) return sumMse / nEnabledHits;
@@ -1620,7 +1620,7 @@ bool pma::Track3D::GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3
 	{
 		p3d = seg->GetUnconstrainedProj3D(p2d, hit->WireID().Plane);
 		dist2 = min_d2;
-
+		
 		pma::Node3D* prev = static_cast< pma::Node3D* >(seg->Prev());
 		return prev->SameTPC(p3d); // 3D can be beyond the segment endpoints => in other TPC
 	}

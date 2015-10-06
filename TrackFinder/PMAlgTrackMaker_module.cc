@@ -288,21 +288,32 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	unsigned int cryo = src.FrontCryo();
 	unsigned int tpc = src.FrontTPC();
 
+	double sizeU = 0.0, sizeV = 0.0, sizeZ = 0.0, maxSize = 0.0;
+
 	std::map< unsigned int, dedx_map > src_dQdx;
 	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kU))
 	{
 		src_dQdx[geo::kU] = dedx_map();
 		src.GetRawdEdxSequence(src_dQdx[geo::kU], geo::kU);
+
+		sizeU = fabs(src.Nodes().front()->Projection2D(geo::kU).X() - src.Nodes().back()->Projection2D(geo::kU).X());
+		maxSize = sizeU;
 	}
 	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kV))
 	{
 		src_dQdx[geo::kV] = dedx_map();
 		src.GetRawdEdxSequence(src_dQdx[geo::kV], geo::kV);
+
+		sizeV = fabs(src.Nodes().front()->Projection2D(geo::kV).X() - src.Nodes().back()->Projection2D(geo::kV).X());
+		if (sizeV > maxSize) maxSize = sizeV;
 	}
 	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kZ))
 	{
 		src_dQdx[geo::kZ] = dedx_map();
 		src.GetRawdEdxSequence(src_dQdx[geo::kZ], geo::kZ);
+
+		sizeZ = fabs(src.Nodes().front()->Projection2D(geo::kZ).X() - src.Nodes().back()->Projection2D(geo::kZ).X());
+		if (sizeZ > maxSize) maxSize = sizeZ;
 	}
 
 	for (size_t i = 0; i < src.size(); i++)
@@ -342,14 +353,38 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	}
 
 	fLength = src.Length();
-	fHitsMse = src.GetMse();
+	//fHitsMse = src.GetMse();
 	fSegAngMean = src.GetMeanAng();
 	fMcPdg = getMcPdg(src);
 
+	// skip views with short wire span in projection (EM tagging)
+	double hmse, mse_sum = 0.0;
+	size_t nEnabled, n_sum = 0;
+	if (sizeU > 0.5 * maxSize)
+	{
+		hmse = src.GetMse(geo::kU); nEnabled = src.NEnabledHits(geo::kU);
+		mse_sum += nEnabled * hmse; n_sum += nEnabled;
+	}
+	if (sizeV > 0.5 * maxSize)
+	{
+		hmse = src.GetMse(geo::kV); nEnabled = src.NEnabledHits(geo::kV);
+		mse_sum += nEnabled * hmse; n_sum += nEnabled;
+	}
+	if (sizeZ > 0.5 * maxSize)
+	{
+		hmse = src.GetMse(geo::kZ); nEnabled = src.NEnabledHits(geo::kZ);
+		mse_sum += nEnabled * hmse; n_sum += nEnabled;
+	}
+	if (n_sum > 0) fHitsMse = mse_sum / n_sum;
+	else fHitsMse = 0.0;
+
 	fPidTag = 0;                 // 0 is track-like (long and/or very straight, well matching 2D hits); 0x10000 is EM shower-like trajectory
 	if ( // (fLength < 80.0) &&  // tag only short tracks as EM shower-like
-	    ((fHitsMse > 0.0001 * fLength) || (fSegAngMean < 3.0)))
+	     // ((fHitsMse > 0.0005 * fLength) || (fSegAngMean < 3.0))) // select only very chaotic EM parts
+		((fHitsMse > 0.0001 * fLength) || (fSegAngMean < 3.02)))
+	{
 		fPidTag = 0x10000;
+	}
 
 	if (fSave_dQdx)
 	{
@@ -1198,7 +1233,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 						candidate.Good = true;
 
 						size_t minSize = 5;      // min size for clusters matching
-						double fraction = 0.4;   // min fraction of close hits
+						double fraction = 0.5;   // min fraction of close hits
 
 						idx = 0;
 						while (idx >= 0) // try to collect matching clusters, use **any** plane except validation

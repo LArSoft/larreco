@@ -135,7 +135,7 @@ public:
 	bool HasRefPoint(TVector3* p) const;
 
 	/// MSE of hits weighted with hit amplidudes and wire plane coefficients.
-	double GetMse(void) const;
+	double GetMse(unsigned int view = geo::kUnknown) const;
 
 	/// Mean angle between consecutive segments, [rad].
 	double GetMeanAng(void) const;
