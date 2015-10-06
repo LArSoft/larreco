@@ -164,6 +164,12 @@ private:
   void mergeCoLinear(std::vector< pma::Track3D* >& tracks);
   void mergeCoLinear(tpc_track_map& tracks);
 
+  bool areCoLinear(
+		double& cos3d,
+		TVector3 f0, TVector3 b0, TVector3 f1, TVector3 b1,
+		double distProjThr);
+  void matchCoLinearAnyT0(std::vector< pma::Track3D* >& tracks);
+
   bool reassignHits(
 	const std::vector< art::Ptr<recob::Hit> >& hits,
 	std::vector< pma::Track3D* >& tracks, size_t trk_idx);
@@ -218,6 +224,8 @@ private:
   double fStitchDistToWall;      //   - max. track endpoint distance [cm] to TPC boundary
   double fStitchTransverseShift; //   - max. transverse displacement [cm] between tracks
   double fStitchAngle;           //   - max. angle [degree] between tracks (nearest segments)
+
+  bool fMatchT0inAPACrossing;    // match T0 of APA-crossing tracks, TPC stitching limits are used
 
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
   double fMinTwoViewFraction;    // ProjectionMatchingAlg parameter used also in the module
@@ -289,6 +297,8 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fStitchTransverseShift = pset.get< double >("StitchTransverseShift");
 	fStitchAngle = pset.get< double >("StitchAngle");
 
+	fMatchT0inAPACrossing = pset.get< bool >("MatchT0inAPACrossing");
+
 	fProjectionMatchingAlg.reconfigure(pset.get< fhicl::ParameterSet >("ProjectionMatchingAlg"));
 	fMinTwoViewFraction = pset.get< double >("ProjectionMatchingAlg.MinTwoViewFraction");
 
@@ -320,6 +330,8 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 {
 	std::vector< TVector3 > xyz, dircos;
+	xyz.reserve(src.size()); dircos.reserve(src.size());
+
 	std::vector< std::vector<double> > dst_dQdx; // [view][dQ/dx]
 	dst_dQdx.push_back(std::vector<double>()); // kU
 	dst_dQdx.push_back(std::vector<double>()); // kV
@@ -345,9 +357,14 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 		src.GetRawdEdxSequence(src_dQdx[geo::kZ], geo::kZ);
 	}
 
+	TVector3 p3d;
+	double xshift = src.GetXShift();
+	bool has_shift = (xshift != 0.0);
 	for (size_t i = 0; i < src.size(); i++)
 	{
-		xyz.push_back(src[i]->Point3D());
+		p3d = src[i]->Point3D();
+		if (has_shift) p3d.SetXYZ(p3d.X() + xshift, p3d.Y(), p3d.Z());
+		xyz.push_back(p3d);
 
 		if (i < src.size() - 1)
 		{
@@ -635,17 +652,7 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 		TVector3 dir2 = trk2->Segments().front()->GetDirection3D();
 
 		cos3d = dir1 * dir2;
-/*
-		if (cos3d <= cosThr)
-			mf::LogVerbatim("PMAlgTrackMaker") << "Large 3D angle "
-				<< trk1->BackTPC() << "->" << trk2->FrontTPC() << ": "
-				<< 180.0 * acos(cos3d) / TMath::Pi();
 
-		if ((distProj1 >= distProjThr) || (distProj2 >= distProjThr))
-			mf::LogVerbatim("PMAlgTrackMaker") << "Above proj.thr., "
-				<< trk1->BackTPC() << ": " << distProj1 << ", "
-				<< trk2->FrontTPC() << ": " << distProj2;
-*/
 		if ((cos3d > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
 			return true;
 		else // check if parallel to wires & colinear in 2D
@@ -660,8 +667,6 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 
 			if ((fabs(dir1_xz.Z()) > maxCosXZ) && (fabs(dir2_xz.Z()) > maxCosXZ))
 			{
-//				mf::LogVerbatim("PMAlgTrackMaker") << "Check colinear XZ.";
-
 				endpoint1.SetXYZ(endpoint1.X(), 0., endpoint1.Z());
 				trk2front0.SetXYZ(trk2front0.X(), 0., trk2front0.Z());
 				trk2front1.SetXYZ(trk2front1.X(), 0., trk2front1.Z());
@@ -676,28 +681,10 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 			
 				double cosThrXZ = cos(0.5 * acos(cosThr));
 				double distProjThrXZ = 0.5 * distProjThr;
-
 				double cosXZ = dir1_xz * dir2_xz;
-/*				if (cosXZ <= cosThrXZ)
-					mf::LogVerbatim("PMAlgTrackMaker") << "Large XZ angle "
-						<< trk1->BackTPC() << "->" << trk2->FrontTPC() << ": "
-						<< 180.0 * acos(cosXZ) / TMath::Pi();
-
-				if ((distProj1 >= distProjThrXZ) || (distProj2 >= distProjThrXZ))
-					mf::LogVerbatim("PMAlgTrackMaker") << "Above proj.thr., "
-						<< trk1->BackTPC() << ": " << distProj1 << ", "
-						<< trk2->FrontTPC() << ": " << distProj2;
-*/
 				if ((cosXZ > cosThrXZ) && (distProj1 < distProjThrXZ) && (distProj2 < distProjThrXZ))
 					return true;
 			}
-/*			else
-			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "Not co-linear, XZ angles: "
-					<< trk1->BackTPC() << ":" << 180.0 * acos(fabs(dir1_xz.Z())) / TMath::Pi() << ", "
-					<< trk2->FrontTPC() << ":" << 180.0 * acos(fabs(dir2_xz.Z())) / TMath::Pi();
-			}
-*/
 		}
 	}
 	return false;
@@ -838,6 +825,190 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 	}
 
 	//for (auto & tpc_entry : tracks) releaseAllNodes(tpc_entry.second);
+}
+// ------------------------------------------------------
+
+bool PMAlgTrackMaker::areCoLinear(double& cos3d,
+		TVector3 f0, TVector3 b0, TVector3 f1, TVector3 b1,
+		double distProjThr)
+{
+	TVector3 s0 = b0 - f0, s1 = b1 - f1;
+	cos3d = s0 * s1 / (s0.Mag() * s1.Mag());
+
+	TVector3 proj0 = pma::GetProjectionToSegment(b0, f1, b1);
+	double distProj0 = sqrt( pma::Dist2(b0, proj0) );
+
+	TVector3 proj1 = pma::GetProjectionToSegment(b1, f0, b0);
+	double distProj1 = sqrt( pma::Dist2(b1, proj1) );
+
+	double d = sqrt( pma::Dist2(b0, f1) );
+	double dThr = (1 + 0.02 * d) * distProjThr;
+
+	mf::LogVerbatim("PMAlgTrackMaker")
+		<< "   dThr:" << dThr << " d0:" << distProj0 << " d1:" << distProj1 << " c:" << cos3d;
+
+	if ((distProj0 < dThr) && (distProj1 < dThr))
+		return true;
+	else return false;
+}
+// ------------------------------------------------------
+
+void PMAlgTrackMaker::matchCoLinearAnyT0(std::vector< pma::Track3D* >& tracks)
+{
+	double distProjThr = fStitchTransverseShift;
+	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
+	double xApaDistDiffThr = 1.0;
+
+	for (size_t u = 0; u < tracks.size(); u++)
+	{
+		pma::Track3D* trk1 = tracks[u];
+
+		unsigned int tpcFront1 = trk1->FrontTPC(), cryoFront1 = trk1->FrontCryo();
+		unsigned int tpcBack1 = trk1->BackTPC(), cryoBack1 = trk1->BackCryo();
+
+		unsigned int firstPlane = 0;
+		while ((firstPlane < 3) && !fGeom->TPC(tpcFront1, cryoFront1).HasPlane(firstPlane)) firstPlane++;
+
+		double dxFront1 = trk1->front()->Point3D().X();
+		dxFront1 -= fGeom->TPC(tpcFront1, cryoFront1).PlaneLocation(firstPlane)[0];
+
+		firstPlane = 0;
+		while ((firstPlane < 3) && !fGeom->TPC(tpcBack1, cryoBack1).HasPlane(firstPlane)) firstPlane++;
+
+		double dxBack1 = trk1->back()->Point3D().X();
+		dxBack1 -= fGeom->TPC(tpcBack1, cryoBack1).PlaneLocation(firstPlane)[0];
+
+		size_t best_idx = 0;
+		pma::Track3D* best_trk2 = 0;
+		double dx1 = 0.0, dx2 = 0.0, c, cmax = cosThr;
+		bool reverse = false, flip1 = false, flip2 = false;
+		TVector3 f0, b0, f1, b1;
+		for (size_t t = u + 1; t < tracks.size(); t++)
+		{
+			pma::Track3D* trk2 = tracks[t];
+			if (trk2->GetXShift() != 0.0) continue;
+
+			unsigned int tpcFront2 = trk2->FrontTPC(), cryoFront2 = trk2->FrontCryo();
+			unsigned int tpcBack2 = trk2->BackTPC(), cryoBack2 = trk2->BackCryo();
+
+			firstPlane = 0;
+			while ((firstPlane < 3) && !fGeom->TPC(tpcFront2, cryoFront2).HasPlane(firstPlane)) firstPlane++;
+
+			double dxFront2 = trk2->front()->Point3D().X();
+			dxFront2 -= fGeom->TPC(tpcFront2, cryoFront2).PlaneLocation(firstPlane)[0];
+
+			firstPlane = 0;
+			while ((firstPlane < 3) && !fGeom->TPC(tpcBack2, cryoBack2).HasPlane(firstPlane)) firstPlane++;
+
+			double dxBack2 = trk2->back()->Point3D().X();
+			if (dxBack2 > 0.0) dxBack2 -= fGeom->TPC(tpcBack2, cryoBack2).PlaneLocation(firstPlane)[0];
+
+			mf::LogVerbatim("PMAlgTrackMaker")
+				<< "   xf1:" << dxFront1 << " xb1:" << dxBack1
+				<< "   xf2:" << dxFront2 << " xb2:" << dxBack2;
+
+			if ((cryoFront1 == cryoFront2) && (dxFront1 * dxFront2 < 0.0) &&
+			    (fabs(dxFront1 + dxFront2) < xApaDistDiffThr))
+			{
+				if (fabs(dxFront1) < fabs(dxFront2)) dxFront2 = -dxFront1;
+				else dxFront1 = -dxFront2;
+
+				f0 = trk1->Nodes()[1]->Point3D(); f0.SetXYZ(f0.X() - dxFront1, f0.Y(), f0.Z());
+				b0 = trk1->Nodes()[0]->Point3D(); b0.SetXYZ(b0.X() - dxFront1, b0.Y(), b0.Z());
+				f1 = trk2->Nodes()[0]->Point3D(); f1.SetXYZ(f1.X() - dxFront2, f1.Y(), f1.Z());
+				b1 = trk2->Nodes()[1]->Point3D(); b1.SetXYZ(b1.X() - dxFront2, b1.Y(), b1.Z());
+				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
+				{
+					cmax = c; reverse = false; flip1 = true; flip2 = false;
+					best_idx = t; best_trk2 = trk2;
+					dx1 = dxFront1; dx2 = dxFront2;
+				}
+			}
+			else if ((cryoFront1 == cryoBack2) && (dxFront1 * dxBack2 < 0.0) &&
+			    (fabs(dxFront1 + dxBack2) < xApaDistDiffThr))
+			{
+				if (fabs(dxFront1) < fabs(dxBack2)) dxBack2 = -dxFront1;
+				else dxFront1 = -dxBack2;
+
+				f0 = trk1->Nodes()[1]->Point3D(); f0.SetXYZ(f0.X() - dxFront1, f0.Y(), f0.Z());
+				b0 = trk1->Nodes()[0]->Point3D(); b0.SetXYZ(b0.X() - dxFront1, b0.Y(), b0.Z());
+				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetXYZ(f1.X() - dxBack2, f1.Y(), f1.Z());
+				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetXYZ(b1.X() - dxBack2, b1.Y(), b1.Z());
+				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
+				{
+					cmax = c; reverse = true; flip1 = false; flip2 = false;
+					best_idx = t; best_trk2 = trk2;
+					dx1 = dxFront1; dx2 = dxBack2;
+				}
+			}
+			else if ((cryoBack1 == cryoFront2) && (dxBack1 * dxFront2 < 0.0) &&
+			    (fabs(dxBack1 + dxFront2) < xApaDistDiffThr))
+			{
+				if (fabs(dxBack1) < fabs(dxFront2)) dxFront2 = -dxBack1;
+				else dxBack1 = -dxFront2;
+
+				f0 = trk1->Nodes()[trk1->Nodes().size() - 2]->Point3D(); f0.SetXYZ(f0.X() - dxBack1, f0.Y(), f0.Z());
+				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetXYZ(b0.X() - dxBack1, b0.Y(), b0.Z());
+				f1 = trk2->Nodes()[0]->Point3D(); f1.SetXYZ(f1.X() - dxFront2, f1.Y(), f1.Z());
+				b1 = trk2->Nodes()[1]->Point3D(); b1.SetXYZ(b1.X() - dxFront2, b1.Y(), b1.Z());
+				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
+				{
+					cmax = c; reverse = false; flip1 = false; flip2 = false;
+					best_idx = t; best_trk2 = trk2;
+					dx1 = dxBack1; dx2 = dxFront2;
+				}
+			}
+			else if ((cryoBack1 == cryoBack2) && (dxBack1 * dxBack2 < 0.0) &&
+			    (fabs(dxBack1 + dxBack2) < xApaDistDiffThr))
+			{
+				if (fabs(dxBack1) < fabs(dxBack2)) dxBack2 = -dxBack1;
+				else dxBack1 = -dxBack2;
+
+				f0 = trk1->Nodes()[trk1->Nodes().size() - 2]->Point3D(); f0.SetXYZ(f0.X() - dxBack1, f0.Y(), f0.Z());
+				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetXYZ(b0.X() - dxBack1, b0.Y(), b0.Z());
+				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetXYZ(f1.X() - dxBack2, f1.Y(), f1.Z());
+				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetXYZ(b1.X() - dxBack2, b1.Y(), b1.Z());
+				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
+				{
+					cmax = c; reverse = false; flip1 = false; flip2 = true;
+					best_idx = t; best_trk2 = trk2;
+					dx1 = dxBack1; dx2 = dxBack2;
+				}
+			}
+		}
+		if (best_trk2)
+		{
+			if (reverse)
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "Match cross-APA tracks: ("
+					<< best_idx << ":" << best_trk2->size() << ") and ("
+					<< u << ":" << trk1->size() << ")";
+			}
+			else
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "Match cross-APA tracks: ("
+					<< u << ":" << trk1->size() << ") and ("
+					<< best_idx << ":" << best_trk2->size() << ")";
+			}
+
+			if (flip1) trk1->Flip();
+			if (flip2) best_trk2->Flip();
+
+			trk1->GetRoot()->ApplyXShiftInTree(-dx1);
+			best_trk2->GetRoot()->ApplyXShiftInTree(-dx2);
+
+			if (reverse)
+			{
+				best_trk2->SetSubsequentTrack(trk1);
+				trk1->SetPrecedingTrack(best_trk2);
+			}
+			else
+			{
+				trk1->SetSubsequentTrack(best_trk2);
+				best_trk2->SetPrecedingTrack(trk1);
+			}
+		}
+	}
 }
 // ------------------------------------------------------
 
@@ -1053,30 +1224,30 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
 					/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
 
-				tracks->push_back(convertFrom(*trk));
+				tracks->push_back(convertFrom(*trk)); //////////
 
 				std::vector< art::Ptr< recob::Hit > > hits2d;
 				art::PtrVector< recob::Hit > sp_hits;
 
 				spStart = allsp->size();
+				double xShift = trk->GetXShift();
 				for (int h = trk->size() - 1; h >= 0; h--)
 				{
 					pma::Hit3D* h3d = (*trk)[h];
 					hits2d.push_back(h3d->Hit2DPtr());
 
-					if ((h == 0) ||
-					      (sp_pos[0] != h3d->Point3D().X()) ||
-					      (sp_pos[1] != h3d->Point3D().Y()) ||
-					      (sp_pos[2] != h3d->Point3D().Z()))
+					double hx = h3d->Point3D().X() + xShift;
+					double hy = h3d->Point3D().Y();
+					double hz = h3d->Point3D().Z();
+
+					if ((h == 0) || (sp_pos[0] != hx) || (sp_pos[1] != hy) || (sp_pos[2] != hz))
 					{
 						if (sp_hits.size()) // hits assigned to the previous sp
 						{
 							util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
 							sp_hits.clear();
 						}
-						sp_pos[0] = h3d->Point3D().X();
-						sp_pos[1] = h3d->Point3D().Y();
-						sp_pos[2] = h3d->Point3D().Z();
+						sp_pos[0] = hx; sp_pos[1] = hy; sp_pos[2] = hz;
 						allsp->push_back(recob::SpacePoint(sp_pos, sp_err, 1.0));
 					}
 					sp_hits.push_back(h3d->Hit2DPtr());
@@ -1199,17 +1370,23 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 			mergeCoLinear(tracks);
 		}
 
-		for (auto const & tpc_entry : tracks)
+		for (auto const & tpc_entry : tracks) // put tracks in the single collection
 			for (auto trk : tpc_entry.second)
-			{
-				fProjectionMatchingAlg.setTrackTag(*trk); // finally tag EM-like tracks
-				result.push_back(trk);
-			}
+		{
+			fProjectionMatchingAlg.setTrackTag(*trk); // tag EM-like tracks
+			result.push_back(trk);
+		}
 
 		if (fRunVertexing)
 		{
 			mf::LogVerbatim("PMAlgTrackMaker") << "Vertex finding / track-vertex reoptimization.";
 			fPMAlgVertexing.run(result);
+		}
+
+		if (fMatchT0inAPACrossing)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Find co-linear APA-crossing tracks with any T0.";
+			matchCoLinearAnyT0(result);
 		}
 
 		listUsedClusters(cluListHandle); // used for development

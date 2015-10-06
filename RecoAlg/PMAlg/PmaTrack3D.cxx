@@ -27,6 +27,11 @@ pma::Track3D::Track3D(void) :
 	fEndSegWeight(0.05F),
 	fHitsRadius(1.0F),
 
+	fXShift(0.0),
+
+	fPrecedingTrack(0),
+	fSubsequentTrack(0),
+
 	fTag(pma::Track3D::kNotTagged)
 {
 }
@@ -44,11 +49,20 @@ pma::Track3D::Track3D(const Track3D& src) :
 	fEndSegWeight(src.fEndSegWeight),
 	fHitsRadius(src.fHitsRadius),
 
+	fXShift(src.fXShift),
+
+	fPrecedingTrack(src.fPrecedingTrack),
+	fSubsequentTrack(src.fSubsequentTrack),
+
 	fTag(src.fTag)
 {
+	fHits.reserve(src.fHits.size());
 	for (auto const& hit : src.fHits) fHits.push_back(new pma::Hit3D(*hit));
-	for (auto const& point : src.fAssignedPoints) fAssignedPoints.push_back(new TVector3(*point));
+
+	fNodes.reserve(src.fNodes.size());
 	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo()));
+
+	for (auto const& point : src.fAssignedPoints) fAssignedPoints.push_back(new TVector3(*point));
 
 	RebuildSegments();
 	MakeProjection();
@@ -1841,6 +1855,34 @@ double pma::Track3D::TuneFullTree(double eps)
 	SortHitsInTree();
 
 	return g0;
+}
+
+void pma::Track3D::ApplyXShiftInTree(double dx, bool skipFirst)
+{
+	pma::Node3D* node = fNodes.front();
+	pma::Segment3D* segThis = 0;
+	pma::Segment3D* seg = 0;
+
+	if (skipFirst)
+	{
+		segThis = NextSegment(node);
+		if (segThis) node = static_cast< pma::Node3D* >(segThis->Next());
+	}
+
+	while (node)
+	{
+		segThis = NextSegment(node);
+		for (size_t i = 0; i < node->NextCount(); i++)
+		{
+			seg = static_cast< pma::Segment3D* >(node->Next(i));
+			if (seg != segThis) seg->Parent()->ApplyXShiftInTree(dx, true);
+		}
+
+		if (segThis) node = static_cast< pma::Node3D* >(segThis->Next());
+		else break;
+	}
+
+	fXShift += dx;
 }
 
 void pma::Track3D::RebuildSegments(void)
