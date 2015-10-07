@@ -33,6 +33,7 @@
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Track.h"
+#include "RecoBase/TrackHitMeta.h"
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
@@ -219,7 +220,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	this->reconfigure(p);
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
-	produces< art::Assns<recob::Track, recob::Hit, unsigned int> >();
+	produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 }
@@ -896,7 +897,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
 	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
 
-	std::unique_ptr< art::Assns< recob::Track, recob::Hit, unsigned int > > trk2hit(new art::Assns< recob::Track, recob::Hit, unsigned int >);
+	std::unique_ptr< art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta > > trk2hit(new art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta >);
 	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
 	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
 
@@ -991,7 +992,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
 					art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
 					for (unsigned int hidx = 0; hidx < hits2d.size(); hidx++)
-						trk2hit->addSingle(trkPtr, hits2d[hidx], hidx);
+					{
+						recob::TrackHitMeta metadata(hidx);
+						trk2hit->addSingle(trkPtr, hits2d[hidx], metadata);
+					}
 
 					util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
 				}
