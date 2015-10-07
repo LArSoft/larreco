@@ -38,6 +38,7 @@
 #include "RecoBase/Track.h"
 #include "RecoBase/Vertex.h"
 #include "RecoBase/SpacePoint.h"
+#include "AnalysisBase/T0.h" 
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
@@ -240,13 +241,17 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	fPMAlgVertexing(p.get< fhicl::ParameterSet >("PMAlgVertexing"))
 {
 	this->reconfigure(p);
+
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
 	produces< std::vector<recob::Vertex> >();
+	produces< std::vector<anab::T0> >();
+
 	produces< art::Assns<recob::Track, recob::Hit> >();
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 	produces< art::Assns<recob::Vertex, recob::Track> >();
+	produces< art::Assns<recob::Track, anab::T0> >();
 }
 // ------------------------------------------------------
 
@@ -1167,9 +1172,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
 	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
 	std::unique_ptr< std::vector< recob::Vertex > > vtxs(new std::vector< recob::Vertex >);
+	std::unique_ptr< std::vector< anab::T0 > > t0s(new std::vector< anab::T0 >);
 
 	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit(new art::Assns< recob::Track, recob::Hit >);
 	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
+	std::unique_ptr< art::Assns< recob::Track, anab::T0 > > trk2t0(new art::Assns< recob::Track, anab::T0 >);
+
 	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
 	std::unique_ptr< art::Assns< recob::Vertex, recob::Track > > vtx2trk(new art::Assns< recob::Vertex, recob::Track >);
 
@@ -1224,13 +1232,23 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
 					/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
 
-				tracks->push_back(convertFrom(*trk)); //////////
+				tracks->push_back(convertFrom(*trk));
+
+				double xShift = trk->GetXShift();
+				if (xShift > 0.0)
+				{
+					double tisk2time = 1.0; // what is the coefficient, offset?
+					double t0time = tisk2time * xShift / fDetProp->GetXTicksCoefficient(trk->FrontTPC(), trk->FrontCryo());
+
+					// TriggBits=3 means from 3d reco (0,1,2 mean something else)
+					t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
+					util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
+				}
 
 				std::vector< art::Ptr< recob::Hit > > hits2d;
 				art::PtrVector< recob::Hit > sp_hits;
 
 				spStart = allsp->size();
-				double xShift = trk->GetXShift();
 				for (int h = trk->size() - 1; h >= 0; h--)
 				{
 					pma::Hit3D* h3d = (*trk)[h];
@@ -1303,9 +1321,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(tracks));
 	evt.put(std::move(allsp));
 	evt.put(std::move(vtxs));
+	evt.put(std::move(t0s));
 
 	evt.put(std::move(trk2hit));
 	evt.put(std::move(trk2sp));
+	evt.put(std::move(trk2t0));
+
 	evt.put(std::move(sp2hit));
 	evt.put(std::move(vtx2trk));
 }
@@ -1551,7 +1572,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 						candidate.Good = true;
 
 						size_t minSize = 5;      // min size for clusters matching
-						double fraction = 0.4;   // min fraction of close hits
+						double fraction = 0.5;   // min fraction of close hits
 
 						idx = 0;
 						while (idx >= 0) // try to collect matching clusters, use **any** plane except validation
