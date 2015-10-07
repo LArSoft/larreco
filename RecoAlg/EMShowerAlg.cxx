@@ -219,7 +219,7 @@ void shower::EMShowerAlg::FindShowerEnds(art::PtrVector<recob::Hit> const& showe
   }
 
   // Use this to find the end points
-  int oneHit, otherHit;
+  int oneHit = 0, otherHit = 0;
   for (std::map<double,int>::reverse_iterator hitDistance = hitDistances.rbegin(); hitDistance != hitDistances.rend(); ++hitDistance) {
     if (hitDistance == hitDistances.rbegin())
       oneHit = hitDistance->second;
