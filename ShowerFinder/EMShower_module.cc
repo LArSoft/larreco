@@ -200,13 +200,13 @@ void shower::EMShower::produce(art::Event& evt) {
     }
 
     // Find the initial track-like part of the shower
-    fEMShowerAlg.FindInitialTrack(showerHits);
+    TVector3 direction, directionError, vertex, vertexError;
+    std::vector<double> totalEnergy, totalEnergyError, dEdx, dEdxError;
+    int bestPlane;
+    fEMShowerAlg.FindShowerProperties(showerHits, fmt, direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
 
     // Make shower object and associations
-    recob::Shower shower = recob::Shower();
-    shower.set_id(showerNum);
-    showers->push_back(shower);
-
+    showers->emplace_back(direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane, showerNum);
     util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
     util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
     util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
