@@ -30,7 +30,6 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "Filters/ChannelFilter.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
@@ -41,6 +40,8 @@
 #include "RecoBase/Vertex.h"
 #include "RecoBase/PFParticle.h"
 #include "RecoBase/Seed.h"
+#include "CalibrationDBI/Interface/IChannelStatusService.h"
+#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
@@ -3402,7 +3403,9 @@ namespace trkf {
 //    for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = ChgNorm[nplanes - 1] / ChgNorm[ipl];
     for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = 1;
     
-    filter::ChannelFilter cf;
+    // get the service to learn about channel status
+    lariov::IChannelStatusProvider const& channelStatus
+      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
     
     // now we can define the WireHitRange vector.
     int sflag, nwires, wire;
@@ -3418,7 +3421,7 @@ namespace trkf {
       sflag = -1;
       for(wire = 0; wire < nwires; ++wire) {
         //chan = geom->PlaneWireToChannel(ipl, wire, tpc, cstat);
-        //if(cf.BadChannel(chan)) {
+        //if(channelStatus.IsBad(chan)) {
         //  indx = wire - firstWire[ipl];
         //  WireHitRange[ipl][indx] = std::make_pair(sflag, sflag);
 	//}
