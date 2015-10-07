@@ -111,7 +111,7 @@ art::Ptr<recob::Hit> shower::EMShowerAlg::FindVertex(art::PtrVector<recob::Hit> 
   TVector2 direction = (end1 - end2).Unit();
 
   // Sum all deposited charge for each end of the shower
-  double chargeEnd1, chargeEnd2;
+  double chargeEnd1 = 0, chargeEnd2 = 0;
 
   // Project all hits onto this vector to determine which end each is closer to
   TVector2 proj;
