@@ -22,12 +22,8 @@
 #define ProjectionMatchingAlg_h
 
 // Framework includes
-#include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
-#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
@@ -35,12 +31,9 @@
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 #include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
-#include "Utilities/AssociationUtil.h"
 
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 
@@ -127,6 +120,11 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		bool add_nodes) const;
 
+	/// Add 3D reference points to clean endpoints of a track.
+	void guideEndpoints(
+		pma::Track3D& trk,
+		const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits) const;
+
 	std::vector< pma::Hit3D* > trimTrackToVolume(pma::Track3D& trk, TVector3 p0, TVector3 p1) const;
 
 	/// Flip tracks to get second as a continuation of first; returns false if not
@@ -150,7 +148,24 @@ public:
 	/// view is used by default, but it works also with other projections.
 	double selectInitialHits(pma::Track3D& trk, unsigned int view = geo::kZ) const;
 
+	/// Set cascade- or track-like tag.
+	void setTrackTag(pma::Track3D& trk) const;
+
 private:
+
+	// Helpers for guideEndpoints
+	bool chkEndpointHits(int wire, int wdir, double drift_x, int view,
+		unsigned int tpc, unsigned int cryo,
+		const pma::Track3D& trk,
+		const std::vector< art::Ptr<recob::Hit> >& hits) const;
+	bool addEndpointRef(pma::Track3D& trk,
+		const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits,
+		std::pair<int, int> const * wires, double const * xPos,
+		unsigned int tpc, unsigned int cryo) const;
+
+	// Calculate good number of segments depending on the number of hits.
+	static size_t getSegCount(size_t trk_size);
+
 
 	// Parameters used in the algorithm
 
@@ -167,9 +182,6 @@ private:
 	// Geometry and detector properties
 	art::ServiceHandle<geo::Geometry> fGeom;
 	art::ServiceHandle<util::DetectorProperties> fDetProp;
-
-	// Calculate good number of segments depending on the number of hits.
-	static size_t getSegCount(size_t trk_size);
 };
 
 #endif
