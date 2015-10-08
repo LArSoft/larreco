@@ -14,6 +14,7 @@
 // LArSoft includes
 #include "art/Framework/Core/FindManyP.h"
 #include "Utilities/DetectorProperties.h"
+#include "AnalysisAlg/CalorimetryAlg.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
@@ -43,10 +44,12 @@ public:
 
   void MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
   //void FindInitialTrack(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt);
-  void FindShowerProperties(art::PtrVector<recob::Hit> const& hit, art::FindManyP<recob::Track> const& fmt,
+  void FindShowerProperties(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt, calo::CalorimetryAlg const& calo,
 			    TVector3& direction, TVector3& directionError, TVector3& vertex, TVector3& vertexError,
 			    std::vector<double>& totalEnergy, std::vector<double>& totalEnergyError, std::vector<double>& dEdx, std::vector<double>& dEdxError,
 			    int bestPlane);
+  double FinddEdx(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Track> const& track, calo::CalorimetryAlg const& calo, geo::View_t const& view, std::vector<int> const& trackHits);
+  double FindTotalEnergy(art::PtrVector<recob::Hit> const& shower);
   void FindShowerEnds(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Hit>& end1, art::Ptr<recob::Hit>& end2);
   art::Ptr<recob::Hit> FindVertex(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Hit> const& end1, art::Ptr<recob::Hit> const& end2);
   void FindVertex(art::PtrVector<recob::Hit> const& shower, TVector2 const& end1, TVector2 const& end2, std::vector<int>& trackHits);
