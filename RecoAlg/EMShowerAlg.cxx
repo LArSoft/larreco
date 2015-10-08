@@ -46,7 +46,7 @@ void shower::EMShowerAlg::MakeShowers(std::map<int,std::vector<int> > const& tra
 
 }
 
-void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt,
+void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt, calo::CalorimetryAlg const& calo,
 					       TVector3& direction, TVector3& directionError, TVector3& vertex, TVector3& vertexError,
 					       std::vector<double>& totalEnergy, std::vector<double>& totalEnergyError, std::vector<double>& dEdx, std::vector<double>& dEdxError,
 					       int bestPlane) {
@@ -58,8 +58,7 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
   for (art::PtrVector<recob::Hit>::const_iterator hit = hits.begin(); hit != hits.end(); ++hit)
     planeHitsMap[(*hit)->View()].push_back(*hit);
 
-  std::map<int,TVector2> vertexMap;
-  std::map<int,art::Ptr<recob::Hit> > vertexHitMap;
+  std::map<int,art::Ptr<recob::Hit> > vertexMap;
 
   // Loop through planes
   for (std::map<int,art::PtrVector<recob::Hit> >::iterator planeHits = planeHitsMap.begin(); planeHits != planeHitsMap.end(); ++planeHits) {
@@ -70,19 +69,34 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
     art::Ptr<recob::Hit> end1, end2;
     FindShowerEnds(planeHits->second, end1, end2);
 
-    // Decide which end is the vertex and get the initial track
-    art::Ptr<recob::Hit> vertex = FindVertex(planeHits->second, end1, end2);
-    art::Ptr<recob::Hit> showerEnd = vertex.key() == end1.key() ? end2 : end1;
-    std::vector<int> track = FindTrack(planeHits->second, HitCoordinates(vertex), HitCoordinates(showerEnd));
+    // // Decide which end is the vertex
+    // art::Ptr<recob::Hit> vertex = FindVertex(planeHits->second, end1, end2);
+    // art::Ptr<recob::Hit> showerEnd = vertex.key() == end1.key() ? end2 : end1;
+    // vertexMap.push_back(vertex);
+
+    // // Get the initial track
+    // std::vector<int> trackHits = FindTrack(planeHits->second, HitCoordinates(vertex), HitCoordinates(showerEnd));
+    // art::Ptr<recob::Track> track = fmt.at(hits.at(trackHits.at(0)).key()).at(0);
+
+    // Get the initial track
+    std::vector<int> trackHits1 = FindTrack(planeHits->second, HitCoordinates(end1), HitCoordinates(end2));
+    std::vector<int> trackHits2 = FindTrack(planeHits->second, HitCoordinates(end2), HitCoordinates(end1));
+    std::vector<int> trackHits = trackHits1.size() > trackHits2.size() ? trackHits1 : trackHits2;
+    //art::Ptr<recob::Track> track = fmt.at(hits.at(trackHits.at(0)).key()).at(0);
+
+    // Vertex
+    art::Ptr<recob::Hit> vertex = hits.at(*trackHits.begin());
+    vertexMap[planeHits->first] = vertex;
 
     std::cout << "The vertex is " << std::endl;
     HitCoordinates(vertex).Print();
-    std::cout << "and the other end of the shower is " << std::endl;
-    HitCoordinates(showerEnd).Print();
+
+    // Find energy and dE/dx
+    //dEdx.push_back(FinddEdx(planeHits->second, track, calo, vertex->View(), trackHits));
+    totalEnergy.push_back(FindTotalEnergy(planeHits->second));
 
   }
 
-  //art::Ptr<recob::Track> initialTrack = fmt.at(vertex.key()).at(0);
   if (vertexMap.size() < 2) return;
 
   // std::cout << "Vertex x is " << fDetProp->ConvertTicksToX(vertexHitMap.at(0)->PeakTime(), vertexHitMap.at(0)->WireID().planeID()) << ", " << fDetProp->ConvertTicksToX(vertexHitMap.at(1)->PeakTime(), vertexHitMap.at(1)->WireID().planeID()) << " and " << fDetProp->ConvertTicksToX(vertexHitMap.at(2)->PeakTime(), vertexHitMap.at(2)->WireID().planeID()) << std::endl;
@@ -96,6 +110,40 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
   // std::cout << "y and z: From 1 and 2... " << yz.y << " and " << yz.z << std::endl;
 
   return;
+
+}
+
+double shower::EMShowerAlg::FindTotalEnergy(art::PtrVector<recob::Hit> const& hits) {
+
+  /// Finds the total energy deposited by the shower in this view
+
+  ///////////// NEEDS TO BE FIXED TO RETURN TOTAL ENERGY, NOT CHARGE!
+
+  double totalEnergy = 0;
+
+  for (art::PtrVector<recob::Hit>::const_iterator hit = hits.begin(); hit != hits.end(); ++hit)
+    totalEnergy += (*hit)->Integral();
+
+  return totalEnergy;
+
+}
+
+double shower::EMShowerAlg::FinddEdx(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Track> const& track, calo::CalorimetryAlg const& calo, geo::View_t const& view, std::vector<int> const& trackHits) {
+
+  /// Finds dE/dx for the track given a set of hits
+
+  std::vector<double> dEdx;
+
+  for (std::vector<int>::const_iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt)
+    dEdx.push_back(calo.dEdx_AREA(shower.at(*trackHitIt), track->PitchInView(view)));
+
+  double avdEdx = 0;
+  for (std::vector<double>::iterator dEdxIt = dEdx.begin(); dEdxIt != dEdx.end(); ++dEdxIt)
+    avdEdx += *dEdxIt;
+
+  avdEdx /= dEdx.size();
+
+  return avdEdx;
 
 }
 
