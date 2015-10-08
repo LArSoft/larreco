@@ -28,27 +28,6 @@ cluster::MergeClusterAlg::MergeClusterAlg(fhicl::ParameterSet const& pset) {
   fTree->Branch("TrueMerge",&fTrueMerge);
 }
 
-TVector2 cluster::MergeClusterAlg::ConvertWireDriftToCm(unsigned int wire, double drift) {
-
-  /// Convert the wire/tick coordinates roughly into cm
-  /// Taken from RecoAlg/PMAlg/Utilities.cxx (written by D.Stefan & R.Sulej)
-
-  return TVector2(fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch() * wire,
-		  fDetProp->ConvertTicksToX(drift, fPlane, fTPC, fCryostat)
-		  );
-}
-
-TVector2 cluster::MergeClusterAlg::CmToWireDrift(double x, double y) {
-
-  /// Convert the cm roughly into wire/tick coordinates
-  /// Taken from RecoAlg/PMAlg/Utilities.cxx (written by D.Stefan & R.Sulej)
-
-  return TVector2(
-		  x / fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch(),
-		  fDetProp->ConvertXToTicks(y, fPlane, fTPC, fCryostat)
-		  );
-}
-
 void cluster::MergeClusterAlg::FindClusterEndPoints(art::PtrVector<recob::Hit> const& cluster, TVector2 const& centre, TVector2 const& direction, TVector2& start, TVector2& end) {
 
   /// Find estimates of cluster start/end points
@@ -58,8 +37,7 @@ void cluster::MergeClusterAlg::FindClusterEndPoints(art::PtrVector<recob::Hit> c
 
   // Project all hits onto line to determine end points
   for (auto &hit : cluster) {
-    pos = ConvertWireDriftToCm(FindGlobalWire(hit->WireID()), (int)hit->PeakTime()) - centre;
-    //pos = TVector2(FindGlobalWire(hit->WireID()), (int)hit->PeakTime()) - centre;
+    pos = HitCoordinates(hit) - centre;
     hitProjection[direction*pos] = pos;
   }
 
@@ -122,20 +100,6 @@ double cluster::MergeClusterAlg::FindCrossingDistance(TVector2 const &direction1
 
 }
 
-int cluster::MergeClusterAlg::FindGlobalWire(geo::WireID wireID) {
-
-  /// Find the global wire position
-
-  double wireCentre[3];
-  fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
-  double globalWire;
-  if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.planeID().Plane, 0, fCryostat);
-  else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.planeID().Plane, 1, fCryostat);
-
-  return globalWire;
-
-}
-
 double cluster::MergeClusterAlg::FindMinSeparation(art::PtrVector<recob::Hit> const& cluster1, art::PtrVector<recob::Hit> const& cluster2) {
 
   /// Calculates the minimum separation between two clusters
@@ -146,8 +110,8 @@ double cluster::MergeClusterAlg::FindMinSeparation(art::PtrVector<recob::Hit> co
   for (auto const& hit1 : cluster1) {
     for (auto const& hit2 : cluster2) {
 
-      TVector2 pos1 = ConvertWireDriftToCm(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
-      TVector2 pos2 = ConvertWireDriftToCm(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
+      TVector2 pos1 = HitCoordinates(hit1);
+      TVector2 pos2 = HitCoordinates(hit2);
 
       double distance = (pos1 - pos2).Mod();
 
@@ -181,6 +145,35 @@ double cluster::MergeClusterAlg::FindProjectedWidth(TVector2 const& centre1, TVe
   double projectionWidth = projectionStart + projectionEnd;
 
   return projectionWidth;
+
+}
+
+double cluster::MergeClusterAlg::GlobalWire(geo::WireID const& wireID) {
+
+  /// Find the global wire position
+
+  double wireCentre[3];
+  fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
+
+  double globalWire;
+  if (fGeom->SignalType(wireID) == geo::kInduction) {
+    if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
+    else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+  }
+  else {
+    if (wireID.TPC % 2 == 0) globalWire = wireID.Wire + ((wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat));
+    else globalWire = wireID.Wire + ((int)(wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 1, wireID.Cryostat));
+  }
+
+  return globalWire;
+
+}
+
+TVector2 cluster::MergeClusterAlg::HitCoordinates(art::Ptr<recob::Hit> const& hit) {
+
+  /// Return the coordinates of this hit in global wire/tick space
+
+  return TVector2(GlobalWire(hit->WireID()), hit->PeakTime());
 
 }
 
@@ -239,8 +232,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
   //     double totalCharge1 = 0, totalCharge2 = 0;
 
   //     for (auto &hit1 : cluster1) {
-  // 	pos = ConvertWireDriftToCm(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
-  // 	//pos = TVector2(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
+  //    pos = HitCoordinates(hit1);
   // 	hits[0] = pos.X();
   // 	hits[1] = pos.Y();
   // 	pca->AddRow(hits);
@@ -249,8 +241,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
   // 	totalCharge1 += hit1->Integral();
   //     }
   //     for (auto &hit2 : cluster2) {
-  // 	pos = ConvertWireDriftToCm(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
-  // 	//pos = TVector2(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
+  // 	pos = HitCoordinates(hit2);
   // 	hits[0] = pos.X();
   // 	hits[1] = pos.Y();
   // 	pca->AddRow(hits);
@@ -353,8 +344,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 	double totalCharge1 = 0, totalCharge2 = 0;
 
 	for (auto &hit1 : cluster) {
-	  pos = ConvertWireDriftToCm(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
-	  //pos = TVector2(FindGlobalWire(hit1->WireID()), (int)hit1->PeakTime());
+	  pos = HitCoordinates(hit1);
 	  hits[0] = pos.X();
 	  hits[1] = pos.Y();
 	  pca1->AddRow(hits);
@@ -362,8 +352,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 	  totalCharge1 += hit1->Integral();
 	}
 	for (auto &hit2 : oldClusters.at(trialCluster)) {
-	  pos = ConvertWireDriftToCm(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
-	  //pos = TVector2(FindGlobalWire(hit2->WireID()), (int)hit2->PeakTime());
+	  pos = HitCoordinates(hit2);
 	  hits[0] = pos.X();
 	  hits[1] = pos.Y();
 	  pca2->AddRow(hits);

@@ -98,11 +98,9 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   fRun    = evt.run();
   fSubrun = evt.subRun();
 
-  fBlurredClusteringAlg.SetEventParameters(fEvent, fRun, fSubrun, fGlobalTPCRecon);
-
   // Create debug pdf to illustrate the blurring process
   if (fCreateDebugPDF)
-    fBlurredClusteringAlg.CreateDebugPDF();
+    fBlurredClusteringAlg.CreateDebugPDF(fRun, fSubrun, fEvent);
 
   // Output containers -- collection of clusters and associations
   clusters.reset(new std::vector<recob::Cluster>);
@@ -139,9 +137,6 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     // Loop over views
     for (std::map<std::pair<int,int>,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeToHits.begin(); planeIt != planeToHits.end(); ++planeIt) {
 
-      fBlurredClusteringAlg.SetPlaneParameters(planeIt->first.first, planeIt->first.second, 0);
-      fMergeClusterAlg.SetPlaneParameters(planeIt->first.first, planeIt->first.second, 0);
-
       // Make the clusters
       std::vector<art::PtrVector<recob::Hit> > finalClusters;
       std::vector<art::Ptr<recob::Hit> > hitsToCluster;
@@ -152,8 +147,6 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       else
 	hitsToCluster = planeIt->second;
       cluster(hitsToCluster, finalClusters);
-
-      std::cout << "Number of final clusters... " << finalClusters.size() << std::endl;
 
       for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = finalClusters.begin(); clusIt != finalClusters.end(); ++clusIt) {
 
@@ -206,9 +199,6 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 
     // Loop over views
     for (std::map<geo::PlaneID,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeIDToHits.begin(); planeIt != planeIDToHits.end(); ++planeIt) {
-
-      fBlurredClusteringAlg.SetPlaneParameters(planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
-      fMergeClusterAlg.SetPlaneParameters(planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
 
       // Make the clusters
       std::vector<art::PtrVector<recob::Hit> > finalClusters;
