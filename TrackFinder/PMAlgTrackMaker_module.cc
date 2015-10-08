@@ -12,6 +12,7 @@
 //                     clusters, no attempts to build multi-track structures, however cosmic tracking
 //                     works fine as they are sets of independent tracks
 //    June-July 2015:  merging track parts within a single tpc and stitching tracks across tpc's
+//    August 2015:     optimization of track-vertex structures
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -21,6 +22,8 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -34,7 +37,9 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/TrackHitMeta.h"
+#include "RecoBase/Vertex.h"
 #include "RecoBase/SpacePoint.h"
+#include "AnalysisBase/T0.h" 
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
@@ -44,10 +49,11 @@
 #include "SimulationBase/MCParticle.h"
 
 #include "RecoAlg/ProjectionMatchingAlg.h"
-#include "RecoAlg/PMAlg/PmaTrack3D.h"
+#include "RecoAlg/PMAlgVertexing.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
 #include "TTree.h"
+#include "TMath.h"
 
 #include <memory>
 
@@ -121,6 +127,8 @@ private:
 
 
   // ************* some common functionality **************
+  void reset(const art::Event& evt);
+
   cryo_tpc_view_hitmap c_t_v_hits;
   bool sortHits(const art::Event& evt);
 
@@ -146,6 +154,9 @@ private:
     float tmin, float tmax, size_t min_clu_size,
     geo::View_t view, unsigned int tpc, unsigned int cryo);
 
+  void freezeBranchingNodes(std::vector< pma::Track3D* >& tracks);
+  void releaseAllNodes(std::vector< pma::Track3D* >& tracks);
+
   bool areCoLinear(
 	pma::Track3D* trk1, pma::Track3D* trk2,
 	double& dist, double& cos, bool& reverseOrder,
@@ -155,10 +166,17 @@ private:
   void mergeCoLinear(std::vector< pma::Track3D* >& tracks);
   void mergeCoLinear(tpc_track_map& tracks);
 
+  bool areCoLinear(
+		double& cos3d,
+		TVector3 f0, TVector3 b0, TVector3 f1, TVector3 b1,
+		double distProjThr);
+  void matchCoLinearAnyT0(std::vector< pma::Track3D* >& tracks);
+
   bool reassignHits(
 	const std::vector< art::Ptr<recob::Hit> >& hits,
 	std::vector< pma::Track3D* >& tracks, size_t trk_idx);
   bool reassignSingleViewEnds(std::vector< pma::Track3D* >& tracks);
+  void guideEndpoints(std::vector< pma::Track3D* >& tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
@@ -209,20 +227,34 @@ private:
   double fStitchTransverseShift; //   - max. transverse displacement [cm] between tracks
   double fStitchAngle;           //   - max. angle [degree] between tracks (nearest segments)
 
+  bool fMatchT0inAPACrossing;    // match T0 of APA-crossing tracks, TPC stitching limits are used
+
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
-  double fMinTwoViewFraction;  // ProjectionMatchingAlg parameter used also in the module
+  double fMinTwoViewFraction;    // ProjectionMatchingAlg parameter used also in the module
+
+  pma::PMAlgVertexing fPMAlgVertexing;
+  bool fRunVertexing;          // run vertex finding
 };
 // ------------------------------------------------------
 
 PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
-	fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg"))
+	fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg")),
+	fPMAlgVertexing(p.get< fhicl::ParameterSet >("PMAlgVertexing"))
 {
 	this->reconfigure(p);
+
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
+	produces< std::vector<recob::Vertex> >();
+	produces< std::vector<anab::T0> >();
+
+	produces< art::Assns<recob::Track, recob::Hit> >();
 	produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
+
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
+	produces< art::Assns<recob::Vertex, recob::Track> >();
+	produces< art::Assns<recob::Track, anab::T0> >();
 }
 // ------------------------------------------------------
 
@@ -273,14 +305,41 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fStitchTransverseShift = pset.get< double >("StitchTransverseShift");
 	fStitchAngle = pset.get< double >("StitchAngle");
 
+	fMatchT0inAPACrossing = pset.get< bool >("MatchT0inAPACrossing");
+
 	fProjectionMatchingAlg.reconfigure(pset.get< fhicl::ParameterSet >("ProjectionMatchingAlg"));
 	fMinTwoViewFraction = pset.get< double >("ProjectionMatchingAlg.MinTwoViewFraction");
+
+	fPMAlgVertexing.reconfigure(pset.get< fhicl::ParameterSet >("PMAlgVertexing"));
+	fRunVertexing = pset.get< bool >("RunVertexing");
+}
+
+void PMAlgTrackMaker::reset(const art::Event& evt)
+{
+	c_t_v_hits.clear();
+	fEvNumber = evt.id().event();
+	fIsRealData = evt.isRealData();
+	fTrkIndex = 0;
+	fPlaneIndex = 0;
+	fPlaneNPoints = 0;
+	fIsStopping = 0;
+	fMcPdg = 0;
+	fPidTag = 0;
+	fdQdx = 0.0;
+	fRange = 0.0;
+	fLength = 0.0;
+	fHitsMse = 0.0;
+	fSegAngMean = 0.0;
+
+	fPMAlgVertexing.reset();
 }
 // ------------------------------------------------------
 
 recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 {
 	std::vector< TVector3 > xyz, dircos;
+	xyz.reserve(src.size()); dircos.reserve(src.size());
+
 	std::vector< std::vector<double> > dst_dQdx; // [view][dQ/dx]
 	dst_dQdx.push_back(std::vector<double>()); // kU
 	dst_dQdx.push_back(std::vector<double>()); // kV
@@ -289,37 +348,31 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	unsigned int cryo = src.FrontCryo();
 	unsigned int tpc = src.FrontTPC();
 
-	double sizeU = 0.0, sizeV = 0.0, sizeZ = 0.0, maxSize = 0.0;
-
 	std::map< unsigned int, dedx_map > src_dQdx;
 	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kU))
 	{
 		src_dQdx[geo::kU] = dedx_map();
 		src.GetRawdEdxSequence(src_dQdx[geo::kU], geo::kU);
-
-		sizeU = fabs(src.Nodes().front()->Projection2D(geo::kU).X() - src.Nodes().back()->Projection2D(geo::kU).X());
-		maxSize = sizeU;
 	}
 	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kV))
 	{
 		src_dQdx[geo::kV] = dedx_map();
 		src.GetRawdEdxSequence(src_dQdx[geo::kV], geo::kV);
-
-		sizeV = fabs(src.Nodes().front()->Projection2D(geo::kV).X() - src.Nodes().back()->Projection2D(geo::kV).X());
-		if (sizeV > maxSize) maxSize = sizeV;
 	}
 	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kZ))
 	{
 		src_dQdx[geo::kZ] = dedx_map();
 		src.GetRawdEdxSequence(src_dQdx[geo::kZ], geo::kZ);
-
-		sizeZ = fabs(src.Nodes().front()->Projection2D(geo::kZ).X() - src.Nodes().back()->Projection2D(geo::kZ).X());
-		if (sizeZ > maxSize) maxSize = sizeZ;
 	}
 
+	TVector3 p3d;
+	double xshift = src.GetXShift();
+	bool has_shift = (xshift != 0.0);
 	for (size_t i = 0; i < src.size(); i++)
 	{
-		xyz.push_back(src[i]->Point3D());
+		p3d = src[i]->Point3D();
+		if (has_shift) p3d.SetXYZ(p3d.X() + xshift, p3d.Y(), p3d.Z());
+		xyz.push_back(p3d);
 
 		if (i < src.size() - 1)
 		{
@@ -354,38 +407,15 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	}
 
 	fLength = src.Length();
-	//fHitsMse = src.GetMse();
+	fHitsMse = src.GetMse();
 	fSegAngMean = src.GetMeanAng();
+
+	// 0 is track-like (long and/or very straight, well matching 2D hits);
+	// 0x10000 is EM shower-like trajectory
+	if (src.GetTag() == pma::Track3D::kEmLike) fPidTag = 0x10000;
+	else fPidTag = 0;
+
 	fMcPdg = getMcPdg(src);
-
-	// skip views with short wire span in projection (EM tagging)
-	double hmse, mse_sum = 0.0;
-	size_t nEnabled, n_sum = 0;
-	if (sizeU > 0.5 * maxSize)
-	{
-		hmse = src.GetMse(geo::kU); nEnabled = src.NEnabledHits(geo::kU);
-		mse_sum += nEnabled * hmse; n_sum += nEnabled;
-	}
-	if (sizeV > 0.5 * maxSize)
-	{
-		hmse = src.GetMse(geo::kV); nEnabled = src.NEnabledHits(geo::kV);
-		mse_sum += nEnabled * hmse; n_sum += nEnabled;
-	}
-	if (sizeZ > 0.5 * maxSize)
-	{
-		hmse = src.GetMse(geo::kZ); nEnabled = src.NEnabledHits(geo::kZ);
-		mse_sum += nEnabled * hmse; n_sum += nEnabled;
-	}
-	if (n_sum > 0) fHitsMse = mse_sum / n_sum;
-	else fHitsMse = 0.0;
-
-	fPidTag = 0;                 // 0 is track-like (long and/or very straight, well matching 2D hits); 0x10000 is EM shower-like trajectory
-	if ( // (fLength < 80.0) &&  // tag only short tracks as EM shower-like
-	     // ((fHitsMse > 0.0005 * fLength) || (fSegAngMean < 3.0))) // select only very chaotic EM parts
-		((fHitsMse > 0.0001 * fLength) || (fSegAngMean < 3.02)))
-	{
-		fPidTag = 0x10000;
-	}
 
 	if (fSave_dQdx)
 	{
@@ -414,6 +444,7 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	{
 		mf::LogError("PMAlgTrackMaker") << "pma::Track3D to recob::Track conversion problem.";
 	}
+
 	return recob::Track(xyz, dircos, dst_dQdx, std::vector< double >(2, util::kBogusD), fTrkIndex + fPidTag);
 }
 // ------------------------------------------------------
@@ -546,8 +577,27 @@ bool PMAlgTrackMaker::extendTrack(TrkCandidate& candidate,
 }
 // ------------------------------------------------------
 
+void PMAlgTrackMaker::freezeBranchingNodes(
+	std::vector< pma::Track3D* >& tracks)
+{
+	for (auto trk : tracks)
+		for (auto node : trk->Nodes())
+			if (node->IsBranching())
+				node->SetFrozen(true);
+}
+// ------------------------------------------------------
+
+void PMAlgTrackMaker::releaseAllNodes(
+	std::vector< pma::Track3D* >& tracks)
+{
+	for (auto trk : tracks)
+		for (auto node : trk->Nodes())
+			node->SetFrozen(false);
+}
+// ------------------------------------------------------
+
 bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
-	double& dist, double& cos, bool& reverseOrder,
+	double& dist, double& cos3d, bool& reverseOrder,
 	double distThr, double distThrMin,
 	double distProjThr,
 	double cosThr)
@@ -576,9 +626,8 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 	if (distBB < dist) { k = 3; dist = distBB; }
 
 	dist = sqrt(dist);
-	cos = 0.0;
+	cos3d = 0.0;
 
-	//std::cout << "  min dist:" << dist << " d:" << d << ", trk len:" << lmax << std::endl;
 	if (dist < d)
 	{
 		pma::Track3D* tmp = 0;
@@ -595,24 +644,56 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 
 		size_t nodeEndIdx = trk1->Nodes().size() - 1;
 
-		double distProj1 = pma::Dist2(
-			trk1->back()->Point3D(),
-			pma::GetProjectionToSegment(trk1->back()->Point3D(),
-				trk2->Nodes()[0]->Point3D(), trk2->Nodes()[1]->Point3D()));
+		TVector3 endpoint1 = trk1->back()->Point3D();
+		TVector3 trk2front0 = trk2->Nodes()[0]->Point3D();
+		TVector3 trk2front1 = trk2->Nodes()[1]->Point3D();
+		TVector3 proj1 = pma::GetProjectionToSegment(endpoint1, trk2front0, trk2front1);
+		double distProj1 = sqrt( pma::Dist2(endpoint1, proj1) );
 
-		double distProj2 = pma::Dist2(
-			trk2->front()->Point3D(),
-			pma::GetProjectionToSegment(trk2->front()->Point3D(),
-				trk1->Nodes()[nodeEndIdx - 1]->Point3D(), trk1->Nodes()[nodeEndIdx]->Point3D()));
+		TVector3 endpoint2 = trk2->front()->Point3D();
+		TVector3 trk1back0 = trk1->Nodes()[nodeEndIdx]->Point3D();
+		TVector3 trk1back1 = trk1->Nodes()[nodeEndIdx - 1]->Point3D();
+		TVector3 proj2 = pma::GetProjectionToSegment(endpoint2, trk1back1, trk1back0);
+		double distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 
-		TVector3 dir1 = trk1->Nodes()[nodeEndIdx]->Point3D() - trk1->Nodes()[nodeEndIdx - 1]->Point3D();
-		TVector3 dir2 = trk2->Nodes()[1]->Point3D() - trk2->Nodes()[0]->Point3D();
+		TVector3 dir1 = trk1->Segments().back()->GetDirection3D();
+		TVector3 dir2 = trk2->Segments().front()->GetDirection3D();
 
-		cos = (dir1 * dir2) / (dir1.Mag() * dir2.Mag());
+		cos3d = dir1 * dir2;
 
-		//std::cout << "     cos:" << cos << " p1:" << distProj1 << " p2:" << distProj2 << std::endl;
-		if ((cos > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
+		if ((cos3d > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
 			return true;
+		else // check if parallel to wires & colinear in 2D
+		{
+			const double maxCosXZ = 0.996195; // 5 deg
+
+			TVector3 dir1_xz(dir1.X(), 0., dir1.Z());
+			dir1_xz *= 1.0 / dir1_xz.Mag();
+
+			TVector3 dir2_xz(dir2.X(), 0., dir2.Z());
+			dir2_xz *= 1.0 / dir2_xz.Mag();
+
+			if ((fabs(dir1_xz.Z()) > maxCosXZ) && (fabs(dir2_xz.Z()) > maxCosXZ))
+			{
+				endpoint1.SetXYZ(endpoint1.X(), 0., endpoint1.Z());
+				trk2front0.SetXYZ(trk2front0.X(), 0., trk2front0.Z());
+				trk2front1.SetXYZ(trk2front1.X(), 0., trk2front1.Z());
+				proj1 = pma::GetProjectionToSegment(endpoint1, trk2front0, trk2front1);
+				distProj1 = sqrt( pma::Dist2(endpoint1, proj1) );
+
+				endpoint2.SetXYZ(endpoint2.X(), 0., endpoint2.Z());
+				trk1back0.SetXYZ(trk1back0.X(), 0., trk1back0.Z());
+				trk1back1.SetXYZ(trk1back1.X(), 0., trk1back1.Z());
+				proj2 = pma::GetProjectionToSegment(endpoint2, trk1back1, trk1back0);
+				distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
+			
+				double cosThrXZ = cos(0.5 * acos(cosThr));
+				double distProjThrXZ = 0.5 * distProjThr;
+				double cosXZ = dir1_xz * dir2_xz;
+				if ((cosXZ > cosThrXZ) && (distProj1 < distProjThrXZ) && (distProj2 < distProjThrXZ))
+					return true;
+			}
+		}
 	}
 	return false;
 }
@@ -624,7 +705,7 @@ void PMAlgTrackMaker::mergeCoLinear(std::vector< pma::Track3D* >& tracks)
 	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
 
 	double distProjThr = fMergeTransverseShift;
-	double cosThr = cos(fMergeAngle);
+	double cosThr = cos(TMath::Pi() * fMergeAngle / 180.0);
 
 	bool r;
 	double d, c;
@@ -669,13 +750,15 @@ void PMAlgTrackMaker::mergeCoLinear(std::vector< pma::Track3D* >& tracks)
 void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 {
 	double distThr = 0.25;    // max gap as a fraction of the longer track length
-	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
+	double distThrMin = 2.5;  // lower limit of max gap threshold [cm]
 
 	double distProjThr = fStitchTransverseShift;
-	double cosThr = cos(fStitchAngle);
+	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
 
 	double wallDistThr = fStitchDistToWall;
 	double dfront1, dback1, dfront2, dback2;
+
+	//for (auto & tpc_entry : tracks) freezeBranchingNodes(tpc_entry.second);
 
 	for (auto & tpc_entry1 : tracks)
 	{
@@ -746,6 +829,192 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 				delete best_trk2;
 			}
 			else t++;
+		}
+	}
+
+	//for (auto & tpc_entry : tracks) releaseAllNodes(tpc_entry.second);
+}
+// ------------------------------------------------------
+
+bool PMAlgTrackMaker::areCoLinear(double& cos3d,
+		TVector3 f0, TVector3 b0, TVector3 f1, TVector3 b1,
+		double distProjThr)
+{
+	TVector3 s0 = b0 - f0, s1 = b1 - f1;
+	cos3d = s0 * s1 / (s0.Mag() * s1.Mag());
+
+	TVector3 proj0 = pma::GetProjectionToSegment(b0, f1, b1);
+	double distProj0 = sqrt( pma::Dist2(b0, proj0) );
+
+	TVector3 proj1 = pma::GetProjectionToSegment(b1, f0, b0);
+	double distProj1 = sqrt( pma::Dist2(b1, proj1) );
+
+	double d = sqrt( pma::Dist2(b0, f1) );
+	double dThr = (1 + 0.02 * d) * distProjThr;
+
+	mf::LogVerbatim("PMAlgTrackMaker")
+		<< "   dThr:" << dThr << " d0:" << distProj0 << " d1:" << distProj1 << " c:" << cos3d;
+
+	if ((distProj0 < dThr) && (distProj1 < dThr))
+		return true;
+	else return false;
+}
+// ------------------------------------------------------
+
+void PMAlgTrackMaker::matchCoLinearAnyT0(std::vector< pma::Track3D* >& tracks)
+{
+	double distProjThr = fStitchTransverseShift;
+	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
+	double xApaDistDiffThr = 1.0;
+
+	for (size_t u = 0; u < tracks.size(); u++)
+	{
+		pma::Track3D* trk1 = tracks[u];
+
+		unsigned int tpcFront1 = trk1->FrontTPC(), cryoFront1 = trk1->FrontCryo();
+		unsigned int tpcBack1 = trk1->BackTPC(), cryoBack1 = trk1->BackCryo();
+
+		unsigned int firstPlane = 0;
+		while ((firstPlane < 3) && !fGeom->TPC(tpcFront1, cryoFront1).HasPlane(firstPlane)) firstPlane++;
+
+		double dxFront1 = trk1->front()->Point3D().X();
+		dxFront1 -= fGeom->TPC(tpcFront1, cryoFront1).PlaneLocation(firstPlane)[0];
+
+		firstPlane = 0;
+		while ((firstPlane < 3) && !fGeom->TPC(tpcBack1, cryoBack1).HasPlane(firstPlane)) firstPlane++;
+
+		double dxBack1 = trk1->back()->Point3D().X();
+		dxBack1 -= fGeom->TPC(tpcBack1, cryoBack1).PlaneLocation(firstPlane)[0];
+
+		size_t best_idx = 0;
+		pma::Track3D* best_trk2 = 0;
+		double dx1 = 0.0, dx2 = 0.0, c, cmax = cosThr;
+		bool reverse = false, flip1 = false, flip2 = false;
+		TVector3 f0, b0, f1, b1;
+		for (size_t t = u + 1; t < tracks.size(); t++)
+		{
+			pma::Track3D* trk2 = tracks[t];
+			if (trk2->GetXShift() != 0.0) continue;
+
+			unsigned int tpcFront2 = trk2->FrontTPC(), cryoFront2 = trk2->FrontCryo();
+			unsigned int tpcBack2 = trk2->BackTPC(), cryoBack2 = trk2->BackCryo();
+
+			firstPlane = 0;
+			while ((firstPlane < 3) && !fGeom->TPC(tpcFront2, cryoFront2).HasPlane(firstPlane)) firstPlane++;
+
+			double dxFront2 = trk2->front()->Point3D().X();
+			dxFront2 -= fGeom->TPC(tpcFront2, cryoFront2).PlaneLocation(firstPlane)[0];
+
+			firstPlane = 0;
+			while ((firstPlane < 3) && !fGeom->TPC(tpcBack2, cryoBack2).HasPlane(firstPlane)) firstPlane++;
+
+			double dxBack2 = trk2->back()->Point3D().X();
+			if (dxBack2 > 0.0) dxBack2 -= fGeom->TPC(tpcBack2, cryoBack2).PlaneLocation(firstPlane)[0];
+
+			mf::LogVerbatim("PMAlgTrackMaker")
+				<< "   xf1:" << dxFront1 << " xb1:" << dxBack1
+				<< "   xf2:" << dxFront2 << " xb2:" << dxBack2;
+
+			if ((cryoFront1 == cryoFront2) && (dxFront1 * dxFront2 < 0.0) &&
+			    (fabs(dxFront1 + dxFront2) < xApaDistDiffThr))
+			{
+				if (fabs(dxFront1) < fabs(dxFront2)) dxFront2 = -dxFront1;
+				else dxFront1 = -dxFront2;
+
+				f0 = trk1->Nodes()[1]->Point3D(); f0.SetXYZ(f0.X() - dxFront1, f0.Y(), f0.Z());
+				b0 = trk1->Nodes()[0]->Point3D(); b0.SetXYZ(b0.X() - dxFront1, b0.Y(), b0.Z());
+				f1 = trk2->Nodes()[0]->Point3D(); f1.SetXYZ(f1.X() - dxFront2, f1.Y(), f1.Z());
+				b1 = trk2->Nodes()[1]->Point3D(); b1.SetXYZ(b1.X() - dxFront2, b1.Y(), b1.Z());
+				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
+				{
+					cmax = c; reverse = false; flip1 = true; flip2 = false;
+					best_idx = t; best_trk2 = trk2;
+					dx1 = dxFront1; dx2 = dxFront2;
+				}
+			}
+			else if ((cryoFront1 == cryoBack2) && (dxFront1 * dxBack2 < 0.0) &&
+			    (fabs(dxFront1 + dxBack2) < xApaDistDiffThr))
+			{
+				if (fabs(dxFront1) < fabs(dxBack2)) dxBack2 = -dxFront1;
+				else dxFront1 = -dxBack2;
+
+				f0 = trk1->Nodes()[1]->Point3D(); f0.SetXYZ(f0.X() - dxFront1, f0.Y(), f0.Z());
+				b0 = trk1->Nodes()[0]->Point3D(); b0.SetXYZ(b0.X() - dxFront1, b0.Y(), b0.Z());
+				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetXYZ(f1.X() - dxBack2, f1.Y(), f1.Z());
+				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetXYZ(b1.X() - dxBack2, b1.Y(), b1.Z());
+				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
+				{
+					cmax = c; reverse = true; flip1 = false; flip2 = false;
+					best_idx = t; best_trk2 = trk2;
+					dx1 = dxFront1; dx2 = dxBack2;
+				}
+			}
+			else if ((cryoBack1 == cryoFront2) && (dxBack1 * dxFront2 < 0.0) &&
+			    (fabs(dxBack1 + dxFront2) < xApaDistDiffThr))
+			{
+				if (fabs(dxBack1) < fabs(dxFront2)) dxFront2 = -dxBack1;
+				else dxBack1 = -dxFront2;
+
+				f0 = trk1->Nodes()[trk1->Nodes().size() - 2]->Point3D(); f0.SetXYZ(f0.X() - dxBack1, f0.Y(), f0.Z());
+				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetXYZ(b0.X() - dxBack1, b0.Y(), b0.Z());
+				f1 = trk2->Nodes()[0]->Point3D(); f1.SetXYZ(f1.X() - dxFront2, f1.Y(), f1.Z());
+				b1 = trk2->Nodes()[1]->Point3D(); b1.SetXYZ(b1.X() - dxFront2, b1.Y(), b1.Z());
+				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
+				{
+					cmax = c; reverse = false; flip1 = false; flip2 = false;
+					best_idx = t; best_trk2 = trk2;
+					dx1 = dxBack1; dx2 = dxFront2;
+				}
+			}
+			else if ((cryoBack1 == cryoBack2) && (dxBack1 * dxBack2 < 0.0) &&
+			    (fabs(dxBack1 + dxBack2) < xApaDistDiffThr))
+			{
+				if (fabs(dxBack1) < fabs(dxBack2)) dxBack2 = -dxBack1;
+				else dxBack1 = -dxBack2;
+
+				f0 = trk1->Nodes()[trk1->Nodes().size() - 2]->Point3D(); f0.SetXYZ(f0.X() - dxBack1, f0.Y(), f0.Z());
+				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetXYZ(b0.X() - dxBack1, b0.Y(), b0.Z());
+				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetXYZ(f1.X() - dxBack2, f1.Y(), f1.Z());
+				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetXYZ(b1.X() - dxBack2, b1.Y(), b1.Z());
+				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
+				{
+					cmax = c; reverse = false; flip1 = false; flip2 = true;
+					best_idx = t; best_trk2 = trk2;
+					dx1 = dxBack1; dx2 = dxBack2;
+				}
+			}
+		}
+		if (best_trk2)
+		{
+			if (reverse)
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "Match cross-APA tracks: ("
+					<< best_idx << ":" << best_trk2->size() << ") and ("
+					<< u << ":" << trk1->size() << ")";
+			}
+			else
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "Match cross-APA tracks: ("
+					<< u << ":" << trk1->size() << ") and ("
+					<< best_idx << ":" << best_trk2->size() << ")";
+			}
+
+			if (flip1) trk1->Flip();
+			if (flip2) best_trk2->Flip();
+
+			trk1->GetRoot()->ApplyXShiftInTree(-dx1);
+			best_trk2->GetRoot()->ApplyXShiftInTree(-dx2);
+
+			if (reverse)
+			{
+				best_trk2->SetSubsequentTrack(trk1);
+				trk1->SetPrecedingTrack(best_trk2);
+			}
+			else
+			{
+				trk1->SetSubsequentTrack(best_trk2);
+				best_trk2->SetPrecedingTrack(trk1);
+			}
 		}
 	}
 }
@@ -862,6 +1131,16 @@ bool PMAlgTrackMaker::reassignSingleViewEnds(std::vector< pma::Track3D* >& track
 }
 // ------------------------------------------------------
 
+void PMAlgTrackMaker::guideEndpoints(std::vector< pma::Track3D* >& tracks)
+{
+	for (size_t t = 0; t < tracks.size(); t++)
+	{
+		pma::Track3D& trk = *(tracks[t]);
+		fProjectionMatchingAlg.guideEndpoints(trk, c_t_v_hits[trk.FrontCryo()][trk.FrontTPC()]);
+	}
+}
+// ------------------------------------------------------
+
 bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 {
 	c_t_v_hits.clear();
@@ -889,17 +1168,23 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
-	fEvNumber = evt.id().event();
-	fIsRealData = evt.isRealData();
+	reset(evt); // set default values, clear containers at the beginning of each event
 
 	std::vector< pma::Track3D* > result;
 
 	std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
 	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
+	std::unique_ptr< std::vector< recob::Vertex > > vtxs(new std::vector< recob::Vertex >);
+	std::unique_ptr< std::vector< anab::T0 > > t0s(new std::vector< anab::T0 >);
 
+	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit_oldway(new art::Assns< recob::Track, recob::Hit >);
 	std::unique_ptr< art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta > > trk2hit(new art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta >);
+
 	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
+	std::unique_ptr< art::Assns< recob::Track, anab::T0 > > trk2t0(new art::Assns< recob::Track, anab::T0 >);
+
 	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
+	std::unique_ptr< art::Assns< recob::Vertex, recob::Track > > vtx2trk(new art::Assns< recob::Vertex, recob::Track >);
 
 	if (sortHits(evt))
 	{
@@ -932,9 +1217,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			double dQdxFlipThr = 0.0;
 			if (fFlipToBeam) dQdxFlipThr = 0.4;
 
-			fTrkIndex = 0;
-			for (auto const& trk : result)
+			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); fTrkIndex++)
 			{
+				pma::Track3D* trk = result[fTrkIndex];
+
 				if (fFlipToBeam)    // flip the track to the beam direction
 				{
 					double z0 = trk->front()->Point3D().Z();
@@ -952,7 +1238,17 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
 
 				tracks->push_back(convertFrom(*trk));
-				fTrkIndex++;
+
+				double xShift = trk->GetXShift();
+				if (xShift > 0.0)
+				{
+					double tisk2time = 1.0; // what is the coefficient, offset?
+					double t0time = tisk2time * xShift / fDetProp->GetXTicksCoefficient(trk->FrontTPC(), trk->FrontCryo());
+
+					// TriggBits=3 means from 3d reco (0,1,2 mean something else)
+					t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
+					util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
+				}
 
 				std::vector< art::Ptr< recob::Hit > > hits2d;
 				art::PtrVector< recob::Hit > sp_hits;
@@ -963,19 +1259,18 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					pma::Hit3D* h3d = (*trk)[h];
 					hits2d.push_back(h3d->Hit2DPtr());
 
-					if ((h == 0) ||
-					      (sp_pos[0] != h3d->Point3D().X()) ||
-					      (sp_pos[1] != h3d->Point3D().Y()) ||
-					      (sp_pos[2] != h3d->Point3D().Z()))
+					double hx = h3d->Point3D().X() + xShift;
+					double hy = h3d->Point3D().Y();
+					double hz = h3d->Point3D().Z();
+
+					if ((h == 0) || (sp_pos[0] != hx) || (sp_pos[1] != hy) || (sp_pos[2] != hz))
 					{
 						if (sp_hits.size()) // hits assigned to the previous sp
 						{
 							util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
 							sp_hits.clear();
 						}
-						sp_pos[0] = h3d->Point3D().X();
-						sp_pos[1] = h3d->Point3D().Y();
-						sp_pos[2] = h3d->Point3D().Z();
+						sp_pos[0] = hx; sp_pos[1] = hy; sp_pos[2] = hz;
 						allsp->push_back(recob::SpacePoint(sp_pos, sp_err, 1.0));
 					}
 					sp_hits.push_back(h3d->Hit2DPtr());
@@ -995,10 +1290,41 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					{
 						recob::TrackHitMeta metadata(hidx);
 						trk2hit->addSingle(trkPtr, hits2d[hidx], metadata);
+
+						trk2hit_oldway->addSingle(trkPtr, hits2d[hidx]);
 					}
 
 					util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
 				}
+			}
+
+			if (fRunVertexing) // save vertices and vtx-trk assns
+			{
+				art::ProductID vid = getProductID< std::vector<recob::Vertex> >(evt);
+				art::ProductID tid = getProductID< std::vector<recob::Track> >(evt);
+				auto const* getter = evt.productGetter(tid);
+
+				int vidx = 0; double xyz[3];
+				auto vsel = fPMAlgVertexing.getVertices(result);
+				for (auto const & v : vsel)
+				{
+					xyz[0] = v.first.X();
+					xyz[1] = v.first.Y();
+					xyz[2] = v.first.Z();
+					mf::LogVerbatim("Summary")
+						<< "  vtx:" << xyz[0] << ":" << xyz[1] << ":" << xyz[2]
+						<< "  (" << v.second.size() << " tracks)";
+					vtxs->push_back(recob::Vertex(xyz, vidx++));
+
+					size_t vidx = (size_t)(vtxs->size() - 1);
+					art::Ptr<recob::Vertex> vptr(vid, vidx, evt.productGetter(vid));
+					for (size_t tidx : v.second)
+					{
+						art::Ptr<recob::Track> tptr(tid, tidx, getter);
+						vtx2trk->addSingle(vptr, tptr);
+					}
+				}
+				mf::LogVerbatim("Summary") << vtxs->size() << " vertices ready";
 			}
 
 			// data prods done, delete all pma::Track3D's
@@ -1009,10 +1335,16 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	evt.put(std::move(tracks));
 	evt.put(std::move(allsp));
+	evt.put(std::move(vtxs));
+	evt.put(std::move(t0s));
 
+	evt.put(std::move(trk2hit_oldway));
 	evt.put(std::move(trk2hit));
 	evt.put(std::move(trk2sp));
+	evt.put(std::move(trk2t0));
+
 	evt.put(std::move(sp2hit));
+	evt.put(std::move(vtx2trk));
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
@@ -1048,15 +1380,16 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 		}
 
 		// try correcting track ends:
+		//   - 3D ref.points for clean endpoints of wire-plae parallel tracks
 		//   - single-view sections spuriously merged on 2D clusters level
 		for (auto tpc_iter = fGeom->begin_TPC_id();
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
 		{
+			guideEndpoints(tracks[tpc_iter->TPC]);
 			reassignSingleViewEnds(tracks[tpc_iter->TPC]);
 		}
 
-		// merge co-linear parts inside each tpc
 		if (fMergeWithinTPC)
 		{
 			for (auto tpc_iter = fGeom->begin_TPC_id();
@@ -1068,23 +1401,36 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 			}
 		}
 
-		// merge co-linear parts between tpc's
 		if (fStitchBetweenTPCs)
 		{
 			mf::LogVerbatim("PMAlgTrackMaker") << "Stitch co-linear tracks between TPCs.";
 			mergeCoLinear(tracks);
 		}
 
-		for (auto const & tpc_entry : tracks)
-			for (auto const & trk : tpc_entry.second)
-				result.push_back(trk);
+		for (auto const & tpc_entry : tracks) // put tracks in the single collection
+			for (auto trk : tpc_entry.second)
+		{
+			fProjectionMatchingAlg.setTrackTag(*trk); // tag EM-like tracks
+			result.push_back(trk);
+		}
 
-		// used for development
-		listUsedClusters(cluListHandle);
+		if (fRunVertexing)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Vertex finding / track-vertex reoptimization.";
+			fPMAlgVertexing.run(result);
+		}
+
+		if (fMatchT0inAPACrossing)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Find co-linear APA-crossing tracks with any T0.";
+			matchCoLinearAnyT0(result);
+		}
+
+		listUsedClusters(cluListHandle); // used for development
 	}
 	else
 	{
-		mf::LogWarning("PMAlgTrackMaker") << "no clusters";
+		mf::LogVerbatim("PMAlgTrackMaker") << "no clusters";
 		return -1;
 	}
 
@@ -1331,7 +1677,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 		}
 		else
 		{
-			mf::LogWarning("PMAlgTrackMaker") << "small clusters only";
+			mf::LogVerbatim("PMAlgTrackMaker") << "small clusters only";
 		}
 	} // end loop over clusters, any view, from the largest
 }

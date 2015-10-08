@@ -7,11 +7,11 @@
  *
  *          Build 3D segments and whole tracks by simultaneous matching hits in 2D projections.
  *          Based on the "Precise 3D track reco..." AHEP (2013) 260820, with all the tricks that we
- *          developed later and with the work for the full-event topology optimization that is still
- *          under construction.
+ *          developed later and with the work for the track-vertex topology optimization done at FNAL.
  *
  *          Progress:
- *             May-June 2015:  basic functionality for single (not-branching) track 3D optimization and dQ/dx.
+ *             May-June 2015:  basic functionality for single (not-branching) 3D track optimization and dQ/dx.
+ *             August 2015:    3D vertex finding and branching tracks optimization.
  */
 
 #ifndef PmaTrack3D_h
@@ -31,6 +31,7 @@ class pma::Track3D
 public:
 	enum ETrackEnd { kBegin = -1, kEnd = 1 };
 	enum EDirection { kForward = -1, kBackward = 1 };
+	enum ETag { kNotTagged = -1, kTrackLike = 0, kEmLike = 1, kStopping = 2 };
 
 	Track3D(void);
 	Track3D(const Track3D& src);
@@ -38,6 +39,8 @@ public:
 
 	void Initialize(float initEndSegW = 0.05F);
 
+	pma::Hit3D* release_at(size_t index);
+	void push_back(pma::Hit3D* hit) { fHits.push_back(hit); }
 	bool push_back(art::Ptr< recob::Hit > hit);
 	bool erase(art::Ptr< recob::Hit > hit);
 
@@ -64,6 +67,7 @@ public:
 
 	unsigned int NHits(unsigned int view) const;
 	unsigned int NEnabledHits(unsigned int view = geo::kUnknown) const;
+	bool HasTwoViews(size_t nmin = 1) const;
 
 	std::vector< unsigned int > TPCs(void) const;
 	std::vector< unsigned int > Cryos(void) const;
@@ -132,6 +136,7 @@ public:
 		unsigned int skip = 0, bool inclDisabled = false) const;
 
 	void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
+	void AddRefPoint(double x, double y, double z) { fAssignedPoints.push_back(new TVector3(x, y, z)); }
 	bool HasRefPoint(TVector3* p) const;
 
 	/// MSE of hits weighted with hit amplidudes and wire plane coefficients.
@@ -146,12 +151,32 @@ public:
 	/// Main optimization method.
 	double Optimize(int nNodes = -1, double eps = 0.01, bool selAllHits = true);
 
+	void SortHitsInTree(bool skipFirst = false);
+	void MakeProjectionInTree(bool skipFirst = false);
+	void UpdateParamsInTree(bool skipFirst = false);
+	double GetObjFnInTree(bool skipFirst = false);
+	double TuneSinglePass(bool skipFirst = false);
+	double TuneFullTree(double eps = 0.001);
+
+	/// Adjust tree position in drift direction (when T0 is corrected).
+	void ApplyXShiftInTree(double dx, bool skipFirst = false);
+	double GetXShift(void) const { return fXShift; }
+
+	/// Track found with stitching, but not included in the Prev/Next structure
+	/// (used to point tracks crossing APA, found at the end of processing).
+	pma::Track3D* GetPrecedingTrack(void) const { return fPrecedingTrack; }
+	void SetPrecedingTrack(pma::Track3D* trk) { fPrecedingTrack = trk; }
+	pma::Track3D* GetSubsequentTrack(void) const { return fSubsequentTrack; }
+	void SetSubsequentTrack(pma::Track3D* trk) { fSubsequentTrack = trk; }
+
 	/// Cut out tails with no hits assigned.
 	void CleanupTails(void);
 
 	/// Move the first/last Node3D to the first/last hit in the track;
 	/// returns true if all OK, false if empty segments found.
 	bool ShiftEndsToHits(void);
+
+	std::vector< pma::Segment3D* > const & Segments(void) const { return fSegments; }
 
 	pma::Segment3D* NextSegment(pma::Node3D* vtx) const;
 	pma::Segment3D* PrevSegment(pma::Node3D* vtx) const;
@@ -160,8 +185,21 @@ public:
 	pma::Node3D* FirstElement(void) const { return fNodes.front(); }
 	pma::Node3D* LastElement(void) const { return fNodes.back(); }
 
-	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo);
+	void AddNode(pma::Node3D* node);
+	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo) { AddNode(new pma::Node3D(p3d, tpc, cryo)); }
 	bool AddNode(void);
+
+	void InsertNode(
+		TVector3 const & p3d, size_t after_idx,
+		unsigned int tpc, unsigned int cryo);
+	pma::Node3D* ExtractNodeCopy(size_t idx); // used to split branching track, *** need to be reorganised ***
+	bool RemoveNode(size_t idx);
+
+	bool AttachTo(pma::Node3D* vStart);
+	bool IsAttachedTo(pma::Track3D const * trk) const;
+
+	pma::Track3D* GetRoot(void);
+	void GetBranches(std::vector< pma::Track3D const * >& branches) const;
 
 	void MakeProjection(void);
 	void UpdateProjection(void);
@@ -170,14 +208,17 @@ public:
 	unsigned int DisableSingleViewEnds(void);
 	void SelectHits(float fraction = 1.0F);
 
-	float GetEndSegWeight(void) { return fEndSegWeight; }
+	float GetEndSegWeight(void) const { return fEndSegWeight; }
 	void SetEndSegWeight(float value) { fEndSegWeight = value; }
 
-	float GetPenalty(void) { return fPenaltyFactor; }
+	float GetPenalty(void) const { return fPenaltyFactor; }
 	void SetPenalty(float value) { fPenaltyFactor = value; }
 
-	unsigned int GetMaxHitsPerSeg(void) { return fMaxHitsPerSeg; }
+	unsigned int GetMaxHitsPerSeg(void) const { return fMaxHitsPerSeg; }
 	void SetMaxHitsPerSeg(unsigned int value) { fMaxHitsPerSeg = value; }
+
+	ETag GetTag(void) const { return fTag; }
+	void SetTag(ETag value) { fTag = value; }
 
 private:
 	void ClearNodes(void);
@@ -192,6 +233,10 @@ private:
 	bool InitFromHits(int tpc, int cryo, float initEndSegW = 0.05F);
 	bool InitFromRefPoints(int tpc, int cryo);
 	void InitFromMiddle(int tpc, int cryo);
+
+	pma::Track3D* GetNearestTrkInTree(const TVector3& p3d_cm, double& dist, bool skipFirst = false);
+	pma::Track3D* GetNearestTrkInTree(const TVector2& p2d_cm, unsigned int view, double& dist, bool skipFirst = false);
+	void ReassignHitsInTree(pma::Track3D* plRoot = 0);
 
 	/// Distance to the nearest subsequent (dir = Track3D::kForward) or preceeding (dir = Track3D::kBackward)
 	/// hit in given view. In case of last (first) hit in this view the half-distance in opposite direction is
@@ -232,6 +277,13 @@ private:
 	float fPenaltyValue;
 	float fEndSegWeight;
 	float fHitsRadius;
+
+	double fXShift;
+
+	pma::Track3D* fPrecedingTrack;
+	pma::Track3D* fSubsequentTrack;
+
+	ETag fTag;
 };
 
 #endif

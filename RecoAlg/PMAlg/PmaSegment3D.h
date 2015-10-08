@@ -34,6 +34,9 @@ public:
 	/// Distance [cm] from the 2D point to the object's 2D projection in one of wire views.
 	virtual double GetDistance2To(const TVector2& p2d, unsigned int view) const;
 
+	/// Get 3D direction cosines.
+	TVector3 GetDirection3D(void) const;
+
 	/// Get 3D projection of a 2D point from the view.
 	TVector3 GetProjection(const TVector2& p, unsigned int view) const;
 
