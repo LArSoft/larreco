@@ -1,6 +1,6 @@
-#include "showerfindermodules.fcl"
 #include "calorimetry_dune35t.fcl"
 #include "calorimetry_dune10kt.fcl"
+#include "showerfindermodules.fcl"
 
 BEGIN_PROLOG
 
