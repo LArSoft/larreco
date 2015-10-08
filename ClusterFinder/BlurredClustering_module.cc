@@ -132,16 +132,15 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   if (fGlobalTPCRecon) {
 
     // Make a map between the planes and the hits on each
-    std::map<int,std::vector<art::Ptr<recob::Hit> > > planeToHits;
+    std::map<std::pair<int,int>,std::vector<art::Ptr<recob::Hit> > > planeToHits;
     for (size_t hitIt = 0; hitIt < hitCollection->size(); ++hitIt)
-      if (hitCollection->at(hitIt).WireID().TPC % 2 != 0)
-	planeToHits[hitCollection->at(hitIt).WireID().Plane].push_back(art::Ptr<recob::Hit>(hitCollection,hitIt));
+      planeToHits[std::make_pair(hitCollection->at(hitIt).WireID().Plane,hitCollection->at(hitIt).WireID().TPC%2)].push_back(art::Ptr<recob::Hit>(hitCollection,hitIt));
 
     // Loop over views
-    for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeToHits.begin(); planeIt != planeToHits.end(); ++planeIt) {
+    for (std::map<std::pair<int,int>,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeToHits.begin(); planeIt != planeToHits.end(); ++planeIt) {
 
-      fBlurredClusteringAlg.SetPlaneParameters(planeIt->first, 0, 0);
-      fMergeClusterAlg.SetPlaneParameters(planeIt->first, 0, 0);
+      fBlurredClusteringAlg.SetPlaneParameters(planeIt->first.first, planeIt->first.second, 0);
+      fMergeClusterAlg.SetPlaneParameters(planeIt->first.first, planeIt->first.second, 0);
 
       // Make the clusters
       std::vector<art::PtrVector<recob::Hit> > finalClusters;
@@ -153,6 +152,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       else
 	hitsToCluster = planeIt->second;
       cluster(hitsToCluster, finalClusters);
+
+      std::cout << "Number of final clusters... " << finalClusters.size() << std::endl;
 
       for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = finalClusters.begin(); clusIt != finalClusters.end(); ++clusIt) {
 
