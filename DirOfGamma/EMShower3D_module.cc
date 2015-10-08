@@ -13,6 +13,9 @@
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "art/Framework/Services/Optional/TFileService.h" 
+#include "art/Framework/Services/Optional/TFileDirectory.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "Utilities/DetectorProperties.h"
