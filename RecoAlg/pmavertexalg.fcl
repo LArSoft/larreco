@@ -1,0 +1,14 @@
+BEGIN_PROLOG
+
+# separate fcl since there is no other place for vertex algorithm configurations yet
+# please, feel free to move this configuration to a common place when there is such
+
+standard_pmavertexalg:
+{
+  MinTrackLength:         3.0  # min. length of tracks used to find vtx candidates (short tracks attached later)
+
+# InputVtxDist2D:         0.5  # use vtx given at input if dist. [cm] to track in all 2D projections is below this max. value
+# InputVtxDistY:          5.0  # use vtx given at input if dist. [cm] to track in 3D-Y is below this max. value
+}
+
+END_PROLOG

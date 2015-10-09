@@ -1,0 +1,49 @@
+#include "services_dune.fcl"
+
+process_name: celltree
+
+services:
+{
+  # TFileService: { fileName: "test.root" }
+  Timing:       {}
+  RandomNumberGenerator: {}
+  message:      @local::standard_info
+  user:          @local::protodune_services
+}
+
+
+source:
+{
+  module_type: RootInput
+  fileNames:  [ "gen.root" ]
+  firstEvent : 1
+  maxEvents:  -1
+}
+
+
+outputs:{}
+
+
+physics:
+{
+  analyzers:
+  {
+    WireCell:
+    {
+      module_type     : "CellTree"
+      saveRaw         : false
+      saveCalib       : false
+      saveSimChannel  : false
+      saveMC          : true
+      saveJSON        : true
+      RawDigitLabel   : "daq"
+      CalibLabel      : "caldata"
+      SpacePointLabels: ["pmtrackdc"]
+      mcOption        : "all"
+      outFile         : "celltree.root"
+    }
+  }
+  analysis: [ WireCell ]
+  end_paths: [ analysis ]
+}
+

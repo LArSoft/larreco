@@ -1,5 +1,6 @@
 #include "trackfinderalgorithms.fcl"
 #include "clusteralgorithms.fcl"
+#include "pmavertexalg.fcl"
 
 BEGIN_PROLOG
 
@@ -35,6 +36,9 @@ standard_pmalgtrackmaker:
 {
   module_type:            "PMAlgTrackMaker"
   ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+  PMAlgVertexing:         @local::standard_pmavertexalg
+                                      #
+  RunVertexing:           false       # find vertices, join with tracks, reoptimize track-vertex structure
                                       #
   HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
   ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
@@ -46,7 +50,7 @@ standard_pmalgtrackmaker:
                                       #    used by the shower reconstruction but not yet ready)
                                       #
   MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
-  MinSeedSize2ndPass:     5           # ..and in the 2nd pass: differentiate to speed up finding long tracks
+  MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks
                                       # w/o checking large number of possibilities, then use as small size
                                       # as reasonnable for used clustering algorithm to complete the search
                                       # in the second pass
@@ -59,12 +63,15 @@ standard_pmalgtrackmaker:
                                       #
   MergeWithinTPC:         false       # merge witnin single TPC; finds tracks best matching by angle, with limits:
   MergeTransverseShift:   2.0         #    - max. transverse displacement [cm] between tracks
-  MergeAngle:             0.5         #    - max. angle [degree] between tracks (nearest segments)
+  MergeAngle:             2.0         #    - max. angle [degree] between tracks (nearest segments)
                                       #
   StitchBetweenTPCs:      true        # stitch between TPCs; finds tracks best matching by angle, with limits:
   StitchDistToWall:       3.0         #    - max. track endpoint distance [cm] to TPC boundary
   StitchTransverseShift:  3.0         #    - max. transverse displacement [cm] between tracks
-  StitchAngle:            7.0         #    - max. angle [degree] between tracks (nearest segments)
+  StitchAngle:           10.0         #    - max. angle [degree] between tracks (nearest segments)
+                                      #
+  MatchT0inAPACrossing:   false       # match T0 of APA-crossing tracks, TPC stitching limits are used, but track
+                                      # parts are not stitched into a single recob::Track
 }
 
 standard_featuretracker:

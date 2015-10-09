@@ -11,6 +11,8 @@
 
 #include "RecoAlg/PMAlg/SortedObjects.h"
 
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
 #include <iostream>
 
 //***********************  SortedObjectBase  ***********************
@@ -49,7 +51,7 @@ int pma::SortedObjectBase::RemoveNext(pma::SortedObjectBase* nextElement)
 		if (next->prev == this) next->prev = 0;
 		else
 		{
-			std::cout << "Object structure is broken." << std::endl;
+			mf::LogError("pma::SortedObjectBase") << "Object structure is broken.";
 		}
 
 		next = 0;
@@ -70,13 +72,13 @@ bool pma::SortedBranchBase::AddNext(pma::SortedObjectBase* nextElement)
 {
 	if (!nextElement)
 	{
-		std::cout << "Next == 0." << std::endl;
+		mf::LogError("pma::SortedBranchBase") << "Next == 0.";
 		return false;
 	}
 
 	if (nextElement == this)
 	{
-		std::cout << "Next == This." << std::endl;
+		mf::LogWarning("pma::SortedBranchBase") << "Next == This.";
 		return false;
 	}
 
@@ -85,7 +87,7 @@ bool pma::SortedBranchBase::AddNext(pma::SortedObjectBase* nextElement)
 	{
 		if (next_vector[i] == nextElement)
 		{
-			std::cout << "Contained." << std::endl;
+			mf::LogWarning("pma::SortedBranchBase") << "Contained.";
 			present = true; break;
 		}
 	}
@@ -115,11 +117,10 @@ int pma::SortedBranchBase::RemoveNext(pma::SortedObjectBase* nextElement)
 	{
 		if (next_vector[index]->prev != this)
 		{
-			std::cout << "Object structure is broken." << std::endl;
+			mf::LogError("pma::SortedBranchBase") << "Object structure is broken.";
 			return -1;
 		}
 		next_vector[index]->prev = 0;
-		next_vector[index] = 0;
 		next_vector.erase(next_vector.begin() + index);
 
 		if (next_vector.size() > 0) next = next_vector.back();

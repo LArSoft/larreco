@@ -72,6 +72,7 @@ public:
 	void SortHits(void);
 
 	double SumDist2(void) const;
+	double SumDist2(unsigned int view) const;
 	double SumHitsQ(unsigned int view) const { return fSumHitsQ[view]; }
 	unsigned int NHits(unsigned int view) const { return fNHits[view]; }
 	unsigned int NThisHits(unsigned int view) const { return fNThisHits[view]; }

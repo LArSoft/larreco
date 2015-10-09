@@ -21,13 +21,14 @@
 #include "art/Utilities/Exception.h" 
 
 // LArSoft libraries
-#include "Filters/ChannelFilter.h"
 #include "SimpleTypesAndConstants/RawTypes.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/TPCGeo.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
+#include "CalibrationDBI/Interface/IChannelStatusService.h"
+#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 
 struct CluLen{
   int index;
@@ -220,7 +221,7 @@ namespace cluster {
   std::cout<<" is OK. nhits "<<nhts<<"\n";
 */
 	if (WireHitRange.empty()||(fFirstWire == fLastWire)){
-	  mf::LogWarning("CC")<<"No hits in "<<tpcid<<" plane "<<plane;
+	  LOG_DEBUG("CC")<<"No hits in "<<tpcid<<" plane "<<plane;
 	  continue;
 	}
 	else {
@@ -5344,14 +5345,16 @@ namespace cluster {
         WireHitRange.push_back(std::make_pair(sflag, sflag));
       }
       // overwrite with the "dead wires" condition
-      filter::ChannelFilter cf;
+      lariov::IChannelStatusProvider const& channelStatus
+        = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+
       sflag = -1;
       for(unsigned short wire = fFirstWire+1; wire < fLastWire; ++wire) {
         raw::ChannelID_t chan = geom->PlaneWireToChannel
           ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
         // remember to offset references to WireHitRange by the FirstWire
         unsigned short indx = wire - fFirstWire;
-        if(cf.BadChannel(chan)) WireHitRange[indx] = std::make_pair(sflag, sflag);
+        if(channelStatus.IsBad(chan)) WireHitRange[indx] = std::make_pair(sflag, sflag);
       }
       fLastWire = fFirstWire;
       unsigned int thishit = fFirstHit;

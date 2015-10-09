@@ -68,7 +68,7 @@ public:
   art::PtrVector<recob::Hit> ConvertBinsToRecobHits(TH2F* image, std::vector<int> const& bins);
   art::Ptr<recob::Hit> ConvertBinToRecobHit(TH2F* image, int const& bin);
   void ConvertBinsToClusters(TH2F *image, std::vector<std::vector<int> > const& allClusterBins, std::vector<art::PtrVector<recob::Hit> >& clusters);
-  void CreateDebugPDF();
+  void CreateDebugPDF(int run, int subrun, int event);
   TH2F ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > const& hits);
   TH2F* Convolve(TH2F* image, std::map<int,double> const& kernel, int const& width, int const& height, const char *new_name = 0);
   void FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick);
@@ -82,38 +82,10 @@ public:
   void SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int const& pad);
   void SaveImage(TH2F* image, int const& pad);
   void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int const& pad);
-  void SetEventParameters(unsigned int event, unsigned int run, unsigned int subrun, bool global) { fEvent = event; fRun = run; fSubrun = subrun; fGlobalTPCRecon = global; }
-  void SetPlaneParameters(unsigned int plane, unsigned int tpc, unsigned int cryostat) { fPlane = plane; fTPC = tpc; fCryostat = cryostat; fNTicks = fDetProp->ReadOutWindowSize(); fNWires = fGeom->Nwires(plane, tpc, cryostat); }
 
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
 
 private:
-
-  // Event/plane information
-  unsigned int fEvent;
-  unsigned int fRun;
-  unsigned int fSubrun;
-
-  unsigned int fPlane;
-  unsigned int fTPC;
-  unsigned int fCryostat;
-
-  unsigned int fNWires, fNTicks;
-  int fLowerHistTick, fUpperHistTick;
-  int fLowerHistWire, fUpperHistWire;
-
-  // Global TPC
-  bool fGlobalTPCRecon;
-
-  // For the debug pdf
-  TCanvas *fDebugCanvas;
-  std::string fDebugPDFName;
-
-  // Blurring stuff
-  int fLastBlurWire;
-  int fLastBlurTick;
-  double fLastSigma;
-  std::map<int,double> fLastKernel;
 
   // Parameters used in the Blurred Clustering algorithm
   int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
@@ -129,6 +101,20 @@ private:
   double       fMinSeed;                  // minimum seed after blurring needed before clustering proceeds
   double       fTimeThreshold;            // time threshold for clustering
   double       fChargeThreshold;          // charge threshold for clustering
+
+  // Wire and tick information for histograms
+  int fLowerHistTick, fUpperHistTick;
+  int fLowerHistWire, fUpperHistWire;
+
+  // Blurring stuff
+  int fLastBlurWire;
+  int fLastBlurTick;
+  double fLastSigma;
+  std::map<int,double> fLastKernel;
+
+  // For the debug pdf
+  TCanvas *fDebugCanvas;
+  std::string fDebugPDFName;
 
   // Create geometry and detector property handle
   art::ServiceHandle<geo::Geometry> fGeom;
