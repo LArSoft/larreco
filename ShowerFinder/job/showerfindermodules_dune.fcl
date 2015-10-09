@@ -1,0 +1,8 @@
+#include "showerfindermodules.fcl"
+
+BEGIN_PROLOG
+
+dune_emshower:         @local::standard_emshower
+
+END_PROLOG
+

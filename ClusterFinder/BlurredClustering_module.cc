@@ -29,7 +29,6 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
-#include "Filters/ChannelFilter.h"
 #include "ClusterFinder/ClusterCreator.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
@@ -98,11 +97,9 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   fRun    = evt.run();
   fSubrun = evt.subRun();
 
-  fBlurredClusteringAlg.SetEventParameters(fEvent, fRun, fSubrun, fGlobalTPCRecon);
-
   // Create debug pdf to illustrate the blurring process
   if (fCreateDebugPDF)
-    fBlurredClusteringAlg.CreateDebugPDF();
+    fBlurredClusteringAlg.CreateDebugPDF(fRun, fSubrun, fEvent);
 
   // Output containers -- collection of clusters and associations
   clusters.reset(new std::vector<recob::Cluster>);
@@ -125,23 +122,16 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   if (evt.getByLabel(fTrackModuleLabel,trackCollection))
     art::fill_ptr_vector(tracks, trackCollection);
 
-  // Get the channel filter
-  filter::ChannelFilter channelFilter;
-
   // Global recon -- merged TPCs
   if (fGlobalTPCRecon) {
 
     // Make a map between the planes and the hits on each
-    std::map<int,std::vector<art::Ptr<recob::Hit> > > planeToHits;
+    std::map<std::pair<int,int>,std::vector<art::Ptr<recob::Hit> > > planeToHits;
     for (size_t hitIt = 0; hitIt < hitCollection->size(); ++hitIt)
-      if (hitCollection->at(hitIt).WireID().TPC % 2 != 0)
-	planeToHits[hitCollection->at(hitIt).WireID().Plane].push_back(art::Ptr<recob::Hit>(hitCollection,hitIt));
+      planeToHits[std::make_pair(hitCollection->at(hitIt).WireID().Plane,hitCollection->at(hitIt).WireID().TPC%2)].push_back(art::Ptr<recob::Hit>(hitCollection,hitIt));
 
     // Loop over views
-    for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeToHits.begin(); planeIt != planeToHits.end(); ++planeIt) {
-
-      fBlurredClusteringAlg.SetPlaneParameters(planeIt->first, 0, 0);
-      fMergeClusterAlg.SetPlaneParameters(planeIt->first, 0, 0);
+    for (std::map<std::pair<int,int>,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeToHits.begin(); planeIt != planeToHits.end(); ++planeIt) {
 
       // Make the clusters
       std::vector<art::PtrVector<recob::Hit> > finalClusters;
@@ -205,9 +195,6 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 
     // Loop over views
     for (std::map<geo::PlaneID,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeIDToHits.begin(); planeIt != planeIDToHits.end(); ++planeIt) {
-
-      fBlurredClusteringAlg.SetPlaneParameters(planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
-      fMergeClusterAlg.SetPlaneParameters(planeIt->first.Plane, planeIt->first.TPC, planeIt->first.Cryostat);
 
       // Make the clusters
       std::vector<art::PtrVector<recob::Hit> > finalClusters;
