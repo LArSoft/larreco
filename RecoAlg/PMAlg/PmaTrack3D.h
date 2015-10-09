@@ -40,7 +40,7 @@ public:
 	void Initialize(float initEndSegW = 0.05F);
 
 	pma::Hit3D* release_at(size_t index);
-	void push_back(pma::Hit3D* hit) { fHits.push_back(hit); }
+	void push_back(pma::Hit3D* hit) { hit->fParent = this; fHits.push_back(hit); }
 	bool push_back(art::Ptr< recob::Hit > hit);
 	bool erase(art::Ptr< recob::Hit > hit);
 

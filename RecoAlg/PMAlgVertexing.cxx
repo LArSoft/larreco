@@ -142,12 +142,12 @@ bool pma::PMAlgVertexing::findOneVtx(std::vector< pma::VtxCandidate >& candidate
 				{
 					candidates[k] = candidates[l];
 					candidates.erase(candidates.begin() + l);
-					mf::LogVerbatim("pma::PMAlgVertexing") << "removed (k)";
+					//mf::LogVerbatim("pma::PMAlgVertexing") << "removed (k)";
 				}
 				else if (candidates[k].Has(candidates[l]))
 				{
 					candidates.erase(candidates.begin() + l);
-					mf::LogVerbatim("pma::PMAlgVertexing") << "removed (l)";
+					//mf::LogVerbatim("pma::PMAlgVertexing") << "removed (l)";
 				}
 				else
 				{
@@ -160,7 +160,7 @@ bool pma::PMAlgVertexing::findOneVtx(std::vector< pma::VtxCandidate >& candidate
 		}
 		if ((dmin < d_thr) && candidates[k_best].MergeWith(candidates[l_best]))
 		{
-			mf::LogVerbatim("pma::PMAlgVertexing") << "merged";
+			//mf::LogVerbatim("pma::PMAlgVertexing") << "merged";
 			candidates.erase(candidates.begin() + l_best);
 			merged = true;
 		}
@@ -168,7 +168,6 @@ bool pma::PMAlgVertexing::findOneVtx(std::vector< pma::VtxCandidate >& candidate
 
 	int s, nmax = 0, c_best = -1;
 	double a, amax = 0.0;
-	//bool pure_endpoints = false;
 
 	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx candidates: " << candidates.size();
 	for (size_t v = 0; v < candidates.size(); v++)
@@ -340,7 +339,7 @@ bool pma::PMAlgVertexing::isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk
 	double segCos = trk1->Segments().back()->GetDirection3D() * trk2->Segments().front()->GetDirection3D();
 	if (segCos < minCos)
 	{
-		mf::LogVerbatim("pma::PMAlgVertexing") << "  has large cos: " << segCos;
+		mf::LogVerbatim("pma::PMAlgVertexing") << "  has large angle, cos: " << segCos;
 		return false;
 	}
 

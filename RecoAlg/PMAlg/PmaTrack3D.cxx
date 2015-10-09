@@ -57,7 +57,12 @@ pma::Track3D::Track3D(const Track3D& src) :
 	fTag(src.fTag)
 {
 	fHits.reserve(src.fHits.size());
-	for (auto const& hit : src.fHits) fHits.push_back(new pma::Hit3D(*hit));
+	for (auto const& hit : src.fHits)
+	{
+		pma::Hit3D* h3d = new pma::Hit3D(*hit);
+		h3d->fParent = this;
+		fHits.push_back(h3d);
+	}
 
 	fNodes.reserve(src.fNodes.size());
 	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo()));
@@ -434,10 +439,7 @@ bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 		{
 			hit = (*this)[i];
 			x = fabs(detprop->ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo));
-			if (x < minX)
-			{
-				minX = x; hit0_a = hit;
-			}
+			if (x < minX) { minX = x; hit0_a = hit; }
 		}
 		minDiff = 5000;
 		for (size_t i = 0; i < size(); i++)
@@ -458,10 +460,7 @@ bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 		{
 			hit = (*this)[i];
 			x = fabs(detprop->ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo));
-			if (x > maxX)
-			{
-				maxX = x; hit1_a = hit;
-			}
+			if (x > maxX) { maxX = x; hit1_a = hit; }
 		}
 		minDiff = 5000;
 		for (size_t i = 0; i < size(); i++)
@@ -648,7 +647,9 @@ bool pma::Track3D::push_back(art::Ptr< recob::Hit > hit)
 	{
 		if (trk_hit->fHit == hit) return false;
 	}
-	fHits.push_back(new pma::Hit3D(hit));
+	pma::Hit3D* h3d = new pma::Hit3D(hit);
+	h3d->fParent = this;
+	fHits.push_back(h3d);
 	return true;
 }
 
@@ -668,6 +669,7 @@ bool pma::Track3D::erase(art::Ptr< recob::Hit > hit)
 
 void pma::Track3D::AddHits(const std::vector< art::Ptr<recob::Hit> >& hits)
 {
+	fHits.reserve(fHits.size() + hits.size());
 	for (auto const& hit : hits) push_back(hit);
 }
 
@@ -1824,7 +1826,7 @@ double pma::Track3D::TuneFullTree(double eps)
 	}
 	if (g0 == 0.0) return g0;
 
-	mf::LogVerbatim("pma::Track3D") << "tune obj fn start: " << g0;
+	mf::LogVerbatim("pma::Track3D") << "tune tree, g = " << g0;
 	unsigned int stepIter = 0;
 	do
 	{
@@ -1854,6 +1856,7 @@ double pma::Track3D::TuneFullTree(double eps)
 	MakeProjectionInTree();
 	SortHitsInTree();
 
+	mf::LogVerbatim("pma::Track3D") << "  done, g = " << g0;
 	return g0;
 }
 
@@ -1890,10 +1893,10 @@ void pma::Track3D::RebuildSegments(void)
 	for (size_t i = 0; i < fSegments.size(); i++) delete fSegments[i];
 	fSegments.clear();
 
+	fSegments.reserve(fNodes.size() - 1);
 	for (size_t i = 1; i < fNodes.size(); i++)
 	{
-		pma::Segment3D* s = new pma::Segment3D(this, fNodes[i - 1], fNodes[i]);
-		fSegments.push_back(s);
+		fSegments.push_back(new pma::Segment3D(this, fNodes[i - 1], fNodes[i]));
 	}
 }
 
@@ -2104,11 +2107,13 @@ bool pma::Track3D::GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3
 
 	pma::Segment3D* seg = 0;
 	double d2, min_d2 = 1.0e100;
+	int tpc = (int)hit->WireID().TPC;
+	int view = hit->WireID().Plane;
 	for (size_t i = 0; i < fSegments.size(); i++)
 	{
-		if (fSegments[i]->TPC() != (int)hit->WireID().TPC) continue;
+		if (fSegments[i]->TPC() != tpc) continue;
 
-		d2 = fSegments[i]->GetDistance2To(p2d, hit->WireID().Plane);
+		d2 = fSegments[i]->GetDistance2To(p2d, view);
 		if (d2 < min_d2)
 		{
 			min_d2 = d2; seg = fSegments[i];
@@ -2116,7 +2121,7 @@ bool pma::Track3D::GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3
 	}
 	if (seg)
 	{
-		p3d = seg->GetUnconstrainedProj3D(p2d, hit->WireID().Plane);
+		p3d = seg->GetUnconstrainedProj3D(p2d, view);
 		dist2 = min_d2;
 		
 		pma::Node3D* prev = static_cast< pma::Node3D* >(seg->Prev());
@@ -2129,6 +2134,8 @@ bool pma::Track3D::GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3
 void pma::Track3D::SortHits(void)
 {
 	std::vector< pma::Hit3D* > hits_tmp;
+	hits_tmp.reserve(size());
+
 	pma::Node3D* vtx = fNodes.front();
 	pma::Segment3D* seg = NextSegment(vtx);
 	while (vtx)
@@ -2137,12 +2144,7 @@ void pma::Track3D::SortHits(void)
 		for (size_t i = 0; i < vtx->NHits(); i++)
 		{
 			pma::Hit3D* h3d = &(vtx->Hit(i));
-			for (size_t j = 0; j < size(); j++)
-				if (fHits[j] == h3d)
-				{
-					hits_tmp.push_back(h3d);
-					break;
-				}
+			if (h3d->fParent == this) hits_tmp.push_back(h3d);
 		}
 
 		if (seg)
@@ -2151,12 +2153,7 @@ void pma::Track3D::SortHits(void)
 			for (size_t i = 0; i < seg->NHits(); i++)
 			{
 				pma::Hit3D* h3d = &(seg->Hit(i));
-				for (size_t j = 0; j < size(); j++)
-					if (fHits[j] == h3d)
-					{
-						hits_tmp.push_back(h3d);
-						break;
-					}
+				if (h3d->fParent == this) hits_tmp.push_back(h3d);
 			}
 
 			vtx = static_cast< pma::Node3D* >(seg->Next());
@@ -2170,14 +2167,6 @@ void pma::Track3D::SortHits(void)
 		for (size_t i = 0; i < size(); i++)
 		{
 			fHits[i] = hits_tmp[i];
-			/*mf::LogVerbatim("pma::Track3D")
-				<< " w:" << hits_tmp[i]->Wire()
-				<< " d:["
-					<< hits_tmp[i]->Hit2DPtr()->StartTick()
-					<< "; " << hits_tmp[i]->PeakTime()
-					<< "; " << hits_tmp[i]->Hit2DPtr()->EndTick() << "]"
-				<< " f:" << hits_tmp[i]->GetSegFraction()
-				<< " p:" << hits_tmp[i]->View2D();*/
 		}
 	}
 	else mf::LogError("pma::Track3D") << "Hit sorting problem.";
