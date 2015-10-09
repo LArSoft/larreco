@@ -27,6 +27,7 @@
 // LArSoft includes
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
+#include "AnalysisAlg/CalorimetryAlg.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
@@ -66,13 +67,15 @@ private:
   std::string fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel;
 
   EMShowerAlg fEMShowerAlg;
+  calo::CalorimetryAlg fCalorimetryAlg;
 
   art::ServiceHandle<geo::Geometry> fGeom;
   art::ServiceHandle<util::DetectorProperties> fDetProp;
 
 };
 
-shower::EMShower::EMShower(fhicl::ParameterSet const& pset) {
+shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(),
+							      fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")) {
   this->reconfigure(pset);
   produces<std::vector<recob::Shower> >();
   produces<art::Assns<recob::Shower, recob::Hit> >();
@@ -199,11 +202,11 @@ void shower::EMShower::produce(art::Event& evt) {
   	showerSpacePoints.push_back(*spacePointsIt);
     }
 
-    // Find the initial track-like part of the shower
+    // Find the properties of this shower
     TVector3 direction, directionError, vertex, vertexError;
     std::vector<double> totalEnergy, totalEnergyError, dEdx, dEdxError;
     int bestPlane;
-    fEMShowerAlg.FindShowerProperties(showerHits, fmt, direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
+    //fEMShowerAlg.FindShowerProperties(showerHits, fmt, fCalorimetryAlg, direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
 
     // Make shower object and associations
     showers->emplace_back(direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane, showerNum);

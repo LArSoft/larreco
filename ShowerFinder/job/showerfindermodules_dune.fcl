@@ -1,8 +1,14 @@
+#include "calorimetry_dune35t.fcl"
+#include "calorimetry_dune10kt.fcl"
 #include "showerfindermodules.fcl"
 
 BEGIN_PROLOG
 
-dune_emshower:         @local::standard_emshower
+dune35t_emshower: @local::standard_emshower
+dune35t_emshower.CalorimetryAlg: @local::dune35t_calorimetryalgmc
+
+dune10kt_emshower: @local::standard_emshower
+dune10kt_emshower.CalorimetryAlg: @local::dune10kt_calorimetryalgmc
 
 END_PROLOG
 
