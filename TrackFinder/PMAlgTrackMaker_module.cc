@@ -368,7 +368,7 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	for (size_t i = 0; i < src.size(); i++)
 	{
 		p3d = src[i]->Point3D();
-		if (has_shift) p3d.SetXYZ(p3d.X() + xshift, p3d.Y(), p3d.Z());
+		if (has_shift) p3d.SetX(p3d.X() + xshift);
 		xyz.push_back(p3d);
 
 		if (i < src.size() - 1)
@@ -672,15 +672,15 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 
 			if ((fabs(dir1_xz.Z()) > maxCosXZ) && (fabs(dir2_xz.Z()) > maxCosXZ))
 			{
-				endpoint1.SetXYZ(endpoint1.X(), 0., endpoint1.Z());
-				trk2front0.SetXYZ(trk2front0.X(), 0., trk2front0.Z());
-				trk2front1.SetXYZ(trk2front1.X(), 0., trk2front1.Z());
+				endpoint1.SetY(0.);
+				trk2front0.SetY(0.);
+				trk2front1.SetY(0.);
 				proj1 = pma::GetProjectionToSegment(endpoint1, trk2front0, trk2front1);
 				distProj1 = sqrt( pma::Dist2(endpoint1, proj1) );
 
-				endpoint2.SetXYZ(endpoint2.X(), 0., endpoint2.Z());
-				trk1back0.SetXYZ(trk1back0.X(), 0., trk1back0.Z());
-				trk1back1.SetXYZ(trk1back1.X(), 0., trk1back1.Z());
+				endpoint2.SetY(0.);
+				trk1back0.SetY(0.);
+				trk1back1.SetY(0.);
 				proj2 = pma::GetProjectionToSegment(endpoint2, trk1back1, trk1back0);
 				distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 			
@@ -918,10 +918,10 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(std::vector< pma::Track3D* >& tracks)
 				if (fabs(dxFront1) < fabs(dxFront2)) dxFront2 = -dxFront1;
 				else dxFront1 = -dxFront2;
 
-				f0 = trk1->Nodes()[1]->Point3D(); f0.SetXYZ(f0.X() - dxFront1, f0.Y(), f0.Z());
-				b0 = trk1->Nodes()[0]->Point3D(); b0.SetXYZ(b0.X() - dxFront1, b0.Y(), b0.Z());
-				f1 = trk2->Nodes()[0]->Point3D(); f1.SetXYZ(f1.X() - dxFront2, f1.Y(), f1.Z());
-				b1 = trk2->Nodes()[1]->Point3D(); b1.SetXYZ(b1.X() - dxFront2, b1.Y(), b1.Z());
+				f0 = trk1->Nodes()[1]->Point3D(); f0.SetX(f0.X() - dxFront1);
+				b0 = trk1->Nodes()[0]->Point3D(); b0.SetX(b0.X() - dxFront1);
+				f1 = trk2->Nodes()[0]->Point3D(); f1.SetX(f1.X() - dxFront2);
+				b1 = trk2->Nodes()[1]->Point3D(); b1.SetX(b1.X() - dxFront2);
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = false; flip1 = true; flip2 = false;
@@ -935,10 +935,10 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(std::vector< pma::Track3D* >& tracks)
 				if (fabs(dxFront1) < fabs(dxBack2)) dxBack2 = -dxFront1;
 				else dxFront1 = -dxBack2;
 
-				f0 = trk1->Nodes()[1]->Point3D(); f0.SetXYZ(f0.X() - dxFront1, f0.Y(), f0.Z());
-				b0 = trk1->Nodes()[0]->Point3D(); b0.SetXYZ(b0.X() - dxFront1, b0.Y(), b0.Z());
-				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetXYZ(f1.X() - dxBack2, f1.Y(), f1.Z());
-				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetXYZ(b1.X() - dxBack2, b1.Y(), b1.Z());
+				f0 = trk1->Nodes()[1]->Point3D(); f0.SetX(f0.X() - dxFront1);
+				b0 = trk1->Nodes()[0]->Point3D(); b0.SetX(b0.X() - dxFront1);
+				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetX(f1.X() - dxBack2);
+				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetX(b1.X() - dxBack2);
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = true; flip1 = false; flip2 = false;
@@ -952,10 +952,10 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(std::vector< pma::Track3D* >& tracks)
 				if (fabs(dxBack1) < fabs(dxFront2)) dxFront2 = -dxBack1;
 				else dxBack1 = -dxFront2;
 
-				f0 = trk1->Nodes()[trk1->Nodes().size() - 2]->Point3D(); f0.SetXYZ(f0.X() - dxBack1, f0.Y(), f0.Z());
-				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetXYZ(b0.X() - dxBack1, b0.Y(), b0.Z());
-				f1 = trk2->Nodes()[0]->Point3D(); f1.SetXYZ(f1.X() - dxFront2, f1.Y(), f1.Z());
-				b1 = trk2->Nodes()[1]->Point3D(); b1.SetXYZ(b1.X() - dxFront2, b1.Y(), b1.Z());
+				f0 = trk1->Nodes()[trk1->Nodes().size() - 2]->Point3D(); f0.SetX(f0.X() - dxBack1);
+				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetX(b0.X() - dxBack1);
+				f1 = trk2->Nodes()[0]->Point3D(); f1.SetX(f1.X() - dxFront2);
+				b1 = trk2->Nodes()[1]->Point3D(); b1.SetX(b1.X() - dxFront2);
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = false; flip1 = false; flip2 = false;
@@ -969,10 +969,10 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(std::vector< pma::Track3D* >& tracks)
 				if (fabs(dxBack1) < fabs(dxBack2)) dxBack2 = -dxBack1;
 				else dxBack1 = -dxBack2;
 
-				f0 = trk1->Nodes()[trk1->Nodes().size() - 2]->Point3D(); f0.SetXYZ(f0.X() - dxBack1, f0.Y(), f0.Z());
-				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetXYZ(b0.X() - dxBack1, b0.Y(), b0.Z());
-				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetXYZ(f1.X() - dxBack2, f1.Y(), f1.Z());
-				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetXYZ(b1.X() - dxBack2, b1.Y(), b1.Z());
+				f0 = trk1->Nodes()[trk1->Nodes().size() - 2]->Point3D(); f0.SetX(f0.X() - dxBack1);
+				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetX(b0.X() - dxBack1);
+				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetX(f1.X() - dxBack2);
+				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetX(b1.X() - dxBack2);
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = false; flip1 = false; flip2 = true;
@@ -1212,6 +1212,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			double dQdxFlipThr = 0.0;
 			if (fFlipToBeam) dQdxFlipThr = 0.4;
 
+			tracks->reserve(result.size());
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); fTrkIndex++)
 			{
 				pma::Track3D* trk = result[fTrkIndex];
@@ -1245,8 +1246,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
 				}
 
-				std::vector< art::Ptr< recob::Hit > > hits2d;
 				art::PtrVector< recob::Hit > sp_hits;
+				std::vector< art::Ptr< recob::Hit > > hits2d;
+				hits2d.reserve(trk->size());
 
 				spStart = allsp->size();
 				for (int h = trk->size() - 1; h >= 0; h--)
@@ -1498,6 +1500,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 			initial_clusters.push_back(max_first_idx);
 
 			unsigned int nFirstHits = clu_first.NHits();
+			mf::LogVerbatim("PMAlgTrackMaker") << "--- start new candidate ---";
 			mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << first_view << " ***  size: " << nFirstHits;
 
 			std::vector< art::Ptr<recob::Hit> > v_first = fbp.at(max_first_idx);
@@ -1511,9 +1514,9 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 				if (t < tmin) { tmin = t; }
 			}
 
-
 			fCandidates.clear(); // possible solutions of the selected cluster and clusters in complementary views
 
+			size_t imatch = 0;
 			bool try_build = true;
 			while (try_build) // loop over complementary views
 			{
@@ -1531,17 +1534,17 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 				unsigned int testView = geo::kUnknown;
 				if ((nSecHitsA > nSecHitsB) && (nSecHitsA >= minSizeCompl))
 				{
+					mf::LogVerbatim("PMAlgTrackMaker") << "--> " << imatch++ << " match with:";
 					mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << sec_view_a << " ***  size: " << nSecHitsA;
 					tried_clusters[sec_view_a].push_back(max_sec_a_idx);
-					idx = max_sec_a_idx;
-					testView = sec_view_b;
+					idx = max_sec_a_idx; testView = sec_view_b;
 				}
 				else if (nSecHitsB >= minSizeCompl)
 				{
+					mf::LogVerbatim("PMAlgTrackMaker") << "--> " << imatch++ << " match with:";
 					mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << sec_view_b << " ***  size: " << nSecHitsB;
 					tried_clusters[sec_view_b].push_back(max_sec_b_idx);
-					idx = max_sec_b_idx;
-					testView = sec_view_a;
+					idx = max_sec_b_idx; testView = sec_view_a;
 				}
 				else try_build = false;
 
@@ -1565,7 +1568,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 					if (candidate.Track && (m0 < mseThr) && (v0 > validThr)) // good candidate, try to extend it
 					{
 						mf::LogVerbatim("PMAlgTrackMaker")
-							<< "  track candidate, MSE = " << m0 << ", v = " << v0;
+							<< "  good track candidate, MSE = " << m0 << ", v = " << v0;
 
 						candidate.Mse = m0;
 						candidate.Validation = v0;

@@ -433,44 +433,35 @@ bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 	{
 		pma::Hit3D* hit0_a = front();
 		pma::Hit3D* hit0_b = 0;
-		pma::Hit3D* hit = 0;
-		float diff, minDiff, minX = fabs(detprop->ConvertTicksToX(hit0_a->PeakTime(), hit0_a->View2D(), tpc, cryo));
-		for (size_t i = 1; i < size(); i++)
-		{
-			hit = (*this)[i];
-			x = fabs(detprop->ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo));
-			if (x < minX) { minX = x; hit0_a = hit; }
-		}
-		minDiff = 5000;
-		for (size_t i = 0; i < size(); i++)
-		{
-			hit = (*this)[i];
-			x = fabs(detprop->ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo));
-			diff = fabs(x - minX);
-			if ((diff < minDiff) && (hit->View2D() != hit0_a->View2D()))
-			{
-				minDiff = diff; hit0_b = hit;
-			}
-		}
 
 		pma::Hit3D* hit1_a = front();
 		pma::Hit3D* hit1_b = 0;
+
+		pma::Hit3D* hit = 0;
+		float minX = fabs(detprop->ConvertTicksToX(hit0_a->PeakTime(), hit0_a->View2D(), tpc, cryo));
 		float maxX = fabs(detprop->ConvertTicksToX(hit1_a->PeakTime(), hit1_a->View2D(), tpc, cryo));
 		for (size_t i = 1; i < size(); i++)
 		{
-			hit = (*this)[i];
+			hit = fHits[i];
 			x = fabs(detprop->ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo));
+			if (x < minX) { minX = x; hit0_a = hit; }
 			if (x > maxX) { maxX = x; hit1_a = hit; }
 		}
-		minDiff = 5000;
+
+		float diff, minDiff0 = 5000, minDiff1 = 5000;
 		for (size_t i = 0; i < size(); i++)
 		{
-			hit = (*this)[i];
+			hit = fHits[i];
 			x = fabs(detprop->ConvertTicksToX(hit->PeakTime(), hit->View2D(), tpc, cryo));
-			diff = fabs(x - maxX);
-			if ((diff < minDiff) && (hit->View2D() != hit1_a->View2D()))
+			diff = fabs(x - minX);
+			if ((diff < minDiff0) && (hit->View2D() != hit0_a->View2D()))
 			{
-				minDiff = diff; hit1_b = hit;
+				minDiff0 = diff; hit0_b = hit;
+			}
+			diff = fabs(x - maxX);
+			if ((diff < minDiff1) && (hit->View2D() != hit1_a->View2D()))
+			{
+				minDiff1 = diff; hit1_b = hit;
 			}
 		}
 
@@ -506,7 +497,7 @@ bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 		}
 	}
 
-	if (sqrt(pma::Dist2(fNodes.front()->Point3D(), fNodes.back()->Point3D())) < 0.3)
+	if (pma::Dist2(fNodes.front()->Point3D(), fNodes.back()->Point3D()) < (0.3*0.3))
 	{
 		mf::LogVerbatim("pma::Track3D") << "Short initial segment.";
 		fEndSegWeight = wtmp;
