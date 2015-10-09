@@ -228,8 +228,6 @@ private:
 	void UpdateHitsRadius(void);
 	double AverageDist2(void) const;
 
-	bool PCEndpoints(TVector2 & start, TVector2 & stop,
-		unsigned int view, double wpitch, double dpitch) const;
 	bool InitFromHits(int tpc, int cryo, float initEndSegW = 0.05F);
 	bool InitFromRefPoints(int tpc, int cryo);
 	void InitFromMiddle(int tpc, int cryo);
