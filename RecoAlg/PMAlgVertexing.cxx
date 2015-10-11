@@ -123,7 +123,7 @@ std::vector< pma::VtxCandidate > pma::PMAlgVertexing::secondPassCandidates(void)
 	return candidates;
 }
 
-bool pma::PMAlgVertexing::findOneVtx(std::vector< pma::VtxCandidate >& candidates)
+size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candidates)
 {
 	bool merged = true;
 	while (merged && (candidates.size() > 1))
@@ -142,12 +142,10 @@ bool pma::PMAlgVertexing::findOneVtx(std::vector< pma::VtxCandidate >& candidate
 				{
 					candidates[k] = candidates[l];
 					candidates.erase(candidates.begin() + l);
-					mf::LogVerbatim("pma::PMAlgVertexing") << "removed (k)";
 				}
 				else if (candidates[k].Has(candidates[l]))
 				{
 					candidates.erase(candidates.begin() + l);
-					mf::LogVerbatim("pma::PMAlgVertexing") << "removed (l)";
 				}
 				else
 				{
@@ -160,48 +158,66 @@ bool pma::PMAlgVertexing::findOneVtx(std::vector< pma::VtxCandidate >& candidate
 		}
 		if ((dmin < d_thr) && candidates[k_best].MergeWith(candidates[l_best]))
 		{
-			mf::LogVerbatim("pma::PMAlgVertexing") << "merged";
 			candidates.erase(candidates.begin() + l_best);
 			merged = true;
 		}
 	}
 
-	int s, nmax = 0, c_best = -1;
-	double a, amax = 0.0;
-	//bool pure_endpoints = false;
-
 	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx candidates: " << candidates.size();
-	for (size_t v = 0; v < candidates.size(); v++)
+	std::vector< pma::VtxCandidate > toJoin;
+	bool select = true;
+	while (select)
 	{
-		s = (int)candidates[v].Size(2 * fMinTrackLength);
-		a = candidates[v].MaxAngle(1.0);
+		int s, nmax = 0, c_best = -1;
+		double a, amax = 0.0;
 
-		if ((s > nmax) || ((s == nmax) && (a > amax)))
+		for (size_t v = 0; v < candidates.size(); v++)
 		{
-			nmax = s; amax = a; c_best = v;
-		}
+			bool correlated = false;
+			for (size_t u = 0; u < toJoin.size(); u++)
+				if (toJoin[u].IsAttached(candidates[v]) || // connected with tracks or close centers
+					(pma::Dist2(toJoin[u].Center(), candidates[v].Center()) < 15.0*15.0))
+				{
+					correlated = true; break;
+				}
+			if (correlated) continue;
 
-		mf::LogVerbatim("pma::PMAlgVertexing")
-			<< "center x:" << candidates[v].Center().X()
-			<< " y:" << candidates[v].Center().Y()
-			<< " z:" << candidates[v].Center().Z();
+			s = (int)candidates[v].Size(2 * fMinTrackLength);
+			a = candidates[v].MaxAngle(1.0);
 
-		for (size_t i = 0; i < candidates[v].Size(); i++)
+			if ((s > nmax) || ((s == nmax) && (a > amax)))
+			{
+				nmax = s; amax = a; c_best = v;
+			}
+/*
 			mf::LogVerbatim("pma::PMAlgVertexing")
-				<< "     trk:" << i << " "
-				<< candidates[v].Track(i).first->size();
+				<< "center x:" << candidates[v].Center().X()
+				<< " y:" << candidates[v].Center().Y()
+				<< " z:" << candidates[v].Center().Z();
 
-		mf::LogVerbatim("pma::PMAlgVertexing")
-			<< " dist 3D:" << sqrt(candidates[v].Mse())
-			<< " 2D:" << sqrt(candidates[v].Mse2D())
-			<< " max ang:" << a;
-	}
+			for (size_t i = 0; i < candidates[v].Size(); i++)
+				mf::LogVerbatim("pma::PMAlgVertexing")
+					<< "     trk:" << i << " "
+					<< candidates[v].Track(i).first->size();
 
-	if (c_best >= 0)
-	{
-		return candidates[c_best].JoinTracks(fOutTracks, fEmTracks);
+			mf::LogVerbatim("pma::PMAlgVertexing")
+				<< " dist 3D:" << sqrt(candidates[v].Mse())
+				<< " 2D:" << sqrt(candidates[v].Mse2D())
+				<< " max ang:" << a;
+*/
+		}
+		if (c_best >= 0)
+		{
+			toJoin.push_back(candidates[c_best]);
+			candidates.erase(candidates.begin() + c_best);
+		}
+		else select = false;
 	}
-	else return false;
+	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx selected to join: " << toJoin.size();
+
+	size_t njoined = 0;
+	for (auto & c : toJoin) if (c.JoinTracks(fOutTracks, fEmTracks)) njoined++;
+	return njoined;
 }
 // ------------------------------------------------------
 
@@ -220,17 +236,18 @@ size_t pma::PMAlgVertexing::run(
 	mf::LogVerbatim("pma::PMAlgVertexing") << "Pass #1:";
 	if (fOutTracks.size() > 1)
 	{
-		bool found = true;
-		while (found)
+		size_t nfound = 0;
+		do
 		{
 			auto candidates = firstPassCandidates();
 			if (candidates.size())
 			{
-				found = findOneVtx(candidates);
-				if (found) nvtx++;
+				nfound = findVtxSet(candidates);
+				nvtx += nfound;
 			}
-			else found = false;
+			else nfound = 0;
 		}
+		while (nfound > 0);
 		mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
 	}
 	else mf::LogVerbatim("pma::PMAlgVertexing") << " ...short tracks only.";
@@ -238,18 +255,17 @@ size_t pma::PMAlgVertexing::run(
 	mf::LogVerbatim("pma::PMAlgVertexing") << "Pass #2:";
 	if (fOutTracks.size() && fEmTracks.size())
 	{
-		bool found = true;
-		while (found && fEmTracks.size())
+		size_t nfound = 1; // just to start
+		while (nfound && fEmTracks.size())
 		{
 			auto candidates = secondPassCandidates();
 			if (candidates.size())
 			{
-				found = findOneVtx(candidates);
-				if (found) nvtx++;
+				nfound = findVtxSet(candidates);
+				nvtx += nfound;
 			}
-			else found = false;
+			else nfound = 0;
 		}
-
 		mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
 	}
 	else mf::LogVerbatim("pma::PMAlgVertexing") << " ...no tracks.";
@@ -340,7 +356,7 @@ bool pma::PMAlgVertexing::isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk
 	double segCos = trk1->Segments().back()->GetDirection3D() * trk2->Segments().front()->GetDirection3D();
 	if (segCos < minCos)
 	{
-		mf::LogVerbatim("pma::PMAlgVertexing") << "  has large cos: " << segCos;
+		mf::LogVerbatim("pma::PMAlgVertexing") << "  has large angle, cos: " << segCos;
 		return false;
 	}
 

@@ -40,7 +40,7 @@ public:
 	void Initialize(float initEndSegW = 0.05F);
 
 	pma::Hit3D* release_at(size_t index);
-	void push_back(pma::Hit3D* hit) { fHits.push_back(hit); }
+	void push_back(pma::Hit3D* hit) { hit->fParent = this; fHits.push_back(hit); }
 	bool push_back(art::Ptr< recob::Hit > hit);
 	bool erase(art::Ptr< recob::Hit > hit);
 
@@ -156,7 +156,7 @@ public:
 	void UpdateParamsInTree(bool skipFirst = false);
 	double GetObjFnInTree(bool skipFirst = false);
 	double TuneSinglePass(bool skipFirst = false);
-	double TuneFullTree(double eps = 0.001);
+	double TuneFullTree(double eps = 0.001, double gmax = 50.0);
 
 	/// Adjust tree position in drift direction (when T0 is corrected).
 	void ApplyXShiftInTree(double dx, bool skipFirst = false);
@@ -228,8 +228,6 @@ private:
 	void UpdateHitsRadius(void);
 	double AverageDist2(void) const;
 
-	bool PCEndpoints(TVector2 & start, TVector2 & stop,
-		unsigned int view, double wpitch, double dpitch) const;
 	bool InitFromHits(int tpc, int cryo, float initEndSegW = 0.05F);
 	bool InitFromRefPoints(int tpc, int cryo);
 	void InitFromMiddle(int tpc, int cryo);
