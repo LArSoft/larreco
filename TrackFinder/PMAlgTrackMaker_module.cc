@@ -1597,21 +1597,23 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 						fraction = 0.7; // only well matching the existing track
 
 						idx = 0;
+						bool extended = false;
 						while ((idx >= 0) && (testView != geo::kUnknown))
 						{	//                     match clusters from the plane used previously for the validation
 							idx = matchCluster(candidate, clusters, fbp, minSize, fraction, testView, geo::kUnknown, tpc, cryo);
 							if (idx >= 0)
 							{
-								// no validation, no new nodes:
+								// validation not checked here, no new nodes:
 								if (extendTrack(candidate, fbp.at(idx), geo::kUnknown, false))
 								{
 									candidate.Clusters.push_back(idx);
+									extended = true;
 								}
 								else idx = -1;
 							}
 						}
-
-						candidate.Validation = validate(*(candidate.Track), testView);
+						// need to calculate again only if trk was extended w/o checking validation:
+						if (extended) candidate.Validation = validate(*(candidate.Track), testView);
 					}
 					else
 					{

@@ -1495,18 +1495,23 @@ double pma::Track3D::GetObjFnInTree(bool skipFirst)
 	return g + GetObjFunction();
 }
 
-double pma::Track3D::TuneFullTree(double eps)
+double pma::Track3D::TuneFullTree(double eps, double gmax)
 {
 	UpdateParamsInTree();
 	double g0 = GetObjFnInTree(), g1 = 0.0;
 	if (!std::isfinite(g0))
 	{
-		mf::LogError("pma::Track3D") << "Objective fn crazy value!";
-		return g0;
+		mf::LogError("pma::Track3D") << "Infinifte value of g.";
+		return -1; // negetive to tag destroyed tree
+	}
+	if (g0 > gmax)
+	{
+		mf::LogWarning("pma::Track3D") << "Too high value of g: " << g0;
+		return -2; // negetive to tag bad tree
 	}
 	if (g0 == 0.0) return g0;
 
-	mf::LogVerbatim("pma::Track3D") << "tune tree, g = " << g0;
+	mf::LogVerbatim("pma::Track3D") << "Tune tree, g = " << g0;
 	unsigned int stepIter = 0;
 	do
 	{

@@ -46,6 +46,13 @@ bool pma::VtxCandidate::IsAttached(pma::Track3D* trk) const
 	return false;
 }
 
+bool pma::VtxCandidate::IsAttached(const pma::VtxCandidate& other) const
+{
+	for (size_t t = 0; t < other.Size(); t++)
+		if (IsAttached(other.fAssigned[t].first)) return true;
+	return false;
+}
+
 size_t pma::VtxCandidate::Size(double minLength) const
 {
 	size_t n = 0;
@@ -405,6 +412,9 @@ bool pma::VtxCandidate::JoinTracks(
 	mf::LogVerbatim("pma::VtxCandidate") << "JoinTracks at:"
 		<< " vx:" << fCenter.X() << " vy:" << fCenter.Y() << " vz:" << fCenter.Z();
 
+	//mf::LogVerbatim("pma::VtxCandidate")
+	//	<< "  dist 3D:" << sqrt(Mse()) << " 2D:" << sqrt(Mse2D());
+
 	for (size_t i = 0; i < fAssigned.size(); i++)
 		for (size_t t = 0; t < src.size(); t++)
 			if (fAssigned[i].first == src[t])
@@ -582,7 +592,30 @@ bool pma::VtxCandidate::JoinTracks(
 		fMse = 0.0; fMse2D = 0.0;
 
 		pma::Segment3D* rootSeg = static_cast< pma::Segment3D* >(vtxCenter->Next(0));
-		rootSeg->Parent()->GetRoot()->TuneFullTree();
+		double g = rootSeg->Parent()->GetRoot()->TuneFullTree();
+		if (g < 0.0) // for today: do nothing, but would be good to go back to starting point...
+		{
+/*			std::vector< pma::Track3D* > toRemove;
+			toRemove.reserve(vtxCenter->NextCount() + 1);
+			for (size_t v = 0; v < vtxCenter->NextCount(); v++)
+			{
+				pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtxCenter->Next(v));
+				toRemove.push_back(seg->Parent());
+			}
+			if (vtxCenter->Prev())
+			{
+				pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtxCenter->Prev());
+				toRemove.push_back(seg->Parent());
+			}
+			for (size_t r = 0; r < toRemove.size(); r++)
+				for (size_t t = 0; t < tracks.size(); ++t)
+					if (tracks[t] == toRemove[r])
+					{
+						tracks.erase(tracks.begin() + t);
+						delete toRemove[r];
+						break;
+					} */
+		}
 		return true;
 	}
 	else

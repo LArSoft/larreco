@@ -156,7 +156,7 @@ public:
 	void UpdateParamsInTree(bool skipFirst = false);
 	double GetObjFnInTree(bool skipFirst = false);
 	double TuneSinglePass(bool skipFirst = false);
-	double TuneFullTree(double eps = 0.001);
+	double TuneFullTree(double eps = 0.001, double gmax = 50.0);
 
 	/// Adjust tree position in drift direction (when T0 is corrected).
 	void ApplyXShiftInTree(double dx, bool skipFirst = false);
