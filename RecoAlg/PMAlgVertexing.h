@@ -54,7 +54,7 @@ public:
 private:
 	std::vector< pma::VtxCandidate > firstPassCandidates(void);
 	std::vector< pma::VtxCandidate > secondPassCandidates(void);
-	bool findOneVtx(std::vector< pma::VtxCandidate >& candidates);
+	size_t findVtxSet(std::vector< pma::VtxCandidate >& candidates);
 
 	/// Get dQ/dx sequence to detect various features.
 	std::vector< std::pair<double, double> > getdQdx(const pma::Track3D& trk) const;

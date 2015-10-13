@@ -39,6 +39,8 @@ public:
 
 	bool IsAttached(pma::Track3D* trk) const;
 
+	bool IsAttached(const VtxCandidate& other) const;
+
 	bool Add(pma::Track3D* trk);
 
 	double ComputeMse2D(void);

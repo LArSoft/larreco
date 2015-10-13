@@ -90,6 +90,7 @@ private:
 	bool fEnabled; // used or not in the optimisation - due to various reasons
 	bool fOutlier; // tagged as a not really hit of this track (like delta ray)
 
+	pma::Track3D* fParent;   // track which contains this hit
 };
 
 #endif
