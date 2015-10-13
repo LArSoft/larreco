@@ -294,7 +294,7 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
       sumxy += x*y;
     }
   }
-  double gradient = (nhits * sumxy - sumx * sumy) / (nhits * sumx2 - sumx * sumx);
+  double gradient = (nhits * sumxy - sumx * sumy) / nhits * sumx2 - sumx * sumx;
 
   TVector2 unit = TVector2(1,gradient).Unit();
 
