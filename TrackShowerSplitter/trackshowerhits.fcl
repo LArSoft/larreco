@@ -1,0 +1,9 @@
+BEGIN_PROLOG
+
+trackshowerhits:
+{
+    module_type:      "TrackShowerHits"
+	HitModuleLabel:   "hit"   # hits label to be splitted
+}
+
+END_PROLOG
