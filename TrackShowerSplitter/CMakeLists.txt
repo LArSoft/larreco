@@ -1,6 +1,10 @@
+add_subdirectory(Segmentation2D)
+
 simple_plugin(TrackShowerHits   "module"
 			RawData
 		 	RecoBase
+			RecoAlg
+			Segmentation2D
 		 	Geometry
 			Geometry_service
 			Utilities

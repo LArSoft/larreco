@@ -20,13 +20,18 @@
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 #include "RecoBase/Hit.h"
+#include "RecoBase/Cluster.h"
+#include "RecoAlg/PMAlg/Utilities.h"
 #include "Utilities/AssociationUtil.h"
+
+#include "TrackShowerSplitter/Segmentation2D/TssHit2D.h"
+#include "TrackShowerSplitter/Segmentation2D/SimpleClustering.h"
 
 #include <memory>
 
 namespace tss {
 
-typedef std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > view_hitmap;
+typedef std::map< unsigned int, std::vector< tss::Hit2D > > view_hitmap;
 typedef std::map< unsigned int, view_hitmap > tpc_view_hitmap;
 typedef std::map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
 
@@ -43,19 +48,14 @@ public:
 
 	void produce(art::Event & e) override;
 
-
 private:
 
 	cryo_tpc_view_hitmap c_t_v_hits;
 	bool sortHits(const art::Event& evt);
 
-	bool hitsTouching(const recob::Hit & h1, const recob::Hit & h2) const;
-	bool hitsTouching(const std::vector< art::Ptr<recob::Hit> > & c1, const recob::Hit & h2) const;
-	bool hitsTouching(const std::vector< art::Ptr<recob::Hit> > & c1, const std::vector< art::Ptr<recob::Hit> > & c2) const;
-
-	void simpleClustering(const std::vector< art::Ptr<recob::Hit> > & inp);
-
 	art::ServiceHandle<geo::Geometry> fGeom;
+
+	tss::SimpleClustering simpleClustering;
 
 	std::string fHitModuleLabel;
 
@@ -65,7 +65,10 @@ private:
 TrackShowerHits::TrackShowerHits(fhicl::ParameterSet const & p)
 {
 	this->reconfigure(p);
+
 	produces< std::vector<recob::Hit> >();
+	produces< std::vector<recob::Cluster> >();
+	produces< art::Assns<recob::Cluster, recob::Hit> >();
 }
 // ------------------------------------------------------
 
@@ -92,7 +95,7 @@ bool TrackShowerHits::sortHits(const art::Event& evt)
 			tpc = h->WireID().TPC;
 			view = h->WireID().Plane;
 
-			c_t_v_hits[cryo][tpc][view].push_back(h);
+			c_t_v_hits[cryo][tpc][view].emplace_back(tss::Hit2D(h));
 		}
 		return true;
 	}
@@ -100,81 +103,44 @@ bool TrackShowerHits::sortHits(const art::Event& evt)
 }
 // ------------------------------------------------------
 
-bool TrackShowerHits::hitsTouching(const recob::Hit & h1, const recob::Hit & h2) const
-{
-	if ((h1.WireID().Wire == h2.WireID().Wire) &&
-	    (h1.PeakTime() == h2.PeakTime())) return false;
-
-	bool touches = false;
-	if ((h1.WireID().Wire >= h2.WireID().Wire - 1) &&
-	    (h1.WireID().Wire <= h2.WireID().Wire + 1))
-	{
-		if (((h2.StartTick() <= h1.StartTick()) && (h1.StartTick() <= h2.EndTick() + 1)) ||
-			((h2.StartTick() <= h1.EndTick() + 1) && (h1.EndTick() <= h2.EndTick())) ||
-			((h2.StartTick() >= h1.StartTick()) && (h1.EndTick() >= h2.EndTick())))
-		{
-			touches = true;
-		}
-	}
-	return touches;
-}
-// ------------------------------------------------------
-
-bool TrackShowerHits::hitsTouching(const std::vector< art::Ptr<recob::Hit> > & c1, const recob::Hit & h2) const
-{
-	for (size_t i = 0; i < c1.size(); i++)
-	{
-		if (hitsTouching(*(c1[i]), h2)) return true;	
-	}
-	return false;
-}
-// ------------------------------------------------------
-
-bool TrackShowerHits::hitsTouching(const std::vector< art::Ptr<recob::Hit> > & c1, const std::vector< art::Ptr<recob::Hit> > & c2) const
-{
-	for (unsigned int i = 0; i < c1.size(); i++)
-	{
-		if (hitsTouching(c2, *(c1[i]))) return true;
-	}
-	return false;
-}
-// ------------------------------------------------------
-
-void TrackShowerHits::simpleClustering(const std::vector< art::Ptr<recob::Hit> > & inp)
-{
-	std::vector< std::vector< art::Ptr<recob::Hit> > > result;
-	for (size_t h = 0; h < inp.size(); ++h)
-	{
-		bool found = false;
-		for (size_t r = 0; r < result.size(); ++r)
-			if (hitsTouching(result[r], *(inp[h])))
-		{
-			result[r].push_back(inp[h]); found = true; break;
-		}
-		if (!found)
-		{
-			result.push_back(std::vector< art::Ptr<recob::Hit> >());
-			result.back().push_back(inp[h]);
-		}
-	}
-
-	// merge...
-}
-// ------------------------------------------------------
-
 void TrackShowerHits::produce(art::Event & evt)
 {
 	std::unique_ptr< std::vector< recob::Hit > > track_hits(new std::vector< recob::Hit >);
 
+	std::unique_ptr< std::vector< recob::Cluster > > clusters(new std::vector< recob::Cluster >);
+	std::unique_ptr< art::Assns< recob::Cluster, recob::Hit > > clu2hit(new art::Assns< recob::Cluster, recob::Hit >);
+
 	if (sortHits(evt))
 	{
+		unsigned int cidx = 0;
 		for (auto tpc_iter = fGeom->begin_TPC_id();
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
 		{
 			for (const auto & v : c_t_v_hits[tpc_iter->Cryostat][tpc_iter->TPC])
 			{
-				simpleClustering(v.second);
+				auto cls = simpleClustering.run(v.second);
+				for (const auto & c : cls)
+				{
+					if (c.size() < 2) continue;
+
+					clusters->emplace_back(
+						recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
+							c.size(), 0.0F, 0.0F, cidx,  (geo::View_t)c.front()->View(), c.front()->Hit2DPtr()->WireID().planeID()));
+
+					std::vector< art::Ptr< recob::Hit > > hits2d;
+					hits2d.reserve(c.size());
+					for (auto h2d : c)
+					{
+						hits2d.push_back(h2d->Hit2DPtr());
+					}
+					if (hits2d.size())
+					{
+						util::CreateAssn(*this, evt, *clusters, hits2d, *clu2hit);
+					}
+
+					++cidx;
+				}
 			}
 		}
 
@@ -182,9 +148,12 @@ void TrackShowerHits::produce(art::Event & evt)
 	else mf::LogWarning("TrackShowerHits") << "Hits not found in the event.";
 
 	evt.put(std::move(track_hits));
+	evt.put(std::move(clusters));
+	evt.put(std::move(clu2hit));
 }
 // ------------------------------------------------------
 
 DEFINE_ART_MODULE(TrackShowerHits)
 
 }
+
