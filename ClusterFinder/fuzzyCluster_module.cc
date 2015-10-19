@@ -33,7 +33,8 @@
 #include "RawData/raw.h"
 #include "RawData/RawDigit.h"
 #include "RecoAlg/fuzzyClusterAlg.h"
-#include "Filters/ChannelFilter.h"
+#include "CalibrationDBI/Interface/IChannelStatusService.h"
+#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
@@ -141,7 +142,12 @@ namespace cluster{
     } 
 
     // get the ChannelFilter
-    filter::ChannelFilter chanFilt;
+    // get channel quality service:
+    lariov::IChannelStatusProvider const& channelStatus
+      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+    
+    lariov::IChannelStatusProvider::ChannelSet_t const BadChannels
+      = channelStatus.BadChannels();
     
     // prepare the algorithm to compute the cluster characteristics;
     // we use the "standard" one here; configuration would happen here,
@@ -162,7 +168,7 @@ namespace cluster{
       
       //Begin clustering with fuzzy
       
-      ffuzzyCluster.InitFuzzy(allhits, chanFilt.SetOfBadChannels());
+      ffuzzyCluster.InitFuzzy(allhits, BadChannels);
       
       //----------------------------------------------------------------
       for(unsigned int j = 0; j < ffuzzyCluster.fps.size(); ++j){

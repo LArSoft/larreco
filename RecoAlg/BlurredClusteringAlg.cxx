@@ -51,7 +51,7 @@ void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
 }
 
 
-void cluster::BlurredClusteringAlg::CreateDebugPDF() {
+void cluster::BlurredClusteringAlg::CreateDebugPDF(int run, int subrun, int event) {
 
   /// Create the PDF to save debug images
 
@@ -67,7 +67,7 @@ void cluster::BlurredClusteringAlg::CreateDebugPDF() {
 
     // Decide what to call this PDF
     std::ostringstream oss;
-    oss << "BlurredImages_Run" << fRun << "_Subrun" << fSubrun;
+    oss << "BlurredImages_Run" << run << "_Subrun" << subrun;
     fDebugPDFName = oss.str();
     fDebugCanvas = new TCanvas(fDebugPDFName.c_str(), "Image canvas", 1000, 500);
     fDebugPDFName.append(".pdf");
@@ -85,7 +85,7 @@ void cluster::BlurredClusteringAlg::CreateDebugPDF() {
   }
 
   std::ostringstream oss;
-  oss << "Event " << fEvent;
+  oss << "Event " << event;
   fDebugCanvas->cd(1);
   TLatex l;
   l.SetTextSize(0.15);
@@ -174,12 +174,10 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   /// Takes hit map and returns a TH2 histogram of bar vs layer, with charge on z-axis
 
   // Define the size of this particular plane -- dynamically to avoid huge histograms
-  int lowerTick = fNTicks, upperTick = 0, lowerWire = fGeom->MaxWires(), upperWire = 0;
+  int lowerTick = fDetProp->ReadOutWindowSize(), upperTick = 0, lowerWire = fGeom->MaxWires(), upperWire = 0;
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
     art::Ptr<recob::Hit> hit = *hitIt;
-    int histWire;
-    if (fGlobalTPCRecon) histWire = FindGlobalWire(hit->WireID());
-    else histWire = hit->WireID().Wire;
+    int histWire = FindGlobalWire(hit->WireID());
     if (hit->PeakTime() < lowerTick) lowerTick = hit->PeakTime();
     if (hit->PeakTime() > upperTick) upperTick = hit->PeakTime();
     if (histWire < lowerWire) lowerWire = histWire;
@@ -194,7 +192,8 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   fHitMap.clear();
 
   std::stringstream planeImage;
-  planeImage << "blurred_plane" << fPlane << "_image";
+  planeImage << "blurred_image";
+  //planeImage << "blurred_plane" << fPlane << "_image";
 
   // Create a TH2 histogram
   TH2F image(planeImage.str().c_str(), planeImage.str().c_str(), (fUpperHistWire-fLowerHistWire), fLowerHistWire-0.5, fUpperHistWire-0.5, (fUpperHistTick-fLowerHistTick), fLowerHistTick-0.5, fUpperHistTick-0.5);
@@ -206,9 +205,7 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   // Look through the hits
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
     art::Ptr<recob::Hit> hit = *hitIt;
-    unsigned int wire;
-    if (fGlobalTPCRecon) wire = FindGlobalWire(hit->WireID());
-    else wire = hit->WireID().Wire;
+    unsigned int wire = FindGlobalWire(hit->WireID());
     int   tick   = (int)hit->PeakTime();
     float charge = hit->SummedADC();
 
@@ -281,26 +278,28 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
   /// Dynamically find the blurring radii in each direction
 
   /// There is stuff to sort out here!  Dynamic radii needs to be fixed; sigma needs to be understood!
+  /// 29/9/15 MW: fixed the first of these; changed from PCA to LS for determining particle direction
 
-  TPrincipal *fPCA = new TPrincipal(2,"");
-
-  double hits[2];
+  // Calculate least squares slope
+  int x, y;
+  double nhits=0, sumx=0., sumy=0., sumx2=0., sumxy=0.;
   for (const auto &wireIt : fHitMap) {
     for (const auto &tickIt : wireIt.second) {
-      //hits[0] = (fGeom->TPC(fTPC, fCryostat).Plane(fPlane).WirePitch()) * wireIt.first;
-      //hits[1] = fDetProp->ConvertTicksToX(tickIt.first, fPlane, fTPC, fCryostat);
-      hits[0] = wireIt.first;
-      hits[1] = tickIt.first;
-      fPCA->AddRow(hits);
+      ++nhits;
+      x = wireIt.first;
+      y = tickIt.first;
+      sumx += x;
+      sumy += y;
+      sumx2 += x*x;
+      sumxy += x*y;
     }
   }
+  double gradient = (nhits * sumxy - sumx * sumy) / nhits * sumx2 - sumx * sumx;
 
-  fPCA->MakePrincipals();
+  TVector2 unit = TVector2(1,gradient).Unit();
 
-  const TMatrixD* eigenvectors = fPCA->GetEigenVectors();
-
-  blurwire = std::abs(fBlurWire * (*eigenvectors)[0][0]);
-  blurtick = std::abs(fBlurTick * (*eigenvectors)[1][0]);
+  blurwire = std::abs(fBlurWire * unit.X());
+  blurtick = std::abs(fBlurTick * unit.Y());
 
   //std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << std::endl;
 
@@ -522,9 +521,16 @@ int cluster::BlurredClusteringAlg::FindGlobalWire(geo::WireID const& wireID) {
 
   double wireCentre[3];
   fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
+
   double globalWire;
-  if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.planeID().Plane, 0, 0);
-  else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.planeID().Plane, 1, 0);
+  if (fGeom->SignalType(wireID) == geo::kInduction) {
+    if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
+    else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+  }
+  else {
+    if (wireID.TPC % 2 == 0) globalWire = wireID.Wire + ((wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat));
+    else globalWire = wireID.Wire + ((int)(wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 1, wireID.Cryostat));
+  }
 
   return globalWire;
 
@@ -653,9 +659,7 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<art::PtrV
 
     for (art::PtrVector<recob::Hit>::iterator hitIt = cluster.begin(); hitIt != cluster.end(); hitIt++) {
       art::Ptr<recob::Hit> hit = *hitIt;
-      unsigned int wire;
-      if (fGlobalTPCRecon) wire = FindGlobalWire(hit->WireID());
-      else wire = hit->WireID().Wire;
+      unsigned int wire = FindGlobalWire(hit->WireID());
       float tick = hit->PeakTime();
       int bin = image->GetBin((wire-fLowerHistWire)+1,(tick-fLowerHistTick)+1);
       if (cluster.size() < fMinSize)
@@ -701,7 +705,8 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<std::vect
   }
 
   std::stringstream title;
-  title << stage << " -- TPC " << fTPC << ", Plane " << fPlane << " (Event " << fEvent << ")";
+  //title << stage << " -- TPC " << fTPC << ", Plane " << fPlane;// << " (Event " << fEvent << ")";
+  title << stage;
 
   image->SetName(title.str().c_str());
   image->SetTitle(title.str().c_str());

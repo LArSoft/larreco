@@ -23,7 +23,8 @@ pma::Hit3D::Hit3D(void) :
 	fPoint3D(0, 0, 0),
 	fPoint2D(0, 0), fProjection2D(0, 0),
 	fSegFraction(0), fSigmaFactor(1),
-	fEnabled(true), fOutlier(false)
+	fEnabled(true), fOutlier(false),
+	fParent(0)
 {
 }
 
@@ -32,7 +33,8 @@ pma::Hit3D::Hit3D(art::Ptr< recob::Hit > src) :
 	fPoint3D(0, 0, 0),
 	fProjection2D(0, 0),
 	fSegFraction(0), fSigmaFactor(1),
-	fEnabled(true), fOutlier(false)
+	fEnabled(true), fOutlier(false),
+	fParent(0)
 {
 	fTPC = src->WireID().TPC;
 	fPlane = src->WireID().Plane;
@@ -47,7 +49,8 @@ pma::Hit3D::Hit3D(const pma::Hit3D& src) :
 	fPoint3D(src.fPoint3D),
 	fPoint2D(src.fPoint2D), fProjection2D(src.fProjection2D),
 	fSegFraction(src.fSegFraction), fSigmaFactor(src.fSigmaFactor),
-	fEnabled(src.fEnabled), fOutlier(src.fOutlier)
+	fEnabled(src.fEnabled), fOutlier(src.fOutlier),
+	fParent(0) // set only when pushed to track
 {
 }
 

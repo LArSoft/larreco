@@ -8,7 +8,9 @@ standard_blurredcluster:
  CreateDebugPDF:    "false"
  MergeClusters:     "true"
  HitsModuleLabel:   "gaushit"
+ TrackModuleLabel:  "pmtrack"
  GlobalTPCRecon:    "true"
+ ShowerReconOnly:   "false"
  BlurredClusterAlg: @local::standard_blurredclusteralg
  MergeClusterAlg:   @local::standard_mergeclusteralg
 }

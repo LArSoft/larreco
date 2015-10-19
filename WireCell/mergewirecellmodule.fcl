@@ -1,0 +1,9 @@
+BEGIN_PROLOG
+
+standard_mergewirecell:
+{
+ module_type: "MergeWireCell"
+ WireCellInput: "/lbne/app/users/tjyang/larsoft_mydev/job/wirecell/root"
+}
+
+END_PROLOG

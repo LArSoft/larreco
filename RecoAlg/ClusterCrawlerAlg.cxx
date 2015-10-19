@@ -21,13 +21,14 @@
 #include "art/Utilities/Exception.h" 
 
 // LArSoft libraries
-#include "Filters/ChannelFilter.h"
 #include "SimpleTypesAndConstants/RawTypes.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/TPCGeo.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
+#include "CalibrationDBI/Interface/IChannelStatusService.h"
+#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 
 struct CluLen{
   int index;
@@ -244,7 +245,7 @@ namespace cluster {
   std::cout<<" is OK. nhits "<<nhts<<"\n";
 */
 	if (WireHitRange.empty()||(fFirstWire == fLastWire)){
-	  mf::LogWarning("CC")<<"No hits in "<<tpcid<<" plane "<<plane;
+	  LOG_DEBUG("CC")<<"No hits in "<<tpcid<<" plane "<<plane;
 	  continue;
 	}
 	else {
@@ -4409,6 +4410,8 @@ namespace cluster {
           break;
         }
       } // ivx
+      // quit if localindex does not make sense. 
+      if (hit.LocalIndex() != 0 && imbest == 0) doMerge = false;
       if (doMerge) {
         // find the neighbor hit
         unsigned int oht;
@@ -4556,6 +4559,10 @@ namespace cluster {
         const unsigned int iht = fcl2hits[indx];
         recob::Hit const& hit = fHits[iht];
         if(hit.Multiplicity() == 2) {
+	  // quit if localindex does not make sense. 
+	  if (hit.LocalIndex() != 0 && iht == 0){
+	    continue;
+	  }
           // hit doublet. Get the index of the other hit
           unsigned int oht;
           if(hit.LocalIndex() == 0) {
@@ -5510,16 +5517,27 @@ namespace cluster {
       } // hit
       
       // temp: print out the results
-      unsigned int nDead = 0;
-      unsigned int nHasHits = 0;
-      unsigned int nNoHit = 0;
       for(wire = 0; wire < WireHitRange.size(); ++wire) {
-        if(WireHitRange[wire].first == -2) ++nNoHit;
-        if(WireHitRange[wire].first == -1) ++nDead;
-        if(WireHitRange[wire].first >= 0) ++nHasHits;
+      if (first) return; // we collected nothing
+
+      // now we can define the WireHitRange vector.
+      // start by defining the "no hits on wire" condition
+      short sflag = -2;
+      for(unsigned short wire = fFirstWire; wire <= fLastWire; ++wire) {
+        WireHitRange.push_back(std::make_pair(sflag, sflag));
       }
-      
-      std::cout<<"GHR: Plane "<<planeID.Plane<<" nDead "<<nDead<<" nNoHit "<<nNoHit<<" nHasHits "<<nHasHits<<" nhpl "<<nhpl<<" fuBCode "<<fuBCode<<" last hit "<<WireHitRange[fLastWire].second<<"\n";
+      // overwrite with the "dead wires" condition
+      lariov::IChannelStatusProvider const& channelStatus
+        = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+
+      sflag = -1;
+      for(unsigned short wire = fFirstWire+1; wire < fLastWire; ++wire) {
+        raw::ChannelID_t chan = geom->PlaneWireToChannel
+          ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
+        // remember to offset references to WireHitRange by the FirstWire
+        unsigned short indx = wire - fFirstWire;
+        if(channelStatus.IsBad(chan)) WireHitRange[indx] = std::make_pair(sflag, sflag);
+      }
 
     } // GetHitRange()
 

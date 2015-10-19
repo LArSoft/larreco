@@ -34,6 +34,8 @@
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Utilities/SimpleFits.h" // lar::util::GaussianFit<>
+#include "CalibrationDBI/Interface/IChannelStatusService.h"
+#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 
 // ROOT Includes
 #include "TGraph.h"
@@ -137,14 +139,31 @@ namespace hit {
     bool first;
 
 //    prt = false;
-    filter::ChannelFilter cf;
-    
+   
+    lariov::IChannelStatusProvider const& channelStatus
+      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+
     for(size_t wireIter = 0; wireIter < Wires.size(); wireIter++){
 
       recob::Wire const& theWire = Wires[wireIter];
       theChannel = theWire.Channel();
       // ignore bad channels
-      if(fUseChannelFilter && cf.GetChannelStatus(theChannel) != filter::ChannelFilter::GOOD) continue;
+      if(channelStatus.IsBad(theChannel)) continue;
+      geo::SigType_t SigType = geom->SignalType(theChannel);
+      minSig = 0.;
+      minRMS = 0.;
+      if(SigType == geo::kInduction){
+        minSig = fMinSigInd;
+        minRMS = fMinRMSInd;
+      }//<-- End if Induction Plane
+      else if(SigType == geo::kCollection){
+        minSig = fMinSigCol;
+        minRMS  = fMinRMSCol;
+      }//<-- End if Collection Plane
+
+
+      // minimum number of time samples
+      unsigned short minSamples = 2 * minRMS;
 
       std::vector<geo::WireID> wids = geom->ChannelToWire(theChannel);
       thePlane = wids[0].Plane;
