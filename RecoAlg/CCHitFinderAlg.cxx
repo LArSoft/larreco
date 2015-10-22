@@ -149,6 +149,7 @@ namespace hit {
       theChannel = theWire.Channel();
       // ignore bad channels
       if(channelStatus.IsBad(theChannel)) continue;
+/*
       geo::SigType_t SigType = geom->SignalType(theChannel);
       minSig = 0.;
       minRMS = 0.;
@@ -160,10 +161,7 @@ namespace hit {
         minSig = fMinSigCol;
         minRMS  = fMinRMSCol;
       }//<-- End if Collection Plane
-
-
-      // minimum number of time samples
-      unsigned short minSamples = 2 * minRMS;
+*/
 
       std::vector<geo::WireID> wids = geom->ChannelToWire(theChannel);
       thePlane = wids[0].Plane;

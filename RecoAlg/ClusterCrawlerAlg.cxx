@@ -5440,12 +5440,11 @@ namespace cluster {
         for(wire = 0; wire < WireHitRange.size(); ++wire)
           WireHitRange[wire] = std::make_pair(sflag, sflag);
         // overwrite with the "dead wires" condition
-        filter::ChannelFilter cf;
         sflag = -1;
         for(wire = 0; wire < WireHitRange.size(); ++wire) {
-          raw::ChannelID_t chan = geom->PlaneWireToChannel
-          ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
-          if(cf.GetChannelStatus(chan) != filter::ChannelFilter::GOOD) continue;
+//          raw::ChannelID_t chan = geom->PlaneWireToChannel
+//          ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
+//          if(cf.GetChannelStatus(chan) != filter::ChannelFilter::GOOD) continue;
           ++nGood;
           WireHitRange[wire] = std::make_pair(sflag, sflag);
         }
@@ -5517,12 +5516,12 @@ namespace cluster {
       } // hit
       
       // temp: print out the results
-      for(wire = 0; wire < WireHitRange.size(); ++wire) {
+//      for(wire = 0; wire < WireHitRange.size(); ++wire) {
       if (first) return; // we collected nothing
 
       // now we can define the WireHitRange vector.
       // start by defining the "no hits on wire" condition
-      short sflag = -2;
+      sflag = -2;
       for(unsigned short wire = fFirstWire; wire <= fLastWire; ++wire) {
         WireHitRange.push_back(std::make_pair(sflag, sflag));
       }
@@ -5553,8 +5552,8 @@ namespace cluster {
     } // ClusterCrawlerAlg::areInSameMultiplet()
     
     
-    std::pair<size_t, size_t> ClusterCrawlerAlg::FindHitMultiplet
-      (size_t iHit) const
+//////////////////////////////////////////
+    std::pair<size_t, size_t> ClusterCrawlerAlg::FindHitMultiplet(size_t iHit) const
     {
       std::pair<size_t, size_t> range{ iHit, iHit };
       
@@ -5577,7 +5576,7 @@ namespace cluster {
       return range;
     } // ClusterCrawlerAlg::FindHitMultiplet()
     
-    
+//////////////////////////////////////////
     bool ClusterCrawlerAlg::CheckHitDuplicates
       (std::string location, std::string marker /* = "" */) const
     {
@@ -5598,7 +5597,7 @@ namespace cluster {
       return nDuplicates > 0;
     } // ClusterCrawlerAlg::CheckHitDuplicates()
 
-  /////////////////////////////////////////
+/////////////////////////////////////////
   float ClusterCrawlerAlg::DoCA(short icl, unsigned short end, float vwire, float vtick)
   {
     // Find the Distance of Closest Approach betweeen a cluster and a point (vwire, vtick). The
