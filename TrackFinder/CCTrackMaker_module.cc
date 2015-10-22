@@ -3316,8 +3316,8 @@ namespace trkf {
     for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = 1;
     
     // get the service to learn about channel status
-    lariov::IChannelStatusProvider const& channelStatus
-      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+    //lariov::IChannelStatusProvider const& channelStatus
+    //  = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
     
     // now we can define the WireHitRange vector.
     int sflag, nwires, wire;
