@@ -22,7 +22,6 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/FindManyP.h"
-#include "MCCheater/BackTracker.h"
 
 // LArSoft includes
 #include "Utilities/DetectorProperties.h"
@@ -65,6 +64,7 @@ public:
 private:
 
   std::string fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel;
+  int fMinTrackLength;
 
   EMShowerAlg fEMShowerAlg;
   calo::CalorimetryAlg fCalorimetryAlg;
@@ -88,6 +88,7 @@ void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
   fHitsModuleLabel    = p.get<std::string>("HitsModuleLabel");
   fClusterModuleLabel = p.get<std::string>("ClusterModuleLabel");
   fTrackModuleLabel   = p.get<std::string>("TrackModuleLabel");
+  fMinTrackLength     = p.get<int>        ("MinTrackLength");
 }
 
 void shower::EMShower::produce(art::Event& evt) {
@@ -141,6 +142,7 @@ void shower::EMShower::produce(art::Event& evt) {
       std::vector<art::Ptr<recob::Track> > clusterHitTracks = fmt.at(clusterHitIt->key());
       if (clusterHitTracks.size() > 1) { std::cout << "More than one track associated with this hit!" << std::endl; continue; }
       if (clusterHitTracks.size() < 1) continue;
+      if (clusterHitTracks.at(0)->Length() < fMinTrackLength) continue;
 
       // Add this cluster to the track map
       int track = clusterHitTracks.at(0).key();
@@ -150,7 +152,7 @@ void shower::EMShower::produce(art::Event& evt) {
       if (std::find(clusterToTracks[cluster].begin(), clusterToTracks[cluster].end(), track) == clusterToTracks[cluster].end())
 	clusterToTracks[cluster].push_back(track);
 
-    }     
+    }
 
   }
 
