@@ -49,7 +49,7 @@ void shower::EMShowerAlg::MakeShowers(std::map<int,std::vector<int> > const& tra
 void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt, calo::CalorimetryAlg const& calo,
 					       TVector3& direction, TVector3& directionError, TVector3& vertex, TVector3& vertexError,
 					       std::vector<double>& totalEnergy, std::vector<double>& totalEnergyError, std::vector<double>& dEdx, std::vector<double>& dEdxError,
-					       int bestPlane) {
+					       int& bestPlane) {
 
   /// Finds the properties of the shower from the hits in it
 
@@ -59,11 +59,21 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
     planeHitsMap[(*hit)->View()].push_back(*hit);
 
   std::map<int,art::Ptr<recob::Hit> > vertexMap;
+  std::map<int,art::Ptr<recob::Track> > trackMap;
+  std::map<int,std::vector<int> > trackHitsMap;
 
-  // Loop through planes
+  unsigned int highestNumberOfHits = 0;
+
+  // Loop through planes to find vertices in each view
   for (std::map<int,art::PtrVector<recob::Hit> >::iterator planeHits = planeHitsMap.begin(); planeHits != planeHitsMap.end(); ++planeHits) {
-
+    
     std::cout << "Plane " << planeHits->first << std::endl;
+
+    // Find best plane
+    if (planeHits->second.size() > highestNumberOfHits) {
+      highestNumberOfHits = planeHits->second.size();
+      bestPlane = planeHits->first;
+    }
 
     // Find rough 'ends' of the shower!
     art::Ptr<recob::Hit> end1, end2;
@@ -82,47 +92,126 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
     std::vector<int> trackHits1 = FindTrack(planeHits->second, HitCoordinates(end1), HitCoordinates(end2));
     std::vector<int> trackHits2 = FindTrack(planeHits->second, HitCoordinates(end2), HitCoordinates(end1));
     std::vector<int> trackHits = trackHits1.size() > trackHits2.size() ? trackHits1 : trackHits2;
-    //art::Ptr<recob::Track> track = fmt.at(hits.at(trackHits.at(0)).key()).at(0);
+    trackHitsMap[planeHits->first] = trackHits;
+
+    // Find a track object
+    art::Ptr<recob::Track> track;
+    for (std::vector<int>::iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
+      std::vector<art::Ptr<recob::Track> > tracks = fmt.at(planeHits->second.at(*trackHitIt).key());
+      if (tracks.size() == 0)
+	continue;
+      track = tracks.at(0);
+      break;
+    }
+    trackMap[planeHits->first] = track;
 
     // Vertex
-    art::Ptr<recob::Hit> vertex = hits.at(*trackHits.begin());
-    vertexMap[planeHits->first] = vertex;
-
+    art::Ptr<recob::Hit> planevertex = planeHits->second.at(*trackHits.begin());
+    vertexMap[planeHits->first] = planevertex;
     std::cout << "The vertex is " << std::endl;
-    HitCoordinates(vertex).Print();
-
-    // Find energy and dE/dx
-    //dEdx.push_back(FinddEdx(planeHits->second, track, calo, vertex->View(), trackHits));
-    totalEnergy.push_back(FindTotalEnergy(planeHits->second));
+    HitCoordinates(planevertex).Print();
 
   }
 
-  if (vertexMap.size() < 2) return;
+  // Find 3D vertex and direction
+  art::Ptr<recob::Track> vertexTrack;
+  FindVertexTrack(vertexTrack, vertexMap, trackMap, trackHitsMap);
+  vertex = vertexTrack->Vertex();
+  direction = vertexTrack->VertexDirection();
 
-  // std::cout << "Vertex x is " << fDetProp->ConvertTicksToX(vertexHitMap.at(0)->PeakTime(), vertexHitMap.at(0)->WireID().planeID()) << ", " << fDetProp->ConvertTicksToX(vertexHitMap.at(1)->PeakTime(), vertexHitMap.at(1)->WireID().planeID()) << " and " << fDetProp->ConvertTicksToX(vertexHitMap.at(2)->PeakTime(), vertexHitMap.at(2)->WireID().planeID()) << std::endl;
+  // Find energy and dE/dx
+  for (unsigned int plane = 0; plane < fGeom->MaxPlanes(); ++plane) {
+    if (planeHitsMap.count(plane) != 0) {
+      dEdx.push_back(FinddEdx(planeHitsMap.at(plane), vertexTrack, calo, vertexMap.at(plane)->View(), trackHitsMap.at(plane)));
+      totalEnergy.push_back(FindTotalEnergy(planeHitsMap.at(plane), plane));
+    }
+    else {
+      dEdx.push_back(0);
+      totalEnergy.push_back(0);
+    }
+  }
 
-  // geo::WireIDIntersection yz;
-  // fGeom->WireIDsIntersect(vertexHitMap.at(0)->WireID(), vertexHitMap.at(1)->WireID(), yz);
-  // std::cout << "y and z: From 0 and 1... " << yz.y << " and " << yz.z << std::endl;
-  // fGeom->WireIDsIntersect(vertexHitMap.at(0)->WireID(), vertexHitMap.at(2)->WireID(), yz);
-  // std::cout << "y and z: From 0 and 2... " << yz.y << " and " << yz.z << std::endl;
-  // fGeom->WireIDsIntersect(vertexHitMap.at(1)->WireID(), vertexHitMap.at(2)->WireID(), yz);
-  // std::cout << "y and z: From 1 and 2... " << yz.y << " and " << yz.z << std::endl;
+  std::cout << "Best plane is " << bestPlane << std::endl;
+  std::cout << "dE/dx for each plane is: " << dEdx[0] << ", " << dEdx[1] << " and " << dEdx[2] << std::endl;
+  std::cout << "Total energy for each plane is: " << totalEnergy[0] << ", " << totalEnergy[1] << " and " << totalEnergy[2] << std::endl;
 
   return;
 
 }
 
-double shower::EMShowerAlg::FindTotalEnergy(art::PtrVector<recob::Hit> const& hits) {
+void shower::EMShowerAlg::FindVertexTrack(art::Ptr<recob::Track>& vertexTrack, std::map<int,art::Ptr<recob::Hit> > const& vertexMap, std::map<int,art::Ptr<recob::Track> > const& trackMap, std::map<int,std::vector<int> > const& trackHitsMap) {
+
+  /// Finds the 3D vertex and direction given the tracks associated with the 2D vertex
+
+  // First, find out if two views agree on a track (normally they will)
+  std::map<int,std::vector<int> > trackIDToPlanes;
+  std::vector<int> planesWithTrack;
+  for (std::map<int,art::Ptr<recob::Track> >::const_iterator trackIt = trackMap.begin(); trackIt != trackMap.end(); ++trackIt)
+    if (!trackIt->second.isNull()) {
+      trackIDToPlanes[trackIt->second->ID()].push_back(trackIt->first);
+      planesWithTrack.push_back(trackIt->first);
+    }
+  for (std::map<int,std::vector<int> >::iterator trackVertexIt = trackIDToPlanes.begin(); trackVertexIt != trackIDToPlanes.end(); ++trackVertexIt)
+    if (trackVertexIt->second.size() > 1)
+      vertexTrack = trackMap.at(*trackVertexIt->second.begin());
+
+  // If there are no planes with a track reconstructed, don't carry on right now
+  if (planesWithTrack.size() == 0)
+    return;
+
+  // If they don't, try to use the third view (it exsits) to pick the correct track
+  if (vertexTrack.isNull() and trackMap.size() > 2) {
+    std::map<int,double> distanceOfVertexFromVertex;
+    for (std::map<int,art::Ptr<recob::Hit> >::const_iterator vertexIt = vertexMap.begin(); vertexIt != vertexMap.end(); ++vertexIt) {
+      if (std::find(planesWithTrack.begin(), planesWithTrack.end(), vertexIt->first) != planesWithTrack.end())
+	continue;
+      for (std::vector<int>::iterator planesWithTrackIt = planesWithTrack.begin(); planesWithTrackIt != planesWithTrack.end(); ++planesWithTrackIt)
+	distanceOfVertexFromVertex[*planesWithTrackIt] = ( TMath::Abs( HitCoordinates(vertexIt->second).Y() - HitCoordinates(vertexMap.at(*planesWithTrackIt)).Y() ) ) / HitCoordinates(vertexMap.at(*planesWithTrackIt)).Y();
+    }
+    std::vector<int> thirdViewClose;
+    for (std::map<int,double>::iterator distanceOfVertexFromVertexIt = distanceOfVertexFromVertex.begin(); distanceOfVertexFromVertexIt != distanceOfVertexFromVertex.end(); ++distanceOfVertexFromVertexIt)
+      if (distanceOfVertexFromVertexIt->second < 0.1)
+	thirdViewClose.push_back(distanceOfVertexFromVertexIt->first);
+    if (thirdViewClose.size() == 1)
+      vertexTrack = trackMap.at(thirdViewClose.at(0));
+  }
+
+  // Finally, if all else fails, just pick the view with the longest initial track reconstructed in 2D
+  if (vertexTrack.isNull()) {
+    std::map<int,int> lengthOfTrackToPlane;
+    for (std::vector<int>::iterator planesWithTrackIt = planesWithTrack.begin(); planesWithTrackIt != planesWithTrack.end(); ++planesWithTrackIt)
+      lengthOfTrackToPlane[trackHitsMap.at(*planesWithTrackIt).size()] = *planesWithTrackIt;
+    vertexTrack = trackMap.at(lengthOfTrackToPlane.rbegin()->second);
+  }
+
+  return;
+
+}
+
+double shower::EMShowerAlg::FindTotalEnergy(art::PtrVector<recob::Hit> const& hits, int plane) {
 
   /// Finds the total energy deposited by the shower in this view
 
-  ///////////// NEEDS TO BE FIXED TO RETURN TOTAL ENERGY, NOT CHARGE!
-
-  double totalEnergy = 0;
+  double totalCharge = 0, totalEnergy = 0;
 
   for (art::PtrVector<recob::Hit>::const_iterator hit = hits.begin(); hit != hits.end(); ++hit)
-    totalEnergy += (*hit)->Integral();
+    totalCharge += (*hit)->Integral();
+
+  double Uintercept = -1519.33, Ugradient = 148867;
+  double Vintercept = -1234.91, Vgradient = 149458;
+  double Zintercept = -1089.73, Zgradient = 145372;
+
+  switch (plane) {
+  case 0:
+    totalEnergy = (double)(totalCharge - Uintercept)/(double)Ugradient;
+    break;
+  case 1:
+    totalEnergy = (double)(totalCharge - Vintercept)/(double)Vgradient;
+    break;
+  case 2:
+    totalEnergy = (double)(totalCharge - Zintercept)/(double)Zgradient;
+    break;
+  }
 
   return totalEnergy;
 
@@ -144,40 +233,6 @@ double shower::EMShowerAlg::FinddEdx(art::PtrVector<recob::Hit> const& shower, a
   avdEdx /= dEdx.size();
 
   return avdEdx;
-
-}
-
-art::Ptr<recob::Hit> shower::EMShowerAlg::FindVertex(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2) {
-
-  /// Decides which 'end' of the shower is the true vertex
-
-  TVector2 end1 = HitCoordinates(hit1);
-  TVector2 end2 = HitCoordinates(hit2);
-
-  // Find the geometrical centre of the shower and the direction vector
-  TVector2 centre = (end1 + end2) / 2;
-  TVector2 direction = (end1 - end2).Unit();
-
-  // Sum all deposited charge for each end of the shower
-  double chargeEnd1 = 0, chargeEnd2 = 0;
-
-  // Project all hits onto this vector to determine which end each is closer to
-  TVector2 proj;
-  double distanceEnd1, distanceEnd2;
-  for (art::PtrVector<recob::Hit>::const_iterator hit = shower.begin(); hit != shower.end(); ++hit) {
-    proj = (HitCoordinates(*hit)-centre).Proj(direction);
-    distanceEnd1 = (end1 - centre - proj).Mod();
-    distanceEnd2 = (end2 - centre - proj).Mod();
-    if (distanceEnd1 < distanceEnd2)
-      chargeEnd1 += (*hit)->Integral();
-    else
-      chargeEnd2 += (*hit)->Integral();
-  }
-
-  std::cout << "Charge nearest end1 is " << chargeEnd1 << " and end2 is " << chargeEnd2 << std::endl;
-
-  // The half of the shower nearest the vertex will deposit less energy
-  return chargeEnd1 < chargeEnd2 ? hit1 : hit2;
 
 }
 
@@ -235,6 +290,9 @@ std::vector<int> shower::EMShowerAlg::FindTrack(art::PtrVector<recob::Hit> const
       }
     }
   }
+
+  if (trackHits.size() == 0)
+    trackHits.push_back(hitWires.begin()->second.at(0));
 
   return trackHits;
 
@@ -430,6 +488,40 @@ void shower::EMShowerAlg::FindShowerEnds(art::PtrVector<recob::Hit> const& showe
 //   }
 
 //   return;
+
+// }
+
+// art::Ptr<recob::Hit> shower::EMShowerAlg::FindVertex(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2) {
+
+//   /// Decides which 'end' of the shower is the true vertex
+
+//   TVector2 end1 = HitCoordinates(hit1);
+//   TVector2 end2 = HitCoordinates(hit2);
+
+//   // Find the geometrical centre of the shower and the direction vector
+//   TVector2 centre = (end1 + end2) / 2;
+//   TVector2 direction = (end1 - end2).Unit();
+
+//   // Sum all deposited charge for each end of the shower
+//   double chargeEnd1 = 0, chargeEnd2 = 0;
+
+//   // Project all hits onto this vector to determine which end each is closer to
+//   TVector2 proj;
+//   double distanceEnd1, distanceEnd2;
+//   for (art::PtrVector<recob::Hit>::const_iterator hit = shower.begin(); hit != shower.end(); ++hit) {
+//     proj = (HitCoordinates(*hit)-centre).Proj(direction);
+//     distanceEnd1 = (end1 - centre - proj).Mod();
+//     distanceEnd2 = (end2 - centre - proj).Mod();
+//     if (distanceEnd1 < distanceEnd2)
+//       chargeEnd1 += (*hit)->Integral();
+//     else
+//       chargeEnd2 += (*hit)->Integral();
+//   }
+
+//   std::cout << "Charge nearest end1 is " << chargeEnd1 << " and end2 is " << chargeEnd2 << std::endl;
+
+//   // The half of the shower nearest the vertex will deposit less energy
+//   return chargeEnd1 < chargeEnd2 ? hit1 : hit2;
 
 // }
 

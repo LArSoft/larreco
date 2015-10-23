@@ -298,16 +298,22 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
 
   TVector2 unit = TVector2(1,gradient).Unit();
 
+  std::cout << "LS gradient is:" << std::endl;
+  unit.Print();
+
   blurwire = std::abs(fBlurWire * unit.X());
   blurtick = std::abs(fBlurTick * unit.Y());
 
-  //std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << std::endl;
+  sigmawire = std::abs(std::round(fBlurSigma * unit.X()));
+  sigmatick = std::abs(std::round(fBlurSigma * unit.Y()));
+
+  std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << "; sigma: wire " << sigmawire << " and tick " << sigmatick << std::endl;
 
   // double grad = ((*eigenvectors)[1][0] / (*eigenvectors)[0][0]);
   // sigmatick2 = std::abs(std::round( grad * fBlurSigma));
 
-  sigmawire = fBlurSigma / 1.5;
-  sigmatick = fBlurSigma;
+  // sigmawire = fBlurSigma / 1.5;
+  // sigmatick = fBlurSigma;
 
   return;
 

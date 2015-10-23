@@ -1,27 +1,27 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v04_19_00
-defaultqual	e7
+parent	larreco	v04_21_00
+defaultqual	e9
 #
 fcldir product_dir job
 #
 product         version
-larsim		v04_12_00
-nutools         v1_14_04
-gcc		v4_9_2
+larsim		v04_13_01
+nutools         v1_15_02
+gcc		v4_9_3
 
-cetbuildtools	v4_14_01	-	only_for_build
+cetbuildtools	v4_14_02	-	only_for_build
 end_product_list
 
   
-# e7  - with gcc 4.9.1 and -std=c++1y
+# e9  - with gcc 4.9.3 and -std=c++14
 qualifier	larsim		nutools		gcc	notes
-e7:debug	e7:debug	e7:debug	-nq-
-e7:opt		e7:opt		e7:opt		-nq-
-e7:prof		e7:prof		e7:prof		-nq-
-e7:noifdh:debug	e7:noifdh:debug	e7:noifdh:debug	-nq-
-e7:noifdh:opt	e7:noifdh:opt	e7:noifdh:opt	-nq-
-e7:noifdh:prof	e7:noifdh:prof	e7:noifdh:prof	-nq-
+e9:debug	e9:debug	e9:debug	-nq-
+e9:opt		e9:opt		e9:opt		-nq-
+e9:prof		e9:prof		e9:prof		-nq-
+e9:noifdh:debug	e9:noifdh:debug	e9:noifdh:debug	-nq-
+e9:noifdh:opt	e9:noifdh:opt	e9:noifdh:opt	-nq-
+e9:noifdh:prof	e9:noifdh:prof	e9:noifdh:prof	-nq-
 end_qualifier_list
 
 # Preserve tabs and formatting in emacs and vi / vim:
