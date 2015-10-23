@@ -176,10 +176,9 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   // Define the size of this particular plane -- dynamically to avoid huge histograms
   int lowerTick = fDetProp->ReadOutWindowSize(), upperTick = 0, lowerWire = fGeom->MaxWires(), upperWire = 0;
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
-    art::Ptr<recob::Hit> hit = *hitIt;
-    int histWire = FindGlobalWire(hit->WireID());
-    if (hit->PeakTime() < lowerTick) lowerTick = hit->PeakTime();
-    if (hit->PeakTime() > upperTick) upperTick = hit->PeakTime();
+    int histWire = FindGlobalWire((*hitIt)->WireID());
+    if ((*hitIt)->PeakTime() < lowerTick) lowerTick = (*hitIt)->PeakTime();
+    if ((*hitIt)->PeakTime() > upperTick) upperTick = (*hitIt)->PeakTime();
     if (histWire < lowerWire) lowerWire = histWire;
     if (histWire > upperWire) upperWire = histWire;
   }
@@ -193,7 +192,6 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
 
   std::stringstream planeImage;
   planeImage << "blurred_image";
-  //planeImage << "blurred_plane" << fPlane << "_image";
 
   // Create a TH2 histogram
   TH2F image(planeImage.str().c_str(), planeImage.str().c_str(), (fUpperHistWire-fLowerHistWire), fLowerHistWire-0.5, fUpperHistWire-0.5, (fUpperHistTick-fLowerHistTick), fLowerHistTick-0.5, fUpperHistTick-0.5);
@@ -204,18 +202,17 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
 
   // Look through the hits
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
-    art::Ptr<recob::Hit> hit = *hitIt;
-    unsigned int wire = FindGlobalWire(hit->WireID());
-    int   tick   = (int)hit->PeakTime();
-    float charge = hit->SummedADC();
+    unsigned int wire = FindGlobalWire((*hitIt)->WireID());
+    int   tick   = (int)(*hitIt)->PeakTime();
+    float charge = (*hitIt)->SummedADC();
 
     // Fill hit map and keep a note of all real hits for later
     if (charge > image.GetBinContent((wire-fLowerHistWire)+1,(tick-fLowerHistTick)+1)) {
       image.Fill(wire,tick,charge);
-      fHitMap[wire][tick] = hit;
+      fHitMap[wire][tick] = (*hitIt);
     }
   }
-
+  
   return image;
 }
 
@@ -277,9 +274,6 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
 
   /// Dynamically find the blurring radii in each direction
 
-  /// There is stuff to sort out here!  Dynamic radii needs to be fixed; sigma needs to be understood!
-  /// 29/9/15 MW: fixed the first of these; changed from PCA to LS for determining particle direction
-
   // Calculate least squares slope
   int x, y;
   double nhits=0, sumx=0., sumy=0., sumx2=0., sumxy=0.;
@@ -296,24 +290,17 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
   }
   double gradient = (nhits * sumxy - sumx * sumy) / (nhits * sumx2 - sumx * sumx);
 
+  // Get the rough unit vector for the trajectories
   TVector2 unit = TVector2(1,gradient).Unit();
 
-  std::cout << "LS gradient is:" << std::endl;
-  unit.Print();
+  // Use this direction to scale the blurring radii and Gaussian sigma
+  blurwire = std::max(std::abs(std::round(fBlurWire * unit.X())),1.);
+  blurtick = std::max(std::abs(std::round(fBlurTick * unit.Y())),1.);
 
-  blurwire = std::abs(fBlurWire * unit.X());
-  blurtick = std::abs(fBlurTick * unit.Y());
+  sigmawire = std::max(std::abs(std::round(fBlurSigma * unit.X())),1.);
+  sigmatick = std::max(std::abs(std::round(fBlurSigma * unit.Y())),1.);
 
-  sigmawire = std::abs(std::round(fBlurSigma * unit.X()));
-  sigmatick = std::abs(std::round(fBlurSigma * unit.Y()));
-
-  std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << "; sigma: wire " << sigmawire << " and tick " << sigmatick << std::endl;
-
-  // double grad = ((*eigenvectors)[1][0] / (*eigenvectors)[0][0]);
-  // sigmatick2 = std::abs(std::round( grad * fBlurSigma));
-
-  // sigmawire = fBlurSigma / 1.5;
-  // sigmatick = fBlurSigma;
+  //std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << "; sigma: wire " << sigmawire << " and tick " << sigmatick << std::endl;
 
   return;
 
@@ -648,7 +635,7 @@ bool cluster::BlurredClusteringAlg::PassesTimeCut(std::vector<double> const& tim
 }
 
 
-void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int const& pad) {
+void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int pad, int tpc, int plane) {
 
   /// Save the images for debugging
 
@@ -677,15 +664,15 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<art::PtrV
     allClusterBins.push_back(clusterBins);
   }
 
-  SaveImage(image, allClusterBins, pad);
+  SaveImage(image, allClusterBins, pad, tpc, plane);
 }
 
-void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, int const& pad) {
+void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, int pad, int tpc, int plane) {
   std::vector<std::vector<int> > allClusterBins;
-  SaveImage(image, allClusterBins, pad);
+  SaveImage(image, allClusterBins, pad, tpc, plane);
 }
 
-void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int const& pad) {
+void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int pad, int tpc, int plane) {
 
   /// Save the different stages on different pads
 
@@ -711,8 +698,7 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<std::vect
   }
 
   std::stringstream title;
-  //title << stage << " -- TPC " << fTPC << ", Plane " << fPlane;// << " (Event " << fEvent << ")";
-  title << stage;
+  title << stage << " -- TPC " << tpc << ", Plane " << plane;// << " (Event " << fEvent << ")";
 
   image->SetName(title.str().c_str());
   image->SetTitle(title.str().c_str());

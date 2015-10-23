@@ -79,9 +79,9 @@ public:
   double GetTimeOfBin(TH2F* image, int const& bin);
   unsigned int NumNeighbours(int const& nx, std::vector<bool> const& used, int const& bin);
   bool PassesTimeCut(std::vector<double> const& times, double const& time);
-  void SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int const& pad);
-  void SaveImage(TH2F* image, int const& pad);
-  void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int const& pad);
+  void SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int pad, int tpc, int plane);
+  void SaveImage(TH2F* image, int pad, int tpc, int plane);
+  void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int pad, int tpc, int plane);
 
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
 
