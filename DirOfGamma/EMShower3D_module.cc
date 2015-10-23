@@ -181,9 +181,9 @@ recob::Cluster ems::EMShower3D::ConvertFrom(const std::vector< art::Ptr<recob::H
 
 recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 {
-	art::ServiceHandle<geo::Geometry> geom;
-	size_t cryo = src.FrontCryo();
-	const geo::CryostatGeo& cryostat = geom->Cryostat(cryo);
+  //art::ServiceHandle<geo::Geometry> geom;
+	//size_t cryo = src.FrontCryo();
+	//const geo::CryostatGeo& cryostat = geom->Cryostat(cryo);
 
 	std::vector< std::vector< double > > vdqdx;
 	double dedxZ = fProjectionMatchingAlg.selectInitialHits(src, geo::kZ); //loop over planes
@@ -216,9 +216,9 @@ recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 
 recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 {
-	art::ServiceHandle<geo::Geometry> geom;
-	size_t cryo = src.FrontCryo();
-	const geo::CryostatGeo& cryostat = geom->Cryostat(cryo);
+//	art::ServiceHandle<geo::Geometry> geom;
+//	size_t cryo = src.FrontCryo();
+	//const geo::CryostatGeo& cryostat = geom->Cryostat(cryo);
 
 	std::vector< std::vector< double > > vdqdx;
 	double dedxZ = fProjectionMatchingAlg.selectInitialHits(src, geo::kZ);
