@@ -4,8 +4,8 @@
 // File:        BlurredClustering_module.cc
 // Author:      Mike Wallbank (m.wallbank@sheffield.ac.uk), May 2015
 //
-// Reconstructs showers by blurred the hit map image to introduce fake
-// hits before clustering to make fully and more complete clusters
+// Reconstructs showers by blurring the hit map image to introduce fake
+// hits before clustering to make fuller and more complete clusters
 ////////////////////////////////////////////////////////////////////////
 
 // Framework includes:
@@ -50,7 +50,7 @@ public:
   explicit BlurredClustering(fhicl::ParameterSet const& pset);
   virtual ~BlurredClustering();
 
-  void cluster(std::vector<art::Ptr<recob::Hit> > const &hits, std::vector<art::PtrVector<recob::Hit> > &clusters);
+  void cluster(std::vector<art::Ptr<recob::Hit> > const &hits, std::vector<art::PtrVector<recob::Hit> > &clusters, int tpc, int plane);
   void produce(art::Event &evt);
   void reconfigure(fhicl::ParameterSet const &p);
   void showerHits(std::vector<art::Ptr<recob::Hit> > const& hits, art::FindManyP<recob::Track> const& fmt, std::vector<art::Ptr<recob::Hit> >& hitsToCluster);
@@ -133,6 +133,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     // Loop over views
     for (std::map<std::pair<int,int>,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeToHits.begin(); planeIt != planeToHits.end(); ++planeIt) {
 
+      //std::cout << "Clustering in plane " << planeIt->first.first << " in global TPC " << planeIt->first.second << std::endl;
+
       // Make the clusters
       std::vector<art::PtrVector<recob::Hit> > finalClusters;
       std::vector<art::Ptr<recob::Hit> > hitsToCluster;
@@ -142,7 +144,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       }
       else
 	hitsToCluster = planeIt->second;
-      cluster(hitsToCluster, finalClusters);
+
+      cluster(hitsToCluster, finalClusters, planeIt->first.second, planeIt->first.first);
 
       for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = finalClusters.begin(); clusIt != finalClusters.end(); ++clusIt) {
 
@@ -205,7 +208,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       }
       else
 	hitsToCluster = planeIt->second;
-      cluster(hitsToCluster, finalClusters);
+      cluster(hitsToCluster, finalClusters, planeIt->first.TPC, planeIt->first.Plane);
 
       for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = finalClusters.begin(); clusIt != finalClusters.end(); ++clusIt) {
 
@@ -255,7 +258,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     
 }
 
-void cluster::BlurredClustering::cluster(std::vector<art::Ptr<recob::Hit> > const& allHits, std::vector<art::PtrVector<recob::Hit> >& finalClusters) {
+void cluster::BlurredClustering::cluster(std::vector<art::Ptr<recob::Hit> > const& allHits, std::vector<art::PtrVector<recob::Hit> >& finalClusters, int tpc, int plane) {
 
   /// Takes vector of recob::Hits and returns vector of clusters
 
@@ -284,10 +287,10 @@ void cluster::BlurredClustering::cluster(std::vector<art::Ptr<recob::Hit> > cons
 
     // Make the debug PDF
     if (fCreateDebugPDF) {
-      fBlurredClusteringAlg.SaveImage(&image, 1);
-      fBlurredClusteringAlg.SaveImage(blurred, 2);
-      fBlurredClusteringAlg.SaveImage(blurred, allClusterBins, 3);
-      fBlurredClusteringAlg.SaveImage(&image, finalClusters, 4);
+      fBlurredClusteringAlg.SaveImage(&image, 1, tpc, plane);
+      fBlurredClusteringAlg.SaveImage(blurred, 2, tpc, plane);
+      fBlurredClusteringAlg.SaveImage(blurred, allClusterBins, 3, tpc, plane);
+      fBlurredClusteringAlg.SaveImage(&image, finalClusters, 4, tpc, plane);
     }
 
     blurred->Delete();
