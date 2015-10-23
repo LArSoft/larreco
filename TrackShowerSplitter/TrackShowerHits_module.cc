@@ -122,15 +122,18 @@ void TrackShowerHits::produce(art::Event & evt)
 				auto cls = simpleClustering.run(v.second);
 				for (const auto & c : cls)
 				{
-					if (c.size() < 2) continue;
+					if (c.hits().size() < 2) continue;
+
+					//const tss::Hit2D* ho = c.outermost();
+					//std::cout << "outermost: " << ho->Point2D().X() << " " << ho->Point2D().Y() << std::endl;
 
 					clusters->emplace_back(
 						recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
-							c.size(), 0.0F, 0.0F, cidx,  (geo::View_t)c.front()->View(), c.front()->Hit2DPtr()->WireID().planeID()));
+							c.hits().size(), 0.0F, 0.0F, cidx,  (geo::View_t)c.hits().front()->View(), c.hits().front()->Hit2DPtr()->WireID().planeID()));
 
 					std::vector< art::Ptr< recob::Hit > > hits2d;
-					hits2d.reserve(c.size());
-					for (auto h2d : c)
+					hits2d.reserve(c.hits().size());
+					for (auto h2d : c.hits())
 					{
 						hits2d.push_back(h2d->Hit2DPtr());
 					}
