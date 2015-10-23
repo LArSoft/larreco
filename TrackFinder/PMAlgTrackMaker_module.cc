@@ -36,6 +36,7 @@
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Track.h"
+#include "RecoBase/TrackHitMeta.h"
 #include "RecoBase/Vertex.h"
 #include "RecoBase/SpacePoint.h"
 #include "AnalysisBase/T0.h" 
@@ -248,6 +249,8 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	produces< std::vector<anab::T0> >();
 
 	produces< art::Assns<recob::Track, recob::Hit> >();
+	produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
+
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 	produces< art::Assns<recob::Vertex, recob::Track> >();
@@ -1174,7 +1177,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< std::vector< recob::Vertex > > vtxs(new std::vector< recob::Vertex >);
 	std::unique_ptr< std::vector< anab::T0 > > t0s(new std::vector< anab::T0 >);
 
-	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit(new art::Assns< recob::Track, recob::Hit >);
+	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit_oldway(new art::Assns< recob::Track, recob::Hit >);
+	std::unique_ptr< art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta > > trk2hit(new art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta >);
+
 	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
 	std::unique_ptr< art::Assns< recob::Track, anab::T0 > > trk2t0(new art::Assns< recob::Track, anab::T0 >);
 
@@ -1280,8 +1285,18 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				if (hits2d.size())
 				{
+					size_t trkIdx = tracks->size() - 1;
+					art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
+					art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
+					for (unsigned int hidx = 0; hidx < hits2d.size(); hidx++)
+					{
+						recob::TrackHitMeta metadata(hidx);
+						trk2hit->addSingle(trkPtr, hits2d[hidx], metadata);
+
+						trk2hit_oldway->addSingle(trkPtr, hits2d[hidx]);
+					}
+
 					util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
-					util::CreateAssn(*this, evt, *tracks, hits2d, *trk2hit);
 				}
 			}
 
@@ -1325,6 +1340,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(vtxs));
 	evt.put(std::move(t0s));
 
+	evt.put(std::move(trk2hit_oldway));
 	evt.put(std::move(trk2hit));
 	evt.put(std::move(trk2sp));
 	evt.put(std::move(trk2t0));
