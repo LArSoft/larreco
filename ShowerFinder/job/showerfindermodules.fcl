@@ -35,6 +35,7 @@ standard_emshower:
  HitsModuleLabel:    "linecluster"
  ClusterModuleLabel: "blurredcluster"
  TrackModuleLabel:   "pmtrack"
+ MinTrackLength:     3
 }
 
 argoneut_shower:     @local::standard_shower
