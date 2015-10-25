@@ -179,7 +179,7 @@ private:
   void guideEndpoints(std::vector< pma::Track3D* >& tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
-  recob::Track convertFrom(const pma::Track3D& src);
+  recob::Track convertFrom(const pma::Track3D& src, std::vector< double > & dxSeq);
 
   bool fIsRealData;
   bool isMcStopping(void) const; // to be moved to the testing module
@@ -335,7 +335,7 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 }
 // ------------------------------------------------------
 
-recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
+recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src, std::vector< double > & dxSeq)
 {
 	std::vector< TVector3 > xyz, dircos;
 	xyz.reserve(src.size()); dircos.reserve(src.size());
@@ -364,6 +364,8 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 		src_dQdx[geo::kZ] = dedx_map();
 		src.GetRawdEdxSequence(src_dQdx[geo::kZ], geo::kZ);
 	}
+
+	dxSeq.clear(); dxSeq.reserve(src.size());
 
 	TVector3 p3d;
 	double xshift = src.GetXShift();
@@ -404,6 +406,7 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 				break;
 			}
 		}
+		dxSeq.push_back(dx);
 	}
 
 	fLength = src.Length();
@@ -1238,7 +1241,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
 					/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
 
-				tracks->push_back(convertFrom(*trk));
+				std::vector< double > dxSeq;
+				tracks->push_back(convertFrom(*trk, dxSeq));
 
 				double xShift = trk->GetXShift();
 				if (xShift > 0.0)
@@ -1283,21 +1287,23 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				}
 				spEnd = allsp->size();
 
-				if (hits2d.size())
+				if (hits2d.size() && (hits2d.size() == dxSeq.size()))
 				{
 					size_t trkIdx = tracks->size() - 1;
 					art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
 					art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
-					for (unsigned int hidx = 0; hidx < hits2d.size(); hidx++)
+					for (unsigned int hIdx = 0, dxIdx = dxSeq.size() - 1;
+					     hIdx < hits2d.size(); hIdx++, dxIdx--)
 					{
-						recob::TrackHitMeta metadata(hidx);
-						trk2hit->addSingle(trkPtr, hits2d[hidx], metadata);
+						recob::TrackHitMeta metadata(hIdx, dxSeq[dxIdx]);
+						trk2hit->addSingle(trkPtr, hits2d[hIdx], metadata);
 
-						trk2hit_oldway->addSingle(trkPtr, hits2d[hidx]);
+						trk2hit_oldway->addSingle(trkPtr, hits2d[hIdx]);
 					}
 
 					util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
 				}
+				else mf::LogError("PMAlgTrackMaker") << "Assns not made for this track, data sizes do not match.";
 			}
 
 			if (fRunVertexing) // save vertices and vtx-trk assns
