@@ -208,7 +208,7 @@ void shower::EMShower::produce(art::Event& evt) {
     TVector3 direction, directionError, vertex, vertexError;
     std::vector<double> totalEnergy, totalEnergyError, dEdx, dEdxError;
     int bestPlane;
-    //fEMShowerAlg.FindShowerProperties(showerHits, fmt, fCalorimetryAlg, direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
+    fEMShowerAlg.FindShowerProperties(showerHits, fmt, fCalorimetryAlg, direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
 
     // Make shower object and associations
     showers->emplace_back(direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane, showerNum);
