@@ -11,7 +11,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
-std::vector< tss::Cluster2D > tss::Segmentation2D::run(tss::Cluster2D & inp)
+std::vector< tss::Cluster2D > tss::Segmentation2D::run(tss::Cluster2D & inp) const
 {
 	std::vector< tss::Cluster2D > result;
 	while (inp.size() > 1)
@@ -35,7 +35,7 @@ std::vector< tss::Cluster2D > tss::Segmentation2D::run(tss::Cluster2D & inp)
 void tss::Segmentation2D::run(
 	tss::Cluster2D & inp,
 	std::vector< tss::Cluster2D > & result,
-	std::vector< TVector2 > & centers)
+	std::vector< TVector2 > & centers) const
 {
 	if (!centers.size()) return;
 
@@ -49,57 +49,98 @@ void tss::Segmentation2D::run(
 	if (!hFirst || (pma::Dist2(hFirst->Point2D(), center) > dmax2)) return;
 	center = hFirst->Point2D();
 
-	tss::Cluster2D ring = select_ring(inp, center);
-	std::vector< tss::Cluster2D > seeds = fSimpleClustering.run(ring);
-	while (seeds.size())
+	tss::Cluster2D ring = selectRing(inp, center);
+	if (ring.size())
 	{
-		size_t seedIdx = 0, hitIdx, h;
-		double d2, min_d2 = seeds.front().dist2(center, hitIdx);
-		for (size_t i = 1; i < seeds.size(); i++)
+		std::vector< tss::Cluster2D > seeds = fSimpleClustering.run(ring);
+		while (seeds.size())
 		{
-			d2 = seeds[i].dist2(center, h);
-			if (d2 < min_d2) { min_d2 = d2; seedIdx = i; hitIdx = h; }
-		}
-
-		tss::Cluster2D segment = buildSegment(inp, center, seeds[seedIdx][hitIdx].Point2D());
-		if (segment.size())
-		{
-			result.emplace_back(segment);
-			if (segment.size() > 1)
+			size_t seedIdx = 0, hitIdx, h;
+			double d2, min_d2 = seeds.front().dist2(center, hitIdx);
+			for (size_t i = 1; i < seeds.size(); i++)
 			{
-				const tss::Hit2D* hEnd = segment.end();
-				if (hEnd) centers.emplace_back(hEnd->Point2D());
+				d2 = seeds[i].dist2(center, h);
+				if (d2 < min_d2) { min_d2 = d2; seedIdx = i; hitIdx = h; }
 			}
-		}
 
-		seeds.erase(seeds.begin() + seedIdx);
+			tss::Cluster2D segment = buildSegment(inp, center, seeds[seedIdx][hitIdx].Point2D());
+			if (segment.size())
+			{
+				result.emplace_back(segment);
+				if (segment.size() > 1)
+				{
+					const tss::Hit2D* hEnd = segment.end();
+					if (hEnd) centers.emplace_back(hEnd->Point2D());
+				}
+			}
+
+			seeds.erase(seeds.begin() + seedIdx);
+		}
 	}
+	else inp.release(hFirst);
 }
 // ------------------------------------------------------
 
-tss::Cluster2D tss::Segmentation2D::buildSegment(tss::Cluster2D & inp, TVector2 center, TVector2 end)
+tss::Cluster2D tss::Segmentation2D::buildSegment(tss::Cluster2D & inp, TVector2 center, TVector2 end) const
 {
 	const double max_d2 = fMaxLineDist * fMaxLineDist;
 	TVector2 segDir = end - center;
 
-	tss::Cluster2D segment;
+	double dc, min_dc = 1.0e9;
+	size_t firstIdx = 0;
+
+	tss::Cluster2D candidates;
 	for (auto h : inp.hits())
 	{
 		TVector2 proj = pma::GetProjectionToSegment(h->Point2D(), center, end);
 		if (pma::Dist2(h->Point2D(), proj) < max_d2)
 		{
 			TVector2 hDir = h->Point2D() - center;
-			if ((hDir * segDir >= 0.0) || (hDir.Mod() < 0.1))
+			dc = hDir.Mod();
+			if ((hDir * segDir >= 0.0) || (dc < 0.1))
 			{
-				segment.push_back(h);
+				candidates.push_back(h);
+				if (dc < min_dc)
+				{
+					min_dc = dc; firstIdx = candidates.size() - 1;
+				}
 			}
 		}
 	}
+	if (candidates.size() > 1)
+	{
+		const tss::Hit2D* hFirst = candidates.hits()[firstIdx];
+		candidates.hits()[firstIdx] = candidates.hits()[0];
+		candidates.hits()[0] = hFirst;
+		candidates.sort();
+	}
+
+	tss::Cluster2D segment;
+	if (candidates.size())
+	{
+		segment.push_back(candidates.start());
+		if (!inp.release(segment.start()))
+		{
+			mf::LogError("Segmentation2D") << "Hit not found in the input cluster.";
+		}
+
+		size_t i = 1;
+		while ((i < candidates.size()) &&
+		       fSimpleClustering.hitsTouching(segment, candidates[i]))
+		{
+			segment.push_back(candidates.hits()[i++]);
+			if (!inp.release(segment.end()))
+			{
+				mf::LogError("Segmentation2D") << "Hit not found in the input cluster.";
+			}
+		}
+	}
+
 	return segment;
 }
 // ------------------------------------------------------
 
-tss::Cluster2D tss::Segmentation2D::select_ring(const tss::Cluster2D & inp, TVector2 center) const
+tss::Cluster2D tss::Segmentation2D::selectRing(const tss::Cluster2D & inp, TVector2 center) const
 {
 	double d2_min = fRadiusMin * fRadiusMin;
 	double d2_max = fRadiusMax * fRadiusMax;
@@ -108,7 +149,7 @@ tss::Cluster2D tss::Segmentation2D::select_ring(const tss::Cluster2D & inp, TVec
 	for (size_t h = 0; h < inp.size(); h++)
 	{
 		double d2 = pma::Dist2(center, inp[h].Point2D());
-		if ((d2 > d2_min) && (d2 < d2_max))
+		if ((d2 >= d2_min) && (d2 <= d2_max))
 			ring.push_back(inp.hits()[h]);
 	}
 	return ring;

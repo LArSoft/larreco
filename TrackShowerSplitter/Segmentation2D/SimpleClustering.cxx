@@ -9,17 +9,15 @@
 #include "SimpleClustering.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "RecoAlg/PMAlg/Utilities.h"
 
-tss::Cluster2D::Cluster2D(const std::vector< const tss::Hit2D* > & hits) :
-	fStartIdx(0), fEndIdx(0)
+tss::Cluster2D::Cluster2D(const std::vector< const tss::Hit2D* > & hits)
 {
 	fHits.reserve(hits.size());
 	for (size_t h = 0; h < hits.size(); ++h) fHits.push_back(hits[h]);
 }
 // ------------------------------------------------------
 
-const tss::Hit2D* tss::Cluster2D::release(size_t idx)
+const tss::Hit2D* tss::Cluster2D::release_at(size_t idx)
 {
 	const tss::Hit2D* hit = 0;
 	if (idx < fHits.size())
@@ -30,6 +28,16 @@ const tss::Hit2D* tss::Cluster2D::release(size_t idx)
 	return hit;
 }
 // ------------------------------------------------------
+
+bool tss::Cluster2D::release(const tss::Hit2D* hit)
+{
+	for (size_t h = 0; h < fHits.size(); ++h)
+		if (fHits[h] == hit)
+	{
+		fHits.erase(fHits.begin() + h); return true;
+	}
+	return false;
+}
 
 const tss::Hit2D* tss::Cluster2D::closest(const TVector2 & p2d, size_t & idx) const
 {
@@ -70,7 +78,7 @@ const tss::Hit2D* tss::Cluster2D::outermost(size_t & idx) const
 }
 // ------------------------------------------------------
 
-bool tss::Cluster2D::Has(const tss::Hit2D* hit) const
+bool tss::Cluster2D::has(const tss::Hit2D* hit) const
 {
 	for (size_t i = 0; i < fHits.size(); ++i)
 		if (fHits[i] == hit) return true;
@@ -201,7 +209,7 @@ void tss::SimpleClustering::merge(std::vector< tss::Cluster2D > & clusters) cons
 }
 // ------------------------------------------------------
 
-std::vector< tss::Cluster2D > tss::SimpleClustering::run(const std::vector< tss::Hit2D > & inp)
+std::vector< tss::Cluster2D > tss::SimpleClustering::run(const std::vector< tss::Hit2D > & inp) const
 {
 	std::vector< tss::Cluster2D > result;
 	for (size_t h = 0; h < inp.size(); ++h)
@@ -224,7 +232,7 @@ std::vector< tss::Cluster2D > tss::SimpleClustering::run(const std::vector< tss:
 }
 // ------------------------------------------------------
 
-std::vector< tss::Cluster2D > tss::SimpleClustering::run(const tss::Cluster2D & inp)
+std::vector< tss::Cluster2D > tss::SimpleClustering::run(const tss::Cluster2D & inp) const
 {
 	std::vector< tss::Cluster2D > result;
 	for (size_t h = 0; h < inp.size(); ++h)

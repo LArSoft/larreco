@@ -120,15 +120,12 @@ void TrackShowerHits::produce(art::Event & evt)
 			for (const auto & v : c_t_v_hits[tpc_iter->Cryostat][tpc_iter->TPC])
 			{
 				auto cls = fSimpleClustering.run(v.second);
+
 				for (auto & c : cls)
 				{
 					if (c.hits().size() < 2) continue;
 
 					auto segs = fSegmentation2D.run(c);
-
-					//size_t idx;
-					//const tss::Hit2D* ho = c.outermost(idx);
-					//std::cout << "outermost: " << ho->Point2D().X() << " " << ho->Point2D().Y() << std::endl;
 
 					for (const auto & s : segs)
 					{
