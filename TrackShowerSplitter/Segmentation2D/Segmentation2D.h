@@ -1,0 +1,46 @@
+/**
+ *  @file   Segmentation2D.h
+ *
+ *  @author D.Stefan and R.Sulej
+ * 
+ *  @brief  Split into linear clusters.
+ */
+
+#ifndef Segmentation2D_h
+#define Segmentation2D_h
+
+#include "SimpleClustering.h"
+
+namespace tss
+{
+	class Segmentation2D;
+}
+
+class tss::Segmentation2D
+{
+public:
+	Segmentation2D(void) :
+		fRadiusMin(1.0), fRadiusMax(2.0),
+		fMaxLineDist(0.2)
+	{ }
+
+	std::vector< tss::Cluster2D > run(tss::Cluster2D & inp);
+
+private:
+
+	void run(
+		tss::Cluster2D & inp,
+		std::vector< tss::Cluster2D > & result,
+		std::vector< TVector2 > & centers);
+
+	tss::Cluster2D buildSegment(tss::Cluster2D & inp, TVector2 center, TVector2 end);
+	tss::Cluster2D select_ring(const tss::Cluster2D & inp, TVector2 center) const;
+
+	tss::SimpleClustering fSimpleClustering;
+
+	double fRadiusMin, fRadiusMax;
+	double fMaxLineDist;
+};
+
+#endif
+

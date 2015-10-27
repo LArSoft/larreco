@@ -24,8 +24,7 @@
 #include "RecoAlg/PMAlg/Utilities.h"
 #include "Utilities/AssociationUtil.h"
 
-#include "TrackShowerSplitter/Segmentation2D/TssHit2D.h"
-#include "TrackShowerSplitter/Segmentation2D/SimpleClustering.h"
+#include "TrackShowerSplitter/Segmentation2D/Segmentation2D.h"
 
 #include <memory>
 
@@ -55,7 +54,8 @@ private:
 
 	art::ServiceHandle<geo::Geometry> fGeom;
 
-	tss::SimpleClustering simpleClustering;
+	tss::SimpleClustering fSimpleClustering;
+	tss::Segmentation2D fSegmentation2D;
 
 	std::string fHitModuleLabel;
 
@@ -119,30 +119,38 @@ void TrackShowerHits::produce(art::Event & evt)
 		{
 			for (const auto & v : c_t_v_hits[tpc_iter->Cryostat][tpc_iter->TPC])
 			{
-				auto cls = simpleClustering.run(v.second);
-				for (const auto & c : cls)
+				auto cls = fSimpleClustering.run(v.second);
+				for (auto & c : cls)
 				{
 					if (c.hits().size() < 2) continue;
 
-					//const tss::Hit2D* ho = c.outermost();
+					auto segs = fSegmentation2D.run(c);
+
+					//size_t idx;
+					//const tss::Hit2D* ho = c.outermost(idx);
 					//std::cout << "outermost: " << ho->Point2D().X() << " " << ho->Point2D().Y() << std::endl;
 
-					clusters->emplace_back(
-						recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
-							c.hits().size(), 0.0F, 0.0F, cidx,  (geo::View_t)c.hits().front()->View(), c.hits().front()->Hit2DPtr()->WireID().planeID()));
-
-					std::vector< art::Ptr< recob::Hit > > hits2d;
-					hits2d.reserve(c.hits().size());
-					for (auto h2d : c.hits())
+					for (const auto & s : segs)
 					{
-						hits2d.push_back(h2d->Hit2DPtr());
-					}
-					if (hits2d.size())
-					{
-						util::CreateAssn(*this, evt, *clusters, hits2d, *clu2hit);
-					}
+						if (s.hits().size() < 2) continue;
 
-					++cidx;
+						clusters->emplace_back(
+							recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
+								s.hits().size(), 0.0F, 0.0F, cidx,  (geo::View_t)s.hits().front()->View(), s.hits().front()->Hit2DPtr()->WireID().planeID()));
+
+						std::vector< art::Ptr< recob::Hit > > hits2d;
+						hits2d.reserve(s.hits().size());
+						for (auto h2d : s.hits())
+						{
+							hits2d.push_back(h2d->Hit2DPtr());
+						}
+						if (hits2d.size())
+						{
+							util::CreateAssn(*this, evt, *clusters, hits2d, *clu2hit);
+						}
+
+						++cidx;
+					}
 				}
 			}
 		}
