@@ -608,7 +608,7 @@ namespace trkf {
           // load the daughter PFP indices
           mf::LogVerbatim("CCTM")<<"PFParticle "<<ipf<<" tID "<<tID;
           for(unsigned short jpf = 0; jpf < pfpToTrkID.size(); ++jpf) {
-            itr = pfpToTrkID[jpf];
+            itr = pfpToTrkID[jpf] - 1; // convert from track ID to track index
             if(trk[itr].MomID == tID) dtrIndices.push_back(jpf);
             if(trk[itr].MomID == tID) mf::LogVerbatim("CCTM")<<" dtr jpf "<<jpf<<" itr "<<itr;
           } // jpf
