@@ -200,7 +200,7 @@ bool ems::MCinfo::insideFidVol(const TLorentzVector& pvtx)
 	if (geom->HasTPC(idtpc))
 	{
 		
-		const geo::TPCGeo& tpcgeo = geom->GetElement(idtpc);
+		const geo::TPCGeo& tpcgeo = geom->TPC(idtpc);
 		double minx = tpcgeo.MinX(); double maxx = tpcgeo.MaxX();
 		double miny = tpcgeo.MinY(); double maxy = tpcgeo.MaxY();
 		double minz = tpcgeo.MinZ(); double maxz = tpcgeo.MaxZ();
@@ -388,15 +388,16 @@ void ems::MultiEMShowers::beginJob()
 
 void ems::MultiEMShowers::endJob()
 {
-	std::cout << "******************** fEvFidVol =  " << fEvFidVol << std::endl;
-	std::cout << "******************** fEvGMomCut = " << fEvGMomCut << std::endl;
-	std::cout << "******************** fEvComp =    " << fEvComp << std::endl;
-	std::cout << "******************** fEvReco =    " << fEvReco << std::endl;
-	std::cout << "******************** fEvInput =   " << fEvInput << std::endl;
-	std::cout << "******************** fEv2Groups = " << fEv2Groups << std::endl;
-	std::cout << "******************** fEv2Good =   " << fEv2Good << std::endl;
-	if (fEvInput)
-	std::cout << "******************** reco %  =    " << double(fEvReco)/double(fEvInput) << std::endl; 
+  mf::LogInfo log("MultiEMShower");
+  log << "******************** fEvFidVol =  " << fEvFidVol << "\n";
+  log << "******************** fEvGMomCut = " << fEvGMomCut << "\n";
+  log << "******************** fEvComp =    " << fEvComp << "\n";
+  log << "******************** fEvReco =    " << fEvReco << "\n";
+  log << "******************** fEvInput =   " << fEvInput << "\n";
+  log << "******************** fEv2Groups = " << fEv2Groups << "\n";
+  log << "******************** fEv2Good =   " << fEv2Good << "\n";
+  if (fEvInput)
+    log << "******************** reco %  =    " << double(fEvReco)/double(fEvInput) << "\n"; 
 }
 
 void ems::MultiEMShowers::analyze(art::Event const & e)
@@ -610,6 +611,9 @@ bool ems::MultiEMShowers::convCluster(art::Event const & evt)
 	//map: conversion point, vec of id clusters in each view
 	std::map < size_t, std::vector< size_t > > used;
 
+
+	art::FindManyP< recob::Hit > fbc(cluListHandle, evt, fCluModuleLabel);
+
 	double maxdist = 1.0; // 1 cm
 	if (geom->HasTPC(idtpc))
 	{
@@ -622,7 +626,6 @@ bool ems::MultiEMShowers::convCluster(art::Event const & evt)
 			{
 				for (size_t view = 0; view < cryostat.MaxPlanes(); view++)
 				{
-					art::FindManyP< recob::Hit > fbc(cluListHandle, evt, fCluModuleLabel);
 
 					double mindist = maxdist; int clid = 0;
 					for (size_t c = 0; c < cluListHandle->size(); ++c)
