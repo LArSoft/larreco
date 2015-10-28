@@ -30,6 +30,7 @@ standard_cctrackmaker:
   DebugPlane:    -1       # -1 = none
   DebugCluster:  -1
   PrintAllClusters: false # print clusters as well as cluster chains
+  errorOnFailureToPut: false
 }
 
 standard_pmalgtrackmaker:
