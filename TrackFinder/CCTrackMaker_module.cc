@@ -314,7 +314,7 @@ namespace trkf {
     produces< std::vector<recob::Track>                        >();
     produces< art::Assns<recob::Track,      recob::Hit>        >();
     produces<std::vector<recob::Seed>                          >();
-    produces< art::Assns<recob::Seed,       recob::Hit>        >();
+    //produces< art::Assns<recob::Seed,       recob::Hit>        >();
   }
   
   //-------------------------------------------------

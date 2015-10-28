@@ -369,6 +369,7 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	double xshift = src.GetXShift();
 	bool has_shift = (xshift != 0.0);
 	for (size_t i = 0; i < src.size(); i++)
+		if (src[i]->IsEnabled())
 	{
 		p3d = src[i]->Point3D();
 		if (has_shift) p3d.SetX(p3d.X() + xshift);
@@ -399,7 +400,8 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 				if (dx > 0.) dQdx = dQ/dx;
 				else dQdx = 0.;
 
-				dst_dQdx[m.first][i] = dQdx;
+				size_t backIdx = dst_dQdx[m.first].size() - 1;
+				dst_dQdx[m.first][backIdx] = dQdx;
 
 				break;
 			}
@@ -482,7 +484,7 @@ int PMAlgTrackMaker::getMcPdg(const pma::Track3D& trk) const
 	art::ServiceHandle< cheat::BackTracker > bt;
 	std::map< int, size_t > pdg_counts;
 	for (size_t i = 0; i < trk.size(); i++)
-		if (trk[i]->View2D() == geo::kZ)
+		if (trk[i]->IsEnabled() && (trk[i]->View2D() == geo::kZ))
 	{
 		art::Ptr< recob::Hit > hit = trk[i]->Hit2DPtr();
 		std::vector< sim::TrackIDE > tids = bt->HitToTrackID(hit);
@@ -1238,6 +1240,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
 					/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
 
+				trk->SelectHits();  // just in case, set all to enabled
+				unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
+				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) trk->CompleteMissingWires(geo::kU);
+				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(geo::kV);
+				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(geo::kZ);
+
 				tracks->push_back(convertFrom(*trk));
 
 				double xShift = trk->GetXShift();
@@ -1251,15 +1259,28 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
 				}
 
-				art::PtrVector< recob::Hit > sp_hits;
-				std::vector< art::Ptr< recob::Hit > > hits2d;
-				hits2d.reserve(trk->size());
+				size_t trkIdx = tracks->size() - 1; // stuff for assns:
+				art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
+				art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
 
+				// which idx from start, except disabled, really....
+				unsigned int hIdxs[trk->size()];
+				for (size_t h = 0, cnt = 0; h < trk->size(); h++)
+				{
+					if ((*trk)[h]->IsEnabled()) hIdxs[h] = cnt++;
+					else hIdxs[h] = 0;
+				}
+
+				art::PtrVector< recob::Hit > sp_hits;
 				spStart = allsp->size();
 				for (int h = trk->size() - 1; h >= 0; h--)
 				{
 					pma::Hit3D* h3d = (*trk)[h];
-					hits2d.push_back(h3d->Hit2DPtr());
+					if (!h3d->IsEnabled()) continue;
+
+					recob::TrackHitMeta metadata(hIdxs[h], h3d->Dx());
+					trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
+					trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // remove when FindMany improved
 
 					double hx = h3d->Point3D().X() + xShift;
 					double hy = h3d->Point3D().Y();
@@ -1283,21 +1304,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				}
 				spEnd = allsp->size();
 
-				if (hits2d.size())
-				{
-					size_t trkIdx = tracks->size() - 1;
-					art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
-					art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
-					for (unsigned int hidx = 0; hidx < hits2d.size(); hidx++)
-					{
-						recob::TrackHitMeta metadata(hidx);
-						trk2hit->addSingle(trkPtr, hits2d[hidx], metadata);
-
-						trk2hit_oldway->addSingle(trkPtr, hits2d[hidx]);
-					}
-
-					util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
-				}
+				if (spEnd > spStart) util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
 			}
 
 			if (fRunVertexing) // save vertices and vtx-trk assns
