@@ -716,7 +716,7 @@ double pma::Track3D::GetRawdEdxSequence(
 
 	pma::Hit3D* hit = 0;
 
-	double dr, dR, dq, dEq, qSkipped = 0.0;
+	double rv, dr, dR, dq, dEq, qSkipped = 0.0;
 
 	size_t j = NextHit(-1, view, inclDisabled), s = skip;
 	if (j >= size()) return 0.0F; // no charged hits at all
@@ -737,7 +737,7 @@ double pma::Track3D::GetRawdEdxSequence(
 	TVector2 c0(0., 0.), c1(0., 0.);
 	while (j <= jmax)
 	{
-		indexes.clear(); // prepare to collect hit indexes for used for this dE/dx entry
+		indexes.clear(); // prepare to collect hit indexes used for this dE/dx entry
 
 		indexes.push_back(j);
 		hit = fHits[j];
@@ -751,7 +751,9 @@ double pma::Track3D::GetRawdEdxSequence(
 		dEq = hit->SummedADC(); // [now it is ADC sum]
 
 		dr = HitDxByView(j, view, pma::Track3D::kForward); // protection against hits on the same position
-		dR = HitDxByView(j, view); // dx seen by j-th hit
+		rv = HitDxByView(j, view); // dx seen by j-th hit
+		fHits[j]->fDx = rv;
+		dR = rv;
 
 		size_t m = 1; // number of hits with charge > 0
 		while (((m < step) || (dR < 0.1) || (dr == 0.0)) && (j <= jmax))
@@ -776,7 +778,9 @@ double pma::Track3D::GetRawdEdxSequence(
 			dEq += dq;
 
 			dr = HitDxByView(j, view, pma::Track3D::kForward);
-			dR += HitDxByView(j, view);
+			rv = HitDxByView(j, view);
+			fHits[j]->fDx = rv;
+			dR += rv;
 			m++;
 		}
 		p0 += p1; p0 *= 0.5;
@@ -800,6 +804,117 @@ double pma::Track3D::GetRawdEdxSequence(
 	}
 
 	return qSkipped;
+}
+
+std::vector<float> pma::Track3D::DriftsOfWireIntersection(unsigned int wire, unsigned int view) const
+{
+	std::vector<float> drifts;
+	for (size_t i = 0; i < fNodes.size() - 1; i++)
+	{
+		int tpc = fNodes[i]->TPC(), cryo = fNodes[i]->Cryo();
+		if ((tpc != fNodes[i + 1]->TPC()) || (cryo != fNodes[i + 1]->Cryo())) continue;
+
+		TVector2 p0 = pma::CmToWireDrift(
+			fNodes[i]->Projection2D(view).X(), fNodes[i]->Projection2D(view).Y(),
+			view, fNodes[i]->TPC(), fNodes[i]->Cryo());
+		TVector2 p1 = pma::CmToWireDrift(
+			fNodes[i + 1]->Projection2D(view).X(), fNodes[i + 1]->Projection2D(view).Y(),
+			view, fNodes[i + 1]->TPC(), fNodes[i + 1]->Cryo());
+
+		if ((p0.X() - wire) * (p1.X() - wire) <= 0.0)
+		{
+			double frac_w = (wire - p0.X()) / (p1.X() - p0.X());
+			double d = p0.Y() + frac_w * (p1.Y() - p0.Y());
+			drifts.push_back((float)d);
+		}
+	}
+	return drifts;
+}
+
+size_t pma::Track3D::CompleteMissingWires(unsigned int view)
+{
+	int dPrev, dw, w, wx, wPrev, i = NextHit(-1, view);
+	TVector2 projPoint;
+
+	pma::Hit3D* hitPrev = 0;
+	pma::Hit3D* hit = 0;
+
+	std::vector< pma::Hit3D* > missHits;
+
+	while (i < (int)size())
+	{
+		hitPrev = hit;
+		hit = fHits[i];
+
+		projPoint = pma::CmToWireDrift(
+			hit->Projection2D().X(), hit->Projection2D().Y(),
+			hit->View2D(), hit->TPC(), hit->Cryo());
+
+		if (hit->View2D() == view) // &&
+		    //(projPoint.Y() >= hit->Hit2DPtr()->StartTick()-1) && // cannot use Hit2DPtr here
+		    //(projPoint.Y() <= hit->Hit2DPtr()->EndTick()+1))
+		{
+			w = hit->Wire();
+			if (hitPrev)
+			{
+				wPrev = hitPrev->Wire();
+				dPrev = (int)hitPrev->PeakTime();
+				if (abs(w - wPrev) > 1)
+				{
+					if (w > wPrev) dw = 1;
+					else dw = -1;
+					wx = wPrev + dw;
+					int k = 1;
+					while (wx != w)
+					{
+						int peakTime = 0;
+						unsigned int iWire = wx;
+						std::vector<float> drifts = DriftsOfWireIntersection(wx, view);
+						if (drifts.size())
+						{
+							peakTime = drifts[0];
+							for (size_t d = 1; d < drifts.size(); d++)
+								if (fabs(drifts[d] - dPrev) < fabs(peakTime - dPrev))
+									peakTime = drifts[d];
+						}
+						else
+						{
+							mf::LogVerbatim("pma::Track3D")
+								<< "Track does not intersect with the wire " << wx;
+							break;
+						}
+						pma::Hit3D* hmiss = new pma::Hit3D(
+							iWire, view, hit->TPC(), hit->Cryo(), peakTime, 1.0, 1.0);
+						missHits.push_back(hmiss);
+						wx += dw; k++;
+					}
+				}
+			}
+		}
+		else hit = hitPrev;
+
+		i = NextHit(i, view, true);
+		while ((i < (int)size()) && (hit->TPC() != fHits[i]->TPC()))
+		{
+			hitPrev = hit; hit = fHits[i];
+			i = NextHit(i, view, true);
+		}
+	}
+
+	if (missHits.size())
+	{
+		for (size_t hi = 0; hi < missHits.size(); hi++)
+		{
+			mf::LogVerbatim("pma::Track3D")
+				<< "Fill missing hit on wire " << missHits[hi]->Wire();
+			push_back(missHits[hi]);
+		}
+
+		MakeProjection();
+		SortHits();
+	}
+
+	return missHits.size();
 }
 
 void pma::Track3D::AddNode(pma::Node3D* node)

@@ -19,10 +19,12 @@
 
 
 pma::Hit3D::Hit3D(void) :
-	fTPC(0), fPlane(0), fWire(0),
+	fCryo(0), fTPC(0), fPlane(0), fWire(0),
+	fPeakTime(0), fAmpl(0), fArea(0),
 	fPoint3D(0, 0, 0),
 	fPoint2D(0, 0), fProjection2D(0, 0),
 	fSegFraction(0), fSigmaFactor(1),
+	fDx(0),
 	fEnabled(true), fOutlier(false),
 	fParent(0)
 {
@@ -33,22 +35,53 @@ pma::Hit3D::Hit3D(art::Ptr< recob::Hit > src) :
 	fPoint3D(0, 0, 0),
 	fProjection2D(0, 0),
 	fSegFraction(0), fSigmaFactor(1),
+	fDx(0),
 	fEnabled(true), fOutlier(false),
 	fParent(0)
 {
+	fCryo = src->WireID().Cryostat;
 	fTPC = src->WireID().TPC;
 	fPlane = src->WireID().Plane;
 	fWire = src->WireID().Wire;
 
-	fPoint2D = pma::WireDriftToCm(fWire, src->PeakTime(), fPlane, fTPC, src->WireID().Cryostat);
+	fPeakTime = src->PeakTime();
+
+	fAmpl = src->PeakAmplitude();
+	fArea = src->SummedADC();
+
+	fPoint2D = pma::WireDriftToCm(fWire, fPeakTime, fPlane, fTPC, fCryo);
+}
+
+pma::Hit3D::Hit3D(unsigned int wire, unsigned int view, unsigned int tpc, unsigned int cryo,
+	float peaktime, float ampl, float area) :
+	fPoint3D(0, 0, 0),
+	fProjection2D(0, 0),
+	fSegFraction(0), fSigmaFactor(1),
+	fDx(0),
+	fEnabled(false), fOutlier(false),
+	fParent(0)
+{
+	fCryo = cryo;
+	fTPC = tpc;
+	fPlane = view;
+	fWire = wire;
+
+	fPeakTime = peaktime;
+
+	fAmpl = ampl;
+	fArea = area;
+
+	fPoint2D = pma::WireDriftToCm(fWire, fPeakTime, fPlane, fTPC, fCryo);
 }
 
 pma::Hit3D::Hit3D(const pma::Hit3D& src) :
 	fHit(src.fHit),
-	fTPC(src.fTPC), fPlane(src.fPlane), fWire(src.fWire),
+	fCryo(src.fCryo), fTPC(src.fTPC), fPlane(src.fPlane), fWire(src.fWire),
+	fPeakTime(src.fPeakTime), fAmpl(src.fAmpl), fArea(src.fArea),
 	fPoint3D(src.fPoint3D),
 	fPoint2D(src.fPoint2D), fProjection2D(src.fProjection2D),
 	fSegFraction(src.fSegFraction), fSigmaFactor(src.fSigmaFactor),
+	fDx(src.fDx),
 	fEnabled(src.fEnabled), fOutlier(src.fOutlier),
 	fParent(0) // set only when pushed to track
 {
