@@ -135,6 +135,9 @@ public:
 	double GetRawdEdxSequence(std::map< size_t, std::vector<double> >& dedx, unsigned int view = geo::kZ,
 		unsigned int skip = 0, bool inclDisabled = false) const;
 
+	std::vector<float> DriftsOfWireIntersection(unsigned int wire, unsigned int view) const;
+	size_t CompleteMissingWires(unsigned int view);
+
 	void AddRefPoint(const TVector3& p) { fAssignedPoints.push_back(new TVector3(p)); }
 	void AddRefPoint(double x, double y, double z) { fAssignedPoints.push_back(new TVector3(x, y, z)); }
 	bool HasRefPoint(TVector3* p) const;
