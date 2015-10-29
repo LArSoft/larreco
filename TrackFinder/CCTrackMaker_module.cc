@@ -237,9 +237,9 @@ namespace trkf {
     // vector of many match combinations
     std::vector<MatchPars> matcomb;
     
-    void PrintClusters();
+    void PrintClusters() const;
     
-    void PrintTracks();
+    void PrintTracks() const;
     
     void MakeClusterChains(art::FindManyP<recob::Hit> const& fmCluHits);
     float dXClTraj(art::FindManyP<recob::Hit> const& fmCluHits, unsigned short ipl, unsigned short icl1, unsigned short end1, unsigned short icl2);
@@ -3161,7 +3161,7 @@ namespace trkf {
   } // FillTrkHits
   
   ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::PrintTracks()
+  void CCTrackMaker::PrintTracks() const
   {
     mf::LogVerbatim myprt("CCTrackmaker");
     myprt<<"********* PrintTracks \n";
@@ -3208,7 +3208,7 @@ namespace trkf {
   
   
   ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::PrintClusters()
+  void CCTrackMaker::PrintClusters() const
   {
     
     unsigned short iTime;
