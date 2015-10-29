@@ -54,26 +54,26 @@ class ems::MCinfo
 	MCinfo(const art::Event& evt);
 	void Info(const art::Event& evt);
 
-	int GetNgammas(void) const { return fNgammas; }
+	int GetNgammas() const { return fNgammas; }
 
-	double GetMompi0(void) const { return fMompi0; }
-	double GetMomGamma1(void) const { return fGammamom1; }
-	double GetMomGamma2(void) const { return fGammamom2; }
+	double GetMompi0() const { return fMompi0; }
+	double GetMomGamma1() const { return fGammamom1; }
+	double GetMomGamma2() const { return fGammamom2; }
 
-	double GetCosine(void) { return fCosine; }
+	double GetCosine() { return fCosine; }
 
-	TVector3 GetPrimary(void) const & { return fPrimary; }
-	TVector3 GetPospi0(void) const & { return fPi0pos; }
-	TVector3 GetPosgamma1(void) const & { return fConvgamma1; }
-	TVector3 GetPosgamma2(void) const & { return fConvgamma2; }
+	TVector3 const & GetPrimary() const { return fPrimary; }
+	TVector3 const & GetPospi0() const { return fPi0pos; }
+	TVector3 const & GetPosgamma1() const { return fConvgamma1; }
+	TVector3 const & GetPosgamma2() const { return fConvgamma2; }
 
-	TVector3 GetDirgamma1(void) const & { return fDirgamma1; }
-	TVector3 GetDirgamma2(void) const & { return fDirgamma2; }
+	TVector3 const & GetDirgamma1() const { return fDirgamma1; }
+	TVector3 const & GetDirgamma2() const { return fDirgamma2; }
 
-	bool IsInside1(void) const & { return fInside1; }
-	bool IsInside2(void) const & { return fInside2; }
+	bool const & IsInside1() const { return fInside1; }
+	bool const & IsInside2() const { return fInside2; }
 
-	bool IsCompton(void) const & { return fCompton; }
+	bool const & IsCompton() const { return fCompton; }
 
 	private:
 	bool insideFidVol(const TLorentzVector& pvtx);
@@ -306,11 +306,11 @@ private:
 	double fGdirmcreco1; double fGdirmcreco2;
 	double fGdirmcreco1good; double fGdirmcreco2good;
 
-  	std::string fHitsModuleLabel;
-	std::string fCluModuleLabel;
-	std::string fTrk3DModuleLabel;
-	std::string fVtxModuleLabel;
-	std::string fShsModuleLabel;
+  	art::InputTag fHitsModuleLabel;
+	art::InputTag fCluModuleLabel;
+	art::InputTag fTrk3DModuleLabel;
+	art::InputTag fVtxModuleLabel;
+	art::InputTag fShsModuleLabel;
 };
 
 
@@ -333,11 +333,11 @@ ems::MultiEMShowers::MultiEMShowers(fhicl::ParameterSet const & p)
 
 void ems::MultiEMShowers::reconfigure(fhicl::ParameterSet const& p)
 {
-  fHitsModuleLabel = p.get< std::string >("HitsModuleLabel");
-  fCluModuleLabel = p.get< std::string >("ClustersModuleLabel");
-  fTrk3DModuleLabel = p.get< std::string >("Trk3DModuleLabel");
-  fVtxModuleLabel = p.get< std::string >("VtxModuleLabel");
-  fShsModuleLabel = p.get< std::string >("ShsModuleLabel");
+  fHitsModuleLabel = p.get< art::InputTag >("HitsModuleLabel");
+  fCluModuleLabel = p.get< art::InputTag >("ClustersModuleLabel");
+  fTrk3DModuleLabel = p.get< art::InputTag >("Trk3DModuleLabel");
+  fVtxModuleLabel = p.get< art::InputTag >("VtxModuleLabel");
+  fShsModuleLabel = p.get< art::InputTag >("ShsModuleLabel");
   
   return;
 }
