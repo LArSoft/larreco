@@ -2118,6 +2118,7 @@ namespace trkf {
                   if(std::abs(kAng) > 0.3 && match.dAng < 0.03) std::cout<<"match "<<ipl<<":"<<icl<<" "<<jpl<<":"<<jcl<<" "<<kpl<<":"<<kcl<<" "<<match.dAng<<"\n";
                   // add X match error with 1 cm rms
 //                  match.Err = matchErr + match.dX;
+                  match.Err = 0.;
                   match.oVtx = -1;
                   match.odWir = 0;
                   match.odAng = 0;
