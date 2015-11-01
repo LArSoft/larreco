@@ -105,7 +105,7 @@ bool TrackShowerHits::sortHits(const art::Event& evt)
 
 void TrackShowerHits::produce(art::Event & evt)
 {
-	std::unique_ptr< std::vector< recob::Hit > > track_hits(new std::vector< recob::Hit >);
+	std::unique_ptr< std::vector< recob::Hit > > hits(new std::vector< recob::Hit >);
 
 	std::unique_ptr< std::vector< recob::Cluster > > clusters(new std::vector< recob::Cluster >);
 	std::unique_ptr< art::Assns< recob::Cluster, recob::Hit > > clu2hit(new art::Assns< recob::Cluster, recob::Hit >);
@@ -126,6 +126,10 @@ void TrackShowerHits::produce(art::Event & evt)
 					if (c.hits().size() < 2) continue;
 
 					auto segs = fSegmentation2D.run(c);
+
+					std::vector< const tss::Hit2D* > trackHits, emHits;
+					fSegmentation2D.splitHits(segs, trackHits, emHits);
+					for (auto & h : trackHits) hits->push_back(recob::Hit(*(h->Hit2DPtr())));
 
 					for (const auto & s : segs)
 					{
@@ -155,7 +159,7 @@ void TrackShowerHits::produce(art::Event & evt)
 	}
 	else mf::LogWarning("TrackShowerHits") << "Hits not found in the event.";
 
-	evt.put(std::move(track_hits));
+	evt.put(std::move(hits));
 	evt.put(std::move(clusters));
 	evt.put(std::move(clu2hit));
 }

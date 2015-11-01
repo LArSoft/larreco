@@ -51,6 +51,12 @@ public:
 
 	bool has(const tss::Hit2D* hit) const;
 
+	double length2(void) const
+	{
+		if (size() > 1) return pma::Dist2(fHits.front()->Point2D(), fHits.back()->Point2D());
+		else return 0.0;
+	}
+
 	double dist2(const TVector2 & p2d) const;
 	double dist2(const TVector2 & p2d, size_t & hIdx) const;
 	double dist2(const tss::Cluster2D & clu) const;
@@ -82,12 +88,17 @@ public:
 				tss::bDistToPointLess(fHits.front()->Point2D()));
 	}
 
+	bool IsDenseStart(void) const { return fDenseStart; }
+	bool IsDenseEnd(void) const { return fDenseEnd; }
+
 	const tss::Hit2D* closest(const TVector2 & p2d, size_t & idx) const;
 	const tss::Hit2D* outermost(size_t & idx) const;
 
 private:
 
 	std::vector< const tss::Hit2D* > fHits;
+
+	bool fDenseStart, fDenseEnd;
 
 };
 

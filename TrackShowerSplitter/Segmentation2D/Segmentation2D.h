@@ -26,6 +26,11 @@ public:
 
 	std::vector< tss::Cluster2D > run(tss::Cluster2D & inp) const;
 
+	void splitHits(
+		const std::vector< tss::Cluster2D > & inp,
+		std::vector< const tss::Hit2D* > & trackHits,
+		std::vector< const tss::Hit2D* > & emHits) const;
+
 private:
 
 	void run(

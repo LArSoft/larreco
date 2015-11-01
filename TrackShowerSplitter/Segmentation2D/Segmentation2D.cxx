@@ -77,7 +77,12 @@ void tss::Segmentation2D::run(
 			seeds.erase(seeds.begin() + seedIdx);
 		}
 	}
-	else inp.release(hFirst);
+	else
+	{
+		result.emplace_back(tss::Cluster2D());
+		result.back().push_back(hFirst);
+		inp.release(hFirst);
+	}
 }
 // ------------------------------------------------------
 
@@ -155,4 +160,50 @@ tss::Cluster2D tss::Segmentation2D::selectRing(const tss::Cluster2D & inp, TVect
 	return ring;
 }
 // ------------------------------------------------------
+
+void tss::Segmentation2D::splitHits(
+		const std::vector< tss::Cluster2D > & inp,
+		std::vector< const tss::Hit2D* > & trackHits,
+		std::vector< const tss::Hit2D* > & emHits) const
+{
+	const double emMaxLen2 = 3.0 * 3.0;
+	const double radius2 = 5.0 * 5.0;
+	const size_t nCloseThr = 5;
+
+	for (const auto & cx : inp)
+	{
+		if (!cx.size()) continue;
+
+		bool isEM = false;
+		if (cx.length2() < emMaxLen2)
+		{
+			size_t nClose = 0;
+			for (const auto & cy : inp)
+				if (cy.size() && (cy.length2() < emMaxLen2))
+			{
+				double d00 = pma::Dist2(cx.start()->Point2D(), cy.start()->Point2D());
+				double d01 = pma::Dist2(cx.start()->Point2D(), cy.end()->Point2D());
+				double d10 = pma::Dist2(cx.end()->Point2D(), cy.start()->Point2D());
+				double d11 = pma::Dist2(cx.end()->Point2D(), cy.end()->Point2D());
+				if ((d00 < radius2) || (d01 < radius2) || (d10 < radius2) || (d11 < radius2))
+					nClose++;
+			}
+			if (nClose >= nCloseThr) isEM = true;
+		}
+		else isEM = true;
+
+		trackHits.clear();
+		emHits.clear();
+		if (isEM)
+		{
+			for (auto h : cx.hits()) emHits.push_back(h);
+		}
+		else
+		{
+			for (auto h : cx.hits()) trackHits.push_back(h);
+		}
+	}
+}
+// ------------------------------------------------------
+
 
