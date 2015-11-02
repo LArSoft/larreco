@@ -10,7 +10,8 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-tss::Cluster2D::Cluster2D(const std::vector< const tss::Hit2D* > & hits)
+tss::Cluster2D::Cluster2D(const std::vector< const tss::Hit2D* > & hits) :
+	fDenseStart(false), fDenseEnd(false), fIsEM(false)
 {
 	fHits.reserve(hits.size());
 	for (size_t h = 0; h < hits.size(); ++h) fHits.push_back(hits[h]);

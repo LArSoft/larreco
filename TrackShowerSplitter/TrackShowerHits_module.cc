@@ -129,7 +129,7 @@ void TrackShowerHits::produce(art::Event & evt)
 
 					std::vector< const tss::Hit2D* > trackHits, emHits;
 					fSegmentation2D.splitHits(segs, trackHits, emHits);
-					for (auto & h : trackHits) hits->push_back(recob::Hit(*(h->Hit2DPtr())));
+					for (auto & h : emHits) hits->push_back(recob::Hit(*(h->Hit2DPtr())));
 
 					for (const auto & s : segs)
 					{

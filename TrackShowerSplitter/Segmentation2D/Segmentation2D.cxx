@@ -28,6 +28,10 @@ std::vector< tss::Cluster2D > tss::Segmentation2D::run(tss::Cluster2D & inp) con
 			run(inp, result, centers);
 		}
 	}
+
+	tagDenseEnds(result);
+	mergeDenseParts(result);
+
 	return result;
 }
 // ------------------------------------------------------
@@ -161,40 +165,161 @@ tss::Cluster2D tss::Segmentation2D::selectRing(const tss::Cluster2D & inp, TVect
 }
 // ------------------------------------------------------
 
+void tss::Segmentation2D::tagDenseEnds(std::vector< tss::Cluster2D > group) const
+{
+	const double rad2 = fDenseVtxRadius * fDenseVtxRadius;
+
+	for (size_t i = 0; i < group.size(); i++)
+	{
+		bool denseStart = false, denseEnd = false;
+		TVector2 start0(group[i].start()->Point2D()), end0(group[i].end()->Point2D());
+
+		for (size_t j = 0; j < group.size(); j++)
+		{
+			if (i == j) continue;
+
+			TVector2 start1(group[j].start()->Point2D()), end1(group[j].end()->Point2D());
+
+			if (!group[j].isDenseStart())
+			{
+				if (pma::Dist2(start1, start0) < rad2)
+				{
+					group[j].tagDenseStart(true);
+					denseStart = true;
+				}
+				if (pma::Dist2(start1, end0) < rad2)
+				{
+					group[j].tagDenseStart(true);
+					denseEnd = true;
+				}
+			}
+
+			if (!group[j].isDenseEnd())
+			{
+				if (pma::Dist2(end1, start0) < rad2)
+				{
+					group[j].tagDenseEnd(true);
+					denseStart = true;
+				}
+				if (pma::Dist2(end1, end0) < rad2)
+				{
+					group[j].tagDenseEnd(true);
+					denseEnd = true;
+				}
+			}
+		}
+					
+		if (denseStart) group[i].tagDenseStart(true);
+		if (denseEnd) group[i].tagDenseEnd(true);
+	}
+}
+// ------------------------------------------------------
+
+void tss::Segmentation2D::mergeDenseParts(std::vector< tss::Cluster2D > group) const
+{
+	const double rad2 = fDenseVtxRadius * fDenseVtxRadius;
+
+	bool merged = true;
+	while (merged)
+	{
+		merged = false;
+
+		size_t maxS = fDenseMinN, maxE = fDenseMinN;
+		std::vector< size_t > toMergeS, toMergeE;
+		int idxMaxS = -1, idxMaxE = -1;
+		for (size_t i = 0; i < group.size(); i++)
+		{
+			if (group[i].isEM()) continue;
+
+			if (group[i].isDenseStart())
+			{
+				size_t ns = 0;
+				std::vector< size_t > toMerge;
+				TVector2 start0(group[i].start()->Point2D());
+				for (size_t j = 0; j < group.size(); j++)
+				{
+					if (group[j].isEM()) continue;
+
+					if (i == j)
+					{
+						if ((group[j].size() > 1) &&
+						    (group[j].length2() < rad2)) ns++;
+					}
+					else
+					{
+						bool tagged = false;
+						if (pma::Dist2(start0, group[j].start()->Point2D()) < rad2)
+						{
+							ns++; toMerge.push_back(j); tagged = true;
+						}
+						if ((group[j].size() > 1) && (pma::Dist2(start0, group[j].end()->Point2D()) < rad2))
+						{
+							ns++; if (!tagged) toMerge.push_back(j);
+						}
+					}
+				}
+				if (ns > maxS) { maxS = ns; idxMaxS = i; toMergeS = toMerge; }
+			}
+			if ((group[i].size() > 1) && group[i].isDenseEnd())
+			{
+				size_t ne = 0;
+				std::vector< size_t > toMerge;
+				TVector2 end0(group[i].end()->Point2D());
+				for (size_t j = 0; j < group.size(); j++)
+				{
+					if (group[j].isEM()) continue;
+
+					if (i == j)
+					{
+						if ((group[j].size() > 1) &&
+						    (group[j].length2() < rad2)) ne++;
+					}
+					else
+					{
+						bool tagged = false;
+						if (pma::Dist2(end0, group[j].start()->Point2D()) < rad2)
+						{
+							ne++; toMerge.push_back(j); tagged = true;
+						}
+						if ((group[j].size() > 1) && (pma::Dist2(end0, group[j].end()->Point2D()) < rad2))
+						{
+							ne++; if (!tagged) toMerge.push_back(j);
+						}
+					}
+				}
+				if (ne > maxE) { maxE = ne; idxMaxE = i; toMergeE = toMerge; }
+			}
+		}
+
+		int idx = idxMaxS;
+		std::vector< size_t > toMergeIdxs = toMergeS;
+		if (idxMaxE > idx) { idx = idxMaxE; toMergeIdxs = toMergeE; }
+		if (idx > -1)
+		{
+			for (size_t i = 0; i < toMergeIdxs.size(); i++) // *** no merging, only tag instead ***
+			{
+				group[toMergeIdxs[i]].tagEM(true);
+			}
+			group[idx].tagEM(true);
+
+			merged = true;
+		}
+	}
+}
+// ------------------------------------------------------
+
 void tss::Segmentation2D::splitHits(
 		const std::vector< tss::Cluster2D > & inp,
 		std::vector< const tss::Hit2D* > & trackHits,
 		std::vector< const tss::Hit2D* > & emHits) const
 {
-	const double emMaxLen2 = 3.0 * 3.0;
-	const double radius2 = 5.0 * 5.0;
-	const size_t nCloseThr = 5;
-
 	for (const auto & cx : inp)
 	{
 		if (!cx.size()) continue;
 
-		bool isEM = false;
-		if (cx.length2() < emMaxLen2)
-		{
-			size_t nClose = 0;
-			for (const auto & cy : inp)
-				if (cy.size() && (cy.length2() < emMaxLen2))
-			{
-				double d00 = pma::Dist2(cx.start()->Point2D(), cy.start()->Point2D());
-				double d01 = pma::Dist2(cx.start()->Point2D(), cy.end()->Point2D());
-				double d10 = pma::Dist2(cx.end()->Point2D(), cy.start()->Point2D());
-				double d11 = pma::Dist2(cx.end()->Point2D(), cy.end()->Point2D());
-				if ((d00 < radius2) || (d01 < radius2) || (d10 < radius2) || (d11 < radius2))
-					nClose++;
-			}
-			if (nClose >= nCloseThr) isEM = true;
-		}
-		else isEM = true;
-
 		trackHits.clear();
 		emHits.clear();
-		if (isEM)
+		if (cx.isEM())
 		{
 			for (auto h : cx.hits()) emHits.push_back(h);
 		}

@@ -39,7 +39,7 @@ class tss::Cluster2D
 {
 public:
 
-	Cluster2D(void) { }
+	Cluster2D(void) : fDenseStart(false), fDenseEnd(false), fIsEM(false) { }
 	Cluster2D(const std::vector< const tss::Hit2D* > & hits);
 
 	size_t size(void) const { return fHits.size(); }
@@ -88,8 +88,13 @@ public:
 				tss::bDistToPointLess(fHits.front()->Point2D()));
 	}
 
-	bool IsDenseStart(void) const { return fDenseStart; }
-	bool IsDenseEnd(void) const { return fDenseEnd; }
+	bool isDenseStart(void) const { return fDenseStart; }
+	void tagDenseStart(bool b) { fDenseStart = b; }
+	bool isDenseEnd(void) const { return fDenseEnd; }
+	void tagDenseEnd(bool b) { fDenseEnd = b; }
+
+	bool isEM(void) const { return fIsEM; }
+	void tagEM(bool b) { fIsEM = b; }
 
 	const tss::Hit2D* closest(const TVector2 & p2d, size_t & idx) const;
 	const tss::Hit2D* outermost(size_t & idx) const;
@@ -98,7 +103,7 @@ private:
 
 	std::vector< const tss::Hit2D* > fHits;
 
-	bool fDenseStart, fDenseEnd;
+	bool fDenseStart, fDenseEnd, fIsEM;
 
 };
 
