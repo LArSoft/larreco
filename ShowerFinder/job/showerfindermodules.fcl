@@ -22,13 +22,20 @@ standard_shower:
 # calodEdxlength:	   30   # cutoff distance for hits saved to the calo object.
 #}
 
-
-
 standard_showercheater:
 {
  module_type:         "ShowerCheater"
  CheatedClusterLabel: "cluster"
  G4ModuleLabel:       "largeant"
+}
+
+standard_emshower:
+{
+ module_type:        "EMShower"
+ HitsModuleLabel:    "linecluster"
+ ClusterModuleLabel: "blurredcluster"
+ TrackModuleLabel:   "pmtrack"
+ MinTrackLength:     3
 }
 
 argoneut_shower:     @local::standard_shower

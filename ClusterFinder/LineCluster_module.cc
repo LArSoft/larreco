@@ -97,7 +97,7 @@ namespace cluster {
     produces< std::vector<recob::EndPoint2D> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
-    produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
+    //produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
   } // LineCluster::LineCluster()
   
   
