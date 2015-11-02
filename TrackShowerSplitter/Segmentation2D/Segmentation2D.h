@@ -22,13 +22,18 @@ public:
 	Segmentation2D(void) :
 		fRadiusMin(1.6), fRadiusMax(3.2),
 		fMaxLineDist(0.2),
-		fDenseVtxRadius(3.0),
-		fDenseMinN(5)
+		fDenseVtxRadius(5.0),
+		fDenseMinN(2)
 	{ }
 
 	std::vector< tss::Cluster2D > run(tss::Cluster2D & inp) const;
 
 	void splitHits(
+		const std::vector< tss::Cluster2D > & inp,
+		std::vector< const tss::Hit2D* > & trackHits,
+		std::vector< const tss::Hit2D* > & emHits) const;
+
+	void splitHitsNaive(
 		const std::vector< tss::Cluster2D > & inp,
 		std::vector< const tss::Hit2D* > & trackHits,
 		std::vector< const tss::Hit2D* > & emHits) const;
