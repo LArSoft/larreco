@@ -313,12 +313,13 @@ void tss::Segmentation2D::splitHits(
 		std::vector< const tss::Hit2D* > & trackHits,
 		std::vector< const tss::Hit2D* > & emHits) const
 {
+	trackHits.clear();
+	emHits.clear();
+
 	for (const auto & cx : inp)
 	{
 		if (!cx.size()) continue;
 
-		trackHits.clear();
-		emHits.clear();
 		if (cx.isEM())
 		{
 			for (auto h : cx.hits()) emHits.push_back(h);
