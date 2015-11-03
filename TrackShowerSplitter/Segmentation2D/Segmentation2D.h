@@ -23,7 +23,8 @@ public:
 		fRadiusMin(0.5), fRadiusMax(1.0),
 		fMaxLineDist(0.2),
 		fDenseVtxRadius(1.0),
-		fDenseMinN(5)
+		fDenseMinN(5),
+		fDenseMinH(25)
 	{ }
 
 	std::vector< tss::Cluster2D > run(tss::Cluster2D & inp) const;
@@ -57,7 +58,7 @@ private:
 	double fMaxLineDist;
 
 	double fDenseVtxRadius;
-	size_t fDenseMinN;
+	size_t fDenseMinN, fDenseMinH;
 };
 
 #endif

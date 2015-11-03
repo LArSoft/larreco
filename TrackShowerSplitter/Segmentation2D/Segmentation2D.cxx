@@ -346,14 +346,14 @@ void tss::Segmentation2D::splitHitsNaive(
 	{
 		if (!cx.size()) continue;
 
-		for (const auto & hx : cx.hits())
+		for (const auto hx : cx.hits())
 		{
 			size_t n = 0;
 			for (const auto & cy : inp)
 			{
 				if (!cy.size()) continue;
 
-				for (const auto & hy : cy.hits())
+				for (const auto hy : cy.hits())
 				{
 					if (hx->Hit2DPtr() == hy->Hit2DPtr()) continue;
 
@@ -361,13 +361,13 @@ void tss::Segmentation2D::splitHitsNaive(
 				}
 			}
 
-			if (cx.isEM())
+			if (n > fDenseMinH)
 			{
-				for (auto h : cx.hits()) emHits.push_back(h);
+				emHits.push_back(hx);
 			}
 			else
 			{
-				for (auto h : cx.hits()) trackHits.push_back(h);
+				trackHits.push_back(hx);
 			}
 		}
 	}
