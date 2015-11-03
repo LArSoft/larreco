@@ -51,8 +51,8 @@
 #include "RecoAlg/SmallClusterFinderAlg.h"
 #include "Geometry/geo.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/LArPropertiesService.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/ILArPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 //#include "SimulationBase/simbase.h"
 //#include "RawData/RawDigit.h"
 //#include "SummaryData/summary.h"
@@ -98,8 +98,8 @@ void cluster::SmallClusterFinderAlg::reconfigure(fhicl::ParameterSet const& pset
 // This method actually makes the clusters.
 void cluster::SmallClusterFinderAlg::FindSmallClusters(std::vector<art::Ptr<recob::Hit> > allHits)
 { 
-  const dataprov::DetectorProperties* detp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
-  const dataprov::LArProperties* larp = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
+  const dataprov::IDetectorProperties* detp = lar::providerFrom<util::IDetectorPropertiesService>();
+  const dataprov::ILArProperties* larp = lar::providerFrom<util::ILArPropertiesService>();
   
   ///These lines determine the conversion factors to take wires and times to CMs
   	fDriftVelocity=detp->DriftVelocity(detp->Efield(),larp->Temperature());

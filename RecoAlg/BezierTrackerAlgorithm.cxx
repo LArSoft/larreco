@@ -17,7 +17,7 @@
 #include "RecoObjects/BezierTrack.h"
 #include "RecoObjects/BezierCurveHelper.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 
 
 #include "art/Framework/Principal/Event.h"
@@ -968,7 +968,7 @@ namespace trkf {
 
   bool BezierTrackerAlgorithm::EvaluateOccupancy(recob::Seed& Seed1, recob::Seed& Seed2, double dThresh,  std::vector<art::PtrVector<recob::Hit>*>& AllHits,  std::vector<std::vector< std::vector<int> >* >& OrgHits, std::vector<uint32_t>& LowChan, std::vector<uint32_t>& HighChan, std::vector<std::vector<int> >& HitStatus, std::vector<std::vector<int> >& TheseHits)
   {
-    const dataprov::DetectorProperties* det = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    const dataprov::IDetectorProperties* det = lar::providerFrom<util::IDetectorPropertiesService>();
       
     int NSteps = 2 * Seed1.GetDistance(Seed2) / dThresh;
     if(NSteps<2) NSteps=2;
@@ -1021,7 +1021,7 @@ namespace trkf {
 
   void BezierTrackerAlgorithm::GetSeedDirProjected(recob::Seed const& TheSeed, std::vector<double>& WireCoord, std::vector<double>& TimeCoord) 
   {
-    const dataprov::DetectorProperties* det = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    const dataprov::IDetectorProperties* det = lar::providerFrom<util::IDetectorPropertiesService>();
     
     WireCoord.clear();
     WireCoord.resize(3);
@@ -1050,7 +1050,7 @@ namespace trkf {
   void BezierTrackerAlgorithm::CalculateGeometricalElements()
   {
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* det = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    const dataprov::IDetectorProperties* det = lar::providerFrom<util::IDetectorPropertiesService>();
 
 
     // Find pitch of each wireplane

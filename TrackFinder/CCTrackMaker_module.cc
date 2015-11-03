@@ -42,7 +42,7 @@
 #include "RecoBase/PFParticle.h"
 #include "RecoBase/Seed.h"
 
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/TrackTrajectoryAlg.h"
 #include "RecoAlg/VertexFitAlg.h"
@@ -78,7 +78,7 @@ namespace trkf {
     
     // services
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop;
+    const dataprov::IDetectorProperties* detprop;
     
     TrackTrajectoryAlg fTrackTrajectoryAlg;
     VertexFitAlg fVertexFitAlg;
@@ -353,7 +353,7 @@ namespace trkf {
   void CCTrackMaker::produce(art::Event& evt)
   {
     
-    detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
     fWirePitch = geom->WirePitch();
     

@@ -179,8 +179,8 @@ namespace cluster {
       return;
     }
 
-    const dataprov::LArProperties* larprop = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
-    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    const dataprov::ILArProperties* larprop = lar::providerFrom<util::ILArPropertiesService>();
+    const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
     for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
@@ -4293,6 +4293,10 @@ namespace cluster {
           break;
         }
       } // ivx
+      // quit if localindex does not make sense. 
+      if (hit.LocalIndex() != 0 && imbest == 0){
+	doMerge = false;
+      }
       if (doMerge) {
         // find the neighbor hit
         unsigned int oht;
@@ -4440,6 +4444,10 @@ namespace cluster {
         const unsigned int iht = fcl2hits[indx];
         recob::Hit const& hit = fHits[iht];
         if(hit.Multiplicity() == 2) {
+	  // quit if localindex does not make sense. 
+	  if (hit.LocalIndex() != 0 && iht == 0){
+	    continue;
+	  }
           // hit doublet. Get the index of the other hit
           unsigned int oht;
           if(hit.LocalIndex() == 0) {
@@ -4616,7 +4624,7 @@ namespace cluster {
         float theTime;
         short dwb, dwe;
 
-	const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+	const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
           // A complete 3D vertex with matching 2D vertices in all planes?
@@ -4700,7 +4708,7 @@ namespace cluster {
         unsigned short thePlane, theWire, plane;
         unsigned short loWire, hiWire;
 
-	const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+	const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
           if(vtx3[ivx].CStat != cstat || vtx3[ivx].TPC != tpc) continue;
@@ -4917,7 +4925,7 @@ namespace cluster {
     };
     std::array< std::vector<Hammer>, 3> hamrVec;
     
-    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
     unsigned short ipl;
     bool useit = false;
@@ -5087,7 +5095,7 @@ namespace cluster {
       
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
       
-      const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+      const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
       
       const unsigned int cstat = tpcid.Cryostat;
       const unsigned int tpc = tpcid.TPC;

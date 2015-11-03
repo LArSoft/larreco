@@ -98,7 +98,7 @@ void hit::HitAnaAlg::LoadHitAssocPair( std::vector<recob::Hit> const& HitVector,
 void hit::HitAnaAlg::AnalyzeWires(std::vector<recob::Wire> const& WireVector,
 				  std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
 				  std::vector< std::vector<int> > const& AssocVector,
-				  const dataprov::DetectorClocks *ts,
+				  const dataprov::IDetectorClocks *ts,
 				  unsigned int event, unsigned int run){
   
   InitWireData(event,run);
@@ -140,7 +140,7 @@ void hit::HitAnaAlg::FillWireInfo(recob::Wire const& wire,
 				  int WireIndex,
 				  std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
 				  std::vector<int> const& thisAssocVector,
-				  const dataprov::DetectorClocks *ts){
+				  const dataprov::IDetectorClocks *ts){
   
   wireData.channel = wire.Channel();
   wireData.plane = wire.View();
@@ -185,7 +185,7 @@ void hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& ra
 				int WireIndex,
 				std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
 				std::vector<int> const& thisAssocVector,
-				const dataprov::DetectorClocks *ts){
+				const dataprov::IDetectorClocks *ts){
 
   ROIInfo(range,wireData.integrated_charge,wireData.peak_charge,wireData.peak_time);
 
@@ -258,7 +258,7 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
 						std::vector<int> const& HitsOnWire,
 						size_t begin_wire_tdc,
 						size_t end_wire_tdc,
-						const dataprov::DetectorClocks *ts){
+						const dataprov::IDetectorClocks *ts){
 
   wireData.MCHits_PeakCharge = -999;
 

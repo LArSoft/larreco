@@ -81,7 +81,7 @@
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 //#include "RecoAlg/ClusterParamsAlg.h"
 
@@ -267,7 +267,7 @@ void FeatureVertexFinder::produce(art::Event& evt)
    // ####################################
    // ### Detector Properties Services ###
    // ####################################
-   const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+   const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
    
    // ######################################################
    // ### Figuring out if I have a 2 or 3 plane detector ###
@@ -669,7 +669,7 @@ void vertex::FeatureVertexFinder::Get3dVertexCandidates(std::vector< art::Ptr<re
    // ####################################
    // ### Detector Properties Services ###
    // ####################################
-   const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+   const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
    
    double y = 0., z = 0.;
    double yy = 0., zz = 0.;
@@ -814,7 +814,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
    // ####################################
    // ### Detector Properties Services ###
    // ####################################
-   const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+   const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
    
    int nClustersFound = 0;
    
@@ -1165,7 +1165,7 @@ void vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(std::vector<doub
    // ####################################
    // ### Detector Properties Services ###
    // ####################################
-   const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+   const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
    
    // ---------------------- MERGING THE LONG LIST OF 2D CANDIDATES ---------------------------
    

@@ -51,11 +51,10 @@ PrincipalComponentsAlg::~PrincipalComponentsAlg()
 void PrincipalComponentsAlg::reconfigure(fhicl::ParameterSet const &pset)
 {
     art::ServiceHandle<geo::Geometry>            geometry;
-    art::ServiceHandle<util::DetectorPropertiesService> detectorProperties;
     
     m_parallel = pset.get<double>("ParallelLines", 0.00001);
     m_geometry = &*geometry;
-    m_detector = detectorProperties->getDetectorProperties();
+    m_detector = lar::providerFrom<util::IDetectorPropertiesService>();
 }
     
 void PrincipalComponentsAlg::getHit2DPocaToAxis(const TVector3&            axisPos,

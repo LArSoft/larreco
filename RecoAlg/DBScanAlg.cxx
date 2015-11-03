@@ -22,8 +22,8 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "Utilities/LArPropertiesService.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/ILArPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 #include "RecoAlg/DBScanAlg.h"
 #include "RecoBase/Hit.h"
 #include "Geometry/PlaneGeo.h"
@@ -308,8 +308,8 @@ void cluster::DBScanAlg::InitScan(const std::vector< art::Ptr<recob::Hit> >& all
   // Determine spacing between wires (different for each detector)
   ///get 2 first wires and find their spacing (wire_dist)
 
-  const dataprov::LArProperties* larp = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
-  const dataprov::DetectorProperties* detp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+  const dataprov::ILArProperties* larp = lar::providerFrom<util::ILArPropertiesService>();
+  const dataprov::IDetectorProperties* detp = lar::providerFrom<util::IDetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
 
   for(size_t p = 0; p < geom->Nplanes(); ++p)

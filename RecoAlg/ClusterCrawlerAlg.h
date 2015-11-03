@@ -25,8 +25,8 @@
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Hit.h"
-#include "Utilities/LArPropertiesService.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/ILArPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/LinFitAlg.h"
 

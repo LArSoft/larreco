@@ -84,7 +84,7 @@ namespace trkf{
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::TrackTrajectory(std::vector<art::Ptr<recob::Hit> >&fHits){
     
-    detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
 /*
     // Track hit X and WireIDs in each plane
@@ -227,8 +227,8 @@ namespace trkf{
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::Track3D(std::vector<art::Ptr<recob::Hit> >&fHits){
 
-    larprop = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
-    detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    larprop = lar::providerFrom<util::ILArPropertiesService>();
+    detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
     //save time/hit information along track trajectory
     std::vector<std::map<int,double> > vtimemap(3);
@@ -479,8 +479,8 @@ namespace trkf{
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::MakeSPT(std::vector<art::Ptr<recob::Hit> >&fHits){
     
-    larprop = art::ServiceHandle<util::LArPropertiesService>()->getLArProperties();
-    detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    larprop = lar::providerFrom<util::ILArPropertiesService>();
+    detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
     double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
     double Efield_drift = detprop->Efield(0);  // Electric Field in the drift region in kV/cm

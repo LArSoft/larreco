@@ -123,7 +123,7 @@ private:
     art::ServiceHandle<geo::Geometry> fGeometry;       // pointer to Geometry service
 
     // art::ServiceHandle<geo::Geometry> fGeom;
-    // // art::ServiceHandle<util::LArProperties> larp;
+    // // art::ServiceHandle<util::ILArProperties> larp;
 
     TFile *fOutFile;
     TTree *fEventTree;
@@ -692,6 +692,7 @@ void CellTree::processSpacePoint( const art::Event& event, TString option, ostre
 
     TString geomName(fGeometry->DetectorName().c_str());
     if (geomName.Contains("35t")) { geomName = "dune35t"; }
+    else if (geomName.Contains("protodune")) { geomName = "protodune"; }
     else { geomName = "uboone"; } // use uboone as default
     out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
 

@@ -119,7 +119,7 @@ namespace trkf {
 #include "RecoBase/Seed.h"
 #include "RecoBase/SpacePoint.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 
 
 
@@ -392,7 +392,7 @@ namespace trkf {
   void FeatureTracker::GetProjectedEnds(TVector3 xyz, std::vector<double>& uvw, std::vector<double>&t, int tpc, int cryo)
   {
     
-    const dataprov::DetectorProperties* det = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    const dataprov::IDetectorProperties* det = lar::providerFrom<util::IDetectorPropertiesService>();
     art::ServiceHandle<geo::Geometry>              geo;
 
     int NPlanes=geo->Cryostat(cryo).TPC(tpc).Nplanes();
@@ -439,7 +439,7 @@ namespace trkf {
       fSP.makeSpacePoints(HitsForEndPoints, spts);
 
       // This is temporary for debugging purposes
-      const dataprov::DetectorProperties* det = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+      const dataprov::IDetectorProperties* det = lar::providerFrom<util::IDetectorPropertiesService>();
       
       for(size_t i=0; i!=spts.size(); ++i)
 	{

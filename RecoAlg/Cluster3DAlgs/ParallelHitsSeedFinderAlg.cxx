@@ -46,10 +46,10 @@ ParallelHitsSeedFinderAlg::ParallelHitsSeedFinderAlg(fhicl::ParameterSet const &
     this->reconfigure(pset);
     
     art::ServiceHandle<geo::Geometry>            geometry;
-    art::ServiceHandle<util::DetectorPropertiesService> detectorProperties;
+    //    art::ServiceHandle<util::DetectorPropertiesService> detectorProperties;
     
     m_geometry = &*geometry;
-    m_detector = detectorProperties->getDetectorProperties();
+    //    m_detector = detectorProperties->provider();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

@@ -20,7 +20,7 @@
 #include "MCBase/MCHitCollection.h"
 #include "RecoBase/Hit.h"
 #include "Geometry/Geometry.h"
-#include "Utilities/DetectorClocksService.h"
+#include "Utilities/IDetectorClocksService.h"
 #include <TH1D.h>
 #include <TH2D.h>
 #include <TStopwatch.h>
@@ -223,7 +223,7 @@ namespace hit {
     fAnaWatch.Start();
     
     art::ServiceHandle<geo::Geometry> geo;
-    const dataprov::DetectorClocks* ts = art::ServiceHandle<util::DetectorClocksService>()->getDetectorClocks();
+    const dataprov::IDetectorClocks* ts = lar::providerFrom<util::IDetectorClocksService>();
     
     fReadWatch.Start();
     art::Handle<std::vector<sim::MCHitCollection> > mcHandle;

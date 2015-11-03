@@ -34,7 +34,7 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 
 #include "MCCheater/BackTracker.h"
@@ -167,7 +167,7 @@ private:
   // ------------------------------------------------------
 
   art::ServiceHandle< geo::Geometry > fGeom;
-  const dataprov::DetectorProperties* fDetProp;
+  const dataprov::IDetectorProperties* fDetProp;
 
   // ******************* tree output **********************
   int fEvNumber;        // event number
@@ -222,7 +222,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 
-	fDetProp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+	fDetProp = lar::providerFrom<util::IDetectorPropertiesService>();
 }
 // ------------------------------------------------------
 
@@ -854,7 +854,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
-	fDetProp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+	fDetProp = lar::providerFrom<util::IDetectorPropertiesService>();
 	
 	fEvNumber = evt.id().event();
 	fIsRealData = evt.isRealData();

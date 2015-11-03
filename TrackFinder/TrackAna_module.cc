@@ -32,7 +32,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
 
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/Hit.h"
@@ -95,7 +95,7 @@ namespace {
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
     // Get fiducial volume boundary.
 
@@ -157,8 +157,10 @@ namespace {
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    //    const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+    auto const* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
+    
     // Get fiducial volume boundary.
 
     double xmin = 0.;
@@ -848,7 +850,7 @@ namespace trkf {
   // Arguments: event - Art event.
   //
   {
-    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
     art::ServiceHandle<cheat::BackTracker> bt;
     art::ServiceHandle<geo::Geometry> geom;
 
@@ -1454,7 +1456,7 @@ namespace trkf {
 
     art::ServiceHandle<cheat::BackTracker> bt;
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
     std::map<int, std::map<int, art::PtrVector<recob::Hit>> > hitmap; // trkID, otrk, hitvec
     std::map<int, int > KEmap; // length traveled in det [cm]?, trkID want to sort by KE

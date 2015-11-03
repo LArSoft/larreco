@@ -21,7 +21,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "Utilities/DetectorPropertiesService.h"
+#include "Utilities/IDetectorPropertiesService.h"
 #include "RecoBase/Hit.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
@@ -83,7 +83,7 @@ public:
   void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int const& pad);
   void SetEventParameters(unsigned int event, unsigned int run, unsigned int subrun, bool global) { fEvent = event; fRun = run; fSubrun = subrun; fGlobalTPCRecon = global; }
   void SetPlaneParameters(unsigned int plane, unsigned int tpc, unsigned int cryostat) { fPlane = plane; fTPC = tpc; fCryostat = cryostat;
-    const dataprov::DetectorProperties* fDetProp = art::ServiceHandle<util::DetectorPropertiesService>()->getDetectorProperties();
+    auto const *fDetProp = lar::providerFrom<util::IDetectorPropertiesService>();
     fNTicks = fDetProp->ReadOutWindowSize(); fNWires = fGeom->Nwires(plane, tpc, cryostat); }
 
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
