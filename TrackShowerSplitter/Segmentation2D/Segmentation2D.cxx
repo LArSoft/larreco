@@ -165,7 +165,7 @@ tss::Cluster2D tss::Segmentation2D::selectRing(const tss::Cluster2D & inp, TVect
 }
 // ------------------------------------------------------
 
-void tss::Segmentation2D::tagDenseEnds(std::vector< tss::Cluster2D > group) const
+void tss::Segmentation2D::tagDenseEnds(std::vector< tss::Cluster2D > & group) const
 {
 	const double rad2 = fDenseVtxRadius * fDenseVtxRadius;
 
@@ -215,7 +215,7 @@ void tss::Segmentation2D::tagDenseEnds(std::vector< tss::Cluster2D > group) cons
 }
 // ------------------------------------------------------
 
-void tss::Segmentation2D::mergeDenseParts(std::vector< tss::Cluster2D > group) const
+void tss::Segmentation2D::mergeDenseParts(std::vector< tss::Cluster2D > & group) const
 {
 	const double rad2 = fDenseVtxRadius * fDenseVtxRadius;
 
@@ -315,6 +315,7 @@ void tss::Segmentation2D::splitHits(
 {
 	trackHits.clear();
 	emHits.clear();
+
 	for (const auto & cx : inp)
 	{
 		if (!cx.size()) continue;
@@ -336,19 +337,38 @@ void tss::Segmentation2D::splitHitsNaive(
 		std::vector< const tss::Hit2D* > & trackHits,
 		std::vector< const tss::Hit2D* > & emHits) const
 {
+	const double rad2 = fDenseVtxRadius * fDenseVtxRadius;
+
 	trackHits.clear();
 	emHits.clear();
+
 	for (const auto & cx : inp)
 	{
 		if (!cx.size()) continue;
 
-		if (cx.isEM())
+		for (const auto & hx : cx.hits())
 		{
-			for (auto h : cx.hits()) emHits.push_back(h);
-		}
-		else
-		{
-			for (auto h : cx.hits()) trackHits.push_back(h);
+			size_t n = 0;
+			for (const auto & cy : inp)
+			{
+				if (!cy.size()) continue;
+
+				for (const auto & hy : cy.hits())
+				{
+					if (hx->Hit2DPtr() == hy->Hit2DPtr()) continue;
+
+					if (pma::Dist2(hx->Point2D(), hy->Point2D()) < rad2) n++;
+				}
+			}
+
+			if (cx.isEM())
+			{
+				for (auto h : cx.hits()) emHits.push_back(h);
+			}
+			else
+			{
+				for (auto h : cx.hits()) trackHits.push_back(h);
+			}
 		}
 	}
 }
