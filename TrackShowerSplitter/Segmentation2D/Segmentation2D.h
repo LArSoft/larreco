@@ -20,9 +20,9 @@ class tss::Segmentation2D
 {
 public:
 	Segmentation2D(void) :
-		fRadiusMin(1.6), fRadiusMax(3.2),
+		fRadiusMin(0.5), fRadiusMax(1.0), 
 		fMaxLineDist(0.2),
-		fDenseVtxRadius(3.0),
+		fDenseVtxRadius(1.0),
 		fDenseMinN(5)
 	{ }
 
@@ -43,8 +43,8 @@ private:
 	tss::Cluster2D buildSegment(tss::Cluster2D & inp, TVector2 center, TVector2 end) const;
 	tss::Cluster2D selectRing(const tss::Cluster2D & inp, TVector2 center) const;
 
-	void tagDenseEnds(std::vector< tss::Cluster2D > group) const;
-	void mergeDenseParts(std::vector< tss::Cluster2D > group) const;
+	void tagDenseEnds(std::vector< tss::Cluster2D > & group) const;
+	void mergeDenseParts(std::vector< tss::Cluster2D > & group) const;
 
 	tss::SimpleClustering fSimpleClustering;
 
