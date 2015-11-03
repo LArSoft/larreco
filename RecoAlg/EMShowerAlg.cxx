@@ -222,9 +222,13 @@ double shower::EMShowerAlg::FinddEdx(art::PtrVector<recob::Hit> const& shower, a
   /// Finds dE/dx for the track given a set of hits
 
   std::vector<double> dEdx;
+  double pitch = 0;
 
-  for (std::vector<int>::const_iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt)
-    dEdx.push_back(calo.dEdx_AREA(shower.at(*trackHitIt), track->PitchInView(view)));
+  for (std::vector<int>::const_iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
+    try { pitch = track->PitchInView(view); }
+    catch(...) { pitch = 0; }
+    dEdx.push_back(calo.dEdx_AREA(shower.at(*trackHitIt), pitch));
+  }
 
   double avdEdx = 0;
   for (std::vector<double>::iterator dEdxIt = dEdx.begin(); dEdxIt != dEdx.end(); ++dEdxIt)
