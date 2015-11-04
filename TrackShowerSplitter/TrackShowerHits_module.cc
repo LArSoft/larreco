@@ -128,6 +128,7 @@ void TrackShowerHits::produce(art::Event & evt)
 					auto segs = fSegmentation2D.run(c);
 
 					std::vector< const tss::Hit2D* > trackHits, emHits;
+					//fSegmentation2D.splitHitsNaive(segs, trackHits, emHits);
 					fSegmentation2D.splitHits(segs, trackHits, emHits);
 					// for (auto & h : emHits) hits->push_back(recob::Hit(*(h->Hit2DPtr())));
 					for (auto & h : trackHits) hits->push_back(recob::Hit(*(h->Hit2DPtr())));
