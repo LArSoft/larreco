@@ -52,6 +52,8 @@ private:
 	void tagDenseEnds(std::vector< tss::Cluster2D > & group) const;
 	void mergeDenseParts(std::vector< tss::Cluster2D > & group) const;
 
+	bool Cl2InsideCl1(tss::Cluster2D& cl1, tss::Cluster2D& cl2) const;
+
 	tss::SimpleClustering fSimpleClustering;
 
 	double fRadiusMin, fRadiusMax;

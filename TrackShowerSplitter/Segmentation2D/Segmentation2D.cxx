@@ -382,4 +382,47 @@ void tss::Segmentation2D::splitHitsNaive(
 }
 // ------------------------------------------------------
 
+bool tss::Segmentation2D::Cl2InsideCl1(tss::Cluster2D& cl1, tss::Cluster2D& cl2) const
+{
+	bool clover = false; bool clunder = false;
+	bool clleft = false; bool clright = false;
+
+	if (cl2.isEM()) return false;
+
+	// float shift = 5; // shift!
+
+	/*GVector<float> point((cl2.Max()).X(), (cl2.Min()).Y());
+	float width = (cl2.Max()).X() - (cl2.Min()).X();
+	float height = (cl2.Max()).Y() - (cl2.Min()).Y();	
+		
+	for (unsigned int h = 0; h < cl1.size(); h++)
+	{
+		AF::Hit2D* hit = static_cast<AF::Hit2D*>(cl1.at(h));
+		float wire = (hit->Point()).X(); float drift = (hit->Point()).Y();
+			
+		if ( (wire <= (point.X() + shift)) && (wire >= (point.X() - width - shift)) )
+		{
+			if (drift < point.Y())
+			{
+				clover = true;
+			}
+			else if (drift > (point.Y() + height))
+			{
+				clunder = true;
+			}
+
+			if (wire > point.X())
+			{
+				clleft = true;
+			}
+			else if (wire < (point.X() - width))
+			{
+				clright = true;
+			}
+		}
+	}*/
+
+	if (clover && clunder && clleft && clright) return true;
+	else return false;	
+}
 
