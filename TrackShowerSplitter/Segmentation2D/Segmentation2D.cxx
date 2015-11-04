@@ -302,10 +302,8 @@ void tss::Segmentation2D::mergeDenseParts(std::vector< tss::Cluster2D > & group)
 		if (idxMaxE > idx) { idx = idxMaxE; toMergeIdxs = toMergeE; }
 		if (idx > -1)
 		{
-			mf::LogVerbatim("Segmentation2D") << "before: " << group.size();
 			toMergeIdxs.push_back(idx);
 			idx = mergeClusters(group, toMergeIdxs);
-			mf::LogVerbatim("Segmentation2D") << "after: " << group.size();
 
 			if (idx > -1) group[idx].tagEM(true);
 
