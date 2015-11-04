@@ -128,14 +128,16 @@ void TrackShowerHits::produce(art::Event & evt)
 					auto segs = fSegmentation2D.run(c);
 
 					std::vector< const tss::Hit2D* > trackHits, emHits;
-					//fSegmentation2D.splitHitsNaive(segs, trackHits, emHits);
-					fSegmentation2D.splitHits(segs, trackHits, emHits);
+					fSegmentation2D.splitHitsNaive(segs, trackHits, emHits);
+					//fSegmentation2D.splitHits(segs, trackHits, emHits);
 					// for (auto & h : emHits) hits->push_back(recob::Hit(*(h->Hit2DPtr())));
 					for (auto & h : trackHits) hits->push_back(recob::Hit(*(h->Hit2DPtr())));
 
 					for (const auto & s : segs)
 					{
 						if (s.hits().size() < 2) continue;
+
+						if (!s.isEM()) continue;
 
 						clusters->emplace_back(
 							recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
