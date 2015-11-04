@@ -20,7 +20,7 @@ class tss::Segmentation2D
 {
 public:
 	Segmentation2D(void) :
-		fRadiusMin(0.5), fRadiusMax(1.0),
+		fRadiusMin(1.5), fRadiusMax(3.0), // 0.5, 1.0
 		fMaxLineDist(0.2),
 		fDenseVtxRadius(1.0), fDenseHitRadius(2.0),
 		fDenseMinN(5), fDenseMinH(25)
