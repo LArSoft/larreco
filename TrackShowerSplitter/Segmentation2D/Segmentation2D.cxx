@@ -302,15 +302,52 @@ void tss::Segmentation2D::mergeDenseParts(std::vector< tss::Cluster2D > & group)
 		if (idxMaxE > idx) { idx = idxMaxE; toMergeIdxs = toMergeE; }
 		if (idx > -1)
 		{
-			for (size_t i = 0; i < toMergeIdxs.size(); i++) // *** no merging, only tag instead ***
+			mf::LogVerbatim("Segmentation2D") << "before: " << group.size();
+			toMergeIdxs.push_back(idx);
+			idx = mergeClusters(group, toMergeIdxs);
+			mf::LogVerbatim("Segmentation2D") << "after: " << group.size();
+
+			if (idx > -1) group[idx].tagEM(true);
+
+/*			for (size_t i = 0; i < toMergeIdxs.size(); i++) // *** no merging, only tag instead ***
 			{
 				group[toMergeIdxs[i]].tagEM(true);
 			}
 			group[idx].tagEM(true);
-
+*/
 			merged = true;
 		}
 	}
+}
+// ------------------------------------------------------
+
+int tss::Segmentation2D::mergeClusters(std::vector< tss::Cluster2D > & group, const std::vector< size_t > & idxs) const
+{
+	if (idxs.size() < 2) return 0;
+
+	for (const auto i : idxs)
+	{
+		if (i < group.size()) group[i].setTag(true);
+		else
+		{
+			mf::LogError("Segmentation2D") << "Merging index out of group range.";
+			return -1;
+		}
+	}
+
+	size_t k = idxs.front(), i = idxs.front() + 1;
+	while (i < group.size())
+	{
+		if (group[i].isTagged())
+		{
+			group[k].merge(group[i]);
+			group.erase(group.begin() + i);
+		}
+		else ++i;
+	}
+	group[k].setTag(false);
+
+	return k;
 }
 // ------------------------------------------------------
 
@@ -345,7 +382,7 @@ void tss::Segmentation2D::splitHitsNaive(
 		std::vector< const tss::Hit2D* > & trackHits,
 		std::vector< const tss::Hit2D* > & emHits) const
 {
-	const double rad2 = fDenseVtxRadius * fDenseVtxRadius;
+	const double rad2 = fDenseHitRadius * fDenseHitRadius;
 
 	trackHits.clear();
 	emHits.clear();

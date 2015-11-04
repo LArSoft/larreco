@@ -39,7 +39,7 @@ class tss::Cluster2D
 {
 public:
 
-	Cluster2D(void) : fDenseStart(false), fDenseEnd(false), fIsEM(false) { }
+	Cluster2D(void) : fTag(false), fDenseStart(false), fDenseEnd(false), fIsEM(false) { }
 	Cluster2D(const std::vector< const tss::Hit2D* > & hits);
 
 	size_t size(void) const { return fHits.size(); }
@@ -70,6 +70,11 @@ public:
 		const tss::Hit2D* hit = clu.release_at(idx);
 		if (hit) push_back(hit);
 	}
+	void merge(tss::Cluster2D & clu)
+	{
+		for (const auto h : clu.hits()) fHits.push_back(h);
+		clu.hits().clear();
+	}
 
 	const tss::Hit2D* start(void) const
 	{
@@ -88,6 +93,9 @@ public:
 				tss::bDistToPointLess(fHits.front()->Point2D()));
 	}
 
+	bool isTagged(void) const { return fTag; }
+	void setTag(bool b) { fTag = b; }
+
 	bool isDenseStart(void) const { return fDenseStart; }
 	void tagDenseStart(bool b) { fDenseStart = b; }
 	bool isDenseEnd(void) const { return fDenseEnd; }
@@ -103,7 +111,7 @@ private:
 
 	std::vector< const tss::Hit2D* > fHits;
 
-	bool fDenseStart, fDenseEnd, fIsEM;
+	bool fTag, fDenseStart, fDenseEnd, fIsEM;
 
 };
 
