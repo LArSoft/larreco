@@ -43,7 +43,6 @@
 #include "RecoBase/Shower.h"
 #include "Utilities/AssociationUtil.h"
 
-
 #include "TTree.h"
 #include "TPrincipal.h"
 #include "TVector2.h"
@@ -60,24 +59,18 @@ public:
 
   MergeClusterAlg(fhicl::ParameterSet const& pset);
 
-  TVector2 ConvertWireDriftToCm(unsigned int wire, double drift);
-  TVector2 CmToWireDrift(double x, double y);
   void     FindClusterEndPoints(art::PtrVector<recob::Hit> const& cluster, TVector2 const& centre, TVector2 const& direction, TVector2& start, TVector2& end);
   double   FindClusterOverlap(TVector2 const& direction, TVector2 const& centre, TVector2 const& start1, TVector2 const& end1, TVector2 const& start2, TVector2 const& end2);
   double   FindCrossingDistance(TVector2 const &direction1, TVector2 const &centre1, TVector2 const&direction2, TVector2 const &centre2);
-  int      FindGlobalWire(geo::WireID wireID);
   double   FindMinSeparation(art::PtrVector<recob::Hit> const &cluster1, art::PtrVector<recob::Hit> const &cluster2);
   double   FindProjectedWidth(TVector2 const& centre1, TVector2 const& start1, TVector2 const& end1, TVector2 const& centre2, TVector2 const& start2, TVector2 const& end2);
+  double   GlobalWire(geo::WireID const& wireID);
+  TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
   int      MergeClusters(std::vector<art::PtrVector<recob::Hit> > const &planeClusters, std::vector<art::PtrVector<recob::Hit> > &clusters);
   void     reconfigure(fhicl::ParameterSet const& p);
   bool     PassCuts(double const& angle, double const& crossingDistance, double const& projectedWidth, double const& separation, double const& overlap, double const& longLength);
-  void     SetPlaneParameters(unsigned int const plane, unsigned int const tpc, unsigned int const cryostat) { fPlane = plane; fTPC = tpc; fCryostat = cryostat; }
 
 private:
-
-  unsigned int fPlane;
-  unsigned int fTPC;
-  unsigned int fCryostat;
 
   // Merging parameters
   unsigned int fMinMergeClusterSize; // Minimum size of a cluster for it to be considered for merging

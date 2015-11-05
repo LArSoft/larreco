@@ -232,7 +232,7 @@ double pma::Node3D::SegmentCos(void) const
 	}
 	else
 	{
-		mf::LogError("pma::Node3D") << "PlVertex3D::SegmentCos(): neighbours not initialized.";
+		mf::LogError("pma::Node3D") << "pma::Node3D::SegmentCos(): neighbours not initialized.";
 		return -1.0;
 	}
 }
@@ -255,7 +255,7 @@ double pma::Node3D::SegmentCosWirePlane(void) const
 	}
 	else
 	{
-		mf::LogError("pma::Node3D") << "PlVertex3D::SegmentCosZX(): neighbours not initialized.";
+		mf::LogError("pma::Node3D") << "pma::Node3D::SegmentCosZX(): neighbours not initialized.";
 		return -1.0;
 	}
 }
@@ -278,7 +278,7 @@ double pma::Node3D::SegmentCosTransverse(void) const
 	}
 	else
 	{
-		mf::LogError("pma::Node3D") << "PlVertex3D::SegmentCosZY(): neighbours not initialized.";
+		mf::LogError("pma::Node3D") << "pma::Node3D::SegmentCosZY(): neighbours not initialized.";
 		return -1.0;
 	}
 }
@@ -340,31 +340,44 @@ double pma::Node3D::PenaltyInWirePlane(void) const
 	else return 0.0;
 }
 
+bool pma::Node3D::IsBranching(void) const
+{
+	size_t nnext = NextCount();
+	if (nnext > 1) return true; // 1 trk -> vtx -> n*trk
+
+	if (prev && nnext)
+	{
+		pma::Segment3D* segPrev = static_cast< pma::Segment3D* >(prev);
+		pma::Segment3D* segNext = static_cast< pma::Segment3D* >(Next(0));
+		if (segNext->Parent() != segPrev->Parent()) // 1 trk -> vtx -> 1 trk
+			return true;
+	}
+	return false;
+}
+
 double pma::Node3D::Pi(float endSegWeight) const
 {
+	if (IsBranching()) return 0.0;
+
 	if (prev && NextCount())
 	{
 		pma::Segment3D* segPrev = static_cast< pma::Segment3D* >(prev);
 		pma::Segment3D* segNext = static_cast< pma::Segment3D* >(Next(0));
 
-		if ((NextCount() == 1) && (segNext->Parent() == segPrev->Parent()))
-		{
-			double segCos = SegmentCos();
+		double segCos = SegmentCos();
 
-			double lPrev = segPrev->Length();
-			double lNext = segNext->Length();
-			double lAsymm = (1.0 - segCos) * (lPrev - lNext) / (lPrev + lNext);
+		double lPrev = segPrev->Length();
+		double lNext = segNext->Length();
+		double lAsymm = (1.0 - segCos) * (lPrev - lNext) / (lPrev + lNext);
 
-			if (fHitsRadius > 0.0F) return (1.0 + segCos + 0.05 * lAsymm * lAsymm) * fHitsRadius * fHitsRadius;
-			else return (1.0 + segCos + 0.05 * lAsymm * lAsymm) * Length2();
-		}
-		else return 0.0;
+		if (fHitsRadius > 0.0F) return (1.0 + segCos + 0.05 * lAsymm * lAsymm) * fHitsRadius * fHitsRadius;
+		else return (1.0 + segCos + 0.05 * lAsymm * lAsymm) * Length2();
 	}
 	else
 	{
 		double pi_result = 0.0;
 		unsigned int nSeg = 0;
-		pma::Segment3D* seg = NULL;
+		pma::Segment3D* seg = 0;
 		if (prev)
 		{
 			seg = static_cast< pma::Segment3D* >(prev);
@@ -382,7 +395,7 @@ double pma::Node3D::Pi(float endSegWeight) const
 		}
 		else
 		{
-			mf::LogWarning("pma::Node3D") << "PlVertex3D::Pi(): an isolated vertex?";
+			mf::LogWarning("pma::Node3D") << "pma::Node3D::Pi(): an isolated vertex?";
 			return 0.0;
 		}
 		if (nSeg == 1) pi_result = endSegWeight * seg->Length2();

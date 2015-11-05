@@ -155,6 +155,13 @@ double pma::SolveLeastSquares3D(const std::vector< std::pair<TVector3, TVector3>
 	// are not easy to derive from the code solely; I have Mathcad sources that
 	// were used to test the solving method, weighting, etc.
 
+	result.SetXYZ(0., 0., 0.);
+	if (lines.size() < 2)
+	{
+		mf::LogError("pma::SolveLeastSquares3D") << "Need min. two lines.";
+		return -1.0;
+	}
+
 	double m;
 	std::vector< TVectorT<double> > U, P;
 	for (size_t v = 0; v < lines.size(); v++)
@@ -172,6 +179,12 @@ double pma::SolveLeastSquares3D(const std::vector< std::pair<TVector3, TVector3>
 			U.push_back(TVectorT<double>(3));
 			U.back()[0] = dir.X(); U.back()[1] = dir.Y(); U.back()[2] = dir.Z();
 		}
+		else mf::LogWarning("pma::SolveLeastSquares3D") << "Line undefined.";
+	}
+	if (P.size() < 2)
+	{
+		mf::LogError("pma::SolveLeastSquares3D") << "Need min. two lines.";
+		return -1.0;
 	}
 
 	TVectorT<double> x(3), y(3), w(3);

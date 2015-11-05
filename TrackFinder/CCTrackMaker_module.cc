@@ -30,7 +30,6 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "Filters/ChannelFilter.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
@@ -41,6 +40,8 @@
 #include "RecoBase/Vertex.h"
 #include "RecoBase/PFParticle.h"
 #include "RecoBase/Seed.h"
+#include "CalibrationDBI/Interface/IChannelStatusService.h"
+#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 
 #include "Utilities/IDetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
@@ -234,9 +235,9 @@ namespace trkf {
     // vector of many match combinations
     std::vector<MatchPars> matcomb;
     
-    void PrintClusters();
+    void PrintClusters() const;
     
-    void PrintTracks();
+    void PrintTracks() const;
     
     void MakeClusterChains(art::FindManyP<recob::Hit> const& fmCluHits);
     float dXClTraj(art::FindManyP<recob::Hit> const& fmCluHits, unsigned short ipl, unsigned short icl1, unsigned short end1, unsigned short icl2);
@@ -304,7 +305,7 @@ namespace trkf {
     produces< std::vector<recob::Track>                        >();
     produces< art::Assns<recob::Track,      recob::Hit>        >();
     produces<std::vector<recob::Seed>                          >();
-    produces< art::Assns<recob::Seed,       recob::Hit>        >();
+    //produces< art::Assns<recob::Seed,       recob::Hit>        >();
   }
   
   //-------------------------------------------------
@@ -607,7 +608,7 @@ namespace trkf {
           // load the daughter PFP indices
           mf::LogVerbatim("CCTM")<<"PFParticle "<<ipf<<" tID "<<tID;
           for(unsigned short jpf = 0; jpf < pfpToTrkID.size(); ++jpf) {
-            itr = pfpToTrkID[jpf];
+            itr = pfpToTrkID[jpf] - 1; // convert from track ID to track index
             if(trk[itr].MomID == tID) dtrIndices.push_back(jpf);
             if(trk[itr].MomID == tID) mf::LogVerbatim("CCTM")<<" dtr jpf "<<jpf<<" itr "<<itr;
           } // jpf
@@ -2117,6 +2118,7 @@ namespace trkf {
                   if(std::abs(kAng) > 0.3 && match.dAng < 0.03) std::cout<<"match "<<ipl<<":"<<icl<<" "<<jpl<<":"<<jcl<<" "<<kpl<<":"<<kcl<<" "<<match.dAng<<"\n";
                   // add X match error with 1 cm rms
 //                  match.Err = matchErr + match.dX;
+                  match.Err = 0.;
                   match.oVtx = -1;
                   match.odWir = 0;
                   match.odAng = 0;
@@ -3159,7 +3161,7 @@ namespace trkf {
   } // FillTrkHits
   
   ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::PrintTracks()
+  void CCTrackMaker::PrintTracks() const
   {
     mf::LogVerbatim myprt("CCTrackmaker");
     myprt<<"********* PrintTracks \n";
@@ -3206,7 +3208,7 @@ namespace trkf {
   
   
   ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::PrintClusters()
+  void CCTrackMaker::PrintClusters() const
   {
     
     unsigned short iTime;
@@ -3402,7 +3404,9 @@ namespace trkf {
 //    for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = ChgNorm[nplanes - 1] / ChgNorm[ipl];
     for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = 1;
     
-    filter::ChannelFilter cf;
+    // get the service to learn about channel status
+    //lariov::IChannelStatusProvider const& channelStatus
+    //  = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
     
     // now we can define the WireHitRange vector.
     int sflag, nwires, wire;
@@ -3418,7 +3422,7 @@ namespace trkf {
       sflag = -1;
       for(wire = 0; wire < nwires; ++wire) {
         //chan = geom->PlaneWireToChannel(ipl, wire, tpc, cstat);
-        //if(cf.BadChannel(chan)) {
+        //if(channelStatus.IsBad(chan)) {
         //  indx = wire - firstWire[ipl];
         //  WireHitRange[ipl][indx] = std::make_pair(sflag, sflag);
 	//}

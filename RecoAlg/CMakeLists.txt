@@ -9,6 +9,7 @@ art_make( LIBRARY_NAME  RecoAlg
                         Geometry_service
                         RecoObjects
                         AnalysisBase
+			AnalysisAlg
                         LArPropertiesService_service
                         DetectorPropertiesService_service
                         Utilities

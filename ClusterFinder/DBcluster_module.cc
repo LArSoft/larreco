@@ -28,7 +28,8 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Hit.h"
 #include "Utilities/AssociationUtil.h"
-#include "Filters/ChannelFilter.h"
+#include "CalibrationDBI/Interface/IChannelStatusService.h"
+#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 #include "RecoAlg/DBScanAlg.h"
 #include "ClusterFinder/ClusterCreator.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
@@ -125,9 +126,13 @@ namespace cluster{
     // loop over all hits in the event and look for clusters (for each plane)
     std::vector< art::Ptr<recob::Hit> > allhits;
   
-    // get the ChannelFilter
-    filter::ChannelFilter chanFilt;
-        
+    // get channel quality service:
+    lariov::IChannelStatusProvider const& channelStatus
+      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+    
+    lariov::IChannelStatusProvider::ChannelSet_t const BadChannels
+      = channelStatus.BadChannels();
+    
     // make a map of the geo::PlaneID to vectors of art::Ptr<recob::Hit>
     std::map<geo::PlaneID, std::vector< art::Ptr<recob::Hit> > > planeIDToHits;
     for(size_t i = 0; i < hitcol->size(); ++i)
@@ -140,7 +145,7 @@ namespace cluster{
       allhits.resize(itr.second.size());
       allhits.swap(itr.second);
 
-      fDBScan.InitScan(allhits, chanFilt.SetOfBadChannels());
+      fDBScan.InitScan(allhits, BadChannels);
       
       //----------------------------------------------------------------
       for(unsigned int j = 0; j < fDBScan.fps.size(); ++j){
