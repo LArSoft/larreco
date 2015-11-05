@@ -22,8 +22,8 @@ public:
 	Segmentation2D(void) :
 		fRadiusMin(0.5), fRadiusMax(1.0),
 		fMaxLineDist(0.2),
-		fDenseVtxRadius(1.0), fDenseHitRadius(2.0),
-		fDenseMinN(5), fDenseMinH(25)
+		fDenseVtxRadius(1.0), fDenseHitRadius(5.0),
+		fDenseMinN(5), fDenseMinH(100)
 	{ }
 
 	std::vector< tss::Cluster2D > run(tss::Cluster2D & inp) const;

@@ -307,12 +307,6 @@ void tss::Segmentation2D::mergeDenseParts(std::vector< tss::Cluster2D > & group)
 
 			if (idx > -1) group[idx].tagEM(true);
 
-/*			for (size_t i = 0; i < toMergeIdxs.size(); i++) // *** no merging, only tag instead ***
-			{
-				group[toMergeIdxs[i]].tagEM(true);
-			}
-			group[idx].tagEM(true);
-*/
 			merged = true;
 		}
 	}
