@@ -1146,20 +1146,18 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 {
 	fHitMap.clear(); fCluHits.clear();
 
-	art::Handle< std::vector<recob::Hit> > hitListHandle, ccHitListHandle;
-	art::Handle< std::vector<recob::Cluster> > cluListHandle;
-	std::vector< art::Ptr<recob::Hit> > hitlist, cchitlist;
-	if (evt.getByLabel(fHitModuleLabel, hitListHandle) &&
-	    evt.getByLabel(fCluModuleLabel, ccHitListHandle) &&
-	    evt.getByLabel(fCluModuleLabel, cluListHandle))
+	art::Handle< std::vector<recob::Hit> > allHitListHandle;
+	art::Handle< std::vector<recob::Cluster> > cluListHandle, splitCluHandle;
+	std::vector< art::Ptr<recob::Hit> > allhitlist;
+	if (evt.getByLabel(fHitModuleLabel, splitCluHandle) &&   // clusters that tag em-like hits
+	    evt.getByLabel(fCluModuleLabel, allHitListHandle) && // all hits associated to both cluster sets
+	    evt.getByLabel(fCluModuleLabel, cluListHandle))      // clusters used to build 3D tracks
 	{
-		art::fill_ptr_vector(hitlist, hitListHandle);
-		art::fill_ptr_vector(cchitlist, ccHitListHandle);
+		art::fill_ptr_vector(allhitlist, allHitListHandle);
 
 		mf::LogVerbatim("PMAlgTrackMaker") << "Sort all hits for validation...";
-		float peakTime;
 		unsigned int cryo, tpc, view;
-		for (auto const& h : cchitlist) // all cc hits used for validation
+		for (auto const& h : allhitlist) // all hits used for validation
 		{
 			cryo = h->WireID().Cryostat;
 			tpc = h->WireID().TPC;
@@ -1172,6 +1170,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 		mf::LogVerbatim("PMAlgTrackMaker") << "Filter track-like clusters...";
 		fCluHits.reserve(cluListHandle->size());
 		art::FindManyP< recob::Hit > fbp(cluListHandle, evt, fCluModuleLabel);
+		art::FindManyP< recob::Hit > fem(splitCluHandle, evt, fHitModuleLabel);
 		for (size_t i = 0; i < cluListHandle->size(); ++i)
 		{
 			auto v = fbp.at(i);
@@ -1180,23 +1179,18 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 			for (auto const& h : v)
 			{
-				cryo = h->WireID().Cryostat;
-				tpc = h->WireID().TPC;
-				view = h->WireID().Plane;
-				peakTime = h->PeakTime();
-
-				bool trkLike = false;
-				for (auto const& g : hitlist) // is clustered hit in trk-like hits?
+				bool trkLike = true;
+				for (size_t j = 0; j < splitCluHandle->size(); ++j)
 				{
-					if ((g->PeakTime() == peakTime) &&
-					    (g->WireID().Plane == view) &&
-					    (g->WireID().TPC == tpc)    &&
-					    (g->WireID().Cryostat == cryo))
+					auto u = fem.at(j);
+					for (auto const& g : u) // is hit clustered in one of em-like?
 					{
-						trkLike = true; break;
+						if (g.key() == h.key())
+						{
+							trkLike = false; break;
+						}
 					}
 				}
-
 				if (trkLike) fCluHits.back().push_back(h);
 			}
 		}

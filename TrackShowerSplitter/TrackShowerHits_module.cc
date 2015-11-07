@@ -69,7 +69,6 @@ TrackShowerHits::TrackShowerHits(fhicl::ParameterSet const & p) :
 {
 	this->reconfigure(p);
 
-	produces< std::vector<recob::Hit> >();
 	produces< std::vector<recob::Cluster> >();
 	produces< art::Assns<recob::Cluster, recob::Hit> >();
 }
@@ -112,14 +111,14 @@ bool TrackShowerHits::sortHits(const art::Event& evt)
 
 void TrackShowerHits::produce(art::Event & evt)
 {
-	std::unique_ptr< std::vector< recob::Hit > > hits(new std::vector< recob::Hit >);
-
 	std::unique_ptr< std::vector< recob::Cluster > > clusters(new std::vector< recob::Cluster >);
 	std::unique_ptr< art::Assns< recob::Cluster, recob::Hit > > clu2hit(new art::Assns< recob::Cluster, recob::Hit >);
 
 	if (sortHits(evt))
 	{
 		unsigned int cidx = 0;
+		const unsigned int emTag = 0x10000;
+
 		for (auto tpc_iter = fGeom->begin_TPC_id();
 		          tpc_iter != fGeom->end_TPC_id();
 		          tpc_iter++)
@@ -166,31 +165,23 @@ void TrackShowerHits::produce(art::Event & evt)
 					}
 				}
 
-				std::vector< const tss::Hit2D* > trackHits, emHits;
-				fSegmentation2D.splitHits(cls, trackHits, emHits);
-				// for (auto & h : emHits) hits->push_back(recob::Hit(*(h->Hit2DPtr())));
-				for (auto & h : trackHits) hits->push_back(recob::Hit(*(h->Hit2DPtr())));
-
 				for (auto & c : cls)
 				{
-					if (c.hits().size() < 2) continue;
+					if (!c.hits().size()) continue; // skip 0-size clusters
 
-					if (!c.isEM()) continue;
+					if (!c.isEM()) continue; // create clusters only for em parts now
 
 					clusters->emplace_back(
 						recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
-							c.hits().size(), 0.0F, 0.0F, cidx,  (geo::View_t)c.hits().front()->View(), c.hits().front()->Hit2DPtr()->WireID().planeID()));
+							c.hits().size(), 0.0F, 0.0F, cidx + emTag, (geo::View_t)c.hits().front()->View(), c.hits().front()->Hit2DPtr()->WireID().planeID()));
 
 					std::vector< art::Ptr< recob::Hit > > hits2d;
 					hits2d.reserve(c.hits().size());
-					for (auto h2d : c.hits())
-					{
-						hits2d.push_back(h2d->Hit2DPtr());
-					}
-					if (hits2d.size())
-					{
-						util::CreateAssn(*this, evt, *clusters, hits2d, *clu2hit);
-					}
+
+					for (auto h2d : c.hits()) hits2d.push_back(h2d->Hit2DPtr());
+
+					if (hits2d.size()) util::CreateAssn(*this, evt, *clusters, hits2d, *clu2hit);
+
 					++cidx;
 				}
 			}
@@ -199,7 +190,6 @@ void TrackShowerHits::produce(art::Event & evt)
 	}
 	else mf::LogWarning("TrackShowerHits") << "Hits not found in the event.";
 
-	evt.put(std::move(hits));
 	evt.put(std::move(clusters));
 	evt.put(std::move(clu2hit));
 }
