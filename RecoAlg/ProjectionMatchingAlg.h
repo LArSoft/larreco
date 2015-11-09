@@ -145,7 +145,7 @@ public:
 
 	/// Intendet to calculate dQ/dx in the initial part of EM cascade; collection
 	/// view is used by default, but it works also with other projections.
-	double selectInitialHits(pma::Track3D& trk, unsigned int view = geo::kZ) const;
+	double selectInitialHits(pma::Track3D& trk, unsigned int view = geo::kZ, unsigned int* nused = 0) const;
 
 	/// Set cascade- or track-like tag.
 	void setTrackTag(pma::Track3D& trk) const;

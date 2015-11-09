@@ -675,7 +675,7 @@ void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
 }
 // ------------------------------------------------------
 
-double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk, unsigned int view) const
+double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk, unsigned int view, unsigned int* nused) const
 {
 	for (size_t i = 0; i < trk.size(); i++)
 	{
@@ -733,6 +733,8 @@ double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk, unsigned
 	if (!nhits) { mf::LogError("ProjectionMatchingAlg") << "Initial part too short to select useful hits."; }
 
 	if (dx > 0.0) dqdx = dq / dx;
+
+  if (nused) (*nused) = nhits;
 
 	//std::cout << "nhits=" << nhits << ", dq=" << dq << ", dx=" << dx << std::endl;
 	return dqdx;

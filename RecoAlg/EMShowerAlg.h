@@ -41,7 +41,7 @@ namespace shower {
 
 class shower::EMShowerAlg {
 public:
-  EMShowerAlg() = default;
+  EMShowerAlg();
 
   void MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
   void FindVertexTrack(art::Ptr<recob::Track>& vertexTrack, std::map<int,art::Ptr<recob::Hit> > const& vertexMap, std::map<int,art::Ptr<recob::Track> > const& trackMap, std::map<int,std::vector<int> > const& trackHitsMap);
@@ -49,9 +49,10 @@ public:
 			    TVector3& direction, TVector3& directionError, TVector3& vertex, TVector3& vertexError,
 			    std::vector<double>& totalEnergy, std::vector<double>& totalEnergyError, std::vector<double>& dEdx, std::vector<double>& dEdxError,
 			    int& bestPlane);
+  void FindShowerStartDirection(art::Ptr<recob::Track> const& vertexTrack, std::map<int,TVector2> const& showerCentreMap, TVector3& showerVertex, TVector3& showerDirection);
   double FinddEdx(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Track> const& track, calo::CalorimetryAlg const& calo, geo::View_t const& view, std::vector<int> const& trackHits);
   double FindTotalEnergy(art::PtrVector<recob::Hit> const& hits, int plane);
-  void FindShowerEnds(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Hit>& end1, art::Ptr<recob::Hit>& end2);
+  void FindShowerEnds(art::PtrVector<recob::Hit> const& shower, TVector2 const& centre, art::Ptr<recob::Hit>& end1, art::Ptr<recob::Hit>& end2);
   art::Ptr<recob::Hit> FindVertex(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Hit> const& end1, art::Ptr<recob::Hit> const& end2);
   void FindVertex(art::PtrVector<recob::Hit> const& shower, TVector2 const& end1, TVector2 const& end2, std::vector<int>& trackHits);
   std::vector<int> FindTrack(art::PtrVector<recob::Hit> const& shower, TVector2 const& start, TVector2 const& end);
@@ -59,10 +60,13 @@ public:
   void FindTrack(TVector2 const& start, TVector2 const& end, std::map<int,std::vector<int> > const& hitWires, std::vector<int>& trackHits);
   TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
   double GlobalWire(geo::WireID wireID);
+  int FindTrackID(art::Ptr<recob::Hit> const& hit);
+  int FindTrueTrack(std::vector<art::Ptr<recob::Hit> > const& showerHits);
 
 private:
 
   art::ServiceHandle<geo::Geometry> fGeom;
+  dataprov::IDetectorProperties const* fDetProp;
 
 };
 
