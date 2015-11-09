@@ -10,7 +10,7 @@
 
 #include "RecoBase/Hit.h"
 
-#include "Geometry/Geometry.h"
+#include "art/Persistency/Common/Ptr.h"
 
 #include "TVector2.h"
 #include "TVector3.h"

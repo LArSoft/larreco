@@ -18,8 +18,7 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "Utilities/DetectorProperties.h"
-#include "Utilities/LArProperties.h"
+#include "Utilities/IDetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 
 #include "RecoBase/Hit.h"
@@ -608,8 +607,7 @@ std::vector< ems::DirOfGamma* > ems::EMShower3D::CollectShower2D(art::Event cons
 
 void ems::EMShower3D::Link(art::Event const & e, std::vector< ems::DirOfGamma* > input)
 {
-	art::ServiceHandle<util::DetectorProperties> detprop;
-	art::ServiceHandle<geo::Geometry> geom;
+	auto const* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
 
 	std::vector< std::vector< size_t > > saveids;
 	std::vector< size_t > saveidsnotusedcls;

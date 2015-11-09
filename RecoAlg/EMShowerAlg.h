@@ -13,7 +13,6 @@
 
 // LArSoft includes
 #include "art/Framework/Core/FindManyP.h"
-#include "Utilities/DetectorProperties.h"
 #include "AnalysisAlg/CalorimetryAlg.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
@@ -26,6 +25,7 @@
 #include "RecoBase/SpacePoint.h"
 #include "RecoBase/Vertex.h"
 #include "RecoBase/Shower.h"
+#include "lardata/DataProviders/IDetectorProperties.h"
 
 // C++
 #include <iostream>
@@ -41,6 +41,7 @@ namespace shower {
 
 class shower::EMShowerAlg {
 public:
+  EMShowerAlg() = default;
 
   void MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
   void FindVertexTrack(art::Ptr<recob::Track>& vertexTrack, std::map<int,art::Ptr<recob::Hit> > const& vertexMap, std::map<int,art::Ptr<recob::Track> > const& trackMap, std::map<int,std::vector<int> > const& trackHitsMap);
@@ -62,7 +63,6 @@ public:
 private:
 
   art::ServiceHandle<geo::Geometry> fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
 
 };
 

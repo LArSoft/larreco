@@ -44,6 +44,7 @@
 
 
 // larsoft libraries
+#include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
 #include "Geometry/Geometry.h"
@@ -256,13 +257,11 @@ size_t cluster::HoughBaseAlg::Transform(
 
   int nClustersTemp = *nClusters;
   
-  art::ServiceHandle<geo::Geometry> geom;
+  geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
   const dataprov::ILArProperties* larprop = lar::providerFrom<util::ILArPropertiesService>();
   const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
-
-  filter::ChannelFilter chanFilt;
-  lariov::IChannelStatusProvider const& channelStatus
-    = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+  lariov::IChannelStatusProvider const* channelStatus
+    = lar::providerFrom<lariov::IChannelStatusService>();
 
   //  uint32_t     channel = hits[0]->Channel();
   unsigned int wire    = 0;
@@ -579,7 +578,7 @@ size_t cluster::HoughBaseAlg::Transform(
       currentHits.push_back(0);
       for(auto sequenceHolderItr = sequenceHolder.begin(); sequenceHolderItr+1 != sequenceHolder.end(); ++sequenceHolderItr) {
         j = 1;
-        while((channelStatus.IsBad(sequenceHolderItr-sequenceHolder.begin()+j)) == true) j++;
+        while(channelStatus->IsBad(sequenceHolderItr-sequenceHolder.begin()+j)) j++;
         if(sequenceHolder[sequenceHolderItr-sequenceHolder.begin()+1]-sequenceHolder[sequenceHolderItr-sequenceHolder.begin()] <= j + fMissedHits) currentHits.push_back(sequenceHolderItr-sequenceHolder.begin()+1);
         else if(currentHits.size() > lastHits.size()) {
           lastHits = currentHits;
@@ -1056,21 +1055,11 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
-  art::ServiceHandle<geo::Geometry> geom;
-<<<<<<< HEAD
+  geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
   //  const dataprov::ILArProperties* larprop = lar::providerFrom<util::ILArPropertiesService>();
   //  const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
-  filter::ChannelFilter chanFilt;
-||||||| merged common ancestors
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
-  filter::ChannelFilter chanFilt;
-=======
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
-//  lariov::IChannelStatusProvider const& channelStatus
-//    = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
->>>>>>> origin/develop
+//  lariov::IChannelStatusProvider const* channelStatus
+//    = lar::providerFrom<lariov::IChannelStatusService>();
   HoughTransform c;
 
   // Get the random number generator
@@ -1275,7 +1264,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       currentHits.push_back(0);
       for(size_t i = 0; i + 1 < sequenceHolder.size(); ++i){  
       j = 1;
-      while((channelStatus.IsBad(sequenceHolder[i]+j)) == true) j++;
+      while((channelStatus->IsBad(sequenceHolder[i]+j)) == true) j++;
       if(sequenceHolder[i+1]-sequenceHolder[i] <= j + fMissedHits) currentHits.push_back(i+1);
       else if(currentHits.size() > lastHits.size()) {
       lastHits = currentHits;
@@ -1467,21 +1456,11 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
   //art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
-  art::ServiceHandle<geo::Geometry> geom;
-<<<<<<< HEAD
+  geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
   const dataprov::ILArProperties* larprop = lar::providerFrom<util::ILArPropertiesService>();
   const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
-  filter::ChannelFilter chanFilt;
-||||||| merged common ancestors
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
-  filter::ChannelFilter chanFilt;
-=======
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
-  lariov::IChannelStatusProvider const& channelStatus
-    = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
->>>>>>> origin/develop
+  lariov::IChannelStatusProvider const* channelStatus
+    = lar::providerFrom<lariov::IChannelStatusService>();
 
   // Get the random number generator
   art::ServiceHandle<art::RandomNumberGenerator> rng;
@@ -1715,7 +1694,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       currentHits.push_back(0);
       for(size_t i = 0; i + 1 < sequenceHolder.size(); ++i){  
         j = 1;
-        while((channelStatus.IsBad(sequenceHolder.at(i)+j)) == true) j++;
+        while((channelStatus->IsBad(sequenceHolder.at(i)+j)) == true) j++;
         if(sequenceHolder.at(i+1)-sequenceHolder.at(i) <= j + fMissedHits) currentHits.push_back(i+1);
         else if(currentHits.size() > lastHits.size()) {
           lastHits = currentHits;

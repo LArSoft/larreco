@@ -1,8 +1,8 @@
 
 art_make( BASENAME_ONLY
           LIBRARY_NAME  DirOfGamma
-          LIB_LIBRARIES DetectorProperties_service
-                        LArProperties_service
+          LIB_LIBRARIES DetectorPropertiesService_service
+                        LArPropertiesService_service
                         Geometry
                         Geometry_service
                         Simulation
@@ -35,8 +35,8 @@ art_make( BASENAME_ONLY
 			   Geometry
 	    		   Geometry_service
       			   Utilities
-			   DetectorProperties_service
-			   LArProperties_service  
+			   DetectorPropertiesService_service
+			   LArPropertiesService_service
 			   ${SIMULATIONBASE}
 			   ${ART_FRAMEWORK_CORE}
 			   ${ART_FRAMEWORK_PRINCIPAL}

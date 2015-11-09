@@ -21,7 +21,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "Utilities/IDetectorPropertiesService.h"
+#include "DataProviders/IDetectorProperties.h"
 #include "RecoBase/Hit.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
@@ -117,6 +117,7 @@ private:
 
   // Create geometry and detector property handle
   art::ServiceHandle<geo::Geometry> fGeom;
+  dataprov::IDetectorProperties const* fDetProp;
 
 };
 

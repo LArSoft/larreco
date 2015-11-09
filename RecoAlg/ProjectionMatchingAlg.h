@@ -16,6 +16,14 @@
 //      Please, check the track making module to find a way of selecting appropriate clusteres:
 //        PMAlgTrackMaker_module.cc
 //
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifndef ProjectionMatchingAlg_h
+#define ProjectionMatchingAlg_h
+
+// Framework includes
+#include "art/Framework/Principal/Handle.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
@@ -24,7 +32,7 @@
 #include "Geometry/WireGeo.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/SpacePoint.h"
-#include "Utilities/AssociationUtil.h"
+#include "DataProviders/IDetectorProperties.h"
 
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 
@@ -172,9 +180,7 @@ private:
 
 	// Geometry and detector properties
 	art::ServiceHandle<geo::Geometry> fGeom;
-
-	// Calculate good number of segments depending on the number of hits.
-	static size_t getSegCount(size_t trk_size);
+	dataprov::IDetectorProperties const* fDetProp;
 };
 
 #endif

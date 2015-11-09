@@ -11,6 +11,9 @@
 
 #include "RecoAlg/BlurredClusteringAlg.h"
 
+#include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "lardata/Utilities/IDetectorPropertiesService.h"
+
 cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset); 
 
@@ -48,6 +51,8 @@ void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
   fMinSeed             = p.get<double>("MinSeed");
   fTimeThreshold       = p.get<double>("TimeThreshold");
   fChargeThreshold     = p.get<double>("ChargeThreshold");
+  
+  fDetProp = lar::providerFrom<util::IDetectorPropertiesService>();
 }
 
 

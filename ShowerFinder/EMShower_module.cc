@@ -24,7 +24,6 @@
 #include "art/Framework/Core/FindManyP.h"
 
 // LArSoft includes
-#include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 #include "AnalysisAlg/CalorimetryAlg.h"
 #include "Geometry/Geometry.h"
@@ -70,7 +69,6 @@ private:
   calo::CalorimetryAlg fCalorimetryAlg;
 
   art::ServiceHandle<geo::Geometry> fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
 
 };
 
