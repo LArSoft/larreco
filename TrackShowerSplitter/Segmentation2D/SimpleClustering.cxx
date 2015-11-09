@@ -79,6 +79,42 @@ const tss::Hit2D* tss::Cluster2D::outermost(size_t & idx) const
 }
 // ------------------------------------------------------
 
+const TVector2 tss::Cluster2D::min(void) const
+{
+
+	TVector2 minimum = fHits[0]->Point2D();
+
+	for (size_t i = 1; i < size(); ++i)
+	{
+		const TVector2 h = fHits[i]->Point2D();
+
+		if (h.X() < minimum.X()) minimum.Set(h.X(), h.Y());
+		if (h.Y() < minimum.Y()) minimum.Set(minimum.X(), h.Y());
+	}
+
+	return minimum;
+}
+
+// ------------------------------------------------------
+
+const TVector2 tss::Cluster2D::max(void) const
+{
+	
+	TVector2 maximum = fHits[0]->Point2D();
+
+	for (size_t i = 1; i < size(); ++i)
+	{
+		const TVector2 h = fHits[i]->Point2D();
+
+		if (h.X() > maximum.X()) maximum.Set(h.X(), h.Y());
+		if (h.Y() > maximum.Y()) maximum.Set(maximum.X(), h.Y());
+	}
+
+	return maximum;
+}
+
+// ------------------------------------------------------
+
 bool tss::Cluster2D::has(const tss::Hit2D* hit) const
 {
 	for (size_t i = 0; i < fHits.size(); ++i)

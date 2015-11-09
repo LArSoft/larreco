@@ -417,6 +417,8 @@ void tss::Segmentation2D::splitHitsNaive(
 }
 // ------------------------------------------------------
 
+// ------------------------------------------------------
+
 bool tss::Segmentation2D::Cl2InsideCl1(tss::Cluster2D& cl1, tss::Cluster2D& cl2) const
 {
 	bool clover = false; bool clunder = false;
@@ -424,16 +426,17 @@ bool tss::Segmentation2D::Cl2InsideCl1(tss::Cluster2D& cl1, tss::Cluster2D& cl2)
 
 	if (cl2.isEM()) return false;
 
-	// float shift = 5; // shift!
+	float shift = 5; // shift!
 
-	/*GVector<float> point((cl2.Max()).X(), (cl2.Min()).Y());
-	float width = (cl2.Max()).X() - (cl2.Min()).X();
-	float height = (cl2.Max()).Y() - (cl2.Min()).Y();	
+	TVector2 point((cl2.max()).X(), (cl2.min()).Y());
+	float width = (cl2.max()).X() - (cl2.min()).X();
+	float height = (cl2.max()).Y() - (cl2.min()).Y();	
 		
 	for (unsigned int h = 0; h < cl1.size(); h++)
 	{
-		AF::Hit2D* hit = static_cast<AF::Hit2D*>(cl1.at(h));
-		float wire = (hit->Point()).X(); float drift = (hit->Point()).Y();
+		// tss::Hit2D* hit = static_cast<AF::Hit2D*>(cl1.at(h));
+		// float wire = (hit->Point()).X(); float drift = (hit->Point()).Y();
+		float wire = cl1[h].Point2D().X(); float drift = cl1[h].Point2D().Y();
 			
 		if ( (wire <= (point.X() + shift)) && (wire >= (point.X() - width - shift)) )
 		{
@@ -455,7 +458,7 @@ bool tss::Segmentation2D::Cl2InsideCl1(tss::Cluster2D& cl1, tss::Cluster2D& cl2)
 				clright = true;
 			}
 		}
-	}*/
+	}
 
 	if (clover && clunder && clleft && clright) return true;
 	else return false;	

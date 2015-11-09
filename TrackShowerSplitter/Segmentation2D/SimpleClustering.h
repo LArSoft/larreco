@@ -44,7 +44,7 @@ public:
 
 	size_t size(void) const { return fHits.size(); }
 
-	const tss::Hit2D & operator [] (size_t index) const { return *(fHits[index]); }
+	const Hit2D & operator [] (size_t index) const { return *(fHits[index]); }
 
 	const std::vector< const tss::Hit2D* > & hits(void) const { return fHits; }
 	std::vector< const tss::Hit2D* > & hits(void) { return fHits; }
@@ -61,7 +61,7 @@ public:
 	double dist2(const TVector2 & p2d, size_t & hIdx) const;
 	double dist2(const tss::Cluster2D & clu) const;
 
-	const tss::Hit2D* release_at(size_t idx);
+	const Hit2D* release_at(size_t idx);
 	bool release(const tss::Hit2D* hit);
 
 	void push_back(const tss::Hit2D* hit) { fHits.push_back(hit); }
@@ -104,8 +104,11 @@ public:
 	bool isEM(void) const { return fIsEM; }
 	void tagEM(bool b) { fIsEM = b; }
 
-	const tss::Hit2D* closest(const TVector2 & p2d, size_t & idx) const;
-	const tss::Hit2D* outermost(size_t & idx) const;
+	const Hit2D* closest(const TVector2 & p2d, size_t & idx) const;
+	const Hit2D* outermost(size_t & idx) const;
+
+	const TVector2 min(void) const;
+	const TVector2 max(void) const;
 
 private:
 
