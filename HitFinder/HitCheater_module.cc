@@ -35,7 +35,7 @@
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
 #include "RecoBaseArt/HitCreator.h"
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/StatCollector.h"
 
 namespace hit {
@@ -68,8 +68,8 @@ private:
   std::string         fCalDataProductInstanceName; ///< label name for module making recob::Wires
   int                 fReadOutWindowSize;          ///< Number of samples in a readout window; NOT total samples
   int                 fNumberTimeSamples;          ///< Number of total time samples (N*readoutwindowsize)
-  double              fSamplingRate;               ///< from util::IDetectorProperties
-  int                 fTriggerOffset;              ///< from util::IDetectorProperties
+  double              fSamplingRate;               ///< from util::DetectorProperties
+  int                 fTriggerOffset;              ///< from util::DetectorProperties
   int                 fNewHitTDCGap;               ///< gap allowed in tdcs without charge before making a new hit
 };
 
@@ -334,7 +334,7 @@ void hit::HitCheater::reconfigure(fhicl::ParameterSet const & p)
   fMinCharge       = p.get< double      >("MinimumCharge",   5.        );
   fNewHitTDCGap    = p.get< int         >("NewHitTDCGap",    1         );
 
-  const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
   fElectronsToADC = detprop->ElectronsToADC();
   fSamplingRate   = detprop->SamplingRate();
   fTriggerOffset  = detprop->TriggerOffset();

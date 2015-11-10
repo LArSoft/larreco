@@ -8,7 +8,7 @@ art_make( LIBRARY_NAME  Cluster3DAlgs
                         Geometry_service
                         RecoObjects
                         AnalysisBase
-                        DetectorPropertiesService_service
+                        DetectorPropertiesServiceStandard_service
                         Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

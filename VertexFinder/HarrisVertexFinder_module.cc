@@ -45,7 +45,7 @@ extern "C" {
 #include <vector>
 #include <string>
 
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Filters/ChannelFilter.h"
 #include "RecoBase/Cluster.h"
 #include "RecoBase/EndPoint2D.h"
@@ -190,7 +190,7 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
   }
   
   const unsigned int numbertimesamples
-    = lar::providerFrom<util::IDetectorPropertiesService>()->ReadOutWindowSize();
+    = lar::providerFrom<util::DetectorPropertiesService>()->ReadOutWindowSize();
   
   const float BinsPerTick = fTimeBins / numbertimesamples;
   const float TicksPerBin = numbertimesamples / fTimeBins;

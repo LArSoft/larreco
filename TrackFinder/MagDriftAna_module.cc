@@ -45,8 +45,8 @@ extern "C" {
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 #include "MagneticField/MagneticField.h"
-#include "Utilities/ILArPropertiesService.h"
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "MCCheater/BackTracker.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/Hit.h"
@@ -150,8 +150,8 @@ namespace hit {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService> tfs;
     // Find magetic field related corrections
-    const dataprov::ILArProperties* larprop = lar::providerFrom<util::ILArPropertiesService>();
-    const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+    const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
+    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
     
     art::ServiceHandle<mag::MagneticField> MagField;
     double Efield         = detprop->Efield();  

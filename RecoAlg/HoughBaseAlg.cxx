@@ -53,8 +53,8 @@
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 #include "Utilities/StatCollector.h"
-#include "Utilities/ILArPropertiesService.h"
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
@@ -256,8 +256,8 @@ size_t cluster::HoughBaseAlg::Transform(
   int nClustersTemp = *nClusters;
   
   art::ServiceHandle<geo::Geometry> geom;
-  const dataprov::ILArProperties* larprop = lar::providerFrom<util::ILArPropertiesService>();
-  const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+  const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
+  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
 
   filter::ChannelFilter chanFilt;
 
@@ -1054,8 +1054,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   art::ServiceHandle<geo::Geometry> geom;
-  //  const dataprov::ILArProperties* larprop = lar::providerFrom<util::ILArPropertiesService>();
-  //  const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+  //  const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
+  //  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
   filter::ChannelFilter chanFilt;
   HoughTransform c;
 
@@ -1454,8 +1454,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   //art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   art::ServiceHandle<geo::Geometry> geom;
-  const dataprov::ILArProperties* larprop = lar::providerFrom<util::ILArPropertiesService>();
-  const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+  const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
+  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
   filter::ChannelFilter chanFilt;
 
   // Get the random number generator
@@ -1875,7 +1875,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector< art::Ptr<recob::Hit> > cons
   HoughTransform c;
 
   art::ServiceHandle<geo::Geometry> geom;
-  const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
   
   int dx = geom->Nwires(0);               //number of wires 
   const int dy = detprop->ReadOutWindowSize(); // number of time samples. 

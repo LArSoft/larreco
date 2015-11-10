@@ -100,7 +100,7 @@ namespace btutil {
     
     auto const& ch_info = _event_info[hit.ch];
 
-    const dataprov::IDetectorClocks* ts = lar::providerFrom<util::IDetectorClocksService>();
+    const dataprov::DetectorClocks* ts = lar::providerFrom<util::DetectorClocksService>();
     //auto ts = ::larutil::TimeService::GetME();
 
     auto itlow = ch_info.lower_bound((unsigned int)(ts->TPCTick2TDC(hit.start)));

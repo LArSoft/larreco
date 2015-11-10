@@ -19,8 +19,8 @@
 #include "MCCheater/BackTracker.h"
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
-#include "Utilities/ILArPropertiesService.h"
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 
 // ROOT includes
 #include <TMath.h>
@@ -219,12 +219,12 @@ namespace hit{
     // #######################################
     // ### Getting Liquid Argon Properites ###
     // #######################################
-    const dataprov::ILArProperties* larp = lar::providerFrom<util::ILArPropertiesService>();
+    const dataprov::LArProperties* larp = lar::providerFrom<util::LArPropertiesService>();
   
     // ###################################
     // ### Getting Detector Properties ###
     // ###################################
-    const dataprov::IDetectorProperties* detp = lar::providerFrom<util::IDetectorPropertiesService>();
+    const dataprov::DetectorProperties* detp = lar::providerFrom<util::DetectorPropertiesService>();
     
     // ##########################################
     // ### Reading in the Wire List object(s) ###
