@@ -17,7 +17,7 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 #include "Geometry/Geometry.h"
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "RecoBase/Wire.h"
@@ -72,7 +72,7 @@ namespace apa{
     // other classes we will use
     apa::APAGeometryAlg                           fAPAGeo;
     art::ServiceHandle<geo::Geometry>             geom;
-    const dataprov::IDetectorProperties*           detprop;
+    const dataprov::DetectorProperties*           detprop;
     art::ServiceHandle<cheat::BackTracker> bt;                     ///< For *TEMPORARY* monitering of potential problems
 
     // Hits organization

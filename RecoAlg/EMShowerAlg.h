@@ -25,7 +25,7 @@
 #include "RecoBase/SpacePoint.h"
 #include "RecoBase/Vertex.h"
 #include "RecoBase/Shower.h"
-#include "lardata/DataProviders/IDetectorProperties.h"
+#include "DataProviders/DetectorProperties.h"
 
 // C++
 #include <iostream>
@@ -66,7 +66,7 @@ public:
 private:
 
   art::ServiceHandle<geo::Geometry> fGeom;
-  dataprov::IDetectorProperties const* fDetProp;
+  dataprov::DetectorProperties const* fDetProp;
 
 };
 

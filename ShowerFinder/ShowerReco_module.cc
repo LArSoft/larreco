@@ -68,9 +68,9 @@ extern "C" {
 #include "RecoBase/SpacePoint.h"
 #include "AnalysisBase/Calorimetry.h"
 #include "Utilities/AssociationUtil.h"
-#include "Utilities/ILArPropertiesService.h"
+#include "Utilities/LArPropertiesService.h"
 #include "Utilities/GeometryUtilities.h"
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "AnalysisAlg/CalorimetryAlg.h"
 #include "SimulationBase/MCTruth.h"
 
@@ -190,10 +190,10 @@ namespace shwf {
   std::vector< int > fNhitsperplane;
   std::vector< double > fTotADCperplane;
   //services 
-    const dataprov::ILArProperties* larp;
+    const dataprov::LArProperties* larp;
     
   art::ServiceHandle<geo::Geometry> geom;
-  const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
   
 //    //temporary
 //     int mcpdg;
@@ -257,8 +257,8 @@ void ShowerReco::beginJob()
   /** Get Geometry*/
   art::ServiceHandle<geo::Geometry> geo;
 
-  larp = lar::providerFrom<util::ILArPropertiesService>();
-  detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+  larp = lar::providerFrom<util::LArPropertiesService>();
+  detprop = lar::providerFrom<util::DetectorPropertiesService>();
 
   /// \todo the call to geo->Nplanes() assumes this is a single cryostat and single TPC detector
   /// \todo need to generalize to multiple cryostats and TPCs
@@ -268,7 +268,7 @@ void ShowerReco::beginJob()
   /**Get TFileService and define output Histograms*/
   art::ServiceHandle<art::TFileService> tfs;
 
- // art::ServiceHandle<util::IDetectorProperties> detp;
+ // art::ServiceHandle<util::DetectorProperties> detp;
   ftimetick=detprop->SamplingRate()/1000.;
   
 
@@ -335,8 +335,8 @@ void ShowerReco::beginJob()
 
 void ShowerReco::beginRun(art::Run&)
 {
- larp = lar::providerFrom<util::ILArPropertiesService>();
- detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+ larp = lar::providerFrom<util::LArPropertiesService>();
+ detprop = lar::providerFrom<util::DetectorPropertiesService>();
 
  fWirePitch = geom->WirePitch(0,1,0);    //wire pitch in cm
  fTimeTick=detprop->SamplingRate()/1000.;  
@@ -468,8 +468,8 @@ void ShowerReco::beginRun(art::Run&)
 void ShowerReco::produce(art::Event& evt)
 { 
 
-  larp = lar::providerFrom<util::ILArPropertiesService>();
-  detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+  larp = lar::providerFrom<util::LArPropertiesService>();
+  detprop = lar::providerFrom<util::DetectorPropertiesService>();
 
   util::GeometryUtilities gser;
   fNPlanes = geom->Nplanes();
@@ -657,8 +657,8 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
   ///////////////////////////////////////////////////////////
  const double origin[3] = {0.};
  std::vector <std::vector <  double > > position;
- // art::ServiceHandle<util::ILArProperties> larp;
- // art::ServiceHandle<util::IDetectorProperties> detprop;
+ // art::ServiceHandle<util::LArProperties> larp;
+ // art::ServiceHandle<util::DetectorProperties> detprop;
  double fTimeTick=detprop->SamplingRate()/1000.; 
  double fDriftVelocity=detprop->DriftVelocity(detprop->Efield(),larp->Temperature());
  // get starting positions for all planes
@@ -863,8 +863,8 @@ void ShowerReco::LongTransEnergy(unsigned int set, std::vector < art::Ptr<recob:
   
   double totCnrg = 0,totCnrg_corr =0;//, totNewCnrg=0 ; // tot enegry of the shower in collection
 //   art::ServiceHandle<geo::Geometry> geom;
-//   art::ServiceHandle<util::ILArProperties> larp;
-//   art::ServiceHandle<util::IDetectorProperties> detprop;
+//   art::ServiceHandle<util::LArProperties> larp;
+//   art::ServiceHandle<util::DetectorProperties> detprop;
 
   double time;
   unsigned int wire=0,plane=fNPlanes-1;

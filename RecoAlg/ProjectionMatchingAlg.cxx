@@ -6,7 +6,7 @@
 #include "RecoAlg/ProjectionMatchingAlg.h"
 
 #include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -32,7 +32,7 @@ void pma::ProjectionMatchingAlg::reconfigure(const fhicl::ParameterSet& p)
 
 	fMinTwoViewFraction = p.get< double >("MinTwoViewFraction");
 	
-	fDetProp = lar::providerFrom<util::IDetectorPropertiesService>();
+	fDetProp = lar::providerFrom<util::DetectorPropertiesService>();
 	
 	pma::Node3D::SetMargin(p.get< double >("NodeMargin3D"));
 

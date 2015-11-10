@@ -3,13 +3,13 @@
 #include "RecoAlg/PMAlg/PmaHit3D.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
-#include "lardata/Utilities/DetectorPropertiesService.h"
-#include "lardata/DataProviders/IDetectorProperties.h"
+#include "Utilities/DetectorPropertiesService.h"
+#include "DataProviders/DetectorProperties.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
-#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -21,7 +21,7 @@ ems::Hit2D::Hit2D(art::Ptr< recob::Hit > src) :
 fHit(src)
 {
 	geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-	dataprov::IDetectorProperties const* detprop
+	dataprov::DetectorProperties const* detprop
 	  = lar::providerFrom<util::DetectorPropertiesService>();
 	
 	unsigned int plane = src->WireID().Plane;

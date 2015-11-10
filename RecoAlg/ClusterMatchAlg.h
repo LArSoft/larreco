@@ -29,7 +29,7 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/SpacePoint.h"
 #include "RecoAlg/SpacePointAlg.h"
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Geometry/Geometry.h"
 // STL
 #include <set>

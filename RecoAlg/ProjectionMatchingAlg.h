@@ -32,7 +32,7 @@
 #include "Geometry/WireGeo.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/SpacePoint.h"
-#include "DataProviders/IDetectorProperties.h"
+#include "DataProviders/DetectorProperties.h"
 
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 
@@ -180,7 +180,7 @@ private:
 
 	// Geometry and detector properties
 	art::ServiceHandle<geo::Geometry> fGeom;
-	dataprov::IDetectorProperties const* fDetProp;
+	dataprov::DetectorProperties const* fDetProp;
 };
 
 #endif

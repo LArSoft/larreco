@@ -6,7 +6,7 @@ art_make( LIBRARY_NAME  CMTAlgMatch
 			Geometry
 			Geometry_service
                         Utilities
-			DetectorPropertiesService_service
+			DetectorPropertiesServiceStandard_service
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

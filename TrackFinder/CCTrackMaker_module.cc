@@ -43,7 +43,7 @@
 #include "CalibrationDBI/Interface/IChannelStatusService.h"
 #include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/TrackTrajectoryAlg.h"
 #include "RecoAlg/VertexFitAlg.h"
@@ -79,7 +79,7 @@ namespace trkf {
     
     // services
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::IDetectorProperties* detprop;
+    const dataprov::DetectorProperties* detprop;
     
     TrackTrajectoryAlg fTrackTrajectoryAlg;
     VertexFitAlg fVertexFitAlg;
@@ -354,7 +354,7 @@ namespace trkf {
   void CCTrackMaker::produce(art::Event& evt)
   {
     
-    detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+    detprop = lar::providerFrom<util::DetectorPropertiesService>();
 
     fWirePitch = geom->WirePitch();
     

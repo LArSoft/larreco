@@ -53,7 +53,7 @@ void DBScanAlg::reconfigure(fhicl::ParameterSet const &pset)
     //    art::ServiceHandle<util::DetectorPropertiesService> detectorProperties;
     
     m_geometry = &*geometry;
-    //    m_detector = lar::providerFrom<util::IDetectorPropertiesService>();
+    //    m_detector = lar::providerFrom<util::DetectorPropertiesService>();
     
     m_timeVector.resize(NUMTIMEVALUES, 0.);
 }

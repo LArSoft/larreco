@@ -26,8 +26,8 @@
 #include "Simulation/sim.h"
 #include "Simulation/SimListUtils.h"
 #include "MCCheater/BackTracker.h"
-#include "Utilities/ILArPropertiesService.h"
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/LArPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 
 // ##########################
@@ -310,12 +310,12 @@ void FeatureVertexFinderAna::analyze(const art::Event& evt)
   // ###################################
   // ### Getting Detector Properties ###
   // ###################################
-  const dataprov::IDetectorProperties* detp = lar::providerFrom<util::IDetectorPropertiesService>();
+  const dataprov::DetectorProperties* detp = lar::providerFrom<util::DetectorPropertiesService>();
   
   // ##############################
   // ### Getting LAr Properties ###
   // ##############################
-  const dataprov::ILArProperties* larp = lar::providerFrom<util::ILArPropertiesService>();
+  const dataprov::LArProperties* larp = lar::providerFrom<util::LArPropertiesService>();
   
   // ######################################################
   // ### Getting 2d Vertex information (vertex2dHandle) ###

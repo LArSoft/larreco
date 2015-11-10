@@ -41,7 +41,7 @@
 #include "RecoBase/Cluster.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "art/Framework/Core/FindManyP.h"
 
@@ -119,7 +119,7 @@ void Track3Dreco::produce(art::Event& evt)
 { 
    // get services
    art::ServiceHandle<geo::Geometry> geom;
-   const dataprov::IDetectorProperties* detprop = lar::providerFrom<util::IDetectorPropertiesService>();
+   const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
 
    std::unique_ptr<std::vector<recob::Track>                    > tcol(new std::vector<recob::Track>);
    std::unique_ptr<std::vector<recob::SpacePoint>               > spacepoints(new std::vector<recob::SpacePoint>);

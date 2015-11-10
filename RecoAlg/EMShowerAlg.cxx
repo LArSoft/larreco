@@ -11,10 +11,10 @@
 #include "RecoAlg/EMShowerAlg.h"
 
 #include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "Utilities/IDetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 
 shower::EMShowerAlg::EMShowerAlg()
-  : fDetProp(lar::providerFrom<util::IDetectorPropertiesService>())
+  : fDetProp(lar::providerFrom<util::DetectorPropertiesService>())
 {
 } // EMShowerAlg::EMShowerAlg()
 
