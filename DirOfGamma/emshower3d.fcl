@@ -1,3 +1,5 @@
+#include "calorimetry_dune35t.fcl"
+#include "calorimetry_dune10kt.fcl"
 #include "trackfinderalgorithms.fcl"
 
 BEGIN_PROLOG
@@ -9,6 +11,7 @@ emshower3d:
 		ClustersModuleLabel:		"cluster"
 		Trk3DModuleLabel:       "track"
     ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+		CalorimetryAlg:         @local::dune35t_calorimetryalgmc
 }
 emshower3d.ProjectionMatchingAlg.TrkValidationDist2D: 1.0 # max. distance [cm] used in the track validation in the "third" plane
 

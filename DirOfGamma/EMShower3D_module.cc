@@ -37,6 +37,7 @@
 #include <memory>
 
 #include "DirOfGamma/DirOfGamma.h"
+#include "AnalysisAlg/CalorimetryAlg.h"
 
 // ROOT includes
 #include "TLorentzVector.h"
@@ -134,6 +135,7 @@ private:
 	std::string fTrk3DModuleLabel;
 
 	pma::ProjectionMatchingAlg fProjectionMatchingAlg;
+	calo::CalorimetryAlg fCalorimetryAlg;
 
 	art::Handle< std::vector< recob::Cluster > > fCluListHandle;
 
@@ -142,7 +144,8 @@ private:
 
 
 ems::EMShower3D::EMShower3D(fhicl::ParameterSet const & p)
-	: fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg"))
+	: fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg")),
+		fCalorimetryAlg(p.get< fhicl::ParameterSet >("CalorimetryAlg"))
 {
 	reconfigure(p);
   
@@ -181,19 +184,60 @@ recob::Cluster ems::EMShower3D::ConvertFrom(const std::vector< art::Ptr<recob::H
 
 recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 {
-  //art::ServiceHandle<geo::Geometry> geom;
-	//size_t cryo = src.FrontCryo();
-	//const geo::CryostatGeo& cryostat = geom->Cryostat(cryo);
+	
+	std::cout << " ConvertFrom " << std::endl;
 
-	std::vector< std::vector< double > > vdqdx;
-	double dedxZ = fProjectionMatchingAlg.selectInitialHits(src, geo::kZ); //loop over planes
-	double dedxV = fProjectionMatchingAlg.selectInitialHits(src, geo::kV);
-	double dedxU = fProjectionMatchingAlg.selectInitialHits(src, geo::kU);
+	art::ServiceHandle<util::DetectorProperties> detprop;
+	double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
 
-	std::vector< double > dqdx;
-	dqdx.push_back(dedxZ); vdqdx.push_back(dqdx);
-	dqdx.clear(); dqdx.push_back(dedxV); vdqdx.push_back(dqdx);
-	dqdx.clear(); dqdx.push_back(dedxU); vdqdx.push_back(dqdx);
+	unsigned int nusedU = 0; unsigned int nusedV = 0; unsigned int nusedZ = 0;
+	double dqdxU = fProjectionMatchingAlg.selectInitialHits(src, geo::kU, &nusedU);
+	double dqdxV = fProjectionMatchingAlg.selectInitialHits(src, geo::kV, &nusedV);
+	double dqdxZ = fProjectionMatchingAlg.selectInitialHits(src, geo::kZ, &nusedZ);
+
+	double timeU = detprop->ConvertTicksToX(avdrift, 
+									geo::kU, 
+									src.front()->TPC(), 
+									src.front()->Cryo());
+	double timeV = detprop->ConvertTicksToX(avdrift, 
+									geo::kV, 
+									src.front()->TPC(), 
+									src.front()->Cryo());
+	double timeZ = detprop->ConvertTicksToX(avdrift, 
+									geo::kZ, 
+									src.front()->TPC(), 
+									src.front()->Cryo());
+
+	double dedxU = fCalorimetryAlg.dEdx_AREA(dqdxU, timeU, geo::kU);
+	double dedxV = fCalorimetryAlg.dEdx_AREA(dqdxV, timeV, geo::kV);
+	double dedxZ = fCalorimetryAlg.dEdx_AREA(dqdxZ, timeZ, geo::kZ);
+	
+	std::cout << " nusedU = " << nusedU << ", V " << nusedV << ", Z " << nusedZ << std::endl;
+	std::cout << " geo::kU " << geo::kU << ", V " << geo::kV << ", Z " << geo::kZ << std::endl;
+	std::cout << " dqdxU = " << dqdxU << " V " << dqdxV << " Z " << dqdxZ << std::endl;
+	std::cout << " dedxU = " << dedxU << " V " << dedxV << " Z " << dedxZ << std::endl;
+	
+	int plane = geo::kU;
+	if ((nusedV > nusedU) && (nusedV > nusedZ)) plane = geo::kV;
+	else if ((nusedZ > nusedU) && (nusedZ > nusedV)) plane = geo::kZ; 
+
+	std::vector< std::vector< double > > vdedx;
+	std::vector< double > dedx;
+
+	dedx.push_back(dedxU); 
+	if (plane == geo::kU) dedx.push_back(1);
+	else dedx.push_back(0);
+	vdedx.push_back(dedx);
+
+	dedx.clear(); dedx.push_back(dedxV);
+	if (plane == geo::kV) dedx.push_back(1);
+	else dedx.push_back(0); 
+	vdedx.push_back(dedx);
+
+	dedx.clear(); dedx.push_back(dedxZ); 
+	if (plane == geo::kZ) dedx.push_back(1);
+	else dedx.push_back(0);
+	vdedx.push_back(dedx);
 
 	std::vector< TVector3 > xyz, dircos; 
 
@@ -211,24 +255,65 @@ recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 		else dircos.push_back(dircos.back());
 	}
 
-	return recob::Track(xyz, dircos, vdqdx, std::vector< double >(2, util::kBogusD), fTrkIndex);
+	return recob::Track(xyz, dircos, vdedx, std::vector< double >(2, util::kBogusD), fTrkIndex);
 }
 
 recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 {
-//	art::ServiceHandle<geo::Geometry> geom;
-//	size_t cryo = src.FrontCryo();
-	//const geo::CryostatGeo& cryostat = geom->Cryostat(cryo);
 
-	std::vector< std::vector< double > > vdqdx;
-	double dedxZ = fProjectionMatchingAlg.selectInitialHits(src, geo::kZ);
-	double dedxV = fProjectionMatchingAlg.selectInitialHits(src, geo::kV);
-	double dedxU = fProjectionMatchingAlg.selectInitialHits(src, geo::kU);
+	std::cout << " ConvertFrom2 " << std::endl;
 
-	std::vector< double > dqdx;
-	dqdx.push_back(dedxZ); vdqdx.push_back(dqdx);
-	dqdx.clear(); dqdx.push_back(dedxV); vdqdx.push_back(dqdx);
-	dqdx.clear(); dqdx.push_back(dedxU); vdqdx.push_back(dqdx);
+	art::ServiceHandle<util::DetectorProperties> detprop;
+	double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
+
+	unsigned int nusedU = 0; unsigned int nusedV = 0; unsigned int nusedZ = 0;
+	double dqdxU = fProjectionMatchingAlg.selectInitialHits(src, geo::kU, &nusedU);
+	double dqdxV = fProjectionMatchingAlg.selectInitialHits(src, geo::kV, &nusedV);
+	double dqdxZ = fProjectionMatchingAlg.selectInitialHits(src, geo::kZ, &nusedZ);
+
+	double timeU = detprop->ConvertTicksToX(avdrift, 
+									geo::kU, 
+									src.front()->TPC(), 
+									src.front()->Cryo());
+	double timeV = detprop->ConvertTicksToX(avdrift, 
+									geo::kV, 
+									src.front()->TPC(), 
+									src.front()->Cryo());
+	double timeZ = detprop->ConvertTicksToX(avdrift, 
+									geo::kZ, 
+									src.front()->TPC(), 
+									src.front()->Cryo());
+
+	double dedxU = fCalorimetryAlg.dEdx_AREA(dqdxU, timeU, geo::kU);
+	double dedxV = fCalorimetryAlg.dEdx_AREA(dqdxV, timeV, geo::kV);
+	double dedxZ = fCalorimetryAlg.dEdx_AREA(dqdxZ, timeZ, geo::kZ);
+	
+	std::cout << " nusedU = " << nusedU << ", V " << nusedV << ", Z " << nusedZ << std::endl;
+	std::cout << " geo::kU " << geo::kU << ", V " << geo::kV << ", Z " << geo::kZ << std::endl;
+	std::cout << " dqdxU = " << dqdxU << " V " << dqdxV << " Z " << dqdxZ << std::endl;
+	std::cout << " dedxU = " << dedxU << " V " << dedxV << " Z " << dedxZ << std::endl;
+	
+	int plane = geo::kU;
+	if ((nusedV > nusedU) && (nusedV > nusedZ)) plane = geo::kV;
+	else if ((nusedZ > nusedU) && (nusedZ > nusedV)) plane = geo::kZ; 
+
+	std::vector< std::vector< double > > vdedx;
+	std::vector< double > dedx;
+
+	dedx.push_back(dedxU); 
+	if (plane == geo::kU) dedx.push_back(1);
+	else dedx.push_back(0);
+	vdedx.push_back(dedx);
+
+	dedx.clear(); dedx.push_back(dedxV);
+	if (plane == geo::kV) dedx.push_back(1);
+	else dedx.push_back(0); 
+	vdedx.push_back(dedx);
+
+	dedx.clear(); dedx.push_back(dedxZ); 
+	if (plane == geo::kZ) dedx.push_back(1);
+	else dedx.push_back(0);
+	vdedx.push_back(dedx);
 
 	std::vector< TVector3 > xyz, dircos;
 
@@ -246,7 +331,7 @@ recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 		else dircos.push_back(dircos.back());
 	}
 
-	return recob::Track(xyz, dircos, vdqdx, std::vector< double >(2, util::kBogusD), fIniIndex);
+	return recob::Track(xyz, dircos, vdedx, std::vector< double >(2, util::kBogusD), fIniIndex);
 }
 
 void ems::EMShower3D::produce(art::Event & e)
