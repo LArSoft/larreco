@@ -1,0 +1,40 @@
+#include "trackfinderalgorithms.fcl"
+
+BEGIN_PROLOG
+
+emshower3d:
+{
+    module_type:            "EMShower3D"
+    HitsModuleLabel:	      "hit"
+		ClustersModuleLabel:		"cluster"
+		Trk3DModuleLabel:       "track"
+    ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+}
+emshower3d.ProjectionMatchingAlg.TrkValidationDist2D: 1.0 # max. distance [cm] used in the track validation in the "third" plane
+
+mergeemshower3d:
+{
+    module_type:            "MergeEMShower3D"
+    HitsModuleLabel:	      "hit"
+		ClustersModuleLabel:		"cluster"
+		Trk3DModuleLabel:       "track"
+		VtxModuleLabel:					"vertex"
+    NarrowConeAngle:        15
+    WideConeAngle:          20
+    ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+}
+mergeemshower3d.ProjectionMatchingAlg.TrkValidationDist2D: 1.0 # max. distance [cm] used in the track validation in the "third" plane
+
+multiemshowers:
+{
+    module_type:            "MultiEMShowers"
+    HitsModuleLabel:	      "hit"
+		ClustersModuleLabel:		"cluster"
+		Trk3DModuleLabel:       "track"
+		VtxModuleLabel:					"vertex"
+		ShsModuleLabel:					"showers"
+    ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+}
+multiemshowers.ProjectionMatchingAlg.TrkValidationDist2D: 1.0 # max. distance [cm] used in the track validation in the "third" plane
+
+END_PROLOG

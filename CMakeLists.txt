@@ -69,6 +69,7 @@ add_subdirectory(VertexFinder)
 add_subdirectory(SpacePointFinder)
 add_subdirectory(MCComp)
 add_subdirectory(WireCell)
+add_subdirectory(DirOfGamma)
 
 # tests
 add_subdirectory(test)

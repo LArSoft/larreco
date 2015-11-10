@@ -246,9 +246,9 @@ namespace trkf {
     // vector of many match combinations
     std::vector<MatchPars> matcomb;
     
-    void PrintClusters();
+    void PrintClusters() const;
     
-    void PrintTracks();
+    void PrintTracks() const;
     
     void MakeClusterChains(art::FindManyP<recob::Hit> const& fmCluHits);
     float dXClTraj(art::FindManyP<recob::Hit> const& fmCluHits, unsigned short ipl, unsigned short icl1, unsigned short end1, unsigned short icl2);
@@ -650,7 +650,7 @@ namespace trkf {
           // load the daughter PFP indices
           mf::LogVerbatim("CCTM")<<"PFParticle "<<ipf<<" tID "<<tID;
           for(unsigned short jpf = 0; jpf < pfpToTrkID.size(); ++jpf) {
-            itr = pfpToTrkID[jpf];
+            itr = pfpToTrkID[jpf] - 1; // convert from track ID to track index
             if(trk[itr].MomID == tID) dtrIndices.push_back(jpf);
             if(trk[itr].MomID == tID) mf::LogVerbatim("CCTM")<<" dtr jpf "<<jpf<<" itr "<<itr;
           } // jpf
@@ -2059,6 +2059,116 @@ namespace trkf {
     
     trk.push_back(newtrk);
   } // StoreTrack
+  
+  ///////////////////////////////////////////////////////////////////////
+  void CCTrackMaker::AngMatch(art::FindManyP<recob::Hit> const& fmCluHits)
+  {
+    // look for long unused cluster chains and match them using angle
+    std::array<std::vector<unsigned short>, 3> ccUnused;
+    
+    unsigned short ipl, icc, jpl, kpl, ii, jj, kk, icl, jcl, kcl, iend, jend, kend;
+    short idir, jdir, kdir;
+    float islp = 0, jslp = 0, kslp = 0, kAng = 0, sigmaA = 0, matchErr = 0;
+    
+    prt = (fDebugPlane >= 0);
+    
+    for(ipl = 0; ipl < nplanes; ++ipl) {
+      for(icc = 0; icc < clsChain[ipl].size(); ++icc) {
+        if(clsChain[ipl][icc].InTrack < 0 && clsChain[ipl][icc].Length > fAngMatchMinLen) ccUnused[ipl].push_back(icc);
+      } // icc
+      if(prt) {
+        mf::LogVerbatim myprt("CCTM");
+        myprt<<"AngMatch: ipl "<<ipl<<" ccUnused";
+        for(icc = 0; icc < ccUnused[ipl].size(); ++icc) myprt<<" "<<ccUnused[ipl][icc];;
+      }
+    } // ipl
+    
+    
+    if(ccUnused[0].size() == 0 && ccUnused[1].size() == 0 && ccUnused[2].size() == 0) return;
+    
+    std::array<float, 3> mchg;
+    matcomb.clear();
+    
+    float xMatchWght = 1;
+    if(fuBCode) xMatchWght = 0.1;
+    
+    for(ipl = 0; ipl < nplanes; ++ipl) {
+      jpl = (ipl + 1) % nplanes;
+      kpl = (jpl + 1) % nplanes;
+      for(ii = 0; ii < ccUnused[ipl].size(); ++ii) {
+        icl = ccUnused[ipl][ii];
+        prt = (ipl == fDebugPlane && icl == fDebugCluster);
+        for(jj = 0; jj < ccUnused[jpl].size(); ++jj) {
+          jcl = ccUnused[jpl][jj];
+          // make first charge asymmetry cut
+          mchg[0] = clsChain[ipl][icl].TotChg;
+          mchg[1] = clsChain[jpl][jcl].TotChg;
+          mchg[2] = mchg[1];
+          if(prt) mf::LogVerbatim("CCTM")<<"AngMatch: ipl:icl "<<ipl<<":"<<icl<<" jpl:jcl "<<jpl<<":"<<jcl<<" chg asym"<<ChargeAsym(mchg);
+          if(ChargeAsym(mchg) > 0.5) continue;
+          kslp = geom->ThirdPlaneSlope(ipl, islp, jpl, jslp, tpc, cstat);
+          for(kk = 0; kk < ccUnused[kpl].size(); ++kk) {
+            kcl = ccUnused[kpl][kk];
+            // make second charge asymmetry cut
+            mchg[0] = clsChain[ipl][icl].TotChg;
+            mchg[1] = clsChain[jpl][jcl].TotChg;
+            mchg[2] = clsChain[kpl][kcl].TotChg;
+            if(!fuBCode && ChargeAsym(mchg) > 0.5) continue;
+            // check the ends
+            for(iend = 0; iend < 2; ++iend) {
+              idir = clsChain[ipl][icl].Dir[iend];
+              islp = clsChain[ipl][icl].Slope[iend];
+              for(jend = 0; jend < 2; ++jend) {
+                jdir = clsChain[jpl][jcl].Dir[jend];
+                if(idir != 0 && jdir != 0 && idir != jdir) continue;
+                jslp = clsChain[jpl][jcl].Slope[jend];
+                // expected angle in kpl
+                kslp = geom->ThirdPlaneSlope(ipl, islp, jpl, jslp, tpc, cstat);
+                kAng = atan(kslp);
+                sigmaA = fAngleMatchErr * AngleFactor(kslp);
+                for(kend = 0; kend < 2; ++kend) {
+                  kdir = clsChain[kpl][kcl].Dir[kend];
+                  if(idir != 0 && kdir != 0 && idir != kdir) continue;
+                  matchErr = fabs(clsChain[kpl][kcl].Angle[kend] - kAng) / sigmaA;
+                  if(prt) mf::LogVerbatim("CCTM")<<" ipl:icl:iend "<<ipl<<":"<<icl<<":"<<iend<<" jpl:jcl:jend "<<jpl<<":"<<jcl<<":"<<jend<<" kpl:kcl:kend "<<kpl<<":"<<kcl<<":"<<kend<<" matchErr "<<matchErr;
+                  if(matchErr > 5) continue;
+                  MatchPars match;
+                  match.Cls[ipl] = icl; match.End[ipl] = iend;
+                  match.Cls[jpl] = jcl; match.End[jpl] = jend;
+                  match.Cls[kpl] = kcl; match.End[kpl] = kend;
+                  if(DupMatch(match)) continue;
+                  match.Chg[ipl] = clsChain[ipl][icl].TotChg;
+                  match.Chg[jpl] = clsChain[jpl][jcl].TotChg;
+                  match.Chg[kpl] = clsChain[kpl][kcl].TotChg;
+                  match.Vtx = -1;
+                  match.dWir = fabs(0.5 * (clsChain[ipl][icl].Wire[iend] + clsChain[jpl][jcl].Wire[jend]) - clsChain[kpl][kcl].Wire[kend]);
+                  match.dAng = fabs(clsChain[kpl][kcl].Angle[kend] - kAng);
+                  match.dX = xMatchWght * fabs(0.5 * (clsChain[ipl][icl].X[iend] + clsChain[jpl][jcl].X[jend]) - clsChain[kpl][kcl].X[kend]);
+                  if(prt) mf::LogVerbatim("CCTM")<<" match.dX "<<match.dX;
+                  if(!fuBCode && match.dX > 20) continue;
+                  if(std::abs(kAng) > 0.3 && match.dAng < 0.03) std::cout<<"match "<<ipl<<":"<<icl<<" "<<jpl<<":"<<jcl<<" "<<kpl<<":"<<kcl<<" "<<match.dAng<<"\n";
+                  // add X match error with 1 cm rms
+//                  match.Err = matchErr + match.dX;
+                  match.Err = 0.;
+                  match.oVtx = -1;
+                  match.odWir = 0;
+                  match.odAng = 0;
+                  match.odX = 0;
+                  match.oErr = 0;
+                  matcomb.push_back(match);
+                } // kend
+               } // jend
+            } // iend
+          } // kk
+        } // jj
+      } // ii
+    } // ipl
+    
+    if(matcomb.size() == 0) return;
+    
+    SortMatches(fmCluHits, 3);
+    
+    prt = false;
 
   ///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::PlnMatch(art::FindManyP<recob::Hit> const& fmCluHits)
@@ -3072,7 +3182,7 @@ namespace trkf {
   } // FillTrkHits
   
   ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::PrintTracks()
+  void CCTrackMaker::PrintTracks() const
   {
     mf::LogVerbatim myprt("CCTM");
     myprt<<"********* PrintTracks \n";
@@ -3119,7 +3229,7 @@ namespace trkf {
   
   
   ///////////////////////////////////////////////////////////////////////
-  void CCTrackMaker::PrintClusters()
+  void CCTrackMaker::PrintClusters() const
   {
     
     unsigned short iTime;
