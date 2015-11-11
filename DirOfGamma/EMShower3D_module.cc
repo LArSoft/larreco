@@ -195,15 +195,15 @@ recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 	double dqdxV = fProjectionMatchingAlg.selectInitialHits(src, geo::kV, &nusedV);
 	double dqdxZ = fProjectionMatchingAlg.selectInitialHits(src, geo::kZ, &nusedZ);
 
-	double timeU = detprop->ConvertTicksToX(avdrift, 
+	double timeU = detprop->ConvertXToTicks(avdrift, 
 									geo::kU, 
 									src.front()->TPC(), 
 									src.front()->Cryo());
-	double timeV = detprop->ConvertTicksToX(avdrift, 
+	double timeV = detprop->ConvertXToTicks(avdrift, 
 									geo::kV, 
 									src.front()->TPC(), 
 									src.front()->Cryo());
-	double timeZ = detprop->ConvertTicksToX(avdrift, 
+	double timeZ = detprop->ConvertXToTicks(avdrift, 
 									geo::kZ, 
 									src.front()->TPC(), 
 									src.front()->Cryo());
@@ -271,15 +271,15 @@ recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 	double dqdxV = fProjectionMatchingAlg.selectInitialHits(src, geo::kV, &nusedV);
 	double dqdxZ = fProjectionMatchingAlg.selectInitialHits(src, geo::kZ, &nusedZ);
 
-	double timeU = detprop->ConvertTicksToX(avdrift, 
+	double timeU = detprop->ConvertXToTicks(avdrift, 
 									geo::kU, 
 									src.front()->TPC(), 
 									src.front()->Cryo());
-	double timeV = detprop->ConvertTicksToX(avdrift, 
+	double timeV = detprop->ConvertXToTicks(avdrift, 
 									geo::kV, 
 									src.front()->TPC(), 
 									src.front()->Cryo());
-	double timeZ = detprop->ConvertTicksToX(avdrift, 
+	double timeZ = detprop->ConvertXToTicks(avdrift, 
 									geo::kZ, 
 									src.front()->TPC(), 
 									src.front()->Cryo());
