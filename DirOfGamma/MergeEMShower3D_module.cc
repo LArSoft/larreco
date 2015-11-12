@@ -61,6 +61,7 @@ class ems::ShowerInfo
 	bool HasConPoint(void) const {return fHasVtx;}
 	int GetKey(void) const {return fKey;}
 	int GetGid(void) const {return fGId;}
+	int GetPlaneId(void) const {return fPlaneId;}
 	double GetAdcSum(void) const {return fAdcSum;}
 	TVector3 GetFront(void) const {return fFront;}
 	TVector3 GetEnd(void) const {return fEnd;}
@@ -77,6 +78,7 @@ class ems::ShowerInfo
 	private:
 	int fKey;
 	int fGId;
+	int fPlaneId;
 	bool fHasVtx;
 	double fAdcSum;
 	double fP0Dist;
@@ -99,9 +101,14 @@ fP0Dist(0)
 	fEnd = trk.End();			
 	fHasVtx = hasvtx;
 
-	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kZ)); 
-	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kV)); 
 	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kU)); 
+	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kV));
+	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kZ)); 
+	
+	if (trk.DQdxAtPoint(1, geo::kU) > 0) fPlaneId = geo::kU;
+	else if (trk.DQdxAtPoint(1, geo::kV) > 0) fPlaneId = geo::kV;
+	else if (trk.DQdxAtPoint(1, geo::kZ) > 0) fPlaneId = geo::kZ; 
+	
 }
 
 double ems::ShowerInfo::Pointsto(ems::ShowerInfo const& s1) const
@@ -162,6 +169,7 @@ class ems::ShowersCollection
 
 		bool IsClean() {return Clean;}
 
+		int PlaneId();
 		TVector3 Front(); 
 		TVector3 Dir(); 
 		std::vector<double> DeDx(void);
@@ -185,6 +193,11 @@ first(part)
 	fParts.push_back(part);
 }
 
+int ems::ShowersCollection::PlaneId()
+{
+	if (fParts.size()) return fParts.front().GetPlaneId();
+	else return 0;
+}
 
 TVector3 ems::ShowersCollection::Front()
 {
@@ -499,7 +512,7 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 			std::vector< double > vd;
 			recob::Shower cas(
 				dir, v0, front, v0,
-				vd, vd, dedx, vd, 0, id);
+				vd, vd, dedx, vd, gammawithconv[i].PlaneId(), id);
 
 			cascades->push_back(cas);
 

@@ -167,10 +167,10 @@ void shower::EMShowerAlg::FindShowerStartDirection(art::Ptr<recob::Track> const&
   for (std::map<int,TVector2>::const_iterator showerCentreIt = showerCentreMap.begin(); showerCentreIt != showerCentreMap.end(); ++showerCentreIt) {
 
     // Project the vertex and the end point onto this plane
-    TVector2 vertexProj = TVector2(fDetProp->ConvertXToTicks(vertex.X(), showerCentreIt->first, fGeom->FindTPCAtPosition(vertexPosition).TPC % 2, 0),
-				   fGeom->WireCoordinate(vertex.Y(), vertex.Z(), showerCentreIt->first, fGeom->FindTPCAtPosition(vertexPosition).TPC % 2, 0));
-    TVector2 endProj = TVector2(fDetProp->ConvertXToTicks(end.X(), showerCentreIt->first, fGeom->FindTPCAtPosition(vertexPosition).TPC % 2, 0),
-				fGeom->WireCoordinate(end.Y(), end.Z(), showerCentreIt->first, fGeom->FindTPCAtPosition(endPosition).TPC % 2, 0));
+    TVector2 vertexProj = TVector2(fGeom->WireCoordinate(vertex.Y(), vertex.Z(), showerCentreIt->first, fGeom->FindTPCAtPosition(vertexPosition).TPC % 2, 0),
+				   fDetProp->ConvertXToTicks(vertex.X(), showerCentreIt->first, fGeom->FindTPCAtPosition(vertexPosition).TPC % 2, 0));
+    TVector2 endProj = TVector2(fGeom->WireCoordinate(end.Y(), end.Z(), showerCentreIt->first, fGeom->FindTPCAtPosition(endPosition).TPC % 2, 0),
+				fDetProp->ConvertXToTicks(end.X(), showerCentreIt->first, fGeom->FindTPCAtPosition(vertexPosition).TPC % 2, 0));
 
     // Find the distance of each to the centre of the cluster
     distanceToVertex[showerCentreIt->first] = (vertexProj - showerCentreIt->second).Mod();
