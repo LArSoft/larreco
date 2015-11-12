@@ -21,8 +21,8 @@ services:
 # services_microboone.fcl
 services.user.ExptGeoHelperInterface: @local::microboone_geometry_helper
 services.user.Geometry:           @local::microboone_geo 
-services.user.DetectorProperties: @local::microboone_detproperties
-services.user.LArProperties:      @local::microboone_properties
+services.user.DetectorPropertiesService: @local::microboone_detproperties
+services.user.LArPropertiesService:      @local::microboone_properties
 services.user.LArFFT:             @local::microboone_larfft  
 services.user.DatabaseUtil:       @local::microboone_database
 services.user.BackTracker:        @local::microboone_backtracker

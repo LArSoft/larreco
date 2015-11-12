@@ -18,7 +18,7 @@ services:
   { 
    ExptGeoHelperInterface: @local::argoneut_geometry_helper
    Geometry:	     @local::argoneut_geo
-   LArProperties:    @local::argoneut_properties
+   LArPropertiesService:    @local::argoneut_properties
    LArFFT:           @local::argoneut_larfft
    DBScanService:    @local::argoneut_dbscanservice
    HoughLineService: @local::argoneut_houghlineservice

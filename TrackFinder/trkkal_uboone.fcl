@@ -20,8 +20,8 @@ services:
 
 services.user.ExptGeoHelperInterface: @local::microboone_geometry_helper
 services.user.Geometry:           @local::microboone_geo 
-services.user.LArProperties:      @local::microboone_properties
-services.user.DetectorProperties: @local::microboone_detproperties
+services.user.LArPropertiesService:      @local::microboone_properties
+services.user.DetectorPropertiesService: @local::microboone_detproperties
 services.user.LArFFT:             @local::microboone_larfft  
 services.user.LArG4Parameters:    @local::microboone_largeantparameters
 services.user.LArVoxelCalculator: @local::microboone_larvoxelcalculator
