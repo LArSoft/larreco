@@ -35,7 +35,6 @@ art_make( BASENAME_ONLY
 #         		  Filters
 # 			  RecoAlg
 # 		    	  RawData
-#                          LArProperties_service
 # 			  ${SIMULATIONBASE}
 #               BASENAME_ONLY 
 # 	     )     
