@@ -262,6 +262,8 @@ namespace trkf {
     void VtxMatch(art::FindManyP<recob::Hit> const& fmCluHits);
     // match clusters in all planes
     void PlnMatch(art::FindManyP<recob::Hit> const& fmCluHits);
+    // match clusters in all planes
+    void AngMatch(art::FindManyP<recob::Hit> const& fmCluHits);
     
     // Make the track/vertex and mother/daughter relationships
     void MakeFamily();
@@ -2059,7 +2061,7 @@ namespace trkf {
     
     trk.push_back(newtrk);
   } // StoreTrack
-  
+/*
   ///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::AngMatch(art::FindManyP<recob::Hit> const& fmCluHits)
   {
@@ -2169,7 +2171,8 @@ namespace trkf {
     SortMatches(fmCluHits, 3);
     
     prt = false;
-
+  } // AngMatch
+*/
   ///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::PlnMatch(art::FindManyP<recob::Hit> const& fmCluHits)
   {
@@ -2631,7 +2634,7 @@ namespace trkf {
       <<" ojX "<<ojX<<" match.odX "<<match.odX<<" match.oErr "<<match.oErr<<"\n";
     
 
-}
+} // FillEndMatch2
   
   ///////////////////////////////////////////////////////////////////////
   void CCTrackMaker::FillEndMatch(MatchPars& match)
