@@ -1,9 +1,26 @@
 BEGIN_PROLOG
 
-trackshowerhits:
+standard_segmentation2d:
 {
-    module_type:      "TrackShowerHits"
-	HitModuleLabel:   "hit"   # hits label to be splitted
+  RadiusMin:          0.5      # annulus, inner rad [cm]
+  RadiusMax:          1.0      # annulus, outer rar [cm]
+  MaxLineDist:        0.2      # hits linear if dist to line less than [cm]
+
+  DenseVtxRadius:     1.0      # look for vtx inside rad [cm]
+  DenseMinNVtx:       5        # shower if more vtxs inside rad
+
+  DenseHitRadius:     5.0      # look for hits inside rad [cm]
+  DenseMinNHits:      100      # big shower if more vtx inside rad
+}
+
+standard_trackshowerhits:
+{
+  module_type:       "TrackShowerHits"
+  HitModuleLabel:    "hit"     # label of hits to be splitted
+  Segmentation2DAlg: @local::standard_segmentation2d
+
+  FindHugeShowers:   true      # look at very dense hit regions to tag showers
+  FindMoreShowers:   false     # use vtxs from segmentation to tag other showers
 }
 
 END_PROLOG

@@ -19,17 +19,25 @@ namespace tss
 class tss::Segmentation2D
 {
 public:
-	Segmentation2D(void) :
-		fRadiusMin(1.5), fRadiusMax(3.0), // 0.5, 1.0
+
+	Segmentation2D(const fhicl::ParameterSet& p) :
+		fRadiusMin(0.5), fRadiusMax(1.0),
 		fMaxLineDist(0.2),
-		fDenseVtxRadius(1.0), fDenseHitRadius(2.0),
-		fDenseMinN(5), fDenseMinH(25)
-	{ }
+		fDenseVtxRadius(1.0), fDenseHitRadius(5.0),
+		fDenseMinN(5), fDenseMinH(100)
+	{ reconfigure(p); }
+
+	void reconfigure(const fhicl::ParameterSet& p);
 
 	std::vector< tss::Cluster2D > run(tss::Cluster2D & inp) const;
 
 	void splitHits(
 		const std::vector< tss::Cluster2D > & inp,
+		std::vector< const tss::Hit2D* > & trackHits,
+		std::vector< const tss::Hit2D* > & emHits) const;
+
+	void splitHitsNaive(
+		const tss::Cluster2D & inp,
 		std::vector< const tss::Hit2D* > & trackHits,
 		std::vector< const tss::Hit2D* > & emHits) const;
 

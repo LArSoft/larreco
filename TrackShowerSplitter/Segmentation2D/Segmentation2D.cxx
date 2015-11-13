@@ -11,6 +11,19 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
+void tss::Segmentation2D::reconfigure(const fhicl::ParameterSet& p)
+{
+	fRadiusMin = p.get< double >("RadiusMin");
+	fRadiusMax = p.get< double >("RadiusMax");
+	fMaxLineDist = p.get< double >("MaxLineDist");
+
+	fDenseVtxRadius = p.get< double >("DenseVtxRadius");
+	fDenseMinN = p.get< unsigned int >("DenseMinNVtx");
+
+	fDenseHitRadius = p.get< double >("DenseHitRadius");
+	fDenseMinH = p.get< unsigned int >("DenseMinNHits");
+}
+
 std::vector< tss::Cluster2D > tss::Segmentation2D::run(tss::Cluster2D & inp) const
 {
 	std::vector< tss::Cluster2D > result;
@@ -307,12 +320,6 @@ void tss::Segmentation2D::mergeDenseParts(std::vector< tss::Cluster2D > & group)
 
 			if (idx > -1) group[idx].tagEM(true);
 
-/*			for (size_t i = 0; i < toMergeIdxs.size(); i++) // *** no merging, only tag instead ***
-			{
-				group[toMergeIdxs[i]].tagEM(true);
-			}
-			group[idx].tagEM(true);
-*/
 			merged = true;
 		}
 	}
@@ -376,6 +383,38 @@ void tss::Segmentation2D::splitHits(
 // ------------------------------------------------------
 
 void tss::Segmentation2D::splitHitsNaive(
+		const tss::Cluster2D & inp,
+		std::vector< const tss::Hit2D* > & trackHits,
+		std::vector< const tss::Hit2D* > & emHits) const
+{
+	const double rad2 = fDenseHitRadius * fDenseHitRadius;
+
+	trackHits.clear();
+	emHits.clear();
+
+	for (const auto hx : inp.hits())
+	{
+		size_t n = 0;
+		for (const auto hy : inp.hits())
+		{
+			if (hx->Hit2DPtr() == hy->Hit2DPtr()) continue;
+
+			if (pma::Dist2(hx->Point2D(), hy->Point2D()) < rad2) n++;
+		}
+
+		if (n > fDenseMinH)
+		{
+			emHits.push_back(hx);
+		}
+		else
+		{
+			trackHits.push_back(hx);
+		}
+	}
+}
+// ------------------------------------------------------
+
+void tss::Segmentation2D::splitHitsNaive(
 		const std::vector< tss::Cluster2D > & inp,
 		std::vector< const tss::Hit2D* > & trackHits,
 		std::vector< const tss::Hit2D* > & emHits) const
@@ -434,8 +473,6 @@ bool tss::Segmentation2D::Cl2InsideCl1(tss::Cluster2D& cl1, tss::Cluster2D& cl2)
 		
 	for (unsigned int h = 0; h < cl1.size(); h++)
 	{
-		// tss::Hit2D* hit = static_cast<AF::Hit2D*>(cl1.at(h));
-		// float wire = (hit->Point()).X(); float drift = (hit->Point()).Y();
 		float wire = cl1[h].Point2D().X(); float drift = cl1[h].Point2D().Y();
 			
 		if ( (wire <= (point.X() + shift)) && (wire >= (point.X() - width - shift)) )
