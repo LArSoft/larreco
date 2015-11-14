@@ -24,7 +24,7 @@
 #include "RecoAlg/PMAlg/Utilities.h"
 #include "Utilities/AssociationUtil.h"
 
-#include "TrackShowerSplitter/Segmentation2D/Segmentation2D.h"
+#include "ClusterFinder/TrackShowerSplitter/Segmentation2D/Segmentation2D.h"
 
 #include <memory>
 
