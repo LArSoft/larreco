@@ -1,18 +1,20 @@
 #include "clusteralgorithms.fcl"
+#include "showeralgorithms.fcl"
 
 BEGIN_PROLOG
 
 standard_blurredcluster:
 {
- module_type:       "BlurredClustering"
- CreateDebugPDF:    "false"
- MergeClusters:     "true"
- HitsModuleLabel:   "gaushit"
- TrackModuleLabel:  "pmtrack"
- GlobalTPCRecon:    "true"
- ShowerReconOnly:   "false"
- BlurredClusterAlg: @local::standard_blurredclusteralg
- MergeClusterAlg:   @local::standard_mergeclusteralg
+ module_type:              "BlurredClustering"
+ CreateDebugPDF:           "false"
+ MergeClusters:            "true"
+ HitsModuleLabel:          "gaushit"
+ TrackModuleLabel:         "pmtrack"
+ GlobalTPCRecon:           true
+ ShowerReconOnly:          false
+ BlurredClusterAlg:        @local::standard_blurredclusteralg
+ MergeClusterAlg:          @local::standard_mergeclusteralg
+ TrackShowerSeparationAlg: @local::standard_trackshowerseparationalg
 }
 
 standard_clusterpca:
