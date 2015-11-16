@@ -132,6 +132,9 @@ bool shower::TrackShowerSeparationAlg::IdentifyShowerLikeTrack(TVector3 const& e
   std::vector<art::Ptr<recob::SpacePoint> > spacePointsInCone;
   GetSpacePointsInCone(spacePoints, spacePointsInCone, end, direction);
 
+  if (spacePointsInCone.size() < 2)
+    return false;
+
   // Get the average spread of these space points
   double spread = SpacePointSpread(spacePointsInCone);
 
