@@ -205,12 +205,13 @@ namespace hit {
       holder.resize(fDataSize);
       
       // uncompress the data
-      raw::Uncompress(digitVec->ADCs(), rawadc, digitVec->Compression());
+      int pedestal = (int)digitVec->GetPedestal();
+      raw::Uncompress(digitVec->ADCs(), rawadc, pedestal,digitVec->Compression());
 
 
       for(unsigned int bin = 0; bin < fDataSize; ++bin) 
-      	//holder[bin]=(rawadc[bin]-digitVec->GetPedestal());
-      	holder[bin]=rawadc[bin];
+      	holder[bin]=(rawadc[bin]-digitVec->GetPedestal());
+      //holder[bin]=rawadc[bin];
       //now holder and rawadc should be filled correctly
       
       sigType       = geom->SignalType(channel);
