@@ -16,6 +16,8 @@
 #include "art/Persistency/Common/PtrVector.h"
 
 // larsoft
+#include "Utilities/LArProperties.h"
+#include "Utilities/DetectorProperties.h"
 #include "RecoBase/Hit.h"
 
 // ROOT
@@ -36,6 +38,9 @@ class shower::ShowerEnergyAlg {
   double fUGradient, fUIntercept;
   double fVGradient, fVIntercept;
   double fZGradient, fZIntercept;
+
+  art::ServiceHandle<util::DetectorProperties> detprop;
+  art::ServiceHandle<util::LArProperties> larprop;
 
 };
 

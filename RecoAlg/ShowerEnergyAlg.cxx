@@ -24,7 +24,7 @@ double shower::ShowerEnergyAlg::ShowerEnergy(art::PtrVector<recob::Hit> const& h
   double totalCharge = 0, totalEnergy = 0;
 
   for (art::PtrVector<recob::Hit>::const_iterator hit = hits.begin(); hit != hits.end(); ++hit)
-    totalCharge += ((*hit)->Integral() * TMath::Exp((500 * (*hit)->PeakTime())/3e6));
+    totalCharge += ( (*hit)->Integral() * TMath::Exp( (detprop->SamplingRate() * (*hit)->PeakTime()) / (larprop->ElectronLifetime()*1e3) ) );
 
   switch (plane) {
   case 0:
