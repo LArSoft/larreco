@@ -23,12 +23,18 @@
 // LArSoft includes
 #include "Utilities/LArProperties.h"
 #include "Utilities/DetectorProperties.h"
+#include "Utilities/AssociationUtil.h"
 #include "RecoBase/Hit.h"
+#include "RecoBase/Track.h"
+#include "RecoBase/SpacePoint.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 #include "Geometry/Geometry.h"
+#include "SimulationBase/MCParticle.h"
+#include "MCCheater/BackTracker.h"
 
 // ROOT & C++
+#include <TTree.h>
 #include <TH2F.h>
 #include <TH2.h>
 #include <TCanvas.h>
@@ -44,6 +50,7 @@
 #include <TF1.h>
 #include <TLine.h>
 #include <TPrincipal.h>
+#include <TMath.h>
 #include <TVector.h>
 #include <TVectorD.h>
 #include <TVector2.h>
@@ -79,6 +86,7 @@ public:
   double GetTimeOfBin(TH2F* image, int const& bin);
   unsigned int NumNeighbours(int const& nx, std::vector<bool> const& used, int const& bin);
   bool PassesTimeCut(std::vector<double> const& times, double const& time);
+  void RemoveTrackHits(std::vector<art::Ptr<recob::Hit> > const& ihits, std::vector<art::Ptr<recob::Track> > const& tracks, std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints, art::FindManyP<recob::Track> const& fmth, art::FindManyP<recob::Track> const& fmtsp, art::FindManyP<recob::Hit> const& fmh, std::vector<art::Ptr<recob::Hit> >& hits, int Event, int Run);
   void SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int pad, int tpc, int plane);
   void SaveImage(TH2F* image, int pad, int tpc, int plane);
   void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int pad, int tpc, int plane);
@@ -116,7 +124,7 @@ private:
   TCanvas *fDebugCanvas;
   std::string fDebugPDFName;
 
-  // Create geometry and detector property handle
+  // art service handles
   art::ServiceHandle<geo::Geometry> fGeom;
   art::ServiceHandle<util::DetectorProperties> fDetProp;
 

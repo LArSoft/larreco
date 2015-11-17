@@ -6,6 +6,7 @@ dune_dbscanalg:    @local::standard_dbscanalg_fast
 dune_houghbasealg: @local::standard_houghbasealg
 dune_endpointalg:  @local::standard_endpointalg 
 
+dune10kt_blurredcluster:             @local::standard_blurredcluster
 dunefd_dbcluster:                    @local::standard_dbcluster      
 dunefd_dbcluster.DBScanAlg:          @local::dunefd_dbscanalg          
 dunefd_dbclusterana:                 @local::standard_dbclusterana   

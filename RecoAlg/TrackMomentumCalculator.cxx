@@ -62,7 +62,7 @@ namespace trkf{
     
     gr_seg_xyz = new TPolyLine3D(); gr_seg_xy = new TGraph(); gr_seg_yz = new TGraph(); gr_seg_xz = new TGraph(); 
     
-    steps_size = 5.0; n_steps = 9; for ( Int_t i=1; i<=n_steps; i++ ) { steps.push_back( steps_size*i ); }
+    steps_size = 10.0; n_steps = 6; for ( Int_t i=1; i<=n_steps; i++ ) { steps.push_back( steps_size*i ); }
     
     basex.SetXYZ( 1.0, 0.0, 0.0 ); basey.SetXYZ( 0.0, 1.0, 0.0 ); basez.SetXYZ( 0.0, 0.0, 1.0 ); 
     	 
@@ -200,7 +200,7 @@ namespace trkf{
     std::vector<Float_t> recoX; std::vector<Float_t> recoY; std::vector<Float_t> recoZ;
     
     recoX.clear(); recoY.clear(); recoZ.clear();
-        	  
+    
     Int_t n_points = trk->NumberTrajectoryPoints();
         
     for ( Int_t i=0; i<n_points; i++ )
@@ -694,11 +694,11 @@ namespace trkf{
     Int_t my_steps = recoX.size();
     
     if ( my_steps<2 ) return -1.0;
-	  
+    
     Int_t check0 = GetRecoTracks( recoX, recoY, recoZ );
     
     if ( check0!=0 ) return -1.0;
-        
+    
     seg_size = steps_size;
     
     Int_t check1 = GetSegTracks2( recoX, recoY, recoZ );
@@ -718,7 +718,7 @@ namespace trkf{
     Double_t mean = 666.0; Double_t rms = 666.0; Double_t rmse = 666.0;
     
     nmeas = 0; Double_t max1=-999.0; Double_t min1=+999.0;
-	      
+    
     for ( Int_t j=0; j<n_steps; j++ )
       {
 	Double_t trial = steps.at( j );
@@ -804,7 +804,7 @@ namespace trkf{
     chi2 = mP->MinValue(); 
     
     delete mP;
-        
+    
     return p;
     
   }
@@ -1105,7 +1105,7 @@ namespace trkf{
     
     n_seg = 0;
     
-    Double_t x0; Double_t y0; Double_t z0; 
+    Double_t x0=0.0; Double_t y0=0.0; Double_t z0=0.0; 
     
     Double_t x00 = xxx.at( 0 ); Double_t y00 = yyy.at( 0 ); Double_t z00 = zzz.at( 0 );
     
@@ -1213,13 +1213,13 @@ namespace trkf{
 	    
 	    Double_t sumz = 0.0;
 	    
-	    for ( Int_t i=0; i<na; i++ )
+	    for ( Int_t ii=0; ii<na; ii++ )
 	      {
-		Double_t xxw1 = vx.at( i ); 
+		Double_t xxw1 = vx.at( ii ); 
 		
-		Double_t yyw1 = vy.at( i );
+		Double_t yyw1 = vy.at( ii );
 		
-		Double_t zzw1 = vz.at( i );
+		Double_t zzw1 = vz.at( ii );
 		
 		sumx += xxw1; sumy += yyw1; sumz += zzw1;
 		
@@ -1235,13 +1235,13 @@ namespace trkf{
 	    
 	    TMatrixDSym m( 3 );
 	    
-	    for ( Int_t i=0; i<na; i++ )
+	    for ( Int_t ii=0; ii<na; ii++ )
 	      {
-		Double_t xxw1 = vx.at( i ); Double_t yyw1 = vy.at( i ); Double_t zzw1 = vz.at( i );
+		Double_t xxw1 = vx.at( ii ); Double_t yyw1 = vy.at( ii ); Double_t zzw1 = vz.at( ii );
 		
 		mx.push_back( xxw1-sumx ); my.push_back( yyw1-sumy ); mz.push_back( zzw1-sumz );
 		
-		Double_t xxw0 = mx.at( i ); Double_t yyw0 = my.at( i ); Double_t zzw0 = mz.at( i );
+		Double_t xxw0 = mx.at( ii ); Double_t yyw0 = my.at( ii ); Double_t zzw0 = mz.at( ii );
 		
 		m( 0, 0 ) += xxw0*xxw0/na; m( 0, 1 ) += xxw0*yyw0/na; m( 0, 2 ) += xxw0*zzw0/na;
       
@@ -1261,11 +1261,11 @@ namespace trkf{
    
 	    Double_t ind1 = 0;
 	    
-	    for ( Int_t i=0; i<3; i++)
+	    for ( Int_t ii=0; ii<3; ii++ )
 	      {
-		Double_t p1 = eigenval( i );
+		Double_t p1 = eigenval( ii );
 		
-		if ( p1>max1 ) { max1=p1; ind1=i; }
+		if ( p1>max1 ) { max1=p1; ind1=ii; }
 		
 	      }
 	    
@@ -1357,13 +1357,13 @@ namespace trkf{
 	    
 	    Double_t sumz = 0.0;
 	    
-	    for ( Int_t i=0; i<na; i++ )
+	    for ( Int_t ii=0; ii<na; ii++ )
 	      {
-		Double_t xxw1 = vx.at( i ); 
+		Double_t xxw1 = vx.at( ii ); 
 		
-		Double_t yyw1 = vy.at( i );
+		Double_t yyw1 = vy.at( ii );
 		
-		Double_t zzw1 = vz.at( i );
+		Double_t zzw1 = vz.at( ii );
 		
 		sumx += xxw1; sumy += yyw1; sumz += zzw1;
 		
@@ -1379,13 +1379,13 @@ namespace trkf{
 	    
 	    TMatrixDSym m( 3 );
 	    
-	    for ( Int_t i=0; i<na; i++ )
+	    for ( Int_t ii=0; ii<na; ii++ )
 	      {
-		Double_t xxw1 = vx.at( i ); Double_t yyw1 = vy.at( i ); Double_t zzw1 = vz.at( i );
+		Double_t xxw1 = vx.at( ii ); Double_t yyw1 = vy.at( ii ); Double_t zzw1 = vz.at( ii );
 		
 		mx.push_back( xxw1-sumx ); my.push_back( yyw1-sumy ); mz.push_back( zzw1-sumz );
 		
-		Double_t xxw0 = mx.at( i ); Double_t yyw0 = my.at( i ); Double_t zzw0 = mz.at( i );
+		Double_t xxw0 = mx.at( ii ); Double_t yyw0 = my.at( ii ); Double_t zzw0 = mz.at( ii );
 		
 		m( 0, 0 ) += xxw0*xxw0/na; m( 0, 1 ) += xxw0*yyw0/na; m( 0, 2 ) += xxw0*zzw0/na;
       
@@ -1405,11 +1405,11 @@ namespace trkf{
    
 	    Double_t ind1 = 0;
 	    
-	    for ( Int_t i=0; i<3; i++)
+	    for ( Int_t ii=0; ii<3; ii++ )
 	      {
-		Double_t p1 = eigenval( i );
+		Double_t p1 = eigenval( ii );
 		
-		if ( p1>max1 ) { max1=p1; ind1=i; }
+		if ( p1>max1 ) { max1=p1; ind1=ii; }
 		
 	      }
 	    
@@ -1459,7 +1459,7 @@ namespace trkf{
 	if ( n_seg>=( stopper+1.0 ) && seg_stop!=-1 ) break;
 	
       }
-        
+    
     gr_seg_xyz = new TPolyLine3D( n_seg, z_seg, x_seg, y_seg );
     
     gr_seg_yz = new TGraph( n_seg, z_seg, y_seg ); gr_seg_xz = new TGraph( n_seg, z_seg, x_seg ); gr_seg_xy = new TGraph( n_seg, x_seg, y_seg );
