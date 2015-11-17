@@ -99,9 +99,12 @@ namespace hit {
     this->reconfigure(pset);
   
     // let HitCollectionCreator declare that we are going to produce
-    // hits and associations with wires and raw digits
+    // hits and associations to raw digits BUT NOT associations to wires
     // (with no particular product label)
-    recob::HitCollectionCreator::declare_products(*this);
+      recob::HitCollectionCreator::declare_products(*this, 
+						    /*instance_name*/"", 
+						    /*doWireAssns*/false, 
+						    /*doRawDigitAssns*/true);
   }
   
   //-------------------------------------------------
