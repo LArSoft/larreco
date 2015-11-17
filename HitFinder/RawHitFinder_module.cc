@@ -19,6 +19,7 @@
 #include "art/Framework/Principal/Handle.h" 
 #include "art/Persistency/Common/Ptr.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "art/Utilities/InputTag.h"
 
 //LArSoft
 #include "Geometry/Geometry.h"
@@ -70,7 +71,7 @@ namespace hit {
     
     unsigned int          fDataSize;               ///< size of raw data on one wire
     // int          fPostsample;            ///< number of postsample bins
-    std::string  fDigitModuleLabel;     ///< module that made digits (constants)
+    art::InputTag  fDigitModuleLabel;     ///< module that made digits (constants)
     std::string  fSpillName;           ///< nominal spill is an empty string
 
     //FFT Copied Variables
@@ -98,9 +99,12 @@ namespace hit {
     this->reconfigure(pset);
   
     // let HitCollectionCreator declare that we are going to produce
-    // hits and associations with wires and raw digits
+    // hits and associations to raw digits BUT NOT associations to wires
     // (with no particular product label)
-    recob::HitCollectionCreator::declare_products(*this);
+      recob::HitCollectionCreator::declare_products(*this, 
+						    /*instance_name*/"", 
+						    /*doWireAssns*/false, 
+						    /*doRawDigitAssns*/true);
   }
   
   //-------------------------------------------------
@@ -111,13 +115,13 @@ namespace hit {
   //////////////////////////////////////////////////////
   void RawHitFinder::reconfigure(fhicl::ParameterSet const& p)
   {
-    fDigitModuleLabel = p.get< std::string >("DigitModuleLabel", "daq");
+    fDigitModuleLabel = p.get< art::InputTag >("DigitModuleLabel", "daq");
     //  fPostsample       = p.get< int >        ("PostsampleBins");
     // fHitLabelName = p.get< std::string >("HitLabelName", "hit");
-    size_t pos = fDigitModuleLabel.find(":");
-    if( pos!=std::string::npos ) {
-      fDigitModuleLabel = fDigitModuleLabel.substr( 0, pos );
-    }
+    // size_t pos = fDigitModuleLabel.find(":");
+    // if( pos!=std::string::npos ) {
+    //   fDigitModuleLabel = fDigitModuleLabel.substr( 0, pos );
+    // }
  
     fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
     fMinSigInd          = p.get< double       >("MinSigInd");
@@ -129,8 +133,8 @@ namespace hit {
     fMaxMultiHit        = p.get< int          >("MaxMultiHit");
     fAreaMethod         = p.get< int          >("AreaMethod");
     fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
-    
-    //    std::cerr << "fDigitModuleLabel: " << fDigitModuleLabel << std::endl;//jpd
+
+    mf::LogInfo("RawHitFinder_module") << "fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
 
   }
   
@@ -154,8 +158,10 @@ namespace hit {
     art::Handle< std::vector<raw::RawDigit> > digitVecHandle;
     
     bool retVal = evt.getByLabel(fDigitModuleLabel, digitVecHandle);
-    if(retVal==true) std::cerr << "I got fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
-    else std::cerr << "I did not get fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
+    if(retVal==true) 
+      mf::LogInfo("RawHitFinder_module") << "I got fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
+    else 
+      mf::LogWarning("RawHitFinder_module") << "Could not get fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
 
     std::vector<float> holder;                // holds signal data
     std::vector<short> rawadc;                // vector holding uncompressed adc values
