@@ -86,6 +86,9 @@ public:
 	/// Invert the order of hits and vertices in the track.
 	void Flip(void);
 
+	/// Check if the track can be flipped.
+	bool CanFlip(void) const;
+
 	/// MSE of 2D hits.
 	double TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits,
 		bool normalized = true) const; // normalize to the number of hits
@@ -198,7 +201,8 @@ public:
 	pma::Node3D* ExtractNodeCopy(size_t idx); // used to split branching track, *** need to be reorganised ***
 	bool RemoveNode(size_t idx);
 
-	bool AttachTo(pma::Node3D* vStart);
+	bool AttachTo(pma::Node3D* vStart, bool noFlip = false);
+	bool AttachBackTo(pma::Node3D* vStart);
 	bool IsAttachedTo(pma::Track3D const * trk) const;
 
 	pma::Track3D* GetRoot(void);

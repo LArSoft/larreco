@@ -354,6 +354,21 @@ bool pma::Node3D::IsBranching(void) const
 	return false;
 }
 
+std::vector< pma::Track3D* > pma::Node3D::GetBranches(void) const
+{
+	std::vector< pma::Track3D* > branches;
+	if (NextCount())
+	{
+		branches.reserve(NextCount());
+		for (size_t i = 0; i < NextCount(); ++i)
+		{
+			pma::Segment3D* seg = static_cast< pma::Segment3D* >(Next(i));
+			branches.push_back(seg->Parent());
+		}
+	}
+	return branches;
+}
+
 double pma::Node3D::Pi(float endSegWeight) const
 {
 	if (IsBranching()) return 0.0;

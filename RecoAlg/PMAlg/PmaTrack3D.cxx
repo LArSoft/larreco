@@ -501,6 +501,19 @@ void pma::Track3D::Flip(void)
 	}
 }
 
+bool pma::Track3D::CanFlip(void) const
+{
+	pma::Node3D* n = fNodes.front();
+	if (n->Prev())
+	{
+		pma::Segment3D* s = static_cast< pma::Segment3D* >(n->Prev());
+		pma::Track3D* t = s->Parent();
+		if (t->NextSegment(n)) return false; // cannot flip if starts from middle of another track
+		else return t->CanFlip();
+	}
+	else return true;
+}
+
 double pma::Track3D::TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits, bool normalized) const
 {
 	if (!hits.size())
@@ -1103,45 +1116,142 @@ bool pma::Track3D::RemoveNode(size_t idx)
 	else return false;
 }
 
-bool pma::Track3D::AttachTo(pma::Node3D* vStart)
+bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 {
 	pma::Node3D* vtx = fNodes.front();
 
 	if (vtx == vStart) return true; // already connected!
 
-	for (size_t i = 0; i < fNodes.size(); i++)
-	{
-		if (fNodes[i] == vStart) { mf::LogError("pma::Track3D") << "Aaaaaa!"; return false; }
-	}
+	for (auto n : fNodes) if (n == vStart) { mf::LogError("pma::Track3D") << "Aaaaaa!"; return false; }
 
-	if ( (pma::Dist2(vtx->Point3D(), vStart->Point3D()) > pma::Dist2(fNodes.back()->Point3D(), vStart->Point3D())) &&
+	if ( !noFlip && CanFlip() &&
+	     (pma::Dist2(vtx->Point3D(), vStart->Point3D()) > pma::Dist2(fNodes.back()->Point3D(), vStart->Point3D())) &&
 	     (fNodes.back()->NextCount() == 0) )
 	{
-		Flip(); // flip the track if its endpoint is closer to vStart than the startpoint
+		//mf::LogError("pma::Track3D") << "Flip, endpoint closer to vStart.";
+		std::cout << "Flip, endpoint closer to vStart." << std::endl;
+		Flip();
 		vtx = fNodes.front();
 	}
 
 	if (vtx->Prev())
 	{
-		//mf::LogVerbatim("pma::Track3D") << "Track was already attached to another track.";
-		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtx->Prev());
-		seg->Parent()->Flip();
+		std::cout << "..vtx->Prev().." << std::endl;
+
+		pma::Segment3D* segThis = static_cast< pma::Segment3D* >(vtx->Prev());
+		pma::Track3D* tpThis = segThis->Parent();
+		if (tpThis->NextSegment(vtx))
+		{
+			std::cout << "Do not reattach from vtx inner in another track." << std::endl;
+			return false;
+		}
+		else if (tpThis->CanFlip()) {
+
+			tpThis->Flip();
+
+			std::cout << "..tpThis->Flip().." << std::endl; tpThis->Flip();
+
+			if (vtx->Prev()) std::cout << "..still has prev" << std::endl;
+
+		} // flip in local vtx, no problem
+		else
+		{
+			if (vStart->Prev())
+			{
+				std::cout << "..vStart->Prev().." << std::endl;
+
+				pma::Segment3D* segNew = static_cast< pma::Segment3D* >(vStart->Prev());
+				pma::Track3D* tpNew = segNew->Parent();
+				if (tpNew->CanFlip()) { std::cout << "..tpNew->Flip().." << std::endl; tpNew->Flip(); } // flip in remote vStart, no problem
+				else
+				{
+					//mf::LogError("pma::Track3D") << "Flip not possible, cannot attach.";
+					std::cout << "Flip not possible, cannot attach." << std::endl;
+					return false;
+				}
+			}
+			//mf::LogVerbatim("pma::Track3D") << "Reconnect prev to vStart.";
+			std::cout << "Reconnect prev to vStart." << std::endl;
+			tpThis->fNodes[tpThis->fNodes.size() - 1] = vStart;
+			segThis->AddNext(vStart);
+		}
 	}
 
-	//mf::LogVerbatim("pma::Track3D") << "Attach: " << vtx->NextCount() << " -> " << vStart->NextCount();
+	while (vtx->NextCount()) // reconnect nexts to vStart
+	{
+		std::cout << "..reconnect next.." << std::endl;
 
-	while (vtx->NextCount()) // reconnect to vStart
+		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtx->Next(0));
+		pma::Track3D* trk = seg->Parent();
+
+		vtx->RemoveNext(seg);
+		trk->fNodes[0] = vStart;
+		vStart->AddNext(seg);
+	}
+
+	if (vtx->NextCount()) std::cout << "..has next" << std::endl;
+	if (vtx->Prev()) std::cout << "..has prev" << std::endl;
+
+	if (vtx->NextCount() || vtx->Prev())
+	{
+		//mf::LogError("pma::Track3D") << "Something is still using this vertex.";
+		std::cout << "Something is still using this vertex." << std::endl;
+		return false;
+	}
+	else delete vtx; // ok
+
+	MakeProjection();
+	SortHits();
+	return true;
+}
+
+bool pma::Track3D::AttachBackTo(pma::Node3D* vStart)
+{
+	pma::Node3D* vtx = fNodes.back();
+
+	if (vtx == vStart) return true; // already connected!
+
+	for (auto n : fNodes) if (n == vStart) { mf::LogError("pma::Track3D") << "Aaaaaa!"; return false; }
+
+	if (vStart->Prev())
+	{
+		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vStart->Prev());
+		pma::Track3D* tp = seg->Parent();
+		if (tp->NextSegment(vStart))
+		{
+			//mf::LogError("pma::Track3D") << "Cannot attach back to inner node of other track.";
+			std::cout << "Cannot attach back to inner node of other track." << std::endl;
+			return false;
+		}
+
+		if (tp->CanFlip()) tp->Flip(); // flip in remote vStart, no problem
+		else
+		{
+			//mf::LogError("pma::Track3D") << "Flip not possible, cannot attach.";
+			std::cout << "Flip not possible, cannot attach." << std::endl;
+			return false;
+		}
+	}
+	fNodes[fNodes.size() - 1] = vStart;
+	fSegments[fSegments.size() - 1]->AddNext(vStart);
+
+	while (vtx->NextCount()) // reconnect nexts to vStart
 	{
 		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtx->Next(0));
 		pma::Track3D* trk = seg->Parent();
 
 		vtx->RemoveNext(seg);
-		trk->fNodes[0] = vStart; // checked above, but note again: each trk was *starting* from vtx
+		trk->fNodes[0] = vStart;
 		vStart->AddNext(seg);
 	}
 
-	if (!vtx->NextCount()) delete vtx;
-	else mf::LogError("pma::Track3D") << "Something is still using this vertex.";
+	if (vtx->NextCount() || vtx->Prev())
+	{
+		//mf::LogError("pma::Track3D") << "Something is still using this vertex.";
+		std::cout << "Something is still using this vertex." << std::endl;
+		return false;
+	}
+	else delete vtx; // ok
 
 	MakeProjection();
 	SortHits();
@@ -1626,7 +1736,8 @@ double pma::Track3D::TuneFullTree(double eps, double gmax)
 	}
 	if (g0 == 0.0) return g0;
 
-	mf::LogVerbatim("pma::Track3D") << "Tune tree, g = " << g0;
+	//mf::LogVerbatim("pma::Track3D") << "Tune tree, g = " << g0;
+	std::cout << "Tune tree, g = " << g0 << std::endl;
 	unsigned int stepIter = 0;
 	do
 	{
@@ -1656,7 +1767,8 @@ double pma::Track3D::TuneFullTree(double eps, double gmax)
 	MakeProjectionInTree();
 	SortHitsInTree();
 
-	mf::LogVerbatim("pma::Track3D") << "  done, g = " << g0;
+	//mf::LogVerbatim("pma::Track3D") << "  done, g = " << g0;
+	std::cout << "  done, g = " << g0 << std::endl;
 	return g0;
 }
 
