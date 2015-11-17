@@ -543,6 +543,8 @@ TH2F* cluster::BlurredClusteringAlg::GaussianBlur(TH2F* image) {
 
   // Create Gaussian kernel
   std::map<int,double> kernel;
+  // int kernelSize = (2*blurwire+1)*(2*blurtick+1);
+  // std::array<double,kernelSize> kernel;
   int width = 2 * blurwire + 1;
   int height = 2 * blurtick + 1;
 
@@ -565,6 +567,7 @@ TH2F* cluster::BlurredClusteringAlg::GaussianBlur(TH2F* image) {
 	double sig2j = 2. * sigmatick * sigmatick;
 
 	int key = (width * (j + blurtick)) + (i + blurwire);
+	if (key>=((2*blurwire+1)*(2*blurtick+1))) std::cout << "Key is greater than array size!" << std::endl;
 	double value = 1. / sqrt(sig2i * M_PI) * exp(-i * i / sig2i) * 1. / sqrt(sig2j * M_PI) * exp(-j * j / sig2j);
 	kernel[key] = value;
 
