@@ -10,6 +10,7 @@ standard_blurredcluster:
  MergeClusters:            "true"
  HitsModuleLabel:          "gaushit"
  TrackModuleLabel:         "pmtrack"
+ VertexModuleLabel:        "linecluster"
  GlobalTPCRecon:           true
  ShowerReconOnly:          false
  BlurredClusterAlg:        @local::standard_blurredclusteralg

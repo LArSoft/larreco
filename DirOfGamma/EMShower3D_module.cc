@@ -138,8 +138,6 @@ private:
 	calo::CalorimetryAlg fCalorimetryAlg;
 
 	art::Handle< std::vector< recob::Cluster > > fCluListHandle;
-
-	// ofstream file;
 };
 
 
@@ -159,8 +157,6 @@ ems::EMShower3D::EMShower3D(fhicl::ParameterSet const & p)
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
   	produces< art::Assns<recob::Track, recob::Cluster> >();
-
-	// file.open("file.dat");
 }
 
 void ems::EMShower3D::beginJob()
@@ -184,9 +180,6 @@ recob::Cluster ems::EMShower3D::ConvertFrom(const std::vector< art::Ptr<recob::H
 
 recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 {
-	
-	std::cout << " ConvertFrom " << std::endl;
-
 	art::ServiceHandle<util::DetectorProperties> detprop;
 	double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
 
@@ -208,18 +201,14 @@ recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 									src.front()->TPC(), 
 									src.front()->Cryo());
 
-	double dedxU = fCalorimetryAlg.dEdx_AREA(dqdxU, timeU, geo::kU);
-	double dedxV = fCalorimetryAlg.dEdx_AREA(dqdxV, timeV, geo::kV);
-	double dedxZ = fCalorimetryAlg.dEdx_AREA(dqdxZ, timeZ, geo::kZ);
+	double dedxU = dqdxU>0?fCalorimetryAlg.dEdx_AREA(dqdxU, timeU, geo::kU):0;
+	double dedxV = dqdxV>0?fCalorimetryAlg.dEdx_AREA(dqdxV, timeV, geo::kV):0;
+	double dedxZ = dqdxZ>0?fCalorimetryAlg.dEdx_AREA(dqdxZ, timeZ, geo::kZ):0;
 	
-	std::cout << " nusedU = " << nusedU << ", V " << nusedV << ", Z " << nusedZ << std::endl;
-	std::cout << " geo::kU " << geo::kU << ", V " << geo::kV << ", Z " << geo::kZ << std::endl;
-	std::cout << " dqdxU = " << dqdxU << " V " << dqdxV << " Z " << dqdxZ << std::endl;
-	std::cout << " dedxU = " << dedxU << " V " << dedxV << " Z " << dedxZ << std::endl;
-	
-	int plane = geo::kU;
-	if ((nusedV > nusedU) && (nusedV > nusedZ)) plane = geo::kV;
-	else if ((nusedZ > nusedU) && (nusedZ > nusedV)) plane = geo::kZ; 
+	int plane = -1;
+	if ((nusedU > nusedV) && (nusedU > nusedZ) && (dedxU > 0)) plane = geo::kU;
+	if ((nusedV > nusedU) && (nusedV > nusedZ) && (dedxV > 0)) plane = geo::kV;
+	if ((nusedZ > nusedU) && (nusedZ > nusedV) && (dedxZ > 0)) plane = geo::kZ; 
 
 	std::vector< std::vector< double > > vdedx;
 	std::vector< double > dedx;
@@ -261,8 +250,6 @@ recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 {
 
-	std::cout << " ConvertFrom2 " << std::endl;
-
 	art::ServiceHandle<util::DetectorProperties> detprop;
 	double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
 
@@ -287,11 +274,6 @@ recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 	double dedxU = fCalorimetryAlg.dEdx_AREA(dqdxU, timeU, geo::kU);
 	double dedxV = fCalorimetryAlg.dEdx_AREA(dqdxV, timeV, geo::kV);
 	double dedxZ = fCalorimetryAlg.dEdx_AREA(dqdxZ, timeZ, geo::kZ);
-	
-	std::cout << " nusedU = " << nusedU << ", V " << nusedV << ", Z " << nusedZ << std::endl;
-	std::cout << " geo::kU " << geo::kU << ", V " << geo::kV << ", Z " << geo::kZ << std::endl;
-	std::cout << " dqdxU = " << dqdxU << " V " << dqdxV << " Z " << dqdxZ << std::endl;
-	std::cout << " dedxU = " << dedxU << " V " << dedxV << " Z " << dedxZ << std::endl;
 	
 	int plane = geo::kU;
 	if ((nusedV > nusedU) && (nusedV > nusedZ)) plane = geo::kV;

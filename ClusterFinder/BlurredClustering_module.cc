@@ -85,7 +85,7 @@ cluster::BlurredClustering::~BlurredClustering() { }
 void cluster::BlurredClustering::reconfigure(fhicl::ParameterSet const& p) {
   fHitsModuleLabel   = p.get<std::string>("HitsModuleLabel");
   fTrackModuleLabel  = p.get<std::string>("TrackModuleLabel");
-  fVertexModuleLabel = "lineclusterdc";
+  fVertexModuleLabel = p.get<std::string>("VertexModuleLabel");
   fCreateDebugPDF    = p.get<bool>       ("CreateDebugPDF");
   fMergeClusters     = p.get<bool>       ("MergeClusters");
   fGlobalTPCRecon    = p.get<bool>       ("GlobalTPCRecon");
