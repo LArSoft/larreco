@@ -201,9 +201,9 @@ recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 									src.front()->TPC(), 
 									src.front()->Cryo());
 
-	double dedxU = fCalorimetryAlg.dEdx_AREA(dqdxU, timeU, geo::kU);
-	double dedxV = fCalorimetryAlg.dEdx_AREA(dqdxV, timeV, geo::kV);
-	double dedxZ = fCalorimetryAlg.dEdx_AREA(dqdxZ, timeZ, geo::kZ);
+	double dedxU = dqdxU>0?fCalorimetryAlg.dEdx_AREA(dqdxU, timeU, geo::kU):0;
+	double dedxV = dqdxV>0?fCalorimetryAlg.dEdx_AREA(dqdxV, timeV, geo::kV):0;
+	double dedxZ = dqdxZ>0?fCalorimetryAlg.dEdx_AREA(dqdxZ, timeZ, geo::kZ):0;
 	
 	int plane = -1;
 	if ((nusedU > nusedV) && (nusedU > nusedZ) && (dedxU > 0)) plane = geo::kU;
