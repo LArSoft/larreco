@@ -3,7 +3,10 @@
 // File:  TrackShowerSeparationAlg.h
 // Author: Mike Wallbank (m.wallbank@sheffield.ac.uk), November 2015
 //
-// Track/shower discrimination class
+// Track/shower separation class.
+// Provides methods for removing hits associated with track-like
+// objects.
+// To be run after track reconstruction, before shower reconstruction.
 ////////////////////////////////////////////////////////////////////////
 
 #ifndef TrackShowerSeparationAlg_hxx

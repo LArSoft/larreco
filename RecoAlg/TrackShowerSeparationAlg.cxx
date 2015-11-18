@@ -1,9 +1,12 @@
 ////////////////////////////////////////////////////////////////////////
 // Class: TrackShowerSeparationAlg
-// File:  TrackShowerSeparationAlg.h
+// File:  TrackShowerSeparationAlg.cxx
 // Author: Mike Wallbank (m.wallbank@sheffield.ac.uk), November 2015
 //
-// Shower energy finding class
+// Track/shower separation class.
+// Provides methods for removing hits associated with track-like
+// objects.
+// To be run after track reconstruction, before shower reconstruction.
 ////////////////////////////////////////////////////////////////////////
 
 #include "RecoAlg/TrackShowerSeparationAlg.h"
@@ -134,7 +137,7 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksNearVertex(art::Ptr<recob::
     if ( ((*trackIt)->Vertex() - vertexPos).Mag() < fVertexProximityCut or
 	 ((*trackIt)->End() - vertexPos).Mag() < fVertexProximityCut) {
       end = ((*trackIt)->Vertex() - vertexPos).Mag() < ((*trackIt)->End() - vertexPos).Mag() ? (*trackIt)->End() : (*trackIt)->VertexDirection();
-      direction = ((*trackIt)->Vertex() - vertexPos).Mag() < ((*trackIt)->End() - vertexPos).Mag() ? (*trackIt)->EndDirection() : (-1)*(*trackIt)->VertexDirection();
+      direction = ((*trackIt)->Vertex() - vertexPos).Mag() < ((*trackIt)->End() - vertexPos).Mag() ? (*trackIt)->VertexDirection() : (-1)*(*trackIt)->VertexDirection();
     }
 
     else
@@ -187,7 +190,7 @@ void shower::TrackShowerSeparationAlg::FillHitsToCluster(const std::vector<art::
 							 std::vector<art::Ptr<recob::Hit> >& hitsToCluster,
 							 const art::FindManyP<recob::Track>& fmt) {
 
-  /// Fill the output container with all the hits not associated to track-like objects
+  /// Fill the output container with all the hits not associated with track-like objects
 
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator initialHit = initialHits.begin(); initialHit != initialHits.end(); ++initialHit) {
     std::vector<art::Ptr<recob::Track> > showerTracks = fmt.at(initialHit->key());
@@ -327,8 +330,8 @@ void shower::TrackShowerSeparationAlg::RemoveTrackHits(std::vector<art::Ptr<reco
   else
     this->IdentifyTracksFromEventCentre(tracks, spacePoints, fmtsp);
 
-  // Once we've identified some tracks, can look for others at the ends
-  this->IdentifyTracksNearTracks(tracks);
+  // // Once we've identified some tracks, can look for others at the ends
+  // this->IdentifyTracksNearTracks(tracks);
 
   this->FillHitsToCluster(initialHits, hitsToCluster, fmth);
 
