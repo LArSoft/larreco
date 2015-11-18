@@ -69,7 +69,7 @@ class shower::TrackShowerSeparationAlg {
 
   std::vector<int> fTrackLikeIDs, fShowerLikeIDs;
 
-  double fAngleCut, fDistanceCut, fVertexProximityCut;
+  double fAngleCut, fDistanceCut, fVertexProximityCut, fTrackProximityCut, fAvTrackHitDistance;
 
   art::ServiceHandle<cheat::BackTracker> backtracker;
   art::ServiceHandle<art::TFileService> tfs;
