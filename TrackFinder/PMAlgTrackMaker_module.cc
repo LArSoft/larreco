@@ -1223,25 +1223,34 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); fTrkIndex++)
 			{
 				pma::Track3D* trk = result[fTrkIndex];
+				if (!(trk->HasTwoViews() && (trk->Nodes().size() > 1)))
+				{
+					mf::LogWarning("PMAlgTrackMaker") << "Skip degenerated track, code needs to be corrected.";
+					continue;
+				}
 
-				if (fFlipToBeam)    // flip the track to the beam direction
+				if (trk->CanFlip())
 				{
-					double z0 = trk->front()->Point3D().Z();
-					double z1 = trk->back()->Point3D().Z();
-					if (z0 > z1) trk->Flip();
+					if (fFlipToBeam)    // flip the track to the beam direction
+					{
+						double z0 = trk->front()->Point3D().Z();
+						double z1 = trk->back()->Point3D().Z();
+						if (z0 > z1) trk->Flip();
+					}
+					if (fFlipDownward)  // flip the track to point downward
+					{
+						double y0 = trk->front()->Point3D().Y();
+						double y1 = trk->back()->Point3D().Y();
+						if (y0 < y1) trk->Flip();
+					}
+					if (fAutoFlip_dQdx) // flip the track by dQ/dx
+						fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
+						/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
 				}
-				if (fFlipDownward)  // flip the track to point downward
-				{
-					double y0 = trk->front()->Point3D().Y();
-					double y1 = trk->back()->Point3D().Y();
-					if (y0 < y1) trk->Flip();
-				}
-				if (fAutoFlip_dQdx) // flip the track by dQ/dx
-					fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
-					/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
 
 				trk->SelectHits();  // just in case, set all to enabled
 				unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
+
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) trk->CompleteMissingWires(geo::kU);
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(geo::kV);
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(geo::kZ);
@@ -1298,6 +1307,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					}
 					sp_hits.push_back(h3d->Hit2DPtr());
 				}
+
 				if (sp_hits.size()) // hits assigned to the last sp
 				{
 					util::CreateAssn(*this, evt, *allsp, sp_hits, *sp2hit);
@@ -1418,6 +1428,7 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 
 		for (auto const & tpc_entry : tracks) // put tracks in the single collection
 			for (auto trk : tpc_entry.second)
+				if (trk->HasTwoViews() && (trk->Nodes().size() > 1))
 		{
 			fProjectionMatchingAlg.setTrackTag(*trk); // tag EM-like tracks
 			result.push_back(trk);
@@ -1656,7 +1667,9 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 				int best_trk = -1;
 				double f, max_f = 0., min_mse = 10., max_v = 0.;
 				for (size_t t = 0; t < fCandidates.size(); t++)
-					if (fCandidates[t].Good)
+					if (fCandidates[t].Good &&
+					    (fCandidates[t].Track->Nodes().size() > 1) &&
+					    fCandidates[t].Track->HasTwoViews())
 				{
 					f = fProjectionMatchingAlg.twoViewFraction(*(fCandidates[t].Track));
 

@@ -38,9 +38,13 @@ bool pma::VtxCandidate::Has(const pma::VtxCandidate& other) const
 bool pma::VtxCandidate::IsAttached(pma::Track3D* trk) const
 {
 	pma::Track3D const * rootTrk = trk->GetRoot();
+	if (!rootTrk) throw cet::exception("pma::VtxCandidate") << "Broken track.";
+
 	for (size_t i = 0; i < fAssigned.size(); i++)
 	{
 		pma::Track3D const * rootAssn = fAssigned[i].first->GetRoot();
+		if (!rootAssn) throw cet::exception("pma::VtxCandidate") << "Broken track.";
+
 		if (rootTrk->IsAttachedTo(rootAssn)) return true;
 	}
 	return false;
@@ -295,10 +299,12 @@ bool pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
 		double mse0 = fMse, mse1 = other.fMse;
 		mf::LogVerbatim("pma::VtxCandidate")
 			<< "try: " << d << " mse0:" << sqrt(mse0) << " mse1:" << sqrt(mse1);
+		//std::cout << "try: " << d << " mse0:" << sqrt(mse0) << " mse1:" << sqrt(mse1) << std::endl;
 
 		double mse = Compute();
 		mf::LogVerbatim("pma::VtxCandidate")
 			<< "out: " << Size() << " mse:" << sqrt(mse) << " dw:" << dw;
+		//std::cout << "out: " << Size() << " mse:" << sqrt(mse) << " dw:" << dw << std::endl;
 
 		if (mse < 1.0) // kMaxDistToTrack * kMaxDistToTrack)
 		{
@@ -407,7 +413,8 @@ bool pma::VtxCandidate::JoinTracks(
 	}
 	tracksJoined = true;
 
-	pma::Node3D* vtxCenter = 0;
+	//std::cout << "JoinTracks at:"
+	//	<< " vx:" << fCenter.X() << " vy:" << fCenter.Y() << " vz:" << fCenter.Z() << std::endl;
 
 	mf::LogVerbatim("pma::VtxCandidate") << "JoinTracks at:"
 		<< " vx:" << fCenter.X() << " vy:" << fCenter.Y() << " vz:" << fCenter.Z();
@@ -416,23 +423,35 @@ bool pma::VtxCandidate::JoinTracks(
 	//	<< "  dist 3D:" << sqrt(Mse()) << " 2D:" << sqrt(Mse2D());
 
 	for (size_t i = 0; i < fAssigned.size(); i++)
-		for (size_t t = 0; t < src.size(); t++)
-			if (fAssigned[i].first == src[t])
+	{
+		size_t t = 0;
+		while (t < src.size())
 		{
-			tracks.push_back(src[t]);
-			src.erase(src.begin() + t);
-			break;
+			if (fAssigned[i].first == src[t])
+			{
+				tracks.push_back(src[t]);
+				src.erase(src.begin() + t);
+				break;
+			}
+			else t++;
 		}
+	}
 
+	pma::Node3D* vtxCenter = 0;
+	bool hasInnerCenter = false;
+	size_t nOK = 0;
 	for (size_t i = 0; i < fAssigned.size(); i++)
 	{
 		mf::LogVerbatim("pma::VtxCandidate") << "----------> track #" << i;
+		//std::cout << "----------> track #" << i << std::endl;
 
 		pma::Track3D* trk = fAssigned[i].first;
 		size_t idx = fAssigned[i].second;
 
 		mf::LogVerbatim("pma::VtxCandidate") << "  track size:" << trk->size()
 			<< " (nodes:" << trk->Nodes().size() << ")";
+		//std::cout << "  track size:" << trk->size()
+		//	<< " (nodes:" << trk->Nodes().size() << ")" << std::endl;
 
 		TVector3 p0(trk->Nodes()[idx]->Point3D());
 		TVector3 p1(trk->Nodes()[idx + 1]->Point3D());
@@ -449,150 +468,206 @@ bool pma::VtxCandidate::JoinTracks(
 		double f = pma::GetSegmentProjVector(fCenter, p0, p1);
 		TVector3 proj = pma::GetProjectionToSegment(fCenter, p0, p1);
 
-		//mf::LogVerbatim("pma::VtxCandidate") << "  seg len:" << ds << " d0:" << d0 << " d1:" << d1;
-		//mf::LogVerbatim("pma::VtxCandidate") << "  idx:" << idx << " f:" << f << " df0:" << f*ds << " df1:" << (1.0-f)*ds;
-
 		if ((idx == 0) && (f * ds <= kMinDistToNode))
 		{
 			if (i == 0)
 			{
 				mf::LogVerbatim("pma::VtxCandidate") << "  new at front";
+				//std::cout << "  new at front" << std::endl;
 				vtxCenter = trk->Nodes().front();
 				vtxCenter->SetPoint3D(fCenter);
+				nOK++;
 			}
 			else
 			{
 				mf::LogVerbatim("pma::VtxCandidate") << "  front to center";
-				trk->AttachTo(vtxCenter);
+				//std::cout << "  front to center" << std::endl;
+				if (trk->AttachTo(vtxCenter)) nOK++;
 			}
 		}
 		else if ((idx + 2 == trk->Nodes().size()) && ((1.0 - f) * ds <= kMinDistToNode))
 		{
-			mf::LogVerbatim("pma::VtxCandidate") << "  flip trk";
-			trk->Flip();
 			if (i == 0)
 			{
-				mf::LogVerbatim("pma::VtxCandidate") << "  ...to make new center";
-				vtxCenter = trk->Nodes().front();
+				if (trk->CanFlip())
+				{
+					mf::LogVerbatim("pma::VtxCandidate") << "  flip trk to make new center";
+					//std::cout << "  flip trk to make new center" << std::endl;
+					trk->Flip();
+					vtxCenter = trk->Nodes().front();
+				}
+				else
+				{
+					mf::LogVerbatim("pma::VtxCandidate") << "  new center at the endpoint";
+					//std::cout << "  new center at the endpoint" << std::endl;
+					vtxCenter = trk->Nodes().back();
+				}
 				vtxCenter->SetPoint3D(fCenter);
+				nOK++;
 			}
 			else
 			{
-				mf::LogVerbatim("pma::VtxCandidate") << "  ...to attach back to center";
-				trk->AttachTo(vtxCenter);
+				if (vtxCenter->Prev() && trk->CanFlip())
+				{
+					mf::LogVerbatim("pma::VtxCandidate") << "  flip trk to attach to inner";
+					//std::cout << "  flip trk to attach to inner" << std::endl;
+					trk->Flip();
+					if (trk->AttachTo(vtxCenter)) nOK++;
+				}
+				else
+				{
+					//std::cout << "  endpoint to center" << std::endl;
+					if (trk->AttachBackTo(vtxCenter)) nOK++;
+				}
 			}
 		}
 		else
 		{
-			mf::LogVerbatim("pma::VtxCandidate") << "  split track";
-
-			pma::Track3D* trk0 = new pma::Track3D();
-			for (size_t j = 0; j <= idx; j++)
-				trk0->AddNode(trk->ExtractNodeCopy(j));
-
-			if ((f >= 0.0F) && (f <= 1.0) &&
-			    (f * ds > kMinDistToNode) && ((1.0 - f) * ds > kMinDistToNode))
+			bool canFlipPrev = true;
+			if (vtxCenter && vtxCenter->Prev())
 			{
-				mf::LogVerbatim("pma::VtxCandidate") << "  add center inside segment";
-
-				int tpc, cryo;
-				if (f < 0.5) { tpc = tpc0; cryo = cryo0; }
-				else { tpc = tpc1; cryo = cryo1; }
-
-				trk->InsertNode(fCenter, ++idx, tpc, cryo);
-				trk0->AddNode(fCenter, tpc, cryo);
+				pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtxCenter->Prev());
+				if (seg->Parent()->NextSegment(vtxCenter)) canFlipPrev = false;
+				else canFlipPrev = seg->Parent()->CanFlip();
 			}
-			else
-			{
-				if (d1 < d0)
-				{
-					mf::LogVerbatim("pma::VtxCandidate") << "  add center at end of segment";
 
-					++idx;
-					trk0->AddNode(trk->ExtractNodeCopy(idx));
+			if (hasInnerCenter || !canFlipPrev)
+			{
+				mf::LogVerbatim("pma::VtxCandidate") << "  split track";
+				//std::cout << "  ....split track...." << std::endl;
+
+				if ((f >= 0.0F) && (f <= 1.0) &&
+				    (f * ds > kMinDistToNode) && ((1.0 - f) * ds > kMinDistToNode))
+				{
+					mf::LogVerbatim("pma::VtxCandidate") << "  add center inside segment";
+					//std::cout << "  add center inside segment" << std::endl;
+
+					int tpc, cryo;
+					if (f < 0.5) { tpc = tpc0; cryo = cryo0; }
+					else { tpc = tpc1; cryo = cryo1; }
+
+					trk->InsertNode(fCenter, ++idx, tpc, cryo);
 				}
 				else
 				{
-					mf::LogVerbatim("pma::VtxCandidate") << "  center at start of segment - no action";
-				}
-			}
-
-			mf::LogVerbatim("pma::VtxCandidate") << "  flip trk0";
-			trk0->Flip();
-			if (i == 0)
-			{
-				mf::LogVerbatim("pma::VtxCandidate") << "  center at trk0 front";
-				vtxCenter = trk0->Nodes().front();
-			}
-
-			mf::LogVerbatim("pma::VtxCandidate") << "  remove vtxs from trk";
-			for (size_t j = 0; j < idx; j++) trk->RemoveNode(0);
-
-			mf::LogVerbatim("pma::VtxCandidate") << "  reassign hits";
-			size_t j = 0;
-			while (j < trk->size())
-			{
-				pma::Hit3D* h3d = (*trk)[j];
-				double dist2D_old = trk->Dist2(h3d->Point2D(), h3d->View2D());
-				double dist2D_new = trk0->Dist2(h3d->Point2D(), h3d->View2D());
-
-				if (dist2D_new < dist2D_old) trk0->push_back(trk->release_at(j));
-				else j++;
-			}
-			mf::LogVerbatim("pma::VtxCandidate") << "  trk size:" << trk->size() << " (nodes:" << trk->Nodes().size() << ")";
-			mf::LogVerbatim("pma::VtxCandidate") << "  trk0 size:" << trk0->size() << " (nodes:" << trk0->Nodes().size() << ")";
-
-			if (trk0->HasTwoViews())
-			{
-				mf::LogVerbatim("pma::VtxCandidate") << "  attach trk0";
-				trk0->AttachTo(vtxCenter);
-			}
-			else
-			{
-				while (trk0->size()) trk->push_back(trk0->release_at(0));
-			}
-
-			if (trk->HasTwoViews())
-			{
-				mf::LogVerbatim("pma::VtxCandidate") << "  attach trk";
-				trk->AttachTo(vtxCenter);
-			}
-			else
-			{
-				while (trk->size()) trk0->push_back(trk->release_at(0));
-			}
-
-			if (trk0->size())
-			{
-				trk0->MakeProjection();
-				tracks.push_back(trk0);
-			}
-			else delete trk0;
-
-			if (trk->size()) trk->MakeProjection();
-			else
-			{
-				for (size_t t = 0; t < tracks.size(); ++t)
-					if (tracks[t] == trk)
+					if (d1 < d0)
 					{
-						tracks.erase(tracks.begin() + t);
-						delete trk;
-						break;
-					}
-			}
+						mf::LogVerbatim("pma::VtxCandidate") << "  add center at end of segment";
+						//std::cout << "  add center at end of segment" << std::endl;
 
-			mf::LogVerbatim("pma::VtxCandidate") << "  done";
+						++idx;
+					}
+					else
+					{
+						mf::LogVerbatim("pma::VtxCandidate") << "  center at start of segment - no action";
+						//std::cout << "  center at start of segment - no action" << std::endl;
+					}
+				}
+
+				pma::Track3D* t0 = trk->Split(idx);
+				if (t0)
+				{
+					mf::LogVerbatim("pma::VtxCandidate") << "  trk size:" << trk->size() << " (nodes:" << trk->Nodes().size() << ")";
+					mf::LogVerbatim("pma::VtxCandidate") << "  t0 size:" << t0->size() << " (nodes:" << t0->Nodes().size() << ")";
+					//std::cout << "  trk size:" << trk->size() << " (nodes:" << trk->Nodes().size() << ")" << std::endl;
+					//std::cout << "  t0 size:" << t0->size() << " (nodes:" << t0->Nodes().size() << ")" << std::endl;
+
+					trk->MakeProjection();
+					t0->MakeProjection();
+					tracks.push_back(t0);
+
+					if (i == 0)
+					{
+						mf::LogVerbatim("pma::VtxCandidate") << "  center at trk0 back";
+						//std::cout << "  center at trk front, should not happen" << std::endl;
+						vtxCenter = trk->Nodes().front();
+						nOK += 2;
+					}
+					else
+					{
+						mf::LogVerbatim("pma::VtxCandidate") << "  attach trk to trk0";
+						//std::cout << "  attach trk to center" << std::endl;
+						if (trk->AttachTo(vtxCenter)) nOK += 2;
+					}
+				}
+
+				mf::LogVerbatim("pma::VtxCandidate") << "  done";
+				//std::cout << "  done" << std::endl;
+			}
+			else
+			{
+				mf::LogVerbatim("pma::VtxCandidate") << "  inner center";
+				//std::cout << "  inner center" << std::endl;
+				hasInnerCenter = true;
+
+				if ((f >= 0.0F) && (f <= 1.0) &&
+				    (f * ds > kMinDistToNode) && ((1.0 - f) * ds > kMinDistToNode))
+				{
+					mf::LogVerbatim("pma::VtxCandidate") << "  add center inside segment";
+					//std::cout << "  add center inside segment" << std::endl;
+
+					int tpc, cryo;
+					if (f < 0.5) { tpc = tpc0; cryo = cryo0; }
+					else { tpc = tpc1; cryo = cryo1; }
+
+					trk->InsertNode(fCenter, ++idx, tpc, cryo);
+				}
+				else
+				{
+					if (d1 < d0)
+					{
+						mf::LogVerbatim("pma::VtxCandidate") << "  add center at end of segment";
+						//std::cout << "  add center at end of segment" << std::endl;
+						++idx;
+					}
+					else
+					{
+						mf::LogVerbatim("pma::VtxCandidate") << "  center at start of segment - no action";
+						//std::cout << "  center at start of segment - no action" << std::endl;
+					}
+				}
+
+				pma::Node3D* innerCenter = trk->Nodes()[idx];
+				if (i > 0)
+				{
+					// prepare for prev...
+					pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtxCenter->Prev());
+
+					// ...but nexts reattached first, then...
+					auto branches = vtxCenter->GetBranches();
+					for (size_t j = 0; j < branches.size(); ++j)
+					{
+						branches[j]->AttachTo(innerCenter, true);
+					}
+
+					if (seg) // ...reattach prev at the end
+					{
+						pma::Track3D* rootBranch = seg->Parent();
+						if (rootBranch->CanFlip()) rootBranch->Flip();
+						else throw cet::exception("pma::VtxCandidate") << "Cannot flip, but capability was tested - error." << std::endl;
+						rootBranch->AttachTo(innerCenter, true);
+					}
+				}
+				vtxCenter = innerCenter;
+				nOK++;
+
+				mf::LogVerbatim("pma::VtxCandidate") << "  done";
+				//std::cout << "  done" << std::endl;
+			}
 		}
 	}
 
-	if (vtxCenter && vtxCenter->NextCount())
+	if (vtxCenter && (nOK > 1)) //vtxCenter->NextCount())
 	{
 		fAssigned.clear();
 		fCenter = vtxCenter->Point3D();
 		fMse = 0.0; fMse2D = 0.0;
 
 		pma::Segment3D* rootSeg = static_cast< pma::Segment3D* >(vtxCenter->Next(0));
-		double g = rootSeg->Parent()->GetRoot()->TuneFullTree();
+		pma::Track3D* rootTrk = rootSeg->Parent()->GetRoot();
+		if (!rootTrk) rootTrk = rootSeg->Parent();
+		double g = rootTrk->TuneFullTree();
+
 		if (g < 0.0) // for today: do nothing, but would be good to go back to starting point...
 		{
 /*			std::vector< pma::Track3D* > toRemove;
