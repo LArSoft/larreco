@@ -40,7 +40,7 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::
   TVector3 centre = TVector3(0,0,0);
   for (std::vector<art::Ptr<recob::SpacePoint> >::const_iterator spacePointIt = spacePoints.begin(); spacePointIt != spacePoints.end(); ++spacePointIt)
     centre += TVector3((*spacePointIt)->XYZ()[0], (*spacePointIt)->XYZ()[1], (*spacePointIt)->XYZ()[2]);
-  centre *= 1/spacePoints.size();
+  centre *= 1/(double)spacePoints.size();
 
   TVector3 trackVertex, trackEnd, trackDirection;
 
