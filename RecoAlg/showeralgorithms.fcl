@@ -3,7 +3,7 @@ BEGIN_PROLOG
 
 standard_trackshowerseparationalg:
 {
-  AngleCut:            5
+  AngleCut:           15
   DistanceCut:        50
   VertexProximityCut: 4
 }
