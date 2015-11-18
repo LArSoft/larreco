@@ -3,6 +3,9 @@ BEGIN_PROLOG
 
 standard_trackshowerseparationalg:
 {
+  AngleCut:           15
+  DistanceCut:        50
+  VertexProximityCut: 4
 }
 
 standard_showerenergyalg:

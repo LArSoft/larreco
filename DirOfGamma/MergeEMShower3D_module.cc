@@ -54,7 +54,7 @@ namespace ems
 class ems::ShowerInfo
 {
 	public:
-	ShowerInfo(int key, int gid, bool hasvtx, double adcsum, recob::Track const& trk);
+	ShowerInfo(int key, int gid, bool hasvtx, std::vector<double> vensum, recob::Track const& trk);
 	double Pointsto(ems::ShowerInfo const& s1) const;
 	double Angleto(TVector3 const& pmapoint) const;
 
@@ -62,11 +62,13 @@ class ems::ShowerInfo
 	int GetKey(void) const {return fKey;}
 	int GetGid(void) const {return fGId;}
 	int GetPlaneId(void) const {return fPlaneId;}
-	double GetAdcSum(void) const {return fAdcSum;}
+	double GetAdcSum(void) const {return fAdcSum;} 
+	std::vector<double> GetEnTot(void) const {return fVentot; } 
+
 	TVector3 GetFront(void) const {return fFront;}
 	TVector3 GetEnd(void) const {return fEnd;}
 	TVector3 GetDir(void) const {return fDir;}
-	std::vector<double> GetDedx(void) const { return fVdqdx; }
+	std::vector<double> GetDedx(void) const { return fVdqdx; } 
 
 	double GetP0Dist(void) const { return fP0Dist; }
 	void SetP0Dist(const TVector3 p)
@@ -81,6 +83,7 @@ class ems::ShowerInfo
 	int fPlaneId;
 	bool fHasVtx;
 	double fAdcSum;
+	std::vector<double> fVentot;
 	double fP0Dist;
 
 	TVector3 fFront;
@@ -88,12 +91,13 @@ class ems::ShowerInfo
 	TVector3 fDir;
 
 	std::vector<double> fVdqdx;
+	 
 };
 
-ems::ShowerInfo::ShowerInfo(int key, int gid,  bool hasvtx, double adcsum, recob::Track const& trk) :
+ems::ShowerInfo::ShowerInfo(int key, int gid,  bool hasvtx, std::vector<double> vensum, recob::Track const& trk) :
 fKey(key),
 fGId(gid),
-fAdcSum(adcsum),
+fVentot(vensum), 
 fP0Dist(0)
 {
 	fDir = trk.VertexDirection();
@@ -108,7 +112,7 @@ fP0Dist(0)
 	if (trk.DQdxAtPoint(1, geo::kU) > 0) fPlaneId = geo::kU;
 	else if (trk.DQdxAtPoint(1, geo::kV) > 0) fPlaneId = geo::kV;
 	else if (trk.DQdxAtPoint(1, geo::kZ) > 0) fPlaneId = geo::kZ; 
-	
+	else fPlaneId = -1;
 }
 
 double ems::ShowerInfo::Pointsto(ems::ShowerInfo const& s1) const
@@ -173,6 +177,7 @@ class ems::ShowersCollection
 		TVector3 Front(); 
 		TVector3 Dir(); 
 		std::vector<double> DeDx(void);
+		std::vector<double> TotEn(void); 
 
 		ShowerInfo first;
 	
@@ -215,6 +220,26 @@ std::vector<double> ems::ShowersCollection::DeDx()
 {
 	if (fParts.size()) return fParts.front().GetDedx();
 	else return std::vector<double>(0.0);
+}
+
+std::vector<double> ems::ShowersCollection::TotEn() 
+{
+	std::vector<double> en;
+
+	double enkU = 0.0; double enkV = 0.0; double enkZ = 0.0;
+	for (size_t i = 0; i < fParts.size(); ++i)
+	{
+		std::vector<double> showeren = fParts[i].GetEnTot();
+		enkU += showeren[0];
+		enkV += showeren[1];
+		enkZ += showeren[2];
+	}
+
+	en.push_back(enkU);
+	en.push_back(enkV);
+	en.push_back(enkZ);
+
+	return en;
 }
 
 double ems::ShowersCollection::Angle(TVector3 p0, TVector3 test)
@@ -429,23 +454,29 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 
 			auto src_clu_list = cluFromTrk.at(t);
 			double adcsum = 0.0;
+			std::vector<double> ensum(3, 0.0);
+			
 			for (size_t c = 0; c < src_clu_list.size(); ++c)  
 			{
 				std::vector< art::Ptr<recob::Hit> > v = hitFromClu.at(src_clu_list[c].key());
 				adcsum += getClusterAdcSum(v);
+
+				if (src_clu_list[c]->View() == geo::kU) { ensum[0] += adcsum; }
+				else if (src_clu_list[c]->View() == geo::kV) { ensum[1] += adcsum; }
+				else if (src_clu_list[c]->View() == geo::kZ) { ensum[2] += adcsum; }
 			}
 
 			auto cnv = vtxFromTrk.at(t);
 			if (cnv.size()) 
 			{
 				int gid = getGammaId(evt, t);
-				ShowerInfo si(t, gid, true, adcsum, trk);
+				ShowerInfo si(t, gid, true, ensum, trk);
 				showers.push_back(si);	
 			}
 			else	
 			{	
 				int gid = getGammaId(evt, t);
-				ShowerInfo si(t, gid, false, adcsum, trk);
+				ShowerInfo si(t, gid, false, ensum, trk);
 				showers.push_back(si);
 			}
 		}
@@ -460,8 +491,7 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 		std::vector< ShowerInfo > pmaseg;
 		for (size_t i = 0; i < showers.size(); ++i)
 			if (!showers[i].HasConPoint())
-				pmaseg.push_back(showers[i]);
-			
+				pmaseg.push_back(showers[i]);			
 		
 		fNPMA = pmaseg.size();
 
@@ -512,7 +542,7 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 			std::vector< double > vd;
 			recob::Shower cas(
 				dir, v0, front, v0,
-				vd, vd, dedx, vd, gammawithconv[i].PlaneId(), id);
+				vd, vd, dedx, vd, gammawithconv[i].PlaneId(), id); 
 
 			cascades->push_back(cas);
 

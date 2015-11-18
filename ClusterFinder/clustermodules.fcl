@@ -6,13 +6,13 @@ BEGIN_PROLOG
 standard_blurredcluster:
 {
  module_type:              "BlurredClustering"
- CreateDebugPDF:           "false"
- MergeClusters:            "true"
+ CreateDebugPDF:           false
+ MergeClusters:            false
+ GlobalTPCRecon:           true
+ ShowerReconOnly:          false
  HitsModuleLabel:          "gaushit"
  TrackModuleLabel:         "pmtrack"
  VertexModuleLabel:        "linecluster"
- GlobalTPCRecon:           true
- ShowerReconOnly:          false
  BlurredClusterAlg:        @local::standard_blurredclusteralg
  MergeClusterAlg:          @local::standard_mergeclusteralg
  TrackShowerSeparationAlg: @local::standard_trackshowerseparationalg

@@ -1,9 +1,12 @@
 ////////////////////////////////////////////////////////////////////////
 // Class: TrackShowerSeparationAlg
-// File:  TrackShowerSeparationAlg.h
+// File:  TrackShowerSeparationAlg.cxx
 // Author: Mike Wallbank (m.wallbank@sheffield.ac.uk), November 2015
 //
-// Shower energy finding class
+// Track/shower separation class.
+// Provides methods for removing hits associated with track-like
+// objects.
+// To be run after track reconstruction, before shower reconstruction.
 ////////////////////////////////////////////////////////////////////////
 
 #include "RecoAlg/TrackShowerSeparationAlg.h"
@@ -24,9 +27,9 @@ shower::TrackShowerSeparationAlg::TrackShowerSeparationAlg(fhicl::ParameterSet c
 }
 
 void shower::TrackShowerSeparationAlg::reconfigure(fhicl::ParameterSet const& pset) {
-  fAngleCut = 5;
-  fDistanceCut = 50;
-  fVertexProximityCut = 10;
+  fAngleCut           = pset.get<double>("AngleCut");
+  fDistanceCut        = pset.get<double>("DistanceCut");
+  fVertexProximityCut = pset.get<double>("VertexProximityCut");
 }
 
 void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::vector<art::Ptr<recob::Track> >& tracks,
@@ -40,7 +43,7 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::
   TVector3 centre = TVector3(0,0,0);
   for (std::vector<art::Ptr<recob::SpacePoint> >::const_iterator spacePointIt = spacePoints.begin(); spacePointIt != spacePoints.end(); ++spacePointIt)
     centre += TVector3((*spacePointIt)->XYZ()[0], (*spacePointIt)->XYZ()[1], (*spacePointIt)->XYZ()[2]);
-  centre *= 1/spacePoints.size();
+  centre *= 1/(double)spacePoints.size();
 
   TVector3 trackVertex, trackEnd, trackDirection;
 
@@ -66,11 +69,47 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::
 
     bool showerLike = IdentifyShowerLikeTrack(trackEnd, trackDirection, surroundingSpacePoints);
 
-    if (showerLike)
+    if (showerLike) {
+      fShowerLikeIDs.push_back((*trackIt)->ID());
       continue;
+    }
 
     else
       fTrackLikeIDs.push_back((*trackIt)->ID());
+
+  }
+
+  return;
+
+}
+
+void shower::TrackShowerSeparationAlg::IdentifyTracksNearTracks(std::vector<art::Ptr<recob::Track> > const& tracks) {
+
+  /// Identifies tracks which start just after previously identified tracks end
+
+  std::vector<art::Ptr<recob::Track> > identifiedTracks;
+
+  for (std::vector<art::Ptr<recob::Track> >::const_iterator trackIt = tracks.begin(); trackIt != tracks.end(); ++trackIt)
+    if (std::find(fTrackLikeIDs.begin(), fTrackLikeIDs.end(), (*trackIt)->ID()) != fTrackLikeIDs.end())
+      identifiedTracks.push_back(*trackIt);
+
+  // Look through tracks
+  for (std::vector<art::Ptr<recob::Track> >::const_iterator trackIt = tracks.begin(); trackIt != tracks.end(); ++trackIt) {
+
+    // Don't consider tracks already tagged as tracks!
+    if (std::find(fTrackLikeIDs.begin(), fTrackLikeIDs.end(), (*trackIt)->ID()) != fTrackLikeIDs.end())
+      continue;
+
+    // Find tracks which are close to previous identified tracks
+    for (std::vector<art::Ptr<recob::Track> >::iterator identifiedTrackIt = identifiedTracks.begin(); identifiedTrackIt != identifiedTracks.end(); ++identifiedTrackIt) {
+      if (std::find(fShowerLikeIDs.begin(), fShowerLikeIDs.end(), (*trackIt)->ID()) != fShowerLikeIDs.end())
+	continue;
+      if ( ( ((*trackIt)->Vertex() - (*identifiedTrackIt)->Vertex()).Mag() < fVertexProximityCut ) or
+	   ( ((*trackIt)->Vertex() - (*identifiedTrackIt)->End()   ).Mag() < fVertexProximityCut ) or
+	   ( ((*trackIt)->End()    - (*identifiedTrackIt)->Vertex()).Mag() < fVertexProximityCut ) or
+	   ( ((*trackIt)->End()    - (*identifiedTrackIt)->End()   ).Mag() < fVertexProximityCut ) )
+	fTrackLikeIDs.push_back((*trackIt)->ID());
+    }
 
   }
 
@@ -111,8 +150,10 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksNearVertex(art::Ptr<recob::
     // Make sure this track start isn't a shower start
     bool showerLike = IdentifyShowerLikeTrack(end, direction, surroundingSpacePoints);
 
-    if (showerLike)
+    if (showerLike) {
+      fShowerLikeIDs.push_back((*trackIt)->ID());
       continue;
+    }
 
     // This track originates from near the interaction vertex and is not shower-like
     fTrackLikeIDs.push_back((*trackIt)->ID());
@@ -149,7 +190,7 @@ void shower::TrackShowerSeparationAlg::FillHitsToCluster(const std::vector<art::
 							 std::vector<art::Ptr<recob::Hit> >& hitsToCluster,
 							 const art::FindManyP<recob::Track>& fmt) {
 
-  /// Fill the output container with all the hits not associated to track-like objects
+  /// Fill the output container with all the hits not associated with track-like objects
 
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator initialHit = initialHits.begin(); initialHit != initialHits.end(); ++initialHit) {
     std::vector<art::Ptr<recob::Track> > showerTracks = fmt.at(initialHit->key());
@@ -237,7 +278,7 @@ void shower::TrackShowerSeparationAlg::GetSpacePointsInCone(const std::vector<ar
     projDistanceFromTrackEnd = (spacePointProj - trackEnd).Mag();
     angleFromTrackEnd = TMath::ASin(displacementFromAxis/distanceFromTrackEnd) * 180 / TMath::Pi();
 
-    if (projDistanceFromTrackEnd < fDistanceCut and angleFromTrackEnd < fAngleCut)
+    if ( (projDistanceFromTrackEnd < fDistanceCut) and (angleFromTrackEnd < fAngleCut) and ((spacePointProj-trackEnd).Dot(trackDirection) > 0) )
       spacePointsInCone.push_back(*spacePointIt);
 
   }
@@ -289,6 +330,9 @@ void shower::TrackShowerSeparationAlg::RemoveTrackHits(std::vector<art::Ptr<reco
   else
     this->IdentifyTracksFromEventCentre(tracks, spacePoints, fmtsp);
 
+  // // Once we've identified some tracks, can look for others at the ends
+  // this->IdentifyTracksNearTracks(tracks);
+
   this->FillHitsToCluster(initialHits, hitsToCluster, fmth);
 
   return;
@@ -303,7 +347,7 @@ double shower::TrackShowerSeparationAlg::SpacePointSpread(const std::vector<art:
   TVector3 centre = TVector3(0,0,0);
   for (std::vector<art::Ptr<recob::SpacePoint> >::const_iterator spacePointIt = spacePoints.begin(); spacePointIt != spacePoints.end(); ++spacePointIt)
     centre += TVector3((*spacePointIt)->XYZ()[0], (*spacePointIt)->XYZ()[1], (*spacePointIt)->XYZ()[2]);
-  centre *= 1/spacePoints.size();
+  centre *= 1/(double)spacePoints.size();
 
   // Find the central axis of the space points
   TPrincipal* pca = new TPrincipal(3,"");

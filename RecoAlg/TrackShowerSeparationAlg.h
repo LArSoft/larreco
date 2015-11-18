@@ -3,7 +3,10 @@
 // File:  TrackShowerSeparationAlg.h
 // Author: Mike Wallbank (m.wallbank@sheffield.ac.uk), November 2015
 //
-// Track/shower discrimination class
+// Track/shower separation class.
+// Provides methods for removing hits associated with track-like
+// objects.
+// To be run after track reconstruction, before shower reconstruction.
 ////////////////////////////////////////////////////////////////////////
 
 #ifndef TrackShowerSeparationAlg_hxx
@@ -42,6 +45,7 @@ class shower::TrackShowerSeparationAlg {
 
   void reconfigure(fhicl::ParameterSet const& pset);
   void IdentifyTracksFromEventCentre(const std::vector<art::Ptr<recob::Track> >& tracks, const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints, art::FindManyP<recob::Track> const& fmt);
+  void IdentifyTracksNearTracks(std::vector<art::Ptr<recob::Track> > const& tracks);
   void IdentifyTracksNearVertex(art::Ptr<recob::Vertex> const& vertex, std::vector<art::Ptr<recob::Track> > const& tracks, std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints, art::FindManyP<recob::Track> const& fmt);
   bool IdentifyShowerLikeTrack(TVector3 const& end, TVector3 const& direction, std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints);
   void FillHitsToCluster(std::vector<art::Ptr<recob::Hit> > const& initialHits, std::vector<art::Ptr<recob::Hit> >& hitsToCluster, art::FindManyP<recob::Track> const& fmt);
@@ -63,7 +67,7 @@ class shower::TrackShowerSeparationAlg {
 
  private:
 
-  std::vector<int> fTrackLikeIDs;
+  std::vector<int> fTrackLikeIDs, fShowerLikeIDs;
 
   double fAngleCut, fDistanceCut, fVertexProximityCut;
 
