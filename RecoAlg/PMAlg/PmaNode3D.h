@@ -46,6 +46,8 @@ public:
 	/// Belongs to more than one track?
 	bool IsBranching(void) const;
 
+	std::vector< pma::Track3D* > GetBranches(void) const;
+
 	/// Distance [cm] from the 3D point to the point 3D.
 	virtual double GetDistance2To(const TVector3& p3d) const;
 
