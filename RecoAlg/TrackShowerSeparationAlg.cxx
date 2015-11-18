@@ -24,9 +24,9 @@ shower::TrackShowerSeparationAlg::TrackShowerSeparationAlg(fhicl::ParameterSet c
 }
 
 void shower::TrackShowerSeparationAlg::reconfigure(fhicl::ParameterSet const& pset) {
-  fAngleCut = 5;
-  fDistanceCut = 50;
-  fVertexProximityCut = 10;
+  fAngleCut           = pset.get<double>("AngleCut");
+  fDistanceCut        = pset.get<double>("DistanceCut");
+  fVertexProximityCut = pset.get<double>("VertexProximityCut");
 }
 
 void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::vector<art::Ptr<recob::Track> >& tracks,
@@ -66,8 +66,10 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::
 
     bool showerLike = IdentifyShowerLikeTrack(trackEnd, trackDirection, surroundingSpacePoints);
 
-    if (showerLike)
+    if (showerLike) {
+      fShowerLikeIDs.push_back((*trackIt)->ID());
       continue;
+    }
 
     else
       fTrackLikeIDs.push_back((*trackIt)->ID());
@@ -96,12 +98,15 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksNearTracks(std::vector<art:
       continue;
 
     // Find tracks which are close to previous identified tracks
-    for (std::vector<art::Ptr<recob::Track> >::iterator identifiedTrackIt = identifiedTracks.begin(); identifiedTrackIt != identifiedTracks.end(); ++identifiedTrackIt)
+    for (std::vector<art::Ptr<recob::Track> >::iterator identifiedTrackIt = identifiedTracks.begin(); identifiedTrackIt != identifiedTracks.end(); ++identifiedTrackIt) {
+      if (std::find(fShowerLikeIDs.begin(), fShowerLikeIDs.end(), (*trackIt)->ID()) != fShowerLikeIDs.end())
+	continue;
       if ( ( ((*trackIt)->Vertex() - (*identifiedTrackIt)->Vertex()).Mag() < fVertexProximityCut ) or
 	   ( ((*trackIt)->Vertex() - (*identifiedTrackIt)->End()   ).Mag() < fVertexProximityCut ) or
 	   ( ((*trackIt)->End()    - (*identifiedTrackIt)->Vertex()).Mag() < fVertexProximityCut ) or
 	   ( ((*trackIt)->End()    - (*identifiedTrackIt)->End()   ).Mag() < fVertexProximityCut ) )
 	fTrackLikeIDs.push_back((*trackIt)->ID());
+    }
 
   }
 
@@ -135,9 +140,6 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksNearVertex(art::Ptr<recob::
     else
       continue;
 
-    if ((*trackIt)->ID() != 0)
-      continue;
-
     // Get the space points not associated with the current track
     std::vector<art::Ptr<recob::SpacePoint> > surroundingSpacePoints;
     GetSurroundingSpacePoints(spacePoints, surroundingSpacePoints, fmtsp, (*trackIt)->ID());
@@ -145,8 +147,10 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksNearVertex(art::Ptr<recob::
     // Make sure this track start isn't a shower start
     bool showerLike = IdentifyShowerLikeTrack(end, direction, surroundingSpacePoints);
 
-    if (showerLike)
+    if (showerLike) {
+      fShowerLikeIDs.push_back((*trackIt)->ID());
       continue;
+    }
 
     // This track originates from near the interaction vertex and is not shower-like
     fTrackLikeIDs.push_back((*trackIt)->ID());
@@ -323,8 +327,8 @@ void shower::TrackShowerSeparationAlg::RemoveTrackHits(std::vector<art::Ptr<reco
   else
     this->IdentifyTracksFromEventCentre(tracks, spacePoints, fmtsp);
 
-  // // Once we've identified some tracks, can look for others at the ends
-  // this->IdentifyTracksNearTracks(tracks);
+  // Once we've identified some tracks, can look for others at the ends
+  this->IdentifyTracksNearTracks(tracks);
 
   this->FillHitsToCluster(initialHits, hitsToCluster, fmth);
 

@@ -64,7 +64,7 @@ class shower::TrackShowerSeparationAlg {
 
  private:
 
-  std::vector<int> fTrackLikeIDs;
+  std::vector<int> fTrackLikeIDs, fShowerLikeIDs;
 
   double fAngleCut, fDistanceCut, fVertexProximityCut;
 
