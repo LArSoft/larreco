@@ -42,6 +42,7 @@ class shower::TrackShowerSeparationAlg {
 
   void reconfigure(fhicl::ParameterSet const& pset);
   void IdentifyTracksFromEventCentre(const std::vector<art::Ptr<recob::Track> >& tracks, const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints, art::FindManyP<recob::Track> const& fmt);
+  void IdentifyTracksNearTracks(std::vector<art::Ptr<recob::Track> > const& tracks);
   void IdentifyTracksNearVertex(art::Ptr<recob::Vertex> const& vertex, std::vector<art::Ptr<recob::Track> > const& tracks, std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints, art::FindManyP<recob::Track> const& fmt);
   bool IdentifyShowerLikeTrack(TVector3 const& end, TVector3 const& direction, std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints);
   void FillHitsToCluster(std::vector<art::Ptr<recob::Hit> > const& initialHits, std::vector<art::Ptr<recob::Hit> >& hitsToCluster, art::FindManyP<recob::Track> const& fmt);
