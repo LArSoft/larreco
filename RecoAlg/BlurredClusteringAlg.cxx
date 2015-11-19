@@ -12,7 +12,7 @@
 #include "RecoAlg/BlurredClusteringAlg.h"
 
 #include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "lardata/Utilities/DetectorPropertiesService.h"
+#include "Utilities/DetectorPropertiesService.h"
 
 cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset); 
