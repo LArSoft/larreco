@@ -365,8 +365,12 @@ void pma::Track3D::RemoveHits(const std::vector< art::Ptr<recob::Hit> >& hits)
 unsigned int pma::Track3D::NHits(unsigned int view) const
 {
 	unsigned int n = 0;
-	for (size_t i = 0; i < size(); i++)
+	for (size_t i = 0; i < fHits.size(); i++)
+	{
+		//std::cout << " h " << i << std::endl;
 		if (fHits[i]->View2D() == view) n++;
+		//std::cout << "   " << fHits[i]->View2D() << std::endl;
+	}
 	return n;
 }
 
@@ -501,6 +505,19 @@ void pma::Track3D::Flip(void)
 			toSort[t]->SortHits();
 		}
 	}
+}
+
+bool pma::Track3D::CanFlip(void) const
+{
+	pma::Node3D* n = fNodes.front();
+	if (n->Prev())
+	{
+		pma::Segment3D* s = static_cast< pma::Segment3D* >(n->Prev());
+		pma::Track3D* t = s->Parent();
+		if (t->NextSegment(n)) return false; // cannot flip if starts from middle of another track
+		else return t->CanFlip();
+	}
+	else return true;
 }
 
 double pma::Track3D::TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits, bool normalized) const
@@ -1067,7 +1084,7 @@ void pma::Track3D::InsertNode(
 
 	if (fNodes.size() > 1) RebuildSegments();
 }
-
+/*
 pma::Node3D* pma::Track3D::ExtractNodeCopy(size_t idx)
 {
 	pma::Node3D* node = fNodes[idx];
@@ -1089,7 +1106,7 @@ pma::Node3D* pma::Track3D::ExtractNodeCopy(size_t idx)
 
 	return node;
 }
-
+*/
 bool pma::Track3D::RemoveNode(size_t idx)
 {
 	if ((fNodes.size() > 1) && (idx < fNodes.size()))
@@ -1105,45 +1122,203 @@ bool pma::Track3D::RemoveNode(size_t idx)
 	else return false;
 }
 
-bool pma::Track3D::AttachTo(pma::Node3D* vStart)
+pma::Track3D* pma::Track3D::Split(size_t idx)
+{
+	if (!idx || (idx + 1 >= fNodes.size())) return 0;
+
+	pma::Node3D* n = 0;
+	pma::Track3D* t0 = new pma::Track3D();
+	for (size_t i = 0; i < idx; ++i)
+	{
+		n = fNodes.front();
+		n->ClearAssigned();
+
+		pma::Segment3D* s = static_cast< pma::Segment3D* >(n->Prev());
+		if (s && (s->Parent() == this)) s->RemoveNext(n);
+
+		size_t k = 0;
+		while (k < n->NextCount())
+		{
+			s = static_cast< pma::Segment3D* >(n->Next(k));
+			if (s->Parent() == this) n->RemoveNext(s);
+			else k++;
+		}
+
+		fNodes.erase(fNodes.begin());
+		t0->fNodes.push_back(n);
+	}
+
+	n = fNodes.front();
+	t0->fNodes.push_back(new pma::Node3D(n->Point3D(), n->TPC(), n->Cryo()));
+	t0->RebuildSegments();
+	RebuildSegments();
+
+	size_t h = 0;
+	while (h < size())
+	{
+		pma::Hit3D* h3d = fHits[h];
+		double dist2D_old = Dist2(h3d->Point2D(), h3d->View2D());
+		double dist2D_new = t0->Dist2(h3d->Point2D(), h3d->View2D());
+
+		if (dist2D_new < dist2D_old) t0->push_back(release_at(h));
+		else h++;
+	}
+
+	if (HasTwoViews() && t0->HasTwoViews())
+	{
+		mf::LogVerbatim("pma::VtxCandidate") << "  attach trk to trk0";
+		//std::cout << "  split ok, attach src to t0" << std::endl;
+		if (t0->CanFlip())
+		{
+			t0->Flip();
+			t0->AttachTo(fNodes.front());
+		}
+		else AttachTo(t0->fNodes.back());
+	}
+	else
+	{
+		mf::LogVerbatim("pma::VtxCandidate") << "  single-view track, undo split";
+		//std::cout << "  single-view track, undo split" << std::endl;
+		while (t0->size()) push_back(t0->release_at(0));
+
+		for (size_t i = 0; i < idx; ++i)
+		{
+			fNodes.insert(fNodes.begin() + i, t0->fNodes.front());
+			t0->fNodes.erase(t0->fNodes.begin());
+		}
+
+		RebuildSegments();
+		delete t0;
+		t0 = 0;
+	}
+
+	return t0;
+}
+
+bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 {
 	pma::Node3D* vtx = fNodes.front();
 
 	if (vtx == vStart) return true; // already connected!
 
-	for (size_t i = 0; i < fNodes.size(); i++)
-	{
-		if (fNodes[i] == vStart) { mf::LogError("pma::Track3D") << "Aaaaaa!"; return false; }
-	}
+	for (auto n : fNodes) if (n == vStart) { mf::LogError("pma::Track3D") << "Aaaaaa!"; return false; }
 
-	if ( (pma::Dist2(vtx->Point3D(), vStart->Point3D()) > pma::Dist2(fNodes.back()->Point3D(), vStart->Point3D())) &&
+	if ( !noFlip && CanFlip() &&
+	     (pma::Dist2(vtx->Point3D(), vStart->Point3D()) > pma::Dist2(fNodes.back()->Point3D(), vStart->Point3D())) &&
 	     (fNodes.back()->NextCount() == 0) )
 	{
-		Flip(); // flip the track if its endpoint is closer to vStart than the startpoint
+		mf::LogError("pma::Track3D") << "Flip, endpoint closer to vStart.";
+		//std::cout << "Flip, endpoint closer to vStart." << std::endl;
+		Flip();
 		vtx = fNodes.front();
 	}
 
 	if (vtx->Prev())
 	{
-		//mf::LogVerbatim("pma::Track3D") << "Track was already attached to another track.";
-		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtx->Prev());
-		seg->Parent()->Flip();
+		pma::Segment3D* segThis = static_cast< pma::Segment3D* >(vtx->Prev());
+		pma::Track3D* tpThis = segThis->Parent();
+		if (tpThis->NextSegment(vtx))
+		{
+			//std::cout << "Do not reattach from vtx inner in another track." << std::endl;
+			return false;
+		}
+		else if (tpThis->CanFlip()) {
+
+			tpThis->Flip();
+
+			//std::cout << "..tpThis->Flip().." << std::endl; tpThis->Flip();
+			//if (vtx->Prev()) std::cout << "..still has prev" << std::endl;
+
+		} // flip in local vtx, no problem
+		else
+		{
+			if (vStart->Prev())
+			{
+				pma::Segment3D* segNew = static_cast< pma::Segment3D* >(vStart->Prev());
+				pma::Track3D* tpNew = segNew->Parent();
+				if (tpNew->CanFlip()) tpNew->Flip(); // flip in remote vStart, no problem
+				else
+				{
+					mf::LogError("pma::Track3D") << "Flip not possible, cannot attach.";
+					//std::cout << "Flip not possible, cannot attach." << std::endl;
+					return false;
+				}
+			}
+			mf::LogVerbatim("pma::Track3D") << "Reconnect prev to vStart.";
+			//std::cout << "Reconnect prev to vStart." << std::endl;
+			tpThis->fNodes[tpThis->fNodes.size() - 1] = vStart;
+			segThis->AddNext(vStart);
+		}
 	}
 
-	//mf::LogVerbatim("pma::Track3D") << "Attach: " << vtx->NextCount() << " -> " << vStart->NextCount();
-
-	while (vtx->NextCount()) // reconnect to vStart
+	while (vtx->NextCount()) // reconnect nexts to vStart
 	{
 		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtx->Next(0));
 		pma::Track3D* trk = seg->Parent();
 
 		vtx->RemoveNext(seg);
-		trk->fNodes[0] = vStart; // checked above, but note again: each trk was *starting* from vtx
+		trk->fNodes[0] = vStart;
 		vStart->AddNext(seg);
 	}
 
-	if (!vtx->NextCount()) delete vtx;
-	else mf::LogError("pma::Track3D") << "Something is still using this vertex.";
+	if (vtx->NextCount() || vtx->Prev())
+	{
+		mf::LogError("pma::Track3D") << "Something is still using this vertex.";
+		//std::cout << "Something is still using this vertex." << std::endl;
+		return false;
+	}
+	else delete vtx; // ok
+
+	MakeProjection();
+	SortHits();
+	return true;
+}
+
+bool pma::Track3D::AttachBackTo(pma::Node3D* vStart)
+{
+	pma::Node3D* vtx = fNodes.back();
+
+	if (vtx == vStart) return true; // already connected!
+
+	for (auto n : fNodes) if (n == vStart) { mf::LogError("pma::Track3D") << "Aaaaaa!"; return false; }
+
+	if (vStart->Prev())
+	{
+		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vStart->Prev());
+		pma::Track3D* tp = seg->Parent();
+		if (tp->NextSegment(vStart))
+		{
+			mf::LogError("pma::Track3D") << "Cannot attach back to inner node of other track.";
+			//std::cout << "Cannot attach back to inner node of other track." << std::endl;
+			return false;
+		}
+
+		if (tp->CanFlip()) tp->Flip(); // flip in remote vStart, no problem
+		else
+		{
+			mf::LogError("pma::Track3D") << "Flip not possible, cannot attach.";
+			//std::cout << "Flip not possible, cannot attach." << std::endl;
+			return false;
+		}
+	}
+	fNodes[fNodes.size() - 1] = vStart;
+	fSegments[fSegments.size() - 1]->AddNext(vStart);
+
+	while (vtx->NextCount()) // reconnect nexts to vStart
+	{
+		pma::Segment3D* seg = static_cast< pma::Segment3D* >(vtx->Next(0));
+		pma::Track3D* trk = seg->Parent();
+
+		vtx->RemoveNext(seg);
+		trk->fNodes[0] = vStart;
+		vStart->AddNext(seg);
+	}
+
+	if (vtx->NextCount() || vtx->Prev())
+	{
+		throw cet::exception("pma::Track3D") << "Something is still using disconnected vertex."; 
+	}
+	else delete vtx; // ok
 
 	MakeProjection();
 	SortHits();
@@ -1152,9 +1327,18 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart)
 
 pma::Track3D* pma::Track3D::GetRoot(void)
 {
-	pma::Segment3D* seg = static_cast< pma::Segment3D* >(fNodes.front()->Prev());
-	if (seg) return seg->Parent()->GetRoot();
-	else return this;
+	pma::Track3D* trk = 0;
+
+	if (fNodes.size())
+	{
+		pma::Segment3D* seg = static_cast< pma::Segment3D* >(fNodes.front()->Prev());
+		if (seg) trk = seg->Parent()->GetRoot();
+
+		if (!trk) trk = this;
+	}
+	else mf::LogError("pma::Track3D") << "Broken track, no nodes.";
+
+	return trk;
 }
 
 void pma::Track3D::GetBranches(std::vector< pma::Track3D const * >& branches) const
@@ -1629,6 +1813,7 @@ double pma::Track3D::TuneFullTree(double eps, double gmax)
 	if (g0 == 0.0) return g0;
 
 	mf::LogVerbatim("pma::Track3D") << "Tune tree, g = " << g0;
+	//std::cout << "Tune tree, g = " << g0 << std::endl;
 	unsigned int stepIter = 0;
 	do
 	{
@@ -1659,6 +1844,7 @@ double pma::Track3D::TuneFullTree(double eps, double gmax)
 	SortHitsInTree();
 
 	mf::LogVerbatim("pma::Track3D") << "  done, g = " << g0;
+	//std::cout << "  done, g = " << g0 << std::endl;
 	return g0;
 }
 

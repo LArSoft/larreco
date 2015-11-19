@@ -14,6 +14,7 @@
 // LArSoft includes
 #include "art/Framework/Core/FindManyP.h"
 #include "AnalysisAlg/CalorimetryAlg.h"
+#include "RecoAlg/ShowerEnergyAlg.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
@@ -43,15 +44,16 @@ class shower::EMShowerAlg {
 public:
   EMShowerAlg();
 
+  EMShowerAlg(fhicl::ParameterSet const& pset);
+
   void MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
   void FindVertexTrack(art::Ptr<recob::Track>& vertexTrack, std::map<int,art::Ptr<recob::Hit> > const& vertexMap, std::map<int,art::Ptr<recob::Track> > const& trackMap, std::map<int,std::vector<int> > const& trackHitsMap);
-  void FindShowerProperties(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt, calo::CalorimetryAlg const& calo,
+  void FindShowerProperties(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt,
 			    TVector3& direction, TVector3& directionError, TVector3& vertex, TVector3& vertexError,
 			    std::vector<double>& totalEnergy, std::vector<double>& totalEnergyError, std::vector<double>& dEdx, std::vector<double>& dEdxError,
 			    int& bestPlane);
   void FindShowerStartDirection(art::Ptr<recob::Track> const& vertexTrack, std::map<int,TVector2> const& showerCentreMap, TVector3& showerVertex, TVector3& showerDirection);
-  double FinddEdx(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Track> const& track, calo::CalorimetryAlg const& calo, geo::View_t const& view, std::vector<int> const& trackHits);
-  double FindTotalEnergy(art::PtrVector<recob::Hit> const& hits, int plane);
+  double FinddEdx(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Track> const& track, geo::View_t const& view, std::vector<int> const& trackHits);
   void FindShowerEnds(art::PtrVector<recob::Hit> const& shower, TVector2 const& centre, art::Ptr<recob::Hit>& end1, art::Ptr<recob::Hit>& end2);
   art::Ptr<recob::Hit> FindVertex(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Hit> const& end1, art::Ptr<recob::Hit> const& end2);
   void FindVertex(art::PtrVector<recob::Hit> const& shower, TVector2 const& end1, TVector2 const& end2, std::vector<int>& trackHits);
@@ -67,6 +69,10 @@ private:
 
   art::ServiceHandle<geo::Geometry> fGeom;
   dataprov::DetectorProperties const* fDetProp;
+
+  // Algs used by this class
+  ShowerEnergyAlg fShowerEnergyAlg;
+  calo::CalorimetryAlg fCalorimetryAlg;
 
 };
 

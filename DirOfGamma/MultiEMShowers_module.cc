@@ -43,7 +43,7 @@
 
 namespace ems {
 	class MCinfo;
-  	class MultiEMShowers;
+  class MultiEMShowers;
 }
 
 class ems::MCinfo
@@ -51,6 +51,7 @@ class ems::MCinfo
 	public:
 	MCinfo(const art::Event& evt);
 	void Info(const art::Event& evt);
+	void Findtpcborders(const art::Event& evt);
 
 	int GetNgammas() const { return fNgammas; }
 
@@ -74,7 +75,10 @@ class ems::MCinfo
 	bool const & IsCompton() const { return fCompton; }
 
 	private:
-	bool insideFidVol(const TLorentzVector& pvtx);
+	bool insideFidVol(const TLorentzVector& pvtx) const;
+	double fMinx; double fMaxx;
+	double fMiny; double fMaxy;
+	double fMinz; double fMaxz;	
 	
 	double fFidVolCut;
 
@@ -102,6 +106,29 @@ ems::MCinfo::MCinfo(const art::Event& evt) :
 fFidVolCut(2.0)
 {
 	Info(evt);
+	Findtpcborders(evt);
+}
+
+void ems::MCinfo::Findtpcborders(const art::Event& evt) 
+{
+	art::ServiceHandle<geo::Geometry> geom;
+	
+	fMinx = geom->IterateTPCs().begin()->MinX();
+	fMiny = geom->IterateTPCs().begin()->MinY();
+	fMinz = geom->IterateTPCs().begin()->MinZ();
+	fMaxx = geom->IterateTPCs().begin()->MaxX();
+	fMaxy = geom->IterateTPCs().begin()->MaxY();
+	fMaxz = geom->IterateTPCs().begin()->MaxZ();
+
+	for (const geo::TPCGeo& tpcg: geom->IterateTPCs())
+	{
+		if (tpcg.MinX() < fMinx) fMinx = tpcg.MinX();
+		if (tpcg.MaxX() > fMaxx) fMaxx = tpcg.MaxX(); 
+		if (tpcg.MinY() < fMiny) fMiny = tpcg.MinY();
+		if (tpcg.MaxY() > fMaxy) fMaxy = tpcg.MaxY();
+		if (tpcg.MinZ() < fMinz) fMinz = tpcg.MinZ();
+		if (tpcg.MaxZ() > fMaxz) fMaxz = tpcg.MaxZ();
+	}
 }
 
 void ems::MCinfo::Info(const art::Event& evt)
@@ -120,123 +147,90 @@ void ems::MCinfo::Info(const art::Event& evt)
 	const sim::ParticleList& plist = bt->ParticleList();
 	for (sim::ParticleList::const_iterator ipar = plist.begin(); ipar != plist.end(); ++ipar)
 	{
-		simb::MCParticle* particle = ipar->second;
-		if (particle->Process() == "primary") 
-		{
-			TLorentzVector posvec = particle->Position();
-			TVector3 pose(posvec.X(), posvec.Y(), posvec.Z());
-			fPrimary = pose;
-		}
+		const simb::MCParticle* particle = ipar->second;
 
-		if ((particle->Process() == "primary") && (particle->PdgCode() == 111))
+		if (particle->Process() != "primary") continue;
+
+		TLorentzVector posvec = particle->Position();
+		TVector3 pose(posvec.X(), posvec.Y(), posvec.Z());
+		fPrimary = pose;
+		
+
+		if (particle->PdgCode() == 111)
 		{
 			fMompi0 = particle->P();
 			
 			TLorentzVector posvec3 = particle->Position();
 			TVector3 pospi0(posvec3.X(), posvec3.Y(), posvec3.Z());
 			fPi0pos =  pospi0;
+	
+			if (particle->NumberDaughters() != 2) continue;
 
-			if ((particle->NumberDaughters() == 2) &&
-			    (bt->TrackIDToParticle(particle->Daughter(0))->PdgCode() == 22) &&
-			    (bt->TrackIDToParticle(particle->Daughter(1))->PdgCode() == 22)) // pi0
-			{
-				fNgammas = particle->NumberDaughters();
-				TLorentzVector mom1 = bt->TrackIDToParticle(particle->Daughter(0))->Momentum();
-				TLorentzVector mom2 = bt->TrackIDToParticle(particle->Daughter(1))->Momentum();
+			const simb::MCParticle* daughter1 = bt->TrackIDToParticle(particle->Daughter(0));
+			if (daughter1->PdgCode() != 22) continue;
 
-				const simb::MCParticle* daughter1 = bt->TrackIDToParticle(particle->Daughter(0));
-				// compton process
-				if (daughter1->EndProcess() == "phot") fCompton = true;
+			const simb::MCParticle* daughter2 = bt->TrackIDToParticle(particle->Daughter(1));
+			if (daughter2->PdgCode() != 22) continue; 
+
+			fNgammas = particle->NumberDaughters();
+			TLorentzVector mom1 = bt->TrackIDToParticle(particle->Daughter(0))->Momentum();
+			TLorentzVector mom2 = bt->TrackIDToParticle(particle->Daughter(1))->Momentum();
+
+			// compton process
+			if (daughter1->EndProcess() == "phot") fCompton = true;
+			if (daughter2->EndProcess() == "phot") fCompton = true;
+
+			TVector3 mom1vec3(mom1.Px(), mom1.Py(), mom1.Pz());
+			fGammamom1 = bt->TrackIDToParticle(particle->Daughter(0))->P();
+			TVector3 mom2vec3(mom2.Px(), mom2.Py(), mom2.Pz());
+			fGammamom2 = bt->TrackIDToParticle(particle->Daughter(1))->P();
+
+			TLorentzVector pos1 = bt->TrackIDToParticle(particle->Daughter(0))->EndPosition();
+			TLorentzVector pos2 = bt->TrackIDToParticle(particle->Daughter(1))->EndPosition();
 				
-				const simb::MCParticle* daughter2 = bt->TrackIDToParticle(particle->Daughter(1));
-				if (daughter2->EndProcess() == "phot") fCompton = true;
-
-				TVector3 mom1vec3(mom1.Px(), mom1.Py(), mom1.Pz());
-				fGammamom1 = bt->TrackIDToParticle(particle->Daughter(0))->P();
-				TVector3 mom2vec3(mom2.Px(), mom2.Py(), mom2.Pz());
-				fGammamom2 = bt->TrackIDToParticle(particle->Daughter(1))->P();
-
-				TLorentzVector pos1 = bt->TrackIDToParticle(particle->Daughter(0))->EndPosition();
-				TLorentzVector pos2 = bt->TrackIDToParticle(particle->Daughter(1))->EndPosition();
+			if (insideFidVol(pos1)) fInside1 = true; 
+			if (insideFidVol(pos2)) fInside2 = true;
 				
-				if (insideFidVol(pos1)) fInside1 = true; 
-				if (insideFidVol(pos2)) fInside2 = true;
-				
-				TVector3 pos1vec3(pos1.X(), pos1.Y(), pos1.Z());
-				fConvgamma1 = pos1vec3;
-				TVector3 pos2vec3(pos2.X(), pos2.Y(), pos2.Z());
-				fConvgamma2 = pos2vec3;
-
-				TVector3 vecnorm1 = mom1vec3 * (1.0 / mom1vec3.Mag());
-				fDirgamma1 = vecnorm1;
-				TVector3 vecnorm2 = mom2vec3 * (1.0 / mom2vec3.Mag());
-				fDirgamma2 = vecnorm2;
-		
-				fCosine = fDirgamma1 * fDirgamma2;
-				break;
-				
-			}
-			else
-			{
-				fNgammas = particle->NumberDaughters();
-			}
-		}
-		else 
-		{
 			
-		}	
+			fConvgamma1.SetXYZ(pos1.X(), pos1.Y(), pos1.Z());
+			fConvgamma2.SetXYZ(pos2.X(), pos2.Y(), pos2.Z());
+
+			TVector3 vecnorm1 = mom1vec3.Unit();
+			fDirgamma1 = vecnorm1;
+			TVector3 vecnorm2 = mom2vec3.Unit();
+			fDirgamma2 = vecnorm2;
+		
+			fCosine = fDirgamma1 * fDirgamma2;	
+		}
+		else
+		{
+			fNgammas = particle->NumberDaughters();
+		}
 	}
 }
 
-bool ems::MCinfo::insideFidVol(const TLorentzVector& pvtx) 
+bool ems::MCinfo::insideFidVol(const TLorentzVector& pvtx) const
 {
-	art::ServiceHandle<geo::Geometry> geom;
-	double vtx[3] = {pvtx.X(), pvtx.Y(), pvtx.Z()};
+
 	bool inside = false;
-
-	geo::TPCID idtpc = geom->FindTPCAtPosition(vtx);
-	if (geom->HasTPC(idtpc))
-	{
-		
-		const geo::TPCGeo& tpcgeo = geom->TPC(idtpc);
-		double minx = tpcgeo.MinX(); double maxx = tpcgeo.MaxX();
-		double miny = tpcgeo.MinY(); double maxy = tpcgeo.MaxY();
-		double minz = tpcgeo.MinZ(); double maxz = tpcgeo.MaxZ();
-
-		for (size_t c = 0; c < geom->Ncryostats(); c++)
-		{
-			const geo::CryostatGeo& cryostat = geom->Cryostat(c);
-			for (size_t t = 0; t < cryostat.NTPC(); t++)
-			{
-				const geo::TPCGeo& tpcg = cryostat.TPC(t);
-				if (tpcg.MinX() < minx) minx = tpcg.MinX();
-				if (tpcg.MaxX() > maxx) maxx = tpcg.MaxX(); 
-				if (tpcg.MinY() < miny) miny = tpcg.MinY();
-				if (tpcg.MaxY() > maxy) maxy = tpcg.MaxY();
-				if (tpcg.MinZ() < minz) minz = tpcg.MinZ();
-				if (tpcg.MaxZ() > maxz) maxz = tpcg.MaxZ();
-			}
-		}	
-
-		//x
-		double dista = fabs(minx - pvtx.X());
-		double distb = fabs(pvtx.X() - maxx); 
-		if ((pvtx.X() > minx) && (pvtx.X() < maxx) &&
+	//x
+	double dista = fabs(fMinx - pvtx.X());
+	double distb = fabs(pvtx.X() - fMaxx); 
+	if ((pvtx.X() > fMinx) && (pvtx.X() < fMaxx) &&
 		 	(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
-		//y
-		dista = fabs(maxy - pvtx.Y());
-		distb = fabs(pvtx.Y() - miny);
-		if (inside && (pvtx.Y() > miny) && (pvtx.Y() < maxy) &&
-		 	(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
-		else inside = false;
+	//y
+	dista = fabs(fMaxy - pvtx.Y());
+	distb = fabs(pvtx.Y() - fMiny);
+	if (inside && (pvtx.Y() > fMiny) && (pvtx.Y() < fMaxy) &&
+		(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
+	else inside = false;
 
-		//z
-		dista = fabs(maxz - pvtx.Z());
-		distb = fabs(pvtx.Z() - minz);
-		if (inside && (pvtx.Z() > minz) && (pvtx.Z() < maxz) &&
-		 	(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
-		else inside = false;
-	}
+	//z
+	dista = fabs(fMaxz - pvtx.Z());
+	distb = fabs(pvtx.Z() - fMinz);
+	if (inside && (pvtx.Z() > fMinz) && (pvtx.Z() < fMaxz) &&
+		(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
+	else inside = false;
 		
 	return inside;
 }
@@ -245,15 +239,15 @@ class ems::MultiEMShowers : public art::EDAnalyzer {
 public:
  	explicit MultiEMShowers(fhicl::ParameterSet const & p);
 
-  	MultiEMShowers(MultiEMShowers const &) = delete;
+  MultiEMShowers(MultiEMShowers const &) = delete;
  	MultiEMShowers(MultiEMShowers &&) = delete;
-  	MultiEMShowers & operator = (MultiEMShowers const &) = delete;
-  	MultiEMShowers & operator = (MultiEMShowers &&) = delete;
+  MultiEMShowers & operator = (MultiEMShowers const &) = delete;
+  MultiEMShowers & operator = (MultiEMShowers &&) = delete;
 
 	void beginJob() override;
 	void endJob() override;
   
-  	void analyze(art::Event const & e) override;
+  void analyze(art::Event const & e) override;
 
 	void reconfigure(fhicl::ParameterSet const& p);
 
@@ -304,7 +298,7 @@ private:
 	double fGdirmcreco1; double fGdirmcreco2;
 	double fGdirmcreco1good; double fGdirmcreco2good;
 
-  	art::InputTag fHitsModuleLabel;
+  art::InputTag fHitsModuleLabel;
 	art::InputTag fCluModuleLabel;
 	art::InputTag fTrk3DModuleLabel;
 	art::InputTag fVtxModuleLabel;
@@ -493,7 +487,7 @@ void ems::MultiEMShowers::analyze(art::Event const & e)
 					const recob::Shower& sh = (*shsListHandle)[s];
 					TVector3 pos = sh.ShowerStart(); 
 					fStartX = pos.X(); fStartY = pos.Y(); fStartZ = pos.Z();
-					std::vector<double> vecdedx = sh.dEdx();
+					std::vector<double> const& vecdedx = sh.dEdx();
 					
 					if (vecdedx.size() == 3)
 					{

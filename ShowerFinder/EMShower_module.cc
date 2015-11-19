@@ -25,7 +25,6 @@
 
 // LArSoft includes
 #include "Utilities/AssociationUtil.h"
-#include "AnalysisAlg/CalorimetryAlg.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/CryostatGeo.h"
 #include "Geometry/TPCGeo.h"
@@ -66,14 +65,12 @@ private:
   int fMinTrackLength;
 
   EMShowerAlg fEMShowerAlg;
-  calo::CalorimetryAlg fCalorimetryAlg;
 
   art::ServiceHandle<geo::Geometry> fGeom;
 
 };
 
-shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(),
-							      fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")) {
+shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(pset.get<fhicl::ParameterSet>("EMShowerAlg")) {
   this->reconfigure(pset);
   produces<std::vector<recob::Shower> >();
   produces<art::Assns<recob::Shower, recob::Hit> >();
@@ -206,7 +203,7 @@ void shower::EMShower::produce(art::Event& evt) {
     TVector3 direction, directionError, vertex, vertexError;
     std::vector<double> totalEnergy, totalEnergyError, dEdx, dEdxError;
     int bestPlane;
-    fEMShowerAlg.FindShowerProperties(showerHits, fmt, fCalorimetryAlg, direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
+    fEMShowerAlg.FindShowerProperties(showerHits, fmt, direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
 
     // Make shower object and associations
     showers->emplace_back(direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane, showerNum);

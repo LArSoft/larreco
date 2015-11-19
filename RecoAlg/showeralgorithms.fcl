@@ -1,0 +1,44 @@
+
+BEGIN_PROLOG
+
+standard_trackshowerseparationalg:
+{
+  AngleCut:           15
+  DistanceCut:        50
+  VertexProximityCut: 10
+  TrackProximityCut:  4
+  AvTrackHitDistance: 1
+}
+
+standard_showerenergyalg:
+{
+  UGradient:   149476.
+  UIntercept: -2216.12
+  VGradient:   148550.
+  VIntercept: -1514.7
+  ZGradient:   149264.
+  ZIntercept: -2666.79
+}
+
+dune35t_showerenergy:
+{
+  UGradient:   148867.
+  UIntercept: -1519.33
+  VGradient:   149458.
+  VIntercept: -1234.91
+  ZGradient:   145372.
+  ZIntercept: -1089.73
+}
+
+dune10kt_showerenergy:
+{
+  UGradient:   149476.
+  UIntercept: -2216.12
+  VGradient:   148550.
+  VIntercept: -1514.7
+  ZGradient:   149264.
+  ZIntercept: -2666.79
+}
+
+END_PROLOG
+

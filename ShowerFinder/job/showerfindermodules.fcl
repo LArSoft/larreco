@@ -1,3 +1,4 @@
+#include "showeralgorithms.fcl"
 
 BEGIN_PROLOG
 
@@ -29,6 +30,12 @@ standard_showercheater:
  G4ModuleLabel:       "largeant"
 }
 
+standard_emshoweralg:
+{
+ CalorimetryAlg:  @local::standard_calorimetryalgmc
+ ShowerEnergyAlg: @local::standard_showerenergyalg
+}
+
 standard_emshower:
 {
  module_type:        "EMShower"
@@ -36,6 +43,7 @@ standard_emshower:
  ClusterModuleLabel: "blurredcluster"
  TrackModuleLabel:   "pmtrack"
  MinTrackLength:     3
+ EMShowerAlg:        @local::standard_emshoweralg
 }
 
 argoneut_shower:     @local::standard_shower
