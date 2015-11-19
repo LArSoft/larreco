@@ -40,8 +40,8 @@
 #include "RecoBase/Vertex.h"
 #include "RecoBase/PFParticle.h"
 #include "RecoBase/Seed.h"
-#include "CalibrationDBI/Interface/IChannelStatusService.h"
-#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "CalibrationDBI/Interface/ChannelStatusService.h"
+#include "CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 #include "Utilities/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
@@ -3405,8 +3405,8 @@ namespace trkf {
     for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = 1;
     
     // get the service to learn about channel status
-    //lariov::IChannelStatusProvider const& channelStatus
-    //  = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+    //lariov::ChannelStatusProvider const& channelStatus
+    //  = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     
     // now we can define the WireHitRange vector.
     int sflag, nwires, wire;

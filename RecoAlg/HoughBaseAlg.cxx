@@ -58,8 +58,8 @@
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
-#include "CalibrationDBI/Interface/IChannelStatusService.h"
-#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "CalibrationDBI/Interface/ChannelStatusService.h"
+#include "CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 constexpr double PI = M_PI; // or CLHEP::pi in CLHEP/Units/PhysicalConstants.h
 
@@ -260,8 +260,8 @@ size_t cluster::HoughBaseAlg::Transform(
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
   const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
   const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
-  lariov::IChannelStatusProvider const* channelStatus
-    = lar::providerFrom<lariov::IChannelStatusService>();
+  lariov::ChannelStatusProvider const* channelStatus
+    = lar::providerFrom<lariov::ChannelStatusService>();
 
   //  uint32_t     channel = hits[0]->Channel();
   unsigned int wire    = 0;
@@ -1058,8 +1058,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
   //  const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
   //  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
-//  lariov::IChannelStatusProvider const* channelStatus
-//    = lar::providerFrom<lariov::IChannelStatusService>();
+//  lariov::ChannelStatusProvider const* channelStatus
+//    = lar::providerFrom<lariov::ChannelStatusService>();
   HoughTransform c;
 
   // Get the random number generator
@@ -1459,8 +1459,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
   const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
   const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
-  lariov::IChannelStatusProvider const* channelStatus
-    = lar::providerFrom<lariov::IChannelStatusService>();
+  lariov::ChannelStatusProvider const* channelStatus
+    = lar::providerFrom<lariov::ChannelStatusService>();
 
   // Get the random number generator
   art::ServiceHandle<art::RandomNumberGenerator> rng;

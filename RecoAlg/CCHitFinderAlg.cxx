@@ -34,8 +34,8 @@
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Utilities/SimpleFits.h" // lar::util::GaussianFit<>
-#include "CalibrationDBI/Interface/IChannelStatusService.h"
-#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "CalibrationDBI/Interface/ChannelStatusService.h"
+#include "CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 // ROOT Includes
 #include "TGraph.h"
@@ -144,8 +144,8 @@ namespace hit {
     bool first;
 
 //    prt = false;
-    lariov::IChannelStatusProvider const& channelStatus
-      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+    lariov::ChannelStatusProvider const& channelStatus
+      = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
 
     for(size_t wireIter = 0; wireIter < Wires.size(); wireIter++){
 

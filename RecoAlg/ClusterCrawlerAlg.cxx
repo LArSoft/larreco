@@ -27,8 +27,8 @@
 #include "RecoBase/Hit.h"
 #include "RecoBase/Cluster.h"
 #include "RecoAlg/ClusterCrawlerAlg.h"
-#include "CalibrationDBI/Interface/IChannelStatusService.h"
-#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "CalibrationDBI/Interface/ChannelStatusService.h"
+#include "CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 struct CluLen{
   int index;
@@ -5356,8 +5356,8 @@ namespace cluster {
         WireHitRange.push_back(std::make_pair(sflag, sflag));
       }
       // overwrite with the "dead wires" condition
-      lariov::IChannelStatusProvider const& channelStatus
-        = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+      lariov::ChannelStatusProvider const& channelStatus
+        = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
 
       sflag = -1;
       for(unsigned short wire = fFirstWire+1; wire < fLastWire; ++wire) {
