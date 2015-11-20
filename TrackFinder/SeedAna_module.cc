@@ -27,7 +27,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
 
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Seed.h"
 #include "MCCheater/BackTracker.h"
@@ -72,7 +72,7 @@ namespace {
     seed.GetPoint(pos, err);
 
     // Calculate the x offset due to nonzero mc particle time.
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     double mctime = mctrk.Start().T();                         // nsec
     double mcdx = mctime * 1.e-3 * detprop->DriftVelocity();  // cm
@@ -107,7 +107,7 @@ namespace {
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get fiducial volume boundary.
 
@@ -699,7 +699,7 @@ namespace trkf {
     art::Handle< std::vector<recob::Seed> > seedh;
     evt.getByLabel(fSeedModuleLabel, seedh);
 
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     // Seed->mc track matching map.
 

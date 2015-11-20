@@ -9,7 +9,7 @@
 #include "TssHit2D.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
-#include "Utilities/DetectorProperties.h"
+#include "DetectorInfo/DetectorProperties.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"

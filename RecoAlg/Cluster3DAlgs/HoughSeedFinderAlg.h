@@ -12,7 +12,7 @@
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
-//#include "Utilities/DetectorPropertiesService.h"
+//#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "RecoBase/Seed.h"
 #include "RecoObjects/Cluster3D.h"
 
@@ -123,7 +123,7 @@ private:
     double                                         m_maximumGap;         ///<
 
     geo::Geometry*                                 m_geometry;           // pointer to the Geometry service
-    //    const dataprov::DetectorProperties*            m_detector;           // Pointer to the detector properties
+    //    const detinfo::DetectorProperties*            m_detector;           // Pointer to the detector properties
     
     PrincipalComponentsAlg                         m_pcaAlg;             // For running Principal Components Analysis
     

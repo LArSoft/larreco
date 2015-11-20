@@ -8,13 +8,20 @@
 
 #include "RecoAlg/ShowerEnergyAlg.h"
 
-shower::ShowerEnergyAlg::ShowerEnergyAlg(fhicl::ParameterSet const& pset) {
+#include "DetectorInfoServices/LArPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
+
+
+shower::ShowerEnergyAlg::ShowerEnergyAlg(fhicl::ParameterSet const& pset)
+  : detprop(lar::providerFrom<detinfo::DetectorPropertiesService>())
+{
   fUGradient  = pset.get<double>("UGradient");
   fUIntercept = pset.get<double>("UIntercept");
   fVGradient  = pset.get<double>("VGradient");
   fVIntercept = pset.get<double>("VIntercept");
   fZGradient  = pset.get<double>("ZGradient");
   fZIntercept = pset.get<double>("ZIntercept");
+
 }
 
 double shower::ShowerEnergyAlg::ShowerEnergy(art::PtrVector<recob::Hit> const& hits, int plane) {
@@ -24,7 +31,7 @@ double shower::ShowerEnergyAlg::ShowerEnergy(art::PtrVector<recob::Hit> const& h
   double totalCharge = 0, totalEnergy = 0;
 
   for (art::PtrVector<recob::Hit>::const_iterator hit = hits.begin(); hit != hits.end(); ++hit)
-    totalCharge += ( (*hit)->Integral() * TMath::Exp( (detprop->SamplingRate() * (*hit)->PeakTime()) / (larprop->ElectronLifetime()*1e3) ) );
+    totalCharge += ( (*hit)->Integral() * TMath::Exp( (detprop->SamplingRate() * (*hit)->PeakTime()) / (detprop->ElectronLifetime()*1e3) ) );
 
   switch (plane) {
   case 0:

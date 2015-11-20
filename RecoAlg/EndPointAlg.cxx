@@ -37,8 +37,8 @@ extern "C" {
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "RecoAlg/EndPointAlg.h"
-#include "Utilities/LArPropertiesService.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/LArPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoBase/EndPoint2D.h"
 #include "RecoBase/Cluster.h"
@@ -142,8 +142,8 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 {
 
   art::ServiceHandle<geo::Geometry> geom;
-  const dataprov::LArProperties* larp = lar::providerFrom<util::LArPropertiesService>();
-  const dataprov::DetectorProperties* detp = lar::providerFrom<util::DetectorPropertiesService>();
+  const detinfo::LArProperties* larp = lar::providerFrom<detinfo::LArPropertiesService>();
+  const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
      
   //Point to a collection of vertices to output.
   std::vector< art::Ptr<recob::Hit> > hit;

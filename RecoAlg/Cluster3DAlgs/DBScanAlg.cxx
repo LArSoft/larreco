@@ -50,10 +50,10 @@ void DBScanAlg::reconfigure(fhicl::ParameterSet const &pset)
     m_numSigmaPeakTime       = pset.get<double>("NumSigmaPeakTime",  5.);
     
     art::ServiceHandle<geo::Geometry>            geometry;
-    //    art::ServiceHandle<util::DetectorPropertiesService> detectorProperties;
+    //    art::ServiceHandle<detinfo::DetectorPropertiesService> detectorProperties;
     
     m_geometry = &*geometry;
-    //    m_detector = lar::providerFrom<util::DetectorPropertiesService>();
+    //    m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     m_timeVector.resize(NUMTIMEVALUES, 0.);
 }

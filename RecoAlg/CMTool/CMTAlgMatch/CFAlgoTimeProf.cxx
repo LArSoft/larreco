@@ -12,7 +12,7 @@
 #include "TMath.h"
 #include "TH1D.h"
 #include "TVirtualFitter.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 
 namespace cmtool {
 
@@ -147,7 +147,7 @@ namespace cmtool {
  float CFAlgoTimeProf::TProfCompare(std::vector<util::PxHit> hita ,std::vector<util::PxHit> hitb)
  {
    ::util::GeometryUtilities geou;
-   const dataprov::DetectorProperties* detp = lar::providerFrom<util::DetectorPropertiesService>();
+   const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 //   int nts = larutil::DetectorProperties::GetME()->NumberTimeSamples()*larutil::GeometryUtilities::GetME()->TimeToCm();
    // Where is this?
    //int nplanes = geom->Nplanes();

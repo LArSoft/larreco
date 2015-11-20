@@ -2,7 +2,7 @@
 #define RECOTOOL_CFALGOCHARGEDISTRIB_CXX
 
 #include "CFAlgoChargeDistrib.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 
 namespace cmtool {
 
@@ -89,7 +89,7 @@ namespace cmtool {
   float CFAlgoChargeDistrib::TProfConvol(std::vector<util::PxHit> hA ,std::vector<util::PxHit> hB)
   {
     ::util::GeometryUtilities geou;
-    const dataprov::DetectorProperties* detp = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
     int NumTimeSamples = detp->NumberTimeSamples() * geou.TimeToCm();
     
     double Tmin = NumTimeSamples;

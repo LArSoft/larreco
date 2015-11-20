@@ -13,6 +13,7 @@
 #define BlurredClustering_h
 
 // Framework includes
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
@@ -21,7 +22,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "DataProviders/DetectorProperties.h"
+#include "DetectorInfo/DetectorProperties.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/SpacePoint.h"
@@ -124,7 +125,7 @@ private:
 
   // art service handles
   art::ServiceHandle<geo::Geometry> fGeom;
-  dataprov::DetectorProperties const* fDetProp;
+  detinfo::DetectorProperties const* fDetProp;
 
 };
 

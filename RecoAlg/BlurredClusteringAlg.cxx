@@ -12,7 +12,7 @@
 #include "RecoAlg/BlurredClusteringAlg.h"
 
 #include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 
 cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset); 
@@ -52,7 +52,7 @@ void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
   fTimeThreshold       = p.get<double>("TimeThreshold");
   fChargeThreshold     = p.get<double>("ChargeThreshold");
   
-  fDetProp = lar::providerFrom<util::DetectorPropertiesService>();
+  fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 }
 
 

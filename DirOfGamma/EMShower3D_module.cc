@@ -18,7 +18,7 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 
 #include "RecoBase/Hit.h"
@@ -179,7 +179,7 @@ recob::Cluster ems::EMShower3D::ConvertFrom(const std::vector< art::Ptr<recob::H
 
 recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 {
-	art::ServiceHandle<util::DetectorProperties> detprop;
+	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
 
 	unsigned int nusedU = 0; unsigned int nusedV = 0; unsigned int nusedZ = 0;
@@ -249,7 +249,7 @@ recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 {
 
-	art::ServiceHandle<util::DetectorProperties> detprop;
+	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
 
 	unsigned int nusedU = 0; unsigned int nusedV = 0; unsigned int nusedZ = 0;
@@ -674,7 +674,7 @@ std::vector< ems::DirOfGamma* > ems::EMShower3D::CollectShower2D(art::Event cons
 
 void ems::EMShower3D::Link(art::Event const & e, std::vector< ems::DirOfGamma* > input)
 {
-	auto const* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	std::vector< std::vector< size_t > > saveids;
 	std::vector< size_t > saveidsnotusedcls;

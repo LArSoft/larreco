@@ -32,7 +32,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
 
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Geometry/Geometry.h"
 #include "RecoBase/Track.h"
 #include "RecoBase/Hit.h"
@@ -95,7 +95,7 @@ namespace {
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get fiducial volume boundary.
 
@@ -157,8 +157,8 @@ namespace {
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    //    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
-    auto const* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    //    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     
     // Get fiducial volume boundary.
@@ -850,7 +850,7 @@ namespace trkf {
   // Arguments: event - Art event.
   //
   {
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<cheat::BackTracker> bt;
     art::ServiceHandle<geo::Geometry> geom;
 
@@ -1456,7 +1456,7 @@ namespace trkf {
 
     art::ServiceHandle<cheat::BackTracker> bt;
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     std::map<int, std::map<int, art::PtrVector<recob::Hit>> > hitmap; // trkID, otrk, hitvec
     std::map<int, int > KEmap; // length traveled in det [cm]?, trkID want to sort by KE

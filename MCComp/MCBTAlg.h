@@ -22,7 +22,7 @@
 //#include "LArUtil/TimeService.h"
 //#include "LArUtil/Geometry.h"
 #include "Simulation/SimChannel.h"
-#include "Utilities/DetectorClocksService.h"
+#include "DetectorInfoServices/DetectorClocksService.h"
 #include "Geometry/Geometry.h"
 #include "MCBTAlgConstants.h"
 #include "MCBTException.h"

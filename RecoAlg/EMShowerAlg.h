@@ -26,7 +26,7 @@
 #include "RecoBase/SpacePoint.h"
 #include "RecoBase/Vertex.h"
 #include "RecoBase/Shower.h"
-#include "DataProviders/DetectorProperties.h"
+#include "DetectorInfo/DetectorProperties.h"
 
 // C++
 #include <iostream>
@@ -68,7 +68,7 @@ public:
 private:
 
   art::ServiceHandle<geo::Geometry> fGeom;
-  dataprov::DetectorProperties const* fDetProp;
+  detinfo::DetectorProperties const* fDetProp;
 
   // Algs used by this class
   ShowerEnergyAlg fShowerEnergyAlg;

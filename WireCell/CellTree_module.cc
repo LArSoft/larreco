@@ -123,7 +123,7 @@ private:
     art::ServiceHandle<geo::Geometry> fGeometry;       // pointer to Geometry service
 
     // art::ServiceHandle<geo::Geometry> fGeom;
-    // // art::ServiceHandle<util::LArProperties> larp;
+    // // art::ServiceHandle<detinfo::LArPropertiesService> larp;
 
     TFile *fOutFile;
     TTree *fEventTree;

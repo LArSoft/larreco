@@ -3,8 +3,8 @@
 #include "RecoAlg/PMAlg/PmaHit3D.h"
 #include "RecoAlg/PMAlg/Utilities.h"
 
-#include "Utilities/DetectorPropertiesService.h"
-#include "DataProviders/DetectorProperties.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
+#include "DetectorInfo/DetectorProperties.h"
 #include "Geometry/Geometry.h"
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
@@ -21,8 +21,8 @@ ems::Hit2D::Hit2D(art::Ptr< recob::Hit > src) :
 fHit(src)
 {
 	geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-	dataprov::DetectorProperties const* detprop
-	  = lar::providerFrom<util::DetectorPropertiesService>();
+	detinfo::DetectorProperties const* detprop
+	  = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	
 	unsigned int plane = src->WireID().Plane;
 	unsigned int tpc   = src->WireID().TPC;

@@ -6,8 +6,7 @@ art_make( LIBRARY_NAME  Segmentation2D
                         Geometry_service
                         RecoObjects
                         AnalysisBase
-                        LArProperties_service
-                        DetectorProperties_service
+#                         LArProperties_service
                         Utilities
            		${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

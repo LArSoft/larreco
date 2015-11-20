@@ -45,8 +45,8 @@
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
-#include "Utilities/LArPropertiesService.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/LArPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 
 #include "TMath.h"
@@ -134,8 +134,8 @@ namespace vertex{
 
     
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     // define TPC parameters
     TString tpcName = geom->GetLArTPCVolumeName();
     

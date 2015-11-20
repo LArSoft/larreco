@@ -180,8 +180,8 @@ namespace cluster {
       return;
     }
 
-    const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
@@ -4625,7 +4625,7 @@ namespace cluster {
         float theTime;
         short dwb, dwe;
 
-	const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+	const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
           // A complete 3D vertex with matching 2D vertices in all planes?
@@ -4709,7 +4709,7 @@ namespace cluster {
         unsigned short thePlane, theWire, plane;
         unsigned short loWire, hiWire;
 
-	const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+	const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
           if(vtx3[ivx].CStat != cstat || vtx3[ivx].TPC != tpc) continue;
@@ -4926,7 +4926,7 @@ namespace cluster {
     };
     std::array< std::vector<Hammer>, 3> hamrVec;
     
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     unsigned short ipl;
     bool useit = false;
@@ -5096,7 +5096,7 @@ namespace cluster {
       
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
       
-      const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+      const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
       
       const unsigned int cstat = tpcid.Cryostat;
       const unsigned int tpc = tpcid.TPC;

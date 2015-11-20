@@ -11,10 +11,10 @@
 #include "RecoAlg/EMShowerAlg.h"
 
 #include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 
 shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset)
-  : fDetProp(lar::providerFrom<util::DetectorPropertiesService>())
+  : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
   , fShowerEnergyAlg(pset.get<fhicl::ParameterSet>("ShowerEnergyAlg"))
   , fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg"))
 {

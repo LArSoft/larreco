@@ -25,7 +25,7 @@
 #include "art/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Principal/View.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 //\todo Remove include of BackTracker.h once this algorithm is stripped of test for MC
 #include "MCCheater/BackTracker.h"
 #include "RecoBase/Hit.h"
@@ -113,7 +113,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Calculate and print geometry information.
 
@@ -210,7 +210,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Correct time for trigger offset and plane-dependent time offsets.
 
@@ -310,7 +310,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     int nhits = hits.size();
 
@@ -463,7 +463,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     double timePitch=detprop->GetXTicksCoefficient();
 
@@ -673,7 +673,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Calculate time pitch.
 
@@ -870,7 +870,7 @@ namespace  trkf{
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Clear space point to hit map.
 

@@ -53,8 +53,8 @@
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 #include "Utilities/StatCollector.h"
-#include "Utilities/LArPropertiesService.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/LArPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "RecoAlg/ClusterParamsImportWrapper.h"
@@ -258,8 +258,8 @@ size_t cluster::HoughBaseAlg::Transform(
   int nClustersTemp = *nClusters;
   
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
-  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+  const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   lariov::ChannelStatusProvider const* channelStatus
     = lar::providerFrom<lariov::ChannelStatusService>();
 
@@ -1056,8 +1056,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  //  const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
-  //  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+  //  const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
+  //  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 //  lariov::ChannelStatusProvider const* channelStatus
 //    = lar::providerFrom<lariov::ChannelStatusService>();
   HoughTransform c;
@@ -1457,8 +1457,8 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   //art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
-  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+  const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   lariov::ChannelStatusProvider const* channelStatus
     = lar::providerFrom<lariov::ChannelStatusService>();
 
@@ -1879,7 +1879,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector< art::Ptr<recob::Hit> > cons
   HoughTransform c;
 
   art::ServiceHandle<geo::Geometry> geom;
-  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
   int dx = geom->Nwires(0);               //number of wires 
   const int dy = detprop->ReadOutWindowSize(); // number of time samples. 

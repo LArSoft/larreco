@@ -11,7 +11,7 @@
 
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 #include "RecoAlg/PMAlg/Utilities.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -112,7 +112,7 @@ void pma::Track3D::ClearNodes(void)
 
 bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 {
-  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
 	art::ServiceHandle<geo::Geometry> geom;
 

@@ -52,7 +52,7 @@
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "SimulationBase/MCTruth.h"
 #include "MCCheater/BackTracker.h"
@@ -324,7 +324,7 @@ private:
      *   Other useful variables
      */
     geo::Geometry*            m_geometry;              ///<  pointer to the Geometry service
-  const dataprov::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
+  const detinfo::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
     
     DBScanAlg                 m_dbScanAlg;             ///<  Algorithm to cluster hits
     PrincipalComponentsAlg    m_pcaAlg;                ///<  Principal Components algorithm
@@ -403,10 +403,10 @@ void Cluster3D::beginJob()
         this->InitializeMonitoring();
     
     art::ServiceHandle<geo::Geometry>            geometry;
-    art::ServiceHandle<util::DetectorPropertiesService> detectorProperties;
+    art::ServiceHandle<detinfo::DetectorPropertiesService> detectorProperties;
     
     m_geometry = &*geometry;
-    m_detector = lar::providerFrom<util::DetectorPropertiesService>();
+    m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

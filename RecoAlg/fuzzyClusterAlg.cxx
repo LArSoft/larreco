@@ -23,8 +23,8 @@
 // LArSoft libraries
 #include "SimpleTypesAndConstants/geo_types.h"
 #include "Filters/ChannelFilter.h"
-#include "Utilities/LArPropertiesService.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/LArPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "RecoAlg/fuzzyClusterAlg.h"
 #include "RecoBase/Hit.h"
 
@@ -174,8 +174,8 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   fBadChannels = badChannels;
   fBadWireSum.clear();
 
-  const dataprov::LArProperties* larp = lar::providerFrom<util::LArPropertiesService>();
-  const dataprov::DetectorProperties* detp = lar::providerFrom<util::DetectorPropertiesService>();
+  const detinfo::LArProperties* larp = lar::providerFrom<detinfo::LArPropertiesService>();
+  const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
 
 
@@ -234,8 +234,8 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
   fvisited.resize(fps.size(), false);
 
   art::ServiceHandle<geo::Geometry> geom;
-  const dataprov::LArProperties* larprop = lar::providerFrom<util::LArPropertiesService>();
-  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+  const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 
   //factor to make x and y scale the same units

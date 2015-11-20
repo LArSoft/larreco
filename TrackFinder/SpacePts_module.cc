@@ -40,7 +40,7 @@
 #include "RecoBase/Track.h"
 #include "RecoBase/Hit.h"
 #include "RecoBase/SpacePoint.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 
 // ROOT includes
@@ -130,7 +130,7 @@ void SpacePts::produce(art::Event& evt)
   
   // get services
   art::ServiceHandle<geo::Geometry> geom;
-  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
   //////////////////////////////////////////////////////
   // Make a std::unique_ptr<> for the thing you want to put into the event

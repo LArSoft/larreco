@@ -232,7 +232,7 @@ void DisambigAlg::MakeDisambigHit( art::Ptr<recob::Hit> hit,
     double BsT = hitB->PeakTimeMinusRMS();
     double BeT = hitB->PeakTimePlusRMS();
 
-    const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     if( hitA->View() == geo::kU ){ AsT -= detprop->TimeOffsetU(); AeT -= detprop->TimeOffsetU(); }
     else if( hitA->View() == geo::kV ){ AsT -= detprop->TimeOffsetV(); AeT -= detprop->TimeOffsetV(); }
@@ -452,7 +452,7 @@ unsigned int DisambigAlg::FindChanTimeEndPts( unsigned int apa )
   double pi = 3.14159265;
   double fMaxEndPRadRange = fMaxEndPDegRange/180. * (2*pi);
 
-  const dataprov::DetectorProperties* detprop = lar::providerFrom<util::DetectorPropertiesService>();
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   for(size_t h=0; h<fAPAToHits[apa].size(); h++){
     art::Ptr<recob::Hit> centhit = fAPAToHits[apa][h];

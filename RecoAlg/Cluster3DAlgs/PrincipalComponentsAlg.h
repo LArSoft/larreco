@@ -13,7 +13,7 @@
 
 // LArSoft includes
 #include "Geometry/Geometry.h"
-#include "Utilities/DetectorPropertiesService.h"
+#include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "RecoObjects/Cluster3D.h"
 
 // Root
@@ -88,7 +88,7 @@ private:
     double                                 m_parallel;  ///< means lines are parallel
     
     geo::Geometry*                         m_geometry;  // pointer to the Geometry service
-    const dataprov::DetectorProperties*    m_detector;  // Pointer to the detector properties
+    const detinfo::DetectorProperties*    m_detector;  // Pointer to the detector properties
 };
 
 } // namespace lar_cluster3d
