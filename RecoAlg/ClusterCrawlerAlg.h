@@ -194,14 +194,7 @@ namespace cluster {
     
     // Wires that have been determined by some filter (e.g. NoiseFilter) to be good
     std::vector<geo::WireID> fFilteredWires;
-
-    // fills the wirehitrange vector for the supplied Cryostat/TPC/Plane code
-
-    void GetHitRange(CTP_t CTP);
-
-    // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
-    void FitClusterMid(unsigned short it1, unsigned int iht, short nhit);
-
+ 
     // these variables define the cluster used during crawling
     float clpar[3];     ///< cluster parameters for the current fit with
                         ///< origin at the US wire on the cluster (in clpar[2])
@@ -298,6 +291,8 @@ namespace cluster {
 
     // Loops over wires looking for seed clusters
     void ClusterLoop();
+    // Returns true if the hits on a cluster have a consistent width
+    bool ClusterHitsOK();
     // Finds a hit on wire kwire, adds it to the cluster and re-fits it
     void AddHit(unsigned short kwire, bool& HitOK, bool& SigOK);
     // Finds a hit on wire kwire, adds it to a LargeAngle cluster and re-fits it
@@ -306,6 +301,8 @@ namespace cluster {
     void FitCluster();
     // Fits the charge of the cluster hits in fcl2hits
     void FitClusterChg();
+     // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
+    void FitClusterMid(unsigned short it1, unsigned int iht, short nhit);
     // Crawls along a trail of hits UpStream
     void CrawlUS();
     // Crawls along a trail of hits UpStream - Large Angle version
@@ -393,6 +390,8 @@ namespace cluster {
 
     // inits everything
     void CrawlInit();
+    // fills the wirehitrange vector for the supplied Cryostat/TPC/Plane code
+    void GetHitRange(CTP_t CTP);
     // Stores cluster information in a temporary vector
     bool TmpStore();
     // Gets a temp cluster and puts it into the working cluster variables
