@@ -56,7 +56,7 @@ public:
   EMShowerAlg(fhicl::ParameterSet const& pset);
 
   void MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
-  void FindVertexTrack(art::Ptr<recob::Track>& vertexTrack, std::map<int,art::Ptr<recob::Hit> > const& vertexMap, std::map<int,art::Ptr<recob::Track> > const& trackMap, std::map<int,std::vector<art::Ptr<recob::Hit> > > const& trackHitsMap);
+  art::Ptr<recob::Track> FindVertexTrack(std::map<int,art::Ptr<recob::Hit> > const& vertexMap, std::map<int,art::Ptr<recob::Track> > const& trackMap, std::map<int,std::vector<art::Ptr<recob::Hit> > > const& trackHitsMap);
   void FindShowerProperties(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt,
 			    TVector3& direction, TVector3& directionError, TVector3& vertex, TVector3& vertexError,
 			    std::vector<double>& totalEnergy, std::vector<double>& totalEnergyError, std::vector<double>& dEdx, std::vector<double>& dEdxError,
@@ -69,6 +69,10 @@ public:
   std::vector<art::Ptr<recob::Hit> > FindTrack(std::vector<art::Ptr<recob::Hit> > const& shower, TVector2 const& start, TVector2 const& end);
   void FindTrack(std::vector<art::Ptr<recob::Hit> > const& shower, std::map<double,int> const& hitToEnd, std::vector<int>& trackHits);
   void FindTrack(TVector2 const& start, TVector2 const& end, std::map<int,std::vector<int> > const& hitWires, std::vector<int>& trackHits);
+  void ProjectVertexIn2D(TVector3 const& vertex,
+			 std::map<int,std::vector<art::Ptr<recob::Hit> > >& trackHitsMap,
+			 std::map<int,std::pair<std::vector<art::Ptr<recob::Hit> >,std::vector<art::Ptr<recob::Hit> > > > const& trackHitsBothEndsMap);
+  TVector2 Project3DPointOntoPlane(TVector3 const& point, unsigned int plane);
   TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
   double GlobalWire(geo::WireID wireID);
   int FindTrackID(art::Ptr<recob::Hit> const& hit);
