@@ -33,6 +33,7 @@
 #include "RecoAlg/ProjectionMatchingAlg.h"
 #include "RecoAlg/PMAlg/PmaTrack3D.h"
 #include "RecoAlg/PMAlg/Utilities.h"
+#include "RecoAlg/ShowerEnergyAlg.h"
 
 #include <memory>
 
@@ -370,9 +371,12 @@ private:
 	double fNarrowConeAngle;
 	double fWideConeAngle;
 
+        shower::ShowerEnergyAlg fShowerEnergyAlg;
+
 };
 
 ems::MergeEMShower3D::MergeEMShower3D(fhicl::ParameterSet const & p) 
+  : fShowerEnergyAlg(p.get<fhicl::ParameterSet>("ShowerEnergyAlg"))
 {
 	reconfigure(p);
 
@@ -544,7 +548,6 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 				dir, v0, front, v0,
 				vd, vd, dedx, vd, gammawithconv[i].PlaneId(), id); 
 
-			cascades->push_back(cas);
 
 			std::vector< art::Ptr<recob::Cluster> > cls;
 			std::vector< art::Ptr<recob::Hit> > hits;
@@ -563,6 +566,16 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 
 				auto ver_list = vtxFromTrk.at(trkKey);
 			}
+
+			std::vector<double> totE;
+			std::vector<double> totEerr;
+			for (int i = 0; i<3; ++i){
+			  totE.push_back(fShowerEnergyAlg.ShowerEnergy(hits,i));
+			  totEerr.push_back(0);
+			}
+			cas.set_total_energy(totE);
+			cas.set_total_energy_err(totEerr);
+			cascades->push_back(cas);
 
 			double vtx_pos[3] = {front.X(), front.Y(), front.Z()};
 			vertices->push_back(recob::Vertex(vtx_pos, fVtxIndex));

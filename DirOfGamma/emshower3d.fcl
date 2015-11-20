@@ -25,6 +25,7 @@ mergeemshower3d:
     NarrowConeAngle:        15
     WideConeAngle:          20
     ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+    ShowerEnergyAlg:        @local::standard_showerenergyalg
     }
 mergeemshower3d.ProjectionMatchingAlg.TrkValidationDist2D: 1.0 # max. distance [cm] used in the track validation in the "third" plane
 
@@ -40,7 +41,17 @@ multiemshowers:
     }
 multiemshowers.ProjectionMatchingAlg.TrkValidationDist2D: 1.0 # max. distance [cm] used in the track validation in the "third" plane
 
+dune35t_emshower3d: @local::emshower3d
+dune35t_emshower3d.CalorimetryAlg: @local::dune35t_calorimetryalgmc
+
 dune10kt_emshower3d: @local::emshower3d
 dune10kt_emshower3d.CalorimetryAlg: @local::dune10kt_calorimetryalgmc
+
+dune35t_mergeemshower3d: @local::mergeemshower3d
+dune35t_mergeemshower3d.ShowerEnergyAlg: @local::dune35t_showerenergy
+
+dune10kt_mergeemshower3d: @local::mergeemshower3d
+dune10kt_mergeemshower3d.ShowerEnergyAlg: @local::dune10kt_showerenergy
+
 
 END_PROLOG
