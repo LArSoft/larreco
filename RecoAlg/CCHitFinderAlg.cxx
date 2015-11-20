@@ -62,6 +62,9 @@ namespace hit {
 
   void CCHitFinderAlg::reconfigure(fhicl::ParameterSet const& pset)
   {
+    if(pset.has_key("MinSigInd")) throw art::Exception(art::errors::Configuration)
+      << "CCHitFinderAlg: Using no-longer-valid fcl input: MinSigInd, MinSigCol, etc";
+    
     fMinPeak            = pset.get<std::vector<float>>("MinPeak");
     fMinRMS             = pset.get<std::vector<float>>("MinRMS");
     fMaxBumps           = pset.get<unsigned short>("MaxBumps");
