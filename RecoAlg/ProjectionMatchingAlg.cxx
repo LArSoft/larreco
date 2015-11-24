@@ -599,10 +599,8 @@ void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, pma::Track3D& sr
 	dst.SortHits();
 	dst.ShiftEndsToHits();
 
-	std::cout << " sort after shrink" << std::endl;
 	dst.MakeProjection();
 	dst.SortHits();
-	std::cout << " sort ok" << std::endl; 
 }
 
 void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,

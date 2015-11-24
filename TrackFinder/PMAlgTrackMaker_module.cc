@@ -1180,14 +1180,17 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 			for (auto const& h : v)
 			{
 				bool trkLike = true;
-				for (size_t j = 0; j < splitCluHandle->size(); ++j)
+				if (fCluModuleLabel != fHitModuleLabel)
 				{
-					auto u = fem.at(j);
-					for (auto const& g : u) // is hit clustered in one of em-like?
+					for (size_t j = 0; j < splitCluHandle->size(); ++j)
 					{
-						if (g.key() == h.key())
+						auto u = fem.at(j);
+						for (auto const& g : u) // is hit clustered in one of em-like?
 						{
-							trkLike = false; break;
+							if (g.key() == h.key())
+							{
+								trkLike = false; break;
+							}
 						}
 					}
 				}
