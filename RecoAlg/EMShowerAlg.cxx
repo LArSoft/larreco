@@ -12,6 +12,7 @@
 
 shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset) : fShowerEnergyAlg(pset.get<fhicl::ParameterSet>("ShowerEnergyAlg")),
                                                                     fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")) {
+  fdEdxTrackLength = pset.get<double>("dEdxTrackLength");
 }
 
 void shower::EMShowerAlg::MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers) {
@@ -57,20 +58,22 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
 
   /// Finds the properties of the shower from the hits in it
 
-  // Consider each plane separately
-  std::map<int,art::PtrVector<recob::Hit> > planeHitsMap;
+  // Find the shower hits on each plane
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > planeHitsMap;
   for (art::PtrVector<recob::Hit>::const_iterator hit = hits.begin(); hit != hits.end(); ++hit)
     planeHitsMap[(*hit)->View()].push_back(*hit);
 
+  // Save information about the hits in each of the views
   std::map<int,art::Ptr<recob::Hit> > vertexMap;
   std::map<int,TVector2> showerCentreMap;
   std::map<int,art::Ptr<recob::Track> > trackMap;
-  std::map<int,std::vector<int> > trackHitsMap;
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > trackHitsMap;
+  std::map<int,std::pair<std::vector<art::Ptr<recob::Hit> >, std::vector<art::Ptr<recob::Hit> > > > trackHitsBothEndsMap;
 
   unsigned int highestNumberOfHits = 0;
 
   // Consider each plane separately to determine shower properties
-  for (std::map<int,art::PtrVector<recob::Hit> >::iterator planeHits = planeHitsMap.begin(); planeHits != planeHitsMap.end(); ++planeHits) {
+  for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeHits = planeHitsMap.begin(); planeHits != planeHitsMap.end(); ++planeHits) {
 
     std::cout << "Plane " << planeHits->first << std::endl;
 
@@ -83,7 +86,7 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
     // Find the charge-weighted centre of this shower
     TVector2 pos, chargePoint = TVector2(0,0);
     double totalCharge = 0;
-    for (art::PtrVector<recob::Hit>::const_iterator planeHit = planeHits->second.begin(); planeHit != planeHits->second.end(); ++planeHit) {
+    for (std::vector<art::Ptr<recob::Hit> >::const_iterator planeHit = planeHits->second.begin(); planeHit != planeHits->second.end(); ++planeHit) {
       pos = HitCoordinates(*planeHit);
       chargePoint += (*planeHit)->Integral() * pos;
       totalCharge += (*planeHit)->Integral();
@@ -105,15 +108,16 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
     // art::Ptr<recob::Track> track = fmt.at(hits.at(trackHits.at(0)).key()).at(0);
 
     // Get the initial track
-    std::vector<int> trackHits1 = FindTrack(planeHits->second, HitCoordinates(end1), HitCoordinates(end2));
-    std::vector<int> trackHits2 = FindTrack(planeHits->second, HitCoordinates(end2), HitCoordinates(end1));
-    std::vector<int> trackHits = trackHits1.size() > trackHits2.size() ? trackHits1 : trackHits2;
+    std::vector<art::Ptr<recob::Hit> > trackHits1 = FindTrack(planeHits->second, HitCoordinates(end1), HitCoordinates(end2));
+    std::vector<art::Ptr<recob::Hit> > trackHits2 = FindTrack(planeHits->second, HitCoordinates(end2), HitCoordinates(end1));
+    trackHitsBothEndsMap[planeHits->first] = std::make_pair(trackHits1, trackHits2);
+    std::vector<art::Ptr<recob::Hit> > trackHits = trackHits1.size() > trackHits2.size() ? trackHits1 : trackHits2;
     trackHitsMap[planeHits->first] = trackHits;
 
     // Find a track object
     art::Ptr<recob::Track> track;
-    for (std::vector<int>::iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
-      std::vector<art::Ptr<recob::Track> > tracks = fmt.at(planeHits->second.at(*trackHitIt).key());
+    for (std::vector<art::Ptr<recob::Hit> >::iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
+      std::vector<art::Ptr<recob::Track> > tracks = fmt.at(trackHitIt->key());
       if (tracks.size() == 0)
 	continue;
       track = tracks.at(0);
@@ -122,22 +126,22 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
     trackMap[planeHits->first] = track;
 
     // Vertex
-    art::Ptr<recob::Hit> planevertex = planeHits->second.at(*trackHits.begin());
+    art::Ptr<recob::Hit> planevertex = *trackHits.begin();
     vertexMap[planeHits->first] = planevertex;
-    std::cout << "The vertex is " << std::endl;
-    HitCoordinates(planevertex).Print();
 
   }
 
   // Find 3D vertex and direction
-  art::Ptr<recob::Track> vertexTrack;
-  FindVertexTrack(vertexTrack, vertexMap, trackMap, trackHitsMap);
+  art::Ptr<recob::Track> vertexTrack = FindVertexTrack(vertexMap, trackMap, trackHitsMap);
   FindShowerStartDirection(vertexTrack, showerCentreMap, vertex, direction);
+
+  // Use the 3D vertex to resolve any problems in 2D
+  ProjectVertexIn2D(vertex, trackHitsMap, trackHitsBothEndsMap);
 
   // Find energy and dE/dx
   for (unsigned int plane = 0; plane < fGeom->MaxPlanes(); ++plane) {
     if (planeHitsMap.count(plane) != 0) {
-      dEdx.push_back(FinddEdx(planeHitsMap.at(plane), vertexTrack, vertexMap.at(plane)->View(), trackHitsMap.at(plane)));
+      dEdx.push_back(FinddEdx(trackHitsMap.at(plane), vertexTrack, plane, vertexMap.at(plane)->View()));
       totalEnergy.push_back(fShowerEnergyAlg.ShowerEnergy(planeHitsMap.at(plane), plane));
     }
     else {
@@ -149,20 +153,46 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
   std::cout << "Best plane is " << bestPlane << std::endl;
   std::cout << "dE/dx for each plane is: " << dEdx[0] << ", " << dEdx[1] << " and " << dEdx[2] << std::endl;
   std::cout << "Total energy for each plane is: " << totalEnergy[0] << ", " << totalEnergy[1] << " and " << totalEnergy[2] << std::endl;
+  std::cout << "The shower start is " << std::endl;
+  vertex.Print();
 
   return;
 
 }
 
-void shower::EMShowerAlg::FindShowerStartDirection(art::Ptr<recob::Track> const& vertexTrack, std::map<int,TVector2> const& showerCentreMap, TVector3& showerVertex, TVector3& showerDirection) {
+void shower::EMShowerAlg::ProjectVertexIn2D(TVector3 const& vertex,
+					    std::map<int,std::vector<art::Ptr<recob::Hit> > >& trackHitsMap,
+					    std::map<int,std::pair<std::vector<art::Ptr<recob::Hit> >,std::vector<art::Ptr<recob::Hit> > > > const& trackHitsBothEndsMap) {
+
+  /// Projects the 3D direction into all the 2D views to make sure the correct end of the track is selected in each view
+
+  for (std::map<int,std::pair<std::vector<art::Ptr<recob::Hit> >, std::vector<art::Ptr<recob::Hit> > > >::const_iterator trackHitsIt = trackHitsBothEndsMap.begin();
+       trackHitsIt != trackHitsBothEndsMap.end();
+       ++trackHitsIt) {
+
+    TVector2 end1 = HitCoordinates(*trackHitsIt->second.first.begin());
+    TVector2 end2 = HitCoordinates(*trackHitsIt->second.second.begin());
+
+    TVector2 vertexProj = Project3DPointOntoPlane(vertex, trackHitsIt->first);
+
+    if ( (vertexProj - end1).Mod() < (vertexProj - end2).Mod() )
+      trackHitsMap[trackHitsIt->first] = trackHitsIt->second.first;
+    else
+      trackHitsMap[trackHitsIt->first] = trackHitsIt->second.second;
+
+  }
+
+}
+
+void shower::EMShowerAlg::FindShowerStartDirection(art::Ptr<recob::Track> const& vertexTrack,
+						   std::map<int,TVector2> const& showerCentreMap,
+						   TVector3& showerVertex,
+						   TVector3& showerDirection) {
 
   /// Finds the start of the shower, and its direction
 
   TVector3 vertex = vertexTrack->Vertex();
   TVector3 end = vertexTrack->End();
-
-  double vertexPosition[3] = {vertex.X(), vertex.Y(), vertex.Z()};
-  double endPosition[3] = {end.X(), end.Y(), end.Z()};
 
   std::map<int,double> distanceToVertex;
   std::map<int,double> distanceToEnd;
@@ -171,10 +201,8 @@ void shower::EMShowerAlg::FindShowerStartDirection(art::Ptr<recob::Track> const&
   for (std::map<int,TVector2>::const_iterator showerCentreIt = showerCentreMap.begin(); showerCentreIt != showerCentreMap.end(); ++showerCentreIt) {
 
     // Project the vertex and the end point onto this plane
-    TVector2 vertexProj = TVector2(fGeom->WireCoordinate(vertex.Y(), vertex.Z(), showerCentreIt->first, fGeom->FindTPCAtPosition(vertexPosition).TPC % 2, 0),
-				   fDetProp->ConvertXToTicks(vertex.X(), showerCentreIt->first, fGeom->FindTPCAtPosition(vertexPosition).TPC % 2, 0));
-    TVector2 endProj = TVector2(fGeom->WireCoordinate(end.Y(), end.Z(), showerCentreIt->first, fGeom->FindTPCAtPosition(endPosition).TPC % 2, 0),
-				fDetProp->ConvertXToTicks(end.X(), showerCentreIt->first, fGeom->FindTPCAtPosition(vertexPosition).TPC % 2, 0));
+    TVector2 vertexProj = Project3DPointOntoPlane(vertex, showerCentreIt->first);
+    TVector2 endProj    = Project3DPointOntoPlane(end, showerCentreIt->first);
 
     // Find the distance of each to the centre of the cluster
     distanceToVertex[showerCentreIt->first] = (vertexProj - showerCentreIt->second).Mod();
@@ -229,9 +257,13 @@ void shower::EMShowerAlg::FindShowerStartDirection(art::Ptr<recob::Track> const&
 
 // }
 
-void shower::EMShowerAlg::FindVertexTrack(art::Ptr<recob::Track>& vertexTrack, std::map<int,art::Ptr<recob::Hit> > const& vertexMap, std::map<int,art::Ptr<recob::Track> > const& trackMap, std::map<int,std::vector<int> > const& trackHitsMap) {
+art::Ptr<recob::Track> shower::EMShowerAlg::FindVertexTrack(std::map<int,art::Ptr<recob::Hit> > const& vertexMap,
+							    std::map<int,art::Ptr<recob::Track> > const& trackMap,
+							    std::map<int,std::vector<art::Ptr<recob::Hit> > > const& trackHitsMap) {
 
   /// Finds the 3D vertex and direction given the tracks associated with the 2D vertex
+
+  art::Ptr<recob::Track> vertexTrack;
 
   // First, find out if two views agree on a track (normally they will)
   std::map<int,std::vector<int> > trackIDToPlanes;
@@ -247,7 +279,7 @@ void shower::EMShowerAlg::FindVertexTrack(art::Ptr<recob::Track>& vertexTrack, s
 
   // If there are no planes with a track reconstructed, don't carry on right now
   if (planesWithTrack.size() == 0)
-    return;
+    return vertexTrack;
 
   // If they don't, try to use the third view (it exsits) to pick the correct track
   if (vertexTrack.isNull() and trackMap.size() > 2) {
@@ -274,20 +306,20 @@ void shower::EMShowerAlg::FindVertexTrack(art::Ptr<recob::Track>& vertexTrack, s
     vertexTrack = trackMap.at(lengthOfTrackToPlane.rbegin()->second);
   }
 
-  return;
+  return vertexTrack;
 
 }
 
-std::vector<int> shower::EMShowerAlg::FindTrack(art::PtrVector<recob::Hit> const& shower, TVector2 const& start, TVector2 const& end) {
+std::vector<art::Ptr<recob::Hit> > shower::EMShowerAlg::FindTrack(std::vector<art::Ptr<recob::Hit> > const& shower, TVector2 const& start, TVector2 const& end) {
 
   /// Finds the track from the start of the shower
 
-  std::vector<int> trackHits;
+  std::vector<art::Ptr<recob::Hit> > trackHits;
 
   // Map of hit on each wire
-  std::map<int,std::vector<int> > hitWires;
-  for (art::PtrVector<recob::Hit>::const_iterator hit = shower.begin(); hit != shower.end(); ++hit)
-    hitWires[(int)HitCoordinates(*hit).X()].push_back(std::distance(shower.begin(), hit));
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > hitWires;
+  for (std::vector<art::Ptr<recob::Hit> >::const_iterator hit = shower.begin(); hit != shower.end(); ++hit)
+    hitWires[(int)HitCoordinates(*hit).X()].push_back(*hit);
 
   // Call the track ended when there is more than one hit on a wire twice in three wires
   std::vector<int> lastTwoWires = {0, 0};
@@ -308,7 +340,7 @@ std::vector<int> shower::EMShowerAlg::FindTrack(art::PtrVector<recob::Hit> const
 	break;
       else {
 	if (numberOfHitsOnThisWire)
-	  for (std::vector<int>::const_iterator hitWireIt = hitWires.at(wire).begin(); hitWireIt != hitWires.at(wire).end(); ++hitWireIt)
+	  for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitWireIt = hitWires.at(wire).begin(); hitWireIt != hitWires.at(wire).end(); ++hitWireIt)
 	    trackHits.push_back(*hitWireIt);
 	lastTwoWires[0] = lastTwoWires[1];
 	lastTwoWires[1] = numberOfHitsOnThisWire;
@@ -325,7 +357,7 @@ std::vector<int> shower::EMShowerAlg::FindTrack(art::PtrVector<recob::Hit> const
 	break;
       else {
 	if (numberOfHitsOnThisWire)
-	  for (std::vector<int>::const_iterator hitWireIt = hitWires.at(wire).begin(); hitWireIt != hitWires.at(wire).end(); ++hitWireIt)
+	  for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitWireIt = hitWires.at(wire).begin(); hitWireIt != hitWires.at(wire).end(); ++hitWireIt)
 	    trackHits.push_back(*hitWireIt);
 	lastTwoWires[0] = lastTwoWires[1];
 	lastTwoWires[1] = numberOfHitsOnThisWire;
@@ -340,7 +372,10 @@ std::vector<int> shower::EMShowerAlg::FindTrack(art::PtrVector<recob::Hit> const
 
 }
 
-void shower::EMShowerAlg::FindShowerEnds(art::PtrVector<recob::Hit> const& shower, TVector2 const& centre, art::Ptr<recob::Hit>& end1, art::Ptr<recob::Hit>& end2) {
+void shower::EMShowerAlg::FindShowerEnds(std::vector<art::Ptr<recob::Hit> > const& shower,
+					 TVector2 const& centre,
+					 art::Ptr<recob::Hit>& end1,
+					 art::Ptr<recob::Hit>& end2) {
 
   /// Roughly finds the two 'ends' of the shower (one is the vertex, one isn't well defined!)
 
@@ -349,7 +384,7 @@ void shower::EMShowerAlg::FindShowerEnds(art::PtrVector<recob::Hit> const& showe
   std::map<int,TVector2> hitCentreVector;
 
   // Find the distance of each hit from the shower centre
-  for (art::PtrVector<recob::Hit>::const_iterator hit = shower.begin(); hit != shower.end(); ++hit) {
+  for (std::vector<art::Ptr<recob::Hit> >::const_iterator hit = shower.begin(); hit != shower.end(); ++hit) {
     TVector2 pos = HitCoordinates(*hit);
     double distanceFromCentre = (pos - centre).Mod();
     hitDistances[distanceFromCentre] = std::distance(shower.begin(),hit);
@@ -375,32 +410,33 @@ void shower::EMShowerAlg::FindShowerEnds(art::PtrVector<recob::Hit> const& showe
 
 }
 
-double shower::EMShowerAlg::FinddEdx(art::PtrVector<recob::Hit> const& shower, art::Ptr<recob::Track> const& track, geo::View_t const& view, std::vector<int> const& trackHits) {
+double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, art::Ptr<recob::Track> const& track, unsigned int plane, geo::View_t const& view) {
 
   /// Finds dE/dx for the track given a set of hits
 
-  std::vector<double> dEdx;
+  double totalCharge = 0, totalDistance = 0, avHitTime = 0;
   double pitch = 0;
+  unsigned int nHits = 0;
 
-  for (std::vector<int>::const_iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
+  for (std::vector<art::Ptr<recob::Hit> >::const_iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
     try { pitch = track->PitchInView(view); }
     catch(...) { pitch = 0; }
-    dEdx.push_back(fCalorimetryAlg.dEdx_AREA(shower.at(*trackHitIt), pitch));
+    if (totalDistance + pitch < fdEdxTrackLength) {
+      totalDistance += pitch;
+      totalCharge += (*trackHitIt)->Integral();
+      avHitTime += (*trackHitIt)->PeakTime();
+      ++nHits;
+      // double dEdx = fCalorimetryAlg.dEdx_AREA(shower.at(*trackHitIt), pitch);
+      // std::cout << "After " << totalDistance << ", the dE/dx is " << dEdx << std::endl;
+    }
   }
 
-  double avdEdx = 0;
-  for (std::vector<double>::iterator dEdxIt = dEdx.begin(); dEdxIt != dEdx.end(); ++dEdxIt)
-    avdEdx += *dEdxIt;
+  avHitTime /= (double)nHits;
 
-  avdEdx /= dEdx.size();
+  double dQdx = totalCharge / totalDistance;
+  double dEdx = fCalorimetryAlg.dEdx_AREA(dQdx, avHitTime, plane);
 
-
-  // // Try a different method
-  // double avCharge = 0, avTime = 0;
-  // for (std::vector<int>::const_iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
-  // }
-
-  return avdEdx;
+  return dEdx;
 
 }
 
@@ -612,6 +648,17 @@ double shower::EMShowerAlg::GlobalWire(geo::WireID wireID) {
   }
 
   return globalWire;
+
+}
+
+TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, unsigned int plane) {
+
+  /// Projects a 3D point onto a 2D plane
+
+  double pointPosition[3] = {point.X(), point.Y(), point.Z()};
+
+  return TVector2(fGeom->WireCoordinate(point.Y(), point.Z(), plane, fGeom->FindTPCAtPosition(pointPosition).TPC % 2, 0),
+		  fDetProp->ConvertXToTicks(point.X(), plane, fGeom->FindTPCAtPosition(pointPosition).TPC % 2, 0));
 
 }
 

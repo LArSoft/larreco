@@ -31,7 +31,7 @@ class shower::ShowerEnergyAlg {
  public:
 
   ShowerEnergyAlg(fhicl::ParameterSet const& pset);
-  double ShowerEnergy(art::PtrVector<recob::Hit> const& hits, int plane);
+  double ShowerEnergy(std::vector<art::Ptr<recob::Hit> > const& hits, int plane);
 
  private:
 

@@ -30,6 +30,8 @@ void shower::TrackShowerSeparationAlg::reconfigure(fhicl::ParameterSet const& ps
   fAngleCut           = pset.get<double>("AngleCut");
   fDistanceCut        = pset.get<double>("DistanceCut");
   fVertexProximityCut = pset.get<double>("VertexProximityCut");
+  fTrackProximityCut  = pset.get<double>("TrackProximityCut");
+  fAvTrackHitDistance = pset.get<double>("AvTrackHitDistance");
 }
 
 void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::vector<art::Ptr<recob::Track> >& tracks,
@@ -94,22 +96,43 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksNearTracks(std::vector<art:
       identifiedTracks.push_back(*trackIt);
 
   // Look through tracks
-  for (std::vector<art::Ptr<recob::Track> >::const_iterator trackIt = tracks.begin(); trackIt != tracks.end(); ++trackIt) {
+  bool allTracksRemoved = false;
+  while (!allTracksRemoved) {
 
-    // Don't consider tracks already tagged as tracks!
-    if (std::find(fTrackLikeIDs.begin(), fTrackLikeIDs.end(), (*trackIt)->ID()) != fTrackLikeIDs.end())
-      continue;
+    int tracksRemoved = 0;
 
-    // Find tracks which are close to previous identified tracks
-    for (std::vector<art::Ptr<recob::Track> >::iterator identifiedTrackIt = identifiedTracks.begin(); identifiedTrackIt != identifiedTracks.end(); ++identifiedTrackIt) {
-      if (std::find(fShowerLikeIDs.begin(), fShowerLikeIDs.end(), (*trackIt)->ID()) != fShowerLikeIDs.end())
+    // Look through all the tracks
+    for (std::vector<art::Ptr<recob::Track> >::const_iterator trackIt = tracks.begin(); trackIt != tracks.end(); ++trackIt) {
+
+      // Don't consider tracks already tagged as tracks!
+      if (std::find(fTrackLikeIDs.begin(), fTrackLikeIDs.end(), (*trackIt)->ID()) != fTrackLikeIDs.end())
 	continue;
-      if ( ( ((*trackIt)->Vertex() - (*identifiedTrackIt)->Vertex()).Mag() < fVertexProximityCut ) or
-	   ( ((*trackIt)->Vertex() - (*identifiedTrackIt)->End()   ).Mag() < fVertexProximityCut ) or
-	   ( ((*trackIt)->End()    - (*identifiedTrackIt)->Vertex()).Mag() < fVertexProximityCut ) or
-	   ( ((*trackIt)->End()    - (*identifiedTrackIt)->End()   ).Mag() < fVertexProximityCut ) )
+
+      bool trackShouldBeRemoved = false;
+
+      // Find tracks which are close to previously identified tracks
+      for (std::vector<art::Ptr<recob::Track> >::iterator identifiedTrackIt = identifiedTracks.begin(); identifiedTrackIt != identifiedTracks.end(); ++identifiedTrackIt) {
+	if (std::find(fShowerLikeIDs.begin(), fShowerLikeIDs.end(), (*trackIt)->ID()) != fShowerLikeIDs.end())
+	  continue;
+	if ( ( ((*trackIt)->Vertex() - (*identifiedTrackIt)->Vertex()).Mag() < fTrackProximityCut ) or
+	     ( ((*trackIt)->Vertex() - (*identifiedTrackIt)->End()   ).Mag() < fTrackProximityCut ) or
+	     ( ((*trackIt)->End()    - (*identifiedTrackIt)->Vertex()).Mag() < fTrackProximityCut ) or
+	     ( ((*trackIt)->End()    - (*identifiedTrackIt)->End()   ).Mag() < fTrackProximityCut ) )
+	  trackShouldBeRemoved = true;
+      }
+
+      // Tag this track as a 'track-like' object
+      if (trackShouldBeRemoved) {
 	fTrackLikeIDs.push_back((*trackIt)->ID());
+	identifiedTracks.push_back(*trackIt);
+	++tracksRemoved;
+      }
+
     }
+
+    // If there were no tracks removed then we'll call it a day
+    if (tracksRemoved == 0)
+      allTracksRemoved = true;
 
   }
 
@@ -179,7 +202,7 @@ bool shower::TrackShowerSeparationAlg::IdentifyShowerLikeTrack(TVector3 const& e
   // Get the average spread of these space points
   double spread = SpacePointSpread(spacePointsInCone);
 
-  if (spread < 1)
+  if (spread < fAvTrackHitDistance)
     return false;
 
   return true;
@@ -330,8 +353,8 @@ void shower::TrackShowerSeparationAlg::RemoveTrackHits(std::vector<art::Ptr<reco
   else
     this->IdentifyTracksFromEventCentre(tracks, spacePoints, fmtsp);
 
-  // // Once we've identified some tracks, can look for others at the ends
-  // this->IdentifyTracksNearTracks(tracks);
+  // Once we've identified some tracks, can look for others at the ends
+  this->IdentifyTracksNearTracks(tracks);
 
   this->FillHitsToCluster(initialHits, hitsToCluster, fmth);
 

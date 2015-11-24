@@ -34,6 +34,7 @@ standard_emshoweralg:
 {
  CalorimetryAlg:  @local::standard_calorimetryalgmc
  ShowerEnergyAlg: @local::standard_showerenergyalg
+ dEdxTrackLength: 3
 }
 
 standard_emshower:
