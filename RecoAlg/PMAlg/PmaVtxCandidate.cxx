@@ -447,10 +447,10 @@ bool pma::VtxCandidate::JoinTracks(
 
 	//for (size_t i = 0; i < fAssigned.size(); i++)
 	//{
-		//std::cout << "  chk loops:" << i << " " << fAssigned[i].first->GetRoot() << std::endl;
-		//std::vector< pma::Track3D const * > b;
-		//bool noLoops = fAssigned[i].first->GetRoot()->GetBranches(b);
-		//if (noLoops) std::cout << "  ok" << std::endl;
+	//	std::cout << "  chk loops:" << i << " " << fAssigned[i].first->GetRoot() << std::endl;
+	//	std::vector< pma::Track3D const * > b;
+	//	bool noLoops = fAssigned[i].first->GetRoot()->GetBranches(b);
+	//	if (noLoops) std::cout << "  ok" << std::endl;
 	//}
 
 	for (size_t i = 0; i < fAssigned.size(); i++)

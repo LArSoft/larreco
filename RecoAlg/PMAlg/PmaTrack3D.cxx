@@ -1238,7 +1238,11 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 			//std::cout << "Do not reattach from vtx inner in another track." << std::endl;
 			return false;
 		}
-		else if (tpThis->CanFlip()) tpThis->Flip(); // flip in local vtx, no problem
+		else if (tpThis->CanFlip())
+		{
+			//std::cout << "Flip local." << std::endl;
+			tpThis->Flip();
+		} // flip in local vtx, no problem
 		else
 		{
 			if (vStart->Prev())
@@ -1265,6 +1269,13 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 					return false;
 				}
 			}
+			else
+			{
+				mf::LogVerbatim("pma::Track3D") << "Reconnect prev to vStart.";
+				//std::cout << "Reconnect prev to vStart." << std::endl;
+				tpThis->fNodes[tpThis->fNodes.size() - 1] = vStart;
+				segThis->AddNext(vStart);
+			}
 		}
 	}
 
@@ -1277,6 +1288,8 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 		trk->fNodes[0] = vStart;
 		vStart->AddNext(seg);
 	}
+
+	//std::cout << " next: " << vtx->NextCount() << " prev: " << vtx->Prev() << std::endl;
 
 	if (vtx->NextCount() || vtx->Prev()) // better throw here
 	{
