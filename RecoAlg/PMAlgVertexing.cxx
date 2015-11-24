@@ -86,20 +86,32 @@ void pma::PMAlgVertexing::sortTracks(
 
 std::vector< pma::VtxCandidate > pma::PMAlgVertexing::firstPassCandidates(void)
 {
+	std::cout << "************ find cadidates " << std::endl;
+
 	std::vector< pma::VtxCandidate > candidates;
 	for (size_t t = 0; t < fOutTracks.size() - 1; t++)
 	{
+		//std::cout << " trk t " << t << std::endl;
+
 		for (size_t u = t + 1; u < fOutTracks.size(); u++)
 		{
+			//std::cout << " trk u " << u << std::endl;
+
 			pma::VtxCandidate candidate;
 			if (!candidate.Add(fOutTracks[t])) break; // no segments with length > thr
+
+			//std::cout << " .A. " << std::endl;
 
 			// **************************** try Mse2D / or only Mse ************************************
 			if (candidate.Add(fOutTracks[u]) && (sqrt(candidate.Mse()) < 1.0))
 			//if (candidate.Add(fOutTracks[u]) && (sqrt(candidate.Mse()) < 2.0) && (candidate.Mse2D() < 1.0))
+			{
+				//std::cout << " .B. " << std::endl;
 				candidates.push_back(candidate);
+			}
 		}
 	}
+	std::cout << " cadidates ok " << std::endl;
 	return candidates;
 }
 
@@ -127,6 +139,7 @@ std::vector< pma::VtxCandidate > pma::PMAlgVertexing::secondPassCandidates(void)
 
 size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candidates)
 {
+	std::cout << " ----- find Vtx ------ " << std::endl;
 	bool merged = true;
 	while (merged && (candidates.size() > 1))
 	{
@@ -169,12 +182,13 @@ size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candida
 		if ((dmin < d_thr) && candidates[k_best].MergeWith(candidates[l_best]))
 		{
 			candidates.erase(candidates.begin() + l_best);
+			std::cout << " merged cadidates " << std::endl;
 			merged = true;
 		}
 	}
 
-	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx candidates: " << candidates.size();
-	//std::cout << "*** Vtx candidates: " << candidates.size() << std::endl;
+	//mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx candidates: " << candidates.size();
+	std::cout << "*** Vtx candidates: " << candidates.size() << std::endl;
 	std::vector< pma::VtxCandidate > toJoin;
 	bool select = true;
 	while (select)
@@ -184,6 +198,12 @@ size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candida
 
 		for (size_t v = 0; v < candidates.size(); v++)
 		{
+			if (candidates[v].HasLoops())
+			{
+				std::cout << "*** Candidate has loops. ***" << std::endl;
+				continue;
+			}
+
 			bool correlated = false;
 			for (size_t u = 0; u < toJoin.size(); u++)
 				if (toJoin[u].IsAttached(candidates[v]) || // connected with tracks or close centers
@@ -224,11 +244,17 @@ size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candida
 		}
 		else select = false;
 	}
-	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx selected to join: " << toJoin.size();
-	//std::cout << "*** Vtx selected to join: " << toJoin.size() << std::endl;
+	//mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx selected to join: " << toJoin.size();
+	std::cout << "*** Vtx selected to join: " << toJoin.size() << std::endl;
 
 	size_t njoined = 0;
-	for (auto & c : toJoin) if (c.JoinTracks(fOutTracks, fEmTracks)) njoined++;
+	for (auto & c : toJoin)
+	{
+		std::cout << " join " << njoined << std::endl;
+		if (c.JoinTracks(fOutTracks, fEmTracks)) njoined++;
+		std::cout << "   ok " << std::endl;
+	}
+
 	return njoined;
 }
 // ------------------------------------------------------
@@ -245,7 +271,8 @@ size_t pma::PMAlgVertexing::run(
 	sortTracks(trk_input); // copy input and split by tag/size
 
 	size_t nvtx = 0;
-	mf::LogVerbatim("pma::PMAlgVertexing") << "Pass #1:";
+	//mf::LogVerbatim("pma::PMAlgVertexing") << "Pass #1:";
+	std::cout << "Pass #1:" << std::endl;
 	if (fOutTracks.size() > 1)
 	{
 		size_t nfound = 0;
@@ -260,11 +287,13 @@ size_t pma::PMAlgVertexing::run(
 			else nfound = 0;
 		}
 		while (nfound > 0);
-		mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
+		//mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
+		std::cout << "  " << nvtx << " vertices." << std::endl;
 	}
 	else mf::LogVerbatim("pma::PMAlgVertexing") << " ...short tracks only.";
 
-	mf::LogVerbatim("pma::PMAlgVertexing") << "Pass #2:";
+	//mf::LogVerbatim("pma::PMAlgVertexing") << "Pass #2:";
+	std::cout << "Pass #2:" << std::endl;
 	if (fOutTracks.size() && fEmTracks.size())
 	{
 		size_t nfound = 1; // just to start
@@ -278,14 +307,18 @@ size_t pma::PMAlgVertexing::run(
 			}
 			else nfound = 0;
 		}
-		mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
+		//mf::LogVerbatim("pma::PMAlgVertexing") << "  " << nvtx << " vertices.";
+		std::cout << "  " << nvtx << " vertices." << std::endl;
 	}
 	else mf::LogVerbatim("pma::PMAlgVertexing") << " ...no tracks.";
 
+	std::cout << " collect tracks" << std::endl;
 	collectTracks(trk_input);
 
+	std::cout << " merge broken" << std::endl;
 	mergeBrokenTracks(trk_input);
 
+	std::cout << " run done" << std::endl;
 	return nvtx;
 }
 // ------------------------------------------------------

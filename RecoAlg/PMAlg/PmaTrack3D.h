@@ -196,9 +196,8 @@ public:
 	bool AddNode(void);
 
 	void InsertNode(
-		TVector3 const & p3d, size_t after_idx,
+		TVector3 const & p3d, size_t at_idx,
 		unsigned int tpc, unsigned int cryo);
-	//pma::Node3D* ExtractNodeCopy(size_t idx); // used to split branching track, *** need to be reorganised ***
 	bool RemoveNode(size_t idx);
 
 	pma::Track3D* Split(size_t idx);
@@ -208,7 +207,7 @@ public:
 	bool IsAttachedTo(pma::Track3D const * trk) const;
 
 	pma::Track3D* GetRoot(void);
-	void GetBranches(std::vector< pma::Track3D const * >& branches) const;
+	bool GetBranches(std::vector< pma::Track3D const * >& branches, bool skipFirst = false) const;
 
 	void MakeProjection(void);
 	void UpdateProjection(void);

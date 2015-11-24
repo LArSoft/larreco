@@ -41,6 +41,8 @@ public:
 
 	bool IsAttached(const VtxCandidate& other) const;
 
+	bool HasLoops(void) const;
+
 	bool Add(pma::Track3D* trk);
 
 	double ComputeMse2D(void);
