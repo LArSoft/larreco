@@ -133,6 +133,7 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
 
   // Find 3D vertex and direction
   art::Ptr<recob::Track> vertexTrack = FindVertexTrack(vertexMap, trackMap, trackHitsMap);
+  if (vertexTrack.isNull()) return;
   FindShowerStartDirection(vertexTrack, showerCentreMap, vertex, direction);
 
   // Use the 3D vertex to resolve any problems in 2D
@@ -415,12 +416,20 @@ double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& t
   /// Finds dE/dx for the track given a set of hits
 
   double totalCharge = 0, totalDistance = 0, avHitTime = 0;
-  double pitch = 0;
   unsigned int nHits = 0;
 
+  // Get the pitch
+  double pitch = 0;
+  try { pitch = track->PitchInView(view); }
+  catch(...) { pitch = 0; }
+
+  // Deal with large pitches
+  if (pitch > fdEdxTrackLength) {
+    double dEdx = fCalorimetryAlg.dEdx_AREA(*trackHits.begin(), pitch);
+    return dEdx;
+  }
+
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
-    try { pitch = track->PitchInView(view); }
-    catch(...) { pitch = 0; }
     if (totalDistance + pitch < fdEdxTrackLength) {
       totalDistance += pitch;
       totalCharge += (*trackHitIt)->Integral();

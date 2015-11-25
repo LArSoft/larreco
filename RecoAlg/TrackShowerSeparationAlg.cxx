@@ -217,7 +217,8 @@ void shower::TrackShowerSeparationAlg::FillHitsToCluster(const std::vector<art::
 
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator initialHit = initialHits.begin(); initialHit != initialHits.end(); ++initialHit) {
     std::vector<art::Ptr<recob::Track> > showerTracks = fmt.at(initialHit->key());
-    if ( showerTracks.size() and (std::find(fTrackLikeIDs.begin(), fTrackLikeIDs.end(), showerTracks.at(0)->ID()) == fTrackLikeIDs.end()) )
+    if ( (showerTracks.size() and (std::find(fTrackLikeIDs.begin(), fTrackLikeIDs.end(), showerTracks.at(0)->ID()) == fTrackLikeIDs.end()))//hit on track-like track
+	 || !showerTracks.size() )//hit not on any track
       hitsToCluster.push_back(*initialHit);
   }
 
@@ -330,6 +331,9 @@ void shower::TrackShowerSeparationAlg::RemoveTrackHits(std::vector<art::Ptr<reco
     hitsToCluster = initialHits;
     return;
   }
+
+  fTrackLikeIDs.clear();
+  fShowerLikeIDs.clear();
 
   // Find the vertex furthest upstream (if it exists)
   art::Ptr<recob::Vertex> vertex;
