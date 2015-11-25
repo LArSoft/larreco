@@ -332,6 +332,9 @@ void shower::TrackShowerSeparationAlg::RemoveTrackHits(std::vector<art::Ptr<reco
     return;
   }
 
+  fTrackLikeIDs.clear();
+  fShowerLikeIDs.clear();
+
   // Find the vertex furthest upstream (if it exists)
   art::Ptr<recob::Vertex> vertex;
   for (std::vector<art::Ptr<recob::Vertex> >::const_iterator vertexIt = vertices.begin(); vertexIt != vertices.end(); ++vertexIt) {
