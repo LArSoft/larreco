@@ -133,6 +133,7 @@ void shower::EMShowerAlg::FindShowerProperties(art::PtrVector<recob::Hit> const&
 
   // Find 3D vertex and direction
   art::Ptr<recob::Track> vertexTrack = FindVertexTrack(vertexMap, trackMap, trackHitsMap);
+  if (vertexTrack.isNull()) return;
   FindShowerStartDirection(vertexTrack, showerCentreMap, vertex, direction);
 
   // Use the 3D vertex to resolve any problems in 2D
