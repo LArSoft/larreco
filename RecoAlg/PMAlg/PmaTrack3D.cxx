@@ -1503,13 +1503,14 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits)
 			unsigned int iter = 0;
 			while ((gstep > eps) && (iter < 1000))
 			{
-				MakeProjection();
+				//MakeProjection();
+
+				if ((fNodes.size() < 4) || (iter % 10 == 0)) MakeProjection();
+				else MakeFastProjection();
+
 				UpdateParams();
 
-				for (size_t j = 0; j < fNodes.size(); j++)
-				{
-					fNodes[j]->Optimize(fPenaltyValue, fEndSegWeight);
-				}
+				for (auto n : fNodes) n->Optimize(fPenaltyValue, fEndSegWeight);
 
 				g1 = g0; g0 = GetObjFunction();
 
@@ -2160,11 +2161,12 @@ double pma::Track3D::Dist2(const TVector3& p3d) const
 }
 
 pma::Element3D* pma::Track3D::GetNearestElement(
-	const TVector2& p2d, unsigned int view) const
+	const TVector2& p2d, unsigned int view, int tpc) const
 {
-	pma::Element3D* pe_min = fNodes.front();
-	double dist, min_dist = pe_min->GetDistance2To(p2d, view);
-	for (size_t i = 1; i < fNodes.size(); i++)
+	pma::Element3D* pe_min = 0;
+	double dist, min_dist = 1.0e9;
+	for (size_t i = 0; i < fNodes.size(); i++)
+		if ((tpc == -1) || (fNodes[i]->TPC() == tpc))
 	{
 		dist = fNodes[i]->GetDistance2To(p2d, view);
 		if (dist < min_dist)
@@ -2173,6 +2175,7 @@ pma::Element3D* pma::Track3D::GetNearestElement(
 		}
 	}
 	for (size_t i = 0; i < fSegments.size(); i++)
+		if ((tpc == -1) || (fSegments[i]->TPC() == tpc))
 	{
 		if (fSegments[i]->TPC() < 0) continue; // segment between TPC's
 
@@ -2182,6 +2185,7 @@ pma::Element3D* pma::Track3D::GetNearestElement(
 			min_dist = dist; pe_min = fSegments[i];
 		}
 	}
+	if (!pe_min) mf::LogError("pma::Track3D") << "Nearest element not found.";
 	return pe_min;
 }
 
@@ -2461,22 +2465,21 @@ void pma::Track3D::SelectHits(float fraction)
 
 void pma::Track3D::MakeProjection(void)
 {
-	for (size_t i = 0; i < fNodes.size(); i++) fNodes[i]->ClearAssigned(this);
-	for (size_t i = 0; i < fSegments.size(); i++) fSegments[i]->ClearAssigned(this);
+	for (auto n : fNodes) n->ClearAssigned(this);
+	for (auto s : fSegments) s->ClearAssigned(this);
 
 	pma::Element3D* pe = 0;
 
-	for (size_t i = 0; i < size(); i++) // assign hits to nodes/segments
+	for (auto h : fHits) // assign hits to nodes/segments
 	{
-		pma::Hit3D* hit = (*this)[i];
-		pe = GetNearestElement(hit->Point2D(), hit->View2D());
-		pe->AddHit(hit);
+		pe = GetNearestElement(h->Point2D(), h->View2D(), h->TPC());
+		pe->AddHit(h);
 	}
 
-	for (size_t i = 0; i < fAssignedPoints.size(); i++) // assign ref points to nodes/segments
+	for (auto p : fAssignedPoints) // assign ref points to nodes/segments
 	{
-		pe = GetNearestElement(*(fAssignedPoints[i]));
-		pe->AddPoint(fAssignedPoints[i]);
+		pe = GetNearestElement(*p);
+		pe->AddPoint(p);
 	}
 
 	// move hits to segments if not branching
@@ -2493,14 +2496,135 @@ void pma::Track3D::MakeProjection(void)
 		fNodes.back()->ClearAssigned();
 	}
 
-	for (unsigned int i = 0; i < fNodes.size(); i++) fNodes[i]->UpdateHitParams();
-	for (unsigned int i = 0; i < fSegments.size(); i++) fSegments[i]->UpdateHitParams();
+	for (auto n : fNodes) n->UpdateHitParams();
+	for (auto s : fSegments) s->UpdateHitParams();
+}
+
+void pma::Track3D::MakeFastProjection(void)
+{
+	std::vector< std::pair< pma::Hit3D*, pma::Element3D* > > assignments;
+	assignments.reserve(fHits.size());
+
+	for (auto hi : fHits)
+	{
+		pma::Element3D* pe = 0;
+
+		for (auto s : fSegments)
+		{
+			for (size_t j = 0; j < s->NHits(); ++j)
+				if (hi == s->Hits()[j]) // look at next/prev vtx,seg,vtx
+			{
+				pe = s;
+				double d2, min_d2 = s->GetDistance2To(hi->Point2D(), hi->View2D());
+
+				pma::Node3D* nnext = static_cast< pma::Node3D* >(s->Next());
+				d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
+				if (d2 < min_d2)
+				{
+					min_d2 = d2; pe = nnext;
+					pma::Segment3D* snext = NextSegment(nnext);
+					if (snext)
+					{
+						d2 = snext->GetDistance2To(hi->Point2D(), hi->View2D());
+						if (d2 < min_d2) { min_d2 = d2; pe = snext; }
+
+						nnext = static_cast< pma::Node3D* >(snext->Next());
+						d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
+						if (d2 < min_d2) { min_d2 = d2; pe = nnext; }
+					}
+				}
+
+				pma::Node3D* nprev = static_cast< pma::Node3D* >(s->Prev());
+				d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
+				if (d2 < min_d2)
+				{
+					min_d2 = d2; pe = nprev;
+					pma::Segment3D* sprev = PrevSegment(nprev);
+					if (sprev)
+					{
+						d2 = sprev->GetDistance2To(hi->Point2D(), hi->View2D());
+						if (d2 < min_d2) { min_d2 = d2; pe = sprev; }
+
+						nprev = static_cast< pma::Node3D* >(sprev->Prev());
+						d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
+						if (d2 < min_d2) { min_d2 = d2; pe = nprev; }
+					}
+				}
+
+				s->RemoveHitAt(j); break;
+			}
+			if (pe) break;
+		}
+
+		if (!pe) for (auto n : fNodes)
+		{
+			for (size_t j = 0; j < n->NHits(); ++j)
+				if (hi == n->Hits()[j]) // look at next/prev seg,vtx,seg
+			{
+				pe = n;
+				double d2, min_d2 = n->GetDistance2To(hi->Point2D(), hi->View2D());
+
+				pma::Segment3D* snext = NextSegment(n);
+				if (snext)
+				{
+					d2 = snext->GetDistance2To(hi->Point2D(), hi->View2D());
+					if (d2 < min_d2)
+					{
+						min_d2 = d2; pe = snext;
+						pma::Node3D* nnext = static_cast< pma::Node3D* >(snext->Next());
+
+						d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
+						if (d2 < min_d2) { min_d2 = d2; pe = nnext; }
+
+						snext = NextSegment(nnext);
+						if (snext)
+						{
+							d2 = snext->GetDistance2To(hi->Point2D(), hi->View2D());
+							if (d2 < min_d2) { min_d2 = d2; pe = snext; }
+						}
+					}
+				}
+
+				pma::Segment3D* sprev = PrevSegment(n);
+				if (sprev)
+				{
+					d2 = sprev->GetDistance2To(hi->Point2D(), hi->View2D());
+					if (d2 < min_d2)
+					{
+						min_d2 = d2; pe = sprev;
+						pma::Node3D* nprev = static_cast< pma::Node3D* >(sprev->Prev());
+
+						d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
+						if (d2 < min_d2) { min_d2 = d2; pe = nprev; }
+
+						sprev = PrevSegment(nprev);
+						if (sprev)
+						{
+							d2 = sprev->GetDistance2To(hi->Point2D(), hi->View2D());
+							if (d2 < min_d2) { min_d2 = d2; pe = sprev; }
+						}
+					}
+				}
+
+				n->RemoveHitAt(j); break;
+			}
+			if (pe) break;
+		}
+
+		if (pe) assignments.emplace_back(std::pair< pma::Hit3D*, pma::Element3D* >(hi, pe));
+		else mf::LogWarning("pma::Track3D") << "Hit was not assigned to any element.";
+	}
+
+	for (auto const & a : assignments) a.second->AddHit(a.first);
+
+	for (auto n : fNodes) n->UpdateHitParams();
+	for (auto s : fSegments) s->UpdateHitParams();
 }
 
 void pma::Track3D::UpdateProjection(void)
 {
-	for (size_t i = 0; i < fNodes.size(); i++) fNodes[i]->UpdateProjection();
-	for (size_t i = 0; i < fSegments.size(); i++) fSegments[i]->UpdateProjection();
+	for (auto n : fNodes) n->UpdateProjection();
+	for (auto s : fSegments) s->UpdateProjection();
 }
 
 double pma::Track3D::AverageDist2(void) const

@@ -49,7 +49,14 @@ public:
 	virtual double Length2(void) const = 0;
 	double Length(void) const { return sqrt(Length2()); }
 
+	const std::vector< pma::Hit3D* > & Hits(void) const { return fAssignedHits; }
+
 	pma::Hit3D& Hit(size_t index) { return *(fAssignedHits[index]); }
+	void RemoveHitAt(size_t index)
+	{
+		if (index < fAssignedHits.size())
+			fAssignedHits.erase(fAssignedHits.begin() + index);
+	}
 	void AddHit(pma::Hit3D* h)
 	{
 		fAssignedHits.push_back(h);
