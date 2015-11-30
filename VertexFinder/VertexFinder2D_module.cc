@@ -45,7 +45,6 @@
 #include "Geometry/TPCGeo.h"
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
-#include "DetectorInfoServices/LArPropertiesService.h"
 #include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 
@@ -134,7 +133,6 @@ namespace vertex{
 
     
     art::ServiceHandle<geo::Geometry> geom;
-    const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     // define TPC parameters
     TString tpcName = geom->GetLArTPCVolumeName();
@@ -150,7 +148,7 @@ namespace vertex{
 
     double wire_pitch   = geom->WirePitch(0,1,0); //wire pitch in cm
     double Efield_drift = detprop->Efield();      // Electric Field in the drift region in kV/cm
-    double Temperature  = larprop->Temperature(); // LAr Temperature in K
+    double Temperature  = detprop->Temperature(); // LAr Temperature in K
     
     //drift velocity in the drift region (cm/us)
     double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature); 

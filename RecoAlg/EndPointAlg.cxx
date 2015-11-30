@@ -37,7 +37,6 @@ extern "C" {
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "RecoAlg/EndPointAlg.h"
-#include "DetectorInfoServices/LArPropertiesService.h"
 #include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoBase/EndPoint2D.h"
@@ -142,7 +141,6 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 {
 
   art::ServiceHandle<geo::Geometry> geom;
-  const detinfo::LArProperties* larp = lar::providerFrom<detinfo::LArPropertiesService>();
   const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
      
   //Point to a collection of vertices to output.
@@ -341,7 +339,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 	      // Note that there are 1/0.0743=13.46 time samples per 4.0 mm (wire pitch in ArgoNeuT), 
 	      // assuming a 1.5 mm/us drift velocity for a 500 V/cm E-field 
 	      
-	      double drifttick  = detp->DriftVelocity(detp->Efield(),larp->Temperature());
+	      double drifttick  = detp->DriftVelocity(detp->Efield(),detp->Temperature());
 	      drifttick *= detp->SamplingRate()*1.e-3;
 	      double wirepitch  = geom->WirePitch(0,1,0);
 	      double corrfactor = drifttick/wirepitch;

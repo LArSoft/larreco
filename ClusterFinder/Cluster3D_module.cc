@@ -403,7 +403,6 @@ void Cluster3D::beginJob()
         this->InitializeMonitoring();
     
     art::ServiceHandle<geo::Geometry>            geometry;
-    art::ServiceHandle<detinfo::DetectorPropertiesService> detectorProperties;
     
     m_geometry = &*geometry;
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();

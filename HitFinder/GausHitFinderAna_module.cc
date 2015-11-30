@@ -19,7 +19,6 @@
 #include "MCCheater/BackTracker.h"
 #include "RecoBase/Wire.h"
 #include "RecoBase/Hit.h"
-#include "DetectorInfoServices/LArPropertiesService.h"
 #include "DetectorInfoServices/DetectorPropertiesService.h"
 
 // ROOT includes
@@ -216,11 +215,6 @@ namespace hit{
     // ####################################
     art::ServiceHandle<geo::Geometry> geom;
   
-    // #######################################
-    // ### Getting Liquid Argon Properites ###
-    // #######################################
-    const detinfo::LArProperties* larp = lar::providerFrom<detinfo::LArPropertiesService>();
-  
     // ###################################
     // ### Getting Detector Properties ###
     // ###################################
@@ -345,7 +339,7 @@ namespace hit{
     // === Calculating Time Tick and Drift Velocity ===
     // ================================================
     double time_tick      = detp->SamplingRate()/1000.;
-    double drift_velocity = detp->DriftVelocity(detp->Efield(),larp->Temperature());
+    double drift_velocity = detp->DriftVelocity(detp->Efield(),detp->Temperature());
     
     for(size_t nh = 0; nh < hitHandle->size(); nh++)
        {

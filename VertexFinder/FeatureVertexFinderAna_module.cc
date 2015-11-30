@@ -26,7 +26,6 @@
 #include "Simulation/sim.h"
 #include "Simulation/SimListUtils.h"
 #include "MCCheater/BackTracker.h"
-#include "DetectorInfoServices/LArPropertiesService.h"
 #include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 
@@ -312,11 +311,6 @@ void FeatureVertexFinderAna::analyze(const art::Event& evt)
   // ###################################
   const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
-  // ##############################
-  // ### Getting LAr Properties ###
-  // ##############################
-  const detinfo::LArProperties* larp = lar::providerFrom<detinfo::LArPropertiesService>();
-  
   // ######################################################
   // ### Getting 2d Vertex information (vertex2dHandle) ###
   // ######################################################
@@ -350,7 +344,7 @@ void FeatureVertexFinderAna::analyze(const art::Event& evt)
   // ### Calculating the Timetick to CM conversion  ###
   // ##################################################
   float TimeTick      = detp->SamplingRate()/1000.; //<---To get units of microsecond...not nanosec
-  float DriftVelocity = detp->DriftVelocity(detp->Efield(),larp->Temperature());
+  float DriftVelocity = detp->DriftVelocity(detp->Efield(),detp->Temperature());
                 
   float TimetoCm      = TimeTick*DriftVelocity;
 

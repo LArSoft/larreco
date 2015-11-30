@@ -355,7 +355,7 @@ namespace trkf{
 
       double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
       double Efield_drift = detprop->Efield(0);  // Electric Field in the drift region in kV/cm
-      double Temperature = larprop->Temperature();  // LAr Temperature in K
+      double Temperature = detprop->Temperature();  // LAr Temperature in K
       
       double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
       double timepitch = driftvelocity*timetick;         
@@ -484,7 +484,7 @@ namespace trkf{
 
     double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
     double Efield_drift = detprop->Efield(0);  // Electric Field in the drift region in kV/cm
-    double Temperature = larprop->Temperature();  // LAr Temperature in K
+    double Temperature = detprop->Temperature();  // LAr Temperature in K
     double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
     double time_pitch = driftvelocity*timetick;   //time sample (cm) 
 

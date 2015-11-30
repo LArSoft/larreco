@@ -180,7 +180,6 @@ namespace cluster {
       return;
     }
 
-    const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
@@ -239,7 +238,7 @@ namespace cluster {
         // get the scale factor to convert dTick/dWire to dX/dU. This is used
         // to make the kink and merging cuts
         float wirePitch = geom->WirePitch(geom->View(channel));
-        float tickToDist = detprop->DriftVelocity(detprop->Efield(),larprop->Temperature());
+        float tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
         tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
         fScaleF = tickToDist / wirePitch;
         // convert Large Angle Cluster crawling cut to a slope cut

@@ -53,7 +53,6 @@
 #include "Geometry/PlaneGeo.h"
 #include "Geometry/WireGeo.h"
 #include "Utilities/StatCollector.h"
-#include "DetectorInfoServices/LArPropertiesService.h"
 #include "DetectorInfoServices/DetectorPropertiesService.h"
 #include "Utilities/AssociationUtil.h"
 #include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
@@ -258,7 +257,6 @@ size_t cluster::HoughBaseAlg::Transform(
   int nClustersTemp = *nClusters;
   
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   lariov::ChannelStatusProvider const* channelStatus
     = lar::providerFrom<lariov::ChannelStatusService>();
@@ -288,7 +286,7 @@ size_t cluster::HoughBaseAlg::Transform(
   std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
   
   /// \todo provide comment about where the 0.001 comes from
-  double driftVelFactor = 0.001*detprop->DriftVelocity(detprop->Efield(),larprop->Temperature());
+  double driftVelFactor = 0.001*detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
   
   for(size_t p = 0; p < xyScale.size(); ++p)
     xyScale[p] = driftVelFactor * detprop->SamplingRate()/wire_pitch[p];
@@ -1056,7 +1054,6 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  //  const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
   //  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 //  lariov::ChannelStatusProvider const* channelStatus
 //    = lar::providerFrom<lariov::ChannelStatusService>();
@@ -1112,7 +1109,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       
       /*
       //factor to make x and y scale the same units
-      double xyScale  = .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+      double xyScale  = .001*detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
       xyScale        *= detprop->SamplingRate()/geom->WirePitch(0,1,p,t,cs);
       
       int x, y;
@@ -1283,7 +1280,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       uint32_t     channel = hit[0]->Channel();
       double wirePitch = geom->WirePitch(geom->View(channel));
       double wire_dist = wirePitch;
-      double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+      double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
       tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
       //std::cout << "New line" << std::endl;
       int missedHits=0;
@@ -1457,7 +1454,6 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   //art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
   geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
-  const detinfo::LArProperties* larprop = lar::providerFrom<detinfo::LArPropertiesService>();
   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   lariov::ChannelStatusProvider const* channelStatus
     = lar::providerFrom<lariov::ChannelStatusService>();
@@ -1528,7 +1524,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
 
   /// \todo explain where the 0.001 comes from
-  double driftVelFactor = 0.001*detprop->DriftVelocity(detprop->Efield(),larprop->Temperature());
+  double driftVelFactor = 0.001*detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
 
   for(size_t p = 0; p < xyScale.size(); ++p) 
     xyScale[p] = driftVelFactor * detprop->SamplingRate()/wire_pitch[p];
@@ -1714,7 +1710,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       // we have to go back to the first hit (in terms of lastHits[i]) of that channel to find the distance
       // between hits
       //std::cout << "New line" << std::endl;
-      double tickToDist = detprop->DriftVelocity(detprop->Efield(),larprop->Temperature());
+      double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
       tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
       int missedHits=0;
       int lastHitsChannel = 0;//lastHits.at(0);
