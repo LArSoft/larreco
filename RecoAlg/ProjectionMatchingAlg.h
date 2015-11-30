@@ -90,7 +90,7 @@ public:
 	/// optional vmin is the minimum fraction of hits seen from two views.
 	pma::Track3D* buildTrack(
 		const std::vector< art::Ptr<recob::Hit> >& hits_1,
-		const std::vector< art::Ptr<recob::Hit> >& hits_2) const;
+		const std::vector< art::Ptr<recob::Hit> >& hits_2 = std::vector< art::Ptr<recob::Hit> >()) const;
 
 	/// Build a straight segment from two sets of hits (they should origin from two wire planes);
 	/// method is intendet for short tracks or shower initial parts, where only a few hits
