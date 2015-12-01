@@ -2516,38 +2516,47 @@ void pma::Track3D::MakeFastProjection(void)
 			{
 				pe = s;
 				double d2, min_d2 = s->GetDistance2To(hi->Point2D(), hi->View2D());
+				int tpc = hi->TPC();
 
 				pma::Node3D* nnext = static_cast< pma::Node3D* >(s->Next());
-				d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
-				if (d2 < min_d2)
+				if (nnext->TPC() == tpc)
 				{
-					min_d2 = d2; pe = nnext;
+					d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
+					if (d2 < min_d2) { min_d2 = d2; pe = nnext; }
+
 					pma::Segment3D* snext = NextSegment(nnext);
-					if (snext)
+					if (snext && (snext->TPC() == tpc))
 					{
 						d2 = snext->GetDistance2To(hi->Point2D(), hi->View2D());
 						if (d2 < min_d2) { min_d2 = d2; pe = snext; }
 
 						nnext = static_cast< pma::Node3D* >(snext->Next());
-						d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
-						if (d2 < min_d2) { min_d2 = d2; pe = nnext; }
+						if (nnext->TPC() == tpc)
+						{
+							d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
+							if (d2 < min_d2) { min_d2 = d2; pe = nnext; }
+						}
 					}
 				}
 
 				pma::Node3D* nprev = static_cast< pma::Node3D* >(s->Prev());
-				d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
-				if (d2 < min_d2)
+				if (nprev->TPC() == tpc)
 				{
-					min_d2 = d2; pe = nprev;
+					d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
+					if (d2 < min_d2) { min_d2 = d2; pe = nprev; }
+
 					pma::Segment3D* sprev = PrevSegment(nprev);
-					if (sprev)
+					if (sprev && (sprev->TPC() == tpc))
 					{
 						d2 = sprev->GetDistance2To(hi->Point2D(), hi->View2D());
 						if (d2 < min_d2) { min_d2 = d2; pe = sprev; }
 
 						nprev = static_cast< pma::Node3D* >(sprev->Prev());
-						d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
-						if (d2 < min_d2) { min_d2 = d2; pe = nprev; }
+						if (nprev->TPC() == tpc)
+						{
+							d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
+							if (d2 < min_d2) { min_d2 = d2; pe = nprev; }
+						}
 					}
 				}
 
@@ -2563,21 +2572,22 @@ void pma::Track3D::MakeFastProjection(void)
 			{
 				pe = n;
 				double d2, min_d2 = n->GetDistance2To(hi->Point2D(), hi->View2D());
+				int tpc = hi->TPC();
 
 				pma::Segment3D* snext = NextSegment(n);
-				if (snext)
+				if (snext && (snext->TPC() == tpc))
 				{
 					d2 = snext->GetDistance2To(hi->Point2D(), hi->View2D());
-					if (d2 < min_d2)
-					{
-						min_d2 = d2; pe = snext;
-						pma::Node3D* nnext = static_cast< pma::Node3D* >(snext->Next());
+					if (d2 < min_d2) { min_d2 = d2; pe = snext; }
 
+					pma::Node3D* nnext = static_cast< pma::Node3D* >(snext->Next());
+					if (nnext->TPC() == tpc)
+					{
 						d2 = nnext->GetDistance2To(hi->Point2D(), hi->View2D());
 						if (d2 < min_d2) { min_d2 = d2; pe = nnext; }
 
 						snext = NextSegment(nnext);
-						if (snext)
+						if (snext && (snext->TPC() == tpc))
 						{
 							d2 = snext->GetDistance2To(hi->Point2D(), hi->View2D());
 							if (d2 < min_d2) { min_d2 = d2; pe = snext; }
@@ -2586,19 +2596,19 @@ void pma::Track3D::MakeFastProjection(void)
 				}
 
 				pma::Segment3D* sprev = PrevSegment(n);
-				if (sprev)
+				if (sprev && (sprev->TPC() == tpc))
 				{
 					d2 = sprev->GetDistance2To(hi->Point2D(), hi->View2D());
-					if (d2 < min_d2)
-					{
-						min_d2 = d2; pe = sprev;
-						pma::Node3D* nprev = static_cast< pma::Node3D* >(sprev->Prev());
+					if (d2 < min_d2) { min_d2 = d2; pe = sprev; }
 
+					pma::Node3D* nprev = static_cast< pma::Node3D* >(sprev->Prev());
+					if (nprev->TPC() == tpc)
+					{
 						d2 = nprev->GetDistance2To(hi->Point2D(), hi->View2D());
 						if (d2 < min_d2) { min_d2 = d2; pe = nprev; }
 
 						sprev = PrevSegment(nprev);
-						if (sprev)
+						if (sprev && (sprev->TPC() == tpc))
 						{
 							d2 = sprev->GetDistance2To(hi->Point2D(), hi->View2D());
 							if (d2 < min_d2) { min_d2 = d2; pe = sprev; }
