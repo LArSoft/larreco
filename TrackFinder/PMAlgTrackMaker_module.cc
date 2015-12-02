@@ -52,6 +52,7 @@
 #include "RecoAlg/ProjectionMatchingAlg.h"
 #include "RecoAlg/PMAlgVertexing.h"
 #include "RecoAlg/PMAlg/Utilities.h"
+#include "RecoAlg/PMAlg/PmaTrkCandidate.h"
 
 #include "TTree.h"
 #include "TMath.h"
@@ -66,13 +67,6 @@ typedef std::map< unsigned int, view_hitmap > tpc_view_hitmap;
 typedef std::map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
 
 typedef std::map< size_t, std::vector<pma::Track3D*> > tpc_track_map;
-
-struct TrkCandidate {
-	pma::Track3D* Track;
-	std::vector< size_t > Clusters;
-	double Mse, Validation;
-	bool Good;
-};
 
 class PMAlgTrackMaker : public art::EDProducer {
 public:
@@ -105,12 +99,12 @@ private:
     size_t minBuildSize, unsigned int tpc, unsigned int cryo);
 
   bool extendTrack(
-	TrkCandidate& candidate,
+	pma::TrkCandidate& candidate,
 	const std::vector< art::Ptr<recob::Hit> >& hits,
 	unsigned int testView, bool add_nodes);
 
   int matchCluster(
-    const TrkCandidate& trk,
+    const pma::TrkCandidate& trk,
 	art::Handle< std::vector<recob::Cluster> > clusters,
 	size_t minSize, double fraction,
 	unsigned int preferedView, unsigned int testView,
@@ -140,7 +134,7 @@ private:
   	return false;
   }
 
-  std::vector< TrkCandidate > fCandidates;
+  std::vector< pma::TrkCandidate > fCandidates;
 
   int maxCluster(
     art::Handle< std::vector<recob::Cluster> > clusters,
@@ -540,31 +534,30 @@ double PMAlgTrackMaker::validate(pma::Track3D& trk, unsigned int testView)
 }
 // ------------------------------------------------------
 
-bool PMAlgTrackMaker::extendTrack(TrkCandidate& candidate,
+bool PMAlgTrackMaker::extendTrack(pma::TrkCandidate& candidate,
 	const std::vector< art::Ptr<recob::Hit> >& hits,
 	unsigned int testView, bool add_nodes)
 {
-	double m_max = 2.0 * candidate.Mse; // max acceptable MSE value
+	double m_max = 2.0 * candidate.Mse(); // max acceptable MSE value
 	if (m_max < 0.05) m_max = 0.05;     // this is still good, low MSE value
 
-	double v_min1 = 0.98 * candidate.Validation;
-	double v_min2 = 0.9 * candidate.Validation;
+	double v_min1 = 0.98 * candidate.Validation();
+	double v_min2 = 0.9 * candidate.Validation();
 
-	pma::Track3D* copy = fProjectionMatchingAlg.extendTrack(*(candidate.Track), hits, add_nodes);
+	pma::Track3D* copy = fProjectionMatchingAlg.extendTrack(*(candidate.Track()), hits, add_nodes);
 	double m1 = copy->GetMse();
 	double v1 = validate(*copy, testView);
 
-	if (((m1 < candidate.Mse) && (v1 >= v_min2)) ||
+	if (((m1 < candidate.Mse()) && (v1 >= v_min2)) ||
 	    ((m1 < 0.5) && (m1 <= m_max) && (v1 >= v_min1)))
 	{
 		mf::LogVerbatim("PMAlgTrackMaker")
 			<< "  track EXTENDED, MSE = " << m1 << ", v = " << v1;
-		delete candidate.Track;    // delete previous version of the track
-		candidate.Track = copy;    // replace with the new track
+		candidate.SetTrack(copy);  // replace with the new track (deletes old one)
 		copy->SortHits();          // sort hits in the new track
 
-		candidate.Mse = m1;        // save info
-		candidate.Validation = v1;
+		candidate.SetMse(m1);      // save info
+		candidate.SetValidation(v1);
 
 		return true;
 	}
@@ -1496,7 +1489,7 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, std::vector< pma::Tra
 	return result.size();
 }
 
-int PMAlgTrackMaker::matchCluster(const TrkCandidate& trk,
+int PMAlgTrackMaker::matchCluster(const pma::TrkCandidate& trk,
 	art::Handle< std::vector<recob::Cluster> > clusters,
 	size_t minSize, double fraction,
 	unsigned int preferedView, unsigned int testView,
@@ -1511,13 +1504,13 @@ int PMAlgTrackMaker::matchCluster(const TrkCandidate& trk,
 		unsigned int nhits = fCluHits.at(i).size();
 
 		if (has(used_clusters, i) ||                             // don't try already used clusters
-			has(trk.Clusters, i) ||                              // don't try clusters from this candidate
+			has(trk.Clusters(), i) ||                            // don't try clusters from this candidate
 		    (view == testView) ||                                // don't use clusters from validation view
 		    ((preferedView != geo::kUnknown)&&(view != preferedView)) || // only prefered view if specified
 		    (nhits < minSize))                                   // skip small clusters
 		    continue;
 
-		n = fProjectionMatchingAlg.testHits(*(trk.Track), fCluHits.at(i));
+		n = fProjectionMatchingAlg.testHits(*(trk.Track()), fCluHits.at(i));
 		f = n / (double)fCluHits.at(i).size();
 		if ((f > fraction) && (n > max))
 		{
@@ -1588,8 +1581,8 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 			bool try_build = true;
 			while (try_build) // loop over complementary views
 			{
-				TrkCandidate candidate;
-				candidate.Clusters.push_back(max_first_idx);
+				pma::TrkCandidate candidate;
+				candidate.Clusters().push_back(max_first_idx);
 
 				int idx, max_sec_a_idx, max_sec_b_idx;
 				max_sec_a_idx = maxCluster(max_first_idx, clusters, tmin, tmax, minSizeCompl, sec_view_a, tpc, cryo);
@@ -1623,24 +1616,24 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 					double m0 = 0.0, v0 = 0.0;
 					double mseThr = 0.15, validThr = 0.7; // cuts for a good track candidate
 
-					candidate.Clusters.push_back(idx);
-					candidate.Track = fProjectionMatchingAlg.buildTrack(v_first, fCluHits.at(idx));
+					candidate.Clusters().push_back(idx);
+					candidate.SetTrack(fProjectionMatchingAlg.buildTrack(v_first, fCluHits.at(idx)));
 
-					if (candidate.Track && // no track if hits from 2 views do not alternate
-					    fProjectionMatchingAlg.isContained(*(candidate.Track))) // sticks out of TPC's?
+					if (candidate.IsValid() && // no track if hits from 2 views do not alternate
+					    fProjectionMatchingAlg.isContained(*(candidate.Track()))) // sticks out of TPC's?
 					{
-						m0 = candidate.Track->GetMse();
+						m0 = candidate.Track()->GetMse();
 						if (m0 < mseThr) // check validation only if MSE is passing - thanks for Tracy for noticing this
-							v0 = validate(*(candidate.Track), testView);
+							v0 = validate(*(candidate.Track()), testView);
 					}
-					if (candidate.Track && (m0 < mseThr) && (v0 > validThr)) // good candidate, try to extend it
+					if (candidate.Track() && (m0 < mseThr) && (v0 > validThr)) // good candidate, try to extend it
 					{
 						mf::LogVerbatim("PMAlgTrackMaker")
 							<< "  good track candidate, MSE = " << m0 << ", v = " << v0;
 
-						candidate.Mse = m0;
-						candidate.Validation = v0;
-						candidate.Good = true;
+						candidate.SetMse(m0);
+						candidate.SetValidation(v0);
+						candidate.SetGood(true);
 
 						size_t minSize = 5;      // min size for clusters matching
 						double fraction = 0.5;   // min fraction of close hits
@@ -1655,7 +1648,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 								//                src,        hits,    valid.plane, add nodes
 								if (extendTrack(candidate, fCluHits.at(idx),  testView,    true))
 								{
-									candidate.Clusters.push_back(idx);
+									candidate.Clusters().push_back(idx);
 								}
 								else idx = -1;
 							}
@@ -1674,21 +1667,21 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 								// validation not checked here, no new nodes:
 								if (extendTrack(candidate, fCluHits.at(idx), geo::kUnknown, false))
 								{
-									candidate.Clusters.push_back(idx);
+									candidate.Clusters().push_back(idx);
 									extended = true;
 								}
 								else idx = -1;
 							}
 						}
 						// need to calculate again only if trk was extended w/o checking validation:
-						if (extended) candidate.Validation = validate(*(candidate.Track), testView);
+						if (extended) candidate.SetValidation(validate(*(candidate.Track()), testView));
 					}
 					else
 					{
 						mf::LogVerbatim("PMAlgTrackMaker") << "track REJECTED, MSE = " << m0 << "; v = " << v0;
-						candidate.Good = false; // save also bad matches to avoid trying again the same pair of clusters
+						candidate.SetGood(false); // save also bad matches to avoid trying again the same pair of clusters
 					}
-					fCandidates.push_back(candidate);
+					fCandidates.emplace_back(candidate);
 				}
 				else
 				{
@@ -1701,35 +1694,35 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 				int best_trk = -1;
 				double f, max_f = 0., min_mse = 10., max_v = 0.;
 				for (size_t t = 0; t < fCandidates.size(); t++)
-					if (fCandidates[t].Good &&
-					    (fCandidates[t].Track->Nodes().size() > 1) &&
-					    fCandidates[t].Track->HasTwoViews())
+					if (fCandidates[t].IsGood() &&
+					    (fCandidates[t].Track()->Nodes().size() > 1) &&
+					    fCandidates[t].Track()->HasTwoViews())
 				{
-					f = fProjectionMatchingAlg.twoViewFraction(*(fCandidates[t].Track));
+					f = fProjectionMatchingAlg.twoViewFraction(*(fCandidates[t].Track()));
 
 					if ((f > max_f) || ((f == max_f) &&
-						((fCandidates[t].Validation > max_v) || (fCandidates[t].Mse < min_mse))))
+						((fCandidates[t].Validation() > max_v) || (fCandidates[t].Mse() < min_mse))))
 					{
 						max_f = f;
-						min_mse = fCandidates[t].Mse;
-						max_v = fCandidates[t].Validation;
+						min_mse = fCandidates[t].Mse();
+						max_v = fCandidates[t].Validation();
 						best_trk = t;
 					}
 				}
 
-				if ((best_trk > -1) && fCandidates[best_trk].Good && (max_f > fMinTwoViewFraction))
+				if ((best_trk > -1) && fCandidates[best_trk].IsGood() && (max_f > fMinTwoViewFraction))
 				{
-					fCandidates[best_trk].Track->ShiftEndsToHits();
+					fCandidates[best_trk].Track()->ShiftEndsToHits();
 
-					result.push_back(fCandidates[best_trk].Track);
+					result.push_back(fCandidates[best_trk].Track());
 
-					for (auto c : fCandidates[best_trk].Clusters)
+					for (auto c : fCandidates[best_trk].Clusters())
 						used_clusters.push_back(c);
                 }
 
 				for (size_t t = 0; t < fCandidates.size(); t++)
 				{
-					if (int(t) != best_trk) delete fCandidates[t].Track;
+					if (int(t) != best_trk) fCandidates[t].DeleteTrack();
 				}
 				fCandidates.clear();
 			}
@@ -1795,7 +1788,7 @@ int PMAlgTrackMaker::maxCluster(size_t first_idx,
 
 		bool pair_checked = false;
 		for (auto const & c : fCandidates)
-			if (has(c.Clusters, first_idx) && has(c.Clusters, i))
+			if (has(c.Clusters(), first_idx) && has(c.Clusters(), i))
 			{
 				pair_checked = true; break;
 			}
