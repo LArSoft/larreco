@@ -1252,7 +1252,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				break;
 		}
 
-		if (result.size()) // ok, there is something to save
+		if (!result.empty()) // ok, there is something to save
 		{
 			size_t spStart = 0, spEnd = 0;
 			double sp_pos[3], sp_err[6];
@@ -1262,7 +1262,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			if (fFlipToBeam) dQdxFlipThr = 0.4;
 
 			tracks->reserve(result.size());
-			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); fTrkIndex++)
+			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
 			{
 				pma::Track3D* trk = result[fTrkIndex];
 				if (!(trk->HasTwoViews() && (trk->Nodes().size() > 1)))
@@ -1292,12 +1292,11 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				trk->SelectHits();  // just in case, set all to enabled
 				unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
-
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) trk->CompleteMissingWires(geo::kU);
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(geo::kV);
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(geo::kZ);
 
-				tracks->push_back(convertFrom(*trk));
+				tracks->emplace_back(convertFrom(*trk));
 
 				double xShift = trk->GetXShift();
 				if (xShift > 0.0)
@@ -1389,7 +1388,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			}
 
 			// data prods done, delete all pma::Track3D's
-			for (size_t t = 0; t < result.size(); t++) delete result[t];
+			for (auto t : result) delete t;
 		}
 	}
 	else mf::LogError("PMAlgTrackMaker") << "Hits not found in the event.";

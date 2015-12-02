@@ -86,9 +86,7 @@ size_t pma::VtxCandidate::Size(double minLength) const
 
 bool pma::VtxCandidate::Add(pma::Track3D* trk)
 {
-	//std::cout << " Add.1 " << std::endl;
 	if (IsAttached(trk)) return false;
-	//std::cout << " Add.2 " << std::endl;
 
 	fAssigned.push_back(std::pair< pma::Track3D*, size_t >(trk, 0));
 
@@ -100,8 +98,6 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 		d_best = kMaxDistToTrack;
 		for (size_t n = 0; n < trk->Nodes().size() - 1; n++)
 		{
-			//std::cout << " Add.3 " << n << std::endl;
-
 			pma::Segment3D* seg = trk->NextSegment(trk->Nodes()[n]);
 			if (seg->Length() < fSegMinLength) continue;
 
