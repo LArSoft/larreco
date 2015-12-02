@@ -47,8 +47,10 @@ standard_pmalgtrackmaker:
                                       #    clusters are processed from the largest, best time-matching down
                                       #    to small pieces which are merged with existing tracks or used
                                       #    to create smaller tracks at the end
-                                      # 2: use existing assocs of clusters (from external algorithm, to be
-                                      #    used by the shower reconstruction but not yet ready)
+                                      # 2: use existing assocs of clusters to PFParticle to limit set of
+                                      #    clusters used by internal pattern recognition
+                                      # 3: simply use all clusters associated to PFParticle to create 3D
+                                      #    tracks (no pattern recognition at all, no corrections, etc)
                                       #
   MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
   MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks

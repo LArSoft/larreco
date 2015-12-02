@@ -114,8 +114,13 @@ private:
   void listUsedClusters(art::Handle< std::vector<recob::Cluster> > clusters) const;
   // ------------------------------------------------------
 
-  // build tracks from clusters associated by any other module - not yet implemented
-  int fromExistingAssocs(const art::Event& evt, std::vector< pma::Track3D* >& result);
+  // build tracks from clusters associated to PFParticles (use internal pattern recognition
+  // on the subset of clusters selected with PFParticle)
+  int fromPfpClusterSubset(const art::Event& evt, std::vector< pma::Track3D* >& result);
+  // ------------------------------------------------------
+
+  // build tracks from straight from clusters associated to PFParticle (no pattern recognition)
+  int fromPfpDirect(const art::Event& evt, std::vector< pma::Track3D* >& result);
   // ------------------------------------------------------
 
 
@@ -1231,7 +1236,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			default:
 			case 1: retCode = fromMaxCluster(evt, result); break;
 
-			case 2: retCode = fromExistingAssocs(evt, result); break;
+			case 2: retCode = fromPfpClusterSubset(evt, result); break;
+
+			case 3: retCode = fromPfpDirect(evt, result); break;
 		}
 		switch (retCode)
 		{
@@ -1842,7 +1849,14 @@ void PMAlgTrackMaker::listUsedClusters(art::Handle< std::vector<recob::Cluster> 
 // ------------------------------------------------------
 // ------------------------------------------------------
 
-int PMAlgTrackMaker::fromExistingAssocs(const art::Event& evt, std::vector< pma::Track3D* >& result)
+int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, std::vector< pma::Track3D* >& result)
+{
+	return 0;
+}
+// ------------------------------------------------------
+// ------------------------------------------------------
+
+int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, std::vector< pma::Track3D* >& result)
 {
 	return 0;
 }
