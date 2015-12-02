@@ -185,8 +185,9 @@ namespace cluster {
                              ///< is < cut. Set < 0 for no merging
     float fMergeOverlapAngCut;   ///< angle cut for merging overlapping clusters
     unsigned short fAllowNoHitWire;
-		float fVertex2DCut; 	///< 2D vtx -> cluster matching cut (ticks)
-    float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (cm)
+		float fVertex2DCut; 	///< 2D vtx -> cluster matching cut (chisq/dof)
+    float fVertex2DWireErrCut;
+    float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
 
     short fDebugPlane;
     short fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
@@ -201,7 +202,9 @@ namespace cluster {
     float clparerr[2];  ///< cluster parameter errors
     float clChisq;     ///< chisq of the current fit
     float fAveChg;  ///< average charge at leading edge of cluster
-    float fChgSlp;  ///< slope of the  charge vs wire 
+    float fChgSlp;  ///< slope of the  charge vs wire
+    float fAveHitWidth; ///< average width (EndTick - StartTick) of hits
+    float fAveDTick;    ///< average dTick of hits added to the cluster
     
     bool prt;
     bool vtxprt;
@@ -278,21 +281,33 @@ namespace cluster {
     std::vector<float> chifits;   ///< fit chisq for monitoring kinks, etc
     std::vector<short> hitNear;   ///< Number of nearby
                                   ///< hits that were merged have hitnear < 0
-
+    
     std::vector<float> chgNear; ///< charge near a cluster on each wire
 		float fChgNearWindow; 		///< window (ticks) for finding nearby charge
 		float fChgNearCut;				///< cut on ratio of nearby/cluster charge to
 															///< to define a shower-like cluster
+    std::vector<float> projDTick;
 
     std::string fhitsModuleLabel;
     
+    // hit multiplets that have been saved before merging.
+    std::vector<recob::Hit> unMergedHits;
+    // RestoreUnMergedHits should be called before abandoning fcl2hits to
+    // restore any hits that may have been merged in the fcl2hits vector
+    // Set ntrim < 0 to check all hits
+    void RestoreUnMergedClusterHits(short ntrim);
+    // Restore a single merged hit
+    void RestoreUnMergedHit(unsigned int theHit);
+    // ClearUnMergedHits should (optionally) be called after a new
+    // temporary (tcl) cluster has been created
+    void ClearUnMergedHits();
 
     // ******** crawling routines *****************
 
     // Loops over wires looking for seed clusters
     void ClusterLoop();
     // Returns true if the hits on a cluster have a consistent width
-    bool ClusterHitsOK();
+    bool ClusterHitsOK(short nHitChk);
     // Finds a hit on wire kwire, adds it to the cluster and re-fits it
     void AddHit(unsigned short kwire, bool& HitOK, bool& SigOK);
     // Finds a hit on wire kwire, adds it to a LargeAngle cluster and re-fits it
@@ -360,6 +375,8 @@ namespace cluster {
     void ClusterVertex(unsigned short it2);
     // try to attach a cluster to a specified vertex
     void VertexCluster(unsigned short ivx);
+    // Refine cluster ends near vertices
+    void RefineVertexClusters(unsigned short ivx);
     // Split clusters that cross a vertex
     bool VtxClusterSplit();
     // returns true if a vertex is encountered while crawling
@@ -396,6 +413,8 @@ namespace cluster {
     bool TmpStore();
     // Gets a temp cluster and puts it into the working cluster variables
     void TmpGet(unsigned short it1);
+    // Shortens the fcl2hits, chifits, etc vectors by the specified amount
+    void FclTrimUS(unsigned short nTrim);
     // Splits a cluster into two clusters at position pos. Associates the
     // new clusters with a vertex
     bool SplitCluster(unsigned short icl, unsigned short pos, unsigned short ivx);
