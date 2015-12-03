@@ -87,6 +87,7 @@ namespace cluster {
       short Topo; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star,
 												// 6 = hammer, 7 = vtx3clustermatch, 8 = vtx3clustersplit
       CTP_t CTP;
+      bool Fixed;                 // Vertex position fixed (should not be re-fit)
     };
     
     /// struct of temporary 3D vertices
