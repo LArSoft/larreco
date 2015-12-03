@@ -1379,7 +1379,7 @@ namespace cluster {
 
 /////////////////////////////////////////
 
-  void ClusterCrawlerAlg::RefineVertexClusters(unsigned short ivx)
+  void ClusterCrawlerAlg::RefineVertexClusters(unsigned short iv)
   {
     
     // Try to attach or remove hits on the ends of vertex clusters
@@ -1389,7 +1389,8 @@ namespace cluster {
     std::vector<unsigned short> endClusters;
     std::vector<short> enddW;
 
-    unsigned short vWire = (unsigned short)(vtx[ivx].Wire + 0.5);
+    unsigned short vWire = (unsigned short)(vtx[iv].Wire + 0.5);
+    unsigned short vWireErr = (unsigned short)(vtx[iv].WireErr + 1);
 
     unsigned short icl, ii;
     short dW;
@@ -1398,8 +1399,8 @@ namespace cluster {
     short mindW = 100;
     for(icl = 0; icl < tcl.size(); ++icl) {
       if(tcl[icl].ID < 0) continue;
-      if(tcl[icl].CTP != vtx[ivx].CTP) continue;
-      if(tcl[icl].BeginVtx == ivx) {
+      if(tcl[icl].CTP != vtx[iv].CTP) continue;
+      if(tcl[icl].BeginVtx == iv) {
         dW = vWire - tcl[icl].BeginWir;
         if(dW > maxdW) maxdW = dW;
         if(dW < mindW) mindW = dW;
@@ -1408,7 +1409,7 @@ namespace cluster {
         begClusters.push_back(icl);
         begdW.push_back(dW);
       }
-      if(tcl[icl].EndVtx == ivx) {
+      if(tcl[icl].EndVtx == iv) {
         dW = vWire - tcl[icl].EndWir;
         if(dW > maxdW) maxdW = dW;
         if(dW < mindW) mindW = dW;
@@ -1418,12 +1419,22 @@ namespace cluster {
       }
     } // icl
     
-    if(vtxprt) mf::LogVerbatim("CC")<<"RefineVertexClusters: vertex "<<ivx<<" needsWork "<<needsWork<<" mindW "<<mindW<<" maxdW "<<maxdW;
+    if(vtxprt) mf::LogVerbatim("CC")<<"RefineVertexClusters: vertex "<<iv<<" needsWork "<<needsWork<<" mindW "<<mindW<<" maxdW "<<maxdW;
     
     if(!needsWork) return;
     
     // See if we can move the vertex within errors to reconcile the differences
     // without altering the clusters
+    if(std::abs(mindW) < vWireErr &&std::abs(maxdW) < vWireErr && std::abs(maxdW - mindW) < 2) {
+      if(vtxprt) mf::LogVerbatim("CC")<<" Move vtx wire "<<vtx[iv].Wire;
+      vtx[iv].Wire -= (float)(maxdW + mindW)/2;
+      if(vtxprt) mf::LogVerbatim("CC")<<" to "<<vtx[iv].Wire<<"\n";
+      // TODO: Fix the vertex time here if necessary
+      vtx[iv].Fixed = true;
+      // try to attach other clusters
+      VertexCluster(iv);
+      return;
+    }
     
     
     // Check the vertex End clusters
@@ -1448,7 +1459,7 @@ namespace cluster {
         clProcCode += 700;
         // store it
         TmpStore();
-        tcl[tcl.size()-1].EndVtx = ivx;
+        tcl[tcl.size()-1].EndVtx = iv;
         // update the vertex association
       } // tcl[icl].EndWir < vWire
       else if(tcl[icl].EndWir > vWire) {
@@ -1458,7 +1469,7 @@ namespace cluster {
     
     if(begClusters.size() > 0) mf::LogVerbatim("CC")<<"RefineVertexClusters: Write some BeginVtx code";
     
-    FitVtx(ivx);
+    FitVtx(iv);
     
   } // RefineVertexClusters
 
@@ -1997,6 +2008,7 @@ namespace cluster {
           newvx.TimeErr = 1;
           newvx.Topo = 5;
           newvx.CTP = clCTP;
+          newvx.Fixed = false;
           vtx.push_back(newvx);
           unsigned short ivx = vtx.size() - 1;
           if(vtxprt) mf::LogVerbatim("CC")<<" new vertex "<<ivx<<" cluster "<<tcl[it1].ID<<" split pos "<<pos1;
@@ -2042,7 +2054,7 @@ namespace cluster {
       short dwb, dwe, dtb, dte;
       bool sigOK;
       
-      vtxprt = (fDebugPlane >= 0 && fDebugWire == 3333);
+//      vtxprt = (fDebugPlane >= 0 && fDebugWire == 3333);
       
       for(unsigned short icl = 0; icl < tcl.size(); ++icl) {
         if(tcl[icl].ID < 0) continue;
@@ -2558,22 +2570,22 @@ namespace cluster {
         bool SigOK = false;
         if(topo == 1 || topo == 2) {
           SigOK = ChkSignal(vw, fvt, tcl[it1].EndWir, tcl[it1].EndTim);
-          if(vtxprt) mf::LogVerbatim("CC")<<" chk1 vtx W:T "<<vw<<":"<<(int)fvt<<" "<<tcl[it1].EndWir<<":"<<(int)tcl[it1].EndTim<<" SigOK "<<SigOK;
+//          if(vtxprt) mf::LogVerbatim("CC")<<" chk1 vtx W:T "<<vw<<":"<<(int)fvt<<" "<<tcl[it1].EndWir<<":"<<(int)tcl[it1].EndTim<<" SigOK "<<SigOK;
         } else {
           SigOK = ChkSignal(vw, fvt, tcl[it1].BeginWir, tcl[it1].BeginTim);
-          if(vtxprt) mf::LogVerbatim("CC")<<" chk1 vtx W:T "<<vw<<":"<<(int)fvt<<" "<<tcl[it1].BeginWir<<":"<<(int)tcl[it1].BeginTim<<" SigOK "<<SigOK;
+//          if(vtxprt) mf::LogVerbatim("CC")<<" chk1 vtx W:T "<<vw<<":"<<(int)fvt<<" "<<tcl[it1].BeginWir<<":"<<(int)tcl[it1].BeginTim<<" SigOK "<<SigOK;
         }
-        if(vtxprt) mf::LogVerbatim("CC")<<" SigOK it1 "<<SigOK;
+//        if(vtxprt) mf::LogVerbatim("CC")<<" SigOK it1 "<<SigOK;
         if(!SigOK) return;
         
         if(topo == 1 || topo == 3) {
           SigOK = ChkSignal(vw, fvt, tcl[it2].EndWir, tcl[it2].EndTim);
-          if(vtxprt) mf::LogVerbatim("CC")<<" chk2 vtx W:T "<<vw<<":"<<(int)fvt<<" "<<tcl[it2].EndWir<<":"<<(int)tcl[it2].EndTim<<" SigOK "<<SigOK;
+//          if(vtxprt) mf::LogVerbatim("CC")<<" chk2 vtx W:T "<<vw<<":"<<(int)fvt<<" "<<tcl[it2].EndWir<<":"<<(int)tcl[it2].EndTim<<" SigOK "<<SigOK;
         } else {
           SigOK = ChkSignal(vw, fvt, tcl[it2].BeginWir, tcl[it2].BeginTim);
-          if(vtxprt) mf::LogVerbatim("CC")<<" chk2 vtx W:T "<<vw<<":"<<(int)fvt<<" "<<tcl[it2].BeginWir<<":"<<(int)tcl[it2].BeginTim<<" SigOK "<<SigOK;
+//          if(vtxprt) mf::LogVerbatim("CC")<<" chk2 vtx W:T "<<vw<<":"<<(int)fvt<<" "<<tcl[it2].BeginWir<<":"<<(int)tcl[it2].BeginTim<<" SigOK "<<SigOK;
         }
-        if(vtxprt) mf::LogVerbatim("CC")<<" SigOK it2 "<<SigOK;
+//        if(vtxprt) mf::LogVerbatim("CC")<<" SigOK it2 "<<SigOK;
         if(!SigOK) return;
 
         VtxStore newvx;
@@ -2581,6 +2593,7 @@ namespace cluster {
         newvx.Time = fvt;
         newvx.Topo = topo;
         newvx.CTP = clCTP;
+        newvx.Fixed = false;
         vtx.push_back(newvx);
         unsigned short iv = vtx.size() - 1;
         if(topo == 1 || topo == 2) {
@@ -3355,9 +3368,9 @@ namespace cluster {
       } // iv
     } // vtx.size
     
-    float aveRMS = 0;
-    myprt<<"*************************************** Clusters ****************************************************************\n";
-    myprt<<"  ID CTP nht Stop  Proc  beg_W:T    bAng   bSlp bChg  bCN   end_W:T    eAng   eSlp eChg  eCN bVx  eVx aveRMS  Res\n";
+    float aveRMS, aveRes;
+    myprt<<"*************************************** Clusters ***********************************************************\n";
+    myprt<<"  ID CTP nht Stop  Proc  beg_W:T    bAng   bSlp bChg   end_W:T    eAng   eSlp eChg bVx  eVx aveRMS  Qual cnt\n";
     for(unsigned short ii = 0; ii < tcl.size(); ++ii) {
       // print clusters in all planes (fDebugPlane = 3) or in a selected plane
       if(fDebugPlane < 3 && fDebugPlane != (int)tcl[ii].CTP) continue;
@@ -3376,7 +3389,7 @@ namespace cluster {
       myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginAng;
       myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginSlp;
       myprt<<std::right<<std::setw(5)<<(int)tcl[ii].BeginChg;
-      myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<tcl[ii].BeginChgNear;
+//      myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<tcl[ii].BeginChgNear;
       iTime = tcl[ii].EndTim;
       myprt<<std::right<<std::setw(6)<<tcl[ii].EndWir<<":"<<iTime;
       if(iTime < 10) {
@@ -3387,7 +3400,7 @@ namespace cluster {
       myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndAng;
       myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndSlp;
       myprt<<std::right<<std::setw(5)<<(int)tcl[ii].EndChg;
-      myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<tcl[ii].EndChgNear;
+//      myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<tcl[ii].EndChgNear;
       myprt<<std::right<<std::setw(5)<<tcl[ii].BeginVtx;
       myprt<<std::right<<std::setw(5)<<tcl[ii].EndVtx;
       aveRMS = 0;
@@ -3398,7 +3411,7 @@ namespace cluster {
       }
       aveRMS /= (float)tcl[ii].tclhits.size();
       myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<aveRMS;
-      aveRMS = 0;
+      aveRes = 0;
       // find cluster tracking resolution
       unsigned int hit0, hit1, hit2, cnt = 0;
       float arg;
@@ -3410,15 +3423,19 @@ namespace cluster {
         if(fHits[hit1].WireID().Wire + 1 != fHits[hit0].WireID().Wire) continue;
         if(fHits[hit2].WireID().Wire + 1 != fHits[hit1].WireID().Wire) continue;
         arg = (fHits[hit0].PeakTime() + fHits[hit2].PeakTime())/2 - fHits[hit1].PeakTime();
-        aveRMS += arg * arg;
+        aveRes += arg * arg;
         ++cnt;
       }
-      if(cnt > 0) {
-        aveRMS /= (float)cnt;
-        aveRMS = sqrt(aveRMS);
-        myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(1)<<aveRMS;
+      if(cnt > 1) {
+        aveRes /= (float)cnt;
+        aveRes = sqrt(aveRes);
+        // convert to a quality factor
+        aveRes /= (aveRMS * fHitErrFac);
+        myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(1)<<aveRes;
+        myprt<<std::right<<std::setw(5)<<std::fixed<<cnt;
       } else {
         myprt<<"    NA";
+        myprt<<std::right<<std::setw(5)<<std::fixed<<cnt;
       }
        myprt<<"\n";
       // TEMP
@@ -4001,13 +4018,14 @@ namespace cluster {
     // hits.
     unsigned int iht = fcl2hits[fcl2hits.size() - 1];
     clEndWir = fHits[iht].WireID().Wire;
+    clBeginWir = fHits[fcl2hits[0]].WireID().Wire;
     float hitFrac = (float)fcl2hits.size() / (float)(clBeginWir - clEndWir + 1);
 
     if(hitFrac < fMinHitFrac) {
       RestoreUnMergedClusterHits(-1);
       fcl2hits.clear();
-      if(prt) mf::LogVerbatim("CC")
-        <<"CheckClusterHitFrac: Poor hit fraction "<<hitFrac;
+      if(prt) mf::LogVerbatim("CC")<<"CheckClusterHitFrac: Poor hit fraction "<<hitFrac<<" clBeginWir "<<clBeginWir
+        <<" clEndWir "<<clEndWir<<" size "<<fcl2hits.size();
       return;
     } // hitFrac
     
@@ -4016,7 +4034,7 @@ namespace cluster {
     if(fHits[iht].Multiplicity() > 1) {
       fcl2hits.resize(fcl2hits.size() - 1);
     }
-*/
+
     // check for short track ghosts
     if(fcl2hits.size() < 5) {
       unsigned short nsing = 0;
@@ -4029,7 +4047,7 @@ namespace cluster {
         return;
       } // hitFrac
     } // short ghost track check
-    
+*/
     // analyze the pattern of nearby charge
     // will need the cluster charge so calculate it here if it isn't defined yet
     if(clBeginChg <= 0) {
@@ -4938,6 +4956,9 @@ namespace cluster {
       std::vector<float> y;
       std::vector<float> ey2;
       float arg;
+      
+      // don't fit fixed vertices
+      if(vtx[iv].Fixed) return;
 
       // Set this large in case something bad happens
       vtx[iv].ChiDOF = 99;
@@ -5091,6 +5112,7 @@ namespace cluster {
           vnew.Time = theTime;
           vnew.CTP = clCTP;
           vnew.Topo = 7;
+          vnew.Fixed = false;
           vtx.push_back(vnew);
           unsigned short ivnew = vtx.size() -1;
           std::vector<short> vclIndex;
@@ -5284,6 +5306,7 @@ namespace cluster {
           vnew.TimeErr = 1;
           vnew.Topo = 8;
           vnew.CTP = clCTP;
+          vnew.Fixed = false;
           vtx.push_back(vnew);
           // update the 2D -> 3D vertex pointer
           unsigned short ivnew = vtx.size() - 1;
@@ -5480,6 +5503,7 @@ namespace cluster {
           newVtx2.Time = hamrVec[ipl][ii].Tick;
           newVtx2.TimeErr = 5;
           newVtx2.Topo = 6;
+          newVtx2.Fixed = false;
           icl = hamrVec[ipl][ii].longClIndex;
           newVtx2.CTP = tcl[icl].CTP;
           vtx.push_back(newVtx2);
