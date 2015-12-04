@@ -217,14 +217,14 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
 }
 
 
-TH2F* cluster::BlurredClusteringAlg::Convolve(TH2F* image, std::map<int,double> const& kernel, int const& width, int const& height, const char *new_name) {
+TH2F* cluster::BlurredClusteringAlg::Convolve(TH2F* image, std::vector<double> const& kernel, int const& width, int const& height, const char *new_name) {
 
   /// Convolves the Gaussian kernel with the image to blurrr
 
   // Get the magnitude of the bins in the kernel
   double mag = 0;
-  for(std::map<int,double>::const_iterator it = kernel.begin(); it != kernel.end(); ++it)
-    mag += it->second;
+  for(std::vector<double>::const_iterator kernelIt = kernel.begin(); kernelIt != kernel.end(); ++kernelIt)
+    mag += *kernelIt;
 
   // Copy the histogram to blur
   TString name = new_name == 0 ? TString::Format("%s_convolved", image->GetName()) : TString(new_name);
@@ -300,7 +300,7 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
   sigmawire = std::max(std::abs(std::round(fBlurSigma * unit.X())),1.);
   sigmatick = std::max(std::abs(std::round(fBlurSigma * unit.Y())),1.);
 
-  //std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << "; sigma: wire " << sigmawire << " and tick " << sigmatick << std::endl;
+  // std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << "; sigma: wire " << sigmawire << " and tick " << sigmatick << std::endl;
 
   return;
 
@@ -542,9 +542,8 @@ TH2F* cluster::BlurredClusteringAlg::GaussianBlur(TH2F* image) {
   FindBlurringParameters(blurwire, blurtick, sigmawire, sigmatick);
 
   // Create Gaussian kernel
-  std::map<int,double> kernel;
-  // int kernelSize = (2*blurwire+1)*(2*blurtick+1);
-  // std::array<double,kernelSize> kernel;
+  //std::map<int,double> kernel;
+  std::vector<double> kernel((2*blurwire+1)*(2*blurtick+1),0);
   int width = 2 * blurwire + 1;
   int height = 2 * blurtick + 1;
 
@@ -567,9 +566,8 @@ TH2F* cluster::BlurredClusteringAlg::GaussianBlur(TH2F* image) {
 	double sig2j = 2. * sigmatick * sigmatick;
 
 	int key = (width * (j + blurtick)) + (i + blurwire);
-	if (key>=((2*blurwire+1)*(2*blurtick+1))) std::cout << "Key is greater than array size!" << std::endl;
 	double value = 1. / sqrt(sig2i * M_PI) * exp(-i * i / sig2i) * 1. / sqrt(sig2j * M_PI) * exp(-j * j / sig2j);
-	kernel[key] = value;
+	kernel.at(key) = value;
 
       }
     } // End loop over blurring region
