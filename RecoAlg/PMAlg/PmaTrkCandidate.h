@@ -17,6 +17,7 @@
 namespace pma
 {
 	class TrkCandidate;
+	typedef std::vector< TrkCandidate > trk_candidates;
 }
 
 class pma::TrkCandidate
@@ -24,6 +25,7 @@ class pma::TrkCandidate
 public:
 
 	TrkCandidate(void);
+	TrkCandidate(pma::Track3D* trk, int key = -1);
 
 	bool IsValid(void) const { return fTrack; }
 
@@ -37,6 +39,9 @@ public:
 	const std::vector< size_t > & Clusters(void) const { return fClusters; }
 	std::vector< size_t > & Clusters(void) { return fClusters; }
 
+	int Key(void) const { return fKey; }
+	void SetKey(int key) { fKey = key; }
+
 	double Mse(void) const { return fMse; }
 	void SetMse(double m) { fMse = m; }
 
@@ -46,7 +51,9 @@ public:
 private:
 	pma::Track3D* fTrack;
 	std::vector< size_t > fClusters;
-	double fMse, fValidation;
+	int fKey;
+	double fMse;
+	double fValidation;
 	bool fGood;
 };
 

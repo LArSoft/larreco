@@ -12,7 +12,7 @@
 #ifndef VtxCandidate_h
 #define VtxCandidate_h
 
-#include "RecoAlg/PMAlg/PmaTrack3D.h"
+#include "RecoAlg/PMAlg/PmaTrkCandidate.h"
 
 namespace pma
 {
@@ -43,7 +43,7 @@ public:
 
 	bool HasLoops(void) const;
 
-	bool Add(pma::Track3D* trk);
+	bool Add(const pma::TrkCandidate & trk);
 
 	double ComputeMse2D(void);
 
@@ -58,20 +58,21 @@ public:
 
 	double Compute(void);
 
-	bool JoinTracks(
-		std::vector< pma::Track3D* >& tracks,
-		std::vector< pma::Track3D* >& src);
+	bool JoinTracks(pma::trk_candidates& tracks, pma::trk_candidates& src);
 
 	const TVector3& Center(void) const { return fCenter; }
 	double Mse(void) const { return fMse; }
 	double Mse2D(void) const { return fMse2D; }
 
-	std::pair< pma::Track3D*, size_t > Track(size_t i) const { return fAssigned[i]; }
+	std::pair< pma::Track3D*, size_t > Track(size_t i) const
+	{
+		return std::pair< pma::Track3D*, size_t >(fAssigned[i].first.Track(), fAssigned[i].second);
+	}
 
 private:
 	bool tracksJoined;
 	double fSegMinLength, fMse, fMse2D;
-	std::vector< std::pair< pma::Track3D*, size_t > > fAssigned;
+	std::vector< std::pair< pma::TrkCandidate, size_t > > fAssigned;
 	TVector3 fCenter, fErr;
 };
 

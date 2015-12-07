@@ -23,15 +23,15 @@ const double pma::VtxCandidate::kMinDistToNode = 2.0;  // min. dist. to node nee
 
 bool pma::VtxCandidate::Has(pma::Track3D* trk) const
 {
-	for (size_t i = 0; i < fAssigned.size(); i++)
-		if (trk == fAssigned[i].first) return true;
+	for (const auto & t : fAssigned)
+		if (trk == t.first.Track()) return true;
 	return false;
 }
 
 bool pma::VtxCandidate::Has(const pma::VtxCandidate& other) const
 {
-	for (size_t t = 0; t < other.Size(); t++)
-		if (!Has(other.fAssigned[t].first)) return false;
+	for (const auto & t : other.fAssigned)
+		if (!Has(t.first.Track())) return false;
 	return true;
 }
 
@@ -40,9 +40,9 @@ bool pma::VtxCandidate::IsAttached(pma::Track3D* trk) const
 	pma::Track3D const * rootTrk = trk->GetRoot();
 	if (!rootTrk) throw cet::exception("pma::VtxCandidate") << "Broken track.";
 
-	for (size_t i = 0; i < fAssigned.size(); i++)
+	for (const auto & t : fAssigned)
 	{
-		pma::Track3D const * rootAssn = fAssigned[i].first->GetRoot();
+		pma::Track3D const * rootAssn = t.first.Track()->GetRoot();
 		if (!rootAssn) throw cet::exception("pma::VtxCandidate") << "Broken track.";
 
 		if (rootTrk->IsAttachedTo(rootAssn)) return true;
@@ -52,8 +52,8 @@ bool pma::VtxCandidate::IsAttached(pma::Track3D* trk) const
 
 bool pma::VtxCandidate::IsAttached(const pma::VtxCandidate& other) const
 {
-	for (size_t t = 0; t < other.Size(); t++)
-		if (IsAttached(other.fAssigned[t].first)) return true;
+	for (const auto & t : other.fAssigned)
+		if (IsAttached(t.first.Track())) return true;
 	return false;
 }
 
@@ -61,13 +61,13 @@ bool pma::VtxCandidate::HasLoops(void) const
 {
 	for (size_t t = 0; t < fAssigned.size(); t++)
 	{
-		pma::Track3D const * trk_t = fAssigned[t].first->GetRoot();
+		pma::Track3D const * trk_t = fAssigned[t].first.Track()->GetRoot();
 		if (!trk_t) throw cet::exception("pma::VtxCandidate") << "Broken track.";
 
 		for (size_t u = 0; u < fAssigned.size(); u++)
 			if (t != u)
 		{
-			pma::Track3D const * trk_u = fAssigned[u].first->GetRoot();
+			pma::Track3D const * trk_u = fAssigned[u].first.Track()->GetRoot();
 			if (!trk_u) throw cet::exception("pma::VtxCandidate") << "Broken track.";
 
 			if (trk_t->IsAttachedTo(trk_u)) return true;
@@ -80,15 +80,15 @@ size_t pma::VtxCandidate::Size(double minLength) const
 {
 	size_t n = 0;
 	for (auto const & c : fAssigned)
-		if (c.first->Length() > minLength) n++;
+		if (c.first.Track()->Length() > minLength) n++;
 	return n;
 }
 
-bool pma::VtxCandidate::Add(pma::Track3D* trk)
+bool pma::VtxCandidate::Add(const pma::TrkCandidate & trk)
 {
-	if (IsAttached(trk)) return false;
+	if (IsAttached(trk.Track())) return false;
 
-	fAssigned.push_back(std::pair< pma::Track3D*, size_t >(trk, 0));
+	fAssigned.emplace_back(std::pair< pma::TrkCandidate, size_t >(trk, 0));
 
 	double d, d_best;
 	double mse, min_mse = kMaxDistToTrack * kMaxDistToTrack;
@@ -96,9 +96,9 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 	{
 		size_t n_best = 0;
 		d_best = kMaxDistToTrack;
-		for (size_t n = 0; n < trk->Nodes().size() - 1; n++)
+		for (size_t n = 0; n < trk.Track()->Nodes().size() - 1; n++)
 		{
-			pma::Segment3D* seg = trk->NextSegment(trk->Nodes()[n]);
+			pma::Segment3D* seg = trk.Track()->NextSegment(trk.Track()->Nodes()[n]);
 			if (seg->Length() < fSegMinLength) continue;
 
 			fAssigned.back().second = n;
@@ -131,7 +131,7 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 	}
 	else if (fAssigned.size() == 2)
 	{
-		pma::Track3D* p0 = fAssigned.front().first;
+		pma::Track3D* p0 = fAssigned.front().first.Track();
 
 		size_t n_best = 0, m_best = 0;
 		d_best = kMaxDistToTrack;
@@ -145,9 +145,9 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 
 			fAssigned.front().second = m;
 
-			for (size_t n = 0; n < trk->Nodes().size() - 1; n++)
+			for (size_t n = 0; n < trk.Track()->Nodes().size() - 1; n++)
 			{
-				pma::Segment3D* seg_n = trk->NextSegment(trk->Nodes()[n]);
+				pma::Segment3D* seg_n = trk.Track()->NextSegment(trk.Track()->Nodes()[n]);
 				ln = seg_n->Length();
 				if (ln < fSegMinLength) continue;
 
@@ -190,9 +190,9 @@ bool pma::VtxCandidate::Add(pma::Track3D* trk)
 	}
 	else
 	{
-		for (size_t n = 0; n < trk->Nodes().size() - 1; n++)
+		for (size_t n = 0; n < trk.Track()->Nodes().size() - 1; n++)
 		{
-			pma::Segment3D* seg = trk->NextSegment(trk->Nodes()[n]);
+			pma::Segment3D* seg = trk.Track()->NextSegment(trk.Track()->Nodes()[n]);
 			if (seg->Length() >= fSegMinLength)
 			{
 				return true;
@@ -211,13 +211,13 @@ double pma::VtxCandidate::ComputeMse2D(void)
 
 	double mse = 0.0;
 	TVector2 center2d;
-	for (size_t i = 0; i < fAssigned.size(); i++)
+	for (const auto & t : fAssigned)
 	{
-		pma::Track3D* trk = fAssigned[i].first;
-		pma::Segment3D* seg = trk->NextSegment(trk->Nodes()[fAssigned[i].second]);
+		pma::Track3D* trk = t.first.Track();
+		pma::Segment3D* seg = trk->NextSegment(trk->Nodes()[t.second]);
 
-		int tpc = trk->Nodes()[fAssigned[i].second]->TPC();
-		int cryo = trk->Nodes()[fAssigned[i].second]->Cryo();
+		int tpc = trk->Nodes()[t.second]->TPC();
+		int cryo = trk->Nodes()[t.second]->Cryo();
 
 		size_t k = 0;
 		double m = 0.0;
@@ -260,11 +260,11 @@ double pma::VtxCandidate::MaxAngle(double minLength) const
 	double l, max_l = 0.0;
 	for (size_t i = 0; i < fAssigned.size() - 1; i++)
 	{
-		l = fAssigned[i].first->Length();
+		l = fAssigned[i].first.Track()->Length();
 		if (l > max_l)
 		{
 			max_l = l; max_l_idx = i;
-			pma::Track3D* trk_i = fAssigned[i].first;
+			pma::Track3D* trk_i = fAssigned[i].first.Track();
 			pma::Node3D* vtx_i0 = trk_i->Nodes()[fAssigned[i].second];
 			pma::Node3D* vtx_i1 = trk_i->Nodes()[fAssigned[i].second + 1];
 			dir_i = vtx_i1->Point3D() - vtx_i0->Point3D();
@@ -274,9 +274,9 @@ double pma::VtxCandidate::MaxAngle(double minLength) const
 
 	double a, min = 1.0;
 	for (size_t j = 0; j < fAssigned.size(); j++)
-		if ((j != max_l_idx) && (fAssigned[j].first->Length() > minLength))
+		if ((j != max_l_idx) && (fAssigned[j].first.Track()->Length() > minLength))
 	{
-		pma::Track3D* trk_j = fAssigned[j].first;
+		pma::Track3D* trk_j = fAssigned[j].first.Track();
 		pma::Node3D* vtx_j0 = trk_j->Nodes()[fAssigned[j].second];
 		pma::Node3D* vtx_j1 = trk_j->Nodes()[fAssigned[j].second + 1];
 		TVector3 dir_j = vtx_j1->Point3D() - vtx_j0->Point3D();
@@ -300,16 +300,16 @@ bool pma::VtxCandidate::MergeWith(const pma::VtxCandidate& other)
 	double dw = Test(other);
 
 	size_t ntrk = 0;
-	for (size_t t = 0; t < other.fAssigned.size(); t++)
+	for (const auto & t : other.fAssigned)
 	{
-		if (IsAttached(other.fAssigned[t].first))
+		if (IsAttached(t.first.Track()))
 		{
 			mf::LogVerbatim("pma::VtxCandidate") << "already attached..";
 			return false;
 		}
-		if (!Has(other.fAssigned[t].first))
+		if (!Has(t.first.Track()))
 		{
-			fAssigned.push_back(other.fAssigned[t]);
+			fAssigned.push_back(t);
 			ntrk++;
 		}
 	}
@@ -352,10 +352,10 @@ double pma::VtxCandidate::Compute(void)
 	std::vector< pma::Segment3D* > segments;
 	std::vector< std::pair<TVector3, TVector3> > lines;
 	std::vector< double > weights;
-	for (size_t v = 0; v < fAssigned.size(); v++)
+	for (const auto & v : fAssigned)
 	{
-		pma::Track3D* trk = fAssigned[v].first;
-		int vIdx = fAssigned[v].second;
+		pma::Track3D* trk = v.first.Track();
+		int vIdx = v.second;
 
 		pma::Node3D* vtx1 = trk->Nodes()[vIdx];
 		pma::Segment3D* seg = trk->NextSegment(vtx1);
@@ -421,9 +421,7 @@ double pma::VtxCandidate::Compute(void)
 	return resultMse;
 }
 
-bool pma::VtxCandidate::JoinTracks(
-	std::vector< pma::Track3D* >& tracks,
-	std::vector< pma::Track3D* >& src)
+bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candidates& src)
 {
 	if (tracksJoined)
 	{
@@ -449,13 +447,13 @@ bool pma::VtxCandidate::JoinTracks(
 	//	if (noLoops) std::cout << "  ok" << std::endl;
 	//}
 
-	for (size_t i = 0; i < fAssigned.size(); i++)
+	for (const auto & c : fAssigned)
 	{
 		size_t t = 0;
 		while (t < src.size())
 		{
-			if (fAssigned[i].first == src[t])
-			{
+			if (c.first.Track() == src[t].Track())
+			{   // move from "src" to "tracks"
 				tracks.push_back(src[t]);
 				src.erase(src.begin() + t);
 				break;
@@ -472,7 +470,8 @@ bool pma::VtxCandidate::JoinTracks(
 		mf::LogVerbatim("pma::VtxCandidate") << "----------> track #" << i;
 		//std::cout << "----------> track #" << i << std::endl;
 
-		pma::Track3D* trk = fAssigned[i].first;
+		pma::Track3D* trk = fAssigned[i].first.Track();
+		int key = fAssigned[i].first.Key();
 		size_t idx = fAssigned[i].second;
 
 		mf::LogVerbatim("pma::VtxCandidate") << "  track size:" << trk->size()
@@ -510,11 +509,6 @@ bool pma::VtxCandidate::JoinTracks(
 				mf::LogVerbatim("pma::VtxCandidate") << "  front to center";
 				//std::cout << "  front to center" << std::endl;
 				if (trk->AttachTo(vtxCenter)) nOK++;
-
-				//{
-				//	std::vector< pma::Track3D const * > b;
-				//	if (trk->GetRoot()->GetBranches(b)) std::cout << "  no loops" << std::endl;
-				//}
 			}
 		}
 		else if ((idx + 2 == trk->Nodes().size()) && ((1.0 - f) * ds <= kMinDistToNode))
@@ -545,22 +539,12 @@ bool pma::VtxCandidate::JoinTracks(
 					//std::cout << "  flip trk to attach to inner" << std::endl;
 					trk->Flip();
 					if (trk->AttachTo(vtxCenter)) nOK++;
-
-					//{
-					//	std::vector< pma::Track3D const * > b;
-					//	if (trk->GetRoot()->GetBranches(b)) std::cout << "  no loops" << std::endl;
-					//}
 				}
 				else
 				{
 					mf::LogVerbatim("pma::VtxCandidate") << "  endpoint to center";
 					//std::cout << "  endpoint to center" << std::endl;
 					if (trk->AttachBackTo(vtxCenter)) nOK++;
-
-					//{
-					//	std::vector< pma::Track3D const * > b;
-					//	if (trk->GetRoot()->GetBranches(b)) std::cout << "  no loops" << std::endl;
-					//}
 				}
 			}
 		}
@@ -617,7 +601,7 @@ bool pma::VtxCandidate::JoinTracks(
 
 					trk->MakeProjection();
 					t0->MakeProjection();
-					tracks.push_back(t0);
+					tracks.emplace_back(pma::TrkCandidate(t0, key));
 
 					if (i == 0)
 					{
@@ -631,11 +615,6 @@ bool pma::VtxCandidate::JoinTracks(
 						mf::LogVerbatim("pma::VtxCandidate") << "  attach trk to trk0";
 						//std::cout << "  attach trk to center" << std::endl;
 						if (trk->AttachTo(vtxCenter)) nOK += 2;
-
-						//{
-						//	std::vector< pma::Track3D const * > b;
-						//	if (trk->GetRoot()->GetBranches(b)) std::cout << "  no loops" << std::endl;
-						//}
 					}
 				}
 
@@ -674,12 +653,6 @@ bool pma::VtxCandidate::JoinTracks(
 						//std::cout << "  center at start of segment - no action" << std::endl;
 					}
 				}
-
-
-				//std::cout << "  nodes: " << trk->Nodes().size() << " idx " << idx << " trk " << trk << std::endl;
-
-				//for (size_t nn = 0; nn < trk->Nodes()[idx]->NextCount(); ++nn)
-				//	std::cout << "  nxt: " << nn << " " << static_cast< pma::Segment3D* >(trk->Nodes()[idx]->Next(nn))->Parent() << std::endl;
 
 				pma::Node3D* innerCenter = trk->Nodes()[idx];
 				if (i > 0) // already has vtxCenter
@@ -762,7 +735,7 @@ bool pma::VtxCandidate::JoinTracks(
 			//std::cout << "  remove tracks: " << branchesToRemove.size() << std::endl;
 			for (size_t r = 0; r < branchesToRemove.size(); r++)
 				for (size_t t = 0; t < tracks.size(); ++t)
-					if (tracks[t] == branchesToRemove[r])
+					if (tracks[t].Track() == branchesToRemove[r])
 			{
 				tracks.erase(tracks.begin() + t);
 				delete branchesToRemove[r];

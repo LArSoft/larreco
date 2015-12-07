@@ -13,10 +13,18 @@
 
 pma::TrkCandidate::TrkCandidate(void) :
 	fTrack(0),
+	fKey(-1),
 	fMse(0), fValidation(0),
 	fGood(false)
 {
+}
 
+pma::TrkCandidate::TrkCandidate(pma::Track3D* trk, int key) :
+	fTrack(trk),
+	fKey(key),
+	fMse(0), fValidation(0),
+	fGood(false)
+{
 }
 
 void pma::TrkCandidate::SetTrack(pma::Track3D* trk)
