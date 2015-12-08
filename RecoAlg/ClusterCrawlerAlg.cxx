@@ -66,17 +66,23 @@ namespace cluster {
     fFindVertices       = pset.get< std::vector<bool>  >("FindVertices");
     fLACrawl            = pset.get< std::vector<bool>  >("LACrawl");
 		
-		fMinAmp 						= pset.get< float >("MinAmp");
+		fMinAmp 						= pset.get< float >("MinAmp", 5);
 		fChgNearWindow			= pset.get< float >("ChgNearWindow");
 		fChgNearCut 				= pset.get< float >("ChgNearCut");
 
-    fChkClusterDS       = pset.get< bool   >("ChkClusterDS");
-    fVtxClusterSplit    = pset.get< bool   >("VtxClusterSplit");
-    fFindStarVertices   = pset.get< bool   >("FindStarVertices");
-    fHitErrFac          = pset.get< float  >("HitErrFac");
-    fMinHitFrac         = pset.get< float  >("MinHitFrac");
+    fChkClusterDS       = pset.get< bool   >("ChkClusterDS",false);
+    fVtxClusterSplit    = pset.get< bool   >("VtxClusterSplit", false);
+    fFindStarVertices   = pset.get< bool   >("FindStarVertices", false);
+    if(pset.has_key("HammerCluster")) {
+      mf::LogWarning("CC")<<"fcl setting HammerCluster is replaced by FindHammerClusters. Ignoring...";
+    }
+    fFindHammerClusters = pset.get< bool   >("FindHammerClusters", false);
+    fFindVLAClusters    = pset.get< bool   >("FindVLAClusters", false);
+    fRefineVertexClusters = pset.get< bool >("RefineVertexClusters", false);
+    fHitErrFac          = pset.get< float  >("HitErrFac", 0.2);
+    fMinHitFrac         = pset.get< float  >("MinHitFrac", 0.6);
     
-    fLAClusAngleCut     = pset.get< float  >("LAClusAngleCut");
+    fLAClusAngleCut     = pset.get< float  >("LAClusAngleCut", 45);
 		fLAClusMaxHitsFit 	= pset.get< unsigned short>("LAClusMaxHitsFit");
     fHitMergeChiCut     = pset.get< float  >("HitMergeChiCut", 2.5);
     fMergeOverlapAngCut = pset.get< float  >("MergeOverlapAngCut");
@@ -88,8 +94,6 @@ namespace cluster {
     fDebugPlane         = pset.get< short  >("DebugPlane", -1);
     fDebugWire          = pset.get< short  >("DebugWire", -1);
     fDebugHit           = pset.get< short  >("DebugHit", -1);
-
-    fuBCode             = pset.get< bool >("uBCode", false);
 
     
     // some error checking
@@ -148,10 +152,25 @@ namespace cluster {
     clBeginWir = 0; clBeginChg = 0; clBeginChgNear = 0; clEndSlp = 0;      clEndSlpErr = 0;
     clEndTim = 0;   clEndWir = 0;   clEndChg = 0; clEndChgNear = 0; clChisq = 0;
     clStopCode = 0; clProcCode = 0; fFirstWire = 0;
-    fLastWire = 0; fAveChg = 0.; fAveDTick = 0; fChgSlp = 0.; pass = 0;
+    fLastWire = 0; fAveChg = 0.; fChgSlp = 0.; pass = 0;
     fScaleF = 0; WireHitRange.clear(); unMergedHits.clear();
     
     ClearResults();
+  }
+  
+  //------------------------------------------------------------------------------
+  void ClusterCrawlerAlg::ClusterInit()
+  {
+    fcl2hits.clear();
+    chifits.clear();
+    hitNear.clear();
+    chgNear.clear();
+    fAveChg = -1.;
+    fAveHitWidth = -1;
+    unMergedHits.clear();
+    clEndChg = -1.;
+    clStopCode = 0;
+    clProcCode = pass;
   }
 
   //------------------------------------------------------------------------------
@@ -170,7 +189,7 @@ namespace cluster {
       std::vector<geo::WireID> wids = geom->ChannelToWire(aWire.Channel());
       fFilteredWires.push_back(wids[0]);
     }
-    std::cout<<"CheckFilteredWires: size "<<fFilteredWires.size()<<"\n";
+//    std::cout<<"CheckFilteredWires: size "<<fFilteredWires.size()<<"\n";
   } // CheckFilteredWires
   
 //------------------------------------------------------------------------------
@@ -194,13 +213,11 @@ namespace cluster {
     std::sort(fHits.begin(), fHits.end(), &SortByMultiplet);
     
     inClus.resize(fHits.size());
-    for(unsigned int iht = 0; iht < inClus.size(); ++iht) inClus[iht] = 0;
-    
-    if(fFilteredWires.size() == 0) {
-      mf::LogVerbatim("CC")<<"Using ChannelFilter";
-    } else {
-      mf::LogVerbatim("CC")<<"Using filtered recob::Wires";
-    }
+    mergeAvailable.resize(fHits.size());
+    for(unsigned int iht = 0; iht < inClus.size(); ++iht) {
+      inClus[iht] = 0;
+      mergeAvailable[iht] = false;
+     }
     
     // don't do anything...
     if(fNumPass == 0) return;
@@ -270,7 +287,7 @@ namespace cluster {
         // Match vertices in 3 planes
         VtxMatch(tpcid);
         Vtx3ClusterMatch(tpcid);
-				if(fHammerCluster) FindHammerClusters();
+				if(fFindHammerClusters) FindHammerClusters();
         // split clusters using 3D vertices
         Vtx3ClusterSplit(tpcid);
       }
@@ -283,13 +300,12 @@ namespace cluster {
     // remove the hits that have become obsolete
     RemoveObsoleteHits();
     
+    // clean up
     WireHitRange.clear();
     fcl2hits.clear();
     chifits.clear();
     hitNear.clear();
     chgNear.clear();
-    unMergedHits.clear();
-    projDTick.clear();
     
   /*
     // TEMP. Print out cluster info for tuning
@@ -326,19 +342,21 @@ namespace cluster {
     {
       // looks for seed clusters in a plane and crawls along a trail of hits
 
-      unsigned short nHitsUsed = 0;
-      bool AllDone = false;
+      unsigned short nHitsUsed = 0, iwire, jwire, kwire;
+      bool AllDone = false, SigOK = false, HitOK = false;
+//      float best;
+      unsigned int ihit, jhit;
       for(unsigned short thispass = 0; thispass < fNumPass; ++thispass) {
         pass = thispass;
         // look for a starting cluster that spans a block of wires
         unsigned int span = 3;
         if(fMinHits[pass] < span) span = fMinHits[pass];
-        for(auto iwire = fLastWire; iwire > fFirstWire + span; --iwire) {
+        for(iwire = fLastWire; iwire > fFirstWire + span; --iwire) {
           // skip bad wires or no hits on the wire
           if(WireHitRange[iwire].first < 0) continue;
           auto ifirsthit = (unsigned int)WireHitRange[iwire].first;
           auto ilasthit = (unsigned int)WireHitRange[iwire].second;
-          for(auto ihit = ifirsthit; ihit < ilasthit; ++ihit) {
+          for(ihit = ifirsthit; ihit < ilasthit; ++ihit) {
             bool ClusterAdded = false;
             recob::Hit const& hit = fHits[ihit];
             // skip used hits
@@ -349,6 +367,7 @@ namespace cluster {
             // skip used and obsolete hits
             if(inClus[ihit] != 0) continue;
             prt = (fDebugPlane == (short)plane && (short)iwire == fDebugWire && std::abs((short)hit.PeakTime() - fDebugHit) < 20);
+/*
             // Check for a hit signal on the next DS wire
             bool SigOK = ChkSignal(iwire + 1, hit.PeakTime() - 10,iwire + 1, hit.PeakTime() + 10);
             // Don't start a seed cluster if there is a hit signal DS. 
@@ -356,10 +375,10 @@ namespace cluster {
             // to start a cluster just US of shower blob.
             if(prt) mf::LogVerbatim("CC")<<"\nSeed hit SigOK "<<SigOK<<" Hit mult "<<hit.Multiplicity()<<" try jwire "<<(iwire - span + 1)<<" fFirstWire "<<fFirstWire;
             if(SigOK && hit.Multiplicity() > 1) continue;
+*/
             if((iwire - span + 1) < 0) continue;
-            unsigned short jwire = iwire - span + 1;
+            jwire = iwire - span + 1;
             if(prt) mf::LogVerbatim("CC")<<" jwire "<<jwire<<" fLastWire "<<fLastWire<<" WireHitRange "<<WireHitRange[jwire].first;
-            if(jwire > fLastWire) continue;
             // skip if good wire and no hit
             if(WireHitRange[jwire].first == -2) continue;
             if(WireHitRange[jwire].first == -1) {
@@ -383,51 +402,38 @@ namespace cluster {
               mf::LogError("CC")<<"ClusterLoop jwire "<<jwire<<" bad firsthit "<<jfirsthit<<" lasthit "<<jlasthit<<" fhits size "<<fHits.size();
               exit(1);
             }
-//            if(prt) mf::LogVerbatim("CC")<<" jhit range "<<jfirsthit<<" "<<jlasthit;
-            for(unsigned int jhit = jfirsthit; jhit < jlasthit; ++jhit) {
+            //            if(prt) mf::LogVerbatim("CC")<<" jhit range "<<jfirsthit<<" "<<jlasthit;
+            for(jhit = jfirsthit; jhit < jlasthit; ++jhit) {
               if(jhit > fHits.size()-1) {
                 mf::LogError("CC")<<"ClusterLoop bad jhit "<<jhit<<" firsthit "<<jfirsthit<<" lasthit "<<jlasthit<<" fhits size"<<fHits.size();
                 exit(1);
               }
+              // Constraint?
+              if(doConstrain && jhit != useHit) continue;
               recob::Hit const& other_hit = fHits[jhit];
               // skip used and obsolete hits
               if(inClus[jhit] != 0) continue;
-              // Vertex constraint
-              if(doConstrain && jhit != useHit) continue;
               // start a cluster with these two hits
-              fcl2hits.clear();
-              chifits.clear();
-              hitNear.clear();
-              chgNear.clear();
-              projDTick.clear();
-              fAveChg = -1.;
-              fAveHitWidth = -1;
-              fAveDTick = 0;
-              unMergedHits.clear();
-              clEndChg = -1.;
-              clStopCode = 0;
-              clProcCode = pass;
+              ClusterInit();
               fcl2hits.push_back(ihit);
-              projDTick.push_back(0);
               chifits.push_back(0.);
               hitNear.push_back(0);
-              chgNear.push_back(0); // This will be defined if the cluster survives the cuts
+              chgNear.push_back(0); // These will be defined if the cluster survives the cuts
               // enter the jhit
               fcl2hits.push_back(jhit);
-              projDTick.push_back(0);
               chifits.push_back(0.);
               hitNear.push_back(0);
-              chgNear.push_back(0); // This will be defined if the cluster survives the cuts
+              chgNear.push_back(0);
               clLA = false;
               clpar[0] = other_hit.PeakTime();
               clpar[1] = (hit.PeakTime() - other_hit.PeakTime()) / (iwire - jwire);
               clpar[2] = fHits[jhit].WireID().Wire;
               clChisq = 0;
               // now look for hits to add on the intervening wires
-              SigOK = false;
-              bool HitOK = false;
               bool clok = true;
-              for(unsigned short kwire = jwire+1; kwire < iwire; ++kwire) {
+              if(prt) mf::LogVerbatim("CC")<<"\n >>>>> Seed cluster pair "<<fHits[ihit].WireID().Wire<<":"<<(int)fHits[ihit].PeakTime()
+                <<" "<<fHits[jhit].WireID().Wire<<":"<<(int)fHits[jhit].PeakTime();
+              for(kwire = jwire+1; kwire < iwire; ++kwire) {
                 // ensure this cluster doesn't cross a vertex
                 if(CrawlVtxChk(kwire)) {
                   clok = false;
@@ -440,6 +446,7 @@ namespace cluster {
                   break;
                 }
               }
+              if(prt) mf::LogVerbatim("CC")<<" middle HitOK "<<HitOK<<" SigOK "<<SigOK<<" size "<<fcl2hits.size()<<" clok "<<clok;
               // drop it?
               if(fcl2hits.size() < span || !clok) continue;
               // sort them by decreasing wire number
@@ -448,6 +455,7 @@ namespace cluster {
               // Hits will be added in the proper order by CrawlUS
               std::sort(fcl2hits.begin(), fcl2hits.end(), SortByLowHit);
               // check for consistency between the cluster slope and the hit width
+              if(prt) mf::LogVerbatim("CC")<<" ClusterHitsOK "<<ClusterHitsOK(-1);
               if(!ClusterHitsOK(-1)) continue;
               // do a real fit
               FitCluster();
@@ -504,6 +512,7 @@ namespace cluster {
               } else {
                 // abandon it
                 RestoreUnMergedClusterHits(-1);
+                if(prt) mf::LogVerbatim("CC")<<"ClusterLoop: dropped the cluster";
               }
             } // jhit
             if(ClusterAdded || AllDone) break;
@@ -527,6 +536,8 @@ namespace cluster {
       if(fMergeOverlapAngCut > 0) MergeOverlap();
       // Check the DS end of clusters
       if(fChkClusterDS) ChkClusterDS();
+      // Find Very Large Angle clusters()
+      if(fFindVLAClusters) FindVLAClusters();
       // split clusters using vertices
       if(fVtxClusterSplit) {
         bool didSomething = VtxClusterSplit();
@@ -549,301 +560,347 @@ namespace cluster {
     
   } // ClusterLoop()
 
+  //////////////////////////////////////////
+  void ClusterCrawlerAlg::FindVLAClusters()
+  {
+    // Find Very Large Angle clusters after clustering is done in a plane.
+    // Signatures are long hit multiplets that are not included in a cluster
+    // and possibly nearby large angle clusters
+    
+    prt = (fDebugPlane == (short)plane && fDebugHit == 7777);
+    
+    // Merge all hits on existing large angle clusters
+    unsigned short icl, ii, hitsMerged, wire, endWire;
+    unsigned int iht;
+    bool didMerge, hitAdded;
+    float prtime, window;
+    for(icl = 0; icl < tcl.size(); ++icl) {
+      if(tcl[icl].ID < 0) continue;
+      if(tcl[icl].CTP != clCTP) continue;
+      if(std::abs(tcl[icl].BeginSlp) < fLAClusSlopeCut || std::abs(tcl[icl].EndSlp) < fLAClusSlopeCut) continue;
+      if(prt) mf::LogVerbatim("CC")<<"VLA check "<<tcl[icl].ID;
+      hitsMerged = 0;
+      for(ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
+        iht = tcl[icl].tclhits[ii];
+        if(iht > fHits.size() - 1) continue;
+        if(prt) mf::LogVerbatim("CC")<<" P:W:T "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire
+          <<":"<<(int)fHits[iht].PeakTime()<<" mult "<<fHits[iht].Multiplicity()<<" chisq "<<fHits[iht].GoodnessOfFit();
+        if(fHits[iht].Multiplicity() == 1) continue;
+        MergeHits(iht, didMerge);
+        if(didMerge) ++hitsMerged;
+      } // ii (iht)
+      // Put the cluster hits into fcl2hits
+      TmpGet(icl);
+      // re-do the End fit with two hits
+      FitClusterMid(icl, fcl2hits[fcl2hits.size()-1], -2);
+      std::cout<<"FitClusterMid "<<clpar[0]<<" "<<clpar[1]<<" "<<clpar[2]<<"\n";
+      // Switch the slope to follow wandering clusters
+      endWire = tcl[icl].EndWir;
+      prtime = tcl[icl].EndTim - clpar[1];
+      window = std::abs(tcl[icl].EndSlp);
+      if(prt) mf::LogVerbatim("CC")<<" prtime "<<prtime<<" window "<<window;
+      for(wire = endWire - 1; wire < endWire + 2; ++wire) {
+        hitAdded = AddVLAHit(wire, prtime, window);
+        if(prt) mf::LogVerbatim("CC")<<" wire "<<wire<<" hitAdded "<<hitAdded;
+      } // wire
+   } // icl
+    
+  } // FindVLAClusters
+  
 //////////////////////////////////////////
-    void ClusterCrawlerAlg::MergeOverlap()
-    {
-      // Tries to merge overlapping clusters schematically shown below. The minimal condition is that both
-      // clusters have a length of at least minLen wires with minOvrLap of the minLen wires in the overlap region
-      //      End  Begin
-      // icl  ------
-      // jcl     ------
-      //         End  Begin
-      // This can occur when tracking cosmic rays through delta ray showers.
-      // If successfull the hits in clusters icl and jcl are merged into one long cluster
-      // and a short cluster if there are sufficient remaining hits.
-      // This routine changes the "pass" variable to define cuts and should NOT be used inside any pass loops
-      
-      unsigned short icl, jcl;
-      
-      prt = (fDebugWire == 666);
-      if(prt) mf::LogVerbatim("CC")<<"MergeOverlap check. clCTP "<<clCTP;
-      
-      unsigned short minLen = 10;
-      unsigned short minOvrLap = 3;
-
-      unsigned short tclsize = tcl.size();
-      unsigned short overlapSize, ii, indx, bWire, eWire;
-      unsigned int iht;
-      for(icl = 0; icl < tclsize; ++icl) {
-        if(tcl[icl].ID < 0) continue;
-        if(tcl[icl].CTP != clCTP) continue;
-        if(tcl[icl].BeginVtx >= 0) continue;
-        if(tcl[icl].tclhits.size() < minLen) continue;
-        bool gotone = false;
-        for(jcl = 0; jcl < tclsize; ++jcl) {
-          if(icl == jcl) continue;
-          if(tcl[jcl].ID < 0) continue;
-          if(tcl[jcl].CTP != clCTP) continue;
-          if(tcl[jcl].EndVtx >= 0) continue;
-          if(tcl[jcl].tclhits.size() < minLen) continue;
-          // icl Begin is not far enough DS from the end of jcl
-          if(tcl[icl].BeginWir < tcl[jcl].EndWir + minOvrLap) continue;
-          // and it doesn't end within the wire boundaries of jcl
-          if(tcl[icl].BeginWir > tcl[jcl].BeginWir - minOvrLap) continue;
-          // jcl End isn't far enough US from the end of icl
-          if(tcl[jcl].EndWir < tcl[icl].EndWir + minOvrLap) continue;
-          // require roughly similar angles at the overlap region
-          if(std::abs(tcl[icl].BeginAng - tcl[jcl].EndAng) > 0.2) continue;
-            // and similar time
-          if(std::abs(tcl[icl].BeginTim - tcl[jcl].EndTim) > 50) continue;
-          overlapSize = tcl[icl].BeginWir - tcl[jcl].EndWir + 1;
-          bWire = tcl[jcl].EndWir;
-          eWire = tcl[icl].BeginWir;
-          if(prt) mf::LogVerbatim("CC")<<" Candidate icl ID "<<tcl[icl].ID<<" "<<tcl[icl].EndWir<<"-"<<tcl[icl].BeginWir<<" jcl ID "<<tcl[jcl].ID<<" "<<tcl[jcl].EndWir<<"-"<<tcl[jcl].BeginWir<<" overlapSize "<<overlapSize<<" bWire "<<bWire<<" eWire "<<eWire;
-          std::vector<int> iclHit(overlapSize, -1);
-          std::vector<int> jclHit(overlapSize, -1);
-          std::vector<unsigned short> iclTime(overlapSize);
-          std::vector<unsigned short> jclTime(overlapSize);
-          // enter the hit index and times in the overlap region into the two vectors
-          for(ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
-            iht = tcl[icl].tclhits[ii];
-            if(fHits[iht].WireID().Wire < bWire) break;
-            indx = fHits[iht].WireID().Wire - bWire;
-            if(indx > overlapSize - 1) {
-              mf::LogError("CC")<<"MergeOverlap: icl indx error "<<indx<<" overlapSize "<<overlapSize;
-              return;
-            } // bad indx
-            iclHit[indx] = iht;
-            iclTime[indx] = fHits[iht].PeakTime();
-          } // ii
-          for(ii = 0; ii < tcl[jcl].tclhits.size(); ++ii) {
-            iht = tcl[jcl].tclhits[tcl[jcl].tclhits.size() - ii - 1];
-            if(fHits[iht].WireID().Wire > eWire) break;
-            indx = fHits[iht].WireID().Wire - bWire;
-            if(indx > overlapSize - 1) {
-              mf::LogError("CC")<<"MergeOverlap: jcl indx error "<<indx<<" overlapSize "<<overlapSize;
-              return;
-            } // bad indx
-            jclHit[indx] = iht;
-            jclTime[indx] = fHits[iht].PeakTime();
-          } // ii
-          if(prt) {
-            mf::LogVerbatim("CC")<<"overlap vectors";
-            for(ii = 0; ii < iclHit.size(); ++ii) mf::LogVerbatim("CC")<<"index "<<bWire+ii<<" "<<iclHit[ii]<<" "<<jclHit[ii]
-              <<" time "<<iclTime[ii]<<" "<<jclTime[ii];
+  void ClusterCrawlerAlg::MergeOverlap()
+  {
+    // Tries to merge overlapping clusters schematically shown below. The minimal condition is that both
+    // clusters have a length of at least minLen wires with minOvrLap of the minLen wires in the overlap region
+    //      End  Begin
+    // icl  ------
+    // jcl     ------
+    //         End  Begin
+    // This can occur when tracking cosmic rays through delta ray showers.
+    // If successfull the hits in clusters icl and jcl are merged into one long cluster
+    // and a short cluster if there are sufficient remaining hits.
+    // This routine changes the "pass" variable to define cuts and should NOT be used inside any pass loops
+    
+    unsigned short icl, jcl;
+    
+    prt = (fDebugWire == 666);
+    if(prt) mf::LogVerbatim("CC")<<"MergeOverlap check. clCTP "<<clCTP;
+    
+    unsigned short minLen = 10;
+    unsigned short minOvrLap = 3;
+    
+    unsigned short tclsize = tcl.size();
+    unsigned short overlapSize, ii, indx, bWire, eWire;
+    unsigned int iht;
+    for(icl = 0; icl < tclsize; ++icl) {
+      if(tcl[icl].ID < 0) continue;
+      if(tcl[icl].CTP != clCTP) continue;
+      if(tcl[icl].BeginVtx >= 0) continue;
+      if(tcl[icl].tclhits.size() < minLen) continue;
+      bool gotone = false;
+      for(jcl = 0; jcl < tclsize; ++jcl) {
+        if(icl == jcl) continue;
+        if(tcl[jcl].ID < 0) continue;
+        if(tcl[jcl].CTP != clCTP) continue;
+        if(tcl[jcl].EndVtx >= 0) continue;
+        if(tcl[jcl].tclhits.size() < minLen) continue;
+        // icl Begin is not far enough DS from the end of jcl
+        if(tcl[icl].BeginWir < tcl[jcl].EndWir + minOvrLap) continue;
+        // and it doesn't end within the wire boundaries of jcl
+        if(tcl[icl].BeginWir > tcl[jcl].BeginWir - minOvrLap) continue;
+        // jcl End isn't far enough US from the end of icl
+        if(tcl[jcl].EndWir < tcl[icl].EndWir + minOvrLap) continue;
+        // require roughly similar angles at the overlap region
+        if(std::abs(tcl[icl].BeginAng - tcl[jcl].EndAng) > 0.2) continue;
+        // and similar time
+        if(std::abs(tcl[icl].BeginTim - tcl[jcl].EndTim) > 50) continue;
+        overlapSize = tcl[icl].BeginWir - tcl[jcl].EndWir + 1;
+        bWire = tcl[jcl].EndWir;
+        eWire = tcl[icl].BeginWir;
+        if(prt) mf::LogVerbatim("CC")<<" Candidate icl ID "<<tcl[icl].ID<<" "<<tcl[icl].EndWir<<"-"<<tcl[icl].BeginWir<<" jcl ID "<<tcl[jcl].ID<<" "<<tcl[jcl].EndWir<<"-"<<tcl[jcl].BeginWir<<" overlapSize "<<overlapSize<<" bWire "<<bWire<<" eWire "<<eWire;
+        std::vector<int> iclHit(overlapSize, -1);
+        std::vector<int> jclHit(overlapSize, -1);
+        std::vector<unsigned short> iclTime(overlapSize);
+        std::vector<unsigned short> jclTime(overlapSize);
+        // enter the hit index and times in the overlap region into the two vectors
+        for(ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
+          iht = tcl[icl].tclhits[ii];
+          if(fHits[iht].WireID().Wire < bWire) break;
+          indx = fHits[iht].WireID().Wire - bWire;
+          if(indx > overlapSize - 1) {
+            mf::LogError("CC")<<"MergeOverlap: icl indx error "<<indx<<" overlapSize "<<overlapSize;
+            return;
+          } // bad indx
+          iclHit[indx] = iht;
+          iclTime[indx] = fHits[iht].PeakTime();
+        } // ii
+        for(ii = 0; ii < tcl[jcl].tclhits.size(); ++ii) {
+          iht = tcl[jcl].tclhits[tcl[jcl].tclhits.size() - ii - 1];
+          if(fHits[iht].WireID().Wire > eWire) break;
+          indx = fHits[iht].WireID().Wire - bWire;
+          if(indx > overlapSize - 1) {
+            mf::LogError("CC")<<"MergeOverlap: jcl indx error "<<indx<<" overlapSize "<<overlapSize;
+            return;
+          } // bad indx
+          jclHit[indx] = iht;
+          jclTime[indx] = fHits[iht].PeakTime();
+        } // ii
+        if(prt) {
+          mf::LogVerbatim("CC")<<"overlap vectors";
+          for(ii = 0; ii < iclHit.size(); ++ii) mf::LogVerbatim("CC")<<"index "<<bWire+ii<<" "<<iclHit[ii]<<" "<<jclHit[ii]
+            <<" time "<<iclTime[ii]<<" "<<jclTime[ii];
+        }
+        // make a cut on the time difference at the two ends of the overlap region. Find a wire
+        // which has hits on both clusters
+        for(ii = 0; ii < iclTime.size(); ++ii)
+          if(iclTime[ii] > 0 && jclTime[ii] > 0 && std::abs(iclTime[ii] - jclTime[ii]) > 50) return;
+        // draw a line between a hit on icl just US of the overlap region and a hit on jcl just DS of the overlap region
+        // use iclpar to hold this information
+        float iclpar[3];
+        iclpar[0] = -1;
+        for(ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
+          iht = tcl[icl].tclhits[ii];
+          if(fHits[iht].WireID().Wire < bWire) {
+            iclpar[0] = fHits[iht].PeakTime();
+            iclpar[2] = fHits[iht].WireID().Wire;
+            if(prt) mf::LogVerbatim("CC")<<"Use hit "<<iht<<" W T "<<fHits[iht].WireID().Wire<<" "<<fHits[iht].PeakTime();
+            break;
           }
-          // make a cut on the time difference at the two ends of the overlap region. Find a wire
-          // which has hits on both clusters
-          for(ii = 0; ii < iclTime.size(); ++ii)
-            if(iclTime[ii] > 0 && jclTime[ii] > 0 && std::abs(iclTime[ii] - jclTime[ii]) > 50) return;
-          // draw a line between a hit on icl just US of the overlap region and a hit on jcl just DS of the overlap region
-          // use iclpar to hold this information
-          float iclpar[3];
-          iclpar[0] = -1;
-          for(ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
-            iht = tcl[icl].tclhits[ii];
-            if(fHits[iht].WireID().Wire < bWire) {
-              iclpar[0] = fHits[iht].PeakTime();
-              iclpar[2] = fHits[iht].WireID().Wire;
-              if(prt) mf::LogVerbatim("CC")<<"Use hit "<<iht<<" W T "<<fHits[iht].WireID().Wire<<" "<<fHits[iht].PeakTime();
-              break;
+        } // ii
+        if(iclpar[0] < 0) continue;
+        // now find a hit on the jcl cluster just DS of the overlap region
+        unsigned short hitFit = 0;
+        short nHitFit = -1;
+        for(ii = 0; ii < tcl[jcl].tclhits.size(); ++ii) {
+          iht = tcl[jcl].tclhits[tcl[jcl].tclhits.size() - ii - 1];
+          if(fHits[iht].WireID().Wire >= eWire) {
+            iclpar[1] = (fHits[iht].PeakTime() - iclpar[0]) / (fHits[iht].WireID().Wire - iclpar[2]);
+            if(prt) mf::LogVerbatim("CC")<<" and hit "<<iht<<" W T "<<fHits[iht].WireID().Wire<<" "<<fHits[iht].PeakTime()<<" slope "<<iclpar[1];
+            hitFit = iht;
+            nHitFit = tcl[jcl].tclhits.size() - ii;
+            if(nHitFit > 4) nHitFit = 4;
+            break;
+          }
+        } // ii
+        if(nHitFit < 0) continue;
+        // fit the hits just DS of the overlap region on jcl to make a tighter angle cut
+        FitClusterMid(jcl, hitFit, -nHitFit);
+        if(clChisq > 5) continue;
+        // fit parameters are stored in clpar
+        // make a tight angle cut
+        float dth = std::abs(atan(fScaleF * iclpar[1]) - atan(fScaleF * clpar[1]));
+        if(prt) mf::LogVerbatim("CC")<<"iclpar "<<iclpar[1]<<" clpar "<<clpar[1]<<" dth "<<dth;
+        if(dth > fMergeOverlapAngCut) continue;
+        // prepare to make a new cluster
+        TmpGet(jcl);
+        // resize it
+        unsigned short jclNewSize;
+        for(jclNewSize = 0; jclNewSize < fcl2hits.size(); ++jclNewSize) {
+          iht = fcl2hits[jclNewSize];
+          if(fHits[iht].WireID().Wire <= eWire) break;
+        } // jclNewSize
+        if(prt) {
+          mf::LogVerbatim("CC")<<"jcl old size "<<fcl2hits.size()<<" newSize "<<jclNewSize;
+          iht = fcl2hits[fcl2hits.size()-1];
+          unsigned short iiht = fcl2hits[jclNewSize-1];
+          mf::LogVerbatim("CC")<<"jcl old last wire "<<fHits[iht].WireID().Wire<<" After resize last wire "<<fHits[iiht].WireID().Wire;
+        }
+        fcl2hits.resize(jclNewSize);
+        // now add hits in the overlap region. Window for assigning hits (ala AddHit) inflated somewhat
+        float hiterr = 6 * AngleFactor(clpar[1]) * fHitErrFac * fHits[hitFit].RMS();
+        if(prt) mf::LogVerbatim("CC")<<"hiterr "<<hiterr;
+        // clobber icl and jcl
+        MakeClusterObsolete(icl);
+        MakeClusterObsolete(jcl);
+        unsigned short wire;
+        float prtime, best;
+        unsigned int iHit, jHit, goodHit;
+        unsigned short nadd = 0;
+        for(ii = 0; ii < iclHit.size(); ++ii) {
+          indx = iclHit.size() - ii - 1;
+          wire = bWire + indx;
+          prtime = iclpar[0] + iclpar[1] * (wire - iclpar[2]);
+          // no hit on this wire TODO Look for the missing hit
+          if(iclHit[indx] < 0 && jclHit[indx] < 0) continue;
+          // Check for two hits in a multiplet and merge them
+          if(iclHit[indx] >= 0 && jclHit[indx] >= 0) {
+            iHit = iclHit[indx];
+            jHit = jclHit[indx];
+            if(areInSameMultiplet(fHits[iHit], fHits[jHit])) {
+              bool didMerge = false;
+              MergeHits(iHit, didMerge);
+              fcl2hits.push_back(iHit);
+              iclHit[indx] = -1;
+              jclHit[indx] = -1;
+              ++nadd;
             }
-          } // ii
-          if(iclpar[0] < 0) continue;
-          // now find a hit on the jcl cluster just DS of the overlap region
-          unsigned short hitFit = 0;
-          short nHitFit = -1;
-          for(ii = 0; ii < tcl[jcl].tclhits.size(); ++ii) {
-            iht = tcl[jcl].tclhits[tcl[jcl].tclhits.size() - ii - 1];
-            if(fHits[iht].WireID().Wire >= eWire) {
-              iclpar[1] = (fHits[iht].PeakTime() - iclpar[0]) / (fHits[iht].WireID().Wire - iclpar[2]);
-              if(prt) mf::LogVerbatim("CC")<<" and hit "<<iht<<" W T "<<fHits[iht].WireID().Wire<<" "<<fHits[iht].PeakTime()<<" slope "<<iclpar[1];
-              hitFit = iht;
-              nHitFit = tcl[jcl].tclhits.size() - ii;
-              if(nHitFit > 4) nHitFit = 4;
-              break;
+          } // iclHit[indx] >= 0 && jclHit[indx] >= 0
+          else {
+            // one hit on icl or jcl
+            // check for a good hit on icl
+            goodHit = 0;
+            best = hiterr;
+            if(iclHit[indx] >= 0 && std::abs(fHits[iclHit[indx]].PeakTime() - prtime) < best) {
+              goodHit = iclHit[indx];
+              best = fabs(fHits[iclHit[indx]].PeakTime() - prtime);
             }
-          } // ii
-          if(nHitFit < 0) continue;
-          // fit the hits just DS of the overlap region on jcl to make a tighter angle cut
-          FitClusterMid(jcl, hitFit, -nHitFit);
-          if(clChisq > 5) continue;
-          // fit parameters are stored in clpar
-          // make a tight angle cut
-          float dth = std::abs(atan(fScaleF * iclpar[1]) - atan(fScaleF * clpar[1]));
-          if(prt) mf::LogVerbatim("CC")<<"iclpar "<<iclpar[1]<<" clpar "<<clpar[1]<<" dth "<<dth;
-          if(dth > fMergeOverlapAngCut) continue;
-          // prepare to make a new cluster
-          TmpGet(jcl);
-          // resize it
-          unsigned short jclNewSize;
-          for(jclNewSize = 0; jclNewSize < fcl2hits.size(); ++jclNewSize) {
-            iht = fcl2hits[jclNewSize];
-            if(fHits[iht].WireID().Wire <= eWire) break;
-          } // jclNewSize
-          if(prt) {
-            mf::LogVerbatim("CC")<<"jcl old size "<<fcl2hits.size()<<" newSize "<<jclNewSize;
-            iht = fcl2hits[fcl2hits.size()-1];
-            unsigned short iiht = fcl2hits[jclNewSize-1];
-            mf::LogVerbatim("CC")<<"jcl old last wire "<<fHits[iht].WireID().Wire<<" After resize last wire "<<fHits[iiht].WireID().Wire;
-          }
-          fcl2hits.resize(jclNewSize);
-          // now add hits in the overlap region. Window for assigning hits (ala AddHit) inflated somewhat
-          float hiterr = 6 * AngleFactor(clpar[1]) * fHitErrFac * fHits[hitFit].RMS();
-          if(prt) mf::LogVerbatim("CC")<<"hiterr "<<hiterr;
-          // clobber icl and jcl
-          MakeClusterObsolete(icl);
-          MakeClusterObsolete(jcl);
-          unsigned short wire;
-          float prtime, best;
-          unsigned int iHit, jHit, goodHit;
-          unsigned short nadd = 0;
-          for(ii = 0; ii < iclHit.size(); ++ii) {
-            indx = iclHit.size() - ii - 1;
-            wire = bWire + indx;
-            prtime = iclpar[0] + iclpar[1] * (wire - iclpar[2]);
-            // no hit on this wire TODO Look for the missing hit
-            if(iclHit[indx] < 0 && jclHit[indx] < 0) continue;
-            // Check for two hits in a multiplet and merge them
-            if(iclHit[indx] >= 0 && jclHit[indx] >= 0) {
-              iHit = iclHit[indx];
-              jHit = jclHit[indx];
-              if(areInSameMultiplet(fHits[iHit], fHits[jHit])) {
-                bool didMerge = false;
-                MergeHits(iHit, didMerge);
-                fcl2hits.push_back(iHit);
-                iclHit[indx] = -1;
-                jclHit[indx] = -1;
-                ++nadd;
-              }
-            } // iclHit[indx] >= 0 && jclHit[indx] >= 0
-            else {
-              // one hit on icl or jcl
-              // check for a good hit on icl
-              goodHit = 0;
-              best = hiterr;
-              if(iclHit[indx] >= 0 && std::abs(fHits[iclHit[indx]].PeakTime() - prtime) < best) {
-                goodHit = iclHit[indx];
-                best = fabs(fHits[iclHit[indx]].PeakTime() - prtime);
-              }
-              // check for a better one on jcl
-              if(jclHit[indx] >= 0 && std::abs(fHits[jclHit[indx]].PeakTime() - prtime) < best) {
-                goodHit = jclHit[indx];
-                best = fabs(fHits[jclHit[indx]].PeakTime() - prtime);
-              }
-              if(best < hiterr) {
-                fcl2hits.push_back(goodHit);
-                // flag hits used
-                if(iclHit[indx] >= 0 && (unsigned int)iclHit[indx] == goodHit) iclHit[indx] = -1;
-                if(jclHit[indx] >= 0 && (unsigned int)jclHit[indx] == goodHit) jclHit[indx] = -1;
-                ++nadd;
-              } // best < hiterr
-            } // one hit on icl or jcl
-          } // ii
-          // now paste in the icl hits that are US of the overlap region
-          for(ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
-            iht = tcl[icl].tclhits[ii];
-            if((unsigned short)fHits[iht].WireID().Wire >= bWire) continue;
-            fcl2hits.push_back(iht);
-          }
-          clBeginSlp = tcl[jcl].BeginSlp;
-          clBeginSlpErr = tcl[jcl].BeginSlpErr;
-          clBeginAng = tcl[jcl].BeginAng;
-          clBeginWir = tcl[jcl].BeginWir;
-          clBeginTim = tcl[jcl].BeginTim;
-          clBeginChg = tcl[jcl].BeginChg;
-          clBeginChgNear = tcl[jcl].BeginChgNear;
-          // End info from icl
-          clEndSlp = tcl[icl].EndSlp;
-          clEndSlpErr = tcl[icl].EndSlpErr;
-          clEndAng = tcl[icl].EndAng;
-          clEndWir = tcl[icl].EndWir;
-          clEndTim = tcl[icl].EndTim;
-          clEndChg = tcl[icl].EndChg;
-          clEndChgNear = tcl[icl].EndChgNear;
-          clStopCode = tcl[icl].StopCode;
-          clProcCode = tcl[icl].ProcCode + 500;
-          if(!TmpStore()) {
-            // Merged cluster is fubar. Try to recover
-            RestoreObsoleteCluster(icl);
-            RestoreObsoleteCluster(jcl);
+            // check for a better one on jcl
+            if(jclHit[indx] >= 0 && std::abs(fHits[jclHit[indx]].PeakTime() - prtime) < best) {
+              goodHit = jclHit[indx];
+              best = fabs(fHits[jclHit[indx]].PeakTime() - prtime);
+            }
+            if(best < hiterr) {
+              fcl2hits.push_back(goodHit);
+              // flag hits used
+              if(iclHit[indx] >= 0 && (unsigned int)iclHit[indx] == goodHit) iclHit[indx] = -1;
+              if(jclHit[indx] >= 0 && (unsigned int)jclHit[indx] == goodHit) jclHit[indx] = -1;
+              ++nadd;
+            } // best < hiterr
+          } // one hit on icl or jcl
+        } // ii
+        // now paste in the icl hits that are US of the overlap region
+        for(ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
+          iht = tcl[icl].tclhits[ii];
+          if((unsigned short)fHits[iht].WireID().Wire >= bWire) continue;
+          fcl2hits.push_back(iht);
+        }
+        clBeginSlp = tcl[jcl].BeginSlp;
+        clBeginSlpErr = tcl[jcl].BeginSlpErr;
+        clBeginAng = tcl[jcl].BeginAng;
+        clBeginWir = tcl[jcl].BeginWir;
+        clBeginTim = tcl[jcl].BeginTim;
+        clBeginChg = tcl[jcl].BeginChg;
+        clBeginChgNear = tcl[jcl].BeginChgNear;
+        // End info from icl
+        clEndSlp = tcl[icl].EndSlp;
+        clEndSlpErr = tcl[icl].EndSlpErr;
+        clEndAng = tcl[icl].EndAng;
+        clEndWir = tcl[icl].EndWir;
+        clEndTim = tcl[icl].EndTim;
+        clEndChg = tcl[icl].EndChg;
+        clEndChgNear = tcl[icl].EndChgNear;
+        clStopCode = tcl[icl].StopCode;
+        clProcCode = tcl[icl].ProcCode + 500;
+        if(!TmpStore()) {
+          // Merged cluster is fubar. Try to recover
+          RestoreObsoleteCluster(icl);
+          RestoreObsoleteCluster(jcl);
+          continue;
+        }
+        tcl[tcl.size() - 1].BeginVtx = tcl[jcl].BeginVtx;
+        tcl[tcl.size() - 1].EndVtx = tcl[icl].BeginVtx;
+        gotone = true;
+        // after this point any failure should result in a jcl loop break
+        if(prt) mf::LogVerbatim("CC")<<"MergeOverlap new long cluster ID "<<tcl[tcl.size()-1].ID<<" in clCTP "<<clCTP;
+        // try to make a new cluster from the remnants in iclHit and jclHit
+        // put the valid hit indices into the iclHit vector
+        for(ii = 0; ii < iclHit.size(); ++ii) if(iclHit[ii] < 0) iclHit[ii] = jclHit[ii];
+        if(prt) {
+          mf::LogVerbatim("CC")<<"updated iclHit";
+          for(ii = 0; ii < iclHit.size(); ++ii) mf::LogVerbatim("CC")<<bWire+ii<<" "<<iclHit[ii];
+        }
+        fcl2hits.clear();
+        unsigned short nmiss = 0;
+        for(ii = 0; ii < iclHit.size(); ++ii) {
+          indx = iclHit.size() - ii - 1;
+          if(iclHit[indx] < 0) {
+            ++nmiss;
+            nadd = 0;
             continue;
           }
-          tcl[tcl.size() - 1].BeginVtx = tcl[jcl].BeginVtx;
-          tcl[tcl.size() - 1].EndVtx = tcl[icl].BeginVtx;
-          gotone = true;
-          // after this point any failure should result in a jcl loop break
-          if(prt) mf::LogVerbatim("CC")<<"MergeOverlap new long cluster ID "<<tcl[tcl.size()-1].ID<<" in clCTP "<<clCTP;
-          // try to make a new cluster from the remnants in iclHit and jclHit
-          // put the valid hit indices into the iclHit vector
-          for(ii = 0; ii < iclHit.size(); ++ii) if(iclHit[ii] < 0) iclHit[ii] = jclHit[ii];
-          if(prt) {
-            mf::LogVerbatim("CC")<<"updated iclHit";
-            for(ii = 0; ii < iclHit.size(); ++ii) mf::LogVerbatim("CC")<<bWire+ii<<" "<<iclHit[ii];
+          if(inClus[iclHit[indx]] != 0) {
+            mf::LogError("CC")<<"Hit not free "<<iclHit[indx]<<" on wire "<<fHits[iclHit[indx]].WireID().Wire<<"\n";
+            continue;
           }
-          fcl2hits.clear();
-          unsigned short nmiss = 0;
-          for(ii = 0; ii < iclHit.size(); ++ii) {
-            indx = iclHit.size() - ii - 1;
-            if(iclHit[indx] < 0) {
-              ++nmiss;
-              nadd = 0;
-              continue;
-            }
-            if(inClus[iclHit[indx]] != 0) {
-              std::cout<<"Hit not free "<<iclHit[indx]<<" on wire "<<fHits[iclHit[indx]].WireID().Wire<<"\n";
-              continue;
-            }
-            fcl2hits.push_back((unsigned int)iclHit[indx]);
-            ++nadd;
-            if(nmiss > 0) continue;
-            nmiss = 0;
-          } // ii
-          if(fcl2hits.size() < 3) break;
-          // check the hitfraction
-          iht = fcl2hits.size() - 1;
-          float dw = fHits[fcl2hits[0]].WireID().Wire - fHits[fcl2hits[iht]].WireID().Wire + 1;
-          float hitFrac = (float)fcl2hits.size() / dw;
-          if(hitFrac < fMinHitFrac) break;
-          // do the End fit
-          pass = fNumPass - 1;
+          fcl2hits.push_back((unsigned int)iclHit[indx]);
+          ++nadd;
+          if(nmiss > 0) continue;
+          nmiss = 0;
+        } // ii
+        if(fcl2hits.size() < 3) break;
+        // check the hitfraction
+        iht = fcl2hits.size() - 1;
+        float dw = fHits[fcl2hits[0]].WireID().Wire - fHits[fcl2hits[iht]].WireID().Wire + 1;
+        float hitFrac = (float)fcl2hits.size() / dw;
+        if(hitFrac < fMinHitFrac) break;
+        // do the End fit
+        pass = fNumPass - 1;
+        FitCluster();
+        if(clChisq > fChiCut[pass]) break;
+        clEndSlp = clpar[1];
+        clEndSlpErr = clparerr[1];
+        clEndAng = std::atan(fScaleF * clEndSlp);
+        clEndWir = fHits[fcl2hits[iht]].WireID().Wire;
+        clEndTim = fHits[fcl2hits[iht]].PeakTime();
+        // find the charge at the end
+        FitClusterChg();
+        clEndChg = fAveChg;
+        clEndChgNear = 1; // This is a fake but not a bad fake
+        if(fcl2hits.size() > fMaxHitsFit[pass]) {
+          // do some temporary damage to fit the Begin end
+          std::vector<unsigned int> tfcl2hits = fcl2hits;
+          fcl2hits.resize(fMaxHitsFit[pass]);
           FitCluster();
           if(clChisq > fChiCut[pass]) break;
-          clEndSlp = clpar[1];
-          clEndSlpErr = clparerr[1];
-          clEndAng = std::atan(fScaleF * clEndSlp);
-          clEndWir = fHits[fcl2hits[iht]].WireID().Wire;
-          clEndTim = fHits[fcl2hits[iht]].PeakTime();
+          clBeginSlp = clpar[1];
+          clBeginSlpErr = clparerr[1];
+          clBeginAng = std::atan(fScaleF * clBeginSlp);
+          clBeginWir = fHits[fcl2hits[0]].WireID().Wire;
+          clBeginTim = fHits[fcl2hits[0]].PeakTime();
           // find the charge at the end
           FitClusterChg();
-          clEndChg = fAveChg;
-          clEndChgNear = 1; // This is a fake but not a bad fake
-          if(fcl2hits.size() > fMaxHitsFit[pass]) {
-            // do some temporary damage to fit the Begin end
-            std::vector<unsigned int> tfcl2hits = fcl2hits;
-            fcl2hits.resize(fMaxHitsFit[pass]);
-            FitCluster();
-            if(clChisq > fChiCut[pass]) break;
-            clBeginSlp = clpar[1];
-            clBeginSlpErr = clparerr[1];
-            clBeginAng = std::atan(fScaleF * clBeginSlp);
-            clBeginWir = fHits[fcl2hits[0]].WireID().Wire;
-            clBeginTim = fHits[fcl2hits[0]].PeakTime();
-            // find the charge at the end
-            FitClusterChg();
-            clBeginChg = fAveChg;
-            clBeginChgNear = 1; // This is a fake but not a bad fake
-            fcl2hits = tfcl2hits;
-          }
-          clProcCode = 666;
-          if(!TmpStore()) continue;
-          if(prt) mf::LogVerbatim("CC")<<"MergeOverlap new runt cluster ID "<<tcl[tcl.size()-1].ID<<" in clCTP "<<clCTP;
-          if(gotone) break;
-        } // jcl
-      } // icl
-      
-      
-    } // MergeOverlap()
+          clBeginChg = fAveChg;
+          clBeginChgNear = 1; // This is a fake but not a bad fake
+          fcl2hits = tfcl2hits;
+        }
+        clProcCode = 666;
+        if(!TmpStore()) continue;
+        if(prt) mf::LogVerbatim("CC")<<"MergeOverlap new runt cluster ID "<<tcl[tcl.size()-1].ID<<" in clCTP "<<clCTP;
+        if(gotone) break;
+      } // jcl
+    } // icl
+    
+  } // MergeOverlap()
 
 //////////////////////////////////////////
   void ClusterCrawlerAlg::MakeClusterObsolete(unsigned short icl) {
@@ -885,7 +942,6 @@ namespace cluster {
     RestoreUnMergedClusterHits((short)nTrim);
     for(unsigned short ii = 0; ii < nTrim; ++ii) {
       fcl2hits.pop_back();
-      projDTick.pop_back();
       chifits.pop_back();
       hitNear.pop_back();
       chgNear.pop_back();
@@ -929,7 +985,12 @@ namespace cluster {
     if(theHit > fHits.size()-1) return;
     
     if(fHits[theHit].GoodnessOfFit() != 6666) return;
-    
+/*
+    if(fcl2hits.size() == 0) {
+      mf::LogError("CC")<<"RestoreUnMergedHit called while not crawling ";
+      return;
+    }
+*/
     if(unMergedHits.size() == 0) {
       mf::LogError("CC")<<"RestoreUnMergedHit: No unMergedHits "
         <<fHits[theHit].WireID().Plane<<":"<<fHits[theHit].WireID().Wire<<":"<<(int)fHits[theHit].PeakTime();
@@ -938,9 +999,10 @@ namespace cluster {
     
     unsigned short thePlane = fHits[theHit].WireID().Plane;
     unsigned short theWire = fHits[theHit].WireID().Wire;
-    
-//    bool tmp = (thePlane == 1);
+  
+ //   bool tmp = (thePlane == 0);
 //    if(tmp) mf::LogVerbatim("CC")<<"RestoreUnMergedHit: restoring "<<thePlane<<":"<<theWire<<":"<<(int)fHits[theHit].PeakTime();
+
     if(thePlane != plane) {
       mf::LogError("CC")<<"RestoreUnMergedHit: Mis-match between plane and hit WireID plane";
       return;
@@ -953,17 +1015,21 @@ namespace cluster {
     raw::TDCtick_t sTick = fHits[theHit].StartTick();
     // Find the starting index of the hit multiplet in unMergedHits
     unsigned short firstHit;
-    for(firstHit = 0; firstHit < unMergedHits.size(); ++firstHit)
+    for(firstHit = 0; firstHit < unMergedHits.size(); ++firstHit) {
+      if(unMergedHits[firstHit].WireID().Wire != fHits[theHit].WireID().Wire) continue;
       if(unMergedHits[firstHit].StartTick() == sTick) break;
-    if(firstHit > unMergedHits.size()-1) {
-      mf::LogError("CC")<<"RestoreUnMergedHit: theHit "<<theHit<<" not found in unMergedHits ";
-      return;
     }
 /*
+    if(firstHit > unMergedHits.size()-1) {
+      mf::LogError("CC")<<"RestoreUnMergedHit: theHit "<<theHit<<" not found in unMergedHits. Seed hit "
+        <<fHits[fcl2hits[0]].WireID().Plane<<":"<<fHits[fcl2hits[0]].WireID().Wire<<":"<<fHits[fcl2hits[0]].PeakTime();
+      return;
+    }
+
     if(tmp) {
-      std::cout<<"in ";
-      for(auto hit : unMergedHits) std::cout<<" "<<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime();
-      std::cout<<"\n";
+      mf::LogVerbatim myprt("CC");
+      myprt<<"in ";
+      for(auto hit : unMergedHits) myprt<<" "<<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime();
     }
 */
     // Find the starting index of the hit in fHits. Use WireHitRange to speed the search
@@ -981,16 +1047,14 @@ namespace cluster {
       fHits[fHitsStart + kk] = unMergedHits[firstHit + kk];
       inClus[fHitsStart + kk] = 0;
     }
-//    for(unsigned short kk = 0; kk < oldMult; ++kk) unMergedHits.erase(unMergedHits.begin()+firstHit);
     unMergedHits.erase(unMergedHits.begin()+firstHit, unMergedHits.begin()+firstHit+oldMult);
 /*
     if(tmp) {
       std::cout<<"size "<<unMergedHits.size()<<"\n";
       if(unMergedHits.size() > 100) exit(1);
       mf::LogVerbatim myprt("CC");
-      std::cout<<"out";
-      for(auto hit : unMergedHits) std::cout<<" "<<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime();
-      std::cout<<"\n";
+      myprt<<"out";
+      for(auto hit : unMergedHits) myprt<<" "<<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime();
     }
 */
     
@@ -1390,7 +1454,9 @@ namespace cluster {
     std::vector<short> enddW;
 
     unsigned short vWire = (unsigned short)(vtx[iv].Wire + 0.5);
-    unsigned short vWireErr = (unsigned short)(vtx[iv].WireErr + 1);
+    unsigned short vWireErr = (unsigned short)(2 * vtx[iv].WireErr);
+    unsigned short vWireLo = vWire - vWireErr;
+    unsigned short vWireHi = vWire + vWireErr;
 
     unsigned short icl, ii;
     short dW;
@@ -1419,28 +1485,29 @@ namespace cluster {
       }
     } // icl
     
-    if(vtxprt) mf::LogVerbatim("CC")<<"RefineVertexClusters: vertex "<<iv<<" needsWork "<<needsWork<<" mindW "<<mindW<<" maxdW "<<maxdW;
+    if(vtxprt) mf::LogVerbatim("CC")<<"RefineVertexClusters: vertex "<<iv<<" needsWork "<<needsWork
+      <<" mindW "<<mindW<<" maxdW "<<maxdW<<" vWireErr "<<vWireErr;
     
     if(!needsWork) return;
     
     // See if we can move the vertex within errors to reconcile the differences
     // without altering the clusters
-    if(std::abs(mindW) < vWireErr &&std::abs(maxdW) < vWireErr && std::abs(maxdW - mindW) < 2) {
+    if(std::abs(mindW) < vWireErr && std::abs(maxdW) < vWireErr && std::abs(maxdW - mindW) < 2) {
       if(vtxprt) mf::LogVerbatim("CC")<<" Move vtx wire "<<vtx[iv].Wire;
       vtx[iv].Wire -= (float)(maxdW + mindW)/2;
-      if(vtxprt) mf::LogVerbatim("CC")<<" to "<<vtx[iv].Wire<<"\n";
+      if(vtxprt) mf::LogVerbatim("CC")<<" to "<<vtx[iv].Wire;
       // TODO: Fix the vertex time here if necessary
       vtx[iv].Fixed = true;
       // try to attach other clusters
       VertexCluster(iv);
       return;
     }
-    
-    
+
     // Check the vertex End clusters
     unsigned short newSize;
     for(ii = 0; ii < endClusters.size(); ++ii) {
       icl = endClusters[ii];
+      if(vtxprt) mf::LogVerbatim("CC")<<" endCluster "<<tcl[icl].ID<<" dW "<<enddW[ii]<<" vWire "<<vWire;
       if(tcl[icl].EndWir < vWire) {
         // vertex is DS of the cluster end -> remove hits
         TmpGet(icl);
@@ -1461,6 +1528,7 @@ namespace cluster {
         TmpStore();
         tcl[tcl.size()-1].EndVtx = iv;
         // update the vertex association
+        if(vtxprt) mf::LogVerbatim("CC")<<" modified cluster "<<tcl[icl].ID<<" -> "<<tcl[tcl.size()-1].ID;
       } // tcl[icl].EndWir < vWire
       else if(tcl[icl].EndWir > vWire) {
         mf::LogVerbatim("CC")<<"RefineVertexClusters: Write some EndVtx code";
@@ -1468,6 +1536,50 @@ namespace cluster {
     } // ii endClusters
     
     if(begClusters.size() > 0) mf::LogVerbatim("CC")<<"RefineVertexClusters: Write some BeginVtx code";
+    
+    if(mindW < 0 && maxdW > 0) {
+      // vertex wire is in between the ends of the clusters
+      // inspect the hits on both clusters near the vertex. The vertex should probably be on the hit
+      // with the highest charge
+      int vtxHit = -1;
+      unsigned short clsBigChg = 0;
+      float bigChg = 0;
+      unsigned short iht;
+      unsigned int ihit;
+      // check the begClusters
+      for(ii = 0; ii < begClusters.size(); ++ii) {
+        icl = begClusters[ii];
+        for(iht = 0; iht < tcl[icl].tclhits.size(); ++iht) {
+          ihit = tcl[icl].tclhits[iht];
+          if(fHits[ihit].Integral() > bigChg) {
+            bigChg = fHits[ihit].Integral();
+            vtxHit = ihit;
+            clsBigChg = icl;
+          }
+          if(fHits[ihit].WireID().Wire < vWireLo) break;
+        } // iht
+      } // ii
+      // now check the endClusters
+      for(ii = 0; ii < endClusters.size(); ++ii) {
+        icl = endClusters[ii];
+        for(iht = 0; iht < tcl[icl].tclhits.size(); ++iht) {
+          ihit = tcl[icl].tclhits[tcl[icl].tclhits.size() - 1 - iht];
+          if(fHits[ihit].Integral() > bigChg) {
+            bigChg = fHits[ihit].Integral();
+            vtxHit = ihit;
+            clsBigChg = icl;
+          }
+          if(fHits[ihit].WireID().Wire > vWireHi) break;
+        } // iht
+      } // ii
+      if(vtxHit > 0) {
+        if(vtxprt) mf::LogVerbatim("CC")<<" moving vertex location to hit "
+          <<fHits[vtxHit].WireID().Wire<<":"<<(int)fHits[vtxHit].PeakTime()<<" on cluster "<<tcl[clsBigChg].ID;
+        vtx[iv].Wire = fHits[vtxHit].WireID().Wire;
+        vtx[iv].Time = fHits[vtxHit].PeakTime();
+        vtx[iv].Fixed = true;
+      } // vtxHit > 0
+    } // mindW < 0 && maxdW > 0
     
     FitVtx(iv);
     
@@ -1481,7 +1593,7 @@ namespace cluster {
       
       vtxprt = (fDebugPlane >= 0 && fDebugWire == 5555);
 
-  if(vtxprt) mf::LogVerbatim("CC")<<"VtxClusterSplit ";
+      if(vtxprt) mf::LogVerbatim("CC")<<"VtxClusterSplit ";
 
       if(vtx.size() == 0) return false;
       unsigned short tclsize = tcl.size();
@@ -1636,13 +1748,24 @@ namespace cluster {
         return;
       }
       
-      // don't bother trying to merge an already merged hit
-      if(fHits[theHit].GoodnessOfFit() == 6666) return;
-      
       recob::Hit const& hit = fHits[theHit];
-      if(hit.Multiplicity() < 2) return;
+
+      // don't bother trying to merge an already merged hit
+      if(fHits[theHit].GoodnessOfFit() == 6666) {
+        if(prt) mf::LogVerbatim("CC")<<"MergeHits Trying to merge already merged hit "
+          <<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime()
+          <<" Multiplicity "<<hit.Multiplicity()<<" theHit "<<theHit;
+        return;
+      }
       
-//      prt = (hit.WireID().Plane == 1 && hit.WireID().Wire == 42);
+      // don't merge if it isn't available
+      if(!mergeAvailable[theHit]) {
+        if(prt) mf::LogVerbatim("CC")<<"MergeHits "<<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime()
+          <<" Multiplicity "<<hit.Multiplicity()<<" theHit "<<theHit<<" is not available";
+        return;
+      }
+      
+      if(hit.Multiplicity() < 2) return;
     
       if(prt) mf::LogVerbatim("CC")<<"MergeHits "<<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime()
         <<" Multiplicity "<<hit.Multiplicity()<<" theHit "<<theHit;
@@ -2632,7 +2755,7 @@ namespace cluster {
         if(vtx[iv].ChiDOF < 5 && vtx[iv].WireErr < fVertex2DWireErrCut && vtx[iv].TimeErr < 10) {
           if(vtxprt) mf::LogVerbatim("CC")<<" New vtx "<<iv<<" in plane "<<plane<<" topo "<<topo<<" cls "<<tcl[it1].ID<<" "<<tcl[it2].ID<<" W:T "<<(int)vw<<":"<<(int)fvt<<" NClusters "<<vtx[iv].NClusters;
           // Try to refine the cluster hits and vertex position
-          RefineVertexClusters(iv);
+          if(fRefineVertexClusters) RefineVertexClusters(iv);
         } else {
           if(vtxprt) mf::LogVerbatim("CC")<<" Bad vtx fit "<<vtx[iv].ChiDOF<<" wire err "<<vtx[iv].WireErr<<" TimeErr "<<vtx[iv].TimeErr;
           // clobber the vertex and references to it
@@ -3302,7 +3425,6 @@ namespace cluster {
     if(del1Vtx >= 0 && del1Vtx == del2Vtx) vtx[del1Vtx].NClusters = 0;
     // preserve the vertex assignments
     tcl[itnew].BeginVtx = begVtx;
-//    std::cout<<"DoMerge attach cluster "<<tcl[itnew].ID<<" to vtx "<<endVtx<<"\n";
     tcl[itnew].EndVtx = endVtx;
   } // DoMerge
   
@@ -3512,8 +3634,13 @@ namespace cluster {
       }
       // check for decreasing wire number
       if(it > 0 && fHits[hit].WireID().Wire >= lastWire) {
-        mf::LogError("CC")<<"TmpStore: Hits not in correct wire order "<<NClusters;
+        mf::LogError("CC")<<"TmpStore: Hits not in correct wire order. Seed hit "<<fHits[fcl2hits[0]].WireID().Plane<<":"
+          <<fHits[fcl2hits[0]].WireID().Wire<<":"<<(int)fHits[fcl2hits[0]].PeakTime()<<" it "<<it<<" hit wire "<<fHits[hit].WireID().Wire
+          <<" ProcCode "<<clProcCode;
         --NClusters;
+        for(unsigned short ii = 0; ii < fcl2hits.size(); ++ii) {
+          mf::LogVerbatim("CC")<<ii<<" "<<fcl2hits[ii]<<" "<<fHits[fcl2hits[ii]].WireID().Plane<<":"<<fHits[fcl2hits[ii]].WireID().Wire<<":"<<(int)fHits[fcl2hits[ii]].PeakTime();
+        }
         return false;
       }
       lastWire = fHits[hit].WireID().Wire;
@@ -3582,14 +3709,13 @@ namespace cluster {
     tcl.push_back(clstr);
 
     // Re-fit the cluster at the Begin end. Use this to determine BeginTim
-    // instead of using the PeakTime of the first hit xxx
+    // instead of using the PeakTime of the first hit
     // Determine which pass the cluster was created in
     unsigned short cpass = clProcCode - 10 * (clProcCode / 10);
     // to decide who many hits to fit
     short nhfit = fMaxHitsFit[cpass];
     FitClusterMid(tcl.size()-1, fcl2hits[0], nhfit);
     if(clChisq < 99) tcl[tcl.size()-1].BeginTim = clpar[0];
-//    std::cout<<"Check Begin "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" new "<<clpar[2]<<":"<<(int)clpar[0]<<"\n";
     
     ClearUnMergedHits();
 
@@ -3771,6 +3897,12 @@ namespace cluster {
         clStopCode = 6;
         break;
       }
+      // Switch to large angle crawling?
+      if(std::abs(clpar[1]) > fLAClusSlopeCut) {
+        if(prt) mf::LogVerbatim("CC")<<">>>>> CrawlUS: Switching to LACrawlUS";
+        LACrawlUS();
+        return;
+      }
       // add hits and check for PH and width consistency
       AddHit(nextwire, HitOK, SigOK);
       if(prt) mf::LogVerbatim("CC")<<"CrawlUS: HitOK "<<HitOK<<" SigOK "<<SigOK<<" nmissed "<<nmissed;
@@ -3825,7 +3957,7 @@ namespace cluster {
             return;
           }
           // a fit error occurred. Lop off the leading hit and refit
-          if(prt) mf::LogVerbatim("CC")<<"Fit failed ";
+          if(prt) mf::LogVerbatim("CC")<<"ADD- Fit failed ";
           FclTrimUS(1);
           FitCluster();
           if(clChisq > 99.) {
@@ -3835,6 +3967,8 @@ namespace cluster {
             return;
           }
           FitClusterChg();
+          // bail out if we have had repeated failures
+          if((fHits[lasthit].WireID().Wire - nextwire) > fMinWirAfterSkip[pass]) break;
           continue;
         } // clChisq > 99
         // monitor the onset of a kink. Look for a progressive increase
@@ -3906,6 +4040,7 @@ namespace cluster {
             chirat = chifits[cfsize] / chifits[cfsize - 1];
             if(prt) mf::LogVerbatim("CC")<<"chirat "<<chirat<<" last hit "<<fcl2hits[fcl2hits.size()-1];
             if(chirat < 1.2) break;
+            if(prt) mf::LogVerbatim("CC")<<"<<ADD- Bad chisq. Bad chirat "<<chirat;
             FclTrimUS(1);
             ++lopped;
             if(fcl2hits.size() < 6) break;
@@ -3917,6 +4052,7 @@ namespace cluster {
             break;
           }
           if(lopped == 0 && fcl2hits.size() > 5) {
+            if(prt) mf::LogVerbatim("CC")<<"<<ADD- Bad chisq. remove 1 hit";
             FclTrimUS(1);
             ++lopped;
           }
@@ -3970,6 +4106,7 @@ namespace cluster {
       if(prt) mf::LogVerbatim("CC")<<"Last hit chirat "<<chirat<<" cut "<<fKinkChiRat[pass];
       if(prt) mf::LogVerbatim("CC")<<"Check "<<clChisq<<" "<<chifits[chifits.size()-1]<<" "<<chifits[chifits.size()-2];
       if(chirat > fKinkChiRat[pass]) {
+        if(prt) mf::LogVerbatim("CC")<<"<<ADD-";
         FclTrimUS(1);
         reFit = true;
       }
@@ -4034,7 +4171,7 @@ namespace cluster {
     if(fHits[iht].Multiplicity() > 1) {
       fcl2hits.resize(fcl2hits.size() - 1);
     }
-
+*/
     // check for short track ghosts
     if(fcl2hits.size() < 5) {
       unsigned short nsing = 0;
@@ -4047,7 +4184,7 @@ namespace cluster {
         return;
       } // hitFrac
     } // short ghost track check
-*/
+
     // analyze the pattern of nearby charge
     // will need the cluster charge so calculate it here if it isn't defined yet
     if(clBeginChg <= 0) {
@@ -4214,19 +4351,15 @@ namespace cluster {
     float angfactor = AngleFactor(clpar[1]);
 
     // load the hits starting at the End of the fcl2hits vector.
-    // These are the most upstream hits
+    // These are the most upstream hits xxx
     unsigned short iht = 0;
 
-    bool first = true;
-    unsigned short wire0 = 0;
-    for(std::vector<unsigned int>::reverse_iterator it = fcl2hits.rbegin();
-       it != fcl2hits.rend(); ++it) {
-      unsigned int ihit = *it;
-      unsigned short wire = fHits[ihit].WireID().Wire;
-      if(first) {
-        wire0 = wire;
-        first = false;
-      }
+    unsigned short wire;
+    unsigned short wire0 = fHits[fcl2hits[fcl2hits.size()-1]].WireID().Wire;
+    unsigned int ihit;
+     for(unsigned short ii = 0; ii < fcl2hits.size(); ++ii) {
+      ihit = fcl2hits[fcl2hits.size() - 1 - ii];
+      wire = fHits[ihit].WireID().Wire;
       xwir.push_back(wire - wire0);
       ytim.push_back(fHits[ihit].PeakTime());
       // Scale error by hit multiplicity to account for bias in hit
@@ -4236,23 +4369,23 @@ namespace cluster {
       if(iht == nht) break;
       ++iht;
     }
-
-  if(prt) {
-    mf::LogVerbatim myprt("CC");
-    myprt<<"FitCluster W:T ";
-    unsigned short cnt = 0;
-    for(std::vector<unsigned int>::reverse_iterator it = fcl2hits.rbegin();
-       it != fcl2hits.rend(); ++it) {
-      unsigned int ihit = *it;
-      unsigned short wire = fHits[ihit].WireID().Wire;
-      myprt<<wire<<":"<<(short)fHits[ihit].PeakTime()<<" ";
-      ++cnt;
-      if(cnt == 8) {
-        myprt<<" .... ";
-        break;
+    CalculateAveHitWidth();
+    if(prt) {
+      mf::LogVerbatim myprt("CC");
+      myprt<<"FitCluster W:T ";
+      unsigned short cnt = 0;
+      for(std::vector<unsigned int>::reverse_iterator it = fcl2hits.rbegin();
+          it != fcl2hits.rend(); ++it) {
+        unsigned int ihit = *it;
+        unsigned short wire = fHits[ihit].WireID().Wire;
+        myprt<<wire<<":"<<(short)fHits[ihit].PeakTime()<<" ";
+        ++cnt;
+        if(cnt == 8) {
+          myprt<<" .... ";
+          break;
+        }
       }
-    }
-  } // prt
+    } // prt
     
     nht = iht;
     
@@ -4272,7 +4405,7 @@ namespace cluster {
     clparerr[0] = intcpterr;
     clparerr[1] = slopeerr;
 
-    if(prt) mf::LogVerbatim("CC")<<"nht "<<nht<<" fit par "<<(int)clpar[0]<<"+/-"<<(int)intcpterr
+    if(prt) mf::LogVerbatim("CC")<<"nht "<<nht<<" fitpar "<<(int)clpar[0]<<"+/-"<<(int)intcpterr
       <<" "<<clpar[1]<<"+/-"<<slopeerr<<" clChisq "<<clChisq;
   
   }
@@ -4289,7 +4422,16 @@ namespace cluster {
     return angfac;
   }
 
-/////////////////////////////////////////
+  /////////////////////////////////////////
+  void ClusterCrawlerAlg::CalculateAveHitWidth()
+  {
+    fAveHitWidth = 0;
+    for(unsigned short ii = 0; ii < fcl2hits.size(); ++ii)
+      fAveHitWidth += fHits[fcl2hits[ii]].EndTick() - fHits[fcl2hits[ii]].StartTick();
+    fAveHitWidth /= (float)fcl2hits.size();
+  } // CalculateAveHitWidth
+  
+  /////////////////////////////////////////
   void ClusterCrawlerAlg::FitClusterChg()
   {
     // Fits the charge of hits on the fcl2hits vector to a line, or simply
@@ -4318,17 +4460,11 @@ namespace cluster {
       // simply use the charge and width the last hit
       fAveChg = fHits[fcl2hits[ih0]].Integral();
       fChgSlp = 0.;
-      fAveHitWidth = fHits[fcl2hits[ih0]].EndTick() - fHits[fcl2hits[ih0]].StartTick();
-      fAveDTick = projDTick[ih0];
     } else if(fNHitsAve[pass] == 2) {
       // average the last two points if requested
       fAveChg = (fHits[fcl2hits[ih0]].Integral() + 
                  fHits[fcl2hits[ih0 - 1]].Integral()) / 2.;
       fChgSlp = 0.;
-      fAveHitWidth = fHits[fcl2hits[ih0]].EndTick() - fHits[fcl2hits[ih0]].StartTick();
-      fAveHitWidth += fHits[fcl2hits[ih0-1]].EndTick() - fHits[fcl2hits[ih0-1]].StartTick();
-      fAveHitWidth /= 2;
-      fAveDTick = (projDTick[ih0] + projDTick[ih0-1]) / 2;
     } else if((unsigned short)fcl2hits.size() > fitLen){
       // do a real fit
       std::vector<float> xwir;
@@ -4341,8 +4477,6 @@ namespace cluster {
       unsigned short imlast = 0;
       float ave = 0.;
       float rms = 0.;
-      float wid = 0;
-      float dt = 0;
       // this loop intentionally ignores the Begin hit
       for(unsigned int ii = fcl2hits.size() - 1; ii > 0; --ii) {
         ++npt;
@@ -4365,11 +4499,7 @@ namespace cluster {
         xwir.push_back((float)(wire - wire0));
         ychg.push_back(chg);
         ychgerr2.push_back(chg);
-        wid += (fHits[fcl2hits[ii]].EndTick() - fHits[fcl2hits[ii]].StartTick());
-        dt += projDTick[ii];
       }
-      fAveHitWidth = wid / (float)xwir.size();
-      fAveDTick = dt / (float)xwir.size();
       if(ychg.size() < 3) return;
       float intcpt; float slope; float intcpterr;
       float slopeerr; float chidof;
@@ -4393,6 +4523,52 @@ namespace cluster {
     }
   } // fitchg
 
+  /////////////////////////////////////////
+  bool ClusterCrawlerAlg::AddVLAHit(unsigned short wire, float prtime, float window)
+  {
+    
+    // not in the range of wires with hits
+    if(wire < fFirstWire || wire > fLastWire) return false;
+    
+    if(fcl2hits.size() == 0) return false;
+    
+    // skip bad wire and assume the track was there
+    if(WireHitRange[wire].first < 0) return false;
+    
+    if(prt) mf::LogVerbatim("CC")<<"AddVLAHit: wire "<<wire<<" prtime "<<prtime;
+
+    
+    unsigned int firstHit = WireHitRange[wire].first;
+    unsigned int lastHit = WireHitRange[wire].second;
+    float best = window, hitWidth;
+    unsigned int imbest = INT_MAX;
+    for(unsigned short iht = firstHit; iht < lastHit; ++iht) {
+      if(inClus[iht] < 0) continue;
+      hitWidth = fHits[iht].EndTick() - fHits[iht].StartTick();
+      if(prt) mf::LogVerbatim("CC")
+        <<" Chk W:T "<<wire<<":"<<(short)fHits[iht].PeakTime()
+        <<" dT "<<std::fixed<<std::setprecision(1)<<(fHits[iht].PeakTime() - prtime)
+        <<" InClus "<<inClus[iht]
+        <<" mult "<<fHits[iht].Multiplicity()
+        <<" width "<<(int)hitWidth
+        <<" MergeAvail "<<mergeAvailable[iht]
+        <<" Chi2 "<<std::fixed<<std::setprecision(2)<<fHits[iht].GoodnessOfFit()
+        <<" Charge "<<(int)fHits[iht].Integral()
+        <<" LoT "<<(int)fHits[iht].StartTick()
+        <<" HiT "<<(int)fHits[iht].EndTick()
+        <<" index " << iht;
+      if(std::abs(fHits[iht].PeakTime() - prtime) < best) {
+        best = std::abs(fHits[iht].PeakTime() - prtime);
+        imbest = iht;
+      }
+    } // hit
+    if(imbest == INT_MAX) return false;
+    if(prt) mf::LogVerbatim("CC")<<" Added hit "<<imbest;
+    fcl2hits.push_back(imbest);
+    return true;
+  } // AddVLAHit
+
+  
 /////////////////////////////////////////
   void ClusterCrawlerAlg::AddLAHit
     (unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK)
@@ -4447,11 +4623,12 @@ namespace cluster {
         <<" InClus "<<inClus[khit]
         <<" mult "<<fHits[khit].Multiplicity()
         <<" width "<<(int)hitWidth
+        <<" MergeAvail "<<mergeAvailable[khit]
         <<" Chi2 "<<std::fixed<<std::setprecision(2)<<fHits[khit].GoodnessOfFit()
         <<" Charge "<<(int)fHits[khit].Integral()
         <<" LoT "<<(int)fHits[khit].StartTick()
         <<" HiT "<<(int)fHits[khit].EndTick()
-        <<" index " << khit<<" HitOK? "<<ClusterHitsOK(1);
+        <<" index " << khit;
       // count charge in the window
       if(fHits[khit].PeakTime() > chgWinLo && fHits[khit].PeakTime() < chgWinHi) cnear += fHits[khit].Integral();
       dtime = std::abs(fHits[khit].PeakTime() - prtime);
@@ -4463,14 +4640,9 @@ namespace cluster {
       if(inClus[khit] > 0) continue;
       // ignore very low charge hits
       if(chgrat < 0.1) continue;
-      // ignore very high charge hits for intermediate angle clusters
-      if(std::abs(clpar[1]) < 5 && chgrat > 2) continue;
       // Check hit width consistency
       if(!ClusterHitsOK(1)) continue;
       dtime = std::abs(prtime - fHits[khit].PeakTime());
-      // Use a tighter requirement for crude hits that may span a very large
-      // time range. Crude hits have a large chisq and/or large rms
-//      if((fHits[khit].GoodnessOfFit() > 500. || fHits[khit].RMS() > 20.) && dtime > 20) continue;
       if(dtime < timeDiff) {
         HitOK = true;
         imbest = khit;
@@ -4561,7 +4733,6 @@ namespace cluster {
     
     // attach to the cluster and fit
     fcl2hits.push_back(imbest);
-    projDTick.push_back(timeDiff);
     FitCluster();
     chifits.push_back(clChisq);
     hitNear.push_back(hnear);
@@ -4571,26 +4742,26 @@ namespace cluster {
     // divide by the just added hit charge
     cnear /= fHits[imbest].Integral();
     chgNear.push_back(cnear);
-    if(prt) mf::LogVerbatim("CC")<<" >>ADD"<<pass<<" W:T "<<kwire<<":"<<(short)fHits[imbest].PeakTime()<<" dT "
-      <<std::setprecision(2)<<timeDiff<<" fAveDTick "<<fAveDTick<<" clChisq "<<clChisq
-      <<" Chg "<<(int)fHits[imbest].Integral()<<" AveChg "<<(int)fAveChg
-      <<" width "<<(int)hitWidth<<" fAveHitWidth "<<(int)fAveHitWidth
+    if(prt) mf::LogVerbatim("CC")<<" >>LADD"<<pass<<" W:T "<<kwire<<":"<<(short)fHits[imbest].PeakTime()<<" dT "<<timeDiff
+      <<" clChisq "<<clChisq<<" Chg "<<(int)fHits[imbest].Integral()<<" AveChg "<<(int)fAveChg
+      <<" width "<<(int)hitWidth<<" AveWidth "<<(int)fAveHitWidth<<" MergeAvail "<<mergeAvailable[imbest]
       <<" fcl2hits size "<<fcl2hits.size();
-//    if(prt) mf::LogVerbatim("CC")<<" >>LADD"<<pass<<" W:T "<<kwire<<":"<<(int)fHits[imbest].PeakTime()<<std::setprecision(3)<<" clChisq "<<clChisq<<" charge "<<(int)fHits[imbest].Integral()<<" hitNear "<<hitNear[hitNear.size()-1]<<" chgNear "<<std::setprecision(2)<<cnear<<" fcl2hits size "<<fcl2hits.size();
     // decide what to do with a bad fit
     if(clChisq > fChiCut[pass]) {
       FclTrimUS(1);
       FitCluster();
       HitOK = false;
-  if(prt) mf::LogVerbatim("CC")<<" Bad fit. Removed hit. New clChisq "
-    <<std::setprecision(3)<<clChisq<<" nhits "<<fcl2hits.size();
+//      if(prt) mf::LogVerbatim("CC")<<"   LADD- Removed hit. New clChisq "<<std::setprecision(3)<<clChisq<<" nhits "<<fcl2hits.size();
+      SigOK = false;
+      if(prt) mf::LogVerbatim("CC")<<"   LADD- Removed bad hit. Stopped tracking";
     }
-      // stop tracking if previous chisq values were close to the cut.
+/*
+    // stop tracking if previous chisq values were close to the cut.
       // this is an indicator that the track is wandering too much for this pass
-      if(chifits.size() > 2 && 
-        chifits[chifits.size()-2] > 0.8 * fChiCut[pass]) SigOK = false;
-  if(prt) mf::LogVerbatim("CC")<<"  Set SigOK = "<<SigOK;
-
+    if(chifits.size() > 2 &&
+       chifits[chifits.size()-2] > 0.8 * fChiCut[pass]) SigOK = false;
+    if(prt) mf::LogVerbatim("CC")<<"  Set SigOK = "<<SigOK;
+*/
   } // AddLAHit()
 
   /////////////////////////////////////////
@@ -4607,28 +4778,52 @@ namespace cluster {
     // n+1              |-----|
     // n+2                        |------|
     
-    // require that the hit widths are not too dissimilar
+    if(fcl2hits.size() == 0) return true;
+    if(fAveHitWidth == 0) return true;
+   
     float loWid = 9999;
     float hiWid = 0;
     float wid;
     unsigned short nHitToChk = fcl2hits.size();
     if(nHitChk > 0) nHitToChk = nHitChk + 1;
     unsigned short indx;
-    for(unsigned short ii = 0; ii < nHitToChk; ++ii) {
-      indx = fcl2hits.size() - 1 - ii;
+    
+    // Test the first hit on the cluster against the average
+    if(nHitChk == 1) {
+      indx = fcl2hits.size() - 1;
       wid = fHits[fcl2hits[indx]].EndTick() - fHits[fcl2hits[indx]].StartTick();
-      if(wid < loWid) loWid = wid;
-      if(wid > hiWid) hiWid = wid;
+      // ensure that it isn't too narrow
+      if(wid < 0.5 * fAveHitWidth) return false;
+    } else {
+      // require that all hits are not too dissimilar from each other
+      for(unsigned short ii = 0; ii < nHitToChk; ++ii) {
+        indx = fcl2hits.size() - 1 - ii;
+        wid = fHits[fcl2hits[indx]].EndTick() - fHits[fcl2hits[indx]].StartTick();
+        if(wid < loWid) loWid = wid;
+        if(wid > hiWid) hiWid = wid;
+      }
+      if(prt) mf::LogVerbatim("CC")<<"ClusterHitsOK loWid "<<loWid<<" hiWid "<<hiWid;
+      if(hiWid > 2 * loWid) return false;
     }
-    if(hiWid > 2 * loWid) return false;
     
     // require that they overlap
+    // add a tolerance to the StartTick - EndTick overlap
+    float tol = 10;
+    // expand the tolerance for induction planes
+    if(plane < geom->Cryostat(cstat).TPC(tpc).Nplanes()-1) tol = 40;
+
     for(unsigned short ii = 0; ii < nHitToChk - 1; ++ii) {
       indx = fcl2hits.size() - 1 - ii;
       if(clpar[1] > 0) {
-        if(fHits[fcl2hits[indx]].EndTick() < fHits[fcl2hits[indx-1]].StartTick()) return false;
+        if(fHits[fcl2hits[indx]].EndTick() < fHits[fcl2hits[indx-1]].StartTick() - tol) {
+          if(prt) mf::LogVerbatim("CC")<<" bad End - Start overlap "<<fHits[fcl2hits[indx]].EndTick()<<" < "<<fHits[fcl2hits[indx-1]].StartTick();
+          return false;
+        }
       } else {
-        if(fHits[fcl2hits[indx]].StartTick() > fHits[fcl2hits[indx-1]].EndTick()) return false;
+        if(fHits[fcl2hits[indx]].StartTick() > fHits[fcl2hits[indx-1]].EndTick() - tol) {
+          if(prt) mf::LogVerbatim("CC")<<" bad Start- End overlap "<<fHits[fcl2hits[indx]].StartTick()<<" > "<<fHits[fcl2hits[indx-1]].EndTick();
+          return false;
+        }
       }
     } // ii
     return true;
@@ -4846,7 +5041,6 @@ namespace cluster {
     
     // we now have a hit that meets all the criteria. Fit it
     fcl2hits.push_back(imbest);
-    projDTick.push_back(best);
     FitCluster();
     chifits.push_back(clChisq);
     hitNear.push_back(hnear);
@@ -4857,9 +5051,8 @@ namespace cluster {
     cnear /= fHits[imbest].Integral();
     chgNear.push_back(cnear);
     // nearby hit check
-    ChkClusterNearbyHits(prt);
+//    ChkClusterNearbyHits(prt);
     HitOK = true;
-    fAveDTick = (fAveDTick * (fcl2hits.size() - 1) + best) / (float)fcl2hits.size();
     
     if(chgNear.size() != fcl2hits.size()) {
       mf::LogError("CC")<<"AddHit: Bad length";
@@ -4867,7 +5060,7 @@ namespace cluster {
     }
 
     if(prt) mf::LogVerbatim("CC")<<" >>ADD"<<pass<<" W:T "<<kwire<<":"<<(short)fHits[imbest].PeakTime()<<" dT "
-      <<std::setprecision(2)<<best<<" fAveDTick "<<fAveDTick<<" clChisq "<<clChisq
+      <<" clChisq "<<clChisq
       <<" Chg "<<(int)fHits[imbest].Integral()<<" AveChg "<<(int)fAveChg
       <<" width "<<(int)hitWidth<<" fAveHitWidth "<<(int)fAveHitWidth
       <<" fcl2hits size "<<fcl2hits.size();
@@ -5042,8 +5235,6 @@ namespace cluster {
         for(unsigned short jj = ii + 1; jj < slps.size(); ++jj) {
           arg = std::min(slperrs[ii], slperrs[jj]);
           arg /= (slps[ii] - slps[jj]);
-//          std::cout<<"chk ii "<<ii<<" slp "<<slps[ii]<<" slperr "<<slperrs[ii]
-//            <<" jj "<<jj<<" slp "<<slps[jj]<<" slperr "<<slperrs[jj]<<" arg "<<arg<<"\n";
           sumerr += arg * arg;
           ++cnt;
         } // jj
@@ -5550,15 +5741,22 @@ namespace cluster {
     
   } // FindHammerClusters
 
-
+  
 //////////////////////////////////////
     void ClusterCrawlerAlg::VtxMatch(geo::TPCID const& tpcid)
     {
       // Create 3D vertices from 2D vertices. 3D vertices that are matched
       // in all three planes have Ptr2D >= 0 for all planes
       
-      geo::TPCGeo const& TPC = geom->TPC(tpcid);
       
+      geo::TPCGeo const& TPC = geom->TPC(tpcid);
+ /*
+      // handle two planes
+      if(TPC.Nplanes() == 2) {
+        VtxMatch2Plane(tpcid);
+        return;
+      } // two planes
+*/
       const unsigned int cstat = tpcid.Cryostat;
       const unsigned int tpc = tpcid.TPC;
       
@@ -5789,56 +5987,16 @@ namespace cluster {
       geo::PlaneID planeID = DecodeCTP(clCTP);
       unsigned int nwires = geom->Nwires(planeID.Plane, planeID.TPC, planeID.Cryostat);
       WireHitRange.resize(nwires + 1);
-      // the following assumes that there
       fFirstWire = 0;
       fLastWire = nwires - 1;
       
       short sflag;
       unsigned short wire;
-      unsigned short nGood = 0;
-      if(fFilteredWires.size() == 0) {
-        // start with good wire - no hit
-        sflag = -2;
-        // call all wires dead
-        if(fuBCode) sflag = -1;
-        for(wire = 0; wire < WireHitRange.size(); ++wire)
-          WireHitRange[wire] = std::make_pair(sflag, sflag);
-        // overwrite with the "dead wires" condition
-        sflag = -1;
-        for(wire = 0; wire < WireHitRange.size(); ++wire) {
-//          raw::ChannelID_t chan = geom->PlaneWireToChannel
-//          ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
-//          if(cf.GetChannelStatus(chan) != filter::ChannelFilter::GOOD) continue;
-          ++nGood;
-          WireHitRange[wire] = std::make_pair(sflag, sflag);
-        }
-//        std::cout<<"Using ChannelFilter nDead "<<nwires - nGood<<" in plane "<<planeID.Plane<<"\n";
-      } else {
-        // Use already filtered wires or no filter
-        // In this case we first assume that all wires are dead
-        sflag = -1;
-        for(wire = 0; wire < WireHitRange.size(); ++wire) {
-          WireHitRange[wire] = std::make_pair(sflag, sflag);
-        } // wire
-        // Next overwrite with the "good channel" and "no hit" condition, unless we are using
-        // the mode that ignores this condition
-        if(!fuBCode) {
-          sflag = -2;
-          for(unsigned int ii = 0; ii < fFilteredWires.size(); ++ii) {
-            if(fFilteredWires[ii].TPC != planeID.TPC) continue;
-            if(fFilteredWires[ii].Plane != planeID.Plane) continue;
-            wire = fFilteredWires[ii].Wire;
-            if(wire > WireHitRange.size() - 1) {
-              mf::LogError("CC")<<"GetHitRange: Crazy wire number "<<wire<<" in plane "<<planeID.Plane;
-              return;
-            }
-            ++nGood;
-            WireHitRange[wire] = std::make_pair(sflag, sflag);
-          } // ii
-//          std::cout<<"Using NoiseFilter nDead "<<nwires - nGood<<" in plane "<<planeID.Plane<<"\n";
-        } // !fuBCode
-      } // Filtered wires
-
+      
+       // Define the "no hits on wire" condition
+      sflag = -2;
+      for(wire = fFirstWire; wire <= fLastWire; ++wire) WireHitRange[wire] = std::make_pair(sflag, sflag);
+      
       bool first = true;
       unsigned short hitWire, nextHitWire;
       unsigned int nhpl = 0;
@@ -5875,31 +6033,60 @@ namespace cluster {
             //          mf::LogVerbatim("CC")<<"hitWire "<<hitWire<<" hit "<<hit<<" nextHitWire "<<nextHitWire;
           }
         } // hit < fHits.size() - 1
-        
-        
-      } // hit
-      
-      // temp: print out the results
-//      for(wire = 0; wire < WireHitRange.size(); ++wire) {
-      if (first) return; // we collected nothing
+       } // hit
 
-      // now we can define the WireHitRange vector.
-      // start by defining the "no hits on wire" condition
-      sflag = -2;
-      for(unsigned short wire = fFirstWire; wire <= fLastWire; ++wire) {
-        WireHitRange.push_back(std::make_pair(sflag, sflag));
-      }
       // overwrite with the "dead wires" condition
       lariov::IChannelStatusProvider const& channelStatus
-        = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
-
+      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
       sflag = -1;
-      for(unsigned short wire = fFirstWire+1; wire < fLastWire; ++wire) {
+      for(wire = 0; wire < nwires; ++wire) {
         raw::ChannelID_t chan = geom->PlaneWireToChannel
-          ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
-        // remember to offset references to WireHitRange by the FirstWire
-        unsigned short indx = wire - fFirstWire;
-        if(channelStatus.IsBad(chan)) WireHitRange[indx] = std::make_pair(sflag, sflag);
+        ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
+        if(channelStatus.IsBad(chan)) WireHitRange[wire] = std::make_pair(sflag, sflag);
+      }
+
+      // define the MergeAvailable vector and check for errors
+      if(mergeAvailable.size() < fHits.size()) {
+        mf::LogError("CC")<<"GetHitRange: Invalid mergeAvailable vector size "<<mergeAvailable.size()
+        <<fHits.size();
+        exit(1);
+      }
+      unsigned short firstHit, lastHit;
+      unsigned int iht, cnt;
+      cnt = 0;
+      float maxRMS, chiSep, peakCut;
+      for(wire = 0; wire < nwires; ++wire) {
+        // ignore dead wires and wires with no hits
+        if(WireHitRange[wire].first < 0) continue;
+        firstHit = WireHitRange[wire].first;
+        lastHit = WireHitRange[wire].second;
+//        std::cout<<"wire "<<wire<<" hit range "<<firstHit<<" "<<lastHit<<"\n";
+        for(iht = firstHit; iht < lastHit; ++iht) {
+          if(fHits[iht].WireID().Wire != wire) {
+            std::cout<<"Bad WireHitRange on wire "<<wire<<"\n";
+            exit(1);
+          } // error
+          ++cnt;
+          if(fHits[iht].Multiplicity() > 1) {
+            peakCut = 0.6 * fHits[iht].PeakAmplitude();
+            std::pair<size_t, size_t> MultipletRange = FindHitMultiplet(iht);
+            for(size_t jht = MultipletRange.first; jht < MultipletRange.second; ++jht) {
+              if(jht == iht) continue;
+              // require that the j hit be similar in magnitude to the i hit
+              if(fHits[jht].PeakAmplitude() < peakCut) continue;
+              maxRMS = std::max(fHits[iht].RMS(), fHits[jht].RMS());
+              chiSep = std::abs(fHits[iht].PeakTime() - fHits[jht].PeakTime()) / maxRMS;
+              if(chiSep < fHitMergeChiCut) {
+                mergeAvailable[iht] = true;
+                break;
+              }
+            } // jht
+          } // fHits[iht].Multiplicity() > 1
+        } // iht
+      } // wire
+      if(cnt != nhpl) {
+        std::cout<<"Bad WireHitRange count "<<cnt<<" "<<nhpl<<"\n";
+        exit(1);
       }
 
     } // GetHitRange()
