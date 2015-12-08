@@ -8,10 +8,8 @@ BEGIN_PROLOG
 standard_cchitfinderalg:
 {
   CalDataModuleLabel: "caldata"
-  MinSigInd:   3.   # min signal peak for induction plane
-  MinSigCol:   3.   # min signal peak for collection plane
-  MinRMSInd:   2.   # min signal width for induction plane
-  MinRMSCol:   2.   # min signal width for induction plane
+  MinPeak:    [8, 5, 5] # min peak signal in each plane
+  MinRMS:    [2, 2, 2] # min signal RMS in each plane
   MaxBumps:    5    # make a crude hit if > MaxBumps are found in the RAT
   MaxXtraHits: 1    # max number of hidden hits in Region Above Threshold
   ChiSplit:  20.   # Max chi/DOF for splitting hits for signal rms error = 1
@@ -25,37 +23,21 @@ standard_cchitfinderalg:
   WTickRange: [ 5200, 5400]  # Study mode: tick range in the W plane
 }
 
-standard_cchitrefineralg:
-{
-  RefineHits:       false  # refine hits during clustering?
-  BEChgRat:           2.0  # Begin/End Charge Ratio to determine cluster direction
-                           # Set to 0 to turn off
-}
-
 
 bo_cchitfinderalg:              @local::standard_cchitfinderalg
-bo_cchitfinderalg.MinSigInd:    4.
-bo_cchitfinderalg.MinSigCol:    5.
-bo_cchitfinderalg.MinRMSInd:     8.
-bo_cchitfinderalg.MinRMSCol:     7.
-bo_cchitfinderalg.ChiNorms:     [ 1.8, 3.3, 4.3 ]
-bo_cchitrefineralg:             @local::standard_cchitrefineralg
+bo_cchitfinderalg.MinPeak:      [4.,  4.,  5.]
+bo_cchitfinderalg.MinRMS:       [8.,  8.,  7.]
+bo_cchitfinderalg.ChiNorms:     [1.8, 3.3, 4.3]
 
 
 microboone_cchitfinderalg:                    @local::standard_cchitfinderalg
-microboone_cchitfinderalg.ChiNorms:           [ 0.1, 0.4, 0.1 ]
-microboone_cchitfinderalg.MinSigCol:          3.
-microboone_cchitfinderalg.MinRMSCol:          2.2
-microboone_cchitfinderalg.MinSigInd:          3.
-microboone_cchitfinderalg.MinRMSInd:          2.2
-microboone_cchitfinderalg.AllowNoHitWire:     2
-microboone_cchitrefineralg:                   @local::standard_cchitrefineralg
+microboone_cchitfinderalg.MinPeak:            [10., 5., 5.]
+microboone_cchitfinderalg.MinRMS:             [2.2, 2.2, 2.2]
+microboone_cchitfinderalg.ChiNorms:           [0.1, 0.4, 0.1]
 
 argoneut_cchitfinderalg:             @local::standard_cchitfinderalg
-argoneut_cchitfinderalg.MinSigInd:   1.8
-argoneut_cchitfinderalg.MinSigCol:   2.5
-argoneut_cchitfinderalg.MinRMSInd:   5.
-argoneut_cchitfinderalg.MinRMSCol:  10.
+argoneut_cchitfinderalg.MinPeak:   [1.8, 2.5]
+argoneut_cchitfinderalg.MinRMS:    [5., 10.]
 argoneut_cchitfinderalg.ChiNorms:  [ 0.5, 2.7]
 argoneut_cchitfinderalg.ChgNorms:  [ 1.0, 1.0]
 

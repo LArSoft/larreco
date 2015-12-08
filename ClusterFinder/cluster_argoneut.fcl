@@ -10,7 +10,6 @@ argoneut_clustercrawleralg.MinWirAfterSkip: [1, 1, 1]
 argoneut_clustercrawleralg.ChiCut:          [2., 2., 2.]
 argoneut_clustercrawleralg.ChgCut:          [2., 2., 2.]
 argoneut_clustercrawleralg.HitErrFac:       2.0
-argoneut_cchitrefineralg:            @local::standard_cchitrefineralg
 argoneut_fuzzyclusteralg:            @local::standard_fuzzyclusteralg
 argoneut_houghbasealg:               @local::standard_houghbasealg   
 argoneut_houghbasealg.MaxLines:      15                              
@@ -22,7 +21,6 @@ argoneut_endpointalg:                @local::standard_endpointalg
 argoneut_clustercrawler:               @local::standard_clustercrawler      
 argoneut_clustercrawler.ClusterCrawlerAlg: @local::argoneut_clustercrawleralg
 argoneut_clustercrawler.CCHitFinderAlg:    @local::argoneut_cchitfinderalg
-argoneut_clustercrawler.CCHitRefinerAlg:   @local::argoneut_cchitrefineralg
 argoneut_clustercrawlermc:             @local::argoneut_clustercrawler      
 argoneut_clustercrawlermc.CCHitFinderAlg.MinRMSInd: 6.7
 argoneut_clustercrawlermc.CCHitFinderAlg.MinRMSCol: 7.6

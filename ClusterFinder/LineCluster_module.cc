@@ -51,7 +51,8 @@ namespace cluster {
       std::unique_ptr<ClusterCrawlerAlg> fCCAlg; // define ClusterCrawlerAlg object
       
       art::InputTag fHitFinderLabel; ///< label of module producing input hits
-      
+      std::string fFilteredDataModuleLabel; ///< label of module producing filtered wires
+    
   }; // class LineCluster
   
 } // namespace cluster
@@ -105,6 +106,8 @@ namespace cluster {
   void LineCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
     fHitFinderLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
+    // TODO: set default fFilteredDataModuleLabel = ""?
+    fFilteredDataModuleLabel = pset.get<std::string>("FilteredDataModuleLabel", "NA");
     
     // this trick avoids double configuration on construction
     if (fCCAlg)
@@ -123,6 +126,17 @@ namespace cluster {
     // make this accessible to ClusterCrawler_module
     art::ValidHandle< std::vector<recob::Hit>> hitVecHandle
      = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderLabel);
+
+    // decide whether to use filtered wires
+    fCCAlg->ClearFilteredWires();
+    std::string isNA ("NA");
+    if(isNA.compare(fFilteredDataModuleLabel) != 0) {
+      art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
+      = evt.getValidHandle<std::vector<recob::Wire>>(fFilteredDataModuleLabel);
+      // pass (filtered) recob::wires so that ClusterCrawlerAlg can use it to check
+      // for noisy, dead or low-noise wires
+      fCCAlg->CheckFilteredWires(*wireVecHandle);
+    }
 
     // look for clusters in all planes
     fCCAlg->RunCrawler(*hitVecHandle);
