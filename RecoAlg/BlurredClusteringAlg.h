@@ -77,7 +77,7 @@ public:
   void ConvertBinsToClusters(TH2F *image, std::vector<std::vector<int> > const& allClusterBins, std::vector<art::PtrVector<recob::Hit> >& clusters);
   void CreateDebugPDF(int run, int subrun, int event);
   TH2F ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > const& hits);
-  TH2F* Convolve(TH2F* image, std::map<int,double> const& kernel, int const& width, int const& height, const char *new_name = 0);
+  TH2F* Convolve(TH2F* image, std::vector<double> const& kernel, int const& width, int const& height, const char *new_name = 0);
   void FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick);
   int FindClusters(TH2F* image, std::vector<std::vector<int> >& allcluster);
   int FindGlobalWire(geo::WireID const& wireID);
@@ -118,7 +118,7 @@ private:
   int fLastBlurWire;
   int fLastBlurTick;
   double fLastSigma;
-  std::map<int,double> fLastKernel;
+  std::vector<double> fLastKernel;
 
   // For the debug pdf
   TCanvas *fDebugCanvas;

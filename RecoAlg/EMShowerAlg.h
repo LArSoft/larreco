@@ -54,13 +54,30 @@ class shower::EMShowerAlg {
 public:
 
   EMShowerAlg(fhicl::ParameterSet const& pset);
-
-  void MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
-  art::Ptr<recob::Track> FindVertexTrack(std::map<int,art::Ptr<recob::Hit> > const& vertexMap, std::map<int,art::Ptr<recob::Track> > const& trackMap, std::map<int,std::vector<art::Ptr<recob::Hit> > > const& trackHitsMap);
+  void AssociateClustersAndTracks(std::vector<art::Ptr<recob::Cluster> > const& clusters,
+				  art::FindManyP<recob::Hit> const& fmh,
+				  art::FindManyP<recob::Track> const& fmt,
+				  std::vector<int> const& clustersToIgnore,
+				  std::map<int,std::vector<int> >& clusterToTracks,
+				  std::map<int,std::vector<int> >& trackToClusters);
+  void AssociateClustersAndTracks(std::vector<art::Ptr<recob::Cluster> > const& clusters,
+				  art::FindManyP<recob::Hit> const& fmh,
+				  art::FindManyP<recob::Track> const& fmt,
+				  std::map<int,std::vector<int> >& clusterToTracks,
+				  std::map<int,std::vector<int> >& trackToClusters);
+  void CheckShowerPlanes(std::vector<std::vector<int> > const& initialShowers,
+			 std::vector<int>& clustersToIgnore,
+			 std::vector<art::Ptr<recob::Cluster> > const& clusters,
+			 art::FindManyP<recob::Hit> const& fmh);
   void FindShowerProperties(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt,
 			    TVector3& direction, TVector3& directionError, TVector3& vertex, TVector3& vertexError,
 			    std::vector<double>& totalEnergy, std::vector<double>& totalEnergyError, std::vector<double>& dEdx, std::vector<double>& dEdxError,
 			    int& bestPlane);
+  void MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
+  art::Ptr<recob::Track> FindVertexTrack(std::map<int,art::Ptr<recob::Hit> > const& vertexMap, std::map<int,art::Ptr<recob::Track> > const& trackMap, std::map<int,std::vector<art::Ptr<recob::Hit> > > const& trackHitsMap);
+
+private:
+
   void FindShowerStartDirection(art::Ptr<recob::Track> const& vertexTrack, std::map<int,TVector2> const& showerCentreMap, TVector3& showerVertex, TVector3& showerDirection);
   double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, art::Ptr<recob::Track> const& track, unsigned int plane, geo::View_t const& view);
   void FindShowerEnds(std::vector<art::Ptr<recob::Hit> > const& shower, TVector2 const& centre, art::Ptr<recob::Hit>& end1, art::Ptr<recob::Hit>& end2);
@@ -78,10 +95,11 @@ public:
   int FindTrackID(art::Ptr<recob::Hit> const& hit);
   int FindTrueTrack(std::vector<art::Ptr<recob::Hit> > const& showerHits);
 
-private:
-
+  // Parameters
+  double fMinTrackLength;
   double fdEdxTrackLength;
 
+  // Services used by this class
   art::ServiceHandle<geo::Geometry> fGeom;
   art::ServiceHandle<util::DetectorProperties> fDetProp;
   art::ServiceHandle<art::TFileService> tfs;
