@@ -44,7 +44,7 @@ standard_linecluster:
 # this is the cluster finding component of former ClusterCrawler
   module_type:          "LineCluster"
   FilteredDataModuleLabel: "NA"
-  HitFinderModuleLabel: "cchit"
+  HitFinderModuleLabel: "gaushit"
   ClusterCrawlerAlg:    @local::standard_clustercrawleralg
 } # standard_linecluster
 
