@@ -12,10 +12,131 @@
 
 shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset) : fShowerEnergyAlg(pset.get<fhicl::ParameterSet>("ShowerEnergyAlg")),
                                                                     fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")) {
+  fMinTrackLength  = pset.get<double>("MinTrackLength");
   fdEdxTrackLength = pset.get<double>("dEdxTrackLength");
 }
 
-void shower::EMShowerAlg::MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers) {
+void shower::EMShowerAlg::AssociateClustersAndTracks(std::vector<art::Ptr<recob::Cluster> > const& clusters,
+						     art::FindManyP<recob::Hit> const& fmh,
+						     art::FindManyP<recob::Track> const& fmt,
+						     std::map<int,std::vector<int> >& clusterToTracks,
+						     std::map<int,std::vector<int> >& trackToClusters) {
+
+  /// Map associated tracks and clusters together given their associated hits
+
+  std::vector<int> clustersToIgnore = {-999};
+  this->AssociateClustersAndTracks(clusters, fmh, fmt, clustersToIgnore, clusterToTracks, trackToClusters);
+
+  return;
+
+}
+
+void shower::EMShowerAlg::AssociateClustersAndTracks(std::vector<art::Ptr<recob::Cluster> > const& clusters,
+						     art::FindManyP<recob::Hit> const& fmh,
+						     art::FindManyP<recob::Track> const& fmt,
+						     std::vector<int> const& clustersToIgnore,
+						     std::map<int,std::vector<int> >& clusterToTracks,
+						     std::map<int,std::vector<int> >& trackToClusters) {
+
+  /// Map associated tracks and clusters together given their associated hits
+
+  // Look through all the clusters
+  for (std::vector<art::Ptr<recob::Cluster> >::const_iterator clusterIt = clusters.begin(); clusterIt != clusters.end(); ++clusterIt) {
+
+    // Get the hits in this cluster
+    std::vector<art::Ptr<recob::Hit> > clusterHits = fmh.at(clusterIt->key());
+
+    // Look at all these hits and find the associated tracks
+    for (std::vector<art::Ptr<recob::Hit> >::iterator clusterHitIt = clusterHits.begin(); clusterHitIt != clusterHits.end(); ++clusterHitIt) {
+
+      // Get the tracks associated with this hit
+      std::vector<art::Ptr<recob::Track> > clusterHitTracks = fmt.at(clusterHitIt->key());
+      if (clusterHitTracks.size() > 1) { std::cout << "More than one track associated with this hit!" << std::endl; continue; }
+      if (clusterHitTracks.size() < 1) continue;
+      if (clusterHitTracks.at(0)->Length() < fMinTrackLength) continue;
+
+      // Add this cluster to the track map
+      int track = clusterHitTracks.at(0).key();
+      int cluster = (*clusterIt).key();
+      if (std::find(clustersToIgnore.begin(), clustersToIgnore.end(), cluster) != clustersToIgnore.end())
+	continue;
+      if (std::find(trackToClusters[track].begin(), trackToClusters[track].end(), cluster) == trackToClusters[track].end())
+	trackToClusters[track].push_back(cluster);
+      if (std::find(clusterToTracks[cluster].begin(), clusterToTracks[cluster].end(), track) == clusterToTracks[cluster].end())
+	clusterToTracks[cluster].push_back(track);
+
+    }
+
+  }
+
+  return;
+
+}
+
+void shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const& initialShowers,
+					    std::vector<int>& clustersToIgnore,
+					    std::vector<art::Ptr<recob::Cluster> > const& clusters,
+					    art::FindManyP<recob::Hit> const& fmh) {
+
+  /// Takes the initial showers found and tries to resolve issues where one bad view ruins the event
+
+  for (std::vector<std::vector<int> >::const_iterator initialShowerIt = initialShowers.begin(); initialShowerIt != initialShowers.end(); ++initialShowerIt) {
+
+    // Make maps of all clusters and cluster hits in each view
+    std::map<int,std::vector<art::Ptr<recob::Cluster> > > planeClusters;
+    std::map<int,std::vector<art::Ptr<recob::Hit> > > planeHits;
+
+    // Loop over the clusters comprising this shower
+    for (std::vector<int>::const_iterator clusterIt = initialShowerIt->begin(); clusterIt != initialShowerIt->end(); ++clusterIt) {
+      art::Ptr<recob::Cluster> cluster = clusters.at(*clusterIt);
+      std::vector<art::Ptr<recob::Hit> > hits = fmh.at(cluster.key());
+      planeClusters[cluster->Plane().Plane].push_back(cluster);
+      for (std::vector<art::Ptr<recob::Hit> >::iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt)
+	planeHits[(*hitIt)->WireID().Plane].push_back(*hitIt);
+    }
+
+    // Look at how many clusters each plane has, and the proportion of hits each of uses
+    std::map<int,std::vector<double> > planeClusterSizes;
+    for (std::map<int,std::vector<art::Ptr<recob::Cluster> > >::iterator planeClustersIt = planeClusters.begin(); planeClustersIt != planeClusters.end(); ++planeClustersIt) {
+      for (std::vector<art::Ptr<recob::Cluster> >::iterator planeClusterIt = planeClustersIt->second.begin(); planeClusterIt != planeClustersIt->second.end(); ++planeClusterIt) {
+	std::vector<art::Ptr<recob::Hit> > hits = fmh.at(planeClusterIt->key());
+        planeClusterSizes[planeClustersIt->first].push_back((double)hits.size()/(double)planeHits.at(planeClustersIt->first).size());
+      }
+    }
+
+    // Find the average hit fraction across all clusters in the plane
+    std::map<int,double> planeClusterAverageSizes;
+    for (std::map<int,std::vector<double> >::iterator planeClusterSizesIt = planeClusterSizes.begin(); planeClusterSizesIt != planeClusterSizes.end(); ++planeClusterSizesIt) {
+      double average = 0;
+      for (std::vector<double>::iterator planeClusterSizeIt = planeClusterSizesIt->second.begin(); planeClusterSizeIt != planeClusterSizesIt->second.end(); ++planeClusterSizeIt)
+	average += *planeClusterSizeIt;
+      average /= planeClusterSizesIt->second.size();
+      planeClusterAverageSizes[planeClusterSizesIt->first] = average;
+    }
+
+    // Now, decide if there is one plane which is ruining the reconstruction
+    // If there are two planes with a low average cluster fraction and one with a high one, this plane likely merges two particle deposits together
+    std::vector<int> highAverage, lowAverage;
+    for (std::map<int,double>::iterator planeClusterAverageSizeIt = planeClusterAverageSizes.begin(); planeClusterAverageSizeIt != planeClusterAverageSizes.end(); ++planeClusterAverageSizeIt) {
+      if (planeClusterAverageSizeIt->second > 0.9) highAverage.push_back(planeClusterAverageSizeIt->first);
+      else lowAverage.push_back(planeClusterAverageSizeIt->first);
+    }
+    int badPlane = -1;
+    if (highAverage.size() == 1 and highAverage.size() < lowAverage.size())
+      badPlane = highAverage.at(0);
+
+    if (badPlane != -1) 
+      for (std::vector<art::Ptr<recob::Cluster> >::iterator clusterIt = planeClusters.at(badPlane).begin(); clusterIt != planeClusters.at(badPlane).end(); ++clusterIt)
+	clustersToIgnore.push_back(clusterIt->key());
+
+  }
+
+  return;
+
+}
+
+void shower::EMShowerAlg::MakeShowers(std::map<int,std::vector<int> > const& trackToClusters,
+				      std::vector<std::vector<int> >& showers) {
 
   /// Makes showers given a map between tracks and all clusters associated with them
 
