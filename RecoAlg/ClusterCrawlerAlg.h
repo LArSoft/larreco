@@ -165,10 +165,9 @@ namespace cluster {
     std::vector<float> fMergeChgCut;  ///< max charge ratio for matching
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
     std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
-		bool fHammerCluster;					 ///< look for hammer type clusters
-    
-    bool fuBCode;     ///< patch in MicroBooNE-specific code
-    bool fUseChannelFilter;
+		bool fFindHammerClusters;					 ///< look for hammer type clusters
+    bool fFindVLAClusters;					 ///< look for Very Large Angle clusters
+    bool fRefineVertexClusters;
 		
 		float fMinAmp;									///< expected minimum signal
 
@@ -205,7 +204,6 @@ namespace cluster {
     float fAveChg;  ///< average charge at leading edge of cluster
     float fChgSlp;  ///< slope of the  charge vs wire
     float fAveHitWidth; ///< average width (EndTick - StartTick) of hits
-    float fAveDTick;    ///< average dTick of hits added to the cluster
     
     bool prt;
     bool vtxprt;
@@ -217,6 +215,7 @@ namespace cluster {
     
     std::vector<recob::Hit> fHits; ///< our version of the hits
     std::vector<short> inClus;    ///< Hit used in cluster (-1 = obsolete, 0 = free)
+    std::vector<bool> mergeAvailable; ///< set true if hit is with HitMergeChiCut of a neighbor hit
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< the endpoints we are reconstructing
     std::vector< Vtx3Store > vtx3; ///< the 3D vertices we are reconstructing
@@ -287,7 +286,6 @@ namespace cluster {
 		float fChgNearWindow; 		///< window (ticks) for finding nearby charge
 		float fChgNearCut;				///< cut on ratio of nearby/cluster charge to
 															///< to define a shower-like cluster
-    std::vector<float> projDTick;
 
     std::string fhitsModuleLabel;
     
@@ -313,6 +311,8 @@ namespace cluster {
     void AddHit(unsigned short kwire, bool& HitOK, bool& SigOK);
     // Finds a hit on wire kwire, adds it to a LargeAngle cluster and re-fits it
     void AddLAHit(unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK);
+    // find a Very Large Angle Hit
+    bool AddVLAHit(unsigned short wire, float prtime, float window);
     // Fits the cluster hits in fcl2hits to a straight line
     void FitCluster();
     // Fits the charge of the cluster hits in fcl2hits
@@ -354,6 +354,9 @@ namespace cluster {
 
     // Try to merge overlapping clusters
     void MergeOverlap();
+    
+    // Find Very Large Angle clusters
+    void FindVLAClusters();
     
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);
@@ -408,12 +411,16 @@ namespace cluster {
 
     // inits everything
     void CrawlInit();
+    // inits the cluster stuff
+    void ClusterInit();
     // fills the wirehitrange vector for the supplied Cryostat/TPC/Plane code
     void GetHitRange(CTP_t CTP);
     // Stores cluster information in a temporary vector
     bool TmpStore();
     // Gets a temp cluster and puts it into the working cluster variables
     void TmpGet(unsigned short it1);
+    // Does just what it says
+    void CalculateAveHitWidth();
     // Shortens the fcl2hits, chifits, etc vectors by the specified amount
     void FclTrimUS(unsigned short nTrim);
     // Splits a cluster into two clusters at position pos. Associates the
