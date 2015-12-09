@@ -60,7 +60,7 @@ namespace trkf{
     TrajPos.clear();
     TrajDir.clear();
     
-//    bool prt = false;
+    prt = false;
     
     unsigned short minLen = 9999;
     unsigned short maxLen = 0;
@@ -77,7 +77,7 @@ namespace trkf{
         aPlane = ipl;
       }
     } // ipl
-//    if(prt) mf::LogVerbatim("TTA")<<"trkX sizes "<<trkX[0].size()<<" "<<trkX[1].size()<<" "<<trkX[2].size()<<" "<<" nPlnsWithHits "<<nPlnsWithHits;
+    if(prt) mf::LogVerbatim("TTA")<<"trkX sizes "<<trkX[0].size()<<" "<<trkX[1].size()<<" "<<trkX[2].size()<<" "<<" nPlnsWithHits "<<nPlnsWithHits;
     if(nPlnsWithHits < 2) return;
     if(aPlane > 2) return;
     
@@ -98,9 +98,9 @@ namespace trkf{
         std::reverse(trkX[ipl].begin(), trkX[ipl].end());
         std::reverse(trkXErr[ipl].begin(), trkXErr[ipl].end());
       } // ipl
-//      if(prt) mf::LogVerbatim("TTA")<<"Swapped order";
+      if(prt) mf::LogVerbatim("TTA")<<"Swapped order";
     } // posX check
-/*
+
     if(prt) {
       mf::LogVerbatim myprt("TTA");
       myprt<<"TrkXW end0";
@@ -117,7 +117,7 @@ namespace trkf{
       }
       myprt<<"\n";
     }
-*/
+
     // find the min/max X
     minX = 1E6;
     minXPln = 0;
@@ -137,7 +137,7 @@ namespace trkf{
       }
     } // ipl
     
-//    if(prt) mf::LogVerbatim("TTA")<<"minX "<<minX<<" in plane "<<minXPln<<" maxX "<<maxX<<" in plane "<<maxXPln;
+    if(prt) mf::LogVerbatim("TTA")<<"minX "<<minX<<" in plane "<<minXPln<<" maxX "<<maxX<<" in plane "<<maxXPln;
     
     // estimate the number of trajectory points we will want based on the delta T and the
     // hit errors
@@ -155,7 +155,7 @@ namespace trkf{
     if(npt < 2) npt = 2;
     if(npt > maxLen) npt = maxLen;
     if(npt > fMaxTrajPoints) npt = fMaxTrajPoints;
-//    if(prt) mf::LogVerbatim("TTA")<<" aveHitXErr "<<aveHitXErr<<" number of traj points ";
+    if(prt) mf::LogVerbatim("TTA")<<" aveHitXErr "<<aveHitXErr<<" number of traj points ";
 
     double maxBinX = (maxX - minX) / (double)(npt - 1);
     double binX = maxBinX;
@@ -186,12 +186,12 @@ namespace trkf{
       } // posX
       return;
     } // bad STPos, STDir
-/*
+
     if(prt) {
       mf::LogVerbatim("TTA")<<"STPos";
       for(unsigned short ii = 0; ii < STPos.size(); ++ii) mf::LogVerbatim("TTA")<<ii<<" "<<std::fixed<<std::setprecision(1)<<STPos[ii](0)<<" "<<STPos[ii](1)<<" "<<STPos[ii](2);
     }
-*/
+
     if(maxLen < 4 || npt < 2) {
       TrajPos = STPos;
       TrajDir = STDir;
@@ -228,16 +228,16 @@ namespace trkf{
           hStart[ipl] =iht;
         } // iht
       } // ipl
-//      if(prt) mf::LogVerbatim("TTA")<<"ipt "<<ipt<<" xOrigin "<<xOrigin<<" binX "<<binX<<" hitX size "<<hitX.size();
+      if(prt) mf::LogVerbatim("TTA")<<"ipt "<<ipt<<" xOrigin "<<xOrigin<<" binX "<<binX<<" hitX size "<<hitX.size();
       if(hitX.size() > 3) {
         fTrackLineFitAlg.TrkLineFit(hitWID, hitX, hitXErr, xOrigin, xyz, dir, ChiDOF);
-//        if(prt) mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2)<<" dir "<<dir(0)<<" "<<dir(1)<<" "<<dir(2)<<" ChiDOF "<<ChiDOF<<" hitX size "<<hitX.size();
+        if(prt) mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2)<<" dir "<<dir(0)<<" "<<dir(1)<<" "<<dir(2)<<" ChiDOF "<<ChiDOF<<" hitX size "<<hitX.size();
       } else if(ipt == 0 && STPos.size() == 2) {
         // failure on the first traj point. Use STPos
         xyz = STPos[0];
         dir = STDir[0];
       }
-//      if(prt && hitX.size() < 4) mf::LogVerbatim("TTA")<<"\n";
+      if(prt && hitX.size() < 4) mf::LogVerbatim("TTA")<<"\n";
       if(xOrigin >= maxX) break;
       // tweak xOrigin if we are close to the end
       if(maxX - xOrigin < binX) {
@@ -250,10 +250,11 @@ namespace trkf{
       TrajDir.push_back(dir);
       if(ipt == npt) gotLastPoint = true;
     } // ipt
-/*
-    mf::LogVerbatim("TTA")<<"gotLastPoint "<<gotLastPoint<<" TTA Traj \n";
-    for(unsigned short ii = 0; ii < TrajPos.size(); ++ii) mf::LogVerbatim("TTA")<<ii<<" "<<std::fixed<<std::setprecision(1)<<TrajPos[ii](0)<<" "<<TrajPos[ii](1)<<" "<<TrajPos[ii](2)<<"\n";
-*/
+    if(prt) {
+      mf::LogVerbatim("TTA")<<"gotLastPoint "<<gotLastPoint<<" TTA Traj \n";
+      for(unsigned short ii = 0; ii < TrajPos.size(); ++ii) mf::LogVerbatim("TTA")<<ii<<" "<<std::fixed<<std::setprecision(1)<<TrajPos[ii](0)<<" "<<TrajPos[ii](1)<<" "<<TrajPos[ii](2);
+    }
+
     if(!gotLastPoint && STPos.size() == 2) {
       // failure on the last point. Use STPos, etc
       TrajPos.push_back(STPos[1]);
@@ -277,10 +278,11 @@ namespace trkf{
       } // ipl
       
     } // !posX
-/*
-    mf::LogVerbatim("TTA")<<"TTA Traj2\n";
-    for(unsigned short ii = 0; ii < TrajPos.size(); ++ii) mf::LogVerbatim("TTA")<<ii<<" "<<std::fixed<<std::setprecision(1)<<TrajPos[ii](0)<<" "<<TrajPos[ii](1)<<" "<<TrajPos[ii](2)<<"\n";
-*/    
+    if(prt) {
+      mf::LogVerbatim("TTA")<<"TTA Traj2\n";
+      for(unsigned short ii = 0; ii < TrajPos.size(); ++ii) mf::LogVerbatim("TTA")<<ii<<" "<<std::fixed<<std::setprecision(1)<<TrajPos[ii](0)<<" "<<TrajPos[ii](1)<<" "<<TrajPos[ii](2);
+    }
+ 
   } // TrackTrajectoryAlg
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -297,13 +299,18 @@ namespace trkf{
     unsigned int iWire, jWire;
     
     // do the min X end first
-    float xCut = minX + fHitWidthFactor * trkXErr[minXPln][0];
-    for(ipl = 0; ipl < 3; ++ipl) {
-      if(trkX[ipl].size() == 0) continue;
-      if(trkX[ipl][0] < xCut) usePlns.push_back(ipl);
-    } // ipl
+    float xCut;
+    for(unsigned short nit = 0; nit < 5; ++nit) {
+      xCut = minX + fHitWidthFactor * trkXErr[minXPln][0];
+      for(ipl = 0; ipl < 3; ++ipl) {
+        if(trkX[ipl].size() == 0) continue;
+        if(trkX[ipl][0] < xCut) usePlns.push_back(ipl);
+      } // ipl
+      if(usePlns.size() >= 2) break;
+      fHitWidthFactor += 5;
+    }
     // Not enough information to find a space point
-//    mf::LogVerbatim("TTA")<<"ShortTrack minX end "<<xCut<<" usePlns size "<<usePlns.size();
+    if(prt) mf::LogVerbatim("TTA")<<"ShortTrack minX end "<<xCut<<" usePlns size "<<usePlns.size();
     if(usePlns.size() < 2) return;
     endY = 0; endZ = 0; nend = 0;
     iht = 0;
@@ -328,19 +335,25 @@ namespace trkf{
     xyz(0) = endX / (float)(nend + 1);
     xyz(1) = endY / (float)nend;
     xyz(2) = endZ / (float)nend;
-//    mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
+    if(prt) mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
     TrajPos.push_back(xyz);
     
     // do the same for the other end
-    xCut = maxX - fHitWidthFactor * trkXErr[maxXPln][0];
+    fHitWidthFactor = 5;
+//    xCut = maxX - fHitWidthFactor * trkXErr[maxXPln][0];
     usePlns.clear();
-    for(ipl = 0; ipl < 3; ++ipl) {
-      if(trkX[ipl].size() == 0) continue;
-      iht = trkX[ipl].size() - 1;
-      if(trkX[ipl][iht] > xCut) usePlns.push_back(ipl);
-    } // ipl
+    for(unsigned short nit = 0; nit < 5; ++nit) {
+      xCut = maxX - fHitWidthFactor * trkXErr[maxXPln][0];
+      for(ipl = 0; ipl < 3; ++ipl) {
+        if(trkX[ipl].size() == 0) continue;
+        iht = trkX[ipl].size() - 1;
+        if(trkX[ipl][iht] > xCut) usePlns.push_back(ipl);
+      } // ipl
+      if(usePlns.size() >= 2) break;
+      fHitWidthFactor += 5;
+    }
     // Not enough information to find a space point
-//    mf::LogVerbatim("TTA")<<"ShortTrack maxX end "<<xCut<<" usePlns size "<<usePlns.size();
+    if(prt) mf::LogVerbatim("TTA")<<"ShortTrack maxX end "<<xCut<<" usePlns size "<<usePlns.size();
     if(usePlns.size() < 2) {
       TrajPos.clear();
       TrajDir.clear();
@@ -367,14 +380,14 @@ namespace trkf{
     xyz(0) = endX / (float)(nend + 1);
     xyz(1) = endY / (float)nend;
     xyz(2) = endZ / (float)nend;
-//    mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
+    if(prt) mf::LogVerbatim("TTA")<<" xyz "<<xyz(0)<<" "<<xyz(1)<<" "<<xyz(2);
     TrajPos.push_back(xyz);
     TVector3 dir = TrajPos[1] - TrajPos[0];
     dir = dir.Unit();
     TrajDir.push_back(dir);
     TrajDir.push_back(dir);
   
-//    mf::LogVerbatim("TTA")<<">>>> Short track ("<<TrajPos[0](0)<<", "<<TrajPos[0](1)<<", "<<TrajPos[0](2)<<") to ("<<TrajPos[1](0)<<", "<<TrajPos[1](1)<<", "<<TrajPos[1](2)<<")";
+    if(prt) mf::LogVerbatim("TTA")<<">>>> Short track ("<<TrajPos[0](0)<<", "<<TrajPos[0](1)<<", "<<TrajPos[0](2)<<") to ("<<TrajPos[1](0)<<", "<<TrajPos[1](1)<<", "<<TrajPos[1](2)<<")";
   }
 
   

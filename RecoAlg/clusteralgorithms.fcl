@@ -7,41 +7,42 @@ standard_clustercrawleralg:
   NumPass:              3  # number of passes through the hit list. 0 = no cluster reco
   MaxHitsFit: [ 100,  8, 4] # number of hits fitted to a line
   MinHits:    [ 50,  8, 3] # minimum size of a cluster
-  NHitsAve:   [ 20,  8, 0] # number of hits to find the average charge and width  
+  NHitsAve:   [ 20,  8, 2] # number of hits to find the average charge and width
                            # at the end of the cluster. NHitsAve should be 1 or 2
   ChgCut:    [ .8, .8, .8] # max fractional hit charge difference for adding hits
-  ChiCut:     [4., 4., 4.] # stop adding hits to clusters if ChiCut is reached
-  MaxWirSkip:   [25, 8, 2] # max number of wires to skip without adding a hit
+  ChiCut:    [ 4, 8, 10] # stop adding hits to clusters if ChiCut is reached
+  MaxWirSkip:   [25, 8, 0] # max number of wires to skip without adding a hit
   MinWirAfterSkip: [2, 2, 1] # min reqd number of consecutive wires with a hit after a skip
   KinkChiRat: [1.2, 1.2, 0.] # Max consecutive chisq increase for the last 3 hits on the cluster
                              # 0. = no kink check when following
-  KinkAngCut: [0.4, 0.4, 0.4] # kink angle cut (radians) used to follow and merge
+  KinkAngCut: [0.4, 0.4, 1.5] # kink angle cut (radians) used to follow and merge
   DoMerge:   [false, true, true] # run cluster merging code?
-  TimeDelta: [2., 3., 10.] # max time difference for cluster merging
+  TimeDelta: [ 8, 8, 20] # max time difference for cluster merging
   MergeChgCut: [0.8, 0.8, 0.8] # max charge ratio for cluster merging
   FindVertices: [true, true, true]  # make 2D vertices after clustering?
   LACrawl:     [true, true, true]  # crawl Large Angle clusters?
   LAClusAngleCut:       60 # Large cluster angle cut (0 < 90 degrees). <0 to turn off
-	LAClusMaxHitsFit: 		10 # 
+	LAClusMaxHitsFit: 		 4 #
 	MinHitFrac: 				 0.6 # Drop clusters having < (#hits/#wires)
 	MinAmp: 						  10 # Min hit signal amplitude for merging
 	ChgNearWindow:				40 # #of ticks for summing charge near a cluster
 	ChgNearCut: 				 1.5 # Cluster end is shower-like if (nearby chg)/(cls chg)> cut
-  HitMergeChiCut:      1.5 # Merge cluster hit-multiplets if the separation chisq
+  HitMergeChiCut:      2.5 # Merge cluster hit-multiplets if the separation chisq
                            # is < cut. Set < 0 for no merging
   MergeOverlapAngCut:  0.1 # Set <= 0 to turn off overlapping cluster merging
   ChkClusterDS:       true # Check reconstruction at DS end of clusters?
   VtxClusterSplit:    true # Split clusters that cross vertices
   FindStarVertices:   true # Find vertices with a star topology
-  HitErrFac:           0.4 # hit time error for fitting = fHitErrFac * (hit width)
+  HitErrFac:           0.2 # hit time error for fitting = fHitErrFac * (hit width)
   AllowNoHitWire:        1 # Allow skipping N wires w no hits (if poor purity)
-	Vertex2DCut:					10 # Max equiv dTick cut for attaching a cluster to a vtx
-  Vertex3DCut:          3 # 2D vtx -> 3D vtx matching cut (chisq)
-	HammerCluster:			true # look for hammer type clusters
+	Vertex2DCut:					10 # Max chisq cut for attaching a cluster to a vtx
+  Vertex3DCut:           5 # 2D vtx -> 3D vtx matching cut (chisq)
+	FindHammerClusters: true # look for hammer type clusters
+  RefineVertexClusters: false # (not ready)
+  FindVLAClusters: false # find Very Large Angle clusters (not ready)
   DebugPlane:          -1  # print info only in this plane
   DebugWire:            0  # set to the Begin Wire and Hit of a cluster to print
   DebugHit:             0  # out detailed information while crawling
-  uBCode:           false  # use MicroBooNE-specific code
 }
 
 standard_blurredclusteralg:
@@ -312,24 +313,6 @@ microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
-# temporary settings
-microboone_clustercrawleralg.MinAmp:          5
-microboone_clustercrawleralg.NumPass:         1
-microboone_clustercrawleralg.HitErrFac:       0.8
-microboone_clustercrawleralg.MinHitFrac:      0.1
-microboone_clustercrawleralg.DoMerge:         [true]
-microboone_clustercrawleralg.MaxHitsFit:      [20]
-microboone_clustercrawleralg.MinHits:         [10]
-microboone_clustercrawleralg.ChgCut:          [4]
-microboone_clustercrawleralg.MergeChgCut:     [4]
-microboone_clustercrawleralg.TimeDelta:       [20]
-microboone_clustercrawleralg.AllowNoHitWire:  80
-microboone_clustercrawleralg.MaxWirSkip:      [80]
-microboone_clustercrawleralg.KinkAngCut:      [0.4]
-microboone_clustercrawleralg.Vertex3DCut:     5
-microboone_clustercrawleralg.HitMergeChiCut:  10
-microboone_clustercrawleralg.ChiCut:          [20]
-microboone_clustercrawleralg.uBCode:          true
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg

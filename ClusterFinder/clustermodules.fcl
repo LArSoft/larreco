@@ -35,18 +35,17 @@ standard_dbcluster:
 standard_clustercrawler:
 {
  module_type:         "ClusterCrawler"
- CalDataModuleLabel:  "caldata"
  ClusterCrawlerAlg:   @local::standard_clustercrawleralg
  CCHitFinderAlg:      @local::standard_cchitfinderalg
-# CCHitRefinerAlg:     @local::standard_cchitrefineralg
 }
 
 standard_linecluster:
 {
 # this is the cluster finding component of former ClusterCrawler
- module_type:          "LineCluster"
- HitFinderModuleLabel: "cchit"
- ClusterCrawlerAlg:    @local::standard_clustercrawleralg
+  module_type:          "LineCluster"
+  FilteredDataModuleLabel: "NA"
+  HitFinderModuleLabel: "gaushit"
+  ClusterCrawlerAlg:    @local::standard_clustercrawleralg
 } # standard_linecluster
 
 standard_fuzzycluster:

@@ -86,17 +86,6 @@ namespace hit {
   public:
     
     std::vector<recob::Hit> allhits;
-    
-    // struct for passing hit fitting cuts to ClusterCrawler
-    struct HitCuts {
-      float MinSigInd;
-      float MinSigCol;
-      float MinRMSInd;
-      float MinRMSCol;
-      float ChiSplit;
-      std::vector<float> ChiNorms;
-    };
-    HitCuts hitcuts;
 
     CCHitFinderAlg(fhicl::ParameterSet const& pset);
     virtual ~CCHitFinderAlg() = default;
@@ -114,10 +103,8 @@ namespace hit {
     
   private:
     
-    float fMinSigInd;     ///<Induction signal height threshold 
-    float fMinSigCol;     ///<Collection signal height threshold 
-    float fMinRMSInd;      ///<Initial rms for induction fit
-    float fMinRMSCol;      ///<Initial rms for collection fit
+    std::vector<float> fMinPeak;
+    std::vector<float> fMinRMS;
     unsigned short fMaxBumps; // make a crude hit if > MaxBumps are found in the RAT
     unsigned short fMaxXtraHits; // max num of hits in Region Above Threshold
     float fChiSplit;      ///<Estimated noise error on the Signal
@@ -130,13 +117,13 @@ namespace hit {
     raw::ChannelID_t theChannel;
     unsigned short theWireNum;
     unsigned short thePlane;
-    float minRMS;
-    float minSig;
+
     float chinorm;
     float timeoff;
     static constexpr float Sqrt2Pi = 2.5066;
     static constexpr float SqrtPi  = 1.7725;
-
+    
+    bool fUseChannelFilter;
 
 //    bool prt;
     

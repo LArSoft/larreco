@@ -34,6 +34,7 @@ standard_emshoweralg:
 {
  CalorimetryAlg:  @local::standard_calorimetryalgmc
  ShowerEnergyAlg: @local::standard_showerenergyalg
+ MinTrackLength:  3
  dEdxTrackLength: 3
 }
 
@@ -43,7 +44,6 @@ standard_emshower:
  HitsModuleLabel:    "linecluster"
  ClusterModuleLabel: "blurredcluster"
  TrackModuleLabel:   "pmtrack"
- MinTrackLength:     3
  EMShowerAlg:        @local::standard_emshoweralg
 }
 
