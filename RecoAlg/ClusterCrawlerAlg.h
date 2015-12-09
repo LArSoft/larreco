@@ -312,7 +312,7 @@ namespace cluster {
     // Finds a hit on wire kwire, adds it to a LargeAngle cluster and re-fits it
     void AddLAHit(unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK);
     // find a Very Large Angle Hit
-    bool AddVLAHit(unsigned short wire, float prtime, float window);
+//    bool AddVLAHit(unsigned short wire, float prtime, float window);
     // Fits the cluster hits in fcl2hits to a straight line
     void FitCluster();
     // Fits the charge of the cluster hits in fcl2hits
@@ -357,6 +357,9 @@ namespace cluster {
     
     // Find Very Large Angle clusters
     void FindVLAClusters();
+    // Make VLA cluster using hits in fc2lhits
+    void MakeVLACluster();
+    void FitVLACluster(short nHitsFit);
     
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);
