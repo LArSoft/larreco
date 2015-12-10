@@ -4983,7 +4983,7 @@ namespace cluster {
       }
 /*
       if(posSlope) {
-        if(loEndTick - tol > hiStartTick) {
+        if(loEndTick + tol < hiStartTick) {
           if(prt) mf::LogVerbatim("CC")<<" bad overlap pos Slope "<<loEndTick<<" > "<<hiStartTick;
           return false;
         }
