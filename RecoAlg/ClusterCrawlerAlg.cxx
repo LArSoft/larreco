@@ -6164,8 +6164,6 @@ namespace cluster {
        // Define the "no hits on wire" condition
       flag.first = -2; flag.second = -2;
       for(auto& apair : WireHitRange) apair = flag;
-      
-//      std::cout<<">>>>>>>>>>>>>>>> WireHitRange CTP "<<CTP<<"\n";
 
       nHitInPlane = 0;
       bool first = true;
@@ -6193,6 +6191,7 @@ namespace cluster {
         if(fHits[iht].WireID().Plane > planeID.Plane) {
           wire = fHits[iht-1].WireID().Wire;
           WireHitRange[wire].second = iht;
+          fLastWire = wire;
 //          std::cout<<"wire "<<wire<<" range "<<WireHitRange[wire].first<<" "<<WireHitRange[wire].second<<" << last in plane \n";
           break;
         }
@@ -6220,11 +6219,8 @@ namespace cluster {
       }
 
       // define the MergeAvailable vector and check for errors
-      if(mergeAvailable.size() < fHits.size()) {
-        mf::LogError("CC")<<"GetHitRange: Invalid mergeAvailable vector size "<<mergeAvailable.size()
-        <<fHits.size();
-        exit(1);
-      }
+      if(mergeAvailable.size() < fHits.size()) throw art::Exception(art::errors::LogicError)
+        <<"GetHitRange: Invalid mergeAvailable vector size "<<mergeAvailable.size()<<fHits.size();
       unsigned short firstHit, lastHit;
       unsigned int cnt;
       cnt = 0;
@@ -6256,7 +6252,7 @@ namespace cluster {
           } // fHits[iht].Multiplicity() > 1
         } // iht
       } // wire
-      if(cnt != nHitInPlane) throw art::Exception(art::errors::LogicError)<<"Bad WireHitRange count "<<cnt<<" "<<nHitInPlane<<"\n";
+      if(cnt != nHitInPlane) mf::LogWarning("CC")<<"Bad WireHitRange count "<<cnt<<" "<<nHitInPlane<<"\n";
 
     } // GetHitRange()
 
