@@ -6177,7 +6177,6 @@ namespace cluster {
           WireHitRange[wire].first = iht;
           fFirstWire = wire;
           first = false;
-          //std::cout<<"First hit wire "<<wire<<" iht "<<iht<<"\n";
         }
         // last hit?
         if(iht == (fHits.size() - 1)) {
@@ -6185,14 +6184,12 @@ namespace cluster {
           if(WireHitRange[wire].first == -2) WireHitRange[wire].first = iht;
           WireHitRange[wire].second = iht + 1;
           fLastWire = wire + 1;
-	  //          std::cout<<"wire "<<wire<<" range "<<WireHitRange[wire].first<<" "<<WireHitRange[wire].second<<" << last in fHits \n";
         }
         // next plane?
         if(fHits[iht].WireID().Plane > planeID.Plane) {
           wire = fHits[iht-1].WireID().Wire;
           WireHitRange[wire].second = iht;
           fLastWire = wire;
-          //std::cout<<"wire "<<wire<<" range "<<WireHitRange[wire].first<<" "<<WireHitRange[wire].second<<" << last in plane \n";
           break;
         }
         // next wire?
@@ -6203,7 +6200,6 @@ namespace cluster {
           // Last hit on the previous hit wire if there was one...
           wire = fHits[iht-1].WireID().Wire;
           if(WireHitRange[wire].first >= 0) WireHitRange[wire].second = iht;
-          //std::cout<<"wire "<<wire<<" range "<<WireHitRange[wire].first<<" "<<WireHitRange[wire].second<<"\n";
         }
         ++nHitInPlane;
       } // iht
@@ -6238,10 +6234,8 @@ namespace cluster {
         lastHit = WireHitRange[wire].second;
         //std::cout<<"wire "<<wire<<" hit range "<<firstHit<<" "<<lastHit<<"\n";
         for(iht = firstHit; iht < lastHit; ++iht) {
-          if(fHits[iht].WireID().Wire != wire) {
-	    //std::cout << "Hit wire is " << fHits[iht].WireID().Wire << " and wire is " << wire << std::endl;
+          if(fHits[iht].WireID().Wire != wire)
             throw art::Exception(art::errors::LogicError)<<"Bad WireHitRange on wire "<<wire<<"\n";
-	  }
           ++cnt;
           if(fHits[iht].Multiplicity() > 1) {
             peakCut = 0.6 * fHits[iht].PeakAmplitude();
