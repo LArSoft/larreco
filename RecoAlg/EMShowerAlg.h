@@ -36,6 +36,9 @@
 #include "RecoBase/SpacePoint.h"
 #include "RecoBase/Vertex.h"
 #include "RecoBase/Shower.h"
+#include "RecoAlg/ProjectionMatchingAlg.h"
+#include "RecoAlg/PMAlg/PmaTrack3D.h"
+#include "RecoAlg/PMAlg/Utilities.h"
 
 // C++
 #include <iostream>
@@ -69,11 +72,11 @@ public:
 			 std::vector<int>& clustersToIgnore,
 			 std::vector<art::Ptr<recob::Cluster> > const& clusters,
 			 art::FindManyP<recob::Hit> const& fmh);
-  void FindShowerProperties(art::PtrVector<recob::Hit> const& hits, art::FindManyP<recob::Track> const& fmt,
-			    TVector3& direction, TVector3& directionError, TVector3& vertex, TVector3& vertexError,
-			    std::vector<double>& totalEnergy, std::vector<double>& totalEnergyError, std::vector<double>& dEdx, std::vector<double>& dEdxError,
-			    int& bestPlane);
-  void MakeShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
+  void FindShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
+  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits, art::Ptr<recob::Track>& initialTrack, std::vector<art::Ptr<recob::Hit> >& initialTrackHits);
+  recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
+			   art::Ptr<recob::Track> const& initialTrack,
+			   std::vector<art::Ptr<recob::Hit> > const& initialTrackHits);
 
 private:
 
@@ -91,7 +94,7 @@ private:
   void FindShowerEnds(std::vector<art::Ptr<recob::Hit> > const& shower,
 		      art::Ptr<recob::Hit>& end1,
 		      art::Ptr<recob::Hit>& end2);
-  double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, art::Ptr<recob::Track> const& track, unsigned int plane, geo::View_t const& view);
+  double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, art::Ptr<recob::Track> const& track);
   TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
   TVector2 HitPosition(art::Ptr<recob::Hit> const& hit);
   TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);
@@ -110,6 +113,7 @@ private:
   // Algs used by this class
   shower::ShowerEnergyAlg fShowerEnergyAlg;
   calo::CalorimetryAlg fCalorimetryAlg;
+  pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 
 };
 
