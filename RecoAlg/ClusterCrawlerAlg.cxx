@@ -398,16 +398,12 @@ namespace cluster {
             VtxConstraint(iwire, ihit, jwire, useHit, doConstrain);
             unsigned int jfirsthit = (unsigned int)WireHitRange[jwire].first;
             unsigned int jlasthit = (unsigned int)WireHitRange[jwire].second;
-            if(jfirsthit > fHits.size()-1 || jfirsthit > fHits.size()-1) {
-              mf::LogError("CC")<<"ClusterLoop jwire "<<jwire<<" bad firsthit "<<jfirsthit<<" lasthit "<<jlasthit<<" fhits size "<<fHits.size();
-              exit(1);
-            }
+            if(jfirsthit > fHits.size()-1 || jfirsthit > fHits.size()-1) throw art::Exception(art::errors::LogicError)
+              <<"ClusterLoop jwire "<<jwire<<" bad firsthit "<<jfirsthit<<" lasthit "<<jlasthit<<" fhits size "<<fHits.size();
             //            if(prt) mf::LogVerbatim("CC")<<" jhit range "<<jfirsthit<<" "<<jlasthit;
             for(jhit = jfirsthit; jhit < jlasthit; ++jhit) {
-              if(jhit > fHits.size()-1) {
-                mf::LogError("CC")<<"ClusterLoop bad jhit "<<jhit<<" firsthit "<<jfirsthit<<" lasthit "<<jlasthit<<" fhits size"<<fHits.size();
-                exit(1);
-              }
+              if(jhit > fHits.size()-1) throw art::Exception(art::errors::LogicError)
+                <<"ClusterLoop bad jhit "<<jhit<<" firsthit "<<jfirsthit<<" lasthit "<<jlasthit<<" fhits size"<<fHits.size();
               // Constraint?
               if(doConstrain && jhit != useHit) continue;
               recob::Hit const& other_hit = fHits[jhit];
@@ -6152,76 +6148,81 @@ namespace cluster {
     void ClusterCrawlerAlg::GetHitRange(CTP_t CTP)
     {
       // fills the WireHitRange vector for the supplied Cryostat/TPC/Plane code
+      // Hits must have been sorted by increasing wire number
 			fFirstHit = 0;
-      geo::PlaneID planeID = DecodeCTP(clCTP);
+      geo::PlaneID planeID = DecodeCTP(CTP);
       unsigned int nwires = geom->Nwires(planeID.Plane, planeID.TPC, planeID.Cryostat);
       WireHitRange.resize(nwires + 1);
+      // These will be re-defined later
       fFirstWire = 0;
-      fLastWire = nwires - 1;
+      fLastWire = 0;
       
-      short sflag;
       unsigned short wire;
+      unsigned int iht, nHitInPlane;
+      std::pair<int, int> flag;
       
        // Define the "no hits on wire" condition
-      sflag = -2;
-      for(wire = fFirstWire; wire <= fLastWire; ++wire) WireHitRange[wire] = std::make_pair(sflag, sflag);
-      
+      flag.first = -2; flag.second = -2;
+      for(auto& apair : WireHitRange) apair = flag;
+
+      nHitInPlane = 0;
       bool first = true;
-      unsigned short hitWire, nextHitWire;
-      unsigned int nhpl = 0;
-      for(unsigned int hit = 0; hit < fHits.size(); ++hit) {
-        recob::Hit const& theHit = fHits[hit];
-        
-        if(theHit.WireID().TPC != planeID.TPC) continue;
-        if(theHit.WireID().Cryostat != planeID.Cryostat) continue;
-        if(theHit.WireID().Plane < planeID.Plane) continue;
-        if(theHit.WireID().Plane > planeID.Plane) {
-          WireHitRange[fLastWire].second = hit;
+      for(unsigned int iht = 0; iht < fHits.size(); ++iht) {
+        if(fHits[iht].WireID().TPC != planeID.TPC) continue;
+        if(fHits[iht].WireID().Cryostat != planeID.Cryostat) continue;
+        if(fHits[iht].WireID().Plane < planeID.Plane) continue;
+        wire = fHits[iht].WireID().Wire;
+        // define the first hit start index in this TPC, Plane
+        if(first && fHits[iht].WireID().Plane == planeID.Plane) {
+          WireHitRange[wire].first = iht;
+          fFirstWire = wire;
+          first = false;
+//          std::cout<<"First hit wire "<<wire<<" iht "<<iht<<"\n";
+        }
+        // last hit?
+        if(iht == (fHits.size() - 1)) {
+          // first hit also?
+          if(WireHitRange[wire].first == -2) WireHitRange[wire].first = iht;
+          WireHitRange[wire].second = iht + 1;
+          fLastWire = wire + 1;
+//          std::cout<<"wire "<<wire<<" range "<<WireHitRange[wire].first<<" "<<WireHitRange[wire].second<<" << last in fHits \n";
+        }
+        // next plane?
+        if(fHits[iht].WireID().Plane > planeID.Plane) {
+          wire = fHits[iht-1].WireID().Wire;
+          WireHitRange[wire].second = iht;
+          fLastWire = wire;
+//          std::cout<<"wire "<<wire<<" range "<<WireHitRange[wire].first<<" "<<WireHitRange[wire].second<<" << last in plane \n";
           break;
         }
-        hitWire = theHit.WireID().Wire;
-        if(first) {
-          WireHitRange[hitWire].first = hit;
-          fFirstWire = hitWire;
-          fFirstHit = hit;
-          first = false;
+        // next wire?
+        if(iht > 0 && wire > fHits[iht-1].WireID().Wire) {
+          // First hit on this wire
+          wire = fHits[iht].WireID().Wire;
+          WireHitRange[wire].first = iht;
+          // Last hit on the previous hit wire if there was one...
+          wire = fHits[iht-1].WireID().Wire;
+          if(WireHitRange[wire].first >= 0) WireHitRange[wire].second = iht;
+//          std::cout<<"wire "<<wire<<" range "<<WireHitRange[wire].first<<" "<<WireHitRange[wire].second<<"\n";
         }
-        fLastWire = hitWire;
-        ++nhpl;
-        
-        if(hit == fHits.size() - 1) {
-          // handle the last hit
-          WireHitRange[hitWire].second = fHits.size();
-        } else {
-          // see if the next hit is on a different wire
-          recob::Hit const& theNextHit = fHits[hit + 1];
-          nextHitWire = theNextHit.WireID().Wire;
-          if(nextHitWire > hitWire) {
-            WireHitRange[hitWire].second = hit + 1;
-            WireHitRange[nextHitWire].first = hit + 1;
-            //          mf::LogVerbatim("CC")<<"hitWire "<<hitWire<<" hit "<<hit<<" nextHitWire "<<nextHitWire;
-          }
-        } // hit < fHits.size() - 1
-       } // hit
+        ++nHitInPlane;
+      } // iht
 
       // overwrite with the "dead wires" condition
       lariov::IChannelStatusProvider const& channelStatus
       = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
-      sflag = -1;
+      flag.first = -1; flag.second = -1;
       for(wire = 0; wire < nwires; ++wire) {
         raw::ChannelID_t chan = geom->PlaneWireToChannel
         ((int)planeID.Plane,(int)wire,(int)planeID.TPC,(int)planeID.Cryostat);
-        if(channelStatus.IsBad(chan)) WireHitRange[wire] = std::make_pair(sflag, sflag);
+        if(channelStatus.IsBad(chan)) WireHitRange[wire] = flag;
       }
 
       // define the MergeAvailable vector and check for errors
-      if(mergeAvailable.size() < fHits.size()) {
-        mf::LogError("CC")<<"GetHitRange: Invalid mergeAvailable vector size "<<mergeAvailable.size()
-        <<fHits.size();
-        exit(1);
-      }
+      if(mergeAvailable.size() < fHits.size()) throw art::Exception(art::errors::LogicError)
+        <<"GetHitRange: Invalid mergeAvailable vector size "<<mergeAvailable.size()<<fHits.size();
       unsigned short firstHit, lastHit;
-      unsigned int iht, cnt;
+      unsigned int cnt;
       cnt = 0;
       float maxRMS, chiSep, peakCut;
       for(wire = 0; wire < nwires; ++wire) {
@@ -6231,10 +6232,8 @@ namespace cluster {
         lastHit = WireHitRange[wire].second;
 //        std::cout<<"wire "<<wire<<" hit range "<<firstHit<<" "<<lastHit<<"\n";
         for(iht = firstHit; iht < lastHit; ++iht) {
-          if(fHits[iht].WireID().Wire != wire) {
-            std::cout<<"Bad WireHitRange on wire "<<wire<<"\n";
-            exit(1);
-          } // error
+          if(fHits[iht].WireID().Wire != wire)
+            throw art::Exception(art::errors::LogicError)<<"Bad WireHitRange on wire "<<wire<<"\n";
           ++cnt;
           if(fHits[iht].Multiplicity() > 1) {
             peakCut = 0.6 * fHits[iht].PeakAmplitude();
@@ -6253,10 +6252,7 @@ namespace cluster {
           } // fHits[iht].Multiplicity() > 1
         } // iht
       } // wire
-      if(cnt != nhpl) {
-        std::cout<<"Bad WireHitRange count "<<cnt<<" "<<nhpl<<"\n";
-        exit(1);
-      }
+      if(cnt != nHitInPlane) mf::LogWarning("CC")<<"Bad WireHitRange count "<<cnt<<" "<<nHitInPlane<<"\n";
 
     } // GetHitRange()
 
