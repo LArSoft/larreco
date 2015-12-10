@@ -4982,7 +4982,7 @@ namespace cluster {
       hiStartTick = std::max(fHits[fcl2hits[indx]].StartTick(), fHits[fcl2hits[indx-1]].StartTick());
       loEndTick = std::min(fHits[fcl2hits[indx]].EndTick(), fHits[fcl2hits[indx-1]].EndTick());
       if(posSlope) {
-        if(loEndTick - tol > hiStartTick) {
+        if(loEndTick + tol < hiStartTick) {
           if(prt) mf::LogVerbatim("CC")<<" bad overlap pos Slope "<<loEndTick<<" > "<<hiStartTick;
           return false;
         }
