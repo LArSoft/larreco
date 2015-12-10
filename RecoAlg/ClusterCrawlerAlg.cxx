@@ -694,7 +694,7 @@ namespace cluster {
     if(dWire == 0) {
       slp = 100;
     } else {
-      slp = dWire / (float)dTime;
+      slp = dTime / (float)dWire;
     }
     
     if(std::abs(slp) > 40) {
@@ -4977,6 +4977,11 @@ namespace cluster {
       if(std::abs(fHits[fcl2hits[indx]].WireID().Wire != fHits[fcl2hits[indx-1]].WireID().Wire) > 1) continue;
       hiStartTick = std::max(fHits[fcl2hits[indx]].StartTick(), fHits[fcl2hits[indx-1]].StartTick());
       loEndTick = std::min(fHits[fcl2hits[indx]].EndTick(), fHits[fcl2hits[indx-1]].EndTick());
+      if(loEndTick - tol > hiStartTick) {
+        if(prt) mf::LogVerbatim("CC")<<" bad overlap pos Slope "<<loEndTick<<" > "<<hiStartTick;
+        return false;
+      }
+/*
       if(posSlope) {
         if(loEndTick - tol > hiStartTick) {
           if(prt) mf::LogVerbatim("CC")<<" bad overlap pos Slope "<<loEndTick<<" > "<<hiStartTick;
@@ -4988,6 +4993,7 @@ namespace cluster {
           return false;
         }
       }
+*/
     } // ii
     return true;
   } // ClusterHitsOK
