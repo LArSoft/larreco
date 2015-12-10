@@ -123,31 +123,35 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   if (evt.getByLabel(fHitsModuleLabel,hitCollection))
     art::fill_ptr_vector(hits, hitCollection);
 
-  // Get the tracks from the event
-  art::Handle<std::vector<recob::Track> > trackCollection;
-  std::vector<art::Ptr<recob::Track> > tracks;
-  if (evt.getByLabel(fTrackModuleLabel,trackCollection))
-    art::fill_ptr_vector(tracks, trackCollection);
+  if (fShowerReconOnly) {
 
-  // Get the space points from the event
-  art::Handle<std::vector<recob::SpacePoint> > spacePointCollection;
-  std::vector<art::Ptr<recob::SpacePoint> > spacePoints;
-  if (evt.getByLabel(fTrackModuleLabel,spacePointCollection))
-    art::fill_ptr_vector(spacePoints, spacePointCollection);
+    // Get the tracks from the event
+    art::Handle<std::vector<recob::Track> > trackCollection;
+    std::vector<art::Ptr<recob::Track> > tracks;
+    if (evt.getByLabel(fTrackModuleLabel,trackCollection))
+      art::fill_ptr_vector(tracks, trackCollection);
 
-  // Get vertices from the event
-  art::Handle<std::vector<recob::Vertex> > vertexCollection;
-  std::vector<art::Ptr<recob::Vertex> > vertices;
-  if (evt.getByLabel(fVertexModuleLabel, vertexCollection))
-    art::fill_ptr_vector(vertices, vertexCollection);
+    // Get the space points from the event
+    art::Handle<std::vector<recob::SpacePoint> > spacePointCollection;
+    std::vector<art::Ptr<recob::SpacePoint> > spacePoints;
+    if (evt.getByLabel(fTrackModuleLabel,spacePointCollection))
+      art::fill_ptr_vector(spacePoints, spacePointCollection);
 
-  art::FindManyP<recob::Track> fmth(hitCollection, evt, fTrackModuleLabel);
-  art::FindManyP<recob::Track> fmtsp(spacePointCollection, evt, fTrackModuleLabel);
-  art::FindManyP<recob::Hit> fmh(trackCollection, evt, fTrackModuleLabel);
+    // Get vertices from the event
+    art::Handle<std::vector<recob::Vertex> > vertexCollection;
+    std::vector<art::Ptr<recob::Vertex> > vertices;
+    if (evt.getByLabel(fVertexModuleLabel, vertexCollection))
+      art::fill_ptr_vector(vertices, vertexCollection);
 
-  // Remove hits from tracks before performing any clustering
-  if (fShowerReconOnly and trackCollection.isValid())
+    art::FindManyP<recob::Track> fmth(hitCollection, evt, fTrackModuleLabel);
+    art::FindManyP<recob::Track> fmtsp(spacePointCollection, evt, fTrackModuleLabel);
+    art::FindManyP<recob::Hit> fmh(trackCollection, evt, fTrackModuleLabel);
+
+    // Remove hits from tracks before performing any clustering
     fTrackShowerSeparationAlg.RemoveTrackHits(hits, tracks, spacePoints, vertices, fmth, fmtsp, fmh, hitsToCluster, evt.event(), evt.run());
+
+  }
+
   else
     hitsToCluster = hits;
 
