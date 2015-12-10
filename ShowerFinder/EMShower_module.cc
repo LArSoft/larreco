@@ -127,7 +127,7 @@ void shower::EMShower::produce(art::Event& evt) {
 
   // Make showers
   std::vector<std::vector<int> > initialShowers;
-  fEMShowerAlg.FindShowers(trackToClusters, initialShowers);
+  fEMShowerAlg.MakeShowers(trackToClusters, initialShowers);
 
   // Fix issues where one view screws things up
   std::vector<std::vector<int> > newShowers;
@@ -138,7 +138,7 @@ void shower::EMShower::produce(art::Event& evt) {
       clusterToTracks.clear();
       trackToClusters.clear();
       fEMShowerAlg.AssociateClustersAndTracks(clusters, fmh, fmt, clustersToIgnore, clusterToTracks, trackToClusters);
-      fEMShowerAlg.FindShowers(trackToClusters, newShowers);
+      fEMShowerAlg.MakeShowers(trackToClusters, newShowers);
     }
     else
       newShowers = initialShowers;
@@ -190,15 +190,14 @@ void shower::EMShower::produce(art::Event& evt) {
   	showerSpacePoints.push_back(*spacePointsIt);
     }
 
-    // Find the track at the start of the shower
-    art::Ptr<recob::Track> initialTrack;
-    std::vector<art::Ptr<recob::Hit> > initialTrackHits;
-    fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits);
+    // Find the properties of this shower
+    TVector3 direction, directionError, vertex, vertexError;
+    std::vector<double> totalEnergy, totalEnergyError, dEdx, dEdxError;
+    int bestPlane;
+    fEMShowerAlg.FindShowerProperties(showerHits, fmt, direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
 
     // Make shower object and associations
-    recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
-    shower.set_id(showerNum);
-    showers->push_back(shower);
+    showers->emplace_back(direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane, showerNum);
     util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
     util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
     util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
