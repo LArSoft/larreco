@@ -787,8 +787,16 @@ TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, uns
 
   double pointPosition[3] = {point.X(), point.Y(), point.Z()};
 
-  return TVector2(fGeom->WireCoordinate(point.Y(), point.Z(), plane, fGeom->FindTPCAtPosition(pointPosition).TPC % 2, 0),
-		  fDetProp->ConvertXToTicks(point.X(), plane, fGeom->FindTPCAtPosition(pointPosition).TPC % 2, 0));
+  // temp fix for tpc for lariat!
+  geo::TPCID tpcID = fGeom->FindTPCAtPosition(pointPosition);
+  int tpc = 0;
+  if (tpcID.isValid)
+    tpc = tpcID.TPC;
+  else
+    tpc = 0;
+
+  return TVector2(fGeom->WireCoordinate(point.Y(), point.Z(), plane, tpc % 2, 0),
+		  fDetProp->ConvertXToTicks(point.X(), plane, tpc % 2, 0));
 
 }
 

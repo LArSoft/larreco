@@ -87,7 +87,8 @@ namespace hit {
     int                 fMaxMultiHit;    ///<maximum hits for multi fit
     int                 fAreaMethod;    ///<Type of area calculation  
     std::vector<double> fAreaNorms;    ///<factors for converting area to same units as peak height 
-
+    bool                fUncompressWithPed;                       ///< Option to uncompress with pedestal.
+           
   protected: 
     
   }; // class RawHitFinder
@@ -133,7 +134,7 @@ namespace hit {
     fMaxMultiHit        = p.get< int          >("MaxMultiHit");
     fAreaMethod         = p.get< int          >("AreaMethod");
     fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
-
+    fUncompressWithPed  = p.get< bool         >("UncompressWithPed", true);
     mf::LogInfo("RawHitFinder_module") << "fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
 
   }
@@ -211,9 +212,15 @@ namespace hit {
       holder.resize(fDataSize);
       
       // uncompress the data
-      int pedestal = (int)digitVec->GetPedestal();
-      raw::Uncompress(digitVec->ADCs(), rawadc, pedestal,digitVec->Compression());
-
+      if (digitVec->Compression() != raw::kNone){
+	if (fUncompressWithPed){
+	  int pedestal = (int)digitVec->GetPedestal();
+	  raw::Uncompress(digitVec->ADCs(), rawadc, pedestal, digitVec->Compression());
+	}
+	else{
+	  raw::Uncompress(digitVec->ADCs(), rawadc, digitVec->Compression());
+	}
+      }
 
       for(unsigned int bin = 0; bin < fDataSize; ++bin) 
       	holder[bin]=(rawadc[bin]-digitVec->GetPedestal());
