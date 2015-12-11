@@ -140,7 +140,6 @@ namespace cluster {
     /// Comparison for sorting hits by wire and hit multiplet
     static bool SortByMultiplet(recob::Hit const& a, recob::Hit const& b);
     
-    
 ////////////////////////////////////
 
     private:
@@ -244,6 +243,7 @@ namespace cluster {
                         ///< 5 = cluster split by VtxClusterSplit
                         ///< 6 = stop at a vertex
 												///< 7 = LA crawl stopped due to slope cut
+                        ///< 8 = SPECIAL CODE FOR STEP CRAWLING
     short clProcCode;     ///< Processor code = pass number
                         ///< +   10 ChkMerge
                         ///< +   20 ChkMerge with overlapping hits
@@ -251,6 +251,7 @@ namespace cluster {
                         ///< +  200 ClusterFix
                         ///< +  300 LACrawlUS
                         ///< +  500 MergeOverlap
+                        ///< =  999 FindVLACluster
                         ///< + 1000 VtxClusterSplit
                         ///< + 2000 failed pass N cuts but passes pass N=1 cuts
                         ///< + 3000 Cluster hits merged
@@ -322,6 +323,9 @@ namespace cluster {
     void CrawlUS();
     // Crawls along a trail of hits UpStream - Large Angle version
     void LACrawlUS();
+    // Crawls starting at position pos, moving in direction dir with step size step
+    // appending hits to fcl2hits
+    void StepCrawl(std::vector<std::array<float, 2>>& traj, float step, float window);
 
     // ************** cluster merging routines *******************
 
@@ -356,9 +360,10 @@ namespace cluster {
     
     // Find Very Large Angle clusters
     void FindVLAClusters();
+    
     // Make VLA cluster using hits in fc2lhits
-    void MakeVLACluster();
-    void FitVLACluster(short nHitsFit);
+//    void MakeVLACluster();
+//    void FitVLACluster(short nHitsFit);
     
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);
