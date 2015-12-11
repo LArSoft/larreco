@@ -553,127 +553,99 @@ namespace cluster {
   void ClusterCrawlerAlg::FindVLAClusters()
   {
     // Find Very Large Angle clusters after clustering is done in a plane.
-    // Signatures are long hit multiplets that are not included in a cluster
+    // Signatures are long hit multiplets that are not included in a cluster.
     // and possibly nearby large angle clusters
-    
-    prt = (fDebugPlane == (short)plane && fDebugHit == 7777);
-    
     
     if(plane != 1) return;
     
-    // add tolerance to start/end tick cuts
-    //    float tol = 20;
+    prt = (fDebugPlane == (short)plane && fDebugHit == 7777);
     
-    // find hit multiplets with unused hits
-    unsigned short iwire, iht, jwire, jht, nadd;
-    float loTick, hiTick, sTick, eTick, jloTick, jhiTick;
-    float minHi, maxLo;
-    // Note that here we start US and move DS
-    for(iwire = 0; iwire < fLastWire - 1; ++iwire) {
-      // skip bad wires or no hits on the wire
-      if(WireHitRange[iwire].first < 0) continue;
-      auto iFirstHit = (unsigned int)WireHitRange[iwire].first;
-      auto iLastHit = (unsigned int)WireHitRange[iwire].second;
-      // look for close hits on adjacent wires
-      loTick = fMaxTime;
-      hiTick = 0;
-      for(iht = iFirstHit; iht < iLastHit - 1; ++iht) {
-        fcl2hits.clear();
-        // add the hit if it is unused
-        if(inClus[iht] == 0) {
+    // window in wire spacing equivalents
+//    float window = 1.5;
+//    float timeWindow = wireWindow / fScaleF, dTime;
+//    std::cout<<"Windows "<<wireWindow<<" time "<<timeWindow<<"\n";
+    
+    // minimum hit multiplicity to start a cluster
+    unsigned short minMult = 3;
+    
+    unsigned int wire, iht, nWire, jht, endWire;
+    unsigned int iFirstHit, iLastHit, jFirstHit, jLastHit;
+//    unsigned short end;
+    raw::TDCtick_t iSTick = fMaxTime, jSTick, kSTick;
+    raw::TDCtick_t iETick = 0, jETick, kETick;
+    unsigned short nadd, nit, end;
+    for(wire = fFirstWire; wire < fLastWire; ++wire) {
+      if(WireHitRange[wire].first < 0) continue;
+      iFirstHit = (unsigned int)WireHitRange[wire].first;
+      iLastHit = (unsigned int)WireHitRange[wire].second;
+      fcl2hits.clear();
+      for(iht = iFirstHit; iht < iLastHit; ++iht) {
+        // ignore obsolete hits
+        if(inClus[iht] < 0) continue;
+        if(fHits[iht].Multiplicity() < minMult) continue;
+        std::pair<size_t, size_t> MultipletRange = FindHitMultiplet(iht);
+        for(jht = MultipletRange.first + 1; jht < MultipletRange.second; ++jht) {
+          if(inClus[jht] > 0) continue;
           fcl2hits.push_back(iht);
-          if(fHits[iht].StartTick() < loTick) loTick = fHits[iht].StartTick();
-          if(fHits[iht].EndTick() > hiTick) hiTick = fHits[iht].EndTick();
-          // temporary flag
+          // flag temporarily used
           inClus[iht] = -3;
+          if(fHits[jht].EndTick() > iETick) iETick = fHits[jht].EndTick();
+          if(fHits[jht].StartTick() < iSTick) iSTick = fHits[jht].StartTick();
         }
-        if(fHits[iht].Multiplicity() > 1) {
-          std::pair<size_t, size_t> MultipletRange = FindHitMultiplet(iht);
-          // Add all hits in the multiplet separately
-          for(size_t jht = MultipletRange.first + 1; jht < MultipletRange.second; ++jht)
-            if(inClus[jht] == 0) {
-              fcl2hits.push_back(jht);
-              if(fHits[jht].StartTick() < loTick) loTick = fHits[jht].StartTick();
-              if(fHits[jht].EndTick() > hiTick) hiTick = fHits[jht].EndTick();
-              // temporary flag
-              inClus[jht] = -3;
-            }
-        } // Multiplicity > 1
-        // no hit found
-        if(fcl2hits.size() == 0) continue;
-        // add a tolerance
-        //        hiTick += tol; if(hiTick > fMaxTime) hiTick = fMaxTime;
-        //        loTick -= tol; if(loTick < 0) loTick = 0;
-        //        for(jwire = iwire + 1; jwire < fLastWire; ++jwire) {
-//        std::cout<<"iwire "<<iwire<<" loTick "<<loTick<<" hiTick "<<hiTick<<"\n";
-        jloTick = fMaxTime;
-        jhiTick = 0;
-        for(jwire = iwire + 1; jwire < iwire + 5; ++jwire) {
-          if(WireHitRange[jwire].first < 0) continue;
-          auto jFirstHit = (unsigned int)WireHitRange[jwire].first;
-          auto jLastHit = (unsigned int)WireHitRange[jwire].second;
-          // count number of hits added on each wire
-          nadd = 0;
-          for(jht = jFirstHit; jht < jLastHit - 1; ++jht) {
-            // no sense continuing
-            if(fHits[jht].StartTick() > hiTick) break;
-            if(inClus[jht] != 0) continue;
-            sTick = fHits[jht].StartTick();
-            eTick = fHits[jht].EndTick();
-            // determine if there is a time overlap
-            minHi = std::min(hiTick, eTick);
-            maxLo = std::max(loTick, sTick);
-            if(minHi < maxLo) continue;
-            if(inClus[jht] == 0) {
-              fcl2hits.push_back(jht);
-              if(fHits[jht].StartTick() < jloTick) jloTick = fHits[jht].StartTick();
-              if(fHits[jht].EndTick() > jhiTick) jhiTick = fHits[jht].EndTick();
-              // temporary flag
-              inClus[jht] = -3;
-              // TODO: adjust
-              ++nadd;
-            }
-//            std::cout<<"maxLo "<<maxLo<<" minHi "<<minHi<<"\n";
-//            std::cout<<"Overlap "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].StartTick()
-//            <<"->"<<(int)fHits[iht].EndTick()<<" with "<<fHits[jht].WireID().Plane<<":"<<fHits[jht].WireID().Wire
-//            <<":"<<(int)fHits[jht].StartTick()<<"->"<<(int)fHits[jht].EndTick()<<"\n";
-            if(fHits[jht].Multiplicity() > 1) {
-              std::pair<size_t, size_t> MultipletRange = FindHitMultiplet(jht);
-              // Add all hits in the multiplet separately
-              for(size_t kht = MultipletRange.first + 1; kht < MultipletRange.second; ++kht)
-                if(inClus[kht] == 0) {
-                  fcl2hits.push_back(kht);
-                  if(fHits[kht].StartTick() < jloTick) jloTick = fHits[kht].StartTick();
-                  if(fHits[kht].EndTick() > jhiTick) jhiTick = fHits[kht].EndTick();
-                  // temporary flag
-                  inClus[kht] = -3;
-                  ++nadd;
-                }
-            }
-          } // jht
-          if(nadd == 0) break;
-          // update the windows
-          loTick = jloTick;
-          hiTick = jhiTick;
-//          std::cout<<"nadd "<<nadd<<" size "<<fcl2hits.size()<<"\n";
-        } // jwire
-        
-        if(fcl2hits.size() < 3) continue;
-        
-        // the hits are roughly ordered from US to DS
-        
-        if(prt) mf::LogVerbatim("CC")<<"Done collecting hits "<<iwire<<" jwire "<<jwire-1<<" size "<<fcl2hits.size();
-        MakeVLACluster();
-        
       } // iht
-    } // iwire
+      if(fcl2hits.size() < 3) continue;
+      mf::LogVerbatim("CC")<<"Found multiplet "<<fHits[fcl2hits[0]].WireID().Plane<<":"<<fHits[fcl2hits[0]].WireID().Wire
+        <<":"<<(int)fHits[fcl2hits[0]].PeakTime();
+      // the wire at the +end of the cluster
+      endWire = wire;
+      // + time direction is (end = 0)
+      for(end = 0; end < 1; ++end) {
+        jSTick = iSTick; jETick = iETick;
+        // keep looking until we don't add any hits
+        for(nit = 0; nit < 5; ++nit) {
+          nadd = 0;
+          // look for hits on adjacent wires
+          kSTick = fMaxTime; kETick = 0;
+          for(nWire = wire - 1; nWire < endWire + 2; ++nWire) {
+            if(WireHitRange[nWire].first < 0) continue;
+            if(nWire == endWire) continue;
+            jFirstHit = (unsigned int)WireHitRange[nWire].first;
+            jLastHit = (unsigned int)WireHitRange[nWire].second;
+            for(jht = jFirstHit; jht < jLastHit; ++jht) {
+              // ignore obsolete/used hits
+              if(inClus[jht] != 0) continue;
+              if(end == 0) {
+                // require hits overlap on the +side
+                if(fHits[jht].StartTick() > jETick) continue;
+                if(fHits[jht].EndTick() < 0.5 * (jSTick + jETick)) continue;
+              } else {
+                // require hits overlap on the +side
+                if(fHits[jht].EndTick() < jSTick) continue;
+                if(fHits[jht].StartTick() > 0.5 * (jSTick + jETick)) continue;
+              } // end
+              fcl2hits.push_back(jht);
+              inClus[jht] = -3;
+              ++nadd;
+              if(fHits[jht].StartTick() < kSTick) kSTick = fHits[jht].StartTick();
+              if(fHits[jht].EndTick() < kETick) kETick = fHits[jht].EndTick();
+              mf::LogVerbatim("CC")<<" add "<<fHits[jht].WireID().Plane<<":"<<fHits[jht].WireID().Wire
+                   <<":"<<(int)fHits[jht].PeakTime()<<" end "<<end<<" jSTick "<<jSTick<<" jETick "<<jETick
+                   <<" kSTick "<<kSTick<<" kETick "<<kETick;
+                   } // jht
+          } // nWire
+          if(nadd == 0) break;
+        } // nit
+        mf::LogVerbatim("CC")<<" Search done";
+      } // end
+    } // wire
     
-    for(iht = 0; iht < inClus.size(); ++iht) if(inClus[iht] == -3) inClus[iht] = 0;
+    for(iht = 0; iht < fHits.size(); ++iht) if(inClus[iht] == -3) inClus[iht] = 0;
     fcl2hits.clear();
-    
+
   } // FindVLAClusters
-  
-  void ClusterCrawlerAlg::MakeVLACluster()
+
+  //////////////////////////////////////////
+ void ClusterCrawlerAlg::MakeVLACluster()
   {
     // Make a cluster using hits in fcl2hits
     
@@ -2930,9 +2902,9 @@ namespace cluster {
       const float gausAmp[20] = {1, 0.99, 0.96, 0.90, 0.84, 0.75, 0.67, 0.58, 0.49, 0.40, 0.32, 0.26, 0.20, 0.15, 0.11, 0.08, 0.06, 0.04, 0.03, 0.02};
       
       // get the begin and end right
-      short wireb = wire1;
+      unsigned int wireb = wire1;
       float timeb = time1;
-      short wiree = wire2;
+      unsigned int wiree = wire2;
       float timee = time2;
       // swap them?
       if(wiree > wireb) {
@@ -2944,7 +2916,7 @@ namespace cluster {
       if(wiree < fFirstWire || wiree > fLastWire) return false;
       if(wireb < fFirstWire || wireb > fLastWire) return false;
       
-      short wire0 = wiree;
+      int wire0 = wiree;
       // checking a single wire?
       float slope = 0;
       bool oneWire = false;
@@ -2964,7 +2936,7 @@ namespace cluster {
       
       
       int bin;
-      for(short wire = wiree; wire < wireb + 1; ++wire) {
+      for(unsigned int wire = wiree; wire < wireb + 1; ++wire) {
         if(oneWire) {
           prTime = (prTimeLo + prTimeHi) / 2;
         } else {
@@ -2978,7 +2950,7 @@ namespace cluster {
         unsigned int lasthit = WireHitRange[wire].second;
 //        if(vtxprt) mf::LogVerbatim("CC")<<" wire "<<wire<<" Hit range "<<firsthit<<" "<<lasthit<<" prTime "<<prTime;
         float amp = 0;
-        for(unsigned short khit = firsthit; khit < lasthit; ++khit) {
+        for(unsigned int khit = firsthit; khit < lasthit; ++khit) {
 //          if(vtxprt) mf::LogVerbatim("CC")<<"  hit time "<<fHits[khit].PeakTime()<<" rms "<<fHits[khit].RMS()<<" amp "<<fHits[khit].PeakAmplitude()<<" StartTick "<<fHits[khit].StartTick()<<" EndTick "<<fHits[khit].EndTick();
           if(oneWire) {
             // TODO: This sometimes doesn't work with overlapping hits
@@ -4977,11 +4949,6 @@ namespace cluster {
       if(std::abs(fHits[fcl2hits[indx]].WireID().Wire != fHits[fcl2hits[indx-1]].WireID().Wire) > 1) continue;
       hiStartTick = std::max(fHits[fcl2hits[indx]].StartTick(), fHits[fcl2hits[indx-1]].StartTick());
       loEndTick = std::min(fHits[fcl2hits[indx]].EndTick(), fHits[fcl2hits[indx-1]].EndTick());
-      if(loEndTick - tol > hiStartTick) {
-        if(prt) mf::LogVerbatim("CC")<<" bad overlap pos Slope "<<loEndTick<<" > "<<hiStartTick;
-        return false;
-      }
-/*
       if(posSlope) {
         if(loEndTick + tol < hiStartTick) {
           if(prt) mf::LogVerbatim("CC")<<" bad overlap pos Slope "<<loEndTick<<" > "<<hiStartTick;
@@ -4993,7 +4960,6 @@ namespace cluster {
           return false;
         }
       }
-*/
     } // ii
     return true;
   } // ClusterHitsOK
@@ -6163,7 +6129,7 @@ namespace cluster {
       fFirstWire = 0;
       fLastWire = 0;
       
-      unsigned short wire;
+      unsigned int wire;
       unsigned int iht, nHitInPlane;
       std::pair<int, int> flag;
       
@@ -6227,12 +6193,13 @@ namespace cluster {
       // define the MergeAvailable vector and check for errors
       if(mergeAvailable.size() < fHits.size()) throw art::Exception(art::errors::LogicError)
         <<"GetHitRange: Invalid mergeAvailable vector size "<<mergeAvailable.size()<<fHits.size();
-      unsigned short firstHit, lastHit;
+      unsigned int firstHit, lastHit;
       unsigned int cnt;
       cnt = 0;
       float maxRMS, chiSep, peakCut;
-      for(wire = 0; wire < nwires; ++wire) {
-        // ignore dead wires and wires with no hits
+//      for(wire = 0; wire < nwires; ++wire) {
+      for(wire = fFirstWire; wire < fLastWire; ++wire) {
+       // ignore dead wires and wires with no hits
         if(WireHitRange[wire].first < 0) continue;
         firstHit = WireHitRange[wire].first;
         lastHit = WireHitRange[wire].second;
