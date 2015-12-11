@@ -30,7 +30,6 @@
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/LinFitAlg.h"
 
-
 namespace cluster {
   
   class ClusterCrawlerAlg {
@@ -260,14 +259,14 @@ namespace cluster {
     CTP_t clCTP;        ///< Cryostat/TPC/Plane code
 		bool clLA;					///< using Large Angle crawling code
     
-    unsigned short fFirstWire;    ///< the first wire with a hit
+    unsigned int fFirstWire;    ///< the first wire with a hit
     unsigned int fFirstHit;     ///< first hit used
-    unsigned short fLastWire;      ///< the last wire with a hit
+    unsigned int fLastWire;      ///< the last wire with a hit
     unsigned short cstat;         // the current cryostat
     unsigned short tpc;         // the current TPC
     unsigned short plane;         // the current plane
-    unsigned short fNumWires;   // number of wires in the current plane
-    unsigned short fMaxTime;    // number of time samples in the current plane
+    unsigned int fNumWires;   // number of wires in the current plane
+    unsigned int fMaxTime;    // number of time samples in the current plane
     float fScaleF;     ///< scale factor from Tick/Wire to dx/du
     
     unsigned short pass;
@@ -288,7 +287,7 @@ namespace cluster {
 															///< to define a shower-like cluster
 
     std::string fhitsModuleLabel;
-    
+
     // hit multiplets that have been saved before merging.
     std::vector<recob::Hit> unMergedHits;
     // RestoreUnMergedHits should be called before abandoning fcl2hits to
