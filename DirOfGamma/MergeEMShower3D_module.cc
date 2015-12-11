@@ -106,14 +106,27 @@ fP0Dist(0)
 	fEnd = trk.End();			
 	fHasVtx = hasvtx;
 
-	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kU)); 
+	art::ServiceHandle<geo::Geometry> geom;
+	/*fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kU)); 
 	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kV));
-	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kZ)); 
+	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kZ));*/ 
+
 	
-	if (trk.DQdxAtPoint(1, geo::kU) > 0) fPlaneId = geo::kU;
+	bool isplane = false;
+	unsigned int nplanes = geom->Nplanes();
+	for (unsigned int p = 0; p < nplanes; ++p)
+	{
+		geo::View_t view = geom->View(p);
+		fVdqdx.push_back(trk.DQdxAtPoint(0, view));
+		if (trk.DQdxAtPoint(1, view) > 0) 
+		{fPlaneId = int(p); isplane = true;}
+	}
+	if (!isplane) fPlaneId = -1; 
+
+	/*if (trk.DQdxAtPoint(1, geo::kU) > 0) fPlaneId = geo::kU;
 	else if (trk.DQdxAtPoint(1, geo::kV) > 0) fPlaneId = geo::kV;
 	else if (trk.DQdxAtPoint(1, geo::kZ) > 0) fPlaneId = geo::kZ; 
-	else fPlaneId = -1;
+	else fPlaneId = -1;*/
 }
 
 double ems::ShowerInfo::Pointsto(ems::ShowerInfo const& s1) const
