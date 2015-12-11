@@ -20,6 +20,7 @@
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
 #include "art/Framework/Core/FindManyP.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // larsoft
 #include "Utilities/DetectorProperties.h"
@@ -73,10 +74,12 @@ public:
 			 std::vector<art::Ptr<recob::Cluster> > const& clusters,
 			 art::FindManyP<recob::Hit> const& fmh);
   void FindShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
-  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits, art::Ptr<recob::Track>& initialTrack, std::vector<art::Ptr<recob::Hit> >& initialTrackHits);
+  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits, recob::Track& initialTrack, std::vector<art::Ptr<recob::Hit> >& initialTrackHits);
   recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
-			   art::Ptr<recob::Track> const& initialTrack,
+			   recob::Track const& initialTrack,
 			   std::vector<art::Ptr<recob::Hit> > const& initialTrackHits);
+  recob::Track ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1, std::vector<art::Ptr<recob::Hit> > const& track2);
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap);
 
 private:
 
@@ -94,7 +97,7 @@ private:
   void FindShowerEnds(std::vector<art::Ptr<recob::Hit> > const& shower,
 		      art::Ptr<recob::Hit>& end1,
 		      art::Ptr<recob::Hit>& end2);
-  double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, art::Ptr<recob::Track> const& track);
+  double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, recob::Track const& track);
   TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
   TVector2 HitPosition(art::Ptr<recob::Hit> const& hit);
   TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);

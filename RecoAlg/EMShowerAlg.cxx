@@ -187,6 +187,8 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
 
   for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeHits = planeHitsMap.begin(); planeHits != planeHitsMap.end(); ++planeHits) {
 
+    std::cout << std::endl << "Plane " << planeHits->first << std::endl;
+
     // Find the charge-weighted centre (in cm) of this shower
     TVector2 pos, chargePoint = TVector2(0,0);
     double totalCharge = 0;
@@ -221,12 +223,15 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
     // Construct a line from the initial part of the shower
 
     // forwards
+    //std::cout << "About to construct a forward going line!" << std::endl;
     nhits = 0;
     sumx=0., sumy=0., sumx2=0., sumxy=0.;
     for (std::map<double,art::Ptr<recob::Hit> >::iterator hitIt = hitProjection.begin(); hitIt != hitProjection.end(); ++hitIt) {
       if (std::distance(hitProjection.begin(),hitIt) > 5) break;
+      //std::cout << "using hit (" << HitCoordinates(hitIt->second).X() << ", " << HitCoordinates(hitIt->second).Y() << ") (wire " << hitIt->second->WireID().Wire << ", tpc " << hitIt->second->WireID().TPC << ")" << std::endl;
       ++nhits;
-      pos = HitPosition(hitIt->second);
+      //pos = HitPosition(hitIt->second);
+      pos = HitCoordinates(hitIt->second);
       sumx += pos.X();
       sumy += pos.Y();
       sumx2 += pos.X() * pos.X();
@@ -236,12 +241,15 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
     TVector2 directionFromStart = TVector2(1,gradient).Unit();
 
     // backwards
+    //std::cout << std::endl << "About to construct a backwards going line!" << std::endl;
     nhits = 0;
     sumx=0., sumy=0., sumx2=0., sumxy=0.;
     for (std::map<double,art::Ptr<recob::Hit> >::reverse_iterator hitIt = hitProjection.rbegin(); hitIt != hitProjection.rend(); ++hitIt) {
       if (std::distance(hitProjection.rbegin(),hitIt) > 5) break;
+      //std::cout << "using hit (" << HitCoordinates(hitIt->second).X() << ", " << HitCoordinates(hitIt->second).Y() << ") (wire " << hitIt->second->WireID().Wire << ", tpc " << hitIt->second->WireID().TPC << ")" << std::endl;
       ++nhits;
-      pos = HitPosition(hitIt->second);
+      //pos = HitPosition(hitIt->second);
+      pos = HitCoordinates(hitIt->second);
       sumx += pos.X();
       sumy += pos.Y();
       sumx2 += pos.X() * pos.X();
@@ -254,11 +262,14 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
     int fromBeginning = 0, fromEnd = 0;
     double previousDistanceFromAxis = 0;
     int hitsAfterOffshoot = 0;
-    TVector2 start = HitPosition(hitProjection.begin()->second);
+    //TVector2 start = HitPosition(hitProjection.begin()->second);
+    TVector2 start = HitCoordinates(hitProjection.begin()->second);
     for (std::map<double,art::Ptr<recob::Hit> >::iterator hitIt = hitProjection.begin(); hitIt != hitProjection.end(); ++hitIt) {
-      TVector2 pos = HitPosition(hitIt->second);
+      //TVector2 pos = HitPosition(hitIt->second);
+      TVector2 pos = HitCoordinates(hitIt->second);
       TVector2 projPos = pos.Proj(directionFromStart);
       double distanceFromAxis = TMath::Sqrt(TMath::Power((projPos-start).Mod(),2) + TMath::Power(pos*directionFromStart,2));
+      //std::cout << "Hit with wire " << HitCoordinates(hitIt->second).X() << " has distance from axis " << distanceFromAxis << std::endl;
       if (distanceFromAxis > previousDistanceFromAxis) {
 	++fromBeginning;
 	hitsAfterOffshoot = 0;
@@ -270,15 +281,19 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
 	hitsAfterOffshoot = 0;
 	previousDistanceFromAxis = 0;
       }
+      //std::cout << "Number of hits from beginning is " << fromBeginning << " and since the offshoot is " << hitsAfterOffshoot << std::endl;
     }
 
     previousDistanceFromAxis = 0;
     hitsAfterOffshoot = 0;
-    TVector2 end = HitPosition(hitProjection.rbegin()->second);
+    //TVector2 end = HitPosition(hitProjection.rbegin()->second);
+    TVector2 end = HitCoordinates(hitProjection.rbegin()->second);
     for (std::map<double,art::Ptr<recob::Hit> >::reverse_iterator hitIt = hitProjection.rbegin(); hitIt != hitProjection.rend(); ++hitIt) {
-      TVector2 pos = HitPosition(hitIt->second);
+      //TVector2 pos = HitPosition(hitIt->second);
+      TVector2 pos = HitCoordinates(hitIt->second);
       TVector2 projPos = pos.Proj(directionFromEnd);
       double distanceFromAxis = TMath::Sqrt(TMath::Power((projPos-start).Mod(),2) + TMath::Power(pos*directionFromStart,2));
+      //std::cout << "Hit with wire " << HitCoordinates(hitIt->second).X() << " has distance from axis " << distanceFromAxis << std::endl;
       if (distanceFromAxis > previousDistanceFromAxis) {
 	++fromEnd;
 	hitsAfterOffshoot = 0;
@@ -290,7 +305,12 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
 	hitsAfterOffshoot = 0;
 	previousDistanceFromAxis = 0;
       }
+      //std::cout << "Number of hits from end is " << fromEnd << " and since the offshoot is " << hitsAfterOffshoot << std::endl;
     }
+    //std::cout << std::endl;
+
+    //std::cout << "Before ordering: Plane " << planeHits->first << ": start is determined to be (" << HitCoordinates(hitProjection.begin()->second).X() << ", " << HitCoordinates(hitProjection.begin()->second).Y() << ") and the end is determined to be (" << HitCoordinates(hitProjection.rbegin()->second).X() << ", " << HitCoordinates(hitProjection.rbegin()->second).Y() << ")" << std::endl;
+    //std::cout << "From beginning is " << fromBeginning << " and fromend is " << fromEnd << std::endl;
 
     std::vector<art::Ptr<recob::Hit> > orderedHits;
     if (fromBeginning > fromEnd) {
@@ -306,7 +326,11 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
       goodnessOfOrderMap[planeHits->first] = fromEnd/(double)fromBeginning;
     }
 
+    std::cout << "After ordering: Plane " << planeHits->first << ": start is determined to be (" << HitCoordinates(*orderedHits.begin()).X() << ", " << HitCoordinates(*orderedHits.begin()).Y() << ") and the end is determined to be (" << HitCoordinates(*orderedHits.rbegin()).X() << ", " << HitCoordinates(*orderedHits.rbegin()).Y() << ")" << std::endl << std::endl;
+
   }
+
+  std::cout << std::endl;
 
   // // Make the object using all this information
   // recob::Track initialTrack;
@@ -314,13 +338,15 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
   // MakeVertexTrack(initialTrack, trackHits, orderedShowerMap, goodnessOfOrderMap);
 
   // Now find the hits belonging to the track
-  std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits = FindShowerStart(orderedShowerMap);
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > trackHits = FindShowerStart(orderedShowerMap);
+
+  return;
 
   // Don't want to make any assumptions on the number of planes, or the number of planes with hits on
   // Try to resolve any conflicts as we go...
 
   // If there's only one plane, there's not much we can do!
-  if (planeHits.size() == 1)
+  if (planeHitsMap.size() == 1)
     return;
 
   // If there are two planes then we can try
@@ -353,11 +379,11 @@ std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::FindShowe
 
     // Look at the shower from the start and decide which hits belong to the initial shower
     for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = orderedShowerIt->second.begin(); hitIt != orderedShowerIt->second.end(); ++hitIt) {
-      if (std::distance(orderedShowerIt,hitIt) == 0) {
+      if (std::distance(orderedShowerIt->second.begin(),hitIt) == 0) {
 	initialHits.push_back(*hitIt);
 	continue;
       }
-      if (std::distance(orderedShowerIt,hitIt) == 1) {
+      if (std::distance(orderedShowerIt->second.begin(),hitIt) == 1) {
 	initialHits.push_back(*hitIt);
 	previousGradient = (HitPosition(initialHits.at(0))-HitPosition(initialHits.at(1))).Y() / (double)(HitPosition(initialHits.at(0))-HitPosition(initialHits.at(1))).X();
 	continue;
@@ -760,14 +786,17 @@ double shower::EMShowerAlg::GlobalWire(geo::WireID wireID) {
   double wireCentre[3];
   fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
 
-  double globalWire;
+  double globalWire = -999;
   if (fGeom->SignalType(wireID) == geo::kInduction) {
     if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
     else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
   }
   else {
-    if (wireID.TPC % 2 == 0) globalWire = wireID.Wire + ((wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat));
-    else globalWire = wireID.Wire + ((int)(wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 1, wireID.Cryostat));
+    unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+    if (wireID.TPC == 0 or wireID.TPC == 1) globalWire = wireID.Wire;
+    else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5) globalWire = nwires + wireID.Wire;
+    else if (wireID.TPC == 6 or wireID.TPC == 7) globalWire = (2*nwires) + wireID.Wire;
+    else mf::LogError("EMShowerAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC;
   }
 
   return globalWire;
@@ -786,10 +815,12 @@ TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, uns
 }
 
 recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& hits,
-					      art::Ptr<recob::Track> const& initialTrack,
+					      recob::Track const& initialTrack,
 					      std::vector<art::Ptr<recob::Hit> > const& initialTrackHits) {
 
   /// Makes a recob::Shower object given the hits in the shower and the initial track-like part
+
+  return recob::Shower();
 
   // Find the shower hits on each plane
   std::map<int,std::vector<art::Ptr<recob::Hit> > > planeHitsMap;
@@ -825,8 +856,8 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
     }
   }
 
-  TVector3 direction = initialTrack->VertexDirection(), directionError;
-  TVector3 showerStart = initialTrack->Vertex(), showerStartError;
+  TVector3 direction = initialTrack.VertexDirection(), directionError;
+  TVector3 showerStart = initialTrack.Vertex(), showerStartError;
 
   std::cout << "Best plane is " << bestPlane << std::endl;
   std::cout << "dE/dx for each plane is: " << dEdx[0] << ", " << dEdx[1] << " and " << dEdx[2] << std::endl;
@@ -838,7 +869,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 
 }
 
-double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, art::Ptr<recob::Track> const& track) {
+double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, recob::Track const& track) {
 
   /// Finds dE/dx for the track given a set of hits
 
@@ -847,7 +878,7 @@ double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& t
 
   // Get the pitch
   double pitch = 0;
-  try { pitch = track->PitchInView(trackHits.at(0)->View()); }
+  try { pitch = track.PitchInView(trackHits.at(0)->View()); }
   catch(...) { pitch = 0; }
 
   // Deal with large pitches
@@ -890,7 +921,8 @@ recob::Track shower::EMShowerAlg::ConstructTrack(std::vector<art::Ptr<recob::Hit
   unsigned int cryo = pmatrack->FrontCryo();
   unsigned int tpc = pmatrack->FrontTPC();
 
-  std::map<unsigned int, dedx_map> pmatrack_dQdx;
+  typedef std::map<size_t,std::vector<double> > dedx_map;
+  std::map<unsigned int,dedx_map> pmatrack_dQdx;
   if (fGeom->TPC(tpc, cryo).HasPlane(geo::kU)) {
     pmatrack_dQdx[geo::kU] = dedx_map();
     pmatrack->GetRawdEdxSequence(pmatrack_dQdx[geo::kU], geo::kU);
@@ -908,14 +940,14 @@ recob::Track shower::EMShowerAlg::ConstructTrack(std::vector<art::Ptr<recob::Hit
   double xshift = pmatrack->GetXShift();
   bool has_shift = (xshift != 0.0);
   for (size_t i = 0; i < pmatrack->size(); i++)
-    if (pmatrack[i]->IsEnabled()) {
-      p3d = pmatrack[i]->Point3D();
+    if ((*pmatrack)[i]->IsEnabled()) {
+      p3d = (*pmatrack)[i]->Point3D();
       if (has_shift) p3d.SetX(p3d.X() + xshift);
       xyz.push_back(p3d);
       
       if (i < pmatrack->size() - 1) {
-	TVector3 dc(pmatrack[i + 1]->Point3D());
-	dc -= pmatrack[i]->Point3D();
+	TVector3 dc((*pmatrack)[i+1]->Point3D());
+	dc -= (*pmatrack)[i]->Point3D();
 	dc *= 1.0 / dc.Mag();
 	dircos.push_back(dc);
       }

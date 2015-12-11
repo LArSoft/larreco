@@ -191,7 +191,7 @@ void shower::EMShower::produce(art::Event& evt) {
     }
 
     // Find the track at the start of the shower
-    art::Ptr<recob::Track> initialTrack;
+    recob::Track initialTrack;
     std::vector<art::Ptr<recob::Hit> > initialTrackHits;
     fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits);
 
