@@ -150,6 +150,8 @@ void shower::EMShower::produce(art::Event& evt) {
   int showerNum = 0;
   for (std::vector<std::vector<int> >::iterator newShower = newShowers.begin(); newShower != newShowers.end(); ++newShower, ++showerNum) {
 
+    if (showerNum != 1) continue;
+
     // New shower
     std::cout << std::endl << "Start shower " << showerNum << std::endl;
 

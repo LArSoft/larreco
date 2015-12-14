@@ -49,6 +49,11 @@
 #include "TVector2.h"
 #include "TMath.h"
 
+//temp
+#include "TGraph.h"
+#include "TLine.h"
+#include "TCanvas.h"
+
 namespace shower {
   class EMShowerAlg;
   class HitPosition;
@@ -83,6 +88,7 @@ public:
 
 private:
 
+  std::vector<double> GetShowerDirectionProperties(std::vector<art::Ptr<recob::Hit> > const& showerHits, TVector2 const& direction);
   std::vector<art::Ptr<recob::Hit> > FindInitialTrack(std::vector<art::Ptr<recob::Hit> > const& shower);
   void ProjectVertexIn2D(TVector3 const& vertex,
 			 std::map<int,std::vector<art::Ptr<recob::Hit> > >& trackHitsMap,

@@ -215,8 +215,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       if (clusterHits.size() > 0) {
 
 	// Get the start and end wires of the cluster
-	unsigned int startWire = fBlurredClusteringAlg.FindGlobalWire(clusterHits.front()->WireID());
-	unsigned int endWire = fBlurredClusteringAlg.FindGlobalWire(clusterHits.back()->WireID());
+	unsigned int startWire = fBlurredClusteringAlg.GlobalWire(clusterHits.front()->WireID());
+	unsigned int endWire = fBlurredClusteringAlg.GlobalWire(clusterHits.back()->WireID());
 
 	// Put cluster hits in the algorithm
 	ClusterParamAlgo.ImportHits(clusterHits);

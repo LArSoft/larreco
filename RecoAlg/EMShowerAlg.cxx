@@ -188,6 +188,7 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
   for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeHits = planeHitsMap.begin(); planeHits != planeHitsMap.end(); ++planeHits) {
 
     std::cout << std::endl << "Plane " << planeHits->first << std::endl;
+    if (planeHits->first != 0) continue;
 
     // Find the charge-weighted centre (in cm) of this shower
     TVector2 pos, chargePoint = TVector2(0,0);
@@ -220,113 +221,50 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
       hitProjection[direction*pos] = *hit;
     }
 
-    // Construct a line from the initial part of the shower
+    // Get a vector of hits in order of the shower
+    std::vector<art::Ptr<recob::Hit> > showerHits;
+    std::transform(hitProjection.begin(), hitProjection.end(), std::back_inserter(showerHits), [](std::pair<double,art::Ptr<recob::Hit> > const& hit) { return hit.second; });
 
-    // forwards
-    //std::cout << "About to construct a forward going line!" << std::endl;
-    nhits = 0;
-    sumx=0., sumy=0., sumx2=0., sumxy=0.;
-    for (std::map<double,art::Ptr<recob::Hit> >::iterator hitIt = hitProjection.begin(); hitIt != hitProjection.end(); ++hitIt) {
-      if (std::distance(hitProjection.begin(),hitIt) > 5) break;
-      //std::cout << "using hit (" << HitCoordinates(hitIt->second).X() << ", " << HitCoordinates(hitIt->second).Y() << ") (wire " << hitIt->second->WireID().Wire << ", tpc " << hitIt->second->WireID().TPC << ")" << std::endl;
-      ++nhits;
-      //pos = HitPosition(hitIt->second);
-      pos = HitCoordinates(hitIt->second);
-      sumx += pos.X();
-      sumy += pos.Y();
-      sumx2 += pos.X() * pos.X();
-      sumxy += pos.X() * pos.Y();
+    // Find the shower direction properties
+    std::vector<double> propertiesFromBeginning = GetShowerDirectionProperties(showerHits, direction);
+    std::reverse(showerHits.begin(), showerHits.end());
+    //std::vector<double> propertiesFromEnd = GetShowerDirectionProperties(showerHits, direction);
+    std::vector<double> propertiesFromEnd = {0.,0.,0.};
+
+    // Decide which is the end
+    double goodnessOfOrder = 0;
+    double asymmetryDetermination = 0.5;
+    bool fromBeginning = true;
+    if ( (propertiesFromBeginning.at(1) > asymmetryDetermination or propertiesFromBeginning.at(2) > asymmetryDetermination) and
+	 (propertiesFromEnd.at(1) > asymmetryDetermination or propertiesFromEnd.at(2) > asymmetryDetermination) ) {
+      int hitAsymmetryBeginning = TMath::Max(propertiesFromBeginning.at(0), propertiesFromBeginning.at(1));
+      int hitAsymmetryEnd = TMath::Max(propertiesFromEnd.at(0), propertiesFromEnd.at(1));
+      std::cout << "Both beginning and end have missquewed directions.  Asymmetry from beginning is " << hitAsymmetryBeginning << " and end is " << hitAsymmetryEnd << std::endl;
+      if (hitAsymmetryEnd < hitAsymmetryBeginning) fromBeginning = false;
     }
-    gradient = (nhits * sumxy - sumx * sumy) / (nhits * sumx2 - sumx * sumx);
-    TVector2 directionFromStart = TVector2(1,gradient).Unit();
-
-    // backwards
-    //std::cout << std::endl << "About to construct a backwards going line!" << std::endl;
-    nhits = 0;
-    sumx=0., sumy=0., sumx2=0., sumxy=0.;
-    for (std::map<double,art::Ptr<recob::Hit> >::reverse_iterator hitIt = hitProjection.rbegin(); hitIt != hitProjection.rend(); ++hitIt) {
-      if (std::distance(hitProjection.rbegin(),hitIt) > 5) break;
-      //std::cout << "using hit (" << HitCoordinates(hitIt->second).X() << ", " << HitCoordinates(hitIt->second).Y() << ") (wire " << hitIt->second->WireID().Wire << ", tpc " << hitIt->second->WireID().TPC << ")" << std::endl;
-      ++nhits;
-      //pos = HitPosition(hitIt->second);
-      pos = HitCoordinates(hitIt->second);
-      sumx += pos.X();
-      sumy += pos.Y();
-      sumx2 += pos.X() * pos.X();
-      sumxy += pos.X() * pos.Y();
+    else if ( (propertiesFromBeginning.at(1) > asymmetryDetermination or propertiesFromBeginning.at(2) > asymmetryDetermination) and
+	      propertiesFromEnd.at(1) <= asymmetryDetermination and propertiesFromEnd.at(2) <= asymmetryDetermination ) {
+      std::cout << "Only looking from the beginning has a lot of asymmetry.  Above is " << propertiesFromBeginning.at(1) << " and below is " << propertiesFromBeginning.at(2) << ".  Pick the end" << std::endl;
+      fromBeginning = false;
     }
-    gradient = (nhits * sumxy - sumx * sumy) / (nhits * sumx2 - sumx * sumx);
-    TVector2 directionFromEnd = TVector2(1,gradient).Unit();
-
-    // Count how often the distance increases
-    int fromBeginning = 0, fromEnd = 0;
-    double previousDistanceFromAxis = 0;
-    int hitsAfterOffshoot = 0;
-    //TVector2 start = HitPosition(hitProjection.begin()->second);
-    TVector2 start = HitCoordinates(hitProjection.begin()->second);
-    for (std::map<double,art::Ptr<recob::Hit> >::iterator hitIt = hitProjection.begin(); hitIt != hitProjection.end(); ++hitIt) {
-      //TVector2 pos = HitPosition(hitIt->second);
-      TVector2 pos = HitCoordinates(hitIt->second);
-      TVector2 projPos = pos.Proj(directionFromStart);
-      double distanceFromAxis = TMath::Sqrt(TMath::Power((projPos-start).Mod(),2) + TMath::Power(pos*directionFromStart,2));
-      //std::cout << "Hit with wire " << HitCoordinates(hitIt->second).X() << " has distance from axis " << distanceFromAxis << std::endl;
-      if (distanceFromAxis > previousDistanceFromAxis) {
-	++fromBeginning;
-	hitsAfterOffshoot = 0;
-	previousDistanceFromAxis = distanceFromAxis;
-      }
-      else
-	++hitsAfterOffshoot;
-      if (hitsAfterOffshoot > 5) {
-	hitsAfterOffshoot = 0;
-	previousDistanceFromAxis = 0;
-      }
-      //std::cout << "Number of hits from beginning is " << fromBeginning << " and since the offshoot is " << hitsAfterOffshoot << std::endl;
+    else if ( (propertiesFromEnd.at(1) > asymmetryDetermination or propertiesFromEnd.at(2) > asymmetryDetermination) and
+	      propertiesFromBeginning.at(1) <= asymmetryDetermination and propertiesFromBeginning.at(2) <= asymmetryDetermination ) {
+      std::cout << "Only looking from the end has a lot of asymmetry.  Above is " << propertiesFromEnd.at(1) << " and below is " << propertiesFromEnd.at(2) << ".  Pick the end" << std::endl;
+      fromBeginning = true;
+    }
+    else if ( propertiesFromBeginning.at(1) <= asymmetryDetermination and propertiesFromBeginning.at(2) <= asymmetryDetermination and
+	      propertiesFromEnd.at(1) <= asymmetryDetermination and propertiesFromEnd.at(2) <= asymmetryDetermination ) {
+      std::cout << "From beginning is " << propertiesFromBeginning.at(0) << " and from end is " << propertiesFromEnd.at(0) << std::endl;
+      if (propertiesFromBeginning.at(0) < propertiesFromEnd.at(0)) fromBeginning = false;
     }
 
-    previousDistanceFromAxis = 0;
-    hitsAfterOffshoot = 0;
-    //TVector2 end = HitPosition(hitProjection.rbegin()->second);
-    TVector2 end = HitCoordinates(hitProjection.rbegin()->second);
-    for (std::map<double,art::Ptr<recob::Hit> >::reverse_iterator hitIt = hitProjection.rbegin(); hitIt != hitProjection.rend(); ++hitIt) {
-      //TVector2 pos = HitPosition(hitIt->second);
-      TVector2 pos = HitCoordinates(hitIt->second);
-      TVector2 projPos = pos.Proj(directionFromEnd);
-      double distanceFromAxis = TMath::Sqrt(TMath::Power((projPos-start).Mod(),2) + TMath::Power(pos*directionFromStart,2));
-      //std::cout << "Hit with wire " << HitCoordinates(hitIt->second).X() << " has distance from axis " << distanceFromAxis << std::endl;
-      if (distanceFromAxis > previousDistanceFromAxis) {
-	++fromEnd;
-	hitsAfterOffshoot = 0;
-	previousDistanceFromAxis = distanceFromAxis;
-      }
-      else
-	++hitsAfterOffshoot;
-      if (hitsAfterOffshoot > 5) {
-	hitsAfterOffshoot = 0;
-	previousDistanceFromAxis = 0;
-      }
-      //std::cout << "Number of hits from end is " << fromEnd << " and since the offshoot is " << hitsAfterOffshoot << std::endl;
-    }
-    //std::cout << std::endl;
+    if (fromBeginning)
+      std::reverse(showerHits.begin(), showerHits.end());
 
-    //std::cout << "Before ordering: Plane " << planeHits->first << ": start is determined to be (" << HitCoordinates(hitProjection.begin()->second).X() << ", " << HitCoordinates(hitProjection.begin()->second).Y() << ") and the end is determined to be (" << HitCoordinates(hitProjection.rbegin()->second).X() << ", " << HitCoordinates(hitProjection.rbegin()->second).Y() << ")" << std::endl;
-    //std::cout << "From beginning is " << fromBeginning << " and fromend is " << fromEnd << std::endl;
+    orderedShowerMap[planeHits->first] = showerHits;
+    goodnessOfOrderMap[planeHits->first] = goodnessOfOrder;
 
-    std::vector<art::Ptr<recob::Hit> > orderedHits;
-    if (fromBeginning > fromEnd) {
-      for (std::map<double,art::Ptr<recob::Hit> >::iterator hitIt = hitProjection.begin(); hitIt != hitProjection.end(); ++hitIt)
-	orderedHits.push_back(hitIt->second);
-      orderedShowerMap[planeHits->first] = orderedHits;
-      goodnessOfOrderMap[planeHits->first] = fromBeginning/(double)fromEnd;
-    }
-    else {
-      for (std::map<double,art::Ptr<recob::Hit> >::reverse_iterator hitIt = hitProjection.rbegin(); hitIt != hitProjection.rend(); ++hitIt)
-	orderedHits.push_back(hitIt->second);
-      orderedShowerMap[planeHits->first] = orderedHits;
-      goodnessOfOrderMap[planeHits->first] = fromEnd/(double)fromBeginning;
-    }
-
-    std::cout << "After ordering: Plane " << planeHits->first << ": start is determined to be (" << HitCoordinates(*orderedHits.begin()).X() << ", " << HitCoordinates(*orderedHits.begin()).Y() << ") and the end is determined to be (" << HitCoordinates(*orderedHits.rbegin()).X() << ", " << HitCoordinates(*orderedHits.rbegin()).Y() << ")" << std::endl << std::endl;
+    std::cout << "After ordering: Plane " << planeHits->first << ": start is determined to be (" << HitCoordinates(*showerHits.begin()).X() << ", " << HitCoordinates(*showerHits.begin()).Y() << ") and the end is determined to be (" << HitCoordinates(*showerHits.rbegin()).X() << ", " << HitCoordinates(*showerHits.rbegin()).Y() << ") -- goodness is " << goodnessOfOrder << std::endl;
 
   }
 
@@ -363,6 +301,71 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
 //   // Don't want to make any assumptions on the number of planes present
 
 // }
+
+std::vector<double> shower::EMShowerAlg::GetShowerDirectionProperties(std::vector<art::Ptr<recob::Hit> > const& showerHits, TVector2 const& direction) {
+
+  /// Returns some ints which can be used to determine the likelihood that the shower propagates along the hits as ordered in showerHits
+
+  TCanvas* canv = new TCanvas();
+  TGraph* graph = new TGraph();
+
+  graph->SetMarkerStyle(8);
+  graph->SetMarkerSize(2);
+  canv->cd();
+  graph->Draw("AP");
+
+  // // Don't forget to clean up the .h file!
+
+  // Count how often the perpendicular distance from the shower axis increases
+  int spreadingHits = 0;
+  double previousDistanceFromAxisPos = 0, previousDistanceFromAxisNeg = 0;
+  int hitsAfterOffshoot = 0;
+  int hitsAbove = 0, hitsBelow = 0;
+  TVector2 pos, projPos, start = HitPosition(*showerHits.begin());
+  //std::cout << "Start is (" << start.X() << ", " << start.Y() << ")" << std::endl;
+  for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = showerHits.begin(); hitIt != showerHits.end(); ++hitIt) {
+    pos = HitPosition(*hitIt) - start;
+    //pos = HitCoordinates(*hitIt) - start;
+    graph->SetPoint(graph->GetN(),pos.X(),pos.Y());
+    double angle = pos.DeltaPhi(direction);
+    projPos = (pos).Proj(direction);
+    double distanceFromAxis = TMath::Sqrt(TMath::Power(pos.Mod(),2) - TMath::Power(projPos.Mod(),2));
+    //std::cout << "X is " << pos.X() << " and distance from axis is " << distanceFromAxis << std::endl;
+    //std::cout << "Hit (" << HitCoordinates(*hitIt).X() << ", " << HitCoordinates(*hitIt).Y() << ") has (relative position is (" << pos.X() << ", " << pos.Y() << ")); angle " << angle << " and projected distance " << distanceFromAxis << std::endl;
+    if (angle > 0 and distanceFromAxis > 1) ++hitsAbove;
+    if (angle < 0 and distanceFromAxis > 1) ++hitsBelow;
+    if ( (angle > 0 and distanceFromAxis > previousDistanceFromAxisPos) or
+	 (angle < 0 and distanceFromAxis > previousDistanceFromAxisNeg) ) {
+      ++spreadingHits;
+      hitsAfterOffshoot = 0;
+      if (distanceFromAxis > 0) previousDistanceFromAxisPos = distanceFromAxis;
+      else previousDistanceFromAxisNeg = distanceFromAxis;
+    }
+    else
+      ++hitsAfterOffshoot;
+    if (hitsAfterOffshoot > 5) {
+      hitsAfterOffshoot = 0;
+      previousDistanceFromAxisPos = 0;
+      previousDistanceFromAxisNeg = 0;
+    }
+    //std::cout << "End of hit; spreadingHits is " << spreadingHits << " and offshoot is " << hitsAfterOffshoot << std::endl;
+  }
+
+  //std::cout << "Total hits away from centre is " << hitsAbove+hitsBelow << std::endl;
+  std::vector<double> directionProperties = {(double)spreadingHits, hitsAbove/(double)showerHits.size(), hitsBelow/(double)showerHits.size()};
+
+  std::cout << "Direction properties above " << directionProperties.at(1) << ", below " << directionProperties.at(2) << std::endl;
+
+  TLine line;
+  line.SetLineColor(2);
+  canv->cd();
+  line.DrawLine(-1000*direction.X(),-1000*direction.Y(),1000*direction.X(),1000*direction.Y());
+
+  canv->SaveAs("ShowerPlane.png");
+
+  return directionProperties;
+
+}
 
 std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap) {
 
@@ -786,17 +789,22 @@ double shower::EMShowerAlg::GlobalWire(geo::WireID wireID) {
   double wireCentre[3];
   fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
 
+  //std::cout << "Looking at wire " << wireID.Wire << ", in TPC " << wireID.TPC << " and on plane " << wireID.Plane << std::endl;
+
   double globalWire = -999;
   if (fGeom->SignalType(wireID) == geo::kInduction) {
     if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
     else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
   }
   else {
+    //std::cout << "It's collection!" << std::endl;
     unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+    //std::cout << "Number of wires is " << nwires << std::endl;
     if (wireID.TPC == 0 or wireID.TPC == 1) globalWire = wireID.Wire;
     else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5) globalWire = nwires + wireID.Wire;
     else if (wireID.TPC == 6 or wireID.TPC == 7) globalWire = (2*nwires) + wireID.Wire;
     else mf::LogError("EMShowerAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC;
+    //std::cout << "Global wire is " << globalWire << std::endl;
   }
 
   return globalWire;
