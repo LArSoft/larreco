@@ -495,38 +495,45 @@ std::vector<art::Ptr<recob::Hit> > shower::EMShowerAlg::FindTrack(std::vector<ar
 }
 
 void shower::EMShowerAlg::FindShowerEnds(std::vector<art::Ptr<recob::Hit> > const& shower,
-					 TVector2 const& centre,
+					 TVector2 const& centre2,
 					 art::Ptr<recob::Hit>& end1,
 					 art::Ptr<recob::Hit>& end2) {
 
   /// Roughly finds the two 'ends' of the shower (one is the vertex, one isn't well defined!)
 
-  // First need to find each end of the shower
-  std::map<double,int> hitDistances;
-  std::map<int,TVector2> hitCentreVector;
-
-  // Find the distance of each hit from the shower centre
+  // Find the charge-weighted centre (in cm) of this shower
+  TVector2 pos, chargePoint = TVector2(0,0);
+  double totalCharge = 0;
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hit = shower.begin(); hit != shower.end(); ++hit) {
-    TVector2 pos = HitCoordinates(*hit);
-    double distanceFromCentre = (pos - centre).Mod();
-    hitDistances[distanceFromCentre] = std::distance(shower.begin(),hit);
-    hitCentreVector[std::distance(shower.begin(),hit)] = pos - centre;
+    pos = HitPosition(*hit);
+    chargePoint += (*hit)->Integral() * pos;
+    totalCharge += (*hit)->Integral();
+  }
+  TVector2 centre = chargePoint / totalCharge;
+
+  // Find a rough shower 'direction'
+  int nhits = 0;
+  double sumx=0., sumy=0., sumx2=0., sumxy=0.;
+  for (std::vector<art::Ptr<recob::Hit> >::const_iterator hit = shower.begin(); hit != shower.end(); ++hit) {
+    ++nhits;
+    pos = HitPosition(*hit);
+    sumx += pos.X();
+    sumy += pos.Y();
+    sumx2 += pos.X() * pos.X();
+    sumxy += pos.X() * pos.Y();
+  }
+  double gradient = (nhits * sumxy - sumx * sumy) / (nhits * sumx2 - sumx * sumx);
+  TVector2 direction = TVector2(1,gradient).Unit();
+
+  // Find how far each hit (projected onto this axis) is from the centre
+  std::map<double,art::Ptr<recob::Hit> > hitProjection;
+  for (std::vector<art::Ptr<recob::Hit> >::const_iterator hit = shower.begin(); hit != shower.end(); ++hit) {
+    pos = HitPosition(*hit) - centre;
+    hitProjection[direction*pos] = *hit;
   }
 
-  // Use this to find the end points
-  int oneHit = 0, otherHit = 0;
-  for (std::map<double,int>::reverse_iterator hitDistance = hitDistances.rbegin(); hitDistance != hitDistances.rend(); ++hitDistance) {
-    if (hitDistance == hitDistances.rbegin())
-      oneHit = hitDistance->second;
-    else
-      if (TMath::Abs(hitCentreVector.at(oneHit).DeltaPhi(hitCentreVector.at(hitDistance->second))) > TMath::Pi()/2) {
-	otherHit = hitDistance->second;
-	break;
-      }
-  }
-
-  end1 = shower.at(oneHit);
-  end2 = shower.at(otherHit);
+  end1 = hitProjection.begin()->second;
+  end2 = hitProjection.rbegin()->second;
 
   return;
 
@@ -757,6 +764,25 @@ TVector2 shower::EMShowerAlg::HitCoordinates(art::Ptr<recob::Hit> const& hit) {
   /// Return the coordinates of this hit in global wire/tick space
 
   return TVector2(GlobalWire(hit->WireID()), hit->PeakTime());
+
+}
+
+TVector2 shower::EMShowerAlg::HitPosition(art::Ptr<recob::Hit> const& hit) {
+
+  /// Return the coordinates of this hit in units of cm
+
+  geo::PlaneID planeID = hit->WireID().planeID();
+
+  return HitPosition(HitCoordinates(hit), planeID);
+
+}
+
+TVector2 shower::EMShowerAlg::HitPosition(TVector2 const& pos, geo::PlaneID planeID) {
+
+  /// Return the coordinates of this hit in units of cm
+
+  return TVector2(pos.X() * fGeom->WirePitch(planeID),
+		  fDetProp->ConvertTicksToX(pos.Y(), planeID));
 
 }
 

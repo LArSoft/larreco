@@ -94,6 +94,8 @@ private:
   double GlobalWire(geo::WireID wireID);
   int FindTrackID(art::Ptr<recob::Hit> const& hit);
   int FindTrueTrack(std::vector<art::Ptr<recob::Hit> > const& showerHits);
+  TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);
+  TVector2 HitPosition(art::Ptr<recob::Hit> const& hit);
 
   // Parameters
   double fMinTrackLength;
