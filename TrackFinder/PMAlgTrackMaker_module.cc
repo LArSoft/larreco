@@ -131,7 +131,9 @@ private:
 
   cryo_tpc_view_hitmap fHitMap;
   std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
+  std::map< int, std::vector< art::Ptr<recob::Cluster> > > fPfpClusters;
   bool sortHits(const art::Event& evt);
+  bool sortHitsPfp(const art::Event& evt);
 
   std::vector< size_t > used_clusters, initial_clusters;
   std::map< unsigned int, std::vector<size_t> > tried_clusters;
@@ -320,6 +322,7 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 {
 	fHitMap.clear();
 	fCluHits.clear();
+	fPfpClusters.clear();
 	fEvNumber = evt.id().event();
 	fIsRealData = evt.isRealData();
 	fTrkIndex = 0;
@@ -1209,6 +1212,65 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 }
 // ------------------------------------------------------
 
+bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
+{
+	fHitMap.clear(); fCluHits.clear(); fPfpClusters.clear();
+
+	art::Handle< std::vector<recob::Hit> > allHitListHandle;
+	art::Handle< std::vector<recob::Cluster> > cluListHandle;
+	art::Handle< std::vector<recob::PFParticle> > pfparticleHandle;
+	std::vector< art::Ptr<recob::Hit> > allhitlist;
+	if (evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to make clusters and PFParticles
+	    evt.getByLabel(fCluModuleLabel, cluListHandle) &&    // clusters associated to PFParticles
+	    evt.getByLabel(fCluModuleLabel, pfparticleHandle))   // and finally PFParticles
+	{
+		art::fill_ptr_vector(allhitlist, allHitListHandle);
+
+		mf::LogVerbatim("PMAlgTrackMaker") << "Sort all hits for validation...";
+		unsigned int cryo, tpc, view;
+		for (auto const& h : allhitlist) // all hits used for validation
+		{
+			cryo = h->WireID().Cryostat;
+			tpc = h->WireID().TPC;
+			view = h->WireID().Plane;
+
+			fHitMap[cryo][tpc][view].push_back(h);
+		}
+		mf::LogVerbatim("PMAlgTrackMaker") << "...done.";
+
+		mf::LogVerbatim("PMAlgTrackMaker") << "Sort hits by clusters assigned to PFParticles...";
+		fCluHits.reserve(cluListHandle->size());
+		art::FindManyP< recob::Hit > fbp(cluListHandle, evt, fCluModuleLabel);
+		art::FindManyP< recob::Cluster > fpf(pfparticleHandle, evt, fCluModuleLabel);
+		for (size_t i = 0; i < cluListHandle->size(); ++i)
+		{
+			fCluHits.emplace_back(std::vector< art::Ptr<recob::Hit> >());
+		}
+		for (size_t i = 0; i < pfparticleHandle->size(); ++i)
+		{
+			auto cv = fpf.at(i);
+			for (const auto & c : cv)
+			{
+				fPfpClusters[i].push_back(c);
+
+				if (fCluHits[c.key()].empty())
+				{
+					auto hv = fbp.at(c.key());
+					fCluHits[c.key()].reserve(hv.size());
+					for (auto const & h : hv) fCluHits[c.key()].push_back(h);
+				}
+			}
+		}
+
+		mf::LogVerbatim("PMAlgTrackMaker") << "...done, "
+			<< fCluHits.size() << " clusters from "
+			<< fPfpClusters.size() << " pfparticles for 3D tracking.";
+		return true;
+	}
+	else return false;
+}
+// ------------------------------------------------------
+
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
 	reset(evt); // set default values, clear containers at the beginning of each event
@@ -1231,16 +1293,24 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	std::unique_ptr< art::Assns< recob::PFParticle, recob::Track > > pfPartTrackAssns(new art::Assns< recob::PFParticle, recob::Track >);
 
-	if (sortHits(evt))
+	bool sortHitsClustersOK = false;
+	switch (fCluMatchingAlg)
+	{
+		default: // try to match from all clusters in the event
+		case 1: sortHitsClustersOK = sortHits(evt); break;
+
+		case 2: // take clusters-hit assns from PFP, keep all hits for validation
+		case 3: sortHitsClustersOK = sortHitsPfp(evt); break;
+	}
+
+	if (sortHitsClustersOK)
 	{
 		int retCode = 0;
 		switch (fCluMatchingAlg)
 		{
 			default:
 			case 1: retCode = fromMaxCluster(evt, result); break; // try to match from all clusters in the event
-
 			case 2: retCode = fromPfpClusterSubset(evt, result); break; // each trk matched only from clusters assigned to PFP
-
 			case 3: retCode = fromPfpDirect(evt, result); break; // no pattern recognition, just take clusters assigned to PFP
 		}
 		switch (retCode)
@@ -1266,11 +1336,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
             // Use the following to create PFParticle <--> Track associations
             std::map< size_t, std::vector< art::Ptr<recob::Track> > > pfPartToTrackVecMap;
-            
-            // To fill the above we'll need the handle to the PFParticle collection
-            // If the collection doesn't exist then the map above will end up empty and no associations created
-            art::Handle< std::vector<recob::PFParticle> > pfParticleHandle;
-            evt.getByLabel(fCluModuleLabel, pfParticleHandle);
 
 			tracks->reserve(result.size());
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
@@ -1367,6 +1432,15 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				spEnd = allsp->size();
 
 				if (spEnd > spStart) util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
+
+                // If there is a PFParticle collection then recover PFParticle and add info to map
+                if (result[fTrkIndex].Key() > -1)
+                {
+                    size_t trackIdx = tracks->size() - 1;
+                    art::ProductID trackId = getProductID< std::vector<recob::Track> >(evt);
+                    art::Ptr<recob::Track> trackPtr(trackId, trackIdx, evt.productGetter(trackId));
+                    pfPartToTrackVecMap[result[fTrkIndex].Key()].push_back(trackPtr);
+                }
 			}
 
 			if (fRunVertexing) // save vertices and vtx-trk assns
@@ -1401,19 +1475,17 @@ void PMAlgTrackMaker::produce(art::Event& evt)
             // If we have PFParticles then do the associations here
             if (!pfPartToTrackVecMap.empty())
             {
+				art::Handle< std::vector<recob::PFParticle> > pfParticleHandle;
+				evt.getByLabel(fCluModuleLabel, pfParticleHandle);
                 for (const auto & pfParticleItr : pfPartToTrackVecMap)
                 {
                     art::Ptr<recob::PFParticle> pfParticle(pfParticleHandle, pfParticleItr.first);
-                    
-                    std::cout << "PFParticle key: " << pfParticle.key() << ", self: " << pfParticle->Self() << ", #tracks: " << pfParticleItr.second.size() << std::endl;
-                    
-                    if (pfParticle.isNull())
-                    {
-                        std::cout << "Error in PFParticle lookup, pfParticleIdx: " << pfParticleItr.first << ", key: " << pfParticle.key() << std::endl;
-                        continue;
-                    }
-                    
-                    util::CreateAssn(*this, evt, pfParticle, pfParticleItr.second, *pfPartTrackAssns);
+                    mf::LogVerbatim("PMAlgTrackMaker") << "PFParticle key: " << pfParticle.key()
+						<< ", self: " << pfParticle->Self() << ", #tracks: " << pfParticleItr.second.size();
+
+                    if (!pfParticle.isNull()) util::CreateAssn(*this, evt, pfParticle, pfParticleItr.second, *pfPartTrackAssns);
+					else mf::LogError("PMAlgTrackMaker") << "Error in PFParticle lookup, pfparticle index: "
+						<< pfParticleItr.first << ", key: " << pfParticle.key();
                 }
             }
 
@@ -1866,124 +1938,94 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candid
 {
 	// Code from Tracy merged with recent additions to PMA. Still to be changed in order to
 	// skip not reasonalbe parts in this configuration.
-
-    // This method will use clusters which are already matched to PFParticles
-    art::Handle< std::vector<recob::PFParticle> > pfParticleHandle;
-    
-    if (evt.getByLabel(fCluModuleLabel, pfParticleHandle))
+    if (!fPfpClusters.empty() && !fCluHits.empty())
     {
-        // We need a handle to the collection of clusters in the data store so we can
-        // handle associations to hits.
-        art::Handle< std::vector<recob::Cluster> > clusterHandle;
-        evt.getByLabel(fCluModuleLabel, clusterHandle);
-        
-        // If there are no clusters then something is really wrong
-        if (clusterHandle.isValid())
-        {
-            // Recover the collection of associations between PFParticles and clusters, this will
-            // be the mechanism by which we actually deal with clusters
-            art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fCluModuleLabel);
-            
-            tpc_track_map tracks; // track parts in tpc's
-            
-            // Armed with all of this information we can begin looping through the PFParticles
-            for (size_t pfPartIdx = 0; pfPartIdx < pfParticleHandle->size(); pfPartIdx++)
-            {
-                art::Ptr<recob::PFParticle> pfParticle(pfParticleHandle, pfPartIdx);
-                
-                // With this recover the associated clusters
-                std::vector< art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(pfParticle.key());
-                
-                initial_clusters.clear();
-                tried_clusters.clear();
-                used_clusters.clear();
-                
-                size_t minBuildSizeLarge = 20;
-                size_t minBuildSizeSmall = 5;
-                
-                // find reasonably large parts
-                for (auto tpc_iter = fGeom->begin_TPC_id();
-                          tpc_iter != fGeom->end_TPC_id();
-                          tpc_iter++)
-                {
-                    fromMaxCluster_tpc(tracks[tpc_iter->TPC], clusterVec, minBuildSizeLarge, tpc_iter->TPC, tpc_iter->Cryostat, int(pfParticle.key()));
-                }
-                
-                // loop again to find small things
-                for (auto tpc_iter = fGeom->begin_TPC_id();
-                          tpc_iter != fGeom->end_TPC_id();
-                          tpc_iter++)
-                {
-                    fromMaxCluster_tpc(tracks[tpc_iter->TPC], clusterVec, minBuildSizeSmall, tpc_iter->TPC, tpc_iter->Cryostat, int(pfParticle.key()));
-                }
-                
-                // used for development
-                listUsedClusters(clusterVec);
-            }
-            
-            // try correcting track ends:
-            //   - single-view sections spuriously merged on 2D clusters level
-            for (auto tpc_iter = fGeom->begin_TPC_id();
-                 tpc_iter != fGeom->end_TPC_id();
-                 tpc_iter++)
-            {
-                reassignSingleViewEnds(tracks[tpc_iter->TPC]);
-            }
+		tpc_track_map tracks; // track parts in tpc's
 
-			// try correcting track ends:
-			//   - 3D ref.points for clean endpoints of wire-plae parallel tracks
-			//   - single-view sections spuriously merged on 2D clusters level
+		// Armed with all of this information we can begin looping through the PFParticles
+		for (const auto & pfpCluEntry : fPfpClusters)
+		{
+			int pfPartIdx = pfpCluEntry.first;
+			const auto & clusterVec = pfpCluEntry.second;
+
+			initial_clusters.clear();
+			tried_clusters.clear();
+			used_clusters.clear();
+
+			size_t minBuildSize = 2;
 			for (auto tpc_iter = fGeom->begin_TPC_id();
 			          tpc_iter != fGeom->end_TPC_id();
 			          tpc_iter++)
 			{
-				guideEndpoints(tracks[tpc_iter->TPC]);
-				reassignSingleViewEnds(tracks[tpc_iter->TPC]);
+				fromMaxCluster_tpc(tracks[tpc_iter->TPC], clusterVec, minBuildSize, tpc_iter->TPC, tpc_iter->Cryostat, pfPartIdx);
 			}
-            
-            // merge co-linear parts inside each tpc
-            if (fMergeWithinTPC)
-            {
-                for (auto tpc_iter = fGeom->begin_TPC_id();
-                     tpc_iter != fGeom->end_TPC_id();
-                     tpc_iter++)
-                {
-                    mf::LogVerbatim("PMAlgTrackMaker") << "Merge co-linear tracks within TPC " << tpc_iter->TPC << ".";
-                    mergeCoLinear(tracks[tpc_iter->TPC]);
-                }
-            }
-            
-            // merge co-linear parts between tpc's
-            if (fStitchBetweenTPCs)
-            {
-                mf::LogVerbatim("PMAlgTrackMaker") << "Stitch co-linear tracks between TPCs.";
-                mergeCoLinear(tracks);
-            }
+   
+			// used for development
+			listUsedClusters(clusterVec);
+		}
 
-			for (auto const & tpc_entry : tracks)
-				for (auto & trk : tpc_entry.second)
-					if (trk.Track()->HasTwoViews() && (trk.Track()->Nodes().size() > 1))
-			{
-				fProjectionMatchingAlg.setTrackTag(*(trk.Track()));
-				result.push_back(trk);
-			}
+		// try correcting track ends:
+		//   - single-view sections spuriously merged on 2D clusters level
+		for (auto tpc_iter = fGeom->begin_TPC_id();
+		          tpc_iter != fGeom->end_TPC_id();
+		          tpc_iter++)
+		{
+			reassignSingleViewEnds(tracks[tpc_iter->TPC]);
+		}
 
-			if (fRunVertexing)
-			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "Vertex finding / track-vertex reoptimization.";
-				fPMAlgVertexing.run(result);
-			}
+		// try correcting track ends:
+		//   - 3D ref.points for clean endpoints of wire-plae parallel tracks
+		//   - single-view sections spuriously merged on 2D clusters level
+		for (auto tpc_iter = fGeom->begin_TPC_id();
+		          tpc_iter != fGeom->end_TPC_id();
+		          tpc_iter++)
+		{
+			guideEndpoints(tracks[tpc_iter->TPC]);
+			reassignSingleViewEnds(tracks[tpc_iter->TPC]);
+		}
 
-			if (fMatchT0inAPACrossing)
+		// merge co-linear parts inside each tpc
+		if (fMergeWithinTPC)
+		{
+			for (auto tpc_iter = fGeom->begin_TPC_id();
+			          tpc_iter != fGeom->end_TPC_id();
+			          tpc_iter++)
 			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "Find co-linear APA-crossing tracks with any T0.";
-				matchCoLinearAnyT0(result);
+				mf::LogVerbatim("PMAlgTrackMaker") << "Merge co-linear tracks within TPC " << tpc_iter->TPC << ".";
+				mergeCoLinear(tracks[tpc_iter->TPC]);
 			}
-        }
+		}
+
+		// merge co-linear parts between tpc's
+		if (fStitchBetweenTPCs)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Stitch co-linear tracks between TPCs.";
+			mergeCoLinear(tracks);
+		}
+
+		for (auto const & tpc_entry : tracks)
+			for (auto & trk : tpc_entry.second)
+				if (trk.Track()->HasTwoViews() && (trk.Track()->Nodes().size() > 1))
+		{
+			fProjectionMatchingAlg.setTrackTag(*(trk.Track()));
+			result.push_back(trk);
+		}
+
+		if (fRunVertexing)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Vertex finding / track-vertex reoptimization.";
+			fPMAlgVertexing.run(result);
+		}
+
+		if (fMatchT0inAPACrossing)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "Find co-linear APA-crossing tracks with any T0.";
+			matchCoLinearAnyT0(result);
+		}
     }
     else
     {
-        mf::LogWarning("PMAlgTrackMaker") << "no clusters";
+        mf::LogWarning("PMAlgTrackMaker") << "no clusters, no pfparticles";
         return -1;
     }
     
@@ -1994,7 +2036,39 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candid
 
 int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::trk_candidates& result)
 {
-	return 0;
+    if (!fPfpClusters.empty() && !fCluHits.empty())
+    {
+		for (const auto & pfpCluEntry : fPfpClusters)
+		{
+			std::vector< art::Ptr<recob::Hit> > allHits;
+
+			pma::TrkCandidate candidate;
+			for (const auto & c : pfpCluEntry.second)
+			{
+				candidate.Clusters().push_back(c.key());
+
+				allHits.reserve(allHits.size() + fCluHits.at(c.key()).size());
+				for (const auto & h : fCluHits.at(c.key()))
+					allHits.push_back(h);
+			}
+			candidate.SetKey(pfpCluEntry.first);
+
+			candidate.SetTrack(fProjectionMatchingAlg.buildTrack(allHits));
+
+   			result.push_back(candidate);
+		}
+
+		guideEndpoints(result); // add 3D ref.points for clean endpoints of wire-plae parallel tracks
+
+		if (fRunVertexing) fPMAlgVertexing.run(result);
+    }
+    else
+    {
+        mf::LogWarning("PMAlgTrackMaker") << "no clusters, no pfparticles";
+        return -1;
+    }
+    
+    return result.size();
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
