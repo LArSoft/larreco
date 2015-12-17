@@ -69,6 +69,9 @@ private:
   art::ServiceHandle<geo::Geometry> fGeom;
   art::ServiceHandle<util::DetectorProperties> fDetProp;
 
+  int fShower;
+  int fPlane;
+
 };
 
 shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(pset.get<fhicl::ParameterSet>("EMShowerAlg")) {
@@ -84,6 +87,8 @@ void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
   fHitsModuleLabel    = p.get<std::string>("HitsModuleLabel");
   fClusterModuleLabel = p.get<std::string>("ClusterModuleLabel");
   fTrackModuleLabel   = p.get<std::string>("TrackModuleLabel");
+  fShower = p.get<int>("Shower");
+  fPlane = p.get<int>("Plane");
 }
 
 void shower::EMShower::produce(art::Event& evt) {
@@ -150,7 +155,7 @@ void shower::EMShower::produce(art::Event& evt) {
   int showerNum = 0;
   for (std::vector<std::vector<int> >::iterator newShower = newShowers.begin(); newShower != newShowers.end(); ++newShower, ++showerNum) {
 
-    if (showerNum != 1) continue;
+    if (showerNum != fShower and fShower != -1) continue;
 
     // New shower
     std::cout << std::endl << "Start shower " << showerNum << std::endl;
@@ -193,9 +198,9 @@ void shower::EMShower::produce(art::Event& evt) {
     }
 
     // Find the track at the start of the shower
-    recob::Track initialTrack;
-    std::vector<art::Ptr<recob::Hit> > initialTrackHits;
-    fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits);
+    std::unique_ptr<recob::Track> initialTrack;
+    std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits;
+    fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fPlane);
 
     // Make shower object and associations
     recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
@@ -206,7 +211,7 @@ void shower::EMShower::produce(art::Event& evt) {
     util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
     util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()));
 
-   }
+  }
 
   // Put in event
   evt.put(std::move(showers));

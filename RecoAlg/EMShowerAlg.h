@@ -53,6 +53,7 @@
 #include "TGraph.h"
 #include "TLine.h"
 #include "TCanvas.h"
+#include "TString.h"
 
 namespace shower {
   class EMShowerAlg;
@@ -79,31 +80,24 @@ public:
 			 std::vector<art::Ptr<recob::Cluster> > const& clusters,
 			 art::FindManyP<recob::Hit> const& fmh);
   void FindShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
-  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits, recob::Track& initialTrack, std::vector<art::Ptr<recob::Hit> >& initialTrackHits);
+  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits, std::unique_ptr<recob::Track>& initialTrack, std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits, int plane);
   recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
-			   recob::Track const& initialTrack,
-			   std::vector<art::Ptr<recob::Hit> > const& initialTrackHits);
-  recob::Track ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1, std::vector<art::Ptr<recob::Hit> > const& track2);
+			   std::unique_ptr<recob::Track> const& initialTrack,
+			   std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialTrackHits);
+  std::unique_ptr<recob::Track> ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
+					       std::vector<art::Ptr<recob::Hit> > const& track2);
+  std::unique_ptr<recob::Track> ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
+					       std::vector<art::Ptr<recob::Hit> > const& track2,
+					       std::map<int,TVector2> const& showerCentreMap);
   std::map<int,std::vector<art::Ptr<recob::Hit> > > FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap);
+  std::vector<art::Ptr<recob::Hit> > OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower);
 
 private:
 
-  std::vector<double> GetShowerDirectionProperties(std::vector<art::Ptr<recob::Hit> > const& showerHits, TVector2 const& direction);
-  std::vector<art::Ptr<recob::Hit> > FindInitialTrack(std::vector<art::Ptr<recob::Hit> > const& shower);
-  void ProjectVertexIn2D(TVector3 const& vertex,
-			 std::map<int,std::vector<art::Ptr<recob::Hit> > >& trackHitsMap,
-			 std::map<int,std::pair<std::vector<art::Ptr<recob::Hit> >,std::vector<art::Ptr<recob::Hit> > > > const& trackHitsBothEndsMap);
-  void FindShowerStartDirection(art::Ptr<recob::Track> const& vertexTrack, std::map<int,TVector2> const& showerCentreMap, TVector3& showerVertex, TVector3& showerDirection);
-  art::Ptr<recob::Track> FindVertexTrack(std::map<int,art::Ptr<recob::Hit> > const& vertexMap,
-					 std::map<int,art::Ptr<recob::Track> > const& trackMap,
-					 std::map<int,std::vector<art::Ptr<recob::Hit> > > const& trackHitsMap);
-  std::vector<art::Ptr<recob::Hit> > FindTrack(std::vector<art::Ptr<recob::Hit> > const& shower,
-					       TVector2 const& start,
-					       TVector2 const& end);
-  void FindShowerEnds(std::vector<art::Ptr<recob::Hit> > const& shower,
-		      art::Ptr<recob::Hit>& end1,
-		      art::Ptr<recob::Hit>& end2);
-  double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, recob::Track const& track);
+  std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap,
+						 std::map<int,TVector2> const& showerCentreMap);
+  std::vector<double> GetShowerDirectionProperties(std::vector<art::Ptr<recob::Hit> > const& showerHits, TVector2 const& direction, std::string end);
+  double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, std::unique_ptr<recob::Track> const& track);
   TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
   TVector2 HitPosition(art::Ptr<recob::Hit> const& hit);
   TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);
