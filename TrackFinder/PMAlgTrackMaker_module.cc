@@ -2055,7 +2055,16 @@ int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::trk_candidates& r
 
 			candidate.SetTrack(fProjectionMatchingAlg.buildTrack(allHits));
 
-   			result.push_back(candidate);
+			if (candidate.IsValid() &&
+			    candidate.Track()->HasTwoViews() &&
+			    (candidate.Track()->Nodes().size() > 1))
+			{
+	   			result.push_back(candidate);
+			}
+			else
+			{
+				candidate.DeleteTrack();
+			}
 		}
 
 		guideEndpoints(result); // add 3D ref.points for clean endpoints of wire-plae parallel tracks
