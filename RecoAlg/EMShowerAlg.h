@@ -44,6 +44,7 @@
 // C++
 #include <iostream>
 #include <map>
+#include <iterator>
 
 // ROOT
 #include "TVector2.h"
@@ -80,7 +81,13 @@ public:
 			 std::vector<art::Ptr<recob::Cluster> > const& clusters,
 			 art::FindManyP<recob::Hit> const& fmh);
   void FindShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
-  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits, std::unique_ptr<recob::Track>& initialTrack, std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits, int plane);
+  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
+			std::unique_ptr<recob::Track>& initialTrack,
+			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits);
+  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
+			std::unique_ptr<recob::Track>& initialTrack,
+			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits,
+			art::FindManyP<recob::Cluster> const& fmc, int plane);
   recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
 			   std::unique_ptr<recob::Track> const& initialTrack,
 			   std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialTrackHits);
@@ -88,21 +95,29 @@ public:
 					       std::vector<art::Ptr<recob::Hit> > const& track2);
   std::unique_ptr<recob::Track> ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
 					       std::vector<art::Ptr<recob::Hit> > const& track2,
-					       std::map<int,TVector2> const& showerCentreMap);
+					       std::map<geo::PlaneID,TVector2> const& showerCentreMap);
   std::map<int,std::vector<art::Ptr<recob::Hit> > > FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap);
+  double OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
+			 std::vector<art::Ptr<recob::Hit> >& orderedShower,
+			 art::FindManyP<recob::Cluster> const& fmc);
   std::vector<art::Ptr<recob::Hit> > OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower);
+  TVector3 Construct3DPoint(art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2);
 
 private:
 
+  std::vector<int> IdentifyBadPlanes(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > CheckShowerHits(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap,
+								    std::map<int,double> const& goodnessOfOrderMap);
   std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap,
-						 std::map<int,TVector2> const& showerCentreMap);
+						 std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerCentreMap);
   std::vector<double> GetShowerDirectionProperties(std::vector<art::Ptr<recob::Hit> > const& showerHits, TVector2 const& direction, std::string end);
+  std::vector<art::Ptr<recob::Hit> > FindOrderOfHits(std::vector<art::Ptr<recob::Hit> > const& hits);
   double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, std::unique_ptr<recob::Track> const& track);
   TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
   TVector2 HitPosition(art::Ptr<recob::Hit> const& hit);
   TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);
   double GlobalWire(geo::WireID wireID);
-  TVector2 Project3DPointOntoPlane(TVector3 const& point, unsigned int plane);
+  TVector2 Project3DPointOntoPlane(TVector3 const& point, geo::PlaneID planeID);
 
   // Parameters
   double fMinTrackLength;

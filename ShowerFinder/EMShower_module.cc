@@ -124,6 +124,7 @@ void shower::EMShower::produce(art::Event& evt) {
   art::FindManyP<recob::Hit> fmh(clusterHandle, evt, fClusterModuleLabel);
   art::FindManyP<recob::Track> fmt(hitHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::SpacePoint> fmsp(trackHandle, evt, fTrackModuleLabel);
+  art::FindManyP<recob::Cluster> fmc(hitHandle, evt, fHitsModuleLabel);
 
   // Map between tracks and clusters
   std::map<int,std::vector<int> > clusterToTracks;
@@ -200,7 +201,7 @@ void shower::EMShower::produce(art::Event& evt) {
     // Find the track at the start of the shower
     std::unique_ptr<recob::Track> initialTrack;
     std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits;
-    fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fPlane);
+    fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fmc, fPlane);
 
     // Make shower object and associations
     recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
