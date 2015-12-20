@@ -30,7 +30,6 @@
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/LinFitAlg.h"
 
-
 namespace cluster {
   
   class ClusterCrawlerAlg {
@@ -60,7 +59,7 @@ namespace cluster {
       float BeginSlp;   // beginning slope (= DS end = high wire number)
       float BeginSlpErr; // error
       float BeginAng;
-      unsigned short BeginWir;   // begin wire
+      unsigned int BeginWir;   // begin wire
       float BeginTim;   // begin time
       float BeginChg;   // beginning average charge
 			float BeginChgNear; // charge near the cluster Begin
@@ -68,7 +67,7 @@ namespace cluster {
       float EndSlp;     // end slope (= US end = low  wire number)
       float EndAng;
       float EndSlpErr;  // error
-      unsigned short EndWir;     // end wire
+      unsigned int EndWir;     // end wire
       float EndTim;     // ending time
       float EndChg;     // ending average charge
 			float EndChgNear; // charge near the cluster End
@@ -141,7 +140,6 @@ namespace cluster {
     /// Comparison for sorting hits by wire and hit multiplet
     static bool SortByMultiplet(recob::Hit const& a, recob::Hit const& b);
     
-    
 ////////////////////////////////////
 
     private:
@@ -189,9 +187,9 @@ namespace cluster {
     float fVertex2DWireErrCut;
     float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
 
-    short fDebugPlane;
-    short fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
-    short fDebugHit;   ///< out detailed information while crawling
+    int fDebugPlane;
+    int fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
+    int fDebugHit;   ///< out detailed information while crawling
     
     // Wires that have been determined by some filter (e.g. NoiseFilter) to be good
     std::vector<geo::WireID> fFilteredWires;
@@ -245,6 +243,7 @@ namespace cluster {
                         ///< 5 = cluster split by VtxClusterSplit
                         ///< 6 = stop at a vertex
 												///< 7 = LA crawl stopped due to slope cut
+                        ///< 8 = SPECIAL CODE FOR STEP CRAWLING
     short clProcCode;     ///< Processor code = pass number
                         ///< +   10 ChkMerge
                         ///< +   20 ChkMerge with overlapping hits
@@ -252,6 +251,7 @@ namespace cluster {
                         ///< +  200 ClusterFix
                         ///< +  300 LACrawlUS
                         ///< +  500 MergeOverlap
+                        ///< =  999 FindVLACluster
                         ///< + 1000 VtxClusterSplit
                         ///< + 2000 failed pass N cuts but passes pass N=1 cuts
                         ///< + 3000 Cluster hits merged
@@ -260,14 +260,14 @@ namespace cluster {
     CTP_t clCTP;        ///< Cryostat/TPC/Plane code
 		bool clLA;					///< using Large Angle crawling code
     
-    unsigned short fFirstWire;    ///< the first wire with a hit
+    unsigned int fFirstWire;    ///< the first wire with a hit
     unsigned int fFirstHit;     ///< first hit used
-    unsigned short fLastWire;      ///< the last wire with a hit
-    unsigned short cstat;         // the current cryostat
-    unsigned short tpc;         // the current TPC
-    unsigned short plane;         // the current plane
-    unsigned short fNumWires;   // number of wires in the current plane
-    unsigned short fMaxTime;    // number of time samples in the current plane
+    unsigned int fLastWire;      ///< the last wire with a hit
+    unsigned int cstat;         // the current cryostat
+    unsigned int tpc;         // the current TPC
+    unsigned int plane;         // the current plane
+    unsigned int fNumWires;   // number of wires in the current plane
+    unsigned int fMaxTime;    // number of time samples in the current plane
     float fScaleF;     ///< scale factor from Tick/Wire to dx/du
     
     unsigned short pass;
@@ -289,6 +289,17 @@ namespace cluster {
 
     std::string fhitsModuleLabel;
     
+    // struct for step crawling
+    struct TrajPoint {
+      std::array<float, 2> Pos; // Position in wire equivalent units
+      std::array<float, 2> Dir; // likewise
+      float AngErr;             // direction error (radians)
+      float Chg;
+    };
+    std::vector<TrajPoint> traj;
+    
+    void ReverseTraj();
+
     // hit multiplets that have been saved before merging.
     std::vector<recob::Hit> unMergedHits;
     // RestoreUnMergedHits should be called before abandoning fcl2hits to
@@ -323,6 +334,9 @@ namespace cluster {
     void CrawlUS();
     // Crawls along a trail of hits UpStream - Large Angle version
     void LACrawlUS();
+    // Crawls starting at position pos, moving in direction dir with step size step
+    // appending hits to fcl2hits
+    void StepCrawl(float step);
 
     // ************** cluster merging routines *******************
 
@@ -357,9 +371,10 @@ namespace cluster {
     
     // Find Very Large Angle clusters
     void FindVLAClusters();
+    
     // Make VLA cluster using hits in fc2lhits
-    void MakeVLACluster();
-    void FitVLACluster(short nHitsFit);
+//    void MakeVLACluster();
+//    void FitVLACluster(short nHitsFit);
     
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);
