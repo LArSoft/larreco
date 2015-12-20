@@ -40,7 +40,8 @@ physics:
       CalibLabel      : "caldata"
       SpacePointLabels: ["trackkalmanhit","wirecell"]
       mcOption        : "all"
-      outFile         : "celltree.root"
+      saveMCTrackPoints : true
+      outFile           : "celltree.root"
     }
   }
   analysis: [ WireCell ]
