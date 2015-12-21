@@ -12,10 +12,10 @@ extern "C" {
 }
 
 //#include "RecoBase/Track.h"
-#include "AnalysisBase/Calorimetry.h"
-#include "AnalysisBase/ParticleID.h"
-#include "Utilities/AssociationUtil.h"
-#include "AnalysisAlg/Chi2PIDAlg.h"
+#include "lardata/AnalysisBase/Calorimetry.h"
+#include "lardata/AnalysisBase/ParticleID.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/AnalysisAlg/Chi2PIDAlg.h"
 
 // ROOT includes
 #include "TFile.h"

@@ -15,8 +15,8 @@
 #include "TMath.h"
 
 // LArSoft includes
-#include "RecoBase/Hit.h"
-#include "AnalysisAlg/CalorimetryAlg.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/AnalysisAlg/CalorimetryAlg.h"
 
 namespace calo{
 

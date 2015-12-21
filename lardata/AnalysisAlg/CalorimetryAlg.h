@@ -11,9 +11,9 @@
 
 #include "fhiclcpp/ParameterSet.h"
 
-#include "DetectorInfoServices/LArPropertiesService.h"
-#include "Geometry/Geometry.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include <vector>
 
 namespace recob { 
