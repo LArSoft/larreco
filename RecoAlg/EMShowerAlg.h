@@ -106,6 +106,8 @@ public:
 private:
 
   std::vector<int> IdentifyBadPlanes(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
+  std::vector<int> IdentifyBadPlanes(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap,
+				     std::map<int,double> const& goodnessOfOrderMap);
   std::map<int,std::vector<art::Ptr<recob::Hit> > > CheckShowerHits(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap,
 								    std::map<int,double> const& goodnessOfOrderMap);
   std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap,
@@ -132,6 +134,8 @@ private:
   shower::ShowerEnergyAlg fShowerEnergyAlg;
   calo::CalorimetryAlg fCalorimetryAlg;
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
+
+  bool debug = false;
 
 };
 
