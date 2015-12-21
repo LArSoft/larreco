@@ -7,18 +7,18 @@
 
 // Framework Includes
 
-#include "RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "Utilities/AssociationUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/Utilities/AssociationUtil.h"
 #include "SimulationBase/MCTruth.h"
-#include "MCCheater/BackTracker.h"
-#include "RecoBase/Hit.h"
-#include "RecoObjects/Cluster3D.h"
-#include "Geometry/Geometry.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoObjects/Cluster3D.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
 
 // ROOT includes
 #include "TVector3.h"

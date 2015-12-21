@@ -15,9 +15,9 @@
 #include "TH1D.h"
 #include <vector>
 #include <string>
-#include "RecoBase/Wire.h"
-#include "RecoBase/EndPoint2D.h"
-#include "Geometry/Geometry.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/EndPoint2D.h"
+#include "larcore/Geometry/Geometry.h"
 
 
 namespace trkf {

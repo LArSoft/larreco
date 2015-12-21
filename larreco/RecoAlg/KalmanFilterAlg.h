@@ -43,9 +43,9 @@
 
 #include <vector>
 #include <memory>
-#include "RecoObjects/KGTrack.h"
-#include "RecoObjects/Propagator.h"
-#include "RecoObjects/KHitContainer.h"
+#include "lardata/RecoObjects/KGTrack.h"
+#include "lardata/RecoObjects/Propagator.h"
+#include "lardata/RecoObjects/KHitContainer.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Persistency/Common/PtrVector.h"
 #include "TCanvas.h"

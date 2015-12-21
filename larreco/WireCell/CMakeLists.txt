@@ -1,7 +1,7 @@
 
-art_make( BASENAME_ONLY
+art_make( 
           MODULE_LIBRARIES Geometry
-			Geometry_service
+			larcore_Geometry_Geometry_service
 			Simulation
 			RawData
 			RecoBase

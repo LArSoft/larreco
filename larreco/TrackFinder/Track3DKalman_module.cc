@@ -34,14 +34,14 @@
 
 // LArSoft includes
 
-#include "Geometry/Geometry.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Track.h"
-#include "RecoBase/SpacePoint.h"
-#include "Utilities/AssociationUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/Utilities/AssociationUtil.h"
 #include "SimulationBase/MCTruth.h"
-#include "Simulation/sim.h"
+#include "larsim/Simulation/sim.h"
 
 
 // ROOT includes
@@ -53,22 +53,22 @@
 #include "TMath.h"
 
 // GENFIT includes
-#include "Genfit/GFException.h"
-#include "Genfit/GFAbsTrackRep.h"
-#include "Genfit/GeaneTrackRep2.h"
-#include "Genfit/RKTrackRep.h"
-#include "Genfit/GFConstField.h"
-#include "Genfit/GFFieldManager.h"
-#include "Genfit/PointHit.h"
-#include "Genfit/GFTrack.h"
-#include "Genfit/GFKalman.h"
-#include "Genfit/GFDaf.h"
+#include "larreco/Genfit/GFException.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
+#include "larreco/Genfit/GeaneTrackRep2.h"
+#include "larreco/Genfit/RKTrackRep.h"
+#include "larreco/Genfit/GFConstField.h"
+#include "larreco/Genfit/GFFieldManager.h"
+#include "larreco/Genfit/PointHit.h"
+#include "larreco/Genfit/GFTrack.h"
+#include "larreco/Genfit/GFKalman.h"
+#include "larreco/Genfit/GFDaf.h"
 
 #include "art/Framework/Core/EDProducer.h"
 #include <TTree.h>
 #include <TMatrixT.h>
 
-#include "Genfit/GFAbsTrackRep.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
 
 #include "CLHEP/Random/RandFlat.h"
 #include "CLHEP/Random/RandGaussQ.h"

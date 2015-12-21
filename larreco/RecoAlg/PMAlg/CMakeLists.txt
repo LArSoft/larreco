@@ -4,7 +4,7 @@ art_make( LIBRARY_NAME  PMAlg
                         Simulation
                         Filters
                         Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
                         RecoObjects
                         AnalysisBase
                         Utilities

@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CPALGONHITS_H
 #define RECOTOOL_CPALGONHITS_H
 
-#include "RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
 
 namespace cmtool {
   /**

@@ -18,7 +18,7 @@
 */
 #include <iostream>
 
-#include "Genfit/GFTrack.h"
+#include "larreco/Genfit/GFTrack.h"
 #include "TVirtualGeoTrack.h"
 
 genf::GFTrack::GFTrack(GFAbsTrackRep* defaultRep) 

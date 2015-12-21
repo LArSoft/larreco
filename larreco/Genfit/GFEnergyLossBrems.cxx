@@ -17,8 +17,8 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "Genfit/GFEnergyLossBrems.h"
-#include "Genfit/GFException.h"
+#include "larreco/Genfit/GFEnergyLossBrems.h"
+#include "larreco/Genfit/GFException.h"
 #include "math.h"
 
 //#define BETHE  // don't use MIGDAL correction for electron bremsstrahlung (only Bethe Heitler)

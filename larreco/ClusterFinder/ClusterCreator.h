@@ -16,8 +16,8 @@
 #include <utility> // std::move()
 
 // LArSoft libraries
-#include "RecoBase/Cluster.h"
-#include "RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
 
 
 /// Cluster reconstruction namespace

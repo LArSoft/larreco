@@ -9,7 +9,7 @@
 #include "Segmentation2D.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 void tss::Segmentation2D::reconfigure(const fhicl::ParameterSet& p)
 {

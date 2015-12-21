@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CFALGOTIMEOVERLAP_H
 #define RECOTOOL_CFALGOTIMEOVERLAP_H
 
-#include "RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
 
 namespace cmtool {
   /**

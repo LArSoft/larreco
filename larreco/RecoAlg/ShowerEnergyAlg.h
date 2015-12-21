@@ -16,8 +16,8 @@
 #include "art/Persistency/Common/PtrVector.h"
 
 // larsoft
-#include "DetectorInfo/DetectorProperties.h"
-#include "RecoBase/Hit.h"
+#include "lardata/DetectorInfo/DetectorProperties.h"
+#include "lardata/RecoBase/Hit.h"
 
 // ROOT
 #include "TMath.h"

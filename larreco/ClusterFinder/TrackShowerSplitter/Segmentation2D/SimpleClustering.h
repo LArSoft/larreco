@@ -11,7 +11,7 @@
 #define SimpleCustering_h
 
 #include "TssHit2D.h"
-#include "RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 namespace tss
 {

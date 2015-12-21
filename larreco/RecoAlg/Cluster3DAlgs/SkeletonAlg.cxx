@@ -10,12 +10,12 @@
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
 
-#include "RecoAlg/Cluster3DAlgs/SkeletonAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/SkeletonAlg.h"
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "RecoBase/Hit.h"
-#include "RecoObjects/Cluster3D.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoObjects/Cluster3D.h"
 
 // std includes
 #include <string>

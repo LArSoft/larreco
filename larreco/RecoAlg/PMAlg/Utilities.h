@@ -12,7 +12,7 @@
 #ifndef Utilities_h
 #define Utilities_h
 
-#include "Geometry/Geometry.h"
+#include "larcore/Geometry/Geometry.h"
 
 #include <functional>
 

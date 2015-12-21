@@ -8,7 +8,7 @@
 #include <TGListTree.h>
 #include "TROOT.h"
 
-#include "Genfit/TGeant3/TGeant3.h"
+#include "larreco/Genfit/TGeant3/TGeant3.h"
 #include "TArrayF.h"
 #include "TNamed.h"
 #include "TList.h"

@@ -32,7 +32,7 @@
 #include "TMatrixT.h"
 #include "TVector3.h"
 
-#include "Genfit/GFDetPlane.h"
+#include "larreco/Genfit/GFDetPlane.h"
 
 //class genf::GFAbsRecoHit;    
 

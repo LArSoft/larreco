@@ -29,7 +29,7 @@ initial import into CVS
 // andreas.morsch@cern.ch
 //
 
-#include "Genfit/TGeant3/G3Medium.h"
+#include "larreco/Genfit/TGeant3/G3Medium.h"
 
 ClassImp(G3Medium)
 

@@ -6,10 +6,10 @@
 // Shower energy finding class
 ////////////////////////////////////////////////////////////////////////
 
-#include "RecoAlg/ShowerEnergyAlg.h"
+#include "larreco/RecoAlg/ShowerEnergyAlg.h"
 
-#include "DetectorInfoServices/LArPropertiesService.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 
 shower::ShowerEnergyAlg::ShowerEnergyAlg(fhicl::ParameterSet const& pset)

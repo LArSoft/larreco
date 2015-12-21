@@ -8,10 +8,10 @@
 // Mike Wallbank (m.wallbank@sheffield.ac.uk), September 2015
 ////////////////////////////////////////////////////////////////////
 
-#include "RecoAlg/EMShowerAlg.h"
+#include "larreco/RecoAlg/EMShowerAlg.h"
 
-#include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "DetectorInfoServices/DetectorPropertiesService.h"
+#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset)
   : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())

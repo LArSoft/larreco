@@ -3,11 +3,11 @@
 // Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl) and R.Sulej (Robert.Sulej@cern.ch), May 2015
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "RecoAlg/ProjectionMatchingAlg.h"
+#include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 
-#include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "DetectorInfoServices/DetectorPropertiesService.h"
-#include "RecoAlg/PMAlg/Utilities.h"
+#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 

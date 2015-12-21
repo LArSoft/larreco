@@ -22,15 +22,15 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "DetectorInfo/DetectorProperties.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Track.h"
-#include "RecoBase/SpacePoint.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
-#include "Geometry/Geometry.h"
+#include "lardata/DetectorInfo/DetectorProperties.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
+#include "larcore/Geometry/Geometry.h"
 #include "SimulationBase/MCParticle.h"
-#include "MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTracker.h"
 
 // ROOT & C++
 #include <TTree.h>

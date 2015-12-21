@@ -8,12 +8,12 @@
  *          3D track node. See PmaTrack3D.h file for details.
  */
 
-#include "RecoAlg/PMAlg/PmaTrack3D.h"
-#include "RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 

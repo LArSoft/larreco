@@ -16,7 +16,7 @@
 
 #include <math.h>
 #include <iostream>
-#include "RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
 
 namespace cmtool {
   /**

@@ -18,15 +18,15 @@
 // Panda Headers ----------------------
 
 // This Class' Header ------------------
-#include "Genfit/GeaneTrackRep2.h"
+#include "larreco/Genfit/GeaneTrackRep2.h"
 
 // C/C++ Headers ----------------------
 #include <iostream>
 #include <cmath>
 
 // Collaborating Class Headers --------
-#include "Genfit/GFAbsRecoHit.h"
-#include "Genfit/GFException.h"
+#include "larreco/Genfit/GFAbsRecoHit.h"
+#include "larreco/Genfit/GFException.h"
 #include "TGeant3/TGeant3.h"
 #include "TDatabasePDG.h"
 // Class Member definitions -----------

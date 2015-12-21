@@ -14,14 +14,14 @@
 // ROOT includes
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "MCCheater/BackTracker.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Shower.h"
-#include "RecoBase/SpacePoint.h"
-#include "Utilities/AssociationUtil.h"
-#include "SimpleTypesAndConstants/PhysicalConstants.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Shower.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larcore/SimpleTypesAndConstants/PhysicalConstants.h"
 
 
 // Framework includes

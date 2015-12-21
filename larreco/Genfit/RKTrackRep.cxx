@@ -23,7 +23,7 @@
    (Sergei Gerrassimov @ CERN)
 */
 
-#include "Genfit/RKTrackRep.h"
+#include "larreco/Genfit/RKTrackRep.h"
 #include <iostream>
 #include <memory> // std::unique_ptr
 #include <algorithm> // std::fill
@@ -31,9 +31,9 @@
 #include "math.h"
 #include "TGeoManager.h"
 #include "TDatabasePDG.h"
-#include "Genfit/GFException.h"
-#include "Genfit/GFFieldManager.h"
-#include "Genfit/GFMaterialEffects.h"
+#include "larreco/Genfit/GFException.h"
+#include "larreco/Genfit/GFFieldManager.h"
+#include "larreco/Genfit/GFMaterialEffects.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 

@@ -34,11 +34,11 @@
 #include <vector>
 #include <string>
 
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
-#include "MCBase/MCHitCollection.h"
-#include "HitFinder/HitAnaAlg.h"
-#include "DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/MCBase/MCHitCollection.h"
+#include "larreco/HitFinder/HitAnaAlg.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
 namespace hit {
   class HitAnaModule;

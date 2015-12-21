@@ -1,9 +1,9 @@
 #add_subdirectory(job)
 
-art_make( BASENAME_ONLY
+art_make( 
 	  LIBRARY_NAME     MCComp
           LIB_LIBRARIES    Geometry
-			   Geometry_service
+			   larcore_Geometry_Geometry_service
 			   Simulation
 			   RecoBase
 			   Utilities
@@ -27,7 +27,7 @@ art_make( BASENAME_ONLY
                            ${ROOT_BASIC_LIB_LIST}
           MODULE_LIBRARIES MCComp
 			   Geometry
-			   Geometry_service
+			   larcore_Geometry_Geometry_service
 			   Simulation
 			   ${ART_FRAMEWORK_CORE}
                            ${ART_FRAMEWORK_PRINCIPAL}

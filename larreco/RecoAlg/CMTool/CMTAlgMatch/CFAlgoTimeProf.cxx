@@ -12,7 +12,7 @@
 #include "TMath.h"
 #include "TH1D.h"
 #include "TVirtualFitter.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 namespace cmtool {
 

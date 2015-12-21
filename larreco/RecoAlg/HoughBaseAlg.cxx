@@ -17,7 +17,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 // our header
-#include "RecoAlg/HoughBaseAlg.h"
+#include "larreco/RecoAlg/HoughBaseAlg.h"
 
 
 // C/C++ standard library
@@ -44,21 +44,21 @@
 
 
 // larsoft libraries
-#include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
-#include "Utilities/StatCollector.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
-#include "Utilities/AssociationUtil.h"
-#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
-#include "RecoAlg/ClusterParamsImportWrapper.h"
-#include "CalibrationDBI/Interface/ChannelStatusService.h"
-#include "CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
+#include "lardata/Utilities/StatCollector.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 constexpr double PI = M_PI; // or CLHEP::pi in CLHEP/Units/PhysicalConstants.h
 

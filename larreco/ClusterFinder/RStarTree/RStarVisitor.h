@@ -19,7 +19,7 @@
  #define RSTARVISITOR_H
  
 //#include "RStarBoundingBox.h"
- #include "ClusterFinder/RStarTree/RStarBoundingBox.h"
+ #include "larreco/ClusterFinder/RStarTree/RStarBoundingBox.h"
  
  /**
 	\file

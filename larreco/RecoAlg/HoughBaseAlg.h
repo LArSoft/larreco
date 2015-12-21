@@ -136,8 +136,8 @@
 #include "art/Persistency/Common/Ptr.h" 
 
 #include "art/Persistency/Common/PtrVector.h" 
-#include "Utilities/BulkAllocator.h"
-#include "Utilities/CountersMap.h"
+#include "lardata/Utilities/BulkAllocator.h"
+#include "lardata/Utilities/CountersMap.h"
 
 namespace art { class Event; }
 

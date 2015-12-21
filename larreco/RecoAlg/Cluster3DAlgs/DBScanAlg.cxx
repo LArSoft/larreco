@@ -9,14 +9,14 @@
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
 
-#include "RecoAlg/Cluster3DAlgs/DBScanAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/DBScanAlg.h"
 
 // LArSoft includes
-#include "Utilities/AssociationUtil.h"
-#include "RecoBase/Hit.h"
-#include "RecoObjects/Cluster3D.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoObjects/Cluster3D.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
 
 // std includes
 #include <string>

@@ -15,7 +15,7 @@
 #define RECOTOOL_SHOWERRECOALG_H
 
 #include "ShowerRecoAlgBase.h"
-#include "AnalysisAlg/CalorimetryAlg.h"
+#include "lardata/AnalysisAlg/CalorimetryAlg.h"
 #include "ShowerCalo.h"
 
 namespace showerreco {

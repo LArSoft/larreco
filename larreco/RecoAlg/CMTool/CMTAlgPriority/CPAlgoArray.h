@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CPALGOARRAY_H
 #define RECOTOOL_CPALGOARRAY_H
 
-#include "RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
 
 namespace cmtool {
   /**

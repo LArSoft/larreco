@@ -1,12 +1,12 @@
 
 art_make( LIBRARY_NAME  RecoAlg
-          LIB_LIBRARIES BackTracker_service
+          LIB_LIBRARIES larsim_MCCheater_BackTracker_service
                         RecoBase
                         RecoBaseArt
                         Simulation
                         Filters
                         Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
                         RecoObjects
                         AnalysisBase
 			AnalysisAlg

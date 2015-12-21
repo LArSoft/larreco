@@ -17,9 +17,9 @@
 #ifndef PmaTrack3D_h
 #define PmaTrack3D_h
 
-#include "RecoAlg/PMAlg/PmaHit3D.h"
-#include "RecoAlg/PMAlg/PmaNode3D.h"
-#include "RecoAlg/PMAlg/PmaSegment3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaSegment3D.h"
 
 namespace pma
 {

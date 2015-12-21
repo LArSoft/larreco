@@ -16,7 +16,7 @@
    You should have received a copy of the GNU Lesser General Public License
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "Genfit/GFRecoHitFactory.h"
+#include "larreco/Genfit/GFRecoHitFactory.h"
 
 #include<iostream>
 

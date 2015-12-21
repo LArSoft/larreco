@@ -28,7 +28,7 @@
 #include "TObject.h"
 #include "TVector3.h"
 
-#include "Genfit/GFException.h"
+#include "larreco/Genfit/GFException.h"
 
 /** @brief Track candidate -- a list of cluster indices
  *

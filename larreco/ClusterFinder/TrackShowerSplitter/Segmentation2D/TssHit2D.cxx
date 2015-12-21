@@ -7,12 +7,12 @@
  */
 
 #include "TssHit2D.h"
-#include "RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "DetectorInfo/DetectorProperties.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
+#include "lardata/DetectorInfo/DetectorProperties.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
 
 
 tss::Hit2D::Hit2D(void) :

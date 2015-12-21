@@ -13,8 +13,8 @@
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Persistency/Common/Ptr.h"
 #include "art/Persistency/Common/PtrVector.h"
-#include "ClusterFinder/RStarTree/RStarTree.h"
-#include "Geometry/Geometry.h"
+#include "larreco/ClusterFinder/RStarTree/RStarTree.h"
+#include "larcore/Geometry/Geometry.h"
 
 class TH1F;
 

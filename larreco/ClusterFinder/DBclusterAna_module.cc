@@ -37,17 +37,17 @@
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 //LArSoft includes
-#include "Geometry/Geometry.h"
-#include "Geometry/PlaneGeo.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/PlaneGeo.h"
 #include "SimulationBase/MCTruth.h"
-#include "Simulation/ParticleList.h"
-#include "Simulation/EmEveIdCalculator.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Wire.h"
-#include "RawData/RawDigit.h"
-#include "MCCheater/BackTracker.h"
-#include "Utilities/AssociationUtil.h"
+#include "larsim/Simulation/ParticleList.h"
+#include "larsim/Simulation/EmEveIdCalculator.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RawData/RawDigit.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
 
 #include "art/Framework/Core/EDAnalyzer.h"

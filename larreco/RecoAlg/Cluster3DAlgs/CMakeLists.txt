@@ -1,11 +1,11 @@
 
 art_make( LIBRARY_NAME  Cluster3DAlgs
-          LIB_LIBRARIES HarrisVertexFinder_module
+          LIB_LIBRARIES larreco_VertexFinder_HarrisVertexFinder_module
                         RecoBase
                         Simulation
                         Filters
                         Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
                         RecoObjects
                         AnalysisBase
                         Utilities

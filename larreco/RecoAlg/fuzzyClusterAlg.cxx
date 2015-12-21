@@ -21,11 +21,11 @@
 #include "art/Framework/Principal/Handle.h"
 
 // LArSoft libraries
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Filters/ChannelFilter.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
-#include "RecoAlg/fuzzyClusterAlg.h"
-#include "RecoBase/Hit.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larevt/Filters/ChannelFilter.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larreco/RecoAlg/fuzzyClusterAlg.h"
+#include "lardata/RecoBase/Hit.h"
 
 
 /* Since data for clustering are usually noisy,

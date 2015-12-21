@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CFALGOSTARTPOINTMATCH_H
 #define RECOTOOL_CFALGOSTARTPOINTMATCH_H
 
-#include "RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
 #include <math.h>
 
 namespace cmtool {

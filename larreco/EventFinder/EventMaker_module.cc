@@ -5,10 +5,10 @@
 #include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 
-#include "RecoBase/Event.h"
-#include "RecoBase/Vertex.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/AssociationUtil.h"
+#include "lardata/RecoBase/Event.h"
+#include "lardata/RecoBase/Vertex.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
 namespace event {
   class EventMaker;

@@ -21,7 +21,7 @@
 #include <TLegend.h>
 
 //--- LArSoft include ---//
-#include "Utilities/GeometryUtilities.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 #include "ClusterParams.h"
 #include "CRUException.h"
 

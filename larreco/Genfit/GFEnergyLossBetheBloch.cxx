@@ -17,8 +17,8 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "Genfit/GFEnergyLossBetheBloch.h"
-#include "Genfit/GFException.h"
+#include "larreco/Genfit/GFEnergyLossBetheBloch.h"
+#include "larreco/Genfit/GFException.h"
 #include "math.h"
 
 genf::GFEnergyLossBetheBloch::~GFEnergyLossBetheBloch(){

@@ -15,7 +15,7 @@
 #define RECOTOOL_CBALGOANGLEALIGN_H
 
 #include <iostream>
-#include "RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
 
 namespace cmtool {
   /**

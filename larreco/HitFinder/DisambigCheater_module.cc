@@ -15,16 +15,16 @@
 #include "art/Framework/Core/FindOneP.h"
 #include "art/Framework/Principal/Event.h"
 
-#include "Geometry/Geometry.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Simulation/SimChannel.h"
-#include "RawData/RawDigit.h"
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
-#include "RecoBaseArt/HitCreator.h"
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "MCCheater/BackTracker.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larsim/Simulation/SimChannel.h"
+#include "lardata/RawData/RawDigit.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBaseArt/HitCreator.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larsim/MCCheater/BackTracker.h"
 
 
 namespace hit{

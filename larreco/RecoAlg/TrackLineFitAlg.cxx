@@ -16,7 +16,7 @@ extern "C" {
 #include <iostream>
 #include <iomanip>
 
-#include "RecoAlg/TrackLineFitAlg.h"
+#include "larreco/RecoAlg/TrackLineFitAlg.h"
 
 
 namespace trkf{

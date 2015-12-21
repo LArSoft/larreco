@@ -17,14 +17,14 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "RecoAlg/APAGeometryAlg.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Wire.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
-#include "SimpleTypesAndConstants/geo_types.h"
+#include "larreco/RecoAlg/APAGeometryAlg.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Wire.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
 
 #include <cmath>
 #include <vector>

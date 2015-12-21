@@ -4,7 +4,7 @@ art_make( LIBRARY_NAME  CMTAlgMatch
 			CMToolBase
 			ClusterRecoUtil
 			Geometry
-			Geometry_service
+			larcore_Geometry_Geometry_service
                         Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

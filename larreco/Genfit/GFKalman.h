@@ -25,7 +25,7 @@
 
 #include <map>
 #include <iostream>
-#include "Genfit/GFDetPlane.h"
+#include "larreco/Genfit/GFDetPlane.h"
 
 #include "TMatrixT.h"
 #include "TH1D.h"

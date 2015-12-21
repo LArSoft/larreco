@@ -8,16 +8,16 @@
  */
 
 // The main include
-#include "RecoAlg/Cluster3DAlgs/PCASeedFinderAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/PCASeedFinderAlg.h"
 // Framework Includes
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Seed.h"
-#include "RecoObjects/Cluster3D.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Seed.h"
+#include "lardata/RecoObjects/Cluster3D.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
 
 // ROOT includes
 #include "TTree.h"

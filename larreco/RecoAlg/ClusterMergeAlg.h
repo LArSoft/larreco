@@ -25,11 +25,11 @@
 // LArSoft
 #include "SimulationBase/MCTruth.h"
 #include "SimulationBase/MCParticle.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/SpacePoint.h"
-#include "RecoAlg/SpacePointAlg.h"
-#include "Geometry/Geometry.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "larreco/RecoAlg/SpacePointAlg.h"
+#include "larcore/Geometry/Geometry.h"
 // STL
 #include <set>
 #include <vector>

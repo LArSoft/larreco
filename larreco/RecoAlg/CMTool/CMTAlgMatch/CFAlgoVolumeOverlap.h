@@ -14,9 +14,9 @@
 #ifndef RECOTOOL_CFALGOVOLUMEOVERLAP_H
 #define RECOTOOL_CFALGOVOLUMEOVERLAP_H
 
-#include "RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
 #include <math.h>
-#include "RecoAlg/ClusterRecoUtil/Polygon2D.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/Polygon2D.h"
 
 namespace cmtool {
   /**

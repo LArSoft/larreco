@@ -17,9 +17,9 @@
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "Genfit/GFEnergyLossCoulomb.h"
+#include "larreco/Genfit/GFEnergyLossCoulomb.h"
 #include <string>
-#include "Genfit/GFException.h"
+#include "larreco/Genfit/GFException.h"
 #include "math.h"
 
 genf::GFEnergyLossCoulomb::~GFEnergyLossCoulomb(){

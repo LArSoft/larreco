@@ -18,8 +18,8 @@
 #include <vector>
 
 // LArSoft libraries
-#include "RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
-#include "RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 
 
 

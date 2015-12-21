@@ -13,10 +13,10 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
-#include "RecoBase/Hit.h"
-#include "RecoObjects/Cluster3D.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoObjects/Cluster3D.h"
 
 // std includes
 #include <vector>

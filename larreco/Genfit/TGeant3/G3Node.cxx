@@ -30,7 +30,7 @@ initial import into CVS
 //
 
 
-#include "Genfit/TGeant3/G3Node.h"
+#include "larreco/Genfit/TGeant3/G3Node.h"
 #include "TList.h"
 #include "TShape.h"
 #include "TTUBE.h"

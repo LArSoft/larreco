@@ -17,10 +17,10 @@
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "MCBase/MCHitCollection.h"
-#include "RecoBase/Hit.h"
-#include "Geometry/Geometry.h"
-#include "DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/MCBase/MCHitCollection.h"
+#include "lardata/RecoBase/Hit.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include <TH1D.h>
 #include <TH2D.h>
 #include <TStopwatch.h>

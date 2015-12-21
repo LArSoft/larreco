@@ -7,14 +7,14 @@ art_make_library( LIBRARY_NAME RFFHitFitter
 						     ${Boost_SYSTEM_LIBRARY}
 )
 
-art_make( BASENAME_ONLY
+art_make( 
 	  LIBRARY_NAME  HitFinder
           LIB_LIBRARIES
 			RawData
 			RecoBase 
 			RFFHitFitter
                         Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
 			${ART_PERSISTENCY_COMMON}
 			${ART_PERSISTENCY_PROVENANCE}
 			${ART_UTILITIES}
@@ -23,12 +23,12 @@ art_make( BASENAME_ONLY
                         ${ROOT_BASIC_LIB_LIST}
           MODULE_LIBRARIES 
 	  		HitFinder
-                        BackTracker_service
+                        larsim_MCCheater_BackTracker_service
 			RecoAlg
                         RecoBase
 			MCBase
                         Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
                         Utilities
                         Simulation
                         ${SIMULATIONBASE}

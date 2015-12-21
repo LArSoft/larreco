@@ -22,12 +22,12 @@
 #include "art/Framework/Core/FindOneP.h"
 
 // LArSoft Includes
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Geometry/Geometry.h"
-#include "RawData/RawDigit.h"
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
-#include "RecoBaseArt/HitCreator.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RawData/RawDigit.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBaseArt/HitCreator.h"
 
 namespace hit{
 

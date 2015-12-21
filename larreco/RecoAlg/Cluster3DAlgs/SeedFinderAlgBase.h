@@ -10,8 +10,8 @@
 
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
-#include "RecoBase/Seed.h"
-#include "RecoObjects/Cluster3D.h"
+#include "lardata/RecoBase/Seed.h"
+#include "lardata/RecoObjects/Cluster3D.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 

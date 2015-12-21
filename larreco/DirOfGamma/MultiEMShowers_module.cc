@@ -18,23 +18,23 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "Utilities/AssociationUtil.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
-#include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Vertex.h"
-#include "RecoBase/Track.h"
-#include "RecoBase/SpacePoint.h"
-#include "RecoBase/Shower.h"
-#include "MCCheater/BackTracker.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Vertex.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/RecoBase/Shower.h"
+#include "larsim/MCCheater/BackTracker.h"
 
-#include "RecoAlg/ProjectionMatchingAlg.h"
-#include "RecoAlg/PMAlg/PmaTrack3D.h"
-#include "RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/ProjectionMatchingAlg.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include <memory>
 
-#include "DirOfGamma/DirOfGamma.h"
+#include "larreco/DirOfGamma/DirOfGamma.h"
 
 // ROOT includes
 #include "TTree.h"

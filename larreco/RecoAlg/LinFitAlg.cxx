@@ -13,7 +13,7 @@ extern "C" {
 #include <sys/stat.h>
 }
 
-#include "RecoAlg/LinFitAlg.h"
+#include "larreco/RecoAlg/LinFitAlg.h"
 
 
 namespace trkf{

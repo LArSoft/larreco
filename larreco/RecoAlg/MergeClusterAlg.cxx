@@ -10,7 +10,7 @@
 // M Wallbank (m.wallbank@sheffield.ac.uk), July 2015
 ////////////////////////////////////////////////////////////////////
 
-#include "RecoAlg/MergeClusterAlg.h"
+#include "larreco/RecoAlg/MergeClusterAlg.h"
 
 cluster::MergeClusterAlg::MergeClusterAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset);

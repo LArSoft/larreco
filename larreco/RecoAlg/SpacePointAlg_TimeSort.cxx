@@ -15,17 +15,17 @@
  *
  * This code is totally microboone specific, btw.
  */
-#include "RecoAlg/SpacePointAlg_TimeSort.h"
+#include "larreco/RecoAlg/SpacePointAlg_TimeSort.h"
 
 #include <math.h>
 
 // LArSoft Includes
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Geometry/Geometry.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/SpacePoint.h"
-#include "Utilities/AssociationUtil.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/Utilities/AssociationUtil.h"
 #include "art/Persistency/Common/Ptr.h"
 
 //boost includes

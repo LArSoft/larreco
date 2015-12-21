@@ -9,10 +9,10 @@
 // M Wallbank (m.wallbank@sheffield.ac.uk), May 2015
 ////////////////////////////////////////////////////////////////////
 
-#include "RecoAlg/BlurredClusteringAlg.h"
+#include "larreco/RecoAlg/BlurredClusteringAlg.h"
 
-#include "CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
-#include "DetectorInfoServices/DetectorPropertiesService.h"
+#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset); 

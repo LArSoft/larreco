@@ -15,8 +15,8 @@
 #define RECOTOOL_CBALGOSTARTINCONE_H
 
 #include <iostream>
-#include "RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
-#include "Utilities/GeometryUtilities.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 #include <math.h>
 
 namespace cmtool {

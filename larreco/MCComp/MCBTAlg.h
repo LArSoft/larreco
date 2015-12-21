@@ -21,9 +21,9 @@
 //#include "DataFormat/simch.h"
 //#include "LArUtil/TimeService.h"
 //#include "LArUtil/Geometry.h"
-#include "Simulation/SimChannel.h"
-#include "DetectorInfoServices/DetectorClocksService.h"
-#include "Geometry/Geometry.h"
+#include "larsim/Simulation/SimChannel.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "larcore/Geometry/Geometry.h"
 #include "MCBTAlgConstants.h"
 #include "MCBTException.h"
 /**

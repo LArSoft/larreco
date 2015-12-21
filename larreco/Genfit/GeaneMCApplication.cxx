@@ -1,4 +1,4 @@
-#include "Genfit/GeaneMCApplication.h"
+#include "larreco/Genfit/GeaneMCApplication.h"
 #include "TVirtualMC.h"
 #include "TSystem.h"
 #include"GFFieldManager.h"

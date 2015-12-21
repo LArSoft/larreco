@@ -12,7 +12,7 @@
 
 
 // class header
-#include "RecoAlg/CCHitFinderAlg.h"
+#include "larreco/RecoAlg/CCHitFinderAlg.h"
 
 // C/C++ standard libraries
 #include <cmath> // std::sqrt(), std::abs()
@@ -28,14 +28,14 @@
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft Includes
-#include "SimpleTypesAndConstants/RawTypes.h"
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Utilities/SimpleFits.h" // lar::util::GaussianFit<>
-#include "CalibrationDBI/Interface/ChannelStatusService.h"
-#include "CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larcore/SimpleTypesAndConstants/RawTypes.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "lardata/Utilities/SimpleFits.h" // lar::util::GaussianFit<>
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 // ROOT Includes
 #include "TGraph.h"

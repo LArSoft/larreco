@@ -34,7 +34,7 @@
 
 #include "TClonesArray.h"
 
-#include "Genfit/GFException.h"
+#include "larreco/Genfit/GFException.h"
 
 class GFAbsRecoHit;
 

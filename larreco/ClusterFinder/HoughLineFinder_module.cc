@@ -54,11 +54,11 @@ extern "C" {
 #include "artextensions/SeedService/SeedService.hh"
 
 // LArSoft includes 
-#include "RawData/RawDigit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/AssociationUtil.h"
-#include "RecoAlg/HoughBaseAlg.h"
+#include "lardata/RawData/RawDigit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larreco/RecoAlg/HoughBaseAlg.h"
 #include "art/Framework/Core/EDProducer.h"
 
 //#ifndef CLUSTER_HOUGHLINEFINDER_H

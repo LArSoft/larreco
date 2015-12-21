@@ -22,21 +22,21 @@
 #include "art/Utilities/InputTag.h"
 
 //LArSoft
-#include "Geometry/Geometry.h"
-#include "Filters/ChannelFilter.h"
-#include "Utilities/LArFFT.h"
-#include "RawData/RawDigit.h"
-#include "RawData/raw.h"
-#include "RecoBase/Hit.h"
-#include "RecoBaseArt/HitCreator.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larevt/Filters/ChannelFilter.h"
+#include "lardata/Utilities/LArFFT.h"
+#include "lardata/RawData/RawDigit.h"
+#include "lardata/RawData/raw.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBaseArt/HitCreator.h"
 
 //LArSoft From FFT
 
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
 
 //ROOT from CalData
 

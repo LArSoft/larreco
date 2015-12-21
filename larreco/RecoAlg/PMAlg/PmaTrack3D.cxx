@@ -9,9 +9,9 @@
  *          See PmaTrack3D.h file for details.
  */
 
-#include "RecoAlg/PMAlg/PmaTrack3D.h"
-#include "RecoAlg/PMAlg/Utilities.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 

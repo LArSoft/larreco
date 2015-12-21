@@ -28,13 +28,13 @@
 #include "art/Framework/Core/EDProducer.h" 
 
 // LArSoft Includes
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Geometry/Geometry.h"
-#include "Utilities/AssociationUtil.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/SpacePoint.h"
-#include "Utilities/AssociationUtil.h"
-#include "RecoAlg/SpacePointAlg_TimeSort.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larreco/RecoAlg/SpacePointAlg_TimeSort.h"
 
 namespace sppt{
 

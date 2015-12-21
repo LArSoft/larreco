@@ -10,14 +10,14 @@
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
 
-#include "RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
-#include "RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/SeedFinderAlgBase.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
+#include "larcore/Geometry/Geometry.h"
 //#include "DetectorInfoServices/DetectorPropertiesService.h"
-#include "RecoBase/Seed.h"
-#include "RecoObjects/Cluster3D.h"
+#include "lardata/RecoBase/Seed.h"
+#include "lardata/RecoObjects/Cluster3D.h"
 
 // ROOT includes
 #include "TCanvas.h"

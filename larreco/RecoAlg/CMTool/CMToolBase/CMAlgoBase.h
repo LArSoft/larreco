@@ -15,7 +15,7 @@
 #define RECOTOOL_CMALGOBASE_H
 
 #include <iostream>
-#include "RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include "TFile.h"
 
 namespace cmtool {

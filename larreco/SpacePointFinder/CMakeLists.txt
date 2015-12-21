@@ -1,12 +1,12 @@
 
 include_directories ( $ENV{G4INCLUDE} )
 
-art_make( BASENAME_ONLY 
+art_make(  
           MODULE_LIBRARIES  RecoAlg
 			    RecoObjects
 			    RecoBase
 			    Geometry
-			    Geometry_service
+			    larcore_Geometry_Geometry_service
 			    Utilities
 			    ${MAGNETICFIELD_SERVICE}
 			    ${SIMULATIONBASE}

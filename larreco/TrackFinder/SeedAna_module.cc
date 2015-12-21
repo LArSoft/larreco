@@ -27,11 +27,11 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
 
-#include "DetectorInfoServices/DetectorPropertiesService.h"
-#include "Geometry/Geometry.h"
-#include "RecoBase/Seed.h"
-#include "MCCheater/BackTracker.h"
-#include "MCBase/MCTrack.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/Seed.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "lardata/MCBase/MCTrack.h"
  
 #include "TH2F.h"
 #include "TFile.h"

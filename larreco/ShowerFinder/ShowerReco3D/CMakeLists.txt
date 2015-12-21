@@ -35,11 +35,11 @@ art_make(
 	  		   MCBase
 	  		   ShowerReco3D
 	  		   RecoAlg
-                           BackTracker_service
+                           larsim_MCCheater_BackTracker_service
                            Filters
                            RecoBase
                            Geometry
-                           Geometry_service
+                           larcore_Geometry_Geometry_service
                            ${SIMULATIONBASE}
                            ${ART_FRAMEWORK_CORE}
 			   ${ART_FRAMEWORK_PRINCIPAL}

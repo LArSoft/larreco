@@ -16,7 +16,7 @@
 
 
 // LArSoft libraries
-#include "Utilities/Dereference.h" // util::make_pointer()
+#include "lardata/Utilities/Dereference.h" // util::make_pointer()
 
 /// Cluster reconstruction namespace
 namespace cluster {

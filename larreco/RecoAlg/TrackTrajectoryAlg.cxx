@@ -16,7 +16,7 @@ extern "C" {
 #include <iostream>
 #include <iomanip>
 
-#include "RecoAlg/TrackTrajectoryAlg.h"
+#include "larreco/RecoAlg/TrackTrajectoryAlg.h"
 //#include "messagefacility/MessageLogger/MessageLogger.h" 
 
 namespace trkf{

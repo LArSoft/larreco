@@ -1,6 +1,6 @@
 #include <iostream>
-#include "Genfit/TGeant3/TGeant3.h"
-#include "Genfit/TGeant3/TCallf77.h" 
+#include "larreco/Genfit/TGeant3/TGeant3.h"
+#include "larreco/Genfit/TGeant3/TCallf77.h" 
 #include "TLorentzVector.h"
 #include "TClonesArray.h"
 #include "TParticle.h"

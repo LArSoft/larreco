@@ -1,5 +1,5 @@
 
-art_make( BASENAME_ONLY
+art_make( 
           LIBRARY_NAME ClusterFinder
           LIB_LIBRARIES Geometry
                         RecoBase
@@ -8,11 +8,11 @@ art_make( BASENAME_ONLY
                            Cluster3DAlgs
                            ClusterRecoUtil
                            ClusterFinder
-                           BackTracker_service
+                           larsim_MCCheater_BackTracker_service
                            Filters
                            RecoBase
                            Geometry
-                           Geometry_service
+                           larcore_Geometry_Geometry_service
                            SeedService_service # artextensions
                            ${SIMULATIONBASE}
                            ${ART_FRAMEWORK_CORE}

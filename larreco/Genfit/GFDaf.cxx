@@ -26,18 +26,18 @@
  */
 
 
-#include "Genfit/GFDaf.h"
-#include "Genfit/GFException.h"
+#include "larreco/Genfit/GFDaf.h"
+#include "larreco/Genfit/GFException.h"
 
 #include "TMath.h"
 #include "math.h"
 
-#include "Genfit/GFTrack.h"
-#include "Genfit/GFAbsRecoHit.h"
-#include "Genfit/GFAbsTrackRep.h"
-#include "Genfit/GFException.h"
-#include "Genfit/GFAbsRecoHit.h"
-#include "Genfit/GFAbsTrackRep.h"
+#include "larreco/Genfit/GFTrack.h"
+#include "larreco/Genfit/GFAbsRecoHit.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
+#include "larreco/Genfit/GFException.h"
+#include "larreco/Genfit/GFAbsRecoHit.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
   
 #define COVEXC "cov_is_zero"
 

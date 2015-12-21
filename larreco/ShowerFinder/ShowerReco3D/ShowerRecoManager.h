@@ -15,7 +15,7 @@
 #define LARLITE_SHOWERRECOMANAGER_H
 
 #include <iostream>
-#include "RecoAlg/CMTool/CMToolBase/CMatchManager.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMatchManager.h"
 #include "ShowerRecoException.h"
 #include "ShowerRecoAlgBase.h"
 

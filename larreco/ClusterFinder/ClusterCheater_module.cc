@@ -16,17 +16,17 @@
 #include "TStopwatch.h"
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "MCCheater/BackTracker.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Utilities/AssociationUtil.h"
-#include "Simulation/EmEveIdCalculator.h"
-#include "Utilities/GeometryUtilities.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larsim/Simulation/EmEveIdCalculator.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 
 
 // Framework includes
@@ -39,9 +39,9 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
-#include "ClusterFinder/ClusterCreator.h"
-#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
-#include "RecoAlg/ClusterParamsImportWrapper.h"
+#include "larreco/ClusterFinder/ClusterCreator.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
 
 namespace cluster {
   class ClusterCheater : public art::EDProducer {

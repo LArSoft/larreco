@@ -45,15 +45,15 @@ extern "C" {
 #include <vector>
 #include <string>
 
-#include "DetectorInfoServices/DetectorPropertiesService.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/EndPoint2D.h"
-#include "RecoBase/Hit.h"
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Utilities/AssociationUtil.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/EndPoint2D.h"
+#include "lardata/RecoBase/Hit.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
 #include "TMath.h"
 #include "TH2.h"

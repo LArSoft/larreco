@@ -36,14 +36,14 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "MCCheater/BackTracker.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "SimulationBase/MCParticle.h"
-#include "Simulation/ParticleList.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/LArFFT.h"
+#include "larsim/Simulation/ParticleList.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/LArFFT.h"
 
 #include "TComplex.h"
 #include "TString.h"

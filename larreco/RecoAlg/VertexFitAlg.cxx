@@ -18,7 +18,7 @@ extern "C" {
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "RecoAlg/VertexFitAlg.h"
+#include "larreco/RecoAlg/VertexFitAlg.h"
 
 
 namespace trkf{

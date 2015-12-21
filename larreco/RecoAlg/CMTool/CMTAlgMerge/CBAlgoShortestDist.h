@@ -15,9 +15,9 @@
 #define RECOTOOL_CBALGOSHORTESTDIST_H
 
 #include <iostream>
-#include "RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
 //#include "Utilities/GeometryUtilities.h"
-#include "Utilities/GeometryUtilities.h"
+#include "lardata/Utilities/GeometryUtilities.h"
 
 namespace cmtool {
   /**

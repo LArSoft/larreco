@@ -2,7 +2,7 @@
 // 
 // \author sowjanyag@phys.ksu.edu  
 
-#include "RecoAlg/TrackMomentumCalculator.h"
+#include "larreco/RecoAlg/TrackMomentumCalculator.h"
 
 double my_mcs_chi2( const double *x ) 
 {

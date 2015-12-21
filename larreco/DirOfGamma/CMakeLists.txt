@@ -1,8 +1,8 @@
 
-art_make( BASENAME_ONLY
+art_make( 
           LIBRARY_NAME  DirOfGamma
           LIB_LIBRARIES Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
                         Simulation
                         RawData
                         RecoBase
@@ -27,11 +27,11 @@ art_make( BASENAME_ONLY
 	  MODULE_LIBRARIES RecoAlg
 			   PMAlg
 			   DirOfGamma
-			   BackTracker_service
+			   larsim_MCCheater_BackTracker_service
       			   RecoBase
 			   Simulation
 			   Geometry
-	    		   Geometry_service
+	    		   larcore_Geometry_Geometry_service
       			   Utilities
 			   ${SIMULATIONBASE}
 			   ${ART_FRAMEWORK_CORE}

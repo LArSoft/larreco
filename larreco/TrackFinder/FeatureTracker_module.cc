@@ -15,15 +15,15 @@
 //
 
 #include "art/Framework/Core/EDProducer.h"
-#include "RecoAlg/SeedFinderAlgorithm.h"
+#include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "TVector3.h"
-#include "Geometry/CryostatGeo.h"
-#include "RecoBase/EndPoint2D.h"
-#include "RecoBase/Wire.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "lardata/RecoBase/EndPoint2D.h"
+#include "lardata/RecoBase/Wire.h"
 
-#include "RecoAlg/CornerFinderAlg.h"
-#include "RecoAlg/SpacePointAlg.h"
-#include "RecoObjects/BezierTrack.h"
+#include "larreco/RecoAlg/CornerFinderAlg.h"
+#include "larreco/RecoAlg/SpacePointAlg.h"
+#include "lardata/RecoObjects/BezierTrack.h"
 
 namespace recob
 {
@@ -110,16 +110,16 @@ namespace trkf {
 
 #include <vector>
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "Geometry/Geometry.h"
-#include "Geometry/TPCGeo.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/TPCGeo.h"
 
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "RecoBase/Hit.h"
-#include "RecoBase/Seed.h"
-#include "RecoBase/SpacePoint.h"
-#include "Utilities/AssociationUtil.h"
-#include "DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Seed.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 
 

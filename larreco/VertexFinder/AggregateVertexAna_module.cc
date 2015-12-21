@@ -31,11 +31,11 @@ extern "C" {
 #include <vector>
 #include <string>
 
-#include "RecoBase/Track.h"
-#include "RecoBase/Vertex.h"
-#include "RecoBase/EndPoint2D.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/AssociationUtil.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/Vertex.h"
+#include "lardata/RecoBase/EndPoint2D.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
 #include "TF1.h"
 #include "TH1.h"

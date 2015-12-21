@@ -1,14 +1,14 @@
 
 include_directories ( $ENV{G4INCLUDE} )
 
-art_make( BASENAME_ONLY 
+art_make(  
           EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc
           MODULE_LIBRARIES  RecoAlg
 			    Simulation
 			    RecoObjects
 			    RecoBase
 			    Geometry
-			    Geometry_service
+			    larcore_Geometry_Geometry_service
 			    AnalysisAlg
 			    AnalysisBase
 			    Utilities
@@ -39,7 +39,7 @@ simple_plugin( Track3DKalman "module"
 			 RecoObjects
 			 RecoBase
 			 Geometry
-			 Geometry_service
+			 larcore_Geometry_Geometry_service
 			 AnalysisAlg
 			 AnalysisBase
 			 Utilities
@@ -59,7 +59,7 @@ simple_plugin( Track3DKalman "module"
 			 ${MF_UTILITIES}
 			 ${FHICLCPP}
 			 ${CETLIB}
-	   BASENAME_ONLY
+	   
         )
 
 simple_plugin( Track3DKalmanSPS "module"
@@ -69,7 +69,7 @@ simple_plugin( Track3DKalmanSPS "module"
 			 RecoObjects
 			 RecoBase
 			 Geometry
-			 Geometry_service
+			 larcore_Geometry_Geometry_service
 			 AnalysisAlg
 			 AnalysisBase
 			 Utilities
@@ -88,7 +88,7 @@ simple_plugin( Track3DKalmanSPS "module"
 			 ${MF_UTILITIES}
 			 ${FHICLCPP}
 			 ${CETLIB}
- 	   BASENAME_ONLY
+ 	   
        )
 
 
@@ -101,7 +101,7 @@ simple_plugin( DumpTracks "module"
                ${FHICLCPP}
                ${CETLIB}
                ${ROOT_BASIC_LIB_LIST}
-               BASENAME_ONLY
+               
         )
 
 

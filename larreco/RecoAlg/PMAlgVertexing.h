@@ -12,8 +12,8 @@
 #ifndef PMAlgVertexing_h
 #define PMAlgVertexing_h
 
-#include "RecoAlg/PMAlg/PmaTrack3D.h"
-#include "RecoAlg/PMAlg/PmaVtxCandidate.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaVtxCandidate.h"
 
 // ROOT & C++
 #include <memory>

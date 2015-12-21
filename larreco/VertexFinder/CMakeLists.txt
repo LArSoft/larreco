@@ -1,12 +1,12 @@
 
-art_make( BASENAME_ONLY
+art_make( 
           EXCLUDE FeatureVertexFinder_module.cc CornerFinder_module.cc
           MODULE_LIBRARIES 
-                        BackTracker_service
+                        larsim_MCCheater_BackTracker_service
                         Filters
                         RecoBase
                         Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
                         Utilities
                         Simulation
                         ${SIMULATIONBASE}
@@ -28,11 +28,11 @@ art_make( BASENAME_ONLY
 
 simple_plugin ( FeatureVertexFinder "module"
                         RecoAlg
-                        BackTracker_service
+                        larsim_MCCheater_BackTracker_service
                         Filters
                         RecoBase
                         Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
                         Utilities
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
@@ -48,7 +48,7 @@ simple_plugin ( FeatureVertexFinder "module"
 	                ${FHICLCPP}
 			${CETLIB}
 			${ROOT_BASIC_LIB_LIST}
-                BASENAME_ONLY 
+                 
               )
 
 simple_plugin ( CornerFinder "module"
@@ -68,7 +68,7 @@ simple_plugin ( CornerFinder "module"
 	                ${FHICLCPP}
 			${CETLIB}
 			${ROOT_BASIC_LIB_LIST}
-                BASENAME_ONLY 
+                 
               )
  
 install_headers()

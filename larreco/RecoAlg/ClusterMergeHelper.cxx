@@ -8,7 +8,7 @@
 #define CLUSTERMERGEHELPER_CXX
 
 #include "ClusterMergeHelper.h"
-#include "RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
 
 namespace cluster{
   

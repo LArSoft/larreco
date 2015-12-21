@@ -3,7 +3,7 @@ art_make( LIBRARY_NAME  Segmentation2D
                         RecoAlg
                         Filters
                         Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
                         RecoObjects
                         AnalysisBase
 #                         LArProperties_service

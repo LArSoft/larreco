@@ -25,25 +25,25 @@
 #include <limits> // std::numeric_limits<>
 
 //LArSoft includes
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "RawData/RawDigit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/EndPoint2D.h"
-#include "RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
-#include "RecoBase/Vertex.h"
-#include "Utilities/AssociationUtil.h"
-#include "Utilities/MakeIndex.h"
-#include "RecoAlg/CCHitFinderAlg.h"
-#include "RecoAlg/ClusterCrawlerAlg.h"
-#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
-#include "RecoAlg/ClusterParamsImportWrapper.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "lardata/RawData/RawDigit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/EndPoint2D.h"
+#include "lardata/RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
+#include "lardata/RecoBase/Vertex.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/Utilities/MakeIndex.h"
+#include "larreco/RecoAlg/CCHitFinderAlg.h"
+#include "larreco/RecoAlg/ClusterCrawlerAlg.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
 
 
 namespace cluster {

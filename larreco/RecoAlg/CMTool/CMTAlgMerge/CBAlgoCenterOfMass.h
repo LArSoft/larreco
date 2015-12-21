@@ -15,7 +15,7 @@
 #define RECOTOOL_CBALGOCENTEROFMASS_H
 
 #include <iostream>
-#include "RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CBoolAlgoBase.h"
 #include <math.h>
 
 namespace cmtool {

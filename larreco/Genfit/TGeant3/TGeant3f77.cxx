@@ -22,9 +22,9 @@
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "Genfit/TGeant3/TGeant3f77.h" 
+#include "larreco/Genfit/TGeant3/TGeant3f77.h" 
 
-#include "Genfit/TGeant3/TCallf77.h" 
+#include "larreco/Genfit/TGeant3/TCallf77.h" 
 
 
 #ifndef WIN32 

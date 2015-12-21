@@ -22,11 +22,11 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "DetectorInfoServices/DetectorPropertiesService.h"
-#include "RecoAlg/DBScanAlg.h"
-#include "RecoBase/Hit.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larreco/RecoAlg/DBScanAlg.h"
+#include "lardata/RecoBase/Hit.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
 
 #include <cmath>
 #include <iostream>

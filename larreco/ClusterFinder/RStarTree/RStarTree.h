@@ -41,7 +41,7 @@
 #include <fstream>
 
 //#include "RStarBoundingBox.h"
-#include "ClusterFinder/RStarTree/RStarBoundingBox.h"
+#include "larreco/ClusterFinder/RStarTree/RStarBoundingBox.h"
 
 // R* tree parameters
 #define RTREE_REINSERT_P 0.30
@@ -67,7 +67,7 @@ struct RStarNode : BoundedItem {
 };
 
 //#include "RStarVisitor.h"
-#include "ClusterFinder/RStarTree/RStarVisitor.h"
+#include "larreco/ClusterFinder/RStarTree/RStarVisitor.h"
 
 
 /**

@@ -12,7 +12,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 
-#include "RecoAlg/StitchAlg.h"
+#include "larreco/RecoAlg/StitchAlg.h"
 
 // C/C++ standard libraries
 #include <time.h>
@@ -30,7 +30,7 @@
 #include "art/Persistency/Common/PtrVector.h"
 
 // LArSoft libraries
-#include "SimpleTypesAndConstants/geo_types.h" // geo::kZ
+#include "larcore/SimpleTypesAndConstants/geo_types.h" // geo::kZ
 
 
 trkf::StitchAlg::StitchAlg(fhicl::ParameterSet const& pset) 

@@ -6,8 +6,8 @@
 //
 // by Rene Brun 30/12/2002
 
-#include "Genfit/TGeant3/TG3Application.h"
-#include "Genfit/TGeant3/TGeant3f77.h"
+#include "larreco/Genfit/TGeant3/TG3Application.h"
+#include "larreco/Genfit/TGeant3/TGeant3f77.h"
 //#include "TG3Stack.h"
 
 #include <TROOT.h>

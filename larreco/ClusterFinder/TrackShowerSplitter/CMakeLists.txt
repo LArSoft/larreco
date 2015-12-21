@@ -6,7 +6,7 @@ simple_plugin(TrackShowerHits   "module"
 			RecoAlg
 			Segmentation2D
 		 	Geometry
-			Geometry_service
+			larcore_Geometry_Geometry_service
 			Utilities
                ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -20,7 +20,7 @@ simple_plugin(TrackShowerHits   "module"
 			${MF_UTILITIES}
 			${CETLIB}
 			${ROOT_BASIC_LIB_LIST}
-              BASENAME_ONLY
+              
 )
 
 install_headers()

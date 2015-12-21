@@ -9,7 +9,7 @@
  *          See PmaTrack3D.h file for details.
  */
 
-#include "RecoAlg/PMAlg/SortedObjects.h"
+#include "larreco/RecoAlg/PMAlg/SortedObjects.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 

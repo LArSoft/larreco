@@ -2,15 +2,15 @@
 add_subdirectory(ShowerReco3D)
 add_subdirectory(job)
 
-art_make( BASENAME_ONLY
+art_make( 
 #          EXCLUDE ShowerSelectorFilter_module.cc
           MODULE_LIBRARIES 
 			RecoAlg
-                        BackTracker_service
+                        larsim_MCCheater_BackTracker_service
                         AnalysisBase
                         RecoBase
                         Geometry
-                        Geometry_service
+                        larcore_Geometry_Geometry_service
                         AnalysisAlg
                         AnalysisBase
                         Simulation
@@ -36,7 +36,7 @@ art_make( BASENAME_ONLY
 # 			  RecoAlg
 # 		    	  RawData
 # 			  ${SIMULATIONBASE}
-#               BASENAME_ONLY 
+#                
 # 	     )     
 
 install_headers()
