@@ -1274,8 +1274,15 @@ TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, geo
 
   double pointPosition[3] = {point.X(), point.Y(), point.Z()};
 
-  TVector2 wireTickPos = TVector2(fGeom->WireCoordinate(point.Y(), point.Z(), planeID.Plane, fGeom->FindTPCAtPosition(pointPosition).TPC % 2, 0),
-				  fDetProp->ConvertXToTicks(point.X(), planeID.Plane, fGeom->FindTPCAtPosition(pointPosition).TPC % 2, 0));
+  geo::TPCID tpcID = fGeom->FindTPCAtPosition(pointPosition);
+  int tpc = 0;
+  if (tpcID.isValid)
+    tpc = tpcID.TPC;
+  else
+    tpc = 0;
+
+  TVector2 wireTickPos = TVector2(fGeom->WireCoordinate(point.Y(), point.Z(), planeID.Plane, tpc % 2, 0),
+				  fDetProp->ConvertXToTicks(point.X(), planeID.Plane, tpc % 2, 0));
 
   //return wireTickPos;
   return HitPosition(wireTickPos, planeID);
