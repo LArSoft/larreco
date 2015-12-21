@@ -87,8 +87,8 @@ void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
   fHitsModuleLabel    = p.get<std::string>("HitsModuleLabel");
   fClusterModuleLabel = p.get<std::string>("ClusterModuleLabel");
   fTrackModuleLabel   = p.get<std::string>("TrackModuleLabel");
-  fShower = p.get<int>("Shower");
-  fPlane = p.get<int>("Plane");
+  fShower = p.get<int>("Shower",-1);
+  fPlane = p.get<int>("Plane",-1);
 }
 
 void shower::EMShower::produce(art::Event& evt) {

@@ -622,24 +622,23 @@ std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::FindShowe
 
     // Quality check -- make sure there isn't a single hit in a different TPC (artefact of tracking failure)
     std::vector<art::Ptr<recob::Hit> > newInitialHits;
-    if (initialHits.size() > 1) {
-      std::map<int,int> tpcHitMap;
-      std::vector<int> singleHitTPCs;
-      for (std::vector<art::Ptr<recob::Hit> >::iterator initialHitIt = initialHits.begin(); initialHitIt != initialHits.end(); ++initialHitIt)
-	++tpcHitMap[(*initialHitIt)->WireID().TPC];
-      for (std::map<int,int>::iterator tpcIt = tpcHitMap.begin(); tpcIt != tpcHitMap.end(); ++tpcIt)
-	if (tpcIt->second == 1) singleHitTPCs.push_back(tpcIt->first);
-      if (singleHitTPCs.size()) {
+    std::map<int,int> tpcHitMap;
+    std::vector<int> singleHitTPCs;
+    for (std::vector<art::Ptr<recob::Hit> >::iterator initialHitIt = initialHits.begin(); initialHitIt != initialHits.end(); ++initialHitIt)
+      ++tpcHitMap[(*initialHitIt)->WireID().TPC];
+    for (std::map<int,int>::iterator tpcIt = tpcHitMap.begin(); tpcIt != tpcHitMap.end(); ++tpcIt)
+      if (tpcIt->second == 1) singleHitTPCs.push_back(tpcIt->first);
+    if (singleHitTPCs.size()) {
+      if (debug)
 	for (std::vector<int>::iterator tpcIt = singleHitTPCs.begin(); tpcIt != singleHitTPCs.end(); ++tpcIt)
-	  std::cout << *tpcIt << std::endl;
-	for (std::vector<art::Ptr<recob::Hit> >::iterator initialHitIt = initialHits.begin(); initialHitIt != initialHits.end(); ++initialHitIt)
-	  if (std::find(singleHitTPCs.begin(), singleHitTPCs.end(), (*initialHitIt)->WireID().TPC) == singleHitTPCs.end())
-	    newInitialHits.push_back(*initialHitIt);
-      }
-      else
-	newInitialHits = initialHits;
+	  std::cout << "Removed hits in TPC " << *tpcIt << std::endl;
+      for (std::vector<art::Ptr<recob::Hit> >::iterator initialHitIt = initialHits.begin(); initialHitIt != initialHits.end(); ++initialHitIt)
+	if (std::find(singleHitTPCs.begin(), singleHitTPCs.end(), (*initialHitIt)->WireID().TPC) == singleHitTPCs.end())
+	  newInitialHits.push_back(*initialHitIt);
+      if (!newInitialHits.size()) newInitialHits.push_back(*orderedShower.begin());
     }
-    else newInitialHits = initialHits;
+    else
+      newInitialHits = initialHits;
 
     initialHitsMap[orderedShowerIt->first] = newInitialHits;
 
@@ -808,8 +807,8 @@ std::vector<int> shower::EMShowerAlg::IdentifyBadPlanes(std::map<int,std::vector
       if (std::find(isolations.begin(), isolations.end(), plane) == isolations.end())
 	otherPlane = plane;
     if (goodnessOfOrderMap.size()) {
-      if (goodnessOfOrderMap.at(*lowAverage.begin()) > 0.75 and
-	  ( ((goodnessOfOrderMap.at(*highAverage.begin()) + goodnessOfOrderMap.at(*highAverage.rbegin())) / (double)2) < 0.55 ) )
+      if (goodnessOfOrderMap.at(otherPlane) > 0.75 and
+	  ( ((goodnessOfOrderMap.at(isolations.at(0)) + goodnessOfOrderMap.at(isolations.at(1))) / (double)2) < 0.55 ) )
 	badPlanes = isolations;
       else
 	badPlanes.push_back(otherPlane);
