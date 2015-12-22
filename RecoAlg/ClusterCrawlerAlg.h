@@ -163,6 +163,7 @@ namespace cluster {
     std::vector<float> fMergeChgCut;  ///< max charge ratio for matching
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
     std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
+    short fMaxTrajPointsFit;      /// max hits for step crawling (0 to turn off)
 		bool fFindHammerClusters;					 ///< look for hammer type clusters
     bool fFindVLAClusters;					 ///< look for Very Large Angle clusters
     bool fRefineVertexClusters;
@@ -200,6 +201,7 @@ namespace cluster {
     float clparerr[2];  ///< cluster parameter errors
     float clChisq;     ///< chisq of the current fit
     float fAveChg;  ///< average charge at leading edge of cluster
+    float fAveRMS;  ///< used by StepCrawl
     float fChgSlp;  ///< slope of the  charge vs wire
     float fAveHitWidth; ///< average width (EndTick - StartTick) of hits
     
@@ -291,14 +293,18 @@ namespace cluster {
     
     // struct for step crawling
     struct TrajPoint {
-      std::array<float, 2> Pos; // Position in wire equivalent units
+      std::array<float, 2> HitPos; // Charge weighted position of hits in wire equivalent units
+      std::array<float, 2> Pos; // Trajectory position in wire equivalent units
       std::array<float, 2> Dir; // likewise
+      float Ang;                // the angle
       float AngErr;             // direction error (radians)
       float Chg;
+      float Delta;              // deviation^2 between trajectory and hits
     };
     std::vector<TrajPoint> traj;
     
     void ReverseTraj();
+    void UpdateTraj(bool& success);
 
     // hit multiplets that have been saved before merging.
     std::vector<recob::Hit> unMergedHits;
@@ -316,6 +322,8 @@ namespace cluster {
 
     // Loops over wires looking for seed clusters
     void ClusterLoop();
+    // testing
+    void ClusterLoop2();
     // Returns true if the hits on a cluster have a consistent width
     bool ClusterHitsOK(short nHitChk);
     // Finds a hit on wire kwire, adds it to the cluster and re-fits it
@@ -336,7 +344,8 @@ namespace cluster {
     void LACrawlUS();
     // Crawls starting at position pos, moving in direction dir with step size step
     // appending hits to fcl2hits
-    void StepCrawl(float step);
+    bool StepCrawl(float step);
+    void GetStepCrawlWindow(TrajPoint& tp, unsigned int& loWire, unsigned int& hiWire, float& loTime, float& hiTime);
 
     // ************** cluster merging routines *******************
 
@@ -371,10 +380,6 @@ namespace cluster {
     
     // Find Very Large Angle clusters
     void FindVLAClusters();
-    
-    // Make VLA cluster using hits in fc2lhits
-//    void MakeVLACluster();
-//    void FitVLACluster(short nHitsFit);
     
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);

@@ -65,7 +65,9 @@ namespace cluster {
     fMergeChgCut        = pset.get< std::vector<float> >("MergeChgCut");
     fFindVertices       = pset.get< std::vector<bool>  >("FindVertices");
     fLACrawl            = pset.get< std::vector<bool>  >("LACrawl");
-		
+
+    fMaxTrajPointsFit   = pset.get< short >("MaxTrajPointsFit", 0);
+    
 		fMinAmp 						= pset.get< float >("MinAmp", 5);
 		fChgNearWindow			= pset.get< float >("ChgNearWindow");
 		fChgNearCut 				= pset.get< float >("ChgNearCut");
@@ -281,6 +283,7 @@ namespace cluster {
         fNumWires = geom->Nwires(plane, tpc, cstat);
         // look for clusters
         ClusterLoop();
+        if(fMaxTrajPointsFit != 0) ClusterLoop2();
       } // plane
       if(fVertex3DCut > 0) {
         // Match vertices in 3 planes
@@ -336,7 +339,121 @@ namespace cluster {
   */
   } // RunCrawler
     
-////////////////////////////////////////////////
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::ClusterLoop2()
+  {
+    // testing
+    
+    // call this on the last pass
+    if(pass != fNumPass - 1) return;
+    
+    unsigned int ii, iwire, jwire, iht, jht, itj, end;
+    std::array<float, 2> pos, dir;
+    float slp;
+    
+    for(ii = fFirstWire; ii < fLastWire - 2; ++ii) {
+      // decide which way to step given the sign of fMaxTrajPointsFit
+      if(fMaxTrajPointsFit > 0) {
+        // step DS
+        iwire = ii;
+        jwire = iwire + 1;
+      } else {
+        // step US
+        iwire = fLastWire - ii;
+        jwire = iwire - 1;
+      }
+      // skip bad wires or no hits on the wire
+      if(WireHitRange[iwire].first < 0) continue;
+      if(WireHitRange[jwire].first < 0) continue;
+      auto ifirsthit = (unsigned int)WireHitRange[iwire].first;
+      auto ilasthit = (unsigned int)WireHitRange[iwire].second;
+      auto jfirsthit = (unsigned int)WireHitRange[jwire].first;
+      auto jlasthit = (unsigned int)WireHitRange[jwire].second;
+      for(iht = ifirsthit; iht < ilasthit; ++iht) {
+        if(inClus[iht] != 0) continue;
+        for(jht = jfirsthit; jht < jlasthit; ++jht) {
+          if(inClus[jht] != 0) continue;
+          prt = (fDebugHit == 8888 && fDebugPlane == (int)plane && fDebugWire == (int)iwire);
+          if(!prt) continue;
+          // start a cluster with these two hits
+          traj.clear();
+          ClusterInit();
+          fcl2hits.push_back(iht);
+          fcl2hits.push_back(jht);
+          if(!ClusterHitsOK(-1)) continue;
+          // lop off the j hit now that we know it is OK. It should be re-found in StepCrawl
+          fcl2hits.resize(1);
+          TrajPoint trajPoint;
+          // position
+          pos[0] = (float)fHits[iht].WireID().Wire;
+          pos[1] = fHits[iht].PeakTime() * fScaleF;
+          trajPoint.HitPos = pos;
+          trajPoint.Pos = pos;
+          // direction
+          dir[0] = fHits[jht].WireID().Wire - fHits[iht].WireID().Wire;
+          dir[1] = (fHits[jht].PeakTime() - fHits[iht].PeakTime()) * fScaleF;
+          float ur = sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
+          dir[0] /= ur; dir[1] /= ur;
+          trajPoint.Dir = dir;
+          trajPoint.Ang = atan2(dir[1], dir[0]);
+          // angle error
+          trajPoint.AngErr = 0.5;
+          trajPoint.Chg = fHits[iht].Integral();
+          trajPoint.Delta = 0;
+          traj.push_back(trajPoint);
+          fAveRMS = fHits[iht].RMS();
+          if(!StepCrawl(1)) {
+            mf::LogError("CC")<<"ClusterLoop2: Bad return from StepCrawl";
+            break;
+          }
+          if(prt) mf::LogVerbatim("CC")<<"StepCrawl done: fcl2hits "<<fcl2hits.size()<<" traj size "<<traj.size();
+          if(fcl2hits.size() < 3) continue;
+          if(traj.size() < 2) continue;
+          // Define the needed variables for storing
+          clBeginChg = -1; clEndChg = -1; // let TmpStore do this
+          // See if the trajectory is in proper order such that end 0 = Begin = larger wire number
+          itj = traj.size() - 1;
+          bool properOrder = (traj[itj].HitPos[0] < traj[0].HitPos[0]);
+          if(!properOrder) ReverseTraj();
+          // Define the clBegin (end = 0) and clEnd (end = 1) cluster parameters
+          bool skipit = false;
+          for(end = 0; end < 2; ++end) {
+            if(end == 0) {
+              dir = traj[0].Dir;
+            } else {
+              dir = traj[traj.size()-1].Dir;
+            }
+            if(std::abs(dir[0]) < 1e-3) {
+              // Slope way too large - fake it
+              if(dir[0] > 0) { slp = 999; } else { slp = 999; }
+            } else {
+              slp = dir[1] / dir[0];
+            } // std::abs(dir[0]) < 1e-3
+            // Define clBegin and clEnd parameters
+            // TODO: More careful treatment of slope errors
+            if(end == 0) {
+              clBeginSlp = slp; clBeginSlpErr = 0.1 * std::abs(slp); clBeginChgNear = 0;
+            } else {
+              clEndSlp = slp; clEndSlpErr = 0.1 * std::abs(slp); clEndChgNear = 0;
+            }
+          } // end
+          if(skipit) continue;
+          if(prt) mf::LogVerbatim("CC")<<"Store cluster with size "<<fcl2hits.size();
+          clProcCode = 990;
+          // special stop code to indicate special crawling
+          clStopCode = 8;
+          TmpStore();
+          break;
+        } // jht
+      } // iht
+    } // iwire
+    
+    prt = false;
+    
+  } // ClusterLoop2
+
+  
+  ////////////////////////////////////////////////
     void ClusterCrawlerAlg::ClusterLoop()
     {
       // looks for seed clusters in a plane and crawls along a trail of hits
@@ -599,22 +716,25 @@ namespace cluster {
       iht = fcl2hits[0];
       pos[0] = (float)fHits[iht].WireID().Wire;
       pos[1] = fHits[iht].PeakTime() * fScaleF;
+      trajPoint.HitPos = pos;
       trajPoint.Pos = pos;
       dir[0] = 0; dir[1] = 1;
       trajPoint.Dir = dir;
+      trajPoint.Ang = atan2(dir[1], dir[0]);
       // Calculate the angular error using dir for dirErr
       // wire error
       dir[0] = 2;
       // time error in wire units
       dir[1] = (fHits[fcl2hits[1]].PeakTime() - fHits[fcl2hits[0]].PeakTime()) * fScaleF;
       trajPoint.AngErr = std::abs(atan(dir[0] / dir[1]));
+      trajPoint.Delta = 0;
       trajPoint.Chg = fHits[iht].Integral();
       traj.push_back(trajPoint);
       // clobber all the hits except for the first. Let StepCrawl pick up
       // hits on adjacent wires in the correct order
       fcl2hits.resize(1);
       if(prt) mf::LogVerbatim("CC")<<"Call StepCrawl with step "<<step<<" error "<<dir[0]<<" "<<dir[1]<<" DirErr "<<trajPoint.AngErr;
-      StepCrawl(step);
+      if(!StepCrawl(step)) continue;
       // reverse the direction and step in the -time direction
 //      ReverseTraj();
 //      StepCrawl(step);
@@ -637,18 +757,17 @@ namespace cluster {
         }
         if(std::abs(dir[0]) < 1e-3) {
           // Slope way too large - fake it
-          if(dir[0] > 0) { slp = 1000; } else { slp = -1000; }
+          if(dir[0] > 0) { slp = 999; } else { slp = 999; }
         } else {
           slp = dir[1] / dir[0];
         } // std::abs(dir[0]) < 1e-3
         // Define clBegin and clEnd parameters
+        // TODO: More careful treatment of slope errors
         if(end == 0) {
-          clBeginSlp = slp; clBeginSlp = 0.1 * std::abs(slp); clBeginChgNear = 0;
+          clBeginSlp = slp; clBeginSlpErr = 0.1 * std::abs(slp); clBeginChgNear = 0;
         } else {
-          clEndSlp = slp; clEndSlp = 0.1 * std::abs(slp); clEndChgNear = 0;
+          clEndSlp = slp; clEndSlpErr = 0.1 * std::abs(slp); clEndChgNear = 0;
         }
-        // set up for end = 1
-        itj = traj.size() - 1;
       } // end
       if(skipit) continue;
       if(prt) mf::LogVerbatim("CC")<<"Store cluster with size "<<fcl2hits.size();
@@ -678,21 +797,29 @@ namespace cluster {
   }
 
   //////////////////////////////////////////
-  void ClusterCrawlerAlg::StepCrawl(float step)
+  bool ClusterCrawlerAlg::StepCrawl(float step)
   {
-    if(traj.size() == 0) return;
+    // Crawl along the direction specified in the traj vector in steps of size step
+    // (wire spacing equivalents). Find hits between the last trajectory point and
+    // the last trajectory point + step. A new trajectory point is added if hits are
+    // found. Crawling continues until no signal is found for two consecutive steps
+    // or until a wire or time boundary is reached. Returns true if no errors occur
+   
+    if(traj.size() == 0) return false;
     // ensure that the direction is defined
     unsigned short itj = traj.size() - 1;
     
     // local (wire, time) unit vector
-    std::array<float, 2> dir;
+    std::array<float, 2> dir, prevdir, prevpos;
     dir = traj[itj].Dir;
     float ur = sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
-    if(ur == 0) return;
+    if(ur == 0) return false;
     dir[0] /= ur;
     dir[1] /= ur;
 
     unsigned short iwt, ii;
+    // Copy the last trajectory point
+    TrajPoint tp = traj[itj];
     
     // Flag the incoming hits. This flag should be zeroed before leaving this routine
     for(ii = 0; ii < fcl2hits.size(); ++ii) inClus[fcl2hits[ii]] = -3;
@@ -700,11 +827,10 @@ namespace cluster {
     if(prt) {
       mf::LogVerbatim myprt("CC");
       myprt<<"StepCrawl Traj pts in plane "<<plane<<" size "<<traj.size();
-      for(itj = 0; itj < traj.size(); ++itj) myprt<<" W:T "<<(int)traj[itj].Pos[0]<<":"<<(int)traj[itj].Pos[1]<<" dir "<<std::fixed<<std::setprecision(2)<<traj[itj].Dir[0]<<" "<<traj[itj].Dir[1]<<" DirErr "<<traj[itj].AngErr<<"\n";
+      for(itj = 0; itj < traj.size(); ++itj) myprt<<" W:T "<<(int)traj[itj].HitPos[0]<<":"<<(int)traj[itj].HitPos[1]<<" Delta "<<traj[itj].Delta<<" dir "<<std::fixed<<std::setprecision(2)<<traj[itj].Dir[0]<<" "<<traj[itj].Dir[1]<<" DirErr "<<traj[itj].AngErr<<"\n";
       myprt<<" hits = ";
       for(ii = 0; ii < fcl2hits.size(); ++ii) myprt<<" "<<fHits[fcl2hits[ii]].WireID().Plane<<":"<<fHits[fcl2hits[ii]].WireID().Wire<<":"<<(int)fHits[fcl2hits[ii]].PeakTime();
     }
-//    float tWindow = 5 * step / fScaleF;
     
     CluLen sortEntry;
     std::vector<CluLen> sortVec;
@@ -718,107 +844,91 @@ namespace cluster {
     // Start at the end of the trajectory
     // Temporary step position which may or may not end up being a traj point
     // pos is in wire spacing equivalent units
-    std::array<float, 2> pos = traj[itj].Pos;
-    dir = traj[itj].Dir;
-    std::cout<<"Strt pos "<<pos[0]<<" "<<pos[1]<<"\n";
-    std::array<float, 2> tmpDir, newpos;
-    float sum, hitDir;
+//    pos = traj[itj].Pos;
+//    dir = traj[itj].Dir;
+    std::array<float, 2> hitsPos;
+    float sum;
     std::vector<unsigned int> newHits;
-    unsigned short nSignal;
-    float ang, time, projTick;
-    // angle of the direction vector
-    ang = atan2(traj[itj].Dir[1], traj[itj].Dir[1]);
+    unsigned short nMissedSignal, nSignal;
+    float projTick, hitDir;
+    // version for testing StartTick and EndTick
+    raw::TDCtick_t rawProjTick;
+    nMissedSignal = 0;
+    bool largeAngle, success;
     for(nit = 0; nit < 1000; ++nit) {
       // move the position by one step in the right direction
-      for(iwt = 0; iwt < 2; ++iwt) pos[iwt] += step * dir[iwt];
-      // determine the range of wires and times to consider
-      // start with a default being the last hit added
-      loWire = (unsigned int)fHits[fcl2hits[fcl2hits.size()-1]].WireID().Wire;
-      hiWire = loWire;
-      loTime = fHits[fcl2hits[fcl2hits.size()-1]].PeakTime() * fScaleF;
-      hiTime = loTime;
-      // wire for the current position
-      wire = (unsigned int)pos[0];
-      if(wire < loWire) loWire = wire; if(wire > hiWire) hiWire = wire;
-      // find the direction vector for the +/- error
-      itj = traj.size() - 1;
-      tmpDir[0] = std::abs(step * cos(ang + traj[itj].AngErr));
-      tmpDir[1] = std::abs(step * sin(ang + traj[itj].AngErr));
-      wire = (unsigned int)(pos[0] + tmpDir[0]);
-//      std::cout<<"ang "<<ang<<" dir "<<dir[0]<<" "<<dir[1]<<" wire "<<wire<<"\n";
-      if(wire < loWire) loWire = wire; if(wire > hiWire) hiWire = wire;
-      wire = (unsigned int)(pos[0] - tmpDir[0]);
-      if(wire < loWire) loWire = wire; if(wire > hiWire) hiWire = wire;
-      ++hiWire;
-      if(loWire < fFirstWire || loWire > fLastWire || hiWire < fFirstWire || hiWire > fLastWire) {
-        mf::LogError("CC")<<"StepCrawl: Bad wire range: first "<<fFirstWire<<" loWire "<<loWire<<" hiWire "<<hiWire<<" last "<<fLastWire;
-        return;
-      } // error check
-      // time in WSE units
-      time = pos[1] + tmpDir[1];
-      if(time < loTime) loTime = time; if(time > hiTime) hiTime = time;
-      time = pos[1] - tmpDir[1];
-      if(time < loTime) loTime = time; if(time > hiTime) hiTime = time;
-      // convert time cuts to ticks
-      loTime /= fScaleF; hiTime /= fScaleF;
+      for(iwt = 0; iwt < 2; ++iwt) tp.Pos[iwt] += step * tp.Dir[iwt];
+      largeAngle = (std::abs(dir[1]) > 0.7);
+      GetStepCrawlWindow(tp, loWire, hiWire, loTime, hiTime);
       // clear the vector of new hits, new position and summed charge
       newHits.clear();
-      newpos[0] = 0; newpos[1] = 0; sum = 0;
+      hitsPos[0] = 0; hitsPos[1] = 0; sum = 0;
       nSignal = 0;
       // projected time in tick units
-      projTick = pos[1] / fScaleF;
-      if(prt) mf::LogVerbatim("CC")<<" nit "<<nit<<" loWire "<<loWire<<" pos[0] "<<pos[0]<<" hiWire "<<hiWire<<" loTime "<<(int)loTime<<" projTick "<<(int)projTick<<" hiTime "<<(int)hiTime;
-      for(wire = loWire; wire <= hiWire; ++wire) {
+      projTick = tp.Pos[1] / fScaleF;
+      rawProjTick = projTick;
+      if(prt) mf::LogVerbatim("CC")<<"nit "<<nit<<" loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" loTime "<<(int)loTime<<" projTick "<<(int)projTick<<" hiTime "<<(int)hiTime;
+      for(wire = loWire; wire < hiWire; ++wire) {
+        // Assume a signal exists on a dead wire
+        if(WireHitRange[wire].first == -1) ++nSignal;
         if(WireHitRange[wire].first < 0) continue;
         firstHit = (unsigned int)WireHitRange[wire].first;
         lastHit = (unsigned int)WireHitRange[wire].second;
         for(iht = firstHit; iht < lastHit; ++iht) {
-          if(projTick > fHits[iht].StartTick() && projTick < fHits[iht].EndTick()) ++nSignal;
-          if(prt) mf::LogVerbatim("CC")<<" chk "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" loTime "<<(int)loTime<<" hiTime "<<(int)hiTime<<" inClus "<<inClus[iht]<<" nSignal "<<nSignal;
+          // count number of nearby hit signals
+          if(rawProjTick > fHits[iht].StartTick() && rawProjTick < fHits[iht].EndTick()) ++nSignal;
+          if(prt) mf::LogVerbatim("CC")<<"  chk "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" StartTick "<<fHits[iht].StartTick()<<" EndTick "<<fHits[iht].EndTick()<<" inClus "<<inClus[iht]<<" Integral "<<(int)fHits[iht].Integral()<<" nSignal "<<nSignal;
           if(fHits[iht].PeakTime() < loTime) continue;
           if(fHits[iht].PeakTime() > hiTime) break;
           if(inClus[iht] != 0) continue;
           // ensure that the hit is in the appropriate time direction
-          hitDir = fHits[iht].PeakTime() - traj[traj.size()-1].Pos[1];
-          if(hitDir > 0 && dir[1] < 0) continue;
-          if(hitDir < 0 && dir[1] > 0) continue;
-          if(prt) mf::LogVerbatim("CC")<<" ADD "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime();
+          if(largeAngle) {
+            hitDir = fHits[iht].PeakTime() - traj[traj.size()-1].Pos[1];
+            if(prt) mf::LogVerbatim("CC")<<" check hitDir "<<hitDir<<" dir[1] "<<dir[1];
+            if(hitDir > 0 && dir[1] < 0) continue;
+            if(hitDir < 0 && dir[1] > 0) continue;
+          }
+          if(prt) mf::LogVerbatim("CC")<<"   ADD "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime();
           newHits.push_back(iht);
           inClus[iht] = -3;
           // prepare to find the new position in WSE units
           sum += fHits[iht].Integral();
-          newpos[0] += fHits[iht].Integral() * fHits[iht].WireID().Wire;
-          newpos[1] += fHits[iht].Integral() * fHits[iht].PeakTime() * fScaleF;
+          hitsPos[0] += fHits[iht].Integral() * fHits[iht].WireID().Wire;
+          hitsPos[1] += fHits[iht].Integral() * fHits[iht].PeakTime() * fScaleF;
         } // iht
       } // wire
-      if(nSignal == 0) {
-        if(prt) mf::LogVerbatim("CC")<<" no signal on any wire at pos "<<pos[0]<<" "<<pos[1];
-        break;
+      // TODO Calculate the tick range overlap correctly instead of doing this.
+      if(nSignal == 0 && newHits.size() == 0) {
+        ++nMissedSignal;
+        if(nMissedSignal > 4) {
+          if(prt) mf::LogVerbatim("CC")<<" no signal on any wire at tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" tick "<<(int)tp.Pos[1]/fScaleF;
+          // release the hits
+          for(iht = 0; iht < newHits.size(); ++iht) inClus[newHits[iht]] = 0;
+          newHits.clear();
+          break;
+        }
       }
       // no hits found but we are in a signal region. Keep stepping
       if(newHits.size() == 0) continue;
-      // calculate the new position TODO: do this better
-      newpos[0] /= sum;
-      newpos[1] /= sum;
-      TrajPoint trajPoint;
-      trajPoint.Pos = newpos;
-      trajPoint.Chg = sum;
-      // get the new direction
-      itj = traj.size() - 1;
-      for(iwt = 0; iwt < 2; ++iwt) dir[iwt] = newpos[iwt] - traj[itj].Pos[iwt];
-      ur = sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
-      if(ur == 0) break;
-      for(iwt = 0; iwt < 2; ++iwt) trajPoint.Dir[iwt] = dir[iwt] / ur;
-      // calculate the new angle error
-      trajPoint.AngErr = traj[itj].AngErr;
-      traj.push_back(trajPoint);
+      // stuff the charge weighted position into tp and try to append it to the trajectory
+      for(iwt = 0; iwt < 2; ++iwt) tp.HitPos[iwt] = hitsPos[iwt] / sum;
+      tp.Chg = sum;
+      traj.push_back(tp);
+      // save the last position and direction in case this doesn't work
+      prevdir = tp.Dir; prevpos = tp.Pos;
+      UpdateTraj(success);
+      if(!success) {
+        traj.pop_back();
+        // restore
+        tp.Dir = prevdir; tp.Pos = prevpos;
+        continue;
+      }
+      // Now have a good trajectory point. Append the hits to fcl2hits
       // sort the hits by wire or time
       if(newHits.size() > 1) {
         sortVec.clear();
         bool sortByTime = (std::abs(dir[1]) > std::abs(dir[0]));
-//        std::cout<<"Check sort. dir = "<<dir[0]<<" "<<dir[1]<<" sortByTime "<<sortByTime<<"\n";
         for(ii = 0; ii < newHits.size(); ++ii) {
-//          std::cout<<"before sort "<<ii<<" "<<fHits[newHits[ii]].WireID().Plane<<":"<<fHits[newHits[ii]].WireID().Wire<<":"<<(int)fHits[newHits[ii]].PeakTime()<<"\n";
           sortEntry.index = ii;
           if(sortByTime) {
             // sort by time
@@ -830,30 +940,285 @@ namespace cluster {
           sortVec.push_back(sortEntry);
         } // ii
         std::sort(sortVec.begin(), sortVec.end(), lessThan);
-//        std::cout<<"sortVec";
-//        for(ii = 0; ii < sortVec.size(); ++ii) std::cout<<" "<<sortVec[ii].index;
-//        std::cout<<"\n";
         // make a temp vector
         std::vector<unsigned int> tmp = newHits;
         // overwrite with the sorted values
         for(ii = 0; ii < sortVec.size(); ++ii) tmp[ii] = newHits[sortVec[ii].index];
         // replace
         newHits = tmp;
-        // swap the order? TODO: chec
+        // swap the order? TODO: check
         if(sortByTime && dir[1] < 0) std::reverse(newHits.begin(), newHits.end());
         if(!sortByTime && dir[0] < 0) std::reverse(newHits.begin(), newHits.end());
-//        for(ii = 0; ii < newHits.size(); ++ii) std::cout<<"after sort "<<ii<<" "<<fHits[newHits[ii]].WireID().Plane<<":"<<fHits[newHits[ii]].WireID().Wire<<":"<<(int)fHits[newHits[ii]].PeakTime()<<"\n";
       } // newHits.size > 1
       // concatenate the hits on fcl2hits
       fcl2hits.insert(fcl2hits.end(), newHits.begin(), newHits.end());
-      if(prt) mf::LogVerbatim("CC")<<"Add Traj pt "<<traj.size()<<" W:T "<<traj[itj].Pos[0]<<":"<<traj[itj].Pos[1]<<" Tick = "<<(int)traj[itj].Pos[1]/fScaleF<<" new dir "<<traj[itj].Dir[0]<<" "<<traj[itj].Dir[1]<<" dirErr "<<traj[itj].AngErr<<" new hits "<<newHits.size();
+      if(prt) {
+        itj = traj.size() - 1;
+        mf::LogVerbatim("CC")<<"Add Traj pt "<<traj.size()<<" W:T "<<std::fixed<<std::setprecision(1)<<traj[itj].Pos[0]<<":"<<traj[itj].Pos[1]<<" Tick = "<<(int)(traj[itj].Pos[1]/fScaleF)<<" Delta "<<std::setprecision(3)<<traj[itj].Delta<<" in ticks "<<traj[itj].Delta/fScaleF<<" new dir "<<traj[itj].Dir[0]<<" "<<traj[itj].Dir[1]<<" AngErr "<<traj[itj].AngErr<<" new hits "<<newHits.size()<<" chg "<<(int)traj[itj].Chg;
+      }
     } // nit
     
     for(unsigned int ii = 0; ii < fcl2hits.size(); ++ii) inClus[fcl2hits[ii]] = 0;
+    
+    return true;
 
   } // StepCrawl
   
-//////////////////////////////////////////
+  //////////////////////////////////////////
+  void ClusterCrawlerAlg::GetStepCrawlWindow(TrajPoint& tp, unsigned int& loWire, unsigned int& hiWire, float& loTime, float& hiTime)
+  {
+    // Define the window for accepting hits within +/- 0.5 wire spacing units
+    loWire = 0; hiWire = 0; loTime = 0; hiTime = 0;
+    
+    if(fcl2hits.size() == 0) return;
+    if(traj.size() == 0) return;
+    if(tp.Dir[0] == 0 && tp.Dir[1] == 0) return;
+    
+    // Find the positions of the error ellipse
+    std::array<float, 2> pos;
+    float loPos0 = 99999, hiPos0 = 0;
+    loTime = 99999, hiTime = 0;
+    // move 1/2 step in each direction and +/- 4 sigma angle error
+    float dang = 4 * tp.AngErr;
+//    std::cout<<"tp.pos "<<tp.Pos[0]<<" "<<tp.Pos[0]<<" tp.Ang "<<tp.Ang<<" dang "<<dang<<"\n";
+    pos[0] = tp.Pos[0] - 0.5 * cos(tp.Ang - dang);
+    if(pos[0] < loPos0) loPos0 = pos[0]; if(pos[0] > hiPos0) hiPos0 = pos[0];
+    pos[1] = tp.Pos[1] - 0.5 * sin(tp.Ang - dang);
+    if(pos[1] < loTime) loTime = pos[1]; if(pos[1] > hiTime) hiTime = pos[1];
+//    std::cout<<"pos "<<pos[0]<<" "<<pos[1]<<"\n";
+    pos[0] = tp.Pos[0] - 0.5 * cos(tp.Ang + dang);
+    if(pos[0] < loPos0) loPos0 = pos[0]; if(pos[0] > hiPos0) hiPos0 = pos[0];
+    pos[1] = tp.Pos[1] - 0.5 * sin(tp.Ang + dang);
+    if(pos[1] < loTime) loTime = pos[1]; if(pos[1] > hiTime) hiTime = pos[1];
+//    std::cout<<"pos "<<pos[0]<<" "<<pos[1]<<"\n";
+    
+    pos[0] = tp.Pos[0] + 0.5 * cos(tp.Ang - dang);
+    if(pos[0] < loPos0) loPos0 = pos[0]; if(pos[0] > hiPos0) hiPos0 = pos[0];
+    pos[1] = tp.Pos[1] + 0.5 * sin(tp.Ang - dang);
+    if(pos[1] < loTime) loTime = pos[1]; if(pos[1] > hiTime) hiTime = pos[1];
+//    std::cout<<"pos "<<pos[0]<<" "<<pos[1]<<"\n";
+    pos[0] = tp.Pos[0] + 0.5 * cos(tp.Ang + dang);
+    if(pos[0] < loPos0) loPos0 = pos[0]; if(pos[0] > hiPos0) hiPos0 = pos[0];
+    pos[1] = tp.Pos[1] + 0.5 * sin(tp.Ang + dang);
+    if(pos[1] < loTime) loTime = pos[1]; if(pos[1] > hiTime) hiTime = pos[1];
+//    std::cout<<"pos "<<pos[0]<<" "<<pos[1]<<"\n";
+    
+    
+    // convert to ticks
+    loTime /= fScaleF;
+    hiTime /= fScaleF;
+    std::cout<<"ticks loTime "<<loTime<<" "<<hiTime;
+    // Add a hit time uncertainty in ticks
+    float hitTimeErr = 8 * fHitErrFac * fAveRMS;
+    loTime -= hitTimeErr;
+    hiTime += hitTimeErr;
+    
+    // convert pos[0] to wire number
+    loWire = (unsigned int)(loPos0 + 0.5);
+    hiWire = (unsigned int)(hiPos0 + 1);
+    
+    std::cout<<" loWire "<<loWire<<" hiWire "<<hiWire<<" loTime "<<loTime<<" hiTime "<<hiTime<<" hitTimeErr "<<hitTimeErr<<" ticks\n";
+
+    // prevent looking on an already considered wire for small angle clusters
+    if(std::abs(tp.Dir[1]) < 0.7) {
+      unsigned int lastHitWire = fHits[fcl2hits[fcl2hits.size()-1]].WireID().Wire;
+//      std::cout<<"lastHitWire "<<lastHitWire<<"\n";
+      if(tp.Dir[0] > 0) {
+        // moving downstream
+        if(loWire < lastHitWire + 1) loWire = lastHitWire + 1;
+        hiWire = loWire + 1;
+      } else {
+        // moving upstream
+        if(hiWire > lastHitWire - 1) hiWire = lastHitWire - 1;
+        loWire = hiWire - 2;
+      }
+    } // !largeAngle
+//    std::cout<<"loWire "<<loWire<<" hiWire "<<hiWire<<" loTime "<<loTime<<" hiTime "<<hiTime<<"\n";
+
+  } // GetStepCrawlWindow
+
+  
+  //////////////////////////////////////////
+  void ClusterCrawlerAlg::UpdateTraj(bool& success)
+  {
+    // A new trajectory point was put on traj but the information consists of the
+    // projected trajectory position and the position of hits. This routine will
+    // check the quality of the hits and if acceptable, will update the rest of the
+    // trajectory parameters.
+    
+    success = false;
+ //   if(prt) mf::LogVerbatim("CC")<<"UpdateTraj: traj size "<<traj.size();
+    if(traj.size() < 2) return;
+    if(fMaxTrajPointsFit == 0) return;
+    
+    unsigned int lastPt = traj.size()-1;
+    TrajPoint& lastTP = traj[lastPt];
+    
+    unsigned short ii, itj;
+    std::array<float, 2> dpos;
+    float sum = 0, path, delta;
+
+    
+    // Handle the second trajectory point. No error calculation yet
+    if(traj.size() == 2) {
+      // second trajectory point is the hit position
+      lastTP.Pos = lastTP.HitPos;
+      for(ii = 0; ii < 2; ++ii) dpos[ii] = lastTP.Pos[ii] - traj[0].Pos[ii];
+      path = sqrt(dpos[0] * dpos[0] + dpos[1] * dpos[1]);
+      if(path == 0) return;
+      for(ii = 0; ii < 2; ++ii) lastTP.Dir[ii] = dpos[ii] / path;
+      lastTP.Ang = atan2(lastTP.Dir[1], lastTP.Dir[0]);
+      lastTP.AngErr = traj[0].AngErr;
+      if(prt) mf::LogVerbatim("CC")<<"Second traj point pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1];
+      success = true;
+      return;
+    }
+    
+    // Re-fit the trajectory with the newly added point
+    unsigned short nTrajPointsFit = std::abs(fMaxTrajPointsFit);
+    // TODO Modify nTrajPointsFit using previous traj info
+    if(nTrajPointsFit > traj.size()) nTrajPointsFit = traj.size();
+    
+    std::vector<float> x(nTrajPointsFit), y(nTrajPointsFit), yerr(nTrajPointsFit);
+    // Use the direction of the previous trajectory point to decide how to
+    // do the fit. Note that lastTP was cloned from the previous trajectory
+    // point and lastTP.Dir hasn't been updated yet, so we are using the
+    // direction from the 2nd to last point.
+    bool normalFit = (std::abs(lastTP.Dir[1]) < 0.7);
+    // do the fit with origin at the last traj point
+    float x0;
+    if(normalFit) {
+      x0 = traj[lastPt].HitPos[0];
+    } else {
+      x0 = traj[lastPt].HitPos[1];
+    }
+    for(ii = 0; ii < nTrajPointsFit; ++ii) {
+      itj = lastPt - ii;
+      if(normalFit) {
+        // x = wire, y = time
+        x[ii] = traj[itj].HitPos[0] - x0;
+        y[ii] = traj[itj].HitPos[1];
+      } else {
+        // x = time, y = wire
+        x[ii] = traj[itj].HitPos[1] - x0;
+        y[ii] = traj[itj].HitPos[0];
+      } // !normalFit
+      yerr[ii] = 1;
+    } // ii
+    float intcpt = 0.;
+    float slope = 0.;
+    float intcpterr = 0.;
+    float slopeerr = 0.;
+    float chidof = 0.;
+    fLinFitAlg.LinFit(x, y, yerr, intcpt, slope, intcpterr, slopeerr, chidof);
+    
+    if(normalFit) {
+      lastTP.Pos[0] = x0;
+      lastTP.Pos[1] = intcpt;
+      lastTP.Ang = atan(slope);
+      // going in the US direction?
+      if(traj[lastPt].Pos[0] < traj[lastPt-1].Pos[0]) lastTP.Ang += 3.142;
+      lastTP.Dir[0] = cos(lastTP.Ang);
+      lastTP.Dir[1] = sin(lastTP.Ang);
+    } else {
+      std::cout<<"Code not written yet\n";
+    }
+    if(prt) mf::LogVerbatim("CC")<<"Fit: "<<nTrajPointsFit<<" pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<" dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1]<<" chi "<<chidof;
+
+    // Find Delta for the last trajectory point
+    // ensure that we aren't moving in the +/- X direction
+    if(lastTP.Dir[0] != 0) {
+      // Find the Distance Of Closest Approach
+      float tslp = lastTP.Dir[1] / lastTP.Dir[0];
+      float docaW = (lastTP.HitPos[0] + tslp * (lastTP.HitPos[1]-lastTP.Pos[1]) + lastTP.Pos[0] * tslp * tslp) /
+      (1 + tslp * tslp);
+      float docaT = lastTP.Pos[1] + (lastTP.HitPos[0] -  lastTP.Pos[0]) * tslp;
+      dpos[0] = docaW - lastTP.HitPos[0];
+      dpos[1] = docaT - lastTP.HitPos[1];
+      lastTP.Delta = sqrt(dpos[0] * dpos[0] + dpos[1] * dpos[1]);
+      // don't let Delta be smaller than the user specified fHitErrFace * RMS
+      float minDelta = fHitErrFac * fAveRMS * fScaleF;
+      if(lastTP.Delta < minDelta) lastTP.Delta = minDelta;
+      // This presumes that the step size is 1
+      if(lastTP.Delta > 2) {
+        mf::LogError("CC")<<"UpdateTraj Bad DOCA: hits Pos "<<lastTP.HitPos[0]<<" "<<lastTP.HitPos[1]<<" step pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<" docaW,T "<<docaW<<" "<<docaT;
+        return;
+      }
+    } else {
+      // trajectory going in the drift direction
+      mf::LogError("CC")<<"Write some DOCA code";
+      //      for(unsigned int ii = 0; ii < fcl2hits.size(); ++ii) inClus[fcl2hits[ii]] = 0;
+      return;
+    }
+    
+    if(traj.size() > 3) {
+      // Update the angle error the hits that were fit after we have a few points
+      sum = 0;
+      float dang = 0;
+      // use small angle approximation
+      unsigned short cnt = 0;
+      for(ii = 0; ii < nTrajPointsFit - 1; ++ii) {
+        itj = lastPt - ii;
+        delta = traj[itj].Delta;
+        if(delta == 0) delta = 0.1;
+        dpos[0] = traj[itj].Pos[0] - traj[itj-1].Pos[0];
+        dpos[1] = traj[itj].Pos[1] - traj[itj-1].Pos[1];
+        path = sqrt(dpos[0] * dpos[0] + dpos[1] * dpos[1]);
+        sum += delta / path;
+        ++cnt;
+//        if(prt) mf::LogVerbatim("CC")<<ii<<" "<<itj<<" path "<<path<<" delta "<<delta<<" "<<delta/path;
+        // grab the angle from the last trajectory point
+        if(ii == 0) dang = sum;
+      }
+      lastTP.AngErr = sum / (float)cnt;
+//      if(prt) mf::LogVerbatim("CC")<<"angerr "<<lastTP.AngErr<<" cnt "<<cnt;
+      // cut on the angle
+      if(traj.size() > 3 && dang > 3 * lastTP.AngErr) {
+        if(prt) mf::LogVerbatim("CC")<<" UpdateTraj: Bad trajectory angle change "<<dang<<" error "<<lastTP.AngErr;
+        return;
+      }
+    }
+ 
+    
+    // Calculate the average RMS width of hits on the cluster
+    fAveRMS = 0;
+    for(unsigned short ii = 0; ii < fcl2hits.size(); ++ii) {
+      fAveRMS += fHits[fcl2hits[ii]].RMS();
+    }
+    fAveRMS /= (float)fcl2hits.size();
+    
+    // Calculate the rms scatter of hits (resolution)
+    float aveRes = 0, arg;
+    unsigned int hit0, hit1, hit2;
+    unsigned short cnt = 0;
+    for(ii = 1; ii < fcl2hits.size() - 1; ++ii) {
+      hit0 = fcl2hits[ii-1];
+      hit1 = fcl2hits[ii];
+      hit2 = fcl2hits[ii+1];
+      // require hits on adjacent wires
+      // Note std::abs doesn't work in the following two lines
+      if(abs(fHits[hit1].WireID().Wire - fHits[hit0].WireID().Wire) != 1) continue;
+      if(abs(fHits[hit1].WireID().Wire - fHits[hit2].WireID().Wire) != 1) continue;
+      arg = (fHits[hit0].PeakTime() + fHits[hit2].PeakTime())/2 - fHits[hit1].PeakTime();
+      aveRes += arg * arg;
+      ++cnt;
+    }
+    if(cnt > 0) {
+      aveRes /= (float)cnt;
+      aveRes = sqrt(aveRes);
+      // convert to a quality factor 1 = perfect, > 1
+      aveRes /= (fAveRMS * fHitErrFac);
+//      if(prt) mf::LogVerbatim("CC")<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(1)<<" aveRes "<<aveRes<<" fAveRMS "<<fAveRMS;
+    } else {
+      if(prt) mf::LogVerbatim("CC")<<"    NA fcl2hits size "<<fcl2hits.size()<<" cnt "<<cnt;
+    }
+
+    success = true;
+    return;
+  
+  } // UpdateTraj
+  
+  //////////////////////////////////////////
   void ClusterCrawlerAlg::MergeOverlap()
   {
     // Tries to merge overlapping clusters schematically shown below. The minimal condition is that both
