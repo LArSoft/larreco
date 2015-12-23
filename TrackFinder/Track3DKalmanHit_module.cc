@@ -191,6 +191,7 @@ namespace trkf {
         
         recob::Seed makeSeed(const art::PtrVector<recob::Hit>& hits) const;
         void FillHistograms(std::list<HitCollection>& hit_collections);
+        void FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks, art::PtrVector<recob::Hit>& hits, art::PtrVector<recob::Hit>& seederhits, int ntracks);
         
         
         // Fcl parameters.
@@ -841,14 +842,9 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                             // Loop over newly added tracks and remove hits contained on
                             // these tracks from hits available for making additional
                             // tracks or track seeds.
+
+                            FilterHitsOnKalmanTracks(kalman_tracks, hits, seederhits, ntracks);
                             
-                            for(unsigned int itrk = ntracks; itrk < kalman_tracks.size(); ++itrk) {
-                                const KGTrack& trg = kalman_tracks[itrk];
-                                art::PtrVector<recob::Hit> track_used_hits;
-                                trg.fillHits(track_used_hits);
-                                FilterHits(hits, track_used_hits);
-                                FilterHits(seederhits, track_used_hits);
-                            }
                         }
                     }
                 }
@@ -979,7 +975,7 @@ void trkf::Track3DKalmanHit::FillHistograms(std::list<HitCollection>& hit_collec
             const KGTrack& trg = *k;
             
             // Loop over measurements in this track.
-        
+            
             const std::multimap<double, KHitTrack>& trackmap = trg.getTrackMap();
             for(std::multimap<double, KHitTrack>::const_iterator ih = trackmap.begin();
                 ih != trackmap.end(); ++ih) {
@@ -998,6 +994,20 @@ void trkf::Track3DKalmanHit::FillHistograms(std::list<HitCollection>& hit_collec
         fHPull->Print("all");
     }
 }
+
+
+
+
+void trkf::Track3DKalmanHit::FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks, art::PtrVector<recob::Hit>& hits, art::PtrVector<recob::Hit>& seederhits, int ntracks){
+    for(unsigned int itrk = ntracks; itrk < kalman_tracks.size(); ++itrk) {
+        const KGTrack& trg = kalman_tracks[itrk];
+        art::PtrVector<recob::Hit> track_used_hits;
+        trg.fillHits(track_used_hits);
+        FilterHits(hits, track_used_hits);
+        FilterHits(seederhits, track_used_hits);
+    }
+}
+
 //----------------------------------------------------------------------------
 /// Make seed method.
 recob::Seed trkf::Track3DKalmanHit::makeSeed(const art::PtrVector<recob::Hit>& hits) const
