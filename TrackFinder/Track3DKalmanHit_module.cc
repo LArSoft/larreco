@@ -192,6 +192,7 @@ namespace trkf {
         recob::Seed makeSeed(const art::PtrVector<recob::Hit>& hits) const;
         void FillHistograms(std::list<HitCollection>& hit_collections);
         void FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks, art::PtrVector<recob::Hit>& hits, art::PtrVector<recob::Hit>& seederhits, int ntracks);
+        std::unique_ptr<KHitContainer> FillHitContainer(art::PtrVector<recob::Hit> &hits);
         
         
         // Fcl parameters.
@@ -689,18 +690,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                                 const KTrack& trk = *itrk;
                                 
                                 // Fill hit container with current seed hits.
-                                
-                                std::unique_ptr<KHitContainer> pseedcont;
-                                if(fLineSurface) {
-                                    KHitContainerWireLine* p = new KHitContainerWireLine;
-                                    p->fill(seedhits, -1);
-                                    pseedcont.reset(p);
-                                }
-                                else {
-                                    KHitContainerWireX* p = new KHitContainerWireX;
-                                    p->fill(seedhits, -1);
-                                    pseedcont.reset(p);
-                                }
+                                std::unique_ptr<KHitContainer> pseedcont = FillHitContainer(seedhits);
                                 
                                 // Set the preferred plane to be the one with the most hits.
                                 
@@ -766,17 +756,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                                                 
                                                 // Fill hit container using filtered hits.
                                                 
-                                                std::unique_ptr<KHitContainer> ptrackcont;
-                                                if(fLineSurface) {
-                                                    KHitContainerWireLine* p = new KHitContainerWireLine;
-                                                    p->fill(trackhits, -1);
-                                                    ptrackcont.reset(p);
-                                                }
-                                                else {
-                                                    KHitContainerWireX* p = new KHitContainerWireX;
-                                                    p->fill(trackhits, -1);
-                                                    ptrackcont.reset(p);
-                                                }
+                                                std::unique_ptr<KHitContainer> ptrackcont = FillHitContainer(trackhits);
+                                                
                                                 
                                                 // Extend the track.  It is not an error for the
                                                 // extend operation to fail, meaning that no new hits
@@ -842,7 +823,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                             // Loop over newly added tracks and remove hits contained on
                             // these tracks from hits available for making additional
                             // tracks or track seeds.
-
+                            
                             FilterHitsOnKalmanTracks(kalman_tracks, hits, seederhits, ntracks);
                             
                         }
@@ -995,10 +976,14 @@ void trkf::Track3DKalmanHit::FillHistograms(std::list<HitCollection>& hit_collec
     }
 }
 
+//----------------------------------------------------------------------------
+/// Filter hits that are on kalman tracks.
 
 
-
-void trkf::Track3DKalmanHit::FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks, art::PtrVector<recob::Hit>& hits, art::PtrVector<recob::Hit>& seederhits, int ntracks){
+void trkf::Track3DKalmanHit::FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks,
+                                                      art::PtrVector<recob::Hit>& hits,
+                                                      art::PtrVector<recob::Hit>& seederhits,
+                                                      int ntracks){
     for(unsigned int itrk = ntracks; itrk < kalman_tracks.size(); ++itrk) {
         const KGTrack& trg = kalman_tracks[itrk];
         art::PtrVector<recob::Hit> track_used_hits;
@@ -1007,6 +992,26 @@ void trkf::Track3DKalmanHit::FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalma
         FilterHits(seederhits, track_used_hits);
     }
 }
+
+//----------------------------------------------------------------------------
+/// Fill hit container with either seedhits or filtered hits i.e. recob::Hit
+
+std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::FillHitContainer(art::PtrVector<recob::Hit> &hits) {
+    std::unique_ptr<KHitContainer> hitcont;
+    if(fLineSurface) {
+        KHitContainerWireLine* p = new KHitContainerWireLine;
+        p->fill(hits, -1);
+        hitcont.reset(p);
+    }
+    else {
+        KHitContainerWireX* p = new KHitContainerWireX;
+        p->fill(hits, -1);
+        hitcont.reset(p);
+    }
+    return hitcont;
+}
+
+
 
 //----------------------------------------------------------------------------
 /// Make seed method.
