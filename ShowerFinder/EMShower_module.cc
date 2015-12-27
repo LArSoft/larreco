@@ -240,16 +240,28 @@ void shower::EMShower::produce(art::Event& evt) {
 	}
       }
     }
+    
+    if (!pfpHandle.isValid()){
+      // Find the track at the start of the shower
+      std::unique_ptr<recob::Track> initialTrack;
+      std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits;
+      fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fmc, fPlane);
+      
+      // Make shower object and associations
+      recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
+      shower.set_id(showerNum);
+      showers->push_back(shower);
+    }
+    else{
+      art::FindManyP<recob::Vertex> fmv(pfpHandle, evt, fPFParticleModuleLabel);
+      std::vector<art::Ptr<recob::Vertex> > vertices = fmv.at(showerNum);
+      if (vertices.size()){
+	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, vertices[0]);
+	shower.set_id(showerNum);
+	showers->push_back(shower);
+      }
+    }
 
-    // Find the track at the start of the shower
-    std::unique_ptr<recob::Track> initialTrack;
-    std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits;
-    fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fmc, fPlane);
-
-    // Make shower object and associations
-    recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
-    shower.set_id(showerNum);
-    showers->push_back(shower);
     util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
     util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
     util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
