@@ -15,6 +15,14 @@ shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset) : fShowerEnerg
 								    fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg")) {
   fMinTrackLength  = pset.get<double>("MinTrackLength");
   fdEdxTrackLength = pset.get<double>("dEdxTrackLength");
+  fNfitpass        = pset.get<unsigned int>("Nfitpass");
+  fNfithits        = pset.get<std::vector<unsigned int> >("Nfithits");
+  fToler           = pset.get<std::vector<double> >("Toler");
+  if (fNfitpass!=fNfithits.size()||
+      fNfitpass!=fToler.size()){
+    throw art::Exception(art::errors::Configuration)
+      <<"EMShowerAlg: fNfithits and fToler need to have size fNfitpass";
+  }
 }
 
 void shower::EMShowerAlg::AssociateClustersAndTracks(std::vector<art::Ptr<recob::Cluster> > const& clusters,
@@ -951,8 +959,11 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 }
 
 recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& hits,
-					      art::Ptr<recob::Vertex> const& vertex) {
+					      art::Ptr<recob::Vertex> const& vertex,
+					      int & iok) {
   
+  iok = 1;
+
   // Find the shower hits on each plane
   std::map<int,std::vector<art::Ptr<recob::Hit> > > planeHitsMap;
   for (art::PtrVector<recob::Hit>::const_iterator hit = hits.begin(); hit != hits.end(); ++hit)
@@ -966,6 +977,11 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
   unsigned maxhits1 = 0;
 
   for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeHits = planeHitsMap.begin(); planeHits != planeHitsMap.end(); ++planeHits) {
+    
+    std::vector<art::Ptr<recob::Hit> > showerHits;
+    OrderShowerHits(planeHits->second, showerHits, vertex);
+    if (!isCleanShower(showerHits)) continue;
+    FindInitialTrackHits(showerHits, vertex, initialTrackHits[planeHits->first]);
     if ((planeHits->second).size()>maxhits0){
       if (pl0!=-1){
 	maxhits1 = maxhits0;
@@ -979,18 +995,29 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
       maxhits1 = (planeHits->second).size();
     }
 
-    std::vector<art::Ptr<recob::Hit> > showerHits;
-    if (!OrderShowerHits(planeHits->second, showerHits, vertex)) continue;
-    FindInitialTrackHits(showerHits, vertex, initialTrackHits[planeHits->first]);
   }
+  //std::cout<<pl0<<" "<<pl1<<std::endl;
+//  if (pl0!=-1&&pl1!=-1) {
+//    pl0 = 1;
+//    pl1 = 2;
+//  }
   if (pl0!=-1&&pl1!=-1
       &&initialTrackHits[pl0].size()>=2
       &&initialTrackHits[pl1].size()>=2){
     double xyz[3];
     vertex->XYZ(xyz);
     TVector3 vtx(xyz);
+//    std::vector<art::Ptr<recob::Hit>> alltrackhits;
+//    for (size_t i = 0; i<3; ++i){
+//      for (auto const&hit : initialTrackHits[i]){
+//	alltrackhits.push_back(hit);
+//      }
+//    }
     //std::cout<<"vertex "<<xyz[0]<<" "<<xyz[1]<<" "<<xyz[2]<<std::endl;
+    //for (auto const&hit : initialTrackHits[pl0]) std::cout<<*hit<<std::endl;
+    //for (auto const&hit : initialTrackHits[pl1]) std::cout<<*hit<<std::endl;
     pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(initialTrackHits[pl0], initialTrackHits[pl1]);
+    //pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(alltrackhits);
     std::vector<TVector3> spts;
     double xshift = pmatrack->GetXShift();
     bool has_shift = (xshift != 0.0);
@@ -1007,6 +1034,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
       TVector3 shwdir, shwdirerr;
       std::vector<double> totalEnergy, totalEnergyError, dEdx, dEdxError;
       int bestPlane = pl0;
+      double minpitch = 1000;
       std::vector<TVector3> dirs;
       if ((spts[0]-vtx).Mag()<(spts.back()-vtx).Mag()){
 	shwxyz = spts[0];
@@ -1024,6 +1052,59 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
       }
       //std::cout<<shwxyz.X()<<" "<<shwxyz.Y()<<" "<<shwxyz.Z()<<std::endl;
       //std::cout<<shwdir.X()<<" "<<shwdir.Y()<<" "<<shwdir.Z()<<std::endl;
+      for (unsigned int plane = 0; plane < fGeom->MaxPlanes(); ++plane) {
+	if (planeHitsMap.find(plane)!=planeHitsMap.end()){
+	  totalEnergy.push_back(fShowerEnergyAlg.ShowerEnergy(planeHitsMap[plane], plane));
+	}
+	else{
+	  totalEnergy.push_back(0);
+	}
+	if (initialTrackHits[plane].size()){
+	  double fdEdx = 0;
+	  double totQ = 0;
+	  double avgT = 0;
+	  double pitch = 0;
+	  double wirepitch = fGeom->WirePitch(initialTrackHits[plane][0]->WireID().planeID());
+	  double angleToVert = fGeom->WireAngleToVertical(fGeom->Plane(plane).View(),initialTrackHits[plane][0]->WireID().planeID()) - 0.5*TMath::Pi();
+	  double cosgamma = std::abs(sin(angleToVert)*shwdir.Y()+
+				     cos(angleToVert)*shwdir.Z());
+	  if (cosgamma>0) pitch = wirepitch/cosgamma;
+	  if (pitch){
+	    if (pitch<minpitch){
+	      minpitch = pitch;
+	      bestPlane = plane;
+	    }
+	    int nhits = 0;
+	    //std::cout<<"pitch = "<<pitch<<std::endl;
+	    for (auto const& hit: initialTrackHits[plane]){
+	      //std::cout<<hit->WireID()<<" "<<hit->PeakTime()<<" "<<std::abs((hit->WireID().Wire-initialTrackHits[plane][0]->WireID().Wire)*pitch)<<" "<<fdEdxTrackLength<<std::endl;
+	      int w1 = hit->WireID().Wire;
+	      int w0 = initialTrackHits[plane][0]->WireID().Wire;
+	      if (std::abs((w1-w0)*pitch)<fdEdxTrackLength){
+		totQ += hit->Integral();
+		avgT+= hit->PeakTime();
+		++nhits;
+		//std::cout<<hit->WireID()<<" "<<hit->PeakTime()<<" "<<hit->Integral()<<" "<<totQ<<" "<<avgT<<std::endl;
+	      }
+	    }
+	    if (totQ) {
+	      double dQdx = totQ/(nhits*pitch);
+	      fdEdx = fCalorimetryAlg.dEdx_AREA(dQdx, avgT/nhits, initialTrackHits[plane][0]->WireID().Plane);
+	    }
+	  }
+	  dEdx.push_back(fdEdx);
+	}
+	else{
+	  dEdx.push_back(0);
+	}
+      }
+      iok = 0;
+      std::cout << "Best plane is " << bestPlane << std::endl;
+      std::cout << "dE/dx for each plane is: " << dEdx[0] << ", " << dEdx[1] << " and " << dEdx[2] << std::endl;
+      std::cout << "Total energy for each plane is: " << totalEnergy[0] << ", " << totalEnergy[1] << " and " << totalEnergy[2] << std::endl;
+      std::cout << "The shower start is " << std::endl;
+      shwxyz.Print();
+
       return recob::Shower(shwdir, shwdirerr, shwxyz, shwxyzerr, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
     }
   }
@@ -1296,7 +1377,7 @@ std::vector<art::Ptr<recob::Hit> > shower::EMShowerAlg::OrderShowerHits(std::vec
 
 }
 
-bool shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
+void shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
 					    std::vector<art::Ptr<recob::Hit> >& showerHits,
 					    art::Ptr<recob::Vertex> const& vertex){
   /// Takes the hits associated with a shower and orders then so they follow the direction of the shower
@@ -1307,8 +1388,8 @@ bool shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > con
   double xyz[3];
   vertex->XYZ(xyz);
   geo::TPCID tpc = fGeom->FindTPCAtPosition(xyz);
-  if (!tpc.isValid) return false;
-
+  if (!tpc.isValid&&showerHits.size()) tpc = geo::TPCID(showerHits[0]->WireID());
+  //std::cout<<tpc<<std::endl;
   // Find hits in the same TPC
   art::Ptr<recob::Hit> hit0, hit1;
   for (auto &hit: showerHits){
@@ -1319,15 +1400,19 @@ bool shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > con
       hit1 = hit;
     }
   }
-  if (hit0.isNull()||hit1.isNull()) return false;
-  TVector2 coord0 = HitCoordinates(hit0);
-  TVector2 coord1 = HitCoordinates(hit1);
+  if (hit0.isNull()||hit1.isNull()) return;
+  TVector2 coord0 = TVector2(hit0->WireID().Wire, hit0->PeakTime());
+  TVector2 coord1 = TVector2(hit1->WireID().Wire, hit1->PeakTime());
   TVector2 coordvtx = TVector2(fGeom->WireCoordinate(xyz[1], xyz[2], hit0->WireID().planeID()),
 			       fDetProp->ConvertXToTicks(xyz[0],  hit0->WireID().planeID()));
+//  std::cout<<coord0.X()<<" "<<coord0.Y()<<std::endl;
+//  std::cout<<coord1.X()<<" "<<coord1.Y()<<std::endl;
+//  std::cout<<coordvtx.X()<<" "<<coordvtx.Y()<<std::endl;
+//  std::cout<<hit0->WireID()<<" "<<hit1->WireID()<<std::endl;
   if ((coord1-coordvtx).Mod()<(coord0-coordvtx).Mod()){
     std::reverse(showerHits.begin(), showerHits.end());
   }
-  return true;
+  //std::cout<<showerHits[0]->WireID()<<" "<<showerHits.back()->WireID()<<std::endl;
 }
 
 void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> >const& showerHits,
@@ -1337,51 +1422,44 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
   double xyz[3];
   vertex->XYZ(xyz);
   geo::TPCID tpc = fGeom->FindTPCAtPosition(xyz);
+  if (!tpc.isValid&&showerHits.size()) tpc = geo::TPCID(showerHits[0]->WireID());
   if (!tpc.isValid) return;
 
+  double parm[2];
+  int fitok = 0;
   std::vector<double> wfit;
   std::vector<double> tfit;
   std::vector<double> cfit;
+    
+  for (size_t i = 0; i<fNfitpass; ++i){
 
-  // Fit a straight line through hits
-  int nhits = 0;
-  for (auto &hit: showerHits){
-    if (hit->WireID().TPC==tpc.TPC){
-      ++nhits;
-      if (nhits==21) break;
-      TVector2 coord = HitCoordinates(hit);
-      wfit.push_back(coord.X());
-      tfit.push_back(coord.Y());
-      cfit.push_back(hit->Integral());
-      trackHits.push_back(hit);
-      //std::cout<<*hit<<std::endl;
-    }
-  }
-  
-  double parm[2];
-  int fitok = 0;
-  if (wfit.size()){
-    fitok = WeightedFit(wfit.size(), &wfit[0], &tfit[0], &cfit[0], &parm[0]);
-    if (fitok!=0) return;
-  }
-
-  //std::cout<<"remove outlier hits"<<std::endl;
-  //Remove outlier hits
-  trackHits.clear();
-  nhits = 0;
-  for (auto &hit: showerHits){
-    if (hit->WireID().TPC==tpc.TPC){
-      ++nhits;
-      if (nhits==21) break;
-      TVector2 coord = HitCoordinates(hit);
-      //std::cout<<*hit<<" "<<std::abs((coord.Y()-(parm[0]+coord.X()*parm[1]))*cos(atan(parm[1])))<<std::endl;
-      if (std::abs((coord.Y()-(parm[0]+coord.X()*parm[1]))*cos(atan(parm[1])))<2){
-      trackHits.push_back(hit);
-      //std::cout<<"pass"<<std::endl;
-      //std::cout<<*hit<<std::endl;
+    // Fit a straight line through hits
+    unsigned int nhits = 0;
+    for (auto &hit: showerHits){
+      if (hit->WireID().TPC==tpc.TPC){
+	TVector2 coord = HitCoordinates(hit);
+	if (i==0||(std::abs((coord.Y()-(parm[0]+coord.X()*parm[1]))*cos(atan(parm[1])))<fToler[i-1])||fitok==1){
+	  ++nhits;
+	  if (nhits==fNfithits[i]+1) break;
+	  wfit.push_back(coord.X());
+	  tfit.push_back(coord.Y());
+	//cfit.push_back(hit->Integral());
+	  cfit.push_back(1.);
+	  if (i==fNfitpass-1) trackHits.push_back(hit);
+	//std::cout<<*hit<<std::endl;
+	  //if (i==fNfitpass-1) 
+	  //std::cout<<"Pass = "<<i<<" fitok = "<<fitok<<" "<<hit->WireID()<<" "<<hit->PeakTime()<<" "<<std::abs((coord.Y()-(parm[0]+coord.X()*parm[1]))*cos(atan(parm[1])))<<std::endl;
+	}
       }
     }
-  }  
+  
+    if (i<fNfitpass-1&&wfit.size()){
+      fitok = WeightedFit(wfit.size(), &wfit[0], &tfit[0], &cfit[0], &parm[0]);
+    }
+    wfit.clear();
+    tfit.clear();
+    cfit.clear();
+  }
 
 }
 
@@ -1500,3 +1578,22 @@ Int_t shower::EMShowerAlg::WeightedFit(const Int_t n, const Double_t *x, const D
     return 0;
     
   }
+
+bool shower::EMShowerAlg::isCleanShower(std::vector<art::Ptr<recob::Hit> > const& hits){
+
+  if (!hits.size()) return false;
+  if (hits.size()>2000) return true;
+  if (hits.size()<20) return true;
+  std::map<int, int> hitmap;
+  unsigned nhits = 0;
+  for (auto const&hit : hits){
+    ++nhits;
+    if (nhits>2)
+      ++hitmap[hit->WireID().Wire];
+    if (nhits==20) break;
+  }
+  //std::cout<<hits.size()<<" "<<float(nhits-2)/hitmap.size()<<std::endl;
+  if (float(nhits-2)/hitmap.size()>1.4) return false;
+  else return true;
+}
+    

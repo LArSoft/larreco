@@ -251,21 +251,29 @@ void shower::EMShower::produce(art::Event& evt) {
       recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
       shower.set_id(showerNum);
       showers->push_back(shower);
+      util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
+      util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
+      util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
+      util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()));
     }
     else{
       art::FindManyP<recob::Vertex> fmv(pfpHandle, evt, fPFParticleModuleLabel);
       std::vector<art::Ptr<recob::Vertex> > vertices = fmv.at(showerNum);
       if (vertices.size()){
-	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, vertices[0]);
-	shower.set_id(showerNum);
-	showers->push_back(shower);
+	int iok = 0;
+	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, vertices[0], iok);
+	//shower.set_id(showerNum);
+	if (iok==0){
+	  showers->push_back(shower);
+	  showers->back().set_id(showers->size()-1);
+	  util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()));
+	}
       }
     }
 
-    util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
-    util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
-    util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
-    util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()));
 
   }
 
