@@ -135,6 +135,7 @@ void shower::EMShower::produce(art::Event& evt) {
 
   // Make showers
   std::vector<std::vector<int> > newShowers;
+  std::vector<unsigned int> pfParticles;
 
   std::map<int,std::vector<int> > clusterToTracks;
   std::map<int,std::vector<int> > trackToClusters;
@@ -174,7 +175,10 @@ void shower::EMShower::produce(art::Event& evt) {
 	  for (size_t iclu = 0; iclu<clus.size(); ++iclu){
 	    clusters.push_back(clus[iclu].key());
 	  }
-	  if (clusters.size()) newShowers.push_back(clusters);
+	  if (clusters.size()){
+	    newShowers.push_back(clusters);
+	    pfParticles.push_back(ipfp);
+	  }
 	}
       }
     }
@@ -258,7 +262,7 @@ void shower::EMShower::produce(art::Event& evt) {
     }
     else{
       art::FindManyP<recob::Vertex> fmv(pfpHandle, evt, fPFParticleModuleLabel);
-      std::vector<art::Ptr<recob::Vertex> > vertices = fmv.at(showerNum);
+      std::vector<art::Ptr<recob::Vertex> > vertices = fmv.at(pfParticles[newShower-newShowers.begin()]);
       if (vertices.size()){
 	int iok = 0;
 	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, vertices[0], iok);

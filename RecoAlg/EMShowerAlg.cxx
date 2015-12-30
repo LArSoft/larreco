@@ -980,7 +980,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
     
     std::vector<art::Ptr<recob::Hit> > showerHits;
     OrderShowerHits(planeHits->second, showerHits, vertex);
-    if (!isCleanShower(showerHits)) continue;
+    //if (!isCleanShower(showerHits)) continue;
     FindInitialTrackHits(showerHits, vertex, initialTrackHits[planeHits->first]);
     if ((planeHits->second).size()>maxhits0){
       if (pl0!=-1){
@@ -1019,6 +1019,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
     //for (auto const&hit : initialTrackHits[pl0]) std::cout<<*hit<<std::endl;
     //for (auto const&hit : initialTrackHits[pl1]) std::cout<<*hit<<std::endl;
     pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(initialTrackHits[pl0], initialTrackHits[pl1]);
+    //std::cout<<pmatrack->size()<<std::endl;
     //pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(alltrackhits);
     std::vector<TVector3> spts;
     double xshift = pmatrack->GetXShift();
@@ -1421,9 +1422,12 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
 			  art::Ptr<recob::Vertex> const& vertex,
 			  std::vector<art::Ptr<recob::Hit> >& trackHits){
   // Find TPC for the vertex
+  //std::cout<<"here"<<std::endl;
   double xyz[3];
   vertex->XYZ(xyz);
+  //std::cout<<xyz[0]<<" "<<xyz[1]<<" "<<xyz[2]<<std::endl;
   geo::TPCID tpc = fGeom->FindTPCAtPosition(xyz);
+  //std::cout<<tpc<<std::endl;
   //vertex cannot be projected into a TPC, find the TPC that has the most hits
   if (!tpc.isValid){
     std::map<geo::TPCID, unsigned int> tpcmap;
@@ -1438,8 +1442,10 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
       }
     }
   }
+  //std::cout<<tpc<<std::endl;
     //if (!tpc.isValid&&showerHits.size()) tpc = geo::TPCID(showerHits[0]->WireID());
   if (!tpc.isValid) return;
+  //std::cout<<"here 1"<<std::endl;
 
   double parm[2];
   int fitok = 0;
@@ -1452,8 +1458,10 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
     // Fit a straight line through hits
     unsigned int nhits = 0;
     for (auto &hit: showerHits){
+      //std::cout<<i<<" "<<hit->WireID()<<" "<<tpc<<std::endl;
       if (hit->WireID().TPC==tpc.TPC){
 	TVector2 coord = HitCoordinates(hit);
+	//std::cout<<i<<" "<<hit->WireID()<<" "<<hit->PeakTime()<<std::endl;
 	if (i==0||(std::abs((coord.Y()-(parm[0]+coord.X()*parm[1]))*cos(atan(parm[1])))<fToler[i-1])||fitok==1){
 	  ++nhits;
 	  if (nhits==fNfithits[i]+1) break;
@@ -1461,7 +1469,9 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
 	  tfit.push_back(coord.Y());
 	//cfit.push_back(hit->Integral());
 	  cfit.push_back(1.);
-	  if (i==fNfitpass-1) trackHits.push_back(hit);
+	  if (i==fNfitpass-1) {
+	    trackHits.push_back(hit);
+	  }
 	//std::cout<<*hit<<std::endl;
 //
 //<<hit->PeakTime()<<" "<<std::abs((coord.Y()-(parm[0]+coord.X()*parm[1]))*cos(atan(parm[1])))<<std::endl;
