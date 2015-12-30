@@ -1003,7 +1003,9 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 //  }
   if (pl0!=-1&&pl1!=-1
       &&initialTrackHits[pl0].size()>=2
-      &&initialTrackHits[pl1].size()>=2){
+      &&initialTrackHits[pl1].size()>=2
+      &&initialTrackHits[pl0][0]->WireID().TPC==
+      initialTrackHits[pl1][0]->WireID().TPC){
     double xyz[3];
     vertex->XYZ(xyz);
     TVector3 vtx(xyz);
@@ -1422,7 +1424,21 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
   double xyz[3];
   vertex->XYZ(xyz);
   geo::TPCID tpc = fGeom->FindTPCAtPosition(xyz);
-  if (!tpc.isValid&&showerHits.size()) tpc = geo::TPCID(showerHits[0]->WireID());
+  //vertex cannot be projected into a TPC, find the TPC that has the most hits
+  if (!tpc.isValid){
+    std::map<geo::TPCID, unsigned int> tpcmap;
+    unsigned maxhits = 0;
+    for (auto const&hit : showerHits){
+      ++tpcmap[geo::TPCID(hit->WireID())];
+    }
+    for (auto const&t : tpcmap){
+      if (t.second > maxhits){
+	maxhits = t.second;
+	tpc = t.first;
+      }
+    }
+  }
+    //if (!tpc.isValid&&showerHits.size()) tpc = geo::TPCID(showerHits[0]->WireID());
   if (!tpc.isValid) return;
 
   double parm[2];
@@ -1447,8 +1463,8 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
 	  cfit.push_back(1.);
 	  if (i==fNfitpass-1) trackHits.push_back(hit);
 	//std::cout<<*hit<<std::endl;
-	  //if (i==fNfitpass-1) 
-	  //std::cout<<"Pass = "<<i<<" fitok = "<<fitok<<" "<<hit->WireID()<<" "<<hit->PeakTime()<<" "<<std::abs((coord.Y()-(parm[0]+coord.X()*parm[1]))*cos(atan(parm[1])))<<std::endl;
+//
+//<<hit->PeakTime()<<" "<<std::abs((coord.Y()-(parm[0]+coord.X()*parm[1]))*cos(atan(parm[1])))<<std::endl;
 	}
       }
     }
