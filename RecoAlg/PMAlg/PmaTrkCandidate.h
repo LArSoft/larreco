@@ -18,6 +18,9 @@ namespace pma
 {
 	class TrkCandidate;
 	typedef std::vector< TrkCandidate > trk_candidates;
+
+	int getCandidateIndex(pma::trk_candidates const & tracks, pma::Track3D const * candidate);
+	void setParentDaughterConnections(pma::trk_candidates& tracks);
 }
 
 class pma::TrkCandidate
@@ -39,7 +42,10 @@ public:
 	const std::vector< size_t > & Clusters(void) const { return fClusters; }
 	std::vector< size_t > & Clusters(void) { return fClusters; }
 
+	/// Get key of an external object (like a source PFParticle) associated to this track candidate.
 	int Key(void) const { return fKey; }
+
+	/// Set key of an external object associated to this track candidate.
 	void SetKey(int key) { fKey = key; }
 
 	double Mse(void) const { return fMse; }
@@ -48,7 +54,16 @@ public:
 	double Validation(void) const { return fValidation; }
 	void SetValidation(double v) { fValidation = v; }
 
+	int Parent(void) const { return fParent; }
+	void SetParent(int idx) { fParent = idx; }
+
+	const std::vector< size_t > & Daughters(void) const { return fDaughters; }
+	std::vector< size_t > & Daughters(void) { return fDaughters; }
+
 private:
+	int fParent;
+	std::vector< size_t > fDaughters;
+
 	pma::Track3D* fTrack;
 	std::vector< size_t > fClusters;
 	int fKey;

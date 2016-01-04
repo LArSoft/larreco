@@ -50,6 +50,9 @@ standard_pmalgtrackmaker:
                                       #
   RunVertexing:           false       # find vertices, join with tracks, reoptimize track-vertex structure
                                       #
+  MakePFPs:               false       # output track-vertex net as a tree of PFParticles, in such case tracks
+                                      # are associated to new PFParticles even if CluMatchingAlg is 2 or 3
+                                      #
   HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
   ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
   CluMatchingAlg:         1           # 1: loop over clusters from each view, produces independent tracks:

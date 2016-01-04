@@ -14,6 +14,9 @@
 //    June-July 2015:  merging track parts within a single tpc and stitching tracks across tpc's
 //    August 2015:     optimization of track-vertex structures (so 3D vertices are also produced)
 //    November 2015:   use track-shower splitting at 2D level, then tag low-E EM cascades in 3D
+//                     note: the splitter is not finished and not as good as we want it
+//    January 2016:    output results of track-vertex finding as a tree of PFParticles, also refined
+//                     vertexing code
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -212,6 +215,8 @@ private:
   std::string fCluModuleLabel; // label for input cluster collection
   int fCluMatchingAlg;         // which algorithm for cluster association
 
+  bool fMakePFPs;              // output track-vertex net as a tree of PFParticles
+
   size_t fMinSeedSize1stPass;  // min. cluster size used to start building a track in the 1st pass
   size_t fMinSeedSize2ndPass;  // min. cluster size used to start building a track in the 2nd pass
 
@@ -250,7 +255,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	produces< std::vector<recob::Vertex> >();
 	produces< std::vector<anab::T0> >();
 
-	produces< art::Assns<recob::Track, recob::Hit> >();
+	produces< art::Assns<recob::Track, recob::Hit> >(); // ****** REMEMBER to remove when FindMany improved ******
 	produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
 
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
@@ -258,7 +263,10 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	produces< art::Assns<recob::Vertex, recob::Track> >();
 	produces< art::Assns<recob::Track, anab::T0> >();
 
-	produces< art::Assns<recob::PFParticle, recob::Track>>();
+	produces< std::vector<recob::PFParticle> >();
+	produces< art::Assns<recob::PFParticle, recob::Cluster> >();
+	produces< art::Assns<recob::PFParticle, recob::Vertex> >();
+	produces< art::Assns<recob::PFParticle, recob::Track> >();
 }
 // ------------------------------------------------------
 
@@ -291,6 +299,8 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
 	fCluModuleLabel = pset.get< std::string >("ClusterModuleLabel");
 	fCluMatchingAlg = pset.get< int >("CluMatchingAlg");
+
+	fMakePFPs = pset.get< bool >("MakePFPs");
 
 	fMinSeedSize1stPass = pset.get< size_t >("MinSeedSize1stPass");
 	fMinSeedSize2ndPass = pset.get< size_t >("MinSeedSize2ndPass");
@@ -1282,7 +1292,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< std::vector< recob::Vertex > > vtxs(new std::vector< recob::Vertex >);
 	std::unique_ptr< std::vector< anab::T0 > > t0s(new std::vector< anab::T0 >);
 
-	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit_oldway(new art::Assns< recob::Track, recob::Hit >);
+	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit_oldway(new art::Assns< recob::Track, recob::Hit >); // ****** REMEMBER to remove when FindMany improved ******
 	std::unique_ptr< art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta > > trk2hit(new art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta >);
 
 	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
@@ -1291,7 +1301,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
 	std::unique_ptr< art::Assns< recob::Vertex, recob::Track > > vtx2trk(new art::Assns< recob::Vertex, recob::Track >);
 
-	std::unique_ptr< art::Assns< recob::PFParticle, recob::Track > > pfPartTrackAssns(new art::Assns< recob::PFParticle, recob::Track >);
+
+	std::unique_ptr< std::vector< recob::PFParticle > > pfps(new std::vector< recob::PFParticle >);
+
+    std::unique_ptr< art::Assns<recob::PFParticle, recob::Cluster> > pfp2clu( new art::Assns<recob::PFParticle, recob::Cluster> );
+    std::unique_ptr< art::Assns<recob::PFParticle, recob::Vertex> > pfp2vtx( new art::Assns<recob::PFParticle, recob::Vertex> );
+	std::unique_ptr< art::Assns< recob::PFParticle, recob::Track > > pfp2trk(new art::Assns< recob::PFParticle, recob::Track >);
 
 	bool sortHitsClustersOK = false;
 	switch (fCluMatchingAlg)
@@ -1334,7 +1349,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			double dQdxFlipThr = 0.0;
 			if (fFlipToBeam) dQdxFlipThr = 0.4;
 
-            // Use the following to create PFParticle <--> Track associations
+            // use the following to create PFParticle <--> Track associations;
+			// note: these are assns to existing PFParticles, that are used for CluMatchingAlg = 2 or 3.
             std::map< size_t, std::vector< art::Ptr<recob::Track> > > pfPartToTrackVecMap;
 
 			tracks->reserve(result.size());
@@ -1406,7 +1422,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 					recob::TrackHitMeta metadata(hIdxs[h], h3d->Dx());
 					trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
-					trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // remove when FindMany improved
+					trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 
 					double hx = h3d->Point3D().X() + xShift;
 					double hy = h3d->Point3D().Y();
@@ -1433,8 +1449,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				if (spEnd > spStart) util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
 
-                // If there is a PFParticle collection then recover PFParticle and add info to map
-                if (result[fTrkIndex].Key() > -1)
+                // if there is a PFParticle collection then recover PFParticle and add info to map
+                if (!fMakePFPs && (result[fTrkIndex].Key() > -1))
                 {
                     size_t trackIdx = tracks->size() - 1;
                     art::ProductID trackId = getProductID< std::vector<recob::Track> >(evt);
@@ -1443,51 +1459,90 @@ void PMAlgTrackMaker::produce(art::Event& evt)
                 }
 			}
 
+			auto pfpid = getProductID< std::vector<recob::PFParticle> >(evt);
+			auto vid = getProductID< std::vector<recob::Vertex> >(evt);
+			auto tid = getProductID< std::vector<recob::Track> >(evt);
+			auto const* trkGetter = evt.productGetter(tid);
+
+			auto vsel = fPMAlgVertexing.getVertices(result); // vertex positions with vector of connected tracks idxs
+			std::map< size_t, art::Ptr<recob::Vertex> > frontVtxs; // front vertex ptr for each track index
+
 			if (fRunVertexing) // save vertices and vtx-trk assns
 			{
-				art::ProductID vid = getProductID< std::vector<recob::Vertex> >(evt);
-				art::ProductID tid = getProductID< std::vector<recob::Track> >(evt);
-				auto const* getter = evt.productGetter(tid);
-
-				int vidx = 0; double xyz[3];
-				auto vsel = fPMAlgVertexing.getVertices(result);
+				double xyz[3];
 				for (auto const & v : vsel)
 				{
-					xyz[0] = v.first.X();
-					xyz[1] = v.first.Y();
-					xyz[2] = v.first.Z();
+					xyz[0] = v.first.X(); xyz[1] = v.first.Y(); xyz[2] = v.first.Z();
 					mf::LogVerbatim("Summary")
 						<< "  vtx:" << xyz[0] << ":" << xyz[1] << ":" << xyz[2]
 						<< "  (" << v.second.size() << " tracks)";
-					vtxs->push_back(recob::Vertex(xyz, vidx++));
 
-					size_t vidx = (size_t)(vtxs->size() - 1);
+					size_t vidx = vtxs->size();
+					vtxs->push_back(recob::Vertex(xyz, vidx));
+
 					art::Ptr<recob::Vertex> vptr(vid, vidx, evt.productGetter(vid));
-					for (size_t tidx : v.second)
+					if (!v.second.empty())
 					{
-						art::Ptr<recob::Track> tptr(tid, tidx, getter);
-						vtx2trk->addSingle(vptr, tptr);
+						frontVtxs[v.second.front()] = vptr; // keep ptr of the front vtx
+						for (size_t tidx : v.second)
+						{
+							art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
+							vtx2trk->addSingle(vptr, tptr);
+						}
 					}
 				}
 				mf::LogVerbatim("Summary") << vtxs->size() << " vertices ready";
 			}
 
-            // If we have PFParticles then do the associations here
-            if (!pfPartToTrackVecMap.empty())
-            {
-				art::Handle< std::vector<recob::PFParticle> > pfParticleHandle;
-				evt.getByLabel(fCluModuleLabel, pfParticleHandle);
-                for (const auto & pfParticleItr : pfPartToTrackVecMap)
-                {
-                    art::Ptr<recob::PFParticle> pfParticle(pfParticleHandle, pfParticleItr.first);
-                    mf::LogVerbatim("PMAlgTrackMaker") << "PFParticle key: " << pfParticle.key()
-						<< ", self: " << pfParticle->Self() << ", #tracks: " << pfParticleItr.second.size();
+			if (fMakePFPs)
+			{
+				// first particle, to be replaced with nu reco when possible
+				pfps->emplace_back(recob::PFParticle(0, 0, 0, std::vector< size_t >()));
 
-                    if (!pfParticle.isNull()) util::CreateAssn(*this, evt, pfParticle, pfParticleItr.second, *pfPartTrackAssns);
-					else mf::LogError("PMAlgTrackMaker") << "Error in PFParticle lookup, pfparticle index: "
-						<< pfParticleItr.first << ", key: " << pfParticle.key();
-                }
-            }
+				pma::setParentDaughterConnections(result);
+				for (size_t t = 0; t < result.size(); ++t)
+				{
+					size_t parentIdx = 0;
+					if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent() + 1;
+
+					std::vector< size_t > daughterIdxs;
+					for (size_t idx : result[t].Daughters()) daughterIdxs.push_back(idx + 1);
+
+					size_t pfpidx = pfps->size();
+					pfps->emplace_back(recob::PFParticle(0, pfpidx, parentIdx, daughterIdxs));
+
+					art::Ptr<recob::PFParticle> pfpptr(pfpid, pfpidx, evt.productGetter(pfpid));
+					art::Ptr<recob::Track> tptr(tid, t, trkGetter);
+					pfp2trk->addSingle(pfpptr, tptr);
+
+					if (fRunVertexing) // vertexing was used, so add assns to front vertex of each particle
+					{
+						art::Ptr<recob::Vertex> vptr = frontVtxs[t];
+						if (!vptr.isNull()) pfp2vtx->addSingle(pfpptr, vptr);
+						else mf::LogWarning("PMAlgTrackMaker") << "Front vertex for PFParticle is missing.";
+					}
+				}
+				mf::LogVerbatim("Summary") << pfps->size() << " PFParticles created";
+			}
+			else
+			{
+	            // if we have used existing PFParticles then do the associations here
+    	        if (!pfPartToTrackVecMap.empty())
+    	        {
+					art::Handle< std::vector<recob::PFParticle> > pfParticleHandle;
+					evt.getByLabel(fCluModuleLabel, pfParticleHandle);
+    	            for (const auto & pfParticleItr : pfPartToTrackVecMap)
+    	            {
+    	                art::Ptr<recob::PFParticle> pfParticle(pfParticleHandle, pfParticleItr.first);
+    	                mf::LogVerbatim("PMAlgTrackMaker") << "PFParticle key: " << pfParticle.key()
+							<< ", self: " << pfParticle->Self() << ", #tracks: " << pfParticleItr.second.size();
+
+    	                if (!pfParticle.isNull()) util::CreateAssn(*this, evt, pfParticle, pfParticleItr.second, *pfp2trk);
+						else mf::LogError("PMAlgTrackMaker") << "Error in PFParticle lookup, pfparticle index: "
+							<< pfParticleItr.first << ", key: " << pfParticle.key();
+    	            }
+    	        }
+			}
 
 			// data prods done, delete all pma::Track3D's
 			for (auto t : result) t.DeleteTrack();
@@ -1500,7 +1555,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(vtxs));
 	evt.put(std::move(t0s));
 
-	evt.put(std::move(trk2hit_oldway));
+	evt.put(std::move(trk2hit_oldway)); // ****** REMEMBER to remove when FindMany improved ******
 	evt.put(std::move(trk2hit));
 	evt.put(std::move(trk2sp));
 	evt.put(std::move(trk2t0));
@@ -1508,7 +1563,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(sp2hit));
 	evt.put(std::move(vtx2trk));
 
-	evt.put(std::move(pfPartTrackAssns));
+	evt.put(std::move(pfps));
+	evt.put(std::move(pfp2clu));
+	evt.put(std::move(pfp2vtx));
+	evt.put(std::move(pfp2trk));
 }
 // ------------------------------------------------------
 // ------------------------------------------------------

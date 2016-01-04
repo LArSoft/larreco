@@ -512,9 +512,17 @@ std::vector< std::pair< TVector3, std::vector< size_t > > > pma::PMAlgVertexing:
 	std::vector< std::pair< TVector3, std::vector< size_t > > > vsel;
 	std::vector< pma::Node3D const * > bnodes;
 
-	for (size_t t = 0; t < tracks.size(); t++)
+	for (size_t t = 0; t < tracks.size(); ++t)
 	{
 		pma::Track3D const * trk = tracks[t].Track();
+		pma::Node3D const * firstNode = trk->Nodes().front();
+		if (!firstNode->IsBranching())
+		{
+			std::vector< size_t > tidx;
+			tidx.push_back(t);
+			vsel.push_back(std::pair< TVector3, std::vector< size_t > >(trk->front()->Point3D(), tidx));
+		}
+
 		for (auto node : trk->Nodes())
 			if (node->IsBranching())
 		{
