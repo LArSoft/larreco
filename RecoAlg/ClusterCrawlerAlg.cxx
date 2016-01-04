@@ -521,7 +521,7 @@ namespace cluster {
       // Check the DS end of clusters
       if(fChkClusterDS) ChkClusterDS();
       // Find Very Large Angle clusters()
-      if(fFindVLAClusters) FindVLAClusters();
+//      if(fFindVLAClusters) FindVLAClusters();
       // split clusters using vertices
       if(fVtxClusterSplit) {
         bool didSomething = VtxClusterSplit();
@@ -3540,26 +3540,29 @@ namespace cluster {
   bool ClusterCrawlerAlg::TmpStore()
   {
 
-    if(fcl2hits.size() < 3) return false;
-    
-    if(fcl2hits.size() == UINT_MAX) return false;
+    if(fcl2hits.size() < 2) return false;
+    if(fcl2hits.size() > fHits.size()) return false;
     
     if(NClusters == USHRT_MAX) return false;
     
     ++NClusters;
     
     unsigned int hit0 = fcl2hits[0];
+    unsigned int hit;
     unsigned int tCST = fHits[hit0].WireID().Cryostat;
     unsigned int tTPC = fHits[hit0].WireID().TPC;
     unsigned int tPlane = fHits[hit0].WireID().Plane;
     unsigned short lastWire = 0;
     
     for(unsigned short it = 0; it < fcl2hits.size(); ++it) {
-      unsigned int hit = fcl2hits[it];
+      hit = fcl2hits[it];
       if(inClus[hit] != 0) {
         mf::LogWarning("CC")<<"TmpStore: Trying to use obsolete/used hit "<<hit<<" inClus "<<inClus[hit]
-          <<" on wire "<<fHits[hit].WireID().Wire<<" on cluster "<<NClusters
-          <<" in plane "<<plane<<" ProcCode "<<clProcCode<<" seed hit "<<plane<<":"<<fHits[fcl2hits[0]].WireID().Wire<<":"<<(int)fHits[fcl2hits[0]].PeakTime();
+          <<" while creating cluster. ProcCode "<<clProcCode<<" fcl2hits[0] hit "<<plane<<":"<<fHits[fcl2hits[0]].WireID().Wire<<":"<<(int)fHits[fcl2hits[0]].PeakTime();
+        for(unsigned short jj = 0; jj < fcl2hits.size(); ++jj) {
+          hit = fcl2hits[jj];
+          mf::LogVerbatim("CC")<<jj<<" "<<hit<<" "<<fHits[hit].WireID().Plane<<":"<<fHits[hit].WireID().Wire<<":"<<(int)fHits[hit].PeakTime()<<" inClus "<<inClus[hit];
+        }
         --NClusters;
         return false;
       }
@@ -3572,7 +3575,7 @@ namespace cluster {
         return false;
       }
       // check for decreasing wire number
-      if(clStopCode != 8 && it > 0 && fHits[hit].WireID().Wire >= lastWire) {
+      if(clProcCode < 900 && it > 0 && fHits[hit].WireID().Wire >= lastWire) {
         mf::LogError("CC")<<"TmpStore: Hits not in correct wire order. Seed hit "<<fHits[fcl2hits[0]].WireID().Plane<<":"
           <<fHits[fcl2hits[0]].WireID().Wire<<":"<<(int)fHits[fcl2hits[0]].PeakTime()<<" it "<<it<<" hit wire "<<fHits[hit].WireID().Wire
           <<" ProcCode "<<clProcCode;
@@ -3592,7 +3595,7 @@ namespace cluster {
     if(clEndChg <= 0) {
       // use the next to the last two hits. The End hit may have low charge
       unsigned int ih0 = fcl2hits.size() - 2;
-      unsigned int hit = fcl2hits[ih0];
+      hit = fcl2hits[ih0];
       clEndChg = fHits[hit].Integral();
       hit = fcl2hits[ih0 - 1];
       clEndChg += fHits[hit].Integral();
@@ -3600,27 +3603,16 @@ namespace cluster {
     }
     if(clBeginChg <= 0) {
       // use the 2nd and third hit. The Begin hit may have low charge
-      unsigned int hit = fcl2hits[1];
+      hit = fcl2hits[1];
       clBeginChg = fHits[hit].Integral();
       hit = fcl2hits[2];
       clBeginChg += fHits[hit].Integral();
       clBeginChg = clBeginChg / 2.;
     }
     
-    std::vector<unsigned int>::const_iterator ibg = fcl2hits.begin();
-    unsigned short hitb = *ibg;
-    std::vector<unsigned int>::const_iterator iend = fcl2hits.end() - 1;
-    unsigned short hite = *iend;
+    hit0 = fcl2hits[0];
+    hit = fcl2hits[fcl2hits.size()-1];
     
-/*
-    // Temp?
-    if(fHits[hitb].WireID().Plane >= 0 && (int)fHits[hitb].WireID().Plane == fDebugPlane) {
-      for(unsigned short iht = 0; iht < fcl2hits.size(); ++iht) {
-        if((int)fHits[hitb].WireID().Wire == fDebugWire && (int)fHits[hitb].PeakTime() == (int)fDebugHit)
-          mf::LogVerbatim("CC")<<"TmpStore: Storing debug hit in cluster "<<NClusters;
-      }
-    } // debug storing hit
-*/
     // store the cluster in the temporary ClusterStore struct
     ClusterStore clstr;
     
@@ -3628,15 +3620,15 @@ namespace cluster {
     clstr.BeginSlp    = clBeginSlp;
     clstr.BeginSlpErr = clBeginSlpErr;
     clstr.BeginAng    = std::atan(fScaleF * clBeginSlp);
-    clstr.BeginWir    = fHits[hitb].WireID().Wire;
-    clstr.BeginTim    = fHits[hitb].PeakTime();
+    clstr.BeginWir    = fHits[hit0].WireID().Wire;
+    clstr.BeginTim    = fHits[hit0].PeakTime();
     clstr.BeginChg    = clBeginChg;
     clstr.BeginChgNear = clBeginChgNear;
     clstr.EndSlp      = clEndSlp;
     clstr.EndSlpErr   = clEndSlpErr;
     clstr.EndAng      = std::atan(fScaleF * clEndSlp);
-    clstr.EndWir      = fHits[hite].WireID().Wire;
-    clstr.EndTim      = fHits[hite].PeakTime();
+    clstr.EndWir      = fHits[hit].WireID().Wire;
+    clstr.EndTim      = fHits[hit].PeakTime();
     clstr.EndChg      = clEndChg;
     clstr.EndChgNear  = clEndChgNear;
     clstr.StopCode    = clStopCode;
@@ -3647,15 +3639,17 @@ namespace cluster {
     clstr.tclhits     = fcl2hits;
     tcl.push_back(clstr);
 
+/*
     // Re-fit the cluster at the Begin end. Use this to determine BeginTim
     // instead of using the PeakTime of the first hit
     // Determine which pass the cluster was created in
     unsigned short cpass = clProcCode - 10 * (clProcCode / 10);
-    // to decide who many hits to fit
+    if(cpass > fNumPass-1) cpass = fNumPass-1;
+    // to decide how many hits to fit
     short nhfit = fMaxHitsFit[cpass];
     FitClusterMid(tcl.size()-1, fcl2hits[0], nhfit);
     if(clChisq < 99) tcl[tcl.size()-1].BeginTim = clpar[0];
-    
+*/
     ClearUnMergedHits();
 
     return true;
@@ -4695,7 +4689,7 @@ namespace cluster {
         if(wid < loWid) loWid = wid;
         if(wid > hiWid) hiWid = wid;
       }
-      if(prt) mf::LogVerbatim("CC")<<"ClusterHitsOK loWid "<<loWid<<" hiWid "<<hiWid;
+//      if(prt) mf::LogVerbatim("CC")<<"ClusterHitsOK loWid "<<loWid<<" hiWid "<<hiWid;
       if(hiWid > 2 * loWid) return false;
     }
     
@@ -4706,13 +4700,14 @@ namespace cluster {
     if(plane < geom->Cryostat(cstat).TPC(tpc).Nplanes()-1) tol = 40;
     
     bool posSlope = (fHits[fcl2hits[0]].PeakTime() > fHits[fcl2hits[fcl2hits.size() - 1]].PeakTime());
+/*
     if(prt) {
       for(unsigned short ii = 0; ii < nHitToChk; ++ii) {
         indx = fcl2hits.size() - 1 - ii;
         mf::LogVerbatim("CC")<<"chk "<<fHits[fcl2hits[indx]].WireID().Wire<<" start "<<fHits[fcl2hits[indx]].StartTick()<<" peak "<<fHits[fcl2hits[indx]].PeakTime()<<" end "<<fHits[fcl2hits[indx]].EndTick()<<" posSlope "<<posSlope;
       }
     }
-
+*/
     raw::TDCtick_t hiStartTick, loEndTick;
     for(unsigned short ii = 0; ii < nHitToChk - 1; ++ii) {
       indx = fcl2hits.size() - 1 - ii;
