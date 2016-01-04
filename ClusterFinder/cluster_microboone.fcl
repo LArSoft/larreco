@@ -6,7 +6,6 @@ BEGIN_PROLOG
 microboone_clustercrawler:                    @local::standard_clustercrawler
 microboone_clustercrawler.ClusterCrawlerAlg:  @local::microboone_clustercrawleralg
 microboone_clustercrawler.CCHitFinderAlg:     @local::microboone_cchitfinderalg
-microboone_clustercrawler.CCHitRefinerAlg:    @local::microboone_cchitrefineralg
 
 microboone_linecluster:                       @local::standard_linecluster
 microboone_linecluster.ClusterCrawlerAlg:     @local::microboone_clustercrawleralg

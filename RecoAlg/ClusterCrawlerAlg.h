@@ -30,7 +30,6 @@
 #include "RecoAlg/CCHitFinderAlg.h"
 #include "RecoAlg/LinFitAlg.h"
 
-
 namespace cluster {
   
   class ClusterCrawlerAlg {
@@ -60,7 +59,7 @@ namespace cluster {
       float BeginSlp;   // beginning slope (= DS end = high wire number)
       float BeginSlpErr; // error
       float BeginAng;
-      unsigned short BeginWir;   // begin wire
+      unsigned int BeginWir;   // begin wire
       float BeginTim;   // begin time
       float BeginChg;   // beginning average charge
 			float BeginChgNear; // charge near the cluster Begin
@@ -68,7 +67,7 @@ namespace cluster {
       float EndSlp;     // end slope (= US end = low  wire number)
       float EndAng;
       float EndSlpErr;  // error
-      unsigned short EndWir;     // end wire
+      unsigned int EndWir;     // end wire
       float EndTim;     // ending time
       float EndChg;     // ending average charge
 			float EndChgNear; // charge near the cluster End
@@ -87,6 +86,7 @@ namespace cluster {
       short Topo; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star,
 												// 6 = hammer, 7 = vtx3clustermatch, 8 = vtx3clustersplit
       CTP_t CTP;
+      bool Fixed;                 // Vertex position fixed (should not be re-fit)
     };
     
     /// struct of temporary 3D vertices
@@ -109,6 +109,10 @@ namespace cluster {
     virtual void reconfigure(fhicl::ParameterSet const& pset);
     void RunCrawler(std::vector<recob::Hit> const& srchits);
     
+    // initializes the vector of filtered wires
+    void ClearFilteredWires();
+    void CheckFilteredWires(std::vector<recob::Wire> const& Wires);
+
     /// @{
     /// @name Result retrieval
     
@@ -136,7 +140,6 @@ namespace cluster {
     /// Comparison for sorting hits by wire and hit multiplet
     static bool SortByMultiplet(recob::Hit const& a, recob::Hit const& b);
     
-    
 ////////////////////////////////////
 
     private:
@@ -160,9 +163,9 @@ namespace cluster {
     std::vector<float> fMergeChgCut;  ///< max charge ratio for matching
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
     std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
-		bool fHammerCluster;					 ///< look for hammer type clusters
-    
-    bool fuBCode;     ///< patch in MicroBooNE-specific code
+		bool fFindHammerClusters;					 ///< look for hammer type clusters
+    bool fFindVLAClusters;					 ///< look for Very Large Angle clusters
+    bool fRefineVertexClusters;
 		
 		float fMinAmp;									///< expected minimum signal
 
@@ -180,29 +183,25 @@ namespace cluster {
                              ///< is < cut. Set < 0 for no merging
     float fMergeOverlapAngCut;   ///< angle cut for merging overlapping clusters
     unsigned short fAllowNoHitWire;
-		float fVertex2DCut; 	///< 2D vtx -> cluster matching cut (ticks)
-    float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (cm)
+		float fVertex2DCut; 	///< 2D vtx -> cluster matching cut (chisq/dof)
+    float fVertex2DWireErrCut;
+    float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
 
-    short fDebugPlane;
-    short fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
-    short fDebugHit;   ///< out detailed information while crawling
-
-    // fills a wirehitrange vector for the supplied Cryostat/TPC/Plane code
-
-    void GetHitRange(CTP_t CTP,
-      std::vector< std::pair<int, int> >& wirehitrange,
-      unsigned short& firstwire, unsigned short& lastwire);
-
-    // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
-    void FitClusterMid(unsigned short it1, unsigned int iht, short nhit);
-
+    int fDebugPlane;
+    int fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
+    int fDebugHit;   ///< out detailed information while crawling
+    
+    // Wires that have been determined by some filter (e.g. NoiseFilter) to be good
+    std::vector<geo::WireID> fFilteredWires;
+ 
     // these variables define the cluster used during crawling
     float clpar[3];     ///< cluster parameters for the current fit with
                         ///< origin at the US wire on the cluster (in clpar[2])
     float clparerr[2];  ///< cluster parameter errors
     float clChisq;     ///< chisq of the current fit
     float fAveChg;  ///< average charge at leading edge of cluster
-    float fChgSlp;  ///< slope of the  charge vs wire 
+    float fChgSlp;  ///< slope of the  charge vs wire
+    float fAveHitWidth; ///< average width (EndTick - StartTick) of hits
     
     bool prt;
     bool vtxprt;
@@ -214,6 +213,7 @@ namespace cluster {
     
     std::vector<recob::Hit> fHits; ///< our version of the hits
     std::vector<short> inClus;    ///< Hit used in cluster (-1 = obsolete, 0 = free)
+    std::vector<bool> mergeAvailable; ///< set true if hit is with HitMergeChiCut of a neighbor hit
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< the endpoints we are reconstructing
     std::vector< Vtx3Store > vtx3; ///< the 3D vertices we are reconstructing
@@ -243,6 +243,7 @@ namespace cluster {
                         ///< 5 = cluster split by VtxClusterSplit
                         ///< 6 = stop at a vertex
 												///< 7 = LA crawl stopped due to slope cut
+                        ///< 8 = SPECIAL CODE FOR STEP CRAWLING
     short clProcCode;     ///< Processor code = pass number
                         ///< +   10 ChkMerge
                         ///< +   20 ChkMerge with overlapping hits
@@ -250,6 +251,7 @@ namespace cluster {
                         ///< +  200 ClusterFix
                         ///< +  300 LACrawlUS
                         ///< +  500 MergeOverlap
+                        ///< =  999 FindVLACluster
                         ///< + 1000 VtxClusterSplit
                         ///< + 2000 failed pass N cuts but passes pass N=1 cuts
                         ///< + 3000 Cluster hits merged
@@ -258,14 +260,14 @@ namespace cluster {
     CTP_t clCTP;        ///< Cryostat/TPC/Plane code
 		bool clLA;					///< using Large Angle crawling code
     
-    unsigned short fFirstWire;    ///< the first wire with a hit
+    unsigned int fFirstWire;    ///< the first wire with a hit
     unsigned int fFirstHit;     ///< first hit used
-    unsigned short fLastWire;      ///< the last wire with a hit
-    unsigned short cstat;         // the current cryostat
-    unsigned short tpc;         // the current TPC
-    unsigned short plane;         // the current plane
-    unsigned short fNumWires;   // number of wires in the current plane
-    unsigned short fMaxTime;    // number of time samples in the current plane
+    unsigned int fLastWire;      ///< the last wire with a hit
+    unsigned int cstat;         // the current cryostat
+    unsigned int tpc;         // the current TPC
+    unsigned int plane;         // the current plane
+    unsigned int fNumWires;   // number of wires in the current plane
+    unsigned int fMaxTime;    // number of time samples in the current plane
     float fScaleF;     ///< scale factor from Tick/Wire to dx/du
     
     unsigned short pass;
@@ -279,7 +281,7 @@ namespace cluster {
     std::vector<float> chifits;   ///< fit chisq for monitoring kinks, etc
     std::vector<short> hitNear;   ///< Number of nearby
                                   ///< hits that were merged have hitnear < 0
-
+    
     std::vector<float> chgNear; ///< charge near a cluster on each wire
 		float fChgNearWindow; 		///< window (ticks) for finding nearby charge
 		float fChgNearCut;				///< cut on ratio of nearby/cluster charge to
@@ -287,23 +289,54 @@ namespace cluster {
 
     std::string fhitsModuleLabel;
     
+    // struct for step crawling
+    struct TrajPoint {
+      std::array<float, 2> Pos; // Position in wire equivalent units
+      std::array<float, 2> Dir; // likewise
+      float AngErr;             // direction error (radians)
+      float Chg;
+    };
+    std::vector<TrajPoint> traj;
+    
+    void ReverseTraj();
+
+    // hit multiplets that have been saved before merging.
+    std::vector<recob::Hit> unMergedHits;
+    // RestoreUnMergedHits should be called before abandoning fcl2hits to
+    // restore any hits that may have been merged in the fcl2hits vector
+    // Set ntrim < 0 to check all hits
+    void RestoreUnMergedClusterHits(short ntrim);
+    // Restore a single merged hit
+    void RestoreUnMergedHit(unsigned int theHit);
+    // ClearUnMergedHits should (optionally) be called after a new
+    // temporary (tcl) cluster has been created
+    void ClearUnMergedHits();
 
     // ******** crawling routines *****************
 
     // Loops over wires looking for seed clusters
     void ClusterLoop();
+    // Returns true if the hits on a cluster have a consistent width
+    bool ClusterHitsOK(short nHitChk);
     // Finds a hit on wire kwire, adds it to the cluster and re-fits it
     void AddHit(unsigned short kwire, bool& HitOK, bool& SigOK);
     // Finds a hit on wire kwire, adds it to a LargeAngle cluster and re-fits it
     void AddLAHit(unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK);
+    // find a Very Large Angle Hit
+//    bool AddVLAHit(unsigned short wire, float prtime, float window);
     // Fits the cluster hits in fcl2hits to a straight line
     void FitCluster();
     // Fits the charge of the cluster hits in fcl2hits
     void FitClusterChg();
+     // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
+    void FitClusterMid(unsigned short it1, unsigned int iht, short nhit);
     // Crawls along a trail of hits UpStream
     void CrawlUS();
     // Crawls along a trail of hits UpStream - Large Angle version
     void LACrawlUS();
+    // Crawls starting at position pos, moving in direction dir with step size step
+    // appending hits to fcl2hits
+    void StepCrawl(float step);
 
     // ************** cluster merging routines *******************
 
@@ -336,6 +369,13 @@ namespace cluster {
     // Try to merge overlapping clusters
     void MergeOverlap();
     
+    // Find Very Large Angle clusters
+    void FindVLAClusters();
+    
+    // Make VLA cluster using hits in fc2lhits
+//    void MakeVLACluster();
+//    void FitVLACluster(short nHitsFit);
+    
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);
     /// Restores an obsolete cluster
@@ -357,8 +397,10 @@ namespace cluster {
     void ClusterVertex(unsigned short it2);
     // try to attach a cluster to a specified vertex
     void VertexCluster(unsigned short ivx);
+    // Refine cluster ends near vertices
+    void RefineVertexClusters(unsigned short ivx);
     // Split clusters that cross a vertex
-    void VtxClusterSplit();
+    bool VtxClusterSplit();
     // returns true if a vertex is encountered while crawling
     bool CrawlVtxChk(unsigned short kwire);
     // returns true if this cluster is between a vertex and another
@@ -387,10 +429,18 @@ namespace cluster {
 
     // inits everything
     void CrawlInit();
+    // inits the cluster stuff
+    void ClusterInit();
+    // fills the wirehitrange vector for the supplied Cryostat/TPC/Plane code
+    void GetHitRange(CTP_t CTP);
     // Stores cluster information in a temporary vector
     bool TmpStore();
     // Gets a temp cluster and puts it into the working cluster variables
     void TmpGet(unsigned short it1);
+    // Does just what it says
+    void CalculateAveHitWidth();
+    // Shortens the fcl2hits, chifits, etc vectors by the specified amount
+    void FclTrimUS(unsigned short nTrim);
     // Splits a cluster into two clusters at position pos. Associates the
     // new clusters with a vertex
     bool SplitCluster(unsigned short icl, unsigned short pos, unsigned short ivx);
@@ -400,6 +450,9 @@ namespace cluster {
     bool ChkSignal(unsigned short wire1, float time1, unsigned short wire2, float time2);
     // returns an angle-dependent scale factor for weighting fits, etc
     float AngleFactor(float slope);
+    // calculate the kink angle between hits 0-2 and 3 - 5 on the leading edge of
+    // the cluster under construction
+    float EndKinkAngle();
     /// Returns true if there are no duplicates in the hit list for next cluster
     bool CheckHitDuplicates
       (std::string location, std::string marker = "") const;

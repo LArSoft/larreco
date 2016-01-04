@@ -176,7 +176,7 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   // Define the size of this particular plane -- dynamically to avoid huge histograms
   int lowerTick = fDetProp->ReadOutWindowSize(), upperTick = 0, lowerWire = fGeom->MaxWires(), upperWire = 0;
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
-    int histWire = FindGlobalWire((*hitIt)->WireID());
+    int histWire = GlobalWire((*hitIt)->WireID());
     if ((*hitIt)->PeakTime() < lowerTick) lowerTick = (*hitIt)->PeakTime();
     if ((*hitIt)->PeakTime() > upperTick) upperTick = (*hitIt)->PeakTime();
     if (histWire < lowerWire) lowerWire = histWire;
@@ -202,7 +202,7 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
 
   // Look through the hits
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
-    unsigned int wire = FindGlobalWire((*hitIt)->WireID());
+    unsigned int wire = GlobalWire((*hitIt)->WireID());
     int   tick   = (int)(*hitIt)->PeakTime();
     float charge = (*hitIt)->SummedADC();
 
@@ -217,14 +217,14 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
 }
 
 
-TH2F* cluster::BlurredClusteringAlg::Convolve(TH2F* image, std::map<int,double> const& kernel, int const& width, int const& height, const char *new_name) {
+TH2F* cluster::BlurredClusteringAlg::Convolve(TH2F* image, std::vector<double> const& kernel, int const& width, int const& height, const char *new_name) {
 
   /// Convolves the Gaussian kernel with the image to blurrr
 
   // Get the magnitude of the bins in the kernel
   double mag = 0;
-  for(std::map<int,double>::const_iterator it = kernel.begin(); it != kernel.end(); ++it)
-    mag += it->second;
+  for(std::vector<double>::const_iterator kernelIt = kernel.begin(); kernelIt != kernel.end(); ++kernelIt)
+    mag += *kernelIt;
 
   // Copy the histogram to blur
   TString name = new_name == 0 ? TString::Format("%s_convolved", image->GetName()) : TString(new_name);
@@ -300,7 +300,7 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
   sigmawire = std::max(std::abs(std::round(fBlurSigma * unit.X())),1.);
   sigmatick = std::max(std::abs(std::round(fBlurSigma * unit.Y())),1.);
 
-  //std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << "; sigma: wire " << sigmawire << " and tick " << sigmatick << std::endl;
+  // std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << "; sigma: wire " << sigmawire << " and tick " << sigmatick << std::endl;
 
   return;
 
@@ -508,21 +508,24 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *blurred, std::vector<std::
 }
 
 
-int cluster::BlurredClusteringAlg::FindGlobalWire(geo::WireID const& wireID) {
+int cluster::BlurredClusteringAlg::GlobalWire(geo::WireID const& wireID) {
 
   /// Find the global wire position
 
   double wireCentre[3];
   fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
 
-  double globalWire;
+  double globalWire = -999;
   if (fGeom->SignalType(wireID) == geo::kInduction) {
     if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
     else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
   }
   else {
-    if (wireID.TPC % 2 == 0) globalWire = wireID.Wire + ((wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat));
-    else globalWire = wireID.Wire + ((int)(wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 1, wireID.Cryostat));
+    unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+    if (wireID.TPC == 0 or wireID.TPC == 1) globalWire = wireID.Wire;
+    else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5) globalWire = nwires + wireID.Wire;
+    else if (wireID.TPC == 6 or wireID.TPC == 7) globalWire = (2*nwires) + wireID.Wire;
+    else mf::LogError("BlurredClusterAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC;
   }
 
   return globalWire;
@@ -542,9 +545,8 @@ TH2F* cluster::BlurredClusteringAlg::GaussianBlur(TH2F* image) {
   FindBlurringParameters(blurwire, blurtick, sigmawire, sigmatick);
 
   // Create Gaussian kernel
-  std::map<int,double> kernel;
-  // int kernelSize = (2*blurwire+1)*(2*blurtick+1);
-  // std::array<double,kernelSize> kernel;
+  //std::map<int,double> kernel;
+  std::vector<double> kernel((2*blurwire+1)*(2*blurtick+1),0);
   int width = 2 * blurwire + 1;
   int height = 2 * blurtick + 1;
 
@@ -567,9 +569,8 @@ TH2F* cluster::BlurredClusteringAlg::GaussianBlur(TH2F* image) {
 	double sig2j = 2. * sigmatick * sigmatick;
 
 	int key = (width * (j + blurtick)) + (i + blurwire);
-	if (key>=((2*blurwire+1)*(2*blurtick+1))) std::cout << "Key is greater than array size!" << std::endl;
 	double value = 1. / sqrt(sig2i * M_PI) * exp(-i * i / sig2i) * 1. / sqrt(sig2j * M_PI) * exp(-j * j / sig2j);
-	kernel[key] = value;
+	kernel.at(key) = value;
 
       }
     } // End loop over blurring region
@@ -655,7 +656,7 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<art::PtrV
 
     for (art::PtrVector<recob::Hit>::iterator hitIt = cluster.begin(); hitIt != cluster.end(); hitIt++) {
       art::Ptr<recob::Hit> hit = *hitIt;
-      unsigned int wire = FindGlobalWire(hit->WireID());
+      unsigned int wire = GlobalWire(hit->WireID());
       float tick = hit->PeakTime();
       int bin = image->GetBin((wire-fLowerHistWire)+1,(tick-fLowerHistTick)+1);
       if (cluster.size() < fMinSize)
