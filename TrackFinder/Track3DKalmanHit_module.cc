@@ -193,6 +193,7 @@ namespace trkf {
         void FillHistograms(std::list<HitCollection>& hit_collections);
         void FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks, art::PtrVector<recob::Hit>& hits, art::PtrVector<recob::Hit>& seederhits, int ntracks);
         std::unique_ptr<KHitContainer> FillHitContainer(art::PtrVector<recob::Hit> &hits);
+        void FillClusteredHits(std::list<HitCollection> & hit_collections, art::Event & evt);
         
         
         // Fcl parameters.
@@ -402,36 +403,39 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     // 2.  PFParticle hits (products one hit collection for each PFParticle).
     // 3.  All hits (produces one hit collection).
     
+    
     if(fUseClusterHits) {
         
+        //art::PtrVector<recob::Hit> &hits =
+        FillClusteredHits(hit_collections, evt);
         // Make one empty hit collection.
-        
-        hit_collections.emplace_back();
-        art::PtrVector<recob::Hit>& hits = hit_collections.back().hits;
-        
-        // Get clusters.
-        
-        art::Handle< std::vector<recob::Cluster> > clusterh;
-        evt.getByLabel(fClusterModuleLabel, clusterh);
-        
-        // Get hits from all clusters.
-        art::FindManyP<recob::Hit> fm(clusterh, evt, fClusterModuleLabel);
-        
-        if(clusterh.isValid()) {
-            int nclus = clusterh->size();
-            
-            for(int i = 0; i < nclus; ++i) {
-                art::Ptr<recob::Cluster> pclus(clusterh, i);
-                std::vector< art::Ptr<recob::Hit> > clushits = fm.at(i);
-                int nhits = clushits.size();
-                hits.reserve(hits.size() + nhits);
-                
-                for(std::vector< art::Ptr<recob::Hit> >::const_iterator ihit = clushits.begin();
-                    ihit != clushits.end(); ++ihit) {
-                    hits.push_back(*ihit);
-                }
-            }
-        }
+//        
+//        hit_collections.emplace_back();
+//        art::PtrVector<recob::Hit>& hits = hit_collections.back().hits;
+//        
+//        // Get clusters.
+//        
+//        art::Handle< std::vector<recob::Cluster> > clusterh;
+//        evt.getByLabel(fClusterModuleLabel, clusterh);
+//        
+//        // Get hits from all clusters.
+//        art::FindManyP<recob::Hit> fm(clusterh, evt, fClusterModuleLabel);
+//        
+//        if(clusterh.isValid()) {
+//            int nclus = clusterh->size();
+//            
+//            for(int i = 0; i < nclus; ++i) {
+//                art::Ptr<recob::Cluster> pclus(clusterh, i);
+//                std::vector< art::Ptr<recob::Hit> > clushits = fm.at(i);
+//                int nhits = clushits.size();
+//                hits.reserve(hits.size() + nhits);
+//                
+//                for(std::vector< art::Ptr<recob::Hit> >::const_iterator ihit = clushits.begin();
+//                    ihit != clushits.end(); ++ihit) {
+//                    hits.push_back(*ihit);
+//                }
+//            }
+//        }
     }
     else if(fUsePFParticleHits) {
         
@@ -1012,7 +1016,41 @@ std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::FillHitContainer(ar
 }
 
 
+//----------------------------------------------------------------------------
+/// Fill a collection using clustered hits
 
+void trkf::Track3DKalmanHit::FillClusteredHits(std::list<HitCollection> & hit_collections, art::Event & evt){
+
+// Make one empty hit collection.
+
+hit_collections.emplace_back();
+art::PtrVector<recob::Hit>& hits = hit_collections.back().hits;
+
+// Get clusters.
+
+art::Handle< std::vector<recob::Cluster> > clusterh;
+evt.getByLabel(fClusterModuleLabel, clusterh);
+
+// Get hits from all clusters.
+art::FindManyP<recob::Hit> fm(clusterh, evt, fClusterModuleLabel);
+
+if(clusterh.isValid()) {
+    int nclus = clusterh->size();
+    
+    for(int i = 0; i < nclus; ++i) {
+        art::Ptr<recob::Cluster> pclus(clusterh, i);
+        std::vector< art::Ptr<recob::Hit> > clushits = fm.at(i);
+        int nhits = clushits.size();
+        hits.reserve(hits.size() + nhits);
+        
+        for(std::vector< art::Ptr<recob::Hit> >::const_iterator ihit = clushits.begin();
+            ihit != clushits.end(); ++ihit) {
+            hits.push_back(*ihit);
+        }
+    }
+}
+ //   return hits;
+}
 //----------------------------------------------------------------------------
 /// Make seed method.
 recob::Seed trkf::Track3DKalmanHit::makeSeed(const art::PtrVector<recob::Hit>& hits) const
