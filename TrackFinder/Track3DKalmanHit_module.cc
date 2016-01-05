@@ -194,6 +194,7 @@ namespace trkf {
         void FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks, art::PtrVector<recob::Hit>& hits, art::PtrVector<recob::Hit>& seederhits, int ntracks);
         std::unique_ptr<KHitContainer> FillHitContainer(art::PtrVector<recob::Hit> &hits);
         void FillClusteredHits(std::list<HitCollection> & hit_collections, art::Event & evt);
+        void FillAllHits(std::list<HitCollection> & hit_collections, art::Event & evt);
         void ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhits, std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit, bool pfseed);
         bool QualityCutsOnSeedTrack(KGTrack &trg0, KGTrack &trg1);
         
@@ -479,21 +480,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     else {
         
         // Make one empty hit collection.
-        
-        hit_collections.emplace_back();
-        art::PtrVector<recob::Hit>& hits = hit_collections.back().hits;
-        
-        // Get unclustered hits.
-        
-        art::Handle< std::vector<recob::Hit> > hith;
-        evt.getByLabel(fHitModuleLabel, hith);
-        if(hith.isValid()) {
-            int nhits = hith->size();
-            hits.reserve(nhits);
-            
-            for(int i = 0; i < nhits; ++i)
-                hits.push_back(art::Ptr<recob::Hit>(hith, i));
-        }
+        FillAllHits(hit_collections, evt);
     }
     
     // Loop over hit collection / Kalman track combos.
@@ -672,23 +659,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                                         // Now we have the seed track in the form of a KGTrack.
                                         // Do additional quality cuts.
                                         ok = QualityCutsOnSeedTrack(trg0, trg1);
-                                        //                                        bool QualityCutsOnSeedTrack(KGTrack &trg0, KGTrack &trg1);
-                                        //                                        size_t n = trg1.numHits();
-                                        //                                        ok = (int(n) >= fMinSeedHits &&
-                                        //                                              trg0.startTrack().getChisq() <= n * fMaxSeedChiDF &&
-                                        //                                              trg0.endTrack().getChisq() <= n * fMaxSeedChiDF &&
-                                        //                                              trg1.startTrack().getChisq() <= n * fMaxSeedChiDF &&
-                                        //                                              trg1.endTrack().getChisq() <= n * fMaxSeedChiDF);
-                                        //                                        double mom0[3];
-                                        //                                        double mom1[3];
-                                        //                                        trg0.startTrack().getMomentum(mom0);
-                                        //                                        trg0.endTrack().getMomentum(mom1);
-                                        //                                        double mom0mag = std::sqrt(mom0[0]*mom0[0] + mom0[1]*mom0[1] + mom0[2]*mom0[2]);
-                                        //                                        double mom1mag = std::sqrt(mom1[0]*mom1[0] + mom1[1]*mom1[1] + mom1[2]*mom1[2]);
-                                        //                                        double dxds0 = mom0[0] / mom0mag;
-                                        //                                        double dxds1 = mom1[0] / mom1mag;
-                                        //                                        ok = ok && (std::abs(dxds0) > fMinSeedSlope &&
-                                        //                                                    std::abs(dxds1) > fMinSeedSlope);
+                                       
                                         if(ok) {
                                             
                                             // Make a copy of the original hit collection of all
@@ -1006,10 +977,29 @@ void trkf::Track3DKalmanHit::FillClusteredHits(std::list<HitCollection> & hit_co
             }
         }
     }
-    //   return hits;
 }
 
 
+//----------------------------------------------------------------------------
+/// If both UseClusteredHits and UsePFParticles is flase use this method to fill in hits
+
+void trkf::Track3DKalmanHit::FillAllHits(std::list<HitCollection> & hit_collections, art::Event & evt){
+hit_collections.emplace_back();
+art::PtrVector<recob::Hit>& hits = hit_collections.back().hits;
+
+// Get unclustered hits.
+
+art::Handle< std::vector<recob::Hit> > hith;
+evt.getByLabel(fHitModuleLabel, hith);
+if(hith.isValid()) {
+    int nhits = hith->size();
+    hits.reserve(nhits);
+    
+    for(int i = 0; i < nhits; ++i)
+        hits.push_back(art::Ptr<recob::Hit>(hith, i));
+        }
+
+}
 //----------------------------------------------------------------------------
 /// Quality cuts on seed track.
 
