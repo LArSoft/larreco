@@ -198,6 +198,9 @@ namespace trkf {
         std::unique_ptr<KHitContainer> FillHitContainer(art::PtrVector<recob::Hit> &hits);
         void FillClusteredHits(std::list<HitCollection> & hit_collections,
                                art::Event & evt);
+        void FillPFParticleHits(art::Handle<std::vector<recob::PFParticle> > &pfParticleHandle,
+                                std::list<HitCollection> & hit_collections,
+                                art::Event & evt);
         void FillAllHits(std::list<HitCollection> & hit_collections,
                          art::Event & evt);
         void ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhits,
@@ -418,79 +421,16 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
         FillClusteredHits(hit_collections, evt);
     }
     else if(fUsePFParticleHits) {
-        
-        // Our program is to drive the track creation/fitting off the PFParticles in the data store
-        // We'll use the hits associated to the PFParticles for each track - and only those hits.
-        // Without a valid collection of PFParticles there is nothing to do here
         if (pfParticleHandle.isValid())
         {
-            // We need a handle to the collection of clusters in the data store so we can
-            // handle associations to hits.
-            art::Handle<std::vector<recob::Cluster> > clusterHandle;
-            evt.getByLabel(fClusterModuleLabel, clusterHandle);
-            
-            // If there are no clusters then something is really wrong
-            if (clusterHandle.isValid())
-            {
-                // Recover the collection of associations between PFParticles and clusters, this will
-                // be the mechanism by which we actually deal with clusters
-                art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
-                
-                // Associations to seeds.
-                art::FindManyP<recob::Seed> seedAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
-                
-                // Likewise, recover the collection of associations to hits
-                art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fClusterModuleLabel);
-                
-                // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
-                for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
-                    
-                    // Add a new empty hit collection.
-                    
-                    hit_collections.emplace_back();
-                    HitCollection& hit_collection = hit_collections.back();
-                    hit_collection.pfPartPtr = art::Ptr<recob::PFParticle>(pfParticleHandle, partIdx);
-                    art::PtrVector<recob::Hit>& hits = hit_collection.hits;
-                    
-                    // Fill this hit vector by looping over associated clusters and finding the
-                    // hits associated to them
-                    std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(partIdx);
-                    
-                    for(const auto& cluster : clusterVec) {
-                        std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster.key());
-                        hits.insert(hits.end(), hitVec.begin(), hitVec.end());
-                    }
-                    
-                    // If requested, fill associated seeds.
-                    
-                    if(fUsePFParticleSeeds) {
-                        art::PtrVector<recob::Seed>& seeds = hit_collection.seeds;
-                        std::vector<art::Ptr<recob::Seed> > seedVec = seedAssns.at(partIdx);
-                        seeds.insert(seeds.end(), seedVec.begin(), seedVec.end());
-                        art::FindManyP<recob::Hit> seedHitAssns(seedVec, evt, fPFParticleModuleLabel);
-                        for(size_t seedIdx = 0; seedIdx < seedVec.size(); ++seedIdx) {
-                            std::vector<art::Ptr<recob::Hit> > seedHitVec;
-                            try {
-                                seedHitVec = seedHitAssns.at(seedIdx);
-                            }
-                            catch(art::Exception x) {
-                                seedHitVec.clear();
-                            }
-                            hit_collection.seedhits.emplace_back();
-                            art::PtrVector<recob::Hit>& seedhits = hit_collection.seedhits.back();
-                            seedhits.insert(seedhits.end(), seedHitVec.begin(), seedHitVec.end());
-                        }
-                    }
-                }
-            }
+            FillPFParticleHits(pfParticleHandle, hit_collections, evt);
         }
     }
     else {
-        
-        // Make one empty hit collection.
         FillAllHits(hit_collections, evt);
     }
     
+    //FIXME
     TrackVector vec(5);
     vec(0) = 0.;
     vec(1) = 0.;
@@ -545,7 +485,6 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                 
                 // On subsequent trips, or if there were no usable pfparticle-associated seeds,
                 // attempt to generate our own seeds.
-                
                 if(seederhits.size()>0) {
                     if(fSelfSeed) {
                         
@@ -606,12 +545,12 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                         
                         std::shared_ptr<const Surface> psurf(new SurfXYZPlane(xyz[0], xyz[1], xyz[2],
                                                                               dir[0], dir[1], dir[2]));
-//                        TrackVector vec(5);
-//                        vec(0) = 0.;
-//                        vec(1) = 0.;
-//                        vec(2) = 0.;
-//                        vec(3) = 0.;
-//                        vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
+                        //                        TrackVector vec(5);
+                        //                        vec(0) = 0.;
+                        //                        vec(1) = 0.;
+                        //                        vec(2) = 0.;
+                        //                        vec(3) = 0.;
+                        //                        vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
                         
                         if (mf::isDebugEnabled()) {
                             mf::LogDebug("Track3DKalmanHit")
@@ -674,7 +613,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                                         // Now we have the seed track in the form of a KGTrack.
                                         // Do additional quality cuts.
                                         ok = QualityCutsOnSeedTrack(trg0, trg1);
-                                       
+                                        
                                         if(ok) {
                                             
                                             // Make a copy of the original hit collection of all
@@ -918,8 +857,8 @@ void trkf::Track3DKalmanHit::FillHistograms(std::list<HitCollection>& hit_collec
                 }
             }
         }
-        fHIncChisq->Print("all");
-        fHPull->Print("all");
+        //  fHIncChisq->Print("all");
+        //  fHPull->Print("all");
     }
 }
 
@@ -1000,21 +939,96 @@ void trkf::Track3DKalmanHit::FillClusteredHits(std::list<HitCollection> & hit_co
 /// If both UseClusteredHits and UsePFParticles is flase use this method to fill in hits
 
 void trkf::Track3DKalmanHit::FillAllHits(std::list<HitCollection> & hit_collections, art::Event & evt){
-hit_collections.emplace_back();
-art::PtrVector<recob::Hit>& hits = hit_collections.back().hits;
-
-// Get unclustered hits.
-
-art::Handle< std::vector<recob::Hit> > hith;
-evt.getByLabel(fHitModuleLabel, hith);
-if(hith.isValid()) {
-    int nhits = hith->size();
-    hits.reserve(nhits);
+    hit_collections.emplace_back();
+    art::PtrVector<recob::Hit>& hits = hit_collections.back().hits;
     
-    for(int i = 0; i < nhits; ++i)
-        hits.push_back(art::Ptr<recob::Hit>(hith, i));
-        }
+    // Get unclustered hits.
+    
+    art::Handle< std::vector<recob::Hit> > hith;
+    evt.getByLabel(fHitModuleLabel, hith);
+    if(hith.isValid()) {
+        int nhits = hith->size();
+        hits.reserve(nhits);
+        
+        for(int i = 0; i < nhits; ++i)
+            hits.push_back(art::Ptr<recob::Hit>(hith, i));
+    }
+    
+}
 
+
+
+//----------------------------------------------------------------------------
+/// If UsePFParticles is true use this method to fill in hits
+
+void trkf::Track3DKalmanHit::FillPFParticleHits(art::Handle<std::vector<recob::PFParticle> >& pfParticleHandle,
+                                                std::list<HitCollection> & hit_collections,
+                                                art::Event & evt){
+    
+    // Our program is to drive the track creation/fitting off the PFParticles in the data store
+    // We'll use the hits associated to the PFParticles for each track - and only those hits.
+    // Without a valid collection of PFParticles there is nothing to do here
+    // We need a handle to the collection of clusters in the data store so we can
+    // handle associations to hits.
+    art::Handle<std::vector<recob::Cluster> > clusterHandle;
+    evt.getByLabel(fClusterModuleLabel, clusterHandle);
+    
+    // If there are no clusters then something is really wrong
+    if (clusterHandle.isValid())
+    {
+        // Recover the collection of associations between PFParticles and clusters, this will
+        // be the mechanism by which we actually deal with clusters
+        art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
+        
+        // Associations to seeds.
+        art::FindManyP<recob::Seed> seedAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
+        
+        // Likewise, recover the collection of associations to hits
+        art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fClusterModuleLabel);
+        
+        // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
+        for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
+            
+            // Add a new empty hit collection.
+            
+            hit_collections.emplace_back();
+            HitCollection& hit_collection = hit_collections.back();
+            hit_collection.pfPartPtr = art::Ptr<recob::PFParticle>(pfParticleHandle, partIdx);
+            art::PtrVector<recob::Hit>& hits = hit_collection.hits;
+            
+            // Fill this hit vector by looping over associated clusters and finding the
+            // hits associated to them
+            std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(partIdx);
+            
+            for(const auto& cluster : clusterVec) {
+                std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster.key());
+                hits.insert(hits.end(), hitVec.begin(), hitVec.end());
+            }
+            
+            // If requested, fill associated seeds.
+            
+            if(fUsePFParticleSeeds) {
+                art::PtrVector<recob::Seed>& seeds = hit_collection.seeds;
+                std::vector<art::Ptr<recob::Seed> > seedVec = seedAssns.at(partIdx);
+                seeds.insert(seeds.end(), seedVec.begin(), seedVec.end());
+                art::FindManyP<recob::Hit> seedHitAssns(seedVec, evt, fPFParticleModuleLabel);
+                for(size_t seedIdx = 0; seedIdx < seedVec.size(); ++seedIdx) {
+                    std::vector<art::Ptr<recob::Hit> > seedHitVec;
+                    try {
+                        seedHitVec = seedHitAssns.at(seedIdx);
+                    }
+                    catch(art::Exception x) {
+                        seedHitVec.clear();
+                    }
+                    hit_collection.seedhits.emplace_back();
+                    art::PtrVector<recob::Hit>& seedhits = hit_collection.seedhits.back();
+                    seedhits.insert(seedhits.end(), seedHitVec.begin(), seedHitVec.end());
+                }
+            }
+        }
+    }
+    //}
+    
 }
 //----------------------------------------------------------------------------
 /// Quality cuts on seed track.
