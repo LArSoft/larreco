@@ -191,12 +191,20 @@ namespace trkf {
         
         recob::Seed makeSeed(const art::PtrVector<recob::Hit>& hits) const;
         void FillHistograms(std::list<HitCollection>& hit_collections);
-        void FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks, art::PtrVector<recob::Hit>& hits, art::PtrVector<recob::Hit>& seederhits, int ntracks);
+        void FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks,
+                                      art::PtrVector<recob::Hit>& hits,
+                                      art::PtrVector<recob::Hit>& seederhits,
+                                      int ntracks);
         std::unique_ptr<KHitContainer> FillHitContainer(art::PtrVector<recob::Hit> &hits);
-        void FillClusteredHits(std::list<HitCollection> & hit_collections, art::Event & evt);
-        void FillAllHits(std::list<HitCollection> & hit_collections, art::Event & evt);
-        void ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhits, std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit, bool pfseed);
-        bool QualityCutsOnSeedTrack(KGTrack &trg0, KGTrack &trg1);
+        void FillClusteredHits(std::list<HitCollection> & hit_collections,
+                               art::Event & evt);
+        void FillAllHits(std::list<HitCollection> & hit_collections,
+                         art::Event & evt);
+        void ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhits,
+                              std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
+                              bool pfseed);
+        bool QualityCutsOnSeedTrack(KGTrack &trg0,
+                                    KGTrack &trg1);
         
         // Fcl parameters.
         
@@ -483,6 +491,13 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
         FillAllHits(hit_collections, evt);
     }
     
+    TrackVector vec(5);
+    vec(0) = 0.;
+    vec(1) = 0.;
+    vec(2) = 0.;
+    vec(3) = 0.;
+    vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
+    
     // Loop over hit collection / Kalman track combos.
     
     for(auto& hit_collection : hit_collections) {
@@ -591,12 +606,12 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                         
                         std::shared_ptr<const Surface> psurf(new SurfXYZPlane(xyz[0], xyz[1], xyz[2],
                                                                               dir[0], dir[1], dir[2]));
-                        TrackVector vec(5);
-                        vec(0) = 0.;
-                        vec(1) = 0.;
-                        vec(2) = 0.;
-                        vec(3) = 0.;
-                        vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
+//                        TrackVector vec(5);
+//                        vec(0) = 0.;
+//                        vec(1) = 0.;
+//                        vec(2) = 0.;
+//                        vec(3) = 0.;
+//                        vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
                         
                         if (mf::isDebugEnabled()) {
                             mf::LogDebug("Track3DKalmanHit")
@@ -947,7 +962,8 @@ std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::FillHitContainer(ar
 //----------------------------------------------------------------------------
 /// Fill a collection using clustered hits
 
-void trkf::Track3DKalmanHit::FillClusteredHits(std::list<HitCollection> & hit_collections, art::Event & evt){
+void trkf::Track3DKalmanHit::FillClusteredHits(std::list<HitCollection> & hit_collections,
+                                               art::Event & evt){
     
     // Make one empty hit collection.
     
@@ -1028,7 +1044,9 @@ bool trkf::Track3DKalmanHit::QualityCutsOnSeedTrack(KGTrack &trg0, KGTrack &trg1
 /// Chop hits off of the end of seeds.
 
 
-void trkf::Track3DKalmanHit::ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhits, std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit, bool pfseed){
+void trkf::Track3DKalmanHit::ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhits,
+                                              std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
+                                              bool pfseed){
     // Chop a couple of hits off each end of the seed.
     // Seems like seeds often end at delta rays, Michel electrons,
     // or other pathologies.
