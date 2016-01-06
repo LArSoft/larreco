@@ -51,7 +51,7 @@ public:
 
 	double MaxAngle(double minLength = 0.0) const;
 
-	size_t Size() const { return fAssigned.size(); }
+	size_t Size(void) const { return fAssigned.size(); }
 	size_t Size(double minLength) const;
 
 	bool MergeWith(const VtxCandidate& other);
@@ -70,6 +70,12 @@ public:
 	}
 
 private:
+	bool has(const std::vector<int>& v, int id) const
+	{
+		for (auto c : v) if (c == id) return true;
+		return false;
+	}
+
 	bool tracksJoined;
 	double fSegMinLength, fMse, fMse2D;
 	std::vector< std::pair< pma::TrkCandidate, size_t > > fAssigned;

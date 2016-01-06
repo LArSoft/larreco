@@ -129,7 +129,7 @@ std::vector< pma::VtxCandidate > pma::PMAlgVertexing::secondPassCandidates(void)
 	return candidates;
 }
 
-size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candidates)
+size_t pma::PMAlgVertexing::makeVertices(std::vector< pma::VtxCandidate >& candidates)
 {
 	bool merged = true;
 	while (merged && (candidates.size() > 1))
@@ -188,20 +188,16 @@ size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candida
 
 		for (size_t v = 0; v < candidates.size(); v++)
 		{
-			if (candidates[v].HasLoops())
-			{
-				//std::cout << "*** Candidate has loops. ***" << std::endl;
-				continue;
-			}
+			if (candidates[v].HasLoops()) continue;
 
-			bool correlated = false;
+			bool maybeCorrelated = false;
 			for (size_t u = 0; u < toJoin.size(); u++)
 				if (toJoin[u].IsAttached(candidates[v]) || // connected with tracks or close centers
 					(pma::Dist2(toJoin[u].Center(), candidates[v].Center()) < 15.0*15.0))
 				{
-					correlated = true; break;
+					maybeCorrelated = true; break;
 				}
-			if (correlated) continue;
+			if (maybeCorrelated) continue;
 
 			s = (int)candidates[v].Size(2 * fMinTrackLength);
 			a = candidates[v].MaxAngle(1.0);
@@ -270,7 +266,7 @@ size_t pma::PMAlgVertexing::run(pma::trk_candidates& trk_input)
 			auto candidates = firstPassCandidates();
 			if (candidates.size())
 			{
-				nfound = findVtxSet(candidates);
+				nfound = makeVertices(candidates);
 				nvtx += nfound;
 			}
 			else nfound = 0;
@@ -291,7 +287,7 @@ size_t pma::PMAlgVertexing::run(pma::trk_candidates& trk_input)
 			auto candidates = secondPassCandidates();
 			if (candidates.size())
 			{
-				nfound = findVtxSet(candidates);
+				nfound = makeVertices(candidates);
 				nvtx += nfound;
 			}
 			else nfound = 0;

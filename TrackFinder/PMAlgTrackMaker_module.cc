@@ -1189,7 +1189,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 			fCluHits.emplace_back(std::vector< art::Ptr<recob::Hit> >());
 
-			for (auto const& h : v)
+			for (auto const & h : v)
 			{
 				bool trkLike = true;
 				if (fCluModuleLabel != fHitModuleLabel)
@@ -1197,7 +1197,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 					for (size_t j = 0; j < splitCluHandle->size(); ++j)
 					{
 						auto u = fem.at(j);
-						for (auto const& g : u) // is hit clustered in one of em-like?
+						for (auto const & g : u) // is hit clustered in one of em-like?
 						{
 							if (g.key() == h.key())
 							{

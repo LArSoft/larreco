@@ -21,14 +21,18 @@ namespace pma
 
 	int getCandidateIndex(pma::trk_candidates const & tracks, pma::Track3D const * candidate);
 	void setParentDaughterConnections(pma::trk_candidates& tracks);
+
+	void setTreeId(pma::trk_candidates & tracks, int id, size_t trkIdx, bool isRoot = true);
+	int setTreeIds(pma::trk_candidates & tracks);
+
+	pma::Track3D* getTreeCopy(pma::trk_candidates & dst, const pma::trk_candidates & src, size_t trkIdx, bool isRoot = true);
 }
 
 class pma::TrkCandidate
 {
 public:
-
 	TrkCandidate(void);
-	TrkCandidate(pma::Track3D* trk, int key = -1);
+	TrkCandidate(pma::Track3D* trk, int key = -1, int tid = -1);
 
 	bool IsValid(void) const { return fTrack; }
 
@@ -48,6 +52,9 @@ public:
 	/// Set key of an external object associated to this track candidate.
 	void SetKey(int key) { fKey = key; }
 
+	int TreeId(void) const { return fTreeId; }
+	void SetTreeId(int id) { fTreeId = id; }
+
 	double Mse(void) const { return fMse; }
 	void SetMse(double m) { fMse = m; }
 
@@ -66,9 +73,10 @@ private:
 
 	pma::Track3D* fTrack;
 	std::vector< size_t > fClusters;
-	int fKey;
-	double fMse;
-	double fValidation;
+	int fKey, fTreeId;
+
+	double fMse, fValidation;
+
 	bool fGood;
 };
 
