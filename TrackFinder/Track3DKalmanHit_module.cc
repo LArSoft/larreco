@@ -203,6 +203,13 @@ namespace trkf {
                                 art::Event & evt);
         void FillAllHits(std::list<HitCollection> & hit_collections,
                          art::Event & evt);
+        void GetPFParticleSeedsAndHits(std::vector<recob::Seed>&seeds,
+                                       std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
+                                       HitCollection& hit_collection);
+        void GenerateSeeds(art::PtrVector<recob::Hit>& seederhits,
+                           std::vector<recob::Seed>&seeds,
+                           std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
+                           HitCollection& hit_collection);
         void ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhits,
                               std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
                               bool pfseed);
@@ -464,55 +471,33 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
         while(!done) {
             
             // Use remaining seederhits to make seeds.
-            
             std::vector<art::PtrVector<recob::Hit> > hitsperseed;
             std::vector<recob::Seed> seeds;
             
             // On the first trip through this loop, try to use pfparticle-associated seeds.
             // Do this, provided the list of pfparticle-associated seeds and associated
             // hits are not empty.
-            
             bool pfseed = false;
             if(first && hit_collection.seeds.size() > 0 && hit_collection.seedhits.size() > 0) {
                 pfseed = true;
-                seeds.reserve(hit_collection.seeds.size());
-                for(const auto& pseed : hit_collection.seeds)
-                    seeds.push_back(*pseed);
-                hitsperseed.insert(hitsperseed.end(),
-                                   hit_collection.seedhits.begin(), hit_collection.seedhits.end());
+                GetPFParticleSeedsAndHits(seeds, hitsperseed, hit_collection);
             }
             else {
-                
                 // On subsequent trips, or if there were no usable pfparticle-associated seeds,
                 // attempt to generate our own seeds.
-                if(seederhits.size()>0) {
-                    if(fSelfSeed) {
-                        
-                        // Self seed - convert all hits into one big seed.
-                        
-                        seeds.emplace_back(makeSeed(seederhits));
-                        hitsperseed.emplace_back();
-                        hitsperseed.back().insert(hitsperseed.back().end(),
-                                                  seederhits.begin(), seederhits.end());
-                    }
-                    else
-                        seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
-                }
+                GenerateSeeds(seederhits, seeds, hitsperseed, hit_collection);
             }
             assert(seeds.size() == hitsperseed.size());
             first = false;
             
             if(seeds.size() == 0) {
-                
                 // Quit loop if we didn't find any new seeds.
-                
                 done = true;
                 break;
             }
             else {
                 
                 // Loop over seeds.
-                
                 std::vector<recob::Seed>::const_iterator sit = seeds.begin();
                 std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit = hitsperseed.begin();
                 for(;sit != seeds.end() && hpsit != hitsperseed.end(); ++sit, ++hpsit) {
@@ -1030,6 +1015,43 @@ void trkf::Track3DKalmanHit::FillPFParticleHits(art::Handle<std::vector<recob::P
     //}
     
 }
+
+//----------------------------------------------------------------------------
+/// Get seeds snfd hits associated with PFParticles
+
+void trkf::Track3DKalmanHit::GetPFParticleSeedsAndHits(std::vector<recob::Seed>&seeds,
+                                                       std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
+                                                       HitCollection& hit_collection){
+    seeds.reserve(hit_collection.seeds.size());
+    for(const auto& pseed : hit_collection.seeds)
+        seeds.push_back(*pseed);
+    hitsperseed.insert(hitsperseed.end(),
+                       hit_collection.seedhits.begin(), hit_collection.seedhits.end());
+}
+
+//----------------------------------------------------------------------------
+/// Generate Seeds
+
+
+void trkf::Track3DKalmanHit::GenerateSeeds(art::PtrVector<recob::Hit>& seederhits,
+                                           std::vector<recob::Seed>&seeds,
+                                           std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
+                                           HitCollection& hit_collection){
+    if(seederhits.size()>0) {
+        if(fSelfSeed) {
+            
+            // Self seed - convert all hits into one big seed.
+            
+            seeds.emplace_back(makeSeed(seederhits));
+            hitsperseed.emplace_back();
+            hitsperseed.back().insert(hitsperseed.back().end(),
+                                      seederhits.begin(), seederhits.end());
+        }
+        else
+            seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
+    }
+}
+
 //----------------------------------------------------------------------------
 /// Quality cuts on seed track.
 
