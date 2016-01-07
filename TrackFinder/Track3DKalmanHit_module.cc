@@ -197,12 +197,12 @@ namespace trkf {
                                       art::PtrVector<recob::Hit>& seederhits,
                                       int ntracks);
         std::unique_ptr<KHitContainer> FillHitContainer(art::PtrVector<recob::Hit> &hits);
-        void GetClusteredHits(std::list<LocalKalmanStruct> & LocalKalmanStructList,
+        void GetClusteredHits(art::PtrVector<recob::Hit>& hits,
                                art::Event & evt);
         void GetPFParticleHits(art::Handle<std::vector<recob::PFParticle> > &pfParticleHandle,
                                 std::list<LocalKalmanStruct> & LocalKalmanStructs,
                                 art::Event & evt);
-        void GetAllHits(std::list<LocalKalmanStruct> & LocalKalmanStructList,
+        void GetAllHits(art::PtrVector<recob::Hit>& hits,
                          art::Event & evt);
         void GetPFParticleSeedsAndHits(std::vector<recob::Seed>&seeds,
                                        std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
@@ -428,7 +428,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     
     // SS: replaced the code with appropriate functions to get the hits based on specified option
     if(fUseClusterHits) {
-        GetClusteredHits(LocalKalmanStructList, evt);
+        // Make one empty hit collection.
+        LocalKalmanStructList.emplace_back();
+        art::PtrVector<recob::Hit>& hits = LocalKalmanStructList.back().hits;
+        GetClusteredHits(hits, evt);
     }
     else if(fUsePFParticleHits) {
         if (pfParticleHandle.isValid())
@@ -437,7 +440,9 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
         }
     }
     else {
-        GetAllHits(LocalKalmanStructList, evt);
+        LocalKalmanStructList.emplace_back();
+        art::PtrVector<recob::Hit>& hits = LocalKalmanStructList.back().hits;
+        GetAllHits(hits, evt);
     }
     
     // SS: FIXME
@@ -884,14 +889,8 @@ std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::FillHitContainer(ar
 //----------------------------------------------------------------------------
 /// Fill a collection using clustered hits
 
-void trkf::Track3DKalmanHit::GetClusteredHits(std::list<LocalKalmanStruct> & LocalKalmanStructList,
+void trkf::Track3DKalmanHit::GetClusteredHits(art::PtrVector<recob::Hit>& hits,
                                                art::Event & evt){
-    
-    // Make one empty hit collection.
-    
-    LocalKalmanStructList.emplace_back();
-    art::PtrVector<recob::Hit>& hits = LocalKalmanStructList.back().hits;
-    
     // Get clusters.
     
     art::Handle< std::vector<recob::Cluster> > clusterh;
@@ -921,10 +920,8 @@ void trkf::Track3DKalmanHit::GetClusteredHits(std::list<LocalKalmanStruct> & Loc
 //----------------------------------------------------------------------------
 /// If both UseClusteredHits and UsePFParticles is flase use this method to fill in hits
 
-void trkf::Track3DKalmanHit::GetAllHits(std::list<LocalKalmanStruct> & LocalKalmanStructList, art::Event & evt){
-    LocalKalmanStructList.emplace_back();
-    art::PtrVector<recob::Hit>& hits = LocalKalmanStructList.back().hits;
-    
+void trkf::Track3DKalmanHit::GetAllHits(art::PtrVector<recob::Hit>& hits,
+                                        art::Event & evt){
     // Get unclustered hits.
     
     art::Handle< std::vector<recob::Hit> > hith;
