@@ -600,7 +600,7 @@ void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, pma::Track3D& sr
 	}
 	for (size_t h = 0; h < src.size(); h++)
 	{
-		dst.push_back(src[h]);
+		dst.push_back(src[h]->Hit2DPtr());
 	}
 	if (reopt)
 	{

@@ -700,20 +700,14 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 			}
 		}
 
-		if (!(noLoops && tuneOK))
+		if (noLoops && tuneOK)
 		{
-			std::cout << "restore tracks...." << std::endl;
-
-/*			for (size_t r = 0; r < branchesToRemove.size(); r++)
-				for (size_t t = 0; t < tracks.size(); ++t)
-					if (tracks[t].Track() == branchesToRemove[r])
-			{
-				tracks.erase(tracks.begin() + t);
-				delete branchesToRemove[r];
-				break;
-			}
-*/
-
+			mf::LogVerbatim("pma::VtxCandidate") << "remove backup tracks";
+			for (auto & c : backupTracks) c.DeleteTrack();
+		}
+		else
+		{
+			mf::LogVerbatim("pma::VtxCandidate") << "restore tracks from backup....";
 			for (int tid : treeIds)
 			{
 				size_t t = 0;
@@ -728,8 +722,7 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 				}
 			}
 			for (const auto & c : backupTracks) tracks.push_back(c);
-
-			std::cout << "  done." << std::endl;
+			mf::LogVerbatim("pma::VtxCandidate") << "  done";
 		}
 	}
 	else mf::LogError("pma::VtxCandidate") << "Cannot create common vertex";

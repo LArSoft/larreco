@@ -147,12 +147,10 @@ pma::Track3D* pma::getTreeCopy(pma::trk_candidates & dst, const pma::trk_candida
 	pma::Track3D* trkCopy = new pma::Track3D(*trk);
 	pma::Node3D* vtxCopy = trkCopy->Nodes().front();
 	pma::Segment3D* segThisCopy = 0;
-	//pma::Segment3D* segCopy = 0;
 	trkCopy->SetPrecedingTrack(0);
 	trkCopy->SetSubsequentTrack(0);
 
 	dst.emplace_back(pma::TrkCandidate(trkCopy, key, tid));
-	//pma::TrkCandidate& cndCopy = dst.back();
 
 	if (!isRoot)
 	{
@@ -178,7 +176,8 @@ pma::Track3D* pma::getTreeCopy(pma::trk_candidates & dst, const pma::trk_candida
 				if (idx >= 0)
 				{
 					pma::Track3D* branchCopy = pma::getTreeCopy(dst, src, idx, false);
-					branchCopy->AttachTo(vtxCopy, true); // no flip
+					if (!branchCopy->AttachTo(vtxCopy, true)) // no flip
+					mf::LogError("pma::getTreeCopy") << "Branch copy cannot be attached to the tree.";
 				}
 				else mf::LogError("pma::getTreeCopy") << "Branch of the tree not found in source collection.";
 			}

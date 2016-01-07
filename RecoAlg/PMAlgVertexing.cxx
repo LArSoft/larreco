@@ -178,7 +178,6 @@ size_t pma::PMAlgVertexing::makeVertices(std::vector< pma::VtxCandidate >& candi
 	}
 
 	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx candidates: " << candidates.size();
-	//std::cout << "*** Vtx candidates: " << candidates.size() << std::endl;
 	std::vector< pma::VtxCandidate > toJoin;
 	bool select = true;
 	while (select)
@@ -231,14 +230,11 @@ size_t pma::PMAlgVertexing::makeVertices(std::vector< pma::VtxCandidate >& candi
 		else select = false;
 	}
 	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx selected to join: " << toJoin.size();
-	//std::cout << "*** Vtx selected to join: " << toJoin.size() << std::endl;
 
 	size_t njoined = 0;
 	for (auto & c : toJoin)
 	{
-		//std::cout << " join " << njoined << std::endl;
 		if (c.JoinTracks(fOutTracks, fEmTracks)) njoined++;
-		//std::cout << "   ok " << std::endl;
 	}
 
 	return njoined;
