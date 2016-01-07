@@ -433,9 +433,6 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 	mf::LogVerbatim("pma::VtxCandidate") << "JoinTracks (" << fAssigned.size() << ") at:"
 		<< " vx:" << fCenter.X() << " vy:" << fCenter.Y() << " vz:" << fCenter.Z();
 
-	//mf::LogVerbatim("pma::VtxCandidate")
-	//	<< "  dist 3D:" << sqrt(Mse()) << " 2D:" << sqrt(Mse2D());
-
 	for (const auto & c : fAssigned)
 	{
 		size_t t = 0;

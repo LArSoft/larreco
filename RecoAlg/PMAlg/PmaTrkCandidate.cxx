@@ -134,6 +134,35 @@ int pma::setTreeIds(pma::trk_candidates & tracks)
 }
 // ------------------------------------------------------
 
+void pma::flipTreesToCoordinate(pma::trk_candidates & tracks, size_t coordinate)
+{
+	std::map< int, pma::Track3D* > toFlip;
+	std::map< int, double > minVal;
+
+	pma::setTreeIds(tracks);
+	for (auto & t : tracks)
+	{
+		int tid = t.TreeId();
+		if (minVal.find(tid) == minVal.end()) minVal[tid] = 1.0e12;
+
+		TVector3 pFront(t.Track()->front()->Point3D()); pFront.SetY(-pFront.Y());
+		TVector3 pBack(t.Track()->back()->Point3D()); pBack.SetY(-pBack.Y());
+
+		if (pFront[coordinate] < minVal[tid]) { minVal[tid] = pFront[coordinate]; toFlip[tid] = t.Track(); }
+		if (pBack[coordinate] < minVal[tid]) { minVal[tid] = pBack[coordinate]; toFlip[tid] = t.Track(); }
+	}
+
+	for (auto & tEntry : toFlip)
+		if (tEntry.first >= 0)
+	{
+		TVector3 pFront(tEntry.second->front()->Point3D()); pFront.SetY(-pFront.Y());
+		TVector3 pBack(tEntry.second->back()->Point3D()); pBack.SetY(-pBack.Y());
+
+		if ((pFront[coordinate] > pBack[coordinate]) && tEntry.second->CanFlip()) tEntry.second->Flip();
+	}
+}
+// ------------------------------------------------------
+
 pma::Track3D* pma::getTreeCopy(pma::trk_candidates & dst, const pma::trk_candidates & src, size_t trkIdx, bool isRoot)
 {
 	pma::Track3D* trk = src[trkIdx].Track();

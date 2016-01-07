@@ -25,6 +25,8 @@ namespace pma
 	void setTreeId(pma::trk_candidates & tracks, int id, size_t trkIdx, bool isRoot = true);
 	int setTreeIds(pma::trk_candidates & tracks);
 
+	void flipTreesToCoordinate(pma::trk_candidates & tracks, size_t coordinate);
+
 	pma::Track3D* getTreeCopy(pma::trk_candidates & dst, const pma::trk_candidates & src, size_t trkIdx, bool isRoot = true);
 }
 

@@ -1346,12 +1346,15 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			double sp_pos[3], sp_err[6];
 			for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
 
-			double dQdxFlipThr = 0.0;
-			if (fFlipToBeam) dQdxFlipThr = 0.4;
+			//double dQdxFlipThr = 0.0;
+			//if (fFlipToBeam) dQdxFlipThr = 0.4;
 
             // use the following to create PFParticle <--> Track associations;
 			// note: these are assns to existing PFParticles, that are used for CluMatchingAlg = 2 or 3.
             std::map< size_t, std::vector< art::Ptr<recob::Track> > > pfPartToTrackVecMap;
+
+			if (fFlipToBeam) pma::flipTreesToCoordinate(result, 2);        // flip the track to the beam direction (Z)
+			else if (fFlipDownward) pma::flipTreesToCoordinate(result, 1); // flip the track to point downward (-Y)
 
 			tracks->reserve(result.size());
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
@@ -1362,25 +1365,14 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					mf::LogWarning("PMAlgTrackMaker") << "Skip degenerated track, code needs to be corrected.";
 					continue;
 				}
-
+/*
 				if (trk->CanFlip())
 				{
-					if (fFlipToBeam)    // flip the track to the beam direction
-					{
-						double z0 = trk->front()->Point3D().Z();
-						double z1 = trk->back()->Point3D().Z();
-						if (z0 > z1) trk->Flip();
-					}
-					if (fFlipDownward)  // flip the track to point downward
-					{
-						double y0 = trk->front()->Point3D().Y();
-						double y1 = trk->back()->Point3D().Y();
-						if (y0 < y1) trk->Flip();
-					}
 					if (fAutoFlip_dQdx) // flip the track by dQ/dx
 						fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
-						/* test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr); */
+						// test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr);
 				}
+*/
 
 				trk->SelectHits();  // just in case, set all to enabled
 				unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
