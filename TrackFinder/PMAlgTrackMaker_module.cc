@@ -1353,8 +1353,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			// note: these are assns to existing PFParticles, that are used for CluMatchingAlg = 2 or 3.
             std::map< size_t, std::vector< art::Ptr<recob::Track> > > pfPartToTrackVecMap;
 
-			if (fFlipToBeam) pma::flipTreesToCoordinate(result, 2);        // flip the track to the beam direction (Z)
-			else if (fFlipDownward) pma::flipTreesToCoordinate(result, 1); // flip the track to point downward (-Y)
+			if (fFlipToBeam) pma::flipTreesToCoordinate(result, 2);        // flip the tracks / trees to the beam direction (Z)
+			else if (fFlipDownward) pma::flipTreesToCoordinate(result, 1); // flip the tracks / trees to point downward (-Y)
 
 			tracks->reserve(result.size());
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
@@ -1473,18 +1473,26 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					vtxs->push_back(recob::Vertex(xyz, vidx));
 
 					art::Ptr<recob::Vertex> vptr(vid, vidx, evt.productGetter(vid));
+					if (vptr.isNull()) mf::LogWarning("PMAlgTrackMaker") << "Vertex ptr is null.";
 					if (!v.second.empty())
 					{
-						frontVtxs[v.second.front()] = vptr; // keep ptr of the front vtx
-						for (size_t tidx : v.second)
+						for (const auto & vEntry : v.second)
 						{
+							size_t tidx = vEntry.first;
+							bool isFront = vEntry.second;
+
+							if (isFront) frontVtxs[tidx] = vptr; // keep ptr of the front vtx
+
 							art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
 							vtx2trk->addSingle(vptr, tptr);
 						}
 					}
+					else mf::LogWarning("PMAlgTrackMaker") << "No tracks fot this vertex.";
 				}
 				mf::LogVerbatim("Summary") << vtxs->size() << " vertices ready";
 			}
+
+			mf::LogVerbatim("PMAlgTrackMaker") << result.size() << " tracks, " << frontVtxs.size() << " vertex map size.";
 
 			if (fMakePFPs)
 			{

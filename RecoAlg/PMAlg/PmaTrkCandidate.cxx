@@ -136,7 +136,7 @@ int pma::setTreeIds(pma::trk_candidates & tracks)
 
 void pma::flipTreesToCoordinate(pma::trk_candidates & tracks, size_t coordinate)
 {
-	std::map< int, pma::Track3D* > toFlip;
+	std::map< int, std::vector< pma::Track3D* > > toFlip;
 	std::map< int, double > minVal;
 
 	pma::setTreeIds(tracks);
@@ -148,17 +148,31 @@ void pma::flipTreesToCoordinate(pma::trk_candidates & tracks, size_t coordinate)
 		TVector3 pFront(t.Track()->front()->Point3D()); pFront.SetY(-pFront.Y());
 		TVector3 pBack(t.Track()->back()->Point3D()); pBack.SetY(-pBack.Y());
 
-		if (pFront[coordinate] < minVal[tid]) { minVal[tid] = pFront[coordinate]; toFlip[tid] = t.Track(); }
-		if (pBack[coordinate] < minVal[tid]) { minVal[tid] = pBack[coordinate]; toFlip[tid] = t.Track(); }
+		bool pushed = false;
+		if (pFront[coordinate] < minVal[tid]) { minVal[tid] = pFront[coordinate]; toFlip[tid].push_back(t.Track()); pushed = true; }
+		if (pBack[coordinate] < minVal[tid]) { minVal[tid] = pBack[coordinate]; if (!pushed) toFlip[tid].push_back(t.Track()); }
 	}
 
 	for (auto & tEntry : toFlip)
 		if (tEntry.first >= 0)
 	{
-		TVector3 pFront(tEntry.second->front()->Point3D()); pFront.SetY(-pFront.Y());
-		TVector3 pBack(tEntry.second->back()->Point3D()); pBack.SetY(-pBack.Y());
+		size_t attempts = 0;
+		while (!tEntry.second.empty())
+		{
+			pma::Track3D* trk = tEntry.second.back();
+			tEntry.second.pop_back();
 
-		if ((pFront[coordinate] > pBack[coordinate]) && tEntry.second->CanFlip()) tEntry.second->Flip();
+			TVector3 pFront(trk->front()->Point3D()); pFront.SetY(-pFront.Y());
+			TVector3 pBack(trk->back()->Point3D()); pBack.SetY(-pBack.Y());
+
+			if (pFront[coordinate] > pBack[coordinate])
+			{
+				if (trk->CanFlip()) { trk->Flip(); break; } // go to the next tree if managed to flip
+			}
+			else break; // good orientation, go to the next tree
+
+			if (attempts++ > 2) break; // do not try all the tracks in the queue...
+		}
 	}
 }
 // ------------------------------------------------------

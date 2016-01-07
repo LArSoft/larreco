@@ -48,7 +48,7 @@ public:
 	size_t run(pma::trk_candidates& trk_input,
 	           const std::vector< TVector3 >& vtx_input);
 
-	std::vector< std::pair< TVector3, std::vector< size_t > > >
+	std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > >
 		getVertices(const pma::trk_candidates& tracks) const;
 
 private:

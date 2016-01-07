@@ -498,10 +498,10 @@ void pma::PMAlgVertexing::splitMergedTracks(pma::trk_candidates& trk_input) cons
 }
 // ------------------------------------------------------
 
-std::vector< std::pair< TVector3, std::vector< size_t > > > pma::PMAlgVertexing::getVertices(
-	const pma::trk_candidates& tracks) const
+std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > >
+pma::PMAlgVertexing::getVertices(const pma::trk_candidates& tracks) const
 {
-	std::vector< std::pair< TVector3, std::vector< size_t > > > vsel;
+	std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > > vsel;
 	std::vector< pma::Node3D const * > bnodes;
 
 	for (size_t t = 0; t < tracks.size(); ++t)
@@ -510,11 +510,12 @@ std::vector< std::pair< TVector3, std::vector< size_t > > > pma::PMAlgVertexing:
 		pma::Node3D const * firstNode = trk->Nodes().front();
 		if (!firstNode->IsBranching())
 		{
-			std::vector< size_t > tidx;
-			tidx.push_back(t);
-			vsel.push_back(std::pair< TVector3, std::vector< size_t > >(trk->front()->Point3D(), tidx));
+			std::vector< std::pair< size_t, bool > > tidx;
+			tidx.emplace_back(std::pair< size_t, bool >(t, true));
+			vsel.emplace_back(std::pair< TVector3, std::vector< std::pair< size_t, bool > > >(trk->front()->Point3D(), tidx));
 		}
 
+		bool pri = true;
 		for (auto node : trk->Nodes())
 			if (node->IsBranching())
 		{
@@ -522,16 +523,17 @@ std::vector< std::pair< TVector3, std::vector< size_t > > > pma::PMAlgVertexing:
 			for (size_t n = 0; n < bnodes.size(); n++)
 				if (node == bnodes[n])
 			{
-				vsel[n].second.push_back(t);
+				vsel[n].second.emplace_back(std::pair< size_t, bool >(t, pri));
 				found = true; break;
 			}
 			if (!found)
 			{
-				std::vector< size_t > tidx;
-				tidx.push_back(t);
-				vsel.push_back(std::pair< TVector3, std::vector< size_t > >(node->Point3D(), tidx));
+				std::vector< std::pair< size_t, bool > > tidx;
+				tidx.emplace_back(std::pair< size_t, bool >(t, pri));
+				vsel.emplace_back(std::pair< TVector3, std::vector< std::pair< size_t, bool > > >(node->Point3D(), tidx));
 				bnodes.push_back(node);
 			}
+			pri = false;
 		}
 	}
 
