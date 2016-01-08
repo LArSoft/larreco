@@ -1487,12 +1487,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 							vtx2trk->addSingle(vptr, tptr);
 						}
 					}
-					else mf::LogWarning("PMAlgTrackMaker") << "No tracks fot this vertex.";
+					else mf::LogWarning("PMAlgTrackMaker") << "No tracks found at this vertex.";
 				}
 				mf::LogVerbatim("Summary") << vtxs->size() << " vertices ready";
 			}
-
-			mf::LogVerbatim("PMAlgTrackMaker") << result.size() << " tracks, " << frontVtxs.size() << " vertex map size.";
 
 			if (fMakePFPs)
 			{

@@ -230,7 +230,11 @@ double pma::SolveLeastSquares3D(const std::vector< std::pair<TVector3, TVector3>
 			}
 		}
 	}
-	x = A.InvertFast() * y;
+	try { x = A.InvertFast() * y; }
+	catch (...)
+	{
+		result.SetXYZ(0., 0., 0.); return 1.0e12;
+	}
 
 	result.SetXYZ(x[0], x[1], x[2]);
 
