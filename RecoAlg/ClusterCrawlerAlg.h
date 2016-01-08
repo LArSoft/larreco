@@ -84,7 +84,7 @@ namespace cluster {
       unsigned short NClusters;  // = 0 for abandoned vertices
 			float ChiDOF;
       short Topo; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star,
-												// 6 = hammer, 7 = vtx3clustermatch, 8 = vtx3clustersplit
+												// 6 = hammer, 7 = vtx3clustermatch, 8 = vtx3clustersplit, 9 = FindTrajVertices
       CTP_t CTP;
       bool Fixed;                 // Vertex position fixed (should not be re-fit)
     };
@@ -163,7 +163,11 @@ namespace cluster {
     std::vector<float> fMergeChgCut;  ///< max charge ratio for matching
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
     std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
-    short fMaxTrajPointsFit;      /// max hits for step crawling (0 to turn off)
+    short fStepCrawlDir;            ///  StepCrawl code crawl direction (0 = turn off)
+    float fStepCrawlChgDiffCut;      ///  Max charge difference (Q - Q_ave) / Q_rms
+    float fStepCrawlKinkAngCut;     ///  kink angle cut
+    float fStepCrawlMaxWireSkip;    ///< max number of wires to skip w/o a signal on them
+    short fStepCrawlMaxDeltaJump;   /// Ignore hits have a Delta larger than this value
 		bool fFindHammerClusters;					 ///< look for hammer type clusters
     bool fFindVLAClusters;					 ///< look for Very Large Angle clusters
     bool fRefineVertexClusters;
@@ -173,6 +177,7 @@ namespace cluster {
     bool fChkClusterDS;
     bool fVtxClusterSplit;
     bool fFindStarVertices;
+    bool fFindTrajVertices;
 
     // global cuts and parameters 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
@@ -201,7 +206,8 @@ namespace cluster {
     float clparerr[2];  ///< cluster parameter errors
     float clChisq;     ///< chisq of the current fit
     float fAveChg;  ///< average charge at leading edge of cluster
-    float fAveRMS;  ///< used by StepCrawl
+    float fChgRMS;  ///< average charge RMS at leading edge of cluster
+    float fAveHitRMS;  ///< used by StepCrawl
     float fChgSlp;  ///< slope of the  charge vs wire
     float fAveHitWidth; ///< average width (EndTick - StartTick) of hits
     
@@ -297,14 +303,63 @@ namespace cluster {
       std::array<float, 2> Pos; // Trajectory position in wire equivalent units
       std::array<float, 2> Dir; // likewise
       float Ang;                // the angle
-      float AngErr;             // direction error (radians)
-      float Chg;
-      float Delta;              // deviation^2 between trajectory and hits
+      float AngErr;             // average direction error of each fitted point (or error on the angle - FitTrajMid)
+      float AveHitRes;          // average normalized hit residual (< 1 => Good)
+      float Chg;                // charge
+      float AveChg;             // average charge
+      float ChgDiff;            // difference = (Chg - fAveChg) / fChgRMS
+      float Delta;              // deviation between trajectory and hits
+      unsigned short NumTPsFit; // Number of trajectory points fitted to make this point
+      unsigned short Step;
+      float FitChi;             // Chi/DOF of the fit
+      unsigned short NumNotNear;  // Number of hits in the larger window
+      bool UsedNotNearHit;        // true if a hit was added in the larger window
+      std::vector<unsigned int> Hits; // vector of fHits indices
+      // default constructor
+      TrajPoint() {
+        Ang = 0; AngErr = 0.5; AveHitRes = -1; Chg = 0; ChgDiff = 0; AveChg = 0; Delta = 0; NumTPsFit = 2;
+        Step = 0; FitChi = 0; NumNotNear = 0; UsedNotNearHit = false; Hits.clear();
+      }
     };
-    std::vector<TrajPoint> traj;
     
+    // associated information for the trajectory
+    struct Trajectory {
+      unsigned short ClusterIndex;
+      unsigned short ProcCode;       ///< USHRT_MAX = abandoned trajectory
+      unsigned short StopCode;
+      std::array<short, 2> Vtx;
+      std::vector<TrajPoint> Pts;
+      Trajectory() {
+        ClusterIndex = USHRT_MAX; ProcCode = 900; StopCode = 0; Pts.clear();
+        Vtx[0] = -1; Vtx[1] = -1;
+      }
+    };
+    Trajectory work;      ///< trajectory under construction
+    std::vector<Trajectory> allTraj; ///< vector of all trajectories
+    
+    // Crawls starting at the last point traj[].Pos, moving in direction traj[].Dir
+    void StepCrawl(bool& success);
+    void GetStepCrawlWindow(TrajPoint& tp, unsigned int& loWire, unsigned int& hiWire, float& loTime, float& hiTime,
+                            unsigned int& loloWire, unsigned int& hihiWire, float& loloTime, float& hihiTime);
+    void StartTraj(unsigned int fromHit, unsigned int toHit);
+    void AddTrajHits(TrajPoint& tp, bool& stopCrawl);
+    void ReleaseAllTrajHits();
+    void ReleaseTrajHits(unsigned short ipt);
+    bool SplitAllTraj(unsigned short itj, unsigned short pos, unsigned short ivx);
+    void StoreTraj();
     void ReverseTraj();
     void UpdateTraj(bool& success);
+    void UpdateTrajChgDiff();
+    void FitTraj();
+    bool GottaKink();
+    void FitTrajMid(unsigned short fromIndex, unsigned short toIndex, TrajPoint& tp);
+    void StepCrawlClusterCheck();
+    void FindTrajVertices();
+    unsigned short VtxClusterEnd(unsigned short ivx, unsigned short icl);
+    bool TrajIntersection(TrajPoint& tp1, TrajPoint tp2, float& x, float& y);
+    void PrintWork(unsigned short tPoint);
+    void PrintAllTraj(unsigned short itj, unsigned short ipt);
+    void PrintTrajPoint(unsigned short ipt, TrajPoint& tp);
 
     // hit multiplets that have been saved before merging.
     std::vector<recob::Hit> unMergedHits;
@@ -342,10 +397,6 @@ namespace cluster {
     void CrawlUS();
     // Crawls along a trail of hits UpStream - Large Angle version
     void LACrawlUS();
-    // Crawls starting at position pos, moving in direction dir with step size step
-    // appending hits to fcl2hits
-    bool StepCrawl(float step);
-    void GetStepCrawlWindow(TrajPoint& tp, unsigned int& loWire, unsigned int& hiWire, float& loTime, float& hiTime);
 
     // ************** cluster merging routines *******************
 
@@ -379,7 +430,7 @@ namespace cluster {
     void MergeOverlap();
     
     // Find Very Large Angle clusters
-    void FindVLAClusters();
+//    void FindVLAClusters();
     
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);
