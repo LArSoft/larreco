@@ -66,9 +66,12 @@ namespace cluster {
     fFindVertices       = pset.get< std::vector<bool>  >("FindVertices");
     fLACrawl            = pset.get< std::vector<bool>  >("LACrawl");
 
-    fStepCrawlDir       = pset.get< short >("StepCrawlDir", 0);
-    fStepCrawlChgRatCut = pset.get< float >("StepCrawlChgRatCut", 10);
-    fStepCrawlKinkAngCut= pset.get< float >("StepCrawlKinkAngCut", 0.4);
+    fStepCrawlDir       = pset.get< short >("StepCrawlDir", -1);
+    fStepCrawlChgDiffCut = pset.get< float >("StepCrawlChgDiffCut", 10);
+    fStepCrawlKinkAngCut = pset.get< float >("StepCrawlKinkAngCut", 0.4);
+    fStepCrawlMaxWireSkip = pset.get< float >("StepCrawlMaxWireSkip", 1);
+    fStepCrawlMaxDeltaJump = pset.get< float >("StepCrawlMaxDeltaJump", 10);
+    fFindTrajVertices   = pset.get< bool   >("FindTrajVertices", false);
 
 		fMinAmp 						= pset.get< float >("MinAmp", 5);
 		fChgNearWindow			= pset.get< float >("ChgNearWindow");
@@ -116,6 +119,8 @@ namespace cluster {
     if(fNumPass > fMergeChgCut.size()) badinput = true;
     if(fNumPass > fFindVertices.size()) badinput = true;
     if(fNumPass > fLACrawl.size()) badinput = true;
+    
+    if(fStepCrawlDir == 0) badinput = true;
 
     if(badinput) throw art::Exception(art::errors::Configuration)
       << "ClusterCrawlerAlg: Bad input from fcl file";
@@ -520,8 +525,6 @@ namespace cluster {
       if(fMergeOverlapAngCut > 0) MergeOverlap();
       // Check the DS end of clusters
       if(fChkClusterDS) ChkClusterDS();
-      // Find Very Large Angle clusters()
-//      if(fFindVLAClusters) FindVLAClusters();
       // split clusters using vertices
       if(fVtxClusterSplit) {
         bool didSomething = VtxClusterSplit();
@@ -3394,7 +3397,7 @@ namespace cluster {
         myprt<<std::right<<std::setw(5)<<vtx3[iv].Ptr2D[2];
         myprt<<std::right<<std::setw(5)<<vtx3[iv].Wire;
         if(vtx3[iv].Wire < 0) {
-          myprt<<"    Matched in 3 planes";
+          myprt<<"    Matched in all planes";
         } else {
           myprt<<"    Incomplete";
         }
@@ -3430,8 +3433,8 @@ namespace cluster {
     } // vtx.size
     
     float aveRMS, aveRes;
-    myprt<<"*************************************** Clusters ***********************************************************\n";
-    myprt<<"  ID CTP nht Stop  Proc  beg_W:T    bAng   bSlp bChg   end_W:T    eAng   eSlp eChg bVx  eVx aveRMS  Qual cnt\n";
+    myprt<<"*************************************** Clusters *********************************************************************\n";
+    myprt<<"  ID CTP nht Stop  Proc  beg_W:T    bAng  bSlp  Err  bChg end_W:T      eAng  eSlp  Err  eChg  bVx  eVx aveRMS Qual cnt\n";
     for(unsigned short ii = 0; ii < tcl.size(); ++ii) {
       // print clusters in all planes (fDebugPlane = 3) or in a selected plane
       if(fDebugPlane < 3 && fDebugPlane != (int)tcl[ii].CTP) continue;
@@ -3448,7 +3451,8 @@ namespace cluster {
         myprt<<"  ";
       } else if(iTime < 1000) myprt<<" ";
       myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginAng;
-      myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginSlp;
+      myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginSlp;
+      myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginSlpErr;
       myprt<<std::right<<std::setw(5)<<(int)tcl[ii].BeginChg;
 //      myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<tcl[ii].BeginChgNear;
       iTime = tcl[ii].EndTim;
@@ -3459,7 +3463,8 @@ namespace cluster {
         myprt<<"  ";
       } else if(iTime < 1000) myprt<<" ";
       myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndAng;
-      myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndSlp;
+      myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndSlp;
+      myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndSlpErr;
       myprt<<std::right<<std::setw(5)<<(int)tcl[ii].EndChg;
 //      myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<tcl[ii].EndChgNear;
       myprt<<std::right<<std::setw(5)<<tcl[ii].BeginVtx;
@@ -4675,22 +4680,24 @@ namespace cluster {
     if(nHitChk > 0) nHitToChk = nHitChk + 1;
     unsigned short indx;
     
-    // Test the first hit on the cluster against the average
-    if(nHitChk == 1) {
-      indx = fcl2hits.size() - 1;
-      wid = fHits[fcl2hits[indx]].EndTick() - fHits[fcl2hits[indx]].StartTick();
-      // ensure that it isn't too narrow
-      if(wid < 0.5 * fAveHitWidth) return false;
-    } else {
-      // require that all hits are not too dissimilar from each other
-      for(unsigned short ii = 0; ii < nHitToChk; ++ii) {
-        indx = fcl2hits.size() - 1 - ii;
+    if(fAveHitWidth > 0) {
+      // Test the first hit on the cluster against the average
+      if(nHitChk == 1) {
+        indx = fcl2hits.size() - 1;
         wid = fHits[fcl2hits[indx]].EndTick() - fHits[fcl2hits[indx]].StartTick();
-        if(wid < loWid) loWid = wid;
-        if(wid > hiWid) hiWid = wid;
-      }
+        // ensure that it isn't too narrow
+        if(wid < 0.5 * fAveHitWidth) return false;
+      } else {
+        // require that all hits are not too dissimilar from each other
+        for(unsigned short ii = 0; ii < nHitToChk; ++ii) {
+          indx = fcl2hits.size() - 1 - ii;
+          wid = fHits[fcl2hits[indx]].EndTick() - fHits[fcl2hits[indx]].StartTick();
+          if(wid < loWid) loWid = wid;
+          if(wid > hiWid) hiWid = wid;
+        }
 //      if(prt) mf::LogVerbatim("CC")<<"ClusterHitsOK loWid "<<loWid<<" hiWid "<<hiWid;
-      if(hiWid > 2 * loWid) return false;
+        if(hiWid > 2 * loWid) return false;
+      }
     }
     
     // require that they overlap
