@@ -215,6 +215,10 @@ namespace trkf {
                               bool pfseed);
         bool QualityCutsOnSeedTrack(KGTrack &trg0,
                                     KGTrack &trg1);
+        bool SmoothTrack(KGTrack &trg0,
+                         art::PtrVector<recob::Hit> hits,
+                         unsigned int prefplane,
+                         std::deque<KGTrack>& kalman_tracks);
         
         // Fcl parameters.
         
@@ -578,7 +582,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                             // Loop over initial tracks.
                             
                             int ntracks = kalman_tracks.size();   // Remember original track count.
-                            std::cout << ntracks << "\n";
+                            //
+                            //std::cout << ntracks << "\n";
                             for(std::vector<KTrack>::const_iterator itrk = initial_tracks.begin();
                                 itrk != initial_tracks.end(); ++itrk) {
                                 const KTrack& trk = *itrk;
@@ -599,103 +604,13 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                                 bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, *pseedcont,
                                                             fSelfSeed);
                                 if(ok) {
-                                    KGTrack trg1(prefplane);
-                                    ok = fKFAlg.smoothTrack(trg0, &trg1, fProp);
-                                    if(ok) {
-                                        
-                                        // Now we have the seed track in the form of a KGTrack.
-                                        // Do additional quality cuts.
-                                        ok = QualityCutsOnSeedTrack(trg0, trg1);
-                                        
-                                        if(ok) {
-                                            
-                                            // Make a copy of the original hit collection of all
-                                            // available track hits.
-                                            
-                                            art::PtrVector<recob::Hit> trackhits = hits;
-                                            
-                                            // Do an extend + smooth loop here.
-                                            // Exit after two consecutive failures to extend (i.e. from each end),
-                                            // or if the iteration count reaches the maximum.
-                                            
-                                            int niter = 6;
-                                            int nfail = 0;  // Number of consecutive extend fails.
-                                            
-                                            //ExtendAndSmoothTrack(trg1, trackhits, prefplane);
-                                            for(int ix = 0; ok && ix < niter && nfail < 2; ++ix) {
-                                                
-                                                // Fill a collection of hits from the last good track
-                                                // (initially the seed track).
-                                                
-                                                art::PtrVector<recob::Hit> goodhits;
-                                                trg1.fillHits(goodhits);
-                                                
-                                                // Filter hits already on the track out of the available hits.
-                                                
-                                                FilterHits(trackhits, goodhits);
-                                                
-                                                // Fill hit container using filtered hits.
-                                                
-                                                std::unique_ptr<KHitContainer> ptrackcont = FillHitContainer(trackhits);
-                                                
-                                                
-                                                // Extend the track.  It is not an error for the
-                                                // extend operation to fail, meaning that no new hits
-                                                // were added.
-                                                
-                                                bool extendok = fKFAlg.extendTrack(trg1, fProp, *ptrackcont);
-                                                if(extendok)
-                                                    nfail = 0;
-                                                else
-                                                    ++nfail;
-                                                
-                                                // Smooth the extended track, and make a new
-                                                // unidirectionally fit track in the opposite
-                                                // direction.
-                                                
-                                                KGTrack trg2(prefplane);
-                                                ok = fKFAlg.smoothTrack(trg1, &trg2, fProp);
-                                                if(ok) {
-                                                    
-                                                    // Skip momentum estimate for constant-momentum tracks.
-                                                    
-                                                    if(fDoDedx) {
-                                                        KETrack tremom;
-                                                        bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
-                                                        if(pok)
-                                                            fKFAlg.updateMomentum(tremom, fProp, trg2);
-                                                    }
-                                                    trg1 = trg2;
-                                                }
-                                            }
-                                            
-                                            // Do a final smooth.
-                                            
-                                            if(ok) {
-                                                ok = fKFAlg.smoothTrack(trg1, 0, fProp);
-                                                if(ok) {
-                                                    
-                                                    // Skip momentum estimate for constant-momentum tracks.
-                                                    
-                                                    if(fDoDedx) {
-                                                        KETrack tremom;
-                                                        bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
-                                                        if(pok)
-                                                            fKFAlg.updateMomentum(tremom, fProp, trg1);
-                                                    }
-                                                    
-                                                    // Save this track.
-                                                    
-                                                    ++fNumTrack;
-                                                    kalman_tracks.push_back(trg1);
-                                                }
-                                            }
-                                        }
-                                    }
+                                    ok = SmoothTrack(trg0, hits, prefplane, kalman_tracks);
                                 }
+                                
                                 if (mf::isDebugEnabled())
                                     mf::LogDebug("Track3DKalmanHit")
                                     << (ok? "Find track succeeded.": "Find track failed.") << "\n";
+                                
                                 if(ok && !build_all)
                                     break;
                             } // for initial track
@@ -1095,6 +1010,107 @@ void trkf::Track3DKalmanHit::ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhi
     seedhits.reserve(hpsit->size());
     for(art::PtrVector<recob::Hit>::const_iterator it = itb; it != ite; ++it)
         seedhits.push_back(*it);
+}
+
+
+bool trkf::Track3DKalmanHit::SmoothTrack(KGTrack &trg0,
+                 art::PtrVector<recob::Hit> hits,
+                 unsigned int prefplane,
+                 std::deque<KGTrack>& kalman_tracks){
+    KGTrack trg1(prefplane);
+    bool ok = fKFAlg.smoothTrack(trg0, &trg1, fProp);
+    if(ok) {
+        
+        // Now we have the seed track in the form of a KGTrack.
+        // Do additional quality cuts.
+        ok = QualityCutsOnSeedTrack(trg0, trg1);
+        
+        if(ok) {
+            
+            // Make a copy of the original hit collection of all
+            // available track hits.
+            
+            art::PtrVector<recob::Hit> trackhits = hits;
+            
+            // Do an extend + smooth loop here.
+            // Exit after two consecutive failures to extend (i.e. from each end),
+            // or if the iteration count reaches the maximum.
+            
+            int niter = 6;
+            int nfail = 0;  // Number of consecutive extend fails.
+            
+            
+            for(int ix = 0; ok && ix < niter && nfail < 2; ++ix) {
+                
+                // Fill a collection of hits from the last good track
+                // (initially the seed track).
+                
+                art::PtrVector<recob::Hit> goodhits;
+                trg1.fillHits(goodhits);
+                
+                // Filter hits already on the track out of the available hits.
+                
+                FilterHits(trackhits, goodhits);
+                
+                // Fill hit container using filtered hits.
+                
+                std::unique_ptr<KHitContainer> ptrackcont = FillHitContainer(trackhits);
+                
+                
+                // Extend the track.  It is not an error for the
+                // extend operation to fail, meaning that no new hits
+                // were added.
+                
+                bool extendok = fKFAlg.extendTrack(trg1, fProp, *ptrackcont);
+                if(extendok)
+                    nfail = 0;
+                else
+                    ++nfail;
+                
+                // Smooth the extended track, and make a new
+                // unidirectionally fit track in the opposite
+                // direction.
+                
+                KGTrack trg2(prefplane);
+                ok = fKFAlg.smoothTrack(trg1, &trg2, fProp);
+                if(ok) {
+                    
+                    // Skip momentum estimate for constant-momentum tracks.
+                    
+                    if(fDoDedx) {
+                        KETrack tremom;
+                        bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
+                        if(pok)
+                            fKFAlg.updateMomentum(tremom, fProp, trg2);
+                    }
+                    trg1 = trg2;
+                }
+            }
+            
+            // Do a final smooth.
+            
+            if(ok) {
+                ok = fKFAlg.smoothTrack(trg1, 0, fProp);
+                if(ok) {
+                    
+                    // Skip momentum estimate for constant-momentum tracks.
+                    
+                    if(fDoDedx) {
+                        KETrack tremom;
+                        bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
+                        if(pok)
+                            fKFAlg.updateMomentum(tremom, fProp, trg1);
+                    }
+                    
+                    // Save this track.
+                    
+                    ++fNumTrack;
+                    kalman_tracks.push_back(trg1);
+                }
+            }
+        }
+    }
+    return ok;
 }
 
 //----------------------------------------------------------------------------
