@@ -168,7 +168,7 @@ private:
 	double distThr, double distThrMin,
 	double distProjThr,
 	double cosThr);
-  void mergeCoLinear(pma::trk_candidates& tracks);
+  bool mergeCoLinear(pma::trk_candidates& tracks);
   void mergeCoLinear(tpc_track_map& tracks);
 
   bool areCoLinear(
@@ -713,30 +713,45 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 }
 // ------------------------------------------------------
 
-void PMAlgTrackMaker::mergeCoLinear(pma::trk_candidates& tracks)
+bool PMAlgTrackMaker::mergeCoLinear(pma::trk_candidates& tracks)
 {
-	double distThr = 0.05;    // max gap as a fraction of the longer track length
+	double distThr = 0.25;    // max gap as a fraction of the longer track length
 	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
 
 	double distProjThr = fMergeTransverseShift;
 	double cosThr = cos(TMath::Pi() * fMergeAngle / 180.0);
 
+	bool foundMerge = false;
+
+	std::sort(tracks.begin(), tracks.end(), pma::bTrack3DLonger());
+
 	bool r;
-	double d, c;
+	double d, dmin, c, cmax, l, lbest;
 	size_t t = 0, u = 0;
 	while (t < tracks.size())
 	{
 		pma::Track3D* trk1 = tracks[t].Track();
 
 		pma::Track3D* trk2 = 0;
+		pma::Track3D* best_trk2 = 0;
+		dmin = 1.0e12; cmax = 0; lbest = 0;
 		for (u = t + 1; u < tracks.size(); u++)
 		{
 			trk2 = tracks[u].Track();
-
-			if (areCoLinear(trk1, trk2, d, c, r, distThr, distThrMin, distProjThr, cosThr)) break;
-
+			if (areCoLinear(trk1, trk2, d, c, r, distThr, distThrMin, distProjThr, cosThr))
+			{
+				l = std::sqrt(pma::Dist2(trk2->front()->Point3D(), trk2->back()->Point3D()));
+				if (((c > cmax) && (d < dmin + 0.5 * lbest)) ||
+				    ((d < dmin) && (l > 1.5 * lbest)))
+				{
+					cmax = c; dmin = d;
+					best_trk2 = trk2;
+					lbest = l;
+				}
+			}
 			trk2 = 0;
 		}
+		trk2 = best_trk2;
 
 		if (trk2)
 		{
@@ -753,9 +768,12 @@ void PMAlgTrackMaker::mergeCoLinear(pma::trk_candidates& tracks)
 				tracks[u].DeleteTrack();
 			}
 			tracks.erase(tracks.begin() + u);
+			foundMerge = true;
 		}
 		else t++;
 	}
+
+	return foundMerge;
 }
 // ------------------------------------------------------
 
@@ -1618,7 +1636,10 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, pma::trk_candidates& 
 			          tpc_iter++)
 			{
 				mf::LogVerbatim("PMAlgTrackMaker") << "Merge co-linear tracks within TPC " << tpc_iter->TPC << ".";
-				mergeCoLinear(tracks[tpc_iter->TPC]);
+				while (mergeCoLinear(tracks[tpc_iter->TPC]))
+				{
+					mf::LogVerbatim("PMAlgTrackMaker") << "  found co-linear tracks";
+				}
 			}
 		}
 
@@ -2048,7 +2069,10 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candid
 			          tpc_iter++)
 			{
 				mf::LogVerbatim("PMAlgTrackMaker") << "Merge co-linear tracks within TPC " << tpc_iter->TPC << ".";
-				mergeCoLinear(tracks[tpc_iter->TPC]);
+				while (mergeCoLinear(tracks[tpc_iter->TPC]))
+				{
+					mf::LogVerbatim("PMAlgTrackMaker") << "  found co-linear tracks";
+				}
 			}
 		}
 

@@ -22,11 +22,13 @@
 namespace pma
 {
 	class Hit3D;
+	class TrkCandidate;
 	class bSegmentProjLess;
 	class bDistCenterLess2D;
 	class bDistCenterLess3D;
 	struct bTrajectory3DOrderLess;
 	struct bTrajectory3DDistLess;
+	struct bTrack3DLonger;
 
 	double Dist2(const TVector2& v1, const TVector2& v2);
 	double Dist2(const TVector3& v1, const TVector3& v2);
@@ -61,6 +63,12 @@ struct pma::bTrajectory3DDistLess :
 	public std::binary_function<pma::Hit3D*, pma::Hit3D*, bool>
 {
 	bool operator() (pma::Hit3D* h1, pma::Hit3D* h2);
+};
+
+struct pma::bTrack3DLonger :
+	public std::binary_function<const pma::TrkCandidate &, const pma::TrkCandidate &, bool>
+{
+	bool operator() (const pma::TrkCandidate & t1, const pma::TrkCandidate & t2);
 };
 
 class pma::bSegmentProjLess :
