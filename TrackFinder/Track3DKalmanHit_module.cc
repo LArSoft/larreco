@@ -94,48 +94,7 @@ namespace {
         std::deque<trkf::KGTrack> tracks; //SS: Why deque is used?
     };
     
-    /* unused function
-     //----------------------------------------------------------------------------
-     // Fill a collection of hits used by space points.
-     //
-     // Arguments:
-     //
-     // spts - Space point collection.
-     // hits - Hit collection to fill.
-     //
-     void SpacePointsToHits(const std::vector<recob::SpacePoint>& spts,
-     art::PtrVector<recob::Hit>& hits,
-     trkf::SpacePointAlg const& spalg)
-     {
-     hits.clear();
-     std::set<const recob::Hit*> used_hits;
-     
-     // Loop over space points.
-     
-     for(std::vector<recob::SpacePoint>::const_iterator ispt = spts.begin();
-     ispt != spts.end(); ++ispt) {
-     const recob::SpacePoint& spt = *ispt;
-     
-     // Loop over hits in space point.
-     
-     const art::PtrVector<recob::Hit> spthits = spalg.getAssociatedHits(spt);
-     for(art::PtrVector<recob::Hit>::const_iterator ihit = spthits.begin();
-     ihit != spthits.end(); ++ihit) {
-     const art::Ptr<recob::Hit> phit = *ihit;
-     const recob::Hit& hit = *phit;
-     
-     // Check if hit should be added to collection.
-     
-     if(used_hits.count(&hit) == 0) {
-     used_hits.insert(&hit);
-     hits.push_back(phit);
-     }
-     }
-     }
-     }
-     */
-    
-    //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
     // Filter a collection of hits (set difference).
     //
     // Arguments:
@@ -180,18 +139,19 @@ namespace trkf {
         virtual ~Track3DKalmanHit();
         
         // Overrides.
-        
-        virtual void reconfigure(fhicl::ParameterSet const & pset);
-        virtual void produce(art::Event & e);
-        virtual void beginJob();
-        virtual void endJob();
+        // Put override right next to each function
+        virtual void reconfigure(fhicl::ParameterSet const & pset) override;
+        virtual void produce(art::Event & e) override;
+        virtual void beginJob() override;
+        virtual void endJob() override;
         
     private:
         
         // Private methods.
         
         recob::Seed makeSeed(const art::PtrVector<recob::Hit>& hits) const;
-        void FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList);
+        // these functions should be const as they are not modifying any class members
+        void FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList) const;
         void FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks,
                                       art::PtrVector<recob::Hit>& hits,
                                       art::PtrVector<recob::Hit>& seederhits,
@@ -292,7 +252,7 @@ fInitialMomentum(0.),
 fKFAlg(pset.get<fhicl::ParameterSet>("KalmanFilterAlg")),
 fSeedFinderAlg(pset.get<fhicl::ParameterSet>("SeedFinderAlg")),
 fSpacePointAlg(pset.get<fhicl::ParameterSet>("SpacePointAlg")),
-fProp(0),
+fProp(nullptr),
 fHIncChisq(0),
 fHPull(0),
 fNumEvent(0),
@@ -318,7 +278,9 @@ fNumTrack(0)
 //----------------------------------------------------------------------------
 /// Destructor.
 trkf::Track3DKalmanHit::~Track3DKalmanHit()
-{}
+{
+    delete fProp;
+}
 
 //----------------------------------------------------------------------------
 /// Reconfigure method.
@@ -327,6 +289,7 @@ trkf::Track3DKalmanHit::~Track3DKalmanHit()
 ///
 /// p - Fcl parameter set.
 ///
+// SS: talk to Kyle about using parameter set validation
 void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
 {
     fHist = pset.get<bool>("Hist");
@@ -350,8 +313,7 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
     fMaxSeedChiDF = pset.get<double>("MaxSeedChiDF");
     fMinSeedSlope = pset.get<double>("MinSeedSlope");
     fInitialMomentum = pset.get<double>("InitialMomentum");
-    if(fProp != 0)
-        delete fProp;
+    delete fProp;
     fProp = new PropAny(fMaxTcut, fDoDedx);
     if(fUseClusterHits && fUsePFParticleHits) {
         throw cet::exception("Track3DKalmanHit")
@@ -411,14 +373,9 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     // Make collection of KGTracks where we will save our results, together with
     // corresponding hit collections.
     
-    // SS: Changed the name
+    // SS: Changed the name, make sure the name doesn't start with capitla letter
     std::list<LocalKalmanStruct> LocalKalmanStructList;
-    
-    // Get Services.
-    
-    // SS: I commented it out because I am not sure if it is used in this function
-    // art::ServiceHandle<geo::Geometry> geom;
-    
+   
     // Reset space point algorithm.
     
     fSpacePointAlg.clearHitMap();
@@ -430,11 +387,9 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     // 3.  All hits (produces one hit collection).
     
     // SS: replaced the code with appropriate functions to get the hits based on specified option
+    // can use auto here or I can directly give the functional call in argument list
     if(fUseClusterHits) {
-        // Make one empty hit collection.
-        LocalKalmanStructList.emplace_back();
-        art::PtrVector<recob::Hit>& hits = LocalKalmanStructList.back().hits;
-        GetClusteredHits(hits, evt);
+        GetClusteredHits(LocalKalmanStructList.back().hits, evt);
     }
     else if(fUsePFParticleHits) {
         if (pfParticleHandle.isValid())
@@ -443,13 +398,14 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
         }
     }
     else {
-        LocalKalmanStructList.emplace_back();
-        art::PtrVector<recob::Hit>& hits = LocalKalmanStructList.back().hits;
-        GetAllHits(hits, evt);
+         GetAllHits(LocalKalmanStructList.back().hits, evt);
     }
     
     // SS: FIXME
     // It is a contant value inside a loop so I took it out
+    // revisit the linear algebra stuff used here (use of ublas)
+    // make a lambda here ... const TrackVector
+    //
     TrackVector vec(5);
     vec(0) = 0.;
     vec(1) = 0.;
@@ -582,8 +538,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                             // Loop over initial tracks.
                             
                             int ntracks = kalman_tracks.size();   // Remember original track count.
-                            //
-                            //std::cout << ntracks << "\n";
+                          
                             for(std::vector<KTrack>::const_iterator itrk = initial_tracks.begin();
                                 itrk != initial_tracks.end(); ++itrk) {
                                 const KTrack& trk = *itrk;
@@ -741,7 +696,7 @@ void trkf::Track3DKalmanHit::endJob()
 /// Fill Histograms method
 //fHPull and fHIncChisq are private data members of the class Track3DKalmanHit
 
-void trkf::Track3DKalmanHit::FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList)
+void trkf::Track3DKalmanHit::FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList) const
 {
     for(const auto& local_kalman_struct : LocalKalmanStructList) {
         const std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
