@@ -151,7 +151,7 @@ namespace trkf {
         
         recob::Seed makeSeed(const art::PtrVector<recob::Hit>& hits) const;
         // these functions should be const as they are not modifying any class members
-        void FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList) const;
+        void FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList);
         void FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalman_tracks,
                                       art::PtrVector<recob::Hit>& hits,
                                       art::PtrVector<recob::Hit>& seederhits,
@@ -313,6 +313,7 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
     fMaxSeedChiDF = pset.get<double>("MaxSeedChiDF");
     fMinSeedSlope = pset.get<double>("MinSeedSlope");
     fInitialMomentum = pset.get<double>("InitialMomentum");
+    //if(fProp != 0)
     delete fProp;
     fProp = new PropAny(fMaxTcut, fDoDedx);
     if(fUseClusterHits && fUsePFParticleHits) {
@@ -389,7 +390,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     // SS: replaced the code with appropriate functions to get the hits based on specified option
     // can use auto here or I can directly give the functional call in argument list
     if(fUseClusterHits) {
-        GetClusteredHits(LocalKalmanStructList.back().hits, evt);
+        LocalKalmanStructList.emplace_back();
+        LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
+        art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
+        GetClusteredHits(hits, evt);
     }
     else if(fUsePFParticleHits) {
         if (pfParticleHandle.isValid())
@@ -398,7 +402,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
         }
     }
     else {
-         GetAllHits(LocalKalmanStructList.back().hits, evt);
+        LocalKalmanStructList.emplace_back();
+        LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
+        art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
+         GetAllHits(hits, evt);
     }
     
     // SS: FIXME
@@ -530,10 +537,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                             int ninit = 2;
                             initial_tracks.reserve(ninit);
                             initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
-                            // SS: commented out the check of ninit > 1, as it will always be greater than 1
-                            // because we just set it to 2.
-                            //if(ninit > 1)
-                                initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
+                            initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
                             
                             // Loop over initial tracks.
                             
@@ -696,7 +700,7 @@ void trkf::Track3DKalmanHit::endJob()
 /// Fill Histograms method
 //fHPull and fHIncChisq are private data members of the class Track3DKalmanHit
 
-void trkf::Track3DKalmanHit::FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList) const
+void trkf::Track3DKalmanHit::FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList)
 {
     for(const auto& local_kalman_struct : LocalKalmanStructList) {
         const std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
