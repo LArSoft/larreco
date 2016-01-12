@@ -288,7 +288,8 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
       std::cout << "Hit (" << HitCoordinates(*hit2).X() << ", " << HitCoordinates(*hit2).Y() << ") (real wire " << (*hit2)->WireID().Wire << ") in TPC " << (*hit2)->WireID().TPC << std::endl;
   }
 
-  pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(track1, track2);
+  TVector3 trackStart = Construct3DPoint(track1.at(0), track2.at(0));
+  pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(track1, track2, trackStart);
 
   std::vector<TVector3> xyz, dircos;
   std::vector<std::vector<double> > dEdx; // Right now, not finding the dE/dx for these tracks.  Can extend if needed.
