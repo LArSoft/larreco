@@ -254,11 +254,21 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
 	trk->AddHits(hits_1);
 	trk->AddHits(hits_2);
 
-	trk->Initialize(0.001F);
-	trk->Optimize(0, fFineTuningEps);
+	if (trk->HasTwoViews() &&
+	   (trk->TPCs().size() == 1)) // now only in single tpc
+	{
+		trk->Initialize(0.001F);
+		trk->Optimize(0, fFineTuningEps);
 
-	trk->SortHits();
-	return trk;
+		trk->SortHits();
+		return trk;
+	}
+	else
+	{
+		mf::LogWarning("ProjectionMatchingAlg") << "need at least two views in single tpc";
+		delete trk;
+		return 0;
+	}
 }
 // ------------------------------------------------------
 
@@ -269,15 +279,18 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
 {
 	pma::Track3D* trk = buildSegment(hits_1, hits_2);
 
-	double dfront = pma::Dist2(trk->front()->Point3D(), point);
-	double dback = pma::Dist2(trk->back()->Point3D(), point);
-	if (dfront > dback) trk->Flip();
+	if (trk)
+	{
+		double dfront = pma::Dist2(trk->front()->Point3D(), point);
+		double dback = pma::Dist2(trk->back()->Point3D(), point);
+		if (dfront > dback) trk->Flip();
 
-	trk->Nodes().front()->SetPoint3D(point);
-	trk->Nodes().front()->SetFrozen(true);
-	trk->Optimize(0, fFineTuningEps);
+		trk->Nodes().front()->SetPoint3D(point);
+		trk->Nodes().front()->SetFrozen(true);
+		trk->Optimize(0, fFineTuningEps);
 
-	trk->SortHits();
+		trk->SortHits();
+	}
 	return trk;
 }
 // ------------------------------------------------------
@@ -288,15 +301,18 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
 {
 	pma::Track3D* trk = buildSegment(hits);
 
-	double dfront = pma::Dist2(trk->front()->Point3D(), point);
-	double dback = pma::Dist2(trk->back()->Point3D(), point);
-	if (dfront > dback) trk->Flip();
+	if (trk)
+	{
+		double dfront = pma::Dist2(trk->front()->Point3D(), point);
+		double dback = pma::Dist2(trk->back()->Point3D(), point);
+		if (dfront > dback) trk->Flip();
 
-	trk->Nodes().front()->SetPoint3D(point);
-	trk->Nodes().front()->SetFrozen(true);
-	trk->Optimize(0, fFineTuningEps);
+		trk->Nodes().front()->SetPoint3D(point);
+		trk->Nodes().front()->SetFrozen(true);
+		trk->Optimize(0, fFineTuningEps);
 
-	trk->SortHits();
+		trk->SortHits();
+	}
 	return trk;
 }
 // ------------------------------------------------------
