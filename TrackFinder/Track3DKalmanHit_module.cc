@@ -166,7 +166,7 @@ namespace trkf {
                          art::Event & evt);
         void GetPFParticleSeedsAndHits(LocalKalmanStruct& local_kalman_struct,
                                        std::vector<recob::Seed>&seeds,
-                                       std::vector<art::PtrVector<recob::Hit> >& hitsperseed);
+                                       std::vector<art::PtrVector<recob::Hit> >& hitsperseed) const;
         void GenerateSeeds(art::PtrVector<recob::Hit>& seederhits,
                            std::vector<recob::Seed>&seeds,
                            std::vector<art::PtrVector<recob::Hit> >& hitsperseed);
@@ -543,6 +543,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                             
                             int ntracks = kalman_tracks.size();   // Remember original track count.
                           
+                          //  auto F = [this](std::vector<KTrack> const& initial_tracks, art::PtrVector<recob::Hit> seedhits)
                             for(std::vector<KTrack>::const_iterator itrk = initial_tracks.begin();
                                 itrk != initial_tracks.end(); ++itrk) {
                                 const KTrack& trk = *itrk;
@@ -751,17 +752,10 @@ void trkf::Track3DKalmanHit::FilterHitsOnKalmanTracks(std::deque<KGTrack>& kalma
 /// Fill hit container with either seedhits or filtered hits i.e. recob::Hit
 
 std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::FillHitContainer(art::PtrVector<recob::Hit> &hits) {
-    std::unique_ptr<KHitContainer> hitcont;
-    if(fLineSurface) {
-        KHitContainerWireLine* p = new KHitContainerWireLine;
-        p->fill(hits, -1);
-        hitcont.reset(p);
-    }
-    else {
-        KHitContainerWireX* p = new KHitContainerWireX;
-        p->fill(hits, -1);
-        hitcont.reset(p);
-    }
+    std::unique_ptr<KHitContainer> hitcont(fLineSurface ?
+                                           static_cast<KHitContainer *>(new KHitContainerWireLine) :
+                                           static_cast<KHitContainer *>(new KHitContainerWireX));
+    hitcont->fill(hits, -1);
     return hitcont;
 }
 
@@ -896,7 +890,7 @@ void trkf::Track3DKalmanHit::GetPFParticleHits(art::Handle<std::vector<recob::PF
 
 void trkf::Track3DKalmanHit::GetPFParticleSeedsAndHits(LocalKalmanStruct& local_kalman_struct,
                                                        std::vector<recob::Seed>&seeds,
-                                                       std::vector<art::PtrVector<recob::Hit> >& hitsperseed){
+                                                       std::vector<art::PtrVector<recob::Hit> >& hitsperseed) const{
     seeds.reserve(local_kalman_struct.seeds.size());
     for(const auto& pseed : local_kalman_struct.seeds)
         seeds.push_back(*pseed);
