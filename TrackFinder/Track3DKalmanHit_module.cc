@@ -155,7 +155,7 @@ namespace trkf {
         void filterHitsOnKalmanTrack(const KGTrack& trg,
                                      art::PtrVector<recob::Hit>& hits,
                                      art::PtrVector<recob::Hit>& seederhits) const;
-        std::unique_ptr<KHitContainer> FillHitContainer(art::PtrVector<recob::Hit> &hits);
+        std::unique_ptr<KHitContainer> fillHitContainer(art::PtrVector<recob::Hit> &hits) const;
         void GetClusteredHits(art::PtrVector<recob::Hit>& hits,
                               art::Event & evt);
         void GetPFParticleHits(art::Handle<std::vector<recob::PFParticle> > &pfParticleHandle,
@@ -549,7 +549,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                                 const KTrack& trk = *itrk;
                                 
                                 // Fill hit container with current seed hits.
-                                std::unique_ptr<KHitContainer> pseedcont = FillHitContainer(seedhits);
+                                std::unique_ptr<KHitContainer> pseedcont = fillHitContainer(seedhits);
                                 
                                 // Set the preferred plane to be the one with the most hits.
                                 
@@ -748,7 +748,7 @@ void trkf::Track3DKalmanHit::filterHitsOnKalmanTrack(const KGTrack& trg,
 //----------------------------------------------------------------------------
 /// Fill hit container with either seedhits or filtered hits i.e. recob::Hit
 
-std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::FillHitContainer(art::PtrVector<recob::Hit> &hits) {
+std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::fillHitContainer(art::PtrVector<recob::Hit> &hits) const{
     std::unique_ptr<KHitContainer> hitcont(fLineSurface ?
                                            static_cast<KHitContainer *>(new KHitContainerWireLine) :
                                            static_cast<KHitContainer *>(new KHitContainerWireX));
@@ -1000,7 +1000,7 @@ bool trkf::Track3DKalmanHit::SmoothTrack(KGTrack &trg0,
                 
                 // Fill hit container using filtered hits.
                 
-                std::unique_ptr<KHitContainer> ptrackcont = FillHitContainer(trackhits);
+                std::unique_ptr<KHitContainer> ptrackcont = fillHitContainer(trackhits);
                 
                 
                 // Extend the track.  It is not an error for the
