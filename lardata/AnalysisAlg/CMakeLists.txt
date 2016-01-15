@@ -1,8 +1,8 @@
 
-art_make( LIBRARY_NAME  AnalysisAlg
-          LIB_LIBRARIES AnalysisBase
-                        RecoBase
-			Utilities
+art_make( 
+          LIB_LIBRARIES lardata_AnalysisBase
+                        lardata_RecoBase
+			lardata_Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
