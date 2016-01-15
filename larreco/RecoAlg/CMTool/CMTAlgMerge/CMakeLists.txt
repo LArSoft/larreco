@@ -1,9 +1,9 @@
 
-art_make( LIBRARY_NAME  CMTAlgMerge
+art_make( 
           LIB_LIBRARIES
-			CMToolBase
-			ClusterRecoUtil
-                        Utilities
+			larreco_RecoAlg_CMTool_CMToolBase
+			larreco_RecoAlg_ClusterRecoUtil
+                        lardata_Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

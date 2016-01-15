@@ -1,8 +1,8 @@
 
 art_make( 
           MODULE_LIBRARIES 
-                        RecoBase
-                        Geometry
+                        lardata_RecoBase
+                        larcore_Geometry
                         larcore_Geometry_Geometry_service
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}

@@ -1,11 +1,11 @@
 
-art_make( LIBRARY_NAME  CMTAlgMatch
+art_make( 
           LIB_LIBRARIES
-			CMToolBase
-			ClusterRecoUtil
-			Geometry
+			larreco_RecoAlg_CMTool_CMToolBase
+			larreco_RecoAlg_ClusterRecoUtil
+			larcore_Geometry
 			larcore_Geometry_Geometry_service
-                        Utilities
+                        lardata_Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

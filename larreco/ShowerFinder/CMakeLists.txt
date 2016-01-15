@@ -5,16 +5,16 @@ add_subdirectory(job)
 art_make( 
 #          EXCLUDE ShowerSelectorFilter_module.cc
           MODULE_LIBRARIES 
-			RecoAlg
+			larreco_RecoAlg
                         larsim_MCCheater_BackTracker_service
-                        AnalysisBase
-                        RecoBase
-                        Geometry
+                        lardata_AnalysisBase
+                        lardata_RecoBase
+                        larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        AnalysisAlg
-                        AnalysisBase
-                        Simulation
-                        Utilities
+                        lardata_AnalysisAlg
+                        lardata_AnalysisBase
+                        larsim_Simulation
+                        lardata_Utilities
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -32,9 +32,9 @@ art_make(
          )
 
 #simple_plugin( ShowerSelectorFilter "module"
-#         		  Filters
-# 			  RecoAlg
-# 		    	  RawData
+#         		  larevt_Filters
+# 			  larreco_RecoAlg
+# 		    	  lardata_RawData
 # 			  ${SIMULATIONBASE}
 #                
 # 	     )     

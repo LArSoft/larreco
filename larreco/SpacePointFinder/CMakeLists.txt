@@ -2,12 +2,12 @@
 include_directories ( $ENV{G4INCLUDE} )
 
 art_make(  
-          MODULE_LIBRARIES  RecoAlg
-			    RecoObjects
-			    RecoBase
-			    Geometry
+          MODULE_LIBRARIES  larreco_RecoAlg
+			    lardata_RecoObjects
+			    lardata_RecoBase
+			    larcore_Geometry
 			    larcore_Geometry_Geometry_service
-			    Utilities
+			    lardata_Utilities
 			    ${MAGNETICFIELD_SERVICE}
 			    ${SIMULATIONBASE}
 			    ${ART_FRAMEWORK_CORE}

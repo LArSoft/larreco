@@ -1,8 +1,8 @@
 
-art_make( LIBRARY_NAME  CMToolBase
+art_make( 
           LIB_LIBRARIES
-			ClusterRecoUtil
-                        Utilities
+			larreco_RecoAlg_ClusterRecoUtil
+                        lardata_Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

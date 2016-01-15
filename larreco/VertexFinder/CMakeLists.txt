@@ -3,12 +3,12 @@ art_make(
           EXCLUDE FeatureVertexFinder_module.cc CornerFinder_module.cc
           MODULE_LIBRARIES 
                         larsim_MCCheater_BackTracker_service
-                        Filters
-                        RecoBase
-                        Geometry
+                        larevt_Filters
+                        lardata_RecoBase
+                        larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        Utilities
-                        Simulation
+                        lardata_Utilities
+                        larsim_Simulation
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -27,13 +27,13 @@ art_make(
 
 
 simple_plugin ( FeatureVertexFinder "module"
-                        RecoAlg
+                        larreco_RecoAlg
                         larsim_MCCheater_BackTracker_service
-                        Filters
-                        RecoBase
-                        Geometry
+                        larevt_Filters
+                        lardata_RecoBase
+                        larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        Utilities
+                        lardata_Utilities
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -52,8 +52,8 @@ simple_plugin ( FeatureVertexFinder "module"
               )
 
 simple_plugin ( CornerFinder "module"
-                        RecoAlg
-                        RecoBase
+                        larreco_RecoAlg
+                        lardata_RecoBase
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

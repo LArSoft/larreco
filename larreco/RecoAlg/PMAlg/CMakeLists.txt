@@ -1,13 +1,13 @@
 
-art_make( LIBRARY_NAME  PMAlg
-          LIB_LIBRARIES RecoBase
-                        Simulation
-                        Filters
-                        Geometry
+art_make( 
+          LIB_LIBRARIES lardata_RecoBase
+                        larsim_Simulation
+                        larevt_Filters
+                        larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        RecoObjects
-                        AnalysisBase
-                        Utilities
+                        lardata_RecoObjects
+                        lardata_AnalysisBase
+                        lardata_Utilities
            		${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

@@ -1,14 +1,14 @@
 
 art_make( 
-          LIBRARY_NAME  DirOfGamma
-          LIB_LIBRARIES Geometry
+          
+          LIB_LIBRARIES larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        Simulation
-                        RawData
-                        RecoBase
-		        RecoAlg
-			PMAlg
-                        Utilities
+                        larsim_Simulation
+                        lardata_RawData
+                        lardata_RecoBase
+		        larreco_RecoAlg
+			larreco_RecoAlg_PMAlg
+                        lardata_Utilities
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
                         ${ART_FRAMEWORK_PRINCIPAL}
@@ -24,15 +24,15 @@ art_make(
                         ${CETLIB}
                         ${ROOT_BASIC_LIB_LIST}
 		        ${Boost_SYSTEM_LIBRARY}
-	  MODULE_LIBRARIES RecoAlg
-			   PMAlg
-			   DirOfGamma
+	  MODULE_LIBRARIES larreco_RecoAlg
+			   larreco_RecoAlg_PMAlg
+			   larreco_DirOfGamma
 			   larsim_MCCheater_BackTracker_service
-      			   RecoBase
-			   Simulation
-			   Geometry
+      			   lardata_RecoBase
+			   larsim_Simulation
+			   larcore_Geometry
 	    		   larcore_Geometry_Geometry_service
-      			   Utilities
+      			   lardata_Utilities
 			   ${SIMULATIONBASE}
 			   ${ART_FRAMEWORK_CORE}
 			   ${ART_FRAMEWORK_PRINCIPAL}

@@ -1,4 +1,4 @@
-art_make_library( LIBRARY_NAME RFFHitFitter
+art_make_library( LIBRARY_NAME larreco_HitFinder_RFFHitFitter
                              SOURCE RegionAboveThresholdFinder.cxx
 					   GaussianEliminationAlg.cxx
 					   RFFHitFitter.cxx
@@ -8,12 +8,12 @@ art_make_library( LIBRARY_NAME RFFHitFitter
 )
 
 art_make( 
-	  LIBRARY_NAME  HitFinder
+	  
           LIB_LIBRARIES
-			RawData
-			RecoBase 
-			RFFHitFitter
-                        Geometry
+			lardata_RawData
+			lardata_RecoBase 
+			larreco_HitFinder_RFFHitFitter
+                        larcore_Geometry
                         larcore_Geometry_Geometry_service
 			${ART_PERSISTENCY_COMMON}
 			${ART_PERSISTENCY_PROVENANCE}
@@ -22,15 +22,15 @@ art_make(
 			${CETLIB}
                         ${ROOT_BASIC_LIB_LIST}
           MODULE_LIBRARIES 
-	  		HitFinder
+	  		larreco_HitFinder
                         larsim_MCCheater_BackTracker_service
-			RecoAlg
-                        RecoBase
-			MCBase
-                        Geometry
+			larreco_RecoAlg
+                        lardata_RecoBase
+			lardata_MCBase
+                        larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        Utilities
-                        Simulation
+                        lardata_Utilities
+                        larsim_Simulation
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

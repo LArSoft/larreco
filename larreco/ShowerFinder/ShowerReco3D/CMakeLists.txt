@@ -2,17 +2,17 @@
 add_subdirectory(job)
 
 art_make(
-	  LIBRARY_NAME  ShowerReco3D
+	  
           LIB_LIBRARIES
-			MCBase
-                        RecoBase
-                        Utilities
-			AnalysisAlg
-                        ClusterRecoUtil
-			CMToolBase
-	  		CMTAlgPriority
-			CMTAlgMerge
-			CMTAlgMatch
+			lardata_MCBase
+                        lardata_RecoBase
+                        lardata_Utilities
+			lardata_AnalysisAlg
+                        larreco_RecoAlg_ClusterRecoUtil
+			larreco_RecoAlg_CMTool_CMToolBase
+	  		larreco_RecoAlg_CMTool_CMTAlgPriority
+			larreco_RecoAlg_CMTool_CMTAlgMerge
+			larreco_RecoAlg_CMTool_CMTAlgMatch
                         ${ART_FRAMEWORK_CORE}
                         ${ART_FRAMEWORK_PRINCIPAL}
                         ${ART_FRAMEWORK_SERVICES_REGISTRY}
@@ -31,14 +31,14 @@ art_make(
                         ${ROOT_BASIC_LIB_LIST}
                         ${ROOT_MINUIT}
           MODULE_LIBRARIES 
-	  		   MCComp
-	  		   MCBase
-	  		   ShowerReco3D
-	  		   RecoAlg
+	  		   larreco_MCComp
+	  		   lardata_MCBase
+	  		   larreco_ShowerFinder_ShowerReco3D
+	  		   larreco_RecoAlg
                            larsim_MCCheater_BackTracker_service
-                           Filters
-                           RecoBase
-                           Geometry
+                           larevt_Filters
+                           lardata_RecoBase
+                           larcore_Geometry
                            larcore_Geometry_Geometry_service
                            ${SIMULATIONBASE}
                            ${ART_FRAMEWORK_CORE}

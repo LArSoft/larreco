@@ -1,17 +1,17 @@
 
 art_make( 
-          LIBRARY_NAME ClusterFinder
-          LIB_LIBRARIES Geometry
-                        RecoBase
-                        ClusterRecoUtil
-          MODULE_LIBRARIES RecoAlg
-                           Cluster3DAlgs
-                           ClusterRecoUtil
-                           ClusterFinder
+          
+          LIB_LIBRARIES larcore_Geometry
+                        lardata_RecoBase
+                        larreco_RecoAlg_ClusterRecoUtil
+          MODULE_LIBRARIES larreco_RecoAlg
+                           larreco_RecoAlg_Cluster3DAlgs
+                           larreco_RecoAlg_ClusterRecoUtil
+                           larreco_ClusterFinder
                            larsim_MCCheater_BackTracker_service
-                           Filters
-                           RecoBase
-                           Geometry
+                           larevt_Filters
+                           lardata_RecoBase
+                           larcore_Geometry
                            larcore_Geometry_Geometry_service
                            SeedService_service # artextensions
                            ${SIMULATIONBASE}

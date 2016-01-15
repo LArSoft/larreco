@@ -1,6 +1,6 @@
-art_make( LIBRARY_NAME  ClusterRecoUtil
+art_make( 
           LIB_LIBRARIES
-                        Utilities
+                        lardata_Utilities
 			${Boost_SYSTEM_LIBRARY}
                         ${ROOT_BASIC_LIB_LIST}
         )

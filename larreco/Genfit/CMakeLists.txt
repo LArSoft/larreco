@@ -1,6 +1,6 @@
 
 art_make(  
-          LIBRARY_NAME  Genfit
+          
           LIB_LIBRARIES
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
