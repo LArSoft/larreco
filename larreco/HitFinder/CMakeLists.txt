@@ -12,6 +12,7 @@ art_make(
 	                ${FHICLCPP}
 			${CETLIB}
                         ${ROOT_BASIC_LIB_LIST}
+                        ${Boost_SYSTEM_LIBRARY}
           MODULE_LIBRARIES 
 	  		larreco_HitFinder
                         larsim_MCCheater_BackTracker_service
