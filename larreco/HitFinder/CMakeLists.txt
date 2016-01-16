@@ -1,18 +1,9 @@
-art_make_library( LIBRARY_NAME larreco_HitFinder_RFFHitFitter
-                             SOURCE RegionAboveThresholdFinder.cxx
-					   GaussianEliminationAlg.cxx
-					   RFFHitFitter.cxx
-                             LIBRARIES
-                                                     ${ROOT_BASIC_LIB_LIST}
-						     ${Boost_SYSTEM_LIBRARY}
-)
 
 art_make( 
 	  
           LIB_LIBRARIES
 			lardata_RawData
 			lardata_RecoBase 
-			larreco_HitFinder_RFFHitFitter
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
 			${ART_PERSISTENCY_COMMON}
