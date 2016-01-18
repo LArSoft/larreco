@@ -6,8 +6,10 @@ defaultqual	e9
 fcldir product_dir job
 #
 product         version
-larsim		v04_15_02
-nutools         v1_17_01
+larsim		v04_15_01
+# v04_15_02
+nutools   v1_17_00
+# v1_17_01
 gcc		v4_9_3
 
 cetbuildtools	v4_17_03	-	only_for_build
@@ -16,6 +18,7 @@ end_product_list
   
 # e9  - with gcc 4.9.3 and -std=c++14
 qualifier	larsim		nutools		gcc	notes
+e9:debug	debug:e9	debug:e9	-nq-
 e9:debug	e9:debug	e9:debug	-nq-
 e9:opt		e9:opt		e9:opt		-nq-
 e9:prof		e9:prof		e9:prof		-nq-
