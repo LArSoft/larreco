@@ -171,6 +171,8 @@ namespace cluster {
 		bool fFindHammerClusters;					 ///< look for hammer type clusters
     bool fFindVLAClusters;					 ///< look for Very Large Angle clusters
     bool fRefineVertexClusters;
+    bool fTagClusters;              ///< tag clusters as shower-like or track-like
+    bool fStepCrawlStudyMode;       ///< study cuts
 		
 		float fMinAmp;									///< expected minimum signal
 
@@ -309,29 +311,35 @@ namespace cluster {
       float AveChg;             // average charge
       float ChgDiff;            // difference = (Chg - fAveChg) / fChgRMS
       float Delta;              // deviation between trajectory and hits
+      float DeltaRMS;           //
       unsigned short NumTPsFit; // Number of trajectory points fitted to make this point
       unsigned short Step;
       float FitChi;             // Chi/DOF of the fit
       unsigned short NumNotNear;  // Number of hits in the larger window
-      bool UsedNotNearHit;        // true if a hit was added in the larger window
+      bool UsedNotCloseHit;        // true if a hit was added in the larger window
       std::vector<unsigned int> Hits; // vector of fHits indices
       // default constructor
       TrajPoint() {
-        Ang = 0; AngErr = 0.5; AveHitRes = -1; Chg = 0; ChgDiff = 0; AveChg = 0; Delta = 0; NumTPsFit = 2;
-        Step = 0; FitChi = 0; NumNotNear = 0; UsedNotNearHit = false; Hits.clear();
+        Ang = 0; AngErr = 0.5; AveHitRes = 0; Chg = 0; ChgDiff = 0; AveChg = 0; Delta = 0; DeltaRMS = 0.2;
+        NumTPsFit = 2; Step = 0; FitChi = 0; NumNotNear = 0; UsedNotCloseHit = false; Hits.clear();
       }
     };
     
     // associated information for the trajectory
     struct Trajectory {
+      short CrawlDir;                 /// -1 = going US (CC proper order), 1 = going DS
       unsigned short ClusterIndex;
       unsigned short ProcCode;       ///< USHRT_MAX = abandoned trajectory
       unsigned short StopCode;
+      int TruPDG;
+      int TruKE;              ///< MeV
+      bool IsPrimary;
+      bool IsSecondary;
       std::array<short, 2> Vtx;
       std::vector<TrajPoint> Pts;
       Trajectory() {
-        ClusterIndex = USHRT_MAX; ProcCode = 900; StopCode = 0; Pts.clear();
-        Vtx[0] = -1; Vtx[1] = -1;
+        CrawlDir = 0; ClusterIndex = USHRT_MAX; ProcCode = 900; StopCode = 0; Pts.clear();
+        Vtx[0] = -1; Vtx[1] = -1; TruPDG = 0; TruKE = 0; IsPrimary = false; IsSecondary = false;
       }
     };
     Trajectory work;      ///< trajectory under construction
@@ -339,27 +347,37 @@ namespace cluster {
     
     // Crawls starting at the last point traj[].Pos, moving in direction traj[].Dir
     void StepCrawl(bool& success);
-    void GetStepCrawlWindow(TrajPoint& tp, unsigned int& loWire, unsigned int& hiWire, float& loTime, float& hiTime,
-                            unsigned int& loloWire, unsigned int& hihiWire, float& loloTime, float& hihiTime);
-    void StartTraj(unsigned int fromHit, unsigned int toHit);
-    void AddTrajHits(TrajPoint& tp, bool& stopCrawl);
-    void ReleaseAllTrajHits();
+    unsigned short SetMissedStepCut(TrajPoint const& tp);
+    void StartTraj(unsigned int fromHit, float toWire, float toTick);
+    void HitMultipletPosition(unsigned int hit, float& hitTick);
+    void AddTrajHits(TrajPoint& tp, bool& SignalPresent);
+    void FlagAllWorkHits();
+    void ReleaseAllWorkHits();
     void ReleaseTrajHits(unsigned short ipt);
     bool SplitAllTraj(unsigned short itj, unsigned short pos, unsigned short ivx);
     void StoreTraj();
     void ReverseTraj();
     void UpdateTraj(bool& success);
     void UpdateTrajChgDiff();
+    void UpdateTrajDelta();
     void FitTraj();
+    float TrajLength(Trajectory& tj);
     bool GottaKink();
     void FitTrajMid(unsigned short fromIndex, unsigned short toIndex, TrajPoint& tp);
     void StepCrawlClusterCheck();
+    void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
+    float PointTrajDOCA(float wire, float time, TrajPoint const& tp);
     void FindTrajVertices();
     unsigned short VtxClusterEnd(unsigned short ivx, unsigned short icl);
     bool TrajIntersection(TrajPoint& tp1, TrajPoint tp2, float& x, float& y);
+    float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
     void PrintWork(unsigned short tPoint);
     void PrintAllTraj(unsigned short itj, unsigned short ipt);
-    void PrintTrajPoint(unsigned short ipt, TrajPoint& tp);
+    void PrintHeader();
+    void PrintTrajPoint(unsigned short ipt, short dir, TrajPoint tp);
+    // Tag as shower-like or track-like
+    void TagClusters();
+    void FillTrajTruth();
 
     // hit multiplets that have been saved before merging.
     std::vector<recob::Hit> unMergedHits;
@@ -428,9 +446,6 @@ namespace cluster {
 
     // Try to merge overlapping clusters
     void MergeOverlap();
-    
-    // Find Very Large Angle clusters
-//    void FindVLAClusters();
     
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);
