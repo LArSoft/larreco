@@ -66,11 +66,12 @@ namespace cluster {
     fFindVertices       = pset.get< std::vector<bool>  >("FindVertices");
     fLACrawl            = pset.get< std::vector<bool>  >("LACrawl");
 
-    fStepCrawlDir       = pset.get< short >("StepCrawlDir", -1);
+    fStepCrawlDir       = pset.get< short >("StepCrawlDir", 0); // Default is don't use it
     fStepCrawlChgDiffCut = pset.get< float >("StepCrawlChgDiffCut", 10);
     fStepCrawlKinkAngCut = pset.get< float >("StepCrawlKinkAngCut", 0.4);
     fStepCrawlMaxWireSkip = pset.get< float >("StepCrawlMaxWireSkip", 1);
     fStepCrawlMaxDeltaJump = pset.get< float >("StepCrawlMaxDeltaJump", 10);
+    fStepCrawlStudyMode = pset.get< bool   >("StepCrawlStudyMode", false);
     fFindTrajVertices   = pset.get< bool   >("FindTrajVertices", false);
 
 		fMinAmp 						= pset.get< float >("MinAmp", 5);
@@ -86,6 +87,7 @@ namespace cluster {
     fFindHammerClusters = pset.get< bool   >("FindHammerClusters", false);
     fFindVLAClusters    = pset.get< bool   >("FindVLAClusters", false);
     fRefineVertexClusters = pset.get< bool >("RefineVertexClusters", false);
+    fTagClusters        = pset.get< bool   >("TagClusters", false);
     fHitErrFac          = pset.get< float  >("HitErrFac", 0.2);
     fMinHitFrac         = pset.get< float  >("MinHitFrac", 0.6);
     
@@ -119,12 +121,11 @@ namespace cluster {
     if(fNumPass > fMergeChgCut.size()) badinput = true;
     if(fNumPass > fFindVertices.size()) badinput = true;
     if(fNumPass > fLACrawl.size()) badinput = true;
-    
-    if(fStepCrawlDir == 0) badinput = true;
 
     if(badinput) throw art::Exception(art::errors::Configuration)
       << "ClusterCrawlerAlg: Bad input from fcl file";
 
+    
   } // reconfigure
   
   
@@ -2191,14 +2192,67 @@ namespace cluster {
 
     } // FitAllVtx
   
-/////////////////////////////////////////
+/*
+  //////////////////////////////////////
+  void ClusterCrawlerAlg::TagClusters()
+  {
+    // tag as shower-like or track-like
+    
+    if(tcl.size() < 2) return;
+    
+    unsigned short icl, jcl, end;
+    
+    std::vector<std::array<unsigned short, 2>> nClose;
+    std::vector<std::array<float, 2>> sum;
+    std::array<unsigned short, 2> zeros = {0, 0};
+    std::array<float, 2> fzeros = {0, 0};
+    
+    mf::LogVerbatim("CC")<<"TagClusters "<<tcl.size()<<"\n";
+    
+    float wire, time, doca, maxDoCA = 20;
+    
+    unsigned short indx = 0;
+    for(icl = 0; icl < tcl.size(); ++icl) {
+      if(tcl[icl].ID < 0) continue;
+      if(tcl[icl].CTP != clCTP) continue;
+      nClose.push_back(zeros);
+      sum.push_back(fzeros);
+      for(end = 0; end < 2; ++end) {
+        if(end == 0) {
+          wire = tcl[icl].BeginWir;
+          time = tcl[icl].BeginTim;
+        } else {
+          wire = tcl[icl].EndWir;
+          time = tcl[icl].EndTim;
+        };
+        for(jcl = 0; jcl < tcl.size(); ++jcl) {
+          if(icl == jcl) continue;
+          if(tcl[jcl].ID < 0) continue;
+          if(tcl[jcl].CTP != clCTP) continue;
+          doca = DoCA(jcl, end, wire, time);
+          if(doca < maxDoCA) {
+            ++nClose[indx][end];
+            sum[indx][end] += doca;
+          }
+        } // jcl
+      } // end
+      if(nClose[indx][0] > 0) sum[indx][0] /= (float)nClose[indx][0];
+      if(nClose[indx][1] > 0) sum[indx][0] /= (float)nClose[indx][1];
+      mf::LogVerbatim("CC")<<"Cluster "<<tcl[icl].ID<<" nClose "<<nClose[indx][0]<<" "<<nClose[indx][1]<<" Ave "<<(int)sum[indx][0]<<" "<<(int)sum[indx][1];
+      ++indx;
+    } // icl
+    
+  } // TagClusters
+*/
+  
+  /////////////////////////////////////////
     void ClusterCrawlerAlg::FindVertices()
     {
       // try to make 2D vertices
       
       if(tcl.size() < 2) return;
 
-      // form vertices starting with the longest
+      // sort clusters starting with the longest
       std::vector<CluLen> clulens;
       CluLen clulen;
       for(unsigned short icl = 0; icl < tcl.size(); ++icl) {
@@ -3451,7 +3505,11 @@ namespace cluster {
         myprt<<"  ";
       } else if(iTime < 1000) myprt<<" ";
       myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginAng;
-      myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginSlp;
+      if(std::abs(tcl[ii].BeginSlp) < 100) {
+        myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginSlp;
+      } else {
+        myprt<<std::right<<std::setw(6)<<(int)tcl[ii].BeginSlp;
+      }
       myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].BeginSlpErr;
       myprt<<std::right<<std::setw(5)<<(int)tcl[ii].BeginChg;
 //      myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<tcl[ii].BeginChgNear;
@@ -3463,7 +3521,11 @@ namespace cluster {
         myprt<<"  ";
       } else if(iTime < 1000) myprt<<" ";
       myprt<<std::right<<std::setw(7)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndAng;
-      myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndSlp;
+      if(std::abs(tcl[ii].EndSlp) < 100) {
+        myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndSlp;
+      } else {
+        myprt<<std::right<<std::setw(6)<<(int)tcl[ii].EndSlp;
+      }
       myprt<<std::right<<std::setw(6)<<std::fixed<<std::setprecision(2)<<tcl[ii].EndSlpErr;
       myprt<<std::right<<std::setw(5)<<(int)tcl[ii].EndChg;
 //      myprt<<std::right<<std::setw(5)<<std::fixed<<std::setprecision(1)<<tcl[ii].EndChgNear;
@@ -3563,7 +3625,7 @@ namespace cluster {
       hit = fcl2hits[it];
       if(inClus[hit] != 0) {
         mf::LogWarning("CC")<<"TmpStore: Trying to use obsolete/used hit "<<hit<<" inClus "<<inClus[hit]
-          <<" while creating cluster. ProcCode "<<clProcCode<<" fcl2hits[0] hit "<<plane<<":"<<fHits[fcl2hits[0]].WireID().Wire<<":"<<(int)fHits[fcl2hits[0]].PeakTime();
+          <<" while creating cluster. ProcCode "<<clProcCode<<" fcl2hits[0] hit "<<fHits[fcl2hits[0]].WireID().Plane<<":"<<fHits[fcl2hits[0]].WireID().Wire<<":"<<(int)fHits[fcl2hits[0]].PeakTime();
         for(unsigned short jj = 0; jj < fcl2hits.size(); ++jj) {
           hit = fcl2hits[jj];
           mf::LogVerbatim("CC")<<jj<<" "<<hit<<" "<<fHits[hit].WireID().Plane<<":"<<fHits[hit].WireID().Wire<<":"<<(int)fHits[hit].PeakTime()<<" inClus "<<inClus[hit];
@@ -4671,7 +4733,7 @@ namespace cluster {
     // n+2                        |------|
     
     if(fcl2hits.size() == 0) return true;
-    if(fAveHitWidth == 0) return true;
+//    if(fAveHitWidth == 0) return true;
    
     float loWid = 9999;
     float hiWid = 0;
@@ -4681,6 +4743,7 @@ namespace cluster {
     unsigned short indx;
     
     if(fAveHitWidth > 0) {
+//      if(prt) mf::LogVerbatim("CC")<<"ClusterHitsOK: check hit widths";
       // Test the first hit on the cluster against the average
       if(nHitChk == 1) {
         indx = fcl2hits.size() - 1;
@@ -4707,14 +4770,14 @@ namespace cluster {
     if(plane < geom->Cryostat(cstat).TPC(tpc).Nplanes()-1) tol = 40;
     
     bool posSlope = (fHits[fcl2hits[0]].PeakTime() > fHits[fcl2hits[fcl2hits.size() - 1]].PeakTime());
-/*
+
     if(prt) {
       for(unsigned short ii = 0; ii < nHitToChk; ++ii) {
         indx = fcl2hits.size() - 1 - ii;
         mf::LogVerbatim("CC")<<"chk "<<fHits[fcl2hits[indx]].WireID().Wire<<" start "<<fHits[fcl2hits[indx]].StartTick()<<" peak "<<fHits[fcl2hits[indx]].PeakTime()<<" end "<<fHits[fcl2hits[indx]].EndTick()<<" posSlope "<<posSlope;
       }
     }
-*/
+
     raw::TDCtick_t hiStartTick, loEndTick;
     for(unsigned short ii = 0; ii < nHitToChk - 1; ++ii) {
       indx = fcl2hits.size() - 1 - ii;
@@ -4724,16 +4787,17 @@ namespace cluster {
       loEndTick = std::min(fHits[fcl2hits[indx]].EndTick(), fHits[fcl2hits[indx-1]].EndTick());
       if(posSlope) {
         if(loEndTick + tol < hiStartTick) {
-          if(prt) mf::LogVerbatim("CC")<<" bad overlap pos Slope "<<loEndTick<<" > "<<hiStartTick;
+//          if(prt) mf::LogVerbatim("CC")<<" bad overlap pos Slope "<<loEndTick<<" > "<<hiStartTick;
           return false;
         }
       } else {
         if(loEndTick + tol < hiStartTick) {
-          if(prt) mf::LogVerbatim("CC")<<" bad overlap neg Slope "<<loEndTick<<" < "<<hiStartTick;
+//          if(prt) mf::LogVerbatim("CC")<<" bad overlap neg Slope "<<loEndTick<<" < "<<hiStartTick;
           return false;
         }
       }
     } // ii
+//    if(prt) mf::LogVerbatim("CC")<<" Cluster hits are OK";
     return true;
   } // ClusterHitsOK
   
