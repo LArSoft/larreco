@@ -91,6 +91,12 @@ public:
   recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
 			   std::unique_ptr<recob::Track> const& initialTrack,
 			   std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialTrackHits);
+  recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
+			   art::Ptr<recob::Vertex> const& vertex,
+			   int & iok);
+  void FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> >const& showerHits,
+			    art::Ptr<recob::Vertex> const& vertex,
+			    std::vector<art::Ptr<recob::Hit> >& trackHits);
   std::unique_ptr<recob::Track> ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
 					       std::vector<art::Ptr<recob::Hit> > const& track2);
   std::unique_ptr<recob::Track> ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
@@ -101,7 +107,14 @@ public:
 			 std::vector<art::Ptr<recob::Hit> >& orderedShower,
 			 art::FindManyP<recob::Cluster> const& fmc);
   std::vector<art::Ptr<recob::Hit> > OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower);
+  void OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
+			 std::vector<art::Ptr<recob::Hit> >& orderedShower,
+			 art::Ptr<recob::Vertex> const& vertex);
   TVector3 Construct3DPoint(art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2);
+
+  Int_t WeightedFit(const Int_t n, const Double_t *x, const Double_t *y, const Double_t *w,  Double_t *parm);
+
+  bool isCleanShower(std::vector<art::Ptr<recob::Hit> > const& hits);
 
 private:
 
@@ -124,6 +137,10 @@ private:
   // Parameters
   double fMinTrackLength;
   double fdEdxTrackLength;
+  // Parameters to fit wire vs time
+  unsigned int         fNfitpass;
+  std::vector<unsigned int>     fNfithits;
+  std::vector<double>  fToler;
 
   // Services used by this class
   art::ServiceHandle<geo::Geometry> fGeom;
