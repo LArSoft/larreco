@@ -799,7 +799,7 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 		while (t < tracks1.size())
 		{
 			bool r, reverse = false;
-			double d, c, cmax = 0.0;
+			double l, lbest = 0, d, dmin = 1.0e12, c, cmax = 0.0;
 			pma::Track3D* best_trk2 = 0;
 			unsigned int best_tpc = 0;
 			size_t best_idx = 0;
@@ -825,9 +825,10 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 						{
 							if (areCoLinear(trk1, trk2, d, c, r, distThr, distThrMin, distProjThr, cosThr))
 							{
-								if (c > cmax)
+								l = std::sqrt(pma::Dist2(trk2->front()->Point3D(), trk2->back()->Point3D()));
+								if (((c > cmax) && (d < dmin + 0.5 * lbest)) || (0.75 * l < dmin))
 								{
-									cmax = c;
+									cmax = c; dmin = d; lbest = l;
 									best_trk2 = trk2;
 									best_tpc = tpc2;
 									best_idx = u;
