@@ -150,31 +150,31 @@ namespace trkf {
         // Private methods.
         
         recob::Seed makeSeed(const art::PtrVector<recob::Hit>& hits) const;
-        // these functions should be const as they are not modifying any class members
-        void FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList);
+        // the functions that are not modifying any class members should be const
+        void fillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList);
         void filterHitsOnKalmanTrack(const KGTrack& trg,
                                      art::PtrVector<recob::Hit>& hits,
                                      art::PtrVector<recob::Hit>& seederhits) const;
-        std::unique_ptr<KHitContainer> fillHitContainer(art::PtrVector<recob::Hit> &hits) const;
-        void GetClusteredHits(art::PtrVector<recob::Hit>& hits,
-                              art::Event & evt);
-        void GetPFParticleHits(art::Handle<std::vector<recob::PFParticle> > &pfParticleHandle,
+        std::unique_ptr<KHitContainer> fillHitContainer(const art::PtrVector<recob::Hit> &hits) const;
+        void getClusteredHits(art::PtrVector<recob::Hit>& hits,
+                              const art::Event & evt) const;
+        void getPFParticleHits(const art::Handle<std::vector<recob::PFParticle> > &pfParticleHandle,
                                std::list<LocalKalmanStruct> & LocalKalmanStructs,
-                               art::Event & evt);
-        void GetAllHits(art::PtrVector<recob::Hit>& hits,
-                        art::Event & evt);
-        void GetPFParticleSeedsAndHits(LocalKalmanStruct& local_kalman_struct,
+                               const art::Event & evt) const;
+        void getAllHits(art::PtrVector<recob::Hit>& hits,
+                        const art::Event & evt) const;
+        void getPFParticleSeedsAndHits(const LocalKalmanStruct& local_kalman_struct,
                                        std::vector<recob::Seed>&seeds,
                                        std::vector<art::PtrVector<recob::Hit> >& hitsperseed) const;
-        void GenerateSeeds(art::PtrVector<recob::Hit>& seederhits,
+        void generateSeeds(const art::PtrVector<recob::Hit>& seederhits,
                            std::vector<recob::Seed>&seeds,
                            std::vector<art::PtrVector<recob::Hit> >& hitsperseed);
-        void ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhits,
-                              std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
-                              bool pfseed);
-        bool QualityCutsOnSeedTrack(const KGTrack &trg0,
-                                    const KGTrack &trg1);
-        bool SmoothTrack(KGTrack &trg0,
+        void chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
+                              bool pfseed,
+                              art::PtrVector<recob::Hit> &seedhits) const;
+        bool qualityCutsOnSeedTrack(const KGTrack &trg0,
+                                    const KGTrack &trg1) const;
+        bool smoothTrack(KGTrack &trg0,
                          art::PtrVector<recob::Hit> hits,
                          unsigned int prefplane,
                          std::deque<KGTrack>& kalman_tracks);
@@ -392,19 +392,19 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
         LocalKalmanStructList.emplace_back();
         LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
         art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-        GetClusteredHits(hits, evt);
+        getClusteredHits(hits, evt);
     }
     else if(fUsePFParticleHits) {
         if (pfParticleHandle.isValid())
         {
-            GetPFParticleHits(pfParticleHandle, LocalKalmanStructList, evt);
+            getPFParticleHits(pfParticleHandle, LocalKalmanStructList, evt);
         }
     }
     else {
         LocalKalmanStructList.emplace_back();
         LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
         art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-        GetAllHits(hits, evt);
+        getAllHits(hits, evt);
     }
     
     // SS: FIXME
@@ -454,12 +454,12 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
             bool pfseed = false;
             if(first && local_kalman_struct.seeds.size() > 0 && local_kalman_struct.seedhits.size() > 0) {
                 pfseed = true;
-                GetPFParticleSeedsAndHits(local_kalman_struct, seeds, hitsperseed);
+                getPFParticleSeedsAndHits(local_kalman_struct, seeds, hitsperseed);
             }
             else {
                 // On subsequent trips, or if there were no usable pfparticle-associated seeds,
                 // attempt to generate our own seeds.
-                GenerateSeeds(seederhits, seeds, hitsperseed);
+                generateSeeds(seederhits, seeds, hitsperseed);
             }
             assert(seeds.size() == hitsperseed.size());
             first = false;
@@ -483,7 +483,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                     // or other pathologies.
                     
                     // Don't chop pfparticle seeds or self seeds.
-                    ChopHitsOffSeeds(seedhits, hpsit, pfseed);
+                    chopHitsOffSeeds(hpsit, pfseed, seedhits);
                     
                     //
                     // Filter hits used by (chopped) seed from hits available to make future seeds.
@@ -564,7 +564,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                                 bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, *pseedcont,
                                                             fSelfSeed);
                                 if(ok) {
-                                    ok = SmoothTrack(trg0, hits, prefplane, kalman_tracks);
+                                    ok = smoothTrack(trg0, hits, prefplane, kalman_tracks);
                                 }
                                 
                                 if (mf::isDebugEnabled())
@@ -593,7 +593,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     
     if(fHist) {
         //replaced the for loops and body of code with a helper function
-        FillHistograms(LocalKalmanStructList);
+        //fillHistograms(LocalKalmanStructList);
     }
     
     // Process Kalman filter tracks into persistent objects.
@@ -702,7 +702,7 @@ void trkf::Track3DKalmanHit::endJob()
 /// Fill Histograms method
 //fHPull and fHIncChisq are private data members of the class Track3DKalmanHit
 
-void trkf::Track3DKalmanHit::FillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList)
+void trkf::Track3DKalmanHit::fillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList)
 {
     for(const auto& local_kalman_struct : LocalKalmanStructList) {
         const std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
@@ -748,7 +748,7 @@ void trkf::Track3DKalmanHit::filterHitsOnKalmanTrack(const KGTrack& trg,
 //----------------------------------------------------------------------------
 /// Fill hit container with either seedhits or filtered hits i.e. recob::Hit
 
-std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::fillHitContainer(art::PtrVector<recob::Hit> &hits) const{
+std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::fillHitContainer(const art::PtrVector<recob::Hit> &hits) const{
     std::unique_ptr<KHitContainer> hitcont(fLineSurface ?
                                            static_cast<KHitContainer *>(new KHitContainerWireLine) :
                                            static_cast<KHitContainer *>(new KHitContainerWireX));
@@ -761,8 +761,8 @@ std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::fillHitContainer(ar
 /// Fill a collection using clustered hits
 
 // SS: after method extraction, now I am working on replace temp with query
-void trkf::Track3DKalmanHit::GetClusteredHits(art::PtrVector<recob::Hit>& hits,
-                                              art::Event & evt){
+void trkf::Track3DKalmanHit::getClusteredHits(art::PtrVector<recob::Hit>& hits,
+                                              const art::Event & evt) const{
     // Get clusters.
     
     art::Handle< std::vector<recob::Cluster> > clusterh;
@@ -789,10 +789,10 @@ void trkf::Track3DKalmanHit::GetClusteredHits(art::PtrVector<recob::Hit>& hits,
 
 
 //----------------------------------------------------------------------------
-/// If both UseClusteredHits and UsePFParticles is flase use this method to fill in hits
+/// If both UseClusteredHits and UsePFParticles is false use this method to fill in hits
 
-void trkf::Track3DKalmanHit::GetAllHits(art::PtrVector<recob::Hit>& hits,
-                                        art::Event & evt){
+void trkf::Track3DKalmanHit::getAllHits(art::PtrVector<recob::Hit>& hits,
+                                        const art::Event & evt) const{
     // Get unclustered hits.
     art::Handle< std::vector<recob::Hit> > hith;
     evt.getByLabel(fHitModuleLabel, hith);
@@ -810,9 +810,9 @@ void trkf::Track3DKalmanHit::GetAllHits(art::PtrVector<recob::Hit>& hits,
 //----------------------------------------------------------------------------
 /// If UsePFParticles is true use this method to fill in hits
 
-void trkf::Track3DKalmanHit::GetPFParticleHits(art::Handle<std::vector<recob::PFParticle> >& pfParticleHandle,
+void trkf::Track3DKalmanHit::getPFParticleHits(const art::Handle<std::vector<recob::PFParticle> >& pfParticleHandle,
                                                std::list<LocalKalmanStruct> & LocalKalmanStructList,
-                                               art::Event & evt){
+                                               const art::Event & evt) const{
     
     // Our program is to drive the track creation/fitting off the PFParticles in the data store
     // We'll use the hits associated to the PFParticles for each track - and only those hits.
@@ -883,7 +883,7 @@ void trkf::Track3DKalmanHit::GetPFParticleHits(art::Handle<std::vector<recob::PF
 //----------------------------------------------------------------------------
 /// Get seeds snfd hits associated with PFParticles
 
-void trkf::Track3DKalmanHit::GetPFParticleSeedsAndHits(LocalKalmanStruct& local_kalman_struct,
+void trkf::Track3DKalmanHit::getPFParticleSeedsAndHits(const LocalKalmanStruct& local_kalman_struct,
                                                        std::vector<recob::Seed>&seeds,
                                                        std::vector<art::PtrVector<recob::Hit> >& hitsperseed) const{
     seeds.reserve(local_kalman_struct.seeds.size());
@@ -895,7 +895,7 @@ void trkf::Track3DKalmanHit::GetPFParticleSeedsAndHits(LocalKalmanStruct& local_
 
 //----------------------------------------------------------------------------
 /// Generate Seeds
-void trkf::Track3DKalmanHit::GenerateSeeds(art::PtrVector<recob::Hit>& seederhits,
+void trkf::Track3DKalmanHit::generateSeeds(const art::PtrVector<recob::Hit>& seederhits,
                                            std::vector<recob::Seed>&seeds,
                                            std::vector<art::PtrVector<recob::Hit> >& hitsperseed){
     if(seederhits.size()>0) {
@@ -916,8 +916,8 @@ void trkf::Track3DKalmanHit::GenerateSeeds(art::PtrVector<recob::Hit>& seederhit
 /// Quality cuts on seed track.
 
 
-bool trkf::Track3DKalmanHit::QualityCutsOnSeedTrack(const KGTrack &trg0,
-                                                    const KGTrack &trg1){
+bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const KGTrack &trg0,
+                                                    const KGTrack &trg1) const{
     size_t n = trg1.numHits();
     bool ok = (int(n) >= fMinSeedHits &&
                trg0.startTrack().getChisq() <= n * fMaxSeedChiDF &&
@@ -941,9 +941,9 @@ bool trkf::Track3DKalmanHit::QualityCutsOnSeedTrack(const KGTrack &trg0,
 /// Chop hits off of the end of seeds.
 
 
-void trkf::Track3DKalmanHit::ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhits,
-                                              std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
-                                              bool pfseed){
+void trkf::Track3DKalmanHit::chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
+                                              bool pfseed,
+                                              art::PtrVector<recob::Hit> &seedhits) const{
     int nchopmax = std::max(0, int((hpsit->size() - fMinSeedChopHits)/2));
     if(pfseed || fSelfSeed)
         nchopmax = 0;
@@ -952,14 +952,13 @@ void trkf::Track3DKalmanHit::ChopHitsOffSeeds(art::PtrVector<recob::Hit> &seedhi
     art::PtrVector<recob::Hit>::const_iterator ite = hpsit->end();
     itb += nchop;
     ite -= nchop;
-    //art::PtrVector<recob::Hit> seedhits;
     seedhits.reserve(hpsit->size());
     for(art::PtrVector<recob::Hit>::const_iterator it = itb; it != ite; ++it)
         seedhits.push_back(*it);
 }
 
 
-bool trkf::Track3DKalmanHit::SmoothTrack(KGTrack &trg0,
+bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
                                          art::PtrVector<recob::Hit> hits,
                                          unsigned int prefplane,
                                          std::deque<KGTrack>& kalman_tracks){
@@ -969,7 +968,7 @@ bool trkf::Track3DKalmanHit::SmoothTrack(KGTrack &trg0,
         
         // Now we have the seed track in the form of a KGTrack.
         // Do additional quality cuts.
-        ok = QualityCutsOnSeedTrack(trg0, trg1);
+        ok = qualityCutsOnSeedTrack(trg0, trg1);
         
         if(ok) {
             
