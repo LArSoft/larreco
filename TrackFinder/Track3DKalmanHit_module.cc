@@ -172,6 +172,9 @@ namespace trkf {
         void chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
                               bool pfseed,
                               art::PtrVector<recob::Hit> &seedhits) const;
+        double calcMagnitude(const double x,
+                             const double y,
+                             const double z) const;
         bool qualityCutsOnSeedTrack(const KGTrack &trg0,
                                     const KGTrack &trg1) const;
         bool smoothTrack(KGTrack &trg0,
@@ -278,7 +281,10 @@ fNumTrack(0)
 /// Destructor.
 trkf::Track3DKalmanHit::~Track3DKalmanHit()
 {
+    std::cout << "====================trkf::Track3DKalmanHit::~Track3DKalmanHit()\n";
+    std::cout << "====================" << fProp << "\n";
     delete fProp;
+    fProp=nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -291,6 +297,7 @@ trkf::Track3DKalmanHit::~Track3DKalmanHit()
 // SS: talk to Kyle about using parameter set validation
 void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
 {
+    std::cout << "====================void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)\n";
     fHist = pset.get<bool>("Hist");
     fKFAlg.reconfigure(pset.get<fhicl::ParameterSet>("KalmanFilterAlg"));
     fSeedFinderAlg.reconfigure(pset.get<fhicl::ParameterSet>("SeedFinderAlg"));
@@ -313,8 +320,10 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
     fMinSeedSlope = pset.get<double>("MinSeedSlope");
     fInitialMomentum = pset.get<double>("InitialMomentum");
     //if(fProp != 0)
+    std::cout << "====================" << fProp << "\n";
     delete fProp;
     fProp = new PropAny(fMaxTcut, fDoDedx);
+    std::cout << "====================" << fProp << "\n";
     if(fUseClusterHits && fUsePFParticleHits) {
         throw cet::exception("Track3DKalmanHit")
         << "Using input from both clustered and PFParticle hits.\n";
@@ -631,30 +640,28 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
             
             // Make space points from this track.
             
-            int nspt = spts->size();
+            auto nspt = spts->size();
             fSpacePointAlg.fillSpacePoints(*spts, kalman_track.TrackMap());
             
             // Associate newly created space points with hits.
             // Also associate track with newly created space points.
             
-            art::PtrVector<recob::SpacePoint> sptvec;
+            art::PtrVector<recob::SpacePoint> sptvec; //should be vector of Ptr
             
             // Loop over newly created space points.
             
-            for(unsigned int ispt = nspt; ispt < spts->size(); ++ispt) {
-                const recob::SpacePoint& spt = (*spts)[ispt];
-                art::ProductID sptid = getProductID<std::vector<recob::SpacePoint> >(evt);
-                art::Ptr<recob::SpacePoint> sptptr(sptid, ispt, evt.productGetter(sptid));
-                sptvec.push_back(sptptr);
-                
+            art::ProductID sptid = getProductID<std::vector<recob::SpacePoint> >(evt);
+            auto getter = evt.productGetter(sptid);
+            for(auto ispt = nspt; ispt < spts->size(); ++ispt) {
+                sptvec.push_back(art::Ptr<recob::SpacePoint>(sptid, ispt, getter));
                 // Make space point to hit associations.
-                
-                const art::PtrVector<recob::Hit>& sphits =
-                fSpacePointAlg.getAssociatedHits(spt);
-                util::CreateAssn(*this, evt, *spts, sphits, *sph_assn, ispt);
+                const auto& sphits = fSpacePointAlg.getAssociatedHits((*spts)[ispt]);
+                for(auto const& sphit: sphits) sph_assn->addSingle(sptvec.back(), sphit);
             }
             
             // Make track to space point associations.
+            
+            //for(auto const& track: tracks) tsp_assn->addSingle(sptvec.back(), track);
             
             util::CreateAssn(*this, evt, *tracks, sptvec, *tsp_assn, tracks->size()-1);
         } // end of loop over a given collection
@@ -914,8 +921,7 @@ void trkf::Track3DKalmanHit::generateSeeds(const art::PtrVector<recob::Hit>& see
 
 //----------------------------------------------------------------------------
 /// Quality cuts on seed track.
-
-
+// not sure if this function will be a candidate for generic interface
 bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const KGTrack &trg0,
                                                     const KGTrack &trg1) const{
     size_t n = trg1.numHits();
@@ -928,13 +934,19 @@ bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const KGTrack &trg0,
     double mom1[3];
     trg0.startTrack().getMomentum(mom0);
     trg0.endTrack().getMomentum(mom1);
-    double mom0mag = std::sqrt(mom0[0]*mom0[0] + mom0[1]*mom0[1] + mom0[2]*mom0[2]);
-    double mom1mag = std::sqrt(mom1[0]*mom1[0] + mom1[1]*mom1[1] + mom1[2]*mom1[2]);
+    double mom0mag = calcMagnitude(mom0[0], mom0[1], mom0[2]);
+    double mom1mag = calcMagnitude(mom1[0], mom1[1], mom1[2]);
     double dxds0 = mom0[0] / mom0mag;
     double dxds1 = mom1[0] / mom1mag;
     ok = ok && (std::abs(dxds0) > fMinSeedSlope &&
                 std::abs(dxds1) > fMinSeedSlope);
     return ok;
+}
+
+double trkf::Track3DKalmanHit::calcMagnitude(const double x,
+                                             const double y,
+                                             const double z) const{
+    return std::sqrt(x*x + y*y + z*z);
 }
 
 //----------------------------------------------------------------------------
@@ -947,6 +959,11 @@ void trkf::Track3DKalmanHit::chopHitsOffSeeds(std::vector<art::PtrVector<recob::
     int nchopmax = std::max(0, int((hpsit->size() - fMinSeedChopHits)/2));
     if(pfseed || fSelfSeed)
         nchopmax = 0;
+    //
+//    int nchopmax = ((pfseed || fSelfSeed) ?
+//                    0:
+//                    std::max(0, int((hpsit->size() - fMinSeedChopHits)/2)));
+//    
     int nchop = std::min(nchopmax, fMaxChopHits);
     art::PtrVector<recob::Hit>::const_iterator itb = hpsit->begin();
     art::PtrVector<recob::Hit>::const_iterator ite = hpsit->end();
