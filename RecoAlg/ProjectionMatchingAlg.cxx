@@ -250,6 +250,80 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 }
 // ------------------------------------------------------
 
+pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
+	const std::vector< art::Ptr<recob::Hit> >& hits) const
+{
+	std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > hits_by_tpc;
+	for (auto const & h : hits)
+	{
+		hits_by_tpc[h->WireID().TPC].push_back(h);
+	}
+
+	std::vector< pma::Track3D* > tracks;
+	for(auto const & hsel : hits_by_tpc)
+	{
+		pma::Track3D* trk = buildTrack(hsel.second);
+		if (trk) tracks.push_back(trk);
+	}
+
+	bool need_reopt = false;
+	while (tracks.size() > 1)
+	{
+		need_reopt = true;
+
+		pma::Track3D* first = tracks.front();
+		pma::Track3D* best = 0;
+		double d, dmin = 1.0e12;
+		size_t t_best = 0, cfg = 0;
+		for (size_t t = 1; t < tracks.size(); ++t)
+		{
+			pma::Track3D* second = tracks[t];
+
+			d = pma::Dist2(first->front()->Point3D(), second->front()->Point3D());
+			if (d < dmin) { dmin = d; best = second; t_best = t; cfg = 0; }
+
+			d = pma::Dist2(first->front()->Point3D(), second->back()->Point3D());
+			if (d < dmin) { dmin = d; best = second; t_best = t; cfg = 1; }
+
+			d = pma::Dist2(first->back()->Point3D(), second->front()->Point3D());
+			if (d < dmin) { dmin = d; best = second; t_best = t; cfg = 2; }
+
+			d = pma::Dist2(first->back()->Point3D(), second->back()->Point3D());
+			if (d < dmin) { dmin = d; best = second; t_best = t; cfg = 3; }
+		}
+		if (best)
+		{
+			switch (cfg)
+			{
+				default:
+				case 0:
+				case 1:
+					mergeTracks(*best, *first, false);
+					tracks[0] = best; delete first; break;
+
+				case 2:
+				case 3:
+					mergeTracks(*first, *best, false);
+					delete best; break;
+			}
+			tracks.erase(tracks.begin() + t_best);
+		}
+		else break; // should not happen
+	}
+
+	if (!tracks.empty())
+	{
+		pma::Track3D* trk = tracks.front();
+		if (need_reopt)
+		{
+			double g = trk->Optimize(0, fFineTuningEps);
+			mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging tpc parts: done, g = " << g;
+		}
+		return trk;
+	}
+	else return 0;
+}
+
 pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
 	const std::vector< art::Ptr<recob::Hit> >& hits_1,
 	const std::vector< art::Ptr<recob::Hit> >& hits_2) const

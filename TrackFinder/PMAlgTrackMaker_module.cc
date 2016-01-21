@@ -137,6 +137,7 @@ private:
   cryo_tpc_view_hitmap fHitMap;
   std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
   std::map< int, std::vector< art::Ptr<recob::Cluster> > > fPfpClusters;
+  std::map< int, int > fPfpPdgCodes;
   bool sortHits(const art::Event& evt);
   bool sortHitsPfp(const art::Event& evt);
 
@@ -335,6 +336,7 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 	fHitMap.clear();
 	fCluHits.clear();
 	fPfpClusters.clear();
+	fPfpPdgCodes.clear();
 	fEvNumber = evt.id().event();
 	fIsRealData = evt.isRealData();
 	fTrkIndex = 0;
@@ -1245,7 +1247,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 {
-	fHitMap.clear(); fCluHits.clear(); fPfpClusters.clear();
+	fHitMap.clear(); fCluHits.clear(); fPfpClusters.clear(); fPfpPdgCodes.clear();
 
 	art::Handle< std::vector<recob::Hit> > allHitListHandle;
 	art::Handle< std::vector<recob::Cluster> > cluListHandle;
@@ -1279,6 +1281,8 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 		}
 		for (size_t i = 0; i < pfparticleHandle->size(); ++i)
 		{
+			fPfpPdgCodes[i] = pfparticleHandle->at(i).PdgCode();
+
 			auto cv = fpf.at(i);
 			for (const auto & c : cv)
 			{
@@ -2026,6 +2030,10 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candid
 		for (const auto & pfpCluEntry : fPfpClusters)
 		{
 			int pfPartIdx = pfpCluEntry.first;
+			int pdg = fPfpPdgCodes[pfPartIdx];
+
+			mf::LogVerbatim("PMAlgTrackMaker") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
+
 			const auto & clusterVec = pfpCluEntry.second;
 
 			initial_clusters.clear();
@@ -2123,6 +2131,10 @@ int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::trk_candidates& r
     {
 		for (const auto & pfpCluEntry : fPfpClusters)
 		{
+			int pfPartIdx = pfpCluEntry.first;
+			int pdg = fPfpPdgCodes[pfPartIdx];
+			mf::LogVerbatim("PMAlgTrackMaker") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
+
 			std::vector< art::Ptr<recob::Hit> > allHits;
 
 			pma::TrkCandidate candidate;
@@ -2136,7 +2148,7 @@ int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::trk_candidates& r
 			}
 			candidate.SetKey(pfpCluEntry.first);
 
-			candidate.SetTrack(fProjectionMatchingAlg.buildTrack(allHits));
+			candidate.SetTrack(fProjectionMatchingAlg.buildMultiTPCTrack(allHits));
 
 			if (candidate.IsValid() &&
 			    candidate.Track()->HasTwoViews() &&

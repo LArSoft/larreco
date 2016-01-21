@@ -85,6 +85,12 @@ pma::Track3D::~Track3D(void)
 
 bool pma::Track3D::Initialize(float initEndSegW)
 {
+	if (!HasTwoViews(2))
+	{
+		mf::LogError("pma::Track3D") << "Need min. 2 hits per view, at least two views.";
+		return false;
+	}
+
 	auto cryos = Cryos();
 	if (cryos.size() > 1)
 	{

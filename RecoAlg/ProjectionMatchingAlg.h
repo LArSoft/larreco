@@ -85,12 +85,15 @@ public:
 			trk.LastElement()->SameTPC(trk.back()->Point3D()));
 	}
 
-	/// Build a track from two sets of hits (they should origin from two wire planes);
-	/// number of segments used to create the track depends on the number of hits;
-	/// optional vmin is the minimum fraction of hits seen from two views.
+	/// Build a track from two sets of hits from single TPC, hits should origin from at least two
+    /// wire planes; number of segments used to create the track depends on the number of hits.
 	pma::Track3D* buildTrack(
 		const std::vector< art::Ptr<recob::Hit> >& hits_1,
 		const std::vector< art::Ptr<recob::Hit> >& hits_2 = std::vector< art::Ptr<recob::Hit> >()) const;
+
+	/// Build a track from sets of hits, multiple TPCs are OK (like taken from PFParticles),
+    /// as far as hits origin from at least two wire planes.
+	pma::Track3D* buildMultiTPCTrack(const std::vector< art::Ptr<recob::Hit> >& hits) const;
 
 	/// Build a straight segment from two sets of hits (they should origin from two wire planes);
 	/// method is intendet for short tracks or shower initial parts, where only a few hits
