@@ -45,15 +45,19 @@ void pma::PMAlgVertexing::cleanTracks(void)
 
 void pma::PMAlgVertexing::collectTracks(pma::trk_candidates& result)
 {
+	mf::LogVerbatim("pma::PMAlgVertexing") << "clean input: " << result.size() << std::endl;
 	for (auto & t : result) t.DeleteTrack();
 	result.clear();
 
+	mf::LogVerbatim("pma::PMAlgVertexing") << "fill input from out: " << fOutTracks.size() << std::endl;
 	for (auto const & t : fOutTracks) result.push_back(t);
 	fOutTracks.clear();
 
+	mf::LogVerbatim("pma::PMAlgVertexing") << "fill input from short: " << fShortTracks.size() << std::endl;
 	for (auto const & t : fShortTracks) result.push_back(t);
 	fShortTracks.clear();
 
+	mf::LogVerbatim("pma::PMAlgVertexing") << "fill input from em: " << fOutTracks.size() << std::endl;
 	for (auto const & t : fEmTracks) result.push_back(t);
 	fEmTracks.clear();
 }

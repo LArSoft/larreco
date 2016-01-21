@@ -433,7 +433,7 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 	mf::LogVerbatim("pma::VtxCandidate") << "JoinTracks (" << fAssigned.size() << ") at:"
 		<< " vx:" << fCenter.X() << " vy:" << fCenter.Y() << " vz:" << fCenter.Z();
 
-	for (const auto & c : fAssigned)
+	for (auto const & c : fAssigned)
 	{
 		size_t t = 0;
 		while (t < src.size())
@@ -447,8 +447,14 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 			else t++;
 		}
 	}
-	// now all involved tracks are in the same container, so:
+	// all involved tracks are in the same container, so:
 	pma::setTreeIds(tracks);
+	for (auto & c : fAssigned) // update ids
+		for (auto const & t : tracks)
+			if (c.first.Track() == t.Track())
+			{
+				c.first.SetTreeId(t.TreeId()); break;
+			}
 
 	// backup in case of fitting problems
 	std::vector<int> treeIds;
@@ -466,7 +472,7 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 		int tid = fAssigned[i].first.TreeId();
 		size_t idx = fAssigned[i].second;
 
-		mf::LogVerbatim("pma::VtxCandidate") << "  track size:" << trk->size()
+		mf::LogVerbatim("pma::VtxCandidate") << "  track tid:" << tid << ", size:" << trk->size()
 			<< " (nodes:" << trk->Nodes().size() << ")";
 
 		if (!has(treeIds, tid)) // backup in case of fitting problems
@@ -675,7 +681,7 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 		pma::Track3D* rootTrk = rootSeg->Parent()->GetRoot();
 		if (!rootTrk) rootTrk = rootSeg->Parent();
 
-		std::vector< pma::Track3D const * > branchesToRemove;  // change to more simple check
+		std::vector< pma::Track3D const * > branchesToRemove;  // change to a more simple check
 		bool noLoops = rootTrk->GetBranches(branchesToRemove); // if there are loops
 
 		bool tuneOK = true;
