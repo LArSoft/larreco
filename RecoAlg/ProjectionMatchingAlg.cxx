@@ -217,7 +217,12 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 	size_t nNodes = (size_t)( nSegments - 1 ); // n nodes to add
 
 	mf::LogVerbatim("ProjectionMatchingAlg") << "  initialize trk";
-	trk->Initialize();
+	if (!trk->Initialize())
+	{
+		mf::LogWarning("ProjectionMatchingAlg") << "  initialization failed, delete trk";
+		delete trk;
+		return 0;
+	}
 
 	double f = twoViewFraction(*trk);
 	if (f > fMinTwoViewFraction)
@@ -257,7 +262,12 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
 	if (trk->HasTwoViews() &&
 	   (trk->TPCs().size() == 1)) // now only in single tpc
 	{
-		trk->Initialize(0.001F);
+		if (!trk->Initialize(0.001F))
+		{
+			mf::LogWarning("ProjectionMatchingAlg") << "initialization failed, delete segment";
+			delete trk;
+			return 0;
+		}
 		trk->Optimize(0, fFineTuningEps);
 
 		trk->SortHits();

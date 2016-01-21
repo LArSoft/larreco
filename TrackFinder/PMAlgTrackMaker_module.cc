@@ -4,8 +4,8 @@
 // File:        PMAlgTrackMaker_module.cc
 // Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl) and R.Sulej (Robert.Sulej@cern.ch), May 2015
 //
-// Creates 3D tracks using Projection Matching Algorithm, see RecoAlg/ProjectionMatchingAlg.h
-// for basics of the PMA algorithm and its possible settings.
+// Creates 3D tracks and vertices using Projection Matching Algorithm,
+// please see RecoAlg/ProjectionMatchingAlg.h for basics of the PMA algorithm and its settings.
 //
 // Progress:
 //    May-June 2015:   track finding and validation, growing tracks by iterative merging of matching
@@ -15,8 +15,10 @@
 //    August 2015:     optimization of track-vertex structures (so 3D vertices are also produced)
 //    November 2015:   use track-shower splitting at 2D level, then tag low-E EM cascades in 3D
 //                     note: the splitter is not finished and not as good as we want it
-//    January 2016:    output results of track-vertex finding as a tree of PFParticles, also refined
-//                     vertexing code
+//    January 2016:    output of track-vertex finding as a tree of PFParticles, refined vertexing
+//                     code, put vertex at front of each track, flip whole track structures to
+//                     selected, direction (beam/down/dQdx), use any pattern reco stored in
+//                     PFParticles as seeds
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1165,9 +1167,9 @@ bool PMAlgTrackMaker::reassignSingleViewEnds(pma::trk_candidates& tracks)
 
 void PMAlgTrackMaker::guideEndpoints(pma::trk_candidates& tracks)
 {
-	for (size_t t = 0; t < tracks.size(); t++)
+	for (auto const & t : tracks)
 	{
-		pma::Track3D& trk = *(tracks[t].Track());
+		auto & trk = *(t.Track());
 		fProjectionMatchingAlg.guideEndpoints(trk, fHitMap[trk.FrontCryo()][trk.FrontTPC()]);
 	}
 }
@@ -1265,7 +1267,7 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 
 			fHitMap[cryo][tpc][view].push_back(h);
 		}
-		mf::LogVerbatim("PMAlgTrackMaker") << "...done.";
+		mf::LogVerbatim("PMAlgTrackMaker") << "...done, " << allhitlist.size() << "hits.";
 
 		mf::LogVerbatim("PMAlgTrackMaker") << "Sort hits by clusters assigned to PFParticles...";
 		fCluHits.reserve(cluListHandle->size());

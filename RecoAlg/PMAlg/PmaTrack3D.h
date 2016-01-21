@@ -37,7 +37,7 @@ public:
 	Track3D(const Track3D& src);
 	~Track3D(void);
 
-	void Initialize(float initEndSegW = 0.05F);
+	bool Initialize(float initEndSegW = 0.05F);
 
 	pma::Hit3D* release_at(size_t index);
 	void push_back(pma::Hit3D* hit) { hit->fParent = this; fHits.push_back(hit); }

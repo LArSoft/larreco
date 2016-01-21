@@ -83,16 +83,24 @@ pma::Track3D::~Track3D(void)
 		if (!fNodes[i]->NextCount() && !fNodes[i]->Prev()) delete fNodes[i];
 }
 
-void pma::Track3D::Initialize(float initEndSegW)
+bool pma::Track3D::Initialize(float initEndSegW)
 {
-	int tpc = TPCs().front(); // just the first tpc, many tpc's are ok, but need to generalize code
-	
-	if (Cryos().size() > 1)
+	auto cryos = Cryos();
+	if (cryos.size() > 1)
 	{
 		mf::LogError("pma::Track3D") << "Only one cryostat for now, please.";
-		return; // would need to generalize code even more if many cryostats
+		return false;
 	}
-	int cryo = Cryos().front(); // just the first cryo
+	int cryo = cryos.front();
+
+	auto tpcs = TPCs();
+	if (tpcs.size() > 1)
+	{
+		mf::LogError("pma::Track3D") << "Only one TPC, please.";
+		return false;
+	}
+	// single tpc, many tpc's are ok, but need to be handled from ProjectionMatchingAlg::buildMultiTPCTrack()
+	int tpc = tpcs.front();
 	
 	if (InitFromRefPoints(tpc, cryo)) mf::LogVerbatim("pma::Track3D") << "Track initialized with 3D reference points.";
 	else
@@ -100,7 +108,9 @@ void pma::Track3D::Initialize(float initEndSegW)
 		if (InitFromHits(tpc, cryo, initEndSegW)) mf::LogVerbatim("pma::Track3D") << "Track initialized with hit positions.";
 		else { InitFromMiddle(tpc, cryo); mf::LogVerbatim("pma::Track3D") << "Track initialized in the module center."; }
 	}
+
 	UpdateHitsRadius();
+	return true;
 }
 
 void pma::Track3D::ClearNodes(void)
