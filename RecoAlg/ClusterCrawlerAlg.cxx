@@ -66,12 +66,14 @@ namespace cluster {
     fFindVertices       = pset.get< std::vector<bool>  >("FindVertices");
     fLACrawl            = pset.get< std::vector<bool>  >("LACrawl");
 
-    fStepCrawlDir       = pset.get< short >("StepCrawlDir", 0); // Default is don't use it
-    fStepCrawlChgDiffCut = pset.get< float >("StepCrawlChgDiffCut", 10);
-    fStepCrawlKinkAngCut = pset.get< float >("StepCrawlKinkAngCut", 0.4);
-    fStepCrawlMaxWireSkip = pset.get< float >("StepCrawlMaxWireSkip", 1);
-    fStepCrawlMaxDeltaJump = pset.get< float >("StepCrawlMaxDeltaJump", 10);
-    fStepCrawlStudyMode = pset.get< bool   >("StepCrawlStudyMode", false);
+    fSCMode             = pset.get< short >("SCMode", 0); // Default is don't use it
+    fSCChgDiffCut       = pset.get< float >("SCChgDiffCut", 10);
+    fSCKinkAngCut       = pset.get< float >("SCKinkAngCut", 0.4);
+    fSCMaxWireSkip      = pset.get< float >("SCMaxWireSkip", 1);
+    fSCMaxDeltaJump     = pset.get< float >("SCMaxDeltaJump", 10);
+    fSCAveHitResCut     = pset.get< float >("SCAveHitResCut", 10);
+    fSCFitChiCut        = pset.get< float >("SCFitChiCut", 10);
+    fSCStudyMode        = pset.get< bool   >("StepCrawlStudyMode", false);
     fFindTrajVertices   = pset.get< bool   >("FindTrajVertices", false);
 
 		fMinAmp 						= pset.get< float >("MinAmp", 5);
@@ -151,6 +153,9 @@ namespace cluster {
     vtx.clear();
     vtx3.clear();
     inClus.clear();
+    allTraj.clear();
+    inTraj.clear();
+    trial.clear();
   } // ClusterCrawlerAlg::ClearResults()
   
   
@@ -222,9 +227,11 @@ namespace cluster {
     std::sort(fHits.begin(), fHits.end(), &SortByMultiplet);
     
     inClus.resize(fHits.size());
+    inTraj.resize(fHits.size());
     mergeAvailable.resize(fHits.size());
     for(unsigned int iht = 0; iht < inClus.size(); ++iht) {
       inClus[iht] = 0;
+      inTraj[iht] = 0;
       mergeAvailable[iht] = false;
      }
     
@@ -282,7 +289,7 @@ namespace cluster {
         fNumWires = geom->Nwires(plane, tpc, cstat);
         // look for clusters
         if(fNumPass > 0) ClusterLoop();
-        if(fStepCrawlDir != 0) ClusterLoop2();
+        if(fSCMode != 0) RunStepCrawl();
       } // plane
       if(fVertex3DCut > 0) {
         // Match vertices in 3 planes
