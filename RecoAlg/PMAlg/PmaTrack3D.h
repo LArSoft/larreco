@@ -89,6 +89,8 @@ public:
 	/// Check if the track can be flipped.
 	bool CanFlip(void) const;
 
+	void AutoFlip(pma::Track3D::EDirection dir, double thr = 0.0, unsigned int n = 0);
+
 	/// MSE of 2D hits.
 	double TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits,
 		bool normalized = true) const; // normalize to the number of hits

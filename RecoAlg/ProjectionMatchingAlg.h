@@ -145,7 +145,7 @@ public:
 	/// compares dQ/dx of n hits at each end of the track (default is based on the track length).
 	void autoFlip(pma::Track3D& trk,
 		pma::Track3D::EDirection dir = Track3D::kForward,
-		double thr = 0.0, unsigned int n = 0) const;
+		double thr = 0.0, unsigned int n = 0) const { trk.AutoFlip(dir, thr, n); };
 
 	/// Intendet to calculate dQ/dx in the initial part of EM cascade; collection
 	/// view is used by default, but it works also with other projections.

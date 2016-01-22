@@ -177,6 +177,23 @@ void pma::flipTreesToCoordinate(pma::trk_candidates & tracks, size_t coordinate)
 }
 // ------------------------------------------------------
 
+void pma::flipTreesByDQdx(pma::trk_candidates & tracks)
+{
+	std::map< int, std::vector< pma::Track3D* > > trkMap;
+
+	pma::setTreeIds(tracks);
+	for (auto const & t : tracks) trkMap[t.TreeId()].push_back(t.Track());
+
+	for (auto & tEntry : trkMap)
+	{
+		//pma::Track3D* rootTrk = tEntry.second.front()->GetRoot();
+
+		for (auto trk : tEntry.second)
+			if (trk->CanFlip()) trk->AutoFlip(pma::Track3D::kForward, 0.1);
+	}
+}
+// ------------------------------------------------------
+
 pma::Track3D* pma::getTreeCopy(pma::trk_candidates & dst, const pma::trk_candidates & src, size_t trkIdx, bool isRoot)
 {
 	pma::Track3D* trk = src[trkIdx].Track();

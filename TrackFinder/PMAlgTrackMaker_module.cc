@@ -1393,6 +1393,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			if (fFlipToBeam) pma::flipTreesToCoordinate(result, 2);        // flip the tracks / trees to the beam direction (Z)
 			else if (fFlipDownward) pma::flipTreesToCoordinate(result, 1); // flip the tracks / trees to point downward (-Y)
 
+			if (fAutoFlip_dQdx) pma::flipTreesByDQdx(result); // flip the tracks / trees to get best dQ/dx sequences
+
 			tracks->reserve(result.size());
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
 			{
@@ -1402,14 +1404,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					mf::LogWarning("PMAlgTrackMaker") << "Skip degenerated track, code needs to be corrected.";
 					continue;
 				}
-/*
-				if (trk->CanFlip())
-				{
-					if (fAutoFlip_dQdx) // flip the track by dQ/dx
-						fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kForward, dQdxFlipThr);
-						// test code: fProjectionMatchingAlg.autoFlip(*trk, pma::Track3D::kBackward, dQdxFlipThr);
-				}
-*/
 
 				trk->SelectHits();  // just in case, set all to enabled
 				unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
