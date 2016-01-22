@@ -36,7 +36,200 @@ bool lessThan (SortEntry c1, SortEntry c2) { return (c1.length < c2.length);}
 namespace cluster {
   
   ////////////////////////////////////////////////
-  void ClusterCrawlerAlg::ClusterLoop2()
+  void ClusterCrawlerAlg::RunStepCrawl()
+  {
+    // Called (for now) by RunCrawler on each plane
+    
+    if(fSCMode == 0) return;
+    
+    if(inTraj.size() != fHits.size()) {
+      mf::LogWarning("CC")<<"RunStepCrawl error. inTraj size "<<inTraj.size()<<" != fHits size "<<fHits.size();
+      return;
+    }
+    
+    allTraj.clear();
+    trial.clear();
+    inTrialTraj.clear();
+    bool reAnalyze = false;
+    
+    if(fSCMode < 2) {
+      fSCDir = fSCMode;
+      // make all trajectories with this setting
+      ReconstructAllTraj();
+    } else {
+      // TEMP
+      if(plane != 1) return;
+      // here is where we get fancy
+      // Step in the + direction
+      fSCDir = 1;
+      ReconstructAllTraj();
+      // store the results
+      trial.push_back(allTraj);
+      inTrialTraj.push_back(inTraj);
+      allTraj.clear();
+      for(auto& intj : inTraj) intj = 0;
+      // Step in the - direction
+      fSCDir = -1;
+      ReconstructAllTraj();
+      // store the results
+      trial.push_back(allTraj);
+      inTrialTraj.push_back(inTraj);
+      allTraj.clear();
+      AnalyzeTrials();
+      AdjudicateTrials(reAnalyze);
+    }
+    
+    // Convert trajectories in allTraj into clusters
+    MakeAllTrajClusters();
+    CheckHitClusterAssociations();
+    
+    allTraj.clear();
+    trial.clear();
+    inTrialTraj.clear();
+    tjphs.clear();
+    
+  } // RunStepCrawl
+  
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::AnalyzeTrials()
+  {
+    // Analyze the Set of All Trajectories to construct a single set of trajectories
+    // that is the best. The results are stored in allTraj.
+    
+    // This shouldn't happen but do it anyway
+    if(trial.size() == 1) {
+      allTraj = trial[0];
+      return;
+    }
+
+    unsigned short itr, itj, jtr, jtj, nSameHits = 0;
+    unsigned short nHitsInTraj;
+    for(itr = 0; itr < trial.size(); ++itr) {
+      nHitsInTraj = 0;
+      for(itj = 0; itj < trial[itr].size(); ++itj) nHitsInTraj += trial[itr][itj].NHits;
+      std::cout<<"Trial "<<itr<<" NHits in all trajectories "<<nHitsInTraj<<"\n";
+    } // is
+
+    std::vector<unsigned int> iHitVec, jHitVec;
+    tjphs.clear();
+    TjPairHitShare tmp;
+    for(itr = 0; itr < trial.size() - 1; ++itr) {
+      for(itj = 0; itj < trial[itr].size(); ++itj) {
+        // ignore obsolete trajectories
+        if(trial[itr][itj].ProcCode == USHRT_MAX) continue;
+        // look at long trajectories for testing
+        if(trial[itr][itj].Pts.size() < 5) continue;
+        PutTrajHitsInVector(trial[itr][itj], iHitVec);
+//        std::cout<<"itr "<<itr<<" itj "<<itj<<" hit size "<<iHitVec.size()<<" nSameHits ";
+        for(jtr = itr + 1; jtr < trial.size(); ++jtr) {
+          for(jtj = 0; jtj < trial[jtr].size(); ++jtj) {
+            if(trial[jtr][jtj].ProcCode == USHRT_MAX) continue;
+            PutTrajHitsInVector(trial[jtr][jtj], jHitVec);
+            CountSameHits(iHitVec, jHitVec, nSameHits);
+//            std::cout<<" "<<nSameHits;
+            if(nSameHits == 0) continue;
+            tmp.iTrial = itr; tmp.iTj = itj;
+            tmp.jTrial = jtr; tmp.jTj = jtj;
+            tmp.nSameHits = nSameHits;
+            tjphs.push_back(tmp);
+            // keep track of the
+          } // jtj
+        } // jtr
+//        std::cout<<"\n";
+      } // itj
+    } // itr
+    
+    std::cout<<"  itr  itj iNHits  jtr  jtj jNHits nSameHits\n";
+    for(auto& tmp : tjphs) {
+      itj = tmp.iTj; jtj = tmp.jTj;
+      std::cout<<std::setw(5)<<tmp.iTrial<<std::setw(5)<<itj<<std::setw(7)<<trial[tmp.iTrial][itj].NHits;
+      std::cout<<std::setw(5)<<tmp.jTrial<<std::setw(5)<<jtj<<std::setw(7)<<trial[tmp.jTrial][jtj].NHits;
+      std::cout<<std::setw(6)<<tmp.nSameHits<<"\n";
+    }
+
+  } // AnalyzeTrials
+
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::AdjudicateTrials(bool& reAnalyze)
+  {
+    // returns redo true if AnalyzeTrials needs to be called again
+    
+    if(tjphs.size() == 0) return;
+    
+    unsigned short ipr, ii, ndup, itr, itj;
+    for(ipr = 0; ipr < tjphs.size(); ++ipr) {
+      // look for a trajectory that only appears once in iTrial
+      // ensure that itj hasn't been clobbered
+      itr = tjphs[ipr].iTrial;
+      itj = tjphs[ipr].iTj;
+      if(trial[itr][itj].ProcCode == USHRT_MAX) continue;
+      ndup = 0;
+      for(ii = 0; ii < tjphs.size(); ++ii) {
+        if(tjphs[ii].iTrial != tjphs[ipr].iTrial) continue;
+        if(tjphs[ii].iTj != tjphs[ipr].iTj) continue;
+        ++ndup;
+      } // ii
+      std::cout<<"Adjudicate "<<ipr<<" ndup "<<ndup<<"\n";
+      if(ndup != 1) continue;
+      // TODO Should we ensure that jtj is unique also?
+      MergeTrajPair(ipr, reAnalyze);
+      if(reAnalyze) return;
+    } // ipr
+    
+  } // AdjudicateTrials
+  
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::MergeTrajPair(unsigned short ipr, bool& reAnalyze)
+  {
+    // merge the trajectories and put the results into allTraj. Returns
+    // reAnalyze true if AnalyzeTrials needs to be called again
+    
+    Trajectory iTj = trial[tjphs[ipr].iTrial][tjphs[ipr].iTj];
+    Trajectory jTj = trial[tjphs[ipr].jTrial][tjphs[ipr].jTj];
+    
+    mf::LogVerbatim("CC")<<"MergeTrajPair "<<tjphs[ipr].iTrial<<"-"<<tjphs[ipr].iTj<<" and "<<tjphs[ipr].jTrial<<"-"<<tjphs[ipr].jTj;
+    PrintTrajectory(iTj, USHRT_MAX);
+    PrintTrajectory(jTj, USHRT_MAX);
+    std::vector<float> tSep;
+    TrajSeparation(iTj, jTj, tSep);
+/*
+    std::vector<unsigned int> iHitVec, jHitVec;
+    PutTrajHitsInVector(iTj, iHitVec);
+    PutTrajHitsInVector(jTj, jHitVec);
+*/
+    
+  } // MergeTrajPair
+
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits)
+  {
+    nSameHits = 0;
+    for(unsigned short ii = 0; ii < iHitVec.size(); ++ii) {
+      if(std::find(jHitVec.begin(), jHitVec.end(), iHitVec[ii]) != jHitVec.end()) ++nSameHits;
+    }
+  } // CountSameHits
+
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::PutTrajHitsInVector(Trajectory const& tj, std::vector<unsigned int>& hitVec)
+  {
+    hitVec.resize(tj.NHits);
+    unsigned short ipt, iht, cnt;
+    cnt = 0;
+    for(ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+      for(iht = 0; iht < tj.Pts[ipt].Hits.size(); ++iht) {
+        if(cnt > tj.NHits-1) {
+          mf::LogError("CC")<<"PutTrajHitsInVector: traj NHits not sized properly "<<tj.NHits<<" cnt "<<cnt;
+          hitVec.clear();
+          return;
+        }
+        hitVec[cnt] = tj.Pts[ipt].Hits[iht];
+        ++cnt;
+      }
+    }
+  } // PutTrajHitsInVector
+  
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::ReconstructAllTraj()
   {
     // Version 2 of ClusterLoop.
     unsigned int ii, iwire, jwire, iht, jht;
@@ -44,13 +237,13 @@ namespace cluster {
     unsigned int nwires = fLastWire - fFirstWire - 1;
     unsigned int ifirsthit, ilasthit, jfirsthit, jlasthit;
     float toWire, toTick;
-    bool success;
+    bool success, SignalPresent;
 
     // turn off the hit width check in ClusterHitsOK
     fAveHitWidth = -1;
     for(ii = 0; ii < nwires; ++ii) {
       // decide which way to step given the sign of fStepCrawlDir
-      if(fStepCrawlDir > 0) {
+      if(fSCDir > 0) {
         // step DS
         iwire = fFirstWire + ii;
         jwire = iwire + 1;
@@ -59,16 +252,6 @@ namespace cluster {
         iwire = fLastWire - ii - 1;
         jwire = iwire - 1;
       }
-/*
-      if(iwire < fFirstWire || iwire > fLastWire - 1) {
-        std::cout<<"Bad iwire indexing "<<fFirstWire<<" "<<iwire<<" "<<fLastWire<<"\n";
-        exit(1);
-      }
-      if(jwire < fFirstWire || jwire > fLastWire - 1) {
-        std::cout<<"Bad jwire indexing "<<fFirstWire<<" "<<jwire<<" "<<fLastWire<<"\n";
-        exit(1);
-      }
-*/
       // skip bad wires or no hits on the wire
       if(WireHitRange[iwire].first < 0) continue;
       if(WireHitRange[jwire].first < 0) continue;
@@ -78,14 +261,15 @@ namespace cluster {
       jlasthit = (unsigned int)WireHitRange[jwire].second;
       for(iht = ifirsthit; iht < ilasthit; ++iht) {
         prt = (fDebugPlane == (int)plane && (int)iwire == fDebugWire && std::abs((int)fHits[iht].PeakTime() - fDebugHit) < 20);
-        if(prt) mf::LogVerbatim("CC")<<"Found debug hit "<<plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" inClus "<<inClus[iht]<<" RMS "<<fHits[iht].RMS()<<" fAveHitWidth "<<fAveHitWidth;
-        if(inClus[iht] != 0) continue;
+        if(prt) mf::LogVerbatim("CC")<<"Found debug hit "<<plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" inTraj "<<inTraj[iht]<<" RMS "<<fHits[iht].RMS()<<" Multiplicity "<<fHits[iht].Multiplicity()<<" LocalIndex "<<fHits[iht].LocalIndex();
+        if(inTraj[iht] != 0) continue;
         // BIG TEMP
 //        if(!prt) continue;
         for(jht = jfirsthit; jht < jlasthit; ++jht) {
-          if(inClus[iht] != 0) continue;
-          if(inClus[jht] != 0) continue;
-          if(prt) mf::LogVerbatim("CC")<<" +++++++ checking ClusterHitsOK with jht "<<plane<<":"<<fHits[jht].WireID().Wire<<":"<<(int)fHits[jht].PeakTime()<<" RMS "<<fHits[jht].RMS()<<" Multiplicity "<<fHits[jht].Multiplicity();
+          if(inTraj[iht] != 0) continue;
+          if(inTraj[jht] == -3) mf::LogVerbatim("CC")<<"ReconstructAllTraj bad jht flag "<<plane<<":"<<fHits[jht].WireID().Wire<<":"<<(int)fHits[jht].PeakTime()<<" using iht "<<plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime();
+          if(inTraj[jht] != 0) continue;
+          if(prt) mf::LogVerbatim("CC")<<" +++++++ checking ClusterHitsOK with jht "<<plane<<":"<<fHits[jht].WireID().Wire<<":"<<(int)fHits[jht].PeakTime()<<" RMS "<<fHits[jht].RMS()<<" Multiplicity "<<fHits[jht].Multiplicity()<<" LocalIndex "<<fHits[jht].LocalIndex();
           // Ensure that the hits StartTick and EndTick have the proper overlap
           // stuff these into fcl2hits for ClusterHitsOK
           fcl2hits.resize(2);
@@ -101,8 +285,8 @@ namespace cluster {
             // Also check to ensure that we don't start going in a non-physical direction when
             // the other hits in the multiplet are used. Do the simple case of a doublet
             if(fHits[iht].Multiplicity() == 2) {
-              if(fHits[iht].LocalIndex() == 0 && fHits[jht].PeakTime() > fHits[iht].PeakTime()) continue;
-              if(fHits[iht].LocalIndex() == 1 && fHits[jht].PeakTime() < fHits[iht].PeakTime()) continue;
+              if(fHits[iht].LocalIndex() == 0 && inTraj[iht+1] > 0 && fHits[jht].PeakTime() > fHits[iht].PeakTime()) continue;
+              if(fHits[iht].LocalIndex() == 1 && inTraj[iht-1] > 0 && fHits[jht].PeakTime() < fHits[iht].PeakTime()) continue;
             }
           } // fHits[iht].Multiplicity() > 1
           if(prt) mf::LogVerbatim("CC")<<"  Starting trajectory";
@@ -114,41 +298,51 @@ namespace cluster {
             HitMultipletPosition(jht, toTick);
           }
           StartTraj(iht, toWire, toTick);
+//          FlagSet("!!StartTraj", 97);
           // check for a failure
           if(work.Pts.size() == 0) {
-            if(prt) mf::LogVerbatim("CC")<<"ClusterLoop2: StartTraj failed";
+            if(prt) mf::LogVerbatim("CC")<<"ReconstructAllTraj: StartTraj failed";
+            continue;
+          }
+          // try to add close hits
+          AddTrajHits(work.Pts[0], SignalPresent);
+//          FlagSet("!!AddTrajHits", 97);
+          if(!SignalPresent) {
+            if(prt) mf::LogVerbatim("CC")<<" No signal at initial trajectory point ";
+            FlagWorkHits(0);
             continue;
           }
           
-          if(prt) PrintWork(USHRT_MAX);
+          if(prt) PrintTrajectory(work, USHRT_MAX);
           StepCrawl(success);
+//          FlagSet("!!StepCrawl", 97);
           if(!success) {
             if(prt) mf::LogVerbatim("CC")<<" xxxxxxx StepCrawl failed ";
-            ReleaseAllWorkHits();
+            FlagWorkHits(0);
+//            if(!CheckAllHitsFlag()) return;
             continue;
           }
 /*
           // decide if we should reverse and keep going on large angle trajectories
-          if(std::abs(work.Pts[work.Pts.size()-1].Ang) > 1.2) {
+          if(std::abs(work.Pts[work.Pts.size()-1].Dir[0]) > 0.5) {
             // re-tag the traj hits
             if(prt) mf::LogVerbatim("CC")<<"TRP  Large angle traj reverse trajectory and keep stepping";
-            FlagAllWorkHits();
-            ReverseTraj();
-            if(prt) PrintWork(USHRT_MAX);
+            FlagWorkHits();
+            ReverseTraj(work);
+            if(prt) PrintTrajectory(work, USHRT_MAX);
             StepCrawl(success);
           }
 */
           if(prt) mf::LogVerbatim("CC")<<"StepCrawl done: work.Pts size "<<work.Pts.size();
-//          if(work.Pts.size() < 2) continue;
           if(work.Pts.size() < 3) continue;
           // temp
-          if(fStepCrawlStudyMode && work.Pts.size() > 6 && work.CrawlDir > 0) {
+          if(fSCStudyMode && work.Pts.size() > 6 && work.CrawlDir > 0) {
             unsigned short lastPt = work.Pts.size() - 1;
             float ang = std::abs(work.Pts[lastPt].Ang);
             if(ang > M_PI/2) ang = M_PI - ang;
             mf::LogVerbatim("CC")<<"ANG "<<plane<<" "<<ang<<" "<<work.Pts[lastPt].AveHitRes<<" "<<TrajLength(work);
           }
-          StoreTraj();
+          StoreWork();
           break;
         } // jht
       } // iht
@@ -166,11 +360,8 @@ namespace cluster {
     if(fFindTrajVertices) FindVertices();
     if(fTagClusters) TagClusters();
     
-    allTraj.clear();
-
-    CheckHitClusterAssociations();
     
-  } // ClusterLoop2
+  } // ReconstructAllTraj
   
   //////////////////////////////////////////
   void ClusterCrawlerAlg::FillTrajTruth()
@@ -667,8 +858,8 @@ namespace cluster {
     // double check hit releasing
     for(unsigned short ipt = 0; ipt < allTraj[itj].Pts.size(); ++ipt) {
       unsigned int hit = allTraj[itj].Pts[ipt].Hits[0];
-      if(inClus[hit] != 0) {
-        mf::LogWarning("CC")<<"SplitAllTraj: MakeClusterObsolete problem on icl "<<icl<<" itj "<<itj<<" inClus "<<inClus[hit]<<" hit "<<plane<<":"<<fHits[hit].WireID().Wire<<":"<<(int)fHits[hit].PeakTime();
+      if(inTraj[hit] != 0) {
+        mf::LogWarning("CC")<<"SplitAllTraj: MakeClusterObsolete problem on icl "<<icl<<" itj "<<itj<<" inTraj "<<inTraj[hit]<<" hit "<<plane<<":"<<fHits[hit].WireID().Wire<<":"<<(int)fHits[hit].PeakTime();
         return false;
       }
     } // check
@@ -679,10 +870,10 @@ namespace cluster {
     work.Pts.clear();
     work.Pts.insert(work.Pts.end(), allTraj[itj].Pts.begin(), allTraj[itj].Pts.begin()+pos);
     work.ProcCode = 911;
-    StoreTraj();
+    StoreWork();
     if(prt) {
       mf::LogVerbatim("CC")<<"Check DS end";
-      PrintWork(USHRT_MAX);
+      PrintTrajectory(work, USHRT_MAX);
     }
     // associate the vertex if the one supplied is valid
     if(ivx < vtx.size()) {
@@ -695,9 +886,9 @@ namespace cluster {
     work.ProcCode = 911;
     if(prt) {
       mf::LogVerbatim("CC")<<"Check US end";
-      PrintWork(USHRT_MAX);
+      PrintTrajectory(work, USHRT_MAX);
     }
-    StoreTraj();
+    StoreWork();
     if(ivx < vtx.size()) {
       tcl[tcl.size()-1].EndVtx = ivx;
       work.Vtx[0] = ivx;
@@ -708,10 +899,9 @@ namespace cluster {
   //////////////////////////////////////////
   float ClusterCrawlerAlg::PointTrajDOCA(float wire, float time, TrajPoint const& tp)
   {
-    // returns the distance of closest approach between a (wire, tick) point
+    // returns the distance of closest approach between a (wire, time(WSE)) point
     // and a trajectory point
     
-    // find the angle of a line between the point and the trajectory point
     float t = (wire  - tp.Pos[0]) * tp.Dir[0] + (time - tp.Pos[1]) * tp.Dir[1];
     float dw = tp.Pos[0] + t * tp.Dir[0] - wire;
     float dt = tp.Pos[1] + t * tp.Dir[1] - time;
@@ -757,7 +947,7 @@ namespace cluster {
     unsigned short iwt;
     
     unsigned int nit;
-    float bigChgDiffCut = 3 * fStepCrawlChgDiffCut;
+    float bigChgDiffCut = 3 * fSCChgDiffCut;
     float maxPos0 = fNumWires;
     float maxPos1 = fMaxTime * fScaleF;
     
@@ -765,7 +955,7 @@ namespace cluster {
     unsigned short nMissedStep = 0;
     unsigned short missedStepCut = SetMissedStepCut(tp);
 
-    bool SignalPresent, stopOnKink = false;
+    bool SignalPresent, stopOnKink, updateSuccess;
     unsigned short killPts;
     for(nit = 0; nit < 10000; ++nit) {
       // move the position by one step in the right direction
@@ -778,10 +968,10 @@ namespace cluster {
       // look for new hits
       AddTrajHits(tp, SignalPresent);
       if(!SignalPresent) {
-        // cut on the number of missed wires
+        // check the number of missed wires
         lastPt = work.Pts.size() - 1;
-        if(prt)  mf::LogVerbatim("CC")<<" No signal. Missed wires "<<std::abs(tp.Pos[0] - work.Pts[lastPt].Pos[0])<<" user cut "<<fStepCrawlMaxWireSkip;
-        if(std::abs(tp.Pos[0] - work.Pts[lastPt].Pos[0]) < fStepCrawlMaxWireSkip) continue;
+        if(prt)  mf::LogVerbatim("CC")<<" No signal. Missed wires "<<std::abs(tp.Pos[0] - work.Pts[lastPt].Pos[0])<<" user cut "<<fSCMaxWireSkip;
+        if(std::abs(tp.Pos[0] - work.Pts[lastPt].Pos[0]) < fSCMaxWireSkip) continue;
         break;
       }
       if(tp.Hits.size() == 0) {
@@ -798,34 +988,44 @@ namespace cluster {
       // Have new traj hits. Add the trajectory point and update
       tp.Step = nit;
       nMissedStep = 0;
+      // this cut for the next step
       missedStepCut = SetMissedStepCut(tp);
       work.Pts.push_back(tp);
-      UpdateTraj(success);
-      if(!success) break;
+      UpdateWork(updateSuccess);
+      if(!updateSuccess) break;
       lastPt = work.Pts.size()-1;
-      // IMPORTANT NOTE: Local tp hasn't been updated yet using results from UpdateTraj
-      // Quit if we are starting out poorly
-      if(work.Pts.size() == 3 && work.Pts[2].AveHitRes > 3) {
-        success = false;
-        if(prt) mf::LogVerbatim("CC")<<" Bad AveHitRes. Drop trajectory.";
+      // IMPORTANT NOTE: Local tp hasn't been updated yet using results from UpdateWork.
+      // Quit if we are starting out poorly. This can happen on the 2nd trajectory point
+      // when a hit is picked up in the wrong direction
+      if(work.Pts.size() == 2 && std::signbit(work.Pts[1].Dir[0]) != std::signbit(work.Pts[0].Dir[0])) {
+        if(prt) mf::LogVerbatim("CC")<<" Picked wrong hit on 2nd traj point. Drop trajectory.";
+        PrintTrajectory(work, USHRT_MAX);
         return;
+      }
+      // check trajectories of 3 < length < 8 points (which are handled in GottaKink)
+      if(work.Pts.size() > 3 && work.Pts.size() < 8) {
+        // check avehitres and fit chisq
+        if(work.Pts[lastPt].AveHitRes > fSCAveHitResCut && work.Pts[lastPt].FitChi > fSCFitChiCut) {
+          if(prt) mf::LogVerbatim("CC")<<" Bad AveHitRes "<<work.Pts[lastPt].AveHitRes<<" > "<<fSCAveHitResCut<<" and FitChi "<<work.Pts[lastPt].FitChi<<" > "<<fSCFitChiCut;
+          return;
+        }
       }
       // assume that we aren't going to kill the point we just added, or any
       // of the previous points...
       killPts = 0;
       // Look for two consecutive large Deltas
-      if(lastPt > 3 && tp.Delta > fStepCrawlMaxDeltaJump * work.Pts[lastPt-2].Delta) {
+      if(lastPt > 3 && tp.Delta > fSCMaxDeltaJump * work.Pts[lastPt-2].Delta) {
         // check the previous Delta ratio
-        if(work.Pts[lastPt-1].Delta > fStepCrawlMaxDeltaJump * work.Pts[lastPt-2].Delta) killPts = 2;
+        if(work.Pts[lastPt-1].Delta > fSCMaxDeltaJump * work.Pts[lastPt-2].Delta) killPts = 2;
         // check for not nearby hits
         if(prt) mf::LogVerbatim("CC")<<"   NumNotNear "<<tp.NumNotNear<<" previous "<<work.Pts[lastPt-1].NumNotNear;
         if(tp.NumNotNear < 2 && work.Pts[lastPt-1].NumNotNear < 2) killPts = 0;
         if(prt) mf::LogVerbatim("CC")<<"   large Deltas? killPts "<<killPts;
       }
       // check the charge ratio
-      if(killPts == 0 && work.Pts.size() > 10 && fChgRMS > 0) {
+      if(killPts == 0) {
         // Kill this point if it has a high charge and the previous did as well
-        if(tp.ChgDiff > fStepCrawlChgDiffCut && work.Pts[lastPt].ChgDiff > fStepCrawlChgDiffCut) killPts = 1;
+        if(tp.ChgDiff > fSCChgDiffCut && work.Pts[lastPt].ChgDiff > fSCChgDiffCut) killPts = 1;
         // or if it has extraordinarily high charge
         if(tp.ChgDiff > bigChgDiffCut) killPts = 1;
         if(prt) mf::LogVerbatim("CC")<<"   large ChgDiff? "<<tp.ChgDiff<<" killPts "<<killPts;
@@ -838,26 +1038,18 @@ namespace cluster {
       // update the local tp unless we have killing to do
       if(killPts == 0) {
         tp = work.Pts[lastPt];
-        if(prt) PrintWork(lastPt);
+        if(prt) PrintTrajectory(work, USHRT_MAX);
       } else {
         // shorten the trajectory by the desired number of points
         // and correct the projected position
         // release the hits
-        ReleaseAllWorkHits();
+        FlagWorkHits(0);
         float nSteps = (float)(work.Pts[lastPt].Step - work.Pts[lastPt-killPts].Step);
-        if(prt) {
-          mf::LogVerbatim("CC")<<"   killing "<<killPts<<" points with "<<nSteps<<" steps";
-          if(prt) mf::LogVerbatim("CC")<<"  Current tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1];
-        }
+        if(prt) mf::LogVerbatim("CC")<<"TRP   killing "<<killPts<<" points after "<<nSteps<<" steps.  Current tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1];
         // truncate the work trajectory
         work.Pts.resize(lastPt+1-killPts);
         // re-assign the hits
-        FlagAllWorkHits();
-/*
-        for(ipt = 0; ipt < work.Pts.size(); ++ipt) {
-          for(iht = 0; iht < work.Pts[ipt].Hits.size(); ++iht) inClus[work.Pts[ipt].Hits[iht]] = -3;
-        } // ipt
-*/
+        FlagWorkHits(-3);
         // copy to the local trajectory point
         lastPt = work.Pts.size() - 1;
         tp = work.Pts[lastPt];
@@ -870,60 +1062,122 @@ namespace cluster {
     } // nit
 
     // check the cluster quality and possibly truncate it
-    if(!stopOnKink) StepCrawlClusterCheck();
-
-//    if(prt) PrintWork(USHRT_MAX);
-
-    ReleaseAllWorkHits();
+    if(!stopOnKink) CheckTrajEnd();
     
-    // temp checking
-//    if(prt) {
-      unsigned int firsthit = (unsigned int)WireHitRange[fFirstWire].first;
-      unsigned int lasthit = (unsigned int)WireHitRange[fLastWire-1].second;
-      bool itsBad = false;
-      bool first = true;
-      mf::LogVerbatim myprt("CC");
-      for(unsigned int iht = firsthit; iht < lasthit; ++iht) {
-        if(inClus[iht] == -3) {
-          if(first) {
-            myprt<<"Not released hits ";
-            first = false;
-          }
-          myprt<<" "<<plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime();
-          inClus[iht] = 0;
-          itsBad = true;
-        }
-      } // iht
-    if(itsBad) {
-      unsigned short iht = work.Pts[0].Hits[0];
-      myprt<<" Seed hit "<<plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime();
-    }
-//    } // prt
+    // reverse the trajectory and check the other end
+    CheckTrajBegin();
+
+//    if(prt) PrintTrajectory(work, USHRT_MAX);
+
+    FlagWorkHits(0);
+    
+    if(!CheckAllHitsFlag()) return;
     
     success = true;
     return;
     
   } // StepCrawl
+  
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::FlagSet(std::string someText, unsigned int iht)
+  {
+    if(inTraj[iht] == -3) {
+      mf::LogVerbatim myprt("CC");
+      myprt<<someText<<" "<<iht<<" flag set. ";
+      if(work.Pts.size() > 0) {
+        unsigned int iht = work.Pts[0].Hits[0];
+        myprt<<"Seed hit "<<plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime();
+      } else {
+        myprt<<"No Pts in work";
+      }
+    } // inTraj -3
+  } // FlagSet
+  
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::FindHit(std::string someText, unsigned int iht)
+  {
+    // finds a hit in work
+    for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt) {
+      TrajPoint& tp = work.Pts[ipt];
+      if(std::find(tp.Hits.begin(), tp.Hits.end(), iht) != tp.Hits.end()) {
+        unsigned int sht = work.Pts[0].Hits[0];
+        mf::LogVerbatim("CC")<<someText<<" work hit "<<iht<<" inTraj "<<inTraj[iht]<<" Seed hit "<<plane<<":"<<fHits[sht].WireID().Wire<<":"<<(int)fHits[sht].PeakTime();
+        return;
+      }
+    } // ipt
+    // look in allTraj
+    for(unsigned short itj = 0; itj < allTraj.size(); ++itj) {
+      for(unsigned short ipt = 0; ipt < allTraj[itj].Pts.size(); ++ipt) {
+        TrajPoint& tp = allTraj[itj].Pts[ipt];
+        if(std::find(tp.Hits.begin(), tp.Hits.end(), iht) != tp.Hits.end()) {
+          unsigned int sht = work.Pts[0].Hits[0];
+          mf::LogVerbatim("CC")<<someText<<" allTraj hit "<<itj<<" "<<iht<<" inTraj "<<inTraj[iht]<<" Seed hit "<<plane<<":"<<fHits[sht].WireID().Wire<<":"<<(int)fHits[sht].PeakTime();
+          return;
+        }
+       
+      } // ipt
+    } // itj
+  } // FindHit
+
+  ////////////////////////////////////////////////
+  bool ClusterCrawlerAlg::CheckAllHitsFlag()
+  {
+    // returns true if all hits have flag != -3
+    unsigned int firsthit = (unsigned int)WireHitRange[fFirstWire].first;
+    unsigned int lasthit = (unsigned int)WireHitRange[fLastWire-1].second;
+    bool itsBad = false;
+    for(unsigned int iht = firsthit; iht < lasthit; ++iht) {
+      if(inTraj[iht] == -3) {
+        itsBad = true;
+        break;
+      }
+    } // iht
+    
+    if(!itsBad) return true;
+    
+    // print out the information
+    mf::LogVerbatim myprt("CC");
+    myprt<<"Not released hits ";
+    for(unsigned int iht = firsthit; iht < lasthit; ++iht) {
+      if(inTraj[iht] == -3) {
+        myprt<<" "<<iht<<"_"<<plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime();
+        // look for it in a trajectory
+        for(unsigned short itj = 0; itj < allTraj.size(); ++itj) {
+          for(unsigned short ipt = 0; ipt < allTraj[itj].Pts.size(); ++ipt) {
+            TrajPoint& tp = allTraj[itj].Pts[ipt];
+            if(std::find(tp.Hits.begin(), tp.Hits.end(), iht) != tp.Hits.end()) {
+              myprt<<" in traj "<<itj;
+            } // found it
+          } // ip
+        } // itj
+        inTraj[iht] = 0;
+      }
+    } // iht
+    return false;
+    
+  } // CheckAllHitsFlag
 
   ////////////////////////////////////////////////
   void ClusterCrawlerAlg::AddTrajHits(TrajPoint& tp, bool& SignalPresent)
   {
-    std::vector<unsigned int> closeHits, nearbyHits;
+    std::vector<unsigned int> closeHits;
+    std::vector<float> closeDeltas;
     unsigned int wire, loWire, hiWire, iht, firstHit, lastHit;
     unsigned int lastPt = work.Pts.size() - 1;
     
     // figure out which wires to consider
-    if(std::abs(tp.Dir[0]) > 0.1) {
+    if(std::abs(tp.Dir[0]) > 0.2) {
       // smallish angle trajectory
-      loWire = tp.Pos[0];
-      hiWire = loWire + 1;
+      loWire = (tp.Pos[0] + 0.5);
+      hiWire = (tp.Pos[0] + 1.5);
     } else {
       // look at adjacent wires for larger angle trajectories
-      loWire = tp.Pos[0] - 1;
-      hiWire = loWire + 2;
+      loWire = (tp.Pos[0] - 1.5);
+      hiWire = (tp.Pos[0] + 2.5);
     }
 
     float fwire, ftime, delta;
+
     // find the projection error to this point
     float dw = tp.Pos[0] - work.Pts[lastPt].Pos[0];
     float dt = tp.Pos[1] - work.Pts[lastPt].Pos[1];
@@ -931,18 +1185,24 @@ namespace cluster {
     float projErr = dpos * work.Pts[lastPt].AngErr;
     // Add this to the Delta RMS factor and construct a cut
     float deltaCut = 3 * (projErr + tp.DeltaRMS);
-    // don't let it be too small (< 10% of a wire spacing)
-    if(deltaCut < 0.1) deltaCut = 0.1;
+    if(std::abs(tp.Dir[0]) > 0.2) {
+      // don't let it be too small (< 10% of a wire spacing) for small angle trajectories
+      if(deltaCut < 0.1) deltaCut = 0.1;
+    } else {
+      if(deltaCut < 1.1) deltaCut = 1.1;
+    }
+    deltaCut *= 3;
     // cut for nearby hits
-    float bigDeltaCut = 2 * deltaCut;
+//    float bigDeltaCut = 3 * deltaCut;
     // make it big for study mode
-    if(fStepCrawlStudyMode) deltaCut = 1.5;
+    if(fSCStudyMode) deltaCut = 1.5;
+
     // projected time in ticks for testing the existence of a hit signal
     raw::TDCtick_t rawProjTick = (float)(tp.Pos[1] / fScaleF);
     
     // assume failure
     SignalPresent = false;
-    if(prt) mf::LogVerbatim("CC")<<" AddTrajHits: loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" projTick "<<rawProjTick;
+    if(prt) mf::LogVerbatim("CC")<<" AddTrajHits: loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" projTick "<<rawProjTick<<" fChgRMS "<<fChgRMS<<" deltaRMS "<<tp.DeltaRMS;
     
     for(wire = loWire; wire < hiWire; ++wire) {
       // Assume a signal exists on a dead wire
@@ -955,45 +1215,89 @@ namespace cluster {
         if(rawProjTick > fHits[iht].StartTick() && rawProjTick < fHits[iht].EndTick()) SignalPresent = true;
         ftime = fScaleF * fHits[iht].PeakTime();
         delta = PointTrajDOCA(fwire, ftime, tp);
+        float dt = std::abs(ftime - tp.Pos[1]);
+//        float ddif = delta / tp.DeltaRMS;
+//        float qdif = std::abs(fHits[iht].Integral() - tp.AveChg) / fChgRMS;
+//        float fom = ddif * qdif;
         if(prt) {
-          bool close = delta < deltaCut;
-          bool nearby = delta < bigDeltaCut;
-          mf::LogVerbatim("CC")<<"  chk "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" delta "<<delta<<" deltaCut "<<deltaCut<<" inClus "<<inClus[iht]<<" Chg "<<(int)fHits[iht].Integral()<<" SignalPresent "<<SignalPresent<<" close "<<close<<" nearby "<<nearby;
+          bool close = delta < fSCChgDiffCut;
+          mf::LogVerbatim myprt("CC");
+          myprt<<"  chk "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime();
+          myprt<<" delta "<<std::fixed<<std::setprecision(2)<<delta<<" deltaCut "<<deltaCut<<" dt "<<dt;
+          myprt<<" RMS "<<std::setprecision(1)<<fHits[iht].RMS();
+          myprt<<" inTraj "<<inTraj[iht]<<" mergeAvail? "<<mergeAvailable[iht];
+          myprt<<" Chg "<<(int)fHits[iht].Integral();
+          myprt<<" Signal? "<<SignalPresent<<" close? "<<close;
         }
-        if(inClus[iht] != 0) continue;
-        if(std::abs(delta) > deltaCut) {
-          // missed the small window but inside the larger one
-          if(std::abs(delta) < bigDeltaCut) {
-            SignalPresent = true;
-            nearbyHits.push_back(iht);
-            inClus[iht] = -3;
-          }
-          continue;
-        }
-        closeHits.push_back(iht);
-        inClus[iht] = -3;
+        if(inTraj[iht] != 0) continue;
+        if(delta > deltaCut) continue;
+        // The impact parameter delta may be good but we may be projecting
+        // the trajectory too far away (in time) from the current position
+        if(dt > 3) continue;
         SignalPresent = true;
+        inTraj[iht] = -3;
+        closeHits.push_back(iht);
+        closeDeltas.push_back(delta);
       } // iht
     } // wire
     if(!SignalPresent) {
       if(prt) mf::LogVerbatim("CC")<<" no signal on any wire at tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" tick "<<(int)tp.Pos[1]/fScaleF<<" closeHits size "<<closeHits.size();
       return;
     }
-    if(closeHits.size() == 0 && nearbyHits.size() == 0) return;
-    // don't use nearbyHits when the trajectory is short and not yet well defined
-    if(closeHits.size() > 0) {
-      // Add the hits to the traj
-      tp.Hits = closeHits;
-      if(prt) mf::LogVerbatim("CC")<<" Added "<<closeHits.size()<<" closeHits ";
-    } else {
-      // no close hits found but other hits are nearby.
-      // Don't use nearbyHits when the trajectory is short and not yet well defined
-      if(work.Pts.size() < 4) return;
-      tp.Hits = nearbyHits;
-      tp.UsedNotCloseHit = 0;
-      if(prt) mf::LogVerbatim("CC")<<" Added "<<closeHits.size()<<" nearbyHits ";
-    }
-    tp.NumNotNear = nearbyHits.size();
+    if(closeHits.size() == 0) return;
+    // decide whether to use some or all of the hits using a figure of merit
+    float bestFOM = 50;
+    std::vector<unsigned int> useHits;
+    // Consider single hits first
+    unsigned short jj, jht, kk, kht;
+    float ddif, qdif, fom, qj, qk;
+    for(jj = 0; jj < closeHits.size(); ++jj) {
+      jht = closeHits[jj];
+      ddif = closeDeltas[jj] / tp.DeltaRMS;
+      // de-weight the charge contribution
+      qdif = std::abs(fHits[jht].Integral() - tp.AveChg) / (2 * fChgRMS);
+      fom = (ddif + qdif) / 2;
+      if(fom < bestFOM) {
+        bestFOM = fom;
+        useHits.resize(1);
+        useHits[0] = jht;
+      }
+      if(prt) mf::LogVerbatim("CC")<<fHits[jht].WireID().Plane<<":"<<fHits[jht].WireID().Wire<<":"<<(int)fHits[jht].PeakTime()<<" fom "<<fom<<" bestFOM "<<bestFOM;
+    } // kk
+    // next consider pairs of hits whose charge may sum to a value
+    // that is consistent with a trajectory hit. The delta of this
+    // pair is calculated using a charge weighted average.
+    for(jj = 0; jj < closeHits.size()-1; ++jj) {
+      jht = closeHits[jj];
+      // This hit is well separated from other hits so skip it
+      if(!mergeAvailable[jht]) continue;
+      qj = fHits[jht].Integral();
+      for(kk = jj + 1; kk < closeHits.size(); ++kk) {
+        kht = closeHits[kk];
+        if(!mergeAvailable[kht]) continue;
+        qk = fHits[kht].Integral();
+        // Charge weighted Delta difference
+        ddif = (closeDeltas[jj] * qj + closeDeltas[kk] * qk) / (qj + qk);
+        ddif /= tp.DeltaRMS;
+        // Charge difference, de-weighted
+        qdif = std::abs(qj + qk - tp.AveChg) / (2 * fChgRMS);
+        fom = (ddif + qdif) / 2;
+        if(fom < bestFOM) {
+          bestFOM = fom;
+          useHits.resize(2);
+          useHits[0] = jht;
+          useHits[1] = kht;
+          if(prt) mf::LogVerbatim("CC")<<fHits[jht].WireID().Plane<<":"<<fHits[jht].WireID().Wire<<":"<<(int)fHits[jht].PeakTime()<<" + "<<fHits[kht].WireID().Plane<<":"<<fHits[kht].WireID().Wire<<":"<<(int)fHits[kht].PeakTime()<<" fom "<<fom<<" bestFOM "<<bestFOM;
+        }
+      } // kk
+    } // jj
+//    tp.Hits = useHits;
+    tp.Hits.insert(tp.Hits.end(), useHits.begin(), useHits.end());
+    tp.NumNotNear = closeHits.size() - useHits.size();
+    // release all hits flagged in closeHit
+    for(jj = 0; jj < closeHits.size(); ++jj) inTraj[closeHits[jj]] = 0;
+    // re-flag the hits in useHits
+    for(jj = 0; jj < useHits.size(); ++jj) inTraj[useHits[jj]] = -3;
     // specify the hits position
     tp.HitPos[0] = 0;
     tp.HitPos[1] = 0;
@@ -1003,6 +1307,7 @@ namespace cluster {
       std::vector<SortEntry> sortVec;
       SortEntry sortEntry;
       unsigned short ii;
+      float dw, dt;
       for(ii = 0; ii < tp.Hits.size(); ++ii) {
         sortEntry.index = ii;
         iht = tp.Hits[ii];
@@ -1019,10 +1324,12 @@ namespace cluster {
       // replace
       tp.Hits = tmp;
     }
+    // Calculate the charge weighted position of the hits associated with this traj point
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       iht = tp.Hits[ii];
       tp.Chg += fHits[iht].Integral();
       tp.HitPos[0] += fHits[iht].Integral() * fHits[iht].WireID().Wire;
+      // convert to WSE units
       tp.HitPos[1] += fHits[iht].Integral() * fHits[iht].PeakTime() * fScaleF;
     }
     tp.HitPos[0] /= tp.Chg;
@@ -1075,10 +1382,10 @@ namespace cluster {
       for(iht = firstHit; iht < lastHit; ++iht) {
         // count number of nearby hit signals
         if(rawProjTick > fHits[iht].StartTick() && rawProjTick < fHits[iht].EndTick()) ++nSignal;
-        if(prt) mf::LogVerbatim("CC")<<"  chk "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" StartTick "<<fHits[iht].StartTick()<<" EndTick "<<fHits[iht].EndTick()<<" inClus "<<inClus[iht]<<" Chg "<<(int)fHits[iht].Integral()<<" nSignal "<<nSignal;
+        if(prt) mf::LogVerbatim("CC")<<"  chk "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" StartTick "<<fHits[iht].StartTick()<<" EndTick "<<fHits[iht].EndTick()<<" inTraj "<<inTraj[iht]<<" Chg "<<(int)fHits[iht].Integral()<<" nSignal "<<nSignal;
         if(fHits[iht].PeakTime() < loTime) continue;
         if(fHits[iht].PeakTime() > hiTime) break;
-        if(inClus[iht] != 0) continue;
+        if(inTraj[iht] != 0) continue;
         // ensure that the hit is in the appropriate time direction
         if(largeAngle) {
           hitDir = fHits[iht].PeakTime() - work.Pts[work.Pts.size()-1].Pos[1];
@@ -1088,7 +1395,7 @@ namespace cluster {
         }
         if(prt) mf::LogVerbatim("CC")<<"   ADD "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime();
         closeHits.push_back(iht);
-        inClus[iht] = -3;
+        inTraj[iht] = -3;
         // prepare to find the new position in WSE units
         sum += fHits[iht].Integral();
         hitsPos[0] += fHits[iht].Integral() * fHits[iht].WireID().Wire;
@@ -1109,8 +1416,8 @@ namespace cluster {
         firstHit = (unsigned int)WireHitRange[wire].first;
         lastHit = (unsigned int)WireHitRange[wire].second;
         for(iht = firstHit; iht < lastHit; ++iht) {
-//            if(prt) mf::LogVerbatim("CC")<<"  chk nearby "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" StartTick "<<fHits[iht].StartTick()<<" EndTick "<<fHits[iht].EndTick()<<" inClus "<<inClus[iht]<<" Chg "<<(int)fHits[iht].Integral();
-          if(inClus[iht] != 0) continue;
+//            if(prt) mf::LogVerbatim("CC")<<"  chk nearby "<<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" StartTick "<<fHits[iht].StartTick()<<" EndTick "<<fHits[iht].EndTick()<<" inTraj "<<inTraj[iht]<<" Chg "<<(int)fHits[iht].Integral();
+          if(inTraj[iht] != 0) continue;
           if(fHits[iht].PeakTime() < loloTime) continue;
           if(fHits[iht].PeakTime() > hihiTime) continue;
           ++tp.NumNotNear;
@@ -1122,14 +1429,14 @@ namespace cluster {
             best = dpos;
             nearbyHitIndex = iht;
             if(prt) mf::LogVerbatim("CC")<<"  Found nearby hit "
-              <<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" StartTick "<<fHits[iht].StartTick()<<" EndTick "<<fHits[iht].EndTick()<<" inClus "<<inClus[iht]<<" Integral "<<(int)fHits[iht].Integral()<<" dpos "<<dpos;
+              <<fHits[iht].WireID().Plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" StartTick "<<fHits[iht].StartTick()<<" EndTick "<<fHits[iht].EndTick()<<" inTraj "<<inTraj[iht]<<" Integral "<<(int)fHits[iht].Integral()<<" dpos "<<dpos;
           }
         } // iht
       } // wire
       if(prt) mf::LogVerbatim("CC")<<" Done looking for hits in large window. nearbyHitIndex "<<nearbyHitIndex;
       if(nearbyHitIndex < fHits.size()) {
         closeHits.push_back(nearbyHitIndex);
-        inClus[nearbyHitIndex] = -3;
+        inTraj[nearbyHitIndex] = -3;
         // set the flag indicating this is a hit outside the smaller window
         tp.UsedNotCloseHit = true;
         // prepare to find the new position in WSE units
@@ -1143,7 +1450,7 @@ namespace cluster {
         if(nMissedSignal > 4) {
           if(prt) mf::LogVerbatim("CC")<<" no signal on any wire at tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" tick "<<(int)tp.Pos[1]/fScaleF;
           // release the hits
-          for(iht = 0; iht < closeHits.size(); ++iht) inClus[closeHits[iht]] = 0;
+          for(iht = 0; iht < closeHits.size(); ++iht) inTraj[closeHits[iht]] = 0;
           stopCrawl = true;
           return;
         }
@@ -1210,7 +1517,7 @@ namespace cluster {
     if(tp1.FitChi > 900) {
       unsigned int hit = tp1.Hits[0];
       mf::LogWarning("CC")<<"GottaKink: Bad traj fit1. Seed hit "<<plane<<":"<<fHits[hit].WireID().Wire<<":"<<(int)fHits[hit].PeakTime()<<" Pts size "<<work.Pts.size()<<" fromIndex "<<fromIndex<<" to "<<toIndex;
-      PrintWork(USHRT_MAX);
+      PrintTrajectory(work, USHRT_MAX);
       return false;
     }
     fromIndex -= nTPF;
@@ -1223,31 +1530,22 @@ namespace cluster {
       return false;
     }
     float dang = std::abs(tp1.Ang - tp2.Ang);
-    float cut, cutBig;
-    cut = fStepCrawlKinkAngCut;
-    cutBig = 1.2 * fStepCrawlKinkAngCut;
-    if(prt) mf::LogVerbatim("CC")<<"GottaKink: Ang1 "<<tp1.Ang<<" Ang2 "<<tp2.Ang<<" dang "<<dang<<" cut "<<cut;
-    if(dang < cutBig) return false;
+    if(prt) mf::LogVerbatim("CC")<<"GottaKink: Ang1 "<<tp1.Ang<<" Ang2 "<<tp2.Ang<<" dang "<<dang<<" fSCKinkAngCut "<<fSCKinkAngCut;
+    if(dang < fSCKinkAngCut) return false;
     
-    unsigned short kinkIndex = work.Pts.size()-nTPF-1;
-    // Look at bit closer if we are near the cut
-    // Probably not a kink if there is no big increase in Delta
-    if(work.Pts[kinkIndex].Delta < 2 * work.Pts[kinkIndex].Delta) return false;
-    
+    unsigned short kinkIndex = work.Pts.size()-nTPF+1;
     // found a kink so truncate
-    // TODO Actually we should start a new trajectory using these points
-    // and create a vertex between the two of them
-    if(prt) mf::LogVerbatim("CC")<<"TRP kink angle "<<dang<<" cut "<<cut<<" work.Pts old size "<<work.Pts.size()<<" new size "<<kinkIndex;
-    ReleaseAllWorkHits();
+    if(prt) mf::LogVerbatim("CC")<<" >>> resize work to size "<<kinkIndex;
+    FlagWorkHits(0);
     work.Pts.resize(kinkIndex);
     return true;
     
   } // GottaKink
   
   //////////////////////////////////////////
-  void ClusterCrawlerAlg::StepCrawlClusterCheck()
+  void ClusterCrawlerAlg::CheckTrajEnd()
   {
-    // analyze the end of a cluster after crawling and trim any
+    // Check the end of a cluster after crawling and trim any
     // vagrant trajectory points and hits if they have a kink
     
     // ignore short clusters
@@ -1255,7 +1553,7 @@ namespace cluster {
     
     unsigned short lastPt = work.Pts.size()-1;
     
-    if(prt) mf::LogVerbatim("CC")<<"StepCrawlClusterCheck: AveHitRes "<<work.Pts[work.Pts.size()-1].AveHitRes;
+    if(prt) mf::LogVerbatim("CC")<<"CheckTrajEnd: AveHitRes "<<work.Pts[work.Pts.size()-1].AveHitRes;
     // ignore lower quality clusters
     if(work.Pts[lastPt].AveHitRes > 1.5) return;
     
@@ -1267,7 +1565,7 @@ namespace cluster {
       delrat = work.Pts[ipt].Delta / work.Pts[ipt-1].Delta;
 //      if(prt) mf::LogVerbatim("CC")<<" ipt "<<ipt<<" delrat "<<delrat;
       if(delrat > 2) {
-        ReleaseAllWorkHits();
+        FlagWorkHits(0);
         work.Pts.resize(ipt);
         if(prt) mf::LogVerbatim("CC")<<" new work.Pts size "<<work.Pts.size();
         lopped = true;
@@ -1287,23 +1585,48 @@ namespace cluster {
     if(std::abs(work.Pts[ipt].HitPos[0] - work.Pts[ipt-1].HitPos[0]) > 1.5) work.Pts.pop_back();
     if(prt) {
       mf::LogVerbatim("CC")<<" SCCC: lopped one more work.Pts point new work.Pts size "<<work.Pts.size();
-//      PrintWork(USHRT_MAX);
+//      PrintTrajectory(work, USHRT_MAX);
     }
     
-  } // StepCrawlClusterCheck
+  } // CheckTrajEnd
+
+  //////////////////////////////////////////
+  void ClusterCrawlerAlg::CheckTrajBegin()
+  {
+    // The Beginning of the work traj may be bad because the
+    // information is poor. Reverse the traj and clean it up or truncate it
+    
+    if(work.Pts.size() < 6) {
+      // TODO need to deal with this
+      return;
+    }
+    
+    ReverseTraj(work);
+    
+    // lop off the last 5 points and re-find them
+    FlagWorkHits(0);
+    work.Pts.resize(work.Pts.size() - 5);
+    FlagWorkHits(-3);
+    bool success = false;
+    StepCrawl(success);
+    
+    ReverseTraj(work);
+    
+  } // CheckTrajBegin
   
   //////////////////////////////////////////
   unsigned short ClusterCrawlerAlg::SetMissedStepCut(TrajPoint const& tp)
   {
-    unsigned short itmp = fNumWires;
-    if(tp.Dir[1] != 0) itmp = 1 + 4 * std::abs(1/tp.Dir[1]);
-    if(itmp > fNumWires) itmp = fNumWires;
+    float mxtime = fMaxTime * fScaleF;
+    unsigned short itmp = mxtime;
+    if(std::abs(tp.Dir[1]) < 0.001) itmp = 1 + 4 * std::abs(1/tp.Dir[1]);
+    if(itmp > mxtime) itmp = mxtime;
     if(itmp < 2) itmp = 2;
     return itmp;
   }
   
   //////////////////////////////////////////
-  void ClusterCrawlerAlg::UpdateTraj(bool& success)
+  void ClusterCrawlerAlg::UpdateWork(bool& success)
   {
     // A new trajectory point was put on the traj vector with hits by StepCrawl.
     // This routine updates the last trajectory point fit, average hit rms, etc.
@@ -1318,8 +1641,8 @@ namespace cluster {
     unsigned short ii, cnt, totCnt;
     
     // always update the charge difference
-    UpdateTrajChgDiff();
-    UpdateTrajDelta();
+    UpdateWorkChgDiff();
+    UpdateWorkDelta();
 
     bool smallAngle = (std::abs(lastTP.Ang) < 0.7);
     unsigned short nTPF = work.Pts[lastPt].NumTPsFit;
@@ -1330,18 +1653,18 @@ namespace cluster {
       FitTraj();
       lastTP.FitChi = 0.01;
       lastTP.AngErr = work.Pts[0].AngErr;
-      if(prt) mf::LogVerbatim("CC")<<"UpdateTraj: Second traj point pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1];
+      if(prt) mf::LogVerbatim("CC")<<"UpdateWork: Second traj point pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1];
       success = true;
       return;
     } else if(work.Pts.size() == 3) {
        // Third trajectory point. Keep it simple
       nTPF = 3;
-      if(prt) mf::LogVerbatim("CC")<<"UpdateTraj: Third traj point "<<nTPF;
+      if(prt) mf::LogVerbatim("CC")<<"UpdateWork: Third traj point "<<nTPF;
     } else {
       // many trajectory points available to fit. Determine how many
       // trajectory points should be fit to a line. Start with the number used in
       // the previous trajectory point
-      if(prt) mf::LogVerbatim("CC")<<"UpdateTraj: Starting nTPF "<<nTPF;
+      if(prt) mf::LogVerbatim("CC")<<"UpdateWork: Starting nTPF "<<nTPF;
       // decide if this should be shorter or longer
       // Count the number of previous traj points that used "nearby" hits
       cnt = 0;
@@ -1379,6 +1702,20 @@ namespace cluster {
     FitTraj();
     // check for a failure
     if(lastTP.FitChi > 900) return;
+    // check chisq and reduce the number of hits fit further
+    if(work.Pts.size() > 10 && lastTP.FitChi > 3) {
+      lastTP.NumTPsFit = 0.7 * nTPF;
+      if(prt) mf::LogVerbatim("CC")<<"  Bad FitChit "<<lastTP.FitChi<<" Reduced NumTPSFit to "<<lastTP.NumTPsFit;
+      FitTraj();
+    }
+    
+    // update the first traj point if this point is in the fit
+    if(lastTP.NumTPsFit == work.Pts.size()) {
+      work.Pts[0].AveChg = lastTP.AveChg;
+      work.Pts[0].Ang = lastTP.Ang;
+      work.Pts[0].AngErr = lastTP.AngErr;
+    }
+    
     std::vector<unsigned int> tHits;
     for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt)
       tHits.insert(tHits.end(), work.Pts[ipt].Hits.begin(), work.Pts[ipt].Hits.end());
@@ -1397,7 +1734,7 @@ namespace cluster {
     float ang = std::abs(work.Pts[lastPt].Ang);
     if(ang > M_PI/2) ang = M_PI - ang;
     float angCorr = 1 + 3.4 * ang * ang;
-    if(fStepCrawlStudyMode) angCorr = 1;
+    if(fSCStudyMode) angCorr = 1;
     unsigned int hit0, hit1, hit2;
     cnt = 0;
     for(ii = 1; ii < tHits.size() - 1; ++ii) {
@@ -1430,10 +1767,10 @@ namespace cluster {
     success = true;
     return;
     
-  } // UpdateTraj
+  } // UpdateWork
 
   //////////////////////////////////////////
-  void ClusterCrawlerAlg::UpdateTrajDelta()
+  void ClusterCrawlerAlg::UpdateWorkDelta()
   {
     // Find Delta for the last trajectory point.
     
@@ -1451,7 +1788,7 @@ namespace cluster {
     ave /= fcnt;
     lastTP.DeltaRMS = sqrt((sum2 - fcnt * ave * ave) / (fcnt - 1));
 
-  } // UpdateTrajDelta
+  } // UpdateWorkDelta
 
   
   //////////////////////////////////////////
@@ -1488,7 +1825,7 @@ namespace cluster {
     float rotAngle = work.Pts[fromIndex].Ang;
     float cs = cos(-rotAngle);
     float sn = sin(-rotAngle);
-    if(prt) mf::LogVerbatim("CC")<<"FTM: Ang "<<rotAngle<<" cs "<<cs<<" sn "<<sn<<" work size "<<work.Pts.size()<<" CrawlDir "<<work.CrawlDir;
+//    if(prt) mf::LogVerbatim("CC")<<"FTM: Ang "<<rotAngle<<" cs "<<cs<<" sn "<<sn<<" work size "<<work.Pts.size()<<" CrawlDir "<<work.CrawlDir;
     
     // fit origin is the position of the fromIndex trajectory point
     std::array<float, 2> dir, origin = work.Pts[fromIndex].Pos;
@@ -1504,7 +1841,7 @@ namespace cluster {
     for(unsigned short ipt = lo; ipt < hi; ++ipt) {
       indx = ipt - lo;
       if(ipt > work.Pts.size()-1 || indx > nTPF-1) {
-        std::cout<<"bad ipt "<<ipt<<" work size "<<work.Pts.size()<<" or bad indx "<<indx<<" nTPF "<<nTPF<<" fAveHitRMS "<<fAveHitRMS<<"\n";
+        mf::LogError("CC")<<"bad ipt "<<ipt<<" work size "<<work.Pts.size()<<" or bad indx "<<indx<<" nTPF "<<nTPF<<" fAveHitRMS "<<fAveHitRMS<<"\n";
         return;
       }
       xx = work.Pts[ipt].HitPos[0] - origin[0];
@@ -1515,7 +1852,7 @@ namespace cluster {
 //      terr = fScaleF * fHitErrFac * fAveHitRMS * work.Pts[ipt].ChgDiff;
       // Wire error^2 is a constant [1/sqrt(12)]^2 in WSE units = 0.0833
       yerr2[indx] = 0.0833 + terr * terr;
-      if(prt) mf::LogVerbatim("CC")<<"FTM: ipt "<<ipt<<" indx "<<indx<<" xx "<<xx<<" yy "<<yy<<" x "<<x[indx]<<" y "<<y[indx]<<" err "<<yerr2[indx]<<" Chg "<<work.Pts[ipt].Chg;
+//      if(prt) mf::LogVerbatim("CC")<<"FTM: ipt "<<ipt<<" indx "<<indx<<" xx "<<xx<<" yy "<<yy<<" x "<<x[indx]<<" y "<<y[indx]<<" err "<<yerr2[indx]<<" Chg "<<work.Pts[ipt].Chg;
       if(indx > 0 && std::abs(xx - x[indx-1]) < 1.E-3) ++nsame;
       tp.Chg += work.Pts[ipt].Chg;
       sum2 += work.Pts[ipt].Chg * work.Pts[ipt].Chg;
@@ -1533,6 +1870,7 @@ namespace cluster {
     
     float intcpt, slope, intcpterr, slopeerr, chidof;
     fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
+//    if(prt) mf::LogVerbatim("CC")<<" LinFit chidof "<<chidof;
     if(chidof < 0.01) chidof = 0.01;
     tp.FitChi = chidof;
     if(chidof > 900) return;
@@ -1541,11 +1879,11 @@ namespace cluster {
     float newang = atan(slope);
     dir[0] = cos(newang);
     dir[1] = sin(newang);
-    if(prt) mf::LogVerbatim("CC")<<"newdir XX,YY system "<<dir[0]<<" "<<dir[1]<<" slope "<<slope;
+//    if(prt) mf::LogVerbatim("CC")<<"newdir XX,YY system "<<dir[0]<<" "<<dir[1]<<" slope "<<slope;
     // rotate back into the (w,t) coordinate system
     cs = cos(rotAngle);
     sn = sin(rotAngle);
-    if(prt) mf::LogVerbatim("CC")<<" lastPT ang "<<rotAngle<<" dir "<<cs<<" "<<sn;
+//    if(prt) mf::LogVerbatim("CC")<<" lastPT ang "<<rotAngle<<" dir "<<cs<<" "<<sn;
     tp.Dir[0] = cs * dir[0] - sn * dir[1];
     tp.Dir[1] = sn * dir[0] + cs * dir[1];
     // decide whether to reverse the direction
@@ -1557,16 +1895,12 @@ namespace cluster {
     // a good enough approximation since the trajectory can't change
     // too much from point to point
     tp.AngErr = std::abs(atan(slopeerr));
-    if(prt) mf::LogVerbatim("CC")<<"  W,T dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang;
+//    if(prt) mf::LogVerbatim("CC")<<"  W,T dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang;
     // rotate (0, intcpt) into W,T
     tp.Pos[0] = -sn * intcpt + origin[0];
     tp.Pos[1] =  cs * intcpt + origin[1];
     
-    if(prt) {
-      mf::LogVerbatim("CC")<<"FTM: fromIndex "<<fromIndex<<" Pos1 "<<tp.Pos[1]<<" Ang "<<tp.Ang<<" chi "<<chidof<<" old Ang "<<work.Pts[fromIndex].Ang;
-//      PrintHeader();
-//      PrintWork(fromIndex);
-    }
+//    if(prt) mf::LogVerbatim("CC")<<"FTM: fromIndex "<<fromIndex<<" Pos1 "<<tp.Pos[1]<<" Ang "<<tp.Ang<<" chi "<<chidof<<" old Ang "<<work.Pts[fromIndex].Ang;
 
   } // FitTrajMid
   
@@ -1683,7 +2017,7 @@ namespace cluster {
   
   
   //////////////////////////////////////////
-  void ClusterCrawlerAlg::UpdateTrajChgDiff()
+  void ClusterCrawlerAlg::UpdateWorkChgDiff()
   {
     // calculate trajectory charge using nTrajPoints at the leading edge of the
     // trajectory
@@ -1693,27 +2027,20 @@ namespace cluster {
     lastTP.ChgDiff = 99;
     unsigned short ii;
     
-//    if(prt) std::cout<<"UpdateTrajChgDiff "<<work.Pts.size()<<"\n";
+    if(fChgRMS < 1) {
+      fChgRMS = 100;
+      mf::LogWarning("CC")<<"fChgRMS not defined. Setting it to "<<fChgRMS;
+    } // error checking
     
     if(work.Pts.size() < 2) return;
     
-    float sum, sum2, arg, fcnt;
-    if(work.Pts.size() < 4) {
+    float sum, sum2, fcnt;
+    if(work.Pts.size() < 5) {
       // just average for short trajectories
       sum = 0;
-      sum2 = 0;
-      fcnt = work.Pts.size();
-      for(ii = 0; ii < work.Pts.size(); ++ii) {
-        sum  += work.Pts[ii].Chg;
-        sum2 += work.Pts[ii].Chg * work.Pts[ii].Chg;
-      }
+      fcnt = work.Pts.size() - 1;
+      for(ii = 1; ii < work.Pts.size(); ++ii) sum += work.Pts[ii].Chg;
       lastTP.AveChg = sum / fcnt;
-      arg = sum2 - fcnt * sum * sum;
-      if(arg > 0 && work.Pts.size() > 2) {
-        fChgRMS = sqrt(arg / (fcnt - 1));
-      } else {
-        fChgRMS = 0.3 * lastTP.AveChg;
-      }
       if(fChgRMS < 10) fChgRMS = 10;
       lastTP.ChgDiff = (lastTP.Chg - lastTP.AveChg) / fChgRMS;
       if(std::abs(lastTP.ChgDiff) < 0.01) lastTP.ChgDiff = 0.01;
@@ -1723,7 +2050,7 @@ namespace cluster {
     unsigned short ipt, cnt;
     
     if(lastTP.NumTPsFit > work.Pts.size()) {
-      mf::LogError("CC")<<"UpdateTrajChgDiff: Invalid lastTP.NumTPsFit = "<<lastTP.NumTPsFit<<" work.Pts size "<<work.Pts.size();
+      mf::LogError("CC")<<"UpdateWorkChgDiff: Invalid lastTP.NumTPsFit = "<<lastTP.NumTPsFit<<" work.Pts size "<<work.Pts.size();
       return;
     }
     
@@ -1740,7 +2067,7 @@ namespace cluster {
     } // ii
     // default sort is lowest to highest
     std::sort(chg.begin(), chg.end());
-    unsigned short maxcnt = (unsigned short)(0.6 * chg.size());
+    unsigned short maxcnt = (unsigned short)(0.8 * chg.size());
     if(maxcnt < 2) maxcnt = 2;
     sum = 0; sum2 = 0; cnt = 0;
     for(ipt = 0; ipt < maxcnt; ++ipt) {
@@ -1756,7 +2083,7 @@ namespace cluster {
     if(std::abs(lastTP.ChgDiff) < 0.01) lastTP.ChgDiff = 0.01;
 //    if(prt) std::cout<<"ChgDiff "<<work.Pts.size()<<" "<<npts<<" "<<cnt<<" ave "<<lastTP.AveChg<<" rms "<<fChgRMS<<" diff "<<lastTP.ChgDiff<<"\n";
     
-  } // UpdateTrajChgDiff
+  } // UpdateWorkChgDiff
   
   ////////////////////////////////////////////////
   void ClusterCrawlerAlg::StartTraj(unsigned int fromHit, float toWire, float toTick)
@@ -1765,7 +2092,7 @@ namespace cluster {
     // The traj vector is cleared if an error occurs
     
     work.Pts.clear();
-    work.ProcCode = 901; work.StopCode = 0;
+    work.ProcCode = 901;
     work.Vtx[0] = -1;  work.Vtx[1] = -1;
     if(fromHit > fHits.size() - 1) return;
     
@@ -1792,212 +2119,112 @@ namespace cluster {
     // initialize other variables used by StepCrawl
     fAveHitRMS = fHits[fromHit].RMS();
     tp.AveChg = fHits[fromHit].Integral();
-    fChgRMS = 0.3 * tp.AveChg;
+    fChgRMS = tp.AveChg;
     if(fChgRMS < 10) fChgRMS = 10;
     tp.ChgDiff = (tp.Chg - tp.AveChg) / fChgRMS;
     
     // Add the first trajectory hit
     tp.Hits.push_back(fromHit);
-    inClus[fromHit] = -3;
+    inTraj[fromHit] = -3;
     work.Pts.push_back(tp);
-    work.CrawlDir = fStepCrawlDir;
+    work.CrawlDir = fSCDir;
     
   } // StartTraj
   
   //////////////////////////////////////////
-  void ClusterCrawlerAlg::ReverseTraj()
+  void ClusterCrawlerAlg::ReverseTraj(Trajectory& tj)
   {
     // reverse the trajectory
-    if(work.Pts.size() == 0) return;
+    if(tj.Pts.size() == 0) return;
     // reverse the crawling direction flag
-    work.CrawlDir = -work.CrawlDir;
-    std::reverse(work.Pts.begin(), work.Pts.end());
+    tj.CrawlDir = -tj.CrawlDir;
+    std::reverse(tj.Pts.begin(), tj.Pts.end());
     // reverse the direction vector
-    for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt) {
-      if(work.Pts[ipt].Dir[0] != 0) work.Pts[ipt].Dir[0] = -work.Pts[ipt].Dir[0];
-      if(work.Pts[ipt].Dir[1] != 0) work.Pts[ipt].Dir[1] = -work.Pts[ipt].Dir[1];
-      work.Pts[ipt].Ang = atan2(work.Pts[ipt].Dir[1], work.Pts[ipt].Dir[0]);
-      if(work.Pts[ipt].Hits.size() > 1) std::reverse(work.Pts[ipt].Hits.begin(), work.Pts[ipt].Hits.end());
+    for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+      if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
+      if(tj.Pts[ipt].Dir[1] != 0) tj.Pts[ipt].Dir[1] = -tj.Pts[ipt].Dir[1];
+      tj.Pts[ipt].Ang = atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
+      if(tj.Pts[ipt].Hits.size() > 1) std::reverse(tj.Pts[ipt].Hits.begin(), tj.Pts[ipt].Hits.end());
     } // ipt
   }
+
+  ////////////////////////////////////////////////
+  void ClusterCrawlerAlg::StoreWork()
+  {
+    
+    // put trajectories in order of US -> DS
+    if(work.CrawlDir < 0) ReverseTraj(work);
+    work.NHits = 0;
+    for(auto& tjPt : work.Pts) work.NHits += tjPt.Hits.size();
+    allTraj.push_back(work);
+    short trID = allTraj.size();
+    FlagWorkHits(trID);
+    
+  } // StoreWork
+  
   
   ////////////////////////////////////////////////
-  void ClusterCrawlerAlg::StoreTraj()
+  void ClusterCrawlerAlg::MakeAllTrajClusters()
   {
-    // Creates a cluster using trajectory point hits
-//    std::cout<<"StoreTraj "<<work.Pts.size()<<" Pos "<<work.Pts[0].Pos[0]<<" "<<work.Pts[0].Pos[1]<<"\n";
-    // TODO: Handle the 2 point trajectory
-    if(work.Pts.size() < 2) return;
-    if(work.ProcCode == USHRT_MAX) return;
-    if(work.Pts.size() == 0) {
-      mf::LogWarning("CC")<<"StoreTraj: No points on work traj ";
-      return;
-    }
+    // Make cluster from all trajectories in allTraj
     
-    // reverse the trajectory it's not in the proper ClusterCrawler order
-    if(work.CrawlDir > 0) ReverseTraj();
-    
-    fcl2hits.clear();
-    for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt) {
-      if(work.Pts[ipt].Hits.size() == 0) {
-        mf::LogWarning("CC")<<"StoreTraj: No hits on work traj point "<<ipt<<" Pts size "<<work.Pts.size();
-        return;
-      }
-      fcl2hits.insert(fcl2hits.end(), work.Pts[ipt].Hits.begin(), work.Pts[ipt].Hits.end());
-    } // ipt
-    
-    for(unsigned short ii = 0; ii < fcl2hits.size(); ++ii) {
-      if(inClus[fcl2hits[ii]] > 0) {
-        unsigned int hit = fcl2hits[ii];
-        mf::LogWarning("CC")<<"StoreTraj trying to use an invalid hit "<<plane<<":"<<fHits[hit].WireID().Wire<<":"<<(int)fHits[hit].PeakTime()<<" with inClus "<<inClus[fcl2hits[ii]];
-        return;
-      }
-      inClus[fcl2hits[ii]] = 0;
-    } // ii
-    
-    if(work.Pts.size() > 2) {
-      // Fit both ends of the work trajectory to get the slope errors right
-      // Try to fit a length of 10 WSEs = 3 cm for uB
-      float wantLength = 10;
-      float Length = 0, dw, dt;
-      unsigned short ii, toIndex;
-      unsigned short fromIndex = work.Pts.size() - 1;
-      unsigned short nPtsFit = 0;
-      for(ii = 1; ii < work.Pts.size(); ++ii) {
-        toIndex = work.Pts.size() - 1 - ii;
-        dw = work.Pts[toIndex].Pos[0] - work.Pts[toIndex + 1].Pos[0];
-        dt = work.Pts[toIndex].Pos[1] - work.Pts[toIndex + 1].Pos[1];
-        Length += sqrt(dw * dw + dt * dt);
-        ++nPtsFit;
-        if(Length > wantLength) break;
-      }
-      TrajPoint tp;
-/*
-      if(prt) {
-        mf::LogVerbatim("CC")<<"Storing work. Refit trajpoint - before";
-        PrintTrajPoint(fromIndex, work.Pts[fromIndex]);
-      }
-*/
-      FitTrajMid(fromIndex, toIndex, tp);
-      if(tp.FitChi > 900) return;
-      // Only use selected quantities from the fit
-      work.Pts[fromIndex].Pos = tp.Pos;
-      work.Pts[fromIndex].Chg = tp.Chg;
-      work.Pts[fromIndex].ChgDiff = tp.ChgDiff;
-      work.Pts[fromIndex].FitChi = tp.FitChi;
-      work.Pts[fromIndex].NumTPsFit = tp.NumTPsFit;
-      work.Pts[fromIndex].AngErr = tp.AngErr;
-/*
-      // Handle a sign change in the direction
-      if(std::signbit(work.Pts[fromIndex].Ang) != std::signbit(tp.Ang)) {
-        work.Pts[fromIndex].Dir[0] = -tp.Dir[0];
-        work.Pts[fromIndex].Dir[1] = -tp.Dir[1];
-        work.Pts[fromIndex].Ang = -tp.Ang;
+    unsigned short itj, ipt, ii, iht;
+    for(itj = 0; itj < allTraj.size(); ++itj) {
+      if(allTraj[itj].ProcCode == USHRT_MAX) continue;
+      if(allTraj[itj].CrawlDir > 0) ReverseTraj(allTraj[itj]);
+     // stuff the hits into the fcl2hits vector
+      fcl2hits.clear();
+      for(ipt = 0; ipt < allTraj[itj].Pts.size(); ++ipt) {
+        fcl2hits.insert(fcl2hits.end(), allTraj[itj].Pts[ipt].Hits.begin(), allTraj[itj].Pts[ipt].Hits.end());
+      } // ipt
+      // do some error checking
+      for(ii = 0; ii < fcl2hits.size(); ++ii) {
+        if(inClus[fcl2hits[ii]] != 0) {
+          iht = fcl2hits[ii];
+          mf::LogWarning("CC")<<"MakeAllTrajClusters trying to use an invalid hit "<<plane<<":"<<fHits[iht].WireID().Wire<<":"<<(int)fHits[iht].PeakTime()<<" with inClus "<<inClus[iht];
+          return;
+        }
+      } // ii
+      // Cluster Begin
+      if(allTraj[itj].Pts[0].Dir[0] != 0) {
+        clBeginSlp = allTraj[itj].Pts[0].Dir[1] / allTraj[itj].Pts[0].Dir[0];
       } else {
-        work.Pts[fromIndex].Dir = tp.Dir;
-        work.Pts[fromIndex].Ang = tp.Ang;
+        if(allTraj[itj].Pts[0].Dir[1] > 0) {
+          clBeginSlp = 999;
+        } else {
+          clBeginSlp = -999;
+        }
       }
-*/
+      clBeginSlpErr = std::abs(tan(allTraj[itj].Pts[0].AngErr));
+      clBeginSlp /= fScaleF; clBeginSlpErr /= fScaleF;
+      clBeginChg = allTraj[itj].Pts[0].AveChg;
+      clBeginChgNear = 0;
+      // Cluster End
+      unsigned short lastPt = allTraj[itj].Pts.size() - 1;
+      if(allTraj[itj].Pts[lastPt].Dir[0] != 0) {
+        clEndSlp = allTraj[itj].Pts[lastPt].Dir[1] / allTraj[itj].Pts[lastPt].Dir[0];
+      } else {
+        if(allTraj[itj].Pts[lastPt].Dir[1] > 0) {
+          clEndSlp = 999;
+        } else {
+          clEndSlp = -999;
+        }
+      }
+      clEndSlpErr = std::abs(tan(allTraj[itj].Pts[lastPt].AngErr));
+      clEndSlp /= fScaleF; clEndSlpErr /= fScaleF;
+      clEndChg = allTraj[itj].Pts[lastPt].AveChg;
+      clEndChgNear = 0;
       
-/*
-      if(prt) {
-        mf::LogVerbatim("CC")<<"Storing work. Refit trajpoint - after. fromIndex "<<fromIndex<<" size "<<work.Pts.size();
-        PrintTrajPoint(fromIndex, work.Pts[fromIndex]);
-      }
-*/
-      // fit the other end
-      fromIndex = 0;
-      toIndex = nPtsFit - 1;
-/*
-      if(prt) {
-        mf::LogVerbatim("CC")<<"Storing work. Refit trajpoint - before";
-        PrintTrajPoint(fromIndex, work.Pts[fromIndex]);
-      }
-*/
-      FitTrajMid(fromIndex, toIndex, tp);
-      if(tp.FitChi > 900) return;
-      // Only use selected quantities from the fit
-      work.Pts[fromIndex].Pos = tp.Pos;
-      work.Pts[fromIndex].Chg = tp.Chg;
-      work.Pts[fromIndex].ChgDiff = tp.ChgDiff;
-      work.Pts[fromIndex].FitChi = tp.FitChi;
-      work.Pts[fromIndex].NumTPsFit = tp.NumTPsFit;
-      work.Pts[fromIndex].AngErr = tp.AngErr;
-/*
-      // Handle a sign change in the direction
-      if(std::signbit(work.Pts[fromIndex].Dir[0]) != std::signbit(tp.Dir[0])) {
-        work.Pts[fromIndex].Dir[0] = -tp.Dir[0];
-        work.Pts[fromIndex].Dir[1] = -tp.Dir[1];
-        work.Pts[fromIndex].Ang = -tp.Ang;
-      } else {
-        work.Pts[fromIndex].Dir = tp.Dir;
-        work.Pts[fromIndex].Ang = tp.Ang;
-      }
-*/
- 
-/*
-      if(prt) {
-        mf::LogVerbatim("CC")<<"Storing work. Refit trajpoint - after. fromIndex "<<fromIndex<<" size "<<work.Pts.size();
-        PrintTrajPoint(fromIndex, work.Pts[fromIndex]);
-      }
-*/
-    }
+      if(prt) mf::LogVerbatim("CC")<<"Store cluster of size "<<fcl2hits.size();
+      clProcCode = allTraj[itj].ProcCode;
+      // special stop code to indicate special crawling
+      clStopCode = 0;
+      // Store the cluster
+      if(!TmpStore()) return;
+   } // itj
+    
+  } // MakeAllTrajClusters
 
-    // Cluster Begin
-    if(work.Pts[0].Dir[0] != 0) {
-      clBeginSlp = work.Pts[0].Dir[1] / work.Pts[0].Dir[0];
-    } else {
-      if(work.Pts[0].Dir[1] > 0) {
-        clBeginSlp = 999;
-      } else {
-        clBeginSlp = -999;
-      }
-    }
-    clBeginSlpErr = std::abs(tan(work.Pts[0].AngErr));
-    clBeginSlp /= fScaleF; clBeginSlpErr /= fScaleF;
-    clBeginChg = work.Pts[0].AveChg;
-    clBeginChgNear = 0;
-    
-    // Cluster End
-    unsigned short lastPt = work.Pts.size() - 1;
-    if(work.Pts[lastPt].Dir[0] != 0) {
-      clEndSlp = work.Pts[lastPt].Dir[1] / work.Pts[lastPt].Dir[0];
-    } else {
-      if(work.Pts[lastPt].Dir[1] > 0) {
-        clEndSlp = 999;
-      } else {
-        clEndSlp = -999;
-      }
-    }
-    clEndSlpErr = std::abs(tan(work.Pts[lastPt].AngErr));
-    clEndSlp /= fScaleF; clEndSlpErr /= fScaleF;
-    clEndChg = work.Pts[lastPt].AveChg;
-    clEndChgNear = 0;
-    
-    if(prt) mf::LogVerbatim("CC")<<"Store cluster of size "<<fcl2hits.size();
-    clProcCode = work.ProcCode;
-    // special stop code to indicate special crawling
-    clStopCode = work.StopCode;
-    // Store the cluster
-    if(!TmpStore()) return;
-    
-//    std::cout<<"StoreTraj success \n";
-
-    // store the trajectory and associated cluster index
-    work.ClusterIndex = NClusters - 1;
-    allTraj.push_back(work);
-    
-    // double check hit assignment
-    unsigned short itj = allTraj.size() - 1;
-    for(unsigned short ipt = 0; ipt < allTraj[itj].Pts.size(); ++ipt) {
-      unsigned int hit = allTraj[itj].Pts[ipt].Hits[0];
-      if(inClus[hit] != allTraj[itj].ClusterIndex+1) {
-        mf::LogWarning("CC")<<"StoreTraj: Problem with inClus "<<inClus[hit]<<" != "<<allTraj[itj].ClusterIndex<<" itj "<<itj;
-      }
-    } // check
-
-  } // StoreTraj
-  
   //////////////////////////////////////////
   void ClusterCrawlerAlg::PrintAllTraj(unsigned short itj, unsigned short ipt)
   {
@@ -2037,7 +2264,7 @@ namespace cluster {
     
     Trajectory tj = allTraj[itj];
     
-    mf::LogVerbatim("CC")<<"Print allTraj["<<itj<<"]: ClusterIndex "<<tj.ClusterIndex<<" ProcCode "<<tj.ProcCode<<" StopCode "<<tj.StopCode<<" Vtx[0] "<<tj.Vtx[0]<<" Vtx[1] "<<tj.Vtx[1];
+    mf::LogVerbatim("CC")<<"Print allTraj["<<itj<<"]: ClusterIndex "<<tj.ClusterIndex<<" ProcCode "<<tj.ProcCode<<" Vtx[0] "<<tj.Vtx[0]<<" Vtx[1] "<<tj.Vtx[1];
     
     PrintHeader();
     if(ipt == USHRT_MAX) {
@@ -2051,24 +2278,24 @@ namespace cluster {
 
   
   //////////////////////////////////////////
-  void ClusterCrawlerAlg::PrintWork(unsigned short tPoint)
+  void ClusterCrawlerAlg::PrintTrajectory(Trajectory& tj, unsigned short tPoint)
   {
-    // prints one or all
+    // prints one or all trajectory points on tj
     
     unsigned short first = 0;
-    unsigned short last = work.Pts.size();
+    unsigned short last = tj.Pts.size();
     if(tPoint == USHRT_MAX) {
       PrintHeader();
-      for(unsigned short ipt = first; ipt < last; ++ipt) PrintTrajPoint(ipt, work.CrawlDir, work.Pts[ipt]);
+      for(unsigned short ipt = first; ipt < last; ++ipt) PrintTrajPoint(ipt, tj.CrawlDir, tj.Pts[ipt]);
     } else {
       // just print one traj point
-      if(tPoint > work.Pts.size() -1) {
+      if(tPoint > tj.Pts.size() -1) {
         mf::LogVerbatim("CC")<<"Cant print non-existent traj point "<<tPoint;
         return;
       }
-      PrintTrajPoint(tPoint, work.CrawlDir, work.Pts[tPoint]);
+      PrintTrajPoint(tPoint, tj.CrawlDir, tj.Pts[tPoint]);
     }
-  } // PrintWork
+  } // PrintTrajectory
   
   //////////////////////////////////////////
   void ClusterCrawlerAlg::PrintHeader()
@@ -2133,32 +2360,44 @@ namespace cluster {
     hitTick /= qtot;
     
   } // HitMultipletPosition
-  
+
   ////////////////////////////////////////////////
-  void ClusterCrawlerAlg::ReleaseTrajHits(unsigned short ipt)
+  void ClusterCrawlerAlg::TrajSeparation(Trajectory& iTj, Trajectory& jTj, std::vector<float>& tSep)
   {
-    // release the hits attached to trajectory point itj in the work vector
-    if(ipt > work.Pts.size()-1) return;
-    for(unsigned short iht = 0; iht < work.Pts[ipt].Hits.size(); ++iht) inClus[work.Pts[ipt].Hits[iht]] = 0;
-  } // ReleaseTrajHits
+    // Returns a vector with the size of the number of trajectory points on iTj
+    // with the separation distance between the closest traj points
+    
+    tSep.resize(iTj.Pts.size());
+    unsigned short ipt, jpt, ibest;
+    float dw, dt, sep, best;
+    for(ipt = 0; ipt < iTj.Pts.size(); ++ipt) {
+      best = 1E6;
+      ibest = USHRT_MAX;
+      for(jpt = 0; jpt < jTj.Pts.size(); ++jpt) {
+        dw = jTj.Pts[jpt].Pos[0] - iTj.Pts[ipt].Pos[0];
+        dt = jTj.Pts[jpt].Pos[1] - iTj.Pts[ipt].Pos[1];
+        sep = dw * dw + dt * dt;
+        if(sep < best) {
+          best = sep;
+          ibest = jpt;
+        }
+        // decide whether to break out
+        if(ibest != USHRT_MAX && sep > best) break;
+      } // jpt
+      tSep[ipt] = sqrt(best);
+      std::cout<<"Sep "<<ipt<<" "<<best<<"\n";
+    } // ipt
+    
+  } // TrajectorySeparation
   
   ////////////////////////////////////////////////
-  void ClusterCrawlerAlg::ReleaseAllWorkHits()
+  void ClusterCrawlerAlg::FlagWorkHits(short flag)
   {
     unsigned short ipt, iht;
     for(ipt = 0; ipt < work.Pts.size(); ++ipt) {
-      for(iht = 0; iht < work.Pts[ipt].Hits.size(); ++iht) inClus[work.Pts[ipt].Hits[iht]] = 0;
+      for(iht = 0; iht < work.Pts[ipt].Hits.size(); ++iht) inTraj[work.Pts[ipt].Hits[iht]] = flag;
     } // ipt
-  } // ReleaseAllWorkHits
-  
-  ////////////////////////////////////////////////
-  void ClusterCrawlerAlg::FlagAllWorkHits()
-  {
-    unsigned short ipt, iht;
-    for(ipt = 0; ipt < work.Pts.size(); ++ipt) {
-      for(iht = 0; iht < work.Pts[ipt].Hits.size(); ++iht) inClus[work.Pts[ipt].Hits[iht]] = -3;
-    } // ipt
-  } // ReleaseAllWorkHits
+  } // FlagWorkHits
 
   
 } // namespace cluster
