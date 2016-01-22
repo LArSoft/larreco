@@ -65,9 +65,9 @@ standard_pmalgtrackmaker:
                                       #    tracks (no pattern recognition at all, no corrections, etc)
                                       #
   TrackingOnlyPdg:        [0]         # PDG list to select which PFParticles should be reconstructed;
-                                      # all PFP's are used if the list starts with 0
+                                      # all PFP's are used if the list is empty or starts with 0
   TrackingSkipPdg:        [11]        # PDG list to select which PFParticles should NOT be reconstructed,
-                                      # e.g. skip EM showers; no skipping if the list starts with 0
+                                      # e.g. skip EM showers; no skipping if the list is empty or starts with 0
                                       #
   MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
   MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks
