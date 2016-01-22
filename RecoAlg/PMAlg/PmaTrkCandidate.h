@@ -17,18 +17,7 @@
 namespace pma
 {
 	class TrkCandidate;
-	typedef std::vector< TrkCandidate > trk_candidates;
-
-	int getCandidateIndex(pma::trk_candidates const & tracks, pma::Track3D const * candidate);
-	void setParentDaughterConnections(pma::trk_candidates& tracks);
-
-	void setTreeId(pma::trk_candidates & tracks, int id, size_t trkIdx, bool isRoot = true);
-	int setTreeIds(pma::trk_candidates & tracks);
-
-	void flipTreesToCoordinate(pma::trk_candidates & tracks, size_t coordinate);
-	void flipTreesByDQdx(pma::trk_candidates & tracks);
-
-	pma::Track3D* getTreeCopy(pma::trk_candidates & dst, const pma::trk_candidates & src, size_t trkIdx, bool isRoot = true);
+	class TrkCandidateColl;
 }
 
 class pma::TrkCandidate
@@ -81,6 +70,44 @@ private:
 	double fMse, fValidation;
 
 	bool fGood;
+};
+
+class pma::TrkCandidateColl
+{
+public:
+	size_t size(void) const { return fCandidates.size(); }
+	void resize(size_t n) { return fCandidates.resize(n); }
+	bool empty(void) const { return fCandidates.empty(); }
+
+	void push_back(const TrkCandidate & trk) { fCandidates.push_back(trk); }
+	void erase_at(size_t pos) { fCandidates.erase(fCandidates.begin() + pos); }
+	void clear(void) { fCandidates.clear(); }
+
+	TrkCandidate & operator[] (size_t i) { return fCandidates[i]; }
+	TrkCandidate const & operator[] (size_t i) const { return fCandidates[i]; }
+
+	TrkCandidate & front(void) { return fCandidates.front(); }
+	TrkCandidate const & front(void) const { return fCandidates.front(); }
+
+	TrkCandidate & back(void) { return fCandidates.back(); }
+	TrkCandidate const & back(void) const { return fCandidates.back(); }
+
+	std::vector< TrkCandidate > const & tracks(void) const { return fCandidates; }
+	std::vector< TrkCandidate > & tracks(void) { return fCandidates; }
+
+	int getCandidateIndex(pma::Track3D const * candidate) const;
+	void setParentDaughterConnections(void);
+
+	void setTreeId(int id, size_t trkIdx, bool isRoot = true);
+	int setTreeIds(void);
+
+	void flipTreesToCoordinate(size_t coordinate);
+	void flipTreesByDQdx();
+
+	pma::Track3D* getTreeCopy(pma::TrkCandidateColl & dst, size_t trkIdx, bool isRoot = true);
+
+private:
+	std::vector< TrkCandidate > fCandidates;
 };
 
 #endif

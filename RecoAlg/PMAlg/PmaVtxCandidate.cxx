@@ -88,7 +88,7 @@ bool pma::VtxCandidate::Add(const pma::TrkCandidate & trk)
 {
 	if (IsAttached(trk.Track())) return false;
 
-	fAssigned.emplace_back(std::pair< pma::TrkCandidate, size_t >(trk, 0));
+	fAssigned.emplace_back(trk, 0);
 
 	double d, d_best;
 	double mse, min_mse = kMaxDistToTrack * kMaxDistToTrack;
@@ -421,7 +421,7 @@ double pma::VtxCandidate::Compute(void)
 	return resultMse;
 }
 
-bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candidates& src)
+bool pma::VtxCandidate::JoinTracks(pma::TrkCandidateColl & tracks, pma::TrkCandidateColl & src)
 {
 	if (tracksJoined)
 	{
@@ -441,16 +441,16 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 			if (c.first.Track() == src[t].Track())
 			{   // move from "src" to "tracks"
 				tracks.push_back(src[t]);
-				src.erase(src.begin() + t);
+				src.erase_at(t);
 				break;
 			}
 			else t++;
 		}
 	}
 	// all involved tracks are in the same container, so:
-	pma::setTreeIds(tracks);
+	tracks.setTreeIds();
 	for (auto & c : fAssigned) // update ids
-		for (auto const & t : tracks)
+		for (auto const & t : tracks.tracks())
 			if (c.first.Track() == t.Track())
 			{
 				c.first.SetTreeId(t.TreeId()); break;
@@ -458,7 +458,7 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 
 	// backup in case of fitting problems
 	std::vector<int> treeIds;
-	pma::trk_candidates backupTracks;
+	pma::TrkCandidateColl backupTracks;
 
 	pma::Node3D* vtxCenter = 0;
 	bool hasInnerCenter = false;
@@ -478,8 +478,8 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 		if (!has(treeIds, tid)) // backup in case of fitting problems
 		{
 			treeIds.push_back(tid);
-			int rootIdx = pma::getCandidateIndex(tracks, trk->GetRoot());
-			if (rootIdx >= 0) pma::getTreeCopy(backupTracks, tracks, rootIdx);
+			int rootIdx = tracks.getCandidateIndex(trk->GetRoot());
+			if (rootIdx >= 0) tracks.getTreeCopy(backupTracks, rootIdx);
 			else mf::LogError("pma::VtxCandidate") << "Root of the tree not found in tracks collection.";
 		}
 
@@ -592,7 +592,7 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 
 					trk->MakeProjection();
 					t0->MakeProjection();
-					tracks.emplace_back(pma::TrkCandidate(t0, key, tid));
+					tracks.tracks().emplace_back(t0, key, tid);
 
 					if (i == 0)
 					{
@@ -706,7 +706,7 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 		if (noLoops && tuneOK)
 		{
 			mf::LogVerbatim("pma::VtxCandidate") << "remove backup tracks";
-			for (auto & c : backupTracks) c.DeleteTrack();
+			for (auto & c : backupTracks.tracks()) c.DeleteTrack();
 		}
 		else
 		{
@@ -719,12 +719,12 @@ bool pma::VtxCandidate::JoinTracks(pma::trk_candidates& tracks, pma::trk_candida
 					if (tracks[t].TreeId() == tid)
 					{
 						tracks[t].DeleteTrack();
-						tracks.erase(tracks.begin() + t);
+						tracks.erase_at(t);
 					}
 					else t++;
 				}
 			}
-			for (const auto & c : backupTracks) tracks.push_back(c);
+			for (const auto & c : backupTracks.tracks()) tracks.push_back(c);
 			mf::LogVerbatim("pma::VtxCandidate") << "  done";
 		}
 	}

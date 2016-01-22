@@ -45,23 +45,23 @@ void pma::TrkCandidate::DeleteTrack(void)
 // ------------------------------------------------------
 // ------------------------------------------------------
 
-int pma::getCandidateIndex(pma::trk_candidates const & tracks, pma::Track3D const * candidate)
+int pma::TrkCandidateColl::getCandidateIndex(pma::Track3D const * candidate) const
 {
-	for (size_t t = 0; t < tracks.size(); ++t)
-		if (tracks[t].Track() == candidate) return t;
+	for (size_t t = 0; t < fCandidates.size(); ++t)
+		if (fCandidates[t].Track() == candidate) return t;
 	return -1;
 }
 
-void pma::setParentDaughterConnections(pma::trk_candidates& tracks)
+void pma::TrkCandidateColl::setParentDaughterConnections(void)
 {
-	for (size_t t = 0; t < tracks.size(); ++t)
+	for (size_t t = 0; t < fCandidates.size(); ++t)
 	{
-		pma::Track3D const * trk = tracks[t].Track();
+		pma::Track3D const * trk = fCandidates[t].Track();
 		pma::Node3D const * firstNode = trk->Nodes().front();
 		if (firstNode->Prev())
 		{
 			pma::Track3D const * parentTrk = static_cast< pma::Segment3D* >(firstNode->Prev())->Parent();
-			tracks[t].SetParent(pma::getCandidateIndex(tracks, parentTrk));
+			fCandidates[t].SetParent(getCandidateIndex(parentTrk));
 		}
 		for (auto node : trk->Nodes())
 			for (size_t i = 0; i < node->NextCount(); ++i)
@@ -69,17 +69,17 @@ void pma::setParentDaughterConnections(pma::trk_candidates& tracks)
 			pma::Track3D const * daughterTrk = static_cast< pma::Segment3D* >(node->Next(i))->Parent();
 			if (daughterTrk != trk)
 			{
-				int idx = pma::getCandidateIndex(tracks, daughterTrk);
-				if (idx >= 0) tracks[t].Daughters().push_back((size_t)idx);
+				int idx = getCandidateIndex(daughterTrk);
+				if (idx >= 0) fCandidates[t].Daughters().push_back((size_t)idx);
 			}
 		}
 	}
 }
 // ------------------------------------------------------
 
-void pma::setTreeId(pma::trk_candidates & tracks, int id, size_t trkIdx, bool isRoot)
+void pma::TrkCandidateColl::setTreeId(int id, size_t trkIdx, bool isRoot)
 {
-	pma::Track3D* trk = tracks[trkIdx].Track();
+	pma::Track3D* trk = fCandidates[trkIdx].Track();
 	pma::Node3D* vtx = trk->Nodes().front();
 	pma::Segment3D* segThis = 0;
 	pma::Segment3D* seg = 0;
@@ -99,9 +99,9 @@ void pma::setTreeId(pma::trk_candidates & tracks, int id, size_t trkIdx, bool is
 			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
 			if (seg != segThis)
 			{
-				int idx = pma::getCandidateIndex(tracks, seg->Parent());
+				int idx = getCandidateIndex(seg->Parent());
 
-				if (idx >= 0) pma::setTreeId(tracks, id, idx, false);
+				if (idx >= 0) setTreeId(id, idx, false);
 				else mf::LogError("pma::setTreeIds") << "Branch of the tree not found in tracks collection.";
 			}
 		}
@@ -110,21 +110,21 @@ void pma::setTreeId(pma::trk_candidates & tracks, int id, size_t trkIdx, bool is
 		else break;
 	}
 
-	tracks[trkIdx].SetTreeId(id);
+	fCandidates[trkIdx].SetTreeId(id);
 }
 
-int pma::setTreeIds(pma::trk_candidates & tracks)
+int pma::TrkCandidateColl::setTreeIds(void)
 {
-	for (auto & t : tracks) t.SetTreeId(-1);
+	for (auto & t : fCandidates) t.SetTreeId(-1);
 
 	int id = 0;
-	for (auto & t : tracks)
+	for (auto & t : fCandidates)
 	{
 		if (t.TreeId() >= 0) continue;
 
-		int rootTrkIdx = pma::getCandidateIndex(tracks, t.Track()->GetRoot());
+		int rootTrkIdx = getCandidateIndex(t.Track()->GetRoot());
 
-		if (rootTrkIdx >= 0) pma::setTreeId(tracks, id, rootTrkIdx);
+		if (rootTrkIdx >= 0) setTreeId(id, rootTrkIdx);
 		else mf::LogError("pma::setTreeIds") << "Root of the tree not found in tracks collection.";
 
 		id++;
@@ -134,13 +134,13 @@ int pma::setTreeIds(pma::trk_candidates & tracks)
 }
 // ------------------------------------------------------
 
-void pma::flipTreesToCoordinate(pma::trk_candidates & tracks, size_t coordinate)
+void pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
 {
 	std::map< int, std::vector< pma::Track3D* > > toFlip;
 	std::map< int, double > minVal;
 
-	pma::setTreeIds(tracks);
-	for (auto & t : tracks)
+	setTreeIds();
+	for (auto & t : fCandidates)
 	{
 		int tid = t.TreeId();
 		if (minVal.find(tid) == minVal.end()) minVal[tid] = 1.0e12;
@@ -177,12 +177,12 @@ void pma::flipTreesToCoordinate(pma::trk_candidates & tracks, size_t coordinate)
 }
 // ------------------------------------------------------
 
-void pma::flipTreesByDQdx(pma::trk_candidates & tracks)
+void pma::TrkCandidateColl::flipTreesByDQdx(void)
 {
 	std::map< int, std::vector< pma::Track3D* > > trkMap;
 
-	pma::setTreeIds(tracks);
-	for (auto const & t : tracks) trkMap[t.TreeId()].push_back(t.Track());
+	setTreeIds();
+	for (auto const & t : fCandidates) trkMap[t.TreeId()].push_back(t.Track());
 
 	for (auto & tEntry : trkMap)
 	{
@@ -194,15 +194,15 @@ void pma::flipTreesByDQdx(pma::trk_candidates & tracks)
 }
 // ------------------------------------------------------
 
-pma::Track3D* pma::getTreeCopy(pma::trk_candidates & dst, const pma::trk_candidates & src, size_t trkIdx, bool isRoot)
+pma::Track3D* pma::TrkCandidateColl::getTreeCopy(pma::TrkCandidateColl & dst, size_t trkIdx, bool isRoot)
 {
-	pma::Track3D* trk = src[trkIdx].Track();
+	pma::Track3D* trk = fCandidates[trkIdx].Track();
 	pma::Node3D* vtx = trk->Nodes().front();
 	pma::Segment3D* segThis = 0;
 	pma::Segment3D* seg = 0;
 
-	int key = src[trkIdx].Key();
-	int tid = src[trkIdx].TreeId();
+	int key = fCandidates[trkIdx].Key();
+	int tid = fCandidates[trkIdx].TreeId();
 
 	pma::Track3D* trkCopy = new pma::Track3D(*trk);
 	pma::Node3D* vtxCopy = trkCopy->Nodes().front();
@@ -210,7 +210,7 @@ pma::Track3D* pma::getTreeCopy(pma::trk_candidates & dst, const pma::trk_candida
 	trkCopy->SetPrecedingTrack(0);
 	trkCopy->SetSubsequentTrack(0);
 
-	dst.emplace_back(pma::TrkCandidate(trkCopy, key, tid));
+	dst.tracks().emplace_back(trkCopy, key, tid);
 
 	if (!isRoot)
 	{
@@ -231,11 +231,11 @@ pma::Track3D* pma::getTreeCopy(pma::trk_candidates & dst, const pma::trk_candida
 			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
 			if (seg != segThis)
 			{
-				int idx = pma::getCandidateIndex(src, seg->Parent());
+				int idx = getCandidateIndex(seg->Parent());
 
 				if (idx >= 0)
 				{
-					pma::Track3D* branchCopy = pma::getTreeCopy(dst, src, idx, false);
+					pma::Track3D* branchCopy = getTreeCopy(dst, idx, false);
 					if (!branchCopy->AttachTo(vtxCopy, true)) // no flip
 					mf::LogError("pma::getTreeCopy") << "Branch copy cannot be attached to the tree.";
 				}

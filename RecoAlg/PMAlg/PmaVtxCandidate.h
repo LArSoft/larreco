@@ -58,7 +58,7 @@ public:
 
 	double Compute(void);
 
-	bool JoinTracks(pma::trk_candidates& tracks, pma::trk_candidates& src);
+	bool JoinTracks(pma::TrkCandidateColl & tracks, pma::TrkCandidateColl & src);
 
 	const TVector3& Center(void) const { return fCenter; }
 	double Mse(void) const { return fMse; }

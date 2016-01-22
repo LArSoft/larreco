@@ -2707,7 +2707,7 @@ void pma::Track3D::MakeFastProjection(void)
 			if (pe) break;
 		}
 
-		if (pe) assignments.emplace_back(std::pair< pma::Hit3D*, pma::Element3D* >(hi, pe));
+		if (pe) assignments.emplace_back(hi, pe);
 		else mf::LogWarning("pma::Track3D") << "Hit was not assigned to any element.";
 	}
 

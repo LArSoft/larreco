@@ -72,7 +72,7 @@ typedef std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > view_hitma
 typedef std::map< unsigned int, view_hitmap > tpc_view_hitmap;
 typedef std::map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
 
-typedef std::map< size_t, pma::trk_candidates > tpc_track_map;
+typedef std::map< size_t, pma::TrkCandidateColl > tpc_track_map;
 
 class PMAlgTrackMaker : public art::EDProducer {
 public:
@@ -97,10 +97,10 @@ private:
   // the logic implemented here for sure is not exhaustive, it was
   // checked on long cosmic tracks and low energy stopping tracks
   // and seems to be a good example how to use the algorithm
-  int fromMaxCluster(const art::Event& evt, pma::trk_candidates& result);
+  int fromMaxCluster(const art::Event& evt, pma::TrkCandidateColl & result);
 
   void fromMaxCluster_tpc(
-    pma::trk_candidates& result,
+    pma::TrkCandidateColl & result,
     const std::vector< art::Ptr<recob::Cluster> >& clusters,
     size_t minBuildSize, unsigned int tpc, unsigned int cryo,
 	int pfParticleIdx = -1);
@@ -123,11 +123,11 @@ private:
 
   // build tracks from clusters associated to PFParticles (use internal pattern recognition
   // on the subset of clusters selected with PFParticle)
-  int fromPfpClusterSubset(const art::Event& evt, pma::trk_candidates& result);
+  int fromPfpClusterSubset(const art::Event& evt, pma::TrkCandidateColl & result);
   // ------------------------------------------------------
 
   // build tracks from straight from clusters associated to PFParticle (no pattern recognition)
-  int fromPfpDirect(const art::Event& evt, pma::trk_candidates& result);
+  int fromPfpDirect(const art::Event& evt, pma::TrkCandidateColl & result);
   // ------------------------------------------------------
 
 
@@ -156,7 +156,7 @@ private:
   std::map< unsigned int, std::vector<size_t> > tried_clusters;
 
   // temporary set of possible solutions of the selected cluster and clusters in complementary views
-  pma::trk_candidates fCandidates;
+  pma::TrkCandidateColl fCandidates;
 
   int maxCluster(
     const std::vector< art::Ptr<recob::Cluster> >& clusters,
@@ -168,8 +168,8 @@ private:
     float tmin, float tmax, size_t min_clu_size,
     geo::View_t view, unsigned int tpc, unsigned int cryo);
 
-  void freezeBranchingNodes(pma::trk_candidates& tracks);
-  void releaseAllNodes(pma::trk_candidates& tracks);
+  void freezeBranchingNodes(pma::TrkCandidateColl & tracks);
+  void releaseAllNodes(pma::TrkCandidateColl & tracks);
 
   bool areCoLinear(
 	pma::Track3D* trk1, pma::Track3D* trk2,
@@ -177,20 +177,20 @@ private:
 	double distThr, double distThrMin,
 	double distProjThr,
 	double cosThr);
-  bool mergeCoLinear(pma::trk_candidates& tracks);
+  bool mergeCoLinear(pma::TrkCandidateColl & tracks);
   void mergeCoLinear(tpc_track_map& tracks);
 
   bool areCoLinear(
 		double& cos3d,
 		TVector3 f0, TVector3 b0, TVector3 f1, TVector3 b1,
 		double distProjThr);
-  void matchCoLinearAnyT0(pma::trk_candidates& tracks);
+  void matchCoLinearAnyT0(pma::TrkCandidateColl & tracks);
 
   bool reassignHits(
 	const std::vector< art::Ptr<recob::Hit> >& hits,
-	pma::trk_candidates& tracks, size_t trk_idx);
-  bool reassignSingleViewEnds(pma::trk_candidates& tracks);
-  void guideEndpoints(pma::trk_candidates& tracks);
+	pma::TrkCandidateColl & tracks, size_t trk_idx);
+  bool reassignSingleViewEnds(pma::TrkCandidateColl & tracks);
+  void guideEndpoints(pma::TrkCandidateColl & tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
@@ -610,17 +610,17 @@ bool PMAlgTrackMaker::extendTrack(pma::TrkCandidate& candidate,
 }
 // ------------------------------------------------------
 
-void PMAlgTrackMaker::freezeBranchingNodes(pma::trk_candidates& tracks)
+void PMAlgTrackMaker::freezeBranchingNodes(pma::TrkCandidateColl & tracks)
 {
-	for (auto const & trk : tracks)
+	for (auto const & trk : tracks.tracks())
 		for (auto node : trk.Track()->Nodes())
 			if (node->IsBranching()) node->SetFrozen(true);
 }
 // ------------------------------------------------------
 
-void PMAlgTrackMaker::releaseAllNodes(pma::trk_candidates& tracks)
+void PMAlgTrackMaker::releaseAllNodes(pma::TrkCandidateColl & tracks)
 {
-	for (auto const & trk : tracks)
+	for (auto const & trk : tracks.tracks())
 		for (auto node : trk.Track()->Nodes())
 			node->SetFrozen(false);
 }
@@ -729,7 +729,7 @@ bool PMAlgTrackMaker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 }
 // ------------------------------------------------------
 
-bool PMAlgTrackMaker::mergeCoLinear(pma::trk_candidates& tracks)
+bool PMAlgTrackMaker::mergeCoLinear(pma::TrkCandidateColl & tracks)
 {
 	double distThr = 0.25;    // max gap as a fraction of the longer track length
 	double distThrMin = 0.5;  // lower limit of max gap threshold [cm]
@@ -739,7 +739,7 @@ bool PMAlgTrackMaker::mergeCoLinear(pma::trk_candidates& tracks)
 
 	bool foundMerge = false;
 
-	std::sort(tracks.begin(), tracks.end(), pma::bTrack3DLonger());
+	std::sort(tracks.tracks().begin(), tracks.tracks().end(), pma::bTrack3DLonger());
 
 	bool r;
 	double d, dmin, c, cmax, l, lbest;
@@ -783,7 +783,7 @@ bool PMAlgTrackMaker::mergeCoLinear(pma::trk_candidates& tracks)
 				fProjectionMatchingAlg.mergeTracks(*trk1, *trk2, true);
 				tracks[u].DeleteTrack();
 			}
-			tracks.erase(tracks.begin() + u);
+			tracks.erase_at(u);
 			foundMerge = true;
 		}
 		else t++;
@@ -809,7 +809,7 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 	for (auto & tpc_entry1 : tracks)
 	{
 		unsigned int tpc1 = tpc_entry1.first;
-		pma::trk_candidates& tracks1 = tpc_entry1.second;
+		pma::TrkCandidateColl & tracks1 = tpc_entry1.second;
 
 		size_t t = 0;
 		while (t < tracks1.size())
@@ -830,7 +830,7 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 					unsigned int tpc2 = tpc_entry2.first;
 					if (tpc2 == tpc1) continue;
 
-					pma::trk_candidates& tracks2 = tpc_entry2.second;
+					pma::TrkCandidateColl & tracks2 = tpc_entry2.second;
 
 					for (size_t u = 0; u < tracks2.size(); u++)
 					{
@@ -871,7 +871,7 @@ void PMAlgTrackMaker::mergeCoLinear(tpc_track_map& tracks)
 					fProjectionMatchingAlg.mergeTracks(*trk1, *best_trk2, true);
 					tracks[best_tpc][best_idx].DeleteTrack();
 				}
-				tracks[best_tpc].erase(tracks[best_tpc].begin() + best_idx);
+				tracks[best_tpc].erase_at(best_idx);
 			}
 			else t++;
 		}
@@ -906,7 +906,7 @@ bool PMAlgTrackMaker::areCoLinear(double& cos3d,
 }
 // ------------------------------------------------------
 
-void PMAlgTrackMaker::matchCoLinearAnyT0(pma::trk_candidates& tracks)
+void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 {
 	double distProjThr = fStitchTransverseShift;
 	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
@@ -1071,7 +1071,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::trk_candidates& tracks)
 
 bool PMAlgTrackMaker::reassignHits(
 	const std::vector< art::Ptr<recob::Hit> >& hits,
-	pma::trk_candidates& tracks, size_t trk_idx)
+	pma::TrkCandidateColl & tracks, size_t trk_idx)
 {
 	pma::Track3D* trk1 = tracks[trk_idx].Track();
 	pma::Track3D* best_trk = 0;
@@ -1105,7 +1105,7 @@ bool PMAlgTrackMaker::reassignHits(
 	return false;
 }
 
-bool PMAlgTrackMaker::reassignSingleViewEnds(pma::trk_candidates& tracks)
+bool PMAlgTrackMaker::reassignSingleViewEnds(pma::TrkCandidateColl & tracks)
 {
 	bool result = false;
 	for (size_t t = 0; t < tracks.size(); t++)
@@ -1179,9 +1179,9 @@ bool PMAlgTrackMaker::reassignSingleViewEnds(pma::trk_candidates& tracks)
 }
 // ------------------------------------------------------
 
-void PMAlgTrackMaker::guideEndpoints(pma::trk_candidates& tracks)
+void PMAlgTrackMaker::guideEndpoints(pma::TrkCandidateColl& tracks)
 {
-	for (auto const & t : tracks)
+	for (auto const & t : tracks.tracks())
 	{
 		auto & trk = *(t.Track());
 		fProjectionMatchingAlg.guideEndpoints(trk, fHitMap[trk.FrontCryo()][trk.FrontTPC()]);
@@ -1222,7 +1222,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 		{
 			auto v = fbp.at(i);
 
-			fCluHits.emplace_back(std::vector< art::Ptr<recob::Hit> >());
+			fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
 
 			for (auto const & h : v)
 			{
@@ -1289,7 +1289,7 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 		art::FindManyP< recob::Cluster > fpf(pfparticleHandle, evt, fCluModuleLabel);
 		for (size_t i = 0; i < cluListHandle->size(); ++i)
 		{
-			fCluHits.emplace_back(std::vector< art::Ptr<recob::Hit> >());
+			fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
 		}
 		for (size_t i = 0; i < pfparticleHandle->size(); ++i)
 		{
@@ -1322,7 +1322,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 {
 	reset(evt); // set default values, clear containers at the beginning of each event
 
-	pma::trk_candidates result;
+	pma::TrkCandidateColl result;
 
 	std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
 	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
@@ -1390,10 +1390,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			// note: these are assns to existing PFParticles, that are used for CluMatchingAlg = 2 or 3.
             std::map< size_t, std::vector< art::Ptr<recob::Track> > > pfPartToTrackVecMap;
 
-			if (fFlipToBeam) pma::flipTreesToCoordinate(result, 2);        // flip the tracks / trees to the beam direction (Z)
-			else if (fFlipDownward) pma::flipTreesToCoordinate(result, 1); // flip the tracks / trees to point downward (-Y)
+			if (fFlipToBeam) result.flipTreesToCoordinate(2);        // flip the tracks / trees to the beam direction (Z)
+			else if (fFlipDownward) result.flipTreesToCoordinate(1); // flip the tracks / trees to point downward (-Y)
 
-			if (fAutoFlip_dQdx) pma::flipTreesByDQdx(result); // flip the tracks / trees to get best dQ/dx sequences
+			if (fAutoFlip_dQdx) result.flipTreesByDQdx(); // flip the tracks / trees to get best dQ/dx sequences
 
 			tracks->reserve(result.size());
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
@@ -1411,7 +1411,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(geo::kV);
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(geo::kZ);
 
-				tracks->emplace_back(convertFrom(*trk));
+				tracks->push_back(convertFrom(*trk));
 
 				double xShift = trk->GetXShift();
 				if (xShift > 0.0)
@@ -1526,9 +1526,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			if (fMakePFPs)
 			{
 				// first particle, to be replaced with nu reco when possible
-				pfps->emplace_back(recob::PFParticle(0, 0, 0, std::vector< size_t >()));
+				pfps->emplace_back(0, 0, 0, std::vector< size_t >());
 
-				pma::setParentDaughterConnections(result);
+				result.setParentDaughterConnections();
 				for (size_t t = 0; t < result.size(); ++t)
 				{
 					size_t parentIdx = 0;
@@ -1538,7 +1538,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					for (size_t idx : result[t].Daughters()) daughterIdxs.push_back(idx + 1);
 
 					size_t pfpidx = pfps->size();
-					pfps->emplace_back(recob::PFParticle(0, pfpidx, parentIdx, daughterIdxs));
+					pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
 
 					art::Ptr<recob::PFParticle> pfpptr(pfpid, pfpidx, evt.productGetter(pfpid));
 					art::Ptr<recob::Track> tptr(tid, t, trkGetter);
@@ -1574,7 +1574,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			}
 
 			// data prods done, delete all pma::Track3D's
-			for (auto t : result) t.DeleteTrack();
+			for (auto t : result.tracks()) t.DeleteTrack();
 		}
 	}
 	else mf::LogError("PMAlgTrackMaker") << "Hits not found in the event.";
@@ -1601,7 +1601,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 // ------------------------------------------------------
 // ------------------------------------------------------
 
-int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, pma::trk_candidates& result)
+int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, pma::TrkCandidateColl & result)
 {
 	art::Handle< std::vector<recob::Cluster> > cluListHandle;
 	if (evt.getByLabel(fCluModuleLabel, cluListHandle))
@@ -1663,7 +1663,7 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, pma::trk_candidates& 
 		}
 
 		for (auto const & tpc_entry : tracks) // put tracks in the single collection
-			for (auto & trk : tpc_entry.second)
+			for (auto & trk : tpc_entry.second.tracks())
 				if (trk.Track()->HasTwoViews() && (trk.Track()->Nodes().size() > 1))
 		{
 			fProjectionMatchingAlg.setTrackTag(*(trk.Track())); // tag EM-like tracks
@@ -1730,7 +1730,7 @@ int PMAlgTrackMaker::matchCluster(const pma::TrkCandidate& trk,
 
 
 void PMAlgTrackMaker::fromMaxCluster_tpc(
-	pma::trk_candidates& result,
+	pma::TrkCandidateColl & result,
 	const std::vector< art::Ptr<recob::Cluster> >& clusters,
 	size_t minBuildSize, unsigned int tpc, unsigned int cryo,
 	int pfParticleIdx)
@@ -1887,7 +1887,7 @@ void PMAlgTrackMaker::fromMaxCluster_tpc(
 						mf::LogVerbatim("PMAlgTrackMaker") << "track REJECTED, MSE = " << m0 << "; v = " << v0;
 						candidate.SetGood(false); // save also bad matches to avoid trying again the same pair of clusters
 					}
-					fCandidates.emplace_back(candidate);
+					fCandidates.push_back(candidate);
 				}
 				else
 				{
@@ -1993,7 +1993,7 @@ int PMAlgTrackMaker::maxCluster(size_t first_idx,
 		    (clusters[i]->View() != view)) continue;
 
 		bool pair_checked = false;
-		for (auto const & c : fCandidates)
+		for (auto const & c : fCandidates.tracks())
 			if (has(c.Clusters(), first_idx) && has(c.Clusters(), i))
 			{
 				pair_checked = true; break;
@@ -2024,7 +2024,7 @@ int PMAlgTrackMaker::maxCluster(size_t first_idx,
 // ------------------------------------------------------
 // ------------------------------------------------------
 
-int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candidates& result)
+int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::TrkCandidateColl & result)
 {
 	bool skipPdg = true;
 	if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
@@ -2112,7 +2112,7 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candid
 		}
 
 		for (auto const & tpc_entry : tracks)
-			for (auto & trk : tpc_entry.second)
+			for (auto & trk : tpc_entry.second.tracks())
 				if (trk.Track()->HasTwoViews() && (trk.Track()->Nodes().size() > 1))
 		{
 			fProjectionMatchingAlg.setTrackTag(*(trk.Track()));
@@ -2142,7 +2142,7 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candid
 // ------------------------------------------------------
 // ------------------------------------------------------
 
-int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::trk_candidates& result)
+int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::TrkCandidateColl & result)
 {
 	bool skipPdg = true;
 	if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
