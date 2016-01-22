@@ -163,16 +163,19 @@ namespace cluster {
     std::vector<float> fMergeChgCut;  ///< max charge ratio for matching
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
     std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
-    short fStepCrawlDir;            ///  StepCrawl code crawl direction (0 = turn off)
-    float fStepCrawlChgDiffCut;      ///  Max charge difference (Q - Q_ave) / Q_rms
-    float fStepCrawlKinkAngCut;     ///  kink angle cut
-    float fStepCrawlMaxWireSkip;    ///< max number of wires to skip w/o a signal on them
-    short fStepCrawlMaxDeltaJump;   /// Ignore hits have a Delta larger than this value
+    short fSCMode;            ///  StepCrawl mode (0 = turn off)
+    short fSCDir;             /// US->DS (1), DS->US (-1)
+    float fSCChgDiffCut;      ///  Max charge difference (Q - Q_ave) / Q_rms
+    float fSCKinkAngCut;     ///  kink angle cut
+    float fSCMaxWireSkip;    ///< max number of wires to skip w/o a signal on them
+    float fSCMaxDeltaJump;   /// Ignore hits have a Delta larger than this value
+    float fSCAveHitResCut;
+    float fSCFitChiCut;
 		bool fFindHammerClusters;					 ///< look for hammer type clusters
     bool fFindVLAClusters;					 ///< look for Very Large Angle clusters
     bool fRefineVertexClusters;
     bool fTagClusters;              ///< tag clusters as shower-like or track-like
-    bool fStepCrawlStudyMode;       ///< study cuts
+    bool fSCStudyMode;       ///< study cuts
 		
 		float fMinAmp;									///< expected minimum signal
 
@@ -330,48 +333,92 @@ namespace cluster {
       short CrawlDir;                 /// -1 = going US (CC proper order), 1 = going DS
       unsigned short ClusterIndex;
       unsigned short ProcCode;       ///< USHRT_MAX = abandoned trajectory
-      unsigned short StopCode;
       int TruPDG;
       int TruKE;              ///< MeV
       bool IsPrimary;
       bool IsSecondary;
       std::array<short, 2> Vtx;
       std::vector<TrajPoint> Pts;
+      unsigned short NHits;
       Trajectory() {
-        CrawlDir = 0; ClusterIndex = USHRT_MAX; ProcCode = 900; StopCode = 0; Pts.clear();
-        Vtx[0] = -1; Vtx[1] = -1; TruPDG = 0; TruKE = 0; IsPrimary = false; IsSecondary = false;
+        CrawlDir = 0; ClusterIndex = USHRT_MAX; ProcCode = 900; Pts.clear();
+        Vtx[0] = -1; Vtx[1] = -1; TruPDG = 0; TruKE = 0; IsPrimary = false; IsSecondary = false; NHits = 0;
       }
     };
     Trajectory work;      ///< trajectory under construction
-    std::vector<Trajectory> allTraj; ///< vector of all trajectories
+    std::vector<Trajectory> allTraj; ///< vector of all trajectories for one trial
+    std::vector<short> inTraj;
+    std::vector<std::vector<Trajectory>> trial; ///< vector of all trajectories for all trials
+    std::vector<std::vector<short>> inTrialTraj;
     
-    // Crawls starting at the last point traj[].Pos, moving in direction traj[].Dir
+    struct TjPairHitShare {
+      // Trajectories in two different trials that share hits
+      unsigned short iTrial;
+      unsigned short iTj;
+      unsigned short jTrial;
+      unsigned short jTj;
+      unsigned short nSameHits;
+    };
+    std::vector<TjPairHitShare> tjphs;
+    
+    
+    // runs the stepcrawl algorithm on one plane specified by the calling routine
+    // (which should also have called GetHitRange)
+    void RunStepCrawl();
+    // Find all trajectories in the plane using the pre-defined step direction, cuts, etc.
+    // Fills the allTraj vector
+    void ReconstructAllTraj();
+    // Main stepping/crawling routine
     void StepCrawl(bool& success);
+    // Calculate the number of missed steps that should be expected for the given
+    // trajectory point direction
     unsigned short SetMissedStepCut(TrajPoint const& tp);
+    // Start a trajectory going from fromHit to (toWire, toTick)
     void StartTraj(unsigned int fromHit, float toWire, float toTick);
+    // Returns the charge weighted wire, time position of all hits in the multiplet
+    // of which hit is a member
     void HitMultipletPosition(unsigned int hit, float& hitTick);
+    // Add hits to the trajectory point
     void AddTrajHits(TrajPoint& tp, bool& SignalPresent);
-    void FlagAllWorkHits();
-    void ReleaseAllWorkHits();
-    void ReleaseTrajHits(unsigned short ipt);
+    // Set inClus = -3 for all hits in the work trajectory
+    void FlagWorkHits(short flag);
+    // Checks to see if any hit has inClus = -3 when it shouldn't
+    bool CheckAllHitsFlag();
+    void FindHit(std::string someText, unsigned int iht); // temp routine
+    void FlagSet(std::string someText, unsigned int iht); // temp routine
+    // analyze the sat vector to construct a vector of trajectories that is
+    // the best
+    void AnalyzeTrials();
+    void CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits);
+    void AdjudicateTrials(bool& reAnalyze);
+    void MergeTrajPair(unsigned short ipr, bool& reAnalyze);
+    // Split the allTraj trajectory itj at position pos into two trajectories
+    // with an optional vertex assignment
     bool SplitAllTraj(unsigned short itj, unsigned short pos, unsigned short ivx);
-    void StoreTraj();
-    void ReverseTraj();
-    void UpdateTraj(bool& success);
-    void UpdateTrajChgDiff();
-    void UpdateTrajDelta();
+    // Make clusters from all trajectories in allTraj
+    void MakeAllTrajClusters();
+    // Push the work trajectory into allTraj
+    void StoreWork();
+    // Reverse the work trajectory
+    void ReverseTraj(Trajectory& tj);
+    void UpdateWork(bool& success);
+    void UpdateWorkChgDiff();
+    void UpdateWorkDelta();
     void FitTraj();
     float TrajLength(Trajectory& tj);
     bool GottaKink();
     void FitTrajMid(unsigned short fromIndex, unsigned short toIndex, TrajPoint& tp);
-    void StepCrawlClusterCheck();
+    void CheckTrajEnd();
+    void CheckTrajBegin();
     void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
     float PointTrajDOCA(float wire, float time, TrajPoint const& tp);
+    void TrajSeparation(Trajectory& iTj, Trajectory& jTj, std::vector<float>& tSep);
     void FindTrajVertices();
     unsigned short VtxClusterEnd(unsigned short ivx, unsigned short icl);
+    void PutTrajHitsInVector(Trajectory const& tj, std::vector<unsigned int>& hitVec);
     bool TrajIntersection(TrajPoint& tp1, TrajPoint tp2, float& x, float& y);
     float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
-    void PrintWork(unsigned short tPoint);
+    void PrintTrajectory(Trajectory& tj ,unsigned short tPoint);
     void PrintAllTraj(unsigned short itj, unsigned short ipt);
     void PrintHeader();
     void PrintTrajPoint(unsigned short ipt, short dir, TrajPoint tp);
@@ -395,8 +442,6 @@ namespace cluster {
 
     // Loops over wires looking for seed clusters
     void ClusterLoop();
-    // testing
-    void ClusterLoop2();
     // Returns true if the hits on a cluster have a consistent width
     bool ClusterHitsOK(short nHitChk);
     // Finds a hit on wire kwire, adds it to the cluster and re-fits it
