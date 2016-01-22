@@ -141,13 +141,19 @@ private:
   bool sortHits(const art::Event& evt);
   bool sortHitsPfp(const art::Event& evt);
 
-  std::vector< size_t > used_clusters, initial_clusters;
-  std::map< unsigned int, std::vector<size_t> > tried_clusters;
   bool has(const std::vector<size_t>& v, size_t idx) const
   {
   	for (auto c : v) if (c == idx) return true;
   	return false;
   }
+  bool has(const std::vector<int>& v, int i) const
+  {
+  	for (auto c : v) if (c == i) return true;
+  	return false;
+  }
+
+  std::vector< size_t > used_clusters, initial_clusters;
+  std::map< unsigned int, std::vector<size_t> > tried_clusters;
 
   // temporary set of possible solutions of the selected cluster and clusters in complementary views
   pma::trk_candidates fCandidates;
@@ -217,6 +223,9 @@ private:
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
   std::string fCluModuleLabel; // label for input cluster collection
   int fCluMatchingAlg;         // which algorithm for cluster association
+
+  std::vector<int> fTrackingOnlyPdg; // make tracks only for this pdg's when using input from PFParticles
+  std::vector<int> fTrackingSkipPdg; // skip tracks with this pdg's when using input from PFParticles
 
   bool fMakePFPs;              // output track-vertex net as a tree of PFParticles
 
@@ -302,6 +311,9 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
 	fCluModuleLabel = pset.get< std::string >("ClusterModuleLabel");
 	fCluMatchingAlg = pset.get< int >("CluMatchingAlg");
+
+	fTrackingOnlyPdg = pset.get< std::vector<int> >("TrackingOnlyPdg");
+	fTrackingSkipPdg = pset.get< std::vector<int> >("TrackingSkipPdg");
 
 	fMakePFPs = pset.get< bool >("MakePFPs");
 
@@ -2020,6 +2032,14 @@ int PMAlgTrackMaker::maxCluster(size_t first_idx,
 
 int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candidates& result)
 {
+	bool skipPdg = true;
+	if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
+		skipPdg = false;
+
+	bool selectPdg = true;
+	if (!fTrackingOnlyPdg.empty() && (fTrackingOnlyPdg.front() == 0))
+		selectPdg = false;
+
 	// Code from Tracy merged with recent additions to PMA. Still to be changed in order to
 	// skip not reasonalbe parts in this configuration.
     if (!fPfpClusters.empty() && !fCluHits.empty())
@@ -2031,6 +2051,9 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candid
 		{
 			int pfPartIdx = pfpCluEntry.first;
 			int pdg = fPfpPdgCodes[pfPartIdx];
+
+			if (skipPdg && has(fTrackingSkipPdg, pdg)) continue;
+			if (selectPdg && !has(fTrackingOnlyPdg, pdg)) continue;
 
 			mf::LogVerbatim("PMAlgTrackMaker") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
 
@@ -2127,12 +2150,24 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::trk_candid
 
 int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::trk_candidates& result)
 {
+	bool skipPdg = true;
+	if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
+		skipPdg = false;
+
+	bool selectPdg = true;
+	if (!fTrackingOnlyPdg.empty() && (fTrackingOnlyPdg.front() == 0))
+		selectPdg = false;
+
     if (!fPfpClusters.empty() && !fCluHits.empty())
     {
 		for (const auto & pfpCluEntry : fPfpClusters)
 		{
 			int pfPartIdx = pfpCluEntry.first;
 			int pdg = fPfpPdgCodes[pfPartIdx];
+
+			if (skipPdg && has(fTrackingSkipPdg, pdg)) continue;
+			if (selectPdg && !has(fTrackingOnlyPdg, pdg)) continue;
+
 			mf::LogVerbatim("PMAlgTrackMaker") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
 
 			std::vector< art::Ptr<recob::Hit> > allHits;
