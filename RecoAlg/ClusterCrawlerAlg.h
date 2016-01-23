@@ -163,19 +163,9 @@ namespace cluster {
     std::vector<float> fMergeChgCut;  ///< max charge ratio for matching
     std::vector<bool> fFindVertices;    ///< run vertexing code after clustering?
     std::vector<bool> fLACrawl;    ///< Crawl Large Angle clusters on pass?
-    short fSCMode;            ///  StepCrawl mode (0 = turn off)
-    short fSCDir;             /// US->DS (1), DS->US (-1)
-    float fSCChgDiffCut;      ///  Max charge difference (Q - Q_ave) / Q_rms
-    float fSCKinkAngCut;     ///  kink angle cut
-    float fSCMaxWireSkip;    ///< max number of wires to skip w/o a signal on them
-    float fSCMaxDeltaJump;   /// Ignore hits have a Delta larger than this value
-    float fSCAveHitResCut;
-    float fSCFitChiCut;
 		bool fFindHammerClusters;					 ///< look for hammer type clusters
     bool fFindVLAClusters;					 ///< look for Very Large Angle clusters
     bool fRefineVertexClusters;
-    bool fTagClusters;              ///< tag clusters as shower-like or track-like
-    bool fSCStudyMode;       ///< study cuts
 		
 		float fMinAmp;									///< expected minimum signal
 
@@ -212,7 +202,6 @@ namespace cluster {
     float clChisq;     ///< chisq of the current fit
     float fAveChg;  ///< average charge at leading edge of cluster
     float fChgRMS;  ///< average charge RMS at leading edge of cluster
-    float fAveHitRMS;  ///< used by StepCrawl
     float fChgSlp;  ///< slope of the  charge vs wire
     float fAveHitWidth; ///< average width (EndTick - StartTick) of hits
     
@@ -301,7 +290,7 @@ namespace cluster {
 															///< to define a shower-like cluster
 
     std::string fhitsModuleLabel;
-    
+/*
     // struct for step crawling
     struct TrajPoint {
       std::array<float, 2> HitPos; // Charge weighted position of hits in wire equivalent units
@@ -425,7 +414,7 @@ namespace cluster {
     // Tag as shower-like or track-like
     void TagClusters();
     void FillTrajTruth();
-
+*/
     // hit multiplets that have been saved before merging.
     std::vector<recob::Hit> unMergedHits;
     // RestoreUnMergedHits should be called before abandoning fcl2hits to
