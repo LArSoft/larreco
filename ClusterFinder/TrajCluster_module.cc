@@ -25,7 +25,7 @@
 
 namespace cluster {
   /**
-   * @brief Produces clusters by ClusterCrawler algorithm
+   * @brief Produces clusters by the TrajCluster algorithm
    * 
    * Configuration parameters
    * -------------------------
@@ -48,7 +48,7 @@ namespace cluster {
     private:
       std::unique_ptr<TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
       
-      art::InputTag fHitFinderLabel; ///< label of module producing input hits
+      art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
     
   }; // class TrajCluster
   
@@ -102,7 +102,7 @@ namespace cluster {
   //----------------------------------------------------------------------------
   void TrajCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
-    fHitFinderLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
+    fHitFinderModuleLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
     
     // this trick avoids double configuration on construction
     if (fTCAlg)
@@ -118,14 +118,20 @@ namespace cluster {
   {
     // fetch the wires needed by CCHitFinder
 
+    //Get the hits for this event:
+    art::Handle< std::vector<recob::Hit> > hitVecHandle;
+    evt.getByLabel(fHitFinderModuleLabel, hitVecHandle);
+
+    
     std::vector<art::Ptr<recob::Hit> > allhits;
-
-    // make this accessible to ClusterCrawler_module
-    art::ValidHandle< std::vector<recob::Hit>> hitVecHandle
-     = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderLabel);
-
+    allhits.resize(hitVecHandle->size());
+    
+    //wrap the hits in art::Ptrs to pass to the Alg
+    for (unsigned int iHit = 0; iHit < allhits.size(); iHit++)
+      allhits[iHit] = art::Ptr< recob::Hit>(hitVecHandle, iHit);
+    
     // look for clusters in all planes
-//   fTCAlg->RunTrajClusterAlg(*hitVecHandle);
+    fTCAlg->RunTrajClusterAlg(allhits);
     
 //    std::unique_ptr<std::vector<recob::Hit>> FinalHits
 //      (new std::vector<recob::Hit>(std::move(fTCAlg->YieldHits())));
@@ -133,7 +139,7 @@ namespace cluster {
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
-    recob::HitRefinerAssociator shcol(*this, evt, fHitFinderLabel);
+    recob::HitRefinerAssociator shcol(*this, evt, fHitFinderModuleLabel);
     std::vector<recob::Cluster> sccol;
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;
@@ -143,8 +149,7 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
         cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
 
-    std::vector<TrajClusterAlg::ClusterStore> const& Clusters
-      = fTCAlg->GetClusters();
+//    std::vector<TrajClusterAlg::ClusterStore> const& Clusters = fTCAlg->GetClusters();
     
 //    std::vector<short> const& inClus = fTCAlg->GetinClus();
 
@@ -171,6 +176,8 @@ namespace cluster {
         } // ii
       } // icl
 */
+    
+/*
     // make EndPoints (aka 2D vertices)
     std::vector<TrajClusterAlg::VtxStore> const& EndPts = fTCAlg->GetEndPoints();
     art::ServiceHandle<geo::Geometry> geom;
@@ -223,18 +230,20 @@ namespace cluster {
       unsigned short plane = planeID.Plane;
       nclhits = clstr.tclhits.size();
       std::vector<unsigned int> clsHitIndices;
+
       // correct the hit indices to refer to the valid hits that were just added
       for(unsigned int itt = 0; itt < nclhits; ++itt) {
-//        unsigned int iht = clstr.tclhits[itt];
-//        recob::Hit const& hit = FinalHits->at(iht);
+        unsigned int iht = clstr.tclhits[itt];
+        recob::Hit const& hit = FinalHits->at(iht);
         sumChg += hit.Integral();
         sumADC += hit.SummedADC();
       } // itt
+
       // get the wire, plane from a hit
       unsigned int iht = clstr.tclhits[0];
       
 //      geo::View_t view = FinalHits->at(iht).View();
-      geo::View_t view = 0;
+      geo::View_t view = kU;
       sccol.emplace_back(
           (float)clstr.BeginWir,  // Start wire
           0,                      // sigma start wire
@@ -312,7 +321,7 @@ namespace cluster {
         } // 3D vertices
       } // clstr.BeginVtx >= 0
     } // icl
-    
+*/
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
 
@@ -325,8 +334,8 @@ namespace cluster {
     shcol.put_into(evt);
     evt.put(std::move(ccol));
     evt.put(std::move(hc_assn));
-    evt.put(std::move(v2col));
-    evt.put(std::move(v3col));
+//    evt.put(std::move(v2col));
+//    evt.put(std::move(v3col));
     evt.put(std::move(cv_assn));
 
   } // TrajCluster::produce()

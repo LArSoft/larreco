@@ -2,6 +2,16 @@
 #include "cluster3dalgorithms.fcl"
 BEGIN_PROLOG
 
+standard_trajclusteralg:
+{
+  Mode: 1
+  ChgDiffCut: 10
+  KinkAngCut: 0.4
+  MaxDeltaJump: 20
+  StudyMode: false
+  TagClusters: false
+}
+
 standard_clustercrawleralg:
 {
   NumPass:              3  # number of passes through the hit list. 0 = no cluster reco
