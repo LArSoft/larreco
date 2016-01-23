@@ -1,4 +1,4 @@
-#include "services_microboone.fcl"
+#include "services_dune.fcl"
 
 process_name: celltree
 
@@ -8,9 +8,9 @@ services:
   Timing:       {}
   RandomNumberGenerator: {}
   message:      @local::standard_info
-  user:          @local::microboone_services
+  user:          @local::dunefd_services
 }
-
+services.user.Geometry: @local::dune10kt_workspace_geo
 
 source:
 {
@@ -38,10 +38,10 @@ physics:
       saveJSON        : true
       RawDigitLabel   : "daq"
       CalibLabel      : "caldata"
-      SpacePointLabels: ["trackkalmanhit","wirecell"]
+      SpacePointLabels: ["pmtrackdc"]
       mcOption        : "all"
       saveMCTrackPoints : true
-      outFile           : "celltree.root"
+      outFile         : "celltree.root"
     }
   }
   analysis: [ WireCell ]

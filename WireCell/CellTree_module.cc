@@ -54,6 +54,7 @@
 #include "TLorentzVector.h"
 #include "TUnixSystem.h"
 #include "TDatabasePDG.h"
+#include "TObjArray.h"
 
 // C++ Includes
 #include <map>
@@ -62,13 +63,7 @@
 #include <iostream>
 #include <cstdio>
 
-#define MAX_PLANE 3
-#define MAX_CHANNEL 8254
 #define MAX_TRACKS 30000
-#define MAX_HITS 30000
-#define MAX_TRACKER 10
-#define MAX_TRACKER_TRACKS 300
-#define MAX_TRACKER_HITS 30000
 
 using namespace std;
 
@@ -117,6 +112,7 @@ private:
     std::vector<std::string> fSpacePointLabels;
     std::string fOutFileName;
     std::string mcOption;
+    bool fSaveMCTrackPoints;
     bool fSaveSimChannel;
     bool fSaveRaw;
     bool fSaveCalib;
@@ -172,6 +168,7 @@ private:
     float mc_startMomentum[MAX_TRACKS][4];  // start momentum of this track; size == mc_Ntrack
     float mc_endMomentum[MAX_TRACKS][4];  // end momentum of this track; size == mc_Ntrack
     std::vector<std::vector<int> > mc_daughters;  // daughters id of this track; vector
+    TObjArray *fMC_trackPosition;
 
     int mc_isnu; // is neutrino interaction
     int mc_nGeniePrimaries; // number of Genie primaries
@@ -225,6 +222,7 @@ void CellTree::reconfigure(fhicl::ParameterSet const& p){
     fSpacePointLabels= p.get<std::vector<std::string> >("SpacePointLabels");
     fOutFileName     = p.get<std::string>("outFile");
     mcOption        = p.get<std::string>("mcOption");
+    fSaveMCTrackPoints = p.get<bool>("saveMCTrackPoints");
     fSaveRaw         = p.get<bool>("saveRaw");
     fSaveCalib       = p.get<bool>("saveCalib");
     fSaveMC          = p.get<bool>("saveMC");
@@ -239,7 +237,8 @@ void CellTree::initOutput()
 
     fOutFile = new TFile(fOutFileName.c_str(), "recreate");
 
-    TNamed version("version", "3.0");
+    // 3.1: add mc_trackPosition
+    TNamed version("version", "3.1");
     version.Write();
 
     // init Event TTree
@@ -282,6 +281,9 @@ void CellTree::initOutput()
     fEventTree->Branch("mc_endXYZT", &mc_endXYZT, "mc_endXYZT[mc_Ntrack][4]/F");  // start position of this track; size == mc_Ntrack
     fEventTree->Branch("mc_startMomentum", &mc_startMomentum, "mc_startMomentum[mc_Ntrack][4]/F");  // start momentum of this track; size == mc_Ntrack
     fEventTree->Branch("mc_endMomentum", &mc_endMomentum, "mc_endMomentum[mc_Ntrack][4]/F");  // start momentum of this track; size == mc_Ntrack
+    fMC_trackPosition = new TObjArray();
+    fMC_trackPosition->SetOwner(kTRUE);
+    fEventTree->Branch("mc_trackPosition", &fMC_trackPosition);
 
     fEventTree->Branch("mc_isnu", &mc_isnu);
     fEventTree->Branch("mc_nGeniePrimaries", &mc_nGeniePrimaries);
@@ -417,6 +419,7 @@ void CellTree::reset()
     }
     mc_daughters.clear();
     savedMCTrackIdMap.clear();
+    fMC_trackPosition->Clear();
 
     mc_isnu = 0;
     mc_nGeniePrimaries = -1;
@@ -604,6 +607,16 @@ void CellTree::processMC( const art::Event& event )
         positionEnd.GetXYZT(mc_endXYZT[i]);
         momentumStart.GetXYZT(mc_startMomentum[i]);
         momentumEnd.GetXYZT(mc_endMomentum[i]);
+
+        if (fSaveMCTrackPoints) {
+            TClonesArray *Lposition = new TClonesArray("TLorentzVector", numberTrajectoryPoints);
+            // Read the position and momentum along this particle track
+            for(unsigned int j=0; j<numberTrajectoryPoints; j++) {
+                new ((*Lposition)[j]) TLorentzVector(particle->Position(j));
+            }
+            fMC_trackPosition->Add(Lposition);
+        }
+
         i++;
         if (i==MAX_TRACKS) {
             cout << "WARNING:: # tracks exceeded MAX_TRACKS " << MAX_TRACKS << endl;
@@ -695,6 +708,7 @@ void CellTree::processSpacePoint( const art::Event& event, TString option, ostre
     TString geomName(fGeometry->DetectorName().c_str());
     if (geomName.Contains("35t")) { geomName = "dune35t"; }
     else if (geomName.Contains("protodune")) { geomName = "protodune"; }
+    else if (geomName.Contains("workspace")) { geomName = "dune10kt_workspace"; }
     else { geomName = "uboone"; } // use uboone as default
     out << '"' << "geom" << '"' << ":" << '"' << geomName << '"' << "," << endl;
 

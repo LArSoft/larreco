@@ -36,6 +36,7 @@
 #include "RecoBase/SpacePoint.h"
 #include "RecoBase/Vertex.h"
 #include "RecoBase/Shower.h"
+#include "RecoBase/PFParticle.h"
 #include "RecoAlg/EMShowerAlg.h"
 
 // ROOT includes
@@ -62,12 +63,14 @@ public:
 
 private:
 
-  std::string fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel;
-
+  std::string fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel;
   EMShowerAlg fEMShowerAlg;
 
   art::ServiceHandle<geo::Geometry> fGeom;
   art::ServiceHandle<util::DetectorProperties> fDetProp;
+
+  int fShower;
+  int fPlane;
 
 };
 
@@ -81,9 +84,12 @@ shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(pset.
 }
 
 void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
-  fHitsModuleLabel    = p.get<std::string>("HitsModuleLabel");
-  fClusterModuleLabel = p.get<std::string>("ClusterModuleLabel");
-  fTrackModuleLabel   = p.get<std::string>("TrackModuleLabel");
+  fHitsModuleLabel       = p.get<std::string>("HitsModuleLabel");
+  fClusterModuleLabel    = p.get<std::string>("ClusterModuleLabel");
+  fTrackModuleLabel      = p.get<std::string>("TrackModuleLabel");
+  fPFParticleModuleLabel = p.get<std::string>("PFParticleModuleLabel","");
+  fShower = p.get<int>("Shower",-1);
+  fPlane = p.get<int>("Plane",-1);
 }
 
 void shower::EMShower::produce(art::Event& evt) {
@@ -115,40 +121,74 @@ void shower::EMShower::produce(art::Event& evt) {
   if (evt.getByLabel(fClusterModuleLabel,clusterHandle))
     art::fill_ptr_vector(clusters, clusterHandle);
 
+  // PFParticles
+  art::Handle<std::vector<recob::PFParticle> >pfpHandle;
+  std::vector<art::Ptr<recob::PFParticle> >pfps;
+  if (evt.getByLabel(fPFParticleModuleLabel, pfpHandle))
+    art::fill_ptr_vector(pfps, pfpHandle);
+
   // Associations
   art::FindManyP<recob::Hit> fmh(clusterHandle, evt, fClusterModuleLabel);
   art::FindManyP<recob::Track> fmt(hitHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::SpacePoint> fmsp(trackHandle, evt, fTrackModuleLabel);
-
-  // Map between tracks and clusters
-  std::map<int,std::vector<int> > clusterToTracks;
-  std::map<int,std::vector<int> > trackToClusters;
-  fEMShowerAlg.AssociateClustersAndTracks(clusters, fmh, fmt, clusterToTracks, trackToClusters);
+  art::FindManyP<recob::Cluster> fmc(hitHandle, evt, fHitsModuleLabel);
 
   // Make showers
-  std::vector<std::vector<int> > initialShowers;
-  fEMShowerAlg.MakeShowers(trackToClusters, initialShowers);
-
-  // Fix issues where one view screws things up
   std::vector<std::vector<int> > newShowers;
-  if (fGeom->MaxPlanes() > 2) {
-    std::vector<int> clustersToIgnore;
-    fEMShowerAlg.CheckShowerPlanes(initialShowers, clustersToIgnore, clusters, fmh);
-    if (clustersToIgnore.size() > 0) {
-      clusterToTracks.clear();
-      trackToClusters.clear();
-      fEMShowerAlg.AssociateClustersAndTracks(clusters, fmh, fmt, clustersToIgnore, clusterToTracks, trackToClusters);
-      fEMShowerAlg.MakeShowers(trackToClusters, newShowers);
+  std::vector<unsigned int> pfParticles;
+
+  std::map<int,std::vector<int> > clusterToTracks;
+  std::map<int,std::vector<int> > trackToClusters;
+
+  if (!pfpHandle.isValid()){
+
+    // Map between tracks and clusters
+    fEMShowerAlg.AssociateClustersAndTracks(clusters, fmh, fmt, clusterToTracks, trackToClusters);
+
+    // Fix issues where one view screws things up
+    std::vector<std::vector<int> > initialShowers;
+    fEMShowerAlg.FindShowers(trackToClusters, initialShowers);
+    if (fGeom->MaxPlanes() > 2) {
+      std::vector<int> clustersToIgnore;
+      fEMShowerAlg.CheckShowerPlanes(initialShowers, clustersToIgnore, clusters, fmh);
+      if (clustersToIgnore.size() > 0) {
+	clusterToTracks.clear();
+	trackToClusters.clear();
+	fEMShowerAlg.AssociateClustersAndTracks(clusters, fmh, fmt, clustersToIgnore, clusterToTracks, trackToClusters);
+	fEMShowerAlg.FindShowers(trackToClusters, newShowers);
+      }
+      else
+	newShowers = initialShowers;
     }
     else
       newShowers = initialShowers;
   }
-  else
-    newShowers = initialShowers;
-
+  else{
+    //use pfparticle information
+    art::FindManyP<recob::Cluster> fmcp(pfpHandle, evt, fPFParticleModuleLabel);
+    for (size_t ipfp = 0; ipfp<pfps.size(); ++ipfp){
+      art::Ptr<recob::PFParticle> pfp = pfps[ipfp];
+      if (pfp->PdgCode()==11){//shower particle
+	if (fmcp.isValid()){
+	  std::vector<int> clusters;
+	  std::vector<art::Ptr<recob::Cluster> > clus = fmcp.at(ipfp);
+	  for (size_t iclu = 0; iclu<clus.size(); ++iclu){
+	    clusters.push_back(clus[iclu].key());
+	  }
+	  if (clusters.size()){
+	    newShowers.push_back(clusters);
+	    pfParticles.push_back(ipfp);
+	  }
+	}
+      }
+    }
+  }
+  
   // Make output larsoft products
   int showerNum = 0;
   for (std::vector<std::vector<int> >::iterator newShower = newShowers.begin(); newShower != newShowers.end(); ++newShower, ++showerNum) {
+
+    if (showerNum != fShower and fShower != -1) continue;
 
     // New shower
     std::cout << std::endl << "Start shower " << showerNum << std::endl;
@@ -173,37 +213,73 @@ void shower::EMShower::produce(art::Event& evt) {
       for (std::vector<art::Ptr<recob::Hit> >::iterator showerClusterHit = showerClusterHits.begin(); showerClusterHit != showerClusterHits.end(); ++showerClusterHit)
   	showerHits.push_back(*showerClusterHit);
 
-      // Tracks
-      std::vector<int> clusterTracks = clusterToTracks.at(*showerCluster);
-      for (std::vector<int>::iterator clusterTracksIt = clusterTracks.begin(); clusterTracksIt != clusterTracks.end(); ++clusterTracksIt)
-  	if (std::find(associatedTracks.begin(), associatedTracks.end(), *clusterTracksIt) == associatedTracks.end())
-  	  associatedTracks.push_back(*clusterTracksIt);
-
+      if (!pfpHandle.isValid()){//only do this for non-pfparticle mode
+	// Tracks
+	std::vector<int> clusterTracks = clusterToTracks.at(*showerCluster);
+	for (std::vector<int>::iterator clusterTracksIt = clusterTracks.begin(); clusterTracksIt != clusterTracks.end(); ++clusterTracksIt)
+	  if (std::find(associatedTracks.begin(), associatedTracks.end(), *clusterTracksIt) == associatedTracks.end())
+	    associatedTracks.push_back(*clusterTracksIt);
+      }
     }
 
-    // Tracks and space points
-    for (std::vector<int>::iterator associatedTracksIt = associatedTracks.begin(); associatedTracksIt != associatedTracks.end(); ++associatedTracksIt) {
-      art::Ptr<recob::Track> showerTrack = tracks.at(*associatedTracksIt);
-      showerTracks.push_back(showerTrack);
-      std::vector<art::Ptr<recob::SpacePoint> > spacePoints = fmsp.at(showerTrack.key());
-      for (std::vector<art::Ptr<recob::SpacePoint> >::iterator spacePointsIt = spacePoints.begin(); spacePointsIt != spacePoints.end(); ++spacePointsIt)
-  	showerSpacePoints.push_back(*spacePointsIt);
+    if (!pfpHandle.isValid()){
+      //for non-pfparticles, get space points from tracks
+      // Tracks and space points
+      for (std::vector<int>::iterator associatedTracksIt = associatedTracks.begin(); associatedTracksIt != associatedTracks.end(); ++associatedTracksIt) {
+	art::Ptr<recob::Track> showerTrack = tracks.at(*associatedTracksIt);
+	showerTracks.push_back(showerTrack);
+	std::vector<art::Ptr<recob::SpacePoint> > spacePoints = fmsp.at(showerTrack.key());
+	for (std::vector<art::Ptr<recob::SpacePoint> >::iterator spacePointsIt = spacePoints.begin(); spacePointsIt != spacePoints.end(); ++spacePointsIt)
+	  showerSpacePoints.push_back(*spacePointsIt);
+      }
+    }
+    else{
+      //for pfparticles, get space points from hits
+      art::FindManyP<recob::SpacePoint> fmspp(showerHits, evt, fPFParticleModuleLabel);
+      for (size_t ihit = 0; ihit<showerHits.size(); ++ihit){
+	if (fmspp.isValid()){
+	  std::vector<art::Ptr<recob::SpacePoint> >spacePoints = fmspp.at(ihit);
+	  for (std::vector<art::Ptr<recob::SpacePoint> >::iterator spacePointsIt = spacePoints.begin(); spacePointsIt != spacePoints.end(); ++spacePointsIt)
+	    showerSpacePoints.push_back(*spacePointsIt);
+	}
+      }
+    }
+    
+    if (!pfpHandle.isValid()){
+      // Find the track at the start of the shower
+      std::unique_ptr<recob::Track> initialTrack;
+      std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits;
+      fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fmc, fPlane);
+      
+      // Make shower object and associations
+      recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
+      shower.set_id(showerNum);
+      showers->push_back(shower);
+      util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
+      util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
+      util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
+      util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()));
+    }
+    else{
+      art::FindManyP<recob::Vertex> fmv(pfpHandle, evt, fPFParticleModuleLabel);
+      std::vector<art::Ptr<recob::Vertex> > vertices = fmv.at(pfParticles[newShower-newShowers.begin()]);
+      if (vertices.size()){
+	int iok = 0;
+	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, vertices[0], iok);
+	//shower.set_id(showerNum);
+	if (iok==0){
+	  showers->push_back(shower);
+	  showers->back().set_id(showers->size()-1);
+	  util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()));
+	}
+      }
     }
 
-    // Find the properties of this shower
-    TVector3 direction, directionError, vertex, vertexError;
-    std::vector<double> totalEnergy, totalEnergyError, dEdx, dEdxError;
-    int bestPlane;
-    fEMShowerAlg.FindShowerProperties(showerHits, fmt, direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane);
 
-    // Make shower object and associations
-    showers->emplace_back(direction, directionError, vertex, vertexError, totalEnergy, totalEnergyError, dEdx, dEdxError, bestPlane, showerNum);
-    util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
-    util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
-    util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
-    util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()));
-
-   }
+  }
 
   // Put in event
   evt.put(std::move(showers));

@@ -32,10 +32,14 @@ standard_showercheater:
 
 standard_emshoweralg:
 {
- CalorimetryAlg:  @local::standard_calorimetryalgmc
- ShowerEnergyAlg: @local::standard_showerenergyalg
+ CalorimetryAlg:        @local::standard_calorimetryalgmc
+ ShowerEnergyAlg:       @local::standard_showerenergyalg
+ ProjectionMatchingAlg: @local::standard_projectionmatchingalg
  MinTrackLength:  3
  dEdxTrackLength: 3
+ Nfitpass:        4
+ Nfithits:        [50, 30, 20, 20]
+ Toler:           [30., 5., 2., 2.]
 }
 
 standard_emshower:

@@ -80,7 +80,7 @@ public:
   TH2F* Convolve(TH2F* image, std::vector<double> const& kernel, int const& width, int const& height, const char *new_name = 0);
   void FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick);
   int FindClusters(TH2F* image, std::vector<std::vector<int> >& allcluster);
-  int FindGlobalWire(geo::WireID const& wireID);
+  int GlobalWire(geo::WireID const& wireID);
   TH2F* GaussianBlur(TH2F* image);
   unsigned int GetMinSize() { return fMinSize; }
   double GetTimeOfBin(TH2F* image, int const& bin);

@@ -176,7 +176,7 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   // Define the size of this particular plane -- dynamically to avoid huge histograms
   int lowerTick = fDetProp->ReadOutWindowSize(), upperTick = 0, lowerWire = fGeom->MaxWires(), upperWire = 0;
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
-    int histWire = FindGlobalWire((*hitIt)->WireID());
+    int histWire = GlobalWire((*hitIt)->WireID());
     if ((*hitIt)->PeakTime() < lowerTick) lowerTick = (*hitIt)->PeakTime();
     if ((*hitIt)->PeakTime() > upperTick) upperTick = (*hitIt)->PeakTime();
     if (histWire < lowerWire) lowerWire = histWire;
@@ -202,7 +202,7 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
 
   // Look through the hits
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
-    unsigned int wire = FindGlobalWire((*hitIt)->WireID());
+    unsigned int wire = GlobalWire((*hitIt)->WireID());
     int   tick   = (int)(*hitIt)->PeakTime();
     float charge = (*hitIt)->SummedADC();
 
@@ -508,21 +508,24 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *blurred, std::vector<std::
 }
 
 
-int cluster::BlurredClusteringAlg::FindGlobalWire(geo::WireID const& wireID) {
+int cluster::BlurredClusteringAlg::GlobalWire(geo::WireID const& wireID) {
 
   /// Find the global wire position
 
   double wireCentre[3];
   fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
 
-  double globalWire;
+  double globalWire = -999;
   if (fGeom->SignalType(wireID) == geo::kInduction) {
     if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
     else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
   }
   else {
-    if (wireID.TPC % 2 == 0) globalWire = wireID.Wire + ((wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat));
-    else globalWire = wireID.Wire + ((int)(wireID.TPC/2) * fGeom->Nwires(wireID.Plane, 1, wireID.Cryostat));
+    unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+    if (wireID.TPC == 0 or wireID.TPC == 1) globalWire = wireID.Wire;
+    else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5) globalWire = nwires + wireID.Wire;
+    else if (wireID.TPC == 6 or wireID.TPC == 7) globalWire = (2*nwires) + wireID.Wire;
+    else mf::LogError("BlurredClusterAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC;
   }
 
   return globalWire;
@@ -653,7 +656,7 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<art::PtrV
 
     for (art::PtrVector<recob::Hit>::iterator hitIt = cluster.begin(); hitIt != cluster.end(); hitIt++) {
       art::Ptr<recob::Hit> hit = *hitIt;
-      unsigned int wire = FindGlobalWire(hit->WireID());
+      unsigned int wire = GlobalWire(hit->WireID());
       float tick = hit->PeakTime();
       int bin = image->GetBin((wire-fLowerHistWire)+1,(tick-fLowerHistTick)+1);
       if (cluster.size() < fMinSize)

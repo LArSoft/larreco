@@ -255,7 +255,7 @@ void ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::
   for (size_t hitIt = 0; hitIt < hits.size(); ++hitIt) {
     art::Ptr<recob::Hit> hit = hits.at(hitIt);
     TrackID trackID = FindTrackID(hit);
-    clusterMap[hit->WireID().TPC][hit->WireID().Plane]->AddHitPreClustering(trackID);
+    clusterMap[hit->WireID().TPC%2][hit->WireID().Plane]->AddHitPreClustering(trackID);
   }
 
   // Save true tracks
@@ -270,7 +270,7 @@ void ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::
   for (size_t clusIt = 0; clusIt < clusters.size(); ++clusIt) {
 
     // Get cluster information
-    unsigned int tpc   = clusters.at(clusIt)->Plane().TPC;
+    unsigned int tpc   = clusters.at(clusIt)->Plane().TPC%2;
     unsigned int plane = clusters.at(clusIt)->Plane().Plane;
     ClusterID    id    = (ClusterID)clusters.at(clusIt)->ID();
 
@@ -279,6 +279,8 @@ void ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::
 
     // Get the hits from the cluster
     std::vector<art::Ptr<recob::Hit> > clusterHits = fmh.at(clusIt);
+
+    if (clusterHits.size() < 10) continue;
 
     // Find which track this cluster belongs to
     TrackID trueTrackID = FindTrueTrack(clusterHits);
