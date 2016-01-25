@@ -72,20 +72,20 @@ public:
   virtual ~BlurredClusteringAlg();
 
   void reconfigure(fhicl::ParameterSet const&p);
-  art::PtrVector<recob::Hit> ConvertBinsToRecobHits(TH2F* image, std::vector<int> const& bins);
-  art::Ptr<recob::Hit> ConvertBinToRecobHit(TH2F* image, int const& bin);
-  void ConvertBinsToClusters(TH2F *image, std::vector<std::vector<int> > const& allClusterBins, std::vector<art::PtrVector<recob::Hit> >& clusters);
+  art::PtrVector<recob::Hit> ConvertBinsToRecobHits(std::vector<std::vector<double> > const& image, std::vector<int> const& bins);
+  art::Ptr<recob::Hit> ConvertBinToRecobHit(std::vector<std::vector<double> > const& image, int bin);
+  void ConvertBinsToClusters(std::vector<std::vector<double> > const& image, std::vector<std::vector<int> > const& allClusterBins, std::vector<art::PtrVector<recob::Hit> >& clusters);
   void CreateDebugPDF(int run, int subrun, int event);
-  TH2F ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > const& hits);
-  TH2F* Convolve(TH2F* image, std::vector<double> const& kernel, int const& width, int const& height, const char *new_name = 0);
+  std::vector<std::vector<double> > ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > const& hits);
+  std::vector<std::vector<double> > Convolve(std::vector<std::vector<double> > const& image, std::vector<double> const& kernel, int width, int height);//, const char *new_name = 0);
   void FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick);
-  int FindClusters(TH2F* image, std::vector<std::vector<int> >& allcluster);
+  int FindClusters(std::vector<std::vector<double> > const& image, std::vector<std::vector<int> >& allcluster);
   int GlobalWire(geo::WireID const& wireID);
-  TH2F* GaussianBlur(TH2F* image);
+  std::vector<std::vector<double> > GaussianBlur(std::vector<std::vector<double> > const& image);
   unsigned int GetMinSize() { return fMinSize; }
-  double GetTimeOfBin(TH2F* image, int const& bin);
-  unsigned int NumNeighbours(int const& nx, std::vector<bool> const& used, int const& bin);
-  bool PassesTimeCut(std::vector<double> const& times, double const& time);
+  double GetTimeOfBin(std::vector<std::vector<double> > const& image, int bin);
+  unsigned int NumNeighbours(int nx, std::vector<bool> const& used, int bin);
+  bool PassesTimeCut(std::vector<double> const& times, double time);
   void RemoveTrackHits(std::vector<art::Ptr<recob::Hit> > const& ihits, std::vector<art::Ptr<recob::Track> > const& tracks, std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints, art::FindManyP<recob::Track> const& fmth, art::FindManyP<recob::Track> const& fmtsp, art::FindManyP<recob::Hit> const& fmh, std::vector<art::Ptr<recob::Hit> >& hits, int Event, int Run);
   void SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int pad, int tpc, int plane);
   void SaveImage(TH2F* image, int pad, int tpc, int plane);

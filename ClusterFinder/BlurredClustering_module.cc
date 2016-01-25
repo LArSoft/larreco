@@ -51,7 +51,6 @@ public:
   explicit BlurredClustering(fhicl::ParameterSet const& pset);
   virtual ~BlurredClustering();
 
-  void cluster(std::vector<art::Ptr<recob::Hit> > const &hits, std::vector<art::PtrVector<recob::Hit> > &clusters, int tpc, int plane);
   void produce(art::Event &evt);
   void reconfigure(fhicl::ParameterSet const &p);
 
@@ -175,8 +174,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     if (planeIt->second.size() >= fBlurredClusteringAlg.GetMinSize()) {
 
       // Convert hit map to TH2 histogram and blur it
-      TH2F image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(planeIt->second);
-      TH2F* blurred = fBlurredClusteringAlg.GaussianBlur(&image);
+      std::vector<std::vector<double> > image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(planeIt->second);
+      std::vector<std::vector<double> > blurred = fBlurredClusteringAlg.GaussianBlur(image);
 
       // Find clusters in histogram
       std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
@@ -185,7 +184,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 
       // Create output clusters from the vector of clusters made in FindClusters
       std::vector<art::PtrVector<recob::Hit> > planeClusters;
-      fBlurredClusteringAlg.ConvertBinsToClusters(&image, allClusterBins, planeClusters);
+      fBlurredClusteringAlg.ConvertBinsToClusters(image, allClusterBins, planeClusters);
 
       // Use the cluster merging algorithm
       if (fMergeClusters) {
