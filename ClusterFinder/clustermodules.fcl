@@ -3,6 +3,14 @@
 
 BEGIN_PROLOG
 
+standard_trajcluster:
+{
+# this is the cluster finding component of former ClusterCrawler
+module_type:          "TrajCluster"
+#HitFinderModuleLabel: "gaushit"
+TrajClusterAlg:       @local::standard_trajclusteralg
+} # standard_linecluster
+
 standard_blurredcluster:
 {
  module_type:              "BlurredClustering"
