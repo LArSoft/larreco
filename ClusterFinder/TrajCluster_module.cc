@@ -48,7 +48,7 @@ namespace cluster {
     private:
       std::unique_ptr<TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
       
-      art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
+//      art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
     
   }; // class TrajCluster
   
@@ -102,7 +102,7 @@ namespace cluster {
   //----------------------------------------------------------------------------
   void TrajCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
-    fHitFinderModuleLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
+//    fHitFinderModuleLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
     
     // this trick avoids double configuration on construction
     if (fTCAlg)
@@ -116,22 +116,18 @@ namespace cluster {
   //----------------------------------------------------------------------------
   void TrajCluster::produce(art::Event & evt)
   {
-    // fetch the wires needed by CCHitFinder
-
+/*
     //Get the hits for this event:
     art::Handle< std::vector<recob::Hit> > hitVecHandle;
     evt.getByLabel(fHitFinderModuleLabel, hitVecHandle);
-
-    
     std::vector<art::Ptr<recob::Hit> > allhits;
     allhits.resize(hitVecHandle->size());
-    
     //wrap the hits in art::Ptrs to pass to the Alg
     for (unsigned int iHit = 0; iHit < allhits.size(); iHit++)
       allhits[iHit] = art::Ptr< recob::Hit>(hitVecHandle, iHit);
-    
+*/
     // look for clusters in all planes
-    fTCAlg->RunTrajClusterAlg(allhits);
+    fTCAlg->RunTrajClusterAlg(evt);
     
 //    std::unique_ptr<std::vector<recob::Hit>> FinalHits
 //      (new std::vector<recob::Hit>(std::move(fTCAlg->YieldHits())));
@@ -139,7 +135,7 @@ namespace cluster {
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
-    recob::HitRefinerAssociator shcol(*this, evt, fHitFinderModuleLabel);
+//    recob::HitRefinerAssociator shcol(*this, evt, fHitFinderModuleLabel);
     std::vector<recob::Cluster> sccol;
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;
@@ -331,7 +327,7 @@ namespace cluster {
     fTCAlg->ClearResults();
 
     // move the hit collection and the associations into the event:
-    shcol.put_into(evt);
+//    shcol.put_into(evt);
     evt.put(std::move(ccol));
     evt.put(std::move(hc_assn));
 //    evt.put(std::move(v2col));
