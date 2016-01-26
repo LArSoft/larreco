@@ -193,15 +193,15 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       }
       else finalClusters = planeClusters;
 
-      // Make the debug PDF
-      if (fCreateDebugPDF) {
-	fBlurredClusteringAlg.SaveImage(&image, 1, planeIt->first.second, planeIt->first.first);
-	fBlurredClusteringAlg.SaveImage(blurred, 2, planeIt->first.second, planeIt->first.first);
-	fBlurredClusteringAlg.SaveImage(blurred, allClusterBins, 3, planeIt->first.second, planeIt->first.first);
-	fBlurredClusteringAlg.SaveImage(&image, finalClusters, 4, planeIt->first.second, planeIt->first.first);
-      }
+      // // Make the debug PDF
+      // if (fCreateDebugPDF) {
+      // 	fBlurredClusteringAlg.SaveImage(&image, 1, planeIt->first.second, planeIt->first.first);
+      // 	fBlurredClusteringAlg.SaveImage(blurred, 2, planeIt->first.second, planeIt->first.first);
+      // 	fBlurredClusteringAlg.SaveImage(blurred, allClusterBins, 3, planeIt->first.second, planeIt->first.first);
+      // 	fBlurredClusteringAlg.SaveImage(&image, finalClusters, 4, planeIt->first.second, planeIt->first.first);
+      // }
 
-      blurred->Delete();
+      //blurred->Delete();
 
     } // End min hits check
 

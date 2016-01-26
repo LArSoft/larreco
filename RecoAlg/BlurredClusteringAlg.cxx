@@ -143,21 +143,20 @@ art::Ptr<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinToRecobHit(std::ve
 
 }
 
-  // Find the point in wire/tick space which corresponds to this bin
-  int wire, tick, z;
-  image->GetBinXYZ(bin,wire,tick,z);
+//   // Find the point in wire/tick space which corresponds to this bin
+//   int wire, tick, z;
+//   image->GetBinXYZ(bin,wire,tick,z);
 
-  // If this particular bin corresponds to an entry in the hit map then this was a real hit
-  if (fHitMap.find(wire+fLowerHistWire-1) != fHitMap.end()) {
-    if (fHitMap[wire+fLowerHistWire-1].find(tick+fLowerHistTick-1) != fHitMap[wire+fLowerHistWire-1].end()) {
-      hit = fHitMap[wire+fLowerHistWire-1][tick+fLowerHistTick-1];
-    }
-  }
+//   // If this particular bin corresponds to an entry in the hit map then this was a real hit
+//   if (fHitMap.find(wire+fLowerHistWire-1) != fHitMap.end()) {
+//     if (fHitMap[wire+fLowerHistWire-1].find(tick+fLowerHistTick-1) != fHitMap[wire+fLowerHistWire-1].end()) {
+//       hit = fHitMap[wire+fLowerHistWire-1][tick+fLowerHistTick-1];
+//     }
+//   }
 
-  // Return this hit place in art::PtrVector<recob::Hit>
-  return hit;
-}
-
+//   // Return this hit place in art::PtrVector<recob::Hit>
+//   return hit;
+// }
 
 void cluster::BlurredClusteringAlg::ConvertBinsToClusters(std::vector<std::vector<double> > const& image,
 							  std::vector<std::vector<int> > const& allClusterBins,
@@ -260,7 +259,9 @@ int cluster::BlurredClusteringAlg::ConvertBinToCharge(std::vector<std::vector<do
 }
 
 
-std::vector<std::vector<double> > cluster::BlurredClusteringAlg::Convolve(std::vector<std::vector<double> > const& image, std::vector<double> const& kernel, int width, int height) {//, const char *new_name) {
+std::vector<std::vector<double> > cluster::BlurredClusteringAlg::Convolve(std::vector<std::vector<double> > const& image,
+									  std::vector<double> const& kernel, 
+									  int width, int height) {//, const char *new_name) {
 
   /// Convolves the Gaussian kernel with the image to blurrr
 
@@ -366,8 +367,10 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
   std::vector<double> times;
 
   // Size of image in x and y
-  const int nbinsx = blurred.size() + 2;
-  const int nbinsy = blurred.at(0).size() + 2;
+  // const int nbinsx = blurred->GetNbinsX() + 2;
+  // const int nbinsy = blurred->GetNbinsY() + 2;
+  const int nbinsx = blurred.size();// + 2;
+  const int nbinsy = blurred.at(0).size();// + 2;
   const int nbins = nbinsx * nbinsy;
 
   // Vectors to hold hit information
@@ -448,7 +451,7 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
 
 	    // Get the blurred value and time for this bin
             //blurred_binval = blurred->GetArray()[bin];
-	    blurred_binval = ConvertBinToCharge(bin);
+	    blurred_binval = ConvertBinToCharge(blurred, bin);
             time = GetTimeOfBin(blurred, bin); // NB for 'fake' hits, time is defaulted to -10000
 
 	    // Check real hits pass time cut (ignores fake hits)
@@ -534,7 +537,7 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
           nremoved++;
           cluster.erase(cluster.begin() + clusBin);
           //blurred_binval = blurred->GetArray()[bin];
-	  blurred_binval = ConvertBinToCharge(bin);
+	  blurred_binval = ConvertBinToCharge(blurred, bin);
         }
       }
 
