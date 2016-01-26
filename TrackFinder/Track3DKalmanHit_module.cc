@@ -124,6 +124,7 @@ namespace {
             hits.erase(it, hits.end());
         }
     }
+    
 }
 
 namespace trkf {
@@ -613,76 +614,73 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     }
     tracks->reserve(tracksSize);
     
+    auto const pid = getProductID<std::vector<recob::Track> >(evt);
+    auto const tidgetter = evt.productGetter(pid);
+    
     for(auto& local_kalman_struct : LocalKalmanStructList) {
         
         // Recover the kalman tracks double ended queue
         const std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
         
         // Remember how many tracks are already converted
-        size_t trackColStartIdx(tracks->size());
+        //size_t trackColStartIdx(tracks->size());
         
         for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
             k != kalman_tracks.end(); ++k) {
             const KGTrack& kalman_track = *k;
-            
             // Add Track object to collection.
-            
             recob::Track track;
             kalman_track.fillTrack(track, tracks->size(), fStoreNPPlane);
-            if(track.NumberTrajectoryPoints() >= 2)
+            //ask Herb if it is possible that there are 0 or 1 hits.
+            // yes, it is possible
+            if(track.NumberTrajectoryPoints() >= 2) {
                 tracks->emplace_back(std::move(track));
-            
+            }
             // Make Track to Hit associations.
-            
             art::PtrVector<recob::Hit> trhits;
             kalman_track.fillHits(trhits);
-            util::CreateAssn(*this, evt, *tracks, trhits, *th_assn, tracks->size()-1);
+            for (auto const& trhit: trhits) {
+                th_assn->addSingle(art::Ptr<recob::Track>(pid, tracks->size()-1, tidgetter), trhit);
+            }
             
             // Make space points from this track.
-            
             auto nspt = spts->size();
             fSpacePointAlg.fillSpacePoints(*spts, kalman_track.TrackMap());
             
             // Associate newly created space points with hits.
             // Also associate track with newly created space points.
-            
-            art::PtrVector<recob::SpacePoint> sptvec; //should be vector of Ptr
-            
-            // Loop over newly created space points.
-            
-            art::ProductID sptid = getProductID<std::vector<recob::SpacePoint> >(evt);
-            auto getter = evt.productGetter(sptid);
+          
+            std::vector<art::Ptr<recob::SpacePoint>> sptvec;
+            art::ProductID spacepointId = getProductID<std::vector<recob::SpacePoint> >(evt);
+            auto getter = evt.productGetter(spacepointId);
             for(auto ispt = nspt; ispt < spts->size(); ++ispt) {
-                sptvec.push_back(art::Ptr<recob::SpacePoint>(sptid, ispt, getter));
+                sptvec.push_back(art::Ptr<recob::SpacePoint>(spacepointId, ispt, getter));
                 // Make space point to hit associations.
                 const auto& sphits = fSpacePointAlg.getAssociatedHits((*spts)[ispt]);
-                for(auto const& sphit: sphits) sph_assn->addSingle(sptvec.back(), sphit);
+                for(auto const& sphit: sphits) {
+                    sph_assn->addSingle(sptvec.back(), sphit);
+                }
+            }
+            // Make track to space point associations
+            for (auto const& spt: sptvec) {
+                tsp_assn->addSingle(art::Ptr<recob::Track>(pid, tracks->size()-1, tidgetter), spt);
             }
             
-            // Make track to space point associations.
-            
-            //for(auto const& track: tracks) tsp_assn->addSingle(sptvec.back(), track);
-            
-            util::CreateAssn(*this, evt, *tracks, sptvec, *tsp_assn, tracks->size()-1);
+            if (fUsePFParticleHits) {
+                pfPartTrack_assns->addSingle(local_kalman_struct.pfPartPtr, art::Ptr<recob::Track>(pid, tracks->size()-1, tidgetter));
+            }
         } // end of loop over a given collection
         
         // Optionally fill track-to-PFParticle associations.
-        
-        if (fUsePFParticleHits) {
-            art::Ptr<recob::PFParticle>& pfPartPtr = local_kalman_struct.pfPartPtr;
-            
-            // Create a vector of art ptrs to the tracks...
-            std::vector<art::Ptr<recob::Track> > trackVec;
-            
-            size_t trackColEndIdx(tracks->size());
-            for(size_t idx = trackColStartIdx; idx != trackColEndIdx; idx++) {
-                art::ProductID trackId = getProductID<std::vector<recob::Track> >(evt);
-                art::Ptr<recob::Track> trackPtr(trackId, idx, evt.productGetter(trackId));
-                trackVec.push_back(trackPtr);
-            }
-            
-            util::CreateAssn(*this, evt, pfPartPtr, trackVec, *pfPartTrack_assns);
-        }
+//        
+//        if (fUsePFParticleHits) {
+//            auto const &pfPart = local_kalman_struct.pfPartPtr;
+//            size_t const trackColEndIdx(tracks->size());
+//            
+//            for(size_t i = trackColStartIdx; i != trackColEndIdx; ++i) {
+//                pfPartTrack_assns->addSingle(pfPart, art::Ptr<recob::Track>(pid, i, tidgetter));
+//            }
+//        }
     }
     
     // Add tracks and associations to event.
@@ -960,10 +958,10 @@ void trkf::Track3DKalmanHit::chopHitsOffSeeds(std::vector<art::PtrVector<recob::
     if(pfseed || fSelfSeed)
         nchopmax = 0;
     //
-//    int nchopmax = ((pfseed || fSelfSeed) ?
-//                    0:
-//                    std::max(0, int((hpsit->size() - fMinSeedChopHits)/2)));
-//    
+    //    int nchopmax = ((pfseed || fSelfSeed) ?
+    //                    0:
+    //                    std::max(0, int((hpsit->size() - fMinSeedChopHits)/2)));
+    //
     int nchop = std::min(nchopmax, fMaxChopHits);
     art::PtrVector<recob::Hit>::const_iterator itb = hpsit->begin();
     art::PtrVector<recob::Hit>::const_iterator ite = hpsit->end();
