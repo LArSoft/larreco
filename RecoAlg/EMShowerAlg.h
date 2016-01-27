@@ -110,6 +110,8 @@ public:
   void OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
 			 std::vector<art::Ptr<recob::Hit> >& orderedShower,
 			 art::Ptr<recob::Vertex> const& vertex);
+  double OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
+					      std::vector<art::Ptr<recob::Hit> >& showerHits);
   TVector3 Construct3DPoint(art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2);
 
   Int_t WeightedFit(const Int_t n, const Double_t *x, const Double_t *y, const Double_t *w,  Double_t *parm);

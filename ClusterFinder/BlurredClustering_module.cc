@@ -180,11 +180,13 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       // Find clusters in histogram
       std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
       int numClusters = fBlurredClusteringAlg.FindClusters(blurred, allClusterBins);
+      std::cout << "Num clusters is " << numClusters << std::endl;
       mf::LogVerbatim("Blurred Clustering") << "Found " << numClusters << " clusters" << std::endl;
 
       // Create output clusters from the vector of clusters made in FindClusters
       std::vector<art::PtrVector<recob::Hit> > planeClusters;
       fBlurredClusteringAlg.ConvertBinsToClusters(image, allClusterBins, planeClusters);
+      std::cout << "Coverted to hits; number of clusters is " << planeClusters.size() << std::endl;
 
       // Use the cluster merging algorithm
       if (fMergeClusters) {
@@ -204,6 +206,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       //blurred->Delete();
 
     } // End min hits check
+
+    std::cout << "Number of final clusters is " << finalClusters.size() << std::endl;
 
     fBlurredClusteringAlg.fHitMap.clear();
 

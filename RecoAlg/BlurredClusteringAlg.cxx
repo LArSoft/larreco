@@ -128,8 +128,8 @@ art::Ptr<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinToRecobHit(std::ve
   // Find the point in wire/tick space which corresponds to this bin
   int xbin = bin % image.size();
   int ybin = bin / image.size();
-  int wire = xbin + fLowerHistWire;
-  int tick = ybin + fLowerHistWire;
+  int wire = xbin + fLowerHistWire - 1;
+  int tick = ybin + fLowerHistTick - 1;
 
   // If this particular bin corresponds to an entry in the hit map then this was a real hit
   if (fHitMap.find(wire) != fHitMap.end()) {
@@ -143,20 +143,6 @@ art::Ptr<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinToRecobHit(std::ve
 
 }
 
-//   // Find the point in wire/tick space which corresponds to this bin
-//   int wire, tick, z;
-//   image->GetBinXYZ(bin,wire,tick,z);
-
-//   // If this particular bin corresponds to an entry in the hit map then this was a real hit
-//   if (fHitMap.find(wire+fLowerHistWire-1) != fHitMap.end()) {
-//     if (fHitMap[wire+fLowerHistWire-1].find(tick+fLowerHistTick-1) != fHitMap[wire+fLowerHistWire-1].end()) {
-//       hit = fHitMap[wire+fLowerHistWire-1][tick+fLowerHistTick-1];
-//     }
-//   }
-
-//   // Return this hit place in art::PtrVector<recob::Hit>
-//   return hit;
-// }
 
 void cluster::BlurredClusteringAlg::ConvertBinsToClusters(std::vector<std::vector<double> > const& image,
 							  std::vector<std::vector<int> > const& allClusterBins,
@@ -373,6 +359,8 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
   const int nbinsy = blurred.at(0).size();// + 2;
   const int nbins = nbinsx * nbinsy;
 
+  std::cout << "Nbinsx is " << nbinsx << " and nbinsy is " << nbinsy << std::endl;
+
   // Vectors to hold hit information
   std::vector<bool> used(nbins);
   std::vector<std::pair<double, int> > values(nbins);
@@ -383,9 +371,13 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
       //int bin = blurred->GetBin(xbin, ybin);
       //values.push_back(std::pair<double, int>(blurred->GetArray()[bin], bin));
       int bin = ConvertWireTickToBin(blurred, xbin, ybin);
+      std::cout << "xbin " << xbin << " and ybin " << ybin << " gives global bin " << bin << std::endl;
       values.push_back(std::make_pair(ConvertBinToCharge(blurred, bin), bin));
+      std::cout << "Charge in this bin is " << ConvertBinToCharge(blurred,bin) << std::endl;
     }
   }
+
+  std::cout << "Values size is " << values.size() << std::endl;
 
   // Sort the values into charge order
   std::sort(values.rbegin(), values.rend());
@@ -399,6 +391,8 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
   // Second loop - looks at the direct neighbours of this seed and clusters to this if above charge/time thresholds. Runs recursively over all hits in cluster (inc. new ones)
   while (true) {
 
+    std::cout << "Number of clusters is " << niter << std::endl;
+
     // Start a new cluster each time loop is executed
     cluster.clear();
     times.clear();
@@ -410,6 +404,8 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
 
     // Iterate through the bins from highest charge down
     int bin = values[niter++].second;
+
+    std::cout << "Bin is " << bin << std::endl;
 
     // Put this bin in used if not already there
     if (used[bin])
