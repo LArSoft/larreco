@@ -173,9 +173,9 @@ namespace trkf {
         void chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
                               bool pfseed,
                               art::PtrVector<recob::Hit> &seedhits) const;
-        double calcMagnitude(const double x,
+   /*     double calcMagnitude(const double x,
                              const double y,
-                             const double z) const;
+                             const double z) const;*/
         bool qualityCutsOnSeedTrack(const KGTrack &trg0,
                                     const KGTrack &trg1) const;
         bool smoothTrack(KGTrack &trg0,
@@ -197,7 +197,7 @@ namespace trkf {
         bool fDoDedx;                       ///< Global dE/dx enable flag.
         bool fSelfSeed;                     ///< Self seed flag.
         bool fLineSurface;                  ///< Line surface flag.
-        int fMinSeedHits;                   ///< Minimum number of hits per track seed.
+        size_t fMinSeedHits;                   ///< Minimum number of hits per track seed.
         int fMinSeedChopHits;               ///< Potentially chop seeds that exceed this length.
         int fMaxChopHits;                   ///< Maximum number of hits to chop from each end of seed.
         double fMaxSeedChiDF;               ///< Maximum seed track chisquare/dof.
@@ -314,7 +314,7 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
     fDoDedx = pset.get<bool>("DoDedx");
     fSelfSeed = pset.get<bool>("SelfSeed");
     fLineSurface = pset.get<bool>("LineSurface");
-    fMinSeedHits = pset.get<int>("MinSeedHits");
+    fMinSeedHits = pset.get<size_t>("MinSeedHits");
     fMinSeedChopHits = pset.get<int>("MinSeedChopHits");
     fMaxChopHits = pset.get<int>("MaxChopHits");
     fMaxSeedChiDF = pset.get<double>("MaxSeedChiDF");
@@ -614,73 +614,70 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
     }
     tracks->reserve(tracksSize);
     
-    auto const pid = getProductID<std::vector<recob::Track> >(evt);
-    auto const tidgetter = evt.productGetter(pid);
+    auto const tid = getProductID<std::vector<recob::Track> >(evt);
+    auto const tidgetter = evt.productGetter(tid);
     
     for(auto& local_kalman_struct : LocalKalmanStructList) {
-        
         // Recover the kalman tracks double ended queue
         const std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
-        
-        // Remember how many tracks are already converted
-        //size_t trackColStartIdx(tracks->size());
-        
-        for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
-            k != kalman_tracks.end(); ++k) {
-            const KGTrack& kalman_track = *k;
+
+        for(auto const& kalman_track:kalman_tracks) {
             // Add Track object to collection.
             recob::Track track;
             kalman_track.fillTrack(track, tracks->size(), fStoreNPPlane);
-            //ask Herb if it is possible that there are 0 or 1 hits.
-            // yes, it is possible
-            if(track.NumberTrajectoryPoints() >= 2) {
-                tracks->emplace_back(std::move(track));
+            if(track.NumberTrajectoryPoints() < 2) {
+                continue;
             }
-            // Make Track to Hit associations.
+            tracks->emplace_back(std::move(track));
+            // SS: tracks->size() does not change after this point in each iteration
+            
+            //fill hits from this track
             art::PtrVector<recob::Hit> trhits;
             kalman_track.fillHits(trhits);
-            for (auto const& trhit: trhits) {
-                th_assn->addSingle(art::Ptr<recob::Track>(pid, tracks->size()-1, tidgetter), trhit);
-            }
             
             // Make space points from this track.
+            
+
             auto nspt = spts->size();
             fSpacePointAlg.fillSpacePoints(*spts, kalman_track.TrackMap());
             
+            std::vector<art::Ptr<recob::SpacePoint>> sptvec;
+            auto const spacepointId = getProductID<std::vector<recob::SpacePoint> >(evt);
+            auto const getter = evt.productGetter(spacepointId);
+
+            for(auto ispt = nspt; ispt < spts->size(); ++ispt) {
+                sptvec.emplace_back(spacepointId, ispt, getter);
+            }
+            
             // Associate newly created space points with hits.
             // Also associate track with newly created space points.
-          
-            std::vector<art::Ptr<recob::SpacePoint>> sptvec;
-            art::ProductID spacepointId = getProductID<std::vector<recob::SpacePoint> >(evt);
-            auto getter = evt.productGetter(spacepointId);
+            
             for(auto ispt = nspt; ispt < spts->size(); ++ispt) {
-                sptvec.push_back(art::Ptr<recob::SpacePoint>(spacepointId, ispt, getter));
                 // Make space point to hit associations.
                 const auto& sphits = fSpacePointAlg.getAssociatedHits((*spts)[ispt]);
                 for(auto const& sphit: sphits) {
-                    sph_assn->addSingle(sptvec.back(), sphit);
+                    sph_assn->addSingle(sptvec.at(ispt), sphit);
                 }
             }
-            // Make track to space point associations
-            for (auto const& spt: sptvec) {
-                tsp_assn->addSingle(art::Ptr<recob::Track>(pid, tracks->size()-1, tidgetter), spt);
+    
+            art::Ptr<recob::Track> aptr(tid, tracks->size()-1, tidgetter);
+            
+            // Make Track to Hit associations.
+    
+            for (auto const& trhit: trhits) {
+                th_assn->addSingle(aptr, trhit);
             }
             
+            // Make track to space point associations
+            for (auto const& spt: sptvec) {
+                tsp_assn->addSingle(aptr, spt);
+            }
+    
+            // Optionally fill track-to-PFParticle associations.
             if (fUsePFParticleHits) {
-                pfPartTrack_assns->addSingle(local_kalman_struct.pfPartPtr, art::Ptr<recob::Track>(pid, tracks->size()-1, tidgetter));
+                pfPartTrack_assns->addSingle(local_kalman_struct.pfPartPtr, aptr);
             }
         } // end of loop over a given collection
-        
-        // Optionally fill track-to-PFParticle associations.
-//        
-//        if (fUsePFParticleHits) {
-//            auto const &pfPart = local_kalman_struct.pfPartPtr;
-//            size_t const trackColEndIdx(tracks->size());
-//            
-//            for(size_t i = trackColStartIdx; i != trackColEndIdx; ++i) {
-//                pfPartTrack_assns->addSingle(pfPart, art::Ptr<recob::Track>(pid, i, tidgetter));
-//            }
-//        }
     }
     
     // Add tracks and associations to event.
@@ -702,6 +699,7 @@ void trkf::Track3DKalmanHit::endJob()
     << "  Number of events = " << fNumEvent << "\n"
     << "  Number of tracks created = " << fNumTrack;
 }
+
 
 //----------------------------------------------------------------------------
 /// Fill Histograms method
@@ -917,34 +915,37 @@ void trkf::Track3DKalmanHit::generateSeeds(const art::PtrVector<recob::Hit>& see
     }
 }
 
+
+inline double calcMagnitude(double *x){
+    return std::sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]);
+}
+
+
 //----------------------------------------------------------------------------
 /// Quality cuts on seed track.
 // not sure if this function will be a candidate for generic interface
 bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const KGTrack &trg0,
                                                     const KGTrack &trg1) const{
-    size_t n = trg1.numHits();
-    bool ok = (int(n) >= fMinSeedHits &&
-               trg0.startTrack().getChisq() <= n * fMaxSeedChiDF &&
-               trg0.endTrack().getChisq() <= n * fMaxSeedChiDF &&
-               trg1.startTrack().getChisq() <= n * fMaxSeedChiDF &&
-               trg1.endTrack().getChisq() <= n * fMaxSeedChiDF);
+    auto const n = trg1.numHits();
+    auto const chisq = n * fMaxSeedChiDF;
+    auto const &start0 = trg0.startTrack();
+    auto const &end0 = trg0.endTrack();
+    bool ok = (n >= fMinSeedHits &&
+               start0.getChisq() <= chisq &&
+               end0.getChisq() <= chisq &&
+               trg1.startTrack().getChisq() <= chisq &&
+               trg1.endTrack().getChisq() <= chisq);
     double mom0[3];
     double mom1[3];
-    trg0.startTrack().getMomentum(mom0);
-    trg0.endTrack().getMomentum(mom1);
-    double mom0mag = calcMagnitude(mom0[0], mom0[1], mom0[2]);
-    double mom1mag = calcMagnitude(mom1[0], mom1[1], mom1[2]);
+    start0.getMomentum(mom0);
+    end0.getMomentum(mom1);
+    double mom0mag = calcMagnitude(mom0);
+    double mom1mag = calcMagnitude(mom1);
     double dxds0 = mom0[0] / mom0mag;
     double dxds1 = mom1[0] / mom1mag;
     ok = ok && (std::abs(dxds0) > fMinSeedSlope &&
                 std::abs(dxds1) > fMinSeedSlope);
     return ok;
-}
-
-double trkf::Track3DKalmanHit::calcMagnitude(const double x,
-                                             const double y,
-                                             const double z) const{
-    return std::sqrt(x*x + y*y + z*z);
 }
 
 //----------------------------------------------------------------------------
