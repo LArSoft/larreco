@@ -50,6 +50,9 @@ standard_pmalgtrackmaker:
                                       #
   RunVertexing:           false       # find vertices, join with tracks, reoptimize track-vertex structure
                                       #
+  MakePFPs:               false       # output track-vertex net as a tree of PFParticles, in such case tracks
+                                      # are associated to new PFParticles even if CluMatchingAlg is 2 or 3
+                                      #
   HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
   ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
   CluMatchingAlg:         1           # 1: loop over clusters from each view, produces independent tracks:
@@ -60,6 +63,11 @@ standard_pmalgtrackmaker:
                                       #    clusters used by internal pattern recognition
                                       # 3: simply use all clusters associated to PFParticle to create 3D
                                       #    tracks (no pattern recognition at all, no corrections, etc)
+                                      #
+  TrackingOnlyPdg:        [0]         # PDG list to select which PFParticles should be reconstructed;
+                                      # all PFP's are used if the list is empty or starts with 0
+  TrackingSkipPdg:        [11]        # PDG list to select which PFParticles should NOT be reconstructed,
+                                      # e.g. skip EM showers; no skipping if the list is empty or starts with 0
                                       #
   MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
   MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks
