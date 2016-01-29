@@ -173,11 +173,8 @@ namespace trkf {
         void chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
                               bool pfseed,
                               art::PtrVector<recob::Hit> &seedhits) const;
-   /*     double calcMagnitude(const double x,
-                             const double y,
-                             const double z) const;*/
-        bool qualityCutsOnSeedTrack(const KGTrack &trg0,
-                                    const KGTrack &trg1) const;
+        bool qualityCutsOnSeedTrack(const double chisq,
+                                    const KGTrack &trg0) const;
         bool smoothTrack(KGTrack &trg0,
                          art::PtrVector<recob::Hit> hits,
                          unsigned int prefplane,
@@ -636,27 +633,20 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
             kalman_track.fillHits(trhits);
             
             // Make space points from this track.
-            
-
             auto nspt = spts->size();
             fSpacePointAlg.fillSpacePoints(*spts, kalman_track.TrackMap());
             
             std::vector<art::Ptr<recob::SpacePoint>> sptvec;
+        
             auto const spacepointId = getProductID<std::vector<recob::SpacePoint> >(evt);
             auto const getter = evt.productGetter(spacepointId);
-
             for(auto ispt = nspt; ispt < spts->size(); ++ispt) {
                 sptvec.emplace_back(spacepointId, ispt, getter);
-            }
-            
-            // Associate newly created space points with hits.
-            // Also associate track with newly created space points.
-            
-            for(auto ispt = nspt; ispt < spts->size(); ++ispt) {
+                // Associate newly created space points with hits.
                 // Make space point to hit associations.
                 const auto& sphits = fSpacePointAlg.getAssociatedHits((*spts)[ispt]);
                 for(auto const& sphit: sphits) {
-                    sph_assn->addSingle(sptvec.at(ispt), sphit);
+                    sph_assn->addSingle(sptvec.back(), sphit);
                 }
             }
     
@@ -924,25 +914,24 @@ inline double calcMagnitude(double *x){
 //----------------------------------------------------------------------------
 /// Quality cuts on seed track.
 // not sure if this function will be a candidate for generic interface
-bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const KGTrack &trg0,
-                                                    const KGTrack &trg1) const{
-    auto const n = trg1.numHits();
-    auto const chisq = n * fMaxSeedChiDF;
+
+bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const double chisq,
+                                                    const KGTrack &trg0) const{
+    
     auto const &start0 = trg0.startTrack();
     auto const &end0 = trg0.endTrack();
-    bool ok = (n >= fMinSeedHits &&
-               start0.getChisq() <= chisq &&
-               end0.getChisq() <= chisq &&
-               trg1.startTrack().getChisq() <= chisq &&
-               trg1.endTrack().getChisq() <= chisq);
+    
+    bool ok = (start0.getChisq() <= chisq &&
+               end0.getChisq() <= chisq);
+    
     double mom0[3];
     double mom1[3];
     start0.getMomentum(mom0);
     end0.getMomentum(mom1);
-    double mom0mag = calcMagnitude(mom0);
-    double mom1mag = calcMagnitude(mom1);
-    double dxds0 = mom0[0] / mom0mag;
-    double dxds1 = mom1[0] / mom1mag;
+
+    double dxds0 = mom0[0] / calcMagnitude(mom0);
+    double dxds1 = mom1[0] / calcMagnitude(mom1);
+    
     ok = ok && (std::abs(dxds0) > fMinSeedSlope &&
                 std::abs(dxds1) > fMinSeedSlope);
     return ok;
@@ -984,7 +973,13 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
         
         // Now we have the seed track in the form of a KGTrack.
         // Do additional quality cuts.
-        ok = qualityCutsOnSeedTrack(trg0, trg1);
+        
+        auto const n = trg1.numHits();
+        auto const chisq = n * fMaxSeedChiDF;
+        ok = n >= fMinSeedHits &&
+             trg1.startTrack().getChisq() <= chisq &&
+             trg1.endTrack().getChisq() <= chisq &&
+             qualityCutsOnSeedTrack(chisq, trg0);
         
         if(ok) {
             
