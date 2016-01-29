@@ -37,7 +37,7 @@ public:
 	Track3D(const Track3D& src);
 	~Track3D(void);
 
-	void Initialize(float initEndSegW = 0.05F);
+	bool Initialize(float initEndSegW = 0.05F);
 
 	pma::Hit3D* release_at(size_t index);
 	void push_back(pma::Hit3D* hit) { hit->fParent = this; fHits.push_back(hit); }
@@ -88,6 +88,8 @@ public:
 
 	/// Check if the track can be flipped.
 	bool CanFlip(void) const;
+
+	void AutoFlip(pma::Track3D::EDirection dir, double thr = 0.0, unsigned int n = 0);
 
 	/// MSE of 2D hits.
 	double TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits,

@@ -10,7 +10,7 @@
  */
 
 #include "RecoAlg/PMAlg/Utilities.h"
-#include "RecoAlg/PMAlg/PmaHit3D.h"
+#include "RecoAlg/PMAlg/PmaTrkCandidate.h"
 
 #include "Utilities/DetectorProperties.h"
 
@@ -230,7 +230,11 @@ double pma::SolveLeastSquares3D(const std::vector< std::pair<TVector3, TVector3>
 			}
 		}
 	}
-	x = A.InvertFast() * y;
+	try { x = A.InvertFast() * y; }
+	catch (...)
+	{
+		result.SetXYZ(0., 0., 0.); return 1.0e12;
+	}
 
 	result.SetXYZ(x[0], x[1], x[2]);
 
@@ -299,6 +303,19 @@ bool pma::bTrajectory3DOrderLess::operator() (pma::Hit3D* h1, pma::Hit3D* h2)
 bool pma::bTrajectory3DDistLess::operator() (pma::Hit3D* h1, pma::Hit3D* h2)
 {
 	if (h1 && h2) return h1->GetDist2ToProj() < h2->GetDist2ToProj();
+	else return false;
+}
+
+bool pma::bTrack3DLonger::operator() (const pma::TrkCandidate & t1, const pma::TrkCandidate & t2)
+{
+	pma::Track3D* trk1 = t1.Track();
+	pma::Track3D* trk2 = t2.Track();
+	if (trk1 && trk2)
+	{
+		double l1 = pma::Dist2(trk1->front()->Point3D(), trk1->back()->Point3D());
+		double l2 = pma::Dist2(trk2->front()->Point3D(), trk2->back()->Point3D());
+		return l1 > l2;
+	}
 	else return false;
 }
 
