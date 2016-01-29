@@ -320,23 +320,17 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *blurred, std::vector<std::
   const int nbinsy = blurred->GetNbinsY() + 2;
   const int nbins = nbinsx * nbinsy;
 
-  std::cout << "Nbinsx is " << nbinsx << " and nbinsy is " << nbinsy <<std::endl;
-
   // Vectors to hold hit information
   std::vector<bool> used(nbins);
-  std::vector<std::pair<double, int> > values(nbins);
+  std::vector<std::pair<double, int> > values;//(nbins);
 
   // Place the bin number and contents as a pair in the values vector
   for (int xbin = 1; xbin <= nbinsx; xbin++) {
     for (int ybin = 1; ybin <= nbinsy; ybin++) {
       int bin = blurred->GetBin(xbin, ybin);
-      //std::cout << "xbin " << xbin << " and ybin " << ybin << " gives global bin " << bin << std::endl;
       values.push_back(std::pair<double, int>(blurred->GetArray()[bin], bin));
-      //std::cout << "Charge in this bin is " << blurred->GetArray()[bin] << std::endl;
     }
   }
-
-  //std::cout << "Values size is " << values.size() << std::endl;
 
   // Sort the values into charge order
   std::sort(values.rbegin(), values.rend());
@@ -350,8 +344,6 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *blurred, std::vector<std::
   // Second loop - looks at the direct neighbours of this seed and clusters to this if above charge/time thresholds. Runs recursively over all hits in cluster (inc. new ones)
   while (true) {
 
-    //std::cout << "Number of clusters is " << niter << std::endl;
-
     // Start a new cluster each time loop is executed
     cluster.clear();
     times.clear();
@@ -363,8 +355,6 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *blurred, std::vector<std::
 
     // Iterate through the bins from highest charge down
     int bin = values[niter++].second;
-
-    //std::cout << "Bin is " << bin << std::endl;
 
     // Put this bin in used if not already there
     if (used[bin])
