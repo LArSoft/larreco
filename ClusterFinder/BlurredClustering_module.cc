@@ -174,18 +174,36 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     // Implement the algorithm
     if (planeIt->second.size() >= fBlurredClusteringAlg.GetMinSize()) {
 
+      std::cout << "Number of hits before converting is " << planeIt->second.size() << std::endl;
+
       // Convert hit map to TH2 histogram and blur it
       TH2F image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(planeIt->second);
       TH2F* blurred = fBlurredClusteringAlg.GaussianBlur(&image);
 
+      int imageSize = 0;
+      for (int x = 1; x <= image.GetNbinsX(); ++x)
+	for (int y = 1; y <= image.GetNbinsY(); ++y)
+	  if (image.GetBinContent(x,y) != 0)
+	    ++imageSize;
+      std::cout << "Image: Number of bins with content is " << imageSize << std::endl;
+
+      int blurredSize = 0;
+      for (int x = 1; x <= blurred->GetNbinsX(); ++x)
+	for (int y = 1; y <= blurred->GetNbinsY(); ++y)
+	  if (blurred->GetBinContent(x,y) > 0)
+	    ++blurredSize;
+      std::cout << "Blurred: Number of bins with content is " << blurredSize << std::endl;
+
       // Find clusters in histogram
       std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
       int numClusters = fBlurredClusteringAlg.FindClusters(blurred, allClusterBins);
+      std::cout << "Number of clusters... " << numClusters << std::endl;
       mf::LogVerbatim("Blurred Clustering") << "Found " << numClusters << " clusters" << std::endl;
 
       // Create output clusters from the vector of clusters made in FindClusters
       std::vector<art::PtrVector<recob::Hit> > planeClusters;
       fBlurredClusteringAlg.ConvertBinsToClusters(&image, allClusterBins, planeClusters);
+      std::cout << "Converted to hits; number of clusters is " << planeClusters.size() << std::endl;
 
       // Use the cluster merging algorithm
       if (fMergeClusters) {
@@ -205,6 +223,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       blurred->Delete();
 
     } // End min hits check
+
+    std::cout << "Number of final clusters is " << finalClusters.size() << std::endl;
 
     fBlurredClusteringAlg.fHitMap.clear();
 
