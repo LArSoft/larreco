@@ -97,6 +97,9 @@ public:
   unsigned int GetMinSize() { return fMinSize; }
 
   ///
+  TH2F* MakeHistogram(std::vector<std::vector<double> > const& image, TString name);
+
+  ///
   void RemoveTrackHits(std::vector<art::Ptr<recob::Hit> > const& ihits,
 		       std::vector<art::Ptr<recob::Track> > const& tracks,
 		       std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints,

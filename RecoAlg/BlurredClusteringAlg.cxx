@@ -194,10 +194,9 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::ConvertRecobHit
   // Use a map to keep a track of the real hits and their wire/ticks
   fHitMap.clear();
 
-  std::stringstream planeImage;
-  planeImage << "blurred_image";
-
   // // Create a TH2 histogram
+  // std::stringstream planeImage;
+  // planeImage << "blurred_image";
   // TH2F image(planeImage.str().c_str(), planeImage.str().c_str(), (fUpperHistWire-fLowerHistWire), fLowerHistWire-0.5, fUpperHistWire-0.5, (fUpperHistTick-fLowerHistTick), fLowerHistTick-0.5, fUpperHistTick-0.5);
   // image.Clear();
   // image.SetXTitle("Wire number");
@@ -209,8 +208,8 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::ConvertRecobHit
 
   // Look through the hits
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
-    unsigned int wire = GlobalWire((*hitIt)->WireID());
-    int   tick   = (int)(*hitIt)->PeakTime();
+    int wire = GlobalWire((*hitIt)->WireID());
+    int tick = (int)(*hitIt)->PeakTime();
     float charge = (*hitIt)->SummedADC();
 
     // Fill hit map and keep a note of all real hits for later
@@ -371,13 +370,13 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
       //int bin = blurred->GetBin(xbin, ybin);
       //values.push_back(std::pair<double, int>(blurred->GetArray()[bin], bin));
       int bin = ConvertWireTickToBin(blurred, xbin, ybin);
-      std::cout << "xbin " << xbin << " and ybin " << ybin << " gives global bin " << bin << std::endl;
+      //std::cout << "xbin " << xbin << " and ybin " << ybin << " gives global bin " << bin << std::endl;
       values.push_back(std::make_pair(ConvertBinToCharge(blurred, bin), bin));
-      std::cout << "Charge in this bin is " << ConvertBinToCharge(blurred,bin) << std::endl;
+      //std::cout << "Charge in this bin is " << ConvertBinToCharge(blurred,bin) << std::endl;
     }
   }
 
-  std::cout << "Values size is " << values.size() << std::endl;
+  //std::cout << "Values size is " << values.size() << std::endl;
 
   // Sort the values into charge order
   std::sort(values.rbegin(), values.rend());
@@ -391,7 +390,7 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
   // Second loop - looks at the direct neighbours of this seed and clusters to this if above charge/time thresholds. Runs recursively over all hits in cluster (inc. new ones)
   while (true) {
 
-    std::cout << "Number of clusters is " << niter << std::endl;
+    //std::cout << "Number of clusters is " << niter << std::endl;
 
     // Start a new cluster each time loop is executed
     cluster.clear();
@@ -405,7 +404,7 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
     // Iterate through the bins from highest charge down
     int bin = values[niter++].second;
 
-    std::cout << "Bin is " << bin << std::endl;
+    //    std::cout << "Bin is " << bin << std::endl;
 
     // Put this bin in used if not already there
     if (used[bin])
@@ -582,7 +581,7 @@ int cluster::BlurredClusteringAlg::GlobalWire(geo::WireID const& wireID) {
     else mf::LogError("BlurredClusterAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC;
   }
 
-  return globalWire;
+  return std::round(globalWire);
 
 }
 
@@ -654,6 +653,29 @@ double cluster::BlurredClusteringAlg::GetTimeOfBin(std::vector<std::vector<doubl
     time = hit->PeakTime();
 
   return time;
+
+}
+
+
+TH2F* cluster::BlurredClusteringAlg::MakeHistogram(std::vector<std::vector<double> > const& image, TString name) {
+
+  /// Converts a 2D vector in a histogram for the debug pdf
+
+  TH2F* hist = new TH2F(name,name,fUpperHistWire-fLowerHistWire,fLowerHistWire-0.5,fUpperHistWire-0.5,fUpperHistTick-fLowerHistTick,fLowerHistTick-0.5,fUpperHistTick-0.5);
+  hist->Clear();
+  hist->SetXTitle("Wire number");
+  hist->SetYTitle("Tick number");
+  hist->SetZTitle("Charge");
+
+  for (unsigned int imageWireIt = 0; imageWireIt < image.size(); ++imageWireIt) {
+    int wire = imageWireIt + fLowerHistWire;
+    for (unsigned int imageTickIt = 0; imageTickIt < image.at(imageWireIt).size(); ++imageTickIt) {
+      int tick = imageTickIt + fLowerHistTick;
+      hist->Fill(wire, tick, image.at(imageWireIt).at(imageTickIt));
+    }
+  }
+
+  return hist;
 
 }
 
