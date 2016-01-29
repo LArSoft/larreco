@@ -173,36 +173,18 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     // Implement the algorithm
     if (planeIt->second.size() >= fBlurredClusteringAlg.GetMinSize()) {
 
-      std::cout << "Number of hits before converting is " << planeIt->second.size() << std::endl;
-
       // Convert hit map to TH2 histogram and blur it
-      std::vector<std::vector<double> > image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(planeIt->second);
+      std::vector<std::vector<double> > image = fBlurredClusteringAlg.ConvertRecobHitsToVector(planeIt->second);
       std::vector<std::vector<double> > blurred = fBlurredClusteringAlg.GaussianBlur(image);
-
-      int imageSize = 0;
-      for (unsigned int x = 0; x < image.size(); ++x)
-	for (unsigned int y = 0; y < image.at(x).size(); ++y)
-	  if (image.at(x).at(y) > 0)
-	    ++imageSize;
-      std::cout << "Image: Number of bins with content is " << imageSize << std::endl;
-	   
-      int blurredSize = 0;
-      for (unsigned int x = 0; x < blurred.size(); ++x)
-	for (unsigned int y = 0; y < blurred.at(x).size(); ++y)
-	   if (blurred.at(x).at(y) > 0)
-	      ++blurredSize;
-      std::cout << "Blurred: Number of bins with content is " << blurredSize << std::endl;
 
        // Find clusters in histogram
       std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
       int numClusters = fBlurredClusteringAlg.FindClusters(blurred, allClusterBins);
-      std::cout << "Num clusters is " << numClusters << std::endl;
       mf::LogVerbatim("Blurred Clustering") << "Found " << numClusters << " clusters" << std::endl;
 
       // Create output clusters from the vector of clusters made in FindClusters
       std::vector<art::PtrVector<recob::Hit> > planeClusters;
       fBlurredClusteringAlg.ConvertBinsToClusters(image, allClusterBins, planeClusters);
-      std::cout << "Coverted to hits; number of clusters is " << planeClusters.size() << std::endl;
 
       // Use the cluster merging algorithm
       if (fMergeClusters) {
@@ -227,8 +209,6 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
       }
 
     } // End min hits check
-
-    std::cout << "Number of final clusters is " << finalClusters.size() << std::endl;
 
     fBlurredClusteringAlg.fHitMap.clear();
 
