@@ -10,6 +10,7 @@
  */
 
 #include "RecoAlg/PMAlg/PmaTrkCandidate.h"
+#include "RecoAlg/PMAlg/Utilities.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -186,10 +187,13 @@ void pma::TrkCandidateColl::flipTreesByDQdx(void)
 
 	for (auto & tEntry : trkMap)
 	{
-		//pma::Track3D* rootTrk = tEntry.second.front()->GetRoot();
-
-		for (auto trk : tEntry.second)
-			if (trk->CanFlip()) trk->AutoFlip(pma::Track3D::kForward, 0.1);
+		std::sort(tEntry.second.begin(), tEntry.second.end(), pma::bTrack3DLonger());
+		for (size_t i = tEntry.second.size(); i > 0; --i)
+		{
+			pma::Track3D* trk = tEntry.second[i-1];
+			if (trk->CanFlip())
+				trk->AutoFlip(pma::Track3D::kForward, 0.15);
+		}
 	}
 }
 // ------------------------------------------------------

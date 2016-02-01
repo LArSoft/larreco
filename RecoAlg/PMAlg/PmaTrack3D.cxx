@@ -567,6 +567,7 @@ void pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned i
 			dedx.push_back(it->second);
 		}
 	}
+	if (!dedx.empty()) dedx.pop_back();
 
 	float dEdxStart = 0.0F, dEdxStop = 0.0F;
 	float dEStart = 0.0F, dxStart = 0.0F;
@@ -611,8 +612,16 @@ void pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned i
 	}
 	else return;
 
-	if ((dir == pma::Track3D::kForward) && ((1.0 + thr) * dEdxStop < dEdxStart)) Flip();  // particle stops at the end of the track
-	if ((dir == pma::Track3D::kBackward) && (dEdxStop > (1.0 + thr) * dEdxStart)) Flip(); // particle stops at the front of the track
+	if ((dir == pma::Track3D::kForward) && ((1.0 + thr) * dEdxStop < dEdxStart))
+	{
+		mf::LogVerbatim("pma::Track3D") << "Auto-flip fired (1), thr: " << (1.0+thr) << ", value: " << dEdxStart/dEdxStop;
+		Flip();  // particle stops at the end of the track
+	}
+	if ((dir == pma::Track3D::kBackward) && (dEdxStop > (1.0 + thr) * dEdxStart))
+	{
+		mf::LogVerbatim("pma::Track3D") << "Auto-flip fired (2), thr: " << (1.0+thr) << ", value: " << dEdxStop/dEdxStart;
+		Flip(); // particle stops at the front of the track
+	}
 }
 
 
