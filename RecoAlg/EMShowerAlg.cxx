@@ -299,6 +299,11 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
   TVector3 trackStart = Construct3DPoint(track1.at(0), track2.at(0));
   pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(track1, track2, trackStart);
 
+  if (!pmatrack) {
+    mf::LogInfo("EMShowerAlg") << "Skipping this event because not enough hits in two views";
+    return track;
+  }
+
   std::vector<TVector3> xyz, dircos;
   std::vector<std::vector<double> > dEdx; // Right now, not finding the dE/dx for these tracks.  Can extend if needed.
 
