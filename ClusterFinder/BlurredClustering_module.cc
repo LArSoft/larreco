@@ -51,7 +51,6 @@ public:
   explicit BlurredClustering(fhicl::ParameterSet const& pset);
   virtual ~BlurredClustering();
 
-  void cluster(std::vector<art::Ptr<recob::Hit> > const &hits, std::vector<art::PtrVector<recob::Hit> > &clusters, int tpc, int plane);
   void produce(art::Event &evt);
   void reconfigure(fhicl::ParameterSet const &p);
 
@@ -175,17 +174,17 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     if (planeIt->second.size() >= fBlurredClusteringAlg.GetMinSize()) {
 
       // Convert hit map to TH2 histogram and blur it
-      TH2F image = fBlurredClusteringAlg.ConvertRecobHitsToTH2(planeIt->second);
-      TH2F* blurred = fBlurredClusteringAlg.GaussianBlur(&image);
+      std::vector<std::vector<double> > image = fBlurredClusteringAlg.ConvertRecobHitsToVector(planeIt->second);
+      std::vector<std::vector<double> > blurred = fBlurredClusteringAlg.GaussianBlur(image);
 
-      // Find clusters in histogram
+       // Find clusters in histogram
       std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
       int numClusters = fBlurredClusteringAlg.FindClusters(blurred, allClusterBins);
       mf::LogVerbatim("Blurred Clustering") << "Found " << numClusters << " clusters" << std::endl;
 
       // Create output clusters from the vector of clusters made in FindClusters
       std::vector<art::PtrVector<recob::Hit> > planeClusters;
-      fBlurredClusteringAlg.ConvertBinsToClusters(&image, allClusterBins, planeClusters);
+      fBlurredClusteringAlg.ConvertBinsToClusters(image, allClusterBins, planeClusters);
 
       // Use the cluster merging algorithm
       if (fMergeClusters) {
@@ -196,13 +195,18 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 
       // Make the debug PDF
       if (fCreateDebugPDF) {
-	fBlurredClusteringAlg.SaveImage(&image, 1, planeIt->first.second, planeIt->first.first);
-	fBlurredClusteringAlg.SaveImage(blurred, 2, planeIt->first.second, planeIt->first.first);
-	fBlurredClusteringAlg.SaveImage(blurred, allClusterBins, 3, planeIt->first.second, planeIt->first.first);
-	fBlurredClusteringAlg.SaveImage(&image, finalClusters, 4, planeIt->first.second, planeIt->first.first);
+	std::stringstream name;
+	name << "blurred_image";
+	TH2F* imageHist = fBlurredClusteringAlg.MakeHistogram(image, TString(name.str()));
+	name << "_convolved";
+	TH2F* blurredHist = fBlurredClusteringAlg.MakeHistogram(blurred, TString(name.str()));
+      	fBlurredClusteringAlg.SaveImage(imageHist, 1, planeIt->first.second, planeIt->first.first);
+      	fBlurredClusteringAlg.SaveImage(blurredHist, 2, planeIt->first.second, planeIt->first.first);
+      	fBlurredClusteringAlg.SaveImage(blurredHist, allClusterBins, 3, planeIt->first.second, planeIt->first.first);
+      	fBlurredClusteringAlg.SaveImage(imageHist, finalClusters, 4, planeIt->first.second, planeIt->first.first);
+	imageHist->Delete();
+	blurredHist->Delete();
       }
-
-      blurred->Delete();
 
     } // End min hits check
 

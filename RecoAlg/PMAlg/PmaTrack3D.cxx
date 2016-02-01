@@ -83,16 +83,30 @@ pma::Track3D::~Track3D(void)
 		if (!fNodes[i]->NextCount() && !fNodes[i]->Prev()) delete fNodes[i];
 }
 
-void pma::Track3D::Initialize(float initEndSegW)
+bool pma::Track3D::Initialize(float initEndSegW)
 {
-	int tpc = TPCs().front(); // just the first tpc, many tpc's are ok, but need to generalize code
-	
-	if (Cryos().size() > 1)
+	if (!HasTwoViews(2))
+	{
+		mf::LogError("pma::Track3D") << "Need min. 2 hits per view, at least two views.";
+		return false;
+	}
+
+	auto cryos = Cryos();
+	if (cryos.size() > 1)
 	{
 		mf::LogError("pma::Track3D") << "Only one cryostat for now, please.";
-		return; // would need to generalize code even more if many cryostats
+		return false;
 	}
-	int cryo = Cryos().front(); // just the first cryo
+	int cryo = cryos.front();
+
+	auto tpcs = TPCs();
+	if (tpcs.size() > 1)
+	{
+		mf::LogError("pma::Track3D") << "Only one TPC, please.";
+		return false;
+	}
+	// single tpc, many tpc's are ok, but need to be handled from ProjectionMatchingAlg::buildMultiTPCTrack()
+	int tpc = tpcs.front();
 	
 	if (InitFromRefPoints(tpc, cryo)) mf::LogVerbatim("pma::Track3D") << "Track initialized with 3D reference points.";
 	else
@@ -100,7 +114,9 @@ void pma::Track3D::Initialize(float initEndSegW)
 		if (InitFromHits(tpc, cryo, initEndSegW)) mf::LogVerbatim("pma::Track3D") << "Track initialized with hit positions.";
 		else { InitFromMiddle(tpc, cryo); mf::LogVerbatim("pma::Track3D") << "Track initialized in the module center."; }
 	}
+
 	UpdateHitsRadius();
+	return true;
 }
 
 void pma::Track3D::ClearNodes(void)
@@ -529,6 +545,85 @@ bool pma::Track3D::CanFlip(void) const
 	}
 	else return true;
 }
+
+void pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned int n)
+{
+	unsigned int nViews = 3;
+	std::map< size_t, std::vector<double> > dedx_map[3];
+	for (unsigned int i = 0; i < nViews; i++)
+	{
+		GetRawdEdxSequence(dedx_map[i], i, 1);
+	}
+	unsigned int bestView = 2;
+	if (dedx_map[0].size() > 2 * dedx_map[2].size()) bestView = 0;
+	if (dedx_map[1].size() > 2 * dedx_map[2].size()) bestView = 1;
+
+	std::vector< std::vector<double> > dedx;
+	for (size_t i = 0; i < size(); i++)
+	{
+		auto it = dedx_map[bestView].find(i);
+		if (it != dedx_map[bestView].end())
+		{
+			dedx.push_back(it->second);
+		}
+	}
+	if (!dedx.empty()) dedx.pop_back();
+
+	float dEdxStart = 0.0F, dEdxStop = 0.0F;
+	float dEStart = 0.0F, dxStart = 0.0F;
+	float dEStop = 0.0F, dxStop = 0.0F;
+	if (dedx.size() > 4)
+	{
+		if (!n) // use default options
+		{
+			if (dedx.size() > 30) n = 12;
+			else if (dedx.size() > 20) n = 8;
+			else if (dedx.size() > 10) n = 4;
+			else n = 3;
+		}
+
+		size_t k = (dedx.size() - 2) >> 1;
+		if (n > k) n = k;
+
+		for (size_t i = 1, j = 0; j < n; i++, j++)
+		{
+			dEStart += dedx[i][5]; dxStart += dedx[i][6];
+		}
+		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
+
+		for (size_t i = dedx.size() - 2, j = 0; j < n; i--, j++)
+		{
+			dEStop += dedx[i][5]; dxStop += dedx[i][6];
+		}
+		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
+	}
+	else if (dedx.size() == 4)
+	{
+		dEStart = dedx[0][5] + dedx[1][5]; dxStart = dedx[0][6] + dedx[1][6];
+		dEStop = dedx[2][5] + dedx[3][5]; dxStop = dedx[2][6] + dedx[3][6];
+		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
+		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
+
+	}
+	else if (dedx.size() > 1)
+	{
+		if (dedx.front()[2] > 0.0F) dEdxStart = dedx.front()[5] / dedx.front()[6];
+		if (dedx.back()[2] > 0.0F) dEdxStop = dedx.back()[5] / dedx.back()[6];
+	}
+	else return;
+
+	if ((dir == pma::Track3D::kForward) && ((1.0 + thr) * dEdxStop < dEdxStart))
+	{
+		mf::LogVerbatim("pma::Track3D") << "Auto-flip fired (1), thr: " << (1.0+thr) << ", value: " << dEdxStart/dEdxStop;
+		Flip();  // particle stops at the end of the track
+	}
+	if ((dir == pma::Track3D::kBackward) && (dEdxStop > (1.0 + thr) * dEdxStart))
+	{
+		mf::LogVerbatim("pma::Track3D") << "Auto-flip fired (2), thr: " << (1.0+thr) << ", value: " << dEdxStop/dEdxStart;
+		Flip(); // particle stops at the front of the track
+	}
+}
+
 
 double pma::Track3D::TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits, bool normalized) const
 {
@@ -2621,7 +2716,7 @@ void pma::Track3D::MakeFastProjection(void)
 			if (pe) break;
 		}
 
-		if (pe) assignments.emplace_back(std::pair< pma::Hit3D*, pma::Element3D* >(hi, pe));
+		if (pe) assignments.emplace_back(hi, pe);
 		else mf::LogWarning("pma::Track3D") << "Hit was not assigned to any element.";
 	}
 

@@ -38,23 +38,23 @@ public:
 	/// reoptimize track structures. Result is returned as a collection of new tracks, that
 	/// replaces content of trk_input (old tracks are deleted).
 	/// Vertices can be accessed with getVertices function.
-	size_t run(pma::trk_candidates& trk_input);
+	size_t run(pma::TrkCandidateColl & trk_input);
 
 	/// Copy input tracks, use provided 3D vertices to connect tracks, break tracks or flip if
 	/// needed, reoptimize track structures. Result is returned as a collection of new tracks,
 	/// that replaces content of trk_input (old tracks are deleted).
 	/// Input vertices that were actually associated to tracks are copied to the output
 	/// collection (use getVertices function).
-	size_t run(pma::trk_candidates& trk_input,
+	size_t run(pma::TrkCandidateColl & trk_input,
 	           const std::vector< TVector3 >& vtx_input);
 
-	std::vector< std::pair< TVector3, std::vector< size_t > > >
-		getVertices(const pma::trk_candidates& tracks) const;
+	std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > >
+		getVertices(const pma::TrkCandidateColl& tracks) const;
 
 private:
 	std::vector< pma::VtxCandidate > firstPassCandidates(void);
 	std::vector< pma::VtxCandidate > secondPassCandidates(void);
-	size_t findVtxSet(std::vector< pma::VtxCandidate >& candidates);
+	size_t makeVertices(std::vector< pma::VtxCandidate >& candidates);
 
 	/// Get dQ/dx sequence to detect various features.
 	std::vector< std::pair<double, double> > getdQdx(const pma::Track3D& trk) const;
@@ -67,18 +67,18 @@ private:
 
 	/// Find elastic scattering vertices on tracks, merge back tracks that were split
 	/// during vertex finding. 3D angle between two tracks and dQ/dx is checked.
-	void mergeBrokenTracks(pma::trk_candidates& trk_input) const;
+	void mergeBrokenTracks(pma::TrkCandidateColl& trk_input) const;
 
 	/// Split track and add vertex and reoptimize when dQ/dx step detected.
-	void splitMergedTracks(pma::trk_candidates& trk_input) const;
+	void splitMergedTracks(pma::TrkCandidateColl& trk_input) const;
 
-	pma::trk_candidates fOutTracks;
-	pma::trk_candidates fShortTracks;
-	pma::trk_candidates fEmTracks;
+	pma::TrkCandidateColl fOutTracks;
+	pma::TrkCandidateColl fShortTracks;
+	pma::TrkCandidateColl fEmTracks;
 	void cleanTracks(void);
 
-	void sortTracks(const pma::trk_candidates& trk_input);
-	void collectTracks(pma::trk_candidates& result);
+	void sortTracks(const pma::TrkCandidateColl & trk_input);
+	void collectTracks(pma::TrkCandidateColl & result);
 
 	// Parameters used in the algorithm
 

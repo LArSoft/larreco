@@ -72,28 +72,74 @@ public:
   virtual ~BlurredClusteringAlg();
 
   void reconfigure(fhicl::ParameterSet const&p);
-  art::PtrVector<recob::Hit> ConvertBinsToRecobHits(TH2F* image, std::vector<int> const& bins);
-  art::Ptr<recob::Hit> ConvertBinToRecobHit(TH2F* image, int const& bin);
-  void ConvertBinsToClusters(TH2F *image, std::vector<std::vector<int> > const& allClusterBins, std::vector<art::PtrVector<recob::Hit> >& clusters);
+
+  /// Create the PDF to save debug images
   void CreateDebugPDF(int run, int subrun, int event);
-  TH2F ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > const& hits);
-  TH2F* Convolve(TH2F* image, std::vector<double> const& kernel, int const& width, int const& height, const char *new_name = 0);
-  void FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick);
-  int FindClusters(TH2F* image, std::vector<std::vector<int> >& allcluster);
+
+  /// Takes a vector of clusters (itself a vector of hits) and turns them into clusters using the initial hit selection
+  void ConvertBinsToClusters(std::vector<std::vector<double> > const& image,
+			     std::vector<std::vector<int> > const& allClusterBins,
+			     std::vector<art::PtrVector<recob::Hit> >& clusters);
+
+  /// Takes hit map and returns a 2D vector representing wire and tick, filled with the charge
+  std::vector<std::vector<double> > ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit> > const& hits);
+
+  /// Find clusters in the histogram
+  int FindClusters(std::vector<std::vector<double> > const& image, std::vector<std::vector<int> >& allcluster);
+
+  /// Find the global wire position
   int GlobalWire(geo::WireID const& wireID);
-  TH2F* GaussianBlur(TH2F* image);
+
+  /// Applies Gaussian blur to image
+  std::vector<std::vector<double> > GaussianBlur(std::vector<std::vector<double> > const& image);
+
+  /// Minimum size of cluster to save
   unsigned int GetMinSize() { return fMinSize; }
-  double GetTimeOfBin(TH2F* image, int const& bin);
-  unsigned int NumNeighbours(int const& nx, std::vector<bool> const& used, int const& bin);
-  bool PassesTimeCut(std::vector<double> const& times, double const& time);
-  void RemoveTrackHits(std::vector<art::Ptr<recob::Hit> > const& ihits, std::vector<art::Ptr<recob::Track> > const& tracks, std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints, art::FindManyP<recob::Track> const& fmth, art::FindManyP<recob::Track> const& fmtsp, art::FindManyP<recob::Hit> const& fmh, std::vector<art::Ptr<recob::Hit> >& hits, int Event, int Run);
+
+  /// Converts a 2D vector in a histogram for the debug pdf
+  TH2F* MakeHistogram(std::vector<std::vector<double> > const& image, TString name);
+
+  /// Save the images for debugging
+  /// This version takes the final clusters and overlays on the hit map
   void SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int pad, int tpc, int plane);
+
+  /// Save the images for debugging
   void SaveImage(TH2F* image, int pad, int tpc, int plane);
+
+  /// Save the images for debugging
+  /// This version takes a vector of bins and overlays the relevant bins on the hit map
   void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int pad, int tpc, int plane);
 
   std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
 
 private:
+
+  /// Converts a vector of bins into a hit selection - not all the hits in the bins vector are real hits
+  art::PtrVector<recob::Hit> ConvertBinsToRecobHits(std::vector<std::vector<double> > const& image, std::vector<int> const& bins);
+
+  /// Converts a bin into a recob::Hit (not all of these bins correspond to recob::Hits - some are fake hits created by the blurring)
+  art::Ptr<recob::Hit> ConvertBinToRecobHit(std::vector<std::vector<double> > const& image, int bin);
+
+  /// Convolves the Gaussian kernel with the image to blur
+  std::vector<std::vector<double> > Convolve(std::vector<std::vector<double> > const& image, std::vector<double> const& kernel, int width, int height);
+
+  /// Converts an xbin and a ybin to a global bin number                                                                                                                       
+  int ConvertWireTickToBin(std::vector<std::vector<double> > const& image, int xbin, int ybin);
+
+  /// Returns the charge stored in the global bin value                                                                                                                        
+  double ConvertBinToCharge(std::vector<std::vector<double> > const& image, int bin);
+
+  /// Dynamically find the blurring radii and Gaussian sigma in each dimension
+  void FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick);
+
+  /// Returns the hit time of a hit in a particular bin
+  double GetTimeOfBin(std::vector<std::vector<double> > const& image, int bin);
+
+  /// Determines the number of clustered neighbours of a hit
+  unsigned int NumNeighbours(int nx, std::vector<bool> const& used, int bin);
+
+  /// Determine if a hit is within a time threshold of any other hits in a cluster
+  bool PassesTimeCut(std::vector<double> const& times, double time);
 
   // Parameters used in the Blurred Clustering algorithm
   int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction

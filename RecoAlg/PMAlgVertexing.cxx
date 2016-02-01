@@ -32,38 +32,42 @@ void pma::PMAlgVertexing::reconfigure(const fhicl::ParameterSet& pset)
 
 void pma::PMAlgVertexing::cleanTracks(void)
 {
-	for (auto & t : fOutTracks) t.DeleteTrack();
+	for (auto & t : fOutTracks.tracks()) t.DeleteTrack();
 	fOutTracks.clear();
 
-	for (auto & t : fShortTracks) t.DeleteTrack();
+	for (auto & t : fShortTracks.tracks()) t.DeleteTrack();
 	fShortTracks.clear();
 
-	for (auto & t : fEmTracks) t.DeleteTrack();
+	for (auto & t : fEmTracks.tracks()) t.DeleteTrack();
 	fEmTracks.clear();
 }
 // ------------------------------------------------------
 
-void pma::PMAlgVertexing::collectTracks(pma::trk_candidates& result)
+void pma::PMAlgVertexing::collectTracks(pma::TrkCandidateColl & result)
 {
-	for (auto & t : result) t.DeleteTrack();
+	mf::LogVerbatim("pma::PMAlgVertexing") << "clean input: " << result.size() << std::endl;
+	for (auto & t : result.tracks()) t.DeleteTrack();
 	result.clear();
 
-	for (auto const & t : fOutTracks) result.push_back(t);
+	mf::LogVerbatim("pma::PMAlgVertexing") << "fill input from out: " << fOutTracks.size() << std::endl;
+	for (auto const & t : fOutTracks.tracks()) result.push_back(t);
 	fOutTracks.clear();
 
-	for (auto const & t : fShortTracks) result.push_back(t);
+	mf::LogVerbatim("pma::PMAlgVertexing") << "fill input from short: " << fShortTracks.size() << std::endl;
+	for (auto const & t : fShortTracks.tracks()) result.push_back(t);
 	fShortTracks.clear();
 
-	for (auto const & t : fEmTracks) result.push_back(t);
+	mf::LogVerbatim("pma::PMAlgVertexing") << "fill input from em: " << fOutTracks.size() << std::endl;
+	for (auto const & t : fEmTracks.tracks()) result.push_back(t);
 	fEmTracks.clear();
 }
 // ------------------------------------------------------
 
-void pma::PMAlgVertexing::sortTracks(const pma::trk_candidates& trk_input)
+void pma::PMAlgVertexing::sortTracks(const pma::TrkCandidateColl & trk_input)
 {
 	cleanTracks();
 
-	for (auto const & t : trk_input)
+	for (auto const & t : trk_input.tracks())
 	{
 		double l = t.Track()->Length();
 
@@ -72,13 +76,13 @@ void pma::PMAlgVertexing::sortTracks(const pma::trk_candidates& trk_input)
 
 		if (t.Track()->GetTag() == pma::Track3D::kEmLike)
 		{
-			if (l > 2 * fMinTrackLength) fOutTracks.emplace_back(pma::TrkCandidate(copy, key));
-			else fEmTracks.emplace_back(pma::TrkCandidate(copy, key));
+			if (l > 2 * fMinTrackLength) fOutTracks.tracks().emplace_back(copy, key);
+			else fEmTracks.tracks().emplace_back(copy, key);
 		}
 		else
 		{
-			if (l > fMinTrackLength) fOutTracks.emplace_back(pma::TrkCandidate(copy, key));
-			else fEmTracks.emplace_back(pma::TrkCandidate(copy, key));
+			if (l > fMinTrackLength) fOutTracks.tracks().emplace_back(copy, key);
+			else fEmTracks.tracks().emplace_back(copy, key);
 		}
 	}
 	mf::LogVerbatim("pma::PMAlgVertexing") << "long tracks: " << fOutTracks.size() << std::endl;
@@ -129,7 +133,7 @@ std::vector< pma::VtxCandidate > pma::PMAlgVertexing::secondPassCandidates(void)
 	return candidates;
 }
 
-size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candidates)
+size_t pma::PMAlgVertexing::makeVertices(std::vector< pma::VtxCandidate >& candidates)
 {
 	bool merged = true;
 	while (merged && (candidates.size() > 1))
@@ -178,7 +182,6 @@ size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candida
 	}
 
 	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx candidates: " << candidates.size();
-	//std::cout << "*** Vtx candidates: " << candidates.size() << std::endl;
 	std::vector< pma::VtxCandidate > toJoin;
 	bool select = true;
 	while (select)
@@ -188,20 +191,16 @@ size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candida
 
 		for (size_t v = 0; v < candidates.size(); v++)
 		{
-			if (candidates[v].HasLoops())
-			{
-				//std::cout << "*** Candidate has loops. ***" << std::endl;
-				continue;
-			}
+			if (candidates[v].HasLoops()) continue;
 
-			bool correlated = false;
+			bool maybeCorrelated = false;
 			for (size_t u = 0; u < toJoin.size(); u++)
 				if (toJoin[u].IsAttached(candidates[v]) || // connected with tracks or close centers
 					(pma::Dist2(toJoin[u].Center(), candidates[v].Center()) < 15.0*15.0))
 				{
-					correlated = true; break;
+					maybeCorrelated = true; break;
 				}
-			if (correlated) continue;
+			if (maybeCorrelated) continue;
 
 			s = (int)candidates[v].Size(2 * fMinTrackLength);
 			a = candidates[v].MaxAngle(1.0);
@@ -235,21 +234,18 @@ size_t pma::PMAlgVertexing::findVtxSet(std::vector< pma::VtxCandidate >& candida
 		else select = false;
 	}
 	mf::LogVerbatim("pma::PMAlgVertexing") << "*** Vtx selected to join: " << toJoin.size();
-	//std::cout << "*** Vtx selected to join: " << toJoin.size() << std::endl;
 
 	size_t njoined = 0;
 	for (auto & c : toJoin)
 	{
-		//std::cout << " join " << njoined << std::endl;
 		if (c.JoinTracks(fOutTracks, fEmTracks)) njoined++;
-		//std::cout << "   ok " << std::endl;
 	}
 
 	return njoined;
 }
 // ------------------------------------------------------
 
-size_t pma::PMAlgVertexing::run(pma::trk_candidates& trk_input)
+size_t pma::PMAlgVertexing::run(pma::TrkCandidateColl & trk_input)
 {
 	if (trk_input.size() < 2)
 	{
@@ -270,7 +266,7 @@ size_t pma::PMAlgVertexing::run(pma::trk_candidates& trk_input)
 			auto candidates = firstPassCandidates();
 			if (candidates.size())
 			{
-				nfound = findVtxSet(candidates);
+				nfound = makeVertices(candidates);
 				nvtx += nfound;
 			}
 			else nfound = 0;
@@ -291,7 +287,7 @@ size_t pma::PMAlgVertexing::run(pma::trk_candidates& trk_input)
 			auto candidates = secondPassCandidates();
 			if (candidates.size())
 			{
-				nfound = findVtxSet(candidates);
+				nfound = makeVertices(candidates);
 				nvtx += nfound;
 			}
 			else nfound = 0;
@@ -313,7 +309,7 @@ size_t pma::PMAlgVertexing::run(pma::trk_candidates& trk_input)
 // ------------------------------------------------------
 
 size_t pma::PMAlgVertexing::run(
-	pma::trk_candidates& trk_input,
+	pma::TrkCandidateColl& trk_input,
 	const std::vector< TVector3 >& vtx_input)
 {
 	sortTracks(trk_input); // copy input and split by tag/size
@@ -443,7 +439,7 @@ bool pma::PMAlgVertexing::isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk
 	}
 }
 
-void pma::PMAlgVertexing::mergeBrokenTracks(pma::trk_candidates& trk_input) const
+void pma::PMAlgVertexing::mergeBrokenTracks(pma::TrkCandidateColl & trk_input) const
 {
 	if (trk_input.size() < 2) return;
 
@@ -493,7 +489,7 @@ void pma::PMAlgVertexing::mergeBrokenTracks(pma::trk_candidates& trk_input) cons
 }
 // ------------------------------------------------------
 
-void pma::PMAlgVertexing::splitMergedTracks(pma::trk_candidates& trk_input) const
+void pma::PMAlgVertexing::splitMergedTracks(pma::TrkCandidateColl & trk_input) const
 {
 	if (trk_input.size() < 1) return;
 
@@ -506,15 +502,24 @@ void pma::PMAlgVertexing::splitMergedTracks(pma::trk_candidates& trk_input) cons
 }
 // ------------------------------------------------------
 
-std::vector< std::pair< TVector3, std::vector< size_t > > > pma::PMAlgVertexing::getVertices(
-	const pma::trk_candidates& tracks) const
+std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > >
+pma::PMAlgVertexing::getVertices(const pma::TrkCandidateColl & tracks) const
 {
-	std::vector< std::pair< TVector3, std::vector< size_t > > > vsel;
+	std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > > vsel;
 	std::vector< pma::Node3D const * > bnodes;
 
-	for (size_t t = 0; t < tracks.size(); t++)
+	for (size_t t = 0; t < tracks.size(); ++t)
 	{
 		pma::Track3D const * trk = tracks[t].Track();
+		pma::Node3D const * firstNode = trk->Nodes().front();
+		if (!firstNode->IsBranching())
+		{
+			std::vector< std::pair< size_t, bool > > tidx;
+			tidx.emplace_back(std::pair< size_t, bool >(t, true));
+			vsel.emplace_back(std::pair< TVector3, std::vector< std::pair< size_t, bool > > >(trk->front()->Point3D(), tidx));
+		}
+
+		bool pri = true;
 		for (auto node : trk->Nodes())
 			if (node->IsBranching())
 		{
@@ -522,16 +527,17 @@ std::vector< std::pair< TVector3, std::vector< size_t > > > pma::PMAlgVertexing:
 			for (size_t n = 0; n < bnodes.size(); n++)
 				if (node == bnodes[n])
 			{
-				vsel[n].second.push_back(t);
+				vsel[n].second.emplace_back(std::pair< size_t, bool >(t, pri));
 				found = true; break;
 			}
 			if (!found)
 			{
-				std::vector< size_t > tidx;
-				tidx.push_back(t);
-				vsel.push_back(std::pair< TVector3, std::vector< size_t > >(node->Point3D(), tidx));
+				std::vector< std::pair< size_t, bool > > tidx;
+				tidx.emplace_back(std::pair< size_t, bool >(t, pri));
+				vsel.emplace_back(std::pair< TVector3, std::vector< std::pair< size_t, bool > > >(node->Point3D(), tidx));
 				bnodes.push_back(node);
 			}
+			pri = false;
 		}
 	}
 
