@@ -173,8 +173,7 @@ namespace trkf {
       void chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
                             bool pfseed,
                             art::PtrVector<recob::Hit> &seedhits) const;
-      bool qualityCutsOnSeedTrack(const double chisq,
-                                  const KGTrack &trg0) const;
+      bool qualityCutsOnSeedTrack(const KGTrack &trg0) const;
       bool smoothTrack(KGTrack &trg0,
                        art::PtrVector<recob::Hit> hits,
                        unsigned int prefplane,
@@ -653,11 +652,6 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
          fSpacePointAlg.fillSpacePoints(*spts, kalman_track.TrackMap());
          
          std::vector<art::Ptr<recob::SpacePoint>> sptvec;
-         
-         
-         // somefunc(sph_assn, spts, nspt, evt, sptvec);
-         
-         
          for(auto ispt = nspt; ispt < spts->size(); ++ispt) {
             sptvec.emplace_back(spacepointId, ispt, getter);
             // Associate newly created space points with hits.
@@ -671,10 +665,6 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
          art::Ptr<recob::Track> aptr(tid, tracks->size()-1, tidgetter);
          
          // Make Track to Hit associations.
-         
-         
-         //createAssns(trhits, aptr, th_assn);
-         
          for (auto const& trhit: trhits) {
             th_assn->addSingle(aptr, trhit);
          }
@@ -931,26 +921,17 @@ inline double calcMagnitude(double *x){
 /// Quality cuts on seed track.
 // not sure if this function will be a candidate for generic interface
 
-bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const double chisq,
-                                                    const KGTrack &trg0) const{
-   
-   auto const &start0 = trg0.startTrack();
-   auto const &end0 = trg0.endTrack();
-   
-   bool ok = (start0.getChisq() <= chisq &&
-              end0.getChisq() <= chisq);
-   
+bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const KGTrack &trg0) const{
    double mom0[3];
    double mom1[3];
-   start0.getMomentum(mom0);
-   end0.getMomentum(mom1);
+   trg0.startTrack().getMomentum(mom0);
+   trg0.endTrack().getMomentum(mom1);
    
    double dxds0 = mom0[0] / calcMagnitude(mom0);
    double dxds1 = mom1[0] / calcMagnitude(mom1);
    
-   ok = ok && (std::abs(dxds0) > fMinSeedSlope &&
-               std::abs(dxds1) > fMinSeedSlope);
-   return ok;
+   return (std::abs(dxds0) > fMinSeedSlope &&
+           std::abs(dxds1) > fMinSeedSlope);
 }
 
 //----------------------------------------------------------------------------
@@ -992,10 +973,13 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
    
    auto const n = trg1.numHits();
    auto const chisq = n * fMaxSeedChiDF;
+   
    ok = n >= fMinSeedHits &&
-   trg1.startTrack().getChisq() <= chisq &&
-   trg1.endTrack().getChisq() <= chisq &&
-   qualityCutsOnSeedTrack(chisq, trg0);
+        trg1.startTrack().getChisq() <= chisq &&
+        trg1.endTrack().getChisq() <= chisq &&
+        trg0.startTrack().getChisq() <= chisq &&
+        trg0.endTrack().getChisq() <= chisq &&
+        qualityCutsOnSeedTrack(trg0);
    
    if(!ok) return ok;
    
