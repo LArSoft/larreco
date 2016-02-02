@@ -986,11 +986,8 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
       // Extend the track.  It is not an error for the
       // extend operation to fail, meaning that no new hits
       // were added.
-      bool extendok = fKFAlg.extendTrack(trg1, fProp, *ptrackcont);
-      if(extendok)
-         nfail = 0;
-      else
-         ++nfail;
+      if(fKFAlg.extendTrack(trg1, fProp, *ptrackcont)) nfail = 0;
+      else ++nfail;
       
       // Smooth the extended track, and make a new
       // unidirectionally fit track in the opposite
