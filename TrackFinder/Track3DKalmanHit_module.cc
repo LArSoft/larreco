@@ -164,12 +164,6 @@ namespace trkf {
                              const art::Event & evt) const;
       void getAllHits(art::PtrVector<recob::Hit>& hits,
                       const art::Event & evt) const;
-      void getPFParticleSeedsAndHits(const LocalKalmanStruct& local_kalman_struct,
-                                     std::vector<recob::Seed> seeds,
-                                     std::vector<art::PtrVector<recob::Hit> >& hitsperseed) const;
-      void generateSeeds(const art::PtrVector<recob::Hit>& seederhits,
-                         std::vector<recob::Seed> seeds,
-                         std::vector<art::PtrVector<recob::Hit> >& hitsperseed);
       void chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
                             bool pfseed,
                             art::PtrVector<recob::Hit> &seedhits) const;
@@ -455,7 +449,12 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
          if(first && seedsize > 0 && local_kalman_struct.seedhits.size() > 0) {
             pfseed = true;
             seeds.reserve(seedsize);
-            getPFParticleSeedsAndHits(local_kalman_struct, seeds, hitsperseed);
+            for(const auto& pseed : local_kalman_struct.seeds) {
+               seeds.push_back(*pseed);
+            }
+            hitsperseed.insert(hitsperseed.end(),
+                               local_kalman_struct.seedhits.begin(),
+                               local_kalman_struct.seedhits.end());
          }
          else {
             // On subsequent trips, or if there were no usable pfparticle-associated seeds,
@@ -463,7 +462,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
             if(seederhits.size()>0) {
                if(fSelfSeed) {
                   // Self seed - convert all hits into one big seed.
-                  generateSeeds(seederhits, seeds, hitsperseed);
+                  seeds.emplace_back(makeSeed(seederhits));
+                  hitsperseed.emplace_back();
+                  hitsperseed.back().insert(hitsperseed.back().end(),
+                                            seederhits.begin(), seederhits.end());
                }
                else
                   seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
@@ -885,32 +887,6 @@ void trkf::Track3DKalmanHit::getPFParticleHits(const art::Handle<std::vector<rec
 }
 
 //----------------------------------------------------------------------------
-/// Get seeds snfd hits associated with PFParticles
-
-void trkf::Track3DKalmanHit::getPFParticleSeedsAndHits(const LocalKalmanStruct& local_kalman_struct,
-                                                       std::vector<recob::Seed> seeds,
-                                                       std::vector<art::PtrVector<recob::Hit> >& hitsperseed) const{
-   for(const auto& pseed : local_kalman_struct.seeds) {
-      seeds.push_back(*pseed);
-   }
-   hitsperseed.insert(hitsperseed.end(),
-                      local_kalman_struct.seedhits.begin(),
-                      local_kalman_struct.seedhits.end());
-}
-
-//----------------------------------------------------------------------------
-/// Generate Seeds
-void trkf::Track3DKalmanHit::generateSeeds(const art::PtrVector<recob::Hit>& seederhits,
-                                           std::vector<recob::Seed> seeds,
-                                           std::vector<art::PtrVector<recob::Hit> >& hitsperseed){
-   
-   // Self seed - convert all hits into one big seed.
-   seeds.emplace_back(makeSeed(seederhits));
-   hitsperseed.emplace_back();
-   hitsperseed.back().insert(hitsperseed.back().end(),
-                             seederhits.begin(), seederhits.end());
-}
-
 
 inline double calcMagnitude(double *x){
    return std::sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]);
