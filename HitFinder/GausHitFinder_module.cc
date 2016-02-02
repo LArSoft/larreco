@@ -271,7 +271,7 @@ void GausHitFinder::produce(art::Event& evt)
         // ####################################
         // ### Getting this particular wire ###
         // ####################################
-        art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
+        art::Ptr<recob::Wire>   wire(wireVecHandle, wireIter);
         art::Ptr<raw::RawDigit> rawdigits = RawDigits.at(wireIter);
        
         // --- Setting Channel Number and Signal type ---
@@ -290,6 +290,9 @@ void GausHitFinder::produce(art::Event& evt)
         threshold = fMinSig.at(wire->View());
         fitWidth  = fInitWidth.at(wire->View());
         minWidth  = fMinWidth.at(wire->View());
+        
+//            if (wid.Plane == geo::kV)
+//                roiThreshold = std::max(threshold,std::min(2.*threshold,*std::max_element(signal.begin(),signal.end())/3.));
        
         // #################################################
         // ### Set up to loop over ROI's for this wire   ###
@@ -311,14 +314,11 @@ void GausHitFinder::produce(art::Event& evt)
             std::vector<float>::const_iterator timeIter;  	    // iterator for time bins
            
             // ROI start time
-            double roiFirstBinTick = range.begin_index();
+            raw::TDCtick_t roiFirstBinTick = range.begin_index();
+            raw::TDCtick_t roiLastBinTick  = roiFirstBinTick + signal.size();
             
             TimeValsVec timeValsVec;
-            //float       roiThreshold(std::max(threshold,std::min(2.*threshold,*std::max_element(signal.begin(),signal.end())/300.)));
             float       roiThreshold(threshold);
-            
-            if (wid.Plane == geo::kV)
-                roiThreshold = std::max(threshold,std::min(2.*threshold,*std::max_element(signal.begin(),signal.end())/3.));
             
             // ##########################################################
             // ### Search current ROI for candidate peaks and widths  ###
@@ -397,7 +397,8 @@ void GausHitFinder::produce(art::Event& evt)
                         // ############################################################
                         int newPeakTime = peakVals[0].first + 5 * nGausForFit;
                     
-                        if (newPeakTime < endT - 1)
+                        // We need to make sure we are not out of range and new peak amplitude is non-negative
+                        if (newPeakTime < endT - 1 && signal[newPeakTime] > 0.)
                         {
                             peakVals.emplace_back(newPeakTime, 2. * peakVals[0].second);
 	    
@@ -447,20 +448,20 @@ void GausHitFinder::produce(art::Event& evt)
                 // ### Loop through returned peaks and make recob hits ###
                 // #######################################################
                 
-                for(int hitIdx = 0; hitIdx < nGausForFit; hitIdx++)
+                for(int hitIdx = 0; hitIdx < nGausForFit; hitIdx+=3)
                 {
                     // Extract values for this hit
-                    double peakAmp   = paramVec[3*hitIdx    ].first;
-                    double peakMean  = paramVec[3*hitIdx + 1].first;
-                    double peakWidth = paramVec[3*hitIdx + 2].first;
+                    double peakAmp   = paramVec[hitIdx    ].first;
+                    double peakMean  = paramVec[hitIdx + 1].first;
+                    double peakWidth = paramVec[hitIdx + 2].first;
                     
                     // Selection cut
                     if (nGausForFit == 1 && peakAmp < threshold) continue;
                     
                     // Extract errors
-                    double peakAmpErr   = paramVec[3*hitIdx    ].second;
-                    double peakMeanErr  = paramVec[3*hitIdx + 1].second;
-                    double peakWidthErr = paramVec[3*hitIdx + 2].second;
+                    double peakAmpErr   = paramVec[hitIdx    ].second;
+                    double peakMeanErr  = paramVec[hitIdx + 1].second;
+                    double peakWidthErr = paramVec[hitIdx + 2].second;
                     
                     // ### Charge ###
                     double totSig(0.);
@@ -486,8 +487,8 @@ void GausHitFinder::produce(art::Event& evt)
                     double chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);
                     
                     // ### limits for getting sums
-                    std::vector<float>::const_iterator sumStartItr = signal.begin() + std::max(startT,int(std::round(peakMean - 3 * peakWidth)));
-                    std::vector<float>::const_iterator sumEndItr   = signal.begin() + std::min(endT,  int(std::round(peakMean + 3 * peakWidth)));
+                    std::vector<float>::const_iterator sumStartItr = signal.begin() + startT;
+                    std::vector<float>::const_iterator sumEndItr   = signal.begin() + endT;
                     
                     // ### Sum of ADC counts
                     double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
@@ -495,8 +496,8 @@ void GausHitFinder::produce(art::Event& evt)
                     // ok, now create the hit
                     recob::HitCreator hit(*wire,                            // wire reference
                                           wid,                              // wire ID
-                                          startT+roiFirstBinTick,           // start_tick TODO check
-                                          endT+roiFirstBinTick,             // end_tick TODO check
+                                          roiFirstBinTick,                  // start_tick TODO check
+                                          roiLastBinTick,                   // end_tick TODO check
                                           peakWidth,                        // rms
                                           peakMean+roiFirstBinTick,         // peak_time
                                           peakMeanErr,                      // sigma_peak_time
