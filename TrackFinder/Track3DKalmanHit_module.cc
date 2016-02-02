@@ -181,6 +181,8 @@ namespace trkf {
                        art::PtrVector<recob::Hit> hits,
                        unsigned int prefplane,
                        std::deque<KGTrack>& kalman_tracks);
+      void fitnupdateMomentum(KGTrack& trg1,
+                              KGTrack& trg2);
       
       //  template<class T , class U >
       //  void createAssns (std::vector< T > const &a, std::vector< U > const &b, art::Assns< T, U > &ass);
@@ -431,7 +433,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
       art::PtrVector<recob::Hit> seederhits = hits;
       
       // Start of loop.
-
+      
       bool first = true;
       bool done = false;
       while(!done) {
@@ -949,11 +951,11 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
    auto const chisq = n * fMaxSeedChiDF;
    
    ok = n >= fMinSeedHits &&
-        trg1.startTrack().getChisq() <= chisq &&
-        trg1.endTrack().getChisq() <= chisq &&
-        trg0.startTrack().getChisq() <= chisq &&
-        trg0.endTrack().getChisq() <= chisq &&
-        qualityCutsOnSeedTrack(trg0);
+   trg1.startTrack().getChisq() <= chisq &&
+   trg1.endTrack().getChisq() <= chisq &&
+   trg0.startTrack().getChisq() <= chisq &&
+   trg0.endTrack().getChisq() <= chisq &&
+   qualityCutsOnSeedTrack(trg0);
    
    if(!ok) return ok;
    
@@ -972,22 +974,18 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
       
       // Fill a collection of hits from the last good track
       // (initially the seed track).
-      
       art::PtrVector<recob::Hit> goodhits;
       trg1.fillHits(goodhits);
       
       // Filter hits already on the track out of the available hits.
-      
       FilterHits(trackhits, goodhits);
       
       // Fill hit container using filtered hits.
-      
       std::unique_ptr<KHitContainer> ptrackcont = fillHitContainer(trackhits);
       
       // Extend the track.  It is not an error for the
       // extend operation to fail, meaning that no new hits
       // were added.
-      
       bool extendok = fKFAlg.extendTrack(trg1, fProp, *ptrackcont);
       if(extendok)
          nfail = 0;
@@ -1001,14 +999,9 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
       KGTrack trg2(prefplane);
       ok = fKFAlg.smoothTrack(trg1, &trg2, fProp);
       if(ok) {
-         
          // Skip momentum estimate for constant-momentum tracks.
-         
          if(fDoDedx) {
-            KETrack tremom;
-            if(fKFAlg.fitMomentum(trg1, fProp, tremom)) {
-               fKFAlg.updateMomentum(tremom, fProp, trg2);
-            }
+            fitnupdateMomentum(trg1, trg2);
          }
          trg1 = trg2;
       }
@@ -1024,10 +1017,7 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
    // Skip momentum estimate for constant-momentum tracks.
    
    if(fDoDedx) {
-      KETrack tremom;
-      if (fKFAlg.fitMomentum(trg1, fProp, tremom)){
-         fKFAlg.updateMomentum(tremom, fProp, trg1);
-      }
+      fitnupdateMomentum(trg1, trg1);
    }
    // Save this track.
    ++fNumTrack;
@@ -1035,6 +1025,15 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
    return ok;
 }
 
+
+//----------------------------------------------------------------------------
+/// fit and update method.
+void trkf::Track3DKalmanHit::fitnupdateMomentum(KGTrack& trg1, KGTrack& trg2) {
+   KETrack tremom;
+   if(fKFAlg.fitMomentum(trg1, fProp, tremom)) {
+      fKFAlg.updateMomentum(tremom, fProp, trg2);
+   }
+}
 //----------------------------------------------------------------------------
 /// Make seed method.
 recob::Seed trkf::Track3DKalmanHit::makeSeed(const art::PtrVector<recob::Hit>& hits) const
