@@ -127,6 +127,15 @@ namespace {
    
 }
 
+
+//----------------------------------------------------------------------------
+
+inline double calcMagnitude(double *x){
+   return std::sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]);
+}
+
+//----------
+
 namespace trkf {
    
    class Propagator;
@@ -275,11 +284,7 @@ fNumTrack(0)
 /// Destructor.
 trkf::Track3DKalmanHit::~Track3DKalmanHit()
 {
-   std::cout << "====================trkf::Track3DKalmanHit::~Track3DKalmanHit()\n";
-   std::cout << "====================" << fProp << "\n";
    delete fProp;
-   
-   fProp=nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -292,7 +297,6 @@ trkf::Track3DKalmanHit::~Track3DKalmanHit()
 // SS: talk to Kyle about using parameter set validation
 void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
 {
-   std::cout << "====================void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)\n";
    fHist = pset.get<bool>("Hist");
    fKFAlg.reconfigure(pset.get<fhicl::ParameterSet>("KalmanFilterAlg"));
    fSeedFinderAlg.reconfigure(pset.get<fhicl::ParameterSet>("SeedFinderAlg"));
@@ -314,11 +318,8 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
    fMaxSeedChiDF = pset.get<double>("MaxSeedChiDF");
    fMinSeedSlope = pset.get<double>("MinSeedSlope");
    fInitialMomentum = pset.get<double>("InitialMomentum");
-   //if(fProp != 0)
-   std::cout << "====================" << fProp << "\n";
    delete fProp;
    fProp = new PropAny(fMaxTcut, fDoDedx);
-   std::cout << "====================" << fProp << "\n";
    if(fUseClusterHits && fUsePFParticleHits) {
       throw cet::exception("Track3DKalmanHit")
       << "Using input from both clustered and PFParticle hits.\n";
@@ -411,9 +412,6 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
       getAllHits(hits, evt);
    }
    
-   
-   
-   std::cout << "Size of LocalList " << LocalKalmanStructList.size() << " \n";
    // Loop over hit collection / Kalman track combos.
    for(auto& local_kalman_struct : LocalKalmanStructList) {
       
@@ -433,7 +431,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
       art::PtrVector<recob::Hit> seederhits = hits;
       
       // Start of loop.
-      std::cout << "Size of hits in local kalman struct " << hits.size() << " \n";
+
       bool first = true;
       bool done = false;
       while(!done) {
@@ -465,7 +463,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                   seeds.emplace_back(makeSeed(seederhits));
                   hitsperseed.emplace_back();
                   hitsperseed.back().insert(hitsperseed.back().end(),
-                                            seederhits.begin(), seederhits.end());
+                                            seederhits.begin(),
+                                            seederhits.end());
                }
                else
                   seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
@@ -540,8 +539,11 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                   } // if debug
                   
                   // Cut on the seed slope dx/ds.
-                  double dirlen = std::sqrt(dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2]);
-                  if(std::abs(dir[0]) >= fMinSeedSlope * dirlen) {
+                  //double dirlen = std::sqrt(dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2]);
+                  //double dirlen = calcMagnitude(dir);
+                  
+                  //SS: replace test with a function with a reasonable name
+                  if(std::abs(dir[0]) >= fMinSeedSlope * calcMagnitude(dir)) {
                      
                      // Make one or two initial KTracks for forward and backward directions.
                      // Assume muon (pdgid = 13).
@@ -554,7 +556,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                      // should declare victory and quit after getting a successful
                      // track from one initial track.
                      
-                     bool build_all = fDoDedx;
+                     //SS: This should be moved in the end where it is used
+                     //bool build_all = fDoDedx;
                      int ninit = 2;
                      initial_tracks.reserve(ninit);
                      initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
@@ -591,7 +594,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                            mf::LogDebug("Track3DKalmanHit")
                            << (ok? "Find track succeeded.": "Find track failed.") << "\n";
                         
-                        if(ok && !build_all)
+                        if(ok && !fDoDedx)
                            break;
                      } // for initial track
                      
@@ -886,11 +889,6 @@ void trkf::Track3DKalmanHit::getPFParticleHits(const art::Handle<std::vector<rec
    
 }
 
-//----------------------------------------------------------------------------
-
-inline double calcMagnitude(double *x){
-   return std::sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]);
-}
 
 
 //----------------------------------------------------------------------------
@@ -1008,9 +1006,9 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
          
          if(fDoDedx) {
             KETrack tremom;
-            bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
-            if(pok)
+            if(fKFAlg.fitMomentum(trg1, fProp, tremom)) {
                fKFAlg.updateMomentum(tremom, fProp, trg2);
+            }
          }
          trg1 = trg2;
       }
@@ -1027,9 +1025,9 @@ bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
    
    if(fDoDedx) {
       KETrack tremom;
-      bool pok = fKFAlg.fitMomentum(trg1, fProp, tremom);
-      if(pok)
+      if (fKFAlg.fitMomentum(trg1, fProp, tremom)){
          fKFAlg.updateMomentum(tremom, fProp, trg1);
+      }
    }
    // Save this track.
    ++fNumTrack;
