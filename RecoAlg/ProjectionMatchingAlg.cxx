@@ -217,7 +217,12 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 	size_t nNodes = (size_t)( nSegments - 1 ); // n nodes to add
 
 	mf::LogVerbatim("ProjectionMatchingAlg") << "  initialize trk";
-	trk->Initialize();
+	if (!trk->Initialize())
+	{
+		mf::LogWarning("ProjectionMatchingAlg") << "  initialization failed, delete trk";
+		delete trk;
+		return 0;
+	}
 
 	double f = twoViewFraction(*trk);
 	if (f > fMinTwoViewFraction)
@@ -245,6 +250,80 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 }
 // ------------------------------------------------------
 
+pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
+	const std::vector< art::Ptr<recob::Hit> >& hits) const
+{
+	std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > hits_by_tpc;
+	for (auto const & h : hits)
+	{
+		hits_by_tpc[h->WireID().TPC].push_back(h);
+	}
+
+	std::vector< pma::Track3D* > tracks;
+	for(auto const & hsel : hits_by_tpc)
+	{
+		pma::Track3D* trk = buildTrack(hsel.second);
+		if (trk) tracks.push_back(trk);
+	}
+
+	bool need_reopt = false;
+	while (tracks.size() > 1)
+	{
+		need_reopt = true;
+
+		pma::Track3D* first = tracks.front();
+		pma::Track3D* best = 0;
+		double d, dmin = 1.0e12;
+		size_t t_best = 0, cfg = 0;
+		for (size_t t = 1; t < tracks.size(); ++t)
+		{
+			pma::Track3D* second = tracks[t];
+
+			d = pma::Dist2(first->front()->Point3D(), second->front()->Point3D());
+			if (d < dmin) { dmin = d; best = second; t_best = t; cfg = 0; }
+
+			d = pma::Dist2(first->front()->Point3D(), second->back()->Point3D());
+			if (d < dmin) { dmin = d; best = second; t_best = t; cfg = 1; }
+
+			d = pma::Dist2(first->back()->Point3D(), second->front()->Point3D());
+			if (d < dmin) { dmin = d; best = second; t_best = t; cfg = 2; }
+
+			d = pma::Dist2(first->back()->Point3D(), second->back()->Point3D());
+			if (d < dmin) { dmin = d; best = second; t_best = t; cfg = 3; }
+		}
+		if (best)
+		{
+			switch (cfg)
+			{
+				default:
+				case 0:
+				case 1:
+					mergeTracks(*best, *first, false);
+					tracks[0] = best; delete first; break;
+
+				case 2:
+				case 3:
+					mergeTracks(*first, *best, false);
+					delete best; break;
+			}
+			tracks.erase(tracks.begin() + t_best);
+		}
+		else break; // should not happen
+	}
+
+	if (!tracks.empty())
+	{
+		pma::Track3D* trk = tracks.front();
+		if (need_reopt)
+		{
+			double g = trk->Optimize(0, fFineTuningEps);
+			mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging tpc parts: done, g = " << g;
+		}
+		return trk;
+	}
+	else return 0;
+}
+
 pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
 	const std::vector< art::Ptr<recob::Hit> >& hits_1,
 	const std::vector< art::Ptr<recob::Hit> >& hits_2) const
@@ -257,7 +336,12 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
 	if (trk->HasTwoViews() &&
 	   (trk->TPCs().size() == 1)) // now only in single tpc
 	{
-		trk->Initialize(0.001F);
+		if (!trk->Initialize(0.001F))
+		{
+			mf::LogWarning("ProjectionMatchingAlg") << "initialization failed, delete segment";
+			delete trk;
+			return 0;
+		}
 		trk->Optimize(0, fFineTuningEps);
 
 		trk->SortHits();
@@ -617,76 +701,6 @@ void pma::ProjectionMatchingAlg::mergeTracks(pma::Track3D& dst, pma::Track3D& sr
 
 	dst.MakeProjection();
 	dst.SortHits();
-}
-
-void pma::ProjectionMatchingAlg::autoFlip(pma::Track3D& trk,
-	pma::Track3D::EDirection dir, double thr, unsigned int n) const
-{
-	unsigned int nViews = 3;
-	std::map< size_t, std::vector<double> > dedx_map[3];
-	for (unsigned int i = 0; i < nViews; i++)
-	{
-		trk.GetRawdEdxSequence(dedx_map[i], i, 1);
-	}
-	unsigned int bestView = 2;
-	if (dedx_map[0].size() > 2 * dedx_map[2].size()) bestView = 0;
-	if (dedx_map[1].size() > 2 * dedx_map[2].size()) bestView = 1;
-
-	std::vector< std::vector<double> > dedx;
-	for (size_t i = 0; i < trk.size(); i++)
-	{
-		auto it = dedx_map[bestView].find(i);
-		if (it != dedx_map[bestView].end())
-		{
-			dedx.push_back(it->second);
-		}
-	}
-
-	float dEdxStart = 0.0F, dEdxStop = 0.0F;
-	float dEStart = 0.0F, dxStart = 0.0F;
-	float dEStop = 0.0F, dxStop = 0.0F;
-	if (dedx.size() > 4)
-	{
-		if (!n) // use default options
-		{
-			if (dedx.size() > 30) n = 12;
-			else if (dedx.size() > 20) n = 8;
-			else if (dedx.size() > 10) n = 4;
-			else n = 3;
-		}
-
-		size_t k = (dedx.size() - 2) >> 1;
-		if (n > k) n = k;
-
-		for (size_t i = 1, j = 0; j < n; i++, j++)
-		{
-			dEStart += dedx[i][5]; dxStart += dedx[i][6];
-		}
-		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
-
-		for (size_t i = dedx.size() - 2, j = 0; j < n; i--, j++)
-		{
-			dEStop += dedx[i][5]; dxStop += dedx[i][6];
-		}
-		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
-	}
-	else if (dedx.size() == 4)
-	{
-		dEStart = dedx[0][5] + dedx[1][5]; dxStart = dedx[0][6] + dedx[1][6];
-		dEStop = dedx[2][5] + dedx[3][5]; dxStop = dedx[2][6] + dedx[3][6];
-		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
-		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
-
-	}
-	else if (dedx.size() > 1)
-	{
-		if (dedx.front()[2] > 0.0F) dEdxStart = dedx.front()[5] / dedx.front()[6];
-		if (dedx.back()[2] > 0.0F) dEdxStop = dedx.back()[5] / dedx.back()[6];
-	}
-	else return;
-
-	if ((dir == pma::Track3D::kForward) && ((1.0 + thr) * dEdxStop < dEdxStart)) trk.Flip();  // particle stops at the end of the track
-	if ((dir == pma::Track3D::kBackward) && (dEdxStop > (1.0 + thr) * dEdxStart)) trk.Flip(); // particle stops at the front of the track
 }
 // ------------------------------------------------------
 

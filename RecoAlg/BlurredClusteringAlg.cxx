@@ -50,10 +50,7 @@ void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
   fChargeThreshold     = p.get<double>("ChargeThreshold");
 }
 
-
 void cluster::BlurredClusteringAlg::CreateDebugPDF(int run, int subrun, int event) {
-
-  /// Create the PDF to save debug images
 
   if (!fDebugCanvas) {
 
@@ -94,20 +91,16 @@ void cluster::BlurredClusteringAlg::CreateDebugPDF(int run, int subrun, int even
 
 }
 
-
-art::PtrVector<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinsToRecobHits(TH2F *image, std::vector<int> const& bins) {
-
-  /// Converts a vector of bins into a hit selection - not all the hits in the bins vector are real hits
+art::PtrVector<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinsToRecobHits(std::vector<std::vector<double> > const& image, std::vector<int> const& bins) {
 
   // Create the vector of hits to output
   art::PtrVector<recob::Hit> hits;
 
   // Look through the hits in the cluster
-  for (std::vector<int>::const_iterator it = bins.begin(); it != bins.end(); it++) {
+  for (std::vector<int>::const_iterator binIt = bins.begin(); binIt != bins.end(); binIt++) {
 
     // Take each hit and convert it to a recob::Hit
-    int bin = *it;
-    art::Ptr<recob::Hit> hit = ConvertBinToRecobHit(image, bin);
+    art::Ptr<recob::Hit> hit = ConvertBinToRecobHit(image, *binIt);
 
     // If this hit was a real hit put it in the hit selection
     if (!hit.isNull())
@@ -118,33 +111,32 @@ art::PtrVector<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinsToRecobHits
   return hits;
 }
 
-
-art::Ptr<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinToRecobHit(TH2F *image, int const& bin) {
-
-  /// Converts a bin into a recob::Hit (not all of these bins correspond to recob::Hits - some are fake hits created by the blurring)
+art::Ptr<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinToRecobHit(std::vector<std::vector<double> > const& image, int bin) {
 
   // Take the hit
   art::Ptr<recob::Hit> hit;
 
   // Find the point in wire/tick space which corresponds to this bin
-  int wire, tick, z;
-  image->GetBinXYZ(bin,wire,tick,z);
+  int xbin = bin % image.size();
+  int ybin = bin / image.size();
+  int wire = xbin + fLowerHistWire - 1;
+  int tick = ybin + fLowerHistTick - 1;
 
   // If this particular bin corresponds to an entry in the hit map then this was a real hit
-  if (fHitMap.find(wire+fLowerHistWire-1) != fHitMap.end()) {
-    if (fHitMap[wire+fLowerHistWire-1].find(tick+fLowerHistTick-1) != fHitMap[wire+fLowerHistWire-1].end()) {
-      hit = fHitMap[wire+fLowerHistWire-1][tick+fLowerHistTick-1];
+  if (fHitMap.find(wire) != fHitMap.end()) {
+    if (fHitMap[wire].find(tick) != fHitMap[wire].end()) {
+      hit = fHitMap[wire][tick];
     }
   }
 
   // Return this hit place in art::PtrVector<recob::Hit>
   return hit;
+
 }
 
-
-void cluster::BlurredClusteringAlg::ConvertBinsToClusters(TH2F *image, std::vector<std::vector<int> > const& allClusterBins, std::vector<art::PtrVector<recob::Hit> >& clusters) {
-
-  /// Takes a vector of clusters (itself a vector of hits) and turns them into clusters using the initial hit selection
+void cluster::BlurredClusteringAlg::ConvertBinsToClusters(std::vector<std::vector<double> > const& image,
+							  std::vector<std::vector<int> > const& allClusterBins,
+							  std::vector<art::PtrVector<recob::Hit> >& clusters) {
 
   // Loop through the clusters (each a vector of bins)
   for (std::vector<std::vector<int> >::const_iterator clustIt = allClusterBins.begin(); clustIt != allClusterBins.end(); clustIt++) {
@@ -162,16 +154,14 @@ void cluster::BlurredClusteringAlg::ConvertBinsToClusters(TH2F *image, std::vect
     }
 
     clusters.push_back(clusHits);
+
   }
 
   return;
 
 }
 
-
-TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<recob::Hit> > const& hits) {
-
-  /// Takes hit map and returns a TH2 histogram of bar vs layer, with charge on z-axis
+std::vector<std::vector<double> > cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit> > const& hits) {
 
   // Define the size of this particular plane -- dynamically to avoid huge histograms
   int lowerTick = fDetProp->ReadOutWindowSize(), upperTick = 0, lowerWire = fGeom->MaxWires(), upperWire = 0;
@@ -190,36 +180,44 @@ TH2F cluster::BlurredClusteringAlg::ConvertRecobHitsToTH2(std::vector<art::Ptr<r
   // Use a map to keep a track of the real hits and their wire/ticks
   fHitMap.clear();
 
-  std::stringstream planeImage;
-  planeImage << "blurred_image";
-
-  // Create a TH2 histogram
-  TH2F image(planeImage.str().c_str(), planeImage.str().c_str(), (fUpperHistWire-fLowerHistWire), fLowerHistWire-0.5, fUpperHistWire-0.5, (fUpperHistTick-fLowerHistTick), fLowerHistTick-0.5, fUpperHistTick-0.5);
-  image.Clear();
-  image.SetXTitle("Wire number");
-  image.SetYTitle("Tick number");
-  image.SetZTitle("Charge");
+  // Create a 2D vector
+  std::vector<std::vector<double> > image(fUpperHistWire-fLowerHistWire, std::vector<double>(fUpperHistTick-fLowerHistTick, 0));
 
   // Look through the hits
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
-    unsigned int wire = GlobalWire((*hitIt)->WireID());
-    int   tick   = (int)(*hitIt)->PeakTime();
-    float charge = (*hitIt)->SummedADC();
+    int wire = GlobalWire((*hitIt)->WireID());
+    int tick = (int)(*hitIt)->PeakTime();
+    float charge = (*hitIt)->Integral();
 
     // Fill hit map and keep a note of all real hits for later
-    if (charge > image.GetBinContent((wire-fLowerHistWire)+1,(tick-fLowerHistTick)+1)) {
-      image.Fill(wire,tick,charge);
+    if (charge > image.at(wire-fLowerHistWire).at(tick-fLowerHistTick)) {
+      image.at(wire-fLowerHistWire).at(tick-fLowerHistTick) = charge;
       fHitMap[wire][tick] = (*hitIt);
     }
   }
-  
+
   return image;
+
 }
 
+int cluster::BlurredClusteringAlg::ConvertWireTickToBin(std::vector<std::vector<double> > const& image, int xbin, int ybin) {
 
-TH2F* cluster::BlurredClusteringAlg::Convolve(TH2F* image, std::vector<double> const& kernel, int const& width, int const& height, const char *new_name) {
+  return (ybin * image.size()) + xbin;
 
-  /// Convolves the Gaussian kernel with the image to blurrr
+}
+
+double cluster::BlurredClusteringAlg::ConvertBinToCharge(std::vector<std::vector<double> > const& image, int bin) {
+
+  int x = bin % image.size();
+  int y = bin / image.size();
+
+  return image.at(x).at(y);
+
+}
+
+std::vector<std::vector<double> > cluster::BlurredClusteringAlg::Convolve(std::vector<std::vector<double> > const& image,
+									  std::vector<double> const& kernel, 
+									  int width, int height) {
 
   // Get the magnitude of the bins in the kernel
   double mag = 0;
@@ -227,31 +225,30 @@ TH2F* cluster::BlurredClusteringAlg::Convolve(TH2F* image, std::vector<double> c
     mag += *kernelIt;
 
   // Copy the histogram to blur
-  TString name = new_name == 0 ? TString::Format("%s_convolved", image->GetName()) : TString(new_name);
-  TH2F *copy = (TH2F*)image->Clone(name);
+  std::vector<std::vector<double> > copy = image;
 
-  int nbinsx = copy->GetNbinsX();
-  int nbinsy = copy->GetNbinsY();
+  int nbinsx = copy.size();
+  int nbinsy = copy.at(0).size();
 
   // Loop through all the bins in the histogram to blur
-  for (int x = 1; x <= nbinsx; ++x) {
-    for (int y = 1; y <= nbinsy; ++y) {
+  for (int x = 0; x < nbinsx; ++x) {
+    for (int y = 0; y < nbinsy; ++y) {
 
       // Create new variables for each bin
       double newval = 0;
       double norml = 0;
 
       // Loop over a blurring region (nothing to do with current bin - will be used as a distance from current bin to blur later on)
-      for (int blurx = -width / 2; blurx < (width + 1) / 2; blurx++) {
-	for (int blury = -height / 2; blury < (height + 1) / 2; blury++) {
+      for (int blurx = -width / 2; blurx < (width + 1) / 2; ++blurx) {
+	for (int blury = -height / 2; blury < (height + 1) / 2; ++blury) {
 
 	  // Form a weight for each bin based on the Gaussian kernel
 	  // NB/ This is simply a measure of how large the Gaussian weight is this far from the seed - nothing to do with current bins
 	  double weight = kernel.at(width * (height / 2 + blury) + (width / 2 + blurx));
 
 	  // Look at the blurred region - if still within the hit map, increase the weight according to the value of the kernel at this blurring distance
-	  if (x + blurx >= 1 && x + blurx <= nbinsx && y + blury >= 1 && y + blury <= nbinsy) {
-	    newval += weight * image->GetBinContent(x + blurx, y + blury);
+	  if (x + blurx >= 0 and x + blurx < nbinsx and y + blury >= 0 and y + blury < nbinsy) {
+	    newval += weight * image.at(x+blurx).at(y+blury);
 	    norml += weight;
 	  }
 
@@ -260,19 +257,17 @@ TH2F* cluster::BlurredClusteringAlg::Convolve(TH2F* image, std::vector<double> c
 
       // Set the new value for this bin in the blurred copy of the image
       newval /= (norml / mag);
-      copy->SetBinContent(x, y, newval);
+      copy.at(x).at(y) = newval;
 
     }
   } // End loop over bins in histogram
 
   // Return the blurred histogram
   return copy; 
+
 }
 
-
 void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick) {
-
-  /// Dynamically find the blurring radii in each direction
 
   // Calculate least squares slope
   int x, y;
@@ -306,29 +301,26 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
 
 }
 
-
-int cluster::BlurredClusteringAlg::FindClusters(TH2F *blurred, std::vector<std::vector<int> >& allcluster) {
-
-  /// Find clusters in the histogram
+int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> > const& blurred, std::vector<std::vector<int> >& allcluster) {
 
   // Vectors to hold cluster information
   std::vector<int> cluster;
   std::vector<double> times;
 
   // Size of image in x and y
-  const int nbinsx = blurred->GetNbinsX() + 2;
-  const int nbinsy = blurred->GetNbinsY() + 2;
+  const int nbinsx = blurred.size();
+  const int nbinsy = blurred.at(0).size();
   const int nbins = nbinsx * nbinsy;
 
   // Vectors to hold hit information
   std::vector<bool> used(nbins);
-  std::vector<std::pair<double, int> > values(nbins);
+  std::vector<std::pair<double, int> > values;//(nbins);
 
   // Place the bin number and contents as a pair in the values vector
-  for (int xbin = 1; xbin <= nbinsx; xbin++) {
-    for (int ybin = 1; ybin <= nbinsy; ybin++) {
-      int bin = blurred->GetBin(xbin, ybin);
-      values.push_back(std::pair<double, int>(blurred->GetArray()[bin], bin));
+  for (int xbin = 0; xbin < nbinsx; ++xbin) {
+    for (int ybin = 0; ybin < nbinsy; ++ybin) {
+      int bin = ConvertWireTickToBin(blurred, xbin, ybin);
+      values.push_back(std::make_pair(ConvertBinToCharge(blurred, bin), bin));
     }
   }
 
@@ -389,12 +381,12 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *blurred, std::vector<std::
               continue;
 
 	    // Get this bin
-            bin = blurred->GetBin(x, y);
+	    bin = ConvertWireTickToBin(blurred, x, y);
             if (used[bin])
               continue;
 
 	    // Get the blurred value and time for this bin
-            blurred_binval = blurred->GetArray()[bin];
+	    blurred_binval = ConvertBinToCharge(blurred, bin);
             time = GetTimeOfBin(blurred, bin); // NB for 'fake' hits, time is defaulted to -10000
 
 	    // Check real hits pass time cut (ignores fake hits)
@@ -479,7 +471,7 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *blurred, std::vector<std::
           used[bin] = false;
           nremoved++;
           cluster.erase(cluster.begin() + clusBin);
-          blurred_binval = blurred->GetArray()[bin];
+	  blurred_binval = ConvertBinToCharge(blurred, bin);
         }
       }
 
@@ -507,10 +499,7 @@ int cluster::BlurredClusteringAlg::FindClusters(TH2F *blurred, std::vector<std::
 
 }
 
-
 int cluster::BlurredClusteringAlg::GlobalWire(geo::WireID const& wireID) {
-
-  /// Find the global wire position
 
   double wireCentre[3];
   fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
@@ -528,24 +517,20 @@ int cluster::BlurredClusteringAlg::GlobalWire(geo::WireID const& wireID) {
     else mf::LogError("BlurredClusterAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC;
   }
 
-  return globalWire;
+  return std::round(globalWire);
 
 }
 
-
-TH2F* cluster::BlurredClusteringAlg::GaussianBlur(TH2F* image) {
-
-  /// Applies Gaussian blur to image
+std::vector<std::vector<double> > cluster::BlurredClusteringAlg::GaussianBlur(std::vector<std::vector<double> > const& image) {
 
   if (fBlurSigma == 0)
-    return (TH2F*) image->Clone(image->GetName() + TString("_blur"));
+    return image;
 
   // Find the blurring parameters
   int blurwire, blurtick, sigmawire, sigmatick;
   FindBlurringParameters(blurwire, blurtick, sigmawire, sigmatick);
 
   // Create Gaussian kernel
-  //std::map<int,double> kernel;
   std::vector<double> kernel((2*blurwire+1)*(2*blurtick+1),0);
   int width = 2 * blurwire + 1;
   int height = 2 * blurtick + 1;
@@ -582,14 +567,11 @@ TH2F* cluster::BlurredClusteringAlg::GaussianBlur(TH2F* image) {
   }
 
   // Return a convolution of this Gaussian kernel with the unblurred hit map
-  return (TH2F*) Convolve(image, kernel, width, height, TString::Format("%s_blur", image->GetName()));
+  return Convolve(image, kernel, width, height);
 
 }
 
-
-double cluster::BlurredClusteringAlg::GetTimeOfBin(TH2F* image, int const& bin) {
-
-  /// Returns the hit time of a hit in a particular bin
+double cluster::BlurredClusteringAlg::GetTimeOfBin(std::vector<std::vector<double> > const& image, int bin) {
 
   double time = -10000;
 
@@ -601,10 +583,27 @@ double cluster::BlurredClusteringAlg::GetTimeOfBin(TH2F* image, int const& bin) 
 
 }
 
+TH2F* cluster::BlurredClusteringAlg::MakeHistogram(std::vector<std::vector<double> > const& image, TString name) {
 
-unsigned int cluster::BlurredClusteringAlg::NumNeighbours(int const& nbinsx, std::vector<bool> const& used, int const& bin) {
+  TH2F* hist = new TH2F(name,name,fUpperHistWire-fLowerHistWire,fLowerHistWire-0.5,fUpperHistWire-0.5,fUpperHistTick-fLowerHistTick,fLowerHistTick-0.5,fUpperHistTick-0.5);
+  hist->Clear();
+  hist->SetXTitle("Wire number");
+  hist->SetYTitle("Tick number");
+  hist->SetZTitle("Charge");
 
-  /// Determines the number of clustered neighbours of a hit
+  for (unsigned int imageWireIt = 0; imageWireIt < image.size(); ++imageWireIt) {
+    int wire = imageWireIt + fLowerHistWire;
+    for (unsigned int imageTickIt = 0; imageTickIt < image.at(imageWireIt).size(); ++imageTickIt) {
+      int tick = imageTickIt + fLowerHistTick;
+      hist->Fill(wire, tick, image.at(imageWireIt).at(imageTickIt));
+    }
+  }
+
+  return hist;
+
+}
+
+unsigned int cluster::BlurredClusteringAlg::NumNeighbours(int nbinsx, std::vector<bool> const& used, int bin) {
 
   unsigned int neighbours = 0;
 
@@ -626,10 +625,7 @@ unsigned int cluster::BlurredClusteringAlg::NumNeighbours(int const& nbinsx, std
   return neighbours;
 }
 
-
-bool cluster::BlurredClusteringAlg::PassesTimeCut(std::vector<double> const& times, double const& time) {
-
-  /// Determine if a hit is within a time threshold of any other hits in a cluster
+bool cluster::BlurredClusteringAlg::PassesTimeCut(std::vector<double> const& times, double time) {
 
   for (std::vector<double>::const_iterator timeIt = times.begin(); timeIt != times.end(); timeIt++) {
     if (std::abs(time - *timeIt) < fTimeThreshold) return true;
@@ -638,10 +634,7 @@ bool cluster::BlurredClusteringAlg::PassesTimeCut(std::vector<double> const& tim
   return false;
 }
 
-
 void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<art::PtrVector<recob::Hit> > const& allClusters, int pad, int tpc, int plane) {
-
-  /// Save the images for debugging
 
   // Make a vector of clusters
   std::vector<std::vector<int> > allClusterBins;
@@ -677,8 +670,6 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, int pad, int tpc, int
 }
 
 void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int pad, int tpc, int plane) {
-
-  /// Save the different stages on different pads
 
   fDebugCanvas->cd(pad);
   std::string stage;

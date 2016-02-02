@@ -37,7 +37,7 @@ pma::Hit3D::Hit3D(art::Ptr< recob::Hit > src) :
 	fSegFraction(0), fSigmaFactor(1),
 	fDx(0),
 	fEnabled(true), fOutlier(false),
-	fParent(0)
+	fParent(0) // set only when pushed to track
 {
 	fCryo = src->WireID().Cryostat;
 	fTPC = src->WireID().TPC;
@@ -59,7 +59,7 @@ pma::Hit3D::Hit3D(unsigned int wire, unsigned int view, unsigned int tpc, unsign
 	fSegFraction(0), fSigmaFactor(1),
 	fDx(0),
 	fEnabled(false), fOutlier(false),
-	fParent(0)
+	fParent(0) // set only when pushed to track
 {
 	fCryo = cryo;
 	fTPC = tpc;

@@ -299,6 +299,11 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
   TVector3 trackStart = Construct3DPoint(track1.at(0), track2.at(0));
   pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(track1, track2, trackStart);
 
+  if (!pmatrack) {
+    mf::LogInfo("EMShowerAlg") << "Skipping this event because not enough hits in two views";
+    return track;
+  }
+
   std::vector<TVector3> xyz, dircos;
   std::vector<std::vector<double> > dEdx; // Right now, not finding the dE/dx for these tracks.  Can extend if needed.
 
@@ -1116,10 +1121,73 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 }
 
 double shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
+					    std::vector<art::Ptr<recob::Hit> >& showerHits) {
+
+  /// Takes the hits associated with a shower and orders them so they follow the direction of the shower
+
+  // First, order the hits along the shower
+  // Then we need to see if this is correct or if we need to swap the order
+  showerHits = this->FindOrderOfHits(shower);
+
+  // Find a rough shower 'direction'
+  int nhits = 0;
+  double sumx=0., sumy=0., sumx2=0., sumxy=0.;
+  TVector2 pos;
+  for (std::vector<art::Ptr<recob::Hit> >::const_iterator hit = shower.begin(); hit != shower.end(); ++hit) {
+    ++nhits;
+    pos = HitPosition(*hit);
+    sumx += pos.X();
+    sumy += pos.Y();
+    sumx2 += pos.X() * pos.X();
+    sumxy += pos.X() * pos.Y();
+  }
+  double gradient = (nhits * sumxy - sumx * sumy) / (nhits * sumx2 - sumx * sumx);
+  TVector2 direction = TVector2(1,gradient).Unit();
+
+  // Bin the hits into discreet chunks
+  int nShowerSegments = 10;
+  double lengthOfShower = (HitPosition(showerHits.back()) - HitPosition(showerHits.front())).Mod();
+  double lengthOfSegment = lengthOfShower / (double)nShowerSegments;
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > showerSegments;
+  for (std::vector<art::Ptr<recob::Hit> >::iterator showerHitIt = showerHits.begin(); showerHitIt != showerHits.end(); ++showerHitIt)
+    showerSegments[(int)(HitPosition(*showerHitIt)-HitPosition(showerHits.front())).Mod() / lengthOfSegment].push_back(*showerHitIt);
+
+  TGraph* graph = new TGraph();
+
+  // Loop over the bins to find the distribution of hits as the shower progresses
+  for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator showerSegmentIt = showerSegments.begin(); showerSegmentIt != showerSegments.end(); ++showerSegmentIt) {
+
+    // Get the mean position of the hits in this bin
+    TVector2 meanPosition(0,0);
+    for (std::vector<art::Ptr<recob::Hit> >::iterator hitInSegmentIt = showerSegmentIt->second.begin(); hitInSegmentIt != showerSegmentIt->second.end(); ++hitInSegmentIt)
+      meanPosition += HitPosition(*hitInSegmentIt);
+    meanPosition /= (double)showerSegmentIt->second.size();
+
+    // Get the RMS of this bin
+    std::vector<double> distanceToAxis;
+    for (std::vector<art::Ptr<recob::Hit> >::iterator hitInSegmentIt = showerSegmentIt->second.begin(); hitInSegmentIt != showerSegmentIt->second.end(); ++hitInSegmentIt) {
+      TVector2 proj = (HitPosition(*hitInSegmentIt) - meanPosition).Proj(direction) + meanPosition;
+      distanceToAxis.push_back((HitPosition(*hitInSegmentIt) - proj).Mod());
+    }
+
+    double RMS = TMath::RMS(distanceToAxis.begin(), distanceToAxis.end());
+    graph->SetPoint(graph->GetN(), showerSegmentIt->first, RMS);
+
+  }
+
+  TCanvas* canv = new TCanvas();
+  graph->Draw();
+  canv->SaveAs("direction.png");
+
+  return 0;
+
+}
+
+double shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
 					    std::vector<art::Ptr<recob::Hit> >& showerHits,
 					    art::FindManyP<recob::Cluster> const& fmc) {
 
-  /// Takes the hits associated with a shower and orders then so they follow the direction of the shower
+  /// Takes the hits associated with a shower and orders them so they follow the direction of the shower
 
   TCanvas* canv = new TCanvas();
   TGraph* graph = new TGraph();
