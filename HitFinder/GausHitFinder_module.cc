@@ -315,7 +315,6 @@ void GausHitFinder::produce(art::Event& evt)
            
             // ROI start time
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
-            raw::TDCtick_t roiLastBinTick  = roiFirstBinTick + signal.size();
             
             TimeValsVec timeValsVec;
             float       roiThreshold(threshold);
@@ -441,12 +440,12 @@ void GausHitFinder::produce(art::Event& evt)
                     paramVec.emplace_back(peakMean,  0.1 * peakMean);
                     paramVec.emplace_back(peakWidth, 0.1 * peakWidth);
                 }
-                
-                int numHits(0);
 	    
                 // #######################################################
                 // ### Loop through returned peaks and make recob hits ###
                 // #######################################################
+                
+                int numHits(0);
                 
                 for(int hitIdx = 0; hitIdx < 3*nGausForFit; hitIdx+=3)
                 {
@@ -496,8 +495,8 @@ void GausHitFinder::produce(art::Event& evt)
                     // ok, now create the hit
                     recob::HitCreator hit(*wire,                            // wire reference
                                           wid,                              // wire ID
-                                          roiFirstBinTick,                  // start_tick TODO check
-                                          roiLastBinTick,                   // end_tick TODO check
+                                          startT+roiFirstBinTick,           // start_tick TODO check
+                                          endT+roiFirstBinTick,             // end_tick TODO check
                                           peakWidth,                        // rms
                                           peakMean+roiFirstBinTick,         // peak_time
                                           peakMeanErr,                      // sigma_peak_time
