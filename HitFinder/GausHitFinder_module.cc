@@ -448,7 +448,7 @@ void GausHitFinder::produce(art::Event& evt)
                 // ### Loop through returned peaks and make recob hits ###
                 // #######################################################
                 
-                for(int hitIdx = 0; hitIdx < nGausForFit; hitIdx+=3)
+                for(int hitIdx = 0; hitIdx < 3*nGausForFit; hitIdx+=3)
                 {
                     // Extract values for this hit
                     double peakAmp   = paramVec[hitIdx    ].first;
