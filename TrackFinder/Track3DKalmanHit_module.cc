@@ -570,9 +570,11 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                      int ntracks = kalman_tracks.size();   // Remember original track count.
                      
                      //  auto F = [this](std::vector<KTrack> const& initial_tracks, art::PtrVector<recob::Hit> seedhits)
-                     for(std::vector<KTrack>::const_iterator itrk = initial_tracks.begin();
-                         itrk != initial_tracks.end(); ++itrk) {
-                        const KTrack& trk = *itrk;
+                    // for(std::vector<KTrack>::const_iterator itrk = initial_tracks.begin();
+                      //   itrk != initial_tracks.end(); ++itrk)
+                     for(auto const &trk: initial_tracks)
+                     {
+                        //const KTrack& trk = *itrk;
                         
                         // Fill hit container with current seed hits.
                         std::unique_ptr<KHitContainer> pseedcont = fillHitContainer(seedhits);
