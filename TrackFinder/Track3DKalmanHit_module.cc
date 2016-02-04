@@ -184,6 +184,8 @@ namespace trkf {
       void fitnupdateMomentum(KGTrack& trg1,
                               KGTrack& trg2);
       bool test1(const double *dir);
+      std::shared_ptr<Surface> Foo(const recob::Seed &seed, double *dir);
+      std::vector<KTrack> makeInitialtracks(const std::shared_ptr<trkf::Surface> psurf);
       
       //  template<class T , class U >
       //  void createAssns (std::vector< T > const &a, std::vector< U > const &b, art::Assns< T, U > &ass);
@@ -492,10 +494,6 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                art::PtrVector<recob::Hit> seedhits;
                
                // Chop a couple of hits off each end of the seed.
-               // Seems like seeds often end at delta rays, Michel electrons,
-               // or other pathologies.
-               
-               // Don't chop pfparticle seeds or self seeds.
                chopHitsOffSeeds(hpsit, pfseed, seedhits);
                
                //
@@ -509,56 +507,19 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                // Require that this seed be fully disjoint from existing tracks.
                //SS: replace this test with a method with appropriate name
                if(! (seedhits.size() + seederhits.size() == initial_seederhits)) continue;
+               
                // Convert seed into initial KTracks on surface located at seed point,
                // and normal to seed direction.
-               
-               double xyz[3];
                double dir[3];
-               double err[3];   // Dummy.
-               seed.GetPoint(xyz, err);
-               seed.GetDirection(dir, err);
+               std::shared_ptr<Surface> psurf = Foo(seed, dir);
                
-               std::shared_ptr<const Surface> psurf(new SurfXYZPlane(xyz[0], xyz[1], xyz[2],
-                                                                     dir[0], dir[1], dir[2]));
-               
-               if (mf::isDebugEnabled()) {
-                  mf::LogDebug("Track3DKalmanHit")
-                  << "Seed found with " << seedhits.size() <<" hits.\n"
-                  << "(x,y,z) = " << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << "\n"
-                  << "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n";
-               } // if debug
-               
-               // SS: FIXME
-               // It is a contant value inside a loop so I took it out
-               // revisit the linear algebra stuff used here (use of ublas)
-               // make a lambda here ... const TrackVector
-               //
-               TrackVector vec(5);
-               vec(0) = 0.;
-               vec(1) = 0.;
-               vec(2) = 0.;
-               vec(3) = 0.;
-               vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
-
                // Cut on the seed slope dx/ds.
                //SS: replace test name with a reasonable name
                if (!test1(dir)) continue;
+               
                // Make one or two initial KTracks for forward and backward directions.
-               // Assume muon (pdgid = 13).
-               
-               int pdg = 13; //SS: FIXME another constant?
-               std::vector<KTrack> initial_tracks;
-               
-               // The build_all flag specifies whether we should attempt to make
-               // tracks from all initial tracks, or alternatively, whether we
-               // should declare victory and quit after getting a successful
-               // track from one initial track.
-               
-               int ninit = 2;
-               initial_tracks.reserve(ninit);
-               initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
-               initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
-               
+               std::vector<KTrack> initial_tracks = makeInitialtracks(psurf);
+             
                // Loop over initial tracks.
                int ntracks = kalman_tracks.size();   // Remember original track count.
                for(auto const &trk: initial_tracks) {
@@ -583,6 +544,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                   if (mf::isDebugEnabled())
                      mf::LogDebug("Track3DKalmanHit")
                      << (ok? "Find track succeeded.": "Find track failed.") << "\n";
+                  
                   
                   if(ok && !fDoDedx) break;
                } // for initial track
@@ -694,7 +656,62 @@ void trkf::Track3DKalmanHit::endJob()
 }
 
 
+//----------------------------------------------------------------------------
+/// method to return a seed to surface.
 
+std::shared_ptr<trkf::Surface> trkf::Track3DKalmanHit::Foo(const recob::Seed &seed, double *dir)
+{
+   double xyz[3];
+  // double dir[3];
+   double err[3];   // Dummy.
+   seed.GetPoint(xyz, err);
+   seed.GetDirection(dir, err);
+   if (mf::isDebugEnabled()) {
+      mf::LogDebug("Track3DKalmanHit")
+      //<< "Seed found with " << seedhits.size() <<" hits.\n"
+      << "(x,y,z) = " << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << "\n"
+      << "(dx,dy,dz) = " << dir[0] << ", " << dir[1] << ", " << dir[2] << "\n";
+   } // if debug
+   
+   return std::shared_ptr<Surface>(new SurfXYZPlane(xyz[0], xyz[1], xyz[2],
+                                                     dir[0], dir[1], dir[2]));
+}
+
+
+
+//----------------------------------------------------------------------------
+
+
+std::vector<trkf::KTrack> trkf::Track3DKalmanHit::makeInitialtracks(const std::shared_ptr<trkf::Surface> psurf){
+   // Assume muon (pdgid = 13).
+   int pdg = 13; //SS: FIXME another constant?
+   
+   // SS: FIXME
+   // It is a contant value inside a loop so I took it out
+   // revisit the linear algebra stuff used here (use of ublas)
+   // make a lambda here ... const TrackVector
+   //
+   TrackVector vec(5);
+   vec(0) = 0.;
+   vec(1) = 0.;
+   vec(2) = 0.;
+   vec(3) = 0.;
+   vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
+
+   std::vector<KTrack> initial_tracks;
+
+// The build_all flag specifies whether we should attempt to make
+// tracks from all initial tracks, or alternatively, whether we
+// should declare victory and quit after getting a successful
+// track from one initial track.
+
+int ninit = 2;
+initial_tracks.reserve(ninit);
+initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
+initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
+
+   return initial_tracks;
+}
 //----------------------------------------------------------------------------
 
 bool trkf::Track3DKalmanHit::test1(const double *dir) {
@@ -903,7 +920,10 @@ bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const KGTrack &trg0) const{
 
 //----------------------------------------------------------------------------
 /// Chop hits off of the end of seeds.
+// Seems like seeds often end at delta rays, Michel electrons,
+// or other pathologies.
 
+// Don't chop pfparticle seeds or self seeds.
 
 void trkf::Track3DKalmanHit::chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
                                               bool pfseed,
