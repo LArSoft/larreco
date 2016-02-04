@@ -186,9 +186,10 @@ namespace trkf {
       bool test1(const double *dir);
       std::shared_ptr<Surface> Foo(const recob::Seed &seed, double *dir);
       std::vector<KTrack> makeInitialtracks(const std::shared_ptr<trkf::Surface> psurf);
-      
-      //  template<class T , class U >
-      //  void createAssns (std::vector< T > const &a, std::vector< U > const &b, art::Assns< T, U > &ass);
+      bool processInitialtracks(const trkf::KTrack &trk,
+                                art::PtrVector<recob::Hit>& seedhits,
+                                art::PtrVector<recob::Hit>& hits,
+                                std::deque<KGTrack>& kalman_tracks);
       
       // Fcl parameters.
       
@@ -496,7 +497,6 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                // Chop a couple of hits off each end of the seed.
                chopHitsOffSeeds(hpsit, pfseed, seedhits);
                
-               //
                // Filter hits used by (chopped) seed from hits available to make future seeds.
                // No matter what, we will never use these hits for another seed.
                // This eliminates the possibility of an infinite loop.
@@ -519,33 +519,11 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
                
                // Make one or two initial KTracks for forward and backward directions.
                std::vector<KTrack> initial_tracks = makeInitialtracks(psurf);
-             
+               
                // Loop over initial tracks.
                int ntracks = kalman_tracks.size();   // Remember original track count.
                for(auto const &trk: initial_tracks) {
-                  // Fill hit container with current seed hits.
-                  std::unique_ptr<KHitContainer> pseedcont = fillHitContainer(seedhits);
-                  
-                  // Set the preferred plane to be the one with the most hits.
-                  unsigned int prefplane = pseedcont->getPreferredPlane();
-                  fKFAlg.setPlane(prefplane);
-                  if (mf::isDebugEnabled())
-                     mf::LogDebug("Track3DKalmanHit") << "Preferred plane = " << prefplane << "\n";
-                  
-                  // Build and smooth seed track.
-                  
-                  KGTrack trg0(prefplane);
-                  bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, *pseedcont,
-                                              fSelfSeed);
-                  if(ok) {
-                     ok = smoothTrack(trg0, hits, prefplane, kalman_tracks);
-                  }
-                  
-                  if (mf::isDebugEnabled())
-                     mf::LogDebug("Track3DKalmanHit")
-                     << (ok? "Find track succeeded.": "Find track failed.") << "\n";
-                  
-                  
+                  bool ok = processInitialtracks(trk, seedhits, hits, kalman_tracks);
                   if(ok && !fDoDedx) break;
                } // for initial track
                
@@ -662,7 +640,7 @@ void trkf::Track3DKalmanHit::endJob()
 std::shared_ptr<trkf::Surface> trkf::Track3DKalmanHit::Foo(const recob::Seed &seed, double *dir)
 {
    double xyz[3];
-  // double dir[3];
+   // double dir[3];
    double err[3];   // Dummy.
    seed.GetPoint(xyz, err);
    seed.GetDirection(dir, err);
@@ -674,10 +652,38 @@ std::shared_ptr<trkf::Surface> trkf::Track3DKalmanHit::Foo(const recob::Seed &se
    } // if debug
    
    return std::shared_ptr<Surface>(new SurfXYZPlane(xyz[0], xyz[1], xyz[2],
-                                                     dir[0], dir[1], dir[2]));
+                                                    dir[0], dir[1], dir[2]));
 }
 
 
+
+//----------------------------------------------------------------------------
+
+bool trkf::Track3DKalmanHit::processInitialtracks(const trkf::KTrack &trk,
+                                                  art::PtrVector<recob::Hit>& seedhits,
+                                                  art::PtrVector<recob::Hit>& hits,
+                                                  std::deque<KGTrack>& kalman_tracks){
+   
+   // Fill hit container with current seed hits.
+   std::unique_ptr<KHitContainer> pseedcont = fillHitContainer(seedhits);
+   
+   // Set the preferred plane to be the one with the most hits.
+   unsigned int prefplane = pseedcont->getPreferredPlane();
+   fKFAlg.setPlane(prefplane);
+   if (mf::isDebugEnabled())
+      mf::LogDebug("Track3DKalmanHit") << "Preferred plane = " << prefplane << "\n";
+   
+   // Build and smooth seed track.
+   KGTrack trg0(prefplane);
+   bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, *pseedcont,
+                               fSelfSeed);
+   if(ok) ok = smoothTrack(trg0, hits, prefplane, kalman_tracks);
+   
+   if (mf::isDebugEnabled())
+      mf::LogDebug("Track3DKalmanHit")
+      << (ok? "Find track succeeded.": "Find track failed.") << "\n";
+   return ok;
+}
 
 //----------------------------------------------------------------------------
 
@@ -697,19 +703,19 @@ std::vector<trkf::KTrack> trkf::Track3DKalmanHit::makeInitialtracks(const std::s
    vec(2) = 0.;
    vec(3) = 0.;
    vec(4) = (fInitialMomentum != 0. ? 1./fInitialMomentum : 2.);
-
+   
    std::vector<KTrack> initial_tracks;
-
-// The build_all flag specifies whether we should attempt to make
-// tracks from all initial tracks, or alternatively, whether we
-// should declare victory and quit after getting a successful
-// track from one initial track.
-
-int ninit = 2;
-initial_tracks.reserve(ninit);
-initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
-initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
-
+   
+   // The build_all flag specifies whether we should attempt to make
+   // tracks from all initial tracks, or alternatively, whether we
+   // should declare victory and quit after getting a successful
+   // track from one initial track.
+   
+   int ninit = 2;
+   initial_tracks.reserve(ninit);
+   initial_tracks.push_back(KTrack(psurf, vec, Surface::FORWARD, pdg));
+   initial_tracks.push_back(KTrack(psurf, vec, Surface::BACKWARD, pdg));
+   
    return initial_tracks;
 }
 //----------------------------------------------------------------------------
