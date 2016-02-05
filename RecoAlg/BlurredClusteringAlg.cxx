@@ -187,7 +187,7 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::ConvertRecobHit
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
     int wire = GlobalWire((*hitIt)->WireID());
     int tick = (int)(*hitIt)->PeakTime();
-    float charge = (*hitIt)->SummedADC();
+    float charge = (*hitIt)->Integral();
 
     // Fill hit map and keep a note of all real hits for later
     if (charge > image.at(wire-fLowerHistWire).at(tick-fLowerHistTick)) {
