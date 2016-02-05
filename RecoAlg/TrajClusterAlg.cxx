@@ -23,9 +23,10 @@
 #include "CalibrationDBI/Interface/IChannelStatusService.h"
 #include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 
-// TEMP for TagClusters
-// #include "MCCheater/BackTracker.h"
+// TEMP for TagAllTraj
+#include "MCCheater/BackTracker.h"
 
+class TH1F;
 class TH2F;
 
 struct SortEntry{
@@ -44,16 +45,24 @@ namespace cluster {
     reconfigure(pset);
     
     // define some histograms
-    if(!fStudyMode) return;
     
     art::ServiceHandle<art::TFileService> tfs;
-    fnHitsPerTP_Angle[0] = tfs->make<TH2F>("nhtpertp_angle0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, 9, 1, 10);
-    fnHitsPerTP_Angle[1] = tfs->make<TH2F>("nhtpertp_angle1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, 9, 1, 10);
-    fnHitsPerTP_Angle[2] = tfs->make<TH2F>("nhtpertp_angle2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, 9, 1, 10);
+    if(fStudyMode) {
+      fnHitsPerTP_Angle[0] = tfs->make<TH2F>("nhtpertp_angle0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, 9, 1, 10);
+      fnHitsPerTP_Angle[1] = tfs->make<TH2F>("nhtpertp_angle1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, 9, 1, 10);
+      fnHitsPerTP_Angle[2] = tfs->make<TH2F>("nhtpertp_angle2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, 9, 1, 10);
+      
+      fnHitsPerTP_AngleP[0] = tfs->make<TProfile>("nhtpertp_anglep0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, "S");
+      fnHitsPerTP_AngleP[1] = tfs->make<TProfile>("nhtpertp_anglep1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, "S");
+      fnHitsPerTP_AngleP[2] = tfs->make<TProfile>("nhtpertp_anglep2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, "S");
+    }
     
-    fnHitsPerTP_AngleP[0] = tfs->make<TProfile>("nhtpertp_anglep0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, "S");
-    fnHitsPerTP_AngleP[1] = tfs->make<TProfile>("nhtpertp_anglep1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, "S");
-    fnHitsPerTP_AngleP[2] = tfs->make<TProfile>("nhtpertp_anglep2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, "S");
+    if(fShowerStudy) {
+      fShowerNumTrjint = tfs->make<TH1F>("showernumtrjint","Shower Num Traj Intersections",100, 0, 200);
+      fShowerDVtx = tfs->make<TH1F>("showerdvtx","Shower dVtx",100, 0, 50);
+      fShowerTheta_Sep = tfs->make<TH2F>("showertheta_sep","Shower dTheta vs Sep",40, 0, 4, 10, 0, 1);
+      fShowerDVtx_Sep = tfs->make<TH2F>("showerdvtx_sep","Shower dVtx vs Sep",40, 0, 4, 10, 0, 1);
+    }
     
   }
   
@@ -75,7 +84,9 @@ namespace cluster {
     fMaxDeltaJump         = pset.get< float >("MaxDeltaJump", 10);
     fProjectionErrFactor  = pset.get< float >("ProjectionErrFactor", 2);
     fStudyMode            = pset.get< bool  >("StudyMode", false);
-    fTagClusters          = pset.get< bool  >("TagClusters", false);
+    fShowerStudy          = pset.get< bool  >("ShowerStudy", false);
+    fTagAllTraj           = pset.get< bool  >("TagAllTraj", false);
+    fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
     fFindTrajVertices     = pset.get< bool  >("FindTrajVertices", false);
     
     fDebugPlane         = pset.get< int  >("DebugPlane", -1);
@@ -85,6 +96,9 @@ namespace cluster {
     // convert angle (degrees) into a direction cosine cut in the wire coordinate
     // It should be in the range 0 < fLargeAngle < 90
     fLargeAngle = cos(fLargeAngle * M_PI / 180);
+    
+    // convert the max traj separation into a separation^2
+    fMaxTrajSep *= fMaxTrajSep;
     
   } // reconfigure
   
@@ -217,10 +231,6 @@ namespace cluster {
 */
     } // studymode
 
-    allTraj.clear();
-    trial.clear();
-    inTrialTraj.clear();
-    tjphs.clear();
     
   } // RunStepCrawl
   
@@ -420,7 +430,7 @@ namespace cluster {
     }
 
   } // AnalyzeTrials
-
+/*
   ////////////////////////////////////////////////
   void TrajClusterAlg::AdjudicateTrials(bool& reAnalyze)
   {
@@ -449,7 +459,7 @@ namespace cluster {
     } // ipr
     
   } // AdjudicateTrials
-  
+
   ////////////////////////////////////////////////
   void TrajClusterAlg::MergeTrajPair(unsigned short ipr, bool& reAnalyze)
   {
@@ -466,7 +476,7 @@ namespace cluster {
     TrajSeparation(iTj, jTj, tSep);
     
   } // MergeTrajPair
-
+*/
   ////////////////////////////////////////////////
   void TrajClusterAlg::CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits)
   {
@@ -559,6 +569,7 @@ namespace cluster {
                 if(fHits[iht]->LocalIndex() == 0 && inTraj[iht+1] > 0 && fHits[jht]->PeakTime() > fHits[iht]->PeakTime()) continue;
                 if(fHits[iht]->LocalIndex() == 1 && inTraj[iht-1] > 0 && fHits[jht]->PeakTime() < fHits[iht]->PeakTime()) continue;
               }
+              // Large multiplicity hits TODO deal with this when GausHit is fixed
             } // fHits[iht]->Multiplicity() > 1
             if(prt) mf::LogVerbatim("TC")<<"  Starting trajectory";
             // start a trajectory in the direction from iht -> jht
@@ -604,18 +615,17 @@ namespace cluster {
     
     prt = false;
 
-//    FillTrajTruth();
-    if((int)fPlane == fDebugPlane) PrintAllTraj(USHRT_MAX, 0);
+    FillTrajTruth();
     
     work.Pts.clear();
     
     // need to fake out FindVertices
 //    if(fFindTrajVertices) FindVertices();
-    if(fTagClusters) TagClusters();
+    if(fTagAllTraj) TagAllTraj();
     
     
   } // ReconstructAllTraj
-/*
+
   //////////////////////////////////////////
   void TrajClusterAlg::FillTrajTruth()
   {
@@ -682,89 +692,418 @@ namespace cluster {
       allTraj[itj].TruPDG = plist2[trackID]->PdgCode();
       allTraj[itj].TruKE = 1000 * (plist2[trackID]->E() - plist2[trackID]->Mass());
       if(plist2[trackID]->Process() == "primary") allTraj[itj].IsPrimary = true;
-      if(plist2[trackID]->Mother() == 1) allTraj[itj].IsSecondary = true;
     } // itj
 
     
   } // FillTrajTruth
-*/
+
   //////////////////////////////////////////
-  void TrajClusterAlg::TagClusters()
+  void TrajClusterAlg::TagAllTraj()
   {
     // try to tag as shower-like or track-like
-    unsigned short ii, itjPt, end, jj, jtjPt, iClosePt;
     
     if(allTraj.size() < 2) return;
-    // make sure trajectories are in CC order
-    if(allTraj[0].Pts[0].Pos[0] < allTraj[0].Pts[1].Pos[0]) return;
     
-//    if(plane != 1) return;
-    
-    mf::LogVerbatim("TC")<<"Inside TagClusters: plane "<<fPlane;
+    mf::LogVerbatim("TC")<<"Inside TagAllTraj: plane "<<fPlane;
     
     PrintAllTraj(USHRT_MAX, 0);
+
+    trjint.clear();
+    TrjInt aTrjInt;
+    ClsOfTrj.clear();
     
-    struct PhotonConv {
-      unsigned short LeadTraj;    // index of the lead trajectory (itj)
-      unsigned short LeadClosePt; // index of the DOCA on the LeadTraj trajectory
-      unsigned short Traj2;       // index of the second trajectory (jtj)
-      float MinDist;              // Transverse separation distance at LeadClosePt
-      float SepDist;              // Distance along itj where the trajectories separate
-      float LeadDAng;             // Angle between the end of itj and the end of jtj
-    };
-    std::vector<PhotonConv> pcCand;
+    // maximum separation^2
+    float maxSep2 = fMaxTrajSep;
+    float minSep2;
+    float dang, vw, vt, dw, dt, dvtx2;
+    std::vector<std::array<unsigned short, 3>> nCloseEnd(allTraj.size());
+    unsigned short i1, i2, ipt1, ipt2;
+    unsigned short endPt1, endPt2;
+    unsigned short bin1, bin2;
+    bool madeVtx;
     
-    float dx, dy, dang, dist, sep;
-    
-    for(ii = 0; ii < allTraj.size(); ++ii) {
-      // Try to characterize the itj trajectory as a gamma conversion.
-      Trajectory& itj = allTraj[ii];
-      if(itj.ProcCode == USHRT_MAX) continue;
-      if(itj.Pts.size() < 10) continue;
-      itjPt = itj.Pts.size() - 1;
-      // temp
-//      if(ii > 0) continue;
-      // temp
-      if(!itj.IsSecondary) continue;
-      // ensure that there are no hits near the End of itj
-      // as should be expected for a photon converion
-      for(jj = 0; jj < allTraj.size(); ++jj) {
-        if(jj == ii) continue;
-        Trajectory& jtj = allTraj[jj];
-        if(jtj.ProcCode == USHRT_MAX) continue;
-        if(jtj.Pts.size() < 5) continue;
-        for(end = 0; end < 2; ++end) {
-          // temp
-          if(end == 0) continue;
-          if(end == 0) {
-            // require the jtj End to be US of the itj End
-            if(jtj.Pts[0].Pos[0] > itj.Pts[0].Pos[0]) continue;
-            itjPt = 0;
-            jtjPt = 0;
-          }
-          else {
-            itjPt = itj.Pts.size() - 1;
-            jtjPt = jtj.Pts.size() - 1;
-            // require the jtj End to be DS of the itj End
-            if(jtj.Pts[jtjPt].Pos[0] < itj.Pts[itjPt].Pos[0]) continue;
-          }
-          // project jtj to the End of itj
-          // index of the other end
-          TrajClosestApproach(itj, jtj.Pts[jtjPt].Pos[0], jtj.Pts[jtjPt].Pos[1], iClosePt, dist);
-          dang = std::abs(itj.Pts[itjPt].Ang - jtj.Pts[jtjPt].Ang);
-          dx = itj.Pts[itjPt].Pos[0] - jtj.Pts[jtjPt].Pos[0];
-          dy = itj.Pts[itjPt].Pos[1] - jtj.Pts[jtjPt].Pos[1];
-          sep = sqrt(dx * dx + dy * dy);
-          mf::LogVerbatim("TC")<<"PCC "<<ii<<" "<<jj<<" "<<dist<<" "<<dang<<" "<<sep<<" "<<(int)TrajLength(itj)<<" "<<(int)TrajLength(jtj);
-        } // end
+    for(i1 = 0; i1 < allTraj.size() - 1; ++i1) {
+      Trajectory& tj1 = allTraj[i1];
+      if(tj1.ProcCode == USHRT_MAX) continue;
+      if(tj1.CTP != fPlane) continue;
+      for(i2 = i1 + 1; i2 < allTraj.size(); ++i2) {
+        Trajectory& tj2 = allTraj[i2];
+        if(tj2.ProcCode == USHRT_MAX) continue;
+        if(tj2.CTP != tj1.CTP) continue;
+        // find the closest approach
+        minSep2 = maxSep2;
+        TrajTrajDOCA(tj1, tj2, ipt1, ipt2, minSep2);
+        if(minSep2 == maxSep2) continue;
+        // Count the number at each end and in the middle
+        bin1 = (unsigned short)(3 * (float)ipt1 / (float)tj1.Pts.size());
+        if(bin1 > 2) bin1 = 2;
+        // only count if this end doesn't have a vertex
+        if(tj1.Vtx[bin1] < 0) ++nCloseEnd[i1][bin1];
+        bin2 = (unsigned short)(3 * (float)ipt2 / (float)tj2.Pts.size());
+        if(bin2 > 2) bin2 = 2;
+        if(tj2.Vtx[bin2] < 0) ++nCloseEnd[i2][bin2];
+        // find the angle between the TPs at the intersection
+        dang = std::abs(tj1.Pts[ipt1].Ang - tj2.Pts[ipt2].Ang);
+        if(bin1 != 1  && bin2 != 1) {
+          // the DOCA point is at the ends of the two TJs.
+          // Find the intersection using the appropriate end points
+          endPt1 = 0;
+          if(bin1 == 2) endPt1 = allTraj[i1].Pts.size() - 1;
+          endPt2 = 0;
+          if(bin2 == 2) endPt2 = allTraj[i2].Pts.size() - 1;
+          TrajIntersection(allTraj[i1].Pts[endPt1], allTraj[i2].Pts[endPt2], vw, vt);
+          mf::LogVerbatim("TC")<<"TI check i1 "<<i1<<" endPt1 "<<endPt1<<" Ang "<<allTraj[i1].Pts[endPt1].Ang<<" i2 "<<i2<<" endPt2 "<<endPt2<<" Ang "<<allTraj[i2].Pts[endPt2].Ang<<" W:T "<<(int)vw<<":"<<(int)vt/fScaleF;
+        } else {
+          vw = -1;
+          vt = -1;
+        }
+        // distance between the vertex position and the closest separation
+        dw = vw - allTraj[i1].Pts[ipt1].Pos[0];
+        dt = vt - allTraj[i1].Pts[ipt1].Pos[1];
+        dvtx2 = dw * dw + dt * dt;
+        float dangErr = allTraj[i1].Pts[ipt1].AngErr;
+        if(allTraj[i2].Pts[ipt2].AngErr > dangErr) dangErr = allTraj[i2].Pts[ipt2].AngErr;
+        float dangSig = dang / dangErr;
+        mf::LogVerbatim("TC")<<"Close "<<i1<<" bin1 "<<bin1<<" i2 "<<i2<<" bin2 "<<bin2<<" minSep2 "<<minSep2<<" dang "<<dang<<" fKinkAngCut "<<fKinkAngCut<<" dangSig "<<dangSig<<" dvtx2 "<<dvtx2;
+        // save it
+        aTrjInt.itj1 = i1;
+        aTrjInt.ipt1 = ipt1;
+        aTrjInt.itj2 = i2;
+        aTrjInt.ipt2 = ipt2;
+        aTrjInt.sep2 = minSep2;
+        aTrjInt.dang = dang;
+        aTrjInt.vw = vw;
+        aTrjInt.vt = vt;
+        // make a vertex instead if the vertex position and the DOCA position
+        // are close && the angle difference is sufficiently large and the
+        // DOCA positions are not in the middle of either trajectory
+        if(dvtx2 < 5 && dangSig > 3 && bin1 != 1 && bin2 != 1) {
+          MakeTrajVertex(aTrjInt, bin1, bin2, madeVtx);
+          if(madeVtx) continue;;
+        }
+        trjint.push_back(aTrjInt);
+        if(fShowerStudy) {
+          float sep = sqrt(minSep2);
+          fShowerTheta_Sep->Fill(sep, dang);
+          float dvtx = sqrt(dvtx2);
+          fShowerDVtx->Fill(dvtx);
+          fShowerDVtx_Sep->Fill(sep, dvtx);
+        }
       } // jj
     } // ii
     
-    mf::LogVerbatim("TC")<<"Photon conversion candidates";
-    for(unsigned short ipc = 0; ipc < pcCand.size(); ++ipc) {
-      mf::LogVerbatim("TC")<<"ipc "<<ipc<<" Lead "<<pcCand[ipc].LeadTraj<<" Second traj "<<pcCand[ipc].Traj2;
-    } // ipc
-  } // TagClusters
+    if(fShowerStudy) {
+      fShowerNumTrjint->Fill((float)trjint.size());
+    }
+    
+    if(trjint.size() == 0) return;
+
+    for(i1 = 0; i1 < trjint.size(); ++i1) {
+      mf::LogVerbatim("TC")<<i1<<" trjint "<<" "<<trjint[i1].itj1<<" "<<trjint[i1].itj2<<" sep2 "<<trjint[i1].sep2<<" dang "<<trjint[i1].dang<<" vtx "<<fPlane<<":"<<(int)trjint[i1].vw<<":"<<(int)(trjint[i1].vt / fScaleF);
+    }
+    
+    std::vector<std::vector<unsigned short>> trjintIndices;
+    FindClustersOfTrajectories(trjintIndices);
+    
+    unsigned short icot;
+    // Deal with each COT (Note that ClsOfTrj and trjintIndices have the same size)
+    for(icot = 0; icot < ClsOfTrj.size(); ++icot) {
+      // try fitting the DOCA points to a line to get the shower axis if there are enough points
+      if(trjintIndices[icot].size() > 3) {
+        DefineShowerTraj(icot, trjintIndices);
+      } // trjintIndices[icot].size() > 3
+      else {
+        mf::LogVerbatim("TC")<<" no shower angle and endpoint information available... Write some code";
+      }
+    } // icot
+    
+    // clean up
+    trjint.clear();
+    ClsOfTrj.clear();
+    
+    PrintAllTraj(USHRT_MAX, 0);
+    
+  } // TagAllTraj
+  
+
+  //////////////////////////////////////////
+  void TrajClusterAlg::MakeTrajVertex(TrjInt const& aTrjInt, unsigned short bin1, unsigned short bin2, bool& madeVtx)
+  {
+    // Make 2D vertex
+    madeVtx = false;
+    
+    // bin1 and bin2 are either 0, 1, or 2 which denote whether the
+    // DOCA point is in the first third, second third or last third of
+    // the trajectory points. Convert this into a index for referencing
+    // the vertex end for trajectory 1 and trajectory 2
+    unsigned short end1 = bin1 / 2;
+    unsigned short end2 = bin2 / 2;
+   
+    unsigned short itj1 = aTrjInt.itj1;
+    unsigned short itj2 = aTrjInt.itj2;
+    
+    VtxStore aVtx;
+    aVtx.Wire = aTrjInt.vw;
+    aVtx.WireErr = 1;
+    aVtx.Time = aTrjInt.vt / fScaleF;
+    aVtx.TimeErr = 1;
+    aVtx.NClusters = 2;
+    aVtx.ChiDOF = 0;
+    aVtx.CTP = fCTP;
+    aVtx.Topo = 9;
+    vtx.push_back(aVtx);
+    unsigned short ivx = vtx.size() - 1;
+    // make the vertex - traj association
+    allTraj[itj1].Vtx[end1] = ivx;
+    allTraj[itj2].Vtx[end2] = ivx;
+    
+    // try to attach other TJs to it
+    unsigned short end, ipt, oEndPt;
+    float dw, dt, dr;
+    for(unsigned short itj = 0; itj < allTraj.size(); ++itj) {
+      if(allTraj[itj].ProcCode == USHRT_MAX) continue;
+      if(allTraj[itj].CTP != fCTP) continue;
+      for(end = 0; end < 2; ++end) {
+        if(allTraj[itj].Vtx[end] >= 0) continue;
+        if(end == 0) { ipt = 0; } else { ipt = allTraj[itj].Pts.size() - 1; }
+        dw = aTrjInt.vw - allTraj[itj].Pts[ipt].Pos[0];
+        // make some rough cuts
+        if(std::abs(dw) > 3) continue;
+        dt = aTrjInt.vt - allTraj[itj].Pts[ipt].Pos[1];
+        if(std::abs(dt) > 3) continue;
+        // distance between this end and the vertex
+        dr = dw * dw + dt * dt;
+        // TODO convert this to a chisq cut
+        if(dr > 5) continue;
+        // make sure that the other end isn't closer - short trajectories
+        if(allTraj[itj].Pts.size() < 5) {
+          if(end == 0) { oEndPt = allTraj[itj].Pts.size() - 1; } else { oEndPt = 0; }
+          dw = aTrjInt.vw - allTraj[itj].Pts[oEndPt].Pos[0];
+          dt = aTrjInt.vw - allTraj[itj].Pts[oEndPt].Pos[1];
+          if((dw * dw + dt * dt) < dr) continue;
+        } // short trajectory
+        // attach it
+        allTraj[itj].Vtx[end] = ivx;
+        ++vtx[ivx].NClusters;
+      } // end
+    } // itj
+    
+    mf::LogVerbatim("TC")<<" Made vertex "<<ivx<<" with "<<vtx[ivx].NClusters;
+   
+    madeVtx = true;
+
+    
+  } // MakeTrajVertex
+
+  //////////////////////////////////////////
+  void TrajClusterAlg::DefineShowerTraj(unsigned short icot, std::vector<std::vector<unsigned short>> trjintIndices)
+  {
+    // This routine is called if there area significant (> 3) number
+    // of trjints enabling an estimate of the shower direction, etc.
+    
+    unsigned short ii, iTji, i1, ipt1, i2, ipt2, nEndInside;
+    std::vector<float> x, y, yerr2;
+    float arg, fom, pos0, pos1, minsep, dang;
+    float showerAngle, cs, sn;
+    float intcpt, slope, intcpterr, slopeerr, chidof, shlong;
+    unsigned short primTraj, primTrajEnd;
+    for(ii = 0; ii < trjintIndices[icot].size(); ++ii) {
+      iTji = trjintIndices[icot][ii];
+      i1 = trjint[iTji].itj1;
+      ipt1 = trjint[iTji].ipt1;
+      x.push_back(allTraj[i1].Pts[ipt1].Pos[0]);
+      y.push_back(allTraj[i1].Pts[ipt1].Pos[1]);
+      // weight by the length of both trajectories
+      i2 = trjint[iTji].itj2;
+      arg = allTraj[i1].Pts.size() + allTraj[i2].Pts.size();
+      yerr2.push_back(arg);
+    } // ii
+    fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
+    showerAngle = atan(slope);
+    mf::LogVerbatim("TC")<<"Fit intcpt "<<intcpt<<" slope "<<slope<<" angle "<<showerAngle<<" chidof "<<chidof;
+    // Rotate the intersection points into a coordinate system along the
+    // shower direction. We will use this to find the (restricted) longitudinal and
+    // transverse extent of the shower
+    cs = cos(-showerAngle);
+    sn = sin(-showerAngle);
+    // min and max of traj intersections along the shower angle direction
+    float minshlong = 1E6, maxshlong = -1;
+    unsigned short miniTji = 0, maxiTji = 0;
+    for(ii = 0; ii < trjintIndices[icot].size(); ++ii) {
+      iTji = trjintIndices[icot][ii];
+      i1 = trjint[iTji].itj1;
+      ipt1 = trjint[iTji].ipt1;
+      shlong = cs * allTraj[i1].Pts[ipt1].Pos[0] - sn * allTraj[i1].Pts[ipt1].Pos[1];
+      //          std::cout<<"i1 "<<i1<<" ipt1 "<<ipt1<<" pos "<<(int)allTraj[i1].Pts[ipt1].Pos[0]<<":"<<(int)allTraj[i1].Pts[ipt1].Pos[1]<<" shlong "<<shlong<<"\n";
+      if(shlong < minshlong) { minshlong = shlong; miniTji = iTji; } // shlong < minshlong
+      if(shlong > maxshlong) { maxshlong = shlong; maxiTji = iTji; } // shlong > maxshlong
+      i2 = trjint[iTji].itj2;
+      ipt2 = trjint[iTji].ipt2;
+      shlong = cs * allTraj[i2].Pts[ipt2].Pos[0] - sn * allTraj[i2].Pts[ipt2].Pos[1];
+      //          std::cout<<"i2 "<<i2<<" ipt2 "<<ipt2<<" pos "<<(int)allTraj[i2].Pts[ipt2].Pos[0]<<":"<<(int)allTraj[i2].Pts[ipt2].Pos[1]<<" shlong "<<shlong<<"\n";
+      if(shlong < minshlong) { minshlong = shlong; miniTji = iTji; } // shlong < minshlong
+      if(shlong > maxshlong) { maxshlong = shlong; maxiTji = iTji; } // shlong > maxshlong
+    } // ii
+    // reduce the extend by 1 WSE at each end to allow some tolerance
+    minshlong += 1;
+    maxshlong -= 1;
+    mf::LogVerbatim("TC")<<"minshlong "<<minshlong<<" maxshlong "<<maxshlong;
+    mf::LogVerbatim("TC")<<"Primary traj is probably in "<<miniTji<<" or "<<maxiTji;
+    // Form a list of candidates
+    std::vector<unsigned short> primCandidates(4);
+    primCandidates[0] = trjint[miniTji].itj1;
+    primCandidates[1] = trjint[miniTji].itj2;
+    primCandidates[2] = trjint[maxiTji].itj1;
+    primCandidates[3] = trjint[maxiTji].itj2;
+    fom = 999;
+    for(ii = 0; ii < 4; ++ii) {
+      i1 = primCandidates[ii];
+      ipt1 = allTraj[i1].Pts.size()-1;
+      // reject if both end points are inside the shower boundaries.
+      // Rotate the endpoints into the shower coordinate system
+      nEndInside = 0;
+      shlong = cs * allTraj[i1].Pts[0].Pos[0] - sn * allTraj[i1].Pts[0].Pos[1];
+      if(shlong > minshlong && shlong < maxshlong) ++nEndInside;
+      mf::LogVerbatim("TC")<<" Candidate min "<<i1<<" shlong "<<shlong<<" nEndInside "<<nEndInside;
+      // rotate the other end and test
+      shlong = cs * allTraj[i1].Pts[ipt1].Pos[0] - sn * allTraj[i1].Pts[ipt1].Pos[1];
+      if(shlong > minshlong && shlong < maxshlong) ++nEndInside;
+      mf::LogVerbatim("TC")<<" Candidate max "<<i1<<" shlong "<<shlong<<" nEndInside "<<nEndInside;
+      if(nEndInside > 1) continue;
+      // average the angle of the TP end points and find the difference
+      // wrt the shower angle
+      dang = std::abs(0.5 * (allTraj[i1].Pts[0].Ang + allTraj[i1].Pts[ipt1].Ang) - showerAngle);
+      arg = 10 * (1 + allTraj[i1].Pass) * dang * allTraj[i1].AveTP3Chi * allTraj[i1].Pts.size();
+//      mf::LogVerbatim("TC")<<"Candidate "<<i1<<" nCloseEnd "<<nCloseEnd[i1][0]<<" "<<nCloseEnd[i1][1]<<" "<<nCloseEnd[i1][2]<<" pass "<<allTraj[i1].Pass<<" dang "<<dang<<" arg "<<arg;
+      if(arg < fom) {
+        fom = arg;
+        primTraj = i1;
+      }
+    } // ii
+    // determine which end is closest to the shower end
+    // distance between TP0 and the shower min position
+    ipt1 = allTraj[primTraj].Pts.size()-1;
+    pos0 = cs * allTraj[primTraj].Pts[0].Pos[0] - sn * allTraj[primTraj].Pts[0].Pos[1];
+    pos1 = cs * allTraj[primTraj].Pts[ipt1].Pos[0] - sn * allTraj[primTraj].Pts[ipt1].Pos[1];
+    minsep = std::abs(pos0 - minshlong);
+    primTrajEnd = 0;
+    //        mf::LogVerbatim("TC")<<"0min "<<pos0<<" minsep "<<minsep<<" end "<<primTrajEnd;
+    arg = std::abs(pos1 - minshlong);
+    if(arg < minsep) { minsep = arg;  primTrajEnd = ipt1; }
+    //        mf::LogVerbatim("TC")<<"1min "<<pos1<<" arg "<<arg<<" end "<<primTrajEnd;
+    arg = std::abs(pos0 - maxshlong);
+    if(arg < minsep) { minsep = arg;  primTrajEnd = 0; }
+    //        mf::LogVerbatim("TC")<<"0max "<<pos0<<" minsep "<<minsep<<" end "<<primTrajEnd;
+    arg = std::abs(pos1 - maxshlong);
+    if(arg < minsep) { minsep = arg;  primTrajEnd = ipt1; }
+    //        mf::LogVerbatim("TC")<<"1max "<<pos1<<" arg "<<arg<<" end "<<primTrajEnd;
+    mf::LogVerbatim("TC")<<" set Primary traj = "<<primTraj<<" end "<<primTrajEnd;
+    TagShowerTraj(icot, primTraj, primTrajEnd, showerAngle);
+
+  }
+
+  //////////////////////////////////////////
+  void TrajClusterAlg::TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle)
+  {
+    // Tag a track-like trajectory using primTraj and a shower-like cluster consisting
+    // of all other trajectories in ClsOfTrj[icot]
+    
+    // set the PDG for all TJ's to shower-like
+    unsigned short ii, itj;
+    for(ii = 0; ii < ClsOfTrj[icot].size(); ++ii) {
+      itj = ClsOfTrj[icot][ii];
+      allTraj[itj].PDG = 12;
+      allTraj[itj].ParentTraj = primTraj;
+    }
+    
+    allTraj[primTraj].PDG = 13;
+    allTraj[primTraj].ParentTraj = USHRT_MAX;
+    std::cout<<"TagShowerTraj ";
+    for(ii = 0; ii < ClsOfTrj[icot].size(); ++ii) {
+      itj = ClsOfTrj[icot][ii];
+      std::cout<<" itj "<<itj<<" PDG "<<allTraj[itj].PDG<<"\n";
+    }
+    std::cout<<" primTraj "<<primTraj<<"\n";
+    
+  } // MakeShowerClusters
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::FindClustersOfTrajectories(std::vector<std::vector<unsigned short>>& trjintIndices)
+  {
+    
+    mf::LogVerbatim myprt("TC");
+
+    if(trjint.size() == 0) return;
+    ClsOfTrj.clear();
+    trjintIndices.clear();
+    std::vector<unsigned short> tmp;
+    std::vector<unsigned short> imp;
+    std::vector<bool> inCOT(allTraj.size(), false);
+    bool tjAdded;
+    unsigned short iTji, itj1, itj2;
+    for(unsigned short nit = 0; nit < 100; ++nit) {
+      tmp.clear();
+      imp.clear();
+      // look for trajectories that haven't been assigned to a COT
+      for(iTji = 0; iTji < trjint.size(); ++iTji) {
+        itj1 = trjint[iTji].itj1;
+        itj2 = trjint[iTji].itj2;
+        if(!inCOT[itj1]) {
+          tmp.push_back(itj1);
+          imp.push_back(iTji);
+          inCOT[itj1] = true;
+          break;
+        }
+        if(!inCOT[itj2]) {
+          tmp.push_back(itj2);
+          imp.push_back(iTji);
+          inCOT[itj2] = true;
+          break;
+        }
+      } // itji
+      // no new un-assigned trajectories?
+      if(tmp.size() == 0) break;
+       // try to add more TJ's to the COT
+      tjAdded = true;
+      while(tjAdded) {
+        tjAdded = false;
+        for(iTji = 0; iTji < trjint.size(); ++iTji) {
+          itj1 = trjint[iTji].itj1;
+          itj2 = trjint[iTji].itj2;
+          // itj2 available &&  found itj1 in tmp
+          if(!inCOT[itj2] && (std::find(tmp.begin(), tmp.end(), itj1) != tmp.end())) {
+            // add itj2 to tmp
+            tmp.push_back(itj2);
+            inCOT[itj2] = true;
+            imp.push_back(iTji);
+            tjAdded = true;
+          } // !inCOT[itj1]
+          // itj1 available &&  found itj2 in tmp
+          if(!inCOT[itj1] && (std::find(tmp.begin(), tmp.end(), itj2) != tmp.end())) {
+            // add itj1 to tmp
+            tmp.push_back(itj1);
+            inCOT[itj1] = true;
+            imp.push_back(iTji);
+            tjAdded = true;
+          } // !inCOT[itj1]
+        } // iTji
+      } // tjAdded
+      ClsOfTrj.push_back(tmp);
+      trjintIndices.push_back(imp);
+    } // nit
+    
+     myprt<<"FindClustersOfTrajectories list of COTs\n";
+    for(unsigned short ii = 0; ii < ClsOfTrj.size(); ++ii) {
+      myprt<<ii<<" COT ";
+      for(unsigned short jj = 0; jj < ClsOfTrj[ii].size(); ++jj) myprt<<" "<<ClsOfTrj[ii][jj];
+      myprt<<"\n";
+    } // ii
+    myprt<<"not in a COT ";
+    for(itj1 = 0; itj1 < inCOT.size(); ++itj1) {
+      if(!inCOT[itj1] && allTraj[itj1].CTP == fPlane) myprt<<" "<<itj1;
+    }
+    
+  } // FindClustersOfTrajectories
   
   //////////////////////////////////////////
   float TrajClusterAlg::TrajLength(Trajectory& tj)
@@ -866,28 +1205,6 @@ namespace cluster {
 
   } // FindTrajVertices
 */
-  //////////////////////////////////////////
-  unsigned short TrajClusterAlg::VtxClusterEnd(unsigned short ivx, unsigned short icl)
-  {
-    // returns 0 if the vertex is closest to the cluster Begin and 1 if the vertex is closer
-    // to the End
-    
-    if(ivx > vtx.size() - 1) return 0;
-    if(icl > tcl.size() - 1) return 0;
-    
-    float dw, dt, dr0, dr1;
-    
-    dw = vtx[ivx].Wire - tcl[icl].BeginWir;
-    dt = vtx[ivx].Time - tcl[icl].BeginTim;
-    dr0 = dw * dw + dt * dt;
-    
-    dw = vtx[ivx].Wire - tcl[icl].EndWir;
-    dt = vtx[ivx].Time - tcl[icl].EndTim;
-    dr1 = dw * dw + dt * dt;
-    
-    if(dr0 < dr1) { return 0; } else { return 1; }
-    
-  } // VtxClusterEnd
 
   //////////////////////////////////////////
   void TrajClusterAlg::TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& ipt, float& Distance)
@@ -1370,42 +1687,64 @@ namespace cluster {
   } // SplitAllTraj
 */
   
-   
+  //////////////////////////////////////////
+  void TrajClusterAlg::TrajTrajDOCA(Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
+  {
+    float best = minSep * minSep;
+    float dw, dt, dp2;
+    unsigned short i1, i2;
+    for(i1 = 0; i1 < tp1.Pts.size(); ++i1) {
+      for(i2 = 0; i2 < tp2.Pts.size(); ++i2) {
+        dw = tp1.Pts[i1].Pos[0] - tp2.Pts[i2].Pos[0];
+        dt = tp1.Pts[i1].Pos[1] - tp2.Pts[i2].Pos[1];
+        dp2 = dw * dw + dt * dt;
+        if(dp2 < best) {
+          best = dp2;
+          ipt1 = i1;
+          ipt2 = i2;
+        }
+      } // i2
+    } // i1
+    minSep = sqrt(best);
+  } // TrajTrajDOCA
+ 
   //////////////////////////////////////////
   float TrajClusterAlg::PointTrajDOCA(float wire, float time, TrajPoint const& tp)
   {
-    // returns the distance of closest approach between a (wire, time(WSE)) point
+    return sqrt(PointTrajDOCA2(wire, time, tp));
+  } // PointTrajDOCA
+  
+  //////////////////////////////////////////
+  float TrajClusterAlg::PointTrajDOCA2(float wire, float time, TrajPoint const& tp)
+  {
+    // returns the distance of closest approach squared between a (wire, time(WSE)) point
     // and a trajectory point
     
     float t = (wire  - tp.Pos[0]) * tp.Dir[0] + (time - tp.Pos[1]) * tp.Dir[1];
     float dw = tp.Pos[0] + t * tp.Dir[0] - wire;
     float dt = tp.Pos[1] + t * tp.Dir[1] - time;
-    return sqrt(dw * dw + dt * dt);
+    return (dw * dw + dt * dt);
 
-  } // PointTrajDOCA
-  
-/*
+  } // PointTrajDOCA2
   
   //////////////////////////////////////////
-  bool TrajClusterAlg::TrajIntersection(TrajPoint& tp1, TrajPoint tp2, float& x, float& y)
+  void TrajClusterAlg::TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y)
   {
-    // returns the intersection position, intPos, of two trajectory point and
-    // returns true if successfull
+    // returns the intersection position, intPos, of two trajectory points
     
     x = -9999; y = -9999;
     
     double arg1 = tp1.Pos[0] * tp1.Dir[1] - tp1.Pos[1] * tp1.Dir[0];
     double arg2 = tp2.Pos[0] * tp1.Dir[1] - tp2.Pos[1] * tp1.Dir[0];
     double arg3 = tp2.Dir[0] * tp1.Dir[1] - tp2.Dir[1] * tp1.Dir[0];
-    if(arg3 == 0) return false;
+    if(arg3 == 0) return;
     double s = (arg1 - arg2) / arg3;
     
-    x = (float)(tp1.Pos[0] + s * tp1.Dir[0]);
-    y = (float)(tp1.Pos[1] + s * tp1.Dir[1]);
-    return true;
+    x = (float)(tp2.Pos[0] + s * tp2.Dir[0]);
+    y = (float)(tp2.Pos[1] + s * tp2.Dir[1]);
     
   } // TrajIntersection
-*/
+
   //////////////////////////////////////////
   void TrajClusterAlg::StepCrawl(bool& success)
   {
@@ -1483,8 +1822,10 @@ namespace cluster {
       // Quit if we are starting out poorly. This can happen on the 2nd trajectory point
       // when a hit is picked up in the wrong direction
       if(work.Pts.size() == 2 && std::signbit(work.Pts[1].Dir[0]) != std::signbit(work.Pts[0].Dir[0])) {
-        if(prt) mf::LogVerbatim("TC")<<" Picked wrong hit on 2nd traj point. Drop trajectory.";
-        PrintTrajectory(work, USHRT_MAX);
+        if(prt) {
+          mf::LogVerbatim("TC")<<" Picked wrong hit on 2nd traj point. Drop trajectory.";
+          PrintTrajectory(work, USHRT_MAX);
+        }
         return;
       }
       // assume that we aren't going to kill the point we just added, or any
@@ -1688,56 +2029,8 @@ namespace cluster {
     return true;
     
   } // GottaKink
-  
-  //////////////////////////////////////////
-  void TrajClusterAlg::CheckTrajEnd()
-  {
-    // Check the end of a cluster after crawling and trim any
-    // vagrant trajectory points and hits if they have a kink
-    
-    // ignore short clusters
-    if(work.Pts.size() < 10) return;
-    
-    unsigned short lastPt = work.Pts.size()-1;
-    // don't check large angle clusters
-    if(IsLargeAngle(work.Pts[lastPt])) return;
-/*
-    if(prt) mf::LogVerbatim("TC")<<"CheckTrajEnd: AveHitRes "<<work.Pts[work.Pts.size()-1].AveHitRes;
-    // ignore lower quality clusters
-    if(work.Pts[lastPt].AveHitRes > 1.5) return;
-*/
-    float delrat;
-    unsigned short ipt;
-    bool lopped = false;
-    for(ipt = work.Pts.size() - 3; ipt < work.Pts.size(); ++ipt) {
-      // check for a largish change in Delta
-      delrat = work.Pts[ipt].Delta / work.Pts[ipt-1].Delta;
-//      if(prt) mf::LogVerbatim("TC")<<" ipt "<<ipt<<" delrat "<<delrat;
-      if(delrat > 2) {
-        FlagWorkHits(0);
-        work.Pts.resize(ipt);
-        if(prt) mf::LogVerbatim("TC")<<" new work.Pts size "<<work.Pts.size();
-        lopped = true;
-        break;
-      }
-    } // ipt
-    
-    if(!lopped) {
-      if(prt) mf::LogVerbatim("TC")<<" SCCC: cluster OK ";
-      return;
-    }
-    
-    // Check for a missing wire at the end - small angle cluster
-    ipt = work.Pts.size() - 1;
-    if(prt) mf::LogVerbatim("TC")<<" SCCC: check last point. "<<ipt<<" Dir "<<work.Pts[ipt].Dir[1]<<" dPos[0] "<<std::abs(work.Pts[ipt].HitPos[0] - work.Pts[ipt-1].HitPos[0]);
-    if(std::abs(work.Pts[ipt].HitPos[0] - work.Pts[ipt-1].HitPos[0]) > 1.5) work.Pts.pop_back();
-    if(prt) {
-      mf::LogVerbatim("TC")<<" SCCC: lopped one more work.Pts point new work.Pts size "<<work.Pts.size();
-//      PrintTrajectory(work, USHRT_MAX);
-    }
-    
-  } // CheckTrajEnd
-  
+
+ 
   //////////////////////////////////////////
   unsigned short TrajClusterAlg::SetMissedStepCut(TrajPoint const& tp)
   {
@@ -1837,6 +2130,11 @@ namespace cluster {
         work.Pts[1].TP3Chi = tp.FitChi;
       }
     } // work.Pts.size() > 2
+    
+    // Calculate the average TP3Chi
+    work.AveTP3Chi = 0;
+    for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt) work.AveTP3Chi += work.Pts[ipt].TP3Chi;
+    work.AveTP3Chi /= (float)work.Pts.size();
 
     success = true;
     return;
@@ -2211,12 +2509,18 @@ namespace cluster {
     if(tj.Pts.size() == 0) return;
     // reverse the crawling direction flag
     tj.StepDir = -tj.StepDir;
+    // Vertices
+    short tmp = tj.Vtx[0];
+    tj.Vtx[0] = tj.Vtx[1];
+    tj.Vtx[0] = tmp;
+    // trajectory points
     std::reverse(tj.Pts.begin(), tj.Pts.end());
-    // reverse the direction vector
+    // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
       if(tj.Pts[ipt].Dir[1] != 0) tj.Pts[ipt].Dir[1] = -tj.Pts[ipt].Dir[1];
       tj.Pts[ipt].Ang = atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
+      // and the order of hits if more than 1
       if(tj.Pts[ipt].Hits.size() > 1) std::reverse(tj.Pts[ipt].Hits.begin(), tj.Pts[ipt].Hits.end());
     } // ipt
   }
@@ -2252,6 +2556,9 @@ namespace cluster {
     
     unsigned short itj, ncl, lastPt, ipt;
     ncl = 0;
+    
+    // Make one cluster for each trajectory. The indexing of trajectory parents
+    // should map directly to cluster parents
     for(itj = 0; itj < allTraj.size(); ++itj) {
       if(allTraj[itj].ProcCode == USHRT_MAX) continue;
       if(allTraj[itj].StepDir > 0) ReverseTraj(allTraj[itj]);
@@ -2259,6 +2566,7 @@ namespace cluster {
       cls.ID = ncl;
       cls.CTP = allTraj[itj].CTP;
       cls.PDG = allTraj[itj].PDG;
+      cls.ParentCluster = allTraj[itj].ParentTraj;
       cls.BeginWir = allTraj[itj].Pts[0].Pos[0];
       cls.BeginTim = allTraj[itj].Pts[0].Pos[1] / fScaleF;
       cls.BeginAng = allTraj[itj].Pts[0].Ang;
@@ -2273,6 +2581,8 @@ namespace cluster {
       cls.tclhits.clear();
       for(ipt = 0; ipt < allTraj[itj].Pts.size(); ++ipt)
         cls.tclhits.insert(cls.tclhits.end(), allTraj[itj].Pts[ipt].Hits.begin(), allTraj[itj].Pts[ipt].Hits.end());
+      // Set the traj info
+      allTraj[itj].ClusterIndex = tcl.size();
       tcl.push_back(cls);
       // do some checking
       for(iht = 0; iht < cls.tclhits.size(); ++iht) {
@@ -2297,10 +2607,10 @@ namespace cluster {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       mf::LogVerbatim myprt("TC");
-      float fcnt, ave0, ave1;
       std::vector<unsigned int> tmp;
-      myprt<<"TRJ CTP Pass Ind nPts    W:Tick     Ang   AveQ TP3Chi     W:T        Ang   AveQ TP3Chi  Hits/TP PDG  TRuPDG     KE  \n";
+      myprt<<"TRJ CTP Pass Ind nPts    W:Tick     Ang   AveQ     W:T        Ang   AveQ TP3Chi  Hits/TP __Vtx__ PDG Parent TRuPDG     KE  \n";
       for(unsigned short ii = 0; ii < allTraj.size(); ++ii) {
+        if(fDebugPlane >=0 && (unsigned short)fDebugPlane != allTraj[ii].CTP) continue;
         myprt<<"TRJ"<<std::fixed;
         myprt<<std::setw(3)<<allTraj[ii].CTP;
         myprt<<std::setw(5)<<allTraj[ii].Pass;
@@ -2311,15 +2621,6 @@ namespace cluster {
         if(itick < 1000) myprt<<" ";
         myprt<<std::setw(8)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.AveChg;
-        // calculate average TP3Chi at this end
-        ave0 = 0; ave1 = 0; fcnt = 0;
-        for(unsigned short jj = 0; jj < allTraj[ii].Pts.size()/2; ++jj) {
-          ave0 += allTraj[ii].Pts[jj].TP3Chi;
-          ave1 += allTraj[ii].Pts[allTraj[ii].Pts.size() - 1 - jj].TP3Chi;
-          ++fcnt;
-        } // ipt
-        ave0 /= fcnt; ave1 /= fcnt;
-        myprt<<std::setw(7)<<std::setprecision(2)<<ave0;
         unsigned short lastPt = allTraj[ii].Pts.size() - 1;
         tp = allTraj[ii].Pts[lastPt];
         itick = tp.Pos[1]/fScaleF;
@@ -2327,12 +2628,15 @@ namespace cluster {
         if(itick < 1000) myprt<<" ";
         myprt<<std::setw(8)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.AveChg;
-        myprt<<std::setw(7)<<std::setprecision(2)<<ave1;
+        myprt<<std::setw(7)<<std::setprecision(2)<<allTraj[ii].AveTP3Chi;
         // find average number of hits / TP
         PutTrajHitsInVector(allTraj[ii], tmp);
-        ave0 = (float)tmp.size() / (float)allTraj[ii].Pts.size();
-        myprt<<std::setw(8)<<std::setprecision(2)<<ave0;
+        float ave = (float)tmp.size() / (float)allTraj[ii].Pts.size();
+        myprt<<std::setw(8)<<std::setprecision(2)<<ave;
+        myprt<<std::setw(4)<<allTraj[ii].Vtx[0];
+        myprt<<std::setw(4)<<allTraj[ii].Vtx[1];
         myprt<<std::setw(6)<<allTraj[ii].PDG;
+        myprt<<std::setw(6)<<allTraj[ii].ParentTraj;
         myprt<<std::setw(6)<<allTraj[ii].TruPDG;
         myprt<<std::setw(7)<<(int)allTraj[ii].TruKE;
         myprt<<"\n";
@@ -2381,7 +2685,7 @@ namespace cluster {
   //////////////////////////////////////////
   void TrajClusterAlg::PrintHeader()
   {
-    mf::LogVerbatim("TC")<<"TRP  Ind  Stp     W:T     Delta   RMS dTick   Ang   Err  Dir0      Q  QDiff    AveQ TP3Chi FitChi NTPF NotUsd  _Vtx _  Hits ";
+    mf::LogVerbatim("TC")<<"TRP  Ind  Stp     W:T     Delta   RMS dTick   Ang   Err  Dir0  Dir1      Q  QDiff    AveQ TP3Chi FitChi NTPF NotUsd  _Vtx _  Hits ";
 //    mf::LogVerbatim("TC")<<"TRP  Ind  Stp     W:T(WSE) Tick Delta   RMS dTick   Ang   Err  Dir0      Q  QDiff    AveQ FitChi NTPF NotNr UseNr?  TPRes  _Vtx _  Hits ";
   } // PrintHeader
 
@@ -2405,6 +2709,7 @@ namespace cluster {
     myprt<<std::setw(5)<<std::setprecision(2)<<tp.Ang;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.AngErr;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Dir[0];
+    myprt<<std::setw(6)<<std::setprecision(2)<<tp.Dir[1];
     myprt<<std::setw(7)<<(int)tp.Chg;
     myprt<<std::setw(6)<<std::setprecision(1)<<tp.ChgDiff;
     myprt<<std::setw(8)<<(int)tp.AveChg;
@@ -2444,7 +2749,7 @@ namespace cluster {
     deltaRms = sqrt(HitsTimeErr2(closeHits));
 
   } // HitMultipletPosition
-
+/*
   ////////////////////////////////////////////////
   void TrajClusterAlg::TrajSeparation(Trajectory& iTj, Trajectory& jTj, std::vector<float>& tSep)
   {
@@ -2455,7 +2760,7 @@ namespace cluster {
     unsigned short ipt, jpt, ibest;
     float dw, dt, sep, best;
     for(ipt = 0; ipt < iTj.Pts.size(); ++ipt) {
-      best = 1E6;
+      best = maxSep2;
       ibest = USHRT_MAX;
       for(jpt = 0; jpt < jTj.Pts.size(); ++jpt) {
         dw = jTj.Pts[jpt].Pos[0] - iTj.Pts[ipt].Pos[0];
@@ -2473,7 +2778,7 @@ namespace cluster {
     } // ipt
     
   } // TrajectorySeparation
-  
+*/
   ////////////////////////////////////////////////
   void TrajClusterAlg::FlagWorkHits(short flag)
   {
@@ -2705,5 +3010,5 @@ namespace cluster {
     return false;
   } // SignalAtTp
 
-
+  
 } // namespace cluster
