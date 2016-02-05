@@ -30,6 +30,7 @@
 #include "Utilities/DetectorProperties.h"
 #include "RecoAlg/LinFitAlg.h"
 
+#include <TH1F.h>
 #include <TH2F.h>
 #include <TProfile.h>
 
@@ -60,6 +61,7 @@ namespace cluster {
 //      short StopCode;   // code for the reason for stopping cluster tracking
       CTP_t CTP;        // Cryostat/TPC/Plane code
       unsigned short PDG; // PDG-like code shower-like or line-like
+      unsigned short ParentCluster;
       float BeginWir;   // begin wire
       float BeginTim;   // begin tick
       float BeginAng;   // begin angle
@@ -146,8 +148,10 @@ namespace cluster {
     float fMaxWireSkip;    ///< max number of wires to skip w/o a signal on them
     float fMaxDeltaJump;   /// Ignore hits have a Delta larger than this value
     float fProjectionErrFactor;
-    bool fTagClusters;              ///< tag clusters as shower-like or track-like
+    bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
+    float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
+    bool fShowerStudy;    ///< study shower identification cuts
 		
 //		float fMinAmp;									///< expected minimum signal
 
@@ -168,6 +172,11 @@ namespace cluster {
     
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
+    
+    TH1F *fShowerNumTrjint;
+    TH2F *fShowerTheta_Sep;
+    TH1F *fShowerDVtx;
+    TH2F *fShowerDVtx_Sep;
     
     bool prt;
     
@@ -235,19 +244,20 @@ namespace cluster {
       CTP_t CTP;                      ///< Cryostat, TPC, Plane code
       unsigned short Pass;            ///< the pass on which it was created
       short StepDir;                 /// -1 = going US (CC proper order), 1 = going DS
-      unsigned short ClusterIndex;   ///< Not needed?
+      unsigned short ClusterIndex;   ///< Index not the ID...
       unsigned short ProcCode;       ///< USHRT_MAX = abandoned trajectory
+      float AveTP3Chi;               ///< average of all TP
       unsigned short PDG;            ///< shower-like or line-like
+      unsigned short ParentTraj;     ///< index of the parent (if PDG = 12)
       int TruPDG;                    ///< MC truth
       int TruKE;                     ///< MeV
       bool IsPrimary;                ///< MC truth
-      bool IsSecondary;              ///< MC truth
       std::array<short, 2> Vtx;      ///< Index of 2D vertex
       std::vector<TrajPoint> Pts;    ///< Trajectory points
       unsigned short NHits;          ///< Number of hits in all TPs
       Trajectory() {
         CTP = 0; Pass = 0; PDG = 0; StepDir = 0; ClusterIndex = USHRT_MAX; ProcCode = 900; Pts.clear();
-        Vtx[0] = -1; Vtx[1] = -1; TruPDG = 0; TruKE = 0; IsPrimary = false; IsSecondary = false; NHits = 0;
+        Vtx[0] = -1; Vtx[1] = -1; TruPDG = 0; TruKE = 0; IsPrimary = false; NHits = 0; ParentTraj = USHRT_MAX;
       }
     };
     Trajectory work;      ///< trajectory under construction
@@ -257,7 +267,22 @@ namespace cluster {
     //  trial    trajectories
     std::vector<std::vector<Trajectory>> trial; ///< vector of all trajectories for all trials in one plane
     std::vector<std::vector<short>> inTrialTraj;
-    
+
+    // Trajectory "intersections" used to search for superclusters (aka showers)
+    struct TrjInt {
+      unsigned short itj1;
+      unsigned short ipt1;
+      unsigned short itj2;
+      unsigned short ipt2;
+      float sep2;   // separation^2 at closest point
+      float dang;   // opening angle at closest point
+      float vw;     // intersection wire
+      float vt;     // intersection time
+    };
+    std::vector<TrjInt> trjint;
+    // vectors of clusters of trajectories => a set of somewhat intersecting trajectories
+    std::vector<std::vector<unsigned short>> ClsOfTrj;
+
     struct TjPairHitShare {
       // Trajectories in two different trials that share hits
       unsigned short iTrial;
@@ -329,19 +354,29 @@ namespace cluster {
     void FitTrajMid(unsigned short fromIndex, unsigned short toIndex, TrajPoint& tp);
     void CheckTrajEnd();
     void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
+    // returns the DOCA between a point and a trajectory
     float PointTrajDOCA(float wire, float time, TrajPoint const& tp);
-    void TrajSeparation(Trajectory& iTj, Trajectory& jTj, std::vector<float>& tSep);
+    // returns the DOCA^2 between a point and a trajectory
+    float PointTrajDOCA2(float wire, float time, TrajPoint const& tp);
+    void TrajTrajDOCA(Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
+//    void TrajSeparation(Trajectory& iTj, Trajectory& jTj, std::vector<float>& tSep);
     void FindTrajVertices();
-    unsigned short VtxClusterEnd(unsigned short ivx, unsigned short icl);
     void PutTrajHitsInVector(Trajectory const& tj, std::vector<unsigned int>& hitVec);
-    bool TrajIntersection(TrajPoint& tp1, TrajPoint tp2, float& x, float& y);
+    void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
     float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
     void PrintTrajectory(Trajectory& tj ,unsigned short tPoint);
     void PrintAllTraj(unsigned short itj, unsigned short ipt);
     void PrintHeader();
     void PrintTrajPoint(unsigned short ipt, short dir, TrajPoint tp);
     // Tag as shower-like or track-like
-    void TagClusters();
+    void TagAllTraj();
+    void FindClustersOfTrajectories(std::vector<std::vector<unsigned short>>& trjintIndices);
+    void DefineShowerTraj(unsigned short icot, std::vector<std::vector<unsigned short>> trjintIndices);
+    // Make a track-like cluster using primTraj and a shower-like cluster consisting
+    // of all other trajectories in ClsOfTrj[icot]
+    void TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle);
+    // make a vertex from a trajectory intersection
+    void MakeTrajVertex(TrjInt const& aTrjInt, unsigned short bin1, unsigned short bin2, bool& madeVtx);
     void PrintClusters();
     void FillTrajTruth();
     
