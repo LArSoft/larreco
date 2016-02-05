@@ -117,6 +117,12 @@ private:
 	unsigned int preferedView, unsigned int testView,
 	unsigned int tpc, unsigned int cryo);
 
+  pma::TrkCandidate matchCluster(
+	const std::vector< art::Ptr<recob::Hit> > & first_hits,
+	const std::vector< art::Ptr<recob::Cluster> >& clusters,
+	size_t minSizeCompl, unsigned int tpc, unsigned int cryo,
+	geo::View_t first_view, int first_clu_idx, int pfParticleIdx);
+
   // display what was used and what is left
   void listUsedClusters(const std::vector< art::Ptr<recob::Cluster> >& clusters) const;
   // ------------------------------------------------------
@@ -163,7 +169,7 @@ private:
     size_t min_clu_size,
     geo::View_t view, unsigned int tpc, unsigned int cryo);
   int maxCluster(
-	size_t first_idx,
+	int first_idx_tag,
     const std::vector< art::Ptr<recob::Cluster> >& clusters,
     float tmin, float tmax, size_t min_clu_size,
     geo::View_t view, unsigned int tpc, unsigned int cryo);
@@ -188,8 +194,12 @@ private:
 
   bool reassignHits(
 	const std::vector< art::Ptr<recob::Hit> >& hits,
-	pma::TrkCandidateColl & tracks, size_t trk_idx);
-  bool reassignSingleViewEnds(pma::TrkCandidateColl & tracks);
+	const std::vector< art::Ptr<recob::Cluster> > & clusters,
+	pma::TrkCandidateColl & tracks,
+	size_t trk_idx, double dist2);
+  bool reassignSingleViewEnds(
+	pma::TrkCandidateColl & tracks,
+	const std::vector< art::Ptr<recob::Cluster> > & clusters);
   void guideEndpoints(pma::TrkCandidateColl & tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
@@ -1035,19 +1045,6 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 		}
 		if (best_trk2)
 		{
-/*			if (reverse)
-			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "Match cross-APA tracks: ("
-					<< best_idx << ":" << best_trk2->size() << ") and ("
-					<< u << ":" << trk1->size() << ")";
-			}
-			else
-			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "Match cross-APA tracks: ("
-					<< u << ":" << trk1->size() << ") and ("
-					<< best_idx << ":" << best_trk2->size() << ")";
-			}
-*/
 			if (flip1) trk1->Flip();
 			if (flip2) best_trk2->Flip();
 
@@ -1070,48 +1067,83 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 // ------------------------------------------------------
 
 bool PMAlgTrackMaker::reassignHits(
-	const std::vector< art::Ptr<recob::Hit> >& hits,
-	pma::TrkCandidateColl & tracks, size_t trk_idx)
+	const std::vector< art::Ptr<recob::Hit> > & hits, const std::vector< art::Ptr<recob::Cluster> > & clusters,
+	pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2)
 {
 	pma::Track3D* trk1 = tracks[trk_idx].Track();
-	pma::Track3D* best_trk = 0;
 
-	size_t best_u = 0, n_max = 0;
-	for (size_t u = 0; u < tracks.size(); u++)
-		if (trk_idx != u)
+	bool result = false;
+	if ((hits.size() > 1) || (dist2 > 1.0)) // min. 2 hits or single hit separated from the rest
 	{
-		pma::Track3D* trk2 = tracks[u].Track();
-		size_t n = fProjectionMatchingAlg.testHits(*trk2, hits);
-		if (n > n_max) { n_max = n; best_u = u; best_trk = trk2; }
+		pma::Track3D* best_trk = 0;
+
+		size_t best_u = 0, n_max = 0;
+		for (size_t u = 0; u < tracks.size(); u++)
+			if (trk_idx != u)
+		{
+			pma::Track3D* trk2 = tracks[u].Track();
+			size_t n = fProjectionMatchingAlg.testHits(*trk2, hits);
+			if (n > n_max) { n_max = n; best_u = u; best_trk = trk2; }
+		}
+
+		if (best_trk && (n_max >= hits.size() / 3)) // /2
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "  Reassign " << n_max << " hits." << std::endl;
+
+			trk1->RemoveHits(hits);
+			trk1->CleanupTails();
+			trk1->ShiftEndsToHits();
+
+			pma::Track3D* ext = fProjectionMatchingAlg.extendTrack(*best_trk, hits,	false);
+			ext->SortHits(); ext->ShiftEndsToHits();
+			if (fProjectionMatchingAlg.isContained(*ext))
+			{
+				tracks[best_u].SetTrack(ext); // and this deletes best_trk stored at best_u
+				result = true;
+			}
+			else delete ext;
+		}
+		else if (!clusters.empty() && (hits.size() >= fMinSeedSize2ndPass))
+		{
+			size_t minSizeCompl = hits.size() / 8;  // much smaller minimum required in complementary views
+			if (minSizeCompl < 3) minSizeCompl = 3; // but at least three hits!
+
+			geo::View_t first_view = (geo::View_t)hits.front()->WireID().Plane;
+			unsigned int tpc = hits.front()->WireID().TPC;
+			unsigned int cryo = hits.front()->WireID().Cryostat;
+
+			pma::TrkCandidate candidate = matchCluster(
+				hits, clusters, minSizeCompl, tpc, cryo, first_view, -1, -1);
+
+			if (candidate.IsGood())
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "  Add new track, cut hits from source track." << std::endl;
+				tracks.push_back(candidate);
+
+				trk1->RemoveHits(hits);
+				trk1->CleanupTails();
+				trk1->ShiftEndsToHits();
+			}
+		}
 	}
-
-	if (best_trk && (n_max >= hits.size() / 3)) // /2
+	else if ((hits.size() == 1) || (dist2 > 2.25)) // dist > 1.5cm
 	{
-		mf::LogVerbatim("PMAlgTrackMaker") << "  Reassign " << n_max << " hits." << std::endl;
-
+		mf::LogVerbatim("PMAlgTrackMaker") << "  Cut single-view isolated hit." << std::endl;
 		trk1->RemoveHits(hits);
 		trk1->CleanupTails();
 		trk1->ShiftEndsToHits();
-
-		pma::Track3D* ext = fProjectionMatchingAlg.extendTrack(*best_trk, hits,	false);
-		ext->SortHits(); ext->ShiftEndsToHits();
-		if (fProjectionMatchingAlg.isContained(*ext))
-		{
-			tracks[best_u].SetTrack(ext); // and this deletes best_trk stored at best_u
-			return true;
-		}
-		else delete ext;
 	}
-	return false;
+	return result;
 }
 
-bool PMAlgTrackMaker::reassignSingleViewEnds(pma::TrkCandidateColl & tracks)
+bool PMAlgTrackMaker::reassignSingleViewEnds(pma::TrkCandidateColl & tracks,
+	const std::vector< art::Ptr<recob::Cluster> > & clusters)
 {
 	bool result = false;
 	for (size_t t = 0; t < tracks.size(); t++)
 	{
 		pma::Track3D* trk = tracks[t].Track();
-		if (trk->size() < 5) continue;
+		if (trk->size() < 6) continue;
 
 		trk->DisableSingleViewEnds();
 
@@ -1140,10 +1172,7 @@ bool PMAlgTrackMaker::reassignSingleViewEnds(pma::TrkCandidateColl & tracks)
 		}
 		else d2 = 0.0;
 
-		if ((hits.size() > 1) || (d2 > 1.0)) // min. 2 hits or single hit separated from the rest
-		{
-			result |= reassignHits(hits, tracks, t);
-		}
+		result |= reassignHits(hits, clusters, tracks, t, d2);
 
 		hits.clear();
 		idx = trk->size() - 1;
@@ -1168,10 +1197,7 @@ bool PMAlgTrackMaker::reassignSingleViewEnds(pma::TrkCandidateColl & tracks)
 		}
 		else d2 = 0.0;
 
-		if ((hits.size() > 1) || (d2 > 1.0))  // min. 2 hits or single hit separated from the rest
-		{
-			result |= reassignHits(hits, tracks, t);
-		}
+		result |= reassignHits(hits, clusters, tracks, t, d2);
 
 		trk->SelectHits();
 	}
@@ -1639,7 +1665,7 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, pma::TrkCandidateColl
 		          tpc_iter++)
 		{
 			guideEndpoints(tracks[tpc_iter->TPC]);
-			reassignSingleViewEnds(tracks[tpc_iter->TPC]);
+			reassignSingleViewEnds(tracks[tpc_iter->TPC], clusterVec);
 		}
 
 		if (fMergeWithinTPC)
@@ -1693,6 +1719,38 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, pma::TrkCandidateColl
 	return result.size();
 }
 
+
+void PMAlgTrackMaker::fromMaxCluster_tpc(
+	pma::TrkCandidateColl & result,
+	const std::vector< art::Ptr<recob::Cluster> >& clusters,
+	size_t minBuildSize, unsigned int tpc, unsigned int cryo,
+	int pfParticleIdx)
+{
+	initial_clusters.clear();
+
+	size_t minSizeCompl = minBuildSize / 8;  // smaller minimum required in complementary views
+	if (minSizeCompl < 2) minSizeCompl = 2;  // but at least two hits!
+
+	int max_first_idx = 0;
+	while (max_first_idx >= 0) // loop over clusters, any view, starting from the largest
+	{
+		mf::LogVerbatim("PMAlgTrackMaker") << "Find max cluster...";
+		max_first_idx = maxCluster(clusters, minBuildSize, geo::kUnknown, tpc, cryo); // any view
+		if (max_first_idx >= 0)
+		{
+			geo::View_t first_view = clusters[max_first_idx]->View();
+
+			pma::TrkCandidate candidate = matchCluster(fCluHits.at(clusters[max_first_idx].key()),
+				clusters, minSizeCompl, tpc, cryo, first_view, max_first_idx, pfParticleIdx);
+
+			if (candidate.IsGood()) result.push_back(candidate);
+		}
+		else mf::LogVerbatim("PMAlgTrackMaker") << "small clusters only";
+	}
+
+	initial_clusters.clear();
+}
+
 int PMAlgTrackMaker::matchCluster(const pma::TrkCandidate& trk,
 	const std::vector< art::Ptr<recob::Cluster> >& clusters,
 	size_t minSize, double fraction,
@@ -1728,216 +1786,200 @@ int PMAlgTrackMaker::matchCluster(const pma::TrkCandidate& trk,
 	return idx;
 }
 
-
-void PMAlgTrackMaker::fromMaxCluster_tpc(
-	pma::TrkCandidateColl & result,
+pma::TrkCandidate PMAlgTrackMaker::matchCluster(
+	const std::vector< art::Ptr<recob::Hit> > & first_hits,
 	const std::vector< art::Ptr<recob::Cluster> >& clusters,
-	size_t minBuildSize, unsigned int tpc, unsigned int cryo,
-	int pfParticleIdx)
+	size_t minSizeCompl, unsigned int tpc, unsigned int cryo,
+	geo::View_t first_view, int first_clu_idx, int pfParticleIdx)
 {
-	initial_clusters.clear();
+	pma::TrkCandidate result;
 
-	size_t minSizeCompl = minBuildSize / 8;  // smaller minimum required in complementary views
-	if (minSizeCompl < 2) minSizeCompl = 2;  // but at least two hits!
-
-	int max_first_idx = 0;
-	while (max_first_idx >= 0) // loop over clusters, any view, starting from the largest
+	geo::View_t sec_view_a, sec_view_b;
+	switch (first_view)
 	{
-		mf::LogVerbatim("PMAlgTrackMaker") << "Find max cluster...";
-		max_first_idx = maxCluster(clusters, minBuildSize, geo::kUnknown, tpc, cryo); // any view
-		if (max_first_idx >= 0)
+		case geo::kU: sec_view_a = geo::kZ; sec_view_b = geo::kV; break;
+		case geo::kV: sec_view_a = geo::kZ; sec_view_b = geo::kU; break;
+		case geo::kZ: sec_view_a = geo::kV; sec_view_b = geo::kU; break;
+		default: mf::LogError("PMAlgTrackMaker") << "Not a 2D view.";
+			return result;
+	}
+
+	tried_clusters[geo::kU].clear();
+	tried_clusters[geo::kV].clear();
+	tried_clusters[geo::kZ].clear();
+
+	if (first_clu_idx >= 0)
+	{
+		tried_clusters[first_view].push_back((size_t)first_clu_idx);
+		initial_clusters.push_back((size_t)first_clu_idx);
+	}
+
+	unsigned int nFirstHits = first_hits.size();
+	mf::LogVerbatim("PMAlgTrackMaker") << "--- start new candidate ---";
+	mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << first_view << " ***  size: " << nFirstHits;
+
+	float x, xmax = fDetProp->ConvertTicksToX(first_hits.front()->PeakTime(), first_view, tpc, cryo), xmin = xmax;
+	for (size_t j = 1; j < first_hits.size(); ++j)
+	{
+		x = fDetProp->ConvertTicksToX(first_hits[j]->PeakTime(), first_view, tpc, cryo);
+		if (x > xmax) { xmax = x; }
+		if (x < xmin) { xmin = x; }
+	}
+
+	fCandidates.clear(); // temporary set of possible solutions of the selected cluster and clusters in complementary views
+
+	size_t imatch = 0;
+	bool try_build = true;
+	while (try_build) // loop over complementary views
+	{
+		pma::TrkCandidate candidate;
+		if (first_clu_idx >= 0) candidate.Clusters().push_back((size_t)first_clu_idx);
+		candidate.SetKey(pfParticleIdx);
+
+		int idx, max_sec_a_idx, max_sec_b_idx;
+		max_sec_a_idx = maxCluster(first_clu_idx, clusters, xmin, xmax, minSizeCompl, sec_view_a, tpc, cryo);
+		max_sec_b_idx = maxCluster(first_clu_idx, clusters, xmin, xmax, minSizeCompl, sec_view_b, tpc, cryo);
+
+		unsigned int nSecHitsA = 0, nSecHitsB = 0;
+		if (max_sec_a_idx >= 0) nSecHitsA = fCluHits.at(clusters[max_sec_a_idx].key()).size();
+		if (max_sec_b_idx >= 0) nSecHitsB = fCluHits.at(clusters[max_sec_b_idx].key()).size();
+
+		unsigned int testView = geo::kUnknown;
+		if ((nSecHitsA > nSecHitsB) && (nSecHitsA >= minSizeCompl))
 		{
-			geo::View_t first_view = clusters[max_first_idx]->View();
-			geo::View_t sec_view_a, sec_view_b;
-			switch (first_view)
+			mf::LogVerbatim("PMAlgTrackMaker") << "--> " << imatch++ << " match with:";
+			mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << sec_view_a << " ***  size: " << nSecHitsA;
+			tried_clusters[sec_view_a].push_back(max_sec_a_idx);
+			idx = max_sec_a_idx; testView = sec_view_b;
+		}
+		else if (nSecHitsB >= minSizeCompl)
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "--> " << imatch++ << " match with:";
+			mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << sec_view_b << " ***  size: " << nSecHitsB;
+			tried_clusters[sec_view_b].push_back(max_sec_b_idx);
+			idx = max_sec_b_idx; testView = sec_view_a;
+		}
+		else try_build = false;
+
+		if (try_build)
+		{
+			if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) testView = geo::kUnknown;
+
+			double m0 = 0.0, v0 = 0.0;
+			double mseThr = 0.15, validThr = 0.7; // cuts for a good track candidate
+
+			candidate.Clusters().push_back(idx);
+			candidate.SetTrack(fProjectionMatchingAlg.buildTrack(first_hits, fCluHits.at(clusters[idx].key())));
+
+			if (candidate.IsValid() && // no track if hits from 2 views do not alternate
+			    fProjectionMatchingAlg.isContained(*(candidate.Track()))) // sticks out of TPC's?
 			{
-				case geo::kU: sec_view_a = geo::kZ; sec_view_b = geo::kV; break;
-				case geo::kV: sec_view_a = geo::kZ; sec_view_b = geo::kU; break;
-				case geo::kZ: sec_view_a = geo::kV; sec_view_b = geo::kU; break;
-				default:
-					mf::LogError("PMAlgTrackMaker") << "Not a 2D view.";
-					return;
+				m0 = candidate.Track()->GetMse();
+				if (m0 < mseThr) // check validation only if MSE is passing - thanks for Tracy for noticing this
+					v0 = validate(*(candidate.Track()), testView);
 			}
-
-			tried_clusters[geo::kU].clear();
-			tried_clusters[geo::kV].clear();
-			tried_clusters[geo::kZ].clear();
-
-			tried_clusters[first_view].push_back(max_first_idx);
-			initial_clusters.push_back(max_first_idx);
-
-			const auto & v_first = fCluHits.at(clusters[max_first_idx].key());
-			unsigned int nFirstHits = v_first.size();
-			mf::LogVerbatim("PMAlgTrackMaker") << "--- start new candidate ---";
-			mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << first_view << " ***  size: " << nFirstHits;
-
-			float tmax = fDetProp->ConvertTicksToX(v_first.front()->PeakTime(), first_view, tpc, cryo);
-			float t, tmin = tmax;
-			for (size_t j = 1; j < v_first.size(); ++j)
+			if (candidate.Track() && (m0 < mseThr) && (v0 > validThr)) // good candidate, try to extend it
 			{
-				t = fDetProp->ConvertTicksToX(v_first[j]->PeakTime(), first_view, tpc, cryo);
-				if (t > tmax) { tmax = t; }
-				if (t < tmin) { tmin = t; }
-			}
+				mf::LogVerbatim("PMAlgTrackMaker")
+					<< "  good track candidate, MSE = " << m0 << ", v = " << v0;
 
-			fCandidates.clear(); // temporary set of possible solutions of the selected cluster and clusters in complementary views
+				candidate.SetMse(m0);
+				candidate.SetValidation(v0);
+				candidate.SetGood(true);
 
-			size_t imatch = 0;
-			bool try_build = true;
-			while (try_build) // loop over complementary views
-			{
-				pma::TrkCandidate candidate;
-				candidate.Clusters().push_back(max_first_idx);
-				candidate.SetKey(pfParticleIdx);
+				size_t minSize = 5;      // min size for clusters matching
+				double fraction = 0.5;   // min fraction of close hits
 
-				int idx, max_sec_a_idx, max_sec_b_idx;
-				max_sec_a_idx = maxCluster(max_first_idx, clusters, tmin, tmax, minSizeCompl, sec_view_a, tpc, cryo);
-				max_sec_b_idx = maxCluster(max_first_idx, clusters, tmin, tmax, minSizeCompl, sec_view_b, tpc, cryo);
-
-				unsigned int nSecHitsA = 0, nSecHitsB = 0;
-				if (max_sec_a_idx >= 0) nSecHitsA = fCluHits.at(clusters[max_sec_a_idx].key()).size();
-				if (max_sec_b_idx >= 0) nSecHitsB = fCluHits.at(clusters[max_sec_b_idx].key()).size();
-
-				unsigned int testView = geo::kUnknown;
-				if ((nSecHitsA > nSecHitsB) && (nSecHitsA >= minSizeCompl))
+				idx = 0;
+				while (idx >= 0) // try to collect matching clusters, use **any** plane except validation
 				{
-					mf::LogVerbatim("PMAlgTrackMaker") << "--> " << imatch++ << " match with:";
-					mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << sec_view_a << " ***  size: " << nSecHitsA;
-					tried_clusters[sec_view_a].push_back(max_sec_a_idx);
-					idx = max_sec_a_idx; testView = sec_view_b;
-				}
-				else if (nSecHitsB >= minSizeCompl)
-				{
-					mf::LogVerbatim("PMAlgTrackMaker") << "--> " << imatch++ << " match with:";
-					mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << sec_view_b << " ***  size: " << nSecHitsB;
-					tried_clusters[sec_view_b].push_back(max_sec_b_idx);
-					idx = max_sec_b_idx; testView = sec_view_a;
-				}
-				else try_build = false;
-
-				if (try_build)
-				{
-					if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) testView = geo::kUnknown;
-
-					double m0 = 0.0, v0 = 0.0;
-					double mseThr = 0.15, validThr = 0.7; // cuts for a good track candidate
-
-					candidate.Clusters().push_back(idx);
-					candidate.SetTrack(fProjectionMatchingAlg.buildTrack(v_first, fCluHits.at(clusters[idx].key())));
-
-					if (candidate.IsValid() && // no track if hits from 2 views do not alternate
-					    fProjectionMatchingAlg.isContained(*(candidate.Track()))) // sticks out of TPC's?
+					idx = matchCluster(candidate, clusters, minSize, fraction, geo::kUnknown, testView, tpc, cryo);
+					if (idx >= 0)
 					{
-						m0 = candidate.Track()->GetMse();
-						if (m0 < mseThr) // check validation only if MSE is passing - thanks for Tracy for noticing this
-							v0 = validate(*(candidate.Track()), testView);
-					}
-					if (candidate.Track() && (m0 < mseThr) && (v0 > validThr)) // good candidate, try to extend it
-					{
-						mf::LogVerbatim("PMAlgTrackMaker")
-							<< "  good track candidate, MSE = " << m0 << ", v = " << v0;
-
-						candidate.SetMse(m0);
-						candidate.SetValidation(v0);
-						candidate.SetGood(true);
-
-						size_t minSize = 5;      // min size for clusters matching
-						double fraction = 0.5;   // min fraction of close hits
-
-						idx = 0;
-						while (idx >= 0) // try to collect matching clusters, use **any** plane except validation
+						// try building extended copy:
+						//                src,        hits,    valid.plane, add nodes
+						if (extendTrack(candidate, fCluHits.at(clusters[idx].key()),  testView,    true))
 						{
-							idx = matchCluster(candidate, clusters, minSize, fraction, geo::kUnknown, testView, tpc, cryo);
-							if (idx >= 0)
-							{
-								// try building extended copy:
-								//                src,        hits,    valid.plane, add nodes
-								if (extendTrack(candidate, fCluHits.at(clusters[idx].key()),  testView,    true))
-								{
-									candidate.Clusters().push_back(idx);
-								}
-								else idx = -1;
-							}
+							candidate.Clusters().push_back(idx);
 						}
+						else idx = -1;
+					}
+				}
 
-						mf::LogVerbatim("PMAlgTrackMaker") << "merge clusters from the validation plane";
-						fraction = 0.7; // only well matching the existing track
+				mf::LogVerbatim("PMAlgTrackMaker") << "merge clusters from the validation plane";
+				fraction = 0.7; // only well matching the existing track
 
-						idx = 0;
-						bool extended = false;
-						while ((idx >= 0) && (testView != geo::kUnknown))
-						{	//                     match clusters from the plane used previously for the validation
-							idx = matchCluster(candidate, clusters, minSize, fraction, testView, geo::kUnknown, tpc, cryo);
-							if (idx >= 0)
-							{
-								// validation not checked here, no new nodes:
-								if (extendTrack(candidate, fCluHits.at(clusters[idx].key()), geo::kUnknown, false))
-								{
-									candidate.Clusters().push_back(idx);
-									extended = true;
-								}
-								else idx = -1;
-							}
+				idx = 0;
+				bool extended = false;
+				while ((idx >= 0) && (testView != geo::kUnknown))
+				{	//                     match clusters from the plane used previously for the validation
+					idx = matchCluster(candidate, clusters, minSize, fraction, testView, geo::kUnknown, tpc, cryo);
+					if (idx >= 0)
+					{
+						// validation not checked here, no new nodes:
+						if (extendTrack(candidate, fCluHits.at(clusters[idx].key()), geo::kUnknown, false))
+						{
+							candidate.Clusters().push_back(idx);
+							extended = true;
 						}
-						// need to calculate again only if trk was extended w/o checking validation:
-						if (extended) candidate.SetValidation(validate(*(candidate.Track()), testView));
-					}
-					else
-					{
-						mf::LogVerbatim("PMAlgTrackMaker") << "track REJECTED, MSE = " << m0 << "; v = " << v0;
-						candidate.SetGood(false); // save also bad matches to avoid trying again the same pair of clusters
-					}
-					fCandidates.push_back(candidate);
-				}
-				else
-				{
-					mf::LogVerbatim("PMAlgTrackMaker") << "no matching clusters";
-				}
-			} // end loop over complementary views
-
-			if (fCandidates.size()) // save best candidate, release other tracks and clusters
-			{
-				int best_trk = -1;
-				double f, max_f = 0., min_mse = 10., max_v = 0.;
-				for (size_t t = 0; t < fCandidates.size(); t++)
-					if (fCandidates[t].IsGood() &&
-					    (fCandidates[t].Track()->Nodes().size() > 1) &&
-					    fCandidates[t].Track()->HasTwoViews())
-				{
-					f = fProjectionMatchingAlg.twoViewFraction(*(fCandidates[t].Track()));
-
-					if ((f > max_f) || ((f == max_f) &&
-						((fCandidates[t].Validation() > max_v) || (fCandidates[t].Mse() < min_mse))))
-					{
-						max_f = f;
-						min_mse = fCandidates[t].Mse();
-						max_v = fCandidates[t].Validation();
-						best_trk = t;
+						else idx = -1;
 					}
 				}
-
-				if ((best_trk > -1) && fCandidates[best_trk].IsGood() && (max_f > fMinTwoViewFraction))
-				{
-					fCandidates[best_trk].Track()->ShiftEndsToHits();
-
-					result.push_back(fCandidates[best_trk]);
-
-					for (auto c : fCandidates[best_trk].Clusters())
-						used_clusters.push_back(c);
-                }
-
-				for (size_t t = 0; t < fCandidates.size(); t++)
-				{
-					if (int(t) != best_trk) fCandidates[t].DeleteTrack();
-				}
-				fCandidates.clear();
+				// need to calculate again only if trk was extended w/o checking validation:
+				if (extended) candidate.SetValidation(validate(*(candidate.Track()), testView));
 			}
+			else
+			{
+				mf::LogVerbatim("PMAlgTrackMaker") << "track REJECTED, MSE = " << m0 << "; v = " << v0;
+				candidate.SetGood(false); // save also bad matches to avoid trying again the same pair of clusters
+			}
+			fCandidates.push_back(candidate);
 		}
 		else
 		{
-			mf::LogVerbatim("PMAlgTrackMaker") << "small clusters only";
+			mf::LogVerbatim("PMAlgTrackMaker") << "no matching clusters";
 		}
-	} // end loop over clusters, any view, from the largest
+	} // end loop over complementary views
+
+	if (fCandidates.size()) // return best candidate, release other tracks and clusters
+	{
+		int best_trk = -1;
+		double f, max_f = 0., min_mse = 10., max_v = 0.;
+		for (size_t t = 0; t < fCandidates.size(); t++)
+			if (fCandidates[t].IsGood() &&
+			    (fCandidates[t].Track()->Nodes().size() > 1) &&
+			    fCandidates[t].Track()->HasTwoViews())
+		{
+			f = fProjectionMatchingAlg.twoViewFraction(*(fCandidates[t].Track()));
+
+			if ((f > max_f) || ((f == max_f) &&
+				((fCandidates[t].Validation() > max_v) || (fCandidates[t].Mse() < min_mse))))
+			{
+				max_f = f;
+				min_mse = fCandidates[t].Mse();
+				max_v = fCandidates[t].Validation();
+				best_trk = t;
+			}
+		}
+
+		if ((best_trk > -1) && fCandidates[best_trk].IsGood() && (max_f > fMinTwoViewFraction))
+		{
+			fCandidates[best_trk].Track()->ShiftEndsToHits();
+
+			for (auto c : fCandidates[best_trk].Clusters())
+				used_clusters.push_back(c);
+
+			result = fCandidates[best_trk];
+		}
+
+		for (size_t t = 0; t < fCandidates.size(); t++)
+		{
+			if (int(t) != best_trk) fCandidates[t].DeleteTrack();
+		}
+		fCandidates.clear();
+	}
+
+	return result;
 }
 // ------------------------------------------------------
 
@@ -1974,15 +2016,23 @@ int PMAlgTrackMaker::maxCluster(
 }
 // ------------------------------------------------------
 
-int PMAlgTrackMaker::maxCluster(size_t first_idx,
+int PMAlgTrackMaker::maxCluster(int first_idx_tag,
 	const std::vector< art::Ptr<recob::Cluster> >& clusters,
-	float tmin, float tmax, size_t min_clu_size,
+	float xmin, float xmax, size_t min_clu_size,
 	geo::View_t view, unsigned int tpc, unsigned int cryo)
 {
 	int idx = -1;
 	size_t s_max = 0, s;
 	double fraction = 0.0;
 	float x;
+
+	size_t first_idx = 0;
+	bool has_first = false;
+	if (first_idx_tag >= 0)
+	{
+		first_idx = (size_t)first_idx_tag;
+		has_first = true;
+	}
 
 	for (size_t i = 0; i < clusters.size(); ++i)
 	{
@@ -1994,7 +2044,7 @@ int PMAlgTrackMaker::maxCluster(size_t first_idx,
 
 		bool pair_checked = false;
 		for (auto const & c : fCandidates.tracks())
-			if (has(c.Clusters(), first_idx) && has(c.Clusters(), i))
+			if (has_first && has(c.Clusters(), first_idx) && has(c.Clusters(), i))
 			{
 				pair_checked = true; break;
 			}
@@ -2009,7 +2059,7 @@ int PMAlgTrackMaker::maxCluster(size_t first_idx,
 			for (size_t j = 0; j < v.size(); ++j)
 			{
 				x = fDetProp->ConvertTicksToX(v[j]->PeakTime(), view, tpc, cryo);
-				if ((x >= tmin) && (x <= tmax)) s++;
+				if ((x >= xmin) && (x <= xmax)) s++;
 			}
 
 			if (s > s_max)
@@ -2070,15 +2120,6 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::TrkCandida
 		}
 
 		// try correcting track ends:
-		//   - single-view sections spuriously merged on 2D clusters level
-		for (auto tpc_iter = fGeom->begin_TPC_id();
-		          tpc_iter != fGeom->end_TPC_id();
-		          tpc_iter++)
-		{
-			reassignSingleViewEnds(tracks[tpc_iter->TPC]);
-		}
-
-		// try correcting track ends:
 		//   - 3D ref.points for clean endpoints of wire-plae parallel tracks
 		//   - single-view sections spuriously merged on 2D clusters level
 		for (auto tpc_iter = fGeom->begin_TPC_id();
@@ -2086,7 +2127,7 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::TrkCandida
 		          tpc_iter++)
 		{
 			guideEndpoints(tracks[tpc_iter->TPC]);
-			reassignSingleViewEnds(tracks[tpc_iter->TPC]);
+			reassignSingleViewEnds(tracks[tpc_iter->TPC], std::vector< art::Ptr<recob::Cluster> >());
 		}
 
 		// merge co-linear parts inside each tpc
