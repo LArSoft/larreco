@@ -206,7 +206,7 @@ namespace cluster {
     float sumChg, sumADC;
     unsigned int clsID = 0, nclhits, itt, iht, plane;
     std::vector<size_t> dtrIndices;
-    for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
+    for(size_t icl = 0; icl < Clusters.size(); ++icl) {
       TrajClusterAlg::ClusterStore const& clstr = Clusters[icl];
 //      std::cout<<"cls "<<clstr.ID<<" "<<(int)clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" "<<(int)clstr.EndWir<<":"<<(int)clstr.EndTim<<"\n";
       if(clstr.ID < 0) continue;
@@ -302,7 +302,12 @@ namespace cluster {
       } // clstr.BeginVtx >= 0
       // make PFParticles with ID = cluster ID, parent index = 0, no daughters
       // There is one PFParticle for each cluster
-      spcol.emplace_back(clstr.PDG, clsID, 0, dtrIndices);
+      size_t parent = clstr.ParentCluster;
+      if(parent == USHRT_MAX) parent = recob::PFParticle::kPFParticlePrimary;
+      dtrIndices.clear();
+      for(unsigned short jcl = 0; jcl < Clusters.size(); ++jcl)
+        if(Clusters[jcl].ParentCluster == icl) dtrIndices.push_back(jcl);
+      spcol.emplace_back((int)clstr.PDG, icl, parent, dtrIndices);
       // cluster - PFParticle association
       size_t cEnd = sccol.size();
       size_t cStart = cEnd - 1;
