@@ -177,8 +177,8 @@ namespace trkf {
                             bool pfseed,
                             art::PtrVector<recob::Hit> &seedhits) const;
       bool qualityCutsOnSeedTrack(const KGTrack &trg0) const;
-      bool smoothTrack(KGTrack &trg0,
-                       art::PtrVector<recob::Hit> hits,
+      bool smoothandextendTrack(KGTrack &trg0,
+                       const art::PtrVector<recob::Hit> hits,
                        unsigned int prefplane,
                        std::deque<KGTrack>& kalman_tracks);
       void fitnupdateMomentum(KGTrack& trg1,
@@ -405,6 +405,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    
    // SS: replaced the code with appropriate functions to get the hits based on specified option
    // can use auto here or I can directly give the functional call in argument list
+   
+   //getInputfromevent(LocalKalmanStructList);
    if(fUseClusterHits) {
       LocalKalmanStructList.emplace_back();
       LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
@@ -424,6 +426,8 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
       getAllHits(hits, evt);
    }
    
+   
+   //generateKalmantracks(local_kalman_struct, first, done, seederhits, hits, kalman_tracks);
    // Loop over hit collection / Kalman track combos.
    for(auto& local_kalman_struct : LocalKalmanStructList) {
       
@@ -483,6 +487,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
             }
             //SS: what if seederhits.size() = 0?
          }
+         
          assert(seeds.size() == hitsperseed.size());
          first = false;
          
@@ -634,7 +639,7 @@ bool trkf::Track3DKalmanHit::processInitialtracks(const trkf::KTrack &trk,
    KGTrack trg0(prefplane);
    bool ok = fKFAlg.buildTrack(trk, trg0, fProp, Propagator::FORWARD, *pseedcont,
                                fSelfSeed);
-   if(ok) ok = smoothTrack(trg0, hits, prefplane, kalman_tracks);
+   if(ok) ok = smoothandextendTrack(trg0, hits, prefplane, kalman_tracks);
    
    if (mf::isDebugEnabled())
       mf::LogDebug("Track3DKalmanHit")
@@ -653,8 +658,6 @@ void trkf::Track3DKalmanHit::processSeeds(bool pfseed,
                                           art::PtrVector<recob::Hit>& seederhits,
                                           art::PtrVector<recob::Hit>& hits,
                                           std::deque<KGTrack>& kalman_tracks){
-   
-   
    std::vector<recob::Seed>::const_iterator sit = seeds.begin();
    std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit = hitsperseed.begin();
    for(;sit != seeds.end() && hpsit != hitsperseed.end(); ++sit, ++hpsit) {
@@ -674,36 +677,36 @@ void trkf::Track3DKalmanHit::processSeeds(bool pfseed,
       
       // Require that this seed be fully disjoint from existing tracks.
       //SS: replace this test with a method with appropriate name
-      if((seedhits.size() + seederhits.size() == initial_seederhits)){
-         
-         // Convert seed into initial KTracks on surface located at seed point,
-         // and normal to seed direction.
-         double dir[3];
-         std::shared_ptr<Surface> psurf = Foo(seed, dir);
-         
-         // Cut on the seed slope dx/ds.
-         //SS: replace test name with a reasonable name
-         if (test1(dir)) {
-            
-            // Make one or two initial KTracks for forward and backward directions.
-            std::vector<KTrack> initial_tracks = makeInitialtracks(psurf);
-            
-            // Loop over initial tracks.
-            int ntracks = kalman_tracks.size();   // Remember original track count.
-            for(auto const &trk: initial_tracks) {
-               bool ok = processInitialtracks(trk, seedhits, hits, kalman_tracks);
-               if(ok && !fDoDedx) break;
-            } // for initial track
-            
-            // Loop over newly added tracks and remove hits contained on
-            // these tracks from hits available for making additional
-            // tracks or track seeds.
-            for(unsigned int itrk = ntracks; itrk < kalman_tracks.size(); ++itrk) {
-               const KGTrack& trg = kalman_tracks[itrk];
-               filterHitsOnKalmanTrack(trg, hits, seederhits);
-            }
-         }
+      if(!(seedhits.size() + seederhits.size() == initial_seederhits)) continue;
+      
+      // Convert seed into initial KTracks on surface located at seed point,
+      // and normal to seed direction.
+      double dir[3];
+      std::shared_ptr<Surface> psurf = Foo(seed, dir);
+      
+      // Cut on the seed slope dx/ds.
+      //SS: replace test name with a reasonable name
+      if (!test1(dir)) continue;
+      
+      // Make one or two initial KTracks for forward and backward directions.
+      std::vector<KTrack> initial_tracks = makeInitialtracks(psurf);
+      
+      // Loop over initial tracks.
+      auto ntracks = kalman_tracks.size();   // Remember original track count.
+      for(auto const &trk: initial_tracks) {
+         bool ok = processInitialtracks(trk, seedhits, hits, kalman_tracks);
+         if(ok && !fDoDedx) break;
+      } // for initial track
+      
+      // Loop over newly added tracks and remove hits contained on
+      // these tracks from hits available for making additional
+      // tracks or track seeds.
+      
+      for(unsigned int itrk = ntracks; itrk < kalman_tracks.size(); ++itrk) {
+         const KGTrack& trg = kalman_tracks[itrk];
+         filterHitsOnKalmanTrack(trg, hits, seederhits);
       }
+      
    }
 }
 //----------------------------------------------------------------------------
@@ -974,8 +977,8 @@ void trkf::Track3DKalmanHit::chopHitsOffSeeds(std::vector<art::PtrVector<recob::
 }
 
 
-bool trkf::Track3DKalmanHit::smoothTrack(KGTrack &trg0,
-                                         art::PtrVector<recob::Hit> hits,
+bool trkf::Track3DKalmanHit::smoothandextendTrack(KGTrack &trg0,
+                                         const art::PtrVector<recob::Hit> hits,
                                          unsigned int prefplane,
                                          std::deque<KGTrack>& kalman_tracks){
    KGTrack trg1(prefplane);
