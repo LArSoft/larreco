@@ -178,9 +178,9 @@ namespace trkf {
                             art::PtrVector<recob::Hit> &seedhits) const;
       bool qualityCutsOnSeedTrack(const KGTrack &trg0) const;
       bool smoothandextendTrack(KGTrack &trg0,
-                       const art::PtrVector<recob::Hit> hits,
-                       unsigned int prefplane,
-                       std::deque<KGTrack>& kalman_tracks);
+                                const art::PtrVector<recob::Hit> hits,
+                                unsigned int prefplane,
+                                std::deque<KGTrack>& kalman_tracks);
       void fitnupdateMomentum(KGTrack& trg1,
                               KGTrack& trg2);
       bool test1(const double *dir);
@@ -196,6 +196,7 @@ namespace trkf {
                         art::PtrVector<recob::Hit>& seederhits,
                         art::PtrVector<recob::Hit>& hits,
                         std::deque<KGTrack>& kalman_tracks);
+      std::list<LocalKalmanStruct> getInputfromevent(const art::Event &evt);
       
       // Fcl parameters.
       
@@ -384,50 +385,25 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    
    // Make associations between PFParticles and the tracks they create
    // To facilitate this we'll recover the handle to the PFParticle collection - whether it exists or not
-   art::Handle<std::vector<recob::PFParticle> > pfParticleHandle;
-   evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
    
    // Make collection of KGTracks where we will save our results, together with
    // corresponding hit collections.
    
    // SS: Changed the name, make sure the name doesn't start with capitla letter
-   std::list<LocalKalmanStruct> LocalKalmanStructList;
+   
    
    // Reset space point algorithm.
    
    fSpacePointAlg.clearHitMap();
    
    // Get Hits.
-   // There are three modes of operation:
-   // 1.  Clustered hits (produces one hit collection).
-   // 2.  PFParticle hits (products one hit collection for each PFParticle).
-   // 3.  All hits (produces one hit collection).
-   
    // SS: replaced the code with appropriate functions to get the hits based on specified option
    // can use auto here or I can directly give the functional call in argument list
    
-   //getInputfromevent(LocalKalmanStructList);
-   if(fUseClusterHits) {
-      LocalKalmanStructList.emplace_back();
-      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
-      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-      getClusteredHits(hits, evt);
-   }
-   else if(fUsePFParticleHits) {
-      if (pfParticleHandle.isValid())
-      {
-         getPFParticleHits(pfParticleHandle, LocalKalmanStructList, evt);
-      }
-   }
-   else {
-      LocalKalmanStructList.emplace_back();
-      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
-      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-      getAllHits(hits, evt);
-   }
+   std::list<LocalKalmanStruct> LocalKalmanStructList = getInputfromevent(evt);
+   std::cout << LocalKalmanStructList.size() << "\n";
    
-   
-   //generateKalmantracks(local_kalman_struct, first, done, seederhits, hits, kalman_tracks);
+   //generateKalmantracks(LocalKalmanStruct, first, done, seederhits, hits, kalman_tracks);
    // Loop over hit collection / Kalman track combos.
    for(auto& local_kalman_struct : LocalKalmanStructList) {
       
@@ -597,9 +573,42 @@ void trkf::Track3DKalmanHit::endJob()
 
 
 //----------------------------------------------------------------------------
+// There are three modes of operation:
+// 1.  Clustered hits (produces one hit collection).
+// 2.  PFParticle hits (products one hit collection for each PFParticle).
+// 3.  All hits (produces one hit collection).
+
+std::list<LocalKalmanStruct> trkf::Track3DKalmanHit::getInputfromevent(const art::Event &evt){
+   art::Handle<std::vector<recob::PFParticle> > pfParticleHandle;
+   evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
+   
+   std::list<LocalKalmanStruct> LocalKalmanStructList;
+   if(fUseClusterHits) {
+      LocalKalmanStructList.emplace_back();
+      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
+      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
+      getClusteredHits(hits, evt);
+   }
+   else if(fUsePFParticleHits) {
+      if (pfParticleHandle.isValid())
+      {
+         getPFParticleHits(pfParticleHandle, LocalKalmanStructList, evt);
+      }
+   }
+   else {
+      LocalKalmanStructList.emplace_back();
+      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
+      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
+      getAllHits(hits, evt);
+   }
+   return LocalKalmanStructList;
+}
+
+//----------------------------------------------------------------------------
 /// method to return a seed to surface.
 
-std::shared_ptr<trkf::Surface> trkf::Track3DKalmanHit::Foo(const recob::Seed &seed, double *dir)
+std::shared_ptr<trkf::Surface> trkf::Track3DKalmanHit::Foo(const recob::Seed &seed,
+                                                           double *dir)
 {
    double xyz[3];
    // double dir[3];
@@ -978,9 +987,9 @@ void trkf::Track3DKalmanHit::chopHitsOffSeeds(std::vector<art::PtrVector<recob::
 
 
 bool trkf::Track3DKalmanHit::smoothandextendTrack(KGTrack &trg0,
-                                         const art::PtrVector<recob::Hit> hits,
-                                         unsigned int prefplane,
-                                         std::deque<KGTrack>& kalman_tracks){
+                                                  const art::PtrVector<recob::Hit> hits,
+                                                  unsigned int prefplane,
+                                                  std::deque<KGTrack>& kalman_tracks){
    KGTrack trg1(prefplane);
    bool ok = fKFAlg.smoothTrack(trg0, &trg1, fProp);
    if (!ok) return ok;
