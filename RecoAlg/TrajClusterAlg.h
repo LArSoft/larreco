@@ -141,17 +141,21 @@ namespace cluster {
     short fStepDir;             /// US->DS (1), DS->US (-1)
     short fNPtsAve;         /// number of points to find AveChg
     std::vector<unsigned short> fMinNPtsFit; ///< Reconstruct in two passes
+    unsigned short fMinPts;          ///< min number of Pts required to make a cluster
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fTP3ChiCut;       ///<
+    float fMaxChi;
     float fChgDiffCut;      ///  Max charge difference (Q - Q_ave) / Q_rms
     float fKinkAngCut;     ///  kink angle cut
     float fMaxWireSkip;    ///< max number of wires to skip w/o a signal on them
     float fMaxDeltaJump;   /// Ignore hits have a Delta larger than this value
     float fProjectionErrFactor;
+    
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
     bool fShowerStudy;    ///< study shower identification cuts
+    short fShowerPrtPlane; ///< set to plane number to print out
 		
 //		float fMinAmp;									///< expected minimum signal
 
@@ -179,6 +183,7 @@ namespace cluster {
     TH2F *fShowerDVtx_Sep;
     
     bool prt;
+    bool shPrt; /// print shower info
     
     art::ServiceHandle<geo::Geometry> geom;
     art::ServiceHandle<util::LArProperties> larprop;
@@ -225,8 +230,8 @@ namespace cluster {
       float AveChg;             // Average charge of last ~20 TPs
       float ChgDiff;            //  = (Chg - fAveChg) / fChgRMS
       float Delta;              // Deviation between trajectory and hits (WSE)
+      float DeltaRMS;           // RMS of Deviation between trajectory and hits (WSE)
       float TP3Chi;             // Chisq fit of TP, TP-1 and TP+1
-      float DeltaRMS;           // RMS deviation of all TP Deltas
       unsigned short NTPsFit; // Number of trajectory points fitted to make this point
       unsigned short Step;      // Step number at which this TP was created
       float FitChi;             // Chi/DOF of the fit
@@ -234,7 +239,7 @@ namespace cluster {
       std::vector<unsigned int> Hits; // vector of fHits indices
       // default constructor
       TrajPoint() {
-        Ang = 0; AngErr = 0.5; TP3Chi = 0; Chg = 0; ChgDiff = 0.1; AveChg = 0; Delta = 0;
+        Ang = 0; AngErr = 0.1; TP3Chi = 0; Chg = 0; ChgDiff = 0.1; AveChg = 0; Delta = 0;
         DeltaRMS = 0.02; NTPsFit = 2; Step = 0; FitChi = 0; NCloseNotUsed = 0; Hits.clear();
       }
     };
@@ -247,6 +252,7 @@ namespace cluster {
       unsigned short ClusterIndex;   ///< Index not the ID...
       unsigned short ProcCode;       ///< USHRT_MAX = abandoned trajectory
       float AveTP3Chi;               ///< average of all TP
+      float ThetaMCS;                ///< Estimate of the MCS scattering angle
       unsigned short PDG;            ///< shower-like or line-like
       unsigned short ParentTraj;     ///< index of the parent (if PDG = 12)
       int TruPDG;                    ///< MC truth
@@ -258,6 +264,7 @@ namespace cluster {
       Trajectory() {
         CTP = 0; Pass = 0; PDG = 0; StepDir = 0; ClusterIndex = USHRT_MAX; ProcCode = 900; Pts.clear();
         Vtx[0] = -1; Vtx[1] = -1; TruPDG = 0; TruKE = 0; IsPrimary = false; NHits = 0; ParentTraj = USHRT_MAX;
+        AveTP3Chi = 1; ThetaMCS = 1;
       }
     };
     Trajectory work;      ///< trajectory under construction
@@ -343,6 +350,7 @@ namespace cluster {
     void MakeAllTrajClusters();
     // Push the work trajectory into allTraj
     void StoreWork();
+    void CheckWork();
     // Reverse the work trajectory
     void ReverseTraj(Trajectory& tj);
     void UpdateWork(bool& success);
@@ -358,6 +366,8 @@ namespace cluster {
     float PointTrajDOCA(float wire, float time, TrajPoint const& tp);
     // returns the DOCA^2 between a point and a trajectory
     float PointTrajDOCA2(float wire, float time, TrajPoint const& tp);
+    // returns the separation^2 between two TPs
+    float TrajPointHitSep2(TrajPoint const& tp1, TrajPoint const& tp2);
     void TrajTrajDOCA(Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
 //    void TrajSeparation(Trajectory& iTj, Trajectory& jTj, std::vector<float>& tSep);
     void FindTrajVertices();

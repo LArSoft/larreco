@@ -76,6 +76,8 @@ namespace cluster {
     fLargeAngle           = pset.get< float >("LargeAngle", 80);
     fNPtsAve              = pset.get< short >("NPtsAve", 20);
     fMinNPtsFit           = pset.get< std::vector<unsigned short >>("MinNPtsFit");
+    fMinPts               = pset.get< unsigned short >("MinPts", 20);
+    fMaxChi               = pset.get< float >("MaxChi", 10);
     fMultHitSep           = pset.get< float >("MultHitSep", 2.5);
     fTP3ChiCut            = pset.get< float >("TP3ChiCut", 2.);
     fChgDiffCut           = pset.get< float >("ChgDiffCut", 10);
@@ -602,18 +604,17 @@ namespace cluster {
               FlagWorkHits(0);
               continue;
             }
-
             UpdateWork(updateOK);
-            
             if(prt) PrintTrajectory(work, USHRT_MAX);
+            // now try stepping away
             StepCrawl(success);
+            FlagWorkHits(0);
             if(!success) {
               if(prt) mf::LogVerbatim("TC")<<" xxxxxxx StepCrawl failed ";
-              FlagWorkHits(0);
               continue;
             }
             if(prt) mf::LogVerbatim("TC")<<"StepCrawl done: work.Pts size "<<work.Pts.size();
-            if(work.Pts.size() < fMinNPtsFit[fPass]) continue;
+            if(work.Pts.size() < fMinPts) continue;
             StoreWork();
             break;
           } // jht
@@ -1273,16 +1274,17 @@ namespace cluster {
     // figure out which wires to consider
     // On the first entry only consider the wire the TP is on
     if(work.Pts.size() == 1) {
-      loWire = tp.Pos[0];
+      loWire = std::nearbyint(tp.Pos[0]);
       hiWire = loWire + 1;
     } else  {
       if(IsLargeAngle(tp)) {
         // look at adjacent wires for larger angle trajectories
-        loWire = (tp.Pos[0] - 1.5);
-        hiWire = (tp.Pos[0] + 2.5);
+        loWire = std::nearbyint(tp.Pos[0] - 1);
+        hiWire = loWire + 3;
+//        hiWire = std::nearbyint(tp.Pos[0] + 2);
       } else {
-        loWire = tp.Pos[0];
-        hiWire = tp.Pos[0] + 1;
+        loWire = std::nearbyint(tp.Pos[0]);
+        hiWire = loWire + 1;
       }
     } // work.Pts.size > 1
     
@@ -1335,6 +1337,7 @@ namespace cluster {
           myprt<<" inTraj "<<inTraj[iht];
           myprt<<" Chg "<<(int)fHits[iht]->Integral();
           myprt<<" Signal? "<<SignalPresent<<" close? "<<close;
+          if(inTraj[iht] == 2) PrintAllTraj(1,USHRT_MAX);
         }
         if(inTraj[iht] != 0) continue;
         if(delta > deltaCut) continue;
@@ -1798,7 +1801,8 @@ namespace cluster {
 
     unsigned short iwt;
     
-    unsigned int nit;
+    unsigned int step;
+    float stepSize;
     float bigChgDiffCut = 3 * fChgDiffCut;
     float maxPos0 = fNumWires;
     float maxPos1 = fMaxTime * fScaleF;
@@ -1812,9 +1816,10 @@ namespace cluster {
     bool hitsPresent, updateSuccess, keepGoing, stopOnKink;
     unsigned short killPts;
     unsigned short noSignal = 0;
-    for(nit = 0; nit < 10000; ++nit) {
+    for(step = 0; step < 1000; ++step) {
+      if(IsLargeAngle(tp)) { stepSize = 1; } else { stepSize = 1 / tp.Dir[0]; }
       // move the position by one step in the right direction
-      for(iwt = 0; iwt < 2; ++iwt) tp.Pos[iwt] += tp.Dir[iwt];
+      for(iwt = 0; iwt < 2; ++iwt) tp.Pos[iwt] += tp.Dir[iwt] * stepSize;
       // hit the boundary of the TPC?
       if(tp.Pos[0] < 0 || tp.Pos[0] > maxPos0) break;
       if(tp.Pos[1] < 0 || tp.Pos[1] > maxPos1) break;
@@ -1849,7 +1854,7 @@ namespace cluster {
         continue;
       } // tp.Hits.size() == 0
       // Have new traj hits. Add the trajectory point and update
-      tp.Step = nit;
+      tp.Step = step;
       nMissedStep = 0;
       noSignal = 0;
       // this cut for the next step
@@ -1858,7 +1863,6 @@ namespace cluster {
       UpdateWork(updateSuccess);
       if(!updateSuccess) break;
       lastPt = work.Pts.size()-1;
-      // IMPORTANT NOTE: Local tp hasn't been updated yet using results from UpdateWork.
       // Quit if we are starting out poorly. This can happen on the 2nd trajectory point
       // when a hit is picked up in the wrong direction
       if(work.Pts.size() == 2 && std::signbit(work.Pts[1].Dir[0]) != std::signbit(work.Pts[0].Dir[0])) {
@@ -1874,6 +1878,14 @@ namespace cluster {
         if(prt) mf::LogVerbatim("TC")<<"StepCrawl: Third TP. 0-2 sep "<<TrajPointHitSep2(work.Pts[0], work.Pts[2])<<" 0-1 sep "<<TrajPointHitSep2(work.Pts[0], work.Pts[1]);
         if(TrajPointHitSep2(work.Pts[0], work.Pts[2]) < TrajPointHitSep2(work.Pts[0], work.Pts[1])) return;
       } // work.Pts.size() == 3
+      // See if the Chisq/DOF exceeds the maximum.
+      // UpdateWork should have reduced the number of points fit
+      // as much as possible for this pass, so this trajectory is in trouble
+      if(work.Pts[lastPt].FitChi > fMaxChi) {
+        if(prt) mf::LogVerbatim("TC")<<"   bad FitChi "<<work.Pts[lastPt].FitChi<<" cut "<<fMaxChi<<" Dropping trajectory";
+        success = false;
+        return;
+      }
       // assume that we aren't going to kill the point we just added, or any
       // of the previous points...
       killPts = 0;
@@ -1915,36 +1927,43 @@ namespace cluster {
         if(prt) PrintTrajectory(work, lastPt);
       } else {
         // shorten the trajectory by the desired number of points
-        // and correct the projected position
+        // and correct the projected position.
         // release the hits
         FlagWorkHits(0);
-        float nSteps = (float)(work.Pts[lastPt].Step - work.Pts[lastPt-killPts].Step);
-        if(prt) mf::LogVerbatim("TC")<<"TRP   killing "<<killPts<<" after "<<nSteps<<" steps from prev TP.  Current tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1];
         // truncate the work trajectory
         work.Pts.resize(lastPt+1-killPts);
+        lastPt = work.Pts.size() - 1;
+        float nSteps = (float)(step - work.Pts[lastPt].Step);
+        if(prt) mf::LogVerbatim("TC")<<"TRP   killing "<<killPts<<" after "<<nSteps<<" steps from prev TP.  Current tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1];
         // re-assign the hits
         FlagWorkHits(-3);
         // copy to the local trajectory point
-        lastPt = work.Pts.size() - 1;
         tp = work.Pts[lastPt];
         // move the position
         tp.Pos[0] += nSteps * tp.Dir[0];
         tp.Pos[1] += nSteps * tp.Dir[1];
-        nSteps = 0;
-        if(prt) mf::LogVerbatim("TC")<<"  New tp.Pos     "<<tp.Pos[0]<<" "<<tp.Pos[1];
+        if(!IsLargeAngle(tp)) {
+          // put the TP at the last wire position + a bit
+          float wire = fHits[tp.Hits[0]]->WireID().Wire + 0.5;
+          float dw = wire - tp.Pos[0];
+          tp.Pos[0] = wire;
+          tp.Pos[1] += dw * tp.Dir[1] / tp.Dir[0];
+        }
+        if(prt) mf::LogVerbatim("TC")<<"  New tp.Pos     "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" ticks "<<(int)tp.Pos[1]/fScaleF;
         if(!keepGoing) break;
       }
-    } // nit
+    } // step
     
-    if(prt) mf::LogVerbatim("TC")<<"End StepCrawl with "<<nit<<" steps. work size "<<work.Pts.size();
-
+    if(prt) mf::LogVerbatim("TC")<<"End StepCrawl with "<<step<<" steps. work size "<<work.Pts.size();
+    
+    // release all the hits since we have stopped crawling. Doing this
+    // here simplifies the task of truncating the trajectory
+    FlagWorkHits(0);
     // check the cluster quality and possibly truncate it
     if(!stopOnKink) CheckWork();
     
 
 //    if(prt) PrintTrajectory(work, USHRT_MAX);
-
-    FlagWorkHits(0);
     
     if(!CheckAllHitsFlag()) return;
     
@@ -1959,22 +1978,24 @@ namespace cluster {
     // look for a gap in the trajectory with only one or two
     // TPs at the end
     
-    if(fStudyMode) return;
-    
     // Ignore LA trajectories
     if(IsLargeAngle(work.Pts[0])) return;
     
-    float maxSep2 = fMaxWireSkip * fMaxWireSkip;
+    // Compare the number of steps taken per TP near the beginning and
+    // at the end
     
-    unsigned short ipt;
-    for(ipt = 1; ipt < work.Pts.size(); ++ipt) {
-      if(TrajPointHitSep2(work.Pts[ipt], work.Pts[ipt-1]) > maxSep2) {
-        if(prt) mf::LogVerbatim("TC")<<"CheckWork: Truncate at "<<ipt;
-        FlagWorkHits(0);
-        work.Pts.resize(ipt);
-        return;
-      }
-    } // ii
+    if(work.Pts.size() < 4) return;
+    short nStepBegin = work.Pts[2].Step - work.Pts[1].Step;
+    short nStepEnd;
+    unsigned short lastPt = work.Pts.size() - 1;
+    unsigned short newSize = work.Pts.size();
+    for(unsigned short ipt = lastPt; ipt > lastPt - 2; --ipt) {
+      nStepEnd = work.Pts[ipt].Step - work.Pts[ipt - 1].Step;
+      if(nStepEnd > 3 * nStepBegin) newSize = ipt;
+      if(prt) mf::LogVerbatim("TC")<<"CheckWork "<<ipt<<" Begin "<<nStepBegin<<" End "<<nStepEnd<<" newSize "<<newSize;
+    }
+    if(newSize < work.Pts.size()) work.Pts.resize(newSize);
+    
   } // CheckWorkEnd
 
   ////////////////////////////////////////////////
@@ -2170,22 +2191,16 @@ namespace cluster {
       if(prt) mf::LogVerbatim("TC")<<"  Fit done. Chi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit;
     } // work.Pts.size
     
-    
+/*
     // Move the TP to the wire position for small angle clusters
     if(!IsLargeAngle(lastTP)) {
-      // ensure that all hits are on one wire
-      unsigned int wire = fHits[lastTP.Hits[0]]->WireID().Wire;
-      unsigned nHitsOnWire = 1;
-      for(unsigned short iht = 1; iht < lastTP.Hits.size(); ++iht)
-        if(fHits[lastTP.Hits[iht]]->WireID().Wire == wire) ++nHitsOnWire;
-      if(nHitsOnWire == lastTP.Hits.size()) {
-        // all hits on one wire. Move the TP
-        float dw = (float)wire - lastTP.Pos[0];
-        lastTP.Pos[0] = wire;
-        lastTP.Pos[1] += dw * lastTP.Dir[1] / lastTP.Dir[0];
-      }
+      float wire = fHits[lastTP.Hits[0]]->WireID().Wire;
+      float dw = wire - lastTP.Pos[0];
+      lastTP.Pos[0] = wire;
+      lastTP.Pos[1] += dw * lastTP.Dir[1] / lastTP.Dir[0];
+      if(prt) mf::LogVerbatim("TC")<<"  Moved tp to wire position by dw = "<<dw<<" Pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1];
     } // !LargeAngle
-    
+*/
     // update the first traj point if this point is in the fit
     if(lastTP.NTPsFit == work.Pts.size()) {
       work.Pts[0].AveChg = lastTP.AveChg;
@@ -2213,13 +2228,19 @@ namespace cluster {
     // Calculate the average TP3Chi
     work.AveTP3Chi = 0;
     for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt) work.AveTP3Chi += work.Pts[ipt].TP3Chi;
-    work.AveTP3Chi /= (float)work.Pts.size();
-    if(prt) mf::LogVerbatim("TC")<<"AveTP3Chi "<<work.AveTP3Chi;
+    float fcnt = work.Pts.size();
+    work.AveTP3Chi /= fcnt;
     
     // Estimate the multiple scattering angle
-    work.ThetaMCS = 0;
-    TrajPoint tp;
-    MakeBareTrajPoint(work.Pts[0].Pos[0], );
+    float sum = 0, sum2 = 0;
+    work.ThetaMCS = 1;
+    for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt) {
+      sum += work.Pts[ipt].Ang;
+      sum2 += work.Pts[ipt].Ang * work.Pts[ipt].Ang;
+    }
+    sum /= fcnt;
+    if(fcnt > 2) work.ThetaMCS = sqrt((sum2 - fcnt * sum * sum) / (fcnt-1));
+    if(prt) mf::LogVerbatim("TC")<<"    AveTP3Chi "<<work.AveTP3Chi<<" ThetaMCS "<<work.ThetaMCS;
 
     success = true;
     return;
@@ -2672,6 +2693,7 @@ namespace cluster {
       for(iht = 0; iht < cls.tclhits.size(); ++iht) inClus[cls.tclhits[iht]] = ncl;
     } // itj
 
+    PrintAllTraj(USHRT_MAX, 0);
     PrintClusters();
     
   } // MakeAllTrajClusters
@@ -2684,7 +2706,7 @@ namespace cluster {
       // Print summary trajectory information
       mf::LogVerbatim myprt("TC");
       std::vector<unsigned int> tmp;
-      myprt<<"TRJ CTP Pass Ind nPts    W:Tick     Ang   AveQ     W:T        Ang   AveQ TP3Chi  Hits/TP __Vtx__ PDG Parent TRuPDG  Prnt   KE  \n";
+      myprt<<"TRJ CTP Pass Ind nPts    W:Tick     Ang   AveQ     W:T        Ang   AveQ TP3Chi  thMCS Hits/TP __Vtx__ PDG Parent TRuPDG  Prnt   KE  \n";
       for(unsigned short ii = 0; ii < allTraj.size(); ++ii) {
         if(fDebugPlane >=0 && (unsigned short)fDebugPlane != allTraj[ii].CTP) continue;
         myprt<<"TRJ"<<std::fixed;
@@ -2705,6 +2727,7 @@ namespace cluster {
         myprt<<std::setw(8)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<allTraj[ii].AveTP3Chi;
+        myprt<<std::setw(7)<<std::setprecision(2)<<allTraj[ii].ThetaMCS;
         // find average number of hits / TP
         PutTrajHitsInVector(allTraj[ii], tmp);
         float ave = (float)tmp.size() / (float)allTraj[ii].Pts.size();
