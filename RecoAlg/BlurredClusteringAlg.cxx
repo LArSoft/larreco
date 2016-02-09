@@ -398,11 +398,9 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
               used[bin] = true;
               cluster.push_back(bin);
               nadded++;
-
               if (time > 0) {
                 times.push_back(time);
               }
-
             } // End of adding blurred bin to cluster
 
           }

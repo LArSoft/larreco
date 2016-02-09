@@ -448,12 +448,12 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
 
   for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeHits = planeHitsMap.begin(); planeHits != planeHitsMap.end(); ++planeHits) {
 
-    if (debug)
-      std::cout << std::endl << "Plane " << planeHits->first << std::endl;
+    //    if (debug)
+    std::cout << std::endl << "Plane " << planeHits->first << std::endl;
     if (planeHits->first != plane and plane != -1) continue;
 
     std::vector<art::Ptr<recob::Hit> > showerHits;
-    double goodness = OrderShowerHits(planeHits->second, showerHits, fmc);
+    double goodness = OrderShowerHits(planeHits->second, showerHits);//, fmc);
     orderedShowerMap[planeHits->first] = showerHits;
     goodnessOfOrderMap[planeHits->first] = goodness;
 
@@ -916,7 +916,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 
   /// Makes a recob::Shower object given the hits in the shower and the initial track-like part
 
-  //return recob::Shower();
+  return recob::Shower();
 
   // Find the shower hits on each plane
   std::map<int,std::vector<art::Ptr<recob::Hit> > > planeHitsMap;
@@ -1125,6 +1125,8 @@ double shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > c
 
   /// Takes the hits associated with a shower and orders them so they follow the direction of the shower
 
+  // Don't forget to clean up the header file!
+
   // First, order the hits along the shower
   // Then we need to see if this is correct or if we need to swap the order
   showerHits = this->FindOrderOfHits(shower);
@@ -1144,15 +1146,22 @@ double shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > c
   double gradient = (nhits * sumxy - sumx * sumy) / (nhits * sumx2 - sumx * sumx);
   TVector2 direction = TVector2(1,gradient).Unit();
 
+  std::cout << "The first hit is " << std::endl;
+  HitCoordinates(showerHits.at(0)).Print();
+
   // Bin the hits into discreet chunks
-  int nShowerSegments = 10;
+  int nShowerSegments = 5;
   double lengthOfShower = (HitPosition(showerHits.back()) - HitPosition(showerHits.front())).Mod();
   double lengthOfSegment = lengthOfShower / (double)nShowerSegments;
   std::map<int,std::vector<art::Ptr<recob::Hit> > > showerSegments;
-  for (std::vector<art::Ptr<recob::Hit> >::iterator showerHitIt = showerHits.begin(); showerHitIt != showerHits.end(); ++showerHitIt)
+  std::map<int,double> segmentCharge;
+  for (std::vector<art::Ptr<recob::Hit> >::iterator showerHitIt = showerHits.begin(); showerHitIt != showerHits.end(); ++showerHitIt) {
     showerSegments[(int)(HitPosition(*showerHitIt)-HitPosition(showerHits.front())).Mod() / lengthOfSegment].push_back(*showerHitIt);
+    segmentCharge[(int)(HitPosition(*showerHitIt)-HitPosition(showerHits.front())).Mod() / lengthOfSegment] += (*showerHitIt)->Integral();
+  }
 
   TGraph* graph = new TGraph();
+  std::vector<std::pair<int,double> > binVsRMS;
 
   // Loop over the bins to find the distribution of hits as the shower progresses
   for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator showerSegmentIt = showerSegments.begin(); showerSegmentIt != showerSegments.end(); ++showerSegmentIt) {
@@ -1171,13 +1180,31 @@ double shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > c
     }
 
     double RMS = TMath::RMS(distanceToAxis.begin(), distanceToAxis.end());
-    graph->SetPoint(graph->GetN(), showerSegmentIt->first, RMS);
+    graph->SetPoint(graph->GetN(), showerSegmentIt->first, RMS);//*segmentCharge.at(showerSegmentIt->first));
+    binVsRMS.push_back(std::make_pair(showerSegmentIt->first, RMS));
 
   }
 
+  // Find a rough shower 'direction'
+  nhits = 0;
+  sumx=0., sumy=0., sumx2=0., sumxy=0.;
+  for (std::vector<std::pair<int,double> >::iterator binVsRMSIt = binVsRMS.begin(); binVsRMSIt != binVsRMS.end(); ++binVsRMSIt) {
+    ++nhits;
+    sumx += binVsRMSIt->first;
+    sumy += binVsRMSIt->second;
+    sumx2 += binVsRMSIt->first * binVsRMSIt->first;
+    sumxy += binVsRMSIt->first * binVsRMSIt->second;
+  }
+  double RMSgradient = (nhits * sumxy - sumx * sumy) / (nhits * sumx2 - sumx * sumx);
+
   TCanvas* canv = new TCanvas();
+  graph->Fit("pol1");
+  TF1* fit = graph->GetFunction("pol1");
+  Double_t graphGradient = fit->GetParameter(1);
   graph->Draw();
   canv->SaveAs("direction.png");
+
+  std::cout << "Gradient from graph is " << graphGradient << " and from vector is " << RMSgradient << std::endl;
 
   return 0;
 

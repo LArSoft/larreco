@@ -55,6 +55,7 @@
 #include "TLine.h"
 #include "TCanvas.h"
 #include "TString.h"
+#include "TF1.h"
 
 namespace shower {
   class EMShowerAlg;
