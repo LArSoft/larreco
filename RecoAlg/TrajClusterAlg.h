@@ -140,8 +140,8 @@ namespace cluster {
     short fMode;            ///  StepCrawl mode (0 = turn off)
     short fStepDir;             /// US->DS (1), DS->US (-1)
     short fNPtsAve;         /// number of points to find AveChg
-    std::vector<unsigned short> fMinNPtsFit; ///< Reconstruct in two passes
-    unsigned short fMinPts;          ///< min number of Pts required to make a cluster
+    std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
+    std::vector<unsigned short> fMinPts;          ///< min number of Pts required to make a cluster
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fTP3ChiCut;       ///<
     float fMaxChi;
@@ -176,6 +176,10 @@ namespace cluster {
     
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
+    TH2F *fThetaMCS_TruKE;
+    TProfile *fThetaMCS_TruKEP;
+    TH2F *fThetaMCS_Angle;
+    TProfile *fThetaMCS_AngleP;
     
     TH1F *fShowerNumTrjint;
     TH2F *fShowerTheta_Sep;
