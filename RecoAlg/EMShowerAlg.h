@@ -56,6 +56,8 @@
 #include "TCanvas.h"
 #include "TString.h"
 #include "TF1.h"
+#include "MCCheater/BackTracker.h"
+#include "TH1I.h"
 
 namespace shower {
   class EMShowerAlg;
@@ -107,12 +109,13 @@ public:
   double OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
 			 std::vector<art::Ptr<recob::Hit> >& orderedShower,
 			 art::FindManyP<recob::Cluster> const& fmc);
-  std::vector<art::Ptr<recob::Hit> > OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower);
+  //std::vector<art::Ptr<recob::Hit> > OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower);
   void OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
-			 std::vector<art::Ptr<recob::Hit> >& orderedShower,
+		       std::vector<art::Ptr<recob::Hit> >& orderedShower,
 			 art::Ptr<recob::Vertex> const& vertex);
   double OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
-					      std::vector<art::Ptr<recob::Hit> >& showerHits);
+			 std::vector<art::Ptr<recob::Hit> >& showerHits);
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > OrderShowerHits(art::PtrVector<recob::Hit> const& shower);
   TVector3 Construct3DPoint(art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2);
 
   Int_t WeightedFit(const Int_t n, const Double_t *x, const Double_t *y, const Double_t *w,  Double_t *parm);
@@ -121,6 +124,7 @@ public:
 
 private:
 
+  bool CheckShowerHits(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
   std::vector<int> IdentifyBadPlanes(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
   std::vector<int> IdentifyBadPlanes(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap,
 				     std::map<int,double> const& goodnessOfOrderMap);
@@ -128,6 +132,7 @@ private:
 								    std::map<int,double> const& goodnessOfOrderMap);
   std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap,
 						 std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerCentreMap);
+  std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap);
   std::vector<double> GetShowerDirectionProperties(std::vector<art::Ptr<recob::Hit> > const& showerHits, TVector2 const& direction, std::string end);
   std::vector<art::Ptr<recob::Hit> > FindOrderOfHits(std::vector<art::Ptr<recob::Hit> > const& hits);
   double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, std::unique_ptr<recob::Track> const& track);
@@ -136,6 +141,11 @@ private:
   TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);
   double GlobalWire(geo::WireID wireID);
   TVector2 Project3DPointOntoPlane(TVector3 const& point, geo::PlaneID planeID);
+
+  // tmp
+  int FindTrackID(art::Ptr<recob::Hit> const& hit);
+  art::ServiceHandle<cheat::BackTracker> backtracker;
+  TH1I* hTrueDirection;
 
   // Parameters
   double fMinTrackLength;
