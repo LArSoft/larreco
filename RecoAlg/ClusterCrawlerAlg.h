@@ -299,7 +299,7 @@ namespace cluster {
     std::vector<TrajPoint> traj;
     
     void ReverseTraj();
-
+/*
     // hit multiplets that have been saved before merging.
     std::vector<recob::Hit> unMergedHits;
     // RestoreUnMergedHits should be called before abandoning fcl2hits to
@@ -311,7 +311,7 @@ namespace cluster {
     // ClearUnMergedHits should (optionally) be called after a new
     // temporary (tcl) cluster has been created
     void ClearUnMergedHits();
-
+*/
     // ******** crawling routines *****************
 
     // Loops over wires looking for seed clusters

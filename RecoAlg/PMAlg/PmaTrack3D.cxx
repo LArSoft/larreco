@@ -2077,7 +2077,7 @@ void pma::Track3D::RebuildSegments(void)
 void pma::Track3D::CleanupTails(void)
 {
 	unsigned int nhits = 0;
-	while (!nhits && (fNodes.size() > 2))
+	while (!nhits && (fNodes.size() > 2) && !fNodes.front()->IsBranching())
 	{
 		pma::Node3D* vtx = fNodes.front();
 		nhits = vtx->NHits();
@@ -2098,7 +2098,7 @@ void pma::Track3D::CleanupTails(void)
 	}
 
 	nhits = 0;
-	while (!nhits && (fNodes.size() > 2))
+	while (!nhits && (fNodes.size() > 2) && !fNodes.back()->IsBranching())
 	{
 		pma::Node3D* vtx = fNodes.back();
 		nhits = vtx->NHits();

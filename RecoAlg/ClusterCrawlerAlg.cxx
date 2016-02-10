@@ -152,7 +152,8 @@ namespace cluster {
     clEndTim = 0;   clEndWir = 0;   clEndChg = 0; clEndChgNear = 0; clChisq = 0;
     clStopCode = 0; clProcCode = 0; fFirstWire = 0;
     fLastWire = 0; fAveChg = 0.; fChgSlp = 0.; pass = 0;
-    fScaleF = 0; WireHitRange.clear(); unMergedHits.clear();
+    fScaleF = 0; WireHitRange.clear();
+    // unMergedHits.clear();
     
     ClearResults();
   }
@@ -166,7 +167,7 @@ namespace cluster {
     chgNear.clear();
     fAveChg = -1.;
     fAveHitWidth = -1;
-    unMergedHits.clear();
+//    unMergedHits.clear();
     clEndChg = -1.;
     clStopCode = 0;
     clProcCode = pass;
@@ -499,7 +500,7 @@ namespace cluster {
                 break;
               } else {
                 // abandon it
-                RestoreUnMergedClusterHits(-1);
+//                RestoreUnMergedClusterHits(-1);
                 if(prt) mf::LogVerbatim("CC")<<"ClusterLoop: dropped the cluster";
               }
             } // jhit
@@ -509,7 +510,7 @@ namespace cluster {
         } // iwire
         
         // this shouldn't be necessary but do it anyway
-        unMergedHits.clear();
+//        unMergedHits.clear();
 
         // try to merge clusters 
         if(fDoMerge[pass]) ChkMerge();
@@ -540,9 +541,7 @@ namespace cluster {
         PrintClusters();
       }
       
-      if(unMergedHits.size() > 0) {
-        mf::LogError("CC")<<"Found unMergedHits > 0 after post-pass processing";
-      }
+//      if(unMergedHits.size() > 0) mf::LogError("CC")<<"Found unMergedHits > 0 after post-pass processing";
       
       CheckHitClusterAssociations();
     
@@ -1187,7 +1186,7 @@ namespace cluster {
     
     if(nTrim >= fcl2hits.size()) nTrim = fcl2hits.size();
     
-    RestoreUnMergedClusterHits((short)nTrim);
+//    RestoreUnMergedClusterHits((short)nTrim);
     for(unsigned short ii = 0; ii < nTrim; ++ii) {
       fcl2hits.pop_back();
       chifits.pop_back();
@@ -1196,7 +1195,7 @@ namespace cluster {
     } // ii
     
   } // FclTrim
-
+/*
   //////////////////////////////////////////
   void ClusterCrawlerAlg::ClearUnMergedHits()
   {
@@ -1233,13 +1232,8 @@ namespace cluster {
     if(theHit > fHits.size()-1) return;
     
     if(fHits[theHit].GoodnessOfFit() != 6666) return;
-/*
-    if(fcl2hits.size() == 0) {
-      mf::LogError("CC")<<"RestoreUnMergedHit called while not crawling ";
-      return;
-    }
-*/
-    if(unMergedHits.size() == 0) {
+
+ if(unMergedHits.size() == 0) {
       mf::LogError("CC")<<"RestoreUnMergedHit: No unMergedHits "
         <<fHits[theHit].WireID().Plane<<":"<<fHits[theHit].WireID().Wire<<":"<<(int)fHits[theHit].PeakTime();
       return;
@@ -1267,19 +1261,7 @@ namespace cluster {
       if(unMergedHits[firstHit].WireID().Wire != fHits[theHit].WireID().Wire) continue;
       if(unMergedHits[firstHit].StartTick() == sTick) break;
     }
-/*
-    if(firstHit > unMergedHits.size()-1) {
-      mf::LogError("CC")<<"RestoreUnMergedHit: theHit "<<theHit<<" not found in unMergedHits. Seed hit "
-        <<fHits[fcl2hits[0]].WireID().Plane<<":"<<fHits[fcl2hits[0]].WireID().Wire<<":"<<fHits[fcl2hits[0]].PeakTime();
-      return;
-    }
 
-    if(tmp) {
-      mf::LogVerbatim myprt("CC");
-      myprt<<"in ";
-      for(auto hit : unMergedHits) myprt<<" "<<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime();
-    }
-*/
     // Find the starting index of the hit in fHits. Use WireHitRange to speed the search
     int fHitsStart;
     for(fHitsStart = WireHitRange[theWire].first; fHitsStart < WireHitRange[theWire].second; ++fHitsStart)
@@ -1296,15 +1278,6 @@ namespace cluster {
       inClus[fHitsStart + kk] = 0;
     }
     unMergedHits.erase(unMergedHits.begin()+firstHit, unMergedHits.begin()+firstHit+oldMult);
-/*
-    if(tmp) {
-      std::cout<<"size "<<unMergedHits.size()<<"\n";
-      if(unMergedHits.size() > 100) exit(1);
-      mf::LogVerbatim myprt("CC");
-      myprt<<"out";
-      for(auto hit : unMergedHits) myprt<<" "<<hit.WireID().Plane<<":"<<hit.WireID().Wire<<":"<<(int)hit.PeakTime();
-    }
-*/
     
   } // RestoreUnMergedHit
   
@@ -1327,7 +1300,7 @@ namespace cluster {
     }
 
   } // RestoreUnMergedClusterHits
-
+*/
   //////////////////////////////////////////
   void ClusterCrawlerAlg::CheckHitClusterAssociations()
   {
@@ -2143,7 +2116,7 @@ namespace cluster {
       const float RMS = std::sqrt(sigsumt / sigsum);
       // find the amplitude from the integrated charge and the RMS
       const float amplitude = chgsum * chgNorm/ (2.507 * RMS);
-      
+/*
       // copy all hits in the multiplet into a buffer so that it can be
       // restored later if required
       // First check for errors
@@ -2158,7 +2131,7 @@ namespace cluster {
         unMergedHits.push_back(fHits[jht]);
 //      mf::LogVerbatim("CC")<<"New unMergeHits size "<<unMergedHits.size()<<" StartTick "<<fHits[theHit].StartTick()
 //      <<" Seed hit "<<fHits[fcl2hits[0]].WireID().Plane<<":"<<fHits[fcl2hits[0]].WireID().Wire<<":"<<(int)fHits[fcl2hits[0]].PeakTime();
-      
+*/
       // modify the hit "in place" (actually completely overwrite it...)
       // TODO a lot of these quantities need revamp!!
       fHits[theHit] = recob::Hit(
@@ -3965,7 +3938,7 @@ namespace cluster {
     FitClusterMid(tcl.size()-1, fcl2hits[0], nhfit);
     if(clChisq < 99) tcl[tcl.size()-1].BeginTim = clpar[0];
     
-    ClearUnMergedHits();
+//    ClearUnMergedHits();
 
     return true;
   } // TmpStore()
@@ -4169,7 +4142,7 @@ namespace cluster {
           if(PostSkip && nmissed > fMinWirAfterSkip[pass]) {
             // cluster is really short
             if((int)(fcl2hits.size() - nHitAfterSkip) < 4) {
-              RestoreUnMergedClusterHits(-1);
+//              RestoreUnMergedClusterHits(-1);
               fcl2hits.clear();
               return;
             }
@@ -4178,7 +4151,7 @@ namespace cluster {
             FclTrimUS(nHitAfterSkip);
             FitCluster();
             if(clChisq > 90.) {
-              RestoreUnMergedClusterHits(-1);
+//              RestoreUnMergedClusterHits(-1);
               fcl2hits.clear();
               return;
             }
@@ -4200,7 +4173,7 @@ namespace cluster {
       else {
         if(clChisq > 99.) {
           if(fcl2hits.size() < 3) {
-            RestoreUnMergedClusterHits(-1);
+//            RestoreUnMergedClusterHits(-1);
             fcl2hits.clear();
             return;
           }
@@ -4210,7 +4183,7 @@ namespace cluster {
           FitCluster();
           if(clChisq > 99.) {
             // something really bad happened. Bail out
-            RestoreUnMergedClusterHits(-1);
+//            RestoreUnMergedClusterHits(-1);
             fcl2hits.clear();
             return;
           }
@@ -4407,7 +4380,7 @@ namespace cluster {
     float hitFrac = (float)fcl2hits.size() / (float)(clBeginWir - clEndWir + 1);
 
     if(hitFrac < fMinHitFrac) {
-      RestoreUnMergedClusterHits(-1);
+//      RestoreUnMergedClusterHits(-1);
       fcl2hits.clear();
       if(prt) mf::LogVerbatim("CC")<<"CheckClusterHitFrac: Poor hit fraction "<<hitFrac<<" clBeginWir "<<clBeginWir
         <<" clEndWir "<<clEndWir<<" size "<<fcl2hits.size();
@@ -4426,7 +4399,7 @@ namespace cluster {
       for(unsigned short iht = 0; iht < fcl2hits.size(); ++iht) if(fHits[fcl2hits[iht]].Multiplicity() == 1) ++nsing;
       hitFrac = (float)nsing / (float)fcl2hits.size();
       if(hitFrac < fMinHitFrac) {
-        RestoreUnMergedClusterHits(-1);
+//        RestoreUnMergedClusterHits(-1);
         fcl2hits.clear();
         if(prt) mf::LogVerbatim("CC")<<"CheckClusterHitFrac: Poor short track hit fraction "<<hitFrac;
         return;
