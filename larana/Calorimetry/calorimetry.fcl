@@ -1,0 +1,77 @@
+BEGIN_PROLOG
+
+standard_calorimetryalgdata:
+{
+  CalAmpConstants:  	[ 0.582554e-3 , 1.16594e-3 ]
+  CalAreaConstants:  	[ 0.544391e-2 , 2.0376e-2 ]
+#  UseArea:              false
+  CaloUseModBox:        true   #use modified Box model recombination correction
+}
+
+standard_calorimetryalgmc:
+{
+  CalAmpConstants:   	[ 0.588726e-3 , 1.18998e-3 ]
+  CalAreaConstants:   	[ 0.773887e-2 , 1.78186e-2 ]
+#  UseArea:              false
+  CaloUseModBox:        true   #use modified Box model recombination correction
+}
+
+standard_calodata:
+{
+ module_type:            "Calorimetry"
+ TrackModuleLabel:       "track3d" #this must have track-spacepoint and track-hit associations
+ SpacePointModuleLabel:  "spacepointfinder" #this must have spacepoint-hit associations
+ T0ModuleLabel:          "mctrutht0"
+ UseArea:		 true
+ MakeTree:               false
+ CaloAlg:	         @local::standard_calorimetryalgdata
+}
+
+standard_calomc:
+{
+ module_type:            "Calorimetry"
+ TrackModuleLabel:       "track3d" #this must have track-spacepoint and track-hit associations
+ SpacePointModuleLabel:  "spacepointfinder" #this must have spacepoint-hit associations
+ T0ModuleLabel:          "mctrutht0"
+ UseArea:		 true
+ MakeTree:               false
+ CaloAlg:	         @local::standard_calorimetryalgmc
+}
+
+standard_generalcalorimetry:
+{
+ module_type:      "GeneralCalorimetry"
+ TrackModuleLabel: "track"
+ CaloAlg:          @local::standard_calorimetryalgmc
+}
+
+standard_beziercalorimetry:
+{
+ module_type:       "BezierCalorimetry"
+ BTrackModuleLabel: "beziertracker"
+ CaloAlg:           @local::standard_calorimetryalgmc
+}
+
+standard_trackcalorimetryalg:
+{
+ NHitsToDetermineStart:  3
+ CalorimetryAlg:         @local::standard_calorimetryalgmc
+}
+
+standard_trackcalorimetry:
+{
+ module_type:            "TrackCalorimetry"
+ TrackModuleLabel:       "track"
+ HitModuleLabel:         "hit"
+ SpacePointModuleLabel:  "sppt"
+ TrackCalorimetryAlg:    @local::standard_trackcalorimetryalg
+}
+
+standard_printcalorimetry:
+{
+  module_type:       "PrintCalorimetry"
+  TrackModuleLabel:  "track"
+  CaloModuleLabels:  [ "calo" ]
+}
+
+END_PROLOG
