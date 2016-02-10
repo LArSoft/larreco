@@ -246,6 +246,7 @@ namespace trkf {
             if (ll<scol->size())
             {
                std::vector <art::Ptr  <recob::Hit> > hitsThisSppt;
+               std::cout << "TrackStitcher_module pits: " << pits.size() << std::endl;
                hitsThisSppt.insert(hitsThisSppt.begin(),pits.at(jj).first,pits.at(jj).second);
                util::CreateAssn(*this, evt, scol->at(ll), hitsThisSppt, *spthassn);
             }
