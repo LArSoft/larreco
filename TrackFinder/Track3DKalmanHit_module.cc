@@ -197,6 +197,13 @@ namespace trkf {
                         art::PtrVector<recob::Hit>& hits,
                         std::deque<KGTrack>& kalman_tracks);
       std::list<LocalKalmanStruct> getInputfromevent(const art::Event &evt);
+      void getSeeds(LocalKalmanStruct &local_kalman_struct,
+                    bool pfseed,
+                    bool first,
+                    art::PtrVector<recob::Hit> &seederhits,
+                    std::vector<recob::Seed> seeds,
+                    std::vector<art::PtrVector<recob::Hit> > hitsperseed);
+      void generateKalmantracks(std::list<LocalKalmanStruct> &LocalKalmanStructList);
       
       // Fcl parameters.
       
@@ -383,35 +390,27 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    std::unique_ptr<std::vector<recob::SpacePoint> > spts(new std::vector<recob::SpacePoint>);
    std::unique_ptr< art::Assns<recob::SpacePoint, recob::Hit> > sph_assn(new art::Assns<recob::SpacePoint, recob::Hit>);
    
-   // Make associations between PFParticles and the tracks they create
-   // To facilitate this we'll recover the handle to the PFParticle collection - whether it exists or not
-   
-   // Make collection of KGTracks where we will save our results, together with
-   // corresponding hit collections.
-   
-   // SS: Changed the name, make sure the name doesn't start with capitla letter
-   
-   
    // Reset space point algorithm.
-   
    fSpacePointAlg.clearHitMap();
    
    // Get Hits.
    // SS: replaced the code with appropriate functions to get the hits based on specified option
    // can use auto here or I can directly give the functional call in argument list
    
+   // Make collection of KGTracks where we will save our results, together with
+   // corresponding hit collections.
    std::list<LocalKalmanStruct> LocalKalmanStructList = getInputfromevent(evt);
    std::cout << LocalKalmanStructList.size() << "\n";
    
-   //generateKalmantracks(LocalKalmanStruct, first, done, seederhits, hits, kalman_tracks);
-   // Loop over hit collection / Kalman track combos.
+   //SS: LocalKalmanStructList
+   //generateKalmantracks(LocalKalmanStructList);
    for(auto& local_kalman_struct : LocalKalmanStructList) {
       
       // Recover the kalman tracks double ended queue
       
       std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
       art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-      
+      std::cout << "Hits num: " << hits.size() << "\n";
       // The hit collection "hits" (just filled), initially containing all
       // hits, represents hits available for making tracks.  Now we will
       // fill a second hit collection called "seederhits", also initially
@@ -435,6 +434,9 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
          // Do this, provided the list of pfparticle-associated seeds and associated
          // hits are not empty.
          bool pfseed = false;
+         //auto const seedsize = local_kalman_struct.seeds.size();
+         //getSeeds(local_kalman_struct.seeds, pfseed, first, seederhits, seeds, hitsperseed);
+         
          auto const seedsize = local_kalman_struct.seeds.size();
          if(first && seedsize > 0 && local_kalman_struct.seedhits.size() > 0) {
             pfseed = true;
@@ -467,6 +469,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
          assert(seeds.size() == hitsperseed.size());
          first = false;
          
+         std::cout << "Seeds: " << seeds.size() << hitsperseed.size() << "\n";
          if(seeds.size() == 0) { // Quit loop if we didn't find any new seeds.
             done = true;
             break;
@@ -579,6 +582,8 @@ void trkf::Track3DKalmanHit::endJob()
 // 3.  All hits (produces one hit collection).
 
 std::list<LocalKalmanStruct> trkf::Track3DKalmanHit::getInputfromevent(const art::Event &evt){
+   // Make associations between PFParticles and the tracks they create
+   // To facilitate this we'll recover the handle to the PFParticle collection - whether it exists or not
    art::Handle<std::vector<recob::PFParticle> > pfParticleHandle;
    evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
    
@@ -603,6 +608,126 @@ std::list<LocalKalmanStruct> trkf::Track3DKalmanHit::getInputfromevent(const art
    }
    return LocalKalmanStructList;
 }
+
+//-----------------
+void trkf::Track3DKalmanHit::generateKalmantracks(std::list<LocalKalmanStruct> &LocalKalmanStructList){
+// Loop over hit collection / Kalman track combos.
+for(auto& local_kalman_struct : LocalKalmanStructList) {
+   
+   // Recover the kalman tracks double ended queue
+   
+   std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
+   art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
+   std::cout << "Hits num: " << hits.size() << "\n";
+   // The hit collection "hits" (just filled), initially containing all
+   // hits, represents hits available for making tracks.  Now we will
+   // fill a second hit collection called "seederhits", also initially
+   // containing all hits, which will represent hits available for
+   // making track seeds.  These collections are not necessarily the
+   // same, since hits that are not suitable for seeds may still be
+   // suitable for tracks.
+   
+   art::PtrVector<recob::Hit> seederhits = hits;
+   
+   // Start of loop.
+   
+   bool first = true;
+   bool done = false;
+   while(!done) {
+      
+      // Use remaining seederhits to make seeds.
+      std::vector<art::PtrVector<recob::Hit> > hitsperseed;
+      std::vector<recob::Seed> seeds;
+      // On the first trip through this loop, try to use pfparticle-associated seeds.
+      // Do this, provided the list of pfparticle-associated seeds and associated
+      // hits are not empty.
+      bool pfseed = false;
+      //auto const seedsize = local_kalman_struct.seeds.size();
+      //getSeeds(local_kalman_struct.seeds, pfseed, first, seederhits, seeds, hitsperseed);
+      
+      auto const seedsize = local_kalman_struct.seeds.size();
+      if(first && seedsize > 0 && local_kalman_struct.seedhits.size() > 0) {
+         pfseed = true;
+         seeds.reserve(seedsize);
+         for(const auto& pseed : local_kalman_struct.seeds) {
+            seeds.push_back(*pseed);
+         }
+         hitsperseed.insert(hitsperseed.end(),
+                            local_kalman_struct.seedhits.begin(),
+                            local_kalman_struct.seedhits.end());
+      }
+      else {
+         // On subsequent trips, or if there were no usable pfparticle-associated seeds,
+         // attempt to generate our own seeds.
+         if(seederhits.size()>0) {
+            if(fSelfSeed) {
+               // Self seed - convert all hits into one big seed.
+               seeds.emplace_back(makeSeed(seederhits));
+               hitsperseed.emplace_back();
+               hitsperseed.back().insert(hitsperseed.back().end(),
+                                         seederhits.begin(),
+                                         seederhits.end());
+            }
+            else
+               seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
+         }
+         //SS: what if seederhits.size() = 0?
+      }
+      
+      assert(seeds.size() == hitsperseed.size());
+      first = false;
+      
+      std::cout << "Seeds: " << seeds.size() << hitsperseed.size() << "\n";
+      if(seeds.size() == 0) { // Quit loop if we didn't find any new seeds.
+         done = true;
+         break;
+      }
+      else {
+         processSeeds(pfseed, seeds, hitsperseed, seederhits, hits, kalman_tracks);
+      }
+   }
+   }
+   }
+//----------------------------------------------------------------------------
+void trkf::Track3DKalmanHit::getSeeds(LocalKalmanStruct &local_kalman_struct,
+                                      bool pfseed,
+                                      bool first,
+                                      art::PtrVector<recob::Hit> &seederhits,
+                                      std::vector<recob::Seed> seeds,
+                                      std::vector<art::PtrVector<recob::Hit> > hitsperseed){
+   auto const seedsize = local_kalman_struct.seeds.size();
+   if(first && seedsize > 0 && local_kalman_struct.seedhits.size() > 0) {
+      pfseed = true;
+      seeds.reserve(seedsize);
+      for(const auto& pseed : local_kalman_struct.seeds) {
+         seeds.push_back(*pseed);
+      }
+      hitsperseed.insert(hitsperseed.end(),
+                         local_kalman_struct.seedhits.begin(),
+                         local_kalman_struct.seedhits.end());
+   }
+   else {
+      // On subsequent trips, or if there were no usable pfparticle-associated seeds,
+      // attempt to generate our own seeds.
+      if(seederhits.size()>0) {
+         if(fSelfSeed) {
+            // Self seed - convert all hits into one big seed.
+            seeds.emplace_back(makeSeed(seederhits));
+            hitsperseed.emplace_back();
+            hitsperseed.back().insert(hitsperseed.back().end(),
+                                      seederhits.begin(),
+                                      seederhits.end());
+         }
+         else
+            seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
+      }
+      //SS: what if seederhits.size() = 0?
+   }
+   
+   assert(seeds.size() == hitsperseed.size());
+   first = false;
+}
+
 
 //----------------------------------------------------------------------------
 /// method to return a seed to surface.
