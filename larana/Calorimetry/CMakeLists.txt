@@ -1,16 +1,16 @@
 include_directories ( ${PROJECT_SOURCE_DIR} )
-art_make( BASENAME_ONLY
-	  LIBRARY_NAME Calorimetry
-	  LIB_LIBRARIES	Filters
-		        RecoBase
-		        Geometry
-		        Geometry_service
-		        RecoAlg
-                        AnalysisAlg
-                        AnalysisBase
-                        LArProperties_service
-                        DetectorProperties_service
-                        Utilities
+art_make( 
+	  
+	  LIB_LIBRARIES	larevt_Filters
+		        lardata_RecoBase
+		        larcore_Geometry
+		        larcore_Geometry_Geometry_service
+		        larreco_RecoAlg
+                        lardata_AnalysisAlg
+                        lardata_AnalysisBase
+                        lardata_Utilities_LArProperties_service
+                        lardata_Utilities_DetectorProperties_service
+                        lardata_Utilities
                         ${MF_MESSAGELOGGER}
 		        ${MF_UTILITIES}
 		        ${FHICLCPP}
@@ -19,19 +19,19 @@ art_make( BASENAME_ONLY
                         ${Boost_SYSTEM_LIBRARY}
 		        ${ROOT_BASIC_LIB_LIST}
           MODULE_LIBRARIES 
-	  		Calorimetry
-                        Filters
-                        RecoObjects
-                        RecoBase
-                        Geometry
-                        Geometry_service
-                        Simulation
-                        RawData
-                        AnalysisAlg
-                        AnalysisBase
-                        LArProperties_service
-                        DetectorProperties_service
-                        Utilities
+	  		larana_Calorimetry
+                        larevt_Filters
+                        lardata_RecoObjects
+                        lardata_RecoBase
+                        larcore_Geometry
+                        larcore_Geometry_Geometry_service
+                        larsim_Simulation
+                        lardata_RawData
+                        lardata_AnalysisAlg
+                        lardata_AnalysisBase
+                        lardata_Utilities_LArProperties_service
+                        lardata_Utilities_DetectorProperties_service
+                        lardata_Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

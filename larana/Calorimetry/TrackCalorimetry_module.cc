@@ -26,7 +26,7 @@
 
 #include <memory>
 
-#include "Utilities/AssociationUtil.h"
+#include "lardata/Utilities/AssociationUtil.h"
 #include "TrackCalorimetryAlg.h"
 
 namespace calo{

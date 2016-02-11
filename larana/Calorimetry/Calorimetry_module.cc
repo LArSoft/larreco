@@ -23,21 +23,21 @@ extern "C" {
 #include <iostream>
 #include <fstream>
 
-#include "AnalysisAlg/CalorimetryAlg.h"
-#include "Utilities/LArProperties.h"
-#include "SimpleTypesAndConstants/PhysicalConstants.h"
-#include "Utilities/DetectorProperties.h"
+#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "lardata/Utilities/LArProperties.h"
+#include "larcore/SimpleTypesAndConstants/PhysicalConstants.h"
+#include "lardata/Utilities/DetectorProperties.h"
 
-#include "RecoBase/Hit.h"
-#include "RecoBase/SpacePoint.h"
-#include "RecoBase/Track.h"
-#include "AnalysisBase/Calorimetry.h"
-#include "AnalysisBase/T0.h"
-#include "Utilities/AssociationUtil.h"
-#include "CalibrationDBI/Interface/IChannelStatusService.h"
-#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/AnalysisBase/Calorimetry.h"
+#include "lardata/AnalysisBase/T0.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larevt/CalibrationDBI/Interface/IChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
 
 // ROOT includes
 #include <TROOT.h>

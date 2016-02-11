@@ -16,15 +16,15 @@ extern "C" {
 #include <string>
 #include <algorithm>
 
-#include "Utilities/DetectorProperties.h"
-#include "Geometry/Geometry.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Track.h"
-#include "AnalysisBase/Calorimetry.h"
-#include "Utilities/AssociationUtil.h"
-#include "AnalysisAlg/CalorimetryAlg.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/AnalysisBase/Calorimetry.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/AnalysisAlg/CalorimetryAlg.h"
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"
