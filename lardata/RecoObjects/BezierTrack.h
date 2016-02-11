@@ -1,7 +1,7 @@
-#include "Utilities/AssociationUtil.h"
-#include "AnalysisBase/Calorimetry.h"
-#include "RecoBase/Track.h"
-#include "RecoBase/Seed.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/AnalysisBase/Calorimetry.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/Seed.h"
 
 #ifndef BEZIERTRACK_h
 #define BEZIERTRACK_h
