@@ -14,8 +14,8 @@
 #include <vector>
 
 // LArSoft libraries
-#include "RecoAlg/ClusterRecoUtil/ClusterParams.h"
-#include "RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParams.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
 
 
 

@@ -1,6 +1,6 @@
 #ifndef SLTRACKREP_HH
 #define SLTRACKREP_HH
-#include "Genfit/GFAbsTrackRep.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
 
 namespace genf {
 

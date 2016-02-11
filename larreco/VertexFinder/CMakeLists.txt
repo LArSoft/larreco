@@ -1,16 +1,16 @@
 
-art_make( BASENAME_ONLY
+art_make( 
           EXCLUDE FeatureVertexFinder_module.cc CornerFinder_module.cc
           MODULE_LIBRARIES 
-                        BackTracker_service
-                        Filters
-                        RecoBase
-                        Geometry
-                        Geometry_service
-                        LArProperties_service
-                        DetectorProperties_service
-                        Utilities
-                        Simulation
+                        larsim_MCCheater_BackTracker_service
+                        larevt_Filters
+                        lardata_RecoBase
+                        larcore_Geometry
+                        larcore_Geometry_Geometry_service
+                        lardata_Utilities_LArProperties_service
+                        lardata_Utilities_DetectorProperties_service
+                        lardata_Utilities
+                        larsim_Simulation
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -29,15 +29,15 @@ art_make( BASENAME_ONLY
 
 
 simple_plugin ( FeatureVertexFinder "module"
-                        RecoAlg
-                        BackTracker_service
-                        Filters
-                        RecoBase
-                        Geometry
-                        Geometry_service
-                        LArProperties_service
-                        DetectorProperties_service
-                        Utilities
+                        larreco_RecoAlg
+                        larsim_MCCheater_BackTracker_service
+                        larevt_Filters
+                        lardata_RecoBase
+                        larcore_Geometry
+                        larcore_Geometry_Geometry_service
+                        lardata_Utilities_LArProperties_service
+                        lardata_Utilities_DetectorProperties_service
+                        lardata_Utilities
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -52,12 +52,12 @@ simple_plugin ( FeatureVertexFinder "module"
 	                ${FHICLCPP}
 			${CETLIB}
 			${ROOT_BASIC_LIB_LIST}
-                BASENAME_ONLY 
+                 
               )
 
 simple_plugin ( CornerFinder "module"
-                        RecoAlg
-                        RecoBase
+                        larreco_RecoAlg
+                        lardata_RecoBase
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -72,7 +72,7 @@ simple_plugin ( CornerFinder "module"
 	                ${FHICLCPP}
 			${CETLIB}
 			${ROOT_BASIC_LIB_LIST}
-                BASENAME_ONLY 
+                 
               )
  
 install_headers()

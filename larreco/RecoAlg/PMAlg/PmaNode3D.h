@@ -11,11 +11,11 @@
 #ifndef PmaNode3D_h
 #define PmaNode3D_h
 
-#include "RecoAlg/PMAlg/PmaElement3D.h"
-#include "RecoAlg/PMAlg/SortedObjects.h"
+#include "larreco/RecoAlg/PMAlg/PmaElement3D.h"
+#include "larreco/RecoAlg/PMAlg/SortedObjects.h"
 
-#include "Geometry/Geometry.h"
-#include "Utilities/DetectorProperties.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/Utilities/DetectorProperties.h"
 
 #include "TVectorT.h"
 #include "TMatrixT.h"

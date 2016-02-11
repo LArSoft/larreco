@@ -25,16 +25,16 @@
 ////////////////////////////////////////////////////////////////////////
 
 
-#include "RecoAlg/CornerFinderAlg.h"
+#include "larreco/RecoAlg/CornerFinderAlg.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
 
-#include "RecoObjects/BezierTrack.h"
+#include "lardata/RecoObjects/BezierTrack.h"
 
 
 // NOTE: In the .h file I assumed this would belong in the cluster class....if 

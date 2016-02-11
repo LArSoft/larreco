@@ -8,16 +8,16 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
-#include "RecoAlg/KalmanFilterAlg.h"
+#include "larreco/RecoAlg/KalmanFilterAlg.h"
 #include "cetlib/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "boost/numeric/ublas/vector_proxy.hpp"
 #include "boost/numeric/ublas/matrix_proxy.hpp"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "RecoObjects/KHit.h"
-#include "RecoObjects/SurfYZLine.h"
-#include "RecoObjects/SurfYZPlane.h"
-#include "Geometry/Geometry.h"
+#include "lardata/RecoObjects/KHit.h"
+#include "lardata/RecoObjects/SurfYZLine.h"
+#include "lardata/RecoObjects/SurfYZPlane.h"
+#include "larcore/Geometry/Geometry.h"
 #include "TGaxis.h"
 #include "TText.h"
 #include "TLegend.h"

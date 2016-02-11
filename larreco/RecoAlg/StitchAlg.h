@@ -15,7 +15,7 @@
 #include "art/Framework/Principal/Handle.h"
 
 // LArSoft libraries
-#include "RecoBase/Track.h"
+#include "lardata/RecoBase/Track.h"
 
 namespace fhicl { class ParameterSet; }
 namespace art { class Event; }

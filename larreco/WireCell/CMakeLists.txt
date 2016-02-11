@@ -1,12 +1,12 @@
 
-art_make( BASENAME_ONLY
-          MODULE_LIBRARIES Geometry
-			Geometry_service
-			Simulation
-			RawData
-			RecoBase
-			RecoObjects
-			Utilities
+art_make( 
+          MODULE_LIBRARIES larcore_Geometry
+			larcore_Geometry_Geometry_service
+			larsim_Simulation
+			lardata_RawData
+			lardata_RecoBase
+			lardata_RecoObjects
+			lardata_Utilities
                         ${SIMULATIONBASE}
                         ${LARRECO_LIB}
                         ${LARDATA_LIB}

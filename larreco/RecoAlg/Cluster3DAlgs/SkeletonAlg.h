@@ -11,9 +11,9 @@
 #include "fhiclcpp/ParameterSet.h"
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "Utilities/DetectorProperties.h"
-#include "RecoObjects/Cluster3D.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/RecoObjects/Cluster3D.h"
 
 // std includes
 #include <string>

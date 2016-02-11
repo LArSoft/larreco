@@ -9,7 +9,7 @@
 // M Wallbank (m.wallbank@sheffield.ac.uk), May 2015
 ////////////////////////////////////////////////////////////////////
 
-#include "RecoAlg/BlurredClusteringAlg.h"
+#include "larreco/RecoAlg/BlurredClusteringAlg.h"
 
 cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset); 

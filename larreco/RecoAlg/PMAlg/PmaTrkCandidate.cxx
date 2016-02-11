@@ -9,8 +9,8 @@
  *          See PmaTrack3D.h file for details.
  */
 
-#include "RecoAlg/PMAlg/PmaTrkCandidate.h"
-#include "RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 

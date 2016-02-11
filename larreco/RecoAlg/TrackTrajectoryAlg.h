@@ -14,11 +14,11 @@
 #include <algorithm>
 #include <vector>
 
-#include "Geometry/Geometry.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
-#include "RecoAlg/TrackLineFitAlg.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
+#include "larreco/RecoAlg/TrackLineFitAlg.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 #include "TVectorD.h"

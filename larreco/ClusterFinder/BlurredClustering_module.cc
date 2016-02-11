@@ -22,19 +22,19 @@
 #include "art/Framework/Core/EDProducer.h"
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/AssociationUtil.h"
-#include "ClusterFinder/ClusterCreator.h"
-#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
-#include "RecoAlg/ClusterParamsImportWrapper.h"
-#include "RecoAlg/BlurredClusteringAlg.h"
-#include "RecoAlg/MergeClusterAlg.h"
-#include "RecoAlg/TrackShowerSeparationAlg.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larreco/ClusterFinder/ClusterCreator.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
+#include "larreco/RecoAlg/BlurredClusteringAlg.h"
+#include "larreco/RecoAlg/MergeClusterAlg.h"
+#include "larreco/RecoAlg/TrackShowerSeparationAlg.h"
 
 // ROOT & C++ includes
 #include <string>

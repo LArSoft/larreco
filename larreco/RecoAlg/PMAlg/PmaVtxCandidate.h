@@ -12,7 +12,7 @@
 #ifndef VtxCandidate_h
 #define VtxCandidate_h
 
-#include "RecoAlg/PMAlg/PmaTrkCandidate.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 
 namespace pma
 {

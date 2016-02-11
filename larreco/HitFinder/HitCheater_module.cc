@@ -24,19 +24,19 @@
 #include "art/Framework/Principal/Event.h"
 #include "cetlib/exception.h"
 
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
-#include "Geometry/Geometry.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Simulation/SimChannel.h"
-#include "Simulation/LArG4Parameters.h"
-#include "RawData/RawDigit.h"
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
-#include "RecoBaseArt/HitCreator.h"
-#include "Utilities/DetectorProperties.h"
-#include "Utilities/StatCollector.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larsim/Simulation/SimChannel.h"
+#include "larsim/Simulation/LArG4Parameters.h"
+#include "lardata/RawData/RawDigit.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBaseArt/HitCreator.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/Utilities/StatCollector.h"
 
 namespace hit {
   class HitCheater;

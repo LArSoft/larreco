@@ -18,9 +18,9 @@
 //#include "DataFormat/simch.h"
 //#include "DataFormat/hit.h"
 //#include "LArUtil/Geometry.h"
-#include "Simulation/SimChannel.h"
-#include "RecoBase/Hit.h"
-#include "Geometry/Geometry.h"
+#include "larsim/Simulation/SimChannel.h"
+#include "lardata/RecoBase/Hit.h"
+#include "larcore/Geometry/Geometry.h"
 #include "MCBTAlg.h"
 
 namespace btutil {

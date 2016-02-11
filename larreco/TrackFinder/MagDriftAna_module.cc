@@ -40,15 +40,15 @@ extern "C" {
 #include "TGraph.h"
 #include "TH2.h"
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
 #include "MagneticField/MagneticField.h"
-#include "Utilities/LArProperties.h"
-#include "MCCheater/BackTracker.h"
-#include "RecoBase/Track.h"
-#include "RecoBase/Hit.h"
+#include "lardata/Utilities/LArProperties.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/Hit.h"
 
 
 namespace geo { class Geometry; }

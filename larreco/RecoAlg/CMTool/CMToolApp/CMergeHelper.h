@@ -15,7 +15,7 @@
 #define CMERGEHELPER_H
 
 #include <iostream>
-#include "RecoAlg/CMTool/CMToolBase/CMergeManager.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMergeManager.h"
 
 namespace cmtool {
   /**

@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CFALGOARRAY_H
 #define RECOTOOL_CFALGOARRAY_H
 
-#include "RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
 
 namespace cmtool {
   /**

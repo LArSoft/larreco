@@ -58,19 +58,7 @@ include(ArtMake)
 include(BuildPlugins)
 
 # source
-add_subdirectory(ClusterFinder)
-add_subdirectory(EventFinder)
-add_subdirectory(Genfit)
-add_subdirectory(HitFinder)
-add_subdirectory(RecoAlg)
-add_subdirectory(ShowerFinder)
-add_subdirectory(TrackFinder)
-add_subdirectory(VertexFinder)
-add_subdirectory(SpacePointFinder)
-add_subdirectory(MCComp)
-add_subdirectory(WireCell)
-add_subdirectory(DirOfGamma)
-
+add_subdirectory(larreco)
 
 # tests
 add_subdirectory(test)

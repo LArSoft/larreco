@@ -76,10 +76,10 @@ namespace hit {
 #include "art/Utilities/InputTag.h"
 
 // LArSoft includes
-#include "SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
-#include "RecoBase/Hit.h"
-#include "RecoBase/Wire.h"
-#include "RawData/RawDigit.h"
+#include "larcore/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RawData/RawDigit.h"
 
 
 namespace hit {

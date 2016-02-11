@@ -28,12 +28,12 @@
 
 
 // LArSoft Includes
-#include "RawData/RawDigit.h"
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
-#include "RecoBaseArt/HitCreator.h"
-#include "RecoAlg/DisambigAlg.h"
-#include "Utilities/AssociationUtil.h"
+#include "lardata/RawData/RawDigit.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBaseArt/HitCreator.h"
+#include "larreco/RecoAlg/DisambigAlg.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
 
 namespace apa{

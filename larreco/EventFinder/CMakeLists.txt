@@ -1,9 +1,9 @@
 
-art_make( BASENAME_ONLY
+art_make( 
           MODULE_LIBRARIES 
-                        RecoBase
-                        Geometry
-                        Geometry_service
+                        lardata_RecoBase
+                        larcore_Geometry
+                        larcore_Geometry_Geometry_service
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

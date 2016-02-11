@@ -14,13 +14,13 @@
 
 
 // LArSoft includes
-#include "Geometry/Geometry.h"
-#include "Geometry/PlaneGeo.h"
-#include "MCCheater/BackTracker.h"
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/LArProperties.h"
+#include "lardata/Utilities/DetectorProperties.h"
 
 // ROOT includes
 #include <TMath.h>

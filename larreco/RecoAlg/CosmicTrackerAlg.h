@@ -14,11 +14,11 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Persistency/Common/Ptr.h" 
 
-#include "RecoBase/Hit.h"
-#include "Geometry/Geometry.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
-#include "RecoAlg/TrackTrajectoryAlg.h"
+#include "lardata/RecoBase/Hit.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/Utilities/LArProperties.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "larreco/RecoAlg/TrackTrajectoryAlg.h"
 
 #include <vector>
 

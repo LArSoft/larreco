@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CPALGOIGNORETRACKS_H
 #define RECOTOOL_CPALGOIGNORETRACKS_H
 
-#include "RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
 
 namespace cmtool {
   /**

@@ -19,10 +19,10 @@
 #include <string>
 #include <exception>
 
-#include "MCBase/MCHitCollection.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Wire.h"
-#include "Utilities/TimeService.h"
+#include "lardata/MCBase/MCHitCollection.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/Utilities/TimeService.h"
 
 #include "TTree.h"
 

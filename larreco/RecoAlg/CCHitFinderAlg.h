@@ -23,13 +23,13 @@
 #include "art/Persistency/Common/PtrVector.h" 
 
 // LArSoft libraries
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Geometry/Geometry.h"
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
-#include "RecoAlg/GausFitCache.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/LArProperties.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "larreco/RecoAlg/GausFitCache.h"
 
 
 namespace hit {

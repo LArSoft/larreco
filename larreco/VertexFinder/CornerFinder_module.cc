@@ -24,10 +24,10 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 //LArSoft includes
-#include "RecoBase/Wire.h"
-#include "RecoBase/EndPoint2D.h"
-#include "RecoAlg/CornerFinderAlg.h"
-#include "Geometry/Geometry.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/EndPoint2D.h"
+#include "larreco/RecoAlg/CornerFinderAlg.h"
+#include "larcore/Geometry/Geometry.h"
 
 //header info for CornerFinder class
 

@@ -33,13 +33,13 @@
 #include "art/Persistency/Common/PtrVector.h"
 
 //LArSoft includes:
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/AssociationUtil.h"
-#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
-#include "RecoAlg/ClusterParamsImportWrapper.h"
-#include "ClusterFinder/ClusterCreator.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
+#include "larreco/ClusterFinder/ClusterCreator.h"
 
 
 

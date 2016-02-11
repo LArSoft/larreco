@@ -29,9 +29,9 @@
 #define RKTRACKREP_H
 
 #include <stdexcept> // std::logic_error
-#include "Genfit/GFAbsTrackRep.h"
-#include "Genfit/GFDetPlane.h"
-#include "Genfit/GFTrackCand.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
+#include "larreco/Genfit/GFDetPlane.h"
+#include "larreco/Genfit/GFTrackCand.h"
 #include <TMatrixT.h>
 
 //#include "GFMaterialEffects.h"

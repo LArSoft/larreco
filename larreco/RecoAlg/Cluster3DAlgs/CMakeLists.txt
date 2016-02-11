@@ -1,16 +1,16 @@
 
-art_make( LIBRARY_NAME  Cluster3DAlgs
-          LIB_LIBRARIES HarrisVertexFinder_module
-                        RecoBase
-                        Simulation
-                        Filters
-                        Geometry
-                        Geometry_service
-                        RecoObjects
-                        AnalysisBase
-                        LArProperties_service
-                        DetectorProperties_service
-                        Utilities
+art_make( 
+          LIB_LIBRARIES larreco_VertexFinder_HarrisVertexFinder_module
+                        lardata_RecoBase
+                        larsim_Simulation
+                        larevt_Filters
+                        larcore_Geometry
+                        larcore_Geometry_Geometry_service
+                        lardata_RecoObjects
+                        lardata_AnalysisBase
+                        lardata_Utilities_LArProperties_service
+                        lardata_Utilities_DetectorProperties_service
+                        lardata_Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

@@ -21,19 +21,19 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
-#include "Utilities/AssociationUtil.h"
-#include "RecoAlg/DisambigAlg.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Wire.h"
-#include "Geometry/CryostatGeo.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
+#include "lardata/Utilities/LArProperties.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larreco/RecoAlg/DisambigAlg.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Wire.h"
+#include "larcore/Geometry/CryostatGeo.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
 
 // **tomporarily** here to look at performance without noise hits
-#include "MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTracker.h"
 
 
 #include <map>

@@ -1,17 +1,17 @@
 
 include_directories ( $ENV{G4INCLUDE} )
 
-art_make( BASENAME_ONLY 
+art_make(  
           EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc
-          MODULE_LIBRARIES  RecoAlg
-			    Simulation
-			    RecoObjects
-			    RecoBase
-			    Geometry
-			    Geometry_service
-			    AnalysisAlg
-			    AnalysisBase
-			    Utilities
+          MODULE_LIBRARIES  larreco_RecoAlg
+			    larsim_Simulation
+			    lardata_RecoObjects
+			    lardata_RecoBase
+			    larcore_Geometry
+			    larcore_Geometry_Geometry_service
+			    lardata_AnalysisAlg
+			    lardata_AnalysisBase
+			    lardata_Utilities
 			    ${MAGNETICFIELD_SERVICE}
 			    ${SIMULATIONBASE}
 			    ${ART_FRAMEWORK_CORE}
@@ -33,16 +33,16 @@ art_make( BASENAME_ONLY
          )
 
 simple_plugin( Track3DKalman "module"
-  			 Genfit 
-			 RecoAlg
-			 Simulation
-			 RecoObjects
-			 RecoBase
-			 Geometry
-			 Geometry_service
-			 AnalysisAlg
-			 AnalysisBase
-			 Utilities
+  			 larreco_Genfit 
+			 larreco_RecoAlg
+			 larsim_Simulation
+			 lardata_RecoObjects
+			 lardata_RecoBase
+			 larcore_Geometry
+			 larcore_Geometry_Geometry_service
+			 lardata_AnalysisAlg
+			 lardata_AnalysisBase
+			 lardata_Utilities
 			 SeedService_service # artextensions
 			 ${MAGNETICFIELD_SERVICE}
 			 ${SIMULATIONBASE}
@@ -59,20 +59,20 @@ simple_plugin( Track3DKalman "module"
 			 ${MF_UTILITIES}
 			 ${FHICLCPP}
 			 ${CETLIB}
-	   BASENAME_ONLY
+	   
         )
 
 simple_plugin( Track3DKalmanSPS "module"
-			 Genfit 
-			 RecoAlg
-			 Simulation
-			 RecoObjects
-			 RecoBase
-			 Geometry
-			 Geometry_service
-			 AnalysisAlg
-			 AnalysisBase
-			 Utilities
+			 larreco_Genfit 
+			 larreco_RecoAlg
+			 larsim_Simulation
+			 lardata_RecoObjects
+			 lardata_RecoBase
+			 larcore_Geometry
+			 larcore_Geometry_Geometry_service
+			 lardata_AnalysisAlg
+			 lardata_AnalysisBase
+			 lardata_Utilities
 			 ${MAGNETICFIELD_SERVICE}
 			 ${SIMULATIONBASE}
 			 ${ART_FRAMEWORK_CORE}
@@ -88,12 +88,12 @@ simple_plugin( Track3DKalmanSPS "module"
 			 ${MF_UTILITIES}
 			 ${FHICLCPP}
 			 ${CETLIB}
- 	   BASENAME_ONLY
+ 	   
        )
 
 
 simple_plugin( DumpTracks "module"
-               RecoBase
+               lardata_RecoBase
                ${ART_FRAMEWORK_CORE}
                ${ART_FRAMEWORK_PRINCIPAL}
                ${MF_MESSAGELOGGER}
@@ -101,7 +101,7 @@ simple_plugin( DumpTracks "module"
                ${FHICLCPP}
                ${CETLIB}
                ${ROOT_BASIC_LIB_LIST}
-               BASENAME_ONLY
+               
         )
 
 

@@ -16,9 +16,9 @@
    You should have received a copy of the GNU Lesser General Public License
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include "Genfit/GFPlanarHitPolicy.h"
+#include "larreco/Genfit/GFPlanarHitPolicy.h"
 
-#include "Genfit/GFAbsRecoHit.h"
+#include "larreco/Genfit/GFAbsRecoHit.h"
 
 const std::string genf::GFPlanarHitPolicy::fPolicyName = "GFPlanarHitPolicy";
 

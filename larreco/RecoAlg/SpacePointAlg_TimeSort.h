@@ -19,8 +19,8 @@
  */
 
 // LArSoft Includes
-#include "RecoBase/Hit.h"
-#include "RecoBase/SpacePoint.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/SpacePoint.h"
 #include "art/Persistency/Common/Ptr.h"
 #include "fhiclcpp/ParameterSet.h"
 

@@ -20,12 +20,12 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "MCBase/MCShower.h"
-#include "RecoBase/Shower.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "Geometry/Geometry.h"
-#include "MCComp/MCMatchAlg.h"
+#include "lardata/MCBase/MCShower.h"
+#include "lardata/RecoBase/Shower.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larreco/MCComp/MCMatchAlg.h"
 #include "ShowerRecoException.h"
 
 #include <TH1D.h>

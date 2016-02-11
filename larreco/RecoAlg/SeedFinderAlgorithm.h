@@ -10,9 +10,9 @@
 //
 
 #include "art/Framework/Core/EDProducer.h"
-#include "RecoAlg/SpacePointAlg.h"
+#include "larreco/RecoAlg/SpacePointAlg.h"
 #include "TVector3.h"
-#include "Geometry/Geometry.h"
+#include "larcore/Geometry/Geometry.h"
 #include "TTree.h"
 
 namespace recob

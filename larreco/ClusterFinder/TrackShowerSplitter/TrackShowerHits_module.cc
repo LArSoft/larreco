@@ -15,16 +15,16 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "Geometry/Geometry.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoAlg/PMAlg/Utilities.h"
-#include "Utilities/AssociationUtil.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
-#include "ClusterFinder/TrackShowerSplitter/Segmentation2D/Segmentation2D.h"
+#include "larreco/ClusterFinder/TrackShowerSplitter/Segmentation2D/Segmentation2D.h"
 
 #include <memory>
 

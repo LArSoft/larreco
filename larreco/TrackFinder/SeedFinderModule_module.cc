@@ -11,8 +11,8 @@
 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/FindManyP.h"
-#include "RecoAlg/SeedFinderAlgorithm.h"
-#include "Utilities/AssociationUtil.h"
+#include "larreco/RecoAlg/SeedFinderAlgorithm.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
 
 namespace recob
@@ -83,16 +83,16 @@ namespace trkf {
 
 #include <vector>
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "Geometry/Geometry.h"
+#include "larcore/Geometry/Geometry.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Seed.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Track.h"
-#include "RecoBase/SpacePoint.h"
-#include "Utilities/AssociationUtil.h"
-#include "Utilities/DetectorProperties.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Seed.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/Utilities/DetectorProperties.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
 

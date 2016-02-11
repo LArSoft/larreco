@@ -8,9 +8,9 @@
 #ifndef DirOfGamma_h
 #define DirOfGamma_h
 
-#include "RecoBase/Hit.h"
+#include "lardata/RecoBase/Hit.h"
 
-#include "Geometry/Geometry.h"
+#include "larcore/Geometry/Geometry.h"
 
 #include "TVector2.h"
 #include "TVector3.h"

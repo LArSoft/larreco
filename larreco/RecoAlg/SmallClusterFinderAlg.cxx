@@ -48,9 +48,9 @@
 // LArSoft includes
 //#include "Simulation/sim.h"
 //#include "Simulation/SimListUtils.h"
-#include "RecoAlg/SmallClusterFinderAlg.h"
-#include "Geometry/geo.h"
-#include "Utilities/AssociationUtil.h"
+#include "larreco/RecoAlg/SmallClusterFinderAlg.h"
+#include "larcore/Geometry/geo.h"
+#include "lardata/Utilities/AssociationUtil.h"
 //#include "SimulationBase/simbase.h"
 //#include "RawData/RawDigit.h"
 //#include "SummaryData/summary.h"

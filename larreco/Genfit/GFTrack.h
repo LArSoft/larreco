@@ -26,15 +26,15 @@
 
 #include<map>
 
-#include "Genfit/GFException.h"
-#include "Genfit/GFAbsTrackRep.h"
-#include "Genfit/GFAbsRecoHit.h"
+#include "larreco/Genfit/GFException.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
+#include "larreco/Genfit/GFAbsRecoHit.h"
 
 #include "TClonesArray.h"
 #include "TObjArray.h"
 
-#include "Genfit/GFTrackCand.h"
-#include "Genfit/GFBookkeeping.h"
+#include "larreco/Genfit/GFTrackCand.h"
+#include "larreco/Genfit/GFBookkeeping.h"
 
 class TVirtualGeoTrack;
 

@@ -22,13 +22,13 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 
 // LArSoft libraries
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Geometry/Geometry.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
-#include "RecoAlg/CCHitFinderAlg.h"
-#include "RecoAlg/LinFitAlg.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/LArProperties.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "larreco/RecoAlg/CCHitFinderAlg.h"
+#include "larreco/RecoAlg/LinFitAlg.h"
 
 namespace cluster {
   

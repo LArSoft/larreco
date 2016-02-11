@@ -9,7 +9,7 @@
 // To be run after track reconstruction, before shower reconstruction.
 ////////////////////////////////////////////////////////////////////////
 
-#include "RecoAlg/TrackShowerSeparationAlg.h"
+#include "larreco/RecoAlg/TrackShowerSeparationAlg.h"
 
 shower::TrackShowerSeparationAlg::TrackShowerSeparationAlg(fhicl::ParameterSet const& pset) {
   this->reconfigure(pset);

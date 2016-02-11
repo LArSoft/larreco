@@ -9,13 +9,13 @@
  *          See PmaTrack3D.h file for details.
  */
 
-#include "RecoAlg/PMAlg/PmaHit3D.h"
-#include "RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "Utilities/DetectorProperties.h"
-#include "Geometry/TPCGeo.h"
-#include "Geometry/PlaneGeo.h"
-#include "Geometry/WireGeo.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "larcore/Geometry/WireGeo.h"
 
 
 pma::Hit3D::Hit3D(void) :

@@ -1,25 +1,25 @@
 
-art_make( LIBRARY_NAME  RecoAlg
-          LIB_LIBRARIES BackTracker_service
-                        RecoBase
-                        RecoBaseArt
-                        Simulation
-                        Filters
-                        Geometry
-                        Geometry_service
-                        RecoObjects
-                        AnalysisBase
-			AnalysisAlg
-                        LArProperties_service
-                        DetectorProperties_service
-                        Utilities
-                        ClusterRecoUtil
-			CMToolBase
-			CMTAlgMerge
-			CMTAlgPriority
-			CMTAlgMatch
-			CMToolApp
-			PMAlg
+art_make( 
+          LIB_LIBRARIES larsim_MCCheater_BackTracker_service
+                        lardata_RecoBase
+                        lardata_RecoBaseArt
+                        larsim_Simulation
+                        larevt_Filters
+                        larcore_Geometry
+                        larcore_Geometry_Geometry_service
+                        lardata_RecoObjects
+                        lardata_AnalysisBase
+			lardata_AnalysisAlg
+                        lardata_Utilities_LArProperties_service
+                        lardata_Utilities_DetectorProperties_service
+                        lardata_Utilities
+                        larreco_RecoAlg_ClusterRecoUtil
+			larreco_RecoAlg_CMTool_CMToolBase
+			larreco_RecoAlg_CMTool_CMTAlgMerge
+			larreco_RecoAlg_CMTool_CMTAlgPriority
+			larreco_RecoAlg_CMTool_CMTAlgMatch
+			larreco_RecoAlg_CMTool_CMToolApp
+			larreco_RecoAlg_PMAlg
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

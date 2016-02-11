@@ -24,14 +24,14 @@
 #include "art/Persistency/Common/PtrVector.h"
 
 // LArSoft
-#include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
-#include "RecoAlg/CMTool/CMToolBase/CMergeManager.h"
-#include "Utilities/DetectorProperties.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/AssociationUtil.h"
-#include "Geometry/Geometry.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CMergeManager.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/Utilities/LArProperties.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larcore/Geometry/Geometry.h"
 
 // STL
 #include <set>

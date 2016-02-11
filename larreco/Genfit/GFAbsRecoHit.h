@@ -30,9 +30,9 @@
 #include "TMatrixT.h"
 #include "TObject.h"
 
-#include "Genfit/GFException.h" // PrintROOTobject()
-#include "Genfit/GFAbsTrackRep.h"
-#include "Genfit/GFDetPlane.h"
+#include "larreco/Genfit/GFException.h" // PrintROOTobject()
+#include "larreco/Genfit/GFAbsTrackRep.h"
+#include "larreco/Genfit/GFDetPlane.h"
 #include<cmath>
 
 /** @brief Base Class for representing a Hit in GENFIT

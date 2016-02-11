@@ -20,7 +20,7 @@
 #include <ctime>
 
 #include <stdio.h>
-#include "ClusterFinder/RStarTree/RStarTree.h"
+#include "larreco/ClusterFinder/RStarTree/RStarTree.h"
 
 #define RANDOM_DATASET
 //#define GUTTMAN_DATASET

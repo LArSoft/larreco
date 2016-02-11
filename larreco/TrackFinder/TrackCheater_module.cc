@@ -19,16 +19,16 @@
 #include "TVector3.h"
 
 // LArSoft includes
-#include "MCCheater/BackTracker.h"
-#include "Geometry/Geometry.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/SpacePoint.h"
-#include "RecoBase/Track.h"
-#include "Utilities/AssociationUtil.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/Utilities/AssociationUtil.h"
 #include "SimulationBase/MCParticle.h"
-#include "SimpleTypesAndConstants/PhysicalConstants.h"
-#include "Utilities/DetectorProperties.h"
+#include "larcore/SimpleTypesAndConstants/PhysicalConstants.h"
+#include "lardata/Utilities/DetectorProperties.h"
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"

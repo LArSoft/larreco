@@ -6,7 +6,7 @@
 //  C++/f77 interface to Geant3 basic routines    // 
 ////////////////////////////////////////////////////
 
-#include "Genfit/TGeant3/TGeant3.h" 
+#include "larreco/Genfit/TGeant3/TGeant3.h" 
 
 class TGeant3f77 : public TGeant3 { 
 

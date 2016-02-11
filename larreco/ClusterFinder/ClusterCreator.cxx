@@ -8,16 +8,16 @@
  * ****************************************************************************/
 
 // declaration header
-#include "ClusterFinder/ClusterCreator.h"
+#include "larreco/ClusterFinder/ClusterCreator.h"
 
 // C/C++ standard library
 #include <utility> // std::move()
 #include <algorithm> // std::accumulate()
 
 // LArSoft libraries
-#include "Geometry/Geometry.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
 
 
 /// Cluster reconstruction namespace

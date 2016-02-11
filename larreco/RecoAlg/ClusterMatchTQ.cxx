@@ -10,9 +10,9 @@
 ////////////////////////////////////////////////////////////////////////
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
-#include "RecoAlg/ClusterMatchTQ.h"
-#include "Geometry/Geometry.h"
-#include "Utilities/DetectorProperties.h"
+#include "larreco/RecoAlg/ClusterMatchTQ.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/Utilities/DetectorProperties.h"
 
 #include "TH1D.h"
 

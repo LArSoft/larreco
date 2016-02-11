@@ -1,16 +1,16 @@
 
-art_make( BASENAME_ONLY
-          LIBRARY_NAME  DirOfGamma
-          LIB_LIBRARIES DetectorProperties_service
-                        LArProperties_service
-                        Geometry
-                        Geometry_service
-                        Simulation
-                        RawData
-                        RecoBase
-		        RecoAlg
-			PMAlg
-                        Utilities
+art_make( 
+          
+          LIB_LIBRARIES lardata_Utilities_DetectorProperties_service
+                        lardata_Utilities_LArProperties_service
+                        larcore_Geometry
+                        larcore_Geometry_Geometry_service
+                        larsim_Simulation
+                        lardata_RawData
+                        lardata_RecoBase
+		        larreco_RecoAlg
+			larreco_RecoAlg_PMAlg
+                        lardata_Utilities
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
                         ${ART_FRAMEWORK_PRINCIPAL}
@@ -26,17 +26,17 @@ art_make( BASENAME_ONLY
                         ${CETLIB}
                         ${ROOT_BASIC_LIB_LIST}
 		        ${Boost_SYSTEM_LIBRARY}
-	  MODULE_LIBRARIES RecoAlg
-			   PMAlg
-			   DirOfGamma
-			   BackTracker_service
-      			   RecoBase
-			   Simulation
-			   Geometry
-	    		   Geometry_service
-      			   Utilities
-			   DetectorProperties_service
-			   LArProperties_service  
+	  MODULE_LIBRARIES larreco_RecoAlg
+			   larreco_RecoAlg_PMAlg
+			   larreco_DirOfGamma
+			   larsim_MCCheater_BackTracker_service
+      			   lardata_RecoBase
+			   larsim_Simulation
+			   larcore_Geometry
+	    		   larcore_Geometry_Geometry_service
+      			   lardata_Utilities
+			   lardata_Utilities_DetectorProperties_service
+			   lardata_Utilities_LArProperties_service  
 			   ${SIMULATIONBASE}
 			   ${ART_FRAMEWORK_CORE}
 			   ${ART_FRAMEWORK_PRINCIPAL}

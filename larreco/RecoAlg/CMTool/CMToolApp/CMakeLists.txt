@@ -1,7 +1,7 @@
 
-art_make( LIBRARY_NAME  CMToolApp
+art_make( 
           LIB_LIBRARIES
-			CMToolBase
+			larreco_RecoAlg_CMTool_CMToolBase
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

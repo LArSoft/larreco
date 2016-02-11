@@ -19,7 +19,7 @@
 // andreas.morsch@cern.ch
 //
 
-#include "Genfit/TGeant3/G3Material.h"
+#include "larreco/Genfit/TGeant3/G3Material.h"
 
 ClassImp(G3Material)
 G3Material::G3Material(char* name, char* title,

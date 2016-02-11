@@ -12,9 +12,9 @@
 #ifndef PmaHit3D_h
 #define PmaHit3D_h
 
-#include "RecoBase/Hit.h"
+#include "lardata/RecoBase/Hit.h"
 
-#include "Geometry/Geometry.h"
+#include "larcore/Geometry/Geometry.h"
 
 #include <functional>
 

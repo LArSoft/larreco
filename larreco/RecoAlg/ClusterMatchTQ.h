@@ -17,8 +17,8 @@
 #include "art/Persistency/Common/Ptr.h" 
 #include "fhiclcpp/ParameterSet.h"
 
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
 
 #include <vector>
 

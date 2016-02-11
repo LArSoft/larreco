@@ -20,7 +20,7 @@
 #include "art/Utilities/InputTag.h"
 
 //LArSoft includes
-#include "RecoAlg/CCHitFinderAlg.h"
+#include "larreco/RecoAlg/CCHitFinderAlg.h"
 
 // ... more includes in the implementation section
 
@@ -58,9 +58,9 @@ namespace hit {
 #include "art/Framework/Principal/Handle.h"
 
 //LArSoft includes
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
-#include "RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
 
 
 namespace hit {

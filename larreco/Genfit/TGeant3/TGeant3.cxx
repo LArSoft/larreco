@@ -523,9 +523,9 @@ Cleanup of code
 #include "TGeoMatrix.h"
 #include "TObjString.h"
 
-#include "Genfit/TGeant3/TGeant3.h"
+#include "larreco/Genfit/TGeant3/TGeant3.h"
 
-#include "Genfit/TGeant3/TCallf77.h"
+#include "larreco/Genfit/TGeant3/TCallf77.h"
 #include "TVirtualMCDecayer.h"
 #include "TPDGCode.h"
 

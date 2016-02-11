@@ -21,14 +21,14 @@
 #include "art/Utilities/Exception.h" 
 
 // LArSoft libraries
-#include "SimpleTypesAndConstants/RawTypes.h"
-#include "Geometry/Geometry.h"
-#include "Geometry/TPCGeo.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Cluster.h"
-#include "RecoAlg/ClusterCrawlerAlg.h"
-#include "CalibrationDBI/Interface/IChannelStatusService.h"
-#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "larcore/SimpleTypesAndConstants/RawTypes.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/TPCGeo.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "larreco/RecoAlg/ClusterCrawlerAlg.h"
+#include "larevt/CalibrationDBI/Interface/IChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/IChannelStatusProvider.h"
 
 struct CluLen{
   int index;

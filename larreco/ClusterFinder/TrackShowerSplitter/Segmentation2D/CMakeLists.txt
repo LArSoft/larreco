@@ -1,14 +1,14 @@
-art_make( LIBRARY_NAME  Segmentation2D
-          LIB_LIBRARIES RecoBase
-                        RecoAlg
-                        Filters
-                        Geometry
-                        Geometry_service
-                        RecoObjects
-                        AnalysisBase
-                        LArProperties_service
-                        DetectorProperties_service
-                        Utilities
+art_make( 
+          LIB_LIBRARIES lardata_RecoBase
+                        larreco_RecoAlg
+                        larevt_Filters
+                        larcore_Geometry
+                        larcore_Geometry_Geometry_service
+                        lardata_RecoObjects
+                        lardata_AnalysisBase
+                        lardata_Utilities_LArProperties_service
+                        lardata_Utilities_DetectorProperties_service
+                        lardata_Utilities
            		${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

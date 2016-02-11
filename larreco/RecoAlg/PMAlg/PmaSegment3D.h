@@ -11,9 +11,9 @@
 #ifndef PmaSegment3D_h
 #define PmaSegment3D_h
 
-#include "RecoAlg/PMAlg/PmaElement3D.h"
-#include "RecoAlg/PMAlg/PmaNode3D.h"
-#include "RecoAlg/PMAlg/SortedObjects.h"
+#include "larreco/RecoAlg/PMAlg/PmaElement3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaNode3D.h"
+#include "larreco/RecoAlg/PMAlg/SortedObjects.h"
 
 namespace pma
 {

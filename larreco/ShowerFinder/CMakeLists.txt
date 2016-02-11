@@ -2,21 +2,21 @@
 add_subdirectory(ShowerReco3D)
 add_subdirectory(job)
 
-art_make( BASENAME_ONLY
+art_make( 
 #          EXCLUDE ShowerSelectorFilter_module.cc
           MODULE_LIBRARIES
-			RecoAlg
-                        LArProperties_service
-                        DetectorProperties_service
-                        BackTracker_service
-                        AnalysisBase
-                        RecoBase
-                        Geometry
-                        Geometry_service
-                        AnalysisAlg
-                        AnalysisBase
-                        Simulation
-                        Utilities
+			larreco_RecoAlg
+                        lardata_Utilities_LArProperties_service
+                        lardata_Utilities_DetectorProperties_service
+                        larsim_MCCheater_BackTracker_service
+                        lardata_AnalysisBase
+                        lardata_RecoBase
+                        larcore_Geometry
+                        larcore_Geometry_Geometry_service
+                        lardata_AnalysisAlg
+                        lardata_AnalysisBase
+                        larsim_Simulation
+                        lardata_Utilities
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -34,12 +34,12 @@ art_make( BASENAME_ONLY
          )
 
 #simple_plugin( ShowerSelectorFilter "module"
-#         		  Filters
-# 			  RecoAlg
-# 		    	  RawData
-#                          LArProperties_service
+#         		  larevt_Filters
+# 			  larreco_RecoAlg
+# 		    	  lardata_RawData
+#                          lardata_Utilities_LArProperties_service
 # 			  ${SIMULATIONBASE}
-#               BASENAME_ONLY 
+#                
 # 	     )     
 
 install_headers()

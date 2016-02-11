@@ -15,12 +15,12 @@
 
 #include "fhiclcpp/ParameterSet.h"
 
-#include "Geometry/Geometry.h"
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "SimpleTypesAndConstants/RawTypes.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/SimpleTypesAndConstants/RawTypes.h"
 
-#include "RecoBase/Wire.h"
-#include "RecoBase/Hit.h"
+#include "lardata/RecoBase/Wire.h"
+#include "lardata/RecoBase/Hit.h"
 
 #include "RFFHitFitter.h"
 

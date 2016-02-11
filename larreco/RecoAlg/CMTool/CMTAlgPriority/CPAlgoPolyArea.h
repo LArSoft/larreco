@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CPALGOPOLYAREA_H
 #define RECOTOOL_CPALGOPOLYAREA_H
 
-#include "RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CPriorityAlgoBase.h"
 
 namespace cmtool {
   /**

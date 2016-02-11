@@ -11,9 +11,9 @@
 #include <vector>
 
 // LArSoft libraries
-#include "SimpleTypesAndConstants/PhysicalConstants.h" // util::DegreesToRadians()
-#include "Utilities/PxHitConverter.h"
-#include "RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
+#include "larcore/SimpleTypesAndConstants/PhysicalConstants.h" // util::DegreesToRadians()
+#include "lardata/Utilities/PxHitConverter.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
 
 
 //==============================================================================

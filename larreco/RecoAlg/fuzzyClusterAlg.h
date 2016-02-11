@@ -12,9 +12,9 @@
 #include "art/Persistency/Common/Ptr.h"
 
 // LArSoft libraries
-#include "Geometry/Geometry.h"
-#include "RecoAlg/HoughBaseAlg.h"
-#include "RecoAlg/DBScanAlg.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larreco/RecoAlg/HoughBaseAlg.h"
+#include "larreco/RecoAlg/DBScanAlg.h"
 
 namespace fhicl { class ParameterSet; }
 

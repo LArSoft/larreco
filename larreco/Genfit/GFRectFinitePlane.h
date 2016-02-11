@@ -33,7 +33,7 @@
 
 #include <stdexcept> // std::logic_error
 #include <iostream>
-#include "Genfit/GFAbsFinitePlane.h"
+#include "larreco/Genfit/GFAbsFinitePlane.h"
 
 /** @brief Concrete implementation of finitie detector plane for rectangles.
  */

@@ -23,12 +23,12 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "RecoAlg/SpacePointAlg.h"
-#include "Geometry/Geometry.h"
-#include "RecoBase/SpacePoint.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/AssociationUtil.h"
+#include "larreco/RecoAlg/SpacePointAlg.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
 namespace trkf {
 

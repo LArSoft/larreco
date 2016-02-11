@@ -26,8 +26,8 @@
 
 #include "TMatrixT.h"
 
-#include "Genfit/GFAbsRecoHit.h"
-#include "Genfit/GFDetPlane.h"
+#include "larreco/Genfit/GFAbsRecoHit.h"
+#include "larreco/Genfit/GFDetPlane.h"
 
 
 /** @brief RecoHit interface template class. Provides comfortable 

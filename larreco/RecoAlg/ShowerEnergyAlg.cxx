@@ -6,7 +6,7 @@
 // Shower energy finding class
 ////////////////////////////////////////////////////////////////////////
 
-#include "RecoAlg/ShowerEnergyAlg.h"
+#include "larreco/RecoAlg/ShowerEnergyAlg.h"
 
 shower::ShowerEnergyAlg::ShowerEnergyAlg(fhicl::ParameterSet const& pset) {
   fUGradient  = pset.get<double>("UGradient");

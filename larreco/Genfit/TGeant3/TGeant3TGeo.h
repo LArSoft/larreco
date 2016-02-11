@@ -10,7 +10,7 @@
 ////////////////////////////////////////////////
 
 
-#include "Genfit/TGeant3/TGeant3.h"
+#include "larreco/Genfit/TGeant3/TGeant3.h"
 
 class TGeoMaterial;
 

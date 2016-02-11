@@ -1,7 +1,7 @@
 #define BOOST_TEST_MODULE ( HitAnaAlg_test )
 #include "boost/test/auto_unit_test.hpp"
 
-#include "HitFinder/HitAnaAlg.h"
+#include "larreco/HitFinder/HitAnaAlg.h"
 
 namespace hit{
 

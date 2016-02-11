@@ -1,12 +1,12 @@
 #add_subdirectory(job)
 
-art_make( BASENAME_ONLY
-	  LIBRARY_NAME     MCComp
-          LIB_LIBRARIES    Geometry
-			   Geometry_service
-			   Simulation
-			   RecoBase
-			   Utilities
+art_make( 
+	  
+          LIB_LIBRARIES    larcore_Geometry
+			   larcore_Geometry_Geometry_service
+			   larsim_Simulation
+			   lardata_RecoBase
+			   lardata_Utilities
 			   ${ART_FRAMEWORK_CORE}
                            ${ART_FRAMEWORK_PRINCIPAL}
                            ${ART_FRAMEWORK_BASIC}
@@ -25,10 +25,10 @@ art_make( BASENAME_ONLY
                            ${ROOT_XMLIO}
                            ${ROOT_GDML}
                            ${ROOT_BASIC_LIB_LIST}
-          MODULE_LIBRARIES MCComp
-			   Geometry
-			   Geometry_service
-			   Simulation
+          MODULE_LIBRARIES larreco_MCComp
+			   larcore_Geometry
+			   larcore_Geometry_Geometry_service
+			   larsim_Simulation
 			   ${ART_FRAMEWORK_CORE}
                            ${ART_FRAMEWORK_PRINCIPAL}
                            ${ART_FRAMEWORK_BASIC}

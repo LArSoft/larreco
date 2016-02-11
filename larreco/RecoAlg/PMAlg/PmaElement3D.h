@@ -12,9 +12,9 @@
 #ifndef PmaElement3D_h
 #define PmaElement3D_h
 
-#include "RecoAlg/PMAlg/PmaHit3D.h"
+#include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 
-#include "Geometry/Geometry.h"
+#include "larcore/Geometry/Geometry.h"
 
 #include "TVector2.h"
 #include "TVector3.h"

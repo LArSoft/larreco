@@ -8,16 +8,16 @@
 
 #include <vector>
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "RecoAlg/BezierTrackerAlgorithm.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Seed.h"
-#include "RecoBase/Vertex.h"
-#include "RecoBase/Track.h"
-#include "RecoBase/SpacePoint.h"
-#include "RecoObjects/BezierTrack.h"
-#include "RecoObjects/BezierCurveHelper.h"
-#include "Utilities/AssociationUtil.h"
-#include "Utilities/DetectorProperties.h"
+#include "larreco/RecoAlg/BezierTrackerAlgorithm.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Seed.h"
+#include "lardata/RecoBase/Vertex.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/RecoObjects/BezierTrack.h"
+#include "lardata/RecoObjects/BezierCurveHelper.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/Utilities/DetectorProperties.h"
 
 
 #include "art/Framework/Principal/Event.h"

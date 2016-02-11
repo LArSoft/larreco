@@ -14,13 +14,13 @@
 // ROOT includes
 
 // LArSoft includes
-#include "MCCheater/BackTracker.h"
-#include "Utilities/AssociationUtil.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Shower.h"
-#include "RecoBase/Track.h"
-#include "RecoBase/Vertex.h"
-#include "Simulation/ParticleList.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Shower.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/Vertex.h"
+#include "larsim/Simulation/ParticleList.h"
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"

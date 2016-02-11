@@ -23,11 +23,11 @@
 #include "art/Framework/Core/FindManyP.h"
 
 // larsoft
-#include "MCCheater/BackTracker.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/Track.h"
-#include "RecoBase/SpacePoint.h"
-#include "RecoBase/Vertex.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/RecoBase/Vertex.h"
 
 // ROOT
 #include "TTree.h"

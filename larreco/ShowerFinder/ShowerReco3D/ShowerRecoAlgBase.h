@@ -15,9 +15,9 @@
 #define RECOTOOL_SHOWERRECOALGBASE_H
 
 #include <iostream>
-#include "RecoBase/Shower.h"
-#include "AnalysisAlg/CalorimetryAlg.h"
-#include "RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include "lardata/RecoBase/Shower.h"
+#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include "ShowerRecoException.h"
 #include <limits>
 #include <climits>

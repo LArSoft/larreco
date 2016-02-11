@@ -36,7 +36,7 @@ initial import into CVS
 
 
 
-#include "Genfit/TGeant3/G3Volume.h"
+#include "larreco/Genfit/TGeant3/G3Volume.h"
 #include <TArrayF.h>
 #include "TMaterial.h"
 #include "TShape.h"

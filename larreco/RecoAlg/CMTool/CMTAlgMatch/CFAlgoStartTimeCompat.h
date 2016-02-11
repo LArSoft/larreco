@@ -14,7 +14,7 @@
 #ifndef RECOTOOL_CFALGOSTARTTIMECOMPAT_H
 #define RECOTOOL_CFALGOSTARTTIMECOMPAT_H
 
-#include "RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
+#include "larreco/RecoAlg/CMTool/CMToolBase/CFloatAlgoBase.h"
 #include <math.h>
 
 namespace cmtool {

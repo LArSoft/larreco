@@ -46,17 +46,17 @@
 #include "art/Framework/Core/ModuleMacros.h"
 
 //All the larsoft goodies:
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/GeometryUtilities.h"
-#include "Utilities/DetectorProperties.h"
-#include "RecoAlg/SmallClusterFinderAlg.h"
-#include "Geometry/PlaneGeo.h"
-#include "Utilities/AssociationUtil.h"
-#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
-#include "RecoAlg/ClusterParamsImportWrapper.h"
-#include "ClusterFinder/ClusterCreator.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/Utilities/LArProperties.h"
+#include "lardata/Utilities/GeometryUtilities.h"
+#include "lardata/Utilities/DetectorProperties.h"
+#include "larreco/RecoAlg/SmallClusterFinderAlg.h"
+#include "larcore/Geometry/PlaneGeo.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
+#include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
+#include "larreco/ClusterFinder/ClusterCreator.h"
 
 
 namespace cluster {
