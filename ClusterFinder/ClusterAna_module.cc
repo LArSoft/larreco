@@ -198,11 +198,11 @@ namespace cluster{
     fNuVtx_dy = tfs->make<TH1F>("Vtx dy","Vtx dy",80,-10,10);
     fNuVtx_dz = tfs->make<TH1F>("Vtx dz","Vtx dz",80,-10,10);
     
-    fNuEP2_KE_elec = tfs->make<TProfile>("NuEP2_KE_elec","NuEP2 electron vs KE",20,0,2000);
-    fNuEP2_KE_muon = tfs->make<TProfile>("NuEP2_KE_muon","NuEP2 muon vs KE",20,0,2000);
-    fNuEP2_KE_pion = tfs->make<TProfile>("NuEP2_KE_pion","NuEP2 pion vs KE",20,0,2000);
-    fNuEP2_KE_kaon = tfs->make<TProfile>("NuEP2_KE_kaon","NuEP2 kaon vs KE",20,0,2000);
-    fNuEP2_KE_prot = tfs->make<TProfile>("NuEP2_KE_prot","NuEP2 proton vs KE",20,0,2000);
+    fNuEP2_KE_elec = tfs->make<TProfile>("NuEP2_KE_elec","NuEP2 electron vs KE",200,0,2000);
+    fNuEP2_KE_muon = tfs->make<TProfile>("NuEP2_KE_muon","NuEP2 muon vs KE",200,0,2000);
+    fNuEP2_KE_pion = tfs->make<TProfile>("NuEP2_KE_pion","NuEP2 pion vs KE",200,0,2000);
+    fNuEP2_KE_kaon = tfs->make<TProfile>("NuEP2_KE_kaon","NuEP2 kaon vs KE",200,0,2000);
+    fNuEP2_KE_prot = tfs->make<TProfile>("NuEP2_KE_prot","NuEP2 proton vs KE",200,0,2000);
   
   }
   
@@ -268,36 +268,35 @@ namespace cluster{
     float aveCREP2 = 0.;
     float numCREP2 = 0.;
 
-    // track ID of the neutrino
+    // track ID of the neutrino (or single particle)
     int neutTrackID = -1;
     std::vector<int> tidlist;
     float neutEnergy = -1.;
     int neutIntType = -1;
     int neutCCNC = -1;
-    for(sim::ParticleList::const_iterator ipart = plist.begin();
-	ipart != plist.end(); ++ipart) {
+    bool isNeutrino = false;
+    bool isSingleParticle = false;
+    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       const simb::MCParticle* part = (*ipart).second;
       assert(part != 0);
       int pdg = abs(part->PdgCode());
       int trackID = part->TrackId();
       art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
       if(fSkipCosmics && theTruth->Origin() == simb::kCosmicRay) continue;
-
-      if(fPrintLevel > 3) mf::LogVerbatim("ClusterAna")
-        <<"Pre-Cuts origin "<<theTruth->Origin()<<" trackID "<<trackID
-        <<" PDG "<<part->PdgCode()
-        <<" E "<<part->E()<<" mass "<<part->Mass()
-        <<" Mother "<<part->Mother() + neutTrackID
-        <<" Proc "<<part->Process();
+      if(theTruth->Origin() == simb::kBeamNeutrino) isNeutrino = true;
+      if(theTruth->Origin() == simb::kSingleParticle) isSingleParticle = true;
+      float KE = 1000 * (part->E() - part->Mass());
 
       // Get the neutrino track ID. Assume that there is only one neutrino
       // interaction and it is first in the list of BeamNeutrino particles
-      if(theTruth->Origin() == simb::kBeamNeutrino && neutTrackID < 0) {
+      if((isNeutrino || isSingleParticle) && neutTrackID < 0) {
         neutTrackID = trackID;
-        simb::MCNeutrino theNeutrino = theTruth->GetNeutrino();
-        neutEnergy = 1000. * theNeutrino.Nu().E();
-        neutIntType = theNeutrino.InteractionType();
-        neutCCNC = theNeutrino.CCNC();
+        if(isNeutrino) {
+          simb::MCNeutrino theNeutrino = theTruth->GetNeutrino();
+          neutEnergy = 1000. * theNeutrino.Nu().E();
+          neutIntType = theNeutrino.InteractionType();
+          neutCCNC = theNeutrino.CCNC();
+        }
 //  mf::LogVerbatim("ClusterAna")
 //    <<"True Vtx "<<part->Vx()<<" "<<part->Vy()<<" "<<part->Vz();
         for(unsigned short iv = 0; iv < recoVtxList.size(); ++iv) {
@@ -307,6 +306,14 @@ namespace cluster{
           fNuVtx_dz->Fill(part->Vz() - xyz[2]);
         } // iv
       } // theTruth->Origin() == simb::kBeamNeutrino && neutTrackID < 
+      
+      if(fPrintLevel > 3) mf::LogVerbatim("ClusterAna")
+        <<"Origin "<<theTruth->Origin()<<" trackID "<<trackID
+        <<" PDG "<<part->PdgCode()
+        <<" KE "<<(int)KE<<" MeV "
+        <<" neutTrackID "<<neutTrackID
+        <<" Mother "<<part->Mother()
+        <<" Proc "<<part->Process();
 
       bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211)
          || (pdg == 321) || (pdg == 2212);
@@ -314,7 +321,6 @@ namespace cluster{
 
       if(!isCharged) continue;
 
-      float KE = 1000 * (part->E() - part->Mass());
       // KE (MeV) cuts
       if(pdg ==   11) {
          if(fElecKERange[0] < 0) continue;
@@ -350,11 +356,11 @@ namespace cluster{
       nTruHitInCl.push_back(temp2);
 
       if(fPrintLevel > 2) mf::LogVerbatim("ClusterAna")
-        <<plist2.size() - 1
+        <<"plist2["<<plist2.size() - 1<<"]"
         <<" Origin "<<theTruth->Origin()<<" trackID "<<trackID
         <<" PDG "<<part->PdgCode()
         <<" KE "<<(int)KE
-        <<" Mother "<<part->Mother() + neutTrackID
+        <<" Mother "<<part->Mother() + neutTrackID - 1
         <<" Proc "<<part->Process();
     }
     
@@ -376,32 +382,38 @@ namespace cluster{
     if(fMergeDaughters && neutTrackID >= 0) {
       // Assume that daughters appear later in the list. Step backwards
       // to accumulate all generations of daughters
-      for(unsigned short dpl = plist2.size() - 1; dpl > 0; --dpl) {
+      unsigned short ii, dpl, jj, jpl, kpl;
+      for(ii = 0; ii < plist2.size(); ++ii) {
+        dpl = plist2.size() - 1 - ii;
         // no mother
         if(plist2[dpl]->Mother() == 0) continue;
         // electron
         if(abs(plist2[dpl]->PdgCode()) == 11) continue;
         // the actual mother trackID is offset from the neutrino trackID
         int motherID = neutTrackID + plist2[dpl]->Mother() - 1;
-        // ensure that we are only looking at BeamNeutrino daughters
-        if(motherID < 0) continue;
+        // ensure that we are only looking at BeamNeutrino or single particle daughters
+        if(motherID != neutTrackID) continue;
         // count the number of daughters
         int ndtr = 0;
-        for(unsigned short kpl = 0; kpl < plist2.size(); ++kpl) {
+        for(kpl = 0; kpl < plist2.size(); ++kpl) {
           if(plist2[kpl]->Mother() == motherID) ++ndtr;
         }
         // require only one daughter
         if(ndtr > 1) continue;
         // find the mother in the list
         int mpl = -1;
-        for(unsigned short jpl = dpl - 1; jpl > 0; --jpl) {
+        for(jj = 0; jj < plist2.size(); ++jj) {
+          jpl = plist2.size() - 1 - jj;
           if(plist2[jpl]->TrackId() == motherID) {
             mpl = jpl;
             break;
           }
         } // jpl
         // mother not found for some reason
-        if(mpl < 0) continue;
+        if(mpl < 0) {
+          mf::LogVerbatim("ClusterAna")<<" mother of daughter "<<dpl<<" not found. mpl = "<<mpl;
+          continue;
+        }
         // ensure that PDG code for mother and daughter are the same
         if(plist2[dpl]->PdgCode() != plist2[mpl]->PdgCode()) continue;
         moda.push_back(std::make_pair(mpl, dpl));
@@ -433,12 +445,9 @@ namespace cluster{
       // count the number of hits matched to each true particle in plist2
       std::vector<unsigned short> nHitInPl2(plist2.size());
       for(size_t iht = 0; iht < cluhits.size(); ++iht){
-/*
-  mf::LogVerbatim("ClusterAna")
-    <<"Clus Hit "<<cluhits[iht]->View()
-    <<":"<<cluhits[iht]->WireID().Wire
-    <<":"<<(int)cluhits[iht]->PeakTime();
-*/
+
+//        mf::LogVerbatim("ClusterAna")<<"Clus Hit "<<cluhits[iht]->View()<<":"<<cluhits[iht]->WireID().Wire<<":"<<(int)cluhits[iht]->PeakTime();
+
         // look for this hit in all of the truth hit lists
         short hitInPl2 = -1;
         for(unsigned short ipl = 0; ipl < plist2.size(); ++ipl) {
@@ -515,8 +524,7 @@ namespace cluster{
         for(unsigned short ii = 0; ii < hlist2[ipl].size(); ++ii){
           if(ViewToPlane[hlist2[ipl][ii]->View()] == plane) ++nTru[plane];
         } // ii
-//  mf::LogVerbatim("ClusterAna")
-//    <<"Chk mom "<<ipl<<" plane "<<plane<<" nTru "<<nTru[plane];
+//        mf::LogVerbatim("ClusterAna")<<"Chk mom "<<ipl<<" plane "<<plane<<" nTru hits "<<nTru[plane];
         // next look for daughters and count those hits in all generations
         unsigned short mom = ipl;
         std::vector<std::pair<unsigned short, unsigned short>>::reverse_iterator 
@@ -529,28 +537,25 @@ namespace cluster{
             } // jj
             // It is likely that one hit appears in the mother list
             // as well as the daughter list, so subtract one from the count
-            --nTru[plane];
+//            --nTru[plane];
             mom = (*rit).second;
-//  mf::LogVerbatim("ClusterAna")<<"new mom "<<mom<<" nTru "<<nTru[plane];
+//            mf::LogVerbatim("ClusterAna")<<"new mom "<<mom<<" nTru "<<nTru[plane];
           } // (*rit).first == mom
           ++rit;
         } // rit
-//  mf::LogVerbatim("ClusterAna")<<"Chk dau "<<nTru[plane];
+//        mf::LogVerbatim("ClusterAna")<<"Chk dau "<<nTru[plane];
         if(nTru[plane] == 0) {
-//          mf::LogVerbatim("ClusterAna")<<"No true hits in plane "<<plane
-//            <<" for truth particle "<<ipl;
+            mf::LogVerbatim("ClusterAna")<<"No true hits in plane "<<plane<<" for truth particle "<<ipl;
           continue;
         }
         short icl = truToCl[ipl][plane];
         nRec[plane] = nRecHitInCl[icl];
         nTruRec[plane] = nTruHitInCl[ipl][plane];
-//  mf::LogVerbatim("ClusterAna")<<"icl "<<icl<<" nRec "<<nRec[plane]
-//    <<" nTruRec "<<nTruRec[plane];
-        if(nTru[plane] > 0) 
-          eff[plane] = (float)nTruRec[plane] / (float)nTru[plane];
-        if(nRec[plane] > 0) 
-          pur[plane] = (float)nTruRec[plane] / (float)nRec[plane];
+        if(nTru[plane] > 0) eff[plane] = (float)nTruRec[plane] / (float)nTru[plane];
+        if(nRec[plane] > 0) pur[plane] = (float)nTruRec[plane] / (float)nRec[plane];
         ep[plane] = eff[plane] * pur[plane];
+        if(ep[plane] < 0 || ep[plane] > 1) std::cout<<"Bad ep "<<ep[plane]<<"\n";
+//        mf::LogVerbatim("ClusterAna")<<"Cluster "<<icl<<" nRec hits "<<nRec[plane]<<" nTruRec hits "<<nTruRec[plane]<<" eff "<<eff[plane]<<" pur "<<pur[plane];
       } // plane
       // sort the ep values in ascending order
       std::vector<float> temp;
