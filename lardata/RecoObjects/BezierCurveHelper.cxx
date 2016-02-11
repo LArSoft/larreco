@@ -14,8 +14,8 @@
 #include <map>
 #include <sstream>
 
-#include "RecoBase/Hit.h"
-#include "RecoObjects/BezierCurveHelper.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoObjects/BezierCurveHelper.h"
 
 #include "art/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Optional/TFileService.h"
