@@ -25,10 +25,11 @@
 #include "larcore/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/RecoBase/Hit.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/CCHitFinderAlg.h"
 #include "larreco/RecoAlg/LinFitAlg.h"
+
 
 namespace cluster {
   
@@ -208,8 +209,6 @@ namespace cluster {
     unsigned short NClusters;
     
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
     
     std::vector<recob::Hit> fHits; ///< our version of the hits
     std::vector<short> inClus;    ///< Hit used in cluster (-1 = obsolete, 0 = free)

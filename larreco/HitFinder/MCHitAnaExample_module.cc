@@ -20,7 +20,7 @@
 #include "lardata/MCBase/MCHitCollection.h"
 #include "lardata/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/TimeService.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include <TH1D.h>
 #include <TH2D.h>
 #include <TStopwatch.h>
@@ -223,7 +223,7 @@ namespace hit {
     fAnaWatch.Start();
     
     art::ServiceHandle<geo::Geometry> geo;
-    art::ServiceHandle<util::TimeService> ts;
+    const detinfo::DetectorClocks* ts = lar::providerFrom<detinfo::DetectorClocksService>();
     
     fReadWatch.Start();
     art::Handle<std::vector<sim::MCHitCollection> > mcHandle;

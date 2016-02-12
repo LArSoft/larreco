@@ -12,7 +12,6 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/DBScanAlg.h"
 
 // LArSoft includes
-#include "lardata/Utilities/LArProperties.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoObjects/Cluster3D.h"
@@ -51,10 +50,10 @@ void DBScanAlg::reconfigure(fhicl::ParameterSet const &pset)
     m_numSigmaPeakTime       = pset.get<double>("NumSigmaPeakTime",  5.);
     
     art::ServiceHandle<geo::Geometry>            geometry;
-    art::ServiceHandle<util::DetectorProperties> detectorProperties;
+    //    art::ServiceHandle<detinfo::DetectorPropertiesService> detectorProperties;
     
     m_geometry = &*geometry;
-    m_detector = &*detectorProperties;
+    //    m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     m_timeVector.resize(NUMTIMEVALUES, 0.);
 }

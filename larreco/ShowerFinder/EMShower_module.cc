@@ -24,7 +24,7 @@
 #include "art/Framework/Core/FindManyP.h"
 
 // LArSoft includes
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/CryostatGeo.h"
@@ -68,7 +68,7 @@ private:
   bool fSaveNonCompleteShowers;
 
   art::ServiceHandle<geo::Geometry> fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
+  detinfo::DetectorProperties const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   int fShower;
   int fPlane;

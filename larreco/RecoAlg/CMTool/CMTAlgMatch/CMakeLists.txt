@@ -6,7 +6,6 @@ art_make(
 			larcore_Geometry
 			larcore_Geometry_Geometry_service
                         lardata_Utilities
-			lardata_Utilities_DetectorProperties_service
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

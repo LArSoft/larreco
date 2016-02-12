@@ -22,7 +22,7 @@
 // LArSoft Includes
 #include "larcore/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -68,7 +68,7 @@ namespace sppt{
   //-------------------------------------------------
   void SpacePointAlg_TimeSort::setTimeOffsets(){
 
-    art::ServiceHandle<util::DetectorProperties> detprop;    
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();    
     TIME_OFFSET_U = -1*detprop->GetXTicksOffset(geo::View_t::kU,0,0);
     TIME_OFFSET_V = -1*detprop->GetXTicksOffset(geo::View_t::kV,0,0);
     TIME_OFFSET_Y = -1*detprop->GetXTicksOffset(geo::View_t::kZ,0,0);

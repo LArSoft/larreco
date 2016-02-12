@@ -34,8 +34,7 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
-#include "lardata/Utilities/DetectorProperties.h"
-#include "lardata/Utilities/LArProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/Hit.h"
@@ -225,8 +224,7 @@ namespace trkf {
     // Get Services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
-    art::ServiceHandle<util::LArProperties> larprop;
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get Hits.
 

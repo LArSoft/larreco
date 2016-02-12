@@ -40,11 +40,10 @@
 #include "lardata/RecoBase/Vertex.h"
 #include "lardata/RecoBase/PFParticle.h"
 #include "lardata/RecoBase/Seed.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/TrackTrajectoryAlg.h"
 #include "larreco/RecoAlg/VertexFitAlg.h"
@@ -80,8 +79,7 @@ namespace trkf {
     
     // services
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const detinfo::DetectorProperties* detprop;
     
     TrackTrajectoryAlg fTrackTrajectoryAlg;
     VertexFitAlg fVertexFitAlg;
@@ -390,6 +388,8 @@ namespace trkf {
   void CCTrackMaker::produce(art::Event& evt)
   {
     
+    detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
     fWirePitch = geom->WirePitch();
     
     fChgWindow = 40; // window (ticks) for identifying shower-like clusters
@@ -3429,8 +3429,8 @@ namespace trkf {
     for(ipl = 0; ipl < nplanes; ++ipl) ChgNorm[ipl] = 1;
     
     // get the service to learn about channel status
-    //lariov::IChannelStatusProvider const& channelStatus
-    //  = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+    //lariov::ChannelStatusProvider const& channelStatus
+    //  = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     
     // now we can define the WireHitRange vector.
     int sflag, nwires, wire;

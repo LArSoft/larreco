@@ -22,7 +22,7 @@
 #include "lardata/MCBase/MCHitCollection.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Wire.h"
-#include "lardata/Utilities/TimeService.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
 #include "TTree.h"
 
@@ -114,7 +114,7 @@ namespace hit{
     void AnalyzeWires(std::vector<recob::Wire> const&,
 		      std::vector<sim::MCHitCollection> const&,
 		      std::vector< std::vector<int> > const&,
-		      util::TimeService const&,
+		      const detinfo::DetectorClocks *,
 		      unsigned int,
 		      unsigned int);
 
@@ -135,12 +135,12 @@ namespace hit{
 		      int,
 		      std::vector<sim::MCHitCollection> const&,
 		      std::vector<int> const&,
-		      util::TimeService const&);
+		      const detinfo::DetectorClocks *);
 
     void ProcessROI(lar::sparse_vector<float>::datarange_t const&, int,
 		    std::vector<sim::MCHitCollection> const&,
 		    std::vector<int> const&,
-		    util::TimeService const&);
+		    const detinfo::DetectorClocks *);
 
     void ROIInfo(lar::sparse_vector<float>::datarange_t const&,
 		 float&,float&,float&);
@@ -151,7 +151,7 @@ namespace hit{
     void FindAndStoreMCHitsInRange(std::vector<sim::MCHitCollection> const&,
 				   std::vector<int> const&,
 				   size_t,size_t,
-				   util::TimeService const&);
+				   const detinfo::DetectorClocks *);
     
     WireROIInfo wireData;
     std::vector<recob::Hit*> hitData;

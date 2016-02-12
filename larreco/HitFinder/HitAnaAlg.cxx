@@ -98,12 +98,12 @@ void hit::HitAnaAlg::LoadHitAssocPair( std::vector<recob::Hit> const& HitVector,
 void hit::HitAnaAlg::AnalyzeWires(std::vector<recob::Wire> const& WireVector,
 				  std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
 				  std::vector< std::vector<int> > const& AssocVector,
-				  util::TimeService const& TimeService,
+				  const detinfo::DetectorClocks *ts,
 				  unsigned int event, unsigned int run){
   
   InitWireData(event,run);
   for(size_t iwire=0 ; iwire < WireVector.size(); iwire++)
-    FillWireInfo(WireVector[iwire], iwire, MCHitCollectionVector, AssocVector[iwire], TimeService);
+    FillWireInfo(WireVector[iwire], iwire, MCHitCollectionVector, AssocVector[iwire], ts);
 
 }
 
@@ -140,8 +140,8 @@ void hit::HitAnaAlg::FillWireInfo(recob::Wire const& wire,
 				  int WireIndex,
 				  std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
 				  std::vector<int> const& thisAssocVector,
-				  util::TimeService const& TimeService){
-
+				  const detinfo::DetectorClocks *ts){
+  
   wireData.channel = wire.Channel();
   wireData.plane = wire.View();
   unsigned int range_index = 0;
@@ -154,7 +154,7 @@ void hit::HitAnaAlg::FillWireInfo(recob::Wire const& wire,
 
     ClearWireDataHitInfo();
 
-    ProcessROI(range, WireIndex, MCHitCollectionVector, thisAssocVector, TimeService);
+    ProcessROI(range, WireIndex, MCHitCollectionVector, thisAssocVector, ts);
     range_index++;
 
   }//end loop over roi ranges
@@ -185,7 +185,7 @@ void hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& ra
 				int WireIndex,
 				std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
 				std::vector<int> const& thisAssocVector,
-				util::TimeService const& TimeService){
+				const detinfo::DetectorClocks *ts){
 
   ROIInfo(range,wireData.integrated_charge,wireData.peak_charge,wireData.peak_time);
 
@@ -205,7 +205,7 @@ void hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& ra
 			    thisAssocVector,
 			    range.begin_index(),
 			    range.begin_index()+range.size(),
-			    TimeService);
+			    ts);
 
   wireDataTree->Fill();
 }
@@ -258,7 +258,7 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
 						std::vector<int> const& HitsOnWire,
 						size_t begin_wire_tdc,
 						size_t end_wire_tdc,
-						util::TimeService const& TimeService){
+						const detinfo::DetectorClocks *ts){
 
   wireData.MCHits_PeakCharge = -999;
 
@@ -270,12 +270,12 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
     for( auto const& thishit : thismchitcol){
 
       //std::cout << "\t************************************************************" << std::endl;
-      //std::cout << "\t\tMCHit begin: " << TimeService.TPCTDC2Tick( thishit.PeakTime()-thishit.PeakWidth() ) << std::endl;
-      //std::cout << "\t\tMCHit end: " << TimeService.TPCTDC2Tick( thishit.PeakTime()+thishit.PeakWidth() ) << std::endl;
+      //std::cout << "\t\tMCHit begin: " << ts->TPCTDC2Tick( thishit.PeakTime()-thishit.PeakWidth() ) << std::endl;
+      //std::cout << "\t\tMCHit end: " << ts->TPCTDC2Tick( thishit.PeakTime()+thishit.PeakWidth() ) << std::endl;
 
       //check if this hit is on this ROI
-      if( TimeService.TPCTDC2Tick( thishit.PeakTime()-thishit.PeakWidth() ) < begin_wire_tdc ||
-	  TimeService.TPCTDC2Tick( thishit.PeakTime()+thishit.PeakWidth() ) > end_wire_tdc )
+      if( ts->TPCTDC2Tick( thishit.PeakTime()-thishit.PeakWidth() ) < begin_wire_tdc ||
+	  ts->TPCTDC2Tick( thishit.PeakTime()+thishit.PeakWidth() ) > end_wire_tdc )
 	continue;
 
       nmchits_per_trackID_map[thishit.PartTrackId()] += 1;
@@ -283,11 +283,11 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
       
       if(thishit.Charge(true) > wireData.MCHits_PeakCharge){
 	wireData.MCHits_PeakCharge = thishit.Charge(true);
-	wireData.MCHits_PeakTime   = TimeService.TPCTDC2Tick(thishit.PeakTime());
+	wireData.MCHits_PeakTime   = ts->TPCTDC2Tick(thishit.PeakTime());
       }
       
       wireData.MCHits_wAverageCharge += thishit.Charge()*thishit.Charge();
-      wireData.MCHits_wAverageTime   += thishit.Charge()*TimeService.TPCTDC2Tick(thishit.PeakTime());
+      wireData.MCHits_wAverageTime   += thishit.Charge()*ts->TPCTDC2Tick(thishit.PeakTime());
 
     }
     

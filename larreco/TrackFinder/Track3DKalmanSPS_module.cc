@@ -57,7 +57,6 @@
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/LArProperties.h"
 //\todo Reconstruction Producers should never include SimulationBase objects
 #include "SimulationBase/MCTruth.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -583,7 +582,6 @@ void Track3DKalmanSPS::produce(art::Event& evt)
   repMC=0;
   // get services
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
 
   //////////////////////////////////////////////////////
   // Make a std::unique_ptr<> for the thing you want to put into the event

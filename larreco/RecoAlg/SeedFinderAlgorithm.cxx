@@ -24,7 +24,7 @@
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
 #include "TPrincipal.h"
@@ -728,7 +728,7 @@ namespace trkf {
 
   void SeedFinderAlgorithm::GetHitDistAndProj( recob::Seed const& ASeed,  art::Ptr<recob::Hit> const& AHit, double& disp, double& s)
   {
-    art::ServiceHandle<util::DetectorProperties> det;
+    const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<geo::Geometry> geom;
     
     double xyzStart[3], xyzEnd[3];
@@ -925,7 +925,7 @@ namespace trkf {
   void  SeedFinderAlgorithm::GetCenterAndDirection(art::PtrVector<recob::Hit> const& HitsFlat, std::vector<int>&  HitsToUse, TVector3& Center, TVector3& Direction, std::vector<double>& ViewRMS, std::vector<int>& N)
   {
     // Initialize the services we need
-    art::ServiceHandle<util::DetectorProperties>     det;
+    const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
  
     N.resize(3);

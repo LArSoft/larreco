@@ -7,8 +7,6 @@ art_make(
                         lardata_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        lardata_Utilities_LArProperties_service
-                        lardata_Utilities_DetectorProperties_service
                         lardata_Utilities
                         larsim_Simulation
                         ${SIMULATIONBASE}
@@ -35,8 +33,6 @@ simple_plugin ( FeatureVertexFinder "module"
                         lardata_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        lardata_Utilities_LArProperties_service
-                        lardata_Utilities_DetectorProperties_service
                         lardata_Utilities
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}

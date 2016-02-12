@@ -11,6 +11,7 @@
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -127,7 +128,8 @@ void pma::Track3D::ClearNodes(void)
 
 bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 {
-	art::ServiceHandle<util::DetectorProperties> detprop;
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  
 	art::ServiceHandle<geo::Geometry> geom;
 
 	float wtmp = fEndSegWeight;

@@ -17,7 +17,7 @@
 #include "lardata/RecoObjects/BezierTrack.h"
 #include "lardata/RecoObjects/BezierCurveHelper.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 
 #include "art/Framework/Principal/Event.h"
@@ -968,7 +968,7 @@ namespace trkf {
 
   bool BezierTrackerAlgorithm::EvaluateOccupancy(recob::Seed& Seed1, recob::Seed& Seed2, double dThresh,  std::vector<art::PtrVector<recob::Hit>*>& AllHits,  std::vector<std::vector< std::vector<int> >* >& OrgHits, std::vector<uint32_t>& LowChan, std::vector<uint32_t>& HighChan, std::vector<std::vector<int> >& HitStatus, std::vector<std::vector<int> >& TheseHits)
   {
-    art::ServiceHandle<util::DetectorProperties> det;
+    const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
       
     int NSteps = 2 * Seed1.GetDistance(Seed2) / dThresh;
     if(NSteps<2) NSteps=2;
@@ -1021,7 +1021,7 @@ namespace trkf {
 
   void BezierTrackerAlgorithm::GetSeedDirProjected(recob::Seed const& TheSeed, std::vector<double>& WireCoord, std::vector<double>& TimeCoord) 
   {
-    art::ServiceHandle<util::DetectorProperties> det;
+    const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     WireCoord.clear();
     WireCoord.resize(3);
@@ -1050,7 +1050,7 @@ namespace trkf {
   void BezierTrackerAlgorithm::CalculateGeometricalElements()
   {
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> det;
+    const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 
     // Find pitch of each wireplane

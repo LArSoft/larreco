@@ -10,8 +10,6 @@ art_make(
                         lardata_RecoObjects
                         lardata_AnalysisBase
 			lardata_AnalysisAlg
-                        lardata_Utilities_LArProperties_service
-                        lardata_Utilities_DetectorProperties_service
                         lardata_Utilities
                         larreco_RecoAlg_ClusterRecoUtil
 			larreco_RecoAlg_CMTool_CMToolBase

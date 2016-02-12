@@ -12,7 +12,6 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/DetectorProperties.h"
 #include "lardata/RecoObjects/Cluster3D.h"
 
 // std includes
@@ -88,9 +87,6 @@ private:
     
     double                    m_minimumDeltaTicks;
     double                    m_maximumDeltaTicks;
-
-    geo::Geometry*            m_geometry;  // pointer to the Geometry service
-    util::DetectorProperties* m_detector;  // Pointer to the detector properties
 
     fhicl::ParameterSet       m_pset;
 };

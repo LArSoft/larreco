@@ -5,9 +5,7 @@
 #define CELLTREE_MODULE
 
 // LArSoft includes
-#include "lardata/Utilities/DetectorProperties.h"
 #include "lardata/Utilities/GeometryUtilities.h"
-// #include "Utilities/LArProperties.h"
 
 #include "larsim/Simulation/SimChannel.h"
 #include "larsim/Simulation/LArG4Parameters.h"
@@ -121,7 +119,7 @@ private:
     art::ServiceHandle<geo::Geometry> fGeometry;       // pointer to Geometry service
 
     // art::ServiceHandle<geo::Geometry> fGeom;
-    // // art::ServiceHandle<util::LArProperties> larp;
+    // // art::ServiceHandle<detinfo::LArPropertiesService> larp;
 
     TFile *fOutFile;
     TTree *fEventTree;

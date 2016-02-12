@@ -44,6 +44,7 @@
 
 
 // larsoft libraries
+#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Cluster.h"
 #include "larcore/Geometry/Geometry.h"
@@ -52,13 +53,12 @@
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 #include "lardata/Utilities/StatCollector.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 constexpr double PI = M_PI; // or CLHEP::pi in CLHEP/Units/PhysicalConstants.h
 
@@ -256,11 +256,10 @@ size_t cluster::HoughBaseAlg::Transform(
 
   int nClustersTemp = *nClusters;
   
-  art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
-  lariov::IChannelStatusProvider const& channelStatus
-    = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+  geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  lariov::ChannelStatusProvider const* channelStatus
+    = lar::providerFrom<lariov::ChannelStatusService>();
 
   //  uint32_t     channel = hits[0]->Channel();
   unsigned int wire    = 0;
@@ -287,12 +286,12 @@ size_t cluster::HoughBaseAlg::Transform(
   std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
   
   /// \todo provide comment about where the 0.001 comes from
-  double driftVelFactor = 0.001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  double driftVelFactor = 0.001*detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
   
   for(size_t p = 0; p < xyScale.size(); ++p)
     xyScale[p] = driftVelFactor * detprop->SamplingRate()/wire_pitch[p];
 
-  float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature()) * 1.e-3 * detprop->SamplingRate();
+  float tickToDist = driftVelFactor * detprop->SamplingRate();
   //tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
 
 
@@ -577,7 +576,7 @@ size_t cluster::HoughBaseAlg::Transform(
       currentHits.push_back(0);
       for(auto sequenceHolderItr = sequenceHolder.begin(); sequenceHolderItr+1 != sequenceHolder.end(); ++sequenceHolderItr) {
         j = 1;
-        while((channelStatus.IsBad(sequenceHolderItr-sequenceHolder.begin()+j)) == true) j++;
+        while(channelStatus->IsBad(sequenceHolderItr-sequenceHolder.begin()+j)) j++;
         if(sequenceHolder[sequenceHolderItr-sequenceHolder.begin()+1]-sequenceHolder[sequenceHolderItr-sequenceHolder.begin()] <= j + fMissedHits) currentHits.push_back(sequenceHolderItr-sequenceHolder.begin()+1);
         else if(currentHits.size() > lastHits.size()) {
           lastHits = currentHits;
@@ -1054,11 +1053,10 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
   art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
-  art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
-//  lariov::IChannelStatusProvider const& channelStatus
-//    = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+  geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+  //  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+//  lariov::ChannelStatusProvider const* channelStatus
+//    = lar::providerFrom<lariov::ChannelStatusService>();
   HoughTransform c;
 
   // Get the random number generator
@@ -1111,7 +1109,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       
       /*
       //factor to make x and y scale the same units
-      double xyScale  = .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+      double xyScale  = .001*detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
       xyScale        *= detprop->SamplingRate()/geom->WirePitch(0,1,p,t,cs);
       
       int x, y;
@@ -1263,7 +1261,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       currentHits.push_back(0);
       for(size_t i = 0; i + 1 < sequenceHolder.size(); ++i){  
       j = 1;
-      while((channelStatus.IsBad(sequenceHolder[i]+j)) == true) j++;
+      while((channelStatus->IsBad(sequenceHolder[i]+j)) == true) j++;
       if(sequenceHolder[i+1]-sequenceHolder[i] <= j + fMissedHits) currentHits.push_back(i+1);
       else if(currentHits.size() > lastHits.size()) {
       lastHits = currentHits;
@@ -1282,7 +1280,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       uint32_t     channel = hit[0]->Channel();
       double wirePitch = geom->WirePitch(geom->View(channel));
       double wire_dist = wirePitch;
-      double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+      double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
       tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
       //std::cout << "New line" << std::endl;
       int missedHits=0;
@@ -1455,11 +1453,10 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
   //art::FindManyP<recob::Hit> fmh(clusIn, evt, label);
 
-  art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
-  lariov::IChannelStatusProvider const& channelStatus
-    = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+  geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  lariov::ChannelStatusProvider const* channelStatus
+    = lar::providerFrom<lariov::ChannelStatusService>();
 
   // Get the random number generator
   art::ServiceHandle<art::RandomNumberGenerator> rng;
@@ -1527,7 +1524,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
 
   /// \todo explain where the 0.001 comes from
-  double driftVelFactor = 0.001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  double driftVelFactor = 0.001*detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
 
   for(size_t p = 0; p < xyScale.size(); ++p) 
     xyScale[p] = driftVelFactor * detprop->SamplingRate()/wire_pitch[p];
@@ -1693,7 +1690,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       currentHits.push_back(0);
       for(size_t i = 0; i + 1 < sequenceHolder.size(); ++i){  
         j = 1;
-        while((channelStatus.IsBad(sequenceHolder.at(i)+j)) == true) j++;
+        while((channelStatus->IsBad(sequenceHolder.at(i)+j)) == true) j++;
         if(sequenceHolder.at(i+1)-sequenceHolder.at(i) <= j + fMissedHits) currentHits.push_back(i+1);
         else if(currentHits.size() > lastHits.size()) {
           lastHits = currentHits;
@@ -1713,7 +1710,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       // we have to go back to the first hit (in terms of lastHits[i]) of that channel to find the distance
       // between hits
       //std::cout << "New line" << std::endl;
-      double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+      double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
       tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
       int missedHits=0;
       int lastHitsChannel = 0;//lastHits.at(0);
@@ -1878,7 +1875,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector< art::Ptr<recob::Hit> > cons
   HoughTransform c;
 
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
   int dx = geom->Nwires(0);               //number of wires 
   const int dy = detprop->ReadOutWindowSize(); // number of time samples. 

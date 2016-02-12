@@ -48,8 +48,6 @@
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/ClusterMatchTQ.h"
 #include "larreco/RecoAlg/CosmicTrackerAlg.h"
@@ -269,8 +267,6 @@ namespace trkf {
   
     // get services
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
 
     std::unique_ptr<std::vector<recob::Track>      >              tcol (new std::vector<recob::Track>);           
     std::unique_ptr<std::vector<recob::SpacePoint> >                 spcol(new std::vector<recob::SpacePoint>);
@@ -284,7 +280,7 @@ namespace trkf {
     //double plane_pitch = geom->PlanePitch(0,1);   //wire plane pitch in cm 
     //double wire_pitch = geom->WirePitch(0,1,0);    //wire pitch in cm
     //double Efield_drift = larprop->Efield(0);  // Electric Field in the drift region in kV/cm
-    //double Temperature = larprop->Temperature();  // LAr Temperature in K
+    //double Temperature = detprop->Temperature();  // LAr Temperature in K
 
     //double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
     //double timepitch = driftvelocity*timetick;                         //time sample (cm) 

@@ -6,8 +6,6 @@ art_make(
 #          EXCLUDE ShowerSelectorFilter_module.cc
           MODULE_LIBRARIES
 			larreco_RecoAlg
-                        lardata_Utilities_LArProperties_service
-                        lardata_Utilities_DetectorProperties_service
                         larsim_MCCheater_BackTracker_service
                         lardata_AnalysisBase
                         lardata_RecoBase
@@ -37,7 +35,6 @@ art_make(
 #         		  larevt_Filters
 # 			  larreco_RecoAlg
 # 		    	  lardata_RawData
-#                          lardata_Utilities_LArProperties_service
 # 			  ${SIMULATIONBASE}
 #                
 # 	     )     

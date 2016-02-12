@@ -17,7 +17,7 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "lardata/RecoBase/Wire.h"
@@ -72,7 +72,7 @@ namespace apa{
     // other classes we will use
     apa::APAGeometryAlg                           fAPAGeo;
     art::ServiceHandle<geo::Geometry>             geom;
-    art::ServiceHandle<util::DetectorProperties>  detprop;
+    const detinfo::DetectorProperties*           detprop;
     art::ServiceHandle<cheat::BackTracker> bt;                     ///< For *TEMPORARY* monitering of potential problems
 
     // Hits organization

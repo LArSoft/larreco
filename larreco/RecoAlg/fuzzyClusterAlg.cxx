@@ -23,8 +23,7 @@
 // LArSoft libraries
 #include "larcore/SimpleTypesAndConstants/geo_types.h"
 #include "larevt/Filters/ChannelFilter.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/fuzzyClusterAlg.h"
 #include "lardata/RecoBase/Hit.h"
 
@@ -174,8 +173,7 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   fBadChannels = badChannels;
   fBadWireSum.clear();
 
-  art::ServiceHandle<util::LArProperties> larp;
-  art::ServiceHandle<util::DetectorProperties> detp;
+  const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
 
 
@@ -192,7 +190,7 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   // and take note of the maximum time width
   fMaxWidth=0.0;
 
-  double tickToDist = larp->DriftVelocity(larp->Efield(),larp->Temperature());
+  double tickToDist = detp->DriftVelocity(detp->Efield(),detp->Temperature());
   tickToDist *= 1.e-3 * detp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
   int dims = 3;//our point is defined by 3 elements:wire#,center of the hit, and the hit width
   std::vector<double> p(dims);
@@ -234,8 +232,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
   fvisited.resize(fps.size(), false);
 
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 
   //factor to make x and y scale the same units
@@ -249,11 +246,11 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
 
 // saw this one
 
-  double xyScale = .001*larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  double xyScale = .001*detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
   xyScale*=detprop->SamplingRate();
   //  double wire_dist = wirePitch;
 
-  double tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+  double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
   tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
   
   

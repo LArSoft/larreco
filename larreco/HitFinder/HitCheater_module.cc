@@ -35,7 +35,7 @@
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBaseArt/HitCreator.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/StatCollector.h"
 
 namespace hit {
@@ -68,8 +68,8 @@ private:
   std::string         fCalDataProductInstanceName; ///< label name for module making recob::Wires
   int                 fReadOutWindowSize;          ///< Number of samples in a readout window; NOT total samples
   int                 fNumberTimeSamples;          ///< Number of total time samples (N*readoutwindowsize)
-  double              fSamplingRate;               ///< from util::DetectorProperties
-  int                 fTriggerOffset;              ///< from util::DetectorProperties
+  double              fSamplingRate;               ///< from detinfo::DetectorPropertiesService
+  int                 fTriggerOffset;              ///< from detinfo::DetectorPropertiesService
   int                 fNewHitTDCGap;               ///< gap allowed in tdcs without charge before making a new hit
 };
 
@@ -334,7 +334,7 @@ void hit::HitCheater::reconfigure(fhicl::ParameterSet const & p)
   fMinCharge       = p.get< double      >("MinimumCharge",   5.        );
   fNewHitTDCGap    = p.get< int         >("NewHitTDCGap",    1         );
 
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   fElectronsToADC = detprop->ElectronsToADC();
   fSamplingRate   = detprop->SamplingRate();
   fTriggerOffset  = detprop->TriggerOffset();

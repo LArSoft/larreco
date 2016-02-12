@@ -45,8 +45,7 @@
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "TMath.h"
@@ -134,8 +133,7 @@ namespace vertex{
 
     
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     // define TPC parameters
     TString tpcName = geom->GetLArTPCVolumeName();
     
@@ -149,11 +147,11 @@ namespace vertex{
     double presamplings = detprop->TriggerOffset(); //trigger offset
 
     double wire_pitch   = geom->WirePitch(0,1,0); //wire pitch in cm
-    double Efield_drift = larprop->Efield();      // Electric Field in the drift region in kV/cm
-    double Temperature  = larprop->Temperature(); // LAr Temperature in K
+    double Efield_drift = detprop->Efield();      // Electric Field in the drift region in kV/cm
+    double Temperature  = detprop->Temperature(); // LAr Temperature in K
     
     //drift velocity in the drift region (cm/us)
-    double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature); 
+    double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature); 
 
     //time sample (cm) 
     double timepitch = driftvelocity*timetick; 

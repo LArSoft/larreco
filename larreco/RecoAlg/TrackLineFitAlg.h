@@ -19,8 +19,6 @@
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
 
 // ROOT includes
 #include "TMath.h"
@@ -43,9 +41,6 @@ namespace trkf {
     private:
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
-
     
   }; // class TrackLineFitAlg
 

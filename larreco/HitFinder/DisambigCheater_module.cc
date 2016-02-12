@@ -23,7 +23,6 @@
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBaseArt/HitCreator.h"
-#include "lardata/Utilities/DetectorProperties.h"
 #include "larcore/SimpleTypesAndConstants/geo_types.h"
 #include "larsim/MCCheater/BackTracker.h"
 
@@ -43,7 +42,6 @@ namespace hit{
   private:
     
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
     art::ServiceHandle<cheat::BackTracker> bt;
     
     std::string fChanHitLabel;

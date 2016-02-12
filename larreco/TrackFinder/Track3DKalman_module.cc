@@ -39,7 +39,6 @@
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/LArProperties.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "SimulationBase/MCTruth.h"
 #include "larsim/Simulation/sim.h"
@@ -272,7 +271,6 @@ void Track3DKalman::produce(art::Event& evt)
 
   // get services
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::LArProperties> larprop;
   // get the random number generator service and make some CLHEP generators
   art::ServiceHandle<art::RandomNumberGenerator> rng;
   CLHEP::HepRandomEngine &engine = rng->getEngine();

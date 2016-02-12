@@ -45,7 +45,7 @@ extern "C" {
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 #include "MagneticField/MagneticField.h"
-#include "lardata/Utilities/LArProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/Hit.h"
@@ -149,11 +149,12 @@ namespace hit {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService> tfs;
     // Find magetic field related corrections
-    art::ServiceHandle<util::LArProperties> larprop;
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    
     art::ServiceHandle<mag::MagneticField> MagField;
-    double Efield         = larprop->Efield();  
-    double Temperature    = larprop->Temperature();  
-    double DriftVelocity  = larprop->DriftVelocity(Efield,Temperature)/1000.;
+    double Efield         = detprop->Efield();  
+    double Temperature    = detprop->Temperature();  
+    double DriftVelocity  = detprop->DriftVelocity(Efield,Temperature)/1000.;
     
     if (MagField->UseField()) {
       fDirCosY = -DriftVelocity * MagField->FieldAtPoint().z() / Efield;

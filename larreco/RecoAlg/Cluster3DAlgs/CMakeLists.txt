@@ -8,8 +8,6 @@ art_make(
                         larcore_Geometry_Geometry_service
                         lardata_RecoObjects
                         lardata_AnalysisBase
-                        lardata_Utilities_LArProperties_service
-                        lardata_Utilities_DetectorProperties_service
                         lardata_Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

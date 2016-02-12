@@ -12,7 +12,7 @@
 
 #include "larreco/RecoAlg/ClusterMatchTQ.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "TH1D.h"
 
@@ -50,7 +50,7 @@ namespace cluster{
 
     // get services
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     int nplanes = geom->Nplanes();
     int nts = detprop->NumberTimeSamples();

@@ -28,8 +28,8 @@
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larreco/RecoAlg/DBScanAlg.h"
 #include "larreco/ClusterFinder/ClusterCreator.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
@@ -127,10 +127,10 @@ namespace cluster{
     std::vector< art::Ptr<recob::Hit> > allhits;
   
     // get channel quality service:
-    lariov::IChannelStatusProvider const& channelStatus
-      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+    lariov::ChannelStatusProvider const& channelStatus
+      = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     
-    lariov::IChannelStatusProvider::ChannelSet_t const BadChannels
+    lariov::ChannelStatusProvider::ChannelSet_t const BadChannels
       = channelStatus.BadChannels();
     
     // make a map of the geo::PlaneID to vectors of art::Ptr<recob::Hit>

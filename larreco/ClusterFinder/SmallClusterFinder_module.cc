@@ -48,9 +48,7 @@
 //All the larsoft goodies:
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/Hit.h"
-#include "lardata/Utilities/LArProperties.h"
 #include "lardata/Utilities/GeometryUtilities.h"
-#include "lardata/Utilities/DetectorProperties.h"
 #include "larreco/RecoAlg/SmallClusterFinderAlg.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "lardata/Utilities/AssociationUtil.h"

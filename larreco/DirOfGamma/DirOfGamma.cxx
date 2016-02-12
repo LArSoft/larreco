@@ -3,10 +3,12 @@
 #include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
+#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -17,9 +19,10 @@
 ems::Hit2D::Hit2D(art::Ptr< recob::Hit > src) :
 fHit(src)
 {
-	art::ServiceHandle<geo::Geometry> geom;
-	art::ServiceHandle<util::DetectorProperties> detprop;
-
+	geo::GeometryCore const* geom = lar::providerFrom<geo::Geometry>();
+	detinfo::DetectorProperties const* detprop
+	  = lar::providerFrom<detinfo::DetectorPropertiesService>();
+	
 	unsigned int plane = src->WireID().Plane;
 	unsigned int tpc   = src->WireID().TPC;
 	unsigned int cryo  = src->WireID().Cryostat;
@@ -88,8 +91,6 @@ fCenter2D(center),
 fPoints2D(hits),
 fNbins(nbins)
 {
-	art::ServiceHandle<geo::Geometry> geom;
-	art::ServiceHandle<util::DetectorProperties> detprop;
 	
 	for (unsigned int i = 0; i < fNbins; i++)
 	{

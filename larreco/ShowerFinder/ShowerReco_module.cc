@@ -68,9 +68,8 @@ extern "C" {
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/AnalysisBase/Calorimetry.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/Utilities/LArProperties.h"
 #include "lardata/Utilities/GeometryUtilities.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 #include "SimulationBase/MCTruth.h"
 
@@ -190,9 +189,9 @@ namespace shwf {
   std::vector< int > fNhitsperplane;
   std::vector< double > fTotADCperplane;
   //services 
-  art::ServiceHandle<util::LArProperties> larp;
+    
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
 //    //temporary
 //     int mcpdg;
@@ -256,6 +255,8 @@ void ShowerReco::beginJob()
   /** Get Geometry*/
   art::ServiceHandle<geo::Geometry> geo;
 
+  detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
   /// \todo the call to geo->Nplanes() assumes this is a single cryostat and single TPC detector
   /// \todo need to generalize to multiple cryostats and TPCs
   fNPlanes = geo->Nplanes();
@@ -264,7 +265,7 @@ void ShowerReco::beginJob()
   /**Get TFileService and define output Histograms*/
   art::ServiceHandle<art::TFileService> tfs;
 
- // art::ServiceHandle<util::DetectorProperties> detp;
+ // art::ServiceHandle<detinfo::DetectorPropertiesService> detp;
   ftimetick=detprop->SamplingRate()/1000.;
   
 
@@ -331,12 +332,13 @@ void ShowerReco::beginJob()
 
 void ShowerReco::beginRun(art::Run&)
 {
+ detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
  fWirePitch = geom->WirePitch(0,1,0);    //wire pitch in cm
  fTimeTick=detprop->SamplingRate()/1000.;  
- fDriftVelocity=larp->DriftVelocity(larp->Efield(),larp->Temperature());
+ fDriftVelocity=detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
  fWireTimetoCmCm=(fTimeTick*fDriftVelocity)/fWirePitch; 
- 
-  
+   
 }
 
 
@@ -462,9 +464,11 @@ void ShowerReco::beginRun(art::Run&)
 void ShowerReco::produce(art::Event& evt)
 { 
 
+  detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
   util::GeometryUtilities gser;
   fNPlanes = geom->Nplanes();
-  //fdriftvelocity = larprob->DriftVelocity(Efield_SI,Temperature);
+  //fdriftvelocity = detprop->DriftVelocity(Efield_SI,Temperature);
    std::unique_ptr<std::vector<recob::Shower> > Shower3DVector(new std::vector<recob::Shower>);
    std::unique_ptr< art::Assns<recob::Shower, recob::Cluster> > cassn(new art::Assns<recob::Shower, recob::Cluster>);
    std::unique_ptr< art::Assns<recob::Shower, recob::Hit>     > hassn(new art::Assns<recob::Shower, recob::Hit>);
@@ -648,10 +652,9 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
   ///////////////////////////////////////////////////////////
  const double origin[3] = {0.};
  std::vector <std::vector <  double > > position;
- // art::ServiceHandle<util::LArProperties> larp;
- // art::ServiceHandle<util::DetectorProperties> detprop;
+ // art::ServiceHandle<detinfo::DetectorPropertiesService> detprop;
  double fTimeTick=detprop->SamplingRate()/1000.; 
- double fDriftVelocity=larp->DriftVelocity(larp->Efield(),larp->Temperature());
+ double fDriftVelocity=detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
  // get starting positions for all planes
  for(unsigned int xx=0;xx<fNPlanes;xx++){
       double pos1[3];
@@ -707,9 +710,9 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
 	
 	
 	
-     double drifttick=(xyz_vertex_fit[0]/larp->DriftVelocity(larp->Efield(),larp->Temperature()))*(1./fTimeTick);
+     double drifttick=(xyz_vertex_fit[0]/detprop->DriftVelocity(detprop->Efield(),detprop->Temperature()))*(1./fTimeTick);
      fWire_vertex[fNPlanes-1]= wirevertex;  // wire coordinate of vertex for each plane
-     fTime_vertex[fNPlanes-1] = drifttick-(pos[0]/larp->DriftVelocity(larp->Efield(),larp->Temperature()))*(1./fTimeTick)+detprop->TriggerOffset();
+     fTime_vertex[fNPlanes-1] = drifttick-(pos[0]/detprop->DriftVelocity(detprop->Efield(),detprop->Temperature()))*(1./fTimeTick)+detprop->TriggerOffset();
 	
 	
       }
@@ -854,8 +857,7 @@ void ShowerReco::LongTransEnergy(unsigned int set, std::vector < art::Ptr<recob:
   
   double totCnrg = 0,totCnrg_corr =0;//, totNewCnrg=0 ; // tot enegry of the shower in collection
 //   art::ServiceHandle<geo::Geometry> geom;
-//   art::ServiceHandle<util::LArProperties> larp;
-//   art::ServiceHandle<util::DetectorProperties> detprop;
+//   art::ServiceHandle<detinfo::DetectorPropertiesService> detprop;
 
   double time;
   unsigned int wire=0,plane=fNPlanes-1;
@@ -1176,7 +1178,7 @@ void   ShowerReco::GetVertexAndAnglesFromCluster(art::Ptr< recob::Cluster > clus
 //   //    break;
 //   
 //   
-//   double drifttick=(xyz_vertex[0]/larp->DriftVelocity(larp->Efield(),larp->Temperature()))*(1./fTimeTick);
+//   double drifttick=(xyz_vertex[0]/detprop->DriftVelocity(detprop->Efield(),detprop->Temperature()))*(1./fTimeTick);
 //   
 //   const double origin[3] = {0.};
 //   for(unsigned int iplane=0;iplane<fNPlanes;iplane++)
@@ -1193,15 +1195,15 @@ void   ShowerReco::GetVertexAndAnglesFromCluster(art::Ptr< recob::Cluster > clus
 //        
 // 
 //       mcwirevertex[iplane]=wirevertex;  // wire coordinate of vertex for each plane
-//       mctimevertex[iplane]=drifttick-(pos[0]/larp->DriftVelocity(larp->Efield(),larp->Temperature()))*(1./fTimeTick)+detprop->TriggerOffset();  // time coordinate of vertex for each plane
+//       mctimevertex[iplane]=drifttick-(pos[0]/detprop->DriftVelocity(detprop->Efield(),detprop->Temperature()))*(1./fTimeTick)+detprop->TriggerOffset();  // time coordinate of vertex for each plane
 // 
 //       //fWireVertex[p]=wirevertex;
-//       //fTimeVertex[p]=drifttick-(pos[0]/larp->DriftVelocity(larp->Efield(),larp->Temperature()))*(1./fTimeTick)+60;
+//       //fTimeVertex[p]=drifttick-(pos[0]/detprop->DriftVelocity(detprop->Efield(),detprop->Temperature()))*(1./fTimeTick)+60;
 //       mf::LogVerbatim("ShowerAngleClusterAna") << "wirevertex= "<< wirevertex
 // 					    << " timevertex " << mctimevertex[iplane] 
 // 					    << " correction "
-// 					    << (pos[0]/larp->DriftVelocity(larp->Efield(),
-// 									   larp->Temperature()))*(1./fTimeTick) 
+// 					    << (pos[0]/detprop->DriftVelocity(detprop->Efield(),
+// 									   detprop->Temperature()))*(1./fTimeTick) 
 // 					    << " " << pos[0];
 //  
 // 

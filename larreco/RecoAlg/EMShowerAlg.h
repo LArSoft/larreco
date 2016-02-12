@@ -23,10 +23,11 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // larsoft
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfo/DetectorProperties.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 #include "larreco/RecoAlg/ShowerEnergyAlg.h"
 #include "larcore/Geometry/Geometry.h"
+#include "larcore/Geometry/GeometryCore.h"
 #include "larcore/Geometry/CryostatGeo.h"
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
@@ -146,7 +147,7 @@ private:
 
   // Services used by this class
   art::ServiceHandle<geo::Geometry> fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
+  detinfo::DetectorProperties const* fDetProp;
   art::ServiceHandle<art::TFileService> tfs;
 
   // Algs used by this class
@@ -167,11 +168,12 @@ class shower::HitPosition {
   // default constructor
   HitPosition();
   // contructors
-  HitPosition(TVector2 wiretick, TVector2 cm) {
+  HitPosition(TVector2 wiretick, TVector2 cm): HitPosition()
+  {
     WireTick = wiretick;
     Cm = cm;
   }
-  HitPosition(TVector2 wiretick, geo::PlaneID planeID) {
+  HitPosition(TVector2 wiretick, geo::PlaneID planeID): HitPosition() {
     WireTick = wiretick;
     Cm = ConvertWireTickToCm(wiretick, planeID);
   }
@@ -183,8 +185,8 @@ class shower::HitPosition {
 
  private:
 
-  art::ServiceHandle<geo::Geometry> fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
+  geo::GeometryCore const* fGeom = nullptr;
+  detinfo::DetectorProperties const* fDetProp = nullptr;
 
 };
 

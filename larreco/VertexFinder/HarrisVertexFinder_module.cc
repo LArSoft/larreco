@@ -45,7 +45,7 @@ extern "C" {
 #include <vector>
 #include <string>
 
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/EndPoint2D.h"
 #include "lardata/RecoBase/Hit.h"
@@ -188,7 +188,7 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
   }
   
   const unsigned int numbertimesamples
-    = art::ServiceHandle<util::DetectorProperties>()->ReadOutWindowSize();
+    = lar::providerFrom<detinfo::DetectorPropertiesService>()->ReadOutWindowSize();
   
   const float BinsPerTick = fTimeBins / numbertimesamples;
   const float TicksPerBin = numbertimesamples / fTimeBins;

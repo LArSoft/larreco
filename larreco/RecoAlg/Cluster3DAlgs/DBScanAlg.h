@@ -14,7 +14,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoObjects/Cluster3D.h"
 
@@ -196,7 +196,7 @@ private:
     std::vector<float>        m_timeVector;            ///<
 
     geo::Geometry*            m_geometry;  // pointer to the Geometry service
-    util::DetectorProperties* m_detector;  // Pointer to the detector properties
+    //    const detinfo::DetectorProperties* m_detector;  // Pointer to the detector properties
 };
 
 } // namespace lar_cluster3d

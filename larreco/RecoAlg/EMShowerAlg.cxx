@@ -10,9 +10,15 @@
 
 #include "larreco/RecoAlg/EMShowerAlg.h"
 
-shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset) : fShowerEnergyAlg(pset.get<fhicl::ParameterSet>("ShowerEnergyAlg")),
-                                                                    fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")),
-								    fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg")) {
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+
+
+shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset)
+  : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+  , fShowerEnergyAlg(pset.get<fhicl::ParameterSet>("ShowerEnergyAlg"))
+  , fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg"))
+  , fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg"))
+{
   fMinTrackLength  = pset.get<double>("MinTrackLength");
   fdEdxTrackLength = pset.get<double>("dEdxTrackLength");
   fNfitpass        = pset.get<unsigned int>("Nfitpass");
@@ -1691,4 +1697,9 @@ bool shower::EMShowerAlg::isCleanShower(std::vector<art::Ptr<recob::Hit> > const
   if (float(nhits-2)/hitmap.size()>1.4) return false;
   else return true;
 }
-    
+
+
+shower::HitPosition::HitPosition()
+  : fGeom(lar::providerFrom<geo::Geometry>())
+  , fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+  {}

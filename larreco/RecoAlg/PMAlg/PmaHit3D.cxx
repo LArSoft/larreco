@@ -12,7 +12,6 @@
 #include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "lardata/Utilities/DetectorProperties.h"
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"

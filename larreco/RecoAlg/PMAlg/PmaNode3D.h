@@ -15,7 +15,6 @@
 #include "larreco/RecoAlg/PMAlg/SortedObjects.h"
 
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/DetectorProperties.h"
 
 #include "TVectorT.h"
 #include "TMatrixT.h"

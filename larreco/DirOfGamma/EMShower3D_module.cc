@@ -18,8 +18,7 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "lardata/Utilities/DetectorProperties.h"
-#include "lardata/Utilities/LArProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "lardata/RecoBase/Hit.h"
@@ -174,8 +173,8 @@ recob::Cluster ems::EMShower3D::ConvertFrom(const std::vector< art::Ptr<recob::H
 
 recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 {
-	art::ServiceHandle<util::DetectorProperties> detprop;
-	art::ServiceHandle<geo::Geometry> geom;
+	auto const* geom = lar::providerFrom<geo::Geometry>();
+	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
 	unsigned int nplanes = geom->Nplanes(src.front()->TPC(), src.front()->Cryo());
@@ -231,8 +230,9 @@ recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 
 recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 {
-	art::ServiceHandle<util::DetectorProperties> detprop;
-	art::ServiceHandle<geo::Geometry> geom;
+
+	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+	auto const* geom = lar::providerFrom<geo::Geometry>();
 
 	double avdrift = (src.front()->Point3D().X() + src.back()->Point3D().X()) * 0.5;
 	unsigned int nplanes = geom->Nplanes(src.front()->TPC(), src.front()->Cryo());
@@ -619,8 +619,7 @@ std::vector< ems::DirOfGamma* > ems::EMShower3D::CollectShower2D(art::Event cons
 
 void ems::EMShower3D::Link(art::Event const & e, std::vector< ems::DirOfGamma* > input)
 {
-	art::ServiceHandle<util::DetectorProperties> detprop;
-	art::ServiceHandle<geo::Geometry> geom;
+	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	std::vector< std::vector< size_t > > saveids;
 	std::vector< size_t > saveidsnotusedcls;

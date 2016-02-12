@@ -16,8 +16,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Seed.h"
 #include "lardata/RecoObjects/Cluster3D.h"
@@ -65,10 +64,10 @@ HoughSeedFinderAlg::HoughSeedFinderAlg(fhicl::ParameterSet const &pset) :
     this->reconfigure(pset);
     
     art::ServiceHandle<geo::Geometry>            geometry;
-    art::ServiceHandle<util::DetectorProperties> detectorProperties;
+    //    art::ServiceHandle<detinfo::DetectorPropertiesService> detectorProperties;
     
     m_geometry = &*geometry;
-    m_detector = &*detectorProperties;
+    //    m_detector = detectorProperties->provider();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

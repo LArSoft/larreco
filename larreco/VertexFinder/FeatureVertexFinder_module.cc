@@ -81,8 +81,7 @@
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 //#include "RecoAlg/ClusterParamsAlg.h"
 
@@ -265,15 +264,10 @@ void FeatureVertexFinder::produce(art::Event& evt)
    // #########################
    art::ServiceHandle<geo::Geometry> geom;
     
-   // ###############################
-   // ### LAr Properties Services ###
-   // ###############################  
-   art::ServiceHandle<util::LArProperties> larprop;
-    
    // ####################################
    // ### Detector Properties Services ###
    // ####################################
-   art::ServiceHandle<util::DetectorProperties> detprop;
+   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
    
    // ######################################################
    // ### Figuring out if I have a 2 or 3 plane detector ###
@@ -675,7 +669,7 @@ void vertex::FeatureVertexFinder::Get3dVertexCandidates(std::vector< art::Ptr<re
    // ####################################
    // ### Detector Properties Services ###
    // ####################################
-   art::ServiceHandle<util::DetectorProperties> detprop;
+   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
    
    double y = 0., z = 0.;
    double yy = 0., zz = 0.;
@@ -820,7 +814,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
    // ####################################
    // ### Detector Properties Services ###
    // ####################################
-   art::ServiceHandle<util::DetectorProperties> detprop;
+   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
    
    int nClustersFound = 0;
    
@@ -1171,7 +1165,7 @@ void vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(std::vector<doub
    // ####################################
    // ### Detector Properties Services ###
    // ####################################
-   art::ServiceHandle<util::DetectorProperties> detprop;
+   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
    
    // ---------------------- MERGING THE LONG LIST OF 2D CANDIDATES ---------------------------
    

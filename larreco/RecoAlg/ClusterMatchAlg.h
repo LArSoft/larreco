@@ -29,7 +29,7 @@
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
 // STL
 #include <set>

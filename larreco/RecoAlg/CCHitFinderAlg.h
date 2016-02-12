@@ -27,8 +27,6 @@
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RecoBase/Hit.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
 #include "larreco/RecoAlg/GausFitCache.h"
 
 
@@ -128,8 +126,6 @@ namespace hit {
 //    bool prt;
     
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
 
     // fit n Gaussians possibly with bounds setting (parmin, parmax)
     void FitNG(unsigned short nGaus, unsigned short npt, float *ticks,

@@ -33,8 +33,8 @@
 #include "lardata/RawData/raw.h"
 #include "lardata/RawData/RawDigit.h"
 #include "larreco/RecoAlg/fuzzyClusterAlg.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/CryostatGeo.h"
 #include "larcore/Geometry/TPCGeo.h"
@@ -143,10 +143,10 @@ namespace cluster{
 
     // get the ChannelFilter
     // get channel quality service:
-    lariov::IChannelStatusProvider const& channelStatus
-      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+    lariov::ChannelStatusProvider const& channelStatus
+      = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     
-    lariov::IChannelStatusProvider::ChannelSet_t const BadChannels
+    lariov::ChannelStatusProvider::ChannelSet_t const BadChannels
       = channelStatus.BadChannels();
     
     // prepare the algorithm to compute the cluster characteristics;

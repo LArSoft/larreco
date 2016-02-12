@@ -19,8 +19,7 @@
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RecoBase/Hit.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 // ROOT includes
 #include <TMath.h>
@@ -216,15 +215,10 @@ namespace hit{
     // ####################################
     art::ServiceHandle<geo::Geometry> geom;
   
-    // #######################################
-    // ### Getting Liquid Argon Properites ###
-    // #######################################
-    art::ServiceHandle<util::LArProperties> larp;
-  
     // ###################################
     // ### Getting Detector Properties ###
     // ###################################
-    art::ServiceHandle<util::DetectorProperties> detp;
+    const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     // ##########################################
     // ### Reading in the Wire List object(s) ###
@@ -345,7 +339,7 @@ namespace hit{
     // === Calculating Time Tick and Drift Velocity ===
     // ================================================
     double time_tick      = detp->SamplingRate()/1000.;
-    double drift_velocity = larp->DriftVelocity(larp->Efield(),larp->Temperature());
+    double drift_velocity = detp->DriftVelocity(detp->Efield(),detp->Temperature());
     
     for(size_t nh = 0; nh < hitHandle->size(); nh++)
        {

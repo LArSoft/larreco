@@ -5,11 +5,14 @@
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 
+#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const fhicl::ParameterSet& pset)
+  : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
 	this->reconfigure(pset); 
 }
@@ -29,7 +32,9 @@ void pma::ProjectionMatchingAlg::reconfigure(const fhicl::ParameterSet& p)
 	fHitTestingDist2D = p.get< double >("HitTestingDist2D");
 
 	fMinTwoViewFraction = p.get< double >("MinTwoViewFraction");
-
+	
+	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
+	
 	pma::Node3D::SetMargin(p.get< double >("NodeMargin3D"));
 
 	pma::Element3D::SetOptFactor(geo::kZ, p.get< double >("HitWeightZ"));

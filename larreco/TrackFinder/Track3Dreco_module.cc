@@ -41,7 +41,7 @@
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/LArProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "art/Framework/Core/FindManyP.h"
 
@@ -119,7 +119,7 @@ void Track3Dreco::produce(art::Event& evt)
 { 
    // get services
    art::ServiceHandle<geo::Geometry> geom;
-   art::ServiceHandle<util::LArProperties> larprop;
+   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
    std::unique_ptr<std::vector<recob::Track>                    > tcol(new std::vector<recob::Track>);
    std::unique_ptr<std::vector<recob::SpacePoint>               > spacepoints(new std::vector<recob::SpacePoint>);
@@ -145,11 +145,11 @@ void Track3Dreco::produce(art::Event& evt)
    double Efield_IC = 0.9;     // Electric Field between Induction and Collection planes in kV/cm
    double Temperature = 87.6;  // LAr Temperature in K
 
-   double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature); //drift velocity in the drift 
+   double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature); //drift velocity in the drift 
                                                                             //region (cm/us)
-   double driftvelocity_SI = larprop->DriftVelocity(Efield_SI,Temperature); //drift velocity between shield 
+   double driftvelocity_SI = detprop->DriftVelocity(Efield_SI,Temperature); //drift velocity between shield 
                                                                             //and induction (cm/us)
-   double driftvelocity_IC = larprop->DriftVelocity(Efield_IC,Temperature); //drift velocity between induction 
+   double driftvelocity_IC = detprop->DriftVelocity(Efield_IC,Temperature); //drift velocity between induction 
                                                                             //and collection (cm/us)
    double timepitch = driftvelocity*timetick;                               //time sample (cm) 
    double tSI = plane_pitch/driftvelocity_SI/timetick;                      //drift time between Shield and 

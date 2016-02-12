@@ -47,8 +47,7 @@
 #include "lardata/RecoBase/Vertex.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/AnalysisBase/T0.h" 
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "larsim/MCCheater/BackTracker.h"
@@ -211,7 +210,7 @@ private:
   // ------------------------------------------------------
 
   art::ServiceHandle< geo::Geometry > fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
+  const detinfo::DetectorProperties* fDetProp;
 
   // ******************* tree output **********************
   int fEvNumber;        // event number
@@ -282,6 +281,8 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
+
+	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	produces< art::Assns<recob::Vertex, recob::Track> >();
 	produces< art::Assns<recob::Track, anab::T0> >();
 
@@ -1346,6 +1347,10 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
+	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
+	
+	fEvNumber = evt.id().event();
+	fIsRealData = evt.isRealData();
 	reset(evt); // set default values, clear containers at the beginning of each event
 
 	pma::TrkCandidateColl result;

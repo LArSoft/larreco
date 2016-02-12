@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
+#include "TFile.h"
 
 namespace cmtool {
 

@@ -28,8 +28,6 @@
 #include "lardata/RecoBase/Cluster.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include "larreco/RecoAlg/CMTool/CMToolBase/CMergeManager.h"
-#include "lardata/Utilities/DetectorProperties.h"
-#include "lardata/Utilities/LArProperties.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larcore/Geometry/Geometry.h"
 

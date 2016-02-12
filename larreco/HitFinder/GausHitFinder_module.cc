@@ -51,7 +51,6 @@
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBaseArt/HitCreator.h"
-#include "lardata/Utilities/DetectorProperties.h"
 
 // ROOT Includes
 #include "TGraphErrors.h"
@@ -231,11 +230,6 @@ void GausHitFinder::produce(art::Event& evt)
     // Instantiate and Reset a stop watch
     //TStopwatch StopWatch;
     //StopWatch.Reset();
-   
-    // ###################################
-    // ### Calling Detector Properties ###
-    // ###################################
-    art::ServiceHandle<util::DetectorProperties> detprop;
    
     // ################################
     // ### Calling Geometry service ###

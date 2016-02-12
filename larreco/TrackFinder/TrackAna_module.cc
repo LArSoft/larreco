@@ -32,8 +32,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
 
-#include "lardata/Utilities/DetectorProperties.h"
-#include "lardata/Utilities/LArProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/Hit.h"
@@ -96,7 +95,7 @@ namespace {
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get fiducial volume boundary.
 
@@ -158,8 +157,10 @@ namespace {
     // Get services.
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    //    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
+    
     // Get fiducial volume boundary.
 
     double xmin = 0.;
@@ -849,8 +850,7 @@ namespace trkf {
   // Arguments: event - Art event.
   //
   {
-    art::ServiceHandle<util::DetectorProperties> detprop;
-    art::ServiceHandle<util::LArProperties> larprop;
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<cheat::BackTracker> bt;
     art::ServiceHandle<geo::Geometry> geom;
 
@@ -917,7 +917,7 @@ namespace trkf {
 	    // Calculate the x offset due to nonzero mc particle time.
 
 	    double mctime = mctrk.Start().T();                      // nsec
-	    double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();  // cm
+	    double mcdx = mctime * 1.e-3 * detprop->DriftVelocity();  // cm
 
 	    // Calculate the length of this mc particle inside the fiducial volume.
 
@@ -1083,7 +1083,7 @@ namespace trkf {
 
 	//double recotime = track.Time() * detprop->SamplingRate();       // nsec
 //	double recotime = 0.;
-//	double trackdx = recotime * 1.e-3 * larprop->DriftVelocity();  // cm
+//	double trackdx = recotime * 1.e-3 * detprop->DriftVelocity();  // cm
   double trackdx = 0;
 
 	// Fill histograms involving reco tracks only.
@@ -1189,7 +1189,7 @@ namespace trkf {
 	      // Calculate the x offset due to nonzero mc particle time.
 
 	      double mctime = mctrk.Start().T();                                 // nsec
-	      double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();   // cm
+	      double mcdx = mctime * 1.e-3 * detprop->DriftVelocity();   // cm
 
 	      // Calculate the points where this mc particle enters and leaves the
 	      // fiducial volume, and the length in the fiducial volume.
@@ -1426,7 +1426,7 @@ namespace trkf {
         }
         // find the start/end wire:time in each plane
         TVector3 mcstart, mcend, mcstartmom, mcendmom;
-        double mcdx = mctrk.Start().T() * 1.e-3 * larprop->DriftVelocity();  // cm
+        double mcdx = mctrk.Start().T() * 1.e-3 * detprop->DriftVelocity();  // cm
         double plen = length(mctrk, mcdx, mcstart, mcend, mcstartmom, mcendmom);
         mf::LogVerbatim("TrackAna")<<evt.run()<<"."<<evt.event()
           <<" NoMat MCTkID "<<std::setw(6)<<mctrk.TrackID()
@@ -1454,9 +1454,9 @@ namespace trkf {
   void TrackAna::anaStitch(const art::Event& evt)
   {
 
-    art::ServiceHandle<util::LArProperties> larprop;
     art::ServiceHandle<cheat::BackTracker> bt;
     art::ServiceHandle<geo::Geometry> geom;
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     std::map<int, std::map<int, art::PtrVector<recob::Hit>> > hitmap; // trkID, otrk, hitvec
     std::map<int, int > KEmap; // length traveled in det [cm]?, trkID want to sort by KE
@@ -1562,7 +1562,7 @@ namespace trkf {
 		      TVector3 mcstartmom;
 		      TVector3 mcendmom;
 		      double mctime = part->T();                                 // nsec
-		      double mcdx = mctime * 1.e-3 * larprop->DriftVelocity();   // cm
+		      double mcdx = mctime * 1.e-3 * detprop->DriftVelocity();   // cm
 
 		      double plen = length(*part, mcdx, mcstart, mcend, mcstartmom, mcendmom);
 

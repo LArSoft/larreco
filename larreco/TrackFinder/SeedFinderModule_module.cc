@@ -92,7 +92,6 @@ namespace trkf {
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/Utilities/DetectorProperties.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
 

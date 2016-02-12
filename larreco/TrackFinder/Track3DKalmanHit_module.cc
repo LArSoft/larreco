@@ -60,7 +60,7 @@
 
 #include "TMath.h"
 
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Cluster.h"
@@ -995,7 +995,7 @@ recob::Seed trkf::Track3DKalmanHit::makeSeed(const art::PtrVector<recob::Hit>& h
   // Get Services.
 
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   // Do a linear 3D least squares for of y and z vs. x.
   // y = y0 + ay*(x-x0)

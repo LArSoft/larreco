@@ -38,6 +38,7 @@
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/MCBase/MCHitCollection.h"
 #include "larreco/HitFinder/HitAnaAlg.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
 namespace hit {
   class HitAnaModule;
@@ -149,8 +150,7 @@ void hit::HitAnaModule::analyze(art::Event const & e)
   analysisAlg.ClearHitModules();
 
   //get time service
-  art::ServiceHandle<util::TimeService> TimeServiceHandle;
-  util::TimeService const& TimeService(*TimeServiceHandle);
+  const detinfo::DetectorClocks* ts = lar::providerFrom<detinfo::DetectorClocksService>();
 
   //get the wire data
   art::Handle< std::vector<recob::Wire> > wireHandle;
@@ -197,7 +197,7 @@ void hit::HitAnaModule::analyze(art::Event const & e)
   }
 
   //run the analzyer alg
-  analysisAlg.AnalyzeWires(wireVector,mcHitVector,WireMCHitAssocVector,TimeService,eventNumber,runNumber);
+  analysisAlg.AnalyzeWires(wireVector,mcHitVector,WireMCHitAssocVector,ts,eventNumber,runNumber);
 
 }
 

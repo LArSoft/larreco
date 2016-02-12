@@ -26,8 +26,6 @@
 #include "larcore/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larsim/Simulation/EmEveIdCalculator.h"
-#include "lardata/Utilities/DetectorProperties.h"
-#include "lardata/Utilities/LArProperties.h"
 #include "lardata/Utilities/GeometryUtilities.h"
 
 

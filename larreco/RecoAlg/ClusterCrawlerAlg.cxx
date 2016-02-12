@@ -27,8 +27,8 @@
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Cluster.h"
 #include "larreco/RecoAlg/ClusterCrawlerAlg.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 struct CluLen{
   int index;
@@ -221,6 +221,8 @@ namespace cluster {
     // don't do anything...
     if(fNumPass == 0) return;
     
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
     for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
       for(plane = 0; plane < TPC.Nplanes(); ++plane){
@@ -271,7 +273,7 @@ namespace cluster {
         // get the scale factor to convert dTick/dWire to dX/dU. This is used
         // to make the kink and merging cuts
         float wirePitch = geom->WirePitch(geom->View(channel));
-        float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+        float tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
         tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
         fScaleF = tickToDist / wirePitch;
         // convert Large Angle Cluster crawling cut to a slope cut
@@ -5499,6 +5501,8 @@ namespace cluster {
         float theTime;
         int dwb, dwe;
 
+	const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
           // A complete 3D vertex with matching 2D vertices in all planes?
           if(vtx3[ivx].Wire < 0) continue;
@@ -5581,6 +5585,8 @@ namespace cluster {
         float dth, theTime;
         unsigned int thePlane, theWire, plane;
         unsigned int loWire, hiWire;
+
+	const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
         for(unsigned short ivx = 0; ivx < vtx3.size(); ++ivx) {
           if(vtx3[ivx].CStat != cstat || vtx3[ivx].TPC != tpc) continue;
@@ -5797,6 +5803,8 @@ namespace cluster {
     };
     std::array< std::vector<Hammer>, 3> hamrVec;
     
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
     unsigned int ipl;
     bool useit = false;
     for(ipl = 0; ipl < 3; ++ipl) {
@@ -5973,6 +5981,8 @@ namespace cluster {
         return;
       } // two planes
 */
+      const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+      
       const unsigned int cstat = tpcid.Cryostat;
       const unsigned int tpc = tpcid.TPC;
       
@@ -6241,8 +6251,9 @@ namespace cluster {
         ++nHitInPlane;
       }
       // overwrite with the "dead wires" condition
-      lariov::IChannelStatusProvider const& channelStatus
-      = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+      lariov::ChannelStatusProvider const& channelStatus
+        = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+      
       flag.first = -1; flag.second = -1;
       for(wire = 0; wire < nwires; ++wire) {
         raw::ChannelID_t chan = geom->PlaneWireToChannel

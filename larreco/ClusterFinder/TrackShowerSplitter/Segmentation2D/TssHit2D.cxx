@@ -1,5 +1,5 @@
 /**
- *  @file   TssHit2D.h
+ *  @file   TssHit2D.cxx
  *
  *  @author D.Stefan and R.Sulej
  * 
@@ -9,7 +9,6 @@
 #include "TssHit2D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "lardata/Utilities/DetectorProperties.h"
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"

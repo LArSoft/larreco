@@ -16,8 +16,7 @@
 #include "art/Persistency/Common/PtrVector.h"
 
 // larsoft
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfo/DetectorProperties.h"
 #include "lardata/RecoBase/Hit.h"
 
 // ROOT
@@ -39,8 +38,7 @@ class shower::ShowerEnergyAlg {
   double fVGradient, fVIntercept;
   double fZGradient, fZIntercept;
 
-  art::ServiceHandle<util::DetectorProperties> detprop;
-  art::ServiceHandle<util::LArProperties> larprop;
+  detinfo::DetectorProperties const* detprop = nullptr;
 
 };
 

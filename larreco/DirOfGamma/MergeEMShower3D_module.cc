@@ -18,8 +18,6 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "lardata/Utilities/DetectorProperties.h"
-#include "lardata/Utilities/LArProperties.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "lardata/RecoBase/Hit.h"

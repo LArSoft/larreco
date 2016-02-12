@@ -32,8 +32,7 @@
 #include "larcore/Geometry/WireGeo.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfo/DetectorProperties.h"
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 
@@ -184,7 +183,7 @@ private:
 
 	// Geometry and detector properties
 	art::ServiceHandle<geo::Geometry> fGeom;
-	art::ServiceHandle<util::DetectorProperties> fDetProp;
+	detinfo::DetectorProperties const* fDetProp;
 };
 
 #endif

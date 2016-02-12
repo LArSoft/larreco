@@ -16,8 +16,8 @@
 
 #include "lardata/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/TrackTrajectoryAlg.h"
 
 #include <vector>
@@ -71,8 +71,8 @@ namespace trkf
 
 
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const detinfo::LArProperties* larprop;
+    const detinfo::DetectorProperties* detprop;
 
 
   }; //class CosmicTrackerAlg

@@ -10,7 +10,7 @@
 
 #include "lardata/RecoBase/Hit.h"
 
-#include "larcore/Geometry/Geometry.h"
+#include "art/Persistency/Common/Ptr.h"
 
 #include "TVector2.h"
 #include "TVector3.h"
