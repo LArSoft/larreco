@@ -16,9 +16,10 @@
 #include "lardata/RecoBase/Track.h"
 #include "lardata/AnalysisBase/Calorimetry.h"
 
-#include "larcore/Geometry/Geometry.h"
-#include "lardata/Utilities/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "larcore/Geometry/GeometryCore.h"
+#include "lardata/DetectorInfo/LArProperties.h"
+#include "lardata/DetectorInfo/DetectorProperties.h"
+#include "lardata/DetectorInfo/ProviderPack.h"
 
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 
@@ -32,6 +33,10 @@ namespace calo{
 
 class calo::TrackCalorimetryAlg{
  public:
+  using Providers_t = lar::ProviderPack<
+    geo::GeometryCore, detinfo::LArProperties, detinfo::DetectorProperties
+    >;
+  
   TrackCalorimetryAlg(fhicl::ParameterSet const& p);
   void reconfigure(fhicl::ParameterSet const& p);
 
@@ -40,9 +45,8 @@ class calo::TrackCalorimetryAlg{
 			  std::vector< std::vector<size_t> > const&,
 			  std::vector<anab::Calorimetry>&,
 			  std::vector<size_t>&,
-			  geo::Geometry const&,
-			  util::LArProperties const&,
-			  util::DetectorProperties &);
+			  Providers_t providers
+			  );
 
  private:
 
@@ -86,7 +90,7 @@ class calo::TrackCalorimetryAlg{
 		  std::vector< std::pair<geo::WireID,float> > const&, 
 		  std::vector<float> const&,
 		  HitPropertiesMultiset_t &,
-		  geo::Geometry const&);
+		  geo::GeometryCore const&);
 
   bool IsInvertedTrack(HitPropertiesMultiset_t const&);
 

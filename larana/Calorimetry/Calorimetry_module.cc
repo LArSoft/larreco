@@ -24,9 +24,9 @@ extern "C" {
 #include <fstream>
 
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
-#include "lardata/Utilities/LArProperties.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "larcore/SimpleTypesAndConstants/PhysicalConstants.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/SpacePoint.h"
@@ -34,8 +34,8 @@ extern "C" {
 #include "lardata/AnalysisBase/Calorimetry.h"
 #include "lardata/AnalysisBase/T0.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/IChannelStatusProvider.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 
@@ -233,8 +233,7 @@ void calo::Calorimetry::beginJob()
 //------------------------------------------------------------------------------------//
 void calo::Calorimetry::produce(art::Event& evt)
 { 
-  art::ServiceHandle<util::LArProperties> LArProp;
-  art::ServiceHandle<util::DetectorProperties> detprop;
+  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   art::Handle< std::vector<recob::Track> > trackListHandle;
   std::vector<art::Ptr<recob::Track> > tracklist;
@@ -250,8 +249,8 @@ void calo::Calorimetry::produce(art::Event& evt)
   TPCsize[2] = (geom->DetLength());
 
   // channel quality
-  lariov::IChannelStatusProvider const& channelStatus
-    = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+  lariov::ChannelStatusProvider const& channelStatus
+    = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
 
   frun = evt.id().run();
   fevent = evt.id().event();
@@ -777,7 +776,7 @@ void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> t
 
   // Get services
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<util::DetectorProperties> dp;
+  auto const* dp = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
   //save distance to each spacepoint sorted by distance
   std::map<double,size_t> sptmap;

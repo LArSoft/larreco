@@ -8,8 +8,6 @@ art_make(
 		        larreco_RecoAlg
                         lardata_AnalysisAlg
                         lardata_AnalysisBase
-                        lardata_Utilities_LArProperties_service
-                        lardata_Utilities_DetectorProperties_service
                         lardata_Utilities
                         ${MF_MESSAGELOGGER}
 		        ${MF_UTILITIES}
@@ -29,8 +27,6 @@ art_make(
                         lardata_RawData
                         lardata_AnalysisAlg
                         lardata_AnalysisBase
-                        lardata_Utilities_LArProperties_service
-                        lardata_Utilities_DetectorProperties_service
                         lardata_Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

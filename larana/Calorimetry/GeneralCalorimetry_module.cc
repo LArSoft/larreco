@@ -16,7 +16,7 @@ extern "C" {
 #include <string>
 #include <algorithm>
 
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
@@ -56,7 +56,7 @@ namespace calo {
     private:
         
       std::string    fTrackModuleLabel; ///< module creating the track objects and assns to hits
-      double         fADCToElectrons;   ///< filled using the util::DetectorProperties service
+      double         fADCToElectrons;   ///< filled using the detinfo::DetectorPropertiesService service
       geo::View_t    fCollectionView;   ///< view of the collection plane
       unsigned int   fCollectionPlane;  ///< plane of the collection plane
       art::ServiceHandle<geo::Geometry> fGeo;
@@ -74,7 +74,7 @@ calo::GeneralCalorimetry::GeneralCalorimetry(fhicl::ParameterSet const& pset)
   , fCollectionPlane(0)
   , caloAlg(pset.get< fhicl::ParameterSet >("CaloAlg"))
 {
-  art::ServiceHandle<util::DetectorProperties> dp;
+  auto const* dp = lar::providerFrom<detinfo::DetectorPropertiesService>();
   fADCToElectrons = 1./dp->ElectronsToADC();
 
   // determine the view of the collection plane
@@ -114,7 +114,7 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
   std::vector< art::Ptr<recob::Track> > tracks;
   art::fill_ptr_vector(tracks, trackHandle);
   
-  art::ServiceHandle<util::DetectorProperties> dp;
+  auto const* dp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   //create anab::Calorimetry objects and make association with recob::Track
   std::unique_ptr< std::vector<anab::Calorimetry> > calorimetrycol(new std::vector<anab::Calorimetry>);

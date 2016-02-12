@@ -26,11 +26,12 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(std::vector<recob::Track> con
 						   std::vector< std::vector<size_t> > const& hit_indices_per_track,
 						   std::vector<anab::Calorimetry>& caloVector,
 						   std::vector<size_t>& assnTrackCaloVector,
-						   geo::Geometry const& geom,
-						   util::LArProperties const& larp,
-						   util::DetectorProperties & detprop)
+						   Providers_t providers)
 {
-
+  auto const& geom = *(providers.get<geo::GeometryCore>());
+//  auto const& larp = *(providers.get<detinfo::LArProperties>());
+  auto const& detprop = *(providers.get<detinfo::DetectorProperties>());
+  
   //loop over the track list
   for(size_t i_track=0; i_track<trackVector.size(); i_track++){
 
@@ -81,7 +82,7 @@ void calo::TrackCalorimetryAlg::ExtractCalorimetry(std::vector<recob::Track> con
 
 class dist_projected{
 public:
-  dist_projected(recob::Hit const& h, geo::Geometry const& g):
+  dist_projected(recob::Hit const& h, geo::GeometryCore const& g):
     hit(h), geom(g){}
   bool operator() (std::pair<geo::WireID,float> i, std::pair<geo::WireID,float> j)
   {
@@ -94,7 +95,7 @@ public:
   }
 private:
   recob::Hit const& hit;
-  geo::Geometry const& geom;
+  geo::GeometryCore const& geom;
 
 };
 
@@ -117,7 +118,7 @@ void calo::TrackCalorimetryAlg::AnalyzeHit(recob::Hit const& hit,
 					   std::vector< std::pair<geo::WireID,float> > const& traj_points_in_plane,
 					   std::vector<float> const& path_length_fraction_vec,
 					   HitPropertiesMultiset_t & HitPropertiesMultiset,
-					   geo::Geometry const& geom){
+					   geo::GeometryCore const& geom){
 
   size_t traj_iter = std::distance(traj_points_in_plane.begin(),
 				   std::min_element(traj_points_in_plane.begin(),

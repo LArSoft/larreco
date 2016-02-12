@@ -26,7 +26,11 @@
 
 #include <memory>
 
+#include "larcore/Geometry/Geometry.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardata/DetectorInfoServices/ServicePack.h" // lar::extractProviders()
 #include "TrackCalorimetryAlg.h"
 
 namespace calo{
@@ -81,12 +85,6 @@ void calo::TrackCalorimetry::reconfigure(fhicl::ParameterSet const & p)
 
 void calo::TrackCalorimetry::produce(art::Event & e)
 {
-  art::ServiceHandle<geo::Geometry> geomHandle;
-  geo::Geometry & geom(*geomHandle);
-  art::ServiceHandle<util::LArProperties> larpHandle;
-  util::LArProperties const& larp(*larpHandle);
-  art::ServiceHandle<util::DetectorProperties> detpropHandle;
-  util::DetectorProperties & detprop(*detpropHandle);
 
   art::Handle< std::vector<recob::Track> > trackHandle;
   e.getByLabel(fTrackModuleLabel,trackHandle);
@@ -116,7 +114,9 @@ void calo::TrackCalorimetry::produce(art::Event & e)
   fTrackCaloAlg.ExtractCalorimetry(trackVector,
 				   hitVector,hit_indices_per_track,
 				   caloVector,assnTrackCaloVector,
-				   geom, larp, detprop);
+				   lar::extractProviders
+				     <geo::Geometry, detinfo::LArPropertiesService, detinfo::DetectorPropertiesService>()
+				   );
 
   //Make the associations for ART
   for(size_t calo_iter=0; calo_iter<assnTrackCaloVector.size(); calo_iter++){
