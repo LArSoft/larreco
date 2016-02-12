@@ -49,7 +49,7 @@ public:
 	           const std::vector< TVector3 >& vtx_input);
 
 	std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > >
-		getVertices(const pma::TrkCandidateColl& tracks) const;
+		getVertices(const pma::TrkCandidateColl& tracks, bool onlyBranching = false) const;
 
 private:
 	std::vector< pma::VtxCandidate > firstPassCandidates(void);

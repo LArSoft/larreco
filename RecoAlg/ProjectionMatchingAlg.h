@@ -72,10 +72,11 @@ public:
 	/// matchings give significantly lower values.
 	double twoViewFraction(pma::Track3D& trk) const;
 
-	/// Count the number of hits that are closer than fHitTestingDist2D to the track 2D projection.
+	/// Count the number of hits that are closer than eps * fHitTestingDist2D to the track 2D projection.
 	unsigned int testHits(const pma::Track3D& trk,
-		const std::vector< art::Ptr<recob::Hit> >& hits) const
-	{ return trk.TestHits(hits, fHitTestingDist2D); }
+		const std::vector< art::Ptr<recob::Hit> >& hits,
+		double eps = 1.0) const
+	{ return trk.TestHits(hits, eps * fHitTestingDist2D); }
 
 	/// Test if hits at the track endpoinds do not stick out of TPC which they belong to.
 	/// Here one can implement some configurable margin if needed for real data imeprfections.

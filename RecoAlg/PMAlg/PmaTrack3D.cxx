@@ -2391,7 +2391,7 @@ unsigned int pma::Track3D::DisableSingleViewEnds(void)
 	pma::Hit3D* nextHit = 0;
 	int hitIndex = -1;
 
-	bool stop = false;
+	bool rebuild = false, stop = false;
 	int nViews = 0;
 	hasHits[0] = hasHits[1] = hasHits[2] = hasHits[3] = 0;
 	do
@@ -2443,11 +2443,12 @@ unsigned int pma::Track3D::DisableSingleViewEnds(void)
 
 		nViews = hasHits[1] + hasHits[2] + hasHits[3];
 		if (hasHits[0] || (nViews > 1)) stop = true;
-		else
+		else if (!fNodes.front()->IsBranching())
 		{
 			pma::Node3D* vtx_front = fNodes.front();
 			fNodes.erase(fNodes.begin());
 			delete vtx_front;
+			rebuild = true;
 		}
 
 	} while (!stop);
@@ -2504,17 +2505,21 @@ unsigned int pma::Track3D::DisableSingleViewEnds(void)
 
 		nViews = hasHits[1] + hasHits[2] + hasHits[3];
 		if (hasHits[0] || (nViews > 1)) stop = true;
-		else
+		else if (!fNodes.back()->IsBranching())
 		{
 			pma::Node3D* vtx_back = fNodes.back();
 			fNodes.pop_back();
 			delete vtx_back;
+			rebuild = true;
 		}
 
 	} while (!stop);
 
-	RebuildSegments();
-	MakeProjection();
+	if (rebuild)
+	{
+		RebuildSegments();
+		MakeProjection();
+	}
 
 	return nDisabled;
 }

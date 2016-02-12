@@ -51,10 +51,6 @@
 #include "Utilities/DetectorProperties.h"
 #include "Utilities/AssociationUtil.h"
 
-#include "MCCheater/BackTracker.h"
-#include "Simulation/ParticleList.h"
-#include "SimulationBase/MCParticle.h"
-
 #include "RecoAlg/ProjectionMatchingAlg.h"
 #include "RecoAlg/PMAlgVertexing.h"
 #include "RecoAlg/PMAlg/Utilities.h"
@@ -195,19 +191,23 @@ private:
   bool reassignHits(
 	const std::vector< art::Ptr<recob::Hit> >& hits,
 	const std::vector< art::Ptr<recob::Cluster> > & clusters,
-	pma::TrkCandidateColl & tracks,
-	size_t trk_idx, double dist2);
-  bool reassignSingleViewEnds(
-	pma::TrkCandidateColl & tracks,
+	pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2);
+  bool reassignHits(
+	const std::vector< art::Ptr<recob::Hit> >& hits,
+	pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2);
+
+  double collectSingleViewFront(pma::Track3D & trk,
+	std::vector< art::Ptr<recob::Hit> > & hits);
+  double collectSingleViewEnd(pma::Track3D & trk,
+	std::vector< art::Ptr<recob::Hit> > & hits);
+
+  bool reassignSingleViewEnds(pma::TrkCandidateColl & tracks,
 	const std::vector< art::Ptr<recob::Cluster> > & clusters);
+  bool reassignSingleViewEnds(pma::TrkCandidateColl & tracks);
   void guideEndpoints(pma::TrkCandidateColl & tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
   recob::Track convertFrom(const pma::Track3D& src);
-
-  bool fIsRealData;
-  bool isMcStopping(void) const; // to be moved to the testing module
-  int getMcPdg(const pma::Track3D& trk) const; // to be moved to the testing module
   // ------------------------------------------------------
 
   art::ServiceHandle< geo::Geometry > fGeom;
@@ -218,8 +218,6 @@ private:
   int fTrkIndex;        // track index in the event, same for all dQ/dx points of the track
   int fPlaneIndex;      // wire plane index of the dQ/dx data point
   int fPlaneNPoints;    // number of data points in this plane
-  int fIsStopping;      // tag tracks of stopping particles
-  int fMcPdg;           // MC truth PDG matched for a track
   int fPidTag;          // Tag: 0=trk-like, 1=cascade-like
   double fdQdx;         // dQ/dx data point stored for each plane
   double fRange;        // residual range at dQ/dx data point, tracks are auto-flipped
@@ -263,6 +261,7 @@ private:
 
   pma::PMAlgVertexing fPMAlgVertexing;
   bool fRunVertexing;          // run vertex finding
+  bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
 };
 // ------------------------------------------------------
 
@@ -300,8 +299,6 @@ void PMAlgTrackMaker::beginJob()
 	fTree_dQdx->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
 	fTree_dQdx->Branch("fPlaneIndex", &fPlaneIndex, "fPlaneIndex/I");
 	fTree_dQdx->Branch("fPlaneNPoints", &fPlaneNPoints, "fPlaneNPoints/I");
-	fTree_dQdx->Branch("fIsStopping", &fIsStopping, "fIsStopping/I");
-	fTree_dQdx->Branch("fMcPdg", &fMcPdg, "fMcPdg/I");
 	fTree_dQdx->Branch("fdQdx", &fdQdx, "fdQdx/D");
 	fTree_dQdx->Branch("fRange", &fRange, "fRange/D");
 	fTree_dQdx->Branch("fLength", &fLength, "fLength/D");
@@ -309,7 +306,6 @@ void PMAlgTrackMaker::beginJob()
 	fTree_trk = tfs->make<TTree>("PMAlgTrackMaker_trk", "tracks overall info");
 	fTree_trk->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
 	fTree_trk->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
-	fTree_trk->Branch("fMcPdg", &fMcPdg, "fMcPdg/I");
 	fTree_trk->Branch("fLength", &fLength, "fLength/D");
 	fTree_trk->Branch("fHitsMse", &fHitsMse, "fHitsMse/D");
 	fTree_trk->Branch("fSegAngMean", &fSegAngMean, "fSegAngMean/D");
@@ -351,6 +347,7 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 
 	fPMAlgVertexing.reconfigure(pset.get< fhicl::ParameterSet >("PMAlgVertexing"));
 	fRunVertexing = pset.get< bool >("RunVertexing");
+	fSaveOnlyBranchingVtx = pset.get< bool >("SaveOnlyBranchingVtx");
 }
 
 void PMAlgTrackMaker::reset(const art::Event& evt)
@@ -360,12 +357,9 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 	fPfpClusters.clear();
 	fPfpPdgCodes.clear();
 	fEvNumber = evt.id().event();
-	fIsRealData = evt.isRealData();
 	fTrkIndex = 0;
 	fPlaneIndex = 0;
 	fPlaneNPoints = 0;
-	fIsStopping = 0;
-	fMcPdg = 0;
 	fPidTag = 0;
 	fdQdx = 0.0;
 	fRange = 0.0;
@@ -459,11 +453,8 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	if (src.GetTag() == pma::Track3D::kEmLike) fPidTag = 0x10000;
 	else fPidTag = 0;
 
-	fMcPdg = getMcPdg(src);
-
 	if (fSave_dQdx)
 	{
-		fIsStopping = (int)isMcStopping();
 		for (unsigned int view = 0; view < fGeom->Nviews(); view++)
 			if (fGeom->TPC(tpc, cryo).HasPlane(view))
 			{
@@ -490,67 +481,6 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	}
 
 	return recob::Track(xyz, dircos, dst_dQdx, std::vector< double >(2, util::kBogusD), fTrkIndex + fPidTag);
-}
-// ------------------------------------------------------
-
-bool PMAlgTrackMaker::isMcStopping(void) const
-{
-	if (fIsRealData)
-	{
-		// maybe possible to apply check here
-		return false;
-	}
-	else
-	{
-		art::ServiceHandle< cheat::BackTracker > bt;
-		const sim::ParticleList& plist = bt->ParticleList();
-		const simb::MCParticle* particle = plist.Primary(0);
-
-		if (particle)
-		{
-		//	std::cout << "...:SIM:... " << particle->EndProcess()
-		//		<< " n:" << particle->NumberDaughters()
-		//		<< " m:" << particle->Mass()
-		//		<< " E:" << particle->EndE() << std::endl;
-			return (particle->EndE() - particle->Mass() < 0.001);
-		//	return (particle->NumberDaughters() == 0);
-		}
-		else return false;
-	}
-}
-
-int PMAlgTrackMaker::getMcPdg(const pma::Track3D& trk) const
-{
-	if (fIsRealData) return 0;
-
-	art::ServiceHandle< cheat::BackTracker > bt;
-	std::map< int, size_t > pdg_counts;
-	for (size_t i = 0; i < trk.size(); i++)
-		if (trk[i]->IsEnabled() && (trk[i]->View2D() == geo::kZ))
-	{
-		art::Ptr< recob::Hit > hit = trk[i]->Hit2DPtr();
-		std::vector< sim::TrackIDE > tids = bt->HitToTrackID(hit);
-		for (auto const& tid : tids)
-		{
-			const simb::MCParticle* pi = bt->TrackIDToParticle(tid.trackID);
-			int pdg = pi->PdgCode();
-			auto it = pdg_counts.find(pdg);
-			if (it != pdg_counts.end()) pdg_counts[pdg]++;
-			else pdg_counts[pdg] = 1;
-        }
-	}
-
-	int best_pdg = 0;
-	size_t count, max_count = 0;
-	for (auto const& p : pdg_counts)
-	{
-		count = p.second;
-		if (count > max_count)
-		{
-			max_count = count; best_pdg = p.first;
-		}
-	}
-	return best_pdg;
 }
 // ------------------------------------------------------
 
@@ -1066,8 +996,8 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 }
 // ------------------------------------------------------
 
-bool PMAlgTrackMaker::reassignHits(
-	const std::vector< art::Ptr<recob::Hit> > & hits, const std::vector< art::Ptr<recob::Cluster> > & clusters,
+bool PMAlgTrackMaker::reassignHits(const std::vector< art::Ptr<recob::Hit> > & hits,
+	const std::vector< art::Ptr<recob::Cluster> > & clusters,
 	pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2)
 {
 	pma::Track3D* trk1 = tracks[trk_idx].Track();
@@ -1088,7 +1018,7 @@ bool PMAlgTrackMaker::reassignHits(
 
 		if (best_trk && (n_max >= hits.size() / 3)) // /2
 		{
-			mf::LogVerbatim("PMAlgTrackMaker") << "  Reassign " << n_max << " hits." << std::endl;
+			mf::LogVerbatim("PMAlgTrackMaker") << "  Reassign(v1) " << n_max << " hits." << std::endl;
 
 			trk1->RemoveHits(hits);
 			trk1->CleanupTails();
@@ -1136,70 +1066,157 @@ bool PMAlgTrackMaker::reassignHits(
 	return result;
 }
 
+bool PMAlgTrackMaker::reassignHits(const std::vector< art::Ptr<recob::Hit> > & hits,
+	pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2)
+{
+	pma::Track3D* trk1 = tracks[trk_idx].Track();
+
+	bool result = false;
+	if ((hits.size() > 1) || (dist2 > 1.0)) // min. 2 hits or single hit separated from the rest
+	{
+		pma::Track3D* best_trk = 0;
+
+		size_t n_max = 0;
+		for (size_t u = 0; u < tracks.size(); u++)
+			if (trk_idx != u)
+		{
+			pma::Track3D* trk2 = tracks[u].Track();
+			size_t n = fProjectionMatchingAlg.testHits(*trk2, hits, 0.5);
+			if (n > n_max) { n_max = n; best_trk = trk2; }
+		}
+
+		if (best_trk && (n_max >= (size_t)(0.8 * hits.size()))) // most hits!
+		{
+			mf::LogVerbatim("PMAlgTrackMaker") << "  Reassign(v2) " << n_max << " hits." << std::endl;
+
+			trk1->RemoveHits(hits);
+			trk1->CleanupTails();
+			trk1->ShiftEndsToHits();
+
+			best_trk->AddHits(hits);
+
+			result = true;
+		}
+	}
+	else if ((hits.size() == 1) || (dist2 > 2.25)) // dist > 1.5cm
+	{
+		mf::LogVerbatim("PMAlgTrackMaker") << "  Cut single-view isolated hit." << std::endl;
+		trk1->RemoveHits(hits);
+		trk1->CleanupTails();
+		trk1->ShiftEndsToHits();
+
+		result = true;
+	}
+
+	if (result)
+	{
+		// reopt trees
+	}
+
+	return result;
+}
+
+double PMAlgTrackMaker::collectSingleViewEnd(pma::Track3D & trk,
+	std::vector< art::Ptr<recob::Hit> > & hits)
+{
+	size_t idx = 0;
+	while ((idx < trk.size() - 1) && !(trk[idx]->IsEnabled()))
+	{
+		hits.push_back(trk[idx++]->Hit2DPtr());
+	}
+
+	double d2 = 0.0;
+	if (idx > 0)
+	{
+		if ((idx < trk.size() - 1) &&
+		    (trk[idx]->View2D() == trk[idx - 1]->View2D()))
+		{
+			double dprev = pma::Dist2(trk[idx]->Point3D(), trk[idx - 1]->Point3D());
+			double dnext = pma::Dist2(trk[idx]->Point3D(), trk[idx + 1]->Point3D());
+			if (dprev < dnext)
+			{
+				hits.push_back(trk[idx++]->Hit2DPtr());
+			}
+		}
+		d2 = pma::Dist2(trk[idx]->Point3D(), trk[idx - 1]->Point3D());
+	}
+	return d2;
+}
+
+double PMAlgTrackMaker::collectSingleViewFront(pma::Track3D & trk,
+	std::vector< art::Ptr<recob::Hit> > & hits)
+{
+	size_t idx = trk.size() - 1;
+	while ((idx > 0) && !(trk[idx]->IsEnabled()))
+	{
+		hits.push_back(trk[idx--]->Hit2DPtr());
+	}
+
+	double d2 = 0.0;
+	if (idx < trk.size() - 1)
+	{
+		if ((idx > 0) &&
+		    (trk[idx]->View2D() == trk[idx + 1]->View2D()))
+		{
+			double dprev = pma::Dist2(trk[idx]->Point3D(), trk[idx + 1]->Point3D());
+			double dnext = pma::Dist2(trk[idx]->Point3D(), trk[idx - 1]->Point3D());
+			if (dprev < dnext)
+			{
+				hits.push_back(trk[idx--]->Hit2DPtr());
+			}
+		}
+		d2 = pma::Dist2(trk[idx]->Point3D(), trk[idx + 1]->Point3D());
+	}
+	return d2;
+}
+
 bool PMAlgTrackMaker::reassignSingleViewEnds(pma::TrkCandidateColl & tracks,
 	const std::vector< art::Ptr<recob::Cluster> > & clusters)
 {
 	bool result = false;
 	for (size_t t = 0; t < tracks.size(); t++)
 	{
-		pma::Track3D* trk = tracks[t].Track();
-		if (trk->size() < 6) continue;
+		pma::Track3D & trk = *(tracks[t].Track());
+		if (trk.size() < 6) continue;
 
-		trk->DisableSingleViewEnds();
+		trk.DisableSingleViewEnds();
 
 		std::vector< art::Ptr<recob::Hit> > hits;
 
-		size_t idx = 0;
-		while ((idx < trk->size() - 1) && !((*trk)[idx]->IsEnabled()))
-		{
-			hits.push_back((*trk)[idx++]->Hit2DPtr());
-		}
-
-		double d2;
-		if (idx > 0)
-		{
-			if ((idx < trk->size() - 1) &&
-			    ((*trk)[idx]->View2D() == (*trk)[idx - 1]->View2D()))
-			{
-				double dprev = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx - 1]->Point3D());
-				double dnext = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx + 1]->Point3D());
-				if (dprev < dnext)
-				{
-					hits.push_back((*trk)[idx++]->Hit2DPtr());
-				}
-			}
-			d2 = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx - 1]->Point3D());
-		}
-		else d2 = 0.0;
-
+		double d2 = collectSingleViewEnd(trk, hits);
 		result |= reassignHits(hits, clusters, tracks, t, d2);
 
 		hits.clear();
-		idx = trk->size() - 1;
-		while ((idx > 0) && !((*trk)[idx]->IsEnabled()))
-		{
-			hits.push_back((*trk)[idx--]->Hit2DPtr());
-		}
 
-		if (idx < trk->size() - 1)
-		{
-			if ((idx > 0) &&
-			    ((*trk)[idx]->View2D() == (*trk)[idx + 1]->View2D()))
-			{
-				double dprev = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx + 1]->Point3D());
-				double dnext = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx - 1]->Point3D());
-				if (dprev < dnext)
-				{
-					hits.push_back((*trk)[idx--]->Hit2DPtr());
-				}
-			}
-			d2 = pma::Dist2((*trk)[idx]->Point3D(), (*trk)[idx + 1]->Point3D());
-		}
-		else d2 = 0.0;
-
+		d2 = collectSingleViewFront(trk, hits);
 		result |= reassignHits(hits, clusters, tracks, t, d2);
 
-		trk->SelectHits();
+		trk.SelectHits();
+	}
+	return result;
+}
+
+bool PMAlgTrackMaker::reassignSingleViewEnds(pma::TrkCandidateColl & tracks)
+{
+	bool result = false;
+	for (size_t t = 0; t < tracks.size(); t++)
+	{
+		pma::Track3D & trk = *(tracks[t].Track());
+		if (trk.size() < 6) continue;
+
+		trk.DisableSingleViewEnds();
+
+		std::vector< art::Ptr<recob::Hit> > hits;
+
+		double d2 = collectSingleViewEnd(trk, hits);
+		result |= reassignHits(hits, tracks, t, d2);
+
+		hits.clear();
+
+		d2 = collectSingleViewFront(trk, hits);
+		result |= reassignHits(hits, tracks, t, d2);
+
+		trk.SelectHits();
 	}
 	return result;
 }
@@ -1513,7 +1530,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			auto tid = getProductID< std::vector<recob::Track> >(evt);
 			auto const* trkGetter = evt.productGetter(tid);
 
-			auto vsel = fPMAlgVertexing.getVertices(result); // vertex positions with vector of connected tracks idxs
+			auto vsel = fPMAlgVertexing.getVertices(result, fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
 			std::map< size_t, art::Ptr<recob::Vertex> > frontVtxs; // front vertex ptr for each track index
 
 			if (fRunVertexing) // save vertices and vtx-trk assns
@@ -1700,6 +1717,8 @@ int PMAlgTrackMaker::fromMaxCluster(const art::Event& evt, pma::TrkCandidateColl
 		{
 			mf::LogVerbatim("PMAlgTrackMaker") << "Vertex finding / track-vertex reoptimization.";
 			fPMAlgVertexing.run(result);
+
+			//reassignSingleViewEnds(result); // final check for correct hit-track assignments
 		}
 
 		if (fMatchT0inAPACrossing)

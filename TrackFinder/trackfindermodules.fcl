@@ -49,6 +49,8 @@ standard_pmalgtrackmaker:
   PMAlgVertexing:         @local::standard_pmavertexalg
                                       #
   RunVertexing:           false       # find vertices, join with tracks, reoptimize track-vertex structure
+  SaveOnlyBranchingVtx:   false       # use true to save only vertices interconnecting many tracks, otherwise
+                                      # vertex is added to the front of each track
                                       #
   MakePFPs:               false       # output track-vertex net as a tree of PFParticles, in such case tracks
                                       # are associated to new PFParticles even if CluMatchingAlg is 2 or 3

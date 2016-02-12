@@ -503,7 +503,7 @@ void pma::PMAlgVertexing::splitMergedTracks(pma::TrkCandidateColl & trk_input) c
 // ------------------------------------------------------
 
 std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > >
-pma::PMAlgVertexing::getVertices(const pma::TrkCandidateColl & tracks) const
+pma::PMAlgVertexing::getVertices(const pma::TrkCandidateColl & tracks, bool onlyBranching) const
 {
 	std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > > vsel;
 	std::vector< pma::Node3D const * > bnodes;
@@ -512,7 +512,7 @@ pma::PMAlgVertexing::getVertices(const pma::TrkCandidateColl & tracks) const
 	{
 		pma::Track3D const * trk = tracks[t].Track();
 		pma::Node3D const * firstNode = trk->Nodes().front();
-		if (!firstNode->IsBranching())
+		if (!(onlyBranching || firstNode->IsBranching()))
 		{
 			std::vector< std::pair< size_t, bool > > tidx;
 			tidx.emplace_back(std::pair< size_t, bool >(t, true));
