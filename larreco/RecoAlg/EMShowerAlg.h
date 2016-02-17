@@ -24,6 +24,7 @@
 
 // larsoft
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/DetectorInfo/DetectorProperties.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 #include "larreco/RecoAlg/ShowerEnergyAlg.h"
 #include "larcore/Geometry/Geometry.h"

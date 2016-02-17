@@ -47,7 +47,6 @@
 #include "lardata/RecoBase/Vertex.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/AnalysisBase/T0.h" 
-#include "lardata/DetectorInfo/LArProperties.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
@@ -211,7 +210,7 @@ private:
   // ------------------------------------------------------
 
   art::ServiceHandle< geo::Geometry > fGeom;
-  auto const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  const detinfo::DetectorProperties* fDetProp;
 
   // ******************* tree output **********************
   int fEvNumber;        // event number
@@ -281,6 +280,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
+	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	produces< art::Assns<recob::Vertex, recob::Track> >();
 	produces< art::Assns<recob::Track, anab::T0> >();
 
@@ -1363,6 +1363,8 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
+	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
 	reset(evt); // set default values, clear containers at the beginning of each event
 
 	pma::TrkCandidateColl result;
