@@ -23,7 +23,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // larsoft
-#include "lardata/DetectorInfo/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 #include "larreco/RecoAlg/ShowerEnergyAlg.h"
 #include "larcore/Geometry/Geometry.h"

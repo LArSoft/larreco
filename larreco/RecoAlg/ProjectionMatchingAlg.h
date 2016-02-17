@@ -32,7 +32,7 @@
 #include "larcore/Geometry/WireGeo.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/SpacePoint.h"
-#include "lardata/Utilities/LArProperties.h"
+#include "lardata/DetectorInfo/LArProperties.h"
 #include "lardata/Utilities/DetectorProperties.h"
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"

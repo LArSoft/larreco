@@ -47,7 +47,7 @@
 #include "lardata/RecoBase/Vertex.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/AnalysisBase/T0.h" 
-#include "lardata/Utilities/LArProperties.h"
+#include "lardata/DetectorInfo/LArProperties.h"
 #include "lardata/Utilities/DetectorProperties.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
