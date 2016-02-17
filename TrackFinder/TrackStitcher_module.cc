@@ -223,7 +223,19 @@ namespace trkf {
          // I call the function to bring back the vec of associated Hits and the vector of
          // pairs of iterators that allow to pull those Hits needed from each Sppt.
          std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > >  pits;
-         const std::vector<art::Ptr<recob::Hit>> hitsFromSppts(GetHitsFromAssdSpacePoints(sppts, evt, pits));
+         
+         std::vector<art::Ptr<recob::Hit>> hitsFromSppts;
+         art::FindManyP<recob::Hit> hitAssns(sppts, evt, fSpptModuleLabel);
+         
+         size_t start(0), finish(0);
+         for (unsigned int ii=0; ii < sppts.size(); ++ii )
+         {
+            hitsFromSppts.insert(hitsFromSppts.end(),hitAssns.at(ii).begin(), hitAssns.at(ii).end());
+            finish = start+(size_t)(hitAssns.at(ii).end() - hitAssns.at(ii).begin());
+            std::pair< std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > pithittmp(hitAssns.at(ii).begin(),hitAssns.at(ii).end());
+            pits.push_back(pithittmp);
+            start += (finish+1);
+         }
          //	std::cout << "TrackStitcher_module: scol->size() is " << scol->size() << std::endl;
          //	std::cout << "TrackStitcher_module: sppts.size() is " << sppts.size() << std::endl;
          for ( size_t jj=0; jj<sppts.size(); jj++ )
@@ -246,7 +258,6 @@ namespace trkf {
             if (ll<scol->size())
             {
                std::vector <art::Ptr  <recob::Hit> > hitsThisSppt;
-               std::cout << "TrackStitcher_module pits: " << pits.size() << std::endl;
                hitsThisSppt.insert(hitsThisSppt.begin(),pits.at(jj).first,pits.at(jj).second);
                util::CreateAssn(*this, evt, scol->at(ll), hitsThisSppt, *spthassn);
             }
@@ -298,7 +309,7 @@ namespace trkf {
    {
       
       std::vector<art::Ptr<recob::Hit>> hits;
-      art::FindManyP<recob::Hit> hitAssns(sppts, evtGHFCT, fSpptModuleLabel); 
+      art::FindManyP<recob::Hit> hitAssns(sppts, evtGHFCT, fSpptModuleLabel);
       
       size_t start(0), finish(0);
       for (unsigned int ii=0; ii < sppts.size(); ++ii )
