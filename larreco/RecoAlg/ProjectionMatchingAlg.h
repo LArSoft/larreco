@@ -33,7 +33,7 @@
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/DetectorInfo/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfo/DetectorProperties.h"
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 
@@ -185,7 +185,7 @@ private:
 
 	// Geometry and detector properties
 	art::ServiceHandle<geo::Geometry> fGeom;
-	art::ServiceHandle<util::DetectorProperties> fDetProp;
+	auto const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 };
 
 #endif

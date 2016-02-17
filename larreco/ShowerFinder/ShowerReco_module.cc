@@ -265,7 +265,7 @@ void ShowerReco::beginJob()
   /**Get TFileService and define output Histograms*/
   art::ServiceHandle<art::TFileService> tfs;
 
- // art::ServiceHandle<detinfo::DetectorPropertiesService> detp;
+ // auto const* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
   ftimetick=detprop->SamplingRate()/1000.;
   
 
@@ -652,7 +652,7 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
   ///////////////////////////////////////////////////////////
  const double origin[3] = {0.};
  std::vector <std::vector <  double > > position;
- // art::ServiceHandle<detinfo::DetectorPropertiesService> detprop;
+ // auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
  double fTimeTick=detprop->SamplingRate()/1000.; 
  double fDriftVelocity=detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
  // get starting positions for all planes
@@ -857,7 +857,7 @@ void ShowerReco::LongTransEnergy(unsigned int set, std::vector < art::Ptr<recob:
   
   double totCnrg = 0,totCnrg_corr =0;//, totNewCnrg=0 ; // tot enegry of the shower in collection
 //   art::ServiceHandle<geo::Geometry> geom;
-//   art::ServiceHandle<detinfo::DetectorPropertiesService> detprop;
+//   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   double time;
   unsigned int wire=0,plane=fNPlanes-1;

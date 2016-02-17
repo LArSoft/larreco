@@ -48,7 +48,7 @@
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/AnalysisBase/T0.h" 
 #include "lardata/DetectorInfo/LArProperties.h"
-#include "lardata/Utilities/DetectorProperties.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
@@ -211,7 +211,7 @@ private:
   // ------------------------------------------------------
 
   art::ServiceHandle< geo::Geometry > fGeom;
-  art::ServiceHandle<util::DetectorProperties> fDetProp;
+  auto const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   // ******************* tree output **********************
   int fEvNumber;        // event number
