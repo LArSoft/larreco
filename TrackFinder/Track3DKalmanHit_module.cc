@@ -396,8 +396,25 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    
    // Get Hits.
    std::list<LocalKalmanStruct> LocalKalmanStructList;
-   getInputfromevent(evt, LocalKalmanStructList);
-   
+   //getInputfromevent(evt, LocalKalmanStructList);
+   if(fUseClusterHits) {
+      LocalKalmanStructList.emplace_back();
+      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
+      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
+      getClusteredHits(hits, evt);
+      std::cout << "Track3DKalmanHit/ClusterHits: " << LocalKalmanStructList.size() << "\n";
+   }
+   else if(fUsePFParticleHits) {
+      getPFParticleHits(LocalKalmanStructList, evt);
+      std::cout << "Track3DKalmanHit/pfParticle: " << LocalKalmanStructList.size() << "\n";
+   }
+   else {
+      LocalKalmanStructList.emplace_back();
+      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
+      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
+      getAllHits(hits, evt);
+      std::cout << "Track3DKalmanHit/allHits: " << LocalKalmanStructList.size() << "\n";
+   }
    
    //SS: LocalKalmanStruct.hits holds the input hits, .tracks will have the redulting Kalmantracks
    generateKalmantracks(LocalKalmanStructList);
@@ -867,7 +884,7 @@ void trkf::Track3DKalmanHit::getAllHits(art::PtrVector<recob::Hit>& hits,
 //----------------------------------------------------------------------------
 /// If UsePFParticles is true use this method to fill in hits
 
-void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & LocalKalmanStructList,
+void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & localcoll,
                                                const art::Event & evt) const{
    
    // Our program is to drive the track creation/fitting off the PFParticles in the data store
@@ -879,6 +896,7 @@ void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & Lo
    evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
    if (!pfParticleHandle.isValid()) return;
    
+   std::cout << "Track3DKalmanHit: pfParticleHandle size" << pfParticleHandle->size() << "\n";
    art::Handle<std::vector<recob::Cluster> > clusterHandle;
    evt.getByLabel(fClusterModuleLabel, clusterHandle);
    
@@ -899,8 +917,8 @@ void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & Lo
    for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
       
       // Add a new empty hit collection.
-      LocalKalmanStructList.emplace_back();
-      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
+      localcoll.emplace_back();
+      LocalKalmanStruct& local_kalman_struct = localcoll.back();
       local_kalman_struct.pfPartPtr = art::Ptr<recob::PFParticle>(pfParticleHandle, partIdx);
       art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
       
@@ -914,14 +932,15 @@ void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & Lo
       }
       
       // If requested, fill associated seeds.
-      
-      if(!fUsePFParticleSeeds) return;
+      if(!fUsePFParticleSeeds) continue;
       art::PtrVector<recob::Seed>& seeds = local_kalman_struct.seeds;
       std::vector<art::Ptr<recob::Seed> > seedVec = seedAssns.at(partIdx);
       seeds.insert(seeds.end(), seedVec.begin(), seedVec.end());
       art::FindManyP<recob::Hit> seedHitAssns(seedVec, evt, fPFParticleModuleLabel);
+      std::cout << "Track3DKalmanHit: seedHitAssns " << seedHitAssns.size() << ", "<< seedVec.size() << "\n";
       for(size_t seedIdx = 0; seedIdx < seedVec.size(); ++seedIdx) {
          std::vector<art::Ptr<recob::Hit> > seedHitVec;
+         //SS: why seedIdx can have an invalid value?
          try {
             seedHitVec = seedHitAssns.at(seedIdx);
          }
@@ -933,6 +952,8 @@ void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & Lo
          seedhits.insert(seedhits.end(), seedHitVec.begin(), seedHitVec.end());
       }
    }
+   
+   std::cout << "Track3DKalmanHit: end localcoll size " << localcoll.size() << "\n";
 }
 
 
