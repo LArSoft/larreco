@@ -229,6 +229,10 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::Convolve(std::v
 
   int nbinsx = copy.size();
   int nbinsy = copy.at(0).size();
+  int lowerWidth = -width / 2;
+  int lowerHeight = -height / 2;
+  int upperWidth = (width + 1) / 2;
+  int upperHeight = (height + 1) / 2;
 
   // Loop through all the bins in the histogram to blur
   for (int x = 0; x < nbinsx; ++x) {
@@ -239,8 +243,8 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::Convolve(std::v
       double norml = 0;
 
       // Loop over a blurring region (nothing to do with current bin - will be used as a distance from current bin to blur later on)
-      for (int blurx = -width / 2; blurx < (width + 1) / 2; ++blurx) {
-	for (int blury = -height / 2; blury < (height + 1) / 2; ++blury) {
+      for (int blurx = lowerWidth; blurx < upperWidth; ++blurx) {
+	for (int blury = lowerHeight; blury < upperHeight; ++blury) {
 
 	  // Form a weight for each bin based on the Gaussian kernel
 	  // NB/ This is simply a measure of how large the Gaussian weight is this far from the seed - nothing to do with current bins
@@ -248,7 +252,7 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::Convolve(std::v
 
 	  // Look at the blurred region - if still within the hit map, increase the weight according to the value of the kernel at this blurring distance
 	  if (x + blurx >= 0 and x + blurx < nbinsx and y + blury >= 0 and y + blury < nbinsy) {
-	    newval += weight * image.at(x+blurx).at(y+blury);
+	    newval += weight * image[x+blurx][y+blury];
 	    norml += weight;
 	  }
 
