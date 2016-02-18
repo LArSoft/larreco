@@ -166,7 +166,7 @@ namespace cluster {
     art::ServiceHandle<geo::Geometry> geom;
     unsigned int vtxID = 0, end, wire;
     for(TrajClusterAlg::VtxStore const& vtx2: EndPts) {
-      if(vtx2.NClusters == 0) continue;
+      if(vtx2.NTraj == 0) continue;
       ++vtxID;
       wire = (0.5 + vtx2.Wire);
       geo::PlaneID plID = TrajClusterAlg::DecodeCTP(vtx2.CTP);
