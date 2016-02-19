@@ -1,0 +1,98 @@
+#
+# File:     DumpTracksSpacepoints.fcl
+# Purpose:  Dump on screen track content
+# Author:   Gianluca Petrillo (petrillo@fnal.gov)
+# Date:     October 16th, 2014
+# Version:  1.0
+#
+# Service dependencies:
+# - message facility
+#
+
+process_name: DumpTracksSpacepoints
+
+services: {
+#  TimeTracker:           {dbOutput: { filename: "timing.db" }}  
+  message: {
+  #   debugModules: [ "*" ]
+    destinations: {
+      
+      # grab all the "DumpTracksSpacepoints" messages and put them in DumpTracks.log
+      DumpTracksSpacepoints: {
+        append: false
+        categories: {
+          DumpTracksSpacepoints: { limit: -1 }
+          default: { limit: 0 }
+        }
+        filename: "DumpTracksSpacepoints.log"
+        threshold: "INFO"
+        type: "file"
+      } # DumpTracksSpacepoints
+      
+      LogStandardOut: {
+        categories: {
+          AnaBaseDefaultCtor: { limit: 0 }
+          GeometryBadInputPoint: {
+            limit: 5
+            timespan: 1000
+          }
+          RecoBaseDefaultCtor: { limit: 0 }
+          DumpTracksSpacepoints: { limit: 0 }
+          default: {}
+        }
+        threshold: "WARNING"
+        type: "cout"
+      } # LogStandardOut
+      
+    } # destinations
+  } # message
+} # services
+
+
+source: {
+  module_type: RootInput
+  maxEvents:  -1            # number of events to read
+} # source
+
+
+physics: {
+  producers:{}
+  filters:  {}
+  analyzers: {
+    dumptracksnsptsc: {
+      module_label: dumptracksnsptsc
+      module_type:  DumpTracksSpacepoints
+      
+      # output category ("DumpTracksSpacepoints" by default), useful for filtering (see above)
+      OutputCategory: "DumpTracksSpacepoints"
+      
+      # specify the label of the recob::Track producer
+      TrackModuleLabel: "trackkalmanhit"
+    } # dumptracksnsptsc
+
+    dumptracksnsptspf: {
+      module_label: dumptracksnsptspf
+      module_type:  DumpTracksSpacepoints
+
+      OutputCategory: "DumpTracksSpacepoints"
+
+      TrackModuleLabel: "pandoraCosmicKHit"
+    } #dumptracksnsptspf 
+    
+    dumptracksnspts: {
+      module_label: dumptracksnspts
+      module_type:  DumpTracksSpacepoints
+
+      OutputCategory: "DumpTracksSpacepoints"
+
+      TrackModuleLabel: "trackkalmanhitall"
+    } #dumptracksnspts
+  } # analyzers
+  
+  ana:  [ dumptracksnsptsc, dumptracksnsptspf, dumptracksnspts ]
+  
+  trigger_paths: []
+  end_paths:     [  ana ]
+} # physics
+
+#services.TimeTracker {dbOutput: { filename: "timing.db" }}

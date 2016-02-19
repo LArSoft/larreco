@@ -31,7 +31,7 @@
 #endif // GAUSFITCACHE_TEST_DEBUG
 
 // LArSoft libraries
-#include "RecoAlg/GausFitCache.h"
+#include "larreco/RecoAlg/GausFitCache.h"
 
 
 template <typename T>
