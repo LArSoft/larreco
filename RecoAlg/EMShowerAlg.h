@@ -140,6 +140,9 @@ private:
   TVector2 HitPosition(art::Ptr<recob::Hit> const& hit);
   TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);
   double GlobalWire(geo::WireID wireID);
+  TVector2 ShowerDirection(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+  TVector2 ShowerCentre(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+  double ShowerHitRMS(const std::vector<art::Ptr<recob::Hit> >& showerHits);
   TVector2 Project3DPointOntoPlane(TVector3 const& point, geo::PlaneID planeID);
 
   // tmp
