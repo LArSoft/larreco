@@ -58,7 +58,7 @@
 #include "TCanvas.h"
 #include "TString.h"
 #include "TF1.h"
-#include "MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "TH1I.h"
 
 namespace shower {
@@ -88,7 +88,7 @@ public:
   void FindShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
   void FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
 			std::unique_ptr<recob::Track>& initialTrack,
-			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits);
+			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits, int plane);
   void FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
 			std::unique_ptr<recob::Track>& initialTrack,
 			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits,
@@ -117,7 +117,7 @@ public:
 			 art::Ptr<recob::Vertex> const& vertex);
   double OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
 			 std::vector<art::Ptr<recob::Hit> >& showerHits);
-  std::map<int,std::vector<art::Ptr<recob::Hit> > > OrderShowerHits(art::PtrVector<recob::Hit> const& shower);
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > OrderShowerHits(art::PtrVector<recob::Hit> const& shower, int plane);
   TVector3 Construct3DPoint(art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2);
 
   Int_t WeightedFit(const Int_t n, const Double_t *x, const Double_t *y, const Double_t *w,  Double_t *parm);

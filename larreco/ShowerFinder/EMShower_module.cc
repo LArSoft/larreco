@@ -254,7 +254,7 @@ void shower::EMShower::produce(art::Event& evt) {
       // Find the track at the start of the shower
       std::unique_ptr<recob::Track> initialTrack;
       std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits;
-      fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits);
+      fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fPlane);
       
       // Make shower object and associations
       recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
