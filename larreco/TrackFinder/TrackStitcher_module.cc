@@ -252,7 +252,7 @@ namespace trkf {
                ll = kk;
                //		std::cout << "TrackStitcher_module: index into spacepoints for which to write out sppt-hit Assns is " << ll << std::endl;
                // drop this one for future searches, since we've used it.
-               spIndices.erase(spIndices.begin()+off);
+
                break;
             }
             if (ll<scol->size())

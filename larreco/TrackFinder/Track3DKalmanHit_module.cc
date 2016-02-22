@@ -172,7 +172,7 @@ namespace trkf {
                              const art::Event & evt) const;
       void getAllHits(art::PtrVector<recob::Hit>& hits,
                       const art::Event & evt) const;
-      void chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
+      void chopHitsOffSeeds(art::PtrVector<recob::Hit>const & hpsit,
                             bool pfseed,
                             art::PtrVector<recob::Hit> &seedhits) const;
       bool qualityCutsOnSeedTrack(const KGTrack &trg0) const;
@@ -183,8 +183,8 @@ namespace trkf {
       void fitnupdateMomentum(KGTrack& trg1,
                               KGTrack& trg2);
       bool test1(const double *dir);
-      std::shared_ptr<Surface> Foo(const recob::Seed &seed, double *dir);
-      std::vector<KTrack> makeInitialtracks(const std::shared_ptr<trkf::Surface> psurf);
+      std::shared_ptr<Surface> makeSurface(const recob::Seed &seed, double *dir);
+      std::vector<KTrack> makeInitialKtracks(const std::shared_ptr<trkf::Surface> psurf);
       bool processInitialtracks(const trkf::KTrack &trk,
                                 art::PtrVector<recob::Hit>& seedhits,
                                 art::PtrVector<recob::Hit>& hits,
@@ -192,7 +192,7 @@ namespace trkf {
       void processSeeds(bool pfseed,
                         std::vector<recob::Seed>& seeds,
                         std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
-                        art::PtrVector<recob::Hit>& seederhits,
+                        art::PtrVector<recob::Hit>& unusedhits,
                         art::PtrVector<recob::Hit>& hits,
                         std::deque<KGTrack>& kalman_tracks);
       void getInputfromevent(const art::Event &evt, std::list<LocalKalmanStruct> &LocalKalmanStructList);
@@ -396,25 +396,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    
    // Get Hits.
    std::list<LocalKalmanStruct> LocalKalmanStructList;
-   //getInputfromevent(evt, LocalKalmanStructList);
-   if(fUseClusterHits) {
-      LocalKalmanStructList.emplace_back();
-      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
-      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-      getClusteredHits(hits, evt);
-      std::cout << "Track3DKalmanHit/ClusterHits: " << LocalKalmanStructList.size() << "\n";
-   }
-   else if(fUsePFParticleHits) {
-      getPFParticleHits(LocalKalmanStructList, evt);
-      std::cout << "Track3DKalmanHit/pfParticle: " << LocalKalmanStructList.size() << "\n";
-   }
-   else {
-      LocalKalmanStructList.emplace_back();
-      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
-      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-      getAllHits(hits, evt);
-      std::cout << "Track3DKalmanHit/allHits: " << LocalKalmanStructList.size() << "\n";
-   }
+   getInputfromevent(evt, LocalKalmanStructList);
    
    //SS: LocalKalmanStruct.hits holds the input hits, .tracks will have the redulting Kalmantracks
    generateKalmantracks(LocalKalmanStructList);
@@ -464,18 +446,18 @@ void trkf::Track3DKalmanHit::getInputfromevent(const art::Event &evt, std::list<
       LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
       art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
       getClusteredHits(hits, evt);
-      std::cout << "Track3DKalmanHit/ClusterHits: " << LocalKalmanStructList.size() << "\n";
+      //std::cout << "Track3DKalmanHit/ClusterHits: " << LocalKalmanStructList.size() << "\n";
    }
    else if(fUsePFParticleHits) {
       getPFParticleHits(LocalKalmanStructList, evt);
-      std::cout << "Track3DKalmanHit/pfParticle: " << LocalKalmanStructList.size() << "\n";
+      //std::cout << "Track3DKalmanHit/pfParticle: " << LocalKalmanStructList.size() << "\n";
    }
    else {
       LocalKalmanStructList.emplace_back();
       LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
       art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
       getAllHits(hits, evt);
-      std::cout << "Track3DKalmanHit/allHits: " << LocalKalmanStructList.size() << "\n";
+      //std::cout << "Track3DKalmanHit/allHits: " << LocalKalmanStructList.size() << "\n";
    }
 }
 
@@ -491,13 +473,13 @@ void trkf::Track3DKalmanHit::generateKalmantracks(std::list<LocalKalmanStruct> &
       //std::cout << "Hits num: " << hits.size() << "\n";
       // The hit collection "hits" (just filled), initially containing all
       // hits, represents hits available for making tracks.  Now we will
-      // fill a second hit collection called "seederhits", also initially
+      // fill a second hit collection called "unusedhits", also initially
       // containing all hits, which will represent hits available for
       // making track seeds.  These collections are not necessarily the
       // same, since hits that are not suitable for seeds may still be
       // suitable for tracks.
       
-      art::PtrVector<recob::Hit> seederhits = hits;
+      art::PtrVector<recob::Hit> unusedhits = hits;
       
       // Start of loop.
       
@@ -526,17 +508,17 @@ void trkf::Track3DKalmanHit::generateKalmantracks(std::list<LocalKalmanStruct> &
          else {
             // On subsequent trips, or if there were no usable pfparticle-associated seeds,
             // attempt to generate our own seeds.
-            if(seederhits.size()>0) {
+            if(unusedhits.size()>0) {
                if(fSelfSeed) {
                   // Self seed - convert all hits into one big seed.
-                  seeds.emplace_back(makeSeed(seederhits));
+                  seeds.emplace_back(makeSeed(unusedhits));
                   hitsperseed.emplace_back();
                   hitsperseed.back().insert(hitsperseed.back().end(),
-                                            seederhits.begin(),
-                                            seederhits.end());
+                                            unusedhits.begin(),
+                                            unusedhits.end());
                }
                else
-                  seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(seederhits, hitsperseed);
+                  seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(unusedhits, hitsperseed);
             }
             //SS: what if seederhits.size(), that means we have no hits to process
          }
@@ -550,7 +532,7 @@ void trkf::Track3DKalmanHit::generateKalmantracks(std::list<LocalKalmanStruct> &
             break;
          }
          else {
-            processSeeds(pfseed, seeds, hitsperseed, seederhits, hits, kalman_tracks);
+            processSeeds(pfseed, seeds, hitsperseed, unusedhits, hits, kalman_tracks);
          }
       }
    }
@@ -635,7 +617,7 @@ void trkf::Track3DKalmanHit::persistObjects( std::list<LocalKalmanStruct> const 
 //----------------------------------------------------------------------------
 /// method to return a seed to surface.
 
-std::shared_ptr<trkf::Surface> trkf::Track3DKalmanHit::Foo(const recob::Seed &seed,
+std::shared_ptr<trkf::Surface> trkf::Track3DKalmanHit::makeSurface(const recob::Seed &seed,
                                                            double *dir)
 {
    double xyz[3];
@@ -691,46 +673,50 @@ bool trkf::Track3DKalmanHit::processInitialtracks(const trkf::KTrack &trk,
 void trkf::Track3DKalmanHit::processSeeds(bool pfseed,
                                           std::vector<recob::Seed>& seeds,
                                           std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
-                                          art::PtrVector<recob::Hit>& seederhits,
+                                          art::PtrVector<recob::Hit>& unusedhits,
                                           art::PtrVector<recob::Hit>& hits,
-                                          std::deque<KGTrack>& kalman_tracks){
+                                          std::deque<KGTrack>& kgtracks){
    std::vector<recob::Seed>::const_iterator sit = seeds.begin();
    std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit = hitsperseed.begin();
-   for(;sit != seeds.end() && hpsit != hitsperseed.end(); ++sit, ++hpsit) {
+   //SS: use indexing
+   //check for size of both containers
+   //if (seeds.size() != hitsperseed.size())
+   for (;sit != seeds.end() && hpsit != hitsperseed.end(); ++sit, ++hpsit) {
       //method to process Seeds
       const recob::Seed& seed = *sit;
-      art::PtrVector<recob::Hit> seedhits;
+      art::PtrVector<recob::Hit> unchoppedhits;
       
       // Chop a couple of hits off each end of the seed.
-      chopHitsOffSeeds(hpsit, pfseed, seedhits);
+      chopHitsOffSeeds(*hpsit, pfseed, unchoppedhits);
       
       // Filter hits used by (chopped) seed from hits available to make future seeds.
       // No matter what, we will never use these hits for another seed.
       // This eliminates the possibility of an infinite loop.
       
-      size_t initial_seederhits = seederhits.size();
-      FilterHits(seederhits, seedhits);
+      size_t initial_unusedhits = unusedhits.size();
+      FilterHits(unusedhits, unchoppedhits);
       
       // Require that this seed be fully disjoint from existing tracks.
       //SS: replace this test with a method with appropriate name
-      if(!(seedhits.size() + seederhits.size() == initial_seederhits)) continue;
+      if(!(unchoppedhits.size() + unusedhits.size() == initial_unusedhits)) continue;
       
       // Convert seed into initial KTracks on surface located at seed point,
       // and normal to seed direction.
       double dir[3];
-      std::shared_ptr<Surface> psurf = Foo(seed, dir);
+      std::shared_ptr<Surface> psurf = makeSurface(seed, dir);
       
       // Cut on the seed slope dx/ds.
       //SS: replace test name with a reasonable name
       if (!test1(dir)) continue;
       
       // Make one or two initial KTracks for forward and backward directions.
-      std::vector<KTrack> initial_tracks = makeInitialtracks(psurf);
+      //SS: it always makes 2 tracks
+      std::vector<KTrack> iKtracks = makeInitialKtracks(psurf);
       
       // Loop over initial tracks.
-      auto ntracks = kalman_tracks.size();   // Remember original track count.
-      for(auto const &trk: initial_tracks) {
-         bool ok = processInitialtracks(trk, seedhits, hits, kalman_tracks);
+      auto ntracks = kgtracks.size();   // Remember original track count.
+      for(auto const &ktrk: iKtracks) {
+         bool ok = processInitialtracks(ktrk, unchoppedhits, hits, kgtracks);
          if(ok && !fDoDedx) break;
       } // for initial track
       
@@ -738,9 +724,9 @@ void trkf::Track3DKalmanHit::processSeeds(bool pfseed,
       // these tracks from hits available for making additional
       // tracks or track seeds.
       
-      for(unsigned int itrk = ntracks; itrk < kalman_tracks.size(); ++itrk) {
-         const KGTrack& trg = kalman_tracks[itrk];
-         filterHitsOnKalmanTrack(trg, hits, seederhits);
+      for(unsigned int itrk = ntracks; itrk < kgtracks.size(); ++itrk) {
+         const KGTrack& trg = kgtracks[itrk];
+         filterHitsOnKalmanTrack(trg, hits, unusedhits);
       }
       
    }
@@ -748,7 +734,7 @@ void trkf::Track3DKalmanHit::processSeeds(bool pfseed,
 //----------------------------------------------------------------------------
 
 
-std::vector<trkf::KTrack> trkf::Track3DKalmanHit::makeInitialtracks(const std::shared_ptr<trkf::Surface> psurf){
+std::vector<trkf::KTrack> trkf::Track3DKalmanHit::makeInitialKtracks(const std::shared_ptr<trkf::Surface> psurf){
    // Assume muon (pdgid = 13).
    int pdg = 13; //SS: FIXME another constant?
    
@@ -834,6 +820,7 @@ void trkf::Track3DKalmanHit::filterHitsOnKalmanTrack(const KGTrack& trg,
 /// Fill hit container with either seedhits or filtered hits i.e. recob::Hit
 
 std::unique_ptr<trkf::KHitContainer> trkf::Track3DKalmanHit::fillHitContainer(const art::PtrVector<recob::Hit> &hits) const{
+  // std::cout << "Track3DKalmanHit: fLineSurface " << fLineSurface << "\n";
    std::unique_ptr<KHitContainer> hitcont(fLineSurface ?
                                           static_cast<KHitContainer *>(new KHitContainerWireLine) :
                                           static_cast<KHitContainer *>(new KHitContainerWireX));
@@ -896,7 +883,7 @@ void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & lo
    evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
    if (!pfParticleHandle.isValid()) return;
    
-   std::cout << "Track3DKalmanHit: pfParticleHandle size" << pfParticleHandle->size() << "\n";
+   //std::cout << "Track3DKalmanHit: pfParticleHandle size" << pfParticleHandle->size() << "\n";
    art::Handle<std::vector<recob::Cluster> > clusterHandle;
    evt.getByLabel(fClusterModuleLabel, clusterHandle);
    
@@ -937,7 +924,7 @@ void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & lo
       std::vector<art::Ptr<recob::Seed> > seedVec = seedAssns.at(partIdx);
       seeds.insert(seeds.end(), seedVec.begin(), seedVec.end());
       art::FindManyP<recob::Hit> seedHitAssns(seedVec, evt, fPFParticleModuleLabel);
-      std::cout << "Track3DKalmanHit: seedHitAssns " << seedHitAssns.size() << ", "<< seedVec.size() << "\n";
+     // std::cout << "Track3DKalmanHit: seedHitAssns " << seedHitAssns.size() << ", "<< seedVec.size() << "\n";
       for(size_t seedIdx = 0; seedIdx < seedVec.size(); ++seedIdx) {
          std::vector<art::Ptr<recob::Hit> > seedHitVec;
          //SS: why seedIdx can have an invalid value?
@@ -953,7 +940,7 @@ void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & lo
       }
    }
    
-   std::cout << "Track3DKalmanHit: end localcoll size " << localcoll.size() << "\n";
+  // std::cout << "Track3DKalmanHit: end localcoll size " << localcoll.size() << "\n";
 }
 
 
@@ -982,23 +969,23 @@ bool trkf::Track3DKalmanHit::qualityCutsOnSeedTrack(const KGTrack &trg0) const{
 
 // Don't chop pfparticle seeds or self seeds.
 
-void trkf::Track3DKalmanHit::chopHitsOffSeeds(std::vector<art::PtrVector<recob::Hit> >::const_iterator hpsit,
+void trkf::Track3DKalmanHit::chopHitsOffSeeds(art::PtrVector<recob::Hit>const& hpsit,
                                               bool pfseed,
                                               art::PtrVector<recob::Hit> &seedhits) const{
-   int nchopmax = std::max(0, int((hpsit->size() - fMinSeedChopHits)/2));
-   if(pfseed || fSelfSeed)
-      nchopmax = 0;
-   //
-   //    int nchopmax = ((pfseed || fSelfSeed) ?
-   //                    0:
-   //                    std::max(0, int((hpsit->size() - fMinSeedChopHits)/2)));
-   //
-   int nchop = std::min(nchopmax, fMaxChopHits);
-   art::PtrVector<recob::Hit>::const_iterator itb = hpsit->begin();
-   art::PtrVector<recob::Hit>::const_iterator ite = hpsit->end();
+   //int nchopmax = std::max(0, int((hpsit.size() - fMinSeedChopHits)/2));
+   //if(pfseed || fSelfSeed) nchopmax = 0;
+   
+   const int nchopmax = (pfseed || fSelfSeed) ?
+                   0:
+                   std::max(0, int((hpsit.size() - fMinSeedChopHits)/2));
+   //SS: FIXME
+   
+   const int nchop = std::min(nchopmax, fMaxChopHits);
+   art::PtrVector<recob::Hit>::const_iterator itb = hpsit.begin();
+   art::PtrVector<recob::Hit>::const_iterator ite = hpsit.end();
    itb += nchop;
    ite -= nchop;
-   seedhits.reserve(hpsit->size());
+   seedhits.reserve(hpsit.size());
    for(art::PtrVector<recob::Hit>::const_iterator it = itb; it != ite; ++it)
       seedhits.push_back(*it);
 }
