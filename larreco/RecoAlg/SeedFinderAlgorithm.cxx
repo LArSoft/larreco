@@ -441,7 +441,7 @@ namespace trkf {
       }
 
 
-
+     std::cout << ReturnVector.size()<< " is the num seeds in SeedFinder" ;
     return ReturnVector;
 
 
@@ -1117,7 +1117,8 @@ namespace trkf {
   std::vector<recob::Seed>
   SeedFinderAlgorithm::GetSeedsFromUnSortedHits(art::PtrVector<recob::Hit> const & Hits,
                                                 std::vector<art::PtrVector<recob::Hit> >& HitCatalogue)
-  {  
+  {
+     std::cout << "In Seedfinder\n";
     return FindSeeds( Hits, HitCatalogue, 0);
   }
 

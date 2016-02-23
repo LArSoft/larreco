@@ -107,7 +107,7 @@ void trkf::Track3DKalmanHitAlg::generateKalmantracks(std::list<LocalKalmanStruct
    for(auto& local_kalman_struct : LocalKalmanStructList) {
       
       // Recover the kalman tracks double ended queue
-      
+      std::cout << "Track3DKalmanHitAlg::generateKalmantracks\n";
       std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
       art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
       //std::cout << "Hits num: " << hits.size() << "\n";
@@ -161,12 +161,14 @@ void trkf::Track3DKalmanHitAlg::generateKalmantracks(std::list<LocalKalmanStruct
                   seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(unusedhits, hitsperseed);
             }
             //SS: what if seederhits.size(), that means we have no hits to process
+            std::cout << "fSelfSeed: " << fSelfSeed << " unusedhits size " << unusedhits.size() << "\n";
+            std::cout << "Seeds: " << seeds.size() << " , "<< hitsperseed.size() << "\n";
          }
          
          assert(seeds.size() == hitsperseed.size());
          first = false;
          
-         //  std::cout << "Seeds: " << seeds.size() << hitsperseed.size() << "\n";
+         
          if(seeds.size() == 0) { // Quit loop if we didn't find any new seeds.
             done = true;
             break;
@@ -246,6 +248,7 @@ void trkf::Track3DKalmanHitAlg::processSeeds(bool pfseed,
    //SS: use indexing
    //check for size of both containers
    //if (seeds.size() != hitsperseed.size())
+   std::cout << "Track3DKalmanHitAlg::processSeeds\n";
    for (;sit != seeds.end() && hpsit != hitsperseed.end(); ++sit, ++hpsit) {
       //method to process Seeds
       const recob::Seed& seed = *sit;
@@ -492,6 +495,7 @@ bool trkf::Track3DKalmanHitAlg::smoothandextendTrack(KGTrack &trg0,
    }
    // Save this track.
    ++fNumTrack;
+   std::cout << "In the alg: " << fNumTrack << "\n";
    kalman_tracks.push_back(trg1);
    return ok;
 }

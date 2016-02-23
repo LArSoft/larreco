@@ -69,8 +69,9 @@
 #include "lardata/RecoBase/PFParticle.h"
 #include "lardata/RecoBase/Seed.h"
 #include "larreco/RecoAlg/Track3DKalmanHitAlg.h"
-#include "larreco/RecoAlg/SeedFinderAlgorithm.h"
+#include "larreco/RecoAlg/SpacePointAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"
+
 
 #include "TH1F.h"
 
@@ -254,11 +255,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    // Get Hits.
    std::list<LocalKalmanStruct> LocalKalmanStructList;
    getInputfromevent(evt, LocalKalmanStructList);
-   std::cout << "Track3DKalmanHit_module: " << LocalKalmanStructList.size() << "local structs." << "\n";
    //SS: LocalKalmanStruct.hits holds the input hits, .tracks will have the redulting Kalmantracks
    fTKHAlg.generateKalmantracks(LocalKalmanStructList);
    
-   
+   std::cout << LocalKalmanStructList.size() << "\n";
    // Fill histograms.
    
    if(fHist) {
@@ -335,6 +335,8 @@ void trkf::Track3DKalmanHit::persistObjects( std::list<LocalKalmanStruct> const 
    }
    tracks.reserve(tracksSize);
    
+   std::cout << "persist Objects " << LocalKalmanStructList.size() <<  "\n";
+   
    auto const tid = getProductID<std::vector<recob::Track> >(evt);
    auto const tidgetter = evt.productGetter(tid);
    
@@ -344,7 +346,8 @@ void trkf::Track3DKalmanHit::persistObjects( std::list<LocalKalmanStruct> const 
    for(auto& local_kalman_struct : LocalKalmanStructList) {
       // Recover the kalman tracks double ended queue
       const std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
-      
+//      std::cout << "persist Objects: kalman tracks" << kalman_tracks.size() <<  "\n";
+
       for(auto const& kalman_track:kalman_tracks) {
          
          // Add Track object to collection.
@@ -363,6 +366,7 @@ void trkf::Track3DKalmanHit::persistObjects( std::list<LocalKalmanStruct> const 
          // Make space points from this track.
          auto nspt = spts.size();
          fSpacePointAlg.fillSpacePoints(spts, kalman_track.TrackMap());
+         
          
          std::vector<art::Ptr<recob::SpacePoint>> sptvec;
          for(auto ispt = nspt; ispt < spts.size(); ++ispt) {
