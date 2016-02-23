@@ -97,11 +97,11 @@ standard_kalmanfilteralg:
   GTraceZMax: [ 1040., 1040., 1040.]  # Graphical trace maximum z for each view
 }
 
-standard_track3dkalmanhitalg:
+standard_track3Dkalmanhitalg:
 {
   MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
   DoDedx:             false         # dE/dx enable flag.
-  SelfSeed:           false         # Generate seeds internally.
+  SelfSeed:           true         # Generate seeds internally.
   LineSurface:        false         # Store hits on line surfaces.
   MinSeedHits:        12            # Minimum number of hits per track seed.
   MinSeedChopHits:    50            # Potentially chop seeds that exceed this length.
@@ -111,7 +111,6 @@ standard_track3dkalmanhitalg:
   InitialMomentum:    0.5           # Initial momentum (GeV/c).
   KalmanFilterAlg:    @local::standard_kalmanfilteralg
   SeedFinderAlg:      @local::standard_seedfinderalgorithm
-  SpacePointAlg:      @local::standard_spacepointalg
 }
 
 standard_cosmictrackeralg:
@@ -142,6 +141,7 @@ bo_beziertrackeralgorithm.SeedFinder:            @local::bo_seedfinderalgorithm
 microboone_spacepointalg:          @local::standard_spacepointalg
 microboone_spacepointalg.MinViews: 3
 microboone_spacepointalg.EnableW:  true
+microboone_track3Dkalmanhitalg:  @local::standard_track3Dkalmanhitalg
 microboone_kalmanfilteralg:  @local::standard_kalmanfilteralg
 microboone_seedfinderalgorithm:                          @local::standard_seedfinderalgorithm
 microboone_seedfinderalgorithm.SpacePointAlg :           @local::microboone_spacepointalg

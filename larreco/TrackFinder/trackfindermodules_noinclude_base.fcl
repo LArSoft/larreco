@@ -200,8 +200,8 @@ standard_track3Dkalmanhit:
   #InitialMomentum:    0.2           # Initial momentum (GeV/c).
   #KalmanFilterAlg:    @local::standard_kalmanfilteralg
   #SeedFinderAlg:      @local::standard_seedfinderalgorithm
-  #SpacePointAlg:      @local::standard_spacepointalg
-  Track3DKalmanHitAlg:      @local::standard_track3dkalmanhitalg
+  SpacePointAlg:      @local::standard_spacepointalg
+  Track3DKalmanHitAlg:      @local::standard_track3Dkalmanhitalg
 }
 
 standard_cosmictagger:
