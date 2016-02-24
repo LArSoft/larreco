@@ -97,14 +97,14 @@ namespace trkf {
       //Member functions that depend on art::event and use art::Assns
       void getInputfromevent(const art::Event &evt,
                              std::list<LocalKalmanStruct> &LocalKalmanStructList);
-      void getClusteredHits(art::PtrVector<recob::Hit>& hits,
-                            const art::Event & evt) const;
-      void getPFParticleHits(std::list<LocalKalmanStruct> & LocalKalmanStructs,
-                             const art::Event & evt) const;
-      void getAllHits(art::PtrVector<recob::Hit>& hits,
-                      const art::Event & evt) const;
-      void persistObjects(std::list<LocalKalmanStruct> const &LocalKalmanStructList,
-                          const art::Event &evt,
+      void getClusteredHits(const art::Event & evt,
+                            art::PtrVector<recob::Hit>& hits) const;
+      void getPFParticleHits(const art::Event & evt,
+                             std::list<LocalKalmanStruct> & LocalKalmanStructs) const;
+      void getAllHits(const art::Event & evt,
+                      art::PtrVector<recob::Hit>& hits) const;
+      void persistObjects(const art::Event &evt,
+                          std::list<LocalKalmanStruct> const &LocalKalmanStructList,
                           std::vector<recob::Track> &tracks,
                           std::vector<recob::SpacePoint> &spts,
                           art::Assns<recob::Track, recob::Hit> &th_assn,
@@ -258,16 +258,13 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    //SS: LocalKalmanStruct.hits holds the input hits, .tracks will have the redulting Kalmantracks
    fTKHAlg.generateKalmantracks(LocalKalmanStructList);
    
-   std::cout << LocalKalmanStructList.size() << "\n";
    // Fill histograms.
-   
    if(fHist) {
-      //replaced the for loops and body of code with a helper function
       fillHistograms(LocalKalmanStructList);
    }
    
    // Process Kalman filter tracks into persistent objects.
-   persistObjects(LocalKalmanStructList, evt, *tracks, *spts, *th_assn, *tsp_assn, *sph_assn, *pfPartTrack_assns);
+   persistObjects(evt, LocalKalmanStructList, *tracks, *spts, *th_assn, *tsp_assn, *sph_assn, *pfPartTrack_assns);
    // Add tracks and associations to event.
    
    evt.put(std::move(tracks));
@@ -295,33 +292,143 @@ void trkf::Track3DKalmanHit::endJob()
 // 2.  PFParticle hits (products one hit collection for each PFParticle).
 // 3.  All hits (produces one hit collection).
 
-void trkf::Track3DKalmanHit::getInputfromevent(const art::Event &evt, std::list<LocalKalmanStruct>& LocalKalmanStructList){
-   // Make associations between PFParticles and the tracks they create
-   // To facilitate this we'll recover the handle to the PFParticle collection - whether it exists or not
-   if(fUseClusterHits) {
-      LocalKalmanStructList.emplace_back();
-      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
-      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-      getClusteredHits(hits, evt);
-      //std::cout << "Track3DKalmanHit/ClusterHits: " << LocalKalmanStructList.size() << "\n";
-   }
-   else if(fUsePFParticleHits) {
-      getPFParticleHits(LocalKalmanStructList, evt);
-      //std::cout << "Track3DKalmanHit/pfParticle: " << LocalKalmanStructList.size() << "\n";
+void trkf::Track3DKalmanHit::getInputfromevent(const art::Event &evt,
+                                               std::list<LocalKalmanStruct>& LocalKalmanStructList){
+   if (fUsePFParticleHits) {
+      getPFParticleHits(evt, LocalKalmanStructList);
    }
    else {
       LocalKalmanStructList.emplace_back();
       LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
       art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-      getAllHits(hits, evt);
-      //std::cout << "Track3DKalmanHit/allHits: " << LocalKalmanStructList.size() << "\n";
+      if(fUseClusterHits) {
+         getClusteredHits(evt, hits);
+      }
+      else {
+         getAllHits(evt, hits);
+      }
    }
 }
 
 
+//----------------------------------------------------------------------------
+/// Fill a collection using clustered hits
+
+// SS: after method extraction, now I am working on replace temp with query
+void trkf::Track3DKalmanHit::getClusteredHits(const art::Event &evt,
+                                              art::PtrVector<recob::Hit>& hits) const{
+   // Get clusters.
+   //SS: Can we use getValidHandle?
+   art::Handle< std::vector<recob::Cluster> > clusterh;
+   evt.getByLabel(fClusterModuleLabel, clusterh);
+   if (!clusterh.isValid()) return;
+   
+   // Get hits from all clusters.
+   art::FindManyP<recob::Hit> hitsbycluster(clusterh, evt, fClusterModuleLabel);
+   
+   for(size_t i = 0; i < clusterh->size(); ++i) {
+      std::vector< art::Ptr<recob::Hit> > clushits = hitsbycluster.at(i);
+      hits.insert(hits.end(), clushits.begin(), clushits.end());
+   }
+}
+
+//----------------------------------------------------------------------------
+/// If both UseClusteredHits and UsePFParticles is false use this method to fill in hits
+
+void trkf::Track3DKalmanHit::getAllHits(const art::Event &evt,
+                                        art::PtrVector<recob::Hit>& hits) const{
+   // Get unclustered hits.
+   art::Handle< std::vector<recob::Hit> > hith;
+   evt.getByLabel(fHitModuleLabel, hith);
+   if(!hith.isValid()) return;
+   size_t nhits = hith->size();
+   hits.reserve(nhits);
+   
+   for(size_t i = 0; i < nhits; ++i) {
+      hits.push_back(art::Ptr<recob::Hit>(hith, i));
+   }
+   
+}
+
+//----------------------------------------------------------------------------
+/// If UsePFParticles is true use this method to fill in hits
+
+void trkf::Track3DKalmanHit::getPFParticleHits(const art::Event &evt,
+                                               std::list<LocalKalmanStruct> & localcoll) const{
+   
+   // Our program is to drive the track creation/fitting off the PFParticles in the data store
+   // We'll use the hits associated to the PFParticles for each track - and only those hits.
+   // Without a valid collection of PFParticles there is nothing to do here
+   // We need a handle to the collection of clusters in the data store so we can
+   // handle associations to hits.
+   art::Handle<std::vector<recob::PFParticle> > pfParticleHandle;
+   evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
+   if (!pfParticleHandle.isValid()) return;
+   
+   //std::cout << "Track3DKalmanHit: pfParticleHandle size" << pfParticleHandle->size() << "\n";
+   art::Handle<std::vector<recob::Cluster> > clusterHandle;
+   evt.getByLabel(fClusterModuleLabel, clusterHandle);
+   
+   // If there are no clusters then something is really wrong
+   if (!clusterHandle.isValid()) return;
+   //{
+   // Recover the collection of associations between PFParticles and clusters, this will
+   // be the mechanism by which we actually deal with clusters
+   art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
+   
+   // Associations to seeds.
+   art::FindManyP<recob::Seed> seedAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
+   
+   // Likewise, recover the collection of associations to hits
+   art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fClusterModuleLabel);
+   
+   // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
+   for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
+      
+      // Add a new empty hit collection.
+      localcoll.emplace_back();
+      LocalKalmanStruct& local_kalman_struct = localcoll.back();
+      local_kalman_struct.pfPartPtr = art::Ptr<recob::PFParticle>(pfParticleHandle, partIdx);
+      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
+      
+      // Fill this hit vector by looping over associated clusters and finding the
+      // hits associated to them
+      std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(partIdx);
+      
+      for(const auto& cluster : clusterVec) {
+         std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster.key());
+         hits.insert(hits.end(), hitVec.begin(), hitVec.end());
+      }
+      
+      // If requested, fill associated seeds.
+      if(!fUsePFParticleSeeds) continue;
+      art::PtrVector<recob::Seed>& seeds = local_kalman_struct.seeds;
+      std::vector<art::Ptr<recob::Seed> > seedVec = seedAssns.at(partIdx);
+      seeds.insert(seeds.end(), seedVec.begin(), seedVec.end());
+      art::FindManyP<recob::Hit> seedHitAssns(seedVec, evt, fPFParticleModuleLabel);
+      // std::cout << "Track3DKalmanHit: seedHitAssns " << seedHitAssns.size() << ", "<< seedVec.size() << "\n";
+      for(size_t seedIdx = 0; seedIdx < seedVec.size(); ++seedIdx) {
+         std::vector<art::Ptr<recob::Hit> > seedHitVec;
+         //SS: why seedIdx can have an invalid value?
+         try {
+            seedHitVec = seedHitAssns.at(seedIdx);
+         }
+         catch(art::Exception x) {
+            seedHitVec.clear();
+         }
+         local_kalman_struct.seedhits.emplace_back();
+         art::PtrVector<recob::Hit>& seedhits = local_kalman_struct.seedhits.back();
+         seedhits.insert(seedhits.end(), seedHitVec.begin(), seedHitVec.end());
+      }
+   }
+   
+   // std::cout << "Track3DKalmanHit: end localcoll size " << localcoll.size() << "\n";
+}
+
+
 //-------------------------------------------------------------------------------------
-void trkf::Track3DKalmanHit::persistObjects( std::list<LocalKalmanStruct> const &LocalKalmanStructList,
-                                            const art::Event &evt,
+void trkf::Track3DKalmanHit::persistObjects(const art::Event &evt,
+                                            std::list<LocalKalmanStruct> const &LocalKalmanStructList,
                                             std::vector<recob::Track> &tracks,
                                             std::vector<recob::SpacePoint> &spts,
                                             art::Assns<recob::Track, recob::Hit> &th_assn,
@@ -346,8 +453,8 @@ void trkf::Track3DKalmanHit::persistObjects( std::list<LocalKalmanStruct> const 
    for(auto& local_kalman_struct : LocalKalmanStructList) {
       // Recover the kalman tracks double ended queue
       const std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
-//      std::cout << "persist Objects: kalman tracks" << kalman_tracks.size() <<  "\n";
-
+      //      std::cout << "persist Objects: kalman tracks" << kalman_tracks.size() <<  "\n";
+      
       for(auto const& kalman_track:kalman_tracks) {
          
          // Add Track object to collection.
@@ -434,118 +541,4 @@ void trkf::Track3DKalmanHit::fillHistograms(std::list<LocalKalmanStruct>& LocalK
 }
 
 
-
-//----------------------------------------------------------------------------
-/// Fill a collection using clustered hits
-
-// SS: after method extraction, now I am working on replace temp with query
-void trkf::Track3DKalmanHit::getClusteredHits(art::PtrVector<recob::Hit>& hits,
-                                              const art::Event & evt) const{
-   // Get clusters.
-   //SS: Can we use getValidHandle?
-   art::Handle< std::vector<recob::Cluster> > clusterh;
-   evt.getByLabel(fClusterModuleLabel, clusterh);
-   if (!clusterh.isValid()) return;
-   
-   // Get hits from all clusters.
-   art::FindManyP<recob::Hit> hitsbycluster(clusterh, evt, fClusterModuleLabel);
-   
-   for(size_t i = 0; i < clusterh->size(); ++i) {
-      std::vector< art::Ptr<recob::Hit> > clushits = hitsbycluster.at(i);
-      hits.insert(hits.end(), clushits.begin(), clushits.end());
-   }
-}
-
-//----------------------------------------------------------------------------
-/// If both UseClusteredHits and UsePFParticles is false use this method to fill in hits
-
-void trkf::Track3DKalmanHit::getAllHits(art::PtrVector<recob::Hit>& hits,
-                                        const art::Event & evt) const{
-   // Get unclustered hits.
-   art::Handle< std::vector<recob::Hit> > hith;
-   evt.getByLabel(fHitModuleLabel, hith);
-   if(!hith.isValid()) return;
-   size_t nhits = hith->size();
-   hits.reserve(nhits);
-   
-   for(size_t i = 0; i < nhits; ++i) {
-      hits.push_back(art::Ptr<recob::Hit>(hith, i));
-   }
-   
-}
-
-//----------------------------------------------------------------------------
-/// If UsePFParticles is true use this method to fill in hits
-
-void trkf::Track3DKalmanHit::getPFParticleHits(std::list<LocalKalmanStruct> & localcoll,
-                                               const art::Event & evt) const{
-   
-   // Our program is to drive the track creation/fitting off the PFParticles in the data store
-   // We'll use the hits associated to the PFParticles for each track - and only those hits.
-   // Without a valid collection of PFParticles there is nothing to do here
-   // We need a handle to the collection of clusters in the data store so we can
-   // handle associations to hits.
-   art::Handle<std::vector<recob::PFParticle> > pfParticleHandle;
-   evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
-   if (!pfParticleHandle.isValid()) return;
-   
-   //std::cout << "Track3DKalmanHit: pfParticleHandle size" << pfParticleHandle->size() << "\n";
-   art::Handle<std::vector<recob::Cluster> > clusterHandle;
-   evt.getByLabel(fClusterModuleLabel, clusterHandle);
-   
-   // If there are no clusters then something is really wrong
-   if (!clusterHandle.isValid()) return;
-   //{
-   // Recover the collection of associations between PFParticles and clusters, this will
-   // be the mechanism by which we actually deal with clusters
-   art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
-   
-   // Associations to seeds.
-   art::FindManyP<recob::Seed> seedAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
-   
-   // Likewise, recover the collection of associations to hits
-   art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fClusterModuleLabel);
-   
-   // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
-   for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
-      
-      // Add a new empty hit collection.
-      localcoll.emplace_back();
-      LocalKalmanStruct& local_kalman_struct = localcoll.back();
-      local_kalman_struct.pfPartPtr = art::Ptr<recob::PFParticle>(pfParticleHandle, partIdx);
-      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
-      
-      // Fill this hit vector by looping over associated clusters and finding the
-      // hits associated to them
-      std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(partIdx);
-      
-      for(const auto& cluster : clusterVec) {
-         std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster.key());
-         hits.insert(hits.end(), hitVec.begin(), hitVec.end());
-      }
-      
-      // If requested, fill associated seeds.
-      if(!fUsePFParticleSeeds) continue;
-      art::PtrVector<recob::Seed>& seeds = local_kalman_struct.seeds;
-      std::vector<art::Ptr<recob::Seed> > seedVec = seedAssns.at(partIdx);
-      seeds.insert(seeds.end(), seedVec.begin(), seedVec.end());
-      art::FindManyP<recob::Hit> seedHitAssns(seedVec, evt, fPFParticleModuleLabel);
-      // std::cout << "Track3DKalmanHit: seedHitAssns " << seedHitAssns.size() << ", "<< seedVec.size() << "\n";
-      for(size_t seedIdx = 0; seedIdx < seedVec.size(); ++seedIdx) {
-         std::vector<art::Ptr<recob::Hit> > seedHitVec;
-         //SS: why seedIdx can have an invalid value?
-         try {
-            seedHitVec = seedHitAssns.at(seedIdx);
-         }
-         catch(art::Exception x) {
-            seedHitVec.clear();
-         }
-         local_kalman_struct.seedhits.emplace_back();
-         art::PtrVector<recob::Hit>& seedhits = local_kalman_struct.seedhits.back();
-         seedhits.insert(seedhits.end(), seedHitVec.begin(), seedHitVec.end());
-      }
-   }
-   
-   // std::cout << "Track3DKalmanHit: end localcoll size " << localcoll.size() << "\n";
-}
 
