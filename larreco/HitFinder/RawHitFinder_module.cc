@@ -212,14 +212,12 @@ namespace hit {
       holder.resize(fDataSize);
       
       // uncompress the data
-      if (digitVec->Compression() != raw::kNone){
-	if (fUncompressWithPed){
-	  int pedestal = (int)digitVec->GetPedestal();
-	  raw::Uncompress(digitVec->ADCs(), rawadc, pedestal, digitVec->Compression());
-	}
-	else{
-	  raw::Uncompress(digitVec->ADCs(), rawadc, digitVec->Compression());
-	}
+      if (fUncompressWithPed){
+        int pedestal = (int)digitVec->GetPedestal();
+        raw::Uncompress(digitVec->ADCs(), rawadc, pedestal, digitVec->Compression());
+      }
+      else{
+        raw::Uncompress(digitVec->ADCs(), rawadc, digitVec->Compression());
       }
 
       for(unsigned int bin = 0; bin < fDataSize; ++bin) 
@@ -400,6 +398,7 @@ namespace hit {
 	   // startTimes[i] << " End Time " << endTimes[i] << " Peak Height " << peakHeight[i] << " Charge " << charge[i] << "  RMS  "  << hitrms[i] << std::endl;
 	
 	//	amplitude     = holder[index];
+
 	amplitude     = peakHeight[i];
 	position      = maxTimes[i];
 	start         = startTimes[i];
@@ -420,7 +419,7 @@ namespace hit {
 	  mf::LogWarning("RawHitFinder_module") << "Hit start "<<start<<" is >= hit end "<<end;
 	  continue;
 	}
-	  
+
 	recob::HitCreator hit(
 			      *digitVec,        // raw digit reference
 			      wid,              // wire ID
