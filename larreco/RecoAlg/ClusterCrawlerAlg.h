@@ -176,6 +176,7 @@ namespace cluster {
 
     // global cuts and parameters 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
+    float fClProjErrFac;   ///< cluster projection error factor
     float fMinHitFrac;
     float fLAClusAngleCut;  ///< call Large Angle Clustering code if > 0
 		unsigned short fLAClusMaxHitsFit; ///< max hits fitted on a Large Angle cluster
@@ -222,14 +223,14 @@ namespace cluster {
     float clBeginSlp;  ///< begin slope (= DS end = high wire number)
     float clBeginAng;
     float clBeginSlpErr; 
-    unsigned short clBeginWir;  ///< begin wire
+    unsigned int clBeginWir;  ///< begin wire
     float clBeginTim;  ///< begin time
     float clBeginChg;  ///< begin average charge
 		float clBeginChgNear; ///< nearby charge
     float clEndSlp;    ///< slope at the end   (= US end = low  wire number)
     float clEndAng;
     float clEndSlpErr; 
-    unsigned short clEndWir;    ///< begin wire
+    unsigned int clEndWir;    ///< begin wire
     float clEndTim;    ///< begin time
     float clEndChg;    ///< end average charge
 		float clEndChgNear;  ///< nearby charge
@@ -288,16 +289,6 @@ namespace cluster {
 
     std::string fhitsModuleLabel;
     
-    // struct for step crawling
-    struct TrajPoint {
-      std::array<float, 2> Pos; // Position in wire equivalent units
-      std::array<float, 2> Dir; // likewise
-      float AngErr;             // direction error (radians)
-      float Chg;
-    };
-    std::vector<TrajPoint> traj;
-    
-    void ReverseTraj();
 /*
     // hit multiplets that have been saved before merging.
     std::vector<recob::Hit> unMergedHits;
@@ -443,6 +434,10 @@ namespace cluster {
     // Splits a cluster into two clusters at position pos. Associates the
     // new clusters with a vertex
     bool SplitCluster(unsigned short icl, unsigned short pos, unsigned short ivx);
+    // Counts the number of dead wires in the range spanned by fcl2hits
+    unsigned int DeadWireCount();
+    // return true if the pre-merged it1 and it2 clusters will meet the quality requirement
+    bool ChkMergedClusterHitFrac(unsigned short it1, unsigned short it2);
     // Prints cluster information to the screen
     void PrintClusters();
     // check for a signal on all wires between two points
@@ -453,14 +448,14 @@ namespace cluster {
     // the cluster under construction
     float EndKinkAngle();
     /// Returns true if there are no duplicates in the hit list for next cluster
-    bool CheckHitDuplicates
-      (std::string location, std::string marker = "") const;
+    bool CheckHitDuplicates(std::string location, std::string marker = "") const;
     // Find the distance of closest approach between the end of a cluster and a (wire,tick) position
     float DoCA(short icl, unsigned short end, float vwire, float vtick);
     // Find the Chisq/DOF between the end of a cluster and a (wire,tick) position
     float ClusterVertexChi(short icl, unsigned short end, unsigned short ivx);
     // Find the Chisq/DOF between a point and a vertex
     float PointVertexChi(float wire, float tick, unsigned short ivx);
+    std::string PrintHit(unsigned int iht);
     
     /// Returns a pair of first and past-the-last index
     /// of all the contiguous hits belonging to the same multiplet
