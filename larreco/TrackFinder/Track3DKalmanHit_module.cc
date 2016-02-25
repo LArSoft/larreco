@@ -83,7 +83,6 @@ namespace trkf {
       // Copnstructors, destructor.
       
       explicit Track3DKalmanHit(fhicl::ParameterSet const & pset);
-      virtual ~Track3DKalmanHit();
       
       // Overrides.
       // Put override right next to each function
@@ -95,8 +94,7 @@ namespace trkf {
    private:
       void fillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList);
       //Member functions that depend on art::event and use art::Assns
-      void getInputfromevent(const art::Event &evt,
-                             std::list<LocalKalmanStruct> &LocalKalmanStructList);
+      std::list<LocalKalmanStruct> getInputfromevent(const art::Event &evt);
       void getClusteredHits(const art::Event & evt,
                             art::PtrVector<recob::Hit>& hits) const;
       void getPFParticleHits(const art::Event & evt,
@@ -176,12 +174,6 @@ fNumEvent(0)
 }
 
 //----------------------------------------------------------------------------
-/// Destructor.
-trkf::Track3DKalmanHit::~Track3DKalmanHit()
-{
-}
-
-//----------------------------------------------------------------------------
 /// Reconfigure method.
 ///
 /// Arguments:
@@ -251,9 +243,10 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    // Reset space point algorithm.
    fSpacePointAlg.clearHitMap();
    
-   // Get Hits.
-   std::list<LocalKalmanStruct> LocalKalmanStructList;
-   getInputfromevent(evt, LocalKalmanStructList);
+   // Get hits, and if (fUSePFParticles) get associated PfParticles,
+   // associated Seeds and hits per seed.
+   std::list<LocalKalmanStruct> LocalKalmanStructList = getInputfromevent(evt);
+   
    //SS: LocalKalmanStruct.hits holds the input hits, .tracks will have the redulting Kalmantracks
    fTKHAlg.generateKalmantracks(LocalKalmanStructList);
    
@@ -291,8 +284,8 @@ void trkf::Track3DKalmanHit::endJob()
 // 2.  PFParticle hits (products one hit collection for each PFParticle).
 // 3.  All hits (produces one hit collection).
 
-void trkf::Track3DKalmanHit::getInputfromevent(const art::Event &evt,
-                                               std::list<LocalKalmanStruct>& LocalKalmanStructList){
+std::list<LocalKalmanStruct> trkf::Track3DKalmanHit::getInputfromevent(const art::Event &evt){
+   std::list<LocalKalmanStruct> LocalKalmanStructList;
    if (fUsePFParticleHits) {
       getPFParticleHits(evt, LocalKalmanStructList);
    }
@@ -307,6 +300,7 @@ void trkf::Track3DKalmanHit::getInputfromevent(const art::Event &evt,
          getAllHits(evt, hits);
       }
    }
+   return LocalKalmanStructList;
 }
 
 

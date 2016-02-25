@@ -159,8 +159,8 @@ void trkf::Track3DKalmanHitAlg::generateKalmantracks(std::list<LocalKalmanStruct
                   seeds = fSeedFinderAlg.GetSeedsFromUnSortedHits(unusedhits, hitsperseed);
             }
             //SS: what if seederhits.size(), that means we have no hits to process
-            std::cout << "fSelfSeed: " << fSelfSeed << " unusedhits size " << unusedhits.size() << "\n";
-            std::cout << "Seeds: " << seeds.size() << " , "<< hitsperseed.size() << "\n";
+            //std::cout << "fSelfSeed: " << fSelfSeed << " unusedhits size " << unusedhits.size() << "\n";
+            //std::cout << "Seeds: " << seeds.size() << " , "<< hitsperseed.size() << "\n";
          }
          
          assert(seeds.size() == hitsperseed.size());
@@ -492,7 +492,6 @@ bool trkf::Track3DKalmanHitAlg::smoothandextendTrack(KGTrack &trg0,
    }
    // Save this track.
    ++fNumTrack;
-   std::cout << "In the alg: " << fNumTrack << "\n";
    kalman_tracks.push_back(trg1);
    return ok;
 }

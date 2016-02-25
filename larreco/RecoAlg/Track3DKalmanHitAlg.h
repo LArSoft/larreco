@@ -91,7 +91,7 @@ namespace trkf {
    public:
       
       /// Constructor.
-      Track3DKalmanHitAlg(const fhicl::ParameterSet& pset);
+      explicit Track3DKalmanHitAlg(const fhicl::ParameterSet& pset);
       
       /// Destructor.
       ~Track3DKalmanHitAlg();
