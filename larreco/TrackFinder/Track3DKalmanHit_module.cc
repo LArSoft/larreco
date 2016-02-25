@@ -92,9 +92,9 @@ namespace trkf {
       virtual void endJob() override;
       
    private:
-      void fillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList);
+      
       //Member functions that depend on art::event and use art::Assns
-      std::list<LocalKalmanStruct> getInputfromevent(const art::Event &evt);
+      std::list<LocalKalmanStruct> getInputFromEvent(const art::Event &evt) const;
       void getClusteredHits(const art::Event & evt,
                             art::PtrVector<recob::Hit>& hits) const;
       void getPFParticleHits(const art::Event & evt,
@@ -110,6 +110,7 @@ namespace trkf {
                           art::Assns<recob::SpacePoint, recob::Hit> &sph_assn,
                           art::Assns<recob::PFParticle, recob::Track> &pfPartTrack_assns);
       
+      void fillHistograms(std::list<LocalKalmanStruct>& LocalKalmanStructList);
       // Fcl parameters.
       
       bool fHist;                         ///< Make histograms.
@@ -245,7 +246,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    
    // Get hits, and if (fUSePFParticles) get associated PfParticles,
    // associated Seeds and hits per seed.
-   std::list<LocalKalmanStruct> LocalKalmanStructList = getInputfromevent(evt);
+   std::list<LocalKalmanStruct> LocalKalmanStructList = getInputFromEvent(evt);
    
    //SS: LocalKalmanStruct.hits holds the input hits, .tracks will have the redulting Kalmantracks
    fTKHAlg.generateKalmantracks(LocalKalmanStructList);
@@ -284,23 +285,23 @@ void trkf::Track3DKalmanHit::endJob()
 // 2.  PFParticle hits (products one hit collection for each PFParticle).
 // 3.  All hits (produces one hit collection).
 
-std::list<LocalKalmanStruct> trkf::Track3DKalmanHit::getInputfromevent(const art::Event &evt){
-   std::list<LocalKalmanStruct> LocalKalmanStructList;
+std::list<LocalKalmanStruct> trkf::Track3DKalmanHit::getInputFromEvent(const art::Event &evt) const{
+   std::list<LocalKalmanStruct> k_colls;
    if (fUsePFParticleHits) {
-      getPFParticleHits(evt, LocalKalmanStructList);
+      getPFParticleHits(evt, k_colls);
    }
    else {
-      LocalKalmanStructList.emplace_back();
-      LocalKalmanStruct& local_kalman_struct = LocalKalmanStructList.back();
-      art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
+      k_colls.emplace_back();
+      LocalKalmanStruct& k_coll = k_colls.back();
+     // art::PtrVector<recob::Hit>& hits = k_coll.hits;
       if(fUseClusterHits) {
-         getClusteredHits(evt, hits);
+         getClusteredHits(evt, k_coll.hits);
       }
       else {
-         getAllHits(evt, hits);
+         getAllHits(evt, k_coll.hits);
       }
    }
-   return LocalKalmanStructList;
+   return k_colls;
 }
 
 
