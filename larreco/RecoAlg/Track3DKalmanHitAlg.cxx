@@ -105,9 +105,7 @@ void trkf::Track3DKalmanHitAlg::reconfigure(const fhicl::ParameterSet& pset)
 void trkf::Track3DKalmanHitAlg::generateKalmantracks(std::list<LocalKalmanStruct> &LocalKalmanStructList){
    // Loop over hit collection / Kalman track combos.
    for(auto& local_kalman_struct : LocalKalmanStructList) {
-      
       // Recover the kalman tracks double ended queue
-      std::cout << "Track3DKalmanHitAlg::generateKalmantracks\n";
       std::deque<KGTrack>& kalman_tracks = local_kalman_struct.tracks;
       art::PtrVector<recob::Hit>& hits = local_kalman_struct.hits;
       //std::cout << "Hits num: " << hits.size() << "\n";
@@ -248,7 +246,6 @@ void trkf::Track3DKalmanHitAlg::processSeeds(bool pfseed,
    //SS: use indexing
    //check for size of both containers
    //if (seeds.size() != hitsperseed.size())
-   std::cout << "Track3DKalmanHitAlg::processSeeds\n";
    for (;sit != seeds.end() && hpsit != hitsperseed.end(); ++sit, ++hpsit) {
       //method to process Seeds
       const recob::Seed& seed = *sit;
