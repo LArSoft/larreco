@@ -234,7 +234,6 @@ void trkf::Track3DKalmanHit::beginJob()
 void trkf::Track3DKalmanHit::produce(art::Event & evt)
 {
    ++fNumEvent;
-   std::cout << "Track3DKalmanHit_module: in Produce" << "\n";
    // Make a collection of tracks, plus associations, that will
    // eventually be inserted into the event.
    //use auto and make_unique
@@ -441,8 +440,6 @@ void trkf::Track3DKalmanHit::persistObjects(const art::Event &evt,
       tracksSize += local_kalman_struct.tracks.size();
    }
    tracks.reserve(tracksSize);
-   
-   std::cout << "persist Objects " << LocalKalmanStructList.size() <<  "\n";
    
    auto const tid = getProductID<std::vector<recob::Track> >(evt);
    auto const tidgetter = evt.productGetter(tid);
