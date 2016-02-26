@@ -75,16 +75,21 @@
 
 
 
-struct LocalKalmanStruct
-{
-   art::Ptr<recob::PFParticle> pfPartPtr;
-   art::PtrVector<recob::Hit> hits;
-   art::PtrVector<recob::Seed> seeds;
-   std::vector<art::PtrVector<recob::Hit> > seedhits;
-   std::deque<trkf::KGTrack> tracks; //SS: Why deque is used?
-};
+
 
 namespace trkf {
+   //SS: move this to its own header
+   struct KalmanInput
+   {
+      art::Ptr<recob::PFParticle> pfPartPtr;
+      art::PtrVector<recob::Hit> hits;
+      art::PtrVector<recob::Seed> seeds;
+      std::vector<art::PtrVector<recob::Hit> > seedhits;
+      std::deque<trkf::KGTrack> tracks;
+   };
+   struct KalmanOutput {
+      std::deque<trkf::KGTrack> tracks;
+   };
    
    class Propagator;
    class Track3DKalmanHitAlg {
@@ -93,49 +98,55 @@ namespace trkf {
       /// Constructor.
       explicit Track3DKalmanHitAlg(const fhicl::ParameterSet& pset);
       
-      /// Destructor.
-      ~Track3DKalmanHitAlg();
-      
       /// Reconfigure method.
       void reconfigure(const fhicl::ParameterSet& pset);
       
-      
       // Private member functions that do not use art::event or Assns
       // but use art::PtrVector and art::Ptr.
-      
+      void makeTracks(std::list<trkf::KalmanInput> &kalman_inputs);
+      void fetchSeeds(bool first,
+                      bool &pfseed,
+                      KalmanInput& kalman_input,
+                      art::PtrVector<recob::Hit>& unusedhits,
+                      std::vector<recob::Seed>& seeds,
+                      std::vector<art::PtrVector<recob::Hit>>& hitsperseed);
       recob::Seed makeSeed(const art::PtrVector<recob::Hit>& hits) const;
-      // the functions that are not modifying any class members should be const
+      void growSeedsIntoTracks(bool pfseed,
+                               std::vector<recob::Seed>& seeds,
+                               std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
+                               art::PtrVector<recob::Hit>& unusedhits,
+                               art::PtrVector<recob::Hit>& hits,
+                               std::deque<KGTrack>& kalman_tracks);
+      void growSeedIntoTracks(bool pfseed,
+                              const recob::Seed& seed,
+                              const art::PtrVector<recob::Hit>& hpsit,
+                              art::PtrVector<recob::Hit>& unusedhits,
+                              art::PtrVector<recob::Hit>& hits,
+                              std::deque<KGTrack>& kgtracks);
+      void chopHitsOffSeeds(art::PtrVector<recob::Hit>const & hpsit,
+                            bool pfseed,
+                            art::PtrVector<recob::Hit> &seedhits) const;
+      bool testSeedSlope(const double *dir) const;
+      std::shared_ptr<Surface> makeSurface(const recob::Seed &seed, double *dir) const;
+      bool makeKalmanTracks(const std::shared_ptr<trkf::Surface> psurf,
+                            const Surface::TrackDirection trkdir,
+                            art::PtrVector<recob::Hit>& seedhits,
+                            art::PtrVector<recob::Hit>& hits,
+                            std::deque<KGTrack>& kalman_tracks);
       
+      bool smoothandextendTrack(KGTrack &trg0,
+                                const art::PtrVector<recob::Hit> hits,
+                                unsigned int prefplane,
+                                std::deque<KGTrack>& kalman_tracks);
       void filterHitsOnKalmanTrack(const KGTrack& trg,
                                    art::PtrVector<recob::Hit>& hits,
                                    art::PtrVector<recob::Hit>& seederhits) const;
       std::unique_ptr<KHitContainer> fillHitContainer(const art::PtrVector<recob::Hit> &hits) const;
       
-      void chopHitsOffSeeds(art::PtrVector<recob::Hit>const & hpsit,
-                            bool pfseed,
-                            art::PtrVector<recob::Hit> &seedhits) const;
       bool qualityCutsOnSeedTrack(const KGTrack &trg0) const;
-      bool smoothandextendTrack(KGTrack &trg0,
-                                const art::PtrVector<recob::Hit> hits,
-                                unsigned int prefplane,
-                                std::deque<KGTrack>& kalman_tracks);
+      
       void fitnupdateMomentum(KGTrack& trg1,
                               KGTrack& trg2);
-      bool test1(const double *dir);
-      std::shared_ptr<Surface> makeSurface(const recob::Seed &seed, double *dir);
-      std::vector<KTrack> makeInitialKtracks(const std::shared_ptr<trkf::Surface> psurf);
-      bool processInitialtracks(const trkf::KTrack &trk,
-                                art::PtrVector<recob::Hit>& seedhits,
-                                art::PtrVector<recob::Hit>& hits,
-                                std::deque<KGTrack>& kalman_tracks);
-      void processSeeds(bool pfseed,
-                        std::vector<recob::Seed>& seeds,
-                        std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
-                        art::PtrVector<recob::Hit>& unusedhits,
-                        art::PtrVector<recob::Hit>& hits,
-                        std::deque<KGTrack>& kalman_tracks);
-      void generateKalmantracks(std::list<LocalKalmanStruct> &LocalKalmanStructList);
-      
       
    private:
       
@@ -157,8 +168,9 @@ namespace trkf {
       SeedFinderAlgorithm fSeedFinderAlg; ///< Seed finder.
       
       /// Propagator.
-      const Propagator* fProp;
-      
+      //SS: Recommendation use std::unique_ptr<const Propagator> fProp; instead
+      //this has a ripple affect, this is for later then
+      const Propagator *fProp;
       // Statistics.
       
       int fNumTrack;    ///< Number of tracks produced.
