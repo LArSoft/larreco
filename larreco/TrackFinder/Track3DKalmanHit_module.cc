@@ -8,27 +8,16 @@
 //
 // Configuration parameters:
 //
-// Hist               - Histogram flag (generate histograms if true).
-// UseClusterHits     - Use clustered hits if true.
-// UsePFParticleHits  - Use PFParticle hits if true.
-// UsePFParticleSeeds - If true, use seeds associated with PFParticles.
-// HitModuleLabel     - Module label for unclustered Hits.
-// ClusterModuleLabel - Module label for Clusters.
+// Hist                  - Histogram flag (generate histograms if true).
+// UseClusterHits        - Use clustered hits if true.
+// UsePFParticleHits     - Use PFParticle hits if true.
+// UsePFParticleSeeds    - If true, use seeds associated with PFParticles.
+// HitModuleLabel        - Module label for unclustered Hits.
+// ClusterModuleLabel    - Module label for Clusters.
 // PFParticleModuleLabel - Module label for PFParticles.
-// StoreNPPlane       - Store nonpreferred planes trajectory points.
-// MaxTcut            - Maximum delta ray energy in Mev for dE/dx.
-// DoDedx             - Global dE/dx enable flag.
-// SelfSeed           - Self seed flag.
-// LineSurface        - Hits on line surfaces (true) or plane surfaces (false).
-// MinSeedHits        - Minimum number of hits per track seed.
-// MinSeedChopHits:   - Potentially chop seeds that exceed this length.
-// MaxChopHits        - Maximum number of hits to chop from each end of seed.
-// MaxSeedChiDF       - Maximum seed track chisquare/dof.
-// MinSeedSlope       - Minimum seed slope (dx/dz).
-// InitialMomentum    - Initial momentum guess.
-// KalmanFilterAlg    - Parameter set for KalmanFilterAlg.
-// SeedFinderAlg      - Parameter set for seed finder algorithm object.
-// SpacePointAlg      - Parmaeter set for space points.
+// StoreNPPlane          - Store nonpreferred planes trajectory points.
+// Track3DKalmanHitAlg   - Algorithm class for Track3DKalmanHit module
+// SpacePointAlg         - Parmaeter set for space points.
 //
 // Usage Notes.
 //
@@ -79,9 +68,7 @@ namespace trkf {
    
    class Track3DKalmanHit : public art::EDProducer {
    public:
-      
       // Copnstructors, destructor.
-      
       explicit Track3DKalmanHit(fhicl::ParameterSet const & pset);
       
       // Overrides.
@@ -95,24 +82,24 @@ namespace trkf {
       
       //Member functions that depend on art::event and use art::Assns
       //note that return types are move aware
+      void prepareForInput();
       KalmanInputs getInput(const art::Event &evt) const;
-      art::PtrVector<recob::Hit> getClusteredHits(const art::Event & evt) const;
-      KalmanInputs getPFParticleStuff(const art::Event & evt) const;
-      art::PtrVector<recob::Hit> getAllHits(const art::Event& evt) const;
+      art::PtrVector<recob::Hit> getClusteredHits(const art::Event &evt) const;
+      KalmanInputs getPFParticleStuff(const art::Event &evt) const;
+      art::PtrVector<recob::Hit> getAllHits(const art::Event &evt) const;
       void createOutputs(const art::Event &evt,
-                         std::vector<KalmanOutput> const &kalman_outputs,
-                         KalmanInputs const &kalman_inputs,
+                         const std::vector<KalmanOutput> &kalman_outputs,
+                         const KalmanInputs &kalman_inputs,
                          std::vector<recob::Track> &tracks,
                          std::vector<recob::SpacePoint> &spts,
                          art::Assns<recob::Track, recob::Hit> &th_assn,
                          art::Assns<recob::Track, recob::SpacePoint> &tsp_assn,
                          art::Assns<recob::SpacePoint, recob::Hit> &sph_assn,
                          art::Assns<recob::PFParticle, recob::Track> &pfPartTrack_assns);
-      
       void fillHistograms(std::vector<KalmanOutput>& kalman_outputs);
-      void prepareForInput();
-      // Fcl parameters.
+     
       
+      // Fcl parameters.
       bool fHist;                         ///< Make histograms.
       bool fUseClusterHits;               ///< Use clustered hits as input.
       bool fUsePFParticleHits;            ///< Use PFParticle hits as input.
@@ -121,21 +108,17 @@ namespace trkf {
       std::string fClusterModuleLabel;    ///< Clustered Hits.
       std::string fPFParticleModuleLabel; ///< PFParticle label.
       bool fStoreNPPlane;                 ///< Store nonpreferred planes trajectory points.
-      Track3DKalmanHitAlg fTKHAlg;
+      Track3DKalmanHitAlg fTKHAlg;        ///< Track3DKalmanHit algorithm.
       SpacePointAlg fSpacePointAlg;       ///< Space point algorithm.
       
       // Histograms.
+      TH1F* fHIncChisq;                   ///< Incremental chisquare.
+      TH1F* fHPull;                      ///< Hit pull.
       
-      TH1F* fHIncChisq;   ///< Incremental chisquare.
-      TH1F* fHPull;       ///< Hit pull.
       // Statistics.
-      
-      int fNumEvent;    ///< Number of events seen.
-      
+      int fNumEvent;                    ///< Number of events seen.
    };
-   
    DEFINE_ART_MODULE(Track3DKalmanHit)
-   
 } // namespace trkf
 
 //----------------------------------------------------------------------------
@@ -217,13 +200,6 @@ void trkf::Track3DKalmanHit::beginJob()
 //----------------------------------------------------------------------------
 /// Produce method.
 ///
-/// Arguments:
-///
-/// e - Art event.
-///
-/// This method extracts Hits from the event and produces and adds
-/// Track objects.
-///
 void trkf::Track3DKalmanHit::produce(art::Event & evt)
 {
    ++fNumEvent;
@@ -266,6 +242,11 @@ void trkf::Track3DKalmanHit::endJob()
 
 
 //----------------------------------------------------------------------------
+void trkf::Track3DKalmanHit::prepareForInput() {
+   fSpacePointAlg.clearHitMap();
+}
+
+//----------------------------------------------------------------------------
 // There are three modes of operation:
 // 1.  Clustered hits (produces one hit collection).
 // 2.  PFParticle hits (products one hit collection for each PFParticle).
@@ -278,20 +259,17 @@ trkf::KalmanInputs trkf::Track3DKalmanHit::getInput(const art::Event &evt) const
                                                       getAllHits(evt)));
 }
 
-
 //----------------------------------------------------------------------------
 /// Fill a collection using clustered hits
 art::PtrVector<recob::Hit> trkf::Track3DKalmanHit::getClusteredHits(const art::Event &evt) const{
    art::PtrVector<recob::Hit> hits;
-   // Get clusters.
-   //SS: Can we use getValidHandle?
    art::Handle< std::vector<recob::Cluster> > clusterh;
    evt.getByLabel(fClusterModuleLabel, clusterh);
-   if (!clusterh.isValid()) return hits;
    
+   if (!clusterh.isValid()) return hits;
    // Get hits from all clusters.
    art::FindManyP<recob::Hit> hitsbycluster(clusterh, evt, fClusterModuleLabel);
-   
+
    for(size_t i = 0; i < clusterh->size(); ++i) {
       std::vector< art::Ptr<recob::Hit> > clushits = hitsbycluster.at(i);
       hits.insert(hits.end(), clushits.begin(), clushits.end());
@@ -301,7 +279,6 @@ art::PtrVector<recob::Hit> trkf::Track3DKalmanHit::getClusteredHits(const art::E
 
 //----------------------------------------------------------------------------
 /// If both UseClusteredHits and UsePFParticles is false use this method to fill in hits
-
 art::PtrVector<recob::Hit> trkf::Track3DKalmanHit::getAllHits(const art::Event &evt) const{
    art::PtrVector<recob::Hit> hits;
    // Get unclustered hits.
@@ -319,7 +296,6 @@ art::PtrVector<recob::Hit> trkf::Track3DKalmanHit::getAllHits(const art::Event &
 
 //----------------------------------------------------------------------------
 /// If UsePFParticles is true use this method to fill in hits
-
 trkf::KalmanInputs trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event &evt) const{
    KalmanInputs kalman_inputs;
    // Our program is to drive the track creation/fitting off the PFParticles in the data store
@@ -363,7 +339,7 @@ trkf::KalmanInputs trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event &
       // hits associated to them
       std::vector<art::Ptr<recob::Cluster> > clusterVec = clusterAssns.at(partIdx);
       
-      for(const auto& cluster : clusterVec) {
+      for(auto const &cluster : clusterVec) {
          std::vector<art::Ptr<recob::Hit> > hitVec = clusterHitAssns.at(cluster.key());
          hits.insert(hits.end(), hitVec.begin(), hitVec.end());
       }
@@ -392,7 +368,6 @@ trkf::KalmanInputs trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event &
    return kalman_inputs;
 }
 
-
 //-------------------------------------------------------------------------------------
 void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
                                            std::vector<KalmanOutput> const &kalman_outputs,
@@ -407,7 +382,7 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
    if(kalman_outputs.size()!= kalman_inputs.size()) return;
    
    size_t tracksSize(0);
-   for(const auto& kalman_output : kalman_outputs) {
+   for(auto const &kalman_output : kalman_outputs) {
       tracksSize += kalman_output.tracks.size();
    }
    tracks.reserve(tracksSize);
@@ -446,7 +421,7 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
             sptvec.emplace_back(spacepointId, ispt, getter);
             // Associate newly created space points with hits.
             // Make space point to hit associations.
-            const auto& sphits = fSpacePointAlg.getAssociatedHits((spts)[ispt]);
+            auto const &sphits = fSpacePointAlg.getAssociatedHits((spts)[ispt]);
             for(auto const& sphit: sphits) {
                sph_assn.addSingle(sptvec.back(), sphit);
             }
@@ -478,16 +453,11 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
 
 void trkf::Track3DKalmanHit::fillHistograms(std::vector<KalmanOutput>& kalman_outputs)
 {
-   for(const auto& kalman_output : kalman_outputs) {
+   for(auto const &kalman_output : kalman_outputs) {
       const std::deque<KGTrack>& kalman_tracks = kalman_output.tracks;
-      
-     // for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
-       //   k != kalman_tracks.end(); ++k)
       for (size_t i = 0; i < kalman_tracks.size(); ++i) {
          const KGTrack& trg = kalman_tracks[i];
-         
          // Loop over measurements in this track.
-         
          const std::multimap<double, KHitTrack>& trackmap = trg.getTrackMap();
          for(std::multimap<double, KHitTrack>::const_iterator ih = trackmap.begin();
              ih != trackmap.end(); ++ih) {
@@ -502,14 +472,7 @@ void trkf::Track3DKalmanHit::fillHistograms(std::vector<KalmanOutput>& kalman_ou
             }
          }
       }
-      //  fHIncChisq->Print("all");
-      //  fHPull->Print("all");
-   }
-}
-
-//----------------------------------------------------------------------------
-void trkf::Track3DKalmanHit::prepareForInput() {
-   fSpacePointAlg.clearHitMap();
+       }
 }
 
 
