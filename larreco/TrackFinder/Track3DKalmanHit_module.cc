@@ -95,20 +95,21 @@ namespace trkf {
       
       //Member functions that depend on art::event and use art::Assns
       //note that return types are move aware
-      std::list<KalmanInput> getInput(const art::Event &evt) const;
+      KalmanInputs getInput(const art::Event &evt) const;
       art::PtrVector<recob::Hit> getClusteredHits(const art::Event & evt) const;
-      std::list<KalmanInput> getPFParticleStuff(const art::Event & evt) const;
+      KalmanInputs getPFParticleStuff(const art::Event & evt) const;
       art::PtrVector<recob::Hit> getAllHits(const art::Event& evt) const;
       void createOutputs(const art::Event &evt,
-                          std::list<KalmanInput> const &KalmanInputs,
-                          std::vector<recob::Track> &tracks,
-                          std::vector<recob::SpacePoint> &spts,
-                          art::Assns<recob::Track, recob::Hit> &th_assn,
-                          art::Assns<recob::Track, recob::SpacePoint> &tsp_assn,
-                          art::Assns<recob::SpacePoint, recob::Hit> &sph_assn,
-                          art::Assns<recob::PFParticle, recob::Track> &pfPartTrack_assns);
+                         std::vector<KalmanOutput> const &kalman_outputs,
+                         KalmanInputs const &kalman_inputs,
+                         std::vector<recob::Track> &tracks,
+                         std::vector<recob::SpacePoint> &spts,
+                         art::Assns<recob::Track, recob::Hit> &th_assn,
+                         art::Assns<recob::Track, recob::SpacePoint> &tsp_assn,
+                         art::Assns<recob::SpacePoint, recob::Hit> &sph_assn,
+                         art::Assns<recob::PFParticle, recob::Track> &pfPartTrack_assns);
       
-      void fillHistograms(std::list<KalmanInput>& KalmanInputs);
+      void fillHistograms(std::vector<KalmanOutput>& kalman_outputs);
       void prepareForInput();
       // Fcl parameters.
       
@@ -226,8 +227,6 @@ void trkf::Track3DKalmanHit::beginJob()
 void trkf::Track3DKalmanHit::produce(art::Event & evt)
 {
    ++fNumEvent;
-   // Make a collection of tracks and spacepoints, plus associations,
-   // that will eventually be inserted into the event.
    auto tracks = std::make_unique<std::vector<recob::Track>>();
    auto th_assn = std::make_unique<art::Assns<recob::Track, recob::Hit>>();
    auto tsp_assn = std::make_unique<art::Assns<recob::Track, recob::SpacePoint>>();
@@ -238,15 +237,14 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    prepareForInput();
    auto inputs = getInput(evt);
    
-   fTKHAlg.makeTracks(inputs);
+   auto outputs = fTKHAlg.makeTracks(inputs);
    
    if(fHist) {
-      fillHistograms(inputs);
+      fillHistograms(outputs);
    }
    
-   createOutputs(evt, inputs, *tracks, *spts, *th_assn, *tsp_assn, *sph_assn, *pfPartTrack_assns);
-  
-   // Reset space point algorithm. call it twice, and put it in a separate function and add a comment there
+   createOutputs(evt, outputs, inputs, *tracks, *spts, *th_assn, *tsp_assn, *sph_assn, *pfPartTrack_assns);
+   
    fSpacePointAlg.clearHitMap();
    
    evt.put(std::move(tracks));
@@ -273,22 +271,11 @@ void trkf::Track3DKalmanHit::endJob()
 // 2.  PFParticle hits (products one hit collection for each PFParticle).
 // 3.  All hits (produces one hit collection).
 
-std::list<trkf::KalmanInput> trkf::Track3DKalmanHit::getInput(const art::Event &evt) const{
-   std::list<KalmanInput> kalman_inputs;
-   if (fUsePFParticleHits) {
-      kalman_inputs = getPFParticleStuff(evt);
-   }
-   else {
-      kalman_inputs.emplace_back();
-      KalmanInput& kalman_input = kalman_inputs.back();
-      if(fUseClusterHits) {
-         kalman_input.hits = getClusteredHits(evt);
-      }
-      else {
-         kalman_input.hits = getAllHits(evt);
-      }
-   }
-   return kalman_inputs;
+trkf::KalmanInputs trkf::Track3DKalmanHit::getInput(const art::Event &evt) const{
+   if (fUsePFParticleHits) return getPFParticleStuff(evt);
+   return KalmanInputs(1, KalmanInput(fUseClusterHits ?
+                                                      getClusteredHits(evt):
+                                                      getAllHits(evt)));
 }
 
 
@@ -333,8 +320,8 @@ art::PtrVector<recob::Hit> trkf::Track3DKalmanHit::getAllHits(const art::Event &
 //----------------------------------------------------------------------------
 /// If UsePFParticles is true use this method to fill in hits
 
-std::list<trkf::KalmanInput> trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event &evt) const{
-   std::list<KalmanInput> kalman_inputs;
+trkf::KalmanInputs trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event &evt) const{
+   KalmanInputs kalman_inputs;
    // Our program is to drive the track creation/fitting off the PFParticles in the data store
    // We'll use the hits associated to the PFParticles for each track - and only those hits.
    // Without a valid collection of PFParticles there is nothing to do here
@@ -350,7 +337,7 @@ std::list<trkf::KalmanInput> trkf::Track3DKalmanHit::getPFParticleStuff(const ar
    
    // If there are no clusters then something is really wrong
    if (!clusterHandle.isValid()) return kalman_inputs;
-   //{
+
    // Recover the collection of associations between PFParticles and clusters, this will
    // be the mechanism by which we actually deal with clusters
    art::FindManyP<recob::Cluster> clusterAssns(pfParticleHandle, evt, fPFParticleModuleLabel);
@@ -360,6 +347,8 @@ std::list<trkf::KalmanInput> trkf::Track3DKalmanHit::getPFParticleStuff(const ar
    
    // Likewise, recover the collection of associations to hits
    art::FindManyP<recob::Hit> clusterHitAssns(clusterHandle, evt, fClusterModuleLabel);
+   
+   kalman_inputs.reserve(pfParticleHandle->size());
    
    // While PFParticle describes a hierarchal structure, for now we simply loop over the collection
    for(size_t partIdx = 0; partIdx < pfParticleHandle->size(); partIdx++) {
@@ -385,7 +374,7 @@ std::list<trkf::KalmanInput> trkf::Track3DKalmanHit::getPFParticleStuff(const ar
       std::vector<art::Ptr<recob::Seed> > seedVec = seedAssns.at(partIdx);
       seeds.insert(seeds.end(), seedVec.begin(), seedVec.end());
       art::FindManyP<recob::Hit> seedHitAssns(seedVec, evt, fPFParticleModuleLabel);
-      // std::cout << "Track3DKalmanHit: seedHitAssns " << seedHitAssns.size() << ", "<< seedVec.size() << "\n";
+   
       for(size_t seedIdx = 0; seedIdx < seedVec.size(); ++seedIdx) {
          std::vector<art::Ptr<recob::Hit> > seedHitVec;
          //SS: why seedIdx can have an invalid value?
@@ -406,17 +395,20 @@ std::list<trkf::KalmanInput> trkf::Track3DKalmanHit::getPFParticleStuff(const ar
 
 //-------------------------------------------------------------------------------------
 void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
-                                            std::list<KalmanInput> const &kalman_inputs,
-                                            std::vector<recob::Track> &tracks,
-                                            std::vector<recob::SpacePoint> &spts,
-                                            art::Assns<recob::Track, recob::Hit> &th_assn,
-                                            art::Assns<recob::Track, recob::SpacePoint> &tsp_assn,
-                                            art::Assns<recob::SpacePoint, recob::Hit> &sph_assn,
-                                            art::Assns<recob::PFParticle, recob::Track> &pfPartTrack_assns)
+                                           std::vector<KalmanOutput> const &kalman_outputs,
+                                           KalmanInputs const &kalman_inputs,
+                                           std::vector<recob::Track> &tracks,
+                                           std::vector<recob::SpacePoint> &spts,
+                                           art::Assns<recob::Track, recob::Hit> &th_assn,
+                                           art::Assns<recob::Track, recob::SpacePoint> &tsp_assn,
+                                           art::Assns<recob::SpacePoint, recob::Hit> &sph_assn,
+                                           art::Assns<recob::PFParticle, recob::Track> &pfPartTrack_assns)
 {
+   if(kalman_outputs.size()!= kalman_inputs.size()) return;
+   
    size_t tracksSize(0);
-   for(const auto& kalman_input : kalman_inputs) {
-      tracksSize += kalman_input.tracks.size();
+   for(const auto& kalman_output : kalman_outputs) {
+      tracksSize += kalman_output.tracks.size();
    }
    tracks.reserve(tracksSize);
    
@@ -425,12 +417,10 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
    
    auto const spacepointId = getProductID<std::vector<recob::SpacePoint> >(evt);
    auto const getter = evt.productGetter(spacepointId);
-   
-   for(auto& kalman_input : kalman_inputs) {
+   for (size_t i = 0; i<kalman_outputs.size();++i) {
       // Recover the kalman tracks double ended queue
-      const std::deque<KGTrack>& kalman_tracks = kalman_input.tracks;
-      //      std::cout << "persist Objects: kalman tracks" << kalman_tracks.size() <<  "\n";
-      
+      const std::deque<KGTrack>& kalman_tracks = kalman_outputs[i].tracks;
+   
       for(auto const& kalman_track:kalman_tracks) {
          
          // Add Track object to collection.
@@ -476,7 +466,7 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
          
          // Optionally fill track-to-PFParticle associations.
          if (fUsePFParticleHits) {
-            pfPartTrack_assns.addSingle(kalman_input.pfPartPtr, aptr);
+            pfPartTrack_assns.addSingle(kalman_inputs[i].pfPartPtr, aptr);
          }
       } // end of loop over a given collection
    }
@@ -486,14 +476,15 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
 /// Fill Histograms method
 //fHPull and fHIncChisq are private data members of the class Track3DKalmanHit
 
-void trkf::Track3DKalmanHit::fillHistograms(std::list<KalmanInput>& kalman_inputs)
+void trkf::Track3DKalmanHit::fillHistograms(std::vector<KalmanOutput>& kalman_outputs)
 {
-   for(const auto& kalman_input : kalman_inputs) {
-      const std::deque<KGTrack>& kalman_tracks = kalman_input.tracks;
+   for(const auto& kalman_output : kalman_outputs) {
+      const std::deque<KGTrack>& kalman_tracks = kalman_output.tracks;
       
-      for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
-          k != kalman_tracks.end(); ++k) {
-         const KGTrack& trg = *k;
+     // for(std::deque<KGTrack>::const_iterator k = kalman_tracks.begin();
+       //   k != kalman_tracks.end(); ++k)
+      for (size_t i = 0; i < kalman_tracks.size(); ++i) {
+         const KGTrack& trg = kalman_tracks[i];
          
          // Loop over measurements in this track.
          
