@@ -177,6 +177,7 @@ namespace cluster {
 
     // global cuts and parameters 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
+    float fHitMinRMS;   ///<< ignore hits with RMS < this value
     float fClProjErrFac;   ///< cluster projection error factor
     float fMinHitFrac;
     float fLAClusAngleCut;  ///< call Large Angle Clustering code if > 0
@@ -442,6 +443,7 @@ namespace cluster {
     bool ChkMergedClusterHitFrac(unsigned short it1, unsigned short it2);
     // Prints cluster information to the screen
     void PrintClusters();
+    void PrintVertices();
     // check for a signal on all wires between two points
     bool ChkSignal(unsigned short wire1, float time1, unsigned short wire2, float time2);
     // returns an angle-dependent scale factor for weighting fits, etc
