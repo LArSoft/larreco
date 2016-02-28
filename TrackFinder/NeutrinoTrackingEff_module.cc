@@ -53,7 +53,7 @@ public:
     void initOutput();
 
     void processEff(const art::Event& evt, bool &isFiducial);
-    void truthMatcher( art::Ptr<recob::Track> track, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac);
+    void truthMatcher( std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac);
     bool insideFV(double vertex[4]);
     void doEfficiencies();
     void reset();
@@ -502,7 +502,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
        std::vector<art::Ptr<recob::Hit>> all_trackHits = track_hits.at(i);  
        double tmpEfrac = 0;
        const simb::MCParticle *particle;
-       truthMatcher( track, all_trackHits, particle, tmpEfrac );
+       truthMatcher( all_trackHits, particle, tmpEfrac );
        //cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac<<endl;
        if(  (particle->PdgCode() == fLeptonPDGcode) && (particle->TrackId() == MC_leptonID) ){
          //save the best track ... based on Efrac if there is more than one track 
@@ -580,7 +580,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 
 }
 //========================================================================
-void NeutrinoTrackingEff::truthMatcher( art::Ptr<recob::Track> track, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac){
+void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac){
 
     //cout<<"truthMatcher..."<<endl;
     art::ServiceHandle<cheat::BackTracker> bt;
