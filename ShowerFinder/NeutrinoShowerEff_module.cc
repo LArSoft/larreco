@@ -123,9 +123,7 @@ private:
     double sh_dEdx[MAX_SHOWERS][3];
     int    sh_bestplane[MAX_SHOWERS];
     double sh_length[MAX_SHOWERS];
-    int    sh_nhadrons[MAX_SHOWERS];
     int    sh_hasPrimary_e[MAX_SHOWERS];
-    int    sh_primary[MAX_SHOWERS]; 
     double sh_Efrac_contamination[MAX_SHOWERS];
     int    sh_nHits[MAX_SHOWERS];
     int    n_recoShowers;
@@ -211,10 +209,8 @@ void NeutrinoShowerEff::initOutput(){
       fEventTree->Branch("sh_dEdx", &sh_dEdx, "sh_dEdx[n_showers][3]/D");
       fEventTree->Branch("sh_bestplane", &sh_bestplane, "sh_bestplane[n_showers]/I");
       fEventTree->Branch("sh_length", &sh_length, "sh_length[n_showers]/D");
-      fEventTree->Branch("sh_nhadrons", &sh_nhadrons, "sh_nhadrons[n_showers]/I");
       fEventTree->Branch("sh_hasPrimary_e", &sh_hasPrimary_e, "sh_hasPrimary_e[n_showers]/I");
       fEventTree->Branch("sh_Efrac_contamination", &sh_Efrac_contamination, "sh_Efrac_contamination[n_showers]/D");
-      fEventTree->Branch("sh_primary", &sh_primary, "sh_primary[n_showers]/I");
       fEventTree->Branch("sh_Efrac_best", &sh_Efrac_best, "sh_Efrac_best/D");
       fEventTree->Branch("sh_nHits",&sh_nHits, "sh_nHits[n_showers]/I");
 
@@ -372,8 +368,11 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
        truthMatcher( sh_hits, particle, tmpEfrac_contamination );
        sh_Efrac_contamination[i] = tmpEfrac_contamination;
        sh_nHits[i] = tmp_nHits; 
+       sh_hasPrimary_e[i] = 0;
+       if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ) sh_hasPrimary_e[i] = 1;
        //cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<" "<<particle->TrackId()<<" "<<MC_leptonID<<endl;
        //save the best shower based on non EM and number of hits
+      
        if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ){
          if( tmp_nHits > nHits ){
             nHits = tmp_nHits;
@@ -413,7 +412,7 @@ void NeutrinoShowerEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> shower_h
     double max_E = -999.0;
     double total_E = 0.0;
     int TrackID = -999;
-    double noEM_E = 0;  //non electromagnetic energy is defined as energy from charged pion and protons 
+    double noEM_E = 0.0;  //non electromagnetic energy is defined as energy from charged pion and protons 
     if( !trkID_E.size() ) return; //Ghost shower???
     for(std::map<int,double>::iterator ii = trkID_E.begin(); ii!=trkID_E.end(); ++ii){
        total_E += ii->second;
@@ -423,7 +422,8 @@ void NeutrinoShowerEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> shower_h
        }
        int ID = ii->first;
        const simb::MCParticle *particle = bt->TrackIDToParticle(ID);
-       if( abs(particle->PdgCode()) == 211 || particle->PdgCode() == 2212 ){
+       //if( abs(particle->PdgCode()) == 211 || particle->PdgCode() == 2212 ){
+       if( particle->PdgCode() != 22 && abs(particle->PdgCode()) != 11){
          noEM_E += ii->second;
        }
     } 
@@ -480,7 +480,24 @@ void NeutrinoShowerEff::reset(){
    MC_leptonID = -999;
    MC_LeptonTrack = -999;
  
-
+   for(int i=0; i<MAX_SHOWERS; i++){
+      sh_direction_X[i] = -999.0;
+      sh_direction_Y[i] = -999.0;
+      sh_direction_Z[i] = -999.0;
+      sh_start_X[i] = -999.0;
+      sh_start_Y[i] = -999.0;
+      sh_start_Z[i] = -999.0;
+      sh_bestplane[i] = -999.0;
+      sh_length[i] = -999.0;
+      sh_hasPrimary_e[i] = -999.0;
+      sh_Efrac_contamination[i] = -999.0;
+      sh_nHits[i] = -999.0;
+      for( int j=0; j<3; j++){
+         sh_energy[i][j] = -999.0;
+         sh_MIPenergy[i][j] = -999.0;
+         sh_dEdx[i][j] = -999.0;
+      }
+  } 
 }
 //========================================================================
 DEFINE_ART_MODULE(NeutrinoShowerEff)
