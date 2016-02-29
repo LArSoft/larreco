@@ -170,17 +170,20 @@ namespace cluster {
 		
 		float fMinAmp;									///< expected minimum signal
 
+    float fKillGarbageClusters;
     bool fChkClusterDS;
     bool fVtxClusterSplit;
     bool fFindStarVertices;
 
     // global cuts and parameters 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
+    float fHitMinRMS;   ///<< ignore hits with RMS < this value
     float fClProjErrFac;   ///< cluster projection error factor
     float fMinHitFrac;
     float fLAClusAngleCut;  ///< call Large Angle Clustering code if > 0
 		unsigned short fLAClusMaxHitsFit; ///< max hits fitted on a Large Angle cluster
     float fLAClusSlopeCut;
+    bool fMergeAllHits;
     float fHitMergeChiCut; ///< Merge cluster hit-multiplets if the separation chisq
                              ///< is < cut. Set < 0 for no merging
     float fMergeOverlapAngCut;   ///< angle cut for merging overlapping clusters
@@ -251,10 +254,9 @@ namespace cluster {
                         ///< +  200 ClusterFix
                         ///< +  300 LACrawlUS
                         ///< +  500 MergeOverlap
-                        ///< =  999 FindVLACluster
+                        ///< +  666 KillGarbageClusters
                         ///< + 1000 VtxClusterSplit
                         ///< + 2000 failed pass N cuts but passes pass N=1 cuts
-                        ///< + 3000 Cluster hits merged
                         ///< + 5000 ChkClusterDS
                         ///< +10000 Vtx3ClusterSplit
     CTP_t clCTP;        ///< Cryostat/TPC/Plane code
@@ -309,9 +311,9 @@ namespace cluster {
     // Returns true if the hits on a cluster have a consistent width
     bool ClusterHitsOK(short nHitChk);
     // Finds a hit on wire kwire, adds it to the cluster and re-fits it
-    void AddHit(unsigned short kwire, bool& HitOK, bool& SigOK);
+    void AddHit(unsigned int kwire, bool& HitOK, bool& SigOK);
     // Finds a hit on wire kwire, adds it to a LargeAngle cluster and re-fits it
-    void AddLAHit(unsigned short kwire, bool& ChkCharge, bool& HitOK, bool& SigOK);
+    void AddLAHit(unsigned int kwire, bool& ChkCharge, bool& HitOK, bool& SigOK);
     // find a Very Large Angle Hit
 //    bool AddVLAHit(unsigned short wire, float prtime, float window);
     // Fits the cluster hits in fcl2hits to a straight line
@@ -327,6 +329,8 @@ namespace cluster {
     // Crawls starting at position pos, moving in direction dir with step size step
     // appending hits to fcl2hits
     void StepCrawl(float step);
+    
+    void KillGarbageClusters();
 
     // ************** cluster merging routines *******************
 
@@ -338,7 +342,6 @@ namespace cluster {
     void DoMerge(unsigned short it1, unsigned short it2, short ProcCode);
       
     // ************** hit merging routines *******************
-
     // check the number of nearby hits to the ones added to the current cluster.
     // If there are too many, merge the hits and re-fit
     void ChkClusterNearbyHits(bool prt);
@@ -440,6 +443,7 @@ namespace cluster {
     bool ChkMergedClusterHitFrac(unsigned short it1, unsigned short it2);
     // Prints cluster information to the screen
     void PrintClusters();
+    void PrintVertices();
     // check for a signal on all wires between two points
     bool ChkSignal(unsigned short wire1, float time1, unsigned short wire2, float time2);
     // returns an angle-dependent scale factor for weighting fits, etc
