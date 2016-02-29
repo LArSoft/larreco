@@ -42,6 +42,7 @@ namespace trkf {
    };
    
    typedef typename std::vector<KalmanInput> KalmanInputs;
+   typedef typename art::PtrVector<recob::Hit> Hits;
 }
 
 #endif

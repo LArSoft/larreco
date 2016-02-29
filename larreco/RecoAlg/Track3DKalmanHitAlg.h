@@ -7,6 +7,21 @@
 /// \author
 ///
 ////////////////////////////////////////////////////////////////////////
+// Configuration parameters:
+// MaxTcut            - Maximum delta ray energy in Mev for dE/dx.
+// DoDedx             - Global dE/dx enable flag.
+// SelfSeed           - Self seed flag.
+// LineSurface        - Hits on line surfaces (true) or plane surfaces (false).
+// MinSeedHits        - Minimum number of hits per track seed.
+// MinSeedChopHits:   - Potentially chop seeds that exceed this length.
+// MaxChopHits        - Maximum number of hits to chop from each end of seed.
+// MaxSeedChiDF       - Maximum seed track chisquare/dof.
+// MinSeedSlope       - Minimum seed slope (dx/dz).
+// InitialMomentum    - Initial momentum guess.
+// KalmanFilterAlg    - Parameter set for KalmanFilterAlg.
+// SeedFinderAlg      - Parameter set for seed finder algorithm object.
+////////////////////////////////////////////////////////////////////////
+
 
 #ifndef TRACK3DKALMANHITALG_H
 #define TRACK3DKALMANHITALG_H
@@ -59,40 +74,40 @@ namespace trkf {
       // but use art::PtrVector and art::Ptr.
       std::vector<trkf::KalmanOutput> makeTracks(KalmanInputs &kalman_inputs);
       bool fetchPFParticleSeeds(const art::PtrVector<recob::Seed> &pfseeds,
-                                const std::vector<art::PtrVector<recob::Hit>> &pfseedhits,
+                                const std::vector<Hits> &pfseedhits,
                                 std::vector<recob::Seed>& seeds,
-                                std::vector<art::PtrVector<recob::Hit>>& hitsperseed);
-      recob::Seed makeSeed(const art::PtrVector<recob::Hit>& hits) const;
+                                std::vector<Hits>& hitsperseed);
+      recob::Seed makeSeed(const Hits& hits) const;
       void growSeedsIntoTracks(const bool pfseed,
                                const std::vector<recob::Seed>& seeds,
-                               const std::vector<art::PtrVector<recob::Hit> >& hitsperseed,
-                               art::PtrVector<recob::Hit>& unusedhits,
-                               art::PtrVector<recob::Hit>& hits,
+                               const std::vector<Hits >& hitsperseed,
+                               Hits& unusedhits,
+                               Hits& hits,
                                std::deque<KGTrack>& kalman_tracks);
       void growSeedIntoTracks(const bool pfseed,
                               const recob::Seed& seed,
-                              const art::PtrVector<recob::Hit>& hpsit,
-                              art::PtrVector<recob::Hit>& unusedhits,
-                              art::PtrVector<recob::Hit>& hits,
+                              const Hits& hpsit,
+                              Hits& unusedhits,
+                              Hits& hits,
                               std::deque<KGTrack>& kgtracks);
-      void chopHitsOffSeeds(art::PtrVector<recob::Hit>const & hpsit,
+      void chopHitsOffSeeds(Hits const & hpsit,
                             bool pfseed,
-                            art::PtrVector<recob::Hit> &seedhits) const;
+                            Hits &seedhits) const;
       bool testSeedSlope(const double *dir) const;
       std::shared_ptr<Surface> makeSurface(const recob::Seed &seed, double *dir) const;
       bool makeKalmanTracks(const std::shared_ptr<trkf::Surface> psurf,
                             const Surface::TrackDirection trkdir,
-                            art::PtrVector<recob::Hit>& seedhits,
-                            art::PtrVector<recob::Hit>& hits,
+                            Hits& seedhits,
+                            Hits& hits,
                             std::deque<KGTrack>& kalman_tracks);
       bool smoothandextendTrack(KGTrack &trg0,
-                                const art::PtrVector<recob::Hit> hits,
+                                const Hits hits,
                                 unsigned int prefplane,
                                 std::deque<KGTrack>& kalman_tracks);
       void filterHitsOnKalmanTrack(const KGTrack& trg,
-                                   art::PtrVector<recob::Hit>& hits,
-                                   art::PtrVector<recob::Hit>& seederhits) const;
-      std::unique_ptr<KHitContainer> fillHitContainer(const art::PtrVector<recob::Hit> &hits) const;
+                                   Hits& hits,
+                                   Hits& seederhits) const;
+      std::unique_ptr<KHitContainer> fillHitContainer(const Hits &hits) const;
       
       bool qualityCutsOnSeedTrack(const KGTrack &trg0) const;
       
