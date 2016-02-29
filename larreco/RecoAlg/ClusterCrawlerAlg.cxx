@@ -5026,15 +5026,20 @@ namespace cluster {
     unsigned int imbest = INT_MAX;
     float best = 9999., dtime;
     float cnear = 0;
+    float hitTime, hitChg, hitStartTick, hitEndTick;
     for(unsigned int khit = firsthit; khit < lasthit; ++khit) {
       // obsolete hit?
       if(inClus[khit] < 0) continue;
-      dtime = std::abs(fHits[khit].PeakTime() - prtime);
+      hitTime = fHits[khit].PeakTime();
+      dtime = std::abs(hitTime - prtime);
+      if(dtime > 1000) continue;
+      hitStartTick = fHits[khit].StartTick();
+      hitEndTick = fHits[khit].EndTick();
       // weight by the charge difference
       if(fAveChg > 0) dtime *= std::abs(fHits[khit].Integral() - fAveChg) / fAveChg;
       if(prt && std::abs(dtime) < 100) mf::LogVerbatim("CC")
-        <<" Chk W:T "<<kwire<<":"<<(short)fHits[khit].PeakTime()
-        <<" dT "<<std::fixed<<std::setprecision(1)<<(fHits[khit].PeakTime() - prtime)
+        <<" Chk W:T "<<PrintHit(khit)
+        <<" dT "<<std::fixed<<std::setprecision(1)<<(hitTime - prtime)
         <<" InClus "<<inClus[khit]
         <<" mult "<<fHits[khit].Multiplicity()
         <<" RMS "<<std::fixed<<std::setprecision(1)<<fHits[khit].RMS()
@@ -5047,12 +5052,12 @@ namespace cluster {
       // count charge in the window
       if(fHits[khit].StartTick() > chgWinLo && fHits[khit].EndTick() < chgWinHi) cnear += fHits[khit].Integral();
       // check for signal
-      if(prtimeHi < fHits[khit].StartTick()) continue;
-      if(prtimeLo > fHits[khit].EndTick()) continue;
+      if(prtimeHi < hitStartTick) continue;
+      if(prtimeLo > hitEndTick) continue;
       SigOK = true;
       // check for good hit
-      if(fHits[khit].PeakTime() < prtimeLo) continue;
-      if(fHits[khit].PeakTime() > prtimeHi) continue;
+      if(hitTime < prtimeLo) continue;
+      if(hitTime > prtimeHi) continue;
       // hit used?
       if(inClus[khit] > 0) continue;
       if(dtime < best) {
@@ -5069,8 +5074,9 @@ namespace cluster {
     }
 
     if(imbest == INT_MAX) return;
-
+    
     recob::Hit const& hit = fHits[imbest];
+    hitChg = hit.Integral();
     
     if(prt) mf::LogVerbatim("CC")<<" Best hit time "<<(int)hit.PeakTime();
     
@@ -5102,7 +5108,7 @@ namespace cluster {
         float hitSep = std::abs(hit.PeakTime() - other_hit.PeakTime());
         hitSep /= hit.RMS();
         // check the the charge similarity
-        float totChg = hit.Integral() + other_hit.Integral();
+        float totChg = hitChg + other_hit.Integral();
         float lastHitChg = fAveChg;
         if(lastHitChg < 0) lastHitChg = fHits[lastClHit].Integral();
         hnear = 1;
@@ -5119,10 +5125,10 @@ namespace cluster {
     // Make a charge similarity cut if the average charge is defined
     bool fitChg = true;
     if(fAveChg > 0.) {
-
-      float chgrat = (hit.Integral() - fAveChg) / fAveChg;
+      
+      float chgrat = (hitChg - fAveChg) / fAveChg;
       if(prt) mf::LogVerbatim("CC")<<" Chgrat "<<std::setprecision(2)<<chgrat;
-
+      
       // charge is way too high?
       if(chgrat > 3 * fChgCut[pass]) {
         if(prt) mf::LogVerbatim("CC")<<" fails 3 x high charge cut "<<fChgCut[pass]<<" on pass "<<pass;
@@ -5170,7 +5176,7 @@ namespace cluster {
     // we now have a hit that meets all the criteria. Fit it
     fcl2hits.push_back(imbest);
     // This is strictly only necessary when calling AddHit for seed clusters
-    std::sort(fcl2hits.begin(), fcl2hits.end(), SortByLowHit);
+    if(fcl2hits.size() == 3) std::sort(fcl2hits.begin(), fcl2hits.end(), SortByLowHit);
     FitCluster();
     chifits.push_back(clChisq);
     hitNear.push_back(hnear);
