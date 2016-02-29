@@ -177,7 +177,7 @@ namespace cluster {
 
     // global cuts and parameters 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
-    float fHitMinRMS;   ///<< ignore hits with RMS < this value
+    float fHitMinAmp;   ///<< ignore hits with Amp < this value
     float fClProjErrFac;   ///< cluster projection error factor
     float fMinHitFrac;
     float fLAClusAngleCut;  ///< call Large Angle Clustering code if > 0
@@ -439,6 +439,7 @@ namespace cluster {
     bool SplitCluster(unsigned short icl, unsigned short pos, unsigned short ivx);
     // Counts the number of dead wires in the range spanned by fcl2hits
     unsigned int DeadWireCount();
+    unsigned int DeadWireCount(unsigned int inWire1, unsigned int inWire2);
     // return true if the pre-merged it1 and it2 clusters will meet the quality requirement
     bool ChkMergedClusterHitFrac(unsigned short it1, unsigned short it2);
     // Prints cluster information to the screen
