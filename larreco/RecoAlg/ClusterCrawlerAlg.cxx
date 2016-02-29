@@ -80,7 +80,7 @@ namespace cluster {
     fKillGarbageClusters = pset.get< float   >("KillGarbageClusters", 0);
     fRefineVertexClusters = pset.get< bool >("RefineVertexClusters", false);
     fHitErrFac          = pset.get< float  >("HitErrFac", 0.2);
-    fHitMinRMS          = pset.get< float  >("HitMinRMS", 0.2);
+    fHitMinAmp          = pset.get< float  >("HitMinAmp", 0.2);
     fClProjErrFac       = pset.get< float  >("ClProjErrFac", 4);
     fMinHitFrac         = pset.get< float  >("MinHitFrac", 0.6);
     
@@ -316,6 +316,7 @@ namespace cluster {
       ncl[ipl] = 0;
       nht[ipl] = 0;
       nhtTot[ipl] = 0;
+      nhtNotMerged[ipl] = 0;
     }
     // hits in clusters
     for(unsigned int icl = 0; icl < tcl.size(); ++icl) {
@@ -331,9 +332,11 @@ namespace cluster {
       ++nhtTot[ipl];
       if(inClus[iht] >= 0) ++nhtNotMerged[ipl];
     }
+    int frc1, frc2;
     for(ipl = 0; ipl < 3; ++ipl) {
-      int frc1 = 100 * (float)nht[ipl] / (float)nhtNotMerged[ipl];
-      int frc2 = 100 * (float)nhtNotMerged[ipl] / (float)nhtTot[ipl];
+      frc1 = 0; frc2 = 0;
+      if(nhtNotMerged[ipl] > 0) frc1 = 100 * (float)nht[ipl] / (float)nhtNotMerged[ipl];
+      if(nhtTot[ipl] > 0) frc2 = 100 * (float)nhtNotMerged[ipl] / (float)nhtTot[ipl];
       frc2 = 100 - frc2;
       std::cout<<"plane "<<ipl<<" num clusters "<<ncl[ipl]<<" Hits in clusters "<<frc1<<"%. Hits merged "<<frc2<<"%\n";
     }
@@ -372,7 +375,7 @@ namespace cluster {
             // skip used and obsolete hits
             if(inClus[ihit] != 0) continue;
             // skip narrow hits
-            if(fHits[ihit].RMS() < fHitMinRMS) continue;
+            if(fHits[ihit].PeakAmplitude() < fHitMinAmp) continue;
 //            prt = (fDebugPlane == (int)plane && (int)iwire == fDebugWire && std::abs((int)hit.PeakTime() - fDebugHit) < 20);
             if((iwire - span + 1) < 0) continue;
             jwire = iwire - span + 1;
@@ -408,7 +411,7 @@ namespace cluster {
               // skip used and obsolete hits
               if(inClus[jhit] != 0) continue;
               // skip narrow hits
-              if(fHits[jhit].RMS() < fHitMinRMS) continue;
+              if(fHits[jhit].PeakAmplitude() < fHitMinAmp) continue;
               // start a cluster with these two hits
               ClusterInit();
               fcl2hits.push_back(ihit);
@@ -3036,11 +3039,11 @@ namespace cluster {
       unsigned short it1, it2, nh1, pass1, pass2;
       float bs1, bth1, bt1, bc1, es1, eth1, et1, ec1;
       float bs2, bth2, bt2, bc2, es2, eth2, et2, ec2;
-      unsigned short bw1, ew1, bw2, ew2;
-      float dth, angcut, chgrat, chgcut, dtim, timecut, bigslp;
+      int bw1, ew1, bw2, ew2, ndead;
+      float dth, dw, angcut, chgrat, chgcut, dtim, timecut, bigslp;
       bool bothLong, NoVtx;
       
-      unsigned short skipcut, tclsize = tcl.size();
+      int skipcut, tclsize = tcl.size();
       
       for(it1 = 0; it1 < tclsize - 1; ++it1) {
         // ignore already merged clusters
@@ -3103,11 +3106,12 @@ namespace cluster {
           // This is the most likely occurrence given the order in which
           // clusters are created so put it first.
           dth = std::abs(bth2 - eth1);
+          ndead = DeadWireCount(bw2, ew1);
+          dw = ew1 - bw2 - ndead;
           // require no vertex between
           NoVtx = (tcl[it1].EndVtx < 0) && (tcl[it2].BeginVtx < 0);
-          if(prt && bw2 < ew1 ) mf::LogVerbatim("CC")<<"Chk1 "<<ew1<<":"<<(int)et1<<" "<<bw2<<":"<<(int)bt2
-            <<" dW "<<(ew1 - bw2)<<" skipcut "<<skipcut<<" dth "<<dth<<" angcut "<<angcut;
-          if(NoVtx && bw2 < ew1 && (ew1 - bw2)  < skipcut && dth < angcut) {
+          if(prt && bw2 < ew1 ) mf::LogVerbatim("CC")<<"Chk1 "<<ew1<<":"<<(int)et1<<" "<<bw2<<":"<<(int)bt2<<" dw "<<dw<<" ndead "<<ndead<<" skipcut "<<skipcut<<" dth "<<dth<<" angcut "<<angcut;
+          if(NoVtx && bw2 < ew1 && dw  < skipcut && dth < angcut) {
             chgrat = 2 * fabs(bc2 - ec1) / (bc2 + ec1);
             // ignore the charge cut for long tracks with small dth
             if(bothLong && dth < 0.05) chgrat = 0.;
@@ -3116,8 +3120,7 @@ namespace cluster {
             bigslp = std::abs(bs2);
             if(std::abs(es1) > bigslp) bigslp = std::abs(es1);
             timecut = fTimeDelta[pass2] * AngleFactor(bigslp);
-            if(prt) mf::LogVerbatim("CC")<<" dtim "<<dtim<<" timecut "<<(int)timecut<<" ec1 "<<ec1<<" bc2 "<<bc2
-              <<" chgrat "<<chgrat<<" chgcut "<<chgcut<<" es1 "<<es1<<" slpcut "<<fLAClusSlopeCut;
+            if(prt) mf::LogVerbatim("CC")<<" dtim "<<dtim<<" timecut "<<(int)timecut<<" ec1 "<<ec1<<" bc2 "<<bc2<<" chgrat "<<chgrat<<" chgcut "<<chgcut<<" es1 "<<es1;
             if(chgrat < chgcut && dtim < timecut) {
               // ensure there is a signal between cluster ends and the merged
               // cluster will pass the quality cuts
@@ -3132,12 +3135,12 @@ namespace cluster {
           // look for US and DS broken clusters w similar angle
           // US cluster 1 merge with DS cluster 2?
           dth = fabs(bth1 - eth2);
-          if(prt && bw1 < ew2 && (ew2 - bw1)  < skipcut)mf::LogVerbatim("CC")<<"Chk2 "
-            <<bw1<<":"<<(int)bt1<<" "<<bw2<<":"<<(int)et2<<" dW "<<(bw1 - ew2)
-            <<" skipcut "<<skipcut<<" dth "<<dth<<" angcut "<<angcut;
+          ndead = DeadWireCount(bw1, ew2);
+          dw = ew2 - bw1 - ndead;
+          if(prt && bw1 < ew2 && dw  < skipcut) mf::LogVerbatim("CC")<<"Chk2 "<<bw1<<":"<<(int)bt1<<" "<<bw2<<":"<<(int)et2<<" dw "<<dw<<" ndead "<<ndead<<" skipcut "<<skipcut<<" dth "<<dth<<" angcut "<<angcut;
           // require no vertex between
           NoVtx = (tcl[it2].EndVtx < 0) && (tcl[it1].BeginVtx < 0);
-          if(NoVtx && bw1 < ew2 && (ew2 - bw1)  < skipcut && dth < angcut ) {
+          if(NoVtx && bw1 < ew2 && dw  < skipcut && dth < angcut ) {
             chgrat = 2 * fabs((bc1 - ec2) / (bc1 + ec2));
             // ignore the charge cut for long tracks with small dth
             if(bothLong && dth < 0.05) chgrat = 0.;
@@ -3146,8 +3149,7 @@ namespace cluster {
             bigslp = std::abs(bs1);
             if(std::abs(bs2) > bigslp) bigslp = std::abs(bs2);
             timecut = fTimeDelta[pass2] * AngleFactor(bigslp);
-            if(prt) mf::LogVerbatim("CC")<<" dtim "<<dtim<<" err "<<dtim<<" timecut "<<(int)timecut
-              <<" chgrat "<<chgrat<<" chgcut "<<chgcut;
+            if(prt) mf::LogVerbatim("CC")<<" dtim "<<dtim<<" err "<<dtim<<" timecut "<<(int)timecut<<" chgrat "<<chgrat<<" chgcut "<<chgcut;
             // TODO: we should be checking for a signal here like we did above
             if(chgrat < chgcut && dtim < timecut) {
               DoMerge(it1, it2, 10);
@@ -3965,8 +3967,8 @@ namespace cluster {
     if(prt) mf::LogVerbatim("CC")<<"CrawlUS: last wire "<<lastwire<<" hit "<<lasthit;
     
     unsigned int lastWireWithSignal = lastwire;
-    
-    for(unsigned int nextwire = lastwire-1; nextwire >= fFirstWire; --nextwire) {
+
+    for(unsigned int nextwire = lastwire-1; nextwire > fFirstWire; --nextwire) {
       if(prt) mf::LogVerbatim("CC")<<"CrawlUS: next wire "<<nextwire<<" HitRange "<<WireHitRange[nextwire].first;
       // stop crawling if there is a nearby vertex
       if(CrawlVtxChk(nextwire)) {
@@ -4044,8 +4046,8 @@ namespace cluster {
           FclTrimUS(1);
           FitCluster();
           if(clChisq > fChiCut[pass]) {
-            if(prt) mf::LogVerbatim("CC")<<" Bad clChisq "<<clChisq<<" after dropping hit!!";
-            fcl2hits.clear();
+            if(prt) mf::LogVerbatim("CC")<<" Bad clChisq "<<clChisq<<" after dropping hit. Stop crawling";
+//            fcl2hits.clear();
             return;
           }
           FitClusterChg();
@@ -6232,6 +6234,21 @@ namespace cluster {
       } // wire
 
     } // GetHitRange()
+
+  //////////////////////////////////////////
+  unsigned int ClusterCrawlerAlg::DeadWireCount(unsigned int inWire1, unsigned int inWire2)
+  {
+    if(inWire1 > inWire2) {
+      // put in increasing order
+      unsigned int tmp = inWire1;
+      inWire1 = inWire2;
+      inWire2 = tmp;
+    } // inWire1 > inWire2
+    ++inWire2;
+    unsigned int wire, ndead = 0;
+    for(wire = inWire1; wire < inWire2; ++wire) if(WireHitRange[wire].first == -1) ++ndead;
+    return ndead;
+  } // DeadWireCount
 
   //////////////////////////////////////////
   unsigned int ClusterCrawlerAlg::DeadWireCount()
