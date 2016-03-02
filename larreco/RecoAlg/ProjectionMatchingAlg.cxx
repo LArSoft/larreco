@@ -93,13 +93,13 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	TVector3 p(trk.front()->Point3D());
 	for (size_t i = 0; i < trk.Nodes().size() - 1; ++i)
 	{
-		tpc = trk.Nodes()[i]->TPC();
-		cryo = trk.Nodes()[i]->Cryo();
+		auto const & node = *(trk.Nodes()[i]);
+		tpc = node.TPC(); cryo = node.Cryo();
 
 		TVector3 vNext(trk.Nodes()[i + 1]->Point3D());
-		TVector3 vThis(trk.Nodes()[i]->Point3D());
+		TVector3 vThis(node.Point3D());
 
-		const std::vector< TVector2 >& points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
+		std::vector< TVector2 > const & points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
 		if (trk.Nodes()[i + 1]->TPC() == (int)tpc) // skip segments between tpc's, look only at those contained in tpc
 		{
 			TVector3 dc(vNext); dc -= vThis;
@@ -107,7 +107,7 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 
 			double f = pma::GetSegmentProjVector(p, vThis, vNext);
 			double wirepitch = fGeom->TPC(tpc, cryo).Plane(testView).WirePitch();
-			while ((f < 1.0) && trk.Nodes()[i]->SameTPC(p))
+			while ((f < 1.0) && node.SameTPC(p))
 			{
 				TVector2 p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
 				raw::ChannelID_t ch = fGeom->PlaneWireToChannel(testView, (int)p2d.X(), tpc, cryo);

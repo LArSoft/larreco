@@ -1836,7 +1836,7 @@ pma::TrkCandidate PMAlgTrackMaker::matchCluster(
 	}
 
 	unsigned int nFirstHits = first_hits.size();
-	mf::LogVerbatim("PMAlgTrackMaker") << "--- start new candidate ---";
+	mf::LogVerbatim("PMAlgTrackMaker") << std::endl << "--- start new candidate ---";
 	mf::LogVerbatim("PMAlgTrackMaker") << "use plane  *** " << first_view << " ***  size: " << nFirstHits;
 
 	float x, xmax = fDetProp->ConvertTicksToX(first_hits.front()->PeakTime(), first_view, tpc, cryo), xmin = xmax;
