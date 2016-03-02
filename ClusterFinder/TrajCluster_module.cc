@@ -116,7 +116,11 @@ namespace cluster {
     // look for clusters in all planes
     fTCAlg->RunTrajClusterAlg(evt);
     
+//    std::cout<<"module back from TrajCluster \n";
+    
     std::vector<art::Ptr<recob::Hit>> const& fHits = fTCAlg->YieldHits();
+    
+//    std::cout<<"module fHits size "<<fHits.size()<<"\n";
     
     std::vector<recob::Cluster> sccol;
     std::vector<recob::PFParticle> spcol;
@@ -147,12 +151,12 @@ namespace cluster {
           unsigned int iht = clstr.tclhits[ii];
 //          std::cout<<clstr.ID<<" hit "<<plane<<":"<<fHits[iht]->WireID().Wire<<":"<<(int)fHits[iht]->PeakTime()<<"\n";
           if(fHits[iht]->WireID().Plane != plane) {
-            mf::LogError("TrajCluster")<<"Cluster-hit plane mis-match "<<fHits[iht]->WireID().Plane<<" "<<plane
+            mf::LogError("TC")<<"Cluster-hit plane mis-match "<<fHits[iht]->WireID().Plane<<" "<<plane
             <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" cluster CTP "<<clstr.CTP;
             return;
           }
           if(inClus[iht] != clstr.ID) {
-            mf::LogError("TrajCluster") << "InClus mis-match " << inClus[iht]
+            mf::LogError("TC") << "InClus mis-match " << inClus[iht]
             << " ID " << clstr.ID << " in cluster ID " << clstr.ID;
             return;
           }
@@ -184,7 +188,6 @@ namespace cluster {
 
     // make 3D vertices
     std::vector<TrajClusterAlg::Vtx3Store> const& Vertices = fTCAlg->GetVertices();
-//    std::cout<<"module endpoints "<<EndPts.size()<<" Vertices size "<<Vertices.size()<<"\n";
     double xyz[3] = {0, 0, 0};
     vtxID = 0;
     for(TrajClusterAlg::Vtx3Store const& vtx3: Vertices) {
