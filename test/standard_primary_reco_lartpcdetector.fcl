@@ -24,7 +24,7 @@
 #include "detectorproperties_lartpcdetector.fcl"
 #include "larproperties.fcl"
 #include "databaseutil.fcl"
-#include "timeservice_lartpcdetector.fcl"
+#include "detectorclocks_lartpcdetector.fcl"
 
 #include "services_microboone_simulation.fcl"
 #include "larfft.fcl"
@@ -51,9 +51,9 @@ services:
   # LArSoft services
   Geometry:               @local::standard_geo # from geometry.fcl
   ExptGeoHelperInterface: @local::standard_geometry_helper # from geometry.fcl
-  DetectorProperties:     @local::lartpcdetector_detproperties # from detectorproperties_lartpcdetector.fcl
-  LArProperties:          @local::standard_properties # from larproperties.fcl
-  TimeService:            @local::lartpcdetector_timeservice # from timeservice_lartpcdetector.fcl
+  DetectorPropertiesService:     @local::lartpcdetector_detproperties # from detectorproperties_lartpcdetector.fcl
+  LArPropertiesService:          @local::standard_properties # from larproperties.fcl
+  DetectorClocksService:            @local::lartpcdetector_detectorclocks # from detectorclocks_lartpcdetector.fcl
   DatabaseUtil:           @local::standard_database # from databaseutil.fcl
   
   SignalShapingServiceMicroBooNE: @local::microboone_signalshapingservice

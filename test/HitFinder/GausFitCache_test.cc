@@ -14,7 +14,7 @@
 #include "boost/test/auto_unit_test.hpp"
 
 // LArSoft libraries
-#include "HitFinder/GausFitCache.h"
+#include "larreco/HitFinder/GausFitCache.h"
 
 
 
