@@ -109,10 +109,6 @@ namespace cluster {
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
     void RunCrawler(std::vector<recob::Hit> const& srchits);
-    
-    // initializes the vector of filtered wires
-    void ClearFilteredWires();
-    void CheckFilteredWires(std::vector<recob::Wire> const& Wires);
 
     /// @{
     /// @name Result retrieval
@@ -145,7 +141,6 @@ namespace cluster {
 
     private:
     
-    
     unsigned short fNumPass;                 ///< number of passes over the hit collection
     std::vector<unsigned short> fMaxHitsFit; ///< Max number of hits fitted
     std::vector<unsigned short> fMinHits;    ///< Min number of hits to make a cluster
@@ -168,7 +163,7 @@ namespace cluster {
     bool fFindVLAClusters;					 ///< look for Very Large Angle clusters
     bool fRefineVertexClusters;
 		
-		float fMinAmp;									///< expected minimum signal
+    std::vector<float> fMinAmp;									///< expected minimum signal in each wire plane
 
     float fKillGarbageClusters;
     bool fChkClusterDS;
@@ -314,14 +309,13 @@ namespace cluster {
     void AddHit(unsigned int kwire, bool& HitOK, bool& SigOK);
     // Finds a hit on wire kwire, adds it to a LargeAngle cluster and re-fits it
     void AddLAHit(unsigned int kwire, bool& ChkCharge, bool& HitOK, bool& SigOK);
-    // find a Very Large Angle Hit
-//    bool AddVLAHit(unsigned short wire, float prtime, float window);
     // Fits the cluster hits in fcl2hits to a straight line
     void FitCluster();
     // Fits the charge of the cluster hits in fcl2hits
     void FitClusterChg();
      // Fits the middle of a temporary cluster it1 using hits iht to iht + nhit
     void FitClusterMid(unsigned short it1, unsigned int iht, short nhit);
+    void FitClusterMid(std::vector<unsigned int>& hitVec, unsigned int iht, short nhit);
     // Crawls along a trail of hits UpStream
     void CrawlUS();
     // Crawls along a trail of hits UpStream - Large Angle version
@@ -395,13 +389,12 @@ namespace cluster {
     // Split clusters that cross a vertex
     bool VtxClusterSplit();
     // returns true if a vertex is encountered while crawling
-    bool CrawlVtxChk(unsigned short kwire);
+    bool CrawlVtxChk(unsigned int kwire);
     // returns true if this cluster is between a vertex and another
     // cluster that is associated with the vertex
     bool CrawlVtxChk2();
     // use a vertex constraint to start a cluster
-    void VtxConstraint(unsigned short iwire, unsigned int ihit,
-      unsigned short jwire, unsigned int& useHit, bool& doConstrain);
+    void VtxConstraint(unsigned int iwire, unsigned int ihit, unsigned int jwire, unsigned int& useHit, bool& doConstrain);
     // fit the vertex position
     void FitVtx(unsigned short iv);
     // weight and fit all vertices
@@ -446,7 +439,8 @@ namespace cluster {
     void PrintClusters();
     void PrintVertices();
     // check for a signal on all wires between two points
-    bool ChkSignal(unsigned short wire1, float time1, unsigned short wire2, float time2);
+    bool ChkSignal(unsigned int iht, unsigned int jht);
+    bool ChkSignal(unsigned int wire1, float time1, unsigned int wire2, float time2);
     // returns an angle-dependent scale factor for weighting fits, etc
     float AngleFactor(float slope);
     // calculate the kink angle between hits 0-2 and 3 - 5 on the leading edge of
