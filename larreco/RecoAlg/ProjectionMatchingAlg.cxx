@@ -9,6 +9,9 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const fhicl::ParameterSet& pset)
@@ -82,11 +85,13 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		}
 	}
 
+	auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+
 	double step = 0.3;
-	// then check how points close to the track projection are distributed along the
-	// track, namely: are there track sections crossing empty spaces?
+	// then check how points-close-to-the-track-projection are distributed along the
+	// track, namely: are there track sections crossing empty spaces, except dead wires?
 	TVector3 p(trk.front()->Point3D());
-	for (size_t i = 0; i < trk.Nodes().size() - 1; i++)
+	for (size_t i = 0; i < trk.Nodes().size() - 1; ++i)
 	{
 		tpc = trk.Nodes()[i]->TPC();
 		cryo = trk.Nodes()[i]->Cryo();
@@ -95,25 +100,32 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		TVector3 vThis(trk.Nodes()[i]->Point3D());
 
 		const std::vector< TVector2 >& points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
-		if (trk.Nodes()[i + 1]->TPC() == (int)tpc) // skip segments between tpc's
+		if (trk.Nodes()[i + 1]->TPC() == (int)tpc) // skip segments between tpc's, look only at those contained in tpc
 		{
 			TVector3 dc(vNext); dc -= vThis;
 			dc *= step / dc.Mag();
 
 			double f = pma::GetSegmentProjVector(p, vThis, vNext);
+			double wirepitch = fGeom->TPC(tpc, cryo).Plane(testView).WirePitch();
 			while ((f < 1.0) && trk.Nodes()[i]->SameTPC(p))
 			{
-				if (points.size())
+				TVector2 p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
+				raw::ChannelID_t ch = fGeom->PlaneWireToChannel(testView, (int)p2d.X(), tpc, cryo);
+				if (channelStatus.IsGood(ch))
 				{
-					TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
-
-					for (const auto & h : points)
+					if (points.size())
 					{
-						d2 = pma::Dist2(p2d, h);
-						if (d2 < max_d2) { nPassed++; break; }
+						p2d.Set(wirepitch * p2d.X(), p2d.Y());
+						for (const auto & h : points)
+						{
+							d2 = pma::Dist2(p2d, h);
+							if (d2 < max_d2) { nPassed++; break; }
+						}
 					}
+					nAll++;
 				}
-				nAll++;
+				//else mf::LogVerbatim("ProjectionMatchingAlg")
+				//	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
 
 				p += dc; f = pma::GetSegmentProjVector(p, vThis, vNext);
 			}
@@ -145,18 +157,27 @@ double pma::ProjectionMatchingAlg::validate(
 	TVector3 dc(p1); dc -= p;
 	dc *= step / dc.Mag();
 
+	auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+
 	double f = pma::GetSegmentProjVector(p, p0, p1);
+	double wirepitch = fGeom->TPC(tpc, cryo).Plane(testView).WirePitch();
 	while (f < 1.0)
 	{
-		TVector2 p2d = pma::GetProjectionToPlane(p, testView, tpc, cryo);
-
-		for (const auto & h : hits)
-			if (h->WireID().Plane == testView)
+		TVector2 p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
+		raw::ChannelID_t ch = fGeom->PlaneWireToChannel(testView, (int)p2d.X(), tpc, cryo);
+		if (channelStatus.IsGood(ch))
 		{
-			d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
-			if (d2 < max_d2) { nPassed++; break; }
+			p2d.Set(wirepitch * p2d.X(), p2d.Y());
+			for (const auto & h : hits)
+				if (h->WireID().Plane == testView)
+			{
+				d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
+				if (d2 < max_d2) { nPassed++; break; }
+			}
+			nAll++;
 		}
-		nAll++;
+		//else mf::LogVerbatim("ProjectionMatchingAlg")
+		//	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
 
 		p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
 	}
