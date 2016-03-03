@@ -214,16 +214,11 @@ private:
 
   // ******************* tree output **********************
   int fEvNumber;        // event number
-  int fTrkIndex;        // track index in the event, same for all dQ/dx points of the track
-  int fPlaneIndex;      // wire plane index of the dQ/dx data point
-  int fPlaneNPoints;    // number of data points in this plane
+  int fTrkIndex;        // track index in the event
   int fPidTag;          // Tag: 0=trk-like, 1=cascade-like
-  double fdQdx;         // dQ/dx data point stored for each plane
-  double fRange;        // residual range at dQ/dx data point, tracks are auto-flipped
   double fLength;       // track length
   double fHitsMse;      // MSE of hits: mean dist^2 of hit to 2D track projection
   double fSegAngMean;   // Mean segment-segment 3D angle.
-  TTree* fTree_dQdx;    // dQ/dx info (saved optionally)
   TTree* fTree_trk;     // overall info
 
   // ******************** parameters **********************
@@ -242,7 +237,6 @@ private:
   bool fFlipToBeam;            // set the track direction to increasing Z values
   bool fFlipDownward;          // set the track direction to decreasing Y values
   bool fAutoFlip_dQdx;         // set the track direction to increasing dQ/dx
-  bool fSave_dQdx;             // for debugging purposes, off by default
 
   bool fMergeWithinTPC;          // merge witnin single TPC; finds tracks best matching by angle, with limits:
   double fMergeTransverseShift;  //   - max. transverse displacement [cm] between tracks
@@ -294,15 +288,6 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 void PMAlgTrackMaker::beginJob()
 {
 	art::ServiceHandle<art::TFileService> tfs;
-	fTree_dQdx = tfs->make<TTree>("PMAlgTrackMaker_dQdx", "tracks dQ/dx info");
-	fTree_dQdx->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
-	fTree_dQdx->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
-	fTree_dQdx->Branch("fPlaneIndex", &fPlaneIndex, "fPlaneIndex/I");
-	fTree_dQdx->Branch("fPlaneNPoints", &fPlaneNPoints, "fPlaneNPoints/I");
-	fTree_dQdx->Branch("fdQdx", &fdQdx, "fdQdx/D");
-	fTree_dQdx->Branch("fRange", &fRange, "fRange/D");
-	fTree_dQdx->Branch("fLength", &fLength, "fLength/D");
-
 	fTree_trk = tfs->make<TTree>("PMAlgTrackMaker_trk", "tracks overall info");
 	fTree_trk->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
 	fTree_trk->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
@@ -329,7 +314,6 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fFlipToBeam = pset.get< bool >("FlipToBeam");
 	fFlipDownward = pset.get< bool >("FlipDownward");
 	fAutoFlip_dQdx = pset.get< bool >("AutoFlip_dQdx");
-	fSave_dQdx = pset.get< bool >("Save_dQdx");
 
 	fMergeWithinTPC = pset.get< bool >("MergeWithinTPC");
 	fMergeTransverseShift = pset.get< double >("MergeTransverseShift");
@@ -358,11 +342,7 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 	fPfpPdgCodes.clear();
 	fEvNumber = evt.id().event();
 	fTrkIndex = 0;
-	fPlaneIndex = 0;
-	fPlaneNPoints = 0;
 	fPidTag = 0;
-	fdQdx = 0.0;
-	fRange = 0.0;
 	fLength = 0.0;
 	fHitsMse = 0.0;
 	fSegAngMean = 0.0;
@@ -453,26 +433,6 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 	if (src.GetTag() == pma::Track3D::kEmLike) fPidTag = 0x10000;
 	else fPidTag = 0;
 
-	if (fSave_dQdx)
-	{
-		for (unsigned int view = 0; view < fGeom->Nviews(); view++)
-			if (fGeom->TPC(tpc, cryo).HasPlane(view))
-			{
-				fPlaneIndex = view;
-				fPlaneNPoints = src_dQdx[view].size();
-				for (auto const& data : src_dQdx[view])
-				{
-					double dQ = data.second[5];
-					double dx = data.second[6];
-					fRange = data.second[7];
-					if (dx > 0.)
-					{
-						fdQdx = dQ/dx;
-						fTree_dQdx->Fill();
-					}
-				}
-			}
-	}
 	fTree_trk->Fill();
 
 	if (xyz.size() != dircos.size())
