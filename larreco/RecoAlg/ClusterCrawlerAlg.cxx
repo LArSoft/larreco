@@ -3843,21 +3843,6 @@ namespace cluster {
     clstr.tclhits     = fcl2hits;
     tcl.push_back(clstr);
 
-/*
-    // Re-fit the cluster at the Begin end. Use this to determine BeginTim
-    // instead of using the PeakTime of the first hit
-    // Determine which pass the cluster was created in
-    unsigned short cpass = clProcCode - 10 * (clProcCode / 10);
-    if(cpass > fNumPass-1) cpass = fNumPass-1;
-    // to decide how many hits to fit
-    short nhfit = fMaxHitsFit[cpass];
-    FitClusterMid(tcl.size()-1, fcl2hits[0], nhfit);
-    if(clChisq < 99) tcl[tcl.size()-1].BeginTim = clpar[0];
-*/
-    ClearUnMergedHits();
-
-=======
->>>>>>> develop:larreco/RecoAlg/ClusterCrawlerAlg.cxx
     return true;
   } // TmpStore()
 
@@ -4991,33 +4976,8 @@ namespace cluster {
    
     unsigned short nHitToChk = fcl2hits.size();
     if(nHitChk > 0) nHitToChk = nHitChk + 1;
-    unsigned short indx;
-    
-    if(fAveHitWidth > 0) {
-//      if(prt) mf::LogVerbatim("CC")<<"ClusterHitsOK: check hit widths";
-      // Test the first hit on the cluster against the average
-      if(nHitChk == 1) {
-        indx = fcl2hits.size() - 1;
-        wid = fHits[fcl2hits[indx]].EndTick() - fHits[fcl2hits[indx]].StartTick();
-        // ensure that it isn't too narrow
-        if(wid < 0.5 * fAveHitWidth) return false;
-      } else {
-        // require that all hits are not too dissimilar from each other
-        for(unsigned short ii = 0; ii < nHitToChk; ++ii) {
-          indx = fcl2hits.size() - 1 - ii;
-          wid = fHits[fcl2hits[indx]].EndTick() - fHits[fcl2hits[indx]].StartTick();
-          if(wid < loWid) loWid = wid;
-          if(wid > hiWid) hiWid = wid;
-        }
-//      if(prt) mf::LogVerbatim("CC")<<"ClusterHitsOK loWid "<<loWid<<" hiWid "<<hiWid;
-        if(hiWid > 2 * loWid) return false;
-      }
-    }
-    
-=======
     unsigned short ii, indx;
 
->>>>>>> develop:larreco/RecoAlg/ClusterCrawlerAlg.cxx
     // require that they overlap
     // add a tolerance to the StartTick - EndTick overlap
     raw::TDCtick_t tol = 30;

@@ -19,8 +19,8 @@
 #include "art/Utilities/InputTag.h"
 
 //LArSoft includes
-#include "RecoAlg/TrajClusterAlg.h"
-#include "RecoBase/PFParticle.h"
+#include "larreco/RecoAlg/TrajClusterAlg.h"
+#include "lardata/RecoBase/PFParticle.h"
 
 // ... more includes in the implementation section
 
@@ -69,16 +69,12 @@ namespace cluster {
 #include "art/Persistency/Common/Assns.h"
 
 //LArSoft includes
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Utilities/AssociationUtil.h"
-#include "RecoBase/Cluster.h"
-#include "RecoBase/Hit.h"
-#include "RecoBase/EndPoint2D.h"
-#include "RecoBase/Vertex.h"
-#include "RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
-#include "RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
-#include "RecoAlg/ClusterParamsImportWrapper.h"
-
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/RecoBase/Cluster.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/EndPoint2D.h"
+#include "lardata/RecoBase/Vertex.h"
 
 namespace cluster {
   

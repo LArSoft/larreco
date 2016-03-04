@@ -16,23 +16,36 @@
 #include <vector>
 #include <memory> // std::move()
 #include <utility> // std::pair<>
+#include <cmath>
+#include <iostream>
+#include <iomanip>
+#include <algorithm>
 
 // framework libraries
-#include "fhiclcpp/ParameterSet.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "fhiclcpp/ParameterSet.h"
+#include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Utilities/InputTag.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "art/Utilities/Exception.h"
 
 // LArSoft libraries
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "Geometry/Geometry.h"
-#include "RecoBase/Hit.h"
-#include "Utilities/LArProperties.h"
-#include "Utilities/DetectorProperties.h"
-#include "RecoAlg/LinFitAlg.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/RecoBase/Hit.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larreco/RecoAlg/LinFitAlg.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
-#include <TH1F.h>
-#include <TH2F.h>
-#include <TProfile.h>
+#include "TH1F.h"
+#include "TH2F.h"
+#include "TProfile.h"
 
 namespace cluster {
   
@@ -194,8 +207,8 @@ namespace cluster {
     bool shPrt; /// print shower info
     
     art::ServiceHandle<geo::Geometry> geom;
-    art::ServiceHandle<util::LArProperties> larprop;
-    art::ServiceHandle<util::DetectorProperties> detprop;
+    const detinfo::LArProperties* larprop;
+    const detinfo::DetectorProperties* detprop;
     
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< the endpoints we are reconstructing

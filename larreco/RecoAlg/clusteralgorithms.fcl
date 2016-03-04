@@ -4,12 +4,34 @@ BEGIN_PROLOG
 
 standard_trajclusteralg:
 {
-  Mode: 1
-  ChgDiffCut: 10
-  KinkAngCut: 0.4
-  MaxDeltaJump: 20
-  StudyMode: false
-  TagClusters: false
+   HitFinderModuleLabel: "gaushit"
+   Mode: 1
+   NPtsAve: 10
+   MinPtsFit: [20, 2]
+   MinPts: [20, 3]
+   MaxChi: 5
+   HitErrFac: 0.01 # MC
+   MinAmp: 5
+   LargeAngle: 70
+   MultHitSep: 4
+   UseAllHitsInMultiplet: false
+   TP3ChiCut: 5
+   HitFOMCut: 1
+   ChgRatCut: 0.5
+   KinkAngCut: 0.4
+   ProjectionErrFactor: 5 # a factor to twiddle
+   JTMaxHitSep: -1 # 3 # max hit separation for making Junk Trajectories
+   MaxWireSkip: 1.5
+   FindTrajVertices: true
+   MaxVertexTrajSep: [ 6, 4] # in WSE units
+   MaxTrajSep: 4 # WSE's for shower identification
+   StudyMode: false
+   ShowerStudy: false
+   ShowerPrtPlane: -1
+   TagAllTraj: false
+   DebugPlane: -1
+   DebugWire: -1
+   DebugHit: -1
 }
 
 standard_clustercrawleralg:

@@ -7,24 +7,11 @@
 ///
 ////////////////////////////////////////////////////////////////////////
 
-// C/C++ standard libraries
-#include <cmath>
-#include <iostream>
-#include <iomanip>
-#include <algorithm>
+#include "larreco/RecoAlg/TrajClusterAlg.h"
 
-// framework libraries
-#include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art/Utilities/Exception.h"
-
-// LArSoft libraries
-#include "RecoBase/Hit.h"
-#include "RecoAlg/TrajClusterAlg.h"
-#include "CalibrationDBI/Interface/IChannelStatusService.h"
-#include "CalibrationDBI/Interface/IChannelStatusProvider.h"
 
 // TEMP for TagAllTraj
-#include "MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTracker.h"
 
 class TH1F;
 class TH2F;
@@ -144,11 +131,18 @@ namespace cluster {
     if(fMode == 0) return;
     
     //Get the hits for this event:
-    art::Handle< std::vector<recob::Hit> > hitVecHandle;
-    evt.getByLabel(fHitFinderModuleLabel, hitVecHandle);
+//    art::Handle< std::vector<recob::Hit> > hitVecHandle;
+//    evt.getByLabel(fHitFinderModuleLabel, hitVecHandle);
+    
+    art::ValidHandle< std::vector<recob::Hit>> hitVecHandle
+    = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderModuleLabel);
 
     fHits.resize(hitVecHandle->size());
     if(fHits.size() == 0) return;
+ 
+    larprop = lar::providerFrom<detinfo::LArPropertiesService>();
+    detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
     
     for (unsigned int iht = 0; iht < fHits.size(); iht++) fHits[iht] = art::Ptr< recob::Hit>(hitVecHandle, iht);
     
@@ -183,7 +177,7 @@ namespace cluster {
         // get the scale factor to convert dTick/dWire to dX/dU. This is used
         // to make the kink and merging cuts
         float wirePitch = geom->WirePitch(geom->View(channel));
-        float tickToDist = larprop->DriftVelocity(larprop->Efield(),larprop->Temperature());
+        float tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
         tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
         fScaleF = tickToDist / wirePitch;
 
@@ -1688,6 +1682,10 @@ namespace cluster {
       }  else {
         // More difficult case of hits in different multiplets. Just
         // use the single best hit
+        if(imbest > tp.Hits.size() - 1) {
+          std::cout<<"Whoops\n";
+          return;
+        }
         iht = tp.Hits[imbest];
         if(inTraj[iht] <= 0 && HitChargeOK(tj, ipt, imbest)) {
           // Charge is consistent with the average charge
@@ -4086,7 +4084,7 @@ namespace cluster {
       ++nHitInPlane;
     }
     // overwrite with the "dead wires" condition
-    lariov::IChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::IChannelStatusService>()->GetProvider();
+    lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     flag.first = -1; flag.second = -1;
     for(wire = 0; wire < fNumWires; ++wire) {
       raw::ChannelID_t chan = geom->PlaneWireToChannel
