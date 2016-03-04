@@ -110,10 +110,13 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 			while ((f < 1.0) && node.SameTPC(p))
 			{
 				TVector2 p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
-				raw::ChannelID_t ch = fGeom->PlaneWireToChannel(testView, (int)p2d.X(), tpc, cryo);
-				if (channelStatus.IsGood(ch))
+				geo::WireID wireID(cryo, tpc, testView, (int)p2d.X());
+				if (fGeom->HasWire(wireID))
 				{
-					if (points.size())
+				  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+				  if (channelStatus.IsGood(ch))
+				  {
+				        if (points.size())
 					{
 						p2d.Set(wirepitch * p2d.X(), p2d.Y());
 						for (const auto & h : points)
@@ -123,6 +126,7 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 						}
 					}
 					nAll++;
+				  }
 				}
 				//else mf::LogVerbatim("ProjectionMatchingAlg")
 				//	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
