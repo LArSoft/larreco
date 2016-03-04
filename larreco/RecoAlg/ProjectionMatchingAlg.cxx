@@ -127,9 +127,9 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 					}
 					nAll++;
 				  }
+				  //else mf::LogVerbatim("ProjectionMatchingAlg")
+				  //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
 				}
-				//else mf::LogVerbatim("ProjectionMatchingAlg")
-				//	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
 
 				p += dc; f = pma::GetSegmentProjVector(p, vThis, vNext);
 			}
@@ -168,20 +168,24 @@ double pma::ProjectionMatchingAlg::validate(
 	while (f < 1.0)
 	{
 		TVector2 p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
-		raw::ChannelID_t ch = fGeom->PlaneWireToChannel(testView, (int)p2d.X(), tpc, cryo);
-		if (channelStatus.IsGood(ch))
+		geo::WireID wireID(cryo, tpc, testView, (int)p2d.X());
+		if (fGeom->HasWire(wireID))
 		{
-			p2d.Set(wirepitch * p2d.X(), p2d.Y());
-			for (const auto & h : hits)
-				if (h->WireID().Plane == testView)
+			raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+			if (channelStatus.IsGood(ch))
 			{
-				d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
-				if (d2 < max_d2) { nPassed++; break; }
+				p2d.Set(wirepitch * p2d.X(), p2d.Y());
+				for (const auto & h : hits)
+					if (h->WireID().Plane == testView)
+				{
+					d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
+					if (d2 < max_d2) { nPassed++; break; }
+				}
+				nAll++;
 			}
-			nAll++;
+			//else mf::LogVerbatim("ProjectionMatchingAlg")
+			//	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
 		}
-		//else mf::LogVerbatim("ProjectionMatchingAlg")
-		//	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
 
 		p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
 	}
