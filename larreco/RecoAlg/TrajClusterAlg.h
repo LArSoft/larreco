@@ -368,10 +368,11 @@ namespace cluster {
 //    float HitPosErr2(TrajPoint& tp);
     void DefineHitPos(TrajPoint& tp);
     float HitsTimeErr2(std::vector<unsigned int> const& hitVec);
-    // Add hits that are close to the trajectory point
-    void AddWorkHits(TrajPoint& tp, bool& SignalPresent);
-    // decide which of the close hits to use
-    void SetUsedHits(TrajPoint& tp, Trajectory& tj, short flag);
+    // Add hits on the trajectory point ipt that are close to the trajectory point Pos
+    void AddHits(Trajectory& tj, unsigned short ipt, bool& SignalPresent);
+    // decide which of the close hits to use on a TP tp that is not yet added
+    // to trajectory tj
+    void SetUsedHits(Trajectory& tj, unsigned short ipt, short flag);
     bool HitChargeOK(Trajectory& tj, unsigned short ipt, unsigned short iht);
     void UnsetUsedHits(TrajPoint& tp);
     unsigned short NumUsedHits(TrajPoint& tp);
