@@ -494,7 +494,7 @@ namespace cluster {
     unsigned int nwires = fLastWire - fFirstWire - 1;
     unsigned int ifirsthit, ilasthit, jfirsthit, jlasthit;
     float fromWire, fromTick, toWire, toTick, deltaRms, qtot;
-    bool SignalPresent, trajAdded;
+    bool signalPresent, trajAdded;
 
     for(unsigned short pass = 0; pass < fMinPtsFit.size(); ++pass) {
       fPass = pass;
@@ -569,10 +569,10 @@ namespace cluster {
               work.Pts[0].DeltaRMS = deltaRms;
             } // fHitDoublet
             // try to add close hits
-            AddWorkHits(work.Pts[0], SignalPresent);
+            AddHits(work, 0, signalPresent);
             // check for a major failure
             if(fQuitAlg) return;
-            if(!SignalPresent || NumUsedHits(work.Pts[0]) == 0) {
+            if(!signalPresent || NumUsedHits(work.Pts[0]) == 0) {
               if(prt) mf::LogVerbatim("TC")<<" No hits at initial trajectory point ";
               ReleaseWorkHits();
               continue;
@@ -1423,15 +1423,27 @@ namespace cluster {
 
   
   ////////////////////////////////////////////////
-  void TrajClusterAlg::AddWorkHits(TrajPoint& tp, bool& SignalPresent)
+  void TrajClusterAlg::AddHits(Trajectory& tj, unsigned short ipt, bool& SignalPresent)
   {
+    // Try to add hits to the trajectory point ipt on the supplied
+    // trajectory
+    
+    if(tj.Pts.size() == 0) return;
+    if(ipt > tj.Pts.size() - 1) return;
+    
     std::vector<unsigned int> closeHits;
     unsigned int wire, loWire, hiWire, iht, firstHit, lastHit;
-    unsigned int lastPt = work.EndPt[1];
+
+    unsigned int lastPtWithHits = tj.EndPt[1];
+    unsigned int prevPt = 0;
+    // This is going to fail if at some point we decide to use this code
+    // to add hits to a point that is not at the leading edge of the TJ
+    if(tj.Pts.size() > 0) prevPt = tj.Pts.size() - 1;
+    TrajPoint& tp = tj.Pts[ipt];
 
     // figure out which wires to consider
     // On the first entry only consider the wire the TP is on
-    if(work.Pts.size() == 1) {
+    if(tj.Pts.size() == 1) {
       loWire = std::nearbyint(tp.Pos[0]);
       hiWire = loWire + 1;
     } else  {
@@ -1446,15 +1458,16 @@ namespace cluster {
         // Move the TP to this wire
         MoveTPToWire(tp, (float)loWire);
       }
-    } // work.Pts.size > 1
+    } // tj.Pts.size > 1
     
     float fwire, ftime, delta;
     
-    // find the projection error to this point
-    float dw = tp.Pos[0] - work.Pts[lastPt].Pos[0];
-    float dt = tp.Pos[1] - work.Pts[lastPt].Pos[1];
+    // find the projection error to this point. Note that if this is the first
+    // TP, lastPtWithHits = 0, so the projection error is 0
+    float dw = tp.Pos[0] - tj.Pts[lastPtWithHits].Pos[0];
+    float dt = tp.Pos[1] - tj.Pts[lastPtWithHits].Pos[1];
     float dpos = sqrt(dw * dw + dt * dt);
-    float projErr = dpos * work.Pts[lastPt].AngErr;
+    float projErr = dpos * tj.Pts[lastPtWithHits].AngErr;
     // Add this to the Delta RMS factor and construct a cut
     float deltaCut = 3 * (projErr + tp.DeltaRMS);
     if(IsLargeAngle(tp)) {
@@ -1472,11 +1485,11 @@ namespace cluster {
     // for large angle trajectories
     std::vector<unsigned int> pclHits;
     // put all hits in the vector
-    PutTrajHitsInVector(work, false, pclHits);
+    PutTrajHitsInVector(tj, false, pclHits);
     
     // assume failure
     SignalPresent = false;
-    if(prt) mf::LogVerbatim("TC")<<" AddWorkHits: loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" projErr "<<projErr<<" tp.Dir[0] "<<tp.Dir[0]<<" IsLA "<<IsLargeAngle(tp);
+    if(prt) mf::LogVerbatim("TC")<<" AddHits: loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" projErr "<<projErr<<" tp.Dir[0] "<<tp.Dir[0]<<" IsLA "<<IsLargeAngle(tp);
     
     for(wire = loWire; wire < hiWire; ++wire) {
       // Assume a signal exists on a dead wire
@@ -1527,8 +1540,8 @@ namespace cluster {
       for(ii = 0; ii < tp.Hits.size(); ++ii) {
         sortEntry.index = ii;
         iht = tp.Hits[ii];
-        dw = fHits[iht]->WireID().Wire - work.Pts[lastPt].Pos[0];
-        dt = fHits[iht]->PeakTime() * fScaleF - work.Pts[lastPt].Pos[1];
+        dw = fHits[iht]->WireID().Wire - work.Pts[prevPt].Pos[0];
+        dt = fHits[iht]->PeakTime() * fScaleF - work.Pts[prevPt].Pos[1];
         sortEntry.length = dw * dw + dt * dt;
         sortVec.push_back(sortEntry);
       } // ii
@@ -1543,13 +1556,13 @@ namespace cluster {
     // resize the UseHit vector and assume that none of these hits will be used (yet)
     tp.UseHit.resize(tp.Hits.size(), false);
     // decide which of these hits should be used in the fit
-    SetUsedHits(tp, work, work.ID);
-    SetTrajEndPoints(work);
+    SetUsedHits(tj, ipt, tj.ID);
+    SetTrajEndPoints(tj);
     DefineHitPos(tp);
      if(prt) mf::LogVerbatim("TC")<<" number of close hits "<<closeHits.size()<<" used hits "<<NumUsedHits(tp);
     //    if(prt) mf::LogVerbatim("TC")<<" HitPos "<<tp.HitPos[0]<<" tick "<<(int)tp.HitPos[1]/fScaleF<<" nhits "<<closeHits.size();
     
-  } // AddWorkHits
+  } // AddHits
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::ReleaseWorkHits()
@@ -1569,15 +1582,15 @@ namespace cluster {
   } // UnsetUsedHits
   
   //////////////////////////////////////////
-  void TrajClusterAlg::SetUsedHits(TrajPoint& tp, Trajectory& tj, short flag)
+  void TrajClusterAlg::SetUsedHits(Trajectory& tj, unsigned short ipt, short flag)
   {
     // Decide which hits to use to determine the trajectory point
     // fit, charge, etc. This is done by setting UseHit true and
-    // setting inTraj = -3
+    // setting inTraj = -3. Trajectory point tp has not yet been appended
+    // to trajectory tj, so both are passed to this routine
     
-//    if(ipt > tj.Pts.size() - 1) return;
-//    TrajPoint& tp = tj.Pts[ipt];
-    unsigned short ipt = tj.Pts.size() - 1;
+    if(ipt > tj.Pts.size() - 1) return;
+    TrajPoint& tp = tj.Pts[ipt];
     
     if(tp.Hits.size() == 0) return;
     // some error checking
@@ -1682,10 +1695,6 @@ namespace cluster {
       }  else {
         // More difficult case of hits in different multiplets. Just
         // use the single best hit
-        if(imbest > tp.Hits.size() - 1) {
-          std::cout<<"Whoops\n";
-          return;
-        }
         iht = tp.Hits[imbest];
         if(inTraj[iht] <= 0 && HitChargeOK(tj, ipt, imbest)) {
           // Charge is consistent with the average charge
@@ -2163,11 +2172,11 @@ namespace cluster {
     
     fGoodWork = false;
     if(work.Pts.size() == 0) return;
-    // ensure that the direction is defined
-    unsigned short lastPt = work.EndPt[1];
-    TrajPoint tp = work.Pts[lastPt];
+ 
+    unsigned short iwt, lastPt;
+    unsigned short lastPtWithHits = work.EndPt[1];
+    TrajPoint tp = work.Pts[lastPtWithHits];
 
-    unsigned short iwt;
     
     unsigned int step;
     float stepSize;
@@ -2175,16 +2184,18 @@ namespace cluster {
     float maxPos1 = fMaxTime * fScaleF;
     float onWire;
     
-    // count number of steps taken with no trajectory point added
-//    unsigned short nMissedStep = 0;
+    // decide on the number of steps expected without adding a hit
     unsigned short missedStepCut = SetMissedStepCut(tp);
     
     if(prt) mf::LogVerbatim("TC")<<"Start StepCrawl with missedStepCut "<<missedStepCut;
 
-    bool hitsPresent, keepGoing;
+    bool signalPresent, keepGoing;
     unsigned short killPts;
     for(step = 0; step < 1000; ++step) {
       if(IsLargeAngle(tp)) { stepSize = 1; } else { stepSize = std::abs(1/tp.Dir[0]); }
+      // make a copy of the previous TP
+      lastPt = work.Pts.size() - 1;
+      tp = work.Pts[lastPt];
       // move the position by one step in the right direction
       for(iwt = 0; iwt < 2; ++iwt) tp.Pos[iwt] += tp.Dir[iwt] * stepSize;
       if(prt) mf::LogVerbatim("TC")<<"StepCrawl "<<step<<" Pos "<<tp.Pos[0]<<" "<<tp.Pos[1];
@@ -2194,20 +2205,33 @@ namespace cluster {
       // remove the old hits
       tp.Hits.clear();
       tp.UseHit.clear();
-      // look for new hits
-      AddWorkHits(tp, hitsPresent);
-      // hitsPresent is set true if there is a wire signal in the vicinity.
+      // append to the work trajectory
+      work.Pts.push_back(tp);
+      // update the index of the last TP
+      lastPt = work.Pts.size() - 1;
+      // look for hits
+      AddHits(work, lastPt, signalPresent);
+      // update the end points EndPt (i.e. first & last TP that has a hit)
+      SetTrajEndPoints(work);
+      // overwrite the local TP with the updated work TP
+      tp = work.Pts[lastPt];
       // Any close hits have been inserted in tp.Hits.
       // Hits in this collection that were used to define tp.HitPos, tp.Chg, etc
       // are identified by tp.UseHit == true
-      if(!hitsPresent) {
-        // check the number of missed wires
-        lastPt = work.EndPt[1];
-        if(prt)  mf::LogVerbatim("TC")<<" No signal. Missed wires "<<std::abs(tp.Pos[0] - work.Pts[lastPt].Pos[0])<<" user cut "<<fMaxWireSkip;
-        if(std::abs(tp.Pos[0] - work.Pts[lastPt].Pos[0]) < fMaxWireSkip) continue;
+      if(!signalPresent) {
+        // No close hits added. Check the number of missed wires
+        lastPtWithHits = work.EndPt[1];
+        if(prt)  mf::LogVerbatim("TC")<<" No signal. Missed wires "<<std::abs(tp.Pos[0] - work.Pts[lastPtWithHits].Pos[0])<<" user cut "<<fMaxWireSkip;
+        if(std::abs(tp.Pos[0] - work.Pts[lastPtWithHits].Pos[0]) < fMaxWireSkip) {
+          // no sense keeping this TP on work if no hits were added
+          work.Pts.pop_back();
+          continue;
+        }
         break;
-      }
+      } // no hits added
       if(NumUsedHits(tp) == 0) {
+        // Hits were added but none were used. See if there is a wire signal
+        // at this point. This shouldn't really be necessary but do it anyway
 /*
         if(SignalAtTp(tp)) {
           nMissedStep = 0;
@@ -2221,41 +2245,23 @@ namespace cluster {
           break;
         }
 */
-        // Otherwise keep stepping
-        // TESTING Add a TP if there was a close hit
-        // but it's not used. We may decide to use it later...
-        if(tp.Hits.size() > 0) {
-          tp.Step = step;
-          work.Pts.push_back(tp);
-          SetTrajEndPoints(work);
-          // copy to the local trajectory point
-          lastPt = work.Pts.size()-1;
-          tp = work.Pts[lastPt];
-          if(prt) {
-            mf::LogVerbatim()<<" Added TP w/o hits. Here it is";
-            PrintTrajectory(work, lastPt);
-          }
-        } // tp.Hits.size() > 0
+        // Keep stepping
+        if(prt) PrintTrajectory(work, lastPt);
         continue;
       } // tp.Hits.size() == 0
-      // Have new traj hits. Add the trajectory point and update
-      tp.Step = step;
-//      nMissedStep = 0;
-      // this cut for the next step
-      missedStepCut = SetMissedStepCut(tp);
-      work.Pts.push_back(tp);
-      SetTrajEndPoints(work);
+      // Update the TP information with the just added hit(s)
       UpdateWork();
       if(!fUpdateWorkOK) return;
       if(fMaskedLastTP) {
         // Don't bother with the rest of the checking below if we
-        // masked off the last point
-        lastPt = work.Pts.size() - 1;
-        tp = work.Pts[lastPt];
+        // set all hits not used on the last TP
         if(prt) PrintTrajectory(work, lastPt);
         continue;
       }
-      lastPt = work.EndPt[1];
+//      lastPtWithHits = work.EndPt[1];
+      // prepare for the next step
+      // Not sure if this needs to be done on every step
+//      missedStepCut = SetMissedStepCut(tp);
       // Quit if we are starting out poorly. This can happen on the 2nd trajectory point
       // when a hit is picked up in the wrong direction
       if(work.Pts.size() == 2 && std::signbit(work.Pts[1].Dir[0]) != std::signbit(work.Pts[0].Dir[0])) {
@@ -2278,38 +2284,27 @@ namespace cluster {
       // See if the Chisq/DOF exceeds the maximum.
       // UpdateWork should have reduced the number of points fit
       // as much as possible for this pass, so this trajectory is in trouble.
-      if(work.Pts[lastPt].FitChi > fMaxChi) {
-        if(prt) mf::LogVerbatim("TC")<<"   bad FitChi "<<work.Pts[lastPt].FitChi<<" cut "<<fMaxChi<<" Dropping trajectory";
+      if(tp.FitChi > fMaxChi) {
+        if(prt) mf::LogVerbatim("TC")<<"   bad FitChi "<<tp.FitChi<<" cut "<<fMaxChi<<" Dropping trajectory";
         return;
       }
       // Bad 3 TP fit chisq
-      if(killPts == 0 && work.Pts[lastPt].TP3Chi > fTP3ChiCut) {
-        if(prt) mf::LogVerbatim("TC")<<"   bad TP3Chi "<<work.Pts[lastPt].TP3Chi<<" cut "<<fTP3ChiCut;
+      if(killPts == 0 && tp.TP3Chi > fTP3ChiCut) {
+        if(prt) mf::LogVerbatim("TC")<<"   bad TP3Chi "<<tp.TP3Chi<<" cut "<<fTP3ChiCut;
         killPts = 1;
       }
-/* This is moved to SetUsedHits
-      // check the charge ratio
-      if(killPts == 0) {
-        // Kill this point if it has a high charge and the previous did as well
-        if(tp.ChgDiff > fChgDiffCut && work.Pts[lastPt].ChgDiff > fChgDiffCut) killPts = 1;
-        // or if it has extraordinarily high charge
-        if(tp.ChgDiff > bigChgDiffCut) killPts = 1;
-        // or if the charge difference and TP delta are large
-        if(tp.ChgDiff > fChgDiffCut && tp.TP3Chi > 2) killPts = 1;
-        if(prt) mf::LogVerbatim("TC")<<"   large ChgDiff? "<<tp.ChgDiff<<" killPts "<<killPts;
-      } // fHitChgRMS > 0
-*/
       // check for a kink. Stop crawling if one is found
        if(killPts == 0) {
         GottaKink(killPts);
         keepGoing = false;
       }
-      // update the local tp unless we have killing to do
+      // print the local tp unless we have killing to do
       if(killPts == 0) {
-        tp = work.Pts[lastPt];
         if(prt) PrintTrajectory(work, lastPt);
       } else {
-        // Keep track of the wire we are on at the current TP
+        // Kill some trajectory points. Keep track of the wire we are on at the current TP.
+        // The trajectory has been corrupted by these hits, so we need to first remove them
+        // and then recalculate the trajectory position of the current step.
         onWire = (float)(std::nearbyint(tp.Pos[0]));
         // don't remove points but simply set UseHit false
         unsigned short ii, indx, iht;
@@ -2318,7 +2313,10 @@ namespace cluster {
           if(prt) mf::LogVerbatim("TC")<<"TRP   killing hits in TP "<<indx;
           for(ii = 0; ii < work.Pts[indx].Hits.size(); ++ii) {
             // Don't touch it if it isn't being used in this trajectory point
-            if(!work.Pts[indx].UseHit[ii]) continue;
+            if(!work.Pts[indx].UseHit[ii]) {
+              std::cout<<"killing points with UseHit true. Is that OK?\n";
+              continue;
+            }
             iht = work.Pts[indx].Hits[ii];
             work.Pts[indx].UseHit[ii] = false;
             inTraj[iht] = 0;
@@ -2336,7 +2334,6 @@ namespace cluster {
           tp.Pos[1] += dw * tp.Dir[1] / tp.Dir[0];
         }
         // copy to the local trajectory point
-        tp = work.Pts[lastPt];
         if(prt) mf::LogVerbatim("TC")<<"  New tp.Pos     "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" ticks "<<(int)tp.Pos[1]/fScaleF;
         if(!keepGoing) break;
       }
