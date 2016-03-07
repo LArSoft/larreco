@@ -242,6 +242,7 @@ void trkf::Track3DKalmanHit::endJob()
 
 
 //----------------------------------------------------------------------------
+//A temporary method till we find an alternative
 void trkf::Track3DKalmanHit::prepareForInput() {
    fSpacePointAlg.clearHitMap();
 }
@@ -281,7 +282,6 @@ trkf::Hits trkf::Track3DKalmanHit::getClusteredHits(const art::Event &evt) const
 /// If both UseClusteredHits and UsePFParticles is false use this method to fill in hits
 trkf::Hits trkf::Track3DKalmanHit::getAllHits(const art::Event &evt) const{
    Hits hits;
-   // Get unclustered hits.
    art::Handle< std::vector<recob::Hit> > hith;
    evt.getByLabel(fHitModuleLabel, hith);
    if(!hith.isValid()) return hits;
@@ -307,7 +307,6 @@ trkf::KalmanInputs trkf::Track3DKalmanHit::getPFParticleStuff(const art::Event &
    evt.getByLabel(fPFParticleModuleLabel, pfParticleHandle);
    if (!pfParticleHandle.isValid()) return inputs;
    
-   //std::cout << "Track3DKalmanHit: pfParticleHandle size" << pfParticleHandle->size() << "\n";
    art::Handle<std::vector<recob::Cluster> > clusterHandle;
    evt.getByLabel(fClusterModuleLabel, clusterHandle);
    

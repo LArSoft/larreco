@@ -104,6 +104,10 @@ namespace trkf {
                                 const Hits hits,
                                 unsigned int prefplane,
                                 std::deque<KGTrack>& kalman_tracks);
+      bool extendandsmoothLoop(
+                               KGTrack &trg1,
+                               unsigned int prefplane,
+                               Hits &trackhits);
       void filterHitsOnKalmanTrack(const KGTrack& trg,
                                    Hits& hits,
                                    Hits& seederhits) const;
