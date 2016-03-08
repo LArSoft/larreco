@@ -20,7 +20,8 @@ cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& p
   fLastKernel.clear();
   fLastBlurWire = -1000;
   fLastBlurTick = -1000;
-  fLastSigma = -1000;
+  fLastSigmaWire = -1000;
+  fLastSigmaTick = -1000;
 
   // For the debug PDF
   fDebugCanvas = NULL;
@@ -42,7 +43,8 @@ cluster::BlurredClusteringAlg::~BlurredClusteringAlg() {
 void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
   fBlurWire            = p.get<int>   ("BlurWire");
   fBlurTick            = p.get<int>   ("BlurTick");
-  fBlurSigma           = p.get<double>("BlurSigma");
+  fSigmaWire           = p.get<double>("SigmaWire");
+  fSigmaTick           = p.get<double>("SigmaTick");
   fClusterWireDistance = p.get<int>   ("ClusterWireDistance");
   fClusterTickDistance = p.get<int>   ("ClusterTickDistance");
   fNeighboursThreshold = p.get<int>   ("NeighboursThreshold");
@@ -221,7 +223,7 @@ double cluster::BlurredClusteringAlg::ConvertBinToCharge(std::vector<std::vector
 }
 
 std::vector<std::vector<double> > cluster::BlurredClusteringAlg::Convolve(std::vector<std::vector<double> > const& image,
-									  std::vector<double> const& kernel, 
+									  std::vector<double> const& kernel,
 									  int width, int height) {
 
   // Get the magnitude of the bins in the kernel
@@ -301,9 +303,10 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
   blurwire = std::max(std::abs(std::round(fBlurWire * unit.X())),1.);
   blurtick = std::max(std::abs(std::round(fBlurTick * unit.Y())),1.);
 
-  sigmawire = std::max(std::abs(std::round(fBlurSigma * unit.X())),1.);
-  sigmatick = std::max(std::abs(std::round(fBlurSigma * unit.Y())),1.);
+  sigmawire = std::max(std::abs(std::round(fSigmaWire * unit.X())),1.);
+  sigmatick = std::max(std::abs(std::round(fSigmaTick * unit.Y())),1.);
 
+  // std::cout << "Gradient is " << gradient << ", giving x and y components " << unit.X() << " and " << unit.Y() << std::endl;
   // std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << "; sigma: wire " << sigmawire << " and tick " << sigmatick << std::endl;
 
   return;
@@ -530,7 +533,7 @@ int cluster::BlurredClusteringAlg::GlobalWire(geo::WireID const& wireID) {
 
 std::vector<std::vector<double> > cluster::BlurredClusteringAlg::GaussianBlur(std::vector<std::vector<double> > const& image) {
 
-  if (fBlurSigma == 0)
+  if (fSigmaWire == 0 and fSigmaTick == 0)
     return image;
 
   // Find the blurring parameters
@@ -543,7 +546,7 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::GaussianBlur(st
   int height = 2 * blurtick + 1;
 
   // If the parameters match the last parameters, used the same last kernel
-  if (fLastBlurWire == blurwire && fLastBlurTick == blurtick && fLastSigma == fBlurSigma && !fLastKernel.empty())
+  if (fLastBlurWire == blurwire and fLastBlurTick == blurtick and fLastSigmaWire == sigmawire and fLastSigmaTick == sigmatick and !fLastKernel.empty())
     kernel = fLastKernel;
 
   // Otherwise, compute a new kernel
@@ -567,10 +570,12 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::GaussianBlur(st
       }
     } // End loop over blurring region
 
-    fLastKernel   = kernel;
-    fLastBlurWire = blurwire;
-    fLastBlurTick = blurtick;
-    fLastSigma    = fBlurSigma;
+    fLastKernel    = kernel;
+    fLastBlurWire  = blurwire;
+    fLastBlurTick  = blurtick;
+    fLastSigmaWire = sigmawire;
+    fLastSigmaTick = sigmatick;
+
   }
 
   // Return a convolution of this Gaussian kernel with the unblurred hit map

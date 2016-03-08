@@ -143,11 +143,11 @@ private:
   // Parameters used in the Blurred Clustering algorithm
   int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
   int          fBlurTick;                 // blur radius for Gauss kernel in the tick direction
-  double       fBlurSigma;                // sigma for Gaussian kernel
+  double       fSigmaWire;                // sigma for Gaussian kernel in the wire direction
+  double       fSigmaTick;                // sigma for Gaussian kernel in the tick direction
   int          fClusterWireDistance;      // how far to cluster from seed in wire direction
   int          fClusterTickDistance;      // how far to cluster from seed in tick direction
   unsigned int fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
-  double       fMergingThreshold;        // the PCA eigenvalue needed to consider two clusters a merge
   unsigned int fNeighboursThreshold;      // min. number of neighbors to add to cluster
   int          fMinNeighbours;            // minumum number of neighbors to keep in the cluster
   unsigned int fMinSize;                  // minimum size for cluster
@@ -160,9 +160,8 @@ private:
   int fLowerHistWire, fUpperHistWire;
 
   // Blurring stuff
-  int fLastBlurWire;
-  int fLastBlurTick;
-  double fLastSigma;
+  int fLastBlurWire, fLastBlurTick;
+  double fLastSigmaWire, fLastSigmaTick;
   std::vector<double> fLastKernel;
 
   // For the debug pdf
