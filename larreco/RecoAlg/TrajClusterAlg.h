@@ -161,7 +161,8 @@ namespace cluster {
     float fHitFOMCut;      ///  Combined charge & delta difference Figure of Merit cut
     float fChgRatCut;      ///  Relative charge to delta difference weighting
     float fKinkAngCut;     ///  kink angle cut
-    float fMaxWireSkip;    ///< max number of wires to skip w/o a signal on them
+    float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
+    float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
     
     float fJTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
@@ -236,12 +237,12 @@ namespace cluster {
     std::string fhitsModuleLabel;
     
     // variables for step crawling - updated at each TP
-//    float fHitChgRMS, fDefaultHitChgRMS;
     float fAveChg;
     bool fHitDoublet; // Set true if there are a lot of hit doublets on this trajectory
     // tracking flags
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
     bool fGoodWork;         // the work trajectory is good and should be stored
+    bool fAddedBigDeltaHit;
     bool fTryWithNextPass;  // fGoodWork false, try with next pass settings
     bool fCheckWorkModified;
     bool fUpdateWorkOK;     // update
@@ -260,7 +261,7 @@ namespace cluster {
       float Ang;                // Trajectory angle (-pi, +pi)
       float AngErr;             // Trajectory angle error
       float Chg;                // Charge
-//      float AveChg;             // Average charge of last ~20 TPs
+      float AveChg;             // Average charge of last ~20 TPs
       float ChgRat;            //  = (Chg - fAveChg) / fChgRMS
       float Delta;              // Deviation between trajectory and hits (WSE)
       float DeltaRMS;           // RMS of Deviation between trajectory and hits (WSE)
@@ -339,7 +340,6 @@ namespace cluster {
     // (which should also have called GetHitRange)
     void RunStepCrawl();
     void GetHitRange();
-//    void FindDefaults();
     void HitSanityCheck();
     bool TrajHitsOK(unsigned int iht, unsigned int jht);
     // Find all trajectories in the plane using the pre-defined step direction, cuts, etc.
@@ -373,6 +373,7 @@ namespace cluster {
     // decide which of the close hits to use on a TP tp that is not yet added
     // to trajectory tj
     void SetUsedHits(Trajectory& tj, unsigned short ipt, short flag);
+    void SetPoorUsedHits(Trajectory& tj, unsigned short ipt, short flag);
     bool HitChargeOK(Trajectory& tj, unsigned short ipt, unsigned short iht);
     void UnsetUsedHits(TrajPoint& tp);
     unsigned short NumUsedHits(TrajPoint& tp);
@@ -405,6 +406,8 @@ namespace cluster {
     void MoveTPToWire(TrajPoint& tp, float wire);
     void UpdateAveChg();
     void UpdateWorkDelta();
+    bool MaskedWorkHitsOK();
+    unsigned short NumGoodWorkTPs();
     void PrepareWorkForNextPass();
     void FitWork();
     float TrajLength(Trajectory& tj);
@@ -431,7 +434,7 @@ namespace cluster {
     void PrintTrajectory(Trajectory& tj ,unsigned short tPoint);
     void PrintAllTraj(unsigned short itj, unsigned short ipt);
     void PrintHeader();
-    void PrintTrajPoint(unsigned short ipt, short dir, unsigned short pass, TrajPoint tp);
+    void PrintTrajPoint(unsigned short ipt, short dir, unsigned short pass, TrajPoint& tp);
     // Tag as shower-like or track-like
     void TagAllTraj();
     void KillAllTrajInCTP(CTP_t tCTP);
