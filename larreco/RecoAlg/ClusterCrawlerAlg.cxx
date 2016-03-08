@@ -503,7 +503,7 @@ namespace cluster {
       } // pass
 
       // Kill Garbage clusters
-      if(fKillGarbageClusters > 0) KillGarbageClusters();
+      if(fKillGarbageClusters > 0 && !tcl.empty()) KillGarbageClusters();
       // Merge overlapping clusters
       if(fMergeOverlapAngCut > 0) MergeOverlap();
       // Check the DS end of clusters
