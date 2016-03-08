@@ -1,0 +1,363 @@
+#include "trackfinderalgorithms.fcl"
+#include "clusteralgorithms.fcl"
+#include "pmavertexalg.fcl"
+
+BEGIN_PROLOG
+
+# only save standard configuration, save experiment-specific configuration in experiment-specific fcl file
+
+standard_cctrackmaker:
+{
+  module_type:            "CCTrackMaker"
+  HitModuleLabel:         "cccluster"
+  ClusterModuleLabel:     "cccluster"
+  VertexModuleLabel:      "cccluster"
+  MaxDAng:           0.6  # kink angle cut (radians)
+  ChainMaxdX:        1.0  # max dX for merging broken clusters
+  ChainVtxAng:       0.1  # kill 2-cluster US-DS vertices if angle diff < this cut
+  MergeChgAsym:      0.7  # charge asymmetry cut for merging clusters
+  # Order of algorithm calls (1 = vtx, 2 = pln)
+  # First find track matches using clusters associated with 3D vertices (neutrino interactions)
+  # Make tracks from the matches
+  # Next find long track matches (cosmic rays)
+  # Make tracks from the matches
+  # Last find track matches with looser cuts (garbage collection)
+  # Make tracks from the matches
+  MatchAlgs:         [1, 2, 2]
+  XMatchErr:      [0.2, 0.2, 2]       # end X match uncertainty for alg
+  AngleMatchErr:  [0.02, 0.02, 0.03]  # end angle match uncertainty for alg
+  ChgAsymFactor:  [1, 1, 1]           # scale rms by charge asymmetry * this factor for alg
+  MatchMinLen:    [2, 20, 5]           # cluster match minimum length in 2/3 planes for alg
+  MakeAlgTracks:  [true, true, true]  # Sort track matches from alg and make tracks?
+  MakePFPs:       true    # make PFParticles
+  NVtxTrkHitsFit:    4    # number of hits/plane fitted to a vertex, 0 = no vertex fit
+  FiducialCut:      5     # cut (cm) for tagging cosmic rays
+  DeltaRayCut:      5     # cut (cm) for tagging delta-rays
+  HitFitErrFac:   0.1     # Factor applied to SigmaPeakTime for vertex fit
+  uBCode:     true        # uB code patches
+  DebugAlg:       -1      # 1 = vtx, 2 = pln, 666 = MakeClusterChains
+  DebugPlane:    -1       # -1 = none
+  DebugCluster:  -1
+  PrintAllClusters: false # print clusters as well as cluster chains
+  errorOnFailureToPut: false
+}
+
+standard_pmalgtrackmaker:
+{
+  module_type:            "PMAlgTrackMaker"
+  ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+  PMAlgVertexing:         @local::standard_pmavertexalg
+                                      #
+  RunVertexing:           false       # find vertices, join with tracks, reoptimize track-vertex structure
+  SaveOnlyBranchingVtx:   false       # use true to save only vertices interconnecting many tracks, otherwise
+                                      # vertex is added to the front of each track
+                                      #
+  MakePFPs:               false       # output track-vertex net as a tree of PFParticles, in such case tracks
+                                      # are associated to new PFParticles even if CluMatchingAlg is 2 or 3
+                                      #
+  HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
+  ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
+  CluMatchingAlg:         1           # 1: loop over clusters from each view, produces independent tracks:
+                                      #    clusters are processed from the largest, best time-matching down
+                                      #    to small pieces which are merged with existing tracks or used
+                                      #    to create smaller tracks at the end
+                                      # 2: use existing assocs of clusters to PFParticle to limit set of
+                                      #    clusters used by internal pattern recognition
+                                      # 3: simply use all clusters associated to PFParticle to create 3D
+                                      #    tracks (no pattern recognition at all, no corrections, etc)
+                                      #
+  TrackingOnlyPdg:        [0]         # PDG list to select which PFParticles should be reconstructed;
+                                      # all PFP's are used if the list is empty or starts with 0
+  TrackingSkipPdg:        [11]        # PDG list to select which PFParticles should NOT be reconstructed,
+                                      # e.g. skip EM showers; no skipping if the list is empty or starts with 0
+                                      #
+  MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
+  MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks
+                                      # w/o checking large number of possibilities, then use as small size
+                                      # as reasonnable for used clustering algorithm to complete the search
+                                      # in the second pass
+                                      #
+  FlipToBeam:             false       # set the track direction to increasing Z values
+  FlipDownward:           false       # set the track direction to decreasing Y values (like cosmic rays)
+  AutoFlip_dQdx:          false       # set the track direction to increasing dQ/dx (overrides FlipToBeam
+                                      # and FlipDownward if significant rise of dQ/dx at the track end)
+                                      #
+  MergeWithinTPC:         false       # merge witnin single TPC; finds tracks best matching by angle, with limits:
+  MergeTransverseShift:   2.0         #    - max. transverse displacement [cm] between tracks
+  MergeAngle:             2.0         #    - max. angle [degree] between tracks (nearest segments)
+                                      #
+  StitchBetweenTPCs:      true        # stitch between TPCs; finds tracks best matching by angle, with limits:
+  StitchDistToWall:       3.0         #    - max. track endpoint distance [cm] to TPC boundary
+  StitchTransverseShift:  3.0         #    - max. transverse displacement [cm] between tracks
+  StitchAngle:           10.0         #    - max. angle [degree] between tracks (nearest segments)
+                                      #
+  MatchT0inAPACrossing:   false       # match T0 of APA-crossing tracks, TPC stitching limits are used, but track
+                                      # parts are not stitched into a single recob::Track
+}
+
+standard_featuretracker:
+{
+ module_type:         "FeatureTracker"
+ HitModuleLabel:      "ffthit"
+ LineIntFraction:     0.90
+ LineIntThreshold:    3
+ CornerPset:          @local::standard_cornerfinderalg
+ SpacepointPset:      @local::microboone_spacepointalg
+}
+
+standard_featuretracker.SpacepointPset.MinViews: 2
+
+
+standard_seedfindermodule:
+{
+ module_type:         "SeedFinderModule"
+ InputSource:          1                     # 1: use clusters
+                                             # 2: use hits
+ InputModuleLabel:     "dbcluster"     
+ SeedAlg:              @local::standard_seedfinderalgorithm
+}
+
+standard_beziertrackermodule:
+{
+ module_type:         "BezierTrackerModule"
+ SeedModuleLabel:     "seedfinder"
+ HitModuleLabel:      "ffthit"
+ ClusterModuleLabel:  "dbcluster"
+ TrackMode:           3
+ MakeHitAssns:        true
+ EnableCalo:          false
+ BezierTrackerAlgorithm: @local::standard_beziertrackeralgorithm
+}
+
+standard_trackcheater:
+{
+ module_type:         "TrackCheater"
+ CheatedClusterLabel: "cluster"
+ G4ModuleLabel:       "largeant"
+}
+
+standard_trackkalmancheater:
+{
+  module_type:        "TrackKalmanCheater"
+  Hist:               false
+  UseClusterHits:     true
+  HitModuleLabel:     "ffthit"
+  ClusterModuleLabel: "dbcluster"
+  MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
+  KalmanFilterAlg:    @local::standard_kalmanfilteralg
+  SpacePointAlg:      @local::standard_spacepointalg
+}
+
+standard_track3Dreco:
+{
+ module_type:        "Track3Dreco"
+ ClusterModuleLabel: "linemerger"
+ TMatch:             35
+ Chi2DOFmax:         10.0
+}
+
+standard_cosmictracker:
+{
+ module_type:        "CosmicTracker"
+ ClusterModuleLabel: "linemerger"
+ SortDirection:      "+z"
+ StitchTracks:       false
+ DisCut:             20
+ AngCut:             0.1
+ TrajOnly:           false
+ ClusterMatch:       @local::standard_clustermatchtq
+ CTAlg:              @local::standard_cosmictrackeralg
+}
+
+standard_track3Dkalman:
+{
+ module_type:         "Track3DKalman"
+ SpacePtsModuleLabel: "spacepts"
+ GenieGenModuleLabel: "generator"        # comment out for real data.
+ G4ModuleLabel:       "largeant"
+ PosErr3:             [0.02,0.02,0.02]   #  position resolution, cm.
+ MomErr3:             [0.10,0.10,0.2]    #  momentum resolution, GeV/c.
+ MomStart3:           [0.10,0.10,1.5]    #  GeV/c. Will *not* be Unit norm'd.
+ PerpLimit:           2.0
+ GenfPRINT:           true
+}
+
+standard_track3DkalmanSPS:
+{
+ module_type:         "Track3DKalmanSPS"
+ ClusterModuleLabel:  "dbscan"
+ SpptModuleLabel:     "spacepointfinder"
+ GenieGenModuleLabel: "generator"        # comment out for real data.
+ G4ModuleLabel:       "largeant"
+ PosErr3:             [0.05,0.1,0.1]   #  position resolution, cm.
+ MomErr3:             [0.5,0.5,1.8]    #  momentum resolution, GeV/c.
+ MomStart3:           [0.10,0.10,1.5]    #  GeV/c. Will *not* be Unit norm'd.
+ PerpLimit:           50.0
+ PdgCode:	      -13 # mu+
+ ErrScaleSim:         0.
+ ErrScaleMeas:        500.
+ DecimateC:           1
+ MaxUpdateC:          0.1
+ DecimateU:           1 # on first pass. after that its increased.
+ DistanceU:           15.0
+ MaxUpdateU:          0.1
+ Chi2HitThresh:       1000000.0
+ SortDirection:       "z"
+ SpacePointAlg:       @local::standard_spacepointalg
+}
+
+standard_pfpana:
+{
+  module_type:              "PFPAna"
+  HitsModuleLabel:          "linecluster"
+  ClusterModuleLabel:       "linecluster"
+  TrackModuleLabel:         "cctrackmaker"
+  PFParticleModuleLabel:    "cctrackmaker"
+  VertexModuleLabel:        "cctrackmaker"
+  ElecKERange:              [50, 10000] # Min, max KE (MeV) for matching Primary only
+  MuonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  PionKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  KaonKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  ProtKERange:              [50, 10000] # Min, max KE (MeV) for matching
+  TrackWeightOption:        1 # 0 = equal weighting, 1 = weight by kinetic energy
+  MergeDaughters:           true # merge daughter MC particles with mothers (not electrons)
+  SkipCosmics:              true # do not evaluate cosmic rays
+  PrintLevel:               0 # 0 = none, 1 = event summary, 2 += each MC particle, 3 += truth
+}
+
+
+standard_trackana:
+{
+   module_type: "TrackAna"
+   TrackModuleLabel: "trackkalmanhit"
+   MCTrackModuleLabel: "mcreco"
+   SpacepointModuleLabel: "spacepointfinder"
+   StitchModuleLabel: "stitch"
+   TrkSpptAssocModuleLabel: "trackkalmanhit"
+   HitSpptAssocModuleLabel: "gaushit"
+   HitModuleLabel: "gaushit"
+   Dump: 10
+   MinMCKE:  0.02
+   MinMCLen:  10.
+   MatchColinearity: 0.98
+   MatchDisp:  2.0
+   WMatchDisp: 15.0
+   MatchLength: 0.8
+   IgnoreSign: true
+   StitchedAnalysis: false
+   MCTrackOrigin: "Any"
+   PrintLevel: 0
+}
+
+
+standard_seedana:
+{
+  module_type:        "SeedAna"
+  SeedModuleLabel:    "seedfinder"
+  MCTrackModuleLabel: "mcreco"
+  Dump:               10
+  MinMCKE:            0.05
+  MinMCLen:           20.
+  MatchColinearity:   0.97
+  MatchDisp:          2.0
+  IgnoreSign:         true
+}
+
+standard_spacepts:
+{
+ module_type:           "SpacePts"
+ TicksOffset:           75.0
+ ClusterModuleLabel:    "linemerger"
+ EndPoint2DModuleLabel: "vertex2d"
+ TMatch:                50.0
+ vertexclusterWindow:   100.
+}
+
+standard_spacepointana:
+{
+  module_type:             "SpacePointAna"
+  HitModuleLabel:          "ffthit"
+  UseClusterHits:          true
+  ClusterModuleLabel:      "dbcluster"
+  UseMC:                   false
+  SpacePointAlgTime:       @local::standard_spacepointalg
+  SpacePointAlgSep:        @local::standard_spacepointalg
+  SpacePointAlgDefault:    @local::standard_spacepointalg
+}
+
+standard_spacepointfinder:
+{
+  module_type:        "SpacePointFinder"
+  ClusterModuleLabel: "dbcluster"
+  MinHits:            10
+  ClusterAssns:       true
+  SpacePointAlg:      @local::standard_spacepointalg
+}
+
+standard_spacepointcheater:
+{
+  module_type:        "SpacePointCheater"
+  ClusterModuleLabel: "dbcluster"
+  MinHits:            10
+  ClusterAssns:       true
+  SpacePointAlg:      @local::standard_spacepointalg
+}
+
+development_beziertrackjoiner:
+{  
+  module_type:         "BezierTrackJoiner"
+  TrackModuleLabel:    "beziertracker"
+  JoinThreshold:       1
+  VertexAngle:         0.26
+  ExtrapDistance:      10
+
+}
+
+development_beziertrackana:
+{
+  module_type:            "BezierTrackAna"
+  BezierTrackModuleLabel: "beziertracker"
+}
+
+standard_track3Dkalmanhit:
+{
+  module_type:        "Track3DKalmanHit"
+  Hist:               false
+  UseClusterHits:     true
+  UsePFParticleHits:  false
+  UsePFParticleSeeds: false
+  HitModuleLabel:     "ffthit"
+  ClusterModuleLabel: "dbcluster"
+  PFParticleModuleLabel: "pandora"
+  StoreNPPlane:       true          # Store non-preferred-plane hits?
+  MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
+  DoDedx:             false         # dE/dx enable flag.
+  SelfSeed:           false         # Generate seeds internally.
+  LineSurface:        false         # Store hits on line surfaces.
+  MinSeedHits:        12            # Minimum number of hits per track seed.
+  MinSeedChopHits:    50            # Potentially chop seeds that exceed this length.
+  MaxChopHits:        20            # Maximum number of hits to chop from each end of seed.
+  MaxSeedChiDF:       20.           # Maximum seed track chisquare/dof.
+  MinSeedSlope:       0.0           # Minimum seed slope (dx/dz).
+  InitialMomentum:    0.5           # Initial momentum (GeV/c).
+  KalmanFilterAlg:    @local::standard_kalmanfilteralg
+  SeedFinderAlg:      @local::standard_seedfinderalgorithm
+  SpacePointAlg:      @local::standard_spacepointalg
+}
+
+standard_trackstitcher:
+{
+    module_type: "TrackStitcher"
+    TrackModuleLabel: "trk3dsps"
+    SpptModuleLabel: "spacepts"
+    StitchAlg:      @local::standard_trackstitcheralg
+}
+
+standard_magdriftana:
+{
+ module_type:           "MagDriftAna"
+ HitsModuleLabel:       "ffthit"
+ LArGeantModuleLabel:   "largeant"
+}
+
+END_PROLOG
