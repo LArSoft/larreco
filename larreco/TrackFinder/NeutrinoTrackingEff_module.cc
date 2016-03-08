@@ -2,14 +2,14 @@
 #define NeutrinoTrackingEff_Module
 
 // LArSoft includes
-#include "Utilities/DetectorProperties.h"
-#include "Utilities/GeometryUtilities.h"
-#include "Simulation/LArG4Parameters.h"
-#include "RecoBase/Track.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/Utilities/GeometryUtilities.h"
+#include "larsim/Simulation/LArG4Parameters.h"
+#include "lardata/RecoBase/Track.h"
 #include "SimulationBase/MCParticle.h"
 #include "SimulationBase/MCTruth.h"
-#include "SimpleTypesAndConstants/geo_types.h"
-#include "MCCheater/BackTracker.h"
+#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larsim/MCCheater/BackTracker.h"
 
 // Framework includes
 #include "art/Framework/Core/EDAnalyzer.h"
