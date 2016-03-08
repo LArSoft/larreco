@@ -533,6 +533,8 @@ namespace cluster {
   {
     // Ghost Clusters:
     
+    if(tcl.size() < 2) return;
+    
     unsigned short icl, jcl;
     // This code preferentially selects icl clusters that were
     // reconstructed on an early pass (unless they were split)
