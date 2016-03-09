@@ -405,7 +405,7 @@ namespace cluster {
     void UpdateWork();
     void MoveTPToWire(TrajPoint& tp, float wire);
     void UpdateAveChg();
-    void UpdateWorkDelta();
+    void UpdateWorkDeltaRMS();
     bool MaskedWorkHitsOK();
     unsigned short NumGoodWorkTPs();
     void PrepareWorkForNextPass();
