@@ -465,7 +465,7 @@ namespace cluster {
     float fromWire, fromTick, toWire, toTick, deltaRms, qtot;
     bool signalPresent, trajAdded;
     
-    bool first = true;
+    if(fPlane != 2) return;
 
     for(unsigned short pass = 0; pass < fMinPtsFit.size(); ++pass) {
       fPass = pass;
@@ -491,11 +491,7 @@ namespace cluster {
           trajAdded = false;
           prt = (fDebugPlane == (int)fPlane && (int)iwire == fDebugWire && std::abs((int)fHits[iht]->PeakTime() - fDebugHit) < 10);
           if(prt) didPrt = true;
-          if(first) {
-            std::cout<<"First hit "<<iht<<" "<<PrintHit(iht)<<"\n";
-            first = false;
-          } // first
-          if(!prt) break;
+          if(!prt) continue;
           if(prt) mf::LogVerbatim("TC")<<"+++++++ Pass "<<fPass<<" Found debug hit "<<fPlane<<":"<<PrintHit(iht)<<" inTraj "<<inTraj[iht]<<" RMS "<<fHits[iht]->RMS()<<" Multiplicity "<<fHits[iht]->Multiplicity()<<" LocalIndex "<<fHits[iht]->LocalIndex();
           if(inTraj[iht] != 0) continue;
           fromWire = fHits[iht]->WireID().Wire;
@@ -1486,7 +1482,7 @@ namespace cluster {
         ftime = fScaleF * fHits[iht]->PeakTime();
         delta = PointTrajDOCA(fwire, ftime, tp);
         float dt = std::abs(ftime - tp.Pos[1]);
-        if(prt && delta < 100) {
+        if(prt && delta < 100 && dt < 1.5) {
           mf::LogVerbatim myprt("TC");
           myprt<<"  chk "<<fHits[iht]->WireID().Plane<<":"<<PrintHit(iht);
           myprt<<" delta "<<std::fixed<<std::setprecision(2)<<delta<<" deltaCut "<<deltaCut<<" dt "<<dt;
@@ -1496,6 +1492,9 @@ namespace cluster {
           myprt<<" Chg "<<(int)fHits[iht]->Integral();
           myprt<<" Signal? "<<SignalPresent;
         }
+        // The impact parameter delta may be good but we may be projecting
+        // the trajectory too far away (in time) from the current position
+        if(isLA && dt > 1.5) continue;
         // Keep track of the best outlier in case we need it
         if(inTraj[iht] == 0 && delta < bigDelta) {
           SignalPresent = true;
@@ -1505,9 +1504,6 @@ namespace cluster {
         }
         if(delta > deltaCut) continue;
         SignalPresent = true;
-        // The impact parameter delta may be good but we may be projecting
-        // the trajectory too far away (in time) from the current position
-        if(isLA && dt > 1.5) continue;
         if(inTraj[iht] != 0) continue;
         // ensure this isn't already present in a previous TP
 //        if(std::find(pclHits.begin(), pclHits.end(), iht) != pclHits.end()) continue;
@@ -1680,9 +1676,11 @@ namespace cluster {
         deltaErr += tp.DeltaRMS * tp.DeltaRMS;
         // delta significance of the multiplet
         float mddif = delta / sqrt(deltaErr);
-        float mchgrat = std::abs(qtot - fAveChg) / fAveChg;
+        float mchgrat = 1;
+        if(fAveChg > 0) mchgrat = std::abs(qtot - fAveChg) / fAveChg;
         // Compare with the best single hit
-        float chgrat = std::abs(fHits[iht]->Integral() - fAveChg) / fAveChg;
+        float chgrat = 1;
+        if(fAveChg > 0) chgrat = std::abs(fHits[iht]->Integral() - fAveChg) / fAveChg;
         // Not sure if this is the best way to do the FOM
         float mfom = mddif * mchgrat;
         float fom = bestddif * chgrat;
@@ -2259,7 +2257,7 @@ namespace cluster {
     ltp.Pos = work.Pts[lastPt].Pos;
     ltp.Dir = work.Pts[lastPt].Dir;
     // A second TP is cloned from the leading TP of work, updated with hits, fit
-    // parameters,etc and possibly pushed onto work
+    // parameters,etc and possibly pushed onto work as the next TP
     TrajPoint tp ;
     
     unsigned int step;
@@ -2275,8 +2273,7 @@ namespace cluster {
 
     bool signalPresent, keepGoing;
     unsigned short killPts;
-    for(step = 1; step < 1000; ++step) {
-//      if(IsLargeAngle(work.Pts[lastPtWithHits])) { stepSize = 1; } else { stepSize = std::abs(1/work.Pts[lastPtWithHits].Dir[0]); }
+    for(step = 1; step < 10000; ++step) {
       if(IsLargeAngle(ltp)) { stepSize = 1; } else { stepSize = std::abs(1/ltp.Dir[0]); }
       // make a copy of the previous TP
       lastPt = work.Pts.size() - 1;
@@ -2317,21 +2314,6 @@ namespace cluster {
         break;
       } // no hits added
       if(work.Pts[lastPt].Chg == 0) {
-        // Hits were added but none were used. See if there is a wire signal
-        // at this point. This shouldn't really be necessary but do it anyway
-/*
-        if(SignalAtTp(tp)) {
-          nMissedStep = 0;
-        } else {
-          ++nMissedStep;
-        }
-        if(prt) mf::LogVerbatim("TC")<<" nMissedStep "<<nMissedStep<<" missedStepCut "<<missedStepCut;
-        // Break if we took too many steps without adding a traj point
-        if(nMissedStep > missedStepCut) {
-          if(prt) mf::LogVerbatim("TC")<<" Too many steps w/o traj point ";
-          break;
-        }
-*/
         // Keep stepping
         if(prt) PrintTrajectory(work, lastPt);
         continue;
@@ -2340,22 +2322,6 @@ namespace cluster {
       UpdateWork();
       // a failure occurred
       if(!fUpdateWorkOK) return;
-      // now copy the finished TP back into the local tp
-//      tp = work.Pts[lastPt];
-      if(fMaskedLastTP) {
-        // see if TPs have been masked off many times and if the
-        // environment is clean. If so, return and try with next pass
-        // cuts
-        if(!MaskedWorkHitsOK()) return;
-        // Don't bother with the rest of the checking below if we
-        // set all hits not used on the last TP
-        if(prt) PrintTrajectory(work, lastPt);
-        continue;
-      }
-//      lastPtWithHits = work.EndPt[1];
-      // prepare for the next step
-      // Not sure if this needs to be done on every step
-//      missedStepCut = SetMissedStepCut(tp);
       // Quit if we are starting out poorly. This can happen on the 2nd trajectory point
       // when a hit is picked up in the wrong direction
       if(work.Pts.size() == 2 && std::signbit(work.Pts[1].Dir[0]) != std::signbit(work.Pts[0].Dir[0])) {
@@ -2370,6 +2336,20 @@ namespace cluster {
         if(prt) mf::LogVerbatim("TC")<<"StepCrawl: Third TP. 0-2 sep "<<TrajPointHitSep2(work.Pts[0], work.Pts[2])<<" 0-1 sep "<<TrajPointHitSep2(work.Pts[0], work.Pts[1]);
         if(TrajPointHitSep2(work.Pts[0], work.Pts[2]) < TrajPointHitSep2(work.Pts[0], work.Pts[1])) return;
       } // work.Pts.size() == 3
+      // Update the local TP with the updated position and direction
+      ltp.Pos = work.Pts[lastPt].Pos;
+      ltp.Dir = work.Pts[lastPt].Dir;
+      if(fMaskedLastTP) {
+        // see if TPs have been masked off many times and if the
+        // environment is clean. If so, return and try with next pass
+        // cuts
+        if(!MaskedWorkHitsOK()) return;
+        // Don't bother with the rest of the checking below if we
+        // set all hits not used on this TP
+        if(prt) PrintTrajectory(work, lastPt);
+        continue;
+      }
+      // We have added a TP with hits
       // assume that we aren't going to kill the point we just added, or any
       // of the previous points...
       killPts = 0;
@@ -2378,7 +2358,7 @@ namespace cluster {
       // See if the Chisq/DOF exceeds the maximum.
       // UpdateWork should have reduced the number of points fit
       // as much as possible for this pass, so this trajectory is in trouble.
-      if(!fMaskedLastTP && work.Pts[lastPt].FitChi > fMaxChi) {
+      if(work.Pts[lastPt].FitChi > fMaxChi) {
         if(prt) mf::LogVerbatim("TC")<<"   bad FitChi "<<work.Pts[lastPt].FitChi<<" cut "<<fMaxChi;
         fGoodWork = (NumGoodWorkTPs() > fMinPtsFit[fPass]);
         return;
@@ -2560,7 +2540,7 @@ namespace cluster {
     // The hits in the TP at the end of the trajectory were masked
     // off. This function decides whether to continue stepping with the
     // current configuration or whether to stop and possibly try with
-    // the next pass settings yyy
+    // the next pass settings
     unsigned short lastPt = work.Pts.size() - 1;
     if(NumUsedHits(work.Pts[lastPt]) > 0) return true;
     
@@ -2911,15 +2891,10 @@ namespace cluster {
     float fcnt = lastPt+1;
     work.AveTP3Chi /= fcnt;
     
-    UpdateWorkDelta();
+    UpdateWorkDeltaRMS();
     
     // Estimate the multiple scattering angle
     work.ThetaMCS = 1;
-/*
-    if(work.Pts.size() > 5) {
-      
-    } // work.Pts.size()
-*/
     float sum = 0, sum2 = 0;
 //    for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt) {
     for(unsigned short ipt = 0; ipt < lastPt+1; ++ipt) {
@@ -2945,28 +2920,28 @@ namespace cluster {
   } // MoveTPToWire
 
   //////////////////////////////////////////
-  void TrajClusterAlg::UpdateWorkDelta()
+  void TrajClusterAlg::UpdateWorkDeltaRMS()
   {
-    // Find Delta for the last trajectory point.
+    // Find Delta RMS
     
     unsigned int lastPt = work.EndPt[1];
     TrajPoint& lastTP = work.Pts[lastPt];
     // put in reasonable guess in case something doesn't work out
     lastTP.DeltaRMS = 0.02;
     
-    if(lastTP.Chg == 0) {
-      lastTP.Delta = 99;
-      return;
-    }
-
-    lastTP.Delta = PointTrajDOCA(lastTP.HitPos[0], lastTP.HitPos[1] ,lastTP);
-    
-    if(lastPt < 4) return;
+    if(lastTP.Chg == 0) return;
+    if(lastPt < 6) return;
     
     float sum = 0;
     unsigned short ii, ipt, cnt = 0;
-    for(ii = 0; ii < work.Pts.size() - 3; ++ii) {
+     for(ii = work.EndPt[0]; ii < lastPt; ++ii) {
       ipt = lastPt - ii;
+      if(ipt > work.Pts.size() - 1) {
+        std::cout<<"UpdateWorkDeltaRMS oops "<<ii<<" ipt "<<lastPt<<" size "<<work.Pts.size();
+        exit(1);
+      }
+       // Delta for the first two points is meaningless
+       if(ipt < 2) break;
       if(work.Pts[ipt].Chg == 0) continue;
       sum += work.Pts[ipt].Delta;
       ++cnt;
@@ -2974,11 +2949,11 @@ namespace cluster {
     }
     if(cnt < 2) return;
     // RMS of Gaussian distribution is ~1.2 x the average
-    // of a one-sided Gaussian distribution (Note that Delta is > 0)
+    // of a one-sided Gaussian distribution (since Delta is > 0)
     lastTP.DeltaRMS = 1.2 * sum / (float)cnt;
     if(lastTP.DeltaRMS < 0.02) lastTP.DeltaRMS = 0.02;
 
-  } // UpdateWorkDelta
+  } // UpdateWorkDeltaRMS
 
   
   //////////////////////////////////////////
@@ -3144,6 +3119,7 @@ namespace cluster {
     // fit origin is the hit position of the current trajectory point
     std::array<float, 2> dir, origin = work.Pts[lastPt].HitPos;
     float xx, yy;
+//    if(prt) mf::LogVerbatim("TC")<<"FitWork: nTPF "<<nTPF<<" origin "<<origin[0]<<" "<<origin[1]<<" ticks "<<origin[1]/fScaleF<<" rotAng "<<rotAng;
 
     unsigned short cnt = 0;
     // weight by the average charge
@@ -3213,6 +3189,25 @@ namespace cluster {
 
     fAveChg = 0;
     if(work.EndPt[1] < fNPtsAve) return;
+    
+    // All of the nearby hits may not have been selected at the beginning of
+    // a large angle trajectory. Set UseHit true for all TPs before calculating
+    // the first average
+    if(work.EndPt[1] == fNPtsAve && IsLargeAngle(work.Pts[work.EndPt[1]])) {
+      unsigned short ii, iht;
+      for(auto& tp : work.Pts) {
+        for(ii = 0; ii < tp.UseHit.size(); ++ii) {
+          iht = tp.Hits[ii];
+          if(inTraj[iht] > 0) continue;
+          tp.UseHit[ii] = true;
+          inTraj[iht] = work.ID;
+        } // iht
+        DefineHitPos(tp);
+      } // tp
+      SetTrajEndPoints(work);
+      //
+      if(prt) mf::LogVerbatim("TC")<<"UpdateAveChg: Set UseHit true for all trajectory points";
+    }
     
     // Just do a simple average
     unsigned short cnt = 0;
