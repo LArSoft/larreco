@@ -28,6 +28,7 @@ art_make(
                         lardata_AnalysisAlg
                         lardata_AnalysisBase
                         lardata_Utilities
+		        larreco_RecoAlg
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}

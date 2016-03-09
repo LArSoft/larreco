@@ -36,6 +36,7 @@ extern "C" {
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larreco/RecoAlg/TrackUtils.h" // lar::TrackPitchInView()
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 
@@ -370,7 +371,7 @@ void calo::Calorimetry::produce(art::Event& evt)
       double xx = 0.,yy = 0.,zz = 0.;
 
       try{
-	fTrkPitch = tracklist[trkIter]->PitchInView(geom->Plane(ipl).View());
+	fTrkPitch = lar::TrackPitchInView(*tracklist[trkIter], geom->Plane(ipl).View());
       }
       catch( cet::exception &e){
 	mf::LogWarning("Calorimetry") << "caught exception " 
