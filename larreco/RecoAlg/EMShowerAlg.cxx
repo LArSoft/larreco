@@ -10,7 +10,7 @@
 
 #include "larreco/RecoAlg/EMShowerAlg.h"
 
-#include "larreco/RecoAlg/TrackUtils.h" // lar::TrackPitchInView()
+#include "lardata/RecoBaseArt/TrackUtils.h" // lar::utils::TrackPitchInView()
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
@@ -398,7 +398,7 @@ double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& t
 
   // Get the pitch
   double pitch = 0;
-  try { pitch = lar::TrackPitchInView(*track, trackHits.at(0)->View()); }
+  try { pitch = lar::utils::TrackPitchInView(*track, trackHits.at(0)->View()); }
   catch(...) { pitch = 0; }
 
   // Deal with large pitches
