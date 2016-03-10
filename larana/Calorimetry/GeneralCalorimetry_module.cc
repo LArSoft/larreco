@@ -25,7 +25,7 @@ extern "C" {
 #include "lardata/AnalysisBase/Calorimetry.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
-#include "larreco/RecoAlg/TrackUtils.h" // lar::TrackPitchInView()
+#include "lardata/RecoBaseArt/TrackUtils.h" // lar::utils::TrackPitchInView()
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"
@@ -130,7 +130,7 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
 
     double viewPitch = 0.;
     try{
-      viewPitch = lar::TrackPitchInView(*trk, fCollectionView);
+      viewPitch = lar::utils::TrackPitchInView(*trk, fCollectionView);
     }
     catch( cet::exception &e){
       mf::LogWarning("GeneralCalorimetry") << "caught exception " 
