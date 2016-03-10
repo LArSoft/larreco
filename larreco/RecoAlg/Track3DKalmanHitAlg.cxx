@@ -167,7 +167,7 @@ bool trkf::Track3DKalmanHitAlg::fetchPFParticleSeeds(const art::PtrVector<recob:
 }
 
 //----------------------------------------------------------------------------
-/// Grow Seeds in to tracks method.
+/// Grow Seeds method.
 
 void trkf::Track3DKalmanHitAlg::growSeedsIntoTracks(const bool pfseed,
                                                     const std::vector<recob::Seed>& seeds,
@@ -430,6 +430,8 @@ bool trkf::Track3DKalmanHitAlg::smoothandextendTrack(KGTrack &trg0,
    return ok;
 }
 
+//----------------------------------------------------------------------------
+/// SMooth and extend a track in a loop
 
 bool trkf::Track3DKalmanHitAlg::extendandsmoothLoop(KGTrack &trg1,
                                                     unsigned int prefplane,

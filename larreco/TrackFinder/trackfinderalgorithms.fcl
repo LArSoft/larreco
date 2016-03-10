@@ -141,14 +141,18 @@ bo_beziertrackeralgorithm.SeedFinder:            @local::bo_seedfinderalgorithm
 microboone_spacepointalg:                                @local::standard_spacepointalg
 microboone_spacepointalg.MinViews:                       3
 microboone_spacepointalg.EnableW:                        true
-microboone_track3Dkalmanhitalg:                          @local::standard_track3Dkalmanhitalg
 microboone_kalmanfilteralg:                              @local::standard_kalmanfilteralg
 microboone_seedfinderalgorithm:                          @local::standard_seedfinderalgorithm
-microboone_seedfinderalgorithm.SpacePointAlg :           @local::microboone_spacepointalg
-microboone_seedfinderalgorithm.SpacePointAlg.EnableW :   true
-microboone_seedfinderalgorithm.SpacePointAlg.MinViews :  3
-microboone_seedfinderalgorithm.SpacePointAlg.PreferColl: true
-microboone_seedfinderalgorithm.SpacePointAlg.Filter:     false
+microboone_seedfinderalgorithm.SpacePointAlg : {
+  @table::microboone_spacepointalg
+  PreferColl: true
+  Filter:     false
+}
+microboone_track3Dkalmanhitalg: {
+  @table::standard_track3Dkalmanhitalg
+  KalmanFilterAlg: @local::microboone_kalmanfilteralg
+  SeedFinderAlg:   @local::microboone_seedfinderalgorithm
+}
 microboone_beziertrackeralgorithm:                       @local::standard_beziertrackeralgorithm
 microboone_beziertrackeralgorithm.SeedFinder:            @local::microboone_seedfinderalgorithm
 microboone_trackstitcheralg:  @local::standard_trackstitcheralg

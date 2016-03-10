@@ -32,10 +32,10 @@ microboone_trackkalmancheater.SpacePointAlg:            @local::microboone_space
 microboone_trackkalmancheater.SpacePointAlg.MinViews:   2
 microboone_track3Dkalmanhit:                            @local::standard_track3Dkalmanhit
 microboone_track3Dkalmanhit.Track3DKalmanHitAlg:        @local::microboone_track3Dkalmanhitalg
+microboone_track3Dkalmanhit.Track3DKalmanHitAlg.KalmanFilterAlg:        @local::microboone_kalmanfilteralg
+microboone_track3Dkalmanhit.Track3DKalmanHitAlg.SeedFinderAlg:          @local::microboone_seedfinderalgorithm
 microboone_track3Dkalmanhit.SpacePointAlg:              @local::microboone_spacepointalg
-microboone_track3Dkalmanhit.SpacePointAlg.MinViews:     3
-microboone_track3Dkalmanhit.SpacePointAlg.EnableW:      true
-microboone_track3Dkalmanhit.SpacePointAlg.PreferColl:   true
+microboone_track3Dkalmanhit.SpacePointAlg.MinViews:     2
 microboone_seedfindermodule:                            @local::standard_seedfindermodule     
 microboone_seedfindermodule.SeedAlg:                    @local::microboone_seedfinderalgorithm
 microboone_beziertrackermodule:                         @local::standard_beziertrackermodule
