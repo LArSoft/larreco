@@ -269,7 +269,8 @@ private:
 
 	std::vector< TVector3* > fAssignedPoints;
 
-	pma::Element3D* GetNearestElement(const TVector2& p2d, unsigned int view, int tpc = -1) const;
+	pma::Element3D* GetNearestElement(const TVector2& p2d, unsigned int view, int tpc = -1,
+		bool skipFrontVtx = false, bool skipBackVtx = false) const;
 	pma::Element3D* GetNearestElement(const TVector3& p3d) const;
 	std::vector< pma::Node3D* > fNodes;
 	std::vector< pma::Segment3D* > fSegments;

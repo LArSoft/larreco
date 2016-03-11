@@ -45,6 +45,11 @@ public:
 	/// Belongs to more than one track?
 	bool IsBranching(void) const;
 
+	/// Check fIsVertex flag.
+	bool IsVertex(void) const { return fIsVertex; }
+	void SetVertex(bool state) { fIsVertex = state; }
+	void SetVertexToBranching(void) { fIsVertex = IsBranching(); }
+
 	std::vector< pma::Track3D* > GetBranches(void) const;
 
 	/// Distance [cm] from the 3D point to the point 3D.
@@ -109,6 +114,7 @@ private:
 	TVector2 fProj2D[3];     // node projections to 2D views, scaled to [cm], updated on each change of 3D position
 
 	TVector3 fGradient;
+	bool fIsVertex;          // no penalty on segments angle if branching or kink detected
 
 	static bool fGradFixed[3];
 	static double fMargin;
