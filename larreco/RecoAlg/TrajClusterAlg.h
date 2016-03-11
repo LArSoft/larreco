@@ -154,7 +154,8 @@ namespace cluster {
     short fStepDir;             /// US->DS (1), DS->US (-1)
     short fNPtsAve;         /// number of points to find AveChg
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
-    std::vector<unsigned short> fMinPts;          ///< min number of Pts required to make a cluster
+    std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a cluster
+    std::vector<bool> fLAStep;              ///< Allow LA stepping on pass?
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fTP3ChiCut;       ///<
     float fMaxChi;
@@ -190,6 +191,12 @@ namespace cluster {
     int fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
     int fDebugHit;   ///< out detailed information while crawling
     
+    bool fIsRealData;
+    TH1F *fnHitsPerTP[3];
+    TH1F *fnHitsFitPerTP[3];
+    TH1F *fDelta[3];
+    TH1F *fDeltaN[3];
+    TH1F *fCharge[3];
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
     TH2F *fThetaMCS_TruKE;
@@ -250,9 +257,8 @@ namespace cluster {
 
     bool fSplitTrajOK;
     
-    // struct for step crawling
     struct TrajPoint {
-      CTP_t CTP;                      ///< Cryostat, TPC, Plane code
+      CTP_t CTP;                   ///< Cryostat, TPC, Plane code
       std::array<float, 2> HitPos; // Charge weighted position of hits in wire equivalent units
       std::array<float, 2> Pos; // Trajectory position in wire equivalent units
       std::array<float, 2> Dir; // Direction
@@ -372,8 +378,8 @@ namespace cluster {
     void AddHits(Trajectory& tj, unsigned short ipt, bool& SignalPresent);
     // decide which of the close hits to use on a TP tp that is not yet added
     // to trajectory tj
-    void SetUsedHits(Trajectory& tj, unsigned short ipt, short flag);
-    void SetPoorUsedHits(Trajectory& tj, unsigned short ipt, short flag);
+    void SetUsedHits(Trajectory& tj, unsigned short ipt);
+    void SetPoorUsedHits(Trajectory& tj, unsigned short ipt);
     bool HitChargeOK(Trajectory& tj, unsigned short ipt, unsigned short iht);
     void UnsetUsedHits(TrajPoint& tp);
     unsigned short NumUsedHits(TrajPoint& tp);
@@ -410,6 +416,7 @@ namespace cluster {
     unsigned short NumGoodWorkTPs();
     void PrepareWorkForNextPass();
     void FitWork();
+    void FitTraj(Trajectory& tj, unsigned short fromOrigin, unsigned short toPoint, TrajPoint& tp);
     float TrajLength(Trajectory& tj);
     void GottaKink(unsigned short& killPts);
     void FitTrajMid(unsigned short fromIndex, unsigned short toIndex, TrajPoint& tp);
