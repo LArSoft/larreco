@@ -51,7 +51,7 @@ namespace cluster {
       std::unique_ptr<ClusterCrawlerAlg> fCCAlg; // define ClusterCrawlerAlg object
       
       art::InputTag fHitFinderLabel; ///< label of module producing input hits
-      std::string fFilteredDataModuleLabel; ///< label of module producing filtered wires
+//      std::string fFilteredDataModuleLabel; ///< label of module producing filtered wires
     
   }; // class LineCluster
   
@@ -98,7 +98,7 @@ namespace cluster {
     produces< std::vector<recob::EndPoint2D> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
-    //produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
+    produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
   } // LineCluster::LineCluster()
   
   
@@ -106,8 +106,6 @@ namespace cluster {
   void LineCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
     fHitFinderLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
-    // TODO: set default fFilteredDataModuleLabel = ""?
-    fFilteredDataModuleLabel = pset.get<std::string>("FilteredDataModuleLabel", "NA");
     
     // this trick avoids double configuration on construction
     if (fCCAlg)
@@ -127,17 +125,6 @@ namespace cluster {
     art::ValidHandle< std::vector<recob::Hit>> hitVecHandle
      = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderLabel);
 
-    // decide whether to use filtered wires
-    fCCAlg->ClearFilteredWires();
-    std::string isNA ("NA");
-    if(isNA.compare(fFilteredDataModuleLabel) != 0) {
-      art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
-      = evt.getValidHandle<std::vector<recob::Wire>>(fFilteredDataModuleLabel);
-      // pass (filtered) recob::wires so that ClusterCrawlerAlg can use it to check
-      // for noisy, dead or low-noise wires
-      fCCAlg->CheckFilteredWires(*wireVecHandle);
-    }
-
     // look for clusters in all planes
     fCCAlg->RunCrawler(*hitVecHandle);
     
@@ -156,14 +143,16 @@ namespace cluster {
         hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
         cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
+    std::unique_ptr<art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short>>
+       cep_assn(new art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short>);
 
-    std::vector<ClusterCrawlerAlg::ClusterStore> const& Clusters
-      = fCCAlg->GetClusters();
+    std::vector<ClusterCrawlerAlg::ClusterStore> const& Clusters = fCCAlg->GetClusters();
     
-    std::vector<short> const& inClus = fCCAlg->GetinClus();
 
 // Consistency check
-      for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
+/*
+    std::vector<short> const& inClus = fCCAlg->GetinClus();
+    for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
         ClusterCrawlerAlg::ClusterStore const& clstr = Clusters[icl];
         if(clstr.ID < 0) continue;
         geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
@@ -183,25 +172,28 @@ namespace cluster {
           }
         } // ii
       } // icl
-    
+*/
     // make EndPoints (aka 2D vertices)
     std::vector<ClusterCrawlerAlg::VtxStore> const& EndPts = fCCAlg->GetEndPoints();
+    std::vector<unsigned int> indxToIndx(EndPts.size());
     art::ServiceHandle<geo::Geometry> geom;
-    unsigned int vtxID = 0, end, wire;
-    for(ClusterCrawlerAlg::VtxStore const& vtx2: EndPts) {
-      if(vtx2.NClusters == 0) continue;
-      ++vtxID;
-      wire = (0.5 + vtx2.Wire);
-      geo::PlaneID plID = ClusterCrawlerAlg::DecodeCTP(vtx2.CTP);
+    unsigned short vtxID = 0, end, wire, ivx;
+    for(ivx = 0; ivx < EndPts.size(); ++ivx) {
+      if(EndPts[ivx].NClusters == 0) continue;
+      indxToIndx[ivx] = vtxID;
+       ++vtxID;
+//      std::cout<<"EndPt "<<ivx<<" vtxID "<<vtxID<<"\n";
+      wire = (0.5 + EndPts[ivx].Wire);
+      geo::PlaneID plID = ClusterCrawlerAlg::DecodeCTP(EndPts[ivx].CTP);
       geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
       geo::View_t view = geom->View(wID);
-      sv2col.emplace_back((double)vtx2.Time,    // Time
+      sv2col.emplace_back((double)EndPts[ivx].Time,    // Time
                           wID,                  // WireID
                           0,                    // strength - not relevant
                           vtxID,                // ID
                           view,                 // View
                           0);                   // total charge - not relevant
-    } // Endpoints
+    } // iv
     // convert 2D Vertex vector to unique_ptrs
     std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>(std::move(sv2col)));
 
@@ -282,9 +274,14 @@ namespace cluster {
         throw art::Exception(art::errors::InsertFailure)
           <<"Failed to associate hit "<<iht<<" with cluster "<<icl;
       } // exception
-      // make the cluster - endpoint associations
+      // make the cluster - EndPoint2D and Vertex associations
       if(clstr.BeginVtx >= 0) {
         end = 0;
+//        std::cout<<clstr.ID<<" clsID "<<clsID<<" Begin vtx "<<clstr.BeginVtx<<" vtxID "<<indxToIndx[clstr.BeginVtx]<<"\n";
+        if(!util::CreateAssnD(*this, evt, *cep_assn, clsID - 1, indxToIndx[clstr.BeginVtx], end))
+        {
+          throw art::Exception(art::errors::InsertFailure)<<"Failed to associate cluster "<<clsID<<" with EndPoint2D "<<clstr.BeginVtx;
+        } // exception
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
         for(ClusterCrawlerAlg::Vtx3Store const& vtx3: Vertices) {
@@ -305,6 +302,11 @@ namespace cluster {
       } // clstr.BeginVtx >= 0
       if(clstr.EndVtx >= 0) {
         end = 1;
+//        std::cout<<clstr.ID<<" clsID "<<clsID<<" End   vtx "<<clstr.EndVtx<<" vtxID "<<indxToIndx[clstr.EndVtx]<<"\n";
+        if(!util::CreateAssnD(*this, evt, *cep_assn, clsID - 1, indxToIndx[clstr.EndVtx], end))
+        {
+          throw art::Exception(art::errors::InsertFailure)<<"Failed to associate cluster "<<clsID<<" with EndPoint2D "<<clstr.BeginVtx;
+        } // exception
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
         for(ClusterCrawlerAlg::Vtx3Store const& vtx3: Vertices) {
@@ -340,6 +342,7 @@ namespace cluster {
     evt.put(std::move(v2col));
     evt.put(std::move(v3col));
     evt.put(std::move(cv_assn));
+    evt.put(std::move(cep_assn));
 
   } // LineCluster::produce()
   

@@ -907,8 +907,8 @@ namespace trkf {
 	   apdg == 321 ||    // Charged kaon
 	   apdg == 2212) {   // (Anti)proton
 
-    // check MC track origin?
-    if(fCheckOrigin && mctrk.Origin() != fOriginValue) continue;
+	  // check MC track origin?
+	  if(fCheckOrigin && mctrk.Origin() != fOriginValue) continue;
     
 	  // Apply minimum energy cut.
 
@@ -934,7 +934,7 @@ namespace trkf {
 
 	      // This is a good mc particle (capable of making a track).
 
-        selected_mctracks.push_back(std::make_pair(&mctrk, -1));
+	      selected_mctracks.push_back(std::make_pair(&mctrk, -1));
 
 	      // Dump MC particle information here.
 

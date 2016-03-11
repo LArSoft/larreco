@@ -1,0 +1,47 @@
+#include "services_dune.fcl"
+
+process_name: NeutrinoShowerEff 
+
+services:
+{
+  # TFileService: { fileName: "test.root" }
+  TimeTracker:       {}
+  RandomNumberGenerator: {} 
+  message:      @local::standard_info
+  user:         @local::dunefd_simulation_services
+}
+services.user.Geometry: @local::dune10kt_workspace_geo
+
+source:
+{
+  module_type: RootInput
+  firstEvent : 1
+  maxEvents:  -1
+}
+
+
+outputs:{}
+
+
+physics:
+{
+
+  analyzers:
+  {
+    NeutrinoShowerEff: 
+    {
+      module_type:      	"NeutrinoShowerEff"
+      outFile:          	"Showetest.root"
+      MCTruthModuleLabel:	"generator"
+      ShowerModuleLabel: 	"emshower3dc"
+      NeutrinoPDGcode:		12
+      LeptonPDGcode:		11
+      MaxNeutrinoE:		25.0
+      MaxEfrac:			0.30
+      SaveMCTree:		false
+    }
+  }
+  analysis: [ NeutrinoShowerEff ] //Directory for histograms
+  end_paths: [ analysis ]
+}
+
