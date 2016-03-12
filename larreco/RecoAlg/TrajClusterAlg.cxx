@@ -63,13 +63,13 @@ namespace cluster {
       fnHitsPerTP_AngleP[0] = tfs->make<TProfile>("nhtpertp_anglep0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, "S");
       fnHitsPerTP_AngleP[1] = tfs->make<TProfile>("nhtpertp_anglep1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, "S");
       fnHitsPerTP_AngleP[2] = tfs->make<TProfile>("nhtpertp_anglep2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, "S");
-      
+/*
       fThetaMCS_TruKE = tfs->make<TH2F>("thetamcs_truke","ThetaMCS vs Tru KE",50, 0, 1000, 20, 0, 0.2);
       fThetaMCS_Angle = tfs->make<TH2F>("thetamcs_angle","ThetaMCS vs Angle",10, 0, M_PI/2, 20, 0, 0.2);
       
       fThetaMCS_TruKEP = tfs->make<TProfile>("thetamcs_trukep","ThetaMCS vs Tru KE",50, 0, 1000, "S");
       fThetaMCS_AngleP = tfs->make<TProfile>("thetamcs_anglep","ThetaMCS vs Angle",10, 0, M_PI/2, "S");
-
+*/
     }
     
     if(fShowerStudy) {
@@ -303,6 +303,7 @@ namespace cluster {
           ave = (float)hitVec.size() / (float)(allTraj[itj].EndPt[1] - allTraj[itj].EndPt[0]);
           fnHitsPerTP_Angle[ipl]->Fill(ang, ave);
           fnHitsPerTP_AngleP[ipl]->Fill(ang, ave);
+/*
           if(allTraj[itj].Pts.size() > 3 && allTraj[itj].TruPDG > 0) {
             // check MCS angle vs KE
             fThetaMCS_TruKE->Fill(allTraj[itj].TruKE, allTraj[itj].ThetaMCS);
@@ -310,6 +311,7 @@ namespace cluster {
             fThetaMCS_TruKEP->Fill(allTraj[itj].TruKE, allTraj[itj].ThetaMCS);
             fThetaMCS_AngleP->Fill(ang, allTraj[itj].ThetaMCS);
           }
+*/
         } // itj
       } // ipl
 /*
@@ -1250,7 +1252,7 @@ namespace cluster {
       // average the angle of the TP end points and find the difference
       // wrt the shower angle
       dang = std::abs(0.5 * (allTraj[i1].Pts[0].Ang + allTraj[i1].Pts[ipt1].Ang) - showerAngle);
-      arg = 10 * (1 + allTraj[i1].Pass) * dang * allTraj[i1].AveTP3Chi * allTraj[i1].EndPt[1];
+      arg = 10 * (1 + allTraj[i1].Pass) * dang * allTraj[i1].EndPt[1];
 //      mf::LogVerbatim("TC")<<"Candidate "<<i1<<" nCloseEnd "<<nCloseEnd[i1][0]<<" "<<nCloseEnd[i1][1]<<" "<<nCloseEnd[i1][2]<<" pass "<<allTraj[i1].Pass<<" dang "<<dang<<" arg "<<arg;
       if(arg < fom) {
         fom = arg;
@@ -2315,7 +2317,7 @@ namespace cluster {
       // remove the old hits and other stuff
       tp.Hits.clear();
       tp.UseHit.clear();
-      tp.TP3Chi = 0; tp.FitChi = 0; tp.Chg = 0;
+      tp.FitChi = 0; tp.Chg = 0;
       // append to the work trajectory
       work.Pts.push_back(tp);
       // update the index of the last TP
@@ -2388,12 +2390,12 @@ namespace cluster {
         fGoodWork = (NumGoodWorkTPs() > fMinPtsFit[fPass]);
         return;
       }
+/*
       // Bad 3 TP fit chisq
       if(!IsLargeAngle(ltp) && killPts == 0 && work.Pts[lastPt].TP3Chi > fTP3ChiCut) {
         if(prt) mf::LogVerbatim("TC")<<"   bad TP3Chi "<<work.Pts[lastPt].TP3Chi<<" cut "<<fTP3ChiCut;
         killPts = 1;
       }
-/*
       // check for a kink. Stop crawling if one is found
        if(killPts == 0) {
         GottaKink(killPts);
@@ -2578,7 +2580,7 @@ namespace cluster {
     
     if(prt) mf::LogVerbatim("TC")<<"MaskedWorkHitsOK:  nMasked "<<nMasked<<" nClose "<<nClose<<" fMaxWireSkipWithSignal "<<fMaxWireSkipWithSignal;
     
-    yyy
+//    yyy
 
     // Be a bit more lenient with short trajectories on the first pass if
     // the FitChi is not terribly bad and there is ony one hit associated with the last TP
@@ -2751,7 +2753,8 @@ namespace cluster {
     
     unsigned short fromIndex = work.EndPt[1] - nTPF;
     TrajPoint tp1;
-    FitTrajMid(fromIndex, toIndex, tp1);
+    FitTraj(work, fromIndex, nTPF, -1, tp1);
+//    FitTrajMid(fromIndex, toIndex, tp1);
     if(prt) mf::LogVerbatim("TC")<<"Fit1 "<<fromIndex<<" "<<toIndex<<" Ang "<<tp1.Ang<<" chi "<<tp1.FitChi<<" NTPsFit "<<work.Pts[toIndex].NTPsFit;
     if(tp1.FitChi > 900) {
       mf::LogWarning("TC")<<"GottaKink: Bad traj fit1. Plane "<<fPlane<<" EndPt "<<work.EndPt[1]<<" fromIndex "<<fromIndex<<" to "<<toIndex;
@@ -2759,10 +2762,14 @@ namespace cluster {
       killPts = 3;
       return;
     }
+/*
     fromIndex -= nTPF;
     toIndex -= nTPF;
     TrajPoint tp2;
     FitTrajMid(fromIndex, toIndex, tp2);
+*/
+    TrajPoint tp2;
+    FitTraj(work, fromIndex, nTPF, 1, tp2);
     if(tp2.FitChi > 900) {
       mf::LogWarning("TC")<<"GottaKink: Bad traj fit2 "<<fromIndex<<" "<<toIndex<<" EndPt "<<work.EndPt[1];
       killPts = 3;
@@ -2838,8 +2845,6 @@ namespace cluster {
       // Fit with > 2 TPs
       lastTP.NTPsFit += 1;
       FitWork();
-      // check for a failure
-      if(lastTP.FitChi > 900) return;
       if(lastTP.FitChi > 2 && work.Pts.size() > 10) {
         // Have a longish trajectory and chisq was a bit large.
         // Was this a sudden occurrence and the fraction of TPs are included
@@ -2863,7 +2868,7 @@ namespace cluster {
         lastPt = work.EndPt[1];
         FitWork();
         fUpdateWorkOK = true;
-        lastTP.TP3Chi = 0;
+//        lastTP.TP3Chi = 0;
         return;
       }  else {
         // a more gradual increase in chisq. Reduce the number of points
@@ -2893,7 +2898,7 @@ namespace cluster {
         lastPt = work.EndPt[1];
         FitWork();
         fUpdateWorkOK = true;
-        lastTP.TP3Chi = 0;
+//        lastTP.TP3Chi = 0;
         fMaskedLastTP = true;
       }
       if(prt) mf::LogVerbatim("TC")<<"  Fit done. Chi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit;
@@ -2914,22 +2919,17 @@ namespace cluster {
       work.Pts[0].Ang = lastTP.Ang;
       work.Pts[0].AngErr = lastTP.AngErr;
     }
+/*
     // Calculate TP3Chi
     if(lastPt > 1) {
       lastTP.TP3Chi = 0;
-      TrajPoint tp;
-      FitTrajMid(lastPt, lastPt - 2, tp);
+      TrajPoint tpFit;
+      FitTraj(work, lastPt, 3, -1, tpFit);
+//      FitTrajMid(lastPt, lastPt - 2, tp);
       // put this in the current TP. It will be over-written if a new TP is found
-      lastTP.TP3Chi = tp.FitChi;
+      lastTP.TP3Chi = tpFit.FitChi;
       // put it in the previous TP
-      work.Pts[lastPt - 1].FitChi = tp.FitChi;
-      // put it in the first 2 TPs if we are on the third
-      if(lastPt == 2) {
-        work.Pts[0].FitChi = tp.FitChi;
-        work.Pts[1].FitChi = tp.FitChi;
-        work.Pts[0].TP3Chi = tp.FitChi;
-        work.Pts[1].TP3Chi = tp.FitChi;
-      }
+      work.Pts[lastPt - 1].FitChi = tpFit.FitChi;
     } // lastPt > 1
     
     // Calculate the average TP3Chi
@@ -2937,21 +2937,8 @@ namespace cluster {
     for(unsigned short ipt = 0; ipt < lastPt+1; ++ipt) work.AveTP3Chi += work.Pts[ipt].TP3Chi;
     float fcnt = lastPt+1;
     work.AveTP3Chi /= fcnt;
-    
+*/
     UpdateWorkDeltaRMS();
-    
-    // Estimate the multiple scattering angle
-    work.ThetaMCS = 1;
-    float sum = 0, sum2 = 0;
-//    for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt) {
-    for(unsigned short ipt = 0; ipt < lastPt+1; ++ipt) {
-      sum += work.Pts[ipt].Ang;
-      sum2 += work.Pts[ipt].Ang * work.Pts[ipt].Ang;
-    }
-    sum /= fcnt;
-    if(fcnt > 2) work.ThetaMCS = sqrt((sum2 - fcnt * sum * sum) / (fcnt-1));
-
-    if(prt) mf::LogVerbatim("TC")<<"    AveTP3Chi "<<work.AveTP3Chi<<" ThetaMCS "<<work.ThetaMCS;
 
     fUpdateWorkOK = true;
     return;
@@ -3003,41 +2990,200 @@ namespace cluster {
     if(lastTP.DeltaRMS < 0.02) lastTP.DeltaRMS = 0.02;
 
   } // UpdateWorkDeltaRMS
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::FitWork()
+  {
+    // Jacket around FitTraj
+    unsigned short originPt = work.Pts.size() - 1;
+    unsigned short npts = work.Pts[originPt].NTPsFit;
+    TrajPoint tpFit;
+    unsigned short fitDir = -1;
+    FitTraj(work, originPt, npts, fitDir, tpFit);
+    work.Pts[originPt] = tpFit;
+    
+  } // FitWork
 
   //////////////////////////////////////////
-  void TrajClusterAlg::FitTraj(Trajectory& tj, unsigned short originPt, short fitDir)
+  void TrajClusterAlg::FitTraj(Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit)
   {
-    // Fit the supplied trajectory using HitPos positions in the range originPt to originPt + fitDir * NTPsFit
+    // Fit the supplied trajectory using HitPos positions with the origin at originPt.
+    // The npts is interpreted as the number of points on each side of the origin
+    // The allowed modes are as follows, where i denotes a TP that is included, . denotes
+    // a TP with no hits, and x denotes a TP that is not included
+    //TP 012345678  fitDir  originPt npts
+    //   Oiiixxxxx   1        0       4 << npts in the fit
+    //   xi.iiOxxx  -1        5       4
+    //   xiiiOiiix   0        4       4 << 2 * npts + 1 points in the fit
+    //   xxxiO.ixx   0        4       1
+    //   0iiixxxxx   0        0       4
+   // This routine puts the results into tp if the fit is successfull. The
+    // fit "direction" is in increasing order along the trajectory from 0 to tj.Pts.size() - 1.
     
-    tp.FitChi = -1;
-    if(!(fitDir == 1 || fitDir == -1)) return;
+    if(originPt > tj.Pts.size() - 1) {
+      mf::LogWarning("TC")<<"FitTraj: Requesting fit of invalid TP "<<originPt;
+      return;
+    }
     
-    unsigned short ipt, cnt = 0;
-    unsigned short toPt = 0;
-    if(fitDir > 0) toPt = tj.Pts.size();
-    std::vector<float> x(tp.NTPsFit), y(tp.NTPsFit), yerr2(tp.NTPsFit);
+    // copy the origin TP into the fit TP
+    tpFit = tj.Pts[originPt];
+    // Assume that the fit will fail
+    tpFit.FitChi = 999;
+    if(fitDir < -1 || fitDir > 1) return;
     
-    std::array<float, 2> dir, origin = tj.Pts[originPt].Pos;
-    float xx, yy;
-    
+    std::vector<double> x, y, w, q;
+    std::array<float, 2> dir, origin = tj.Pts[originPt].HitPos;
+    // Use TP position if there aren't any hits on it
+    if(tj.Pts[originPt].Chg == 0) origin = tj.Pts[originPt].Pos;
+    double xx, yy, xr, yr;
+
     // Rotate the traj hit position into the coordinate system defined by the
-    // fromIndex traj point, where x = along the trajectory, y = transverse
-    float rotAngle = work.Pts[originPt].Ang;
-    float cs = cos(-rotAngle);
-    float sn = sin(-rotAngle);
-   
-    for(ipt = originPt; ipt != toPt; ipt += fitDir) {
-      if(tj.Pts[ipt].Chg == 0) continue;
+    // originPt traj point, where x = along the trajectory, y = transverse
+    double rotAngle = work.Pts[originPt].Ang;
+    double cs = cos(-rotAngle);
+    double sn = sin(-rotAngle);
+    
+    unsigned short ipt, cnt;
+    double aveChg = 0;
+    // enter the originPT hit info if it exists
+    if(tj.Pts[originPt].Chg > 0) {
+      ipt = originPt;
       xx = work.Pts[ipt].HitPos[0] - origin[0];
       yy = work.Pts[ipt].HitPos[1] - origin[1];
-      x[cnt] = cs * xx - sn * yy;
-      y[cnt] = sn * xx + cs * yy;
-      ++cnt;
-      if(cnt == tp.NTPsFit) break;
-    } // ipt
+      xr = cs * xx - sn * yy;
+      yr = sn * xx + cs * yy;
+      x.push_back(xr);
+      y.push_back(yr);
+      w.push_back(work.Pts[ipt].HitPosErr2);
+      q.push_back(work.Pts[ipt].Chg);
+      aveChg += work.Pts[ipt].Chg;
+    }
+    
+    // correct npts to account for the origin point
+    if(fitDir != 0) --npts;
+    
+    // step in the + direction first
+    if(fitDir != -1) {
+      cnt = 0;
+      for(ipt = originPt + 1; ipt < tj.Pts.size(); ++ipt) {
+        if(tj.Pts[ipt].Chg == 0) continue;
+        xx = work.Pts[ipt].HitPos[0] - origin[0];
+        yy = work.Pts[ipt].HitPos[1] - origin[1];
+        xr = cs * xx - sn * yy;
+        yr = sn * xx + cs * yy;
+        x.push_back(xr);
+        y.push_back(yr);
+        w.push_back(work.Pts[ipt].HitPosErr2);
+        q.push_back(work.Pts[ipt].Chg);
+        aveChg += work.Pts[ipt].Chg;
+        ++cnt;
+        if(cnt == npts) break;
+      } // ipt
+    } // fitDir != -1
+    
+    // step in the - direction next
+    if(fitDir != 1 && originPt > 0) {
+      cnt = 0;
+      for(ipt = originPt - 1; ipt > 0; --ipt) {
+        if(tj.Pts[ipt].Chg == 0) continue;
+        xx = work.Pts[ipt].HitPos[0] - origin[0];
+        yy = work.Pts[ipt].HitPos[1] - origin[1];
+        xr = cs * xx - sn * yy;
+        yr = sn * xx + cs * yy;
+        x.push_back(xr);
+        y.push_back(yr);
+        w.push_back(work.Pts[ipt].HitPosErr2);
+        q.push_back(work.Pts[ipt].Chg);
+        aveChg += work.Pts[ipt].Chg;
+        ++cnt;
+        if(cnt == npts) break;
+        if(ipt == 0) break;
+      } // ipt
+    } // fitDir != -1
+    
+    // Not enough points to define a line?
+    if(x.size() < 2) return;
+    
+//    if(prt) std::cout<<"FitTraj: npts "<<npts<<" origin "<<origin[0]<<" "<<origin[1]<<" ticks "<<origin[1]/fScaleF<<" rotAngle "<<rotAngle<<"\n";
+    
+    double sum = 0.;
+    double sumx = 0.;
+    double sumy = 0.;
+    double sumxy = 0.;
+    double sumx2 = 0.;
+    double sumy2 = 0.;
+
+    // weight by the charge ratio and accumulate sums
+    aveChg /= (double)cnt;
+    double chgrat, wght;
+    for(ipt = 0; ipt < x.size(); ++ipt) {
+      chgrat = std::abs(q[ipt] - aveChg) / aveChg;
+      chgrat = std::min(0.3, chgrat);
+      w[ipt] *= chgrat;
+      w[ipt] = std::max(0.0001, w[ipt]);
+      wght = 1 / w[ipt];
+      sum   += wght;
+      sumx  += wght * x[ipt];
+      sumy  += wght * y[ipt];
+      sumx2 += wght * x[ipt] * x[ipt];
+      sumy2 += wght * y[ipt] * y[ipt];
+      sumxy += wght * x[ipt] * y[ipt];
+    }
+    // calculate coefficients and std dev
+    double delta = sum * sumx2 - sumx * sumx;
+    if(delta == 0) return;
+    // A is the intercept
+    double A = (sumx2 * sumy - sumx * sumxy) / delta;
+    // B is the slope
+    double B = (sumxy * sum  - sumx * sumy) / delta;
+    
+    // The chisq will be set below if there are enough points
+    tpFit.FitChi = 0.01;
+    double newang = atan(B);
+    dir[0] = cos(newang);
+    dir[1] = sin(newang);
+    // rotate back into the (w,t) coordinate system
+    cs = cos(rotAngle);
+    sn = sin(rotAngle);
+    tpFit.Dir[0] = cs * dir[0] - sn * dir[1];
+    tpFit.Dir[1] = sn * dir[0] + cs * dir[1];
+    // Reverse the direction?
+    if(tj.StepDir < 0) {
+      tpFit.Dir[0] = -tpFit.Dir[0];
+      tpFit.Dir[1] = -tpFit.Dir[1];
+    }
+    tpFit.Ang = atan2(tpFit.Dir[1], tpFit.Dir[0]);
+    // rotate (0, intcpt) into W,T
+    tpFit.Pos[0] = -sn * A + origin[0];
+    tpFit.Pos[1] =  cs * A + origin[1];
+    // force the origin to be at origin[0]
+    MoveTPToWire(tpFit, origin[0]);
+    
+    if(x.size() < 3) return;
+    
+    // Calculate chisq/DOF
+    double ndof = x.size() - 2;
+    double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
+    if(varnce > 0.) {
+      // Intercept error is not used
+//      InterceptError = sqrt(varnce * sumx2 / delta);
+      double slopeError = sqrt(varnce * sum / delta);
+      tpFit.AngErr = std::abs(atan(slopeError));
+    } else {
+//      InterceptError = 0.;
+      tpFit.AngErr = 0.01;
+    }
+    sum = 0;
+    // calculate chisq
+    double arg;
+    for(unsigned short ii = 0; ii < y.size(); ++ii) {
+      arg = y[ii] - A - B * x[ii];
+      sum += arg * arg / w[ii];
+    }
+    tpFit.FitChi = sum / ndof;
   
   } // FitTraj
-  
+/*
   //////////////////////////////////////////
   void TrajClusterAlg::FitTrajMid(unsigned short fromIndex, unsigned short toIndex, TrajPoint& tp)
   {
@@ -3095,17 +3241,7 @@ namespace cluster {
 //      if(prt) mf::LogVerbatim("TC")<<"FTM: ipt "<<ipt<<" indx "<<indx<<" xx "<<xx<<" yy "<<yy<<" x "<<x[indx]<<" y "<<y[indx]<<" err "<<yerr2[indx]<<" Chg "<<work.Pts[ipt].Chg;
       if(indx > 0 && std::abs(xx - x[indx-1]) < 1.E-3) ++nsame;
     } // ii
-/*
-    float fcnt = nTPF;
-    tp.Chg /= fcnt;
-    float arg = sum2 - fcnt * tp.Chg * tp.Chg;
-    if(arg > 1 && nTPF > 1) {
-      tp.ChgDiff = sqrt(arg / (fcnt - 1));
-    } else {
-      tp.ChgDiff = 0.3;
-    }
-*/
-    
+ 
     if(nTPF < 4 && nsame > 0) return;
     
     float intcpt, slope, intcpterr, slopeerr, chidof;
@@ -3143,7 +3279,7 @@ namespace cluster {
 //    if(prt) mf::LogVerbatim("TC")<<"FTM: fromIndex "<<fromIndex<<" Pos1 "<<tp.Pos[1]<<" Ang "<<tp.Ang<<" chi "<<chidof<<" old Ang "<<work.Pts[fromIndex].Ang;
 
   } // FitTrajMid
-  
+
   //////////////////////////////////////////
   void TrajClusterAlg::FitWork()
   {
@@ -3202,7 +3338,6 @@ namespace cluster {
     std::array<float, 2> dir, origin = work.Pts[lastPt].HitPos;
     float xx, yy;
 //    if(prt) mf::LogVerbatim("TC")<<"FitWork: nTPF "<<nTPF<<" origin "<<origin[0]<<" "<<origin[1]<<" ticks "<<origin[1]/fScaleF<<" rotAng "<<rotAng;
-
     unsigned short cnt = 0;
     // weight by the average charge
     float qAve = 0;
@@ -3261,6 +3396,13 @@ namespace cluster {
     }
       
     
+    if(prt) {
+      std::cout<<"FitWork: ntps "<<nTPF<<" origin "<<origin[0]<<" "<<origin[1]<<" ticks "<<origin[1]/fScaleF<<" rotAng "<<rotAng<<"\n";
+      for(unsigned short ii = 0; ii < x.size(); ++ii) {
+        std::cout<<ii<<" "<<x[ii]<<" "<<y[ii]<<" "<<1/yerr2[ii]<<"\n";
+      }
+    } // prt
+    
     float intcpt, slope, intcpterr, slopeerr, chidof;
     fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
     if(chidof < 0.01) chidof = 0.01;
@@ -3289,8 +3431,8 @@ namespace cluster {
     
     if(prt) mf::LogVerbatim("TC")<<"Fit: "<<nTPF<<" pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<" dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1]<<" chi "<<chidof<<" origin "<<origin[0]<<" "<<origin[1];
     
-  } // FitTraj
-  
+  } // FitWork
+*/
   //////////////////////////////////////////
   void TrajClusterAlg::UpdateAveChg()
   {
@@ -3709,7 +3851,7 @@ namespace cluster {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
        std::vector<unsigned int> tmp;
-      myprt<<"TRJ  ID CTP Pass PC Pts frm  to     W:Tick     Ang   AveQ     W:T        Ang   AveQ TP3Chi  thMCS Hits/TP __Vtx__ PDG Parent TRuPDG  Prnt   KE  \n";
+      myprt<<"TRJ  ID CTP Pass PC Pts frm  to     W:Tick     Ang   AveQ     W:T        Ang   AveQ  Hits/TP __Vtx__ PDG Parent TRuPDG  Prnt   KE  \n";
       for(unsigned short ii = 0; ii < allTraj.size(); ++ii) {
         if(fDebugPlane >=0 && fDebugPlane < 3 && (unsigned short)fDebugPlane != allTraj[ii].CTP) continue;
         myprt<<"TRJ"<<std::fixed;
@@ -3734,8 +3876,8 @@ namespace cluster {
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
         myprt<<std::setw(8)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.ChgRat;
-        myprt<<std::setw(7)<<std::setprecision(2)<<allTraj[ii].AveTP3Chi;
-        myprt<<std::setw(7)<<std::setprecision(3)<<allTraj[ii].ThetaMCS;
+//        myprt<<std::setw(7)<<std::setprecision(2)<<allTraj[ii].AveTP3Chi;
+//        myprt<<std::setw(7)<<std::setprecision(3)<<allTraj[ii].ThetaMCS;
         // find average number of used hits / TP
         PutTrajHitsInVector(allTraj[ii], true, tmp);
         float ave = (float)tmp.size() / (float)allTraj[ii].Pts.size();
@@ -3797,7 +3939,7 @@ namespace cluster {
   //////////////////////////////////////////
   void TrajClusterAlg::PrintHeader()
   {
-    mf::LogVerbatim("TC")<<"TRP  CTP Ind  Stp      W:T     Delta   RMS dTick   Ang   Err  Dir0  Dir1      Q  QRat    AveQ TP3Chi FitChi NTPF  Hits ";
+    mf::LogVerbatim("TC")<<"TRP  CTP Ind  Stp      W:T     Delta   RMS dTick   Ang   Err  Dir0  Dir1      Q  QRat    AveQ FitChi NTPF  Hits ";
   } // PrintHeader
 
   ////////////////////////////////////////////////
@@ -3824,7 +3966,7 @@ namespace cluster {
     myprt<<std::setw(7)<<(int)tp.Chg;
     myprt<<std::setw(6)<<std::setprecision(1)<<tp.ChgRat;
     myprt<<std::setw(8)<<(int)tp.AveChg;
-    myprt<<std::setw(7)<<std::setprecision(2)<<tp.TP3Chi;
+//    myprt<<std::setw(7)<<std::setprecision(2)<<tp.TP3Chi;
     myprt<<std::setw(7)<<tp.FitChi;
     myprt<<std::setw(6)<<tp.NTPsFit;
     // print the hits associated with this traj point
