@@ -286,7 +286,7 @@ namespace cluster {
     hitNear.clear();
     chgNear.clear();
     
-
+/*
     // TEMP. Print out cluster info for tuning
     std::array<unsigned int, 3> ncl;
     std::array<unsigned int, 3> nht;
@@ -321,7 +321,7 @@ namespace cluster {
       frc2 = 100 - frc2;
       std::cout<<"plane "<<ipl<<" num clusters "<<ncl[ipl]<<" Hits in clusters "<<frc1<<"%. Hits merged "<<frc2<<"%\n";
     }
-  
+*/
     // remove the hits that have become obsolete
     RemoveObsoleteHits();
     
@@ -6042,7 +6042,7 @@ namespace cluster {
           ++nbad;
         }
       } // wire
-      std::cout<<nbad<<" bad wires in plane "<<planeID.Plane<<"\n";
+//      std::cout<<nbad<<" bad wires in plane "<<planeID.Plane<<"\n";
 
       // define the MergeAvailable vector and check for errors
       if(mergeAvailable.size() < fHits.size()) throw art::Exception(art::errors::LogicError)
