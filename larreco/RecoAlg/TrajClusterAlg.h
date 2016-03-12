@@ -271,7 +271,7 @@ namespace cluster {
       float ChgRat;            //  = (Chg - fAveChg) / fChgRMS
       float Delta;              // Deviation between trajectory and hits (WSE)
       float DeltaRMS;           // RMS of Deviation between trajectory and hits (WSE)
-      float TP3Chi;             // Chisq fit of TP, TP-1 and TP+1
+//      float TP3Chi;             // Chisq fit of TP, TP-1 and TP+1
       unsigned short NTPsFit; // Number of trajectory points fitted to make this point
       unsigned short Step;      // Step number at which this TP was created
       float FitChi;             // Chi/DOF of the fit
@@ -279,8 +279,9 @@ namespace cluster {
       std::vector<bool> UseHit; // set true if the hit is used in the fit
       // default constructor
       TrajPoint() {
-        CTP = 0; Ang = 0; AngErr = 0.1; TP3Chi = 1; Chg = 0; ChgRat = 0.1; Delta = 0;
-        DeltaRMS = 0.02; NTPsFit = 2; Step = 0; FitChi = 0; Hits.clear(); UseHit.clear();
+        CTP = 0; HitPos = {0, 0}; Pos = {0, 0}; Dir = {0, 0}; HitPosErr2 = 0; Ang = 0; AngErr = 0.1;
+        Chg = 0; ChgRat = 0.1; Delta = 0; DeltaRMS = 0.02; NTPsFit = 2; Step = 0; FitChi = 0;
+        Hits.clear(); UseHit.clear();
       }
     };
     
@@ -292,8 +293,8 @@ namespace cluster {
       short StepDir;                 /// -1 = going US (CC proper order), 1 = going DS
       unsigned short ClusterIndex;   ///< Index not the ID...
       unsigned short ProcCode;       ///< USHRT_MAX = abandoned trajectory
-      float AveTP3Chi;               ///< average of all TP
-      float ThetaMCS;                ///< Estimate of the MCS scattering angle
+//      float AveTP3Chi;               ///< average of all TP
+//      float ThetaMCS;                ///< Estimate of the MCS scattering angle
       unsigned short PDG;            ///< shower-like or line-like
       unsigned short ParentTraj;     ///< index of the parent (if PDG = 12)
       int TruPDG;                    ///< MC truth
@@ -305,7 +306,7 @@ namespace cluster {
       Trajectory() {
         ID = 0; CTP = 0; Pass = 0; PDG = 0; StepDir = 0; ClusterIndex = USHRT_MAX; ProcCode = 1; Pts.clear();
         Vtx[0] = -1; Vtx[1] = -1; TruPDG = 0; TruKE = 0; EndPt[0] = 0; EndPt[1] = 0;
-        IsPrimary = false; ParentTraj = USHRT_MAX; AveTP3Chi = 1; ThetaMCS = 1;
+        IsPrimary = false; ParentTraj = USHRT_MAX;
       }
     };
     Trajectory work;      ///< trajectory under construction
@@ -416,10 +417,10 @@ namespace cluster {
     unsigned short NumGoodWorkTPs();
     void PrepareWorkForNextPass();
     void FitWork();
-    void FitTraj(Trajectory& tj, unsigned short fromOrigin, unsigned short toPoint, TrajPoint& tp);
+    void FitTraj(Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
     float TrajLength(Trajectory& tj);
     void GottaKink(unsigned short& killPts);
-    void FitTrajMid(unsigned short fromIndex, unsigned short toIndex, TrajPoint& tp);
+//    void FitTrajMid(unsigned short fromIndex, unsigned short toIndex, TrajPoint& tp);
     void CheckTrajEnd();
     void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
     // returns the DOCA between a hit and a trajectory
