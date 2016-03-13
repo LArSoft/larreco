@@ -22,6 +22,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
+#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Track.h"
@@ -81,7 +82,7 @@ public:
 			     std::vector<art::PtrVector<recob::Hit> >& clusters);
 
   /// Takes hit map and returns a 2D vector representing wire and tick, filled with the charge
-  std::vector<std::vector<double> > ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit> > const& hits);
+  void ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit> > const& hits, std::vector<std::vector<double> >& image, std::vector<std::vector<double> >& widths);
 
   /// Find clusters in the histogram
   int FindClusters(std::vector<std::vector<double> > const& image, std::vector<std::vector<int> >& allcluster);
@@ -90,7 +91,7 @@ public:
   int GlobalWire(geo::WireID const& wireID);
 
   /// Applies Gaussian blur to image
-  std::vector<std::vector<double> > GaussianBlur(std::vector<std::vector<double> > const& image);
+  std::vector<std::vector<double> > GaussianBlur(std::vector<std::vector<double> > const& image, std::vector<std::vector<double> > const& widths);
 
   /// Minimum size of cluster to save
   unsigned int GetMinSize() { return fMinSize; }
@@ -120,7 +121,11 @@ private:
   art::Ptr<recob::Hit> ConvertBinToRecobHit(std::vector<std::vector<double> > const& image, int bin);
 
   /// Convolves the Gaussian kernel with the image to blur
-  std::vector<std::vector<double> > Convolve(std::vector<std::vector<double> > const& image, std::vector<double> const& kernel, int width, int height);
+  std::vector<std::vector<double> > Convolve(std::vector<std::vector<double> > const& image,
+					     std::vector<std::vector<double> > const& widths,
+					     std::vector<double> const& kernel,
+					     int kernel_width, int kernel_height,
+					     int width, int height);
 
   /// Converts an xbin and a ybin to a global bin number                                                                                                                       
   int ConvertWireTickToBin(std::vector<std::vector<double> > const& image, int xbin, int ybin);
@@ -139,6 +144,8 @@ private:
 
   /// Determine if a hit is within a time threshold of any other hits in a cluster
   bool PassesTimeCut(std::vector<double> const& times, double time);
+
+  bool fDebug;
 
   // Parameters used in the Blurred Clustering algorithm
   int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
