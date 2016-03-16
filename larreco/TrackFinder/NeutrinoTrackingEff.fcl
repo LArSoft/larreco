@@ -1,0 +1,46 @@
+#include "services_dune.fcl"
+
+process_name: NeutrinoTrackingEff 
+
+services:
+{
+  # TFileService: { fileName: "test.root" }
+  TimeTracker:       {}
+  RandomNumberGenerator: {} 
+  message:      @local::standard_info
+  user:         @local::dunefd_simulation_services
+}
+services.user.Geometry: @local::dune10kt_workspace_geo
+
+source:
+{
+  module_type: RootInput
+  firstEvent : 1
+  maxEvents:  -1
+}
+
+
+outputs:{}
+
+
+physics:
+{
+
+  analyzers:
+  {
+    NeutrinoTrackingEff: 
+    {
+      module_type:      	"NeutrinoTrackingEff"
+      outFile:          	"PANDORAtest.root"
+      MCTruthModuleLabel:	"generator"
+      TrackModuleLabel: 	"pandora"
+      NeutrinoPDGcode:		14
+      LeptonPDGcode:		13
+      MaxNeutrinoE:		25.0
+      SaveMCTree:		false
+    }
+  }
+  analysis: [ NeutrinoTrackingEff ] //Directory for histograms
+  end_paths: [ analysis ]
+}
+
