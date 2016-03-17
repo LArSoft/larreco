@@ -286,7 +286,7 @@ namespace cluster {
     hitNear.clear();
     chgNear.clear();
     
-
+/*
     // TEMP. Print out cluster info for tuning
     std::array<unsigned int, 3> ncl;
     std::array<unsigned int, 3> nht;
@@ -321,7 +321,7 @@ namespace cluster {
       frc2 = 100 - frc2;
       std::cout<<"plane "<<ipl<<" num clusters "<<ncl[ipl]<<" Hits in clusters "<<frc1<<"%. Hits merged "<<frc2<<"%\n";
     }
-  
+*/
     // remove the hits that have become obsolete
     RemoveObsoleteHits();
     
@@ -699,9 +699,12 @@ namespace cluster {
     unsigned short minLen = 6;
     unsigned short minOvrLap = 2;
     
+    // use the loosest dTick cut which is probably the last one
+    float maxDTick = fTimeDelta[fTimeDelta.size() - 1];
+    
     unsigned int overlapSize, ii, indx, bWire, eWire;
     unsigned int iht, jht;
-    float dang, prtime, dTick, maxDTick;
+    float dang, prtime, dTick;
     for(icl = 0; icl < tcl.size(); ++icl) {
       if(tcl[icl].ID < 0) continue;
       if(tcl[icl].CTP != clCTP) continue;
@@ -732,17 +735,23 @@ namespace cluster {
           iht = tcl[icl].tclhits[ii];
           if(fHits[iht].WireID().Wire < eWire) break;
         } // ii
+        // require that the ends be similar in time
+        dTick = std::abs(fHits[iht].PeakTime() - tcl[jcl].EndTim);
+        if(dTick > maxDTick) continue;
+        if(prt) mf::LogVerbatim("CC")<<" dTick icl iht time "<<PrintHit(iht)<<" jcl EndTim "<<tcl[jcl].EndTim<<" dTick "<<dTick;
         for(ii = 0; ii < tcl[jcl].tclhits.size(); ++ii) {
           jht = tcl[jcl].tclhits[tcl[jcl].tclhits.size() - ii - 1];
           if(fHits[jht].WireID().Wire > bWire) break;
         } // ii
+        dTick = std::abs(fHits[jht].PeakTime() - tcl[icl].BeginTim);
+        if(dTick > maxDTick) continue;
+        if(prt) mf::LogVerbatim("CC")<<" dTick jcl jht time "<<PrintHit(jht)<<" icl BeginTim "<<tcl[icl].BeginTim<<" dTick "<<dTick;
         // Calculate the line between iht and jht
         clpar[0] = fHits[iht].PeakTime();
         clpar[2] = fHits[iht].WireID().Wire;
         clpar[1] = (fHits[jht].PeakTime() - fHits[iht].PeakTime()) / ((float)fHits[jht].WireID().Wire - clpar[2]);
         // put the hits in the overlap region into a vector if they are close to the line
         std::vector<unsigned int> oWireHits(overlapSize, INT_MAX);
-        maxDTick = 10 * fHits[iht].RMS();
         std::vector<float> delta(overlapSize, maxDTick);
         for(ii = 0; ii < tcl[icl].tclhits.size(); ++ii) {
           iht = tcl[icl].tclhits[ii];
@@ -771,6 +780,7 @@ namespace cluster {
           if(oWireHits[ii] == INT_MAX) continue;
           iht = oWireHits[ii];
           fcl2hits.push_back(iht);
+          if(prt) mf::LogVerbatim("CC")<<"hit "<<PrintHit(iht);
         } // ii
         if(fcl2hits.size() < 0.5 * overlapSize) continue;
         if(fcl2hits.size() < 3) continue;
@@ -6032,7 +6042,7 @@ namespace cluster {
           ++nbad;
         }
       } // wire
-      std::cout<<nbad<<" bad wires in plane "<<planeID.Plane<<"\n";
+//      std::cout<<nbad<<" bad wires in plane "<<planeID.Plane<<"\n";
 
       // define the MergeAvailable vector and check for errors
       if(mergeAvailable.size() < fHits.size()) throw art::Exception(art::errors::LogicError)

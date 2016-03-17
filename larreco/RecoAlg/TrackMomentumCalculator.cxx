@@ -42,7 +42,9 @@ double my_mcs_chi2( const double *x )
   
   result += 2.0/( 4.6 )*theta0; // *TMath::Log( 1.0/14.0 );
   
-  if ( isnan( float(result) ) || isinf( float(result) ) ) { cout << " Is nan in my_mcs_chi2 ! " << endl; return -1; }
+  if ( isnan( float(result) ) || isinf( float(result) ) ) { 
+    mf::LogWarning("ClusterMatchTQ")<<" Is nan in my_mcs_chi2 ! ";
+    return -1; }
     
   return result;
   
@@ -1659,7 +1661,10 @@ namespace trkf{
     
     if ( s!=0 ) result = -0.5*TMath::Log( 2.0*TMath::Pi() ) - TMath::Log( s ) - 0.5*arg*arg;
     
-    if ( isnan( float( result ) ) || isinf( float( result ) ) ) { cout << " Is nan ! my_g ! " << - TMath::Log( s ) << ", " << s << endl; getchar(); }
+    if ( isnan( float( result ) ) || isinf( float( result ) ) ) { 
+      cout << " Is nan ! my_g ! " << - TMath::Log( s ) << ", " << s << endl; 
+      getchar(); 
+    }
     
     return result;
     
