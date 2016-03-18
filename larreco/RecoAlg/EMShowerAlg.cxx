@@ -386,7 +386,7 @@ double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& t
 
   // Get the pitch
   double pitch = 0;
-  try { pitch = track->PitchInView(trackHits.at(0)->View()); }
+  try { pitch = lar::utils::TrackPitchInView(*track, trackHits.at(0)->View()); }
   catch(...) { pitch = 0; }
 
   // Deal with large pitches

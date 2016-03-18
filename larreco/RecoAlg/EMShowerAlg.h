@@ -26,7 +26,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
-#include "larreco/RecoAlg/ShowerEnergyAlg.h"
+#include "lardata/RecoBaseArt/TrackUtils.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/GeometryCore.h"
 #include "larcore/Geometry/CryostatGeo.h"
@@ -42,6 +42,7 @@
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/ShowerEnergyAlg.h"
 
 // C++
 #include <iostream>
