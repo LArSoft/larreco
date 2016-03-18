@@ -363,7 +363,6 @@ namespace hit {
             {
               myrms/=(float)(std::abs(end-start));
               hitrms.push_back(sqrt(myrms));
-              std::cout << sqrt(myrms) << std::endl;
             }
             else
             {
