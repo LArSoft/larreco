@@ -350,7 +350,7 @@ namespace hit {
             myrms  = 0;
             mynorm = 0;
 
-            for(int i = start-std::floor(fIncludeMoreTail*(start-end)); i <= end+std::ceil(fIncludeMoreTail*(start-end)); i++){
+            for(int i = start-std::floor(fIncludeMoreTail*(end-start)); i <= end+std::ceil(fIncludeMoreTail*(end-start)); i++){
               totSig += holder[i];
               float temp2 = holder[i]*holder[i];
               mynorm += temp2;
