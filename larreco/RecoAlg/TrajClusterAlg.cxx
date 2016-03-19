@@ -63,13 +63,7 @@ namespace cluster {
       fnHitsPerTP_AngleP[0] = tfs->make<TProfile>("nhtpertp_anglep0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, "S");
       fnHitsPerTP_AngleP[1] = tfs->make<TProfile>("nhtpertp_anglep1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, "S");
       fnHitsPerTP_AngleP[2] = tfs->make<TProfile>("nhtpertp_anglep2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, "S");
-/*
-      fThetaMCS_TruKE = tfs->make<TH2F>("thetamcs_truke","ThetaMCS vs Tru KE",50, 0, 1000, 20, 0, 0.2);
-      fThetaMCS_Angle = tfs->make<TH2F>("thetamcs_angle","ThetaMCS vs Angle",10, 0, M_PI/2, 20, 0, 0.2);
-      
-      fThetaMCS_TruKEP = tfs->make<TProfile>("thetamcs_trukep","ThetaMCS vs Tru KE",50, 0, 1000, "S");
-      fThetaMCS_AngleP = tfs->make<TProfile>("thetamcs_anglep","ThetaMCS vs Angle",10, 0, M_PI/2, "S");
-*/
+
     }
     
     if(fShowerStudy) {
@@ -97,7 +91,8 @@ namespace cluster {
     fLAStep               = pset.get< std::vector<bool>>("LAStep");
     fMaxChi               = pset.get< float >("MaxChi", 10);
     fMultHitSep           = pset.get< float >("MultHitSep", 2.5);
-    fTP3ChiCut            = pset.get< float >("TP3ChiCut", 2.);
+    fRecoveryAlgs         = pset.get< float >("RecoveryAlgs", 0);
+    fReversePropagate     = pset.get< float >("ReversePropagate", 0);
     fHitFOMCut            = pset.get< float >("HitFOMCut", 3);
     fChgRatCut            = pset.get< float >("ChgRatCut", 0.5);
     fKinkAngCut           = pset.get< float >("KinkAngCut", 0.4);
@@ -111,7 +106,7 @@ namespace cluster {
     fTagAllTraj           = pset.get< bool  >("TagAllTraj", false);
     fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
     fShowerPrtPlane       = pset.get< short >("ShowerPrtPlane", -1);
-    fFindTrajVertices     = pset.get< bool  >("FindTrajVertices", false);
+    fFindVertices     = pset.get< bool  >("FindVertices", false);
     fMaxVertexTrajSep     = pset.get< std::vector<float>>("MaxVertexTrajSep");
     
     fDebugPlane         = pset.get< int  >("DebugPlane", -1);
@@ -303,23 +298,8 @@ namespace cluster {
           ave = (float)hitVec.size() / (float)(allTraj[itj].EndPt[1] - allTraj[itj].EndPt[0]);
           fnHitsPerTP_Angle[ipl]->Fill(ang, ave);
           fnHitsPerTP_AngleP[ipl]->Fill(ang, ave);
-/*
-          if(allTraj[itj].Pts.size() > 3 && allTraj[itj].TruPDG > 0) {
-            // check MCS angle vs KE
-            fThetaMCS_TruKE->Fill(allTraj[itj].TruKE, allTraj[itj].ThetaMCS);
-            fThetaMCS_Angle->Fill(ang, allTraj[itj].ThetaMCS);
-            fThetaMCS_TruKEP->Fill(allTraj[itj].TruKE, allTraj[itj].ThetaMCS);
-            fThetaMCS_AngleP->Fill(ang, allTraj[itj].ThetaMCS);
-          }
-*/
         } // itj
       } // ipl
-/*
-      unsigned short lastPt = work.EndPt[1];
-      float ang = std::abs(work.Pts[lastPt].Ang);
-      if(ang > M_PI/2) ang = M_PI - ang;
-      mf::LogVerbatim("TC")<<"ANG "<<fPlane<<" "<<ang<<" "<<work.Pts[lastPt].AveHitRes<<" "<<work.Pts[lastPt].TP3Chi;
-*/
     } // studymode
 
     // convert vertex time from WSE to ticks
@@ -464,6 +444,7 @@ namespace cluster {
   ////////////////////////////////////////////////
   void TrajClusterAlg::CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits)
   {
+    // Counts the number of hits that are used in two different vectors of hits
     nSameHits = 0;
     for(unsigned short ii = 0; ii < iHitVec.size(); ++ii) {
       if(std::find(jHitVec.begin(), jHitVec.end(), iHitVec[ii]) != jHitVec.end()) ++nSameHits;
@@ -473,7 +454,7 @@ namespace cluster {
   ////////////////////////////////////////////////
   void TrajClusterAlg::PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec)
   {
-    // Put the Used hits in each trajectory point into a flat vector
+    // Put hits in each trajectory point into a flat vector. Only hits with UseHit if onlyUsedHits == true
     hitVec.clear();
     unsigned short ipt, iht;
     for(ipt = 0; ipt < tj.Pts.size(); ++ipt) {
@@ -497,9 +478,7 @@ namespace cluster {
     unsigned int nwires = fLastWire - fFirstWire - 1;
     unsigned int ifirsthit, ilasthit, jfirsthit, jlasthit;
     float fromWire, fromTick, toWire, toTick, deltaRms, qtot;
-    bool signalPresent, trajAdded;
-    
-    if(fPlane != 2) return;
+    bool sigOK, trajAdded;
 
     for(unsigned short pass = 0; pass < fMinPtsFit.size(); ++pass) {
       fPass = pass;
@@ -523,6 +502,8 @@ namespace cluster {
         jlasthit = (unsigned int)WireHitRange[jwire].second;
         for(iht = ifirsthit; iht < ilasthit; ++iht) {
           trajAdded = false;
+          // clear out any leftover work inTraj's that weren't cleaned up properly
+          for(oht = ifirsthit; oht < ilasthit; ++oht) if(inTraj[oht] < 0) inTraj[oht] = 0;
           prt = (fDebugPlane == (int)fPlane && (int)iwire == fDebugWire && std::abs((int)fHits[iht]->PeakTime() - fDebugHit) < 10);
           if(prt) didPrt = true;
 //          if(!prt) continue;
@@ -538,10 +519,13 @@ namespace cluster {
             // Make sure it isn't used and check the separation
             if(inTraj[oht] == 0 && std::abs(fHits[oht]->PeakTime() - fromTick) < fMultHitSep * fHits[oht]->RMS()) {
               HitMultipletPosition(iht, fromTick, deltaRms, qtot);
+              if(qtot == 0) continue;
               if(prt) mf::LogVerbatim("TC")<<" Hit doublet: back from HitMultipletPosition ";
             }
           }
           for(jht = jfirsthit; jht < jlasthit; ++jht) {
+            // clear out any leftover work inTraj's that weren't cleaned up properly
+            for(oht = jfirsthit; oht < jlasthit; ++oht) if(inTraj[oht] < 0) inTraj[oht] = 0;
             if(inTraj[iht] != 0) continue;
             fHitDoublet = false;
 //            if(inTraj[jht] == -3) mf::LogVerbatim("TC")<<"ReconstructAllTraj bad jht flag "<<fPlane<<":"<<PrintHit(jht)<<" using iht "<<fPlane<<":"<<PrintHit(iht);
@@ -549,17 +533,15 @@ namespace cluster {
             if(prt) mf::LogVerbatim("TC")<<"+++++++ checking ClusterHitsOK with jht "<<fPlane<<":"<<PrintHit(jht)<<" RMS "<<fHits[jht]->RMS()<<" Multiplicity "<<fHits[jht]->Multiplicity()<<" LocalIndex "<<fHits[jht]->LocalIndex();
             // Ensure that the hits StartTick and EndTick have the proper overlap
             if(!TrajHitsOK(iht, jht)) continue;
-            if(prt) mf::LogVerbatim("TC")<<"  Starting trajectory";
             // start a trajectory in the direction from iht -> jht
             toWire = jwire;
-            if(fHits[jht]->Multiplicity() == 1) {
-              toTick = fHits[jht]->PeakTime();
-            } else if(fHits[jht]->Multiplicity() == 2) {
+            toTick = fHits[jht]->PeakTime();
+            if(fHits[jht]->Multiplicity() > 1) {
               HitMultipletPosition(jht, toTick, deltaRms, qtot);
-            } else {
-              // check consistency of high multiplicity hits
-              if(SkipHighMultHitCombo(iht, jht)) continue;
+              if(qtot == 0) continue;
+              if(fHits[jht]->Multiplicity() > 2 && SkipHighMultHitCombo(iht, jht)) continue;
             }
+            if(prt) mf::LogVerbatim("TC")<<"  Starting trajectory from "<<(int)fromWire<<":"<<(int)fromTick<<" to "<<(int)toWire<<":"<<(int)toTick;
             StartWork(fromWire, fromTick, toWire, toTick, fCTP);
             // check for a major failure
             if(fQuitAlg) return;
@@ -581,10 +563,10 @@ namespace cluster {
               work.Pts[0].DeltaRMS = deltaRms;
             } // fHitDoublet
             // try to add close hits
-            AddHits(work, 0, signalPresent);
+            AddHits(work, 0, sigOK);
             // check for a major failure
             if(fQuitAlg) return;
-            if(!signalPresent || NumUsedHits(work.Pts[0]) == 0) {
+            if(!sigOK || NumUsedHits(work.Pts[0]) == 0) {
               if(prt) mf::LogVerbatim("TC")<<" No hits at initial trajectory point ";
               ReleaseWorkHits();
               continue;
@@ -602,7 +584,7 @@ namespace cluster {
             if(prt) mf::LogVerbatim("TC")<<" After first StepCrawl. fGoodWork "<<fGoodWork<<" fTryWithNextPass "<<fTryWithNextPass;
             if(!fGoodWork && fTryWithNextPass) {
               StepCrawl();
-              if(!fUpdateWorkOK) {
+              if(!fUpdateTrajOK) {
                 if(prt) mf::LogVerbatim("TC")<<" xxxxxxx StepCrawl failed AGAIN. fTryWithNextPass "<<fTryWithNextPass;
                 ReleaseWorkHits();
                 continue;
@@ -617,6 +599,7 @@ namespace cluster {
               // The first part of the trajectory was good but the latter part
               // had too many unused hits in the work TPs. The work vector was
               // truncated and fPass incremented, so give it another try
+              work.AlgMod[kTryWithNextPass] = true;
               StepCrawl();
               // check for a major failure
               if(fQuitAlg) return;
@@ -627,12 +610,15 @@ namespace cluster {
               } // Failed again
             } // fTryWithNextPass
             if(prt) mf::LogVerbatim("TC")<<"StepCrawl done: work.EndPt[1] "<<work.EndPt[1]<<" cut "<<fMinPts[work.Pass];
+            if(fRecoveryAlgs > 0) TryRecoveryAlgs();
+            if(!fGoodWork) continue;
             // decide if the trajectory is long enough
-            if(work.EndPt[1] < fMinPts[work.Pass]) {
+            if(NumPtsWithCharge(work) < fMinPts[work.Pass]) {
               if(prt) mf::LogVerbatim("TC")<<" xxxxxxx Not enough points "<<work.EndPt[1];
               ReleaseWorkHits();
               continue;
             }
+            if(fReversePropagate > 0) ReversePropagate(work);
             if(prt) mf::LogVerbatim("TC")<<"ReconstructAllTraj: calling StoreWork with npts "<<work.EndPt[1];
             StoreWork();
             // check for a major failure
@@ -643,7 +629,7 @@ namespace cluster {
           if(trajAdded) break;
         } // iht
       } // iwire
-      FindTrajVertices();
+      FindVertices();
     } // fPass
     
     CheckInTraj("RCAT1");
@@ -654,7 +640,7 @@ namespace cluster {
       FindJunkTraj();
       // check for a major failure
       if(fQuitAlg) return;
-      FindTrajVertices();
+      FindVertices();
       // check for a major failure
       if(fQuitAlg) return;
     }
@@ -671,6 +657,247 @@ namespace cluster {
     
     
   } // ReconstructAllTraj
+
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::TryRecoveryAlgs()
+  {
+    // Check the work trajectory and try to recover it if it has poor quality
+    
+
+    if(prt) mf::LogVerbatim("TC")<<"inside TryRecoveryAlgs ";
+
+    // no sense even trying if there aren't enough points
+//    if(work.Pts.size() < fMinPts[work.Pass]) return;
+    
+    // a short shallow angle trajectory which has hit multiplets but the
+    // hit multiplets haven't been "merged". Just try using every associated
+    // hit and see if we can get back on the road again
+    unsigned short ii, ipt;
+    unsigned short nNewUsed = 0;
+    unsigned int iht;
+    bool hitAdded;
+    if(!fGoodWork && work.Pts.size() < 10) {
+      for(auto& tp : work.Pts) {
+        hitAdded = false;
+        for(ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(tp.UseHit[ii]) continue;
+          iht = tp.Hits[ii];
+          if(inTraj[iht] > 0) continue;
+          ++nNewUsed;
+          hitAdded = true;
+          inTraj[iht] = work.ID;
+          tp.UseHit[ii] = true;
+        } // ii
+        if(hitAdded) DefineHitPos(tp);
+      } // tp
+      FitWork();
+      ipt = work.Pts.size() - 1;
+      if(prt) mf::LogVerbatim("TC")<<" Use all hits in short tj. fit chisq "<<work.Pts[ipt].FitChi;
+      if(work.Pts[ipt].FitChi > fMaxChi) return;
+      work.AlgMod[kRecovery1] = true;
+      // keep on stepping
+      StepCrawl();
+      return;
+    } // short traj with unmerged hits
+    
+    // The most common situation is that the trajectory starts out OK but as
+    // hits are added, they are close but not used. Start by counting the
+    // number of close but unused hits going backwards through the trajectory.
+    unsigned short nCloseHits = 0, nBadPts = 0, nSingleCloseHits = 0;
+//    unsigned short firstHighMultPt = USHRT_MAX;
+    for(ii = 0; ii < work.Pts.size(); ++ii) {
+      ipt = work.Pts.size() - 1 - ii;
+      if(work.Pts[ipt].Chg > 0) break;
+      nCloseHits += work.Pts[ipt].Hits.size();
+      if(work.Pts[ipt].Hits.size() == 1) {
+        // only count available close hits
+        iht = work.Pts[ipt].Hits[0];
+        if(inTraj[iht] == 0) ++nSingleCloseHits;
+      }
+//      if(work.Pts[ipt].Hits.size() > 1 && firstHighMultPt == USHRT_MAX) firstHighMultPt = ipt;
+      ++nBadPts;
+    } // ii
+    
+    if(nBadPts == 0) return;
+    if(prt) mf::LogVerbatim("TC")<<"TryRecoveryAlgs: nBadPts "<<nBadPts<<" nCloseHits "<<nCloseHits<<" nSingleCloseHits "<<nSingleCloseHits;
+    
+    // Require a minimum number of TPs that could be used to step in the opposite direction
+    if(nSingleCloseHits < 5) return;
+    
+    // Use a copy of work in case something bad happens
+    Trajectory twork = work;
+
+    // Use single hit TPs at the end
+    unsigned short nused = 0, iptBreak = 0;
+    for(ii = 0; ii < twork.Pts.size(); ++ii) {
+      ipt = twork.Pts.size() - 1 - ii;
+      if(twork.Pts[ipt].Chg > 0) break;
+      if(twork.Pts[ipt].Hits.size() != 1) continue;
+      iht = twork.Pts[ipt].Hits[0];
+      if(inTraj[iht] > 0) continue;
+      inTraj[iht] = work.ID;
+      twork.Pts[ipt].UseHit[0] = true;
+      DefineHitPos(twork.Pts[ipt]);
+      if(prt) mf::LogVerbatim("TC")<<" Use hit "<<PrintHit(iht)<<" HitPos "<<twork.Pts[ipt].HitPos[0]<<" "<<twork.Pts[ipt].HitPos[1];
+      ++nused;
+      iptBreak = ipt;
+      if(nused == 4) break;
+    } // ii
+    // release the points from the beginning to iptBreak
+    for(ipt = 0; ipt < iptBreak; ++ipt) UnsetUsedHits(twork.Pts[ipt]);
+    work.AlgMod[kRecovery2] = true;
+    
+    // Here is where we might slot in additional algs
+    
+  } // TryRecoveryAlgs
+
+  //////////////////////////////////////////
+  void TrajClusterAlg::ReversePropagate(Trajectory& tj)
+  {
+    // Reverse the trajectory and propagate the fit from the end
+    // to the beginning, possibly masking off hits that were associated
+    // with TPs along the way
+    
+    // assume we aren't going to do this
+    fRevProp = false;
+    if(!prt) return;
+    
+    if(NumPtsWithCharge(tj) < 5) return;
+    
+    if(prt) mf::LogVerbatim("TC")<<"inside ReversePropagate";
+    PrintTrajectory(tj, USHRT_MAX);
+    
+    // Find 4 TPs at the end of to start the process
+    unsigned short ii, ipt, iptStart = USHRT_MAX, cnt = 0;
+    for(ii = 0; ii < tj.Pts.size() - 1; ++ii) {
+      ipt = tj.Pts.size() - 1 - ii;
+      if(NumUsedHits(tj.Pts[ipt]) == 0) continue;
+      ++cnt;
+      if(cnt == 4) {
+        iptStart = ipt;
+        break;
+      }
+    } // ii
+    if(iptStart == USHRT_MAX) return;
+    
+    // TODO will need to reverse the order of hits for large angle tjs
+    
+    // copy tj into a work tj
+    Trajectory workTj = tj;
+    // change the ID to keep track of what has been changed
+    workTj.ID -= 1;
+    // resize the number of trajectory points
+    mf::LogVerbatim("TC")<<"iptStart "<<iptStart;
+    workTj.Pts.erase(workTj.Pts.begin(), workTj.Pts.begin() + iptStart);
+    // then reverse it
+    ReverseTraj(workTj);
+    unsigned short lastPt = workTj.Pts.size() - 1;
+    // Decrement the number of points fit since it will be incremented in UpdateTraj
+    // using the previous TP NTPsFit
+    workTj.Pts[lastPt - 1].NTPsFit = cnt - 1;
+    // These lines are just the tail end of AddHits after hits were inserted in Pts
+    FindUseHits(workTj, lastPt);
+    SetEndPoints(workTj);
+//    DefineHitPos(workTj.Pts[iptStart]);
+    // This line is ala StepCrawl
+    UpdateTraj(workTj);
+    PrintTrajectory(workTj, USHRT_MAX);
+    mf::LogVerbatim("TC")<<"Start propagating";
+    if(workTj.Pts[lastPt].FitChi > fMaxChi) return;
+    fRevProp = true;
+    // Append TPs from tj to workTj, find hits to use and fit
+    for(ii = 1; ii < tj.Pts.size(); ++ii) {
+      ipt = iptStart - ii;
+      workTj.Pts.push_back(tj.Pts[ipt]);
+      lastPt = workTj.Pts.size() - 1;
+      UnsetUsedHits(workTj.Pts[lastPt]);
+      FindUseHits(workTj, lastPt);
+      SetEndPoints(workTj);
+      UpdateTraj(workTj);
+      PrintTrajectory(workTj, lastPt);
+      if(ipt == 0) break;
+    }
+    fRevProp = false;
+//    if(prt) PrintTrajectory(workTj, USHRT_MAX);
+    // TODO be smarter about this maybe
+    tj = workTj;
+    tj.AlgMod[kRevProp] = true;
+    
+  } // ReversePropagate
+  
+/*
+  //////////////////////////////////////////
+  void TrajClusterAlg::ReversePropagate(Trajectory& tj)
+  {
+    // This is a StepCrawl-like routine but it only uses hits that are
+    // already associated with the trajectory. The calling routine should have
+    // set UseHit and inTraj appropriately and called DefineHitPos. The trajectory
+    // EndPt information is ignored and not reliable unless this algorithm is
+    // successful. Note that fGoodWork is used as a success/fail flag even though
+    // we may not be reverse propagating the work trajectory
+ 
+    fGoodWork = false;
+    unsigned short endPt = tj.Pts.size() - 1;
+    unsigned short startPt;
+    for(startPt = 0; startPt < endPt; ++startPt) if(tj.Pts[startPt].Chg > 0) break;
+    // we need at least two points to get started
+    if(startPt == endPt) return;
+    
+    // do a first fit
+    unsigned short npts = endPt - startPt;
+    TrajPoint tpFit;
+    FitTraj(tj, startPt, npts, 1, tpFit);
+    if(prt) mf::LogVerbatim("TC")<<"ReversePropagate: first fit "<<tpFit.FitChi<<" origin "<<startPt<<" npts "<<npts;
+    if(tpFit.FitChi > fMaxChi) return;
+    tpFit.NTPsFit = npts;
+    // overwrite the startPt
+    tj.Pts[startPt] = tpFit;
+    // update the other fitted TPs with the same information
+    unsigned short ipt;
+    for(ipt = startPt + 1; ipt <= endPt; ++ipt) {
+      if(tj.Pts[ipt].Chg == 0) continue;
+      tj.Pts[ipt].Delta = PointTrajDOCA(tj.Pts[ipt].HitPos[0], tj.Pts[ipt].HitPos[0], tpFit);
+      tj.Pts[ipt].FitChi = tpFit.FitChi;
+      tj.Pts[ipt].NTPsFit = tpFit.NTPsFit;
+      tj.Pts[ipt].Pos = tpFit.Pos;
+      tj.Pts[ipt].Dir = tpFit.Dir;
+    } // ipt
+    // Now back propagate. The trajectory is projected to point ipt
+    // using the trajectory stored in projPt.
+    unsigned short projPt = startPt;
+    if(prt) {
+      mf::LogVerbatim("TC")<<"start reverse propagation";
+      PrintTrajectory(tj, startPt);
+    }
+    // temp TP
+    TrajPoint tp;
+    for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
+      ipt = startPt - ii;
+      // Update the position and direction at TP ipt
+      tp = tj.Pts[projPt];
+      MoveTPToWire(tp, tj.Pts[ipt].Pos[0]);
+      tj.Pts[ipt].Pos = tp.Pos;
+      tj.Pts[ipt].Dir = tp.Dir;
+      if(prt) PrintTrajectory(tj, ipt);
+      // update the used hits
+      FindUseHits(tj, ipt);
+      if(tj.Pts[ipt].Chg == 0) continue;
+      SetEndPoints(tj);
+      DefineHitPos(tj.Pts[ipt]);
+      UpdateTraj(tj, ipt, projPt, 1);
+      if(!fGoodWork) return;
+      projPt = ipt;
+      if(ipt == 0) break;
+    } // jj
+    
+    if(prt) {
+      mf::LogVerbatim("TC")<<"Reverse propagation done";
+      PrintTrajectory(tj, USHRT_MAX);
+
+    }
+  } // ReversePropagate
+*/
   
   //////////////////////////////////////////
   void TrajClusterAlg::FindJunkTraj()
@@ -873,8 +1100,8 @@ namespace cluster {
       tp.UseHit.resize(tp.Hits.size(), true);
       DefineHitPos(tp);
       work.Pts.push_back(tp);
-      SetTrajEndPoints(work);
-      if(work.Pts.size() > 1) UpdateWork();
+      SetEndPoints(work);
+      if(work.Pts.size() > 1) UpdateTraj(work);
     }
     if(prt) PrintTrajectory(work, USHRT_MAX);
     // Finally push it onto allTraj
@@ -1175,8 +1402,8 @@ namespace cluster {
   //////////////////////////////////////////
   void TrajClusterAlg::DefineShowerTraj(unsigned short icot, std::vector<std::vector<unsigned short>> trjintIndices)
   {
-    // This routine is called if there area significant (> 3) number
-    // of trjints enabling an estimate of the shower direction, etc.
+    // Try to define a shower trajectory consisting of a single track-like trajectory (the electron/photon)
+    // plus a group of shower-like trajectories, using the vector of trjintIndices
     
     unsigned short ii, iTji, i1, ipt1, i2, ipt2, nEndInside, ipt0;
     std::vector<float> x, y, yerr2;
@@ -1305,6 +1532,7 @@ namespace cluster {
   //////////////////////////////////////////
   void TrajClusterAlg::FindClustersOfTrajectories(std::vector<std::vector<unsigned short>>& trjintIndices)
   {
+    // Associate trajectories that are close to each into Clusters Of Trajectories (COTs)
     
     mf::LogVerbatim myprt("TC");
 
@@ -1401,6 +1629,7 @@ namespace cluster {
   //////////////////////////////////////////
   float TrajClusterAlg::TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2)
   {
+    // Returns the separation distance between two trajectory points
     float dx = tp1.Pos[0] - tp2.Pos[0];
     float dy = tp1.Pos[1] - tp2.Pos[1];
     return sqrt(dx * dx + dy * dy);
@@ -1435,7 +1664,7 @@ namespace cluster {
 
   
   ////////////////////////////////////////////////
-  void TrajClusterAlg::AddHits(Trajectory& tj, unsigned short ipt, bool& SignalPresent)
+  void TrajClusterAlg::AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK)
   {
     // Try to add hits to the trajectory point ipt on the supplied
     // trajectory
@@ -1495,7 +1724,7 @@ namespace cluster {
     // TEMP
     deltaCut = fProjectionErrFactor + 0.2 * std::abs(dw);
     float bigDelta = 5 * deltaCut;
-    unsigned int imBig = UINT_MAX;
+//    unsigned int imBig = UINT_MAX;
     
     // projected time in ticks for testing the existence of a hit signal
     raw::TDCtick_t rawProjTick = (float)(tp.Pos[1] / fScaleF);
@@ -1514,19 +1743,19 @@ namespace cluster {
     }
 */
     // assume failure
-    SignalPresent = false;
+    sigOK = false;
     bool isLA = IsLargeAngle(tp);
     if(prt) mf::LogVerbatim("TC")<<" AddHits: loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" tp.Dir[0] "<<tp.Dir[0]<<" isLA "<<isLA;
     
     for(wire = loWire; wire < hiWire; ++wire) {
       // Assume a signal exists on a dead wire
-      if(WireHitRange[wire].first == -1) SignalPresent = true;
+      if(WireHitRange[wire].first == -1) sigOK = true;
       if(WireHitRange[wire].first < 0) continue;
       firstHit = (unsigned int)WireHitRange[wire].first;
       lastHit = (unsigned int)WireHitRange[wire].second;
       fwire = wire;
       for(iht = firstHit; iht < lastHit; ++iht) {
-        if(rawProjTick > fHits[iht]->StartTick() && rawProjTick < fHits[iht]->EndTick()) SignalPresent = true;
+        if(rawProjTick > fHits[iht]->StartTick() && rawProjTick < fHits[iht]->EndTick()) sigOK = true;
         ftime = fScaleF * fHits[iht]->PeakTime();
         delta = PointTrajDOCA(fwire, ftime, tp);
         float dt = std::abs(ftime - tp.Pos[1]);
@@ -1538,7 +1767,7 @@ namespace cluster {
           myprt<<" Chi "<<std::setprecision(1)<<fHits[iht]->GoodnessOfFit();
           myprt<<" inTraj "<<inTraj[iht];
           myprt<<" Chg "<<(int)fHits[iht]->Integral();
-          myprt<<" Signal? "<<SignalPresent;
+          myprt<<" Signal? "<<sigOK;
         }
         // The impact parameter delta may be good but we may be projecting
         // the trajectory too far away (in time) from the current position.
@@ -1546,31 +1775,54 @@ namespace cluster {
         if(isLA && dt > 1.1) continue;
         // Keep track of the best outlier in case we need it
         if(inTraj[iht] == 0 && delta < bigDelta) {
-          SignalPresent = true;
+          sigOK = true;
           bigDelta = delta;
-          imBig = iht;
+//          imBig = iht;
           fAddedBigDeltaHit = true;
         }
         if(delta > deltaCut) continue;
-        SignalPresent = true;
+        sigOK = true;
         // No requirement is made at this point that a hit cannot be associated with
         // more than 1 TP in different trajectories, but make sure that it isn't assigned
         // more than once to this trajectory
         if(std::find(pclHits.begin(), pclHits.end(), iht) != pclHits.end()) continue;
         closeHits.push_back(iht);
         pclHits.push_back(iht);
+//        if(!isLA && fHits[iht]->Multiplicity() > 1) {
+        if(fHits[iht]->Multiplicity() > 1) {
+          // include all the hits in a multiplet for not large angle TPs
+          unsigned int loHit = iht - fHits[iht]->LocalIndex();
+          unsigned int hiHit = loHit + fHits[iht]->Multiplicity();
+          for(unsigned int jht = loHit; jht < hiHit; ++jht) {
+            if(std::find(pclHits.begin(), pclHits.end(), jht) != pclHits.end()) continue;
+            closeHits.push_back(jht);
+            pclHits.push_back(jht);
+          } // jht
+        } // multiplicity > 1
       } // iht
     } // wire
-    if(!SignalPresent) {
+    if(!sigOK) {
       if(prt) mf::LogVerbatim("TC")<<" no signal on any wire at tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" tick "<<(int)tp.Pos[1]/fScaleF<<" closeHits size "<<closeHits.size();
       return;
     }
+/*
     if(imBig == UINT_MAX) return;
     if(closeHits.size() == 0 && std::find(pclHits.begin(), pclHits.end(), imBig) == pclHits.end()) {
       // use the closest hit available
       closeHits.push_back(imBig);
+      if(!isLA && fHits[imBig]->Multiplicity() > 1) {
+        // include all the hits in a multiplet for not large angle TPs
+        unsigned int loHit = imBig - fHits[imBig]->LocalIndex();
+        unsigned int hiHit = loHit + fHits[imBig]->Multiplicity();
+        for(unsigned int jht = loHit; jht < hiHit; ++jht) {
+          if(std::find(pclHits.begin(), pclHits.end(), jht) != pclHits.end()) continue;
+          closeHits.push_back(jht);
+          pclHits.push_back(jht);
+        } // jht
+      } // multiplicity > 1
       if(prt) mf::LogVerbatim("TC")<<" Added bigDelta hit "<<PrintHit(imBig)<<" w delta = "<<bigDelta;
     }
+*/
     tp.Hits.insert(tp.Hits.end(), closeHits.begin(), closeHits.end());
     // sort the close hits by distance from the previous traj point
     if(tp.Hits.size() > 1) {
@@ -1581,8 +1833,8 @@ namespace cluster {
       for(ii = 0; ii < tp.Hits.size(); ++ii) {
         sortEntry.index = ii;
         iht = tp.Hits[ii];
-        dw = fHits[iht]->WireID().Wire - work.Pts[prevPt].Pos[0];
-        dt = fHits[iht]->PeakTime() * fScaleF - work.Pts[prevPt].Pos[1];
+        dw = fHits[iht]->WireID().Wire - tj.Pts[prevPt].Pos[0];
+        dt = fHits[iht]->PeakTime() * fScaleF - tj.Pts[prevPt].Pos[1];
         sortEntry.length = dw * dw + dt * dt;
         sortVec.push_back(sortEntry);
       } // ii
@@ -1597,8 +1849,8 @@ namespace cluster {
     // resize the UseHit vector and assume that none of these hits will be used (yet)
     tp.UseHit.resize(tp.Hits.size(), false);
     // decide which of these hits should be used in the fit
-    SetUsedHits(tj, ipt);
-    SetTrajEndPoints(tj);
+    FindUseHits(tj, ipt);
+    SetEndPoints(tj);
     DefineHitPos(tp);
     if(prt) mf::LogVerbatim("TC")<<" number of close hits "<<closeHits.size()<<" used hits "<<NumUsedHits(tp);
 /*
@@ -1613,27 +1865,57 @@ namespace cluster {
   ////////////////////////////////////////////////
   void TrajClusterAlg::ReleaseWorkHits()
   {
+    // Sets inTraj[] = 0 and UseHit false for all TPs in work. Called when abandoning work
     for(unsigned short ipt = 0; ipt < work.Pts.size(); ++ipt)  UnsetUsedHits(work.Pts[ipt]);
   } // ReleaseWorkHits
 
   //////////////////////////////////////////
+  void TrajClusterAlg::SetAllHitsUsed(TrajPoint& tp)
+  {
+    // Sets UseHit true for all availalable hits in tp. Ensure
+    // that hits on the opposite side of a used hit (belonging to
+    // a finished trajectory) are not set used
+    unsigned short ii, lo = 0, hi = tp.Hits.size();
+    for(ii = 0; ii < tp.Hits.size(); ++ii) {
+      if(inTraj[tp.Hits[ii]] > 0) {
+        // found a used hit. See which side the TP position (hopefully
+        // from a good previous fit) is. Let's hope that there is only
+        // one used hit...
+        float hitpos = fHits[tp.Hits[ii]]->PeakTime() * fScaleF;
+        if(tp.Pos[1] < hitpos) {
+          hi = ii;
+        } else {
+          lo = ii + 1;
+        }
+        break;
+      } // inTraj[tp.Hits[ii]] > 0
+    } // ii
+    for(ii = lo; ii < hi; ++ii) {
+      if(inTraj[tp.Hits[ii]] > 0) continue;
+      tp.UseHit[ii] = true;
+    } // ii
+    DefineHitPos(tp);
+  } // SetAllHitsUsed
+
+  //////////////////////////////////////////
   void TrajClusterAlg::UnsetUsedHits(TrajPoint& tp)
   {
+    // Sets inTraj = 0 and UseHit false for all used hits in tp
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       if(tp.UseHit[ii] && inTraj[tp.Hits[ii]] < 0) {
         inTraj[tp.Hits[ii]] = 0;
         tp.UseHit[ii] = false;
       } // UseHit
     } // ii
+    tp.Chg = 0;
   } // UnsetUsedHits
-  
+
   //////////////////////////////////////////
-  void TrajClusterAlg::SetUsedHits(Trajectory& tj, unsigned short ipt)
+  void TrajClusterAlg::FindUseHits(Trajectory& tj, unsigned short ipt)
   {
     // Decide which hits to use to determine the trajectory point
     // fit, charge, etc. This is done by setting UseHit true and
-    // setting inTraj = -3. Trajectory point tp has not yet been appended
-    // to trajectory tj, so both are passed to this routine
+    // setting inTraj < 0.
     
     if(ipt > tj.Pts.size() - 1) return;
     TrajPoint& tp = tj.Pts[ipt];
@@ -1641,7 +1923,7 @@ namespace cluster {
     if(tp.Hits.size() == 0) return;
     // some error checking
     if(tp.Hits.size() != tp.UseHit.size()) {
-      mf::LogWarning("TC")<<"SetUsedHits: Hits and UseHits vectors not the same size "<<tp.Hits.size()<<" "<<tp.UseHit.size();
+      mf::LogWarning("TC")<<"FindUseHits: Hits and UseHits vectors not the same size "<<tp.Hits.size()<<" "<<tp.UseHit.size();
       tp.Hits.clear();
       tp.UseHit.clear();
       return;
@@ -1649,13 +1931,24 @@ namespace cluster {
     unsigned short ii;
     unsigned int iht;
     
-    // Use everything (unused) for large angle TPs
+    // Use everything (unused) for large angle TPs as long
+    // as the multiplet doesn't include a hit used in another
+    // trajectory
     if(IsLargeAngle(tp)) {
+      bool useAll = true;
+      for(ii = 0; ii < tp.Hits.size(); ++ii) {
+        iht = tp.Hits[ii];
+        if(inTraj[iht] > 0) useAll = false;
+      } // ii
       for(ii = 0; ii < tp.Hits.size(); ++ii) {
         iht = tp.Hits[ii];
         if(inTraj[iht] > 0) continue;
-        tp.UseHit[ii] = true;
-        inTraj[iht] = tj.ID;
+        if(useAll) {
+          tp.UseHit[ii] = true;
+          inTraj[iht] = tj.ID;
+        } else {
+          tp.UseHit[ii] = false;
+        }
       } // ii
       return;
     } // IsLargeAngle
@@ -1664,11 +1957,13 @@ namespace cluster {
     tp.Delta = 10;
     float delta;
     unsigned short imbest = USHRT_MAX;
+    std::vector<float> deltas(tp.Hits.size(), 100);
     for(ii = 0; ii < tp.Hits.size(); ++ii) {
       tp.UseHit[ii] = false;
-      iht = tp.Hits[0];
+      iht = tp.Hits[ii];
       if(inTraj[iht] > 0) continue;
       delta = PointTrajDOCA(iht, tp);
+      deltas[ii] = delta;
       if(delta < tp.Delta) {
         tp.Delta = delta;
         imbest = ii;
@@ -1678,38 +1973,73 @@ namespace cluster {
     if(imbest == USHRT_MAX) return;
     iht = tp.Hits[imbest];
     
-    // return victorious if the hit multiplicity is 1
-    if(fHits[iht]->Multiplicity() == 1) {
+    // return victorious if the hit multiplicity is 1 and the charge is reasonable,
+    // or if this is a high multiplicity hit
+    if(fHits[iht]->Multiplicity() == 1 || fHits[iht]->Multiplicity() > 2) {
+      if(fAveChg > 0) {
+        float chgrat = (fHits[iht]->Integral() - fAveChg) / fAveChg;
+        if(chgrat > 2) return;
+      }
       tp.UseHit[imbest] = true;
       inTraj[iht] = tj.ID;
       return;
     }
     
     // Handle hit muliplets here. Construct a figure of merit for
-    // the single hit and for the hit multiplet
+    // the single hit, a hit doublet and for a hit multiplet
     // Calculate sfom
     float deltaErr = std::abs(tp.Dir[1]) * 0.17 + std::abs(tp.Dir[0]) * HitTimeErr(iht);
+    float chgrat;
     deltaErr *= deltaErr;
     deltaErr += tp.DeltaRMS * tp.DeltaRMS;
     deltaErr = sqrt(deltaErr);
     float sfom = tp.Delta / deltaErr;
-    if(prt) mf::LogVerbatim("TC")<<"  SetUsedHits: single hit delta "<<tp.Delta<<" deltaErr "<<deltaErr<<" tp.DeltaRMS "<<tp.DeltaRMS<<" sfom "<<sfom;
+    if(prt) mf::LogVerbatim("TC")<<"  FindUseHits: single hit delta "<<tp.Delta<<" deltaErr "<<deltaErr<<" tp.DeltaRMS "<<tp.DeltaRMS<<" sfom "<<sfom;
+    // Compare doublets using charge
+    if(fAveChg > 0 && fHits[iht]->Multiplicity() == 2 && deltas.size() == 2) {
+      // index of the other hit in tp.Hits
+      unsigned short ombest = 1 - imbest;
+      if(prt) mf::LogVerbatim("TC")<<"  doublet deltas "<<deltas[imbest]<<" "<<deltas[ombest];
+      if(deltas[ombest] < 2 * deltas[imbest]) {
+        unsigned int oht = tp.Hits[ombest];
+        // make a temporary charge weighted sfom
+        chgrat = std::abs(fHits[iht]->Integral() - fAveChg) / fAveChg;
+        if(chgrat < 0.3) chgrat = 0.3;
+        float scfom = sfom * chgrat;
+        // make a fom for the other hit
+        deltaErr = std::abs(tp.Dir[1]) * 0.17 + std::abs(tp.Dir[0]) * HitTimeErr(oht);
+        deltaErr += tp.DeltaRMS * tp.DeltaRMS;
+        deltaErr = sqrt(deltaErr);
+        float ofom = deltas[ombest] / deltaErr;
+        chgrat  = std::abs(fHits[oht]->Integral() - fAveChg) / fAveChg;
+        if(chgrat < 0.3) chgrat = 0.3;
+        ofom *= chgrat;
+        if(prt) mf::LogVerbatim("TC")<<"  scfom "<<scfom<<"  ofom "<<ofom;
+        if(ofom < scfom) {
+          imbest = ombest;
+          iht = oht;
+        }
+      } // deltas[ombest] < 2 * deltas[imbest]
+    } // a doublet
     // Calculate mfom
-    float fwire, ftime, dRms, qtot;
-    HitMultipletPosition(iht, ftime, dRms, qtot);
+    float fwire, ftime, dRms, qtot = 0;
     fwire = fHits[iht]->WireID().Wire;
-    ftime *= fScaleF;
-    float mdelta = PointTrajDOCA(fwire, ftime, tp);
-    deltaErr = std::abs(tp.Dir[1]) * 0.17 + std::abs(tp.Dir[0]) * dRms;
-    deltaErr *= deltaErr;
-    deltaErr += tp.DeltaRMS * tp.DeltaRMS;
-    deltaErr = sqrt(deltaErr);
-    float mfom = mdelta / deltaErr;
-    if(prt) mf::LogVerbatim("TC")<<"  SetUsedHits: multi-hit delta "<<mdelta<<" deltaErr "<<deltaErr<<" tp.DeltaRMS "<<tp.DeltaRMS<<" mfom "<<mfom;
+    HitMultipletPosition(iht, ftime, dRms, qtot);
+    float mfom = 100;
+    if(qtot > 0) {
+      ftime *= fScaleF;
+      float mdelta = PointTrajDOCA(fwire, ftime, tp);
+      deltaErr = std::abs(tp.Dir[1]) * 0.17 + std::abs(tp.Dir[0]) * dRms;
+      deltaErr *= deltaErr;
+      deltaErr += tp.DeltaRMS * tp.DeltaRMS;
+      deltaErr = sqrt(deltaErr);
+      mfom = mdelta / deltaErr;
+      if(prt) mf::LogVerbatim("TC")<<"  FindUseHits: multi-hit delta "<<mdelta<<" deltaErr "<<deltaErr<<" tp.DeltaRMS "<<tp.DeltaRMS<<" mfom "<<mfom;
+    }
     // Use the charge ratio if it is known
-    if(fAveChg > 0) {
+    if(fAveChg > 0 && qtot > 0) {
       // Weight by the charge difference
-      float chgrat = std::abs(fHits[iht]->Integral() - fAveChg) / fAveChg;
+      chgrat = std::abs(fHits[iht]->Integral() - fAveChg) / fAveChg;
       // We expect the charge ratio to be within 30% so don't let a small
       // charge ratio dominate the decision
       if(chgrat < 0.3) chgrat = 0.3;
@@ -1721,7 +2051,8 @@ namespace cluster {
       if(prt) mf::LogVerbatim("TC")<<"  multi-hit chgrat "<<chgrat<<" mfom "<<mfom;
     }
     // require the sfom to be significantly better than mfom
-    if(1.3 * sfom < mfom) {
+    // Use the multiplet if both are good
+    if(mfom > 1 && mfom > 1.5 * sfom) {
       // use the single hit
       tp.UseHit[imbest] = true;
       inTraj[iht] = tj.ID;
@@ -1730,12 +2061,12 @@ namespace cluster {
       for(ii = 0; ii < tp.Hits.size(); ++ii) {
         jht = tp.Hits[ii];
         if(inTraj[jht] > 0) continue;
-        if(fHits[jht]->StartTick() != fHits[iht]->StartTick()) continue;
+//        if(fHits[jht]->StartTick() != fHits[iht]->StartTick()) continue;
         tp.UseHit[ii] = true;
         inTraj[jht] = tj.ID;
       } // ii
     } // use the multiplet
-  } //  SetUsedHits
+  } //  FindUseHits
 
   //////////////////////////////////////////
   void TrajClusterAlg::SetPoorUsedHits(Trajectory& tj, unsigned short ipt)
@@ -1829,10 +2160,15 @@ namespace cluster {
   //////////////////////////////////////////
   void TrajClusterAlg::DefineHitPos(TrajPoint& tp)
   {
-    // defines HitPos, HitPosErr2 and Chg for the
-    // trajectory point
+    // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
     
     tp.HitPosErr2 = -1;
+    if(tp.Hits.size() == 0) return;
+    if(tp.Hits.size() != tp.UseHit.size()) {
+      mf::LogWarning("TC")<<" Hits - UseHit size mis-match";
+      fQuitAlg = true;
+      return;
+    }
 
     std::vector<unsigned int> hitVec;
     tp.Chg = 0;
@@ -1854,8 +2190,8 @@ namespace cluster {
     tp.HitPos[0] = newpos[0] / tp.Chg;
     tp.HitPos[1] = newpos[1] / tp.Chg;
     
-    // Error is the wire error (1/sqrt(12))^2 and time error
-    tp.HitPosErr2 = std::abs(tp.Dir[1]) * 0.08 + std::abs(tp.Dir[0]) * HitsTimeErr2(hitVec);
+    // Error is the wire error (2/sqrt(12))^2 and time error
+    tp.HitPosErr2 = std::abs(tp.Dir[1]) * 0.16 + std::abs(tp.Dir[0]) * HitsTimeErr2(hitVec);
 
   } // HitPosErr2
 
@@ -1868,7 +2204,7 @@ namespace cluster {
   //////////////////////////////////////////
   float TrajClusterAlg::HitsTimeErr2(std::vector<unsigned int> const& hitVec)
   {
-    // Estimates the error^2 in the time component using all hits in hitVec
+    // Estimates the error^2 of the time using all hits in hitVec
     
     if(hitVec.size() == 0) return 0;
     float err;
@@ -1934,15 +2270,15 @@ namespace cluster {
 
 
   //////////////////////////////////////////
-  void TrajClusterAlg::FindTrajVertices()
+  void TrajClusterAlg::FindVertices()
   {
     
-    if(!fFindTrajVertices) return;
+    if(!fFindVertices) return;
 
     if(allTraj.size() < 2) return;
     
     vtxPrt = (fDebugPlane == (int)fPlane && fDebugHit < 0);
-    if(vtxPrt) mf::LogVerbatim("TC")<<"vtxPrt set for plane "<<fPlane<<" in FindTrajVertices";
+    if(vtxPrt) mf::LogVerbatim("TC")<<"vtxPrt set for plane "<<fPlane<<" in FindVertices";
     if(vtxPrt) PrintAllTraj(USHRT_MAX, USHRT_MAX);
     
     unsigned short tj1, end1, endPt1, oendPt1, ivx;
@@ -2077,10 +2413,97 @@ namespace cluster {
         allTraj[tjVtx].Vtx[tjVtxEnd] = -1;
       }
     } // ivx
+    
+    // Look for a trajectory that intersects another. Split
+    // the trajectory and make a vertex
+    FindHammerVertices();
 
     if(vtxPrt) PrintAllTraj(USHRT_MAX, USHRT_MAX);
 
-  } // FindTrajVertices
+  } // FindVertices
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::FindHammerVertices()
+  {
+    // Look for a trajectory that intersects another. Split
+    // the trajectory and make a vertex. The convention used
+    // is shown pictorially here
+    // tj2  ------------------
+    // tj1         |
+    // tj1         |
+    // tj1         |
+    
+    unsigned short itj1, end1, endPt1;
+    unsigned short itj2, closePt2, ivx;
+    unsigned short tjSize = allTraj.size();
+    
+    // minimum^2 DOCA of tj1 endpoint with tj2
+    float doca, minDOCA = 3, dang;
+    bool didaSplit;
+    
+    for(itj1 = 0; itj1 < tjSize; ++itj1) {
+      Trajectory& tj1 = allTraj[itj1];
+      if(tj1.ProcCode == USHRT_MAX) continue;
+      if(tj1.CTP != fCTP) continue;
+      // minimum length requirements
+      if(NumPtsWithCharge(tj1) < 6) continue;
+      // Check each end of tj1
+      didaSplit = false;
+      for(end1 = 0; end1 < 2; ++end1) {
+        // vertex assignment exists?
+        if(tj1.Vtx[end1] >= 0) continue;
+        if(end1 == 0) {
+          endPt1 = tj1.EndPt[0];
+        } else {
+          endPt1 = tj1.EndPt[1];
+        }
+        for(itj2 = 0; itj2 < tjSize; ++itj2) {
+          if(itj1 == itj2) continue;
+          Trajectory& tj2 = allTraj[itj2];
+          if(tj2.ProcCode == USHRT_MAX) continue;
+          if(tj2.CTP != fCTP) continue;
+          // minimum length requirements
+          if(NumPtsWithCharge(tj2) < 6) continue;
+          // Find the
+          doca = minDOCA;
+          TrajPointTrajDOCA(tj1.Pts[endPt1], tj2, closePt2, doca);
+          if(doca == minDOCA) continue;
+          // ensure that the closest point is not near an end
+          if(closePt2 < tj2.EndPt[0] + 3) continue;
+          if(closePt2 > tj2.EndPt[1] - 3) continue;
+          // make an angle cut
+          dang = std::abs(tj1.Pts[endPt1].Ang - tj2.Pts[closePt2].Ang);
+          if(dang > M_PI/2) dang = M_PI - dang;
+          if(vtxPrt) mf::LogVerbatim("TC")<<"FindHammerVertices: Candidate "<<tj1.ID<<"  "<<tj2.ID<<" closePt2 "<<closePt2<<" doca "<<doca<<" dang "<<dang;
+          if(dang < 0.2) continue;
+          // we have a winner
+          // create a new vertex
+          VtxStore aVtx;
+          aVtx.Wire = tj2.Pts[closePt2].Pos[0];
+          aVtx.WireErr = 2;
+          aVtx.Time = tj2.Pts[closePt2].Pos[1];
+          aVtx.TimeErr = 2 * fScaleF;
+          aVtx.NTraj = 3;
+          aVtx.Topo = 6;
+          aVtx.ChiDOF = 0;
+          aVtx.CTP = fCTP;
+          aVtx.Fixed = false;
+          vtx.push_back(aVtx);
+          ivx = vtx.size() - 1;
+          SplitAllTraj(itj2, closePt2, ivx);
+          if(!fSplitTrajOK) {
+            if(vtxPrt) mf::LogVerbatim("TC")<<"FindHammerVertices: Failed to split trajectory";
+            vtx.pop_back();
+            continue;
+          }
+          tj1.Vtx[end1] = ivx;
+          didaSplit = true;
+          break;
+        } // tj2
+        if(didaSplit) break;
+      } // end1
+    } // tj1
+  } // FindHammerVertices
 
   //////////////////////////////////////////
   void TrajClusterAlg::AttachAnyTrajToVertex(unsigned short ivx, float docaCut, bool requireSignal)
@@ -2144,43 +2567,110 @@ namespace cluster {
     if(itj > allTraj.size()-1) return;
     if(pos < allTraj[itj].EndPt[0] + 1 || pos > allTraj[itj].EndPt[1] - 1) return;
     
-    // Append the trajectory to the end of allTraj
-    allTraj.push_back(allTraj[itj]);
-    // set UseHit false on the latter part of the original trajectory
-    unsigned short ipt;
+    Trajectory& tj = allTraj[itj];
+
+    // ensure that there will be at least 3 TPs on each trajectory
+    unsigned short ipt, ii, ntp = 0;
     for(ipt = 0; ipt < pos; ++ipt) {
-      UnsetUsedHits(allTraj[itj].Pts[ipt]);
-      DefineHitPos(allTraj[itj].Pts[ipt]);
+      if(tj.Pts[ipt].Chg > 0) ++ntp;
+      if(ntp > 2) break;
+    } // ipt
+    if(ntp < 3) return;
+    ntp = 0;
+    for(ipt = pos + 1; ipt < tj.Pts.size(); ++ipt) {
+      if(tj.Pts[ipt].Chg > 0) ++ntp;
+      if(ntp > 2) break;
+    } // ipt
+    if(ntp < 3) return;
+    
+    // make a copy
+    Trajectory newTj = allTraj[itj];
+    newTj.ID = allTraj.size() + 1;
+    
+    // Leave the first section of tj in place. Re-assign the hits
+    // to the new trajectory
+     unsigned int iht;
+    for(ipt = pos + 1; ipt < tj.Pts.size(); ++ipt) {
+      tj.Pts[ipt].Chg = 0;
+      for(ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+        if(!tj.Pts[ipt].UseHit[ii]) continue;
+        iht = tj.Pts[ipt].Hits[ii];
+        // This shouldn't happen but check anyway
+        if(inTraj[iht] != tj.ID) continue;
+        inTraj[iht] = newTj.ID;
+        tj.Pts[ipt].UseHit[ii] = false;
+      } // ii
+    } // ipt
+    SetEndPoints(tj);
+    if(ivx != USHRT_MAX) tj.Vtx[1] = ivx;
+    tj.AlgMod[kSplitTraj] = true;
+    if(vtxPrt) {
+      mf::LogVerbatim("TC")<<"SplitAllTraj: itj "<<tj.ID<<" EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
+      PrintTrajectory(allTraj[itj], USHRT_MAX);
     }
-    SetTrajEndPoints(allTraj[itj]);
-    if(vtxPrt) mf::LogVerbatim("TC")<<"SplitAllTraj: itj "<<itj<<" EndPts "<<allTraj[itj].EndPt[0]<<" to "<<allTraj[itj].EndPt[1];
-    // set UseHit false on the first part of the cloned trajectory
-    unsigned short lastTj = allTraj.size() - 1;
-    for(ipt = pos; ipt < allTraj[lastTj].EndPt[1]+1; ++ipt) {
-      UnsetUsedHits(allTraj[lastTj].Pts[ipt]);
-      DefineHitPos(allTraj[lastTj].Pts[ipt]);
+    
+    // Append 3 points from the end of tj onto the
+    // beginning of newTj so that hits can be swapped between
+    // them later
+    unsigned short eraseSize = pos - 2;
+    if(eraseSize > newTj.Pts.size() - 1) {
+      mf::LogWarning("TC")<<"SplitAllTraj: Bad erase size ";
+      fSplitTrajOK = false;
+      return;
     }
-    SetTrajEndPoints(allTraj[lastTj]);
-    if(vtxPrt) mf::LogVerbatim("TC")<<"SplitAllTraj: lastTj "<<lastTj<<" EndPts "<<allTraj[lastTj].EndPt[0]<<" to "<<allTraj[lastTj].EndPt[1];
+    
+    // erase the TPs at the beginning of the new trajectory
+//    newTj.Pts.erase(newTj.Pts.begin(), newTj.Pts.begin() + pos + 1);
+    newTj.Pts.erase(newTj.Pts.begin(), newTj.Pts.begin() + eraseSize);
+    // unset the first 3 TP hits
+    for(ipt = 0; ipt < 3; ++ipt) {
+      for(ii = 0; ii < newTj.Pts[ipt].UseHit.size(); ++ii) newTj.Pts[ipt].UseHit[ii] = false;
+    } // ipt
+    SetEndPoints(newTj);
+    if(ivx != USHRT_MAX) newTj.Vtx[0] = ivx;
+    newTj.AlgMod[kSplitTraj] = true;
+    allTraj.push_back(newTj);
+    if(vtxPrt) {
+      mf::LogVerbatim("TC")<<"SplitAllTraj: NewTj "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
+      PrintTrajectory(newTj, USHRT_MAX);
+    }
     fSplitTrajOK = true;
-    if(vtxPrt) mf::LogVerbatim("TC")<<"SplitAllTraj: Split Tj "<<itj<<" at pos "<<pos<<" + new Tj "<<lastTj<<" ivx "<<ivx;
-    // attach to a vertex if one is supplied
-    if(ivx == USHRT_MAX) return;
-    allTraj[itj].Vtx[0] = ivx;
-    allTraj[lastTj].Vtx[1] = ivx;
+
   } // SplitAllTraj
   
   //////////////////////////////////////////
-  void TrajClusterAlg::TrajTrajDOCA(Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
+  void TrajClusterAlg::TrajPointTrajDOCA(TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep)
   {
+    // Finds the point, ipt, on trajectory tj that is closest to trajpoint tp
     float best = minSep * minSep;
+    closePt = 0;
+    float dw, dt, dp2;
+    unsigned short ipt;
+    for(ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ++ipt) {
+      dw = tj.Pts[ipt].Pos[0] - tp.Pos[0];
+      dt = tj.Pts[ipt].Pos[1] - tp.Pos[1];
+      dp2 = dw * dw + dt * dt;
+      if(dp2 < best) {
+        best = dp2;
+        closePt = ipt;
+      }
+    } // ipt
+    minSep = sqrt(best);
+  } // TrajPointTrajDOCA
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::TrajTrajDOCA(Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
+  {
+    // Find the Distance Of Closest Approach between two trajectories, exceeding minSep
+    float best = minSep * minSep;
+    ipt1 = 0; ipt2 = 0;
     float dw, dt, dp2;
     unsigned short i1, i2;
-    for(i1 = tp1.EndPt[0]; i1 < tp1.EndPt[1] + 1; ++i1) {
-      for(i2 = tp2.EndPt[0]; i2 < tp2.EndPt[1] + 1; ++i2) {
+    for(i1 = tj1.EndPt[0]; i1 < tj1.EndPt[1] + 1; ++i1) {
+      for(i2 = tj2.EndPt[0]; i2 < tj2.EndPt[1] + 1; ++i2) {
         // TODO: What about TPs with UseHit = false?
-        dw = tp1.Pts[i1].Pos[0] - tp2.Pts[i2].Pos[0];
-        dt = tp1.Pts[i1].Pos[1] - tp2.Pts[i2].Pos[1];
+        dw = tj1.Pts[i1].Pos[0] - tj2.Pts[i2].Pos[0];
+        dt = tj1.Pts[i1].Pos[1] - tj2.Pts[i2].Pos[1];
         dp2 = dw * dw + dt * dt;
         if(dp2 < best) {
           best = dp2;
@@ -2204,7 +2694,7 @@ namespace cluster {
   //////////////////////////////////////////
   float TrajClusterAlg::HitSep2(unsigned int iht, unsigned int jht)
   {
-    // returns the separation^2 between the hit position of two trajectory points
+    // returns the separation^2 between two hits in WSE units
     if(iht > fHits.size()-1 || jht > fHits.size()-1) return 1E6;
     float dw = (float)fHits[iht]->WireID().Wire - (float)fHits[jht]->WireID().Wire;
     float dt = (fHits[iht]->PeakTime() - fHits[jht]->PeakTime()) * fScaleF;
@@ -2290,14 +2780,14 @@ namespace cluster {
     float stepSize;
     float maxPos0 = fNumWires;
     float maxPos1 = fMaxTime * fScaleF;
-    float onWire;
+    float onWire, nMissedWires;
     
     // decide on the number of steps expected without adding a hit
     unsigned short missedStepCut = SetMissedStepCut(ltp);
     
     if(prt) mf::LogVerbatim("TC")<<"Start StepCrawl with missedStepCut "<<missedStepCut<<" fScaleF "<<fScaleF;
 
-    bool signalPresent, keepGoing;
+    bool sigOK, keepGoing;
     unsigned short killPts;
     for(step = 1; step < 10000; ++step) {
       if(IsLargeAngle(ltp)) { stepSize = 1; } else { stepSize = std::abs(1/ltp.Dir[0]); }
@@ -2323,38 +2813,67 @@ namespace cluster {
       // update the index of the last TP
       lastPt = work.Pts.size() - 1;
       // look for hits
-      AddHits(work, lastPt, signalPresent);
+      AddHits(work, lastPt, sigOK);
       // If successfull, AddHits has defined UseHit for this TP,
       // set the trajectory endpoints, and defined HitPos
       // overwrite the local TP with the updated work TP. The trajectory
       // fit and average values will be updated further down by UpdateWork
-//      if(!signalPresent) {
       if(work.Pts[lastPt].Hits.size() == 0) {
-        // No close hits added. Check the number of missed wires
+        // No close hits added.
         lastPtWithHits = work.EndPt[1];
-        if(prt)  mf::LogVerbatim("TC")<<" No signal. Missed wires "<<std::abs(ltp.Pos[0] - work.Pts[lastPtWithHits].Pos[0])<<" user cut "<<fMaxWireSkipNoSignal;
-        if(std::abs(ltp.Pos[0] - work.Pts[lastPtWithHits].Pos[0]) < fMaxWireSkipNoSignal) {
+        nMissedWires = TrajPointSeparation(work.Pts[lastPtWithHits], ltp) - DeadWireCount(ltp.Pos[0], work.Pts[lastPtWithHits].Pos[0]);
+        if(nMissedWires > fMaxWireSkipNoSignal) {
+          if(prt)  mf::LogVerbatim("TC")<<" No signal. Missed wires "<<nMissedWires<<" user cut "<<fMaxWireSkipNoSignal;
+          break;
+        }
+        // no sense keeping this TP on work if no hits were added
+        work.Pts.pop_back();
+        continue;
+/*
+        // check for wayward large angle trajectories
+        if(IsLargeAngle(ltp) && !SignalPresent(ltp)) {
+          if(prt) mf::LogVerbatim("TC")<<" No signal at current TP on large angle trajectory ";
+          break;
+        }
+        // Check the number of missed wires
+        lastPtWithHits = work.EndPt[1];
+        nMissedWires = std::abs(ltp.Pos[0] - work.Pts[lastPtWithHits].Pos[0])
+        - DeadWireCount(ltp.Pos[0], work.Pts[lastPtWithHits].Pos[0]);
+        if(prt)  mf::LogVerbatim("TC")<<" No signal. Missed wires "<<nMissedWires<<" user cut "<<fMaxWireSkipNoSignal;
+        if(nMissedWires < fMaxWireSkipNoSignal) {
           // no sense keeping this TP on work if no hits were added
           work.Pts.pop_back();
           continue;
         }
         break;
-      } // !signalPresent
+*/
+      } // work.Pts[lastPt].Hits.size() == 0
       if(work.Pts[lastPt].Chg == 0) {
+        // There are points on the trajectory by none used in the last step. See
+        // how long this has been going on
+        lastPtWithHits = work.EndPt[1];
+        nMissedWires = std::abs(ltp.Pos[0] - work.Pts[lastPtWithHits].Pos[0])
+        - DeadWireCount(ltp.Pos[0], work.Pts[lastPtWithHits].Pos[0]);
+        if(prt)  mf::LogVerbatim("TC")<<" Hits exist on the trajectory but are not used. Missed wires "<<nMissedWires;
+        if(nMissedWires > 0.5 * work.Pts.size()) {
+          if(MaybeDeltaRay(work)) {
+            if(prt) mf::LogVerbatim("TC")<<" Tagged as a possible delta ray";
+            work.PDG = 12;
+            break;
+          }
+        } // nMissedWires > 0.5 * work.Pts.size()
         // Keep stepping
         if(prt) PrintTrajectory(work, lastPt);
         continue;
       } // tp.Hits.size() == 0
       // Update the last point fit, etc using the just added hit(s)
-      UpdateWork();
+      UpdateTraj(work);
       // a failure occurred
-      if(!fUpdateWorkOK) return;
+      if(!fUpdateTrajOK) return;
       // Quit if we are starting out poorly. This can happen on the 2nd trajectory point
       // when a hit is picked up in the wrong direction
       if(work.Pts.size() == 2 && std::signbit(work.Pts[1].Dir[0]) != std::signbit(work.Pts[0].Dir[0])) {
-        if(prt) {
-          mf::LogVerbatim("TC")<<" Picked wrong hit on 2nd traj point. Drop trajectory.";
-        }
+        if(prt) mf::LogVerbatim("TC")<<" Picked wrong hit on 2nd traj point. Drop trajectory.";
         return;
       }
       if(work.Pts.size() == 3) {
@@ -2370,38 +2889,41 @@ namespace cluster {
         // see if TPs have been masked off many times and if the
         // environment is clean. If so, return and try with next pass
         // cuts
-        if(!MaskedWorkHitsOK()) return;
+        if(!MaskedWorkHitsOK()) {
+          if(prt) PrintTrajectory(work, lastPt);
+          return;
+        }
         // Don't bother with the rest of the checking below if we
         // set all hits not used on this TP
         if(prt) PrintTrajectory(work, lastPt);
         continue;
       }
+      // Try to use all hits in doublets
+      // TODO something wrong in this code
+//      ModifyShortTraj(work);
       // We have added a TP with hits
       // assume that we aren't going to kill the point we just added, or any
       // of the previous points...
       killPts = 0;
       // assume that we should keep going after killing points
       keepGoing = true;
+      // check for a kink. Stop crawling if one is found
+      GottaKink(work, killPts);
+      if(killPts > 0) keepGoing = false;
+      
+      // testing
+      if(work.Pts.size() == 6 && MaybeDeltaRay(work)) {
+        mf::LogVerbatim("TC")<<"Might be\n";
+        PrintTrajectory(work, USHRT_MAX);
+       }
       // See if the Chisq/DOF exceeds the maximum.
-      // UpdateWork should have reduced the number of points fit
+      // UpdateTraj should have reduced the number of points fit
       // as much as possible for this pass, so this trajectory is in trouble.
-      if(work.Pts[lastPt].FitChi > fMaxChi) {
+      if(killPts == 0 &&  work.Pts[lastPt].FitChi > fMaxChi) {
         if(prt) mf::LogVerbatim("TC")<<"   bad FitChi "<<work.Pts[lastPt].FitChi<<" cut "<<fMaxChi;
-        fGoodWork = (NumGoodWorkTPs() > fMinPtsFit[fPass]);
+        fGoodWork = (NumPtsWithCharge(work) > fMinPtsFit[fPass]);
         return;
       }
-/*
-      // Bad 3 TP fit chisq
-      if(!IsLargeAngle(ltp) && killPts == 0 && work.Pts[lastPt].TP3Chi > fTP3ChiCut) {
-        if(prt) mf::LogVerbatim("TC")<<"   bad TP3Chi "<<work.Pts[lastPt].TP3Chi<<" cut "<<fTP3ChiCut;
-        killPts = 1;
-      }
-      // check for a kink. Stop crawling if one is found
-       if(killPts == 0) {
-        GottaKink(killPts);
-        keepGoing = false;
-      }
-*/
       // print the local tp unless we have killing to do
       if(killPts == 0) {
         if(prt) PrintTrajectory(work, lastPt);
@@ -2449,18 +2971,127 @@ namespace cluster {
     }
 
   } // StepCrawl
-  
+
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::ModifyShortTraj(Trajectory& tj)
+  {
+    // See if most of the hits in the short trajectory are doublets and
+    // we are only using single hits in each TP. If so, see if we would do
+    // better by using all of the hits
+
+    if(tj.Pts.size() != 4) return;
+    unsigned short ndouble = 0, nsingle = 0;
+    for(auto& tp : tj.Pts) {
+      if(tp.Hits.size() == 2) {
+        ++ndouble;
+        if(NumUsedHits(tp) == 1) ++nsingle;
+      }
+    } // tp
+    
+    if(ndouble < 2) return;
+    if(nsingle < 2) return;
+    
+    if(prt) {
+      mf::LogVerbatim("TC")<<"Inside ModifyShortTraj. ndouble "<<ndouble<<" nsingle "<<nsingle<<" Starting trajectory";
+      PrintTrajectory(tj, USHRT_MAX);
+    }
+    
+    // clone the trajectory, use all the hits in doublets and check the fit
+    Trajectory ntj = tj;
+    unsigned short ii;
+    unsigned int iht;
+    std::vector<unsigned int> inTrajHits;
+    for(auto& tp : ntj.Pts) {
+      if(tp.Hits.size() == 2 && NumUsedHits(tp) == 1) {
+        for(ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(tp.UseHit[ii]) continue;
+          tp.UseHit[ii] = true;
+          iht = tp.Hits[ii];
+          inTraj[iht] = ntj.ID;
+          // save the hit indices in case we need to undo this
+          inTrajHits.push_back(iht);
+          mf::LogVerbatim("TC")<<"Use hit "<<PrintHit(iht);
+        } // ii
+        mf::LogVerbatim("TC")<<" HitPos1 "<<tp.HitPos[1];
+        DefineHitPos(tp);
+        mf::LogVerbatim("TC")<<" new HitPos1 "<<tp.HitPos[1];
+      } // tp.Hits.size() == 2 && NumUsedHits(tp) == 1
+    } // tp
+    // do the fit
+    unsigned short originPt = ntj.Pts.size() - 1;
+    unsigned short npts = ntj.Pts[originPt].NTPsFit;
+    TrajPoint tpFit;
+    unsigned short fitDir = -1;
+    FitTraj(ntj, originPt, npts, fitDir, tpFit);
+    if(prt) {
+      mf::LogVerbatim("TC")<<"tpFit trajectory";
+      PrintTrajectory(ntj, USHRT_MAX);
+      mf::LogVerbatim("TC")<<"compare "<<tj.Pts[originPt].FitChi<<" "<<ntj.Pts[originPt].FitChi<<"\n";
+    }
+
+    if(ntj.Pts[originPt].FitChi < 1.2 * tj.Pts[originPt].FitChi) {
+      // Use the modified trajectory
+      tj = ntj;
+      tj.AlgMod[kModifyShortTraj] = true;
+      if(prt) mf::LogVerbatim("TC")<<"ModifyShortTraj: use modified trajectory";
+    } else {
+      // Use the original trajectory
+      for(auto iht : inTrajHits) inTraj[iht] = 0;
+      if(prt) mf::LogVerbatim("TC")<<"ModifyShortTraj: use original trajectory";
+    }
+    
+  } // ModifyShortTraj
+
+  ////////////////////////////////////////////////
+  bool TrajClusterAlg::MaybeDeltaRay(Trajectory& tj)
+  {
+    // See if the trajectory appears to be a delta ray. This is characterized by a significant fraction of hits
+    // in the trajectory belonging to an existing trajectory. This may also flag ghost trajectories...
+    
+    // vectors of traj IDs, and the occurrence count
+    std::vector<unsigned short> tID, tCnt;
+    unsigned short itj, indx;
+    unsigned short tCut = 0.5 * tj.Pts.size();
+    for(auto& tp : tj.Pts) {
+      for(auto iht : tp.Hits) {
+        if(inTraj[iht] <= 0) continue;
+        itj = inTraj[iht];
+        for(indx = 0; indx < tID.size(); ++indx) if(tID[indx] == itj) break;
+        if(indx == tID.size()) {
+          tID.push_back(itj);
+          tCnt.push_back(1);
+        }  else {
+          ++tCnt[indx];
+        }
+      } // iht
+    } // tp
+    if(tCnt.size() == 0) return false;
+    
+    mf::LogVerbatim myprt("TC");
+    myprt<<"MaybeDeltaRay "<<tj.ID<<" size "<<tj.Pts.size()<<" tCnt";
+    for(unsigned short ii = 0; ii < tID.size(); ++ii) myprt<<" "<<tID[ii]<<"_"<<tCnt[ii];
+   
+    for(indx = 0; indx < tCnt.size(); ++indx) if(tCnt[indx] > tCut) {
+      tj.AlgMod[kMaybeDeltaRay] = true;
+      return true;
+    }
+    return false;
+    
+  } // MaybeDeltaRay
+
   ////////////////////////////////////////////////
   void TrajClusterAlg::CheckWork()
   {
-    // look for a gap in the trajectory with only one or two
-    // TPs at the end
+    // Check the quality of the work trajectory and possibly trim it
+    
+    if(!fGoodWork) return;
     
     fTryWithNextPass = false;
     fCheckWorkModified = false;
     
     // Ignore LA trajectories
     if(IsLargeAngle(work.Pts[0])) return;
+    // ignore short trajectories
     if(work.EndPt[1] < 4) return;
     
     unsigned short ipt, ii, newSize;
@@ -2494,7 +3125,7 @@ namespace cluster {
         }
         if(prt) mf::LogVerbatim("TC")<<"  Setting work UseHits from "<<newSize<<" to "<<work.Pts.size()-1<<" false";
         for(ipt = newSize; ipt < work.Pts.size(); ++ipt) UnsetUsedHits(work.Pts[ipt]);
-        SetTrajEndPoints(work);
+        SetEndPoints(work);
         fCheckWorkModified = true;
         work.Pts.resize(newSize);
         return;
@@ -2514,55 +3145,103 @@ namespace cluster {
     if(prt) mf::LogVerbatim("TC")<<"CheckWork: check number of steps. newSize "<<newSize<<" work.Pts.size() "<<work.Pts.size();
     if(newSize < work.Pts.size()) {
       for(ipt = newSize; ipt < work.Pts.size(); ++ipt) UnsetUsedHits(work.Pts[ipt]);
-      SetTrajEndPoints(work);
+      SetEndPoints(work);
       fCheckWorkModified = true;
       work.Pts.resize(newSize);
       return;
     } // newSize < work.Pts.size()
-/*
-    // count the number of TPs that have unused hits in the last
-    // section of the trajectory. A bunch of TPs with no used hits is
-    // an indicator that the trajectory wanders too much for the current
-    // pass. If so we should drop this TP and try to recover it
-    // on the next pass. First ensure that the TP meets the length
-    // criteria for this pass
-    if(work.Pts.size() < fMinPtsFit[work.Pass]) return;
-    if(work.Pass < fMinPtsFit.size() - 1 && work.Pts.size() > 5) {
-      // Another pass to go and a trajectory long enough to work with
-      unsigned short unused = 0;
-      unsigned short newSize;
-      for(ii = 0; ii < work.Pts.size()/3; ++ii) {
-        ipt = work.Pts.size() - 1 - ii;
-        if(work.Pts[ipt].Chg == 0) {
-          newSize = ii;
-          ++unused;
+    
+    CheckManyUnusedHits();
+    
+  } // CheckWork
+  
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::CheckManyUnusedHits()
+  {
+    // Check for many unused hits in work and try to use them
+    
+    // This code might do bad things to short trajectories
+    if(work.Pts.size() < 10) return;
+    
+    // count the number of unused hits multiplicity > 1 hits and decide
+    // if the unused hits should be used. This may trigger another
+    // call to StepCrawl
+    unsigned short ii, stopPt;
+    // the number of TPs with > 1 hit (HiMult)
+    unsigned short nTPHiMult = 0;
+    // the total number of hits associated with HiMult TPs
+    unsigned short nTPHiMultHits = 0;
+    // the total number of used hits associated with HiMult TPs
+    unsigned short nTPHiMultUsedHits = 0;
+    unsigned int iht;
+    // start counting at the leading edge and break if a hit
+    // is found that is used in a trajectory
+    bool doBreak = false;
+    unsigned short jj;
+    for(ii = 1; ii < work.Pts.size(); ++ii) {
+      stopPt = work.EndPt[1] - ii;
+      for(jj = 0; jj < work.Pts[stopPt].Hits.size(); ++jj) {
+        iht = work.Pts[stopPt].Hits[jj];
+        if(inTraj[iht] > 0) {
+          doBreak = true;
+          break;
         }
-      } // ii
-      float fracUnused = (float)unused / (float)ii;
-      if(prt) mf::LogVerbatim("TC")<<"CheckWork: unused hits. TP count "<<ii<<" unused "<<unused<<" fracUnused "<<fracUnused;
-      if(fracUnused > 0.3) {
-        // truncate it
-        for(ipt = newSize; ipt < work.Pts.size(); ++ipt) UnsetUsedHits(work.Pts[ipt]);
-        // in this case we need to truncate work since we will be working with it
-        // on the next pass
-        work.Pts.resize(newSize);
-        SetTrajEndPoints(work);
-        fCheckWorkModified = true;
-        PrepareWorkForNextPass();
-        if(prt) mf::LogVerbatim("TC")<<"  Truncated work. fGoodWork = "<<fGoodWork<<" fTryWithNextPass = "<<fTryWithNextPass;
+      } // jj
+      if(doBreak) break;
+      if(work.Pts[stopPt].Hits.size() > 1) {
+        ++nTPHiMult;
+        nTPHiMultHits += work.Pts[stopPt].Hits.size();
+        nTPHiMultUsedHits += NumUsedHits(work.Pts[stopPt]);
+      } // high multiplicity TP
+      if(stopPt == 0) break;
+    } // ii
+    // Don't do this if there aren't a lot of high multiplicity TPs
+    float fracHiMult = (float)nTPHiMultHits / (float)ii;
+    if(fracHiMult < 0.5) return;
+    float fracHitsUsed = 0;
+    if(nTPHiMult > 0 && nTPHiMultHits > 0) fracHitsUsed = (float)nTPHiMultUsedHits / (float)nTPHiMultHits;
+    if(prt) mf::LogVerbatim("TC")<<"CW First inTraj stopPt "<<stopPt<<" Pts size "<<work.Pts.size()<<" nTPHiMult "<<nTPHiMult<<" nTPHiMultHits "<<nTPHiMultHits<<" nTPHiMultUsedHits "<<nTPHiMultUsedHits<<" fracHitsUsed "<<fracHitsUsed;
+    // Most of the hits are used so don't try too hard
+    if(fracHitsUsed < 0.2) return;
+    
+    // Make a copy of work and try to include the unused hits yyy
+    Trajectory newTj = work;
+    unsigned short ipt;
+    unsigned short iptStart = newTj.Pts.size() - 1;
+    // remove any TPs at the end that have no hits
+    for(ipt = iptStart; ipt > newTj.EndPt[1]; --ipt) if(newTj.Pts[ipt].Chg == 0) newTj.Pts.pop_back();
+    // unset all of the used hits
+    for(auto& tp : newTj.Pts) UnsetUsedHits(tp);
+//    if(prt) PrintTrajectory(newTj, USHRT_MAX);
+    if(stopPt < 2) {
+      for(ipt = 0; ipt < 3; ++ipt) SetAllHitsUsed(newTj.Pts[ipt]);
+      SetEndPoints(newTj);
+      UpdateTraj(newTj);
+     } // stopPt < 2
+    for(ipt = newTj.EndPt[1] + 1; ipt < newTj.Pts.size(); ++ipt) {
+      SetAllHitsUsed(newTj.Pts[ipt]);
+      SetEndPoints(newTj);
+      UpdateTraj(newTj);
+      if(!fUpdateTrajOK) {
+        if(prt) mf::LogVerbatim("TC")<<"UpdateTraj failed on point "<<ipt<<"\n";
         return;
-      } // fracUnused > 0.3
-    } // work.Pass < fMinPtsFit.size() - 2
-*/
-  } // CheckWorkEnd
+      }
+//      if(prt) PrintTrajectory(newTj, ipt);
+    } // ipt
+    // if we made it here it must be OK
+    work = newTj;
+    work.AlgMod[kManyHitsAdded] = true;
+    // Try to extend it
+    if(prt) mf::LogVerbatim("TC")<<"CheckManyUnusedHits successfull. Calling StepCrawl to extend it";
+    StepCrawl();
+    
+  } // CheckManyUnusedHits
 
   ////////////////////////////////////////////////
   bool TrajClusterAlg::MaskedWorkHitsOK()
   {
-    // The hits in the TP at the end of the trajectory were masked
-    // off. This function decides whether to continue stepping with the
-    // current configuration or whether to stop and possibly try with
-    // the next pass settings
+    // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
+    // current configuration or whether to stop and possibly try with the next pass settings
     unsigned short lastPt = work.Pts.size() - 1;
     if(NumUsedHits(work.Pts[lastPt]) > 0) return true;
     
@@ -2579,8 +3258,30 @@ namespace cluster {
     if(nMasked == 0) return true;
     
     if(prt) mf::LogVerbatim("TC")<<"MaskedWorkHitsOK:  nMasked "<<nMasked<<" nClose "<<nClose<<" fMaxWireSkipWithSignal "<<fMaxWireSkipWithSignal;
-    
-//    yyy
+
+    // See if we have masked off several TPs and there are a number of close hits that haven't
+    // been added. This indicates that maybe we should be using the next pass cuts. The approach
+    // here is to add the (previously excluded) hits in the fit and re-fit with next pass settings
+    if(work.Pass < (fMinPtsFit.size()-1) && work.Pts.size() > 5 && nMasked > 1 && nClose < 3 * nMasked) {
+      // set all of the close hits used for the last TPs. This is a bit scary since we
+      // aren't sure that all of these hits are the right ones
+      for(ii = 0; ii < work.Pts.size(); ++ii) {
+        indx = work.Pts.size() - 1 - ii;
+        if(NumUsedHits(work.Pts[indx]) > 0) break;
+        unsigned int iht;
+        for(unsigned short jj = 0; jj < work.Pts[indx].Hits.size(); ++jj) {
+          iht = work.Pts[indx].Hits[jj];
+          if(inTraj[iht] > 0) continue;
+          work.Pts[indx].UseHit[jj] = true;
+          inTraj[iht] = work.ID;
+        } // jj
+      } // ii
+      SetEndPoints(work);
+      PrepareWorkForNextPass();
+      if(prt) mf::LogVerbatim("TC")<<"MaskedWorkHitsOK: Try next pass with too many missed close hits "<<fTryWithNextPass;
+      work.AlgMod[kMaskedWorkHits] = true;
+      return false;
+    }
 
     // Be a bit more lenient with short trajectories on the first pass if
     // the FitChi is not terribly bad and there is ony one hit associated with the last TP
@@ -2592,7 +3293,7 @@ namespace cluster {
         work.Pts[lastPt].UseHit[0] = true;
         inTraj[iht] = work.ID;
       }
-      SetTrajEndPoints(work);
+      SetEndPoints(work);
       PrepareWorkForNextPass();
       if(prt) mf::LogVerbatim("TC")<<"MaskedWorkHitsOK: Try next pass with kinda short, kinda bad trajectory. "<<fTryWithNextPass;
       return false;
@@ -2612,7 +3313,7 @@ namespace cluster {
     return false;
     
   } // MaskedWorkHitsOK
-  
+/*
   ////////////////////////////////////////////////
   unsigned short TrajClusterAlg::NumGoodWorkTPs()
   {
@@ -2623,13 +3324,12 @@ namespace cluster {
     }
     return cnt;
   } // NumGoodWorkTPs
-
+*/
   ////////////////////////////////////////////////
   void TrajClusterAlg::PrepareWorkForNextPass()
   {
-    // Any re-sizing should have been done by the calling routine.
-    // This code updates the Pass and adjusts the number of points
-    // fit to put FitCHi < 2
+    // Any re-sizing should have been done by the calling routine. This code updates the Pass and adjusts the number of
+    // fitted points to get FitCHi < 2
     
     fTryWithNextPass = false;
 
@@ -2639,7 +3339,10 @@ namespace cluster {
     
     unsigned short lastPt = work.Pts.size() - 1;
     // Return if the last fit chisq is OK
-    if(work.Pts[lastPt].FitChi < 1.5) return;
+    if(work.Pts[lastPt].FitChi < 1.5) {
+      fTryWithNextPass = true;
+      return;
+    }
     TrajPoint& lastTP = work.Pts[lastPt];
     unsigned short newNTPSFit = lastTP.NTPsFit;
     // only give it a few tries before giving up
@@ -2649,8 +3352,8 @@ namespace cluster {
       if(lastTP.NTPsFit > 3) newNTPSFit -= 2;
       else if(lastTP.NTPsFit == 3) newNTPSFit = 2;
       lastTP.NTPsFit = newNTPSFit;
-      if(prt) mf::LogVerbatim("TC")<<"PrepareWorkForNextPass: FitChi is > 1.5 "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" work.Pass "<<work.Pass;
       FitWork();
+      if(prt) mf::LogVerbatim("TC")<<"PrepareWorkForNextPass: FitChi is > 1.5 "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" work.Pass "<<work.Pass;
       if(lastTP.NTPsFit <= fMinPtsFit[work.Pass]) break;
       ++nit;
       if(nit == 3) break;
@@ -2729,57 +3432,54 @@ namespace cluster {
 
    
   ////////////////////////////////////////////////
-  void TrajClusterAlg::GottaKink(unsigned short& killPts)
+  void TrajClusterAlg::GottaKink(Trajectory& tj, unsigned short& killPts)
   {
-    // Does a local fit of just-added traj points to identify a kink while step crawling.
-    // Truncates the traj vector and returns true if one is found.
-    
+    // This routine requires that EndPt is defined
     killPts = 0;
     
-    if(work.EndPt[1] < 10) return;
+    if(tj.EndPt[1] < 10) return;
     
-    if(work.EndPt[1] < work.Pts.size() - 1) {
-      // this is OK when the last added TP doesn't have a used hit
-//      std::cout<<"work endpt invalid "<<work.EndPt[1]<<" "<<work.Pts.size() - 1<<"\n";
-      return;
-    }
+    unsigned short lastPt = tj.EndPt[1];
+    if(tj.Pts[lastPt].Chg == 0) return;
+    unsigned short kinkPt = USHRT_MAX;
+    unsigned short ii, ipt, cnt;
     
-    // don't look for a kink if the trajectory is short and the number of points fit is very low
-//    unsigned short toIndex = work.Pts.size() - 1;
-    unsigned short toIndex = work.EndPt[1];
-    if(work.EndPt[1] < 20 && work.Pts[toIndex].NTPsFit < 6) return;
+    // Find the kinkPt which is the third Pt from the end that has charge
+    cnt = 0;
+    for(ii = 1; ii < lastPt; ++ii) {
+      ipt = lastPt - ii;
+      if(tj.Pts[ipt].Chg == 0) continue;
+      ++cnt;
+      if(cnt == 3) {
+        kinkPt = ipt;
+        break;
+      }
+      if(ipt == 0) break;
+    } // ii
+    if(kinkPt == USHRT_MAX) return;
+
+    TrajPoint tpFit;
+    unsigned short npts = 4;
+    unsigned short fitDir = -1;
+    FitTraj(tj, lastPt, npts, fitDir, tpFit);
+ 
+    float dang = std::abs(tj.Pts[kinkPt].Ang - tpFit.Ang);
+    if(tpFit.FitChi > 900) return;
     
-    unsigned short nTPF = 4;
+    tj.Pts[kinkPt].KinkAng = dang;
+
+    float kinkSig = dang / tpFit.AngErr;
+    if(prt) mf::LogVerbatim("TC")<<"GottaKink kinkPt "<<kinkPt<<" Pos "<<PrintPos(tj.Pts[kinkPt])<<" dang "<<dang<<" cut "<<fKinkAngCut<<" kinkSig "<<kinkSig<<" tpFit chi "<<tpFit.FitChi;
     
-    unsigned short fromIndex = work.EndPt[1] - nTPF;
-    TrajPoint tp1;
-    FitTraj(work, fromIndex, nTPF, -1, tp1);
-//    FitTrajMid(fromIndex, toIndex, tp1);
-    if(prt) mf::LogVerbatim("TC")<<"Fit1 "<<fromIndex<<" "<<toIndex<<" Ang "<<tp1.Ang<<" chi "<<tp1.FitChi<<" NTPsFit "<<work.Pts[toIndex].NTPsFit;
-    if(tp1.FitChi > 900) {
-      mf::LogWarning("TC")<<"GottaKink: Bad traj fit1. Plane "<<fPlane<<" EndPt "<<work.EndPt[1]<<" fromIndex "<<fromIndex<<" to "<<toIndex;
-      PrintTrajectory(work, USHRT_MAX);
+    if(dang > fKinkAngCut) {
+      // Kink larger than hard user cut
       killPts = 3;
-      return;
-    }
-/*
-    fromIndex -= nTPF;
-    toIndex -= nTPF;
-    TrajPoint tp2;
-    FitTrajMid(fromIndex, toIndex, tp2);
-*/
-    TrajPoint tp2;
-    FitTraj(work, fromIndex, nTPF, 1, tp2);
-    if(tp2.FitChi > 900) {
-      mf::LogWarning("TC")<<"GottaKink: Bad traj fit2 "<<fromIndex<<" "<<toIndex<<" EndPt "<<work.EndPt[1];
+    } else if(dang > 0.5 * fKinkAngCut && kinkSig > 30 && tpFit.FitChi < 2) {
+      // Found a very significant smaller angle kink
       killPts = 3;
-      return;
     }
-    float dang = std::abs(tp1.Ang - tp2.Ang);
-    if(prt) mf::LogVerbatim("TC")<<"GottaKink: Ang1 "<<tp1.Ang<<" Ang2 "<<tp2.Ang<<" dang "<<dang<<" fKinkAngCut "<<fKinkAngCut;
-    if(dang < fKinkAngCut) return;
     
-    killPts = 4;
+    if(killPts > 0) tj.AlgMod[kGottaKink] = true;
     
   } // GottaKink
 
@@ -2790,85 +3490,249 @@ namespace cluster {
     // maximum of 100 WSE's
     unsigned short itmp = 100;
     if(std::abs(tp.Dir[0]) > 0.01) itmp = 1 + 4 * std::abs(1/tp.Dir[0]);
-//    if(itmp > 10) itmp = 10;
     if(itmp < 2) itmp = 2;
     return itmp;
   }
-  
+/*
   //////////////////////////////////////////
-  void TrajClusterAlg::UpdateWork()
+  void TrajClusterAlg::UpdateTraj(Trajectory& tj)
   {
-    // A new trajectory point was put on the traj vector with hits by StepCrawl.
-    // This routine updates the last trajectory point fit, average hit rms, etc.
-    // StepCrawl will decide what to do next with this information.
+    // Update trajectory point updatePt by projecting TP projPt to updatePt, fitting with NTPsFit hits
+    // that lie on the +(-) side if dir > 0 (dir < 0) side of updatePt
     
-    fUpdateWorkOK = false;
+    fUpdateTrajOK = false;
     fMaskedLastTP = false;
     
-    if(work.EndPt[1] < 1) return;
-    unsigned int lastPt = work.EndPt[1];
-    TrajPoint& lastTP = work.Pts[lastPt];
-
-    // find the previous TP that was has hits (and was in the fit)
+    if(tj.EndPt[1] < 1) return;
+    if(updatePt > work.Pts.size() - 1) return;
+    
+    TrajPoint& tp = tj.Pts[updatePt];
+    tp.FitChi = 999;
+    // assume we will fit the same number of points as the
+    // projPt + 1
+    
+    if(tp.NTPsFit < 2) return;
+    
+    // Set the TP delta before doing the fit
+    tp.Delta = PointTrajDOCA(tp.HitPos[0], tp.HitPos[1], tp);
+    UpdateAveChg(tj, updatePt, dir);
+    
+    if(tp.NTPsFit == 2) {
+      // don't bother doing a fit. Just construct the trajectory
+      std::array<float, 2> dir;
+      dir[0] = tp.HitPos[0] - tj.Pts[projPt].HitPos[0];
+      dir[1] = tp.HitPos[1] - tj.Pts[projPt].HitPos[1];
+      float nrm = sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
+      dir[0] /= nrm; dir[1] /= nrm;
+      tp.Dir = dir;
+      tp.Pos = tp.HitPos;
+      tp.FitChi = 0.01;
+      tp.AngErr = tj.Pts[projPt].AngErr;
+      fUpdateTrajOK = true;
+      return;
+     } // tp.NTPsFit == 2
+    
+    TrajPoint tpFit;
+    if(tp.NTPsFit == 3) {
+      // Handle the third trajectory point. No error calculation. Just update
+      // the position and direction
+      FitTraj(tj, updatePt, tp.NTPsFit, dir, tpFit);
+      tp.Pos = tpFit.Pos;
+      tp.Dir = tpFit.Dir;
+      tp.FitChi = tpFit.FitChi;
+      if(tp.NTPsFit == 2) {
+        // Use the starting out default angle error
+        tp.AngErr = tj.Pts[0].AngErr;
+      } else {
+        // Use the fit error
+        tp.AngErr = tpFit.AngErr;
+      }
+      if(prt) mf::LogVerbatim("TC")<<"UpdateWork: traj point "<<updatePt<<" fit pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<"  dir "<<tp.Dir[0]<<" "<<tp.Dir[1];
+      fUpdateTrajOK = true;
+      return;
+    } // tp.NTPsFit == 3
+    
+    // find the previous TP that has hits
     unsigned short prevPtWithHits = USHRT_MAX;
-    unsigned short indx;
-    for(unsigned short ii = 1; ii < work.Pts.size(); ++ii) {
-      indx = work.Pts.size() - 1 - ii;
-      if(work.Pts[indx].Chg > 0) {
-        prevPtWithHits = indx;
+    unsigned short ii, ipt;
+    if(dir > 0) {
+      // search towards the end of tj
+      for(ipt = updatePt + 1; ipt < tj.Pts.size(); ++ii) {
+        if(tj.Pts[ipt].Chg > 0) {
+          prevPtWithHits = ipt;
+          break;
+        }
+      } // ipt
+    } else {
+      for(ii = 1; ii < tj.Pts.size(); ++ii) {
+        ipt = updatePt - ii;
+        if(tj.Pts[ipt].Chg > 0) {
+          prevPtWithHits = ipt;
+          break;
+        }
+        if(ipt == 0) break;
+      } // ii
+    } // dir < 0
+    if(prevPtWithHits == USHRT_MAX) return;
+    
+    // try to keep Chisq/DOF between 1 and 2
+    if(tj.Pts[prevPtWithHits].FitChi < 1) ++tp.NTPsFit;
+    if(tp.NTPsFit > 5 && tj.Pts[prevPtWithHits].FitChi > 2) --tp.NTPsFit;
+    // Do the fit
+    FitTraj(tj, updatePt, tp.NTPsFit, dir, tpFit);
+    if(tpFit.FitChi > 900) return;
+    tp.Pos = tpFit.Pos;
+    tp.Dir = tpFit.Dir;
+    tp.FitChi = tpFit.FitChi;
+    
+    if(tp.FitChi > 2 && tj.Pts.size() > 10) {
+      // Have a longish trajectory and chisq was a bit large.
+      // Was this a sudden occurrence and the fraction of TPs are included
+      // in the fit? If so, we should mask off this
+      // TP and keep going. If these conditions aren't met, we
+      // should reduce the number of fitted points
+      float chirat = 0;
+      if(prevPtWithHits != USHRT_MAX) chirat = tp.FitChi / tj.Pts[prevPtWithHits].FitChi;
+      fMaskedLastTP = (chirat > 1.5 && tp.NTPsFit > 0.5 * tj.Pts.size());
+      if(prt) mf::LogVerbatim("TC")<<" First fit chisq too large "<<tp.FitChi<<" prevPtWithHits chisq "<<tj.Pts[prevPtWithHits].FitChi<<" chirat "<<chirat<<" fMaskedLastTP "<<fMaskedLastTP;
+      // we should also mask off the last TP if there aren't enough hits
+      // to satisfy the minPtsFit constraint
+      //        if(!fMaskedLastTP && NumGoodWorkTPs() < fMinPtsFit[work.Pass]) fMaskedLastTP = true;
+      if(!fMaskedLastTP && NumPtsWithCharge(work) < fMinPtsFit[work.Pass]) fMaskedLastTP = true;
+      // A large chisq jump can occur if we just jumped a large block of dead wires. In
+      // this case we don't want to mask off the last TP but reduce the number of fitted points
+      if(fMaskedLastTP) {
+        float nMissedWires = std::abs(tp.HitPos[0] - tj.Pts[prevPtWithHits].HitPos[0]);
+        if(nMissedWires > 5) {
+          nMissedWires -= DeadWireCount(tp.HitPos[0], tj.Pts[prevPtWithHits].HitPos[0]);
+          fMaskedLastTP = (nMissedWires > 5);
+        } // nMissedWires > 5
+      } // fMaskedLastTP
+    } // lastTP.FitChi > 2 ...
+    
+    if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: First fit "<<tp.Pos[0]<<" "<<tp.Pos[1]<<"  dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" FitChi "<<tp.FitChi<<" fMaskedLastTP "<<fMaskedLastTP;
+    if(fMaskedLastTP) {
+      UnsetUsedHits(tp);
+      DefineHitPos(tp);
+      SetEndPoints(tj);
+      FitTraj(tj, updatePt, tp.NTPsFit, dir, tpFit);
+//      FitWork();
+      fUpdateTrajOK = true;
+      return;
+    }  else {
+      // a more gradual increase in chisq. Reduce the number of points
+      unsigned short newNTPSFit = tp.NTPsFit;
+      // reduce the number of points fit to keep Chisq/DOF < 2 adhering to the pass constraint
+      while(tp.FitChi > 2 && tp.NTPsFit > 2) {
+        if(tp.NTPsFit > 15) {
+          newNTPSFit = 0.7 * newNTPSFit;
+        } else if(tp.NTPsFit > 4) {
+          newNTPSFit -= 2;
+        } else {
+          newNTPSFit -= 1;
+        }
+        if(tp.NTPsFit < 3) newNTPSFit = 2;
+        tp.NTPsFit = newNTPSFit;
+        if(prt) mf::LogVerbatim("TC")<<"  Bad FitChi "<<tp.FitChi<<" Reduced NTPsFit to "<<tp.NTPsFit<<" tj "<<tj.Pass;
+        FitTraj(tj, updatePt, tp.NTPsFit, dir, tpFit);
+//        FitWork();
+        if(tp.NTPsFit <= fMinPtsFit[tj.Pass]) break;
+      } // tp > 2 && tp.NTPsFit > 2
+    }
+    
+    fGoodWork = true;
+ 
+  } // UpdateTraj
+*/
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::UpdateTraj(Trajectory& tj)
+  {
+    // Updates the last added trajectory point fit, average hit rms, etc.
+
+    fUpdateTrajOK = false;
+    fMaskedLastTP = false;
+    
+    if(tj.EndPt[1] < 1) return;
+    unsigned int lastPt = tj.EndPt[1];
+    TrajPoint& lastTP = tj.Pts[lastPt];
+
+    // find the previous TP that was has hits (and was therefore in the fit)
+    unsigned short prevPtWithHits = USHRT_MAX;
+    unsigned short ipt;
+    for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
+      ipt = tj.Pts.size() - 1 - ii;
+      if(tj.Pts[ipt].Chg > 0) {
+        prevPtWithHits = ipt;
         break;
       }
+      if(ipt == 0) break;
     } // ii
+    if(prevPtWithHits == USHRT_MAX) return;
 
-    if(prt) mf::LogVerbatim("TC")<<"UpdateWork: lastPt "<<lastPt<<" previous point with hits"<<prevPtWithHits<<" work.Pts size "<<work.Pts.size();
+    if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" LargeAngle? "<<IsLargeAngle(lastTP);
     
 //    if(NumUsedHits(lastTP) == 0) return;
     
     // Set the lastPT delta before doing the fit
     lastTP.Delta = PointTrajDOCA(lastTP.HitPos[0], lastTP.HitPos[1], lastTP);
     
-    UpdateAveChg();
+    UpdateAveChg(tj, lastPt, -1);
 
     if(lastPt == 1) {
       // Handle the second trajectory point. No error calculation. Just update
       // the position and direction
       lastTP.NTPsFit = 2;
-      FitWork();
+      FitTraj(tj);
       lastTP.FitChi = 0.01;
-      lastTP.AngErr = work.Pts[0].AngErr;
-      if(prt) mf::LogVerbatim("TC")<<"UpdateWork: Second traj point pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1];
+      lastTP.AngErr = tj.Pts[0].AngErr;
+      if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: Second traj point pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1];
     } else if(lastPt == 2) {
        // Third trajectory point. Keep it simple
-      lastTP.NTPsFit = 2;
-      FitWork();
+      lastTP.NTPsFit = 3;
+      FitTraj(tj);
     } else {
       // Fit with > 2 TPs
       lastTP.NTPsFit += 1;
-      FitWork();
-      if(lastTP.FitChi > 2 && work.Pts.size() > 10) {
+      FitTraj(tj);
+      if(lastTP.FitChi > 2 && tj.Pts.size() > 10) {
         // Have a longish trajectory and chisq was a bit large.
         // Was this a sudden occurrence and the fraction of TPs are included
         // in the fit? If so, we should mask off this
         // TP and keep going. If these conditions aren't met, we
         // should reduce the number of fitted points
         float chirat = 0;
-        if(prevPtWithHits != USHRT_MAX) chirat = lastTP.FitChi / work.Pts[prevPtWithHits].FitChi;
-        fMaskedLastTP = (chirat > 1.5 && lastTP.NTPsFit > 0.5 * work.Pts.size());
-        if(prt) mf::LogVerbatim("TC")<<" First fit chisq a bit large "<<lastTP.FitChi<<" prevPtWithHits chisq "<<work.Pts[prevPtWithHits].FitChi<<" chirat "<<chirat<<" fMaskedLastTP "<<fMaskedLastTP;
+        if(prevPtWithHits != USHRT_MAX) chirat = lastTP.FitChi / tj.Pts[prevPtWithHits].FitChi;
+        fMaskedLastTP = (chirat > 1.5 && lastTP.NTPsFit > 0.5 * tj.Pts.size());
+        if(prt) mf::LogVerbatim("TC")<<" First fit chisq too large "<<lastTP.FitChi<<" prevPtWithHits chisq "<<tj.Pts[prevPtWithHits].FitChi<<" chirat "<<chirat<<" fMaskedLastTP "<<fMaskedLastTP;
         // we should also mask off the last TP if there aren't enough hits
         // to satisfy the minPtsFit constraint
-        if(!fMaskedLastTP && NumGoodWorkTPs() < fMinPtsFit[work.Pass]) fMaskedLastTP = true;
+        if(!fMaskedLastTP && NumPtsWithCharge(tj) < fMinPtsFit[tj.Pass]) fMaskedLastTP = true;
+        // A large chisq jump can occur if we just jumped a large block of dead wires. In
+        // this case we don't want to mask off the last TP but reduce the number of fitted points
+        if(fMaskedLastTP) {
+          float nMissedWires = std::abs(lastTP.HitPos[0] - tj.Pts[prevPtWithHits].HitPos[0]);
+          if(nMissedWires > 5) {
+            nMissedWires -= DeadWireCount(lastTP.HitPos[0], tj.Pts[prevPtWithHits].HitPos[0]);
+            fMaskedLastTP = (nMissedWires > 5);
+          } // nMissedWires > 5
+        } // fMaskedLastTP
       } // lastTP.FitChi > 2 ...
       
-      if(prt) mf::LogVerbatim("TC")<<"UpdateWork: First fit "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1]<<" FitChi "<<lastTP.FitChi<<" fMaskedLastTP "<<fMaskedLastTP;
+      if(fMaskedLastTP && tj.Pass == fMinPtsFit.size() - 1 && lastTP.NTPsFit > 2 * fMinPts[tj.Pass]) {
+        // Turn off the TP mask on the last pass. Try to reduce the number of TPs fit instead
+        fMaskedLastTP = false;
+      }
+      
+      if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: First fit "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1]<<" FitChi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit<<" fMaskedLastTP "<<fMaskedLastTP;
       if(fMaskedLastTP) {
         UnsetUsedHits(lastTP);
         DefineHitPos(lastTP);
-        SetTrajEndPoints(work);
-        lastPt = work.EndPt[1];
-        FitWork();
-        fUpdateWorkOK = true;
-//        lastTP.TP3Chi = 0;
+        SetEndPoints(tj);
+        lastPt = tj.EndPt[1];
+        lastTP.NTPsFit -= 1;
+        FitTraj(tj);
+        fUpdateTrajOK = true;
         return;
       }  else {
         // a more gradual increase in chisq. Reduce the number of points
@@ -2884,9 +3748,9 @@ namespace cluster {
           }
           if(lastTP.NTPsFit < 3) newNTPSFit = 2;
           lastTP.NTPsFit = newNTPSFit;
-          if(prt) mf::LogVerbatim("TC")<<"  Bad FitChi "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" work.Pass "<<work.Pass;
-          FitWork();
-          if(lastTP.NTPsFit <= fMinPtsFit[work.Pass]) break;
+          if(prt) mf::LogVerbatim("TC")<<"  Bad FitChi "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" tj "<<tj.Pass;
+          FitTraj(tj);
+          if(lastTP.NTPsFit <= fMinPtsFit[tj.Pass]) break;
         } // lastTP.FitChi > 2 && lastTP.NTPsFit > 2
       }
       // last ditch attempt. Drop the last hit
@@ -2894,60 +3758,42 @@ namespace cluster {
         if(prt) mf::LogVerbatim("TC")<<"  Last try. Drop last TP "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit;
         UnsetUsedHits(lastTP);
         DefineHitPos(lastTP);
-        SetTrajEndPoints(work);
-        lastPt = work.EndPt[1];
-        FitWork();
-        fUpdateWorkOK = true;
-//        lastTP.TP3Chi = 0;
+        SetEndPoints(tj);
+        lastPt = tj.EndPt[1];
+        FitTraj(tj);
+        fUpdateTrajOK = true;
         fMaskedLastTP = true;
       }
       if(prt) mf::LogVerbatim("TC")<<"  Fit done. Chi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit;
-    } // work.Pts.size
+    } // tj.Pts.size
     
     // Don't let the angle error get too small too soon. Crawling would stop if the first
     // few hits on a low momentum wandering track happen to have a very good fit to a straight line.
     // We will do this by averaging the default starting value of AngErr of the first TP with the current
     // value from FitTraj.
     if(lastPt < 14) {
-      float defFrac = 1 / (float)(work.EndPt[1]);
-      lastTP.AngErr = defFrac * work.Pts[0].AngErr + (1 - defFrac) * lastTP.AngErr;
+      float defFrac = 1 / (float)(tj.EndPt[1]);
+      lastTP.AngErr = defFrac * tj.Pts[0].AngErr + (1 - defFrac) * lastTP.AngErr;
     }
 
     // update the first traj point if this point is in the fit
     if(lastTP.NTPsFit == lastPt+1) {
-      work.Pts[0].AveChg = lastTP.AveChg;
-      work.Pts[0].Ang = lastTP.Ang;
-      work.Pts[0].AngErr = lastTP.AngErr;
+      tj.Pts[0].AveChg = lastTP.AveChg;
+      tj.Pts[0].Ang = lastTP.Ang;
+      tj.Pts[0].AngErr = lastTP.AngErr;
     }
-/*
-    // Calculate TP3Chi
-    if(lastPt > 1) {
-      lastTP.TP3Chi = 0;
-      TrajPoint tpFit;
-      FitTraj(work, lastPt, 3, -1, tpFit);
-//      FitTrajMid(lastPt, lastPt - 2, tp);
-      // put this in the current TP. It will be over-written if a new TP is found
-      lastTP.TP3Chi = tpFit.FitChi;
-      // put it in the previous TP
-      work.Pts[lastPt - 1].FitChi = tpFit.FitChi;
-    } // lastPt > 1
-    
-    // Calculate the average TP3Chi
-    work.AveTP3Chi = 0;
-    for(unsigned short ipt = 0; ipt < lastPt+1; ++ipt) work.AveTP3Chi += work.Pts[ipt].TP3Chi;
-    float fcnt = lastPt+1;
-    work.AveTP3Chi /= fcnt;
-*/
-    UpdateWorkDeltaRMS();
 
-    fUpdateWorkOK = true;
+    UpdateDeltaRMS(tj);
+
+    fUpdateTrajOK = true;
     return;
-    
+
   } // UpdateWork
 
   //////////////////////////////////////////
   void TrajClusterAlg::MoveTPToWire(TrajPoint& tp, float wire)
   {
+    // Project TP to a "wire position" Pos[0] and update Pos[1]
     if(tp.Dir[0] == 0) return;
     float dw = wire - tp.Pos[0];
     if(dw == 0) return;
@@ -2956,12 +3802,12 @@ namespace cluster {
   } // MoveTPToWire
 
   //////////////////////////////////////////
-  void TrajClusterAlg::UpdateWorkDeltaRMS()
+  void TrajClusterAlg::UpdateDeltaRMS(Trajectory& tj)
   {
-    // Find Delta RMS
+    // Estimate the Delta RMS of the TPs on the end of tj.
     
-    unsigned int lastPt = work.EndPt[1];
-    TrajPoint& lastTP = work.Pts[lastPt];
+    unsigned int lastPt = tj.EndPt[1];
+    TrajPoint& lastTP = tj.Pts[lastPt];
     // put in reasonable guess in case something doesn't work out
     lastTP.DeltaRMS = 0.02;
     
@@ -2970,16 +3816,16 @@ namespace cluster {
     
     float sum = 0;
     unsigned short ii, ipt, cnt = 0;
-     for(ii = work.EndPt[0]; ii < lastPt; ++ii) {
+     for(ii = tj.EndPt[0]; ii < lastPt; ++ii) {
       ipt = lastPt - ii;
-      if(ipt > work.Pts.size() - 1) {
-        std::cout<<"UpdateWorkDeltaRMS oops "<<ii<<" ipt "<<lastPt<<" size "<<work.Pts.size();
+      if(ipt > tj.Pts.size() - 1) {
+        std::cout<<"UpdateDeltaRMS oops "<<ii<<" ipt "<<lastPt<<" size "<<tj.Pts.size();
         exit(1);
       }
        // Delta for the first two points is meaningless
        if(ipt < 2) break;
-      if(work.Pts[ipt].Chg == 0) continue;
-      sum += work.Pts[ipt].Delta;
+      if(tj.Pts[ipt].Chg == 0) continue;
+      sum += tj.Pts[ipt].Delta;
       ++cnt;
       if(cnt == fNPtsAve) break;
     }
@@ -2989,12 +3835,12 @@ namespace cluster {
     lastTP.DeltaRMS = 1.2 * sum / (float)cnt;
     if(lastTP.DeltaRMS < 0.02) lastTP.DeltaRMS = 0.02;
 
-  } // UpdateWorkDeltaRMS
+  } // UpdateDeltaRMS
   
   //////////////////////////////////////////
   void TrajClusterAlg::FitWork()
   {
-    // Jacket around FitTraj
+    // Jacket around FitTraj to fit the leading edge of the supplied trajectory
     unsigned short originPt = work.Pts.size() - 1;
     unsigned short npts = work.Pts[originPt].NTPsFit;
     TrajPoint tpFit;
@@ -3003,6 +3849,19 @@ namespace cluster {
     work.Pts[originPt] = tpFit;
     
   } // FitWork
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::FitTraj(Trajectory& tj)
+  {
+    // Jacket around FitTraj to fit the leading edge of the supplied trajectory
+    unsigned short originPt = tj.Pts.size() - 1;
+    unsigned short npts = tj.Pts[originPt].NTPsFit;
+    TrajPoint tpFit;
+    unsigned short fitDir = -1;
+    FitTraj(tj, originPt, npts, fitDir, tpFit);
+    tj.Pts[originPt] = tpFit;
+    
+  } // FitTraj
 
   //////////////////////////////////////////
   void TrajClusterAlg::FitTraj(Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit)
@@ -3039,7 +3898,7 @@ namespace cluster {
 
     // Rotate the traj hit position into the coordinate system defined by the
     // originPt traj point, where x = along the trajectory, y = transverse
-    double rotAngle = work.Pts[originPt].Ang;
+    double rotAngle = tj.Pts[originPt].Ang;
     double cs = cos(-rotAngle);
     double sn = sin(-rotAngle);
     
@@ -3047,16 +3906,16 @@ namespace cluster {
     double aveChg = 0;
     // enter the originPT hit info if it exists
     if(tj.Pts[originPt].Chg > 0) {
-      ipt = originPt;
-      xx = work.Pts[ipt].HitPos[0] - origin[0];
-      yy = work.Pts[ipt].HitPos[1] - origin[1];
+      xx = tj.Pts[originPt].HitPos[0] - origin[0];
+      yy = tj.Pts[originPt].HitPos[1] - origin[1];
+//      if(prt) std::cout<<" originPT "<<originPt<<" xx "<<xx<<" "<<yy<<" chg "<<tj.Pts[originPt].Chg<<"\n";
       xr = cs * xx - sn * yy;
       yr = sn * xx + cs * yy;
       x.push_back(xr);
       y.push_back(yr);
-      w.push_back(work.Pts[ipt].HitPosErr2);
-      q.push_back(work.Pts[ipt].Chg);
-      aveChg += work.Pts[ipt].Chg;
+      w.push_back(tj.Pts[originPt].HitPosErr2);
+      q.push_back(tj.Pts[originPt].Chg);
+      aveChg += tj.Pts[originPt].Chg;
     }
     
     // correct npts to account for the origin point
@@ -3067,15 +3926,16 @@ namespace cluster {
       cnt = 0;
       for(ipt = originPt + 1; ipt < tj.Pts.size(); ++ipt) {
         if(tj.Pts[ipt].Chg == 0) continue;
-        xx = work.Pts[ipt].HitPos[0] - origin[0];
-        yy = work.Pts[ipt].HitPos[1] - origin[1];
+        xx = tj.Pts[ipt].HitPos[0] - origin[0];
+        yy = tj.Pts[ipt].HitPos[1] - origin[1];
+//        if(prt) std::cout<<"ipt "<<ipt<<" xx "<<xx<<" yy "<<yy<<" chg "<<tj.Pts[ipt].Chg<<"\n";
         xr = cs * xx - sn * yy;
         yr = sn * xx + cs * yy;
         x.push_back(xr);
         y.push_back(yr);
-        w.push_back(work.Pts[ipt].HitPosErr2);
-        q.push_back(work.Pts[ipt].Chg);
-        aveChg += work.Pts[ipt].Chg;
+        w.push_back(tj.Pts[ipt].HitPosErr2);
+        q.push_back(tj.Pts[ipt].Chg);
+        aveChg += tj.Pts[ipt].Chg;
         ++cnt;
         if(cnt == npts) break;
       } // ipt
@@ -3086,15 +3946,16 @@ namespace cluster {
       cnt = 0;
       for(ipt = originPt - 1; ipt > 0; --ipt) {
         if(tj.Pts[ipt].Chg == 0) continue;
-        xx = work.Pts[ipt].HitPos[0] - origin[0];
-        yy = work.Pts[ipt].HitPos[1] - origin[1];
+        xx = tj.Pts[ipt].HitPos[0] - origin[0];
+        yy = tj.Pts[ipt].HitPos[1] - origin[1];
+//        if(prt) std::cout<<"ipt "<<ipt<<" xx "<<xx<<" "<<yy<<" chg "<<tj.Pts[ipt].Chg<<"\n";
         xr = cs * xx - sn * yy;
         yr = sn * xx + cs * yy;
         x.push_back(xr);
         y.push_back(yr);
-        w.push_back(work.Pts[ipt].HitPosErr2);
-        q.push_back(work.Pts[ipt].Chg);
-        aveChg += work.Pts[ipt].Chg;
+        w.push_back(tj.Pts[ipt].HitPosErr2);
+        q.push_back(tj.Pts[ipt].Chg);
+        aveChg += tj.Pts[ipt].Chg;
         ++cnt;
         if(cnt == npts) break;
         if(ipt == 0) break;
@@ -3118,9 +3979,9 @@ namespace cluster {
     double chgrat, wght;
     for(ipt = 0; ipt < x.size(); ++ipt) {
       chgrat = std::abs(q[ipt] - aveChg) / aveChg;
-      chgrat = std::min(0.3, chgrat);
+      if(chgrat < 0.3) chgrat = 0.3;
       w[ipt] *= chgrat;
-      w[ipt] = std::max(0.0001, w[ipt]);
+      if(w[ipt] < 0.00001) w[ipt] = 0.00001;
       wght = 1 / w[ipt];
       sum   += wght;
       sumx  += wght * x[ipt];
@@ -3148,7 +4009,13 @@ namespace cluster {
     tpFit.Dir[0] = cs * dir[0] - sn * dir[1];
     tpFit.Dir[1] = sn * dir[0] + cs * dir[1];
     // Reverse the direction?
-    if(tj.StepDir < 0) {
+    bool flipDir = false;
+    if(std::abs(tpFit.Dir[0]) > std::abs(tpFit.Dir[1])) {
+      flipDir = std::signbit(tpFit.Dir[0]) != std::signbit(tj.Pts[originPt].Dir[0]);
+    } else {
+      flipDir = std::signbit(tpFit.Dir[1]) != std::signbit(tj.Pts[originPt].Dir[1]);
+    }
+    if(flipDir) {
       tpFit.Dir[0] = -tpFit.Dir[0];
       tpFit.Dir[1] = -tpFit.Dir[1];
     }
@@ -3183,361 +4050,52 @@ namespace cluster {
     tpFit.FitChi = sum / ndof;
   
   } // FitTraj
-/*
+  
   //////////////////////////////////////////
-  void TrajClusterAlg::FitTrajMid(unsigned short fromIndex, unsigned short toIndex, TrajPoint& tp)
+  void TrajClusterAlg::UpdateAveChg(Trajectory& tj, unsigned short updatePt, short dir)
   {
-    // Fit the work trajectory points from fromIndex to (and including) toIndex. The origin
-    // of the fit position is set to work.Pts[fromIndex].Pos. Fit results are stashed in
-    // TrajPoint tp. This copies the trajectory point from work into tp. Note that the
-    // AngleErr is the error on the fitted points (not the angle error for the last point)
     
-    tp.FitChi = -1;
+    if(updatePt < tj.EndPt[0]) return;
+    if(updatePt > tj.EndPt[1]) return;
     
-    unsigned short lastPt = work.EndPt[1];
-
-    if(fromIndex > lastPt || toIndex > lastPt) return;
+    // Find the average charge using fNPtsAve values of TP Chg. Result put in fAveChg and Pts[updatePt].Chg
+    unsigned short ii, ipt, cnt = 0;
     
-    tp = work.Pts[fromIndex];
-    
-    unsigned short lo, hi;
-    if(fromIndex < toIndex) {
-      lo = fromIndex; hi = toIndex;
+    float sum = 0;
+    if(dir > 0) {
+      for(ipt = updatePt; ipt < tj.EndPt[1]; ++ipt) {
+        if(tj.Pts[ipt].Chg > 0) {
+          sum += tj.Pts[ipt].Chg;
+          ++cnt;
+        }
+        if(cnt == fNPtsAve) break;
+      }
     } else {
-      lo = toIndex; hi = fromIndex;
-    }
-    unsigned short nTPF = hi - lo + 1;
-    tp.NTPsFit = nTPF;
-    if(nTPF < 1) return;
-    ++hi;
-    
-    std::vector<float> x(nTPF), y(nTPF), yerr2(nTPF);
-    
-    // Rotate the traj hit position into the coordinate system defined by the
-    // fromIndex traj point, where x = along the trajectory, y = transverse
-    float rotAngle = work.Pts[fromIndex].Ang;
-    float cs = cos(-rotAngle);
-    float sn = sin(-rotAngle);
-//    if(prt) mf::LogVerbatim("TC")<<"FTM: Ang "<<rotAngle<<" cs "<<cs<<" sn "<<sn<<" work size "<<work.Pts.size()<<" StepDir "<<work.StepDir;
-    
-    // fit origin is the position of the fromIndex trajectory point
-    std::array<float, 2> dir, origin = work.Pts[fromIndex].Pos;
-    float xx, yy;
-    
-    // protect against cases where we have a number of points with the same XX value
-    unsigned short indx, nsame = 0;
-    for(unsigned short ipt = lo; ipt < hi; ++ipt) {
-      indx = ipt - lo;
-//      if(ipt > work.Pts.size()-1 || indx > nTPF-1) {
-      if(ipt > lastPt || indx > nTPF-1) {
-        mf::LogError("TC")<<"bad ipt "<<ipt<<" lastPt "<<lastPt<<" or bad indx "<<indx<<" nTPF "<<nTPF;
-        return;
+      // dir < 0
+      for(ii = 0; ii < tj.Pts.size(); ++ii) {
+        ipt = updatePt - ii;
+        if(tj.Pts[ipt].Chg > 0) {
+          sum += tj.Pts[ipt].Chg;
+          ++cnt;
+        }
+        if(cnt == fNPtsAve) break;
+        if(ipt == tj.EndPt[0]) break;
       }
-      xx = work.Pts[ipt].HitPos[0] - origin[0];
-      yy = work.Pts[ipt].HitPos[1] - origin[1];
-      x[indx] = cs * xx - sn * yy;
-      y[indx] = sn * xx + cs * yy;
-      yerr2[indx] = work.Pts[ipt].HitPosErr2;
-//      if(prt) mf::LogVerbatim("TC")<<"FTM: ipt "<<ipt<<" indx "<<indx<<" xx "<<xx<<" yy "<<yy<<" x "<<x[indx]<<" y "<<y[indx]<<" err "<<yerr2[indx]<<" Chg "<<work.Pts[ipt].Chg;
-      if(indx > 0 && std::abs(xx - x[indx-1]) < 1.E-3) ++nsame;
-    } // ii
- 
-    if(nTPF < 4 && nsame > 0) return;
-    
-    float intcpt, slope, intcpterr, slopeerr, chidof;
-    fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
-//    if(prt) mf::LogVerbatim("TC")<<" LinFit chidof "<<chidof;
-    if(chidof < 0.01) chidof = 0.01;
-    tp.FitChi = chidof;
-    if(chidof > 900) return;
-    
-    // calculate the new direction vector in the (xx, yy) coordinate system
-    float newang = atan(slope);
-    dir[0] = cos(newang);
-    dir[1] = sin(newang);
-//    if(prt) mf::LogVerbatim("TC")<<"newdir XX,YY system "<<dir[0]<<" "<<dir[1]<<" slope "<<slope;
-    // rotate back into the (w,t) coordinate system
-    cs = cos(rotAngle);
-    sn = sin(rotAngle);
-//    if(prt) mf::LogVerbatim("TC")<<" lastPT ang "<<rotAngle<<" dir "<<cs<<" "<<sn;
-    tp.Dir[0] = cs * dir[0] - sn * dir[1];
-    tp.Dir[1] = sn * dir[0] + cs * dir[1];
-    // decide whether to reverse the direction
-    if(work.StepDir < 0) {
-      tp.Dir[0] = -tp.Dir[0];
-      tp.Dir[1] = -tp.Dir[1];
-    }
-    tp.Ang = atan2(tp.Dir[1], tp.Dir[0]);
-    // a good enough approximation since the trajectory can't change
-    // too much from point to point
-    tp.AngErr = std::abs(atan(slopeerr));
-//    if(prt) mf::LogVerbatim("TC")<<"  W,T dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang;
-    // rotate (0, intcpt) into W,T
-    tp.Pos[0] = -sn * intcpt + origin[0];
-    tp.Pos[1] =  cs * intcpt + origin[1];
-    
-//    if(prt) mf::LogVerbatim("TC")<<"FTM: fromIndex "<<fromIndex<<" Pos1 "<<tp.Pos[1]<<" Ang "<<tp.Ang<<" chi "<<chidof<<" old Ang "<<work.Pts[fromIndex].Ang;
-
-  } // FitTrajMid
-
-  //////////////////////////////////////////
-  void TrajClusterAlg::FitWork()
-  {
-    // Fit the trajectory to a line. The hit positions are rotated into a coordinate
-    // system with X along the direction of the last trajectory point and Y transverse.
-    // The number of trajectory points fitted (nTPF) is determined by the calling routine.
-    
-    if(work.EndPt[1] < 1) return;
-    
-    unsigned short lastPt = work.EndPt[1];
-    unsigned short ipt, ii;
-    TrajPoint& lastTP = work.Pts[lastPt];
-    
-    lastTP.FitChi = 999;
-    
-    if(lastTP.NTPsFit == 2) {
-      if(lastTP.HitPosErr2 < 0) return;
-      // find a previous TP with hits
-      unsigned short ii, ipt, prevPt = USHRT_MAX;
-      for(ii = 1; ii < work.Pts.size(); ++ii) {
-        ipt = work.Pts.size() - 1 -ii;
-        if(work.Pts[ipt].HitPosErr2 < 0) continue;
-        prevPt = ipt;
-        break;
-      }
-      if(prevPt == USHRT_MAX) return;
-      TrajPoint& prevTP = work.Pts[prevPt];
-      lastTP.Pos[0] = lastTP.HitPos[0];
-      lastTP.Pos[1] = lastTP.HitPos[1];
-      float dw = lastTP.HitPos[0] - prevTP.HitPos[0];
-      float dt = lastTP.HitPos[1] - prevTP.HitPos[1];
-      float dpos = sqrt(dw * dw + dt * dt);
-      if(dpos == 0) return;
-      lastTP.Dir[0] = dw / dpos; lastTP.Dir[1] = dt / dpos;
-      lastTP.Ang = atan2(lastTP.Dir[1], lastTP.Dir[0]);
-      // estimate the angle error
-      lastTP.AngErr = atan(2 * sqrt(lastTP.HitPosErr2) / dpos);
-      lastTP.FitChi = 0.01;
-      return;
-    } // lastTP.NTPsFit == 2
-    
-    // try to fit with the number of points specified
-    unsigned short nTPF = lastTP.NTPsFit;
-    // truncate if this is too many points
-    if(nTPF > lastPt+1) nTPF = lastPt+1;
-    
-    std::vector<float> x, y, yerr2;
-    
-    // Rotate the traj hit position into the coordinate system defined by the
-    // current traj point, where X = along the trajectory, Y = transverse
-    float rotAng = work.Pts[lastPt].Ang;
-    float cs = cos(-rotAng);
-    float sn = sin(-rotAng);
-    
-    // fit origin is the hit position of the current trajectory point
-    std::array<float, 2> dir, origin = work.Pts[lastPt].HitPos;
-    float xx, yy;
-//    if(prt) mf::LogVerbatim("TC")<<"FitWork: nTPF "<<nTPF<<" origin "<<origin[0]<<" "<<origin[1]<<" ticks "<<origin[1]/fScaleF<<" rotAng "<<rotAng;
-    unsigned short cnt = 0;
-    // weight by the average charge
-    float qAve = 0;
-    unsigned short n0x = 0;
-    for(ii = 0; ii < lastPt+1; ++ii) {
-      ipt = lastPt - ii;
-      if(work.Pts[ipt].Chg == 0) continue;
-      xx = work.Pts[ipt].HitPos[0] - origin[0];
-      if(std::nearbyint(xx) == 0) ++n0x;
-      yy = work.Pts[ipt].HitPos[1] - origin[1];
-      x.push_back(cs * xx - sn * yy);
-      y.push_back(sn * xx + cs * yy);
-      qAve += work.Pts[ipt].Chg;
-      yerr2.push_back(work.Pts[ipt].HitPosErr2);
-//      if(prt) mf::LogVerbatim("TC")<<"cnt "<<cnt<<" xx "<<xx<<" yy "<<yy<<" x "<<x[cnt]<<" y "<<y[cnt]<<" err "<<yerr2[cnt];
-      ++cnt;
-      if(cnt == nTPF) break;
-    } // ii
-    if(cnt < 3 || qAve == 0) return;
-    // See if all HitPos are on the same wire
-    if(n0x == cnt) {
-      // no sense doing a fit. return with the correct direction
-      lastTP.Dir[0] = 0;
-      lastTP.Dir[1] = 1;
-      lastTP.Ang = M_PI/2;
-      if(rotAng < 0) {
-        lastTP.Dir[1] = -1;
-        lastTP.Ang = -lastTP.Ang;
-      }
-      lastTP.FitChi = 0.01;
-      // determine the error
-      float minpos1 = 1E6, maxpos1 = -1E6;
-      cnt = 0;
-      for(ii = 0; ii < lastPt+1; ++ii) {
-        ipt = lastPt - ii;
-        if(work.Pts[ipt].Chg == 0) continue;
-        if(work.Pts[ipt].HitPos[1] < minpos1) minpos1 = work.Pts[ipt].HitPos[1];
-        if(work.Pts[ipt].HitPos[1] > maxpos1) maxpos1 = work.Pts[ipt].HitPos[1];
-        ++cnt;
-        if(cnt == nTPF) break;
-      } // ii
-      float dpos = maxpos1 - minpos1;
-      lastTP.AngErr = atan(2 * sqrt(lastTP.HitPosErr2) / dpos);
-    } // n0x == cnt
-    
-    qAve /= (float)cnt;
-    cnt = 0;
-    for(ii = 0; ii < lastPt+1; ++ii) {
-      ipt = lastPt - ii;
-      if(work.Pts[ipt].Chg == 0) continue;
-      yerr2[cnt] *= std::abs((work.Pts[ipt].Chg / qAve) - 1);
-      if(yerr2[cnt] < 0.001) yerr2[cnt] = 0.001;
-//      if(prt) mf::LogVerbatim("TC")<<"cnt "<<cnt<<" x "<<x[cnt]<<" y "<<y[cnt]<<" yerr2 "<<yerr2[cnt];
-      ++cnt;
-      if(cnt == yerr2.size()) break;
-    }
-      
-    
-    if(prt) {
-      std::cout<<"FitWork: ntps "<<nTPF<<" origin "<<origin[0]<<" "<<origin[1]<<" ticks "<<origin[1]/fScaleF<<" rotAng "<<rotAng<<"\n";
-      for(unsigned short ii = 0; ii < x.size(); ++ii) {
-        std::cout<<ii<<" "<<x[ii]<<" "<<y[ii]<<" "<<1/yerr2[ii]<<"\n";
-      }
-    } // prt
-    
-    float intcpt, slope, intcpterr, slopeerr, chidof;
-    fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
-    if(chidof < 0.01) chidof = 0.01;
-    lastTP.FitChi = chidof;
-    if(chidof > 900) return;
-    
-    // calculate the new direction vector in the (xx, yy) coordinate system
-    float newang = atan(slope);
-    dir[0] = cos(newang);
-    dir[1] = sin(newang);
-    // rotate back into the (w,t) coordinate system
-    cs = cos(rotAng);
-    sn = sin(rotAng);
-    lastTP.Dir[0] = cs * dir[0] - sn * dir[1];
-    lastTP.Dir[1] = sn * dir[0] + cs * dir[1];
-    lastTP.Ang = atan2(lastTP.Dir[1], lastTP.Dir[0]);
-    lastTP.AngErr = std::abs(atan(slopeerr));
-    if(prt) mf::LogVerbatim("TC")<<"  W,T dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1]<<" ang "<<lastTP.Ang;
-    // rotate (0, intcpt) into W,T
-    lastTP.Pos[0] = -sn * intcpt + origin[0];
-    lastTP.Pos[1] =  cs * intcpt + origin[1];
-    if(prt) mf::LogVerbatim("TC")<<"  intcpt "<<intcpt<<" new pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1];
-    
-    // force the origin to be at origin[0]
-    MoveTPToWire(lastTP, origin[0]);
-    
-    if(prt) mf::LogVerbatim("TC")<<"Fit: "<<nTPF<<" pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<" dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1]<<" chi "<<chidof<<" origin "<<origin[0]<<" "<<origin[1];
-    
-  } // FitWork
-*/
-  //////////////////////////////////////////
-  void TrajClusterAlg::UpdateAveChg()
-  {
-    // calculate trajectory charge using nTrajPoints at the leading edge of the
-    // trajectory
-
-    fAveChg = 0;
-    if(work.EndPt[1] < fNPtsAve) return;
-    
-    // All of the nearby hits may not have been selected at the beginning of
-    // a large angle trajectory. Set UseHit true for all TPs before calculating
-    // the first average
-    if(work.EndPt[1] == fNPtsAve && IsLargeAngle(work.Pts[work.EndPt[1]])) {
-      unsigned short ii, iht;
-      for(auto& tp : work.Pts) {
-        for(ii = 0; ii < tp.UseHit.size(); ++ii) {
-          iht = tp.Hits[ii];
-          if(inTraj[iht] > 0) continue;
-          tp.UseHit[ii] = true;
-          inTraj[iht] = work.ID;
-        } // iht
-        DefineHitPos(tp);
-      } // tp
-      SetTrajEndPoints(work);
-      //
-      if(prt) mf::LogVerbatim("TC")<<"UpdateAveChg: Set UseHit true for all trajectory points";
-    }
-    
-    // Just do a simple average
-    unsigned short cnt = 0;
-    unsigned short ipt;
-    for(ipt = work.EndPt[1]; ipt > work.EndPt[0] + 1; --ipt) {
-      if(work.Pts[ipt].Chg == 0) continue;
-      fAveChg += work.Pts[ipt].Chg;
-      ++cnt;
-      if(cnt == fNPtsAve) break;
-    } // ipt
+    } // dir < 0
     
     if(cnt < fNPtsAve) return;
-    fAveChg /= (float)cnt;
-    // update the point at the leading edge
-    ipt = work.EndPt[1];
-    work.Pts[ipt].AveChg = fAveChg;
-    work.Pts[ipt].ChgRat = (work.Pts[ipt].Chg - fAveChg) / fAveChg;
-
-    // update the first TPs?
-    ipt = work.EndPt[0];
-    // already done
-    if(work.Pts[ipt].Chg > 0) return;
+    fAveChg = sum / (float)cnt;
+    if(tj.Pts[0].AveChg == 0) {
+      // update all TPs to the current one
+      for(unsigned short jpt = 0; jpt < updatePt; ++jpt) {
+        tj.Pts[jpt].AveChg = fAveChg;
+        if(tj.Pts[jpt].Chg > 0) tj.Pts[jpt].ChgRat = (tj.Pts[jpt].Chg - fAveChg) / fAveChg;
+      } // jpt
+    } // fAveChg == 0
+     // update the point at the update point
+    tj.Pts[updatePt].AveChg = fAveChg;
+    tj.Pts[updatePt].ChgRat = (tj.Pts[updatePt].Chg - fAveChg) / fAveChg;
     
-    for(ipt = work.EndPt[0]; ipt < work.EndPt[1]; ++ipt) {
-      if(work.Pts[ipt].Chg == 0) continue;
-      work.Pts[ipt].AveChg = fAveChg;
-      work.Pts[ipt].ChgRat = (work.Pts[ipt].Chg - fAveChg) / fAveChg;
-    }
-    
-/*
-    // This code finds the average using the lowest ~80% charge TPs
-    unsigned int lastPt = work.EndPt[1];
-    TrajPoint& lastTP = work.Pts[lastPt];
-    
-    float sum, fcnt;
-    unsigned short ii;
-    if(lastPt < 4) {
-      // just average for short trajectories
-      sum = 0;
-      fcnt = lastPt;
-      for(ii = 1; ii < lastPt+1; ++ii) sum += work.Pts[ii].Chg;
-      if(fcnt == 0) return;
-      lastTP.AveChg = sum / fcnt;
-      fAveChg = lastTP.AveChg;
-      return;
-    }
-    
-    unsigned short ipt, cnt;
-    
-    if(lastTP.NTPsFit > lastPt+1) {
-      mf::LogError("TC")<<"UpdateAveChg: Invalid lastTP.NTPsFit = "<<lastTP.NTPsFit<<" lastPt "<<lastPt;
-      return;
-    }
-    
-    // sort by charge and find the average using the lowest (< 80%) charge hits at the
-    // leading edge. Limit the number of trajectory points to allow for energy loss
-    std::vector<float> chg;
-    // Use the full length of the trajectory except for the first point
-    unsigned short npts = lastPt;
-    // no more than fNPtsAve points however
-    if(npts > fNPtsAve) npts = fNPtsAve;
-    for(ii = 0; ii < npts; ++ii) {
-      ipt = lastPt - ii;
-      chg.push_back(work.Pts[ipt].Chg);
-    } // ii
-    // default sort is lowest to highest
-    std::sort(chg.begin(), chg.end());
-    unsigned short maxcnt = (unsigned short)(0.8 * chg.size());
-    if(maxcnt < 2) maxcnt = 2;
-    sum = 0; cnt = 0;
-    for(ipt = 0; ipt < maxcnt; ++ipt) {
-      sum += chg[ipt];
-      ++cnt;
-    }
-    fcnt = cnt;
-    lastTP.AveChg = sum / fcnt;
-    fAveChg = lastTP.AveChg;
-*/
   } // UpdateAveChg
 
   ////////////////////////////////////////////////
@@ -3575,6 +4133,8 @@ namespace cluster {
     if(prt) mf::LogVerbatim("TC")<<"StartWork "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" angErr "<<tp.AngErr;
     work.Pts.push_back(tp);
     
+    fAveChg = 0;
+    
   } // StartWork
   
   //////////////////////////////////////////
@@ -3601,14 +4161,13 @@ namespace cluster {
         std::reverse(tj.Pts[ipt].UseHit.begin(), tj.Pts[ipt].UseHit.end());
       }
     } // ipt
-    SetTrajEndPoints(tj);
+    SetEndPoints(tj);
   }
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::CheckInTraj(std::string someText)
   {
-    
-    // check allTraj -> inTraj associations
+    // Check allTraj -> inTraj associations
     unsigned short tID;
     unsigned int iht;
     unsigned short itj = 0;
@@ -3632,6 +4191,7 @@ namespace cluster {
           if(iht < tHits.size()) myprt<<" "<<PrintHit(tHits[iht]);
           if(atHits[iht] != tHits[iht]) myprt<<" <<< ";
           myprt<<"\n";
+          fQuitAlg = true;
         } // iht
         if(tHits.size() > atHits.size()) {
           for(iht = atHits.size(); iht < atHits.size(); ++iht) {
@@ -3640,6 +4200,7 @@ namespace cluster {
         } // tHit.size > atHits.size()
       }
       ++itj;
+      if(fQuitAlg) return;
     } // tj
     
   } // CheckInTraj
@@ -3651,7 +4212,12 @@ namespace cluster {
     // put trajectories in order of US -> DS
     if(work.StepDir < 0) ReverseTraj(work);
     // This shouldn't be necessary but do it anyway
-    SetTrajEndPoints(work);
+    SetEndPoints(work);
+    if(work.EndPt[1] <= work.EndPt[0]) {
+      mf::LogWarning("TC")<<"StoreWork: No meaningfull points on work trajectory";
+      std::cout<<"StoreWork: No meaningfull points on work trajectory\n";
+      return;
+    }
     short trID = allTraj.size() + 1;
     unsigned short ii, iht;
     for(unsigned short ipt = work.EndPt[0]; ipt < work.EndPt[1] + 1; ++ipt) {
@@ -3676,9 +4242,11 @@ namespace cluster {
   } // StoreWork
 
   ////////////////////////////////////////////////
-  void TrajClusterAlg::SetTrajEndPoints(Trajectory& tj)
+  void TrajClusterAlg::SetEndPoints(Trajectory& tj)
   {
+    // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
     
+    tj.EndPt[0] = 0; tj.EndPt[1] = 0;
     if(tj.Pts.size() == 0) return;
     
     // check the end point pointers
@@ -3708,7 +4276,7 @@ namespace cluster {
         break;
       }
     }
-  } // SetTrajEndPoints
+  } // SetEndPoints
 
 
   ////////////////////////////////////////////////
@@ -3738,7 +4306,7 @@ namespace cluster {
       if(allTraj[itj].ProcCode == USHRT_MAX) continue;
       if(allTraj[itj].StepDir > 0) ReverseTraj(allTraj[itj]);
       // ensure that the endPts are correct
-      SetTrajEndPoints(allTraj[itj]);
+      SetEndPoints(allTraj[itj]);
       // some sort of error occurred
       if(allTraj[itj].EndPt[0] >= allTraj[itj].EndPt[1]) continue;
       cls.ID = allTraj[itj].ID;
@@ -3839,7 +4407,7 @@ namespace cluster {
           if(fDebugPlane < 3 && fDebugPlane != (int)allTraj[ii].CTP) continue;
           if(allTraj[ii].ProcCode == USHRT_MAX) continue;
           for(unsigned short end = 0; end < 2; ++end)
-            if(allTraj[ii].Vtx[end] == (short)iv) myprt<<std::right<<std::setw(4)<<ii<<"_"<<end;
+            if(allTraj[ii].Vtx[end] == (short)iv) myprt<<std::right<<std::setw(4)<<allTraj[ii].ID<<"_"<<end;
         }
         myprt<<"\n";
       } // iv
@@ -3855,40 +4423,42 @@ namespace cluster {
       for(unsigned short ii = 0; ii < allTraj.size(); ++ii) {
         if(fDebugPlane >=0 && fDebugPlane < 3 && (unsigned short)fDebugPlane != allTraj[ii].CTP) continue;
         myprt<<"TRJ"<<std::fixed;
-        myprt<<std::setw(4)<<allTraj[ii].ID;
-        myprt<<std::setw(3)<<allTraj[ii].CTP;
-        myprt<<std::setw(5)<<allTraj[ii].Pass;
-        myprt<<std::setw(3)<<allTraj[ii].ProcCode;
-        myprt<<std::setw(5)<<allTraj[ii].Pts.size();
-        myprt<<std::setw(4)<<allTraj[ii].EndPt[0];
-        myprt<<std::setw(4)<<allTraj[ii].EndPt[1];
-        endPt = allTraj[ii].EndPt[0];
-        TrajPoint tp = allTraj[ii].Pts[endPt];
+        Trajectory tj = allTraj[ii];
+        myprt<<std::setw(4)<<tj.ID;
+        myprt<<std::setw(3)<<tj.CTP;
+        myprt<<std::setw(5)<<tj.Pass;
+        myprt<<std::setw(3)<<tj.ProcCode;
+        myprt<<std::setw(5)<<tj.Pts.size();
+        myprt<<std::setw(4)<<tj.EndPt[0];
+        myprt<<std::setw(4)<<tj.EndPt[1];
+        endPt = tj.EndPt[0];
+        TrajPoint tp = tj.Pts[endPt];
         unsigned short itick = tp.Pos[1]/fScaleF;
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
         myprt<<std::setw(8)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.ChgRat;
-        endPt = allTraj[ii].EndPt[1];
-        tp = allTraj[ii].Pts[endPt];
+        endPt = tj.EndPt[1];
+        tp = tj.Pts[endPt];
         itick = tp.Pos[1]/fScaleF;
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
         myprt<<std::setw(8)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.ChgRat;
-//        myprt<<std::setw(7)<<std::setprecision(2)<<allTraj[ii].AveTP3Chi;
-//        myprt<<std::setw(7)<<std::setprecision(3)<<allTraj[ii].ThetaMCS;
         // find average number of used hits / TP
         PutTrajHitsInVector(allTraj[ii], true, tmp);
-        float ave = (float)tmp.size() / (float)allTraj[ii].Pts.size();
+        float ave = (float)tmp.size() / (float)tj.Pts.size();
         myprt<<std::setw(8)<<std::setprecision(2)<<ave;
-        myprt<<std::setw(4)<<allTraj[ii].Vtx[0];
-        myprt<<std::setw(4)<<allTraj[ii].Vtx[1];
-        myprt<<std::setw(6)<<allTraj[ii].PDG;
-        myprt<<std::setw(6)<<allTraj[ii].ParentTraj;
-        myprt<<std::setw(6)<<allTraj[ii].TruPDG;
-        myprt<<std::setw(6)<<allTraj[ii].IsPrimary;
-        myprt<<std::setw(7)<<(int)allTraj[ii].TruKE;
+        myprt<<std::setw(4)<<tj.Vtx[0];
+        myprt<<std::setw(4)<<tj.Vtx[1];
+        myprt<<std::setw(6)<<tj.PDG;
+        myprt<<std::setw(6)<<tj.ParentTraj;
+        myprt<<std::setw(6)<<tj.TruPDG;
+        myprt<<std::setw(6)<<tj.IsPrimary;
+        myprt<<std::setw(7)<<(int)tj.TruKE;
+        for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
+          if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
+        } // ib
         myprt<<"\n";
       } // ii
       return;
@@ -3912,7 +4482,7 @@ namespace cluster {
 
   
   //////////////////////////////////////////
-  void TrajClusterAlg::PrintTrajectory(Trajectory& tj, unsigned short tPoint)
+  void TrajClusterAlg::PrintTrajectory(Trajectory const& tj, unsigned short tPoint)
   {
     // prints one or all trajectory points on tj
     
@@ -3939,11 +4509,11 @@ namespace cluster {
   //////////////////////////////////////////
   void TrajClusterAlg::PrintHeader()
   {
-    mf::LogVerbatim("TC")<<"TRP  CTP Ind  Stp      W:T     Delta   RMS dTick   Ang   Err  Dir0  Dir1      Q  QRat    AveQ FitChi NTPF  Hits ";
+    mf::LogVerbatim("TC")<<"TRP  CTP Ind  Stp      W:T      Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q  QRat    AveQ FitChi NTPF  Hits ";
   } // PrintHeader
 
   ////////////////////////////////////////////////
-  void TrajClusterAlg::PrintTrajPoint(unsigned short ipt, short dir, unsigned short pass, TrajPoint& tp)
+  void TrajClusterAlg::PrintTrajPoint(unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp)
   {
     mf::LogVerbatim myprt("TC");
     myprt<<"TRP"<<std::fixed;
@@ -3955,18 +4525,20 @@ namespace cluster {
     myprt<<std::setw(7)<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]; // W:T
     if(tp.Pos[1] < 10) myprt<<"  "; if(tp.Pos[1] < 100) myprt<<" "; if(tp.Pos[1] < 1000) myprt<<" ";
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Delta;
-    myprt<<std::setw(6)<<std::setprecision(2)<<tp.DeltaRMS;
-    myprt<<std::setw(6)<<std::setprecision(1)<<tp.Delta/fScaleF; // dTick
+/*
     int itick = (int)(tp.Delta/fScaleF);
-    if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
-    myprt<<std::setw(5)<<std::setprecision(2)<<tp.Ang;
+//    if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
+    myprt<<std::setw(6)<<std::setprecision(1)<<itick; // dTick
+*/
+    myprt<<std::setw(6)<<std::setprecision(2)<<tp.DeltaRMS;
+    myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.AngErr;
+    myprt<<std::setw(7)<<std::setprecision(2)<<tp.KinkAng;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Dir[0];
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Dir[1];
     myprt<<std::setw(7)<<(int)tp.Chg;
     myprt<<std::setw(6)<<std::setprecision(1)<<tp.ChgRat;
     myprt<<std::setw(8)<<(int)tp.AveChg;
-//    myprt<<std::setw(7)<<std::setprecision(2)<<tp.TP3Chi;
     myprt<<std::setw(7)<<tp.FitChi;
     myprt<<std::setw(6)<<tp.NTPsFit;
     // print the hits associated with this traj point
@@ -3985,29 +4557,47 @@ namespace cluster {
   } // PrintTrajPoint
 
   ////////////////////////////////////////////////
-  void TrajClusterAlg::HitMultipletPosition(unsigned int iht, float& hitTick, float& deltaRms, float& qtot)
+  void TrajClusterAlg::HitMultipletPosition(unsigned int theHit, float& hitTick, float& deltaRms, float& qtot)
   {
     // returns the charge weighted wire, time position of hits in the multiplet which are within
     // fMultHitSep of iht
     
-    unsigned int loHit = iht - fHits[iht]->LocalIndex();
-    unsigned int hiHit = loHit + fHits[iht]->Multiplicity();
+    // ignore multiplets. Just use hit separation
+    float hitSep = fMultHitSep * fHits[theHit]->RMS();
+    unsigned int iht;
+    unsigned int wire = fHits[theHit]->WireID().Wire;
+    unsigned int firsthit = (unsigned int)WireHitRange[wire].first;
+    unsigned int lasthit = (unsigned int)WireHitRange[wire].second;
     qtot = 0;
     hitTick = 0;
-    float hitSep = fMultHitSep * fHits[iht]->RMS();
     std::vector<unsigned int> closeHits;
-    for(unsigned int jht = loHit; jht < hiHit; ++jht) {
-      if(prt) mf::LogVerbatim("TC")<<"HitMultipletPosition: iht "<<iht<<" jht "<<jht<<" separation "<<std::abs(fHits[jht]->PeakTime() - fHits[iht]->PeakTime())<<" Ticks. Cut = "<<hitSep<<" fMultHitSep "<<fMultHitSep;
-      if(std::abs(fHits[jht]->PeakTime() - fHits[iht]->PeakTime()) > hitSep) continue;
-      if(inTraj[jht] > 0) continue;
-      qtot += fHits[jht]->Integral();
-      hitTick += fHits[jht]->Integral() * fHits[jht]->PeakTime();
-      closeHits.push_back(jht);
-    } // jht
+    for(iht = theHit; iht < lasthit; ++iht) {
+      if(fHits[iht]->PeakTime() - fHits[theHit]->PeakTime() > hitSep) break;
+      // break if a hit is found that belongs to a trajectory
+      if(inTraj[iht] > 0) break;
+      qtot += fHits[iht]->Integral();
+      hitTick += fHits[iht]->Integral() * fHits[iht]->PeakTime();
+      closeHits.push_back(iht);
+    } // iht
+    for(iht = theHit - 1; iht >= firsthit; --iht) {
+      if(fHits[theHit]->PeakTime() - fHits[iht]->PeakTime() > hitSep) break;
+      // break if a hit is found that belongs to a trajectory
+      if(inTraj[iht] > 0) break;
+      qtot += fHits[iht]->Integral();
+      hitTick += fHits[iht]->Integral() * fHits[iht]->PeakTime();
+      closeHits.push_back(iht);
+      if(iht == 0) break;
+    } // iht
+    if(qtot == 0) return;
+    if(closeHits.size() == 1) {
+      qtot = 0;
+      return;
+    }
+    
     hitTick /= qtot;
     
     deltaRms = sqrt(HitsTimeErr2(closeHits));
-//    if(prt) mf::LogVerbatim("TC")<<" hitTick "<<hitTick<<" deltaRms "<<deltaRms;
+    if(prt) mf::LogVerbatim("TC")<<" hitTick "<<hitTick<<" qtot "<<qtot;
 
   } // HitMultipletPosition
 /*
@@ -4233,12 +4823,20 @@ namespace cluster {
     tp.Ang = atan2(tp.Dir[1], tp.Dir[0]);
     
   } // MakeBareTrajPoint
-  
+
+  /////////////////////////////////////////
+  float TrajClusterAlg::TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2)
+  {
+    // Calculates the angle of a line between two TPs
+    float dw = tp2.Pos[0] - tp1.Pos[0];
+    float dt = tp2.Pos[1] - tp1.Pos[1];
+    return atan2(dw, dt);
+  } // TwoTPAngle
+
   /////////////////////////////////////////
   bool TrajClusterAlg::SkipHighMultHitCombo(unsigned int iht, unsigned int jht)
   {
-    // Return true if iht and jht are both in a multiplet but have the wrong
-    // local index to start a trajectory
+    // Return true if iht and jht are both in a multiplet but have the wrong local index to start a trajectory
     if(fHits[iht]->Multiplicity() < 3) return false;
     if(fHits[jht]->Multiplicity() < 3) return false;
     
@@ -4260,11 +4858,12 @@ namespace cluster {
       if(fHits[jht]->LocalIndex() != fHits[jht]->Multiplicity()-1) return true;
     }
     return false;
-  } // LargeHitSep
+  } // SkipHighMultHitCombo
   
   /////////////////////////////////////////
   bool TrajClusterAlg::LargeHitSep(unsigned int iht, unsigned int jht)
   {
+    // Returns true if the time separation of two hits exceeds fMultHitSep
     if(fHits[iht]->WireID().Wire != fHits[jht]->WireID().Wire) return true;
     float minrms = fHits[iht]->RMS();
     if(fHits[jht]->RMS() < minrms) minrms = fHits[jht]->RMS();
@@ -4284,6 +4883,7 @@ namespace cluster {
   /////////////////////////////////////////
   bool TrajClusterAlg::SignalAtTp(TrajPoint const& tp)
   {
+    // Returns true if there a is wire signal at tp
     unsigned int wire = tp.Pos[0] + 0.5;
     // Assume dead wires have a signal
     if(WireHitRange[wire].first == -1) return true;
@@ -4297,8 +4897,17 @@ namespace cluster {
   } // SignalAtTp
   
   //////////////////////////////////////////
+  unsigned short TrajClusterAlg::NumPtsWithCharge(Trajectory& tj)
+  {
+    unsigned short ntp = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ++ipt) if(tj.Pts[ipt].Chg > 0) ++ntp;
+    return ntp;
+  } // NumTPsWithCharge
+  
+  //////////////////////////////////////////
   unsigned short TrajClusterAlg::NumUsedHits(TrajPoint& tp)
   {
+    // Counts the number of used hits in tp
     unsigned short nused = 0;
     if(tp.Hits.size() == 0) return nused;
     for(unsigned short ii = 0; ii < tp.UseHit.size(); ++ii) if(tp.UseHit[ii]) ++nused;
@@ -4339,11 +4948,23 @@ namespace cluster {
   /////////////////////////////////////////
   std::string TrajClusterAlg::PrintHit(unsigned int iht)
   {
-
     if(iht > fHits.size() - 1) return "Bad Hit";
     return std::to_string(fHits[iht]->WireID().Wire) + ":" + std::to_string((int)fHits[iht]->PeakTime());
-    
-    } // PrintHit
+  } // PrintHit
+  
+  /////////////////////////////////////////
+  std::string TrajClusterAlg::PrintPos(TrajPoint const& tp)
+  {
+    unsigned int wire = std::nearbyint(tp.Pos[0]);
+    unsigned int time = std::nearbyint(tp.Pos[1]/fScaleF);
+    return std::to_string(wire) + ":" + std::to_string(time);
+  } // PrintHit
+
+  /////////////////////////////////////////
+  bool TrajClusterAlg::SignalPresent(TrajPoint const& tp)
+  {
+    return SignalPresent(tp.Pos[1], tp.Pos[0], tp.Pos[1], tp.Pos[0]);
+  }
 
   /////////////////////////////////////////
   bool TrajClusterAlg::SignalPresent(float wire1, float time1, TrajPoint const& tp)
@@ -4364,9 +4985,7 @@ namespace cluster {
   /////////////////////////////////////////
   bool TrajClusterAlg::SignalPresent(unsigned int wire1, float time1, unsigned int wire2, float time2)
   {
-    // returns  true if there is a signal on the line between
-    // (wire1, time1) and (wire2, time2).
-    // Be sure to set time1 < time2 if you are checking for signals on a single wire
+    // returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
     
     // Gaussian amplitude in bins of size 0.15
     const float gausAmp[20] = {1, 0.99, 0.96, 0.90, 0.84, 0.75, 0.67, 0.58, 0.49, 0.40, 0.32, 0.26, 0.20, 0.15, 0.11, 0.08, 0.06, 0.04, 0.03, 0.02};
@@ -4525,6 +5144,23 @@ namespace cluster {
     
   } // GetHitRange()
   
+  //////////////////////////////////////////
+  float TrajClusterAlg::DeadWireCount(float inWirePos1, float inWirePos2)
+  {
+    unsigned int inWire1 = std::nearbyint(inWirePos1);
+    unsigned int inWire2 = std::nearbyint(inWirePos2);
+    if(inWire1 > inWire2) {
+      // put in increasing order
+      unsigned int tmp = inWire1;
+      inWire1 = inWire2;
+      inWire2 = tmp;
+    } // inWire1 > inWire2
+    ++inWire2;
+    unsigned int wire, ndead = 0;
+    for(wire = inWire1; wire < inWire2; ++wire) if(WireHitRange[wire].first == -1) ++ndead;
+    return ndead;
+  } // DeadWireCount
+
   //////////////////////////////////////////
   void TrajClusterAlg::CheckHitClusterAssociations()
   {
