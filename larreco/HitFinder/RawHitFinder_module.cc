@@ -350,7 +350,7 @@ namespace hit {
             myrms  = 0;
             mynorm = 0;
 
-            for(int i = start-std::floor(fIncludeMoreTail*(end-start)); i <= end+std::ceil(fIncludeMoreTail*(end-start)); i++){
+            for(int i = start-std::ceil(fIncludeMoreTail*(end-start)); i <= end+std::ceil(fIncludeMoreTail*(end-start)); i++){
               totSig += holder[i];
               float temp2 = holder[i]*holder[i];
               mynorm += temp2;
@@ -359,7 +359,7 @@ namespace hit {
             }
             charge.push_back(totSig);
             myrms/=mynorm;
-            if(end-start!=0)
+            if((end-start)!=0)
             {
               myrms/=(float)(std::abs(end-start));
               hitrms.push_back(sqrt(myrms));
