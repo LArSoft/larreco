@@ -283,6 +283,47 @@ void NeutrinoTrackingEff::initOutput(){
 //========================================================================
 void NeutrinoTrackingEff::beginJob(){
   std::cout<<"job begin..."<<std::endl;
+  // Get geometry.
+  auto const* geo = lar::providerFrom<geo::Geometry>();
+  // Define histogram boundaries (cm).
+  // For now only draw cryostat=0.
+  double minx = 1e9;
+  double maxx = -1e9;
+  double miny = 1e9;
+  double maxy = -1e9;
+  double minz = 1e9;
+  double maxz = -1e9;
+  for (size_t i = 0; i<geo->NTPC(); ++i){
+    double local[3] = {0.,0.,0.};
+    double world[3] = {0.,0.,0.};
+    const geo::TPCGeo &tpc = geo->TPC(i);
+    tpc.LocalToWorld(local,world);
+    if (minx>world[0]-geo->DetHalfWidth(i))
+      minx = world[0]-geo->DetHalfWidth(i);
+    if (maxx<world[0]+geo->DetHalfWidth(i))
+      maxx = world[0]+geo->DetHalfWidth(i);
+    if (miny>world[1]-geo->DetHalfHeight(i))
+      miny = world[1]-geo->DetHalfHeight(i);
+    if (maxy<world[1]+geo->DetHalfHeight(i))
+      maxy = world[1]+geo->DetHalfHeight(i);
+    if (minz>world[2]-geo->DetLength(i)/2.)
+      minz = world[2]-geo->DetLength(i)/2.;
+    if (maxz<world[2]+geo->DetLength(i)/2.)
+      maxz = world[2]+geo->DetLength(i)/2.;
+  }
+
+  fFidVolXmin = minx + fFidVolCutX;
+  fFidVolXmax = maxx - fFidVolCutX;
+  fFidVolYmin = miny + fFidVolCutY;
+  fFidVolYmax = maxy - fFidVolCutY;
+  fFidVolZmin = minz + fFidVolCutZ;
+  fFidVolZmax = maxz - fFidVolCutZ;
+
+  std::cout<<"Fiducial volume:"<<"\n"
+	   <<fFidVolXmin<<"\t< x <\t"<<fFidVolXmax<<"\n"
+	   <<fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
+	   <<fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
+
 }
 //========================================================================
 void NeutrinoTrackingEff::endJob(){
@@ -634,17 +675,16 @@ void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> track_
 //========================================================================
 bool NeutrinoTrackingEff::insideFV( double vertex[4]){ 
 
-     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
-     //This is temporarily we should define a common FV    
      double x = vertex[0];
      double y = vertex[1];
      double z = vertex[2];
 
-     if( fabs(x) > 350.0 ) return false;
-     else if( fabs(y) > 550.0 ) return false;
-     else if( z< 0 || z> 400.0 ) return false;
-     else return true;
-
+     if (x>fFidVolXmin && x<fFidVolXmax&&
+	 y>fFidVolYmin && y<fFidVolYmax&&
+	 z>fFidVolZmin && z<fFidVolZmax)
+       return true;
+     else
+       return false;
 }
 //========================================================================
 void NeutrinoTrackingEff::doEfficiencies(){

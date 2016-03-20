@@ -38,6 +38,10 @@ physics:
       LeptonPDGcode:		13
       MaxNeutrinoE:		25.0
       SaveMCTree:		false
+      FidVolCutX:               10
+      FidVolCutY:               10
+      FidVolCutZ:               10
+
     }
   }
   analysis: [ NeutrinoTrackingEff ] //Directory for histograms
