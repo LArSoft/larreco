@@ -60,7 +60,6 @@ public:
 private:
 
     // the parameters we'll read from the .fcl
-    std::string fOutFileName;
     std::string fMCTruthModuleLabel;
     std::string fTrackModuleLabel;
     int         fNeutrinoPDGcode;
@@ -69,7 +68,6 @@ private:
     double      fMaxLeptonP;
     bool	fSaveMCTree; 
 
-    TFile *fOutFile;
     TTree *fEventTree;
     TTree *fHitsTree;
 
@@ -179,7 +177,6 @@ NeutrinoTrackingEff::~NeutrinoTrackingEff(){
 //========================================================================
 void NeutrinoTrackingEff::reconfigure(fhicl::ParameterSet const& p){
 
-    fOutFileName         = p.get<std::string>("outFile");
     fMCTruthModuleLabel  = p.get<std::string>("MCTruthModuleLabel");
     fTrackModuleLabel    = p.get<std::string>("TrackModuleLabel");
     fLeptonPDGcode       = p.get<int>("LeptonPDGcode");
@@ -256,15 +253,35 @@ void NeutrinoTrackingEff::beginJob(){
   h_Ppion_plus_num = tfs->make<TH1D>("h_Ppion_plus_num", "Pions Plus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
   h_Ppion_minus_den = tfs->make<TH1D>("h_Ppion_minus_den", "Pions Minus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
   h_Ppion_minus_num = tfs->make<TH1D>("h_Ppion_minus_num", "Pions Minus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
-  
+  h_Ev_den->Sumw2();
+  h_Ev_num->Sumw2();
+  h_Pmu_den->Sumw2();
+  h_Pmu_num->Sumw2();
+  h_theta_den->Sumw2();
+  h_theta_num->Sumw2();
+  h_Pproton_den->Sumw2();
+  h_Pproton_num->Sumw2();
+  h_Ppion_plus_den->Sumw2();
+  h_Ppion_plus_num->Sumw2();
+  h_Ppion_minus_den->Sumw2();
+  h_Ppion_minus_num->Sumw2();
+
   h_Efrac_lepton = tfs->make<TH1D>("h_Efrac_lepton","Efrac Lepton; Track Energy fraction;",60,0,1.2);
   h_Efrac_proton = tfs->make<TH1D>("h_Efrac_proton","Efrac Proton; Track Energy fraction;",60,0,1.2);
   h_Efrac_pion_plus = tfs->make<TH1D>("h_Efrac_pion_plus","Efrac Pion +; Track Energy fraction;",60,0,1.2);
   h_Efrac_pion_minus = tfs->make<TH1D>("h_Efrac_pion_minus","Efrac Pion -; Track Energy fraction;",60,0,1.2);
-  h_trackRes_lepton = tfs->make<TH1D>("h_trackRes_lepton", "Residual; Truth lenght - Reco length (cm);",200,-100,100);
-  h_trackRes_proton = tfs->make<TH1D>("h_trackRes_proton", "Proton Residual; Truth lenght - Reco length (cm);",200,-100,100);
-  h_trackRes_pion_plus = tfs->make<TH1D>("h_trackRes_pion_plus", "Pion + Residual; Truth lenght - Reco length (cm);",200,-100,100);
-  h_trackRes_pion_minus = tfs->make<TH1D>("h_trackRes_pion_minus", "Pion - Residual; Truth lenght - Reco length (cm);",200,-100,100);
+  h_trackRes_lepton = tfs->make<TH1D>("h_trackRes_lepton", "Muon Residual; Truth length - Reco length (cm);",200,-100,100);
+  h_trackRes_proton = tfs->make<TH1D>("h_trackRes_proton", "Proton Residual; Truth length - Reco length (cm);",200,-100,100);
+  h_trackRes_pion_plus = tfs->make<TH1D>("h_trackRes_pion_plus", "Pion + Residual; Truth length - Reco length (cm);",200,-100,100);
+  h_trackRes_pion_minus = tfs->make<TH1D>("h_trackRes_pion_minus", "Pion - Residual; Truth length - Reco length (cm);",200,-100,100);
+  h_Efrac_lepton->Sumw2();
+  h_Efrac_proton->Sumw2();
+  h_Efrac_pion_plus->Sumw2();
+  h_Efrac_pion_minus->Sumw2();
+  h_trackRes_lepton->Sumw2();
+  h_trackRes_proton->Sumw2();
+  h_trackRes_pion_plus->Sumw2();
+  h_trackRes_pion_minus->Sumw2();
 
   if( fSaveMCTree ){
     fEventTree = tfs->make<TTree>("Event", "Event Tree from Sim & Reco");
@@ -371,7 +388,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          vertex.GetXYZT(MC_vertex);
          simb::MCParticle lepton = nu.Lepton();
          MC_lepton_PDG = lepton.PdgCode();
-         std::cout<<"Incoming E "<<MC_incoming_P[3]<<" is CC? "<<MC_isCC<<" nuPDG "<<MC_incoming_PDG<<" target "<<MC_target<<" vtx "<<MC_vertex[0]<<" "<<MC_vertex[1]<<" "<<MC_vertex[2]<<" "<<MC_vertex[3]<<std::endl;
+          LOG_DEBUG("NeutrinoTrackingEff")<<"Incoming E "<<MC_incoming_P[3]<<" is CC? "<<MC_isCC<<" nuPDG "<<MC_incoming_PDG<<" target "<<MC_target<<" vtx "<<MC_vertex[0]<<" "<<MC_vertex[1]<<" "<<MC_vertex[2]<<" "<<MC_vertex[3];
        }
     }
 
@@ -497,10 +514,10 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 
     art::FindManyP<recob::Hit> track_hits(trackListHandle, event, fTrackModuleLabel);
     if( n_recoTrack == 0 ){
-      std::cout<<"There are no reco tracks... bye"<<std::endl;
+      LOG_DEBUG("NeutrinoTrackingEff")<<"There are no reco tracks... bye";
       return; 
     }
-    std::cout<<"Found this many reco tracks "<<n_recoTrack<<std::endl;
+    LOG_DEBUG("NeutrinoTrackingEff")<<"Found this many reco tracks "<<n_recoTrack;
 
     double Efrac_lepton =0.0;
     double Efrac_proton =0.0;
@@ -660,11 +677,13 @@ void NeutrinoTrackingEff::doEfficiencies(){
       h_Eff_Ev = tfs->make<TEfficiency>(*h_Ev_num,*h_Ev_den);
       TGraphAsymmErrors *grEff_Ev = h_Eff_Ev->CreateGraph();
       grEff_Ev->Write("grEff_Ev");
+      h_Eff_Ev->Write("h_Eff_Ev");
    }
    if(TEfficiency::CheckConsistency(*h_Pmu_num,*h_Pmu_den)){ 
      h_Eff_Pmu = tfs->make<TEfficiency>(*h_Pmu_num,*h_Pmu_den);
      TGraphAsymmErrors *grEff_Pmu = h_Eff_Pmu->CreateGraph();
      grEff_Pmu->Write("grEff_Pmu");
+     h_Eff_Pmu->Write("h_Eff_Pmu");
    }
    if(TEfficiency::CheckConsistency(*h_theta_num,*h_theta_den)){
      h_Eff_theta = tfs->make<TEfficiency>(*h_theta_num,*h_theta_den);

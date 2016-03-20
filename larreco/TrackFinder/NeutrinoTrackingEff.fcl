@@ -1,4 +1,5 @@
 #include "services_dune.fcl"
+#include "trackfindermodules.fcl"
 
 process_name: NeutrinoTrackingEff 
 
@@ -28,24 +29,13 @@ physics:
 
   analyzers:
   {
-    NeutrinoTrackingEff: 
-    {
-      module_type:      	"NeutrinoTrackingEff"
-      outFile:          	"PANDORAtest.root"
-      MCTruthModuleLabel:	"generator"
-      TrackModuleLabel: 	"pandora"
-      NeutrinoPDGcode:		14
-      LeptonPDGcode:		13
-      MaxNeutrinoE:		25.0
-      MaxLeptonP:               3.0
-      SaveMCTree:		false
-      FidVolCutX:               10
-      FidVolCutY:               10
-      FidVolCutZ:               10
-
-    }
+        pandoraeff:        @local::standard_neutrinotrackingeff
+        pmtrackeff:        @local::standard_neutrinotrackingeff
   }
-  analysis: [ NeutrinoTrackingEff ] #Directory for histograms
+  analysis: [pandoraeff, pmtrackeff ] #Directory for histograms
   end_paths: [ analysis ]
+
 }
 
+physics.analyzers.pmtrackeff.TrackModuleLabel:         "pmtrack"
+physics.analyzers.pandoraeff.TrackModuleLabel:         "pandora"
