@@ -37,6 +37,7 @@ physics:
       NeutrinoPDGcode:		14
       LeptonPDGcode:		13
       MaxNeutrinoE:		25.0
+      MaxLeptonP:               3.0
       SaveMCTree:		false
       FidVolCutX:               10
       FidVolCutY:               10

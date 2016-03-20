@@ -67,6 +67,7 @@ private:
     int         fNeutrinoPDGcode;
     int		fLeptonPDGcode;
     double      fMaxNeutrinoE;
+    double      fMaxLeptonP;
     bool	fSaveMCTree; 
 
     TFile *fOutFile;
@@ -187,6 +188,7 @@ void NeutrinoTrackingEff::reconfigure(fhicl::ParameterSet const& p){
     fLeptonPDGcode       = p.get<int>("LeptonPDGcode");
     fNeutrinoPDGcode     = p.get<int>("NeutrinoPDGcode");
     fMaxNeutrinoE	 = p.get<double>("MaxNeutrinoE");
+    fMaxLeptonP          = p.get<double>("MaxLeptonP");
     fSaveMCTree		 = p.get<bool>("SaveMCTree");
     fFidVolCutX          = p.get<float>("FidVolCutX");
     fFidVolCutY          = p.get<float>("FidVolCutY");
@@ -200,6 +202,9 @@ void NeutrinoTrackingEff::initOutput(){
     double E_bins[21] ={0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
     double theta_bin[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
     double Pbins[18] ={0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0};
+
+    for (int i = 0; i<21; ++i) E_bins[i] *= fMaxNeutrinoE/25.;
+    for (int i = 0; i<18; ++i) Pbins[i] *= fMaxLeptonP/3.0;
 
     TDirectory* subDir = fOutFile->mkdir("Histograms");
     subDir->cd();
@@ -559,8 +564,8 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
        double tmpEfrac = 0;
        const simb::MCParticle *particle;
        truthMatcher( all_trackHits, particle, tmpEfrac );
-       //std::cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac<<std::endl;
        if (!particle) continue;
+       //std::cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac<<std::endl;
        if(  (particle->PdgCode() == fLeptonPDGcode) && (particle->TrackId() == MC_leptonID) ){
          //save the best track ... based on Efrac if there is more than one track 
          if( tmpEfrac > Efrac_lepton ){
