@@ -32,7 +32,7 @@
 #include "TGraphAsymmErrors.h"
 
 #define MAX_TRACKS 1000
-using namespace std;
+//using namespace std;
 
 //========================================================================
 
@@ -152,6 +152,18 @@ private:
 
     int    n_recoTrack;
 
+    float fFidVolCutX;
+    float fFidVolCutY;
+    float fFidVolCutZ;
+
+    float fFidVolXmin;
+    float fFidVolXmax;
+    float fFidVolYmin;
+    float fFidVolYmax;
+    float fFidVolZmin;
+    float fFidVolZmax;
+
+
  }; // class NeutrinoTrackingEff
 
 
@@ -176,6 +188,9 @@ void NeutrinoTrackingEff::reconfigure(fhicl::ParameterSet const& p){
     fNeutrinoPDGcode     = p.get<int>("NeutrinoPDGcode");
     fMaxNeutrinoE	 = p.get<double>("MaxNeutrinoE");
     fSaveMCTree		 = p.get<bool>("SaveMCTree");
+    fFidVolCutX          = p.get<float>("FidVolCutX");
+    fFidVolCutY          = p.get<float>("FidVolCutY");
+    fFidVolCutZ          = p.get<float>("FidVolCutZ");
 }
 //========================================================================
 void NeutrinoTrackingEff::initOutput(){
@@ -267,7 +282,7 @@ void NeutrinoTrackingEff::initOutput(){
 }
 //========================================================================
 void NeutrinoTrackingEff::beginJob(){
-  cout<<"job begin..."<<endl;
+  std::cout<<"job begin..."<<std::endl;
 }
 //========================================================================
 void NeutrinoTrackingEff::endJob(){
@@ -305,7 +320,7 @@ void NeutrinoTrackingEff::endJob(){
 }
 //========================================================================
 void NeutrinoTrackingEff::beginRun(const art::Run& /*run*/){
-  mf::LogInfo("NeutrinoTrackingEff")<<"begin run..."<<endl;
+  mf::LogInfo("NeutrinoTrackingEff")<<"begin run..."<<std::endl;
 }
 //========================================================================
 void NeutrinoTrackingEff::analyze( const art::Event& event ){
@@ -350,7 +365,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          vertex.GetXYZT(MC_vertex);
          simb::MCParticle lepton = nu.Lepton();
          MC_lepton_PDG = lepton.PdgCode();
-         cout<<"Incoming E "<<MC_incoming_P[3]<<" is CC? "<<MC_isCC<<" nuPDG "<<MC_incoming_PDG<<" target "<<MC_target<<" vtx "<<MC_vertex[0]<<" "<<MC_vertex[1]<<" "<<MC_vertex[2]<<" "<<MC_vertex[3]<<endl;
+         std::cout<<"Incoming E "<<MC_incoming_P[3]<<" is CC? "<<MC_isCC<<" nuPDG "<<MC_incoming_PDG<<" target "<<MC_target<<" vtx "<<MC_vertex[0]<<" "<<MC_vertex[1]<<" "<<MC_vertex[2]<<" "<<MC_vertex[3]<<std::endl;
        }
     }
 
@@ -476,10 +491,10 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 
     art::FindManyP<recob::Hit> track_hits(trackListHandle, event, fTrackModuleLabel);
     if( n_recoTrack == 0 ){
-      cout<<"There are no reco tracks... bye"<<endl;
+      std::cout<<"There are no reco tracks... bye"<<std::endl;
       return; 
     }
-    cout<<"Found this many reco tracks "<<n_recoTrack<<endl;
+    std::cout<<"Found this many reco tracks "<<n_recoTrack<<std::endl;
 
     double Efrac_lepton =0.0;
     double Efrac_proton =0.0;
@@ -503,7 +518,8 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
        double tmpEfrac = 0;
        const simb::MCParticle *particle;
        truthMatcher( all_trackHits, particle, tmpEfrac );
-       //cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac<<endl;
+       //std::cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac<<std::endl;
+       if (!particle) continue;
        if(  (particle->PdgCode() == fLeptonPDGcode) && (particle->TrackId() == MC_leptonID) ){
          //save the best track ... based on Efrac if there is more than one track 
          if( tmpEfrac > Efrac_lepton ){
@@ -582,7 +598,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 //========================================================================
 void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac){
 
-    //cout<<"truthMatcher..."<<endl;
+    //std::cout<<"truthMatcher..."<<std::endl;
     art::ServiceHandle<cheat::BackTracker> bt;
     std::map<int,double> trkID_E;
     for(size_t j = 0; j < track_hits.size(); ++j){
@@ -598,7 +614,10 @@ void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> track_
     double partial_E =0.0; // amount of energy deposited by the particle that deposited more energy... tomato potato... blabla
     //!if the collection of hits have more than one particle associate save the particle w/ the highest energy deposition 
     //!since we are looking for muons/pions/protons this should be enough 
-    if( !trkID_E.size() ) return; //Ghost track???
+    if( !trkID_E.size() ) {
+      MCparticle = 0;
+      return; //Ghost track???
+    }
     for(std::map<int,double>::iterator ii = trkID_E.begin(); ii!=trkID_E.end(); ++ii){
        total_E += ii->second;
        if((ii->second)>max_E){
@@ -610,7 +629,7 @@ void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> track_
 
     MCparticle = bt->TrackIDToParticle(TrackID);
     Efrac = partial_E/total_E;
-    //cout<<"total "<<total_E<<" frac "<<Efrac<<" which particle "<<MCparticle->PdgCode()<<endl;
+    //std::cout<<"total "<<total_E<<" frac "<<Efrac<<" which particle "<<MCparticle->PdgCode()<<std::endl;
 }
 //========================================================================
 bool NeutrinoTrackingEff::insideFV( double vertex[4]){ 
