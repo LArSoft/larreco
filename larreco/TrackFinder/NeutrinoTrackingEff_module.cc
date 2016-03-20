@@ -50,7 +50,6 @@ public:
     void analyze(const art::Event& evt);
 
     void reconfigure(fhicl::ParameterSet const& pset);
-    void initOutput();
 
     void processEff(const art::Event& evt, bool &isFiducial);
     void truthMatcher( std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac);
@@ -86,7 +85,6 @@ private:
     TH1D *h_Ppion_plus_num; 
     TH1D *h_Ppion_minus_den; 
     TH1D *h_Ppion_minus_num; 
-
 
     TH1D *h_Efrac_lepton;     
     TH1D *h_Efrac_proton;     
@@ -173,7 +171,6 @@ NeutrinoTrackingEff::NeutrinoTrackingEff(fhicl::ParameterSet const& parameterSet
     : EDAnalyzer(parameterSet)
 {
     reconfigure(parameterSet);
-    initOutput();
 }
 //========================================================================
 NeutrinoTrackingEff::~NeutrinoTrackingEff(){
@@ -193,97 +190,6 @@ void NeutrinoTrackingEff::reconfigure(fhicl::ParameterSet const& p){
     fFidVolCutX          = p.get<float>("FidVolCutX");
     fFidVolCutY          = p.get<float>("FidVolCutY");
     fFidVolCutZ          = p.get<float>("FidVolCutZ");
-}
-//========================================================================
-void NeutrinoTrackingEff::initOutput(){
-    TDirectory* tmpDir = gDirectory;
-
-    fOutFile = new TFile(fOutFileName.c_str(), "recreate");
-    double E_bins[21] ={0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
-    double theta_bin[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
-    double Pbins[18] ={0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0};
-
-    for (int i = 0; i<21; ++i) E_bins[i] *= fMaxNeutrinoE/25.;
-    for (int i = 0; i<18; ++i) Pbins[i] *= fMaxLeptonP/3.0;
-
-    TDirectory* subDir = fOutFile->mkdir("Histograms");
-    subDir->cd();
-    h_Ev_den = new TH1D("h_Ev_den","Neutrino Energy; Neutrino Energy (GeV); Tracking Efficiency",20,E_bins);
-    h_Ev_num = new TH1D("h_Ev_num","Neutrino Energy; Neutrino Energy (GeV); Tracking Efficiency",20,E_bins);
-    h_Pmu_den = new TH1D("h_Pmu_den","Muon Momentum; Muon Momentum (GeV); Tracking Efficiency",20,E_bins);
-    h_Pmu_num = new TH1D("h_Pmu_num","Muon Momentum; Muon Momentum (GeV); Tracking Efficiency",20,E_bins);
-    h_theta_den = new TH1D("h_theta_den","Theta; Theta w.r.t beam direction (Degrees); Tracking Efficiency",43,theta_bin);
-    h_theta_num = new TH1D("h_theta_num","Theta; Theta w.r.t beam direction (Degrees); Tracking Efficiency",43,theta_bin);
-    h_Pproton_den = new TH1D("h_Pproton_den","Protons; Proton Momentum (GeV); Tracking Efficiency", 17, Pbins);
-    h_Pproton_num = new TH1D("h_Pproton_num","Protons; Proton Momentum (GeV); Tracking Efficiency", 17, Pbins);
-    h_Ppion_plus_den = new TH1D("h_Ppion_plus_den", "Pions Plus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
-    h_Ppion_plus_num = new TH1D("h_Ppion_plus_num", "Pions Plus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
-    h_Ppion_minus_den = new TH1D("h_Ppion_minus_den", "Pions Minus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
-    h_Ppion_minus_num = new TH1D("h_Ppion_minus_num", "Pions Minus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
-
-    h_Efrac_lepton = new TH1D("h_Efrac_lepton","Efrac Lepton; Track Energy fraction;",60,0,1.2);
-    h_Efrac_proton = new TH1D("h_Efrac_proton","Efrac Proton; Track Energy fraction;",60,0,1.2);
-    h_Efrac_pion_plus = new TH1D("h_Efrac_pion_plus","Efrac Pion +; Track Energy fraction;",60,0,1.2);
-    h_Efrac_pion_minus = new TH1D("h_Efrac_pion_minus","Efrac Pion -; Track Energy fraction;",60,0,1.2);
-    h_trackRes_lepton = new TH1D("h_trackRes_lepton", "Residual; Truth lenght - Reco length (cm);",200,-100,100);
-    h_trackRes_proton = new TH1D("h_trackRes_proton", "Proton Residual; Truth lenght - Reco length (cm);",200,-100,100);
-    h_trackRes_pion_plus = new TH1D("h_trackRes_pion_plus", "Pion + Residual; Truth lenght - Reco length (cm);",200,-100,100);
-    h_trackRes_pion_minus = new TH1D("h_trackRes_pion_minus", "Pion - Residual; Truth lenght - Reco length (cm);",200,-100,100);
- 
-    if( fSaveMCTree ){
-      TDirectory* subDirTree = fOutFile->mkdir("Events");
-      subDirTree->cd();
-      fEventTree = new TTree("Event", "Event Tree from Sim & Reco");
-      fEventTree->Branch("eventNo", &Event);
-      fEventTree->Branch("runNo", &Run);
-      fEventTree->Branch("subRunNo", &SubRun);
-      fEventTree->Branch("mc_incoming_PDG", &MC_incoming_PDG);
-      fEventTree->Branch("mc_lepton_PDG", &MC_lepton_PDG);
-      fEventTree->Branch("mc_isCC", &MC_isCC);
-      fEventTree->Branch("mc_target", &MC_target);
-      fEventTree->Branch("mc_channel", &MC_channel);
-      fEventTree->Branch("mc_Q2", &MC_Q2);
-      fEventTree->Branch("mc_W", &MC_W);
-      fEventTree->Branch("mc_vertex", &MC_vertex, "mc_vertex[4]/D");
-      fEventTree->Branch("mc_incoming_P", &MC_incoming_P, "mc_incoming_P[4]/D");
-      fEventTree->Branch("mc_lepton_startMomentum", &MC_lepton_startMomentum, "mc_lepton_startMomentum[4]/D");
-      fEventTree->Branch("mc_lepton_endMomentum", &MC_lepton_endMomentum, "mc_lepton_endMomentum[4]/D");
-      fEventTree->Branch("mc_lepton_startXYZT", &MC_lepton_startXYZT, "mc_lepton_startXYZT[4]/D");
-      fEventTree->Branch("mc_lepton_endXYZT", &MC_lepton_endXYZT, "mc_lepton_endXYZT[4]/D");
-      fEventTree->Branch("mc_lepton_theta", &MC_lepton_theta, "mc_lepton_theta/D");
-      fEventTree->Branch("mc_leptonID", &MC_leptonID);
-      fEventTree->Branch("mc_leadingProtonID", &MC_leading_protonID);
-      fEventTree->Branch("mc_leadingProtonID", &MC_leading_ProtonP);
-      fEventTree->Branch("mc_leadingPionPlusID", &MC_leading_PionPlusID);
-      fEventTree->Branch("mc_leadingPionPlusP", &MC_leading_PionPlusP);
-      fEventTree->Branch("mc_leadingPionMinusID", &MC_leading_PionMinusID);
-      fEventTree->Branch("mc_leadingPionMinusP", &MC_leading_PionMinusP);
-      fEventTree->Branch("mc_leptonTrack", &MC_LeptonTrack);
-      fEventTree->Branch("mc_protonTrack", &MC_ProtonTrack);
-      fEventTree->Branch("mc_pionPlusTrack", &MC_PionPlusTrack);
-      fEventTree->Branch("mc_pionMinusTrack", &MC_PionMinusTrack);
-      fEventTree->Branch("mc_Ntrack", &MC_Ntrack);  // number of particles 
-      fEventTree->Branch("mc_id", &MC_id, "mc_id[mc_Ntrack]/I");  
-      fEventTree->Branch("mc_pdg", &MC_pdg, "mc_pdg[mc_Ntrack]/I"); 
-      fEventTree->Branch("mc_mother", &MC_mother, "mc_mother[mc_Ntrack]/I"); 
-      fEventTree->Branch("mc_startXYZT", &MC_startXYZT, "mc_startXYZT[mc_Ntrack][4]/D");  
-      fEventTree->Branch("mc_endXYZT", &MC_endXYZT, "mc_endXYZT[mc_Ntrack][4]/D"); 
-      fEventTree->Branch("mc_startMomentum", &MC_startMomentum, "mc_startMomentum[mc_Ntrack][4]/D");  
-      fEventTree->Branch("mc_endMomentum", &MC_endMomentum, "mc_endMomentum[mc_Ntrack][4]/D"); 
-    
-
-      fEventTree->Branch("reco_efracLepton", &Reco_EfracLepton);
-      fEventTree->Branch("reco_lengthResProton", &Reco_LengthResProton);
-      fEventTree->Branch("reco_lengthResPionPlus", &Reco_LengthResPionPlus);
-      fEventTree->Branch("reco_lengthResPionMinus", &Reco_LengthResPionMinus);
-      fEventTree->Branch("reco_MC_LeptonTrack", &MC_LeptonTrack);
-      fEventTree->Branch("reco_MC_ProtonTrack", &MC_ProtonTrack);
-      fEventTree->Branch("reco_MC_PionPlusTrack", &MC_PionPlusTrack);
-      fEventTree->Branch("reco_MC_PionMinusTrack", &MC_PionMinusTrack);
-
-      gDirectory = tmpDir;
-    }
-
 }
 //========================================================================
 void NeutrinoTrackingEff::beginJob(){
@@ -329,40 +235,94 @@ void NeutrinoTrackingEff::beginJob(){
 	   <<fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
 	   <<fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
 
+  art::ServiceHandle<art::TFileService> tfs;
+
+  double E_bins[21] ={0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
+  double theta_bin[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
+  double Pbins[18] ={0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0};
+  
+  for (int i = 0; i<21; ++i) E_bins[i] *= fMaxNeutrinoE/25.;
+  for (int i = 0; i<18; ++i) Pbins[i] *= fMaxLeptonP/3.0;
+
+  h_Ev_den = tfs->make<TH1D>("h_Ev_den","Neutrino Energy; Neutrino Energy (GeV); Tracking Efficiency",20,E_bins);
+  h_Ev_num = tfs->make<TH1D>("h_Ev_num","Neutrino Energy; Neutrino Energy (GeV); Tracking Efficiency",20,E_bins);
+  h_Pmu_den = tfs->make<TH1D>("h_Pmu_den","Muon Momentum; Muon Momentum (GeV); Tracking Efficiency",20,E_bins);
+  h_Pmu_num = tfs->make<TH1D>("h_Pmu_num","Muon Momentum; Muon Momentum (GeV); Tracking Efficiency",20,E_bins);
+  h_theta_den = tfs->make<TH1D>("h_theta_den","Theta; Theta w.r.t beam direction (Degrees); Tracking Efficiency",43,theta_bin);
+  h_theta_num = tfs->make<TH1D>("h_theta_num","Theta; Theta w.r.t beam direction (Degrees); Tracking Efficiency",43,theta_bin);
+  h_Pproton_den = tfs->make<TH1D>("h_Pproton_den","Protons; Proton Momentum (GeV); Tracking Efficiency", 17, Pbins);
+  h_Pproton_num = tfs->make<TH1D>("h_Pproton_num","Protons; Proton Momentum (GeV); Tracking Efficiency", 17, Pbins);
+  h_Ppion_plus_den = tfs->make<TH1D>("h_Ppion_plus_den", "Pions Plus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
+  h_Ppion_plus_num = tfs->make<TH1D>("h_Ppion_plus_num", "Pions Plus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
+  h_Ppion_minus_den = tfs->make<TH1D>("h_Ppion_minus_den", "Pions Minus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
+  h_Ppion_minus_num = tfs->make<TH1D>("h_Ppion_minus_num", "Pions Minus; Pion Momentum (GeV);  Tracking Efficiency", 17, Pbins);
+  
+  h_Efrac_lepton = tfs->make<TH1D>("h_Efrac_lepton","Efrac Lepton; Track Energy fraction;",60,0,1.2);
+  h_Efrac_proton = tfs->make<TH1D>("h_Efrac_proton","Efrac Proton; Track Energy fraction;",60,0,1.2);
+  h_Efrac_pion_plus = tfs->make<TH1D>("h_Efrac_pion_plus","Efrac Pion +; Track Energy fraction;",60,0,1.2);
+  h_Efrac_pion_minus = tfs->make<TH1D>("h_Efrac_pion_minus","Efrac Pion -; Track Energy fraction;",60,0,1.2);
+  h_trackRes_lepton = tfs->make<TH1D>("h_trackRes_lepton", "Residual; Truth lenght - Reco length (cm);",200,-100,100);
+  h_trackRes_proton = tfs->make<TH1D>("h_trackRes_proton", "Proton Residual; Truth lenght - Reco length (cm);",200,-100,100);
+  h_trackRes_pion_plus = tfs->make<TH1D>("h_trackRes_pion_plus", "Pion + Residual; Truth lenght - Reco length (cm);",200,-100,100);
+  h_trackRes_pion_minus = tfs->make<TH1D>("h_trackRes_pion_minus", "Pion - Residual; Truth lenght - Reco length (cm);",200,-100,100);
+
+  if( fSaveMCTree ){
+    fEventTree = tfs->make<TTree>("Event", "Event Tree from Sim & Reco");
+    fEventTree->Branch("eventNo", &Event);
+    fEventTree->Branch("runNo", &Run);
+    fEventTree->Branch("subRunNo", &SubRun);
+    fEventTree->Branch("mc_incoming_PDG", &MC_incoming_PDG);
+    fEventTree->Branch("mc_lepton_PDG", &MC_lepton_PDG);
+    fEventTree->Branch("mc_isCC", &MC_isCC);
+    fEventTree->Branch("mc_target", &MC_target);
+    fEventTree->Branch("mc_channel", &MC_channel);
+    fEventTree->Branch("mc_Q2", &MC_Q2);
+    fEventTree->Branch("mc_W", &MC_W);
+    fEventTree->Branch("mc_vertex", &MC_vertex, "mc_vertex[4]/D");
+    fEventTree->Branch("mc_incoming_P", &MC_incoming_P, "mc_incoming_P[4]/D");
+    fEventTree->Branch("mc_lepton_startMomentum", &MC_lepton_startMomentum, "mc_lepton_startMomentum[4]/D");
+    fEventTree->Branch("mc_lepton_endMomentum", &MC_lepton_endMomentum, "mc_lepton_endMomentum[4]/D");
+    fEventTree->Branch("mc_lepton_startXYZT", &MC_lepton_startXYZT, "mc_lepton_startXYZT[4]/D");
+    fEventTree->Branch("mc_lepton_endXYZT", &MC_lepton_endXYZT, "mc_lepton_endXYZT[4]/D");
+    fEventTree->Branch("mc_lepton_theta", &MC_lepton_theta, "mc_lepton_theta/D");
+    fEventTree->Branch("mc_leptonID", &MC_leptonID);
+    fEventTree->Branch("mc_leadingProtonID", &MC_leading_protonID);
+    fEventTree->Branch("mc_leadingProtonID", &MC_leading_ProtonP);
+    fEventTree->Branch("mc_leadingPionPlusID", &MC_leading_PionPlusID);
+    fEventTree->Branch("mc_leadingPionPlusP", &MC_leading_PionPlusP);
+    fEventTree->Branch("mc_leadingPionMinusID", &MC_leading_PionMinusID);
+    fEventTree->Branch("mc_leadingPionMinusP", &MC_leading_PionMinusP);
+    fEventTree->Branch("mc_leptonTrack", &MC_LeptonTrack);
+    fEventTree->Branch("mc_protonTrack", &MC_ProtonTrack);
+    fEventTree->Branch("mc_pionPlusTrack", &MC_PionPlusTrack);
+    fEventTree->Branch("mc_pionMinusTrack", &MC_PionMinusTrack);
+    fEventTree->Branch("mc_Ntrack", &MC_Ntrack);  // number of particles 
+    fEventTree->Branch("mc_id", &MC_id, "mc_id[mc_Ntrack]/I");  
+    fEventTree->Branch("mc_pdg", &MC_pdg, "mc_pdg[mc_Ntrack]/I"); 
+    fEventTree->Branch("mc_mother", &MC_mother, "mc_mother[mc_Ntrack]/I"); 
+    fEventTree->Branch("mc_startXYZT", &MC_startXYZT, "mc_startXYZT[mc_Ntrack][4]/D");  
+    fEventTree->Branch("mc_endXYZT", &MC_endXYZT, "mc_endXYZT[mc_Ntrack][4]/D"); 
+    fEventTree->Branch("mc_startMomentum", &MC_startMomentum, "mc_startMomentum[mc_Ntrack][4]/D");  
+    fEventTree->Branch("mc_endMomentum", &MC_endMomentum, "mc_endMomentum[mc_Ntrack][4]/D"); 
+    
+    fEventTree->Branch("reco_efracLepton", &Reco_EfracLepton);
+    fEventTree->Branch("reco_lengthResProton", &Reco_LengthResProton);
+    fEventTree->Branch("reco_lengthResPionPlus", &Reco_LengthResPionPlus);
+    fEventTree->Branch("reco_lengthResPionMinus", &Reco_LengthResPionMinus);
+    fEventTree->Branch("reco_MC_LeptonTrack", &MC_LeptonTrack);
+    fEventTree->Branch("reco_MC_ProtonTrack", &MC_ProtonTrack);
+    fEventTree->Branch("reco_MC_PionPlusTrack", &MC_PionPlusTrack);
+    fEventTree->Branch("reco_MC_PionMinusTrack", &MC_PionMinusTrack);
+    
+  }
+
+
 }
 //========================================================================
 void NeutrinoTrackingEff::endJob(){
-
-    TDirectory* tmpDir = gDirectory;
-    fOutFile->cd("/Histograms");
-    h_Efrac_lepton->Write();
-    h_Efrac_proton->Write(); 
-    h_Efrac_pion_plus->Write();
-    h_Efrac_pion_minus->Write();
-    h_trackRes_lepton->Write();
-    h_trackRes_proton->Write();
-    h_trackRes_pion_plus->Write();
-    h_trackRes_pion_minus->Write();
-
-    h_Ev_den->Write();
-    h_Ev_num->Write();
-    h_theta_den->Write();
-    h_theta_num->Write();
-    h_Pproton_den->Write();
-    h_Pproton_num->Write();
-    h_Ppion_plus_num->Write();
-    h_Ppion_minus_num->Write();
-    h_Ppion_plus_den->Write();
-    h_Ppion_minus_den->Write();
      
-    doEfficiencies();
+  doEfficiencies();
 
-    if( fSaveMCTree ){
-      fOutFile->cd("/Events");
-      fEventTree->Write();
-      gDirectory = tmpDir;
-    }
-    fOutFile->Close();
 }
 //========================================================================
 void NeutrinoTrackingEff::beginRun(const art::Run& /*run*/){
@@ -694,38 +654,42 @@ bool NeutrinoTrackingEff::insideFV( double vertex[4]){
 //========================================================================
 void NeutrinoTrackingEff::doEfficiencies(){
 
+   art::ServiceHandle<art::TFileService> tfs;
+
    if(TEfficiency::CheckConsistency(*h_Ev_num,*h_Ev_den)){
-      h_Eff_Ev = new TEfficiency(*h_Ev_num,*h_Ev_den);
+      h_Eff_Ev = tfs->make<TEfficiency>(*h_Ev_num,*h_Ev_den);
       TGraphAsymmErrors *grEff_Ev = h_Eff_Ev->CreateGraph();
       grEff_Ev->Write("grEff_Ev");
    }
    if(TEfficiency::CheckConsistency(*h_Pmu_num,*h_Pmu_den)){ 
-     h_Eff_Pmu = new TEfficiency(*h_Pmu_num,*h_Pmu_den);
+     h_Eff_Pmu = tfs->make<TEfficiency>(*h_Pmu_num,*h_Pmu_den);
      TGraphAsymmErrors *grEff_Pmu = h_Eff_Pmu->CreateGraph();
      grEff_Pmu->Write("grEff_Pmu");
    }
    if(TEfficiency::CheckConsistency(*h_theta_num,*h_theta_den)){
-     h_Eff_theta = new TEfficiency(*h_theta_num,*h_theta_den);
+     h_Eff_theta = tfs->make<TEfficiency>(*h_theta_num,*h_theta_den);
      TGraphAsymmErrors *grEff_theta = h_Eff_theta->CreateGraph();
      grEff_theta->Write("grEff_theta");
+     h_Eff_theta->Write("h_Eff_theta");
    }
    if(TEfficiency::CheckConsistency(*h_Pproton_num,*h_Pproton_den)){
-     h_Eff_Pproton = new TEfficiency(*h_Pproton_num,*h_Pproton_den);
+     h_Eff_Pproton = tfs->make<TEfficiency>(*h_Pproton_num,*h_Pproton_den);
      TGraphAsymmErrors *grEff_Pproton = h_Eff_Pproton->CreateGraph();
      grEff_Pproton->Write("grEff_Pproton");
+     h_Eff_Pproton->Write("h_Eff_Pproton");
    }
    if(TEfficiency::CheckConsistency(*h_Ppion_plus_num,*h_Ppion_plus_den)){
-     h_Eff_Ppion_plus = new TEfficiency(*h_Ppion_plus_num,*h_Ppion_plus_den);
+     h_Eff_Ppion_plus = tfs->make<TEfficiency>(*h_Ppion_plus_num,*h_Ppion_plus_den);
      TGraphAsymmErrors *grEff_Ppion_plus = h_Eff_Ppion_plus->CreateGraph();
      grEff_Ppion_plus->Write("grEff_Ppion_plus");
+     h_Eff_Ppion_plus->Write("h_Eff_Ppion_plus");
    }
    if(TEfficiency::CheckConsistency(*h_Ppion_minus_num,*h_Ppion_minus_den)){
-     h_Eff_Ppion_minus = new TEfficiency(*h_Ppion_minus_num,*h_Ppion_minus_den);
+     h_Eff_Ppion_minus = tfs->make<TEfficiency>(*h_Ppion_minus_num,*h_Ppion_minus_den);
      TGraphAsymmErrors *grEff_Ppion_minus = h_Eff_Ppion_minus->CreateGraph();
      grEff_Ppion_minus->Write("grEff_Ppion_minus");
+     h_Eff_Ppion_minus->Write("h_Eff_Ppion_minus");
    }
-
-
 
 
 }
