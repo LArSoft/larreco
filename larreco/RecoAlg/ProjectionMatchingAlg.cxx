@@ -358,6 +358,280 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
 	else return 0;
 }
 
+// ------------------------------------------------------
+
+pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
+		const std::vector< art::Ptr<recob::Hit> >& hits, 
+		const art::Ptr<recob::Vertex>& vtx) const
+{
+	double vtxarray[3]; 
+	vtx->XYZ(vtxarray);	
+
+	TVector3 vtxv3(vtxarray[0], vtxarray[1], vtxarray[2]);
+
+	const size_t tpc = fGeom->FindTPCAtPosition(vtxarray).TPC;
+	const size_t cryo = fGeom->FindCryostatAtPosition(vtxarray);
+	const geo::TPCGeo& tpcgeom = fGeom->Cryostat(cryo).TPC(tpc);
+
+	// use only hits from tpc where the vtx is
+	std::vector<art::Ptr<recob::Hit> > hitstpc;
+	for (size_t h = 0; h < hits.size(); ++h)
+		if (hits[h]->WireID().TPC == tpc)
+			hitstpc.push_back(hits[h]);
+
+	if (!hitstpc.size()) return 0;
+	
+	std::vector<art::Ptr<recob::Hit> > hitstrk;
+	size_t view = 0; size_t countviews = 0;
+	while (view < 3)
+	{
+		if (!tpcgeom.HasPlane(view)) {++view; continue;}
+
+		// select hits only for a single view
+		std::vector<art::Ptr<recob::Hit> > hitsview;
+		for (size_t h = 0; h < hitstpc.size(); ++h)
+			if (hitstpc[h]->WireID().Plane == view)
+				hitsview.push_back(hitstpc[h]);
+		if (!hitsview.size()) {++view; continue;}
+
+		// filter our small groups of hits, far from main shower		
+		std::vector<art::Ptr<recob::Hit> > hitsfilter;
+		TVector2 proj_pr = pma::GetProjectionToPlane(vtxv3, view, tpc, cryo);
+		FilterOutSmallParts(2.0, hitsview, hitsfilter, proj_pr);
+
+		for (size_t h = 0; h < hitsfilter.size(); ++h)
+			hitstrk.push_back(hitsfilter[h]);
+
+		if (hitsfilter.size() >= 5) countviews++;
+
+		++view;
+	}
+
+	if (!hitstrk.size() || (countviews < 2)) 
+	{
+		mf::LogWarning("ProjectionMatchinAlg") << "too few hits, segment not built";
+		return 0;
+	}
+
+	// hits are prepared, finally segment is built
+
+	pma::Track3D* trk = new pma::Track3D();
+	trk = buildSegment(hitstrk, vtxv3);
+	
+	// make shorter segment to estimate direction more precise
+	ShortenSeg(*trk, tpcgeom);
+
+	if (trk->size() < 10)
+	{
+		mf::LogWarning("ProjectionMatchingAlg") << "too short segment, delete segment";
+		delete trk;
+		return 0;
+	}
+
+	return trk;
+}
+
+// ------------------------------------------------------
+
+void pma::ProjectionMatchingAlg::FilterOutSmallParts(
+		double r2d,
+		const std::vector< art::Ptr<recob::Hit> >& hits_in,
+		std::vector< art::Ptr<recob::Hit> >& hits_out,
+		const TVector2& vtx2d) const
+{
+	size_t min_size = hits_in.size() / 5;
+	if (min_size < 3) min_size = 3;
+
+	std::vector<size_t> used;
+	std::vector< std::vector< art::Ptr<recob::Hit> > > sub_groups;
+	std::vector< art::Ptr<recob::Hit> > close_hits;
+
+	float mindist2 = 99999.99; size_t id_sub_groups_save = 0; size_t id = 0;
+	while (GetCloseHits(r2d, hits_in, used, close_hits)) 
+	{
+		
+		sub_groups.emplace_back(close_hits);
+
+		for (size_t h = 0; h < close_hits.size(); ++h)
+		{
+			TVector2 hi_cm = pma::WireDriftToCm(close_hits[h]->WireID().Wire, 
+			close_hits[h]->PeakTime(), 
+			close_hits[h]->WireID().Plane, 
+			close_hits[h]->WireID().TPC, 
+			close_hits[h]->WireID().Cryostat);
+
+			float dist2 = pma::Dist2(hi_cm, vtx2d);
+			if (dist2 < mindist2)
+			{
+				id_sub_groups_save = id;
+				mindist2 = dist2;
+			}
+		}
+		
+		id++;
+	}
+
+	for (size_t i = 0; i < sub_groups.size(); ++i)
+	{
+		if (i == id_sub_groups_save)
+		{
+			for (auto h : sub_groups[i]) hits_out.push_back(h);
+		}
+	}
+
+	for (size_t i = 0; i < sub_groups.size(); ++i)
+	{
+		if ((i != id_sub_groups_save) && (hits_out.size() < 10) && (sub_groups[i].size() > min_size))
+			for (auto h : sub_groups[i]) hits_out.push_back(h);
+	}
+}
+
+// ------------------------------------------------------
+
+bool pma::ProjectionMatchingAlg::GetCloseHits(
+		double r2d, 
+		const std::vector< art::Ptr<recob::Hit> >& hits_in, 
+		std::vector<size_t>& used,
+		std::vector< art::Ptr<recob::Hit> >& hits_out) const
+{
+	
+	hits_out.clear();
+
+	const double gapMargin = 5.0; // can be changed to f(id_tpc1, id_tpc2)
+	size_t idx = 0;
+
+	while ((idx < hits_in.size()) && Has(used, idx)) idx++;
+
+	if (idx < hits_in.size())
+	{		
+		hits_out.push_back(hits_in[idx]);
+		used.push_back(idx);
+
+		double r2d2 = r2d*r2d;
+		double gapMargin2 = sqrt(2 * gapMargin*gapMargin);
+		gapMargin2 = (gapMargin2 + r2d)*(gapMargin2 + r2d);
+
+		bool collect = true;
+		while (collect)
+		{
+			collect = false;
+			for (size_t i = 0; i < hits_in.size(); i++)
+				if (!Has(used, i))
+				{
+					art::Ptr<recob::Hit> hi = hits_in[i];
+					TVector2 hi_cm = pma::WireDriftToCm(hi->WireID().Wire, hi->PeakTime(), hi->WireID().Plane, hi->WireID().TPC, hi->WireID().Cryostat);
+
+					bool accept = false;
+		
+					for (size_t idx_o = 0; idx_o < hits_out.size(); idx_o++)					
+					{
+						art::Ptr<recob::Hit> ho = hits_out[idx_o];
+
+						double d2 = pma::Dist2(
+							hi_cm, pma::WireDriftToCm(ho->WireID().Wire, ho->PeakTime(), ho->WireID().Plane, ho->WireID().TPC, ho->WireID().Cryostat));
+						
+						if (hi->WireID().TPC == ho->WireID().TPC)
+						{
+							if (d2 < r2d2) { accept = true; break; }
+						}
+						else
+						{
+							if (d2 < gapMargin2) { accept = true; break; }
+						}
+					}
+					if (accept)
+					{
+						collect = true;
+						hits_out.push_back(hi);
+						used.push_back(i);
+					}
+				}
+		}
+		return true;
+	}
+	else return false;
+}
+
+// ------------------------------------------------------
+
+void pma::ProjectionMatchingAlg::ShortenSeg(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const
+{
+	double mse = trk.GetMse();
+	while ((mse > 0.5) && TestTrk(trk, tpcgeom))
+	{
+		mse = trk.GetMse();
+		for (size_t h = 0; h < trk.size(); ++h)
+			if (std::sqrt(pma::Dist2(trk[h]->Point3D(), trk.front()->Point3D())) 
+					> 0.8*trk.Length()) trk[h]->SetEnabled(false);
+
+		RemoveNotEnabledHits(trk);
+
+		trk.Optimize(0.0001, false);
+		trk.SortHits();
+
+		if (mse == trk.GetMse()) break;
+		else mse = trk.GetMse();
+	}
+
+	RemoveNotEnabledHits(trk);
+}
+
+// ------------------------------------------------------
+
+bool pma::ProjectionMatchingAlg::TestTrk(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const
+{
+	bool test = false; 
+
+	if (tpcgeom.HasPlane(0) && tpcgeom.HasPlane(1))
+	{
+		if ((trk.NEnabledHits(0) > 5) && (trk.NEnabledHits(1) > 5)) 
+			test = true; 
+	}
+	else if (tpcgeom.HasPlane(0) && tpcgeom.HasPlane(2))
+	{
+		if ((trk.NEnabledHits(0) > 5) && (trk.NEnabledHits(2) > 5)) 
+			test = true; 
+	}
+	else if (tpcgeom.HasPlane(1) && tpcgeom.HasPlane(2))
+	{
+		if ((trk.NEnabledHits(1) > 5) && (trk.NEnabledHits(2) > 5)) 
+			test = true;
+	}
+
+	double length = 0.0;
+	for (size_t h = 0; h < trk.size(); ++h)
+	{
+		if (!trk[h]->IsEnabled()) break;
+		length = std::sqrt(pma::Dist2(trk.front()->Point3D(), trk[h]->Point3D()));
+	}
+
+	if (length < 3.0) test = false; // cm
+	
+	return test;
+}
+
+// ------------------------------------------------------
+
+bool pma::ProjectionMatchingAlg::Has(const std::vector<size_t>& v, size_t idx) const
+{
+    for (auto c : v) if (c == idx) return true;
+    return false;
+}
+
+// ------------------------------------------------------
+
+void pma::ProjectionMatchingAlg::RemoveNotEnabledHits(pma::Track3D& trk) const
+{
+	size_t h = 0;
+	while (h < trk.size())
+	{
+		if (trk[h]->IsEnabled()) ++h;
+		else (trk.release_at(h));
+	}
+}
+
+// ------------------------------------------------------
+
 pma::Track3D* pma::ProjectionMatchingAlg::buildSegment(
 	const std::vector< art::Ptr<recob::Hit> >& hits_1,
 	const std::vector< art::Ptr<recob::Hit> >& hits_2) const
