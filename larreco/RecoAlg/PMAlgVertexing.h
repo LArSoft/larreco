@@ -51,6 +51,8 @@ public:
 	std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > >
 		getVertices(const pma::TrkCandidateColl& tracks, bool onlyBranching = false) const;
 
+	std::vector< std::pair< TVector3, size_t > > getKinks(const pma::TrkCandidateColl& tracks) const;
+
 private:
 	std::vector< pma::VtxCandidate > firstPassCandidates(void);
 	std::vector< pma::VtxCandidate > secondPassCandidates(void);
@@ -86,6 +88,9 @@ private:
 	// Parameters used in the algorithm
 
 	double fMinTrackLength;   // min. length of tracks used to find vtx candidates (short tracks attached later)
+
+	bool fFindKinks;          // detect significant kinks on long tracks (need min. 5 nodes to collect angle stats)
+    double fKinkMinDeg;       // min. angle [deg] in XY of a kink
 
 	// just to remember:
 	//double fInputVtxDist2D; // use vtx given at input if dist. [cm] to track in all 2D projections is below this max. value
