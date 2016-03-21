@@ -128,7 +128,7 @@ namespace hit {
     fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
     fMinSigInd          = p.get< double       >("MinSigInd");
     fMinSigCol          = p.get< double       >("MinSigCol"); 
-    fIncludeMoreTail    = p.get< double       >("IncludeMoreTail");
+    fIncludeMoreTail    = p.get< double       >("IncludeMoreTail", 0.);
     fIndWidth           = p.get< double       >("IndWidth");  
     fColWidth           = p.get< double       >("ColWidth");
     fIndMinWidth        = p.get< double       >("IndMinWidth");
@@ -345,7 +345,7 @@ namespace hit {
             peakHeight.push_back(madc);	    
             endTimes.push_back(bin-1);
             end = bin-1;
-            
+
             totSig = 0;
             myrms  = 0;
             mynorm = 0;
@@ -359,9 +359,9 @@ namespace hit {
             }
             charge.push_back(totSig);
             myrms/=mynorm;
-            if((end-start)!=0)
+            if((end-start+2*std::ceil(fIncludeMoreTail*(end-start)+1))!=0)
             {
-              myrms/=(float)(std::abs(end-start));
+              myrms/=(float)(end-start+2*std::ceil(fIncludeMoreTail*(end-start)+1));
               hitrms.push_back(sqrt(myrms));
             }
             else
@@ -373,6 +373,7 @@ namespace hit {
             //  nohits++;
           }// end region
           //nohits = 0;
+
           start = 0;
           end = 0;
           bin++;
@@ -439,6 +440,12 @@ namespace hit {
             );
         hcol.emplace_back(hit.move(), digitVec);
 
+        /*
+        if(evt.event()==21&&channel==2022)
+        {
+          std::cout << position << std::endl;
+        }*/
+
         ++hitIndex;
       }//end loop over hits
       //hitIndex += numHits;	
@@ -450,6 +457,7 @@ namespace hit {
 
 
     // move the hit collection and the associations into the event
+
     hcol.put_into(evt);
   }
 
