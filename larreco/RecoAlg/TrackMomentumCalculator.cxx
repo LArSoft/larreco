@@ -43,7 +43,7 @@ double my_mcs_chi2( const double *x )
   result += 2.0/( 4.6 )*theta0; // *TMath::Log( 1.0/14.0 );
   
   if ( isnan( float(result) ) || isinf( float(result) ) ) { 
-    LOG_DEBUG(("TrackMomentumCalculator")<<" Is nan in my_mcs_chi2 ! ";
+    LOG_DEBUG("TrackMomentumCalculator")<<" Is nan in my_mcs_chi2 ! ";
     return -1; }
     
   return result;
