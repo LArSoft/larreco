@@ -360,4 +360,19 @@ standard_magdriftana:
  LArGeantModuleLabel:   "largeant"
 }
 
+standard_neutrinotrackingeff:
+{
+      module_type:      	"NeutrinoTrackingEff"
+      MCTruthModuleLabel:	"generator"
+      TrackModuleLabel: 	"pandora"
+      NeutrinoPDGcode:		14
+      LeptonPDGcode:		13
+      MaxNeutrinoE:		25.0
+      MaxLeptonP:               3.0
+      SaveMCTree:		false
+      FidVolCutX:               10
+      FidVolCutY:               10
+      FidVolCutZ:               10
+}
+
 END_PROLOG

@@ -69,5 +69,8 @@ microboone_pmalgtrackmaker.ClusterModuleLabel:  "cccluster"
 microboone_pmalgtrackmaker.FlipDownward:        true
 
 #microboone_cosmicfinder: @local::standard_cosmicfinder
+microboone_neutrinotrackingeff: @local::standard_neutrinotrackingeff
+microboone_neutrinotrackingeff.MaxNeutrinoE: 5
+microboone_neutrinotrackingeff.MaxLeptonP:   3
 
 END_PROLOG
