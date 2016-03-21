@@ -511,7 +511,8 @@ void pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) co
 	{
 		pma::Track3D* trk = trk_input[t].Track();
 
-		int kinkIdx = -1, nnodes = 0;
+		//int kinkIdx = -1;
+		int nnodes = 0;
 		double mean = 0.0, stdev = 0.0, min = 180.0;
 		for (size_t n = 2; n < trk->Nodes().size() - 2; ++n)
 		{
