@@ -48,7 +48,10 @@ public:
 	/// Check fIsVertex flag.
 	bool IsVertex(void) const { return fIsVertex; }
 	void SetVertex(bool state) { fIsVertex = state; }
-	void SetVertexToBranching(void) { fIsVertex = IsBranching(); }
+	void SetVertexToBranching(bool setAllNodes)
+	{
+		if (setAllNodes || !fIsVertex) fIsVertex = IsBranching();
+	}
 
 	std::vector< pma::Track3D* > GetBranches(void) const;
 

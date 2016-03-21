@@ -157,7 +157,8 @@ public:
 	double GetObjFunction(float penaltyFactor = 1.0F) const;
 
 	/// Main optimization method.
-	double Optimize(int nNodes = -1, double eps = 0.01, bool selAllHits = true);
+	double Optimize(int nNodes = -1, double eps = 0.01,
+		bool selAllHits = true, bool setAllNodes = true);
 
 	void SortHitsInTree(bool skipFirst = false);
 	void MakeProjectionInTree(bool skipFirst = false);

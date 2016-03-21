@@ -72,6 +72,9 @@ private:
 	/// Split track and add vertex and reoptimize when dQ/dx step detected.
 	void splitMergedTracks(pma::TrkCandidateColl& trk_input) const;
 
+	/// Remove penalty on the angle if kink detected and reopt track.
+	void findKinksOnTracks(pma::TrkCandidateColl& trk_input) const;
+
 	pma::TrkCandidateColl fOutTracks;
 	pma::TrkCandidateColl fShortTracks;
 	pma::TrkCandidateColl fEmTracks;

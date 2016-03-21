@@ -1576,7 +1576,7 @@ double pma::Track3D::GetObjFunction(float penaltyFactor) const
 	return sum / fNodes.size();
 }
 
-double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits)
+double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits, bool setAllNodes)
 {
 	if (!fNodes.size()) { mf::LogError("pma::Track3D") << "Track3D not initialized."; return 0.0; }
 
@@ -1588,7 +1588,7 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits)
 
 	// set branching flag only at the beginning, optimization is not changin that
 	// and new nodes are not branching
-	for (auto n : fNodes) n->SetVertexToBranching();
+	for (auto n : fNodes) n->SetVertexToBranching(setAllNodes);
 
 	bool stop = false;
 	fMinSegStop = fSegments.size();

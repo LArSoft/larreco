@@ -250,6 +250,7 @@ size_t pma::PMAlgVertexing::run(pma::TrkCandidateColl & trk_input)
 	if (trk_input.size() < 2)
 	{
 		mf::LogWarning("pma::PMAlgVertexing") << "need min two source tracks!";
+		//findKinksOnTracks(trk_input);
 		return 0;
 	}
 
@@ -297,13 +298,12 @@ size_t pma::PMAlgVertexing::run(pma::TrkCandidateColl & trk_input)
 	}
 	else mf::LogVerbatim("pma::PMAlgVertexing") << " ...no tracks.";
 
-	//std::cout << " collect tracks" << std::endl;
 	collectTracks(trk_input);
 
-	//std::cout << " merge broken" << std::endl;
 	mergeBrokenTracks(trk_input);
 
-	//std::cout << " run done" << std::endl;
+	//findKinksOnTracks(trk_input);
+
 	return nvtx;
 }
 // ------------------------------------------------------
@@ -498,6 +498,36 @@ void pma::PMAlgVertexing::splitMergedTracks(pma::TrkCandidateColl & trk_input) c
 	while (t < trk_input.size())
 	{
 		t++;
+	}
+}
+// ------------------------------------------------------
+
+void pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) const
+{
+	if (trk_input.size() < 1) return;
+
+	mf::LogVerbatim("pma::PMAlgVertexing") << "Find kinks on tracks, reopt with no penalty on angle where kinks.";
+	for (size_t t = 0; t < trk_input.size(); ++t)
+	{
+		pma::Track3D* trk = trk_input[t].Track();
+
+		int kinkIdx = -1, nnodes = 0;
+		double mean = 0.0, stdev = 0.0, min = 180.0;
+		for (size_t n = 2; n < trk->Nodes().size() - 2; ++n)
+		{
+			if (trk->Nodes()[n]->IsVertex()) continue;
+			nnodes++;
+
+			double a = std::acos(trk->Nodes()[n]->SegmentCosTransverse());
+			mean += a; stdev += a * a;
+			if (a < min) min = a;
+
+			mf::LogVerbatim("pma::PMAlgVertexing") << "   angle:" << a;
+		}
+		mean /= nnodes; stdev /= nnodes;
+		stdev -= mean * mean;
+
+		mf::LogVerbatim("pma::PMAlgVertexing") << "---------";
 	}
 }
 // ------------------------------------------------------
