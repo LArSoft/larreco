@@ -106,7 +106,8 @@ namespace cluster {
     fTagAllTraj           = pset.get< bool  >("TagAllTraj", false);
     fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
     fShowerPrtPlane       = pset.get< short >("ShowerPrtPlane", -1);
-    fFindVertices     = pset.get< bool  >("FindVertices", false);
+    fFind2DVertices       = pset.get< bool  >("Find2DVertices", false);
+    fVertex3DChiCut       = pset.get< float  >("Vertex3DChiCut", -1);
     fMaxVertexTrajSep     = pset.get< std::vector<float>>("MaxVertexTrajSep");
     
     fDebugPlane         = pset.get< int  >("DebugPlane", -1);
@@ -124,7 +125,11 @@ namespace cluster {
     if(fMinPtsFit.size() != fMinPts.size()) badinput = true;
     if(fMaxVertexTrajSep.size() != fMinPts.size()) badinput = true;
     if(fLAStep.size() != fMinPts.size()) badinput = true;
-   if(badinput) throw art::Exception(art::errors::Configuration)<< "TrajClusterAlg: Bad input from fcl file. Vector lengths are not the same";
+    if(badinput) throw art::Exception(art::errors::Configuration)<< "TrajClusterAlg: Bad input from fcl file. Vector lengths are not the same";
+    
+    if(kAlgBitSize != AlgBitNames.size())
+      throw art::Exception(art::errors::Configuration)<<"kAlgBitSize "<<kAlgBitSize<<" != AlgBitNames size "<<AlgBitNames.size()<<"\n";
+
     
   } // reconfigure
   
@@ -172,7 +177,7 @@ namespace cluster {
     // TODO Insert hit sorting code here
     
     std::cout<<"Event "<<evt.event()<<"\n";
-    
+
     fQuitAlg = false;
     fIsRealData = evt.isRealData();
     
@@ -185,19 +190,18 @@ namespace cluster {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
         fCstat = tpcid.Cryostat;
         fTpc = tpcid.TPC;
+        // Calculate fScaleF, the scale factor to convert a tick into
+        // Wire Spacing Equivalent (WSE) units where the wire spacing in this plane = 1
+        raw::ChannelID_t channel = fHits[0]->Channel();
+        float wirePitch = geom->WirePitch(geom->View(channel));
+        float tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
+        tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+        fScaleF = tickToDist / wirePitch;
         // fill the WireHitRange vector with first/last hit on each wire
         // dead wires and wires with no hits are flagged < 0
         GetHitRange();
         // no hits on this plane?
         if(fFirstWire == fLastWire) continue;
-        // This assumes (reasonably...) that all planes have the same wire pitch, sampling rate, etc
-        raw::ChannelID_t channel = fHits[0]->Channel();
-        // get the scale factor to convert dTick/dWire to dX/dU. This is used
-        // to make the kink and merging cuts
-        float wirePitch = geom->WirePitch(geom->View(channel));
-        float tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
-        tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-        fScaleF = tickToDist / wirePitch;
 
         if(fMode < 2) {
           fStepDir = fMode;
@@ -248,6 +252,8 @@ namespace cluster {
 //          AdjudicateTrials(reAnalyze);
         }
       } // fPlane
+      
+      if(fVertex3DChiCut > 0) Find3DVertices(tpcid);
       trial.clear();
       inTrialTraj.clear();
     } // tpcid
@@ -303,10 +309,7 @@ namespace cluster {
     } // studymode
 
     // convert vertex time from WSE to ticks
-    for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
-      vtx[ivx].Time /= fScaleF;
-    } // ivx
-
+    for(auto& avtx : vtx) avtx.Time /= fScaleF;
     
   } // RunTrajClusterAlg
   
@@ -629,10 +632,9 @@ namespace cluster {
           if(trajAdded) break;
         } // iht
       } // iwire
-      FindVertices();
+      Find2DVertices();
     } // fPass
     
-    CheckInTraj("RCAT1");
     if(fQuitAlg) return;
     
     // make junk trajectories using nearby un-assigned hits
@@ -640,10 +642,12 @@ namespace cluster {
       FindJunkTraj();
       // check for a major failure
       if(fQuitAlg) return;
-      FindVertices();
+      Find2DVertices();
       // check for a major failure
       if(fQuitAlg) return;
     }
+    
+//    FindHammerVertices();
     
     prt = false;
     // put MC info into the trajectory struct
@@ -652,7 +656,7 @@ namespace cluster {
     
     if(didPrt) PrintAllTraj(USHRT_MAX, USHRT_MAX);
 
-    CheckInTraj("RCAT2");
+    CheckInTraj("RCAT");
     if(fQuitAlg) return;
     
     
@@ -1104,6 +1108,7 @@ namespace cluster {
       if(work.Pts.size() > 1) UpdateTraj(work);
     }
     if(prt) PrintTrajectory(work, USHRT_MAX);
+    work.AlgMod[kJunkTj] = true;
     // Finally push it onto allTraj
     allTraj.push_back(work);
     
@@ -1266,15 +1271,6 @@ namespace cluster {
         aTrjInt.dang = dang;
         aTrjInt.vw = vw;
         aTrjInt.vt = vt;
-/* This creates too many vertices. Better to do this after a shower is identified
-        // make a vertex instead if the vertex position and the DOCA position
-        // are close && the angle difference is sufficiently large and the
-        // DOCA positions are not in the middle of either trajectory
-        if(dvtx2 < 5 && dangSig > 3 && bin1 != 1 && bin2 != 1) {
-          MakeTrajVertex(aTrjInt, bin1, bin2, madeVtx);
-          if(madeVtx) continue;;
-        }
-*/
         trjint.push_back(aTrjInt);
         if(fShowerStudy) {
           float sep = sqrt(minSep2);
@@ -1327,78 +1323,6 @@ namespace cluster {
     
   } // TagAllTraj
   
-
-  //////////////////////////////////////////
-  void TrajClusterAlg::MakeTrajVertex(TrjInt const& aTrjInt, unsigned short bin1, unsigned short bin2, bool& madeVtx)
-  {
-    // Make 2D vertex
-    madeVtx = false;
-    
-    // bin1 and bin2 are either 0, 1, or 2 which denote whether the
-    // DOCA point is in the first third, second third or last third of
-    // the trajectory points. Convert this into a index for referencing
-    // the vertex end for trajectory 1 and trajectory 2
-    unsigned short end1 = bin1 / 2;
-    unsigned short end2 = bin2 / 2;
-   
-    unsigned short itj1 = aTrjInt.itj1;
-    unsigned short itj2 = aTrjInt.itj2;
-    
-    VtxStore aVtx;
-    aVtx.Wire = aTrjInt.vw;
-    aVtx.WireErr = 1;
-    aVtx.Time = aTrjInt.vt;
-    aVtx.TimeErr = 1 * fScaleF;
-    aVtx.NTraj = 2;
-    aVtx.ChiDOF = 0;
-    aVtx.CTP = fCTP;
-    aVtx.Topo = 9;
-    vtx.push_back(aVtx);
-    unsigned short ivx = vtx.size() - 1;
-    // make the vertex - traj association
-    allTraj[itj1].Vtx[end1] = ivx;
-    allTraj[itj2].Vtx[end2] = ivx;
-    
-    // try to attach other TJs to it
-    unsigned short end, ipt, oEndPt;
-    float dw, dt, dr;
-    for(unsigned short itj = 0; itj < allTraj.size(); ++itj) {
-      if(allTraj[itj].ProcCode == USHRT_MAX) continue;
-      if(allTraj[itj].CTP != fCTP) continue;
-      for(end = 0; end < 2; ++end) {
-        if(allTraj[itj].Vtx[end] >= 0) continue;
-//        if(end == 0) { ipt = 0; } else { ipt = allTraj[itj].Pts.size() - 1; }
-        if(end == 0) { ipt = 0; } else { ipt = allTraj[itj].EndPt[1]; }
-        dw = aTrjInt.vw - allTraj[itj].Pts[ipt].Pos[0];
-        // make some rough cuts
-        if(std::abs(dw) > 3) continue;
-        dt = aTrjInt.vt - allTraj[itj].Pts[ipt].Pos[1];
-        if(std::abs(dt) > 3) continue;
-        // distance between this end and the vertex
-        dr = dw * dw + dt * dt;
-        // TODO convert this to a chisq cut
-        if(dr > 5) continue;
-        // make sure that the other end isn't closer - short trajectories
-        if(allTraj[itj].EndPt[1] < 5) {
-          if(end == 0) { oEndPt = allTraj[itj].EndPt[1]; } else { oEndPt = allTraj[itj].EndPt[0]; }
-//          if(end == 0) { oEndPt = allTraj[itj].Pts.size() - 1; } else { oEndPt = 0; }
-          dw = aTrjInt.vw - allTraj[itj].Pts[oEndPt].Pos[0];
-          dt = aTrjInt.vw - allTraj[itj].Pts[oEndPt].Pos[1];
-          if((dw * dw + dt * dt) < dr) continue;
-        } // short trajectory
-        // attach it
-        allTraj[itj].Vtx[end] = ivx;
-        ++vtx[ivx].NTraj;
-      } // end
-    } // itj
-    
-    mf::LogVerbatim("TC")<<" Made vertex "<<ivx<<" with "<<vtx[ivx].NTraj;
-   
-    madeVtx = true;
-
-    
-  } // MakeTrajVertex
-
   //////////////////////////////////////////
   void TrajClusterAlg::DefineShowerTraj(unsigned short icot, std::vector<std::vector<unsigned short>> trjintIndices)
   {
@@ -2236,7 +2160,7 @@ namespace cluster {
     
     vtxPrt = (fDebugPlane == (int)fPlane && fDebugHit < 0);
     if(vtxPrt) mf::LogVerbatim("TC")<<"vtxPrt set for plane "<<fPlane<<" in SplitTrajCrossingVertices";
-    if(vtxPrt) PrintAllTraj(USHRT_MAX, USHRT_MAX);
+    if(vtxPrt) PrintAllTraj(USHRT_MAX, 999);
     
     // Splits trajectories in allTraj that cross a vertex
     unsigned short itj, iv, nTraj = allTraj.size();
@@ -2270,16 +2194,18 @@ namespace cluster {
 
 
   //////////////////////////////////////////
-  void TrajClusterAlg::FindVertices()
+  void TrajClusterAlg::Find2DVertices()
   {
     
-    if(!fFindVertices) return;
+    if(!fFind2DVertices) return;
 
     if(allTraj.size() < 2) return;
     
     vtxPrt = (fDebugPlane == (int)fPlane && fDebugHit < 0);
-    if(vtxPrt) mf::LogVerbatim("TC")<<"vtxPrt set for plane "<<fPlane<<" in FindVertices";
-    if(vtxPrt) PrintAllTraj(USHRT_MAX, USHRT_MAX);
+    if(vtxPrt) {
+      mf::LogVerbatim("TC")<<"vtxPrt set for plane "<<fPlane<<" in Find2DVertices";
+      PrintAllTraj(USHRT_MAX, allTraj.size());
+    }
     
     unsigned short tj1, end1, endPt1, oendPt1, ivx;
     unsigned short tj2, end2, endPt2, oendPt2;
@@ -2287,12 +2213,17 @@ namespace cluster {
     short dpt;
     float wint, tint, dw1, dt1, dw2, dt2, dang, doca;
     bool sigOK;
+    float maxWire = fNumWires + 1;
+    
+    // Rough cut on dWire and dTime in WSE units
+    float firstCut = 50;
     
     unsigned short tjSize = allTraj.size();
 
     for(tj1 = 0; tj1 < tjSize; ++tj1) {
       if(allTraj[tj1].ProcCode == USHRT_MAX) continue;
       if(allTraj[tj1].CTP != fCTP) continue;
+      if(allTraj[tj1].PDG != 13) continue;
       for(end1 = 0; end1 < 2; ++end1) {
         // vertex assignment exists?
         if(allTraj[tj1].Vtx[end1] >= 0) continue;
@@ -2307,6 +2238,7 @@ namespace cluster {
         for(tj2 = tj1 + 1; tj2 < tjSize; ++tj2) {
           if(allTraj[tj2].ProcCode == USHRT_MAX) continue;
           if(allTraj[tj2].CTP != fCTP) continue;
+          if(allTraj[tj2].PDG != 13) continue;
           for(end2 = 0; end2 < 2; ++end2) {
             if(end2 == 0) {
               endPt2 = allTraj[tj2].EndPt[0];
@@ -2318,15 +2250,18 @@ namespace cluster {
             if(allTraj[tj2].Vtx[end2] >= 0) continue;
             TrajPoint& tp2 = allTraj[tj2].Pts[endPt2];
             TrajIntersection(tp1, tp2, wint, tint);
-            if(vtxPrt) mf::LogVerbatim("TC")<<"Vtx candidate tj1-tj2 "<<tj1<<"_"<<end1<<"-"<<tj2<<"_"<<end2<<" vtx pos "<<(int)wint<<":"<<(int)(tint/fScaleF);
+            // make sure this is inside the TPC
+            if(wint < 0 || wint > maxWire) continue;
+            if(tint < 0 || tint > fMaxTime) continue;
+            if(vtxPrt) mf::LogVerbatim("TC")<<"Vtx candidate tj1-tj2 "<<allTraj[tj1].ID<<"_"<<end1<<"-"<<allTraj[tj2].ID<<"_"<<end2<<" vtx pos "<<(int)wint<<":"<<(int)(tint/fScaleF);
             dw1 = wint - tp1.Pos[0];
-            if(std::abs(dw1) > fMaxVertexTrajSep[fPass]) continue;
+            if(std::abs(dw1) > firstCut) continue;
             dt1 = tint - tp1.Pos[1];
-            if(std::abs(dt1) > fMaxVertexTrajSep[fPass]) continue;
+            if(std::abs(dt1) > firstCut) continue;
             dw2 = wint - tp2.Pos[0];
-            if(std::abs(dw2) > fMaxVertexTrajSep[fPass]) continue;
+            if(std::abs(dw2) > firstCut) continue;
             dt2 = tint - tp2.Pos[1];
-            if(std::abs(dt2) > fMaxVertexTrajSep[fPass]) continue;
+            if(std::abs(dt2) > firstCut) continue;
             // make sure that the other end isn't closer
             if(PointTrajDOCA2(wint, tint, tp1) > PointTrajDOCA2(wint, tint, allTraj[tj1].Pts[oendPt1])) continue;
             if(PointTrajDOCA2(wint, tint, tp2) > PointTrajDOCA2(wint, tint, allTraj[tj2].Pts[oendPt2])) continue;
@@ -2413,14 +2348,10 @@ namespace cluster {
         allTraj[tjVtx].Vtx[tjVtxEnd] = -1;
       }
     } // ivx
-    
-    // Look for a trajectory that intersects another. Split
-    // the trajectory and make a vertex
-    FindHammerVertices();
 
     if(vtxPrt) PrintAllTraj(USHRT_MAX, USHRT_MAX);
 
-  } // FindVertices
+  } // Find2DVertices
   
   //////////////////////////////////////////
   void TrajClusterAlg::FindHammerVertices()
@@ -2429,9 +2360,9 @@ namespace cluster {
     // the trajectory and make a vertex. The convention used
     // is shown pictorially here
     // tj2  ------------------
-    // tj1         |
-    // tj1         |
-    // tj1         |
+    // tj1         /
+    // tj1        /
+    // tj1       /
     
     unsigned short itj1, end1, endPt1;
     unsigned short itj2, closePt2, ivx;
@@ -2442,40 +2373,44 @@ namespace cluster {
     bool didaSplit;
     
     for(itj1 = 0; itj1 < tjSize; ++itj1) {
-      Trajectory& tj1 = allTraj[itj1];
-      if(tj1.ProcCode == USHRT_MAX) continue;
-      if(tj1.CTP != fCTP) continue;
+      if(allTraj[itj1].ProcCode == USHRT_MAX) continue;
       // minimum length requirements
-      if(NumPtsWithCharge(tj1) < 6) continue;
+      if(NumPtsWithCharge(allTraj[itj1]) < 6) continue;
+      // Track-like
+      if(allTraj[itj1].PDG != 13) continue;
       // Check each end of tj1
       didaSplit = false;
       for(end1 = 0; end1 < 2; ++end1) {
         // vertex assignment exists?
-        if(tj1.Vtx[end1] >= 0) continue;
+        if(allTraj[itj1].Vtx[end1] >= 0) continue;
         if(end1 == 0) {
-          endPt1 = tj1.EndPt[0];
+          endPt1 = allTraj[itj1].EndPt[0];
         } else {
-          endPt1 = tj1.EndPt[1];
+          endPt1 = allTraj[itj1].EndPt[1];
         }
         for(itj2 = 0; itj2 < tjSize; ++itj2) {
           if(itj1 == itj2) continue;
           Trajectory& tj2 = allTraj[itj2];
           if(tj2.ProcCode == USHRT_MAX) continue;
-          if(tj2.CTP != fCTP) continue;
+          // require that both be in the same CTP
+          if(tj2.CTP != allTraj[itj1].CTP) continue;
           // minimum length requirements
           if(NumPtsWithCharge(tj2) < 6) continue;
-          // Find the
+          // Require no vertex associated with itj2
+          if(tj2.Vtx[0] >= 0 || tj2.Vtx[1] >= 0) continue;
+          // track-like
+          if(tj2.PDG != 13) continue;
           doca = minDOCA;
-          TrajPointTrajDOCA(tj1.Pts[endPt1], tj2, closePt2, doca);
+          TrajPointTrajDOCA(allTraj[itj1].Pts[endPt1], tj2, closePt2, doca);
           if(doca == minDOCA) continue;
           // ensure that the closest point is not near an end
           if(closePt2 < tj2.EndPt[0] + 3) continue;
           if(closePt2 > tj2.EndPt[1] - 3) continue;
           // make an angle cut
-          dang = std::abs(tj1.Pts[endPt1].Ang - tj2.Pts[closePt2].Ang);
+          dang = std::abs(allTraj[itj1].Pts[endPt1].Ang - tj2.Pts[closePt2].Ang);
           if(dang > M_PI/2) dang = M_PI - dang;
-          if(vtxPrt) mf::LogVerbatim("TC")<<"FindHammerVertices: Candidate "<<tj1.ID<<"  "<<tj2.ID<<" closePt2 "<<closePt2<<" doca "<<doca<<" dang "<<dang;
-          if(dang < 0.2) continue;
+          if(vtxPrt) mf::LogVerbatim("TC")<<"FindHammerVertices: Candidate "<<allTraj[itj1].ID<<"  "<<tj2.ID<<" closePt2 "<<closePt2<<" doca "<<doca<<" dang "<<dang;
+          if(dang < fKinkAngCut) continue;
           // we have a winner
           // create a new vertex
           VtxStore aVtx;
@@ -2496,13 +2431,17 @@ namespace cluster {
             vtx.pop_back();
             continue;
           }
-          tj1.Vtx[end1] = ivx;
+          allTraj[itj1].Vtx[end1] = ivx;
+          allTraj[itj1].AlgMod[kHammer2DVx] = true;
+          tj2.AlgMod[kHammer2DVx] = true;
+          allTraj[allTraj.size()-1].AlgMod[kHammer2DVx] = true;
           didaSplit = true;
           break;
         } // tj2
         if(didaSplit) break;
       } // end1
     } // tj1
+    
   } // FindHammerVertices
 
   //////////////////////////////////////////
@@ -2554,7 +2493,347 @@ namespace cluster {
       } // end
     } // itj
   } // AttachTrajToAVertex
+
   
+  //////////////////////////////////////
+  void TrajClusterAlg::Find3DVertices(geo::TPCID const& tpcid)
+  {
+    // Create 3D vertices from 2D vertices. 3D vertices that are matched
+    // in all three planes have Ptr2D >= 0 for all planes
+    
+    
+    geo::TPCGeo const& TPC = geom->TPC(tpcid);
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    
+    const unsigned int cstat = tpcid.Cryostat;
+    const unsigned int tpc = tpcid.TPC;
+    
+    // Y,Z limits of the detector
+    double local[3] = {0.,0.,0.};
+    double world[3] = {0.,0.,0.};
+    
+    const geo::TPCGeo &thetpc = geom->TPC(tpc, cstat);
+    thetpc.LocalToWorld(local,world);
+    // reduce the active area of the TPC by 1 cm to prevent wire boundary issues
+    float YLo = world[1]-geom->DetHalfHeight(tpc,cstat) + 1;
+    float YHi = world[1]+geom->DetHalfHeight(tpc,cstat) - 1;
+    float ZLo = world[2]-geom->DetLength(tpc,cstat)/2 + 1;
+    float ZHi = world[2]+geom->DetLength(tpc,cstat)/2 - 1;
+    
+    vtxPrt = (fDebugPlane >= 0) && (fDebugHit == 6666);
+    
+    if(vtxPrt) {
+      mf::LogVerbatim("CC")<<"Inside Find3DVertices";
+      PrintAllTraj(USHRT_MAX, allTraj.size());
+    }
+    
+    // wire spacing in cm
+    float wirePitch = geom->WirePitch(0, 1, 0, tpcid.TPC, tpcid.Cryostat);
+    
+    // fill temp vectors of 2D vertex X and X errors
+    std::vector<float> vX(vtx.size());
+    std::vector<float> vXsigma(vtx.size());
+    float vXp;
+    double ticks;
+    for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
+      if(vtx[ivx].NTraj == 0) continue;
+      geo::PlaneID iplID = DecodeCTP(vtx[ivx].CTP);
+      if(iplID.TPC != tpc || iplID.Cryostat != cstat) continue;
+      // Convert 2D vertex time error to X error
+      ticks = vtx[ivx].Time / fScaleF;
+      vX[ivx]  = detprop->ConvertTicksToX(ticks, (int)iplID.Plane, (int)tpc, (int)cstat);
+      ticks = (vtx[ivx].Time + vtx[ivx].TimeErr) / fScaleF;
+      vXp = detprop->ConvertTicksToX(ticks, (int)iplID.Plane, (int)tpc, (int)cstat);
+      vXsigma[ivx] = fabs(vXp - vX[ivx]);
+    } // ivx
+    
+    // create a array/vector of 2D vertex indices in each plane
+    std::array<std::vector<unsigned short>, 3> vIndex;
+    unsigned short indx, ipl;
+    for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) {
+      if(vtx[ivx].NTraj == 0) continue;
+      geo::PlaneID iplID = DecodeCTP(vtx[ivx].CTP);
+      if(iplID.TPC != tpc || iplID.Cryostat != cstat) continue;
+      ipl = iplID.Plane;
+      if(ipl > 2) continue;
+      indx = vIndex[ipl].size();
+      vIndex[ipl].resize(indx + 1);
+      vIndex[ipl][indx] = ivx;
+    }
+    
+    // vector of 2D vertices -> 3D vertices.
+    std::vector<short> vPtr;
+    for(unsigned short ii = 0; ii < vtx.size(); ++ii) vPtr.push_back(-1);
+    
+    // temp vector of all 2D vertex matches
+    std::vector<Vtx3Store> v3temp;
+    
+    double y = 0, z = 0;
+    TVector3 WPos = {0, 0, 0};
+    // i, j, k indicates 3 different wire planes
+    unsigned short ii, jpl, jj, kpl, kk, ivx, jvx, kvx;
+    unsigned int iWire, jWire;
+    unsigned short v3dBest = 0;
+    float xbest = 0, ybest = 0, zbest = 0;
+    float kX, kWire;
+    // compare vertices in each view
+    bool gotit = false;
+    for(ipl = 0; ipl < 2; ++ipl) {
+      for(ii = 0; ii < vIndex[ipl].size(); ++ii) {
+        ivx = vIndex[ipl][ii];
+        if(ivx > vtx.size() - 1) {
+          mf::LogError("CC")<<"Find3DVertices: bad ivx "<<ivx;
+          return;
+        }
+        // vertex has been matched already
+        if(vPtr[ivx] >= 0) continue;
+        iWire = vtx[ivx].Wire;
+        float best = fVertex3DChiCut;
+        // temp array of 2D vertex indices in each plane
+        std::array<short, 3> t2dIndex = {-1, -1, -1};
+        std::array<short, 3> tmpIndex = {-1, -1, -1};
+        for(jpl = ipl + 1; jpl < 3; ++jpl) {
+          for(jj = 0; jj < vIndex[jpl].size(); ++jj) {
+            jvx = vIndex[jpl][jj];
+            if(jvx > vtx.size() - 1) {
+              mf::LogError("CC")<<"Find3DVertices: bad jvx "<<jvx;
+              return;
+            }
+            // vertex has been matched already
+            if(vPtr[jvx] >= 0) continue;
+            jWire = vtx[jvx].Wire;
+            // new stuff
+            float dX = fabs(vX[ivx] - vX[jvx]);
+            float dXSigma = sqrt(vXsigma[ivx] * vXsigma[ivx] + vXsigma[jvx] * vXsigma[jvx]);
+            float dXChi = dX / dXSigma;
+            
+            if(vtxPrt) mf::LogVerbatim("CC")<<"Find3DVertices: ipl "<<ipl<<" ivx "<<ivx<<" ivX "<<vX[ivx]
+              <<" jpl "<<jpl<<" jvx "<<jvx<<" jvX "<<vX[jvx]<<" W:T "<<(int)vtx[jvx].Wire<<":"<<(int)vtx[jvx].Time<<" dXChi "<<dXChi<<" fVertex3DChiCut "<<fVertex3DChiCut;
+            
+            if(dXChi > fVertex3DChiCut) continue;
+            geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+            if(y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
+            WPos[1] = y;
+            WPos[2] = z;
+            kpl = 3 - ipl - jpl;
+            kX = 0.5 * (vX[ivx] + vX[jvx]);
+            kWire = -1;
+            if(TPC.Nplanes() > 2) kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
+            kpl = 3 - ipl - jpl;
+            // save this incomplete 3D vertex
+            Vtx3Store v3d;
+            v3d.ProcCode = 1;
+            tmpIndex[ipl] = ivx;
+            tmpIndex[jpl] = jvx;
+            tmpIndex[kpl] = -1;
+            v3d.Ptr2D = tmpIndex;
+            v3d.X = kX;
+            v3d.XErr = dXSigma;
+            v3d.Y = y;
+            float yzSigma = wirePitch * sqrt(vtx[ivx].WireErr * vtx[ivx].WireErr + vtx[jvx].WireErr * vtx[jvx].WireErr);
+            v3d.YErr = yzSigma;
+            v3d.Z = z;
+            v3d.ZErr = yzSigma;
+            v3d.Wire = kWire;
+            v3d.CStat = cstat;
+            v3d.TPC = tpc;
+            v3temp.push_back(v3d);
+            
+            if(vtxPrt) mf::LogVerbatim("CC")<<"Find3DVertices: 2 Plane match ivx "<<ivx<<" P:W:T "<<ipl<<":"<<(int)vtx[ivx].Wire<<":"<<(int)vtx[ivx].Time<<" jvx "<<jvx<<" P:W:T "<<jpl<<":"<<(int)vtx[jvx].Wire<<":"<<(int)vtx[jvx].Time<<" dXChi "<<dXChi<<" yzSigma "<<yzSigma;
+            
+            if(TPC.Nplanes() == 2) continue;
+            // look for a 3 plane match
+            best = fVertex3DChiCut;
+            for(kk = 0; kk < vIndex[kpl].size(); ++kk) {
+              kvx = vIndex[kpl][kk];
+              if(vPtr[kvx] >= 0) continue;
+              // Wire difference error
+              float dW = wirePitch * (vtx[kvx].Wire - kWire) / yzSigma;
+              // X difference error
+              float dX = (vX[kvx] - kX) / dXSigma;
+              float kChi = 0.5 * sqrt(dW * dW + dX * dX);
+              if(kChi < best) {
+                best = kChi;
+                xbest = (vX[kvx] + 2 * kX) / 3;
+                ybest = y;
+                zbest = z;
+                t2dIndex[ipl] = ivx;
+                t2dIndex[jpl] = jvx;
+                t2dIndex[kpl] = kvx;
+                v3dBest = v3temp.size() - 1;
+              }
+              
+              if(vtxPrt) mf::LogVerbatim("CC")<<" kvx "<<kvx<<" kpl "<<kpl
+                <<" wire "<<(int)vtx[kvx].Wire<<" kTime "<<(int)vtx[kvx].Time<<" kChi "<<kChi<<" best "<<best<<" dW "<<vtx[kvx].Wire - kWire;
+              
+            } // kk
+            if(vtxPrt) mf::LogVerbatim("CC")<<" done best = "<<best<<" fVertex3DChiCut "<<fVertex3DChiCut;
+            if(TPC.Nplanes() > 2 && best < fVertex3DChiCut) {
+              // create a real 3D vertex using the previously entered incomplete 3D vertex as a template
+              if(v3dBest > v3temp.size() - 1) {
+                mf::LogError("CC")<<"Find3DVertices: bad v3dBest "<<v3dBest;
+                return;
+              }
+              Vtx3Store v3d = v3temp[v3dBest];
+              v3d.Ptr2D = t2dIndex;
+              v3d.Wire = -1;
+              // TODO need to average ybest and zbest here with error weighting
+              v3d.X = xbest;
+              v3d.Y = ybest;
+              v3d.Z = zbest;
+              vtx3.push_back(v3d);
+              gotit = true;
+              // mark the 2D vertices as used
+              for(unsigned short jj = 0; jj < 3; ++jj) if(t2dIndex[jj] >= 0) vPtr[t2dIndex[jj]] = vtx3.size() - 1;
+              
+              if(vtxPrt) mf::LogVerbatim("CC")<<"New 3D vtx "<<vtx3.size()<<" X "<<v3d.X<<" Y "<<v3d.Y<<" Z "<<v3d.Z
+                <<" t2dIndex "<<t2dIndex[0]<<" "<<t2dIndex[1]<<" "<<t2dIndex[2]<<" best Chi "<<best;
+              
+            } // best < dRCut
+            if(gotit) break;
+          } // jj
+          if(gotit) break;
+        } // jpl
+        if(gotit) break;
+      } // ii
+    } // ipl
+    
+    // Store incomplete 3D vertices but ignore those that are part of a complete 3D vertex
+    unsigned short vsize = vtx3.size();
+    unsigned short ninc = 0;
+    for(unsigned short it = 0; it < v3temp.size(); ++it) {
+      bool keepit = true;
+      for(unsigned short i3d = 0; i3d < vsize; ++i3d) {
+        for(unsigned short plane = 0; plane < 3; ++plane) {
+          if(v3temp[it].Ptr2D[plane] == vtx3[i3d].Ptr2D[plane]) {
+            keepit = false;
+            break;
+          }
+        } // plane
+        if(!keepit) break;
+      } // i3d
+      if(keepit) {
+        vtx3.push_back(v3temp[it]);
+        ++ninc;
+      }
+    } // it
+    
+    // Modify Ptr2D for 2-plane detector
+    if(TPC.Nplanes() == 2) {
+      for(unsigned short iv3 = 0; iv3 < vtx3.size(); ++iv3) {
+        vtx3[iv3].Ptr2D[2] = 666;
+      } //iv3
+    } // 2 planes
+    
+    if(vtxPrt) {
+       for(unsigned short it = 0; it < vtx3.size(); ++it) {
+        mf::LogVerbatim("CC")<<"vtx3 "<<it<<" Ptr2D "<<vtx3[it].Ptr2D[0]<<" "<<vtx3[it].Ptr2D[1]<<" "<<vtx3[it].Ptr2D[2]
+        <<" wire "<<vtx3[it].Wire;
+      }
+    }
+    
+    // Try to complete incomplete vertices
+    if(ninc > 0) CompleteIncomplete3DVertices(tpcid);
+    
+  } // Find3DVertices
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::CompleteIncomplete3DVertices(geo::TPCID const& tpcid)
+  {
+    // Look for trajectories in a plane that lack a 2D vertex as listed in
+    // Ptr2D that are near the projected wire. This may trigger splitting trajectories,
+    // assigning them to a new 2D vertex and completing 3D vertices
+
+    geo::TPCGeo const& TPC = geom->TPC(tpcid);
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
+    unsigned short ipl, itj, mPlane, closePt;
+    unsigned short nEndPt, ii, end, aVtxIndx;
+    unsigned short dpt;
+    CTP_t mCTP;
+    // A TP for the missing 2D vertex
+    TrajPoint tp;
+    // 2D vertex
+    VtxStore aVtx;
+    float doca, maxdoca = 6;
+    // list of candidate trajectory indices and ipt index
+    std::vector<std::pair<unsigned short, unsigned short>> mTjs;
+    for(auto& vx3 : vtx3) {
+      // check for a completed 3D vertex
+      if(vx3.Wire < 0) continue;
+      mPlane = USHRT_MAX;
+      for(ipl = 0; ipl < TPC.Nplanes(); ++ipl) {
+        if(vx3.Ptr2D[ipl] >= 0) continue;
+        mPlane = ipl;
+        break;
+      } // ipl
+      if(mPlane == USHRT_MAX) continue;
+      mCTP = EncodeCTP(vx3.CStat, vx3.TPC, mPlane);
+      // X position of the purported missing vertex
+      tp.Pos[0] = vx3.Wire;
+      tp.Pos[1] = detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPC, vx3.CStat) * fScaleF;
+      for(itj = 0; itj < allTraj.size(); ++itj) {
+        if(allTraj[itj].CTP != mCTP) continue;
+        if(allTraj[itj].ProcCode == USHRT_MAX) continue;
+        if(allTraj[itj].PDG != 13) continue;
+        doca = maxdoca;
+        // find the closest distance between the vertex and the trajectory
+        TrajPointTrajDOCA(tp, allTraj[itj], closePt, doca);
+        if(doca == maxdoca) continue;
+        mf::LogVerbatim("TC")<<"CI3DV itj ID "<<allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
+        mTjs.push_back(std::make_pair(itj, closePt));
+      } // itj
+      // handle the case where there are one or more TJs with TPs near the ends
+      // that make a vertex (a failure by Find2DVertices)
+      if(mTjs.size() == 0) continue;
+      aVtxIndx = vtx.size();
+      aVtx.CTP = mCTP;
+      aVtx.Topo = 6;
+      aVtx.NTraj = mTjs.size();
+      aVtx.Wire = tp.Pos[0];
+      aVtx.Time = tp.Pos[1];
+      nEndPt = 0;
+      for(ii = 0; ii < mTjs.size(); ++ii) {
+        itj = mTjs[ii].first;
+        closePt = mTjs[ii].second;
+        // determine which end is the closest
+        if(fabs(closePt - allTraj[itj].EndPt[0]) < fabs(closePt - allTraj[itj].EndPt[1])) {
+          // closest to the beginning
+          end = 0;
+        } else {
+          // closest to the end
+          end = 1;
+        }// closest to the end
+        dpt = fabs(closePt - allTraj[itj].EndPt[end]);
+        if(dpt < 4) {
+          // close to an end
+          allTraj[itj].Vtx[end] = aVtxIndx;
+          allTraj[itj].AlgMod[kComp3DVx] = true;
+          ++nEndPt;
+        } else {
+          // closePt is not near an end, so split the trajectory
+          SplitAllTraj(itj, closePt, aVtxIndx);
+          if(!fSplitTrajOK) {
+            mf::LogVerbatim("TC")<<"SplitAllTraj failed ";
+            // failure occurred. Recover
+            for(auto mTj : mTjs) {
+              unsigned short jtj = mTj.first;
+              if(allTraj[jtj].Vtx[0] == aVtxIndx) allTraj[jtj].Vtx[0] = -1;
+              if(allTraj[jtj].Vtx[1] == aVtxIndx) allTraj[jtj].Vtx[1] = -1;
+            } // itj
+            continue;
+          } // !fSplitTrajOK
+        } // closePt is not near an end, so split the trajectory
+        allTraj[itj].AlgMod[kComp3DVx] = true;
+        itj = allTraj.size() - 1;
+        allTraj[itj].AlgMod[kComp3DVx] = true;
+      } // ii
+      vtx.push_back(aVtx);
+      vx3.Ptr2D[mPlane] = aVtxIndx;
+      mf::LogVerbatim("TC")<<"CompleteIncomplete3DVertices: new 2D vtx "<<aVtxIndx<<" points to 3D vtx ";
+    } // vx3
+  } // CompleteIncomplete3DVertices
+
   //////////////////////////////////////////
   void TrajClusterAlg::SplitAllTraj(unsigned short itj, unsigned short pos, unsigned short ivx)
   {
@@ -2702,6 +2981,14 @@ namespace cluster {
   } // TrajPointHitSep2
   
   //////////////////////////////////////////
+  float TrajClusterAlg::PointTrajSep2(float wire, float time, TrajPoint const& tp)
+  {
+    float dw = wire - tp.Pos[0];
+    float dt = time - tp.Pos[1];
+    return dw * dw + dt * dt;
+  }
+  
+  //////////////////////////////////////////
   float TrajClusterAlg::PointTrajDOCA(unsigned int iht, TrajPoint const& tp)
   {
     float wire = fHits[iht]->WireID().Wire;
@@ -2778,8 +3065,6 @@ namespace cluster {
     
     unsigned int step;
     float stepSize;
-    float maxPos0 = fNumWires;
-    float maxPos1 = fMaxTime * fScaleF;
     float onWire, nMissedWires;
     
     // decide on the number of steps expected without adding a hit
@@ -2802,8 +3087,8 @@ namespace cluster {
       tp.Dir = ltp.Dir;
       if(prt) mf::LogVerbatim("TC")<<"StepCrawl "<<step<<" Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" Dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" stepSize "<<stepSize;
       // hit the boundary of the TPC?
-      if(tp.Pos[0] < 0 || tp.Pos[0] > maxPos0) break;
-      if(tp.Pos[1] < 0 || tp.Pos[1] > maxPos1) break;
+      if(tp.Pos[0] < 0 || tp.Pos[0] > fMaxWire) break;
+      if(tp.Pos[1] < 0 || tp.Pos[1] > fMaxTime) break;
       // remove the old hits and other stuff
       tp.Hits.clear();
       tp.UseHit.clear();
@@ -2821,6 +3106,8 @@ namespace cluster {
       if(work.Pts[lastPt].Hits.size() == 0) {
         // No close hits added.
         lastPtWithHits = work.EndPt[1];
+        // TODO: TrajPointSeparation measures the distance along the trajectory but DeadWireCount
+        // is the distance in the wire direction...
         nMissedWires = TrajPointSeparation(work.Pts[lastPtWithHits], ltp) - DeadWireCount(ltp.Pos[0], work.Pts[lastPtWithHits].Pos[0]);
         if(nMissedWires > fMaxWireSkipNoSignal) {
           if(prt)  mf::LogVerbatim("TC")<<" No signal. Missed wires "<<nMissedWires<<" user cut "<<fMaxWireSkipNoSignal;
@@ -2910,12 +3197,13 @@ namespace cluster {
       // check for a kink. Stop crawling if one is found
       GottaKink(work, killPts);
       if(killPts > 0) keepGoing = false;
-      
+/*
       // testing
       if(work.Pts.size() == 6 && MaybeDeltaRay(work)) {
         mf::LogVerbatim("TC")<<"Might be\n";
         PrintTrajectory(work, USHRT_MAX);
        }
+*/
       // See if the Chisq/DOF exceeds the maximum.
       // UpdateTraj should have reduced the number of points fit
       // as much as possible for this pass, so this trajectory is in trouble.
@@ -3128,6 +3416,7 @@ namespace cluster {
         SetEndPoints(work);
         fCheckWorkModified = true;
         work.Pts.resize(newSize);
+        work.AlgMod[kCWKink] = true;
         return;
       }
     } // work.Pts.size() > 9
@@ -3147,18 +3436,50 @@ namespace cluster {
       for(ipt = newSize; ipt < work.Pts.size(); ++ipt) UnsetUsedHits(work.Pts[ipt]);
       SetEndPoints(work);
       fCheckWorkModified = true;
+      work.AlgMod[kCWStepChk] = true;
       work.Pts.resize(newSize);
       return;
     } // newSize < work.Pts.size()
     
-    CheckManyUnusedHits();
+    CheckHiDeltas();
+    
+    CheckHiMultUnusedHits();
     
   } // CheckWork
   
   ////////////////////////////////////////////////
-  void TrajClusterAlg::CheckManyUnusedHits()
+  void TrajClusterAlg::CheckHiDeltas()
   {
-    // Check for many unused hits in work and try to use them
+    // Mask off hits at the beginning of the work trajectory if
+    // Delta is too high
+    
+    // find the first value of delta RMS that is not the default value
+    unsigned short ipt, usePt = USHRT_MAX;
+    for(ipt = work.EndPt[0] + fNPtsAve + 3; ipt < work.EndPt[1]; ++ipt) {
+      if(work.Pts[ipt].Chg > 0 && work.Pts[ipt].DeltaRMS > 0 && work.Pts[ipt].DeltaRMS != 0.02) {
+        usePt = ipt;
+        break;
+      }
+    } // ipt
+    if(usePt == USHRT_MAX) return;
+    
+    float pull;
+    for(ipt = work.EndPt[0]; ipt < work.EndPt[0] + fNPtsAve; ++ipt) {
+      pull = work.Pts[ipt].Delta / work.Pts[usePt].DeltaRMS;
+      if(prt) mf::LogVerbatim("TC")<<"CHD "<<ipt<<" "<<fPlane<<":"<<PrintPos(work.Pts[ipt])<<" Delta "<<work.Pts[ipt].Delta<<" pull "<<pull;
+      if(pull > 5) {
+        UnsetUsedHits(work.Pts[ipt]);
+        work.AlgMod[kHiDelta] = true;
+      }
+    } // ipt
+    if(work.AlgMod[kHiDelta] == true) SetEndPoints(work);
+    
+  } // CheckHiDeltas
+  
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::CheckHiMultUnusedHits()
+  {
+    // Check for many unused hits in high multiplicity TPs in work and try to use them
     
     // This code might do bad things to short trajectories
     if(work.Pts.size() < 10) return;
@@ -3204,7 +3525,7 @@ namespace cluster {
     // Most of the hits are used so don't try too hard
     if(fracHitsUsed < 0.2) return;
     
-    // Make a copy of work and try to include the unused hits yyy
+    // Make a copy of work and try to include the unused hits
     Trajectory newTj = work;
     unsigned short ipt;
     unsigned short iptStart = newTj.Pts.size() - 1;
@@ -3262,7 +3583,7 @@ namespace cluster {
     // See if we have masked off several TPs and there are a number of close hits that haven't
     // been added. This indicates that maybe we should be using the next pass cuts. The approach
     // here is to add the (previously excluded) hits in the fit and re-fit with next pass settings
-    if(work.Pass < (fMinPtsFit.size()-1) && work.Pts.size() > 5 && nMasked > 1 && nClose < 3 * nMasked) {
+    if(work.Pass < (fMinPtsFit.size()-1) && work.Pts.size() > 10 && nMasked > 1 && nClose < 3 * nMasked) {
       // set all of the close hits used for the last TPs. This is a bit scary since we
       // aren't sure that all of these hits are the right ones
       for(ii = 0; ii < work.Pts.size(); ++ii) {
@@ -3493,158 +3814,7 @@ namespace cluster {
     if(itmp < 2) itmp = 2;
     return itmp;
   }
-/*
-  //////////////////////////////////////////
-  void TrajClusterAlg::UpdateTraj(Trajectory& tj)
-  {
-    // Update trajectory point updatePt by projecting TP projPt to updatePt, fitting with NTPsFit hits
-    // that lie on the +(-) side if dir > 0 (dir < 0) side of updatePt
-    
-    fUpdateTrajOK = false;
-    fMaskedLastTP = false;
-    
-    if(tj.EndPt[1] < 1) return;
-    if(updatePt > work.Pts.size() - 1) return;
-    
-    TrajPoint& tp = tj.Pts[updatePt];
-    tp.FitChi = 999;
-    // assume we will fit the same number of points as the
-    // projPt + 1
-    
-    if(tp.NTPsFit < 2) return;
-    
-    // Set the TP delta before doing the fit
-    tp.Delta = PointTrajDOCA(tp.HitPos[0], tp.HitPos[1], tp);
-    UpdateAveChg(tj, updatePt, dir);
-    
-    if(tp.NTPsFit == 2) {
-      // don't bother doing a fit. Just construct the trajectory
-      std::array<float, 2> dir;
-      dir[0] = tp.HitPos[0] - tj.Pts[projPt].HitPos[0];
-      dir[1] = tp.HitPos[1] - tj.Pts[projPt].HitPos[1];
-      float nrm = sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
-      dir[0] /= nrm; dir[1] /= nrm;
-      tp.Dir = dir;
-      tp.Pos = tp.HitPos;
-      tp.FitChi = 0.01;
-      tp.AngErr = tj.Pts[projPt].AngErr;
-      fUpdateTrajOK = true;
-      return;
-     } // tp.NTPsFit == 2
-    
-    TrajPoint tpFit;
-    if(tp.NTPsFit == 3) {
-      // Handle the third trajectory point. No error calculation. Just update
-      // the position and direction
-      FitTraj(tj, updatePt, tp.NTPsFit, dir, tpFit);
-      tp.Pos = tpFit.Pos;
-      tp.Dir = tpFit.Dir;
-      tp.FitChi = tpFit.FitChi;
-      if(tp.NTPsFit == 2) {
-        // Use the starting out default angle error
-        tp.AngErr = tj.Pts[0].AngErr;
-      } else {
-        // Use the fit error
-        tp.AngErr = tpFit.AngErr;
-      }
-      if(prt) mf::LogVerbatim("TC")<<"UpdateWork: traj point "<<updatePt<<" fit pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<"  dir "<<tp.Dir[0]<<" "<<tp.Dir[1];
-      fUpdateTrajOK = true;
-      return;
-    } // tp.NTPsFit == 3
-    
-    // find the previous TP that has hits
-    unsigned short prevPtWithHits = USHRT_MAX;
-    unsigned short ii, ipt;
-    if(dir > 0) {
-      // search towards the end of tj
-      for(ipt = updatePt + 1; ipt < tj.Pts.size(); ++ii) {
-        if(tj.Pts[ipt].Chg > 0) {
-          prevPtWithHits = ipt;
-          break;
-        }
-      } // ipt
-    } else {
-      for(ii = 1; ii < tj.Pts.size(); ++ii) {
-        ipt = updatePt - ii;
-        if(tj.Pts[ipt].Chg > 0) {
-          prevPtWithHits = ipt;
-          break;
-        }
-        if(ipt == 0) break;
-      } // ii
-    } // dir < 0
-    if(prevPtWithHits == USHRT_MAX) return;
-    
-    // try to keep Chisq/DOF between 1 and 2
-    if(tj.Pts[prevPtWithHits].FitChi < 1) ++tp.NTPsFit;
-    if(tp.NTPsFit > 5 && tj.Pts[prevPtWithHits].FitChi > 2) --tp.NTPsFit;
-    // Do the fit
-    FitTraj(tj, updatePt, tp.NTPsFit, dir, tpFit);
-    if(tpFit.FitChi > 900) return;
-    tp.Pos = tpFit.Pos;
-    tp.Dir = tpFit.Dir;
-    tp.FitChi = tpFit.FitChi;
-    
-    if(tp.FitChi > 2 && tj.Pts.size() > 10) {
-      // Have a longish trajectory and chisq was a bit large.
-      // Was this a sudden occurrence and the fraction of TPs are included
-      // in the fit? If so, we should mask off this
-      // TP and keep going. If these conditions aren't met, we
-      // should reduce the number of fitted points
-      float chirat = 0;
-      if(prevPtWithHits != USHRT_MAX) chirat = tp.FitChi / tj.Pts[prevPtWithHits].FitChi;
-      fMaskedLastTP = (chirat > 1.5 && tp.NTPsFit > 0.5 * tj.Pts.size());
-      if(prt) mf::LogVerbatim("TC")<<" First fit chisq too large "<<tp.FitChi<<" prevPtWithHits chisq "<<tj.Pts[prevPtWithHits].FitChi<<" chirat "<<chirat<<" fMaskedLastTP "<<fMaskedLastTP;
-      // we should also mask off the last TP if there aren't enough hits
-      // to satisfy the minPtsFit constraint
-      //        if(!fMaskedLastTP && NumGoodWorkTPs() < fMinPtsFit[work.Pass]) fMaskedLastTP = true;
-      if(!fMaskedLastTP && NumPtsWithCharge(work) < fMinPtsFit[work.Pass]) fMaskedLastTP = true;
-      // A large chisq jump can occur if we just jumped a large block of dead wires. In
-      // this case we don't want to mask off the last TP but reduce the number of fitted points
-      if(fMaskedLastTP) {
-        float nMissedWires = std::abs(tp.HitPos[0] - tj.Pts[prevPtWithHits].HitPos[0]);
-        if(nMissedWires > 5) {
-          nMissedWires -= DeadWireCount(tp.HitPos[0], tj.Pts[prevPtWithHits].HitPos[0]);
-          fMaskedLastTP = (nMissedWires > 5);
-        } // nMissedWires > 5
-      } // fMaskedLastTP
-    } // lastTP.FitChi > 2 ...
-    
-    if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: First fit "<<tp.Pos[0]<<" "<<tp.Pos[1]<<"  dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" FitChi "<<tp.FitChi<<" fMaskedLastTP "<<fMaskedLastTP;
-    if(fMaskedLastTP) {
-      UnsetUsedHits(tp);
-      DefineHitPos(tp);
-      SetEndPoints(tj);
-      FitTraj(tj, updatePt, tp.NTPsFit, dir, tpFit);
-//      FitWork();
-      fUpdateTrajOK = true;
-      return;
-    }  else {
-      // a more gradual increase in chisq. Reduce the number of points
-      unsigned short newNTPSFit = tp.NTPsFit;
-      // reduce the number of points fit to keep Chisq/DOF < 2 adhering to the pass constraint
-      while(tp.FitChi > 2 && tp.NTPsFit > 2) {
-        if(tp.NTPsFit > 15) {
-          newNTPSFit = 0.7 * newNTPSFit;
-        } else if(tp.NTPsFit > 4) {
-          newNTPSFit -= 2;
-        } else {
-          newNTPSFit -= 1;
-        }
-        if(tp.NTPsFit < 3) newNTPSFit = 2;
-        tp.NTPsFit = newNTPSFit;
-        if(prt) mf::LogVerbatim("TC")<<"  Bad FitChi "<<tp.FitChi<<" Reduced NTPsFit to "<<tp.NTPsFit<<" tj "<<tj.Pass;
-        FitTraj(tj, updatePt, tp.NTPsFit, dir, tpFit);
-//        FitWork();
-        if(tp.NTPsFit <= fMinPtsFit[tj.Pass]) break;
-      } // tp > 2 && tp.NTPsFit > 2
-    }
-    
-    fGoodWork = true;
- 
-  } // UpdateTraj
-*/
-  
+
   //////////////////////////////////////////
   void TrajClusterAlg::UpdateTraj(Trajectory& tj)
   {
@@ -3658,10 +3828,11 @@ namespace cluster {
     TrajPoint& lastTP = tj.Pts[lastPt];
 
     // find the previous TP that was has hits (and was therefore in the fit)
-    unsigned short prevPtWithHits = USHRT_MAX;
+    unsigned short ii, prevPtWithHits = USHRT_MAX;
     unsigned short ipt;
-    for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
-      ipt = tj.Pts.size() - 1 - ii;
+    for(ii = 1; ii < tj.Pts.size(); ++ii) {
+//      ipt = tj.Pts.size() - 1 - ii;
+      ipt = lastPt - ii;
       if(tj.Pts[ipt].Chg > 0) {
         prevPtWithHits = ipt;
         break;
@@ -3754,7 +3925,7 @@ namespace cluster {
         } // lastTP.FitChi > 2 && lastTP.NTPsFit > 2
       }
       // last ditch attempt. Drop the last hit
-      if(lastTP.FitChi > 2) {
+      if(tj.Pts.size() > 2 && lastTP.FitChi > 2) {
         if(prt) mf::LogVerbatim("TC")<<"  Last try. Drop last TP "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit;
         UnsetUsedHits(lastTP);
         DefineHitPos(lastTP);
@@ -3767,6 +3938,12 @@ namespace cluster {
       if(prt) mf::LogVerbatim("TC")<<"  Fit done. Chi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit;
     } // tj.Pts.size
     
+    if(tj.Pts.size() < 3) {
+      mf::LogWarning("TC")<<"UpdateTraj tj too short "<<tj.Pts.size();
+      fUpdateTrajOK = false;
+      return;
+    }
+    
     // Don't let the angle error get too small too soon. Crawling would stop if the first
     // few hits on a low momentum wandering track happen to have a very good fit to a straight line.
     // We will do this by averaging the default starting value of AngErr of the first TP with the current
@@ -3775,13 +3952,28 @@ namespace cluster {
       float defFrac = 1 / (float)(tj.EndPt[1]);
       lastTP.AngErr = defFrac * tj.Pts[0].AngErr + (1 - defFrac) * lastTP.AngErr;
     }
-
-    // update the first traj point if this point is in the fit
-    if(lastTP.NTPsFit == lastPt+1) {
-      tj.Pts[0].AveChg = lastTP.AveChg;
-      tj.Pts[0].Ang = lastTP.Ang;
-      tj.Pts[0].AngErr = lastTP.AngErr;
-    }
+    
+    // put the fit result into all previous points that
+    // were in the fit
+    unsigned short cnt = 0;
+    TrajPoint tp;
+    for(ii = 1; ii < tj.Pts.size(); ++ii) {
+      ipt = lastPt - ii;
+      if(tj.Pts[ipt].Chg > 0) {
+        tj.Pts[ipt].Dir = lastTP.Dir;
+        tj.Pts[ipt].Ang = lastTP.Ang;
+        tj.Pts[ipt].AngErr = lastTP.AngErr;
+        tp = lastTP;
+        MoveTPToWire(tp, tj.Pts[ipt].Pos[0]);
+        tj.Pts[ipt].Pos[1] = tp.Pos[1];
+        tj.Pts[ipt].Delta = PointTrajDOCA(tj.Pts[ipt].HitPos[0], tj.Pts[ipt].HitPos[1], tj.Pts[ipt]);
+        tj.Pts[ipt].NTPsFit = lastTP.NTPsFit;
+        tj.Pts[ipt].FitChi = lastTP.FitChi;
+        ++cnt;
+      }
+      if(cnt == lastTP.NTPsFit) break;
+      if(ipt == 0) break;
+    } // ii
 
     UpdateDeltaRMS(tj);
 
@@ -4237,7 +4429,7 @@ namespace cluster {
     } // ipt
     work.ID = trID;
     allTraj.push_back(work);
-    if(prt) mf::LogVerbatim("TC")<<"StoreWork trID "<<trID<<" CTP "<<work.CTP;
+    if(prt) mf::LogVerbatim("TC")<<"StoreWork trID "<<trID<<" CTP "<<work.CTP<<" EndPts "<<work.EndPt[0]<<" "<<work.EndPt[1];
     
   } // StoreWork
 
@@ -4509,7 +4701,7 @@ namespace cluster {
   //////////////////////////////////////////
   void TrajClusterAlg::PrintHeader()
   {
-    mf::LogVerbatim("TC")<<"TRP  CTP Ind  Stp      W:T      Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q  QRat    AveQ FitChi NTPF  Hits ";
+    mf::LogVerbatim("TC")<<"TRP  CTP Ind  Stp      W:Tick   Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q  QRat    AveQ FitChi NTPF  Hits ";
   } // PrintHeader
 
   ////////////////////////////////////////////////
@@ -4522,7 +4714,7 @@ namespace cluster {
     myprt<<std::setw(3)<<tp.CTP;
     myprt<<std::setw(4)<<ipt;
     myprt<<std::setw(5)<<tp.Step;
-    myprt<<std::setw(7)<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]; // W:T
+    myprt<<std::setw(7)<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]/fScaleF; // W:T
     if(tp.Pos[1] < 10) myprt<<"  "; if(tp.Pos[1] < 100) myprt<<" "; if(tp.Pos[1] < 1000) myprt<<" ";
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Delta;
 /*
@@ -4958,7 +5150,7 @@ namespace cluster {
     unsigned int wire = std::nearbyint(tp.Pos[0]);
     unsigned int time = std::nearbyint(tp.Pos[1]/fScaleF);
     return std::to_string(wire) + ":" + std::to_string(time);
-  } // PrintHit
+  } // PrintPos
 
   /////////////////////////////////////////
   bool TrajClusterAlg::SignalPresent(TrajPoint const& tp)
@@ -5080,7 +5272,9 @@ namespace cluster {
     fFirstHit = 0;
     geo::PlaneID planeID = DecodeCTP(fCTP);
     fNumWires = geom->Nwires(planeID.Plane, planeID.TPC, planeID.Cryostat);
-    fMaxTime = (float)detprop->NumberTimeSamples();
+    fMaxWire = fNumWires + 0.5;
+//    fMaxTick = (float)detprop->NumberTimeSamples();
+    fMaxTime = (float)detprop->NumberTimeSamples() * fScaleF;
     WireHitRange.resize(fNumWires + 1);
     
     // These will be re-defined later
