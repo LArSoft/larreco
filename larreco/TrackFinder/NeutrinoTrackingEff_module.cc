@@ -533,10 +533,10 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     const simb::MCParticle *MCpion_minus_reco = NULL;
     for(int i=0; i<n_recoTrack; i++) {
        art::Ptr<recob::Track> track = tracklist[i];
-       const TVector3 tmp_track_vtx = track->Vertex();
-       double track_vtx[4] ={tmp_track_vtx[0], tmp_track_vtx[1], tmp_track_vtx[2], -999};
-       bool track_isFiducial = insideFV( track_vtx );
-       if( !track_isFiducial ) continue;
+//       const TVector3 tmp_track_vtx = track->Vertex();
+//       double track_vtx[4] ={tmp_track_vtx[0], tmp_track_vtx[1], tmp_track_vtx[2], -999};
+//       bool track_isFiducial = insideFV( track_vtx );
+//       if( !track_isFiducial ) continue;
        std::vector<art::Ptr<recob::Hit>> all_trackHits = track_hits.at(i);  
        double tmpEfrac = 0;
        const simb::MCParticle *particle;
