@@ -25,6 +25,9 @@ void pma::PMAlgVertexing::reconfigure(const fhicl::ParameterSet& pset)
 {
 	fMinTrackLength = pset.get< double >("MinTrackLength");
 
+	fFindKinks = pset.get< bool >("FindKinks");
+	fKinkMinDeg = pset.get< double >("KinkMinDeg");
+
 	//fInputVtxDist2D = pset.get< double >("InputVtxDist2D");
 	//fInputVtxDistY = pset.get< double >("InputVtxDistY");
 }
@@ -250,7 +253,7 @@ size_t pma::PMAlgVertexing::run(pma::TrkCandidateColl & trk_input)
 	if (trk_input.size() < 2)
 	{
 		mf::LogWarning("pma::PMAlgVertexing") << "need min two source tracks!";
-		//findKinksOnTracks(trk_input);
+		if (fFindKinks) findKinksOnTracks(trk_input);
 		return 0;
 	}
 
@@ -302,7 +305,7 @@ size_t pma::PMAlgVertexing::run(pma::TrkCandidateColl & trk_input)
 
 	mergeBrokenTracks(trk_input);
 
-	//findKinksOnTracks(trk_input);
+	if (fFindKinks) findKinksOnTracks(trk_input);
 
 	return nvtx;
 }
@@ -486,6 +489,7 @@ void pma::PMAlgVertexing::mergeBrokenTracks(pma::TrkCandidateColl & trk_input) c
 			}
 		}
 	}
+	mf::LogVerbatim("pma::PMAlgVertexing") << "-------- done --------";
 }
 // ------------------------------------------------------
 
@@ -499,6 +503,7 @@ void pma::PMAlgVertexing::splitMergedTracks(pma::TrkCandidateColl & trk_input) c
 	{
 		t++;
 	}
+	mf::LogVerbatim("pma::PMAlgVertexing") << "-------- done --------";
 }
 // ------------------------------------------------------
 
@@ -506,29 +511,55 @@ void pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) co
 {
 	if (trk_input.size() < 1) return;
 
+	const double _PI = 3.141592653589793238463;
 	mf::LogVerbatim("pma::PMAlgVertexing") << "Find kinks on tracks, reopt with no penalty on angle where kinks.";
 	for (size_t t = 0; t < trk_input.size(); ++t)
 	{
 		pma::Track3D* trk = trk_input[t].Track();
+		if (trk->Nodes().size() < 5) continue;
 
-		//int kinkIdx = -1;
-		int nnodes = 0;
-		double mean = 0.0, stdev = 0.0, min = 180.0;
-		for (size_t n = 2; n < trk->Nodes().size() - 2; ++n)
+		bool kinkFound = true;
+		while (kinkFound)
 		{
-			if (trk->Nodes()[n]->IsVertex()) continue;
-			nnodes++;
+			int kinkIdx = -1, nnodes = 0;
+			double mean = 0.0, stdev = 0.0, min = 1.0, max_a = 0.0;
+			for (size_t n = 1; n < trk->Nodes().size() - 1; ++n)
+			{
+				if (trk->Nodes()[n]->IsVertex()) continue;
+				nnodes++;
 
-			double a = std::acos(trk->Nodes()[n]->SegmentCosTransverse());
-			mean += a; stdev += a * a;
-			if (a < min) min = a;
+				double c = -trk->Nodes()[n]->SegmentCosTransverse();
+				double a = 180.0 * (1 - std::acos(trk->Nodes()[n]->SegmentCosTransverse()) / _PI);
+				mean += c; stdev += c * c;
+				if (c < min)
+				{
+					if ((n > 1) && (n < trk->Nodes().size() - 2)) kinkIdx = n;
+					min = c; max_a = a;
+				}
+				//mf::LogVerbatim("pma::PMAlgVertexing") << "   c:" << c << " angle:" << a;
+			}
 
-			mf::LogVerbatim("pma::PMAlgVertexing") << "   angle:" << a;
+			kinkFound = false;
+			if ((nnodes > 2) && (kinkIdx > 0) && (max_a > fKinkMinDeg))
+			{
+				mean /= nnodes; stdev /= nnodes;
+				stdev -= mean * mean;
+
+				double thr = 1.0 - 4.0 * stdev;
+				//mf::LogVerbatim("pma::PMAlgVertexing") << "   std:" << stdev << " 1-4s:" << thr << " min:" << min;
+
+				if (min < thr)
+				{
+					mf::LogVerbatim("pma::PMAlgVertexing") << "   kink a:" << max_a << "deg";
+					trk->Nodes()[kinkIdx]->SetVertex(true);
+
+					trk->Optimize(0, 1.0e-5, false, false); // in principle could be reopt of a full tree...
+					kinkFound = true;
+				}
+			}
 		}
-		mean /= nnodes; stdev /= nnodes;
-		stdev -= mean * mean;
 
-		mf::LogVerbatim("pma::PMAlgVertexing") << "---------";
+		mf::LogVerbatim("pma::PMAlgVertexing") << "-------- done --------";
 	}
 }
 // ------------------------------------------------------
@@ -575,4 +606,25 @@ pma::PMAlgVertexing::getVertices(const pma::TrkCandidateColl & tracks, bool only
 	return vsel;
 }
 // ------------------------------------------------------
+
+std::vector< std::pair< TVector3, size_t > >
+pma::PMAlgVertexing::getKinks(const pma::TrkCandidateColl& tracks) const
+{
+	std::vector< std::pair< TVector3, size_t > > ksel;
+	for (size_t t = 0; t < tracks.size(); ++t)
+	{
+		pma::Track3D const * trk = tracks[t].Track();
+		for (size_t n = 1; n < trk->Nodes().size() - 1; ++n)
+		{
+			pma::Node3D const * node = trk->Nodes()[n];
+			if (node->IsVertex() && !node->IsBranching())
+			{
+				ksel.emplace_back(std::pair< TVector3, size_t >(node->Point3D(), t));
+			}
+		}
+	}
+	return ksel;
+}
+// ------------------------------------------------------
+
 

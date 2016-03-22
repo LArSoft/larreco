@@ -1493,6 +1493,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			auto const* trkGetter = evt.productGetter(tid);
 
 			auto vsel = fPMAlgVertexing.getVertices(result, fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
+			auto ksel = fPMAlgVertexing.getKinks(result); // pairs of kink position - associated track idx 
 			std::map< size_t, art::Ptr<recob::Vertex> > frontVtxs; // front vertex ptr for each track index
 
 			if (fRunVertexing) // save vertices and vtx-trk assns
@@ -1526,6 +1527,18 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					else mf::LogWarning("PMAlgTrackMaker") << "No tracks found at this vertex.";
 				}
 				mf::LogVerbatim("Summary") << vtxs->size() << " vertices ready";
+
+				for (auto const & k : ksel)
+				{
+					xyz[0] = k.first.X(); xyz[1] = k.first.Y(); xyz[2] = k.first.Z();
+					mf::LogVerbatim("Summary") << "  kink:" << xyz[0] << ":" << xyz[1] << ":" << xyz[2];
+
+					size_t vidx = vtxs->size();
+					vtxs->push_back(recob::Vertex(xyz, vidx));
+
+					// kink not yet associated to the track (to avoid confusion with vertices)
+				}
+				mf::LogVerbatim("Summary") << ksel.size() << " kinks ready";
 			}
 
 			if (fMakePFPs)
