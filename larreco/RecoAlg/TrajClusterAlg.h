@@ -92,15 +92,15 @@ namespace cluster {
 
     /// struct of temporary 2D vertices (end points)
     struct VtxStore {
-      float Wire;
-			float WireErr;
-      float Time;
-			float TimeErr;
-      unsigned short NTraj;  // = 0 for abandoned vertices
-			float ChiDOF;
-      short Topo; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer
-      CTP_t CTP;
-      bool Fixed;                 // Vertex position fixed (should not be re-fit)
+      float Wire {0};
+      float WireErr {2};
+      float Time {0};
+      float TimeErr {0.1};
+      unsigned short NTraj {0};  // = 0 for abandoned vertices
+      float ChiDOF {0};
+      short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer
+      CTP_t CTP {0};
+      bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
     };
     
     /// struct of temporary 3D vertices
@@ -174,7 +174,7 @@ namespace cluster {
     bool fShowerStudy;    ///< study shower identification cuts
     short fShowerPrtPlane; ///< set to plane number to print out
 
-    bool fFindVertices;
+    bool fFind2DVertices;
     std::vector<float> fMaxVertexTrajSep;
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
@@ -185,7 +185,7 @@ namespace cluster {
     unsigned short fAllowNoHitWire;
 		float fVertex2DCut; 	///< 2D vtx -> cluster matching cut (chisq/dof)
     float fVertex2DWireErrCut;
-    float fVertex3DCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
 
     int fDebugPlane;
     int fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
@@ -229,7 +229,8 @@ namespace cluster {
     CTP_t fCTP;        ///< Cryostat/TPC/Plane code
     unsigned int fPlane;         // the current plane
     unsigned int fNumWires;   // number of wires in the current plane
-    float fMaxTime;    // number of time samples in the current plane
+    float fMaxWire;     // max wire in WSE units
+    float fMaxTime;    // max time in WSE units
     float fScaleF;     ///< scale factor from Tick/Wire to dx/du
 
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
@@ -284,7 +285,7 @@ namespace cluster {
       short StepDir {0};                 /// -1 = going US (CC proper order), 1 = going DS
       unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
       unsigned short ProcCode {1};       ///< USHRT_MAX = abandoned trajectory
-      std::bitset<16> AlgMod {0};        ///< Bit set if algorithm AlgBit_t modifed the trajectory
+      std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
       // ProcCode = 1 (normal step), 2 (junk traj), 3 (split trajectory)
       unsigned short PDG {13};            ///< shower-like or track-like {default is track-like}
       unsigned short ParentTraj {USHRT_MAX};     ///< index of the parent (if PDG = 12)
@@ -332,6 +333,8 @@ namespace cluster {
     typedef enum {
       kMaskedWorkHits,
       kGottaKink,     ///< GottaKink found a kink
+      kCWKink,        ///< kink found in CheckWork
+      kCWStepChk,
       kMaybeDeltaRay,
       kModifyShortTraj,
       kTryWithNextPass,
@@ -339,12 +342,19 @@ namespace cluster {
       kRecovery1,
       kRecovery2,
       kManyHitsAdded,
-      kSplitTraj
+      kSplitTraj,
+      kComp3DVx,
+      kHiDelta,
+      kHammer2DVx,
+      kJunkTj,
+      kAlgBitSize
     } AlgBit_t;
     
     std::vector<std::string> AlgBitNames {
       "MaskedHits",
       "Kink",
+      "CWKink",
+      "CWStepChk",
       "DeltaRay?",
       "ModifyShortTj",
       "TryNextPass",
@@ -352,7 +362,11 @@ namespace cluster {
       "Recovery1",
       "Recovery2",
       "ManyHitsAdded",
-      "SplitTraj"
+      "SplitTraj",
+      "Comp3DVx",
+      "HiDelta",
+      "Hammer2DVx",
+      "JunkTj"
     };
     
     // runs the TrajCluster algorithm on one plane specified by the calling routine
@@ -450,7 +464,9 @@ namespace cluster {
     // Check the quality of the work trajectory and possibly trim it
     void CheckWork();
     // Check for many unused hits in work and try to use them
-    void CheckManyUnusedHits();
+    void CheckHiMultUnusedHits();
+    // Check for high values of Delta at the beginning of the trajectory
+    void CheckHiDeltas();
     // Reverse a trajectory
     void ReverseTraj(Trajectory& tj);
     // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
@@ -495,9 +511,11 @@ namespace cluster {
     float PointTrajDOCA2(float wire, float time, TrajPoint const& tp);
     // returns the separation^2 between two TPs
     float TrajPointHitSep2(TrajPoint const& tp1, TrajPoint const& tp2);
+    // returns the separation^2 between a point and a TP
+    float PointTrajSep2(float wire, float time, TrajPoint const& tp);
     // finds the point on trajectory tj that is closest to trajpoint tp
     void TrajPointTrajDOCA(TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
-   // returns the intersection position (or DOCA), intPos, of two trajectory points
+   // returns the intersection position, intPos, of two trajectory points
     void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
     // Returns the separation distance between two trajectory points
     float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
@@ -515,12 +533,14 @@ namespace cluster {
     // with the separation distance between the closest traj points
 //    void TrajSeparation(Trajectory& iTj, Trajectory& jTj, std::vector<float>& tSep);
     // ****************************** Vertex code  ******************************
-    void FindVertices();
+    void Find2DVertices();
     void AttachAnyTrajToVertex(unsigned short iv, float docaCut2, bool requireSignal);
     // make a vertex from a trajectory intersection
     void MakeTrajVertex(TrjInt const& aTrjInt, unsigned short bin1, unsigned short bin2, bool& madeVtx);
     void SplitTrajCrossingVertices();
     void FindHammerVertices();
+    void Find3DVertices(geo::TPCID const& tpcid);
+    void CompleteIncomplete3DVertices(geo::TPCID const& tpcid);
     // ****************************** Printing code  ******************************
     // Print trajectories, TPs, etc to mf::LogVerbatim
     void PrintTrajectory(Trajectory const& tj ,unsigned short tPoint);
