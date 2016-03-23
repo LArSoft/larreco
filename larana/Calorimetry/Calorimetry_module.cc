@@ -394,7 +394,12 @@ void calo::Calorimetry::produce(art::Event& evt)
 	  double t = allHits[hits[ipl][i]]->PeakTime() - TickT0; // Want T0 here? Otherwise ticks to x is wrong?
 	  double x = detprop->ConvertTicksToX(t, allHits[hits[ipl][i]]->WireID().Plane, allHits[hits[ipl][i]]->WireID().TPC, allHits[hits[ipl][i]]->WireID().Cryostat);
 	  double w = allHits[hits[ipl][i]]->WireID().Wire;
-	  trkx.push_back(sptv[j]->XYZ()[0]-detprop->ConvertTicksToX(TickT0, allHits[hits[ipl][i]]->WireID().Plane, allHits[hits[ipl][i]]->WireID().TPC, allHits[hits[ipl][i]]->WireID().Cryostat));
+	  if (TickT0){
+	    trkx.push_back(sptv[j]->XYZ()[0]-detprop->ConvertTicksToX(TickT0, allHits[hits[ipl][i]]->WireID().Plane, allHits[hits[ipl][i]]->WireID().TPC, allHits[hits[ipl][i]]->WireID().Cryostat));
+	  }
+	  else{
+	    trkx.push_back(sptv[j]->XYZ()[0]);
+	  }
 	  trky.push_back(sptv[j]->XYZ()[1]);
 	  trkz.push_back(sptv[j]->XYZ()[2]);
 	  trkw.push_back(w);
