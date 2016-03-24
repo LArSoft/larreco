@@ -174,8 +174,7 @@ namespace cluster {
     bool fShowerStudy;    ///< study shower identification cuts
     short fShowerPrtPlane; ///< set to plane number to print out
 
-    bool fFind2DVertices;
-    std::vector<float> fMaxVertexTrajSep;
+     std::vector<float> fMaxVertexTrajSep;
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
@@ -183,8 +182,7 @@ namespace cluster {
     float fLAClusSlopeCut;
     float fMergeOverlapAngCut;   ///< angle cut for merging overlapping clusters
     unsigned short fAllowNoHitWire;
-		float fVertex2DCut; 	///< 2D vtx -> cluster matching cut (chisq/dof)
-    float fVertex2DWireErrCut;
+		float fVertex2DIPCut; 	///< 2D vtx -> cluster Impact Parameter cut (WSE)
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
 
     int fDebugPlane;
@@ -347,7 +345,8 @@ namespace cluster {
       kHiDelta,
       kHammer2DVx,
       kJunkTj,
-      kAlgBitSize
+      kKilled,
+      kAlgBitSize     ///< don't mess with this line
     } AlgBit_t;
     
     std::vector<std::string> AlgBitNames {
@@ -366,7 +365,8 @@ namespace cluster {
       "Comp3DVx",
       "HiDelta",
       "Hammer2DVx",
-      "JunkTj"
+      "JunkTj",
+      "Killed"
     };
     
     // runs the TrajCluster algorithm on one plane specified by the calling routine
@@ -467,6 +467,8 @@ namespace cluster {
     void CheckHiMultUnusedHits();
     // Check for high values of Delta at the beginning of the trajectory
     void CheckHiDeltas();
+    // Check for a TJ that is close to the Large Angle cut
+    void CheckNearLA();
     // Reverse a trajectory
     void ReverseTraj(Trajectory& tj);
     // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
@@ -474,8 +476,6 @@ namespace cluster {
     // Updates the last added trajectory point fit, average hit rms, etc.
     void UpdateWork();
     void UpdateTraj(Trajectory& tj);
-    // Project TP to a "wire position" Pos[0] and update Pos[1]
-    void MoveTPToWire(TrajPoint& tp, float wire);
     // Find the average charge using fNPtsAve values of TP Chg. Result put in fAveChg and Pts[updatePt].Chg
     void UpdateAveChg(Trajectory& tj, unsigned short updatePt, short dir);
    // Estimate the Delta RMS of the TPs on the end of work.
@@ -502,36 +502,6 @@ namespace cluster {
     // in the trajectory belonging to an existing trajectory. This may also flag ghost trajectories...
     bool MaybeDeltaRay(Trajectory& tj);
     void CheckTrajEnd();
-    void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
-    // returns the DOCA between a hit and a trajectory
-    float PointTrajDOCA(unsigned int iht, TrajPoint const& tp);
-    // returns the DOCA between a (W,T) point and a trajectory
-    float PointTrajDOCA(float wire, float time, TrajPoint const& tp);
-    // returns the DOCA^2 between a point and a trajectory
-    float PointTrajDOCA2(float wire, float time, TrajPoint const& tp);
-    // returns the separation^2 between two TPs
-    float TrajPointHitSep2(TrajPoint const& tp1, TrajPoint const& tp2);
-    // returns the separation^2 between a point and a TP
-    float PointTrajSep2(float wire, float time, TrajPoint const& tp);
-    // finds the point on trajectory tj that is closest to trajpoint tp
-    void TrajPointTrajDOCA(TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
-   // returns the intersection position, intPos, of two trajectory points
-    void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
-    // Returns the separation distance between two trajectory points
-    float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
-    // returns the separation^2 between two hits in WSE units
-    float HitSep2(unsigned int iht, unsigned int jht);
-    // Returns true if the time separation of two hits exceeds fMultHitSep
-    bool LargeHitSep(unsigned int iht, unsigned int jht);
-    // Find the Distance Of Closest Approach between two trajectories, exceeding minSep
-    void TrajTrajDOCA(Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
-    // Calculates the angle between two TPs
-    float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
-    // Put hits in each trajectory point into a flat vector. Only hits with UseHit if onlyUsedHits == true
-    void PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec);
-    // Returns a vector with the size of the number of trajectory points on iTj
-    // with the separation distance between the closest traj points
-//    void TrajSeparation(Trajectory& iTj, Trajectory& jTj, std::vector<float>& tSep);
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void AttachAnyTrajToVertex(unsigned short iv, float docaCut2, bool requireSignal);
@@ -566,6 +536,38 @@ namespace cluster {
     // of all other trajectories in ClsOfTrj[icot]
     void TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle);
     void FillTrajTruth();
+ 
+    // Utilities
+    void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
+    // returns the DOCA between a hit and a trajectory
+    float PointTrajDOCA(unsigned int iht, TrajPoint const& tp);
+    // returns the DOCA between a (W,T) point and a trajectory
+    float PointTrajDOCA(float wire, float time, TrajPoint const& tp);
+    // returns the DOCA^2 between a point and a trajectory
+    float PointTrajDOCA2(float wire, float time, TrajPoint const& tp);
+    // returns the separation^2 between two TPs
+    float TrajPointHitSep2(TrajPoint const& tp1, TrajPoint const& tp2);
+    // returns the separation^2 between a point and a TP
+    float PointTrajSep2(float wire, float time, TrajPoint const& tp);
+    // finds the point on trajectory tj that is closest to trajpoint tp
+    void TrajPointTrajDOCA(TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
+    // returns the intersection position, intPos, of two trajectory points
+    void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
+    // Returns the separation distance between two trajectory points
+    float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
+    // returns the separation^2 between two hits in WSE units
+    float HitSep2(unsigned int iht, unsigned int jht);
+    // Returns true if the time separation of two hits exceeds fMultHitSep
+    bool LargeHitSep(unsigned int iht, unsigned int jht);
+    // Find the Distance Of Closest Approach between two trajectories, exceeding minSep
+    void TrajTrajDOCA(Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
+    // Calculates the angle between two TPs
+    float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
+    // Put hits in each trajectory point into a flat vector. Only hits with UseHit if onlyUsedHits == true
+    void PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec);
+    // Project TP to a "wire position" Pos[0] and update Pos[1]
+    void MoveTPToWire(TrajPoint& tp, float wire);
+
     
   }; // class TrajClusterAlg
 
