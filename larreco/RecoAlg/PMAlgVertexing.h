@@ -54,6 +54,12 @@ public:
 	std::vector< std::pair< TVector3, size_t > > getKinks(const pma::TrkCandidateColl& tracks) const;
 
 private:
+	bool has(const std::vector<size_t>& v, size_t idx) const
+	{
+		for (auto c : v) if (c == idx) return true;
+		return false;
+	}
+
 	std::vector< pma::VtxCandidate > firstPassCandidates(void);
 	std::vector< pma::VtxCandidate > secondPassCandidates(void);
 	size_t makeVertices(std::vector< pma::VtxCandidate >& candidates);
@@ -91,6 +97,7 @@ private:
 
 	bool fFindKinks;          // detect significant kinks on long tracks (need min. 5 nodes to collect angle stats)
     double fKinkMinDeg;       // min. angle [deg] in XY of a kink
+	double fKinkMinStd;       // threshold in no. of stdev of all segment angles needed to tag a kink
 
 	// just to remember:
 	//double fInputVtxDist2D; // use vtx given at input if dist. [cm] to track in all 2D projections is below this max. value

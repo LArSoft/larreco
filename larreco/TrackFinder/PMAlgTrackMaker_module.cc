@@ -1499,8 +1499,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			auto pfpid = getProductID< std::vector<recob::PFParticle> >(evt);
 			auto vid = getProductID< std::vector<recob::Vertex> >(evt);
 			auto kid = getProductID< std::vector<recob::Vertex> >(evt, kKinksName);
-			auto const* kinkGetter = evt.productGetter(kid)
-;
+			auto const* kinkGetter = evt.productGetter(kid);
+
 			auto tid = getProductID< std::vector<recob::Track> >(evt);
 			auto const* trkGetter = evt.productGetter(tid);
 

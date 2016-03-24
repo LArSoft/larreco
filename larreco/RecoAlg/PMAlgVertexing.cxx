@@ -27,6 +27,7 @@ void pma::PMAlgVertexing::reconfigure(const fhicl::ParameterSet& pset)
 
 	fFindKinks = pset.get< bool >("FindKinks");
 	fKinkMinDeg = pset.get< double >("KinkMinDeg");
+	fKinkMinStd = pset.get< double >("KinkMinStd");
 
 	//fInputVtxDist2D = pset.get< double >("InputVtxDist2D");
 	//fInputVtxDistY = pset.get< double >("InputVtxDistY");
@@ -518,6 +519,7 @@ void pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) co
 		pma::Track3D* trk = trk_input[t].Track();
 		if (trk->Nodes().size() < 5) continue;
 
+		std::vector<size_t> tested_nodes;
 		bool kinkFound = true;
 		while (kinkFound)
 		{
@@ -531,12 +533,11 @@ void pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) co
 				double c = -trk->Nodes()[n]->SegmentCosTransverse();
 				double a = 180.0 * (1 - std::acos(trk->Nodes()[n]->SegmentCosTransverse()) / _PI);
 				mean += c; stdev += c * c;
-				if (c < min)
+				if ((c < min) && !has(tested_nodes, n))
 				{
 					if ((n > 1) && (n < trk->Nodes().size() - 2)) kinkIdx = n;
 					min = c; max_a = a;
 				}
-				//mf::LogVerbatim("pma::PMAlgVertexing") << "   c:" << c << " angle:" << a;
 			}
 
 			kinkFound = false;
@@ -545,16 +546,23 @@ void pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) co
 				mean /= nnodes; stdev /= nnodes;
 				stdev -= mean * mean;
 
-				double thr = 1.0 - 4.0 * stdev;
-				//mf::LogVerbatim("pma::PMAlgVertexing") << "   std:" << stdev << " 1-4s:" << thr << " min:" << min;
-
+				double thr = 1.0 - fKinkMinStd * stdev;
 				if (min < thr)
 				{
-					mf::LogVerbatim("pma::PMAlgVertexing") << "   kink a:" << max_a << "deg";
+					mf::LogVerbatim("pma::PMAlgVertexing") << "   kink a: " << max_a << "deg";
 					trk->Nodes()[kinkIdx]->SetVertex(true);
+					tested_nodes.push_back(kinkIdx);
+					kinkFound = true;
 
 					trk->Optimize(0, 1.0e-5, false, false); // in principle could be reopt of a full tree...
-					kinkFound = true;
+					double c = -trk->Nodes()[kinkIdx]->SegmentCosTransverse();
+					double a = 180.0 * (1 - std::acos(trk->Nodes()[kinkIdx]->SegmentCosTransverse()) / _PI);
+
+					if ((a <= fKinkMinDeg) || (c >= thr)) // not a significant kink after precise optimization
+					{
+						mf::LogVerbatim("pma::PMAlgVertexing") << "     -> tag removed after reopt";
+						trk->Nodes()[kinkIdx]->SetVertex(false); // kinkIdx is saved in tested_nodes to avoid inf loop
+					}
 				}
 			}
 		}

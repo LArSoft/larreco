@@ -8,6 +8,7 @@ standard_pmavertexalg:
   MinTrackLength:         3.0  # min. length of tracks used to find vtx candidates (short tracks attached later)
   FindKinks:              true # detect significant kinks on long tracks
   KinkMinDeg:             2.5  # min. angle [deg] in XY of a kink
+  KinkMinStd:             5.0  # threshold in no. of stdev of all segment angles needed to tag a kink
 
 # InputVtxDist2D:         0.5  # use vtx given at input if dist. [cm] to track in all 2D projections is below this max. value
 # InputVtxDistY:          5.0  # use vtx given at input if dist. [cm] to track in 3D-Y is below this max. value
