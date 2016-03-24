@@ -1,0 +1,51 @@
+#include "services_microboone.fcl"
+#include "reco_uboone_mcc7.fcl"
+#include "trackfindermodules_microboone.fcl"
+
+process_name: NeutrinoTrackingEff 
+
+services:
+{
+  TFileService: { fileName: "test.root" }
+  TimeTracker:       {}
+  RandomNumberGenerator: {} 
+  message:      @local::standard_info
+  BackTracker:  @local::microboone_backtracker
+                @table::microboone_reco_mcc7_services
+}
+#services.user.Geometry: @local::dune10kt_workspace_geo
+#services.user.DetectorClocksService.InheritClockConfig:              false
+
+source:
+{
+  module_type: RootInput
+  firstEvent : 1
+  maxEvents:  -1
+}
+
+
+outputs:{}
+
+
+physics:
+{
+
+  analyzers:
+  {
+        pandoraNueff:        @local::microboone_neutrinotrackingeff
+        pandoraNuPMAeff:     @local::microboone_neutrinotrackingeff
+        pandoraNuKHiteff:    @local::microboone_neutrinotrackingeff
+        pmtrackeff:          @local::microboone_neutrinotrackingeff
+        trackkalmanhiteff:   @local::microboone_neutrinotrackingeff
+        stitchkalmanhiteff:  @local::microboone_neutrinotrackingeff
+  }
+  analysis: [ pandoraNueff, pandoraNuPMAeff, pandoraNuKHiteff, pmtrackeff, trackkalmanhiteff ] #Directory for histograms
+  end_paths: [ analysis ]
+}
+
+physics.analyzers.pandoraNueff.TrackModuleLabel:       "pandoraNu"
+physics.analyzers.pandoraNuPMAeff.TrackModuleLabel:    "pandoraNuPMA"
+physics.analyzers.pandoraNuKHiteff.TrackModuleLabel:   "pandoraNuKHit"
+physics.analyzers.pmtrackeff.TrackModuleLabel:         "pmtrack"
+physics.analyzers.trackkalmanhiteff.TrackModuleLabel:  "trackkalmanhit"
+physics.analyzers.stitchkalmanhiteff.TrackModuleLabel: "stitchkalmanhit"

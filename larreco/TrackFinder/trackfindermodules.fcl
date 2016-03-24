@@ -330,19 +330,20 @@ standard_track3Dkalmanhit:
   ClusterModuleLabel: "dbcluster"
   PFParticleModuleLabel: "pandora"
   StoreNPPlane:       true          # Store non-preferred-plane hits?
-  MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
-  DoDedx:             false         # dE/dx enable flag.
-  SelfSeed:           false         # Generate seeds internally.
-  LineSurface:        false         # Store hits on line surfaces.
-  MinSeedHits:        12            # Minimum number of hits per track seed.
-  MinSeedChopHits:    50            # Potentially chop seeds that exceed this length.
-  MaxChopHits:        20            # Maximum number of hits to chop from each end of seed.
-  MaxSeedChiDF:       20.           # Maximum seed track chisquare/dof.
-  MinSeedSlope:       0.0           # Minimum seed slope (dx/dz).
-  InitialMomentum:    0.5           # Initial momentum (GeV/c).
-  KalmanFilterAlg:    @local::standard_kalmanfilteralg
-  SeedFinderAlg:      @local::standard_seedfinderalgorithm
-  SpacePointAlg:      @local::standard_spacepointalg
+  #MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
+  #DoDedx:             false         # dE/dx enable flag.
+  #SelfSeed:           false         # Generate seeds internally.
+  #LineSurface:        false         # Store hits on line surfaces.
+  #MinSeedHits:        12            # Minimum number of hits per track seed.
+  #MinSeedChopHits:    50            # Potentially chop seeds that exceed this length.
+  #MaxChopHits:        20            # Maximum number of hits to chop from each end of seed.
+  #MaxSeedChiDF:       20.           # Maximum seed track chisquare/dof.
+  #MinSeedSlope:       0.0           # Minimum seed slope (dx/dz).
+  #InitialMomentum:    0.5           # Initial momentum (GeV/c).
+  #KalmanFilterAlg:    @local::standard_kalmanfilteralg
+  #SeedFinderAlg:      @local::standard_seedfinderalgorithm
+  Track3DKalmanHitAlg: @local::standard_track3Dkalmanhitalg
+  SpacePointAlg:       @local::standard_spacepointalg
 }
 
 standard_trackstitcher:
@@ -358,6 +359,21 @@ standard_magdriftana:
  module_type:           "MagDriftAna"
  HitsModuleLabel:       "ffthit"
  LArGeantModuleLabel:   "largeant"
+}
+
+standard_neutrinotrackingeff:
+{
+      module_type:      	"NeutrinoTrackingEff"
+      MCTruthModuleLabel:	"generator"
+      TrackModuleLabel: 	"pandora"
+      NeutrinoPDGcode:		14
+      LeptonPDGcode:		13
+      MaxNeutrinoE:		25.0
+      MaxLeptonP:               3.0
+      SaveMCTree:		false
+      FidVolCutX:               10
+      FidVolCutY:               10
+      FidVolCutZ:               10
 }
 
 END_PROLOG

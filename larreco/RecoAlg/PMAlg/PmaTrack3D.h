@@ -157,7 +157,8 @@ public:
 	double GetObjFunction(float penaltyFactor = 1.0F) const;
 
 	/// Main optimization method.
-	double Optimize(int nNodes = -1, double eps = 0.01, bool selAllHits = true);
+	double Optimize(int nNodes = -1, double eps = 0.01,
+		bool selAllHits = true, bool setAllNodes = true);
 
 	void SortHitsInTree(bool skipFirst = false);
 	void MakeProjectionInTree(bool skipFirst = false);
@@ -269,7 +270,8 @@ private:
 
 	std::vector< TVector3* > fAssignedPoints;
 
-	pma::Element3D* GetNearestElement(const TVector2& p2d, unsigned int view, int tpc = -1) const;
+	pma::Element3D* GetNearestElement(const TVector2& p2d, unsigned int view, int tpc = -1,
+		bool skipFrontVtx = false, bool skipBackVtx = false) const;
 	pma::Element3D* GetNearestElement(const TVector3& p3d) const;
 	std::vector< pma::Node3D* > fNodes;
 	std::vector< pma::Segment3D* > fSegments;
