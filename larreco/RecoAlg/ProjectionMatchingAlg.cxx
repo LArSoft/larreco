@@ -385,6 +385,7 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 	size_t view = 0; size_t countviews = 0;
 	while (view < 3)
 	{
+		mf::LogWarning("ProjectionMatchinAlg") << "collecting hits from view: " << view;
 		if (!tpcgeom.HasPlane(view)) {++view; continue;}
 
 		// select hits only for a single view
@@ -439,6 +440,7 @@ void pma::ProjectionMatchingAlg::FilterOutSmallParts(
 		std::vector< art::Ptr<recob::Hit> >& hits_out,
 		const TVector2& vtx2d) const
 {
+	mf::LogWarning("ProjectionMatchingAlg") << "FilterOutSmallParts - sometimes very slow";
 	size_t min_size = hits_in.size() / 5;
 	if (min_size < 3) min_size = 3;
 
@@ -494,7 +496,7 @@ bool pma::ProjectionMatchingAlg::GetCloseHits(
 		std::vector<size_t>& used,
 		std::vector< art::Ptr<recob::Hit> >& hits_out) const
 {
-	
+	mf::LogWarning("ProjectionMatchingAlg") << "GetCloseHits";
 	hits_out.clear();
 
 	const double gapMargin = 5.0; // can be changed to f(id_tpc1, id_tpc2)
@@ -557,6 +559,7 @@ bool pma::ProjectionMatchingAlg::GetCloseHits(
 void pma::ProjectionMatchingAlg::ShortenSeg(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const
 {
 	double mse = trk.GetMse();
+	mf::LogWarning("ProjectionMatchingAlg") << "initial value of mse: " << mse;
 	while ((mse > 0.5) && TestTrk(trk, tpcgeom))
 	{
 		mse = trk.GetMse();
@@ -569,6 +572,7 @@ void pma::ProjectionMatchingAlg::ShortenSeg(pma::Track3D& trk, const geo::TPCGeo
 		trk.Optimize(0.0001, false);
 		trk.SortHits();
 
+		mf::LogWarning("ProjectionMatchingAlg") << " mse: " << mse;
 		if (mse == trk.GetMse()) break;
 		else mse = trk.GetMse();
 	}
@@ -605,6 +609,7 @@ bool pma::ProjectionMatchingAlg::TestTrk(pma::Track3D& trk, const geo::TPCGeo& t
 		length = std::sqrt(pma::Dist2(trk.front()->Point3D(), trk[h]->Point3D()));
 	}
 
+	mf::LogWarning("ProjectionMatchingAlg") << "length of segment: " << length;
 	if (length < 3.0) test = false; // cm
 	
 	return test;
@@ -614,6 +619,7 @@ bool pma::ProjectionMatchingAlg::TestTrk(pma::Track3D& trk, const geo::TPCGeo& t
 
 bool pma::ProjectionMatchingAlg::Has(const std::vector<size_t>& v, size_t idx) const
 {
+		mf::LogWarning("ProjectionMatchingAlg") << "Has";
     for (auto c : v) if (c == idx) return true;
     return false;
 }
