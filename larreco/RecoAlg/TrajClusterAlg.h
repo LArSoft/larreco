@@ -342,10 +342,11 @@ namespace cluster {
       kManyHitsAdded,
       kSplitTraj,
       kComp3DVx,
-      kHiDelta,
+      kHiEndDelta,
       kHammer2DVx,
       kJunkTj,
       kKilled,
+      kStopAtVtx,
       kAlgBitSize     ///< don't mess with this line
     } AlgBit_t;
     
@@ -363,10 +364,11 @@ namespace cluster {
       "ManyHitsAdded",
       "SplitTraj",
       "Comp3DVx",
-      "HiDelta",
+      "HiEndDelta",
       "Hammer2DVx",
       "JunkTj",
-      "Killed"
+      "Killed",
+      "StopAtVtx"
     };
     
     // runs the TrajCluster algorithm on one plane specified by the calling routine
@@ -511,6 +513,7 @@ namespace cluster {
     void FindHammerVertices();
     void Find3DVertices(geo::TPCID const& tpcid);
     void CompleteIncomplete3DVertices(geo::TPCID const& tpcid);
+    short TPNearVertex(const TrajPoint& tp);
     // ****************************** Printing code  ******************************
     // Print trajectories, TPs, etc to mf::LogVerbatim
     void PrintTrajectory(Trajectory const& tj ,unsigned short tPoint);
@@ -567,6 +570,7 @@ namespace cluster {
     void PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec);
     // Project TP to a "wire position" Pos[0] and update Pos[1]
     void MoveTPToWire(TrajPoint& tp, float wire);
+    void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
 
     
   }; // class TrajClusterAlg
