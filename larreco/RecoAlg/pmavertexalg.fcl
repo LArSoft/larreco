@@ -6,7 +6,7 @@ BEGIN_PROLOG
 standard_pmavertexalg:
 {
   MinTrackLength:         3.0  # min. length of tracks used to find vtx candidates (short tracks attached later)
-  FindKinks:              true # detect significant kinks on long tracks
+  FindKinks:              false # detect significant kinks on long tracks
   KinkMinDeg:             2.5  # min. angle [deg] in XY of a kink
   KinkMinStd:             5.0  # threshold in no. of stdev of all segment angles needed to tag a kink
 
