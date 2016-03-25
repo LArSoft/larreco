@@ -215,7 +215,7 @@ namespace trkf {
 	    std::vector<art::PtrVector<recob::Hit> > HitsPerSeed;
 	    
 	    std::vector<recob::Seed> SeedsThisCombo = 
-	      GetSeedFinderAlgorithm()->GetSeedsFromUnSortedHits(HitsFlat, HitsPerSeed, 0);
+	      GetSeedFinderAlgorithm()->GetSeedsFromUnSortedHits(HitsFlat, HitsPerSeed);
 	    
 	  	   
 	    if(SeedsThisCombo.size()>0)

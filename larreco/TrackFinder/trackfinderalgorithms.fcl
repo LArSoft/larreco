@@ -97,6 +97,22 @@ standard_kalmanfilteralg:
   GTraceZMax: [ 1040., 1040., 1040.]  # Graphical trace maximum z for each view
 }
 
+standard_track3Dkalmanhitalg:
+{
+  MaxTcut:            10.           # Maximum delta ray energy in MeV for restricted dE/dx
+  DoDedx:             false         # dE/dx enable flag.
+  SelfSeed:           false         # Generate seeds internally.
+  LineSurface:        false         # Store hits on line surfaces.
+  MinSeedHits:        12            # Minimum number of hits per track seed.
+  MinSeedChopHits:    50            # Potentially chop seeds that exceed this length.
+  MaxChopHits:        20            # Maximum number of hits to chop from each end of seed.
+  MaxSeedChiDF:       20.           # Maximum seed track chisquare/dof.
+  MinSeedSlope:       0.0           # Minimum seed slope (dx/dz).
+  InitialMomentum:    0.5           # Initial momentum (GeV/c).
+  KalmanFilterAlg:    @local::standard_kalmanfilteralg
+  SeedFinderAlg:      @local::standard_seedfinderalgorithm
+}
+
 standard_cosmictrackeralg:
 {
     SPTAlg:   0
@@ -122,14 +138,21 @@ bo_seedfinderalgorithm.SpacePointAlg.Filter:     false
 bo_beziertrackeralgorithm:                       @local::standard_beziertrackeralgorithm
 bo_beziertrackeralgorithm.SeedFinder:            @local::bo_seedfinderalgorithm
 
-microboone_spacepointalg:          @local::standard_spacepointalg
-microboone_spacepointalg.MinViews: 3
-microboone_spacepointalg.EnableW:  true
-microboone_kalmanfilteralg:  @local::standard_kalmanfilteralg
+microboone_spacepointalg:                                @local::standard_spacepointalg
+microboone_spacepointalg.MinViews:                       3
+microboone_spacepointalg.EnableW:                        true
+microboone_kalmanfilteralg:                              @local::standard_kalmanfilteralg
 microboone_seedfinderalgorithm:                          @local::standard_seedfinderalgorithm
-microboone_seedfinderalgorithm.SpacePointAlg :           @local::microboone_spacepointalg
-microboone_seedfinderalgorithm.SpacePointAlg.PreferColl: true
-microboone_seedfinderalgorithm.SpacePointAlg.Filter:     false
+microboone_seedfinderalgorithm.SpacePointAlg : {
+  @table::microboone_spacepointalg
+  PreferColl: true
+  Filter:     false
+}
+microboone_track3Dkalmanhitalg: {
+  @table::standard_track3Dkalmanhitalg
+  KalmanFilterAlg: @local::microboone_kalmanfilteralg
+  SeedFinderAlg:   @local::microboone_seedfinderalgorithm
+}
 microboone_beziertrackeralgorithm:                       @local::standard_beziertrackeralgorithm
 microboone_beziertrackeralgorithm.SeedFinder:            @local::microboone_seedfinderalgorithm
 microboone_trackstitcheralg:  @local::standard_trackstitcheralg

@@ -260,10 +260,16 @@ private:
   pma::PMAlgVertexing fPMAlgVertexing;
   bool fRunVertexing;          // run vertex finding
   bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
+
+  // ******************** instance names **********************
+  static const std::string kKinksName;        // collection of kinks on tracks
 };
+// ------------------------------------------------------
+const std::string PMAlgTrackMaker::kKinksName = "kink";
 // ------------------------------------------------------
 
 PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
+	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
 	fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg")),
 	fPMAlgVertexing(p.get< fhicl::ParameterSet >("PMAlgVertexing"))
 {
@@ -271,7 +277,8 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
-	produces< std::vector<recob::Vertex> >();
+	produces< std::vector<recob::Vertex> >(); // no instance name for interaction vertices
+	produces< std::vector<recob::Vertex> >(kKinksName); // collection of kinks on tracks
 	produces< std::vector<anab::T0> >();
 
 	produces< art::Assns<recob::Track, recob::Hit> >(); // ****** REMEMBER to remove when FindMany improved ******
@@ -279,8 +286,8 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 
 	produces< art::Assns<recob::Track, recob::SpacePoint> >();
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
-	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
-	produces< art::Assns<recob::Vertex, recob::Track> >();
+	produces< art::Assns<recob::Vertex, recob::Track> >(); // no instance name for assns of tracks to interaction vertices
+	produces< art::Assns<recob::Track, recob::Vertex> >(kKinksName);  // assns of kinks to tracks
 	produces< art::Assns<recob::Track, anab::T0> >();
 
 	produces< std::vector<recob::PFParticle> >();
@@ -341,6 +348,8 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 
 void PMAlgTrackMaker::reset(const art::Event& evt)
 {
+	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
 	fHitMap.clear();
 	fCluHits.clear();
 	fPfpClusters.clear();
@@ -1344,7 +1353,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
 	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
-	std::unique_ptr< std::vector< recob::Vertex > > vtxs(new std::vector< recob::Vertex >);
+	std::unique_ptr< std::vector< recob::Vertex > > vtxs(new std::vector< recob::Vertex >);  // interaction vertices
+	std::unique_ptr< std::vector< recob::Vertex > > kinks(new std::vector< recob::Vertex >); // kinks on tracks (no new particles start in kinks)
 	std::unique_ptr< std::vector< anab::T0 > > t0s(new std::vector< anab::T0 >);
 
 	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit_oldway(new art::Assns< recob::Track, recob::Hit >); // ****** REMEMBER to remove when FindMany improved ******
@@ -1354,13 +1364,14 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< art::Assns< recob::Track, anab::T0 > > trk2t0(new art::Assns< recob::Track, anab::T0 >);
 
 	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
-	std::unique_ptr< art::Assns< recob::Vertex, recob::Track > > vtx2trk(new art::Assns< recob::Vertex, recob::Track >);
+	std::unique_ptr< art::Assns< recob::Vertex, recob::Track > > vtx2trk(new art::Assns< recob::Vertex, recob::Track >); // one or more tracks (particles) start in the vertex
+	std::unique_ptr< art::Assns< recob::Track, recob::Vertex > > trk2kink(new art::Assns< recob::Track, recob::Vertex >); // one or more kinks on the track
 
 
 	std::unique_ptr< std::vector< recob::PFParticle > > pfps(new std::vector< recob::PFParticle >);
 
-    std::unique_ptr< art::Assns<recob::PFParticle, recob::Cluster> > pfp2clu( new art::Assns<recob::PFParticle, recob::Cluster> );
-    std::unique_ptr< art::Assns<recob::PFParticle, recob::Vertex> > pfp2vtx( new art::Assns<recob::PFParticle, recob::Vertex> );
+    std::unique_ptr< art::Assns<recob::PFParticle, recob::Cluster> > pfp2clu(new art::Assns<recob::PFParticle, recob::Cluster>);
+    std::unique_ptr< art::Assns<recob::PFParticle, recob::Vertex> > pfp2vtx(new art::Assns<recob::PFParticle, recob::Vertex>);
 	std::unique_ptr< art::Assns< recob::PFParticle, recob::Track > > pfp2trk(new art::Assns< recob::PFParticle, recob::Track >);
 
 	bool sortHitsClustersOK = false;
@@ -1502,6 +1513,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			auto pfpid = getProductID< std::vector<recob::PFParticle> >(evt);
 			auto vid = getProductID< std::vector<recob::Vertex> >(evt);
+			auto kid = getProductID< std::vector<recob::Vertex> >(evt, kKinksName);
+			auto const* kinkGetter = evt.productGetter(kid);
+
 			auto tid = getProductID< std::vector<recob::Track> >(evt);
 			auto const* trkGetter = evt.productGetter(tid);
 
@@ -1546,15 +1560,18 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					xyz[0] = k.first.X(); xyz[1] = k.first.Y(); xyz[2] = k.first.Z();
 					mf::LogVerbatim("Summary") << "  kink:" << xyz[0] << ":" << xyz[1] << ":" << xyz[2];
 
-					size_t vidx = vtxs->size();
-					vtxs->push_back(recob::Vertex(xyz, vidx));
+					size_t kidx = kinks->size();
+					kinks->push_back(recob::Vertex(xyz, kidx));
 
-					// kink not yet associated to the track (to avoid confusion with vertices)
+					size_t tidx = k.second; // track idx on which this kink was found
+					art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
+					art::Ptr<recob::Vertex> kptr(kid, kidx, kinkGetter);
+					trk2kink->addSingle(tptr, kptr);
 				}
 				mf::LogVerbatim("Summary") << ksel.size() << " kinks ready";
 			}
 
-			if (fMakePFPs)
+			if (fMakePFPs) // create new collection of PFParticles to save hierarchy as found by this module
 			{
 				// first particle, to be replaced with nu reco when possible
 				pfps->emplace_back(0, 0, 0, std::vector< size_t >());
@@ -1613,6 +1630,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(tracks));
 	evt.put(std::move(allsp));
 	evt.put(std::move(vtxs));
+	evt.put(std::move(kinks), kKinksName);
 	evt.put(std::move(t0s));
 
 	evt.put(std::move(trk2hit_oldway)); // ****** REMEMBER to remove when FindMany improved ******
@@ -1622,6 +1640,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	evt.put(std::move(sp2hit));
 	evt.put(std::move(vtx2trk));
+	evt.put(std::move(trk2kink), kKinksName);
 
 	evt.put(std::move(pfps));
 	evt.put(std::move(pfp2clu));
