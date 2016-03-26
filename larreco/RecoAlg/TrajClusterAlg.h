@@ -98,7 +98,7 @@ namespace cluster {
       float TimeErr {0.1};
       unsigned short NTraj {0};  // = 0 for abandoned vertices
       float ChiDOF {0};
-      short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer
+      short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion
       CTP_t CTP {0};
       bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
     };
@@ -529,6 +529,7 @@ namespace cluster {
     // ****************************** Shower/Track ID code  ******************************
     // Tag as shower-like or track-like
     void TagAllTraj();
+    void TagPhotons();
     void KillAllTrajInCTP(CTP_t tCTP);
     // Associate trajectories that are close to each into Clusters Of Trajectories (COTs)
     void FindClustersOfTrajectories(std::vector<std::vector<unsigned short>>& trjintIndices);
@@ -539,6 +540,7 @@ namespace cluster {
     // of all other trajectories in ClsOfTrj[icot]
     void TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle);
     void FillTrajTruth();
+    void KillVerticesInShowers();
  
     // Utilities
     void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
@@ -571,6 +573,7 @@ namespace cluster {
     // Project TP to a "wire position" Pos[0] and update Pos[1]
     void MoveTPToWire(TrajPoint& tp, float wire);
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
+    float DeltaAngle(float Ang1, float Ang2);
 
     
   }; // class TrajClusterAlg
