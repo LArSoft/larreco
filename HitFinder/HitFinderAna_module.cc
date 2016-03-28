@@ -216,7 +216,7 @@ namespace hit{
 
     art::ServiceHandle<cheat::BackTracker> bt;
 
-    sim::ParticleList _particleList = bt->ParticleList();
+    sim::ParticleList const& _particleList = bt->ParticleList();
 
     LOG_VERBATIM("HitFinderAna") << _particleList;
 

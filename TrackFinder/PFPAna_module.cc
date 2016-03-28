@@ -249,9 +249,8 @@ namespace pfpf {
     }
     
     // list of all true particles
-    sim::ParticleList plist;
     art::ServiceHandle<cheat::BackTracker> bt;
-    plist = bt->ParticleList();
+    sim::ParticleList const& plist = bt->ParticleList();
     // list of all true particles that will be considered
     std::vector<const simb::MCParticle*> plist2;
     // true (reconstructed) hits for each particle in plist2

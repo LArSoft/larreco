@@ -287,7 +287,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
   // Extract geant mc particles.
 
-  sim::ParticleList plist = bt->ParticleList();
+  sim::ParticleList const& plist = bt->ParticleList();
 
   // Loop over geant particles.
 

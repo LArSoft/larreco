@@ -243,7 +243,7 @@ namespace cluster{
     //Simulation/SimListUtils object to create a sim::ParticleList from the art::Event.  
     bt->SetEveIdCalculator(new sim::EmEveIdCalculator);
     
-    sim::ParticleList _particleList = bt->ParticleList();
+    sim::ParticleList const& _particleList = bt->ParticleList();
     
     std::vector<int> mc_trackids;
     
