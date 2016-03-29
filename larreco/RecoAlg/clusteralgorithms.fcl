@@ -53,7 +53,8 @@ standard_blurredclusteralg:
 {
   BlurWire:            6
   BlurTick:            9
-  BlurSigma:           3
+  SigmaWire:           3
+  SigmaTick:           3
   ClusterWireDistance: 2
   ClusterTickDistance: 4
   NeighboursThreshold: 0
