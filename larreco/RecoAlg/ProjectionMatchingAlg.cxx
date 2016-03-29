@@ -398,7 +398,10 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 		// filter our small groups of hits, far from main shower		
 		std::vector<art::Ptr<recob::Hit> > hitsfilter;
 		TVector2 proj_pr = pma::GetProjectionToPlane(vtxv3, view, tpc, cryo);
+	
+		mf::LogWarning("ProjectionMatchinAlg") << "start filter out: ";
 		FilterOutSmallParts(2.0, hitsview, hitsfilter, proj_pr);
+		mf::LogWarning("ProjectionMatchingAlg") << "after filter out";
 
 		for (size_t h = 0; h < hitsfilter.size(); ++h)
 			hitstrk.push_back(hitsfilter[h]);
@@ -440,7 +443,6 @@ void pma::ProjectionMatchingAlg::FilterOutSmallParts(
 		std::vector< art::Ptr<recob::Hit> >& hits_out,
 		const TVector2& vtx2d) const
 {
-	mf::LogWarning("ProjectionMatchingAlg") << "FilterOutSmallParts - sometimes very slow";
 	size_t min_size = hits_in.size() / 5;
 	if (min_size < 3) min_size = 3;
 
@@ -496,7 +498,6 @@ bool pma::ProjectionMatchingAlg::GetCloseHits(
 		std::vector<size_t>& used,
 		std::vector< art::Ptr<recob::Hit> >& hits_out) const
 {
-	mf::LogWarning("ProjectionMatchingAlg") << "GetCloseHits";
 	hits_out.clear();
 
 	const double gapMargin = 5.0; // can be changed to f(id_tpc1, id_tpc2)
@@ -509,6 +510,12 @@ bool pma::ProjectionMatchingAlg::GetCloseHits(
 		hits_out.push_back(hits_in[idx]);
 		used.push_back(idx);
 
+		unsigned int tpc = hits_in[idx]->WireID().TPC;
+		unsigned int cryo = hits_in[idx]->WireID().Cryostat;
+		unsigned int view = hits_in[idx]->WireID().Plane;
+		double wirePitch = fGeom->TPC(tpc, cryo).Plane(view).WirePitch();
+		double driftPitch = fDetProp->GetXTicksCoefficient(tpc, cryo);
+
 		double r2d2 = r2d*r2d;
 		double gapMargin2 = sqrt(2 * gapMargin*gapMargin);
 		gapMargin2 = (gapMargin2 + r2d)*(gapMargin2 + r2d);
@@ -520,26 +527,18 @@ bool pma::ProjectionMatchingAlg::GetCloseHits(
 			for (size_t i = 0; i < hits_in.size(); i++)
 				if (!Has(used, i))
 				{
-					art::Ptr<recob::Hit> hi = hits_in[i];
-					TVector2 hi_cm = pma::WireDriftToCm(hi->WireID().Wire, hi->PeakTime(), hi->WireID().Plane, hi->WireID().TPC, hi->WireID().Cryostat);
+					art::Ptr<recob::Hit> const & hi = hits_in[i];
+					TVector2 hi_cm(wirePitch * hi->WireID().Wire, driftPitch * hi->PeakTime());
 
 					bool accept = false;
 		
-					for (size_t idx_o = 0; idx_o < hits_out.size(); idx_o++)					
+					for (auto const & ho : hits_out)					
 					{
-						art::Ptr<recob::Hit> ho = hits_out[idx_o];
 
-						double d2 = pma::Dist2(
-							hi_cm, pma::WireDriftToCm(ho->WireID().Wire, ho->PeakTime(), ho->WireID().Plane, ho->WireID().TPC, ho->WireID().Cryostat));
+						TVector2 ho_cm(wirePitch * ho->WireID().Wire, driftPitch * ho->PeakTime());
+						double d2 = pma::Dist2(hi_cm, ho_cm);
 						
-						if (hi->WireID().TPC == ho->WireID().TPC)
-						{
-							if (d2 < r2d2) { accept = true; break; }
-						}
-						else
-						{
-							if (d2 < gapMargin2) { accept = true; break; }
-						}
+						if (d2 < r2d2) { accept = true; break; }
 					}
 					if (accept)
 					{
@@ -619,7 +618,6 @@ bool pma::ProjectionMatchingAlg::TestTrk(pma::Track3D& trk, const geo::TPCGeo& t
 
 bool pma::ProjectionMatchingAlg::Has(const std::vector<size_t>& v, size_t idx) const
 {
-		mf::LogWarning("ProjectionMatchingAlg") << "Has";
     for (auto c : v) if (c == idx) return true;
     return false;
 }
