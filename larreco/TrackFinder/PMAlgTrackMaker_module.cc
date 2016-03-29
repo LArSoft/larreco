@@ -255,12 +255,15 @@ private:
   pma::PMAlgVertexing fPMAlgVertexing;
   bool fRunVertexing;          // run vertex finding
   bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
+  bool fSavePmaNodes;          // for debugging, save only track nodes
 
   // ******************** instance names **********************
   static const std::string kKinksName;        // collection of kinks on tracks
+  static const std::string kNodesName;        // collection of pma nodes
 };
 // ------------------------------------------------------
 const std::string PMAlgTrackMaker::kKinksName = "kink";
+const std::string PMAlgTrackMaker::kNodesName = "node";
 // ------------------------------------------------------
 
 PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
@@ -274,6 +277,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	produces< std::vector<recob::SpacePoint> >();
 	produces< std::vector<recob::Vertex> >(); // no instance name for interaction vertices
 	produces< std::vector<recob::Vertex> >(kKinksName); // collection of kinks on tracks
+	produces< std::vector<recob::Vertex> >(kNodesName); // collection of pma nodes
 	produces< std::vector<anab::T0> >();
 
 	produces< art::Assns<recob::Track, recob::Hit> >(); // ****** REMEMBER to remove when FindMany improved ******
@@ -339,6 +343,7 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fPMAlgVertexing.reconfigure(pset.get< fhicl::ParameterSet >("PMAlgVertexing"));
 	fRunVertexing = pset.get< bool >("RunVertexing");
 	fSaveOnlyBranchingVtx = pset.get< bool >("SaveOnlyBranchingVtx");
+	fSavePmaNodes = pset.get< bool >("SavePmaNodes");
 }
 
 void PMAlgTrackMaker::reset(const art::Event& evt)
@@ -1340,6 +1345,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
 	std::unique_ptr< std::vector< recob::Vertex > > vtxs(new std::vector< recob::Vertex >);  // interaction vertices
 	std::unique_ptr< std::vector< recob::Vertex > > kinks(new std::vector< recob::Vertex >); // kinks on tracks (no new particles start in kinks)
+	std::unique_ptr< std::vector< recob::Vertex > > nodes(new std::vector< recob::Vertex >); // pma nodes
 	std::unique_ptr< std::vector< anab::T0 > > t0s(new std::vector< anab::T0 >);
 
 	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit_oldway(new art::Assns< recob::Track, recob::Hit >); // ****** REMEMBER to remove when FindMany improved ******
@@ -1556,6 +1562,20 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				mf::LogVerbatim("Summary") << ksel.size() << " kinks ready";
 			}
 
+			if (fSavePmaNodes)
+			{
+				double xyz[3];
+				for (size_t t = 0; t < result.size(); ++t)
+				{
+					auto const & trk = *(result[t].Track());
+					for (auto const * node : trk.Nodes())
+					{
+						xyz[0] = node->Point3D().X(); xyz[1] = node->Point3D().Y(); xyz[2] = node->Point3D().Z();
+						nodes->push_back(recob::Vertex(xyz, t));
+					}
+				}
+			}
+
 			if (fMakePFPs) // create new collection of PFParticles to save hierarchy as found by this module
 			{
 				// first particle, to be replaced with nu reco when possible
@@ -1616,6 +1636,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(allsp));
 	evt.put(std::move(vtxs));
 	evt.put(std::move(kinks), kKinksName);
+	evt.put(std::move(nodes), kNodesName);
 	evt.put(std::move(t0s));
 
 	evt.put(std::move(trk2hit_oldway)); // ****** REMEMBER to remove when FindMany improved ******
