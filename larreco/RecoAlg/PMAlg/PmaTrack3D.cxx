@@ -1586,15 +1586,15 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits, bool setA
 
 	//mf::LogVerbatim("pma::Track3D") << "objective function at opt start: " << g0;
 
-	// set branching flag only at the beginning, optimization is not changin that
-	// and new nodes are not branching
-	for (auto n : fNodes) n->SetVertexToBranching(setAllNodes);
-
 	bool stop = false;
 	fMinSegStop = fSegments.size();
 	fMaxSegStop = (int)(size() / fMaxSegStopFactor) + 1;
 	do
 	{
+		// set branching flag only at the beginning, optimization is not changin that
+		// and new nodes are not branching
+		for (auto n : fNodes) n->SetVertexToBranching(setAllNodes);
+
 		bool stepDone = true;
 		unsigned int stepIter = 0;
 		do
