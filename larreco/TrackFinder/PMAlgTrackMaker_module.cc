@@ -1552,9 +1552,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					mf::LogVerbatim("Summary") << "  kink:" << xyz[0] << ":" << xyz[1] << ":" << xyz[2];
 
 					size_t kidx = kinks->size();
-					kinks->push_back(recob::Vertex(xyz, kidx));
-
 					size_t tidx = k.second; // track idx on which this kink was found
+
+					kinks->push_back(recob::Vertex(xyz, tidx)); // save index of track (will have color of trk in evd)
+
 					art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
 					art::Ptr<recob::Vertex> kptr(kid, kidx, kinkGetter);
 					trk2kink->addSingle(tptr, kptr);
