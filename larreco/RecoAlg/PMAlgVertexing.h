@@ -51,7 +51,15 @@ public:
 	std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > >
 		getVertices(const pma::TrkCandidateColl& tracks, bool onlyBranching = false) const;
 
+	std::vector< std::pair< TVector3, size_t > > getKinks(const pma::TrkCandidateColl& tracks) const;
+
 private:
+	bool has(const std::vector<size_t>& v, size_t idx) const
+	{
+		for (auto c : v) if (c == idx) return true;
+		return false;
+	}
+
 	std::vector< pma::VtxCandidate > firstPassCandidates(void);
 	std::vector< pma::VtxCandidate > secondPassCandidates(void);
 	size_t makeVertices(std::vector< pma::VtxCandidate >& candidates);
@@ -72,6 +80,9 @@ private:
 	/// Split track and add vertex and reoptimize when dQ/dx step detected.
 	void splitMergedTracks(pma::TrkCandidateColl& trk_input) const;
 
+	/// Remove penalty on the angle if kink detected and reopt track.
+	void findKinksOnTracks(pma::TrkCandidateColl& trk_input) const;
+
 	pma::TrkCandidateColl fOutTracks;
 	pma::TrkCandidateColl fShortTracks;
 	pma::TrkCandidateColl fEmTracks;
@@ -83,6 +94,10 @@ private:
 	// Parameters used in the algorithm
 
 	double fMinTrackLength;   // min. length of tracks used to find vtx candidates (short tracks attached later)
+
+	bool fFindKinks;          // detect significant kinks on long tracks (need min. 5 nodes to collect angle stats)
+    double fKinkMinDeg;       // min. angle [deg] in XY of a kink
+	double fKinkMinStd;       // threshold in no. of stdev of all segment angles needed to tag a kink
 
 	// just to remember:
 	//double fInputVtxDist2D; // use vtx given at input if dist. [cm] to track in all 2D projections is below this max. value
