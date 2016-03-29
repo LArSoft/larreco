@@ -43,7 +43,7 @@ double my_mcs_chi2( const double *x )
   result += 2.0/( 4.6 )*theta0; // *TMath::Log( 1.0/14.0 );
   
   if ( isnan( float(result) ) || isinf( float(result) ) ) { 
-    mf::LogWarning("ClusterMatchTQ")<<" Is nan in my_mcs_chi2 ! ";
+    LOG_DEBUG("TrackMomentumCalculator")<<" Is nan in my_mcs_chi2 ! ";
     return -1; }
     
   return result;
@@ -79,6 +79,16 @@ namespace trkf{
     minLength = 100;
     
     maxLength = 1350.0;
+    
+    Float_t Range_grampercm[29] = {9.833E-1, 1.786E0, 3.321E0, 6.598E0, 1.058E1, 3.084E1, 4.250E1, 6.732E1, 1.063E2, 1.725E2, 2.385E2, 4.934E2,                              
+                                   6.163E2, 8.552E2, 1.202E3, 1.758E3, 2.297E3,                                                                                             
+                                   4.359E3, 5.354E3, 7.298E3, 1.013E4, 1.469E4, 1.910E4, 3.558E4, 4.326E4, 5.768E4, 7.734E4, 1.060E5, 1.307E5};                             
+    Float_t KE_MeV[29] = {10, 14, 20, 30, 40, 80, 100, 140, 200, 300, 400, 800, 1000, 1400, 2000, 3000, 4000, 8000, 10000, 14000, 20000, 30000,                              
+			  40000, 80000, 100000, 140000, 200000, 300000, 400000};
+    KEvsR = new TGraph(29, Range_grampercm, KE_MeV);
+    KEvsR_spline3 = new TSpline3("KEvsRS",KEvsR);
+    //KEvsRFromData = tfs->make<TH2D>("KEvsRFromData","KE vs R from Data",1000,0,1000,1000,0,5000);
+ 
   }
   
   double TrackMomentumCalculator::GetTrackMomentum(double trkrange, int pdg) 
@@ -135,7 +145,7 @@ namespace trkf{
    
    if (abs(pdg) == 13){
      M = Muon_M;		
-     if (trkrange>0 && trkrange<=200)
+     /*if (trkrange>0 && trkrange<=200)
      	  KE = 10.658+ (3.71181*trkrange) + (-0.0302898*trkrange*trkrange) +
 	           (0.000228501*trkrange*trkrange*trkrange)+
 	           (-5.86201E-7*trkrange*trkrange*trkrange*trkrange);
@@ -146,7 +156,8 @@ namespace trkf{
 	          (-3.99392E-16*trkrange*trkrange*trkrange*trkrange*trkrange)+
 	          (9.73174E-21*trkrange*trkrange*trkrange*trkrange*trkrange*trkrange);		  
       else
-          KE = -999;
+      KE = -999;*/
+     KE = KEvsR_spline3->Eval(trkrange);
       } 	  
    else if (abs(pdg) == 2212){
       M = Proton_M;

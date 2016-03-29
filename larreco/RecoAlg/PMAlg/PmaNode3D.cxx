@@ -26,7 +26,8 @@ pma::Node3D::Node3D(void) :
 	fMinX(0), fMaxX(0),
 	fMinY(0), fMaxY(0),
 	fMinZ(0), fMaxZ(0),
-	fPoint3D(0, 0, 0)
+	fPoint3D(0, 0, 0),
+	fIsVertex(false)
 {
 	fTPC = 0; fCryo = 0;
 
@@ -35,7 +36,8 @@ pma::Node3D::Node3D(void) :
 	fProj2D[2].Set(0);
 }
 
-pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo)
+pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo) :
+	fIsVertex(false)
 {
 	fTPC = tpc; fCryo = cryo;
 
@@ -199,11 +201,18 @@ void pma::Node3D::SetProjection(pma::Hit3D& h) const
 	else
 	{
 		float b = (float)(v0Norm * cosine / v1Norm);
-		p += (v1 * b);
-		h.SetProjection(p, -b);
+		if (fFrozen) // limit 3D positions to outermose node if frozen
+		{
+			h.SetPoint3D(fPoint3D);
+		}
+		else // or set 3D positions along the line of outermost segment
+		{
+			g3d -= fPoint3D;
+			h.SetPoint3D(fPoint3D + (g3d * b));
 
-		g3d -= fPoint3D;
-		h.SetPoint3D(fPoint3D + (g3d * b));
+			p += (v1 * b);
+		}
+		h.SetProjection(p, -b);
 	}
 }
 
@@ -243,11 +252,8 @@ double pma::Node3D::SegmentCosWirePlane(void) const
 	{
 		pma::Node3D* vStop1 = static_cast< pma::Node3D* >(prev->Prev());
 		pma::Node3D* vStop2 = static_cast< pma::Node3D* >(next->Next());
-		TVector2 v1, v2;
-		v1.Set( vStop1->fPoint3D.Y() - fPoint3D.Y(),
-		        vStop1->fPoint3D.Z() - fPoint3D.Z());
-		v2.Set( vStop2->fPoint3D.Y() - fPoint3D.Y(),
-		        vStop2->fPoint3D.Z() - fPoint3D.Z());
+		TVector2 v1(vStop1->fPoint3D.Y() - fPoint3D.Y(), vStop1->fPoint3D.Z() - fPoint3D.Z());
+		TVector2 v2(vStop2->fPoint3D.Y() - fPoint3D.Y(), vStop2->fPoint3D.Z() - fPoint3D.Z());
 		double mag = sqrt(v1.Mod2() * v2.Mod2());
 		double cosine = 0.0;
 		if (mag != 0.0) cosine = v1 * v2 / mag;
@@ -323,6 +329,8 @@ double pma::Node3D::PiInWirePlane(void) const
 // *** Note: should be changed / generalized for horizontal wire planes (e.g. 2-phase LAr). ***
 double pma::Node3D::PenaltyInWirePlane(void) const
 {
+	if (fIsVertex) return 0.0;
+
 	unsigned int nseg = 1;
 	double penalty = PiInWirePlane();
 	pma::Node3D* v;
@@ -372,7 +380,7 @@ std::vector< pma::Track3D* > pma::Node3D::GetBranches(void) const
 
 double pma::Node3D::Pi(float endSegWeight) const
 {
-	if (IsBranching()) return 0.0;
+	if (fIsVertex) return 0.0;
 
 	if (prev && NextCount())
 	{

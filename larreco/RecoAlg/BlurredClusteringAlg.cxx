@@ -397,7 +397,7 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
 	// Look for hits in the neighbouring x/y bins
         for (int x = binx - fClusterWireDistance; x <= binx + fClusterWireDistance; x++) {
           for (int y = biny - fClusterTickDistance; y <= biny + fClusterTickDistance; y++) {
-            if (x == binx && y == biny)
+            if ( (x == binx and y == biny) or (x >= nbinsx or y >= nbinsy) or (x < 0 or y < 0) )
               continue;
 
 	    // Get this bin
