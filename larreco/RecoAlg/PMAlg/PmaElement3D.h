@@ -91,6 +91,8 @@ public:
 	/// Fix / relese vertex 3D position.
 	void SetFrozen(bool state) { fFrozen = state; }
 
+	//void SelectHitsRnd(float fraction = 1.0F);
+
 	static float OptFactor(unsigned int view) { return fOptFactors[view]; }
 	static void SetOptFactor(unsigned int view, float value) { fOptFactors[view] = value; }
 

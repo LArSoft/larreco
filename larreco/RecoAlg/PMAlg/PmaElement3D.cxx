@@ -13,6 +13,8 @@
 #include "larreco/RecoAlg/PMAlg/SortedObjects.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
+#include "messagefacility/MessageLogger/MessageLogger.h"
+
 // Impact factors on the objective function:  U     V     Z
 float pma::Element3D::fOptFactors[3] =     { 0.2F, 0.8F, 1.0F };
 
@@ -180,22 +182,28 @@ void pma::Element3D::SortHits(void)
 
 double pma::Element3D::SumDist2(void) const
 {
-	double hit_sum = 0.0F;
-	for (size_t i = 0; i < fAssignedHits.size(); i++)
+	if (fTPC < 0)
 	{
-		if (fAssignedHits[i]->IsEnabled())
+		if (!fAssignedHits.empty()) mf::LogWarning("pma::Element3D") << "Hits assigned to TPC-crossing element.";
+		return 0.0F;
+	}
+
+	double hit_sum = 0.0F;
+	for (auto h : fAssignedHits)
+	{
+		if (h->IsEnabled())
 		{
-			unsigned int hitView = fAssignedHits[i]->View2D();
-/*			if (fAssignedHits[i]->IsSpanEnabled())
+			unsigned int hitView = h->View2D();
+/*			if (h->IsSpanEnabled())
 			{
 				double s = 0.0F;
 
-				double d1 = sqrt(GetDistance2To(fAssignedHits[i]->SpanPoint0(), hitView));
-				double d2 = sqrt(GetDistance2To(fAssignedHits[i]->SpanPoint2(), hitView));
-				double d3 = sqrt(GetDistance2To(fAssignedHits[i]->SpanPoint1(), hitView));
+				double d1 = sqrt(GetDistance2To(h->SpanPoint0(), hitView));
+				double d2 = sqrt(GetDistance2To(h->SpanPoint2(), hitView));
+				double d3 = sqrt(GetDistance2To(h->SpanPoint1(), hitView));
 				double d, dx, dt;
 
-				float driftSpan = fAssignedHits[i]->SpanDrift();
+				float driftSpan = h->SpanDrift();
 
 				if (driftSpan <= 0.0F) mf::LogError("pma::Element3D") << "Hit drift-length is below zero.";
 
@@ -209,21 +217,21 @@ double pma::Element3D::SumDist2(void) const
 						s += d * d;
 				}
 
-				hit_sum += s * fAssignedHits[i]->GetSigmaFactor() * OptFactor(hitView);
+				hit_sum += s * h->GetSigmaFactor() * OptFactor(hitView);
 			}
 			else */
-			hit_sum += OptFactor(hitView) *                             // alpha_i
-				fAssignedHits[i]->GetSigmaFactor() *                    // hit_amp / hit_max_amp
-				GetDistance2To(fAssignedHits[i]->Point2D(), hitView);   // hit_to_fit_dist^2
+			hit_sum += OptFactor(hitView) *              // alpha_i
+				h->GetSigmaFactor() *                    // hit_amp / hit_max_amp
+				GetDistance2To(h->Point2D(), hitView);   // hit_to_fit_dist^2
 		}
 	}
 
 	if (fAssignedPoints.size())
 	{
 		double d, ref_sum = 0.0F;
-		for (size_t i = 0; i < fAssignedPoints.size(); i++)
+		for (auto p : fAssignedPoints)
 		{
-			d = sqrt( GetDistance2To(*(fAssignedPoints[i])) ) - 0.5; // guide by ref points up to ~ 3D resolution
+			d = sqrt( GetDistance2To(*p) ) - 0.5; // guide by ref points up to ~ 3D resolution
 			if (d > 0.0) ref_sum += d * d;
 		}
 		if (fAssignedHits.size())
@@ -238,17 +246,23 @@ double pma::Element3D::SumDist2(void) const
 
 double pma::Element3D::SumDist2(unsigned int view) const
 {
-	double hit_sum = 0.0F;
-	for (size_t i = 0; i < fAssignedHits.size(); i++)
+	if (fTPC < 0)
 	{
-		if (fAssignedHits[i]->IsEnabled())
+		if (!fAssignedHits.empty()) mf::LogWarning("pma::Element3D") << "Hits assigned to TPC-crossing element.";
+		return 0.0F;
+	}
+
+	double hit_sum = 0.0F;
+	for (auto h : fAssignedHits)
+	{
+		if (h->IsEnabled())
 		{
-			unsigned int hitView = fAssignedHits[i]->View2D();
+			unsigned int hitView = h->View2D();
 			if ((view == geo::kUnknown) || (view == hitView))
 			{
-				hit_sum += OptFactor(hitView) *                             // alpha_i
-					fAssignedHits[i]->GetSigmaFactor() *                    // hit_amp / hit_max_amp
-					GetDistance2To(fAssignedHits[i]->Point2D(), hitView);   // hit_to_fit_dist^2
+				hit_sum += OptFactor(hitView) *              // alpha_i
+					h->GetSigmaFactor() *                    // hit_amp / hit_max_amp
+					GetDistance2To(h->Point2D(), hitView);   // hit_to_fit_dist^2
 			}
 		}
 	}
@@ -257,6 +271,12 @@ double pma::Element3D::SumDist2(unsigned int view) const
 
 double pma::Element3D::HitsRadius3D(unsigned int view) const
 {
+	if (fTPC < 0)
+	{
+		if (!fAssignedHits.empty()) mf::LogWarning("pma::Element3D") << "Hits assigned to TPC-crossing element.";
+		return 0.0F;
+	}
+
 	TVector3 mean3D(0, 0, 0);
 	size_t nHits = 0;
 	for (size_t i = 0; i < fAssignedHits.size(); i++)
@@ -274,4 +294,34 @@ double pma::Element3D::HitsRadius3D(unsigned int view) const
 		}
 	return sqrt(maxR2);
 }
+
+/*
+void pma::Element3D::SelectHitsRnd(float fraction)
+{
+	if (fraction < 0.0F) fraction = 0.0F;
+	if (fraction > 1.0F) fraction = 1.0F;
+	if (fraction < 1.0F) std::sort(fHits.begin(), fHits.end(), pma::bTrajectory3DDistLess());
+
+	unsigned int nHitsColl = (unsigned int)(fraction * NHits(geo::kZ));
+	unsigned int nHitsInd2 = (unsigned int)(fraction * NHits(geo::kV));
+	unsigned int nHitsInd1 = (unsigned int)(fraction * NHits(geo::kU));
+	unsigned int coll = 0, ind2 = 0, ind1 = 0;
+
+	for (size_t i = 0; i < size(); i++)
+	{
+		pma::Hit3D* hit = fHits[i];
+		if (fraction < 1.0F)
+		{
+			hit->SetEnabled(false);
+			switch (hit->View2D())
+			{
+				case geo::kZ: if (coll++ < nHitsColl) hit->SetEnabled(true); break;
+				case geo::kV: if (ind2++ < nHitsInd2) hit->SetEnabled(true); break;
+				case geo::kU: if (ind1++ < nHitsInd1) hit->SetEnabled(true); break;
+			}
+		}
+		else hit->SetEnabled(true);
+	}
+}
+*/
 

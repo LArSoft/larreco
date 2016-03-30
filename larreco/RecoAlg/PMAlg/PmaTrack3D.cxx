@@ -66,7 +66,7 @@ pma::Track3D::Track3D(const Track3D& src) :
 	}
 
 	fNodes.reserve(src.fNodes.size());
-	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo()));
+	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo(), node->IsVertex()));
 
 	for (auto const& point : src.fAssignedPoints) fAssignedPoints.push_back(new TVector3(*point));
 
@@ -338,7 +338,7 @@ pma::Hit3D* pma::Track3D::release_at(size_t index)
 	return h3d;
 }
 
-bool pma::Track3D::push_back(art::Ptr< recob::Hit > hit)
+bool pma::Track3D::push_back(const art::Ptr< recob::Hit > & hit)
 {
 	for (auto const& trk_hit : fHits)
 	{
@@ -350,7 +350,7 @@ bool pma::Track3D::push_back(art::Ptr< recob::Hit > hit)
 	return true;
 }
 
-bool pma::Track3D::erase(art::Ptr< recob::Hit > hit)
+bool pma::Track3D::erase(const art::Ptr< recob::Hit > & hit)
 {
 	for (size_t i = 0; i < size(); i++)
 	{
@@ -959,7 +959,7 @@ std::vector<float> pma::Track3D::DriftsOfWireIntersection(unsigned int wire, uns
 size_t pma::Track3D::CompleteMissingWires(unsigned int view)
 {
 	int dPrev, dw, w, wx, wPrev, i = NextHit(-1, view);
-	TVector2 projPoint;
+	//TVector2 projPoint;
 
 	pma::Hit3D* hitPrev = 0;
 	pma::Hit3D* hit = 0;
@@ -971,9 +971,9 @@ size_t pma::Track3D::CompleteMissingWires(unsigned int view)
 		hitPrev = hit;
 		hit = fHits[i];
 
-		projPoint = pma::CmToWireDrift(
-			hit->Projection2D().X(), hit->Projection2D().Y(),
-			hit->View2D(), hit->TPC(), hit->Cryo());
+		//projPoint = pma::CmToWireDrift(
+		//	hit->Projection2D().X(), hit->Projection2D().Y(),
+		//	hit->View2D(), hit->TPC(), hit->Cryo());
 
 		if (hit->View2D() == view) // &&
 		    //(projPoint.Y() >= hit->Hit2DPtr()->StartTick()-1) && // cannot use Hit2DPtr here
@@ -1586,15 +1586,15 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits, bool setA
 
 	//mf::LogVerbatim("pma::Track3D") << "objective function at opt start: " << g0;
 
+	// set branching flag only at the beginning, optimization is not changing
+	// that and new nodes are not branching
+	for (auto n : fNodes) n->SetVertexToBranching(setAllNodes);
+
 	bool stop = false;
 	fMinSegStop = fSegments.size();
 	fMaxSegStop = (int)(size() / fMaxSegStopFactor) + 1;
 	do
 	{
-		// set branching flag only at the beginning, optimization is not changin that
-		// and new nodes are not branching
-		for (auto n : fNodes) n->SetVertexToBranching(setAllNodes);
-
 		bool stepDone = true;
 		unsigned int stepIter = 0;
 		do
@@ -1626,7 +1626,11 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits, bool setA
 			}
 		} while (!stepDone && (stepIter < 5));
 
-		if (selAllHits && (size() / fNodes.size() < 300)) { SelectHits(); selAllHits = false; }
+		if (selAllHits && (size() / fSegments.size() < 300))
+		{
+			SelectHits(); selAllHits = false;
+		}
+
 		switch (nNodes)
 		{
 			case 0: stop = true; break; // just optimize existing vertices
@@ -2275,7 +2279,8 @@ pma::Element3D* pma::Track3D::GetNearestElement(
 	pma::Element3D* pe_min = 0;
 	double dist, min_dist = 1.0e9;
 	for (size_t i = v0; i < v1; i++)
-		if ((tpc == -1) || (fNodes[i]->TPC() == tpc))
+		//if ((tpc == -1) || (fNodes[i]->TPC() == tpc))
+		if (fNodes[i]->TPC() == tpc)
 	{
 		dist = fNodes[i]->GetDistance2To(p2d, view);
 		if (dist < min_dist)
@@ -2284,7 +2289,8 @@ pma::Element3D* pma::Track3D::GetNearestElement(
 		}
 	}
 	for (size_t i = 0; i < fSegments.size(); i++)
-		if ((tpc == -1) || (fSegments[i]->TPC() == tpc))
+		//if ((tpc == -1) || (fSegments[i]->TPC() == tpc))
+		if (fSegments[i]->TPC() == tpc)
 	{
 		if (fSegments[i]->TPC() < 0) continue; // segment between TPC's
 

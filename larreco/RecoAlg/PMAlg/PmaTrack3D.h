@@ -41,8 +41,8 @@ public:
 
 	pma::Hit3D* release_at(size_t index);
 	void push_back(pma::Hit3D* hit) { hit->fParent = this; fHits.push_back(hit); }
-	bool push_back(art::Ptr< recob::Hit > hit);
-	bool erase(art::Ptr< recob::Hit > hit);
+	bool push_back(const art::Ptr< recob::Hit > & hit);
+	bool erase(const art::Ptr< recob::Hit > & hit);
 
 	pma::Hit3D* & operator [] (size_t index) { return fHits[index]; }
 	pma::Hit3D* const & operator [] (size_t index) const { return fHits[index]; }
@@ -213,7 +213,6 @@ public:
 	bool GetBranches(std::vector< pma::Track3D const * >& branches, bool skipFirst = false) const;
 
 	void MakeProjection(void);
-	void MakeFastProjection(void);
 	void UpdateProjection(void);
 	void SortHits(void);
 
@@ -234,6 +233,7 @@ public:
 
 private:
 	void ClearNodes(void);
+	void MakeFastProjection(void);
 
 	void InternalFlip(std::vector< pma::Track3D* >& toSort);
 

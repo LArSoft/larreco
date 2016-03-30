@@ -18,7 +18,9 @@
 //    January 2016:    output of track-vertex finding as a tree of PFParticles, refined vertexing
 //                     code, put vertex at front of each track, flip whole track structures to
 //                     selected, direction (beam/down/dQdx), use any pattern reco stored in
-//                     PFParticles as seeds
+//                     PFParticles as a source of associated clusters
+//    Mar-Apr 2016:    kinks finding, EM shower direction reconstructed for PFPaarticles tagged as
+//                     electrons
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -221,7 +223,7 @@ private:
   double fSegAngMean;   // Mean segment-segment 3D angle.
   TTree* fTree_trk;     // overall info
 
-  // ******************** parameters **********************
+  // ******************** fcl parameters **********************
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
   std::string fCluModuleLabel; // label for input cluster collection
   int fCluMatchingAlg;         // which algorithm for cluster association
@@ -257,14 +259,14 @@ private:
   bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
   bool fSavePmaNodes;          // for debugging, save only track nodes
 
-  // ******************** instance names **********************
-  static const std::string kKinksName;        // collection of kinks on tracks
-  static const std::string kNodesName;        // collection of pma nodes
+  // ********** instance names (collections, assns) ************
+  static const std::string kKinksName;        // kinks on tracks
+  static const std::string kNodesName;        // pma nodes
 };
-// ------------------------------------------------------
+// -------------------------------------------------------------
 const std::string PMAlgTrackMaker::kKinksName = "kink";
 const std::string PMAlgTrackMaker::kNodesName = "node";
-// ------------------------------------------------------
+// -------------------------------------------------------------
 
 PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),

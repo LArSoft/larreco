@@ -36,8 +36,8 @@ pma::Node3D::Node3D(void) :
 	fProj2D[2].Set(0);
 }
 
-pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo) :
-	fIsVertex(false)
+pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bool vtx) :
+	fIsVertex(vtx)
 {
 	fTPC = tpc; fCryo = cryo;
 
@@ -363,6 +363,18 @@ bool pma::Node3D::IsBranching(void) const
 	return false;
 }
 
+bool pma::Node3D::IsTPCEdge(void) const
+{
+	if (prev && (NextCount() == 1))
+	{
+		pma::Segment3D* segPrev = static_cast< pma::Segment3D* >(prev);
+		pma::Segment3D* segNext = static_cast< pma::Segment3D* >(Next(0));
+
+		if ((segPrev->TPC() < 0) || (segNext->TPC() < 0)) return true;
+	}
+	return false;
+}
+
 std::vector< pma::Track3D* > pma::Node3D::GetBranches(void) const
 {
 	std::vector< pma::Track3D* > branches;
@@ -387,14 +399,17 @@ double pma::Node3D::Pi(float endSegWeight) const
 		pma::Segment3D* segPrev = static_cast< pma::Segment3D* >(prev);
 		pma::Segment3D* segNext = static_cast< pma::Segment3D* >(Next(0));
 
+		double scale = 1.0;
+		if ((segPrev->TPC() < 0) || (segNext->TPC() < 0)) scale = 0.1; // lower penalty on segments between tpc's
+
 		double segCos = SegmentCos();
 
 		double lPrev = segPrev->Length();
 		double lNext = segNext->Length();
 		double lAsymm = (1.0 - segCos) * (lPrev - lNext) / (lPrev + lNext);
 
-		if (fHitsRadius > 0.0F) return (1.0 + segCos + 0.05 * lAsymm * lAsymm) * fHitsRadius * fHitsRadius;
-		else return (1.0 + segCos + 0.05 * lAsymm * lAsymm) * Length2();
+		if (fHitsRadius > 0.0F) return scale * (1.0 + segCos + 0.05 * lAsymm * lAsymm) * fHitsRadius * fHitsRadius;
+		else return scale * (1.0 + segCos + 0.05 * lAsymm * lAsymm) * Length2();
 	}
 	else
 	{
