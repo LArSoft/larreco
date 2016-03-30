@@ -2035,8 +2035,7 @@ namespace cluster {
     if(imbest == USHRT_MAX) return;
     iht = tp.Hits[imbest];
     
-    // return victorious if the hit multiplicity is 1 and the charge is reasonable,
-    // or if this is a high multiplicity hit
+    // return victorious if the hit multiplicity is 1 and the charge is reasonable
     std::vector<unsigned int> hitsInMultiplet;
     GetHitMultiplet(imbest, hitsInMultiplet);
     if(hitsInMultiplet.size() == 1) {
@@ -2048,7 +2047,6 @@ namespace cluster {
       inTraj[iht] = tj.ID;
       return;
     }
-    
     // Handle hit muliplets here. Construct a figure of merit for
     // the single hit, a hit doublet and for a hit multiplet
     // Calculate sfom
@@ -2064,27 +2062,24 @@ namespace cluster {
       // index of the other hit in tp.Hits
       unsigned short ombest = 1 - imbest;
       unsigned int oht = tp.Hits[ombest];
-      float hitsep = (fHits[iht]->PeakTime() - fHits[oht]->PeakTime()) / fHits[iht]->RMS();
-      if(prt) mf::LogVerbatim("TC")<<"  doublet deltas "<<deltas[imbest]<<" "<<deltas[ombest]<<" hitsep "<<hitsep;
-      if(deltas[ombest] < 2 * deltas[imbest] && hitsep < fMultHitSep) {
-        // make a temporary charge weighted sfom
-        chgrat = std::abs(fHits[iht]->Integral() - fAveChg) / fAveChg;
-        if(chgrat < 0.3) chgrat = 0.3;
-        float scfom = sfom * chgrat;
-        // make a fom for the other hit
-        deltaErr = std::abs(tp.Dir[1]) * 0.17 + std::abs(tp.Dir[0]) * HitTimeErr(oht);
-        deltaErr += tp.DeltaRMS * tp.DeltaRMS;
-        deltaErr = sqrt(deltaErr);
-        float ofom = deltas[ombest] / deltaErr;
-        chgrat  = std::abs(fHits[oht]->Integral() - fAveChg) / fAveChg;
-        if(chgrat < 0.3) chgrat = 0.3;
-        ofom *= chgrat;
-        if(prt) mf::LogVerbatim("TC")<<"  scfom "<<scfom<<"  ofom "<<ofom;
-        if(ofom < scfom) {
-          imbest = ombest;
-          iht = oht;
-        }
-      } // deltas[ombest] < 2 * deltas[imbest]
+      // See if the other hit is better when charge is considered.
+      // Make a temporary charge weighted sfom
+      chgrat = std::abs(fHits[iht]->Integral() - fAveChg) / fAveChg;
+      if(chgrat < 0.3) chgrat = 0.3;
+      float scfom = sfom * chgrat;
+      // make a fom for the other hit
+      deltaErr = std::abs(tp.Dir[1]) * 0.17 + std::abs(tp.Dir[0]) * HitTimeErr(oht);
+      deltaErr += tp.DeltaRMS * tp.DeltaRMS;
+      deltaErr = sqrt(deltaErr);
+      float ofom = deltas[ombest] / deltaErr;
+      chgrat  = std::abs(fHits[oht]->Integral() - fAveChg) / fAveChg;
+      if(chgrat < 0.3) chgrat = 0.3;
+      ofom *= chgrat;
+      if(prt) mf::LogVerbatim("TC")<<"  scfom "<<scfom<<"  ofom "<<ofom;
+      if(ofom < scfom) {
+        imbest = ombest;
+        iht = oht;
+      }
     } // a doublet
     // Calculate mfom only for largish angle trajectories
     float fwire, ftime, dRms, qtot = 0;
@@ -2133,6 +2128,7 @@ namespace cluster {
         inTraj[jht] = tj.ID;
       } // ii
     } // use the multiplet
+
   } //  FindUseHits
 
   //////////////////////////////////////////
@@ -3538,17 +3534,17 @@ namespace cluster {
     // find the first value of delta RMS that is not the default value
     unsigned short ipt, usePt = USHRT_MAX;
     for(ipt = work.EndPt[0] + fNPtsAve + 3; ipt < work.EndPt[1]; ++ipt) {
-      if(work.Pts[ipt].Chg > 0 && work.Pts[ipt].DeltaRMS > 0 && work.Pts[ipt].DeltaRMS != 0.02) {
-        usePt = ipt;
-        break;
-      }
+      if(work.Pts[ipt].Chg == 0) continue;
+      if(work.Pts[ipt].DeltaRMS < 0.02) continue;
+      usePt = ipt;
+      break;
     } // ipt
-    float pull;
+    float drms, pull;
     if(usePt != USHRT_MAX) {
       // Scan from usePt back to the beginning. Stop if delta looks suspiciously large
       // and remove all points from the beginning to this point
       unsigned short ii;
-      float drms = work.Pts[usePt].DeltaRMS;
+      drms = work.Pts[usePt].DeltaRMS;
       if(drms < 0.02) drms = 0.02;
       for(ii = 0; ii < work.Pts.size(); ++ii) {
         ipt = usePt - ii;
@@ -3570,16 +3566,20 @@ namespace cluster {
     unsigned short cnt = 0;
     for(ipt = work.EndPt[1]; ipt > work.EndPt[0]; --ipt) {
       if(work.Pts[ipt].Chg == 0) continue;
+      if(work.Pts[ipt].DeltaRMS < 0.02) continue;
       usePt = ipt;
       ++cnt;
       if(ipt == 0) break;
       if(cnt > 8) break;
     } // ipt
-    if(prt) mf::LogVerbatim("TC")<<"CHD end usePt "<<usePt;
+    if(usePt == USHRT_MAX) return;
+    drms = work.Pts[usePt].DeltaRMS;
+    if(drms < 0.02) drms = 0.02;
+    if(prt) mf::LogVerbatim("TC")<<"CHD end usePt "<<usePt<<" drms "<<drms;
     if(usePt == USHRT_MAX) return;
     for(ipt = usePt; ipt < work.EndPt[1] + 1; ++ipt) {
-      pull = work.Pts[ipt].Delta / work.Pts[usePt].DeltaRMS;
-      if(prt) mf::LogVerbatim("TC")<<"CHD end "<<ipt<<" "<<fPlane<<":"<<PrintPos(work.Pts[ipt])<<" Delta "<<work.Pts[ipt].Delta<<" pull "<<pull<<" usePt "<<usePt;
+      pull = work.Pts[ipt].Delta / drms;
+      if(prt) mf::LogVerbatim("TC")<<"CHD end "<<ipt<<" "<<fPlane<<":"<<PrintPos(work.Pts[ipt])<<" Delta "<<work.Pts[ipt].Delta<<" pull "<<pull;
       if(pull > 5) {
         // unset all TPs from here to the beginning
         for(unsigned short jpt = ipt; jpt < work.EndPt[1] + 1; ++jpt) UnsetUsedHits(work.Pts[jpt]);
@@ -3938,7 +3938,7 @@ namespace cluster {
     killPts = 0;
 
     unsigned short lastPt = tj.EndPt[1];
-    if(lastPt < 2) return;
+    if(lastPt < 3) return;
     if(tj.Pts[lastPt].Chg == 0) return;
     
     float dang;
@@ -3959,7 +3959,8 @@ namespace cluster {
       dang = DeltaAngle(tj.Pts[lastPt].Ang, tj.Pts[prevPtWithHits].Ang);
 //      dang = std::abs(tj.Pts[lastPt].Ang - tj.Pts[prevPtWithHits].Ang);
       if(prt) mf::LogVerbatim("TC")<<"GottaKink Simple check lastPt "<<lastPt<<" prevPtWithHits "<<prevPtWithHits<<" dang "<<dang<<" cut "<<fKinkAngCut;
-      if(dang > fKinkAngCut) {
+      // need to be more generous since the angle error isn't being considered
+      if(dang > 1.5 * fKinkAngCut) {
         killPts = 1;
         tj.AlgMod[kGottaKink] = true;
         tj.Pts[prevPtWithHits].KinkAng = dang;
@@ -3972,7 +3973,7 @@ namespace cluster {
       for(ii = 1; ii < 6; ++ii) {
         ipt = lastPt - ii;
         if(tj.Pts[ipt].Chg == 0) {
-          killPts = ipt;
+          killPts = ii;
           break;
         }
       } // ii
