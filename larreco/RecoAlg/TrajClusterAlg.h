@@ -191,7 +191,6 @@ namespace cluster {
     
     bool fIsRealData;
     TH1F *fnHitsPerTP[3];
-    TH1F *fnHitsFitPerTP[3];
     TH1F *fDelta[3];
     TH1F *fDeltaN[3];
     TH1F *fCharge[3];
@@ -347,6 +346,9 @@ namespace cluster {
       kJunkTj,
       kKilled,
       kStopAtVtx,
+      kUseHiMultEndHits,
+      kMerged,
+      kTrimHits,
       kAlgBitSize     ///< don't mess with this line
     } AlgBit_t;
     
@@ -368,7 +370,10 @@ namespace cluster {
       "Hammer2DVx",
       "JunkTj",
       "Killed",
-      "StopAtVtx"
+      "StopAtVtx",
+      "Merged",
+      "TrimHits",
+      "UseHiMultEndHits"
     };
     
     // runs the TrajCluster algorithm on one plane specified by the calling routine
@@ -405,12 +410,16 @@ namespace cluster {
     // Returns the charge weighted wire, time position of all hits in the multiplet
     // of which hit is a member
     void HitMultipletPosition(unsigned int hit, float& hitTick, float& deltaRms, float& qtot);
+    void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet);
+    void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex);
     // Return true if iht and jht are both in a multiplet but have the wrong local index to start a trajectory
     bool SkipHighMultHitCombo(unsigned int iht, unsigned int jht);
     // Returns fHits[iht]->RMS() * fScaleF * fHitErrFac * fHits[iht]->Multiplicity();
     float HitTimeErr(unsigned int iht);
     // Estimates the error^2 of the time using all hits in hitVec
     float HitsTimeErr2(std::vector<unsigned int> const& hitVec);
+    // estimate the number of hits expected for the provided angle
+    unsigned short NumHitsExpected(float angle);
     // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
     void DefineHitPos(TrajPoint& tp);
     // Decide which hits to use to determine the trajectory point
@@ -458,6 +467,9 @@ namespace cluster {
     // Split the allTraj trajectory itj at position pos into two trajectories
     // with an optional vertex assignment
     void SplitAllTraj(unsigned short itj, unsigned short pos, unsigned short ivx);
+    // Append the allTraj trajectory to work
+    void AppendToWork(short itjID);
+    void MakeTrajectoryObsolete(unsigned short itj);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
     void CheckHitClusterAssociations();
@@ -465,8 +477,11 @@ namespace cluster {
     void StoreWork();
     // Check the quality of the work trajectory and possibly trim it
     void CheckWork();
+    // See if another trajectory can be appended to work
+    void CheckAppend();
     // Check for many unused hits in work and try to use them
     void CheckHiMultUnusedHits();
+    void UseHiMultEndHits(unsigned short lastMult1Pt);
     // Check for high values of Delta at the beginning of the trajectory
     void CheckHiDeltas();
     // Check for a TJ that is close to the Large Angle cut
