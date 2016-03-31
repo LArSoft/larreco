@@ -65,6 +65,7 @@ public:
 
 	size_t NHits(void) const { return fAssignedHits.size(); }
 	size_t NEnabledHits(unsigned int view = geo::kUnknown) const;
+	size_t NPrecalcEnabledHits(void) const { return fNThisHitsEnabledAll; }
 
 	TVector3 const & ReferencePoint(size_t index) const { return *(fAssignedPoints[index]); }
 	size_t NPoints(void) const { return fAssignedPoints.size(); }
@@ -75,7 +76,7 @@ public:
 	virtual void ClearAssigned(pma::Track3D* trk = 0);
 
 	void UpdateHitParams(void);
-	void UpdateProjection(void);
+	void UpdateProjection(void) { for (auto h : fAssignedHits) SetProjection(*h); }
 	void SortHits(void);
 
 	double SumDist2(void) const;
@@ -91,7 +92,8 @@ public:
 	/// Fix / relese vertex 3D position.
 	void SetFrozen(bool state) { fFrozen = state; }
 
-	//void SelectHitsRnd(float fraction = 1.0F);
+	bool SelectRndHits(size_t nmax_per_view);
+	bool SelectAllHits(void);
 
 	static float OptFactor(unsigned int view) { return fOptFactors[view]; }
 	static void SetOptFactor(unsigned int view, float value) { fOptFactors[view] = value; }
@@ -103,8 +105,9 @@ protected:
 	bool fFrozen;
 	std::vector< pma::Hit3D* > fAssignedHits;  // 2D hits
 	std::vector< TVector3* > fAssignedPoints;  // 3D peculiar points reconstructed elsewhere
-	unsigned int fNThisHits[3];
-	unsigned int fNHits[3];
+	size_t fNThisHits[3];
+	size_t fNThisHitsEnabledAll;
+	size_t fNHits[3];
 	double fSumHitsQ[3];
 	double fHitsRadius;
 

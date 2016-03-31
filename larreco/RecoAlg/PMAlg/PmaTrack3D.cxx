@@ -194,7 +194,8 @@ bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 
 		MakeProjection();
 		UpdateHitsRadius();
-		Optimize(0, 0.01F);
+		Optimize(0, 0.01F, false, true, 100);
+		SelectAllHits();
 	}
 	else
 	{
@@ -292,7 +293,8 @@ bool pma::Track3D::InitFromRefPoints(int tpc, int cryo)
 
 	if (size()) UpdateHitsRadius();
 
-	Optimize(0, 0.01F);
+	Optimize(0, 0.01F, false, true, 100);
+	SelectAllHits();
 
 	return true;
 }
@@ -1576,9 +1578,9 @@ double pma::Track3D::GetObjFunction(float penaltyFactor) const
 	return sum / fNodes.size();
 }
 
-double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits, bool setAllNodes)
+double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits, bool setAllNodes, size_t selSegHits, size_t selVtxHits)
 {
-	if (!fNodes.size()) { mf::LogError("pma::Track3D") << "Track3D not initialized."; return 0.0; }
+	if (!fNodes.size()) { mf::LogError("pma::Track3D") << "Track not initialized."; return 0.0; }
 
 	UpdateParams();
 	double g0 = GetObjFunction(), g1 = 0.0;
@@ -1595,6 +1597,8 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits, bool setA
 	fMaxSegStop = (int)(size() / fMaxSegStopFactor) + 1;
 	do
 	{
+		if (selSegHits || selVtxHits) SelectRndHits(selSegHits, selVtxHits);
+
 		bool stepDone = true;
 		unsigned int stepIter = 0;
 		do
@@ -1626,9 +1630,12 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits, bool setA
 			}
 		} while (!stepDone && (stepIter < 5));
 
-		if (selAllHits && (size() / fSegments.size() < 300))
+		if (selAllHits)
 		{
-			SelectHits(); selAllHits = false;
+			selAllHits = false;
+			selSegHits = 0;
+			selVtxHits = 0;
+			if (SelectAllHits()) continue;
 		}
 
 		switch (nNodes)
@@ -2544,43 +2551,61 @@ unsigned int pma::Track3D::DisableSingleViewEnds(void)
 	return nDisabled;
 }
 
-void pma::Track3D::SelectHits(float fraction)
+bool pma::Track3D::SelectHits(float fraction)
 {
 	if (fraction < 0.0F) fraction = 0.0F;
 	if (fraction > 1.0F) fraction = 1.0F;
 	if (fraction < 1.0F) std::sort(fHits.begin(), fHits.end(), pma::bTrajectory3DDistLess());
 
-	unsigned int nHitsColl = (unsigned int)(fraction * NHits(geo::kZ));
-	unsigned int nHitsInd2 = (unsigned int)(fraction * NHits(geo::kV));
-	unsigned int nHitsInd1 = (unsigned int)(fraction * NHits(geo::kU));
-	unsigned int coll = 0, ind2 = 0, ind1 = 0;
+	size_t nHitsColl = (size_t)(fraction * NHits(geo::kZ));
+	size_t nHitsInd2 = (size_t)(fraction * NHits(geo::kV));
+	size_t nHitsInd1 = (size_t)(fraction * NHits(geo::kU));
+	size_t coll = 0, ind2 = 0, ind1 = 0;
 
-	for (size_t i = 0; i < size(); i++)
+	bool b, changed = false;
+	for (auto h : fHits)
 	{
-		pma::Hit3D* hit = fHits[i];
+		b = h->IsEnabled();
 		if (fraction < 1.0F)
 		{
-			hit->SetEnabled(false);
-			switch (hit->View2D())
+			h->SetEnabled(false);
+			switch (h->View2D())
 			{
-				case geo::kZ: if (coll++ < nHitsColl) hit->SetEnabled(true); break;
-				case geo::kV: if (ind2++ < nHitsInd2) hit->SetEnabled(true); break;
-				case geo::kU: if (ind1++ < nHitsInd1) hit->SetEnabled(true); break;
+				case geo::kZ: if (coll++ < nHitsColl) h->SetEnabled(true); break;
+				case geo::kV: if (ind2++ < nHitsInd2) h->SetEnabled(true); break;
+				case geo::kU: if (ind1++ < nHitsInd1) h->SetEnabled(true); break;
 			}
 		}
-		else hit->SetEnabled(true);
+		else h->SetEnabled(true);
+
+		changed |= (b != h->IsEnabled());
 	}
 
 	if (fraction < 1.0F)
 	{
-		pma::Element3D* pe = FirstElement();
-		for (unsigned int i = 0; i < pe->NHits(); i++)
-			pe->Hit(i).SetEnabled(true);
-
-		pe = LastElement();
-		for (unsigned int i = 0; i < pe->NHits(); i++)
-			pe->Hit(i).SetEnabled(true);
+		FirstElement()->SelectAllHits();
+		LastElement()->SelectAllHits();
 	}
+	return changed;
+}
+
+bool pma::Track3D::SelectRndHits(size_t segmax, size_t vtxmax)
+{
+	bool changed = false;
+	for (auto n : fNodes) changed |= n->SelectRndHits(vtxmax);
+	for (auto s : fSegments) changed |= s->SelectRndHits(segmax);
+	return changed;
+}
+
+bool pma::Track3D::SelectAllHits(void)
+{
+	bool changed = false;
+	for (auto h : fHits)
+	{
+		changed |= !(h->IsEnabled());
+		h->SetEnabled(true);
+	}
+	return changed;
 }
 
 void pma::Track3D::MakeProjection(void)

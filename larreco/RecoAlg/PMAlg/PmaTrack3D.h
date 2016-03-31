@@ -158,7 +158,8 @@ public:
 
 	/// Main optimization method.
 	double Optimize(int nNodes = -1, double eps = 0.01,
-		bool selAllHits = true, bool setAllNodes = true);
+		bool selAllHits = true, bool setAllNodes = true,
+		size_t selSegHits = 0, size_t selVtxHits = 0);
 
 	void SortHitsInTree(bool skipFirst = false);
 	void MakeProjectionInTree(bool skipFirst = false);
@@ -217,7 +218,9 @@ public:
 	void SortHits(void);
 
 	unsigned int DisableSingleViewEnds(void);
-	void SelectHits(float fraction = 1.0F);
+	bool SelectHits(float fraction = 1.0F);
+	bool SelectRndHits(size_t segmax, size_t vtxmax);
+	bool SelectAllHits(void);
 
 	float GetEndSegWeight(void) const { return fEndSegWeight; }
 	void SetEndSegWeight(float value) { fEndSegWeight = value; }

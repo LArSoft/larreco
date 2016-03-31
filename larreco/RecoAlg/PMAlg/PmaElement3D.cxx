@@ -23,6 +23,7 @@ pma::Element3D::Element3D() :
 	fFrozen(false),
 	fHitsRadius(0)
 {
+	fNThisHitsEnabledAll = 0;
 	for (unsigned int i = 0; i < 3; i++)
 	{
 		fNHits[i] = 0;
@@ -40,6 +41,11 @@ size_t pma::Element3D::NEnabledHits(unsigned int view) const
 	return n;
 }
 
+void pma::Element3D::SortHits(void)
+{
+	std::sort(fAssignedHits.begin(), fAssignedHits.end(), pma::bTrajectory3DOrderLess());
+}
+
 void pma::Element3D::ClearAssigned(pma::Track3D* trk)
 {
 	fAssignedPoints.clear();
@@ -50,52 +56,47 @@ void pma::Element3D::ClearAssigned(pma::Track3D* trk)
 void pma::Element3D::UpdateHitParams(void)
 {
 	std::vector< pma::Hit3D* > hitsColl, hitsInd1, hitsInd2;
-	for (size_t i = 0; i < fAssignedHits.size(); i++)
+	for (size_t i = 0; i < 3; ++i) fNThisHitsEnabledAll = 0;
+	for (auto h : fAssignedHits)
 	{
-		switch (fAssignedHits[i]->View2D())
+		if (h->IsEnabled()) fNThisHitsEnabledAll++;
+		switch (h->View2D())
 		{
-			case geo::kZ: hitsColl.push_back(fAssignedHits[i]); break;
-			case geo::kV: hitsInd2.push_back(fAssignedHits[i]); break;
-			case geo::kU: hitsInd1.push_back(fAssignedHits[i]); break;
+			case geo::kZ: hitsColl.push_back(h); break;
+			case geo::kV: hitsInd2.push_back(h); break;
+			case geo::kU: hitsInd1.push_back(h); break;
 		}
 	}
 	fNThisHits[0] = hitsInd1.size();
 	fNThisHits[1] = hitsInd2.size();
 	fNThisHits[2] = hitsColl.size();
 
-	pma::SortedObjectBase* chain = dynamic_cast< pma::SortedObjectBase* >(this);
-	pma::Element3D* el = NULL;
-
-	if (chain)
+	pma::SortedObjectBase const * chain = dynamic_cast< pma::SortedObjectBase* >(this);
+	pma::Element3D* el = 0;
+	for (size_t b = 0; b < chain->NextCount(); b++)
 	{
-		for (size_t b = 0; b < chain->NextCount(); b++)
-		{
-			el = dynamic_cast< pma::Element3D* >(chain->Next(b));
-			if (el)
-				for (size_t i = 0; i < el->fAssignedHits.size(); i++)
+		el = dynamic_cast< pma::Element3D* >(chain->Next(b));
+		if (el)
+			for (auto h : el->fAssignedHits)
+			{
+				switch (h->View2D())
 				{
-					switch (el->fAssignedHits[i]->View2D())
-					{
-						case geo::kZ: hitsColl.push_back(el->fAssignedHits[i]); break;
-						case geo::kV: hitsInd2.push_back(el->fAssignedHits[i]); break;
-						case geo::kU: hitsInd1.push_back(el->fAssignedHits[i]); break;
-					}
+					case geo::kZ: hitsColl.push_back(h); break;
+					case geo::kV: hitsInd2.push_back(h); break;
+					case geo::kU: hitsInd1.push_back(h); break;
 				}
-		}
+			}
 	}
-
-	if (chain) el = dynamic_cast< pma::Element3D* >(chain->Prev());
-	else el = NULL;
-
+	el = dynamic_cast< pma::Element3D* >(chain->Prev());
 	if (el)
 	{
-		for (size_t i = 0; i < el->fAssignedHits.size(); i++)
+		for (auto h : el->fAssignedHits)
 		{
-			switch (el->fAssignedHits[i]->View2D())
+			switch (h->View2D())
 			{
-				case geo::kZ: hitsColl.push_back(el->fAssignedHits[i]); break;
-				case geo::kV: hitsInd2.push_back(el->fAssignedHits[i]); break;
-				case geo::kU: hitsInd1.push_back(el->fAssignedHits[i]); break;
+				case geo::kZ: hitsColl.push_back(h); break;
+				case geo::kV: hitsInd2.push_back(h); break;
+				case geo::kU: hitsInd1.push_back(h); break;
 			}
 		}
 	}
@@ -165,19 +166,6 @@ void pma::Element3D::UpdateHitParams(void)
 		}
 		else hitsColl[i]->SetSigmaFactor(1.0F);
 	}
-}
-
-void pma::Element3D::UpdateProjection(void)
-{
-	for (size_t i = 0; i < fAssignedHits.size(); i++)
-	{
-		SetProjection(*(fAssignedHits[i]));
-	}
-}
-
-void pma::Element3D::SortHits(void)
-{
-	std::sort(fAssignedHits.begin(), fAssignedHits.end(), pma::bTrajectory3DOrderLess());
 }
 
 double pma::Element3D::SumDist2(void) const
@@ -279,49 +267,59 @@ double pma::Element3D::HitsRadius3D(unsigned int view) const
 
 	TVector3 mean3D(0, 0, 0);
 	size_t nHits = 0;
-	for (size_t i = 0; i < fAssignedHits.size(); i++)
-		if (fAssignedHits[i]->View2D() == view)
-			{ mean3D += fAssignedHits[i]->Point3D(); nHits++; }
+	for (auto h : fAssignedHits)
+		if (h->View2D() == view)
+			{ mean3D += h->Point3D(); nHits++; }
 	if (!nHits) return 0.0;
 	mean3D *= (1.0 / nHits);
 
 	double r2, maxR2 = 0.0;
-	for (size_t i = 0; i < fAssignedHits.size(); i++)
-		if (fAssignedHits[i]->View2D() == view)
+	for (auto h : fAssignedHits)
+		if (h->View2D() == view)
 		{
-			r2 = pma::Dist2(fAssignedHits[i]->Point3D(), mean3D);
+			r2 = pma::Dist2(h->Point3D(), mean3D);
 			if (r2 > maxR2) maxR2 = r2;
 		}
 	return sqrt(maxR2);
 }
 
-/*
-void pma::Element3D::SelectHitsRnd(float fraction)
+bool pma::Element3D::SelectRndHits(size_t nmax_per_view)
 {
-	if (fraction < 0.0F) fraction = 0.0F;
-	if (fraction > 1.0F) fraction = 1.0F;
-	if (fraction < 1.0F) std::sort(fHits.begin(), fHits.end(), pma::bTrajectory3DDistLess());
+	if (!nmax_per_view) { return SelectAllHits(); }
 
-	unsigned int nHitsColl = (unsigned int)(fraction * NHits(geo::kZ));
-	unsigned int nHitsInd2 = (unsigned int)(fraction * NHits(geo::kV));
-	unsigned int nHitsInd1 = (unsigned int)(fraction * NHits(geo::kU));
-	unsigned int coll = 0, ind2 = 0, ind1 = 0;
+	size_t nhits[3];
+	for (size_t i = 0; i < 3; ++i) nhits[i] = NHits(i);
 
-	for (size_t i = 0; i < size(); i++)
+	float frac[3];
+	for (size_t i = 0; i < 3; ++i)
 	{
-		pma::Hit3D* hit = fHits[i];
-		if (fraction < 1.0F)
-		{
-			hit->SetEnabled(false);
-			switch (hit->View2D())
-			{
-				case geo::kZ: if (coll++ < nHitsColl) hit->SetEnabled(true); break;
-				case geo::kV: if (ind2++ < nHitsInd2) hit->SetEnabled(true); break;
-				case geo::kU: if (ind1++ < nHitsInd1) hit->SetEnabled(true); break;
-			}
-		}
-		else hit->SetEnabled(true);
+		frac[i] = nmax_per_view / (float)nhits[i];
+		if (frac[i] > 1.0F) frac[i] = 1.0F;
 	}
+
+	bool b, changed = false;
+	float scale = 1.0F / (float)RAND_MAX;
+	for (auto h : fAssignedHits)
+	{
+		b = h->IsEnabled();
+		size_t view = h->View2D();
+		if ((frac[view] == 1.0F) || (frac[view] < scale * rand()))
+			h->SetEnabled(true);
+		else h->SetEnabled(false);
+
+		changed |= (b != h->IsEnabled());
+	}
+	return changed;
 }
-*/
+
+bool pma::Element3D::SelectAllHits(void)
+{
+	bool changed = false;
+	for (auto h : fAssignedHits)
+	{
+		changed |= !(h->IsEnabled());
+		h->SetEnabled(true);
+	}
+	return changed;
+}
 

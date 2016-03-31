@@ -400,7 +400,7 @@ double pma::Node3D::Pi(float endSegWeight) const
 		pma::Segment3D* segNext = static_cast< pma::Segment3D* >(Next(0));
 
 		double scale = 1.0;
-		if ((segPrev->TPC() < 0) || (segNext->TPC() < 0)) scale = 0.1; // lower penalty on segments between tpc's
+		if ((segPrev->TPC() < 0) || (segNext->TPC() < 0)) scale = 0.5; // lower penalty on segments between tpc's
 
 		double segCos = SegmentCos();
 
@@ -462,18 +462,20 @@ double pma::Node3D::Penalty(float endSegWeight) const
 
 double pma::Node3D::Mse(void) const
 {
-	unsigned int nhits = NEnabledHits();
+	unsigned int nhits = NPrecalcEnabledHits(); //NEnabledHits();
 	double mse = SumDist2();
+
+	pma::Segment3D* seg;
 	for (unsigned int i = 0; i < NextCount(); i++)
 	{
-		pma::Segment3D* seg = static_cast< pma::Segment3D* >(Next(i));
-		nhits += seg->NEnabledHits();
+		seg = static_cast< pma::Segment3D* >(Next(i));
+		nhits += seg->NPrecalcEnabledHits(); //NEnabledHits();
 		mse += seg->SumDist2();
 	}
 	if (prev)
 	{
-		pma::Segment3D* seg = static_cast< pma::Segment3D* >(prev);
-		nhits += seg->NEnabledHits();
+		seg = static_cast< pma::Segment3D* >(prev);
+		nhits += seg->NPrecalcEnabledHits(); //NEnabledHits();
 		mse += seg->SumDist2();
 	}
 	if (!nhits) return 0.0;
