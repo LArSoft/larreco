@@ -367,18 +367,20 @@ void calo::Calorimetry::produce(art::Event& evt)
       std::vector<double> ChargeBeg;
       std::stack<double> ChargeEnd;     
 
+      // find track pitch
+      fTrkPitch = 0;
+      for (size_t itp = 0; itp < tracklist[trkIter]->NumberTrajectoryPoints(); ++itp){
+        const TVector3& pos = tracklist[trkIter]->LocationAtPoint(itp);
+        const double Position[3] = { pos.X(), pos.Y(), pos.Z() };
+        geo::TPCID tpcid = geom->FindTPCAtPosition ( Position );
+        if (tpcid.isValid) {
+          fTrkPitch = lar::utils::TrackPitchInView(*tracklist[trkIter], geom->Plane(ipl).View(), itp);
+          break;
+        }
+      }
+
       // find the separation between all space points
       double xx = 0.,yy = 0.,zz = 0.;
-
-      try{
-	fTrkPitch = lar::utils::TrackPitchInView(*tracklist[trkIter], geom->Plane(ipl).View());
-      }
-      catch( cet::exception &e){
-	mf::LogWarning("Calorimetry") << "caught exception " 
-				      << e << "\n setting pitch (C) to "
-				      << util::kBogusD;
-	fTrkPitch = 0;
-      }
 
       //save track 3d points
       std::vector<double> trkx;
