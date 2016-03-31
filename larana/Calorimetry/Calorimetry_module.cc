@@ -374,7 +374,15 @@ void calo::Calorimetry::produce(art::Event& evt)
         const double Position[3] = { pos.X(), pos.Y(), pos.Z() };
         geo::TPCID tpcid = geom->FindTPCAtPosition ( Position );
         if (tpcid.isValid) {
-          fTrkPitch = lar::utils::TrackPitchInView(*tracklist[trkIter], geom->Plane(ipl).View(), itp);
+          try{
+            fTrkPitch = lar::utils::TrackPitchInView(*tracklist[trkIter], geom->Plane(ipl).View(), itp);
+          }
+          catch( cet::exception &e){
+            mf::LogWarning("Calorimetry") << "caught exception " 
+                                          << e << "\n setting pitch (C) to "
+                                          << util::kBogusD;
+            fTrkPitch = 0;
+          }
           break;
         }
       }
