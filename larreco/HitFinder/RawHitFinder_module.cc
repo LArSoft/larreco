@@ -314,59 +314,82 @@ namespace hit {
       // ###             Collection Plane            ###
       // ###############################################    
 
-      else if(sigType == geo::kCollection){
+      else if(sigType == geo::kCollection)
+      {
         threshold = fMinSigCol;
         // fitWidth  = fColWidth;
         // minWidth  = fColMinWidth;
 
         //find local maxima
-        float madc=threshold;
-        int ibin=0;
-        //	int nohits = 0;
-        unsigned int bin =0;
-        int start = 0;
-        int end = 0;
+        float madc = threshold;
+        int ibin   = 0;
+        int start  = 0;
+        int end    = 0;
+        unsigned int bin = 0;
 
-        while (bin<fDataSize) {
+        while (bin<fDataSize)
+        {
           float thisadc = holder[bin];
-          madc=threshold;
+          madc = threshold;
+          ibin = 0;
 
-          if (thisadc>madc) { // new region
+          if (thisadc>madc)
+          {
             startTimes.push_back(bin);
             start = bin;
-            bin++;
 
-            while (thisadc>threshold && bin<fDataSize) {
-              thisadc=holder[bin];
-              if (thisadc>madc) {ibin=bin; madc=thisadc;}
-              bin++;
-            }
-            maxTimes.push_back(ibin-1);
-            peakHeight.push_back(madc);	    
-            endTimes.push_back(bin-1);
-            end = bin-1;
-
-            totSig = 0;
-            myrms  = 0;
-            mynorm = 0;
-
-            for(int i = start-std::ceil(fIncludeMoreTail*(end-start)); i <= end+std::ceil(fIncludeMoreTail*(end-start)); i++){
-              totSig += holder[i];
-              float temp2 = holder[i]*holder[i];
-              mynorm += temp2;
-              float temp = ibin-1.0-i;
-              myrms += temp*temp*temp2;
-            }
-            charge.push_back(totSig);
-            myrms/=mynorm;
-            if((end-start+2*std::ceil(fIncludeMoreTail*(end-start)+1))!=0)
+            if(thisadc>threshold && bin<fDataSize)
             {
-              myrms/=(float)(end-start+2*std::ceil(fIncludeMoreTail*(end-start)+1));
-              hitrms.push_back(sqrt(myrms));
+              while (thisadc>threshold && bin<fDataSize)
+              {
+                if (thisadc>madc)
+                {
+                  ibin=bin; 
+                  madc=thisadc;
+                }
+                bin++;
+                thisadc=holder[bin];
+              }
             }
             else
             {
-              hitrms.push_back(sqrt(myrms));
+              bin++;
+            }
+
+            end = bin-1;
+
+            if(start!=end)
+            {
+              maxTimes.push_back(ibin);
+              peakHeight.push_back(madc);	    
+              endTimes.push_back(end);
+
+              totSig = 0;
+              myrms  = 0;
+              mynorm = 0;
+
+              int moreTail = std::ceil(fIncludeMoreTail*(end-start));
+
+              for(int i = start-moreTail; i <= end+moreTail; i++)
+              {
+                totSig += holder[i];
+                float temp2 = holder[i]*holder[i];
+                mynorm += temp2;
+                float temp = ibin-i;
+                myrms += temp*temp*temp2;
+              }
+
+              charge.push_back(totSig);
+              myrms/=mynorm;
+              if((end-start+2*moreTail+1)!=0)
+              {
+                myrms/=(float)(end-start+2*moreTail+1);
+                hitrms.push_back(sqrt(myrms));
+              }
+              else
+              {
+                hitrms.push_back(sqrt(myrms));
+              }
             }
             //   std::cout << "CHARGE ON ADC####################### " << totSig 
             // << " RMS " << myrms << std::endl;
@@ -439,12 +462,6 @@ namespace hit {
             int(end - start)  // dof
             );
         hcol.emplace_back(hit.move(), digitVec);
-
-        /*
-        if(evt.event()==21&&channel==2022)
-        {
-          std::cout << position << std::endl;
-        }*/
 
         ++hitIndex;
       }//end loop over hits

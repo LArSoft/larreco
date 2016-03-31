@@ -31,6 +31,7 @@
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 #include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Vertex.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
@@ -95,6 +96,11 @@ public:
     /// as far as hits origin from at least two wire planes.
 	pma::Track3D* buildMultiTPCTrack(const std::vector< art::Ptr<recob::Hit> >& hits) const;
 
+	/// Build a shower segment from sets of hits and attached to the given vertex.
+	pma::Track3D* buildShowerSeg(
+		const std::vector< art::Ptr<recob::Hit> >& hits, 
+		const art::Ptr<recob::Vertex>& vtx) const;
+
 	/// Build a straight segment from two sets of hits (they should origin from two wire planes);
 	/// method is intendet for short tracks or shower initial parts, where only a few hits
 	/// per plane are available and there is no chance to see a curvature or any other features.
@@ -116,6 +122,15 @@ public:
 	pma::Track3D* buildSegment(
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		const TVector3& point) const;
+
+	// Get rid of small groups of hits around cascades
+	void FilterOutSmallParts(
+		double r2d,
+		const std::vector< art::Ptr<recob::Hit> >& hits_in,
+		std::vector< art::Ptr<recob::Hit> >& hits_out,
+		const TVector2& vtx2d) const;
+
+	void RemoveNotEnabledHits(pma::Track3D& trk) const;
 
 	/// Add more hits to an existing track, reoptimize, optionally add more nodes.
 	pma::Track3D* extendTrack(
@@ -165,6 +180,21 @@ private:
 		const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits,
 		std::pair<int, int> const * wires, double const * xPos,
 		unsigned int tpc, unsigned int cryo) const;
+
+	// Helpers for FilterOutSmallParts 
+	bool GetCloseHits(
+		double r2d, 
+		const std::vector< art::Ptr<recob::Hit> >& hits_in, 
+		std::vector<size_t>& used,
+		std::vector< art::Ptr<recob::Hit> >& hits_out) const;
+
+	bool Has(const std::vector<size_t>& v, size_t idx) const;
+
+	// Make segment shorter dending on mse 
+	void ShortenSeg(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const;
+
+	// Control length of the track and number of hits which are still enabled
+	bool TestTrk(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const;
 
 	// Calculate good number of segments depending on the number of hits.
 	static size_t getSegCount(size_t trk_size);
