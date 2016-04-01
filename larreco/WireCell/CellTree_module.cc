@@ -364,7 +364,7 @@ void CellTree::analyze( const art::Event& event )
         for (int i=0; i<nSp; i++) {
             TString jsonfile;
             jsonfile.Form("data/%i/%i-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
-            ofstream out(jsonfile.Data());
+            std::ofstream out(jsonfile.Data());
             processSpacePoint(event, fSpacePointLabels[i], out);
             out.close();
         }
@@ -373,7 +373,7 @@ void CellTree::analyze( const art::Event& event )
             processMCTracks();
             TString jsonfile;
             jsonfile.Form("data/%i/%i-mc.json", entryNo, entryNo);
-            ofstream out(jsonfile.Data());
+            std::ofstream out(jsonfile.Data());
             DumpMCJSON(out);
             out.close();
         }

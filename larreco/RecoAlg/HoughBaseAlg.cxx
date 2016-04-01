@@ -1009,7 +1009,7 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
 //this method saves a BMP image of the Hough Accumulator, which can be viewed with gimp
 void cluster::HoughBaseAlg::HLSSaveBMPFile(const char *fileName, unsigned char *pix, int dx, int dy)
 {
-  ofstream bmpFile(fileName, std::ios::binary);
+  std::ofstream bmpFile(fileName, std::ios::binary);
   bmpFile.write("B", 1);
   bmpFile.write("M", 1);
   int bitsOffset = 54 +256*4; 

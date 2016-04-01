@@ -451,7 +451,7 @@ void ClusteringValidation::ClusterAnalyser::WriteFile() {
   double avCleanliness  = hCleanliness ->GetMean();
 
   // Write file
-  ofstream outFile("effpur");
+  std::ofstream outFile("effpur");
   outFile << avCompleteness << " " << avCleanliness;
   outFile.close();
 
