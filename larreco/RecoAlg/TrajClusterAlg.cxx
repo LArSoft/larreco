@@ -493,6 +493,11 @@ namespace cluster {
     hitVec.clear();
     unsigned short ipt, iht;
     for(ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+      if(tj.Pts[ipt].Hits.size() != tj.Pts[ipt].UseHit.size()) {
+        std::cout<<"Ooops \n";
+        fQuitAlg = true;
+        return;
+      }
       for(iht = 0; iht < tj.Pts[ipt].Hits.size(); ++iht) {
         if(onlyUsedHits) {
           if(tj.Pts[ipt].UseHit[iht]) hitVec.push_back(tj.Pts[ipt].Hits[iht]);
@@ -1313,7 +1318,7 @@ namespace cluster {
       tj1.Vtx[photonConvEnd] = vtx.size() - 1;
       // unresolved e+e- pair
       tj1.PDG = 24;
-      mf::LogVerbatim("TC")<<"chgrat "<<allTraj[itj].ID<<" "<<chgrat<<" photonConvEnd "<<photonConvEnd<<" bchg "<<(int)bchg<<" echg "<<(int)echg;
+      if(prt) mf::LogVerbatim("TC")<<"chgrat "<<allTraj[itj].ID<<" "<<chgrat<<" photonConvEnd "<<photonConvEnd<<" bchg "<<(int)bchg<<" echg "<<(int)echg;
 //      PrintAllTraj(itj, USHRT_MAX);
       // find the separation point of the electrons, use a local average charge
       for(ipt = bPt + 1; ipt < ePt - 1; ++ipt) {
@@ -2946,7 +2951,7 @@ namespace cluster {
         doca = maxdoca;
         // find the closest distance between the vertex and the trajectory
         TrajPointTrajDOCA(tp, allTraj[itj], closePt, doca);
-        mf::LogVerbatim("TC")<<"CI3DV itj ID "<<allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
+        if(prt) mf::LogVerbatim("TC")<<"CI3DV itj ID "<<allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
         if(doca == maxdoca) continue;
         mTjs.push_back(std::make_pair(itj, closePt));
       } // itj
@@ -2998,7 +3003,7 @@ namespace cluster {
       vtx.push_back(aVtx);
       vx3.Ptr2D[mPlane] = aVtxIndx;
       vx3.Wire = -1;
-       mf::LogVerbatim("TC")<<"CompleteIncomplete3DVertices: new 2D vtx "<<aVtxIndx<<" points to 3D vtx ";
+      if(prt) mf::LogVerbatim("TC")<<"CompleteIncomplete3DVertices: new 2D vtx "<<aVtxIndx<<" points to 3D vtx ";
     } // vx3
   } // CompleteIncomplete3DVertices
   
@@ -4786,8 +4791,7 @@ namespace cluster {
     unsigned int iht;
     for(iht = 0; iht < inClus.size(); ++iht) inClus[iht] = 0;
     
-//    if(prt) mf::LogVerbatim("TC")<<"MakeAllTrajClusters: allTraj size "<<allTraj.size();
-    mf::LogVerbatim("TC")<<"MakeAllTrajClusters: allTraj size "<<allTraj.size();
+    if(prt) mf::LogVerbatim("TC")<<"MakeAllTrajClusters: allTraj size "<<allTraj.size();
     
     CheckInTraj("MATC");
     if(fQuitAlg) return;
@@ -4843,8 +4847,8 @@ namespace cluster {
       for(iht = 0; iht < cls.tclhits.size(); ++iht) inClus[cls.tclhits[iht]] = cls.ID;
     } // itj
 
-    PrintAllTraj(USHRT_MAX, 0);
-    PrintClusters();
+//    PrintAllTraj(USHRT_MAX, 0);
+//    PrintClusters();
     
   } // MakeAllTrajClusters
 
@@ -5143,15 +5147,17 @@ namespace cluster {
       hitTick += fHits[iht]->Integral() * fHits[iht]->PeakTime();
       closeHits.push_back(iht);
     } // iht
-    for(iht = theHit - 1; iht >= firsthit; --iht) {
-      if(fHits[theHit]->PeakTime() - fHits[iht]->PeakTime() > hitSep) break;
-      // break if a hit is found that belongs to a trajectory
-      if(inTraj[iht] > 0) break;
-      qtot += fHits[iht]->Integral();
-      hitTick += fHits[iht]->Integral() * fHits[iht]->PeakTime();
-      closeHits.push_back(iht);
-      if(iht == 0) break;
-    } // iht
+    if(theHit > 0) {
+      for(iht = theHit - 1; iht >= firsthit; --iht) {
+        if(fHits[theHit]->PeakTime() - fHits[iht]->PeakTime() > hitSep) break;
+        // break if a hit is found that belongs to a trajectory
+        if(inTraj[iht] > 0) break;
+        qtot += fHits[iht]->Integral();
+        hitTick += fHits[iht]->Integral() * fHits[iht]->PeakTime();
+        closeHits.push_back(iht);
+        if(iht == 0) break;
+      } // iht
+    }
     if(qtot == 0) return;
     if(closeHits.size() == 1) {
       qtot = 0;
