@@ -15,6 +15,7 @@
 #include <vector>
 #include <string>
 #include <array>
+#include <fstream>
 
 //Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 
@@ -43,7 +44,6 @@
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
-
 #include "art/Framework/Core/EDAnalyzer.h"
 
 
@@ -64,6 +64,7 @@ namespace cluster {
     /// read access to event
     void analyze(const art::Event& evt);
     void beginJob();
+    void endJob();
 
   private:
     TH1F* fNClusters;
@@ -118,6 +119,9 @@ namespace cluster {
     float fMergeAngleCut;
     bool  fSkipCosmics;
     short fPrintLevel;
+    short moduleID;
+    
+    std::ofstream outFile;
       	 
   }; // class ClusterAna
 
@@ -144,6 +148,18 @@ namespace cluster{
     , fPrintLevel           (pset.get< short >       ("PrintLevel"))
   {
   
+    if(fPrintLevel == -1) {
+      // encode the clustermodule label into an integer
+      moduleID = 0;
+      size_t found = fClusterModuleLabel.find("traj"); if(found != std::string::npos) moduleID = 1;
+      found = fClusterModuleLabel.find("line"); if(found != std::string::npos) moduleID = 2;
+      found = fClusterModuleLabel.find("fuzz"); if(found != std::string::npos) moduleID = 3;
+      found = fClusterModuleLabel.find("pand"); if(found != std::string::npos) moduleID = 4;
+      std::cout<<"fClusterModuleLabel "<<fClusterModuleLabel<<" ID "<<moduleID<<"\n";
+      
+      std::string fileName = fClusterModuleLabel + ".tru";
+      outFile.open(fileName);
+    }
   
   }
   
@@ -206,6 +222,12 @@ namespace cluster{
   
   }
   
+  void ClusterAna::endJob()
+  {
+    if(fPrintLevel == -1) outFile.close();
+  }
+  
+  
   void ClusterAna::analyze(const art::Event& evt)
   {
     
@@ -227,20 +249,24 @@ namespace cluster{
     art::Handle< std::vector<recob::Cluster> > clusterListHandle;
     evt.getByLabel(fClusterModuleLabel,clusterListHandle);
     art::FindManyP<recob::Hit> fmh(clusterListHandle, evt, fClusterModuleLabel);
-    if(clusterListHandle->size() == 0) return;
+    if(clusterListHandle->size() == 0) {
+      std::cout<<"No clusters in event. Hits size "<<allhits.size()<<"\n";
+      // don't return or the statistics will be off
+//      return;
+    }
 
     // get 3D vertices
     art::Handle< std::vector<recob::Vertex> > vertexListHandle;
-    evt.getByLabel(fVertexModuleLabel,vertexListHandle);
-    art::PtrVector<recob::Vertex> recoVtxList;
     double xyz[3] = {0,0,0};
-    for(unsigned int ii = 0; ii < vertexListHandle->size(); ++ii){
-      art::Ptr<recob::Vertex> vertex(vertexListHandle, ii);
-      recoVtxList.push_back(vertex);
-      vertex->XYZ(xyz);
-//  mf::LogVerbatim("ClusterAna")
-//    <<"Reco Vtx "<<xyz[0]<<" "<<xyz[1]<<" "<<xyz[2];
-    }
+    art::PtrVector<recob::Vertex> recoVtxList;
+    if(vertexListHandle.isValid()) {
+      evt.getByLabel(fVertexModuleLabel,vertexListHandle);
+      for(unsigned int ii = 0; ii < vertexListHandle->size(); ++ii){
+        art::Ptr<recob::Vertex> vertex(vertexListHandle, ii);
+        recoVtxList.push_back(vertex);
+        vertex->XYZ(xyz);
+      } // ii
+    } // vertexListHandle
     
     // list of all true particles
     sim::ParticleList plist;
@@ -549,12 +575,19 @@ namespace cluster{
           continue;
         }
         short icl = truToCl[ipl][plane];
-        nRec[plane] = nRecHitInCl[icl];
+        if(icl < 0) {
+          nRec[plane] = 0;
+        } else {
+          nRec[plane] = nRecHitInCl[icl];
+        }
         nTruRec[plane] = nTruHitInCl[ipl][plane];
+        eff[plane] = 0;
+        pur[plane] = 0;
         if(nTru[plane] > 0) eff[plane] = (float)nTruRec[plane] / (float)nTru[plane];
         if(nRec[plane] > 0) pur[plane] = (float)nTruRec[plane] / (float)nRec[plane];
         ep[plane] = eff[plane] * pur[plane];
         if(ep[plane] < 0 || ep[plane] > 1) std::cout<<"Bad ep "<<ep[plane]<<"\n";
+        if(fPrintLevel == -1) outFile<<moduleID<<" "<<evt.id().event()<<" "<<trackID<<" "<<PDG<<" "<<(int)KE<<" "<<plane<<" "<<nTru[plane]<<" "<<std::setprecision(3)<<eff[plane]<<" "<<pur[plane]<<"\n";
 //        mf::LogVerbatim("ClusterAna")<<"Cluster "<<icl<<" nRec hits "<<nRec[plane]<<" nTruRec hits "<<nTruRec[plane]<<" eff "<<eff[plane]<<" pur "<<pur[plane];
       } // plane
       // sort the ep values in ascending order
