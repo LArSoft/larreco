@@ -169,7 +169,10 @@ namespace hit {
 	
 	// Create MCHit
 	::sim::MCHit hit;
-	hit.SetParticleInfo(edep.Vertex(), edep.Energy(), edep.TrackId());
+	float vtx[3] = {float(edep.Vertex()[0]),
+			float(edep.Vertex()[1]),
+			float(edep.Vertex()[2])};
+	hit.SetParticleInfo(vtx, edep.Energy(), edep.TrackId());
 	
 	double max_time = 0;
 	double qsum     = 0;
@@ -193,6 +196,8 @@ namespace hit {
       mcwires.push_back(wire);
       } // End looping over all MCEnDep-MCWire pairs
     } // End looping over all SimChannels
+
+    e.removeCachedProduct(simchArray);
     
     std::sort((*hits_v).begin(),(*hits_v).end());
     e.put(std::move(hits_v));
