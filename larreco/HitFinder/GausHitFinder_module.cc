@@ -51,6 +51,7 @@
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBaseArt/HitCreator.h"
+#include "HitFilterAlg.h"
 
 // ROOT Includes
 #include "TGraphErrors.h"
@@ -121,6 +122,9 @@ namespace hit{
     double	            fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
     
+    bool                fDoHitFiltering;
+    HitFilterAlg        fHitFilterAlg;             ///algorithm used to filter out noise hits
+    
     TH1F* fFirstChi2;
     TH1F* fChi2;
 		
@@ -132,7 +136,8 @@ namespace hit{
 
 //-------------------------------------------------
 //-------------------------------------------------
-GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
+GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset):
+  fHitFilterAlg(pset.get<fhicl::ParameterSet>("HitFilterAlg"))
 {
   this->reconfigure(pset);
   
@@ -179,6 +184,9 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
 {
   // Implementation of optional member function here.
   fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
+  
+  fHitFilterAlg.reconfigure(p.get<fhicl::ParameterSet>("HitFilterAlg"));
+  fDoHitFiltering = p.get<bool>("FilterHits", false);
 
   FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),fMinSig);
   FillOutHitParameterVector(p.get< std::vector<double> >("InitWidth"),fInitWidth);
@@ -487,27 +495,30 @@ void GausHitFinder::produce(art::Event& evt)
                     double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
 
                     // ok, now create the hit
-                    recob::HitCreator hit(*wire,                            // wire reference
-                                          wid,                              // wire ID
-                                          startT+roiFirstBinTick,           // start_tick TODO check
-                                          endT+roiFirstBinTick,             // end_tick TODO check
-                                          peakWidth,                        // rms
-                                          peakMean+roiFirstBinTick,         // peak_time
-                                          peakMeanErr,                      // sigma_peak_time
-                                          peakAmp,                          // peak_amplitude
-                                          peakAmpErr,                       // sigma_peak_amplitude
-                                          charge,                           // hit_integral
-                                          chargeErr,                        // hit_sigma_integral
-                                          sumADC,                           // summedADC FIXME
-                                          nGausForFit,                      // multiplicity
-                                          numHits,                          // local_index TODO check that the order is correct
-                                          chi2PerNDF,                       // goodness_of_fit
-                                          NDF                               // dof
-                                          );
+                    recob::HitCreator hitcreator(*wire,                            // wire reference
+                                        	 wid,                              // wire ID
+                                        	 startT+roiFirstBinTick,           // start_tick TODO check
+                                        	 endT+roiFirstBinTick,             // end_tick TODO check
+                                        	 peakWidth,                        // rms
+                                        	 peakMean+roiFirstBinTick,         // peak_time
+                                        	 peakMeanErr,                      // sigma_peak_time
+                                        	 peakAmp,                          // peak_amplitude
+                                        	 peakAmpErr,                       // sigma_peak_amplitude
+                                        	 charge,                           // hit_integral
+                                        	 chargeErr,                        // hit_sigma_integral
+                                        	 sumADC,                           // summedADC FIXME
+                                        	 nGausForFit,                      // multiplicity
+                                        	 numHits,                          // local_index TODO check that the order is correct
+                                        	 chi2PerNDF,                       // goodness_of_fit
+                                        	 NDF                               // dof
+                                        	 );
                     
-                    hcol.emplace_back(hit.move(), wire, rawdigits);
-                    
-                    numHits++;
+		    const recob::Hit hit(hitcreator.move());
+		    
+		    if (!fDoHitFiltering || fHitFilterAlg.IsGoodHit(hit)) {
+                      hcol.emplace_back(std::move(hit), wire, rawdigits);                   
+                      numHits++;
+		    }
                 } // <---End loop over gaussians
                 
                 fChi2->Fill(chi2PerNDF);

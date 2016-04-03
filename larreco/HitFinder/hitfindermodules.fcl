@@ -48,6 +48,15 @@ gaus_hitfinder:
  Chi2NDFRetry:         25.0             # If the first hit returns a Chi2/NDF greater than (2X) this 
                                         # number (for single pulse) it will try a second fit
  Chi2NDF:              2000             # maximum Chisquared / NDF allowed for a hit to be saved (Set very high by default)
+
+ FilterHits:           false            # true = do not keep undesired hits according to settings of HitFilterAlg object
+ HitFilterAlg:
+ {
+   AlgName: "HitFilterAlg"
+   MinPulseHeight: [5.0, 5.0, 5.0]      #minimum hit peak amplitude per plane
+   MinPulseSigma:  [1.0, 1.0, 1.0]      #minimum hit rms per plane
+ }
+
 }
 
 
