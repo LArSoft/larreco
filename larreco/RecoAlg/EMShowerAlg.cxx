@@ -67,17 +67,24 @@ void shower::EMShowerAlg::AssociateClustersAndTracks(std::vector<art::Ptr<recob:
       std::vector<art::Ptr<recob::Track> > clusterHitTracks = fmt.at(clusterHitIt->key());
       if (clusterHitTracks.size() > 1) { std::cout << "More than one track associated with this hit!" << std::endl; continue; }
       if (clusterHitTracks.size() < 1) continue;
-      if (clusterHitTracks.at(0)->Length() < fMinTrackLength) continue;
+      if (clusterHitTracks.at(0)->Length() < fMinTrackLength) {
+	//std::cout << "Track " << clusterHitTracks.at(0)->ID() << " is too short! (" << clusterHitTracks.at(0)->Length() << ")" << std::endl;
+	continue;
+      }
 
       // Add this cluster to the track map
       int track = clusterHitTracks.at(0).key();
+      //int trackID = clusterHitTracks.at(0)->ID();
       int cluster = (*clusterIt).key();
       if (std::find(clustersToIgnore.begin(), clustersToIgnore.end(), cluster) != clustersToIgnore.end())
 	continue;
       if (std::find(trackToClusters[track].begin(), trackToClusters[track].end(), cluster) == trackToClusters[track].end())
 	trackToClusters[track].push_back(cluster);
-      if (std::find(clusterToTracks[cluster].begin(), clusterToTracks[cluster].end(), track) == clusterToTracks[cluster].end())
+      if (std::find(clusterToTracks[cluster].begin(), clusterToTracks[cluster].end(), track) == clusterToTracks[cluster].end()) {
+	// if (trackID == 65550 or trackID == 65549 or trackID == 65548 or trackID == 65536)
+	//   std::cout << "Track " << trackID << " is associated with cluster " << cluster << std::endl;
 	clusterToTracks[cluster].push_back(track);
+      }
 
     }
 
@@ -192,7 +199,7 @@ void shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const
 	planeHits[(*hitIt)->WireID().Plane].push_back(*hitIt);
     }
 
-    // Look at how many clusters each plane has, and the proportion of hits each of uses
+    // Look at how many clusters each plane has, and the proportion of hits each one uses
     std::map<int,std::vector<double> > planeClusterSizes;
     for (std::map<int,std::vector<art::Ptr<recob::Cluster> > >::iterator planeClustersIt = planeClusters.begin(); planeClustersIt != planeClusters.end(); ++planeClustersIt) {
       for (std::vector<art::Ptr<recob::Cluster> >::iterator planeClusterIt = planeClustersIt->second.begin(); planeClusterIt != planeClustersIt->second.end(); ++planeClusterIt) {
@@ -202,29 +209,48 @@ void shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const
     }
 
     // Find the average hit fraction across all clusters in the plane
-    std::map<int,double> planeClusterAverageSizes;
+    std::map<int,double> planeClustersAvSizes;
     for (std::map<int,std::vector<double> >::iterator planeClusterSizesIt = planeClusterSizes.begin(); planeClusterSizesIt != planeClusterSizes.end(); ++planeClusterSizesIt) {
       double average = 0;
       for (std::vector<double>::iterator planeClusterSizeIt = planeClusterSizesIt->second.begin(); planeClusterSizeIt != planeClusterSizesIt->second.end(); ++planeClusterSizeIt)
 	average += *planeClusterSizeIt;
       average /= planeClusterSizesIt->second.size();
-      planeClusterAverageSizes[planeClusterSizesIt->first] = average;
+      planeClustersAvSizes[planeClusterSizesIt->first] = average;
     }
 
-    // Now, decide if there is one plane which is ruining the reconstruction
-    // If there are two planes with a low average cluster fraction and one with a high one, this plane likely merges two particle deposits together
-    std::vector<int> highAverage, lowAverage;
-    for (std::map<int,double>::iterator planeClusterAverageSizeIt = planeClusterAverageSizes.begin(); planeClusterAverageSizeIt != planeClusterAverageSizes.end(); ++planeClusterAverageSizeIt) {
-      if (planeClusterAverageSizeIt->second > 0.9) highAverage.push_back(planeClusterAverageSizeIt->first);
-      else lowAverage.push_back(planeClusterAverageSizeIt->first);
-    }
+    std::cout << "Looking at bad plane: Shower " << std::distance(initialShowers.begin(),initialShowerIt) << std::endl;
+    for (std::map<int,double>::iterator planeClustersAvSizesIt = planeClustersAvSizes.begin(); planeClustersAvSizesIt != planeClustersAvSizes.end(); ++planeClustersAvSizesIt)
+      std::cout << "Plane " << planeClustersAvSizesIt->first << " has average hit thing " << planeClustersAvSizesIt->second << std::endl;
+
+    // Now decide if there is one plane which is ruining the reconstruction
+    // If two planes have a low average cluster fraction and one high, this plane likely merges two particle deposits together
     int badPlane = -1;
-    if (highAverage.size() == 1 and highAverage.size() < lowAverage.size())
-      badPlane = highAverage.at(0);
+    for (std::map<int,double>::iterator clusterAvSizeIt = planeClustersAvSizes.begin(); clusterAvSizeIt != planeClustersAvSizes.end(); ++clusterAvSizeIt) {
+      double avClusterSizeThisPlane = clusterAvSizeIt->second;
+      double sumClusterSizeOtherPlanes = 0;
+      for (std::map<int,double>::iterator otherClustersAvSizeIt = planeClustersAvSizes.begin(); otherClustersAvSizeIt != planeClustersAvSizes.end(); ++otherClustersAvSizeIt)
+	if (clusterAvSizeIt->first != otherClustersAvSizeIt->first)
+    	  sumClusterSizeOtherPlanes += otherClustersAvSizeIt->second;
+      if (avClusterSizeThisPlane >= sumClusterSizeOtherPlanes)
+    	badPlane = clusterAvSizeIt->first;
+    }
 
-    if (badPlane != -1) 
+    // // Now, decide if there is one plane which is ruining the reconstruction
+    // // If there are two planes with a low average cluster fraction and one with a high one, this plane likely merges two particle deposits together
+    // std::vector<int> highAverage, lowAverage;
+    // for (std::map<int,double>::iterator planeClusterAverageSizeIt = planeClustersAvSizes.begin(); planeClusterAverageSizeIt != planeClustersAvSizes.end(); ++planeClusterAverageSizeIt) {
+    //   if (planeClusterAverageSizeIt->second > 0.9) highAverage.push_back(planeClusterAverageSizeIt->first);
+    //   else lowAverage.push_back(planeClusterAverageSizeIt->first);
+    // }
+    // int badPlane = -1;
+    // if (highAverage.size() == 1 and highAverage.size() < lowAverage.size())
+    //   badPlane = highAverage.at(0);
+
+    if (badPlane != -1) {
+      std::cout << "Bad plane is " << badPlane << std::endl;
       for (std::vector<art::Ptr<recob::Cluster> >::iterator clusterIt = planeClusters.at(badPlane).begin(); clusterIt != planeClusters.at(badPlane).end(); ++clusterIt)
 	clustersToIgnore.push_back(clusterIt->key());
+    }
 
   }
 
@@ -527,7 +553,7 @@ void shower::EMShowerAlg::FindShowers(std::map<int,std::vector<int> > const& tra
 
     // Shouldn't be more than one
     if (matchingShowers.size() > 1)
-      std::cout << "WARNING! Number of showers this track matches is " << matchingShowers.size() << std::endl;
+      mf::LogInfo("EMShowerAlg") << "Number of showers this track matches is " << matchingShowers.size() << std::endl;
 
     // New shower
     if (matchingShowers.size() < 1)

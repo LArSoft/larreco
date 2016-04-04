@@ -123,7 +123,7 @@ private:
   /// Convolves the Gaussian kernel with the image to blur
   std::vector<std::vector<double> > Convolve(std::vector<std::vector<double> > const& image,
 					     std::vector<std::vector<double> > const& widths,
-					     std::vector<double> const& kernel,
+					     std::map<int,std::vector<double> > const& kernel,
 					     int kernel_width, int kernel_height,
 					     int width, int height);
 
@@ -148,19 +148,22 @@ private:
   bool fDebug;
 
   // Parameters used in the Blurred Clustering algorithm
-  int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
-  int          fBlurTick;                 // blur radius for Gauss kernel in the tick direction
-  double       fSigmaWire;                // sigma for Gaussian kernel in the wire direction
-  double       fSigmaTick;                // sigma for Gaussian kernel in the tick direction
-  int          fClusterWireDistance;      // how far to cluster from seed in wire direction
-  int          fClusterTickDistance;      // how far to cluster from seed in tick direction
-  unsigned int fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
-  unsigned int fNeighboursThreshold;      // min. number of neighbors to add to cluster
-  int          fMinNeighbours;            // minumum number of neighbors to keep in the cluster
-  unsigned int fMinSize;                  // minimum size for cluster
-  double       fMinSeed;                  // minimum seed after blurring needed before clustering proceeds
-  double       fTimeThreshold;            // time threshold for clustering
-  double       fChargeThreshold;          // charge threshold for clustering
+  int              fBlurWire;                 // blur radius for Gauss kernel in the wire direction
+  int              fBlurTick;                 // blur radius for Gauss kernel in the tick direction
+  double           fSigmaWire;                // sigma for Gaussian kernel in the wire direction
+  double           fSigmaTick;                // sigma for Gaussian kernel in the tick direction
+  int              fTickWidthRescale;         // how much to rescale the tick width by (divide) when blurring more in the tick direction
+  int              fMaxTickWidthScale;        // the maximum scale to set the tick width by
+  std::vector<int> fKernels;                  // the tick sigma scales used to make the kernels
+  int              fClusterWireDistance;      // how far to cluster from seed in wire direction
+  int              fClusterTickDistance;      // how far to cluster from seed in tick direction
+  unsigned int     fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
+  unsigned int     fNeighboursThreshold;      // min. number of neighbors to add to cluster
+  int              fMinNeighbours;            // minumum number of neighbors to keep in the cluster
+  unsigned int     fMinSize;                  // minimum size for cluster
+  double           fMinSeed;                  // minimum seed after blurring needed before clustering proceeds
+  double           fTimeThreshold;            // time threshold for clustering
+  double           fChargeThreshold;          // charge threshold for clustering
 
   // Wire and tick information for histograms
   int fLowerHistTick, fUpperHistTick;

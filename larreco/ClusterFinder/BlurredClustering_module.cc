@@ -167,6 +167,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   for (std::map<std::pair<int,int>,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeToHits.begin(); planeIt != planeToHits.end(); ++planeIt) {
 
     //std::cout << "Clustering in plane " << planeIt->first.first << " in global TPC " << planeIt->first.second << std::endl;
+    // if (!(planeIt->first.first == 1 and planeIt->first.second == 1))
+    //   continue;
 
     std::vector<art::PtrVector<recob::Hit> > finalClusters;
 
@@ -174,8 +176,9 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     if (planeIt->second.size() >= fBlurredClusteringAlg.GetMinSize()) {
 
       // Convert hit map to TH2 histogram and blur it
-      std::vector<std::vector<double> > image = fBlurredClusteringAlg.ConvertRecobHitsToVector(planeIt->second);
-      std::vector<std::vector<double> > blurred = fBlurredClusteringAlg.GaussianBlur(image);
+      std::vector<std::vector<double> > image, widths;
+      fBlurredClusteringAlg.ConvertRecobHitsToVector(planeIt->second, image, widths);
+      std::vector<std::vector<double> > blurred = fBlurredClusteringAlg.GaussianBlur(image, widths);
 
        // Find clusters in histogram
       std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
