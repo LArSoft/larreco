@@ -121,7 +121,7 @@ namespace cluster {
     TrajClusterAlg(fhicl::ParameterSet const& pset);
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
-//    void RunTrajClusterAlg(std::vector<art::Ptr<recob::Hit>> const& allhits);
+
     void RunTrajClusterAlg(art::Event & evt);
     
     std::vector<short> const& GetinClus() const {return inClus; }
@@ -158,8 +158,8 @@ namespace cluster {
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     float fHitFOMCut;      ///  Combined charge & delta difference Figure of Merit cut
-    float fChgRatCut;      ///  Relative charge to delta difference weighting
     float fKinkAngCut;     ///  kink angle cut
+    float fChgPullCut;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
@@ -238,7 +238,6 @@ namespace cluster {
     std::string fhitsModuleLabel;
     
     // variables for step crawling - updated at each TP
-    float fAveChg;
     bool fHitDoublet; // Set true if there are a lot of hit doublets on this trajectory
     // tracking flags
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
@@ -263,8 +262,8 @@ namespace cluster {
       float AngErr {0.1};             // Trajectory angle error
       float KinkAng {-1};            // Just what it says
       float Chg {0};                // Charge
-      float AveChg {0};             // Average charge of last ~20 TPs
-      float ChgRat {0.1};            //  = (Chg - fAveChg) / fChgRMS
+      float AveChg {-1};             // Average charge of last ~20 TPs
+      float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
       float Delta {0};              // Deviation between trajectory and hits (WSE)
       float DeltaRMS {0};           // RMS of Deviation between trajectory and hits (WSE)
       unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
@@ -281,17 +280,18 @@ namespace cluster {
       unsigned short Pass {0};            ///< the pass on which it was created
       short StepDir {0};                 /// -1 = going US (CC proper order), 1 = going DS
       unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
-      unsigned short ProcCode {1};       ///< USHRT_MAX = abandoned trajectory
       std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
-      // ProcCode = 1 (normal step), 2 (junk traj), 3 (split trajectory)
       unsigned short PDG {13};            ///< shower-like or track-like {default is track-like}
       unsigned short ParentTraj {USHRT_MAX};     ///< index of the parent (if PDG = 12)
+      float AveChg {0};                   ///< Calculated using ALL hits
+      float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
       int TruPDG {0};                    ///< MC truth
       int TruKE {0};                     ///< MeV
       bool IsPrimary {false};                ///< MC truth
       std::array<short, 2> Vtx {{-1,-1}};      ///< Index of 2D vertex
       std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has a hit
       std::vector<TrajPoint> Pts;    ///< Trajectory points
+      std::vector<TrajPoint> EndTP {(2)} ;    ///< Trajectory point at each end for merging
     };
     Trajectory work;      ///< trajectory under construction
     //  trajectories
@@ -346,9 +346,9 @@ namespace cluster {
       kJunkTj,
       kKilled,
       kStopAtVtx,
-      kUseHiMultEndHits,
       kMerged,
       kTrimHits,
+      kUseHiMultEndHits,
       kAlgBitSize     ///< don't mess with this line
     } AlgBit_t;
     
@@ -430,7 +430,7 @@ namespace cluster {
     // should only be done for reasonably long TJ's
     void SetPoorUsedHits(Trajectory& tj, unsigned short ipt);
     // Returns true if the charge of the hit pointed to by ipt and iht is consistent
-    // with the average charge fAveChg
+    // with the average charge
     bool HitChargeOK(Trajectory& tj, unsigned short ipt, unsigned short iht);
     // Sets inTraj[] = 0 and UseHit false for all used hits in tp
     void UnsetUsedHits(TrajPoint& tp);
@@ -468,7 +468,7 @@ namespace cluster {
     // with an optional vertex assignment
     void SplitAllTraj(unsigned short itj, unsigned short pos, unsigned short ivx);
     // Append the allTraj trajectory to work
-    void AppendToWork(short itjID);
+    void AppendToWork(unsigned short itj);
     void MakeTrajectoryObsolete(unsigned short itj);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
@@ -493,8 +493,8 @@ namespace cluster {
     // Updates the last added trajectory point fit, average hit rms, etc.
     void UpdateWork();
     void UpdateTraj(Trajectory& tj);
-    // Find the average charge using fNPtsAve values of TP Chg. Result put in fAveChg and Pts[updatePt].Chg
-    void UpdateAveChg(Trajectory& tj, unsigned short updatePt, short dir);
+    // Find the average charge using fNPtsAve values of TP Chg.
+    void UpdateAveChg(Trajectory& tj);
    // Estimate the Delta RMS of the TPs on the end of work.
     void UpdateDeltaRMS(Trajectory& tj);
     // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
@@ -519,6 +519,7 @@ namespace cluster {
     // in the trajectory belonging to an existing trajectory. This may also flag ghost trajectories...
     bool MaybeDeltaRay(Trajectory& tj);
     void CheckTrajEnd();
+    void EndMerge();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void AttachAnyTrajToVertex(unsigned short iv, float docaCut2, bool requireSignal);
