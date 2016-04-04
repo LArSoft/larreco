@@ -12,6 +12,7 @@
 #include "TGraphErrors.h"
 #include "TAxis.h"
 #include "TPolyLine3D.h"
+#include "TSpline.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "fhiclcpp/ParameterSet.h" 
@@ -114,6 +115,10 @@ namespace trkf{
     void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
     
     TGraphErrors *gr_meas;
+
+    TGraph *KEvsR;
+    
+    TSpline3 *KEvsR_spline3;
 
     Double_t GetMomentumMultiScatterChi2( const art::Ptr<recob::Track> &trk );
     

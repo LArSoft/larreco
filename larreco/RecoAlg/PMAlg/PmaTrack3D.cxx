@@ -1576,7 +1576,7 @@ double pma::Track3D::GetObjFunction(float penaltyFactor) const
 	return sum / fNodes.size();
 }
 
-double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits)
+double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits, bool setAllNodes)
 {
 	if (!fNodes.size()) { mf::LogError("pma::Track3D") << "Track3D not initialized."; return 0.0; }
 
@@ -1585,6 +1585,10 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits)
 	if (g0 == 0.0) return g0;
 
 	//mf::LogVerbatim("pma::Track3D") << "objective function at opt start: " << g0;
+
+	// set branching flag only at the beginning, optimization is not changin that
+	// and new nodes are not branching
+	for (auto n : fNodes) n->SetVertexToBranching(setAllNodes);
 
 	bool stop = false;
 	fMinSegStop = fSegments.size();
@@ -1599,8 +1603,6 @@ double pma::Track3D::Optimize(int nNodes, double eps, bool selAllHits)
 			unsigned int iter = 0;
 			while ((gstep > eps) && (iter < 1000))
 			{
-				//MakeProjection();
-
 				if ((fNodes.size() < 4) || (iter % 10 == 0)) MakeProjection();
 				else MakeFastProjection();
 
@@ -2257,11 +2259,22 @@ double pma::Track3D::Dist2(const TVector3& p3d) const
 }
 
 pma::Element3D* pma::Track3D::GetNearestElement(
-	const TVector2& p2d, unsigned int view, int tpc) const
+	const TVector2& p2d, unsigned int view, int tpc,
+	bool skipFrontVtx, bool skipBackVtx) const
 {
+	if (fSegments.front()->TPC() < 0) skipFrontVtx = false;
+	if (fSegments.back()->TPC() < 0) skipBackVtx = false;
+
+	if (skipFrontVtx && skipBackVtx && (fSegments.size() == 1))
+		return fSegments.front(); // no need for searching...
+
+	size_t v0 = 0, v1 = fNodes.size();
+	if (skipFrontVtx) v0 = 1;
+	if (skipBackVtx) --v1;
+
 	pma::Element3D* pe_min = 0;
 	double dist, min_dist = 1.0e9;
-	for (size_t i = 0; i < fNodes.size(); i++)
+	for (size_t i = v0; i < v1; i++)
 		if ((tpc == -1) || (fNodes[i]->TPC() == tpc))
 	{
 		dist = fNodes[i]->GetDistance2To(p2d, view);
@@ -2571,9 +2584,24 @@ void pma::Track3D::MakeProjection(void)
 
 	pma::Element3D* pe = 0;
 
+	bool skipFrontVtx = false, skipBackVtx = false;
+
+	// skip outermost vertices if not branching
+	if (!(fNodes.front()->IsFrozen()) &&
+	    !(fNodes.front()->Prev()) &&
+	    (fNodes.front()->NextCount() == 1))
+	{
+		skipFrontVtx = true;
+	}
+	if (!(fNodes.front()->IsFrozen()) &&
+		(fNodes.back()->NextCount() == 0))
+	{
+		skipBackVtx = true;
+	}
+
 	for (auto h : fHits) // assign hits to nodes/segments
 	{
-		pe = GetNearestElement(h->Point2D(), h->View2D(), h->TPC());
+		pe = GetNearestElement(h->Point2D(), h->View2D(), h->TPC(), skipFrontVtx, skipBackVtx);
 		pe->AddHit(h);
 	}
 
@@ -2581,20 +2609,6 @@ void pma::Track3D::MakeProjection(void)
 	{
 		pe = GetNearestElement(*p);
 		pe->AddPoint(p);
-	}
-
-	// move hits to segments if not branching
-	if (!(fNodes.front()->Prev()) && (fNodes.front()->NextCount() == 1))
-	{
-		for (size_t i = 0; i < fNodes.front()->NHits(); i++)
-			fSegments.front()->AddHit(&(fNodes.front()->Hit(i)));
-		fNodes.front()->ClearAssigned();
-	}
-	if (fNodes.back()->NextCount() == 0)
-	{
-		for (size_t i = 0; i < fNodes.back()->NHits(); i++)
-			fSegments.back()->AddHit(&(fNodes.back()->Hit(i)));
-		fNodes.back()->ClearAssigned();
 	}
 
 	for (auto n : fNodes) n->UpdateHitParams();

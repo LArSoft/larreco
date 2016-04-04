@@ -1667,7 +1667,7 @@ namespace cluster {
     didMerge = false;
     
     if(theHit > fHits.size() - 1) {
-      mf::LogError("CC")<<"Bad theHit";
+//      mf::LogError("CC")<<"Bad theHit";
       return;
     }
     
@@ -1742,20 +1742,24 @@ namespace cluster {
       if((other_hit.StartTick() != hit.StartTick())
          || (other_hit.WireID() != hit.WireID()))
       {
+/*
         mf::LogError("CC")<<"Hit multiplet ID error "
         << other_hit.WireID() << " @" << other_hit.StartTick()
         << " " << other_hit.LocalIndex() << "/" << other_hit.Multiplicity()
         << " vs. " << hit.WireID() << " @" << hit.StartTick()
         << " " << hit.LocalIndex() << "/" << hit.Multiplicity()
         ;
+*/
         return;
       }
       if (other_hit.Multiplicity() != hit.Multiplicity()) {
+/*
         mf::LogError("CC")
         << " hit #" << jht << " in the same multiplet as #" << theHit
         << " has different multiplicity!"
         << "\n hit #" << theHit << ": " << hit
         << "\n hit #" << jht << ": " << other_hit;
+*/
         return;
       }
       // hit is not used by another cluster
@@ -1804,7 +1808,7 @@ namespace cluster {
       sigsumt += signal[time - loTime] * time;
     }
     if(sigsum == 0.) {
-      mf::LogError("CC")<<"MergeHits: bad sum";
+//      mf::LogError("CC")<<"MergeHits: bad sum";
       return;
     }
     double aveTime = sigsumt / sigsum;
@@ -2629,14 +2633,14 @@ namespace cluster {
         unsigned short iv = vtx.size() - 1;
         if(topo == 1 || topo == 2) {
           if(tcl[it1].EndVtx >= 0) {
-            mf::LogError("CC")<<"ChkVertex: Coding error trying to make new vtx "<<iv<<"\n";
+//            mf::LogError("CC")<<"ChkVertex: Coding error trying to make new vtx "<<iv<<"\n";
             vtx.pop_back();
             return;
           }
           tcl[it1].EndVtx = iv;
         } else {
           if(tcl[it1].BeginVtx >= 0) {
-            mf::LogError("CC")<<"ChkVertex: Coding error trying to make new vtx "<<iv<<"\n";
+//            mf::LogError("CC")<<"ChkVertex: Coding error trying to make new vtx "<<iv<<"\n";
             vtx.pop_back();
             return;
           }
@@ -2644,14 +2648,14 @@ namespace cluster {
         }
         if(topo == 1 || topo == 3) {
           if(tcl[it2].EndVtx >= 0) {
-            mf::LogError("CC")<<"ChkVertex: Coding error trying to make new vtx "<<iv<<"\n";
+//            mf::LogError("CC")<<"ChkVertex: Coding error trying to make new vtx "<<iv<<"\n";
             vtx.pop_back();
             return;
           }
           tcl[it2].EndVtx = iv;
         } else {
           if(tcl[it2].BeginVtx >= 0) {
-            mf::LogError("CC")<<"ChkVertex: Coding error trying to make new vtx "<<iv<<"\n";
+//            mf::LogError("CC")<<"ChkVertex: Coding error trying to make new vtx "<<iv<<"\n";
             vtx.pop_back();
             return;
           }
@@ -3125,7 +3129,7 @@ namespace cluster {
       hit = cl1.tclhits[iht];
       wire = fHits[hit].WireID().Wire;
       if(wire - ew1 < 0 || wire - ew1 > (int)cl1hits.size()) {
-        mf::LogError("CC")<<"ChkMerge12 bad wire "<<(wire-ew1);
+//        mf::LogError("CC")<<"ChkMerge12 bad wire "<<(wire-ew1);
         return;
       }
       cl1hits[wire - ew1] = hit;
@@ -3172,7 +3176,7 @@ namespace cluster {
     if(wiron1 - ew1 < 0) return;
     unsigned int hiton1 = cl1hits[wiron1 - ew1];
     if(hiton1 > fHits.size() - 1) {
-      mf::LogError("CC")<<"ChkMerge12 bad hiton1 "<<hiton1;
+//      mf::LogError("CC")<<"ChkMerge12 bad hiton1 "<<hiton1;
       return;
     }
     // check the time difference
@@ -3216,7 +3220,7 @@ namespace cluster {
     // closest wire and moving DS
     hiton1 = cl1hits[wiron1 - ew1];
     if(hiton1 > fHits.size() - 1) {
-      mf::LogError("CC")<<"ChkMerge12 bad hiton1 "<<hiton1;
+//      mf::LogError("CC")<<"ChkMerge12 bad hiton1 "<<hiton1;
       return;
     }
     timon1 = fHits[hiton1].PeakTime();
@@ -3577,29 +3581,37 @@ namespace cluster {
     for(unsigned short it = 0; it < fcl2hits.size(); ++it) {
       unsigned int hit = fcl2hits[it];
       if(inClus[hit] != 0) {
+/*
         mf::LogError("CC")<<"TmpStore: Trying to use obsolete/used hit "<<hit<<" inClus "<<inClus[hit]
           <<" on wire "<<fHits[hit].WireID().Wire<<" on cluster "<<NClusters
           <<" in plane "<<plane<<" ProcCode "<<clProcCode;
+*/
         --NClusters;
         return false;
       }
       // check for WireID() consistency
       if(fHits[hit].WireID().Cryostat != tCST || fHits[hit].WireID().TPC != tTPC || fHits[hit].WireID().Plane != tPlane) {
+/*
         mf::LogError("CC")<<"TmpStore: CTP mis-match "<<hit<<" WireID().TPC "<<fHits[hit].WireID().TPC
         <<" WireID().Plane "<<fHits[hit].WireID().Plane<<" tCST "<<tCST<<" tTPC "<<tTPC<<" tPlane "<<tPlane
         <<" on cluster "<<NClusters<<" ProcCode "<<clProcCode;
+*/
         --NClusters;
         return false;
       }
       // check for decreasing wire number
       if(clStopCode != 8 && it > 0 && fHits[hit].WireID().Wire >= lastWire) {
+/*
         mf::LogError("CC")<<"TmpStore: Hits not in correct wire order. Seed hit "<<fHits[fcl2hits[0]].WireID().Plane<<":"
           <<fHits[fcl2hits[0]].WireID().Wire<<":"<<(int)fHits[fcl2hits[0]].PeakTime()<<" it "<<it<<" hit wire "<<fHits[hit].WireID().Wire
           <<" ProcCode "<<clProcCode;
+*/
         --NClusters;
+/*
         for(unsigned short ii = 0; ii < fcl2hits.size(); ++ii) {
           mf::LogVerbatim("CC")<<ii<<" "<<fcl2hits[ii]<<" "<<fHits[fcl2hits[ii]].WireID().Plane<<":"<<fHits[fcl2hits[ii]].WireID().Wire<<":"<<(int)fHits[fcl2hits[ii]].PeakTime();
         }
+*/
         return false;
       }
       lastWire = fHits[hit].WireID().Wire;

@@ -31,8 +31,9 @@ microboone_trackkalmancheater.KalmanFilterAlg:          @local::microboone_kalma
 microboone_trackkalmancheater.SpacePointAlg:            @local::microboone_spacepointalg   
 microboone_trackkalmancheater.SpacePointAlg.MinViews:   2
 microboone_track3Dkalmanhit:                            @local::standard_track3Dkalmanhit
-microboone_track3Dkalmanhit.KalmanFilterAlg:            @local::microboone_kalmanfilteralg
-microboone_track3Dkalmanhit.SeedFinderAlg:              @local::microboone_seedfinderalgorithm
+microboone_track3Dkalmanhit.Track3DKalmanHitAlg:        @local::microboone_track3Dkalmanhitalg
+microboone_track3Dkalmanhit.Track3DKalmanHitAlg.KalmanFilterAlg:        @local::microboone_kalmanfilteralg
+microboone_track3Dkalmanhit.Track3DKalmanHitAlg.SeedFinderAlg:          @local::microboone_seedfinderalgorithm
 microboone_track3Dkalmanhit.SpacePointAlg:              @local::microboone_spacepointalg
 microboone_track3Dkalmanhit.SpacePointAlg.MinViews:     2
 microboone_seedfindermodule:                            @local::standard_seedfindermodule     
@@ -69,5 +70,8 @@ microboone_pmalgtrackmaker.ClusterModuleLabel:  "cccluster"
 microboone_pmalgtrackmaker.FlipDownward:        true
 
 #microboone_cosmicfinder: @local::standard_cosmicfinder
+microboone_neutrinotrackingeff: @local::standard_neutrinotrackingeff
+microboone_neutrinotrackingeff.MaxNeutrinoE: 5
+microboone_neutrinotrackingeff.MaxLeptonP:   3
 
 END_PROLOG
