@@ -24,7 +24,7 @@ struct SortEntry{
 bool greaterThan (SortEntry c1, SortEntry c2) { return (c1.length > c2.length);}
 bool lessThan (SortEntry c1, SortEntry c2) { return (c1.length < c2.length);}
 
-namespace cluster {
+namespace tca {
   
   //------------------------------------------------------------------------------
   TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset)
@@ -240,6 +240,8 @@ namespace cluster {
     } // tpcid
     
     //    bool reAnalyze = false;
+    // put MC info into the trajectory struct
+    if(!fIsRealData) FillTrajTruth();
  
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
@@ -254,7 +256,7 @@ namespace cluster {
     }
     
     if(didPrt || fDebugPlane >= 0) {
-      mf::LogVerbatim("TC")<<"Done in ReconstructAllTraj";
+      mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       PrintAllTraj(USHRT_MAX, 0);
     }
     
@@ -678,8 +680,6 @@ namespace cluster {
     for(unsigned short ivx = 0; ivx < vtx.size(); ++ivx) if(vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(ivx, fMaxVertexTrajSep[lastPass], false );
     
     prt = false;
-    // put MC info into the trajectory struct
-//    if(!fIsRealData) FillTrajTruth();
     work.Pts.clear();
     
     if(didPrt) PrintAllTraj(USHRT_MAX, USHRT_MAX);
@@ -1082,72 +1082,218 @@ namespace cluster {
   void TrajClusterAlg::FillTrajTruth()
   {
     
-    sim::ParticleList plist;
     art::ServiceHandle<cheat::BackTracker> bt;
+    // list of all true particles
+    sim::ParticleList plist;
     plist = bt->ParticleList();
+    // list of all true particles that will be considered
     std::vector<const simb::MCParticle*> plist2;
+    // true (reconstructed) hits for each particle in plist2
+    std::vector<std::vector<art::Ptr<recob::Hit>>> hlist2;
+    // index of trajectory matched to each particle in plist2 in each plane
+    std::vector<std::vector<short>> truToTj;
+    // number of hits in each plist2 and plane
+    std::vector<std::vector<unsigned short>> nTruInPlist2;
+    // number of true hits in each trajectory and plane
+    std::vector<std::vector<unsigned short>> nTruInTj;
+    // total number of hits in each trajectory and plane
+    std::vector<std::vector<unsigned short>> nRecInTj;
 
-    unsigned int trackID;
+//    geo::TPCGeo const& TPC = geom->TPC(tpcid);
+//    unsigned short Nplanes = TPC.Nplanes();
+    unsigned short Nplanes = 3;
+
+    int trackID;
+    int neutTrackID = -1, pdg;
     float KE;
-    std::vector<unsigned int> tidlist;
+    std::vector<int> tidlist;
+    bool isCharged;
+    // initialize the true->(trajectory,plane) association
+    std::vector<short> temp(Nplanes, -1);
+    // initialize the true hit count
+    std::vector<unsigned short> temp2(Nplanes, 0);
  
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       const simb::MCParticle* part = (*ipart).second;
       assert(part != 0);
       trackID = part->TrackId();
+      pdg = abs(part->PdgCode());
+//      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
+//      if(fSkipCosmics && theTruth->Origin() == simb::kCosmicRay) continue;
+//      if(theTruth->Origin() == simb::kBeamNeutrino) isNeutrino = true;
+      isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 2212);
+      if(!isCharged) continue;
       // KE in MeV
       KE = 1000 * (part->E() - part->Mass());
       if(KE < 10) continue;
-//      mf::LogVerbatim("TC")<<"TrackID "<<trackID<<" pdg "<<part->PdgCode()<<" E "<<part->E()<<" mass "<<part->Mass()<<" KE "<<KE<<" Mother "<<part->Mother()<<" Proc "<<part->Process();
+      // 1 cm range cut
+      if(pdg == 11 && KE < 10) continue;
+      if(pdg == 13 && KE < 12) continue;
+      if(pdg == 211 && KE < 14) continue;
+      if(pdg == 2212 && KE < 30) continue;
       tidlist.push_back(trackID);
       plist2.push_back(part);
+      truToTj.push_back(temp);
+      nTruInPlist2.push_back(temp2);
+      std::cout<<"TrackID "<<trackID<<" pdg "<<part->PdgCode()<<" E "<<part->E()<<" mass "<<part->Mass()<<" KE "<<KE<<" Mother "<<part->Mother()<<" Proc "<<part->Process()<<"\n";
+//      std::cout<<"plist2["<<plist2.size() - 1<<"]"<<" Origin "<<theTruth->Origin()<<" trackID "<<trackID<<" PDG "<<part->PdgCode()<<" KE "<<(int)KE
+//        <<" Mother "<<part->Mother() + neutTrackID - 1<<" Proc "<<part->Process();
     }
     
     if(tidlist.size() == 0) return;
     
-    // count of the number of Geant tracks used in each trajectory hit
-    std::vector<unsigned short> tidcnt(tidlist.size());
-    unsigned short itj, ipt, ii, iht, jj, maxCnt;
-    std::vector<sim::IDE> sIDEs;
+    // get the hits (in all planes) that are matched to the true tracks
+    hlist2 = bt->TrackIDsToHits(fHits, tidlist);
+    if(hlist2.size() != plist2.size()) {
+      mf::LogError("TC")<<"MC particle list size "<<plist2.size()<<" != size of MC particle true hits lists "<<hlist2.size();
+      return;
+    }
+    tidlist.clear();
+    std::cout<<"hlist2 size "<<hlist2.size()<<"\n";
+    
+    // vector of (mother, daughter) pairs
+    std::vector<std::pair<unsigned short, unsigned short>> moda;
+    // Deal with mother-daughter tracks
+    // Assume that daughters appear later in the list. Step backwards
+    // to accumulate all generations of daughters
+    unsigned short dpl, ii, jj, jpl, kpl;
+    for(ii = 0; ii < plist2.size(); ++ii) {
+      dpl = plist2.size() - 1 - ii;
+      // no mother
+      if(plist2[dpl]->Mother() == 0) continue;
+      // electron
+      if(abs(plist2[dpl]->PdgCode()) == 11) continue;
+      // the actual mother trackID is offset from the neutrino trackID
+      int motherID = neutTrackID + plist2[dpl]->Mother() - 1;
+      // ensure that we are only looking at BeamNeutrino or single particle daughters
+      if(motherID != neutTrackID) continue;
+      // count the number of daughters
+      int ndtr = 0;
+      for(kpl = 0; kpl < plist2.size(); ++kpl) {
+        if(plist2[kpl]->Mother() == motherID) ++ndtr;
+      }
+      // require only one daughter
+      if(ndtr > 1) continue;
+      // find the mother in the list
+      int mpl = -1;
+      for(jj = 0; jj < plist2.size(); ++jj) {
+        jpl = plist2.size() - 1 - jj;
+        if(plist2[jpl]->TrackId() == motherID) {
+          mpl = jpl;
+          break;
+        }
+      } // jpl
+      // mother not found for some reason
+      if(mpl < 0) {
+        mf::LogVerbatim("TC")<<" mother of daughter "<<dpl<<" not found. mpl = "<<mpl;
+        continue;
+      }
+      // ensure that PDG code for mother and daughter are the same
+      if(plist2[dpl]->PdgCode() != plist2[mpl]->PdgCode()) continue;
+      moda.push_back(std::make_pair(mpl, dpl));
+      std::cout<<"moda "<<mpl<<" "<<dpl<<"\n";
+    } //  dpl
+
+    // count of the number of tj hits matched to each true particle in plist2
+    unsigned short plane, iplist, imd, mom, itj;
+    unsigned int iht;
+    for(ii = 0; ii < hlist2.size(); ++ii) {
+      // assume that this is the mother
+      mom = ii;
+      // see if mom is instead a daughter
+      for(iplist = 0; iplist < plist2.size(); ++iplist) {
+        for(imd = 0; imd < moda.size(); ++imd) if(mom == moda[imd].second) mom = moda[imd].first;
+      }
+      for(auto& hit : hlist2[ii]) {
+        plane = hit->WireID().Plane;
+        ++nTruInPlist2[mom][plane];
+      } // hit
+    } // ii
+
+    for(ii = 0; ii < nTruInPlist2.size(); ++ii) {
+      std::cout<<ii<<"nTruInPlist2 ";
+      for(plane = 0; plane < 3; ++plane) std::cout<<" "<<nTruInPlist2[ii][plane];
+      std::cout<<"\n";
+    }
+    
+    // Now fill the reconstructed information. First size the vectors
+    imd = 0;
     for(itj = 0; itj < allTraj.size(); ++itj) {
       if(allTraj[itj].AlgMod[kKilled]) continue;
-      sIDEs.clear();
-      for(ii = 0; ii < tidcnt.size(); ++ii) tidcnt[ii] = 0;
-      for(ipt = 0; ipt < allTraj[itj].Pts.size(); ++ipt) {
-        if(allTraj[itj].Pts[ipt].Chg == 0) continue;
-        for(ii = 0; ii < allTraj[itj].Pts[ipt].Hits.size(); ++ii) {
-          iht = allTraj[itj].Pts[ipt].Hits[ii];
-          bt->HitToSimIDEs(fHits[iht], sIDEs);
-          if(sIDEs.size() == 0) continue;
-          for(jj = 0; jj < sIDEs.size(); ++jj) {
-            trackID = sIDEs[jj].trackID;
-            for(unsigned short kk = 0; kk < tidlist.size(); ++kk) {
-              if(trackID == tidlist[kk]) {
-                ++tidcnt[kk];
-                break;
+      ++imd;
+    }
+    nRecInTj.resize(imd);
+    nTruInTj.resize(imd);
+    for(ii = 0; ii < nRecInTj.size(); ++ii) {
+      nRecInTj[ii].resize(Nplanes);
+      nTruInTj[ii].resize(Nplanes);
+    } // ii
+
+    unsigned short ipt, nhit, imtru;
+    // temp vector for counting the number of trajectory hits that
+    // are assigned to each true particle
+    std::vector<unsigned int> nHitInPlist2(plist2.size());
+    for(itj = 0; itj < allTraj.size(); ++itj) {
+      if(allTraj[itj].AlgMod[kKilled]) continue;
+      Trajectory& tj = allTraj[itj];
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      plane = planeID.Plane;
+      for(ii = 0; ii < nHitInPlist2.size(); ++ii) nHitInPlist2[ii] = 0;
+      for(ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+        if(tj.Pts[ipt].Chg == 0) continue;
+        for(ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+          if(!tj.Pts[ipt].UseHit[ii]) continue;
+          iht = tj.Pts[ipt].Hits[ii];
+          ++nRecInTj[itj][plane];
+          // look for this hit in hlist2
+          for(jj = 0; jj < hlist2.size(); ++jj) {
+            if(std::find(hlist2[jj].begin(), hlist2[jj].end(), fHits[iht]) != hlist2[jj].end()) {
+              mom = jj;
+              // check for the real mother
+              for(iplist = 0; iplist < plist2.size(); ++iplist) {
+                for(imd = 0; imd < moda.size(); ++imd) if(mom == moda[imd].second) mom = moda[imd].first;
               }
-            } // kk
+              ++nHitInPlist2[mom];
+              break;
+            }
           } // jj
         } // ii
       } // ipt
-      // find the Geant track ID with the most entries. Require at
-      // least 50% of the hits be associated with the track
-      maxCnt = allTraj[itj].EndPt[1] / 2;
-      trackID = tidcnt.size();
-      for(ii = 0; ii < tidcnt.size(); ++ii) {
-        if(tidcnt[ii] > maxCnt) {
-          maxCnt = tidcnt[ii];
-          trackID = ii;
+      // Associate the trajectory with the truth particle that has the highest number of hits
+      nhit = 0;
+      imtru = USHRT_MAX;
+      for(iplist = 0; iplist < nHitInPlist2.size(); ++iplist) {
+        if(nTruInPlist2[iplist][plane] > nhit) {
+          nhit = nTruInPlist2[iplist][plane];
+          imtru = iplist;
         }
-      } // ii
-      if(trackID > tidlist.size()-1) continue;
-//      mf::LogVerbatim("TC")<<"Traj "<<itj<<" match with trackID "<<trackID;
-      allTraj[itj].TruPDG = plist2[trackID]->PdgCode();
-      allTraj[itj].TruKE = 1000 * (plist2[trackID]->E() - plist2[trackID]->Mass());
-      if(plist2[trackID]->Process() == "primary") allTraj[itj].IsPrimary = true;
+      } // iplist
+      if(imtru == USHRT_MAX) continue;
+      truToTj[imtru][plane] = itj;
     } // itj
-
     
+    // now we can calulate efficiency and purity
+    float nRecHits, nTruRecHits, nTruHits, eff, pur, ep;
+    for(iplist = 0; iplist < plist2.size(); ++iplist) {
+      for(plane = 0; plane < Nplanes; ++plane) {
+        eff = 0; pur = 0;
+        if(truToTj[iplist][plane] < 0) {
+          nRecHits = 0;
+          nTruRecHits = 0;
+        } else {
+          itj = truToTj[iplist][plane];
+          nRecHits = nRecInTj[itj][plane];
+          nTruRecHits = nTruInTj[itj][plane];
+        }
+        nTruHits = nTruInPlist2[iplist][plane];
+        if(nTruHits > 0) eff = nTruRecHits / nTruHits;
+        if(nRecHits > 0) pur = nTruRecHits / nRecHits;
+        ep = eff * pur;
+        float KE = 1000 * (plist2[iplist]->E() - plist2[iplist]->Mass());
+        std::cout<<iplist<<" PDG "<<plist2[iplist]->PdgCode()<<" KE "<<KE<<" plane "<<plane<<" itj "<<truToTj[iplist][plane]<<" nTru "<<(int)ep<<"\n";
+      } // plane
+    } // iplist
+   
   } // FillTrajTruth
 
   //////////////////////////////////////////
