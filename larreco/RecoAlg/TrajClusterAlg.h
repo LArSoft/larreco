@@ -47,7 +47,7 @@
 #include "TH2F.h"
 #include "TProfile.h"
 
-namespace cluster {
+namespace tca {
   
   class TrajClusterAlg {
     public:
