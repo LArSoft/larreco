@@ -265,8 +265,9 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  optimize trk (" << nSegments << " seg)";
 		if (nNodes)
 		{
-			g = trk->Optimize(nNodes, fOptimizationEps);   // build nodes
+			g = trk->Optimize(nNodes, fOptimizationEps, false, true, 25, 10);   // build nodes
 			mf::LogVerbatim("ProjectionMatchingAlg") << "  nodes done, g = " << g;
+			trk->SelectAllHits();
 		}
 		g = trk->Optimize(0, fFineTuningEps);              // final tuning
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
