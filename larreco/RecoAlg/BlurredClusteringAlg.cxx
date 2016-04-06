@@ -12,13 +12,9 @@
 #include "larreco/RecoAlg/BlurredClusteringAlg.h"
 
 cluster::BlurredClusteringAlg::BlurredClusteringAlg(fhicl::ParameterSet const& pset) {
-  this->reconfigure(pset); 
 
-  fLastKernel.clear();
-  fLastBlurWire = -1000;
-  fLastBlurTick = -1000;
-  fLastSigmaWire = -1000;
-  fLastSigmaTick = -1000;
+  this->reconfigure(pset);
+  this->MakeKernels();
 
   // For the debug PDF
   fDebugCanvas = NULL;
@@ -33,8 +29,6 @@ cluster::BlurredClusteringAlg::~BlurredClusteringAlg() {
     fDebugCanvas->Print(closeName.c_str());
     delete fDebugCanvas;
   }
-  if (!fLastKernel.empty())
-    fLastKernel.clear();
 }
 
 void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
@@ -42,9 +36,7 @@ void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
   fBlurTick            = p.get<int>   ("BlurTick");
   fSigmaWire           = p.get<double>("SigmaWire");
   fSigmaTick           = p.get<double>("SigmaTick");
-  fTickWidthRescale    = p.get<double>("TickWidthRescale");
-  fMaxTickWidthScale   = p.get<int>   ("MaxTickWidthScale");
-  fKernels             = p.get<std::vector<int> >("Kernels");
+  fMaxTickWidthBlur    = p.get<int>   ("MaxTickWidthBlur");
   fClusterWireDistance = p.get<int>   ("ClusterWireDistance");
   fClusterTickDistance = p.get<int>   ("ClusterTickDistance");
   fNeighboursThreshold = p.get<int>   ("NeighboursThreshold");
@@ -55,11 +47,10 @@ void cluster::BlurredClusteringAlg::reconfigure(fhicl::ParameterSet const& p) {
   fChargeThreshold     = p.get<double>("ChargeThreshold");
   fDebug               = p.get<bool>  ("Debug",false);
 
+  fKernelWidth = 2 * fBlurWire + 1;
+  fKernelHeight = 2 * fBlurTick*fMaxTickWidthBlur + 1;
+
   fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
-
-  if (std::find(fKernels.begin(), fKernels.end(), 1) == fKernels.end())
-    throw art::Exception(art::errors::Configuration) << "BlurredClusteringAlg: Error: fKernels requires '1' to be present";
-
 }
 
 void cluster::BlurredClusteringAlg::CreateDebugPDF(int run, int subrun, int event) {
@@ -125,24 +116,10 @@ art::PtrVector<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinsToRecobHits
 
 art::Ptr<recob::Hit> cluster::BlurredClusteringAlg::ConvertBinToRecobHit(std::vector<std::vector<double> > const& image, int bin) {
 
-  // Take the hit
-  art::Ptr<recob::Hit> hit;
+  int wire = bin % image.size();
+  int tick = bin / image.size();
 
-  // Find the point in wire/tick space which corresponds to this bin
-  int xbin = bin % image.size();
-  int ybin = bin / image.size();
-  int wire = xbin + fLowerHistWire - 1;
-  int tick = ybin + fLowerHistTick - 1;
-
-  // If this particular bin corresponds to an entry in the hit map then this was a real hit
-  if (fHitMap.find(wire) != fHitMap.end()) {
-    if (fHitMap[wire].find(tick) != fHitMap[wire].end()) {
-      hit = fHitMap[wire][tick];
-    }
-  }
-
-  // Return this hit place in art::PtrVector<recob::Hit>
-  return hit;
+  return fHitMap[wire][tick];
 
 }
 
@@ -173,9 +150,7 @@ void cluster::BlurredClusteringAlg::ConvertBinsToClusters(std::vector<std::vecto
 
 }
 
-void cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit> > const& hits,
-							     std::vector<std::vector<double> >& image,
-							     std::vector<std::vector<double> >& widths) {
+std::vector<std::vector<double> > cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit> > const& hits) {
 
   // Define the size of this particular plane -- dynamically to avoid huge histograms
   int lowerTick = fDetProp->ReadOutWindowSize(), upperTick = 0, lowerWire = fGeom->MaxWires(), upperWire = 0;
@@ -185,19 +160,19 @@ void cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(std::vector<art::Pt
     if ((*hitIt)->PeakTime() > upperTick) upperTick = (*hitIt)->PeakTime();
     if (histWire < lowerWire) lowerWire = histWire;
     if (histWire > upperWire) upperWire = histWire;
-    if ((*hitIt)->WireID().Wire > 153 and (*hitIt)->WireID().Wire < 156) std::cout << "Hit at " << (*hitIt)->WireID() << " has peak time " << (*hitIt)->PeakTime() << " and RMS " << (*hitIt)->RMS() << ": lower and upper tick is " << (*hitIt)->StartTick() << " and " << (*hitIt)->EndTick() << ")" << std::endl;
+    //std::cout << "Hit at " << (*hitIt)->WireID() << " has peak time " << (*hitIt)->PeakTime() << " and RMS " << (*hitIt)->RMS() << ": lower and upper tick is " << (*hitIt)->StartTick() << " and " << (*hitIt)->EndTick() << ")" << std::endl;
   }
-  fLowerHistTick = lowerTick-20;
-  fUpperHistTick = upperTick+20;
-  fLowerHistWire = lowerWire-20;
-  fUpperHistWire = upperWire+20;
+  fLowerTick = lowerTick-20;
+  fUpperTick = upperTick+20;
+  fLowerWire = lowerWire-20;
+  fUpperWire = upperWire+20;
 
   // Use a map to keep a track of the real hits and their wire/ticks
   fHitMap.clear();
+  fHitMap.resize(fUpperWire-fLowerWire, std::vector<art::Ptr<recob::Hit> >(fUpperTick-fLowerTick, art::Ptr<recob::Hit>()));
 
   // Create a 2D vector
-  std::vector<std::vector<double> > image_local(fUpperHistWire-fLowerHistWire, std::vector<double>(fUpperHistTick-fLowerHistTick, 0));
-  std::vector<std::vector<double> > widths_local(fUpperHistWire-fLowerHistWire, std::vector<double>(fUpperHistTick-fLowerHistTick, 0));
+  std::vector<std::vector<double> > image(fUpperWire-fLowerWire, std::vector<double>(fUpperTick-fLowerTick, 0));
 
   // Look through the hits
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt) {
@@ -205,20 +180,15 @@ void cluster::BlurredClusteringAlg::ConvertRecobHitsToVector(std::vector<art::Pt
     int wire = GlobalWire((*hitIt)->WireID());
     int tick = (int)(*hitIt)->PeakTime();
     float charge = (*hitIt)->Integral();
-    float width = (*hitIt)->RMS();
 
     // Fill hit map and keep a note of all real hits for later
-    if (charge > image_local.at(wire-fLowerHistWire).at(tick-fLowerHistTick)) {
-      image_local.at(wire-fLowerHistWire).at(tick-fLowerHistTick) = charge;
-      widths_local.at(wire-fLowerHistWire).at(tick-fLowerHistTick) = width;
-      fHitMap[wire][tick] = (*hitIt);
+    if (charge > image.at(wire-fLowerWire).at(tick-fLowerTick)) {
+      image.at(wire-fLowerWire).at(tick-fLowerTick) = charge;
+      fHitMap[wire-fLowerWire][tick-fLowerTick] = (*hitIt);
     }
   }
 
-  image = image_local;
-  widths = widths_local;
-
-  return;
+  return image;
 
 }
 
@@ -237,73 +207,18 @@ double cluster::BlurredClusteringAlg::ConvertBinToCharge(std::vector<std::vector
 
 }
 
-std::vector<std::vector<double> > cluster::BlurredClusteringAlg::Convolve(std::vector<std::vector<double> > const& image,
-									  std::vector<std::vector<double> > const& widths,
-									  std::map<int,std::vector<double> > const& kernels,
-									  int kernel_width, int kernel_height,
-									  int width, int height) {
-
-  int nbinsx = image.size();
-  int nbinsy = image.at(0).size();
-  int lowerWidth = -width / 2;
-  int upperWidth = (width + 1) / 2;
-  int lowerHeight = -height / 2;
-  int upperHeight = (height + 1) / 2;
-  double weight;
-  std::vector<double> correct_kernel;
-
-  // Blurred histogram and normalisation for each bin
-  std::vector<std::vector<double> > copy(nbinsx, std::vector<double>(nbinsy, 0));
-
-  // Loop through all the bins in the histogram to blur
-  for (int x = 0; x < nbinsx; ++x) {
-    for (int y = 0; y < nbinsy; ++y) {
-
-      if (image[x][y] == 0)
-      	continue;
-
-      // Scale the tick blurring based on the width of the hit
-      correct_kernel.clear();
-      int tick_scale = widths[x][y] / fTickWidthRescale;
-      tick_scale = TMath::Max(TMath::Min(tick_scale, fMaxTickWidthScale), 1);
-      for (int kernelIndex = tick_scale; correct_kernel.empty(); --kernelIndex)
-	if (std::find(fKernels.begin(), fKernels.end(), kernelIndex) != fKernels.end())
-	  correct_kernel = kernels.at(kernelIndex);
-
-      // Loop over the blurring region around this hit
-      for (int blurx = lowerWidth; blurx < upperWidth; ++blurx) {
-  	for (int blury = lowerHeight*tick_scale; blury < upperHeight*tick_scale; ++blury) {
-
-  	  // Smear the charge of this hit
-	  weight = correct_kernel.at(kernel_width * (kernel_height / 2 + blury) + (kernel_width / 2 + blurx));
-  	  if (x + blurx >= 0 and x + blurx < nbinsx and y + blury >= 0 and y + blury < nbinsy)
-  	    copy[x+blurx][y+blury] += weight * image[x][y];
-
-  	}
-      } // blurring region
-
-    }
-  } // hits to blur
-
-  // HAVE REMOVED NOMALISATION CODE
-  // WHEN USING DIFFERENT KERNELS, THERE'S NO EASY WAY OF DOING THIS...
-  // RECONSIDER...
-
-  // Return the blurred histogram
-  return copy;
-
-}
-
 void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick) {
 
   // Calculate least squares slope
   int x, y;
   double nhits=0, sumx=0., sumy=0., sumx2=0., sumxy=0.;
-  for (const auto &wireIt : fHitMap) {
-    for (const auto &tickIt : wireIt.second) {
+  for (unsigned int wireIt = 0; wireIt < fHitMap.size(); ++wireIt) {
+    for (unsigned int tickIt = 0; tickIt < fHitMap.at(wireIt).size(); ++tickIt) {
+      if (fHitMap[wireIt][tickIt].isNull())
+	continue;
       ++nhits;
-      x = wireIt.first;
-      y = tickIt.first;
+      x = wireIt + fLowerWire;
+      y = tickIt + fLowerTick;
       sumx += x;
       sumy += y;
       sumx2 += x*x;
@@ -549,69 +464,61 @@ int cluster::BlurredClusteringAlg::GlobalWire(geo::WireID const& wireID) {
 
 }
 
-std::vector<std::vector<double> > cluster::BlurredClusteringAlg::GaussianBlur(std::vector<std::vector<double> > const& image, std::vector<std::vector<double> > const& widths) {
+std::vector<std::vector<double> > cluster::BlurredClusteringAlg::GaussianBlur(std::vector<std::vector<double> > const& image) {
 
   if (fSigmaWire == 0 and fSigmaTick == 0)
     return image;
 
   // Find the blurring parameters
-  int blurwire, blurtick, sigmawire, sigmatick, sigmatick_scaled;
-  FindBlurringParameters(blurwire, blurtick, sigmawire, sigmatick);
+  int blur_wire, blur_tick, sigma_wire, sigma_tick;
+  FindBlurringParameters(blur_wire, blur_tick, sigma_wire, sigma_tick);
 
-  // Scale the kernel
-  int kernel_scale = fMaxTickWidthScale+1;
+  // Convolve the Gaussian
+  int width = 2 * blur_wire + 1;
+  int height = 2 * blur_tick + 1;
+  int nbinsx = image.size();
+  int nbinsy = image.at(0).size();
 
-  // Create Gaussian kernel
-  int width = 2 * blurwire + 1;
-  int height = 2 * blurtick + 1;
-  int kernel_width = width;
-  int kernel_height = 2 * blurtick*kernel_scale + 1;
-  std::map<int,std::vector<double> > allKernels;
+  double weight;
+  std::vector<double> correct_kernel;
 
-  // // If the parameters match the last parameters, used the same last kernel
-  // if (fLastBlurWire == blurwire and fLastBlurTick == blurtick and fLastSigmaWire == sigmawire and fLastSigmaTick == sigmatick and !fLastKernel.empty())
-  //   kernel = fLastKernel;
+  // Blurred histogram and normalisation for each bin
+  std::vector<std::vector<double> > copy(nbinsx, std::vector<double>(nbinsy, 0));
 
-  // Otherwise, compute a new kernel
-  //else {
+  // Loop through all the bins in the histogram to blur
+  for (int x = 0; x < nbinsx; ++x) {
+    for (int y = 0; y < nbinsy; ++y) {
 
-    if (!fLastKernel.empty())
-      fLastKernel.clear();
+      if (image[x][y] == 0)
+      	continue;
 
-    for (std::vector<int>::iterator kernelIt = fKernels.begin(); kernelIt != fKernels.end(); ++kernelIt) {
+      // Scale the tick blurring based on the width of the hit
+      correct_kernel.clear();
+      int tick_scale = TMath::Sqrt(TMath::Power(fHitMap[x][y]->RMS(),2) + TMath::Power(sigma_tick,2)) / (double)sigma_tick;
+      tick_scale = TMath::Max(TMath::Min(tick_scale,fMaxTickWidthBlur),1);
+      correct_kernel = fAllKernels[sigma_wire][sigma_tick*tick_scale];
 
-      std::vector<double> kernel(kernel_width*kernel_height,0);
-      sigmatick_scaled = sigmatick * (*kernelIt);
+      // Loop over the blurring region around this hit
+      for (int blurx = -width/2; blurx < (width+1)/2; ++blurx) {
+  	for (int blury = -height/2*tick_scale; blury < ((((height+1)/2)-1)*tick_scale)+1; ++blury) {
 
-      // Smear out according to the blur radii in each direction
-      for (int i = -blurwire; i <= blurwire; i++) {
-	for (int j = -blurtick*kernel_scale; j <= blurtick*kernel_scale; j++) {
+  	  // Smear the charge of this hit
+	  weight = correct_kernel[fKernelWidth * (fKernelHeight / 2 + blury) + (fKernelWidth / 2 + blurx)];
+  	  if (x + blurx >= 0 and x + blurx < nbinsx and y + blury >= 0 and y + blury < nbinsy)
+  	    copy[x+blurx][y+blury] += weight * image[x][y];
 
-	  // Fill kernel
-	  double sig2i = 2. * sigmawire * sigmawire;
-	  double sig2j = 2. * sigmatick_scaled * sigmatick_scaled;
+  	}
+      } // blurring region
 
-	  int key = (kernel_width * (j + blurtick*kernel_scale)) + (i + blurwire);
-	  double value = 1. / sqrt(sig2i * M_PI) * exp(-i * i / sig2i) * 1. / sqrt(sig2j * M_PI) * exp(-j * j / sig2j);
-	  kernel.at(key) = value;
+    }
+  } // hits to blur
 
-	}
-      } // End loop over blurring region
+  // HAVE REMOVED NOMALISATION CODE
+  // WHEN USING DIFFERENT KERNELS, THERE'S NO EASY WAY OF DOING THIS...
+  // RECONSIDER...
 
-      allKernels[*kernelIt] = kernel;
-
-      //}
-
-    // fLastKernel    = kernel;
-    // fLastBlurWire  = blurwire;
-    // fLastBlurTick  = blurtick;
-    // fLastSigmaWire = sigmawire;
-    // fLastSigmaTick = sigmatick;
-
-  }
-
-  // Return a convolution of this Gaussian kernel with the unblurred hit map
-  return Convolve(image, widths, allKernels, kernel_width, kernel_height, width, height);
+  // Return the blurred histogram
+  return copy;
 
 }
 
@@ -627,18 +534,56 @@ double cluster::BlurredClusteringAlg::GetTimeOfBin(std::vector<std::vector<doubl
 
 }
 
+void cluster::BlurredClusteringAlg::MakeKernels() {
+
+  // Kernel size is the largest possible given the hit width rescaling
+  fAllKernels.clear();
+  fAllKernels.resize(fSigmaWire+1,std::vector<std::vector<double> >(fSigmaTick*fMaxTickWidthBlur+1,std::vector<double>(fKernelWidth*fKernelHeight,0.)));
+
+  // Ranges of kernels to make
+  // Complete range of sigmas possible after dynamic fixing and hit width convolution
+  for (int sigma_wire = 1; sigma_wire <= fSigmaWire; ++sigma_wire) {
+    for (int sigma_tick = 1; sigma_tick <= fSigmaTick*fMaxTickWidthBlur; ++sigma_tick) {
+
+      // New kernel
+      std::vector<double> kernel(fKernelWidth*fKernelHeight,0);
+
+      // Smear out according to the blur radii in each direction
+      for (int i = -fBlurWire; i <= fBlurWire; i++) {
+	for (int j = -fBlurTick*fMaxTickWidthBlur; j <= fBlurTick*fMaxTickWidthBlur; j++) {
+
+	  // Fill kernel
+	  double sig2i = 2. * sigma_wire * sigma_wire;
+	  double sig2j = 2. * sigma_tick * sigma_tick;
+
+	  int key = (fKernelWidth * (j + fBlurTick*fMaxTickWidthBlur)) + (i + fBlurWire);
+	  double value = 1. / sqrt(sig2i * M_PI) * exp(-i * i / sig2i) * 1. / sqrt(sig2j * M_PI) * exp(-j * j / sig2j);
+	  kernel.at(key) = value;
+
+	}
+      } // End loop over blurring region
+
+      fAllKernels[sigma_wire][sigma_tick] = kernel;
+
+    }
+  }
+
+  return;
+
+}
+
 TH2F* cluster::BlurredClusteringAlg::MakeHistogram(std::vector<std::vector<double> > const& image, TString name) {
 
-  TH2F* hist = new TH2F(name,name,fUpperHistWire-fLowerHistWire,fLowerHistWire-0.5,fUpperHistWire-0.5,fUpperHistTick-fLowerHistTick,fLowerHistTick-0.5,fUpperHistTick-0.5);
+  TH2F* hist = new TH2F(name,name,fUpperWire-fLowerWire,fLowerWire-0.5,fUpperWire-0.5,fUpperTick-fLowerTick,fLowerTick-0.5,fUpperTick-0.5);
   hist->Clear();
   hist->SetXTitle("Wire number");
   hist->SetYTitle("Tick number");
   hist->SetZTitle("Charge");
 
   for (unsigned int imageWireIt = 0; imageWireIt < image.size(); ++imageWireIt) {
-    int wire = imageWireIt + fLowerHistWire;
+    int wire = imageWireIt + fLowerWire;
     for (unsigned int imageTickIt = 0; imageTickIt < image.at(imageWireIt).size(); ++imageTickIt) {
-      int tick = imageTickIt + fLowerHistTick;
+      int tick = imageTickIt + fLowerTick;
       hist->Fill(wire, tick, image.at(imageWireIt).at(imageTickIt));
     }
   }
@@ -695,7 +640,7 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<art::PtrV
       art::Ptr<recob::Hit> hit = *hitIt;
       unsigned int wire = GlobalWire(hit->WireID());
       float tick = hit->PeakTime();
-      int bin = image->GetBin((wire-fLowerHistWire)+1,(tick-fLowerHistTick)+1);
+      int bin = image->GetBin((wire-fLowerWire)+1,(tick-fLowerTick)+1);
       if (cluster.size() < fMinSize)
         bin *= -1;
 
@@ -762,7 +707,7 @@ void cluster::BlurredClusteringAlg::SaveImage(TH2F* image, std::vector<std::vect
       }
 
       image->GetBinXYZ(bin,wire,tick,z);
-      mark.DrawMarker(wire+fLowerHistWire-1, tick+fLowerHistTick-1);
+      mark.DrawMarker(wire+fLowerWire-1, tick+fLowerTick-1);
       mark.SetMarkerStyle(20);
     }
   }
