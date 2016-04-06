@@ -130,7 +130,7 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::Cluster, recob::PFParticle>>
         cp_assn(new art::Assns<recob::Cluster, recob::PFParticle>);
 
-    std::vector<tca::TrajClusterAlg::ClusterStore> const& Clusters = fTCAlg->GetClusters();
+    std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters();
     
     std::vector<short> const& inClus = fTCAlg->GetinClus();
     
@@ -139,9 +139,9 @@ namespace cluster {
 // Consistency check
 
     for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
-      tca::TrajClusterAlg::ClusterStore const& clstr = Clusters[icl];
+      tca::ClusterStore const& clstr = Clusters[icl];
         if(clstr.ID < 0) continue;
-      geo::PlaneID planeID = tca::TrajClusterAlg::DecodeCTP(clstr.CTP);
+      geo::PlaneID planeID = tca::DecodeCTP(clstr.CTP);
         unsigned short plane = planeID.Plane;
         for(unsigned short ii = 0; ii < clstr.tclhits.size(); ++ii) {
           unsigned int iht = clstr.tclhits[ii];
@@ -161,15 +161,15 @@ namespace cluster {
 
     
     // make EndPoints (aka 2D vertices)
-    std::vector<tca::TrajClusterAlg::VtxStore> const& EndPts = fTCAlg->GetEndPoints();
+    std::vector<tca::VtxStore> const& EndPts = fTCAlg->GetEndPoints();
 //    std::cout<<"module endpoints "<<EndPts.size()<<"\n";
     art::ServiceHandle<geo::Geometry> geom;
     unsigned int vtxID = 0, end, wire;
-    for(tca::TrajClusterAlg::VtxStore const& vtx2: EndPts) {
+    for(tca::VtxStore const& vtx2: EndPts) {
       if(vtx2.NTraj == 0) continue;
       ++vtxID;
       wire = (0.5 + vtx2.Wire);
-      geo::PlaneID plID = tca::TrajClusterAlg::DecodeCTP(vtx2.CTP);
+      geo::PlaneID plID = tca::DecodeCTP(vtx2.CTP);
       geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
       geo::View_t view = geom->View(wID);
       sv2col.emplace_back((double)vtx2.Time,    // Time
@@ -183,10 +183,10 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>(std::move(sv2col)));
 
     // make 3D vertices
-    std::vector<tca::TrajClusterAlg::Vtx3Store> const& Vertices = fTCAlg->GetVertices();
+    std::vector<tca::Vtx3Store> const& Vertices = fTCAlg->GetVertices();
     double xyz[3] = {0, 0, 0};
     vtxID = 0;
-    for(tca::TrajClusterAlg::Vtx3Store const& vtx3: Vertices) {
+    for(tca::Vtx3Store const& vtx3: Vertices) {
       // ignore incomplete vertices
       if(vtx3.Ptr2D[0] < 0) continue;
       if(vtx3.Ptr2D[1] < 0) continue;
@@ -206,11 +206,11 @@ namespace cluster {
     unsigned int clsID = 0, nclhits, itt, iht, plane;
     std::vector<size_t> dtrIndices;
     for(size_t icl = 0; icl < Clusters.size(); ++icl) {
-      tca::TrajClusterAlg::ClusterStore const& clstr = Clusters[icl];
+      tca::ClusterStore const& clstr = Clusters[icl];
 //      std::cout<<"cls "<<clstr.ID<<" "<<(int)clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" "<<(int)clstr.EndWir<<":"<<(int)clstr.EndTim<<"\n";
       if(clstr.ID < 0) continue;
       ++clsID;
-      geo::PlaneID planeID = tca::TrajClusterAlg::DecodeCTP(clstr.CTP);
+      geo::PlaneID planeID = tca::DecodeCTP(clstr.CTP);
       plane = planeID.Plane;
       nclhits = clstr.tclhits.size();
 
@@ -263,7 +263,7 @@ namespace cluster {
         end = 0;
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
-        for(tca::TrajClusterAlg::Vtx3Store const& vtx3: Vertices) {
+        for(tca::Vtx3Store const& vtx3: Vertices) {
           // ignore incomplete vertices
           if(vtx3.Ptr2D[0] < 0) continue;
           if(vtx3.Ptr2D[1] < 0) continue;
@@ -283,7 +283,7 @@ namespace cluster {
         end = 1;
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
-        for(tca::TrajClusterAlg::Vtx3Store const& vtx3: Vertices) {
+        for(tca::Vtx3Store const& vtx3: Vertices) {
           // ignore incomplete vertices
           if(vtx3.Ptr2D[0] < 0) continue;
           if(vtx3.Ptr2D[1] < 0) continue;
