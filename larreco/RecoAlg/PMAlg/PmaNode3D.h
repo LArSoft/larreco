@@ -28,7 +28,7 @@ class pma::Node3D : public pma::Element3D, public pma::SortedBranchBase
 {
 public:
 	Node3D(void);
-	Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo);
+	Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bool vtx = false);
 	virtual ~Node3D(void) {}
 
 	TVector3 const & Point3D(void) const { return fPoint3D; }
@@ -44,6 +44,9 @@ public:
 
 	/// Belongs to more than one track?
 	bool IsBranching(void) const;
+
+	/// Is the first/last in this TPC?
+	bool IsTPCEdge(void) const;
 
 	/// Check fIsVertex flag.
 	bool IsVertex(void) const { return fIsVertex; }
