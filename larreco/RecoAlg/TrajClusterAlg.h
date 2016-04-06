@@ -9,6 +9,8 @@
 #ifndef TRAJCLUSTERALG_H
 #define TRAJCLUSTERALG_H
 
+#include "larreco/RecoAlg/TCAlg/DataStructs.h"
+#include "larreco/RecoAlg/TCAlg/Utils.h"
 
 // C/C++ standard libraries
 #include <array>
@@ -48,75 +50,19 @@
 #include "TProfile.h"
 
 namespace tca {
+
   
+  //  trajectories
+  Trajectory work;      ///< trajectory under construction
+  bool fQuitAlg;          // A significant error occurred. Delete everything and return
+
   class TrajClusterAlg {
     public:
     
-    // some functions to handle the CTP_t type
-    typedef unsigned int CTP_t;
-    
-    static constexpr unsigned int CTPpad = 1000; // alignment for CTP sub-items
-    static CTP_t EncodeCTP
-      (unsigned int cryo, unsigned int tpc, unsigned int plane)
-      { return cryo * CTPpad*CTPpad + tpc * CTPpad + plane; }
-    static CTP_t EncodeCTP(const geo::PlaneID& planeID)
-      { return EncodeCTP(planeID.Cryostat, planeID.TPC, planeID.Plane); }
-    static CTP_t EncodeCTP(const geo::WireID& wireID)
-    { return EncodeCTP(wireID.Cryostat, wireID.TPC, wireID.Plane); }
-    
-    static geo::PlaneID DecodeCTP(CTP_t CTP)
-      { return { CTP / (CTPpad*CTPpad), CTP / CTPpad % CTPpad, CTP % CTPpad }; }
-
+ 
     /// @{
     /// @name Data structures for the reconstruction results
 
-    /// struct of temporary clusters
-    struct ClusterStore {
-      short ID;         // Cluster ID. ID < 0 = abandoned cluster
-      CTP_t CTP;        // Cryostat/TPC/Plane code
-      unsigned short PDG; // PDG-like code shower-like or line-like
-      unsigned short ParentCluster;
-      float BeginWir;   // begin wire
-      float BeginTim;   // begin tick
-      float BeginAng;   // begin angle
-      float BeginChg;   // beginning average charge
-			short BeginVtx; 	// ID of the Begin vertex
-      float EndWir;     // end wire
-      float EndTim;     // end tick
-      float EndAng;     // end angle
-      float EndChg;     // ending average charge
-      short EndVtx;     // ID of the end vertex
-      std::vector<unsigned int> tclhits; // hits on the cluster
-    }; // ClusterStore
-    std::vector<short> inClus;
-
-    /// struct of temporary 2D vertices (end points)
-    struct VtxStore {
-      float Wire {0};
-      float WireErr {2};
-      float Time {0};
-      float TimeErr {0.1};
-      unsigned short NTraj {0};  // = 0 for abandoned vertices
-      float ChiDOF {0};
-      short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion
-      CTP_t CTP {0};
-      bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
-    };
-    
-    /// struct of temporary 3D vertices
-    struct Vtx3Store {
-      std::array<short, 3> Ptr2D; // pointers to 2D vertices in each plane
-      float X;                    // x position
-      float XErr;                 // x position error
-      float Y;                    // y position
-      float YErr;                 // y position error
-      float Z;                    // z position
-      float ZErr;                 // z position error
-      short Wire;                 // wire number for an incomplete 3D vertex
-      unsigned short CStat;
-      unsigned short TPC;
-      unsigned short ProcCode;
-    };
 
     TrajClusterAlg(fhicl::ParameterSet const& pset);
 
@@ -124,30 +70,29 @@ namespace tca {
 
     void RunTrajClusterAlg(art::Event & evt);
     
-    std::vector<short> const& GetinClus() const {return inClus; }
+    std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
     /// Returns (and loses) the collection of reconstructed hits
-    std::vector<art::Ptr<recob::Hit>> const& YieldHits() const { return fHits; }
+    std::vector<art::Ptr<recob::Hit>> const& YieldHits() const { return tjs.fHits; }
     
     /// Returns a constant reference to the clusters found
-    std::vector<ClusterStore> const& GetClusters() const { return tcl; }
+    std::vector<ClusterStore> const& GetClusters() const { return tjs.tcl; }
     
     /// Returns a constant reference to the 2D end points found
-    std::vector<VtxStore> const& GetEndPoints() const { return vtx; }
+    std::vector<VtxStore> const& GetEndPoints() const { return tjs.vtx; }
     
     /// Returns a constant reference to the 3D vertices found
-    std::vector<Vtx3Store> const& GetVertices() const { return vtx3; }
+    std::vector<Vtx3Store> const& GetVertices() const { return tjs.vtx3; }
     
     /// Deletes all the results
     void ClearResults();
     
+    TjStuff tjs;
+    DebugStuff Debug;
     
-////////////////////////////////////
-
     private:
     
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
-    std::vector<art::Ptr<recob::Hit>> fHits;
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
     short fStepDir;             /// US->DS (1), DS->US (-1)
@@ -185,9 +130,6 @@ namespace tca {
 		float fVertex2DIPCut; 	///< 2D vtx -> cluster Impact Parameter cut (WSE)
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
 
-    int fDebugPlane;
-    int fDebugWire;  ///< set to the Begin Wire and Hit of a cluster to print
-    int fDebugHit;   ///< out detailed information while crawling
     
     bool fIsRealData;
     TH1F *fnHitsPerTP[3];
@@ -211,9 +153,6 @@ namespace tca {
     const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
     
-    std::vector< ClusterStore > tcl; ///< the clusters we are creating
-    std::vector< VtxStore > vtx; ///< the endpoints we are reconstructing
-    std::vector< Vtx3Store > vtx3; ///< the 3D vertices we are reconstructing
     
     trkf::LinFitAlg fLinFitAlg;
 
@@ -228,7 +167,6 @@ namespace tca {
     unsigned int fNumWires;   // number of wires in the current plane
     float fMaxWire;     // max wire in WSE units
     float fMaxTime;    // max time in WSE units
-    float fScaleF;     ///< scale factor from Tick/Wire to dx/du
 
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
@@ -240,7 +178,6 @@ namespace tca {
     // variables for step crawling - updated at each TP
     bool fHitDoublet; // Set true if there are a lot of hit doublets on this trajectory
     // tracking flags
-    bool fQuitAlg;          // A significant error occurred. Delete everything and return
     bool fGoodWork;         // the work trajectory is good and should be stored
     bool fAddedBigDeltaHit;
     bool fTryWithNextPass;  // fGoodWork false, try with next pass settings
@@ -249,132 +186,15 @@ namespace tca {
     bool fMaskedLastTP;
     bool fRevProp;          // in reverse propagation phase
 
-    bool fSplitTrajOK;
-    
-    struct TrajPoint {
-      CTP_t CTP {0};                   ///< Cryostat, TPC, Plane code
-      std::array<float, 2> HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
-      std::array<float, 2> Pos {{0,0}}; // Trajectory position in wire equivalent units
-      std::array<float, 2> Dir {{0,0}}; // Direction
-      float HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
-                                // HitPosErr2 < 0 = HitPos not defined because no hits used
-      float Ang {0};                // Trajectory angle (-pi, +pi)
-      float AngErr {0.1};             // Trajectory angle error
-      float KinkAng {-1};            // Just what it says
-      float Chg {0};                // Charge
-      float AveChg {-1};             // Average charge of last ~20 TPs
-      float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
-      float Delta {0};              // Deviation between trajectory and hits (WSE)
-      float DeltaRMS {0};           // RMS of Deviation between trajectory and hits (WSE)
-      unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
-      unsigned short Step {0};      // Step number at which this TP was created
-      float FitChi {0};             // Chi/DOF of the fit
-      std::vector<unsigned int> Hits; // vector of fHits indices
-      std::vector<bool> UseHit; // set true if the hit is used in the fit
-    };
-    
-    // Global information for the trajectory
-    struct Trajectory {
-      short ID;
-      CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
-      unsigned short Pass {0};            ///< the pass on which it was created
-      short StepDir {0};                 /// -1 = going US (CC proper order), 1 = going DS
-      unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
-      std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
-      unsigned short PDG {13};            ///< shower-like or track-like {default is track-like}
-      unsigned short ParentTraj {USHRT_MAX};     ///< index of the parent (if PDG = 12)
-      float AveChg {0};                   ///< Calculated using ALL hits
-      float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
-      int TruPDG {0};                    ///< MC truth
-      int TruKE {0};                     ///< MeV
-      bool IsPrimary {false};                ///< MC truth
-      std::array<short, 2> Vtx {{-1,-1}};      ///< Index of 2D vertex
-      std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has a hit
-      std::vector<TrajPoint> Pts;    ///< Trajectory points
-      std::vector<TrajPoint> EndTP {(2)} ;    ///< Trajectory point at each end for merging
-    };
-    Trajectory work;      ///< trajectory under construction
-    //  trajectories
-    std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
-    std::vector<short> inTraj;
+
     //  trial    trajectories
     std::vector<std::vector<Trajectory>> trial; ///< vector of all trajectories for all trials in one plane
     std::vector<std::vector<short>> inTrialTraj;
 
-    // Trajectory "intersections" used to search for superclusters (aka showers)
-    struct TrjInt {
-      unsigned short itj1;
-      unsigned short ipt1;
-      unsigned short itj2;
-      unsigned short ipt2;
-      float sep2;   // separation^2 at closest point
-      float dang;   // opening angle at closest point
-      float vw;     // intersection wire
-      float vt;     // intersection time
-    };
     std::vector<TrjInt> trjint;
     // vectors of clusters of trajectories => a set of somewhat intersecting trajectories
     std::vector<std::vector<unsigned short>> ClsOfTrj;
-
-    struct TjPairHitShare {
-      // Trajectories in two different trials that share hits
-      unsigned short iTrial;
-      unsigned short iTj;
-      unsigned short jTrial;
-      unsigned short jTj;
-      unsigned short nSameHits;
-    };
     std::vector<TjPairHitShare> tjphs;
-    
-    // Algorithm modification bits
-    typedef enum {
-      kMaskedWorkHits,
-      kGottaKink,     ///< GottaKink found a kink
-      kCWKink,        ///< kink found in CheckWork
-      kCWStepChk,
-      kMaybeDeltaRay,
-      kModifyShortTraj,
-      kTryWithNextPass,
-      kRevProp,
-      kRecovery1,
-      kRecovery2,
-      kManyHitsAdded,
-      kSplitTraj,
-      kComp3DVx,
-      kHiEndDelta,
-      kHammer2DVx,
-      kJunkTj,
-      kKilled,
-      kStopAtVtx,
-      kMerged,
-      kTrimHits,
-      kUseHiMultEndHits,
-      kAlgBitSize     ///< don't mess with this line
-    } AlgBit_t;
-    
-    std::vector<std::string> AlgBitNames {
-      "MaskedHits",
-      "Kink",
-      "CWKink",
-      "CWStepChk",
-      "DeltaRay?",
-      "ModifyShortTj",
-      "TryNextPass",
-      "RevProp",
-      "Recovery1",
-      "Recovery2",
-      "ManyHitsAdded",
-      "SplitTraj",
-      "Comp3DVx",
-      "HiEndDelta",
-      "Hammer2DVx",
-      "JunkTj",
-      "Killed",
-      "StopAtVtx",
-      "Merged",
-      "TrimHits",
-      "UseHiMultEndHits"
-    };
     
     // runs the TrajCluster algorithm on one plane specified by the calling routine
     // (which should also have called GetHitRange)
@@ -464,9 +284,6 @@ namespace tca {
     // merge the trajectories and put the results into allTraj. Returns
     // reAnalyze true if AnalyzeTrials needs to be called again
     void MergeTrajPair(unsigned short ipr, bool& reAnalyze);
-    // Split the allTraj trajectory itj at position pos into two trajectories
-    // with an optional vertex assignment
-    void SplitAllTraj(unsigned short itj, unsigned short pos, unsigned short ivx);
     // Append the allTraj trajectory to work
     void AppendToWork(unsigned short itj);
     void MakeTrajectoryObsolete(unsigned short itj);
@@ -488,8 +305,6 @@ namespace tca {
     void CheckNearLA();
     // Reverse a trajectory
     void ReverseTraj(Trajectory& tj);
-    // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
-    void SetEndPoints(Trajectory& tj);
     // Updates the last added trajectory point fit, average hit rms, etc.
     void UpdateWork();
     void UpdateTraj(Trajectory& tj);
@@ -530,18 +345,6 @@ namespace tca {
     void Find3DVertices(geo::TPCID const& tpcid);
     void CompleteIncomplete3DVertices(geo::TPCID const& tpcid);
     short TPNearVertex(const TrajPoint& tp);
-    // ****************************** Printing code  ******************************
-    // Print trajectories, TPs, etc to mf::LogVerbatim
-    void PrintTrajectory(Trajectory const& tj ,unsigned short tPoint);
-    void PrintAllTraj(unsigned short itj, unsigned short ipt);
-    void PrintHeader();
-    void PrintTrajPoint(unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
-    // Print clusters after calling MakeAllTrajClusters
-    void PrintClusters();
-    // Print a single hit in the standard format
-    std::string PrintHit(unsigned int iht);
-    // Print Trajectory position in the standard format
-    std::string PrintPos(TrajPoint const& tp);
     // ****************************** Shower/Track ID code  ******************************
     // Tag as shower-like or track-like
     void TagAllTraj();
@@ -557,39 +360,6 @@ namespace tca {
     void TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle);
     void FillTrajTruth();
     void KillVerticesInShowers();
- 
-    // Utilities
-    void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
-    // returns the DOCA between a hit and a trajectory
-    float PointTrajDOCA(unsigned int iht, TrajPoint const& tp);
-    // returns the DOCA between a (W,T) point and a trajectory
-    float PointTrajDOCA(float wire, float time, TrajPoint const& tp);
-    // returns the DOCA^2 between a point and a trajectory
-    float PointTrajDOCA2(float wire, float time, TrajPoint const& tp);
-    // returns the separation^2 between two TPs
-    float TrajPointHitSep2(TrajPoint const& tp1, TrajPoint const& tp2);
-    // returns the separation^2 between a point and a TP
-    float PointTrajSep2(float wire, float time, TrajPoint const& tp);
-    // finds the point on trajectory tj that is closest to trajpoint tp
-    void TrajPointTrajDOCA(TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
-    // returns the intersection position, intPos, of two trajectory points
-    void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
-    // Returns the separation distance between two trajectory points
-    float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
-    // returns the separation^2 between two hits in WSE units
-    float HitSep2(unsigned int iht, unsigned int jht);
-    // Returns true if the time separation of two hits exceeds fMultHitSep
-    bool LargeHitSep(unsigned int iht, unsigned int jht);
-    // Find the Distance Of Closest Approach between two trajectories, exceeding minSep
-    void TrajTrajDOCA(Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
-    // Calculates the angle between two TPs
-    float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
-    // Put hits in each trajectory point into a flat vector. Only hits with UseHit if onlyUsedHits == true
-    void PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec);
-    // Project TP to a "wire position" Pos[0] and update Pos[1]
-    void MoveTPToWire(TrajPoint& tp, float wire);
-    void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
-    float DeltaAngle(float Ang1, float Ang2);
 
     
   }; // class TrajClusterAlg
