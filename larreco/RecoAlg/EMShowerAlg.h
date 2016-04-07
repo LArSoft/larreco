@@ -82,11 +82,10 @@ public:
 				  art::FindManyP<recob::Track> const& fmt,
 				  std::map<int,std::vector<int> >& clusterToTracks,
 				  std::map<int,std::vector<int> >& trackToClusters);
-  void CheckShowerPlanes(std::vector<std::vector<int> > const& initialShowers,
-			 std::vector<int>& clustersToIgnore,
-			 std::vector<art::Ptr<recob::Cluster> > const& clusters,
-			 art::FindManyP<recob::Hit> const& fmh);
-  void FindShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
+  std::vector<int> CheckShowerPlanes(std::vector<std::vector<int> > const& initialShowers,
+  				     std::vector<art::Ptr<recob::Cluster> > const& clusters,
+  				     art::FindManyP<recob::Hit> const& fmh);
+  std::vector<std::vector<int> > FindShowers(std::map<int,std::vector<int> > const& trackToClusters);
   void FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
 			std::unique_ptr<recob::Track>& initialTrack,
 			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits, int plane);

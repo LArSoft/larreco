@@ -10,24 +10,24 @@
 
 #include "larreco/RecoAlg/EMShowerAlg.h"
 
-shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset)
-  : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
-  , fShowerEnergyAlg(pset.get<fhicl::ParameterSet>("ShowerEnergyAlg"))
-  , fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg"))
-  , fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg"))
-{
+shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset) : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
+								    fShowerEnergyAlg(pset.get<fhicl::ParameterSet>("ShowerEnergyAlg")),
+								    fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg")),
+								    fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg")) {
+
   fMinTrackLength  = pset.get<double>("MinTrackLength");
   fdEdxTrackLength = pset.get<double>("dEdxTrackLength");
   fNfitpass        = pset.get<unsigned int>("Nfitpass");
   fNfithits        = pset.get<std::vector<unsigned int> >("Nfithits");
   fToler           = pset.get<std::vector<double> >("Toler");
-  if (fNfitpass!=fNfithits.size()||
-      fNfitpass!=fToler.size()){
+  if (fNfitpass!=fNfithits.size() ||
+      fNfitpass!=fToler.size()) {
     throw art::Exception(art::errors::Configuration)
-      <<"EMShowerAlg: fNfithits and fToler need to have size fNfitpass";
+      << "EMShowerAlg: fNfithits and fToler need to have size fNfitpass";
   }
 
   hTrueDirection = tfs->make<TH1I>("trueDir","",2,0,2);
+
 }
 
 void shower::EMShowerAlg::AssociateClustersAndTracks(std::vector<art::Ptr<recob::Cluster> > const& clusters,
@@ -177,20 +177,20 @@ bool shower::EMShowerAlg::CheckShowerHits(std::map<int,std::vector<art::Ptr<reco
 
 }
 
-void shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const& initialShowers,
-					    std::vector<int>& clustersToIgnore,
-					    std::vector<art::Ptr<recob::Cluster> > const& clusters,
-					    art::FindManyP<recob::Hit> const& fmh) {
+std::vector<int> shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const& initialShowers,
+							std::vector<art::Ptr<recob::Cluster> > const& clusters,
+							art::FindManyP<recob::Hit> const& fmh) {
 
   /// Takes the initial showers found and tries to resolve issues where one bad view ruins the event
 
+  std::vector<int> clustersToIgnore;
+
+  // Look at each shower
   for (std::vector<std::vector<int> >::const_iterator initialShowerIt = initialShowers.begin(); initialShowerIt != initialShowers.end(); ++initialShowerIt) {
 
-    // Make maps of all clusters and cluster hits in each view
+    // Map the clusters and cluster hits to each view
     std::map<int,std::vector<art::Ptr<recob::Cluster> > > planeClusters;
     std::map<int,std::vector<art::Ptr<recob::Hit> > > planeHits;
-
-    // Loop over the clusters comprising this shower
     for (std::vector<int>::const_iterator clusterIt = initialShowerIt->begin(); clusterIt != initialShowerIt->end(); ++clusterIt) {
       art::Ptr<recob::Cluster> cluster = clusters.at(*clusterIt);
       std::vector<art::Ptr<recob::Hit> > hits = fmh.at(cluster.key());
@@ -198,6 +198,14 @@ void shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const
       for (std::vector<art::Ptr<recob::Hit> >::iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt)
 	planeHits[(*hitIt)->WireID().Plane].push_back(*hitIt);
     }
+
+    // Can't do much with fewer than three views
+    if (planeClusters.size() < 3)
+      continue;
+
+    // std::cout << "Here are the clusters and hits in each plane..." << std::endl;
+    // for (int plane = 0; plane < 3; ++plane)
+    //   std::cout << "Plane " << plane << " has " << planeClusters.at(plane).size() << " clusters and " << planeHits.at(plane).size() << " hits" << std::endl;
 
     // Look at how many clusters each plane has, and the proportion of hits each one uses
     std::map<int,std::vector<double> > planeClusterSizes;
@@ -207,6 +215,13 @@ void shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const
         planeClusterSizes[planeClustersIt->first].push_back((double)hits.size()/(double)planeHits.at(planeClustersIt->first).size());
       }
     }
+
+    // std::cout << "Here are the clusters in each plane, together with the proportion of all hits used..." << std::endl;
+    // for (std::map<int,std::vector<double> >::iterator planeClusterIt = planeClusterSizes.begin(); planeClusterIt != planeClusterSizes.end(); ++planeClusterIt) {
+    //   std::cout << "Plane " << planeClusterIt->first << std::endl;
+    //   for (std::vector<double>::iterator clusIt = planeClusterIt->second.begin(); clusIt != planeClusterIt->second.end(); ++clusIt)
+    // 	std::cout << "Cluster " << std::distance(planeClusterIt->second.begin(),clusIt) << " has " << *clusIt << " proportion of the hits in this plane" << std::endl;
+    // }
 
     // Find the average hit fraction across all clusters in the plane
     std::map<int,double> planeClustersAvSizes;
@@ -218,33 +233,30 @@ void shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const
       planeClustersAvSizes[planeClusterSizesIt->first] = average;
     }
 
-    std::cout << "Looking at bad plane: Shower " << std::distance(initialShowers.begin(),initialShowerIt) << std::endl;
-    for (std::map<int,double>::iterator planeClustersAvSizesIt = planeClustersAvSizes.begin(); planeClustersAvSizesIt != planeClustersAvSizes.end(); ++planeClustersAvSizesIt)
-      std::cout << "Plane " << planeClustersAvSizesIt->first << " has average hit thing " << planeClustersAvSizesIt->second << std::endl;
+    // std::cout << "Looking at bad plane: Shower " << std::distance(initialShowers.begin(),initialShowerIt) << std::endl;
+    // for (std::map<int,double>::iterator planeClustersAvSizesIt = planeClustersAvSizes.begin(); planeClustersAvSizesIt != planeClustersAvSizes.end(); ++planeClustersAvSizesIt)
+    //   std::cout << "Plane " << planeClustersAvSizesIt->first << " has average hit thing " << planeClustersAvSizesIt->second << std::endl;
 
     // Now decide if there is one plane which is ruining the reconstruction
     // If two planes have a low average cluster fraction and one high, this plane likely merges two particle deposits together
     int badPlane = -1;
     for (std::map<int,double>::iterator clusterAvSizeIt = planeClustersAvSizes.begin(); clusterAvSizeIt != planeClustersAvSizes.end(); ++clusterAvSizeIt) {
-      double avClusterSizeThisPlane = clusterAvSizeIt->second;
-      double sumClusterSizeOtherPlanes = 0;
-      for (std::map<int,double>::iterator otherClustersAvSizeIt = planeClustersAvSizes.begin(); otherClustersAvSizeIt != planeClustersAvSizes.end(); ++otherClustersAvSizeIt)
-	if (clusterAvSizeIt->first != otherClustersAvSizeIt->first)
-    	  sumClusterSizeOtherPlanes += otherClustersAvSizeIt->second;
-      if (avClusterSizeThisPlane >= sumClusterSizeOtherPlanes)
-    	badPlane = clusterAvSizeIt->first;
-    }
 
-    // // Now, decide if there is one plane which is ruining the reconstruction
-    // // If there are two planes with a low average cluster fraction and one with a high one, this plane likely merges two particle deposits together
-    // std::vector<int> highAverage, lowAverage;
-    // for (std::map<int,double>::iterator planeClusterAverageSizeIt = planeClustersAvSizes.begin(); planeClusterAverageSizeIt != planeClustersAvSizes.end(); ++planeClusterAverageSizeIt) {
-    //   if (planeClusterAverageSizeIt->second > 0.9) highAverage.push_back(planeClusterAverageSizeIt->first);
-    //   else lowAverage.push_back(planeClusterAverageSizeIt->first);
-    // }
-    // int badPlane = -1;
-    // if (highAverage.size() == 1 and highAverage.size() < lowAverage.size())
-    //   badPlane = highAverage.at(0);
+      // Get averages from other planes and add in quadrature
+      std::vector<double> otherAverages;
+      for (std::map<int,double>::iterator otherClustersAvSizeIt = planeClustersAvSizes.begin(); otherClustersAvSizeIt != planeClustersAvSizes.end(); ++otherClustersAvSizeIt)
+    	if (clusterAvSizeIt->first != otherClustersAvSizeIt->first)
+    	  otherAverages.push_back(otherClustersAvSizeIt->second);
+      double quadOtherPlanes = 0;
+      for (std::vector<double>::iterator otherAvIt = otherAverages.begin(); otherAvIt != otherAverages.end(); ++otherAvIt)
+    	quadOtherPlanes += TMath::Power(*otherAvIt,2);
+      quadOtherPlanes = TMath::Sqrt(quadOtherPlanes);
+
+      // If this plane has an average higher than the quadratic sum of the others, it may be bad
+      if (clusterAvSizeIt->second >= quadOtherPlanes)
+    	badPlane = clusterAvSizeIt->first;
+
+    }
 
     if (badPlane != -1) {
       std::cout << "Bad plane is " << badPlane << std::endl;
@@ -254,7 +266,7 @@ void shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const
 
   }
 
-  return;
+  return clustersToIgnore;
 
 }
 
@@ -535,10 +547,12 @@ std::vector<art::Ptr<recob::Hit> > shower::EMShowerAlg::FindOrderOfHits(std::vec
 
 }
 
-void shower::EMShowerAlg::FindShowers(std::map<int,std::vector<int> > const& trackToClusters,
-				      std::vector<std::vector<int> >& showers) {
+std::vector<std::vector<int> > shower::EMShowerAlg::FindShowers(std::map<int,std::vector<int> > const& trackToClusters) {
 
   /// Makes showers given a map between tracks and all clusters associated with them
+
+  // Showers are vectors of clusters
+  std::vector<std::vector<int> > showers;
 
   // Loop over all tracks 
   for (std::map<int,std::vector<int> >::const_iterator trackToClusterIt = trackToClusters.begin(); trackToClusterIt != trackToClusters.end(); ++ trackToClusterIt) {
@@ -551,9 +565,11 @@ void shower::EMShowerAlg::FindShowers(std::map<int,std::vector<int> > const& tra
 	     (std::find(matchingShowers.begin(), matchingShowers.end(), shower)) == matchingShowers.end() )
 	  matchingShowers.push_back(shower);
 
-    // Shouldn't be more than one
-    if (matchingShowers.size() > 1)
-      mf::LogInfo("EMShowerAlg") << "Number of showers this track matches is " << matchingShowers.size() << std::endl;
+    // THINK THERE PROBABLY CAN BE MORE THAN ONE!
+    // IN FACT, THIS WOULD BE A SUCCESS OF THE SHOWERING METHOD!
+    // // Shouldn't be more than one
+    // if (matchingShowers.size() > 1)
+    //   mf::LogInfo("EMShowerAlg") << "Number of showers this track matches is " << matchingShowers.size() << std::endl;
 
     // New shower
     if (matchingShowers.size() < 1)
@@ -567,7 +583,7 @@ void shower::EMShowerAlg::FindShowers(std::map<int,std::vector<int> > const& tra
     }
   }
 
-  return;
+  return showers;
 
 }
 
