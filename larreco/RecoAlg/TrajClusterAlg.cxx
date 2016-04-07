@@ -69,6 +69,10 @@ namespace tca {
       fShowerTheta_Sep = tfs->make<TH2F>("showertheta_sep","Shower dTheta vs Sep",40, 0, 4, 10, 0, 1);
       fShowerDVtx_Sep = tfs->make<TH2F>("showerdvtx_sep","Shower dVtx vs Sep",40, 0, 4, 10, 0, 1);
     }
+    PiPrSum = 0;
+    nPiPr = 0;
+    MuSum = 0;
+    nMu = 0;
     
   }
   
@@ -173,8 +177,7 @@ namespace tca {
 
     // TODO Insert hit sorting code here
     
-    std::cout<<"Event "<<evt.event()<<"\n";
-
+    fEvent = evt.event();
     fQuitAlg = false;
     fIsRealData = evt.isRealData();
     
@@ -294,6 +297,19 @@ namespace tca {
         } // itj
       } // ipl
     } // studymode
+    
+    // TEMP
+    std::cout<<"Event "<<evt.event();
+    float ave = -1;
+    if(nMu > 0) ave = MuSum / (float)nMu;
+    std::cout<<" nMu "<<nPiPr<<" nMu "<<std::setprecision(2)<<ave;
+    ave = -1;
+    if(nPiPr > 0) ave = PiPrSum / (float)nPiPr;
+    std::cout<<" nPiPr "<<nPiPr<<" ave "<<std::setprecision(2)<<ave;
+    ave = -1;
+    float sum = nPiPr + nMu;
+    if(sum > 0) ave = (PiPrSum + MuSum) / sum;
+    std::cout<<" Total ave "<<std::setprecision(2)<<ave<<"\n";
 
     // convert vertex time from WSE to ticks
     for(auto& avtx : tjs.vtx) avtx.Time /= tjs.UnitsPerTick;
@@ -1080,7 +1096,8 @@ namespace tca {
     unsigned short Nplanes = 3;
 
     int trackID;
-    int neutTrackID = -1, pdg;
+//    int neutTrackID = -1;
+    int pdg;
     float KE;
     std::vector<int> tidlist;
     bool isCharged;
@@ -1102,7 +1119,7 @@ namespace tca {
       // KE in MeV
       KE = 1000 * (part->E() - part->Mass());
       if(KE < 10) continue;
-      // 1 cm range cut
+      // ~2 cm range cut
       if(pdg == 11 && KE < 10) continue;
       if(pdg == 13 && KE < 12) continue;
       if(pdg == 211 && KE < 14) continue;
@@ -1111,21 +1128,15 @@ namespace tca {
       plist2.push_back(part);
       truToTj.push_back(temp);
       nTruInPlist2.push_back(temp2);
-      std::cout<<"TrackID "<<trackID<<" pdg "<<part->PdgCode()<<" E "<<part->E()<<" mass "<<part->Mass()<<" KE "<<KE<<" Mother "<<part->Mother()<<" Proc "<<part->Process()<<"\n";
-//      std::cout<<"plist2["<<plist2.size() - 1<<"]"<<" Origin "<<theTruth->Origin()<<" trackID "<<trackID<<" PDG "<<part->PdgCode()<<" KE "<<(int)KE
-//        <<" Mother "<<part->Mother() + neutTrackID - 1<<" Proc "<<part->Process();
+//      std::cout<<"TrackID "<<trackID<<" pdg "<<part->PdgCode()<<" E "<<part->E()<<" mass "<<part->Mass()<<" KE "<<KE<<" Mother "<<part->Mother()<<" Proc "<<part->Process()<<"\n";
     }
     
     if(tidlist.empty()) return;
     
     // get the hits (in all planes) that are matched to the true tracks
     hlist2 = bt->TrackIDsToHits(tjs.fHits, tidlist);
-    if(hlist2.size() != plist2.size()) {
-      mf::LogError("TC")<<"MC particle list size "<<plist2.size()<<" != size of MC particle true hits lists "<<hlist2.size();
-      return;
-    }
+    if(hlist2.size() != plist2.size()) return;
     tidlist.clear();
-    std::cout<<"hlist2 size "<<hlist2.size()<<"\n";
     
     // vector of (mother, daughter) pairs
     std::vector<std::pair<unsigned short, unsigned short>> moda;
@@ -1140,9 +1151,10 @@ namespace tca {
       // electron
       if(abs(plist2[dpl]->PdgCode()) == 11) continue;
       // the actual mother trackID is offset from the neutrino trackID
-      int motherID = neutTrackID + plist2[dpl]->Mother() - 1;
+//      int motherID = neutTrackID + plist2[dpl]->Mother() - 1;
+      int motherID = plist2[dpl]->Mother();
       // ensure that we are only looking at BeamNeutrino or single particle daughters
-      if(motherID != neutTrackID) continue;
+//      if(motherID != neutTrackID) continue;
       // count the number of daughters
       int ndtr = 0;
       for(kpl = 0; kpl < plist2.size(); ++kpl) {
@@ -1167,7 +1179,7 @@ namespace tca {
       // ensure that PDG code for mother and daughter are the same
       if(plist2[dpl]->PdgCode() != plist2[mpl]->PdgCode()) continue;
       moda.push_back(std::make_pair(mpl, dpl));
-      std::cout<<"moda "<<mpl<<" "<<dpl<<"\n";
+ //     std::cout<<"moda "<<mpl<<" "<<dpl<<"\n";
     } //  dpl
 
     // count of the number of tj hits matched to each true particle in plist2
@@ -1185,19 +1197,15 @@ namespace tca {
         ++nTruInPlist2[mom][plane];
       } // hit
     } // ii
-
+/*
     for(ii = 0; ii < nTruInPlist2.size(); ++ii) {
-      std::cout<<ii<<"nTruInPlist2 ";
+      std::cout<<ii<<" nTruInPlist2 ";
       for(plane = 0; plane < 3; ++plane) std::cout<<" "<<nTruInPlist2[ii][plane];
       std::cout<<"\n";
     }
-    
+*/
     // Now fill the reconstructed information. First size the vectors
-    imd = 0;
-    for(itj = 0; itj < tjs.allTraj.size(); ++itj) {
-      if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
-      ++imd;
-    }
+    imd = tjs.allTraj.size();
     nRecInTj.resize(imd);
     nTruInTj.resize(imd);
     for(ii = 0; ii < nRecInTj.size(); ++ii) {
@@ -1207,8 +1215,8 @@ namespace tca {
 
     unsigned short ipt, nhit, imtru;
     // temp vector for counting the number of trajectory hits that
-    // are assigned to each true particle
-    std::vector<unsigned int> nHitInPlist2(plist2.size());
+    // are assigned to each true particle in one plane
+    std::vector<unsigned short> nHitInPlist2(plist2.size());
     for(itj = 0; itj < tjs.allTraj.size(); ++itj) {
       if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
       Trajectory& tj = tjs.allTraj[itj];
@@ -1235,23 +1243,35 @@ namespace tca {
           } // jj
         } // ii
       } // ipt
-      // Associate the trajectory with the truth particle that has the highest number of hits
+      // Associate the trajectory with the truth particle that has the highest number of hits in this plane
       nhit = 0;
       imtru = USHRT_MAX;
+//      std::cout<<itj<<" nHitInPlist2 ";
       for(iplist = 0; iplist < nHitInPlist2.size(); ++iplist) {
-        if(nTruInPlist2[iplist][plane] > nhit) {
-          nhit = nTruInPlist2[iplist][plane];
+//        std::cout<<" "<<nHitInPlist2[iplist];
+        if(nHitInPlist2[iplist] > nhit) {
+          nhit = nHitInPlist2[iplist];
           imtru = iplist;
         }
       } // iplist
+//      std::cout<<" in plane "<<plane<<" nRecInTj "<<nRecInTj[itj][plane]<<"\n";
       if(imtru == USHRT_MAX) continue;
-      truToTj[imtru][plane] = itj;
+      // now determine if trajectory has the most hits associated with imtru
+      if(nhit > nTruInTj[imtru][plane]) {
+        truToTj[imtru][plane] = itj;
+        nTruInTj[imtru][plane] = nhit;
+      }
+//      std::cout<<itj<<" nhit "<<nhit<<" imtru "<<imtru<<" nTruInTj "<<nTruInTj[imtru][plane]<<" truToTj "<<truToTj[imtru][plane]<<"\n";
     } // itj
     
     // now we can calulate efficiency and purity
     float nRecHits, nTruRecHits, nTruHits, eff, pur, ep;
     for(iplist = 0; iplist < plist2.size(); ++iplist) {
+      if(hlist2[iplist].empty()) continue;
+      float KE = 1000 * (plist2[iplist]->E() - plist2[iplist]->Mass());
       for(plane = 0; plane < Nplanes; ++plane) {
+        // ignore not-reconstructable particles
+        if(nTruInPlist2[iplist][plane] < 2) continue;
         eff = 0; pur = 0;
         if(truToTj[iplist][plane] < 0) {
           nRecHits = 0;
@@ -1259,14 +1279,47 @@ namespace tca {
         } else {
           itj = truToTj[iplist][plane];
           nRecHits = nRecInTj[itj][plane];
-          nTruRecHits = nTruInTj[itj][plane];
+          nTruRecHits = nTruInTj[iplist][plane];
         }
         nTruHits = nTruInPlist2[iplist][plane];
         if(nTruHits > 0) eff = nTruRecHits / nTruHits;
         if(nRecHits > 0) pur = nTruRecHits / nRecHits;
         ep = eff * pur;
-        float KE = 1000 * (plist2[iplist]->E() - plist2[iplist]->Mass());
-        std::cout<<iplist<<" PDG "<<plist2[iplist]->PdgCode()<<" KE "<<KE<<" plane "<<plane<<" itj "<<truToTj[iplist][plane]<<" nTru "<<(int)ep<<"\n";
+//        std::cout<<iplist<<" PDG "<<plist2[iplist]->PdgCode()<<" KE "<<KE<<" plane "<<plane<<" itj "<<truToTj[iplist][plane]<<" nTruHits "<<(int)nTruHits<<" nRecHits "<<nRecHits<<" nTruRecHits "<<nTruRecHits<<" ep "<<ep<<"\n";
+        if(ep > 0.3) {
+          itj = truToTj[iplist][plane];
+          tjs.allTraj[itj].TruPDG = plist2[iplist]->PdgCode();
+          tjs.allTraj[itj].TruKE = KE;
+          tjs.allTraj[itj].EffPur = ep;
+        }
+        pdg = abs(plist2[iplist]->PdgCode());
+        if(pdg == 2212 || pdg == 211) {
+          ++nPiPr;
+          PiPrSum += ep;
+        } else if(pdg == 13) {
+          ++nMu;
+          MuSum += ep;
+        }
+        if(ep < 0.3 && KE > 100) {
+          // print out the location of this bad boy
+          unsigned int loW = 9999;
+          unsigned int loT = 0;
+          unsigned int hiW = 0;
+          unsigned int hiT = 0;
+          for(unsigned short ii = 0; ii < hlist2[iplist].size(); ++ii) {
+            art::Ptr<recob::Hit> theHit = hlist2[iplist][ii];
+            if(theHit->WireID().Plane != plane) continue;
+            if(theHit->WireID().Wire < loW) {
+              loW = theHit->WireID().Wire;
+              loT = theHit->PeakTime();
+            }
+            if(theHit->WireID().Wire > hiW) {
+              hiW = theHit->WireID().Wire;
+              hiT = theHit->PeakTime();
+            }
+          } // ii
+          mf::LogVerbatim("TC")<<"Evt "<<fEvent<<" BadEP "<<std::setprecision(2)<<ep<<" KE "<<(int)KE<<" "<<plane<<":"<<loW<<":"<<loT<<"-"<<plane<<":"<<hiW<<":"<<hiT;
+        } // bad ep
       } // plane
     } // iplist
    
