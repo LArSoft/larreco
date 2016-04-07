@@ -118,13 +118,13 @@ namespace tca {
     short StepDir {0};                 /// -1 = going US (CC proper order), 1 = going DS
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
-    unsigned short PDG {13};            ///< shower-like or track-like {default is track-like}
+    unsigned short PDG {0};            ///< shower-like or track-like {default is track-like}
     unsigned short ParentTraj {USHRT_MAX};     ///< index of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
-    bool IsPrimary {false};                ///< MC truth
+    float EffPur {0};                     ///< Efficiency * Purity
     std::array<short, 2> Vtx {{-1,-1}};      ///< Index of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has a hit
     std::vector<TrajPoint> Pts;    ///< Trajectory points
