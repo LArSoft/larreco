@@ -40,7 +40,6 @@ namespace trkf {
         
         
         reconfigure(pset);
-        CalculateGeometricalElements();
         
     }
     
@@ -536,6 +535,7 @@ namespace trkf {
         
         uint32_t LowestChanInSeed[3], HighestChanInSeed[3];
         double Occupancy[3];
+        int    nHitsPerView[] = {0,0,0};
         
         for(auto itP = HitsInThisSeed.begin(); itP!=HitsInThisSeed.end(); ++itP)
         {
@@ -544,6 +544,8 @@ namespace trkf {
             
             LowestChanInSeed[View]  = itP->second.begin()->first;
             HighestChanInSeed[View] = itP->second.rbegin()->first;
+            
+            nHitsPerView[View]++;
             
             int FilledChanCount=0;
             
@@ -557,10 +559,18 @@ namespace trkf {
         
         
         int nBelowCut(0);
+        int nViewsWithHits(0);
         for(size_t n=0; n!=3; ++n)
+        {
             if (Occupancy[n] < fOccupancyCut) nBelowCut++;
+            if (nHitsPerView[n] > 0)          nViewsWithHits++;
+        }
         
-        if (nBelowCut > 1 || (nBelowCut > 0 && !fAllow2DSeeds)) ThrowOutSeed = true;
+        int belowCut(0);
+        
+        if (fAllow2DSeeds && nViewsWithHits < 3) belowCut = 1;
+        
+        if (nBelowCut > belowCut) ThrowOutSeed = true;
         
         if((Extend)&&(!ThrowOutSeed))
         {
