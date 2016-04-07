@@ -129,6 +129,9 @@ namespace tca {
     unsigned short fAllowNoHitWire;
 		float fVertex2DIPCut; 	///< 2D vtx -> cluster Impact Parameter cut (WSE)
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    // TEMP variables for summing Eff*Pur
+    float PiPrSum, MuSum;
+    unsigned short nPiPr, nMu;
 
     
     bool fIsRealData;
@@ -162,6 +165,7 @@ namespace tca {
     unsigned int fCstat;         // the current cryostat
     unsigned int fTpc;         // the current TPC
     unsigned short fPass;
+    unsigned int fEvent;
     CTP_t fCTP;        ///< Cryostat/TPC/Plane code
     unsigned int fPlane;         // the current plane
     unsigned int fNumWires;   // number of wires in the current plane
