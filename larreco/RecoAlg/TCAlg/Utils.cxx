@@ -423,7 +423,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<"TRJ  ID CTP Pass Pts frm  to     W:Tick     Ang   AveQ     W:T        Ang   AveQ  ChgRMS Hits/TP __Vtx__ PDG Parent TRuPDG  Prnt   KE  \n";
+      myprt<<"TRJ  ID CTP Pass Pts frm  to     W:Tick     Ang   AveQ     W:T        Ang   AveQ  ChgRMS Hits/TP __Vtx__ PDG Parent TRuPDG   EP     KE  \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(Debug.Plane >=0 && Debug.Plane < 3 && (unsigned short)Debug.Plane != aTj.CTP) continue;
@@ -459,7 +459,7 @@ namespace tca {
         myprt<<std::setw(6)<<aTj.PDG;
         myprt<<std::setw(6)<<aTj.ParentTraj;
         myprt<<std::setw(6)<<aTj.TruPDG;
-        myprt<<std::setw(6)<<aTj.IsPrimary;
+        myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(7)<<(int)aTj.TruKE;
         if(!aTj.Pts[0].Hits.empty()) {
           iht = aTj.Pts[0].Hits[0];
