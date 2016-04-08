@@ -36,8 +36,6 @@ void shower::EMShowerAlg::AssociateClustersAndTracks(std::vector<art::Ptr<recob:
 						     std::map<int,std::vector<int> >& clusterToTracks,
 						     std::map<int,std::vector<int> >& trackToClusters) {
 
-  /// Map associated tracks and clusters together given their associated hits
-
   std::vector<int> clustersToIgnore = {-999};
   this->AssociateClustersAndTracks(clusters, fmh, fmt, clustersToIgnore, clusterToTracks, trackToClusters);
 
@@ -51,8 +49,6 @@ void shower::EMShowerAlg::AssociateClustersAndTracks(std::vector<art::Ptr<recob:
 						     std::vector<int> const& clustersToIgnore,
 						     std::map<int,std::vector<int> >& clusterToTracks,
 						     std::map<int,std::vector<int> >& trackToClusters) {
-
-  /// Map associated tracks and clusters together given their associated hits, whilst ignoring certain clusters
 
   // Look through all the clusters
   for (std::vector<art::Ptr<recob::Cluster> >::const_iterator clusterIt = clusters.begin(); clusterIt != clusters.end(); ++clusterIt) {
@@ -95,9 +91,6 @@ void shower::EMShowerAlg::AssociateClustersAndTracks(std::vector<art::Ptr<recob:
 }
 
 bool shower::EMShowerAlg::CheckShowerHits(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap) {
-
-  /// Takes the shower hits in all views and ensure the ordering is consistent
-  /// Returns bool, indicating whether or not everything makes sense!
 
   bool consistencyCheck = true;
 
@@ -180,8 +173,6 @@ bool shower::EMShowerAlg::CheckShowerHits(std::map<int,std::vector<art::Ptr<reco
 std::vector<int> shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<int> > const& initialShowers,
 							std::vector<art::Ptr<recob::Cluster> > const& clusters,
 							art::FindManyP<recob::Hit> const& fmh) {
-
-  /// Takes the initial showers found and tries to resolve issues where one bad view ruins the event
 
   std::vector<int> clustersToIgnore;
 
@@ -272,8 +263,6 @@ std::vector<int> shower::EMShowerAlg::CheckShowerPlanes(std::vector<std::vector<
 
 TVector3 shower::EMShowerAlg::Construct3DPoint(art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2) {
 
-  /// Constructs a 3D point (in [cm]) to represent the hits given in two views
-
   // x is average of the two x's
   double x = (fDetProp->ConvertTicksToX(hit1->PeakTime(), hit1->WireID().planeID()) + fDetProp->ConvertTicksToX(hit2->PeakTime(), hit2->WireID().planeID())) / (double)2;
 
@@ -288,10 +277,6 @@ TVector3 shower::EMShowerAlg::Construct3DPoint(art::Ptr<recob::Hit> const& hit1,
 std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& hits1,
 								  std::vector<art::Ptr<recob::Hit> > const& hits2,
 								  std::map<geo::PlaneID,TVector2> const& showerCentreMap) {
-
-  /// Constructs a recob::Track from sets of hits in two views. Intended to be used to construct the initial first part of a shower.
-  /// All PMA methods taken from the pma tracking algorithm (R. Sulej and D. Stefan).
-  /// This implementation also orients the track in the correct direction if a map of shower centres (units [cm]) in each view is provided.
 
   std::unique_ptr<recob::Track> track;
 
@@ -403,9 +388,6 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
 std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
 								  std::vector<art::Ptr<recob::Hit> > const& track2) {
 
-  /// Constructs a recob::Track from sets of hits in two views. Intended to be used to construct the initial first part of a shower.
-  /// All methods taken from the pma tracking algorithm (R. Sulej and D. Stefan).
-
   std::map<geo::PlaneID,TVector2> showerCentreMap;
 
   return this->ConstructTrack(track1, track2, showerCentreMap);
@@ -413,8 +395,6 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
 }
 
 double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, std::unique_ptr<recob::Track> const& track) {
-
-  /// Finds dE/dx for the track given a set of hits
 
   double totalCharge = 0, totalDistance = 0, avHitTime = 0;
   unsigned int nHits = 0;
@@ -456,8 +436,6 @@ double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& t
 void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
 					   std::unique_ptr<recob::Track>& initialTrack,
 					   std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits, int plane) {
-
-  /// Finds the initial track-like part of the shower and the hits in all views associated with it
 
   // First, order the hits into the correct shower order in each plane
   std::map<int,std::vector<art::Ptr<recob::Hit> > > showerHitsMap = OrderShowerHits(hits, plane);
@@ -508,8 +486,6 @@ void shower::EMShowerAlg::FindInitialTrack(art::PtrVector<recob::Hit> const& hit
 
 std::vector<art::Ptr<recob::Hit> > shower::EMShowerAlg::FindOrderOfHits(std::vector<art::Ptr<recob::Hit> > const& hits) {
 
-  /// Orders hits along the best fit line through the charge weighted centre of the hits
-
   // Find the charge-weighted centre (in [cm]) of this shower
   TVector2 centre = ShowerCentre(hits);
 
@@ -549,8 +525,6 @@ std::vector<art::Ptr<recob::Hit> > shower::EMShowerAlg::FindOrderOfHits(std::vec
 
 std::vector<std::vector<int> > shower::EMShowerAlg::FindShowers(std::map<int,std::vector<int> > const& trackToClusters) {
 
-  /// Makes showers given a map between tracks and all clusters associated with them
-
   // Showers are vectors of clusters
   std::vector<std::vector<int> > showers;
 
@@ -588,9 +562,6 @@ std::vector<std::vector<int> > shower::EMShowerAlg::FindShowers(std::map<int,std
 }
 
 std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap) {
-
-  /// Takes a map of the shower hits on each plane (ordered from what has been decided to be the start)
-  /// Returns a map of the initial track-like part of the shower on each plane
 
   std::map<int,std::vector<art::Ptr<recob::Hit> > > initialHitsMap;
 
@@ -688,33 +659,38 @@ std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::FindShowe
 
 std::unique_ptr<recob::Track> shower::EMShowerAlg::MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap) {
 
-  /// Takes initial track hits from multiple views and forms a track object which best represents the start of the shower
-
   std::unique_ptr<recob::Track> track;
 
-  std::map<int,std::vector<art::Ptr<recob::Hit> > > trackLengthMap;
-  for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::const_iterator initialHitsIt = initialHitsMap.begin(); initialHitsIt != initialHitsMap.end(); ++initialHitsIt)
-    trackLengthMap[initialHitsIt->second.size()] = initialHitsIt->second;
-
   // Can't do much with just one view
-  if (trackLengthMap.size() < 2) {
+  if (initialHitsMap.size() < 2) {
     mf::LogInfo("EMShowerAlg") << "Only one useful view for this shower; nothing can be done" << std::endl;
     return track;
   }
 
-  std::vector<std::vector<art::Ptr<recob::Hit> > > longestTracks;
-  std::transform(trackLengthMap.rbegin(), trackLengthMap.rend(), std::back_inserter(longestTracks),
-		 [](std::pair<int,std::vector<art::Ptr<recob::Hit> > > const& initialTrackHits) { return initialTrackHits.second; });
+  std::vector<std::pair<int,int> > initialHitsSize;
+  for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::const_iterator initialHitIt = initialHitsMap.begin(); initialHitIt != initialHitsMap.end(); ++initialHitIt)
+    initialHitsSize.push_back(std::make_pair(initialHitIt->first, initialHitIt->second.size()));
 
-  return ConstructTrack(longestTracks.at(0), longestTracks.at(1));
+  // Sort the planes by number of hits
+  std::sort(initialHitsSize.begin(), initialHitsSize.end(), [](std::pair<int,int> const& size1, std::pair<int,int> const& size2) { return size1.second > size2.second; });
+
+  return ConstructTrack(initialHitsMap.at(initialHitsSize.at(0).first), initialHitsMap.at(initialHitsSize.at(1).first));
+
+  // std::map<int,std::vector<art::Ptr<recob::Hit> > > trackLengthMap;
+  // for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::const_iterator initialHitsIt = initialHitsMap.begin(); initialHitsIt != initialHitsMap.end(); ++initialHitsIt)
+  //   trackLengthMap[initialHitsIt->second.size()] = initialHitsIt->second;
+
+  // std::vector<std::vector<art::Ptr<recob::Hit> > > longestTracks;
+  // std::transform(trackLengthMap.rbegin(), trackLengthMap.rend(), std::back_inserter(longestTracks),
+  // 		 [](std::pair<int,std::vector<art::Ptr<recob::Hit> > > const& initialTrackHits) { return initialTrackHits.second; });
+
+  // return ConstructTrack(longestTracks.at(0), longestTracks.at(1));
 
 }
 
 recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& hits,
 					      std::unique_ptr<recob::Track> const& initialTrack,
 					      std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap) {
-
-  /// Makes a recob::Shower object given the hits in the shower and the initial track-like part
 
   //return recob::Shower();
 
@@ -922,8 +898,6 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 
 std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::OrderShowerHits(art::PtrVector<recob::Hit> const& shower, int plane) {
 
-  /// Takes the hits associated with a shower and orders them so they follow the direction of the shower
-
   // Don't forget to clean up the header file!
 
   // Save RMS, and the gradient of the RMS for each plane
@@ -935,11 +909,13 @@ std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::OrderShow
   for (art::PtrVector<recob::Hit>::const_iterator hit = shower.begin(); hit != shower.end(); ++hit)
     showerHitsMap[(*hit)->WireID().Plane].push_back(*hit);
 
+  // Get the RMS of the hits in each plane
+  for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator showerHitsIt = showerHitsMap.begin(); showerHitsIt != showerHitsMap.end(); ++showerHitsIt)
+    planeRMS[showerHitsIt->first] = ShowerHitRMS(showerHitsIt->second);
+
   // Find if the shower isn't well-formed along a central axis in one view
   int badPlane = -1;
   std::map<int,double> planeOtherRMS;
-  for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator showerHitsIt = showerHitsMap.begin(); showerHitsIt != showerHitsMap.end(); ++showerHitsIt)
-    planeRMS[showerHitsIt->first] = ShowerHitRMS(showerHitsIt->second);
   if (planeRMS.size() == 2) {
     std::vector<int> planes;
     for (std::map<int,double>::iterator planeRMSIt = planeRMS.begin(); planeRMSIt != planeRMS.end(); ++planeRMSIt)
@@ -1143,8 +1119,6 @@ void shower::EMShowerAlg::OrderShowerHits(std::vector<art::Ptr<recob::Hit> > con
 					    std::vector<art::Ptr<recob::Hit> >& showerHits,
 					    art::Ptr<recob::Vertex> const& vertex){
 
-  /// Takes the hits associated with a shower and orders then so they follow the direction of the shower
-
   showerHits = FindOrderOfHits(shower);
 
   // Find TPC for the vertex
@@ -1253,15 +1227,11 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
 
 TVector2 shower::EMShowerAlg::HitCoordinates(art::Ptr<recob::Hit> const& hit) {
 
-  /// Return the coordinates of this hit in global wire/tick space
-
   return TVector2(GlobalWire(hit->WireID()), hit->PeakTime());
 
 }
 
 TVector2 shower::EMShowerAlg::HitPosition(art::Ptr<recob::Hit> const& hit) {
-
-  /// Return the coordinates of this hit in units of cm
 
   geo::PlaneID planeID = hit->WireID().planeID();
 
@@ -1271,16 +1241,12 @@ TVector2 shower::EMShowerAlg::HitPosition(art::Ptr<recob::Hit> const& hit) {
 
 TVector2 shower::EMShowerAlg::HitPosition(TVector2 const& pos, geo::PlaneID planeID) {
 
-  /// Return the coordinates of this hit in units of cm
-
   return TVector2(pos.X() * fGeom->WirePitch(planeID),
 		  fDetProp->ConvertTicksToX(pos.Y(), planeID));
 
 }
 
 double shower::EMShowerAlg::GlobalWire(geo::WireID wireID) {
-
-  /// Find the global wire position
 
   double wireCentre[3];
   fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
@@ -1304,8 +1270,6 @@ double shower::EMShowerAlg::GlobalWire(geo::WireID wireID) {
 
 TVector2 shower::EMShowerAlg::ShowerDirection(const std::vector<art::Ptr<recob::Hit> >& showerHits) {
 
-  /// Returns a rough shower 'direction' given the hits in the shower
-
   TVector2 pos;
   int nhits = 0;
   double sumx=0., sumy=0., sumx2=0., sumxy=0.;
@@ -1326,8 +1290,6 @@ TVector2 shower::EMShowerAlg::ShowerDirection(const std::vector<art::Ptr<recob::
 
 TVector2 shower::EMShowerAlg::ShowerCentre(const std::vector<art::Ptr<recob::Hit> >& showerHits) {
 
-  /// Returns the charge-weighted shower centre
-
   TVector2 pos, chargePoint = TVector2(0,0);
   double totalCharge = 0;
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator hit = showerHits.begin(); hit != showerHits.end(); ++hit) {
@@ -1342,8 +1304,6 @@ TVector2 shower::EMShowerAlg::ShowerCentre(const std::vector<art::Ptr<recob::Hit
 }
 
 double shower::EMShowerAlg::ShowerHitRMS(const std::vector<art::Ptr<recob::Hit> >& showerHits) {
-
-  /// Returns the RMS of the hits from the central shower 'axis' along the length of the shower
 
   TVector2 direction = ShowerDirection(showerHits);
   TVector2 centre = ShowerCentre(showerHits);
@@ -1360,9 +1320,6 @@ double shower::EMShowerAlg::ShowerHitRMS(const std::vector<art::Ptr<recob::Hit> 
 }
 
 TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, geo::PlaneID planeID) {
-
-  /// Projects a 3D point (units [cm]) onto a 2D plane
-  /// Returns 2D point (units [cm])
 
   double pointPosition[3] = {point.X(), point.Y(), point.Z()};
 
