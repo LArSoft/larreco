@@ -347,7 +347,7 @@ void NeutrinoTrackingEff::beginRun(const art::Run& /*run*/){
 }
 //========================================================================
 void NeutrinoTrackingEff::analyze( const art::Event& event ){
-
+    if (event.isRealData()) return;
     reset();
 
     Event  = event.id().event(); 
