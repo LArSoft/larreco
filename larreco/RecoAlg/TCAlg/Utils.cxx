@@ -423,13 +423,13 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<"TRJ  ID CTP Pass Pts frm  to     W:Tick     Ang   AveQ     W:T        Ang   AveQ  ChgRMS Hits/TP __Vtx__ PDG Parent TRuPDG   EP     KE  \n";
+      myprt<<"TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang   AveQ     W:T      Ang   AveQ  ChgRMS Hits/TP __Vtx__ PDG Parent TRuPDG   EP   KE  \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(Debug.Plane >=0 && Debug.Plane < 3 && (unsigned short)Debug.Plane != aTj.CTP) continue;
         //        if(tj.AlgMod[kKilled]) continue;
-        myprt<<"TRJ"<<std::fixed;
-        myprt<<std::setw(4)<<aTj.ID;
+        if(aTj.AlgMod[kKilled]) { myprt<<"xxx"; } else { myprt<<"TRJ"; }
+        myprt<<std::fixed<<std::setw(4)<<aTj.ID;
         myprt<<std::setw(3)<<aTj.CTP;
         myprt<<std::setw(5)<<aTj.Pass;
         myprt<<std::setw(5)<<aTj.Pts.size();
@@ -440,14 +440,14 @@ namespace tca {
         unsigned short itick = tp.Pos[1]/tjs.UnitsPerTick;
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
-        myprt<<std::setw(8)<<std::setprecision(2)<<tp.Ang;
+        myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.AveChg;
         endPt = aTj.EndPt[1];
         tp = aTj.Pts[endPt];
         itick = tp.Pos[1]/tjs.UnitsPerTick;
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
-        myprt<<std::setw(8)<<std::setprecision(2)<<tp.Ang;
+        myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         // find average number of used hits / TP
@@ -456,11 +456,11 @@ namespace tca {
         myprt<<std::setw(8)<<std::setprecision(2)<<ave;
         myprt<<std::setw(4)<<aTj.Vtx[0];
         myprt<<std::setw(4)<<aTj.Vtx[1];
-        myprt<<std::setw(6)<<aTj.PDG;
+        myprt<<std::setw(5)<<aTj.PDG;
         myprt<<std::setw(6)<<aTj.ParentTraj;
         myprt<<std::setw(6)<<aTj.TruPDG;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
-        myprt<<std::setw(7)<<(int)aTj.TruKE;
+        myprt<<std::setw(5)<<(int)aTj.TruKE;
         if(!aTj.Pts[0].Hits.empty()) {
           iht = aTj.Pts[0].Hits[0];
           myprt<<" "<<PrintHit(tjs.fHits[iht]);
