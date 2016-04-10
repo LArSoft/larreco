@@ -52,10 +52,6 @@
 namespace tca {
 
   
-  //  trajectories
-  Trajectory work;      ///< trajectory under construction
-  bool fQuitAlg;          // A significant error occurred. Delete everything and return
-
   class TrajClusterAlg {
     public:
     
@@ -102,7 +98,6 @@ namespace tca {
     std::vector<bool> fLAStep;              ///< Allow LA stepping on pass?
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
-    float fHitFOMCut;      ///  Combined charge & delta difference Figure of Merit cut
     float fKinkAngCut;     ///  kink angle cut
     float fChgPullCut;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
@@ -115,6 +110,7 @@ namespace tca {
     
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
+    bool fMerge;
     bool fStudyMode;       ///< study cuts
     bool fShowerStudy;    ///< study shower identification cuts
     short fShowerPrtPlane; ///< set to plane number to print out
@@ -125,7 +121,6 @@ namespace tca {
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
     float fLargeAngle;  ///< (degrees) call Large Angle Clustering code if TP angle > this value
     float fLAClusSlopeCut;
-    float fMergeOverlapAngCut;   ///< angle cut for merging overlapping clusters
     unsigned short fAllowNoHitWire;
 		float fVertex2DIPCut; 	///< 2D vtx -> cluster Impact Parameter cut (WSE)
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
@@ -148,6 +143,7 @@ namespace tca {
     TH2F *fShowerDVtx_Sep;
     
     bool prt;
+    bool mrgPrt;
     bool vtxPrt;
     bool didPrt; // Set true if a print condition was met
     bool shPrt; /// print shower info
@@ -166,6 +162,7 @@ namespace tca {
     unsigned int fTpc;         // the current TPC
     unsigned short fPass;
     unsigned int fEvent;
+    unsigned int fEventsProcessed;
     CTP_t fCTP;        ///< Cryostat/TPC/Plane code
     unsigned int fPlane;         // the current plane
     unsigned int fNumWires;   // number of wires in the current plane
@@ -189,8 +186,10 @@ namespace tca {
     bool fUpdateTrajOK;     // update
     bool fMaskedLastTP;
     bool fRevProp;          // in reverse propagation phase
+    bool fQuitAlg;          // A significant error occurred. Delete everything and return
 
-
+    //  trajectories
+    Trajectory work;      ///< trajectory under construction
     //  trial    trajectories
     std::vector<std::vector<Trajectory>> trial; ///< vector of all trajectories for all trials in one plane
     std::vector<std::vector<short>> inTrialTraj;
@@ -219,7 +218,7 @@ namespace tca {
     // Finds junk trajectories using unassigned hits
     void FindJunkTraj();
     // Finds junk trajectories using unassigned hits
-    void MakeJunkTraj(std::vector<unsigned int> tHits);
+    void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned short& newTjIndex);
     // Step through TPs starting at the end and moving to the beginning
     void ReversePropagate(Trajectory& tj);
     // Calculate the number of missed steps that should be expected for the given
@@ -253,9 +252,6 @@ namespace tca {
     // Try to use the hits on this TP by reducing the number of points fitted. This
     // should only be done for reasonably long TJ's
     void SetPoorUsedHits(Trajectory& tj, unsigned short ipt);
-    // Returns true if the charge of the hit pointed to by ipt and iht is consistent
-    // with the average charge
-    bool HitChargeOK(Trajectory& tj, unsigned short ipt, unsigned short iht);
     // Sets inTraj[] = 0 and UseHit false for all used hits in tp
     void UnsetUsedHits(TrajPoint& tp);
     void SetAllHitsUsed(TrajPoint& tp);
@@ -339,6 +335,7 @@ namespace tca {
     bool MaybeDeltaRay(Trajectory& tj);
     void CheckTrajEnd();
     void EndMerge();
+    void ChainMerge();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void AttachAnyTrajToVertex(unsigned short iv, float docaCut2, bool requireSignal);
