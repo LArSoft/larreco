@@ -172,9 +172,11 @@ namespace tca {
     kJunkTj,
     kKilled,
     kStopAtVtx,
-    kMerged,
+    kEndMerge,
+    kAppend,
     kTrimHits,
     kUseHiMultEndHits,
+    kChainMerge,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
