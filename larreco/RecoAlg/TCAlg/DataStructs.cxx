@@ -20,9 +20,11 @@ namespace tca {
     "JunkTj",
     "Killed",
     "StopAtVtx",
-    "Merged",
+    "EndMerge",
+    "Append",
     "TrimHits",
-    "UseHiMultEndHits"
+    "UseHiMultEndHits",
+    "ChainMerge"
   };
 } // namespace tca
 
