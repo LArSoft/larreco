@@ -331,9 +331,17 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
     xyz.push_back((*pmatrack)[i]->Point3D());
 
     if (i < pmatrack->size()-1) {
-      TVector3 dc((*pmatrack)[i+1]->Point3D());
-      dc -= (*pmatrack)[i]->Point3D();
-      dc *= 1.0 / dc.Mag();
+      size_t j = i+1;
+      double mag = 0.0;
+      TVector3 dc(0., 0., 0.);
+      while ((mag == 0.0) and (j < pmatrack->size())) {
+	dc = (*pmatrack)[i]->Point3D();
+	dc -= (*pmatrack)[i]->Point3D();
+	mag = dc.Mag();
+	++j;
+      }
+      if (mag > 0.0) dc *= 1.0 / mag;
+      else if (!dircos.empty()) dc = dircos.back();
       dircos.push_back(dc);
     }
     else dircos.push_back(dircos.back());
