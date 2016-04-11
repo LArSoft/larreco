@@ -30,10 +30,8 @@
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 #include "larcore/Geometry/Geometry.h"
-#include "SimulationBase/MCParticle.h"
-#include "larsim/MCCheater/BackTracker.h"
 
-// ROOT & C++
+// ROOT
 #include <TTree.h>
 #include <TH2F.h>
 #include <TH2.h>
@@ -55,6 +53,7 @@
 #include <TVectorD.h>
 #include <TVector2.h>
 
+// c++
 #include <string>
 #include <vector>
 #include <map>
@@ -82,7 +81,7 @@ public:
 			     std::vector<art::PtrVector<recob::Hit> >& clusters);
 
   /// Takes hit map and returns a 2D vector representing wire and tick, filled with the charge
-  void ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit> > const& hits, std::vector<std::vector<double> >& image, std::vector<std::vector<double> >& widths);
+  std::vector<std::vector<double> > ConvertRecobHitsToVector(std::vector<art::Ptr<recob::Hit> > const& hits);
 
   /// Find clusters in the histogram
   int FindClusters(std::vector<std::vector<double> > const& image, std::vector<std::vector<int> >& allcluster);
@@ -91,7 +90,7 @@ public:
   int GlobalWire(geo::WireID const& wireID);
 
   /// Applies Gaussian blur to image
-  std::vector<std::vector<double> > GaussianBlur(std::vector<std::vector<double> > const& image, std::vector<std::vector<double> > const& widths);
+  std::vector<std::vector<double> > GaussianBlur(std::vector<std::vector<double> > const& image);
 
   /// Minimum size of cluster to save
   unsigned int GetMinSize() { return fMinSize; }
@@ -110,7 +109,7 @@ public:
   /// This version takes a vector of bins and overlays the relevant bins on the hit map
   void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int pad, int tpc, int plane);
 
-  std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
+  std::vector<std::vector<art::Ptr<recob::Hit> > > fHitMap;
 
 private:
 
@@ -119,13 +118,6 @@ private:
 
   /// Converts a bin into a recob::Hit (not all of these bins correspond to recob::Hits - some are fake hits created by the blurring)
   art::Ptr<recob::Hit> ConvertBinToRecobHit(std::vector<std::vector<double> > const& image, int bin);
-
-  /// Convolves the Gaussian kernel with the image to blur
-  std::vector<std::vector<double> > Convolve(std::vector<std::vector<double> > const& image,
-					     std::vector<std::vector<double> > const& widths,
-					     std::map<int,std::vector<double> > const& kernel,
-					     int kernel_width, int kernel_height,
-					     int width, int height);
 
   /// Converts an xbin and a ybin to a global bin number                                                                                                                       
   int ConvertWireTickToBin(std::vector<std::vector<double> > const& image, int xbin, int ybin);
@@ -139,6 +131,9 @@ private:
   /// Returns the hit time of a hit in a particular bin
   double GetTimeOfBin(std::vector<std::vector<double> > const& image, int bin);
 
+  /// Makes all the kernels which could be required given the tuned parameters
+  void MakeKernels();
+
   /// Determines the number of clustered neighbours of a hit
   unsigned int NumNeighbours(int nx, std::vector<bool> const& used, int bin);
 
@@ -148,34 +143,30 @@ private:
   bool fDebug;
 
   // Parameters used in the Blurred Clustering algorithm
-  int              fBlurWire;                 // blur radius for Gauss kernel in the wire direction
-  int              fBlurTick;                 // blur radius for Gauss kernel in the tick direction
-  double           fSigmaWire;                // sigma for Gaussian kernel in the wire direction
-  double           fSigmaTick;                // sigma for Gaussian kernel in the tick direction
-  int              fTickWidthRescale;         // how much to rescale the tick width by (divide) when blurring more in the tick direction
-  int              fMaxTickWidthScale;        // the maximum scale to set the tick width by
-  std::vector<int> fKernels;                  // the tick sigma scales used to make the kernels
-  int              fClusterWireDistance;      // how far to cluster from seed in wire direction
-  int              fClusterTickDistance;      // how far to cluster from seed in tick direction
-  unsigned int     fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
-  unsigned int     fNeighboursThreshold;      // min. number of neighbors to add to cluster
-  int              fMinNeighbours;            // minumum number of neighbors to keep in the cluster
-  unsigned int     fMinSize;                  // minimum size for cluster
-  double           fMinSeed;                  // minimum seed after blurring needed before clustering proceeds
-  double           fTimeThreshold;            // time threshold for clustering
-  double           fChargeThreshold;          // charge threshold for clustering
-
-  // Wire and tick information for histograms
-  int fLowerHistTick, fUpperHistTick;
-  int fLowerHistWire, fUpperHistWire;
+  int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
+  int          fBlurTick;                 // blur radius for Gauss kernel in the tick direction
+  double       fSigmaWire;                // sigma for Gaussian kernel in the wire direction
+  double       fSigmaTick;                // sigma for Gaussian kernel in the tick direction
+  int          fMaxTickWidthBlur;         // maximum distance to blur a hit based on its natural width in time
+  int          fClusterWireDistance;      // how far to cluster from seed in wire direction
+  int          fClusterTickDistance;      // how far to cluster from seed in tick direction
+  unsigned int fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
+  unsigned int fNeighboursThreshold;      // min. number of neighbors to add to cluster
+  int          fMinNeighbours;            // minumum number of neighbors to keep in the cluster
+  unsigned int fMinSize;                  // minimum size for cluster
+  double       fMinSeed;                  // minimum seed after blurring needed before clustering proceeds
+  double       fTimeThreshold;            // time threshold for clustering
+  double       fChargeThreshold;          // charge threshold for clustering
 
   // Blurring stuff
-  int fLastBlurWire, fLastBlurTick;
-  double fLastSigmaWire, fLastSigmaTick;
-  std::vector<double> fLastKernel;
+  int fKernelWidth, fKernelHeight;
+  std::vector<std::vector<std::vector<double> > > fAllKernels;
+
+  int fLowerTick, fUpperTick;
+  int fLowerWire, fUpperWire;
 
   // For the debug pdf
-  TCanvas *fDebugCanvas;
+  TCanvas* fDebugCanvas;
   std::string fDebugPDFName;
 
   // art service handles

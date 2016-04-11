@@ -176,9 +176,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     if (planeIt->second.size() >= fBlurredClusteringAlg.GetMinSize()) {
 
       // Convert hit map to TH2 histogram and blur it
-      std::vector<std::vector<double> > image, widths;
-      fBlurredClusteringAlg.ConvertRecobHitsToVector(planeIt->second, image, widths);
-      std::vector<std::vector<double> > blurred = fBlurredClusteringAlg.GaussianBlur(image, widths);
+      std::vector<std::vector<double> > image = fBlurredClusteringAlg.ConvertRecobHitsToVector(planeIt->second);
+      std::vector<std::vector<double> > blurred = fBlurredClusteringAlg.GaussianBlur(image);
 
        // Find clusters in histogram
       std::vector<std::vector<int> > allClusterBins; // Vector of clusters (clusters are vectors of hits)
