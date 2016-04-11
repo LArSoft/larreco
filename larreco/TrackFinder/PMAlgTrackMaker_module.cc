@@ -415,9 +415,21 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 
 		if (i < src.size() - 1)
 		{
-			TVector3 dc(src[i + 1]->Point3D());
-			dc -= src[i]->Point3D();
-			dc *= 1.0 / dc.Mag();
+			size_t j = i + 1;
+			double mag = 0.0;
+			TVector3 dc(0., 0., 0.);
+
+			while ((mag == 0.0) && (j < src.size()))
+			{
+				dc = src[j]->Point3D();
+				dc -= src[i]->Point3D();
+				mag = dc.Mag();
+				j++;
+			}
+
+			if (mag > 0.0) dc *= 1.0 / mag;
+			else if (!dircos.empty()) dc = dircos.back();
+
 			dircos.push_back(dc);
 		}
 		else dircos.push_back(dircos.back());
