@@ -290,22 +290,39 @@ bool pma::Element3D::SelectRndHits(size_t nmax_per_view)
 	size_t nhits[3];
 	for (size_t i = 0; i < 3; ++i) nhits[i] = NHits(i);
 
-	float frac[3];
+	int m[3], count[3];
+	bool state[3];
 	for (size_t i = 0; i < 3; ++i)
 	{
-		frac[i] = nmax_per_view / (float)nhits[i];
-		if (frac[i] > 1.0F) frac[i] = 1.0F;
+		if (nhits[i] >= 2 * nmax_per_view)
+		{
+			m[i] = nhits[i] / nmax_per_view;
+			state[i] = true;
+		}
+		else if (nhits[i] > nmax_per_view)
+		{
+			m[i] = nhits[i] / (nhits[i] - nmax_per_view);
+			state[i] = false;
+		}
+		else { m[i] = 0; state[i] = false; }
+
+		count[i] = 0;
 	}
 
 	bool b, changed = false;
-	float scale = 1.0F / (float)RAND_MAX;
 	for (auto h : fAssignedHits)
 	{
 		b = h->IsEnabled();
+
 		size_t view = h->View2D();
-		if ((frac[view] == 1.0F) || (frac[view] < scale * rand()))
-			h->SetEnabled(true);
-		else h->SetEnabled(false);
+		if (m[view])
+		{
+			if (count[view] % m[view] == 0) h->SetEnabled(state[view]);
+			else h->SetEnabled(!(state[view]));
+
+			++count[view];
+		}
+		else h->SetEnabled(true);
 
 		changed |= (b != h->IsEnabled());
 	}
