@@ -24,7 +24,6 @@
 
 // larsoft
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 #include "lardata/RecoBaseArt/TrackUtils.h"
 #include "larcore/Geometry/Geometry.h"
@@ -145,8 +144,12 @@ private:
   /// Finds dE/dx for the track given a set of hits
   double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, std::unique_ptr<recob::Track> const& track);
 
-  /// Orders hits along the best fit line through the charge weighted centre of the hits
-  std::vector<art::Ptr<recob::Hit> > FindOrderOfHits(std::vector<art::Ptr<recob::Hit> > const& hits);
+  /// Orders hits along the best fit line through the charge-weighted centre of the hits.
+  /// Orders along the line perpendicular to the least squares line if perpendicular is set to true.
+  std::vector<art::Ptr<recob::Hit> > FindOrderOfHits(std::vector<art::Ptr<recob::Hit> > const& hits, bool perpendicular = false);
+
+  /// Order hits in all planes along the best fit line through the charged-weighted centre of the hits.
+  void FindOrderOfHits(std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap, std::map<int,double> const& planeRMS, int plane);
 
   /// Takes a map of the shower hits on each plane (ordered from what has been decided to be the start)
   /// Returns a map of the initial track-like part of the shower on each plane
