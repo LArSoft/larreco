@@ -18,7 +18,9 @@
 //    January 2016:    output of track-vertex finding as a tree of PFParticles, refined vertexing
 //                     code, put vertex at front of each track, flip whole track structures to
 //                     selected, direction (beam/down/dQdx), use any pattern reco stored in
-//                     PFParticles as seeds
+//                     PFParticles as a source of associated clusters
+//    Mar-Apr 2016:    kinks finding, EM shower direction reconstructed for PFPaarticles tagged as
+//                     electrons
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -118,6 +120,10 @@ private:
 	size_t minSizeCompl, unsigned int tpc, unsigned int cryo,
 	geo::View_t first_view, int first_clu_idx, int pfParticleIdx);
 
+	void buildTrks(pma::TrkCandidateColl & result);
+
+	void buildShSeg(pma::TrkCandidateColl & result);
+
   // display what was used and what is left
   void listUsedClusters(const std::vector< art::Ptr<recob::Cluster> >& clusters) const;
   // ------------------------------------------------------
@@ -139,6 +145,7 @@ private:
   std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
   std::map< int, std::vector< art::Ptr<recob::Cluster> > > fPfpClusters;
   std::map< int, int > fPfpPdgCodes;
+	std::map< int, art::Ptr<recob::Vertex> > fPfpVtx;
   bool sortHits(const art::Event& evt);
   bool sortHitsPfp(const art::Event& evt);
 
@@ -221,7 +228,7 @@ private:
   double fSegAngMean;   // Mean segment-segment 3D angle.
   TTree* fTree_trk;     // overall info
 
-  // ******************** parameters **********************
+  // ******************** fcl parameters **********************
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
   std::string fCluModuleLabel; // label for input cluster collection
   int fCluMatchingAlg;         // which algorithm for cluster association
@@ -255,13 +262,16 @@ private:
   pma::PMAlgVertexing fPMAlgVertexing;
   bool fRunVertexing;          // run vertex finding
   bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
+  bool fSavePmaNodes;          // for debugging, save only track nodes
 
-  // ******************** instance names **********************
-  static const std::string kKinksName;        // collection of kinks on tracks
+  // ********** instance names (collections, assns) ************
+  static const std::string kKinksName;        // kinks on tracks
+  static const std::string kNodesName;        // pma nodes
 };
-// ------------------------------------------------------
+// -------------------------------------------------------------
 const std::string PMAlgTrackMaker::kKinksName = "kink";
-// ------------------------------------------------------
+const std::string PMAlgTrackMaker::kNodesName = "node";
+// -------------------------------------------------------------
 
 PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
@@ -274,6 +284,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 	produces< std::vector<recob::SpacePoint> >();
 	produces< std::vector<recob::Vertex> >(); // no instance name for interaction vertices
 	produces< std::vector<recob::Vertex> >(kKinksName); // collection of kinks on tracks
+	produces< std::vector<recob::Vertex> >(kNodesName); // collection of pma nodes
 	produces< std::vector<anab::T0> >();
 
 	produces< art::Assns<recob::Track, recob::Hit> >(); // ****** REMEMBER to remove when FindMany improved ******
@@ -339,6 +350,7 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 	fPMAlgVertexing.reconfigure(pset.get< fhicl::ParameterSet >("PMAlgVertexing"));
 	fRunVertexing = pset.get< bool >("RunVertexing");
 	fSaveOnlyBranchingVtx = pset.get< bool >("SaveOnlyBranchingVtx");
+	fSavePmaNodes = pset.get< bool >("SavePmaNodes");
 }
 
 void PMAlgTrackMaker::reset(const art::Event& evt)
@@ -349,6 +361,7 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 	fCluHits.clear();
 	fPfpClusters.clear();
 	fPfpPdgCodes.clear();
+	fPfpVtx.clear();
 	fEvNumber = evt.id().event();
 	fTrkIndex = 0;
 	fPidTag = 0;
@@ -402,9 +415,21 @@ recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
 
 		if (i < src.size() - 1)
 		{
-			TVector3 dc(src[i + 1]->Point3D());
-			dc -= src[i]->Point3D();
-			dc *= 1.0 / dc.Mag();
+			size_t j = i + 1;
+			double mag = 0.0;
+			TVector3 dc(0., 0., 0.);
+
+			while ((mag == 0.0) && (j < src.size()))
+			{
+				dc = src[j]->Point3D();
+				dc -= src[i]->Point3D();
+				mag = dc.Mag();
+				j++;
+			}
+
+			if (mag > 0.0) dc *= 1.0 / mag;
+			else if (!dircos.empty()) dc = dircos.back();
+
 			dircos.push_back(dc);
 		}
 		else dircos.push_back(dircos.back());
@@ -1272,6 +1297,7 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 {
 	fHitMap.clear(); fCluHits.clear(); fPfpClusters.clear(); fPfpPdgCodes.clear();
+	fPfpVtx.clear();
 
 	art::Handle< std::vector<recob::Hit> > allHitListHandle;
 	art::Handle< std::vector<recob::Cluster> > cluListHandle;
@@ -1298,7 +1324,9 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 		mf::LogVerbatim("PMAlgTrackMaker") << "Sort hits by clusters assigned to PFParticles...";
 		fCluHits.reserve(cluListHandle->size());
 		art::FindManyP< recob::Hit > fbp(cluListHandle, evt, fCluModuleLabel);
-		art::FindManyP< recob::Cluster > fpf(pfparticleHandle, evt, fCluModuleLabel);
+		art::FindManyP< recob::Cluster > fpf(pfparticleHandle, evt, fCluModuleLabel);	
+		art::FindManyP< recob::Vertex > fvf(pfparticleHandle, evt, fCluModuleLabel);
+
 		for (size_t i = 0; i < cluListHandle->size(); ++i)
 		{
 			fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
@@ -1319,6 +1347,9 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 					for (auto const & h : hv) fCluHits[c.key()].push_back(h);
 				}
 			}
+
+			if (fvf.at(i).size())
+				fPfpVtx[i] = fvf.at(i).front();
 		}
 
 		mf::LogVerbatim("PMAlgTrackMaker") << "...done, "
@@ -1332,6 +1363,9 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
+
+	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
 	reset(evt); // set default values, clear containers at the beginning of each event
 
 	pma::TrkCandidateColl result;
@@ -1340,6 +1374,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
 	std::unique_ptr< std::vector< recob::Vertex > > vtxs(new std::vector< recob::Vertex >);  // interaction vertices
 	std::unique_ptr< std::vector< recob::Vertex > > kinks(new std::vector< recob::Vertex >); // kinks on tracks (no new particles start in kinks)
+	std::unique_ptr< std::vector< recob::Vertex > > nodes(new std::vector< recob::Vertex >); // pma nodes
 	std::unique_ptr< std::vector< anab::T0 > > t0s(new std::vector< anab::T0 >);
 
 	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit_oldway(new art::Assns< recob::Track, recob::Hit >); // ****** REMEMBER to remove when FindMany improved ******
@@ -1546,14 +1581,29 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					mf::LogVerbatim("Summary") << "  kink:" << xyz[0] << ":" << xyz[1] << ":" << xyz[2];
 
 					size_t kidx = kinks->size();
-					kinks->push_back(recob::Vertex(xyz, kidx));
-
 					size_t tidx = k.second; // track idx on which this kink was found
+
+					kinks->push_back(recob::Vertex(xyz, tidx)); // save index of track (will have color of trk in evd)
+
 					art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
 					art::Ptr<recob::Vertex> kptr(kid, kidx, kinkGetter);
 					trk2kink->addSingle(tptr, kptr);
 				}
 				mf::LogVerbatim("Summary") << ksel.size() << " kinks ready";
+			}
+
+			if (fSavePmaNodes)
+			{
+				double xyz[3];
+				for (size_t t = 0; t < result.size(); ++t)
+				{
+					auto const & trk = *(result[t].Track());
+					for (auto const * node : trk.Nodes())
+					{
+						xyz[0] = node->Point3D().X(); xyz[1] = node->Point3D().Y(); xyz[2] = node->Point3D().Z();
+						nodes->push_back(recob::Vertex(xyz, t));
+					}
+				}
 			}
 
 			if (fMakePFPs) // create new collection of PFParticles to save hierarchy as found by this module
@@ -1616,6 +1666,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(allsp));
 	evt.put(std::move(vtxs));
 	evt.put(std::move(kinks), kKinksName);
+	evt.put(std::move(nodes), kNodesName);
 	evt.put(std::move(t0s));
 
 	evt.put(std::move(trk2hit_oldway)); // ****** REMEMBER to remove when FindMany improved ******
@@ -2191,26 +2242,49 @@ int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::TrkCandida
     
     return result.size();
 }
-// ------------------------------------------------------
+
 // ------------------------------------------------------
 
 int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::TrkCandidateColl & result)
 {
-	bool skipPdg = true;
-	if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
-		skipPdg = false;
-
-	bool selectPdg = true;
-	if (!fTrackingOnlyPdg.empty() && (fTrackingOnlyPdg.front() == 0))
-		selectPdg = false;
-
     if (!fPfpClusters.empty() && !fCluHits.empty())
     {
+			// build pm tracks
+			buildTrks(result);
+
+			guideEndpoints(result); // add 3D ref.points for clean endpoints of wire-plae parallel tracks
+
+			if (fRunVertexing) fPMAlgVertexing.run(result);
+
+			// build segment of shower
+			buildShSeg(result);
+    }
+    else
+    {
+        mf::LogWarning("PMAlgTrackMaker") << "no clusters, no pfparticles";
+        return -1;
+    }
+    
+    return result.size();
+}
+// ------------------------------------------------------
+
+void PMAlgTrackMaker::buildTrks(pma::TrkCandidateColl & result)
+{
+		bool skipPdg = true;
+		if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
+			skipPdg = false;
+
+		bool selectPdg = true;
+		if (!fTrackingOnlyPdg.empty() && (fTrackingOnlyPdg.front() == 0))
+			selectPdg = false;
+
 		for (const auto & pfpCluEntry : fPfpClusters)
 		{
 			int pfPartIdx = pfpCluEntry.first;
 			int pdg = fPfpPdgCodes[pfPartIdx];
 
+			if (pdg == 11) continue;
 			if (skipPdg && has(fTrackingSkipPdg, pdg)) continue;
 			if (selectPdg && !has(fTrackingOnlyPdg, pdg)) continue;
 
@@ -2242,20 +2316,51 @@ int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::TrkCandidateColl 
 				candidate.DeleteTrack();
 			}
 		}
-
-		guideEndpoints(result); // add 3D ref.points for clean endpoints of wire-plae parallel tracks
-
-		if (fRunVertexing) fPMAlgVertexing.run(result);
-    }
-    else
-    {
-        mf::LogWarning("PMAlgTrackMaker") << "no clusters, no pfparticles";
-        return -1;
-    }
-    
-    return result.size();
 }
+
 // ------------------------------------------------------
+
+void PMAlgTrackMaker::buildShSeg(pma::TrkCandidateColl & result)
+{
+		bool skipPdg = true;
+		if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
+			skipPdg = false;
+
+		bool selectPdg = true;
+		if (!fTrackingOnlyPdg.empty() && (fTrackingOnlyPdg.front() == 0))
+			selectPdg = false;
+
+		for (const auto & pfpCluEntry : fPfpClusters)
+		{
+			int pfPartIdx = pfpCluEntry.first;
+			int pdg = fPfpPdgCodes[pfPartIdx];
+
+			if (pdg != 11) continue;
+			if (skipPdg && has(fTrackingSkipPdg, pdg)) continue;
+			if (selectPdg && !has(fTrackingOnlyPdg, pdg)) continue;
+
+			mf::LogVerbatim("PMAlgTrackMaker") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
+
+			std::vector< art::Ptr<recob::Hit> > allHits;
+
+			pma::TrkCandidate candidate;
+			for (const auto & c : pfpCluEntry.second)
+			{
+				candidate.Clusters().push_back(c.key());
+
+				allHits.reserve(allHits.size() + fCluHits.at(c.key()).size());
+				for (const auto & h : fCluHits.at(c.key()))
+					allHits.push_back(h);
+			}
+
+			candidate.SetKey(pfpCluEntry.first);
+
+			mf::LogVerbatim("PMAlgTrackMaker") << "building..." << ", pdg:" << pdg;
+			candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, fPfpVtx[pfPartIdx]));
+			if (candidate.IsValid()) result.push_back(candidate);
+		}
+}
+
 // ------------------------------------------------------
 
 void PMAlgTrackMaker::listUsedClusters(const std::vector< art::Ptr<recob::Cluster> >& clusters) const

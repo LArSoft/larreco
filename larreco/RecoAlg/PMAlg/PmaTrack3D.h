@@ -41,8 +41,8 @@ public:
 
 	pma::Hit3D* release_at(size_t index);
 	void push_back(pma::Hit3D* hit) { hit->fParent = this; fHits.push_back(hit); }
-	bool push_back(art::Ptr< recob::Hit > hit);
-	bool erase(art::Ptr< recob::Hit > hit);
+	bool push_back(const art::Ptr< recob::Hit > & hit);
+	bool erase(const art::Ptr< recob::Hit > & hit);
 
 	pma::Hit3D* & operator [] (size_t index) { return fHits[index]; }
 	pma::Hit3D* const & operator [] (size_t index) const { return fHits[index]; }
@@ -158,7 +158,8 @@ public:
 
 	/// Main optimization method.
 	double Optimize(int nNodes = -1, double eps = 0.01,
-		bool selAllHits = true, bool setAllNodes = true);
+		bool selAllHits = true, bool setAllNodes = true,
+		size_t selSegHits = 0, size_t selVtxHits = 0);
 
 	void SortHitsInTree(bool skipFirst = false);
 	void MakeProjectionInTree(bool skipFirst = false);
@@ -213,12 +214,13 @@ public:
 	bool GetBranches(std::vector< pma::Track3D const * >& branches, bool skipFirst = false) const;
 
 	void MakeProjection(void);
-	void MakeFastProjection(void);
 	void UpdateProjection(void);
 	void SortHits(void);
 
 	unsigned int DisableSingleViewEnds(void);
-	void SelectHits(float fraction = 1.0F);
+	bool SelectHits(float fraction = 1.0F);
+	bool SelectRndHits(size_t segmax, size_t vtxmax);
+	bool SelectAllHits(void);
 
 	float GetEndSegWeight(void) const { return fEndSegWeight; }
 	void SetEndSegWeight(float value) { fEndSegWeight = value; }
@@ -234,6 +236,7 @@ public:
 
 private:
 	void ClearNodes(void);
+	void MakeFastProjection(void);
 
 	void InternalFlip(std::vector< pma::Track3D* >& toSort);
 

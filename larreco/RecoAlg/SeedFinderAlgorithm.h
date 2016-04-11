@@ -32,7 +32,8 @@ namespace trkf {
     // Constructors, destructor, reconfigure
     //--------------------------------------
 
-    explicit SeedFinderAlgorithm(const fhicl::ParameterSet& pset);
+    SeedFinderAlgorithm(const fhicl::ParameterSet& pset);
+   ~SeedFinderAlgorithm();
 
     void reconfigure(fhicl::ParameterSet const& pset);
 
@@ -51,7 +52,7 @@ namespace trkf {
    
     
 
-    std::vector<recob::Seed>    GetSeedsFromUnSortedHits(art::PtrVector<recob::Hit> const &, std::vector<art::PtrVector<recob::Hit> >&);
+    std::vector<recob::Seed>    GetSeedsFromUnSortedHits(art::PtrVector<recob::Hit> const &, std::vector<art::PtrVector<recob::Hit> >&, unsigned int StopAfter=0);
                                     // Return a vector of seeds formed from an unstructured collection of hits    
 
 
@@ -126,6 +127,8 @@ namespace trkf {
     double                fLengthCut;
     
     bool                  fExtendSeeds;
+      
+    bool                  fAllow2DSeeds;
 
 
     std::vector<double>   fPitches;
