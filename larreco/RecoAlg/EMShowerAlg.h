@@ -210,7 +210,7 @@ private:
   calo::CalorimetryAlg fCalorimetryAlg;
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 
-  bool debug = false;
+  int fDebug;
 
 
 
