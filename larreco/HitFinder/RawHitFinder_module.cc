@@ -317,10 +317,7 @@ namespace hit {
       else if(sigType == geo::kCollection)
       {
         threshold = fMinSigCol;
-        // fitWidth  = fColWidth;
-        // minWidth  = fColMinWidth;
 
-        //find local maxima
         float madc = threshold;
         int ibin   = 0;
         int start  = 0;
@@ -335,7 +332,6 @@ namespace hit {
 
           if (thisadc>madc)
           {
-            startTimes.push_back(bin);
             start = bin;
 
             if(thisadc>threshold && bin<fDataSize)
@@ -362,12 +358,30 @@ namespace hit {
             {
               maxTimes.push_back(ibin);
               peakHeight.push_back(madc);	    
+              startTimes.push_back(start);
               endTimes.push_back(end);
 
               totSig = 0;
               myrms  = 0;
               mynorm = 0;
 
+              int moreTail = std::ceil(fIncludeMoreTail*(end-start));
+
+              for(int i = start-moreTail; i <= end+moreTail; i++)
+              {
+                float temp = ibin-i;
+                myrms += temp*temp*holder[i];
+
+                totSig += holder[i];
+              }
+
+              charge.push_back(totSig);
+              mynorm = totSig;
+              myrms/=mynorm;
+              hitrms.push_back(sqrt(myrms));
+
+              //PRE CHANGES MADE 04/14/16. A BOOTH, DUNE 35T.
+              /*
               int moreTail = std::ceil(fIncludeMoreTail*(end-start));
 
               for(int i = start-moreTail; i <= end+moreTail; i++)
@@ -389,91 +403,69 @@ namespace hit {
               else
               {
                 hitrms.push_back(sqrt(myrms));
-              }
+              }*/
             }
-            //   std::cout << "CHARGE ON ADC####################### " << totSig 
-            // << " RMS " << myrms << std::endl;
-            //  nohits++;
-          }// end region
-          //nohits = 0;
-
+          }
           start = 0;
           end = 0;
           bin++;
         }
       }
-      //      std::cout << "channel " << channel << "hits found  " <<  maxTimes.size() << std::endl;
 
-      int numHits(0);   // number of consecutive hits being fitted
-      int hitIndex(0);  // index of current hit in sequence
-      //      double amplitude(0), position(0), width(0);  //fit parameters
-      double amplitude(0), position(0);  //fit parameters
+      int    numHits(0);                       //NUMBER OF CONSECUTIVE HITS BEING FITTED.
+      int    hitIndex(0);                      //INDEX OF CURRENT HIT IN SEQUENCE.
+      double amplitude(0), position(0);        //FIT PARAMETERS.
       double start(0), end(0);
-      double amplitudeErr(0), positionErr(0);  //fit errors
-      double goodnessOfFit(0), chargeErr(0);  //Chi2/NDF and error on charge
+      double amplitudeErr(0), positionErr(0);  //FIT ERRORS.
+      double goodnessOfFit(0), chargeErr(0);   //CHI2/NDF and error on charge.
       double hrms(0);
 
       numHits = maxTimes.size();
-      for (int i=0;i<numHits;++i) {
-        //	int index = int(maxTimes[i]+0.5);
-        //	 std::cout << " Channel " << channel << " Hit " << i+1 << " Max Time " << maxTimes[i] << " Start//  Time " <<
-        // startTimes[i] << " End Time " << endTimes[i] << " Peak Height " << peakHeight[i] << " Charge " << charge[i] << "  RMS  "  << hitrms[i] << std::endl;
-
-        //	amplitude     = holder[index];
-
+      for (int i = 0; i < numHits; ++i)
+      {
         amplitude     = peakHeight[i];
         position      = maxTimes[i];
         start         = startTimes[i];
         end           = endTimes[i];
-        hrms = hitrms[i];
+        hrms          = hitrms[i];
         amplitudeErr  = -1;
         positionErr   = 1.0;
         goodnessOfFit = -1;
-        chargeErr = -1;
-        totSig = charge[i];
+        chargeErr     = -1;
+        totSig        = charge[i];
 
-        // get the WireID for this hit
         std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
         geo::WireID wid = wids[0];
 
-        // make the hit
-        if (start>=end){
-          mf::LogWarning("RawHitFinder_module") << "Hit start "<<start<<" is >= hit end "<<end;
+        if (start>=end)
+        {
+          mf::LogWarning("RawHitFinder_module") << "Hit start " << start << " is >= hit end " << end;
           continue;
         }
 
         recob::HitCreator hit(
-            *digitVec,        // raw digit reference
-            wid,              // wire ID
-            start,            // start_tick FIXME
-            end,              // end_tick FIXME
-            hrms,              // rms FIXME
-            position,         // peak_time
-            positionErr,      // sigma_peak_time
-            amplitude,        // peak_amplitude
-            amplitudeErr,     // sigma_peak_amplitude
-            totSig,           // hit_integral
-            chargeErr,        // hit_sigma_integral
-            std::accumulate   // summedADC FIXME
-            (holder.begin() + (int) start, holder.begin() + (int) end, 0.), 
-            1,                // multiplicity FIXME
-            -1,               // local_index FIXME
-            goodnessOfFit,    // goodness_of_fit
-            int(end - start)  // dof
+            *digitVec,                                                                     //RAW DIGIT REFERENCE.
+            wid,                                                                           //WIRE ID.
+            start,                                                                         //START TICK.
+            end,                                                                           //END TICK. 
+            hrms,                                                                          //RMS.
+            position,                                                                      //PEAK_TIME.
+            positionErr,                                                                   //SIGMA_PEAK_TIME.
+            amplitude,                                                                     //PEAK_AMPLITUDE.
+            amplitudeErr,                                                                  //SIGMA_PEAK_AMPLITUDE.
+            totSig,                                                                        //HIT_INTEGRAL.
+            chargeErr,                                                                     //HIT_SIGMA_INTEGRAL.
+            std::accumulate(holder.begin() + (int) start, holder.begin() + (int) end, 0.), //SUMMED CHARGE. 
+            1,                                                                             //MULTIPLICITY.
+            -1,                                                                            //LOCAL_INDEX.
+            goodnessOfFit,                                                                 //WIRE ID.
+            int(end-start+1)                                                               //DEGREES OF FREEDOM.
             );
         hcol.emplace_back(hit.move(), digitVec);
 
         ++hitIndex;
-      }//end loop over hits
-      //hitIndex += numHits;	
-    } // end loop over channels
-
-    //    std::cerr << "hcol.size(): " << hcol.size() << std::endl;//jpd
-
-    // std::cerr << "I produced fHitLabelName: " << fHitLabelName << std::endl;
-
-
-    // move the hit collection and the associations into the event
+      }
+    }
 
     hcol.put_into(evt);
   }
