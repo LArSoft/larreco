@@ -570,10 +570,9 @@ namespace cluster{
           ++rit;
         } // rit
 //        mf::LogVerbatim("ClusterAna")<<"Chk dau "<<nTru[plane];
-        if(nTru[plane] == 0) {
-            mf::LogVerbatim("ClusterAna")<<"No true hits in plane "<<plane<<" for truth particle "<<ipl;
-          continue;
-        }
+        if(nTru[plane] == 0) continue;
+        // Ignore short truth clusters
+        if(nTru[plane] < 3) continue;
         short icl = truToCl[ipl][plane];
         if(icl < 0) {
           nRec[plane] = 0;
@@ -585,8 +584,10 @@ namespace cluster{
         pur[plane] = 0;
         if(nTru[plane] > 0) eff[plane] = (float)nTruRec[plane] / (float)nTru[plane];
         if(nRec[plane] > 0) pur[plane] = (float)nTruRec[plane] / (float)nRec[plane];
+        // do this to prevent histogram under/over flow
+        if(eff[plane] == 0) eff[plane] = 0.001; if(pur[plane] == 0) pur[plane] = 0.001;
+        if(eff[plane] >= 1) eff[plane] = 0.999; if(pur[plane] >= 1) pur[plane] = 0.999;
         ep[plane] = eff[plane] * pur[plane];
-        if(ep[plane] < 0 || ep[plane] > 1) std::cout<<"Bad ep "<<ep[plane]<<"\n";
         if(fPrintLevel == -1) outFile<<moduleID<<" "<<evt.id().event()<<" "<<trackID<<" "<<PDG<<" "<<(int)KE<<" "<<plane<<" "<<nTru[plane]<<" "<<std::setprecision(3)<<eff[plane]<<" "<<pur[plane]<<"\n";
 //        mf::LogVerbatim("ClusterAna")<<"Cluster "<<icl<<" nRec hits "<<nRec[plane]<<" nTruRec hits "<<nTruRec[plane]<<" eff "<<eff[plane]<<" pur "<<pur[plane];
       } // plane
