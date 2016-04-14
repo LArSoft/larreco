@@ -645,7 +645,7 @@ double pma::Track3D::TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits
 		unsigned int wire = h->WireID().Wire;
 		float drift = h->PeakTime();
 
-		mse += Dist2(pma::WireDriftToCm(wire, drift, view, tpc, cryo), view);
+		mse += Dist2(pma::WireDriftToCm(wire, drift, view, tpc, cryo), view, tpc, cryo);
 	}
 	if (normalized) return mse / hits.size();
 	else return mse;
@@ -1246,10 +1246,11 @@ pma::Track3D* pma::Track3D::Split(size_t idx)
 	while (h < size())
 	{
 		pma::Hit3D* h3d = fHits[h];
-		double dist2D_old = Dist2(h3d->Point2D(), h3d->View2D());
-		double dist2D_new = t0->Dist2(h3d->Point2D(), h3d->View2D());
+		unsigned int view = h3d->View2D(), tpc = h3d->TPC(), cryo = h3d->Cryo();
+		double dist2D_old = Dist2(h3d->Point2D(), view, tpc, cryo);
+		double dist2D_new = t0->Dist2(h3d->Point2D(), view, tpc, cryo);
 
-		if (dist2D_new < dist2D_old) t0->push_back(release_at(h));
+		if ((dist2D_new < dist2D_old) && t0->HasTPC(tpc)) t0->push_back(release_at(h));
 		else h++;
 	}
 
@@ -1800,7 +1801,8 @@ pma::Track3D* pma::Track3D::GetNearestTrkInTree(
 }
 
 pma::Track3D* pma::Track3D::GetNearestTrkInTree(
-	const TVector2& p2d_cm, unsigned view, double& dist, bool skipFirst)
+	const TVector2& p2d_cm, unsigned view, unsigned int tpc, unsigned int cryo,
+	double& dist, bool skipFirst)
 {
 	pma::Node3D* vtx = fNodes.front();
 	pma::Segment3D* segThis = 0;
@@ -1813,7 +1815,7 @@ pma::Track3D* pma::Track3D::GetNearestTrkInTree(
 	}
 
 	pma::Track3D* result = this;
-	dist = Dist2(p2d_cm, view);
+	dist = Dist2(p2d_cm, view, tpc, cryo);
 
 	pma::Track3D* candidate = 0;
 	while (vtx)
@@ -1826,7 +1828,7 @@ pma::Track3D* pma::Track3D::GetNearestTrkInTree(
 			seg = static_cast< pma::Segment3D* >(vtx->Next(i));
 			if (seg != segThis)
 			{
-				candidate = seg->Parent()->GetNearestTrkInTree(p2d_cm, view, d, true);
+				candidate = seg->Parent()->GetNearestTrkInTree(p2d_cm, view, tpc, cryo, d, true);
 				if (d < dist) { dist = d; result = candidate; }
 			}
 		}
@@ -1878,7 +1880,7 @@ void pma::Track3D::ReassignHitsInTree(pma::Track3D* trkRoot)
 		hit = fHits[i];
 		d0 = hit->GetDistToProj();
 
-		nearestTrk = GetNearestTrkInTree(hit->Point2D(), hit->View2D(), dmin);
+		nearestTrk = GetNearestTrkInTree(hit->Point2D(), hit->View2D(), hit->TPC(), hit->Cryo(), dmin);
 		if ((nearestTrk != this) && (dmin < 0.5 * d0))
 		{
 			nearestTrk->push_back(release_at(i));
@@ -2247,12 +2249,28 @@ bool pma::Track3D::ShiftEndsToHits(void)
 	return true;
 }
 
-double pma::Track3D::Dist2(const TVector2& p2d, unsigned int view) const
+double pma::Track3D::Dist2(const TVector2& p2d, unsigned int view, unsigned int tpc, unsigned int cryo) const
 {
-	double dist, min_dist = fSegments.front()->GetDistance2To(p2d, view);
-	for (size_t i = 1; i < fSegments.size(); i++)
+	double dist, min_dist = 1.0e12;
+
+	int t = (int)tpc, c = (int)cryo;
+	auto n0 = fNodes.front();
+	if ((n0->TPC() == t) && (n0->Cryo() == c))
 	{
-		dist = fSegments[i]->GetDistance2To(p2d, view);
+		dist = n0->GetDistance2To(p2d, view);
+		if (dist < min_dist) min_dist = dist;
+	}
+	auto n1 = fNodes.back();
+	if ((n1->TPC() == t) && (n1->Cryo() == c))
+	{
+		dist = n1->GetDistance2To(p2d, view);
+		if (dist < min_dist) min_dist = dist;
+	}
+
+	for (auto s : fSegments)
+		if ((s->TPC() == t) && (s->Cryo() == c))
+	{
+		dist = s->GetDistance2To(p2d, view);
 		if (dist < min_dist) min_dist = dist;
 	}
 	return min_dist;

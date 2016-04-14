@@ -57,10 +57,14 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	std::vector< unsigned int > trkTPCs = trk.TPCs();
 	std::vector< unsigned int > trkCryos = trk.Cryos();
 	std::map< std::pair< unsigned int, unsigned int >, std::pair< TVector2, TVector2 > > ranges;
+	std::map< std::pair< unsigned int, unsigned int >, double > wirePitch;
+	std::map< std::pair< unsigned int, unsigned int >, double > driftPitch;
 	for (auto c : trkCryos)
 		for (auto t : trkTPCs)
 		{
 			ranges[std::pair< unsigned int, unsigned int >(t, c)] = trk.WireDriftRange(testView, t, c);
+			wirePitch[std::pair< unsigned int, unsigned int >(t, c)] = fGeom->TPC(t, c).Plane(testView).WirePitch();
+			driftPitch[std::pair< unsigned int, unsigned int >(t, c)] = fDetProp->GetXTicksCoefficient(t, c);
 		}
 
 	unsigned int tpc, cryo;
@@ -69,7 +73,9 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	for (const auto h : hits)
 		if (h->WireID().Plane == testView)
 	{
-		std::pair< unsigned int, unsigned int > tpc_cryo(h->WireID().TPC, h->WireID().Cryostat);
+		tpc = h->WireID().TPC;
+		cryo = h->WireID().Cryostat;
+		std::pair< unsigned int, unsigned int > tpc_cryo(tpc, cryo);
 		std::pair< TVector2, TVector2 > rect = ranges[tpc_cryo];
 
 		if ((h->WireID().Wire > rect.first.X() - 10) &&  // chceck only hits in the rectangle around
@@ -77,9 +83,9 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		    (h->PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testView)
 		    (h->PeakTime() < rect.second.Y() + 100))
 		{
-			TVector2 p2d = pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc_cryo.first, tpc_cryo.second);
+			TVector2 p2d(wirePitch[tpc_cryo] * h->WireID().Wire, driftPitch[tpc_cryo] * h->PeakTime());
 
-			d2 = trk.Dist2(p2d, testView);
+			d2 = trk.Dist2(p2d, testView, tpc, cryo);
 
 			if (d2 < max_d2) all_close_points[tpc_cryo].push_back(p2d);
 		}
