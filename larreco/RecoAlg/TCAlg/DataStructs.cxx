@@ -6,7 +6,7 @@ namespace tca {
     "Kink",
     "CWKink",
     "CWStepChk",
-    "DeltaRay?",
+    "Ghost",
     "ModifyShortTj",
     "TryNextPass",
     "RevProp",
@@ -24,7 +24,9 @@ namespace tca {
     "Append",
     "TrimHits",
     "UseHiMultEndHits",
-    "ChainMerge"
+    "ChainMerge",
+    "FillGap",
+    "UseGhostHits"
   };
 } // namespace tca
 
