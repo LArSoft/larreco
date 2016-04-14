@@ -230,6 +230,10 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
   // Get the rough unit vector for the trajectories
   TVector2 unit = TVector2(1,gradient).Unit();
 
+  // Catch vertical gradients
+  if (std::isnan(gradient))
+    unit = TVector2(0,1);
+
   // Use this direction to scale the blurring radii and Gaussian sigma
   blurwire = std::max(std::abs(std::round(fBlurWire * unit.X())),1.);
   blurtick = std::max(std::abs(std::round(fBlurTick * unit.Y())),1.);
