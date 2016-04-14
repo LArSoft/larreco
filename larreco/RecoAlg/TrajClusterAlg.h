@@ -80,6 +80,9 @@ namespace tca {
     /// Returns a constant reference to the 3D vertices found
     std::vector<Vtx3Store> const& GetVertices() const { return tjs.vtx3; }
     
+    std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
+    std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
+    
     /// Deletes all the results
     void ClearResults();
     
@@ -125,8 +128,8 @@ namespace tca {
 		float fVertex2DIPCut; 	///< 2D vtx -> cluster Impact Parameter cut (WSE)
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
     // TEMP variables for summing Eff*Pur
-    float PiPrSum, MuSum;
-    unsigned short nPiPr, nMu;
+    double PrSum, MuPiSum;
+    unsigned short nPr, nMuPi;
 
     
     bool fIsRealData;
@@ -134,6 +137,8 @@ namespace tca {
     TH1F *fDelta[3];
     TH1F *fDeltaN[3];
     TH1F *fCharge[3];
+    TH1F *fPrEP;
+    TH1F *fMuPiEP;
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
     
@@ -191,17 +196,17 @@ namespace tca {
     //  trajectories
     Trajectory work;      ///< trajectory under construction
     //  trial    trajectories
-    std::vector<std::vector<Trajectory>> trial; ///< vector of all trajectories for all trials in one plane
-    std::vector<std::vector<short>> inTrialTraj;
 
     std::vector<TrjInt> trjint;
     // vectors of clusters of trajectories => a set of somewhat intersecting trajectories
     std::vector<std::vector<unsigned short>> ClsOfTrj;
-    std::vector<TjPairHitShare> tjphs;
+    
+    std::vector<unsigned int> fAlgModCount;
     
     // runs the TrajCluster algorithm on one plane specified by the calling routine
     // (which should also have called GetHitRange)
     void RunStepCrawl();
+    void InitializeAllTraj();
     void ReconstructAllTraj();
     // Check the work trajectory and try to recover it if it has poor quality
     // Main stepping/crawling routine
@@ -230,6 +235,7 @@ namespace tca {
     // Make a bare trajectory point that only has position and direction defined
     void MakeBareTrajPoint(unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
     void MakeBareTrajPoint(float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
+    void MakeBareTrajPoint(TrajPoint& tpIn1, TrajPoint& tpIn2, TrajPoint& tpOut);
     // Returns the charge weighted wire, time position of all hits in the multiplet
     // of which hit is a member
     void HitMultipletPosition(unsigned int hit, float& hitTick, float& deltaRms, float& qtot);
@@ -245,6 +251,8 @@ namespace tca {
     unsigned short NumHitsExpected(float angle);
     // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
     void DefineHitPos(TrajPoint& tp);
+    // max hit delta for all used hits on all points
+    float MaxHitDelta(Trajectory& tj);
     // Decide which hits to use to determine the trajectory point
     // fit, charge, etc. This is done by setting UseHit true and
     // setting inTraj < 0.
@@ -294,6 +302,8 @@ namespace tca {
     void StoreWork();
     // Check the quality of the work trajectory and possibly trim it
     void CheckWork();
+    // Fill in missed hits
+    void FillMissedPoints();
     // See if another trajectory can be appended to work
     void CheckAppend();
     // Check for many unused hits in work and try to use them
@@ -332,7 +342,8 @@ namespace tca {
     void ModifyShortTraj(Trajectory& tj);
     // See if the trajectory appears to be a delta ray. This is characterized by a significant fraction of hits
     // in the trajectory belonging to an existing trajectory. This may also flag ghost trajectories...
-    bool MaybeDeltaRay(Trajectory& tj);
+    void MaybeDeltaRay(Trajectory& tj, bool doMerge);
+    bool IsGhost(std::vector<unsigned int>& tHits);
     void CheckTrajEnd();
     void EndMerge();
     void ChainMerge();
@@ -350,7 +361,6 @@ namespace tca {
     // Tag as shower-like or track-like
     void TagAllTraj();
     void TagPhotons();
-    void KillAllTrajInCTP(CTP_t tCTP);
     // Associate trajectories that are close to each into Clusters Of Trajectories (COTs)
     void FindClustersOfTrajectories(std::vector<std::vector<unsigned short>>& trjintIndices);
     // Try to define a shower trajectory consisting of a single track-like trajectory (the electron/photon)
