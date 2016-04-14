@@ -1254,6 +1254,7 @@ pma::Track3D* pma::Track3D::Split(size_t idx)
 		else h++;
 	}
 
+	bool passed = true;
 	if (HasTwoViews() && t0->HasTwoViews())
 	{
 		mf::LogVerbatim("pma::VtxCandidate") << "  attach trk to trk0";
@@ -1261,13 +1262,19 @@ pma::Track3D* pma::Track3D::Split(size_t idx)
 		if (t0->CanFlip())
 		{
 			t0->Flip();
-			t0->AttachTo(fNodes.front());
+			passed = t0->AttachTo(fNodes.front());
 		}
-		else AttachTo(t0->fNodes.back());
+		else passed = AttachTo(t0->fNodes.back());
 	}
 	else
 	{
-		mf::LogVerbatim("pma::VtxCandidate") << "  single-view track, undo split";
+		mf::LogVerbatim("pma::VtxCandidate") << "  single-view track";
+		passed = false;
+	}
+
+	if (!passed)
+	{
+		mf::LogVerbatim("pma::VtxCandidate") << "  undo split";
 		//std::cout << "  single-view track, undo split" << std::endl;
 		while (t0->size()) push_back(t0->release_at(0));
 

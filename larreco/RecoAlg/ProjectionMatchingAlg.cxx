@@ -58,13 +58,11 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	std::vector< unsigned int > trkCryos = trk.Cryos();
 	std::map< std::pair< unsigned int, unsigned int >, std::pair< TVector2, TVector2 > > ranges;
 	std::map< std::pair< unsigned int, unsigned int >, double > wirePitch;
-	std::map< std::pair< unsigned int, unsigned int >, double > driftPitch;
 	for (auto c : trkCryos)
 		for (auto t : trkTPCs)
 		{
 			ranges[std::pair< unsigned int, unsigned int >(t, c)] = trk.WireDriftRange(testView, t, c);
 			wirePitch[std::pair< unsigned int, unsigned int >(t, c)] = fGeom->TPC(t, c).Plane(testView).WirePitch();
-			driftPitch[std::pair< unsigned int, unsigned int >(t, c)] = fDetProp->GetXTicksCoefficient(t, c);
 		}
 
 	unsigned int tpc, cryo;
@@ -83,7 +81,7 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		    (h->PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testView)
 		    (h->PeakTime() < rect.second.Y() + 100))
 		{
-			TVector2 p2d(wirePitch[tpc_cryo] * h->WireID().Wire, driftPitch[tpc_cryo] * h->PeakTime());
+			TVector2 p2d(wirePitch[tpc_cryo] * h->WireID().Wire, fDetProp->ConvertTicksToX(h->PeakTime(), testView, tpc, cryo));
 
 			d2 = trk.Dist2(p2d, testView, tpc, cryo);
 
