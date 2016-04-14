@@ -68,7 +68,7 @@ namespace tca {
     float TimeErr {0.1};
     unsigned short NTraj {0};  // = 0 for abandoned vertices
     float ChiDOF {0};
-    short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion
+    short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
     bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
   };
@@ -158,7 +158,7 @@ namespace tca {
     kGottaKink,     ///< GottaKink found a kink
     kCWKink,        ///< kink found in CheckWork
     kCWStepChk,
-    kMaybeDeltaRay,
+    kGhost,
     kModifyShortTraj,
     kTryWithNextPass,
     kRevProp,
@@ -177,6 +177,8 @@ namespace tca {
     kTrimHits,
     kUseHiMultEndHits,
     kChainMerge,
+    kFillGap,
+    kUseGhostHits,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -191,6 +193,11 @@ namespace tca {
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
     float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
+    std::vector<std::vector<Trajectory>> trial; ///< vector of all trajectories for all trials in one plane
+    std::vector<std::vector<short>> inTrialTraj;
+    std::vector<std::vector< VtxStore >> inTrialVtx;
+    std::vector<std::vector< Vtx3Store >> inTrialVtx3;
+    std::vector<TjPairHitShare> tjphs;
   };
 
 } // namespace tca
