@@ -39,17 +39,16 @@ namespace cluster {
    */
   class TrajCluster: public art::EDProducer {
     
-    public:
-      explicit TrajCluster(fhicl::ParameterSet const & pset);
-      virtual ~TrajCluster() = default;
-      
-      void reconfigure(fhicl::ParameterSet const & pset) override;
-      void produce(art::Event & evt) override;
-      
-    private:
+  public:
+    explicit TrajCluster(fhicl::ParameterSet const & pset);
+    virtual ~TrajCluster() = default;
+    
+    void reconfigure(fhicl::ParameterSet const & pset) override;
+    void produce(art::Event & evt) override;
+    void endJob();
+    
+  private:
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
-      
-//      art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
     
   }; // class TrajCluster
   
@@ -104,6 +103,18 @@ namespace cluster {
         (pset.get< fhicl::ParameterSet >("TrajClusterAlg")));
     }
   } // TrajCluster::reconfigure()
+  
+  //----------------------------------------------------------------------------
+  void TrajCluster::endJob()
+  {
+    std::vector<unsigned int> const& fAlgModCount = fTCAlg->GetAlgModCount();
+    std::vector<std::string> const& fAlgBitNames = fTCAlg->GetAlgBitNames();
+    if(fAlgBitNames.size() != fAlgModCount.size()) return;
+    mf::LogVerbatim("TC")<<"TrajCluster algorithm counts";
+    for(unsigned short ib = 0; ib < fAlgModCount.size(); ++ib) {
+      mf::LogVerbatim("TC")<<std::setw(16)<<fAlgBitNames[ib]<<std::setw(10)<<fAlgModCount[ib];
+    } // ib
+  } // endJob
   
   //----------------------------------------------------------------------------
   void TrajCluster::produce(art::Event & evt)
