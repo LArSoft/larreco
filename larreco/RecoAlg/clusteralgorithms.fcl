@@ -84,15 +84,17 @@ standard_clustercrawleralg:
 standard_blurredclusteralg:
 {
   BlurWire:            6
-  BlurTick:            8
-  BlurSigma:           5
+  BlurTick:            12
+  SigmaWire:           4
+  SigmaTick:           6
   ClusterWireDistance: 2
   ClusterTickDistance: 2
+  MaxTickWidthBlur:    10
   NeighboursThreshold: 0
   MinNeighbours:       0
   MinSize:             2
   MinSeed:             0.1
-  TimeThreshold:       50
+  TimeThreshold:       500
   ChargeThreshold:     0.07
 }
 

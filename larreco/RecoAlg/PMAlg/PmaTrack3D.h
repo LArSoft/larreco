@@ -41,8 +41,8 @@ public:
 
 	pma::Hit3D* release_at(size_t index);
 	void push_back(pma::Hit3D* hit) { hit->fParent = this; fHits.push_back(hit); }
-	bool push_back(art::Ptr< recob::Hit > hit);
-	bool erase(art::Ptr< recob::Hit > hit);
+	bool push_back(const art::Ptr< recob::Hit > & hit);
+	bool erase(const art::Ptr< recob::Hit > & hit);
 
 	pma::Hit3D* & operator [] (size_t index) { return fHits[index]; }
 	pma::Hit3D* const & operator [] (size_t index) const { return fHits[index]; }
@@ -55,7 +55,7 @@ public:
 	double Length(size_t step = 1) const { return Length(0, size() - 1, step); }
 	double Length(size_t start, size_t stop, size_t step = 1) const;
 
-	double Dist2(const TVector2& p2d, unsigned int view) const;
+	double Dist2(const TVector2& p2d, unsigned int view, unsigned int tpc, unsigned int cryo) const;
 	double Dist2(const TVector3& p3d) const;
 
 	/// Add hits; does not update hit->node/seg assignments nor hit projection to track,
@@ -77,6 +77,12 @@ public:
 
 	unsigned int BackTPC(void) const { return fNodes.back()->TPC(); }
 	unsigned int BackCryo(void) const { return fNodes.back()->Cryo(); }
+
+	bool HasTPC(int tpc) const
+	{
+		for (auto n : fNodes) if (n->TPC() == tpc) return true;
+		return false;
+	}
 
 	/// Rectangular region of the track 2D projection in view/tpc/cryo; first in the returned
 	/// pair is (min_wire; min_drift), second is (max_wire; max_drift). Used for preselection
@@ -158,7 +164,8 @@ public:
 
 	/// Main optimization method.
 	double Optimize(int nNodes = -1, double eps = 0.01,
-		bool selAllHits = true, bool setAllNodes = true);
+		bool selAllHits = true, bool setAllNodes = true,
+		size_t selSegHits = 0, size_t selVtxHits = 0);
 
 	void SortHitsInTree(bool skipFirst = false);
 	void MakeProjectionInTree(bool skipFirst = false);
@@ -213,12 +220,13 @@ public:
 	bool GetBranches(std::vector< pma::Track3D const * >& branches, bool skipFirst = false) const;
 
 	void MakeProjection(void);
-	void MakeFastProjection(void);
 	void UpdateProjection(void);
 	void SortHits(void);
 
 	unsigned int DisableSingleViewEnds(void);
-	void SelectHits(float fraction = 1.0F);
+	bool SelectHits(float fraction = 1.0F);
+	bool SelectRndHits(size_t segmax, size_t vtxmax);
+	bool SelectAllHits(void);
 
 	float GetEndSegWeight(void) const { return fEndSegWeight; }
 	void SetEndSegWeight(float value) { fEndSegWeight = value; }
@@ -234,6 +242,7 @@ public:
 
 private:
 	void ClearNodes(void);
+	void MakeFastProjection(void);
 
 	void InternalFlip(std::vector< pma::Track3D* >& toSort);
 
@@ -245,7 +254,9 @@ private:
 	void InitFromMiddle(int tpc, int cryo);
 
 	pma::Track3D* GetNearestTrkInTree(const TVector3& p3d_cm, double& dist, bool skipFirst = false);
-	pma::Track3D* GetNearestTrkInTree(const TVector2& p2d_cm, unsigned int view, double& dist, bool skipFirst = false);
+	pma::Track3D* GetNearestTrkInTree(const TVector2& p2d_cm,
+		unsigned int view, unsigned int tpc, unsigned int cryo,
+		double& dist, bool skipFirst = false);
 	void ReassignHitsInTree(pma::Track3D* plRoot = 0);
 
 	/// Distance to the nearest subsequent (dir = Track3D::kForward) or preceeding (dir = Track3D::kBackward)

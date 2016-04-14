@@ -32,7 +32,6 @@
 #include <string>
 #include <utility> // std::move()
 
-
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
@@ -51,6 +50,7 @@
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBaseArt/HitCreator.h"
+#include "HitFilterAlg.h"
 
 // ROOT Includes
 #include "TGraphErrors.h"
@@ -76,34 +76,42 @@ namespace hit{
 
   private:
 
-      using TimeValsVec      = std::vector<std::tuple<int,int,int>>;
-      using PeakTimeWidVec   = std::vector<std::pair<int,int>>;
-      using MergedTimeWidVec = std::vector<std::tuple<int,int,PeakTimeWidVec>>;
-      
-      void findCandidatePeaks(std::vector<float>::const_iterator startItr,
-                              std::vector<float>::const_iterator stopItr,
-                              TimeValsVec&                       timeValsVec,
-                              float&                             roiThreshold,
-                              int                                firstTick) const;
-      
-      void mergeCandidatePeaks(const std::vector<float>&, TimeValsVec&, MergedTimeWidVec&) const;
+    using TimeValsVec      = std::vector<std::tuple<int,int,int>>;
+    using PeakTimeWidVec   = std::vector<std::pair<int,int>>;
+    using MergedTimeWidVec = std::vector<std::tuple<int,int,PeakTimeWidVec>>;
+    
+    void findCandidatePeaks(std::vector<float>::const_iterator startItr,
+                            std::vector<float>::const_iterator stopItr,
+                            TimeValsVec&                       timeValsVec,
+                            float&                             roiThreshold,
+                            int                                firstTick) const;
+    
+    void mergeCandidatePeaks(const std::vector<float>&, TimeValsVec&, MergedTimeWidVec&) const;
   
     // ### This function will fit N-Gaussians to at TH1D where N is set ###
     // ###            by the number of peaks found in the pulse         ###
       
-      using ParameterVec = std::vector<std::pair<double,double>>;  //< parameter/error vec
-      
-      void FitGaussians(const std::vector<float>& SignalVector,
-                        const PeakTimeWidVec&     PeakVals,
-                        int                       StartTime,
-                        int                       EndTime,
-                        double                    ampScaleFctr,
-                        ParameterVec&             paramVec,
-                        double&                   chi2PerNDF,
-                        int&                      NDF);
+    using ParameterVec = std::vector<std::pair<double,double>>;  //< parameter/error vec
+    
+    void FitGaussians(const std::vector<float>& SignalVector,
+                      const PeakTimeWidVec&     PeakVals,
+                      int                       StartTime,
+                      int                       EndTime,
+                      double                    ampScaleFctr,
+                      ParameterVec&             paramVec,
+                      double&                   chi2PerNDF,
+                      int&                      NDF);
     
     void FillOutHitParameterVector(const std::vector<double>& input,
 				   std::vector<double>& output);
+      
+    void doBinAverage(const std::vector<float>& inputVec,
+                      std::vector<float>&       outputVec,
+                      size_t                    binsToAverage) const;
+      
+    void reBin(const std::vector<float>& inputVec,
+               std::vector<float>&       outputVec,
+               size_t                    nBinsToCombine) const;
     
     double              threshold           = 0.;  // minimum signal size for id'ing a hit
     double              fitWidth            = 0.;  // hit fit width initial value
@@ -120,6 +128,10 @@ namespace hit{
     int		            fTryNplus1Fits;            ///<whether we will (0) or won't (1) try n+1 fits
     double	            fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
+    size_t              fNumBinsToAverage;         ///< If bin averaging for peak finding, number bins to average
+    
+    bool                fDoHitFiltering;
+    HitFilterAlg        fHitFilterAlg;             ///algorithm used to filter out noise hits
     
     TH1F* fFirstChi2;
     TH1F* fChi2;
@@ -132,14 +144,15 @@ namespace hit{
 
 //-------------------------------------------------
 //-------------------------------------------------
-GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
+GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset):
+  fHitFilterAlg(pset.get<fhicl::ParameterSet>("HitFilterAlg"))
 {
-  this->reconfigure(pset);
+    this->reconfigure(pset);
   
-  // let HitCollectionCreator declare that we are going to produce
-  // hits and associations with wires and raw digits
-  // (with no particular product label)
-  recob::HitCollectionCreator::declare_products(*this);
+    // let HitCollectionCreator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    // (with no particular product label)
+    recob::HitCollectionCreator::declare_products(*this);
   
 } // GausHitFinder::GausHitFinder()
 
@@ -148,27 +161,27 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
 //-------------------------------------------------
   GausHitFinder::~GausHitFinder()
 {
-  // Clean up dynamic memory and other resources here.
+    // Clean up dynamic memory and other resources here.
 
 }
   
 //-------------------------------------------------
 //-------------------------------------------------
 void GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
-					      std::vector<double>& output)
+                                              std::vector<double>&       output)
 {
-  if(input.size()==0)
-    throw std::runtime_error("GausHitFinder::FillOutHitParameterVector ERROR! Input config vector has zero size.");
+    if(input.size()==0)
+        throw std::runtime_error("GausHitFinder::FillOutHitParameterVector ERROR! Input config vector has zero size.");
 
-   art::ServiceHandle<geo::Geometry> geom;
-   const unsigned int N_PLANES = geom->Nplanes();
+    art::ServiceHandle<geo::Geometry> geom;
+    const unsigned int N_PLANES = geom->Nplanes();
 
-  if(input.size()==1)
-    output.resize(N_PLANES,input[0]);
-  else if(input.size()==N_PLANES)
-    output = input;
-  else
-    throw std::runtime_error("GausHitFinder::FillOutHitParameterVector ERROR! Input config vector size !=1 and !=N_PLANES.");
+    if(input.size()==1)
+        output.resize(N_PLANES,input[0]);
+    else if(input.size()==N_PLANES)
+        output = input;
+    else
+        throw std::runtime_error("GausHitFinder::FillOutHitParameterVector ERROR! Input config vector size !=1 and !=N_PLANES.");
       
 }
 						
@@ -177,37 +190,37 @@ void GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
 //-------------------------------------------------
 void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
 {
-  // Implementation of optional member function here.
-  fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
-
-  FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),fMinSig);
-  FillOutHitParameterVector(p.get< std::vector<double> >("InitWidth"),fInitWidth);
-  FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),fMinWidth);
-  FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),fAreaNorms);
-
+    // Implementation of optional member function here.
+    fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
   
-  fMaxMultiHit        = p.get< int          >("MaxMultiHit");
-  fAreaMethod         = p.get< int          >("AreaMethod");
-  fTryNplus1Fits      = p.get< int          >("TryNplus1Fits");
-  fChi2NDFRetry       = p.get< double       >("Chi2NDFRetry");
-  fChi2NDF            = p.get< double       >("Chi2NDF");
+    fHitFilterAlg.reconfigure(p.get<fhicl::ParameterSet>("HitFilterAlg"));
+    fDoHitFiltering = p.get<bool>("FilterHits", false);
+
+    FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),fMinSig);
+    FillOutHitParameterVector(p.get< std::vector<double> >("InitWidth"),fInitWidth);
+    FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),fMinWidth);
+    FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),fAreaNorms);
   
+    fMaxMultiHit      = p.get< int          >("MaxMultiHit");
+    fAreaMethod       = p.get< int          >("AreaMethod");
+    fTryNplus1Fits    = p.get< int          >("TryNplus1Fits");
+    fChi2NDFRetry     = p.get< double       >("Chi2NDFRetry");
+    fChi2NDF          = p.get< double       >("Chi2NDF");
+    fNumBinsToAverage = p.get< size_t       >("NumBinsToAverage", 0);
 }  
 
 //-------------------------------------------------
 //-------------------------------------------------
 void GausHitFinder::beginJob()
 {
-// get access to the TFile service
-art::ServiceHandle<art::TFileService> tfs;
+    // get access to the TFile service
+    art::ServiceHandle<art::TFileService> tfs;
    
     
-// ======================================
-// === Hit Information for Histograms ===
-fFirstChi2	= tfs->make<TH1F>("fFirstChi2", "#chi^{2}", 10000, 0, 5000);
-fChi2	        = tfs->make<TH1F>("fChi2", "#chi^{2}", 10000, 0, 5000);
-
-
+    // ======================================
+    // === Hit Information for Histograms ===
+    fFirstChi2	= tfs->make<TH1F>("fFirstChi2", "#chi^{2}", 10000, 0, 5000);
+    fChi2	        = tfs->make<TH1F>("fChi2", "#chi^{2}", 10000, 0, 5000);
 }
 
 //-------------------------------------------------
@@ -310,31 +323,67 @@ void GausHitFinder::produce(art::Event& evt)
             // ROI start time
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
             
-            TimeValsVec timeValsVec;
+            MergedTimeWidVec mergedVec;
             float       roiThreshold(threshold);
             
-            // ##########################################################
-            // ### Search current ROI for candidate peaks and widths  ###
-            // ##########################################################
+            // ###########################################################
+            // ### If option set do bin averaging before finding peaks ###
+            // ###########################################################
+            
+            if (fNumBinsToAverage > 1)
+            {
+                std::vector<float> timeAve;
+            
+                doBinAverage(signal, timeAve, fNumBinsToAverage);
+            
+                // ###################################################################
+                // ### Search current averaged ROI for candidate peaks and widths  ###
+                // ###################################################################
            
-            findCandidatePeaks(signal.begin(),signal.end(),timeValsVec,roiThreshold,0);
+                TimeValsVec timeValsVec;
+                findCandidatePeaks(timeAve.begin(),timeAve.end(),timeValsVec,roiThreshold,0);
+                
+                // ####################################################
+                // ### If no startTime hit was found skip this wire ###
+                // ####################################################
+                if (timeValsVec.empty()) continue;
+                
+                // #############################################################
+                // ### Merge potentially overlapping peaks and do multi fit  ###
+                // #############################################################
+                
+                mergeCandidatePeaks(timeAve, timeValsVec, mergedVec);
+            }
+            
+            // ###########################################################
+            // ### Otherwise, operate directonly on signal vector      ###
+            // ###########################################################
+            
+            else
+            {
+                // ##########################################################
+                // ### Search current ROI for candidate peaks and widths  ###
+                // ##########################################################
+                
+                TimeValsVec timeValsVec;
+                findCandidatePeaks(signal.begin(),signal.end(),timeValsVec,roiThreshold,0);
 	
-            // ####################################################
-            // ### If no startTime hit was found skip this wire ###
-            // ####################################################
-            if (timeValsVec.empty()) continue;
-        
-            MergedTimeWidVec mergedVec;
+                // ####################################################
+                // ### If no startTime hit was found skip this wire ###
+                // ####################################################
+                if (timeValsVec.empty()) continue;
             
-            // #############################################################
-            // ### Merge potentially overlapping peaks and do multi fit  ###
-            // #############################################################
+                // #############################################################
+                // ### Merge potentially overlapping peaks and do multi fit  ###
+                // #############################################################
             
-            mergeCandidatePeaks(signal, timeValsVec, mergedVec);
-
+                mergeCandidatePeaks(signal, timeValsVec, mergedVec);
+            }
+            
             // #######################################################
             // ### Lets loop over the pulses we found on this wire ###
             // #######################################################
+            
             for(auto& mergedCands : mergedVec)
             {
                 int             startT   = std::get<0>(mergedCands);
@@ -487,27 +536,30 @@ void GausHitFinder::produce(art::Event& evt)
                     double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
 
                     // ok, now create the hit
-                    recob::HitCreator hit(*wire,                            // wire reference
-                                          wid,                              // wire ID
-                                          startT+roiFirstBinTick,           // start_tick TODO check
-                                          endT+roiFirstBinTick,             // end_tick TODO check
-                                          peakWidth,                        // rms
-                                          peakMean+roiFirstBinTick,         // peak_time
-                                          peakMeanErr,                      // sigma_peak_time
-                                          peakAmp,                          // peak_amplitude
-                                          peakAmpErr,                       // sigma_peak_amplitude
-                                          charge,                           // hit_integral
-                                          chargeErr,                        // hit_sigma_integral
-                                          sumADC,                           // summedADC FIXME
-                                          nGausForFit,                      // multiplicity
-                                          numHits,                          // local_index TODO check that the order is correct
-                                          chi2PerNDF,                       // goodness_of_fit
-                                          NDF                               // dof
-                                          );
+                    recob::HitCreator hitcreator(*wire,                            // wire reference
+                                        	 wid,                              // wire ID
+                                        	 startT+roiFirstBinTick,           // start_tick TODO check
+                                        	 endT+roiFirstBinTick,             // end_tick TODO check
+                                        	 peakWidth,                        // rms
+                                        	 peakMean+roiFirstBinTick,         // peak_time
+                                        	 peakMeanErr,                      // sigma_peak_time
+                                        	 peakAmp,                          // peak_amplitude
+                                        	 peakAmpErr,                       // sigma_peak_amplitude
+                                        	 charge,                           // hit_integral
+                                        	 chargeErr,                        // hit_sigma_integral
+                                        	 sumADC,                           // summedADC FIXME
+                                        	 nGausForFit,                      // multiplicity
+                                        	 numHits,                          // local_index TODO check that the order is correct
+                                        	 chi2PerNDF,                       // goodness_of_fit
+                                        	 NDF                               // dof
+                                        	 );
                     
-                    hcol.emplace_back(hit.move(), wire, rawdigits);
-                    
-                    numHits++;
+		    const recob::Hit hit(hitcreator.move());
+		    
+		    if (!fDoHitFiltering || fHitFilterAlg.IsGoodHit(hit)) {
+                      hcol.emplace_back(std::move(hit), wire, rawdigits);                   
+                      numHits++;
+		    }
                 } // <---End loop over gaussians
                 
                 fChi2->Fill(chi2PerNDF);
@@ -746,6 +798,64 @@ void hit::GausHitFinder::FitGaussians(const std::vector<float>& SignalVector,
     hitSignal.Delete();
 }//<----End FitGaussians
 
+    
+void hit::GausHitFinder::doBinAverage(const std::vector<float>& inputVec,
+                                      std::vector<float>&       outputVec,
+                                      size_t                    binsToAverage) const
+{
+    size_t halfBinsToAverage(binsToAverage/2);
+    
+    float runningSum(0.);
+    
+    for(size_t idx = 0; idx < halfBinsToAverage; idx++) runningSum += inputVec[idx];
+    
+    outputVec.resize(inputVec.size());
+    std::vector<float>::iterator outputVecItr = outputVec.begin();
+    
+    // First pass through to build the erosion vector
+    for(std::vector<float>::const_iterator inputItr = inputVec.begin(); inputItr != inputVec.end(); inputItr++)
+    {
+        size_t startOffset = std::distance(inputVec.begin(),inputItr);
+        size_t stopOffset  = std::distance(inputItr,inputVec.end());
+        size_t count       = std::min(2 * halfBinsToAverage, std::min(startOffset + halfBinsToAverage + 1, halfBinsToAverage + stopOffset - 1));
+        
+        if (startOffset >= halfBinsToAverage) runningSum -= *(inputItr - halfBinsToAverage);
+        if (stopOffset  >  halfBinsToAverage) runningSum += *(inputItr + halfBinsToAverage);
+        
+        *outputVecItr++ = runningSum / float(count);
+    }
+    
+    return;
+}
+    
+    
+void hit::GausHitFinder::reBin(const std::vector<float>& inputVec,
+                               std::vector<float>&       outputVec,
+                               size_t                    nBinsToCombine) const
+{
+    size_t nNewBins = inputVec.size() / nBinsToCombine;
+    
+    if (inputVec.size() % nBinsToCombine > 0) nNewBins++;
+    
+    outputVec.resize(nNewBins, 0.);
+    
+    size_t outputBin = 0;
+    
+    for(size_t inputIdx = 0; inputIdx < inputVec.size();)
+    {
+        outputVec[outputBin] += inputVec[inputIdx++];
+        
+        if (inputIdx % nBinsToCombine == 0) outputBin++;
+        
+        if (outputBin > outputVec.size())
+        {
+            std::cout << "***** DISASTER!!! ****** outputBin: " << outputBin << ", inputIdx = " << inputIdx << std::endl;
+            break;
+        }
+    }
+    
+    return;
+}
 
 
   DEFINE_ART_MODULE(GausHitFinder)

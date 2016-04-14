@@ -147,20 +147,16 @@ void shower::EMShower::produce(art::Event& evt) {
     // Map between tracks and clusters
     fEMShowerAlg.AssociateClustersAndTracks(clusters, fmh, fmt, clusterToTracks, trackToClusters);
 
-    // Fix issues where one view screws things up
-    std::vector<std::vector<int> > initialShowers;
-    fEMShowerAlg.FindShowers(trackToClusters, initialShowers);
-    if (fGeom->MaxPlanes() > 2) {
-      std::vector<int> clustersToIgnore;
-      fEMShowerAlg.CheckShowerPlanes(initialShowers, clustersToIgnore, clusters, fmh);
-      if (clustersToIgnore.size() > 0) {
-	clusterToTracks.clear();
-	trackToClusters.clear();
-	fEMShowerAlg.AssociateClustersAndTracks(clusters, fmh, fmt, clustersToIgnore, clusterToTracks, trackToClusters);
-	fEMShowerAlg.FindShowers(trackToClusters, newShowers);
-      }
-      else
-	newShowers = initialShowers;
+    // Make initial showers
+    std::vector<std::vector<int> > initialShowers = fEMShowerAlg.FindShowers(trackToClusters);
+
+    // Deal with views in which 2D reconstruction failed
+    std::vector<int> clustersToIgnore = fEMShowerAlg.CheckShowerPlanes(initialShowers, clusters, fmh);
+    if (clustersToIgnore.size() > 0) {
+      clusterToTracks.clear();
+      trackToClusters.clear();
+      fEMShowerAlg.AssociateClustersAndTracks(clusters, fmh, fmt, clustersToIgnore, clusterToTracks, trackToClusters);
+      newShowers = fEMShowerAlg.FindShowers(trackToClusters);
     }
     else
       newShowers = initialShowers;
@@ -173,7 +169,7 @@ void shower::EMShower::produce(art::Event& evt) {
     art::FindManyP<recob::Cluster> fmcp(pfpHandle, evt, fPFParticleModuleLabel);
     for (size_t ipfp = 0; ipfp<pfps.size(); ++ipfp){
       art::Ptr<recob::PFParticle> pfp = pfps[ipfp];
-      if (pfp->PdgCode()==11){//shower particle
+      if (pfp->PdgCode()==11){ //shower particle
 	if (fmcp.isValid()){
 	  std::vector<int> clusters;
 	  std::vector<art::Ptr<recob::Cluster> > clus = fmcp.at(ipfp);
@@ -248,14 +244,14 @@ void shower::EMShower::produce(art::Event& evt) {
 	}
       }
     }
-    
+
     if (!pfpHandle.isValid()) {
 
       // Find the track at the start of the shower
       std::unique_ptr<recob::Track> initialTrack;
       std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits;
-      fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fmc, fPlane);
-      
+      fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fPlane);
+
       // Make shower object and associations
       recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
       shower.set_id(showerNum);
@@ -270,8 +266,7 @@ void shower::EMShower::produce(art::Event& evt) {
 	mf::LogInfo("EMShower") << "Discarding shower " << showerNum << " due to incompleteness (SaveNonCompleteShowers == false)";
     }
 
-    else {
-
+    else { // pfParticle
       art::FindManyP<recob::Vertex> fmv(pfpHandle, evt, fPFParticleModuleLabel);
       std::vector<art::Ptr<recob::Vertex> > vertices = fmv.at(pfParticles[newShower-newShowers.begin()]);
       if (vertices.size()) {
@@ -289,7 +284,6 @@ void shower::EMShower::produce(art::Event& evt) {
       }
 
     }
-
 
   }
 

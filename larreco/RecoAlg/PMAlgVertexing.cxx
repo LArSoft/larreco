@@ -9,6 +9,8 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "TMath.h"
+
 pma::PMAlgVertexing::PMAlgVertexing(const fhicl::ParameterSet& pset)
 {
 	this->reconfigure(pset); 
@@ -251,10 +253,11 @@ size_t pma::PMAlgVertexing::makeVertices(std::vector< pma::VtxCandidate >& candi
 
 size_t pma::PMAlgVertexing::run(pma::TrkCandidateColl & trk_input)
 {
+	if (fFindKinks) findKinksOnTracks(trk_input);
+
 	if (trk_input.size() < 2)
 	{
 		mf::LogWarning("pma::PMAlgVertexing") << "need min two source tracks!";
-		if (fFindKinks) findKinksOnTracks(trk_input);
 		return 0;
 	}
 
@@ -305,8 +308,6 @@ size_t pma::PMAlgVertexing::run(pma::TrkCandidateColl & trk_input)
 	collectTracks(trk_input);
 
 	mergeBrokenTracks(trk_input);
-
-	if (fFindKinks) findKinksOnTracks(trk_input);
 
 	return nvtx;
 }
@@ -512,12 +513,13 @@ void pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) co
 {
 	if (trk_input.size() < 1) return;
 
-	const double _PI = 3.141592653589793238463;
 	mf::LogVerbatim("pma::PMAlgVertexing") << "Find kinks on tracks, reopt with no penalty on angle where kinks.";
 	for (size_t t = 0; t < trk_input.size(); ++t)
 	{
 		pma::Track3D* trk = trk_input[t].Track();
 		if (trk->Nodes().size() < 5) continue;
+
+		trk->Optimize(0, 1.0e-5, false);
 
 		std::vector<size_t> tested_nodes;
 		bool kinkFound = true;
@@ -527,11 +529,13 @@ void pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) co
 			double mean = 0.0, stdev = 0.0, min = 1.0, max_a = 0.0;
 			for (size_t n = 1; n < trk->Nodes().size() - 1; ++n)
 			{
-				if (trk->Nodes()[n]->IsVertex()) continue;
+				auto const & node = *(trk->Nodes()[n]);
+
+				if (node.IsVertex() || node.IsTPCEdge()) continue;
 				nnodes++;
 
-				double c = -trk->Nodes()[n]->SegmentCosTransverse();
-				double a = 180.0 * (1 - std::acos(trk->Nodes()[n]->SegmentCosTransverse()) / _PI);
+				double c = -node.SegmentCosTransverse();
+				double a = 180.0 * (1 - std::acos(node.SegmentCosTransverse()) / TMath::Pi());
 				mean += c; stdev += c * c;
 				if ((c < min) && !has(tested_nodes, n))
 				{
@@ -554,9 +558,9 @@ void pma::PMAlgVertexing::findKinksOnTracks(pma::TrkCandidateColl& trk_input) co
 					tested_nodes.push_back(kinkIdx);
 					kinkFound = true;
 
-					trk->Optimize(0, 1.0e-5, false, false); // in principle could be reopt of a full tree...
+					trk->Optimize(0, 1.0e-5, false, false);
 					double c = -trk->Nodes()[kinkIdx]->SegmentCosTransverse();
-					double a = 180.0 * (1 - std::acos(trk->Nodes()[kinkIdx]->SegmentCosTransverse()) / _PI);
+					double a = 180.0 * (1 - std::acos(trk->Nodes()[kinkIdx]->SegmentCosTransverse()) / TMath::Pi());
 
 					if ((a <= fKinkMinDeg) || (c >= thr)) // not a significant kink after precise optimization
 					{
@@ -625,7 +629,7 @@ pma::PMAlgVertexing::getKinks(const pma::TrkCandidateColl& tracks) const
 		for (size_t n = 1; n < trk->Nodes().size() - 1; ++n)
 		{
 			pma::Node3D const * node = trk->Nodes()[n];
-			if (node->IsVertex() && !node->IsBranching())
+			if (!node->IsBranching() && node->IsVertex())
 			{
 				ksel.emplace_back(std::pair< TVector3, size_t >(node->Point3D(), t));
 			}

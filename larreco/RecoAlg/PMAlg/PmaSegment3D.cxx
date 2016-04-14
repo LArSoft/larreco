@@ -164,7 +164,7 @@ void pma::Segment3D::SetProjection(pma::Hit3D& h) const
 	}
 	else // segment 2D projection is almost a point
 	{
-		mf::LogWarning("pma::Segment3D") << "Short segment projection." << std::endl;
+		mf::LogWarning("pma::Segment3D") << "Short segment projection.";
 
 		p += vStop->Projection2D(h.View2D());
 		p *= 0.5F; h.SetProjection(p, 0.0F);
