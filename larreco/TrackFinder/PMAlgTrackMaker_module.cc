@@ -2356,8 +2356,22 @@ void PMAlgTrackMaker::buildShSeg(pma::TrkCandidateColl & result)
 			candidate.SetKey(pfpCluEntry.first);
 
 			mf::LogVerbatim("PMAlgTrackMaker") << "building..." << ", pdg:" << pdg;
-			candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, fPfpVtx[pfPartIdx]));
-			if (candidate.IsValid()) result.push_back(candidate);
+
+			auto search = fPfpVtx.find(pfPartIdx);
+			if (search != fPfpVtx.end()) 
+			{
+				candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, fPfpVtx[pfPartIdx]));
+				if (candidate.IsValid()
+						&& candidate.Track()->HasTwoViews() 
+						&& (candidate.Track()->Nodes().size() > 1)) 
+				{
+					result.push_back(candidate);
+				}
+				else
+				{
+					candidate.DeleteTrack();
+				}
+			}
 		}
 }
 

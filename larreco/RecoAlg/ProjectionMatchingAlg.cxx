@@ -372,8 +372,10 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 	double vtxarray[3]; 
 	vtx->XYZ(vtxarray);	
 
-	TVector3 vtxv3(vtxarray[0], vtxarray[1], vtxarray[2]);
+	if (!fGeom->HasTPC(fGeom->FindTPCAtPosition(vtxarray))) return 0;
 
+	TVector3 vtxv3(vtxarray[0], vtxarray[1], vtxarray[2]);
+	
 	const size_t tpc = fGeom->FindTPCAtPosition(vtxarray).TPC;
 	const size_t cryo = fGeom->FindCryostatAtPosition(vtxarray);
 	const geo::TPCGeo& tpcgeom = fGeom->Cryostat(cryo).TPC(tpc);
