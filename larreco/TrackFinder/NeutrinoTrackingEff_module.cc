@@ -10,6 +10,9 @@
 #include "SimulationBase/MCTruth.h"
 #include "larcore/SimpleTypesAndConstants/geo_types.h"
 #include "larsim/MCCheater/BackTracker.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "lardata/RawData/ExternalTrigger.h"
 
 // Framework includes
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -53,6 +56,7 @@ public:
 
     void processEff(const art::Event& evt, bool &isFiducial);
     void truthMatcher( std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac);
+    double truthLength( const simb::MCParticle *MCparticle );
     bool insideFV(double vertex[4]);
     void doEfficiencies();
     void reset();
@@ -160,6 +164,11 @@ private:
     float fFidVolZmin;
     float fFidVolZmax;
 
+    detinfo::DetectorProperties const *detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    detinfo::DetectorClocks const *ts = lar::providerFrom<detinfo::DetectorClocksService>();
+    double XDriftVelocity = detprop->DriftVelocity()*1e-3; //cm/ns
+    double WindowSize     = detprop->NumberTimeSamples() * ts->TPCClock().TickPeriod() * 1e3;
+    art::ServiceHandle<geo::Geometry> geom;
 
  }; // class NeutrinoTrackingEff
 
@@ -408,9 +417,6 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     int i=0; // particle index
     MC_Ntrack = plist.size();
 
-    double proton_length =0.0;
-    double pion_plus_length =0.0;
-    double pion_minus_length =0.0;
     for( sim::ParticleList::const_iterator ipar = plist.begin(); ipar!=plist.end(); ++ipar){
        particle = ipar->second;
        if( particle->PdgCode() == fLeptonPDGcode && particle->Mother() == 0 ){  //primary lepton
@@ -443,9 +449,9 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
              tmp_leadingProtonE = particle->Momentum().E();
              MC_leading_protonID = particle->TrackId();          
              MC_leading_ProtonP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
-             const TLorentzVector& protonEnd   = particle->EndPosition();
-             const TLorentzVector& protonStart = particle->Position();
-             proton_length = sqrt( pow((protonEnd.X()-protonStart.X()),2)+pow((protonEnd.Y()-protonStart.Y()),2)+pow((protonEnd.Z()-protonStart.Z()),2)); 
+             //const TLorentzVector& protonEnd   = particle->EndPosition();
+             //const TLorentzVector& protonStart = particle->Position();
+             //proton_length = sqrt( pow((protonEnd.X()-protonStart.X()),2)+pow((protonEnd.Y()-protonStart.Y()),2)+pow((protonEnd.Z()-protonStart.Z()),2)); 
              MCproton = particle;
            } 
          }
@@ -454,9 +460,9 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
              tmp_leadingPionPlusE = particle->Momentum().E();
              MC_leading_PionPlusID = particle->TrackId();          
              MC_leading_PionPlusP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
-             const TLorentzVector& pionEnd = particle->EndPosition();
-             const TLorentzVector& pionStart = particle->Position();
-             pion_plus_length = sqrt( pow((pionEnd.X()-pionStart.X()),2)+pow((pionEnd.Y()-pionStart.Y()),2)+pow((pionEnd.Z()-pionStart.Z()),2));
+             //const TLorentzVector& pionEnd = particle->EndPosition();
+             //const TLorentzVector& pionStart = particle->Position();
+             //pion_plus_length = sqrt( pow((pionEnd.X()-pionStart.X()),2)+pow((pionEnd.Y()-pionStart.Y()),2)+pow((pionEnd.Z()-pionStart.Z()),2));
              MCpion_plus = particle;
            } 
          }
@@ -465,9 +471,9 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
              tmp_leadingPionMinusE = particle->Momentum().E();
              MC_leading_PionMinusID = particle->TrackId();          
              MC_leading_PionMinusP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
-             const TLorentzVector& pionEnd = particle->EndPosition();
-             const TLorentzVector& pionStart = particle->Position();
-             pion_minus_length = sqrt( pow((pionEnd.X()-pionStart.X()),2)+pow((pionEnd.Y()-pionStart.Y()),2)+pow((pionEnd.Z()-pionStart.Z()),2));
+             //const TLorentzVector& pionEnd = particle->EndPosition();
+             //const TLorentzVector& pionStart = particle->Position();
+             //pion_minus_length = sqrt( pow((pionEnd.X()-pionStart.X()),2)+pow((pionEnd.Y()-pionStart.Y()),2)+pow((pionEnd.Z()-pionStart.Z()),2));
              MCpion_minus = particle;
            } 
          }
@@ -481,7 +487,10 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     double Pv  = sqrt(pow(MC_incoming_P[0],2)+pow(MC_incoming_P[1],2)+pow(MC_incoming_P[2],2));
     double theta_mu = acos((MC_incoming_P[0]*MC_lepton_startMomentum[0] + MC_incoming_P[1]*MC_lepton_startMomentum[1] +MC_incoming_P[2]*MC_lepton_startMomentum[2])/(Pv*Pmu) );
     theta_mu *= (180.0/3.14159);
-    double truth_lengthLepton =sqrt(pow((MC_lepton_endXYZT[0]-MC_lepton_startXYZT[0]),2) + pow((MC_lepton_endXYZT[1]-MC_lepton_startXYZT[1]),2) + pow((MC_lepton_endXYZT[2]-MC_lepton_startXYZT[2]),2));
+    double truth_lengthLepton = truthLength(MClepton); 
+    double proton_length = truthLength(MCproton);
+    double pion_plus_length = truthLength(MCpion_plus);
+    double pion_minus_length = truthLength(MCpion_minus);
 
     //save CC events within the fiducial volume with the favorite neutrino flavor 
     if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ){
@@ -653,6 +662,40 @@ void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> track_
     MCparticle = bt->TrackIDToParticle(TrackID);
     Efrac = partial_E/total_E;
     //std::cout<<"total "<<total_E<<" frac "<<Efrac<<" which particle "<<MCparticle->PdgCode()<<std::endl;
+}
+//========================================================================
+double NeutrinoTrackingEff::truthLength( const simb::MCParticle *MCparticle ){
+   //calculate the truth length considering only the part that is inside the TPC
+   //Base on a peace of code from dune/TrackingAna/TrackingEfficiency_module.cc
+
+   int numberTrajectoryPoints = MCparticle->NumberTrajectoryPoints();
+   double TPCLengthHits[numberTrajectoryPoints];
+   int FirstHit=0, LastHit=0;
+   double TPCLength = 0.0;
+   bool BeenInVolume = false;
+
+   for(int MCHit=0; MCHit < numberTrajectoryPoints; ++MCHit) {
+      const TLorentzVector& tmpPosition= MCparticle->Position(MCHit);
+      double const tmpPosArray[]={tmpPosition[0],tmpPosition[1],tmpPosition[2]};
+      if (MCHit!=0) TPCLengthHits[MCHit] = sqrt( pow( (MCparticle->Vx(MCHit-1)-MCparticle->Vx(MCHit)),2)+ pow( (MCparticle->Vy(MCHit-1)-MCparticle->Vy(MCHit)),2)+ pow( (MCparticle->Vz(MCHit-1)-MCparticle->Vz(MCHit)),2));
+      geo::TPCID tpcid = geom->FindTPCAtPosition(tmpPosArray);
+      if(tpcid.isValid) {
+        // -- Check if hit is within drift window...
+        geo::CryostatGeo const& cryo = geom->Cryostat(tpcid.Cryostat);
+        geo::TPCGeo      const& tpc  = cryo.TPC(tpcid.TPC);
+        double XPlanePosition      = tpc.PlaneLocation(0)[0];
+        double DriftTimeCorrection = fabs( tmpPosition[0] - XPlanePosition ) / XDriftVelocity;
+        double TimeAtPlane         = MCparticle->T() + DriftTimeCorrection; 
+        if( TimeAtPlane < detprop->TriggerOffset() || TimeAtPlane > detprop->TriggerOffset() + WindowSize ) continue;
+        LastHit = MCHit;
+        if( !BeenInVolume ) {
+	  BeenInVolume = true;
+          FirstHit = MCHit;
+	}
+      }		
+   }
+   for (int Hit = FirstHit+1; Hit <= LastHit; ++Hit ) TPCLength += TPCLengthHits[Hit];
+   return TPCLength;
 }
 //========================================================================
 bool NeutrinoTrackingEff::insideFV( double vertex[4]){ 
