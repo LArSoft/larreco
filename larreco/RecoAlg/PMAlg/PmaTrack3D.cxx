@@ -1251,6 +1251,7 @@ pma::Track3D* pma::Track3D::Split(size_t idx)
 		double dist2D_new = t0->Dist2(h3d->Point2D(), view, tpc, cryo);
 
 		if ((dist2D_new < dist2D_old) && t0->HasTPC(tpc)) t0->push_back(release_at(h));
+		else if (!HasTPC(tpc) && t0->HasTPC(tpc)) t0->push_back(release_at(h));
 		else h++;
 	}
 
@@ -1332,22 +1333,42 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 		mf::LogError("pma::Track3D") << "Flip, endpoint closer to vStart.";
 		//std::cout << "Flip, endpoint closer to vStart." << std::endl;
 		Flip();
-		vtx = fNodes.front();
 	}
+
+	if (vStart->TPC() == vtx->TPC()) return AttachToSameTPC(vStart);
+	else return AttachToOtherTPC(vStart);
+}
+
+bool pma::Track3D::AttachToOtherTPC(pma::Node3D* vStart)
+{
+	if (fNodes.front()->Prev()) return false;
+
+	mf::LogVerbatim("pma::Track3D") << "Attach to track in another TPC.";
+
+	fNodes.insert(fNodes.begin(), vStart);
+
+	fSegments.insert(fSegments.begin(), new pma::Segment3D(this, fNodes[0], fNodes[1]));
+
+	return true;
+}
+
+bool pma::Track3D::AttachToSameTPC(pma::Node3D* vStart)
+{
+	pma::Node3D* vtx = fNodes.front();
 
 	if (vtx->Prev())
 	{
-		pma::Segment3D* segThis = static_cast< pma::Segment3D* >(vtx->Prev());
-		pma::Track3D* tpThis = segThis->Parent();
-		if (tpThis->NextSegment(vtx))
+		pma::Segment3D* segPrev = static_cast< pma::Segment3D* >(vtx->Prev());
+		pma::Track3D* tpPrev = segPrev->Parent();
+		if (tpPrev->NextSegment(vtx))
 		{
 			//std::cout << "Do not reattach from vtx inner in another track." << std::endl;
 			return false;
 		}
-		else if (tpThis->CanFlip())
+		else if (tpPrev->CanFlip())
 		{
 			//std::cout << "Flip local." << std::endl;
-			tpThis->Flip();
+			tpPrev->Flip();
 		} // flip in local vtx, no problem
 		else
 		{
@@ -1366,8 +1387,8 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 
 					mf::LogVerbatim("pma::Track3D") << "Reconnect prev to vStart.";
 					//std::cout << "Reconnect prev to vStart." << std::endl;
-					tpThis->fNodes[tpThis->fNodes.size() - 1] = vStart;
-					segThis->AddNext(vStart);
+					tpPrev->fNodes[tpPrev->fNodes.size() - 1] = vStart;
+					segPrev->AddNext(vStart);
 				}
 				else
 				{
@@ -1379,8 +1400,8 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 			{
 				mf::LogVerbatim("pma::Track3D") << "Reconnect prev to vStart.";
 				//std::cout << "Reconnect prev to vStart." << std::endl;
-				tpThis->fNodes[tpThis->fNodes.size() - 1] = vStart;
-				segThis->AddNext(vStart);
+				tpPrev->fNodes[tpPrev->fNodes.size() - 1] = vStart;
+				segPrev->AddNext(vStart);
 			}
 		}
 	}
@@ -1394,8 +1415,6 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 		trk->fNodes[0] = vStart;
 		vStart->AddNext(seg);
 	}
-
-	//std::cout << " next: " << vtx->NextCount() << " prev: " << vtx->Prev() << std::endl;
 
 	if (vtx->NextCount() || vtx->Prev()) // better throw here
 	{
@@ -1438,6 +1457,28 @@ bool pma::Track3D::AttachBackTo(pma::Node3D* vStart)
 	}
 
 	for (auto n : fNodes) if (n == vStart) { mf::LogError("pma::Track3D") << "Don't create loops!"; return false; }
+
+	if (vStart->TPC() == vtx->TPC()) return AttachBackToSameTPC(vStart);
+	else return AttachBackToOtherTPC(vStart);
+}
+
+bool pma::Track3D::AttachBackToOtherTPC(pma::Node3D* vStart)
+{
+	if (vStart->Prev()) return false;
+
+	mf::LogVerbatim("pma::Track3D") << "Attach to track in another TPC.";
+
+	fNodes.push_back(vStart);
+
+	size_t idx = fNodes.size() - 1;
+	fSegments.push_back(new pma::Segment3D(this, fNodes[idx - 1], fNodes[idx]));
+
+	return true;
+}
+
+bool pma::Track3D::AttachBackToSameTPC(pma::Node3D* vStart)
+{
+	pma::Node3D* vtx = fNodes.back();
 
 	if (vStart->Prev())
 	{

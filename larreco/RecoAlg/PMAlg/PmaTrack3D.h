@@ -244,6 +244,12 @@ private:
 	void ClearNodes(void);
 	void MakeFastProjection(void);
 
+	bool AttachToSameTPC(pma::Node3D* vStart);
+	bool AttachToOtherTPC(pma::Node3D* vStart);
+
+	bool AttachBackToSameTPC(pma::Node3D* vStart);
+	bool AttachBackToOtherTPC(pma::Node3D* vStart);
+
 	void InternalFlip(std::vector< pma::Track3D* >& toSort);
 
 	void UpdateHitsRadius(void);
