@@ -20,6 +20,7 @@
 #include <utility> // std::pair<>
 #include <cmath>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <algorithm>
 
@@ -133,6 +134,7 @@ namespace tca {
 
     
     bool fIsRealData;
+/*
     TH1F *fnHitsPerTP[3];
     TH1F *fDelta[3];
     TH1F *fDeltaN[3];
@@ -146,7 +148,7 @@ namespace tca {
     TH2F *fShowerTheta_Sep;
     TH1F *fShowerDVtx;
     TH2F *fShowerDVtx_Sep;
-    
+*/    
     bool prt;
     bool mrgPrt;
     bool vtxPrt;
@@ -156,7 +158,9 @@ namespace tca {
     art::ServiceHandle<geo::Geometry> geom;
     const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
-    
+    // TEMP for writing event filter selection
+    std::ofstream outFile;
+
     
     trkf::LinFitAlg fLinFitAlg;
 
@@ -166,6 +170,7 @@ namespace tca {
     unsigned int fCstat;         // the current cryostat
     unsigned int fTpc;         // the current TPC
     unsigned short fPass;
+    unsigned int fRun, fSubRun;
     unsigned int fEvent;
     unsigned int fEventsProcessed;
     CTP_t fCTP;        ///< Cryostat/TPC/Plane code
@@ -339,7 +344,7 @@ namespace tca {
     // Truncates the work vector and returns true if one is found.
     void GottaKink(Trajectory& tj, unsigned short& killPts);
     // Combines hit multiplets in short trajectories
-    void ModifyShortTraj(Trajectory& tj);
+//    void ModifyShortTraj(Trajectory& tj);
     // See if the trajectory appears to be a delta ray. This is characterized by a significant fraction of hits
     // in the trajectory belonging to an existing trajectory. This may also flag ghost trajectories...
     void MaybeDeltaRay(Trajectory& tj, bool doMerge);
