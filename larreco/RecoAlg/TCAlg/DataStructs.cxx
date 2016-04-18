@@ -7,7 +7,6 @@ namespace tca {
     "CWKink",
     "CWStepChk",
     "Ghost",
-    "ModifyShortTj",
     "TryNextPass",
     "RevProp",
     "Recovery1",
