@@ -33,40 +33,38 @@ namespace tca {
     reconfigure(pset);
     
     // define some histograms
-    
+/*
     art::ServiceHandle<art::TFileService> tfs;
-    if(fStudyMode) {
-      
-      fnHitsPerTP[0] = tfs->make<TH1F>("nHitsPerTP0","nHits / TP Pln 0", 10, 0, 10);
-      fnHitsPerTP[1] = tfs->make<TH1F>("nHitsPerTP1","nHits / TP Pln 1", 10, 0, 10);
-      fnHitsPerTP[2] = tfs->make<TH1F>("nHitsPerTP2","nHits / TP Pln 2", 10, 0, 10);
-      
-      fDelta[0] = tfs->make<TH1F>("Delta0","Delta Pln 0", 100, 0, 2);
-      fDelta[1] = tfs->make<TH1F>("Delta1","Delta Pln 1", 100, 0, 2);
-      fDelta[2] = tfs->make<TH1F>("Delta2","Delta Pln 2", 100, 0, 2);
-      
-      fDeltaN[0] = tfs->make<TH1F>("DeltaN0","Normalized Delta Pln 0", 50, 0, 4);
-      fDeltaN[1] = tfs->make<TH1F>("DeltaN1","Normalized Delta Pln 1", 50, 0, 4);
-      fDeltaN[2] = tfs->make<TH1F>("DeltaN2","Normalized Delta Pln 2", 50, 0, 4);
+    
+    fnHitsPerTP[0] = tfs->make<TH1F>("nHitsPerTP0","nHits / TP Pln 0", 10, 0, 10);
+    fnHitsPerTP[1] = tfs->make<TH1F>("nHitsPerTP1","nHits / TP Pln 1", 10, 0, 10);
+    fnHitsPerTP[2] = tfs->make<TH1F>("nHitsPerTP2","nHits / TP Pln 2", 10, 0, 10);
+    
+    fDelta[0] = tfs->make<TH1F>("Delta0","Delta Pln 0", 100, 0, 2);
+    fDelta[1] = tfs->make<TH1F>("Delta1","Delta Pln 1", 100, 0, 2);
+    fDelta[2] = tfs->make<TH1F>("Delta2","Delta Pln 2", 100, 0, 2);
+    
+    fDeltaN[0] = tfs->make<TH1F>("DeltaN0","Normalized Delta Pln 0", 50, 0, 4);
+    fDeltaN[1] = tfs->make<TH1F>("DeltaN1","Normalized Delta Pln 1", 50, 0, 4);
+    fDeltaN[2] = tfs->make<TH1F>("DeltaN2","Normalized Delta Pln 2", 50, 0, 4);
+    
+    fCharge[0] = tfs->make<TH1F>("Charge0","Charge/Pt Pln 0", 100, 0, 500);
+    fCharge[1] = tfs->make<TH1F>("Charge1","Charge/Pt Pln 1", 100, 0, 500);
+    fCharge[2] = tfs->make<TH1F>("Charge2","Charge/Pt Pln 2", 100, 0, 500);
+    
+    fnHitsPerTP_Angle[0] = tfs->make<TH2F>("nhtpertp_angle0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, 9, 1, 10);
+    fnHitsPerTP_Angle[1] = tfs->make<TH2F>("nhtpertp_angle1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, 9, 1, 10);
+    fnHitsPerTP_Angle[2] = tfs->make<TH2F>("nhtpertp_angle2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, 9, 1, 10);
+    
+    fnHitsPerTP_AngleP[0] = tfs->make<TProfile>("nhtpertp_anglep0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, "S");
+    fnHitsPerTP_AngleP[1] = tfs->make<TProfile>("nhtpertp_anglep1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, "S");
+    fnHitsPerTP_AngleP[2] = tfs->make<TProfile>("nhtpertp_anglep2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, "S");
+    
+    fPrEP = tfs->make<TH1F>("PrEP"," Proton EP", 40, 0, 1);
+    fMuPiEP = tfs->make<TH1F>("MuPiEP"," Muon, Pion EP", 40, 0, 1);
+    fPrEP->Sumw2();
+    fMuPiEP->Sumw2();
 
-      fCharge[0] = tfs->make<TH1F>("Charge0","Charge/Pt Pln 0", 100, 0, 500);
-      fCharge[1] = tfs->make<TH1F>("Charge1","Charge/Pt Pln 1", 100, 0, 500);
-      fCharge[2] = tfs->make<TH1F>("Charge2","Charge/Pt Pln 2", 100, 0, 500);
-
-      fnHitsPerTP_Angle[0] = tfs->make<TH2F>("nhtpertp_angle0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, 9, 1, 10);
-      fnHitsPerTP_Angle[1] = tfs->make<TH2F>("nhtpertp_angle1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, 9, 1, 10);
-      fnHitsPerTP_Angle[2] = tfs->make<TH2F>("nhtpertp_angle2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, 9, 1, 10);
-      
-      fnHitsPerTP_AngleP[0] = tfs->make<TProfile>("nhtpertp_anglep0","Hits/TP vs Angle Pln 0", 10, 0 , M_PI/2, "S");
-      fnHitsPerTP_AngleP[1] = tfs->make<TProfile>("nhtpertp_anglep1","Hits/TP vs Angle Pln 1", 10, 0 , M_PI/2, "S");
-      fnHitsPerTP_AngleP[2] = tfs->make<TProfile>("nhtpertp_anglep2","Hits/TP vs Angle Pln 2", 10, 0 , M_PI/2, "S");
-      
-      fPrEP = tfs->make<TH1F>("PrEP"," Proton EP", 40, 0, 1);
-      fMuPiEP = tfs->make<TH1F>("MuPiEP"," Muon, Pion EP", 40, 0, 1);
-      fPrEP->Sumw2();
-      fMuPiEP->Sumw2();
-
-    }
     
     if(fShowerStudy) {
       fShowerNumTrjint = tfs->make<TH1F>("showernumtrjint","Shower Num Traj Intersections",100, 0, 200);
@@ -74,11 +72,13 @@ namespace tca {
       fShowerTheta_Sep = tfs->make<TH2F>("showertheta_sep","Shower dTheta vs Sep",40, 0, 4, 10, 0, 1);
       fShowerDVtx_Sep = tfs->make<TH2F>("showerdvtx_sep","Shower dVtx vs Sep",40, 0, 4, 10, 0, 1);
     }
+*/
     PrSum = 0;
     nPr = 0;
     MuPiSum = 0;
     nMuPi = 0;
     fEventsProcessed = 0;
+    outFile.open("badevts.txt");
     
   }
   
@@ -173,6 +173,9 @@ namespace tca {
     ++fEventsProcessed;
 
     if(hitVecHandle->size() < 3) return;
+    
+//    return;
+    
     tjs.fHits.resize(hitVecHandle->size());
  
     larprop = lar::providerFrom<detinfo::LArPropertiesService>();
@@ -187,6 +190,8 @@ namespace tca {
 
     // TODO Insert hit sorting code here
     
+    fRun = evt.run();
+    fSubRun  = evt.subRun();
     fEvent = evt.event();
     fQuitAlg = false;
     fIsRealData = evt.isRealData();
@@ -259,82 +264,6 @@ namespace tca {
     }
     if(fTagAllTraj) TagAllTraj();
 
-/*
-    for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
-      geo::TPCGeo const& TPC = geom->TPC(tpcid);
-      for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
-        WireHitRange.clear();
-        // define a code to ensure clusters are compared within the same plane
-        fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
-        fCstat = tpcid.Cryostat;
-        fTpc = tpcid.TPC;
-        // Calculate tjs.UnitsPerTick, the scale factor to convert a tick into
-        // Wire Spacing Equivalent (WSE) units where the wire spacing in this plane = 1
-        raw::ChannelID_t channel = tjs.fHits[0]->Channel();
-        float wirePitch = geom->WirePitch(geom->View(channel));
-        float tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
-        tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-        tjs.UnitsPerTick = tickToDist / wirePitch;
-        // fill the WireHitRange vector with first/last hit on each wire
-        // dead wires and wires with no hits are flagged < 0
-        GetHitRange();
-        // no hits on this plane?
-        if(fFirstWire == fLastWire) continue;
-
-        if(fMode < 2) {
-          fStepDir = fMode;
-          // make all trajectories with this setting
-          ReconstructAllTraj();
-          if(fQuitAlg) {
-            mf::LogVerbatim("TC")<<"RunTrajCluster: QuitAlg after ReconstructAllTraj";
-            return;
-          }
-          // tag shower-like clusters/hits
-          if(fTagAllTraj) TagAllTraj();
-          if(fQuitAlg) {
-            mf::LogVerbatim("TC")<<"RunTrajCluster: QuitAlg after TagAllTruth";
-            return;
-          }
-        } else {
-          // here is where we get fancy
-          // Step in the + direction
-          fStepDir = 1;
-          ReconstructAllTraj();
-          if(fQuitAlg) {
-            mf::LogVerbatim("TC")<<"RunTrajCluster: QuitAlg after ReconstructAllTraj step 1";
-            return;
-          }
-          // tag shower-like clusters/hits after the first call
-          if(fTagAllTraj) TagAllTraj();
-          if(fQuitAlg) return;
-          // store the results
-          tjs.trial.push_back(tjs.allTraj);
-          tjs.inTrialTraj.push_back(tjs.inTraj);
-          tjs.inTrialVtx.push_back(tjs.vtx);
-          tjs.inTrialVtx3.push_back(tjs.vtx3);
-          // Kill the trajectories and reconstruct again with different parameters
-          KillAllTrajInCTP(fCTP);
-          // Step in the - direction
-          fStepDir = -1;
-          ReconstructAllTraj();
-          if(fQuitAlg) return;
-          // store the results
-          tjs.trial.push_back(tjs.allTraj);
-          tjs.inTrialTraj.push_back(tjs.inTraj);
-          tjs.inTrialVtx.push_back(tjs.vtx);
-          tjs.inTrialVtx3.push_back(tjs.vtx3);
-        }
-      } // fPlane
-
-      if(fVertex3DChiCut > 0) Find3DVertices(tpcid);
-//      AnalyzeTrials();
-//      AdjudicateTrials(reAnalyze);
-      tjs.trial.clear();
-      tjs.inTrialTraj.clear();
-      tjs.inTrialVtx.clear();
-      tjs.inTrialVtx3.clear();
-    } // tpcid
-*/
     //    bool reAnalyze = false;
     // put MC info into the trajectory struct
     if(!fIsRealData) FillTrajTruth();
@@ -355,7 +284,7 @@ namespace tca {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       PrintAllTraj(tjs, Debug, USHRT_MAX, 0);
     }
-    
+/*
     // temp
     if(fStudyMode) {
       unsigned short ipl, itj, nInPln;
@@ -389,7 +318,7 @@ namespace tca {
         } // itj
       } // ipl
     } // studymode
-    
+*/
     // TEMP
     std::cout<<"Event "<<evt.event();
     double ave = -1;
@@ -546,28 +475,33 @@ namespace tca {
   {
     fGoodWork = false;
     if(itj > tjs.allTraj.size() - 1) return;
-    Trajectory& tj = tjs.allTraj[itj];
-    if(tj.AlgMod[kKilled]) {
-      mf::LogVerbatim("TC")<<"AppendToWork: Trying to append a killed trajectory "<<tj.ID;
+     if(tjs.allTraj[itj].AlgMod[kKilled]) {
+      mf::LogVerbatim("TC")<<"AppendToWork: Trying to append a killed trajectory "<<tjs.allTraj[itj].ID;
       return;
     }
-    // reverse the trajectory?
+    // make a copy
+    Trajectory tj = tjs.allTraj[itj];
+
+    // reverse it?
     if(tj.StepDir != work.StepDir) ReverseTraj(tj);
     
-    // remove any points on work that don't have hits
+    // remove any points at the end of work that don't have used hits
     work.Pts.resize(work.EndPt[1] + 1);
-    MakeTrajectoryObsolete(itj);
-    // check for duplicate hits
-    std::vector<unsigned int> workHits, tHits;
-    // get the work hits
-    PutTrajHitsInVector(work, false, workHits);
-    PutTrajHitsInVector(tj, false, tHits);
-    unsigned short nSameHits;
-    CountSameHits(workHits, tHits, nSameHits);
-    if(nSameHits > 0) {
-      std::cout<<"AppendToWork: nSameHits > 0. Set fGoodWork false";
-      return;
-    }
+    // remove any points at the beginning of tp that don't have used hits
+    if(tj.EndPt[0] > 0) tj.Pts.erase(tj.Pts.begin(), tj.Pts.begin()+tj.EndPt[0]);
+    SetEndPoints(tjs, tj);
+    if(tj.EndPt[0] != 0) return;
+    
+    // check for duplicate hits at the ends
+    TrajPoint& wept = work.Pts[work.EndPt[1]];
+    TrajPoint& tbpt = tj.Pts[tj.EndPt[0]];
+    bool lopwork = false;
+    for(auto eht : wept.Hits) {
+      for(auto bht : tbpt.Hits) {
+        if(eht == bht) lopwork = true;
+      } // bht
+    } // eht
+    if(lopwork) work.Pts.pop_back();
     work.Pts.insert(work.Pts.end(), tj.Pts.begin(), tj.Pts.end());
     SetEndPoints(tjs, work);
     // Transfer the end vertex
@@ -575,6 +509,7 @@ namespace tca {
     // Transfer the end TP
     work.EndTP[1] = tjs.allTraj[1].EndTP[1];
     fGoodWork = true;
+    MakeTrajectoryObsolete(itj);
     
   } // AppendToWork
   
@@ -769,7 +704,6 @@ namespace tca {
       if(fQuitAlg) return;
     }
     
-    FindHammerVertices();
     
     // last attempt to attach Tjs to vertices
     unsigned short lastPass = fMaxVertexTrajSep.size() - 1;
@@ -1175,7 +1109,6 @@ namespace tca {
     newTjIndex = tjs.allTraj.size() - 1;
   } // MakeJunkTraj
 
-  
   //////////////////////////////////////////
   void TrajClusterAlg::FillTrajTruth()
   {
@@ -1217,8 +1150,8 @@ namespace tca {
       assert(part != 0);
       trackID = part->TrackId();
       pdg = abs(part->PdgCode());
-//      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
-//      if(fSkipCosmics && theTruth->Origin() == simb::kCosmicRay) continue;
+      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
+      if(theTruth->Origin() == simb::kCosmicRay) continue;
 //      if(theTruth->Origin() == simb::kBeamNeutrino) isNeutrino = true;
       isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 2212);
       if(!isCharged) continue;
@@ -1233,6 +1166,7 @@ namespace tca {
       tidlist.push_back(trackID);
       plist2.push_back(part);
       truToTj.push_back(temp);
+      nTruInTj.push_back(temp2);
       nTruInPlist2.push_back(temp2);
 //      std::cout<<"TrackID "<<trackID<<" pdg "<<part->PdgCode()<<" E "<<part->E()<<" mass "<<part->Mass()<<" KE "<<KE<<" Mother "<<part->Mother()<<" Proc "<<part->Process()<<"\n";
     }
@@ -1303,23 +1237,21 @@ namespace tca {
         ++nTruInPlist2[mom][plane];
       } // hit
     } // ii
-/*
-    for(ii = 0; ii < nTruInPlist2.size(); ++ii) {
-      std::cout<<ii<<" nTruInPlist2 ";
-      for(plane = 0; plane < 3; ++plane) std::cout<<" "<<nTruInPlist2[ii][plane];
-      std::cout<<"\n";
-    }
-*/
+
+//    for(ii = 0; ii < nTruInPlist2.size(); ++ii) {
+//      std::cout<<ii<<" nTruInPlist2 ";
+//      for(plane = 0; plane < 3; ++plane) std::cout<<" "<<nTruInPlist2[ii][plane];
+//      std::cout<<"\n";
+//    }
+
     // Now fill the reconstructed information. First size the vectors
     imd = tjs.allTraj.size();
     nRecInTj.resize(imd);
-    nTruInTj.resize(imd);
     for(ii = 0; ii < nRecInTj.size(); ++ii) {
       nRecInTj[ii].resize(Nplanes);
-      nTruInTj[ii].resize(Nplanes);
     } // ii
 
-    unsigned short ipt, nhit, imtru;
+    unsigned short ipt, nTruHit, imtru;
     // temp vector for counting the number of trajectory hits that
     // are assigned to each true particle in one plane
     std::vector<unsigned short> nHitInPlist2(plist2.size());
@@ -1352,26 +1284,27 @@ namespace tca {
         } // ii
       } // ipt
       // Associate the trajectory with the truth particle that has the highest number of hits in this plane
-      nhit = 0;
+      nTruHit = 0;
       imtru = USHRT_MAX;
 //      std::cout<<itj<<" nHitInPlist2 ";
       for(iplist = 0; iplist < nHitInPlist2.size(); ++iplist) {
 //        std::cout<<" "<<nHitInPlist2[iplist];
-        if(nHitInPlist2[iplist] > nhit) {
-          nhit = nHitInPlist2[iplist];
+        if(nHitInPlist2[iplist] > nTruHit) {
+          nTruHit = nHitInPlist2[iplist];
           imtru = iplist;
         }
       } // iplist
 //      std::cout<<" in plane "<<plane<<" nRecInTj "<<nRecInTj[itj][plane]<<"\n";
       if(imtru == USHRT_MAX) continue;
-      // now determine if trajectory has the most hits associated with imtru
-      if(nhit > nTruInTj[imtru][plane]) {
+      // now see if this trajectory has the most hits associated with imtru
+      if(nTruHit > nTruInTj[imtru][plane]) {
         truToTj[imtru][plane] = itj;
-        nTruInTj[imtru][plane] = nhit;
+        nTruInTj[imtru][plane] = nTruHit;
       }
-//      std::cout<<itj<<" nhit "<<nhit<<" imtru "<<imtru<<" nTruInTj "<<nTruInTj[imtru][plane]<<" truToTj "<<truToTj[imtru][plane]<<"\n";
+//      std::cout<<itj<<" nTruHit "<<nTruHit<<" imtru "<<imtru<<" nTruInTj "<<nTruInTj[imtru][plane]<<" truToTj "<<truToTj[imtru][plane]<<"\n";
     } // itj
     
+    bool badEvent = false;
     // now we can calulate efficiency and purity
     float nRecHits, nTruRecHits, nTruHits, eff, pur, ep;
     for(iplist = 0; iplist < plist2.size(); ++iplist) {
@@ -1407,11 +1340,11 @@ namespace tca {
         if(pdg == 2212) {
           ++nPr;
           PrSum += ep;
-          if(fStudyMode) fPrEP->Fill(ep);
+//          fPrEP->Fill(ep);
         } else if(pdg == 13 || pdg == 211) {
           ++nMuPi;
           MuPiSum += ep;
-          if(fStudyMode) fMuPiEP->Fill(ep);
+//          fMuPiEP->Fill(ep);
         }
         if(ep < 0.3 && KE > 100) {
           // print out the location of this bad boy
@@ -1437,9 +1370,12 @@ namespace tca {
             myprt<<" tjID "<<tjs.allTraj[itj].ID;
             for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tjs.allTraj[itj].AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
           }
+          badEvent = true;
         } // bad ep
       } // plane
     } // iplist
+    
+    if(badEvent) outFile<<fRun<<" "<<fSubRun<<" "<<fEvent<<"\n";
    
   } // FillTrajTruth
 
@@ -1540,7 +1476,7 @@ namespace tca {
     // maximum separation^2
     float maxSep2 = fMaxTrajSep;
     float minSep2;
-    float dang, vw, vt, dw, dt, dvtx2;
+    float dang, vw, vt;
     std::vector<std::array<unsigned short, 3>> nCloseEnd(tjs.allTraj.size());
     unsigned short i1, i2, ipt1, ipt2;
     unsigned short endPt1, endPt2;
@@ -1584,10 +1520,12 @@ namespace tca {
           vw = -1;
           vt = -1;
         }
+/*
         // distance between the vertex position and the closest separation
         dw = vw - tjs.allTraj[i1].Pts[ipt1].Pos[0];
         dt = vt - tjs.allTraj[i1].Pts[ipt1].Pos[1];
         dvtx2 = dw * dw + dt * dt;
+*/
         float dangErr = tjs.allTraj[i1].Pts[ipt1].AngErr;
         if(tjs.allTraj[i2].Pts[ipt2].AngErr > dangErr) dangErr = tjs.allTraj[i2].Pts[ipt2].AngErr;
 //        float dangSig = dang / dangErr;
@@ -1602,6 +1540,7 @@ namespace tca {
         aTrjInt.vw = vw;
         aTrjInt.vt = vt;
         trjint.push_back(aTrjInt);
+/*
         if(fShowerStudy) {
           float sep = sqrt(minSep2);
           fShowerTheta_Sep->Fill(sep, dang);
@@ -1609,13 +1548,14 @@ namespace tca {
           fShowerDVtx->Fill(dvtx);
           fShowerDVtx_Sep->Fill(sep, dvtx);
         }
+*/
       } // jj
     } // ii
-    
+/*
     if(fShowerStudy) {
       fShowerNumTrjint->Fill((float)trjint.size());
     }
-    
+*/
     if(trjint.empty()) return;
     if(shPrt) {
       for(i1 = 0; i1 < trjint.size(); ++i1) {
@@ -1959,9 +1899,7 @@ namespace tca {
     }
     deltaCut *= fProjectionErrFactor;
     
-    // TEMP what is this doing here?
-//    deltaCut = fProjectionErrFactor + 0.2 * std::abs(dw);
-    float bigDelta = 10 * deltaCut;
+    float bigDelta = 2 * deltaCut;
     unsigned int imBig = UINT_MAX;
     
     // projected time in ticks for testing the existence of a hit signal
@@ -2899,6 +2837,9 @@ namespace tca {
       }
     } // ivx
 */
+    
+    FindHammerVertices();
+
     if(vtxPrt) PrintAllTraj(tjs, Debug, USHRT_MAX, USHRT_MAX);
 
   } // Find2DVertices
@@ -2920,7 +2861,7 @@ namespace tca {
     unsigned short tjSize = tjs.allTraj.size();
     
     // minimum^2 DOCA of tj1 endpoint with tj2
-    float doca, minDOCA = 3, dang;
+    float doca, minDOCA = 5, dang;
     bool didaSplit;
     unsigned short tj1len;
     
@@ -2929,8 +2870,6 @@ namespace tca {
       // minimum length requirements
       tj1len = NumPtsWithCharge(tjs.allTraj[itj1]);
       if(tj1len < 6) continue;
-      // Track-like
-      if(tjs.allTraj[itj1].PDG != 13) continue;
       // Check each end of tj1
       didaSplit = false;
       for(end1 = 0; end1 < 2; ++end1) {
@@ -2947,21 +2886,21 @@ namespace tca {
           if(tj2.AlgMod[kKilled]) continue;
           // require that both be in the same CTP
           if(tj2.CTP != tjs.allTraj[itj1].CTP) continue;
-          // length of tj2 must be < tj1
-          if(NumPtsWithCharge(tj2) > tj1len) continue;
+          // length of tj2 cut
+          if(NumPtsWithCharge(tj2) < 6) continue;
           // Require no vertex associated with itj2
           if(tj2.Vtx[0] >= 0 || tj2.Vtx[1] >= 0) continue;
-          // track-like
-          if(tj2.PDG != 13) continue;
           doca = minDOCA;
           TrajPointTrajDOCA(tjs, tjs.allTraj[itj1].Pts[endPt1], tj2, closePt2, doca);
+//          std::cout<<"FHV "<<tj2.CTP<<" "<<tjs.allTraj[itj1].ID<<" "<<tj2.ID<<" doca "<<doca<<"\n";
           if(doca == minDOCA) continue;
           // ensure that the closest point is not near an end
+          if(vtxPrt) mf::LogVerbatim("TC")<<"FindHammerVertices: Candidate "<<tjs.allTraj[itj1].ID<<"  "<<tj2.ID<<" doca "<<doca<<" tj2.EndPt[0] "<<tj2.EndPt[0]<<" closePt2 "<<closePt2<<" tj2.EndPt[1] "<<tj2.EndPt[1];
           if(closePt2 < tj2.EndPt[0] + 3) continue;
           if(closePt2 > tj2.EndPt[1] - 3) continue;
           // make an angle cut
           dang = DeltaAngle(tjs.allTraj[itj1].Pts[endPt1].Ang, tj2.Pts[closePt2].Ang);
-          if(vtxPrt) mf::LogVerbatim("TC")<<"FindHammerVertices: Candidate "<<tjs.allTraj[itj1].ID<<"  "<<tj2.ID<<" closePt2 "<<closePt2<<" doca "<<doca<<" dang "<<dang;
+          if(vtxPrt) mf::LogVerbatim("TC")<<" dang "<<dang<<" fKinkAngCut "<<fKinkAngCut;
           if(dang < fKinkAngCut) continue;
           // we have a winner
           // create a new vertex
@@ -3050,12 +2989,31 @@ namespace tca {
     // in all three planes have Ptr2D >= 0 for all planes
     
     
+    if(fVertex3DChiCut < 0) return;
+    if(tjs.vtx.size() < 2) return;
+    
     geo::TPCGeo const& TPC = geom->TPC(tpcid);
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     const unsigned int cstat = tpcid.Cryostat;
     const unsigned int tpc = tpcid.TPC;
+
+    // create a array/vector of 2D vertex indices in each plane
+    std::vector<std::vector<unsigned short>> vIndex(3);
+    unsigned short ipl;
+    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
+      if(tjs.vtx[ivx].NTraj == 0) continue;
+      geo::PlaneID iplID = DecodeCTP(tjs.vtx[ivx].CTP);
+      if(iplID.TPC != tpc || iplID.Cryostat != cstat) continue;
+      ipl = iplID.Plane;
+      if(ipl > 2) continue;
+      vIndex[ipl].push_back(ivx);
+    }
     
+    unsigned short vtxInPln = 0;
+    for(unsigned short ipl = 0; ipl < TPC.Nplanes(); ++ipl) if(vIndex[ipl].size() > 0) ++vtxInPln;
+    if(vtxInPln < 2) return;
+
     // Y,Z limits of the detector
     double local[3] = {0.,0.,0.};
     double world[3] = {0.,0.,0.};
@@ -3078,12 +3036,16 @@ namespace tca {
     // wire spacing in cm
     float wirePitch = geom->WirePitch(0, 1, 0, tpcid.TPC, tpcid.Cryostat);
     
+    size_t vsize = tjs.vtx.size();
+    // vector of 2D vertices -> 3D vertices.
+    std::vector<short> vPtr(vsize, -1);
     // fill temp vectors of 2D vertex X and X errors
-    std::vector<float> vX(tjs.vtx.size());
-    std::vector<float> vXsigma(tjs.vtx.size());
+    std::vector<float> vX(vsize);
+    std::vector<float> vXsigma(vsize);
     float vXp;
+    
     double ticks;
-    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
+    for(unsigned short ivx = 0; ivx < vsize; ++ivx) {
       if(tjs.vtx[ivx].NTraj == 0) continue;
       geo::PlaneID iplID = DecodeCTP(tjs.vtx[ivx].CTP);
       if(iplID.TPC != tpc || iplID.Cryostat != cstat) continue;
@@ -3095,24 +3057,6 @@ namespace tca {
       vXsigma[ivx] = fabs(vXp - vX[ivx]);
     } // ivx
     
-    // create a array/vector of 2D vertex indices in each plane
-    std::array<std::vector<unsigned short>, 3> vIndex;
-    unsigned short indx, ipl;
-    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
-      if(tjs.vtx[ivx].NTraj == 0) continue;
-      geo::PlaneID iplID = DecodeCTP(tjs.vtx[ivx].CTP);
-      if(iplID.TPC != tpc || iplID.Cryostat != cstat) continue;
-      ipl = iplID.Plane;
-      if(ipl > 2) continue;
-      indx = vIndex[ipl].size();
-      vIndex[ipl].resize(indx + 1);
-      vIndex[ipl][indx] = ivx;
-    }
-    
-    // vector of 2D vertices -> 3D vertices.
-    std::vector<short> vPtr;
-    for(unsigned short ii = 0; ii < tjs.vtx.size(); ++ii) vPtr.push_back(-1);
-    
     // temp vector of all 2D vertex matches
     std::vector<Vtx3Store> v3temp;
     
@@ -3122,11 +3066,11 @@ namespace tca {
     unsigned short ii, jpl, jj, kpl, kk, ivx, jvx, kvx;
     unsigned int iWire, jWire;
     unsigned short v3dBest = 0;
-    float xbest = 0, ybest = 0, zbest = 0;
+    float xbest = 0, ybest = 0, zbest = 0, best;
     float kX, kWire, kChi, dX, dXChi, dXSigma, dW;
     // compare vertices in each view
     bool gotit = false;
-    bool inDeadRegion;
+    bool inDeadRegion = false;
     for(ipl = 0; ipl < 2; ++ipl) {
       for(ii = 0; ii < vIndex[ipl].size(); ++ii) {
         ivx = vIndex[ipl][ii];
@@ -3137,7 +3081,7 @@ namespace tca {
         // vertex has been matched already
         if(vPtr[ivx] >= 0) continue;
         iWire = tjs.vtx[ivx].Wire;
-        float best = fVertex3DChiCut;
+        best = fVertex3DChiCut;
         // temp array of 2D vertex indices in each plane
         std::array<short, 3> t2dIndex = {-1, -1, -1};
         std::array<short, 3> tmpIndex = {-1, -1, -1};
@@ -3191,10 +3135,11 @@ namespace tca {
             if(vtxPrt) mf::LogVerbatim("CC")<<"Find3DVertices: 2 Plane match ivx "<<ivx<<" P:W:T "<<ipl<<":"<<(int)tjs.vtx[ivx].Wire<<":"<<(int)tjs.vtx[ivx].Time<<" jvx "<<jvx<<" P:W:T "<<jpl<<":"<<(int)tjs.vtx[jvx].Wire<<":"<<(int)tjs.vtx[jvx].Time<<" dXChi "<<dXChi<<" yzSigma "<<yzSigma;
             
             if(TPC.Nplanes() == 2) continue;
-            
+
             // See if the expected position of the vertex in the 3rd view
             // is in a dead wire region
             inDeadRegion = false;
+/* This code section causes problems...
             kChi = 0;
             if(kpl != fPlane) {
               // need to rebuild WireHitRange
@@ -3203,15 +3148,6 @@ namespace tca {
             } // kpl != fPlane
             // add as a candidate if there is no other one
             if(WireHitRange[kWire].first == -1) {
-              best = fVertex3DChiCut - 0.1;
-              xbest = kX;
-              ybest = y;
-              zbest = z;
-              t2dIndex[ipl] = ivx;
-              t2dIndex[jpl] = jvx;
-              t2dIndex[kpl] = 6666;
-              v3dBest = v3temp.size() - 1;
-              inDeadRegion = true;
               // create 2D vertex and attach trajectories to it
               VtxStore aVtx;
               aVtx.CTP = fCTP;
@@ -3223,8 +3159,19 @@ namespace tca {
               tjs.vtx.push_back(aVtx);
               unsigned short newvtx = tjs.vtx.size() - 1;
               AttachAnyTrajToVertex(newvtx, 6, false);
+              if(best == fVertex3DChiCut) {
+                v3dBest = v3temp.size() - 1;
+                best = fVertex3DChiCut - 0.1;
+              }
+              xbest = kX;
+              ybest = y;
+              zbest = z;
+              t2dIndex[ipl] = ivx;
+              t2dIndex[jpl] = jvx;
+              t2dIndex[kpl] = newvtx;
+              inDeadRegion = true;
             } // WireHitRange[kWire].first == -1
-            
+*/
             if(!inDeadRegion) {
               // look for a 3 plane match
               best = fVertex3DChiCut;
@@ -3284,11 +3231,11 @@ namespace tca {
     } // ipl
     
     // Store incomplete 3D vertices but ignore those that are part of a complete 3D vertex
-    unsigned short vsize = tjs.vtx3.size();
+    size_t v3size = tjs.vtx3.size();
     unsigned short ninc = 0;
     for(unsigned short it = 0; it < v3temp.size(); ++it) {
       bool keepit = true;
-      for(unsigned short i3d = 0; i3d < vsize; ++i3d) {
+      for(unsigned short i3d = 0; i3d < v3size; ++i3d) {
         for(unsigned short plane = 0; plane < 3; ++plane) {
           if(v3temp[it].Ptr2D[plane] == tjs.vtx3[i3d].Ptr2D[plane]) {
             keepit = false;
@@ -3585,9 +3532,6 @@ namespace tca {
         if(prt) PrintTrajectory(tjs, work, lastPt);
         continue;
       }
-      // Try to use all hits in doublets
-      // TODO something wrong in this code
-//      ModifyShortTraj(work);
       // We have added a TP with hits
       // assume that we aren't going to kill the point we just added, or any
       // of the previous points...
@@ -3656,7 +3600,7 @@ namespace tca {
     }
 
   } // StepCrawl
-
+/*
   ////////////////////////////////////////////////
   void TrajClusterAlg::ModifyShortTraj(Trajectory& tj)
   {
@@ -3726,7 +3670,7 @@ namespace tca {
     }
     
   } // ModifyShortTraj
-  
+*/
   ////////////////////////////////////////////////
   bool TrajClusterAlg::IsGhost(std::vector<unsigned int>& tHits)
   {
@@ -3882,11 +3826,13 @@ namespace tca {
     
     // See if this looks like a ghost trajectory and if so, merge the
     // hits and kill this one
+
     MaybeDeltaRay(work, true);
     if(work.AlgMod[kGhost]) {
       fGoodWork = false;
       return;
     }
+
 
     // check the fraction of wires that have hits
     float nTjWires = work.EndPt[1] - work.EndPt[0] + 1;
@@ -3908,7 +3854,7 @@ namespace tca {
 
     // See if another trajectory can be appended to work by checking to see if there
     // are any trajectory IDs that appear in the TP hit list at the end
-    CheckAppend();
+//    CheckAppend();
     if(work.AlgMod[kAppend]) return;
     
     // ignore short trajectories
@@ -3916,6 +3862,7 @@ namespace tca {
     
     if(!isLA) {
       // Not large angle checks
+
       // remove the last used hit if there is a gap before it
       ipt = work.EndPt[1] - 1;
       if(work.Pts[ipt].Chg == 0) {
@@ -3928,6 +3875,7 @@ namespace tca {
       // a removed hit near the end. A sudden decrease in the number of
       // TPs in the fit. A change in the average charge of hits. These may
       // not all be present in every situation.
+
       if(work.EndPt[1] > 8) {
         if(prt) PrintTrajectory(tjs, work, USHRT_MAX);
         unsigned short tpGap = USHRT_MAX;
@@ -3982,8 +3930,7 @@ namespace tca {
     }
     
     // Check either large angle or not-large angles
-    // TEMP
-    CheckHiDeltas();
+    CheckHiDeltas(); // TODO A PROBLEM WITH THIS?
     
     CheckHiMultUnusedHits();
     
@@ -4239,6 +4186,7 @@ namespace tca {
 
     if(prt) mf::LogVerbatim("TC")<<"CW First tjs.inTraj stopPt "<<stopPt<<" fracHiMult "<<fracHiMult<<" fracHitsUsed "<<fracHitsUsed<<" lastMult1Pt "<<lastMult1Pt<<" sortaLargeAngle "<<sortaLargeAngle;
 /* seems to be a bad idea
+// Starting trajectory has no hits on the leading edge. Assume this is an error and quit
     if(fracHiMult > 0.1 && fracHiMult < 0.3 && lastMult1Pt > work.EndPt[1] - 4 && fracHitsUsed < 0.8) {
       // The fraction of high multiplicity TPs is low but if the high multiplicity
       // TPs are at the leading edge and the angle is intermediate, this may indicate
@@ -5271,6 +5219,18 @@ namespace tca {
       // ignore abandoned trajectories
       if(tj.AlgMod[kKilled]) continue;
       tID = tj.ID;
+      for(auto& tp : tj.Pts) {
+        if(tp.Hits.size() != tp.UseHit.size()) {
+          tj.AlgMod[kKilled] = true;
+          break;
+        }
+      } // tp
+      if(tj.AlgMod[kKilled]) {
+        std::cout<<"Hit size mis-match in tj ID "<<tj.ID<<" AlgBitNames";
+        for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) std::cout<<" "<<AlgBitNames[ib];
+        std::cout<<"\n";
+        continue;
+      }
       PutTrajHitsInVector(tj, true,  tHits);
       if(tHits.size() < 2) {
         mf::LogVerbatim("TC")<<"CheckInTraj: Insufficient hits in traj "<<tj.ID<<" Killing it";
