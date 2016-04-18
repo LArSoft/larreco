@@ -43,20 +43,20 @@ namespace tca {
   
   /// struct of temporary clusters
   struct ClusterStore {
-    short ID;         // Cluster ID. ID < 0 = abandoned cluster
-    CTP_t CTP;        // Cryostat/TPC/Plane code
-    unsigned short PDG; // PDG-like code shower-like or line-like
-    unsigned short ParentCluster;
-    float BeginWir;   // begin wire
-    float BeginTim;   // begin tick
-    float BeginAng;   // begin angle
-    float BeginChg;   // beginning average charge
-    short BeginVtx; 	// ID of the Begin vertex
-    float EndWir;     // end wire
-    float EndTim;     // end tick
-    float EndAng;     // end angle
-    float EndChg;     // ending average charge
-    short EndVtx;     // ID of the end vertex
+    short ID {0};         // Cluster ID. ID < 0 = abandoned cluster
+    CTP_t CTP {0};        // Cryostat/TPC/Plane code
+    unsigned short PDG {0}; // PDG-like code shower-like or line-like
+    unsigned short ParentCluster {0};
+    float BeginWir {0};   // begin wire
+    float BeginTim {0};   // begin tick
+    float BeginAng {0};   // begin angle
+    float BeginChg {0};   // beginning average charge
+    short BeginVtx {-1}; 	// ID of the Begin vertex
+    float EndWir {0};     // end wire
+    float EndTim {0};     // end tick
+    float EndAng {0};     // end angle
+    float EndChg {0};     // ending average charge
+    short EndVtx {-1};     // ID of the end vertex
     std::vector<unsigned int> tclhits; // hits on the cluster
   }; // ClusterStore
   
@@ -75,17 +75,17 @@ namespace tca {
   
   /// struct of temporary 3D vertices
   struct Vtx3Store {
-    std::array<short, 3> Ptr2D; // pointers to 2D vertices in each plane
-    float X;                    // x position
-    float XErr;                 // x position error
-    float Y;                    // y position
-    float YErr;                 // y position error
-    float Z;                    // z position
-    float ZErr;                 // z position error
-    short Wire;                 // wire number for an incomplete 3D vertex
-    unsigned short CStat;
-    unsigned short TPC;
-    unsigned short ProcCode;
+    std::array<short, 3> Ptr2D {{-1, -1, -1}}; // pointers to 2D vertices in each plane
+    float X {0};                    // x position
+    float XErr {0};                 // x position error
+    float Y {0};                    // y position
+    float YErr {0};                 // y position error
+    float Z {0};                    // z position
+    float ZErr {0};                 // z position error
+    short Wire {-1};                 // wire number for an incomplete 3D vertex
+    unsigned short CStat {0};
+    unsigned short TPC {0};
+    unsigned short ProcCode {0};
   };
   
   struct TrajPoint {
@@ -159,7 +159,6 @@ namespace tca {
     kCWKink,        ///< kink found in CheckWork
     kCWStepChk,
     kGhost,
-    kModifyShortTraj,
     kTryWithNextPass,
     kRevProp,
     kRecovery1,
