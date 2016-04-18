@@ -276,9 +276,8 @@ namespace cluster {
         unsigned short vtxIndex = 0;
         for(tca::Vtx3Store const& vtx3: Vertices) {
           // ignore incomplete vertices
-          if(vtx3.Ptr2D[0] < 0) continue;
-          if(vtx3.Ptr2D[1] < 0) continue;
-          if(vtx3.Ptr2D[2] < 0) continue;
+          if(vtx3.Wire < 0) continue;
+          if(vtx3.Ptr2D[plane] < 0) continue;
           if(vtx3.Ptr2D[plane] == clstr.BeginVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
