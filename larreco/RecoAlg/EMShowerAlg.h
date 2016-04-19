@@ -156,7 +156,7 @@ private:
   std::map<int,std::vector<art::Ptr<recob::Hit> > > FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap);
 
   /// Find the global wire position
-  double GlobalWire(geo::WireID wireID);
+  double GlobalWire(const geo::WireID& wireID);
 
   /// Return the coordinates of this hit in global wire/tick space
   TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
@@ -211,6 +211,7 @@ private:
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 
   int fDebug;
+  std::string fDetector;
 
 
 
