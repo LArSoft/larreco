@@ -60,6 +60,8 @@
 #include "TF1.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "TH1I.h"
+#include "TText.h"
+#include "TFile.h"
 
 namespace shower {
   class EMShowerAlg;
@@ -134,6 +136,9 @@ public:
 
 private:
 
+  /// Checks the hits across the views in a given shower to determine if there is one in the incorrect TPC
+  void CheckIsolatedHits(std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap);
+
   /// Takes the shower hits in all views and ensure the ordering is consistent
   /// Returns bool, indicating whether or not everything makes sense!
   bool CheckShowerHits(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
@@ -147,9 +152,6 @@ private:
   /// Orders hits along the best fit line through the charge-weighted centre of the hits.
   /// Orders along the line perpendicular to the least squares line if perpendicular is set to true.
   std::vector<art::Ptr<recob::Hit> > FindOrderOfHits(std::vector<art::Ptr<recob::Hit> > const& hits, bool perpendicular = false);
-
-  /// Order hits in all planes along the best fit line through the charged-weighted centre of the hits.
-  void FindOrderOfHits(std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap, std::map<int,double> const& planeRMS, int plane);
 
   /// Takes a map of the shower hits on each plane (ordered from what has been decided to be the start)
   /// Returns a map of the initial track-like part of the shower on each plane
@@ -191,6 +193,9 @@ private:
   /// Returns the RMS of the hits from the central shower 'axis' along the length of the shower
   double ShowerHitRMS(const std::vector<art::Ptr<recob::Hit> >& showerHits);
 
+  /// Returns the gradient of the RMS vs shower segment graph
+  double ShowerHitRMSGradient(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+
 
   // Parameters
   double fMinTrackLength;
@@ -214,11 +219,11 @@ private:
   std::string fDetector;
 
 
-
   // tmp
   int FindTrackID(art::Ptr<recob::Hit> const& hit);
   art::ServiceHandle<cheat::BackTracker> backtracker;
   TH1I* hTrueDirection;
+  void MakePicture();
 
 };
 
