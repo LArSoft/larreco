@@ -7,6 +7,7 @@ dune_houghbasealg: @local::standard_houghbasealg
 dune_endpointalg:  @local::standard_endpointalg 
 
 dune10kt_blurredcluster:             @local::standard_blurredcluster
+dune10kt_blurredcluster.BlurredClusterAlg.Detector: "dunefd"
 dunefd_dbcluster:                    @local::standard_dbcluster      
 dunefd_dbcluster.DBScanAlg:          @local::dunefd_dbscanalg          
 dunefd_dbclusterana:                 @local::standard_dbclusterana   
@@ -23,6 +24,7 @@ dunefd_linecluster:                       @local::standard_linecluster
 dunefd_linecluster.ClusterCrawlerAlg:     @local::dunefd_clustercrawleralg
 
 dune35t_blurredcluster:               @local::standard_blurredcluster
+dune35t_blurredcluster.BlurredClusterAlg.Detector: "dune35t"
 dune35t_dbcluster:                    @local::standard_dbcluster
 dune35t_dbcluster.DBScanAlg:          @local::dune35t_dbscanalg
 dune35t_dbclusterana:                 @local::standard_dbclusterana

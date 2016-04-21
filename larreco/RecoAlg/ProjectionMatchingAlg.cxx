@@ -57,10 +57,12 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	std::vector< unsigned int > trkTPCs = trk.TPCs();
 	std::vector< unsigned int > trkCryos = trk.Cryos();
 	std::map< std::pair< unsigned int, unsigned int >, std::pair< TVector2, TVector2 > > ranges;
+	std::map< std::pair< unsigned int, unsigned int >, double > wirePitch;
 	for (auto c : trkCryos)
 		for (auto t : trkTPCs)
 		{
 			ranges[std::pair< unsigned int, unsigned int >(t, c)] = trk.WireDriftRange(testView, t, c);
+			wirePitch[std::pair< unsigned int, unsigned int >(t, c)] = fGeom->TPC(t, c).Plane(testView).WirePitch();
 		}
 
 	unsigned int tpc, cryo;
@@ -69,7 +71,9 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	for (const auto h : hits)
 		if (h->WireID().Plane == testView)
 	{
-		std::pair< unsigned int, unsigned int > tpc_cryo(h->WireID().TPC, h->WireID().Cryostat);
+		tpc = h->WireID().TPC;
+		cryo = h->WireID().Cryostat;
+		std::pair< unsigned int, unsigned int > tpc_cryo(tpc, cryo);
 		std::pair< TVector2, TVector2 > rect = ranges[tpc_cryo];
 
 		if ((h->WireID().Wire > rect.first.X() - 10) &&  // chceck only hits in the rectangle around
@@ -77,9 +81,9 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		    (h->PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testView)
 		    (h->PeakTime() < rect.second.Y() + 100))
 		{
-			TVector2 p2d = pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc_cryo.first, tpc_cryo.second);
+			TVector2 p2d(wirePitch[tpc_cryo] * h->WireID().Wire, fDetProp->ConvertTicksToX(h->PeakTime(), testView, tpc, cryo));
 
-			d2 = trk.Dist2(p2d, testView);
+			d2 = trk.Dist2(p2d, testView, tpc, cryo);
 
 			if (d2 < max_d2) all_close_points[tpc_cryo].push_back(p2d);
 		}
@@ -368,8 +372,10 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 	double vtxarray[3]; 
 	vtx->XYZ(vtxarray);	
 
-	TVector3 vtxv3(vtxarray[0], vtxarray[1], vtxarray[2]);
+	if (!fGeom->HasTPC(fGeom->FindTPCAtPosition(vtxarray))) return 0;
 
+	TVector3 vtxv3(vtxarray[0], vtxarray[1], vtxarray[2]);
+	
 	const size_t tpc = fGeom->FindTPCAtPosition(vtxarray).TPC;
 	const size_t cryo = fGeom->FindCryostatAtPosition(vtxarray);
 	const geo::TPCGeo& tpcgeom = fGeom->Cryostat(cryo).TPC(tpc);

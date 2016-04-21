@@ -55,7 +55,7 @@ public:
 	double Length(size_t step = 1) const { return Length(0, size() - 1, step); }
 	double Length(size_t start, size_t stop, size_t step = 1) const;
 
-	double Dist2(const TVector2& p2d, unsigned int view) const;
+	double Dist2(const TVector2& p2d, unsigned int view, unsigned int tpc, unsigned int cryo) const;
 	double Dist2(const TVector3& p3d) const;
 
 	/// Add hits; does not update hit->node/seg assignments nor hit projection to track,
@@ -77,6 +77,12 @@ public:
 
 	unsigned int BackTPC(void) const { return fNodes.back()->TPC(); }
 	unsigned int BackCryo(void) const { return fNodes.back()->Cryo(); }
+
+	bool HasTPC(int tpc) const
+	{
+		for (auto n : fNodes) if (n->TPC() == tpc) return true;
+		return false;
+	}
 
 	/// Rectangular region of the track 2D projection in view/tpc/cryo; first in the returned
 	/// pair is (min_wire; min_drift), second is (max_wire; max_drift). Used for preselection
@@ -238,6 +244,12 @@ private:
 	void ClearNodes(void);
 	void MakeFastProjection(void);
 
+	bool AttachToSameTPC(pma::Node3D* vStart);
+	bool AttachToOtherTPC(pma::Node3D* vStart);
+
+	bool AttachBackToSameTPC(pma::Node3D* vStart);
+	bool AttachBackToOtherTPC(pma::Node3D* vStart);
+
 	void InternalFlip(std::vector< pma::Track3D* >& toSort);
 
 	void UpdateHitsRadius(void);
@@ -248,7 +260,9 @@ private:
 	void InitFromMiddle(int tpc, int cryo);
 
 	pma::Track3D* GetNearestTrkInTree(const TVector3& p3d_cm, double& dist, bool skipFirst = false);
-	pma::Track3D* GetNearestTrkInTree(const TVector2& p2d_cm, unsigned int view, double& dist, bool skipFirst = false);
+	pma::Track3D* GetNearestTrkInTree(const TVector2& p2d_cm,
+		unsigned int view, unsigned int tpc, unsigned int cryo,
+		double& dist, bool skipFirst = false);
 	void ReassignHitsInTree(pma::Track3D* plRoot = 0);
 
 	/// Distance to the nearest subsequent (dir = Track3D::kForward) or preceeding (dir = Track3D::kBackward)

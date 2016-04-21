@@ -52,11 +52,12 @@ standard_clustercrawleralg:
 standard_blurredclusteralg:
 {
   BlurWire:            6
-  BlurTick:            9
-  SigmaWire:           3
-  SigmaTick:           3
+  BlurTick:            12
+  SigmaWire:           4
+  SigmaTick:           6
   ClusterWireDistance: 2
-  ClusterTickDistance: 4
+  ClusterTickDistance: 2
+  MaxTickWidthBlur:    10
   NeighboursThreshold: 0
   MinNeighbours:       0
   MinSize:             2

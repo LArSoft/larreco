@@ -141,6 +141,7 @@ private:
   bool PassesTimeCut(std::vector<double> const& times, double time);
 
   bool fDebug;
+  std::string fDetector;
 
   // Parameters used in the Blurred Clustering algorithm
   int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
