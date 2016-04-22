@@ -2,7 +2,7 @@
 
 namespace tca {
   const std::vector<std::string> AlgBitNames {
-    "MaskedHits",
+    "MaskHits",
     "Kink",
     "CWKink",
     "CWStepChk",
@@ -11,7 +11,7 @@ namespace tca {
     "RevProp",
     "Recovery1",
     "Recovery2",
-    "ManyHitsAdded",
+    "ChkHiMultHits",
     "SplitTraj",
     "Comp3DVx",
     "HiEndDelta",
@@ -22,7 +22,7 @@ namespace tca {
     "EndMerge",
     "Append",
     "TrimHits",
-    "UseHiMultEndHits",
+    "ChkHiMultEndHits",
     "ChainMerge",
     "FillGap",
     "UseGhostHits"
