@@ -51,6 +51,7 @@ namespace tca {
   void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
   // Returns the separation distance between two trajectory points
   float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
+  float TrajLength(Trajectory& tj);
   // returns the separation^2 between two hits in WSE units
   float HitSep2(TjStuff& tjs, unsigned int iht, unsigned int jht);
   // Find the Distance Of Closest Approach between two trajectories, exceeding minSep
