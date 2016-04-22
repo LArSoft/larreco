@@ -154,7 +154,7 @@ namespace tca {
   
   // Algorithm modification bits
   typedef enum {
-    kMaskedWorkHits,
+    kMaskHits,
     kGottaKink,     ///< GottaKink found a kink
     kCWKink,        ///< kink found in CheckWork
     kCWStepChk,
@@ -163,18 +163,18 @@ namespace tca {
     kRevProp,
     kRecovery1,
     kRecovery2,
-    kManyHitsAdded,
+    kChkHiMultHits,
     kSplitTraj,
     kComp3DVx,
     kHiEndDelta,
-    kHammer2DVx,
+    kHammerVx,
     kJunkTj,
     kKilled,
     kStopAtVtx,
     kEndMerge,
     kAppend,
     kTrimHits,
-    kUseHiMultEndHits,
+    kChkHiMultEndHits,
     kChainMerge,
     kFillGap,
     kUseGhostHits,
