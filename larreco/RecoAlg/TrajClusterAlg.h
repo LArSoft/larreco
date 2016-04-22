@@ -46,9 +46,9 @@
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
-#include "TH1F.h"
-#include "TH2F.h"
-#include "TProfile.h"
+//#include "TH1F.h"
+//#include "TH2F.h"
+//#include "TProfile.h"
 
 namespace tca {
 
@@ -107,8 +107,6 @@ namespace tca {
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
-    short fReversePropagate;            /// reverse the trajectory and propogate back to the beginning
-    short fRecoveryAlgs;             ///< try to recover poor trajectories with different algs
     
     float fJTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
     
@@ -118,8 +116,10 @@ namespace tca {
     bool fStudyMode;       ///< study cuts
     bool fShowerStudy;    ///< study shower identification cuts
     short fShowerPrtPlane; ///< set to plane number to print out
+    short fFillTruth;     ///< Match to MC truth
 
-     std::vector<float> fMaxVertexTrajSep;
+    std::vector<float> fMaxVertexTrajSep;
+    std::bitset<32> fUseAlg;  ///< Allow user to mask off specific algorithms
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
@@ -131,7 +131,6 @@ namespace tca {
     // TEMP variables for summing Eff*Pur
     double PrSum, MuPiSum;
     unsigned short nPr, nMuPi;
-
     
     bool fIsRealData;
 /*
@@ -159,7 +158,7 @@ namespace tca {
     const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
     // TEMP for writing event filter selection
-    std::ofstream outFile;
+//    std::ofstream outFile;
 
     
     trkf::LinFitAlg fLinFitAlg;
@@ -219,6 +218,7 @@ namespace tca {
     // Add hits on the trajectory point ipt that are close to the trajectory point Pos
     void AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
     void GetHitRange();
+    float DeadWireCount(TrajPoint& tp1, TrajPoint& tp2);
     float DeadWireCount(float inWirePos1, float inWirePos2);
     void HitSanityCheck();
     // Hits on two adjacent wires have an acceptable signal overlap
@@ -231,9 +231,6 @@ namespace tca {
     void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned short& newTjIndex);
     // Step through TPs starting at the end and moving to the beginning
     void ReversePropagate(Trajectory& tj);
-    // Calculate the number of missed steps that should be expected for the given
-    // trajectory point direction
-    unsigned short SetMissedStepCut(TrajPoint const& tp);
     // Start a trajectory going from fromHit to (toWire, toTick)
     void StartWork(float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP);
     void StartWork(unsigned int fromHit, unsigned int toHit);
@@ -276,7 +273,7 @@ namespace tca {
     // Counts the number of used hits in tp
     unsigned short NumUsedHits(TrajPoint& tp);
     // Counts the number of TPs in the trajectory that have charge
-    unsigned short NumPtsWithCharge(Trajectory& tj);
+    unsigned short NumPtsWithCharge(Trajectory& tj, bool includeDeadWires);
     // Sets inTraj[] = 0 and UseHit false for all TPs in work. Called when abandoning work
     void ReleaseWorkHits();
     // Returns true if the TP angle exceeds user cut fLargeAngle
@@ -339,7 +336,6 @@ namespace tca {
     void FitTraj(Trajectory& tj);
    // Jacket around FitTraj to fit the work trajectory
     void FitWork();
-    float TrajLength(Trajectory& tj);
     // Does a local fit of just-added TPs on work to identify a kink while stepping.
     // Truncates the work vector and returns true if one is found.
     void GottaKink(Trajectory& tj, unsigned short& killPts);
