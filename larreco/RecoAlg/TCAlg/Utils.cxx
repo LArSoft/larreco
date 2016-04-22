@@ -520,7 +520,7 @@ namespace tca {
   //////////////////////////////////////////
   void PrintHeader()
   {
-    mf::LogVerbatim("TC")<<"TRP  CTP Ind  Stp      W:Tick   Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q    AveQ Pull FitChi NTPF  Hits ";
+    mf::LogVerbatim("TC")<<"TRP  CTP Ind  Stp      W:Tick    Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
   } // PrintHeader
   
   ////////////////////////////////////////////////
