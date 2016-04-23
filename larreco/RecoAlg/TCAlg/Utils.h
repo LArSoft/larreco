@@ -31,6 +31,8 @@
 
 namespace tca {
   // ****************************** General purpose  ******************************
+  void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
+  void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
