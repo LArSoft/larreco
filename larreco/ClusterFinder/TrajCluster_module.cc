@@ -110,9 +110,13 @@ namespace cluster {
     std::vector<unsigned int> const& fAlgModCount = fTCAlg->GetAlgModCount();
     std::vector<std::string> const& fAlgBitNames = fTCAlg->GetAlgBitNames();
     if(fAlgBitNames.size() != fAlgModCount.size()) return;
-    mf::LogVerbatim("TC")<<"TrajCluster algorithm counts";
+    mf::LogVerbatim myprt("TC");
+    myprt<<"TrajCluster algorithm counts\n";
+    unsigned short icol = 0;
     for(unsigned short ib = 0; ib < fAlgModCount.size(); ++ib) {
-      mf::LogVerbatim("TC")<<std::setw(16)<<fAlgBitNames[ib]<<std::setw(10)<<fAlgModCount[ib];
+      myprt<<std::left<<std::setw(16)<<fAlgBitNames[ib]<<std::right<<std::setw(10)<<fAlgModCount[ib]<<" ";
+      ++icol;
+      if(icol == 4) { myprt<<"\n"; icol = 0; }
     } // ib
   } // endJob
   
