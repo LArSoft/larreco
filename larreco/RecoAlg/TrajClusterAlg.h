@@ -296,7 +296,6 @@ namespace tca {
     void MergeTrajPair(unsigned short ipr, bool& reAnalyze);
     // Append the allTraj trajectory to work
     void AppendToWork(unsigned short itj);
-    void MakeTrajectoryObsolete(unsigned short itj);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
     void CheckHitClusterAssociations();
