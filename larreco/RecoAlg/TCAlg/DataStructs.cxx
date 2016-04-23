@@ -9,8 +9,6 @@ namespace tca {
     "Ghost",
     "TryNextPass",
     "RevProp",
-    "Recovery1",
-    "Recovery2",
     "ChkHiMultHits",
     "SplitTraj",
     "Comp3DVx",
