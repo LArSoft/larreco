@@ -2,6 +2,43 @@
 
 namespace tca {
   
+  
+  ////////////////////////////////////////////////
+  void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
+  {
+    if(itj > tjs.allTraj.size() - 1) return;
+    unsigned int iht;
+    for(auto& tp : tjs.allTraj[itj].Pts) {
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        iht = tp.Hits[ii];
+        if(tjs.inTraj[iht] == tjs.allTraj[itj].ID) tjs.inTraj[iht] = 0;
+      } // ii
+    } // tp
+    tjs.allTraj[itj].AlgMod[kKilled] = true;
+  } // MakeTrajectoryObsolete
+  
+  ////////////////////////////////////////////////
+  void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj)
+  {
+    if(itj > tjs.allTraj.size() - 1) return;
+    if(!tjs.allTraj[itj].AlgMod[kKilled]) {
+      mf::LogWarning("TC")<<"RestoreObsoleteTrajectory: Trying to restore not-obsolete trajectory "<<tjs.allTraj[itj].ID;
+      return;
+    }
+    unsigned int iht;
+    for(auto& tp : tjs.allTraj[itj].Pts) {
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(tp.UseHit[ii]) {
+          iht = tp.Hits[ii];
+          if(tjs.inTraj[iht] == 0) {
+            tjs.inTraj[iht] = tjs.allTraj[itj].ID;
+          }
+        }
+      } // ii
+    } // tp
+    tjs.allTraj[itj].AlgMod[kKilled] = false;
+  } // RestoreObsoleteTrajectory
+
   //////////////////////////////////////////
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt)
   {
