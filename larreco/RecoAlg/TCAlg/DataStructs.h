@@ -161,8 +161,6 @@ namespace tca {
     kGhost,
     kTryWithNextPass,
     kRevProp,
-    kRecovery1,
-    kRecovery2,
     kChkHiMultHits,
     kSplitTraj,
     kComp3DVx,
