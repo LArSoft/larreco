@@ -365,7 +365,7 @@ namespace tca {
     // Make a track-like cluster using primTraj and a shower-like cluster consisting
     // of all other trajectories in ClsOfTrj[icot]
     void TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle);
-    void FillTrajTruth();
+//    void FillTrajTruth();
     void KillVerticesInShowers();
 
     
