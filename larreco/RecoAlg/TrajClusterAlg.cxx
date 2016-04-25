@@ -11,11 +11,11 @@
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 
 
-// TEMP for TagAllTraj
-#include "larsim/MCCheater/BackTracker.h"
+// TEMP for FillTrajTruth
+// #include "larsim/MCCheater/BackTracker.h"
 
-class TH1F;
-class TH2F;
+//class TH1F;
+//class TH2F;
 
 struct SortEntry{
   unsigned int index;
@@ -291,7 +291,7 @@ namespace tca {
 
     //    bool reAnalyze = false;
     // put MC info into the trajectory struct
-    FillTrajTruth();
+//    FillTrajTruth();
  
     // Convert trajectories in tjs.allTraj into clusters
     MakeAllTrajClusters();
@@ -345,8 +345,8 @@ namespace tca {
     } // studymode
 */
     // TEMP
-    std::cout<<"Event "<<evt.event();
     if(fFillTruth > 0) {
+      std::cout<<"Event "<<evt.event();
       double ave = -1;
       if(nMuPi > 0) ave = MuPiSum / (double)nMuPi;
       std::cout<<" nMuPi "<<nMuPi<<" MuPiEP "<<std::setprecision(2)<<ave;
@@ -357,8 +357,8 @@ namespace tca {
       double sum = nPr + nMuPi;
       if(sum > 0) ave = (PrSum + MuPiSum) / sum;
       std::cout<<" combined "<<std::setprecision(2)<<ave;
+      std::cout<<"\n";
     }
-    std::cout<<"\n";
 
     // convert vertex time from WSE to ticks
     for(auto& avtx : tjs.vtx) avtx.Time /= tjs.UnitsPerTick;
@@ -1051,7 +1051,7 @@ namespace tca {
     StoreWork();
     newTjIndex = tjs.allTraj.size() - 1;
   } // MakeJunkTraj
-
+/*
   //////////////////////////////////////////
   void TrajClusterAlg::FillTrajTruth()
   {
@@ -1324,7 +1324,7 @@ namespace tca {
 //    if(badEvent) outFile<<fRun<<" "<<fSubRun<<" "<<fEvent<<"\n";
    
   } // FillTrajTruth
-
+*/
   //////////////////////////////////////////
   void TrajClusterAlg::TagPhotons()
   {
@@ -1843,6 +1843,8 @@ namespace tca {
     } else {
       if(deltaCut < 0.5) deltaCut = 0.5;
       if(deltaCut > 5) deltaCut = 5;
+      // loosen up a bit if we just passed a block of dead wires
+      if(abs(dw) > 20 && DeadWireCount(tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0]) > 10) deltaCut *= 2;
    }
     deltaCut *= fProjectionErrFactor;
     
@@ -1905,9 +1907,17 @@ namespace tca {
         }
         // Use this to consider large RMS hits whose PeakTime fails the delta cut
         if(!isVLA && delta < bigDelta && tjs.inTraj[iht] == 0) {
-          bigDelta = delta;
-          imBig = iht;
-        }
+          if(!isLA) {
+            bigDelta = delta;
+            imBig = iht;
+          } else {
+            // Large angle: Ensure that the hit width/multiplicity is consistent
+            if(dt < 50  && (hitsInMultiplet.size() > 2 || tjs.fHits[iht]->RMS() > 15)) {
+              bigDelta = delta;
+              imBig = iht;
+            }
+          } // isLA
+        } // isVLA
         if(isVLA) {
           // Very Large Angle
           // Cut on dt using the RMS of a crude hit or very large RMS hit
@@ -3687,7 +3697,7 @@ namespace tca {
     return true;
     
   } // IsGhost
-
+/*
   ////////////////////////////////////////////////
   void TrajClusterAlg::MaybeDeltaRay(Trajectory& tj, bool doMerge)
   {
@@ -3714,11 +3724,6 @@ namespace tca {
       } // iht
     } // tp
     if(tCnt.empty()) return;
-/*
-    mf::LogVerbatim myprt("TC");
-    myprt<<"MaybeDeltaRay "<<tj.ID<<" size "<<tj.Pts.size()<<" tCnt";
-    for(unsigned short ii = 0; ii < tID.size(); ++ii) myprt<<" "<<tID[ii]<<"_"<<tCnt[ii];
-*/
     for(indx = 0; indx < tCnt.size(); ++indx) if(tCnt[indx] > tCut) tj.AlgMod[kGhost] = true;
     
     if(!tj.AlgMod[kGhost]) return;
@@ -3731,6 +3736,9 @@ namespace tca {
     std::vector<unsigned int> tHits;
     PutTrajHitsInVector(tj, true, tHits);
     if(tHits.empty()) return;
+    
+    std::cout<<"MaybeDeltaRay needs work. Skipping it\n";
+    return;
     
     itj = tID[0] - 1;
     Trajectory& oldtj = tjs.allTraj[itj];
@@ -3753,7 +3761,7 @@ namespace tca {
     fGoodWork = false;
     
   } // MaybeDeltaRay
-
+*/
   ////////////////////////////////////////////////
   void TrajClusterAlg::CheckWork()
   {
@@ -3801,6 +3809,15 @@ namespace tca {
 
     // See if this looks like a ghost trajectory and if so, merge the
     // hits and kill this one
+    if(fUseAlg[kUseGhostHits]) {
+      std::vector<unsigned int> tHits;
+      PutTrajHitsInVector(work, true, tHits);
+      if(IsGhost(tHits)) {
+        fGoodWork = false;
+        return;
+      }
+    } // fUseAlg[kUseGhostHits]
+/*
     if(fUseAlg[kGhost]) {
       MaybeDeltaRay(work, true);
       if(work.AlgMod[kGhost]) {
@@ -3808,14 +3825,7 @@ namespace tca {
         return;
       }
     } // fUseAlg[kGhost]
-
-    // See if another trajectory can be appended to work by checking to see if there
-    // are any trajectory IDs that appear in the TP hit list at the end
-    if(fUseAlg[kAppend]) {
-      CheckAppend();
-      if(work.AlgMod[kAppend]) return;
-    } // fUseAlg[kAppend]
-    
+*/
     // ignore short trajectories
     if(work.EndPt[1] < 4) return;
     
@@ -3959,35 +3969,6 @@ namespace tca {
     return md;
   } // MaxHitDelta
  
-  
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::CheckAppend()
-  {
-    std::vector<unsigned short> tjlist;
-    unsigned short ii, itj;
-    unsigned int iht;
-    for(unsigned short ipt = work.EndPt[1]; ipt < work.Pts.size(); ++ipt) {
-      for(ii = 0; ii < work.Pts[ipt].Hits.size(); ++ipt) {
-        iht = work.Pts[ii].Hits[ii];
-        if(tjs.inTraj[iht] <= 0) continue;
-        itj = tjs.inTraj[iht] - 1;
-        if(std::find(tjlist.begin(), tjlist.end(), itj) == tjlist.end()) tjlist.push_back(itj);
-      } //
-    } // ipt
-    if(tjlist.empty()) return;
-    if(prt) {
-      mf::LogVerbatim("TC")<<"CheckAppend: found tjs size "<<tjlist.size();
-      PrintTrajectory(tjs, work, USHRT_MAX);
-    }
-    for(auto itj : tjlist) {
-      std::cout<<"CheckAppend itj "<<itj<<" StepDir "<<work.StepDir<<" "<<tjs.allTraj[itj].StepDir<<"\n";
-      if(work.StepDir != tjs.allTraj[itj].StepDir) {
-        std::cout<<"time to reverse\n";
-      }
-    } // itj
-    AppendToWork(itj);
-    work.AlgMod[kAppend] = true;
-  } // CheckAppend
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::CheckHiDeltas()
@@ -4614,6 +4595,7 @@ namespace tca {
       tj.EndTP[0].Hits.clear(); tj.EndTP[0].UseHit.clear();
       // set the position to be the hit position of the first TP
       tj.EndTP[0].Pos = tj.Pts[firstFitPt].HitPos;
+      if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: Third traj point fit "<<lastTP.FitChi;
       return;
     } else {
       // Fit with > 2 TPs
