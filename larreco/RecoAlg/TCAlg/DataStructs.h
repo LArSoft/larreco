@@ -158,8 +158,7 @@ namespace tca {
     kGottaKink,     ///< GottaKink found a kink
     kCWKink,        ///< kink found in CheckWork
     kCWStepChk,
-    kGhost,
-    kTryWithNextPass,
+     kTryWithNextPass,
     kRevProp,
     kChkHiMultHits,
     kSplitTraj,
@@ -170,7 +169,6 @@ namespace tca {
     kKilled,
     kStopAtVtx,
     kEndMerge,
-    kAppend,
     kTrimHits,
     kChkHiMultEndHits,
     kChainMerge,
