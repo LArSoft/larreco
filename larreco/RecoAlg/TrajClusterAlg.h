@@ -14,9 +14,7 @@
 
 // C/C++ standard libraries
 #include <array>
-#include <map>
 #include <vector>
-#include <memory> // std::move()
 #include <utility> // std::pair<>
 #include <cmath>
 #include <iostream>
@@ -305,8 +303,6 @@ namespace tca {
     void CheckWork();
     // Fill in missed hits
     void FillMissedPoints();
-    // See if another trajectory can be appended to work
-    void CheckAppend();
     // Check for many unused hits in work and try to use them
     void CheckHiMultUnusedHits();
     void UseHiMultEndHits(unsigned short lastMult1Pt);
@@ -342,7 +338,7 @@ namespace tca {
 //    void ModifyShortTraj(Trajectory& tj);
     // See if the trajectory appears to be a delta ray. This is characterized by a significant fraction of hits
     // in the trajectory belonging to an existing trajectory. This may also flag ghost trajectories...
-    void MaybeDeltaRay(Trajectory& tj, bool doMerge);
+//    void MaybeDeltaRay(Trajectory& tj, bool doMerge);
     bool IsGhost(std::vector<unsigned int>& tHits);
     void CheckTrajEnd();
     void EndMerge();
