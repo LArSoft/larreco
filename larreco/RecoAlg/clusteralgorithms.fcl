@@ -5,33 +5,35 @@ BEGIN_PROLOG
 standard_trajclusteralg:
 {
    HitFinderModuleLabel: "gaushit"
-   Mode: 1
-   NPtsAve: 10
-   MinPtsFit: [20, 2]
-   MinPts: [20, 3]
-   MaxChi: 5
-   HitErrFac: 0.01 # MC
-   MinAmp: 5
-   LargeAngle: 70
-   MultHitSep: 4
-   UseAllHitsInMultiplet: false
-   TP3ChiCut: 5
-   HitFOMCut: 1
-   ChgRatCut: 0.5
-   KinkAngCut: 0.4
-   ProjectionErrFactor: 5 # a factor to twiddle
-   JTMaxHitSep: -1 # 3 # max hit separation for making Junk Trajectories
-   MaxWireSkip: 1.5
-   FindTrajVertices: true
-   MaxVertexTrajSep: [ 6, 4] # in WSE units
-   MaxTrajSep: 4 # WSE's for shower identification
-   StudyMode: false
-   ShowerStudy: false
-   ShowerPrtPlane: -1
-   TagAllTraj: false
-   DebugPlane: -1
-   DebugWire: -1
-   DebugHit: -1
+   Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
+   NPtsAve: 10              # Number of points to find average charge, Ave chg rms
+   MinPtsFit: [10, 2]       # Min number of points in the trajectory fit required on each pass
+   MinPts: [10, 3]          # Min number of points in the trajectory required on each pass
+   LAStep: [false, true]    # Step Large Angle trajectories on pass
+   MaxChi: 5                # Max Chi/DOF for accepting a trajectory fit
+   HitErrFac: 0.2           # hit time error for fitting = fHitErrFac * (hit RMS)
+   MinAmp: 5                # Min amplitude for a wire signal being considered present
+   LargeAngle: 70           # (degrees) Use Large Angle tracking cuts for trajectories exceeding this angle
+   MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
+   Merge: true              # Merge trajectories?
+   ChgPullCut: 3            # Use trajectory points/hits if (Chg/AveChg - 1) / ChgRMS < cut
+   KinkAngCut: 0.4          # Kink angle to decide whether to merge or create a 2D vtx
+   ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
+   JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
+   MaxWireSkipNoSignal: 10  # max allowed number of not-dead wires if no signal is present
+   MaxWireSkipWithSignal: 100  # max allowed number of not-dead wires if a signal is present
+   Vertex2DIPCut:  5        # Max 2D vtx position separation for merging into one vtx (WSE units)
+   Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
+   MaxVertexTrajSep: [ 6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
+   SkipAlgs: ["ChainMerge", "RevProp"] # List of algs that should not be called
+   StudyMode: false         # Set true to generate histograms (commented out)
+   ShowerStudy: false       # Set true to generate histograms (commented out)
+   ShowerPrtPlane: -1       # Print shower finding output in a plane
+   TagAllTraj: false        # Tag trajectories as track-like or shower-like
+   FillTruth: 0             # 0 = no, 1 = neutrino particles, > 1 neutrino + cosmics (commented out)
+   DebugPlane: -1           # Print debug output in a plane (3 = all planes, <0 = none)
+   DebugWire: -1            # Print debug output for a trajectory that starts on DebugWire (<0 = print merging)
+   DebugHit: -1             # Print debug output for a trajectory that starts at Tick ~ DebugHit (<0 = print vtx finding)
 }
 
 standard_clustercrawleralg:
@@ -351,6 +353,7 @@ microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
+microboone_trajclusteralg:                    @local::standard_trajclusteralg
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
