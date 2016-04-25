@@ -26,6 +26,7 @@ shower::EMShowerAlg::EMShowerAlg(fhicl::ParameterSet const& pset) : fDetProp(lar
       << "EMShowerAlg: fNfithits and fToler need to have size fNfitpass";
   }
   fDebug = pset.get<int>("Debug",0);
+  fDetector = pset.get<std::string>("Detector","dune35t");
 
   hTrueDirection = tfs->make<TH1I>("trueDir","",2,0,2);
 
@@ -1290,7 +1291,7 @@ TVector2 shower::EMShowerAlg::HitPosition(TVector2 const& pos, geo::PlaneID plan
 
 }
 
-double shower::EMShowerAlg::GlobalWire(geo::WireID wireID) {
+double shower::EMShowerAlg::GlobalWire(const geo::WireID& wireID) {
 
   double wireCentre[3];
   fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
@@ -1301,11 +1302,25 @@ double shower::EMShowerAlg::GlobalWire(geo::WireID wireID) {
     else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
   }
   else {
-    unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
-    if (wireID.TPC == 0 or wireID.TPC == 1) globalWire = wireID.Wire;
-    else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5) globalWire = nwires + wireID.Wire;
-    else if (wireID.TPC == 6 or wireID.TPC == 7) globalWire = (2*nwires) + wireID.Wire;
-    else mf::LogError("EMShowerAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC;
+    // FOR COLLECTION WIRES, HARD CODE THE GEOMETRY FOR GIVEN DETECTORS
+    // THIS _SHOULD_ BE TEMPORARY. GLOBAL WIRE SUPPORT IS BEING ADDED TO THE LARSOFT GEOMETRY AND SHOULD BE AVAILABLE SOON
+    if (fDetector == "dune35t") {
+      unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+      if (wireID.TPC == 0 or wireID.TPC == 1) globalWire = wireID.Wire;
+      else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5) globalWire = nwires + wireID.Wire;
+      else if (wireID.TPC == 6 or wireID.TPC == 7) globalWire = (2*nwires) + wireID.Wire;
+      else mf::LogError("BlurredClusterAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC << " (geometry" << fDetector << ")";
+    }
+    else if (fDetector == "dune10kt") {
+      unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
+      // Detector geometry has four TPCs, two on top of each other, repeated along z...
+      int block = wireID.TPC / 4;
+      globalWire = (nwires*block) + wireID.Wire;
+    }
+    else {
+      if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
+      else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
+    }
   }
 
   return globalWire;

@@ -7,11 +7,13 @@ BEGIN_PROLOG
 
 dune35t_emshower: @local::standard_emshower
 dune35t_emshower.EMShowerAlg: @local::standard_emshoweralg
+dune35t_emshower.EMShowerAlg.Detector: "dune35t"
 dune35t_emshower.EMShowerAlg.CalorimetryAlg: @local::dune35t_calorimetryalgmc
 dune35t_emshower.EMShowerAlg.ShowerEnergyAlg: @local::dune35t_showerenergy
 
 dune10kt_emshower: @local::standard_emshower
 dune10kt_emshower.EMShowerAlg: @local::standard_emshoweralg
+dune10kt_emshower.EMShowerAlg.Detector: "dune10kt"
 dune10kt_emshower.EMShowerAlg.CalorimetryAlg: @local::dune10kt_calorimetryalgmc
 dune10kt_emshower.EMShowerAlg.ShowerEnergyAlg: @local::dune10kt_showerenergy
 
