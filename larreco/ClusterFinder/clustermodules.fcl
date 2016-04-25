@@ -7,7 +7,7 @@ standard_trajcluster:
 {
   module_type:          "TrajCluster"
   TrajClusterAlg:       @local::standard_trajclusteralg
-} # standard_linecluster
+} # standard_trajcluster
 
 standard_blurredcluster:
 {
