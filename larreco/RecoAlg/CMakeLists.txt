@@ -42,6 +42,7 @@ art_make(
 add_subdirectory(CMTool)
 add_subdirectory(ClusterRecoUtil)
 add_subdirectory(Cluster3DAlgs)
+add_subdirectory(ImagePatternAlgs)
 add_subdirectory(PMAlg)
 
 install_headers()
