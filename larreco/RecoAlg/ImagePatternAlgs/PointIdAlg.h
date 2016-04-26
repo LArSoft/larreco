@@ -39,19 +39,22 @@ public:
 	PointIdAlg(const fhicl::ParameterSet& pset);
 	virtual ~PointIdAlg(void);
 
-	void reconfigure(const fhicl::ParameterSet& p);
+	void reconfigure(const fhicl::ParameterSet& p);  // read-in nnet, setup patch buffer, ...
 
-	void setWireDriftData(unsigned int view, unsigned int tpc, unsigned int cryo);
+	void setWireDriftData(unsigned int view, unsigned int tpc, unsigned int cryo);  // once per view: collect & downscale ADC's
 
-	float predictIdValue(unsigned int wire, float drift) const;
-	std::vector<float> predictIdVector(unsigned int wire, float drift) const;
+	float predictIdValue(unsigned int wire, float drift) const;  // calculate single-value prediction (2-class probability) for [wire, drift] point
+	std::vector<float> predictIdVector(unsigned int wire, float drift) const;  // calculate multi-class probabilities for [wire, drift] point
 
 private:
 
 	std::vector< std::vector<float> > fWireDriftData;           // 2D data for entire projection, drifts scaled down
 	mutable std::vector< std::vector<float> > fWireDriftPatch;  // placeholder for patch around identified point
 
-	void resize(size_t wires, size_t drifts);
+	size_t fDriftWindow;
+
+	void resizeView(size_t wires, size_t drifts);
+	void resizePatch(size_t size);
 
 	// Geometry and detector properties
 	art::ServiceHandle<geo::Geometry> fGeom;

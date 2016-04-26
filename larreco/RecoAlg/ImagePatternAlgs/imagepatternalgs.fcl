@@ -8,6 +8,8 @@ standard_pointidalg:
 
  WireLabel:       "caldata"
 
+ NNetModelFile:   "trk-cascade-cnn.fcl"
+
  CalorimetryAlg:   @local::standard_calorimetryalgmc
 }
 

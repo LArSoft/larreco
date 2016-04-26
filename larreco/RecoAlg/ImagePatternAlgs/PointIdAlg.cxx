@@ -27,16 +27,26 @@ nnet::PointIdAlg::~PointIdAlg(void)
 
 void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
 {
+	fDriftWindow = 10;        // <----- read it from the nnet model file
+
+	size_t patchSize = 32;    // <----- read it from the nnet model file
+	resizePatch(patchSize);
 
 }
 // ------------------------------------------------------
 
-void nnet::PointIdAlg::resize(size_t wires, size_t drifts)
+void nnet::PointIdAlg::resizeView(size_t wires, size_t drifts)
 {
 	fWireDriftData.resize(wires);
-	for (size_t w = 0; w < wires; ++w) fWireDriftData[w].resize(drifts);
+	for (auto & w : fWireDriftData) w.resize(drifts);
 }
 // ------------------------------------------------------
+
+void nnet::PointIdAlg::resizePatch(size_t size)
+{
+	fWireDriftPatch.resize(size);
+	for (auto & row : fWireDriftData) row.resize(size);
+}
 
 void nnet::PointIdAlg::setWireDriftData(unsigned int view, unsigned int tpc, unsigned int cryo)
 {

@@ -1,7 +1,6 @@
 
 art_make( 
           LIB_LIBRARIES lardata_RecoBase
-                        larsim_Simulation
                         larevt_Filters
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
