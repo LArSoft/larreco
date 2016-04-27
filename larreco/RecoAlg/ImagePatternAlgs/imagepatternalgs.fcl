@@ -4,11 +4,23 @@ BEGIN_PROLOG
 
 standard_pointidalg:
 {
- module_type:     "PointIdAlg"
-
  WireLabel:       "caldata"
 
- NNetModelFile:   "trk-cascade-cnn.fcl"
+ NNetModelFile:   "trk-cascade-cnn.dat"
+
+ CalorimetryAlg:   @local::standard_calorimetryalgmc
+}
+
+standard_trainingdataalg:
+{
+ WireLabel:       "caldata"
+
+ PatchSize:       32
+ DriftWindow:     10
+
+ NNetModelFile:   "training" # this will tell to the underlaying PointIdAlg
+                             # to skip loading net model and use fcl-configured
+                             # parameters of drift window and patch size
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc
 }
