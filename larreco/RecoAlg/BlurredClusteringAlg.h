@@ -22,6 +22,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
+#include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Track.h"
@@ -29,10 +30,8 @@
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 #include "larcore/Geometry/Geometry.h"
-#include "SimulationBase/MCParticle.h"
-#include "larsim/MCCheater/BackTracker.h"
 
-// ROOT & C++
+// ROOT
 #include <TTree.h>
 #include <TH2F.h>
 #include <TH2.h>
@@ -54,6 +53,7 @@
 #include <TVectorD.h>
 #include <TVector2.h>
 
+// c++
 #include <string>
 #include <vector>
 #include <map>
@@ -109,7 +109,7 @@ public:
   /// This version takes a vector of bins and overlays the relevant bins on the hit map
   void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int pad, int tpc, int plane);
 
-  std::map<int,std::map<int,art::Ptr<recob::Hit> > > fHitMap;
+  std::vector<std::vector<art::Ptr<recob::Hit> > > fHitMap;
 
 private:
 
@@ -118,9 +118,6 @@ private:
 
   /// Converts a bin into a recob::Hit (not all of these bins correspond to recob::Hits - some are fake hits created by the blurring)
   art::Ptr<recob::Hit> ConvertBinToRecobHit(std::vector<std::vector<double> > const& image, int bin);
-
-  /// Convolves the Gaussian kernel with the image to blur
-  std::vector<std::vector<double> > Convolve(std::vector<std::vector<double> > const& image, std::vector<double> const& kernel, int width, int height);
 
   /// Converts an xbin and a ybin to a global bin number                                                                                                                       
   int ConvertWireTickToBin(std::vector<std::vector<double> > const& image, int xbin, int ybin);
@@ -134,20 +131,27 @@ private:
   /// Returns the hit time of a hit in a particular bin
   double GetTimeOfBin(std::vector<std::vector<double> > const& image, int bin);
 
+  /// Makes all the kernels which could be required given the tuned parameters
+  void MakeKernels();
+
   /// Determines the number of clustered neighbours of a hit
   unsigned int NumNeighbours(int nx, std::vector<bool> const& used, int bin);
 
   /// Determine if a hit is within a time threshold of any other hits in a cluster
   bool PassesTimeCut(std::vector<double> const& times, double time);
 
+  bool fDebug;
+  std::string fDetector;
+
   // Parameters used in the Blurred Clustering algorithm
   int          fBlurWire;                 // blur radius for Gauss kernel in the wire direction
   int          fBlurTick;                 // blur radius for Gauss kernel in the tick direction
-  double       fBlurSigma;                // sigma for Gaussian kernel
+  double       fSigmaWire;                // sigma for Gaussian kernel in the wire direction
+  double       fSigmaTick;                // sigma for Gaussian kernel in the tick direction
+  int          fMaxTickWidthBlur;         // maximum distance to blur a hit based on its natural width in time
   int          fClusterWireDistance;      // how far to cluster from seed in wire direction
   int          fClusterTickDistance;      // how far to cluster from seed in tick direction
   unsigned int fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
-  double       fMergingThreshold;        // the PCA eigenvalue needed to consider two clusters a merge
   unsigned int fNeighboursThreshold;      // min. number of neighbors to add to cluster
   int          fMinNeighbours;            // minumum number of neighbors to keep in the cluster
   unsigned int fMinSize;                  // minimum size for cluster
@@ -155,18 +159,15 @@ private:
   double       fTimeThreshold;            // time threshold for clustering
   double       fChargeThreshold;          // charge threshold for clustering
 
-  // Wire and tick information for histograms
-  int fLowerHistTick, fUpperHistTick;
-  int fLowerHistWire, fUpperHistWire;
-
   // Blurring stuff
-  int fLastBlurWire;
-  int fLastBlurTick;
-  double fLastSigma;
-  std::vector<double> fLastKernel;
+  int fKernelWidth, fKernelHeight;
+  std::vector<std::vector<std::vector<double> > > fAllKernels;
+
+  int fLowerTick, fUpperTick;
+  int fLowerWire, fUpperWire;
 
   // For the debug pdf
-  TCanvas *fDebugCanvas;
+  TCanvas* fDebugCanvas;
   std::string fDebugPDFName;
 
   // art service handles

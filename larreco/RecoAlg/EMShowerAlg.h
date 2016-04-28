@@ -24,9 +24,8 @@
 
 // larsoft
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
-#include "larreco/RecoAlg/ShowerEnergyAlg.h"
+#include "lardata/RecoBaseArt/TrackUtils.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/GeometryCore.h"
 #include "larcore/Geometry/CryostatGeo.h"
@@ -42,6 +41,7 @@
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
+#include "larreco/RecoAlg/ShowerEnergyAlg.h"
 
 // C++
 #include <iostream>
@@ -57,6 +57,9 @@
 #include "TLine.h"
 #include "TCanvas.h"
 #include "TString.h"
+#include "TF1.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "TH1I.h"
 
 namespace shower {
   class EMShowerAlg;
@@ -67,76 +70,127 @@ class shower::EMShowerAlg {
 public:
 
   EMShowerAlg(fhicl::ParameterSet const& pset);
+
+  /// Map associated tracks and clusters together given their associated hits
+  void AssociateClustersAndTracks(std::vector<art::Ptr<recob::Cluster> > const& clusters,
+				  art::FindManyP<recob::Hit> const& fmh,
+				  art::FindManyP<recob::Track> const& fmt,
+				  std::map<int,std::vector<int> >& clusterToTracks,
+				  std::map<int,std::vector<int> >& trackToClusters);
+
+  /// Map associated tracks and clusters together given their associated hits, whilst ignoring certain clusters
   void AssociateClustersAndTracks(std::vector<art::Ptr<recob::Cluster> > const& clusters,
 				  art::FindManyP<recob::Hit> const& fmh,
 				  art::FindManyP<recob::Track> const& fmt,
 				  std::vector<int> const& clustersToIgnore,
 				  std::map<int,std::vector<int> >& clusterToTracks,
 				  std::map<int,std::vector<int> >& trackToClusters);
-  void AssociateClustersAndTracks(std::vector<art::Ptr<recob::Cluster> > const& clusters,
-				  art::FindManyP<recob::Hit> const& fmh,
-				  art::FindManyP<recob::Track> const& fmt,
-				  std::map<int,std::vector<int> >& clusterToTracks,
-				  std::map<int,std::vector<int> >& trackToClusters);
-  void CheckShowerPlanes(std::vector<std::vector<int> > const& initialShowers,
-			 std::vector<int>& clustersToIgnore,
-			 std::vector<art::Ptr<recob::Cluster> > const& clusters,
-			 art::FindManyP<recob::Hit> const& fmh);
-  void FindShowers(std::map<int,std::vector<int> > const& trackToClusters, std::vector<std::vector<int> >& showers);
-  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
-			std::unique_ptr<recob::Track>& initialTrack,
-			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits);
-  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
-			std::unique_ptr<recob::Track>& initialTrack,
-			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits,
-			art::FindManyP<recob::Cluster> const& fmc, int plane);
-  recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
-			   std::unique_ptr<recob::Track> const& initialTrack,
-			   std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialTrackHits);
-  recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
-			   art::Ptr<recob::Vertex> const& vertex,
-			   int & iok);
-  void FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> >const& showerHits,
-			    art::Ptr<recob::Vertex> const& vertex,
-			    std::vector<art::Ptr<recob::Hit> >& trackHits);
-  std::unique_ptr<recob::Track> ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
-					       std::vector<art::Ptr<recob::Hit> > const& track2);
+
+  /// Takes the initial showers found and tries to resolve issues where one bad view ruins the event
+  std::vector<int> CheckShowerPlanes(std::vector<std::vector<int> > const& initialShowers,
+  				     std::vector<art::Ptr<recob::Cluster> > const& clusters,
+  				     art::FindManyP<recob::Hit> const& fmh);
+
+  /// Constructs a recob::Track from sets of hits in two views. Intended to be used to construct the initial first part of a shower.
+  /// All PMA methods taken from the pma tracking algorithm (R. Sulej and D. Stefan).
+  /// This implementation also orients the track in the correct direction if a map of shower centres (units [cm]) in each view is provided.
   std::unique_ptr<recob::Track> ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
 					       std::vector<art::Ptr<recob::Hit> > const& track2,
 					       std::map<geo::PlaneID,TVector2> const& showerCentreMap);
-  std::map<int,std::vector<art::Ptr<recob::Hit> > > FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap);
-  double OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
-			 std::vector<art::Ptr<recob::Hit> >& orderedShower,
-			 art::FindManyP<recob::Cluster> const& fmc);
-  std::vector<art::Ptr<recob::Hit> > OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower);
-  void OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
-			 std::vector<art::Ptr<recob::Hit> >& orderedShower,
-			 art::Ptr<recob::Vertex> const& vertex);
-  double OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
-					      std::vector<art::Ptr<recob::Hit> >& showerHits);
-  TVector3 Construct3DPoint(art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2);
 
+  /// Constructs a recob::Track from sets of hits in two views. Intended to be used to construct the initial first part of a shower.
+  /// All methods taken from the pma tracking algorithm (R. Sulej and D. Stefan).
+  std::unique_ptr<recob::Track> ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
+					       std::vector<art::Ptr<recob::Hit> > const& track2);
+
+  /// Finds the initial track-like part of the shower and the hits in all views associated with it
+  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
+			std::unique_ptr<recob::Track>& initialTrack,
+			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits, int plane);
+
+  /// Makes showers given a map between tracks and all clusters associated with them
+  std::vector<std::vector<int> > FindShowers(std::map<int,std::vector<int> > const& trackToClusters);
+
+  /// Makes a recob::Shower object given the hits in the shower and the initial track-like part
+  recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
+			   std::unique_ptr<recob::Track> const& initialTrack,
+			   std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialTrackHits);
+
+  /// <Tingjun to document>
+  recob::Shower MakeShower(art::PtrVector<recob::Hit> const& hits,
+			   art::Ptr<recob::Vertex> const& vertex,
+			   int & iok);
+
+  /// <Tingjun to document>
+  void FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> >const& showerHits,
+			    art::Ptr<recob::Vertex> const& vertex,
+			    std::vector<art::Ptr<recob::Hit> >& trackHits);
+
+  /// <Tingjun to document>
   Int_t WeightedFit(const Int_t n, const Double_t *x, const Double_t *y, const Double_t *w,  Double_t *parm);
 
+  /// <Tingjun to document>
   bool isCleanShower(std::vector<art::Ptr<recob::Hit> > const& hits);
 
 private:
 
-  std::vector<int> IdentifyBadPlanes(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
-  std::vector<int> IdentifyBadPlanes(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap,
-				     std::map<int,double> const& goodnessOfOrderMap);
-  std::map<int,std::vector<art::Ptr<recob::Hit> > > CheckShowerHits(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap,
-								    std::map<int,double> const& goodnessOfOrderMap);
-  std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap,
-						 std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerCentreMap);
-  std::vector<double> GetShowerDirectionProperties(std::vector<art::Ptr<recob::Hit> > const& showerHits, TVector2 const& direction, std::string end);
-  std::vector<art::Ptr<recob::Hit> > FindOrderOfHits(std::vector<art::Ptr<recob::Hit> > const& hits);
+  /// Takes the shower hits in all views and ensure the ordering is consistent
+  /// Returns bool, indicating whether or not everything makes sense!
+  bool CheckShowerHits(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
+
+  /// Constructs a 3D point (in [cm]) to represent the hits given in two views
+  TVector3 Construct3DPoint(art::Ptr<recob::Hit> const& hit1, art::Ptr<recob::Hit> const& hit2);
+
+  /// Finds dE/dx for the track given a set of hits
   double FinddEdx(std::vector<art::Ptr<recob::Hit> > const& trackHits, std::unique_ptr<recob::Track> const& track);
+
+  /// Orders hits along the best fit line through the charge-weighted centre of the hits.
+  /// Orders along the line perpendicular to the least squares line if perpendicular is set to true.
+  std::vector<art::Ptr<recob::Hit> > FindOrderOfHits(std::vector<art::Ptr<recob::Hit> > const& hits, bool perpendicular = false);
+
+  /// Order hits in all planes along the best fit line through the charged-weighted centre of the hits.
+  void FindOrderOfHits(std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap, std::map<int,double> const& planeRMS, int plane);
+
+  /// Takes a map of the shower hits on each plane (ordered from what has been decided to be the start)
+  /// Returns a map of the initial track-like part of the shower on each plane
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap);
+
+  /// Find the global wire position
+  double GlobalWire(const geo::WireID& wireID);
+
+  /// Return the coordinates of this hit in global wire/tick space
   TVector2 HitCoordinates(art::Ptr<recob::Hit> const& hit);
+
+  /// Return the coordinates of this hit in units of cm
   TVector2 HitPosition(art::Ptr<recob::Hit> const& hit);
+
+  /// Return the coordinates of this hit in units of cm
   TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);
-  double GlobalWire(geo::WireID wireID);
+
+  /// Takes initial track hits from multiple views and forms a track object which best represents the start of the shower
+  std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap);
+
+  /// Takes the hits associated with a shower and orders them so they follow the direction of the shower
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > OrderShowerHits(art::PtrVector<recob::Hit> const& shower, int plane);
+
+  /// Takes the hits associated with a shower and orders then so they follow the direction of the shower
+  void OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
+		       std::vector<art::Ptr<recob::Hit> >& orderedShower,
+		       art::Ptr<recob::Vertex> const& vertex);
+
+  /// Projects a 3D point (units [cm]) onto a 2D plane
+  /// Returns 2D point (units [cm])
   TVector2 Project3DPointOntoPlane(TVector3 const& point, geo::PlaneID planeID);
+
+  /// Returns the charge-weighted shower centre
+  TVector2 ShowerCentre(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+
+  /// Returns a rough shower 'direction' given the hits in the shower
+  TVector2 ShowerDirection(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+
+  /// Returns the RMS of the hits from the central shower 'axis' along the length of the shower
+  double ShowerHitRMS(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+
 
   // Parameters
   double fMinTrackLength;
@@ -156,7 +210,15 @@ private:
   calo::CalorimetryAlg fCalorimetryAlg;
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 
-  bool debug = false;
+  int fDebug;
+  std::string fDetector;
+
+
+
+  // tmp
+  int FindTrackID(art::Ptr<recob::Hit> const& hit);
+  art::ServiceHandle<cheat::BackTracker> backtracker;
+  TH1I* hTrueDirection;
 
 };
 

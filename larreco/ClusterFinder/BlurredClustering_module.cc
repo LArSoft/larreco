@@ -167,6 +167,8 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
   for (std::map<std::pair<int,int>,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = planeToHits.begin(); planeIt != planeToHits.end(); ++planeIt) {
 
     //std::cout << "Clustering in plane " << planeIt->first.first << " in global TPC " << planeIt->first.second << std::endl;
+    // if (!(planeIt->first.first == 1 and planeIt->first.second == 1))
+    //   continue;
 
     std::vector<art::PtrVector<recob::Hit> > finalClusters;
 

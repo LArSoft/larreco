@@ -3,6 +3,9 @@
 
 BEGIN_PROLOG
 
+microboone_trajcluster:                       @local::standard_trajcluster
+microboone_trajcluster.TrajClusterAlg:        @local::microboone_trajclusteralg
+
 microboone_clustercrawler:                    @local::standard_clustercrawler
 microboone_clustercrawler.ClusterCrawlerAlg:  @local::microboone_clustercrawleralg
 microboone_clustercrawler.CCHitFinderAlg:     @local::microboone_cchitfinderalg
