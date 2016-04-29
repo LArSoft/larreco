@@ -192,7 +192,7 @@ void shower::EMShower::produce(art::Event& evt) {
     if (showerNum != fShower and fShower != -1) continue;
 
     // New shower
-    std::cout << std::endl << "Start shower " << showerNum << std::endl;
+    std::cout << std::endl << std::endl << "Start shower " << showerNum << std::endl;
 
     // New associations
     art::PtrVector<recob::Hit> showerHits;

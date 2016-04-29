@@ -54,6 +54,7 @@
 
 //temp
 #include "TGraph.h"
+#include "TMultiGraph.h"
 #include "TLine.h"
 #include "TCanvas.h"
 #include "TString.h"
@@ -62,6 +63,8 @@
 #include "TH1I.h"
 #include "TText.h"
 #include "TFile.h"
+#include "TPrincipal.h"
+#include "TProfile.h"
 
 namespace shower {
   class EMShowerAlg;
@@ -157,6 +160,12 @@ private:
   /// Returns a map of the initial track-like part of the shower on each plane
   std::map<int,std::vector<art::Ptr<recob::Hit> > > FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap);
 
+  /// Takes all the shower hits, ready ordered, and returns information to help with the orientation of the shower in each view
+  /// Returns map of most likely permutations of reorientation
+  /// Starts at 0,0,0 (i.e. don't need to reorient any plane) and ends with 1,1,1 (i.e. every plane needs reorienting)
+  /// Every permutation inbetween represent increasing less likely changes to satisfy the correct orientation criteria
+  std::map<int,std::map<int,bool> > GetPlanePermutations(const std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap);
+
   /// Find the global wire position
   double GlobalWire(const geo::WireID& wireID);
 
@@ -170,7 +179,8 @@ private:
   TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);
 
   /// Takes initial track hits from multiple views and forms a track object which best represents the start of the shower
-  std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap);
+  std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap,
+						 std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
 
   /// Takes the hits associated with a shower and orders them so they follow the direction of the shower
   std::map<int,std::vector<art::Ptr<recob::Hit> > > OrderShowerHits(art::PtrVector<recob::Hit> const& shower, int plane);
@@ -194,7 +204,10 @@ private:
   double ShowerHitRMS(const std::vector<art::Ptr<recob::Hit> >& showerHits);
 
   /// Returns the gradient of the RMS vs shower segment graph
-  double ShowerHitRMSGradient(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+  double ShowerHitRMSGradient(const std::vector<art::Ptr<recob::Hit> >& showerHits, TVector2 trueStart = TVector2(0,0));
+
+  /// Returns the plane which is determined to be the least likely to be correct
+  int WorstPlane(const std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap);
 
 
   // Parameters
@@ -220,10 +233,15 @@ private:
 
 
   // tmp
-  int FindTrackID(art::Ptr<recob::Hit> const& hit);
-  art::ServiceHandle<cheat::BackTracker> backtracker;
+  int FindTrueParticle(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+  int FindParticleID(const art::Ptr<recob::Hit>& hit);
+  art::ServiceHandle<cheat::BackTracker> bt;
   TH1I* hTrueDirection;
+  TProfile* hNumHitsInSegment, *hNumSegments;
   void MakePicture();
+  bool fMakeGradientPlot, fMakeRMSGradientPlot;
+  int fNumShowerSegments;
+  int fNumSegmentHits;
 
 };
 
