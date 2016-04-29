@@ -12,5 +12,13 @@ standard_pointidtrainingdata:
  TrainingDataAlg:  @local::standard_trainingdataalg
 }
 
+standard_pointidefftest:
+{
+   	module_type:             "PointIdEffTest"
+		SimModuleLabel:					"largeant"	
+   	HitsModuleLabel:        "lineclusterdc"
+   	ClusterModuleLabel:	    "lineclusterdc"
+}
+
 END_PROLOG
 
