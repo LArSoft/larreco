@@ -367,6 +367,7 @@ standard_neutrinotrackingeff:
       module_type:      	"NeutrinoTrackingEff"
       MCTruthModuleLabel:	"generator"
       TrackModuleLabel: 	"pandora"
+      isNeutrinoInt:		true
       NeutrinoPDGcode:		14
       LeptonPDGcode:		13
       MaxNeutrinoE:		25.0

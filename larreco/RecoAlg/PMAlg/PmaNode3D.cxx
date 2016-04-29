@@ -390,7 +390,7 @@ std::vector< pma::Track3D* > pma::Node3D::GetBranches(void) const
 	return branches;
 }
 
-double pma::Node3D::Pi(float endSegWeight) const
+double pma::Node3D::Pi(float endSegWeight, bool doAsymm) const
 {
 	if (fIsVertex) return 0.0;
 
@@ -404,12 +404,17 @@ double pma::Node3D::Pi(float endSegWeight) const
 
 		double segCos = SegmentCos();
 
-		double lPrev = segPrev->Length();
-		double lNext = segNext->Length();
-		double lAsymm = (1.0 - segCos) * (lPrev - lNext) / (lPrev + lNext);
+		double lAsymmFactor = 0.0;
+		if (doAsymm)
+		{
+			double lPrev = segPrev->Length();
+			double lNext = segNext->Length();
+			double lAsymm = (1.0 - segCos) * (lPrev - lNext) / (lPrev + lNext);
+			lAsymmFactor = 0.05 * lAsymm * lAsymm;
+		}
 
-		if (fHitsRadius > 0.0F) return scale * (1.0 + segCos + 0.05 * lAsymm * lAsymm) * fHitsRadius * fHitsRadius;
-		else return scale * (1.0 + segCos + 0.05 * lAsymm * lAsymm) * Length2();
+		if (fHitsRadius > 0.0F) return scale * (1.0 + segCos + lAsymmFactor) * fHitsRadius * fHitsRadius;
+		else return scale * (1.0 + segCos + lAsymmFactor) * Length2();
 	}
 	else
 	{
@@ -444,18 +449,18 @@ double pma::Node3D::Pi(float endSegWeight) const
 double pma::Node3D::Penalty(float endSegWeight) const
 {
 	unsigned int nseg = 1;
-	double penalty = Pi(endSegWeight);
+	double penalty = Pi(endSegWeight, true);
 
 	pma::Node3D* v;
 	for (unsigned int i = 0; i < NextCount(); i++)
 	{
 		v = static_cast< pma::Node3D* >(Next(i)->Next());
-		penalty += v->Pi(endSegWeight); nseg++;
+		penalty += v->Pi(endSegWeight, false); nseg++;
 	}
 	if (prev)
 	{
 		v = static_cast< pma::Node3D* >(prev->Prev());
-		penalty += v->Pi(endSegWeight); nseg++;
+		penalty += v->Pi(endSegWeight, false); nseg++;
 	}
 	return penalty / nseg;
 }

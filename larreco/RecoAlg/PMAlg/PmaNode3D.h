@@ -104,7 +104,7 @@ private:
 	double PiInWirePlane(void) const;
 	double PenaltyInWirePlane(void) const;
 
-	double Pi(float endSegWeight) const;
+	double Pi(float endSegWeight, bool doAsymm) const;
 	double Penalty(float endSegWeight) const;
 	double Mse(void) const;
 
