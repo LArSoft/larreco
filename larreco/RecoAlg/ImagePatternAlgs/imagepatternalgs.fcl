@@ -1,28 +1,15 @@
-#include "calorimetry.fcl"
+#include "pointidalg.fcl"
 
 BEGIN_PROLOG
 
-standard_pointidalg:
+standard_pointidtrainingdata:
 {
- WireLabel:       "caldata"
+ module_type:     "PointIdTrainingData"
 
- NNetModelFile:   "trk-cascade-cnn.dat"
+ SelectedTPC:     []
+ OutTextFilePath: "."
 
- CalorimetryAlg:   @local::standard_calorimetryalgmc
-}
-
-standard_trainingdataalg:
-{
- WireLabel:       "caldata"
-
- PatchSize:       32
- DriftWindow:     10
-
- NNetModelFile:   "training" # this will tell to the underlaying PointIdAlg
-                             # to skip loading net model and use fcl-configured
-                             # parameters of drift window and patch size
-
- CalorimetryAlg:   @local::standard_calorimetryalgmc
+ TrainingDataAlg:  @local::standard_trainingdataalg
 }
 
 END_PROLOG
