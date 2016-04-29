@@ -6,8 +6,6 @@ from matplotlib.pylab import *
 from os import listdir
 from os.path import isfile, join
 import os, json
-from scipy import ndimage
-from skimage.measure import block_reduce
 
 def get_event_bounds(A):
     # get center with 99% of signal

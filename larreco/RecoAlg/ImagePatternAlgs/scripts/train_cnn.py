@@ -54,9 +54,9 @@ y_test  = db_y[test_split:]
 print 'Train', X_train.shape, 'test', X_test.shape
 
 
-batch_size = 128 #256
-nb_classes = 2
-nb_epoch = 3 #100
+batch_size = 256 #128
+nb_classes = int(2)
+nb_epoch = 3
 # input image dimensions
 img_rows, img_cols = PATCH_SIZE, PATCH_SIZE
 # number of convolutional filters to use

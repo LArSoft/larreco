@@ -6,8 +6,6 @@ from matplotlib.pylab import *
 from os import listdir
 from os.path import isfile, join
 import os, json
-from scipy import ndimage
-from skimage.measure import block_reduce
 
 from utils import read_config, get_data
 
@@ -30,7 +28,7 @@ def main(argv):
         print 'Total learning patches', total_learning_patches
 
         db = np.zeros((total_learning_patches, PATCH_SIZE, PATCH_SIZE))
-        db_y = np.zeros((total_learning_patches, 1))
+        db_y = np.zeros((total_learning_patches, 1), dtype=int32)
 
         cnt_ind = 0
         cnt_trk = 0
@@ -63,7 +61,7 @@ def main(argv):
                 #print x_start, x_stop
                 #print y_start, y_stop
                 db[cnt_ind] = raw[x_start:x_stop, y_start:y_stop]
-                db_y[cnt_ind] = target
+                db_y[cnt_ind] = int(target)
                 
                 if target == 1: cnt_trk += 1
                 else: cnt_sh += 1
