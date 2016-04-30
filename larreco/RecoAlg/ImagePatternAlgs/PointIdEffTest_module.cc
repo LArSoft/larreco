@@ -3,6 +3,8 @@
 // Module Type: analyzer
 // File:        PointIdEffTest_module.cc
 //
+// Author: dorota.stefan@cern.ch
+//
 // Generated at Fri Apr 29 06:42:27 2016 by Dorota Stefan using artmod
 // from cetpkgsupport v1_10_01.
 ////////////////////////////////////////////////////////////////////////
@@ -24,6 +26,7 @@
 
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Core/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
@@ -34,6 +37,8 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
+
 #include "TH1.h"
 #include "TTree.h"
 #include "TLorentzVector.h"
@@ -43,6 +48,10 @@
 
 namespace nnet
 {
+	typedef std::map< unsigned int, std::vector< std::vector< art::Ptr<recob::Hit> > > > view_clmap;
+	typedef std::map< unsigned int, view_clmap > tpc_view_clmap;
+	typedef std::map< unsigned int, tpc_view_clmap > cryo_tpc_view_clmap;
+
 	class PointIdEffTest;
 }
 
@@ -59,22 +68,22 @@ public:
   PointIdEffTest & operator = (PointIdEffTest &&) = delete;
 
   // Required functions.
-	void beginRun(const art::Run& run) override;
+	virtual void beginRun(const art::Run& run) override;
 
-	void beginJob() override;
+	virtual void beginJob() override;
 
-  void analyze(art::Event const & e) override;
+  virtual void analyze(art::Event const & e) override;
 
-	void reconfigure(fhicl::ParameterSet const& parameterSet) override;
+	virtual void reconfigure(fhicl::ParameterSet const& parameterSet) override;
 
 
 private:
 
   // Declare member data here.
 
-	void GetMCParticle(art::Event const & e, float fraction, int pdg);
+	void GetMCParticle(float fraction, int pdg);
 
-	void GetRecoParticle();
+	void GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits);
 
 	void TestEffParticle();
 
@@ -89,13 +98,23 @@ private:
 
 	TTree *fTree;
 
+	nnet::PointIdAlg fPointIdAlg;
+
+	geo::GeometryCore const* fGeometry;
+
 	std::map< int, const simb::MCParticle* > particleMap;
+
+	art::Handle< std::vector<simb::MCParticle> > fParticleHandle;
+	art::Handle< std::vector<sim::SimChannel> > fSimChannelHandle;
+	art::Handle< std::vector<recob::Hit> > fHitListHandle;
+	art::Handle< std::vector<recob::Cluster> > fClusterListHandle;
 
 	std::vector< art::Ptr<sim::SimChannel> > fChannellist;
 	std::vector< art::Ptr<simb::MCParticle> > fSimlist;
 	std::vector< art::Ptr<recob::Hit> > fHitlist;
 	std::vector< art::Ptr<recob::Cluster> > fClusterlist;
 
+	cryo_tpc_view_clmap fClMap;	
 
 	std::string fSimulationProducerLabel;
 	std::string fHitsModuleLabel;
@@ -107,14 +126,18 @@ void nnet::PointIdEffTest::reconfigure(fhicl::ParameterSet const & p)
 	fSimulationProducerLabel = p.get< std::string >("SimModuleLabel");
 	fHitsModuleLabel = p.get< std::string >("HitsModuleLabel");
 	fClusterModuleLabel = p.get< std::string >("ClusterModuleLabel");
+	fPointIdAlg.reconfigure(p.get< fhicl::ParameterSet >("PointIdAlg"));
 }
 
 
 nnet::PointIdEffTest::PointIdEffTest(fhicl::ParameterSet const & p)
   :
-  EDAnalyzer(p)  // ,
- // More initializers here.
-{}
+  EDAnalyzer(p),
+ 	fPointIdAlg(p.get< fhicl::ParameterSet >("PointIdAlg"))
+{
+	fGeometry = &*(art::ServiceHandle<geo::Geometry>());
+	reconfigure(p);
+}
 
 void nnet::PointIdEffTest::beginRun(const art::Run&)
 {
@@ -140,17 +163,17 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	fRun = e.run();
 	fEvent = e.id().event();
 	fSimTrackID = -1; fSimPDG = -1;
+	fClMap.clear();
 
 	// access to MC information
 	
 	// MC Particle
 
-	art::Handle< std::vector<simb::MCParticle> > particleHandle;
-	if (e.getByLabel(fSimulationProducerLabel, particleHandle))
-		art::fill_ptr_vector(fSimlist, particleHandle);
+	if (e.getByLabel(fSimulationProducerLabel, fParticleHandle))
+		art::fill_ptr_vector(fSimlist, fParticleHandle);
 	
 	
-	for ( auto const& particle : (*particleHandle) )
+	for ( auto const& particle : (*fParticleHandle) )
 	{
 		fSimTrackID = particle.TrackId();
 		particleMap[fSimTrackID] = &particle;
@@ -159,48 +182,69 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	}
 
 	// simChannel
-
+	if (e.getByLabel(fSimulationProducerLabel, fSimChannelHandle))
+		art::fill_ptr_vector(fChannellist, fSimChannelHandle);
 
 	// output from reconstruction
 
-
+	// hits
+	if (e.getByLabel(fHitsModuleLabel, fHitListHandle))
+		art::fill_ptr_vector(fHitlist, fHitListHandle);
 
 	// cluster
-	art::Handle< std::vector<recob::Cluster> > clusterListHandle;
-	if (e.getByLabel(fClusterModuleLabel, clusterListHandle))
-		art::fill_ptr_vector(fClusterlist, clusterListHandle);
-	
+	if (e.getByLabel(fClusterModuleLabel, fClusterListHandle))
+		art::fill_ptr_vector(fClusterlist, fClusterListHandle);
+ 
+
+	const art::FindManyP<recob::Hit> findManyHits(fClusterListHandle, e, fClusterModuleLabel);
+
+	for (size_t clid = 0; clid != fClusterListHandle->size(); ++clid)
+	{
+		auto const& hits = findManyHits.at(clid);
+		if (!hits.size()) continue;
+
+		unsigned int cryo = hits.front()->WireID().Cryostat;
+		unsigned int tpc = hits.front()->WireID().TPC;
+		unsigned int view = hits.front()->WireID().Plane;
+
+		fClMap[cryo][tpc][view].push_back(hits);		 
+	}
+
+	for (auto const& c : fClMap)
+	{
+		unsigned int cryo = c.first;
+		for (auto const& t : c.second)
+		{
+			unsigned int tpc = t.first;
+			for (auto const& v : t.second)
+			{
+				unsigned int view = v.first;
+				fPointIdAlg.setWireDriftData(e, view, tpc, cryo);
+
+				for (auto const& h : v.second)
+				{  
+					GetRecoParticle(h);
+				}
+			}
+		}
+	}	
 }
 
 /// w argumencie podamy wektor hitow danego klastra
-void nnet::PointIdEffTest::GetMCParticle(art::Event const & e, float fraction, int pdg )
+void nnet::PointIdEffTest::GetMCParticle(float fraction, int pdg )
 {
 	// in argument vector hitow danego klastra
 
 	double ensh = 0.; double entrk = 0.;
 	int nhitssh = 0; int nhitstrk = 0;
 
-	art::Handle< std::vector<simb::MCParticle> > particleHandle;
-	if (e.getByLabel(fSimulationProducerLabel, particleHandle))
-		art::fill_ptr_vector(fSimlist, particleHandle);
-
-		art::Handle< std::vector<sim::SimChannel> > simChannelHandle;
-	if (e.getByLabel(fSimulationProducerLabel, simChannelHandle))
-		art::fill_ptr_vector(fChannellist, simChannelHandle);
-
-
-	// hits
-	art::Handle< std::vector<recob::Hit> > hitListHandle;
-	if (e.getByLabel(fHitsModuleLabel, hitListHandle))
-		art::fill_ptr_vector(fHitlist, hitListHandle);
-
 	// for every hit:
-	for ( auto const& hit : (*hitListHandle) )
+	for ( auto const& hit : (*fHitListHandle) )
 	{
 		// the channel associated with this hit.
 		auto hitChannelNumber = hit.Channel();
 
-		for ( auto const& channel : (*simChannelHandle) )
+		for ( auto const& channel : (*fSimChannelHandle) )
 		{
 			auto simChannelNumber = channel.Channel();
 
@@ -244,8 +288,12 @@ void nnet::PointIdEffTest::GetMCParticle(art::Event const & e, float fraction, i
 	}
 }
 
-void nnet::PointIdEffTest::GetRecoParticle()
+void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits)
 {
+	for ( auto const& hit : hits)
+	{
+		fPointIdAlg.predictIdValue(hit->WireID().Wire, hit->PeakTime());
+	}
 }
 
 void nnet::PointIdEffTest::TestEffParticle()
