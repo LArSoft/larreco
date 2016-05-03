@@ -156,14 +156,11 @@ namespace tca {
     const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
     // TEMP for writing event filter selection
-//    std::ofstream outFile;
+    std::ofstream outFile;
 
     
     trkf::LinFitAlg fLinFitAlg;
 
-    unsigned int fFirstWire;    ///< the first wire with a hit
-    unsigned int fFirstHit;     ///< first hit used
-    unsigned int fLastWire;      ///< the last wire with a hit
     unsigned int fCstat;         // the current cryostat
     unsigned int fTpc;         // the current TPC
     unsigned short fPass;
@@ -176,10 +173,6 @@ namespace tca {
     float fMaxWire;     // max wire in WSE units
     float fMaxTime;    // max time in WSE units
 
-    // vector of pairs of first (.first) and last+1 (.second) hit on each wire
-    // in the range fFirstWire to fLastWire. A value of -2 indicates that there
-    // are no hits on the wire. A value of -1 indicates that the wire is dead
-    std::vector< std::pair<int, int> > WireHitRange;
 
     std::string fhitsModuleLabel;
     
@@ -192,7 +185,6 @@ namespace tca {
     bool fCheckWorkModified;
     bool fUpdateTrajOK;     // update
     bool fMaskedLastTP;
-    bool fRevProp;          // in reverse propagation phase
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
 
     //  trajectories
@@ -206,7 +198,6 @@ namespace tca {
     std::vector<unsigned int> fAlgModCount;
     
     // runs the TrajCluster algorithm on one plane specified by the calling routine
-    // (which should also have called GetHitRange)
     void RunStepCrawl();
     void InitializeAllTraj();
     void ReconstructAllTraj();
@@ -215,7 +206,6 @@ namespace tca {
     void StepCrawl();
     // Add hits on the trajectory point ipt that are close to the trajectory point Pos
     void AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
-    void GetHitRange();
     float DeadWireCount(TrajPoint& tp1, TrajPoint& tp2);
     float DeadWireCount(float inWirePos1, float inWirePos2);
     void HitSanityCheck();
@@ -263,12 +253,7 @@ namespace tca {
     // Sets inTraj[] = 0 and UseHit false for all used hits in tp
     void UnsetUsedHits(TrajPoint& tp);
     void SetAllHitsUsed(TrajPoint& tp);
-    // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
-    bool SignalPresent(float wire1, float time1, TrajPoint const& tp);
-    bool SignalPresent(unsigned int wire1, float time1, unsigned int wire2, float time2);
-    bool SignalPresent(float wire1, float time1, float wire2, float time2);
-    bool SignalPresent(TrajPoint const& tp);
-    // Counts the number of used hits in tp
+      // Counts the number of used hits in tp
     unsigned short NumUsedHits(TrajPoint& tp);
     // Counts the number of TPs in the trajectory that have charge
     unsigned short NumPtsWithCharge(Trajectory& tj, bool includeDeadWires);
@@ -276,8 +261,6 @@ namespace tca {
     void ReleaseWorkHits();
     // Returns true if the TP angle exceeds user cut fLargeAngle
     bool IsLargeAngle(TrajPoint const& tp);
-    // Checks to see if any hit has inTraj = -1 when it shouldn't
-    bool CheckAllHitsFlag();
     // Print debug output if hit iht exists in work or allTraj
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
@@ -299,15 +282,15 @@ namespace tca {
     void CheckHitClusterAssociations();
     // Push the work trajectory into allTraj
     void StoreWork();
-    // Check the quality of the work trajectory and possibly trim it
-    void CheckWork();
+    // Check the quality of the trajectory and possibly trim it
+    void CheckTraj(Trajectory& tj);
     // Fill in missed hits
-    void FillMissedPoints();
+    void FillMissedPoints(Trajectory& tj);
     // Check for many unused hits in work and try to use them
-    void CheckHiMultUnusedHits();
+    void CheckHiMultUnusedHits(Trajectory& tj);
     void UseHiMultEndHits(unsigned short lastMult1Pt);
     // Check for high values of Delta at the beginning of the trajectory
-    void CheckHiDeltas();
+    void CheckHiDeltas(Trajectory& tj);
     // Check for a TJ that is close to the Large Angle cut
     void CheckNearLA();
     // Reverse a trajectory
@@ -343,6 +326,7 @@ namespace tca {
     void CheckTrajEnd();
     void EndMerge();
     void ChainMerge();
+    void FillHitRange(geo::TPCID const& tpcid);
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void AttachAnyTrajToVertex(unsigned short iv, float docaCut2, bool requireSignal);
@@ -350,6 +334,7 @@ namespace tca {
     void MakeTrajVertex(TrjInt const& aTrjInt, unsigned short bin1, unsigned short bin2, bool& madeVtx);
     void SplitTrajCrossingVertices();
     void FindHammerVertices();
+    void FindHammerVertices2();
     void Find3DVertices(geo::TPCID const& tpcid);
     void CompleteIncomplete3DVertices(geo::TPCID const& tpcid);
     short TPNearVertex(const TrajPoint& tp);
@@ -365,7 +350,7 @@ namespace tca {
     // Make a track-like cluster using primTraj and a shower-like cluster consisting
     // of all other trajectories in ClsOfTrj[icot]
     void TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle);
-//    void FillTrajTruth();
+    void FillTrajTruth();
     void KillVerticesInShowers();
 
     
