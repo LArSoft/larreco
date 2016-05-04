@@ -5946,6 +5946,12 @@ namespace tca {
     lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     
     // initialize everything
+    tjs.FirstWire.resize(nplanes);
+    tjs.FirstHit.resize(nplanes);
+    tjs.LastWire.resize(nplanes);
+    tjs.LastHit.resize(nplanes);
+    tjs.WireHitRange.resize(nplanes);
+    
     unsigned short ipl;
     for(ipl = 0; ipl < nplanes; ++ipl) {
       tjs.FirstWire[ipl] = INT_MAX;
