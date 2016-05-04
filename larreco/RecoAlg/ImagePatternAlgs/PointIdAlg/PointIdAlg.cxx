@@ -256,6 +256,13 @@ float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift) const
 
 	if (fMLP)
 	{
+		auto input = patchData1D();
+		if (input.size() == fMLP->GetInputLength())
+		{
+			fMLP->Run(input);
+			result = fMLP->GetOneOutput(0);
+		}
+		else mf::LogError("PointIdAlg") << "Patch size does not match MLP model.";
 	}
 	else if (fCNN)
 	{
