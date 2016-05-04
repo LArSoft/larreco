@@ -6,6 +6,13 @@ standard_pointidalg:
 {
  WireLabel:       "caldata"
 
+ CalorimetryAlg:   @local::standard_calorimetryalgmc
+}
+
+standard_dataprovideralg:
+{
+ WireLabel:       "caldata"
+
  NNetModelFile:   "trk-cascade-cnn.dat"
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc
@@ -20,8 +27,6 @@ standard_trainingdataalg:
  DriftWindow:     10
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc
-
- NNetModelFile:   "training" # is not used for training data, but stay be here
 }
 
 END_PROLOG

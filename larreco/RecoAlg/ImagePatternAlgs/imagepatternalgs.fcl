@@ -4,18 +4,18 @@ BEGIN_PROLOG
 
 standard_pointidtrainingdata:
 {
- module_type:     "PointIdTrainingData"
+    module_type:     "PointIdTrainingData"
 
- SelectedTPC:     []
- OutTextFilePath: "."
+    SelectedTPC:     []
+    OutTextFilePath: "."
 
- TrainingDataAlg:  @local::standard_trainingdataalg
+    TrainingDataAlg:  @local::standard_trainingdataalg
 }
 
 standard_pointidefftest:
 {
-   	module_type:             "PointIdEffTest"
-    SimModuleLabel:          "largeant"	
+   	module_type:            "PointIdEffTest"
+    SimModuleLabel:         "largeant"	
    	HitsModuleLabel:        "lineclusterdc"
    	ClusterModuleLabel:	    "lineclusterdc"
 }

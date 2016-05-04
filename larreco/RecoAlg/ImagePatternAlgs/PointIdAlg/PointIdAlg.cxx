@@ -24,7 +24,7 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-nnet::PointIdAlg::PointIdAlg(const fhicl::ParameterSet& pset) :
+nnet::DataProviderAlg::DataProviderAlg(const fhicl::ParameterSet& pset) :
 	fCryo(9999), fTPC(9999), fView(9999),
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0),
 	fDriftWindow(10), fPatchSize(32),
@@ -38,33 +38,28 @@ nnet::PointIdAlg::PointIdAlg(const fhicl::ParameterSet& pset) :
 }
 // ------------------------------------------------------
 
-nnet::PointIdAlg::~PointIdAlg(void)
+nnet::DataProviderAlg::~DataProviderAlg(void)
 {
 }
 // ------------------------------------------------------
 
-void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
+void nnet::DataProviderAlg::reconfigure(const fhicl::ParameterSet& p)
 {
 	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
 	fWireProducerLabel = p.get< std::string >("WireLabel");
-	fNNetModelFilePath = p.get< std::string >("NNetModelFile");
-
-	// read nnet model and weights
-	// ... ...
 
 	resizePatch();
-
 }
 // ------------------------------------------------------
 
-void nnet::PointIdAlg::resizePatch(void)
+void nnet::DataProviderAlg::resizePatch(void)
 {
 	fWireDriftPatch.resize(fPatchSize);
 	for (auto & r : fWireDriftData) r.resize(fPatchSize);
 }
 // ------------------------------------------------------
 
-void nnet::PointIdAlg::resizeView(size_t wires, size_t drifts)
+void nnet::DataProviderAlg::resizeView(size_t wires, size_t drifts)
 {
 	fNWires = wires; fNDrifts = drifts;
 	fNScaledDrifts = drifts / fDriftWindow;
@@ -81,7 +76,7 @@ void nnet::PointIdAlg::resizeView(size_t wires, size_t drifts)
 }
 // ------------------------------------------------------
 
-bool nnet::PointIdAlg::setWireData(std::vector<float> const & adc, size_t wireIdx)
+bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wireIdx)
 {
 	if ((wireIdx >= fWireDriftData.size()) ||
 	    (adc.size() / fDriftWindow > fNScaledDrifts)) return false;
@@ -107,7 +102,7 @@ bool nnet::PointIdAlg::setWireData(std::vector<float> const & adc, size_t wireId
 }
 // ------------------------------------------------------
 
-bool nnet::PointIdAlg::setWireDriftData(const art::Event& event,
+bool nnet::DataProviderAlg::setWireDriftData(const art::Event& event,
 	unsigned int view, unsigned int tpc, unsigned int cryo)
 {
 	fCryo = cryo; fTPC = tpc; fView = view;
@@ -140,13 +135,13 @@ bool nnet::PointIdAlg::setWireDriftData(const art::Event& event,
 			auto adc = wire.Signal();
 			if (adc.size() != ndrifts)
 			{
-				mf::LogError("PointIdAlg") << "ADC vector sizes not match.";
+				mf::LogError("DataProviderAlg") << "ADC vector sizes not match.";
 				return false;
 			}
 
 			if (!setWireData(adc, w_idx))
 			{
-				mf::LogError("PointIdAlg") << "Wire data not set.";
+				mf::LogError("DataProviderAlg") << "Wire data not set.";
 				return false;
 			}
 
@@ -157,7 +152,7 @@ bool nnet::PointIdAlg::setWireDriftData(const art::Event& event,
 }
 // ------------------------------------------------------
 
-bool nnet::PointIdAlg::bufferPatch(size_t wire, size_t drift) const
+bool nnet::DataProviderAlg::bufferPatch(size_t wire, size_t drift) const
 {
 	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == drift / fDriftWindow))
 		return true; // still within the current position
@@ -196,7 +191,7 @@ bool nnet::PointIdAlg::bufferPatch(size_t wire, size_t drift) const
 }
 // ------------------------------------------------------
 
-std::vector<float> nnet::PointIdAlg::patchData1D(void) const
+std::vector<float> nnet::DataProviderAlg::patchData1D(void) const
 {
 	std::vector<float> flat;
 	flat.reserve(fPatchSize * fPatchSize);
@@ -212,9 +207,59 @@ std::vector<float> nnet::PointIdAlg::patchData1D(void) const
 }
 // ------------------------------------------------------
 
+// ------------------------------------------------------
+// --------------------PointIdAlg------------------------
+// ------------------------------------------------------
+
+nnet::PointIdAlg::PointIdAlg(const fhicl::ParameterSet& pset) : nnet::DataProviderAlg(pset),
+	fMLP(0), fCNN(0)
+{
+	this->reconfigure(pset); 
+}
+// ------------------------------------------------------
+
+nnet::PointIdAlg::~PointIdAlg(void)
+{
+	deleteMLP();
+	deleteCNN();
+}
+// ------------------------------------------------------
+
+void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
+{
+	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
+	fWireProducerLabel = p.get< std::string >("WireLabel");
+	fNNetModelFilePath = p.get< std::string >("NNetModelFile");
+
+	deleteMLP();
+	deleteCNN();
+
+	fMLP = new nnet::NNReader(fNNetModelFilePath.c_str());
+
+	// read nnet model and weights
+	// ... ...
+
+	resizePatch();
+
+}
+// ------------------------------------------------------
+
 float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift) const
 {
 	float result = 0.;
+
+	if (!bufferPatch(wire, (size_t)drift))
+	{
+		mf::LogError("PointIdAlg") << "Patch buffering failed.";
+		return result;
+	}
+
+	if (fMLP)
+	{
+	}
+	else if (fCNN)
+	{
+	}
 
 	return result;
 }
@@ -224,6 +269,19 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 {
 	std::vector<float> result;
 
+	if (!bufferPatch(wire, (size_t)drift))
+	{
+		mf::LogError("PointIdAlg") << "Patch buffering failed.";
+		return result;
+	}
+
+	if (fMLP)
+	{
+	}
+	else if (fCNN)
+	{
+	}
+
 	return result;
 }
 // ------------------------------------------------------
@@ -232,7 +290,7 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 // ------------------TrainingDataAlg---------------------
 // ------------------------------------------------------
 
-nnet::TrainingDataAlg::TrainingDataAlg(const fhicl::ParameterSet& pset) : nnet::PointIdAlg(pset)
+nnet::TrainingDataAlg::TrainingDataAlg(const fhicl::ParameterSet& pset) : nnet::DataProviderAlg(pset)
 {
 	this->reconfigure(pset); 
 }
@@ -248,7 +306,6 @@ void nnet::TrainingDataAlg::reconfigure(const fhicl::ParameterSet& p)
 	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
 	fWireProducerLabel = p.get< std::string >("WireLabel");
 	fSimulationProducerLabel = p.get< std::string >("SimulationLabel");
-	fNNetModelFilePath = "training";
 
 	fDriftWindow = p.get< unsigned int >("DriftWindow");
 	fPatchSize = p.get< unsigned int >("PatchSize");
@@ -259,7 +316,7 @@ void nnet::TrainingDataAlg::reconfigure(const fhicl::ParameterSet& p)
 
 void nnet::TrainingDataAlg::resizeView(size_t wires, size_t drifts)
 {
-	nnet::PointIdAlg::resizeView(wires, drifts);
+	nnet::DataProviderAlg::resizeView(wires, drifts);
 
 	fWireDriftEdep.resize(wires);
 	for (auto & w : fWireDriftEdep)
