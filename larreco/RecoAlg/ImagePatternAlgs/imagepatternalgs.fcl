@@ -15,7 +15,7 @@ standard_pointidtrainingdata:
 standard_pointidefftest:
 {
    	module_type:             "PointIdEffTest"
-		SimModuleLabel:					"largeant"	
+    SimModuleLabel:          "largeant"	
    	HitsModuleLabel:        "lineclusterdc"
    	ClusterModuleLabel:	    "lineclusterdc"
 }
