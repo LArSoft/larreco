@@ -169,9 +169,6 @@ namespace tca {
     unsigned int fEventsProcessed;
     CTP_t fCTP;        ///< Cryostat/TPC/Plane code
     unsigned int fPlane;         // the current plane
-    unsigned int fNumWires;   // number of wires in the current plane
-    float fMaxWire;     // max wire in WSE units
-    float fMaxTime;    // max time in WSE units
 
 
     std::string fhitsModuleLabel;
@@ -207,7 +204,7 @@ namespace tca {
     // Add hits on the trajectory point ipt that are close to the trajectory point Pos
     void AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
     float DeadWireCount(TrajPoint& tp1, TrajPoint& tp2);
-    float DeadWireCount(float inWirePos1, float inWirePos2);
+    float DeadWireCount(float inWirePos1, float inWirePos2, CTP_t tCTP);
     void HitSanityCheck();
     // Hits on two adjacent wires have an acceptable signal overlap
     bool TrajHitsOK(unsigned int iht, unsigned int jht);
@@ -326,7 +323,7 @@ namespace tca {
     void CheckTrajEnd();
     void EndMerge();
     void ChainMerge();
-    void FillHitRange(geo::TPCID const& tpcid);
+    void FillWireHitRange(geo::TPCID const& tpcid);
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void AttachAnyTrajToVertex(unsigned short iv, float docaCut2, bool requireSignal);
