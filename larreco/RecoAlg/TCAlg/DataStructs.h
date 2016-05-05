@@ -189,7 +189,8 @@ namespace tca {
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
     std::vector<unsigned int> NumWires;
-    float MaxTime;
+    std::vector<float> MaxPos0;
+    std::vector<float> MaxPos1;
     std::vector<unsigned int> FirstWire;    ///< the first wire with a hit
     std::vector<unsigned int> LastWire;      ///< the last wire with a hit
     std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
