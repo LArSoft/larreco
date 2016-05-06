@@ -43,7 +43,7 @@ simple_plugin( Track3DKalman "module"
 			 lardata_AnalysisAlg
 			 lardata_AnalysisBase
 			 lardata_Utilities
-			 SeedService_service # artextensions
+			 larsim_RandomUtils_LArSeedService_service
 			 ${MAGNETICFIELD_SERVICE}
 			 ${SIMULATIONBASE}
 			 ${ART_FRAMEWORK_CORE}

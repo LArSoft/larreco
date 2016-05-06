@@ -27,7 +27,7 @@
 #include "CLHEP/Random/JamesRandom.h"
 
 // art extensions
-#include "artextensions/SeedService/SeedService.hh"
+#include "larsim/RandomUtils/LArSeedService.h"
 
 // LArSoft includes
 #include "lardata/RawData/raw.h"
@@ -86,9 +86,9 @@ namespace cluster{
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     
-    // create a default random engine; obtain the random seed from SeedService,
+    // create a default random engine; obtain the random seed from LArSeedService,
     // unless overridden in configuration with key "Seed"
-    art::ServiceHandle<artext::SeedService>()
+    art::ServiceHandle<sim::LArSeedService>()
       ->createEngine(*this, pset, "Seed");
     
   }
