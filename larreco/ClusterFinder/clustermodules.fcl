@@ -19,6 +19,7 @@ standard_blurredcluster:
  HitsModuleLabel:          "gaushit"
  TrackModuleLabel:         "pmtrack"
  VertexModuleLabel:        "linecluster"
+ PFParticleModuleLabel:    "pandora"
  BlurredClusterAlg:        @local::standard_blurredclusteralg
  MergeClusterAlg:          @local::standard_mergeclusteralg
  TrackShowerSeparationAlg: @local::standard_trackshowerseparationalg
