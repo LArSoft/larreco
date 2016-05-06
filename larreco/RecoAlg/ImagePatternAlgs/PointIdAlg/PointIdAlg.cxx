@@ -55,7 +55,7 @@ void nnet::DataProviderAlg::reconfigure(const fhicl::ParameterSet& p)
 void nnet::DataProviderAlg::resizePatch(void)
 {
 	fWireDriftPatch.resize(fPatchSize);
-	for (auto & r : fWireDriftData) r.resize(fPatchSize);
+	for (auto & r : fWireDriftPatch) r.resize(fPatchSize);
 }
 // ------------------------------------------------------
 

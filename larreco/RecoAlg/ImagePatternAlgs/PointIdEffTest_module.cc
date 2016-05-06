@@ -95,12 +95,10 @@ private:
 
 	double fElectronsToGeV;
 	int fSimTrackID;
-	float fIdValue;
+	float fOutTrk;
+	float fOutSh;
 
-	TH1D* fHist;
 	TTree *fTree;
-	TTree *fOutShHist;
-	TTree *fOutTrkHist;
 
 	nnet::PointIdAlg fPointIdAlg;
 
@@ -156,12 +154,10 @@ void nnet::PointIdEffTest::beginJob()
 	// access art's TFileService, which will handle creating and writing hists
 	art::ServiceHandle<art::TFileService> tfs;
 
-	fHist = tfs->make<TH1D>("efficiency-purity",";efficiency-purity;",100, 0.,    0.);
-
 	fTree = tfs->make<TTree>("efficiency","efficiency tree");
 
-	fOutShHist->Branch("ValueId for shower", &fIdValue, "fIdValue/F");
-	fOutTrkHist->Branch("ValueId for track", &fIdValue, "fIdValue/F");
+	fTree->Branch("fOutSh", &fOutSh, "fOutSh/F");
+	fTree->Branch("fOutTrk", &fOutTrk, "fOutTrk/F");
 }
 
 void nnet::PointIdEffTest::analyze(art::Event const & e)
@@ -171,7 +167,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	fRun = e.run();
 	fEvent = e.id().event();
 	fSimTrackID = -1; 
-	fIdValue = -1;
+	fOutSh = -1; fOutTrk = -1;
 	fClMap.clear();
 
 	// access to MC information
@@ -226,6 +222,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 			for (auto const& v : t.second)
 			{
 				unsigned int view = v.first;
+				
 				fPointIdAlg.setWireDriftData(e, view, tpc, cryo);
 
 				for (auto const& h : v.second)
@@ -244,6 +241,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
 int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > const & hits)
 {
+
 	// in argument vector hitow danego klastra
 
 	double ensh = 0.; double entrk = 0.;
@@ -316,10 +314,13 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 {
 	for ( auto const& hit : hits)
 	{
-		fIdValue = fPointIdAlg.predictIdValue(hit->WireID().Wire, hit->PeakTime());
-		if (mcshower)	fOutShHist->Fill();
-		else fOutTrkHist->Fill();
+		float pidvalue = fPointIdAlg.predictIdValue(hit->WireID().Wire, hit->PeakTime());
+		if (mcshower)	{ fOutSh = pidvalue; fOutTrk = -1; }
+		else { fOutTrk = pidvalue; fOutSh = -1; }
+	
+		fTree->Fill();
 	}
+	
 }
 
 /******************************************/
