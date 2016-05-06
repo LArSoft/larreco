@@ -18,6 +18,8 @@ standard_pointidefftest:
     SimModuleLabel:         "largeant"	
    	HitsModuleLabel:        "lineclusterdc"
    	ClusterModuleLabel:	    "lineclusterdc"
+
+		PointIdAlg: 						@local::standard_pointidalg
 }
 
 END_PROLOG
