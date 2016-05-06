@@ -19,7 +19,7 @@ standard_pointidefftest:
    	HitsModuleLabel:        "lineclusterdc"
    	ClusterModuleLabel:	    "lineclusterdc"
 
-		PointIdAlg: 						@local::standard_pointidalg
+    PointIdAlg:             @local::standard_pointidalg
 }
 
 END_PROLOG

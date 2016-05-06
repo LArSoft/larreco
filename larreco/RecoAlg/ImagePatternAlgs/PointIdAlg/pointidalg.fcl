@@ -2,18 +2,18 @@
 
 BEGIN_PROLOG
 
-standard_pointidalg:
+standard_dataprovideralg:
 {
  WireLabel:       "caldata"
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc
 }
 
-standard_dataprovideralg:
+standard_pointidalg:
 {
  WireLabel:       "caldata"
 
- NNetModelFile:   "trk-cascade-cnn.dat"
+ NNetModelFile:   "mlp_dummy.xml"
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc
 }
