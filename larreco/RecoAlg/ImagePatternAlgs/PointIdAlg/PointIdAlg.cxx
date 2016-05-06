@@ -240,10 +240,14 @@ void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
 	deleteMLP();
 	deleteCNN();
 
-	fMLP = new nnet::NNReader(fNNetModelFilePath.c_str());
-
-	// read nnet model and weights
+	// decide if mlp or cnn...
+	// read nnet model and weights, set patch and scalling sizes...
 	// ... ...
+
+	fMLP = new nnet::NNReader(fNNetModelFilePath.c_str());
+	fDriftWindow = 10; // should be in nnet xml?
+	fPatchSize = 32; // derive from nnet input size?
+
 
 	resizePatch();
 
