@@ -79,7 +79,7 @@ void nnet::DataProviderAlg::resizeView(size_t wires, size_t drifts)
 float nnet::DataProviderAlg::scaleAdcSample(float val) const
 {
 	if (val < -50.) val = -50.;
-	if (val > 100.) val = 100.;
+	if (val > 150.) val = 150.;
 	return 0.1 * val;
 }
 bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wireIdx)
