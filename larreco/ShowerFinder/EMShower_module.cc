@@ -73,6 +73,8 @@ private:
   int fShower;
   int fPlane;
 
+  int fDebug;
+
 };
 
 shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(pset.get<fhicl::ParameterSet>("EMShowerAlg")) {
@@ -92,6 +94,8 @@ void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
   fSaveNonCompleteShowers = p.get<bool>       ("SaveNonCompleteShowers","true");
   fShower = p.get<int>("Shower",-1);
   fPlane = p.get<int>("Plane",-1);
+  fDebug = p.get<int>("Debug",0);
+  fEMShowerAlg.fDebug = fDebug;
 }
 
 void shower::EMShower::produce(art::Event& evt) {
@@ -192,7 +196,8 @@ void shower::EMShower::produce(art::Event& evt) {
     if (showerNum != fShower and fShower != -1) continue;
 
     // New shower
-    std::cout << std::endl << std::endl << "Start shower " << showerNum << std::endl;
+    if (fDebug > 0)
+      std::cout << std::endl << std::endl << "Start shower " << showerNum << std::endl;
 
     // New associations
     art::PtrVector<recob::Hit> showerHits;

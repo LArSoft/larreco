@@ -137,6 +137,8 @@ public:
   /// <Tingjun to document>
   bool isCleanShower(std::vector<art::Ptr<recob::Hit> > const& hits);
 
+  int fDebug;
+
 private:
 
   /// Checks the hits across the views in a given shower to determine if there is one in the incorrect TPC
@@ -194,10 +196,15 @@ private:
   /// Returns 2D point (units [cm])
   TVector2 Project3DPointOntoPlane(TVector3 const& point, geo::PlaneID planeID);
 
+  /// Determines the 'relative wire width', i.e. how spread a shower is across wires of each plane relative to the others
+  /// If a shower travels along the wire directions in a particular view, it will have a smaller wire width in that view
+  /// Returns a map relating these widths to each plane
+  std::map<double,int> RelativeWireWidth(const std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap);
+
   /// Returns the charge-weighted shower centre
   TVector2 ShowerCentre(const std::vector<art::Ptr<recob::Hit> >& showerHits);
 
-  /// Returns a rough shower 'direction' given the hits in the shower
+  /// Returns a rough charge-weighted shower 'direction' given the hits in the shower
   TVector2 ShowerDirection(const std::vector<art::Ptr<recob::Hit> >& showerHits);
 
   /// Returns the RMS of the hits from the central shower 'axis' along the length of the shower
@@ -228,7 +235,6 @@ private:
   calo::CalorimetryAlg fCalorimetryAlg;
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 
-  int fDebug;
   std::string fDetector;
 
 
@@ -241,7 +247,6 @@ private:
   void MakePicture();
   bool fMakeGradientPlot, fMakeRMSGradientPlot;
   int fNumShowerSegments;
-  int fNumSegmentHits;
 
 };
 
