@@ -15,9 +15,11 @@ def main(argv):
     INPUT_DIR, OUTPUT_DIR, PATCH_SIZE = read_config()
     print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
     print '#'*50
-    
+
     flat_txt_training = open(OUTPUT_DIR+'/flat_training.prn', 'w')
     flat_txt_testing = open(OUTPUT_DIR+'/flat_testing.prn', 'w')
+    
+    TEST_EVENTS_SPLIT = 990
 
     f_idx = 0
     files = [f for f in os.listdir(INPUT_DIR) if '.raw' in f]
@@ -65,7 +67,7 @@ def main(argv):
                 training_patch = raw[x_start:x_stop, y_start:y_stop]
                 flat_patch = training_patch.flatten()
                 
-                if f_idx < 70:
+                if f_idx < TEST_EVENTS_SPLIT:
                     flat_txt_training.write(evt_no + ' ' + str(i) + ' ' + str(j) + ' ')
                     for k in range(flat_patch.shape[0]):
                         flat_txt_training.write(str(flat_patch[k]) + ' ')

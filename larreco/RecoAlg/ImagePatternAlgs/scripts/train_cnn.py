@@ -43,9 +43,6 @@ for evt_no in range(1,TOTAL_EVENTS+1):
 print 'Total data', db.shape, db_y.shape, 'test_split', test_split
 print 'Tracks', np.sum(db_y == 1), 'showers', np.sum(db_y == 0)
 
-# very ugly ADC scaling
-db = prepare_signal(db)
-
 # split between tran and test sets
 X_train = db[:test_split]
 X_test  = db[test_split:]

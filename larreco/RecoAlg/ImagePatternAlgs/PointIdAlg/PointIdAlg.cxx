@@ -76,6 +76,12 @@ void nnet::DataProviderAlg::resizeView(size_t wires, size_t drifts)
 }
 // ------------------------------------------------------
 
+float nnet::DataProviderAlg::scaleAdcSample(float val) const
+{
+	if (val < -50.) val = -50.;
+	if (val > 100.) val = 100.;
+	return 0.1 * val;
+}
 bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wireIdx)
 {
 	if ((wireIdx >= fWireDriftData.size()) ||
@@ -88,10 +94,10 @@ bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t w
 		size_t i0 = i * fDriftWindow;
 		size_t i1 = (i + 1) * fDriftWindow;
 
-		float max_adc = adc[i0] * fCalorimetryAlg.LifetimeCorrection(i0);
+		float max_adc = scaleAdcSample(adc[i0] * fCalorimetryAlg.LifetimeCorrection(i0));
 		for (size_t k = i0 + 1; k < i1; ++k)
 		{
-			float ak = adc[k] * fCalorimetryAlg.LifetimeCorrection(k);
+			float ak = scaleAdcSample(adc[k] * fCalorimetryAlg.LifetimeCorrection(k));
 			if (ak > max_adc) max_adc = ak;
 		}
 

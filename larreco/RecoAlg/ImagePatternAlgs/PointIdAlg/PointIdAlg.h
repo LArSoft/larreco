@@ -76,6 +76,7 @@ protected:
 	bool bufferPatch(size_t wire, size_t drift) const;
 
 	bool setWireData(std::vector<float> const & adc, size_t wireIdx);
+	float scaleAdcSample(float val) const;
 
 	virtual void resizeView(size_t wires, size_t drifts);
 	void resizePatch(void);
