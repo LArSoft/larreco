@@ -24,6 +24,8 @@
 // LArSoft includes
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/SpacePoint.h"
@@ -109,8 +111,6 @@ public:
   /// This version takes a vector of bins and overlays the relevant bins on the hit map
   void SaveImage(TH2F* image, std::vector<std::vector<int> > const& allClusterBins, int pad, int tpc, int plane);
 
-  std::vector<std::vector<art::Ptr<recob::Hit> > > fHitMap;
-
 private:
 
   /// Converts a vector of bins into a hit selection - not all the hits in the bins vector are real hits
@@ -124,6 +124,10 @@ private:
 
   /// Returns the charge stored in the global bin value                                                                                                                        
   double ConvertBinToCharge(std::vector<std::vector<double> > const& image, int bin);
+
+  /// Count how many dead wires there are in the blurring region for a particular hit
+  /// Returns a pair of counters representing how many dead wires there are below and above the hit respectively
+  std::pair<int,int> DeadWireCount(int wire_bin, int width);
 
   /// Dynamically find the blurring radii and Gaussian sigma in each dimension
   void FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick);
@@ -163,6 +167,10 @@ private:
   int fKernelWidth, fKernelHeight;
   std::vector<std::vector<std::vector<double> > > fAllKernels;
 
+  // Hit containers
+  std::vector<std::vector<art::Ptr<recob::Hit> > > fHitMap;
+  std::vector<bool> fDeadWires;
+
   int fLowerTick, fUpperTick;
   int fLowerWire, fUpperWire;
 
@@ -173,6 +181,7 @@ private:
   // art service handles
   art::ServiceHandle<geo::Geometry> fGeom;
   detinfo::DetectorProperties const* fDetProp;
+  lariov::ChannelStatusProvider const& fChanStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
 
 };
 
