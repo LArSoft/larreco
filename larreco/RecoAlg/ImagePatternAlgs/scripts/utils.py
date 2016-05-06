@@ -31,7 +31,6 @@ def get_data(fname):
 
     # ugly fix
     deposit_th_ind = A_deposit < 2.0e-5
-    #deposit_th_ind = A_raw < 4.0
     A_pdg[deposit_th_ind] = 0
     tracks = A_pdg.copy()
     showers = A_pdg.copy()
@@ -55,12 +54,6 @@ def read_config():
     OUTPUT_DIR = config['prepare_data']['output_dir']
     PATCH_SIZE = config['prepare_data']['patch_size']
     return INPUT_DIR, OUTPUT_DIR, PATCH_SIZE
-
-def prepare_signal(db):
-    db[db < 0.0] = 0.0
-    db[db > 70] = 70.0
-    db /= 10.0
-    return db
 
 def main(argv):
 

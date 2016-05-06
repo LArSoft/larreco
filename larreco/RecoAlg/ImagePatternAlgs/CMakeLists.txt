@@ -41,6 +41,7 @@ simple_plugin(PointIdEffTest "module"
 			${ROOT_BASIC_LIB_LIST}
 )
 
+add_subdirectory(MLP)
 add_subdirectory(PointIdAlg)
 
 install_headers()

@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       PointIdAlg
-// Author:      P.Plonski (pplonski..@gmail.com) and R.Sulej (Robert.Sulej@cern.ch), May 2016
+// Author:      P.Plonski (pplonski86@gmail.com) and R.Sulej (Robert.Sulej@cern.ch), May 2016
 //
 // Point Identification Algorithm
 //
@@ -25,23 +25,27 @@
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
+#include "larreco/RecoAlg/ImagePatternAlgs/MLP/NNReader.h"
+
 // ROOT & C++
 #include <memory>
 
 namespace nnet
 {
+	class DataProviderAlg;
 	class PointIdAlg;
 	class TrainingDataAlg;
 }
 
-class nnet::PointIdAlg
+/// Base class providing data for training / running classifiers.
+class nnet::DataProviderAlg
 {
 public:
 
-	PointIdAlg(const fhicl::ParameterSet& pset);
-	virtual ~PointIdAlg(void);
+	DataProviderAlg(const fhicl::ParameterSet& pset);
+	virtual ~DataProviderAlg(void);
 
-	virtual void reconfigure(const fhicl::ParameterSet& p);  // read-in nnet, setup patch buffer, ...
+	virtual void reconfigure(const fhicl::ParameterSet& p);  // setup patch buffer, ...
 
 	bool setWireDriftData(const art::Event& event,   // once per view: setup ADC buffer, collect & downscale ADC's
 		unsigned int view, unsigned int tpc, unsigned int cryo);
@@ -58,9 +62,6 @@ public:
 	unsigned int NWires(void) const { return fNWires; }
 	unsigned int NScaledDrifts(void) const { return fNScaledDrifts; }
 
-	float predictIdValue(unsigned int wire, float drift) const;  // calculate single-value prediction (2-class probability) for [wire, drift] point
-	std::vector<float> predictIdVector(unsigned int wire, float drift) const;  // calculate multi-class probabilities for [wire, drift] point
-
 protected:
 	unsigned int fCryo, fTPC, fView;
 	unsigned int fNWires, fNDrifts, fNScaledDrifts;
@@ -75,12 +76,12 @@ protected:
 	bool bufferPatch(size_t wire, size_t drift) const;
 
 	bool setWireData(std::vector<float> const & adc, size_t wireIdx);
+	float scaleAdcSample(float val) const;
 
 	virtual void resizeView(size_t wires, size_t drifts);
 	void resizePatch(void);
 
 	std::string fWireProducerLabel;
-	std::string fNNetModelFilePath;
 
 	// Calorimetry needed to equalize ADC amplitude along drift:
 	calo::CalorimetryAlg  fCalorimetryAlg;
@@ -90,7 +91,30 @@ protected:
 	detinfo::DetectorProperties const* fDetProp;
 };
 
-class nnet::TrainingDataAlg : public nnet::PointIdAlg
+class nnet::PointIdAlg : public nnet::DataProviderAlg
+{
+public:
+
+	PointIdAlg(const fhicl::ParameterSet& pset);
+	virtual ~PointIdAlg(void);
+
+	virtual void reconfigure(const fhicl::ParameterSet& p) override;  // read-in nnet
+
+	float predictIdValue(unsigned int wire, float drift) const;  // calculate single-value prediction (2-class probability) for [wire, drift] point
+	std::vector<float> predictIdVector(unsigned int wire, float drift) const;  // calculate multi-class probabilities for [wire, drift] point
+
+private:
+	std::string fNNetModelFilePath;
+
+	// CNN and MLP models:
+	nnet::NNReader* fMLP;
+	void deleteMLP(void) { if (fMLP) delete fMLP; fMLP = 0; }
+
+	void* fCNN; // to be defined..
+	void deleteCNN(void) { fCNN = 0; } // { if (fCNN) delete fCNN; fCNN = 0; }
+};
+
+class nnet::TrainingDataAlg : public nnet::DataProviderAlg
 {
 public:
 

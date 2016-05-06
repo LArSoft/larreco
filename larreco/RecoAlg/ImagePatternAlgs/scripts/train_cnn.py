@@ -43,9 +43,6 @@ for evt_no in range(1,TOTAL_EVENTS+1):
 print 'Total data', db.shape, db_y.shape, 'test_split', test_split
 print 'Tracks', np.sum(db_y == 1), 'showers', np.sum(db_y == 0)
 
-# very ugly ADC scaling
-db = prepare_signal(db)
-
 # split between tran and test sets
 X_train = db[:test_split]
 X_test  = db[test_split:]
@@ -56,7 +53,7 @@ print 'Train', X_train.shape, 'test', X_test.shape
 
 batch_size = 256 #128
 nb_classes = int(2)
-nb_epoch = 3
+nb_epoch = 100 ## 1000
 # input image dimensions
 img_rows, img_cols = PATCH_SIZE, PATCH_SIZE
 # number of convolutional filters to use
@@ -102,5 +99,5 @@ score = model.evaluate(X_test, Y_test, verbose=0)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])
 
-#save_model(model, '../cnn_models/run70tr30tst100epoch')
+save_model(model, '../cnn_models/test')
 
