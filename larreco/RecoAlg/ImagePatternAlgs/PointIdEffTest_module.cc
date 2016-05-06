@@ -81,28 +81,32 @@ private:
 
   // Declare member data here.
 
-	void GetMCParticle(float fraction, int pdg);
+	int GetMCParticle(std::vector< art::Ptr<recob::Hit> > const & hits);
 
-	void GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits);
+	void GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, bool mcshower);
 
 	void TestEffParticle();
 
 	int fRun;
 	int fEvent;
 
+	int fShower;
+	int fTrack;
+
 	double fElectronsToGeV;
 	int fSimTrackID;
-	int fSimPDG;
+	float fIdValue;
 
 	TH1D* fHist;
-
 	TTree *fTree;
+	TTree *fOutShHist;
+	TTree *fOutTrkHist;
 
 	nnet::PointIdAlg fPointIdAlg;
 
 	geo::GeometryCore const* fGeometry;
 
-	std::map< int, const simb::MCParticle* > particleMap;
+	std::map< int, const simb::MCParticle* > fParticleMap;
 
 	art::Handle< std::vector<simb::MCParticle> > fParticleHandle;
 	art::Handle< std::vector<sim::SimChannel> > fSimChannelHandle;
@@ -133,6 +137,8 @@ void nnet::PointIdEffTest::reconfigure(fhicl::ParameterSet const & p)
 nnet::PointIdEffTest::PointIdEffTest(fhicl::ParameterSet const & p)
   :
   EDAnalyzer(p),
+	fShower(0),
+	fTrack(1),
  	fPointIdAlg(p.get< fhicl::ParameterSet >("PointIdAlg"))
 {
 	fGeometry = &*(art::ServiceHandle<geo::Geometry>());
@@ -153,7 +159,9 @@ void nnet::PointIdEffTest::beginJob()
 	fHist = tfs->make<TH1D>("efficiency-purity",";efficiency-purity;",100, 0.,    0.);
 
 	fTree = tfs->make<TTree>("efficiency","efficiency tree");
-	// fTree->Branch("fEkinreco", &fEkinreco, "fEkinreco/D");
+
+	fOutShHist->Branch("ValueId for shower", &fIdValue, "fIdValue/F");
+	fOutTrkHist->Branch("ValueId for track", &fIdValue, "fIdValue/F");
 }
 
 void nnet::PointIdEffTest::analyze(art::Event const & e)
@@ -162,7 +170,8 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
 	fRun = e.run();
 	fEvent = e.id().event();
-	fSimTrackID = -1; fSimPDG = -1;
+	fSimTrackID = -1; 
+	fIdValue = -1;
 	fClMap.clear();
 
 	// access to MC information
@@ -176,9 +185,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	for ( auto const& particle : (*fParticleHandle) )
 	{
 		fSimTrackID = particle.TrackId();
-		particleMap[fSimTrackID] = &particle;
-
-		fSimPDG = particle.PdgCode();
+		fParticleMap[fSimTrackID] = &particle;
 	}
 
 	// simChannel
@@ -191,7 +198,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	if (e.getByLabel(fHitsModuleLabel, fHitListHandle))
 		art::fill_ptr_vector(fHitlist, fHitListHandle);
 
-	// cluster
+	// clusters
 	if (e.getByLabel(fClusterModuleLabel, fClusterListHandle))
 		art::fill_ptr_vector(fClusterlist, fClusterListHandle);
  
@@ -223,15 +230,19 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
 				for (auto const& h : v.second)
 				{  
-					GetRecoParticle(h);
+					bool mcshower = false; 
+					if (GetMCParticle(h) == fShower) mcshower = true;
+						
+					GetRecoParticle(h, mcshower);
 				}
 			}
 		}
 	}	
 }
 
-/// w argumencie podamy wektor hitow danego klastra
-void nnet::PointIdEffTest::GetMCParticle(float fraction, int pdg )
+/******************************************/
+
+int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > const & hits)
 {
 	// in argument vector hitow danego klastra
 
@@ -239,10 +250,11 @@ void nnet::PointIdEffTest::GetMCParticle(float fraction, int pdg )
 	int nhitssh = 0; int nhitstrk = 0;
 
 	// for every hit:
-	for ( auto const& hit : (*fHitListHandle) )
+	// for ( auto const& hit : (*fHitListHandle) )
+	for ( auto const& hit: hits)
 	{
 		// the channel associated with this hit.
-		auto hitChannelNumber = hit.Channel();
+		auto hitChannelNumber = hit->Channel();
 
 		for ( auto const& channel : (*fSimChannelHandle) )
 		{
@@ -255,7 +267,7 @@ void nnet::PointIdEffTest::GetMCParticle(float fraction, int pdg )
 			for ( auto const& timeSlice : timeSlices )
 			{
 				int time = timeSlice.first;
-				if ( std::abs(hit.TimeDistanceAsRMS(time) ) < 1.0 )
+				if ( std::abs(hit->TimeDistanceAsRMS(time) ) < 1.0 )
 				{
 
 					// loop over the energy deposits.
@@ -263,42 +275,60 @@ void nnet::PointIdEffTest::GetMCParticle(float fraction, int pdg )
 		
 					for ( auto const& energyDeposit : energyDeposits )
 					{
-						auto search = particleMap.find( energyDeposit.trackID );
-						if ( search == particleMap.end() ) continue;
+						auto search = fParticleMap.find( energyDeposit.trackID );
+						if ( search == fParticleMap.end() ) continue;
 						int trackID = (*search).first;
 
 						const simb::MCParticle& particle = *((*search).second);
 						double energy = energyDeposit.numElectrons * fElectronsToGeV;
-						// test it is shower type	
-						if ( (trackID < 0) && (particle.PdgCode() == pdg) )
+						// test if it is shower type	
+						int pdg = particle.PdgCode();
+						if (trackID < 0)
 						{
 							ensh += energy;
 							nhitssh++;
 						}
-						else
+						else if ((pdg == 11) || (pdg == -11) || (pdg == 22))
+						{
+							ensh += energy;
+							nhitssh++;
+						}
+						else if (trackID >= 0)
 						{
 							entrk += energy;
 							nhitstrk++;
 						}
-
-					}		
+					}
 				}
 			}
 		}
 	}
+
+	int result = fTrack; 
+	if (ensh > entrk) result = fShower;
+
+	return result;
 }
 
-void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits)
+/******************************************/
+
+void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, bool mcshower)
 {
 	for ( auto const& hit : hits)
 	{
-		fPointIdAlg.predictIdValue(hit->WireID().Wire, hit->PeakTime());
+		fIdValue = fPointIdAlg.predictIdValue(hit->WireID().Wire, hit->PeakTime());
+		if (mcshower)	fOutShHist->Fill();
+		else fOutTrkHist->Fill();
 	}
 }
 
+/******************************************/
+
 void nnet::PointIdEffTest::TestEffParticle()
 {
+		// to be filled.
 }
 
+/******************************************/
 
 DEFINE_ART_MODULE(nnet::PointIdEffTest)
