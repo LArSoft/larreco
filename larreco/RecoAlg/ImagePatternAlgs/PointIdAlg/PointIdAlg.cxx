@@ -254,7 +254,7 @@ void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
 }
 // ------------------------------------------------------
 
-float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift) const
+float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift, size_t outIdx) const
 {
 	float result = 0.;
 
@@ -267,12 +267,13 @@ float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift) const
 	if (fMLP)
 	{
 		auto input = patchData1D();
-		if (input.size() == fMLP->GetInputLength())
+		if ((input.size() == fMLP->GetInputLength()) &&
+		    ((int)outIdx < fMLP->GetOutputLength()))
 		{
 			fMLP->Run(input);
-			result = fMLP->GetOneOutput(0);
+			result = fMLP->GetOneOutput(outIdx);
 		}
-		else mf::LogError("PointIdAlg") << "Patch size does not match MLP model.";
+		else mf::LogError("PointIdAlg") << "Patch size or output index does not match MLP model.";
 	}
 	else if (fCNN)
 	{
