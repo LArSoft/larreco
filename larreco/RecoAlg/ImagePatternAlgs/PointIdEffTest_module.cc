@@ -83,7 +83,7 @@ private:
 
 	int GetMCParticle(std::vector< art::Ptr<recob::Hit> > const & hits);
 
-	void GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, bool mcshower);
+	void GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, int mctype);
 
 	void TestEffParticle();
 
@@ -223,14 +223,14 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 			{
 				unsigned int view = v.first;
 				
-				fPointIdAlg.setWireDriftData(e, view, tpc, cryo);
+				if (view == geo::kZ)
+				{
+					fPointIdAlg.setWireDriftData(e, view, tpc, cryo);
 
-				for (auto const& h : v.second)
-				{  
-					bool mcshower = false; 
-					if (GetMCParticle(h) == fShower) mcshower = true;
-						
-					GetRecoParticle(h, mcshower);
+					for (auto const& h : v.second)
+					{  
+						GetRecoParticle(h, GetMCParticle(h));
+					}
 				}
 			}
 		}
@@ -278,7 +278,8 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 						int trackID = (*search).first;
 
 						const simb::MCParticle& particle = *((*search).second);
-						double energy = energyDeposit.numElectrons * fElectronsToGeV;
+						double energy = energyDeposit.numElectrons * fElectronsToGeV * 1000;
+						
 						// test if it is shower type	
 						int pdg = particle.PdgCode();
 						if (trackID < 0)
@@ -291,7 +292,7 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 							ensh += energy;
 							nhitssh++;
 						}
-						else if (trackID >= 0)
+						else if (trackID > 0)
 						{
 							entrk += energy;
 							nhitstrk++;
@@ -302,21 +303,30 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 		}
 	}
 
-	int result = fTrack; 
-	if (ensh > entrk) result = fShower;
+	int result = -1; 
+	if (ensh > entrk) 
+	{
+		result = fShower;
+	}
+	else if (entrk > ensh)
+	{
+		result = fTrack;
+	}
 
 	return result;
 }
 
 /******************************************/
 
-void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, bool mcshower)
+void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, int mctype)
 {
 	for ( auto const& hit : hits)
 	{
 		float pidvalue = fPointIdAlg.predictIdValue(hit->WireID().Wire, hit->PeakTime());
-		if (mcshower)	{ fOutSh = pidvalue; fOutTrk = -1; }
-		else { fOutTrk = pidvalue; fOutSh = -1; }
+		if (mctype == fShower)	{ fOutSh = pidvalue; fOutTrk = -1; }
+		else if (mctype == fTrack) { fOutTrk = pidvalue; fOutSh = -1; }
+
+		// std::cout << " mctype " << mctype << " pidvalue " << pidvalue << std::endl;
 	
 		fTree->Fill();
 	}
