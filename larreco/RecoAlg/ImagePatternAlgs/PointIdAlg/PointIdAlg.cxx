@@ -200,7 +200,7 @@ bool nnet::DataProviderAlg::bufferPatch(size_t wire, size_t drift) const
 std::vector<float> nnet::DataProviderAlg::patchData1D(void) const
 {
 	std::vector<float> flat;
-	flat.reserve(fPatchSize * fPatchSize);
+	flat.resize(fPatchSize * fPatchSize);
 
 	for (size_t w = 0, i = 0; w < fWireDriftPatch.size(); ++w)
 	{
