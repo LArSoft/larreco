@@ -7,6 +7,7 @@ standard_pointidtrainingdata:
     module_type:     "PointIdTrainingData"
 
     SelectedTPC:     []
+	SelectedView:    []
     OutTextFilePath: "."
 
     TrainingDataAlg:  @local::standard_trainingdataalg
