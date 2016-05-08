@@ -166,7 +166,7 @@ bool nnet::DataProviderAlg::bufferPatch(size_t wire, size_t drift) const
 	fCurrentWireIdx = wire;
 	fCurrentScaledDrift = drift / fDriftWindow;
 
-	int halfSize = fDriftWindow / 2;
+	int halfSize = fPatchSize / 2;
 
 	int w0 = fCurrentWireIdx - halfSize;
 	if (w0 < 0) w0 = 0;

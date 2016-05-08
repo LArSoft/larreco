@@ -325,6 +325,7 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 		float pidvalue = fPointIdAlg.predictIdValue(hit->WireID().Wire, hit->PeakTime());
 		if (mctype == fShower)	{ fOutSh = pidvalue; fOutTrk = -1; }
 		else if (mctype == fTrack) { fOutTrk = pidvalue; fOutSh = -1; }
+		else continue;
 
 		// std::cout << " mctype " << mctype << " pidvalue " << pidvalue << std::endl;
 	
