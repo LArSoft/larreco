@@ -295,6 +295,15 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 
 	if (fMLP)
 	{
+		auto input = patchData1D();
+		result.resize(fMLP->GetOutputLength());
+		if (input.size() == fMLP->GetInputLength())
+		{
+			fMLP->Run(input);
+			for (size_t o = 0; o < result.size(); ++o)
+				result[o] = fMLP->GetOneOutput(o);
+		}
+		else mf::LogError("PointIdAlg") << "Patch size does not match MLP model.";
 	}
 	else if (fCNN)
 	{
