@@ -2,7 +2,123 @@
 
 namespace tca {
   
+  /////////////////////////////////////////
+  bool SignalPresent(TjStuff& tjs, TrajPoint const& tp, float minAmp)
+  {
+    return SignalPresent(tjs, tp.Pos[1], tp.Pos[0], tp.Pos[1], tp.Pos[0], tp.CTP, minAmp);
+  }
   
+  /////////////////////////////////////////
+  bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp)
+  {
+    unsigned int w1 = std::nearbyint(wire1);
+    unsigned int w2 = std::nearbyint(tp.Pos[0]);
+    return SignalPresent(tjs, w1, time1, w2, tp.Pos[1], tp.CTP, minAmp);
+  }
+  
+  /////////////////////////////////////////
+  bool SignalPresent(TjStuff& tjs, float wire1, float time1, float wire2, float time2, CTP_t pCTP, float minAmp)
+  {
+    unsigned int w1 = std::nearbyint(wire1);
+    unsigned int w2 = std::nearbyint(wire2);
+    return SignalPresent(tjs, w1, time1, w2, time2, pCTP, minAmp);
+  } // SignalPresent
+  
+  /////////////////////////////////////////
+  bool SignalPresent(TjStuff& tjs, unsigned int wire1, float time1, unsigned int wire2, float time2, CTP_t pCTP, float minAmp)
+  {
+    // returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
+    
+    // Gaussian amplitude in bins of size 0.15
+    const float gausAmp[20] = {1, 0.99, 0.96, 0.90, 0.84, 0.75, 0.67, 0.58, 0.49, 0.40, 0.32, 0.26, 0.20, 0.15, 0.11, 0.08, 0.06, 0.04, 0.03, 0.02};
+    
+    // convert time to tick
+    time1 /= tjs.UnitsPerTick;
+    time2 /= tjs.UnitsPerTick;
+    //    mf::LogVerbatim("TC")<<"SignalPresent: check "<<wire1<<":"<<(int)time1<<" to "<<wire2<<":"<<(int)time2;
+    
+    // get the begin and end right
+    unsigned int wireb = wire1;
+    float timeb = time1;
+    unsigned int wiree = wire2;
+    float timee = time2;
+    // swap them?
+    if(wiree > wireb) {
+      wireb = wire2;
+      timeb = time2;
+      wiree = wire1;
+      timee = time1;
+    }
+    
+    geo::PlaneID planeID = DecodeCTP(pCTP);
+    unsigned int ipl = planeID.Plane;
+    
+    if(wiree < tjs.FirstWire[ipl] || wiree > tjs.LastWire[ipl]) return false;
+    if(wireb < tjs.FirstWire[ipl] || wireb > tjs.LastWire[ipl]) return false;
+    
+    int wire0 = wiree;
+    // checking a single wire?
+    float slope = 0;
+    bool oneWire = false;
+    float prTime, prTimeLo = 0, prTimeHi = 0;
+    if(wireb == wiree) {
+      oneWire = true;
+      if(time1 < time2) {
+        prTimeLo = time1;
+        prTimeHi = time2;
+      } else {
+        prTimeLo = time2;
+        prTimeHi = time1;
+      }
+    } else {
+      slope = (timeb - timee) / (wireb - wiree);
+    }
+
+    
+    int bin;
+    for(unsigned int wire = wiree; wire < wireb + 1; ++wire) {
+      if(oneWire) {
+        prTime = (prTimeLo + prTimeHi) / 2;
+      } else {
+        prTime = timee + (wire - wire0) * slope;
+      }
+      // skip dead wires
+      if(tjs.WireHitRange[ipl][wire].first == -1) continue;
+      // no hits on this wire
+      if(tjs.WireHitRange[ipl][wire].first == -2) return false;
+      unsigned int firsthit = tjs.WireHitRange[ipl][wire].first;
+      unsigned int lasthit = tjs.WireHitRange[ipl][wire].second;
+      //      mf::LogVerbatim("TC")<<" wire "<<wire<<" Hit range "<<firsthit<<" "<<lasthit<<" prTime "<<prTime;
+      float amp = 0;
+      for(unsigned int khit = firsthit; khit < lasthit; ++khit) {
+        //        mf::LogVerbatim("TC")<<"  hit "<<PrintHit(tjs.fHits[khit])<<" rms "<<tjs.fHits[khit]->RMS()<<" amp "<<(int)tjs.fHits[khit]->PeakAmplitude()<<" StartTick "<<tjs.fHits[khit]->StartTick()<<" EndTick "<<tjs.fHits[khit]->EndTick();
+        if(oneWire) {
+          // TODO: This sometimes doesn't work with overlapping hits
+          //            if(prTimeHi > tjs.fHits[khit].EndTick()) continue;
+          //            if(prTimeLo < tjs.fHits[khit].StartTick()) continue;
+          // A not totally satisfactory solution
+          if(prTime < tjs.fHits[khit]->StartTick()) continue;
+          if(prTime > tjs.fHits[khit]->EndTick()) continue;
+          return true;
+        } else {
+          // skip checking if we are far away from prTime on the positive side
+          if(tjs.fHits[khit]->PeakTime() - prTime > 500) continue;
+          bin = std::abs(tjs.fHits[khit]->PeakTime() - prTime) / tjs.fHits[khit]->RMS();
+          bin /= 0.15;
+          if(bin > 19) continue;
+          if(bin < 0) continue;
+          //          mf::LogVerbatim("CC")<<"  bin "<<bin<<" add "<<tjs.fHits[khit]->PeakAmplitude() * gausAmp[bin]<<" to amp "<<amp;
+          // add amplitude from all hits
+          amp += tjs.fHits[khit]->PeakAmplitude() * gausAmp[bin];
+        }
+      } // khit
+      //      mf::LogVerbatim("TC")<<"Amp "<<amp<<" fMinAmp "<<fMinAmp;
+      if(amp < minAmp) return false;
+    } // wire
+    return true;
+    
+  } // SignalPresent
+
   ////////////////////////////////////////////////
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
   {
@@ -89,7 +205,7 @@ namespace tca {
     tj.AlgMod[kSplitTraj] = true;
     if(prt) {
       mf::LogVerbatim("TC")<<"Splittjs.allTraj: itj "<<tj.ID<<" EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
-      PrintTrajectory(tjs, tjs.allTraj[itj], USHRT_MAX);
+//      PrintTrajectory(tjs, tjs.allTraj[itj], USHRT_MAX);
     }
     
     // Append 3 points from the end of tj onto the
@@ -114,7 +230,7 @@ namespace tca {
     tjs.allTraj.push_back(newTj);
     if(prt) {
       mf::LogVerbatim("TC")<<"Splittjs.allTraj: NewTj "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
-      PrintTrajectory(tjs, newTj, USHRT_MAX);
+//      PrintTrajectory(tjs, newTj, USHRT_MAX);
     }
     return true;
     
@@ -453,10 +569,15 @@ namespace tca {
       } // iv
     } // tjs.vtx.size
     
+    if(tjs.allTraj.empty()) {
+      mf::LogVerbatim("TC")<<"No allTraj trajectories to print";
+      return;
+    }
+    
     // Print all trajectories in tjs.allTraj if itj == USHRT_MAX
     // Print a single traj (itj) and a single TP (ipt) or all TPs (USHRT_MAX)
     unsigned short endPt;
-    unsigned int iht;
+//    unsigned int iht;
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
@@ -498,10 +619,19 @@ namespace tca {
         myprt<<std::setw(6)<<aTj.TruPDG;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(5)<<(int)aTj.TruKE;
+        // print the seed hit that started this trajectory
+        if(aTj.StepDir > 0) {
+          if(aTj.Pts[0].Chg == 0) myprt<<" "<<PrintPos(tjs, aTj.Pts[0]);
+        } else {
+          endPt = aTj.EndPt[1];
+          if(aTj.Pts[0].Chg == 0) myprt<<" "<<PrintPos(tjs, aTj.Pts[endPt]);
+        }
+/*
         if(!aTj.Pts[0].Hits.empty()) {
           iht = aTj.Pts[0].Hits[0];
           myprt<<" "<<PrintHit(tjs.fHits[iht]);
         }
+*/
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         myprt<<"\n";
       } // ii
