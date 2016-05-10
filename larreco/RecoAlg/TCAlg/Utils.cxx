@@ -569,6 +569,11 @@ namespace tca {
       } // iv
     } // tjs.vtx.size
     
+    if(tjs.allTraj.empty()) {
+      mf::LogVerbatim("TC")<<"No allTraj trajectories to print";
+      return;
+    }
+    
     // Print all trajectories in tjs.allTraj if itj == USHRT_MAX
     // Print a single traj (itj) and a single TP (ipt) or all TPs (USHRT_MAX)
     unsigned short endPt;
