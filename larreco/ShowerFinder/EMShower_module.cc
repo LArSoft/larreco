@@ -66,6 +66,7 @@ private:
   std::string fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel;
   EMShowerAlg fEMShowerAlg;
   bool fSaveNonCompleteShowers;
+  bool fFindBadPlanes;
 
   art::ServiceHandle<geo::Geometry> fGeom;
   detinfo::DetectorProperties const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -91,6 +92,7 @@ void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
   fClusterModuleLabel     = p.get<std::string>("ClusterModuleLabel");
   fTrackModuleLabel       = p.get<std::string>("TrackModuleLabel");
   fPFParticleModuleLabel  = p.get<std::string>("PFParticleModuleLabel","");
+  fFindBadPlanes          = p.get<bool>       ("FindBadPlanes","true");
   fSaveNonCompleteShowers = p.get<bool>       ("SaveNonCompleteShowers","true");
   fShower = p.get<int>("Shower",-1);
   fPlane = p.get<int>("Plane",-1);
@@ -155,7 +157,9 @@ void shower::EMShower::produce(art::Event& evt) {
     std::vector<std::vector<int> > initialShowers = fEMShowerAlg.FindShowers(trackToClusters);
 
     // Deal with views in which 2D reconstruction failed
-    std::vector<int> clustersToIgnore = fEMShowerAlg.CheckShowerPlanes(initialShowers, clusters, fmh);
+    std::vector<int> clustersToIgnore;
+    if (fFindBadPlanes)
+      clustersToIgnore = fEMShowerAlg.CheckShowerPlanes(initialShowers, clusters, fmh);
     if (clustersToIgnore.size() > 0) {
       clusterToTracks.clear();
       trackToClusters.clear();

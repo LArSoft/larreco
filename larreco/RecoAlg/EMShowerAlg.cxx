@@ -1910,7 +1910,8 @@ double shower::EMShowerAlg::ShowerHitRMSGradient(const std::vector<art::Ptr<reco
   double sumx=0., sumy=0., sumx2=0., sumxy=0., sumweight = 0.;
   for (std::vector<std::pair<int,double> >::iterator binVsRMSIt = binVsRMS.begin(); binVsRMSIt != binVsRMS.end(); ++binVsRMSIt) {
     //double weight = showerSegments.at(binVsRMSIt->first).size();
-    double weight = TMath::Power(segmentCharge.at(binVsRMSIt->first),2);
+    //double weight = 1;
+    double weight = segmentCharge.at(binVsRMSIt->first);
     sumweight += weight;
     sumx += weight * binVsRMSIt->first;
     sumy += weight * binVsRMSIt->second;
