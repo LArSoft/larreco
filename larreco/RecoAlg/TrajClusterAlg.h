@@ -110,7 +110,6 @@ namespace tca {
     
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
-    bool fMerge;
     bool fStudyMode;       ///< study cuts
     bool fShowerStudy;    ///< study shower identification cuts
     short fShowerPrtPlane; ///< set to plane number to print out
