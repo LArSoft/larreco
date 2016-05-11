@@ -62,6 +62,8 @@ public:
 	unsigned int NWires(void) const { return fNWires; }
 	unsigned int NScaledDrifts(void) const { return fNScaledDrifts; }
 
+	bool isInsideFiducialRegion(unsigned int wire, float drift) const;
+
 protected:
 	unsigned int fCryo, fTPC, fView;
 	unsigned int fNWires, fNDrifts, fNScaledDrifts;
@@ -73,7 +75,7 @@ protected:
 	size_t fDriftWindow, fPatchSize;
 
 	mutable size_t fCurrentWireIdx, fCurrentScaledDrift;
-	bool bufferPatch(size_t wire, size_t drift) const;
+	bool bufferPatch(size_t wire, float drift) const;
 
 	bool setWireData(std::vector<float> const & adc, size_t wireIdx);
 	float scaleAdcSample(float val) const;

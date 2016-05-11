@@ -158,13 +158,14 @@ bool nnet::DataProviderAlg::setWireDriftData(const art::Event& event,
 }
 // ------------------------------------------------------
 
-bool nnet::DataProviderAlg::bufferPatch(size_t wire, size_t drift) const
+bool nnet::DataProviderAlg::bufferPatch(size_t wire, float drift) const
 {
-	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == drift / fDriftWindow))
+	size_t sd = (size_t)(drift / fDriftWindow);
+	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == sd))
 		return true; // still within the current position
 
 	fCurrentWireIdx = wire;
-	fCurrentScaledDrift = drift / fDriftWindow;
+	fCurrentScaledDrift = sd;
 
 	int halfSize = fPatchSize / 2;
 
@@ -213,6 +214,16 @@ std::vector<float> nnet::DataProviderAlg::patchData1D(void) const
 }
 // ------------------------------------------------------
 
+bool nnet::DataProviderAlg::isInsideFiducialRegion(unsigned int wire, float drift) const
+{
+	size_t halfPatch = fPatchSize / 2;
+	size_t scaledDrift = (size_t)(drift / fDriftWindow);
+	if ((wire >= halfPatch) && (wire < fNWires - halfPatch) &&
+	    (scaledDrift >= halfPatch) && (scaledDrift < fNScaledDrifts - halfPatch)) return true;
+	else return false;
+}
+// ------------------------------------------------------
+
 // ------------------------------------------------------
 // --------------------PointIdAlg------------------------
 // ------------------------------------------------------
@@ -258,7 +269,7 @@ float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift, size_t ou
 {
 	float result = 0.;
 
-	if (!bufferPatch(wire, (size_t)drift))
+	if (!bufferPatch(wire, drift))
 	{
 		mf::LogError("PointIdAlg") << "Patch buffering failed.";
 		return result;
@@ -287,7 +298,7 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 {
 	std::vector<float> result;
 
-	if (!bufferPatch(wire, (size_t)drift))
+	if (!bufferPatch(wire, drift))
 	{
 		mf::LogError("PointIdAlg") << "Patch buffering failed.";
 		return result;
