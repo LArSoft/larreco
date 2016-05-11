@@ -44,6 +44,9 @@
 #include "TLorentzVector.h"
 #include "TVector3.h"
 
+#include <iostream>
+#include <fstream>
+
 #include <cmath>
 
 namespace nnet
@@ -92,13 +95,25 @@ private:
 
 	int fShower;
 	int fTrack;
+	int fMCpid;
+	int fClsize;
+	int fRecoPid;
+	int fPure;
+	
+
+	int fTrkOk;
+	int fTrkB;
+	int fShOk;
+	int fShB;
+	int fNone;
+	int fTotal;
 
 	double fElectronsToGeV;
 	int fSimTrackID;
 	float fOutTrk;
 	float fOutSh;
 
-	TTree *fTree;
+	TTree *fTree, *fTreecl;
 
 	nnet::PointIdAlg fPointIdAlg;
 
@@ -137,6 +152,13 @@ nnet::PointIdEffTest::PointIdEffTest(fhicl::ParameterSet const & p)
   EDAnalyzer(p),
 	fShower(0),
 	fTrack(1),
+	fMCpid(-1),
+	fClsize(0),
+	fRecoPid(-1),
+	fTrkOk(0),
+	fTrkB(0),
+	fShOk(0),
+	fShB(0), fNone(0), fTotal(0),
  	fPointIdAlg(p.get< fhicl::ParameterSet >("PointIdAlg"))
 {
 	fGeometry = &*(art::ServiceHandle<geo::Geometry>());
@@ -154,10 +176,15 @@ void nnet::PointIdEffTest::beginJob()
 	// access art's TFileService, which will handle creating and writing hists
 	art::ServiceHandle<art::TFileService> tfs;
 
-	fTree = tfs->make<TTree>("efficiency","efficiency tree");
+	fTree = tfs->make<TTree>("hit","hit tree");
 
 	fTree->Branch("fOutSh", &fOutSh, "fOutSh/F");
 	fTree->Branch("fOutTrk", &fOutTrk, "fOutTrk/F");
+
+	fTreecl = tfs->make<TTree>("cluster","cluster tree");
+	fTreecl->Branch("fMCpid", &fMCpid, "fMCpid/I");
+	fTreecl->Branch("fClsize", &fClsize, "fClsize/I");
+	fTreecl->Branch("fRecoPid", &fRecoPid, "fRecoPid/I");
 }
 
 void nnet::PointIdEffTest::analyze(art::Event const & e)
@@ -229,7 +256,9 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
 					for (auto const& h : v.second)
 					{  
-						GetRecoParticle(h, GetMCParticle(h));
+						int mctype = GetMCParticle(h); // mctype == -1 : problem with simchannel
+						if (mctype > -1)
+							GetRecoParticle(h, mctype);
 					}
 				}
 			}
@@ -245,8 +274,7 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 	// in argument vector hitow danego klastra
 
 	double ensh = 0.; double entrk = 0.;
-	int nhitssh = 0; int nhitstrk = 0;
-
+	
 	// for every hit:
 	// for ( auto const& hit : (*fHitListHandle) )
 	for ( auto const& hit: hits)
@@ -267,35 +295,38 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 				int time = timeSlice.first;
 				if ( std::abs(hit->TimeDistanceAsRMS(time) ) < 1.0 )
 				{
-
 					// loop over the energy deposits.
 					auto const& energyDeposits = timeSlice.second;
 		
 					for ( auto const& energyDeposit : energyDeposits )
 					{
-						auto search = fParticleMap.find( energyDeposit.trackID );
-						if ( search == fParticleMap.end() ) continue;
-						int trackID = (*search).first;
+						int trackID = energyDeposit.trackID;
 
-						const simb::MCParticle& particle = *((*search).second);
 						double energy = energyDeposit.numElectrons * fElectronsToGeV * 1000;
-						
-						// test if it is shower type	
-						int pdg = particle.PdgCode();
+
 						if (trackID < 0)
 						{
 							ensh += energy;
-							nhitssh++;
-						}
-						else if ((pdg == 11) || (pdg == -11) || (pdg == 22))
-						{
-							ensh += energy;
-							nhitssh++;
 						}
 						else if (trackID > 0)
 						{
-							entrk += energy;
-							nhitstrk++;
+							auto search = fParticleMap.find(trackID);
+							bool found = true;
+							if (search == fParticleMap.end())
+							{
+								mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
+								found = false;
+							}
+						
+							int pdg = 0;
+							if (found)
+							{
+								const simb::MCParticle& particle = *((*search).second);
+								if (!pdg) pdg = particle.PdgCode(); // not EM activity so read what PDG it is
+							}
+
+							if ((pdg == 11) || (pdg == -11) || (pdg == 22)) ensh += energy;
+							else entrk += energy;
 						}
 					}
 				}
@@ -320,18 +351,55 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 
 void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, int mctype)
 {
+	fMCpid = mctype;
+	fClsize = hits.size();
+	float mid = 0.5; size_t nhitsshs = 0; size_t nhitstrks = 0;
+	
 	for ( auto const& hit : hits)
 	{
 		float pidvalue = fPointIdAlg.predictIdValue(hit->WireID().Wire, hit->PeakTime());
 		if (mctype == fShower)	{ fOutSh = pidvalue; fOutTrk = -1; }
 		else if (mctype == fTrack) { fOutTrk = pidvalue; fOutSh = -1; }
 		else continue;
-
-		// std::cout << " mctype " << mctype << " pidvalue " << pidvalue << std::endl;
 	
+		if (pidvalue < mid) nhitsshs++;
+		else nhitstrks++;
+
 		fTree->Fill();
 	}
+
+	if (nhitsshs > nhitstrks) fRecoPid = fShower;
+	else if (nhitsshs <= nhitstrks) fRecoPid = fTrack;
+	else fRecoPid = -1;
+
+	if ((fRecoPid == fShower) && (mctype == fShower))
+	{
+		fShOk++;
+	}
+	else if ((fRecoPid == fTrack) && (mctype == fTrack))
+	{
+		fTrkOk++;
+	}	
+	else if ((fRecoPid == fShower) && (mctype == fTrack))
+	{
+		fTrkB++;
+	}
+	else if ((fRecoPid == fTrack) && (mctype == fShower))
+	{
+		fShB++;
+	}
+	else
+	{
+		fNone++;
+	}	
+
+	fTotal++;
 	
+	std::cout << " fShOk " << fShOk << " fTrkOk " << fTrkOk << std::endl;
+	std::cout << " fShB " << fShB << " fTrkB " << fTrkB << std::endl;
+	std::cout << " fNone " << fNone << " Total " << fTotal << std::endl;
+	
+	fTreecl->Fill();	
 }
 
 /******************************************/
