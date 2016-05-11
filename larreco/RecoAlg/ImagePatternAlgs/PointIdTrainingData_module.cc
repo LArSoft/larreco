@@ -48,6 +48,7 @@ namespace nnet	 {
 	std::string fOutTextFilePath;
 
 	std::vector<int> fSelectedTPC;
+	std::vector<int> fSelectedView;
 
 	int fEvent;     ///< number of the event being processed
 	int fRun;       ///< number of the run being processed
@@ -72,12 +73,23 @@ namespace nnet	 {
 	fTrainingDataAlg.reconfigure(parameterSet.get< fhicl::ParameterSet >("TrainingDataAlg"));
 	fOutTextFilePath = parameterSet.get< std::string >("OutTextFilePath");
 	fSelectedTPC = parameterSet.get< std::vector<int> >("SelectedTPC");
+	fSelectedView = parameterSet.get< std::vector<int> >("SelectedView");
 
 	const size_t TPC_CNT = (size_t)fGeometry->NTPC(0);
 	if (fSelectedTPC.empty())
 	{
 		for (size_t tpc = 0; tpc < TPC_CNT; ++tpc)
 			fSelectedTPC.push_back(tpc);
+	}
+
+	if (fSelectedView.empty())
+	{
+		if (fGeometry->TPC(fSelectedTPC.front(), 0).HasPlane(geo::kU))
+			fSelectedView.push_back((int)geo::kU);
+		if (fGeometry->TPC(fSelectedTPC.front(), 0).HasPlane(geo::kV))
+			fSelectedView.push_back((int)geo::kV);
+		if (fGeometry->TPC(fSelectedTPC.front(), 0).HasPlane(geo::kZ))
+			fSelectedView.push_back((int)geo::kZ);
 	}
   }
 
@@ -96,15 +108,18 @@ namespace nnet	 {
 	std::ofstream fout_raw, fout_deposit, fout_pdg;
 
 	for (size_t i = 0; i < fSelectedTPC.size(); ++i)
+		for (size_t v = 0; v < fSelectedView.size(); ++v)
 	{
 		std::ostringstream ss1;
-		ss1 << fOutTextFilePath << "/raw_" << os.str() << "_tpc_" << fSelectedTPC[i];
+		ss1 << fOutTextFilePath << "/raw_" << os.str()
+			<< "_tpc_" << fSelectedTPC[i]
+			<< "_view_" << fSelectedView[v];
 
 		fout_raw.open(ss1.str() + ".raw");
 		fout_deposit.open(ss1.str() + ".deposit");
 		fout_pdg.open(ss1.str() + ".pdg");
 
-		fTrainingDataAlg.setEventData(event, geo::kZ, fSelectedTPC[i], 0); // kZ is Collection
+		fTrainingDataAlg.setEventData(event, fSelectedView[v], fSelectedTPC[i], 0);
 
 		for (size_t w = 0; w < fTrainingDataAlg.NWires(); ++w)
 		{
