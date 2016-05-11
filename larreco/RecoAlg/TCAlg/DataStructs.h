@@ -165,6 +165,7 @@ namespace tca {
     kComp3DVx,
     kHiEndDelta,
     kHammerVx,
+    kHammerVx2,
     kJunkTj,
     kKilled,
     kStopAtVtx,
@@ -183,11 +184,20 @@ namespace tca {
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
     std::vector<art::Ptr<recob::Hit>> fHits;
+    // vector of pairs of first (.first) and last+1 (.second) hit on each wire
+    // in the range fFirstWire to fLastWire. A value of -2 indicates that there
+    // are no hits on the wire. A value of -1 indicates that the wire is dead
+    std::vector<std::vector< std::pair<int, int>>> WireHitRange;
+    std::vector<unsigned int> NumWires;
+    std::vector<float> MaxPos0;
+    std::vector<float> MaxPos1;
+    float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
+    std::vector<unsigned int> FirstWire;    ///< the first wire with a hit
+    std::vector<unsigned int> LastWire;      ///< the last wire with a hit
     std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
-    float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
     std::vector<std::vector<Trajectory>> trial; ///< vector of all trajectories for all trials in one plane
     std::vector<std::vector<short>> inTrialTraj;
     std::vector<std::vector< VtxStore >> inTrialVtx;

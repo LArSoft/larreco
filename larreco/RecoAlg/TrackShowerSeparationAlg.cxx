@@ -38,8 +38,6 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::
 								     const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
 								     const art::FindManyP<recob::Track>& fmtsp) {
 
-  /// Attempt to identify tracks in the event by using the centre of the event
-
   // Find the charge weighted centre of the entire event!
   // ---- except space points don't have charge (could look at associated hits, but cba!)
   TVector3 centre = TVector3(0,0,0);
@@ -57,8 +55,7 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::
     trackDirection = ( ((*trackIt)->Vertex()-centre).Mag() > ((*trackIt)->End()-centre).Mag() ) ? (*trackIt)->VertexDirection() : (-1)*(*trackIt)->EndDirection();
 
     // Get the space points not associated with the current track
-    std::vector<art::Ptr<recob::SpacePoint> > surroundingSpacePoints;
-    GetSurroundingSpacePoints(spacePoints, surroundingSpacePoints, fmtsp, (*trackIt)->ID());
+    std::vector<art::Ptr<recob::SpacePoint> > surroundingSpacePoints = GetSurroundingSpacePoints(spacePoints, fmtsp, (*trackIt)->ID());
 
     // // TRUE -- use truth to find which particle this track is associated with --------
     // std::vector<art::Ptr<recob::Hit> > trackHits = fmh.at(trackIt->key());
@@ -85,9 +82,7 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::
 
 }
 
-void shower::TrackShowerSeparationAlg::IdentifyTracksNearTracks(std::vector<art::Ptr<recob::Track> > const& tracks) {
-
-  /// Identifies tracks which start just after previously identified tracks end
+void shower::TrackShowerSeparationAlg::IdentifyTracksNearTracks(const std::vector<art::Ptr<recob::Track> >& tracks) {
 
   std::vector<art::Ptr<recob::Track> > identifiedTracks;
 
@@ -140,12 +135,10 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksNearTracks(std::vector<art:
 
 }
 
-void shower::TrackShowerSeparationAlg::IdentifyTracksNearVertex(art::Ptr<recob::Vertex> const& vertex,
-								std::vector<art::Ptr<recob::Track> > const& tracks,
-								std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints,
-								art::FindManyP<recob::Track> const& fmtsp) {
-
-  /// Identifies hadron-like tracks which originate from near the interaction vertex
+void shower::TrackShowerSeparationAlg::IdentifyTracksNearVertex(const art::Ptr<recob::Vertex>& vertex,
+								const std::vector<art::Ptr<recob::Track> >& tracks,
+								const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
+								const art::FindManyP<recob::Track>& fmtsp) {
 
   double xyz[3];
   vertex->XYZ(xyz);
@@ -167,8 +160,7 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksNearVertex(art::Ptr<recob::
       continue;
 
     // Get the space points not associated with the current track
-    std::vector<art::Ptr<recob::SpacePoint> > surroundingSpacePoints;
-    GetSurroundingSpacePoints(spacePoints, surroundingSpacePoints, fmtsp, (*trackIt)->ID());
+    std::vector<art::Ptr<recob::SpacePoint> > surroundingSpacePoints = GetSurroundingSpacePoints(spacePoints, fmtsp, (*trackIt)->ID());
 
     // Make sure this track start isn't a shower start
     bool showerLike = IdentifyShowerLikeTrack(end, direction, surroundingSpacePoints);
@@ -187,14 +179,11 @@ void shower::TrackShowerSeparationAlg::IdentifyTracksNearVertex(art::Ptr<recob::
 
 }
 
-bool shower::TrackShowerSeparationAlg::IdentifyShowerLikeTrack(TVector3 const& end,
-							       TVector3 const& direction,
-							       std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints) {
+bool shower::TrackShowerSeparationAlg::IdentifyShowerLikeTrack(const TVector3& end,
+							       const TVector3& direction,
+							       const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints) {
 
-  /// Determines whether or not a track is actually the start of a shower
-
-  std::vector<art::Ptr<recob::SpacePoint> > spacePointsInCone;
-  GetSpacePointsInCone(spacePoints, spacePointsInCone, end, direction);
+  std::vector<art::Ptr<recob::SpacePoint> > spacePointsInCone = GetSpacePointsInCone(spacePoints, end, direction);
 
   if (spacePointsInCone.size() < 2)
     return false;
@@ -209,11 +198,11 @@ bool shower::TrackShowerSeparationAlg::IdentifyShowerLikeTrack(TVector3 const& e
 
 }
 
-void shower::TrackShowerSeparationAlg::FillHitsToCluster(const std::vector<art::Ptr<recob::Hit> >& initialHits,
-							 std::vector<art::Ptr<recob::Hit> >& hitsToCluster,
-							 const art::FindManyP<recob::Track>& fmt) {
+std::vector<art::Ptr<recob::Hit> > shower::TrackShowerSeparationAlg::FillHitsToCluster(const std::vector<art::Ptr<recob::Hit> >& initialHits,
+										       const art::FindManyP<recob::Track>& fmt) {
 
-  /// Fill the output container with all the hits not associated with track-like objects
+  // Container to fill with shower-like hits
+  std::vector<art::Ptr<recob::Hit> > hitsToCluster;
 
   for (std::vector<art::Ptr<recob::Hit> >::const_iterator initialHit = initialHits.begin(); initialHit != initialHits.end(); ++initialHit) {
     std::vector<art::Ptr<recob::Track> > showerTracks = fmt.at(initialHit->key());
@@ -222,11 +211,11 @@ void shower::TrackShowerSeparationAlg::FillHitsToCluster(const std::vector<art::
       hitsToCluster.push_back(*initialHit);
   }
 
-  return;
+  return hitsToCluster;
 
 }
 
-int shower::TrackShowerSeparationAlg::FindTrackID(art::Ptr<recob::Hit> &hit) {
+int shower::TrackShowerSeparationAlg::FindTrackID(const art::Ptr<recob::Hit>& hit) {
   double particleEnergy = 0;
   int likelyTrackID = 0;
   std::vector<sim::TrackIDE> trackIDs = backtracker->HitToTrackID(hit);
@@ -239,9 +228,9 @@ int shower::TrackShowerSeparationAlg::FindTrackID(art::Ptr<recob::Hit> &hit) {
   return likelyTrackID;
 }
 
-int shower::TrackShowerSeparationAlg::FindTrueTrack(std::vector<art::Ptr<recob::Hit> > &trackHits) {
+int shower::TrackShowerSeparationAlg::FindTrueTrack(const std::vector<art::Ptr<recob::Hit> >& trackHits) {
   std::map<int,double> trackMap;
-  for (std::vector<art::Ptr<recob::Hit> >::iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
+  for (std::vector<art::Ptr<recob::Hit> >::const_iterator trackHitIt = trackHits.begin(); trackHitIt != trackHits.end(); ++trackHitIt) {
     art::Ptr<recob::Hit> hit = *trackHitIt;
     int trackID = FindTrackID(hit);
     trackMap[trackID] += hit->Integral();
@@ -257,12 +246,12 @@ int shower::TrackShowerSeparationAlg::FindTrueTrack(std::vector<art::Ptr<recob::
   return clusterTrack;
 }
 
-void shower::TrackShowerSeparationAlg::GetSurroundingSpacePoints(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
-								 std::vector<art::Ptr<recob::SpacePoint> >& surroundingSpacePoints,
-								 const art::FindManyP<recob::Track>& fmt,
-								 unsigned int trackID) {
+std::vector<art::Ptr<recob::SpacePoint> > shower::TrackShowerSeparationAlg::GetSurroundingSpacePoints(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
+												      const art::FindManyP<recob::Track>& fmt,
+												      unsigned int trackID) {
 
-  /// Finds the space points surrounding the track but not part of it
+  // The space points to return
+  std::vector<art::Ptr<recob::SpacePoint> > surroundingSpacePoints;
 
   for (std::vector<art::Ptr<recob::SpacePoint> >::const_iterator spacePointIt = spacePoints.begin(); spacePointIt != spacePoints.end(); ++spacePointIt) {
 
@@ -277,16 +266,16 @@ void shower::TrackShowerSeparationAlg::GetSurroundingSpacePoints(const std::vect
 
   }
 
-  return;
+  return surroundingSpacePoints;
 
 }
 
-void shower::TrackShowerSeparationAlg::GetSpacePointsInCone(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
-							    std::vector<art::Ptr<recob::SpacePoint> >& spacePointsInCone,
-							    const TVector3& trackEnd,
-							    const TVector3& trackDirection) {
+std::vector<art::Ptr<recob::SpacePoint> > shower::TrackShowerSeparationAlg::GetSpacePointsInCone(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
+												 const TVector3& trackEnd,
+												 const TVector3& trackDirection) {
 
-  /// Look for space points near the track and within a narrow cone
+  // The space points in cone to return
+  std::vector<art::Ptr<recob::SpacePoint> > spacePointsInCone;
 
   TVector3 spacePointPos, spacePointProj;
   double displacementFromAxis, distanceFromTrackEnd, projDistanceFromTrackEnd, angleFromTrackEnd;
@@ -307,30 +296,28 @@ void shower::TrackShowerSeparationAlg::GetSpacePointsInCone(const std::vector<ar
 
   }
 
-  return;
+  return spacePointsInCone;
 
 }
 
-void shower::TrackShowerSeparationAlg::RemoveTrackHits(std::vector<art::Ptr<recob::Hit> > const& initialHits,
-						       std::vector<art::Ptr<recob::Track> > const& tracks,
-						       std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints,
-						       std::vector<art::Ptr<recob::Vertex> > const& vertices,
-						       art::FindManyP<recob::Track> const& fmth,
-						       art::FindManyP<recob::Track> const& fmtsp,
-						       art::FindManyP<recob::Hit> const& fmh,
-						       std::vector<art::Ptr<recob::Hit> >& hitsToCluster,
-						       int event,
-						       int run) {
+std::vector<art::Ptr<recob::Hit> > shower::TrackShowerSeparationAlg::RemoveTrackHits(const std::vector<art::Ptr<recob::Hit> >& initialHits,
+										     const std::vector<art::Ptr<recob::Track> >& tracks,
+										     const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
+										     const std::vector<art::Ptr<recob::Vertex> >& vertices,
+										     const art::FindManyP<recob::Track>& fmth,
+										     const art::FindManyP<recob::Track>& fmtsp,
+										     const art::FindManyP<recob::Hit>& fmh,
+										     int event,
+										     int run) {
 
   Event = event;
   Run = run;
 
-  /// Takes specific previously reconstructed quantites and removes hits which are considered track-like
+  if (spacePoints.size() == 0)
+    return initialHits;
 
-  if (spacePoints.size() == 0) {
-    hitsToCluster = initialHits;
-    return;
-  }
+  // Container for shower-like hits
+  std::vector<art::Ptr<recob::Hit> > hitsToCluster;
 
   fTrackLikeIDs.clear();
   fShowerLikeIDs.clear();
@@ -360,9 +347,35 @@ void shower::TrackShowerSeparationAlg::RemoveTrackHits(std::vector<art::Ptr<reco
   // Once we've identified some tracks, can look for others at the ends
   this->IdentifyTracksNearTracks(tracks);
 
-  this->FillHitsToCluster(initialHits, hitsToCluster, fmth);
+  hitsToCluster = FillHitsToCluster(initialHits, fmth);
 
-  return;
+  return hitsToCluster;
+
+}
+
+std::vector<art::Ptr<recob::Hit> > shower::TrackShowerSeparationAlg::RemoveTrackHits(const std::vector<art::Ptr<recob::Hit> >& hits,
+										     const std::vector<art::Ptr<recob::PFParticle> > pfParticles,
+										     const art::FindManyP<recob::Cluster>& fmc,
+										     const art::FindManyP<recob::Hit>& fmh) {
+
+  std::vector<art::Ptr<recob::Hit> > showerHits;
+
+  // Use information from Pandora to identify shower-like hits
+  for (std::vector<art::Ptr<recob::PFParticle> >::const_iterator pfParticleIt = pfParticles.begin(); pfParticleIt != pfParticles.end(); ++pfParticleIt) {
+
+    // See if this is a shower particle
+    if ((*pfParticleIt)->PdgCode() == 11) {
+      std::vector<art::Ptr<recob::Cluster> > clusters = fmc.at(pfParticleIt->key());
+      for (std::vector<art::Ptr<recob::Cluster> >::iterator clusterIt = clusters.begin(); clusterIt != clusters.end(); ++clusterIt) {
+        std::vector<art::Ptr<recob::Hit> > hits = fmh.at(clusterIt->key());
+        for (std::vector<art::Ptr<recob::Hit> >::iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt)
+          showerHits.push_back(*hitIt);
+      }
+    }
+
+  }
+
+  return showerHits;
 
 }
 

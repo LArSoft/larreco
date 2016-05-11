@@ -24,13 +24,18 @@
 
 // LArSoft libraries
 #include "larcore/SimpleTypesAndConstants/geo_types.h"
-#include "larcore/Geometry/Geometry.h"
 #include "lardata/RecoBase/Hit.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 
 namespace tca {
+
   // ****************************** General purpose  ******************************
+  // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
+  bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp);
+  bool SignalPresent(TjStuff& tjs, unsigned int wire1, float time1, unsigned int wire2, float time2, CTP_t pCTP, float minAmp);
+  bool SignalPresent(TjStuff& tjs, float wire1, float time1, float wire2, float time2, CTP_t pCTP, float minAmp);
+  bool SignalPresent(TrajPoint const& tp, float minAmp);
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
   // Split the allTraj trajectory itj at position pos into two trajectories

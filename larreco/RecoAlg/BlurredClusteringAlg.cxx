@@ -189,6 +189,16 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::ConvertRecobHit
     }
   }
 
+  // Keep a note of dead wires
+  fDeadWires.clear();
+  fDeadWires.resize(fUpperWire-fLowerWire,false);
+  geo::PlaneID planeID = hits.front()->WireID().planeID();
+
+  for (int wire = fLowerWire; wire < fUpperWire; ++wire) {
+    raw::ChannelID_t channel = fGeom->PlaneWireToChannel(planeID.Plane,wire,planeID.TPC,planeID.Cryostat);
+    fDeadWires[wire-fLowerWire] = !fChanStatus.IsGood(channel);
+  }
+
   return image;
 
 }
@@ -208,7 +218,27 @@ double cluster::BlurredClusteringAlg::ConvertBinToCharge(std::vector<std::vector
 
 }
 
-void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& blurtick, int& sigmawire, int& sigmatick) {
+std::pair<int,int> cluster::BlurredClusteringAlg::DeadWireCount(int wire_bin, int width) {
+
+  std::pair<int,int> deadWires = std::make_pair<int,int>(0,0);
+
+  int lower_bin = width / 2;
+  int upper_bin = (width+1) / 2;
+
+  for (int wire = TMath::Max(wire_bin + fLowerWire - lower_bin, fLowerWire); wire < TMath::Min(wire_bin + fLowerWire + upper_bin, fUpperWire); ++wire) {
+    if (fDeadWires[wire-fLowerWire]) {
+      if (wire < wire_bin + fLowerWire)
+	++deadWires.first;
+      else if (wire > wire_bin + fLowerWire)
+	++deadWires.second;
+    }
+  }
+
+  return deadWires;
+
+}
+
+void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blur_wire, int& blur_tick, int& sigma_wire, int& sigma_tick) {
 
   // Calculate least squares slope
   int x, y;
@@ -236,11 +266,11 @@ void cluster::BlurredClusteringAlg::FindBlurringParameters(int& blurwire, int& b
     unit = TVector2(0,1);
 
   // Use this direction to scale the blurring radii and Gaussian sigma
-  blurwire = std::max(std::abs(std::round(fBlurWire * unit.X())),1.);
-  blurtick = std::max(std::abs(std::round(fBlurTick * unit.Y())),1.);
+  blur_wire = std::max(std::abs(std::round(fBlurWire * unit.X())),1.);
+  blur_tick = std::max(std::abs(std::round(fBlurTick * unit.Y())),1.);
 
-  sigmawire = std::max(std::abs(std::round(fSigmaWire * unit.X())),1.);
-  sigmatick = std::max(std::abs(std::round(fSigmaTick * unit.Y())),1.);
+  sigma_wire = std::max(std::abs(std::round(fSigmaWire * unit.X())),1.);
+  sigma_tick = std::max(std::abs(std::round(fSigmaTick * unit.Y())),1.);
 
   // std::cout << "Gradient is " << gradient << ", giving x and y components " << unit.X() << " and " << unit.Y() << std::endl;
   // std::cout << "Blurring: wire " << blurwire << " and tick " << blurtick << "; sigma: wire " << sigmawire << " and tick " << sigmatick << std::endl;
@@ -498,9 +528,6 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::GaussianBlur(st
   int nbinsx = image.size();
   int nbinsy = image.at(0).size();
 
-  double weight;
-  std::vector<double> correct_kernel;
-
   // Blurred histogram and normalisation for each bin
   std::vector<std::vector<double> > copy(nbinsx, std::vector<double>(nbinsy, 0));
 
@@ -512,19 +539,48 @@ std::vector<std::vector<double> > cluster::BlurredClusteringAlg::GaussianBlur(st
       	continue;
 
       // Scale the tick blurring based on the width of the hit
-      correct_kernel.clear();
       int tick_scale = TMath::Sqrt(TMath::Power(fHitMap[x][y]->RMS(),2) + TMath::Power(sigma_tick,2)) / (double)sigma_tick;
       tick_scale = TMath::Max(TMath::Min(tick_scale,fMaxTickWidthBlur),1);
-      correct_kernel = fAllKernels[sigma_wire][sigma_tick*tick_scale];
+      std::vector<double> correct_kernel = fAllKernels[sigma_wire][sigma_tick*tick_scale];
+
+      // Find any dead wires in the potential blurring region
+      std::pair<int,int> num_deadwires = DeadWireCount(x, width);
+      //num_deadwires = std::make_pair<int,int>(0,0);
+
+      // Note of how many dead wires we have passed whilst blurring in the wire direction
+      // If blurring below the seed hit, need to keep a note of how many dead wires to come
+      // If blurring above, need to keep a note of how many dead wires have passed
+      int dead_wires_passed = num_deadwires.first;
+
+      // bool dead = false;
+      // if (num_deadwires.first != 0 or num_deadwires.second != 0)
+      // 	dead = true;
+
+      // if (dead) {
+      // 	std::cout << "Wire is " << x+fLowerWire << std::endl;
+      // 	std::cout << "Width is " << width << std::endl;
+      // }
 
       // Loop over the blurring region around this hit
-      for (int blurx = -width/2; blurx < (width+1)/2; ++blurx) {
+      for (int blurx = -(width/2+num_deadwires.first); blurx < (width+1)/2+num_deadwires.second; ++blurx) {
   	for (int blury = -height/2*tick_scale; blury < ((((height+1)/2)-1)*tick_scale)+1; ++blury) {
 
+	  // if (dead)
+	  //   std::cout << "Start... dead_wires_passed is " << dead_wires_passed << " and blurx is " << blurx << std::endl;
+
+	  if (blurx < 0 and fDeadWires[x+blurx])
+	    dead_wires_passed -= 1;
+
   	  // Smear the charge of this hit
-	  weight = correct_kernel[fKernelWidth * (fKernelHeight / 2 + blury) + (fKernelWidth / 2 + blurx)];
+	  double weight = correct_kernel[fKernelWidth * (fKernelHeight / 2 + blury) + (fKernelWidth / 2 + (blurx - dead_wires_passed))];
   	  if (x + blurx >= 0 and x + blurx < nbinsx and y + blury >= 0 and y + blury < nbinsy)
   	    copy[x+blurx][y+blury] += weight * image[x][y];
+
+	  if (blurx > 0 and fDeadWires[x+blurx])
+	    dead_wires_passed += 1;
+
+	  // if (dead)
+	  //   std::cout << "Start... dead_wires_passed is " << dead_wires_passed << " and blurx is " << blurx << std::endl;
 
   	}
       } // blurring region
