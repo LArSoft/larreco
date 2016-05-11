@@ -5,7 +5,6 @@
 #include <iostream>
 #include <cstdlib>
 #include <math.h>
-#include <iostream>
 
 // ROOT vector, matrix and XML libs
 #include <TVectorT.h>
