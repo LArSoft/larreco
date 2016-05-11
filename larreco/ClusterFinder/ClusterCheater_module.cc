@@ -194,6 +194,7 @@ namespace cluster{
 
       // get the direction of this particle in the current cryostat, tpc and plane
       const simb::MCParticle *part = bt->TrackIDToParticle(hitMapItr.first.eveID);
+      if(!part) continue;
 
       // now set the y and z coordinates of xyz to be the first point on the particle
       // trajectory and use the initial directions to determine the dT/dW
