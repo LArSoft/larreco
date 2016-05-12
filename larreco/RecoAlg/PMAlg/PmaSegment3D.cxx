@@ -16,6 +16,9 @@
 #include "Math/GenVector/DisplacementVector2D.h"
 #include "Math/GenVector/DisplacementVector3D.h"
 
+#include "CLHEP/Vector/TwoVector.h"
+#include "CLHEP/Vector/ThreeVector.h"
+
 pma::Segment3D::Segment3D(pma::Track3D* trk, pma::Node3D* vstart, pma::Node3D* vstop) :
 	SortedObjectBase(vstart, vstop),
 	fParent(trk)
@@ -190,7 +193,7 @@ double pma::Segment3D::Length2(void) const
 	}
 }
 
-
+/*
 double pma::Segment3D::GetDist2(const TVector3& psrc, const TVector3& p0, const TVector3& p1)
 {
 	ROOT::Math::DisplacementVector3D< ROOT::Math::Cartesian3D<double> > v0(psrc.X() - p0.X(), psrc.Y() - p0.Y(), psrc.Z() - p0.Z());
@@ -236,7 +239,55 @@ double pma::Segment3D::GetDist2(const TVector3& psrc, const TVector3& p0, const 
 	if (result >= 0.0) return result;
 	else return 0.0;
 }
+*/
 
+double pma::Segment3D::GetDist2(const TVector3& psrc, const TVector3& p0, const TVector3& p1)
+{
+	CLHEP::Hep3Vector v0(psrc.X() - p0.X(), psrc.Y() - p0.Y(), psrc.Z() - p0.Z());
+	CLHEP::Hep3Vector v1(p1.X() - p0.X(), p1.Y() - p0.Y(), p1.Z() - p0.Z());
+
+	CLHEP::Hep3Vector v2(psrc.X() - p1.X(), psrc.Y() - p1.Y(), psrc.Z() - p1.Z());
+	CLHEP::Hep3Vector v3(v1); v3 *= -1.0;
+
+	double v0Norm2 = v0.mag2();
+	double v1Norm2 = v1.mag2();
+
+	double eps = 1.0E-6; // 0.01mm
+	if (v1Norm2 < eps)
+	{
+		mf::LogWarning("pma::Segment3D") << "Short segment or its projection.";
+
+		double dx = 0.5 * (p0.X() + p1.X()) - psrc.X();
+		double dy = 0.5 * (p0.Y() + p1.Y()) - psrc.Y();
+		double dz = 0.5 * (p0.Z() + p1.Z()) - psrc.Z();
+		return dx * dx + dy * dy + dz * dz;
+	}
+
+	double mag01 = sqrt(v0Norm2 * v1Norm2);
+	double cosine01 = 0.0;
+	if (mag01 != 0.0) cosine01 = v0.dot(v1) / mag01;
+
+	double v2Norm2 = v2.mag2();
+	double mag23 = sqrt(v2Norm2 * v3.mag2());
+	double cosine23 = 0.0;
+	if (mag23 != 0.0) cosine23 = v2.dot(v3) / mag23;
+
+	double result = 0.0;
+	if ((cosine01 > 0.0) && (cosine23 > 0.0))
+	{
+		result = (1.0 - cosine01 * cosine01) * v0Norm2;
+	}
+	else // increase distance to prefer hit assigned to the vertex, not segment
+	{
+		if (cosine01 <= 0.0) result = 1.0001 * v0Norm2;
+		else result = 1.0001 * v2Norm2;
+	}
+
+	if (result >= 0.0) return result;
+	else return 0.0;
+}
+
+/*
 double pma::Segment3D::GetDist2(const TVector2& psrc, const TVector2& p0, const TVector2& p1)
 {
 	ROOT::Math::DisplacementVector2D< ROOT::Math::Cartesian2D<double> > v0(psrc.X() - p0.X(), psrc.Y() - p0.Y());
@@ -266,6 +317,52 @@ double pma::Segment3D::GetDist2(const TVector2& psrc, const TVector2& p0, const 
 	double mag23 = sqrt(v2Norm2 * v3.Mag2());
 	double cosine23 = 0.0;
 	if (mag23 != 0.0) cosine23 = v2.Dot(v3) / mag23;
+
+	double result = 0.0;
+	if ((cosine01 > 0.0) && (cosine23 > 0.0))
+	{
+		result = (1.0 - cosine01 * cosine01) * v0Norm2;
+	}
+	else // increase distance to prefer hit assigned to the vertex, not segment
+	{
+		if (cosine01 <= 0.0) result = 1.0001 * v0Norm2;
+		else result = 1.0001 * v2Norm2;
+	}
+
+	if (result >= 0.0) return result;
+	else return 0.0;
+}
+*/
+
+double pma::Segment3D::GetDist2(const TVector2& psrc, const TVector2& p0, const TVector2& p1)
+{
+	CLHEP::Hep3Vector v0(psrc.X() - p0.X(), psrc.Y() - p0.Y());
+	CLHEP::Hep3Vector v1(p1.X() - p0.X(), p1.Y() - p0.Y());
+
+	CLHEP::Hep3Vector v2(psrc.X() - p1.X(), psrc.Y() - p1.Y());
+	CLHEP::Hep3Vector v3(v1); v3 *= -1.0;
+
+	double v0Norm2 = v0.mag2();
+	double v1Norm2 = v1.mag2();
+
+	double eps = 1.0E-6; // 0.01mm
+	if (v1Norm2 < eps)
+	{
+		mf::LogVerbatim("pma::Segment3D") << "Short segment or its projection.";
+
+		double dx = 0.5 * (p0.X() + p1.X()) - psrc.X();
+		double dy = 0.5 * (p0.Y() + p1.Y()) - psrc.Y();
+		return dx * dx + dy * dy;
+	}
+
+	double mag01 = sqrt(v0Norm2 * v1Norm2);
+	double cosine01 = 0.0;
+	if (mag01 != 0.0) cosine01 = v0.dot(v1) / mag01;
+
+	double v2Norm2 = v2.mag2();
+	double mag23 = sqrt(v2Norm2 * v3.mag2());
+	double cosine23 = 0.0;
+	if (mag23 != 0.0) cosine23 = v2.dot(v3) / mag23;
 
 	double result = 0.0;
 	if ((cosine01 > 0.0) && (cosine23 > 0.0))
