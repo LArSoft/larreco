@@ -5783,9 +5783,11 @@ namespace tca {
   bool TrajClusterAlg::SignalAtTp(TrajPoint const& tp)
   {
     // Returns true if there a is wire signal at tp
+    if(tp.Pos[0] < 0) return false;
     unsigned int wire = tp.Pos[0] + 0.5;
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
     unsigned int ipl = planeID.Plane;
+    if(wire > tjs.NumWires[ipl]) return false;
     // Assume dead wires have a signal
     if(tjs.WireHitRange[ipl][wire].first == -1) return true;
     // no signal on this wire
