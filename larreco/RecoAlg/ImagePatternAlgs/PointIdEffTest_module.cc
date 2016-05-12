@@ -353,23 +353,30 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 {
 	fMCpid = mctype;
 	fClsize = hits.size();
-	float mid = 0.5; size_t nhitsshs = 0; size_t nhitstrks = 0;
-	
-	for ( auto const& hit : hits)
+
+	float pidvalue = 0;
+	if (fPointIdAlg.NClasses() == 1)
 	{
-		float pidvalue = fPointIdAlg.predictIdValue(hit->WireID().Wire, hit->PeakTime());
-		if (mctype == fShower)	{ fOutSh = pidvalue; fOutTrk = -1; }
-		else if (mctype == fTrack) { fOutTrk = pidvalue; fOutSh = -1; }
-		else continue;
-	
-		if (pidvalue < mid) nhitsshs++;
-		else nhitstrks++;
-
-		fTree->Fill();
+		pidvalue = fPointIdAlg.predictIdValue(hits);
 	}
-
-	if (nhitsshs > nhitstrks) fRecoPid = fShower;
-	else if (nhitsshs <= nhitstrks) fRecoPid = fTrack;
+	else
+	{
+		int idMax = 0;
+		float vMax = 0.0F;
+		auto vout = fPointIdAlg.predictIdVector(hits);
+		for (size_t i = 0; i < vout.size(); ++i)
+		{
+			if (vout[i] > vMax) { vMax = vout[i]; idMax = i; }
+		}
+		switch (idMax)
+		{
+			case 0:
+			case 1: pidvalue = vout[0]; break; // pidvalue = p(trk)
+			default: fRecoPid = -1; break; // not trk, not shower, rather empty -> do not count
+		}
+	}
+	if (pidvalue < 0.495) fRecoPid = fShower;
+	else if (pidvalue > 0.505) fRecoPid = fTrack;
 	else fRecoPid = -1;
 
 	if ((fRecoPid == fShower) && (mctype == fShower))

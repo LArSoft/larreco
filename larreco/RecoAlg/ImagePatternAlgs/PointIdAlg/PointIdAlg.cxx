@@ -265,6 +265,17 @@ void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
 }
 // ------------------------------------------------------
 
+size_t nnet::PointIdAlg::NClasses(void) const
+{
+	if (fMLP) return fMLP->GetOutputLength();
+	else if (fCNN)
+	{
+		return 0;
+	}
+	else return 0;
+}
+// ------------------------------------------------------
+
 float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift, size_t outIdx) const
 {
 	float result = 0.;
@@ -294,9 +305,55 @@ float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift, size_t ou
 }
 // ------------------------------------------------------
 
+float nnet::PointIdAlg::predictIdValue(std::vector< art::Ptr<recob::Hit> > const & hits, size_t outIdx) const
+{
+	double pmin = 1.0e-6, pmax = 1.0 - pmin;
+	double log_pmin = log(pmin), log_pmax = log(pmax);
+	double totarea = 0.0;
+	size_t nhits = 0;
+
+	double resultA = 0.0, resultB = 0.0;
+
+	for (auto const & h : hits)
+	{
+		unsigned int wire = h->WireID().Wire;
+		float drift = h->PeakTime();
+
+		if (!isInsideFiducialRegion(wire, drift)) continue;
+
+		double area = 1.0; //h->SummedADC();
+
+		double voutA = predictIdValue(wire, drift);
+		double voutB = 1.0 - voutA;
+
+		if (voutA < pmin) { voutA = log_pmin; voutB = log_pmax; }
+		else if (voutA > pmax) { voutA = log_pmax; voutB = log_pmin; }
+		else { voutA = log(voutA); voutB = log(voutB); }
+
+		resultA += area * voutA;
+		resultB += area * voutB;
+
+		totarea += area;
+		nhits++;
+	}
+
+	if (nhits)
+	{
+		resultA = exp(resultA / totarea);
+		resultB = exp(resultB / totarea);
+
+		resultA = resultA / (resultA + resultB);
+	}
+	else resultA = 0.5;
+
+	return (float)resultA;
+}
+// ------------------------------------------------------
+
 std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float drift) const
 {
-	std::vector<float> result;
+	std::vector<float> result(NClasses(), 0);
+	if (result.empty()) return result;
 
 	if (!bufferPatch(wire, drift))
 	{
@@ -307,7 +364,6 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 	if (fMLP)
 	{
 		auto input = patchData1D();
-		result.resize(fMLP->GetOutputLength());
 		if (input.size() == fMLP->GetInputLength())
 		{
 			fMLP->Run(input);
@@ -319,6 +375,57 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 	else if (fCNN)
 	{
 	}
+
+	return result;
+}
+// ------------------------------------------------------
+
+std::vector<float> nnet::PointIdAlg::predictIdVector(std::vector< art::Ptr<recob::Hit> > const & hits) const
+{
+	std::vector<float> result(NClasses(), 0);
+	if (result.empty()) return result;
+
+	double pmin = 1.0e-6, pmax = 1.0 - pmin;
+	double log_pmin = log(pmin), log_pmax = log(pmax);
+	double totarea = 0.0;
+	size_t nhits = 0;
+
+	for (auto const & h : hits)
+	{
+		unsigned int wire = h->WireID().Wire;
+		float drift = h->PeakTime();
+
+		if (!isInsideFiducialRegion(wire, drift)) continue;
+
+		double area = 1.0; // h->SummedADC();
+
+		auto vout = predictIdVector(wire, drift);
+		for (size_t i = 0; i < vout.size(); ++i)
+		{
+			if (vout[i] < pmin) vout[i] = log_pmin;
+			else if (vout[i] > pmax) vout[i] = log_pmax;
+			else vout[i] = log(vout[i]);
+
+			result[i] += area * vout[i];
+		}
+		totarea += area;
+		nhits++;
+	}
+
+	if (nhits)
+	{
+		double totp = 0.0;
+		for (size_t i = 0; i < result.size(); ++i)
+		{
+			result[i] = exp(result[i] / totarea);
+			totp += result[i];
+		}
+		for (size_t i = 0; i < result.size(); ++i)
+		{
+			result[i] /= totp;
+		}
+	}
+	else std::fill(result.begin(), result.end(), 1.0 / result.size());
 
 	return result;
 }

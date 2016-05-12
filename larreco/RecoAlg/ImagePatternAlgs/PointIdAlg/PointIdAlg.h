@@ -102,11 +102,15 @@ public:
 
 	virtual void reconfigure(const fhicl::ParameterSet& p) override;  // read-in nnet
 
+	size_t NClasses(void) const;
+
 	// calculate single-value prediction (2-class probability) for [wire, drift] point
 	float predictIdValue(unsigned int wire, float drift, size_t outIdx = 0) const;
+	float predictIdValue(std::vector< art::Ptr<recob::Hit> > const & hits, size_t outIdx = 0) const;
 
 	// calculate multi-class probabilities for [wire, drift] point
 	std::vector<float> predictIdVector(unsigned int wire, float drift) const;
+	std::vector<float> predictIdVector(std::vector< art::Ptr<recob::Hit> > const & hits) const;
 
 private:
 	std::string fNNetModelFilePath;
