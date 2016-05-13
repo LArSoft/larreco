@@ -7,10 +7,10 @@ fcldir product_dir job
 #
 product         version
 larsim		v06_00_00_rc2
-nutools         v1_25_04
+nutools         v1_25_05
 gcc		v4_9_3
 
-cetbuildtools	v5_01_03	-	only_for_build
+cetbuildtools	v5_02_02	-	only_for_build
 end_product_list
 
   
