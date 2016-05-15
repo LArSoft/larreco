@@ -274,11 +274,15 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 	// in argument vector hitow danego klastra
 
 	double ensh = 0.; double entrk = 0.;
+	size_t insideFidArea = 0;
 	
 	// for every hit:
 	// for ( auto const& hit : (*fHitListHandle) )
-	for ( auto const& hit: hits)
+	for (auto const& hit: hits)
 	{
+		if (!fPointIdAlg.isInsideFiducialRegion(hit->WireID().Wire, hit->PeakTime())) continue;
+		insideFidArea++;
+
 		// the channel associated with this hit.
 		auto hitChannelNumber = hit->Channel();
 
@@ -334,14 +338,17 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 		}
 	}
 
-	int result = -1; 
-	if (ensh > entrk) 
+	int result = -1;
+	if (insideFidArea > 2 * hits.size() / 3) // 2/3 of the cluster hits inside fiducial area
 	{
-		result = fShower;
-	}
-	else if (entrk > ensh)
-	{
-		result = fTrack;
+		if (ensh > 1.5 * entrk) // major energy deposit from EM activity
+		{
+			result = fShower;
+		}
+		else if (entrk > 1.5 * ensh)
+		{
+			result = fTrack;
+		}
 	}
 
 	return result;
