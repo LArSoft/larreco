@@ -170,27 +170,32 @@ bool nnet::DataProviderAlg::bufferPatch(size_t wire, float drift) const
 	int halfSize = fPatchSize / 2;
 
 	int w0 = fCurrentWireIdx - halfSize;
-	if (w0 < 0) w0 = 0;
-
 	int w1 = fCurrentWireIdx + halfSize;
-	if (w1 > (int)fNWires) w1 = fNWires;
 
 	int d0 = fCurrentScaledDrift - halfSize;
-	if (d0 < 0) d0 = 0;
-
 	int d1 = fCurrentScaledDrift + halfSize;
-	if (d1 > (int)fNScaledDrifts) d1 = fNScaledDrifts;
 
 	for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch)
 	{
-		auto & src = fWireDriftData[w];
 		auto & dst = fWireDriftPatch[wpatch];
-
-		std::fill(dst.begin(), dst.end(), 0);
-
-		for (int d = d0, dpatch = 0; d < d1; ++d, ++dpatch)
+		if ((w >= 0) && (w < (int)fWireDriftData.size()))
 		{
-			dst[dpatch] = src[d];
+			auto & src = fWireDriftData[w];
+			for (int d = d0, dpatch = 0; d < d1; ++d, ++dpatch)
+			{
+				if ((d >= 0) && (d < (int)src.size()))
+				{
+					dst[dpatch] = src[d];
+				}
+				else
+				{
+					dst[dpatch] = 0;
+				}
+			}
+		}
+		else
+		{
+			std::fill(dst.begin(), dst.end(), 0);
 		}
 	}
 
@@ -216,7 +221,7 @@ std::vector<float> nnet::DataProviderAlg::patchData1D(void) const
 
 bool nnet::DataProviderAlg::isInsideFiducialRegion(unsigned int wire, float drift) const
 {
-	size_t halfPatch = fPatchSize / 2;
+	size_t halfPatch = fPatchSize / 8; // fPatchSize/2 will make patch always completely filled
 	size_t scaledDrift = (size_t)(drift / fDriftWindow);
 	if ((wire >= halfPatch) && (wire < fNWires - halfPatch) &&
 	    (scaledDrift >= halfPatch) && (scaledDrift < fNScaledDrifts - halfPatch)) return true;
