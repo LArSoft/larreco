@@ -289,9 +289,7 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 
 	double ensh = 0.; double entrk = 0.;
 	size_t insideFidArea = 0;
-	
-	// for every hit:
-	// for ( auto const& hit : (*fHitListHandle) )
+
 	for (auto const& hit: hits)
 	{
 		if (!fPointIdAlg.isInsideFiducialRegion(hit->WireID().Wire, hit->PeakTime())) continue;
@@ -382,22 +380,13 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 	}
 	else
 	{
-		int idMax = 0;
-		float vMax = 0.0F;
 		auto vout = fPointIdAlg.predictIdVector(hits);
-		for (size_t i = 0; i < vout.size(); ++i)
-		{
-			if (vout[i] > vMax) { vMax = vout[i]; idMax = i; }
-		}
-		switch (idMax)
-		{
-			case 0:
-			case 1: fPidValue = vout[0]; break; // pidvalue = p(trk)
-			default: fRecoPid = -1; break; // not trk, not shower, rather empty -> do not count
-		}
+		double p_trk_or_sh = vout[0] + vout[1];
+		if (p_trk_or_sh > 0) fPidValue = vout[0] / p_trk_or_sh;
 	}
-	if (fPidValue < 0.495) fRecoPid = fShower;
-	else if (fPidValue > 0.505) fRecoPid = fTrack;
+
+	if (fPidValue < 0.5) fRecoPid = fShower;
+	else if (fPidValue > 0.5) fRecoPid = fTrack;
 	else fRecoPid = -1;
 
 	if ((fRecoPid == fShower) && (mctype == fShower))
@@ -428,7 +417,7 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 		for (auto const h : hits)
 		{
 			fHitsOutFile << fRun << " " << fEvent << " "
-				<< h->WireID().Wire << " " << h->PeakTime() << " "
+				<< h->WireID().TPC  << " " << h->WireID().Wire << " " << h->PeakTime() << " "
 				<< mctype << " " << fRecoPid << " " << fPidValue << std::endl;
 		}
 	}
