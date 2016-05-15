@@ -21,6 +21,8 @@ standard_pointidefftest:
    	ClusterModuleLabel:	    "lineclusterdc"
 
     PointIdAlg:             @local::standard_pointidalg
+
+    SaveHitsFile:           false
 }
 
 END_PROLOG

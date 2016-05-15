@@ -74,6 +74,7 @@ public:
 	virtual void beginRun(const art::Run& run) override;
 
 	virtual void beginJob() override;
+	virtual void endJob() override;
 
   virtual void analyze(art::Event const & e) override;
 
@@ -99,6 +100,7 @@ private:
 	int fClsize;
 	int fRecoPid;
 	int fPure;
+	double fPidValue;
 	
 
 	int fTrkOk;
@@ -114,6 +116,8 @@ private:
 	float fOutSh;
 
 	TTree *fTree, *fTreecl;
+
+	std::ofstream fHitsOutFile;
 
 	nnet::PointIdAlg fPointIdAlg;
 
@@ -136,6 +140,7 @@ private:
 	std::string fSimulationProducerLabel;
 	std::string fHitsModuleLabel;
 	std::string fClusterModuleLabel;
+	bool fSaveHitsFile;
 };
 
 void nnet::PointIdEffTest::reconfigure(fhicl::ParameterSet const & p)
@@ -143,6 +148,7 @@ void nnet::PointIdEffTest::reconfigure(fhicl::ParameterSet const & p)
 	fSimulationProducerLabel = p.get< std::string >("SimModuleLabel");
 	fHitsModuleLabel = p.get< std::string >("HitsModuleLabel");
 	fClusterModuleLabel = p.get< std::string >("ClusterModuleLabel");
+	fSaveHitsFile = p.get< bool >("SaveHitsFile");
 	fPointIdAlg.reconfigure(p.get< fhicl::ParameterSet >("PointIdAlg"));
 }
 
@@ -185,6 +191,14 @@ void nnet::PointIdEffTest::beginJob()
 	fTreecl->Branch("fMCpid", &fMCpid, "fMCpid/I");
 	fTreecl->Branch("fClsize", &fClsize, "fClsize/I");
 	fTreecl->Branch("fRecoPid", &fRecoPid, "fRecoPid/I");
+	fTreecl->Branch("fPidValue", &fPidValue, "fPidValue/D");
+
+	if (fSaveHitsFile) fHitsOutFile.open("hits_pid.prn");
+}
+
+void nnet::PointIdEffTest::endJob()
+{
+	if (fSaveHitsFile) fHitsOutFile.close();
 }
 
 void nnet::PointIdEffTest::analyze(art::Event const & e)
@@ -361,10 +375,10 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 	fMCpid = mctype;
 	fClsize = hits.size();
 
-	float pidvalue = 0;
+	fPidValue = 0;
 	if (fPointIdAlg.NClasses() == 1)
 	{
-		pidvalue = fPointIdAlg.predictIdValue(hits);
+		fPidValue = fPointIdAlg.predictIdValue(hits);
 	}
 	else
 	{
@@ -378,12 +392,12 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 		switch (idMax)
 		{
 			case 0:
-			case 1: pidvalue = vout[0]; break; // pidvalue = p(trk)
+			case 1: fPidValue = vout[0]; break; // pidvalue = p(trk)
 			default: fRecoPid = -1; break; // not trk, not shower, rather empty -> do not count
 		}
 	}
-	if (pidvalue < 0.495) fRecoPid = fShower;
-	else if (pidvalue > 0.505) fRecoPid = fTrack;
+	if (fPidValue < 0.495) fRecoPid = fShower;
+	else if (fPidValue > 0.505) fRecoPid = fTrack;
 	else fRecoPid = -1;
 
 	if ((fRecoPid == fShower) && (mctype == fShower))
@@ -408,7 +422,17 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 	}	
 
 	fTotal++;
-	
+
+	if (fSaveHitsFile)
+	{
+		for (auto const h : hits)
+		{
+			fHitsOutFile << fRun << " " << fEvent << " "
+				<< h->WireID().Wire << " " << h->PeakTime() << " "
+				<< mctype << " " << fRecoPid << " " << fPidValue << std::endl;
+		}
+	}
+
 	std::cout << " fShOk " << fShOk << " fTrkOk " << fTrkOk << std::endl;
 	std::cout << " fShB " << fShB << " fTrkB " << fTrkB << std::endl;
 	std::cout << " fNone " << fNone << " Total " << fTotal << std::endl;

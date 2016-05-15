@@ -4,7 +4,7 @@
 //
 // Training data for PointIdAlg
 //
-//      We use this to dump raw data for preparation of various classifiers.
+//      We use this to dump deconv. ADC for preparation of various classifiers.
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
