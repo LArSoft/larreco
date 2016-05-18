@@ -105,6 +105,7 @@ namespace hit {
     std::vector<float> fMinRMS;
     unsigned short fMaxBumps; // make a crude hit if > MaxBumps are found in the RAT
     unsigned short fMaxXtraHits; // max num of hits in Region Above Threshold
+    float fHistoHitBinSize;
     float fChiSplit;      ///<Estimated noise error on the Signal
     float ChgNorm;     // Area norm for the wire we are working on
 
@@ -120,10 +121,8 @@ namespace hit {
     float timeoff;
     static constexpr float Sqrt2Pi = 2.5066;
     static constexpr float SqrtPi  = 1.7725;
-    
-    bool fUseChannelFilter;
 
-//    bool prt;
+    bool prt;
     
     art::ServiceHandle<geo::Geometry> geom;
 
@@ -153,9 +152,8 @@ namespace hit {
     // make a cruddy hit if fitting fails
     void MakeCrudeHit(unsigned short npt, float *ticks, float *signl);
     // store the hits
-    void StoreHits(unsigned short TStart, unsigned short npt, 
-      HitChannelInfo_t info, float adcsum
-      );
+    void StoreHits(unsigned short TStart, unsigned short npt, HitChannelInfo_t info, float adcsum);
+    void MakeHistoHits(std::vector<float>& signal, unsigned short start, unsigned short end, unsigned short bigBump, HitChannelInfo_t info);
 
     // study hit finding and fitting
     bool fStudyHits;
@@ -184,6 +182,8 @@ namespace hit {
     
     typedef struct {
       unsigned int FastFits; ///< count of single-Gaussian fast fits
+      unsigned int HistoHitCalls; ///< count calls to MakeHistoHits
+      unsigned int HistoHits; ///< count number of histo hits made
       std::vector<unsigned int> MultiGausFits; ///< multi-Gaussian stats
       
       void Reset(unsigned int nGaus);
@@ -192,6 +192,9 @@ namespace hit {
       
       void AddFast() { ++FastFits; }
       
+      void AddHistoCalls() { ++HistoHitCalls; };
+      void AddHistoHits(unsigned int nhits);
+     
     } FitStats_t;
     
     FitStats_t FinalFitStats; ///< counts of the good fits
@@ -253,6 +256,7 @@ void hit::CCHitFinderAlg::PrintStats(Stream& out) const {
       << "-Gaussian fits or higher: " << FinalFitStats.MultiGausFits.back()
       << " accepted (" << TriedFitStats.MultiGausFits.back() << " tried)";
   }
+  out << "\n  HistoHit calls: " << TriedFitStats.HistoHitCalls<<" number of hits "<<TriedFitStats.HistoHits;
   out << std::endl;
   
 } // CCHitFinderAlg::FitStats_t::Print()
