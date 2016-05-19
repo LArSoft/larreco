@@ -140,7 +140,7 @@ namespace hit {
     // initialize the vectors for the hit study
     if(fStudyHits) StudyHits(0);
     bool first;
-    unsigned short minSamples, nabove, tstart, maxtime, lastBump, mintime, time;
+    unsigned short minSamples, maxSamples, nabove, tstart, maxtime, lastBump, mintime, time;
     unsigned short npt, nHitsFit, nfit, bigBump;
 
     prt = false;
@@ -163,14 +163,17 @@ namespace hit {
       theWireNum = wids[0].Wire;
       HitChannelInfo_t WireInfo(&theWire, wids[0], *geom);
       
-      // minimum number of time samples
+      // minimum number of time samples for a single hit
       minSamples = 2 * fMinRMS[thePlane];
+      // max number of samples for a multi-Gaussian fit
+      maxSamples = fMaxBumps * 4 * fMinRMS[thePlane];
+
 
       // factor used to normalize the chi/dof fits for each plane
       chinorm = fChiNorms[thePlane];
 
       // edit this line to debug hit fitting on a particular plane/wire
-//      prt = (thePlane == 1 && theWireNum == 798);
+//      prt = (thePlane == 2 && theWireNum == 3389);
       std::vector<float> signal(theWire.Signal());
       
       nabove = 0;
@@ -245,8 +248,8 @@ namespace hit {
             if(prt) mf::LogVerbatim("CCHF")<<"RAT length "<<npt<<" from "<<tstart<<" to "<<time<<" bigBump? "<<bigBump;
             // decide if this RAT should be studied
             if(fStudyHits) StudyHits(1, npt, ticks, signl, tstart);
-            // just make a crude hit if too many bumps
-            if(bumps.size() > fMaxBumps) {
+            // just make a crude hit if too many bumps or too long
+            if(bumps.size() > fMaxBumps || npt > maxSamples) {
               MakeHistoHits(signal, tstart, time, bigBump, WireInfo);
 //              MakeCrudeHit(npt, ticks, signl);
 //              StoreHits(tstart, npt, WireInfo, adcsum);
@@ -617,10 +620,8 @@ namespace hit {
       unsigned short bigBumpBin = (bigBump - start) / fHistoHitBinSize;
       unsigned short bigBumpTick = ((float)bigBumpBin + 0.5) * fHistoHitBinSize;
       short dtick = bigBump - start - bigBumpTick + 1;
-//      std::cout<<"dtick "<<dtick<<" old start "<<start<<" bigBumpBin "<<bigBumpBin<<" bigBumpTick "<<bigBumpTick;
       start += dtick;
       end += dtick;
-//      std::cout<<" new start "<<start<<"\n";
     }
     
     // add a few ticks to the start and end
@@ -694,8 +695,10 @@ namespace hit {
       } // ii
       bPars.rms = std::sqrt(rms / sum);
       if(bPars.rms < fMinRMS[thePlane]) bPars.rms = fMinRMS[thePlane];
+      // require that the Gaussian amplitude be above the threshold
+      amp = bPars.adcSum / (Sqrt2Pi * bPars.rms);
 //      if(prt) std::cout<<" aveTick "<<bPars.aveTick<<" adcSum "<<bPars.adcSum<<" rms "<<bPars.rms<<"\n";
-      temp.push_back(bPars);
+      if(amp > fMinPeak[thePlane]) temp.push_back(bPars);
     }
     
     // now make the hit multiplet
@@ -785,10 +788,10 @@ namespace hit {
         );
 
   if(prt) {
-    mf::LogVerbatim("CCHF")<<"W:T "<<allhits.back().WireID().Wire
+    mf::LogVerbatim("CCHF")<<"P:W:T "<<allhits.back().WireID().Plane<<":"<<allhits.back().WireID().Wire
       <<":"<<(short)allhits.back().PeakTime()
       <<" Chg "<<(short)allhits.back().Integral()
-      <<" RMS "<<allhits.back().RMS()
+      <<" RMS "<<std::fixed<<std::setprecision(2)<<allhits.back().RMS()
       <<" lo ID "<<allhits.back().LocalIndex()
       <<" numHits "<<allhits.back().Multiplicity()
       <<" loTime "<<allhits.back().StartTick()<<" hiTime "<<allhits.back().EndTick()
