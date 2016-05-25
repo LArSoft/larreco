@@ -17,6 +17,7 @@ art_make(
 			larreco_RecoAlg_CMTool_CMTAlgPriority
 			larreco_RecoAlg_CMTool_CMTAlgMatch
 			larreco_RecoAlg_CMTool_CMToolApp
+      larreco_RecoAlg_TCAlg
 			larreco_RecoAlg_PMAlg
                         ${SIMULATIONBASE}
                         ${ART_FRAMEWORK_CORE}
@@ -44,6 +45,7 @@ add_subdirectory(ClusterRecoUtil)
 add_subdirectory(Cluster3DAlgs)
 add_subdirectory(ImagePatternAlgs)
 add_subdirectory(PMAlg)
+add_subdirectory(TCAlg)
 
 install_headers()
 install_fhicl()

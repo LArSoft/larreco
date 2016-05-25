@@ -51,7 +51,7 @@ extern "C" {
 #include "CLHEP/Random/JamesRandom.h"
 
 // art extensions
-#include "artextensions/SeedService/SeedService.hh"
+#include "larsim/RandomUtils/LArSeedService.h"
 
 // LArSoft includes 
 #include "lardata/RawData/RawDigit.h"
@@ -109,10 +109,10 @@ namespace cluster {
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     
     // Create random number engine needed for PPHT;
-    // obtain the random seed from SeedService,
+    // obtain the random seed from LArSeedService,
     // unless overridden in configuration with key "Seed"
     // remember that HoughSeed will override this on each event if specified
-    art::ServiceHandle<artext::SeedService>()
+    art::ServiceHandle<sim::LArSeedService>()
       ->createEngine(*this, pset, "Seed");
   }
   

@@ -54,12 +54,17 @@
 
 //temp
 #include "TGraph.h"
+#include "TMultiGraph.h"
 #include "TLine.h"
 #include "TCanvas.h"
 #include "TString.h"
 #include "TF1.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "TH1I.h"
+#include "TText.h"
+#include "TFile.h"
+#include "TPrincipal.h"
+#include "TProfile.h"
 
 namespace shower {
   class EMShowerAlg;
@@ -132,7 +137,12 @@ public:
   /// <Tingjun to document>
   bool isCleanShower(std::vector<art::Ptr<recob::Hit> > const& hits);
 
+  int fDebug;
+
 private:
+
+  /// Checks the hits across the views in a given shower to determine if there is one in the incorrect TPC
+  void CheckIsolatedHits(std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap);
 
   /// Takes the shower hits in all views and ensure the ordering is consistent
   /// Returns bool, indicating whether or not everything makes sense!
@@ -148,12 +158,15 @@ private:
   /// Orders along the line perpendicular to the least squares line if perpendicular is set to true.
   std::vector<art::Ptr<recob::Hit> > FindOrderOfHits(std::vector<art::Ptr<recob::Hit> > const& hits, bool perpendicular = false);
 
-  /// Order hits in all planes along the best fit line through the charged-weighted centre of the hits.
-  void FindOrderOfHits(std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap, std::map<int,double> const& planeRMS, int plane);
-
   /// Takes a map of the shower hits on each plane (ordered from what has been decided to be the start)
   /// Returns a map of the initial track-like part of the shower on each plane
   std::map<int,std::vector<art::Ptr<recob::Hit> > > FindShowerStart(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& orderedShowerMap);
+
+  /// Takes all the shower hits, ready ordered, and returns information to help with the orientation of the shower in each view
+  /// Returns map of most likely permutations of reorientation
+  /// Starts at 0,0,0 (i.e. don't need to reorient any plane) and ends with 1,1,1 (i.e. every plane needs reorienting)
+  /// Every permutation inbetween represent increasing less likely changes to satisfy the correct orientation criteria
+  std::map<int,std::map<int,bool> > GetPlanePermutations(const std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap);
 
   /// Find the global wire position
   double GlobalWire(const geo::WireID& wireID);
@@ -168,7 +181,8 @@ private:
   TVector2 HitPosition(TVector2 const& pos, geo::PlaneID planeID);
 
   /// Takes initial track hits from multiple views and forms a track object which best represents the start of the shower
-  std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap);
+  std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap,
+						 std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
 
   /// Takes the hits associated with a shower and orders them so they follow the direction of the shower
   std::map<int,std::vector<art::Ptr<recob::Hit> > > OrderShowerHits(art::PtrVector<recob::Hit> const& shower, int plane);
@@ -182,14 +196,25 @@ private:
   /// Returns 2D point (units [cm])
   TVector2 Project3DPointOntoPlane(TVector3 const& point, geo::PlaneID planeID);
 
+  /// Determines the 'relative wire width', i.e. how spread a shower is across wires of each plane relative to the others
+  /// If a shower travels along the wire directions in a particular view, it will have a smaller wire width in that view
+  /// Returns a map relating these widths to each plane
+  std::map<double,int> RelativeWireWidth(const std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap);
+
   /// Returns the charge-weighted shower centre
   TVector2 ShowerCentre(const std::vector<art::Ptr<recob::Hit> >& showerHits);
 
-  /// Returns a rough shower 'direction' given the hits in the shower
+  /// Returns a rough charge-weighted shower 'direction' given the hits in the shower
   TVector2 ShowerDirection(const std::vector<art::Ptr<recob::Hit> >& showerHits);
 
   /// Returns the RMS of the hits from the central shower 'axis' along the length of the shower
   double ShowerHitRMS(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+
+  /// Returns the gradient of the RMS vs shower segment graph
+  double ShowerHitRMSGradient(const std::vector<art::Ptr<recob::Hit> >& showerHits, TVector2 trueStart = TVector2(0,0));
+
+  /// Returns the plane which is determined to be the least likely to be correct
+  int WorstPlane(const std::map<int,std::vector<art::Ptr<recob::Hit> > >& showerHitsMap);
 
 
   // Parameters
@@ -210,15 +235,18 @@ private:
   calo::CalorimetryAlg fCalorimetryAlg;
   pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 
-  int fDebug;
   std::string fDetector;
 
 
-
   // tmp
-  int FindTrackID(art::Ptr<recob::Hit> const& hit);
-  art::ServiceHandle<cheat::BackTracker> backtracker;
+  int FindTrueParticle(const std::vector<art::Ptr<recob::Hit> >& showerHits);
+  int FindParticleID(const art::Ptr<recob::Hit>& hit);
+  art::ServiceHandle<cheat::BackTracker> bt;
   TH1I* hTrueDirection;
+  TProfile* hNumHitsInSegment, *hNumSegments;
+  void MakePicture();
+  bool fMakeGradientPlot, fMakeRMSGradientPlot;
+  int fNumShowerSegments;
 
 };
 

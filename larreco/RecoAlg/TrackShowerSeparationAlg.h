@@ -25,9 +25,11 @@
 // larsoft
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/RecoBase/Vertex.h"
+#include "lardata/RecoBase/PFParticle.h"
 
 // ROOT
 #include "TTree.h"
@@ -43,32 +45,75 @@ class shower::TrackShowerSeparationAlg {
 
   TrackShowerSeparationAlg(fhicl::ParameterSet const& pset);
 
+  /// Read in configurable parameters from provided parameter set
   void reconfigure(fhicl::ParameterSet const& pset);
-  void IdentifyTracksFromEventCentre(const std::vector<art::Ptr<recob::Track> >& tracks, const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints, art::FindManyP<recob::Track> const& fmt);
-  void IdentifyTracksNearTracks(std::vector<art::Ptr<recob::Track> > const& tracks);
-  void IdentifyTracksNearVertex(art::Ptr<recob::Vertex> const& vertex, std::vector<art::Ptr<recob::Track> > const& tracks, std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints, art::FindManyP<recob::Track> const& fmt);
-  bool IdentifyShowerLikeTrack(TVector3 const& end, TVector3 const& direction, std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints);
-  void FillHitsToCluster(std::vector<art::Ptr<recob::Hit> > const& initialHits, std::vector<art::Ptr<recob::Hit> >& hitsToCluster, art::FindManyP<recob::Track> const& fmt);
-  int FindTrackID(art::Ptr<recob::Hit> &hit);
-  int FindTrueTrack(std::vector<art::Ptr<recob::Hit> > &trackHits);
-  void GetSurroundingSpacePoints(const std::vector<art::Ptr<recob::SpacePoint> >& allsp, std::vector<art::Ptr<recob::SpacePoint> >& sp, const art::FindManyP<recob::Track>& fmt, unsigned int trackID);
-  void GetSpacePointsInCone(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints, std::vector<art::Ptr<recob::SpacePoint> >& spacePointsInCone, const TVector3& trackEnd, const TVector3& trackDirection);
-  void RemoveTrackHits(std::vector<art::Ptr<recob::Hit> > const& initialHits,
-		       std::vector<art::Ptr<recob::Track> > const& tracks,
-		       std::vector<art::Ptr<recob::SpacePoint> > const& spacePoints,
-		       std::vector<art::Ptr<recob::Vertex> > const& vertices,
-		       art::FindManyP<recob::Track> const& fmth,
-		       art::FindManyP<recob::Track> const& fmtsp,
-		       art::FindManyP<recob::Hit> const& fmh,
-		       std::vector<art::Ptr<recob::Hit> >& hitsToCluster,
-		       int event,
-		       int run);
-  double SpacePointSpread(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints);
+
+  /// Takes specific previously reconstructed quantites and removes hits which are considered track-like
+  /// Returns a vector of hits which are determined to be shower-like
+  std::vector<art::Ptr<recob::Hit> > RemoveTrackHits(const std::vector<art::Ptr<recob::Hit> >& initialHits,
+						     const std::vector<art::Ptr<recob::Track> >& tracks,
+						     const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
+						     const std::vector<art::Ptr<recob::Vertex> >& vertices,
+						     const art::FindManyP<recob::Track>& fmth,
+						     const art::FindManyP<recob::Track>& fmtsp,
+						     const art::FindManyP<recob::Hit>& fmh,
+						     int event,
+						     int run);
+
+  /// Uses information from Pandora reconstruction to separate track-like and shower-like hits
+  /// Returns a vector of hits which are determined to be shower-like
+  std::vector<art::Ptr<recob::Hit> > RemoveTrackHits(const std::vector<art::Ptr<recob::Hit> >& hits,
+						     const std::vector<art::Ptr<recob::PFParticle> > pfParticles,
+						     const art::FindManyP<recob::Cluster>& fmc,
+						     const art::FindManyP<recob::Hit>& fmh);
 
  private:
 
+  /// Fill the output container with all the hits not associated with track-like objects
+  std::vector<art::Ptr<recob::Hit> > FillHitsToCluster(const std::vector<art::Ptr<recob::Hit> >& initialHits,
+						       const art::FindManyP<recob::Track>& fmt);
+
+  /// Find the true track most likely associated with this hit
+  int FindTrackID(const art::Ptr<recob::Hit>& hit);
+
+  /// Find the true track most likely associated with this set of hits
+  int FindTrueTrack(const std::vector<art::Ptr<recob::Hit> >& trackHits);
+
+  /// Finds the space points surrounding the track but not part of it
+  std::vector<art::Ptr<recob::SpacePoint> > GetSurroundingSpacePoints(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
+								      const art::FindManyP<recob::Track>& fmt,
+								      unsigned int trackID);
+
+  /// Look for space points near the track and within a narrow cone
+  std::vector<art::Ptr<recob::SpacePoint> > GetSpacePointsInCone(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
+								 const TVector3& trackEnd,
+								 const TVector3& trackDirection);
+
+  /// Determines whether or not a track is actually the start of a shower
+  bool IdentifyShowerLikeTrack(const TVector3& end,
+			       const TVector3& direction,
+			       const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints);
+
+  /// Attempt to identify tracks in the event by using the centre of the event
+  void IdentifyTracksFromEventCentre(const std::vector<art::Ptr<recob::Track> >& tracks,
+				     const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
+				     const art::FindManyP<recob::Track>& fmtsp);
+
+  /// Identifies tracks which start just after previously identified tracks end
+  void IdentifyTracksNearTracks(const std::vector<art::Ptr<recob::Track> >& tracks);
+
+  /// Identifies hadron-like tracks which originate from near the interaction vertex
+  void IdentifyTracksNearVertex(const art::Ptr<recob::Vertex>& vertex,
+				const std::vector<art::Ptr<recob::Track> >& tracks,
+				const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
+				const art::FindManyP<recob::Track>& fmtsp);
+
+  /// Finds the spread of a set of space points about their central axis
+  double SpacePointSpread(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints);
+
   std::vector<int> fTrackLikeIDs, fShowerLikeIDs;
 
+  // Configurable parameters
   double fAngleCut, fDistanceCut, fVertexProximityCut, fTrackProximityCut, fAvTrackHitDistance;
 
   art::ServiceHandle<cheat::BackTracker> backtracker;

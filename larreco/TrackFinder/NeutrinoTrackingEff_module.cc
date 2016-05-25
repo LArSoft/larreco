@@ -98,12 +98,27 @@ private:
     TH1D *h_trackRes_pion_plus;
     TH1D *h_trackRes_pion_minus;
 
+    TH1D *h_muon_length;
+    TH1D *h_proton_length;
+    TH1D *h_pionp_length;
+    TH1D *h_pionm_length;
+    TH1D *h_muonwtrk_length;
+    TH1D *h_protonwtrk_length;
+    TH1D *h_pionpwtrk_length;
+    TH1D *h_pionmwtrk_length;
+
     TEfficiency* h_Eff_Ev = 0;
     TEfficiency* h_Eff_Pmu = 0;
     TEfficiency* h_Eff_theta = 0;
     TEfficiency* h_Eff_Pproton = 0;
     TEfficiency* h_Eff_Ppion_plus = 0;
     TEfficiency* h_Eff_Ppion_minus = 0;
+
+    TEfficiency* h_Eff_Lmuon = 0;
+    TEfficiency* h_Eff_Lproton = 0;
+    TEfficiency* h_Eff_Lpion_plus = 0;
+    TEfficiency* h_Eff_Lpion_minus = 0;
+
 
     //nucleon decay histograms
     TH1D *h_Pkaon_den;
@@ -114,8 +129,14 @@ private:
     TH1D *h_trackRes_kaon; 
     TH1D *h_Efrac_michel;
     TH1D *h_trackRes_michel;
+    TH1D *h_kaon_length;
+    TH1D *h_michel_length;
+    TH1D *h_kaonwtrk_length;
+    TH1D *h_michelwtrk_length;
     TEfficiency* h_Eff_Pkaon =0;
     TEfficiency* h_Eff_Pmichel =0;
+    TEfficiency* h_Eff_Lkaon = 0;
+    TEfficiency* h_Eff_Lmichel =0;
 
 
     // Event 
@@ -325,30 +346,50 @@ void NeutrinoTrackingEff::beginJob(){
   h_trackRes_pion_plus->Sumw2();
   h_trackRes_pion_minus->Sumw2();
 
-  if(!fisNeutrinoInt ){
-    double Pbins[21] ={0,0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0};
-    h_Pmu_den = tfs->make<TH1D>("h_lepton_den","Lepton Momentum; Lepton Momentum (GeV); Tracking Efficiency",20,Pbins);
-    h_Pmu_num = tfs->make<TH1D>("h_lepton_num","Lepton Momentum; Lepton Momentum (GeV); Tracking Efficiency",20,Pbins);
-    h_Pkaon_den = tfs->make<TH1D>("h_Pkaon_den","Kaon; Kaon Momentum (GeV); Tracking Efficiency", 20, Pbins);
-    h_Pkaon_num = tfs->make<TH1D>("h_Pkaon_num","Kaon; Kaon Momentum (GeV); Tracking Efficiency", 20, Pbins);
-    h_Pmichel_e_den = tfs->make<TH1D>("h_Pmichel_e_den","Michel Electron; Michele e Momentum (GeV); Tracking Efficiency", 20, Pbins);
-    h_Pmichel_e_num = tfs->make<TH1D>("h_Pmichel_e_num","Michel Electron; Michele e Momentum (GeV); Tracking Efficiency", 20, Pbins);
-    //h_Pmu_den->Sumw2();
-    //h_Pmu_num->Sumw2();
-    h_Pkaon_den->Sumw2();
-    h_Pkaon_num->Sumw2();
-    h_Pmichel_e_den->Sumw2(); 
-    h_Pmichel_e_num->Sumw2(); 
-    h_Efrac_kaon = tfs->make<TH1D>("h_Efrac_kaon","Efrac Kaon; Track Energy fraction;",60,0,1.2);
-    h_trackRes_kaon = tfs->make<TH1D>("h_trackRes_kaon","Kaon Residual; Truth length - Reco length (cm);",200,-100,100);
-    h_Efrac_michel = tfs->make<TH1D>("h_Efrac_michel","Efrac Michel; Track Energy fraction;",60,0,1.2);
-    h_trackRes_michel = tfs->make<TH1D>("h_trackRes_michel","Michel Residual; Truth length - Reco length (cm);",200,-100,100);
-    h_Efrac_kaon->Sumw2();
-    h_trackRes_kaon->Sumw2();
-    h_Efrac_michel->Sumw2();
-    h_trackRes_michel->Sumw2();
-  }
+  h_muon_length = tfs->make<TH1D>("h_muon_length","Muon Length;  Muon Truth Length (cm)",40,0,100);
+  h_proton_length = tfs->make<TH1D>("h_proton_length","Proton Length; Proton Truth Length (cm)",40,0,100);
+  h_pionp_length = tfs->make<TH1D>("h_pionp_length","Pion + Length; Pion^{+} Truth Length (cm)",40,0,100);
+  h_pionm_length = tfs->make<TH1D>("h_pionm_length","Pion - Length; Pion^{-} Truth Length (cm)",40,0,100);
 
+  h_muonwtrk_length = tfs->make<TH1D>("h_muonwtrk_length","Muon Length; Muon Truth Length (cm)",40,0,100);
+  h_protonwtrk_length = tfs->make<TH1D>("h_protonwtrk_length","Proton Length; Proton Truth Length (cm)",40,0,100);
+  h_pionpwtrk_length = tfs->make<TH1D>("h_pionpwtrk_length","Pion + Length; Pion^{+} Truth Length (cm)",40,0,100);
+  h_pionmwtrk_length = tfs->make<TH1D>("h_pionmwtrk_length","Pion - Length; Pion^{-} Truth Length (cm)",40,0,100);
+
+  h_muon_length->Sumw2();
+  h_muonwtrk_length->Sumw2();
+  h_proton_length->Sumw2();
+  h_protonwtrk_length->Sumw2();
+  h_pionp_length->Sumw2();
+  h_pionpwtrk_length->Sumw2();
+  h_pionm_length->Sumw2();
+  h_pionmwtrk_length->Sumw2();
+
+  h_Pkaon_den = tfs->make<TH1D>("h_Pkaon_den","Kaon; Kaon Momentum (GeV); Tracking Efficiency", 17, Pbins);
+  h_Pkaon_num = tfs->make<TH1D>("h_Pkaon_num","Kaon; Kaon Momentum (GeV); Tracking Efficiency", 17, Pbins);
+  h_Pmichel_e_den = tfs->make<TH1D>("h_Pmichel_e_den","Michel Electron; Michele e Momentum (GeV); Tracking Efficiency", 17, Pbins);
+  h_Pmichel_e_num = tfs->make<TH1D>("h_Pmichel_e_num","Michel Electron; Michele e Momentum (GeV); Tracking Efficiency", 17, Pbins);
+  h_Pkaon_den->Sumw2();
+  h_Pkaon_num->Sumw2();
+  h_Pmichel_e_den->Sumw2(); 
+  h_Pmichel_e_num->Sumw2(); 
+  h_Efrac_kaon = tfs->make<TH1D>("h_Efrac_kaon","Efrac Kaon; Track Energy fraction;",60,0,1.2);
+  h_trackRes_kaon = tfs->make<TH1D>("h_trackRes_kaon","Kaon Residual; Truth length - Reco length (cm);",200,-100,100);
+  h_Efrac_michel = tfs->make<TH1D>("h_Efrac_michel","Efrac Michel; Track Energy fraction;",60,0,1.2);
+  h_trackRes_michel = tfs->make<TH1D>("h_trackRes_michel","Michel Residual; Truth length - Reco length (cm);",200,-100,100);
+  h_kaon_length = tfs->make<TH1D>("h_kaon_length","Kaon Length; Kaon Truth Length (cm)",40,0,100);
+  h_kaonwtrk_length = tfs->make<TH1D>("h_kaonwtrk_length","Kaon Length; Kaon Truth Length (cm)",40,0,100);
+  h_michel_length = tfs->make<TH1D>("h_michel_length","Michel Length; Michel e Truth Length (cm)",40,0,100);
+  h_michelwtrk_length = tfs->make<TH1D>("h_michelwtrk_length","Michel Length; Michel e Truth Length (cm)",40,0,100);
+
+  h_Efrac_kaon->Sumw2();
+  h_trackRes_kaon->Sumw2();
+  h_Efrac_michel->Sumw2();
+  h_trackRes_michel->Sumw2();
+  h_kaon_length->Sumw2();
+  h_kaonwtrk_length->Sumw2();
+  h_michel_length->Sumw2();
+  h_michelwtrk_length->Sumw2();
 
   if( fSaveMCTree ){
     fEventTree = tfs->make<TTree>("Event", "Event Tree from Sim & Reco");
@@ -558,10 +599,15 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          }
          i++; //paticle index
        }
-
+       //double vertex[
+       
        //add Nucleon decay stuff
        if(!fisNeutrinoInt ){
-         if( particle->Mother() == 0 && particle->PdgCode() == 321 ){   //save primary Kaon
+         if( particle->Mother() == 0 ){
+           const TLorentzVector& positionStart = particle->Position(0); 
+           positionStart.GetXYZT(MC_vertex); 
+         }
+         if( particle->PdgCode() == 321 ){   //save primary Kaon
            const TLorentzVector& kaon_momentum =particle->Momentum(0); 
            const TLorentzVector& kaon_position =particle->Position(0); 
            const TLorentzVector& kaon_positionEnd   = particle->EndPosition();
@@ -570,12 +616,11 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
            kaon_position.GetXYZT(MC_lepton_startXYZT);
            kaon_positionEnd.GetXYZT(MC_lepton_endXYZT);
            kaon_momentumEnd.GetXYZT(MC_lepton_endMomentum);
-           kaon_position.GetXYZT(MC_vertex); //Primary vertex
            MC_kaonID = particle->TrackId();    
            MC_kaonP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
            MCkaon = particle;
          }   
-         else if( particle->Mother() ==2 && particle->Process() =="Decay" && particle->PdgCode() == fLeptonPDGcode ){  // lepton
+         else if( particle->PdgCode() == fLeptonPDGcode ){  // lepton
            const TLorentzVector& lepton_momentum =particle->Momentum(0); 
            const TLorentzVector& lepton_position =particle->Position(0); 
            const TLorentzVector& lepton_positionEnd   = particle->EndPosition();
@@ -587,6 +632,39 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
            MC_leptonID = particle->TrackId();
            MC_leptonP = sqrt(pow(MC_lepton_startMomentum[0],2)+pow(MC_lepton_startMomentum[1],2)+pow(MC_lepton_startMomentum[2],2));
            MClepton = particle;
+         }
+         else if( particle->PdgCode() == 2212 ){
+           if(particle->Momentum().E() > tmp_leadingProtonE){
+             tmp_leadingProtonE = particle->Momentum().E();
+             MC_leading_protonID = particle->TrackId();          
+             MC_leading_ProtonP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
+             //const TLorentzVector& protonEnd   = particle->EndPosition();
+             //const TLorentzVector& protonStart = particle->Position();
+             //proton_length = sqrt( pow((protonEnd.X()-protonStart.X()),2)+pow((protonEnd.Y()-protonStart.Y()),2)+pow((protonEnd.Z()-protonStart.Z()),2)); 
+             MCproton = particle;
+           } 
+         }
+         else if( particle->PdgCode() == 211 ){
+           if(particle->Momentum().E() > tmp_leadingPionPlusE){
+             tmp_leadingPionPlusE = particle->Momentum().E();
+             MC_leading_PionPlusID = particle->TrackId();          
+             MC_leading_PionPlusP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
+             //const TLorentzVector& pionEnd = particle->EndPosition();
+             //const TLorentzVector& pionStart = particle->Position();
+             //pion_plus_length = sqrt( pow((pionEnd.X()-pionStart.X()),2)+pow((pionEnd.Y()-pionStart.Y()),2)+pow((pionEnd.Z()-pionStart.Z()),2));
+             MCpion_plus = particle;
+           } 
+         }
+         else if( particle->PdgCode() == -211 ){
+           if(particle->Momentum().E() > tmp_leadingPionMinusE){
+             tmp_leadingPionMinusE = particle->Momentum().E();
+             MC_leading_PionMinusID = particle->TrackId();          
+             MC_leading_PionMinusP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
+             //const TLorentzVector& pionEnd = particle->EndPosition();
+             //const TLorentzVector& pionStart = particle->Position();
+             //pion_minus_length = sqrt( pow((pionEnd.X()-pionStart.X()),2)+pow((pionEnd.Y()-pionStart.Y()),2)+pow((pionEnd.Z()-pionStart.Z()),2));
+             MCpion_minus = particle;
+           } 
          }
          else if( particle->Process() =="Decay" && particle->PdgCode() == -11){  // michel electron
            const TLorentzVector& michel_momentum =particle->Momentum(0); 
@@ -623,15 +701,19 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          h_Ev_den->Fill(MC_incoming_P[3]);
          h_Pmu_den->Fill(MC_leptonP);
          h_theta_den->Fill(theta_mu);
+	 h_muon_length->Fill(truth_lengthLepton);
        }
        if( MCproton ){
          h_Pproton_den->Fill(MC_leading_ProtonP);
+         h_proton_length->Fill(proton_length);
        }
        if( MCpion_plus ){
          h_Ppion_plus_den->Fill( MC_leading_PionPlusP);
+         h_pionp_length->Fill(pion_plus_length);
        }
        if( MCpion_minus ){
          h_Ppion_minus_den->Fill( MC_leading_PionMinusP);
+         h_pionm_length->Fill(pion_minus_length);
        }
     } 
   
@@ -639,14 +721,28 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     if(!fisNeutrinoInt ){
       if( MClepton ){
          h_Pmu_den->Fill(MC_leptonP);
+	 h_muon_length->Fill(truth_lengthLepton);
        }
        if( MCkaon ){
          h_Pkaon_den->Fill(MC_kaonP);
+         h_kaon_length->Fill(kaonLength);
+       }
+       if( MCproton ){
+         h_Pproton_den->Fill(MC_leading_ProtonP);
+         h_proton_length->Fill(proton_length);
+       }
+       if( MCpion_plus ){
+         h_Ppion_plus_den->Fill( MC_leading_PionPlusP);
+         h_pionp_length->Fill(pion_plus_length);
+       }
+       if( MCpion_minus ){
+         h_Ppion_minus_den->Fill( MC_leading_PionMinusP);
+         h_pionm_length->Fill(pion_minus_length);
        }
        if( MCmichel ){
          h_Pmichel_e_den->Fill(MC_michelP);
+	 h_michel_length->Fill(michelLength);
        }
- 
     }
  
     //========================================================================
@@ -761,6 +857,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
         h_theta_num->Fill(theta_mu);
         h_Efrac_lepton->Fill(Efrac_lepton);
         h_trackRes_lepton->Fill(Reco_LengthRes);  
+        h_muonwtrk_length->Fill(truth_lengthLepton);
       }
     }
     if( MCproton_reco && MCproton ){
@@ -769,6 +866,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
         h_Pproton_num->Fill(MC_leading_ProtonP);     
         h_Efrac_proton->Fill(Efrac_proton);
         h_trackRes_proton->Fill(Reco_LengthResProton);       
+	h_protonwtrk_length->Fill(proton_length);
       }
     }
     if( MCpion_plus_reco && MCpion_plus ){
@@ -777,6 +875,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
         h_Ppion_plus_num->Fill(MC_leading_PionPlusP);     
         h_Efrac_pion_plus->Fill(Efrac_pionplus);
         h_trackRes_pion_plus->Fill(Reco_LengthResPionPlus);
+	h_pionpwtrk_length->Fill(pion_plus_length);
       }
     }
     if( MCpion_minus_reco && MCpion_minus  ){
@@ -785,26 +884,52 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
         h_Ppion_minus_num->Fill(MC_leading_PionMinusP);     
         h_Efrac_pion_minus->Fill(Efrac_pionminus);
         h_trackRes_pion_minus->Fill(Reco_LengthResPionMinus);
+	h_pionmwtrk_length->Fill(pion_minus_length);
       }
     }
+ 
     if(!fisNeutrinoInt ){
       if( MClepton_reco && MClepton  ){
         MC_LeptonTrack = 1;
         h_Pmu_num->Fill(MC_leptonP);
         h_Efrac_lepton->Fill(Efrac_lepton);
         h_trackRes_lepton->Fill(Reco_LengthRes);
+	h_muonwtrk_length->Fill(truth_lengthLepton);
       }
       if( MCkaon_reco && MCkaon ){
         MC_kaonTrack = 1;
         h_Pkaon_num->Fill(MC_kaonP);
         h_Efrac_kaon->Fill(Efrac_kaon);
         h_trackRes_kaon->Fill(kaonLength-trackLength_kaon);
+	h_kaonwtrk_length->Fill(kaonLength);
+      }
+      if( MCproton_reco && MCproton ){
+        MC_ProtonTrack = 1;
+        h_Pproton_num->Fill(MC_leading_ProtonP);     
+        h_Efrac_proton->Fill(Efrac_proton);
+        h_trackRes_proton->Fill(Reco_LengthResProton);       
+	h_protonwtrk_length->Fill(proton_length);
+      }
+      if( MCpion_plus_reco && MCpion_plus ){
+        MC_PionPlusTrack = 1;
+        h_Ppion_plus_num->Fill(MC_leading_PionPlusP);     
+        h_Efrac_pion_plus->Fill(Efrac_pionplus);
+        h_trackRes_pion_plus->Fill(Reco_LengthResPionPlus);
+	h_pionpwtrk_length->Fill(pion_plus_length);
+      }
+      if( MCpion_minus_reco && MCpion_minus  ){
+        MC_PionMinusTrack = 1;
+        h_Ppion_minus_num->Fill(MC_leading_PionMinusP);     
+        h_Efrac_pion_minus->Fill(Efrac_pionminus);
+        h_trackRes_pion_minus->Fill(Reco_LengthResPionMinus);
+	h_pionmwtrk_length->Fill(pion_minus_length);
       }
       if( MCmichel_reco && MCmichel ){
         MC_michelTrack = 1;
         h_Pmichel_e_num->Fill(MC_michelP);
         h_Efrac_michel->Fill(Efrac_michel);
         h_trackRes_michel->Fill(michelLength-trackLength_michel);
+	h_michelwtrk_length->Fill(michelLength);
       }
 
     }
@@ -936,13 +1061,43 @@ void NeutrinoTrackingEff::doEfficiencies(){
      grEff_Ppion_minus->Write("grEff_Ppion_minus");
      h_Eff_Ppion_minus->Write("h_Eff_Ppion_minus");
    }
+   if(TEfficiency::CheckConsistency(*h_muonwtrk_length,*h_muon_length)){
+     h_Eff_Lmuon = tfs->make<TEfficiency>(*h_muonwtrk_length,*h_muon_length);
+     TGraphAsymmErrors *grEff_Lmuon = h_Eff_Lmuon->CreateGraph();
+     grEff_Lmuon->Write("grEff_Lmuon");
+     h_Eff_Lmuon->Write("h_Eff_Lmuon");
+   }
+   if(TEfficiency::CheckConsistency(*h_protonwtrk_length,*h_proton_length)){
+     h_Eff_Lproton = tfs->make<TEfficiency>(*h_protonwtrk_length,*h_proton_length);
+     TGraphAsymmErrors *grEff_Lproton = h_Eff_Lproton->CreateGraph();
+     grEff_Lproton->Write("grEff_Lproton");
+     h_Eff_Lproton->Write("h_Eff_Lproton");
+   }
+   if(TEfficiency::CheckConsistency(*h_pionpwtrk_length,*h_pionp_length)){
+     h_Eff_Lpion_plus = tfs->make<TEfficiency>(*h_pionpwtrk_length,*h_pionp_length);
+     TGraphAsymmErrors *grEff_Lpion_plus = h_Eff_Lpion_plus->CreateGraph();
+     grEff_Lpion_plus->Write("grEff_Lpion_plus");
+     h_Eff_Lpion_plus->Write("h_Eff_Lpion_plus");
+   }
+   if(TEfficiency::CheckConsistency(*h_pionpwtrk_length,*h_pionp_length)){
+     h_Eff_Lpion_minus = tfs->make<TEfficiency>(*h_pionmwtrk_length,*h_pionm_length);
+     TGraphAsymmErrors *grEff_Lpion_minus = h_Eff_Lpion_minus->CreateGraph();
+     grEff_Lpion_minus->Write("grEff_Lpion_minus");
+     h_Eff_Lpion_minus->Write("h_Eff_Lpion_minus");
+   }
 
    if(!fisNeutrinoInt ){ 
      if(TEfficiency::CheckConsistency(*h_Pkaon_num,*h_Pkaon_den)){
        h_Eff_Pkaon = tfs->make<TEfficiency>(*h_Pkaon_num,*h_Pkaon_den);
        TGraphAsymmErrors *grEff_Pkaon = h_Eff_Pkaon->CreateGraph();
        grEff_Pkaon->Write("grEff_Pkaon");
-       h_Eff_Pkaon->Write("h_Eff_Pkaonn");
+       h_Eff_Pkaon->Write("h_Eff_Pkaon");
+     }
+    if(TEfficiency::CheckConsistency(*h_kaonwtrk_length,*h_kaon_length)){
+       h_Eff_Lkaon = tfs->make<TEfficiency>(*h_kaonwtrk_length,*h_kaon_length);
+       TGraphAsymmErrors *grEff_Lkaon = h_Eff_Lkaon->CreateGraph();
+       grEff_Lkaon->Write("grEff_Lkaon");
+       h_Eff_Lkaon->Write("h_Eff_Lkaon");
      }
      if(TEfficiency::CheckConsistency(*h_Pmichel_e_num,*h_Pmichel_e_den)){
        h_Eff_Pmichel = tfs->make<TEfficiency>(*h_Pmichel_e_num,*h_Pmichel_e_den);
@@ -950,7 +1105,12 @@ void NeutrinoTrackingEff::doEfficiencies(){
        grEff_Pmichel->Write("grEff_Pmichel");
        h_Eff_Pmichel->Write("h_Eff_Pmichel");
      }
-
+     if(TEfficiency::CheckConsistency(*h_michelwtrk_length,*h_michel_length)){
+       h_Eff_Lmichel = tfs->make<TEfficiency>(*h_michelwtrk_length,*h_michel_length);
+       TGraphAsymmErrors *grEff_Lmichel = h_Eff_Lmichel->CreateGraph();
+       grEff_Lmichel->Write("grEff_Lmichel");
+       h_Eff_Lmichel->Write("h_Eff_Lmichel");
+     }
    }
 
 }

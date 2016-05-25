@@ -3,6 +3,12 @@
 
 BEGIN_PROLOG
 
+standard_trajcluster:
+{
+  module_type:          "TrajCluster"
+  TrajClusterAlg:       @local::standard_trajclusteralg
+} # standard_trajcluster
+
 standard_blurredcluster:
 {
  module_type:              "BlurredClustering"
@@ -13,6 +19,7 @@ standard_blurredcluster:
  HitsModuleLabel:          "gaushit"
  TrackModuleLabel:         "pmtrack"
  VertexModuleLabel:        "linecluster"
+ PFParticleModuleLabel:    "pandora"
  BlurredClusterAlg:        @local::standard_blurredclusteralg
  MergeClusterAlg:          @local::standard_mergeclusteralg
  TrackShowerSeparationAlg: @local::standard_trackshowerseparationalg

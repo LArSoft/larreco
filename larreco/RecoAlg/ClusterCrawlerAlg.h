@@ -85,7 +85,7 @@ namespace cluster {
       unsigned short NClusters;  // = 0 for abandoned vertices
 			float ChiDOF;
       short Topo; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star,
-												// 6 = hammer, 7 = vtx3clustermatch, 8 = vtx3clustersplit
+												// 6 = hammer, 7 = vtx3clustermatch, 8 = vtx3clustersplit, 9 = FindTrajVertices
       CTP_t CTP;
       bool Fixed;                 // Vertex position fixed (should not be re-fit)
     };
@@ -169,6 +169,7 @@ namespace cluster {
     bool fChkClusterDS;
     bool fVtxClusterSplit;
     bool fFindStarVertices;
+    bool fFindTrajVertices;
 
     // global cuts and parameters 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
@@ -200,6 +201,7 @@ namespace cluster {
     float clparerr[2];  ///< cluster parameter errors
     float clChisq;     ///< chisq of the current fit
     float fAveChg;  ///< average charge at leading edge of cluster
+    float fChgRMS;  ///< average charge RMS at leading edge of cluster
     float fChgSlp;  ///< slope of the  charge vs wire
     float fAveHitWidth; ///< average width (EndTick - StartTick) of hits
     
@@ -285,20 +287,6 @@ namespace cluster {
 															///< to define a shower-like cluster
 
     std::string fhitsModuleLabel;
-    
-/*
-    // hit multiplets that have been saved before merging.
-    std::vector<recob::Hit> unMergedHits;
-    // RestoreUnMergedHits should be called before abandoning fcl2hits to
-    // restore any hits that may have been merged in the fcl2hits vector
-    // Set ntrim < 0 to check all hits
-    void RestoreUnMergedClusterHits(short ntrim);
-    // Restore a single merged hit
-    void RestoreUnMergedHit(unsigned int theHit);
-    // ClearUnMergedHits should (optionally) be called after a new
-    // temporary (tcl) cluster has been created
-    void ClearUnMergedHits();
-*/
     // ******** crawling routines *****************
 
     // Loops over wires looking for seed clusters
@@ -320,9 +308,6 @@ namespace cluster {
     void CrawlUS();
     // Crawls along a trail of hits UpStream - Large Angle version
     void LACrawlUS();
-    // Crawls starting at position pos, moving in direction dir with step size step
-    // appending hits to fcl2hits
-    void StepCrawl(float step);
     
     void KillGarbageClusters();
 
@@ -355,13 +340,6 @@ namespace cluster {
 
     // Try to merge overlapping clusters
     void MergeOverlap();
-    
-    // Find Very Large Angle clusters
-    void FindVLAClusters();
-    
-    // Make VLA cluster using hits in fc2lhits
-//    void MakeVLACluster();
-//    void FitVLACluster(short nHitsFit);
     
     /// Marks the cluster as obsolete and frees hits still associated with it
     void MakeClusterObsolete(unsigned short icl);

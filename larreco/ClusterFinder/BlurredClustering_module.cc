@@ -28,6 +28,10 @@
 #include "larcore/Geometry/PlaneGeo.h"
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/Hit.h"
+#include "lardata/RecoBase/Track.h"
+#include "lardata/RecoBase/SpacePoint.h"
+#include "lardata/RecoBase/Vertex.h"
+#include "lardata/RecoBase/PFParticle.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/ClusterFinder/ClusterCreator.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
@@ -57,7 +61,7 @@ public:
 private:
 
   int fEvent, fRun, fSubrun;
-  std::string fHitsModuleLabel, fTrackModuleLabel, fVertexModuleLabel;
+  std::string fHitsModuleLabel, fTrackModuleLabel, fVertexModuleLabel, fPFParticleModuleLabel;
   bool fCreateDebugPDF, fMergeClusters, fGlobalTPCRecon, fShowerReconOnly;
 
   // Create instances of algorithm classes to perform the clustering
@@ -82,13 +86,14 @@ cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const &pset) :
 cluster::BlurredClustering::~BlurredClustering() { }
 
 void cluster::BlurredClustering::reconfigure(fhicl::ParameterSet const& p) {
-  fHitsModuleLabel   = p.get<std::string>("HitsModuleLabel");
-  fTrackModuleLabel  = p.get<std::string>("TrackModuleLabel");
-  fVertexModuleLabel = p.get<std::string>("VertexModuleLabel");
-  fCreateDebugPDF    = p.get<bool>       ("CreateDebugPDF");
-  fMergeClusters     = p.get<bool>       ("MergeClusters");
-  fGlobalTPCRecon    = p.get<bool>       ("GlobalTPCRecon");
-  fShowerReconOnly   = p.get<bool>       ("ShowerReconOnly");
+  fHitsModuleLabel       = p.get<std::string>("HitsModuleLabel");
+  fTrackModuleLabel      = p.get<std::string>("TrackModuleLabel");
+  fVertexModuleLabel     = p.get<std::string>("VertexModuleLabel");
+  fPFParticleModuleLabel = p.get<std::string>("PFParticleModuleLabel");
+  fCreateDebugPDF        = p.get<bool>       ("CreateDebugPDF");
+  fMergeClusters         = p.get<bool>       ("MergeClusters");
+  fGlobalTPCRecon        = p.get<bool>       ("GlobalTPCRecon");
+  fShowerReconOnly       = p.get<bool>       ("ShowerReconOnly");
   fBlurredClusteringAlg.reconfigure(p.get<fhicl::ParameterSet>("BlurredClusterAlg"));
   fMergeClusterAlg.reconfigure(p.get<fhicl::ParameterSet>("MergeClusterAlg"));
   fTrackShowerSeparationAlg.reconfigure(p.get<fhicl::ParameterSet>("TrackShowerSeparationAlg"));
@@ -142,12 +147,32 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     if (evt.getByLabel(fVertexModuleLabel, vertexCollection))
       art::fill_ptr_vector(vertices, vertexCollection);
 
-    art::FindManyP<recob::Track> fmth(hitCollection, evt, fTrackModuleLabel);
-    art::FindManyP<recob::Track> fmtsp(spacePointCollection, evt, fTrackModuleLabel);
-    art::FindManyP<recob::Hit> fmh(trackCollection, evt, fTrackModuleLabel);
+    // Get pandora pfparticles and clusters from the event
+    art::Handle<std::vector<recob::PFParticle> > pfParticleCollection;
+    std::vector<art::Ptr<recob::PFParticle> > pfParticles;
+    if (evt.getByLabel(fPFParticleModuleLabel, pfParticleCollection))
+      art::fill_ptr_vector(pfParticles, pfParticleCollection);
+    art::Handle<std::vector<recob::Cluster> > clusterCollection;
+    evt.getByLabel(fPFParticleModuleLabel, clusterCollection);
 
     // Remove hits from tracks before performing any clustering
-    fTrackShowerSeparationAlg.RemoveTrackHits(hits, tracks, spacePoints, vertices, fmth, fmtsp, fmh, hitsToCluster, evt.event(), evt.run());
+    if (pfParticleCollection.isValid() and clusterCollection.isValid()) {
+      mf::LogInfo("BlurredCluster") << "Removing track-like hits before clustering: will use information from PFParticles." << std::endl;
+      art::FindManyP<recob::Cluster> fmcpfp(pfParticleCollection, evt, fPFParticleModuleLabel);
+      art::FindManyP<recob::Hit> fmhpfp(clusterCollection, evt, fPFParticleModuleLabel);
+      hitsToCluster = fTrackShowerSeparationAlg.RemoveTrackHits(hits, pfParticles, fmcpfp, fmhpfp);
+    }
+    else if (trackCollection.isValid() and trackCollection.isValid() and spacePointCollection.isValid()) {
+      mf::LogInfo("BlurredCluster") << "Removing track-like hits before clustering: no PFParticle information available so will use tracks and vertices." << std::endl;
+      art::FindManyP<recob::Track> fmth(hitCollection, evt, fTrackModuleLabel);
+      art::FindManyP<recob::Track> fmtsp(spacePointCollection, evt, fTrackModuleLabel);
+      art::FindManyP<recob::Hit> fmh(trackCollection, evt, fTrackModuleLabel);
+      hitsToCluster = fTrackShowerSeparationAlg.RemoveTrackHits(hits, tracks, spacePoints, vertices, fmth, fmtsp, fmh, evt.event(), evt.run());
+    }
+    else
+      throw art::Exception(art::errors::Configuration) << "Error: configuration is set to remove track-like hits before clustering but no prior reconstruction is provided... "
+						       << std::endl
+						       << "Require either a) Pandora or b) track, vertices and space points to have already been found." << std::endl;
 
   }
 
@@ -212,7 +237,7 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
 
     } // End min hits check
 
-    fBlurredClusteringAlg.fHitMap.clear();
+    //fBlurredClusteringAlg.fHitMap.clear();
 
     // Make the output cluster objects
     for (std::vector<art::PtrVector<recob::Hit> >::iterator clusIt = finalClusters.begin(); clusIt != finalClusters.end(); ++clusIt) {
