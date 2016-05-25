@@ -199,6 +199,12 @@ void nnet::PointIdEffTest::beginJob()
 void nnet::PointIdEffTest::endJob()
 {
 	if (fSaveHitsFile) fHitsOutFile.close();
+
+	std::cout << " fShOk " << fShOk << " fTrkOk " << fTrkOk << std::endl;
+	std::cout << " fShB " << fShB << " fTrkB " << fTrkB << std::endl;
+	std::cout << " fNone " << fNone << " Total " << fTotal << std::endl;
+
+	std::cout << " fShErr " << fShB / (fShB + fShOk) << " fTrkErr " << fTrkB / (fTrkB + fTrkOk) << std::endl;
 }
 
 void nnet::PointIdEffTest::analyze(art::Event const & e)
@@ -421,10 +427,6 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 				<< mctype << " " << fRecoPid << " " << fPidValue << std::endl;
 		}
 	}
-
-	std::cout << " fShOk " << fShOk << " fTrkOk " << fTrkOk << std::endl;
-	std::cout << " fShB " << fShB << " fTrkB " << fTrkB << std::endl;
-	std::cout << " fNone " << fNone << " Total " << fTotal << std::endl;
 	
 	fTreecl->Fill();	
 }
