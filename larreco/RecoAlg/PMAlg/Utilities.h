@@ -19,8 +19,14 @@
 #include "TVector2.h"
 #include "TVector3.h"
 
+#include "Math/GenVector/DisplacementVector2D.h"
+#include "Math/GenVector/DisplacementVector3D.h"
+
 namespace pma
 {
+	typedef ROOT::Math::DisplacementVector2D< ROOT::Math::Cartesian2D<double> > Vector2D;
+	typedef ROOT::Math::DisplacementVector3D< ROOT::Math::Cartesian3D<double> > Vector3D;
+
 	class Hit3D;
 	class TrkCandidate;
 	class bSegmentProjLess;
