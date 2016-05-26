@@ -26,6 +26,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "larreco/RecoAlg/ImagePatternAlgs/MLP/NNReader.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/CNN/keras_model.h"
 
 // ROOT & C++
 #include <memory>
@@ -33,6 +34,9 @@
 namespace nnet
 {
 	class DataProviderAlg;
+	class ModelInterface;
+	class MlpModelInterface;
+	class KerasModelInterface;
 	class PointIdAlg;
 	class TrainingDataAlg;
 }
@@ -92,6 +96,51 @@ protected:
 	geo::GeometryCore const* fGeometry;
 	detinfo::DetectorProperties const* fDetProp;
 };
+// ------------------------------------------------------
+// ------------------------------------------------------
+// ------------------------------------------------------
+
+class nnet::ModelInterface
+{
+public:
+	virtual unsigned int GetInputCols(void) const = 0;
+	virtual unsigned int GetInputRows(void) const = 0;
+	virtual int GetOutputLength(void) const = 0;
+
+protected:
+	ModelInterface(void) { }
+
+private:
+};
+// ------------------------------------------------------
+
+class nnet::MlpModelInterface : public nnet::ModelInterface
+{
+public:
+	MlpModelInterface(const char* xmlFileName);
+
+	virtual unsigned int GetInputRows(void) const { return m.GetInputLength(); }
+	virtual unsigned int GetInputCols(void) const { return 1; }
+	virtual int GetOutputLength(void) const { return m.GetOutputLength(); }
+
+private:
+	nnet::NNReader m;
+};
+// ------------------------------------------------------
+
+class nnet::KerasModelInterface : public nnet::ModelInterface
+{
+public:
+	KerasModelInterface(const char* modelFileName);
+
+	virtual unsigned int GetInputRows(void) const { return m.get_input_rows(); }
+	virtual unsigned int GetInputCols(void) const { return m.get_input_cols(); }
+	virtual int GetOutputLength(void) const { return m.get_output_length(); }
+
+private:
+	KerasModel m;
+};
+// ------------------------------------------------------
 
 class nnet::PointIdAlg : public nnet::DataProviderAlg
 {
@@ -122,6 +171,9 @@ private:
 	void* fCNN; // to be defined..
 	void deleteCNN(void) { fCNN = 0; } // { if (fCNN) delete fCNN; fCNN = 0; }
 };
+// ------------------------------------------------------
+// ------------------------------------------------------
+// ------------------------------------------------------
 
 class nnet::TrainingDataAlg : public nnet::DataProviderAlg
 {
@@ -154,5 +206,8 @@ private:
 
 	std::string fSimulationProducerLabel;
 };
+// ------------------------------------------------------
+// ------------------------------------------------------
+// ------------------------------------------------------
 
 #endif
