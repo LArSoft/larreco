@@ -472,8 +472,8 @@ namespace trkf {
     for(icl = 0; icl < clusterlist.size(); ++icl) {
       ipl = clusterlist[icl]->Plane().Plane;
       clusterhits = fmCluHits.at(icl);
-      if(clusterhits[0]->WireID().Wire != clusterlist[icl]->EndWire()) {
-        std::cout<<"CCTM Cluster-Hit End wire mis-match "<<clusterhits[0]->WireID().Wire<<" vs "<<clusterlist[icl]->EndWire()<<" Bail out! \n";
+      if(clusterhits[0]->WireID().Wire != std::nearbyint(clusterlist[icl]->EndWire())) {
+        std::cout<<"CCTM Cluster-Hit End wire mis-match "<<clusterhits[0]->WireID().Wire<<" vs "<<std::nearbyint(clusterlist[icl]->EndWire())<<" Bail out! \n";
         return;
       }
       for(unsigned short iht = 0; iht < clusterhits.size(); ++iht) {

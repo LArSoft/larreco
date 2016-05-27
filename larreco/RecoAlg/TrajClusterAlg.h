@@ -284,7 +284,7 @@ namespace tca {
     void FillMissedPoints(Trajectory& tj);
     // Check for many unused hits in work and try to use them
     void CheckHiMultUnusedHits(Trajectory& tj);
-    void UseHiMultEndHits(unsigned short lastMult1Pt);
+    void CheckHiMultEndHits(Trajectory& tj);
     // Check for high values of Delta at the beginning of the trajectory
     void CheckHiDeltas(Trajectory& tj);
     // Check for a TJ that is close to the Large Angle cut
