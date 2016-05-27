@@ -26,7 +26,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "larreco/RecoAlg/ImagePatternAlgs/MLP/NNReader.h"
-#include "larreco/RecoAlg/ImagePatternAlgs/CNN/keras_model.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/Keras/keras_model.h"
 
 // ROOT & C++
 #include <memory>

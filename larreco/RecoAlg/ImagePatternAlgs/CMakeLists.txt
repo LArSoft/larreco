@@ -41,7 +41,7 @@ simple_plugin(PointIdEffTest "module"
 			${ROOT_BASIC_LIB_LIST}
 )
 
-add_subdirectory(CNN)
+add_subdirectory(Keras)
 add_subdirectory(MLP)
 add_subdirectory(PointIdAlg)
 

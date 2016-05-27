@@ -1,6 +1,6 @@
 art_make( 
           LIB_LIBRARIES larreco_RecoAlg_ImagePatternAlgs_MLP
-                        larreco_RecoAlg_ImagePatternAlgs_CNN
+                        larreco_RecoAlg_ImagePatternAlgs_Keras
                         larcore_Geometry_Geometry_service
                         larcore_Geometry
 						lardata_RecoBase
