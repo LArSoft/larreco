@@ -1156,7 +1156,6 @@ namespace tca {
     if(tidlist.empty()) return;
     
     // get the hits (in all planes) that are matched to the true tracks
-    std::cout<<"sizes "<<tjs.fHits.size()<<" tidlist "<<tidlist.size()<<"\n";
     hlist2 = bt->TrackIDsToHits(tjs.fHits, tidlist);
     if(hlist2.size() != plist2.size()) return;
     tidlist.clear();
