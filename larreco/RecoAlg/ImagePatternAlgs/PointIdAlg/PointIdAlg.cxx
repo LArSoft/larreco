@@ -239,6 +239,11 @@ nnet::MlpModelInterface::MlpModelInterface(const char* xmlFileName) :
 }
 // ------------------------------------------------------
 
+void nnet::MlpModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
+{
+}
+// ------------------------------------------------------
+
 
 // ------------------------------------------------------
 // ----------------KerasModelInterface-------------------
@@ -246,6 +251,11 @@ nnet::MlpModelInterface::MlpModelInterface(const char* xmlFileName) :
 
 nnet::KerasModelInterface::KerasModelInterface(const char* modelFileName) :
 	m(modelFileName)
+{
+}
+// ------------------------------------------------------
+
+void nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
 {
 }
 // ------------------------------------------------------

@@ -103,9 +103,12 @@ protected:
 class nnet::ModelInterface
 {
 public:
+	unsigned int GetOutputLength(void) const { return GetInputCols() * GetInputRows(); }
 	virtual unsigned int GetInputCols(void) const = 0;
 	virtual unsigned int GetInputRows(void) const = 0;
 	virtual int GetOutputLength(void) const = 0;
+
+	virtual void Run(std::vector< std::vector<float> > const & inp2d) = 0;
 
 protected:
 	ModelInterface(void) { }
@@ -119,9 +122,11 @@ class nnet::MlpModelInterface : public nnet::ModelInterface
 public:
 	MlpModelInterface(const char* xmlFileName);
 
-	virtual unsigned int GetInputRows(void) const { return m.GetInputLength(); }
-	virtual unsigned int GetInputCols(void) const { return 1; }
-	virtual int GetOutputLength(void) const { return m.GetOutputLength(); }
+	virtual unsigned int GetInputRows(void) override const { return m.GetInputLength(); }
+	virtual unsigned int GetInputCols(void) override const { return 1; }
+	virtual int GetOutputLength(void) override const { return m.GetOutputLength(); }
+
+	virtual void Run(std::vector< std::vector<float> > const & inp2d) override;
 
 private:
 	nnet::NNReader m;
@@ -133,9 +138,11 @@ class nnet::KerasModelInterface : public nnet::ModelInterface
 public:
 	KerasModelInterface(const char* modelFileName);
 
-	virtual unsigned int GetInputRows(void) const { return m.get_input_rows(); }
-	virtual unsigned int GetInputCols(void) const { return m.get_input_cols(); }
-	virtual int GetOutputLength(void) const { return m.get_output_length(); }
+	virtual unsigned int GetInputRows(void) override const { return m.get_input_rows(); }
+	virtual unsigned int GetInputCols(void) override const { return m.get_input_cols(); }
+	virtual int GetOutputLength(void) override const { return m.get_output_length(); }
+
+	virtual void Run(std::vector< std::vector<float> > const & inp2d) override;
 
 private:
 	KerasModel m;
