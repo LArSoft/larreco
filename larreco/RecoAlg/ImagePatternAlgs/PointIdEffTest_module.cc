@@ -204,7 +204,7 @@ void nnet::PointIdEffTest::endJob()
 	std::cout << " fShB " << fShB << " fTrkB " << fTrkB << std::endl;
 	std::cout << " fNone " << fNone << " Total " << fTotal << std::endl;
 
-	std::cout << " fShErr " << fShB / (fShB + fShOk) << " fTrkErr " << fTrkB / (fTrkB + fTrkOk) << std::endl;
+	std::cout << " fShErr " << fShB / float(fShB + fShOk) << " fTrkErr " << fTrkB / float(fTrkB + fTrkOk) << std::endl;
 }
 
 void nnet::PointIdEffTest::analyze(art::Event const & e)
