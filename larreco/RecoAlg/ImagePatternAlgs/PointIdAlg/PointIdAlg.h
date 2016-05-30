@@ -56,8 +56,10 @@ public:
 
 	std::vector<float> const & wireData(size_t widx) const { return fWireDriftData[widx]; }
 
+	static std::vector<float> flattenData2D(std::vector< std::vector<float> > const & patch);
+
 	std::vector< std::vector<float> > const & patchData2D(void) const { return fWireDriftPatch; }
-	std::vector<float> patchData1D(void) const;  // flat vector made of the patch data, wire after wire
+	std::vector<float> patchData1D(void) const { return flattenData2D(fWireDriftPatch); }  // flat vector made of the patch data, wire after wire
 
 	unsigned int Cryo(void) const { return fCryo; }
 	unsigned int TPC(void) const { return fTPC; }
@@ -103,12 +105,16 @@ protected:
 class nnet::ModelInterface
 {
 public:
-	unsigned int GetOutputLength(void) const { return GetInputCols() * GetInputRows(); }
+	virtual ~ModelInterface(void) { }
+
+	unsigned int GetInputLength(void) const { return GetInputCols() * GetInputRows(); }
 	virtual unsigned int GetInputCols(void) const = 0;
 	virtual unsigned int GetInputRows(void) const = 0;
 	virtual int GetOutputLength(void) const = 0;
 
-	virtual void Run(std::vector< std::vector<float> > const & inp2d) = 0;
+	virtual bool Run(std::vector< std::vector<float> > const & inp2d) = 0;
+	virtual std::vector<float> GetAllOutputs(void) const = 0;
+	virtual float GetOneOutput(int neuronIndex) const = 0;
 
 protected:
 	ModelInterface(void) { }
@@ -122,11 +128,13 @@ class nnet::MlpModelInterface : public nnet::ModelInterface
 public:
 	MlpModelInterface(const char* xmlFileName);
 
-	virtual unsigned int GetInputRows(void) override const { return m.GetInputLength(); }
-	virtual unsigned int GetInputCols(void) override const { return 1; }
-	virtual int GetOutputLength(void) override const { return m.GetOutputLength(); }
+	virtual unsigned int GetInputRows(void) const { return m.GetInputLength(); }
+	virtual unsigned int GetInputCols(void) const { return 1; }
+	virtual int GetOutputLength(void) const { return m.GetOutputLength(); }
 
-	virtual void Run(std::vector< std::vector<float> > const & inp2d) override;
+	virtual bool Run(std::vector< std::vector<float> > const & inp2d);
+	virtual float GetOneOutput(int neuronIndex) const;
+	virtual std::vector<float> GetAllOutputs(void) const;
 
 private:
 	nnet::NNReader m;
@@ -138,11 +146,13 @@ class nnet::KerasModelInterface : public nnet::ModelInterface
 public:
 	KerasModelInterface(const char* modelFileName);
 
-	virtual unsigned int GetInputRows(void) override const { return m.get_input_rows(); }
-	virtual unsigned int GetInputCols(void) override const { return m.get_input_cols(); }
-	virtual int GetOutputLength(void) override const { return m.get_output_length(); }
+	virtual unsigned int GetInputRows(void) const { return m.get_input_rows(); }
+	virtual unsigned int GetInputCols(void) const { return m.get_input_cols(); }
+	virtual int GetOutputLength(void) const { return m.get_output_length(); }
 
-	virtual void Run(std::vector< std::vector<float> > const & inp2d) override;
+	virtual bool Run(std::vector< std::vector<float> > const & inp2d);
+	virtual float GetOneOutput(int neuronIndex) const;
+	virtual std::vector<float> GetAllOutputs(void) const;
 
 private:
 	KerasModel m;
@@ -170,13 +180,9 @@ public:
 
 private:
 	std::string fNNetModelFilePath;
+	nnet::ModelInterface* fNNet;
 
-	// CNN and MLP models:
-	nnet::NNReader* fMLP;
-	void deleteMLP(void) { if (fMLP) delete fMLP; fMLP = 0; }
-
-	void* fCNN; // to be defined..
-	void deleteCNN(void) { fCNN = 0; } // { if (fCNN) delete fCNN; fCNN = 0; }
+	void deleteNNet(void) { if (fNNet) delete fNNet; fNNet = 0; }
 };
 // ------------------------------------------------------
 // ------------------------------------------------------

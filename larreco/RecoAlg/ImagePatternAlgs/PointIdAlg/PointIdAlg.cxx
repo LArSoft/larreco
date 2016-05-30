@@ -203,16 +203,24 @@ bool nnet::DataProviderAlg::bufferPatch(size_t wire, float drift) const
 }
 // ------------------------------------------------------
 
-std::vector<float> nnet::DataProviderAlg::patchData1D(void) const
+std::vector<float> nnet::DataProviderAlg::flattenData2D(std::vector< std::vector<float> > const & patch)
 {
 	std::vector<float> flat;
-	flat.resize(fPatchSize * fPatchSize);
-
-	for (size_t w = 0, i = 0; w < fWireDriftPatch.size(); ++w)
+	if (patch.empty() || patch.front().empty())
 	{
-		auto const & wire = fWireDriftPatch[w];
+		mf::LogError("DataProviderAlg") << "Patch is empty.";
+		return flat;
+	}
+
+	flat.resize(patch.size() * patch.front().size());
+
+	for (size_t w = 0, i = 0; w < patch.size(); ++w)
+	{
+		auto const & wire = patch[w];
 		for (size_t d = 0; d < wire.size(); ++d, ++i)
+		{
 			flat[i] = wire[d];
+		}
 	}
 
 	return flat;
@@ -239,8 +247,44 @@ nnet::MlpModelInterface::MlpModelInterface(const char* xmlFileName) :
 }
 // ------------------------------------------------------
 
-void nnet::MlpModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
+bool nnet::MlpModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
 {
+	auto input = nnet::DataProviderAlg::flattenData2D(inp2d);
+	if (input.size() == m.GetInputLength())
+	{
+		m.Run(input);
+		return true;
+	}
+	else
+	{
+		mf::LogError("MlpModelInterface") << "Flattened patch size does not match MLP model.";
+		return false;
+	}
+}
+// ------------------------------------------------------
+
+std::vector<float> nnet::MlpModelInterface::GetAllOutputs(void) const
+{
+	std::vector<float> result(m.GetOutputLength(), 0);
+	for (size_t o = 0; o < result.size(); ++o)
+	{
+		result[o] = m.GetOneOutput(o);
+	}
+	return result;
+}
+// ------------------------------------------------------
+
+float nnet::MlpModelInterface::GetOneOutput(int neuronIndex) const
+{
+	if ((int)neuronIndex < m.GetOutputLength())
+	{
+		return m.GetOneOutput(neuronIndex);
+	}
+	else
+	{
+		mf::LogError("MlpModelInterface") << "Output index does not match MLP model.";
+		return 0.;
+	}
 }
 // ------------------------------------------------------
 
@@ -255,17 +299,31 @@ nnet::KerasModelInterface::KerasModelInterface(const char* modelFileName) :
 }
 // ------------------------------------------------------
 
-void nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
+bool nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
 {
+	return false;
 }
 // ------------------------------------------------------
+
+std::vector<float> nnet::KerasModelInterface::GetAllOutputs(void) const
+{
+	return std::vector<float>();
+}
+// ------------------------------------------------------
+
+float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
+{
+	return 0.;
+}
+// ------------------------------------------------------
+
 
 // ------------------------------------------------------
 // --------------------PointIdAlg------------------------
 // ------------------------------------------------------
 
 nnet::PointIdAlg::PointIdAlg(const fhicl::ParameterSet& pset) : nnet::DataProviderAlg(pset),
-	fMLP(0), fCNN(0)
+	fNNet(0)
 {
 	this->reconfigure(pset); 
 }
@@ -273,8 +331,7 @@ nnet::PointIdAlg::PointIdAlg(const fhicl::ParameterSet& pset) : nnet::DataProvid
 
 nnet::PointIdAlg::~PointIdAlg(void)
 {
-	deleteMLP();
-	deleteCNN();
+	deleteNNet();
 }
 // ------------------------------------------------------
 
@@ -284,14 +341,25 @@ void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
 	fWireProducerLabel = p.get< std::string >("WireLabel");
 	fNNetModelFilePath = p.get< std::string >("NNetModelFile");
 
-	deleteMLP();
-	deleteCNN();
+	deleteNNet();
 
-	// decide if mlp or cnn...
-	// read nnet model and weights, set patch and scalling sizes...
-	// ... ...
+	if ((fNNetModelFilePath.length() > 4) &&
+	    (fNNetModelFilePath.compare(fNNetModelFilePath.length() - 4, 4, ".xml") == 0))
+	{
+		fNNet = new nnet::MlpModelInterface(fNNetModelFilePath.c_str());
+	}
+	else if ((fNNetModelFilePath.length() > 5) &&
+	    (fNNetModelFilePath.compare(fNNetModelFilePath.length() - 5, 5, ".nnet") == 0))
+	{
+		fNNet = new nnet::KerasModelInterface(fNNetModelFilePath.c_str());
+	}
+	else
+	{
+		mf::LogError("PointIdAlg") << "Loading model from file failed.";
+		return;
+	}
 
-	fMLP = new nnet::NNReader(fNNetModelFilePath.c_str());
+
 	fDriftWindow = 10; // should be in nnet xml?
 	fPatchSize = 32; // derive from nnet input size?
 
@@ -303,11 +371,7 @@ void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
 
 size_t nnet::PointIdAlg::NClasses(void) const
 {
-	if (fMLP) return fMLP->GetOutputLength();
-	else if (fCNN)
-	{
-		return 0;
-	}
+	if (fNNet) return fNNet->GetOutputLength();
 	else return 0;
 }
 // ------------------------------------------------------
@@ -322,19 +386,13 @@ float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift, size_t ou
 		return result;
 	}
 
-	if (fMLP)
+	if (fNNet)
 	{
-		auto input = patchData1D();
-		if ((input.size() == fMLP->GetInputLength()) &&
-		    ((int)outIdx < fMLP->GetOutputLength()))
+		if (fNNet->Run(fWireDriftPatch))
 		{
-			fMLP->Run(input);
-			result = fMLP->GetOneOutput(outIdx);
+			result = fNNet->GetOneOutput(outIdx);
 		}
-		else mf::LogError("PointIdAlg") << "Patch size or output index does not match MLP model.";
-	}
-	else if (fCNN)
-	{
+		else mf::LogError("PointIdAlg") << "Problem with applying model to input.";
 	}
 
 	return result;
@@ -397,19 +455,16 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 		return result;
 	}
 
-	if (fMLP)
+	if (fNNet)
 	{
-		auto input = patchData1D();
-		if (input.size() == fMLP->GetInputLength())
+		if (fNNet->Run(fWireDriftPatch))
 		{
-			fMLP->Run(input);
 			for (size_t o = 0; o < result.size(); ++o)
-				result[o] = fMLP->GetOneOutput(o);
+			{
+				result[o] = fNNet->GetOneOutput(o);
+			}
 		}
-		else mf::LogError("PointIdAlg") << "Patch size does not match MLP model.";
-	}
-	else if (fCNN)
-	{
+		else mf::LogError("PointIdAlg") << "Problem with applying model to input.";
 	}
 
 	return result;
