@@ -155,7 +155,8 @@ public:
 	virtual std::vector<float> GetAllOutputs(void) const;
 
 private:
-	keras::KerasModel m;
+	std::vector<float> fOutput; // buffer for output values
+	keras::KerasModel m; // network model
 };
 // ------------------------------------------------------
 

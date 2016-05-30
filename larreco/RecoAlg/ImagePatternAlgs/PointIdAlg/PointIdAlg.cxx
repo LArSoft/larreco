@@ -301,19 +301,33 @@ nnet::KerasModelInterface::KerasModelInterface(const char* modelFileName) :
 
 bool nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
 {
-	return false;
+	std::vector< std::vector< std::vector<float> > > inp3d;
+	inp3d.push_back(inp2d); // lots of copy, should add 2D to keras...
+
+	keras::DataChunk *sample = new keras::DataChunk2D();
+	sample->set_data(inp3d); // and more copy...
+	fOutput = m.compute_output(sample); // add using reference to input so no need for new/delete
+
+	delete sample;
+
+	return true;
 }
 // ------------------------------------------------------
 
 std::vector<float> nnet::KerasModelInterface::GetAllOutputs(void) const
 {
-	return std::vector<float>();
+	return fOutput;
 }
 // ------------------------------------------------------
 
 float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
 {
-	return 0.;
+	if (neuronIndex < (int)fOutput.size()) return fOutput[neuronIndex];
+	else
+	{
+		mf::LogError("KerasModelInterface") << "Output index does not match Keras model.";
+		return 0.;
+	}
 }
 // ------------------------------------------------------
 

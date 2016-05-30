@@ -36,8 +36,8 @@ public:
     return   std::vector<std::vector<std::vector<float> > > ();
   };
 
-  virtual void set_data(std::vector<std::vector<std::vector<float> > > ) {};
-  virtual void set_data(std::vector<float> ) {};
+  virtual void set_data(std::vector<std::vector<std::vector<float> > > const &) {};
+  virtual void set_data(std::vector<float> const &) {};
   //virtual unsigned int get_count();
   virtual void read_from_file(const std::string &fname) {};
   virtual void show_name() = 0;
@@ -49,7 +49,7 @@ public:
   std::vector<std::vector<std::vector<float> > > get_3d() {
     return data;
   };
-  virtual void set_data(std::vector<std::vector<std::vector<float> > > d) { data = d; };
+  virtual void set_data(std::vector<std::vector<std::vector<float> > > const & d) { data = d; };
 
   void show_name() {
     std::cout << "DataChunk2D " << data.size() << "x" << data[0].size() << "x" << data[0][0].size() << std::endl;
@@ -81,7 +81,7 @@ public:
 
 class keras::DataChunkFlat : public keras::DataChunk {
 public:
-  void set_data(std::vector<float> d) { f = d; };
+  void set_data(std::vector<float> const & d) { f = d; };
 
   void show_name() {
     std::cout << "DataChunkFlat " << f.size() << std::endl;
