@@ -155,7 +155,7 @@ public:
 	virtual std::vector<float> GetAllOutputs(void) const;
 
 private:
-	KerasModel m;
+	keras::KerasModel m;
 };
 // ------------------------------------------------------
 
