@@ -80,10 +80,10 @@ public:
 
 	/// Test if hits at the track endpoinds do not stick out of TPC which they belong to.
 	/// Here one can implement some configurable margin if needed for real data imeprfections.
-	bool isContained(const pma::Track3D& trk) const
+	bool isContained(const pma::Track3D& trk, float margin = 0.0F) const
 	{
-		return (trk.FirstElement()->SameTPC(trk.front()->Point3D()) &&
-			trk.LastElement()->SameTPC(trk.back()->Point3D()));
+		return (trk.FirstElement()->SameTPC(trk.front()->Point3D(), margin) &&
+			trk.LastElement()->SameTPC(trk.back()->Point3D(), margin));
 	}
 
 	/// Build a track from two sets of hits from single TPC, hits should origin from at least two

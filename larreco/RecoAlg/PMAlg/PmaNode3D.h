@@ -40,7 +40,7 @@ public:
 	double GetDistToWall(void) const;
 
 	/// Check if p3d is in the same TPC as the node.
-	bool SameTPC(const TVector3& p3d) const;
+	bool SameTPC(const TVector3& p3d, float margin = 0.0F) const;
 
 	/// Belongs to more than one track?
 	bool IsBranching(void) const;
