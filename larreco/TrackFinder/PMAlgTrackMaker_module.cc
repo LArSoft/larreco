@@ -365,15 +365,6 @@ double PMAlgTrackMaker::validate(pma::Track3D& trk, unsigned int testView)
 
 	// always validate (needed for disambiguation postponed to 3D step):
 	return fProjectionMatchingAlg.validate(trk, hits, testView);
-
-	// in case of usual disambig on hit level one may validate only if there are at least a few hits:
-/*	if (hits.size() > 10) return fProjectionMatchingAlg.validate(trk, hits, testView);
-	else
-	{
-		mf::LogWarning("PMAlgTrackMaker") << "   too few hits (" << hits.size() << ")";
-		return 1.0;
-	}
-*/
 }
 // ------------------------------------------------------
 
