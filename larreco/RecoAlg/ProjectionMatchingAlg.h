@@ -31,11 +31,11 @@
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 #include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Vertex.h"
 #include "lardata/RecoBase/SpacePoint.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 // ROOT & C++
 #include <memory>
@@ -69,7 +69,7 @@ public:
 	/// Calculate the fraction of trajectory seen by two 2D projections at least; even a
 	/// prfect track starts/stops with the hit from one 2D view, then hits from other views
 	/// come, which results with the fraction value high, but always < 1.0; wrong cluster
-	/// matchings give significantly lower values.
+	/// matchings or incomplete tracks give significantly lower values.
 	double twoViewFraction(pma::Track3D& trk) const;
 
 	/// Count the number of hits that are closer than eps * fHitTestingDist2D to the track 2D projection.
@@ -96,10 +96,10 @@ public:
     /// as far as hits origin from at least two wire planes.
 	pma::Track3D* buildMultiTPCTrack(const std::vector< art::Ptr<recob::Hit> >& hits) const;
 
-	/// Build a shower segment from sets of hits and attached to the given vertex.
+	/// Build a shower segment from sets of hits and attached to the provided vertex.
 	pma::Track3D* buildShowerSeg(
 		const std::vector< art::Ptr<recob::Hit> >& hits, 
-		const art::Ptr<recob::Vertex>& vtx) const;
+		const pma::Vector3D & vtx) const;
 
 	/// Build a straight segment from two sets of hits (they should origin from two wire planes);
 	/// method is intendet for short tracks or shower initial parts, where only a few hits
@@ -123,7 +123,8 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		const TVector3& point) const;
 
-	// Get rid of small groups of hits around cascades
+	/// Get rid of small groups of hits around cascades; used to calculate cascade starting direction
+	/// using the compact core cluster.
 	void FilterOutSmallParts(
 		double r2d,
 		const std::vector< art::Ptr<recob::Hit> >& hits_in,
@@ -190,7 +191,7 @@ private:
 
 	bool Has(const std::vector<size_t>& v, size_t idx) const;
 
-	// Make segment shorter dending on mse 
+	// Make segment shorter depending on mse 
 	void ShortenSeg(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const;
 
 	// Control length of the track and number of hits which are still enabled

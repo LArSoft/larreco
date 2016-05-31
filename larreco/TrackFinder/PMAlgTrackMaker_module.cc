@@ -30,8 +30,6 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -53,18 +51,17 @@
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
+#include "larreco/RecoAlg/PMAlgTracking.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 
-#include "TTree.h"
 #include "TMath.h"
 
 #include <memory>
 
 namespace trkf {
 
-typedef std::map< size_t, std::vector<double> > dedx_map;
 typedef std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > view_hitmap;
 typedef std::map< unsigned int, view_hitmap > tpc_view_hitmap;
 typedef std::map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
@@ -120,9 +117,9 @@ private:
 	size_t minSizeCompl, unsigned int tpc, unsigned int cryo,
 	geo::View_t first_view, int first_clu_idx, int pfParticleIdx);
 
-	void buildTrks(pma::TrkCandidateColl & result);
+  void buildTrks(pma::TrkCandidateColl & result);
 
-	void buildShSeg(pma::TrkCandidateColl & result);
+  void buildShSeg(pma::TrkCandidateColl & result);
 
   // display what was used and what is left
   void listUsedClusters(const std::vector< art::Ptr<recob::Cluster> >& clusters) const;
@@ -145,7 +142,7 @@ private:
   std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
   std::map< int, std::vector< art::Ptr<recob::Cluster> > > fPfpClusters;
   std::map< int, int > fPfpPdgCodes;
-	std::map< int, art::Ptr<recob::Vertex> > fPfpVtx;
+  std::map< int, pma::Vector3D > fPfpVtx;
   bool sortHits(const art::Event& evt);
   bool sortHitsPfp(const art::Event& evt);
 
@@ -213,20 +210,12 @@ private:
   void guideEndpoints(pma::TrkCandidateColl & tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
-  recob::Track convertFrom(const pma::Track3D& src);
+  //recob::Track convertFrom(const pma::Track3D& src, unsigned int tidx);
   // ------------------------------------------------------
 
   art::ServiceHandle< geo::Geometry > fGeom;
   const detinfo::DetectorProperties* fDetProp;
 
-  // ******************* tree output **********************
-  int fEvNumber;        // event number
-  int fTrkIndex;        // track index in the event
-  int fPidTag;          // Tag: 0=trk-like, 1=cascade-like
-  double fLength;       // track length
-  double fHitsMse;      // MSE of hits: mean dist^2 of hit to 2D track projection
-  double fSegAngMean;   // Mean segment-segment 3D angle.
-  TTree* fTree_trk;     // overall info
 
   // ******************** fcl parameters **********************
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
@@ -305,14 +294,6 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 
 void PMAlgTrackMaker::beginJob()
 {
-	art::ServiceHandle<art::TFileService> tfs;
-	fTree_trk = tfs->make<TTree>("PMAlgTrackMaker_trk", "tracks overall info");
-	fTree_trk->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
-	fTree_trk->Branch("fTrkIndex", &fTrkIndex, "fTrkIndex/I");
-	fTree_trk->Branch("fLength", &fLength, "fLength/D");
-	fTree_trk->Branch("fHitsMse", &fHitsMse, "fHitsMse/D");
-	fTree_trk->Branch("fSegAngMean", &fSegAngMean, "fSegAngMean/D");
-	fTree_trk->Branch("fPidTag", &fPidTag, "fPidTag/I");
 }
 
 void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
@@ -362,119 +343,8 @@ void PMAlgTrackMaker::reset(const art::Event& evt)
 	fPfpClusters.clear();
 	fPfpPdgCodes.clear();
 	fPfpVtx.clear();
-	fEvNumber = evt.id().event();
-	fTrkIndex = 0;
-	fPidTag = 0;
-	fLength = 0.0;
-	fHitsMse = 0.0;
-	fSegAngMean = 0.0;
 
 	fPMAlgVertexing.reset();
-}
-// ------------------------------------------------------
-
-recob::Track PMAlgTrackMaker::convertFrom(const pma::Track3D& src)
-{
-	std::vector< TVector3 > xyz, dircos;
-	xyz.reserve(src.size()); dircos.reserve(src.size());
-
-	std::vector< std::vector<double> > dst_dQdx; // [view][dQ/dx]
-	dst_dQdx.push_back(std::vector<double>()); // kU
-	dst_dQdx.push_back(std::vector<double>()); // kV
-	dst_dQdx.push_back(std::vector<double>()); // kZ
-
-	unsigned int cryo = src.FrontCryo();
-	unsigned int tpc = src.FrontTPC();
-
-	std::map< unsigned int, dedx_map > src_dQdx;
-	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kU))
-	{
-		src_dQdx[geo::kU] = dedx_map();
-		src.GetRawdEdxSequence(src_dQdx[geo::kU], geo::kU);
-	}
-	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kV))
-	{
-		src_dQdx[geo::kV] = dedx_map();
-		src.GetRawdEdxSequence(src_dQdx[geo::kV], geo::kV);
-	}
-	if (fGeom->TPC(tpc, cryo).HasPlane(geo::kZ))
-	{
-		src_dQdx[geo::kZ] = dedx_map();
-		src.GetRawdEdxSequence(src_dQdx[geo::kZ], geo::kZ);
-	}
-
-	TVector3 p3d;
-	double xshift = src.GetXShift();
-	bool has_shift = (xshift != 0.0);
-	for (size_t i = 0; i < src.size(); i++)
-		if (src[i]->IsEnabled())
-	{
-		p3d = src[i]->Point3D();
-		if (has_shift) p3d.SetX(p3d.X() + xshift);
-		xyz.push_back(p3d);
-
-		if (i < src.size() - 1)
-		{
-			size_t j = i + 1;
-			double mag = 0.0;
-			TVector3 dc(0., 0., 0.);
-
-			while ((mag == 0.0) && (j < src.size()))
-			{
-				dc = src[j]->Point3D();
-				dc -= src[i]->Point3D();
-				mag = dc.Mag();
-				j++;
-			}
-
-			if (mag > 0.0) dc *= 1.0 / mag;
-			else if (!dircos.empty()) dc = dircos.back();
-
-			dircos.push_back(dc);
-		}
-		else dircos.push_back(dircos.back());
-
-		double dQ = 0., dx = 0.;
-		dst_dQdx[geo::kU].push_back(0.);
-		dst_dQdx[geo::kV].push_back(0.);
-		dst_dQdx[geo::kZ].push_back(0.);
-
-		double dQdx;
-		for (auto const& m : src_dQdx)
-		{
-			auto it = m.second.find(i);
-			if (it != m.second.end())
-			{
-				dQ = it->second[5];
-				dx = it->second[6];
-				if (dx > 0.) dQdx = dQ/dx;
-				else dQdx = 0.;
-
-				size_t backIdx = dst_dQdx[m.first].size() - 1;
-				dst_dQdx[m.first][backIdx] = dQdx;
-
-				break;
-			}
-		}
-	}
-
-	fLength = src.Length();
-	fHitsMse = src.GetMse();
-	fSegAngMean = src.GetMeanAng();
-
-	// 0 is track-like (long and/or very straight, well matching 2D hits);
-	// 0x10000 is EM shower-like trajectory
-	if (src.GetTag() == pma::Track3D::kEmLike) fPidTag = 0x10000;
-	else fPidTag = 0;
-
-	fTree_trk->Fill();
-
-	if (xyz.size() != dircos.size())
-	{
-		mf::LogError("PMAlgTrackMaker") << "pma::Track3D to recob::Track conversion problem.";
-	}
-
-	return recob::Track(xyz, dircos, dst_dQdx, std::vector< double >(2, util::kBogusD), fTrkIndex + fPidTag);
 }
 // ------------------------------------------------------
 
@@ -1349,7 +1219,11 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 			}
 
 			if (fvf.at(i).size())
-				fPfpVtx[i] = fvf.at(i).front();
+			{
+				double xyz[3];
+				fvf.at(i).front()->XYZ(xyz);
+				fPfpVtx[i] = pma::Vector3D(xyz[0], xyz[1], xyz[2]);
+			}
 		}
 
 		mf::LogVerbatim("PMAlgTrackMaker") << "...done, "
@@ -1445,12 +1319,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			if (fAutoFlip_dQdx) result.flipTreesByDQdx(); // flip the tracks / trees to get best dQ/dx sequences
 
 			tracks->reserve(result.size());
-			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
+			for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex)
 			{
-				pma::Track3D* trk = result[fTrkIndex].Track();
+				pma::Track3D* trk = result[trkIndex].Track();
 				if (!(trk->HasTwoViews() && (trk->Nodes().size() > 1)))
 				{
-					mf::LogWarning("PMAlgTrackMaker") << "Skip degenerated track, code needs to be corrected.";
+					mf::LogWarning("PMAlgTrackMaker") << "Skip degenerated track (should never happen).";
 					continue;
 				}
 
@@ -1460,7 +1334,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(geo::kV);
 				if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(geo::kZ);
 
-				tracks->push_back(convertFrom(*trk));
+				tracks->push_back(pma::convertFrom(*trk, trkIndex));
 
 				double xShift = trk->GetXShift();
 				if (xShift > 0.0)
@@ -1522,12 +1396,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				if (spEnd > spStart) util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
 
                 // if there is a PFParticle collection then recover PFParticle and add info to map
-                if (!fMakePFPs && (result[fTrkIndex].Key() > -1))
+                if (!fMakePFPs && (result[trkIndex].Key() > -1))
                 {
                     size_t trackIdx = tracks->size() - 1;
                     art::ProductID trackId = getProductID< std::vector<recob::Track> >(evt);
                     art::Ptr<recob::Track> trackPtr(trackId, trackIdx, evt.productGetter(trackId));
-                    pfPartToTrackVecMap[result[fTrkIndex].Key()].push_back(trackPtr);
+                    pfPartToTrackVecMap[result[trkIndex].Key()].push_back(trackPtr);
                 }
 			}
 
@@ -2358,9 +2232,9 @@ void PMAlgTrackMaker::buildShSeg(pma::TrkCandidateColl & result)
 			mf::LogVerbatim("PMAlgTrackMaker") << "building..." << ", pdg:" << pdg;
 
 			auto search = fPfpVtx.find(pfPartIdx);
-			if (search != fPfpVtx.end()) 
+			if (search != fPfpVtx.end())
 			{
-				candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, fPfpVtx[pfPartIdx]));
+				candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, search->second));
 				if (candidate.IsValid()
 						&& candidate.Track()->HasTwoViews() 
 						&& (candidate.Track()->Nodes().size() > 1)) 

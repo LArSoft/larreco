@@ -7,7 +7,6 @@
 
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
@@ -367,14 +366,13 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
 
 pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 		const std::vector< art::Ptr<recob::Hit> >& hits, 
-		const art::Ptr<recob::Vertex>& vtx) const
+		const pma::Vector3D & vtx) const
 {
-	double vtxarray[3]; 
-	vtx->XYZ(vtxarray);	
+	double vtxarray[3] {vtx.X(), vtx.Y(), vtx.Z()};
 
 	if (!fGeom->HasTPC(fGeom->FindTPCAtPosition(vtxarray))) return 0;
 
-	TVector3 vtxv3(vtxarray[0], vtxarray[1], vtxarray[2]);
+	TVector3 vtxv3(vtx.X(), vtx.Y(), vtx.Z());
 	
 	const size_t tpc = fGeom->FindTPCAtPosition(vtxarray).TPC;
 	const size_t cryo = fGeom->FindCryostatAtPosition(vtxarray);
