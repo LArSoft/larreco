@@ -2,12 +2,12 @@ include_directories ( ${PROJECT_SOURCE_DIR} )
 art_make( 
 	  
 	  LIB_LIBRARIES	larevt_Filters
-		        lardata_RecoBase
+		        lardataobj_RecoBase
 		        lardata_RecoBaseArt
 		        larcore_Geometry
 		        larcore_Geometry_Geometry_service
                         lardata_AnalysisAlg
-                        lardata_AnalysisBase
+                        lardataobj_AnalysisBase
                         lardata_Utilities
                         ${MF_MESSAGELOGGER}
 		        ${MF_UTILITIES}
@@ -20,14 +20,14 @@ art_make(
 	  		larana_Calorimetry
                         larevt_Filters
                         lardata_RecoObjects
-                        lardata_RecoBase
+                        lardataobj_RecoBase
 		        lardata_RecoBaseArt
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        larsim_Simulation
-                        lardata_RawData
+                        larsim_Simulation larsimobj_Simulation
+                        lardataobj_RawData
                         lardata_AnalysisAlg
-                        lardata_AnalysisBase
+                        lardataobj_AnalysisBase
                         lardata_Utilities
 		        larreco_RecoAlg
                         ${ART_FRAMEWORK_CORE}

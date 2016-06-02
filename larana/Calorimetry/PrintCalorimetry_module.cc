@@ -18,8 +18,8 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "lardata/RecoBase/Track.h"
-#include "lardata/AnalysisBase/Calorimetry.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
 
 namespace calo{
   class PrintCalorimetry;

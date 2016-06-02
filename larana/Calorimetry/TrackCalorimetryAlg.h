@@ -12,9 +12,9 @@
 
 #include "fhiclcpp/ParameterSet.h"
 
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Track.h"
-#include "lardata/AnalysisBase/Calorimetry.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
 
 #include "larcore/Geometry/GeometryCore.h"
 #include "lardata/DetectorInfo/LArProperties.h"
