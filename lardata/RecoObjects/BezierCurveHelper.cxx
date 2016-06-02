@@ -14,7 +14,7 @@
 #include <map>
 #include <sstream>
 
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/RecoObjects/BezierCurveHelper.h"
 
 #include "canvas/Persistency/Common/PtrVector.h"
