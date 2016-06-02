@@ -1,5 +1,5 @@
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/AnalysisBase/Calorimetry.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/Seed.h"
 
