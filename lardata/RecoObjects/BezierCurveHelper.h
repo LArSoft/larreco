@@ -16,7 +16,7 @@
 
 #include <vector>
 
-#include "lardata/RecoBase/Seed.h"
+#include "lardataobj/RecoBase/Seed.h"
 
 #include "fhiclcpp/ParameterSet.h"
 
