@@ -7,8 +7,8 @@
 #include "larcore/Geometry/PlaneGeo.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/SpacePoint.h"
-#include "larcore/SimpleTypesAndConstants/PhysicalConstants.h"
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/RecoObjects/BezierCurveHelper.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
