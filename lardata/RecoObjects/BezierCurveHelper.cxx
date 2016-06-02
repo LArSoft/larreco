@@ -17,7 +17,7 @@
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoObjects/BezierCurveHelper.h"
 
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "cetlib/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
