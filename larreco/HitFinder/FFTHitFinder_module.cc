@@ -20,12 +20,12 @@
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Principal/Event.h" 
 #include "art/Framework/Core/EDProducer.h" 
-#include "art/Framework/Core/FindOneP.h"
+#include "canvas/Persistency/Common/FindOneP.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft Includes
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
-#include "larcore/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/CryostatGeo.h"
 #include "larcore/Geometry/TPCGeo.h"

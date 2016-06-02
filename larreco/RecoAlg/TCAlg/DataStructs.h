@@ -16,8 +16,8 @@
 #include <bitset>
 
 // LArSoft libraries
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
-#include "art/Persistency/Common/Ptr.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "canvas/Persistency/Common/Ptr.h"
 #include "lardata/RecoBase/Hit.h"
 
 namespace tca {

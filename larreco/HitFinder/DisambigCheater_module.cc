@@ -12,7 +12,7 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/FindOneP.h"
+#include "canvas/Persistency/Common/FindOneP.h"
 #include "art/Framework/Principal/Event.h"
 
 #include "larcore/Geometry/Geometry.h"
@@ -23,7 +23,7 @@
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBaseArt/HitCreator.h"
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larsim/MCCheater/BackTracker.h"
 
 

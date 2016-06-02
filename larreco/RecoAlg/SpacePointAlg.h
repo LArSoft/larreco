@@ -54,7 +54,7 @@
 #include <vector>
 #include <string>
 #include "fhiclcpp/ParameterSet.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
 class TH1F;
 namespace sim {

@@ -47,7 +47,7 @@
 #include "lardata/RecoObjects/Propagator.h"
 #include "lardata/RecoObjects/KHitContainer.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "TCanvas.h"
 #include "TMarker.h"
 #include "TPaveText.h"

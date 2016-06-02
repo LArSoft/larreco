@@ -20,9 +20,9 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Principal/Event.h" 
 #include "art/Framework/Principal/Handle.h" 
-#include "art/Persistency/Common/Ptr.h" 
+#include "canvas/Persistency/Common/Ptr.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Utilities/InputTag.h"
+#include "canvas/Utilities/InputTag.h"
 
 //LArSoft
 #include "larcore/Geometry/Geometry.h"
@@ -37,7 +37,7 @@
 
 //LArSoft From FFT
 
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/CryostatGeo.h"
 #include "larcore/Geometry/TPCGeo.h"

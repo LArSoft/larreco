@@ -16,7 +16,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Utilities/InputTag.h"
+#include "canvas/Utilities/InputTag.h"
 
 //LArSoft includes
 #include "larreco/RecoAlg/TrajClusterAlg.h"
@@ -63,12 +63,12 @@ namespace cluster {
 #include <memory> // std::move()
 
 // Framework libraries
-#include "art/Utilities/Exception.h"
+#include "canvas/Utilities/Exception.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Persistency/Common/Assns.h"
+#include "canvas/Persistency/Common/Assns.h"
 
 //LArSoft includes
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/Hit.h"

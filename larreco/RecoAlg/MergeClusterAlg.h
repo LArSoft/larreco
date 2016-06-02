@@ -29,7 +29,7 @@
 
 //tmp
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/CryostatGeo.h"

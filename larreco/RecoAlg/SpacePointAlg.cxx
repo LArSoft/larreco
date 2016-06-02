@@ -22,7 +22,7 @@
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Principal/View.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"

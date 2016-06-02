@@ -15,7 +15,7 @@
 #include <deque>
 
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 
 

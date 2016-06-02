@@ -24,7 +24,7 @@
 
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
@@ -42,7 +42,7 @@
 #include "lardata/RecoObjects/KHit.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "SimulationBase/MCParticle.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
 
 #include "TH1F.h"
 

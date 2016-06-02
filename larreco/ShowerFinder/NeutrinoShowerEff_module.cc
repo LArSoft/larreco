@@ -6,9 +6,9 @@
 #include "lardata/Utilities/GeometryUtilities.h"
 #include "larsim/Simulation/LArG4Parameters.h"
 #include "lardata/RecoBase/Track.h"
-#include "SimulationBase/MCParticle.h"
-#include "SimulationBase/MCTruth.h"
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
+#include "nusimdata/SimulationBase/MCTruth.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardata/RecoBase/Shower.h"
 
@@ -19,8 +19,8 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/FindManyP.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/FindManyP.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 

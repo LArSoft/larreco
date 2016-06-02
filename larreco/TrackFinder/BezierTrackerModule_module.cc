@@ -1,4 +1,4 @@
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
 #ifndef BEZIERTRACKERMOD_H
 #define BEZIERTRACKERMOD_H
@@ -13,7 +13,7 @@
 //
 
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "larcore/Geometry/Geometry.h"
 

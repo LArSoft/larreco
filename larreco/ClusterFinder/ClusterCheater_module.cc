@@ -23,7 +23,7 @@
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardata/RecoBase/Cluster.h"
 #include "lardata/RecoBase/Hit.h"
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larsim/Simulation/EmEveIdCalculator.h"
 #include "lardata/Utilities/GeometryUtilities.h"

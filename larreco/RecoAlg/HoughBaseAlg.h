@@ -133,9 +133,9 @@
 #include <TMath.h>
 
 #include "fhiclcpp/ParameterSet.h" 
-#include "art/Persistency/Common/Ptr.h" 
+#include "canvas/Persistency/Common/Ptr.h" 
 
-#include "art/Persistency/Common/PtrVector.h" 
+#include "canvas/Persistency/Common/PtrVector.h" 
 #include "lardata/Utilities/BulkAllocator.h"
 #include "lardata/Utilities/CountersMap.h"
 

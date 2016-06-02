@@ -21,7 +21,7 @@
 #include "art/Framework/Principal/Handle.h"
 
 // LArSoft libraries
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larevt/Filters/ChannelFilter.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/fuzzyClusterAlg.h"

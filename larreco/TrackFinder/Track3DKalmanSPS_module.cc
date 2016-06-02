@@ -32,13 +32,13 @@
 
 #include "art/Framework/Principal/Event.h" 
 #include "art/Framework/Principal/Handle.h" 
-#include "art/Persistency/Common/Ptr.h" 
-#include "art/Persistency/Common/PtrVector.h" 
+#include "canvas/Persistency/Common/Ptr.h" 
+#include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 
 // GENFIT includes
 #include "larreco/Genfit/GFAbsTrackRep.h"
@@ -58,7 +58,7 @@
 #include "lardata/RecoBase/Track.h"
 #include "lardata/RecoBase/SpacePoint.h"
 //\todo Reconstruction Producers should never include SimulationBase objects
-#include "SimulationBase/MCTruth.h"
+#include "nusimdata/SimulationBase/MCTruth.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
 

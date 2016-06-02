@@ -12,8 +12,8 @@ art_make(
 			    lardata_AnalysisAlg
 			    lardata_AnalysisBase
 			    lardata_Utilities
-			    ${MAGNETICFIELD_SERVICE}
-			    ${SIMULATIONBASE}
+			    nutools_MagneticField_MagneticField_service
+			    nusimdata_SimulationBase
 			    ${ART_FRAMEWORK_CORE}
 			    ${ART_FRAMEWORK_PRINCIPAL}
 			    ${ART_FRAMEWORK_SERVICES_REGISTRY}
@@ -21,8 +21,8 @@ art_make(
 			    ${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			    ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
 			    ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-			    ${ART_PERSISTENCY_COMMON}
-			    ${ART_UTILITIES}
+			    art_Persistency_Common canvas_Persistency_Common
+			    art_Utilities canvas_Utilities
 			    ${MF_MESSAGELOGGER}
 			    ${MF_UTILITIES}
 			    ${FHICLCPP}
@@ -44,8 +44,8 @@ simple_plugin( Track3DKalman "module"
 			 lardata_AnalysisBase
 			 lardata_Utilities
 			 larsim_RandomUtils_LArSeedService_service
-			 ${MAGNETICFIELD_SERVICE}
-			 ${SIMULATIONBASE}
+			 nutools_MagneticField_MagneticField_service
+			 nusimdata_SimulationBase
 			 ${ART_FRAMEWORK_CORE}
 			 ${ART_FRAMEWORK_PRINCIPAL}
 			 ${ART_FRAMEWORK_SERVICES_REGISTRY}
@@ -53,8 +53,8 @@ simple_plugin( Track3DKalman "module"
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-			 ${ART_PERSISTENCY_COMMON}
-			 ${ART_UTILITIES}
+			 art_Persistency_Common canvas_Persistency_Common
+			 art_Utilities canvas_Utilities
 			 ${MF_MESSAGELOGGER}
 			 ${MF_UTILITIES}
 			 ${FHICLCPP}
@@ -73,8 +73,8 @@ simple_plugin( Track3DKalmanSPS "module"
 			 lardata_AnalysisAlg
 			 lardata_AnalysisBase
 			 lardata_Utilities
-			 ${MAGNETICFIELD_SERVICE}
-			 ${SIMULATIONBASE}
+			 nutools_MagneticField_MagneticField_service
+			 nusimdata_SimulationBase
 			 ${ART_FRAMEWORK_CORE}
 			 ${ART_FRAMEWORK_PRINCIPAL}
 			 ${ART_FRAMEWORK_SERVICES_REGISTRY}
@@ -82,8 +82,8 @@ simple_plugin( Track3DKalmanSPS "module"
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-			 ${ART_PERSISTENCY_COMMON}
-			 ${ART_UTILITIES}
+			 art_Persistency_Common canvas_Persistency_Common
+			 art_Utilities canvas_Utilities
 			 ${MF_MESSAGELOGGER}
 			 ${MF_UTILITIES}
 			 ${FHICLCPP}

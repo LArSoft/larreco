@@ -13,8 +13,8 @@
 ////////////////////////////////////////////////////////////////////////
 #ifndef CLUSTERMATCHTQ_H
 #define CLUSTERMATCHTQ_H
-#include "art/Framework/Core/FindManyP.h"
-#include "art/Persistency/Common/Ptr.h" 
+#include "canvas/Persistency/Common/FindManyP.h"
+#include "canvas/Persistency/Common/Ptr.h" 
 #include "fhiclcpp/ParameterSet.h"
 
 #include "lardata/RecoBase/Cluster.h"

@@ -21,7 +21,7 @@
 // LArSoft Includes
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/SpacePoint.h"
-#include "art/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/ParameterSet.h"
 
 //boost includes

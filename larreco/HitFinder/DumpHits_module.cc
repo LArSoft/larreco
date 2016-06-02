@@ -14,7 +14,7 @@
 // art libraries
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/FindOne.h"
+#include "canvas/Persistency/Common/FindOne.h"
 #include "art/Framework/Principal/Event.h"
 
 // ... plus see below ...
@@ -73,10 +73,10 @@ namespace hit {
 
 // art libraries
 #include "art/Framework/Principal/Handle.h"
-#include "art/Utilities/InputTag.h"
+#include "canvas/Utilities/InputTag.h"
 
 // LArSoft includes
-#include "larcore/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RawData/RawDigit.h"

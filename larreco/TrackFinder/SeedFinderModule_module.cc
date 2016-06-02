@@ -10,7 +10,7 @@
 //
 
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "lardata/Utilities/AssociationUtil.h"
 

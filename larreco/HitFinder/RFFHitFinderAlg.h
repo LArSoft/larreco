@@ -16,8 +16,8 @@
 #include "fhiclcpp/ParameterSet.h"
 
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
-#include "larcore/SimpleTypesAndConstants/RawTypes.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 
 #include "lardata/RecoBase/Wire.h"
 #include "lardata/RecoBase/Hit.h"

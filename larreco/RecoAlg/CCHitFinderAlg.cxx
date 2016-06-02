@@ -28,7 +28,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft Includes
-#include "larcore/SimpleTypesAndConstants/RawTypes.h"
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/CryostatGeo.h"
 #include "larcore/Geometry/TPCGeo.h"

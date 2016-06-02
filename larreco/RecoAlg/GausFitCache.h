@@ -22,7 +22,7 @@
 #include "TF1.h" // Double_t
 
 // Framework libraries
-#include "art/Utilities/Exception.h"
+#include "canvas/Utilities/Exception.h"
 
 
 namespace hit {

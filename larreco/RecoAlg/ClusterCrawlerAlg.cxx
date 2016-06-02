@@ -18,10 +18,10 @@
 // framework libraries
 #include "fhiclcpp/ParameterSet.h" 
 #include "messagefacility/MessageLogger/MessageLogger.h" 
-#include "art/Utilities/Exception.h" 
+#include "canvas/Utilities/Exception.h" 
 
 // LArSoft libraries
-#include "larcore/SimpleTypesAndConstants/RawTypes.h"
+#include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/TPCGeo.h"
 #include "lardata/RecoBase/Hit.h"
