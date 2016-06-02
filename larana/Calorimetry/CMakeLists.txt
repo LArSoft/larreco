@@ -36,8 +36,8 @@ art_make(
 			${ART_FRAMEWORK_SERVICES_BASIC}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
-			${ART_PERSISTENCY_COMMON}
-			${ART_UTILITIES}
+			art_Persistency_Common canvas_Persistency_Common
+			art_Utilities canvas_Utilities
 			${MF_MESSAGELOGGER}
 			${MF_UTILITIES}
 	                ${FHICLCPP}
