@@ -9,7 +9,7 @@
 #ifndef TssHit2D_h
 #define TssHit2D_h
 
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 #include "larcore/Geometry/Geometry.h"
 

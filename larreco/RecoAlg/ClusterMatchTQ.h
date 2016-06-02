@@ -17,8 +17,8 @@
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "fhiclcpp/ParameterSet.h"
 
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 #include <vector>
 

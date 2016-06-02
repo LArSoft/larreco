@@ -4,7 +4,7 @@ include_directories ( $ENV{G4INCLUDE} )
 art_make(  
           MODULE_LIBRARIES  larreco_RecoAlg
 			    lardata_RecoObjects
-			    lardata_RecoBase
+			    lardataobj_RecoBase
 			    larcore_Geometry
 			    larcore_Geometry_Geometry_service
 			    lardata_Utilities

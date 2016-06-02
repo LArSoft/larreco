@@ -4,13 +4,13 @@ include_directories ( $ENV{G4INCLUDE} )
 art_make(  
           EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc
           MODULE_LIBRARIES  larreco_RecoAlg
-			    larsim_Simulation
+			    larsim_Simulation larsimobj_Simulation
 			    lardata_RecoObjects
-			    lardata_RecoBase
+			    lardataobj_RecoBase
 			    larcore_Geometry
 			    larcore_Geometry_Geometry_service
 			    lardata_AnalysisAlg
-			    lardata_AnalysisBase
+			    lardataobj_AnalysisBase
 			    lardata_Utilities
 			    nutools_MagneticField_MagneticField_service
 			    nusimdata_SimulationBase
@@ -35,13 +35,13 @@ art_make(
 simple_plugin( Track3DKalman "module"
   			 larreco_Genfit 
 			 larreco_RecoAlg
-			 larsim_Simulation
+			 larsim_Simulation larsimobj_Simulation
 			 lardata_RecoObjects
-			 lardata_RecoBase
+			 lardataobj_RecoBase
 			 larcore_Geometry
 			 larcore_Geometry_Geometry_service
 			 lardata_AnalysisAlg
-			 lardata_AnalysisBase
+			 lardataobj_AnalysisBase
 			 lardata_Utilities
 			 larsim_RandomUtils_LArSeedService_service
 			 nutools_MagneticField_MagneticField_service
@@ -65,13 +65,13 @@ simple_plugin( Track3DKalman "module"
 simple_plugin( Track3DKalmanSPS "module"
 			 larreco_Genfit 
 			 larreco_RecoAlg
-			 larsim_Simulation
+			 larsim_Simulation larsimobj_Simulation
 			 lardata_RecoObjects
-			 lardata_RecoBase
+			 lardataobj_RecoBase
 			 larcore_Geometry
 			 larcore_Geometry_Geometry_service
 			 lardata_AnalysisAlg
-			 lardata_AnalysisBase
+			 lardataobj_AnalysisBase
 			 lardata_Utilities
 			 nutools_MagneticField_MagneticField_service
 			 nusimdata_SimulationBase
@@ -93,7 +93,7 @@ simple_plugin( Track3DKalmanSPS "module"
 
 
 simple_plugin( DumpTracks "module"
-               lardata_RecoBase
+               lardataobj_RecoBase
                ${ART_FRAMEWORK_CORE}
                ${ART_FRAMEWORK_PRINCIPAL}
                ${MF_MESSAGELOGGER}

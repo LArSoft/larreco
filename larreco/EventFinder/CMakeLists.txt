@@ -1,7 +1,7 @@
 
 art_make( 
           MODULE_LIBRARIES 
-                        lardata_RecoBase
+                        lardataobj_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         nusimdata_SimulationBase

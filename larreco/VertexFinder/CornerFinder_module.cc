@@ -24,8 +24,8 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 //LArSoft includes
-#include "lardata/RecoBase/Wire.h"
-#include "lardata/RecoBase/EndPoint2D.h"
+#include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
 #include "larreco/RecoAlg/CornerFinderAlg.h"
 #include "larcore/Geometry/Geometry.h"
 

@@ -8,7 +8,7 @@
 #ifndef DirOfGamma_h
 #define DirOfGamma_h
 
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 #include "canvas/Persistency/Common/Ptr.h"
 

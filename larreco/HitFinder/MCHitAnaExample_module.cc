@@ -17,8 +17,8 @@
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
-#include "lardata/MCBase/MCHitCollection.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/MCBase/MCHitCollection.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include <TH1D.h>

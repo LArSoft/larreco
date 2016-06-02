@@ -1,11 +1,11 @@
 art_make( 
-          LIB_LIBRARIES lardata_RecoBase
+          LIB_LIBRARIES lardataobj_RecoBase
                         larreco_RecoAlg
                         larevt_Filters
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_RecoObjects
-                        lardata_AnalysisBase
+                        lardataobj_AnalysisBase
                         lardata_Utilities
            		${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

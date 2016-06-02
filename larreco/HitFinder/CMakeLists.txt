@@ -1,8 +1,8 @@
 
 art_make( 
           LIB_LIBRARIES
-			lardata_RawData
-			lardata_RecoBase 
+			lardataobj_RawData
+			lardataobj_RecoBase 
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
 			art_Persistency_Common canvas_Persistency_Common
@@ -17,12 +17,12 @@ art_make(
 	  		larreco_HitFinder
                         larsim_MCCheater_BackTracker_service
 			larreco_RecoAlg
-                        lardata_RecoBase
-			lardata_MCBase
+                        lardataobj_RecoBase
+			lardataobj_MCBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
-                        larsim_Simulation
+                        larsim_Simulation larsimobj_Simulation
                         nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

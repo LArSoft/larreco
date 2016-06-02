@@ -34,9 +34,9 @@
 #include <vector>
 #include <string>
 
-#include "lardata/RecoBase/Wire.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/MCBase/MCHitCollection.h"
+#include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/MCBase/MCHitCollection.h"
 #include "larreco/HitFinder/HitAnaAlg.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 

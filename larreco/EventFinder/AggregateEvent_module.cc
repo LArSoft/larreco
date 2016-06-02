@@ -28,8 +28,8 @@ extern "C" {
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
-#include "lardata/RecoBase/Event.h"
-#include "lardata/RecoBase/Vertex.h"
+#include "lardataobj/RecoBase/Event.h"
+#include "lardataobj/RecoBase/Vertex.h"
 #include "larcore/Geometry/Geometry.h"
 
 // ROOT includes

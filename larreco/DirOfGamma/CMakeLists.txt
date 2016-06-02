@@ -3,9 +3,9 @@ art_make(
           
           LIB_LIBRARIES larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        larsim_Simulation
-                        lardata_RawData
-                        lardata_RecoBase
+                        larsim_Simulation larsimobj_Simulation
+                        lardataobj_RawData
+                        lardataobj_RecoBase
 		        larreco_RecoAlg
 			larreco_RecoAlg_PMAlg
                         lardata_Utilities
@@ -28,8 +28,8 @@ art_make(
 			   larreco_RecoAlg_PMAlg
 			   larreco_DirOfGamma
 			   larsim_MCCheater_BackTracker_service
-      			   lardata_RecoBase
-			   larsim_Simulation
+      			   lardataobj_RecoBase
+			   larsim_Simulation larsimobj_Simulation
 			   larcore_Geometry
 	    		   larcore_Geometry_Geometry_service
       			   lardata_Utilities

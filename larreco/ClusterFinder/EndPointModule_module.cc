@@ -47,9 +47,9 @@ extern "C" {
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
-#include "lardata/RecoBase/EndPoint2D.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/EndPointAlg.h"
 

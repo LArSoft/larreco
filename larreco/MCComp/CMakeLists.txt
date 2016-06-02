@@ -4,8 +4,8 @@ art_make(
 	  
           LIB_LIBRARIES    larcore_Geometry
 			   larcore_Geometry_Geometry_service
-			   larsim_Simulation
-			   lardata_RecoBase
+			   larsim_Simulation larsimobj_Simulation
+			   lardataobj_RecoBase
 			   lardata_Utilities
 			   ${ART_FRAMEWORK_CORE}
                            ${ART_FRAMEWORK_PRINCIPAL}
@@ -28,7 +28,7 @@ art_make(
           MODULE_LIBRARIES larreco_MCComp
 			   larcore_Geometry
 			   larcore_Geometry_Geometry_service
-			   larsim_Simulation
+			   larsim_Simulation larsimobj_Simulation
 			   ${ART_FRAMEWORK_CORE}
                            ${ART_FRAMEWORK_PRINCIPAL}
                            ${ART_FRAMEWORK_BASIC}

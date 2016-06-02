@@ -26,8 +26,8 @@
 
 //LArSoft includes:
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 // Root includes
 #include "TPrincipal.h"

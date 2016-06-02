@@ -34,13 +34,13 @@
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/RecoBase/Track.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
-#include "larsim/Simulation/sim.h"
-#include "lardata/MCBase/MCTrack.h"
+#include "larsimobj/Simulation/sim.h"
+#include "lardataobj/MCBase/MCTrack.h"
 
 #include "TH2F.h"
 #include "TFile.h"

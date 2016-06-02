@@ -24,8 +24,8 @@
 #include "canvas/Persistency/Common/PtrVector.h"
 
 // LArSoft
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include "larreco/RecoAlg/CMTool/CMToolBase/CMergeManager.h"
 #include "lardata/Utilities/AssociationUtil.h"

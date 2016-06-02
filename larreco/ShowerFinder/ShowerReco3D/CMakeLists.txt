@@ -4,8 +4,8 @@ add_subdirectory(job)
 art_make(
 	  
           LIB_LIBRARIES
-			lardata_MCBase
-                        lardata_RecoBase
+			lardataobj_MCBase
+                        lardataobj_RecoBase
                         lardata_Utilities
 			lardata_AnalysisAlg
                         larreco_RecoAlg_ClusterRecoUtil
@@ -32,12 +32,12 @@ art_make(
                         ${ROOT_MINUIT}
           MODULE_LIBRARIES 
 	  		   larreco_MCComp
-	  		   lardata_MCBase
+	  		   lardataobj_MCBase
 	  		   larreco_ShowerFinder_ShowerReco3D
 	  		   larreco_RecoAlg
                            larsim_MCCheater_BackTracker_service
                            larevt_Filters
-                           lardata_RecoBase
+                           lardataobj_RecoBase
                            larcore_Geometry
                            larcore_Geometry_Geometry_service
                            nusimdata_SimulationBase

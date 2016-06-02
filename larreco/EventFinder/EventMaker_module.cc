@@ -5,9 +5,9 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 
-#include "lardata/RecoBase/Event.h"
-#include "lardata/RecoBase/Vertex.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Event.h"
+#include "lardataobj/RecoBase/Vertex.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 namespace event {

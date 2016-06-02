@@ -1,6 +1,6 @@
 
 art_make( 
-          LIB_LIBRARIES lardata_RecoBase
+          LIB_LIBRARIES lardataobj_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
 #                        lardata_RecoObjects

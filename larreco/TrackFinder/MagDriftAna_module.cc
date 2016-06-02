@@ -47,8 +47,8 @@ extern "C" {
 #include "nutools/MagneticField/MagneticField.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larsim/MCCheater/BackTracker.h"
-#include "lardata/RecoBase/Track.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 
 namespace geo { class Geometry; }

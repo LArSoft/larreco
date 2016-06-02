@@ -16,10 +16,10 @@
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "larsim/MCCheater/BackTracker.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Shower.h"
-#include "lardata/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Shower.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 

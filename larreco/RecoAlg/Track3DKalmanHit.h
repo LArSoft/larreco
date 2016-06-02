@@ -19,10 +19,10 @@
 #include "art/Framework/Services/Optional/TFileService.h"
 
 
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Track.h"
-#include "lardata/RecoBase/PFParticle.h"
-#include "lardata/RecoBase/Seed.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/Seed.h"
 
 
 namespace trkf {

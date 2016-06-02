@@ -20,7 +20,7 @@
 
 //LArSoft includes
 #include "larreco/RecoAlg/TrajClusterAlg.h"
-#include "lardata/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/PFParticle.h"
 
 // ... more includes in the implementation section
 
@@ -70,10 +70,10 @@ namespace cluster {
 //LArSoft includes
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/EndPoint2D.h"
-#include "lardata/RecoBase/Vertex.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
+#include "lardataobj/RecoBase/Vertex.h"
 
 namespace cluster {
   

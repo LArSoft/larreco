@@ -42,7 +42,7 @@
 #include "larsim/MCCheater/BackTracker.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "larsim/Simulation/ParticleList.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/LArFFT.h"
 
 #include "TComplex.h"

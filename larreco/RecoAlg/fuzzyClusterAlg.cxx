@@ -25,7 +25,7 @@
 #include "larevt/Filters/ChannelFilter.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/fuzzyClusterAlg.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 
 /* Since data for clustering are usually noisy,

@@ -17,7 +17,7 @@
 
 // larsoft
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 // ROOT
 #include "TMath.h"

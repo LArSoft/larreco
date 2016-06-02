@@ -18,12 +18,12 @@
 
 #include <memory>
 
-#include "larsim/Simulation/SimChannel.h"
+#include "larsimobj/Simulation/SimChannel.h"
 
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/MCBase/MCDataHolder.h"
-#include "lardata/MCBase/MCHitCollection.h"
-#include "lardata/MCBase/MCWireCollection.h"
+#include "lardataobj/MCBase/MCDataHolder.h"
+#include "lardataobj/MCBase/MCHitCollection.h"
+#include "lardataobj/MCBase/MCWireCollection.h"
 
 namespace hit {
 

@@ -7,13 +7,13 @@ art_make(
           MODULE_LIBRARIES
 			larreco_RecoAlg
                         larsim_MCCheater_BackTracker_service
-                        lardata_AnalysisBase
-                        lardata_RecoBase
+                        lardataobj_AnalysisBase
+                        lardataobj_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_AnalysisAlg
-                        lardata_AnalysisBase
-                        larsim_Simulation
+                        lardataobj_AnalysisBase
+                        larsim_Simulation larsimobj_Simulation
                         lardata_Utilities
                         nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}
@@ -34,7 +34,7 @@ art_make(
 #simple_plugin( ShowerSelectorFilter "module"
 #         		  larevt_Filters
 # 			  larreco_RecoAlg
-# 		    	  lardata_RawData
+# 		    	  lardataobj_RawData
 # 			  nusimdata_SimulationBase
 #                
 # 	     )     

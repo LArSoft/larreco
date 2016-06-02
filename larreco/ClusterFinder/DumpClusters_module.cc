@@ -25,8 +25,8 @@
 #include "canvas/Utilities/InputTag.h"
 
 // LArSoft includes
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
 
 
 namespace cluster {

@@ -4,11 +4,11 @@ art_make(
           MODULE_LIBRARIES 
                         larsim_MCCheater_BackTracker_service
                         larevt_Filters
-                        lardata_RecoBase
+                        lardataobj_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
-                        larsim_Simulation
+                        larsim_Simulation larsimobj_Simulation
                         nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -30,7 +30,7 @@ simple_plugin ( FeatureVertexFinder "module"
                         larreco_RecoAlg
                         larsim_MCCheater_BackTracker_service
                         larevt_Filters
-                        lardata_RecoBase
+                        lardataobj_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
@@ -53,7 +53,7 @@ simple_plugin ( FeatureVertexFinder "module"
 
 simple_plugin ( CornerFinder "module"
                         larreco_RecoAlg
-                        lardata_RecoBase
+                        lardataobj_RecoBase
                         nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
