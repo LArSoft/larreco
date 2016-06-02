@@ -12,8 +12,8 @@ extern "C" {
 }
 
 //#include "RecoBase/Track.h"
-#include "lardata/AnalysisBase/Calorimetry.h"
-#include "lardata/AnalysisBase/ParticleID.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "lardataobj/AnalysisBase/ParticleID.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/AnalysisAlg/Chi2PIDAlg.h"
 

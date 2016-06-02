@@ -1,7 +1,7 @@
 
 art_make( 
-          LIB_LIBRARIES lardata_AnalysisBase
-                        lardata_RecoBase
+          LIB_LIBRARIES lardataobj_AnalysisBase
+                        lardataobj_RecoBase
 			lardata_Utilities
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
