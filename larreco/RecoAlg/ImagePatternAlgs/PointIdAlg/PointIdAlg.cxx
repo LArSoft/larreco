@@ -244,6 +244,7 @@ bool nnet::DataProviderAlg::isInsideFiducialRegion(unsigned int wire, float drif
 nnet::MlpModelInterface::MlpModelInterface(const char* xmlFileName) :
 	m(xmlFileName)
 {
+	mf::LogInfo("MlpModelInterface") << "MLP model loaded.";
 }
 // ------------------------------------------------------
 
@@ -296,6 +297,7 @@ float nnet::MlpModelInterface::GetOneOutput(int neuronIndex) const
 nnet::KerasModelInterface::KerasModelInterface(const char* modelFileName) :
 	m(modelFileName)
 {
+	mf::LogInfo("KerasModelInterface") << "Keras model loaded.";
 }
 // ------------------------------------------------------
 
@@ -307,8 +309,6 @@ bool nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & in
 	keras::DataChunk *sample = new keras::DataChunk2D();
 	sample->set_data(inp3d); // and more copy...
 	fOutput = m.compute_output(sample); // add using reference to input so no need for new/delete
-
-	delete sample;
 
 	return true;
 }
@@ -375,7 +375,7 @@ void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
 
 
 	fDriftWindow = 10; // should be in nnet xml?
-	fPatchSize = 32; // derive from nnet input size?
+	fPatchSize = 32; // deduce from nnet input size?
 
 
 	resizePatch();
