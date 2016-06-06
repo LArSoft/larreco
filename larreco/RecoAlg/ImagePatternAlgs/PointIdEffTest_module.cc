@@ -120,6 +120,7 @@ private:
 	std::ofstream fHitsOutFile;
 
 	nnet::PointIdAlg fPointIdAlg;
+    double fThreshold;
 
 	geo::GeometryCore const* fGeometry;
 
@@ -150,6 +151,7 @@ void nnet::PointIdEffTest::reconfigure(fhicl::ParameterSet const & p)
 	fClusterModuleLabel = p.get< std::string >("ClusterModuleLabel");
 	fSaveHitsFile = p.get< bool >("SaveHitsFile");
 	fPointIdAlg.reconfigure(p.get< fhicl::ParameterSet >("PointIdAlg"));
+	fThreshold = p.get< double >("Threshold");
 }
 
 
@@ -391,8 +393,8 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 		if (p_trk_or_sh > 0) fPidValue = vout[0] / p_trk_or_sh;
 	}
 
-	if (fPidValue < 0.5) fRecoPid = fShower;
-	else if (fPidValue > 0.5) fRecoPid = fTrack;
+	if (fPidValue < fThreshold) fRecoPid = fShower;
+	else if (fPidValue > fThreshold) fRecoPid = fTrack;
 	else fRecoPid = -1;
 
 	if ((fRecoPid == fShower) && (mctype == fShower))

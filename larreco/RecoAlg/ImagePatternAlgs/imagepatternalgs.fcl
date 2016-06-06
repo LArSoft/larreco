@@ -22,6 +22,8 @@ standard_pointidefftest:
 
     PointIdAlg:             @local::standard_pointidalg
 
+    Threshold:              0.5
+
     SaveHitsFile:           false
 }
 
