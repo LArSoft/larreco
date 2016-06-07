@@ -1934,12 +1934,13 @@ pma::TrkCandidate PMAlgTrackMaker::matchCluster(
 			candidate.SetTrack(fProjectionMatchingAlg.buildTrack(first_hits, fCluHits.at(clusters[idx].key())));
 
 			if (candidate.IsValid() && // no track if hits from 2 views do not alternate
-			    fProjectionMatchingAlg.isContained(*(candidate.Track()))) // sticks out of TPC's?
+			    fProjectionMatchingAlg.isContained(*(candidate.Track()), 2.0F)) // sticks out of TPC's?
 			{
 				m0 = candidate.Track()->GetMse();
 				if (m0 < mseThr) // check validation only if MSE is passing - thanks for Tracy for noticing this
 					v0 = validate(*(candidate.Track()), testView);
 			}
+
 			if (candidate.Track() && (m0 < mseThr) && (v0 > validThr)) // good candidate, try to extend it
 			{
 				mf::LogVerbatim("PMAlgTrackMaker")
