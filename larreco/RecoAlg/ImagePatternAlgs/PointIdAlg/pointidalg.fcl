@@ -22,6 +22,7 @@ standard_trainingdataalg:
 {
  WireLabel:       "caldata"
  SimulationLabel: "largeant"
+ SaveVtxFlags:    false
 
  PatchSize:       32
  DriftWindow:     10

@@ -14,7 +14,6 @@
 
 #include "larsim/Simulation/SimChannel.h"
 #include "larsim/Simulation/LArG4Parameters.h"
-#include "SimulationBase/MCParticle.h"
 
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
@@ -556,6 +555,7 @@ void nnet::TrainingDataAlg::reconfigure(const fhicl::ParameterSet& p)
 	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
 	fWireProducerLabel = p.get< std::string >("WireLabel");
 	fSimulationProducerLabel = p.get< std::string >("SimulationLabel");
+	fSaveVtxFlags = p.get< bool >("SaveVtxFlags");
 
 	fDriftWindow = p.get< unsigned int >("DriftWindow");
 	fPatchSize = p.get< unsigned int >("PatchSize");
@@ -599,7 +599,7 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 		size_t i0 = i * fDriftWindow;
 		size_t i1 = (i + 1) * fDriftWindow;
 
-		int best_pdg = 0;
+		int vtx_flags = 0, best_pdg = 0;
 		float max_edep = edeps[i0];
 		for (size_t k = i0 + 1; k < i1; ++k)
 		{
@@ -607,15 +607,26 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 			if (ek > max_edep)
 			{
 				max_edep = ek;
-				best_pdg = pdgs[k];
+				best_pdg = pdgs[k] & 0x0000FFFF;
 			}
+			vtx_flags |= pdgs[k] & 0x0FFF0000;
 		}
 
 		wEdep[i] = max_edep;
+
+		if (fSaveVtxFlags) best_pdg |= vtx_flags;
 		wPdg[i] = best_pdg;
 	}
 
 	return true;
+}
+// ------------------------------------------------------
+
+void nnet::TrainingDataAlg::collectVtxFlags(
+	std::map< size_t, std::map< int, std::vector<int> > > & wireToDriftToVtxFlags,
+	const std::map< int, const simb::MCParticle* > & particleMap) const
+{
+
 }
 // ------------------------------------------------------
 
@@ -642,6 +653,9 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
     {
 		particleMap[particle.TrackId()] = &particle;
 	}
+
+	std::map< size_t, std::map< int, std::vector<int> > > wireToDriftToVtxFlags;
+	if (fSaveVtxFlags) collectVtxFlags(wireToDriftToVtxFlags, particleMap);
 
 	std::map< int, int > trackToPDG;
 
