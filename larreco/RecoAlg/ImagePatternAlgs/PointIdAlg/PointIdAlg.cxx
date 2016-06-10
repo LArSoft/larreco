@@ -639,17 +639,73 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 	{
 		auto const & particle = *p.second;
 
+		double ekStart = 1000. * (particle.E() - particle.Mass());
+		double ekEnd = 1000. * (particle.EndE() - particle.Mass());
+
+		int pdg = abs(particle.PdgCode());
 		int flagsStart = nnet::TrainingDataAlg::kNone;
 		int flagsEnd = nnet::TrainingDataAlg::kNone;
-		switch (abs(particle.PdgCode()))
+		switch (pdg)
 		{
-			case 211:  // pi+/-
+			case 22:   // gamma
+				if ((particle.EndProcess() == "conv") &&
+				    (ekStart > 200.0)) // conversion, gamma > 200MeV
+				{
+					std::cout << "---> gamma conversion at " << ekStart << std::endl;
+					flagsEnd = nnet::TrainingDataAlg::kConv;
+				}
+				break;
+
+			case 13:   // mu+/-
+				
 				break;
 
 			case 111:  // pi0
+				std::cout << "---> pi0" << std::endl;
+				flagsStart = nnet::TrainingDataAlg::kPi0;
 				break;
 
+			case 211:  // pi+/-
 			case 2212: // proton
+				if ((ekStart > 50.0) && (particle.Mother() != 0))
+				{
+					auto search = particleMap.find(particle.Mother());
+					if (search != particleMap.end())
+					{
+						auto const & mother = *((*search).second);
+						int m_pdg = abs(mother.PdgCode());
+						unsigned int nSec = mother.NumberDaughters();
+						unsigned int nVisible = 0;
+						if (nSec > 1)
+						{
+							for (size_t d = 0; d < nSec; ++d)
+							{
+								auto d_search = particleMap.find(mother.Daughter(d));
+								if (d_search != particleMap.end())
+								{
+									auto const & daughter = *((*d_search).second);
+									int d_pdg = abs(daughter.PdgCode());
+									if (((d_pdg == 2212) || (d_pdg == 211) || (d_pdg == 321)) &&
+									    (1000. * (daughter.E() - daughter.Mass()) > 50.0))
+									{
+										++nVisible;
+									}
+								}
+							}
+						}
+						// hadron with Ek > 50MeV (so well visible) and
+						// produced by another hadron (but not neutron, so not single track from nothing) or
+						// at least secondary hadrons with Ek > 50MeV (so this is a good kink or V-like)
+						if (((m_pdg != pdg) && (m_pdg != 2112)) || (nVisible > 1))
+						{
+							std::cout << "---> hadron at " << ekStart
+								<< ", pdg: " << pdg << ", mother pdg: " << m_pdg
+								<< ", vis.daughters: " << nVisible << std::endl;
+							flagsStart = nnet::TrainingDataAlg::kHadr;
+						}
+					}
+					else std::cout << "---> proton mother not found for tid: " << particle.Mother() << std::endl;
+				}
 				break;
 
 			default: continue;
@@ -665,8 +721,12 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 			wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;
 		}
 
-		std::cout << particle.PdgCode() << ": " << particle.Process() << " --> " << particle.EndProcess() << std::endl;
-
+		if (ekStart > 50.0)
+		{
+			std::cout << particle.PdgCode() << ", " << ekStart << ": "
+				<< particle.Process() << " --> " << particle.EndProcess()
+				<< " " << ekEnd	<< std::endl;
+		}
 	}
 }
 // ------------------------------------------------------
@@ -735,7 +795,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 						continue;
 					}
 
-					const simb::MCParticle& particle = *((*search).second);
+					auto const & particle = *((*search).second);
 					if (!pdg) pdg = particle.PdgCode(); // not EM activity so read what PDG it is
 
 					trackToPDG[energyDeposit.trackID] = abs(pdg);
@@ -747,11 +807,11 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
       		} // loop over time slices
       	} // for each SimChannel
 
-		for (auto const & tttc : timeToTrackToCharge)
+		for (auto const & ttc : timeToTrackToCharge)
 		{
 			float max_deposit = 0.0;
 			int max_pdg = 0;		
-			for (auto const & tc : tttc.second) {
+			for (auto const & tc : ttc.second) {
 
 				if( tc.second > max_deposit ) 
 				{
@@ -760,10 +820,10 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 				}			
 			}
 			
-			if (tttc.first < (int)labels_deposit.size())
+			if (ttc.first < (int)labels_deposit.size())
 			{
-				labels_deposit[tttc.first] = max_deposit;
-				labels_pdg[tttc.first] 	   = max_pdg;
+				labels_deposit[ttc.first] = max_deposit;
+				labels_pdg[ttc.first] 	   = max_pdg;
 			}
 		}
 

@@ -201,7 +201,7 @@ public:
 		kNuE  = 0x0100000, kNuMu = 0x0200000, kNuTau = 0x0400000,  // nu flavor
 		kHadr = 0x100000,   // hadronic inelastic scattering
 		kPi0  = 0x2000000,  // pi0 produced in this vertex
-		kDecay = 0x4000000, // particle decay point
+		kDecay = 0x4000000, // particle decay at rest point
 		kConv = 0x8000000   // gamma conversion
 	};
 
