@@ -622,18 +622,28 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 }
 // ------------------------------------------------------
 
-nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, double y, double z) const
+nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, double y, double z, unsigned int view) const
 {
 	nnet::TrainingDataAlg::WireDrift wd;
-	wd.Wire = 0; wd.Drift = 0;
+	wd.Wire = 0; wd.Drift = -1;
 
+	double vtx[3] = {x, y, z};
+	if (fGeometry->FindTPCAtPosition(vtx).isValid)
+	{
+		unsigned int cryo = fGeometry->FindCryostatAtPosition(vtx);
+		unsigned int tpc = fGeometry->FindTPCAtPosition(vtx).TPC;
+
+		wd.Wire = fGeometry->NearestWire(vtx, view, tpc, cryo);
+		wd.Drift = fDetProp->ConvertXToTicks(x, view, tpc, cryo);
+	}
 	return wd;
 }
 // ------------------------------------------------------
 
 void nnet::TrainingDataAlg::collectVtxFlags(
 	std::map< size_t, std::map< int, int > > & wireToDriftToVtxFlags,
-	const std::map< int, const simb::MCParticle* > & particleMap) const
+	const std::map< int, const simb::MCParticle* > & particleMap,
+	unsigned int view) const
 {
 	for (auto const & p : particleMap)
 	{
@@ -649,7 +659,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		{
 			case 22:   // gamma
 				if ((particle.EndProcess() == "conv") &&
-				    (ekStart > 200.0)) // conversion, gamma > 200MeV
+				    (ekStart > 50.0)) // conversion, gamma > 200MeV
 				{
 					std::cout << "---> gamma conversion at " << ekStart << std::endl;
 					flagsEnd = nnet::TrainingDataAlg::kConv;
@@ -712,13 +722,15 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		}
 		if (flagsStart != nnet::TrainingDataAlg::kNone)
 		{
-			nnet::TrainingDataAlg::WireDrift wd = getProjection(particle.Vx(), particle.Vy(), particle.Vz());
+			nnet::TrainingDataAlg::WireDrift wd = getProjection(particle.Vx(), particle.Vy(), particle.Vz(), view);
 			wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsStart;
+			//std::cout << "--> wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
 		}
 		if (flagsEnd != nnet::TrainingDataAlg::kNone)
 		{
-			nnet::TrainingDataAlg::WireDrift wd = getProjection(particle.EndX(), particle.EndY(), particle.EndZ());
+			nnet::TrainingDataAlg::WireDrift wd = getProjection(particle.EndX(), particle.EndY(), particle.EndZ(), view);
 			wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;
+			//std::cout << "--> wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
 		}
 
 		if (ekStart > 50.0)
@@ -756,10 +768,9 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 	}
 
 	std::map< size_t, std::map< int, int > > wireToDriftToVtxFlags;
-	if (fSaveVtxFlags) collectVtxFlags(wireToDriftToVtxFlags, particleMap);
+	if (fSaveVtxFlags) collectVtxFlags(wireToDriftToVtxFlags, particleMap, view);
 
 	std::map< int, int > trackToPDG;
-
     for (size_t widx = 0; widx < fNWires; ++widx)
 	{
 		auto wireChannelNumber = fWireChannels[widx];
@@ -810,7 +821,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 		for (auto const & ttc : timeToTrackToCharge)
 		{
 			float max_deposit = 0.0;
-			int max_pdg = 0;		
+			int max_pdg = 0;
 			for (auto const & tc : ttc.second) {
 
 				if( tc.second > max_deposit ) 
@@ -823,7 +834,16 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 			if (ttc.first < (int)labels_deposit.size())
 			{
 				labels_deposit[ttc.first] = max_deposit;
-				labels_pdg[ttc.first] 	   = max_pdg;
+				labels_pdg[ttc.first]     = max_pdg;
+			}
+		}
+
+		for (auto const & drift_flags : wireToDriftToVtxFlags[widx])
+		{
+			int drift = drift_flags.first, flags = drift_flags.second;
+			if ((drift >= 0) && (drift < (int)labels_pdg.size()))
+			{
+				labels_pdg[drift] |= flags;
 			}
 		}
 

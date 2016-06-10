@@ -17,6 +17,7 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
 // LArSoft includes
+#include "larcore/Geometry/GeometryCore.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
@@ -228,7 +229,7 @@ private:
 		int Drift;
 	};
 
-	WireDrift getProjection(double x, double y, double z) const;
+	WireDrift getProjection(double x, double y, double z, unsigned int view) const;
 
 	bool setWireEdepsAndLabels(
 		std::vector<float> const & edeps,
@@ -237,7 +238,8 @@ private:
 
 	void collectVtxFlags(
 		std::map< size_t, std::map< int, int > > & wireToDriftToVtxFlags,
-		const std::map< int, const simb::MCParticle* > & particleMap) const;
+		const std::map< int, const simb::MCParticle* > & particleMap,
+		unsigned int view) const;
 
 	std::vector< std::vector<float> > fWireDriftEdep;
 	std::vector< std::vector<int> > fWireDriftPdg;
