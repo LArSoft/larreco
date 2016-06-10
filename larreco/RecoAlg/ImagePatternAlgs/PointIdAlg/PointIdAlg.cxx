@@ -718,8 +718,12 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					max_pdg = trackToPDG[tc.first];
 				}			
 			}
-			labels_deposit[tttc.first] = max_deposit;
-			labels_pdg[tttc.first] 	   = max_pdg;
+			
+			if (tttc.first < (int)labels_deposit.size())
+			{
+				labels_deposit[tttc.first] = max_deposit;
+				labels_pdg[tttc.first] 	   = max_pdg;
+			}
 		}
 
 		setWireEdepsAndLabels(labels_deposit, labels_pdg, widx);
