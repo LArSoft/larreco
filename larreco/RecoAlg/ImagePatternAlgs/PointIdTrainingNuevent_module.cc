@@ -66,7 +66,6 @@ namespace nnet	 {
 	std::string fGenieGenLabel;
 	std::string fOutTextFilePath;
 
-	int fSelectedTPC;
 	std::vector<int> fSelectedView;
 
 	int fEvent;     ///< number of the event being processed
@@ -99,23 +98,6 @@ namespace nnet	 {
 	fOutTextFilePath = parameterSet.get< std::string >("OutTextFilePath");
 	fFidVolCut = parameterSet.get< double >("FidVolCut");
 	fSelectedView = parameterSet.get< std::vector<int> >("SelectedView");
-
-	/*const size_t TPC_CNT = (size_t)fGeometry->NTPC(0);
-	if (fSelectedTPC.empty())
-	{
-		for (size_t tpc = 0; tpc < TPC_CNT; ++tpc)
-			fSelectedTPC.push_back(tpc);
-	}*/
-
-	/*if (fSelectedView.empty())
-	{
-		if (fGeometry->TPC(fSelectedTPC.front(), 0).HasPlane(geo::kU))
-			fSelectedView.push_back((int)geo::kU);
-		if (fGeometry->TPC(fSelectedTPC.front(), 0).HasPlane(geo::kV))
-			fSelectedView.push_back((int)geo::kV);
-		if (fGeometry->TPC(fSelectedTPC.front(), 0).HasPlane(geo::kZ))
-			fSelectedView.push_back((int)geo::kZ);
-	}*/
   }
   
   //-----------------------------------------------------------------------
@@ -129,16 +111,15 @@ namespace nnet	 {
 		if (mc.Origin() == simb::kBeamNeutrino)
 		{	
 			const TLorentzVector& pvtx = mc.GetNeutrino().Nu().Position();
-			TVector3 vtx(pvtx.X(), pvtx.Y(), pvtx.Z());		
+			TVector3 vtx(pvtx.X(), pvtx.Y(), pvtx.Z());	
+				
 			CorrOffset(vtx, mc.GetNeutrino().Nu());		
 		
 			if (InsideFidVol(vtx)) 
 			{	
-				std::cout << " InsideFidVol " << InsideFidVol(vtx) << std::endl;	
 				double v[3] = {vtx.X(), vtx.Y(), vtx.Z()}; 
 				unsigned int cryo = fGeometry->FindCryostatAtPosition(v);
 				unsigned int tpc = fGeometry->FindTPCAtPosition(v).TPC;
-			
 				
 				if (fSelectedView.empty())
 				{
@@ -181,15 +162,11 @@ namespace nnet	 {
     
     if (PrepareEv(event))
     {
-	std::cout << " PrepareEv 1 " << std::endl;
 	std::ostringstream os;
 	os << "event_" << fEvent << "_run_" << fRun << "_subrun_" << fSubRun;
 
-	std::cout << "analyze " << os.str() << std::endl;
-
 	std::ofstream fout_raw, fout_deposit, fout_pdg, fout_nuin;
 
-	std::cout << " fSelectedView size " << fSelectedView.size() << std::endl;
 	for (size_t v = 0; v < fSelectedView.size(); ++v)
 	{
 		std::ostringstream ss1;
@@ -204,7 +181,7 @@ namespace nnet	 {
 
 		fTrainingDataAlg.setEventData(event, fSelectedView[v], fPointid.tpc, fPointid.cryo);
 
-		/*for (size_t w = 0; w < fTrainingDataAlg.NWires(); ++w)
+		for (size_t w = 0; w < fTrainingDataAlg.NWires(); ++w)
 		{
 			auto const & raw = fTrainingDataAlg.wireData(w);
 			for (auto f : raw)
@@ -228,14 +205,13 @@ namespace nnet	 {
 			fout_pdg << std::endl;
 		}
 
-		//fout_nuin << fPointid.interaction << " " << fPointid.nupdg 
-			//<< " " << fPointid.position[v].X() << " " << fPointid.position[v].Y()
-		//	<< " " << fPointid.cryo << " " << fPointid.tpc << std::endl;
+		fout_nuin << fPointid.interaction << " " << fPointid.nupdg 
+			<< " " << fPointid.position[v].X() << " " << fPointid.position[v].Y() << std::endl;
 
 		fout_raw.close();
 		fout_deposit.close();
 		fout_pdg.close();
-		fout_nuin.close();*/
+		fout_nuin.close();
 	}
 	
      }
@@ -249,8 +225,8 @@ namespace nnet	 {
 	float corrt0x = particle.T() * 1.e-3 * detprop->DriftVelocity();
 
 	float px = vec.X();
-	if (px > 0) px -= corrt0x;
-	else px += corrt0x;
+	if (px > 0) px += corrt0x;
+	else px -= corrt0x;
 	vec.SetX(px);
   }
 
@@ -305,8 +281,9 @@ namespace nnet	 {
   {
 
 	TVector2 vtx2d = pma::GetProjectionToPlane(vtx3d, plane, tpc, cryo);
-
-	return vtx2d;
+	TVector2 vtxwd = pma::CmToWireDrift(vtx2d.X(), vtx2d.Y(), plane, tpc, cryo);
+	
+	return vtxwd;
   }
 
 
