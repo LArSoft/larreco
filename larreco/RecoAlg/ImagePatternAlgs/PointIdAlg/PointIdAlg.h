@@ -24,6 +24,7 @@
 #include "lardata/RecoBase/Hit.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "SimulationBase/MCParticle.h"
 
 #include "larreco/RecoAlg/ImagePatternAlgs/MLP/NNReader.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/Keras/keras_model.h"
@@ -193,6 +194,13 @@ class nnet::TrainingDataAlg : public nnet::DataProviderAlg
 {
 public:
 
+	enum EVtxId
+	{
+		kNuNC = 0x0010000, kNuCC = 0x0020000,
+		kNuE  = 0x0100000, kNuMu = 0x0200000, kNuTau = 0x0400000,
+		kHadr = 0x100000,  kPi0  = 0x2000000, kDecay = 0x4000000
+	};
+
 	TrainingDataAlg(const fhicl::ParameterSet& pset);
 	virtual ~TrainingDataAlg(void);
 
@@ -215,10 +223,15 @@ private:
 		std::vector<int> const & pdgs,
 		size_t wireIdx);
 
+	void collectVtxFlags(
+		std::map< size_t, std::map< int, std::vector<int> > > & wireToDriftToVtxFlags,
+		const std::map< int, const simb::MCParticle* > & particleMap) const;
+
 	std::vector< std::vector<float> > fWireDriftEdep;
 	std::vector< std::vector<int> > fWireDriftPdg;
 
 	std::string fSimulationProducerLabel;
+	bool fSaveVtxFlags;
 };
 // ------------------------------------------------------
 // ------------------------------------------------------
