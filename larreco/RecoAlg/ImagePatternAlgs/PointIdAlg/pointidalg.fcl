@@ -20,7 +20,9 @@ standard_pointidalg:
 
 standard_trainingdataalg:
 {
+
  WireLabel:       "caldata"
+ GenModuleLabel:  "generator"
  SimulationLabel: "largeant"
  SaveVtxFlags:    false
 
