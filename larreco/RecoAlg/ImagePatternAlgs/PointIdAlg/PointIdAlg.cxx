@@ -622,11 +622,52 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 }
 // ------------------------------------------------------
 
+nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, double y, double z) const
+{
+	nnet::TrainingDataAlg::WireDrift wd;
+	wd.Wire = 0; wd.Drift = 0;
+
+	return wd;
+}
+// ------------------------------------------------------
+
 void nnet::TrainingDataAlg::collectVtxFlags(
-	std::map< size_t, std::map< int, std::vector<int> > > & wireToDriftToVtxFlags,
+	std::map< size_t, std::map< int, int > > & wireToDriftToVtxFlags,
 	const std::map< int, const simb::MCParticle* > & particleMap) const
 {
+	for (auto const & p : particleMap)
+	{
+		auto const & particle = *p.second;
 
+		int flagsStart = nnet::TrainingDataAlg::kNone;
+		int flagsEnd = nnet::TrainingDataAlg::kNone;
+		switch (abs(particle.PdgCode()))
+		{
+			case 211:  // pi+/-
+				break;
+
+			case 111:  // pi0
+				break;
+
+			case 2212: // proton
+				break;
+
+			default: continue;
+		}
+		if (flagsStart != nnet::TrainingDataAlg::kNone)
+		{
+			nnet::TrainingDataAlg::WireDrift wd = getProjection(particle.Vx(), particle.Vy(), particle.Vz());
+			wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsStart;
+		}
+		if (flagsEnd != nnet::TrainingDataAlg::kNone)
+		{
+			nnet::TrainingDataAlg::WireDrift wd = getProjection(particle.EndX(), particle.EndY(), particle.EndZ());
+			wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;
+		}
+
+		std::cout << particle.PdgCode() << ": " << particle.Process() << " --> " << particle.EndProcess() << std::endl;
+
+	}
 }
 // ------------------------------------------------------
 
@@ -654,7 +695,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 		particleMap[particle.TrackId()] = &particle;
 	}
 
-	std::map< size_t, std::map< int, std::vector<int> > > wireToDriftToVtxFlags;
+	std::map< size_t, std::map< int, int > > wireToDriftToVtxFlags;
 	if (fSaveVtxFlags) collectVtxFlags(wireToDriftToVtxFlags, particleMap);
 
 	std::map< int, int > trackToPDG;

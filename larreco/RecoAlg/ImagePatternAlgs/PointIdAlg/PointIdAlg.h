@@ -196,9 +196,13 @@ public:
 
 	enum EVtxId
 	{
-		kNuNC = 0x0010000, kNuCC = 0x0020000,
-		kNuE  = 0x0100000, kNuMu = 0x0200000, kNuTau = 0x0400000,
-		kHadr = 0x100000,  kPi0  = 0x2000000, kDecay = 0x4000000
+		kNone = 0,
+		kNuNC = 0x0010000, kNuCC = 0x0020000,                      // nu interaction type
+		kNuE  = 0x0100000, kNuMu = 0x0200000, kNuTau = 0x0400000,  // nu flavor
+		kHadr = 0x100000,   // hadronic inelastic scattering
+		kPi0  = 0x2000000,  // pi0 produced in this vertex
+		kDecay = 0x4000000, // particle decay point
+		kConv = 0x8000000   // gamma conversion
 	};
 
 	TrainingDataAlg(const fhicl::ParameterSet& pset);
@@ -218,13 +222,21 @@ protected:
 
 private:
 
+	struct WireDrift
+	{
+		size_t Wire;
+		int Drift;
+	};
+
+	WireDrift getProjection(double x, double y, double z) const;
+
 	bool setWireEdepsAndLabels(
 		std::vector<float> const & edeps,
 		std::vector<int> const & pdgs,
 		size_t wireIdx);
 
 	void collectVtxFlags(
-		std::map< size_t, std::map< int, std::vector<int> > > & wireToDriftToVtxFlags,
+		std::map< size_t, std::map< int, int > > & wireToDriftToVtxFlags,
 		const std::map< int, const simb::MCParticle* > & particleMap) const;
 
 	std::vector< std::vector<float> > fWireDriftEdep;
