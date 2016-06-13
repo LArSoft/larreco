@@ -121,6 +121,7 @@ private:
 
 	nnet::PointIdAlg fPointIdAlg;
     double fThreshold;
+	unsigned int fView;
 
 	geo::GeometryCore const* fGeometry;
 
@@ -152,6 +153,7 @@ void nnet::PointIdEffTest::reconfigure(fhicl::ParameterSet const & p)
 	fSaveHitsFile = p.get< bool >("SaveHitsFile");
 	fPointIdAlg.reconfigure(p.get< fhicl::ParameterSet >("PointIdAlg"));
 	fThreshold = p.get< double >("Threshold");
+	fView = p.get< unsigned int >("View");
 }
 
 
@@ -272,7 +274,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 			{
 				unsigned int view = v.first;
 				
-				if (view == geo::kZ)
+				if (view == fView)
 				{
 					fPointIdAlg.setWireDriftData(e, view, tpc, cryo);
 
