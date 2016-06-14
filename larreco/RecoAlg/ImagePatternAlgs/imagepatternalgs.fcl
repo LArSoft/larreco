@@ -31,10 +31,10 @@ standard_pointidefftest:
 {
 	module_type:            "PointIdEffTest"
 	
-	GenModuleLabel:  	"generator"
+	GenModuleLabel:         "generator"
 	SimModuleLabel:         "largeant"	
    	HitsModuleLabel:        "lineclusterdc"
-   	ClusterModuleLabel:	"lineclusterdc"
+   	ClusterModuleLabel:     "lineclusterdc"
 
     PointIdAlg:             @local::standard_pointidalg
 
