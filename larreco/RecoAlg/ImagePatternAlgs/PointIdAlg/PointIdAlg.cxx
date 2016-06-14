@@ -625,7 +625,7 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, double y, double z, unsigned int view) const
 {
 	nnet::TrainingDataAlg::WireDrift wd;
-	wd.Wire = 0; wd.Drift = -1;
+	wd.Wire = 0; wd.Drift = 0; wd.TPC = -1;
 
 	double vtx[3] = {x, y, z};
 	if (fGeometry->FindTPCAtPosition(vtx).isValid)
@@ -635,6 +635,7 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, 
 
 		wd.Wire = fGeometry->NearestWire(vtx, view, tpc, cryo);
 		wd.Drift = fDetProp->ConvertXToTicks(x, view, tpc, cryo);
+		wd.TPC = tpc;
 	}
 	return wd;
 }
@@ -659,62 +660,136 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		{
 			case 22:   // gamma
 				if ((particle.EndProcess() == "conv") &&
-				    (ekStart > 50.0)) // conversion, gamma > 200MeV
+				    (ekStart > 40.0)) // conversion, gamma > 40MeV
 				{
-					std::cout << "---> gamma conversion at " << ekStart << std::endl;
+					//std::cout << "---> gamma conversion at " << ekStart << std::endl;
 					flagsEnd = nnet::TrainingDataAlg::kConv;
 				}
 				break;
 
 			case 13:   // mu+/-
-				
+				if (particle.EndProcess() == "FastScintillation") // potential decay at rest
+				{
+					unsigned int nSec = particle.NumberDaughters();
+					for (size_t d = 0; d < nSec; ++d)
+					{
+						auto d_search = particleMap.find(particle.Daughter(d));
+						if (d_search != particleMap.end())
+						{
+							auto const & daughter = *((*d_search).second);
+							int d_pdg = abs(daughter.PdgCode());
+							if (d_pdg == 11)
+							{
+								//std::cout << "---> mu decay to electron" << std::endl;
+								flagsEnd = nnet::TrainingDataAlg::kDecay;
+								break;
+							}
+						}
+					}
+				}
 				break;
 
 			case 111:  // pi0
-				std::cout << "---> pi0" << std::endl;
+				//std::cout << "---> pi0" << std::endl;
 				flagsStart = nnet::TrainingDataAlg::kPi0;
 				break;
 
+			case 321:  // K+/-
 			case 211:  // pi+/-
 			case 2212: // proton
-				if ((ekStart > 50.0) && (particle.Mother() != 0))
+				if (ekStart > 50.0)
 				{
-					auto search = particleMap.find(particle.Mother());
-					if (search != particleMap.end())
+					if (particle.Mother() != 0)
 					{
-						auto const & mother = *((*search).second);
-						int m_pdg = abs(mother.PdgCode());
-						unsigned int nSec = mother.NumberDaughters();
-						unsigned int nVisible = 0;
-						if (nSec > 1)
+						auto search = particleMap.find(particle.Mother());
+						if (search != particleMap.end())
 						{
-							for (size_t d = 0; d < nSec; ++d)
+							auto const & mother = *((*search).second);
+							int m_pdg = abs(mother.PdgCode());
+							unsigned int nSec = mother.NumberDaughters();
+							unsigned int nVisible = 0;
+							if (nSec > 1)
 							{
-								auto d_search = particleMap.find(mother.Daughter(d));
-								if (d_search != particleMap.end())
+								for (size_t d = 0; d < nSec; ++d)
 								{
-									auto const & daughter = *((*d_search).second);
-									int d_pdg = abs(daughter.PdgCode());
-									if (((d_pdg == 2212) || (d_pdg == 211) || (d_pdg == 321)) &&
-									    (1000. * (daughter.E() - daughter.Mass()) > 50.0))
+									auto d_search = particleMap.find(mother.Daughter(d));
+									if (d_search != particleMap.end())
 									{
-										++nVisible;
+										auto const & daughter = *((*d_search).second);
+										int d_pdg = abs(daughter.PdgCode());
+										if (((d_pdg == 2212) || (d_pdg == 211) || (d_pdg == 321)) &&
+										    (1000. * (daughter.E() - daughter.Mass()) > 50.0))
+										{
+											++nVisible;
+										}
 									}
 								}
 							}
+							// hadron with Ek > 50MeV (so well visible) and
+							// produced by another hadron (but not neutron, so not single track from nothing) or
+							// at least secondary hadrons with Ek > 50MeV (so this is a good kink or V-like)
+							if (((m_pdg != pdg) && (m_pdg != 2112)) || (nVisible > 1))
+							{
+								//std::cout << "---> hadron at " << ekStart
+								//	<< ", pdg: " << pdg << ", mother pdg: " << m_pdg
+								//	<< ", vis.daughters: " << nVisible << std::endl;
+								flagsStart = nnet::TrainingDataAlg::kHadr;
+							}
 						}
-						// hadron with Ek > 50MeV (so well visible) and
-						// produced by another hadron (but not neutron, so not single track from nothing) or
-						// at least secondary hadrons with Ek > 50MeV (so this is a good kink or V-like)
-						if (((m_pdg != pdg) && (m_pdg != 2112)) || (nVisible > 1))
+						else std::cout << "---> mother not found for tid: " << particle.Mother() << std::endl;
+					}
+
+					if (particle.EndProcess() == "FastScintillation") // potential decay at rest
+					{
+						unsigned int nSec = particle.NumberDaughters();
+						for (size_t d = 0; d < nSec; ++d)
 						{
-							std::cout << "---> hadron at " << ekStart
-								<< ", pdg: " << pdg << ", mother pdg: " << m_pdg
-								<< ", vis.daughters: " << nVisible << std::endl;
-							flagsStart = nnet::TrainingDataAlg::kHadr;
+							auto d_search = particleMap.find(particle.Daughter(d));
+							if (d_search != particleMap.end())
+							{
+								auto const & daughter = *((*d_search).second);
+								int d_pdg = abs(daughter.PdgCode());
+								if ((pdg == 321) && (d_pdg == 13))
+								{
+									//std::cout << "---> K decay to mu" << std::endl;
+									flagsEnd = nnet::TrainingDataAlg::kDecay;
+									break;
+								}
+								if ((pdg == 211) && (d_pdg == 13))
+								{
+									//std::cout << "---> pi decay to mu" << std::endl;
+									flagsEnd = nnet::TrainingDataAlg::kDecay;
+									break;
+								}
+							}
 						}
 					}
-					else std::cout << "---> proton mother not found for tid: " << particle.Mother() << std::endl;
+
+					if ((particle.EndProcess() == "Decay") && (ekEnd > 200.0)) // decay in flight
+					{
+						unsigned int nSec = particle.NumberDaughters();
+						for (size_t d = 0; d < nSec; ++d)
+						{
+							auto d_search = particleMap.find(particle.Daughter(d));
+							if (d_search != particleMap.end())
+							{
+								auto const & daughter = *((*d_search).second);
+								int d_pdg = abs(daughter.PdgCode());
+								if ((pdg == 321) && (d_pdg == 13))
+								{
+									//std::cout << "---> in-flight K decay to mu" << std::endl;
+									flagsEnd = nnet::TrainingDataAlg::kHadr;
+									break;
+								}
+								if ((pdg == 211) && (d_pdg == 13))
+								{
+									//std::cout << "---> in-flight pi decay to mu" << std::endl;
+									flagsEnd = nnet::TrainingDataAlg::kHadr;
+									break;
+								}
+							}
+						}
+					}
 				}
 				break;
 
@@ -722,23 +797,31 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		}
 		if (flagsStart != nnet::TrainingDataAlg::kNone)
 		{
-			nnet::TrainingDataAlg::WireDrift wd = getProjection(particle.Vx(), particle.Vy(), particle.Vz(), view);
-			wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsStart;
-			//std::cout << "--> wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+			auto wd = getProjection(particle.Vx(), particle.Vy(), particle.Vz(), view);
+			if (wd.TPC == (int)fTPC)
+			{
+				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsStart;
+				//std::cout << "---> flagsStart:" << flagsStart << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+			}
+			//else std::cout << "---> not in current TPC" << std::endl;
 		}
 		if (flagsEnd != nnet::TrainingDataAlg::kNone)
 		{
-			nnet::TrainingDataAlg::WireDrift wd = getProjection(particle.EndX(), particle.EndY(), particle.EndZ(), view);
-			wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;
-			//std::cout << "--> wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+			auto wd = getProjection(particle.EndX(), particle.EndY(), particle.EndZ(), view);
+			if (wd.TPC == (int)fTPC)
+			{
+				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;
+				//std::cout << "---> flagsEnd:" << flagsEnd << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+			}
+			//else std::cout << "---> not in current TPC" << std::endl;
 		}
 
-		if (ekStart > 50.0)
-		{
-			std::cout << particle.PdgCode() << ", " << ekStart << ": "
-				<< particle.Process() << " --> " << particle.EndProcess()
-				<< " " << ekEnd	<< std::endl;
-		}
+		//if (ekStart > 30.0)
+		//{
+		//	std::cout << particle.PdgCode() << ", " << ekStart << ": "
+		//		<< particle.Process() << " --> " << particle.EndProcess()
+		//		<< " " << ekEnd	<< std::endl;
+		//}
 	}
 }
 // ------------------------------------------------------
