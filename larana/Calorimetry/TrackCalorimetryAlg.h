@@ -19,7 +19,7 @@
 #include "larcore/Geometry/GeometryCore.h"
 #include "lardata/DetectorInfo/LArProperties.h"
 #include "lardata/DetectorInfo/DetectorProperties.h"
-#include "lardata/DetectorInfo/ProviderPack.h"
+#include "larcore/CoreUtils/ProviderPack.h"
 
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 
