@@ -200,10 +200,13 @@ public:
 		kNone  = 0,
 		kNuNC  = 0x0010000, kNuCC = 0x0020000,                      // nu interaction type
 		kNuE   = 0x0100000, kNuMu = 0x0200000, kNuTau = 0x0400000,  // nu flavor
-		kHadr  = 0x1000000,  // hadronic inelastic scattering
-		kPi0   = 0x2000000,  // pi0 produced in this vertex
-		kDecay = 0x4000000,  // point of particle decay
-		kConv  = 0x8000000   // gamma conversion
+		kHadr  = 0x1000000,    // hadronic inelastic scattering
+		kPi0   = 0x2000000,    // pi0 produced in this vertex
+		kDecay = 0x4000000,    // point of particle decay
+		kConv  = 0x8000000,    // gamma conversion
+
+		kVtxMask = 0x0FFF0000, // vertex flags, still can use 0xFFFF0000 if more vtx types needed
+		kPdgMask = 0x0000FFFF  // pdg code mask (pdg is saved in the same int as vtx flags)
 	};
 
 	TrainingDataAlg(const fhicl::ParameterSet& pset);
@@ -223,7 +226,7 @@ protected:
 
 private:
 
-	struct WireDrift
+	struct WireDrift // used to find MCParticle start/end 2D projections
 	{
 		size_t Wire;
 		int Drift;

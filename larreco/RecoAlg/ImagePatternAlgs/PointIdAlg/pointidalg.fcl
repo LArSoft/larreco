@@ -2,18 +2,25 @@
 
 BEGIN_PROLOG
 
-standard_dataprovideralg:
-{
- WireLabel:       "caldata"
-
- CalorimetryAlg:   @local::standard_calorimetryalgmc
-}
+# (base algorithm is not used now as a standalone thing)
+# standard_dataprovideralg:
+# {
+#  WireLabel:       "caldata"
+#
+#  PatchSize:       32
+#  DriftWindow:     10
+#
+#  CalorimetryAlg:   @local::standard_calorimetryalgmc
+# }
 
 standard_pointidalg:
 {
  WireLabel:       "caldata"
 
  NNetModelFile:   "mlp_dummy.xml"
+
+ PatchSize:       32  # important: patch size and drift window have to be consistent
+ DriftWindow:     10  # with training data used in neural net model preparation
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc
 }
@@ -22,12 +29,11 @@ standard_trainingdataalg:
 {
 
  WireLabel:       "caldata"
- GenModuleLabel:  "generator"
  SimulationLabel: "largeant"
  SaveVtxFlags:    false
 
- PatchSize:       32
- DriftWindow:     10
+ PatchSize:       32  # important: patch size and drift window have to be consistent
+ DriftWindow:     10  # with training data used in neural net model preparation
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc
 }

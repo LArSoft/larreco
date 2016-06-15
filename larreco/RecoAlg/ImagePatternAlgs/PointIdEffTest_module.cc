@@ -273,11 +273,8 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 			for (auto const& v : t.second)
 			{
 				unsigned int view = v.first;
-
-				std::cout << "view:" << view << std::endl;
 				if (view == fView)
 				{
-					std::cout << "match" << std::endl;
 					fPointIdAlg.setWireDriftData(e, view, tpc, cryo);
 
 					for (auto const& h : v.second)

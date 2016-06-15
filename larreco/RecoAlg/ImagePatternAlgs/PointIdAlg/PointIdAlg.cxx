@@ -47,6 +47,9 @@ void nnet::DataProviderAlg::reconfigure(const fhicl::ParameterSet& p)
 	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
 	fWireProducerLabel = p.get< std::string >("WireLabel");
 
+	fDriftWindow = p.get< unsigned int >("DriftWindow");
+	fPatchSize = p.get< unsigned int >("PatchSize");
+
 	resizePatch();
 }
 // ------------------------------------------------------
@@ -309,6 +312,9 @@ bool nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & in
 	sample->set_data(inp3d); // and more copy...
 	fOutput = m.compute_output(sample); // add using reference to input so no need for new/delete
 
+	// anyway time is spent in 2D convolutions, not much to be improved
+	// in a simple approach...
+
 	return true;
 }
 // ------------------------------------------------------
@@ -350,8 +356,6 @@ nnet::PointIdAlg::~PointIdAlg(void)
 
 void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
 {
-	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
-	fWireProducerLabel = p.get< std::string >("WireLabel");
 	fNNetModelFilePath = p.get< std::string >("NNetModelFile");
 
 	deleteNNet();
@@ -371,14 +375,6 @@ void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
 		mf::LogError("PointIdAlg") << "Loading model from file failed.";
 		return;
 	}
-
-
-	fDriftWindow = 10; // should be in nnet xml?
-	fPatchSize = 32; // deduce from nnet input size?
-
-
-	resizePatch();
-
 }
 // ------------------------------------------------------
 
@@ -552,15 +548,8 @@ nnet::TrainingDataAlg::~TrainingDataAlg(void)
 
 void nnet::TrainingDataAlg::reconfigure(const fhicl::ParameterSet& p)
 {
-	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
-	fWireProducerLabel = p.get< std::string >("WireLabel");
 	fSimulationProducerLabel = p.get< std::string >("SimulationLabel");
 	fSaveVtxFlags = p.get< bool >("SaveVtxFlags");
-
-	fDriftWindow = p.get< unsigned int >("DriftWindow");
-	fPatchSize = p.get< unsigned int >("PatchSize");
-
-	resizePatch();
 }
 // ------------------------------------------------------
 
@@ -607,9 +596,9 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 			if (ek > max_edep)
 			{
 				max_edep = ek;
-				best_pdg = pdgs[k] & 0x0000FFFF;
+				best_pdg = pdgs[k] & nnet::TrainingDataAlg::kPdgMask; // remember best matching pdg
 			}
-			vtx_flags |= pdgs[k] & 0x0FFF0000;
+			vtx_flags |= pdgs[k] & nnet::TrainingDataAlg::kVtxMask;   // accumulate all vtx flags
 		}
 
 		wEdep[i] = max_edep;
