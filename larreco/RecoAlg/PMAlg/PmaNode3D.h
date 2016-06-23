@@ -33,7 +33,9 @@ public:
 
 	TVector3 const & Point3D(void) const { return fPoint3D; }
 
-	void SetPoint3D(const TVector3& p3d);
+	/// Returns true if the new position was accepted; returns false if the new position
+	/// was trimmed to fit insite TPC volume + fMargin.
+	bool SetPoint3D(const TVector3& p3d);
 
 	TVector2 const & Projection2D(unsigned int view) const { return fProj2D[view]; }
 
@@ -97,7 +99,8 @@ public:
 	static void SetMargin(double m) { if (m >= 0.0) fMargin = m; }
 
 private:
-	void LimitPoint3D(void);
+	/// Returns true if node position was trimmed to its TPC volume + fMargin
+	bool LimitPoint3D(void);
 	void UpdateProj2D(void);
 
 	double EndPtCos2Transverse(void) const;
