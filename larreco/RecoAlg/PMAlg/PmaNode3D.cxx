@@ -82,11 +82,11 @@ double pma::Node3D::GetDistToWall(void) const
 	return dmin;
 }
 
-bool pma::Node3D::SameTPC(const TVector3& p3d) const
+bool pma::Node3D::SameTPC(const TVector3& p3d, float margin) const
 {
-	if ((fMinX <= p3d.X()) && (p3d.X() <= fMaxX) &&
-	    (fMinY <= p3d.Y()) && (p3d.Y() <= fMaxY) &&
-	    (fMinZ <= p3d.Z()) && (p3d.Z() <= fMaxZ)) return true;
+	if (((fMinX - margin) <= p3d.X()) && (p3d.X() <= (fMaxX + margin)) &&
+	    ((fMinY - margin) <= p3d.Y()) && (p3d.Y() <= (fMaxY + margin)) &&
+	    ((fMinZ - margin) <= p3d.Z()) && (p3d.Z() <= (fMaxZ + margin))) return true;
 	else return false;
 }
 

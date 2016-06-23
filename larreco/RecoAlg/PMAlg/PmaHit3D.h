@@ -47,6 +47,7 @@ public:
 	TVector3 const & Point3D(void) const { return fPoint3D; }
 
 	void SetPoint3D(const TVector3& p3d) { fPoint3D = p3d; }
+	void SetPoint3D(double x, double y, double z) { fPoint3D.SetXYZ(x, y, z); }
 
 	TVector2 const & Point2D(void) const { return fPoint2D; }
 	TVector2 const & Projection2D(void) const { return fProjection2D; }
@@ -71,6 +72,10 @@ public:
 	void SetProjection(const TVector2& p, float b)
 	{
 		fProjection2D.Set(p); fSegFraction = b;
+	}
+	void SetProjection(double x, double y, float b)
+	{
+		fProjection2D.Set(x, y); fSegFraction = b;
 	}
 
 	bool IsEnabled(void) const { return (fEnabled && !fOutlier); }
