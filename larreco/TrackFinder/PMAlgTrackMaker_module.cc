@@ -51,6 +51,7 @@
 #include "lardata/AnalysisBase/T0.h" 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+//#include "lardata/Utilities/PtrMaker.h"
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
@@ -825,8 +826,8 @@ bool PMAlgTrackMaker::areCoLinear(double& cos3d,
 	TVector3 proj0 = pma::GetProjectionToSegment(b0, f1, b1);
 	double distProj0 = sqrt( pma::Dist2(b0, proj0) );
 
-	TVector3 proj1 = pma::GetProjectionToSegment(b1, f0, b0);
-	double distProj1 = sqrt( pma::Dist2(b1, proj1) );
+	TVector3 proj1 = pma::GetProjectionToSegment(f1, f0, b0);
+	double distProj1 = sqrt( pma::Dist2(f1, proj1) );
 
 	double d = sqrt( pma::Dist2(b0, f1) );
 	double dThr = (1 + 0.02 * d) * distProjThr;
@@ -1444,12 +1445,15 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			if (fAutoFlip_dQdx) result.flipTreesByDQdx(); // flip the tracks / trees to get best dQ/dx sequences
 
+			//auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
+			//auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
+
 			tracks->reserve(result.size());
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
 			{
 				pma::Track3D* trk = result[fTrkIndex].Track();
 				if (!(trk->HasTwoViews() && (trk->Nodes().size() > 1)))
-				{
+				{   // should never happen and it does not indeed, but let's keep this test for a moment
 					mf::LogWarning("PMAlgTrackMaker") << "Skip degenerated track, code needs to be corrected.";
 					continue;
 				}
@@ -1462,6 +1466,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				tracks->push_back(convertFrom(*trk));
 
+				//auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
+
 				double xShift = trk->GetXShift();
 				if (xShift > 0.0)
 				{
@@ -1470,7 +1476,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 					// TriggBits=3 means from 3d reco (0,1,2 mean something else)
 					t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
+
 					util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
+					//auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
+					//trk2t0->addSingle(trkPtr, t0Ptr);
 				}
 
 				size_t trkIdx = tracks->size() - 1; // stuff for assns:
