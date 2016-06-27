@@ -7,21 +7,20 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.advanced_activations import LeakyReLU
 from keras.optimizers import SGD
 from keras.utils import np_utils
+from os.path import exists, isfile, join
+import os, json
 
-from utils import get_data, read_config
-
-
-TOTAL_EVENTS = 2000
-TEST_EVENTS_SPLIT = 1900
+from utils import read_config
 
 batch_size = 256
 nb_classes = 3
-nb_epoch = 100 #1500
+nb_epoch = 1000 #1000
 
 #       name,      nflt1, kernel1, maxpool, nflt2, kernel2, convactfn, drop1, densesize, actfn, drop2 -> softmax
 parameters = np.array([
 #      ['deep',      64,     5,        0,     32,      7,     'relu',   0.2,      64,     'tanh', 0.2]
-       ['small1_sgd_lorate',    64,     5,        0,      0,      7,     'relu',   0.2,     128,     'tanh', 0.2]
+       ['small1_sgd_lorate_8k_coll',    32,     5,        0,      0,      7,     'relu',   0.2,     128,     'tanh', 0.2]
+#      ['small1_ada_def',    64,     5,        0,      0,      7,     'relu',   0.2,     128,     'relu', 0.2]
 #    , ['large',     64,     5,        1,     64,      7,     'relu',   0.2,     128,     'relu', 0.2]
 #    , ['leakytanh', 64,     5,        1,     64,      5,     'leaky',  0.2,      64,     'tanh', 0.1]
 ])
@@ -41,10 +40,28 @@ def save_model(model, name):
 _, CNN_INPUT_DIR, PATCH_SIZE = read_config()
 
 # read train and test sets
-X_train = np.load(CNN_INPUT_DIR+'/all_train.npy')
-X_test  = np.load(CNN_INPUT_DIR+'/all_test.npy')
-Y_train = np.load(CNN_INPUT_DIR+'/all_train_y.npy')
-Y_test  = np.load(CNN_INPUT_DIR+'/all_test_y.npy')
+X_train = None
+Y_train = None
+X_test = None
+Y_test = None
+filesX = [f for f in os.listdir(CNN_INPUT_DIR) if 'db_x' in f]
+for fnameX in filesX:
+    fnameY = fnameX.replace('_x_', '_y_')
+    dataX = np.load(CNN_INPUT_DIR + '/' + fnameX)
+    dataY = np.load(CNN_INPUT_DIR + '/' + fnameY)
+    
+    if '5000' in fnameX:
+        X_test = dataX
+        Y_test = dataY        
+        continue
+    
+    if X_train is None:
+        X_train = dataX
+        Y_train = dataY
+    else:
+        X_train = np.concatenate((X_train, dataX))
+        Y_train = np.concatenate((Y_train, dataY))
+
 print 'Train', X_train.shape, 'test', X_test.shape
 
 # input image dimensions
@@ -115,7 +132,7 @@ for p in range(parameters.shape[0]):
     model.add(Activation('softmax'))
     #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
 
-    sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+    sgd = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
     model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
     print('Fit config:', cfg_name)
@@ -123,8 +140,7 @@ for p in range(parameters.shape[0]):
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
                 verbose=1, validation_data=(X_test, Y_test))
     score = model.evaluate(X_test, Y_test, verbose=0)
-    print('Test score:', score[0])
-    print('Test accuracy:', score[1])
+    print('Test score:', score)
 
     save_model(model, cfg_name)
 
