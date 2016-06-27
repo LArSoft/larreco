@@ -51,6 +51,7 @@
 #include "lardata/AnalysisBase/T0.h" 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+//#include "lardata/Utilities/PtrMaker.h"
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
@@ -825,8 +826,8 @@ bool PMAlgTrackMaker::areCoLinear(double& cos3d,
 	TVector3 proj0 = pma::GetProjectionToSegment(b0, f1, b1);
 	double distProj0 = sqrt( pma::Dist2(b0, proj0) );
 
-	TVector3 proj1 = pma::GetProjectionToSegment(b1, f0, b0);
-	double distProj1 = sqrt( pma::Dist2(b1, proj1) );
+	TVector3 proj1 = pma::GetProjectionToSegment(f1, f0, b0);
+	double distProj1 = sqrt( pma::Dist2(f1, proj1) );
 
 	double d = sqrt( pma::Dist2(b0, f1) );
 	double dThr = (1 + 0.02 * d) * distProjThr;
@@ -844,7 +845,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 {
 	double distProjThr = fStitchTransverseShift;
 	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
-	double xApaDistDiffThr = 1.0;
+	double xApaDistDiffThr = 10.0;
 
 	for (size_t u = 0; u < tracks.size(); u++)
 	{
@@ -904,6 +905,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 				b0 = trk1->Nodes()[0]->Point3D(); b0.SetX(b0.X() - dxFront1);
 				f1 = trk2->Nodes()[0]->Point3D(); f1.SetX(f1.X() - dxFront2);
 				b1 = trk2->Nodes()[1]->Point3D(); b1.SetX(b1.X() - dxFront2);
+				 
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = false; flip1 = true; flip2 = false;
@@ -912,7 +914,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 					dx1 = dxFront1; dx2 = dxFront2;
 				}
 			}
-			else if ((cryoFront1 == cryoBack2) && (dxFront1 * dxBack2 < 0.0) &&
+			if ((cryoFront1 == cryoBack2) && (dxFront1 * dxBack2 < 0.0) &&
 			    (fabs(dxFront1 + dxBack2) < xApaDistDiffThr))
 			{
 				if (fabs(dxFront1) < fabs(dxBack2)) dxBack2 = -dxFront1;
@@ -922,6 +924,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 				b0 = trk1->Nodes()[0]->Point3D(); b0.SetX(b0.X() - dxFront1);
 				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetX(f1.X() - dxBack2);
 				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetX(b1.X() - dxBack2);
+				
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = true; flip1 = false; flip2 = false;
@@ -930,7 +933,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 					dx1 = dxFront1; dx2 = dxBack2;
 				}
 			}
-			else if ((cryoBack1 == cryoFront2) && (dxBack1 * dxFront2 < 0.0) &&
+			if ((cryoBack1 == cryoFront2) && (dxBack1 * dxFront2 < 0.0) &&
 			    (fabs(dxBack1 + dxFront2) < xApaDistDiffThr))
 			{
 				if (fabs(dxBack1) < fabs(dxFront2)) dxFront2 = -dxBack1;
@@ -940,6 +943,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetX(b0.X() - dxBack1);
 				f1 = trk2->Nodes()[0]->Point3D(); f1.SetX(f1.X() - dxFront2);
 				b1 = trk2->Nodes()[1]->Point3D(); b1.SetX(b1.X() - dxFront2);
+				
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = false; flip1 = false; flip2 = false;
@@ -948,7 +952,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 					dx1 = dxBack1; dx2 = dxFront2;
 				}
 			}
-			else if ((cryoBack1 == cryoBack2) && (dxBack1 * dxBack2 < 0.0) &&
+			if ((cryoBack1 == cryoBack2) && (dxBack1 * dxBack2 < 0.0) &&
 			    (fabs(dxBack1 + dxBack2) < xApaDistDiffThr))
 			{
 				if (fabs(dxBack1) < fabs(dxBack2)) dxBack2 = -dxBack1;
@@ -958,6 +962,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetX(b0.X() - dxBack1);
 				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetX(f1.X() - dxBack2);
 				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetX(b1.X() - dxBack2);
+				
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = false; flip1 = false; flip2 = true;
@@ -1444,12 +1449,15 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			if (fAutoFlip_dQdx) result.flipTreesByDQdx(); // flip the tracks / trees to get best dQ/dx sequences
 
+			//auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
+			//auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
+
 			tracks->reserve(result.size());
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
 			{
 				pma::Track3D* trk = result[fTrkIndex].Track();
 				if (!(trk->HasTwoViews() && (trk->Nodes().size() > 1)))
-				{
+				{   // should never happen and it does not indeed, but let's keep this test for a moment
 					mf::LogWarning("PMAlgTrackMaker") << "Skip degenerated track, code needs to be corrected.";
 					continue;
 				}
@@ -1462,6 +1470,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				tracks->push_back(convertFrom(*trk));
 
+				//auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
+
 				double xShift = trk->GetXShift();
 				if (xShift > 0.0)
 				{
@@ -1470,7 +1480,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 					// TriggBits=3 means from 3d reco (0,1,2 mean something else)
 					t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
+
 					util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
+					//auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
+					//trk2t0->addSingle(trkPtr, t0Ptr);
 				}
 
 				size_t trkIdx = tracks->size() - 1; // stuff for assns:
