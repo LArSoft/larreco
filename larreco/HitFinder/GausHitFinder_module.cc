@@ -30,6 +30,7 @@
 #include <algorithm> // std::accumulate()
 #include <vector>
 #include <string>
+#include <memory> // std::unique_ptr()
 #include <utility> // std::move()
 
 // Framework includes
@@ -38,7 +39,7 @@
 #include "art/Framework/Core/FindOneP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Optional/TFileService.h"
-
+#include "fhiclcpp/ParameterSet.h"
 
 
 // LArSoft Includes
@@ -130,8 +131,7 @@ namespace hit{
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
     size_t              fNumBinsToAverage;         ///< If bin averaging for peak finding, number bins to average
     
-    bool                fDoHitFiltering;
-    HitFilterAlg        fHitFilterAlg;             ///algorithm used to filter out noise hits
+    std::unique_ptr<HitFilterAlg> fHitFilterAlg;   ///algorithm used to filter out noise hits
     
     TH1F* fFirstChi2;
     TH1F* fChi2;
@@ -144,8 +144,7 @@ namespace hit{
 
 //-------------------------------------------------
 //-------------------------------------------------
-GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset):
-  fHitFilterAlg(pset.get<fhicl::ParameterSet>("HitFilterAlg"))
+GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
 {
     this->reconfigure(pset);
   
@@ -193,8 +192,17 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
     // Implementation of optional member function here.
     fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
   
-    fHitFilterAlg.reconfigure(p.get<fhicl::ParameterSet>("HitFilterAlg"));
-    fDoHitFiltering = p.get<bool>("FilterHits", false);
+    
+    bool const doHitFiltering = p.get<bool>("FilterHits", false);
+    if (doHitFiltering) {
+      if (fHitFilterAlg) { // create a new algorithm instance
+        fHitFilterAlg->reconfigure(p.get<fhicl::ParameterSet>("HitFilterAlg"));
+      }
+      else { // reconfigure the existing instance
+        fHitFilterAlg = std::make_unique<HitFilterAlg>
+          (p.get<fhicl::ParameterSet>("HitFilterAlg"));
+      }
+    }
 
     FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),fMinSig);
     FillOutHitParameterVector(p.get< std::vector<double> >("InitWidth"),fInitWidth);
@@ -556,7 +564,7 @@ void GausHitFinder::produce(art::Event& evt)
                     
 		    const recob::Hit hit(hitcreator.move());
 		    
-		    if (!fDoHitFiltering || fHitFilterAlg.IsGoodHit(hit)) {
+		    if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(hit)) {
                       hcol.emplace_back(std::move(hit), wire, rawdigits);                   
                       numHits++;
 		    }
