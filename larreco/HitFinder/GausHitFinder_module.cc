@@ -68,12 +68,11 @@ namespace hit{
   public:
     
     explicit GausHitFinder(fhicl::ParameterSet const& pset); 
-    virtual ~GausHitFinder();
          
-    void produce(art::Event& evt); 
-    void beginJob(); 
-    void endJob(); 
-    void reconfigure(fhicl::ParameterSet const& p);                
+    void produce(art::Event& evt) override;
+    void beginJob() override;
+    void endJob() override;
+    void reconfigure(fhicl::ParameterSet const& p) override;
 
   private:
 
@@ -156,14 +155,6 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
 } // GausHitFinder::GausHitFinder()
 
 
-//-------------------------------------------------
-//-------------------------------------------------
-  GausHitFinder::~GausHitFinder()
-{
-    // Clean up dynamic memory and other resources here.
-
-}
-  
 //-------------------------------------------------
 //-------------------------------------------------
 void GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
