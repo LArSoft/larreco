@@ -1,0 +1,46 @@
+#include "pointidalg.fcl"
+
+BEGIN_PROLOG
+
+standard_pointidtrainingdata:
+{
+    module_type:     "PointIdTrainingData"
+
+    SelectedTPC:     []
+	SelectedView:    []
+    OutTextFilePath: "."
+
+    TrainingDataAlg:  @local::standard_trainingdataalg
+}
+
+standard_pointidtrainingnuevent:
+{
+    module_type:     "PointIdTrainingNuevent"
+
+	SelectedView:    []
+    OutTextFilePath: "."
+
+    GenModuleLabel:  "generator"
+    FidVolCut:	      20.0
+
+    TrainingDataAlg:  @local::standard_trainingdataalg
+}
+
+standard_pointidefftest:
+{
+	module_type:            "PointIdEffTest"
+
+	SimModuleLabel:         "largeant"	
+   	HitsModuleLabel:        "lineclusterdc"
+   	ClusterModuleLabel:     "lineclusterdc"
+
+    PointIdAlg:             @local::standard_pointidalg
+
+    Threshold:              0.5
+    View:                   2
+
+    SaveHitsFile:           false
+}
+
+END_PROLOG
+
