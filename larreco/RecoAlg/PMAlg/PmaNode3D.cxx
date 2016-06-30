@@ -90,16 +90,20 @@ bool pma::Node3D::SameTPC(const TVector3& p3d, float margin) const
 	else return false;
 }
 
-void pma::Node3D::LimitPoint3D(void)
+bool pma::Node3D::LimitPoint3D(void)
 {
-	if (fPoint3D.X() < fMinX - fMargin) fPoint3D.SetX(fMinX - fMargin);
-	if (fPoint3D.X() > fMaxX + fMargin) fPoint3D.SetX(fMaxX + fMargin);
+	bool trimmed = false;
 
-	if (fPoint3D.Y() < fMinY - fMargin) fPoint3D.SetY(fMinY - fMargin);
-	if (fPoint3D.Y() > fMaxY + fMargin) fPoint3D.SetY(fMaxY + fMargin);
+	if (fPoint3D.X() < fMinX - fMargin) { fPoint3D.SetX(fMinX - fMargin); trimmed = true; }
+	if (fPoint3D.X() > fMaxX + fMargin) { fPoint3D.SetX(fMaxX + fMargin); trimmed = true; }
 
-	if (fPoint3D.Z() < fMinZ - fMargin) fPoint3D.SetZ(fMinZ - fMargin);
-	if (fPoint3D.Z() > fMaxZ + fMargin) fPoint3D.SetZ(fMaxZ + fMargin);
+	if (fPoint3D.Y() < fMinY - fMargin) { fPoint3D.SetY(fMinY - fMargin); trimmed = true; }
+	if (fPoint3D.Y() > fMaxY + fMargin) { fPoint3D.SetY(fMaxY + fMargin); trimmed = true; }
+
+	if (fPoint3D.Z() < fMinZ - fMargin) { fPoint3D.SetZ(fMinZ - fMargin); trimmed = true; }
+	if (fPoint3D.Z() > fMaxZ + fMargin) { fPoint3D.SetZ(fMaxZ + fMargin); trimmed = true; }
+
+	return trimmed;
 }
 
 void pma::Node3D::UpdateProj2D(void)
@@ -113,18 +117,21 @@ void pma::Node3D::UpdateProj2D(void)
 		fWirePitch[1] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kV, fTPC, fCryo),
 		fPoint3D.X()
 	);
-
+	
 	fProj2D[2].Set(
 		fWirePitch[2] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kZ, fTPC, fCryo),
 		fPoint3D.X()
 	);
 }
 
-void pma::Node3D::SetPoint3D(const TVector3& p3d)
+bool pma::Node3D::SetPoint3D(const TVector3& p3d)
 {
 	fPoint3D = p3d;
-	LimitPoint3D();
+
+	bool accepted = !LimitPoint3D();
 	UpdateProj2D();
+
+	return accepted;
 }
 
 double pma::Node3D::GetDistance2To(const TVector3& p3d) const
@@ -569,7 +576,6 @@ double pma::Node3D::MakeGradient(float penaltyValue, float endSegWeight)
 	}
 
 	SetPoint3D(tmp);
-
 	if (fGradient.Mag2() < 6.0E-37) return 0.0;
 
 	return g0;
@@ -599,9 +605,16 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 		t3 += alfa;
 		gpoint = tmp;
 		gpoint += (fGradient * t3);
-		SetPoint3D(gpoint);
-
+		if (!SetPoint3D(gpoint)) // stepped out of allowed volume
+		{
+			//std::cout << "****  SetPoint trimmed 1 ****" << std::endl;
+			g3 = GetObjFunction(penalty, weight);
+			if (g3 < g2) return (g0 - g3) / g3;   // exit with the node at the border
+			else { SetPoint3D(tmp); return 0.0; } // exit with restored original position
+		}
+		
 		g3 = GetObjFunction(penalty, weight);
+		
 		if (g3 < zero_tol) return 0.0;
 
 		if (++steps > 1000) { SetPoint3D(tmp); return 0.0; }
@@ -629,9 +642,25 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 
 			gpoint = tmp;
 			gpoint += (fGradient * t2);
-			SetPoint3D(gpoint);
-
+			if (!SetPoint3D(gpoint)) // select the best point to exit
+			{
+				//std::cout << "****  SetPoint trimmed 2 ****" << std::endl;
+				g2 = GetObjFunction(penalty, weight);
+				if (g2 < g0) return (g0 - g2) / g2;   // exit with the node at the border
+				else if (g1 < g0)
+				{
+					gpoint = tmp; gpoint += (fGradient * t1);
+					return (g0 - g1) / g1;
+				}
+				else if (g3 < g0)
+				{
+					gpoint = tmp; gpoint += (fGradient * t3);
+					return (g0 - g3) / g3;
+				}
+				else { SetPoint3D(tmp); return 0.0; }
+			}
 			g2 = GetObjFunction(penalty, weight);
+
 			if (g2 < zero_tol) return 0.0;
 			steps++;
 
@@ -657,8 +686,24 @@ double pma::Node3D::StepWithGradient(float alfa, float tol, float penalty, float
 
 		gpoint = tmp;
 		gpoint += (fGradient * t);
-		SetPoint3D(gpoint);
-
+		if (!SetPoint3D(gpoint)) // select the best point to exit
+		{
+			//std::cout << "****  SetPoint trimmed 3 ****" << std::endl;
+			g = GetObjFunction(penalty, weight);
+			if ((g < g0) && (g < g1) && (g < g3)) return (g0 - g) / g;   // exit with the node at the border
+			else if ((g1 < g0) && (g1 < g3))
+			{
+				gpoint = tmp; gpoint += (fGradient * t1);
+				return (g0 - g1) / g1;
+			}
+			else if (g3 < g0)
+			{
+				gpoint = tmp; gpoint += (fGradient * t3);
+				return (g0 - g3) / g3;
+			}
+			else { SetPoint3D(tmp); return 0.0; }
+		}
+		
 		g = GetObjFunction(penalty, weight);
 		if (g < zero_tol) return 0.0;
 		steps++;

@@ -825,8 +825,8 @@ bool PMAlgTrackMaker::areCoLinear(double& cos3d,
 	TVector3 proj0 = pma::GetProjectionToSegment(b0, f1, b1);
 	double distProj0 = sqrt( pma::Dist2(b0, proj0) );
 
-	TVector3 proj1 = pma::GetProjectionToSegment(b1, f0, b0);
-	double distProj1 = sqrt( pma::Dist2(b1, proj1) );
+	TVector3 proj1 = pma::GetProjectionToSegment(f1, f0, b0);
+	double distProj1 = sqrt( pma::Dist2(f1, proj1) );
 
 	double d = sqrt( pma::Dist2(b0, f1) );
 	double dThr = (1 + 0.02 * d) * distProjThr;
@@ -844,7 +844,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 {
 	double distProjThr = fStitchTransverseShift;
 	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
-	double xApaDistDiffThr = 1.0;
+	double xApaDistDiffThr = 10.0;
 
 	for (size_t u = 0; u < tracks.size(); u++)
 	{
@@ -904,6 +904,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 				b0 = trk1->Nodes()[0]->Point3D(); b0.SetX(b0.X() - dxFront1);
 				f1 = trk2->Nodes()[0]->Point3D(); f1.SetX(f1.X() - dxFront2);
 				b1 = trk2->Nodes()[1]->Point3D(); b1.SetX(b1.X() - dxFront2);
+				 
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = false; flip1 = true; flip2 = false;
@@ -912,7 +913,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 					dx1 = dxFront1; dx2 = dxFront2;
 				}
 			}
-			else if ((cryoFront1 == cryoBack2) && (dxFront1 * dxBack2 < 0.0) &&
+			if ((cryoFront1 == cryoBack2) && (dxFront1 * dxBack2 < 0.0) &&
 			    (fabs(dxFront1 + dxBack2) < xApaDistDiffThr))
 			{
 				if (fabs(dxFront1) < fabs(dxBack2)) dxBack2 = -dxFront1;
@@ -922,6 +923,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 				b0 = trk1->Nodes()[0]->Point3D(); b0.SetX(b0.X() - dxFront1);
 				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetX(f1.X() - dxBack2);
 				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetX(b1.X() - dxBack2);
+				
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = true; flip1 = false; flip2 = false;
@@ -930,7 +932,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 					dx1 = dxFront1; dx2 = dxBack2;
 				}
 			}
-			else if ((cryoBack1 == cryoFront2) && (dxBack1 * dxFront2 < 0.0) &&
+			if ((cryoBack1 == cryoFront2) && (dxBack1 * dxFront2 < 0.0) &&
 			    (fabs(dxBack1 + dxFront2) < xApaDistDiffThr))
 			{
 				if (fabs(dxBack1) < fabs(dxFront2)) dxFront2 = -dxBack1;
@@ -940,6 +942,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetX(b0.X() - dxBack1);
 				f1 = trk2->Nodes()[0]->Point3D(); f1.SetX(f1.X() - dxFront2);
 				b1 = trk2->Nodes()[1]->Point3D(); b1.SetX(b1.X() - dxFront2);
+				
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = false; flip1 = false; flip2 = false;
@@ -948,7 +951,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 					dx1 = dxBack1; dx2 = dxFront2;
 				}
 			}
-			else if ((cryoBack1 == cryoBack2) && (dxBack1 * dxBack2 < 0.0) &&
+			if ((cryoBack1 == cryoBack2) && (dxBack1 * dxBack2 < 0.0) &&
 			    (fabs(dxBack1 + dxBack2) < xApaDistDiffThr))
 			{
 				if (fabs(dxBack1) < fabs(dxBack2)) dxBack2 = -dxBack1;
@@ -958,6 +961,7 @@ void PMAlgTrackMaker::matchCoLinearAnyT0(pma::TrkCandidateColl& tracks)
 				b0 = trk1->Nodes()[trk1->Nodes().size() - 1]->Point3D(); b0.SetX(b0.X() - dxBack1);
 				f1 = trk2->Nodes()[trk2->Nodes().size() - 1]->Point3D(); f1.SetX(f1.X() - dxBack2);
 				b1 = trk2->Nodes()[trk2->Nodes().size() - 2]->Point3D(); b1.SetX(b1.X() - dxBack2);
+				
 				if (areCoLinear(c, f0, b0, f1, b1, distProjThr) && (c > cmax))
 				{
 					cmax = c; reverse = false; flip1 = false; flip2 = true;
