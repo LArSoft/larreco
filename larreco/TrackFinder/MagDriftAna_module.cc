@@ -155,21 +155,17 @@ namespace hit {
     double Efield         = detprop->Efield();  
     double Temperature    = detprop->Temperature();  
     double DriftVelocity  = detprop->DriftVelocity(Efield,Temperature)/1000.;
-    
-    if (MagField->UseField()) {
-      fDirCosY = -DriftVelocity * MagField->FieldAtPoint().z() / Efield;
-      fDirCosZ = +DriftVelocity * MagField->FieldAtPoint().y() / Efield;
-      std::cerr << "Drift ratios: "
+  
+    // MagneticField::FieldAtPoint() returns (0, 0, 0) if there is no
+    // field at the requested point, so these direction cosines are
+    // 0 if there is no field
+    fDirCosY = -DriftVelocity * MagField->FieldAtPoint().z() / Efield;
+    fDirCosZ = +DriftVelocity * MagField->FieldAtPoint().y() / Efield;
+    LOG_VERBATIM("MagDriftAna")
+    << "Drift ratios: "
 		<< "dY/dX = " << fDirCosY << ", " 
-		<< "dZ/dX = " << fDirCosZ 
-		<< std::endl;
-    } else {
-      std::cerr << "Why are you running magdriftana without a magnetic field?"
-		<< std::endl;
-      std::cerr << "\t" <<  "Results are going to be nonesense."
-		<< std::endl;
-    }
-      
+    << "dZ/dX = " << fDirCosZ;
+    
     // geometry data.
     art::ServiceHandle<geo::Geometry> geom; 
     // assumes all TPCs are the same
@@ -181,38 +177,38 @@ namespace hit {
 
     // Assumes microboone dimensions. Ideally we'd fix this later...
     fChargeXpos  = tfs->make<TH1D>("hChargeXpos",
-				   "MC X charge depositions; X (cm); Events",
-				   101, 0.0, width);
+                                   "MC X charge depositions; X (cm); Events",
+                                   101, 0.0, width);
     fChargeYpos  = tfs->make<TH1D>("hChargeYpos",
-				   "MC Y charge depositions; Y (cm); Events",
-				   101, -halfHeight, halfHeight);
+                                   "MC Y charge depositions; Y (cm); Events",
+                                   101, -halfHeight, halfHeight);
     fChargeZpos  = tfs->make<TH1D>("hChargeZpos",
-				   "MC Z charge depositions; Z (cm); Events",
-				   101, 0.0, length);
+                                   "MC Z charge depositions; Z (cm); Events",
+                                   101, 0.0, length);
     fHitZpos     = tfs->make<TH1D>("hHitZpos",
-				   "Z charge collection; Z (cm); Events",
-				   101, 0.0, length);
-
+                                   "Z charge collection; Z (cm); Events",
+                                   101, 0.0, length);
+    
     fDriftDeltaZ = tfs->make<TH1D>("hDriftDeltaZ",
-				   "Z drift of charge; delta Z (cm); Events",
-				   101, -5*zScale*width, 5*zScale*width);
+                                   "Z drift of charge; delta Z (cm); Events",
+                                   101, -5*zScale*width, 5*zScale*width);
     fDeltaZoverX = tfs->make<TH1D>("hDeltaZoverX",
-				   "Z drift of charge; delta Z/X; Events",
-				   51, -10*zScale, 10*zScale);
+                                   "Z drift of charge; delta Z/X; Events",
+                                   51, -10*zScale, 10*zScale);
     fDeltaZvsX = tfs->make<TH2D>("hDeltaZvsX",
-				 "delta Z vs X; X (cm); delta Z (cm), Events",
-				 51, 0.0, width,
-				 51, -20*zScale, 20*zScale);
+                                 "delta Z vs X; X (cm); delta Z (cm), Events",
+                                 51, 0.0, width,
+                                 51, -20*zScale, 20*zScale);
 
     // Some stats only when the Xdrift is large (more than 3/4)
     fDriftDeltaZAway = 
-      tfs->make<TH1D>("hDriftDeltaZAway",
-		      "Z drift of charge (long drift); delta Z (cm); Events",
-		      101, -5*zScale*width, 5*zScale*width);
-    fDeltaZoverXAway = 
-      tfs->make<TH1D>("hDeltaZoverXAway",
-		      "Z drift of charge (long drift); delta Z/X; Events",
-		      51, -10*zScale, 10*zScale);
+    tfs->make<TH1D>("hDriftDeltaZAway",
+                    "Z drift of charge (long drift); delta Z (cm); Events",
+                    101, -5*zScale*width, 5*zScale*width);
+    fDeltaZoverXAway =
+    tfs->make<TH1D>("hDeltaZoverXAway",
+                    "Z drift of charge (long drift); delta Z/X; Events",
+                    51, -10*zScale, 10*zScale);
 
     return;
 
@@ -224,7 +220,7 @@ namespace hit {
     // Add a line on the deltaZ/X graph to denote the calculated value
     // of the drift ration
     TLine *l = new TLine(fDirCosZ, 0,
-			 fDirCosZ, 1.05*fDeltaZoverX->GetMaximum());
+                         fDirCosZ, 1.05*fDeltaZoverX->GetMaximum());
     l->SetLineColor(kRed);
     l->SetLineStyle(kDotted);
     fDeltaZoverX->GetListOfFunctions()->Add(l);
@@ -234,7 +230,7 @@ namespace hit {
     // framework...
     ////////////
     l = new TLine(fDirCosZ, 0,
-		  fDirCosZ, 1.05*fDeltaZoverX->GetMaximum());
+                  fDirCosZ, 1.05*fDeltaZoverX->GetMaximum());
     ///////////
     //
     l->SetLineColor(kRed);
@@ -277,9 +273,7 @@ namespace hit {
     //++++++++++
     // Loop over the hits (data) and fill histos
     //++++++++++
-    for ( std::vector< art::Ptr<recob::Hit> >::iterator itr = hits.begin();
-	  itr != hits.end();
-	  ++itr) {
+    for ( auto itr : hits) {
 
       hitWireID = (*itr)->WireID();
       // By assumption the drift occurs only in the z-direction, so
@@ -320,8 +314,8 @@ namespace hit {
       // The X related histograms know the dimensions of the
       // detector, so we use them to set the "away" limit
       if (xyz[0] >  (fChargeYpos->GetXaxis()->GetXmax() * 0.80) ) {  
-	fDriftDeltaZAway->Fill(DeltaZ,Charge);
-	fDeltaZoverXAway->Fill(DeltaZ/xyz[0],Charge);
+        fDriftDeltaZAway->Fill(DeltaZ,Charge);
+        fDeltaZoverXAway->Fill(DeltaZ/xyz[0],Charge);
       } 
 
     } // loop on Hits
