@@ -82,6 +82,8 @@ namespace tca {
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
     
+    static bool SortByMultiplet(art::Ptr<recob::Hit> const& a, art::Ptr<recob::Hit> const& b);
+    
     /// Deletes all the results
     void ClearResults();
     
