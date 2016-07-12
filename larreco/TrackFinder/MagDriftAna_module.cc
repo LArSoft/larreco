@@ -275,7 +275,7 @@ namespace hit {
     //++++++++++
     for ( auto itr : hits) {
 
-      hitWireID = (*itr)->WireID();
+      hitWireID = itr->WireID();
       // By assumption the drift occurs only in the z-direction, so
       // we can get all the info we need from the z-measug plane.
       if (hitWireID.Plane != (geom->Nplanes()-1)) continue;
@@ -286,11 +286,11 @@ namespace hit {
       double w0pos[3] = {0.};
       geom->TPC(hitWireID.TPC).Plane(hitWireID.Plane).Wire(0).GetCenter(w0pos);
       double HitZpos = w0pos[2] + hitWireID.Wire * geom->TPC(hitWireID.TPC).WirePitch();
-      double Charge = (*itr)->Integral();
+      double Charge = itr->Integral();
       fHitZpos->Fill(HitZpos,Charge);
 	
       // Charge deposition in the detector
-      std::vector<double> xyz = bt->HitToXYZ(*itr);
+      std::vector<double> xyz = bt->HitToXYZ(itr);
       fChargeXpos->Fill(xyz[0],Charge);
       fChargeYpos->Fill(xyz[1],Charge);
       double ChargeZpos = xyz[2];
