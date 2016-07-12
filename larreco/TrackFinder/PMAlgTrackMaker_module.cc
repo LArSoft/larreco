@@ -145,7 +145,6 @@ private:
   std::map< int, int > fPfpPdgCodes;
   std::map< int, pma::Vector3D > fPfpVtx;
   bool sortHits(const art::Event& evt);
-  bool sortHitsPfp(const art::Event& evt);
 
   bool has(const std::vector<size_t>& v, size_t idx) const
   {
@@ -211,7 +210,6 @@ private:
   void guideEndpoints(pma::TrkCandidateColl & tracks);
 
   double validate(pma::Track3D& trk, unsigned int testView);
-  //recob::Track convertFrom(const pma::Track3D& src, unsigned int tidx);
   // ------------------------------------------------------
 
   art::ServiceHandle< geo::Geometry > fGeom;
@@ -221,7 +219,6 @@ private:
   // ******************** fcl parameters **********************
   std::string fHitModuleLabel; // label for hits collection (used for trk validation)
   std::string fCluModuleLabel; // label for input cluster collection
-  int fCluMatchingAlg;         // which algorithm for cluster association
 
   std::vector<int> fTrackingOnlyPdg; // make tracks only for this pdg's when using input from PFParticles
   std::vector<int> fTrackingSkipPdg; // skip tracks with this pdg's when using input from PFParticles
@@ -301,7 +298,6 @@ void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
 {
 	fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
 	fCluModuleLabel = pset.get< std::string >("ClusterModuleLabel");
-	fCluMatchingAlg = pset.get< int >("CluMatchingAlg");
 
 	fTrackingOnlyPdg = pset.get< std::vector<int> >("TrackingOnlyPdg");
 	fTrackingSkipPdg = pset.get< std::vector<int> >("TrackingSkipPdg");
@@ -1160,77 +1156,6 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 }
 // ------------------------------------------------------
 
-bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
-{
-	fHitMap.clear(); fCluHits.clear(); fPfpClusters.clear(); fPfpPdgCodes.clear();
-	fPfpVtx.clear();
-
-	art::Handle< std::vector<recob::Hit> > allHitListHandle;
-	art::Handle< std::vector<recob::Cluster> > cluListHandle;
-	art::Handle< std::vector<recob::PFParticle> > pfparticleHandle;
-	std::vector< art::Ptr<recob::Hit> > allhitlist;
-	if (evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to make clusters and PFParticles
-	    evt.getByLabel(fCluModuleLabel, cluListHandle) &&    // clusters associated to PFParticles
-	    evt.getByLabel(fCluModuleLabel, pfparticleHandle))   // and finally PFParticles
-	{
-		art::fill_ptr_vector(allhitlist, allHitListHandle);
-
-		mf::LogVerbatim("PMAlgTrackMaker") << "Sort all hits for validation...";
-		unsigned int cryo, tpc, view;
-		for (auto const& h : allhitlist) // all hits used for validation
-		{
-			cryo = h->WireID().Cryostat;
-			tpc = h->WireID().TPC;
-			view = h->WireID().Plane;
-
-			fHitMap[cryo][tpc][view].push_back(h);
-		}
-		mf::LogVerbatim("PMAlgTrackMaker") << "...done, " << allhitlist.size() << "hits.";
-
-		mf::LogVerbatim("PMAlgTrackMaker") << "Sort hits by clusters assigned to PFParticles...";
-		fCluHits.reserve(cluListHandle->size());
-		art::FindManyP< recob::Hit > fbp(cluListHandle, evt, fCluModuleLabel);
-		art::FindManyP< recob::Cluster > fpf(pfparticleHandle, evt, fCluModuleLabel);	
-		art::FindManyP< recob::Vertex > fvf(pfparticleHandle, evt, fCluModuleLabel);
-
-		for (size_t i = 0; i < cluListHandle->size(); ++i)
-		{
-			fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
-		}
-		for (size_t i = 0; i < pfparticleHandle->size(); ++i)
-		{
-			fPfpPdgCodes[i] = pfparticleHandle->at(i).PdgCode();
-
-			auto cv = fpf.at(i);
-			for (const auto & c : cv)
-			{
-				fPfpClusters[i].push_back(c);
-
-				if (fCluHits[c.key()].empty())
-				{
-					auto hv = fbp.at(c.key());
-					fCluHits[c.key()].reserve(hv.size());
-					for (auto const & h : hv) fCluHits[c.key()].push_back(h);
-				}
-			}
-
-			if (fvf.at(i).size())
-			{
-				double xyz[3];
-				fvf.at(i).front()->XYZ(xyz);
-				fPfpVtx[i] = pma::Vector3D(xyz[0], xyz[1], xyz[2]);
-			}
-		}
-
-		mf::LogVerbatim("PMAlgTrackMaker") << "...done, "
-			<< fCluHits.size() << " clusters from "
-			<< fPfpClusters.size() << " pfparticles for 3D tracking.";
-		return true;
-	}
-	else return false;
-}
-// ------------------------------------------------------
-
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
 
@@ -1264,26 +1189,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
     std::unique_ptr< art::Assns<recob::PFParticle, recob::Vertex> > pfp2vtx(new art::Assns<recob::PFParticle, recob::Vertex>);
 	std::unique_ptr< art::Assns< recob::PFParticle, recob::Track > > pfp2trk(new art::Assns< recob::PFParticle, recob::Track >);
 
-	bool sortHitsClustersOK = false;
-	switch (fCluMatchingAlg)
+	if (sortHits(evt))
 	{
-		default: // try to match from all clusters in the event
-		case 1: sortHitsClustersOK = sortHits(evt); break;
-
-		case 2: // take clusters-hit assns from PFP, keep all hits for validation
-		case 3: sortHitsClustersOK = sortHitsPfp(evt); break;
-	}
-
-	if (sortHitsClustersOK)
-	{
-		int retCode = 0;
-		switch (fCluMatchingAlg)
-		{
-			default:
-			case 1: retCode = fromMaxCluster(evt, result); break; // try to match from all clusters in the event
-			case 2: retCode = fromPfpClusterSubset(evt, result); break; // each trk matched only from clusters assigned to PFP
-			case 3: retCode = fromPfpDirect(evt, result); break; // no pattern recognition, just take clusters assigned to PFP
-		}
+		int retCode = fromMaxCluster(evt, result); // try to match from all clusters in the event
 		switch (retCode)
 		{
 			case -2: mf::LogError("Summary") << "problem"; break;
