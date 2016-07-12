@@ -25,8 +25,9 @@ struct SortEntry{
 bool greaterThan (SortEntry c1, SortEntry c2) { return (c1.length > c2.length);}
 bool lessThan (SortEntry c1, SortEntry c2) { return (c1.length < c2.length);}
 
+
 namespace tca {
-  
+
   //------------------------------------------------------------------------------
   TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset)
   {
@@ -78,10 +79,21 @@ namespace tca {
     MuPiSum = 0;
     nMuPi = 0;
     fEventsProcessed = 0;
-    outFile.open("badevts.txt");
+//    outFile.open("badevts.txt");
     
   }
   
+  bool TrajClusterAlg::SortByMultiplet(art::Ptr<recob::Hit> const& a, art::Ptr<recob::Hit> const& b)
+  {
+    // compare the wire IDs first:
+    int cmp_res = a->WireID().cmp(b->WireID());
+    if (cmp_res != 0) return cmp_res < 0; // order is decided, unless equal
+    // decide by start time
+    if (a->StartTick() != b->StartTick()) return a->StartTick() < b->StartTick();
+    // if still undecided, resolve by local index
+    return a->LocalIndex() < b->LocalIndex(); // if still unresolved, it's a bug!
+  } // ClusterCrawlerAlg::SortByMultiplet()
+
   //------------------------------------------------------------------------------
   void TrajClusterAlg::reconfigure(fhicl::ParameterSet const& pset)
   {
@@ -203,6 +215,11 @@ namespace tca {
     detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     for (unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) tjs.fHits[iht] = art::Ptr< recob::Hit>(hitVecHandle, iht);
+    
+    // sort it as needed;
+    // that is, sorted by wire ID number,
+    // then by start of the region of interest in time, then by the multiplet
+    std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
     
     ClearResults();
     // set all hits to the available state
@@ -1286,7 +1303,7 @@ namespace tca {
 //      std::cout<<itj<<" nTruHit "<<nTruHit<<" imtru "<<imtru<<" nTruInTj "<<nTruInTj[imtru][plane]<<" truToTj "<<truToTj[imtru][plane]<<"\n";
     } // itj
     
-    bool badEvent = false;
+//    bool badEvent = false;
     // now we can calulate efficiency and purity
     float nRecHits, nTruRecHits, nTruHits, eff, pur, ep;
     for(iplist = 0; iplist < plist2.size(); ++iplist) {
@@ -1352,12 +1369,12 @@ namespace tca {
             myprt<<" tjID "<<tjs.allTraj[itj].ID;
             for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tjs.allTraj[itj].AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
           }
-          badEvent = true;
+//          badEvent = true;
         } // bad ep
       } // plane
     } // iplist
     
-    if(badEvent) outFile<<fRun<<" "<<fSubRun<<" "<<fEvent<<"\n";
+//    if(badEvent) outFile<<fRun<<" "<<fSubRun<<" "<<fEvent<<"\n";
    
   } // FillTrajTruth
 
@@ -5943,6 +5960,7 @@ namespace tca {
     }
 
     unsigned int iht, wire;
+    unsigned int lastwire = 0, lastipl = 0;
     for(iht = 0; iht < tjs.fHits.size(); ++iht) {
       if(tjs.fHits[iht]->WireID().Cryostat != cstat) continue;
       if(tjs.fHits[iht]->WireID().TPC != tpc) continue;
@@ -5953,6 +5971,13 @@ namespace tca {
         fQuitAlg = true;
         return;
       } // too large wire number
+      if(ipl == lastipl && wire < lastwire) {
+        mf::LogError("TC")<<"FillWireHitRange: Hits are not in increasing wire order. Quitting ";
+        fQuitAlg = true;
+        return;
+      } // hits out of order
+      lastwire = wire;
+      lastipl = ipl;
       if(tjs.FirstWire[ipl] == INT_MAX) tjs.FirstWire[ipl] = wire;
       if(tjs.WireHitRange[ipl][wire].first == -2) tjs.WireHitRange[ipl][wire].first = iht;
       tjs.WireHitRange[ipl][wire].second = iht + 1;
