@@ -242,10 +242,8 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 {
 	reset(); // set default values and clear containers at the beginning of event processing
 
-	pma::TrkCandidateColl result;
-
 	auto tracks = std::make_unique< std::vector<recob::Track> >();
-	auto allsp = std::make_unique< std::vector<recob::SpacePoint>();
+	auto allsp = std::make_unique< std::vector<recob::SpacePoint> >();
 	auto vtxs = std::make_unique< std::vector<recob::Vertex> >();  // interaction vertices
 	auto kinks = std::make_unique< std::vector<recob::Vertex> >(); // kinks on tracks (no new particles start in kinks)
 	auto nodes = std::make_unique< std::vector<recob::Vertex> >(); // pma nodes
@@ -263,6 +261,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 
 	if (sortHitsPfp(evt))
 	{
+		pma::TrkCandidateColl result;
 		int retCode = fromPfpDirect(evt, result);
 		switch (retCode)
 		{
@@ -330,7 +329,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 					trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
 					trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 
-					double hx = h3d->Point3D().X() + xShift;
+					double hx = h3d->Point3D().X();
 					double hy = h3d->Point3D().Y();
 					double hz = h3d->Point3D().Z();
 
@@ -365,7 +364,6 @@ void PMAlgTrajFitter::produce(art::Event& evt)
                 }
 			}
 
-			auto pfpid = getProductID< std::vector<recob::PFParticle> >(evt);
 			auto vid = getProductID< std::vector<recob::Vertex> >(evt);
 			auto kid = getProductID< std::vector<recob::Vertex> >(evt, kKinksName);
 			auto const* kinkGetter = evt.productGetter(kid);
