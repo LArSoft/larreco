@@ -24,6 +24,7 @@
 // Framework includes
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "fhiclcpp/types/Atom.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
@@ -49,10 +50,64 @@ class pma::ProjectionMatchingAlg
 {
 public:
 
-	ProjectionMatchingAlg(const fhicl::ParameterSet& pset);
-	virtual ~ProjectionMatchingAlg(void);
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
 
-	void reconfigure(const fhicl::ParameterSet& p);
+		fhicl::Atom<double> OptimizationEps {
+			Name("OptimizationEps"),
+			Comment("relative change of the obj.fn which stops optimization after adding a node")
+		};
+
+		fhicl::Atom<double> FineTuningEps {
+			Name("FineTuningEps"),
+			Comment("relative change of the obj.fn which stops fine-tuning of optimized track")
+		};
+
+		fhicl::Atom<double> TrkValidationDist2D {
+			Name("TrkValidationDist2D"),
+			Comment("max. distance [cm] used in the track validation in the third plane")
+		};
+
+		fhicl::Atom<double> HitTestingDist2D {
+			Name("HitTestingDist2D"),
+			Comment("max. distance [cm] used in testing compatibility of hits with the track")
+		};
+
+		fhicl::Atom<double> MinTwoViewFraction {
+			Name("MinTwoViewFraction"),
+			Comment("min. fraction of track length covered with hits from many 2D views intertwinted with each other")
+		};
+
+		fhicl::Atom<double> NodeMargin3D {
+			Name("NodeMargin3D"),
+			Comment("margin in [cm] around TPC for allowed track node positions")
+		};
+
+		fhicl::Atom<double> HitWeightU {
+			Name("HitWeightU"),
+			Comment("weights used for hits in U plane")
+		};
+
+		fhicl::Atom<double> HitWeightV {
+			Name("HitWeightV"),
+			Comment("weights used for hits in V plane")
+		};
+
+		fhicl::Atom<double> HitWeightZ {
+			Name("HitWeightZ"),
+			Comment("weights used for hits in Z plane")
+		};
+    };
+
+	ProjectionMatchingAlg(const Config& config);
+	void reconfigure(const Config& config);
+
+	ProjectionMatchingAlg(const fhicl::ParameterSet& pset) :
+		ProjectionMatchingAlg(fhicl::Table<Config>(pset, {})())
+	{}
+
+	virtual ~ProjectionMatchingAlg(void) {}
 
 	/// Calculate the fraction of the track that is closer than fTrkValidationDist2D
 	/// to any hit from hits in the testView (a view that was not used to build the track).

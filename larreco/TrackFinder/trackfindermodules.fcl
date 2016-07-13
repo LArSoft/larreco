@@ -65,16 +65,8 @@ standard_pmalgtrackmaker:
                                       # vertex is added to the front of each track
   SavePmaNodes:           false       # save track nodes (only for algorithm development purposes)
                                       #
-  MakePFPs:               false       # output track-vertex net as a tree of PFParticles, in such case tracks
-                                      # are associated to new PFParticles even if CluMatchingAlg is 2 or 3
-                                      #
   HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
   ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
-                                      #
-  TrackingOnlyPdg:        [0]         # PDG list to select which PFParticles should be reconstructed;
-                                      # all PFP's are used if the list is empty or starts with 0
-  TrackingSkipPdg:        [11]        # PDG list to select which PFParticles should NOT be reconstructed,
-                                      # e.g. skip EM showers; no skipping if the list is empty or starts with 0
                                       #
   MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
   MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks
@@ -116,7 +108,7 @@ standard_pmalgtrajfitter:
                                       # vertex is added to the front of each track
   SavePmaNodes:           false       # save track nodes (only for algorithm development purposes)
                                       #
-  HitModuleLabel:         "hits"      # tag of unclustered hits, which were used to produce PFPs and clusters 
+  HitModuleLabel:         "hits"      # tag of unclustered hits, which were used to produce PFPs and clusters
   PfpModuleLabel:         "pandora"   # tag of the input PFParticles and associated clusters
                                       #
   TrackingOnlyPdg:        [0]         # PDG list to select which PFParticles should be reconstructed;

@@ -24,6 +24,9 @@
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Table.h"
+#include "fhiclcpp/types/Sequence.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
@@ -58,21 +61,69 @@ typedef std::map< unsigned int, _tpc_view_hitmap > _cryo_tpc_view_hitmap;
 
 class PMAlgTrajFitter : public art::EDProducer {
 public:
-  explicit PMAlgTrajFitter(fhicl::ParameterSet const & p);
 
-  PMAlgTrajFitter(PMAlgTrajFitter const &) = delete;
-  PMAlgTrajFitter(PMAlgTrajFitter &&) = delete;
-  PMAlgTrajFitter & operator = (PMAlgTrajFitter const &) = delete;
-  PMAlgTrajFitter & operator = (PMAlgTrajFitter &&) = delete;
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
 
-  void reconfigure(fhicl::ParameterSet const& p) override;
+		fhicl::Table<pma::ProjectionMatchingAlg::Config> ProjectionMatchingAlg {
+			Name("ProjectionMatchingAlg")
+		};
 
-  void produce(art::Event & e) override;
+		fhicl::Table<pma::PMAlgVertexing::Config> PMAlgVertexing {
+			Name("PMAlgVertexing")
+		};
+
+		fhicl::Atom<art::InputTag> HitModuleLabel {
+			Name("HitModuleLabel"),
+			Comment("tag of unclustered hits, which were used to produce PFPs and clusters")
+		};
+
+		fhicl::Atom<art::InputTag> PfpModuleLabel {
+			Name("PfpModuleLabel"),
+			Comment("tag of the input PFParticles and associated clusters")
+		};
+
+		fhicl::Atom<bool> RunVertexing {
+			Name("RunVertexing"),
+			Comment("find vertices from PFP hierarchy, join with tracks, reoptimize track-vertex structure")
+		};
+
+		fhicl::Atom<bool> SaveOnlyBranchingVtx {
+			Name("SaveOnlyBranchingVtx"),
+			Comment("use true to save only vertices interconnecting many tracks, otherwise vertex is added to the front of each track")
+		};
+
+		fhicl::Atom<bool> SavePmaNodes {
+			Name("SavePmaNodes"),
+			Comment("save track nodes (only for algorithm development purposes)")
+		};
+
+		fhicl::Sequence<int> TrackingOnlyPdg {
+			Name("TrackingOnlyPdg"),
+			Comment("PDG list to select which PFParticles should be reconstructed; all PFP's are used if the list is empty or starts with 0")
+		};
+
+		fhicl::Sequence<int> TrackingSkipPdg {
+			Name("TrackingSkipPdg"),
+			Comment("PDG list to select which PFParticles should NOT be reconstructed, e.g. skip EM-like if contains 11; no skipping if the list is empty or starts with 0")
+		};
+    }; // Config
+    using Parameters = art::EDProducer::Table<Config>;
+
+	explicit PMAlgTrajFitter(Parameters const& config);
+
+	PMAlgTrajFitter(PMAlgTrajFitter const &) = delete;
+	PMAlgTrajFitter(PMAlgTrajFitter &&) = delete;
+	PMAlgTrajFitter & operator = (PMAlgTrajFitter const &) = delete;
+	PMAlgTrajFitter & operator = (PMAlgTrajFitter &&) = delete;
+
+	void produce(art::Event & e) override;
 
 
 private:
   /// Build tracks straight from the clusters associated to PFParticle (no pattern recognition).
-  int fromPfpDirect(const art::Event& evt, pma::TrkCandidateColl & result);
+  int buildFromPfps(const art::Event& evt, pma::TrkCandidateColl & result);
 
   void buildTracks(pma::TrkCandidateColl & result);
   void buildShowers(pma::TrkCandidateColl & result);
@@ -95,8 +146,8 @@ private:
   }
 
   // ******************** fcl parameters ***********************
-  std::string fHitModuleLabel; // label for unclustered hit collection
-  std::string fPfpModuleLabel; // label for PFParticle and cluster collections
+  art::InputTag fHitModuleLabel; // tag for unclustered hit collection
+  art::InputTag fPfpModuleLabel; // tag for PFParticle and cluster collections
 
   std::vector<int> fTrackingOnlyPdg; // make tracks only for this pdg's when using input from PFParticles
   std::vector<int> fTrackingSkipPdg; // skip tracks with this pdg's when using input from PFParticles
@@ -120,12 +171,20 @@ const std::string PMAlgTrajFitter::kKinksName = "kink";
 const std::string PMAlgTrajFitter::kNodesName = "node";
 // -------------------------------------------------------------
 
-PMAlgTrajFitter::PMAlgTrajFitter(fhicl::ParameterSet const & p) :
-	fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg")),
-	fPMAlgVertexing(p.get< fhicl::ParameterSet >("PMAlgVertexing"))
-{
-	this->reconfigure(p);
+PMAlgTrajFitter::PMAlgTrajFitter(PMAlgTrajFitter::Parameters const& config) :
+	fHitModuleLabel(config().HitModuleLabel()),
+	fPfpModuleLabel(config().PfpModuleLabel()),
 
+	fTrackingOnlyPdg(config().TrackingOnlyPdg()),
+	fTrackingSkipPdg(config().TrackingSkipPdg()),
+
+	fProjectionMatchingAlg(config().ProjectionMatchingAlg()),
+
+	fPMAlgVertexing(config().PMAlgVertexing()),
+	fRunVertexing(config().RunVertexing()),
+	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
+	fSavePmaNodes(config().SavePmaNodes())
+{
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
 	produces< std::vector<recob::Vertex> >(); // no instance name for interaction vertices
@@ -143,22 +202,6 @@ PMAlgTrajFitter::PMAlgTrajFitter(fhicl::ParameterSet const & p) :
 	produces< art::Assns<recob::PFParticle, recob::Track> >();
 }
 // ------------------------------------------------------
-
-void PMAlgTrajFitter::reconfigure(fhicl::ParameterSet const& pset)
-{
-	fProjectionMatchingAlg.reconfigure(pset.get< fhicl::ParameterSet >("ProjectionMatchingAlg"));
-	fPMAlgVertexing.reconfigure(pset.get< fhicl::ParameterSet >("PMAlgVertexing"));
-
-	fRunVertexing = pset.get< bool >("RunVertexing");
-	fSaveOnlyBranchingVtx = pset.get< bool >("SaveOnlyBranchingVtx");
-	fSavePmaNodes = pset.get< bool >("SavePmaNodes");
-
-	fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
-	fPfpModuleLabel = pset.get< std::string >("PfpModuleLabel");
-
-	fTrackingOnlyPdg = pset.get< std::vector<int> >("TrackingOnlyPdg");
-	fTrackingSkipPdg = pset.get< std::vector<int> >("TrackingSkipPdg");
-}
 
 void PMAlgTrajFitter::reset(void)
 {
@@ -262,7 +305,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 	if (sortHitsPfp(evt))
 	{
 		pma::TrkCandidateColl result;
-		int retCode = fromPfpDirect(evt, result);
+		int retCode = buildFromPfps(evt, result);
 		switch (retCode)
 		{
 			case -2: mf::LogError("Summary") << "problem"; break;
@@ -482,14 +525,15 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 // ------------------------------------------------------
 // ------------------------------------------------------
 
-int PMAlgTrajFitter::fromPfpDirect(const art::Event& evt, pma::TrkCandidateColl & result)
+int PMAlgTrajFitter::buildFromPfps(const art::Event& evt, pma::TrkCandidateColl & result)
 {
     if (!fPfpClusters.empty() && !fCluHits.empty())
     {
 			// build pm tracks
 			buildTracks(result);
 
-			guideEndpoints(result); // add 3D ref.points for clean endpoints of wire-plae parallel tracks
+			// add 3D ref.points for clean endpoints of wire-plae parallel tracks
+			guideEndpoints(result);
 
 			if (fRunVertexing) fPMAlgVertexing.run(result);
 

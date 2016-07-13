@@ -13,35 +13,28 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const fhicl::ParameterSet& pset)
-  : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config)
+	: fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
-	this->reconfigure(pset); 
+	this->reconfigure(config);
 }
-// ------------------------------------------------------
-
-pma::ProjectionMatchingAlg::~ProjectionMatchingAlg(void)
+void pma::ProjectionMatchingAlg::reconfigure(const pma::ProjectionMatchingAlg::Config& config)
 {
-}
-// ------------------------------------------------------
+	fOptimizationEps = config.OptimizationEps();
+	fFineTuningEps = config.FineTuningEps();
 
-void pma::ProjectionMatchingAlg::reconfigure(const fhicl::ParameterSet& p)
-{
-	fOptimizationEps = p.get< double >("OptimizationEps");
-	fFineTuningEps = p.get< double >("FineTuningEps");
+	fTrkValidationDist2D = config.TrkValidationDist2D();
+	fHitTestingDist2D = config.HitTestingDist2D();
 
-	fTrkValidationDist2D = p.get< double >("TrkValidationDist2D");
-	fHitTestingDist2D = p.get< double >("HitTestingDist2D");
+	fMinTwoViewFraction = config.MinTwoViewFraction();
 
-	fMinTwoViewFraction = p.get< double >("MinTwoViewFraction");
-	
+	pma::Node3D::SetMargin(config.NodeMargin3D());
+
+	pma::Element3D::SetOptFactor(geo::kU, config.HitWeightU());
+	pma::Element3D::SetOptFactor(geo::kV, config.HitWeightV());
+	pma::Element3D::SetOptFactor(geo::kZ, config.HitWeightZ());
+
 	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
-	
-	pma::Node3D::SetMargin(p.get< double >("NodeMargin3D"));
-
-	pma::Element3D::SetOptFactor(geo::kZ, p.get< double >("HitWeightZ"));
-	pma::Element3D::SetOptFactor(geo::kV, p.get< double >("HitWeightV"));
-	pma::Element3D::SetOptFactor(geo::kU, p.get< double >("HitWeightU"));
 }
 // ------------------------------------------------------
 

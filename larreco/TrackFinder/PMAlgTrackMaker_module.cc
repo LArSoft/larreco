@@ -21,6 +21,8 @@
 //                     PFParticles as a source of associated clusters
 //    Mar-Apr 2016:    kinks finding, EM shower direction reconstructed for PFPaarticles tagged as
 //                     electrons
+//    July 2016:       redesign module: extract trajectory fitting-only to separate module, move
+//                     tracking functionality to algorithm class
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -32,6 +34,9 @@
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Table.h"
+#include "fhiclcpp/types/Sequence.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
@@ -71,18 +76,119 @@ typedef std::map< size_t, pma::TrkCandidateColl > tpc_track_map;
 
 class PMAlgTrackMaker : public art::EDProducer {
 public:
-  explicit PMAlgTrackMaker(fhicl::ParameterSet const & p);
 
-  PMAlgTrackMaker(PMAlgTrackMaker const &) = delete;
-  PMAlgTrackMaker(PMAlgTrackMaker &&) = delete;
-  PMAlgTrackMaker & operator = (PMAlgTrackMaker const &) = delete;
-  PMAlgTrackMaker & operator = (PMAlgTrackMaker &&) = delete;
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
 
-  void beginJob() override;
+		fhicl::Table<pma::ProjectionMatchingAlg::Config> ProjectionMatchingAlg {
+			Name("ProjectionMatchingAlg")
+		};
 
-  void reconfigure(fhicl::ParameterSet const& p) override;
+		fhicl::Table<pma::PMAlgVertexing::Config> PMAlgVertexing {
+			Name("PMAlgVertexing")
+		};
 
-  void produce(art::Event & e) override;
+		fhicl::Atom<bool> RunVertexing {
+			Name("RunVertexing"),
+			Comment("find vertices from PFP hierarchy, join with tracks, reoptimize track-vertex structure")
+		};
+
+		fhicl::Atom<bool> SaveOnlyBranchingVtx {
+			Name("SaveOnlyBranchingVtx"),
+			Comment("use true to save only vertices interconnecting many tracks, otherwise vertex is added to the front of each track")
+		};
+
+		fhicl::Atom<bool> SavePmaNodes {
+			Name("SavePmaNodes"),
+			Comment("save track nodes (only for algorithm development purposes)")
+		};
+
+		fhicl::Atom<art::InputTag> HitModuleLabel {
+			Name("HitModuleLabel"),
+			Comment("tag of unclustered hits, which were used to validate tracks")
+		};
+
+		fhicl::Atom<art::InputTag> ClusterModuleLabel {
+			Name("ClusterModuleLabel"),
+			Comment("tag of cluster collection, these clusters are used for track building")
+		};
+
+		fhicl::Atom<size_t> MinSeedSize1stPass {
+			Name("MinSeedSize1stPass"),
+			Comment("min. cluster size used to start building a track in the 1st pass")
+		};
+
+		fhicl::Atom<size_t> MinSeedSize2ndPass {
+			Name("MinSeedSize2ndPass"),
+			Comment("min. cluster size used to start building a track in the 2nd pass")
+		};
+
+		fhicl::Atom<bool> FlipToBeam {
+			Name("FlipToBeam"),
+			Comment("set the track direction to increasing Z values")
+		};
+
+		fhicl::Atom<bool> FlipDownward {
+			Name("FlipDownward"),
+			Comment("set the track direction to decreasing Y values (like cosmic rays)")
+		};
+
+		fhicl::Atom<bool> AutoFlip_dQdx {
+			Name("AutoFlip_dQdx"),
+			Comment("set the track direction to increasing dQ/dx (overrides FlipToBeam and FlipDownward if significant rise of dQ/dx at the track end)")
+		};
+
+		fhicl::Atom<bool> MergeWithinTPC {
+			Name("MergeWithinTPC"),
+			Comment("merge witnin single TPC; finds tracks best matching by angle and displacement")
+		};
+
+		fhicl::Atom<double> MergeTransverseShift {
+			Name("MergeTransverseShift"),
+			Comment("max. transverse displacement [cm] between tracks")
+		};
+
+		fhicl::Atom<double> MergeAngle {
+			Name("MergeAngle"),
+			Comment("max. angle [degree] between tracks (nearest segments)")
+		};
+
+		fhicl::Atom<bool> StitchBetweenTPCs {
+			Name("StitchBetweenTPCs"),
+			Comment("stitch between TPCs; finds tracks best matching by angle and displacement")
+		};
+
+		fhicl::Atom<double> StitchDistToWall {
+			Name("StitchDistToWall"),
+			Comment("max. track endpoint distance [cm] to TPC boundary")
+		};
+
+		fhicl::Atom<double> StitchTransverseShift {
+			Name("StitchTransverseShift"),
+			Comment("max. transverse displacement [cm] between tracks")
+		};
+
+		fhicl::Atom<double> StitchAngle {
+			Name("StitchAngle"),
+			Comment("max. angle [degree] between tracks (nearest segments)")
+		};
+
+		fhicl::Atom<bool> MatchT0inAPACrossing {
+			Name("MatchT0inAPACrossing"),
+			Comment("match T0 of APA-crossing tracks, TPC stitching limits are used, but track parts are not stitched into a single recob::Track")
+		};
+    }; // Config
+    using Parameters = art::EDProducer::Table<Config>;
+
+	explicit PMAlgTrackMaker(Parameters const& config);
+
+	PMAlgTrackMaker(PMAlgTrackMaker const &) = delete;
+	PMAlgTrackMaker(PMAlgTrackMaker &&) = delete;
+	PMAlgTrackMaker & operator = (PMAlgTrackMaker const &) = delete;
+	PMAlgTrackMaker & operator = (PMAlgTrackMaker &&) = delete;
+
+	void produce(art::Event & e) override;
 
 
 private:
@@ -118,32 +224,15 @@ private:
 	size_t minSizeCompl, unsigned int tpc, unsigned int cryo,
 	geo::View_t first_view, int first_clu_idx, int pfParticleIdx);
 
-  void buildTrks(pma::TrkCandidateColl & result);
-
-  void buildShSeg(pma::TrkCandidateColl & result);
-
   // display what was used and what is left
   void listUsedClusters(const std::vector< art::Ptr<recob::Cluster> >& clusters) const;
   // ------------------------------------------------------
 
-  // build tracks from clusters associated to PFParticles (use internal pattern recognition
-  // on the subset of clusters selected with PFParticle)
-  int fromPfpClusterSubset(const art::Event& evt, pma::TrkCandidateColl & result);
-  // ------------------------------------------------------
-
-  // build tracks from straight from clusters associated to PFParticle (no pattern recognition)
-  int fromPfpDirect(const art::Event& evt, pma::TrkCandidateColl & result);
-  // ------------------------------------------------------
-
-
   // ************* some common functionality **************
-  void reset(const art::Event& evt);
+  void reset(void);
 
   cryo_tpc_view_hitmap fHitMap;
   std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
-  std::map< int, std::vector< art::Ptr<recob::Cluster> > > fPfpClusters;
-  std::map< int, int > fPfpPdgCodes;
-  std::map< int, pma::Vector3D > fPfpVtx;
   bool sortHits(const art::Event& evt);
 
   bool has(const std::vector<size_t>& v, size_t idx) const
@@ -217,13 +306,8 @@ private:
 
 
   // ******************** fcl parameters **********************
-  std::string fHitModuleLabel; // label for hits collection (used for trk validation)
-  std::string fCluModuleLabel; // label for input cluster collection
-
-  std::vector<int> fTrackingOnlyPdg; // make tracks only for this pdg's when using input from PFParticles
-  std::vector<int> fTrackingSkipPdg; // skip tracks with this pdg's when using input from PFParticles
-
-  bool fMakePFPs;              // output track-vertex net as a tree of PFParticles
+  art::InputTag fHitModuleLabel; // label for hits collection (used for trk validation)
+  art::InputTag fCluModuleLabel; // label for input cluster collection
 
   size_t fMinSeedSize1stPass;  // min. cluster size used to start building a track in the 1st pass
   size_t fMinSeedSize2ndPass;  // min. cluster size used to start building a track in the 2nd pass
@@ -260,13 +344,38 @@ const std::string PMAlgTrackMaker::kKinksName = "kink";
 const std::string PMAlgTrackMaker::kNodesName = "node";
 // -------------------------------------------------------------
 
-PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
+PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
-	fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg")),
-	fPMAlgVertexing(p.get< fhicl::ParameterSet >("PMAlgVertexing"))
-{
-	this->reconfigure(p);
 
+	fHitModuleLabel(config().HitModuleLabel()),
+	fCluModuleLabel(config().ClusterModuleLabel()),
+
+	fMinSeedSize1stPass(config().MinSeedSize1stPass()),
+	fMinSeedSize2ndPass(config().MinSeedSize2ndPass()),
+
+	fFlipToBeam(config().FlipToBeam()),
+	fFlipDownward(config().FlipDownward()),
+	fAutoFlip_dQdx(config().AutoFlip_dQdx()),
+
+	fMergeWithinTPC(config().MergeWithinTPC()),
+	fMergeTransverseShift(config().MergeTransverseShift()),
+	fMergeAngle(config().MergeAngle()),
+
+	fStitchBetweenTPCs(config().StitchBetweenTPCs()),
+	fStitchDistToWall(config().StitchDistToWall()),
+	fStitchTransverseShift(config().StitchTransverseShift()),
+	fStitchAngle(config().StitchAngle()),
+
+	fMatchT0inAPACrossing(config().MatchT0inAPACrossing()),
+
+	fProjectionMatchingAlg(config().ProjectionMatchingAlg()),
+	fMinTwoViewFraction(config().ProjectionMatchingAlg().MinTwoViewFraction()),
+
+	fPMAlgVertexing(config().PMAlgVertexing()),
+	fRunVertexing(config().RunVertexing()),
+	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
+	fSavePmaNodes(config().SavePmaNodes())
+{
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
 	produces< std::vector<recob::Vertex> >(); // no instance name for interaction vertices
@@ -290,56 +399,12 @@ PMAlgTrackMaker::PMAlgTrackMaker(fhicl::ParameterSet const & p) :
 }
 // ------------------------------------------------------
 
-void PMAlgTrackMaker::beginJob()
-{
-}
-
-void PMAlgTrackMaker::reconfigure(fhicl::ParameterSet const& pset)
-{
-	fHitModuleLabel = pset.get< std::string >("HitModuleLabel");
-	fCluModuleLabel = pset.get< std::string >("ClusterModuleLabel");
-
-	fTrackingOnlyPdg = pset.get< std::vector<int> >("TrackingOnlyPdg");
-	fTrackingSkipPdg = pset.get< std::vector<int> >("TrackingSkipPdg");
-
-	fMakePFPs = pset.get< bool >("MakePFPs");
-
-	fMinSeedSize1stPass = pset.get< size_t >("MinSeedSize1stPass");
-	fMinSeedSize2ndPass = pset.get< size_t >("MinSeedSize2ndPass");
-
-	fFlipToBeam = pset.get< bool >("FlipToBeam");
-	fFlipDownward = pset.get< bool >("FlipDownward");
-	fAutoFlip_dQdx = pset.get< bool >("AutoFlip_dQdx");
-
-	fMergeWithinTPC = pset.get< bool >("MergeWithinTPC");
-	fMergeTransverseShift = pset.get< double >("MergeTransverseShift");
-	fMergeAngle = pset.get< double >("MergeAngle");
-
-	fStitchBetweenTPCs = pset.get< bool >("StitchBetweenTPCs");
-	fStitchDistToWall = pset.get< double >("StitchDistToWall");
-	fStitchTransverseShift = pset.get< double >("StitchTransverseShift");
-	fStitchAngle = pset.get< double >("StitchAngle");
-
-	fMatchT0inAPACrossing = pset.get< bool >("MatchT0inAPACrossing");
-
-	fProjectionMatchingAlg.reconfigure(pset.get< fhicl::ParameterSet >("ProjectionMatchingAlg"));
-	fMinTwoViewFraction = pset.get< double >("ProjectionMatchingAlg.MinTwoViewFraction");
-
-	fPMAlgVertexing.reconfigure(pset.get< fhicl::ParameterSet >("PMAlgVertexing"));
-	fRunVertexing = pset.get< bool >("RunVertexing");
-	fSaveOnlyBranchingVtx = pset.get< bool >("SaveOnlyBranchingVtx");
-	fSavePmaNodes = pset.get< bool >("SavePmaNodes");
-}
-
-void PMAlgTrackMaker::reset(const art::Event& evt)
+void PMAlgTrackMaker::reset(void)
 {
 	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	fHitMap.clear();
 	fCluHits.clear();
-	fPfpClusters.clear();
-	fPfpPdgCodes.clear();
-	fPfpVtx.clear();
 
 	fPMAlgVertexing.reset();
 }
@@ -1161,7 +1226,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
-	reset(evt); // set default values, clear containers at the beginning of each event
+	reset(); // set default values, clear containers at the beginning of each event
 
 	pma::TrkCandidateColl result;
 
@@ -1212,10 +1277,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			//double dQdxFlipThr = 0.0;
 			//if (fFlipToBeam) dQdxFlipThr = 0.4;
-
-            // use the following to create PFParticle <--> Track associations;
-			// note: these are assns to existing PFParticles, that are used for CluMatchingAlg = 2 or 3.
-            std::map< size_t, std::vector< art::Ptr<recob::Track> > > pfPartToTrackVecMap;
 
 			if (fFlipToBeam) result.flipTreesToCoordinate(2);        // flip the tracks / trees to the beam direction (Z)
 			else if (fFlipDownward) result.flipTreesToCoordinate(1); // flip the tracks / trees to point downward (-Y)
@@ -1306,15 +1367,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				spEnd = allsp->size();
 
 				if (spEnd > spStart) util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
-
-                // if there is a PFParticle collection then recover PFParticle and add info to map
-                if (!fMakePFPs && (result[trkIndex].Key() > -1))
-                {
-                    size_t trackIdx = tracks->size() - 1;
-                    art::ProductID trackId = getProductID< std::vector<recob::Track> >(evt);
-                    art::Ptr<recob::Track> trackPtr(trackId, trackIdx, evt.productGetter(trackId));
-                    pfPartToTrackVecMap[result[trkIndex].Key()].push_back(trackPtr);
-                }
 			}
 
 			auto pfpid = getProductID< std::vector<recob::PFParticle> >(evt);
@@ -1392,55 +1444,33 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				}
 			}
 
-			if (fMakePFPs) // create new collection of PFParticles to save hierarchy as found by this module
-			{
-				// first particle, to be replaced with nu reco when possible
-				pfps->emplace_back(0, 0, 0, std::vector< size_t >());
+			// first particle, to be replaced with nu reco when possible
+			pfps->emplace_back(0, 0, 0, std::vector< size_t >());
 
-				result.setParentDaughterConnections();
-				for (size_t t = 0; t < result.size(); ++t)
+			result.setParentDaughterConnections();
+			for (size_t t = 0; t < result.size(); ++t)
+			{
+				size_t parentIdx = 0;
+				if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent() + 1;
+
+				std::vector< size_t > daughterIdxs;
+				for (size_t idx : result[t].Daughters()) daughterIdxs.push_back(idx + 1);
+
+				size_t pfpidx = pfps->size();
+				pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
+
+				art::Ptr<recob::PFParticle> pfpptr(pfpid, pfpidx, evt.productGetter(pfpid));
+				art::Ptr<recob::Track> tptr(tid, t, trkGetter);
+				pfp2trk->addSingle(pfpptr, tptr);
+
+				if (fRunVertexing) // vertexing was used, so add assns to front vertex of each particle
 				{
-					size_t parentIdx = 0;
-					if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent() + 1;
-
-					std::vector< size_t > daughterIdxs;
-					for (size_t idx : result[t].Daughters()) daughterIdxs.push_back(idx + 1);
-
-					size_t pfpidx = pfps->size();
-					pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
-
-					art::Ptr<recob::PFParticle> pfpptr(pfpid, pfpidx, evt.productGetter(pfpid));
-					art::Ptr<recob::Track> tptr(tid, t, trkGetter);
-					pfp2trk->addSingle(pfpptr, tptr);
-
-					if (fRunVertexing) // vertexing was used, so add assns to front vertex of each particle
-					{
-						art::Ptr<recob::Vertex> vptr = frontVtxs[t];
-						if (!vptr.isNull()) pfp2vtx->addSingle(pfpptr, vptr);
-						else mf::LogWarning("PMAlgTrackMaker") << "Front vertex for PFParticle is missing.";
-					}
+					art::Ptr<recob::Vertex> vptr = frontVtxs[t];
+					if (!vptr.isNull()) pfp2vtx->addSingle(pfpptr, vptr);
+					else mf::LogWarning("PMAlgTrackMaker") << "Front vertex for PFParticle is missing.";
 				}
-				mf::LogVerbatim("Summary") << pfps->size() << " PFParticles created";
 			}
-			else
-			{
-	            // if we have used existing PFParticles then do the associations here
-    	        if (!pfPartToTrackVecMap.empty())
-    	        {
-					art::Handle< std::vector<recob::PFParticle> > pfParticleHandle;
-					evt.getByLabel(fCluModuleLabel, pfParticleHandle);
-    	            for (const auto & pfParticleItr : pfPartToTrackVecMap)
-    	            {
-    	                art::Ptr<recob::PFParticle> pfParticle(pfParticleHandle, pfParticleItr.first);
-    	                mf::LogVerbatim("PMAlgTrackMaker") << "PFParticle key: " << pfParticle.key()
-							<< ", self: " << pfParticle->Self() << ", #tracks: " << pfParticleItr.second.size();
-
-    	                if (!pfParticle.isNull()) util::CreateAssn(*this, evt, pfParticle, pfParticleItr.second, *pfp2trk);
-						else mf::LogError("PMAlgTrackMaker") << "Error in PFParticle lookup, pfparticle index: "
-							<< pfParticleItr.first << ", key: " << pfParticle.key();
-    	            }
-    	        }
-			}
+			mf::LogVerbatim("Summary") << pfps->size() << " PFParticles created";
 
 			// data prods done, delete all pma::Track3D's
 			for (auto t : result.tracks()) t.DeleteTrack();
@@ -1468,6 +1498,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(pfp2clu));
 	evt.put(std::move(pfp2vtx));
 	evt.put(std::move(pfp2trk));
+
+	reset();
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
@@ -1921,247 +1953,6 @@ int PMAlgTrackMaker::maxCluster(int first_idx_tag,
 	else return -1;
 }
 // ------------------------------------------------------
-// ------------------------------------------------------
-
-int PMAlgTrackMaker::fromPfpClusterSubset(const art::Event& evt, pma::TrkCandidateColl & result)
-{
-	bool skipPdg = true;
-	if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
-		skipPdg = false;
-
-	bool selectPdg = true;
-	if (!fTrackingOnlyPdg.empty() && (fTrackingOnlyPdg.front() == 0))
-		selectPdg = false;
-
-	// Code from Tracy merged with recent additions to PMA. Still to be changed in order to
-	// skip not reasonalbe parts in this configuration.
-    if (!fPfpClusters.empty() && !fCluHits.empty())
-    {
-		tpc_track_map tracks; // track parts in tpc's
-
-		// Armed with all of this information we can begin looping through the PFParticles
-		for (const auto & pfpCluEntry : fPfpClusters)
-		{
-			int pfPartIdx = pfpCluEntry.first;
-			int pdg = fPfpPdgCodes[pfPartIdx];
-
-			if (skipPdg && has(fTrackingSkipPdg, pdg)) continue;
-			if (selectPdg && !has(fTrackingOnlyPdg, pdg)) continue;
-
-			mf::LogVerbatim("PMAlgTrackMaker") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
-
-			const auto & clusterVec = pfpCluEntry.second;
-
-			initial_clusters.clear();
-			tried_clusters.clear();
-			used_clusters.clear();
-
-			size_t minBuildSize = 2;
-			for (auto tpc_iter = fGeom->begin_TPC_id();
-			          tpc_iter != fGeom->end_TPC_id();
-			          tpc_iter++)
-			{
-				fromMaxCluster_tpc(tracks[tpc_iter->TPC], clusterVec, minBuildSize, tpc_iter->TPC, tpc_iter->Cryostat, pfPartIdx);
-			}
-   
-			// used for development
-			listUsedClusters(clusterVec);
-		}
-
-		// try correcting track ends:
-		//   - 3D ref.points for clean endpoints of wire-plae parallel tracks
-		//   - single-view sections spuriously merged on 2D clusters level
-		for (auto tpc_iter = fGeom->begin_TPC_id();
-		          tpc_iter != fGeom->end_TPC_id();
-		          tpc_iter++)
-		{
-			guideEndpoints(tracks[tpc_iter->TPC]);
-			reassignSingleViewEnds(tracks[tpc_iter->TPC], std::vector< art::Ptr<recob::Cluster> >());
-		}
-
-		// merge co-linear parts inside each tpc
-		if (fMergeWithinTPC)
-		{
-			for (auto tpc_iter = fGeom->begin_TPC_id();
-			          tpc_iter != fGeom->end_TPC_id();
-			          tpc_iter++)
-			{
-				mf::LogVerbatim("PMAlgTrackMaker") << "Merge co-linear tracks within TPC " << tpc_iter->TPC << ".";
-				while (mergeCoLinear(tracks[tpc_iter->TPC]))
-				{
-					mf::LogVerbatim("PMAlgTrackMaker") << "  found co-linear tracks";
-				}
-			}
-		}
-
-		// merge co-linear parts between tpc's
-		if (fStitchBetweenTPCs)
-		{
-			mf::LogVerbatim("PMAlgTrackMaker") << "Stitch co-linear tracks between TPCs.";
-			mergeCoLinear(tracks);
-		}
-
-		for (auto const & tpc_entry : tracks)
-			for (auto & trk : tpc_entry.second.tracks())
-				if (trk.Track()->HasTwoViews() && (trk.Track()->Nodes().size() > 1))
-		{
-			fProjectionMatchingAlg.setTrackTag(*(trk.Track()));
-			result.push_back(trk);
-		}
-
-		if (fRunVertexing)
-		{
-			mf::LogVerbatim("PMAlgTrackMaker") << "Vertex finding / track-vertex reoptimization.";
-			fPMAlgVertexing.run(result);
-		}
-
-		if (fMatchT0inAPACrossing)
-		{
-			mf::LogVerbatim("PMAlgTrackMaker") << "Find co-linear APA-crossing tracks with any T0.";
-			matchCoLinearAnyT0(result);
-		}
-    }
-    else
-    {
-        mf::LogWarning("PMAlgTrackMaker") << "no clusters, no pfparticles";
-        return -1;
-    }
-    
-    return result.size();
-}
-
-// ------------------------------------------------------
-
-int PMAlgTrackMaker::fromPfpDirect(const art::Event& evt, pma::TrkCandidateColl & result)
-{
-    if (!fPfpClusters.empty() && !fCluHits.empty())
-    {
-			// build pm tracks
-			buildTrks(result);
-
-			guideEndpoints(result); // add 3D ref.points for clean endpoints of wire-plae parallel tracks
-
-			if (fRunVertexing) fPMAlgVertexing.run(result);
-
-			// build segment of shower
-			buildShSeg(result);
-    }
-    else
-    {
-        mf::LogWarning("PMAlgTrackMaker") << "no clusters, no pfparticles";
-        return -1;
-    }
-    
-    return result.size();
-}
-// ------------------------------------------------------
-
-void PMAlgTrackMaker::buildTrks(pma::TrkCandidateColl & result)
-{
-		bool skipPdg = true;
-		if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
-			skipPdg = false;
-
-		bool selectPdg = true;
-		if (!fTrackingOnlyPdg.empty() && (fTrackingOnlyPdg.front() == 0))
-			selectPdg = false;
-
-		for (const auto & pfpCluEntry : fPfpClusters)
-		{
-			int pfPartIdx = pfpCluEntry.first;
-			int pdg = fPfpPdgCodes[pfPartIdx];
-
-			if (pdg == 11) continue;
-			if (skipPdg && has(fTrackingSkipPdg, pdg)) continue;
-			if (selectPdg && !has(fTrackingOnlyPdg, pdg)) continue;
-
-			mf::LogVerbatim("PMAlgTrackMaker") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
-
-			std::vector< art::Ptr<recob::Hit> > allHits;
-
-			pma::TrkCandidate candidate;
-			for (const auto & c : pfpCluEntry.second)
-			{
-				candidate.Clusters().push_back(c.key());
-
-				allHits.reserve(allHits.size() + fCluHits.at(c.key()).size());
-				for (const auto & h : fCluHits.at(c.key()))
-					allHits.push_back(h);
-			}
-			candidate.SetKey(pfpCluEntry.first);
-
-			candidate.SetTrack(fProjectionMatchingAlg.buildMultiTPCTrack(allHits));
-
-			if (candidate.IsValid() &&
-			    candidate.Track()->HasTwoViews() &&
-			    (candidate.Track()->Nodes().size() > 1))
-			{
-	   			result.push_back(candidate);
-			}
-			else
-			{
-				candidate.DeleteTrack();
-			}
-		}
-}
-
-// ------------------------------------------------------
-
-void PMAlgTrackMaker::buildShSeg(pma::TrkCandidateColl & result)
-{
-		bool skipPdg = true;
-		if (!fTrackingSkipPdg.empty() && (fTrackingSkipPdg.front() == 0))
-			skipPdg = false;
-
-		bool selectPdg = true;
-		if (!fTrackingOnlyPdg.empty() && (fTrackingOnlyPdg.front() == 0))
-			selectPdg = false;
-
-		for (const auto & pfpCluEntry : fPfpClusters)
-		{
-			int pfPartIdx = pfpCluEntry.first;
-			int pdg = fPfpPdgCodes[pfPartIdx];
-
-			if (pdg != 11) continue;
-			if (skipPdg && has(fTrackingSkipPdg, pdg)) continue;
-			if (selectPdg && !has(fTrackingOnlyPdg, pdg)) continue;
-
-			mf::LogVerbatim("PMAlgTrackMaker") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
-
-			std::vector< art::Ptr<recob::Hit> > allHits;
-
-			pma::TrkCandidate candidate;
-			for (const auto & c : pfpCluEntry.second)
-			{
-				candidate.Clusters().push_back(c.key());
-
-				allHits.reserve(allHits.size() + fCluHits.at(c.key()).size());
-				for (const auto & h : fCluHits.at(c.key()))
-					allHits.push_back(h);
-			}
-
-			candidate.SetKey(pfpCluEntry.first);
-
-			mf::LogVerbatim("PMAlgTrackMaker") << "building..." << ", pdg:" << pdg;
-
-			auto search = fPfpVtx.find(pfPartIdx);
-			if (search != fPfpVtx.end())
-			{
-				candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, search->second));
-				if (candidate.IsValid()
-						&& candidate.Track()->HasTwoViews() 
-						&& (candidate.Track()->Nodes().size() > 1)) 
-				{
-					result.push_back(candidate);
-				}
-				else
-				{
-					candidate.DeleteTrack();
-				}
-			}
-		}
-}
-
 // ------------------------------------------------------
 
 void PMAlgTrackMaker::listUsedClusters(const std::vector< art::Ptr<recob::Cluster> >& clusters) const
