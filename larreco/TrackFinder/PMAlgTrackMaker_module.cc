@@ -33,7 +33,6 @@
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Utilities/InputTag.h"
-#include "fhiclcpp/ParameterSet.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 #include "fhiclcpp/types/Sequence.h"
@@ -67,10 +66,6 @@
 #include <memory>
 
 namespace trkf {
-
-typedef std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > view_hitmap;
-typedef std::map< unsigned int, view_hitmap > tpc_view_hitmap;
-typedef std::map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
 
 typedef std::map< size_t, pma::TrkCandidateColl > tpc_track_map;
 
@@ -190,21 +185,17 @@ public:
 
 	void produce(art::Event & e) override;
 
-
 private:
-  // *** methods to create tracks from clusters ***
+	/// Set default values and clear containers at the beginning/end of each event.
+	void reset(void);
 
-  // loop over all clusters and build as much as possible to find
-  // the logic implemented here for sure is not exhaustive, it was
-  // checked on long cosmic tracks and low energy stopping tracks
-  // and seems to be a good example how to use the algorithm
-  int fromMaxCluster(const art::Event& evt, pma::TrkCandidateColl & result);
+	int fromMaxCluster(const art::Event& evt, pma::TrkCandidateColl & result);
 
-  void fromMaxCluster_tpc(
-    pma::TrkCandidateColl & result,
-    const std::vector< art::Ptr<recob::Cluster> >& clusters,
-    size_t minBuildSize, unsigned int tpc, unsigned int cryo,
-	int pfParticleIdx = -1);
+	void fromMaxCluster_tpc(
+		pma::TrkCandidateColl & result,
+		const std::vector< art::Ptr<recob::Cluster> >& clusters,
+		size_t minBuildSize, unsigned int tpc, unsigned int cryo,
+		int pfParticleIdx = -1);
 
   bool extendTrack(
 	pma::TrkCandidate& candidate,
@@ -228,10 +219,7 @@ private:
   void listUsedClusters(const std::vector< art::Ptr<recob::Cluster> >& clusters) const;
   // ------------------------------------------------------
 
-  // ************* some common functionality **************
-  void reset(void);
-
-  cryo_tpc_view_hitmap fHitMap;
+  pma::cryo_tpc_view_hitmap fHitMap;
   std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
   bool sortHits(const art::Event& evt);
 

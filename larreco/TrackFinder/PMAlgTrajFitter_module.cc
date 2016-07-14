@@ -55,10 +55,6 @@
 
 namespace trkf {
 
-typedef std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > _view_hitmap;
-typedef std::map< unsigned int, _view_hitmap > _tpc_view_hitmap;
-typedef std::map< unsigned int, _tpc_view_hitmap > _cryo_tpc_view_hitmap;
-
 class PMAlgTrajFitter : public art::EDProducer {
 public:
 
@@ -120,8 +116,10 @@ public:
 
 	void produce(art::Event & e) override;
 
-
 private:
+  /// Set default values and clear containers at the beginning/end of each event.
+  void reset(void);
+
   /// Build tracks straight from the clusters associated to PFParticle (no pattern recognition).
   int buildFromPfps(const art::Event& evt, pma::TrkCandidateColl & result);
 
@@ -129,15 +127,12 @@ private:
   void buildShowers(pma::TrkCandidateColl & result);
   void guideEndpoints(pma::TrkCandidateColl & tracks);
 
-  // Set default values and clear containers at the beginning/end of each event.
-  void reset(void);
-
-  _cryo_tpc_view_hitmap fHitMap;
+  pma::cryo_tpc_view_hitmap fHitMap;
   std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
   std::map< int, std::vector< art::Ptr<recob::Cluster> > > fPfpClusters;
   std::map< int, pma::Vector3D > fPfpVtx;
   std::map< int, int > fPfpPdgCodes;
-  bool sortHitsPfp(const art::Event& evt);
+  bool sortHits(const art::Event& evt);
 
   bool has(const std::vector<int> & v, int i) const
   {
@@ -215,7 +210,7 @@ void PMAlgTrajFitter::reset(void)
 }
 // ------------------------------------------------------
 
-bool PMAlgTrajFitter::sortHitsPfp(const art::Event& evt)
+bool PMAlgTrajFitter::sortHits(const art::Event& evt)
 {
 	art::Handle< std::vector<recob::Hit> > allHitListHandle;
 	art::Handle< std::vector<recob::Cluster> > cluListHandle;
@@ -302,7 +297,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 
 	auto pfp2trk = std::make_unique< art::Assns< recob::PFParticle, recob::Track> >();
 
-	if (sortHitsPfp(evt))
+	if (sortHits(evt))
 	{
 		pma::TrkCandidateColl result;
 		int retCode = buildFromPfps(evt, result);
