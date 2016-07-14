@@ -23,7 +23,6 @@
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
 #include "art/Utilities/InputTag.h"
-#include "fhiclcpp/ParameterSet.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 #include "fhiclcpp/types/Sequence.h"
@@ -104,7 +103,7 @@ public:
 			Name("TrackingSkipPdg"),
 			Comment("PDG list to select which PFParticles should NOT be reconstructed, e.g. skip EM-like if contains 11; no skipping if the list is empty or starts with 0")
 		};
-    }; // Config
+    };
     using Parameters = art::EDProducer::Table<Config>;
 
 	explicit PMAlgTrajFitter(Parameters const& config);

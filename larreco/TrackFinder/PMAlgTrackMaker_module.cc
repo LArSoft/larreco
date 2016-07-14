@@ -173,7 +173,7 @@ public:
 			Name("MatchT0inAPACrossing"),
 			Comment("match T0 of APA-crossing tracks, TPC stitching limits are used, but track parts are not stitched into a single recob::Track")
 		};
-    }; // Config
+    };
     using Parameters = art::EDProducer::Table<Config>;
 
 	explicit PMAlgTrackMaker(Parameters const& config);
@@ -226,11 +226,6 @@ private:
   bool has(const std::vector<size_t>& v, size_t idx) const
   {
   	for (auto c : v) if (c == idx) return true;
-  	return false;
-  }
-  bool has(const std::vector<int>& v, int i) const
-  {
-  	for (auto c : v) if (c == i) return true;
   	return false;
   }
 
