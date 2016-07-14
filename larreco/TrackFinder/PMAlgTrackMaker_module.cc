@@ -1213,29 +1213,29 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	pma::TrkCandidateColl result;
 
-	std::unique_ptr< std::vector< recob::Track > > tracks(new std::vector< recob::Track >);
-	std::unique_ptr< std::vector< recob::SpacePoint > > allsp(new std::vector< recob::SpacePoint >);
-	std::unique_ptr< std::vector< recob::Vertex > > vtxs(new std::vector< recob::Vertex >);  // interaction vertices
-	std::unique_ptr< std::vector< recob::Vertex > > kinks(new std::vector< recob::Vertex >); // kinks on tracks (no new particles start in kinks)
-	std::unique_ptr< std::vector< recob::Vertex > > nodes(new std::vector< recob::Vertex >); // pma nodes
-	std::unique_ptr< std::vector< anab::T0 > > t0s(new std::vector< anab::T0 >);
+	auto tracks = std::make_unique< std::vector< recob::Track > >();
+	auto allsp = std::make_unique< std::vector< recob::SpacePoint > >();
+	auto vtxs = std::make_unique< std::vector< recob::Vertex > >();  // interaction vertices
+	auto kinks = std::make_unique< std::vector< recob::Vertex > >(); // kinks on tracks (no new particles start in kinks)
+	auto nodes = std::make_unique< std::vector< recob::Vertex > >(); // pma nodes
+	auto t0s = std::make_unique< std::vector< anab::T0 > >();
 
-	std::unique_ptr< art::Assns< recob::Track, recob::Hit > > trk2hit_oldway(new art::Assns< recob::Track, recob::Hit >); // ****** REMEMBER to remove when FindMany improved ******
-	std::unique_ptr< art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta > > trk2hit(new art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta >);
+	auto trk2hit_oldway = std::make_unique< art::Assns< recob::Track, recob::Hit > >(); // ****** REMEMBER to remove when FindMany improved ******
+	auto trk2hit = std::make_unique< art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta > >();
 
-	std::unique_ptr< art::Assns< recob::Track, recob::SpacePoint > > trk2sp(new art::Assns< recob::Track, recob::SpacePoint >);
-	std::unique_ptr< art::Assns< recob::Track, anab::T0 > > trk2t0(new art::Assns< recob::Track, anab::T0 >);
+	auto trk2sp = std::make_unique< art::Assns< recob::Track, recob::SpacePoint > >();
+	auto trk2t0 = std::make_unique< art::Assns< recob::Track, anab::T0 > >();
 
-	std::unique_ptr< art::Assns< recob::SpacePoint, recob::Hit > > sp2hit(new art::Assns< recob::SpacePoint, recob::Hit >);
-	std::unique_ptr< art::Assns< recob::Vertex, recob::Track > > vtx2trk(new art::Assns< recob::Vertex, recob::Track >); // one or more tracks (particles) start in the vertex
-	std::unique_ptr< art::Assns< recob::Track, recob::Vertex > > trk2kink(new art::Assns< recob::Track, recob::Vertex >); // one or more kinks on the track
+	auto sp2hit = std::make_unique< art::Assns< recob::SpacePoint, recob::Hit > >();
+	auto vtx2trk = std::make_unique< art::Assns< recob::Vertex, recob::Track > >();  // one or more tracks (particles) start in the vertex
+	auto trk2kink = std::make_unique< art::Assns< recob::Track, recob::Vertex > >(); // one or more kinks on the track
 
 
-	std::unique_ptr< std::vector< recob::PFParticle > > pfps(new std::vector< recob::PFParticle >);
+	auto pfps = std::make_unique< std::vector< recob::PFParticle > >();
 
-    std::unique_ptr< art::Assns<recob::PFParticle, recob::Cluster> > pfp2clu(new art::Assns<recob::PFParticle, recob::Cluster>);
-    std::unique_ptr< art::Assns<recob::PFParticle, recob::Vertex> > pfp2vtx(new art::Assns<recob::PFParticle, recob::Vertex>);
-	std::unique_ptr< art::Assns< recob::PFParticle, recob::Track > > pfp2trk(new art::Assns< recob::PFParticle, recob::Track >);
+    auto pfp2clu = std::make_unique< art::Assns<recob::PFParticle, recob::Cluster> >();
+    auto pfp2vtx = std::make_unique< art::Assns<recob::PFParticle, recob::Vertex> >();
+	auto pfp2trk = std::make_unique< art::Assns< recob::PFParticle, recob::Track > >();
 
 	if (sortHits(evt))
 	{
