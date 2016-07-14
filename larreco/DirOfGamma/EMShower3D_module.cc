@@ -159,7 +159,7 @@ void ems::EMShower3D::beginJob()
 void ems::EMShower3D::reconfigure(fhicl::ParameterSet const & p)
 {
 	fCluModuleLabel = p.get< std::string >("ClustersModuleLabel");
-  	//fProjectionMatchingAlg.reconfigure(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg")); // enough to use constructor-time config
+  	//fProjectionMatchingAlg.reconfigure(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg")); // use constructor-time config only
 	fTrk3DModuleLabel = p.get< std::string >("Trk3DModuleLabel");
 	
   return;
