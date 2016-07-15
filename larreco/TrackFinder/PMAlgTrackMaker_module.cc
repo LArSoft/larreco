@@ -1238,9 +1238,31 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 	art::Handle< std::vector<recob::Hit> > allHitListHandle;
 	art::Handle< std::vector<recob::Cluster> > cluListHandle, splitCluHandle;
 	std::vector< art::Ptr<recob::Hit> > allhitlist;
-	if (evt.getByLabel(fHitModuleLabel, splitCluHandle) &&   // clusters that tag em-like hits
-	    evt.getByLabel(fCluModuleLabel, allHitListHandle) && // all hits associated to both cluster sets
-	    evt.getByLabel(fCluModuleLabel, cluListHandle))      // clusters used to build 3D tracks
+
+	// quick fix to support all combinations of hit finders / em-tagging / cluster makers...
+	// this is made better with appropriate fhcl params for each module in the redesigned PMA modules code
+	bool ok = false, hasEmTags = false;
+	try {
+		if (evt.getByLabel(fHitModuleLabel, splitCluHandle))    // clusters that tag em-like hits are present
+		{
+			if ((evt.getByLabel(fCluModuleLabel, allHitListHandle) || evt.getByLabel(fCluModuleLabel, allHitListHandle)) && // all hits associated to both cluster sets
+		    	evt.getByLabel(fCluModuleLabel, cluListHandle)) // clusters used to build 3D tracks
+			{
+				hasEmTags = true;
+				ok = true;
+			}
+		}
+	}
+	catch (...) { ok = false; }
+
+	try {
+		if (!ok && evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to produce clusters
+		    evt.getByLabel(fCluModuleLabel, cluListHandle))             // clusters used to build 3D tracks
+		{ ok = true; }
+	}
+	catch (...) {  ok = false; }
+
+	if (ok)
 	{
 		art::fill_ptr_vector(allhitlist, allHitListHandle);
 
@@ -1254,38 +1276,46 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 			fHitMap[cryo][tpc][view].push_back(h);
 		}
-		mf::LogVerbatim("PMAlgTrackMaker") << "...done.";
+		mf::LogVerbatim("PMAlgTrackMaker") << "...done, " << allhitlist.size() << " hits.";
 
 		mf::LogVerbatim("PMAlgTrackMaker") << "Filter track-like clusters...";
 		fCluHits.reserve(cluListHandle->size());
 		art::FindManyP< recob::Hit > fbp(cluListHandle, evt, fCluModuleLabel);
-		art::FindManyP< recob::Hit > fem(splitCluHandle, evt, fHitModuleLabel);
-		for (size_t i = 0; i < cluListHandle->size(); ++i)
+		if (hasEmTags)
 		{
-			auto v = fbp.at(i);
-
-			fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
-
-			for (auto const & h : v)
+			art::FindManyP< recob::Hit > fem(splitCluHandle, evt, fHitModuleLabel);
+			for (size_t i = 0; i < cluListHandle->size(); ++i)
 			{
-				bool trkLike = true;
-				if (fCluModuleLabel != fHitModuleLabel)
+				auto v = fbp.at(i);
+				fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
+				for (auto const & h : v)
 				{
-					for (size_t j = 0; j < splitCluHandle->size(); ++j)
+					bool trkLike = true;
+					if (fCluModuleLabel != fHitModuleLabel)
 					{
-						auto u = fem.at(j);
-						for (auto const & g : u) // is hit clustered in one of em-like?
+						for (size_t j = 0; j < splitCluHandle->size(); ++j)
 						{
-							if (g.key() == h.key())
+							auto u = fem.at(j);
+							for (auto const & g : u) // is hit clustered in one of em-like?
 							{
-								trkLike = false; break;
+								if (g.key() == h.key()) { trkLike = false; break; }
 							}
 						}
 					}
+					if (trkLike) fCluHits.back().push_back(h);
 				}
-				if (trkLike) fCluHits.back().push_back(h);
 			}
 		}
+		else
+		{
+			for (size_t i = 0; i < cluListHandle->size(); ++i)
+			{
+				auto v = fbp.at(i);
+				fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
+				for (auto const & h : v) { fCluHits.back().push_back(h); }
+			}
+		}
+
 		if (fCluHits.size() != cluListHandle->size())
 		{
 			mf::LogError("PMAlgTrackMaker") << "Hit-cluster map incorrect, better skip this event.";
@@ -1308,9 +1338,19 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 	art::Handle< std::vector<recob::Cluster> > cluListHandle;
 	art::Handle< std::vector<recob::PFParticle> > pfparticleHandle;
 	std::vector< art::Ptr<recob::Hit> > allhitlist;
-	if (evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to make clusters and PFParticles
-	    evt.getByLabel(fCluModuleLabel, cluListHandle) &&    // clusters associated to PFParticles
-	    evt.getByLabel(fCluModuleLabel, pfparticleHandle))   // and finally PFParticles
+
+	bool ok = false;
+	try {
+		if (evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to make clusters and PFParticles
+		    evt.getByLabel(fCluModuleLabel, cluListHandle) &&    // clusters associated to PFParticles
+		    evt.getByLabel(fCluModuleLabel, pfparticleHandle))   // and finally PFParticles
+		{
+			ok = true;
+		}
+	}
+	catch (...) { ok = false; }
+
+	if (ok)
 	{
 		art::fill_ptr_vector(allhitlist, allHitListHandle);
 
