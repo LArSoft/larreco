@@ -1242,25 +1242,19 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 	// quick fix to support all combinations of hit finders / em-tagging / cluster makers...
 	// this is made better with appropriate fhcl params for each module in the redesigned PMA modules code
 	bool ok = false, hasEmTags = false;
-	try {
-		if (evt.getByLabel(fHitModuleLabel, splitCluHandle))    // clusters that tag em-like hits are present
+	if (evt.getByLabel(fHitModuleLabel, splitCluHandle))    // clusters that tag em-like hits are present
+	{
+		if (evt.getByLabel(fCluModuleLabel, allHitListHandle) && // all hits associated to both cluster sets
+	    	evt.getByLabel(fCluModuleLabel, cluListHandle)) // clusters used to build 3D tracks
 		{
-			if ((evt.getByLabel(fCluModuleLabel, allHitListHandle) || evt.getByLabel(fCluModuleLabel, allHitListHandle)) && // all hits associated to both cluster sets
-		    	evt.getByLabel(fCluModuleLabel, cluListHandle)) // clusters used to build 3D tracks
-			{
-				hasEmTags = true;
-				ok = true;
-			}
+			hasEmTags = true;
+			ok = true;
 		}
 	}
-	catch (...) { ok = false; }
 
-	try {
-		if (!ok && evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to produce clusters
-		    evt.getByLabel(fCluModuleLabel, cluListHandle))             // clusters used to build 3D tracks
-		{ ok = true; }
-	}
-	catch (...) {  ok = false; }
+	if (!ok && evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to produce clusters
+	    evt.getByLabel(fCluModuleLabel, cluListHandle))             // clusters used to build 3D tracks
+	{ ok = true; }
 
 	if (ok)
 	{
