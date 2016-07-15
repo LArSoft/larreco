@@ -26,6 +26,7 @@
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/AnalysisBase/ParticleID.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "lardataobj/RawData/TriggerData.h"
 
 // Framework includes
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -53,6 +54,7 @@
 #include "TUnixSystem.h"
 #include "TDatabasePDG.h"
 #include "TObjArray.h"
+#include "TTimeStamp.h"
 
 // C++ Includes
 #include <map>
@@ -132,7 +134,11 @@ private:
     int fEvent;
     int fRun;
     int fSubRun;
-
+    double fEventTime;
+    unsigned int fTriggernumber;      //trigger counter
+    double fTriggertime;        //trigger time w.r.t. electronics clock T0
+    double fBeamgatetime;       //beamgate time w.r.t. electronics clock T0
+    unsigned int fTriggerbits;        //trigger bits
 
     int fCalib_nChannel;
     // int fCalib_channelId[MAX_CHANNEL];  // hit channel id; size == fCalib_Nhit
@@ -246,6 +252,11 @@ void CellTree::initOutput()
     fEventTree->Branch("eventNo", &fEvent);
     fEventTree->Branch("runNo", &fRun);
     fEventTree->Branch("subRunNo", &fSubRun);
+    fEventTree->Branch("eventTime", &fEventTime);  // timestamp
+    fEventTree->Branch("triggerNo", &fTriggernumber);  // timestamp
+    fEventTree->Branch("triggerTime", &fTriggertime);  // timestamp
+    fEventTree->Branch("beamgateTime", &fBeamgatetime);  // timestamp
+    fEventTree->Branch("triggerBits", &fTriggerbits);  // timestamp
 
     fEventTree->Branch("raw_nChannel", &fRaw_nChannel);  // number of hit channels above threshold
     fEventTree->Branch("raw_channelId" , &fRaw_channelId); // hit channel id; size == raw_nChannel
@@ -352,6 +363,9 @@ void CellTree::analyze( const art::Event& event )
     fEvent  = event.id().event();
     fRun    = event.run();
     fSubRun = event.subRun();
+    art::Timestamp ts = event.time();
+    TTimeStamp tts(ts.timeHigh(), ts.timeLow());
+    fEventTime = tts.AsDouble();
 
     if (fSaveRaw) processRaw(event);
     if (fSaveCalib) processCalib(event);
@@ -448,6 +462,33 @@ void CellTree::reset()
 //-----------------------------------------------------------------------
 void CellTree::processRaw( const art::Event& event )
 {
+    art::Handle< std::vector<raw::Trigger>> triggerListHandle;
+    std::vector<art::Ptr<raw::Trigger>> triggerlist;
+    if (event.getByLabel(fRawDigitLabel, triggerListHandle)) {
+        art::fill_ptr_vector(triggerlist, triggerListHandle);
+    }
+    else {
+        cout << "WARNING: no label " << fRawDigitLabel << endl;
+    }
+    if (triggerlist.size()){
+        fTriggernumber = triggerlist[0]->TriggerNumber();
+        fTriggertime   = triggerlist[0]->TriggerTime();
+        fBeamgatetime  = triggerlist[0]->BeamGateTime();
+        fTriggerbits   = triggerlist[0]->TriggerBits();
+    }
+    else {
+        fTriggernumber = 0;
+        fTriggertime   = 0;
+        fBeamgatetime  = 0;
+        fTriggerbits   = 0;
+    }
+    // cout << "timestamp: " << fEventTime << endl;
+    // cout << "fTriggernumber: " << fTriggernumber << endl;
+    // cout << "fTriggertime: " << fTriggertime << endl;
+    // cout << "fBeamgatetime: " << fBeamgatetime << endl;
+    // cout << "fTriggerbits: " << fTriggerbits << endl;
+
+
     art::Handle< std::vector<raw::RawDigit> > rawdigit;
     if (! event.getByLabel(fRawDigitLabel, rawdigit)) {
         cout << "WARNING: no label " << fRawDigitLabel << endl;

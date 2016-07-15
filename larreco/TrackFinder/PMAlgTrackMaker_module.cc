@@ -51,6 +51,7 @@
 #include "lardataobj/AnalysisBase/T0.h" 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+//#include "lardata/Utilities/PtrMaker.h"
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
@@ -1237,9 +1238,31 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 	art::Handle< std::vector<recob::Hit> > allHitListHandle;
 	art::Handle< std::vector<recob::Cluster> > cluListHandle, splitCluHandle;
 	std::vector< art::Ptr<recob::Hit> > allhitlist;
-	if (evt.getByLabel(fHitModuleLabel, splitCluHandle) &&   // clusters that tag em-like hits
-	    evt.getByLabel(fCluModuleLabel, allHitListHandle) && // all hits associated to both cluster sets
-	    evt.getByLabel(fCluModuleLabel, cluListHandle))      // clusters used to build 3D tracks
+
+	// quick fix to support all combinations of hit finders / em-tagging / cluster makers...
+	// this is made better with appropriate fhcl params for each module in the redesigned PMA modules code
+	bool ok = false, hasEmTags = false;
+	try {
+		if (evt.getByLabel(fHitModuleLabel, splitCluHandle))    // clusters that tag em-like hits are present
+		{
+			if ((evt.getByLabel(fCluModuleLabel, allHitListHandle) || evt.getByLabel(fCluModuleLabel, allHitListHandle)) && // all hits associated to both cluster sets
+		    	evt.getByLabel(fCluModuleLabel, cluListHandle)) // clusters used to build 3D tracks
+			{
+				hasEmTags = true;
+				ok = true;
+			}
+		}
+	}
+	catch (...) { ok = false; }
+
+	try {
+		if (!ok && evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to produce clusters
+		    evt.getByLabel(fCluModuleLabel, cluListHandle))             // clusters used to build 3D tracks
+		{ ok = true; }
+	}
+	catch (...) {  ok = false; }
+
+	if (ok)
 	{
 		art::fill_ptr_vector(allhitlist, allHitListHandle);
 
@@ -1253,38 +1276,46 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 			fHitMap[cryo][tpc][view].push_back(h);
 		}
-		mf::LogVerbatim("PMAlgTrackMaker") << "...done.";
+		mf::LogVerbatim("PMAlgTrackMaker") << "...done, " << allhitlist.size() << " hits.";
 
 		mf::LogVerbatim("PMAlgTrackMaker") << "Filter track-like clusters...";
 		fCluHits.reserve(cluListHandle->size());
 		art::FindManyP< recob::Hit > fbp(cluListHandle, evt, fCluModuleLabel);
-		art::FindManyP< recob::Hit > fem(splitCluHandle, evt, fHitModuleLabel);
-		for (size_t i = 0; i < cluListHandle->size(); ++i)
+		if (hasEmTags)
 		{
-			auto v = fbp.at(i);
-
-			fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
-
-			for (auto const & h : v)
+			art::FindManyP< recob::Hit > fem(splitCluHandle, evt, fHitModuleLabel);
+			for (size_t i = 0; i < cluListHandle->size(); ++i)
 			{
-				bool trkLike = true;
-				if (fCluModuleLabel != fHitModuleLabel)
+				auto v = fbp.at(i);
+				fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
+				for (auto const & h : v)
 				{
-					for (size_t j = 0; j < splitCluHandle->size(); ++j)
+					bool trkLike = true;
+					if (fCluModuleLabel != fHitModuleLabel)
 					{
-						auto u = fem.at(j);
-						for (auto const & g : u) // is hit clustered in one of em-like?
+						for (size_t j = 0; j < splitCluHandle->size(); ++j)
 						{
-							if (g.key() == h.key())
+							auto u = fem.at(j);
+							for (auto const & g : u) // is hit clustered in one of em-like?
 							{
-								trkLike = false; break;
+								if (g.key() == h.key()) { trkLike = false; break; }
 							}
 						}
 					}
+					if (trkLike) fCluHits.back().push_back(h);
 				}
-				if (trkLike) fCluHits.back().push_back(h);
 			}
 		}
+		else
+		{
+			for (size_t i = 0; i < cluListHandle->size(); ++i)
+			{
+				auto v = fbp.at(i);
+				fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
+				for (auto const & h : v) { fCluHits.back().push_back(h); }
+			}
+		}
+
 		if (fCluHits.size() != cluListHandle->size())
 		{
 			mf::LogError("PMAlgTrackMaker") << "Hit-cluster map incorrect, better skip this event.";
@@ -1307,9 +1338,19 @@ bool PMAlgTrackMaker::sortHitsPfp(const art::Event& evt)
 	art::Handle< std::vector<recob::Cluster> > cluListHandle;
 	art::Handle< std::vector<recob::PFParticle> > pfparticleHandle;
 	std::vector< art::Ptr<recob::Hit> > allhitlist;
-	if (evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to make clusters and PFParticles
-	    evt.getByLabel(fCluModuleLabel, cluListHandle) &&    // clusters associated to PFParticles
-	    evt.getByLabel(fCluModuleLabel, pfparticleHandle))   // and finally PFParticles
+
+	bool ok = false;
+	try {
+		if (evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits used to make clusters and PFParticles
+		    evt.getByLabel(fCluModuleLabel, cluListHandle) &&    // clusters associated to PFParticles
+		    evt.getByLabel(fCluModuleLabel, pfparticleHandle))   // and finally PFParticles
+		{
+			ok = true;
+		}
+	}
+	catch (...) { ok = false; }
+
+	if (ok)
 	{
 		art::fill_ptr_vector(allhitlist, allHitListHandle);
 
@@ -1448,12 +1489,15 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			if (fAutoFlip_dQdx) result.flipTreesByDQdx(); // flip the tracks / trees to get best dQ/dx sequences
 
+			//auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
+			//auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
+
 			tracks->reserve(result.size());
 			for (fTrkIndex = 0; fTrkIndex < (int)result.size(); ++fTrkIndex)
 			{
 				pma::Track3D* trk = result[fTrkIndex].Track();
 				if (!(trk->HasTwoViews() && (trk->Nodes().size() > 1)))
-				{
+				{   // should never happen and it does not indeed, but let's keep this test for a moment
 					mf::LogWarning("PMAlgTrackMaker") << "Skip degenerated track, code needs to be corrected.";
 					continue;
 				}
@@ -1466,6 +1510,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				tracks->push_back(convertFrom(*trk));
 
+				//auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
+
 				double xShift = trk->GetXShift();
 				if (xShift > 0.0)
 				{
@@ -1474,7 +1520,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 					// TriggBits=3 means from 3d reco (0,1,2 mean something else)
 					t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
+
 					util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
+					//auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
+					//trk2t0->addSingle(trkPtr, t0Ptr);
 				}
 
 				size_t trkIdx = tracks->size() - 1; // stuff for assns:
