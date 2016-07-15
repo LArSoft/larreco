@@ -67,6 +67,7 @@ standard_pmalgtrackmaker:
                                       #
   HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
   ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
+  EmClusterModuleLabel:   ""          # EM-like clusters, will be excluded from tracking if provided
                                       #
   MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
   MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks

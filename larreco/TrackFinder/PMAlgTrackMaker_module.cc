@@ -109,6 +109,11 @@ public:
 			Comment("tag of cluster collection, these clusters are used for track building")
 		};
 
+		fhicl::Atom<art::InputTag> EmClusterModuleLabel {
+			Name("EmClusterModuleLabel"),
+			Comment("EM-like clusters, will be excluded from tracking if provided")
+		};
+
 		fhicl::Atom<size_t> MinSeedSize1stPass {
 			Name("MinSeedSize1stPass"),
 			Comment("min. cluster size used to start building a track in the 1st pass")
@@ -289,8 +294,9 @@ private:
 
 
   // ******************** fcl parameters **********************
-  art::InputTag fHitModuleLabel; // label for hits collection (used for trk validation)
-  art::InputTag fCluModuleLabel; // label for input cluster collection
+  art::InputTag fHitModuleLabel; // tag for hits collection (used for trk validation)
+  art::InputTag fCluModuleLabel; // tag for input cluster collection
+  art::InputTag fEmModuleLabel;  // tag for em-like cluster collection
 
   size_t fMinSeedSize1stPass;  // min. cluster size used to start building a track in the 1st pass
   size_t fMinSeedSize2ndPass;  // min. cluster size used to start building a track in the 2nd pass
@@ -332,6 +338,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 
 	fHitModuleLabel(config().HitModuleLabel()),
 	fCluModuleLabel(config().ClusterModuleLabel()),
+	fEmModuleLabel(config().EmClusterModuleLabel()),
 
 	fMinSeedSize1stPass(config().MinSeedSize1stPass()),
 	fMinSeedSize2ndPass(config().MinSeedSize2ndPass()),
@@ -1143,9 +1150,15 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 	art::Handle< std::vector<recob::Hit> > allHitListHandle;
 	art::Handle< std::vector<recob::Cluster> > cluListHandle, splitCluHandle;
 	std::vector< art::Ptr<recob::Hit> > allhitlist;
-	if (evt.getByLabel(fHitModuleLabel, splitCluHandle) &&   // clusters that tag em-like hits
-	    evt.getByLabel(fCluModuleLabel, allHitListHandle) && // all hits associated to both cluster sets
-	    evt.getByLabel(fCluModuleLabel, cluListHandle))      // clusters used to build 3D tracks
+
+	bool ok = false, hasEmTags = false;
+	if (evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits associated used to create clusters
+    	evt.getByLabel(fCluModuleLabel, cluListHandle))      // clusters used to build 3D tracks
+	{ ok = true; }
+
+	if ((fEmModuleLabel != "") && evt.getByLabel(fEmModuleLabel, splitCluHandle)) { hasEmTags = true; }
+
+	if (ok)
 	{
 		art::fill_ptr_vector(allhitlist, allHitListHandle);
 
@@ -1159,38 +1172,43 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 			fHitMap[cryo][tpc][view].push_back(h);
 		}
-		mf::LogVerbatim("PMAlgTrackMaker") << "...done.";
+		mf::LogVerbatim("PMAlgTrackMaker") << "...done, " << allhitlist.size() << " hits.";
 
 		mf::LogVerbatim("PMAlgTrackMaker") << "Filter track-like clusters...";
 		fCluHits.reserve(cluListHandle->size());
 		art::FindManyP< recob::Hit > fbp(cluListHandle, evt, fCluModuleLabel);
-		art::FindManyP< recob::Hit > fem(splitCluHandle, evt, fHitModuleLabel);
-		for (size_t i = 0; i < cluListHandle->size(); ++i)
+		if (hasEmTags)
 		{
-			auto v = fbp.at(i);
-
-			fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
-
-			for (auto const & h : v)
+			art::FindManyP< recob::Hit > fem(splitCluHandle, evt, fEmModuleLabel);
+			for (size_t i = 0; i < cluListHandle->size(); ++i)
 			{
-				bool trkLike = true;
-				if (fCluModuleLabel != fHitModuleLabel)
+				auto v = fbp.at(i);
+				fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
+				for (auto const & h : v)
 				{
+					bool trkLike = true;
 					for (size_t j = 0; j < splitCluHandle->size(); ++j)
 					{
 						auto u = fem.at(j);
 						for (auto const & g : u) // is hit clustered in one of em-like?
 						{
-							if (g.key() == h.key())
-							{
-								trkLike = false; break;
-							}
+							if (g.key() == h.key()) { trkLike = false; break; }
 						}
 					}
+					if (trkLike) fCluHits.back().push_back(h);
 				}
-				if (trkLike) fCluHits.back().push_back(h);
 			}
 		}
+		else
+		{
+			for (size_t i = 0; i < cluListHandle->size(); ++i)
+			{
+				auto v = fbp.at(i);
+				fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
+				for (auto const & h : v) { fCluHits.back().push_back(h); }
+			}
+		}
+
 		if (fCluHits.size() != cluListHandle->size())
 		{
 			mf::LogError("PMAlgTrackMaker") << "Hit-cluster map incorrect, better skip this event.";
@@ -1206,7 +1224,6 @@ bool PMAlgTrackMaker::sortHits(const art::Event& evt)
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
-
 	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	reset(); // set default values, clear containers at the beginning of each event
