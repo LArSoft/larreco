@@ -274,7 +274,7 @@ namespace hit{
 	bool foundmatch(false);	
 	for( size_t w=0; w<cwids.size(); w++ ){	 
 	  if (cwids[w].TPC!=tpc || cwids[w].Cryostat!=cryo) continue;
-	  if( std::abs((int)(IdeWid.Wire) - (int)(cwids[w].Wire)) <= fMaxWireShift[cwids[0].Plane] ){
+	  if( (unsigned int)std::abs((int)(IdeWid.Wire) - (int)(cwids[w].Wire)) <= fMaxWireShift[cwids[0].Plane] ){
 	    storethis = cwids[w]; // ...apply correction
 	    foundmatch = true;
 	    break;
