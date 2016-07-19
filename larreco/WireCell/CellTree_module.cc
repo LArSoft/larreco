@@ -7,26 +7,26 @@
 // LArSoft includes
 #include "lardata/Utilities/GeometryUtilities.h"
 
-#include "larsim/Simulation/SimChannel.h"
+#include "larsimobj/Simulation/SimChannel.h"
 #include "larsim/Simulation/LArG4Parameters.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Track.h"
-#include "lardata/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/PlaneGeo.h"
-#include "SimulationBase/MCParticle.h"
-#include "SimulationBase/MCTruth.h"
-#include "SimulationBase/MCNeutrino.h"
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
+#include "nusimdata/SimulationBase/MCTruth.h"
+#include "nusimdata/SimulationBase/MCNeutrino.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 // #include "MCCheater/BackTracker.h"
-#include "lardata/RawData/raw.h"
-#include "lardata/RawData/RawDigit.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Wire.h"
-#include "lardata/AnalysisBase/ParticleID.h"
-#include "lardata/AnalysisBase/Calorimetry.h"
-#include "lardata/RawData/TriggerData.h"
+#include "lardataobj/RawData/raw.h"
+#include "lardataobj/RawData/RawDigit.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/AnalysisBase/ParticleID.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "lardataobj/RawData/TriggerData.h"
 
 // Framework includes
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -35,9 +35,9 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/FindOneP.h"
-#include "art/Framework/Core/FindMany.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/FindOneP.h"
+#include "canvas/Persistency/Common/FindMany.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 
@@ -378,7 +378,7 @@ void CellTree::analyze( const art::Event& event )
         for (int i=0; i<nSp; i++) {
             TString jsonfile;
             jsonfile.Form("data/%i/%i-%s.json", entryNo, entryNo, fSpacePointLabels[i].c_str());
-            ofstream out(jsonfile.Data());
+            std::ofstream out(jsonfile.Data());
             processSpacePoint(event, fSpacePointLabels[i], out);
             out.close();
         }
@@ -387,7 +387,7 @@ void CellTree::analyze( const art::Event& event )
             processMCTracks();
             TString jsonfile;
             jsonfile.Form("data/%i/%i-mc.json", entryNo, entryNo);
-            ofstream out(jsonfile.Data());
+            std::ofstream out(jsonfile.Data());
             DumpMCJSON(out);
             out.close();
         }

@@ -26,11 +26,11 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Persistency/Common/Ptr.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
 // LArSoft libraries
-#include "larcore/SimpleTypesAndConstants/geo_types.h" // geo::kZ
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // geo::kZ
 
 
 trkf::StitchAlg::StitchAlg(fhicl::ParameterSet const& pset) 

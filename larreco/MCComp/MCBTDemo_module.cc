@@ -7,24 +7,24 @@
 // from cetpkgsupport v1_08_02.
 ////////////////////////////////////////////////////////////////////////
 
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
-#include "art/Utilities/InputTag.h"
+#include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include <iostream>
 #include "larcore/Geometry/Geometry.h"
-#include "larsim/Simulation/SimChannel.h"
-#include "lardata/MCBase/MCTrack.h"
-#include "lardata/MCBase/MCShower.h"
-#include "lardata/RecoBase/Track.h"
-#include "lardata/RecoBase/Hit.h"
+#include "larsimobj/Simulation/SimChannel.h"
+#include "lardataobj/MCBase/MCTrack.h"
+#include "lardataobj/MCBase/MCShower.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "MCBTAlg.h"
 
 class MCBTDemo : public art::EDAnalyzer {

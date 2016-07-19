@@ -9,7 +9,7 @@
 
 // ART and support libraries
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/Ptr.h"
 
 // LArSoft libraries
 #include "larcore/Geometry/Geometry.h"

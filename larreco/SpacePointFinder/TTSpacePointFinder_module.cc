@@ -28,11 +28,11 @@
 #include "art/Framework/Core/EDProducer.h" 
 
 // LArSoft Includes
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/SpacePointAlg_TimeSort.h"
 

@@ -1,4 +1,4 @@
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
 #ifndef FEATURETRACKER_H
 #define FEATURETRACKER_H
@@ -18,8 +18,8 @@
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "TVector3.h"
 #include "larcore/Geometry/CryostatGeo.h"
-#include "lardata/RecoBase/EndPoint2D.h"
-#include "lardata/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
+#include "lardataobj/RecoBase/Wire.h"
 
 #include "larreco/RecoAlg/CornerFinderAlg.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
@@ -115,9 +115,9 @@ namespace trkf {
 
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Seed.h"
-#include "lardata/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Seed.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 

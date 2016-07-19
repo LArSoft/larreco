@@ -29,9 +29,9 @@
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/RecoBase/Seed.h"
+#include "lardataobj/RecoBase/Seed.h"
 #include "larsim/MCCheater/BackTracker.h"
-#include "lardata/MCBase/MCTrack.h"
+#include "lardataobj/MCBase/MCTrack.h"
  
 #include "TH2F.h"
 #include "TFile.h"

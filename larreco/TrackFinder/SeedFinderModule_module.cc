@@ -10,7 +10,7 @@
 //
 
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
@@ -86,11 +86,11 @@ namespace trkf {
 #include "larcore/Geometry/Geometry.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Seed.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Track.h"
-#include "lardata/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Seed.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"

@@ -15,8 +15,8 @@
 #include "TH1D.h"
 #include <vector>
 #include <string>
-#include "lardata/RecoBase/Wire.h"
-#include "lardata/RecoBase/EndPoint2D.h"
+#include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
 #include "larcore/Geometry/Geometry.h"
 
 

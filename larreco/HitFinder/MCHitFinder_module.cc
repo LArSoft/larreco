@@ -13,17 +13,17 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
-#include "art/Utilities/InputTag.h"
+#include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
 #include <memory>
 
-#include "larsim/Simulation/SimChannel.h"
+#include "larsimobj/Simulation/SimChannel.h"
 
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/MCBase/MCDataHolder.h"
-#include "lardata/MCBase/MCHitCollection.h"
-#include "lardata/MCBase/MCWireCollection.h"
+#include "lardataobj/MCBase/MCDataHolder.h"
+#include "lardataobj/MCBase/MCHitCollection.h"
+#include "lardataobj/MCBase/MCWireCollection.h"
 
 namespace hit {
 

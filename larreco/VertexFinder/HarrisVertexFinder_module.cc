@@ -21,12 +21,12 @@
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Persistency/Common/Ptr.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
@@ -46,9 +46,9 @@ extern "C" {
 #include <string>
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/EndPoint2D.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/CryostatGeo.h"
 #include "larcore/Geometry/TPCGeo.h"
@@ -390,7 +390,7 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
 //this method saves a BMP image of the vertex map space, which can be viewed with gimp
 void vertex::HarrisVertexFinder::SaveBMPFile(const char *fileName, unsigned char *pix, int dx, int dy)
 {
-  ofstream bmpFile(fileName, std::ios::binary);
+  std::ofstream bmpFile(fileName, std::ios::binary);
   bmpFile.write("B", 1);
   bmpFile.write("M", 1);
   int bitsOffset = 54 +256*4; 

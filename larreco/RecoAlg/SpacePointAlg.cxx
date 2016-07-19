@@ -22,14 +22,14 @@
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Principal/View.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 //\todo Remove include of BackTracker.h once this algorithm is stripped of test for MC
 #include "larsim/MCCheater/BackTracker.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/RecoObjects/KHitTrack.h"
 #include "lardata/RecoObjects/KHitWireX.h"
 

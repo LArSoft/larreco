@@ -24,13 +24,13 @@
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Core/EDProducer.h" 
-#include "art/Framework/Core/FindOneP.h"
+#include "canvas/Persistency/Common/FindOneP.h"
 
 
 // LArSoft Includes
-#include "lardata/RawData/RawDigit.h"
-#include "lardata/RecoBase/Wire.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RawData/RawDigit.h"
+#include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/RecoBaseArt/HitCreator.h"
 #include "larreco/RecoAlg/DisambigAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"

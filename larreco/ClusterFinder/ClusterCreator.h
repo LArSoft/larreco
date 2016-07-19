@@ -16,7 +16,7 @@
 #include <utility> // std::move()
 
 // LArSoft libraries
-#include "lardata/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Cluster.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlgBase.h"
 
 

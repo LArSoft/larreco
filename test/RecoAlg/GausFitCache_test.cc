@@ -19,8 +19,8 @@
 
 // boost test libraries
 #define BOOST_TEST_MODULE ( HitAnaAlg_test )
-#include "boost/test/auto_unit_test.hpp"
-#include <boost/test/unit_test.hpp> // BOOST_CHECK_CLOSE
+#include "cetlib/quiet_unit_test.hpp"
+#include <cetlib/quiet_unit_test.hpp> // BOOST_CHECK_CLOSE
 
 // ROOT libraries
 #include "TH1D.h"

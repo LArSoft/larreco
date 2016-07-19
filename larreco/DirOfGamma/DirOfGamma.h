@@ -8,9 +8,9 @@
 #ifndef DirOfGamma_h
 #define DirOfGamma_h
 
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
 
-#include "art/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/Ptr.h"
 
 #include "TVector2.h"
 #include "TVector3.h"

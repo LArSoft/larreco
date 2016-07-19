@@ -19,13 +19,13 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Framework/Core/FindManyP.h"
-#include "art/Persistency/Common/Ptr.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/FindManyP.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
 // LArSoft
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/ClusterParamsAlg.h"
 #include "larreco/RecoAlg/CMTool/CMToolBase/CMergeManager.h"
 #include "lardata/Utilities/AssociationUtil.h"

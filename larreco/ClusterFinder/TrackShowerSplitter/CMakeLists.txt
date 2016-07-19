@@ -1,8 +1,8 @@
 add_subdirectory(Segmentation2D)
 
 simple_plugin(TrackShowerHits   "module"
-			lardata_RawData
-		 	lardata_RecoBase
+			lardataobj_RawData
+		 	lardataobj_RecoBase
 			larreco_RecoAlg
 			larreco_ClusterFinder_TrackShowerSplitter_Segmentation2D
 		 	larcore_Geometry
@@ -13,9 +13,9 @@ simple_plugin(TrackShowerHits   "module"
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
          		${ART_FRAMEWORK_SERVICES_OPTIONAL}
     			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
- 			${ART_PERSISTENCY_COMMON}
-			${ART_PERSISTENCY_PROVENANCE}
-			${ART_UTILITIES}
+ 			art_Persistency_Common canvas_Persistency_Common
+			art_Persistency_Provenance canvas_Persistency_Provenance
+			art_Utilities canvas_Utilities
 			${MF_MESSAGELOGGER}
 			${MF_UTILITIES}
 			${CETLIB}

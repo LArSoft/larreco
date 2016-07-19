@@ -17,7 +17,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Utilities/InputTag.h"
+#include "canvas/Utilities/InputTag.h"
 
 //LArSoft includes
 #include "larreco/RecoAlg/CCHitFinderAlg.h"
@@ -58,8 +58,8 @@ namespace hit {
 #include "art/Framework/Principal/Handle.h"
 
 //LArSoft includes
-#include "lardata/RecoBase/Wire.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
 
 
