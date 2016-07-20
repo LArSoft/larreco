@@ -929,6 +929,107 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 }
 // ------------------------------------------------------
 
+void pma::ProjectionMatchingAlg::guideEndpoints(
+	pma::Track3D& trk, pma::Track3D::ETrackEnd endpoint,
+	const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits) const
+{
+	const double maxCosXZ = 0.992546; // 7 deg
+
+	unsigned int tpc, cryo;
+	pma::Segment3D* seg0 = 0;
+	pma::Segment3D* seg1 = 0;
+
+	if (endpoint == pma::Track3D::kBegin)
+	{
+		tpc = trk.FrontTPC(), cryo = trk.FrontCryo();
+		seg0 = trk.Segments().front();
+		if (trk.Segments().size() > 2)
+		{
+			seg1 = trk.Segments()[1];
+		}
+	}
+	else
+	{
+		tpc = trk.BackTPC(), cryo = trk.BackCryo();
+		seg0 = trk.Segments().back();
+		if (trk.Segments().size() > 2)
+		{
+			seg1 = trk.Segments()[trk.Segments().size() - 2];
+		}
+	}
+	if (seg1 && (seg0->Length() < 0.8) && (seg1->Length() > 5.0))
+	{
+		seg0 = seg1;
+	}
+	TVector3 dir0 = seg0->GetDirection3D();
+	TVector3 dir0XZ(dir0.X(), 0., dir0.Z());
+	dir0XZ *= 1.0 / dir0XZ.Mag();
+
+	if (fabs(dir0XZ.Z()) < maxCosXZ) { return; } // not parallel to wire planes => exit
+
+	unsigned int nPlanes = 0;
+	std::pair<int, int> wires[3]; // wire index; index direction
+	double x0[3];
+
+	for (unsigned int i = 0; i < 3; i++)
+	{
+		bool present = false;
+		if (fGeom->TPC(tpc, cryo).HasPlane(i))
+		{
+			int idx0 = -1, idx1 = -1;
+			if (endpoint == pma::Track3D::kBegin)
+			{
+				idx0 = trk.NextHit(-1, i);
+			}
+			else
+			{
+				idx0 = trk.PrevHit(trk.size(), i);
+			}
+
+			if (idx0 >= 0)
+			{
+				if (endpoint == pma::Track3D::kBegin)
+				{
+					idx1 = trk.NextHit(idx0, i);
+				}
+				else
+				{
+					idx1 = trk.PrevHit(idx0, i);
+				}
+
+				if (idx1 >= 0)
+				{
+					int w0 = trk[idx0]->Wire();
+					int w1 = trk[idx1]->Wire();
+
+					wires[i].first = w0;
+					wires[i].second = w0 - w1;
+					x0[i] = fDetProp->ConvertTicksToX(trk[idx0]->PeakTime(), i, tpc, cryo);
+
+					if (wires[i].second)
+					{
+						if (wires[i].second > 0) wires[i].second = 1;
+						else wires[i].second = -1;
+
+						present = true;
+						nPlanes++;
+					}
+				}
+			}
+		}
+		if (!present) { wires[i].first = -1; }
+	}
+
+	if ((nPlanes > 1) && (fabs(dir0XZ.Z()) >= maxCosXZ) &&
+	     addEndpointRef(trk, hits, wires, x0, tpc, cryo))
+	{
+		mf::LogVerbatim("ProjectionMatchingAlg") << "guide wire-plane-parallel track endpoint";
+		double g = trk.Optimize(0, 0.1 * fFineTuningEps);
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  done, g = " << g;
+	}
+}
+// ------------------------------------------------------
+
 std::vector< pma::Hit3D* > pma::ProjectionMatchingAlg::trimTrackToVolume(
 	pma::Track3D& trk, TVector3 p0, TVector3 p1) const
 {

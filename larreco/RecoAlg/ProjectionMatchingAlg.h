@@ -194,9 +194,12 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		bool add_nodes) const;
 
-	/// Add 3D reference points to clean endpoints of a track.
-	void guideEndpoints(
-		pma::Track3D& trk,
+	/// Add 3D reference points to clean endpoints of a track (both need to be in the same TPC).
+	void guideEndpoints(pma::Track3D& trk,
+		const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits) const;
+
+	/// Add 3D reference points to clean endpoint of a track.
+	void guideEndpoints(pma::Track3D& trk, pma::Track3D::ETrackEnd endpoint,
 		const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits) const;
 
 	std::vector< pma::Hit3D* > trimTrackToVolume(pma::Track3D& trk, TVector3 p0, TVector3 p1) const;

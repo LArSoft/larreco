@@ -109,3 +109,232 @@ recob::Track pma::convertFrom(const pma::Track3D& src, unsigned int tidx)
 }
 // ------------------------------------------------------
 
+pma::PMAlgTrackingBase::PMAlgTrackingBase(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
+                                          const pma::ProjectionMatchingAlg::Config& pmalgConfig,
+                                          const pma::PMAlgVertexing::Config& pmvtxConfig) :
+	fProjectionMatchingAlg(pmalgConfig),
+	fPMAlgVertexing(pmvtxConfig)
+{
+	unsigned int cryo, tpc, view;
+	for (auto const& h : allhitlist)
+	{
+		cryo = h->WireID().Cryostat;
+		tpc = h->WireID().TPC;
+		view = h->WireID().Plane;
+
+		fHitMap[cryo][tpc][view].push_back(h);
+	}
+}
+// ------------------------------------------------------
+
+pma::PMAlgTrackingBase::~PMAlgTrackingBase(void)
+{
+	for (auto t : fResult.tracks()) t.DeleteTrack();
+}
+// ------------------------------------------------------
+
+void pma::PMAlgTrackingBase::guideEndpoints(void)
+{
+	for (auto const & t : fResult.tracks())
+	{
+		auto & trk = *(t.Track());
+
+		unsigned int tpc = trk.FrontTPC(), cryo = trk.FrontCryo();
+		if ((tpc == trk.BackTPC()) && (cryo == trk.BackCryo()))
+		{
+			fProjectionMatchingAlg.guideEndpoints(trk, fHitMap[cryo][tpc]);
+		}
+		else
+		{
+			fProjectionMatchingAlg.guideEndpoints(trk, pma::Track3D::kBegin,
+				fHitMap[trk.FrontCryo()][trk.FrontTPC()]);
+			fProjectionMatchingAlg.guideEndpoints(trk, pma::Track3D::kEnd,
+				fHitMap[trk.BackCryo()][trk.BackTPC()]);
+		}
+	}
+}
+// ------------------------------------------------------
+// ------------------------------------------------------
+// ------------------------------------------------------
+
+pma::PMAlgFitter::PMAlgFitter(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
+                              const std::vector< recob::Cluster > & clusters,
+                              const std::vector< recob::PFParticle > & pfparticles,
+                              const art::FindManyP< recob::Hit > & hitsFromClusters,
+                              const art::FindManyP< recob::Cluster > & clusFromPfps,
+                              const art::FindManyP< recob::Vertex > & vtxFromPfps,
+                              const pma::ProjectionMatchingAlg::Config& pmalgConfig,
+                              const pma::PMAlgVertexing::Config& pmvtxConfig) :
+	PMAlgTrackingBase(allhitlist, pmalgConfig, pmvtxConfig)
+{
+	mf::LogVerbatim("PMAlgTrajFitter") << "Found " << allhitlist.size() << "hits in the event.";
+	mf::LogVerbatim("PMAlgTrajFitter") << "Sort hits by clusters assigned to PFParticles...";
+
+	fCluHits.resize(clusters.size());
+	for (size_t i = 0; i < pfparticles.size(); ++i)
+	{
+		fPfpPdgCodes[i] = pfparticles[i].PdgCode();
+
+		auto cv = clusFromPfps.at(i);
+		for (const auto & c : cv)
+		{
+			fPfpClusters[i].push_back(c);
+
+			if (fCluHits[c.key()].empty())
+			{
+				auto hv = hitsFromClusters.at(c.key());
+				fCluHits[c.key()].reserve(hv.size());
+				for (auto const & h : hv) fCluHits[c.key()].push_back(h);
+			}
+		}
+
+		if (vtxFromPfps.at(i).size())
+		{
+			double xyz[3];
+			vtxFromPfps.at(i).front()->XYZ(xyz);
+			fPfpVtx[i] = pma::Vector3D(xyz[0], xyz[1], xyz[2]);
+		}
+	}
+
+	mf::LogVerbatim("PMAlgTrajFitter") << "...done, "
+		<< fCluHits.size() << " clusters from "
+		<< fPfpClusters.size() << " pfparticles for 3D tracking.";
+}
+// ------------------------------------------------------
+
+int pma::PMAlgFitter::build(bool runVertexing,
+	const std::vector<int> & trackingOnlyPdg,
+	const std::vector<int> & trackingSkipPdg)
+{
+    if (!fPfpClusters.empty() && !fCluHits.empty())
+    {
+			// build pm tracks
+			buildTracks(trackingOnlyPdg, trackingSkipPdg);
+
+			// add 3D ref.points for clean endpoints of wire-plae parallel tracks
+			guideEndpoints();
+
+			if (runVertexing) fPMAlgVertexing.run(fResult);
+
+			// build segment of shower
+			buildShowers(trackingOnlyPdg, trackingSkipPdg);
+    }
+    else
+    {
+        mf::LogWarning("PMAlgTrajFitter") << "no clusters, no pfparticles";
+        return -1;
+    }
+    
+    return fResult.size();
+}
+// ------------------------------------------------------
+
+void pma::PMAlgFitter::buildTracks(
+	const std::vector<int> & trackingOnlyPdg,
+	const std::vector<int> & trackingSkipPdg)
+{
+		bool skipPdg = true;
+		if (!trackingSkipPdg.empty() && (trackingSkipPdg.front() == 0)) skipPdg = false;
+
+		bool selectPdg = true;
+		if (!trackingOnlyPdg.empty() && (trackingOnlyPdg.front() == 0)) selectPdg = false;
+
+		for (const auto & pfpCluEntry : fPfpClusters)
+		{
+			int pfPartIdx = pfpCluEntry.first;
+			int pdg = fPfpPdgCodes[pfPartIdx];
+
+			if (pdg == 11) continue;
+			if (skipPdg && has(trackingSkipPdg, pdg)) continue;
+			if (selectPdg && !has(trackingOnlyPdg, pdg)) continue;
+
+			mf::LogVerbatim("PMAlgTrajFitter") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
+
+			std::vector< art::Ptr<recob::Hit> > allHits;
+
+			pma::TrkCandidate candidate;
+			for (const auto & c : pfpCluEntry.second)
+			{
+				candidate.Clusters().push_back(c.key());
+
+				allHits.reserve(allHits.size() + fCluHits.at(c.key()).size());
+				for (const auto & h : fCluHits.at(c.key()))
+				{
+					allHits.push_back(h);
+				}
+			}
+			candidate.SetKey(pfpCluEntry.first);
+
+			candidate.SetTrack(fProjectionMatchingAlg.buildMultiTPCTrack(allHits));
+
+			if (candidate.IsValid() &&
+			    candidate.Track()->HasTwoViews() &&
+			    (candidate.Track()->Nodes().size() > 1))
+			{
+	   			fResult.push_back(candidate);
+			}
+			else
+			{
+				candidate.DeleteTrack();
+			}
+		}
+}
+// ------------------------------------------------------
+
+void pma::PMAlgFitter::buildShowers(
+	const std::vector<int> & trackingOnlyPdg,
+	const std::vector<int> & trackingSkipPdg)
+{
+		bool skipPdg = true;
+		if (!trackingSkipPdg.empty() && (trackingSkipPdg.front() == 0))
+			skipPdg = false;
+
+		bool selectPdg = true;
+		if (!trackingOnlyPdg.empty() && (trackingOnlyPdg.front() == 0))
+			selectPdg = false;
+
+		for (const auto & pfpCluEntry : fPfpClusters)
+		{
+			int pfPartIdx = pfpCluEntry.first;
+			int pdg = fPfpPdgCodes[pfPartIdx];
+
+			if (pdg != 11) continue;
+			if (skipPdg && has(trackingSkipPdg, pdg)) continue;
+			if (selectPdg && !has(trackingOnlyPdg, pdg)) continue;
+
+			mf::LogVerbatim("PMAlgTrajFitter") << "Process clusters from PFP:" << pfPartIdx << ", pdg:" << pdg;
+
+			std::vector< art::Ptr<recob::Hit> > allHits;
+
+			pma::TrkCandidate candidate;
+			for (const auto & c : pfpCluEntry.second)
+			{
+				candidate.Clusters().push_back(c.key());
+
+				allHits.reserve(allHits.size() + fCluHits.at(c.key()).size());
+				for (const auto & h : fCluHits.at(c.key()))
+					allHits.push_back(h);
+			}
+
+			candidate.SetKey(pfpCluEntry.first);
+
+			mf::LogVerbatim("PMAlgTrajFitter") << "building..." << ", pdg:" << pdg;
+
+			auto search = fPfpVtx.find(pfPartIdx);
+			if (search != fPfpVtx.end())
+			{
+				candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, search->second));
+				if (candidate.IsValid()
+						&& candidate.Track()->HasTwoViews() 
+						&& (candidate.Track()->Nodes().size() > 1)) 
+				{
+					fResult.push_back(candidate);
+				}
+				else
+				{
+					candidate.DeleteTrack();
+				}
+			}
+		}
+}
+// ------------------------------------------------------

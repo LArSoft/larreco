@@ -59,7 +59,6 @@
 #include "larreco/RecoAlg/PMAlgTracking.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
-#include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 
 #include "TMath.h"
 
