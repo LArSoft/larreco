@@ -3242,7 +3242,11 @@ namespace tca {
               <<" jpl "<<jpl<<" jvx "<<jvx<<" jvX "<<vX[jvx]<<" W:T "<<(int)tjs.vtx[jvx].Wire<<":"<<(int)tjs.vtx[jvx].Time<<" dXChi "<<dXChi<<" fVertex3DChiCut "<<fVertex3DChiCut;
             
             if(dXChi > fVertex3DChiCut) continue;
-            geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+            if (geom->HasWire(geo::WireID(cstat, tpc, ipl, iWire))&&
+                geom->HasWire(geo::WireID(cstat, tpc, jpl, jWire))){
+              geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+            }
+            else continue;
             if(y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
             WPos[1] = y;
             WPos[2] = z;
