@@ -7,6 +7,8 @@
 // Module to make EM showers.
 // Takes the output from cluster finding and track finding and combines
 // information to make complete 3D shower.
+//
+// See DUNE-DocDB 1369 (public) for a detailed description.
 ////////////////////////////////////////////////////////////////////////////
 
 // Framework includes:

@@ -5,7 +5,9 @@
 // Author:      Mike Wallbank (m.wallbank@sheffield.ac.uk), May 2015
 //
 // Reconstructs showers by blurring the hit map image to introduce fake
-// hits before clustering to make fuller and more complete clusters
+// hits before clustering to make fuller and more complete clusters.
+//
+// See DUNE-DocDB 54 (public) for details.
 ////////////////////////////////////////////////////////////////////////
 
 // Framework includes:
