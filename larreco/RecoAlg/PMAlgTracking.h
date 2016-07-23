@@ -14,6 +14,8 @@
 // Framework includes
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Sequence.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
@@ -37,6 +39,8 @@
 
 namespace pma
 {
+	typedef std::map< size_t, pma::TrkCandidateColl > tpc_track_map;
+
 	recob::Track convertFrom(const pma::Track3D& src, unsigned int tidx);
 
 	class PMAlgTrackingBase;
@@ -64,13 +68,7 @@ protected:
 		const pma::PMAlgVertexing::Config& pmvtxConfig);
 	~PMAlgTrackingBase(void);
 
-	bool has(const std::vector<int> & v, int i) const
-	{
-		for (auto c : v) { if (c == i) return true; }
-		return false;
-	}
-
-	void guideEndpoints(void);
+	void guideEndpoints(pma::TrkCandidateColl & tracks);
 
 	pma::cryo_tpc_view_hitmap fHitMap;
 
@@ -85,6 +83,26 @@ class pma::PMAlgFitter : public pma::PMAlgTrackingBase
 {
 public:
 
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
+
+		fhicl::Sequence<int> TrackingOnlyPdg {
+			Name("TrackingOnlyPdg"),
+			Comment("PDG list to select which PFParticles should be reconstructed; all PFP's are used if the list is empty or starts with 0")
+		};
+
+		fhicl::Sequence<int> TrackingSkipPdg {
+			Name("TrackingSkipPdg"),
+			Comment("PDG list to select which PFParticles should NOT be reconstructed, e.g. skip EM-like if contains 11; no skipping if the list is empty or starts with 0")
+		};
+
+		fhicl::Atom<bool> RunVertexing {
+			Name("RunVertexing"),
+			Comment("find vertices from PFP hierarchy, join with tracks, reoptimize track-vertex structure")
+		};
+    };
+
 	PMAlgFitter(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
 		const std::vector< recob::Cluster > & clusters,
 		const std::vector< recob::PFParticle > & pfparticles,
@@ -92,33 +110,251 @@ public:
 		const art::FindManyP< recob::Cluster > & clusFromPfps,
 		const art::FindManyP< recob::Vertex > & vtxFromPfps,
 		const pma::ProjectionMatchingAlg::Config& pmalgConfig,
+		const pma::PMAlgFitter::Config& pmalgFitterConfig,
 		const pma::PMAlgVertexing::Config& pmvtxConfig);
 
-	int build(bool runVertexing,
-		const std::vector<int> & trackingOnlyPdg = std::vector<int>(),
-		const std::vector<int> & trackingSkipPdg = std::vector<int>());
+	int build(void);
 
 private:
 
-	void buildTracks(const std::vector<int> & trackingOnlyPdg, const std::vector<int> & trackingSkipPdg);
-	void buildShowers(const std::vector<int> & trackingOnlyPdg, const std::vector<int> & trackingSkipPdg);
+	void buildTracks(void);
+	void buildShowers(void);
+
+	bool has(const std::vector<int> & v, int i) const
+	{
+		for (auto c : v) { if (c == i) return true; }
+		return false;
+	}
 
 	std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
 	std::map< int, std::vector< art::Ptr<recob::Cluster> > > fPfpClusters;
 	std::map< int, pma::Vector3D > fPfpVtx;
 	std::map< int, int > fPfpPdgCodes;
+
+	// ******************** fcl parameters ***********************
+	std::vector<int> fTrackingOnlyPdg; // make tracks only for this pdg's when using input from PFParticles
+	std::vector<int> fTrackingSkipPdg; // skip tracks with this pdg's when using input from PFParticles
+	bool fRunVertexing;                // run vertex finding
 };
 
 class pma::PMAlgTracker : public pma::PMAlgTrackingBase
 {
 public:
 
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
+
+		fhicl::Atom<size_t> MinSeedSize1stPass {
+			Name("MinSeedSize1stPass"),
+			Comment("min. cluster size used to start building a track in the 1st pass")
+		};
+
+		fhicl::Atom<size_t> MinSeedSize2ndPass {
+			Name("MinSeedSize2ndPass"),
+			Comment("min. cluster size used to start building a track in the 2nd pass")
+		};
+
+		fhicl::Atom<bool> RunVertexing {
+			Name("RunVertexing"),
+			Comment("find vertices from PFP hierarchy, join with tracks, reoptimize track-vertex structure")
+		};
+
+		fhicl::Atom<bool> FlipToBeam {
+			Name("FlipToBeam"),
+			Comment("set the track direction to increasing Z values")
+		};
+
+		fhicl::Atom<bool> FlipDownward {
+			Name("FlipDownward"),
+			Comment("set the track direction to decreasing Y values (like cosmic rays)")
+		};
+
+		fhicl::Atom<bool> AutoFlip_dQdx {
+			Name("AutoFlip_dQdx"),
+			Comment("set the track direction to increasing dQ/dx (overrides FlipToBeam and FlipDownward if significant rise of dQ/dx at the track end)")
+		};
+
+		fhicl::Atom<bool> MergeWithinTPC {
+			Name("MergeWithinTPC"),
+			Comment("merge witnin single TPC; finds tracks best matching by angle and displacement")
+		};
+
+		fhicl::Atom<double> MergeTransverseShift {
+			Name("MergeTransverseShift"),
+			Comment("max. transverse displacement [cm] between tracks")
+		};
+
+		fhicl::Atom<double> MergeAngle {
+			Name("MergeAngle"),
+			Comment("max. angle [degree] between tracks (nearest segments)")
+		};
+
+		fhicl::Atom<bool> StitchBetweenTPCs {
+			Name("StitchBetweenTPCs"),
+			Comment("stitch between TPCs; finds tracks best matching by angle and displacement")
+		};
+
+		fhicl::Atom<double> StitchDistToWall {
+			Name("StitchDistToWall"),
+			Comment("max. track endpoint distance [cm] to TPC boundary")
+		};
+
+		fhicl::Atom<double> StitchTransverseShift {
+			Name("StitchTransverseShift"),
+			Comment("max. transverse displacement [cm] between tracks")
+		};
+
+		fhicl::Atom<double> StitchAngle {
+			Name("StitchAngle"),
+			Comment("max. angle [degree] between tracks (nearest segments)")
+		};
+
+		fhicl::Atom<bool> MatchT0inAPACrossing {
+			Name("MatchT0inAPACrossing"),
+			Comment("match T0 of APA-crossing tracks, TPC stitching limits are used, but track parts are not stitched into a single recob::Track")
+		};
+    };
+
 	PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
 		const pma::ProjectionMatchingAlg::Config& pmalgConfig,
-		const pma::PMAlgVertexing::Config& pmvtxConfig) : PMAlgTrackingBase(allhitlist, pmalgConfig, pmvtxConfig)
+		const pma::PMAlgTracker::Config& pmalgTrackerConfig,
+		const pma::PMAlgVertexing::Config& pmvtxConfig) :
+
+		PMAlgTrackingBase(allhitlist, pmalgConfig, pmvtxConfig),
+
+		fMinSeedSize1stPass(pmalgTrackerConfig.MinSeedSize1stPass()),
+		fMinSeedSize2ndPass(pmalgTrackerConfig.MinSeedSize2ndPass()),
+		fMinTwoViewFraction(pmalgConfig.MinTwoViewFraction()),
+
+		fFlipToBeam(pmalgTrackerConfig.FlipToBeam()),
+		fFlipDownward(pmalgTrackerConfig.FlipDownward()),
+		fAutoFlip_dQdx(pmalgTrackerConfig.AutoFlip_dQdx()),
+
+		fMergeWithinTPC(pmalgTrackerConfig.MergeWithinTPC()),
+		fMergeTransverseShift(pmalgTrackerConfig.MergeTransverseShift()),
+		fMergeAngle(pmalgTrackerConfig.MergeAngle()),
+
+		fStitchBetweenTPCs(pmalgTrackerConfig.StitchBetweenTPCs()),
+		fStitchDistToWall(pmalgTrackerConfig.StitchDistToWall()),
+		fStitchTransverseShift(pmalgTrackerConfig.StitchTransverseShift()),
+		fStitchAngle(pmalgTrackerConfig.StitchAngle()),
+
+		fMatchT0inAPACrossing(pmalgTrackerConfig.MatchT0inAPACrossing()),
+
+		fRunVertexing(pmalgTrackerConfig.RunVertexing()),
+
+		fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 	{}
 
+	void init(const art::FindManyP< recob::Hit > & hitsFromClusters);
+
+	void init(const art::FindManyP< recob::Hit > & hitsFromClusters,
+		const art::FindManyP< recob::Hit > & hitsFromEmParts);
+
+	int build(void);
+
 private:
+
+	double collectSingleViewEnd(pma::Track3D & trk, std::vector< art::Ptr<recob::Hit> > & hits);
+	double collectSingleViewFront(pma::Track3D & trk, std::vector< art::Ptr<recob::Hit> > & hits);
+
+	bool reassignHits_1(const std::vector< art::Ptr<recob::Hit> > & hits,
+		pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2);
+	bool reassignSingleViewEnds_1(pma::TrkCandidateColl & tracks); // use clusters
+
+	bool reassignHits_2(const std::vector< art::Ptr<recob::Hit> > & hits,
+		pma::TrkCandidateColl & tracks, size_t trk_idx, double dist2);
+	bool reassignSingleViewEnds_2(pma::TrkCandidateColl & tracks);
+
+	bool areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
+		double& dist, double& cos3d, bool& reverseOrder,
+		double distThr, double distThrMin,
+		double distProjThr,
+		double cosThr);
+
+	void freezeBranchingNodes(pma::TrkCandidateColl & tracks);
+	void releaseAllNodes(pma::TrkCandidateColl & tracks);
+
+	bool mergeCoLinear(pma::TrkCandidateColl & tracks);
+	void mergeCoLinear(pma::tpc_track_map& tracks);
+
+	bool areCoLinear(double& cos3d,
+		TVector3 f0, TVector3 b0, TVector3 f1, TVector3 b1,
+		double distProjThr);
+	void matchCoLinearAnyT0(void);
+
+	double validate(pma::Track3D& trk, unsigned int testView);
+
+	void fromMaxCluster_tpc(pma::TrkCandidateColl & result,
+		size_t minBuildSize, unsigned int tpc, unsigned int cryo);
+
+	pma::TrkCandidate matchCluster(int first_clu_idx, const std::vector< art::Ptr<recob::Hit> > & first_hits,
+		size_t minSizeCompl, unsigned int tpc, unsigned int cryo, geo::View_t first_view);
+
+	pma::TrkCandidate matchCluster(int first_clu_idx, size_t minSizeCompl,
+		unsigned int tpc, unsigned int cryo, geo::View_t first_view)
+	{
+		return matchCluster(first_clu_idx, fCluHits[first_clu_idx], minSizeCompl, tpc, cryo, first_view);
+	}
+
+	int matchCluster(const pma::TrkCandidate& trk,
+		size_t minSize, double fraction,
+		unsigned int preferedView, unsigned int testView,
+		unsigned int tpc, unsigned int cryo) const;
+
+	bool extendTrack(pma::TrkCandidate& candidate,
+		const std::vector< art::Ptr<recob::Hit> >& hits,
+		unsigned int testView, bool add_nodes);
+
+	int maxCluster(int first_idx_tag,
+		const pma::TrkCandidateColl & candidates,
+		float xmin, float xmax, size_t min_clu_size,
+		geo::View_t view, unsigned int tpc, unsigned int cryo) const;
+
+	int maxCluster(size_t min_clu_size,
+		geo::View_t view, unsigned int tpc, unsigned int cryo) const;
+
+	void listUsedClusters(void) const;
+
+	bool has(const std::vector<size_t>& v, size_t idx) const
+	{
+		for (auto c : v) if (c == idx) return true;
+		return false;
+	}
+
+	std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
+
+	/// these guys are temporary states, to be moved to function calls
+	std::vector< size_t > used_clusters, initial_clusters;
+	mutable std::map< unsigned int, std::vector<size_t> > tried_clusters;
+	/// --------------------------------------------------------------
+
+	// ******************** fcl parameters **********************
+	size_t fMinSeedSize1stPass;  // min. cluster size used to start building a track in the 1st pass
+	size_t fMinSeedSize2ndPass;  // min. cluster size used to start building a track in the 2nd pass
+	double fMinTwoViewFraction;
+
+	bool fFlipToBeam;            // set the track direction to increasing Z values
+	bool fFlipDownward;          // set the track direction to decreasing Y values
+	bool fAutoFlip_dQdx;         // set the track direction to increasing dQ/dx
+
+	bool fMergeWithinTPC;          // merge witnin single TPC; finds tracks best matching by angle, with limits:
+	double fMergeTransverseShift;  //   - max. transverse displacement [cm] between tracks
+	double fMergeAngle;            //   - max. angle [degree] between tracks (nearest segments)
+
+	bool fStitchBetweenTPCs;       // stitch between TPCs; finds tracks best matching by angle, with limits:
+	double fStitchDistToWall;      //   - max. track endpoint distance [cm] to TPC boundary
+	double fStitchTransverseShift; //   - max. transverse displacement [cm] between tracks
+	double fStitchAngle;           //   - max. angle [degree] between tracks (nearest segments)
+
+	bool fMatchT0inAPACrossing;    // match T0 of APA-crossing tracks, TPC stitching limits are used
+
+	bool fRunVertexing;          // run vertex finding
+
+	// *********************** services *************************
+	art::ServiceHandle< geo::Geometry > fGeom;
+	const detinfo::DetectorProperties* fDetProp;
 };
 
 #endif

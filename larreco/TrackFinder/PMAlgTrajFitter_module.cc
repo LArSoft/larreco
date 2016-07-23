@@ -62,6 +62,10 @@ public:
 			Name("ProjectionMatchingAlg")
 		};
 
+		fhicl::Table<pma::PMAlgFitter::Config> PMAlgFitting {
+			Name("PMAlgFitting")
+		};
+
 		fhicl::Table<pma::PMAlgVertexing::Config> PMAlgVertexing {
 			Name("PMAlgVertexing")
 		};
@@ -76,11 +80,6 @@ public:
 			Comment("tag of the input PFParticles and associated clusters")
 		};
 
-		fhicl::Atom<bool> RunVertexing {
-			Name("RunVertexing"),
-			Comment("find vertices from PFP hierarchy, join with tracks, reoptimize track-vertex structure")
-		};
-
 		fhicl::Atom<bool> SaveOnlyBranchingVtx {
 			Name("SaveOnlyBranchingVtx"),
 			Comment("use true to save only vertices interconnecting many tracks, otherwise vertex is added to the front of each track")
@@ -89,16 +88,6 @@ public:
 		fhicl::Atom<bool> SavePmaNodes {
 			Name("SavePmaNodes"),
 			Comment("save track nodes (only for algorithm development purposes)")
-		};
-
-		fhicl::Sequence<int> TrackingOnlyPdg {
-			Name("TrackingOnlyPdg"),
-			Comment("PDG list to select which PFParticles should be reconstructed; all PFP's are used if the list is empty or starts with 0")
-		};
-
-		fhicl::Sequence<int> TrackingSkipPdg {
-			Name("TrackingSkipPdg"),
-			Comment("PDG list to select which PFParticles should NOT be reconstructed, e.g. skip EM-like if contains 11; no skipping if the list is empty or starts with 0")
 		};
     };
     using Parameters = art::EDProducer::Table<Config>;
@@ -117,13 +106,10 @@ private:
   art::InputTag fHitModuleLabel; // tag for unclustered hit collection
   art::InputTag fPfpModuleLabel; // tag for PFParticle and cluster collections
 
-  std::vector<int> fTrackingOnlyPdg; // make tracks only for this pdg's when using input from PFParticles
-  std::vector<int> fTrackingSkipPdg; // skip tracks with this pdg's when using input from PFParticles
-
   pma::ProjectionMatchingAlg::Config fPmaConfig;
+  pma::PMAlgFitter::Config fPmaFitterConfig;
   pma::PMAlgVertexing::Config fPmaVtxConfig;
 
-  bool fRunVertexing;          // run vertex finding
   bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
   bool fSavePmaNodes;          // for debugging, save only track nodes
 
@@ -143,13 +129,10 @@ PMAlgTrajFitter::PMAlgTrajFitter(PMAlgTrajFitter::Parameters const& config) :
 	fHitModuleLabel(config().HitModuleLabel()),
 	fPfpModuleLabel(config().PfpModuleLabel()),
 
-	fTrackingOnlyPdg(config().TrackingOnlyPdg()),
-	fTrackingSkipPdg(config().TrackingSkipPdg()),
-
 	fPmaConfig(config().ProjectionMatchingAlg()),
+	fPmaFitterConfig(config().PMAlgFitting()),
 	fPmaVtxConfig(config().PMAlgVertexing()),
 
-	fRunVertexing(config().RunVertexing()),
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
 	fSavePmaNodes(config().SavePmaNodes())
 {
@@ -173,7 +156,7 @@ PMAlgTrajFitter::PMAlgTrajFitter(PMAlgTrajFitter::Parameters const& config) :
 
 void PMAlgTrajFitter::produce(art::Event& evt)
 {
-	// ---------------- Declare data products ----------------
+	// ---------------- Create data products ------------------
 	auto tracks = std::make_unique< std::vector<recob::Track> >();
 	auto allsp = std::make_unique< std::vector<recob::SpacePoint> >();
 	auto vtxs = std::make_unique< std::vector<recob::Vertex> >();  // interaction vertices
@@ -191,7 +174,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 
 	auto pfp2trk = std::make_unique< art::Assns< recob::PFParticle, recob::Track> >();
 
-	// ------------------- Collect inputs --------------------
+	// ------------------- Collect inputs ---------------------
 	art::Handle< std::vector<recob::Hit> > allHitListHandle;
 	art::Handle< std::vector<recob::Cluster> > cluListHandle;
 	art::Handle< std::vector<recob::PFParticle> > pfparticleHandle;
@@ -210,15 +193,15 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 	art::FindManyP< recob::Cluster > clustersFromPfps(pfparticleHandle, evt, fPfpModuleLabel);
 	art::FindManyP< recob::Vertex > vtxFromPfps(pfparticleHandle, evt, fPfpModuleLabel);
 
-	// -------------- PMA Fitter for this event --------------
+	// -------------- PMA Fitter for this event ---------------
 	auto pmalgFitter = pma::PMAlgFitter(allhitlist,
 		*cluListHandle, *pfparticleHandle,
 		hitsFromClusters, clustersFromPfps, vtxFromPfps,
-		fPmaConfig, fPmaVtxConfig);
+		fPmaConfig, fPmaFitterConfig, fPmaVtxConfig);
 
-	// ------------------ Do the job here: -------------------
-	int retCode = pmalgFitter.build(fRunVertexing, fTrackingOnlyPdg, fTrackingSkipPdg);
-	// -------------------------------------------------------
+	// ------------------ Do the job here: --------------------
+	int retCode = pmalgFitter.build();
+	// --------------------------------------------------------
 	switch (retCode)
 	{
 		case -2: mf::LogError("Summary") << "problem"; break;
@@ -231,8 +214,8 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 			break;
 	}
 
+	// ---------- Translate output to data products: ----------
 	auto const & result = pmalgFitter.Result();
-
 	if (!result.empty()) // ok, there is something to save
 	{
 		size_t spStart = 0, spEnd = 0;
@@ -248,11 +231,6 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 		for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex)
 		{
 			pma::Track3D* trk = result[trkIndex].Track();
-			if (!(trk->HasTwoViews() && (trk->Nodes().size() > 1)))
-			{   // should never happen and it does not indeed, but let's keep this test for a moment
-				mf::LogWarning("PMAlgTrajFitter") << "Skip degenerated track (should never happen).";
-				continue;
-			}
 
 			trk->SelectHits();  // just in case, set all to enabled
 			unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
@@ -333,7 +311,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 		auto ksel = pmalgFitter.getKinks(); // pairs of kink position - associated track idx 
 		std::map< size_t, art::Ptr<recob::Vertex> > frontVtxs; // front vertex ptr for each track index
 
-		if (fRunVertexing) // save vertices and vtx-trk assns
+		if (fPmaFitterConfig.RunVertexing()) // save vertices and vtx-trk assns
 		{
 			double xyz[3];
 			for (auto const & v : vsel)
