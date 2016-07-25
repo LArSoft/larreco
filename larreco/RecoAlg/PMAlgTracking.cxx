@@ -376,6 +376,7 @@ void pma::PMAlgTracker::init(const art::FindManyP< recob::Hit > & hitsFromCluste
 				{
 					if (g.key() == h.key()) { trkLike = false; break; }
 				}
+				if (!trkLike) break;
 			}
 			if (trkLike) fCluHits.back().push_back(h);
 		}
