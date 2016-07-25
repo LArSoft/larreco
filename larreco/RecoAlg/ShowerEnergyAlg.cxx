@@ -8,10 +8,6 @@
 
 #include "larreco/RecoAlg/ShowerEnergyAlg.h"
 
-// LArSoft libraries
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-
 shower::ShowerEnergyAlg::ShowerEnergyAlg(fhicl::ParameterSet const& pset)
   : detprop(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
@@ -24,7 +20,6 @@ shower::ShowerEnergyAlg::ShowerEnergyAlg(fhicl::ParameterSet const& pset)
 }
 
 double shower::ShowerEnergyAlg::ShowerEnergy(std::vector<art::Ptr<recob::Hit> > const& hits, int plane) {
-  /// Finds the total energy deposited by the shower in this view
 
   double totalCharge = 0, totalEnergy = 0;
 

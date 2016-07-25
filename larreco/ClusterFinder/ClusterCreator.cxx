@@ -16,8 +16,8 @@
 
 // LArSoft libraries
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
 
 
 /// Cluster reconstruction namespace

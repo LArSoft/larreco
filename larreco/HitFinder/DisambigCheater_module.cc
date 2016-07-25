@@ -12,18 +12,18 @@
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/FindOneP.h"
+#include "canvas/Persistency/Common/FindOneP.h"
 #include "art/Framework/Principal/Event.h"
 
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
-#include "larsim/Simulation/SimChannel.h"
-#include "lardata/RawData/RawDigit.h"
-#include "lardata/RecoBase/Wire.h"
-#include "lardata/RecoBase/Hit.h"
+#include "larsimobj/Simulation/SimChannel.h"
+#include "lardataobj/RawData/RawDigit.h"
+#include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/RecoBaseArt/HitCreator.h"
-#include "larcore/SimpleTypesAndConstants/geo_types.h"
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larsim/MCCheater/BackTracker.h"
 
 
@@ -60,6 +60,8 @@ namespace hit{
     
     unsigned int fFalseChanHits = 0; // hits with no IDEs - could be noise or other technical problems
     unsigned int fBadIDENearestWire = 0; // Just to count the inconsistent IDE wire returns
+
+    std::vector<unsigned int> fMaxWireShift; // shift to account for space charge and diffusion
     
   };
   
@@ -72,6 +74,47 @@ namespace hit{
     // hits and associations with wires and raw digits
     // (with no particular product label)
     recob::HitCollectionCreator::declare_products(*this);
+
+
+    // Space charge can shift true IDE postiion to far-off channels.
+    // Calculate maximum number of wires to shift hit in order to be on correct channel.
+    // Shift no more than half of the number of channels, as beyond there will 
+    //   have been a closer wire segment.
+    if( geom->Ncryostats()!=1 || geom->NTPC()<1 ){
+      fMaxWireShift.resize(3);
+      fMaxWireShift[0]=1;
+      fMaxWireShift[1]=1;
+      fMaxWireShift[2]=1;
+    } else {
+      // assume TPC 0 is typical of all in terms of number of channels
+      unsigned int np = geom->Cryostat(0).TPC(0).Nplanes();
+      fMaxWireShift.resize(np);
+      for(unsigned int p = 0; p<np; ++p){
+	double xyz[3] = {0.};
+	double xyz_next[3] = {0.};
+	unsigned int nw = geom->Cryostat(0).TPC(0).Plane(p).Nwires();
+	for(unsigned int w = 0; w<nw; ++w){
+	  
+	  // for vertical planes
+	  if(geom->Cryostat(0).TPC(0).Plane(p).View()==geo::kZ)   { 
+	    fMaxWireShift[2] = geom->Cryostat(0).TPC(0).Plane(p).Nwires();      
+	    break;
+	  }
+	  
+	  geom->Cryostat(0).TPC(0).Plane(p).Wire(w).GetCenter(xyz);
+	  geom->Cryostat(0).TPC(0).Plane(p).Wire(w+1).GetCenter(xyz_next);
+	  
+	  if(xyz[2]==xyz_next[2]){
+	    fMaxWireShift[p] = w;      
+	    break;
+	  }
+	}// end wire loop
+      }// end plane loop
+      
+      for(unsigned int i=0; i<np; i++)
+	fMaxWireShift[i] = std::floor(fMaxWireShift[i]/2);
+    }
+
   }
   
   //-------------------------------------------------------------------
@@ -231,7 +274,7 @@ namespace hit{
 	bool foundmatch(false);	
 	for( size_t w=0; w<cwids.size(); w++ ){	 
 	  if (cwids[w].TPC!=tpc || cwids[w].Cryostat!=cryo) continue;
-	  if( std::abs((int)(IdeWid.Wire) - (int)(cwids[w].Wire)) <= 1 ){
+	  if( (unsigned int)std::abs((int)(IdeWid.Wire) - (int)(cwids[w].Wire)) <= fMaxWireShift[cwids[0].Plane] ){
 	    storethis = cwids[w]; // ...apply correction
 	    foundmatch = true;
 	    break;

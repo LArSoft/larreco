@@ -19,9 +19,9 @@
 #include <string>
 #include <exception>
 
-#include "lardata/MCBase/MCHitCollection.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Wire.h"
+#include "lardataobj/MCBase/MCHitCollection.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Wire.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
 #include "TTree.h"

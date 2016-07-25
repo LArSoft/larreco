@@ -46,8 +46,8 @@
 #include "art/Framework/Core/ModuleMacros.h"
 
 //All the larsoft goodies:
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/GeometryUtilities.h"
 #include "larreco/RecoAlg/SmallClusterFinderAlg.h"
 #include "larcore/Geometry/PlaneGeo.h"

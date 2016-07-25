@@ -1924,9 +1924,11 @@ double shower::EMShowerAlg::ShowerHitRMSGradient(const std::vector<art::Ptr<reco
     TVector2 direction = TVector2(1,RMSgradient).Unit();
     TCanvas* canv = new TCanvas();
     graph->Draw();
+    graph->GetXaxis()->SetTitle("Shower segment");
+    graph->GetYaxis()->SetTitle("RMS of hit distribution");
     TVector2 centre = TVector2(graph->GetMean(1), graph->GetMean(2));
     TLine line;
-    line.SetLineColor(3);
+    line.SetLineColor(2);
     line.DrawLine(centre.X()-1000*direction.X(),centre.Y()-1000*direction.Y(),centre.X()+1000*direction.X(),centre.Y()+1000*direction.Y());
     canv->SaveAs("RMSGradient.png");
     delete canv;

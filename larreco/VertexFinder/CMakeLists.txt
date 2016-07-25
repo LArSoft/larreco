@@ -4,20 +4,20 @@ art_make(
           MODULE_LIBRARIES 
                         larsim_MCCheater_BackTracker_service
                         larevt_Filters
-                        lardata_RecoBase
+                        lardataobj_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
-                        larsim_Simulation
-                        ${SIMULATIONBASE}
+                        larsim_Simulation larsimobj_Simulation
+                        nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
 			${ART_FRAMEWORK_SERVICES_BASIC}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
-			${ART_PERSISTENCY_COMMON}
-			${ART_UTILITIES}
+			art_Persistency_Common canvas_Persistency_Common
+			art_Utilities canvas_Utilities
 			${MF_MESSAGELOGGER}
 			${MF_UTILITIES}
 	                ${FHICLCPP}
@@ -30,19 +30,19 @@ simple_plugin ( FeatureVertexFinder "module"
                         larreco_RecoAlg
                         larsim_MCCheater_BackTracker_service
                         larevt_Filters
-                        lardata_RecoBase
+                        lardataobj_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
-                        ${SIMULATIONBASE}
+                        nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
 			${ART_FRAMEWORK_SERVICES_BASIC}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
-			${ART_PERSISTENCY_COMMON}
-			${ART_UTILITIES}
+			art_Persistency_Common canvas_Persistency_Common
+			art_Utilities canvas_Utilities
 			${MF_MESSAGELOGGER}
 			${MF_UTILITIES}
 	                ${FHICLCPP}
@@ -53,16 +53,16 @@ simple_plugin ( FeatureVertexFinder "module"
 
 simple_plugin ( CornerFinder "module"
                         larreco_RecoAlg
-                        lardata_RecoBase
-                        ${SIMULATIONBASE}
+                        lardataobj_RecoBase
+                        nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
 			${ART_FRAMEWORK_SERVICES_BASIC}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
-			${ART_PERSISTENCY_COMMON}
-			${ART_UTILITIES}
+			art_Persistency_Common canvas_Persistency_Common
+			art_Utilities canvas_Utilities
 			${MF_MESSAGELOGGER}
 			${MF_UTILITIES}
 	                ${FHICLCPP}

@@ -37,8 +37,8 @@
 #define SMALLCLUSTERFINDERALG_H
 
 
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/GeometryUtilities.h"
 
 namespace cluster {

@@ -10,12 +10,12 @@
 #include <vector>
 
 // art libraries
-#include "art/Persistency/Common/Ptr.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Principal/Handle.h"
 
 // LArSoft libraries
-#include "lardata/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Track.h"
 
 namespace fhicl { class ParameterSet; }
 namespace art { class Event; }

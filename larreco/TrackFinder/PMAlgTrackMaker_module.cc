@@ -32,10 +32,15 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
-#include "art/Utilities/InputTag.h"
+
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 #include "fhiclcpp/types/Sequence.h"
+
+//#include "art/Framework/Services/Optional/TFileService.h"
+//#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "canvas/Utilities/InputTag.h"
+
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
@@ -43,14 +48,14 @@
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/PFParticle.h"
-#include "lardata/RecoBase/Track.h"
-#include "lardata/RecoBase/TrackHitMeta.h"
-#include "lardata/RecoBase/Vertex.h"
-#include "lardata/RecoBase/SpacePoint.h"
-#include "lardata/AnalysisBase/T0.h" 
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/TrackHitMeta.h"
+#include "lardataobj/RecoBase/Vertex.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
+#include "lardataobj/AnalysisBase/T0.h" 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 //#include "lardata/Utilities/PtrMaker.h"
@@ -200,8 +205,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	auto pfps = std::make_unique< std::vector< recob::PFParticle > >();
 
-    auto pfp2clu = std::make_unique< art::Assns<recob::PFParticle, recob::Cluster> >();
-    auto pfp2vtx = std::make_unique< art::Assns<recob::PFParticle, recob::Vertex> >();
+	auto pfp2clu = std::make_unique< art::Assns<recob::PFParticle, recob::Cluster> >();
+	auto pfp2vtx = std::make_unique< art::Assns<recob::PFParticle, recob::Vertex> >();
 	auto pfp2trk = std::make_unique< art::Assns< recob::PFParticle, recob::Track > >();
 
 
@@ -357,8 +362,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		auto tid = getProductID< std::vector<recob::Track> >(evt);
 		auto const* trkGetter = evt.productGetter(tid);
 
-		auto vsel = fPMAlgVertexing.getVertices(result, fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
-		auto ksel = fPMAlgVertexing.getKinks(result); // pairs of kink position - associated track idx 
+		auto vsel = pmalgTracker.getVertices(fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
+		auto ksel = pmalgTracker.getKinks(); // pairs of kink position - associated track idx 
 		std::map< size_t, art::Ptr<recob::Vertex> > frontVtxs; // front vertex ptr for each track index
 
 		if (fPmaTrackerConfig.RunVertexing()) // save vertices and vtx-trk assns
@@ -441,7 +446,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			art::Ptr<recob::Track> tptr(tid, t, trkGetter);
 			pfp2trk->addSingle(pfpptr, tptr);
 
-			if (fRunVertexing) // vertexing was used, so add assns to front vertex of each particle
+			// vertexing was selected, so add assns to front vertex of each particle
+			if (fPmaTrackerConfig.RunVertexing())
 			{
 				art::Ptr<recob::Vertex> vptr = frontVtxs[t];
 				if (!vptr.isNull()) pfp2vtx->addSingle(pfpptr, vptr);

@@ -16,16 +16,16 @@
 // LArSoft includes
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/RecoBase/Event.h"
-#include "lardata/RecoBase/Vertex.h"
-#include "lardata/RecoBase/Hit.h"
-#include "SimulationBase/MCTruth.h"
+#include "lardataobj/RecoBase/Event.h"
+#include "lardataobj/RecoBase/Vertex.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "nusimdata/SimulationBase/MCTruth.h"
 #include "larsim/Simulation/ParticleList.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/View.h"
 #include "fhiclcpp/ParameterSet.h"
@@ -34,7 +34,7 @@
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "art/Framework/Core/FindOneP.h"
+#include "canvas/Persistency/Common/FindOneP.h"
 #include "art/Framework/Core/EDProducer.h"
 
 ///Event finding and building

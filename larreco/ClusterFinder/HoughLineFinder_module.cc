@@ -54,9 +54,9 @@ extern "C" {
 #include "larsim/RandomUtils/LArSeedService.h"
 
 // LArSoft includes 
-#include "lardata/RawData/RawDigit.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RawData/RawDigit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/HoughBaseAlg.h"
 #include "art/Framework/Core/EDProducer.h"

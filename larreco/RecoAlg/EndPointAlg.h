@@ -10,8 +10,8 @@
 
 #include "art/Framework/Principal/Event.h"
 #include "fhiclcpp/ParameterSet.h" 
-#include "art/Persistency/Common/Ptr.h" 
-#include "art/Persistency/Common/PtrVector.h" 
+#include "canvas/Persistency/Common/Ptr.h" 
+#include "canvas/Persistency/Common/PtrVector.h" 
 #include "TMath.h"
 #include <vector>
 #include <string>

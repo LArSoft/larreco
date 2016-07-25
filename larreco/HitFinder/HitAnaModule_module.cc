@@ -25,8 +25,8 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
-#include "art/Persistency/Common/Assns.h"
-#include "art/Utilities/InputTag.h"
+#include "canvas/Persistency/Common/Assns.h"
+#include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 
 #include "art/Framework/Services/Optional/TFileService.h"
@@ -34,9 +34,9 @@
 #include <vector>
 #include <string>
 
-#include "lardata/RecoBase/Wire.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/MCBase/MCHitCollection.h"
+#include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/MCBase/MCHitCollection.h"
 #include "larreco/HitFinder/HitAnaAlg.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 

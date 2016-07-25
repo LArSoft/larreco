@@ -11,8 +11,8 @@
 #include <stdint.h>
 
 #include "fhiclcpp/ParameterSet.h" 
-#include "art/Persistency/Common/Ptr.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "larreco/ClusterFinder/RStarTree/RStarTree.h"
 #include "larcore/Geometry/Geometry.h"
 

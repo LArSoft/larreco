@@ -30,7 +30,7 @@ extern "C" {
 #include "TMath.h"
 
 // Framework includes
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
@@ -39,9 +39,9 @@ extern "C" {
 #include "larreco/RecoAlg/EndPointAlg.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/RecoBase/EndPoint2D.h"
-#include "lardata/RecoBase/Cluster.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/CryostatGeo.h"
 #include "larcore/Geometry/TPCGeo.h"
@@ -98,7 +98,7 @@ double cluster::EndPointAlg::GaussianDerivativeY(int x,int y)
 //this method saves a BMP image of the vertex map space, which can be viewed with gimp
 void cluster::EndPointAlg::VSSaveBMPFile(const char *fileName, unsigned char *pix, int dx, int dy)
 {
-  ofstream bmpFile(fileName, std::ios::binary);
+  std::ofstream bmpFile(fileName, std::ios::binary);
   bmpFile.write("B", 1);
   bmpFile.write("M", 1);
   int bitsOffset = 54 +256*4; 

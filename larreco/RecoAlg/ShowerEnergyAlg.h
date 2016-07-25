@@ -12,12 +12,13 @@
 // Framework
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
-#include "art/Persistency/Common/Ptr.h"
-#include "art/Persistency/Common/PtrVector.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
 // larsoft
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
 
 // ROOT
 #include "TMath.h"
@@ -30,6 +31,8 @@ class shower::ShowerEnergyAlg {
  public:
 
   ShowerEnergyAlg(fhicl::ParameterSet const& pset);
+
+  /// Finds the total energy deposited by the shower in this view
   double ShowerEnergy(std::vector<art::Ptr<recob::Hit> > const& hits, int plane);
 
  private:

@@ -19,8 +19,8 @@ extern "C" {
 #include "art/Framework/Principal/Event.h" 
 #include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Principal/Handle.h" 
-#include "art/Persistency/Common/Ptr.h" 
-#include "art/Persistency/Common/PtrVector.h" 
+#include "canvas/Persistency/Common/Ptr.h" 
+#include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art/Framework/Services/Optional/TFileService.h" 
@@ -28,8 +28,8 @@ extern "C" {
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // LArSoft includes
-#include "lardata/RecoBase/Event.h"
-#include "lardata/RecoBase/Vertex.h"
+#include "lardataobj/RecoBase/Event.h"
+#include "lardataobj/RecoBase/Vertex.h"
 #include "larcore/Geometry/Geometry.h"
 
 // ROOT includes

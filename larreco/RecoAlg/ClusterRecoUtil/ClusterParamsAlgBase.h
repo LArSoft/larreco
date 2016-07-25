@@ -20,7 +20,7 @@
 #include <algorithm> // std::transform()
 
 // LArSoft libraries
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 /// Cluster reconstruction namespace
 namespace cluster {

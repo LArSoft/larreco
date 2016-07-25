@@ -1,11 +1,12 @@
 
 art_make( 
-          LIB_LIBRARIES lardata_RecoBase
+          LIB_LIBRARIES lardataobj_RecoBase
+                        larsim_Simulation larsimobj_Simulation
                         larevt_Filters
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_RecoObjects
-                        lardata_AnalysisBase
+                        lardataobj_AnalysisBase
                         lardata_Utilities
            		${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -14,9 +15,9 @@ art_make(
 			${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
             		${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-			${ART_PERSISTENCY_COMMON}
-			${ART_PERSISTENCY_PROVENANCE}
-			${ART_UTILITIES}
+			art_Persistency_Common canvas_Persistency_Common
+			art_Persistency_Provenance canvas_Persistency_Provenance
+			art_Utilities canvas_Utilities
 			${MF_MESSAGELOGGER}
 			${MF_UTILITIES}
 	        	${FHICLCPP}

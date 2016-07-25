@@ -25,7 +25,7 @@
 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Core/EDAnalyzer.h"
-#include "art/Framework/Core/FindManyP.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Principal/Event.h"
@@ -34,13 +34,13 @@
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/RecoBase/Track.h"
-#include "lardata/RecoBase/Hit.h"
-#include "lardata/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "larsim/MCCheater/BackTracker.h"
-#include "SimulationBase/MCParticle.h"
-#include "larsim/Simulation/sim.h"
-#include "lardata/MCBase/MCTrack.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
+#include "larsimobj/Simulation/sim.h"
+#include "lardataobj/MCBase/MCTrack.h"
 
 #include "TH2F.h"
 #include "TFile.h"

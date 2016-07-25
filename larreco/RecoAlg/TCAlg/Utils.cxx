@@ -82,6 +82,7 @@ namespace tca {
       } else {
         prTime = timee + (wire - wire0) * slope;
       }
+      if (wire >= tjs.NumWires[ipl]) continue;
       // skip dead wires
       if(tjs.WireHitRange[ipl][wire].first == -1) continue;
       // no hits on this wire

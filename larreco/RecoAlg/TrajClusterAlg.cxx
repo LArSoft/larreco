@@ -3242,7 +3242,11 @@ namespace tca {
               <<" jpl "<<jpl<<" jvx "<<jvx<<" jvX "<<vX[jvx]<<" W:T "<<(int)tjs.vtx[jvx].Wire<<":"<<(int)tjs.vtx[jvx].Time<<" dXChi "<<dXChi<<" fVertex3DChiCut "<<fVertex3DChiCut;
             
             if(dXChi > fVertex3DChiCut) continue;
-            geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+            if (geom->HasWire(geo::WireID(cstat, tpc, ipl, iWire))&&
+                geom->HasWire(geo::WireID(cstat, tpc, jpl, jWire))){
+              geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+            }
+            else continue;
             if(y < YLo || y > YHi || z < ZLo || z > ZHi) continue;
             WPos[1] = y;
             WPos[2] = z;
@@ -5875,7 +5879,7 @@ namespace tca {
     unsigned int wire = tp.Pos[0] + 0.5;
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
     unsigned int ipl = planeID.Plane;
-    if(wire > tjs.NumWires[ipl]) return false;
+    if(wire >= tjs.NumWires[ipl]) return false;
     // Assume dead wires have a signal
     if(tjs.WireHitRange[ipl][wire].first == -1) return true;
     // no signal on this wire

@@ -11,7 +11,7 @@
 
 #include <vector>
 #include "fhiclcpp/ParameterSet.h"
-#include "lardata/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Hit.h"
 
 namespace hit{
 

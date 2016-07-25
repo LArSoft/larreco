@@ -11,7 +11,7 @@
 
 // boost test libraries
 #define BOOST_TEST_MODULE ( HitAnaAlg_test )
-#include "boost/test/auto_unit_test.hpp"
+#include "cetlib/quiet_unit_test.hpp"
 
 // LArSoft libraries
 #include "larreco/HitFinder/GausFitCache.h"
