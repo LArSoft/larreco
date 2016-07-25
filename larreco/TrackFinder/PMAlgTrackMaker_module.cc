@@ -36,9 +36,6 @@
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 #include "fhiclcpp/types/Sequence.h"
-
-//#include "art/Framework/Services/Optional/TFileService.h"
-//#include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "canvas/Utilities/InputTag.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -264,7 +261,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	}
 
 	// ---------- Translate output to data products: ----------
-	auto const & result = pmalgTracker.Result();
+	auto const & result = pmalgTracker.result();
 	if (!result.empty()) // ok, there is something to save
 	{
 		const detinfo::DetectorProperties* detProp = lar::providerFrom<detinfo::DetectorPropertiesService>();

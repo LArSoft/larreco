@@ -214,7 +214,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 	}
 
 	// ---------- Translate output to data products: ----------
-	auto const & result = pmalgFitter.Result();
+	auto const & result = pmalgFitter.result();
 	if (!result.empty()) // ok, there is something to save
 	{
 		size_t spStart = 0, spEnd = 0;

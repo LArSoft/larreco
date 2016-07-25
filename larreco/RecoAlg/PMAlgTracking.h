@@ -52,7 +52,7 @@ class pma::PMAlgTrackingBase
 {
 public:
 
-	const pma::TrkCandidateColl & Result(void) { return fResult; }
+	const pma::TrkCandidateColl & result(void) { return fResult; }
 
 	std::vector< std::pair< TVector3, std::vector< std::pair< size_t, bool > > > >
 	getVertices(bool onlyBranching = false) const
