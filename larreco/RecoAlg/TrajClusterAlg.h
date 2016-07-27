@@ -170,6 +170,7 @@ namespace tca {
     unsigned int fEventsProcessed;
     CTP_t fCTP;        ///< Cryostat/TPC/Plane code
     unsigned int fPlane;         // the current plane
+    short fWorkID;
 
 
     std::string fhitsModuleLabel;
