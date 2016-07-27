@@ -22,7 +22,8 @@ namespace tca {
     "ChkHiMultEndHits",
     "ChainMerge",
     "FillGap",
-    "UseGhostHits"
+    "UseGhostHits",
+    "CheckInTraj"
   };
 } // namespace tca
 
