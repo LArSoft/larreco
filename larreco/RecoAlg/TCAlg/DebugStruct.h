@@ -26,8 +26,9 @@ namespace tca {
     int Plane {-1}; ///< Select plane
     int Wire {-1};  ///< Select hit Wire for debugging
     int Tick {-1};   ///< Select hit PeakTime for debugging (< 0 for vertex finding)
+    short WorkID {0}; ///< Select the StartWorkID for debugging
   };
-  extern DebugStuff Debug;
+  extern DebugStuff debug;
 } // namespace tca
 
 #endif // ifndef TRAJCLUSTERALGDEBUGSTRUCT_H
