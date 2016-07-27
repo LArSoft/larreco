@@ -653,10 +653,10 @@ namespace tca {
             // clear out any leftover work tjs.inTraj's that weren't cleaned up properly
             for(unsigned short oht = jfirsthit; oht < jlasthit; ++oht) {
               if(tjs.inTraj[oht] < 0) {
-                std::cout<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.inTraj[oht]<<"\n";
+                mf::LogVerbatim("TC")<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.inTraj[oht]<<" events processed "<<fEventsProcessed;
+                std::cout<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.inTraj[oht]<<" events processed "<<fEventsProcessed<<"\n";
                 fQuitAlg = true;
                 return;
-//                tjs.inTraj[oht] = 0;
               }
             }
             fHitDoublet = false;
@@ -774,7 +774,7 @@ namespace tca {
     if(didPrt) PrintAllTraj(tjs, Debug, USHRT_MAX, USHRT_MAX);
 
 //    CheckInTraj("RCAT");
-    std::cout<<"Success "<<fWorkID<<"\n";
+    std::cout<<"Success in Plane "<<fPlane<<" last work ID"<<fWorkID<<"\n";
     
   } // ReconstructAllTraj
 
@@ -1932,7 +1932,7 @@ namespace tca {
     // for large angle trajectories
     std::vector<unsigned int> pclHits;
     // put all hits in the vector
-    PutTrajHitsInVector(tj, false, pclHits);
+    if(isLA) PutTrajHitsInVector(tj, false, pclHits);
     // assume failure
     sigOK = false;
     if(prt) mf::LogVerbatim("TC")<<" AddHits: loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" tp.Dir[0] "<<tp.Dir[0]<<" isLA "<<isLA<<" isVLA "<<isVLA<<" deltaCut "<<deltaCut<<" dpos "<<dpos<<" projErr "<<projErr;
@@ -2005,7 +2005,7 @@ namespace tca {
         // more than once to this trajectory
         if(std::find(pclHits.begin(), pclHits.end(), iht) != pclHits.end()) continue;
         closeHits.push_back(iht);
-        pclHits.push_back(iht);
+        if(isLA) pclHits.push_back(iht);
         if(hitsInMultiplet.size() > 1) {
           // include all the hits in a multiplet for not large angle TPs
           for(auto& jht : hitsInMultiplet) {
@@ -2120,7 +2120,7 @@ namespace tca {
   {
     // Sets tjs.inTraj = 0 and UseHit false for all used hits in tp
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-      if(tp.UseHit[ii] && tjs.inTraj[tp.Hits[ii]] < 0) {
+      if(tp.UseHit[ii]) {
         tjs.inTraj[tp.Hits[ii]] = 0;
         tp.UseHit[ii] = false;
       } // UseHit
@@ -5065,8 +5065,6 @@ namespace tca {
       if(chgWt < 1) chgWt = 1;
       chgWt *= chgWt;
       w.push_back(chgWt * tj.Pts[originPt].HitPosErr2);
-//      q.push_back(tj.Pts[originPt].Chg);
-//      aveChg += tj.Pts[originPt].Chg;
     }
     
     // correct npts to account for the origin point
@@ -5088,9 +5086,6 @@ namespace tca {
         if(chgWt < 1) chgWt = 1;
         chgWt *= chgWt;
         w.push_back(chgWt * tj.Pts[ipt].HitPosErr2);
-//        w.push_back(tj.Pts[ipt].HitPosErr2);
-//        q.push_back(tj.Pts[ipt].Chg);
-//        aveChg += tj.Pts[ipt].Chg;
         ++cnt;
         if(cnt == npts) break;
       } // ipt
@@ -5112,9 +5107,6 @@ namespace tca {
         if(chgWt < 1) chgWt = 1;
         chgWt *= chgWt;
         w.push_back(chgWt * tj.Pts[ipt].HitPosErr2);
-//        w.push_back(tj.Pts[ipt].HitPosErr2);
-//        q.push_back(tj.Pts[ipt].Chg);
-//        aveChg += tj.Pts[ipt].Chg;
         ++cnt;
         if(cnt == npts) break;
         if(ipt == 0) break;
@@ -5134,12 +5126,8 @@ namespace tca {
     double sumy2 = 0.;
 
     // weight by the charge ratio and accumulate sums
-//    aveChg /= (double)cnt;
     double wght;
     for(ipt = 0; ipt < x.size(); ++ipt) {
-//      chgrat = std::abs(q[ipt] - aveChg) / aveChg;
-//      if(chgrat < 0.3) chgrat = 0.3;
-//      w[ipt] *= chgrat;
       if(w[ipt] < 0.00001) w[ipt] = 0.00001;
       wght = 1 / w[ipt];
       sum   += wght;
@@ -5180,7 +5168,6 @@ namespace tca {
     }
     tpFit.Ang = atan2(tpFit.Dir[1], tpFit.Dir[0]);
     if(tpFit.Ang > M_PI || tpFit.Ang < -M_PI) {
-      std::cout<<"Huh? "<<tpFit.Ang<<"\n";
       if(tpFit.Ang > M_PI) tpFit.Ang = 2 * M_PI - tpFit.Ang;
       if(tpFit.Ang < -M_PI) tpFit.Ang = 2 * M_PI + tpFit.Ang;
     }
@@ -5201,7 +5188,6 @@ namespace tca {
       double slopeError = sqrt(varnce * sum / delta);
       tpFit.AngErr = std::abs(atan(slopeError));
     } else {
-//      InterceptError = 0.;
       tpFit.AngErr = 0.01;
     }
     sum = 0;
@@ -5335,6 +5321,9 @@ namespace tca {
   void TrajClusterAlg::CheckInTraj(std::string someText)
   {
     // Check tjs.allTraj -> tjs.inTraj associations
+    
+    if(!fUseAlg[kCheckInTraj]) return;
+    
     unsigned short tID;
     unsigned int iht;
     unsigned short itj = 0;
@@ -5451,11 +5440,6 @@ namespace tca {
     short trID = tjs.allTraj.size() + 1;
     unsigned int iht;
     for(unsigned short ipt = work.EndPt[0]; ipt < work.EndPt[1] + 1; ++ipt) {
-      if(work.Pts[ipt].Hits.size() != work.Pts[ipt].UseHit.size()) {
-        std::cout<<"StoreWork: sizes wrong "<<work.Pts[ipt].Hits.size()<<" != "<<work.Pts[ipt].UseHit.size()<<" Pos[0] "<<PrintPos(tjs, work.Pts[0])<<"\n";
-        fQuitAlg = true;
-        return;
-      }
       for(ii = 0; ii < work.Pts[ipt].Hits.size(); ++ii) {
         if(work.Pts[ipt].UseHit[ii]) {
           iht = work.Pts[ipt].Hits[ii];
@@ -5470,6 +5454,16 @@ namespace tca {
         }
       } // ii
     } // ipt
+    
+    // ensure that inTraj is clean for the work ID
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      if(tjs.inTraj[iht] == work.ID) {
+        std::cout<<"StoreWork: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to work ID "<<work.ID<<" but it wasn't stored\n";
+        fQuitAlg = true;
+        return;
+      }
+    } // iht
+    
     work.ID = trID;
     tjs.allTraj.push_back(work);
     if(prt) mf::LogVerbatim("TC")<<"StoreWork trID "<<trID<<" CTP "<<work.CTP<<" EndPts "<<work.EndPt[0]<<" "<<work.EndPt[1];
