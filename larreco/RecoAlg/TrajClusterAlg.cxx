@@ -3984,19 +3984,32 @@ namespace tca {
     }
     
     // First remove any TPs at the end that have no hits
+    // TODO This shouldn't be done but first check to see what code will break
+    // if we don't do it.
     for(ipt = tj.Pts.size() - 1; ipt > tj.EndPt[0]; --ipt) {
       if(tj.Pts[ipt].Chg > 0) break;
       tj.Pts.pop_back();
     }
-    
     
     // Fill in any gaps with hits that were skipped, most likely delta rays on muon tracks
     if(!isLA && fUseAlg[kFillGap]) FillMissedPoints(tj);
 
     // check the fraction of the trajectory points that have hits
     if(fUseAlg[kTrimHits]) {
-      float nPts = tj.EndPt[1] - tj.EndPt[0] + 1;
       float dwc = DeadWireCount(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
+      // first ensure that there are at least 2 good TPs at the end after a dead wire section
+      if(dwc > 2 && tj.Pts[tj.EndPt[1] - 2].Chg == 0) {
+        TrajPoint& tp2 = tj.Pts[tj.EndPt[1]-2];
+        if(DeadWireCount(tp2, tj.Pts[tj.EndPt[1]]) > 0) {
+          if(prt) mf::LogVerbatim("TC")<<" Kill single point after deadwire section ";
+          MaskTrajEndPoints(tjs, tj, 1);
+          // clobber the TPs (most of which are presumed to be on dead wires) after
+          // the last TP that has used hits
+          tj.Pts.resize(tj.EndPt[1]+1);
+        } // DeadWireCount
+      } // dwc > 2 && ...
+      float nPts = tj.EndPt[1] - tj.EndPt[0] + 1;
+      dwc = DeadWireCount(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
       float nPtsWithCharge = NumPtsWithCharge(tj, false);
       float ptFrac = (nPtsWithCharge + dwc) /(nPts + dwc);
       if(prt) mf::LogVerbatim("TC")<<" kTrimHits: nPts "<<(int)nPts<<" DeadWireCount "<<(int)dwc<<" nPtsWithCharge "<<(int)nPtsWithCharge<<" ptFrac "<<ptFrac;
