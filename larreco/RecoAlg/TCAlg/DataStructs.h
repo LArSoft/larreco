@@ -175,6 +175,7 @@ namespace tca {
     kChainMerge,
     kFillGap,
     kUseGhostHits,
+    kCheckInTraj,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
