@@ -507,7 +507,7 @@ namespace tca {
   
   // ****************************** Printing  ******************************
   
-  void PrintAllTraj(TjStuff& tjs, DebugStuff& Debug, unsigned short itj, unsigned short ipt)
+  void PrintAllTraj(TjStuff& tjs, DebugStuff& debug, unsigned short itj, unsigned short ipt)
   {
     
     mf::LogVerbatim myprt("TC");
@@ -546,7 +546,7 @@ namespace tca {
       myprt<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NCl  topo  traj IDs\n";
       for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
         auto const& aVtx = tjs.vtx[iv];
-        if(Debug.Plane < 3 && Debug.Plane != (int)aVtx.CTP) continue;
+        if(debug.Plane < 3 && debug.Plane != (int)aVtx.CTP) continue;
         if(aVtx.NTraj == 0) continue;
         myprt<<std::right<<std::setw(3)<<std::fixed<<iv<<std::setprecision(1);
         myprt<<std::right<<std::setw(6)<<aVtx.CTP;
@@ -561,7 +561,7 @@ namespace tca {
         // display the traj indices
         for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
           auto const& aTj = tjs.allTraj[ii];
-          if(Debug.Plane < 3 && Debug.Plane != (int)aTj.CTP) continue;
+          if(debug.Plane < 3 && debug.Plane != (int)aTj.CTP) continue;
           if(aTj.AlgMod[kKilled]) continue;
           for(unsigned short end = 0; end < 2; ++end)
             if(aTj.Vtx[end] == (short)iv) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
@@ -585,7 +585,7 @@ namespace tca {
       myprt<<"TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang   AveQ     W:T      Ang   AveQ  ChgRMS Hits/TP __Vtx__ PDG Parent TRuPDG   EP   KE  \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
-        if(Debug.Plane >=0 && Debug.Plane < 3 && (unsigned short)Debug.Plane != aTj.CTP) continue;
+        if(debug.Plane >=0 && debug.Plane < 3 && (unsigned short)debug.Plane != aTj.CTP) continue;
         //        if(tj.AlgMod[kKilled]) continue;
         if(aTj.AlgMod[kKilled]) { myprt<<"xxx"; } else { myprt<<"TRJ"; }
         myprt<<std::fixed<<std::setw(4)<<aTj.ID;
@@ -722,16 +722,15 @@ namespace tca {
     myprt<<std::setw(6)<<tp.NTPsFit;
     // print the hits associated with this traj point
     for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
-      myprt<<" "<<tjs.fHits[tp.Hits[iht]]->WireID().Plane;
-      myprt<<":"<<tjs.fHits[tp.Hits[iht]]->WireID().Wire;
+//      myprt<<" "<<tjs.fHits[tp.Hits[iht]]->WireID().Plane;
+      myprt<<" "<<tjs.fHits[tp.Hits[iht]]->WireID().Wire<<":"<<(int)tjs.fHits[tp.Hits[iht]]->PeakTime();
       if(tp.UseHit[iht]) {
         // Distinguish used hits from nearby hits
-        myprt<<":";
+        myprt<<"_";
       } else {
         myprt<<"x";
       }
-      myprt<<(int)tjs.fHits[tp.Hits[iht]]->PeakTime();
-      myprt<<"_"<<tjs.inTraj[tp.Hits[iht]];
+      myprt<<tjs.inTraj[tp.Hits[iht]];
     } // iht
   } // PrintTrajPoint
   
