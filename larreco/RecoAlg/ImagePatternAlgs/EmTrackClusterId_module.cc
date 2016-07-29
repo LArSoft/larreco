@@ -71,6 +71,7 @@ public:
 	void produce(art::Event & e) override;
 
 private:
+	bool isViewSelected(int view) const;
 
 	PointIdAlg fPointIdAlg;
 
@@ -134,12 +135,7 @@ void EmTrackClusterId::produce(art::Event & evt)
 		int tpc = v.front()->WireID().TPC;
 		int cryo = v.front()->WireID().Cryostat;
 
-		if (!fViews.empty())
-		{
-			bool skip = true;
-			for (auto k : fViews) if (k == view) { skip = false; break; }
-			if (skip) continue;
-		}
+		if (!isViewSelected(view)) continue;
 
 		// better if clusters are stored as sorted by tpc/view, otherwise this can be costful call:
 		fPointIdAlg.setWireDriftData(evt, view, tpc, cryo);
@@ -186,6 +182,8 @@ void EmTrackClusterId::produce(art::Event & evt)
 				int tpc = hi->WireID().TPC;
 				int cryo = hi->WireID().Cryostat;
 
+				if (!isViewSelected(view)) continue;
+
 				// better if hits are stored as sorted by tpc/view, otherwise this can be costful call:
 				fPointIdAlg.setWireDriftData(evt, view, tpc, cryo);
 
@@ -212,6 +210,18 @@ void EmTrackClusterId::produce(art::Event & evt)
 
 	evt.put(std::move(clusters));
 	evt.put(std::move(clu2hit));
+}
+// ------------------------------------------------------
+
+bool EmTrackClusterId::isViewSelected(int view) const
+{
+	if (fViews.empty()) return true;
+	else
+	{
+		bool selected = false;
+		for (auto k : fViews) if (k == view) { selected = true; break; }
+		return selected;
+	}
 }
 // ------------------------------------------------------
 
