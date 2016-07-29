@@ -48,7 +48,8 @@ standard_emtrackclusterid:
 
     PointIdAlg:             @local::standard_pointidalg
 
-    ClusterModuleLabel:     "linecluster"
+    HitModuleLabel:         "linecluster" # tag of hits made to create clusters, unclustered leftovers to be EM/track tagged
+    ClusterModuleLabel:     "linecluster" # tag of clusters which are to be EM/track tagged
 
     Threshold:              0.5 # tag cluster as EM-like if net output accumulated over hits > threshold
     Views:                  []  # tag clusters in selected views only, or in all views if empty list
