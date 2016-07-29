@@ -165,7 +165,6 @@ private:
 class nnet::PointIdAlg : public nnet::DataProviderAlg
 {
 public:
-
 	PointIdAlg(const fhicl::ParameterSet& pset);
 	virtual ~PointIdAlg(void);
 
