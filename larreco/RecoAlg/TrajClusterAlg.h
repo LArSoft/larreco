@@ -157,8 +157,7 @@ namespace tca {
     const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
     // TEMP for writing event filter selection
-    std::ofstream outFile;
-
+//    std::ofstream outFile;
     
     trkf::LinFitAlg fLinFitAlg;
 
@@ -326,6 +325,7 @@ namespace tca {
     void EndMerge();
     void ChainMerge();
     void FillWireHitRange(geo::TPCID const& tpcid);
+    void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void AttachAnyTrajToVertex(unsigned short iv, float docaCut2, bool requireSignal);
