@@ -448,26 +448,7 @@ namespace tca {
     tp.Pos[0] = wire;
     tp.Pos[1] += dw * tp.Dir[1] / tp.Dir[0];
   } // MoveTPToWire
-  
-  ////////////////////////////////////////////////
-  void MaskTrajEndPoints(TjStuff& tjs, Trajectory& tj, unsigned short nPts)
-  {
-    // Mask off some trajectory points at the leading edge. Keep track of the wire we are on at the current TP.
-    // The trajectory has been corrupted by these hits, so we need to first remove them
-    // and then recalculate the trajectory position of the current step.
-    // don't remove points but simply set UseHit false
-    unsigned short ii, ipt, iht;
-    for(unsigned short kill = 0; kill < nPts; ++kill) {
-      ipt = tj.Pts.size() - 1 - kill;
-      for(ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-        iht = tj.Pts[ipt].Hits[ii];
-        tj.Pts[ipt].UseHit[ii] = false;
-        if(tjs.inTraj[iht] == tj.ID) tjs.inTraj[iht] = 0;
-      } // ii
-    } // kill
-    
-  } // MaskTrajEndPoints
-  
+
   //////////////////////////////////////////
   float DeltaAngle(float Ang1, float Ang2) {
     return std::abs(std::remainder(Ang1 - Ang2, M_PI));
@@ -666,11 +647,11 @@ namespace tca {
     if(tPoint == USHRT_MAX) {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDG<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDG<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
         mf::LogVerbatim myprt("TC");
-        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDG<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[0];
+        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDG<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[0]<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
       PrintHeader();
