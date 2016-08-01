@@ -176,6 +176,7 @@ namespace tca {
     kFillGap,
     kUseGhostHits,
     kCheckInTraj,
+    kFixTrajBegin,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
