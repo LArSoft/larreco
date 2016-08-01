@@ -69,7 +69,6 @@ namespace tca {
   void PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec);
   // Project TP to a "wire position" Pos[0] and update Pos[1]
   void MoveTPToWire(TrajPoint& tp, float wire);
-  void MaskTrajEndPoints(TjStuff& tjs, Trajectory& tj, unsigned short nPts);
   float DeltaAngle(float Ang1, float Ang2);
   // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
   void SetEndPoints(TjStuff& tjs, Trajectory& tj);
