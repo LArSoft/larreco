@@ -315,11 +315,8 @@ namespace tca {
     // Does a local fit of just-added TPs on work to identify a kink while stepping.
     // Truncates the work vector and returns true if one is found.
     void GottaKink(Trajectory& tj, unsigned short& killPts);
-    // Combines hit multiplets in short trajectories
-//    void ModifyShortTraj(Trajectory& tj);
-    // See if the trajectory appears to be a delta ray. This is characterized by a significant fraction of hits
-    // in the trajectory belonging to an existing trajectory. This may also flag ghost trajectories...
-//    void MaybeDeltaRay(Trajectory& tj, bool doMerge);
+    // Update the  parameters at the beginning of the trajectory
+    void FixTrajBegin(Trajectory& tj);
     bool IsGhost(std::vector<unsigned int>& tHits);
     void CheckTrajEnd();
     void EndMerge();
