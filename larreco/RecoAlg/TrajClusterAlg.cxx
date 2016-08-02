@@ -797,8 +797,28 @@ namespace tca {
     
     if(NumPtsWithCharge(tj, false) < 10) return;
     
-    if(prt) mf::LogVerbatim("TC")<<"inside ReversePropagate";
+    // Only consider trajectories that have had their beginning trajectory points
+    // updated by FixTrajBegin
+    if(!tj.AlgMod[kFixTrajBegin]) return;
     
+    // check the quality of the first 5 TPs at the beginning
+    // count the number of bad points
+    unsigned short nBadPt = 0;
+    // that are above 5 times the delta rms of the last good point
+    float badPtCut = 5 * tj.Pts[tj.EndPt[1]].DeltaRMS;
+    if(badPtCut < 0.1) badPtCut = 0.1;
+    if(prt) mf::LogVerbatim("TC")<<"ReversePropagate: badPtCut "<<badPtCut;
+    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[0] + 5; ++ipt) {
+      if(tj.Pts[ipt].Chg == 0) continue;
+      if(tj.Pts[ipt].Delta > badPtCut) ++nBadPt;
+      if(prt) PrintTrajPoint(tjs, ipt, tj.StepDir, tj.Pass, tj.Pts[ipt]);
+    }
+    if(prt) mf::LogVerbatim("TC")<<" nBadPts at the beginning "<<nBadPt;
+    if(nBadPt < 3) return;
+    
+    std::cout<<"Reverse Propagate write some code tj.ID "<<tj.ID<<"\n";
+    
+    ////// old stuff below
     // Find 5 good TPs close to (but not too close to) the start
     const unsigned short rangeSize = 5;
     unsigned short ipt0 = tj.EndPt[0];
@@ -3988,6 +4008,9 @@ namespace tca {
       tj.Pts.pop_back();
     }
     
+    // Update the trajectory parameters at the beginning of the trajectory
+    FixTrajBegin(tj);
+    
     // Fill in any gaps with hits that were skipped, most likely delta rays on muon tracks
     if(!isLA && fUseAlg[kFillGap]) FillMissedPoints(tj);
 
@@ -4114,6 +4137,57 @@ namespace tca {
     CheckHiMultEndHits(tj);
     
   } // CheckWork
+  
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::FixTrajBegin(Trajectory& tj)
+  {
+    // update the parameters at the beginning of the trajectory
+    
+    if(!fUseAlg[kFixTrajBegin]) return;
+    // only do this for not large angle trajectories
+    if(IsLargeAngle(tj.Pts[tj.EndPt[1]])) return;
+    // only do this for longish trajectories
+    if(tj.Pts.size() < 5) return;
+    // only do this once
+    if(tj.AlgMod[kFixTrajBegin]) return;
+    
+    // Find the last point (lastPtFit) that includes trajectory EndPt[0] in the fit.
+    // This doesn't account for dead wires but it's probably good enough.
+     unsigned short lastPtFit = USHRT_MAX;
+    for(unsigned short ipt = 2; ipt < tj.Pts.size(); ++ipt) {
+      if(tj.Pts[ipt].NTPsFit < ipt + 1) {
+        lastPtFit = ipt;
+        break;
+      }
+    } // ipt
+    if(lastPtFit == USHRT_MAX) return;
+//    if(prt) std::cout<<"lastPtFit "<<lastPtFit<<"\n";
+    
+    // The last point fit most likely occurs because the chisq/DOF got too large (for instance if the
+    // track has some curvature) so a better approximation of the trajectory at the beginning is to use
+    // the fit from the point at lastPtFit / 2.
+    if(lastPtFit < 3) return;
+    lastPtFit /= 2;
+    
+    // update the trajectory for all the intervening points
+    for(unsigned short ipt = tj.EndPt[0]; ipt < lastPtFit; ++ipt) {
+      tj.Pts[ipt].Dir = tj.Pts[lastPtFit].Dir;
+      tj.Pts[ipt].Ang = tj.Pts[lastPtFit].Ang;
+      // Correct the projected time to the wire
+      float dw = tj.Pts[ipt].Pos[0] - tj.Pts[lastPtFit].Pos[0];
+      float oldpos = tj.Pts[ipt].Pos[1];
+      float olddelta = tj.Pts[ipt].Delta;
+      tj.Pts[ipt].Pos[1] = tj.Pts[lastPtFit].Pos[1] + dw * tj.Pts[ipt].Dir[1] / tj.Pts[ipt].Dir[0];
+      tj.Pts[ipt].Delta = PointTrajDOCA(tjs, tj.Pts[ipt].HitPos[0], tj.Pts[ipt].HitPos[1], tj.Pts[ipt]);
+      tj.Pts[ipt].DeltaRMS = tj.Pts[lastPtFit].DeltaRMS;
+      tj.Pts[ipt].NTPsFit = tj.Pts[lastPtFit].NTPsFit;
+      tj.Pts[ipt].FitChi = tj.Pts[lastPtFit].FitChi;
+      tj.Pts[ipt].AveChg = tj.Pts[lastPtFit].AveChg;
+      tj.Pts[ipt].ChgPull = (tj.Pts[ipt].Chg / tj.AveChg - 1) / tj.ChgRMS;
+      if(prt) mf::LogVerbatim("TC")<<"FTB: ipt "<<ipt<<" Pos[0] "<<(int)tj.Pts[ipt].Pos[0]<<". Move Pos[1] from "<<oldpos<<" to "<<tj.Pts[ipt].Pos[1]<<" old delta "<<olddelta<<" new delta "<<tj.Pts[ipt].Delta;
+    } // ipt
+    tj.AlgMod[kFixTrajBegin] = true;
+  } // FixTrajBegin
 
   ////////////////////////////////////////////////
   void TrajClusterAlg::FillMissedPoints(Trajectory& tj)
@@ -4941,8 +5015,6 @@ namespace tca {
     
     unsigned int lastPt = tj.EndPt[1];
     TrajPoint& lastTP = tj.Pts[lastPt];
-    // put in reasonable guess in case something doesn't work out
-//    lastTP.DeltaRMS = 0.02;
     
     if(lastTP.Chg == 0) return;
     if(lastPt < 6) return;
@@ -4964,25 +5036,6 @@ namespace tca {
     lastTP.DeltaRMS = 1.2 * sum / (float)cnt;
     if(lastTP.DeltaRMS < 0.02) lastTP.DeltaRMS = 0.02;
 
-/*
-    float sum = 0;
-    unsigned short ii, ipt, cnt = 0;
-    for(ii = 1; ii < lastPt; ++ii) {
-      ipt = lastPt - ii;
-      // Delta for the first two points is meaningless
-      if(ipt < 2) break;
-      if(tj.Pts[ipt].Chg == 0) continue;
-      sum += tj.Pts[ipt].Delta;
-      ++cnt;
-      if(cnt == fNPtsAve) break;
-      if(ipt == 0) break;
-    }
-    if(cnt < 2) return;
-    // RMS of Gaussian distribution is ~1.2 x the average
-    // of a one-sided Gaussian distribution (since Delta is > 0)
-    lastTP.DeltaRMS = 1.2 * sum / (float)cnt;
-    if(lastTP.DeltaRMS < 0.02) lastTP.DeltaRMS = 0.02;
-*/
   } // UpdateDeltaRMS
   
   //////////////////////////////////////////
@@ -5053,9 +5106,7 @@ namespace tca {
     double rotAngle = tj.Pts[originPt].Ang;
     double cs = cos(-rotAngle);
     double sn = sin(-rotAngle);
-    
-    unsigned short ipt, cnt;
-//    double aveChg = 0;
+
     // enter the originPT hit info if it exists
     if(tj.Pts[originPt].Chg > 0) {
       xx = tj.Pts[originPt].HitPos[0] - origin[0];
@@ -5076,8 +5127,8 @@ namespace tca {
     
     // step in the + direction first
     if(fitDir != -1) {
-      cnt = 0;
-      for(ipt = originPt + 1; ipt < tj.Pts.size(); ++ipt) {
+      unsigned short cnt = 0;
+      for(unsigned short ipt = originPt + 1; ipt < tj.Pts.size(); ++ipt) {
         if(tj.Pts[ipt].Chg == 0) continue;
         xx = tj.Pts[ipt].HitPos[0] - origin[0];
         yy = tj.Pts[ipt].HitPos[1] - origin[1];
@@ -5097,8 +5148,9 @@ namespace tca {
     
     // step in the - direction next
     if(fitDir != 1 && originPt > 0) {
-      cnt = 0;
-      for(ipt = originPt - 1; ipt > 0; --ipt) {
+      unsigned short cnt = 0;
+      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
+        unsigned short ipt = originPt - ii;
         if(tj.Pts[ipt].Chg == 0) continue;
         xx = tj.Pts[ipt].HitPos[0] - origin[0];
         yy = tj.Pts[ipt].HitPos[1] - origin[1];
@@ -5131,7 +5183,7 @@ namespace tca {
 
     // weight by the charge ratio and accumulate sums
     double wght;
-    for(ipt = 0; ipt < x.size(); ++ipt) {
+    for(unsigned short ipt = 0; ipt < x.size(); ++ipt) {
       if(w[ipt] < 0.00001) w[ipt] = 0.00001;
       wght = 1 / w[ipt];
       sum   += wght;
@@ -5172,21 +5224,8 @@ namespace tca {
       tpFit.Dir[1] = -tpFit.Dir[1];
     }
     tpFit.Ang = atan2(tpFit.Dir[1], tpFit.Dir[0]);
-    if(prt) mf::LogVerbatim("TC")<<"FitTraj "<<originPt<<" originPt Dir "<<tj.Pts[originPt].Dir[0]<<" "<<tj.Pts[originPt].Dir[1]<<" rotAngle "<<rotAngle<<" tpFit.Dir "<<tpFit.Dir[0]<<" "<<tpFit.Dir[1]<<" Ang "<<tpFit.Ang<<" flipDir "<<flipDir;
-/*
-    if(tpFit.Ang > M_PI || tpFit.Ang < -M_PI) {
-      if(tpFit.Ang > M_PI) tpFit.Ang = twoPi - tpFit.Ang;
-      if(tpFit.Ang < -M_PI) tpFit.Ang = twoPi + tpFit.Ang;
-    }
-    // ensure that the angle is within pi/2 of the originPt angle
-    // TODO: fix this mess
-    if(std::abs(tpFit.Ang - tj.Pts[originPt].Ang) > halfPi) {
-      if(tpFit.Ang > M_PI) tpFit.Ang = twoPi - tpFit.Ang;
-      if(tpFit.Ang < -M_PI) tpFit.Ang = twoPi + tpFit.Ang;
-      tpFit.Dir[0] = cos(tpFit.Ang);
-      tpFit.Dir[1] = sin(tpFit.Ang);
-    } // std::abs()
-*/
+    if(prt) mf::LogVerbatim("TC")<<"FitTraj "<<originPt<<" originPt Dir "<<tj.Pts[originPt].Dir[0]<<" "<<tj.Pts[originPt].Dir[1]<<" rotAngle "<<rotAngle<<" tpFit.Dir "<<tpFit.Dir[0]<<" "<<tpFit.Dir[1]<<" Ang "<<tpFit.Ang<<" flipDir "<<flipDir<<" fit vector size "<<x.size()<<" requested size "<<tj.Pts[originPt].NTPsFit;
+
     // rotate (0, intcpt) into (W,T) coordinates
     tpFit.Pos[0] = -sn * A + origin[0];
     tpFit.Pos[1] =  cs * A + origin[1];
