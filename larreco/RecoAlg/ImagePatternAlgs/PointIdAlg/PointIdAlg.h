@@ -47,6 +47,7 @@ namespace nnet
 class nnet::DataProviderAlg
 {
 public:
+	enum EDownscaleMode { kMax = 1, kMaxMean = 2, kMean = 3 };
 
 	DataProviderAlg(const fhicl::ParameterSet& pset);
 	virtual ~DataProviderAlg(void);
@@ -81,6 +82,11 @@ protected:
 	mutable std::vector< std::vector<float> > fWireDriftPatch;  // placeholder for patch around identified point
 
 	size_t fDriftWindow, fPatchSize;
+	EDownscaleMode fDownscaleMode;
+
+	void downscaleMax(std::vector<float> & dst, std::vector<float> const & adc) const;
+	void downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc) const;
+	void downscaleMean(std::vector<float> & dst, std::vector<float> const & adc) const;
 
 	mutable size_t fCurrentWireIdx, fCurrentScaledDrift;
 	bool bufferPatch(size_t wire, float drift) const;

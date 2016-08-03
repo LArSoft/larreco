@@ -27,6 +27,7 @@ nnet::DataProviderAlg::DataProviderAlg(const fhicl::ParameterSet& pset) :
 	fCryo(9999), fTPC(9999), fView(9999),
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0),
 	fDriftWindow(10), fPatchSize(32),
+	fDownscaleMode(nnet::DataProviderAlg::kMax),
 	fCurrentWireIdx(99999), fCurrentScaledDrift(99999),
 	fCalorimetryAlg(pset.get< fhicl::ParameterSet >("CalorimetryAlg")),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
@@ -49,6 +50,16 @@ void nnet::DataProviderAlg::reconfigure(const fhicl::ParameterSet& p)
 
 	fDriftWindow = p.get< unsigned int >("DriftWindow");
 	fPatchSize = p.get< unsigned int >("PatchSize");
+
+	std::string mode_str = p.get< std::string >("DownscaleFn");
+	if (mode_str == "maxpool")      fDownscaleMode = nnet::DataProviderAlg::kMax;
+	else if (mode_str == "maxmean") fDownscaleMode = nnet::DataProviderAlg::kMaxMean;
+	else if (mode_str == "mean")    fDownscaleMode = nnet::DataProviderAlg::kMean;
+	else
+	{
+		mf::LogError("DataProviderAlg") << "Downscale mode string not recognized, set to max pooling.";
+		fDownscaleMode = nnet::DataProviderAlg::kMax;
+	}
 
 	resizePatch();
 }
@@ -84,14 +95,10 @@ float nnet::DataProviderAlg::scaleAdcSample(float val) const
 	if (val > 150.) val = 150.;
 	return 0.1 * val;
 }
-bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wireIdx)
+
+void nnet::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<float> const & adc) const
 {
-	if ((wireIdx >= fWireDriftData.size()) ||
-	    (adc.size() / fDriftWindow > fNScaledDrifts)) return false;
-
-	auto & wData = fWireDriftData[wireIdx];
-
-	for (size_t i = 0; i < fNScaledDrifts; ++i)
+	for (size_t i = 0; i < dst.size(); ++i)
 	{
 		size_t i0 = i * fDriftWindow;
 		size_t i1 = (i + 1) * fDriftWindow;
@@ -103,9 +110,64 @@ bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t w
 			if (ak > max_adc) max_adc = ak;
 		}
 
-		wData[i] = max_adc;
+		dst[i] = max_adc;
 	}
+}
 
+void nnet::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc) const
+{
+	for (size_t i = 0; i < dst.size(); ++i)
+	{
+		size_t i0 = i * fDriftWindow;
+		size_t i1 = (i + 1) * fDriftWindow;
+
+		size_t max_idx = i0;
+		float max_adc = scaleAdcSample(adc[i0] * fCalorimetryAlg.LifetimeCorrection(i0));
+		for (size_t k = i0 + 1; k < i1; ++k)
+		{
+			float ak = scaleAdcSample(adc[k] * fCalorimetryAlg.LifetimeCorrection(k));
+			if (ak > max_adc) { max_adc = ak; max_idx = k; }
+		}
+
+		size_t n = 1;
+		if (max_idx - 1 >= 0) { max_adc += scaleAdcSample(adc[max_idx - 1] * fCalorimetryAlg.LifetimeCorrection(max_idx - 1)); n++; }
+		if (max_idx + 1 < adc.size()) { max_adc += scaleAdcSample(adc[max_idx + 1] * fCalorimetryAlg.LifetimeCorrection(max_idx + 1)); n++; }
+
+		dst[i] = max_adc / n;
+	}
+}
+
+void nnet::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<float> const & adc) const
+{
+	for (size_t i = 0; i < dst.size(); ++i)
+	{
+		size_t i0 = i * fDriftWindow;
+		size_t i1 = (i + 1) * fDriftWindow;
+
+		float sum_adc = 0;
+		for (size_t k = i0; k < i1; ++k)
+		{
+			sum_adc += scaleAdcSample(adc[k] * fCalorimetryAlg.LifetimeCorrection(k));
+		}
+
+		dst[i] = sum_adc / fDriftWindow;
+	}
+}
+
+bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wireIdx)
+{
+	if ((wireIdx >= fWireDriftData.size()) ||
+	    (adc.size() / fDriftWindow > fNScaledDrifts)) return false;
+
+	auto & wData = fWireDriftData[wireIdx];
+
+	switch (fDownscaleMode)
+	{
+		case nnet::DataProviderAlg::kMax:     downscaleMax(wData, adc);     break;
+		case nnet::DataProviderAlg::kMaxMean: downscaleMaxMean(wData, adc); break;
+		case nnet::DataProviderAlg::kMean:    downscaleMean(wData, adc);    break;
+		default: return false;
+	}
 	return true;
 }
 // ------------------------------------------------------
