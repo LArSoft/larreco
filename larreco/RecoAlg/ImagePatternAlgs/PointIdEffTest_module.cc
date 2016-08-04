@@ -129,6 +129,7 @@ private:
 
 	art::Handle< std::vector<simb::MCParticle> > fParticleHandle;
 	art::Handle< std::vector<sim::SimChannel> > fSimChannelHandle;
+	art::Handle< std::vector<recob::Wire> > fWireHandle;
 	art::Handle< std::vector<recob::Hit> > fHitListHandle;
 	art::Handle< std::vector<recob::Cluster> > fClusterListHandle;
 
@@ -140,6 +141,7 @@ private:
 	cryo_tpc_view_clmap fClMap;	
 
 	std::string fSimulationProducerLabel;
+	std::string fWireProducerLabel;
 	std::string fHitsModuleLabel;
 	std::string fClusterModuleLabel;
 	bool fSaveHitsFile;
@@ -148,6 +150,7 @@ private:
 void nnet::PointIdEffTest::reconfigure(fhicl::ParameterSet const & p)
 {
 	fSimulationProducerLabel = p.get< std::string >("SimModuleLabel");
+	fWireProducerLabel = p.get< std::string >("WireLabel");
 	fHitsModuleLabel = p.get< std::string >("HitsModuleLabel");
 	fClusterModuleLabel = p.get< std::string >("ClusterModuleLabel");
 	fSaveHitsFile = p.get< bool >("SaveHitsFile");
@@ -241,6 +244,9 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
 	// output from reconstruction
 
+	// wires
+	if (!e.getByLabel(fWireProducerLabel, fWireHandle)) return;
+
 	// hits
 	if (e.getByLabel(fHitsModuleLabel, fHitListHandle))
 		art::fill_ptr_vector(fHitlist, fHitListHandle);
@@ -275,7 +281,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 				unsigned int view = v.first;
 				if (view == fView)
 				{
-					fPointIdAlg.setWireDriftData(e, view, tpc, cryo);
+					fPointIdAlg.setWireDriftData(*fWireHandle, view, tpc, cryo);
 
 					for (auto const& h : v.second)
 					{  
