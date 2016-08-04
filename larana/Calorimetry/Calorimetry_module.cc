@@ -36,7 +36,7 @@ extern "C" {
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "lardata/RecoBaseArt/TrackUtils.h" // lar::utils::TrackPitchInView()
+#include "lardata/RecoBaseArt/TrackUtils.h" // lar::util::TrackPitchInView()
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 
@@ -375,7 +375,7 @@ void calo::Calorimetry::produce(art::Event& evt)
         geo::TPCID tpcid = geom->FindTPCAtPosition ( Position );
         if (tpcid.isValid) {
           try{
-            fTrkPitch = lar::utils::TrackPitchInView(*tracklist[trkIter], geom->Plane(ipl).View(), itp);
+            fTrkPitch = lar::util::TrackPitchInView(*tracklist[trkIter], geom->Plane(ipl).View(), itp);
           }
           catch( cet::exception &e){
             mf::LogWarning("Calorimetry") << "caught exception " 
