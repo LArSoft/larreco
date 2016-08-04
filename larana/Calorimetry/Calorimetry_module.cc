@@ -591,11 +591,11 @@ void calo::Calorimetry::produce(art::Event& evt)
 	  fdEdxCOL.push_back(fdEdx[i]);
 	  fResRngCOL.push_back(fResRng[i]);
 	}
+        vresRange.push_back(fResRng[i]);
+        vdEdx.push_back(fdEdx[i]);
+        vdQdx.push_back(fdQdx[i]);
+        vXYZ.push_back(fXYZ[i]);
 	if (i!=0 && i!= fnsps-1){//ignore the first and last point
-	  vresRange.push_back(fResRng[i]);
-	  vdEdx.push_back(fdEdx[i]);
-	  vdQdx.push_back(fdQdx[i]);
-	  vXYZ.push_back(fXYZ[i]);
 	  // Calculate PIDA 
 	  if(TrackStops){
 	    Ai = fdEdx[i] * pow(fResRng[i],0.42);
