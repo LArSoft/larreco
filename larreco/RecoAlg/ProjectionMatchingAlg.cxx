@@ -988,7 +988,8 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 				idx0 = trk.PrevHit(trk.size(), i);
 			}
 
-			if ((idx0 >= 0) && (idx0 < (int)trk.size()))
+			if ((idx0 >= 0) && (idx0 < (int)trk.size()) &&
+			    (trk[idx0]->TPC() == tpc) && (trk[idx0]->Cryo() == cryo))
 			{
 				if (endpoint == pma::Track3D::kBegin)
 				{
@@ -999,7 +1000,8 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 					idx1 = trk.PrevHit(idx0, i);
 				}
 
-				if ((idx1 >= 0) && (idx1 < (int)trk.size()))
+				if ((idx1 >= 0) && (idx1 < (int)trk.size()) &&
+				    (trk[idx1]->TPC() == tpc) && (trk[idx1]->Cryo() == cryo))
 				{
 					int w0 = trk[idx0]->Wire();
 					int w1 = trk[idx1]->Wire();
