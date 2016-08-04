@@ -81,6 +81,8 @@ void pid::Chi2PIDAlg::DoParticleID(art::Ptr<anab::Calorimetry> calo,
 
   int used_trkres = 0;
   for (unsigned i = 0; i<trkdedx.size(); ++i){//hits
+    //ignore the first and the last point
+    if (i==0 || i==trkdedx.size()-1) continue;
     avgdedx += trkdedx[i];
     if(trkres[i] < 30) {
       PIDA += trkdedx[i]*pow(trkres[i],0.42);
