@@ -293,7 +293,8 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
 	std::vector< pma::Track3D* > tracks;
 	for(auto const & hsel : hits_by_tpc)
 	{
-		pma::Track3D* trk = buildTrack(hsel.second);
+		//pma::Track3D* trk = buildTrack(hsel.second);
+		pma::Track3D* trk = buildSegment(hsel.second);
 		if (trk) tracks.push_back(trk);
 	}
 
@@ -342,17 +343,35 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
 		else break; // should not happen
 	}
 
+	pma::Track3D* trk = 0;
 	if (!tracks.empty())
 	{
-		pma::Track3D* trk = tracks.front();
+		trk = tracks.front();
 		if (need_reopt)
 		{
-			double g = trk->Optimize(0, fFineTuningEps);
-			mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging tpc parts: done, g = " << g;
+			double g = trk->Optimize(0, fOptimizationEps);
+			mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging initial tpc segments: done, g = " << g;
 		}
-		return trk;
+
+		int nSegments = getSegCount(trk->size()) - trk->Segments().size() + 1;
+		if (nSegments > 0) // need to add segments
+		{
+			double g = 0.0;
+			size_t nNodes = (size_t)( nSegments - 1 ); // n nodes to add
+			if (nNodes)
+			{
+				mf::LogVerbatim("ProjectionMatchingAlg") << "  optimize trk (add " << nSegments << " seg)";
+
+				g = trk->Optimize(nNodes, fOptimizationEps, false, true, 25, 10);   // build nodes
+				mf::LogVerbatim("ProjectionMatchingAlg") << "  nodes done, g = " << g;
+				trk->SelectAllHits();
+			}
+			g = trk->Optimize(0, fFineTuningEps);      // final tuning
+			mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
+		}
+		trk->SortHits();
 	}
-	else return 0;
+	return trk;
 }
 
 // ------------------------------------------------------
@@ -988,7 +1007,8 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 				idx0 = trk.PrevHit(trk.size(), i);
 			}
 
-			if ((idx0 >= 0) && (idx0 < (int)trk.size()))
+			if ((idx0 >= 0) && (idx0 < (int)trk.size()) &&
+			    (trk[idx0]->TPC() == tpc) && (trk[idx0]->Cryo() == cryo))
 			{
 				if (endpoint == pma::Track3D::kBegin)
 				{
@@ -999,7 +1019,8 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 					idx1 = trk.PrevHit(idx0, i);
 				}
 
-				if ((idx1 >= 0) && (idx1 < (int)trk.size()))
+				if ((idx1 >= 0) && (idx1 < (int)trk.size()) &&
+				    (trk[idx1]->TPC() == tpc) && (trk[idx1]->Cryo() == cryo))
 				{
 					int w0 = trk[idx0]->Wire();
 					int w1 = trk[idx1]->Wire();
