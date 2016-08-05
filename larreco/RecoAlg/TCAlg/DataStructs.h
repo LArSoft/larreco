@@ -19,6 +19,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Wire.h"
 
 namespace tca {
   
@@ -190,6 +191,8 @@ namespace tca {
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
+    // vector of pointers to wires in each plane
+    std::vector<std::vector<art::Ptr<recob::Wire>>> WirePtr;
     std::vector<unsigned int> NumWires;
     std::vector<float> MaxPos0;
     std::vector<float> MaxPos1;
