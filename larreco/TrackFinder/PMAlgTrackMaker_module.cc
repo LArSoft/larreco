@@ -215,12 +215,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	if (!(evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits associated used to create clusters
     	  evt.getByLabel(fCluModuleLabel, cluListHandle)))     // clusters used to build 3D tracks
 	{
-		mf::LogError("PMAlgTrackMaker") << "Not all required data products found in the event.";
-		return;
+		throw cet::exception("PMAlgTrackMaker") << "Not all required data products found in the event." << std::endl;
 	}
 
 	art::fill_ptr_vector(allhitlist, allHitListHandle);
 	art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fCluModuleLabel);
+
 
 	// -------------- PMA Tracker for this event --------------
 	auto pmalgTracker = pma::PMAlgTracker(allhitlist,
@@ -236,14 +236,14 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		}
 		else
 		{
-			mf::LogError("PMAlgTrackMaker") << "EM-tagged clusters not found in the event.";
-			return;
+			throw cet::exception("PMAlgTrackMaker") << "EM-tagged clusters not found in the event." << std::endl;
 		}
 	}
 	else // ------------------------ Use ALL clusters ---------
 	{
 		pmalgTracker.init(hitsFromClusters);
 	}
+
 
 	// ------------------ Do the job here: --------------------
 	int retCode = pmalgTracker.build();
