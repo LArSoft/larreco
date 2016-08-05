@@ -4,11 +4,12 @@ BEGIN_PROLOG
 
 standard_trajclusteralg:
 {
+   CalDataModuleLabel: "caldata"  # only required when testing for the presence of wire signals using ROIs
    HitFinderModuleLabel: "gaushit"
    Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
-   MinPtsFit: [10, 2]       # Min number of points in the trajectory fit required on each pass
-   MinPts: [10, 3]          # Min number of points in the trajectory required on each pass
+   MinPtsFit: [4, 2]        # Min number of points in the trajectory fit required on each pass
+   MinPts:   [10, 3]        # Min number of points in the trajectory required on each pass
    LAStep: [false, true]    # Step Large Angle trajectories on pass
    MaxChi: 5                # Max Chi/DOF for accepting a trajectory fit
    HitErrFac: 0.2           # hit time error for fitting = fHitErrFac * (hit RMS)
@@ -20,7 +21,7 @@ standard_trajclusteralg:
    KinkAngCut: 0.4          # Kink angle to decide whether to merge or create a 2D vtx
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
-   MaxWireSkipNoSignal: 10  # max allowed number of not-dead wires if no signal is present
+   MaxWireSkipNoSignal: 10  # max allowed number of not-dead wires if no signal is present. Set < 0 to test using ROIs
    MaxWireSkipWithSignal: 100  # max allowed number of not-dead wires if a signal is present
    Vertex2DIPCut:  5        # Max 2D vtx position separation for merging into one vtx (WSE units)
    Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
