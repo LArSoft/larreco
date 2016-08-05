@@ -38,6 +38,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Wire.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/LinFitAlg.h"
@@ -93,6 +94,7 @@ namespace tca {
     private:
     
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
+    art::InputTag fCalDataModuleLabel; ///< label of module producing ROIs on wires
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
     short fStepDir;             /// US->DS (1), DS->US (-1)
@@ -321,7 +323,7 @@ namespace tca {
     void CheckTrajEnd();
     void EndMerge();
     void ChainMerge();
-    void FillWireHitRange(geo::TPCID const& tpcid);
+    void FillWireHitRange(geo::TPCID const& tpcid, art::ValidHandle< std::vector<recob::Wire>> const& wireVecHandle);
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
