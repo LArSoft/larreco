@@ -59,6 +59,7 @@ def main(argv):
 
         for i in range(raw.shape[0]):
             for j in range(raw.shape[1]):
+                # randomly skip (3/4) of patches
                 if np.random.randint(100) < 25: continue
                 
                 x_start = np.max([0, i - PATCH_SIZE/2])
@@ -107,3 +108,4 @@ def main(argv):
 
 if __name__ == "__main__":
     main(sys.argv)
+

@@ -10,6 +10,8 @@ BEGIN_PROLOG
 #  PatchSize:       32
 #  DriftWindow:     10
 #
+#  DownscaleAlg:    "maxpool"
+#
 #  CalorimetryAlg:   @local::standard_calorimetryalgmc
 # }
 
@@ -21,6 +23,10 @@ standard_pointidalg:
 
  PatchSize:       32  # important: patch size and drift window have to be consistent
  DriftWindow:     10  # with training data used in neural net model preparation
+
+ DownscaleFn:     "maxpool" # "maxpool" takes the max value in the window,
+                            # "maxmean" is mean from 3 ADC's around the max,
+                            # "mean" is the mean value of all ADC's in the window
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc
 }
@@ -34,6 +40,10 @@ standard_trainingdataalg:
 
  PatchSize:       32  # important: patch size and drift window have to be consistent
  DriftWindow:     10  # with training data used in neural net model preparation
+
+ DownscaleAlg:    "maxpool" # "maxpool" takes the max value in the window,
+                            # "maxmean" is mean from 3 ADC's around the max,
+                            # "mean" is the mean value of all ADC's in the window
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc
 }

@@ -12,33 +12,47 @@ standard_trackshowerseparationalg:
 
 standard_showerenergyalg:
 {
-  UGradient:   149476.
-  UIntercept: -2216.12
-  VGradient:   148550.
-  VIntercept: -1514.7
-  ZGradient:   149264.
-  ZIntercept: -2666.79
+  UGradient:   7.69985e-06
+  UIntercept: -0.0160794
+  VGradient:   7.70957e-06
+  VIntercept: -0.0160174
+  ZGradient:   7.30337e-06
+  ZIntercept: -0.0191387
 }
 
 dune35t_showerenergy:
 {
-  UGradient:   148867.
-  UIntercept: -1519.33
-  VGradient:   149458.
-  VIntercept: -1234.91
-  ZGradient:   145372.
-  ZIntercept: -1089.73
+  # Last updated M Wallbank, 8/8/16
+  # LArSoft v06_01_00
+  UGradient:   8.1406e-06
+  UIntercept: -0.00772234
+  VGradient:   7.98303e-06
+  VIntercept: -0.00442084
+  ZGradient:   7.98278e-06
+  ZIntercept: -0.0143167
+}
+
+dune35tdata_showerenergy:
+{
+  # Last updated M Wallbank, 8/8/16
+  UGradient:   8.1406e-06
+  UIntercept: -0.00772234
+  VGradient:   7.98303e-06
+  VIntercept: -0.00442084
+  ZGradient:   7.98278e-06
+  ZIntercept: -0.0143167
 }
 
 dune10kt_showerenergy:
 {
-  UGradient:   149476.
-  UIntercept: -2216.12
-  VGradient:   148550.
-  VIntercept: -1514.7
-  ZGradient:   149264.
-  ZIntercept: -2666.79
+  # Last updated M Wallbank, 8/8/16
+  # LArSoft v06_00_01
+  UGradient:   7.69985e-06
+  UIntercept: -0.0160794
+  VGradient:   7.70957e-06
+  VIntercept: -0.0160174
+  ZGradient:   7.30337e-06
+  ZIntercept: -0.0191387
 }
 
 END_PROLOG
-
