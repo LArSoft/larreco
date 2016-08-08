@@ -30,13 +30,13 @@ double shower::ShowerEnergyAlg::ShowerEnergy(std::vector<art::Ptr<recob::Hit> > 
 
   switch (plane) {
   case 0:
-    totalEnergy = (double)(totalCharge - fUIntercept)/(double)fUGradient;
+    totalEnergy = (totalCharge * fUGradient) + fUIntercept;
     break;
   case 1:
-    totalEnergy = (double)(totalCharge - fVIntercept)/(double)fVGradient;
+    totalEnergy = (totalCharge * fVGradient) + fVIntercept;
     break;
   case 2:
-    totalEnergy = (double)(totalCharge - fZIntercept)/(double)fZGradient;
+    totalEnergy = (totalCharge * fZGradient) + fZIntercept;
     break;
   }
 
