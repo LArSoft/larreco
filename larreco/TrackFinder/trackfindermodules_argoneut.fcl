@@ -27,9 +27,9 @@ argoneut_track3Dkalmanhit.SpacePointAlg.MinViews:     2
 argoneut_pmalgtrackmaker:                     @local::standard_pmalgtrackmaker
 argoneut_pmalgtrackmaker.HitModuleLabel:      "linecluster"
 argoneut_pmalgtrackmaker.ClusterModuleLabel:  "linecluster"
-argoneut_pmalgtrackmaker.FlipToBeam:          true
-argoneut_pmalgtrackmaker.AutoFlip_dQdx:       false
+argoneut_pmalgtrackmaker.PMAlgTracking.FlipToBeam:          true
+argoneut_pmalgtrackmaker.PMAlgTracking.AutoFlip_dQdx:       false
 argoneut_pmalgtrackmaker.ProjectionMatchingAlg.NodeMargin3D: 1.0
-argoneut_pmalgtrackmaker.RunVertexing:        true
-argoneut_pmalgtrackmaker.MinSeedSize2ndPass:  3
+argoneut_pmalgtrackmaker.PMAlgTracking.RunVertexing:        true
+argoneut_pmalgtrackmaker.PMAlgTracking.MinSeedSize2ndPass:  3
 END_PROLOG
