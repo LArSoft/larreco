@@ -109,6 +109,7 @@ namespace tca {
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
+    float fMaxQuality;
     
     float fJTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
     
@@ -159,7 +160,7 @@ namespace tca {
     const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
     // TEMP for writing event filter selection
-//    std::ofstream outFile;
+    std::ofstream outFile;
     
     trkf::LinFitAlg fLinFitAlg;
 
@@ -282,6 +283,8 @@ namespace tca {
     void CheckHitClusterAssociations();
     // Push the work trajectory into allTraj
     void StoreWork();
+    // Calculate the trajectory Quality
+    void CalculateQuality(Trajectory& tj);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
     // Fill in missed hits
