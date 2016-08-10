@@ -488,7 +488,7 @@ namespace tca {
   
   // ****************************** Printing  ******************************
   
-  void PrintAllTraj(TjStuff& tjs, DebugStuff& debug, unsigned short itj, unsigned short ipt)
+  void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& debug, unsigned short itj, unsigned short ipt)
   {
     
     mf::LogVerbatim myprt("TC");
@@ -552,7 +552,7 @@ namespace tca {
     } // tjs.vtx.size
     
     if(tjs.allTraj.empty()) {
-      mf::LogVerbatim("TC")<<"No allTraj trajectories to print";
+      mf::LogVerbatim("TC")<<someText<<" No allTraj trajectories to print";
       return;
     }
     
@@ -563,11 +563,11 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<"TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang   AveQ     W:T      Ang   AveQ  ChgRMS Hits/TP __Vtx__ PDG Parent TRuPDG   EP   KE  \n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang   AveQ     W:T      Ang   AveQ  ChgRMS  Qual __Vtx__ PDG Parent TRuPDG   EP   KE  WorkID\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && (unsigned short)debug.Plane != aTj.CTP) continue;
-        //        if(tj.AlgMod[kKilled]) continue;
+        myprt<<someText<<" ";
         if(aTj.AlgMod[kKilled]) { myprt<<"xxx"; } else { myprt<<"TRJ"; }
         myprt<<std::fixed<<std::setw(4)<<aTj.ID;
         myprt<<std::setw(3)<<aTj.CTP;
@@ -590,10 +590,13 @@ namespace tca {
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
+        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Quality;
+/*
         // find average number of used hits / TP
         PutTrajHitsInVector(aTj, true, tmp);
         float ave = (float)tmp.size() / (float)aTj.Pts.size();
         myprt<<std::setw(8)<<std::setprecision(2)<<ave;
+*/
         myprt<<std::setw(4)<<aTj.Vtx[0];
         myprt<<std::setw(4)<<aTj.Vtx[1];
         myprt<<std::setw(5)<<aTj.PDG;
@@ -601,6 +604,7 @@ namespace tca {
         myprt<<std::setw(6)<<aTj.TruPDG;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(5)<<(int)aTj.TruKE;
+        myprt<<std::setw(7)<<aTj.WorkID;
         // print the seed hit that started this trajectory
         if(aTj.StepDir > 0) {
           if(aTj.Pts[0].Chg == 0) myprt<<" "<<PrintPos(tjs, aTj.Pts[0]);
@@ -626,19 +630,19 @@ namespace tca {
     
     mf::LogVerbatim("TC")<<"Print tjs.allTraj["<<itj<<"]: ClusterIndex "<<aTj.ClusterIndex<<" Vtx[0] "<<aTj.Vtx[0]<<" Vtx[1] "<<aTj.Vtx[1];
     
-    PrintHeader();
+    PrintHeader(someText);
     if(ipt == USHRT_MAX) {
       // print all points
-      for(unsigned short ii = 0; ii < aTj.Pts.size(); ++ii) PrintTrajPoint(tjs, ii, aTj.StepDir, aTj.Pass, aTj.Pts[ii]);
+      for(unsigned short ii = 0; ii < aTj.Pts.size(); ++ii) PrintTrajPoint(someText, tjs, ii, aTj.StepDir, aTj.Pass, aTj.Pts[ii]);
     } else {
       // print just one
-      PrintTrajPoint(tjs, ipt, aTj.StepDir, aTj.Pass, aTj.Pts[ipt]);
+      PrintTrajPoint(someText, tjs, ipt, aTj.StepDir, aTj.Pass, aTj.Pts[ipt]);
     }
   } // Printtjs.allTraj
   
   
   //////////////////////////////////////////
-  void PrintTrajectory(TjStuff& tjs, Trajectory const& tj, unsigned short tPoint)
+  void PrintTrajectory(std::string someText, TjStuff& tjs, Trajectory const& tj, unsigned short tPoint)
   {
     // prints one or all trajectory points on tj
     
@@ -647,6 +651,7 @@ namespace tca {
     if(tPoint == USHRT_MAX) {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
+        myprt<<someText<<" ";
         myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDG<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
@@ -654,29 +659,29 @@ namespace tca {
         myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDG<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[0]<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
-      PrintHeader();
-      for(unsigned short ipt = first; ipt < last; ++ipt) PrintTrajPoint(tjs, ipt, tj.StepDir, tj.Pass, tj.Pts[ipt]);
+      PrintHeader(someText);
+      for(unsigned short ipt = first; ipt < last; ++ipt) PrintTrajPoint(someText, tjs, ipt, tj.StepDir, tj.Pass, tj.Pts[ipt]);
     } else {
       // just print one traj point
       if(tPoint > tj.Pts.size() -1) {
         mf::LogVerbatim("TC")<<"Can't print non-existent traj point "<<tPoint;
         return;
       }
-      PrintTrajPoint(tjs, tPoint, tj.StepDir, tj.Pass, tj.Pts[tPoint]);
+      PrintTrajPoint(someText, tjs, tPoint, tj.StepDir, tj.Pass, tj.Pts[tPoint]);
     }
   } // PrintTrajectory
   
   //////////////////////////////////////////
-  void PrintHeader()
+  void PrintHeader(std::string someText)
   {
-    mf::LogVerbatim("TC")<<"TRP  CTP Ind  Stp      W:Tick    Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
+    mf::LogVerbatim("TC")<<someText<<" TRP  CTP Ind  Stp      W:Tick    Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
   } // PrintHeader
   
   ////////////////////////////////////////////////
-  void PrintTrajPoint(TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp)
+  void PrintTrajPoint(std::string someText, TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp)
   {
     mf::LogVerbatim myprt("TC");
-    myprt<<"TRP"<<std::fixed;
+    myprt<<someText<<" TRP"<<std::fixed;
     myprt<<pass;
     if(dir > 0) { myprt<<"+"; } else { myprt<<"-"; }
     myprt<<std::setw(3)<<tp.CTP;
