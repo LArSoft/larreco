@@ -74,10 +74,10 @@ namespace tca {
   void SetEndPoints(TjStuff& tjs, Trajectory& tj);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
-  void PrintTrajectory(TjStuff& tjs, Trajectory const& tj ,unsigned short tPoint);
-  void PrintAllTraj(TjStuff& tjs, DebugStuff& Debug, unsigned short itj, unsigned short ipt);
-  void PrintHeader();
-  void PrintTrajPoint(TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
+  void PrintTrajectory(std::string someText, TjStuff& tjs, Trajectory const& tj ,unsigned short tPoint);
+  void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& Debug, unsigned short itj, unsigned short ipt);
+  void PrintHeader(std::string someText);
+  void PrintTrajPoint(std::string someText, TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
