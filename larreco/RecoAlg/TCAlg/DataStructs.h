@@ -103,7 +103,7 @@ namespace tca {
     float AveChg {-1};             // Average charge of last ~20 TPs
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
     float Delta {0};              // Deviation between trajectory and hits (WSE)
-    float DeltaRMS {0};           // RMS of Deviation between trajectory and hits (WSE)
+    float DeltaRMS {0.02};           // RMS of Deviation between trajectory and hits (WSE)
     unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
     unsigned short Step {0};      // Step number at which this TP was created
     float FitChi {0};             // Chi/DOF of the fit
@@ -113,23 +113,25 @@ namespace tca {
   
   // Global information for the trajectory
   struct Trajectory {
-    short ID;
+    std::vector<TrajPoint> Pts;    ///< Trajectory points
+    std::vector<TrajPoint> EndTP {(2)} ;    ///< Trajectory point at each end for merging
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
-    unsigned short Pass {0};            ///< the pass on which it was created
-    short StepDir {0};                 /// -1 = going US (CC proper order), 1 = going DS
-    unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     unsigned short PDG {0};            ///< shower-like or track-like {default is track-like}
     unsigned short ParentTraj {USHRT_MAX};     ///< index of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
+    float Quality {0};                ///< normalized residual error between points
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
     std::array<short, 2> Vtx {{-1,-1}};      ///< Index of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has a hit
-    std::vector<TrajPoint> Pts;    ///< Trajectory points
-    std::vector<TrajPoint> EndTP {(2)} ;    ///< Trajectory point at each end for merging
+    short ID;
+    unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
+    unsigned short Pass {0};            ///< the pass on which it was created
+    short StepDir {0};                 /// -1 = going US (CC proper order), 1 = going DS
+    short WorkID {0};
   };
   
   // Trajectory "intersections" used to search for superclusters (aka showers)
