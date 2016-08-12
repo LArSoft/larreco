@@ -17,6 +17,8 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "lardata/RecoBaseArt/HitCreator.h"
+
 #include <memory>
 
 #include "RFFHitFinderAlg.h"
@@ -47,8 +49,7 @@ namespace hit{
     
   private:
     
-    std::string fWireModuleLabel;
-    bool        fMakeWireHitAssocs;
+    art::InputTag   fWireModuleLabel;
     RFFHitFinderAlg fAlg;
   };
   
@@ -58,7 +59,8 @@ namespace hit{
     fWireModuleLabel(p.get<std::string>("WireModuleLabel")),
     fAlg(p.get<fhicl::ParameterSet>("RFFHitFinderAlgParams"))
   {
-    produces< std::vector<recob::Hit> >();
+    //calls the produces stuff for me!
+    recob::HitCollectionCreator::declare_products(*this);
   }
   
   void RFFHitFinder::produce(art::Event & e)
@@ -69,10 +71,13 @@ namespace hit{
     e.getByLabel(fWireModuleLabel,wireHandle);
 
     std::unique_ptr< std::vector<recob::Hit> > hitCollection(new std::vector<recob::Hit>);
-
     fAlg.Run(*wireHandle,*hitCollection,*geoHandle);
 
-    e.put(std::move(hitCollection));
+    recob::HitCollectionAssociator hcol(*this,e,fWireModuleLabel,true);
+    hcol.use_hits(std::move(hitCollection));
+    hcol.put_into(e);
+
+    //e.put(std::move(hitCollection));
   }
   
   void RFFHitFinder::beginJob()
