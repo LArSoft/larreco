@@ -73,7 +73,7 @@ namespace hit{
       fMergeVector;
 
     void CalculateAllMeansAndSigmas(const std::vector<float>& signal);
-    void CalculateMergedMeansAndSigmas();
+    void CalculateMergedMeansAndSigmas(std::size_t signal_size);
     void CalculateAmplitudes(const std::vector<float>& signal);
     void CreateMergeVector();
 
