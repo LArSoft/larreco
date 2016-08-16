@@ -61,7 +61,6 @@ standard_pmalgtrackmaker:
   PMAlgTracking:          @local::standard_pmalgtracker
   PMAlgVertexing:         @local::standard_pmavertexalg
                                       #
-#  RunVertexing:           false       # find vertices, join with tracks, reoptimize track-vertex structure
   SaveOnlyBranchingVtx:   false       # use true to save only vertices interconnecting many tracks, otherwise
                                       # vertex is added to the front of each track
   SavePmaNodes:           false       # save track nodes (only for algorithm development purposes)
@@ -69,29 +68,6 @@ standard_pmalgtrackmaker:
   HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
   ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
   EmClusterModuleLabel:   ""          # EM-like clusters, will be excluded from tracking if provided
-                                      #
-#  MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
-#  MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks
-                                      # w/o checking large number of possibilities, then use as small size
-                                      # as reasonnable for used clustering algorithm to complete the search
-                                      # in the second pass
-                                      #
-#  FlipToBeam:             false       # set the track direction to increasing Z values
-#  FlipDownward:           false       # set the track direction to decreasing Y values (like cosmic rays)
-#  AutoFlip_dQdx:          false       # set the track direction to increasing dQ/dx (overrides FlipToBeam
-                                      # and FlipDownward if significant rise of dQ/dx at the track end)
-                                      #
-#  MergeWithinTPC:         false       # merge witnin single TPC; finds tracks best matching by angle, with limits:
-#  MergeTransverseShift:   2.0         #    - max. transverse displacement [cm] between tracks
-#  MergeAngle:             2.0         #    - max. angle [degree] between tracks (nearest segments)
-                                      #
-#  StitchBetweenTPCs:      true        # stitch between TPCs; finds tracks best matching by angle, with limits:
-#  StitchDistToWall:       3.0         #    - max. track endpoint distance [cm] to TPC boundary
-#  StitchTransverseShift:  3.0         #    - max. transverse displacement [cm] between tracks
-#  StitchAngle:           10.0         #    - max. angle [degree] between tracks (nearest segments)
-                                      #
-#  MatchT0inAPACrossing:   false       # match T0 of APA-crossing tracks, TPC stitching limits are used, but track
-                                      # parts are not stitched into a single recob::Track
 }
 
 # Trajectory fit using PMA.
