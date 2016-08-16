@@ -11,6 +11,12 @@ dune35t_emshower.EMShowerAlg.Detector: "dune35t"
 dune35t_emshower.EMShowerAlg.CalorimetryAlg: @local::dune35t_calorimetryalgmc
 dune35t_emshower.EMShowerAlg.ShowerEnergyAlg: @local::dune35t_showerenergy
 
+dune35tdata_emshower: @local::standard_emshower
+dune35tdata_emshower.EMShowerAlg: @local::standard_emshoweralg
+dune35tdata_emshower.EMShowerAlg.Detector: "dune35t"
+dune35tdata_emshower.EMShowerAlg.CalorimetryAlg: @local::dune35t_calorimetryalgmc
+dune35tdata_emshower.EMShowerAlg.ShowerEnergyAlg: @local::dune35tdata_showerenergy
+
 dune10kt_emshower: @local::standard_emshower
 dune10kt_emshower.EMShowerAlg: @local::standard_emshoweralg
 dune10kt_emshower.EMShowerAlg.Detector: "dune10kt"

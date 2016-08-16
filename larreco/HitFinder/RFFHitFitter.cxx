@@ -16,6 +16,7 @@
 #include <iostream>
 #include <cmath>
 #include <stdexcept>
+#include "cetlib/exception.h"
 
 hit::RFFHitFitter::RFFHitFitter(float step, float max):
   fGEAlg(step,max)
@@ -49,7 +50,7 @@ void hit::RFFHitFitter::RunFitter(const std::vector<float>& signal)
   ClearResults();
   CalculateAllMeansAndSigmas(signal);
   CreateMergeVector();
-  CalculateMergedMeansAndSigmas();
+  CalculateMergedMeansAndSigmas(signal.size());
   CalculateAmplitudes(signal);
 }
 
@@ -97,7 +98,7 @@ void hit::RFFHitFitter::CreateMergeVector()
     }
 }
 
-void hit::RFFHitFitter::CalculateMergedMeansAndSigmas()
+void hit::RFFHitFitter::CalculateMergedMeansAndSigmas(size_t signal_size)
 {
   fMeanVector.reserve(fMergeVector.size());
   fSigmaVector.reserve(fMergeVector.size());
@@ -119,6 +120,11 @@ void hit::RFFHitFitter::CalculateMergedMeansAndSigmas()
     fMeanVector.back() /= fMergeVector[i_col].size();
     fSigmaVector.back() /= fMergeVector[i_col].size();
 
+    if(fMeanVector.back() < 0 || fMeanVector.back()>signal_size-1){
+      fMeanVector.pop_back();
+      fSigmaVector.pop_back();
+      continue;
+    }
 
     fMeanErrorVector.push_back(0.0);
     fSigmaErrorVector.push_back(0.0);
@@ -139,9 +145,20 @@ void hit::RFFHitFitter::CalculateMergedMeansAndSigmas()
 
 void hit::RFFHitFitter::CalculateAmplitudes(const std::vector<float>& signal)
 {
+
   std::vector<float> heightVector(fMeanVector.size());
+  size_t bin=0;
   for(size_t i=0; i<fMeanVector.size(); i++){
-    size_t bin = std::floor(fMeanVector[i]);
+
+    if(fMeanVector[i]<0)  bin=0;
+    else if(fMeanVector[i]+1 > signal.size()) bin=signal.size()-2;
+    else  bin = std::floor(fMeanVector[i]);
+
+    if(bin >= signal.size()-1)
+      throw cet::exception("RFFHitFitter") << "Error in CalculatAmplitudes! bin is out of range!\n"
+					   << "\tFor element " << i << " bin is " << bin << "(" << fMeanVector[i] << ")"
+					   << " but size is " << signal.size() << ".\n";
+    
     heightVector[i] = signal[bin] - (fMeanVector[i]-(float)bin)*(signal[bin]-signal[bin+1]);
   }
   fAmpVector = fGEAlg.SolveEquations(fMeanVector,fSigmaVector,heightVector);
