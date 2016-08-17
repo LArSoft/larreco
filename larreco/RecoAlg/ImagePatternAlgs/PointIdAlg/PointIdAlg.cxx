@@ -127,7 +127,7 @@ void nnet::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vect
 		}
 
 		size_t n = 1;
-		if (max_idx - 1 >= 0) { max_adc += scaleAdcSample(adc[max_idx - 1] * fCalorimetryAlg.LifetimeCorrection(max_idx - 1)); n++; }
+		if (max_idx > 0) { max_adc += scaleAdcSample(adc[max_idx - 1] * fCalorimetryAlg.LifetimeCorrection(max_idx - 1)); n++; }
 		if (max_idx + 1 < adc.size()) { max_adc += scaleAdcSample(adc[max_idx + 1] * fCalorimetryAlg.LifetimeCorrection(max_idx + 1)); n++; }
 
 		dst[i] = max_adc / n;
