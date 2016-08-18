@@ -647,7 +647,8 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 		size_t i0 = i * fDriftWindow;
 		size_t i1 = (i + 1) * fDriftWindow;
 
-		int vtx_flags = 0, best_pdg = 0;
+		int best_pdg = pdgs[i0] & nnet::TrainingDataAlg::kPdgMask;
+		int vtx_flags = pdgs[i0] & nnet::TrainingDataAlg::kVtxMask;
 		float max_edep = edeps[i0];
 		for (size_t k = i0 + 1; k < i1; ++k)
 		{
@@ -694,6 +695,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 	const std::map< int, const simb::MCParticle* > & particleMap,
 	unsigned int view) const
 {
+
 	for (auto const & p : particleMap)
 	{
 		auto const & particle = *p.second;
@@ -704,6 +706,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		int pdg = abs(particle.PdgCode());
 		int flagsStart = nnet::TrainingDataAlg::kNone;
 		int flagsEnd = nnet::TrainingDataAlg::kNone;
+		
 		switch (pdg)
 		{
 			case 22:   // gamma
@@ -716,9 +719,10 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 				break;
 
 			case 13:   // mu+/-
-				if (particle.EndProcess() == "FastScintillation") // potential decay at rest
+				if ((particle.EndProcess() == "FastScintillation")) // potential decay at rest
 				{
 					unsigned int nSec = particle.NumberDaughters();
+					
 					for (size_t d = 0; d < nSec; ++d)
 					{
 						auto d_search = particleMap.find(particle.Daughter(d));
@@ -784,7 +788,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 								flagsStart = nnet::TrainingDataAlg::kHadr;
 							}
 						}
-						else std::cout << "---> mother not found for tid: " << particle.Mother() << std::endl;
+						// else std::cout << "---> mother not found for tid: " << particle.Mother() << std::endl;
 					}
 
 					if (particle.EndProcess() == "FastScintillation") // potential decay at rest
@@ -846,12 +850,13 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		if (flagsStart != nnet::TrainingDataAlg::kNone)
 		{
 			auto wd = getProjection(particle.Vx(), particle.Vy(), particle.Vz(), view);
+			
 			if (wd.TPC == (int)fTPC)
 			{
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsStart;
-				//std::cout << "---> flagsStart:" << flagsStart << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+				// std::cout << "---> flagsStart:" << flagsStart << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
 			}
-			//else std::cout << "---> not in current TPC" << std::endl;
+			// else std::cout << "---> not in current TPC" << std::endl;
 		}
 		if (flagsEnd != nnet::TrainingDataAlg::kNone)
 		{
@@ -859,9 +864,9 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 			if (wd.TPC == (int)fTPC)
 			{
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;
-				//std::cout << "---> flagsEnd:" << flagsEnd << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+				// std::cout << "---> flagsEnd:" << flagsEnd << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
 			}
-			//else std::cout << "---> not in current TPC" << std::endl;
+			// else std::cout << "---> not in current TPC" << std::endl;
 		}
 
 		//if (ekStart > 30.0)
