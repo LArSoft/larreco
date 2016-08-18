@@ -552,20 +552,20 @@ bool pma::Track3D::CanFlip(void) const
 void pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned int n)
 {
 	unsigned int nViews = 3;
-	std::map< size_t, std::vector<double> > dedx_map[3];
+	pma::dedx_map dedxInViews[3];
 	for (unsigned int i = 0; i < nViews; i++)
 	{
-		GetRawdEdxSequence(dedx_map[i], i, 1);
+		GetRawdEdxSequence(dedxInViews[i], i, 1);
 	}
 	unsigned int bestView = 2;
-	if (dedx_map[0].size() > 2 * dedx_map[2].size()) bestView = 0;
-	if (dedx_map[1].size() > 2 * dedx_map[2].size()) bestView = 1;
+	if (dedxInViews[0].size() > 2 * dedxInViews[2].size()) bestView = 0;
+	if (dedxInViews[1].size() > 2 * dedxInViews[2].size()) bestView = 1;
 
 	std::vector< std::vector<double> > dedx;
 	for (size_t i = 0; i < size(); i++)
 	{
-		auto it = dedx_map[bestView].find(i);
-		if (it != dedx_map[bestView].end())
+		auto it = dedxInViews[bestView].find(i);
+		if (it != dedxInViews[bestView].end())
 		{
 			dedx.push_back(it->second);
 		}
@@ -831,7 +831,7 @@ pma::Segment3D* pma::Track3D::PrevSegment(pma::Node3D* vtx) const
 }
 
 double pma::Track3D::GetRawdEdxSequence(
-		std::map< size_t, std::vector<double> >& dedx,
+		std::map< size_t, std::vector<double> > & dedx,
 		unsigned int view, unsigned int skip,
 		bool inclDisabled) const
 {
