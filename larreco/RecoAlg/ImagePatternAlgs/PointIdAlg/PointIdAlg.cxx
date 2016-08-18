@@ -18,15 +18,12 @@
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
-#include "lardataobj/RecoBase/Wire.h"
-
-
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 nnet::DataProviderAlg::DataProviderAlg(const fhicl::ParameterSet& pset) :
 	fCryo(9999), fTPC(9999), fView(9999),
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0),
-	fDriftWindow(10), fPatchSize(32),
+	fDriftWindow(10), fPatchSizeW(32), fPatchSizeD(32),
 	fDownscaleMode(nnet::DataProviderAlg::kMax),
 	fCurrentWireIdx(99999), fCurrentScaledDrift(99999),
 	fCalorimetryAlg(pset.get< fhicl::ParameterSet >("CalorimetryAlg")),
@@ -46,10 +43,10 @@ nnet::DataProviderAlg::~DataProviderAlg(void)
 void nnet::DataProviderAlg::reconfigure(const fhicl::ParameterSet& p)
 {
 	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
-	fWireProducerLabel = p.get< std::string >("WireLabel");
 
 	fDriftWindow = p.get< unsigned int >("DriftWindow");
-	fPatchSize = p.get< unsigned int >("PatchSize");
+	fPatchSizeW = p.get< unsigned int >("PatchSizeW");
+	fPatchSizeD = p.get< unsigned int >("PatchSizeD");
 
 	std::string mode_str = p.get< std::string >("DownscaleFn");
 	if (mode_str == "maxpool")      fDownscaleMode = nnet::DataProviderAlg::kMax;
@@ -67,8 +64,8 @@ void nnet::DataProviderAlg::reconfigure(const fhicl::ParameterSet& p)
 
 void nnet::DataProviderAlg::resizePatch(void)
 {
-	fWireDriftPatch.resize(fPatchSize);
-	for (auto & r : fWireDriftPatch) r.resize(fPatchSize);
+	fWireDriftPatch.resize(fPatchSizeW);
+	for (auto & r : fWireDriftPatch) r.resize(fPatchSizeD);
 }
 // ------------------------------------------------------
 
@@ -130,7 +127,7 @@ void nnet::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vect
 		}
 
 		size_t n = 1;
-		if (max_idx - 1 >= 0) { max_adc += scaleAdcSample(adc[max_idx - 1] * fCalorimetryAlg.LifetimeCorrection(max_idx - 1)); n++; }
+		if (max_idx > 0) { max_adc += scaleAdcSample(adc[max_idx - 1] * fCalorimetryAlg.LifetimeCorrection(max_idx - 1)); n++; }
 		if (max_idx + 1 < adc.size()) { max_adc += scaleAdcSample(adc[max_idx + 1] * fCalorimetryAlg.LifetimeCorrection(max_idx + 1)); n++; }
 
 		dst[i] = max_adc / n;
@@ -172,20 +169,17 @@ bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t w
 }
 // ------------------------------------------------------
 
-bool nnet::DataProviderAlg::setWireDriftData(const art::Event& event,
+bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wires,
 	unsigned int view, unsigned int tpc, unsigned int cryo)
 {
 	fCryo = cryo; fTPC = tpc; fView = view;
-
-	art::ValidHandle< std::vector<recob::Wire> > wireHandle
-		= event.getValidHandle< std::vector<recob::Wire> >(fWireProducerLabel);
 
 	size_t nwires = fGeometry->Nwires(view, tpc, cryo);
 	size_t ndrifts = fDetProp->NumberTimeSamples();
 
 	resizeView(nwires, ndrifts);
 
-    for (auto const & wire : *wireHandle)
+    for (auto const & wire : wires)
 	{
 		auto wireChannelNumber = wire.Channel();
 
@@ -231,13 +225,14 @@ bool nnet::DataProviderAlg::bufferPatch(size_t wire, float drift) const
 	fCurrentWireIdx = wire;
 	fCurrentScaledDrift = sd;
 
-	int halfSize = fPatchSize / 2;
+	int halfSizeW = fPatchSizeW / 2;
+	int halfSizeD = fPatchSizeD / 2;
 
-	int w0 = fCurrentWireIdx - halfSize;
-	int w1 = fCurrentWireIdx + halfSize;
+	int w0 = fCurrentWireIdx - halfSizeW;
+	int w1 = fCurrentWireIdx + halfSizeW;
 
-	int d0 = fCurrentScaledDrift - halfSize;
-	int d1 = fCurrentScaledDrift + halfSize;
+	int d0 = fCurrentScaledDrift - halfSizeD;
+	int d1 = fCurrentScaledDrift + halfSizeD;
 
 	for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch)
 	{
@@ -293,10 +288,12 @@ std::vector<float> nnet::DataProviderAlg::flattenData2D(std::vector< std::vector
 
 bool nnet::DataProviderAlg::isInsideFiducialRegion(unsigned int wire, float drift) const
 {
-	size_t halfPatch = fPatchSize / 8; // fPatchSize/2 will make patch always completely filled
+	size_t marginW = fPatchSizeW / 8; // fPatchSizeX/2 will make patch always completely filled
+	size_t marginD = fPatchSizeD / 8;
+
 	size_t scaledDrift = (size_t)(drift / fDriftWindow);
-	if ((wire >= halfPatch) && (wire < fNWires - halfPatch) &&
-	    (scaledDrift >= halfPatch) && (scaledDrift < fNScaledDrifts - halfPatch)) return true;
+	if ((wire >= marginW) && (wire < fNWires - marginW) &&
+	    (scaledDrift >= marginD) && (scaledDrift < fNScaledDrifts - marginD)) return true;
 	else return false;
 }
 // ------------------------------------------------------
@@ -374,8 +371,7 @@ bool nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & in
 	sample->set_data(inp3d); // and more copy...
 	fOutput = m.compute_output(sample); // add using reference to input so no need for new/delete
 
-	// anyway time is spent in 2D convolutions, not much to be improved
-	// in a simple approach...
+	// anyway time is spent in 2D convolutions, not much to be improved in this simple approach...
 
 	return true;
 }
@@ -610,6 +606,7 @@ nnet::TrainingDataAlg::~TrainingDataAlg(void)
 
 void nnet::TrainingDataAlg::reconfigure(const fhicl::ParameterSet& p)
 {
+	fWireProducerLabel = p.get< std::string >("WireLabel");
 	fSimulationProducerLabel = p.get< std::string >("SimulationLabel");
 	fSaveVtxFlags = p.get< bool >("SaveVtxFlags");
 }
@@ -650,7 +647,8 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 		size_t i0 = i * fDriftWindow;
 		size_t i1 = (i + 1) * fDriftWindow;
 
-		int vtx_flags = 0, best_pdg = 0;
+		int best_pdg = pdgs[i0] & nnet::TrainingDataAlg::kPdgMask;
+		int vtx_flags = pdgs[i0] & nnet::TrainingDataAlg::kVtxMask;
 		float max_edep = edeps[i0];
 		for (size_t k = i0 + 1; k < i1; ++k)
 		{
@@ -697,6 +695,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 	const std::map< int, const simb::MCParticle* > & particleMap,
 	unsigned int view) const
 {
+
 	for (auto const & p : particleMap)
 	{
 		auto const & particle = *p.second;
@@ -707,6 +706,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		int pdg = abs(particle.PdgCode());
 		int flagsStart = nnet::TrainingDataAlg::kNone;
 		int flagsEnd = nnet::TrainingDataAlg::kNone;
+		
 		switch (pdg)
 		{
 			case 22:   // gamma
@@ -719,9 +719,10 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 				break;
 
 			case 13:   // mu+/-
-				if (particle.EndProcess() == "FastScintillation") // potential decay at rest
+				if ((particle.EndProcess() == "FastScintillation")) // potential decay at rest
 				{
 					unsigned int nSec = particle.NumberDaughters();
+					
 					for (size_t d = 0; d < nSec; ++d)
 					{
 						auto d_search = particleMap.find(particle.Daughter(d));
@@ -787,7 +788,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 								flagsStart = nnet::TrainingDataAlg::kHadr;
 							}
 						}
-						else std::cout << "---> mother not found for tid: " << particle.Mother() << std::endl;
+						// else std::cout << "---> mother not found for tid: " << particle.Mother() << std::endl;
 					}
 
 					if (particle.EndProcess() == "FastScintillation") // potential decay at rest
@@ -849,12 +850,13 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		if (flagsStart != nnet::TrainingDataAlg::kNone)
 		{
 			auto wd = getProjection(particle.Vx(), particle.Vy(), particle.Vz(), view);
+			
 			if (wd.TPC == (int)fTPC)
 			{
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsStart;
-				//std::cout << "---> flagsStart:" << flagsStart << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+				// std::cout << "---> flagsStart:" << flagsStart << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
 			}
-			//else std::cout << "---> not in current TPC" << std::endl;
+			// else std::cout << "---> not in current TPC" << std::endl;
 		}
 		if (flagsEnd != nnet::TrainingDataAlg::kNone)
 		{
@@ -862,9 +864,9 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 			if (wd.TPC == (int)fTPC)
 			{
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;
-				//std::cout << "---> flagsEnd:" << flagsEnd << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+				// std::cout << "---> flagsEnd:" << flagsEnd << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
 			}
-			//else std::cout << "---> not in current TPC" << std::endl;
+			// else std::cout << "---> not in current TPC" << std::endl;
 		}
 
 		//if (ekStart > 30.0)
@@ -880,7 +882,10 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 	unsigned int view, unsigned int tpc, unsigned int cryo)
 {
-	if (!setWireDriftData(event, view, tpc, cryo))
+	art::ValidHandle< std::vector<recob::Wire> > wireHandle
+		= event.getValidHandle< std::vector<recob::Wire> >(fWireProducerLabel);
+
+	if (!setWireDriftData(*wireHandle, view, tpc, cryo))
 	{
 		mf::LogError("TrainingDataAlg") << "Wire data not set.";
 		return false;

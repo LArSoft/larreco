@@ -6,16 +6,17 @@ import os, json
 
 from utils import read_config, get_data
 
-def get_patch(a, wire, drift, psize):
-    halfSize = psize / 2;
+def get_patch(a, wire, drift, wsize, dsize):
+    halfSizeW = wsize / 2;
+    halfSizeD = dsize / 2;
 
-    w0 = wire - halfSize;
-    w1 = wire + halfSize;
+    w0 = wire - halfSizeW;
+    w1 = wire + halfSizeW;
 
-    d0 = drift - halfSize;
-    d1 = drift + halfSize;
+    d0 = drift - halfSizeD;
+    d1 = drift + halfSizeD;
 
-    patch = np.zeros((psize, psize))
+    patch = np.zeros((wsize, dsize))
 
     wpatch = 0
     for w in range(w0, w1):
@@ -33,15 +34,12 @@ def get_patch(a, wire, drift, psize):
 def main(argv):
 
     print '#'*50,'\nPrepare data for CNN'
-    INPUT_DIR, OUTPUT_DIR, PATCH_SIZE = read_config()
+    INPUT_DIR, OUTPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D = read_config()
     print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
     print '#'*50
 
-    db = np.zeros((1800000, PATCH_SIZE, PATCH_SIZE))
+    db = np.zeros((1800000, PATCH_SIZE_W, PATCH_SIZE_D))
     db_y = np.zeros((1800000, 3), dtype=np.int32)
-
-    #db2 = np.zeros((2000000, 2*PATCH_SIZE, 2*PATCH_SIZE))
-    #db2_y = np.zeros((2000000, 3), dtype=int32)
 
     cnt_ind = 0
     cnt_trk = 0
@@ -54,7 +52,8 @@ def main(argv):
         evt_no = fname.split('_')[2]
         print 'Process', fname, 'EVT', evt_no
 
-        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname)
+        # get clipped data, margin depends on patch size in drift direction
+        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2)
         print 'Tracks', np.sum(tracks), 'showers', np.sum(showers)
 
         for i in range(raw.shape[0]):
@@ -62,13 +61,13 @@ def main(argv):
                 # randomly skip (3/4) of patches
                 if np.random.randint(100) < 25: continue
                 
-                x_start = np.max([0, i - PATCH_SIZE/2])
-                x_stop  = np.min([raw.shape[0], x_start + PATCH_SIZE])
+                x_start = np.max([0, i - PATCH_SIZE_W/2])
+                x_stop  = np.min([raw.shape[0], x_start + PATCH_SIZE_W])
 
-                y_start = np.max([0, j - PATCH_SIZE/2])
-                y_stop  = np.min([raw.shape[1], y_start + PATCH_SIZE])
+                y_start = np.max([0, j - PATCH_SIZE_D/2])
+                y_stop  = np.min([raw.shape[1], y_start + PATCH_SIZE_D])
 
-                if x_stop - x_start != PATCH_SIZE or y_stop - y_start != PATCH_SIZE:
+                if x_stop - x_start != PATCH_SIZE_W or y_stop - y_start != PATCH_SIZE_D:
                     continue
                     
                 target = np.zeros(3)
@@ -96,7 +95,7 @@ def main(argv):
                         else: continue # too close to trk/shower
                     else: continue # not selected randomly
 
-                db[cnt_ind] = get_patch(raw, i, j, PATCH_SIZE)
+                db[cnt_ind] = get_patch(raw, i, j, PATCH_SIZE_W, PATCH_SIZE_D)
                 db_y[cnt_ind] = target
                 
                 cnt_ind += 1
