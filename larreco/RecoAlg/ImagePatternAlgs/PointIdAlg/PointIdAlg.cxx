@@ -973,7 +973,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 			if (ttc.first < (int)labels_deposit.size())
 			{
 				labels_deposit[ttc.first] = max_deposit;
-				labels_pdg[ttc.first]     = max_pdg;
+				labels_pdg[ttc.first]     = max_pdg & 0xFFFF;
 			}
 		}
 
