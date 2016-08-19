@@ -780,7 +780,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 							// hadron with Ek > 50MeV (so well visible) and
 							// produced by another hadron (but not neutron, so not single track from nothing) or
 							// at least secondary hadrons with Ek > 50MeV (so this is a good kink or V-like)
-							if (((m_pdg != pdg) && (m_pdg != 2112)) || (nVisible > 1))
+							if (((m_pdg != pdg) && (m_pdg != 2112)) || (nVisible > 0))
 							{
 								//std::cout << "---> hadron at " << ekStart
 								//	<< ", pdg: " << pdg << ", mother pdg: " << m_pdg
