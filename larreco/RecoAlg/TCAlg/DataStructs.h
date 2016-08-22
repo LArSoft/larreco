@@ -122,6 +122,7 @@ namespace tca {
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
     float Quality {0};                ///< normalized residual error between points
+    float Trackness {0};            //< fraction of points
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
@@ -180,6 +181,7 @@ namespace tca {
     kUseGhostHits,
     kCheckInTraj,
     kFixTrajBegin,
+    kMuon,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
