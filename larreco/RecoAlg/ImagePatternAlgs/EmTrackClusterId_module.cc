@@ -38,6 +38,11 @@ public:
 			Name("PointIdAlg")
 		};
 
+		fhicl::Atom<art::InputTag> WireLabel {
+			Name("WireLabel"),
+			Comment("tag of deconvoluted ADC on wires (recob::Wire)")
+		};
+
 		fhicl::Atom<art::InputTag> HitModuleLabel {
 			Name("HitModuleLabel"),
 			Comment("tag of hits made to create clusters, unclustered leftovers to be EM/track tagged")
@@ -75,6 +80,7 @@ private:
 
 	PointIdAlg fPointIdAlg;
 
+	art::InputTag fWireProducerLabel;
 	art::InputTag fHitModuleLabel;
 	art::InputTag fClusterModuleLabel;
 
@@ -86,6 +92,7 @@ private:
 /*
 EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 	fPointIdAlg(config().PointIdAlg()),
+	fWireProducerLabel(config().WireLabel()),
 	fClusterModuleLabel(config().HitModuleLabel()),
 	fClusterModuleLabel(config().ClusterModuleLabel()),
 	fThreshold(config().Threshold()),
@@ -97,6 +104,7 @@ EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 */
 EmTrackClusterId::EmTrackClusterId(fhicl::ParameterSet const & p) :
 	fPointIdAlg(p.get< fhicl::ParameterSet >("PointIdAlg")),
+	fWireProducerLabel(p.get< art::InputTag >("WireLabel")),
 	fHitModuleLabel(p.get< art::InputTag >("HitModuleLabel")),
 	fClusterModuleLabel(p.get< art::InputTag >("ClusterModuleLabel")),
 	fThreshold(p.get< double >("Threshold")),
@@ -112,12 +120,8 @@ void EmTrackClusterId::produce(art::Event & evt)
 	auto clusters = std::make_unique< std::vector< recob::Cluster > >();
 	auto clu2hit = std::make_unique< art::Assns< recob::Cluster, recob::Hit > >();
 
-	art::Handle< std::vector<recob::Cluster> > cluListHandle;
-	if (!evt.getByLabel(fClusterModuleLabel, cluListHandle))
-	{
-		mf::LogError("EmTrackClusterId") << "Clusters not found in the event.";
-		return;
-	}
+	auto wireHandle = evt.getValidHandle< std::vector<recob::Wire> >(fWireProducerLabel);
+	auto cluListHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fClusterModuleLabel);
 
 	mf::LogVerbatim("EmTrackClusterId") << "next event: " << evt.run() << " / " << evt.id().event();
 
@@ -138,7 +142,7 @@ void EmTrackClusterId::produce(art::Event & evt)
 		if (!isViewSelected(view)) continue;
 
 		// better if clusters are stored as sorted by tpc/view, otherwise this can be costful call:
-		fPointIdAlg.setWireDriftData(evt, view, tpc, cryo);
+		fPointIdAlg.setWireDriftData(*wireHandle, view, tpc, cryo);
 
 		// anyway this is where we spend most time:
 		auto vout = fPointIdAlg.predictIdVector(v);
@@ -185,7 +189,7 @@ void EmTrackClusterId::produce(art::Event & evt)
 				if (!isViewSelected(view)) continue;
 
 				// better if hits are stored as sorted by tpc/view, otherwise this can be costful call:
-				fPointIdAlg.setWireDriftData(evt, view, tpc, cryo);
+				fPointIdAlg.setWireDriftData(*wireHandle, view, tpc, cryo);
 
 				// anyway this is where we spend most time:
 				auto vout = fPointIdAlg.predictIdVector(hi->WireID().Wire, hi->PeakTime());

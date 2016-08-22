@@ -14,17 +14,18 @@ from utils import read_config, get_data, get_vertices
 def main(argv):
 
     print '#'*50,'\nPlot data'
-    INPUT_DIR, OUTPUT_DIR, _ = read_config()
+    INPUT_DIR, OUTPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D = read_config()
     print 'Using %s as input dir' % (INPUT_DIR)
     print '#'*50
 
-    files = [f for f in os.listdir(INPUT_DIR) if 'raw_event_117_run_1_subrun_2_tpc_2_view_0.raw' in f]
+    files = [f for f in os.listdir(INPUT_DIR) if 'raw_event_1_run_1_subrun_0_tpc_2_view_2.raw' in f]
     for fname in files:
         fname = fname[:-4] # only main part of file, without extension
         evt_no = fname.split('_')[2]
         print 'Process', fname, 'EVT', evt_no
 
-        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname)
+        # get clipped data, margin depends on patch size in drift direction
+        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2)
 
         vtx = get_vertices(pdg, 0xFFFF0000)
         print 'found', vtx.shape[0], 'vertices'

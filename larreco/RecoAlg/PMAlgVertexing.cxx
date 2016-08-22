@@ -11,28 +11,24 @@
 
 #include "TMath.h"
 
-pma::PMAlgVertexing::PMAlgVertexing(const fhicl::ParameterSet& pset)
+pma::PMAlgVertexing::PMAlgVertexing(const pma::PMAlgVertexing::Config& config)
 {
-	this->reconfigure(pset); 
+	this->reconfigure(config); 
+}
+
+void pma::PMAlgVertexing::reconfigure(const pma::PMAlgVertexing::Config& config)
+{
+	fMinTrackLength = config.MinTrackLength();
+
+	fFindKinks = config.FindKinks();
+	fKinkMinDeg = config.KinkMinDeg();
+	fKinkMinStd = config.KinkMinStd();
 }
 // ------------------------------------------------------
 
 pma::PMAlgVertexing::~PMAlgVertexing(void)
 {
 	cleanTracks();
-}
-// ------------------------------------------------------
-
-void pma::PMAlgVertexing::reconfigure(const fhicl::ParameterSet& pset)
-{
-	fMinTrackLength = pset.get< double >("MinTrackLength");
-
-	fFindKinks = pset.get< bool >("FindKinks");
-	fKinkMinDeg = pset.get< double >("KinkMinDeg");
-	fKinkMinStd = pset.get< double >("KinkMinStd");
-
-	//fInputVtxDist2D = pset.get< double >("InputVtxDist2D");
-	//fInputVtxDistY = pset.get< double >("InputVtxDistY");
 }
 // ------------------------------------------------------
 

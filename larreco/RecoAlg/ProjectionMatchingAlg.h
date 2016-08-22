@@ -24,6 +24,7 @@
 // Framework includes
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "fhiclcpp/types/Atom.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
@@ -31,11 +32,11 @@
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 // ROOT & C++
 #include <memory>
@@ -49,10 +50,64 @@ class pma::ProjectionMatchingAlg
 {
 public:
 
-	ProjectionMatchingAlg(const fhicl::ParameterSet& pset);
-	virtual ~ProjectionMatchingAlg(void);
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
 
-	void reconfigure(const fhicl::ParameterSet& p);
+		fhicl::Atom<double> OptimizationEps {
+			Name("OptimizationEps"),
+			Comment("relative change of the obj.fn which stops optimization after adding a node")
+		};
+
+		fhicl::Atom<double> FineTuningEps {
+			Name("FineTuningEps"),
+			Comment("relative change of the obj.fn which stops fine-tuning of optimized track")
+		};
+
+		fhicl::Atom<double> TrkValidationDist2D {
+			Name("TrkValidationDist2D"),
+			Comment("max. distance [cm] used in the track validation in the third plane")
+		};
+
+		fhicl::Atom<double> HitTestingDist2D {
+			Name("HitTestingDist2D"),
+			Comment("max. distance [cm] used in testing compatibility of hits with the track")
+		};
+
+		fhicl::Atom<double> MinTwoViewFraction {
+			Name("MinTwoViewFraction"),
+			Comment("min. fraction of track length covered with hits from many 2D views intertwinted with each other")
+		};
+
+		fhicl::Atom<double> NodeMargin3D {
+			Name("NodeMargin3D"),
+			Comment("margin in [cm] around TPC for allowed track node positions")
+		};
+
+		fhicl::Atom<double> HitWeightU {
+			Name("HitWeightU"),
+			Comment("weights used for hits in U plane")
+		};
+
+		fhicl::Atom<double> HitWeightV {
+			Name("HitWeightV"),
+			Comment("weights used for hits in V plane")
+		};
+
+		fhicl::Atom<double> HitWeightZ {
+			Name("HitWeightZ"),
+			Comment("weights used for hits in Z plane")
+		};
+    };
+
+	ProjectionMatchingAlg(const Config& config);
+	void reconfigure(const Config& config);
+
+	ProjectionMatchingAlg(const fhicl::ParameterSet& pset) :
+		ProjectionMatchingAlg(fhicl::Table<Config>(pset, {})())
+	{}
+
+	virtual ~ProjectionMatchingAlg(void) {}
 
 	/// Calculate the fraction of the track that is closer than fTrkValidationDist2D
 	/// to any hit from hits in the testView (a view that was not used to build the track).
@@ -69,7 +124,7 @@ public:
 	/// Calculate the fraction of trajectory seen by two 2D projections at least; even a
 	/// prfect track starts/stops with the hit from one 2D view, then hits from other views
 	/// come, which results with the fraction value high, but always < 1.0; wrong cluster
-	/// matchings give significantly lower values.
+	/// matchings or incomplete tracks give significantly lower values.
 	double twoViewFraction(pma::Track3D& trk) const;
 
 	/// Count the number of hits that are closer than eps * fHitTestingDist2D to the track 2D projection.
@@ -96,10 +151,10 @@ public:
     /// as far as hits origin from at least two wire planes.
 	pma::Track3D* buildMultiTPCTrack(const std::vector< art::Ptr<recob::Hit> >& hits) const;
 
-	/// Build a shower segment from sets of hits and attached to the given vertex.
+	/// Build a shower segment from sets of hits and attached to the provided vertex.
 	pma::Track3D* buildShowerSeg(
 		const std::vector< art::Ptr<recob::Hit> >& hits, 
-		const art::Ptr<recob::Vertex>& vtx) const;
+		const pma::Vector3D & vtx) const;
 
 	/// Build a straight segment from two sets of hits (they should origin from two wire planes);
 	/// method is intendet for short tracks or shower initial parts, where only a few hits
@@ -123,7 +178,8 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		const TVector3& point) const;
 
-	// Get rid of small groups of hits around cascades
+	/// Get rid of small groups of hits around cascades; used to calculate cascade starting direction
+	/// using the compact core cluster.
 	void FilterOutSmallParts(
 		double r2d,
 		const std::vector< art::Ptr<recob::Hit> >& hits_in,
@@ -138,9 +194,12 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		bool add_nodes) const;
 
-	/// Add 3D reference points to clean endpoints of a track.
-	void guideEndpoints(
-		pma::Track3D& trk,
+	/// Add 3D reference points to clean endpoints of a track (both need to be in the same TPC).
+	void guideEndpoints(pma::Track3D& trk,
+		const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits) const;
+
+	/// Add 3D reference points to clean endpoint of a track.
+	void guideEndpoints(pma::Track3D& trk, pma::Track3D::ETrackEnd endpoint,
 		const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits) const;
 
 	std::vector< pma::Hit3D* > trimTrackToVolume(pma::Track3D& trk, TVector3 p0, TVector3 p1) const;
@@ -190,7 +249,7 @@ private:
 
 	bool Has(const std::vector<size_t>& v, size_t idx) const;
 
-	// Make segment shorter dending on mse 
+	// Make segment shorter depending on mse 
 	void ShortenSeg(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const;
 
 	// Control length of the track and number of hits which are still enabled

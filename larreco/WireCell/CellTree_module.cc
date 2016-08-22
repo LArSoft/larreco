@@ -418,6 +418,7 @@ void CellTree::reset()
     fSIMIDE_z.clear();
     fSIMIDE_numElectrons.clear();
 
+    mc_Ntrack = 0;  
     for (int i=0; i<MAX_TRACKS; i++) {
         mc_id[i] = 0;
         mc_pdg[i] = 0;

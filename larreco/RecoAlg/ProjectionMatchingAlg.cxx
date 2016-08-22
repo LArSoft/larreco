@@ -7,42 +7,34 @@
 
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const fhicl::ParameterSet& pset)
-  : fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config)
+	: fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
-	this->reconfigure(pset); 
+	this->reconfigure(config);
 }
-// ------------------------------------------------------
-
-pma::ProjectionMatchingAlg::~ProjectionMatchingAlg(void)
+void pma::ProjectionMatchingAlg::reconfigure(const pma::ProjectionMatchingAlg::Config& config)
 {
-}
-// ------------------------------------------------------
+	fOptimizationEps = config.OptimizationEps();
+	fFineTuningEps = config.FineTuningEps();
 
-void pma::ProjectionMatchingAlg::reconfigure(const fhicl::ParameterSet& p)
-{
-	fOptimizationEps = p.get< double >("OptimizationEps");
-	fFineTuningEps = p.get< double >("FineTuningEps");
+	fTrkValidationDist2D = config.TrkValidationDist2D();
+	fHitTestingDist2D = config.HitTestingDist2D();
 
-	fTrkValidationDist2D = p.get< double >("TrkValidationDist2D");
-	fHitTestingDist2D = p.get< double >("HitTestingDist2D");
+	fMinTwoViewFraction = config.MinTwoViewFraction();
 
-	fMinTwoViewFraction = p.get< double >("MinTwoViewFraction");
-	
+	pma::Node3D::SetMargin(config.NodeMargin3D());
+
+	pma::Element3D::SetOptFactor(geo::kU, config.HitWeightU());
+	pma::Element3D::SetOptFactor(geo::kV, config.HitWeightV());
+	pma::Element3D::SetOptFactor(geo::kZ, config.HitWeightZ());
+
 	fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
-	
-	pma::Node3D::SetMargin(p.get< double >("NodeMargin3D"));
-
-	pma::Element3D::SetOptFactor(geo::kZ, p.get< double >("HitWeightZ"));
-	pma::Element3D::SetOptFactor(geo::kV, p.get< double >("HitWeightV"));
-	pma::Element3D::SetOptFactor(geo::kU, p.get< double >("HitWeightU"));
 }
 // ------------------------------------------------------
 
@@ -301,7 +293,8 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
 	std::vector< pma::Track3D* > tracks;
 	for(auto const & hsel : hits_by_tpc)
 	{
-		pma::Track3D* trk = buildTrack(hsel.second);
+		//pma::Track3D* trk = buildTrack(hsel.second);
+		pma::Track3D* trk = buildSegment(hsel.second);
 		if (trk) tracks.push_back(trk);
 	}
 
@@ -350,31 +343,48 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
 		else break; // should not happen
 	}
 
+	pma::Track3D* trk = 0;
 	if (!tracks.empty())
 	{
-		pma::Track3D* trk = tracks.front();
+		trk = tracks.front();
 		if (need_reopt)
 		{
-			double g = trk->Optimize(0, fFineTuningEps);
-			mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging tpc parts: done, g = " << g;
+			double g = trk->Optimize(0, fOptimizationEps);
+			mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging initial tpc segments: done, g = " << g;
 		}
-		return trk;
+
+		int nSegments = getSegCount(trk->size()) - trk->Segments().size() + 1;
+		if (nSegments > 0) // need to add segments
+		{
+			double g = 0.0;
+			size_t nNodes = (size_t)( nSegments - 1 ); // n nodes to add
+			if (nNodes)
+			{
+				mf::LogVerbatim("ProjectionMatchingAlg") << "  optimize trk (add " << nSegments << " seg)";
+
+				g = trk->Optimize(nNodes, fOptimizationEps, false, true, 25, 10);   // build nodes
+				mf::LogVerbatim("ProjectionMatchingAlg") << "  nodes done, g = " << g;
+				trk->SelectAllHits();
+			}
+			g = trk->Optimize(0, fFineTuningEps);      // final tuning
+			mf::LogVerbatim("ProjectionMatchingAlg") << "  tune done, g = " << g;
+		}
+		trk->SortHits();
 	}
-	else return 0;
+	return trk;
 }
 
 // ------------------------------------------------------
 
 pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 		const std::vector< art::Ptr<recob::Hit> >& hits, 
-		const art::Ptr<recob::Vertex>& vtx) const
+		const pma::Vector3D & vtx) const
 {
-	double vtxarray[3]; 
-	vtx->XYZ(vtxarray);	
+	double vtxarray[3] {vtx.X(), vtx.Y(), vtx.Z()};
 
 	if (!fGeom->HasTPC(fGeom->FindTPCAtPosition(vtxarray))) return 0;
 
-	TVector3 vtxv3(vtxarray[0], vtxarray[1], vtxarray[2]);
+	TVector3 vtxv3(vtx.X(), vtx.Y(), vtx.Z());
 	
 	const size_t tpc = fGeom->FindTPCAtPosition(vtxarray).TPC;
 	const size_t cryo = fGeom->FindCryostatAtPosition(vtxarray);
@@ -875,11 +885,13 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 		{
 			int idxFront0 = trk.NextHit(-1, i);
 			int idxBack0 = trk.PrevHit(trk.size(), i);
-			if ((idxFront0 >= 0) && (idxBack0 >= 0))
+			if ((idxFront0 >= 0) && (idxFront0 < (int)trk.size()) &&
+			    (idxBack0 >= 0) && (idxBack0 < (int)trk.size()))
 			{
 				int idxFront1 = trk.NextHit(idxFront0, i);
 				int idxBack1 = trk.PrevHit(idxBack0, i);
-				if ((idxFront1 >= 0) && (idxBack1 >= 0))
+				if ((idxFront1 >= 0) && (idxFront1 < (int)trk.size()) &&
+				    (idxBack1 >= 0) && (idxBack1 < (int)trk.size()))
 				{
 					int wFront0 = trk[idxFront0]->Wire();
 					int wBack0 = trk[idxBack0]->Wire();
@@ -932,6 +944,109 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 	if (refAdded)
 	{
 		mf::LogVerbatim("ProjectionMatchingAlg") << "guide wire-plane-parallel track endpoints";
+		double g = trk.Optimize(0, 0.1 * fFineTuningEps);
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  done, g = " << g;
+	}
+}
+// ------------------------------------------------------
+
+void pma::ProjectionMatchingAlg::guideEndpoints(
+	pma::Track3D& trk, pma::Track3D::ETrackEnd endpoint,
+	const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits) const
+{
+	const double maxCosXZ = 0.992546; // 7 deg
+
+	unsigned int tpc, cryo;
+	pma::Segment3D* seg0 = 0;
+	pma::Segment3D* seg1 = 0;
+
+	if (endpoint == pma::Track3D::kBegin)
+	{
+		tpc = trk.FrontTPC(), cryo = trk.FrontCryo();
+		seg0 = trk.Segments().front();
+		if (trk.Segments().size() > 2)
+		{
+			seg1 = trk.Segments()[1];
+		}
+	}
+	else
+	{
+		tpc = trk.BackTPC(), cryo = trk.BackCryo();
+		seg0 = trk.Segments().back();
+		if (trk.Segments().size() > 2)
+		{
+			seg1 = trk.Segments()[trk.Segments().size() - 2];
+		}
+	}
+	if (seg1 && (seg0->Length() < 0.8) && (seg1->Length() > 5.0))
+	{
+		seg0 = seg1;
+	}
+	TVector3 dir0 = seg0->GetDirection3D();
+	TVector3 dir0XZ(dir0.X(), 0., dir0.Z());
+	dir0XZ *= 1.0 / dir0XZ.Mag();
+
+	if (fabs(dir0XZ.Z()) < maxCosXZ) { return; } // not parallel to wire planes => exit
+
+	unsigned int nPlanes = 0;
+	std::pair<int, int> wires[3]; // wire index; index direction
+	double x0[3];
+
+	for (unsigned int i = 0; i < 3; i++)
+	{
+		bool present = false;
+		if (fGeom->TPC(tpc, cryo).HasPlane(i))
+		{
+			int idx0 = -1, idx1 = -1;
+			if (endpoint == pma::Track3D::kBegin)
+			{
+				idx0 = trk.NextHit(-1, i);
+			}
+			else
+			{
+				idx0 = trk.PrevHit(trk.size(), i);
+			}
+
+			if ((idx0 >= 0) && (idx0 < (int)trk.size()) &&
+			    (trk[idx0]->TPC() == tpc) && (trk[idx0]->Cryo() == cryo))
+			{
+				if (endpoint == pma::Track3D::kBegin)
+				{
+					idx1 = trk.NextHit(idx0, i);
+				}
+				else
+				{
+					idx1 = trk.PrevHit(idx0, i);
+				}
+
+				if ((idx1 >= 0) && (idx1 < (int)trk.size()) &&
+				    (trk[idx1]->TPC() == tpc) && (trk[idx1]->Cryo() == cryo))
+				{
+					int w0 = trk[idx0]->Wire();
+					int w1 = trk[idx1]->Wire();
+
+					wires[i].first = w0;
+					wires[i].second = w0 - w1;
+					x0[i] = fDetProp->ConvertTicksToX(trk[idx0]->PeakTime(), i, tpc, cryo);
+
+					if (wires[i].second)
+					{
+						if (wires[i].second > 0) wires[i].second = 1;
+						else wires[i].second = -1;
+
+						present = true;
+						nPlanes++;
+					}
+				}
+			}
+		}
+		if (!present) { wires[i].first = -1; }
+	}
+
+	if ((nPlanes > 1) && (fabs(dir0XZ.Z()) >= maxCosXZ) &&
+	     addEndpointRef(trk, hits, wires, x0, tpc, cryo))
+	{
+		mf::LogVerbatim("ProjectionMatchingAlg") << "guide wire-plane-parallel track endpoint";
 		double g = trk.Optimize(0, 0.1 * fFineTuningEps);
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  done, g = " << g;
 	}

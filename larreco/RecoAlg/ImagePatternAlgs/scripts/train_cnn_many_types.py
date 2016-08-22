@@ -37,7 +37,7 @@ def save_model(model, name):
         print 'save failed' #sys.exc_info()  # Prints exceptions
         return False  # Save failed
 
-_, CNN_INPUT_DIR, PATCH_SIZE = read_config()
+_, CNN_INPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D = read_config()
 
 # read train and test sets
 X_train = None
@@ -65,7 +65,7 @@ for fnameX in filesX:
 print 'Train', X_train.shape, 'test', X_test.shape
 
 # input image dimensions
-img_rows, img_cols = PATCH_SIZE, PATCH_SIZE
+img_rows, img_cols = PATCH_SIZE_W, PATCH_SIZE_D
 
 X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
 X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)

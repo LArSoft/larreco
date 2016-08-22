@@ -7,14 +7,14 @@ from os import listdir
 from os.path import isfile, join
 import os, json
 
-def get_event_bounds(A):
+def get_event_bounds(A, drift_margin = 0):
     # get center with 99% of signal
     cum = np.cumsum(np.sum(A, axis=0))
-    start_ind = np.where(cum > cum[-1]*0.005)[0][0]
-    end_ind = np.where(cum > cum[-1]*0.995)[0][0]
+    start_ind = np.max([0, np.where(cum > cum[-1]*0.005)[0][0] - drift_margin])
+    end_ind = np.min([A.shape[1], np.where(cum > cum[-1]*0.995)[0][0] + drift_margin])
     return start_ind, end_ind
 
-def get_data(fname):
+def get_data(fname, drift_margin = 0):
     print 'Reading', fname + '.raw'
     A_raw     = np.genfromtxt(fname + '.raw', delimiter=' ')
     A_deposit = np.genfromtxt(fname + '.deposit', delimiter=' ')
@@ -23,11 +23,11 @@ def get_data(fname):
     print np.sum(A_raw), np.sum(A_deposit), np.sum(A_pdg)
     #assert np.sum(A_deposit) > 0
     # get main event body (99% signal)
-    evt_start_ind, evt_stop_ind = get_event_bounds(A_raw)
+    evt_start_ind, evt_stop_ind = get_event_bounds(A_deposit, drift_margin)
     print evt_start_ind, evt_stop_ind
     A_raw     = A_raw[:,evt_start_ind:evt_stop_ind]
     A_deposit = A_deposit[:,evt_start_ind:evt_stop_ind]
-    A_pdg     = np.abs(A_pdg[:,evt_start_ind:evt_stop_ind]) # ABS
+    A_pdg     = A_pdg[:,evt_start_ind:evt_stop_ind]
 
     deposit_th_ind = A_deposit < 2.0e-5
     A_pdg[deposit_th_ind] = 0
@@ -63,6 +63,7 @@ def read_config():
         exit(1)
     INPUT_DIR = config['prepare_data']['input_dir']
     OUTPUT_DIR = config['prepare_data']['output_dir']
-    PATCH_SIZE = config['prepare_data']['patch_size']
-    return INPUT_DIR, OUTPUT_DIR, PATCH_SIZE
+    PATCH_SIZE_W = config['prepare_data']['patch_size_w']
+    PATCH_SIZE_D = config['prepare_data']['patch_size_d']
+    return INPUT_DIR, OUTPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D
 

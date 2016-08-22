@@ -65,9 +65,16 @@ microboone_2stg_kalman:
 }
 
 microboone_pmalgtrackmaker:                     @local::standard_pmalgtrackmaker
-microboone_pmalgtrackmaker.HitModuleLabel:      "cccluster"
-microboone_pmalgtrackmaker.ClusterModuleLabel:  "cccluster"
-microboone_pmalgtrackmaker.FlipDownward:        true
+microboone_pmalgtrackmaker.HitModuleLabel:      "linecluster"
+microboone_pmalgtrackmaker.ClusterModuleLabel:  "linecluster"
+microboone_pmalgtrackmaker.PMAlgTracking.FlipToBeam:         true
+microboone_pmalgtrackmaker.PMAlgTracking.AutoFlip_dQdx:      false
+microboone_pmalgtrackmaker.PMAlgTracking.RunVertexing:       true
+
+microboone_pmalgtrajfitter:                     @local::standard_pmalgtrajfitter
+microboone_pmalgtrajfitter.HitModuleLabel:      "gaushit"
+microboone_pmalgtrajfitter.PfpModuleLabel:      "pandora"
+microboone_pmalgtrajfitter.PMAlgFitting.RunVertexing:        false
 
 #microboone_cosmicfinder: @local::standard_cosmicfinder
 microboone_neutrinotrackingeff: @local::standard_neutrinotrackingeff
