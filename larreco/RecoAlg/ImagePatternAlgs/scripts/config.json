@@ -1,7 +1,8 @@
 {
   "prepare_data" : {
-    "input_dir": "../raw_data",
-    "output_dir": "../for_nn",
-    "patch_size": 32
+    "input_dir": "cnn/raw_data",
+    "output_dir": "cnn/for_nn",
+    "patch_size_w": 32,
+    "patch_size_d": 40
   }
 }

@@ -22,6 +22,7 @@
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
+#include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/AnalysisAlg/CalorimetryAlg.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -47,13 +48,14 @@ namespace nnet
 class nnet::DataProviderAlg
 {
 public:
+	enum EDownscaleMode { kMax = 1, kMaxMean = 2, kMean = 3 };
 
 	DataProviderAlg(const fhicl::ParameterSet& pset);
 	virtual ~DataProviderAlg(void);
 
-	virtual void reconfigure(const fhicl::ParameterSet& p);  // setup patch buffer, ...
+	virtual void reconfigure(const fhicl::ParameterSet& p); // setup patch buffer, ...
 
-	bool setWireDriftData(const art::Event& event,   // once per view: setup ADC buffer, collect & downscale ADC's
+	bool setWireDriftData(const std::vector<recob::Wire> & wires, // once per view: setup ADC buffer, collect & downscale ADC's
 		unsigned int view, unsigned int tpc, unsigned int cryo);
 
 	std::vector<float> const & wireData(size_t widx) const { return fWireDriftData[widx]; }
@@ -80,7 +82,12 @@ protected:
 	std::vector< std::vector<float> > fWireDriftData;           // 2D data for entire projection, drifts scaled down
 	mutable std::vector< std::vector<float> > fWireDriftPatch;  // placeholder for patch around identified point
 
-	size_t fDriftWindow, fPatchSize;
+	size_t fDriftWindow, fPatchSizeW, fPatchSizeD;
+	EDownscaleMode fDownscaleMode;
+
+	void downscaleMax(std::vector<float> & dst, std::vector<float> const & adc) const;
+	void downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc) const;
+	void downscaleMean(std::vector<float> & dst, std::vector<float> const & adc) const;
 
 	mutable size_t fCurrentWireIdx, fCurrentScaledDrift;
 	bool bufferPatch(size_t wire, float drift) const;
@@ -90,8 +97,6 @@ protected:
 
 	virtual void resizeView(size_t wires, size_t drifts);
 	void resizePatch(void);
-
-	std::string fWireProducerLabel;
 
 	// Calorimetry needed to equalize ADC amplitude along drift:
 	calo::CalorimetryAlg  fCalorimetryAlg;
@@ -165,7 +170,6 @@ private:
 class nnet::PointIdAlg : public nnet::DataProviderAlg
 {
 public:
-
 	PointIdAlg(const fhicl::ParameterSet& pset);
 	virtual ~PointIdAlg(void);
 
@@ -248,6 +252,7 @@ private:
 	std::vector< std::vector<float> > fWireDriftEdep;
 	std::vector< std::vector<int> > fWireDriftPdg;
 
+	std::string fWireProducerLabel;
 	std::string fSimulationProducerLabel;
 	bool fSaveVtxFlags;
 };

@@ -1,28 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Class:       PMAlgTrackMaker
+// Class:       PMAlgTrajFitter
 // Module Type: producer
-// File:        PMAlgTrackMaker_module.cc
+// File:        PMAlgTrajFitter_module.cc
 // Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl) and R.Sulej (Robert.Sulej@cern.ch), May 2015
 //
-// Creates 3D tracks and vertices using Projection Matching Algorithm,
-// please see RecoAlg/ProjectionMatchingAlg.h for basics of the PMA algorithm and its settings.
+// Creates 3D tracks using Projection Matching Algorithm, please see
+// RecoAlg/ProjectionMatchingAlg.h for basics of the PMA algorithm and its settings.
 //
 // Progress:
-//    May-June 2015:   track finding and validation, growing tracks by iterative merging of matching
-//                     clusters, no attempts to build multi-track structures, however cosmic tracking
-//                     works fine as they are sets of independent tracks
-//    June-July 2015:  merging track parts within a single tpc and stitching tracks across tpc's
-//    August 2015:     optimization of track-vertex structures (so 3D vertices are also produced)
-//    November 2015:   use track-shower splitting at 2D level, then tag low-E EM cascades in 3D
-//                     note: the splitter is not finished and not as good as we want it
-//    January 2016:    output of track-vertex finding as a tree of PFParticles, refined vertexing
-//                     code, put vertex at front of each track, flip whole track structures to
-//                     selected, direction (beam/down/dQdx), use any pattern reco stored in
-//                     PFParticles as a source of associated clusters
-//    Mar-Apr 2016:    kinks finding, EM shower direction reconstructed for PFPaarticles tagged as
-//                     electrons
-//    July 2016:       redesign module: extract trajectory fitting-only to separate module, move
-//                     tracking functionality to algorithm classes
+//    July 2016:   fit-only module separated from PMAlgTrackMaker_module, common tracking
+//                 functionality moved to algorithm class;
+//                 note, that some part of vertexing can be still reasonable in this module:
+//                  - use hierarchy of input PFP's to create vertices, join tracks, reoptimize
+//                  - detect vertices/kinks on fitted trajectories
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -32,12 +22,9 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
-
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 #include "fhiclcpp/types/Sequence.h"
-#include "canvas/Utilities/InputTag.h"
-
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
@@ -52,20 +39,18 @@
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardataobj/AnalysisBase/T0.h" 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/AssociationUtil.h"
+#include "canvas/Utilities/InputTag.h"
 //#include "lardata/Utilities/PtrMaker.h"
 
-#include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgTracking.h"
-#include "larreco/RecoAlg/PMAlgVertexing.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include <memory>
 
 namespace trkf {
 
-class PMAlgTrackMaker : public art::EDProducer {
+class PMAlgTrajFitter : public art::EDProducer {
 public:
 
 	struct Config {
@@ -76,12 +61,22 @@ public:
 			Name("ProjectionMatchingAlg")
 		};
 
-		fhicl::Table<pma::PMAlgTracker::Config> PMAlgTracking {
-			Name("PMAlgTracking")
+		fhicl::Table<pma::PMAlgFitter::Config> PMAlgFitting {
+			Name("PMAlgFitting")
 		};
 
 		fhicl::Table<pma::PMAlgVertexing::Config> PMAlgVertexing {
 			Name("PMAlgVertexing")
+		};
+
+		fhicl::Atom<art::InputTag> HitModuleLabel {
+			Name("HitModuleLabel"),
+			Comment("tag of unclustered hits, which were used to produce PFPs and clusters")
+		};
+
+		fhicl::Atom<art::InputTag> PfpModuleLabel {
+			Name("PfpModuleLabel"),
+			Comment("tag of the input PFParticles and associated clusters")
 		};
 
 		fhicl::Atom<bool> SaveOnlyBranchingVtx {
@@ -93,65 +88,48 @@ public:
 			Name("SavePmaNodes"),
 			Comment("save track nodes (only for algorithm development purposes)")
 		};
-
-		fhicl::Atom<art::InputTag> HitModuleLabel {
-			Name("HitModuleLabel"),
-			Comment("tag of unclustered hits, which were used to validate tracks")
-		};
-
-		fhicl::Atom<art::InputTag> ClusterModuleLabel {
-			Name("ClusterModuleLabel"),
-			Comment("tag of cluster collection, these clusters are used for track building")
-		};
-
-		fhicl::Atom<art::InputTag> EmClusterModuleLabel {
-			Name("EmClusterModuleLabel"),
-			Comment("EM-like clusters, will be excluded from tracking if provided")
-		};
     };
     using Parameters = art::EDProducer::Table<Config>;
 
-	explicit PMAlgTrackMaker(Parameters const& config);
+	explicit PMAlgTrajFitter(Parameters const& config);
 
-	PMAlgTrackMaker(PMAlgTrackMaker const &) = delete;
-	PMAlgTrackMaker(PMAlgTrackMaker &&) = delete;
-	PMAlgTrackMaker & operator = (PMAlgTrackMaker const &) = delete;
-	PMAlgTrackMaker & operator = (PMAlgTrackMaker &&) = delete;
+	PMAlgTrajFitter(PMAlgTrajFitter const &) = delete;
+	PMAlgTrajFitter(PMAlgTrajFitter &&) = delete;
+	PMAlgTrajFitter & operator = (PMAlgTrajFitter const &) = delete;
+	PMAlgTrajFitter & operator = (PMAlgTrajFitter &&) = delete;
 
 	void produce(art::Event & e) override;
 
 private:
-	// ******************** fcl parameters **********************
-	art::InputTag fHitModuleLabel; // tag for hits collection (used for trk validation)
-	art::InputTag fCluModuleLabel; // tag for input cluster collection
-	art::InputTag fEmModuleLabel;  // tag for em-like cluster collection
+  // ******************** fcl parameters ***********************
+  art::InputTag fHitModuleLabel; // tag for unclustered hit collection
+  art::InputTag fPfpModuleLabel; // tag for PFParticle and cluster collections
 
-	pma::ProjectionMatchingAlg::Config fPmaConfig;
-	pma::PMAlgTracker::Config fPmaTrackerConfig;
-	pma::PMAlgVertexing::Config fPmaVtxConfig;
+  pma::ProjectionMatchingAlg::Config fPmaConfig;
+  pma::PMAlgFitter::Config fPmaFitterConfig;
+  pma::PMAlgVertexing::Config fPmaVtxConfig;
 
-	bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
-	bool fSavePmaNodes;          // for debugging, save only track nodes
+  bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
+  bool fSavePmaNodes;          // for debugging, save only track nodes
 
-	// ********** instance names (collections, assns) ************
-	static const std::string kKinksName;        // kinks on tracks
-	static const std::string kNodesName;        // pma nodes
+  // ********** instance names (collections, assns) ************
+  static const std::string kKinksName;        // kinks on tracks
+  static const std::string kNodesName;        // pma nodes
 
-	// *********************** geometry **************************
-	art::ServiceHandle< geo::Geometry > fGeom;
+  // *********************** geometry **************************
+  art::ServiceHandle< geo::Geometry > fGeom;
 };
 // -------------------------------------------------------------
-const std::string PMAlgTrackMaker::kKinksName = "kink";
-const std::string PMAlgTrackMaker::kNodesName = "node";
+const std::string PMAlgTrajFitter::kKinksName = "kink";
+const std::string PMAlgTrajFitter::kNodesName = "node";
 // -------------------------------------------------------------
 
-PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
+PMAlgTrajFitter::PMAlgTrajFitter(PMAlgTrajFitter::Parameters const& config) :
 	fHitModuleLabel(config().HitModuleLabel()),
-	fCluModuleLabel(config().ClusterModuleLabel()),
-	fEmModuleLabel(config().EmClusterModuleLabel()),
+	fPfpModuleLabel(config().PfpModuleLabel()),
 
 	fPmaConfig(config().ProjectionMatchingAlg()),
-	fPmaTrackerConfig(config().PMAlgTracking()),
+	fPmaFitterConfig(config().PMAlgFitting()),
 	fPmaVtxConfig(config().PMAlgVertexing()),
 
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
@@ -162,7 +140,6 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	produces< std::vector<recob::Vertex> >(); // no instance name for interaction vertices
 	produces< std::vector<recob::Vertex> >(kKinksName); // collection of kinks on tracks
 	produces< std::vector<recob::Vertex> >(kNodesName); // collection of pma nodes
-	produces< std::vector<anab::T0> >();
 
 	produces< art::Assns<recob::Track, recob::Hit> >(); // ****** REMEMBER to remove when FindMany improved ******
 	produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
@@ -171,82 +148,58 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 	produces< art::Assns<recob::Vertex, recob::Track> >(); // no instance name for assns of tracks to interaction vertices
 	produces< art::Assns<recob::Track, recob::Vertex> >(kKinksName);  // assns of kinks to tracks
-	produces< art::Assns<recob::Track, anab::T0> >();
 
-	produces< std::vector<recob::PFParticle> >();
-	produces< art::Assns<recob::PFParticle, recob::Cluster> >();
-	produces< art::Assns<recob::PFParticle, recob::Vertex> >();
 	produces< art::Assns<recob::PFParticle, recob::Track> >();
 }
 // ------------------------------------------------------
 
-void PMAlgTrackMaker::produce(art::Event& evt)
+void PMAlgTrajFitter::produce(art::Event& evt)
 {
 	// ---------------- Create data products ------------------
-	auto tracks = std::make_unique< std::vector< recob::Track > >();
-	auto allsp = std::make_unique< std::vector< recob::SpacePoint > >();
-	auto vtxs = std::make_unique< std::vector< recob::Vertex > >();  // interaction vertices
-	auto kinks = std::make_unique< std::vector< recob::Vertex > >(); // kinks on tracks (no new particles start in kinks)
-	auto nodes = std::make_unique< std::vector< recob::Vertex > >(); // pma nodes
-	auto t0s = std::make_unique< std::vector< anab::T0 > >();
+	auto tracks = std::make_unique< std::vector<recob::Track> >();
+	auto allsp = std::make_unique< std::vector<recob::SpacePoint> >();
+	auto vtxs = std::make_unique< std::vector<recob::Vertex> >();  // interaction vertices
+	auto kinks = std::make_unique< std::vector<recob::Vertex> >(); // kinks on tracks (no new particles start in kinks)
+	auto nodes = std::make_unique< std::vector<recob::Vertex> >(); // pma nodes
 
-	auto trk2hit_oldway = std::make_unique< art::Assns< recob::Track, recob::Hit > >(); // ****** REMEMBER to remove when FindMany improved ******
-	auto trk2hit = std::make_unique< art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta > >();
+	auto trk2hit_oldway = std::make_unique< art::Assns<recob::Track, recob::Hit> >(); // ****** REMEMBER to remove when FindMany improved ******
+	auto trk2hit = std::make_unique< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
 
-	auto trk2sp = std::make_unique< art::Assns< recob::Track, recob::SpacePoint > >();
-	auto trk2t0 = std::make_unique< art::Assns< recob::Track, anab::T0 > >();
+	auto trk2sp = std::make_unique< art::Assns<recob::Track, recob::SpacePoint> >();
 
-	auto sp2hit = std::make_unique< art::Assns< recob::SpacePoint, recob::Hit > >();
-	auto vtx2trk = std::make_unique< art::Assns< recob::Vertex, recob::Track > >();  // one or more tracks (particles) start in the vertex
-	auto trk2kink = std::make_unique< art::Assns< recob::Track, recob::Vertex > >(); // one or more kinks on the track
+	auto sp2hit = std::make_unique< art::Assns<recob::SpacePoint, recob::Hit> >();
+	auto vtx2trk = std::make_unique< art::Assns<recob::Vertex, recob::Track> >(); // one or more tracks (particles) start in the vertex
+	auto trk2kink = std::make_unique< art::Assns<recob::Track, recob::Vertex> >(); // one or more kinks on the track
 
-	auto pfps = std::make_unique< std::vector< recob::PFParticle > >();
+	auto pfp2trk = std::make_unique< art::Assns< recob::PFParticle, recob::Track> >();
 
-	auto pfp2clu = std::make_unique< art::Assns<recob::PFParticle, recob::Cluster> >();
-	auto pfp2vtx = std::make_unique< art::Assns<recob::PFParticle, recob::Vertex> >();
-	auto pfp2trk = std::make_unique< art::Assns< recob::PFParticle, recob::Track > >();
-
-
-	// -------------- Collect hits and clusters ---------------
+	// ------------------- Collect inputs ---------------------
 	art::Handle< std::vector<recob::Hit> > allHitListHandle;
-	art::Handle< std::vector<recob::Cluster> > cluListHandle, splitCluHandle;
+	art::Handle< std::vector<recob::Cluster> > cluListHandle;
+	art::Handle< std::vector<recob::PFParticle> > pfparticleHandle;
 	std::vector< art::Ptr<recob::Hit> > allhitlist;
-
-	if (!(evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits associated used to create clusters
-    	  evt.getByLabel(fCluModuleLabel, cluListHandle)))     // clusters used to build 3D tracks
+	if (!(evt.getByLabel(fHitModuleLabel, allHitListHandle) &&  // all hits used to make clusters and PFParticles
+	      evt.getByLabel(fPfpModuleLabel, cluListHandle) &&     // clusters associated to PFParticles
+	      evt.getByLabel(fPfpModuleLabel, pfparticleHandle)))   // and finally PFParticles
 	{
-		throw cet::exception("PMAlgTrackMaker") << "Not all required data products found in the event." << std::endl;
+		mf::LogError("PMAlgTrajFitter") << "Not all required data products found in the event.";
+		return;
 	}
 
 	art::fill_ptr_vector(allhitlist, allHitListHandle);
-	art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fCluModuleLabel);
 
+	art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fPfpModuleLabel);
+	art::FindManyP< recob::Cluster > clustersFromPfps(pfparticleHandle, evt, fPfpModuleLabel);
+	art::FindManyP< recob::Vertex > vtxFromPfps(pfparticleHandle, evt, fPfpModuleLabel);
 
-	// -------------- PMA Tracker for this event --------------
-	auto pmalgTracker = pma::PMAlgTracker(allhitlist,
-		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig);
-
-
-	if (fEmModuleLabel != "") // --- Exclude EM parts ---------
-	{
-		if (evt.getByLabel(fEmModuleLabel, splitCluHandle))
-		{
-			art::FindManyP< recob::Hit > hitsFromEmParts(splitCluHandle, evt, fEmModuleLabel);
-			pmalgTracker.init(hitsFromClusters, hitsFromEmParts);
-		}
-		else
-		{
-			throw cet::exception("PMAlgTrackMaker") << "EM-tagged clusters not found in the event." << std::endl;
-		}
-	}
-	else // ------------------------ Use ALL clusters ---------
-	{
-		pmalgTracker.init(hitsFromClusters);
-	}
-
+	// -------------- PMA Fitter for this event ---------------
+	auto pmalgFitter = pma::PMAlgFitter(allhitlist,
+		*cluListHandle, *pfparticleHandle,
+		hitsFromClusters, clustersFromPfps, vtxFromPfps,
+		fPmaConfig, fPmaFitterConfig, fPmaVtxConfig);
 
 	// ------------------ Do the job here: --------------------
-	int retCode = pmalgTracker.build();
+	int retCode = pmalgFitter.build();
 	// --------------------------------------------------------
 	switch (retCode)
 	{
@@ -261,17 +214,17 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	}
 
 	// ---------- Translate output to data products: ----------
-	auto const & result = pmalgTracker.result();
+	auto const & result = pmalgFitter.result();
 	if (!result.empty()) // ok, there is something to save
 	{
-		const detinfo::DetectorProperties* detProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
-
 		size_t spStart = 0, spEnd = 0;
 		double sp_pos[3], sp_err[6];
 		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
 
+		// use the following to create PFParticle <--> Track associations;
+		std::map< size_t, std::vector< art::Ptr<recob::Track> > > pfPartToTrackVecMap;
+
 		//auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
-		//auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
 
 		tracks->reserve(result.size());
 		for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex)
@@ -287,20 +240,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			tracks->push_back(pma::convertFrom(*trk, trkIndex));
 
 			//auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
-
-			double xShift = trk->GetXShift();
-			if (xShift > 0.0)
-			{
-				double tisk2time = 1.0; // what is the coefficient, offset?
-				double t0time = tisk2time * xShift / detProp->GetXTicksCoefficient(trk->FrontTPC(), trk->FrontCryo());
-
-				// TriggBits=3 means from 3d reco (0,1,2 mean something else)
-				t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
-
-				util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
-				//auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
-				//trk2t0->addSingle(trkPtr, t0Ptr);
-			}
 
 			size_t trkIdx = tracks->size() - 1; // stuff for assns:
 			art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
@@ -325,7 +264,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
 				trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 
-				double hx = h3d->Point3D().X() + xShift;
+				double hx = h3d->Point3D().X();
 				double hy = h3d->Point3D().Y();
 				double hz = h3d->Point3D().Z();
 
@@ -349,9 +288,17 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			spEnd = allsp->size();
 
 			if (spEnd > spStart) util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
+
+			// if there is a PFParticle collection then recover PFParticle and add info to map
+			if (result[trkIndex].Key() > -1)
+			{
+				size_t trackIdx = tracks->size() - 1;
+				art::ProductID trackId = getProductID< std::vector<recob::Track> >(evt);
+				art::Ptr<recob::Track> trackPtr(trackId, trackIdx, evt.productGetter(trackId));
+				pfPartToTrackVecMap[result[trkIndex].Key()].push_back(trackPtr);
+			}
 		}
 
-		auto pfpid = getProductID< std::vector<recob::PFParticle> >(evt);
 		auto vid = getProductID< std::vector<recob::Vertex> >(evt);
 		auto kid = getProductID< std::vector<recob::Vertex> >(evt, kKinksName);
 		auto const* kinkGetter = evt.productGetter(kid);
@@ -359,11 +306,11 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		auto tid = getProductID< std::vector<recob::Track> >(evt);
 		auto const* trkGetter = evt.productGetter(tid);
 
-		auto vsel = pmalgTracker.getVertices(fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
-		auto ksel = pmalgTracker.getKinks(); // pairs of kink position - associated track idx 
+		auto vsel = pmalgFitter.getVertices(fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
+		auto ksel = pmalgFitter.getKinks(); // pairs of kink position - associated track idx 
 		std::map< size_t, art::Ptr<recob::Vertex> > frontVtxs; // front vertex ptr for each track index
 
-		if (fPmaTrackerConfig.RunVertexing()) // save vertices and vtx-trk assns
+		if (fPmaFitterConfig.RunVertexing()) // save vertices and vtx-trk assns
 		{
 			double xyz[3];
 			for (auto const & v : vsel)
@@ -377,7 +324,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				vtxs->push_back(recob::Vertex(xyz, vidx));
 
 				art::Ptr<recob::Vertex> vptr(vid, vidx, evt.productGetter(vid));
-				if (vptr.isNull()) mf::LogWarning("PMAlgTrackMaker") << "Vertex ptr is null.";
+				if (vptr.isNull()) mf::LogWarning("PMAlgTrajFitter") << "Vertex ptr is null.";
 				if (!v.second.empty())
 				{
 					for (const auto & vEntry : v.second)
@@ -391,7 +338,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 						vtx2trk->addSingle(vptr, tptr);
 					}
 				}
-				else mf::LogWarning("PMAlgTrackMaker") << "No tracks found at this vertex.";
+				else mf::LogWarning("PMAlgTrajFitter") << "No tracks found at this vertex.";
 			}
 			mf::LogVerbatim("Summary") << vtxs->size() << " vertices ready";
 
@@ -426,61 +373,44 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			}
 		}
 
-		// first particle, to be replaced with nu reco when possible
-		pfps->emplace_back(0, 0, 0, std::vector< size_t >());
-		for (size_t t = 0; t < result.size(); ++t)
+		if (!pfPartToTrackVecMap.empty()) // associate tracks to existing PFParticles
 		{
-			size_t parentIdx = 0;
-			if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent() + 1;
-
-			std::vector< size_t > daughterIdxs;
-			for (size_t idx : result[t].Daughters()) daughterIdxs.push_back(idx + 1);
-
-			size_t pfpidx = pfps->size();
-			pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
-
-			art::Ptr<recob::PFParticle> pfpptr(pfpid, pfpidx, evt.productGetter(pfpid));
-			art::Ptr<recob::Track> tptr(tid, t, trkGetter);
-			pfp2trk->addSingle(pfpptr, tptr);
-
-			// vertexing was selected, so add assns to front vertex of each particle
-			if (fPmaTrackerConfig.RunVertexing())
+			art::Handle< std::vector<recob::PFParticle> > pfParticleHandle;
+			evt.getByLabel(fPfpModuleLabel, pfParticleHandle);
+			for (const auto & pfParticleItr : pfPartToTrackVecMap)
 			{
-				art::Ptr<recob::Vertex> vptr = frontVtxs[t];
-				if (!vptr.isNull()) pfp2vtx->addSingle(pfpptr, vptr);
-				else mf::LogWarning("PMAlgTrackMaker") << "Front vertex for PFParticle is missing.";
+				art::Ptr<recob::PFParticle> pfParticle(pfParticleHandle, pfParticleItr.first);
+				mf::LogVerbatim("PMAlgTrajFitter") << "PFParticle key: " << pfParticle.key()
+					<< ", self: " << pfParticle->Self() << ", #tracks: " << pfParticleItr.second.size();
+
+				if (!pfParticle.isNull()) util::CreateAssn(*this, evt, pfParticle, pfParticleItr.second, *pfp2trk);
+				else mf::LogError("PMAlgTrajFitter") << "Error in PFParticle lookup, pfparticle index: "
+					<< pfParticleItr.first << ", key: " << pfParticle.key();
 			}
 		}
-		mf::LogVerbatim("Summary") << pfps->size() << " PFParticles created";
 	}
-
 
 	evt.put(std::move(tracks));
 	evt.put(std::move(allsp));
 	evt.put(std::move(vtxs));
 	evt.put(std::move(kinks), kKinksName);
 	evt.put(std::move(nodes), kNodesName);
-	evt.put(std::move(t0s));
 
 	evt.put(std::move(trk2hit_oldway)); // ****** REMEMBER to remove when FindMany improved ******
 	evt.put(std::move(trk2hit));
 	evt.put(std::move(trk2sp));
-	evt.put(std::move(trk2t0));
 
 	evt.put(std::move(sp2hit));
 	evt.put(std::move(vtx2trk));
 	evt.put(std::move(trk2kink), kKinksName);
 
-	evt.put(std::move(pfps));
-	evt.put(std::move(pfp2clu));
-	evt.put(std::move(pfp2vtx));
 	evt.put(std::move(pfp2trk));
 }
 // ------------------------------------------------------
 // ------------------------------------------------------
 // ------------------------------------------------------
 
-DEFINE_ART_MODULE(PMAlgTrackMaker)
+DEFINE_ART_MODULE(PMAlgTrajFitter)
 
 } // namespace trkf
 

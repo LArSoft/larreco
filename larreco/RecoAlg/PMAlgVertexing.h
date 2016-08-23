@@ -12,6 +12,9 @@
 #ifndef PMAlgVertexing_h
 #define PMAlgVertexing_h
 
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Table.h"
+
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 #include "larreco/RecoAlg/PMAlg/PmaVtxCandidate.h"
 
@@ -27,10 +30,39 @@ class pma::PMAlgVertexing
 {
 public:
 
-	PMAlgVertexing(const fhicl::ParameterSet& pset);
-	virtual ~PMAlgVertexing(void); // delete last produced tracks (if not passed to output)
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
 
-	void reconfigure(const fhicl::ParameterSet& pset);
+		fhicl::Atom<double> MinTrackLength {
+			Name("MinTrackLength"),
+			Comment("min. length of tracks used to find vtx candidates (short tracks attached later)")
+		};
+
+		fhicl::Atom<bool> FindKinks {
+			Name("FindKinks"),
+			Comment("detect significant kinks on long tracks")
+		};
+
+		fhicl::Atom<double> KinkMinDeg {
+			Name("KinkMinDeg"),
+			Comment("min. angle [deg] in XY of a kink")
+		};
+
+		fhicl::Atom<double> KinkMinStd {
+			Name("KinkMinStd"),
+			Comment("threshold in no. of stdev of all segment angles needed to tag a kink")
+		};
+    };
+
+	PMAlgVertexing(const Config& config);
+	void reconfigure(const Config& config);
+
+	PMAlgVertexing(const fhicl::ParameterSet& pset) :
+		PMAlgVertexing(fhicl::Table<Config>(pset, {})())
+	{}
+
+	virtual ~PMAlgVertexing(void); // delete last produced tracks (if not passed to output)
 
 	void reset(void) { cleanTracks(); }
 

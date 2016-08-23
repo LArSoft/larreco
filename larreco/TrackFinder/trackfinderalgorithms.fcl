@@ -40,6 +40,44 @@ standard_projectionmatchingalg:
   HitWeightU:             1.0     #    - relative ratios matter, sum does not need to be 1.0
 }
 
+standard_pmalgtracker:
+{
+  MinSeedSize1stPass:     20      # min. cluster size used to start building a track in the 1st pass
+  MinSeedSize2ndPass:     4       # ..and in the 2nd pass: differentiate to speed up finding long tracks
+                                  # w/o checking large number of possibilities, then use as small size
+                                  # as reasonnable for used clustering algorithm to complete the search
+                                  # in the second pass
+                                  #
+  RunVertexing:           false   # find vertices, join with tracks, reoptimize track-vertex structure
+                                  #
+  FlipToBeam:             false   # set the track direction to increasing Z values
+  FlipDownward:           false   # set the track direction to decreasing Y values (like cosmic rays)
+  AutoFlip_dQdx:          false   # set the track direction to increasing dQ/dx (overrides FlipToBeam
+                                  # and FlipDownward if significant rise of dQ/dx at the track end)
+                                  #
+  MergeWithinTPC:         false   # merge witnin single TPC; finds tracks best matching by angle, with limits:
+  MergeTransverseShift:   2.0     #    - max. transverse displacement [cm] between tracks
+  MergeAngle:             2.0     #    - max. angle [degree] between tracks (nearest segments)
+                                  #
+  StitchBetweenTPCs:      true    # stitch between TPCs; finds tracks best matching by angle, with limits:
+  StitchDistToWall:       3.0     #    - max. track endpoint distance [cm] to TPC boundary
+  StitchTransverseShift:  3.0     #    - max. transverse displacement [cm] between tracks
+  StitchAngle:           10.0     #    - max. angle [degree] between tracks (nearest segments)
+                                  #
+  MatchT0inAPACrossing:   false   # match T0 of APA-crossing tracks, TPC stitching limits are used, but track
+                                  # parts are not stitched into a single recob::Track
+}
+
+standard_pmalgfitter:
+{
+  TrackingOnlyPdg:        [0]     # PDG list to select which PFParticles should be reconstructed;
+                                  # all PFP's are used if the list is empty or starts with 0
+  TrackingSkipPdg:        [11]    # PDG list to select which PFParticles should NOT be reconstructed,
+                                  # e.g. skip EM showers; no skipping if the list is empty or starts with 0
+                                  #
+  RunVertexing:           false   # find vertices, join with tracks, reoptimize track-vertex structure
+}
+
 standard_beziertrackeralgorithm:
 {	
   OverlapCut:            0.2

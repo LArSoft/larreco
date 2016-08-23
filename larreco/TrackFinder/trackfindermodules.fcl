@@ -42,58 +42,52 @@ standard_cctrackmaker:
   errorOnFailureToPut: false
 }
 
+# Does the full PMA job.
+# Input: collection of unassociated clusters in 2D views.
+# Output: 3D track-vertex structure.
+# First, loops over clusters from each view in order to find/fit individual 3D tracks:
+# - cluster pairs are processed from the largest, best matching by time, down to small
+#   clusters, new tracks are created and iteratively extended;
+# - cluster are selected from any pair of views, and the 3rd view is used to validate
+#   the result (if available); all 3 views are used to fine-tune good track candidates;
+# - track parts are stitched between TPCs;
+# - vertex candidates are estimated from tracks, tracks connected in vtx are reoptimized
+# - track-vertex structures are extended and finally PFParticle hierarchy is created,
+#   with tracks and vertices associated to PFPs.
 standard_pmalgtrackmaker:
 {
   module_type:            "PMAlgTrackMaker"
   ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+  PMAlgTracking:          @local::standard_pmalgtracker
   PMAlgVertexing:         @local::standard_pmavertexalg
                                       #
-  RunVertexing:           false       # find vertices, join with tracks, reoptimize track-vertex structure
   SaveOnlyBranchingVtx:   false       # use true to save only vertices interconnecting many tracks, otherwise
                                       # vertex is added to the front of each track
   SavePmaNodes:           false       # save track nodes (only for algorithm development purposes)
                                       #
-  MakePFPs:               false       # output track-vertex net as a tree of PFParticles, in such case tracks
-                                      # are associated to new PFParticles even if CluMatchingAlg is 2 or 3
-                                      #
   HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
   ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
-  CluMatchingAlg:         1           # 1: loop over clusters from each view, produces independent tracks:
-                                      #    clusters are processed from the largest, best time-matching down
-                                      #    to small pieces which are merged with existing tracks or used
-                                      #    to create smaller tracks at the end
-                                      # 2: use existing assocs of clusters to PFParticle to limit set of
-                                      #    clusters used by internal pattern recognition
-                                      # 3: simply use all clusters associated to PFParticle to create 3D
-                                      #    tracks (no pattern recognition at all, no corrections, etc)
+  EmClusterModuleLabel:   ""          # EM-like clusters, will be excluded from tracking if provided
+}
+
+# Trajectory fit using PMA.
+# Input: clusters associated to PFParticles.
+# Output: 3D trajectories associated to PFParticles.
+# Simply use all clusters associated to each PFParticle and fit 3D trajectories (no pattern recognition at all,
+# no corrections to input objects, etc). Resulting trajectories are associated to existing PFPs.
+standard_pmalgtrajfitter:
+{
+  module_type:            "PMAlgTrajFitter"
+  ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+  PMAlgFitting:           @local::standard_pmalgfitter
+  PMAlgVertexing:         @local::standard_pmavertexalg
                                       #
-  TrackingOnlyPdg:        [0]         # PDG list to select which PFParticles should be reconstructed;
-                                      # all PFP's are used if the list is empty or starts with 0
-  TrackingSkipPdg:        [11]        # PDG list to select which PFParticles should NOT be reconstructed,
-                                      # e.g. skip EM showers; no skipping if the list is empty or starts with 0
+  SaveOnlyBranchingVtx:   false       # use true to save only vertices interconnecting many tracks, otherwise
+                                      # vertex is added to the front of each track
+  SavePmaNodes:           false       # save track nodes (only for algorithm development purposes)
                                       #
-  MinSeedSize1stPass:     20          # min. cluster size used to start building a track in the 1st pass
-  MinSeedSize2ndPass:     4           # ..and in the 2nd pass: differentiate to speed up finding long tracks
-                                      # w/o checking large number of possibilities, then use as small size
-                                      # as reasonnable for used clustering algorithm to complete the search
-                                      # in the second pass
-                                      #
-  FlipToBeam:             false       # set the track direction to increasing Z values
-  FlipDownward:           false       # set the track direction to decreasing Y values (like cosmic rays)
-  AutoFlip_dQdx:          false       # set the track direction to increasing dQ/dx (overrides FlipToBeam
-                                      # and FlipDownward if significant rise of dQ/dx at the track end)
-                                      #
-  MergeWithinTPC:         false       # merge witnin single TPC; finds tracks best matching by angle, with limits:
-  MergeTransverseShift:   2.0         #    - max. transverse displacement [cm] between tracks
-  MergeAngle:             2.0         #    - max. angle [degree] between tracks (nearest segments)
-                                      #
-  StitchBetweenTPCs:      true        # stitch between TPCs; finds tracks best matching by angle, with limits:
-  StitchDistToWall:       3.0         #    - max. track endpoint distance [cm] to TPC boundary
-  StitchTransverseShift:  3.0         #    - max. transverse displacement [cm] between tracks
-  StitchAngle:           10.0         #    - max. angle [degree] between tracks (nearest segments)
-                                      #
-  MatchT0inAPACrossing:   false       # match T0 of APA-crossing tracks, TPC stitching limits are used, but track
-                                      # parts are not stitched into a single recob::Track
+  HitModuleLabel:         "hits"      # tag of unclustered hits, which were used to produce PFPs and clusters
+  PfpModuleLabel:         "pandora"   # tag of the input PFParticles and associated clusters
 }
 
 standard_featuretracker:

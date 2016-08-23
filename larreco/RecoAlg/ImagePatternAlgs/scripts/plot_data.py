@@ -9,36 +9,39 @@ import os,json
 from scipy import ndimage
 from skimage.measure import block_reduce
 
-from utils import read_config, get_data
-from prepare_data import get_data
-
+from utils import read_config, get_data, get_vertices
 
 def main(argv):
 
     print '#'*50,'\nPlot data'
-    INPUT_DIR, OUTPUT_DIR, PATCH_SIZE = read_config()
-    print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
+    INPUT_DIR, OUTPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D = read_config()
+    print 'Using %s as input dir' % (INPUT_DIR)
     print '#'*50
 
-    files = [f for f in os.listdir(INPUT_DIR) if 'tpc_2.raw' in f]
+    files = [f for f in os.listdir(INPUT_DIR) if 'raw_event_1_run_1_subrun_0_tpc_2_view_2.raw' in f]
     for fname in files:
         fname = fname[:-4] # only main part of file, without extension
         evt_no = fname.split('_')[2]
         print 'Process', fname, 'EVT', evt_no
 
-        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname)
-        total_learning_patches = int(np.sum(tracks) + np.sum(showers))
-        print 'Tracks', np.sum(tracks), 'showers', np.sum(showers)
-        print 'Total learning patches', total_learning_patches
+        # get clipped data, margin depends on patch size in drift direction
+        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2)
 
+        vtx = get_vertices(pdg, 0xFFFF0000)
+        print 'found', vtx.shape[0], 'vertices'
+        print vtx[:,0]
+        print vtx[:,1]
+        print vtx[:,2]
+        
         fig, ax = subplots(2,2, figsize=(15, 15))
-        ax[0,0].imshow(-raw, cmap='gray', interpolation='none', aspect='auto')
+        ax[0,0].imshow(-raw.transpose(), cmap='gray', interpolation='none', aspect='auto')
+        ax[0,0].scatter(vtx[:,0]+0.5, vtx[:,1]+0.5, s=50, c=32*vtx[:,2], cmap='rainbow')
         ax[0,0].set_title('ADC')
-        ax[0,1].imshow(-deposit, cmap='gray', interpolation='none', aspect='auto')
+        ax[0,1].imshow(-deposit.transpose(), cmap='gray', interpolation='none', aspect='auto')
         ax[0,1].set_title('DEPOSIT')
-        ax[1,0].imshow(-tracks, cmap='gray', interpolation='none', aspect='auto')
+        ax[1,0].imshow(-tracks.transpose(), cmap='gray', interpolation='none', aspect='auto')
         ax[1,0].set_title('TRACKS LABEL')
-        ax[1,1].imshow(-showers, cmap='gray', interpolation='none', aspect='auto')
+        ax[1,1].imshow(-showers.transpose(), cmap='gray', interpolation='none', aspect='auto')
         ax[1,1].set_title('SHOWERS LABEL')
         plt.show()
         #break
@@ -46,3 +49,4 @@ def main(argv):
 
 if __name__ == "__main__":
     main(sys.argv)
+
