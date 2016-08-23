@@ -268,6 +268,7 @@ namespace tca {
     void CheckInTraj(std::string someText);
     // Returns true if there a is wire signal at tp
     bool SignalAtTp(TrajPoint const& tp);
+    bool SignalAtPos(float pos0, float pos1, CTP_t tCTP);
     // analyze the sat vector to construct a vector of trajectories that is the best
     void AnalyzeTrials();
     // Counts the number of hits that are used in two different vectors of hits

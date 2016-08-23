@@ -1,7 +1,7 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 namespace tca {
-  
+/*
   /////////////////////////////////////////
   bool SignalPresent(TjStuff& tjs, TrajPoint const& tp, float minAmp)
   {
@@ -119,10 +119,12 @@ namespace tca {
     return true;
     
   } // SignalPresent
-
+*/
   ////////////////////////////////////////////////
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
   {
+    // Note that this does not change the state of UseHit to allow
+    // resurrecting the trajectory later (RestoreObsoleteTrajectory)
     if(itj > tjs.allTraj.size() - 1) return;
     unsigned int iht;
     for(auto& tp : tjs.allTraj[itj].Pts) {
@@ -245,7 +247,7 @@ namespace tca {
     closePt = 0;
     float dw, dt, dp2;
     unsigned short ipt;
-    for(ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ++ipt) {
+    for(ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
       dw = tj.Pts[ipt].Pos[0] - tp.Pos[0];
       dt = tj.Pts[ipt].Pos[1] - tp.Pos[1];
       dp2 = dw * dw + dt * dt;
@@ -563,7 +565,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang   AveQ     W:T      Ang   AveQ  ChgRMS  Qual __Vtx__ PDG Parent TRuPDG   EP   KE  WorkID\n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang   AveQ     W:T      Ang   AveQ  ChgRMS  Qual tkness __Vtx__ PDG Parent TRuPDG   EP   KE  WorkID\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && (unsigned short)debug.Plane != aTj.CTP) continue;
@@ -591,6 +593,7 @@ namespace tca {
         myprt<<std::setw(7)<<(int)tp.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Quality;
+        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Trackness;
 /*
         // find average number of used hits / TP
         PutTrajHitsInVector(aTj, true, tmp);
