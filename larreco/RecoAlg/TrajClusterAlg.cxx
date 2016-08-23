@@ -5746,6 +5746,8 @@ namespace tca {
         }
         if(tjs.inClus[iht] != 0) {
           mf::LogWarning("TC")<<"MakeAllTrajClusters: Hit "<<PrintHit(tjs.fHits[iht])<<" assigned to two different clusters "<<tjs.inClus[iht]<<" and "<<clID;
+          debug.Plane = 3;
+          PrintAllTraj("MATC", tjs, debug, USHRT_MAX, USHRT_MAX);
           fQuitAlg = true;
           return;
         }
