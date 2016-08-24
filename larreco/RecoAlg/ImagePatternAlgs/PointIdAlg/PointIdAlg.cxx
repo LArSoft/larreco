@@ -695,7 +695,6 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 	const std::map< int, const simb::MCParticle* > & particleMap,
 	unsigned int view) const
 {
-
 	for (auto const & p : particleMap)
 	{
 		auto const & particle = *p.second;
@@ -706,7 +705,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		int pdg = abs(particle.PdgCode());
 		int flagsStart = nnet::TrainingDataAlg::kNone;
 		int flagsEnd = nnet::TrainingDataAlg::kNone;
-		
+	
 		switch (pdg)
 		{
 			case 22:   // gamma
@@ -780,13 +779,13 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 							// hadron with Ek > 50MeV (so well visible) and
 							// produced by another hadron (but not neutron, so not single track from nothing) or
 							// at least secondary hadrons with Ek > 50MeV (so this is a good kink or V-like)
-							if (((m_pdg != pdg) && (m_pdg != 2112)) || (nVisible > 0))
+							if (((m_pdg != pdg) && (m_pdg != 2112)) || ((m_pdg != 2112) && (nVisible > 0)) || ((m_pdg == 2112) && (nVisible > 1)))
 							{
-								//std::cout << "---> hadron at " << ekStart
+								// std::cout << "---> hadron at " << ekStart
 								//	<< ", pdg: " << pdg << ", mother pdg: " << m_pdg
 								//	<< ", vis.daughters: " << nVisible << std::endl;
 								flagsStart = nnet::TrainingDataAlg::kHadr;
-							}
+							} 
 						}
 						// else std::cout << "---> mother not found for tid: " << particle.Mother() << std::endl;
 					}
