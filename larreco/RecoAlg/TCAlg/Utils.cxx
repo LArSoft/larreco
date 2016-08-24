@@ -177,13 +177,19 @@ namespace tca {
       if(tj.Pts[ipt].Chg > 0) ++ntp;
       if(ntp > 2) break;
     } // ipt
-    if(ntp < 3) return false;
+    if(ntp < 3) {
+      if(prt) mf::LogVerbatim("TC")<<"SplitAllTraj: Split point to small at begin "<<ntp<<" pos "<<pos<<" ID ";
+      return false;
+    }
     ntp = 0;
     for(ipt = pos + 1; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Chg > 0) ++ntp;
       if(ntp > 2) break;
     } // ipt
-    if(ntp < 3) return false;
+    if(ntp < 3) {
+      if(prt) mf::LogVerbatim("TC")<<"SplitAllTraj: Split point too small at end "<<ntp<<" pos "<<pos<<" EndPt "<<tj.EndPt[1];
+      return false;
+    }
     
     // make a copy
     Trajectory newTj = tjs.allTraj[itj];
@@ -421,14 +427,10 @@ namespace tca {
   {
     // Put hits in each trajectory point into a flat vector. Only hits with UseHit if onlyUsedHits == true
     hitVec.clear();
+    hitVec.reserve(tj.Pts.size());
     unsigned short ipt, ii;
     unsigned int iht;
     for(ipt = 0; ipt < tj.Pts.size(); ++ipt) {
-      if(tj.Pts[ipt].Hits.size() != tj.Pts[ipt].UseHit.size()) {
-        mf::LogVerbatim("TC")<<"Ooops: sizes different "<<ipt<<" "<<tj.Pts[ipt].Hits.size()<<" "<<tj.Pts[ipt].UseHit.size();
-        hitVec.clear();
-        return;
-      }
       for(ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         iht = tj.Pts[ipt].Hits[ii];
         if(onlyUsedHits) {

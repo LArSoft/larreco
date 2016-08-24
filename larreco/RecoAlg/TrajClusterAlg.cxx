@@ -703,7 +703,7 @@ namespace tca {
             if(!TrajHitsOK(iht, jht)) continue;
             // start a trajectory with direction from iht -> jht
             StartWork(fromWire, fromTick, toWire, toTick, fCTP);
-            if(work.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = fPlane; }
+//            if(work.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = fPlane; }
             // check for a major failure
             if(fQuitAlg) return;
             if(work.Pts.empty()) {
@@ -951,7 +951,8 @@ namespace tca {
             myprt<<"\n";
           } // prt
           // See if this is a ghost trajectory
-          if(IsGhost(tHits)) continue;
+          unsigned short ofTraj = USHRT_MAX;
+          if(IsGhost(tHits, ofTraj)) continue;
           MakeJunkTraj(tHits, newTjIndex);
           if(fQuitAlg) return;
           // release any hits that weren't included in a trajectory
@@ -2147,11 +2148,13 @@ namespace tca {
     float delta;
     unsigned short imBest = USHRT_MAX;
     std::vector<float> deltas(tp.Hits.size(), 100);
+    unsigned short nAvailable = 0;
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       tp.UseHit[ii] = false;
       unsigned int iht = tp.Hits[ii];
       if(tjs.inTraj[iht] > 0) continue;
       delta = PointTrajDOCA(tjs, iht, tp);
+      ++nAvailable;
       if(prt) mf::LogVerbatim("TC")<<ii<<"  "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta;
       deltas[ii] = delta;
       if(delta < tp.Delta) {
@@ -2175,24 +2178,20 @@ namespace tca {
     // calculate the charge pull
     float bestHitChgPull = (tjs.fHits[bestHit]->Integral() / tj.AveChg - 1) / tj.ChgRMS;
     
-    // Get the hit multiplicity
-    std::vector<unsigned int> hitsInMultiplet;
-    GetHitMultiplet(bestHit, hitsInMultiplet);
+    if(prt) mf::LogVerbatim("TC")<<"FindUseHits: bestHit "<<PrintHit(tjs.fHits[bestHit])<<" Charge "<<(int)tjs.fHits[bestHit]->Integral()<<" ChgPull "<<bestHitChgPull<<" nAvailable "<<nAvailable<<" tj.AveChg "<<tj.AveChg<<" tj.ChgRMS "<<tj.ChgRMS;
     
-    if(prt) mf::LogVerbatim("TC")<<"FindUseHits: bestHit "<<PrintHit(tjs.fHits[bestHit])<<" Charge "<<(int)tjs.fHits[bestHit]->Integral()<<" ChgPull "<<bestHitChgPull<<" hitsInMultiplet.size() "<<hitsInMultiplet.size()<<" tj.AveChg "<<tj.AveChg<<" tj.ChgRMS "<<tj.ChgRMS;
-    
-    // single hit
-    if(hitsInMultiplet.size() == 1) {
-      // check the charge pull
-      if(bestHitChgPull < fChgPullCut) {
-        tp.UseHit[imBest] = true;
-        tjs.inTraj[bestHit] = tj.ID;
-      } // good charge
+    // always use the best hit if the charge pull is OK
+    if(bestHitChgPull < fChgPullCut) {
+      tp.UseHit[imBest] = true;
+      tjs.inTraj[bestHit] = tj.ID;
+    } // good charge
+      
+    if(nAvailable == 1) {
       if(prt) mf::LogVerbatim("TC")<<" Mult=1 UseHit "<<tp.UseHit[imBest];
       return;
     } // single hit
     
-    // Everything below for more than 1 hit in the multiplet
+    // Everything below for more than 1 available hit
     
     // calculate some quantities for selecting the best hit
     float bestHitDeltaErr = std::abs(tp.Dir[1]) * 0.17 + std::abs(tp.Dir[0]) * HitTimeErr(bestHit);
@@ -2202,16 +2201,19 @@ namespace tca {
     // scale by charge pull if > 1
     if(bestHitChgPull > 1) bestHitFOM *= bestHitChgPull;
     
-    // find the closest neighbor - the second best hit
-    unsigned short secondBest = 0;
-    float secondBestDelta = 10;
+    // find the closest unused neighbor - the second best available hit
+    unsigned short secondBest = USHRT_MAX;
+    float secondBestDelta = 5;
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       if(ii == imBest) continue;
+      unsigned int iht = tp.Hits[ii];
+      if(tjs.inTraj[iht] > 0) continue;
       if(deltas[ii] < secondBestDelta) {
         secondBestDelta = deltas[ii];
         secondBest = ii;
       }
     } // ii
+    if(secondBest == USHRT_MAX) return;
     
     // calculate some quantities for selecting the second best hit
     unsigned int secondBestHit = tp.Hits[secondBest];
@@ -2239,8 +2241,8 @@ namespace tca {
     
     if(prt) mf::LogVerbatim("TC")<<" bestHit FOM "<<bestHitFOM<<" secondBestHit "<<PrintHit(tjs.fHits[secondBestHit])<<" FOM "<<secondBestHitFOM<<" Doublet FOM "<<doubletFOM;
     
-    // two or more hits
-    if(hitsInMultiplet.size() > 1) {
+    // Only consider 1 or 2 of the available hits
+//    if(nAvailable > 1) {
       // don't use either hit if both are inconsistent with the average charge
       if(bestHitChgPull > fChgPullCut && secondBestHitChgPull > fChgPullCut) return;
       // Have 3 choices: the best hit, the second best hit or both combined (doublet)
@@ -2280,7 +2282,7 @@ namespace tca {
         tjs.inTraj[jhit] = tj.ID;
       } // consider the doublet
       return;
-    } // double hit
+//    } // double hit
 /*
     // Handle hit muliplets here. Construct a figure of merit for
     // the single hit, a hit doublet and for a hit multiplet
@@ -3593,7 +3595,7 @@ namespace tca {
         } else {
           // closePt is not near an end, so split the trajectory
           if(!SplitAllTraj(tjs, itj, closePt, aVtxIndx, vtxPrt)) {
-            mf::LogVerbatim("TC")<<"SplitAllTraj failed ";
+            mf::LogVerbatim("TC")<<"SplitAllTraj failed. Traj ID "<<tjs.allTraj[itj].ID;
             // failure occurred. Recover
             for(auto mTj : mTjs) {
               unsigned short jtj = mTj.first;
@@ -3919,10 +3921,12 @@ namespace tca {
   } // ModifyShortTraj
 */
   ////////////////////////////////////////////////
-  bool TrajClusterAlg::IsGhost(std::vector<unsigned int>& tHits)
+  bool TrajClusterAlg::IsGhost(std::vector<unsigned int>& tHits, unsigned short& ofTraj)
   {
     // Called by FindJunkTraj to see if the passed hits are close to an existing
     // trajectory and if so, they will be used in that other trajectory
+    
+    ofTraj = USHRT_MAX;
     
     if(!fUseAlg[kUseGhostHits]) return false;
     
@@ -3974,7 +3978,7 @@ namespace tca {
     } // ii
     if(itj == USHRT_MAX) return false;
     
-    if(prt) mf::LogVerbatim("TC")<<"is ghost of trajectory "<<itj+1;
+    if(prt) mf::LogVerbatim("TC")<<"is ghost of trajectory "<<tjs.allTraj[itj].ID;
 
     // Use all hits in tHits that are found in itj
     unsigned int iht, tht;
@@ -3992,6 +3996,7 @@ namespace tca {
       } // ii
     } // tp
     tjs.allTraj[itj].AlgMod[kUseGhostHits] = true;
+    ofTraj = itj;
     return true;
     
   } // IsGhost
@@ -4148,7 +4153,9 @@ namespace tca {
     if(fUseAlg[kUseGhostHits]) {
       std::vector<unsigned int> tHits;
       PutTrajHitsInVector(tj, true, tHits);
-      if(IsGhost(tHits)) {
+      unsigned short ofTraj = USHRT_MAX;
+      if(IsGhost(tHits, ofTraj)) {
+        std::cout<<"CheckTraj: Traj "<<tj.ID<<" is a ghost of tj "<<tjs.allTraj[ofTraj].ID<<" whose work ID is "<<tjs.allTraj[ofTraj].WorkID<<"\n";
         fGoodWork = false;
         return;
       }
@@ -4840,8 +4847,8 @@ namespace tca {
       if(prevPtWithHits == USHRT_MAX) return;
       float dang = DeltaAngle(tj.Pts[lastPt].Ang, tj.Pts[prevPtWithHits].Ang);
       if(prt) mf::LogVerbatim("TC")<<"GottaKink Simple check lastPt "<<lastPt<<" prevPtWithHits "<<prevPtWithHits<<" dang "<<dang<<" cut "<<fKinkAngCut;
-      // need to be more generous since the angle error isn't being considered
-      if(dang > 1.5 * fKinkAngCut) {
+      // need to be more generous since the angle error isn't being considered - BAD IDEA
+      if(dang > fKinkAngCut) {
         killPts = 1;
         tj.AlgMod[kGottaKink] = true;
         tj.Pts[prevPtWithHits].KinkAng = dang;
@@ -5414,6 +5421,8 @@ namespace tca {
       // charge RMS
       float defFrac = 1 / (float)(tj.EndPt[1]);
       tj.ChgRMS = defFrac + (1 - defFrac) * rms;
+      // don't let it get crazy small
+      if(tj.ChgRMS < 0.1) tj.ChgRMS = 0.1;
       tj.Pts[lastPt].ChgPull = (tj.Pts[lastPt].Chg / tj.AveChg - 1) / tj.ChgRMS;
     } // cnt > 3
     
@@ -5434,7 +5443,6 @@ namespace tca {
   void TrajClusterAlg::StartWork(float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP)
   {
     // Start a simple (seed) trajectory going from a hit to a position (toWire, toTick).
-    // The traj vector is cleared if an error occurs
     
     // construct a default trajectory
     Trajectory tj;
@@ -5453,6 +5461,7 @@ namespace tca {
     MakeBareTrajPoint(fromWire, fromTick, toWire, toTick, tCTP, tp);
 
     tp.AngErr = 0.1;
+    if(work.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = fPlane; }
     if(prt) mf::LogVerbatim("TC")<<"StartWork "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" angErr "<<tp.AngErr;
     work.Pts.push_back(tp);
     
@@ -5511,14 +5520,14 @@ namespace tca {
         }
       } // tp
       if(tj.AlgMod[kKilled]) {
-        std::cout<<"Hit size mis-match in tj ID "<<tj.ID<<" AlgBitNames";
+        std::cout<<someText<<" CheckInTraj hit size mis-match in tj ID "<<tj.ID<<" AlgBitNames";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) std::cout<<" "<<AlgBitNames[ib];
         std::cout<<"\n";
         continue;
       }
       PutTrajHitsInVector(tj, true,  tHits);
       if(tHits.size() < 2) {
-        mf::LogVerbatim("TC")<<"CheckInTraj: Insufficient hits in traj "<<tj.ID<<" Killing it";
+        mf::LogVerbatim("TC")<<someText<<" CheckInTraj: Insufficient hits in traj "<<tj.ID<<" Killing it";
         tj.AlgMod[kKilled] = true;
         continue;
       }
@@ -5528,16 +5537,17 @@ namespace tca {
         if(tjs.inTraj[iht] == tID) atHits.push_back(iht);
       } // iht
       if(atHits.size() < 2) {
-        mf::LogVerbatim("TC")<<"CheckInTraj: Insufficient hits in atHits in traj "<<tj.ID<<" Killing it";
+        mf::LogVerbatim("TC")<<someText<<" CheckInTraj: Insufficient hits in atHits in traj "<<tj.ID<<" Killing it";
         tj.AlgMod[kKilled] = true;
         continue;
       }
       if(!std::equal(tHits.begin(), tHits.end(), atHits.begin())) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"CheckInTraj: tjs.allTraj - tjs.inTraj mis-match for tj ID "<<tID<<" atHits size "<<atHits.size()<<" tHits size "<<tHits.size()<<" in CTP "<<tj.CTP<<"\n";
+        myprt<<someText<<" CheckInTraj: inTraj - UseHit mis-match for tj ID "<<tID<<" tj.WorkID "<<tj.WorkID<<" atHits size "<<atHits.size()<<" tHits size "<<tHits.size()<<" in CTP "<<tj.CTP<<"\n";
         myprt<<"AlgMods: ";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         myprt<<"\n";
+        myprt<<"     inTraj     UseHit \n";
         for(iht = 0; iht < atHits.size(); ++iht) {
           myprt<<"iht "<<iht<<" "<<PrintHit(tjs.fHits[atHits[iht]]);
           if(iht < tHits.size()) myprt<<" "<<PrintHit(tjs.fHits[tHits[iht]]);
@@ -5745,7 +5755,7 @@ namespace tca {
           return;
         }
         if(tjs.inClus[iht] != 0) {
-          mf::LogWarning("TC")<<"MakeAllTrajClusters: Hit "<<PrintHit(tjs.fHits[iht])<<" assigned to two different clusters "<<tjs.inClus[iht]<<" and "<<clID;
+          mf::LogWarning("TC")<<"MakeAllTrajClusters failed: Hit "<<PrintHit(tjs.fHits[iht])<<" assigned to two different clusters "<<tjs.inClus[iht]<<" and "<<clID;
           debug.Plane = 3;
           PrintAllTraj("MATC", tjs, debug, USHRT_MAX, USHRT_MAX);
           fQuitAlg = true;
