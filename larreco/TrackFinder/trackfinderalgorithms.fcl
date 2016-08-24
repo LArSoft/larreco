@@ -72,7 +72,7 @@ standard_pmalgfitter:
 {
   TrackingOnlyPdg:        [0]     # PDG list to select which PFParticles should be reconstructed;
                                   # all PFP's are used if the list is empty or starts with 0
-  TrackingSkipPdg:        [11]    # PDG list to select which PFParticles should NOT be reconstructed,
+  TrackingSkipPdg:        [0]    # PDG list to select which PFParticles should NOT be reconstructed,
                                   # e.g. skip EM showers; no skipping if the list is empty or starts with 0
                                   #
   RunVertexing:           false   # find vertices, join with tracks, reoptimize track-vertex structure
