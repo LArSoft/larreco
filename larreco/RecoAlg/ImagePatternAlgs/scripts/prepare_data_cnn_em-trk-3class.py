@@ -15,7 +15,7 @@ def main(argv):
 
     doing_nue = False      # set to true for nu_e events (will skip more showers)
     selected_view_idx =  2 # set the view id
-    patch_fraction =    25 # percent of used patches
+    patch_fraction =    30 # percent of used patches
 
     print 'Using', patch_fraction, '% of data from view', selected_view_idx
     if doing_nue: print 'Neutrino mode, will skip more showers.'
@@ -114,8 +114,8 @@ def main(argv):
 
     print 'Added', cnt_ind, 'Tracks:', cnt_trk, 'showers:', cnt_sh, 'empty:', cnt_void
 
-    np.save(OUTPUT_DIR+'/db_view_'+selected_view_idx+'_x', db[:cnt_ind])
-    np.save(OUTPUT_DIR+'/db_view_'+selected_view_idx+'_y', db_y[:cnt_ind])
+    np.save(OUTPUT_DIR+'/db_view_'+str(selected_view_idx)+'_x', db[:cnt_ind])
+    np.save(OUTPUT_DIR+'/db_view_'+str(selected_view_idx)+'_y', db_y[:cnt_ind])
 
 if __name__ == "__main__":
     main(argv)
