@@ -1,8 +1,4 @@
-import matplotlib
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from matplotlib.pylab import *
 from os import listdir
 from os.path import isfile, join
 import os, json
@@ -18,9 +14,16 @@ def get_data(fname, drift_margin = 0):
     print 'Reading', fname + '.raw'
     A_raw     = np.genfromtxt(fname + '.raw', delimiter=' ')
     A_deposit = np.genfromtxt(fname + '.deposit', delimiter=' ')
-    A_pdg     = np.genfromtxt(fname + '.pdg', delimiter=' ', dtype=int32)
+    A_pdg     = np.genfromtxt(fname + '.pdg', delimiter=' ', dtype=np.int32)
 
-    print np.sum(A_raw), np.sum(A_deposit), np.sum(A_pdg)
+    if A_raw.shape[0] < 8 or A_raw.shape[1] < 8: return None, None, None, None, None
+
+    test_pdg = np.sum(A_pdg)
+    test_dep = np.sum(A_deposit)
+    test_raw = np.sum(A_raw)
+    if test_raw == 0.0 or test_dep == 0.0 or test_pdg == 0: return None, None, None, None, None
+
+    print test_raw, test_dep, test_pdg
     #assert np.sum(A_deposit) > 0
     # get main event body (99% signal)
     evt_start_ind, evt_stop_ind = get_event_bounds(A_deposit, drift_margin)
@@ -38,6 +41,30 @@ def get_data(fname, drift_margin = 0):
     showers[(A_pdg & 0xFFFF) != 11] = 0
     showers[showers > 0] = 1
     return A_raw, A_deposit, A_pdg, tracks, showers
+
+def get_patch(a, wire, drift, wsize, dsize):
+    halfSizeW = wsize / 2;
+    halfSizeD = dsize / 2;
+
+    w0 = wire - halfSizeW;
+    w1 = wire + halfSizeW;
+
+    d0 = drift - halfSizeD;
+    d1 = drift + halfSizeD;
+
+    patch = np.zeros((wsize, dsize))
+
+    wpatch = 0
+    for w in range(w0, w1):
+        if w >= 0 and w < a.shape[0]:
+            dpatch = 0
+            for d in range(d0, d1):
+                if d >= 0 and d < a.shape[1]:
+                    patch[wpatch,dpatch] = a[w,d];
+                dpatch += 1
+        wpatch += 1
+    
+    return patch
 
 def get_vertices(A, mask):
     vtx = np.zeros((A.shape[0]*A.shape[1],3))
