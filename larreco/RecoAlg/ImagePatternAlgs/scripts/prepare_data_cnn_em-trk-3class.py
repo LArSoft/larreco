@@ -13,9 +13,10 @@ def main(argv):
     print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
     print '#'*50
 
-    doing_nue = False      # set to true for nu_e events (will skip more showers)
-    selected_view_idx =  2 # set the view id
-    patch_fraction =    30 # percent of used patches
+    doing_nue = False        # set to true for nu_e events (will skip more showers)
+    selected_view_idx =  2   # set the view id
+    patch_fraction =    30.0 # percent of used patches
+    empty_fraction =     1.0 # percent of "empty background" patches
 
     print 'Using', patch_fraction, '% of data from view', selected_view_idx
     if doing_nue: print 'Neutrino mode, will skip more showers.'
@@ -59,7 +60,7 @@ def main(argv):
         for i in range(raw.shape[0]):
             for j in range(raw.shape[1]):
                 # randomly skip fraction of patches
-                if np.random.randint(100) > patch_fraction: continue
+                if np.random.randint(10000) > int(100*patch_fraction): continue
                 
                 x_start = np.max([0, i - PATCH_SIZE_W/2])
                 x_stop  = np.min([raw.shape[0], x_start + PATCH_SIZE_W])
@@ -84,15 +85,15 @@ def main(argv):
                 elif showers[i,j] == 1:
                     # for nu_e events (lots of showers) skip some fraction of shower patches
                     if doing_nue:
-                        if np.random.randint(100) < 50: continue  # skip 50% of any shower
-                        if shower_pixels > 0.05*patch_area and np.random.randint(100) < 70: continue
+                        if np.random.randint(100) < 40: continue  # skip 40% of any shower
+                        if shower_pixels > 0.05*patch_area and np.random.randint(100) < 50: continue
                         if shower_pixels > 0.20*patch_area and np.random.randint(100) < 90: continue
                     target[1] = 1
                     cnt_sh += 1
                     sel_sh += 1
                 else:
                     # use small fraction (1/100) of empty-but-close-to-something patches
-                    if np.random.randint(100) < 1:
+                    if np.random.randint(10000) < int(100*empty_fraction):
                         nclose = np.count_nonzero(showers[i-2:i+3, j-2:j+3])
                         nclose += np.count_nonzero(tracks[i-2:i+3, j-2:j+3])
                         if nclose == 0:
