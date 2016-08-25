@@ -323,7 +323,7 @@ namespace tca {
     void GottaKink(Trajectory& tj, unsigned short& killPts);
     // Update the  parameters at the beginning of the trajectory
     void FixTrajBegin(Trajectory& tj);
-    bool IsGhost(std::vector<unsigned int>& tHits);
+    bool IsGhost(std::vector<unsigned int>& tHits, unsigned short& ofTraj);
     void CheckTrajEnd();
     void EndMerge();
     void ChainMerge();
