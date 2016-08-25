@@ -1,35 +1,10 @@
 import numpy as np
-from matplotlib.pylab import *
+from sys import argv
 from os import listdir
 from os.path import isfile, join
 import os, json
 
-from utils import read_config, get_data
-
-def get_patch(a, wire, drift, wsize, dsize):
-    halfSizeW = wsize / 2;
-    halfSizeD = dsize / 2;
-
-    w0 = wire - halfSizeW;
-    w1 = wire + halfSizeW;
-
-    d0 = drift - halfSizeD;
-    d1 = drift + halfSizeD;
-
-    patch = np.zeros((wsize, dsize))
-
-    wpatch = 0
-    for w in range(w0, w1):
-        if w >= 0 and w < a.shape[0]:
-            dpatch = 0
-            for d in range(d0, d1):
-                if d >= 0 and d < a.shape[1]:
-                    patch[wpatch,dpatch] = a[w,d];
-                dpatch += 1
-        wpatch += 1
-    
-    return patch
-
+from utils import read_config, get_data, get_patch
 
 def main(argv):
 
@@ -38,28 +13,53 @@ def main(argv):
     print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
     print '#'*50
 
-    db = np.zeros((1800000, PATCH_SIZE_W, PATCH_SIZE_D))
-    db_y = np.zeros((1800000, 3), dtype=np.int32)
+    doing_nue = False      # set to true for nu_e events (will skip more showers)
+    selected_view_idx =  2 # set the view id
+    patch_fraction =    30 # percent of used patches
+
+    print 'Using', patch_fraction, '% of data from view', selected_view_idx
+    if doing_nue: print 'Neutrino mode, will skip more showers.'
+
+    max_capacity = 1700000
+    db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D))
+    db_y = np.zeros((max_capacity, 3), dtype=np.int32)
+
+    patch_area = PATCH_SIZE_W * PATCH_SIZE_D
 
     cnt_ind = 0
     cnt_trk = 0
     cnt_sh = 0
     cnt_void = 0
 
+    fcount = 0
+
     files = [f for f in os.listdir(INPUT_DIR) if '.raw' in f]
     for fname in files:
         fname = fname[:-4] # only main part of file, without extension
-        evt_no = fname.split('_')[2]
-        print 'Process', fname, 'EVT', evt_no
+        finfo = fname.split('_')
+        evt_no = finfo[2]
+        tpc_idx = int(finfo[8])
+        view_idx = int(finfo[10])
+
+        if view_idx != selected_view_idx: continue
+        fcount += 1
+
+        print 'Process file', fcount, fname, 'EVT', evt_no
 
         # get clipped data, margin depends on patch size in drift direction
         raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2)
+        if raw == None:
+            print 'Skip empty event...'
+            continue
+
         print 'Tracks', np.sum(tracks), 'showers', np.sum(showers)
 
+        sel_trk = 0
+        sel_sh = 0
         for i in range(raw.shape[0]):
             for j in range(raw.shape[1]):
-                # randomly skip (3/4) of patches
-                if np.random.randint(100) < 25: continue
+                # randomly skip fraction of patches
+                if np.random.randint(100) > patch_fraction: continue
                 
                 x_start = np.max([0, i - PATCH_SIZE_W/2])
                 x_stop  = np.min([raw.shape[0], x_start + PATCH_SIZE_W])
@@ -69,25 +69,34 @@ def main(argv):
 
                 if x_stop - x_start != PATCH_SIZE_W or y_stop - y_start != PATCH_SIZE_D:
                     continue
-                    
+
+                track_pixels = np.count_nonzero(tracks[x_start:x_stop, y_start:y_stop])
+                shower_pixels = np.count_nonzero(showers[x_start:x_stop, y_start:y_stop])
+
                 target = np.zeros(3)
                 if tracks[i,j] == 1:
                     # skip some fraction (1/2) of almost-track-only patches
-                    if np.random.randint(2) < 1 and np.count_nonzero(showers[x_start:x_stop, y_start:y_stop]) < 4: continue
+                    if shower_pixels < 4 and np.random.randint(2) < 1: continue
                     else:
                         target[0] = 1
                         cnt_trk += 1
+                        sel_trk += 1
                 elif showers[i,j] == 1:
+                    # for nu_e events (lots of showers) skip some fraction of shower patches
+                    if doing_nue:
+                        if np.random.randint(100) < 50: continue  # skip 50% of any shower
+                        if shower_pixels > 0.05*patch_area and np.random.randint(100) < 70: continue
+                        if shower_pixels > 0.20*patch_area and np.random.randint(100) < 90: continue
                     target[1] = 1
                     cnt_sh += 1
+                    sel_sh += 1
                 else:
                     # use small fraction (1/100) of empty-but-close-to-something patches
                     if np.random.randint(100) < 1:
                         nclose = np.count_nonzero(showers[i-2:i+3, j-2:j+3])
                         nclose += np.count_nonzero(tracks[i-2:i+3, j-2:j+3])
                         if nclose == 0:
-                            npix = np.count_nonzero(showers[x_start:x_stop, y_start:y_stop])
-                            npix += np.count_nonzero(tracks[x_start:x_stop, y_start:y_stop])
+                            npix = shower_pixels + track_pixels
                             if npix > 6:
                                 target[2] = 1
                                 cnt_void += 1
@@ -95,16 +104,19 @@ def main(argv):
                         else: continue # too close to trk/shower
                     else: continue # not selected randomly
 
-                db[cnt_ind] = get_patch(raw, i, j, PATCH_SIZE_W, PATCH_SIZE_D)
-                db_y[cnt_ind] = target
-                
-                cnt_ind += 1
+                if cnt_ind < max_capacity:
+                    db[cnt_ind] = get_patch(raw, i, j, PATCH_SIZE_W, PATCH_SIZE_D)
+                    db_y[cnt_ind] = target
+                    cnt_ind += 1
+                else: break
+
+        print 'Tracks', sel_trk, 'showers', sel_sh, 'selected'
 
     print 'Added', cnt_ind, 'Tracks:', cnt_trk, 'showers:', cnt_sh, 'empty:', cnt_void
 
-    np.save(OUTPUT_DIR+'/db_x', db[:cnt_ind])
-    np.save(OUTPUT_DIR+'/db_y', db_y[:cnt_ind])
+    np.save(OUTPUT_DIR+'/db_view_'+str(selected_view_idx)+'_x', db[:cnt_ind])
+    np.save(OUTPUT_DIR+'/db_view_'+str(selected_view_idx)+'_y', db_y[:cnt_ind])
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main(argv)
 
