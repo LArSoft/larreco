@@ -513,10 +513,7 @@ namespace tca {
     // should define work.ID so that the hits on itj are properly assigned to it
     fGoodWork = false;
     if(itj > tjs.allTraj.size() - 1) return;
-     if(tjs.allTraj[itj].AlgMod[kKilled]) {
-      mf::LogVerbatim("TC")<<"AppendToWork: Trying to append a killed trajectory "<<tjs.allTraj[itj].ID;
-      return;
-    }
+    if(tjs.allTraj[itj].AlgMod[kKilled]) return;
     
     // make a copy
     Trajectory tj = tjs.allTraj[itj];
@@ -530,9 +527,12 @@ namespace tca {
     // remove any points at the end of work that don't have used hits
     work.Pts.resize(work.EndPt[1] + 1);
     // remove any points at the beginning of tp that don't have used hits
-    if(tj.EndPt[0] > 0) tj.Pts.erase(tj.Pts.begin(), tj.Pts.begin()+tj.EndPt[0]);
-    SetEndPoints(tjs, tj);
-    if(tj.EndPt[0] != 0) return;
+    if(tj.EndPt[0] > 0) {
+      std::cout<<"ATW: trim beginning points "<<tj.ID<<" "<<tj.EndPt[0]<<"\n";
+      tj.Pts.erase(tj.Pts.begin(), tj.Pts.begin()+tj.EndPt[0]);
+      SetEndPoints(tjs, tj);
+      if(tj.EndPt[0] != 0) return;
+    }
     
     // This will be simple if there are no overlapping points
     unsigned short itjClosePt;
@@ -2674,48 +2674,46 @@ namespace tca {
     if(tjs.allTraj.size() < 2) return;
     if(!fUseAlg[kEndMerge]) return;
 
-    unsigned short tj1, tj2, tjSize = tjs.allTraj.size(), ipt;
-    float dang, doca, ptSep, chg1rms, chg2rms, chgpull;
+    unsigned short tj1, tj2, ipt;
+    float dang, doca, chg1rms, chg2rms, chgpull;
     bool notJunk;
 
     mrgPrt = (debug.Plane == (int)fPlane && debug.Wire < 0);
     if(mrgPrt) mf::LogVerbatim("TC")<<"inside EndMerge on plane "<<fPlane;
     
-//    TrajPoint tpm;
-
-    for(tj1 = 0; tj1 < tjSize; ++tj1) {
+    // Try a second merge pass if there was a merge on the first
+    for(unsigned short nit = 0; nit < 2; ++nit) {
+    bool didMerge = false;
+    for(tj1 = 0; tj1 < tjs.allTraj.size(); ++tj1) {
       if(tjs.allTraj[tj1].AlgMod[kKilled]) continue;
       if(tjs.allTraj[tj1].CTP != fCTP) continue;
       if(tjs.allTraj[tj1].Vtx[1] >= 0) continue;
-      // use the hit position and the 3 point fit direction
-//      TrajPoint& tp1 = tjs.allTraj[tj1].EndTP[1];
-      // or maybe not
       ipt = tjs.allTraj[tj1].EndPt[1];
       TrajPoint& tp1 = tjs.allTraj[tj1].Pts[ipt];
-      for(tj2 = 0; tj2 < tjSize; ++tj2) {
+      for(tj2 = 0; tj2 < tjs.allTraj.size(); ++tj2) {
         if(tj1 == tj2) continue;
         if(tjs.allTraj[tj2].AlgMod[kKilled]) continue;
         if(tjs.allTraj[tj2].CTP != fCTP) continue;
         if(tjs.allTraj[tj2].Vtx[0] >= 0) continue;
-        // use the hit position and the 3 point fit direction
-//        TrajPoint& tp2 = tjs.allTraj[tj2].EndTP[0];
         ipt = tjs.allTraj[tj2].EndPt[0];
         TrajPoint& tp2 = tjs.allTraj[tj2].Pts[ipt];
         dang = DeltaAngle(tp1.Ang, tp2.Ang);
         if(dang > fKinkAngCut) continue;
+        // Inflate the doca cut if we are bridging a block of dead wires
+        float docaCut = fVertex2DIPCut;
+        float dwc = DeadWireCount(tp1, tp2);
+        if(dwc > 10) docaCut *= 2;
         doca = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
-        if(doca > 2) continue;
-        ptSep = TrajPointSeparation(tp1, tp2);
+        if(mrgPrt) mf::LogVerbatim("TC")<<"EM "<<tjs.allTraj[tj1].ID<<"_1"<<"-"<<tjs.allTraj[tj2].ID<<"_0 DOCA "<<doca<<" docaCut "<<docaCut<<" dang "<<dang;
+        if(doca > docaCut) continue;
+        // Traj point separation (approximate) accounting for dead wires
+        float ptSep = std::abs(tp1.Pos[0] - tp2.Pos[0]) - dwc;
+//        float ptSep = TrajPointSeparation(tp1, tp2);
         if(ptSep > 5) continue;
-        // ensure that the trajectories don't overlap by findng the
-        // direction of a trajectory point between end 0 of tj1 and end 1 of tj2
-//        MakeBareTrajPoint(tp1, tp2, tpm);
-//        if(std::signbit(tp1.Dir[0]) != std::signbit(tpm.Dir[0])) continue;
         notJunk = (!tjs.allTraj[tj1].AlgMod[kJunkTj] && !tjs.allTraj[tj1].AlgMod[kJunkTj]);
         if(mrgPrt) {
           mf::LogVerbatim("TC")<<" candidate tj1-tj2 "<<tjs.allTraj[tj1].ID<<"_1"<<"-"<<tjs.allTraj[tj2].ID<<"_0"<<" dang "<<dang<<" ptSep "<<ptSep<<" doca "<<doca<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2)<<" both not Junk? "<<notJunk;
           PrintTrajPoint("EM", tjs, tjs.allTraj[tj1].EndPt[1], tjs.allTraj[tj1].StepDir, 0, tp1);
-//          PrintTrajPoint("EM", tjs, 0, 0, 0, tpm);
           PrintTrajPoint("EM", tjs, tjs.allTraj[tj2].EndPt[0], tjs.allTraj[tj2].StepDir, 0, tp2);
         }
         if(doca > 10) continue;
@@ -2776,14 +2774,16 @@ namespace tca {
         }
         work.AlgMod[kEndMerge] = true;
         StoreWork();
-        unsigned short itj = tjs.allTraj.size() - 1;
+        didMerge = true;
         if(mrgPrt) {
+          unsigned short itj = tjs.allTraj.size() - 1;
           mf::LogVerbatim("TC")<<"EndMerge: After merge with "<<tjs.allTraj[itj].ID;
-//          PrintAllTraj(tjs, Debug, itj, USHRT_MAX);
         }
         break;
       } // tj2
     } // tj1
+    if(!didMerge) break;
+    } // nit
 
   }  // EndMerge
   
@@ -4155,7 +4155,6 @@ namespace tca {
       PutTrajHitsInVector(tj, true, tHits);
       unsigned short ofTraj = USHRT_MAX;
       if(IsGhost(tHits, ofTraj)) {
-        std::cout<<"CheckTraj: Traj "<<tj.ID<<" is a ghost of tj "<<tjs.allTraj[ofTraj].ID<<" whose work ID is "<<tjs.allTraj[ofTraj].WorkID<<"\n";
         fGoodWork = false;
         return;
       }
@@ -5654,7 +5653,7 @@ namespace tca {
   ////////////////////////////////////////////////
   void TrajClusterAlg::CalculateQuality(Trajectory& tj)
   {
-    // Calculate a quality metric
+    // Calculate a quality metric using the deviations of all hits used in the trajectory
 
     float sum = 0;
     unsigned short cnt = 0;
@@ -5671,8 +5670,16 @@ namespace tca {
       TrajPoint& tp3 = tj.Pts[ipt + 1];
       // draw a line between the points that bracket the central point
       MakeBareTrajPoint(tp1.HitPos[0], tp1.HitPos[1]/tjs.UnitsPerTick, tp3.HitPos[0], tp3.HitPos[1]/tjs.UnitsPerTick, tp1.CTP, tmp);
-      float delta2 =  PointTrajDOCA2(tjs, tp2.HitPos[0], tp2.HitPos[1], tmp);
-      sum += sqrt(delta2 / tp2.HitPosErr2);
+      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+        if(!tj.Pts[ipt].UseHit[ii]) continue;
+        unsigned int iht = tj.Pts[ipt].Hits[ii];
+        float time = tjs.fHits[iht]->PeakTime() * tjs.UnitsPerTick;
+        float delta2 = PointTrajDOCA2(tjs, tp2.HitPos[0], time, tmp);
+        sum += sqrt(delta2 / tp2.HitPosErr2);
+        ++cnt;
+      }
+//      float delta2 =  PointTrajDOCA2(tjs, tp2.HitPos[0], tp2.HitPos[1], tmp);
+//      sum += sqrt(delta2 / tp2.HitPosErr2);
       ++cnt;
     } // ipt
     if(cnt == 0) {
