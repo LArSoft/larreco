@@ -68,7 +68,7 @@ def get_patch(a, wire, drift, wsize, dsize):
 
 def get_vertices(A):
     max_count = A.shape[0]*A.shape[1] / 4 # rather not more than 25% of plane filled with vertices
-    vtx = np.zeros((max_count, 3))
+    vtx = np.zeros((max_count, 3), dtype=np.int32)
     nvtx = 0
     for i in range(A.shape[0]):
         for j in range(A.shape[1]):
@@ -85,7 +85,7 @@ def get_vertices(A):
 
 def get_nu_vertices(A):
     max_count = 10 # 10 vertices per view shoud be enough...
-    vtx = np.zeros((max_count, 3))
+    vtx = np.zeros((max_count, 3), dtype=np.int32)
     nvtx = 0
     for i in range(A.shape[0]):
         for j in range(A.shape[1]):
