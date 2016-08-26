@@ -595,7 +595,8 @@ namespace tca {
         myprt<<std::setw(7)<<(int)tp.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Quality;
-        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Trackness;
+//        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Trackness;
+        myprt<<std::setw(7)<<(int)aTj.Trackness;
 /*
         // find average number of used hits / TP
         PutTrajHitsInVector(aTj, true, tmp);
