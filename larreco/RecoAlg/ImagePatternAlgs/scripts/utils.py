@@ -66,14 +66,14 @@ def get_patch(a, wire, drift, wsize, dsize):
     
     return patch
 
-def get_vertices(A, mask):
+def get_vertices(A):
     max_count = A.shape[0]*A.shape[1] / 4 # rather not more than 25% of plane filled with vertices
     vtx = np.zeros((max_count, 3))
     nvtx = 0
     for i in range(A.shape[0]):
         for j in range(A.shape[1]):
             if nvtx >= max_count: break
-            if (A[i,j] & mask) > 0:
+            if (A[i,j] & 0xFF000000) > 0:
                 t = A[i,j] >> 24
                 v = np.zeros(3)
                 v[0] = i
