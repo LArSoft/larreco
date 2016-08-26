@@ -247,7 +247,7 @@ namespace tca {
     // Decide which hits to use to determine the trajectory point
     // fit, charge, etc. This is done by setting UseHit true and
     // setting inTraj < 0.
-    void FindUseHits(Trajectory& tj, unsigned short ipt);
+    void FindUseHits(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
     // Try to use the hits on this TP by reducing the number of points fitted. This
     // should only be done for reasonably long TJ's
     void SetPoorUsedHits(Trajectory& tj, unsigned short ipt);
