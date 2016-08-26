@@ -123,7 +123,7 @@ def main(argv):
                                 db_y[cnt_ind] = target
                                 cnt_trk += 1
                                 cnt_ind += 1
-                                n_ntrack += 1
+                                n_track += 1
                             else: break
                     n_trials += 1
 
