@@ -19,7 +19,7 @@ def main(argv):
 
     print 'Using', nearby_empty, 'empty and', nearby_on_track, 'on track patches per each verex in view', selected_view_idx
 
-    max_capacity = 1000
+    max_capacity = 500000
     db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D))
     db_y = np.zeros((max_capacity, 3), dtype=np.int32)
 
@@ -94,7 +94,7 @@ def main(argv):
                 while n_empty < nearby_empty and n_trials < 500:
                     wi = np.random.randint(x_start+1, x_stop-1)
                     di = np.random.randint(y_start+1, y_stop-1)
-                    if wi < wire-1 and wi > wire+1 and di < drif-2 and di > drif+2:
+                    if (wi < wire-1 or wi > wire+1) and (di < drif-2 or di > drif+2):
                         if tracks[wi,di] == 0 and showers[wi,di] == 0:
                             if cnt_ind < max_capacity:
                                 patch = get_patch(raw, wi, di, PATCH_SIZE_W, PATCH_SIZE_D)
@@ -113,7 +113,7 @@ def main(argv):
                 while n_track < nearby_on_track and n_trials < 500:
                     wi = np.random.randint(x_start+1, x_stop-1)
                     di = np.random.randint(y_start+1, y_stop-1)
-                    if wi < wire-1 and wi > wire+1 and di < drif-2 and di > drif+2:
+                    if (wi < wire-1 or wi > wire+1) and (di < drif-2 or di > drif+2):
                         if tracks[wi,di] == 1 or showers[wi,di] == 1:
                             if cnt_ind < max_capacity:
                                 patch = get_patch(raw, wi, di, PATCH_SIZE_W, PATCH_SIZE_D)
@@ -127,7 +127,7 @@ def main(argv):
                             else: break
                     n_trials += 1
 
-    print 'Total size', cnt_ind, 'interactions:', cnt_vtx, 'decays:', cnt_decay, 'empty:', cnt_void, 'on-track', cnt_trk
+    print 'Total size', cnt_ind, ':: interactions:', cnt_vtx, 'decays:', cnt_decay, 'empty:', cnt_void, 'on-track', cnt_trk
 
     np.save(OUTPUT_DIR+'/db_view_'+str(selected_view_idx)+'_x', db[:cnt_ind])
     np.save(OUTPUT_DIR+'/db_view_'+str(selected_view_idx)+'_y', db_y[:cnt_ind])
