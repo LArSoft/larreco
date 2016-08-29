@@ -15,7 +15,7 @@
 #include "larsim/MCCheater/BackTracker.h"
 
 //class TH1F;
-//class TH2F;
+class TH2F;
 
 struct SortEntry{
   unsigned int index;
@@ -34,6 +34,12 @@ namespace tca {
     reconfigure(pset);
     
     // define some histograms
+    art::ServiceHandle<art::TFileService> tfs;
+    fMCSMom_KE_e = tfs->make<TH2F>("MCSMom_KE_e","MCSMom vs tru KE - e", 50, 0 , 1000, 50, 0, 1000);
+    fMCSMom_KE_mu = tfs->make<TH2F>("MCSMom_KE_mu","MCSMom vs tru KE - mu", 50, 0 , 1000, 50, 0, 1000);
+    fMCSMom_KE_pi = tfs->make<TH2F>("MCSMom_KE_pi","MCSMom vs tru KE - pi", 50, 0 , 1000, 50, 0, 1000);
+    fMCSMom_KE_p = tfs->make<TH2F>("MCSMom_KE_p","MCSMom vs tru KE - p", 50, 0 , 1000, 50, 0, 1000);
+
 /*
     art::ServiceHandle<art::TFileService> tfs;
     
@@ -79,7 +85,7 @@ namespace tca {
     MuPiSum = 0;
     nMuPi = 0;
     fEventsProcessed = 0;
-    if(fStudyMode) outFile.open("quality.txt");
+//    if(fStudyMode) outFile.open("quality.txt");
     
   }
   
@@ -336,18 +342,42 @@ namespace tca {
     // temp
     if(fStudyMode) {
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+        Trajectory& tj = tjs.allTraj[itj];
+        if(tj.AlgMod[kKilled]) continue;
+        if(tj.MCSMom == 0) continue;
+        if(tj.TruKE == 0) continue;
+//        if(tj.EffPur < 0.2) continue;
+        unsigned short pdg = std::abs(tj.TruPDG);
+/*
+        double mass = 0.511;
+        if(pdg == 13) mass = 105.7;
+        if(pdg == 211) mass = 139.6;
+        if(pdg == 2212) mass = 938.3;
+        double tPlusM = tjs.allTraj[itj].TruKE + mass;
+        double truMom = sqrt(tPlusM * tPlusM - mass * mass);
+*/
+        std::cout<<tj.CTP<<":"<<PrintPos(tjs, tj.Pts[tj.EndPt[0]])<<"-"<<tj.CTP<<":"<<PrintPos(tjs, tj.Pts[tj.EndPt[1]]);
+        std::cout<<" MCS TruKE "<<tj.TruKE<<" pdg "<<tj.TruPDG<<" MCSMom "<<(int)tj.MCSMom<<" EffPur "<<std::setprecision(2)<<tj.EffPur<<"\n";
+        if(pdg == 11) fMCSMom_KE_e->Fill(tj.TruKE, tj.MCSMom);
+        if(pdg == 13) fMCSMom_KE_mu->Fill(tj.TruKE, tj.MCSMom);
+        if(pdg == 211) fMCSMom_KE_pi->Fill(tj.TruKE, tj.MCSMom);
+        if(pdg == 2212) fMCSMom_KE_p->Fill(tj.TruKE, tj.MCSMom);
+      } // itj
+/*
+      for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
         Trajectory& tj = tjs.allTraj[itj];
         unsigned short npwc = NumPtsWithCharge(tj, false);
-        outFile<<tj.CTP<<" "<<npwc<<" "<<std::abs(tj.Pts[0].Ang)<<" "<<tj.Quality<<"\n";
+        outFile<<tj.CTP<<" "<<npwc<<" "<<std::abs(tj.Pts[0].Ang)<<" "<<tj.MCSMom<<"\n";
         if(npwc < 20) continue;
-        if(tj.Quality < 0.5) continue;
-        std::cout<<"Bad npwc "<<npwc<<" Ang "<<std::abs(tj.Pts[0].Ang)<<" Qual "<<tj.Quality<<" WorkID "<<tj.WorkID;
+        if(tj.MCSMom < 0.5) continue;
+        std::cout<<"Bad npwc "<<npwc<<" Ang "<<std::abs(tj.Pts[0].Ang)<<" MCSMom "<<tj.MCSMom<<" WorkID "<<tj.WorkID;
         std::cout<<" "<<tj.CTP<<":"<<PrintPos(tjs, tj.Pts[0]);
         unsigned short endPt = tj.Pts.size()-1;
         std::cout<<" "<<tj.CTP<<":"<<PrintPos(tjs, tj.Pts[endPt]);
         std::cout<<"\n";
       } // itj
+*/
     } // studymode
 
     // Print some reco-truth information to the screen
@@ -830,39 +860,84 @@ namespace tca {
     // Only consider trajectories that have had their beginning trajectory points
     // updated by FixTrajBegin
     if(!tj.AlgMod[kFixTrajBegin]) return;
+    
+    // decide how complicated this should get. If the delta values at the beginning are not
+    // too bad, we can just mask them off. If this is not the case, then the trajectory should
+    // be truly reverse propagated, which necessitates re-fitting the trajectory points at the beginning
 
-    // re-find hits at the beginning of the trajectory that have good delta
-    // match to the trajectory but don't cut on charge
-    float maxDelta = 5 * tj.Pts[tj.EndPt[1]].DeltaRMS;
 
     if(prt) {
-      mf::LogVerbatim("TC")<<"ReversePropagate: maxDelta "<<maxDelta<<" No charge compatability requirement";
+      mf::LogVerbatim("TC")<<"ReversePropagate: No charge compatability requirement";
     }
     
-    for(unsigned short ipt =  tj.EndPt[0]; ipt < tj.EndPt[0] + 5; ++ipt) {
+    // Start at ipt = 0 to try to pick up any hits that may be been neglected at the beginning.
+    // While we are doing this, count the number of points not used
+    unsigned short nPtsNotUsed = 0;
+    for(unsigned short ipt = 0; ipt < tj.EndPt[0] + 5; ++ipt) {
       float qIn = tj.Pts[ipt].Chg;
       UnsetUsedHits(tj.Pts[ipt]);
+      float maxDelta = 5 * tj.Pts[tj.EndPt[1]].DeltaRMS;
+      // be looser if there is only one hit
+      if(tj.Pts[ipt].Hits.size() == 1) maxDelta *= 1.5;
       FindUseHits(tj, ipt, maxDelta, false);
       DefineHitPos(tj.Pts[ipt]);
+      if(tj.Pts[ipt].Chg == 0) ++nPtsNotUsed;
       tj.Pts[ipt].Delta = PointTrajDOCA(tjs, tj.Pts[ipt].HitPos[0], tj.Pts[ipt].HitPos[1], tj.Pts[ipt]);
       if(tj.Pts[ipt].Chg != qIn) tj.AlgMod[kRevProp] = true;
-      if(prt) PrintTrajectory("RP", tjs, tj, ipt);
+      if(prt) PrintTrajectory("RP1", tjs, tj, ipt);
     } //ipt
     if(tj.AlgMod[kRevProp]) SetEndPoints(tjs, tj);
-/*
-    // keep it simple for now. Just mask off any bad TPs at the beginning
-    // that are above 5 times the delta rms of the last good point. We shouldn't
-    // be too stringent so that we don't clobber TPs at the end of stopping tracks
-    // that wander a bit
-    float badDelta = 5 * tj.Pts[tj.EndPt[1]].DeltaRMS;
-    for(unsigned short ipt =  tj.EndPt[0]; ipt < tj.EndPt[0] + 5; ++ipt) {
-      if(tj.Pts[ipt].Chg == 0) continue;
-      if(tj.Pts[ipt].Delta < badDelta) continue;
+    
+    // All the points were used so there is no reason to get more complicated
+    if(nPtsNotUsed == 0) return;
+    
+    // save a copy in case something bad happens
+    Trajectory TjCopy = tj;
+    
+    ReverseTraj(tj);
+    
+    // mask off the last 5 points from the fit (that may have just been added above)
+    for(unsigned short ii = 0; ii < 5; ++ii) {
+      unsigned short ipt = tj.EndPt[1] - ii;
       UnsetUsedHits(tj.Pts[ipt]);
-      tj.AlgMod[kRevProp] = true;
+    } // ii
+    SetEndPoints(tjs, tj);
+    
+    if(prt) mf::LogVerbatim("TC")<<" Reverse propagate the trajectory - really";
+    
+    // Update the trajectory parameters w/o these points
+    UpdateDeltaRMS(tj);
+    // TODO Others?
+    
+    // Now add them back in and re-fit as we go. Start by refitting the
+    // last point, which shouldn't really have any effect since we are fitting
+    // the same number of points. The only difference is that the trajectory is flipped
+    UpdateTraj(tj);
+    if(!fUpdateTrajOK) {
+      std::cout<<"ReversePropagate: failed on the first fit. This is really bad. Recovering";
+      tj = TjCopy;
+      return;
+    }
+    unsigned short startPt = tj.EndPt[1];
+    for(unsigned short ipt = startPt; ipt < tj.Pts.size(); ++ipt) {
+      float maxDelta = 5 * tj.Pts[tj.EndPt[1]].DeltaRMS;
+      // be looser if there is only one hit
+      if(tj.Pts[ipt].Hits.size() == 1) maxDelta *= 1.5;
+      // Maybe we should use charge here...
+      FindUseHits(tj, ipt, maxDelta, false);
+      DefineHitPos(tj.Pts[ipt]);
+      if(tj.Pts[ipt].Chg == 0) continue;
+      UpdateTraj(tj);
+      if(!fUpdateTrajOK) {
+        std::cout<<"ReversePropagate: failed on point "<<ipt;
+        tj = TjCopy;
+        return;
+      } // yyy
+      if(prt) PrintTrajectory("RP2", tjs, tj, ipt);
     } // ipt
-    if(tj.AlgMod[kRevProp]) SetEndPoints(tjs, tj);
-*/
+    
+    if(prt) mf::LogVerbatim("TC")<<" Reverse propagate success";
+
   } // ReversePropagate
   
   //////////////////////////////////////////
@@ -1169,7 +1244,7 @@ namespace tca {
       art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
       if(fFillTruth < 2  && theTruth->Origin() == simb::kCosmicRay) continue;
 //      if(theTruth->Origin() == simb::kBeamNeutrino) isNeutrino = true;
-      isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 2212);
+      isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
       if(!isCharged) continue;
       // KE in MeV
       KE = 1000 * (part->E() - part->Mass());
@@ -1178,20 +1253,24 @@ namespace tca {
       if(pdg == 11 && KE < 10) continue;
       if(pdg == 13 && KE < 12) continue;
       if(pdg == 211 && KE < 14) continue;
+      if(pdg == 321 && KE < 14) continue;
       if(pdg == 2212 && KE < 30) continue;
       tidlist.push_back(trackID);
       plist2.push_back(part);
       truToTj.push_back(temp);
       nTruInTj.push_back(temp2);
       nTruInPlist2.push_back(temp2);
-//      std::cout<<"TrackID "<<trackID<<" pdg "<<part->PdgCode()<<" E "<<part->E()<<" mass "<<part->Mass()<<" KE "<<KE<<" Mother "<<part->Mother()<<" Proc "<<part->Process()<<"\n";
+//      std::cout<<"TrackID "<<trackID<<" pdg "<<part->PdgCode()<<" E "<<part->E()<<" mass "<<part->Mass()<<" KE "<<(int)KE<<" MeV. Mother "<<part->Mother()<<" Proc "<<part->Process()<<"\n";
     }
     
     if(tidlist.empty()) return;
     
     // get the hits (in all planes) that are matched to the true tracks
     hlist2 = bt->TrackIDsToHits(tjs.fHits, tidlist);
-    if(hlist2.size() != plist2.size()) return;
+    if(hlist2.size() != plist2.size()) {
+      std::cout<<" Oops. hlist2 size "<<hlist2.size()<<" != plist2 size "<<plist2.size()<<"\n";
+      return;
+    }
     tidlist.clear();
     
     // vector of (mother, daughter) pairs
@@ -1207,7 +1286,6 @@ namespace tca {
       // electron
       if(abs(plist2[dpl]->PdgCode()) == 11) continue;
       // the actual mother trackID is offset from the neutrino trackID
-//      int motherID = neutTrackID + plist2[dpl]->Mother() - 1;
       int motherID = plist2[dpl]->Mother();
       // ensure that we are only looking at BeamNeutrino or single particle daughters
 //      if(motherID != neutTrackID) continue;
@@ -1229,7 +1307,7 @@ namespace tca {
       } // jpl
       // mother not found for some reason
       if(mpl < 0) {
-        mf::LogVerbatim("TC")<<" mother of daughter "<<dpl<<" not found. mpl = "<<mpl;
+//        mf::LogVerbatim("TC")<<" mother of daughter "<<dpl<<" not found. mpl = "<<mpl;
         continue;
       }
       // ensure that PDG code for mother and daughter are the same
@@ -1253,13 +1331,13 @@ namespace tca {
         ++nTruInPlist2[mom][plane];
       } // hit
     } // ii
-
-//    for(ii = 0; ii < nTruInPlist2.size(); ++ii) {
-//      std::cout<<ii<<" nTruInPlist2 ";
-//      for(plane = 0; plane < 3; ++plane) std::cout<<" "<<nTruInPlist2[ii][plane];
-//      std::cout<<"\n";
-//    }
-
+/*
+    for(ii = 0; ii < nTruInPlist2.size(); ++ii) {
+      std::cout<<ii<<" nTruInPlist2 ";
+      for(plane = 0; plane < 3; ++plane) std::cout<<" "<<nTruInPlist2[ii][plane];
+      std::cout<<"\n";
+    }
+*/
     // Now fill the reconstructed information. First size the vectors
     imd = tjs.allTraj.size();
     nRecInTj.resize(imd);
@@ -2219,12 +2297,11 @@ namespace tca {
        tjs.inTraj[bestHit] = tj.ID;
     }
       
-    if(nAvailable == 1) {
+    // nothing fancy if there is only one hit available or if we are just starting out
+    if(nAvailable == 1 || tj.Pts.size() < 4) {
       if(prt) mf::LogVerbatim("TC")<<" One hit available. Use it? "<<tp.UseHit[imBest];
       return;
     } // single hit
-    
-    // Everything below for more than 1 available hit
     
     // calculate some quantities for selecting the best hit
     float bestHitDeltaErr = std::abs(tp.Dir[1]) * 0.17 + std::abs(tp.Dir[0]) * HitTimeErr(bestHit);
@@ -2654,12 +2731,49 @@ namespace tca {
         ipt = tjs.allTraj[tj2].EndPt[0];
         TrajPoint& tp2 = tjs.allTraj[tj2].Pts[ipt];
         dang = DeltaAngle(tp1.Ang, tp2.Ang);
+        doca = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
+        // Merge short trajectories, regardless of charge as long as the separation is small
+        if(NumPtsWithCharge(tjs.allTraj[tj1], false) < 15 && NumPtsWithCharge(tjs.allTraj[tj2], false) < 15 && TrajPointSeparation(tp1, tp2) < 3 && dang < 1 && doca < 1) {
+          float x, y;
+          TrajIntersection(tp1, tp2, x, y);
+          if(mrgPrt) mf::LogVerbatim("TC")<<" merge short tj1-tj2 "<<tjs.allTraj[tj1].ID<<"_1"<<"-"<<tjs.allTraj[tj2].ID<<"_0"<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2)<<" doca "<<doca<<" intersection at "<<x<<" "<<y;
+          MakeTrajectoryObsolete(tjs, tj1);
+          work = tjs.allTraj[tj1];
+          work.AlgMod[kKilled] = false;
+          // make a new workID
+          --fWorkID;
+          work.ID = fWorkID;
+          // re-assign all the hits to it
+          for(unsigned short ipt = work.EndPt[0]; ipt < work.EndPt[1] + 1; ++ipt) {
+            for(unsigned short ii = 0; ii < work.Pts[ipt].Hits.size(); ++ii) {
+              if(!work.Pts[ipt].UseHit[ii]) continue;
+              unsigned int iht = work.Pts[ipt].Hits[ii];
+              tjs.inTraj[iht] = work.ID;
+            } // ii
+          } // ipt
+          fGoodWork = true;
+          // prepare to
+          AppendToWork(tj2);
+          if(!fGoodWork) {
+            // revive tj1
+            RestoreObsoleteTrajectory(tjs, tj1);
+            continue;
+          }
+          work.AlgMod[kEndMerge] = true;
+          StoreWork();
+          didMerge = true;
+          if(mrgPrt) {
+            unsigned short itj = tjs.allTraj.size() - 1;
+            mf::LogVerbatim("TC")<<"  EndMerge: new TJ "<<tjs.allTraj[itj].ID;
+          }
+          break;
+        }
         if(dang > 0.1) continue;
         // Inflate the doca cut if we are bridging a block of dead wires
         float docaCut = 1;
         float dwc = DeadWireCount(tp1, tp2);
         if(dwc > 10) docaCut *= 2;
-        doca = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
+//        doca = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
         if(mrgPrt) mf::LogVerbatim("TC")<<"EM "<<tjs.allTraj[tj1].ID<<"_1"<<"-"<<tjs.allTraj[tj2].ID<<"_0 DOCA "<<doca<<" docaCut "<<docaCut<<" dang "<<dang;
         if(doca > docaCut) continue;
         // Traj point separation (approximate) accounting for dead wires
@@ -2714,7 +2828,7 @@ namespace tca {
         didMerge = true;
         if(mrgPrt) {
           unsigned short itj = tjs.allTraj.size() - 1;
-          mf::LogVerbatim("TC")<<"EndMerge: After merge with "<<tjs.allTraj[itj].ID;
+          mf::LogVerbatim("TC")<<"  EndMerge: After merge with "<<tjs.allTraj[itj].ID;
         }
         break;
       } // tj2
@@ -3755,7 +3869,7 @@ namespace tca {
         if(prt) PrintTrajectory("SC", tjs, work, lastPt);
       } else {
         MaskTrajEndPoints(work, killPts);
-        if(fQuitAlg) return;
+        if(!fGoodWork) return;
         unsigned int onWire = (float)(std::nearbyint(work.Pts[lastPt].Pos[0]));
         float nSteps = (float)(step - work.Pts[lastPt - killPts].Step);
 //        if(prt) mf::LogVerbatim("TC")<<"TRP   killing "<<killPts<<" after "<<nSteps<<" steps from prev TP.  Current tp.Pos "<<tp.Pos[0]<<" "<<tp.Pos[1];
@@ -4038,18 +4152,19 @@ namespace tca {
     if(!isLA && fUseAlg[kFillGap]) FillMissedPoints(tj);
     
     CalculateQuality(tj);
+/*
     if(tj.Quality > fMaxQuality) {
       fGoodWork = false;
       return;
     }
-
+*/
     // check the fraction of the trajectory points that have hits
     if(fUseAlg[kTrimHits]) {
       // first ensure that there are at least 2 good TPs at the end after a dead wire section.
       unsigned short dwc = DeadWireCount(tj.Pts[tj.EndPt[1]-1], tj.Pts[tj.EndPt[1]]);
       while(dwc > 0 && NumPtsWithCharge(tj, false) > fMinPts[tj.Pass]) {
         MaskTrajEndPoints(tj, 1);
-        if(fQuitAlg) return;
+        if(!fGoodWork) return;
         // clobber the TPs (most of which are presumed to be on dead wires) after
         // the last TP that has used hits
         tj.Pts.resize(tj.EndPt[1]+1);
@@ -4062,7 +4177,7 @@ namespace tca {
       if(std::abs(tj.Pts[endPt].Pos[0] - tj.Pts[endPt-1].Pos[0]) > 1.5) {
         if(prt) mf::LogVerbatim("TC")<<"kTrimHits: Masking end point at pos "<<PrintPos(tjs, tj.Pts[endPt]);
         MaskTrajEndPoints(tj, 1);
-        if(fQuitAlg) return;
+        if(!fGoodWork) return;
         tj.AlgMod[kTrimHits] = true;
       }
       float nPts = tj.EndPt[1] - tj.EndPt[0] + 1;
@@ -4196,6 +4311,17 @@ namespace tca {
     // assume that all points in the trajectory were fitted to a line
     unsigned short lastPtFit = tj.EndPt[1];
     
+    // Find the last point that includes the first point in the fit
+    for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+      unsigned short ipt = tj.EndPt[1] - 1 - ii;
+      unsigned short firstPtFit = ipt + 1 - tj.Pts[ipt].NTPsFit;
+      if(ipt == 0) break;
+      if(firstPtFit > 1) continue;
+      lastPtFit= ipt;
+      break;
+    }
+    
+/*
     if(tj.Pts.size() < 10) {
       // short trajectories
       // Find the last point that includes the first point in the fit
@@ -4221,7 +4347,7 @@ namespace tca {
         lastPtFit = ipt;
       } // ipt
     }
-    
+*/
     if(lastPtFit == tj.EndPt[0]) return;
     
     // update the trajectory for all the intervening points
@@ -4239,7 +4365,6 @@ namespace tca {
       tj.Pts[ipt].FitChi = tj.Pts[lastPtFit].FitChi;
       tj.Pts[ipt].AveChg = tj.Pts[lastPtFit].AveChg;
       tj.Pts[ipt].ChgPull = (tj.Pts[ipt].Chg / tj.AveChg - 1) / tj.ChgRMS;
-//      if(prt) mf::LogVerbatim("TC")<<"FTB: ipt "<<ipt<<" Pos[0] "<<(int)tj.Pts[ipt].Pos[0]<<". Move Pos[1] from "<<oldpos<<" to "<<tj.Pts[ipt].Pos[1]<<" old delta "<<olddelta<<" new delta "<<tj.Pts[ipt].Delta;
       if(prt) PrintTrajectory("FTB", tjs, tj, ipt);
     } // ipt
     tj.AlgMod[kFixTrajBegin] = true;
@@ -4549,7 +4674,7 @@ namespace tca {
       GottaKink(tj, killPts);
       if(killPts > 0) {
         MaskTrajEndPoints(tj, killPts);
-        if(fQuitAlg) return;
+        if(!fGoodWork) return;
         break;
       }
       if(prt) PrintTrajectory("CHMUH", tjs, tj, ipt);
@@ -5559,6 +5684,8 @@ namespace tca {
     work.EndTP[0].AveChg = work.Pts[work.EndPt[0]].AveChg;
     work.EndTP[1].AveChg = work.Pts[work.EndPt[1]].AveChg;
     
+    CalculateQuality(work);
+    
     short trID = tjs.allTraj.size() + 1;
     for(unsigned short ipt = work.EndPt[0]; ipt < work.EndPt[1] + 1; ++ipt) {
       for(unsigned short ii = 0; ii < work.Pts[ipt].Hits.size(); ++ii) {
@@ -5597,79 +5724,33 @@ namespace tca {
   void TrajClusterAlg::CalculateQuality(Trajectory& tj)
   {
     // Calculate a quality metric using the deviations of all hits used in the trajectory
-
-    float sum = 0;
-    unsigned short cnt = 0;
+    
+    tj.MCSMom = 0;
+    
     TrajPoint tmp;
+    // make a bare trajectory point to define a line between the first
+    // and last points on the trajectory that have charge
+    MakeBareTrajPoint(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]], tmp);
+    // sum up the deviations^2
+    double dsum = 0;
+    unsigned short cnt = 0;
     for(unsigned short ipt = tj.EndPt[0] + 1; ipt < tj.EndPt[1]; ++ipt) {
-      if(tj.Pts[ipt-1].Chg == 0) continue;
       if(tj.Pts[ipt].Chg == 0) continue;
-      if(tj.Pts[ipt+1].Chg == 0) continue;
-      if(tj.Pts[ipt].HitPosErr2 <= 0) continue;
-      TrajPoint& tp1 = tj.Pts[ipt - 1];
-      TrajPoint& tp2 = tj.Pts[ipt];
-      TrajPoint& tp3 = tj.Pts[ipt + 1];
-      // draw a line between the points that bracket the central point
-      MakeBareTrajPoint(tp1.HitPos[0], tp1.HitPos[1]/tjs.UnitsPerTick, tp3.HitPos[0], tp3.HitPos[1]/tjs.UnitsPerTick, tp1.CTP, tmp);
-      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-        if(!tj.Pts[ipt].UseHit[ii]) continue;
-        unsigned int iht = tj.Pts[ipt].Hits[ii];
-        float time = tjs.fHits[iht]->PeakTime() * tjs.UnitsPerTick;
-        float delta2 = PointTrajDOCA2(tjs, tp2.HitPos[0], time, tmp);
-        sum += sqrt(delta2 / tp2.HitPosErr2);
-        ++cnt;
-      }
+      dsum += PointTrajDOCA2(tjs, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
       ++cnt;
     } // ipt
-    if(cnt == 0) {
-      tj.Quality = 99;
-    } else {
-      tj.Quality = sum / (float)cnt;
+    if(cnt > 0) {
+      double sigmaS = sqrt(dsum / (float)cnt);
+      double tjLen = TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
+      // Theta_o =  4 * sqrt(3) * sigmaS / path
+      double thetaRMS = 6.8 * sigmaS / tjLen;
+      double mom = 14 * sqrt(tjLen / 14) / thetaRMS;
+      if(mom > 999) mom = 999;
+      tj.MCSMom = mom;
     }
+
+//    std::cout<<"CQ: cnt "<<cnt<<" thetaRMS "<<thetaRMS<<" cnt "<<cnt<<" tj.MCSMom "<<tj.MCSMom<<"\n";
     
-    tj.Trackness = 0;
-    unsigned short npwc = NumPtsWithCharge(tj, false);
-    cnt = 0;
-    double dsum = 0;
-    if(npwc < 11) {
-      float ang0 = tj.Pts[tj.EndPt[0]].Ang;
-      for(unsigned short ipt = tj.EndPt[0] + 1; ipt < tj.EndPt[1] + 1; ++ipt) {
-        if(tj.Pts[ipt].Chg == 0) continue;
-        ++cnt;
-        double dang = DeltaAngle(ang0, tj.Pts[ipt].Ang);
-        dsum += dang * dang;
-      } // ipt
-    } else {
-      // Calculate a trackness metric ala momentum measurement by MCS
-      unsigned short minLength = 2;
-      for(unsigned short nit = 0; nit < 100; ++nit) {
-        bool gotOne = false;
-        for(unsigned short ipt = 0; ipt < tj.Pts.size() - 1; ++ipt) {
-          if(tj.Pts[ipt].Chg == 0) continue;
-          unsigned short jpt = ipt + minLength;
-          if(jpt > tj.Pts.size() - 1) break;
-          if(tj.Pts[jpt].Chg == 0) continue;
-          ++cnt;
-          double dang = DeltaAngle(tj.Pts[ipt].Ang, tj.Pts[jpt].Ang);
-          dsum += dang * dang;
-          gotOne = true;
-        } // ipt
-        if(!gotOne) break;
-        //      if(prt) std::cout<<"nit "<<nit<<" minLength "<<minLength<<" cnt "<<cnt<<" dsum "<<dsum<<"\n";
-        minLength *= 2;
-      } // nit
-    } // npwc > 9
-    
-    if(cnt > 2) {
-      double thetaRMS = sqrt(dsum / (float)cnt);
-      float mom = 14 * sqrt(TrajLength(tj) / 14) / thetaRMS;
-      if(mom > 5000) mom = 5000;
-      tj.Trackness = mom;
-//      std::cout<<tj.ID<<" length "<<(int)TrajLength(tj)<<" cnt "<<cnt<<" dsum "<<dsum<<" rms "<<tj.Trackness<<" mom "<<mom<<"\n";
-    }
-    
-    
-    if(prt) std::cout<<"CQ: cnt "<<cnt<<" Quality "<<tj.Quality<<" Trackness "<<tj.Trackness<<" cnt "<<cnt<<"\n";
   } // CalculateQuality
 
   ////////////////////////////////////////////////
@@ -6425,12 +6506,12 @@ namespace tca {
     
     if(tj.Pts.size() < 3) {
       mf::LogError("TC")<<"MaskTrajEndPoints: Trajectory ID "<<tj.ID<<" too short to mask hits ";
-      fQuitAlg = true;
+      fGoodWork = false;
       return;
     }
     if(nPts > tj.Pts.size() - 2) {
       mf::LogError("TC")<<"MaskTrajEndPoints: Trying to mask too many points "<<nPts<<" Pts.size "<<tj.Pts.size();
-      fQuitAlg = true;
+      fGoodWork = false;
       return;
     }
     
