@@ -121,8 +121,7 @@ namespace tca {
     unsigned short ParentTraj {USHRT_MAX};     ///< index of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
-    float Quality {0};                ///< normalized residual error between points
-    float Trackness {0};            //< fraction of points
+    float MCSMom {0};                 //< Crude 2D estimate to use for shower-like vs track-like discrimination
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
