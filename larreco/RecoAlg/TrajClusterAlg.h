@@ -46,7 +46,7 @@
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 //#include "TH1F.h"
-//#include "TH2F.h"
+#include "TH2F.h"
 //#include "TProfile.h"
 
 namespace tca {
@@ -135,6 +135,10 @@ namespace tca {
     unsigned short nPr, nMuPi;
     
     bool fIsRealData;
+    TH2F *fMCSMom_KE_e;
+    TH2F *fMCSMom_KE_mu;
+    TH2F *fMCSMom_KE_pi;
+    TH2F *fMCSMom_KE_p;
 /*
     TH1F *fnHitsPerTP[3];
     TH1F *fDelta[3];
@@ -160,7 +164,7 @@ namespace tca {
     const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
     // TEMP for writing event filter selection
-    std::ofstream outFile;
+//    std::ofstream outFile;
     
     trkf::LinFitAlg fLinFitAlg;
 
