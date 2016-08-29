@@ -346,7 +346,7 @@ namespace tca {
   //////////////////////////////////////////
   void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y)
   {
-    // returns the intersection position, intPos, of two trajectory points
+    // returns the intersection position, (x,y), of two trajectory points
     
     x = -9999; y = -9999;
     
@@ -567,7 +567,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang   AveQ     W:T      Ang   AveQ  ChgRMS  Qual tkness __Vtx__ PDG Parent TRuPDG   EP   KE  WorkID\n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang   AveQ     W:T      Ang   AveQ  ChgRMS   Mom __Vtx__ PDG  TRuPDG   EP   KE  WorkID\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && (unsigned short)debug.Plane != aTj.CTP) continue;
@@ -594,9 +594,9 @@ namespace tca {
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(7)<<(int)tp.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
-        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Quality;
+//        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Quality;
 //        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Trackness;
-        myprt<<std::setw(7)<<(int)aTj.Trackness;
+        myprt<<std::setw(7)<<(int)aTj.MCSMom;
 /*
         // find average number of used hits / TP
         PutTrajHitsInVector(aTj, true, tmp);
@@ -606,7 +606,7 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.Vtx[0];
         myprt<<std::setw(4)<<aTj.Vtx[1];
         myprt<<std::setw(5)<<aTj.PDG;
-        myprt<<std::setw(6)<<aTj.ParentTraj;
+//        myprt<<std::setw(6)<<aTj.ParentTraj;
         myprt<<std::setw(6)<<aTj.TruPDG;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(5)<<(int)aTj.TruKE;
