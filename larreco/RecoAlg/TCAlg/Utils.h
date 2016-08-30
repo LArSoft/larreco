@@ -82,6 +82,7 @@ namespace tca {
   void PrintClusters();
   // Print a single hit in the standard format
   std::string PrintHit(const art::Ptr<recob::Hit>& hit);
+  std::string PrintHit(const recob::Hit& hit);
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);
 } // namespace tca
