@@ -46,7 +46,7 @@
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 //#include "TH1F.h"
-#include "TH2F.h"
+//#include "TH2F.h"
 //#include "TProfile.h"
 
 namespace tca {
@@ -64,12 +64,15 @@ namespace tca {
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
-    void RunTrajClusterAlg(art::Event & evt);
+    void RunTrajClusterAlg(art::Event & evt, bool fMakeNewHits);
     
     std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
-    /// Returns (and loses) the collection of reconstructed hits
-    std::vector<art::Ptr<recob::Hit>> const& YieldHits() const { return tjs.fHits; }
+    /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
+    std::vector<art::Ptr<recob::Hit>> const& YieldOldHits() const { return tjs.fHits; }
+    /// Returns the new hit collection made by TrajClusterAlg
+    std::vector<recob::Hit>&& YieldNewHits() { return std::move(tjs.newHits); }
+    art::InputTag const& GetHitFinderModuleLabel() { return fHitFinderModuleLabel; }
     
     /// Returns a constant reference to the clusters found
     std::vector<ClusterStore> const& GetClusters() const { return tjs.tcl; }
@@ -133,13 +136,13 @@ namespace tca {
     // TEMP variables for summing Eff*Pur
     double PrSum, MuPiSum;
     unsigned short nPr, nMuPi;
-    
+
     bool fIsRealData;
+/*
     TH2F *fMCSMom_KE_e;
     TH2F *fMCSMom_KE_mu;
     TH2F *fMCSMom_KE_pi;
     TH2F *fMCSMom_KE_p;
-/*
     TH1F *fnHitsPerTP[3];
     TH1F *fDelta[3];
     TH1F *fDeltaN[3];
@@ -284,7 +287,8 @@ namespace tca {
     // Append the allTraj trajectory to work
     void AppendToWork(unsigned short itj);
     // Make clusters from all trajectories in allTraj
-    void MakeAllTrajClusters();
+    void MakeAllTrajClusters(bool fMakeNewHits);
+    void MakeNewHits();
     void CheckHitClusterAssociations();
     // Push the work trajectory into allTraj
     void StoreWork();
