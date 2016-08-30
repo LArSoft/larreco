@@ -714,15 +714,21 @@ namespace tca {
     myprt<<std::setw(6)<<tp.NTPsFit;
     // print the hits associated with this traj point
     for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
-//      myprt<<" "<<tjs.fHits[tp.Hits[iht]]->WireID().Plane;
-      myprt<<" "<<tjs.fHits[tp.Hits[iht]]->WireID().Wire<<":"<<(int)tjs.fHits[tp.Hits[iht]]->PeakTime();
+      if(tjs.newHits.empty()) {
+        // print old hits
+        myprt<<" "<<PrintHit(tjs.fHits[tp.Hits[iht]]);
+      } else {
+        // print new hits
+        myprt<<" "<<PrintHit(tjs.newHits[tp.Hits[iht]]);
+      }
+//      myprt<<" "<<tjs.fHits[tp.Hits[iht]]->WireID().Wire<<":"<<(int)tjs.fHits[tp.Hits[iht]]->PeakTime();
       if(tp.UseHit[iht]) {
         // Distinguish used hits from nearby hits
         myprt<<"_";
       } else {
         myprt<<"x";
       }
-      myprt<<tjs.inTraj[tp.Hits[iht]];
+      if(tjs.newHits.empty()) { myprt<<tjs.inTraj[tp.Hits[iht]]; } else { myprt<<"NA"; }
     } // iht
   } // PrintTrajPoint
   
@@ -730,6 +736,12 @@ namespace tca {
   std::string PrintHit(const art::Ptr<recob::Hit>& hit)
   {
     return std::to_string(hit->WireID().Wire) + ":" + std::to_string((int)hit->PeakTime());
+  } // PrintHit
+  
+  /////////////////////////////////////////
+  std::string PrintHit(const recob::Hit& hit)
+  {
+    return std::to_string(hit.WireID().Wire) + ":" + std::to_string((int)hit.PeakTime());
   } // PrintHit
   
   /////////////////////////////////////////
