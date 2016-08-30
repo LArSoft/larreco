@@ -15,7 +15,7 @@
 #include "larsim/MCCheater/BackTracker.h"
 
 //class TH1F;
-class TH2F;
+//class TH2F;
 
 struct SortEntry{
   unsigned int index;
@@ -33,6 +33,7 @@ namespace tca {
   {
     reconfigure(pset);
     
+    /*
     // define some histograms
     art::ServiceHandle<art::TFileService> tfs;
     fMCSMom_KE_e = tfs->make<TH2F>("MCSMom_KE_e","MCSMom vs tru KE - e", 50, 0 , 1000, 50, 0, 1000);
@@ -40,7 +41,6 @@ namespace tca {
     fMCSMom_KE_pi = tfs->make<TH2F>("MCSMom_KE_pi","MCSMom vs tru KE - pi", 50, 0 , 1000, 50, 0, 1000);
     fMCSMom_KE_p = tfs->make<TH2F>("MCSMom_KE_p","MCSMom vs tru KE - p", 50, 0 , 1000, 50, 0, 1000);
 
-/*
     art::ServiceHandle<art::TFileService> tfs;
     
     fnHitsPerTP[0] = tfs->make<TH1F>("nHitsPerTP0","nHits / TP Pln 0", 10, 0, 10);
@@ -196,24 +196,24 @@ namespace tca {
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::ClearResults() {
-    tjs.allTraj.clear();
+    // clear everything in reverse order in which it appears in tjs DataStructs.h
+    // so that vectors that appear later in the list are not unnecessarily shifted
+    // before they are cleared.
+    tjs.tjphs.clear();
+    tjs.inTrialVtx3.clear();
+    tjs.vtx3.clear();
+    tjs.vtx.clear();
+    tjs.tcl.clear();
+    tjs.inClus.clear();
+    tjs.WireHitRange.clear();
+    tjs.newHits.clear();
     tjs.inTraj.clear();
     tjs.fHits.clear();
-    tjs.WireHitRange.clear();
-    tjs.WirePtr.clear();
-    tjs.trial.clear();
-    tjs.inTrialTraj.clear();
-    tjs.inTrialVtx.clear();
-    tjs.inTrialVtx3.clear();
-    tjs.tjphs.clear();
-    tjs.inClus.clear();
-    tjs.tcl.clear();
-    tjs.vtx.clear();
-    tjs.vtx3.clear();
+    tjs.allTraj.clear();
   } // ClearResults()
 
   ////////////////////////////////////////////////
-  void TrajClusterAlg::RunTrajClusterAlg(art::Event & evt)
+  void TrajClusterAlg::RunTrajClusterAlg(art::Event & evt, bool fMakeNewHits)
   {
 
     if(fMode == 0) return;
@@ -321,7 +321,7 @@ namespace tca {
     FillTrajTruth();
  
     // Convert trajectories in allTraj into clusters
-    MakeAllTrajClusters();
+    MakeAllTrajClusters(fMakeNewHits);
     if(fQuitAlg) {
       std::cout<<"RunTrajCluster failed in MakeAllTrajClusters\n";
       ClearResults();
@@ -346,22 +346,21 @@ namespace tca {
         if(tj.AlgMod[kKilled]) continue;
         if(tj.MCSMom == 0) continue;
         if(tj.TruKE == 0) continue;
-//        if(tj.EffPur < 0.2) continue;
-        unsigned short pdg = std::abs(tj.TruPDG);
 /*
+        unsigned short pdg = std::abs(tj.TruPDG);
         double mass = 0.511;
         if(pdg == 13) mass = 105.7;
         if(pdg == 211) mass = 139.6;
         if(pdg == 2212) mass = 938.3;
         double tPlusM = tjs.allTraj[itj].TruKE + mass;
         double truMom = sqrt(tPlusM * tPlusM - mass * mass);
-*/
         std::cout<<tj.CTP<<":"<<PrintPos(tjs, tj.Pts[tj.EndPt[0]])<<"-"<<tj.CTP<<":"<<PrintPos(tjs, tj.Pts[tj.EndPt[1]]);
         std::cout<<" MCS TruKE "<<tj.TruKE<<" pdg "<<tj.TruPDG<<" MCSMom "<<(int)tj.MCSMom<<" EffPur "<<std::setprecision(2)<<tj.EffPur<<"\n";
         if(pdg == 11) fMCSMom_KE_e->Fill(tj.TruKE, tj.MCSMom);
         if(pdg == 13) fMCSMom_KE_mu->Fill(tj.TruKE, tj.MCSMom);
         if(pdg == 211) fMCSMom_KE_pi->Fill(tj.TruKE, tj.MCSMom);
         if(pdg == 2212) fMCSMom_KE_p->Fill(tj.TruKE, tj.MCSMom);
+ */
       } // itj
 /*
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
@@ -718,7 +717,7 @@ namespace tca {
             for(unsigned short oht = jfirsthit; oht < jlasthit; ++oht) {
               if(tjs.inTraj[oht] < 0) {
                 mf::LogVerbatim("TC")<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.inTraj[oht]<<" events processed "<<fEventsProcessed;
-                std::cout<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.inTraj[oht]<<" events processed "<<fEventsProcessed<<"\n";
+                std::cout<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.inTraj[oht]<<" events processed "<<fEventsProcessed<<" fWorkID "<<fWorkID<<"\n";
                 fQuitAlg = true;
                 return;
               }
@@ -776,7 +775,7 @@ namespace tca {
             if(prt) mf::LogVerbatim("TC")<<" After first StepCrawl. fGoodWork "<<fGoodWork<<" fTryWithNextPass "<<fTryWithNextPass;
             if(!fGoodWork && fTryWithNextPass) {
               StepCrawl();
-              if(!fUpdateTrajOK) {
+              if(!fGoodWork || !fUpdateTrajOK) {
                 if(prt) mf::LogVerbatim("TC")<<" xxxxxxx StepCrawl failed AGAIN. fTryWithNextPass "<<fTryWithNextPass;
                 prt = false;
                 ReleaseWorkHits();
@@ -890,7 +889,7 @@ namespace tca {
     
     // All the points were used so there is no reason to get more complicated
     if(nPtsNotUsed == 0) return;
-    
+/*
     // save a copy in case something bad happens
     Trajectory TjCopy = tj;
     
@@ -935,7 +934,7 @@ namespace tca {
       } // yyy
       if(prt) PrintTrajectory("RP2", tjs, tj, ipt);
     } // ipt
-    
+*/
     if(prt) mf::LogVerbatim("TC")<<" Reverse propagate success";
 
   } // ReversePropagate
@@ -3778,10 +3777,12 @@ namespace tca {
       // set the trajectory endpoints, and defined HitPos.
       lastPtWithUsedHits = work.EndPt[1];
       if(work.Pts[lastPt].Hits.empty()) {
+        // Require three points with charge on adjacent wires for small angle
+        // stepping.
+        if(!isLA && lastPt == 2) return;
         // No close hits added.
         ++nMissedSteps;
         // First check for no signal in the vicinity
-//        if(!SignalAtTp(ltp) && lastPt > 0) {
         if(lastPt > 0) {
           // the last point with hits (used or not) is the previous point
           lastPtWithHits = lastPt - 1;
@@ -4287,6 +4288,7 @@ namespace tca {
     CheckHiDeltas(tj);
     
     CheckHiMultUnusedHits(tj);
+    if(!fGoodWork || fQuitAlg) return;
     
     // lop off high multiplicity hits at the end
     CheckHiMultEndHits(tj);
@@ -5754,9 +5756,11 @@ namespace tca {
   } // CalculateQuality
 
   ////////////////////////////////////////////////
-  void TrajClusterAlg::MakeAllTrajClusters()
+  void TrajClusterAlg::MakeAllTrajClusters(bool fMakeNewHits)
   {
     // Make clusters from all trajectories in tjs.allTraj
+    
+    if(fMakeNewHits) MakeNewHits();
     
     ClusterStore cls;
     tjs.tcl.clear();
@@ -5816,28 +5820,207 @@ namespace tca {
       geo::PlaneID planeID = DecodeCTP(cls.CTP);
       for(ii = 0; ii < cls.tclhits.size(); ++ii) {
         iht = cls.tclhits[ii];
-        if(tjs.fHits[iht]->WireID().Plane != planeID.Plane ||
-           tjs.fHits[iht]->WireID().Cryostat != planeID.Cryostat ||
-           tjs.fHits[iht]->WireID().TPC != planeID.TPC) {
-          mf::LogError("TC")<<"MakeAllTrajClusters: Bad hit CTP in itj "<<itj;
-          fQuitAlg = true;
-          return;
-        }
-        if(tjs.inClus[iht] != 0) {
-          mf::LogWarning("TC")<<"MakeAllTrajClusters failed: Hit "<<PrintHit(tjs.fHits[iht])<<" assigned to two different clusters "<<tjs.inClus[iht]<<" and "<<clID;
-          debug.Plane = 3;
-          PrintAllTraj("MATC", tjs, debug, USHRT_MAX, USHRT_MAX);
-          fQuitAlg = true;
-          return;
+        if(tjs.newHits.empty()) {
+          if(tjs.fHits[iht]->WireID().Plane != planeID.Plane ||
+             tjs.fHits[iht]->WireID().Cryostat != planeID.Cryostat ||
+             tjs.fHits[iht]->WireID().TPC != planeID.TPC) {
+            mf::LogError("TC")<<"MakeAllTrajClusters: Bad OLD hit CTP in itj "<<itj<<" hit "<<PrintHit(tjs.fHits[iht]);
+            fQuitAlg = true;
+            return;
+          }
+        } else {
+          if(tjs.newHits[iht].WireID().Plane != planeID.Plane ||
+             tjs.newHits[iht].WireID().Cryostat != planeID.Cryostat ||
+             tjs.newHits[iht].WireID().TPC != planeID.TPC) {
+            mf::LogError("TC")<<"MakeAllTrajClusters: Bad NEW hit CTP in itj "<<itj<<" hit "<<PrintHit(tjs.newHits[iht]);
+            fQuitAlg = true;
+            return;
+          }
         }
         tjs.inClus[iht] = clID;
       } //iht
     } // itj
 
-//    PrintAllTraj(tjs, Debug, USHRT_MAX, 0);
-//    PrintClusters();
-    
   } // MakeAllTrajClusters
+
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::MakeNewHits()
+  {
+    // Make a new hit collection by merging close hits on each TP. The trajectory point -> hit
+    // association tj.Pts[].Hits[] is redirected to tjs.newHits instead of tjs.fHits. This is intended
+    // to be called just before clusters are made from trajectories. Hits that are associated with a
+    // trajectory point but are not used are NOT redirected to the new hit collection since they will
+    // be ignored.
+    
+//    PrintAllTraj("MNH1", tjs, debug, 3, USHRT_MAX);
+    
+    tjs.newHits.reserve(tjs.fHits.size());
+    std::vector<bool> flag(tjs.fHits.size(), false);
+
+    for(unsigned int fht = 0; fht < tjs.fHits.size(); ++fht) {
+      // already considered
+      if(flag[fht]) continue;
+      if(tjs.inTraj[fht] <= 0) {
+        // unused hit. Just copy it
+        tjs.newHits.emplace_back(*tjs.fHits[fht]);
+        // flag it as considered
+        flag[fht] = true;
+//        unsigned int mergedHitIndex = tjs.newHits.size() - 1;
+//        std::cout<<fht<<" "<<tjs.fHits[fht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[fht])<<" "<<tjs.newHits.size()-1;
+//        std::cout<<" "<<tjs.newHits[mergedHitIndex].WireID().Plane<<tjs.newHits[mergedHitIndex].WireID().Wire<<":"<<(int)tjs.newHits[mergedHitIndex].PeakTime()<<"\n";
+        continue;
+      }
+      // Hit is used in a trajectory. Get the trajectory index
+      unsigned short itj = tjs.inTraj[fht] - 1;
+      if(itj > tjs.allTraj.size() - 1) {
+        std::cout<<"MNH: Invalid trajectory "<<itj<<" gotten from inTraj "<<tjs.inTraj[fht]<<" in hit "<<PrintHit(tjs.fHits[fht])<<"\n";
+      }
+      // Determine which point has this hit
+      Trajectory& tj = tjs.allTraj[itj];
+      unsigned short hitInPt = USHRT_MAX;
+      unsigned short indexInPtsHits = 0;
+      for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
+        for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+          if(tj.Pts[ipt].Hits[ii] != fht) continue;
+          // a hopefully unnecessary check
+          if(!tj.Pts[ipt].UseHit[ii]) {
+            std::cout<<"MakeNewHits: Hit fht "<<fht<<" belongs to itj "<<itj<<" but UseHit is false...\n";
+            return;
+          }
+          hitInPt = ipt;
+          indexInPtsHits = ii;
+          break;
+        } // ii
+        if(hitInPt != USHRT_MAX) break;
+      } // ipt
+      // this should not happen but check anyway
+      if(hitInPt == USHRT_MAX) continue;
+      // This is simple if there is only one used hit
+      if(NumUsedHits(tj.Pts[hitInPt]) == 1) {
+        tjs.newHits.emplace_back(*tjs.fHits[fht]);
+        tj.Pts[hitInPt].Hits[indexInPtsHits] = tjs.newHits.size() - 1;
+        // flag it used
+        flag[fht] = true;
+//        unsigned int mergedHitIndex = tjs.newHits.size() - 1;
+//        std::cout<<fht<<" "<<tjs.fHits[fht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[fht])<<" "<<tjs.newHits.size()-1<<" in TJ "<<tj.ID<<" Pt"<<hitInPt;
+//        std::cout<<" "<<tjs.newHits[mergedHitIndex].WireID().Plane<<tjs.newHits[mergedHitIndex].WireID().Wire<<":"<<(int)tjs.newHits[mergedHitIndex].PeakTime()<<"\n";
+      } else {
+//        std::cout<<fht<<" "<<tjs.fHits[fht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[fht])<<" in TJ "<<tj.ID<<" Pt"<<hitInPt<<"\n";
+        // Merge the charge from all used hits in the TP.
+        // The merged hit will be put on the wire that is closest to TP.HitPos[0]. The charge
+        // from hits on nearby wires will be added to this hit and those hits will be dropped
+        unsigned int mergedHitWire = std::nearbyint(tj.Pts[hitInPt].HitPos[0]);
+        // find the index of a hit that lies on this wire so we can use the View, Channel, etc
+        // to construct the hit. Assume it is the hit we are considering
+        unsigned int wireInfoHit = fht;
+        // Find the tick range that encompasses all the hits
+        raw::TDCtick_t loTick = tjs.fHits[fht]->StartTick();
+        raw::TDCtick_t hiTick = tjs.fHits[fht]->EndTick();
+        unsigned short ipl = tjs.fHits[fht]->WireID().Plane;
+        short maxTime = tjs.MaxPos1[ipl] / tjs.UnitsPerTick;
+        for(unsigned short ii = 0; ii < tj.Pts[hitInPt].Hits.size(); ++ii) {
+          if(!tj.Pts[hitInPt].UseHit[ii]) continue;
+          unsigned int iht = tj.Pts[hitInPt].Hits[ii];
+          // ignore it if flagged
+          if(flag[iht]) continue;
+          if(tjs.fHits[iht]->WireID().Wire == mergedHitWire) wireInfoHit = iht;
+          if(tjs.fHits[iht]->StartTick() < loTick) loTick = tjs.fHits[iht]->StartTick();
+          if(tjs.fHits[iht]->EndTick() > hiTick) hiTick = tjs.fHits[iht]->EndTick();
+        }
+        // make a temporary signal waveform vector to calculate the merged charge, rms, etc
+        std::vector<float> signal(hiTick - loTick, 0);
+        // Add the Gaussian charge distribution for each used hit
+        float chg = 0;
+        for(unsigned short ii = 0; ii < tj.Pts[hitInPt].Hits.size(); ++ii) {
+          if(!tj.Pts[hitInPt].UseHit[ii]) continue;
+          unsigned int iht = tj.Pts[hitInPt].Hits[ii];
+          // ignore it if flagged
+          if(flag[iht]) continue;
+          // flag it used
+          flag[iht] = true;
+//          std::cout<<" "<<iht<<" "<<tjs.fHits[fht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[iht])<<"\n";
+          chg += tjs.fHits[iht]->Integral();
+          // add charge in the range +/- 3 sigma
+          short loTime = tjs.fHits[iht]->PeakTimeMinusRMS(3);
+          if(loTime < 0) loTime = 0;
+          short hiTime = tjs.fHits[iht]->PeakTimePlusRMS(3);
+          if(hiTime > maxTime) hiTime = maxTime;
+          float hitPeakAmp = tjs.fHits[iht]->PeakAmplitude();
+          float hitPeakTime = tjs.fHits[iht]->PeakTime();
+          float hitRMS = tjs.fHits[iht]->RMS();
+          for(short time = loTime; time < hiTime; ++time) {
+            unsigned short indx = time - loTick;
+            if(indx > signal.size() - 1) continue;
+            float arg = (time - hitPeakTime) / hitRMS;
+            signal[indx] += hitPeakAmp * exp(-0.5 * arg * arg);
+          } // time
+        } // ii
+        // Find the charge weighted time of the summed signal
+        float sumt = 0;
+        chg = 0;
+        for(unsigned short indx = 0; indx < signal.size(); ++indx) {
+          chg  += signal[indx];
+          sumt += signal[indx] * indx;
+        } // indx
+        if(chg == 0) {
+          std::cout<<"No charge in signal range. This is really bad...\n";
+          continue;
+        }
+        // aveIndx is the index of the charge-weighted average in the signal vector
+        float aveIndx = sumt / chg;
+        // find the merged hit RMS
+        float mergedHitRMS = 0;
+        for(unsigned short indx = 0; indx < signal.size(); ++indx) {
+          float dindx = indx - aveIndx;
+          mergedHitRMS += signal[indx] * dindx * dindx;
+        } // indx
+        mergedHitRMS = std::sqrt(mergedHitRMS / chg);
+        // Calculate the hit charge normalization factor so that we can make a reasonable
+        // estimate of the peak amplitude of the merged hits using a Gaussian approximation yyy
+        float chgNorm = tjs.fHits[fht]->PeakAmplitude() * tjs.fHits[fht]->RMS() / tjs.fHits[fht]->Integral();
+        float mergedHitPeakAmp = chg * chgNorm / mergedHitRMS;
+        float mergedHitPeakTick = loTick + aveIndx;
+        tjs.newHits.emplace_back(
+                                 tjs.fHits[wireInfoHit]->Channel(),
+                                 loTick, hiTick,
+                                 mergedHitPeakTick, 0,     // peak time & uncertainty
+                                 mergedHitRMS,
+                                 mergedHitPeakAmp, 0,      // peak amplitude & uncertainty
+                                 chg, chg, 0,              // SummedADC, Integralv & uncertainty
+                                 1, 0,                     // Multiplicity, LocalIndex
+                                 666, 1,                   // GoodnessOfFit, DOF
+                                 tjs.fHits[wireInfoHit]->View(),
+                                 tjs.fHits[wireInfoHit]->SignalType(),
+                                 tjs.fHits[wireInfoHit]->WireID()
+        
+        );
+        // Associate the trajectory point with the merged hit
+        unsigned int mergedHitIndex = tjs.newHits.size() - 1;
+//        std::cout<<" mergedHitIndex "<<mergedHitIndex<<" "<<tjs.newHits[mergedHitIndex].WireID().Plane<<":"<<tjs.newHits[mergedHitIndex].WireID().Wire<<":"<<(int)tjs.newHits[mergedHitIndex].PeakTime()<<"\n";
+        // Re-direct fht to mergedHitIndex and set UseHit true for it. All other hits
+        // in the multiplet are not used. Note that the unused hits still
+        // index into the old hit collection. This doesn't matter since this (invalid) information
+        // is ignored when the clusters are made.
+        for(unsigned short ii = 0; ii < tj.Pts[hitInPt].Hits.size(); ++ii) {
+          tj.Pts[hitInPt].UseHit[ii] = false;
+          if(tj.Pts[hitInPt].Hits[ii] == fht) {
+            tj.Pts[hitInPt].Hits[ii] = mergedHitIndex;
+            tj.Pts[hitInPt].UseHit[ii] = true;
+          }
+        } // ii
+      } // NumUsedHits > 1
+    } // fht
+    
+    // Ensure that all hits have been considered
+    for(unsigned int fht = 0; fht < tjs.fHits.size(); ++fht) {
+      if(!flag[fht]) {
+        std::cout<<"MakeNewHits after merging: "<<fht<<" Hit "<<PrintHit(tjs.fHits[fht])<<" not processed. inTraj "<<tjs.inTraj[fht]<<"\n";
+      }
+    } // fht
+    
+//    PrintAllTraj("MNH2", tjs, debug, 3, USHRT_MAX);
+    
+  } // MakeNewHits
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet)
