@@ -41,7 +41,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
-#include "larsimobj/Simulation/sim.h"
+#include "lardataobj/Simulation/sim.h"
 
 
 // ROOT includes

@@ -7,7 +7,7 @@
 // LArSoft includes
 #include "lardata/Utilities/GeometryUtilities.h"
 
-#include "larsimobj/Simulation/SimChannel.h"
+#include "lardataobj/Simulation/SimChannel.h"
 #include "larsim/Simulation/LArG4Parameters.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"

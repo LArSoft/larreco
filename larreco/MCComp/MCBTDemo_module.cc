@@ -20,7 +20,7 @@
 
 #include <iostream>
 #include "larcore/Geometry/Geometry.h"
-#include "larsimobj/Simulation/SimChannel.h"
+#include "lardataobj/Simulation/SimChannel.h"
 #include "lardataobj/MCBase/MCTrack.h"
 #include "lardataobj/MCBase/MCShower.h"
 #include "lardataobj/RecoBase/Track.h"

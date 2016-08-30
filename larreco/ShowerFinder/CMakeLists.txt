@@ -13,7 +13,7 @@ art_make(
                         larcore_Geometry_Geometry_service
                         lardata_AnalysisAlg
                         lardataobj_AnalysisBase
-                        larsim_Simulation larsimobj_Simulation
+                        larsim_Simulation lardataobj_Simulation
                         lardata_Utilities
                         nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}

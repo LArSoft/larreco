@@ -9,7 +9,7 @@
 // from cetpkgsupport v1_10_01.
 ////////////////////////////////////////////////////////////////////////
 
-#include "larsimobj/Simulation/SimChannel.h"
+#include "lardataobj/Simulation/SimChannel.h"
 #include "larsim/Simulation/LArG4Parameters.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/GeometryCore.h"
