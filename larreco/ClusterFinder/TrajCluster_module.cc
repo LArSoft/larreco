@@ -86,10 +86,9 @@ namespace cluster {
     if (fTCAlg)
       fTCAlg->reconfigure(pset.get< fhicl::ParameterSet >("TrajClusterAlg"));
     else {
-      fTCAlg.reset(new tca::TrajClusterAlg
-        (pset.get< fhicl::ParameterSet >("TrajClusterAlg")));
+      fTCAlg.reset(new tca::TrajClusterAlg(pset.get< fhicl::ParameterSet >("TrajClusterAlg")));
     }
-    fMakeNewHits = pset.get<bool>("MakeNewHits");
+    fMakeNewHits = pset.get<bool>("MakeNewHits", false);
   } // TrajCluster::reconfigure()
   
   //----------------------------------------------------------------------------
@@ -132,7 +131,6 @@ namespace cluster {
   {
 
     // look for clusters in all planes
-    std::cout<<"Make new hits? "<<fMakeNewHits<<"\n";
     fTCAlg->RunTrajClusterAlg(evt, fMakeNewHits);
     
     std::vector<art::Ptr<recob::Hit>> const& fHits = fTCAlg->YieldOldHits();
