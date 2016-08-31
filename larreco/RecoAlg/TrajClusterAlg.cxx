@@ -581,7 +581,7 @@ namespace tca {
       }
     } else {
       // Trajectories overlap.
-      std::cout<<"ATW: write some overlap code\n";
+      std::cout<<"ATW: Points overlap work.ID "<<work.ID<<" endw "<<endw<<" tj.ID "<<tj.ID<<" endt0 "<<endt0<<"\n";
       return;
       if(prt) mf::LogVerbatim("TC")<<"ATW: Points overlap work.ID "<<work.ID<<" endw "<<endw<<" tj.ID "<<tj.ID<<" endt0 "<<endt0;
       // keep it simple for now. Clobber the TPs at the beginning of itj1 so
@@ -3736,16 +3736,20 @@ namespace tca {
         work.AlgMod[kStopAtVtx] = true;
         break;
       }
-      // check for a signal at this point
-      if(fMaxWireSkipNoSignal < 0 && !SignalAtTp(ltp)) break;
+      // check for a signal at this point using ROIs
+      if(lastPt > 0 && fMaxWireSkipNoSignal < 0 && !SignalAtTp(ltp)) {
+        lastPtWithHits = lastPt - 1;
+        float tps = TrajPointSeparation(work.Pts[lastPtWithHits], ltp);
+        float dwc = DeadWireCount(ltp, work.Pts[lastPtWithHits]);
+        float nMissedWires = tps * std::abs(ltp.Dir[0]) - dwc;
+        if(prt) mf::LogVerbatim("TC")<<" StepCrawl: no ROI at ltp "<<PrintPos(tjs, ltp)<<" nMissedWires "<<nMissedWires<<" dead wire count "<<dwc<<" fMaxWireSkipNoSignal "<<fMaxWireSkipNoSignal;
+        if(nMissedWires > abs(fMaxWireSkipNoSignal)) break;
+      }
       // Special handling of very long straight trajectories, e.g. uB cosmic rays
       if(work.Pts.size() == 80 && !work.AlgMod[kMuon]) {
         unsigned short minPtsFit = work.Pts.size() / 2;
         for(unsigned short ii = 0; ii < work.Pts.size(); ++ii) {
           unsigned short ipt = work.EndPt[1] - ii;
-          if(prt) {
-            std::cout<<ii<<" ipt "<<ipt<<" "<<work.Pts[ipt].NTPsFit<<"\n";
-          }
           if(work.Pts[ipt].NTPsFit > minPtsFit) {
             work.AlgMod[kMuon] = true;
             if(prt) mf::LogVerbatim("TC")<<" Setting kMuon true on step "<<step;
@@ -3783,7 +3787,7 @@ namespace tca {
         // No close hits added.
         ++nMissedSteps;
         // First check for no signal in the vicinity
-        if(lastPt > 0) {
+        if(lastPt > 0 && fMaxWireSkipNoSignal >= 0) {
           // the last point with hits (used or not) is the previous point
           lastPtWithHits = lastPt - 1;
           float tps = TrajPointSeparation(work.Pts[lastPtWithHits], ltp);
@@ -4351,6 +4355,9 @@ namespace tca {
     }
 */
     if(lastPtFit == tj.EndPt[0]) return;
+    
+    // limit the number of points to 10
+    if(lastPtFit > tj.EndPt[0] + 10) lastPtFit = tj.EndPt[0] + 10;
     
     // update the trajectory for all the intervening points
     for(unsigned short ipt = tj.EndPt[0]; ipt < lastPtFit; ++ipt) {
@@ -5491,7 +5498,7 @@ namespace tca {
       float defFrac = 1 / (float)(tj.EndPt[1]);
       tj.ChgRMS = defFrac + (1 - defFrac) * rms;
       // don't let it get crazy small
-      if(tj.ChgRMS < 0.1) tj.ChgRMS = 0.1;
+      if(tj.ChgRMS < 0.15) tj.ChgRMS = 0.15;
       tj.Pts[lastPt].ChgPull = (tj.Pts[lastPt].Chg / tj.AveChg - 1) / tj.ChgRMS;
     } // cnt > 3
     
@@ -6412,7 +6419,14 @@ namespace tca {
       }
 */
       for(const auto& range : signalROI.get_ranges()) {
-        if(rawProjTick >= range.begin_index() && rawProjTick <= range.end_index()) return true;
+        if(rawProjTick >= range.begin_index() && rawProjTick <= range.end_index()) {
+          // check the PH in the ROI
+          std::vector<float> signal = range.data();
+          unsigned short indx = rawProjTick - range.begin_index();
+          if(indx > signal.size() - 1) return false;
+          if(signal[indx] > fMinAmp) return true;
+          return false;
+        } // rawProjTick in range
         // This assumes that the ROIs are ordered by increasing tick
         if(range.begin_index() > rawProjTick) return false;
       } // range
@@ -6466,11 +6480,7 @@ namespace tca {
     
     lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     
-    if(!tjs.WireHitRange.empty()) {
-      mf::LogError("TC")<<"FillWireHitRange: WireHitRange wasn't emptied properly";
-      fQuitAlg = true;
-      return;
-    }
+    if(!tjs.WireHitRange.empty()) tjs.WireHitRange.clear();
     
     // initialize everything
     tjs.WireHitRange.resize(nplanes);
