@@ -132,6 +132,7 @@ namespace tca {
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 /// -1 = going US (CC proper order), 1 = going DS
     short WorkID {0};
+    short MotherID  {0};                  ///< ID of the mother trajectory (if a delta ray)
   };
   
   // Trajectory "intersections" used to search for superclusters (aka showers)
@@ -158,10 +159,11 @@ namespace tca {
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
+    kUnMaskHits,
     kGottaKink,     ///< GottaKink found a kink
     kCWKink,        ///< kink found in CheckWork
     kCWStepChk,
-     kTryWithNextPass,
+    kTryWithNextPass,
     kRevProp,
     kChkHiMultHits,
     kSplitTraj,
@@ -181,6 +183,7 @@ namespace tca {
     kCheckInTraj,
     kFixTrajBegin,
     kMuon,
+    kDeltaRay,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -203,8 +206,6 @@ namespace tca {
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
-    // vector of pointers to wires in each plane
-    std::vector<std::vector<art::Ptr<recob::Wire>>> WirePtr;
     std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
