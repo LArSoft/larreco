@@ -122,6 +122,7 @@ namespace tca {
     bool fShowerStudy;    ///< study shower identification cuts
     short fShowerPrtPlane; ///< set to plane number to print out
     short fFillTruth;     ///< Match to MC truth
+    bool fuBCode;         ///< temporary switch to enable uB-specific code
 
     std::vector<float> fMaxVertexTrajSep;
     std::bitset<32> fUseAlg;  ///< Allow user to mask off specific algorithms
@@ -132,6 +133,8 @@ namespace tca {
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
 		float fVertex2DIPCut; 	///< 2D vtx -> cluster Impact Parameter cut (WSE)
+    std::vector<unsigned short>  fMuonTag; ///< min length and min MCSMom for a muon tag
+    float fMuonDRaySepCut; ///< Tag delta rays using this distance along muons
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
     // TEMP variables for summing Eff*Pur
     double PrSum, MuPiSum;
@@ -160,7 +163,8 @@ namespace tca {
     bool prt;
     bool mrgPrt;
     bool vtxPrt;
-    bool didPrt; // Set true if a print condition was met
+    bool didPrt;
+    short TJPrt; // Set to the WorkID of a trajectory that is being debugged
     bool shPrt; /// print shower info
     
     art::ServiceHandle<geo::Geometry> geom;
@@ -230,10 +234,6 @@ namespace tca {
     // Start a trajectory going from fromHit to (toWire, toTick)
     void StartWork(float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP);
     void StartWork(unsigned int fromHit, unsigned int toHit);
-    // Make a bare trajectory point that only has position and direction defined
-    void MakeBareTrajPoint(unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
-    void MakeBareTrajPoint(float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
-    void MakeBareTrajPoint(TrajPoint& tpIn1, TrajPoint& tpIn2, TrajPoint& tpOut);
     // Returns the charge weighted wire, time position of all hits in the multiplet
     // of which hit is a member
     void HitMultipletPosition(unsigned int hit, float& hitTick, float& deltaRms, float& qtot);
@@ -260,7 +260,7 @@ namespace tca {
     void SetPoorUsedHits(Trajectory& tj, unsigned short ipt);
     // Sets inTraj[] = 0 and UseHit false for all used hits in tp
     void UnsetUsedHits(TrajPoint& tp);
-    void SetAllHitsUsed(TrajPoint& tp);
+//    void SetAllHitsUsed(TrajPoint& tp);
       // Counts the number of used hits in tp
     unsigned short NumUsedHits(TrajPoint& tp);
     // Counts the number of TPs in the trajectory that have charge
@@ -285,7 +285,7 @@ namespace tca {
     // reAnalyze true if AnalyzeTrials needs to be called again
     void MergeTrajPair(unsigned short ipr, bool& reAnalyze);
     // Append the allTraj trajectory to work
-    void AppendToWork(unsigned short itj);
+    bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters(bool fMakeNewHits);
     void MakeNewHits();
@@ -335,7 +335,7 @@ namespace tca {
     void CheckTrajEnd();
     void EndMerge();
     void ChainMerge();
-    void FillWireHitRange(geo::TPCID const& tpcid, art::ValidHandle< std::vector<recob::Wire>> const& wireVecHandle);
+    void FillWireHitRange(geo::TPCID const& tpcid);
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
