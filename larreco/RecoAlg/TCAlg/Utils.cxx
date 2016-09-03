@@ -490,6 +490,142 @@ namespace tca {
     }
   } // SetEndPoints
   
+  ////////////////////////////////////////////////
+  float MCSMom(TjStuff& tjs, Trajectory& tj)
+  {
+    unsigned short firstPt = tj.EndPt[0];
+    unsigned short lastPt = tj.EndPt[1];
+    return MCSMom(tjs, tj, firstPt, lastPt);
+  } // MCSMom
+  
+  ////////////////////////////////////////////////
+  float MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
+  {
+    // Estimate the trajectory momentum using Multiple Coulomb Scattering ala PDG RPP
+    
+    if(firstPt < tj.EndPt[0]) return 0;
+    if(lastPt > tj.EndPt[1]) return 0;
+    
+    TrajPoint tmp;
+    // make a bare trajectory point to define a line between the first
+    // and last points on the trajectory that have charge
+    MakeBareTrajPoint(tjs, tj.Pts[firstPt], tj.Pts[lastPt], tmp);
+    // sum up the deviations^2
+    double dsum = 0;
+    unsigned short cnt = 0;
+    for(unsigned short ipt = firstPt + 1; ipt < lastPt; ++ipt) {
+      if(tj.Pts[ipt].Chg == 0) continue;
+      dsum += PointTrajDOCA2(tjs, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
+      ++cnt;
+    } // ipt
+    if(cnt == 0) return 0;
+    double sigmaS = sqrt(dsum / (float)cnt);
+    double tjLen = TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
+    // Theta_o =  4 * sqrt(3) * sigmaS / path
+    double thetaRMS = 6.8 * sigmaS / tjLen;
+    double mom = 14 * sqrt(tjLen / 14) / thetaRMS;
+    if(mom > 999) mom = 999;
+    return (float)mom;
+  } // MCSMom
+
+  /////////////////////////////////////////
+  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const float& sepCut)
+  {
+    
+    if(sepCut <= 0) return;
+    
+    for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+      Trajectory& muTj = tjs.allTraj[itj];
+      if(muTj.CTP != inCTP) continue;
+      if(muTj.AlgMod[kKilled]) continue;
+      if(!muTj.AlgMod[kMuon]) continue;
+      // Found a muon, now look for delta rays
+//      if(muTj.ID != 18) continue;
+//      std::cout<<"Muon "<<muTj.CTP<<" "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]])<<"\n";
+      for(unsigned short jtj = 0; jtj < tjs.allTraj.size(); ++jtj) {
+        Trajectory& drTj = tjs.allTraj[jtj];
+        if(drTj.AlgMod[kKilled]) continue;
+        if(drTj.CTP != inCTP) continue;
+        if(drTj.AlgMod[kMuon]) continue;
+        // already tagged
+        if(drTj.AlgMod[kDeltaRay]) continue;
+        // some rough cuts to require that the delta ray is within the
+        // ends of the muon
+        if(muTj.StepDir > 0) {
+          if(drTj.Pts[drTj.EndPt[0]].Pos[0] < muTj.Pts[muTj.EndPt[0]].Pos[0]) continue;
+          if(drTj.Pts[drTj.EndPt[1]].Pos[0] > muTj.Pts[muTj.EndPt[1]].Pos[0]) continue;
+        } else {
+          if(drTj.Pts[drTj.EndPt[0]].Pos[0] > muTj.Pts[muTj.EndPt[0]].Pos[0]) continue;
+          if(drTj.Pts[drTj.EndPt[1]].Pos[0] < muTj.Pts[muTj.EndPt[1]].Pos[0]) continue;
+        }
+        unsigned short muPt0, muPt1;
+        float sep0 = sepCut;
+        // check both ends of the prospective delta ray
+        TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[0]], muTj, muPt0, sep0);
+        if(sep0 == sepCut) continue;
+//        std::cout<<"  ID "<<drTj.ID<<" "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[0]])<<" muPt0 "<<muPt0<<" sep0 "<<sep0<<"\n";
+        // stay away from the ends
+        if(muPt0 < muTj.EndPt[0] + 5) continue;
+        if(muPt0 > muTj.EndPt[1] - 5) continue;
+        float sep1 = sepCut;
+        TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[1]], muTj, muPt1, sep1);
+//        std::cout<<"      "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[1]])<<" muPt1 "<<muPt1<<" sep1 "<<sep1<<"\n";
+        if(sep1 == sepCut) continue;
+        // seems to be a bad idea
+//        if(muPt1 == muPt0) continue;
+        // stay away from the ends
+        if(muPt1 < muTj.EndPt[0] + 5) continue;
+        if(muPt1 > muTj.EndPt[1] - 5) continue;
+//        std::cout<<" delta ray "<<drTj.ID<<" near "<<PrintPos(tjs, muTj.Pts[muPt0])<<"\n";
+        drTj.AlgMod[kDeltaRay] = true;
+        drTj.MotherID = muTj.ID;
+      } // jtj
+    } // itj
+  } // TagDeltaRays
+  
+  /////////////////////////////////////////
+  void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
+  {
+    CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit]->WireID());
+    MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit]->WireID().Wire, tjs.fHits[fromHit]->PeakTime(),
+                           (float)tjs.fHits[toHit]->WireID().Wire,   tjs.fHits[toHit]->PeakTime(), tCTP, tp);
+    
+  } // MakeBareTrajPoint
+  
+  /////////////////////////////////////////
+  void MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp)
+  {
+    tp.CTP = tCTP;
+    tp.Pos[0] = fromWire;
+    tp.Pos[1] = tjs.UnitsPerTick * fromTick;
+    tp.Dir[0] = toWire - fromWire;
+    tp.Dir[1] = tjs.UnitsPerTick * (toTick - fromTick);
+    float norm = sqrt(tp.Dir[0] * tp.Dir[0] + tp.Dir[1] * tp.Dir[1]);
+    tp.Dir[0] /= norm;
+    tp.Dir[1] /= norm;
+    tp.Ang = atan2(tp.Dir[1], tp.Dir[0]);
+  } // MakeBareTrajPoint
+  
+  /////////////////////////////////////////
+  void MakeBareTrajPoint(TjStuff& tjs, TrajPoint& tpIn1, TrajPoint& tpIn2, TrajPoint& tpOut)
+  {
+    tpOut.CTP = tpIn1.CTP;
+    tpOut.Pos = tpIn1.Pos;
+    tpOut.Dir[0] = tpIn2.Pos[0] - tpIn1.Pos[0];
+    tpOut.Dir[1] = tpIn2.Pos[1] - tpIn1.Pos[1];
+    float norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
+    if(norm == 0) {
+      mf::LogError myprt("TC");
+      myprt<<"Bad Dir in MakeBareTrajPoint ";
+      myprt<<" tpIn1 Pos "<<tpIn1.Pos[0]<<" "<<tpIn1.Pos[1];
+      myprt<<" tpIn2 Pos "<<tpIn2.Pos[0]<<" "<<tpIn2.Pos[1];
+      tpOut.Pos[0] = -99;
+      return;
+    }
+    tpOut.Dir[0] /= norm;
+    tpOut.Dir[1] /= norm;
+    tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
+  } // MakeBareTrajPoint
   // ****************************** Printing  ******************************
   
   void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& debug, unsigned short itj, unsigned short ipt)
@@ -624,7 +760,10 @@ namespace tca {
           myprt<<" "<<PrintHit(tjs.fHits[iht]);
         }
 */
-        for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
+        for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
+          if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
+          if(AlgBitNames[ib] == "DeltaRay") myprt<<"_"<<aTj.MotherID;
+        }
         myprt<<"\n";
       } // ii
       return;
