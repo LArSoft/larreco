@@ -334,7 +334,7 @@ namespace cluster {
       dtrIndices.clear();
       for(unsigned short jcl = 0; jcl < Clusters.size(); ++jcl)
         if(Clusters[jcl].ParentCluster == icl) dtrIndices.push_back(jcl);
-      spcol.emplace_back((int)clstr.PDG, icl, parent, dtrIndices);
+      spcol.emplace_back((int)clstr.PDGCode, icl, parent, dtrIndices);
       // cluster - PFParticle association
       size_t cEnd = sccol.size();
       size_t cStart = cEnd - 1;
