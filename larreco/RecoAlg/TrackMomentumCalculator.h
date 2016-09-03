@@ -94,11 +94,11 @@ namespace trkf{
     
     TrackMomentumCalculator();
     
-    virtual ~TrackMomentumCalculator() {}
+    virtual ~TrackMomentumCalculator();
     
     double GetTrackMomentum(double trkrange, int pdg);
     
-    TPolyLine3D *gr_xyz; TGraph *gr_xy; TGraph *gr_yz; TGraph *gr_xz; 
+    TPolyLine3D *gr_xyz=0; TGraph *gr_xy=0; TGraph *gr_yz=0; TGraph *gr_xz=0; 
     
     Int_t GetTracks( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz );
         
@@ -114,7 +114,7 @@ namespace trkf{
     
     void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
     
-    TGraphErrors *gr_meas;
+    TGraphErrors *gr_meas = 0;
 
     TGraph *KEvsR;
     

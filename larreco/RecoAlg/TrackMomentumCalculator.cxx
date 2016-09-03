@@ -93,7 +93,27 @@ namespace trkf{
     //KEvsRFromData = tfs->make<TH2D>("KEvsRFromData","KE vs R from Data",1000,0,1000,1000,0,5000);
  
   }
-  
+
+  TrackMomentumCalculator::~TrackMomentumCalculator(){
+    
+    delete gr_reco_xyz;
+    delete gr_reco_xy;
+    delete gr_reco_yz;
+    delete gr_reco_xz;
+    delete gr_seg_xyz;
+    delete gr_seg_xy;
+    delete gr_seg_yz;
+    delete gr_seg_xz;
+    delete KEvsR;
+    delete KEvsR_spline3;
+    delete gr_meas;
+    delete gr_xyz;
+    delete gr_yz;
+    delete gr_xz;
+    delete gr_xy;
+
+  }
+
   double TrackMomentumCalculator::GetTrackMomentum(double trkrange, int pdg) 
   {
    
@@ -885,6 +905,11 @@ namespace trkf{
 	
       }
     
+    delete gr_reco_xyz;
+    delete gr_reco_xy;
+    delete gr_reco_yz;
+    delete gr_reco_xz;
+     
     gr_reco_xyz = new TPolyLine3D( n_reco, z_reco, x_reco, y_reco );
     
     gr_reco_yz = new TGraph( n_reco, z_reco, y_reco ); gr_reco_xz = new TGraph( n_reco, z_reco, x_reco ); gr_reco_xy = new TGraph( n_reco, x_reco, y_reco );
@@ -1090,6 +1115,11 @@ namespace trkf{
 	if ( n_seg>=( stopper+1.0 ) && seg_stop!=-1 ) break;
 		
       }
+
+    delete gr_seg_xyz;
+    delete gr_seg_xy;
+    delete gr_seg_yz;
+    delete gr_seg_xz;
     
     gr_seg_xyz = new TPolyLine3D( n_seg, z_seg, x_seg, y_seg );
     
@@ -1476,6 +1506,11 @@ namespace trkf{
 	
       }
     
+    delete gr_seg_xyz;
+    delete gr_seg_xy;
+    delete gr_seg_yz;
+    delete gr_seg_xz;
+ 
     gr_seg_xyz = new TPolyLine3D( n_seg, z_seg, x_seg, y_seg );
     
     gr_seg_yz = new TGraph( n_seg, z_seg, y_seg ); gr_seg_xz = new TGraph( n_seg, z_seg, x_seg ); gr_seg_xy = new TGraph( n_seg, x_seg, y_seg );
