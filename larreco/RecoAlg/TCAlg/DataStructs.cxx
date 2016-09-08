@@ -19,13 +19,13 @@ namespace tca {
     "Killed",
     "StopAtVtx",
     "EndMerge",
-     "TrimHits",
+    "TrimHits",
     "ChkHiMultEndHits",
     "ChainMerge",
     "FillGap",
     "UseGhostHits",
-    "CheckInTraj",
-    "FixTrajBegin",
+    "ChkInTraj",
+    "FixBegin",
     "Muon",
     "DeltaRay"
   };
