@@ -114,6 +114,7 @@ namespace tca {
     fMinPtsFit            = pset.get< std::vector<unsigned short >>("MinPtsFit");
     fMinPts               = pset.get< std::vector<unsigned short >>("MinPts");
     fLAStep               = pset.get< std::vector<bool>>("LAStep");
+    fMaxHitMultiplicity   = pset.get< std::vector<unsigned short>>("MaxHitMultiplicity");
     fMaxChi               = pset.get< float >("MaxChi", 10);
     fChgPullCut           = pset.get< float >("ChgPullCut", 3);
     fMultHitSep           = pset.get< float >("MultHitSep", 2.5);
@@ -131,9 +132,9 @@ namespace tca {
     fShowerStudy          = pset.get< bool  >("ShowerStudy", false);
     fTagAllTraj           = pset.get< bool  >("TagAllTraj", false);
     fFillTruth            = pset.get< short >("FillTruth", 0);
-    fMuonTag              = pset.get< std::vector<unsigned short>>("MuonTag", {10000, 500});
+    fDeltaRayTag          = pset.get< std::vector<short>>("DeltaRayTag", {-1, -1, -1});
+    fMuonTag              = pset.get< std::vector<short>>("MuonTag", {-1, -1, -1});
     fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
-    fMuonDRaySepCut       = pset.get< float >("MuonDRaySepCut", -1);
     fShowerPrtPlane       = pset.get< short >("ShowerPrtPlane", -1);
     fVertex2DIPCut        = pset.get< float >("Vertex2DIPCut", -1);
     fVertex3DChiCut       = pset.get< float >("Vertex3DChiCut", -1);
@@ -155,9 +156,11 @@ namespace tca {
     if(fMinPtsFit.size() != fMinPts.size()) badinput = true;
     if(fMaxVertexTrajSep.size() != fMinPts.size()) badinput = true;
     if(fLAStep.size() != fMinPts.size()) badinput = true;
+    if(fMaxHitMultiplicity.size() != fMinPts.size()) badinput = true;
     if(badinput) throw art::Exception(art::errors::Configuration)<< "TrajClusterAlg: Bad input from fcl file. Vector lengths are not the same";
     
-    if(fMuonTag.size() < 2) throw art::Exception(art::errors::Configuration)<< "TrajClusterAlg: MuonTag must be size 2";
+    if(fMuonTag.size() < 3) throw art::Exception(art::errors::Configuration)<< "TrajClusterAlg: MuonTag must be size 3";
+    if(fDeltaRayTag.size() < 3) throw art::Exception(art::errors::Configuration)<< "TrajClusterAlg: DeltaRayTag must be size 3";
     
     if(kAlgBitSize != AlgBitNames.size())
       throw art::Exception(art::errors::Configuration)<<"kAlgBitSize "<<kAlgBitSize<<" != AlgBitNames size "<<AlgBitNames.size()<<"\n";
@@ -193,8 +196,8 @@ namespace tca {
       std::cout<<"\n";
       std::cout<<"Or specify All to turn all algs off\n";
     }
-    // Change the polarity of CheckInTraj
-    if(fUseAlg[kCheckInTraj]) { fUseAlg[kCheckInTraj] = false; } else { fUseAlg[kCheckInTraj] = true; std::cout<<"Note: CheckInTraj will be slow...\n"; }
+    // Change the polarity of ChkInTraj
+    if(fUseAlg[kChkInTraj]) { fUseAlg[kChkInTraj] = false; } else { fUseAlg[kChkInTraj] = true; std::cout<<"Note: ChkInTraj will be slow...\n"; }
    
   } // reconfigure
   
@@ -296,6 +299,8 @@ namespace tca {
             return;
           }
         } // fPlane
+        // No sense taking muon direction if delta ray tagging is disabled
+        if(fDeltaRayTag[0] >= 0) TagMuonDirections(tjs, fMuonTag[2], debug.WorkID);
         if(fVertex3DChiCut > 0) Find3DVertices(tpcid);
         // stash allTraj, etc in the trials vector if more than one is planned
         if(nTrials > 1 && !tjs.allTraj.empty()) {
@@ -507,8 +512,6 @@ namespace tca {
     // make a copy so they can be trimmed as needed
     // tj1 goes in work so we can use Storework
     work = tjs.allTraj[itj1];
-    --fWorkID;
-    work.WorkID = fWorkID;
     Trajectory tj2 = tjs.allTraj[itj2];
     
     // ensure that these are in the same step order
@@ -538,114 +541,54 @@ namespace tca {
     // The approach is to append tj2 to tj1, store tj1 as a new trajectory,
     // and re-assign all hits to the new trajectory
     
+    // First ensure that any hit will appear only once in the merged trajectory in the overlap region
+    // whether it is used or unused. The point on tj2 where the merge will begin, tj2ClosePt, will be
+    // increased until this condition is met.
+    // Make a temporary vector of work hits in the end points for simpler searching
+    std::vector<unsigned int> workHits;
+    for(unsigned short ii = 0; ii < work.Pts.size(); ++ii) {
+      // only go back a few points in work
+      if(ii > 10) break;
+      unsigned short ipt = work.Pts.size() - 1 - ii;
+      workHits.insert(workHits.end(), work.Pts[ipt].Hits.begin(), work.Pts[ipt].Hits.end());
+      if(ipt == 0) break;
+    } // ii
+    
+    bool bumpedPt = true;
+    while(bumpedPt) {
+      bumpedPt = false;
+      for(unsigned short ii = 0; ii < tj2.Pts[tj2ClosePt].Hits.size(); ++ii) {
+        unsigned int iht = tj2.Pts[tj2ClosePt].Hits[ii];
+        if(std::find(workHits.begin(), workHits.end(), iht) != workHits.end()) bumpedPt = true;
+      } // ii
+      if(bumpedPt) {
+        ++tj2ClosePt;
+      } else {
+        break;
+      }
+    } // bumpedPt
+    
     // append tj2 hits to tj1
     work.Pts.insert(work.Pts.end(), tj2.Pts.begin() + tj2ClosePt, tj2.Pts.end());
+    
+    // A more exhaustive check that hits only appear once
+    // put ALL work hits in workHits
+    workHits.clear();
+    PutTrajHitsInVector(work, false, workHits);
+    for(unsigned short ii = 0; ii < workHits.size() - 1; ++ii) {
+      for(unsigned short jj = ii + 1; jj < workHits.size(); ++jj) if(workHits[ii] == workHits[jj]) return false;
+     } // iht
+    
     // kill the original trajectories
     MakeTrajectoryObsolete(tjs, itj1);
     MakeTrajectoryObsolete(tjs, itj2);
+    // Do this so that StoreWork keeps the correct WorkID (of itj1)
+    work.ID = work.WorkID;
     StoreWork();
     return true;
     
   } // MergeAndStore
-/*
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::AppendToWork(unsigned short itj)
-  {
-    // The trajectory points in allTraj[itj] will be appended to the work trajectory.
-    // The work trajectory may be truncated to remove points with no used hits at the end.
-    // The itj trajectory may similarly be truncated at the beginning. The calling routine
-    // should define work.ID so that the hits on itj are properly assigned to it
-    fGoodWork = false;
-    if(itj > tjs.allTraj.size() - 1) return;
-    if(tjs.allTraj[itj].AlgMod[kKilled]) return;
-    
-    // make a copy
-    Trajectory tj = tjs.allTraj[itj];
 
-    // Reverse itj if necessary
-    unsigned short endw = work.EndPt[1];
-    unsigned short endt0 = tj.EndPt[0];
-    unsigned short endt1 = tj.EndPt[1];
-    if(TrajPointHitSep2(work.Pts[endw], tj.Pts[endt1]) < TrajPointHitSep2(work.Pts[endw], tj.Pts[endt0])) ReverseTraj(tj);
-    
-    // remove any points at the end of work that don't have used hits
-    work.Pts.resize(work.EndPt[1] + 1);
-    // remove any points at the beginning of tp that don't have used hits
-    if(tj.EndPt[0] > 0) {
-      std::cout<<"ATW: trim beginning points "<<tj.ID<<" "<<tj.EndPt[0]<<"\n";
-      tj.Pts.erase(tj.Pts.begin(), tj.Pts.begin()+tj.EndPt[0]);
-      SetEndPoints(tjs, tj);
-    }
-    
-    // This will be simple if there are no overlapping points
-    // tjClosePt is the point on itj that is closest to work. This will be
-    // 0 if there is no overlap
-    unsigned short tjClosePt;
-    // Set minSep very large so that dead wire regions are ignored
-    float minSep = 1000;
-    // find the closest point on itj to the last point on work
-    TrajPoint& endWorkTP = work.Pts[work.EndPt[1]];
-    TrajPointTrajDOCA(tjs, endWorkTP, tj, tjClosePt, minSep);
-    if(tjClosePt == 0) {
-      // Trajectories don't overlap except for maybe the last point of work
-      // and the first point of itj. See if this is the case
-      if(std::abs(work.Pts[endw].Pos[0] - tj.Pts[endt0].Pos[0]) < 0.5) {
-//        std::cout<<"ATW: End points on top of each other work.ID "<<work.ID<<" tj.ID "<<tj.ID<<". Fixed??\n";
-        // keep it simple for now. Just lop off the last point on the work trajectory
-        UnsetUsedHits(work.Pts[endw]);
-        SetEndPoints(tjs, work);
-        work.Pts.resize(work.EndPt[1] + 1);
-      }
-    } else {
-      // Trajectories overlap.
-      std::cout<<"ATW: Points overlap work.ID "<<work.ID<<" endw "<<endw<<" tj.ID "<<tj.ID<<" endt0 "<<endt0<<" tjClosePt "<<tjClosePt<<"\n";
-     // keep it simple for now. Clobber the TPs at the beginning of itj1 so
-      // that there is no overlap with work but first make a list of the hits that belong to
-      // itj in the overlap region before clobbering the points so that we can re-assign them
-      // to work
-      std::vector<unsigned int> oHits;
-      for(unsigned short ipt = 0; ipt < tjClosePt + 1; ++ipt) {
-        for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-          unsigned int iht = tj.Pts[ipt].Hits[ii];
-          if(tjs.inTraj[iht] != tj.ID) continue;
-          oHits.push_back(iht);
-          tjs.inTraj[iht] = 0;
-        } // ii
-      } // ipt
-      tj.Pts.erase(tj.Pts.begin(), tj.Pts.begin() + tjClosePt + 1);
-      // Use the overlap hits in work if they appear in a trajectory point in work
-      for(unsigned short ii = 0; ii < work.Pts.size(); ++ii) {
-        unsigned short ipt = work.EndPt[1] - ii;
-        for(unsigned short jj = 0; jj < work.Pts[ipt].Hits.size(); ++jj) {
-          unsigned int iht = work.Pts[ipt].Hits[jj];
-          if(std::find(oHits.begin(), oHits.end(), iht) == oHits.end()) continue;
-          work.Pts[ipt].UseHit[jj] = true;
-          tjs.inTraj[iht] = work.ID;
-        } // jj
-      } // ii
-    } // trajectories overlap
-    
-    // re-assign the tj hits to work
-    for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
-      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-        if(!tj.Pts[ipt].UseHit[ii]) continue;
-        unsigned int iht = tj.Pts[ipt].Hits[ii];
-        tjs.inTraj[iht] = work.ID;
-      } // ii
-    } // ipt
-    work.Pts.insert(work.Pts.end(), tj.Pts.begin(), tj.Pts.end());
-    SetEndPoints(tjs, work);
-    // Transfer the end vertex
-    work.Vtx[1] = tjs.allTraj[itj].Vtx[1];
-    // Transfer the end TP
-    work.EndTP[1] = tjs.allTraj[1].EndTP[1];
-    fGoodWork = true;
-    MakeTrajectoryObsolete(tjs, itj);
-//    mf::LogVerbatim("TC")<<"ATW: Appended "<<tj.ID;
-//    PrintTrajectory("ATW", tjs, work, USHRT_MAX);
-    
-  } // AppendToWork
-*/
   ////////////////////////////////////////////////
   void TrajClusterAlg::CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits)
   {
@@ -661,7 +604,7 @@ namespace tca {
   {
     // Reconstruct clusters in fPlane and put them in allTraj
     
-    unsigned int ii, iwire, jwire, iht, jht, oht;
+    unsigned int ii, iwire, jwire, iht, jht;
     
     if(fPlane > tjs.FirstWire.size() - 1) {
       mf::LogWarning("TC")<<"ReconstructAllTraj called with invalid fPlane "<<fPlane;
@@ -709,7 +652,7 @@ namespace tca {
           // ignore below-threshold hits
           if(tjs.fHits[iht]->PeakAmplitude() < fMinAmp) continue;
           // clear out any leftover work tjs.inTraj's that weren't cleaned up properly
-          for(oht = ifirsthit; oht < ilasthit; ++oht) if(tjs.inTraj[oht] < 0) tjs.inTraj[oht] = 0;
+//          for(oht = ifirsthit; oht < ilasthit; ++oht) if(tjs.inTraj[oht] < 0) tjs.inTraj[oht] = 0;
           prt = (debug.Plane == (int)fPlane && (int)iwire == debug.Wire && std::abs((int)tjs.fHits[iht]->PeakTime() - debug.Tick) < 10);
           if(prt) didPrt = true;
           // Only consider hits that are available
@@ -722,6 +665,8 @@ namespace tca {
           // Ignore runt hits
           if(iqtot < 1) continue;
           GetHitMultiplet(iht, iHitsInMultiplet, ihtIndex);
+          // too many hits in a multiplet for this pass
+          if(iHitsInMultiplet.size() > fMaxHitMultiplicity[fPass]) continue;
           if(iHitsInMultiplet.size() > 1) HitMultipletPosition(iht, fromTick, deltaRms, iqtot);
           if(prt) mf::LogVerbatim("TC")<<"+++++++ Pass "<<fPass<<" Found debug hit "<<fPlane<<":"<<PrintHit(tjs.fHits[iht])<<" tjs.inTraj "<<tjs.inTraj[iht]<<" RMS "<<tjs.fHits[iht]->RMS()<<" BB Multiplicity "<<iHitsInMultiplet.size()<<" LocalIndex "<<ihtIndex;
           for(jht = jfirsthit; jht < jlasthit; ++jht) {
@@ -742,12 +687,13 @@ namespace tca {
 //                return;
               }
             }
-            fHitDoublet = false;
             toWire = jwire;
             toTick = tjs.fHits[jht]->PeakTime();
             jqtot = tjs.fHits[jht]->Integral();
             if(jqtot < 1) continue;
             GetHitMultiplet(jht, jHitsInMultiplet, jhtIndex);
+            // too many hits in a multiplet for this pass
+            if(jHitsInMultiplet.size() > fMaxHitMultiplicity[fPass]) continue;
             if(jHitsInMultiplet.size() > 1) HitMultipletPosition(jht, toTick, deltaRms, jqtot);
             if(prt) mf::LogVerbatim("TC")<<"+++++++ checking ClusterHitsOK with jht "<<fPlane<<":"<<PrintHit(tjs.fHits[jht])<<" RMS "<<tjs.fHits[jht]->RMS()<<" BB Multiplicity "<<jHitsInMultiplet.size()<<" LocalIndex "<<jhtIndex;
             // Ensure that the hits StartTick and EndTick have the proper overlap
@@ -842,7 +788,7 @@ namespace tca {
       if(fQuitAlg) return;
       ChainMerge();
       if(fQuitAlg) return;
-      TagDeltaRays(tjs, fCTP, fMuonDRaySepCut);
+      TagDeltaRays(tjs, fCTP, fDeltaRayTag, debug.WorkID);
       Find2DVertices();
       if(fQuitAlg) return;
     } // fPass
@@ -851,7 +797,7 @@ namespace tca {
     if(fJTMaxHitSep2 > 0) {
       FindJunkTraj();
       if(fQuitAlg) return;
-      TagDeltaRays(tjs, fCTP, fMuonDRaySepCut);
+      TagDeltaRays(tjs, fCTP, fDeltaRayTag, debug.WorkID);
       Find2DVertices();
       // check for a major failure
       if(fQuitAlg) return;
@@ -879,7 +825,7 @@ namespace tca {
     
     // Only consider trajectories that have had their beginning trajectory points
     // updated by FixTrajBegin
-    if(!tj.AlgMod[kFixTrajBegin]) return;
+    if(!tj.AlgMod[kFixBegin]) return;
     
     // decide how complicated this should get. If the delta values at the beginning are not
     // too bad, we can just mask them off. If this is not the case, then the trajectory should
@@ -1548,7 +1494,7 @@ namespace tca {
       tjs.vtx.push_back(aVtx);
       tj1.Vtx[photonConvEnd] = tjs.vtx.size() - 1;
       // unresolved e+e- pair
-      tj1.PDG = 24;
+      tj1.PDGCode = 24;
       if(prt) mf::LogVerbatim("TC")<<"chgrat "<<tjs.allTraj[itj].ID<<" "<<chgrat<<" photonConvEnd "<<photonConvEnd<<" bchg "<<(int)bchg<<" echg "<<(int)echg;
 //      PrintAllTraj(tjs, debug, itj, USHRT_MAX);
       // find the separation point of the electrons, use a local average charge
@@ -1602,12 +1548,12 @@ namespace tca {
       Trajectory& tj1 = tjs.allTraj[i1];
       if(tj1.AlgMod[kKilled]) continue;
       if(tj1.CTP != fCTP) continue;
-      if(tj1.PDG == 12) continue;
+      if(tj1.PDGCode == 12) continue;
       for(i2 = i1 + 1; i2 < tjs.allTraj.size(); ++i2) {
         Trajectory& tj2 = tjs.allTraj[i2];
         if(tj2.AlgMod[kKilled]) continue;
         if(tj2.CTP != tj1.CTP) continue;
-        if(tj2.PDG == 12) continue;
+        if(tj2.PDGCode == 12) continue;
         // find the closest approach
         minSep2 = maxSep2;
         TrajTrajDOCA(tj1, tj2, ipt1, ipt2, minSep2);
@@ -1724,10 +1670,10 @@ namespace tca {
       for(itj = 0; itj < tjs.allTraj.size(); ++itj) {
         if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
         if(tjs.allTraj[itj].CTP != tjs.vtx[ivx].CTP) continue;
-        if(tjs.allTraj[itj].PDG == 24) continue;
+        if(tjs.allTraj[itj].PDGCode == 24) continue;
         if(tjs.allTraj[itj].Vtx[0] == ivx || tjs.allTraj[itj].Vtx[1] == ivx) {
           tjIndices.push_back(itj);
-          if(tjs.allTraj[itj].PDG == 12) ++nsh;
+          if(tjs.allTraj[itj].PDGCode == 12) ++nsh;
         }
       } // itj
       if(tjIndices.empty()) continue;
@@ -1857,16 +1803,16 @@ namespace tca {
     // Tag a track-like trajectory using primTraj and a shower-like cluster consisting
     // of all other trajectories in ClsOfTrj[icot]
     
-    // set the PDG for all TJ's to shower-like
+    // set the PDGCode for all TJ's to shower-like
     unsigned short ii, itj;
     for(ii = 0; ii < ClsOfTrj[icot].size(); ++ii) {
       itj = ClsOfTrj[icot][ii];
-      tjs.allTraj[itj].PDG = 12;
-      tjs.allTraj[itj].ParentTraj = primTraj;
+      tjs.allTraj[itj].PDGCode = 12;
+      tjs.allTraj[itj].ParentTrajID = primTraj + 1;
     }
     
-    tjs.allTraj[primTraj].PDG = 13;
-    tjs.allTraj[primTraj].ParentTraj = USHRT_MAX;
+    tjs.allTraj[primTraj].PDGCode = 13;
+    tjs.allTraj[primTraj].ParentTrajID = 0;
     
   } // MakeShowerClusters
   
@@ -2051,26 +1997,21 @@ namespace tca {
       fwire = wire;
       for(iht = firstHit; iht < lastHit; ++iht) {
         if(tjs.inTraj[iht] == tj.ID) continue;
-        // ensure that it isn't associated with previous points
-        if(ipt > 1) {
-          bool skipHit = false;
-          for(unsigned short jj = 0; jj < tj.Pts.size(); ++jj) {
-            unsigned short jpt = ipt - jj;
-            for(unsigned short ii = 0; ii < tj.Pts[jpt].Hits.size(); ++ii) if(tj.Pts[jpt].Hits[ii] == iht) skipHit = true;
-            if(skipHit) break;
-            if(jpt == 0) break;
-          } // jj
-          if(skipHit) continue;
-        } // ipt > 0
+        // ensure that it isn't associated with any existing points. Determine how many
+        // of the previous points to check. Check all previous points for LA trajectories
+        short nPtsToCheck = 3;
+        if(isLA) nPtsToCheck = -1;
+        if(HitIsInTj(tj, iht, nPtsToCheck, prt)) continue;
         if(rawProjTick > tjs.fHits[iht]->StartTick() && rawProjTick < tjs.fHits[iht]->EndTick()) sigOK = true;
         if(tjs.fHits[iht]->Integral() < 1) continue;
         ftime = tjs.UnitsPerTick * tjs.fHits[iht]->PeakTime();
         delta = PointTrajDOCA(tjs, fwire, ftime, tp);
         float dt = std::abs(ftime - tp.Pos[1]);
         GetHitMultiplet(iht, hitsInMultiplet, localIndex);
-        if(prt && delta < 100 && dt < 200) {
+        if(prt && delta < 100 && dt < 100) {
           mf::LogVerbatim myprt("TC");
-          myprt<<"  chk "<<tjs.fHits[iht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[iht]);
+          myprt<<"  iht "<<iht;
+          myprt<<" "<<tjs.fHits[iht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[iht]);
           myprt<<" delta "<<std::fixed<<std::setprecision(2)<<delta<<" deltaCut "<<deltaCut<<" dt "<<dt;
           myprt<<" BB Mult "<<hitsInMultiplet.size()<<" localIndex "<<localIndex<<" RMS "<<std::setprecision(1)<<tjs.fHits[iht]->RMS();
           myprt<<" Chi "<<std::setprecision(1)<<tjs.fHits[iht]->GoodnessOfFit();
@@ -2078,6 +2019,7 @@ namespace tca {
           myprt<<" Chg "<<(int)tjs.fHits[iht]->Integral();
           myprt<<" Signal? "<<sigOK;
         }
+        if(hitsInMultiplet.size() > fMaxHitMultiplicity[tj.Pass]) continue;
         // Use this to consider large RMS hits whose PeakTime fails the delta cut
         if(!isVLA && delta < bigDelta && tjs.inTraj[iht] == 0) {
           if(!isLA) {
@@ -2120,6 +2062,8 @@ namespace tca {
           for(auto& jht : hitsInMultiplet) {
             if(tjs.inTraj[jht] == tj.ID) continue;
             if(std::find(closeHits.begin(), closeHits.end(), jht) != closeHits.end()) continue;
+            // ensure that it isn't associated with any existing points
+            if(HitIsInTj(tj, jht, nPtsToCheck, prt)) continue;
             closeHits.push_back(jht);
           } // jht
         } // multiplicity > 1
@@ -2313,7 +2257,7 @@ namespace tca {
       tp.UseHit[imBest] = true;
       tjs.inTraj[bestHit] = tj.ID;
     } // good charge
-     else if(nAvailable == 1 && tj.AlgMod[kMuon] && tp.Delta < 2 * tp.DeltaRMS && bestHitChgPull < 2 * chgPullCut) {
+     else if(nAvailable == 1 && tj.PDGCode == 13 && tp.Delta < 2 * tp.DeltaRMS && bestHitChgPull < 2 * chgPullCut) {
        // special handling for muons. Allow higher charge if the delta is very good
        tp.UseHit[imBest] = true;
        tjs.inTraj[bestHit] = tj.ID;
@@ -2763,7 +2707,7 @@ namespace tca {
         } else {
           ptSep = tp1.Pos[0] - tp2.Pos[0] - dwc;
         }
-        bool twoMuons = tjs.allTraj[tj1].AlgMod[kMuon] && tjs.allTraj[tj2].AlgMod[kMuon];
+        bool twoMuons = tjs.allTraj[tj1].PDGCode == 13 && tjs.allTraj[tj2].PDGCode == 13;
         float maxWireSkip = fMaxWireSkipNoSignal;
         if(fuBCode && twoMuons) maxWireSkip = 40;
         if(mrgPrt) {
@@ -2857,6 +2801,7 @@ namespace tca {
     for(tj1 = 0; tj1 < tjSize; ++tj1) {
       if(tjs.allTraj[tj1].AlgMod[kKilled]) continue;
       if(tjs.allTraj[tj1].CTP != fCTP) continue;
+      if(tjs.allTraj[tj1].PDGCode == 12) continue;
 //      tj1len = tjs.allTraj[tj1].EndPt[1] - tjs.allTraj[tj1].EndPt[0];
       for(end1 = 0; end1 < 2; ++end1) {
         // vertex assignment exists?
@@ -2872,6 +2817,7 @@ namespace tca {
         for(tj2 = tj1 + 1; tj2 < tjSize; ++tj2) {
           if(tjs.allTraj[tj2].AlgMod[kKilled]) continue;
           if(tjs.allTraj[tj2].CTP != fCTP) continue;
+          if(tjs.allTraj[tj2].PDGCode == 12) continue;
 //          tj2len = tjs.allTraj[tj2].EndPt[1] - tjs.allTraj[tj2].EndPt[0];
           for(end2 = 0; end2 < 2; ++end2) {
             if(end2 == 0) {
@@ -3722,14 +3668,14 @@ namespace tca {
         break;
       }
       // Special handling of very long straight trajectories, e.g. uB cosmic rays
-      if(work.Pts.size() == fMuonTag[0] && !work.AlgMod[kMuon]) {
+      if(fMuonTag[0] >= 0 && work.Pts.size() > (unsigned short)fMuonTag[0] && work.PDGCode != 13) {
         work.MCSMom = MCSMom(tjs, work);
-        work.AlgMod[kMuon] = (work.MCSMom > fMuonTag[1]);
-        if(prt) mf::LogVerbatim("TC")<<" Check MCSMom "<<work.MCSMom<<" muon? "<<work.AlgMod[kMuon];
+        if(work.MCSMom > fMuonTag[1]) work.PDGCode = 13;
+        if(prt) mf::LogVerbatim("TC")<<" Check MCSMom "<<work.MCSMom<<" PDGCode "<<work.PDGCode;
       }
 
       // anything really really long must be a muon
-      if(work.Pts.size() > 200) work.AlgMod[kMuon] = true;
+      if(work.Pts.size() > 200) work.PDGCode = 13;
       // copy this position into tp
       tp.Pos = ltp.Pos;
       tp.Dir = ltp.Dir;
@@ -3767,7 +3713,7 @@ namespace tca {
           float nMissedWires = tps * std::abs(ltp.Dir[0]) - dwc;
           float maxWireSkip = fMaxWireSkipNoSignal;
           // an ugly hack for tracking cosmic rays in MicroBooNE
-          if(fuBCode && work.AlgMod[kMuon]) maxWireSkip = 50;
+          if(fuBCode && work.PDGCode == 13) maxWireSkip = 50;
           if(prt) mf::LogVerbatim("TC")<<" StepCrawl: no signal at ltp "<<PrintPos(tjs, ltp)<<" nMissedWires "<<nMissedWires<<" dead wire count "<<dwc<<" maxWireSkip "<<maxWireSkip;
           if(nMissedWires > maxWireSkip) break;
         }
@@ -3804,6 +3750,21 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<"StepCrawl: Third TP. 0-2 sep "<<TrajPointHitSep2(work.Pts[0], work.Pts[2])<<" 0-1 sep "<<TrajPointHitSep2(work.Pts[0], work.Pts[1]);
         if(TrajPointHitSep2(work.Pts[0], work.Pts[2]) < TrajPointHitSep2(work.Pts[0], work.Pts[1])) return;
       } // work.Pts.size() == 3
+      // Quit if the separation between points for LA trajectories is too small
+      // indicating that the trajectory is curling up on itself yyy
+      if(isLA && work.EndPt[1] > 2) {
+        for(unsigned short ii = 1; ii < work.Pts.size(); ++ii) {
+          unsigned short ipt = work.EndPt[1] - ii;
+          float tpSep = TrajPointSeparation(work.Pts[ipt], work.Pts[lastPt]);
+          if(prt) std::cout<<ipt<<" Sep "<<tpSep<<"\n";
+          if(tpSep < 1) {
+            if(prt) mf::LogVerbatim("TC")<<" Curly LA trajectory. Stop stepping ";
+            fGoodWork = false;
+            return;
+          }
+          if(ipt == 0) break;
+        } // ii
+      } // isLA &&
       // Update the local TP with the updated position and direction
       ltp.Pos = work.Pts[lastPt].Pos;
       ltp.Dir = work.Pts[lastPt].Dir;
@@ -3832,7 +3793,7 @@ namespace tca {
       // See if the Chisq/DOF exceeds the maximum.
       // UpdateTraj should have reduced the number of points fit
       // as much as possible for this pass, so this trajectory is in trouble.
-      if(killPts == 0 &&  work.Pts[lastPt].FitChi > fMaxChi && !work.AlgMod[kMuon]) {
+      if(killPts == 0 &&  work.Pts[lastPt].FitChi > fMaxChi && work.PDGCode != 13) {
         if(prt) mf::LogVerbatim("TC")<<"   bad FitChi "<<work.Pts[lastPt].FitChi<<" cut "<<fMaxChi;
         fGoodWork = (NumPtsWithCharge(work, true) > fMinPtsFit[fPass]);
         return;
@@ -4119,7 +4080,7 @@ namespace tca {
     }
     
     // Fill in any gaps with hits that were skipped, most likely delta rays on muon tracks
-    if(!isLA && fUseAlg[kFillGap]) FillMissedPoints(tj);
+    if(!isLA) FillGaps(tj);
     
     // Update the trajectory parameters at the beginning of the trajectory
     FixTrajBegin(tj);
@@ -4274,9 +4235,9 @@ namespace tca {
     // points may not belong to this trajectory since they were added when there was
     // little information. This information may be updated later if ReversePropagate is used
     
-    if(!fUseAlg[kFixTrajBegin]) return;
+    if(!fUseAlg[kFixBegin]) return;
     // only do this once
-    if(tj.AlgMod[kFixTrajBegin]) return;
+    if(tj.AlgMod[kFixBegin]) return;
     // ignore short trajectories
     if(NumPtsWithCharge(tj, false) < 6) return;
     // ignore junk trajectories
@@ -4332,61 +4293,73 @@ namespace tca {
         }
       }
     } // ipt
-    tj.AlgMod[kFixTrajBegin] = true;
+    tj.AlgMod[kFixBegin] = true;
 
   } // FixTrajBegin
 
   ////////////////////////////////////////////////
-  void TrajClusterAlg::FillMissedPoints(Trajectory& tj)
+  void TrajClusterAlg::FillGaps(Trajectory& tj)
   {
-    // Fill in any gaps in the trajectory with nearby hits
-    unsigned short ipt, endPt0, endPt1, nextPtWithChg, mpt, ii;
-    unsigned int iht;
-    float delta, maxDelta;
-    endPt0 = tj.EndPt[0];
-    endPt1 = tj.EndPt[1];
-    bool filled = false;
+    // Fill in any gaps in the trajectory with close hits regardless of charge
+   
+    if(!fUseAlg[kFillGap]) return;
+    
+    // start with the first point that has charge
+    unsigned short firstPtWithChg = tj.EndPt[0];
     bool first = true;
-    TrajPoint tp;
-    for(ipt = endPt0; ipt < endPt1 - 1; ++ipt) {
-      for(nextPtWithChg = ipt + 1; nextPtWithChg < endPt1; ++nextPtWithChg) {
+    float maxDelta = 1;
+    while(firstPtWithChg < tj.EndPt[1]) {
+      unsigned short nextPtWithChg = firstPtWithChg + 1;
+      // find the next point with charge
+      for(nextPtWithChg = firstPtWithChg + 1; nextPtWithChg < tj.EndPt[1]; ++nextPtWithChg) {
         if(tj.Pts[nextPtWithChg].Chg > 0) break;
-      } // jpt
-      if(nextPtWithChg == ipt + 1) continue;
+      } // nextPtWithChg
+      if(nextPtWithChg == firstPtWithChg + 1) {
+        // the next point has charge
+        ++firstPtWithChg;
+        continue;
+      }
+      // Found a gap. Make a bare trajectory point at firstPtWithChg that points to nextPtWithChg
+      TrajPoint tp;
+      MakeBareTrajPoint(tjs, tj.Pts[firstPtWithChg], tj.Pts[nextPtWithChg], tp);
       // Find the maximum delta between hits and the trajectory Pos for all
       // hits on this trajectory
       if(first) {
         maxDelta = MaxHitDelta(tj);
         first = false;
       } // first
-      // Make a trajectory between the two points with charge
-      MakeBareTrajPoint(tjs, tj.Pts[ipt], tj.Pts[nextPtWithChg], tp);
-      if(tp.Pos[0] < 0) {
-        mf::LogWarning("TC")<<"FillMissedPoints: bad trajectory. Print and quit ";
-        PrintTrajectory("FMP", tjs, tj, USHRT_MAX);
-        continue;
-      }
-      for(mpt = ipt + 1; mpt < nextPtWithChg; ++mpt) {
-        if(tj.Pts[mpt].Hits.empty()) continue;
-        filled = false;
-        for(ii = 0; ii < tj.Pts[mpt].Hits.size(); ++ii) {
-          iht = tj.Pts[mpt].Hits[ii];
+      // fill in the gap
+      for(unsigned short mpt = firstPtWithChg + 1; mpt < nextPtWithChg; ++mpt) {
+        if(tj.Pts[mpt].Chg > 0) {
+          mf::LogError("TC")<<"FillGaps coding error: firstPtWithChg "<<firstPtWithChg<<" mpt "<<mpt<<" nextPtWithChg "<<nextPtWithChg;
+          fQuitAlg = true;
+          return;
+        }
+        bool filled = false;
+        for(unsigned short ii = 0; ii < tj.Pts[mpt].Hits.size(); ++ii) {
+          unsigned int iht = tj.Pts[mpt].Hits[ii];
           if(tjs.inTraj[iht] > 0) continue;
-          delta = PointTrajDOCA(tjs, iht, tp);
-//          std::cout<<"UseHit "<<fPlane<<":"<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<"\n";
+          float delta = PointTrajDOCA(tjs, iht, tp);
           if(delta > maxDelta) continue;
+          if(tj.Pts[mpt].UseHit[ii]) {
+            mf::LogError("TC")<<"FillGaps: Found UseHit true on TP with no charge "<<tj.ID<<" mpt "<<mpt<<" hit "<<PrintHit(tjs.fHits[iht]);
+            fQuitAlg = true;
+            return;
+          }
           tj.Pts[mpt].UseHit[ii] = true;
           tjs.inTraj[iht] = tj.ID;
           filled = true;
         } // ii
         if(filled) {
           DefineHitPos(tj.Pts[mpt]);
-          work.AlgMod[kFillGap] = true;
+          tj.AlgMod[kFillGap] = true;
           if(prt) PrintTrajPoint("FMP", tjs, mpt, tj.StepDir, tj.Pass, tj.Pts[mpt]);
-        }
+        } // filled
       } // mpt
-    } // ipt
-  } // FillMissedPoints
+      firstPtWithChg = nextPtWithChg;
+    } // firstPtWithChg
+    
+  } // FillGaps
 
   ////////////////////////////////////////////////
   float TrajClusterAlg::MaxHitDelta(Trajectory& tj)
@@ -5030,8 +5003,16 @@ namespace tca {
       if(ipt == 0) break;
     } // ii
     if(prevPtWithHits == USHRT_MAX) return;
+    
+    // define the FitChi threshold above which something will be done
+    float maxChi = 2;
+    unsigned short minPtsFit = fMinPtsFit[tj.Pass];
+    if(tj.PDGCode == 13) {
+      maxChi = fMaxChi;
+      minPtsFit = lastPt / 3;
+    }
 
-    if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" LargeAngle? "<<IsLargeAngle(lastTP);
+    if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" LargeAngle? "<<IsLargeAngle(lastTP)<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit;
     
     // Set the lastPT delta before doing the fit
     lastTP.Delta = PointTrajDOCA(tjs, lastTP.HitPos[0], lastTP.HitPos[1], lastTP);
@@ -5069,9 +5050,10 @@ namespace tca {
     // Keep adding hits until Chi/DOF exceeds 1
     if(tj.Pts[prevPtWithHits].FitChi < 1) lastTP.NTPsFit += 1;
     // Reduce the number of points fit if the trajectory is long and chisq is getting a bit larger
-    if(lastPt > 20 && tj.Pts[prevPtWithHits].FitChi > 1.5) lastTP.NTPsFit -= 2;
-    // Reduce the length of long muons by 5% if chisq starts to get a bit large
-    if(tj.AlgMod[kMuon] && tj.Pts[prevPtWithHits].FitChi > 1 && lastTP.NTPsFit > fMaxWireSkipWithSignal) lastTP.NTPsFit *= 0.95;
+    if(lastPt > 20 && tj.Pts[prevPtWithHits].FitChi > 1.5 && lastTP.NTPsFit > minPtsFit) lastTP.NTPsFit -= 2;
+    // Reduce the number of fitted points for long muons by 5% if chisq starts to get a bit large
+    // but keep it at least 50% of the total length
+//    if(tj.PDGCode == 13 && lastTP.NTPsFit > minPtsFit && tj.Pts[prevPtWithHits].FitChi > 1) lastTP.NTPsFit *= 0.95;
     
     FitTraj(tj);
     
@@ -5093,10 +5075,6 @@ namespace tca {
       if(cnt == lastTP.NTPsFit) break;
       if(ipt == 0) break;
     }
-    
-    // define the FitChi threshold above which something will be done
-    float maxChi = 2;
-    if(tj.AlgMod[kMuon]) maxChi = fMaxChi;
     
     if(lastTP.FitChi > maxChi && tj.Pts.size() > 6) {
       // A large chisq jump can occur if we just jumped a large block of dead wires. In
@@ -5121,14 +5099,14 @@ namespace tca {
         }
         // we should also mask off the last TP if there aren't enough hits
         // to satisfy the minPtsFit constraint
-        if(!fMaskedLastTP && NumPtsWithCharge(tj, true) < fMinPtsFit[tj.Pass]) fMaskedLastTP = true;
+        if(!fMaskedLastTP && NumPtsWithCharge(tj, true) < minPtsFit) fMaskedLastTP = true;
       } // few dead wires
     } // lastTP.FitChi > 2 ...
     
     // a really long trajectory (uB cosmic). Don't mask off the last TP unless
     // chisq gets really large
-    if(tj.AlgMod[kMuon] && lastTP.FitChi > fMaxChi) {
-      if(prt) mf::LogVerbatim("TC")<<" kMuon - mask last point "<<lastPt;
+    if(tj.PDGCode == 13 && lastTP.FitChi > fMaxChi) {
+      if(prt) mf::LogVerbatim("TC")<<" Muon - mask last point "<<lastPt;
       fMaskedLastTP = true;
     }
     
@@ -5147,8 +5125,7 @@ namespace tca {
       unsigned short newNTPSFit = lastTP.NTPsFit;
       // reduce the number of points fit to keep Chisq/DOF < 2 adhering to the pass constraint
       // and also a minimum number of points fit requirement for long muons
-      unsigned short muonMinPtsFit = lastPt / 2;
-      while(lastTP.FitChi > 1.5 && lastTP.NTPsFit > 2) {
+      while(lastTP.FitChi > 1.5 && lastTP.NTPsFit > minPtsFit) {
         if(lastTP.NTPsFit > 15) {
           newNTPSFit = 0.7 * newNTPSFit;
         } else if(lastTP.NTPsFit > 4) {
@@ -5157,11 +5134,11 @@ namespace tca {
           newNTPSFit -= 1;
         }
         if(lastTP.NTPsFit < 3) newNTPSFit = 2;
-        if(tj.AlgMod[kMuon] && newNTPSFit < muonMinPtsFit) break;
+        if(newNTPSFit < minPtsFit) newNTPSFit = minPtsFit;
         lastTP.NTPsFit = newNTPSFit;
         if(prt) mf::LogVerbatim("TC")<<"  Bad FitChi "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" Pass "<<tj.Pass;
         FitTraj(tj);
-        if(lastTP.NTPsFit <= fMinPtsFit[tj.Pass]) break;
+        if(lastTP.NTPsFit == minPtsFit) break;
       } // lastTP.FitChi > 2 && lastTP.NTPsFit > 2
     }
     // last ditch attempt. Drop the last hit
@@ -5620,11 +5597,11 @@ namespace tca {
   }
   
   ////////////////////////////////////////////////
-  void TrajClusterAlg::CheckInTraj(std::string someText)
+  void TrajClusterAlg::ChkInTraj(std::string someText)
   {
     // Check tjs.allTraj -> tjs.inTraj associations
     
-    if(!fUseAlg[kCheckInTraj]) return;
+    if(!fUseAlg[kChkInTraj]) return;
     
     unsigned short tID;
     unsigned int iht;
@@ -5643,14 +5620,14 @@ namespace tca {
         }
       } // tp
       if(tj.AlgMod[kKilled]) {
-        std::cout<<someText<<" CheckInTraj hit size mis-match in tj ID "<<tj.ID<<" AlgBitNames";
+        std::cout<<someText<<" ChkInTraj hit size mis-match in tj ID "<<tj.ID<<" AlgBitNames";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) std::cout<<" "<<AlgBitNames[ib];
         std::cout<<"\n";
         continue;
       }
       PutTrajHitsInVector(tj, true,  tHits);
       if(tHits.size() < 2) {
-        mf::LogVerbatim("TC")<<someText<<" CheckInTraj: Insufficient hits in traj "<<tj.ID<<" Killing it";
+        mf::LogVerbatim("TC")<<someText<<" ChkInTraj: Insufficient hits in traj "<<tj.ID<<" Killing it";
         tj.AlgMod[kKilled] = true;
         continue;
       }
@@ -5660,20 +5637,20 @@ namespace tca {
         if(tjs.inTraj[iht] == tID) atHits.push_back(iht);
       } // iht
       if(atHits.size() < 2) {
-        mf::LogVerbatim("TC")<<someText<<" CheckInTraj: Insufficient hits in atHits in traj "<<tj.ID<<" Killing it";
+        mf::LogVerbatim("TC")<<someText<<" ChkInTraj: Insufficient hits in atHits in traj "<<tj.ID<<" Killing it";
         tj.AlgMod[kKilled] = true;
         continue;
       }
       if(!std::equal(tHits.begin(), tHits.end(), atHits.begin())) {
         mf::LogVerbatim myprt("TC");
-        myprt<<someText<<" CheckInTraj: inTraj - UseHit mis-match for tj ID "<<tID<<" tj.WorkID "<<tj.WorkID<<" atHits size "<<atHits.size()<<" tHits size "<<tHits.size()<<" in CTP "<<tj.CTP<<"\n";
+        myprt<<someText<<" ChkInTraj: inTraj - UseHit mis-match for tj ID "<<tID<<" tj.WorkID "<<tj.WorkID<<" atHits size "<<atHits.size()<<" tHits size "<<tHits.size()<<" in CTP "<<tj.CTP<<"\n";
         myprt<<"AlgMods: ";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         myprt<<"\n";
         myprt<<"     inTraj     UseHit \n";
         for(iht = 0; iht < atHits.size(); ++iht) {
-          myprt<<"iht "<<iht<<" "<<PrintHit(tjs.fHits[atHits[iht]]);
-          if(iht < tHits.size()) myprt<<" "<<PrintHit(tjs.fHits[tHits[iht]]);
+          myprt<<"iht "<<iht<<" "<<PrintHit(tjs.fHits[atHits[iht]])<<"_"<<tjs.inTraj[atHits[iht]];
+          if(iht < tHits.size()) myprt<<" "<<PrintHit(tjs.fHits[tHits[iht]])<<"_"<<tjs.inTraj[tHits[iht]];
           if(atHits[iht] != tHits[iht]) myprt<<" <<< ";
           myprt<<"\n";
           fQuitAlg = true;
@@ -5689,7 +5666,7 @@ namespace tca {
       if(fQuitAlg) return;
     } // tj
     
-  } // CheckInTraj
+  } // ChkInTraj
 
   ////////////////////////////////////////////////
   void TrajClusterAlg::StoreWork()
@@ -5708,6 +5685,21 @@ namespace tca {
     if(work.StepDir < 0) ReverseTraj(work);
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tjs, work);
+    
+    // Ensure that a hit only appears once in the TJ
+    std::vector<unsigned int> tHits;
+    // put ALL hits in the vector
+    PutTrajHitsInVector(work, false, tHits);
+    for(unsigned short ii = 0; ii < tHits.size(); ++ii) {
+      for(unsigned short jj = ii + 1; jj < tHits.size(); ++jj) {
+        if(tHits[ii] == tHits[jj]) {
+          std::cout<<"Hit "<<PrintHit(tjs.fHits[tHits[ii]])<<" appears twice in trajectory workID "<<work.ID<<"\n";
+          PrintTrajectory("SW", tjs, work, USHRT_MAX);
+          fQuitAlg = true;
+          return;
+        }
+      } // jj
+    } // ii
     
     // Calculate the charge near the end and beginning if necessary. This must be a short
     // trajectory. Find the average using 4 points
@@ -5772,7 +5764,7 @@ namespace tca {
     work.ID = trID;
     tjs.allTraj.push_back(work);
     if(prt) mf::LogVerbatim("TC")<<"StoreWork trID "<<trID<<" CTP "<<work.CTP<<" EndPts "<<work.EndPt[0]<<" "<<work.EndPt[1];
-    CheckInTraj("StoreWork");
+    ChkInTraj("StoreWork");
     
   } // StoreWork
   
@@ -5823,7 +5815,7 @@ namespace tca {
     
     if(prt) mf::LogVerbatim("TC")<<"MakeAllTrajClusters: tjs.allTraj size "<<tjs.allTraj.size();
     
-    CheckInTraj("MATC");
+    ChkInTraj("MATC");
     if(fQuitAlg) return;
     
     unsigned short itj, endPt0, endPt1, ii;
@@ -5840,14 +5832,17 @@ namespace tca {
       // ensure that the endPts are correct
       SetEndPoints(tjs, tj);
       // some sort of error occurred
-      if(tj.EndPt[0] >= tj.EndPt[1]) continue;
+      if(tj.EndPt[0] >= tj.EndPt[1]) {
+        mf::LogWarning("TC")<<"MakeAllTrajClusters failed in SetEndPoints "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        continue;
+      }
       // count AlgMod bits
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) ++fAlgModCount[ib];
       ++clID;
       cls.ID = clID;
       cls.CTP = tj.CTP;
-      cls.PDG = tj.PDG;
-      cls.ParentCluster = tj.ParentTraj;
+      cls.PDGCode = tj.PDGCode;
+      cls.ParentCluster = tj.ParentTrajID - 1;
       endPt0 = tj.EndPt[0];
       cls.BeginWir = tj.Pts[endPt0].Pos[0];
       cls.BeginTim = tj.Pts[endPt0].Pos[1] / tjs.UnitsPerTick;
@@ -5885,7 +5880,8 @@ namespace tca {
           if(tjs.newHits[iht].WireID().Plane != planeID.Plane ||
              tjs.newHits[iht].WireID().Cryostat != planeID.Cryostat ||
              tjs.newHits[iht].WireID().TPC != planeID.TPC) {
-            mf::LogError("TC")<<"MakeAllTrajClusters: Bad NEW hit CTP in itj "<<itj<<" hit "<<PrintHit(tjs.newHits[iht]);
+            mf::LogError("TC")<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.newHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.newHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.newHits[iht].WireID().TPC<<" vs "<<planeID.TPC;
+            PrintAllTraj("MATC", tjs, debug, itj, USHRT_MAX);
             fQuitAlg = true;
             return;
           }
@@ -5900,58 +5896,60 @@ namespace tca {
   void TrajClusterAlg::MakeNewHits()
   {
     // Make a new hit collection by merging close hits on each TP. The trajectory point -> hit
-    // association tj.Pts[].Hits[] is redirected to tjs.newHits instead of tjs.fHits. This is intended
-    // to be called just before clusters are made from trajectories. Hits that are associated with a
-    // trajectory point but are not used are NOT redirected to the new hit collection since they will
-    // be ignored.
-    
+    // association tj.Pts[].Hits[] is redirected to tjs.newHits instead of tjs.fHits. Currently this
+    // routine is called just before making clusters so there should be little confusion whether to use
+    // tjs.newHits or tjs.fHits but one can test tjs.newhits.empty() to be sure.
+
 //    PrintAllTraj("MNH1", tjs, debug, 3, USHRT_MAX);
     
     tjs.newHits.reserve(tjs.fHits.size());
     std::vector<bool> flag(tjs.fHits.size(), false);
+    // oldnew points from old hit to new hit, or UINT_MAX for obsolete hits
+    std::vector<unsigned int> oldnew(tjs.fHits.size(), UINT_MAX);
 
     for(unsigned int fht = 0; fht < tjs.fHits.size(); ++fht) {
       // already considered
       if(flag[fht]) continue;
+      
       if(tjs.inTraj[fht] <= 0) {
         // unused hit. Just copy it
         tjs.newHits.emplace_back(*tjs.fHits[fht]);
         // flag it as considered
         flag[fht] = true;
+        oldnew[fht] = tjs.newHits.size() - 1;
 //        unsigned int mergedHitIndex = tjs.newHits.size() - 1;
 //        std::cout<<fht<<" "<<tjs.fHits[fht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[fht])<<" "<<tjs.newHits.size()-1;
 //        std::cout<<" "<<tjs.newHits[mergedHitIndex].WireID().Plane<<tjs.newHits[mergedHitIndex].WireID().Wire<<":"<<(int)tjs.newHits[mergedHitIndex].PeakTime()<<"\n";
         continue;
       }
-      // Hit is used in a trajectory. Get the trajectory index
+      
+      // Hit is used in a trajectory. Get the trajectory index from the ID
       unsigned short itj = tjs.inTraj[fht] - 1;
-      if(itj > tjs.allTraj.size() - 1) {
-        std::cout<<"MNH: Invalid trajectory "<<itj<<" gotten from inTraj "<<tjs.inTraj[fht]<<" in hit "<<PrintHit(tjs.fHits[fht])<<"\n";
-      }
-      // Determine which point has this hit
+      // Determine which trajectory point uses this hit
       Trajectory& tj = tjs.allTraj[itj];
       unsigned short hitInPt = USHRT_MAX;
-      unsigned short indexInPtsHits = 0;
+//      unsigned short hitInPtsHits = 0;
       for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
         for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+          if(!tj.Pts[ipt].UseHit[ii]) continue;
           if(tj.Pts[ipt].Hits[ii] != fht) continue;
-          // a hopefully unnecessary check
-          if(!tj.Pts[ipt].UseHit[ii]) {
-            std::cout<<"MakeNewHits: Hit fht "<<fht<<" belongs to itj "<<itj<<" but UseHit is false...\n";
-            return;
-          }
           hitInPt = ipt;
-          indexInPtsHits = ii;
+//          hitInPtsHits = ii;
           break;
         } // ii
         if(hitInPt != USHRT_MAX) break;
       } // ipt
       // this should not happen but check anyway
-      if(hitInPt == USHRT_MAX) continue;
+      if(hitInPt == USHRT_MAX) {
+        std::cout<<"Hit "<<tjs.fHits[fht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[fht])<<" fht "<<fht<<" is inTraj "<<tjs.inTraj[fht]<<" but wasn't found in Pts ";
+        fQuitAlg = true;
+        return;
+      }
       // This is simple if there is only one used hit
       if(NumUsedHits(tj.Pts[hitInPt]) == 1) {
         tjs.newHits.emplace_back(*tjs.fHits[fht]);
-        tj.Pts[hitInPt].Hits[indexInPtsHits] = tjs.newHits.size() - 1;
+//        tj.Pts[hitInPt].Hits[hitInPtsHits] = tjs.newHits.size() - 1;
+        oldnew[fht] = tjs.newHits.size() - 1;
         // flag it used
         flag[fht] = true;
 //        unsigned int mergedHitIndex = tjs.newHits.size() - 1;
@@ -5964,7 +5962,7 @@ namespace tca {
         // from hits on nearby wires will be added to this hit and those hits will be dropped
         unsigned int mergedHitWire = std::nearbyint(tj.Pts[hitInPt].HitPos[0]);
         // find the index of a hit that lies on this wire so we can use the View, Channel, etc
-        // to construct the hit. Assume it is the hit we are considering
+        // to construct the hit. Assume it is the hit we are considering to start
         unsigned int wireInfoHit = fht;
         // Find the tick range that encompasses all the hits
         raw::TDCtick_t loTick = tjs.fHits[fht]->StartTick();
@@ -5974,8 +5972,11 @@ namespace tca {
         for(unsigned short ii = 0; ii < tj.Pts[hitInPt].Hits.size(); ++ii) {
           if(!tj.Pts[hitInPt].UseHit[ii]) continue;
           unsigned int iht = tj.Pts[hitInPt].Hits[ii];
-          // ignore it if flagged
-          if(flag[iht]) continue;
+          // ignore it if flagged - why?
+          if(flag[iht]) {
+            std::cout<<"MNH found flagged hit. Is this possible?\n";
+            continue;
+          }
           if(tjs.fHits[iht]->WireID().Wire == mergedHitWire) wireInfoHit = iht;
           if(tjs.fHits[iht]->StartTick() < loTick) loTick = tjs.fHits[iht]->StartTick();
           if(tjs.fHits[iht]->EndTick() > hiTick) hiTick = tjs.fHits[iht]->EndTick();
@@ -6047,25 +6048,38 @@ namespace tca {
                                  tjs.fHits[wireInfoHit]->WireID()
         
         );
-        // Associate the trajectory point with the merged hit
-        unsigned int mergedHitIndex = tjs.newHits.size() - 1;
-//        std::cout<<" mergedHitIndex "<<mergedHitIndex<<" "<<tjs.newHits[mergedHitIndex].WireID().Plane<<":"<<tjs.newHits[mergedHitIndex].WireID().Wire<<":"<<(int)tjs.newHits[mergedHitIndex].PeakTime()<<"\n";
-        // Re-direct fht to mergedHitIndex and set UseHit true for it. All other hits
-        // in the multiplet are not used. Note that the unused hits still
-        // index into the old hit collection. This doesn't matter since this (invalid) information
-        // is ignored when the clusters are made.
+        // Correct UseHit for this TP
         for(unsigned short ii = 0; ii < tj.Pts[hitInPt].Hits.size(); ++ii) {
-          tj.Pts[hitInPt].UseHit[ii] = false;
           if(tj.Pts[hitInPt].Hits[ii] == fht) {
-            tj.Pts[hitInPt].Hits[ii] = mergedHitIndex;
             tj.Pts[hitInPt].UseHit[ii] = true;
+            // define oldnew
+            oldnew[fht] = tjs.newHits.size() - 1;
+          } else {
+            // oldnew for obsolete hits was set to UINT_MAX
+            tj.Pts[hitInPt].UseHit[ii] = false;
           }
         } // ii
+        
       } // NumUsedHits > 1
     } // fht
     
-    // Ensure that all hits have been considered
+    // assign all TP hits to the new hit collection
+    for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+      if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
+      for(unsigned short ipt = 0; ipt < tjs.allTraj[itj].Pts.size(); ++ipt) {
+        for(unsigned short ii = 0; ii < tjs.allTraj[itj].Pts[ipt].Hits.size(); ++ii) {
+          unsigned int iht = tjs.allTraj[itj].Pts[ipt].Hits[ii];
+          tjs.allTraj[itj].Pts[ipt].Hits[ii] = oldnew[iht];
+          // double check
+          if(tjs.allTraj[itj].Pts[ipt].UseHit[ii] && oldnew[iht] == UINT_MAX) {
+            std::cout<<"MakeNewHits UseHits points to an invalid hit\n";
+          }
+        } // ii
+      } // ipt
+    } // itj
+    
     for(unsigned int fht = 0; fht < tjs.fHits.size(); ++fht) {
+      // Ensure that all hits have been considered
       if(!flag[fht]) {
         std::cout<<"MakeNewHits after merging: "<<fht<<" Hit "<<PrintHit(tjs.fHits[fht])<<" not processed. inTraj "<<tjs.inTraj[fht]<<"\n";
       }
@@ -6488,7 +6502,7 @@ namespace tca {
     // fills the WireHitRange vector. Slightly modified version of the one in ClusterCrawlerAlg.
     // Also fills the WirePtr vector
     
-    // find out the number of planes
+    // determine the number of planes
     geo::TPCGeo const& TPC = geom->TPC(tpcid);
     unsigned int cstat = tpcid.Cryostat;
     unsigned int tpc = tpcid.TPC;
@@ -6525,8 +6539,6 @@ namespace tca {
       tjs.LastWire[ipl] = 0;
       tjs.NumWires[ipl] = geom->Nwires(ipl, tpc, cstat);
       tjs.WireHitRange[ipl].resize(tjs.NumWires[ipl], flag);
-      // Initialize with the "no hits on wire" condition
-//      for(auto& apair : tjs.WireHitRange[ipl]) apair = flag;
       tjs.MaxPos0[ipl] = (float)(tjs.NumWires[ipl] + 1);
       tjs.MaxPos1[ipl] = (float)detprop->NumberTimeSamples() * tjs.UnitsPerTick;
     }
@@ -6581,6 +6593,11 @@ namespace tca {
           return;
         }
         for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+          if(tjs.fHits[iht]->WireID().Plane != ipl) {
+            mf::LogError("TC")<<"FillWireHitRange: Invalid plane "<<tjs.fHits[iht]->WireID().Plane<<" != "<<ipl;
+            fQuitAlg = true;
+            return;
+          }
           if(tjs.fHits[iht]->WireID().Wire != wire) {
             mf::LogError("TC")<<"FillWireHitRange: Invalid wire "<<tjs.fHits[iht]->WireID().Wire<<" != "<<wire<<" in plane "<<ipl;
             fQuitAlg = true;
