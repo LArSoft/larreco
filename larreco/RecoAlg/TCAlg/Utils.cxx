@@ -443,6 +443,29 @@ namespace tca {
   } // PutTrajHitsInVector
   
   //////////////////////////////////////////
+  bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck, bool prt)
+  {
+    // returns true if hit iht is associated with trajectory tj. Checking starts at the
+    // end of tj for nPtsToCheck points
+    for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+      unsigned short ipt = tj.Pts.size() - 1 - ii;
+/*
+      if(prt) {
+        std::cout<<"HitIsInTJ: iht "<<iht<<" ipt "<<ipt<<" size "<<tj.Pts.size()<<" jhts";
+        for(auto jht : tj.Pts[ipt].Hits) std::cout<<" "<<jht;
+        std::cout<<"\n";
+      }
+*/
+      if(std::find(tj.Pts[ipt].Hits.begin(), tj.Pts[ipt].Hits.end(), iht) != tj.Pts[ipt].Hits.end()) return true;
+      // only go back a few points
+      if(nPtsToCheck >= 0 && ii == nPtsToCheck) return false;
+      if(ipt == 0) return false;
+    } // ii
+    return false;
+
+  } // HitIsInTj
+  
+  //////////////////////////////////////////
   void MoveTPToWire(TrajPoint& tp, float wire)
   {
     // Project TP to a "wire position" Pos[0] and update Pos[1]
@@ -491,7 +514,7 @@ namespace tca {
   } // SetEndPoints
   
   ////////////////////////////////////////////////
-  float MCSMom(TjStuff& tjs, Trajectory& tj)
+  short MCSMom(TjStuff& tjs, Trajectory& tj)
   {
     unsigned short firstPt = tj.EndPt[0];
     unsigned short lastPt = tj.EndPt[1];
@@ -499,7 +522,7 @@ namespace tca {
   } // MCSMom
   
   ////////////////////////////////////////////////
-  float MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
+  short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
   {
     // Estimate the trajectory momentum using Multiple Coulomb Scattering ala PDG RPP
     
@@ -525,30 +548,42 @@ namespace tca {
     double thetaRMS = 6.8 * sigmaS / tjLen;
     double mom = 14 * sqrt(tjLen / 14) / thetaRMS;
     if(mom > 999) mom = 999;
-    return (float)mom;
+    return (short)mom;
   } // MCSMom
 
   /////////////////////////////////////////
-  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const float& sepCut)
+  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID)
   {
+    // fDeltaRayTag vector elements
+    // [0] = max separation of both endpoints from a muon
+    // [1] = minimum MCSMom
+    // [2] = maximum MCSMom
     
-    if(sepCut <= 0) return;
+    if(fDeltaRayTag[0] < 0) return;
+    if(fDeltaRayTag.size() < 3) return;
+    
+    float sepCut = fDeltaRayTag[0];
+    unsigned short minMom = fDeltaRayTag[1];
+    unsigned short maxMom = fDeltaRayTag[2];
     
     for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& muTj = tjs.allTraj[itj];
       if(muTj.CTP != inCTP) continue;
       if(muTj.AlgMod[kKilled]) continue;
-      if(!muTj.AlgMod[kMuon]) continue;
+      bool prt = (muTj.WorkID == debugWorkID);
+      if(prt) mf::LogVerbatim("TC")<<"TagDeltaRays: Muon "<<muTj.CTP<<" "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]]);
+      if(muTj.PDGCode != 13) continue;
       // Found a muon, now look for delta rays
-//      if(muTj.ID != 18) continue;
-//      std::cout<<"Muon "<<muTj.CTP<<" "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]])<<"\n";
       for(unsigned short jtj = 0; jtj < tjs.allTraj.size(); ++jtj) {
         Trajectory& drTj = tjs.allTraj[jtj];
         if(drTj.AlgMod[kKilled]) continue;
         if(drTj.CTP != inCTP) continue;
-        if(drTj.AlgMod[kMuon]) continue;
+        if(drTj.PDGCode == 13) continue;
         // already tagged
-        if(drTj.AlgMod[kDeltaRay]) continue;
+        if(drTj.PDGCode == 12) continue;
+        // MCSMom cut
+        if(drTj.MCSMom < minMom) continue;
+        if(drTj.MCSMom > maxMom) continue;
         // some rough cuts to require that the delta ray is within the
         // ends of the muon
         if(muTj.StepDir > 0) {
@@ -563,25 +598,74 @@ namespace tca {
         // check both ends of the prospective delta ray
         TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[0]], muTj, muPt0, sep0);
         if(sep0 == sepCut) continue;
-//        std::cout<<"  ID "<<drTj.ID<<" "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[0]])<<" muPt0 "<<muPt0<<" sep0 "<<sep0<<"\n";
+        if(prt) mf::LogVerbatim("TC")<<"  ID "<<drTj.ID<<" "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[0]])<<" muPt0 "<<muPt0<<" sep0 "<<sep0;
         // stay away from the ends
         if(muPt0 < muTj.EndPt[0] + 5) continue;
         if(muPt0 > muTj.EndPt[1] - 5) continue;
         float sep1 = sepCut;
         TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[1]], muTj, muPt1, sep1);
-//        std::cout<<"      "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[1]])<<" muPt1 "<<muPt1<<" sep1 "<<sep1<<"\n";
+        if(prt) mf::LogVerbatim("TC")<<"      "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[1]])<<" muPt1 "<<muPt1<<" sep1 "<<sep1;
         if(sep1 == sepCut) continue;
-        // seems to be a bad idea
-//        if(muPt1 == muPt0) continue;
         // stay away from the ends
         if(muPt1 < muTj.EndPt[0] + 5) continue;
         if(muPt1 > muTj.EndPt[1] - 5) continue;
-//        std::cout<<" delta ray "<<drTj.ID<<" near "<<PrintPos(tjs, muTj.Pts[muPt0])<<"\n";
-        drTj.AlgMod[kDeltaRay] = true;
-        drTj.MotherID = muTj.ID;
+        if(prt) mf::LogVerbatim("TC")<<" delta ray "<<drTj.ID<<" near "<<PrintPos(tjs, muTj.Pts[muPt0]);
+        drTj.ParentTrajID = muTj.ID;
+        drTj.PDGCode = 12;
       } // jtj
     } // itj
+    
   } // TagDeltaRays
+  
+  /////////////////////////////////////////
+  void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID)
+  {
+    // Determine muon directions delta-ray proximity to muon trajectories
+    
+    if(minDeltaRayLength < 0) return;
+    
+    unsigned short minLen = minDeltaRayLength;
+    
+    for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+      Trajectory& muTj = tjs.allTraj[itj];
+      if(muTj.AlgMod[kKilled]) continue;
+      bool prt = (muTj.WorkID == debugWorkID);
+      if(prt) {
+        mf::LogVerbatim("TC")<<"TagMuonDirection: Muon "<<muTj.CTP<<" "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]]);
+      }
+      if(muTj.PDGCode != 13) continue;
+      // look for delta ray trajectories and count the number of times that
+      // one end is closer than the other to the muon
+      unsigned short n0 = 0;
+      unsigned short n1 = 0;
+      for(unsigned short jtj = 0; jtj < tjs.allTraj.size(); ++jtj) {
+        Trajectory& drTj = tjs.allTraj[jtj];
+        if(drTj.AlgMod[kKilled]) continue;
+        if(drTj.PDGCode != 12) continue;
+        if(drTj.ParentTrajID != muTj.ID) continue;
+        // ignore short delta rays
+        if(drTj.Pts.size() < minLen) continue;
+        float sep0 = 100;
+        unsigned short muPt0;
+        TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[0]], muTj, muPt0, sep0);
+        float sep1 = 100;
+        unsigned short muPt1;
+        TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[1]], muTj, muPt1, sep1);
+        if(prt) mf::LogVerbatim("TC")<<" drTj.ID "<<drTj.ID<<" sep 0 "<<sep0<<" sep1 "<<sep1;
+        if(sep0 < sep1) { ++n0; } else { ++n1; }
+      } // unsigned short jtj
+      // Can't tell the direction using this method, so leave the current assignment unchanged
+      if(prt) mf::LogVerbatim("TC")<<" n0 "<<n0<<" n1 "<<n1;
+      if(n0 == n1) continue;
+      if(n0 > n1) {
+        // Delta-rays are closer to the beginning (0) end than the end (1) end
+        muTj.Dir = 1;
+      } else {
+        muTj.Dir = -1;
+      }
+      if(muTj.StepDir < 0) muTj.Dir = -muTj.Dir;
+    } // itj
+  } // TagMuonDirections
   
   /////////////////////////////////////////
   void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
@@ -703,7 +787,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang   AveQ     W:T      Ang   AveQ  ChgRMS   Mom __Vtx__ PDG  TRuPDG   EP   KE  WorkID\n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ PDG  Par TRuPDG   EP   KE  WorkID\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && (unsigned short)debug.Plane != aTj.CTP) continue;
@@ -721,28 +805,22 @@ namespace tca {
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
-        myprt<<std::setw(7)<<(int)tp.AveChg;
+        myprt<<std::setw(5)<<(int)tp.AveChg;
         endPt = aTj.EndPt[1];
         tp = aTj.Pts[endPt];
         itick = tp.Pos[1]/tjs.UnitsPerTick;
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
-        myprt<<std::setw(7)<<(int)tp.AveChg;
+        myprt<<std::setw(5)<<(int)tp.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
 //        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Quality;
-//        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Trackness;
-        myprt<<std::setw(7)<<(int)aTj.MCSMom;
-/*
-        // find average number of used hits / TP
-        PutTrajHitsInVector(aTj, true, tmp);
-        float ave = (float)tmp.size() / (float)aTj.Pts.size();
-        myprt<<std::setw(8)<<std::setprecision(2)<<ave;
-*/
+        myprt<<std::setw(5)<<aTj.MCSMom;
+        myprt<<std::setw(4)<<aTj.Dir;
         myprt<<std::setw(4)<<aTj.Vtx[0];
         myprt<<std::setw(4)<<aTj.Vtx[1];
-        myprt<<std::setw(5)<<aTj.PDG;
-//        myprt<<std::setw(6)<<aTj.ParentTraj;
+        myprt<<std::setw(5)<<aTj.PDGCode;
+        myprt<<std::setw(4)<<aTj.ParentTrajID;
         myprt<<std::setw(6)<<aTj.TruPDG;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(5)<<(int)aTj.TruKE;
@@ -760,10 +838,7 @@ namespace tca {
           myprt<<" "<<PrintHit(tjs.fHits[iht]);
         }
 */
-        for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
-          if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
-          if(AlgBitNames[ib] == "DeltaRay") myprt<<"_"<<aTj.MotherID;
-        }
+        for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         myprt<<"\n";
       } // ii
       return;
@@ -797,11 +872,11 @@ namespace tca {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDG<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" AlgMod names:";
+        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
         mf::LogVerbatim myprt("TC");
-        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDG<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[0]<<" AlgMod names:";
+        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[0]<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
       PrintHeader(someText);
@@ -819,7 +894,7 @@ namespace tca {
   //////////////////////////////////////////
   void PrintHeader(std::string someText)
   {
-    mf::LogVerbatim("TC")<<someText<<" TRP  CTP Ind  Stp      W:Tick    Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
+    mf::LogVerbatim("TC")<<someText<<" TRP  CTP  Ind  Stp      W:Tick    Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
   } // PrintHeader
   
   ////////////////////////////////////////////////
@@ -830,7 +905,7 @@ namespace tca {
     myprt<<pass;
     if(dir > 0) { myprt<<"+"; } else { myprt<<"-"; }
     myprt<<std::setw(3)<<tp.CTP;
-    myprt<<std::setw(4)<<ipt;
+    myprt<<std::setw(5)<<ipt;
     myprt<<std::setw(5)<<tp.Step;
     myprt<<std::setw(7)<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]/tjs.UnitsPerTick; // W:T
     if(tp.Pos[1] < 10) myprt<<"  "; if(tp.Pos[1] < 100) myprt<<" "; if(tp.Pos[1] < 1000) myprt<<" ";
