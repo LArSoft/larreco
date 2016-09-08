@@ -267,7 +267,7 @@ namespace cluster {
           nclhits,                // n hits
           0,                      // wires over hits
           0,                      // width (0 for line-like clusters)
-          clsID,                  // ID
+          clstr.ID,               // ID from TrajClusterAlg
           view,                   // view
           planeID,                // plane
           recob::Cluster::Sentry  // sentry
