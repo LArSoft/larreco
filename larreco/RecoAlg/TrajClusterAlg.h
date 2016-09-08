@@ -105,7 +105,8 @@ namespace tca {
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
     std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a cluster
     std::vector<bool> fLAStep;              ///< Allow LA stepping on pass?
-    float fMultHitSep;      ///< preferentially "merge" hits with < this separation
+    std::vector<unsigned short> fMaxHitMultiplicity;        ///< ignore hits having too high multiplicity on pass
+   float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     float fKinkAngCut;     ///  kink angle cut
     float fChgPullCut;
@@ -133,8 +134,8 @@ namespace tca {
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
 		float fVertex2DIPCut; 	///< 2D vtx -> cluster Impact Parameter cut (WSE)
-    std::vector<unsigned short>  fMuonTag; ///< min length and min MCSMom for a muon tag
-    float fMuonDRaySepCut; ///< Tag delta rays using this distance along muons
+    std::vector<short>  fDeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
+    std::vector<short>  fMuonTag; ///< min length and min MCSMom for a muon tag
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
     // TEMP variables for summing Eff*Pur
     double PrSum, MuPiSum;
@@ -189,7 +190,6 @@ namespace tca {
     std::string fhitsModuleLabel;
     
     // variables for step crawling - updated at each TP
-    bool fHitDoublet; // Set true if there are a lot of hit doublets on this trajectory
     // tracking flags
     bool fGoodWork;         // the work trajectory is good and should be stored
     bool fAddedBigDeltaHit;
@@ -272,7 +272,7 @@ namespace tca {
     // Print debug output if hit iht exists in work or allTraj
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
-    void CheckInTraj(std::string someText);
+    void ChkInTraj(std::string someText);
     // Returns true if there a is wire signal at tp
     bool SignalAtTp(TrajPoint const& tp);
     bool SignalAtPos(float pos0, float pos1, CTP_t tCTP);
@@ -297,7 +297,7 @@ namespace tca {
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
     // Fill in missed hits
-    void FillMissedPoints(Trajectory& tj);
+    void FillGaps(Trajectory& tj);
     // Check for many unused hits in work and try to use them
     void CheckHiMultUnusedHits(Trajectory& tj);
     void CheckHiMultEndHits(Trajectory& tj);
