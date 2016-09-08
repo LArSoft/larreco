@@ -133,9 +133,13 @@ namespace cluster {
     // look for clusters in all planes
     fTCAlg->RunTrajClusterAlg(evt, fMakeNewHits);
     
-    std::vector<art::Ptr<recob::Hit>> const& fHits = fTCAlg->YieldOldHits();
+    std::vector<art::Ptr<recob::Hit>> oldHits;
     std::unique_ptr<std::vector<recob::Hit>> newHits;
-    if(fMakeNewHits) newHits = std::make_unique<std::vector<recob::Hit>>(std::move(fTCAlg->YieldNewHits()));
+    if(fMakeNewHits) {
+      newHits = std::make_unique<std::vector<recob::Hit>>(std::move(fTCAlg->YieldNewHits()));
+    } else {
+      oldHits = fTCAlg->YieldOldHits();
+    }
 
     std::vector<recob::Cluster> sccol;
     std::vector<recob::PFParticle> spcol;
@@ -150,38 +154,6 @@ namespace cluster {
         cp_assn(new art::Assns<recob::Cluster, recob::PFParticle>);
 
     std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters();
-    
-// Consistency check
-/*
-    std::vector<short> const& inClus = fTCAlg->GetinClus();
-    for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
-      tca::ClusterStore const& clstr = Clusters[icl];
-        if(clstr.ID < 0) continue;
-      geo::PlaneID planeID = tca::DecodeCTP(clstr.CTP);
-        unsigned short plane = planeID.Plane;
-        for(unsigned short ii = 0; ii < clstr.tclhits.size(); ++ii) {
-          unsigned int iht = clstr.tclhits[ii];
-//          std::cout<<clstr.ID<<" hit "<<plane<<":"<<fHits[iht]->WireID().Wire<<":"<<(int)fHits[iht]->PeakTime()<<"\n";
-          if(fMakeNewHits) {
-            recob::Hit *hit = newHits[iht];
-            if(hit.WireID().Plane != plane) {
-              mf::LogError("TC")<<"Cluster-newHit plane mis-match "<<hit.WireID().Plane<<" "<<plane<<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" cluster CTP "<<clstr.CTP;
-              return;
-            }
-          } else {
-            if(fHits[iht]->WireID().Plane != plane) {
-              mf::LogError("TC")<<"Cluster-fHit plane mis-match "<<fHits[iht]->WireID().Plane<<" "<<plane
-              <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" cluster CTP "<<clstr.CTP;
-              return;
-            }
-          }
-          if(inClus[iht] != clstr.ID) {
-            mf::LogError("TC") << "InClus mis-match " << inClus[iht]<< " ID " << clstr.ID << " in cluster ID " << clstr.ID;
-            return;
-          }
-        } // ii
-      } // icl
-*/
     
     // make EndPoints (aka 2D vertices)
     std::vector<tca::VtxStore> const& EndPts = fTCAlg->GetEndPoints();
@@ -225,26 +197,37 @@ namespace cluster {
     // make the clusters and associations
     std::vector<art::Ptr<recob::Hit>> clusterHits;
     float sumChg, sumADC;
-    unsigned int clsID = 0, nclhits, itt, iht, plane;
     std::vector<size_t> dtrIndices;
+    unsigned short clsID = 0;
     for(size_t icl = 0; icl < Clusters.size(); ++icl) {
       tca::ClusterStore const& clstr = Clusters[icl];
 //      std::cout<<"cls "<<clstr.ID<<" "<<(int)clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" "<<(int)clstr.EndWir<<":"<<(int)clstr.EndTim<<"\n";
       if(clstr.ID < 0) continue;
       ++clsID;
       geo::PlaneID planeID = tca::DecodeCTP(clstr.CTP);
-      plane = planeID.Plane;
-      nclhits = clstr.tclhits.size();
+      unsigned short plane = planeID.Plane;
+      unsigned short nclhits = clstr.tclhits.size();
 
       sumChg = 0;
       sumADC = 0;
-      for(itt = 0; itt < nclhits; ++itt) {
-        iht = clstr.tclhits[itt];
-        sumChg += fHits[iht]->Integral();
-        sumADC += fHits[iht]->SummedADC();
-      } // itt
+      geo::View_t view;
+      if(fMakeNewHits) {
+        for(unsigned short itt = 0; itt < nclhits; ++itt) {
+          unsigned int iht = clstr.tclhits[itt];
+          recob::Hit const& hit = (*newHits)[iht];
+          sumChg += hit.Integral();
+          sumADC += hit.SummedADC();
+        } // itt
+        view = (*newHits)[clstr.tclhits[0]].View();
+      } else {
+        for(unsigned short itt = 0; itt < nclhits; ++itt) {
+          unsigned int iht = clstr.tclhits[itt];
+          sumChg += oldHits[iht]->Integral();
+          sumADC += oldHits[iht]->SummedADC();
+        } // itt
+        view = oldHits[clstr.tclhits[0]]->View();
+      }
       
-      geo::View_t view = fHits[clstr.tclhits[0]]->View();
       sccol.emplace_back(
           clstr.BeginWir,  // Start wire
           0,                      // sigma start wire
@@ -274,14 +257,13 @@ namespace cluster {
           );
       // make the cluster - hit association
       if(fMakeNewHits) {
-//        *this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end())
         if(!util::CreateAssn(*this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end()))
         {
           throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
         } // exception
       } else {
         clusterHits.resize(clstr.tclhits.size());
-        for(iht = 0; iht < clstr.tclhits.size(); ++iht) clusterHits[iht] = fHits[clstr.tclhits[iht]];
+        for(unsigned int iht = 0; iht < clstr.tclhits.size(); ++iht) clusterHits[iht] = oldHits[clstr.tclhits[iht]];
         if(!util::CreateAssn(*this, evt, sccol, clusterHits, *hc_assn))
         {
           throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
