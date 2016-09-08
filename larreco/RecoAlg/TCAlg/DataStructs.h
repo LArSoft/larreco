@@ -46,7 +46,7 @@ namespace tca {
   struct ClusterStore {
     short ID {0};         // Cluster ID. ID < 0 = abandoned cluster
     CTP_t CTP {0};        // Cryostat/TPC/Plane code
-    unsigned short PDG {0}; // PDG-like code shower-like or line-like
+    unsigned short PDGCode {0}; // PDG-like code shower-like or line-like
     unsigned short ParentCluster {0};
     float BeginWir {0};   // begin wire
     float BeginTim {0};   // begin tick
@@ -93,7 +93,7 @@ namespace tca {
     CTP_t CTP {0};                   ///< Cryostat, TPC, Plane code
     std::array<float, 2> HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
     std::array<float, 2> Pos {{0,0}}; // Trajectory position in wire equivalent units
-    std::array<float, 2> Dir {{0,0}}; // Direction
+    std::array<float, 2> Dir {{0,0}}; // Direction cosines in the StepDir direction
     float HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
     // HitPosErr2 < 0 = HitPos not defined because no hits used
     float Ang {0};                // Trajectory angle (-pi, +pi)
@@ -117,11 +117,11 @@ namespace tca {
     std::vector<TrajPoint> EndTP {(2)} ;    ///< Trajectory point at each end for merging
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
-    unsigned short PDG {0};            ///< shower-like or track-like {default is track-like}
-    unsigned short ParentTraj {USHRT_MAX};     ///< index of the parent (if PDG = 12)
+    unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
+    unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
-    float MCSMom {0};                 //< Crude 2D estimate to use for shower-like vs track-like discrimination
+    unsigned short MCSMom {0};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
@@ -130,9 +130,10 @@ namespace tca {
     short ID;
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
-    short StepDir {0};                 /// -1 = going US (CC proper order), 1 = going DS
+    short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
+    short Dir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
+                                        ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
     short WorkID {0};
-    short MotherID  {0};                  ///< ID of the mother trajectory (if a delta ray)
   };
   
   // Trajectory "intersections" used to search for superclusters (aka showers)
@@ -180,8 +181,8 @@ namespace tca {
     kChainMerge,
     kFillGap,
     kUseGhostHits,
-    kCheckInTraj,
-    kFixTrajBegin,
+    kChkInTraj,
+    kFixBegin,
     kMuon,
     kDeltaRay,
     kAlgBitSize     ///< don't mess with this line
