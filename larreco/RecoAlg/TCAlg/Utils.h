@@ -67,17 +67,21 @@ namespace tca {
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
   // Put hits in each trajectory point into a flat vector. Only hits with UseHit if onlyUsedHits == true
   void PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec);
+  // returns true if hit iht appears in trajectory tj. The last nPtsToCheck points are checked
+  bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck, bool prt);
   // Project TP to a "wire position" Pos[0] and update Pos[1]
   void MoveTPToWire(TrajPoint& tp, float wire);
   float DeltaAngle(float Ang1, float Ang2);
   // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
   void SetEndPoints(TjStuff& tjs, Trajectory& tj);
   // Calculate MCS momentum
-  float MCSMom(TjStuff& tjs, Trajectory& tj);
+  short MCSMom(TjStuff& tjs, Trajectory& tj);
   // Calculate MCS momentum in a range of trajectory points
-  float MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
+  short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
   // Flag delta ray trajectories in allTraj
-  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const float& sepCut);
+  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
+  // Tag muon directions using delta proximity
+  void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID);
   // Make a bare trajectory point that only has position and direction defined
   void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   void MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
