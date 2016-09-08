@@ -17,17 +17,17 @@ standard_trajclusteralg:
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
    Merge: true              # Merge trajectories?
    ChgPullCut: 3            # Use trajectory points/hits if (Chg/AveChg - 1) / ChgRMS < cut
-   KinkAngCut: 0.4          # Kink angle to decide whether to merge or create a 2D vtx
+   KinkAngCut: 0.5          # Kink angle to decide whether to merge or create a 2D vtx
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
    MaxWireSkipNoSignal:  3  # max allowed number of not-dead wires if no signal is present
    MaxWireSkipWithSignal: 100  # max allowed number of not-dead wires if a signal is present
-   MuonTag:       [40, 500] # min length and min MCSMom for a muon tag
-   MuonDRaySepCut:  5       # Tag short TJs as delta-rays if within this distance (WSE units) from a muon
+   MuonTag: [40, 500, 3]    # muon min length, min MCSMom, (min delta-ray length for muon direction tag)
+   DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
    Vertex2DIPCut:  2        # Max 2D vtx position separation for merging into one vtx (WSE units)
    Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
    MaxVertexTrajSep: [ 6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
-   SkipAlgs: ["ChainMerge", "RevProp"] # List of algs that should not be called
+   SkipAlgs: ["ChainMerge"] # List of algs that should not be called
    StudyMode: false         # Set true to generate histograms (commented out)
    ShowerStudy: false       # Set true to generate histograms (commented out)
    ShowerPrtPlane: -1       # Print shower finding output in a plane
