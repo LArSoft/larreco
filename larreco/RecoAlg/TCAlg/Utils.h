@@ -68,7 +68,9 @@ namespace tca {
   // Put hits in each trajectory point into a flat vector. Only hits with UseHit if onlyUsedHits == true
   void PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec);
   // returns true if hit iht appears in trajectory tj. The last nPtsToCheck points are checked
-  bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck, bool prt);
+  bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck);
+  // returns true if a hit is associated with more than one point
+  bool HasDuplicateHits(Trajectory const& tj);
   // Project TP to a "wire position" Pos[0] and update Pos[1]
   void MoveTPToWire(TrajPoint& tp, float wire);
   float DeltaAngle(float Ang1, float Ang2);
