@@ -27,7 +27,7 @@ standard_trajclusteralg:
    Vertex2DIPCut:  2        # Max 2D vtx position separation for merging into one vtx (WSE units)
    Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
    MaxVertexTrajSep: [ 6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
-   SkipAlgs: ["ChainMerge"] # List of algs that should not be called
+   SkipAlgs: [ ]            # List of algs that should not be called
    StudyMode: false         # Set true to generate histograms (commented out)
    ShowerStudy: false       # Set true to generate histograms (commented out)
    ShowerPrtPlane: -1       # Print shower finding output in a plane
