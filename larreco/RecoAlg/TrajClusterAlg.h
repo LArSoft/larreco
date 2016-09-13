@@ -106,22 +106,19 @@ namespace tca {
     std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a cluster
     std::vector<bool> fLAStep;              ///< Allow LA stepping on pass?
     std::vector<unsigned short> fMaxHitMultiplicity;        ///< ignore hits having too high multiplicity on pass
-   float fMultHitSep;      ///< preferentially "merge" hits with < this separation
+    float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     float fKinkAngCut;     ///  kink angle cut
     float fChgPullCut;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
-    float fMaxQuality;
-    
+   
     float fJTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
     
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
-    bool fShowerStudy;    ///< study shower identification cuts
-    short fShowerPrtPlane; ///< set to plane number to print out
     short fFillTruth;     ///< Match to MC truth
     bool fuBCode;         ///< temporary switch to enable uB-specific code
 
@@ -133,9 +130,11 @@ namespace tca {
     float fLargeAngle;  ///< (degrees) call Large Angle Clustering code if TP angle > this value
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
-		float fVertex2DIPCut; 	///< 2D vtx -> cluster Impact Parameter cut (WSE)
-    std::vector<short>  fDeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
-    std::vector<short>  fMuonTag; ///< min length and min MCSMom for a muon tag
+		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
+    std::vector<short> fDeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
+    std::vector<short> fMuonTag; ///< min length and min MCSMom for a muon tag
+    std::vector<short> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
     // TEMP variables for summing Eff*Pur
     double PrSum, MuPiSum;
@@ -155,12 +154,7 @@ namespace tca {
     TH1F *fMuPiEP;
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
-    
-    TH1F *fShowerNumTrjint;
-    TH2F *fShowerTheta_Sep;
-    TH1F *fShowerDVtx;
-    TH2F *fShowerDVtx_Sep;
-*/    
+*/
     bool prt;
     bool mrgPrt;
     bool vtxPrt;
@@ -334,14 +328,13 @@ namespace tca {
     bool IsGhost(std::vector<unsigned int>& tHits, unsigned short& ofTraj);
     void CheckTrajEnd();
     void EndMerge();
-    void ChainMerge();
     void FillWireHitRange(geo::TPCID const& tpcid);
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
+    void FillTrajTruth();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
-    void AttachAnyTrajToVertex(unsigned short iv, float docaCut2, bool requireSignal);
-    // make a vertex from a trajectory intersection
-    void MakeTrajVertex(TrjInt const& aTrjInt, unsigned short bin1, unsigned short bin2, bool& madeVtx);
+    bool AttachAnyTrajToVertex(unsigned short iv);
+    bool AttachTrajToAnyVertex(unsigned short itj);
     void SplitTrajCrossingVertices();
     void FindHammerVertices();
     void FindHammerVertices2();
@@ -350,18 +343,17 @@ namespace tca {
     short TPNearVertex(const TrajPoint& tp);
     // ****************************** Shower/Track ID code  ******************************
     // Tag as shower-like or track-like
-    void TagAllTraj();
-    void TagPhotons();
+//    void TagAllTraj();
+//    void TagPhotons();
     // Associate trajectories that are close to each into Clusters Of Trajectories (COTs)
-    void FindClustersOfTrajectories(std::vector<std::vector<unsigned short>>& trjintIndices);
+//    void FindClustersOfTrajectories(std::vector<std::vector<unsigned short>>& trjintIndices);
     // Try to define a shower trajectory consisting of a single track-like trajectory (the electron/photon)
     // plus a group of shower-like trajectories, using the vector of trjintIndices
-    void DefineShowerTraj(unsigned short icot, std::vector<std::vector<unsigned short>> trjintIndices);
+//    void DefineShowerTraj(unsigned short icot, std::vector<std::vector<unsigned short>> trjintIndices);
     // Make a track-like cluster using primTraj and a shower-like cluster consisting
     // of all other trajectories in ClsOfTrj[icot]
-    void TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle);
-    void FillTrajTruth();
-    void KillVerticesInShowers();
+//    void TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle);
+//    void KillVerticesInShowers();
 
     
   }; // class TrajClusterAlg
