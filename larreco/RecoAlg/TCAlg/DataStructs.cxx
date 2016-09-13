@@ -21,7 +21,6 @@ namespace tca {
     "EndMerge",
     "TrimHits",
     "ChkHiMultEndHits",
-    "ChainMerge",
     "FillGap",
     "UseGhostHits",
     "ChkInTraj",
