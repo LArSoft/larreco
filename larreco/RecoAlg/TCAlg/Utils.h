@@ -48,10 +48,11 @@ namespace tca {
   float PointTrajDOCA(TjStuff& tjs, float wire, float time, TrajPoint const& tp);
   // returns the DOCA^2 between a point and a trajectory
   float PointTrajDOCA2(TjStuff& tjs, float wire, float time, TrajPoint const& tp);
-  // returns the separation^2 between two TPs
-  float TrajPointHitSep2(TrajPoint const& tp1, TrajPoint const& tp2);
+
   // returns the separation^2 between a point and a TP
   float PointTrajSep2(float wire, float time, TrajPoint const& tp);
+  float PosSep(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
+  float PosSep2(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
   // finds the point on trajectory tj that is closest to trajpoint tp
   void TrajPointTrajDOCA(TjStuff& tjs, TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
   // returns the intersection position, intPos, of two trajectory points
@@ -84,10 +85,16 @@ namespace tca {
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID);
+  void TagShowerTraj(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fShowerTag, short debugWorkID);
   // Make a bare trajectory point that only has position and direction defined
   void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   void MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
-  void MakeBareTrajPoint(TjStuff& tjs, TrajPoint& tpIn1, TrajPoint& tpIn2, TrajPoint& tpOut);
+  void MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  // ****************************** Vertex finding  ******************************
+  bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt);
+  float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx);
+  float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
+  bool FitVertex(TjStuff& tjs, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
   void PrintTrajectory(std::string someText, TjStuff& tjs, Trajectory const& tj ,unsigned short tPoint);
