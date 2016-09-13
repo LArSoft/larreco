@@ -63,20 +63,19 @@ namespace tca {
   
   /// struct of temporary 2D vertices (end points)
   struct VtxStore {
-    float Wire {0};
-    float WireErr {2};
-    float Time {0};
-    float TimeErr {0.1};
+    std::array<float, 2> Pos {{0,0}};
+    std::array<float, 2> PosErr {{2,1}};
     unsigned short NTraj {0};  // = 0 for abandoned vertices
+    unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
     short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
     bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
+    unsigned short ID {0};
   };
   
   /// struct of temporary 3D vertices
   struct Vtx3Store {
-    std::array<short, 3> Ptr2D {{-1, -1, -1}}; // pointers to 2D vertices in each plane
     float X {0};                    // x position
     float XErr {0};                 // x position error
     float Y {0};                    // y position
@@ -86,7 +85,7 @@ namespace tca {
     short Wire {-1};                 // wire number for an incomplete 3D vertex
     unsigned short CStat {0};
     unsigned short TPC {0};
-    unsigned short ProcCode {0};
+    std::array<short, 3> Ptr2D {{-1, -1, -1}}; // pointers to 2D vertices in each plane
   };
   
   struct TrajPoint {
@@ -125,7 +124,7 @@ namespace tca {
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
-    std::array<short, 2> Vtx {{-1,-1}};      ///< Index of 2D vertex
+    std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has a hit
     short ID;
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
@@ -178,7 +177,6 @@ namespace tca {
     kEndMerge,
     kTrimHits,
     kChkHiMultEndHits,
-    kChainMerge,
     kFillGap,
     kUseGhostHits,
     kChkInTraj,
