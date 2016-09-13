@@ -92,7 +92,7 @@ namespace tca {
       } // ii
     } // ipt
     SetEndPoints(tjs, tj);
-    if(ivx != USHRT_MAX) tj.Vtx[1] = ivx;
+    if(ivx != USHRT_MAX) tj.VtxID[1] = tjs.vtx[ivx].ID;
     tj.AlgMod[kSplitTraj] = true;
     if(prt) {
       mf::LogVerbatim("TC")<<"Splittjs.allTraj: itj "<<tj.ID<<" EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
@@ -116,7 +116,7 @@ namespace tca {
       for(ii = 0; ii < newTj.Pts[ipt].UseHit.size(); ++ii) newTj.Pts[ipt].UseHit[ii] = false;
     } // ipt
     SetEndPoints(tjs, newTj);
-    if(ivx != USHRT_MAX) newTj.Vtx[0] = ivx;
+    if(ivx != USHRT_MAX) newTj.VtxID[0] = tjs.vtx[ivx].ID;
     newTj.AlgMod[kSplitTraj] = true;
     tjs.allTraj.push_back(newTj);
     if(prt) {
@@ -157,7 +157,6 @@ namespace tca {
     unsigned short i1, i2;
     for(i1 = tj1.EndPt[0]; i1 < tj1.EndPt[1] + 1; ++i1) {
       for(i2 = tj2.EndPt[0]; i2 < tj2.EndPt[1] + 1; ++i2) {
-        // TODO: What about TPs with UseHit = false?
         dw = tj1.Pts[i1].Pos[0] - tj2.Pts[i2].Pos[0];
         dt = tj1.Pts[i1].Pos[1] - tj2.Pts[i2].Pos[1];
         dp2 = dw * dw + dt * dt;
@@ -170,16 +169,7 @@ namespace tca {
     } // i1
     minSep = sqrt(best);
   } // TrajTrajDOCA
-  
-  //////////////////////////////////////////
-  float TrajPointHitSep2(TrajPoint const& tp1, TrajPoint const& tp2)
-  {
-    // returns the separation^2 between the hit position of two trajectory points
-    float dw = tp1.HitPos[0] - tp2.HitPos[0];
-    float dt = tp1.HitPos[1] - tp2.HitPos[1];
-    return dw * dw + dt * dt;
-  } // TrajPointHitSep2
-  
+
   //////////////////////////////////////////
   float HitSep2(TjStuff& tjs, unsigned int iht, unsigned int jht)
   {
@@ -188,7 +178,7 @@ namespace tca {
     float dw = (float)tjs.fHits[iht]->WireID().Wire - (float)tjs.fHits[jht]->WireID().Wire;
     float dt = (tjs.fHits[iht]->PeakTime() - tjs.fHits[jht]->PeakTime()) * tjs.UnitsPerTick;
     return dw * dw + dt * dt;
-  } // TrajPointHitSep2
+  } // HitSep2
   
   //////////////////////////////////////////
   float PointTrajSep2(float wire, float time, TrajPoint const& tp)
@@ -258,6 +248,21 @@ namespace tca {
     }
     return len;
   } // TrajLength
+
+  //////////////////////////////////////////
+  float PosSep(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2)
+  {
+    return sqrt(PosSep2(pos1, pos2));
+  } // PosSep
+  
+  //////////////////////////////////////////
+  float PosSep2(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2)
+  {
+    // returns the separation distance^2 between two positions
+    float d0 = pos1[0] - pos2[0];
+    float d1 = pos1[1] - pos2[1];
+    return d0*d0+d1*d1;
+  } // PosSep2
   
   //////////////////////////////////////////
   float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2)
@@ -417,8 +422,7 @@ namespace tca {
     if(lastPt > tj.EndPt[1]) return 0;
     
     TrajPoint tmp;
-    // make a bare trajectory point to define a line between the first
-    // and last points on the trajectory that have charge
+    // make a bare trajectory point to define a line between firstPt and lastPt
     MakeBareTrajPoint(tjs, tj.Pts[firstPt], tj.Pts[lastPt], tmp);
     // sum up the deviations^2
     double dsum = 0;
@@ -429,7 +433,7 @@ namespace tca {
       ++cnt;
     } // ipt
     if(cnt == 0) return 0;
-    double sigmaS = sqrt(dsum / (float)cnt);
+    double sigmaS = sqrt(dsum / (double)cnt);
     double tjLen = TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
     // Theta_o =  4 * sqrt(3) * sigmaS / path
     double thetaRMS = 6.8 * sigmaS / tjLen;
@@ -554,6 +558,52 @@ namespace tca {
     } // itj
   } // TagMuonDirections
   
+  ////////////////////////////////////////////////
+  void TagShowerTraj(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fShowerTag, short debugWorkID)
+  {
+    // A simple tagging scheme - hopefully
+    if(fShowerTag[0] < 0) return;
+    
+    // Tag as shower-like (PDGCode = 12) if the MCSMom is < fShowerTag[0]
+    // and the number of other trajectories that have a separation < fShowerTag[1]
+    // is >= fShowerTag[2]
+    // Note that the separation is a float and fShowerTag is a short
+    float sepCut = fShowerTag[1];
+    for(auto& tj : tjs.allTraj) {
+      if(tj.CTP != inCTP) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      // already tagged
+      if(tj.PDGCode > 0) continue;
+      // first we cut on MCSMom
+      if(tj.MCSMom > fShowerTag[0]) continue;
+      // Next cut on proximity to other trajectories if requested.
+      if(fShowerTag[1] <= 0) {
+        tj.PDGCode = 12;
+        continue;
+      }
+      // Count the number of trajectories that are within fShowerTag[1]
+      unsigned short nNear = 0;
+      for(auto& atj : tjs.allTraj) {
+        if(atj.CTP != inCTP) continue;
+        if(atj.AlgMod[kKilled]) continue;
+        if(atj.ID == tj.ID) continue;
+        // ignore nearby muons
+        if(atj.PDGCode == 13) continue;
+        float minSep = sepCut;
+        unsigned short ipt1, ipt2;
+        // Find the Distance Of Closest Approach between the two trajectories
+        // with the specified minimum separation
+        TrajTrajDOCA(tj, atj, ipt1, ipt2, minSep);
+        // Count the number of nearby trajectories within the cut
+        if(minSep < sepCut) ++nNear;
+        // no sense continuing if we are there
+        if(nNear == fShowerTag[2]) break;
+      } // atj
+      if(nNear >= fShowerTag[2]) tj.PDGCode = 12;
+    } // tj
+  } // TagShowerTraj
+  
+  
   /////////////////////////////////////////
   void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
   {
@@ -578,7 +628,7 @@ namespace tca {
   } // MakeBareTrajPoint
   
   /////////////////////////////////////////
-  void MakeBareTrajPoint(TjStuff& tjs, TrajPoint& tpIn1, TrajPoint& tpIn2, TrajPoint& tpOut)
+  void MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut)
   {
     tpOut.CTP = tpIn1.CTP;
     tpOut.Pos = tpIn1.Pos;
@@ -597,7 +647,246 @@ namespace tca {
     tpOut.Dir[1] /= norm;
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
   } // MakeBareTrajPoint
+  
+  //////////////////////////////////////////
+  bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt)
+  {
+    
+    // fVertex2DCuts fcl input usage
+    // 0 = maximum length of a short trajectory
+    // 1 = max vertex - trajectory separation for short trajectories
+    // 2 = max vertex - trajectory separation for long trajectories
+    // 3 = max position pull for adding TJs to a vertex
+    // 4 = max allowed vertex position error
 
+    if(tj.AlgMod[kKilled]) return false;
+    if(tj.CTP != vx.CTP) return false;
+    // already attached?
+    if(tj.VtxID[0] == vx.ID || tj.VtxID[1] == vx.ID) return false;
+    
+    unsigned short maxShortTjLen = fVertex2DCuts[0];
+    // square the separation cut to simplify testing in the loop
+    float maxSepCutShort2 = fVertex2DCuts[1] * fVertex2DCuts[1];
+    float maxSepCutLong2 = fVertex2DCuts[2] * fVertex2DCuts[2];
+    
+//    if(prt) mf::LogVerbatim("TC")<<"ATTV: tj ID "<<tj.ID<<" vx ID "<<vx.ID<<" maxSepCutShort2 "<<maxSepCutShort2<<" maxSepCutLong2 "<<maxSepCutLong2;
+    
+    // assume that end 0 is closest to the vertex
+    unsigned short end = 0;
+    float vtxTjSep2 = PosSep2(vx.Pos, tj.Pts[tj.EndPt[0]].Pos);
+    float sep1 = PosSep2(vx.Pos, tj.Pts[tj.EndPt[1]].Pos);
+    if(sep1 < vtxTjSep2) {
+      // End 1 is closer
+      end = 1;
+      vtxTjSep2 = sep1;
+    }
+    // is the trajectory short?
+    bool tjShort = (tj.EndPt[1] - tj.EndPt[0] < maxShortTjLen);
+    // ignore bad separation between the closest tj end and the vertex
+    if(tjShort) {
+      if(vtxTjSep2 > maxSepCutShort2) return false;
+    } else {
+      if(vtxTjSep2 > maxSepCutLong2) return false;
+    }
+    
+    // Calculate the pull on the vertex
+    TrajPoint& tp = tj.Pts[tj.EndPt[end]];
+    float tpVxPull = TrajPointVertexPull(tjs, tp, vx);
+
+    // See if the vertex position is close to an end
+    unsigned short closePt;
+    float closestApproach;
+    TrajClosestApproach(tj, vx.Pos[0], vx.Pos[1], closePt, closestApproach);
+    // count the number of points between the end of the trajectory and the vertex.
+    // tj     -------------   tj ------------
+    // vx  *   >> dpt = 0     vx   *  >> dpt = 2
+    short dpt;
+    if(end == 0) {
+      dpt = closePt - tj.EndPt[end];
+    } else {
+      dpt = tj.EndPt[end] - closePt;
+    }
+    
+    if(prt) mf::LogVerbatim("TC")<<" "<<vx.ID<<" tjID_end "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull;
+    if(tpVxPull > fVertex2DCuts[3]) return false;
+    if(dpt > 2) return false;
+
+    // Passed all the cuts. Attach it to the vertex and try a fit
+    tj.VtxID[end] = vx.ID;
+    if(FitVertex(tjs, vx, fVertex2DCuts, prt)) return true;
+    
+    // fit failed so remove the tj -> vx assignment
+    tj.VtxID[end] = 0;
+    return false;
+    
+  } // AttachTrajToVertex
+
+  /////////////////////////////////////////
+  float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx)
+  {
+    // Calculates the position pull between a trajectory point and a vertex
+
+    // impact parameter between them
+    double ip = PointTrajDOCA(tjs, vx.Pos[0], vx.Pos[1], tp);
+    // separation^2
+    double sep2 = PosSep2(vx.Pos, tp.Pos);
+    
+    // Find the projection of the vertex error ellipse in a coordinate system
+    // along the TP direction
+    double vxErrW = vx.PosErr[0] * tp.Dir[1];
+    double vxErrT = vx.PosErr[1] * tp.Dir[0];
+    double vxErr2 = vxErrW * vxErrW + vxErrT * vxErrT;
+    
+    // close together so ignore the TP projection error and return
+    // the pull using only the vertex error
+    if(sep2 < 1) return (float)(ip/sqrt(vxErr2));
+    
+    double dang = ip / sqrt(sep2);
+
+    // calculate the angle error.
+    // Start with the vertex error^2
+    double angErr = vxErr2 / sep2;
+    // Add the TP angle error^2
+    angErr += tp.AngErr * tp.AngErr;
+    if(angErr == 0) return 999;
+    angErr = sqrt(angErr);
+    return (float)(dang / angErr);
+    
+  } // TrajPointVertexPull
+  
+  /////////////////////////////////////////
+  float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2)
+  {
+    // Calculates the position pull between two vertices
+    double dw = vx1.Pos[0] - vx2.Pos[0];
+    double dt = vx1.Pos[1] - vx2.Pos[1];
+    double dwErr2 = (vx1.PosErr[0] * vx1.PosErr[0] + vx2.PosErr[0] * vx2.PosErr[0]) / 2;
+    double dtErr2 = (vx1.PosErr[1] * vx1.PosErr[1] + vx2.PosErr[1] * vx2.PosErr[1]) / 2;
+    dw = dw * dw / dwErr2;
+    dt = dt * dt / dtErr2;
+    return (float)sqrt(dw + dt);
+  }
+  
+  /////////////////////////////////////////
+  bool FitVertex(TjStuff& tjs, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt)
+  {
+    // A poor-mans fitting scheme. If the fitted vertex position error is within the supplied
+    // value, the position and errors are updated and we return true, otherwise the vertex is
+    // left unchanged and we return false
+    
+    // fVertex2DCuts fcl input usage
+    // 0 = maximum length of a short trajectory
+    // 1 = max vertex - trajectory separation for short trajectories
+    // 2 = max vertex - trajectory separation for long trajectories
+    // 3 = max position pull for adding TJs to a vertex
+    // 4 = max allowed vertex position error
+    
+    if(vx.Fixed) return false;
+    
+    // Create a vector of trajectory points that will be used to fit the vertex position
+    std::vector<TrajPoint> vxTp;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.CTP != vx.CTP) continue;
+      if(tj.VtxID[0] == vx.ID) vxTp.push_back(tj.Pts[tj.EndPt[0]]);
+      if(tj.VtxID[1] == vx.ID) vxTp.push_back(tj.Pts[tj.EndPt[1]]);
+    } // tj
+    
+    vx.NTraj = vxTp.size();
+    
+    if(vxTp.size() < 2) return false;
+    
+    if(prt) {
+      PrintHeader("FV");
+      for(auto& tp : vxTp) PrintTrajPoint("FV", tjs, 0, 1, 1, tp);
+    }
+ 
+    // Find trajectory intersections pair-wise tweaking the angle and position(?) within
+    // +/- 1 sigma
+    double sum0 = 0, sum02 = 0;
+    double sum1 = 0, sum12 = 0;
+    double sumw = 0;
+    double wgt;
+    // a temporary TP for tweaking the angle
+    TrajPoint tmp;
+    for(unsigned short itj = 0; itj < vxTp.size() - 1; ++itj) {
+      for(unsigned short jtj = itj + 1; jtj < vxTp.size(); ++jtj) {
+        float p0, p1;
+        TrajIntersection(vxTp[itj], vxTp[jtj], p0, p1);
+        // accumulate
+        wgt = 1;
+        sum0 += wgt * p0; sum02 += wgt * p0 * p0; sum1 += wgt * p1; sum12 += wgt * p1 * p1; sumw += wgt;
+        // tweak the itj angle +
+        tmp = vxTp[itj];
+        tmp.Ang += tmp.AngErr;
+        tmp.Dir[0] = cos(tmp.Ang); tmp.Dir[1] = sin(tmp.Ang);
+        TrajIntersection(tmp, vxTp[jtj], p0, p1);
+        // accumulate
+        // adjust the weight for 4 points at +/1 1 sigma = 0.607 / 4
+        wgt = 0.152;
+        sum0 += wgt * p0; sum02 += wgt * p0 * p0; sum1 += wgt * p1; sum12 += wgt * p1 * p1; sumw += wgt;
+        // tweak the itj angle -
+        tmp = vxTp[itj];
+        tmp.Ang -= 2 * tmp.AngErr;
+        tmp.Dir[0] = cos(tmp.Ang); tmp.Dir[1] = sin(tmp.Ang);
+        TrajIntersection(tmp, vxTp[jtj], p0, p1);
+        // accumulate
+        sum0 += wgt * p0; sum02 += wgt * p0 * p0; sum1 += wgt * p1; sum12 += wgt * p1 * p1; sumw += wgt;
+        // Repeat this process with jtj
+        // tweak the jtj angle +
+        tmp = vxTp[jtj];
+        tmp.Ang += tmp.AngErr;
+        tmp.Dir[0] = cos(tmp.Ang); tmp.Dir[1] = sin(tmp.Ang);
+        TrajIntersection(vxTp[itj], tmp, p0, p1);
+        // accumulate
+        sum0 += wgt * p0; sum02 += wgt * p0 * p0; sum1 += wgt * p1; sum12 += wgt * p1 * p1; sumw += wgt;
+        // tweak the itj angle -
+        tmp = vxTp[itj];
+        tmp.Ang -= 2 * tmp.AngErr;
+        tmp.Dir[0] = cos(tmp.Ang); tmp.Dir[1] = sin(tmp.Ang);
+        TrajIntersection(vxTp[itj], tmp, p0, p1);
+        // accumulate
+        sum0 += wgt * p0; sum02 += wgt * p0 * p0; sum1 += wgt * p1; sum12 += wgt * p1 * p1; sumw += wgt;
+      } // jtj
+    } // itj
+    
+    double vxP0 = sum0 / sumw;
+    double vxP1 = sum1 / sumw;
+    double vxP0rms = sqrt((sum02 - sumw * vxP0 * vxP0) / sumw);
+    double vxP1rms = sqrt((sum12 - sumw * vxP1 * vxP1) / sumw);
+    // don't let the errors get too small
+    if(vxP0rms < 0.5) vxP0rms = 0.5;
+    if(vxP1rms < 0.5) vxP1rms = 0.5;
+    
+    if(prt) mf::LogVerbatim("TC")<<"FitVertex "<<vx.ID<<" CTP "<<vx.CTP<<" NTraj "<<vx.NTraj<<" in "<<std::fixed<<std::setprecision(1)<<vx.Pos[0]<<" : "<<vx.Pos[1]/tjs.UnitsPerTick<<" out "<<vxP0<<"+/-"<<vxP0rms<<" : "<<vxP1/tjs.UnitsPerTick<<"+/-"<<vxP1rms/tjs.UnitsPerTick;
+    
+    if(vx.PosErr[0] > fVertex2DCuts[4] || vx.PosErr[1] > fVertex2DCuts[4]) return false;
+    
+    vx.Pos[0] = vxP0;
+    vx.PosErr[0] = vxP0rms;
+    vx.Pos[1] = vxP1;
+    vx.PosErr[1] = vxP1rms;
+    
+    // Calculate chisq
+    vx.ChiDOF = 0;
+    for(unsigned short itj = 0; itj < vxTp.size(); ++itj) {
+      vx.ChiDOF += TrajPointVertexPull(tjs, vxTp[itj], vx);
+    } // itj
+    vx.ChiDOF /= (float)vxTp.size();
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"Pull";
+      for(unsigned short itj = 0; itj < vxTp.size(); ++itj) {
+        float pull = TrajPointVertexPull(tjs, vxTp[itj], vx);
+        myprt<<" "<<PrintPos(tjs, vxTp[itj])<<"-"<<std::fixed<<std::setprecision(2)<<pull;
+      } // itj
+      myprt<<" ChiDOF "<<vx.ChiDOF;
+    }
+    return true;
+    
+  } // FitVertex
+  
   // ****************************** Printing  ******************************
   
   void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& debug, unsigned short itj, unsigned short ipt)
@@ -608,12 +897,11 @@ namespace tca {
     if(!tjs.vtx3.empty()) {
       // print out 3D vertices
       myprt<<"****** 3D vertices ******************************************__2DVtx_Indx__*******\n";
-      myprt<<"Vtx  Cstat  TPC Proc     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2  Wire\n";
+      myprt<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2  Wire\n";
       for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
         myprt<<std::right<<std::setw(3)<<std::fixed<<iv<<std::setprecision(1);
         myprt<<std::right<<std::setw(7)<<tjs.vtx3[iv].CStat;
         myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].TPC;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].ProcCode;
         myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].X;
         myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].Y;
         myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].Z;
@@ -636,19 +924,20 @@ namespace tca {
     if(!tjs.vtx.empty()) {
       // print out 2D vertices
       myprt<<"************ 2D vertices ************\n";
-      myprt<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NCl  topo  traj IDs\n";
+      myprt<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NTj Pass  Topo traj IDs\n";
       for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
         auto const& aVtx = tjs.vtx[iv];
         if(debug.Plane < 3 && debug.Plane != (int)aVtx.CTP) continue;
         if(aVtx.NTraj == 0) continue;
-        myprt<<std::right<<std::setw(3)<<std::fixed<<iv<<std::setprecision(1);
+        myprt<<std::right<<std::setw(3)<<std::fixed<<aVtx.ID<<std::setprecision(1);
         myprt<<std::right<<std::setw(6)<<aVtx.CTP;
-        myprt<<std::right<<std::setw(8)<<aVtx.Wire<<" +/- ";
-        myprt<<std::right<<std::setw(4)<<aVtx.WireErr;
-        myprt<<std::right<<std::setw(8)<<aVtx.Time/tjs.UnitsPerTick<<" +/- ";
-        myprt<<std::right<<std::setw(4)<<aVtx.TimeErr/tjs.UnitsPerTick;
+        myprt<<std::right<<std::setw(8)<<aVtx.Pos[0]<<" +/- ";
+        myprt<<std::right<<std::setw(4)<<aVtx.PosErr[0];
+        myprt<<std::right<<std::setw(8)<<aVtx.Pos[1]/tjs.UnitsPerTick<<" +/- ";
+        myprt<<std::right<<std::setw(4)<<aVtx.PosErr[1]/tjs.UnitsPerTick;
         myprt<<std::right<<std::setw(8)<<aVtx.ChiDOF;
         myprt<<std::right<<std::setw(5)<<aVtx.NTraj;
+        myprt<<std::right<<std::setw(5)<<aVtx.Pass;
         myprt<<std::right<<std::setw(6)<<aVtx.Topo;
         myprt<<"    ";
         // display the traj indices
@@ -657,7 +946,7 @@ namespace tca {
           if(debug.Plane < 3 && debug.Plane != (int)aTj.CTP) continue;
           if(aTj.AlgMod[kKilled]) continue;
           for(unsigned short end = 0; end < 2; ++end)
-            if(aTj.Vtx[end] == (short)iv) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
+            if(aTj.VtxID[end] == (short)aVtx.ID) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
         }
         myprt<<"\n";
       } // iv
@@ -675,7 +964,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ PDG  Par TRuPDG   EP   KE  WorkID\n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ PDG   Par TRuPDG   EP   KE  WorkID\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && (unsigned short)debug.Plane != aTj.CTP) continue;
@@ -705,10 +994,10 @@ namespace tca {
 //        myprt<<std::setw(7)<<std::setprecision(2)<<aTj.Quality;
         myprt<<std::setw(5)<<aTj.MCSMom;
         myprt<<std::setw(4)<<aTj.Dir;
-        myprt<<std::setw(4)<<aTj.Vtx[0];
-        myprt<<std::setw(4)<<aTj.Vtx[1];
+        myprt<<std::setw(4)<<aTj.VtxID[0];
+        myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
-        myprt<<std::setw(4)<<aTj.ParentTrajID;
+        myprt<<std::setw(5)<<aTj.ParentTrajID;
         myprt<<std::setw(6)<<aTj.TruPDG;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(5)<<(int)aTj.TruKE;
@@ -736,7 +1025,7 @@ namespace tca {
     
     auto const& aTj = tjs.allTraj[itj];
     
-    mf::LogVerbatim("TC")<<"Print tjs.allTraj["<<itj<<"]: ClusterIndex "<<aTj.ClusterIndex<<" Vtx[0] "<<aTj.Vtx[0]<<" Vtx[1] "<<aTj.Vtx[1];
+    mf::LogVerbatim("TC")<<"Print tjs.allTraj["<<itj<<"]: ClusterIndex "<<aTj.ClusterIndex<<" Vtx[0] "<<aTj.VtxID[0]<<" Vtx[1] "<<aTj.VtxID[1];
     
     PrintHeader(someText);
     if(ipt == USHRT_MAX) {
@@ -760,11 +1049,11 @@ namespace tca {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" AlgMod names:";
+        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
         mf::LogVerbatim myprt("TC");
-        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.Vtx[0]<<" "<<tj.Vtx[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[0]<<" AlgMod names:";
+        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[0]<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
       PrintHeader(someText);
