@@ -1440,6 +1440,8 @@ int pma::PMAlgTracker::matchCluster(const pma::TrkCandidate& trk,
 	int idx = -1;
 	for (size_t i = 0; i < fCluHits.size(); ++i)
 	{
+		if (fCluHits[i].empty()) continue;
+
 		unsigned int view = fCluHits[i].front()->View();
 		unsigned int nhits = fCluHits[i].size();
 
@@ -1485,8 +1487,8 @@ int pma::PMAlgTracker::maxCluster(int first_idx_tag,
 
 	for (size_t i = 0; i < fCluHits.size(); ++i)
 	{
-		if (has(used_clusters, i) || has(initial_clusters, i) || has(tried_clusters[view], i) ||
-		    (fCluHits[i].size() <  min_clu_size) || (fCluHits[i].front()->View() != view))
+		if ((fCluHits[i].size() <  min_clu_size) || (fCluHits[i].front()->View() != view) ||
+		    has(used_clusters, i) || has(initial_clusters, i) || has(tried_clusters[view], i))
 			continue;
 
 		bool pair_checked = false;
@@ -1530,7 +1532,7 @@ int pma::PMAlgTracker::maxCluster(size_t min_clu_size,
 	{
 		const auto & v = fCluHits[i];
 
-		if (!v.size() ||
+		if (v.empty() ||
 		    has(used_clusters, i) ||
 		    has(initial_clusters, i) ||
 		    has(tried_clusters[view], i) ||

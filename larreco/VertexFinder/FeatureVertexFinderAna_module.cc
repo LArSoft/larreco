@@ -23,7 +23,7 @@
 #include "larcore/Geometry/TPCGeo.h"
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
-#include "larsimobj/Simulation/sim.h"
+#include "lardataobj/Simulation/sim.h"
 #include "larsim/Simulation/SimListUtils.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"

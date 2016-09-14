@@ -2,7 +2,7 @@
 art_make( 
           LIB_LIBRARIES larreco_VertexFinder_HarrisVertexFinder_module
                         lardataobj_RecoBase
-                        larsim_Simulation larsimobj_Simulation
+                        larsim_Simulation lardataobj_Simulation
                         larevt_Filters
                         larcore_Geometry
                         larcore_Geometry_Geometry_service

@@ -27,7 +27,7 @@ def main(argv):
         # get clipped data, margin depends on patch size in drift direction
         raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2)
 
-        vtx = get_vertices(pdg, 0xFFFF0000)
+        vtx = get_vertices(pdg)
         print 'found', vtx.shape[0], 'vertices'
         print vtx[:,0]
         print vtx[:,1]
