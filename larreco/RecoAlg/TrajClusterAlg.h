@@ -219,6 +219,8 @@ namespace tca {
     bool TrajHitsOK(unsigned int iht, unsigned int jht);
     // Find all trajectories in the plane using the pre-defined step direction, cuts, etc.
     void TryRecoveryAlgs();
+    // Try to use unused nearby hits in all trajectories after stepping is done
+    void UseUnusedHits();
     // Finds junk trajectories using unassigned hits
     void FindJunkTraj();
     // Finds junk trajectories using unassigned hits
@@ -254,8 +256,7 @@ namespace tca {
     void SetPoorUsedHits(Trajectory& tj, unsigned short ipt);
     // Sets inTraj[] = 0 and UseHit false for all used hits in tp
     void UnsetUsedHits(TrajPoint& tp);
-//    void SetAllHitsUsed(TrajPoint& tp);
-      // Counts the number of used hits in tp
+    // Counts the number of used hits in tp
     unsigned short NumUsedHits(TrajPoint& tp);
     // Counts the number of TPs in the trajectory that have charge
     unsigned short NumPtsWithCharge(Trajectory& tj, bool includeDeadWires);
