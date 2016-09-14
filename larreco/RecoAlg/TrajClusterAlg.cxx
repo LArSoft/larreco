@@ -119,7 +119,6 @@ namespace tca {
     
     std::vector<std::string> skipAlgsVec = pset.get< std::vector<std::string>  >("SkipAlgs");
     
-    fuBCode               = pset.get< bool  >("uBCode", false);
     fStudyMode            = pset.get< bool  >("StudyMode", false);
     fTagAllTraj           = pset.get< bool  >("TagAllTraj", false);
     fFillTruth            = pset.get< short >("FillTruth", 0);
@@ -760,7 +759,7 @@ namespace tca {
                 continue;
               } // Failed again
             } // fTryWithNextPass
-            if(prt) mf::LogVerbatim("TC")<<"StepCrawl done: work.EndPt[1] "<<work.EndPt[1]<<" cut "<<fMinPts[work.Pass];
+            if(prt) mf::LogVerbatim("TC")<<"StepCrawl done: NumPtsWithCharge "<<NumPtsWithCharge(work, true)<<" cut "<<fMinPts[work.Pass];
             // decide if the trajectory is long enough for this pass
             if(!fGoodWork || NumPtsWithCharge(work, true) < fMinPts[work.Pass]) {
               if(prt) mf::LogVerbatim("TC")<<" xxxxxxx Not enough points "<<NumPtsWithCharge(work, true)<<" minimum "<<fMinPts[work.Pass];
@@ -784,6 +783,9 @@ namespace tca {
       if(fQuitAlg) return;
     } // fPass
     
+    // Use unused hits in all trajectories
+//    UseUnusedHits();
+    
     // make junk trajectories using nearby un-assigned hits
     if(fJTMaxHitSep2 > 0) {
       FindJunkTraj();
@@ -804,6 +806,37 @@ namespace tca {
     
   } // ReconstructAllTraj
 
+  //////////////////////////////////////////
+  void TrajClusterAlg::UseUnusedHits()
+  {
+    if(tjs.allTraj.size() == 0) return;
+    if(!fUseAlg[kUseUnusedHits]) return;
+    
+    for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+      Trajectory& tj = tjs.allTraj[itj];
+      if(tj.AlgMod[kKilled]) continue;
+      for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+        bool hitsAdded = false;
+        for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+          // hit is associated with this point and it is not used
+          if(tj.Pts[ipt].UseHit[ii]) continue;
+          unsigned int iht = tj.Pts[ipt].Hits[ii];
+          // and it is not used in any other trajectory
+          if(tjs.inTraj[iht] != 0) continue;
+          tj.Pts[ipt].UseHit[ii] = true;
+          tjs.inTraj[iht] = tj.ID;
+          hitsAdded = true;
+        } // ii
+        if(hitsAdded) {
+          DefineHitPos(tj.Pts[ipt]);
+          tj.AlgMod[kUseUnusedHits] = true;
+        }
+      } // ipt
+      if(tj.AlgMod[kUseUnusedHits]) SetEndPoints(tjs, tj);
+    } // itj
+    
+  } // UseUnusedHits
+  
   //////////////////////////////////////////
   void TrajClusterAlg::ReversePropagate(Trajectory& tj)
   {
@@ -2558,7 +2591,6 @@ namespace tca {
           }
           bool twoMuons = tjs.allTraj[tj1].PDGCode == 13 && tjs.allTraj[tj2].PDGCode == 13;
           float maxWireSkip = fMaxWireSkipNoSignal;
-          if(fuBCode && twoMuons) maxWireSkip = 40;
           if(mrgPrt) {
             mf::LogVerbatim("TC")<<"Candidate tj1-tj2 "<<tjs.allTraj[tj1].ID<<"_1"<<"-"<<tjs.allTraj[tj2].ID<<"_0"<<" dang "<<dang<<" DeadWireCount "<<(int)dwc<<" ptSep "<<ptSep<<" maxWireSkip "<<maxWireSkip<<" twoMuons? "<<twoMuons<<" doca "<<doca<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2);
             //          PrintTrajPoint("EM", tjs, tjs.allTraj[tj1].EndPt[1], tjs.allTraj[tj1].StepDir, 0, tp1);
@@ -3538,8 +3570,6 @@ namespace tca {
           float dwc = DeadWireCount(ltp, work.Pts[lastPtWithHits]);
           float nMissedWires = tps * std::abs(ltp.Dir[0]) - dwc;
           float maxWireSkip = fMaxWireSkipNoSignal;
-          // an ugly hack for tracking cosmic rays in MicroBooNE
-          if(fuBCode && work.PDGCode == 13) maxWireSkip = 50;
           if(prt) mf::LogVerbatim("TC")<<" StepCrawl: no signal at ltp "<<PrintPos(tjs, ltp)<<" nMissedWires "<<nMissedWires<<" dead wire count "<<dwc<<" maxWireSkip "<<maxWireSkip;
           if(nMissedWires > maxWireSkip) break;
         }
@@ -3903,11 +3933,13 @@ namespace tca {
     // First remove any TPs at the end that have no hits
     // TODO This shouldn't be done but first check to see what code will break
     // if we don't do it.
+    tj.Pts.resize(tj.EndPt[1] + 1);
+/*
     for(unsigned short ipt = tj.Pts.size() - 1; ipt > tj.EndPt[0]; --ipt) {
       if(tj.Pts[ipt].Chg > 0) break;
       tj.Pts.pop_back();
     }
-    
+*/
     if(isLA && HasDuplicateHits(tj)) {
       fGoodWork = false;
       return;
@@ -3916,10 +3948,10 @@ namespace tca {
     // Fill in any gaps with hits that were skipped, most likely delta rays on muon tracks
     if(!isLA) FillGaps(tj);
     
+    CalculateQuality(tj);
+    
     // Update the trajectory parameters at the beginning of the trajectory
     FixTrajBegin(tj);
-    
-    CalculateQuality(tj);
 
     // check the fraction of the trajectory points that have hits
     if(fUseAlg[kTrimHits] && NumPtsWithCharge(tj, false) > fMinPts[tj.Pass]) {
@@ -4055,7 +4087,7 @@ namespace tca {
     // lop off high multiplicity hits at the end
     CheckHiMultEndHits(tj);
     
-  } // CheckWork
+  } // CheckTraj
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::FixTrajBegin(Trajectory& tj)
@@ -4068,7 +4100,12 @@ namespace tca {
     // only do this once
     if(tj.AlgMod[kFixBegin]) return;
     // ignore short trajectories
-    if(NumPtsWithCharge(tj, false) < 6) return;
+    unsigned short npwc = NumPtsWithCharge(tj, false);
+    if(npwc < 6) return;
+    // ignore somewhat longer trajectories that are curly
+    if(npwc < 10 && tj.MCSMom < 100) return;
+    // ignore shower-like trajectories
+    if(tj.PDGCode == 12) return;
     // ignore junk trajectories
     if(tj.AlgMod[kJunkTj]) return;
     
@@ -5584,7 +5621,8 @@ namespace tca {
     // ensure that inTraj is clean for the work ID
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       if(tjs.inTraj[iht] == work.ID) {
-        std::cout<<"StoreWork: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to work ID "<<work.ID<<" but it wasn't stored\n";
+        mf::LogWarning("TC")<<"StoreWork: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to work ID "<<work.ID<<" but it wasn't stored\n";
+        PrintTrajectory("SW", tjs, work, USHRT_MAX);
         fQuitAlg = true;
         return;
       }
@@ -5604,29 +5642,6 @@ namespace tca {
     // Calculate a quality metric using the deviations of all hits used in the trajectory
     
     tj.MCSMom = MCSMom(tjs, tj);
-/*
-    TrajPoint tmp;
-    // make a bare trajectory point to define a line between the first
-    // and last points on the trajectory that have charge
-    MakeBareTrajPoint(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]], tmp);
-    // sum up the deviations^2
-    double dsum = 0;
-    unsigned short cnt = 0;
-    for(unsigned short ipt = tj.EndPt[0] + 1; ipt < tj.EndPt[1]; ++ipt) {
-      if(tj.Pts[ipt].Chg == 0) continue;
-      dsum += PointTrajDOCA2(tjs, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
-      ++cnt;
-    } // ipt
-    if(cnt > 0) {
-      double sigmaS = sqrt(dsum / (float)cnt);
-      double tjLen = TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
-      // Theta_o =  4 * sqrt(3) * sigmaS / path
-      double thetaRMS = 6.8 * sigmaS / tjLen;
-      double mom = 14 * sqrt(tjLen / 14) / thetaRMS;
-      if(mom > 999) mom = 999;
-      tj.MCSMom = mom;
-    }
-*/
     
   } // CalculateQuality
   
