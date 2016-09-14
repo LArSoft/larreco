@@ -15,6 +15,7 @@ standard_trajclusteralg:
    MinAmp: 5                # Min amplitude for a wire signal being considered present
    LargeAngle: 70           # (degrees) Use Large Angle tracking cuts for trajectories exceeding this angle
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
+   MaxHitMultiplicity: [2, 10] # max hit multiplicity to allow each pass
    Merge: true              # Merge trajectories?
    ChgPullCut: 3            # Use trajectory points/hits if (Chg/AveChg - 1) / ChgRMS < cut
    KinkAngCut: 0.5          # Kink angle to decide whether to merge or create a 2D vtx
