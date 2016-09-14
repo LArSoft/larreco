@@ -158,15 +158,15 @@ namespace cluster {
     // make EndPoints (aka 2D vertices)
     std::vector<tca::VtxStore> const& EndPts = fTCAlg->GetEndPoints();
     art::ServiceHandle<geo::Geometry> geom;
-    unsigned int vtxID = 0, end, wire;
+    unsigned int vtxID = 0;
     for(tca::VtxStore const& vtx2: EndPts) {
       if(vtx2.NTraj == 0) continue;
       ++vtxID;
-      wire = (0.5 + vtx2.Wire);
+      unsigned int wire = std::nearbyint(vtx2.Pos[0]);
       geo::PlaneID plID = tca::DecodeCTP(vtx2.CTP);
       geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
       geo::View_t view = geom->View(wID);
-      sv2col.emplace_back((double)vtx2.Time,    // Time
+      sv2col.emplace_back((double)vtx2.Pos[1],  // Time
                           wID,                  // WireID
                           0,                    // strength - not relevant
                           vtxID,                // ID
@@ -270,6 +270,7 @@ namespace cluster {
         } // exception
       }
       // make the cluster - endpoint associations
+      unsigned short end;
       if(clstr.BeginVtx >= 0) {
         end = 0;
         // See if this endpoint is associated with a 3D vertex
