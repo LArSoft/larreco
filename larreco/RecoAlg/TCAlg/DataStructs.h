@@ -183,6 +183,7 @@ namespace tca {
     kFixBegin,
     kMuon,
     kDeltaRay,
+    kUseUnusedHits,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
