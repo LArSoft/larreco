@@ -26,7 +26,8 @@ namespace tca {
     "ChkInTraj",
     "FixBegin",
     "Muon",
-    "DeltaRay"
+    "DeltaRay",
+    "UseUnusedHits"
   };
 } // namespace tca
 
