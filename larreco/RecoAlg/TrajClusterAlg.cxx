@@ -792,7 +792,7 @@ namespace tca {
     } // fPass
     
     // Use unused hits in all trajectories
-//    UseUnusedHits();
+    UseUnusedHits();
     
     // make junk trajectories using nearby un-assigned hits
     if(fJTMaxHitSep2 > 0) {
@@ -824,6 +824,7 @@ namespace tca {
       Trajectory& tj = tjs.allTraj[itj];
       if(tj.AlgMod[kKilled]) continue;
       for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+        if(!IsLargeAngle(tj.Pts[ipt])) continue;
         bool hitsAdded = false;
         for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
           // hit is associated with this point and it is not used
@@ -838,6 +839,7 @@ namespace tca {
         if(hitsAdded) {
           DefineHitPos(tj.Pts[ipt]);
           tj.AlgMod[kUseUnusedHits] = true;
+          if(prt) mf::LogVerbatim("TC")<<"UseUnusedHits: Using hits on ipt "<<ipt;
         }
       } // ipt
       if(tj.AlgMod[kUseUnusedHits]) SetEndPoints(tjs, tj);
@@ -1950,7 +1952,7 @@ namespace tca {
     
     bool isLA = IsLargeAngle(tp);
     // Very Large Angle
-    bool isVLA = std::abs(tp.Dir[0]) < fLargeAngle - 0.1;
+    bool isVLA = std::abs(tp.Dir[0]) < (fLargeAngle - 0.1);
     if(isVLA) {
       // VLA deltaCut is delta / hit RMS
       deltaCut = 2;
@@ -2039,8 +2041,8 @@ namespace tca {
           // Large Angle
           // The impact parameter delta may be good but we may be projecting
           // the trajectory too far away (in time) from the current position.
-          // The LA step size is 1 so make the cut a bit larger than that.
-          if(dt > 1.1) continue;
+          // The LA step size is 2 so make the cut a bit larger than that.
+          if(dt > 2.5) continue;
           if(delta > deltaCut) continue;
         } else {
           // Not large angle
@@ -2447,11 +2449,17 @@ namespace tca {
     newpos[0] = 0;
     newpos[1] = 0;
     unsigned short ii, iht;
+    // Find the wire range for hits used in the TP
+    unsigned int loWire = INT_MAX;
+    unsigned int hiWire = 0;
     for(ii = 0; ii < tp.Hits.size(); ++ii) {
       if(!tp.UseHit[ii]) continue;
       iht = tp.Hits[ii];
       chg = tjs.fHits[iht]->Integral();
-      newpos[0] += chg * tjs.fHits[iht]->WireID().Wire;
+      unsigned int wire = tjs.fHits[iht]->WireID().Wire;
+      if(wire < loWire) loWire = wire;
+      if(wire > hiWire) hiWire = wire;
+      newpos[0] += chg * wire;
       newpos[1] += chg * tjs.fHits[iht]->PeakTime() * tjs.UnitsPerTick;
       tp.Chg += chg;
       hitVec.push_back(iht);
@@ -2462,8 +2470,10 @@ namespace tca {
     tp.HitPos[0] = newpos[0] / tp.Chg;
     tp.HitPos[1] = newpos[1] / tp.Chg;
     
-    // Error is the wire error (1/sqrt(12))^2 and time error
-    float wireErr = tp.Dir[1] * 0.289;
+    // Error is the wire error (1/sqrt(12))^2 if all hits are on one wire.
+    // Scale it by the wire range
+    float dWire = 1 + hiWire - loWire;
+    float wireErr = tp.Dir[1] * dWire * 0.289;
     float timeErr2 = tp.Dir[0] * tp.Dir[0] * HitsTimeErr2(hitVec);
     tp.HitPosErr2 = wireErr * wireErr + timeErr2;
 //    tp.HitPosErr2 = std::abs(tp.Dir[1]) * 0.08 + std::abs(tp.Dir[0]) * HitsTimeErr2(hitVec);
@@ -3617,19 +3627,20 @@ namespace tca {
       if(work.Pts.size() == 3) {
         // ensure that the last hit added is in the same direction as the first two.
         // This is a simple way of doing it
-//        if(prt) mf::LogVerbatim("TC")<<"StepCrawl: Third TP. 0-2 sep "<<TrajPointHitSep2(work.Pts[0], work.Pts[2])<<" 0-1 sep "<<TrajPointHitSep2(work.Pts[0], work.Pts[1]);
-//        if(TrajPointHitSep2(work.Pts[0], work.Pts[2]) < TrajPointHitSep2(work.Pts[0], work.Pts[1])) return;
         if(PosSep2(work.Pts[0].HitPos, work.Pts[2].HitPos) < PosSep2(work.Pts[0].HitPos, work.Pts[1].HitPos)) return;
+        // ensure that this didn't start as a small angle trajectory and immediately turn
+        // into a large angle one
+        if(isLA && !fLAStep[fPass]) {
+          if(prt) mf::LogVerbatim("TC")<<" Turned into a LA trajectory. Quit stepping. ";
+          fGoodWork = false;
+          return;
+        }
       } // work.Pts.size() == 3
       // Quit if the separation between points for LA trajectories is too small
       // indicating that the trajectory is curling up on itself
       if(isLA && work.EndPt[1] > 2) {
         for(unsigned short ii = 1; ii < work.Pts.size(); ++ii) {
           unsigned short ipt = work.EndPt[1] - ii;
-//          float tpSep = TrajPointSeparation(work.Pts[ipt], work.Pts[lastPt]);
-          // simpler version that doesn't take the sqrt
-//          float tpSep2 = PosSep2(work.Pts[ipt].Pos, work.Pts[lastPt].Pos);
-//          if(prt) std::cout<<ipt<<" Sep "<<tpSep<<"\n";
           if(PosSep2(work.Pts[ipt].Pos, work.Pts[lastPt].Pos) < 2.3) {
             if(prt) mf::LogVerbatim("TC")<<" Curly LA trajectory. Stop stepping ";
             fGoodWork = false;
