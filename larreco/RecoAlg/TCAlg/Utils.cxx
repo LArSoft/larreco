@@ -132,10 +132,10 @@ namespace tca {
   {
     // Finds the point, ipt, on trajectory tj that is closest to trajpoint tp
     float best = minSep * minSep;
-    closePt = 0;
+    closePt = USHRT_MAX;
     float dw, dt, dp2;
     unsigned short ipt;
-    for(ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
+    for(ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
       dw = tj.Pts[ipt].Pos[0] - tp.Pos[0];
       dt = tj.Pts[ipt].Pos[1] - tp.Pos[1];
       dp2 = dw * dw + dt * dt;
@@ -539,10 +539,12 @@ namespace tca {
         float sep0 = 100;
         unsigned short muPt0;
         TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[0]], muTj, muPt0, sep0);
+        if(muPt0 > muTj.EndPt[1]) continue;
         float sep1 = 100;
         unsigned short muPt1;
         TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[1]], muTj, muPt1, sep1);
         if(prt) mf::LogVerbatim("TC")<<" drTj.ID "<<drTj.ID<<" sep 0 "<<sep0<<" sep1 "<<sep1;
+        if(muPt1 > muTj.EndPt[1]) continue;
         if(sep0 < sep1) { ++n0; } else { ++n1; }
       } // unsigned short jtj
       // Can't tell the direction using this method, so leave the current assignment unchanged
@@ -1026,6 +1028,9 @@ namespace tca {
     auto const& aTj = tjs.allTraj[itj];
     
     mf::LogVerbatim("TC")<<"Print tjs.allTraj["<<itj<<"]: ClusterIndex "<<aTj.ClusterIndex<<" Vtx[0] "<<aTj.VtxID[0]<<" Vtx[1] "<<aTj.VtxID[1];
+    myprt<<"AlgBits";
+    for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
+    myprt<<"\n";
     
     PrintHeader(someText);
     if(ipt == USHRT_MAX) {
@@ -1035,7 +1040,7 @@ namespace tca {
       // print just one
       PrintTrajPoint(someText, tjs, ipt, aTj.StepDir, aTj.Pass, aTj.Pts[ipt]);
     }
-  } // Printtjs.allTraj
+  } // PrintAllTraj
   
   
   //////////////////////////////////////////
