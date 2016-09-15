@@ -286,8 +286,8 @@ namespace tca {
           // reconstruct all trajectories in the current plane
           ReconstructAllTraj();
           if(fQuitAlg) {
-            std::cout<<"RunTrajCluster failed in ReconstructAllTraj\n";
-            mf::LogVerbatim("TC")<<"RunTrajCluster: QuitAlg after ReconstructAllTraj";
+            std::cout<<"RunTrajCluster failed in ReconstructAllTraj Run "<<fRun<<" Event "<<fEvent<<" EventsProcessed "<<fEventsProcessed<<"\n";
+            mf::LogVerbatim("TC")<<"RunTrajCluster failed after ReconstructAllTraj";
             ClearResults();
             return;
           }
@@ -498,6 +498,12 @@ namespace tca {
     fQuitAlg = true;
     if(itj1 > tjs.allTraj.size() - 1) return false;
     if(itj2 > tjs.allTraj.size() - 1) return false;
+    if(tjs.allTraj[itj1].AlgMod[kKilled] || tjs.allTraj[itj2].AlgMod[kKilled]) {
+      mf::LogWarning("TC")<<"MergeAndStore: Trying to merge a killed trajectory. Here they are ";
+      PrintAllTraj("tj1", tjs, debug, itj1, USHRT_MAX);
+      PrintAllTraj("tj1", tjs, debug, itj2, USHRT_MAX);
+      return false;
+    }
     
     // make a copy so they can be trimmed as needed
     // tj1 goes in work so we can use Storework
@@ -521,6 +527,8 @@ namespace tca {
     unsigned short tj2ClosePt = 0;
     // Note that TrajPointTrajDOCA only considers TPs that have charge
     TrajPointTrajDOCA(tjs, endWorkTP, tj2, tj2ClosePt, minSep);
+    // check for full overlap
+    if(tj2ClosePt > tj2.EndPt[1]) return false;
     // check for the following possibilities, where - indicates a TP with charge
     // work:  --------------
     // tj2:                  -------------
@@ -551,7 +559,7 @@ namespace tca {
         unsigned int iht = tj2.Pts[tj2ClosePt].Hits[ii];
         if(std::find(workHits.begin(), workHits.end(), iht) != workHits.end()) bumpedPt = true;
       } // ii
-      if(bumpedPt) {
+      if(bumpedPt && tj2ClosePt < tj2.EndPt[1]) {
         ++tj2ClosePt;
       } else {
         break;
@@ -2568,15 +2576,21 @@ namespace tca {
       for(tj1 = 0; tj1 < tjsize; ++tj1) {
         if(tjs.allTraj[tj1].AlgMod[kKilled]) continue;
         if(tjs.allTraj[tj1].CTP != fCTP) continue;
+        // no merge if there is a vertex at the end
         if(tjs.allTraj[tj1].VtxID[1] > 0) continue;
+        // ignore bad trajectories
+        if(tjs.allTraj[tj1].MCSMom < 5) continue;
         ipt = tjs.allTraj[tj1].EndPt[1];
         TrajPoint& tp1 = tjs.allTraj[tj1].Pts[ipt];
         for(tj2 = 0; tj2 < tjsize; ++tj2) {
+          if(tjs.allTraj[tj1].AlgMod[kKilled]) continue;
           if(tj1 == tj2) continue;
-          if(tjs.allTraj[tj1].StepDir != tjs.allTraj[tj2].StepDir) continue;
+          if(tjs.allTraj[tj2].StepDir != tjs.allTraj[tj1].StepDir) continue;
           if(tjs.allTraj[tj2].AlgMod[kKilled]) continue;
           if(tjs.allTraj[tj2].CTP != fCTP) continue;
           if(tjs.allTraj[tj2].VtxID[0] > 0) continue;
+          // ignore bad trajectories
+          if(tjs.allTraj[tj2].MCSMom < 5) continue;
           ipt = tjs.allTraj[tj2].EndPt[0];
           TrajPoint& tp2 = tjs.allTraj[tj2].Pts[ipt];
           float doca = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
@@ -3392,7 +3406,7 @@ namespace tca {
         // find the closest distance between the vertex and the trajectory
         TrajPointTrajDOCA(tjs, tp, tjs.allTraj[itj], closePt, doca);
         if(prt) mf::LogVerbatim("TC")<<"CI3DV itj ID "<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
-        if(doca == maxdoca) continue;
+        if(closePt > tjs.allTraj[itj].EndPt[1]) continue;
         mTjs.push_back(std::make_pair(itj, closePt));
       } // itj
       // handle the case where there are one or more TJs with TPs near the ends
@@ -3921,6 +3935,12 @@ namespace tca {
     // ensure that the end points are defined
     SetEndPoints(tjs, tj);
     if(tj.EndPt[0] == tj.EndPt[1]) return;
+    
+    // Ensure that a hit only appears once in the TJ
+    if(HasDuplicateHits(work)) {
+      fGoodWork = false;
+      return;
+    }
     
     unsigned short newSize;
     unsigned short ipt = tj.EndPt[1];
@@ -5540,6 +5560,10 @@ namespace tca {
   {
 
     if(work.EndPt[1] <= work.EndPt[0]) return;
+    if(work.AlgMod[kKilled]) {
+      mf::LogWarning("TC")<<"StoreWork: Trying to store a killed trajectory. Work ID "<<work.ID;
+      return;
+    }
     
     // Fit the last 3 points and stuff it into EndTP[1]
     unsigned short originPt = work.Pts.size() - 1;
@@ -5552,21 +5576,6 @@ namespace tca {
     if(work.StepDir < 0) ReverseTraj(work);
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tjs, work);
-    
-    // Ensure that a hit only appears once in the TJ
-    std::vector<unsigned int> tHits;
-    // put ALL hits in the vector
-    PutTrajHitsInVector(work, false, tHits);
-    for(unsigned short ii = 0; ii < tHits.size(); ++ii) {
-      for(unsigned short jj = ii + 1; jj < tHits.size(); ++jj) {
-        if(tHits[ii] == tHits[jj]) {
-          std::cout<<"Hit "<<PrintHit(tjs.fHits[tHits[ii]])<<" appears twice in trajectory workID "<<work.ID<<"\n";
-          PrintTrajectory("SW", tjs, work, USHRT_MAX);
-          fQuitAlg = true;
-          return;
-        }
-      } // jj
-    } // ii
     
     // Calculate the charge near the end and beginning if necessary. This must be a short
     // trajectory. Find the average using 4 points
