@@ -10,9 +10,9 @@ standard_pointidalg:
  PatchSizeD:      32  # with training data used in neural net model preparation
  DriftWindow:     10
 
- DownscaleFn:     "maxpool" # "maxpool" takes the max value in the window,
-                            # "maxmean" is mean from 3 ADC's around the max,
-                            # "mean" is the mean value of all ADC's in the window
+ DownscaleFn:     "mean" # "maxpool" takes the max value in the window,
+                         # "maxmean" is mean from 3 ADC's around the max,
+                         # "mean" is the mean value of all ADC's in the window
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
 }
@@ -27,9 +27,9 @@ standard_trainingdataalg:
  PatchSizeD:      32  # with training data used in neural net model preparation
  DriftWindow:     10
 
- DownscaleAlg:    "maxpool" # "maxpool" takes the max value in the window,
-                            # "maxmean" is mean from 3 ADC's around the max,
-                            # "mean" is the mean value of all ADC's in the window
+ DownscaleFn:    "mean" # "maxpool" takes the max value in the window,
+                        # "maxmean" is mean from 3 ADC's around the max,
+                        # "mean" is the mean value of all ADC's in the window
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
 }
