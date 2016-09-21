@@ -50,9 +50,11 @@ namespace nnet	 {
 	std::vector<int> fSelectedTPC;
 	std::vector<int> fSelectedView;
 
-	int fEvent;     ///< number of the event being processed
-	int fRun;       ///< number of the run being processed
-	int fSubRun;    ///< number of the sub-run being processed
+	int fEvent;     /// number of the event being processed
+	int fRun;       /// number of the run being processed
+	int fSubRun;    /// number of the sub-run being processed
+
+    bool fCrop;     /// crop data to event (set to false when dumping noise!)
 
 	nnet::TrainingDataAlg fTrainingDataAlg;
 
@@ -74,6 +76,7 @@ namespace nnet	 {
 	fOutTextFilePath = parameterSet.get< std::string >("OutTextFilePath");
 	fSelectedTPC = parameterSet.get< std::vector<int> >("SelectedTPC");
 	fSelectedView = parameterSet.get< std::vector<int> >("SelectedView");
+	fCrop = parameterSet.get< bool >("Crop");
 
 	const size_t TPC_CNT = (size_t)fGeometry->NTPC(0);
 	if (fSelectedTPC.empty())
@@ -113,14 +116,24 @@ namespace nnet	 {
 		fTrainingDataAlg.setEventData(event, fSelectedView[v], fSelectedTPC[i], 0);
 
         unsigned int w0, w1, d0, d1;
-        if (fTrainingDataAlg.findCrop(0.004F, w0, w1, d0, d1))
+        if (fCrop)
         {
-            std::cout << "   crop: " << w0 << " " << w1 << " " << d0 << " " << d1 << std::endl;
+            if (fTrainingDataAlg.findCrop(0.004F, w0, w1, d0, d1))
+            {
+                std::cout << "   crop: " << w0 << " " << w1 << " " << d0 << " " << d1 << std::endl;
+            }
+            else
+            {
+                std::cout << "   skip empty tpc:" << fSelectedTPC[i] << " / view:" << fSelectedView[v] << std::endl;
+                continue;
+            }
         }
         else
         {
-            std::cout << "   skip empty tpc:" << fSelectedTPC[i] << " / view:" << fSelectedView[v] << std::endl;
-            continue;
+            w0 = 0;
+            w1 = fTrainingDataAlg.NWires();
+            d0 = 0;
+            d1 = fTrainingDataAlg.NScaledDrifts();
         }
 
 		std::ostringstream ss1;

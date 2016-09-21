@@ -91,7 +91,8 @@ physics.analyzers.pointid.TrainingDataAlg.DriftWindow:     6            # downsa
 physics.analyzers.pointid.TrainingDataAlg.DownscaleFn:     "mean"       # downsampling function
 physics.analyzers.pointid.SelectedTPC:     [2]   # all TPC's if empty list, or save data from selected TPC's only
 physics.analyzers.pointid.SelectedView:    [2]   # all views if empty list, or save data from selected views only
-physics.analyzers.pointid.OutTextFilePath: "/home/your_dir/sub_dir_to_save_files"
+physics.analyzers.pointid.OutTextFilePath: "/home/your_dir/sub_dir_to_save_files" # output directory for data dump
+physics.analyzers.pointid.Crop:            true  # set to false when dumping noise (empty) events
 
 # EM vs track separation configuration:
 # PatchSizeW and PatchSizeD together with DriftWindow have to be corresponding
