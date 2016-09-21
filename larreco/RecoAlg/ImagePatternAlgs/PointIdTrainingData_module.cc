@@ -110,6 +110,19 @@ namespace nnet	 {
 	for (size_t i = 0; i < fSelectedTPC.size(); ++i)
 		for (size_t v = 0; v < fSelectedView.size(); ++v)
 	{
+		fTrainingDataAlg.setEventData(event, fSelectedView[v], fSelectedTPC[i], 0);
+
+        unsigned int w0, w1, d0, d1;
+        if (fTrainingDataAlg.findCrop(0.004F, w0, w1, d0, d1))
+        {
+            std::cout << "   crop: " << w0 << " " << w1 << " " << d0 << " " << d1 << std::endl;
+        }
+        else
+        {
+            std::cout << "   skip empty tpc:" << fSelectedTPC[i] << " / view:" << fSelectedView[v] << std::endl;
+            continue;
+        }
+
 		std::ostringstream ss1;
 		ss1 << fOutTextFilePath << "/raw_" << os.str()
 			<< "_tpc_" << fSelectedTPC[i]
@@ -119,28 +132,26 @@ namespace nnet	 {
 		fout_deposit.open(ss1.str() + ".deposit");
 		fout_pdg.open(ss1.str() + ".pdg");
 
-		fTrainingDataAlg.setEventData(event, fSelectedView[v], fSelectedTPC[i], 0);
-
-		for (size_t w = 0; w < fTrainingDataAlg.NWires(); ++w)
+		for (size_t w = w0; w < w1; ++w)
 		{
 			auto const & raw = fTrainingDataAlg.wireData(w);
-			for (auto f : raw)
+			for (size_t d = d0; d < d1; ++d)
 			{
-				fout_raw << f << " ";
+				fout_raw << raw[d] << " ";
 			}
 			fout_raw << std::endl;
 
 			auto const & edep = fTrainingDataAlg.wireEdep(w);
-			for (auto f : edep)
+			for (size_t d = d0; d < d1; ++d)
 			{
-				fout_deposit << f << " ";
+				fout_deposit << edep[d] << " ";
 			}
 			fout_deposit << std::endl;
 
 			auto const & pdg = fTrainingDataAlg.wirePdg(w);
-			for (auto f : pdg)
+			for (size_t d = d0; d < d1; ++d)
 			{
-				fout_pdg << f << " ";
+				fout_pdg << pdg[d] << " ";
 			}
 			fout_pdg << std::endl;
 		}
