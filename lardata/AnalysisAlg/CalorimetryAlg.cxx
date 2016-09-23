@@ -21,9 +21,9 @@
 namespace calo{
 
   //--------------------------------------------------------------------
-  CalorimetryAlg::CalorimetryAlg(fhicl::ParameterSet const& pset) 
+  CalorimetryAlg::CalorimetryAlg(const Config& config) 
   {
-     this->reconfigure( pset);
+     this->reconfigure(config);
 
      detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
   }
@@ -35,12 +35,12 @@ namespace calo{
   }
   
   //--------------------------------------------------------------------
-  void   CalorimetryAlg::reconfigure(fhicl::ParameterSet const& pset)
+  void   CalorimetryAlg::reconfigure(const Config& config)
   {
     
-    fCalAmpConstants 	= pset.get< std::vector<double> >("CalAmpConstants");
-    fCalAreaConstants   = pset.get< std::vector<double> >("CalAreaConstants");
-    fUseModBox          = pset.get< bool >("CaloUseModBox");
+    fCalAmpConstants 	= config.CalAmpConstants();
+    fCalAreaConstants   = config.CalAreaConstants();
+    fUseModBox          = config.CaloUseModBox();
 
     return;
   }

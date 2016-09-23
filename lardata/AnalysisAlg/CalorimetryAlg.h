@@ -9,7 +9,8 @@
 #ifndef UTIL_CALORIMETRYALG_H
 #define UTIL_CALORIMETRYALG_H
 
-#include "fhiclcpp/ParameterSet.h"
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Sequence.h"
 
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
@@ -26,12 +27,35 @@ namespace calo{
     class CalorimetryAlg {
     public:
 
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
 
-    CalorimetryAlg(fhicl::ParameterSet const& pset);
+		fhicl::Sequence< double > CalAmpConstants {
+			Name("CalAmpConstants"),
+			Comment("ADC to electrons constants for each plane.")
+		};
+
+		fhicl::Sequence< double > CalAreaConstants {
+			Name("CalAreaConstants"),
+			Comment("Area to electrons constants for each plane.")
+		};
+
+		fhicl::Atom< bool > CaloUseModBox {
+			Name("CaloUseModBox"),
+			Comment("Use modified box model if true, birks otherwise")
+		};
+    };
+
+	CalorimetryAlg(const fhicl::ParameterSet& pset) :
+		CalorimetryAlg(fhicl::Table<Config>(pset, {})())
+	{}
+
+    CalorimetryAlg(const Config& config);
     
     ~CalorimetryAlg();
       
-    void   reconfigure(fhicl::ParameterSet const& pset);
+    void   reconfigure(const Config& config);
     
     double dEdx_AMP(art::Ptr< recob::Hit >  hit, double pitch, double T0=0) const;
     double dEdx_AMP(recob::Hit const&  hit, double pitch, double T0=0) const;
