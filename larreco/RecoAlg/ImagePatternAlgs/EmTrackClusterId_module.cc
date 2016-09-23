@@ -19,9 +19,9 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "canvas/Utilities/InputTag.h"
-// #include "fhiclcpp/types/Atom.h"
-// #include "fhiclcpp/types/Sequence.h"
-// #include "fhiclcpp/types/Table.h"
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Sequence.h"
+#include "fhiclcpp/types/Table.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larcore/Geometry/Geometry.h"
@@ -37,12 +37,12 @@ namespace nnet {
 
 class EmTrackClusterId : public art::EDProducer {
 public:
-/*
+
 	struct Config {
 		using Name = fhicl::Name;
 		using Comment = fhicl::Comment;
 
-		fhicl::Table<fhicl::ParameterSet> PointIdAlg {
+		fhicl::Table<nnet::PointIdAlg::Config> PointIdAlg {
 			Name("PointIdAlg")
 		};
 
@@ -73,8 +73,6 @@ public:
 	};
 	using Parameters = art::EDProducer::Table<Config>;
 	explicit EmTrackClusterId(Parameters const & p);
-*/
-	explicit EmTrackClusterId(fhicl::ParameterSet const & p);
 
 	EmTrackClusterId(EmTrackClusterId const &) = delete;
 	EmTrackClusterId(EmTrackClusterId &&) = delete;
@@ -97,26 +95,14 @@ private:
 	std::vector< int > fViews;
 };
 // ------------------------------------------------------
-/*
+
 EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 	fPointIdAlg(config().PointIdAlg()),
 	fWireProducerLabel(config().WireLabel()),
-	fClusterModuleLabel(config().HitModuleLabel()),
+	fHitModuleLabel(config().HitModuleLabel()),
 	fClusterModuleLabel(config().ClusterModuleLabel()),
 	fThreshold(config().Threshold()),
 	fViews(config().Views())
-{
-	produces< std::vector<recob::Cluster> >();
-	produces< art::Assns<recob::Cluster, recob::Hit> >();
-}
-*/
-EmTrackClusterId::EmTrackClusterId(fhicl::ParameterSet const & p) :
-	fPointIdAlg(p.get< fhicl::ParameterSet >("PointIdAlg")),
-	fWireProducerLabel(p.get< art::InputTag >("WireLabel")),
-	fHitModuleLabel(p.get< art::InputTag >("HitModuleLabel")),
-	fClusterModuleLabel(p.get< art::InputTag >("ClusterModuleLabel")),
-	fThreshold(p.get< double >("Threshold")),
-	fViews(p.get< std::vector< int > >("Views"))
 {
 	produces< std::vector<recob::Cluster> >();
 	produces< art::Assns<recob::Cluster, recob::Hit> >();
