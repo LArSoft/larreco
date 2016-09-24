@@ -97,7 +97,6 @@ namespace tca {
     // HitPosErr2 < 0 = HitPos not defined because no hits used
     float Ang {0};                // Trajectory angle (-pi, +pi)
     float AngErr {0.1};             // Trajectory angle error
-    float KinkAng {-1};            // Just what it says
     float Chg {0};                // Charge
     float AveChg {-1};             // Average charge of last ~20 TPs
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
@@ -181,8 +180,6 @@ namespace tca {
     kUseGhostHits,
     kChkInTraj,
     kFixBegin,
-    kMuon,
-    kDeltaRay,
     kUseUnusedHits,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
