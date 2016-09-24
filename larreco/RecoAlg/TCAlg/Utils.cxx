@@ -363,7 +363,7 @@ namespace tca {
     // Project TP to a "wire position" Pos[0] and update Pos[1]
     if(tp.Dir[0] == 0) return;
     float dw = wire - tp.Pos[0];
-    if(dw == 0) return;
+    if(std::abs(dw) < 0.01) return;
     tp.Pos[0] = wire;
     tp.Pos[1] += dw * tp.Dir[1] / tp.Dir[0];
   } // MoveTPToWire
@@ -433,8 +433,14 @@ namespace tca {
       ++cnt;
     } // ipt
     if(cnt == 0) return 0;
+    // require that cnt is a significant fraction of the total number of charged points
+    // so that we don't get erroneously high MCSMom when there are large gaps.
+    // This is the number of points expected in the count if there are no gaps
+    unsigned short numPts = lastPt - firstPt - 1;
+    // return the previously calculated value of MCSMom
+    if(numPts > 5 && cnt < 0.7 * numPts) return tj.MCSMom;
     double sigmaS = sqrt(dsum / (double)cnt);
-    double tjLen = TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
+    double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
     // Theta_o =  4 * sqrt(3) * sigmaS / path
     double thetaRMS = 6.8 * sigmaS / tjLen;
     double mom = 14 * sqrt(tjLen / 14) / thetaRMS;
@@ -649,7 +655,48 @@ namespace tca {
     tpOut.Dir[1] /= norm;
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
   } // MakeBareTrajPoint
+
+  ////////////////////////////////////////////////
+  float TPHitsRMS(TjStuff& tjs, TrajPoint& tp, bool onlyUsedHits)
+  {
+    // Estimate the RMS of all hits associated with a trajectory point
+    // without a lot of calculation
+    if(tp.Hits.empty()) return 0;
+    float minVal = 9999;
+    float maxVal = 0;
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+      if(!tp.UseHit[ii] && onlyUsedHits) continue;
+      unsigned int iht = tp.Hits[ii];
+      float cv = tjs.fHits[iht]->PeakTime();
+      float rms = tjs.fHits[iht]->RMS();
+      float arg = cv - rms;
+      if(arg < minVal) minVal = arg;
+      arg = cv + rms;
+      if(arg > maxVal) maxVal = arg;
+    } // ii
+    if(maxVal == 0) return 0;
+    return maxVal - minVal;
+  } // TPHitsWidth
   
+  ////////////////////////////////////////////////
+  float HitsRMS(TjStuff& tjs, std::vector<unsigned int>& hitsInMultiplet)
+  {
+    if(hitsInMultiplet.empty()) return 0;
+    float minVal = 9999;
+    float maxVal = 0;
+    for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
+      unsigned int iht = hitsInMultiplet[ii];
+      float cv = tjs.fHits[iht]->PeakTime();
+      float rms = tjs.fHits[iht]->RMS();
+      float arg = cv - rms;
+      if(arg < minVal) minVal = arg;
+      arg = cv + rms;
+      if(arg > maxVal) maxVal = arg;
+    } // ii
+    if(maxVal == 0) return 0;
+    return maxVal - minVal;
+  } // HitsWidth
+
   //////////////////////////////////////////
   bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt)
   {
@@ -1076,7 +1123,7 @@ namespace tca {
   //////////////////////////////////////////
   void PrintHeader(std::string someText)
   {
-    mf::LogVerbatim("TC")<<someText<<" TRP  CTP  Ind  Stp      W:Tick    Delta  RMS    Ang   Err   Kink  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
+    mf::LogVerbatim("TC")<<someText<<" TRP  CTP  Ind  Stp      W:Tick    Delta  RMS    Ang   Err   Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
   } // PrintHeader
   
   ////////////////////////////////////////////////
@@ -1100,7 +1147,6 @@ namespace tca {
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.DeltaRMS;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.AngErr;
-    myprt<<std::setw(7)<<std::setprecision(2)<<tp.KinkAng;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Dir[0];
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Dir[1];
     myprt<<std::setw(7)<<(int)tp.Chg;
