@@ -993,3 +993,66 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 }
 // ------------------------------------------------------
 
+bool nnet::TrainingDataAlg::findCrop(float max_e_cut, unsigned int & w0, unsigned int & w1, unsigned int & d0, unsigned int & d1) const
+{
+    if (fWireDriftEdep.empty() || fWireDriftEdep.front().empty()) return false;
+
+    float max_cut = 0.25 * max_e_cut;
+
+    w0 = 0;
+    float cut = 0;
+    while (w0 < fWireDriftEdep.size())
+    {
+        for (auto const d : fWireDriftEdep[w0]) cut += d;
+        if (cut < max_cut) w0++;
+        else break;
+    }
+    w1 = fWireDriftEdep.size() - 1;
+    cut = 0;
+    while (w1 > w0)
+    {
+        for (auto const d : fWireDriftEdep[w1]) cut += d;
+        if (cut < max_cut) w1--;
+        else break;
+    }
+    w1++;
+
+    d0 = 0;
+    cut = 0;
+    while (d0 < fWireDriftEdep.front().size())
+    {
+        for (size_t i = w0; i < w1; ++i) cut += fWireDriftEdep[i][d0];
+        if (cut < max_cut) d0++;
+        else break;
+    }
+    d1 = fWireDriftEdep.front().size() - 1;
+    cut = 0;
+    while (d1 > d0)
+    {
+        for (size_t i = w0; i < w1; ++i) cut += fWireDriftEdep[i][d1];
+        if (cut < max_cut) d1--;
+        else break;
+    }
+    d1++;
+
+    unsigned int margin = 20;
+    if ((w1 - w0 > 8) && (d1 - d0 > 8))
+    {
+        if (w0 < margin) w0 = 0;
+        else w0 -= margin;
+
+        if (w1 > fWireDriftEdep.size() - margin) w1 = fWireDriftEdep.size();
+        else w1 += margin;
+        
+        if (d0 < margin) d0 = 0;
+        else d0 -= margin;
+        
+        if (d1 > fWireDriftEdep.front().size() - margin) d1 = fWireDriftEdep.front().size();
+        else d1 += margin;
+        
+        return true;
+    }
+    else return false;
+}
+// ------------------------------------------------------
+

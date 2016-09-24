@@ -221,6 +221,8 @@ public:
 	bool setEventData(const art::Event& event,   // collect & downscale ADC's, charge deposits, pdg labels
 		unsigned int view, unsigned int tpc, unsigned int cryo);
 
+	bool findCrop(float max_e_cut, unsigned int & w0, unsigned int & w1, unsigned int & d0, unsigned int & d1) const;
+
 	std::vector<float> const & wireEdep(size_t widx) const { return fWireDriftEdep[widx]; }
 	std::vector<int> const & wirePdg(size_t widx) const { return fWireDriftPdg[widx]; }
 

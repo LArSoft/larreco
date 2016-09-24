@@ -864,7 +864,7 @@ namespace tca {
     } // fPass
     
     // Use unused hits in all trajectories
-//    UseUnusedHits();
+    UseUnusedHits();
     
     // make junk trajectories using nearby un-assigned hits
     if(fJTMaxHitSep2 > 0) {
@@ -896,6 +896,8 @@ namespace tca {
       Trajectory& tj = tjs.allTraj[itj];
       if(tj.AlgMod[kKilled]) continue;
       for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+        if(AngleRange(tj.Pts[ipt]) == 0) continue;
+//        if(!IsLargeAngle(tj.Pts[ipt])) continue;
         bool hitsAdded = false;
         for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
           // hit is associated with this point and it is not used
@@ -910,6 +912,7 @@ namespace tca {
         if(hitsAdded) {
           DefineHitPos(tj.Pts[ipt]);
           tj.AlgMod[kUseUnusedHits] = true;
+          if(prt) mf::LogVerbatim("TC")<<"UseUnusedHits: Using hits on ipt "<<ipt;
         }
       } // ipt
       if(tj.AlgMod[kUseUnusedHits]) SetEndPoints(tjs, tj);
@@ -2167,18 +2170,9 @@ namespace tca {
     // Add this to the Delta RMS factor and construct a cut
     float deltaCut = 3 * (projErr + tp.DeltaRMS);
     if(deltaCut > 5) deltaCut = 5;
+    // loosen up a bit if we just passed a block of dead wires
+    if(abs(dw) > 20 && DeadWireCount(tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0], tj.CTP) > 10) deltaCut *= 2;
     
-    unsigned short angRange = AngleRange(tp);
-    if(angRange == 2) {
-      // VLA deltaCut is delta / hit RMS
-      deltaCut = 2;
-    } else if(angRange == 1) {
-      if(deltaCut < 0.7) deltaCut = 0.7;
-    } else {
-      if(deltaCut < 0.5) deltaCut = 0.5;
-      // loosen up a bit if we just passed a block of dead wires
-      if(abs(dw) > 20 && DeadWireCount(tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0], tj.CTP) > 10) deltaCut *= 2;
-   }
     deltaCut *= fProjectionErrFactor;
     
     float bigDelta = 2 * deltaCut;
@@ -2191,7 +2185,7 @@ namespace tca {
     // assume failure
     sigOK = false;
     if(prt) {
-      mf::LogVerbatim("TC")<<" AddHits: loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" tp.Dir[0] "<<tp.Dir[0]<<" angRange "<<angRange<<" deltaCut "<<deltaCut<<" dpos "<<dpos<<" projErr "<<projErr;
+      mf::LogVerbatim("TC")<<" AddHits: loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" tp.Dir[0] "<<tp.Dir[0]<<" deltaCut "<<deltaCut<<" dpos "<<dpos<<" projErr "<<projErr;
     }
     
     std::vector<unsigned int> hitsInMultiplet;
@@ -2209,7 +2203,6 @@ namespace tca {
         // ensure that it isn't associated with any existing points. Determine how many
         // of the previous points to check. Check all previous points for LA trajectories
         short nPtsToCheck = 3;
-        if(angRange == 1) nPtsToCheck = -1;
         if(HitIsInTj(tj, iht, nPtsToCheck)) continue;
         if(rawProjTick > tjs.fHits[iht]->StartTick() && rawProjTick < tjs.fHits[iht]->EndTick()) sigOK = true;
         if(tjs.fHits[iht]->Integral() < 1) continue;
@@ -2263,8 +2256,8 @@ namespace tca {
           // Large Angle
           // The impact parameter delta may be good but we may be projecting
           // the trajectory too far away (in time) from the current position.
-          // The LA step size is 1 so make the cut a bit larger than that.
-          if(dt > 1.1) continue;
+          // The LA step size is 2 so make the cut a bit larger than that.
+          if(dt > 2.5) continue;
           if(delta > deltaCut) continue;
         } else {
           // Not large angle
@@ -2697,12 +2690,18 @@ namespace tca {
     float chg;
     newpos[0] = 0;
     newpos[1] = 0;
+    // Find the wire range for hits used in the TP
+    unsigned int loWire = INT_MAX;
+    unsigned int hiWire = 0;
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       if(!tp.UseHit[ii]) continue;
-      iht = tp.Hits[ii];
+      unsigned int iht = tp.Hits[ii];
       chg = tjs.fHits[iht]->Integral();
-      newpos[0] += chg * tjs.fHits[iht]->WireID().Wire;
-      newpos[1] += chg * tjs.fHits[iht]->PeakTime();
+      unsigned int wire = tjs.fHits[iht]->WireID().Wire;
+      if(wire < loWire) loWire = wire;
+      if(wire > hiWire) hiWire = wire;
+      newpos[0] += chg * wire;
+      newpos[1] += chg * tjs.fHits[iht]->PeakTime() * tjs.UnitsPerTick;
       tp.Chg += chg;
       hitVec.push_back(iht);
     } // ii
@@ -2712,8 +2711,10 @@ namespace tca {
     tp.HitPos[0] = newpos[0] / tp.Chg;
     tp.HitPos[1] = newpos[1] * tjs.UnitsPerTick / tp.Chg;
     
-    // Error is the wire error (1/sqrt(12))^2 and time error
-    float wireErr = tp.Dir[1] * 0.289;
+    // Error is the wire error (1/sqrt(12))^2 if all hits are on one wire.
+    // Scale it by the wire range
+    float dWire = 1 + hiWire - loWire;
+    float wireErr = tp.Dir[1] * dWire * 0.289;
     float timeErr2 = tp.Dir[0] * tp.Dir[0] * HitsTimeErr2(hitVec);
     tp.HitPosErr2 = wireErr * wireErr + timeErr2;
 //    tp.HitPosErr2 = std::abs(tp.Dir[1]) * 0.08 + std::abs(tp.Dir[0]) * HitsTimeErr2(hitVec);
@@ -3767,11 +3768,9 @@ namespace tca {
 
     bool sigOK, keepGoing;
     unsigned short killPts;
-//    bool isLA;
     for(step = 1; step < 10000; ++step) {
-//      isLA = IsLargeAngle(ltp);
-      unsigned short angleRange = AngleRange(ltp);
-      if(angleRange > 1) { stepSize = 2; } else { stepSize = std::abs(1/ltp.Dir[0]); }
+      unsigned short angRange = AngleRange(ltp);
+      if(angRange > 1) { stepSize = 2; } else { stepSize = std::abs(1/ltp.Dir[0]); }
       // make a copy of the previous TP
       lastPt = work.Pts.size() - 1;
       tp = work.Pts[lastPt];
@@ -3795,7 +3794,7 @@ namespace tca {
       tp.Pos = ltp.Pos;
       tp.Dir = ltp.Dir;
       if(prt) {
-        mf::LogVerbatim("TC")<<"StepCrawl "<<step<<" Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" Dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" stepSize "<<stepSize<<" MaxPos0 "<<tjs.MaxPos0[fPlane]<<" MaxPos1 "<<tjs.MaxPos1[fPlane];
+        mf::LogVerbatim("TC")<<"StepCrawl "<<step<<" Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" Dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" stepSize "<<stepSize<<" AngleRange "<<angRange;
       }
       // hit the boundary of the TPC?
       if(tp.Pos[0] < 0 || tp.Pos[0] > tjs.MaxPos0[fPlane]) break;
@@ -3816,14 +3815,14 @@ namespace tca {
       if(work.Pts[lastPt].Hits.empty()) {
         // Require three points with charge on adjacent wires for small angle
         // stepping.
-        if(angleRange == 0 && lastPt == 2) return;
+        if(angRange == 0 && lastPt == 2) return;
 //        if(!isLA && lastPt == 2) return;
         // No close hits added.
         ++nMissedSteps;
         // First check for no signal in the vicinity
         if(lastPt > 0) {
           // Ensure that there is a signal here after missing a number of steps on a LA trajectory
-          if(angleRange > 0 && nMissedSteps > 4 && !SignalAtTp(ltp)) break;
+          if(angRange > 0 && nMissedSteps > 4 && !SignalAtTp(ltp)) break;
           // the last point with hits (used or not) is the previous point
           lastPtWithHits = lastPt - 1;
           float tps = TrajPointSeparation(work.Pts[lastPtWithHits], ltp);
@@ -3865,6 +3864,13 @@ namespace tca {
         // ensure that the last hit added is in the same direction as the first two.
         // This is a simple way of doing it
         if(PosSep2(work.Pts[0].HitPos, work.Pts[2].HitPos) < PosSep2(work.Pts[0].HitPos, work.Pts[1].HitPos)) return;
+        // ensure that this didn't start as a small angle trajectory and immediately turn
+        // into a large angle one
+        if(angRange > fMaxAngleRange[work.Pass]) {
+          if(prt) mf::LogVerbatim("TC")<<" Wandered into an invalid angle range. Quit stepping.";
+          fGoodWork = false;
+          return;
+        }
       } // work.Pts.size() == 3
       // Ensure that the trajectory meets the angle requirements now that the direction is well known
       if(work.Pts.size() == 4 && AngleRange(work.Pts[lastPt]) > fMaxAngleRange[work.Pass]) return;
@@ -3913,7 +3919,7 @@ namespace tca {
         // move the position
         work.Pts[lastPt].Pos[0] += nSteps * work.Pts[lastPt].Dir[0];
         work.Pts[lastPt].Pos[1] += nSteps * work.Pts[lastPt].Dir[1];
-        if(angleRange == 0) {
+        if(angRange == 0) {
           // put the TP at the wire position prior to the move
           float dw = onWire - work.Pts[lastPt].Pos[0];
           work.Pts[lastPt].Pos[0] = onWire;

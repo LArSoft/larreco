@@ -9,6 +9,7 @@ standard_pointidtrainingdata:
     SelectedTPC:     []
 	SelectedView:    []
     OutTextFilePath: "."
+    Crop:            true
 
     TrainingDataAlg:  @local::standard_trainingdataalg
 }
