@@ -9,14 +9,12 @@ standard_trajclusteralg:
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
    MinPtsFit: [4, 2]        # Min number of points in the trajectory fit required on each pass
    MinPts:   [10, 3]        # Min number of points in the trajectory required on each pass
-   LAStep: [false, true]    # Step Large Angle trajectories on pass
-   MaxChi: 5                # Max Chi/DOF for accepting a trajectory fit
+   MaxAngleRange: [0, 2]    # Max angle range allowed on each pass
+   MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
    HitErrFac: 0.2           # hit time error for fitting = fHitErrFac * (hit RMS)
-   MinAmp: 5                # Min amplitude for a wire signal being considered present
-   LargeAngle: 70           # (degrees) Use Large Angle tracking cuts for trajectories exceeding this angle
+   MinAmp: 2                # Min amplitude for a wire signal being considered present
+   AngleRanges: [65,80,90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
-   MaxHitMultiplicity: [2, 10] # max hit multiplicity to allow each pass
-   Merge: true              # Merge trajectories?
    ChgPullCut: 3            # Use trajectory points/hits if (Chg/AveChg - 1) / ChgRMS < cut
    KinkAngCut: 0.5          # Kink angle to decide whether to merge or create a 2D vtx
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
@@ -28,14 +26,14 @@ standard_trajclusteralg:
    ShowerTag: [50, 5, 1]    # max MCSMom for a shower tag, max separation, min #traj < separation
    Vertex2DCuts:  [10, 2, 30, 3, 5] # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr
    Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
-   MaxVertexTrajSep: [ 6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
-   SkipAlgs: [ "UseUnusedHits" ]   # List of algs that should not be called
+   MaxVertexTrajSep: [6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
+   SkipAlgs: [ ]            # List of algs that should not be called
    StudyMode: false         # Set true to generate histograms (commented out)
    TagAllTraj: false        # Tag trajectories as track-like or shower-like
    FillTruth: 0             # 0 = no, 1 = neutrino particles, > 1 neutrino + cosmics (commented out)
    DebugPlane: -1           # Print debug output in a plane (3 = all planes, <0 = none)
    DebugWire: -1            # Print debug output for a trajectory that starts on DebugWire (<0 = print merging)
-   DebugHit: -1             # Print debug output for a trajectory that starts at DebugHit +/- 5 ticks (<0 = print vtx finding)
+   DebugTick: -1            # Print debug output for a trajectory that starts at DebugTick +/- 5 ticks (<0 = print vtx finding)
    DebugWorkID:     0       # Print debug output for a trajectory with this WorkID (Note WorkID < 0)
 }
 
