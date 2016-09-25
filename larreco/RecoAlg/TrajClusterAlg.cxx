@@ -5921,7 +5921,7 @@ namespace tca {
           if(tjs.fHits[iht]->WireID().Plane != planeID.Plane ||
              tjs.fHits[iht]->WireID().Cryostat != planeID.Cryostat ||
              tjs.fHits[iht]->WireID().TPC != planeID.TPC) {
-            mf::LogError("TC")<<"MakeAllTrajClusters: Bad OLD hit CTP in itj "<<itj<<" hit "<<PrintHit(tjs.fHits[iht]);
+            mf::LogError("TC")<<"MakeAllTrajClusters: Bad OLD hit CTP in itj "<<itj<<" hit "<<PrintHit(tjs.fHits[iht])<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.fHits[iht]->WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.fHits[iht]->WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.fHits[iht]->WireID().TPC<<" vs "<<planeID.TPC;
             fQuitAlg = true;
             return;
           }
@@ -5930,7 +5930,8 @@ namespace tca {
              tjs.newHits[iht].WireID().Cryostat != planeID.Cryostat ||
              tjs.newHits[iht].WireID().TPC != planeID.TPC) {
             mf::LogError("TC")<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.newHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.newHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.newHits[iht].WireID().TPC<<" vs "<<planeID.TPC;
-            PrintAllTraj("MATC", tjs, debug, itj, USHRT_MAX);
+            std::cout<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.newHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.newHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.newHits[iht].WireID().TPC<<" vs "<<planeID.TPC<<"\n";
+//            PrintAllTraj("MATC", tjs, debug, itj, USHRT_MAX);
             fQuitAlg = true;
             return;
           }
@@ -6081,10 +6082,10 @@ namespace tca {
         );
         // Correct UseHit for this TP
         for(unsigned short ii = 0; ii < tj.Pts[hitInPt].Hits.size(); ++ii) {
-          if(tj.Pts[hitInPt].Hits[ii] == fht) {
+          if(tj.Pts[hitInPt].Hits[ii] == wireInfoHit) {
             tj.Pts[hitInPt].UseHit[ii] = true;
             // define oldnew
-            oldnew[fht] = tjs.newHits.size() - 1;
+            oldnew[wireInfoHit] = tjs.newHits.size() - 1;
           } else {
             // oldnew for obsolete hits was set to UINT_MAX
             tj.Pts[hitInPt].UseHit[ii] = false;
@@ -6100,6 +6101,14 @@ namespace tca {
       for(unsigned short ipt = 0; ipt < tjs.allTraj[itj].Pts.size(); ++ipt) {
         for(unsigned short ii = 0; ii < tjs.allTraj[itj].Pts[ipt].Hits.size(); ++ii) {
           unsigned int iht = tjs.allTraj[itj].Pts[ipt].Hits[ii];
+          unsigned int nht = oldnew[iht];
+          if(nht != UINT_MAX) {
+            if(tjs.fHits[iht]->WireID().Plane != tjs.newHits[nht].WireID().Plane || tjs.fHits[iht]->WireID().Wire != tjs.newHits[nht].WireID().Wire) {
+              unsigned short ipl = tjs.fHits[iht]->WireID().Plane;
+              unsigned short npl = tjs.newHits[nht].WireID().Plane;
+              std::cout<<"MakeNewHits: fHits "<<ipl<<":"<<PrintHit(tjs.fHits[iht])<<" inconsistent with newHits "<<npl<<":"<<PrintHit(tjs.newHits[nht])<<"\n";
+            }
+          }
           tjs.allTraj[itj].Pts[ipt].Hits[ii] = oldnew[iht];
           // double check
           if(tjs.allTraj[itj].Pts[ipt].UseHit[ii] && oldnew[iht] == UINT_MAX) {
@@ -6109,6 +6118,21 @@ namespace tca {
       } // ipt
     } // itj
     
+    // QC check
+    bool itsBad = false;
+    for(unsigned int fht = 0; fht < tjs.fHits.size(); ++fht) {
+      unsigned int nht = oldnew[fht];
+      if(nht == UINT_MAX) continue;
+      unsigned short fpl = tjs.fHits[fht]->WireID().Plane;
+      unsigned int fwire = tjs.fHits[fht]->WireID().Wire;
+      unsigned short npl = tjs.newHits[nht].WireID().Plane;;
+      unsigned int nwire = tjs.newHits[nht].WireID().Wire;
+      if(fpl != npl || fwire != nwire) {
+        std::cout<<"Oops "<<fpl<<":"<<fwire<<" != "<<npl<<":"<<nwire<<"\n";
+        itsBad = true;
+      }
+    } // fht
+    if(itsBad) exit(1);
 //    PrintAllTraj("MNH2", tjs, debug, 3, USHRT_MAX);
     
   } // MakeNewHits
@@ -6126,6 +6150,7 @@ namespace tca {
     hitsInMultiplet.clear();
     if(theHit > tjs.fHits.size() - 1) return;
     unsigned int iht;
+/*
     // deal with special hits
     if(tjs.fHits[theHit]->GoodnessOfFit() < 0) {
       unsigned int hmult = tjs.fHits[theHit]->Multiplicity();
@@ -6135,7 +6160,7 @@ namespace tca {
       for(iht = firstHit; iht < firstHit + hmult; ++iht) hitsInMultiplet.push_back(iht);
       return;
     } // special hit
-    
+*/
     hitsInMultiplet.resize(1);
     hitsInMultiplet[0] = theHit;
     
@@ -6144,14 +6169,12 @@ namespace tca {
     unsigned short thePlane = tjs.fHits[theHit]->WireID().Plane;
     float theTime = tjs.fHits[theHit]->PeakTime();
     float theRMS = tjs.fHits[theHit]->RMS();
-//    if(prt) mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(tjs.fHits[theHit])<<" RMS "<<tjs.fHits[theHit]->RMS();
+    if(prt) mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(tjs.fHits[theHit])<<" RMS "<<tjs.fHits[theHit]->RMS();
     // look for hits < theTime but within hitSep
     if(theHit > 0) {
       for(iht = theHit - 1; iht != 0; --iht) {
         if(tjs.fHits[iht]->WireID().Wire != theWire) break;
         if(tjs.fHits[iht]->WireID().Plane != thePlane) break;
-        // ignore hits with negligible charge
-        if(tjs.fHits[iht]->Integral() < 1) continue;
         if(tjs.fHits[iht]->RMS() > theRMS) {
           hitSep = fMultHitSep * tjs.fHits[iht]->RMS();
           theRMS = tjs.fHits[iht]->RMS();
@@ -6159,7 +6182,7 @@ namespace tca {
           hitSep = fMultHitSep * theRMS;
         }
         if(theTime - tjs.fHits[iht]->PeakTime() > hitSep) break;
-//        if(prt) mf::LogVerbatim("TC")<<" iht- "<<iht<<" "<<PrintHit(tjs.fHits[iht])<<" RMS "<<tjs.fHits[iht]->RMS()<<" dt "<<theTime - tjs.fHits[iht]->PeakTime()<<" "<<hitSep;
+//        if(prt) mf::LogVerbatim("TC")<<" iht- "<<iht<<" "<<tjs.fHits[iht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[iht])<<" RMS "<<tjs.fHits[iht]->RMS()<<" dt "<<theTime - tjs.fHits[iht]->PeakTime()<<" "<<hitSep;
         hitsInMultiplet.push_back(iht);
         theTime = tjs.fHits[iht]->PeakTime();
         if(iht == 0) break;
@@ -6175,8 +6198,6 @@ namespace tca {
     for(iht = theHit + 1; iht < tjs.fHits.size(); ++iht) {
       if(tjs.fHits[iht]->WireID().Wire != theWire) break;
       if(tjs.fHits[iht]->WireID().Plane != thePlane) break;
-      // ignore hits with negligible charge
-      if(tjs.fHits[iht]->Integral() < 1) continue;
       if(tjs.fHits[iht]->RMS() > theRMS) {
         hitSep = fMultHitSep * tjs.fHits[iht]->RMS();
         theRMS = tjs.fHits[iht]->RMS();
