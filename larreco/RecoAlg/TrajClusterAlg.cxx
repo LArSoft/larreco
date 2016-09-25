@@ -6141,6 +6141,7 @@ namespace tca {
     
     float hitSep;
     unsigned int theWire = tjs.fHits[theHit]->WireID().Wire;
+    unsigned short thePlane = tjs.fHits[theHit]->WireID().Plane;
     float theTime = tjs.fHits[theHit]->PeakTime();
     float theRMS = tjs.fHits[theHit]->RMS();
 //    if(prt) mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(tjs.fHits[theHit])<<" RMS "<<tjs.fHits[theHit]->RMS();
@@ -6148,6 +6149,7 @@ namespace tca {
     if(theHit > 0) {
       for(iht = theHit - 1; iht != 0; --iht) {
         if(tjs.fHits[iht]->WireID().Wire != theWire) break;
+        if(tjs.fHits[iht]->WireID().Plane != thePlane) break;
         // ignore hits with negligible charge
         if(tjs.fHits[iht]->Integral() < 1) continue;
         if(tjs.fHits[iht]->RMS() > theRMS) {
@@ -6172,6 +6174,7 @@ namespace tca {
     theRMS = tjs.fHits[theHit]->RMS();
     for(iht = theHit + 1; iht < tjs.fHits.size(); ++iht) {
       if(tjs.fHits[iht]->WireID().Wire != theWire) break;
+      if(tjs.fHits[iht]->WireID().Plane != thePlane) break;
       // ignore hits with negligible charge
       if(tjs.fHits[iht]->Integral() < 1) continue;
       if(tjs.fHits[iht]->RMS() > theRMS) {
