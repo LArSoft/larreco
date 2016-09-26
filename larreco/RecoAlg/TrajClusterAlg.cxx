@@ -565,13 +565,18 @@ namespace tca {
     // Merge the two trajectories and store them. Returns true if it was successfull.
     // Merging is done between the end of tj1 and the beginning of tj2
     // First check for major failures
-    fQuitAlg = true;
-    if(itj1 > tjs.allTraj.size() - 1) return false;
-    if(itj2 > tjs.allTraj.size() - 1) return false;
+    fQuitAlg = false;
+    if(itj1 > tjs.allTraj.size() - 1) fQuitAlg = true;
+    if(itj2 > tjs.allTraj.size() - 1) fQuitAlg = true;
     if(tjs.allTraj[itj1].AlgMod[kKilled] || tjs.allTraj[itj2].AlgMod[kKilled]) {
       mf::LogWarning("TC")<<"MergeAndStore: Trying to merge a killed trajectory. Here they are ";
       PrintAllTraj("tj1", tjs, debug, itj1, USHRT_MAX);
       PrintAllTraj("tj1", tjs, debug, itj2, USHRT_MAX);
+      fQuitAlg = true;
+    }
+    
+    if(fQuitAlg) {
+      mf::LogError("TC")<<"Failed in MergeAndStore";
       return false;
     }
     
@@ -1246,6 +1251,7 @@ namespace tca {
       MakeBareTrajPoint(tjs, work.Pts[ipt-1], tp, tpd);
       if(tpd.Pos[0] < 0) {
         // bad direction
+        mf::LogError("TC")<<"Bad direction in MakeJunkTraj\n";
         fQuitAlg = true;
         return;
       }
@@ -1978,6 +1984,7 @@ namespace tca {
     // We will check the most likely wire first
     std::vector<unsigned int> wires(1);
     wires[0] = std::nearbyint(tp.Pos[0]);
+    if(wires[0] > tjs.LastWire[fPlane]-1) return;
     
     unsigned short angRange = AngleRange(tp);
     if(angRange == 0) {
@@ -1987,10 +1994,9 @@ namespace tca {
     // and the adjacent wires next in the most likely order only
     // after the first point has been defined
     if(ipt > 0 && angRange > 1) {
-      wires.resize(3);
-      wires[1] = wires[0] + 1;
-      wires[2] = wires[0] - 1;
-    }
+      if(wires[0] > 0) wires.push_back(wires[0] - 1);
+      if(wires[0] < tjs.LastWire[fPlane]-1) wires.push_back(wires[0] + 1);
+    } // ipt > 0 ...
 
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2022,6 +2028,11 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<"Wire "<<wire<<" rawProjTick "<<rawProjTick;
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[fPlane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[fPlane][wire].second;
+      if(firstHit > tjs.fHits.size() - 1 || lastHit > tjs.fHits.size()) {
+        mf::LogError("TC")<<"Bad hits "<<firstHit<<" "<<lastHit<<" "<<tjs.fHits.size()<<"\n";
+        fQuitAlg = true;
+        return;
+      }
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
         // ensure that it isn't already in this tj
         if(std::find(tjHits.begin(), tjHits.end(), iht) != tjHits.end()) {
@@ -4455,7 +4466,7 @@ namespace tca {
       // fill in the gap
       for(unsigned short mpt = firstPtWithChg + 1; mpt < nextPtWithChg; ++mpt) {
         if(tj.Pts[mpt].Chg > 0) {
-          mf::LogError("TC")<<"FillGaps coding error: firstPtWithChg "<<firstPtWithChg<<" mpt "<<mpt<<" nextPtWithChg "<<nextPtWithChg;
+          mf::LogWarning("TC")<<"FillGaps coding error: firstPtWithChg "<<firstPtWithChg<<" mpt "<<mpt<<" nextPtWithChg "<<nextPtWithChg;
           fQuitAlg = true;
           return;
         }
@@ -4466,7 +4477,7 @@ namespace tca {
           float delta = PointTrajDOCA(tjs, iht, tp);
           if(delta > maxDelta) continue;
           if(tj.Pts[mpt].UseHit[ii]) {
-            mf::LogError("TC")<<"FillGaps: Found UseHit true on TP with no charge "<<tj.ID<<" mpt "<<mpt<<" hit "<<PrintHit(tjs.fHits[iht]);
+            mf::LogWarning("TC")<<"FillGaps: Found UseHit true on TP with no charge "<<tj.ID<<" mpt "<<mpt<<" hit "<<PrintHit(tjs.fHits[iht]);
             fQuitAlg = true;
             return;
           }
@@ -5447,6 +5458,7 @@ namespace tca {
       unsigned short cnt = 0;
       for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
         unsigned short ipt = originPt - ii;
+        if(ipt > tj.Pts.size() - 1) continue;
         if(tj.Pts[ipt].Chg == 0) continue;
         xx = tj.Pts[ipt].HitPos[0] - origin[0];
         yy = tj.Pts[ipt].HitPos[1] - origin[1];
@@ -5687,6 +5699,7 @@ namespace tca {
       for(auto& tp : tj.Pts) {
         if(tp.Hits.size() != tp.UseHit.size()) {
           tj.AlgMod[kKilled] = true;
+          mf::LogWarning("TC")<<"ChkInTraj Hits - UseHit mismatched\n";
           fQuitAlg = true;
           return;
         }
@@ -5921,7 +5934,7 @@ namespace tca {
           if(tjs.fHits[iht]->WireID().Plane != planeID.Plane ||
              tjs.fHits[iht]->WireID().Cryostat != planeID.Cryostat ||
              tjs.fHits[iht]->WireID().TPC != planeID.TPC) {
-            mf::LogError("TC")<<"MakeAllTrajClusters: Bad OLD hit CTP in itj "<<itj<<" hit "<<PrintHit(tjs.fHits[iht])<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.fHits[iht]->WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.fHits[iht]->WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.fHits[iht]->WireID().TPC<<" vs "<<planeID.TPC;
+            mf::LogWarning("TC")<<"MakeAllTrajClusters: Bad OLD hit CTP in itj "<<itj<<" hit "<<PrintHit(tjs.fHits[iht])<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.fHits[iht]->WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.fHits[iht]->WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.fHits[iht]->WireID().TPC<<" vs "<<planeID.TPC;
             fQuitAlg = true;
             return;
           }
@@ -5929,7 +5942,7 @@ namespace tca {
           if(tjs.newHits[iht].WireID().Plane != planeID.Plane ||
              tjs.newHits[iht].WireID().Cryostat != planeID.Cryostat ||
              tjs.newHits[iht].WireID().TPC != planeID.TPC) {
-            mf::LogError("TC")<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.newHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.newHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.newHits[iht].WireID().TPC<<" vs "<<planeID.TPC;
+            mf::LogWarning("TC")<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.newHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.newHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.newHits[iht].WireID().TPC<<" vs "<<planeID.TPC;
             std::cout<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.newHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.newHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.newHits[iht].WireID().TPC<<" vs "<<planeID.TPC<<"\n";
 //            PrintAllTraj("MATC", tjs, debug, itj, USHRT_MAX);
             fQuitAlg = true;
@@ -5986,7 +5999,7 @@ namespace tca {
       } // ipt
       // this should not happen but check anyway
       if(hitInPt == USHRT_MAX) {
-        std::cout<<"Hit "<<tjs.fHits[fht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[fht])<<" fht "<<fht<<" is inTraj "<<tjs.inTraj[fht]<<" but wasn't found in Pts ";
+        mf::LogWarning("TC")<<"Hit "<<tjs.fHits[fht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[fht])<<" fht "<<fht<<" is inTraj "<<tjs.inTraj[fht]<<" but wasn't found in Pts ";
         fQuitAlg = true;
         return;
       }
@@ -6323,12 +6336,12 @@ namespace tca {
       unsigned short ipl = tjs.fHits[iht]->WireID().Plane;
       unsigned int wire = tjs.fHits[iht]->WireID().Wire;
       if(wire > tjs.NumWires[ipl] - 1) {
-        mf::LogError("TC")<<"FillWireHitRange: Invalid wire number "<<wire<<" > "<<tjs.NumWires[ipl] - 1<<" in plane "<<ipl<<" Quitting";
+        mf::LogWarning("TC")<<"FillWireHitRange: Invalid wire number "<<wire<<" > "<<tjs.NumWires[ipl] - 1<<" in plane "<<ipl<<" Quitting";
         fQuitAlg = true;
         return;
       } // too large wire number
       if(ipl == lastipl && wire < lastwire) {
-        mf::LogError("TC")<<"FillWireHitRange: Hits are not in increasing wire order. Quitting ";
+        mf::LogWarning("TC")<<"FillWireHitRange: Hits are not in increasing wire order. Quitting ";
         fQuitAlg = true;
         return;
       } // hits out of order
@@ -6338,6 +6351,9 @@ namespace tca {
       if(tjs.WireHitRange[ipl][wire].first == -2) tjs.WireHitRange[ipl][wire].first = iht;
       tjs.WireHitRange[ipl][wire].second = iht + 1;
       tjs.LastWire[ipl] = wire + 1;
+      if(tjs.fHits[iht]->StartTick() > (int)detprop->NumberTimeSamples() || tjs.fHits[iht]->EndTick() > (int)detprop->NumberTimeSamples()) {
+        std::cout<<"Bad StartTick "<<tjs.fHits[iht]->StartTick()<<" or EndTick "<<tjs.fHits[iht]->EndTick()<<" NumberTimeSamples "<<detprop->NumberTimeSamples()<<"\n";
+      }
     } // iht
     
     // overwrite with the "dead wires" condition
@@ -6364,7 +6380,7 @@ namespace tca {
         firstHit = tjs.WireHitRange[ipl][wire].first;
         lastHit = tjs.WireHitRange[ipl][wire].second;
         if(lastHit > tjs.fHits.size()) {
-          mf::LogError("TC")<<"FillWireHitRange: Invalid lastHit "<<lastHit<<" > fHits.size "<<tjs.fHits.size()<<" in plane "<<ipl;
+          mf::LogWarning("TC")<<"FillWireHitRange: Invalid lastHit "<<lastHit<<" > fHits.size "<<tjs.fHits.size()<<" in plane "<<ipl;
           fQuitAlg = true;
           return;
         }
@@ -6377,12 +6393,12 @@ namespace tca {
             ++cnt;
           }
           if(tjs.fHits[iht]->WireID().Plane != ipl) {
-            mf::LogError("TC")<<"FillWireHitRange: Invalid plane "<<tjs.fHits[iht]->WireID().Plane<<" != "<<ipl;
+            mf::LogWarning("TC")<<"FillWireHitRange: Invalid plane "<<tjs.fHits[iht]->WireID().Plane<<" != "<<ipl;
             fQuitAlg = true;
             return;
           }
           if(tjs.fHits[iht]->WireID().Wire != wire) {
-            mf::LogError("TC")<<"FillWireHitRange: Invalid wire "<<tjs.fHits[iht]->WireID().Wire<<" != "<<wire<<" in plane "<<ipl;
+            mf::LogWarning("TC")<<"FillWireHitRange: Invalid wire "<<tjs.fHits[iht]->WireID().Wire<<" != "<<wire<<" in plane "<<ipl;
             fQuitAlg = true;
             return;
           }
@@ -6494,7 +6510,7 @@ namespace tca {
     // check hit - cluster associations
     
     if(tjs.fHits.size() != tjs.inClus.size()) {
-      mf::LogError("TC")<<"CHCA: Sizes wrong "<<tjs.fHits.size()<<" "<<tjs.inClus.size();
+      mf::LogWarning("TC")<<"CHCA: Sizes wrong "<<tjs.fHits.size()<<" "<<tjs.inClus.size();
       fQuitAlg = true;
       return;
     }
@@ -6509,7 +6525,7 @@ namespace tca {
       for(unsigned short ii = 0; ii < tjs.tcl[icl].tclhits.size(); ++ii) {
         iht = tjs.tcl[icl].tclhits[ii];
         if(iht > tjs.fHits.size() - 1) {
-          mf::LogError("CC")<<"CHCA: Bad tclhits index "<<iht<<" tjs.fHits size "<<tjs.fHits.size();
+          mf::LogWarning("CC")<<"CHCA: Bad tclhits index "<<iht<<" tjs.fHits size "<<tjs.fHits.size();
           fQuitAlg = true;
           return;
         } // iht > tjs.fHits.size() - 1
