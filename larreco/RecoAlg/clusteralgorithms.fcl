@@ -21,7 +21,7 @@ standard_trajclusteralg:
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
    MaxWireSkipNoSignal:  3  # max allowed number of not-dead wires if no signal is present
    MaxWireSkipWithSignal: 100  # max allowed number of not-dead wires if a signal is present
-   MuonTag: [40, 500, 3]    # muon min length, min MCSMom, (min delta-ray length for muon direction tag)
+   MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
    ShowerTag: [50, 5, 1]    # max MCSMom for a shower tag, max separation, min #traj < separation
    Vertex2DCuts:  [10, 2, 30, 3, 5] # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr
