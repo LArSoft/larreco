@@ -655,9 +655,15 @@ namespace tca {
     tpOut.Dir[1] /= norm;
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
   } // MakeBareTrajPoint
+  
+  ////////////////////////////////////////////////
+  float TPHitsRMSTime(TjStuff& tjs, TrajPoint& tp, bool onlyUsedHits)
+  {
+    return tjs.UnitsPerTick * TPHitsRMSTick(tjs, tp, onlyUsedHits);
+  } // TPHitsRMSTime
 
   ////////////////////////////////////////////////
-  float TPHitsRMS(TjStuff& tjs, TrajPoint& tp, bool onlyUsedHits)
+  float TPHitsRMSTick(TjStuff& tjs, TrajPoint& tp, bool onlyUsedHits)
   {
     // Estimate the RMS of all hits associated with a trajectory point
     // without a lot of calculation
@@ -676,10 +682,16 @@ namespace tca {
     } // ii
     if(maxVal == 0) return 0;
     return maxVal - minVal;
-  } // TPHitsWidth
+  } // TPHitsRMSTick
   
   ////////////////////////////////////////////////
-  float HitsRMS(TjStuff& tjs, std::vector<unsigned int>& hitsInMultiplet)
+  float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet)
+  {
+    return tjs.UnitsPerTick * HitsRMSTick(tjs, hitsInMultiplet);
+  } // HitsRMSTick
+
+  ////////////////////////////////////////////////
+  float HitsRMSTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet)
   {
     if(hitsInMultiplet.empty()) return 0;
     float minVal = 9999;
@@ -695,7 +707,29 @@ namespace tca {
     } // ii
     if(maxVal == 0) return 0;
     return maxVal - minVal;
-  } // HitsWidth
+  } // HitsRMSTick
+  
+  ////////////////////////////////////////////////
+  float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum)
+  {
+    return tjs.UnitsPerTick * HitsPosTick(tjs, hitsInMultiplet, sum);
+  } // HitsPosTime
+  
+  ////////////////////////////////////////////////
+  float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum)
+  {
+    // returns the position and the charge
+    float pos = 0;
+    sum = 0;
+    for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
+      unsigned int iht = hitsInMultiplet[ii];
+      float chg = tjs.fHits[iht]->Integral();
+      pos += chg * tjs.fHits[iht]->PeakTime();
+      sum += chg;
+    } // ii
+    if(sum == 0) return 0;
+    return pos / sum;
+  } // HitsPosTick
 
   //////////////////////////////////////////
   bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt)
