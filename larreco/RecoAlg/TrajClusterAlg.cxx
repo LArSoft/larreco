@@ -463,18 +463,18 @@ namespace tca {
 
     // Print some reco-truth information to the screen
     if(fFillTruth > 0) {
-      std::cout<<"Event "<<evt.event();
+      mf::LogVerbatim myprt("TC");
+      myprt<<"Event "<<evt.event();
       double ave = -1;
       if(nMuPi > 0) ave = MuPiSum / (double)nMuPi;
-      std::cout<<" nMuPi "<<nMuPi<<" MuPiEP "<<std::setprecision(2)<<ave;
+      myprt<<" nMuPi "<<nMuPi<<" MuPiEP "<<std::setprecision(2)<<ave;
       ave = -1;
       if(nPr > 0) ave = PrSum / (double)nPr;
-      std::cout<<" nPr "<<nPr<<" PrEP "<<std::setprecision(2)<<ave;
+      myprt<<" nPr "<<nPr<<" PrEP "<<std::setprecision(2)<<ave;
       ave = -1;
       double sum = nPr + nMuPi;
       if(sum > 0) ave = (PrSum + MuPiSum) / sum;
-      std::cout<<" combined "<<std::setprecision(2)<<ave;
-      std::cout<<"\n";
+      myprt<<" combined "<<std::setprecision(2)<<ave;
     }
 
     // convert vertex time from WSE to ticks
@@ -2166,19 +2166,13 @@ namespace tca {
     }
     
     std::vector<unsigned int> closeHits;
-    unsigned int wire, loWire, hiWire, iht, firstHit, lastHit;
 
     unsigned int lastPtWithUsedHits = tj.EndPt[1];
     TrajPoint& tp = tj.Pts[ipt];
 
-    loWire = std::nearbyint(tp.Pos[0]);
-    hiWire = loWire + 1;
+    unsigned int wire = std::nearbyint(tp.Pos[0]);
     // Move the TP to this wire
-    MoveTPToWire(tp, (float)loWire);
-    if(hiWire > tjs.LastWire[fPlane]) hiWire = tjs.LastWire[fPlane];
-    if(loWire == hiWire) return;
-    
-    float fwire, ftime, delta;
+    MoveTPToWire(tp, (float)wire);
     
     // find the projection error to this point. Note that if this is the first
     // TP, lastPtWithUsedHits = 0, so the projection error is 0
@@ -2204,61 +2198,53 @@ namespace tca {
     // assume failure
     sigOK = false;
     if(prt) {
-      mf::LogVerbatim("TC")<<" AddHits: loWire "<<loWire<<" tp.Pos[0] "<<tp.Pos[0]<<" hiWire "<<hiWire<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" tp.Dir[0] "<<tp.Dir[0]<<" deltaCut "<<deltaCut<<" dpos "<<dpos<<" projErr "<<projErr;
+      mf::LogVerbatim("TC")<<" AddHits: wire "<<wire<<" tp.Pos[0] "<<tp.Pos[0]<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" tp.Dir[0] "<<tp.Dir[0]<<" deltaCut "<<deltaCut<<" dpos "<<dpos<<" projErr "<<projErr;
     }
     
     std::vector<unsigned int> hitsInMultiplet;
     unsigned short localIndex;
     
-    for(wire = loWire; wire < hiWire; ++wire) {
-      // Assume a signal exists on a dead wire
-      if(tjs.WireHitRange[fPlane][wire].first == -1) sigOK = true;
-      if(tjs.WireHitRange[fPlane][wire].first < 0) continue;
-      firstHit = (unsigned int)tjs.WireHitRange[fPlane][wire].first;
-      lastHit = (unsigned int)tjs.WireHitRange[fPlane][wire].second;
-      fwire = wire;
-      for(iht = firstHit; iht < lastHit; ++iht) {
-        if(tjs.inTraj[iht] == tj.ID) continue;
-        // ensure that it isn't associated with any existing points. Determine how many
-        // of the previous points to check. Check all previous points for LA trajectories
-        short nPtsToCheck = 3;
-        if(HitIsInTj(tj, iht, nPtsToCheck)) continue;
-        if(rawProjTick > tjs.fHits[iht]->StartTick() && rawProjTick < tjs.fHits[iht]->EndTick()) sigOK = true;
-        if(tjs.fHits[iht]->Integral() < 1) continue;
-        ftime = tjs.UnitsPerTick * tjs.fHits[iht]->PeakTime();
-        delta = PointTrajDOCA(tjs, fwire, ftime, tp);
-        float dt = std::abs(ftime - tp.Pos[1]);
-        GetHitMultiplet(iht, hitsInMultiplet, localIndex);
-        if(prt && delta < 100 && dt < 100) {
-          mf::LogVerbatim myprt("TC");
-          myprt<<"  iht "<<iht;
-          myprt<<" "<<tjs.fHits[iht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[iht]);
-          myprt<<" delta "<<std::fixed<<std::setprecision(2)<<delta<<" deltaCut "<<deltaCut<<" dt "<<dt;
-          myprt<<" BB Mult "<<hitsInMultiplet.size()<<" localIndex "<<localIndex<<" RMS "<<std::setprecision(1)<<tjs.fHits[iht]->RMS();
-          myprt<<" Chi "<<std::setprecision(1)<<tjs.fHits[iht]->GoodnessOfFit();
-          myprt<<" tjs.inTraj "<<tjs.inTraj[iht];
-          myprt<<" Chg "<<(int)tjs.fHits[iht]->Integral();
-          myprt<<" Signal? "<<sigOK;
-        }
-        if(delta < bigDelta) {
-          bigDelta = delta;
-          imBig = iht;
-        }
-        if(delta > deltaCut) continue;
-        if(std::find(closeHits.begin(), closeHits.end(), iht) != closeHits.end()) continue;
-        closeHits.push_back(iht);
-        if(hitsInMultiplet.size() > 1) {
-          // include all the hits in a multiplet for not large angle TPs
-          for(auto& jht : hitsInMultiplet) {
-            if(tjs.inTraj[jht] == tj.ID) continue;
-            if(std::find(closeHits.begin(), closeHits.end(), jht) != closeHits.end()) continue;
-            // ensure that it isn't associated with any existing points
-            if(HitIsInTj(tj, jht, nPtsToCheck)) continue;
-            closeHits.push_back(jht);
-          } // jht
-        } // multiplicity > 1
-      } // iht
-    } // wire
+    // Assume a signal exists on a dead wire
+    if(tjs.WireHitRange[fPlane][wire].first == -1) sigOK = true;
+    if(tjs.WireHitRange[fPlane][wire].first < 0) return;
+    unsigned int firstHit = (unsigned int)tjs.WireHitRange[fPlane][wire].first;
+    unsigned int lastHit = (unsigned int)tjs.WireHitRange[fPlane][wire].second;
+    float fwire = wire;
+    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+      if(tjs.inTraj[iht] == tj.ID) continue;
+      if(rawProjTick > tjs.fHits[iht]->StartTick() && rawProjTick < tjs.fHits[iht]->EndTick()) sigOK = true;
+      float ftime = tjs.UnitsPerTick * tjs.fHits[iht]->PeakTime();
+      float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
+      float dt = std::abs(ftime - tp.Pos[1]);
+      GetHitMultiplet(iht, hitsInMultiplet, localIndex);
+      if(prt && delta < 100 && dt < 100) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"  iht "<<iht;
+        myprt<<" "<<tjs.fHits[iht]->WireID().Plane<<":"<<PrintHit(tjs.fHits[iht]);
+        myprt<<" delta "<<std::fixed<<std::setprecision(2)<<delta<<" deltaCut "<<deltaCut<<" dt "<<dt;
+        myprt<<" BB Mult "<<hitsInMultiplet.size()<<" localIndex "<<localIndex<<" RMS "<<std::setprecision(1)<<tjs.fHits[iht]->RMS();
+        myprt<<" Chi "<<std::setprecision(1)<<tjs.fHits[iht]->GoodnessOfFit();
+        myprt<<" tjs.inTraj "<<tjs.inTraj[iht];
+        myprt<<" Chg "<<(int)tjs.fHits[iht]->Integral();
+        myprt<<" Signal? "<<sigOK;
+      }
+      if(delta < bigDelta) {
+        bigDelta = delta;
+        imBig = iht;
+      }
+      if(delta > deltaCut) continue;
+      if(std::find(closeHits.begin(), closeHits.end(), iht) != closeHits.end()) continue;
+      closeHits.push_back(iht);
+      if(hitsInMultiplet.size() > 1) {
+        // include all the hits in a multiplet
+        for(auto& jht : hitsInMultiplet) {
+          if(tjs.inTraj[jht] == tj.ID) continue;
+          if(std::find(closeHits.begin(), closeHits.end(), jht) != closeHits.end()) continue;
+          closeHits.push_back(jht);
+        } // jht
+      } // multiplicity > 1
+    } // iht
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"closeHits ";
@@ -2401,9 +2387,9 @@ namespace tca {
       ++nAvailable;
       if(prt) {
         if(useChg) {
-          if(prt) mf::LogVerbatim("TC")<<ii<<"  "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" Chg "<<(int)tjs.fHits[iht]->Integral();
+          if(prt) mf::LogVerbatim("TC")<<" "<<ii<<"  "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" Chg "<<(int)tjs.fHits[iht]->Integral();
         } else {
-          if(prt) mf::LogVerbatim("TC")<<ii<<"  "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta;
+          if(prt) mf::LogVerbatim("TC")<<" "<<ii<<"  "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta;
         }
       } // prt
       deltas[ii] = delta;
@@ -4239,7 +4225,7 @@ namespace tca {
         unsigned short tpGap = USHRT_MAX;
         unsigned short nBigRat = 0;
         float chirat;
-        for(unsigned short ii = 1; ii < 3; ++ii) {
+        for(unsigned short ii = 1; ii < 5; ++ii) {
           ipt = tj.EndPt[1] - 1 - ii;
           if(tj.Pts[ipt].Chg == 0) {
             tpGap = ipt;
@@ -4967,8 +4953,8 @@ namespace tca {
     if(lastPt < 6) return;
     if(tj.Pts[lastPt].Chg == 0) return;
     
-    // A simple check when there are few points being fit
-    if(tj.Pts[lastPt].NTPsFit < 6) {
+    // A simple check when there are few points being fit and the TJ is short
+    if(tj.Pts[lastPt].NTPsFit < 6 && tj.Pts.size() < 20) {
       unsigned short ii, prevPtWithHits = USHRT_MAX;
       unsigned short ipt;
       for(ii = 1; ii < tj.Pts.size(); ++ii) {
@@ -5065,6 +5051,7 @@ namespace tca {
       // and keep going. The signature of crossing trajectories is a multiplicity > 1
       // near the purported kink point and/or increased charge and a long trajectory
       if(tj.Pts.size() < 100 && nHiMultPt == 0) tj.AlgMod[kGottaKink] = true;
+/*
       // This could be a stopping track which can wander a bit right at the end. Check for increasing
       // charge from beginning to end
       if(dang < 1.5 * fKinkAngCut && nHiMultPt == 0) {
@@ -5078,6 +5065,7 @@ namespace tca {
           tj.AlgMod[kGottaKink] = false;
         } // chgrat > 1.1
       } // nHiMultPt == 0
+ */
     }
     if(prt) mf::LogVerbatim("TC")<<"GottaKink kinkPt "<<kinkPt<<" Pos "<<PrintPos(tjs, tj.Pts[kinkPt])<<" dang "<<dang<<" cut "<<fKinkAngCut<<" kinkSig "<<kinkSig<<" tpFit chi "<<tpFit.FitChi<<" nHiMultPt "<<nHiMultPt<<" killPts "<<killPts<<" GottaKink? "<<tj.AlgMod[kGottaKink];
     
