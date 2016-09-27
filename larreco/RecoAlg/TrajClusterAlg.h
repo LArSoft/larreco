@@ -154,6 +154,7 @@ namespace tca {
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
 */
+    TH1F *fDeltaN[3];
     TH1F *fHitRMS[3];
     TH2F *fTPWidth_Angle[3];
     TProfile *fTPWidth_AngleP[3];
@@ -238,13 +239,13 @@ namespace tca {
     void StartWork(unsigned int fromHit, unsigned int toHit);
     // Returns the charge weighted wire, time position of all hits in the multiplet
     // of which hit is a member
-    void HitMultipletPosition(unsigned int hit, float& hitTick, float& deltaRms, float& qtot);
+//    void HitMultipletPosition(unsigned int hit, float& hitTick, float& deltaRms, float& qtot);
     void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet);
     void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex);
     // Returns fHits[iht]->RMS() * fScaleF * fHitErrFac * fHits[iht]->Multiplicity();
-    float HitTimeErr(unsigned int iht);
+    float HitTimeErr(const unsigned int iht);
     // Estimates the error^2 of the time using all hits in hitVec
-    float HitsTimeErr2(std::vector<unsigned int> const& hitVec);
+    float HitsTimeErr2(const std::vector<unsigned int>& hitVec);
     // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
     void DefineHitPos(TrajPoint& tp);
     // max hit delta for all used hits on all points
