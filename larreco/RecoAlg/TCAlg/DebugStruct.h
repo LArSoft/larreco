@@ -26,6 +26,7 @@ namespace tca {
     int Plane {-1}; ///< Select plane
     int Wire {-1};  ///< Select hit Wire for debugging
     int Tick {-1};   ///< Select hit PeakTime for debugging (< 0 for vertex finding)
+    unsigned int Hit{UINT_MAX};    ///< set to the hit index in fHits if a Plane:Wire:Tick match is found
     short WorkID {0}; ///< Select the StartWorkID for debugging
   };
   extern DebugStuff debug;

@@ -45,9 +45,9 @@
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
-//#include "TH1F.h"
-//#include "TH2F.h"
-//#include "TProfile.h"
+#include "TH1F.h"
+#include "TH2F.h"
+#include "TProfile.h"
 
 namespace tca {
 
@@ -103,9 +103,8 @@ namespace tca {
     short fStepDir;             /// US->DS (1), DS->US (-1)
     short fNPtsAve;         /// number of points to find AveChg
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
-    std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a cluster
-    std::vector<bool> fLAStep;              ///< Allow LA stepping on pass?
-    std::vector<unsigned short> fMaxHitMultiplicity;        ///< ignore hits having too high multiplicity on pass
+    std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a trajectory
+    std::vector<unsigned short> fMaxAngleRange;   ///< max llowed angle range for each pass
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     float fKinkAngCut;     ///  kink angle cut
@@ -127,7 +126,7 @@ namespace tca {
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
-    float fLargeAngle;  ///< (degrees) call Large Angle Clustering code if TP angle > this value
+    std::vector<float> fAngleRanges; ///< list of max angles for each angle range
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
 		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
@@ -155,6 +154,12 @@ namespace tca {
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
 */
+    TH1F *fDeltaN[3];
+    TH1F *fHitRMS[3];
+    TH2F *fTPWidth_Angle[3];
+    TProfile *fTPWidth_AngleP[3];
+    TProfile *fExpect_Angle[3];
+
     bool prt;
     bool mrgPrt;
     bool vtxPrt;
@@ -186,12 +191,12 @@ namespace tca {
     // variables for step crawling - updated at each TP
     // tracking flags
     bool fGoodWork;         // the work trajectory is good and should be stored
-    bool fAddedBigDeltaHit;
     bool fTryWithNextPass;  // fGoodWork false, try with next pass settings
-    bool fCheckWorkModified;
     bool fUpdateTrajOK;     // update
     bool fMaskedLastTP;
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
+    
+    std::vector<float> fAveHitRMS;      ///< average RMS of an isolated hit
 
     //  trajectories
     Trajectory work;      ///< trajectory under construction
@@ -212,6 +217,8 @@ namespace tca {
     void StepCrawl();
     // Add hits on the trajectory point ipt that are close to the trajectory point Pos
     void AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
+    // Large Angle version
+    void AddLAHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
     float DeadWireCount(TrajPoint& tp1, TrajPoint& tp2);
     float DeadWireCount(float inWirePos1, float inWirePos2, CTP_t tCTP);
     void HitSanityCheck();
@@ -232,17 +239,13 @@ namespace tca {
     void StartWork(unsigned int fromHit, unsigned int toHit);
     // Returns the charge weighted wire, time position of all hits in the multiplet
     // of which hit is a member
-    void HitMultipletPosition(unsigned int hit, float& hitTick, float& deltaRms, float& qtot);
+//    void HitMultipletPosition(unsigned int hit, float& hitTick, float& deltaRms, float& qtot);
     void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet);
     void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex);
-    // Return true if iht and jht are both in a multiplet but have the wrong local index to start a trajectory
-    bool SkipHighMultHitCombo(unsigned int iht, unsigned int jht);
     // Returns fHits[iht]->RMS() * fScaleF * fHitErrFac * fHits[iht]->Multiplicity();
-    float HitTimeErr(unsigned int iht);
+    float HitTimeErr(const unsigned int iht);
     // Estimates the error^2 of the time using all hits in hitVec
-    float HitsTimeErr2(std::vector<unsigned int> const& hitVec);
-    // estimate the number of hits expected for the provided angle
-    unsigned short NumHitsExpected(float angle);
+    float HitsTimeErr2(const std::vector<unsigned int>& hitVec);
     // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
     void DefineHitPos(TrajPoint& tp);
     // max hit delta for all used hits on all points
@@ -263,8 +266,10 @@ namespace tca {
     // Sets inTraj[] = 0 and UseHit false for all TPs in work. Called when abandoning work
     void ReleaseWorkHits();
     // Returns true if the TP angle exceeds user cut fLargeAngle
-    bool IsLargeAngle(TrajPoint const& tp);
-    // Print debug output if hit iht exists in work or allTraj
+//    bool IsLargeAngle(TrajPoint const& tp);
+    // returns the index of the angle range that tp is in
+    unsigned short AngleRange(TrajPoint const& tp);
+     // Print debug output if hit iht exists in work or allTraj
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);

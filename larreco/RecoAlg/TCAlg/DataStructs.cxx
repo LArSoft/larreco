@@ -25,8 +25,6 @@ namespace tca {
     "UseGhostHits",
     "ChkInTraj",
     "FixBegin",
-    "Muon",
-    "DeltaRay",
     "UseUnusedHits"
   };
 } // namespace tca
