@@ -11,6 +11,7 @@
 
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Sequence.h"
+#include "fhiclcpp/types/Table.h"
 
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
@@ -56,6 +57,8 @@ namespace calo{
     ~CalorimetryAlg();
       
     void   reconfigure(const Config& config);
+    void   reconfigure(const fhicl::ParameterSet& pset)
+      { reconfigure(fhicl::Table<Config>(pset, {})()); }
     
     double dEdx_AMP(art::Ptr< recob::Hit >  hit, double pitch, double T0=0) const;
     double dEdx_AMP(recob::Hit const&  hit, double pitch, double T0=0) const;
