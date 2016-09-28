@@ -23,7 +23,7 @@ standard_calodata:
  SpacePointModuleLabel:  "spacepointfinder" #this must have spacepoint-hit associations
  T0ModuleLabel:          "mctrutht0"
  UseArea:		 true
- MakeTree:               false
+ Flip_dQdx:              true
  CaloAlg:	         @local::standard_calorimetryalgdata
 }
 
@@ -34,7 +34,7 @@ standard_calomc:
  SpacePointModuleLabel:  "spacepointfinder" #this must have spacepoint-hit associations
  T0ModuleLabel:          "mctrutht0"
  UseArea:		 true
- MakeTree:               false
+ Flip_dQdx:              true
  CaloAlg:	         @local::standard_calorimetryalgmc
 }
 

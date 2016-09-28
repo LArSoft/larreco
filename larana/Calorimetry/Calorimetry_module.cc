@@ -95,6 +95,7 @@ namespace calo {
     std::string fSpacePointModuleLabel;
     std::string fT0ModuleLabel;
     bool fUseArea;
+    bool fFlipTrack_dQdx; //flip track direction if significant rise of dQ/dx at the track start
     CalorimetryAlg caloAlg;
 	
     int fnsps;
@@ -124,6 +125,7 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
     fSpacePointModuleLabel (pset.get< std::string >("SpacePointModuleLabel")       ),
     fT0ModuleLabel (pset.get< std::string >("T0ModuleLabel") ),
     fUseArea(pset.get< bool >("UseArea") ),
+    fFlipTrack_dQdx(pset.get< bool >("FlipTrack_dQdx",true)),
     caloAlg(pset.get< fhicl::ParameterSet >("CaloAlg"))
 {
   produces< std::vector<anab::Calorimetry>              >();
@@ -396,7 +398,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 	++countsp;
       }
       // Going DS if charge is higher at the end
-      GoingDS = (DSChg > USChg);
+      GoingDS = (DSChg > USChg) || (!fFlipTrack_dQdx);
       // determine the starting residual range and fill the array
       fResRng.resize(fnsps);
       if(GoingDS) {
