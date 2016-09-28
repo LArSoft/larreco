@@ -94,53 +94,9 @@ namespace calo {
     std::string fTrackModuleLabel;
     std::string fSpacePointModuleLabel;
     std::string fT0ModuleLabel;
-    bool fMakeTree;
     bool fUseArea;
     CalorimetryAlg caloAlg;
 	
-	
-    TTree *ftree;
-    int frun;           //Run 
-    int fevent;         //Event
-    int fntrack;        //track number
-    int ftotTracks;        //track number
-    double fTrkPitch;
-    double fTrkPitchI;  //
-    double fTrkPitchC;
-    double fXStart;
-    double fYStart;
-    double fZStart;
-    double fXEnd;
-    double fYEnd;
-    double fZEnd;
-
-    int fnhits3D; 
-    std::vector<double> fXHit;
-    std::vector<double> fYHit;
-    std::vector<double> fZHit;
-    std::vector<double> fMIPs3D;   
- 
-    int fnhitsIND; 
-    int fnspsIND;
-    std::vector<int>    fwireIND;
-    std::vector<double> ftimeIND;
-    std::vector<double> fstimeIND;
-    std::vector<double> fetimeIND;
-    std::vector<double> fMIPsIND;
-    std::vector<double> fdEdxIND;
-    std::vector<double> fResRngIND;
-	
-    int fnhitsCOL;
-    int fnspsCOL;
-    std::vector<int>    fwireCOL;
-    std::vector<double> ftimeCOL;
-    std::vector<double> fstimeCOL;
-    std::vector<double> fetimeCOL;
-    std::vector<double> fMIPsCOL;
-    std::vector<double> fdEdxCOL;
-    std::vector<double> fResRngCOL;
-
-    int fnhits;
     int fnsps;
     std::vector<int>    fwire;
     std::vector<double> ftime;
@@ -152,8 +108,6 @@ namespace calo {
     std::vector<double> fResRng;
     std::vector<double> fpitch;
     std::vector<TVector3> fXYZ;
-
-    double TPCsize[3];
 
   protected: 
     
@@ -169,7 +123,6 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
   : fTrackModuleLabel(pset.get< std::string >("TrackModuleLabel")      ),
     fSpacePointModuleLabel (pset.get< std::string >("SpacePointModuleLabel")       ),
     fT0ModuleLabel (pset.get< std::string >("T0ModuleLabel") ),
-    fMakeTree(pset.get< bool >("MakeTree") ),
     fUseArea(pset.get< bool >("UseArea") ),
     caloAlg(pset.get< fhicl::ParameterSet >("CaloAlg"))
 {
@@ -186,48 +139,6 @@ calo::Calorimetry::~Calorimetry()
 //-------------------------------------------------
 void calo::Calorimetry::beginJob()
 {
-  // get access to the TFile service
-  art::ServiceHandle<art::TFileService> tfs;
-
-  /// ROOT tree for Calorimetry 
-  if(fMakeTree) {
-    ftree = tfs->make<TTree>("CaloTree","CaloTree");
-    ftree->Branch("run",       &frun,       "run/I");
-    ftree->Branch("event",     &fevent,     "event/I");
-    ftree->Branch("itrack",    &fntrack,    "itrack/I");
-    ftree->Branch("ntracks",   &ftotTracks, "ntracks/I");
-    ftree->Branch("TrkPitchI", &fTrkPitchI, "TrkPitchI/F");
-    ftree->Branch("TrkPitchC", &fTrkPitchC, "TrkPitchC/F");
-    ftree->Branch("XStart",    &fXStart,    "XStart/F");
-    ftree->Branch("YStart",    &fYStart,    "YStart/F");
-    ftree->Branch("ZStart",    &fZStart,    "ZStart/F");  
-    ftree->Branch("XEnd",      &fXEnd,      "XEnd/F");  
-    ftree->Branch("YEnd",      &fYEnd,      "YEnd/F");  
-    ftree->Branch("ZEnd",      &fZEnd,      "ZEnd/F");  
-    ftree->Branch("nhits3D",   &fnhits3D,   "nhits3D/I"); 
-    ftree->Branch("XHit",      &fXHit);		     
-    ftree->Branch("YHit",      &fYHit);		     
-    ftree->Branch("ZHit",      &fZHit);                 
-    ftree->Branch("nhitsIND",  &fnhitsIND, "nhitsIND/I");	 
-    ftree->Branch("nspsIND",   &fnspsIND,  "nspsIND/I");	 
-    ftree->Branch("wireIND",   &fwireIND);		 
-    ftree->Branch("timeIND",   &ftimeIND);		 
-    ftree->Branch("stimeIND",  &fstimeIND);		 
-    ftree->Branch("etimeIND",  &fetimeIND);		 
-    ftree->Branch("MIPsIND",   &fMIPsIND);  
-    ftree->Branch("dEdxIND",   &fdEdxIND);
-    ftree->Branch("ResRngIND", &fResRngIND);
-    ftree->Branch("nhitsCOL",  &fnhitsCOL, "nhitsCOL/I");
-    ftree->Branch("nspsCOL",   &fnspsCOL,  "nspsCOL/I");
-    ftree->Branch("wireCOL",   &fwireCOL);
-    ftree->Branch("timeCOL",   &ftimeCOL);
-    ftree->Branch("stimeCOL",  &fstimeCOL);
-    ftree->Branch("etimeCOL",  &fetimeCOL);
-    ftree->Branch("MIPsCOL",   &fMIPsCOL);
-    ftree->Branch("dEdxCOL",   &fdEdxCOL);
-    ftree->Branch("ResRngCOL", &fResRngCOL);
-  }
-   
   return;
 }
 
@@ -244,23 +155,11 @@ void calo::Calorimetry::produce(art::Event& evt)
   // Get Geometry
   art::ServiceHandle<geo::Geometry> geom;
   
-  //TPC dimensions  
-  TPCsize[0] = (geom->DetHalfWidth())*2.;
-  TPCsize[1] = (geom->DetHalfHeight())*2.;
-  TPCsize[2] = (geom->DetLength());
-
   // channel quality
   lariov::ChannelStatusProvider const& channelStatus
     = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
 
-  frun = evt.id().run();
-  fevent = evt.id().event();
-
-  fntrack = 0; 
-  fnhits3D = 0; fnhitsIND = 0; fnhitsCOL = 0;
-
   size_t nplanes = geom->Nplanes();
-
 
   //create anab::Calorimetry objects and make association with recob::Track
   std::unique_ptr< std::vector<anab::Calorimetry> > calorimetrycol(new std::vector<anab::Calorimetry>);
@@ -271,8 +170,7 @@ void calo::Calorimetry::produce(art::Event& evt)
   art::FindManyP<anab::T0>          fmt0(trackListHandle, evt, fT0ModuleLabel);
 
   for(size_t trkIter = 0; trkIter < tracklist.size(); ++trkIter){   
-    //std::cout<<"!!!!!!NEW TRACK "<< int(trkIter) <<"!!!!!!!"<<std::endl;
-    //fnhits3D = fmsp.at(trkIter).size();
+
     std::vector<double> larStart;
     std::vector<double> larEnd;
     //put xyz coordinates at begin/end of track into vectors(?)
@@ -281,23 +179,7 @@ void calo::Calorimetry::produce(art::Event& evt)
     double trackCosStart[3]={0.,0.,0.};
     double trackCosEnd[3]={0.,0.,0.};
     tracklist[trkIter]->Direction(trackCosStart,trackCosEnd);
-        
-    bool startsonboundary = BeginsOnBoundary(tracklist[trkIter]);
-    bool endsonboundary   = EndsOnBoundary(tracklist[trkIter]);
-
-    int containment = 0;
-    if(!startsonboundary && !endsonboundary ) containment = 0;  // contained track
-    if(!startsonboundary &&  endsonboundary ) containment = 1;  // escaping track
-    if( startsonboundary && !endsonboundary ) containment = 2;  // entering track
-    if( startsonboundary &&  endsonboundary ) containment = 3;  // passing track 
-
-    bool TrackStops = (containment == 0 || containment == 2);
-    //      fMIPs3D = new double[fnhits3D];
-
-    //recover the Induction (geo::kU) hits list
-    
-    //int npI = 0;
-    
+            
     // Some variables for the hit
     float time;          //hit time at maximum
     float stime;         //hit start time 
@@ -307,8 +189,6 @@ void calo::Calorimetry::produce(art::Event& evt)
     unsigned int tpc     = 0;    //hit tpc number 
     unsigned int wire    = 0;   //hit wire number 
     unsigned int plane   = 0;  //hit plane number
-
-    
 
     std::vector< art::Ptr<recob::Hit> > allHits = fmht.at(trkIter);
     double T0 =0;
@@ -368,7 +248,7 @@ void calo::Calorimetry::produce(art::Event& evt)
       std::stack<double> ChargeEnd;     
 
       // find track pitch
-      fTrkPitch = 0;
+      double fTrkPitch = 0;
       for (size_t itp = 0; itp < tracklist[trkIter]->NumberTrajectoryPoints(); ++itp){
         const TVector3& pos = tracklist[trkIter]->LocationAtPoint(itp);
         const double Position[3] = { pos.X(), pos.Y(), pos.Z() };
@@ -531,80 +411,24 @@ void calo::Calorimetry::produce(art::Event& evt)
         }
       }
     
-      LOG_DEBUG("CaloPrtTrk") << "Calorimetry Run/Evt: "
-		 << frun   << " / " 
-		 << fevent << " Track #"
-		 << trkIter << " Plane #"
-		 << ipl;
-      switch (containment) {
-      case 0:
-	LOG_DEBUG("CaloPrtTrk") << ", contained.";
-	break;
-      case 1:
-	LOG_DEBUG("CaloPrtTrk") << ", escaping.";
-	break;
-      case 2:
-	LOG_DEBUG("CaloPrtTrk") << ", entering.";
-	break;
-      case 3:
-	LOG_DEBUG("CaloPrtTrk") << ", passing.";
-	break;
-      default:
-	LOG_DEBUG("CaloPrtTrk") << ", ??";
-      }
-      if(TrackStops) {
-	if(GoingDS) {
-	  LOG_DEBUG("CaloPrtTrk") <<" Going downstream";
-	} 
-	else {
-	  LOG_DEBUG("CaloPrtTrk") <<" Going upstream";
-	}
-      }
-      LOG_DEBUG("CaloPrtTrk")<<"\n";
       LOG_DEBUG("CaloPrtHit") << " pt wire  time  ResRng    MIPs   pitch   dE/dx    Ai X Y Z\n";
 
-      if (ipl==0){
-	fnspsIND = fnsps;
-	fTrkPitchI = fTrkPitch;
-      }
-      else if (ipl == nplanes-1){
-	fnspsCOL = fnsps;
-	fTrkPitchC = fTrkPitch;
-      }
       double Ai = -1;
       for (int i = 0; i < fnsps; ++i){//loop over all 3D points
-	if (ipl==0){
-	  fwireIND.push_back(fwire[i]);
-	  ftimeIND.push_back(ftime[i]);
-	  fstimeIND.push_back(fstime[i]);
-	  fetimeIND.push_back(fetime[i]);
-	  fMIPsIND.push_back(fMIPs[i]);
-	  fdEdxIND.push_back(fdEdx[i]);
-	  fResRngIND.push_back(fResRng[i]);
-	}
-	else if (ipl == nplanes-1){
-	  fwireCOL.push_back(fwire[i]);
-	  ftimeCOL.push_back(ftime[i]);
-	  fstimeCOL.push_back(fstime[i]);
-	  fetimeCOL.push_back(fetime[i]);
-	  fMIPsCOL.push_back(fMIPs[i]);
-	  fdEdxCOL.push_back(fdEdx[i]);
-	  fResRngCOL.push_back(fResRng[i]);
-	}
         vresRange.push_back(fResRng[i]);
         vdEdx.push_back(fdEdx[i]);
         vdQdx.push_back(fdQdx[i]);
         vXYZ.push_back(fXYZ[i]);
 	if (i!=0 && i!= fnsps-1){//ignore the first and last point
 	  // Calculate PIDA 
-	  if(TrackStops){
-	    Ai = fdEdx[i] * pow(fResRng[i],0.42);
-	    nPIDA++;
-	    PIDA += Ai;
-	  }
+          Ai = fdEdx[i] * pow(fResRng[i],0.42);
+          nPIDA++;
+          PIDA += Ai;
 	}
-	LOG_DEBUG("CaloPrtHit") << std::setw(4) << i
-	  //std::cout << std::setw(4) << i
+	LOG_DEBUG("CaloPrtHit") <<std::setw(4)<< trkIter
+          //std::cout<<std::setw(4)<< trkIter
+                   <<std::setw(4)<< ipl
+                   <<std::setw(4) << i
 		   <<std::setw(4)  << fwire[i]
 		   << std::setw(6) << (int)ftime[i]
 		   << std::setiosflags(std::ios::fixed | std::ios::showpoint)
@@ -712,76 +536,6 @@ void calo::Calorimetry::produce(art::Event& evt)
   evt.put(std::move(assn));
 
   return;
-}
-
-//--------------------------------------------------
-bool calo::Calorimetry::BeginsOnBoundary(art::Ptr<recob::Track> lar_track)
-{
-  double fdBoundary = 1.5;
-  std::vector<double> larStart, larEnd;
-  //put xyz coordinates at begin/end of track into vectors(?)
-  lar_track->Extent(larStart,larEnd);
-
-  if(std::abs(larStart[0])            < fdBoundary ||
-     std::abs(TPCsize[0]-larStart[0]) < fdBoundary ||
-     std::abs(larStart[1]+TPCsize[1]/2) < fdBoundary ||
-     std::abs(TPCsize[1]/2-larStart[1]) < fdBoundary ||
-     std::abs(larStart[2])            < fdBoundary ||
-     std::abs(TPCsize[2]-larStart[2]) < fdBoundary )   
-    return true;  
-  else return false;
-}
-    
-//--------------------------------------------------
-bool calo::Calorimetry::EndsOnBoundary(art::Ptr<recob::Track> lar_track)
-{
-  double fdBoundary = 1.5;
-  std::vector<double> larStart, larEnd;
-  //put xyz coordinates at begin/end of track into vectors(?)
-  lar_track->Extent(larStart, larEnd); 
-
-  if(std::abs(larEnd[0])              < fdBoundary ||
-     std::abs(larEnd[2])              < fdBoundary ||
-     std::abs(TPCsize[0]-larEnd[0])   < fdBoundary ||
-     std::abs(TPCsize[2]-larEnd[2])   < fdBoundary ||   
-     std::abs(larEnd[1]+TPCsize[1]/2) < fdBoundary ||
-     std::abs(TPCsize[1]/2-larEnd[1]) < fdBoundary )
-    return true;  
-
-  return false;
-}
-
-//------------------------------------------------------------------------------------//
-void calo::Calorimetry::ReadCaloTree(){
-  // This method is an example of how to read 
-  // the dynamic vectors in the ROOT Tree
-
-  ftree->Scan("run:event:TrkPitchI:TrkPitchC:XStart:nhits3D:nhitsIND:nhitsCOL");
-  int nentries=(int)ftree->GetEntries();
-  LOG_DEBUG("Calorimetry") << "nentries  " << nentries;
-
-  std::vector<double> *MIPsCOL = 0;
-  TBranch *bMIPsCOL = 0;
-  ftree->SetBranchAddress("MIPsCOL",&MIPsCOL,&bMIPsCOL);
-
-  std::vector<double> *MIPsIND = 0;
-  TBranch *bMIPsIND = 0;
-  ftree->SetBranchAddress("MIPsIND",&MIPsIND,&bMIPsIND);
-  for (int i = 0; i < nentries; ++i) {
-    LOG_DEBUG("Calorimetry") << " entry " << i;
-    long int tentry = ftree->LoadTree(i);
-
-    bMIPsCOL->GetEntry(tentry);
-    LOG_DEBUG("Calorimetry") << "# of hits COLL " << MIPsCOL->size();
-    for (size_t j = 0; j < MIPsCOL->size(); ++j) {
-      LOG_DEBUG("Calorimetry") << " Coll " << MIPsCOL->at(j);
-    }
-    bMIPsIND->GetEntry(tentry);
-    LOG_DEBUG("Calorimetry") << "# of hits IND " << MIPsIND->size();
-    for (size_t j = 0; j < MIPsIND->size(); ++j) {
-      LOG_DEBUG("Calorimetry") << " Ind " << MIPsIND->at(j);
-    }
-  }
 }
 
 void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> trkx, std::vector<double> trky, std::vector<double> trkz, std::vector<double> trkw, std::vector<double> trkx0, double *xyz3d, double &pitch, double TickT0){
