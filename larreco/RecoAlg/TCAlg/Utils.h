@@ -48,6 +48,9 @@ namespace tca {
   float PointTrajDOCA(TjStuff& tjs, float wire, float time, TrajPoint const& tp);
   // returns the DOCA^2 between a point and a trajectory
   float PointTrajDOCA2(TjStuff& tjs, float wire, float time, TrajPoint const& tp);
+  // returns a vector of hit indices that on the nearest wire to tp.Pos[0] and within maxDelta
+  std::vector<unsigned int> FindCloseHits(TjStuff& tjs, TrajPoint const& tp, const float& maxDelta, bool onlyUsedHits);
+  void ReverseTraj(TjStuff& tjs, Trajectory& tj);
 
   // returns the separation^2 between a point and a TP
   float PointTrajSep2(float wire, float time, TrajPoint const& tp);
