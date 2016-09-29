@@ -369,6 +369,61 @@ namespace tca {
   } // MoveTPToWire
 
   //////////////////////////////////////////
+  std::vector<unsigned int> FindCloseHits(TjStuff& tjs, TrajPoint const& tp, const float& maxDelta, bool onlyUsedHits)
+  {
+    std::vector<unsigned int> closeHits;
+    
+    geo::PlaneID planeID = DecodeCTP(tp.CTP);
+    unsigned short ipl = planeID.Plane;
+    
+    unsigned int wire = std::nearbyint(tp.Pos[0]);
+    if(wire > tjs.LastWire[ipl]) return closeHits;
+    
+    if(tjs.WireHitRange[ipl][wire].first < 0) return closeHits;
+    
+    unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
+    unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
+    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+      if(onlyUsedHits && tjs.inTraj[iht] > 0) continue;
+      float ftime = tjs.UnitsPerTick * tjs.fHits[iht]->PeakTime();
+      float delta = PointTrajDOCA(tjs, tp.Pos[0], ftime, tp);
+//      std::cout<<"chk "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<"\n";
+      if(delta < maxDelta) closeHits.push_back(iht);
+    } // iht
+    return closeHits;
+    
+  } // FindCloseHits
+  
+  //////////////////////////////////////////
+  void ReverseTraj(TjStuff& tjs, Trajectory& tj)
+  {
+    // reverse the trajectory
+    if(tj.Pts.empty()) return;
+    // reverse the crawling direction flag
+    tj.StepDir = -tj.StepDir;
+    // Vertices
+    short tmp = tj.VtxID[0];
+    tj.VtxID[0] = tj.VtxID[1];
+    tj.VtxID[0] = tmp;
+    // trajectory points
+    std::reverse(tj.Pts.begin(), tj.Pts.end());
+    // reverse the direction vector on all points
+    for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+      if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
+      if(tj.Pts[ipt].Dir[1] != 0) tj.Pts[ipt].Dir[1] = -tj.Pts[ipt].Dir[1];
+      tj.Pts[ipt].Ang = atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
+      // and the order of hits if more than 1
+      if(tj.Pts[ipt].Hits.size() > 1) {
+        std::reverse(tj.Pts[ipt].Hits.begin(), tj.Pts[ipt].Hits.end());
+        std::reverse(tj.Pts[ipt].UseHit.begin(), tj.Pts[ipt].UseHit.end());
+      }
+    } // ipt
+    // the end TPs
+    std::reverse(tj.EndTP.begin(), tj.EndTP.end());
+    SetEndPoints(tjs, tj);
+  } // ReverseTraj
+
+  //////////////////////////////////////////
   float DeltaAngle(float Ang1, float Ang2) {
     return std::abs(std::remainder(Ang1 - Ang2, M_PI));
   }
@@ -752,8 +807,6 @@ namespace tca {
     float maxSepCutShort2 = fVertex2DCuts[1] * fVertex2DCuts[1];
     float maxSepCutLong2 = fVertex2DCuts[2] * fVertex2DCuts[2];
     
-//    if(prt) mf::LogVerbatim("TC")<<"ATTV: tj ID "<<tj.ID<<" vx ID "<<vx.ID<<" maxSepCutShort2 "<<maxSepCutShort2<<" maxSepCutLong2 "<<maxSepCutLong2;
-    
     // assume that end 0 is closest to the vertex
     unsigned short end = 0;
     float vtxTjSep2 = PosSep2(vx.Pos, tj.Pts[tj.EndPt[0]].Pos);
@@ -790,13 +843,28 @@ namespace tca {
       dpt = tj.EndPt[end] - closePt;
     }
     
-    if(prt) mf::LogVerbatim("TC")<<" "<<vx.ID<<" tjID_end "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"ATTV: vx.ID "<<vx.ID;
+      myprt<<" oldTJs";
+      for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+        Trajectory& tj = tjs.allTraj[itj];
+        if(tj.AlgMod[kKilled]) continue;
+        if(tj.CTP != vx.CTP) continue;
+        if(tj.VtxID[0] == vx.ID) myprt<<" "<<tj.ID<<"_0";
+        if(tj.VtxID[1] == vx.ID) myprt<<" "<<tj.ID<<"_1";
+      }
+      myprt<<" +tjID "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull;
+    }
     if(tpVxPull > fVertex2DCuts[3]) return false;
     if(dpt > 2) return false;
 
     // Passed all the cuts. Attach it to the vertex and try a fit
     tj.VtxID[end] = vx.ID;
-    if(FitVertex(tjs, vx, fVertex2DCuts, prt)) return true;
+    if(FitVertex(tjs, vx, fVertex2DCuts, prt)) {
+      if(prt) mf::LogVerbatim("TC")<<" success";
+      return true;
+    }
     
     // fit failed so remove the tj -> vx assignment
     tj.VtxID[end] = 0;
