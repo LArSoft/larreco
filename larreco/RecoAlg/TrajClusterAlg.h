@@ -190,17 +190,13 @@ namespace tca {
     
     // variables for step crawling - updated at each TP
     // tracking flags
-    bool fGoodWork;         // the work trajectory is good and should be stored
-    bool fTryWithNextPass;  // fGoodWork false, try with next pass settings
+    bool fGoodTraj;         // the working trajectory is good and should be stored
+    bool fTryWithNextPass;  // Try with next pass settings
     bool fUpdateTrajOK;     // update
     bool fMaskedLastTP;
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
     
     std::vector<float> fAveHitRMS;      ///< average RMS of an isolated hit
-
-    //  trajectories
-    Trajectory work;      ///< trajectory under construction
-    //  trial    trajectories
 
     std::vector<TrjInt> trjint;
     // vectors of clusters of trajectories => a set of somewhat intersecting trajectories
@@ -212,9 +208,8 @@ namespace tca {
     void RunStepCrawl();
     void InitializeAllTraj();
     void ReconstructAllTraj();
-    // Check the work trajectory and try to recover it if it has poor quality
     // Main stepping/crawling routine
-    void StepCrawl();
+    void StepCrawl(Trajectory& tj);
     // Add hits on the trajectory point ipt that are close to the trajectory point Pos
     void AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
     // Large Angle version
@@ -235,11 +230,8 @@ namespace tca {
     // Step through TPs starting at the end and moving to the beginning
     void ReversePropagate(Trajectory& tj);
     // Start a trajectory going from fromHit to (toWire, toTick)
-    void StartWork(float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP);
-    void StartWork(unsigned int fromHit, unsigned int toHit);
-    // Returns the charge weighted wire, time position of all hits in the multiplet
-    // of which hit is a member
-//    void HitMultipletPosition(unsigned int hit, float& hitTick, float& deltaRms, float& qtot);
+    void StartTraj(Trajectory& tj, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP);
+    void StartTraj(Trajectory& tj, unsigned int fromHit, unsigned int toHit);
     void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet);
     void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex);
     // Returns fHits[iht]->RMS() * fScaleF * fHitErrFac * fHits[iht]->Multiplicity();
@@ -263,8 +255,8 @@ namespace tca {
     unsigned short NumUsedHits(TrajPoint& tp);
     // Counts the number of TPs in the trajectory that have charge
     unsigned short NumPtsWithCharge(Trajectory& tj, bool includeDeadWires);
-    // Sets inTraj[] = 0 and UseHit false for all TPs in work. Called when abandoning work
-    void ReleaseWorkHits();
+    // Sets inTraj[] = 0 and UseHit false for all TPs. Called when abandoning work
+    void ReleaseHits(Trajectory& tj);
     // Returns true if the TP angle exceeds user cut fLargeAngle
 //    bool IsLargeAngle(TrajPoint const& tp);
     // returns the index of the angle range that tp is in
@@ -284,21 +276,21 @@ namespace tca {
     // merge the trajectories and put the results into allTraj. Returns
     // reAnalyze true if AnalyzeTrials needs to be called again
     void MergeTrajPair(unsigned short ipr, bool& reAnalyze);
-    // Append the allTraj trajectory to work
+    // Merge and store the two trajectories in allTraj
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters(bool fMakeNewHits);
     void MakeNewHits();
     void CheckHitClusterAssociations();
-    // Push the work trajectory into allTraj
-    void StoreWork();
+    // Push the trajectory into allTraj
+    void StoreTraj(Trajectory& tj);
     // Calculate the trajectory Quality
     void CalculateQuality(Trajectory& tj);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
     // Fill in missed hits
     void FillGaps(Trajectory& tj);
-    // Check for many unused hits in work and try to use them
+    // Check for many unused hits and try to use them
     void CheckHiMultUnusedHits(Trajectory& tj);
     void CheckHiMultEndHits(Trajectory& tj);
     // Check for high values of Delta at the beginning of the trajectory
@@ -306,26 +298,23 @@ namespace tca {
     // Check for a TJ that is close to the Large Angle cut
     void CheckNearLA();
     // Updates the last added trajectory point fit, average hit rms, etc.
-    void UpdateWork();
     void UpdateTraj(Trajectory& tj);
     // Find the average charge using fNPtsAve values of TP Chg.
     void UpdateAveChg(Trajectory& tj);
-   // Estimate the Delta RMS of the TPs on the end of work.
+   // Estimate the Delta RMS of the TPs on the end of tj.
     void UpdateDeltaRMS(Trajectory& tj);
     // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
     // current configuration or whether to stop and possibly try with the next pass settings
-    bool MaskedWorkHitsOK();
+    bool MaskedHitsOK(Trajectory& tj);
     // Any re-sizing should have been done by the calling routine. This code updates the Pass and adjusts the number of
     // fitted points to get FitCHi < 2
-    void PrepareWorkForNextPass();
+    void PrepareForNextPass(Trajectory& tj);
     // Fit the supplied trajectory using HitPos positions with the origin at originPt.
     void FitTraj(Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
-    // A version just like FitWork (that will be replaced with this one)
+    // Fit the leading edge of the trajectory
     void FitTraj(Trajectory& tj);
-   // Jacket around FitTraj to fit the work trajectory
-    void FitWork();
-    // Does a local fit of just-added TPs on work to identify a kink while stepping.
-    // Truncates the work vector and returns true if one is found.
+    // Does a local fit of just-added TPs to identify a kink while stepping.
+    // Truncates the vector and returns true if one is found.
     void GottaKink(Trajectory& tj, unsigned short& killPts);
     // Update the  parameters at the beginning of the trajectory
     void FixTrajBegin(Trajectory& tj);
