@@ -223,7 +223,7 @@ namespace tca {
     float DeadWireCount(float inWirePos1, float inWirePos2, CTP_t tCTP);
     void HitSanityCheck();
     // Hits on two adjacent wires have an acceptable signal overlap
-    bool TrajHitsOK(unsigned int iht, unsigned int jht);
+    bool TrajHitsOK(const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
     // Find all trajectories in the plane using the pre-defined step direction, cuts, etc.
     void TryRecoveryAlgs();
     // Try to use unused nearby hits in all trajectories after stepping is done
@@ -305,8 +305,6 @@ namespace tca {
     void CheckHiDeltas(Trajectory& tj);
     // Check for a TJ that is close to the Large Angle cut
     void CheckNearLA();
-    // Reverse a trajectory
-    void ReverseTraj(Trajectory& tj);
     // Updates the last added trajectory point fit, average hit rms, etc.
     void UpdateWork();
     void UpdateTraj(Trajectory& tj);
