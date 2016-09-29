@@ -20,18 +20,18 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-nnet::DataProviderAlg::DataProviderAlg(const fhicl::ParameterSet& pset) :
+nnet::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fCryo(9999), fTPC(9999), fView(9999),
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0),
 	fDriftWindow(10), fPatchSizeW(32), fPatchSizeD(32),
 	fDownscaleMode(nnet::DataProviderAlg::kMax),
 	fCurrentWireIdx(99999), fCurrentScaledDrift(99999),
-	fCalorimetryAlg(pset.get< fhicl::ParameterSet >("CalorimetryAlg")),
+	fCalorimetryAlg(config.CalorimetryAlg()),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
 	fGeometry = &*(art::ServiceHandle<geo::Geometry>());
 
-	this->reconfigure(pset); 
+	this->reconfigure(config); 
 }
 // ------------------------------------------------------
 
@@ -40,15 +40,15 @@ nnet::DataProviderAlg::~DataProviderAlg(void)
 }
 // ------------------------------------------------------
 
-void nnet::DataProviderAlg::reconfigure(const fhicl::ParameterSet& p)
+void nnet::DataProviderAlg::reconfigure(const Config& config)
 {
-	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
+	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
 
-	fDriftWindow = p.get< unsigned int >("DriftWindow");
-	fPatchSizeW = p.get< unsigned int >("PatchSizeW");
-	fPatchSizeD = p.get< unsigned int >("PatchSizeD");
+	fDriftWindow = config.DriftWindow();
+	fPatchSizeW = config.PatchSizeW();
+	fPatchSizeD = config.PatchSizeD();
 
-	std::string mode_str = p.get< std::string >("DownscaleFn");
+	std::string mode_str = config.DownscaleFn();
 	if (mode_str == "maxpool")      fDownscaleMode = nnet::DataProviderAlg::kMax;
 	else if (mode_str == "maxmean") fDownscaleMode = nnet::DataProviderAlg::kMaxMean;
 	else if (mode_str == "mean")    fDownscaleMode = nnet::DataProviderAlg::kMean;
@@ -399,10 +399,10 @@ float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
 // --------------------PointIdAlg------------------------
 // ------------------------------------------------------
 
-nnet::PointIdAlg::PointIdAlg(const fhicl::ParameterSet& pset) : nnet::DataProviderAlg(pset),
+nnet::PointIdAlg::PointIdAlg(const Config& config) : nnet::DataProviderAlg(config),
 	fNNet(0)
 {
-	this->reconfigure(pset); 
+	this->reconfigure(config); 
 }
 // ------------------------------------------------------
 
@@ -412,9 +412,9 @@ nnet::PointIdAlg::~PointIdAlg(void)
 }
 // ------------------------------------------------------
 
-void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
+void nnet::PointIdAlg::reconfigure(const Config& config)
 {
-	fNNetModelFilePath = p.get< std::string >("NNetModelFile");
+	fNNetModelFilePath = config.NNetModelFile();
 
 	deleteNNet();
 
@@ -593,9 +593,9 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(std::vector< art::Ptr<recob
 // ------------------TrainingDataAlg---------------------
 // ------------------------------------------------------
 
-nnet::TrainingDataAlg::TrainingDataAlg(const fhicl::ParameterSet& pset) : nnet::DataProviderAlg(pset)
+nnet::TrainingDataAlg::TrainingDataAlg(const Config& config) : nnet::DataProviderAlg(config)
 {
-	this->reconfigure(pset); 
+	this->reconfigure(config); 
 }
 // ------------------------------------------------------
 
@@ -604,11 +604,11 @@ nnet::TrainingDataAlg::~TrainingDataAlg(void)
 }
 // ------------------------------------------------------
 
-void nnet::TrainingDataAlg::reconfigure(const fhicl::ParameterSet& p)
+void nnet::TrainingDataAlg::reconfigure(const Config& config)
 {
-	fWireProducerLabel = p.get< std::string >("WireLabel");
-	fSimulationProducerLabel = p.get< std::string >("SimulationLabel");
-	fSaveVtxFlags = p.get< bool >("SaveVtxFlags");
+	fWireProducerLabel = config.WireLabel();
+	fSimulationProducerLabel = config.SimulationLabel();
+	fSaveVtxFlags = config.SaveVtxFlags();
 }
 // ------------------------------------------------------
 

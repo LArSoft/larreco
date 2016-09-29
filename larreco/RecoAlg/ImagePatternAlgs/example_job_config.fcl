@@ -39,6 +39,10 @@ physics:
   # unclustered hits are also tested and if look like EM
   # activity then single-hit clusters are created for them)
   emtrackid: @local::standard_emtrackclusterid
+
+  # detect decay vertices along reconstructed 3D tracks
+  # produces recob::Vertex objects associated to input tracks
+  decayid:   @local::standard_particledecayid
  }
 
  analyzers:
@@ -107,6 +111,18 @@ physics.producers.emtrackid.HitModuleLabel:                "lineclusterdc" # all
 physics.producers.emtrackid.ClusterModuleLabel:            "lineclusterdc" # clusters to be classified
 physics.producers.emtrackid.Threshold:                     0.3 # **** imporant **** optimize this threshold to your needs
 physics.producers.emtrackid.Views:                         []  # possible to run over selected views only (all views if empty list)
+
+# decay detection configuration:
+# PatchSizeW and PatchSizeD together with DriftWindow have to be corresponding
+# to the CNN model parameters (here the patch is 16cm2, assuming ProtoDUNE's
+# 5mm wire pitch, 2.5MHz sampling and drift speed at 500V/cm)
+physics.producers.decayid.PointIdAlg.NNetModelFile:      "/home/your_dir/your_cnn_model.nnet"
+physics.producers.decayid.PointIdAlg.PatchSizeW:         32     # how many wires in patch
+physics.producers.decayid.PointIdAlg.PatchSizeD:         44     # how many downsampled ADC entries
+physics.producers.decayid.PointIdAlg.DriftWindow:        6      # downsampling window in drift ticks
+physics.producers.decayid.PointIdAlg.DownscaleFn:        "mean" # downsampling function
+physics.producers.decayid.TrackModuleLabel:              "pmtrack" # tracks to be processed
+physics.producers.decayid.Threshold:                     0.8 # threshold on p(decay) used to preselect decay candidates
 
 # EM vs track eff. test configuration, similar to the above:
 physics.analyzers.testeff.PointIdAlg.NNetModelFile:      "/home/your_dir/your_cnn_model.nnet"
