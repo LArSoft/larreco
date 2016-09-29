@@ -31,6 +31,7 @@ extern "C" {
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/AnalysisBase/T0.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -169,6 +170,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 
   //art::FindManyP<recob::SpacePoint> fmsp(trackListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Hit>        fmht(trackListHandle, evt, fTrackModuleLabel);
+  art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(trackListHandle, evt, fTrackModuleLabel); //this has more information about hit-track association, only available in PMA for now
   art::FindManyP<anab::T0>          fmt0(trackListHandle, evt, fT0ModuleLabel);
 
   for(size_t trkIter = 0; trkIter < tracklist.size(); ++trkIter){   
@@ -323,12 +325,35 @@ void calo::Calorimetry::produce(art::Event& evt)
 	//not all hits are associated with space points, the method uses neighboring spacepts to interpolate
 	double xyz3d[3];
 	double pitch;
-	GetPitch(allHits[hits[ipl][ihit]], trkx, trky, trkz, trkw, trkx0, xyz3d, pitch, TickT0);
+        if (fmthm.isValid()){
+          auto vhit = fmthm.at(trkIter);
+          auto vmeta = fmthm.data(trkIter);
+          for (size_t ii = 0; ii<vhit.size(); ++ii){
+            if (vhit[ii].key() == allHits[hits[ipl][ihit]].key()){
+              double angleToVert = geom->WireAngleToVertical(vhit[ii]->View(), vhit[ii]->WireID().TPC, vhit[ii]->WireID().Cryostat) - 0.5*::util::pi<>();
+              const TVector3& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
+              double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
+              if (cosgamma){
+                pitch = geom->WirePitch(0,1,0)/cosgamma;
+              }
+              else{
+                pitch = 0;
+              }
+              TVector3 loc = tracklist[trkIter]->LocationAtPoint(vmeta[ii]->Index());
+              xyz3d[0] = loc.X();
+              xyz3d[1] = loc.Y();
+              xyz3d[2] = loc.Z();
+              break;
+            }
+          }
+        }
+        else
+          GetPitch(allHits[hits[ipl][ihit]], trkx, trky, trkz, trkw, trkx0, xyz3d, pitch, TickT0);
 
 	if (xyz3d[2]<-100) continue; //hit not on track
 	if (pitch<=0) pitch = fTrkPitch;
 	if (!pitch) continue;
-
+                
         if(fnsps == 0) {
           xx = xyz3d[0];
           yy = xyz3d[1];
