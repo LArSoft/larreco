@@ -31,6 +31,7 @@
 namespace tca {
 
   // ****************************** General purpose  ******************************
+  bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp);
   bool SignalPresent(TjStuff& tjs, unsigned int wire1, float time1, unsigned int wire2, float time2, CTP_t pCTP, float minAmp);
@@ -43,13 +44,14 @@ namespace tca {
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
   void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
   // returns the DOCA between a hit and a trajectory
-  float PointTrajDOCA(TjStuff& tjs, unsigned int iht, TrajPoint const& tp);
+  float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp);
   // returns the DOCA between a (W,T) point and a trajectory
-  float PointTrajDOCA(TjStuff& tjs, float wire, float time, TrajPoint const& tp);
+  float PointTrajDOCA(TjStuff const& tjs, float wire, float time, TrajPoint const& tp);
   // returns the DOCA^2 between a point and a trajectory
-  float PointTrajDOCA2(TjStuff& tjs, float wire, float time, TrajPoint const& tp);
-  // returns a vector of hit indices that on the nearest wire to tp.Pos[0] and within maxDelta
-  std::vector<unsigned int> FindCloseHits(TjStuff& tjs, TrajPoint const& tp, const float& maxDelta, bool onlyUsedHits);
+  float PointTrajDOCA2(TjStuff const& tjs, float wire, float time, TrajPoint const& tp);
+  // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
+  // close hits OR if the wire at this position is dead
+  bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, bool onlyUsedHits);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
 
   // returns the separation^2 between a point and a TP
