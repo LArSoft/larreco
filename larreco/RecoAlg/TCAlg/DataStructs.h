@@ -25,20 +25,12 @@ namespace tca {
   
   // some functions to handle the CTP_t type
   typedef unsigned int CTP_t;
-  
   constexpr unsigned int CTPpad = 1000; // alignment for CTP sub-items
-  
-  inline CTP_t EncodeCTP
-  (unsigned int cryo, unsigned int tpc, unsigned int plane)
-  { return cryo * CTPpad*CTPpad + tpc * CTPpad + plane; }
-  inline CTP_t EncodeCTP(const geo::PlaneID& planeID)
-  { return EncodeCTP(planeID.Cryostat, planeID.TPC, planeID.Plane); }
-  inline CTP_t EncodeCTP(const geo::WireID& wireID)
-  { return EncodeCTP(wireID.Cryostat, wireID.TPC, wireID.Plane); }
-  
-  inline geo::PlaneID DecodeCTP(CTP_t CTP)
-  { return { CTP / (CTPpad*CTPpad), CTP / CTPpad % CTPpad, CTP % CTPpad }; }
-  
+  inline CTP_t EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane) { return cryo * CTPpad*CTPpad + tpc * CTPpad + plane; }
+  inline CTP_t EncodeCTP(const geo::PlaneID& planeID) { return EncodeCTP(planeID.Cryostat, planeID.TPC, planeID.Plane); }
+  inline CTP_t EncodeCTP(const geo::WireID& wireID) { return EncodeCTP(wireID.Cryostat, wireID.TPC, wireID.Plane); }
+  inline geo::PlaneID DecodeCTP(CTP_t CTP) { return { CTP / (CTPpad*CTPpad), CTP / CTPpad % CTPpad, CTP % CTPpad }; }
+
   /// @{
   /// @name Data structures for the reconstruction results
   
@@ -112,7 +104,6 @@ namespace tca {
   // Global information for the trajectory
   struct Trajectory {
     std::vector<TrajPoint> Pts;    ///< Trajectory points
-    std::vector<TrajPoint> EndTP {(2)} ;    ///< Trajectory point at each end for merging
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
@@ -179,7 +170,7 @@ namespace tca {
     kFillGap,
     kUseGhostHits,
     kChkInTraj,
-    kFixBegin,
+    kFixEnd,
     kUseUnusedHits,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
@@ -203,7 +194,9 @@ namespace tca {
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
-    std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
+    unsigned short WireHitRangeCstat;
+    unsigned short WireHitRangeTPC;
+     std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
