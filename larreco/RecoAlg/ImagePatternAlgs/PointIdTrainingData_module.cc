@@ -18,12 +18,15 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
 
 // Framework includes
+#include "canvas/Utilities/InputTag.h"
 #include "canvas/Utilities/Exception.h"
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "fhiclcpp/ParameterSet.h"
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Table.h"
+#include "fhiclcpp/types/Sequence.h"
 
 // C++ Includes
 #include <vector>
@@ -37,13 +40,43 @@ namespace nnet	 {
   {
   public:
  
-    explicit PointIdTrainingData(fhicl::ParameterSet const& parameterSet);
+ 	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
 
-    virtual void reconfigure(fhicl::ParameterSet const& parameterSet) override;
+		fhicl::Table<nnet::TrainingDataAlg::Config> TrainingDataAlg {
+			Name("TrainingDataAlg")
+		};
+
+		fhicl::Atom<std::string> OutTextFilePath {
+			Name("OutTextFilePath"),
+			Comment("...")
+		};
+
+		fhicl::Sequence<int> SelectedTPC {
+			Name("SelectedTPC"),
+			Comment("use selected views only, or all views if empty list")
+		};
+
+		fhicl::Sequence<int> SelectedView {
+			Name("SelectedView"),
+			Comment("use selected tpc's only, or all tpc's if empty list")
+		};
+
+		fhicl::Atom<bool> Crop {
+			Name("Crop"),
+			Comment("...")
+		};
+    };
+    using Parameters = art::EDAnalyzer::Table<Config>;
+
+    explicit PointIdTrainingData(Parameters const& config);
 
     virtual void analyze (const art::Event& event) override;
 
   private:
+
+    nnet::TrainingDataAlg fTrainingDataAlg;
 
 	std::string fOutTextFilePath;
 
@@ -56,27 +89,18 @@ namespace nnet	 {
 
     bool fCrop;     /// crop data to event (set to false when dumping noise!)
 
-	nnet::TrainingDataAlg fTrainingDataAlg;
-
 	geo::GeometryCore const* fGeometry;
   };
 
   //-----------------------------------------------------------------------
-  PointIdTrainingData::PointIdTrainingData(fhicl::ParameterSet const& parameterSet) : EDAnalyzer(parameterSet),
-	fTrainingDataAlg(parameterSet.get< fhicl::ParameterSet >("TrainingDataAlg"))
+  PointIdTrainingData::PointIdTrainingData(PointIdTrainingData::Parameters const& config) : art::EDAnalyzer(config),
+	fTrainingDataAlg(config().TrainingDataAlg()),
+	fOutTextFilePath(config().OutTextFilePath()),
+	fSelectedTPC(config().SelectedTPC()),
+	fSelectedView(config().SelectedView()),
+	fCrop(config().Crop())
   {
     fGeometry = &*(art::ServiceHandle<geo::Geometry>());
-    reconfigure(parameterSet);
-  }
-
-  //-----------------------------------------------------------------------
-  void PointIdTrainingData::reconfigure(fhicl::ParameterSet const& parameterSet)
-  {
-	fTrainingDataAlg.reconfigure(parameterSet.get< fhicl::ParameterSet >("TrainingDataAlg"));
-	fOutTextFilePath = parameterSet.get< std::string >("OutTextFilePath");
-	fSelectedTPC = parameterSet.get< std::vector<int> >("SelectedTPC");
-	fSelectedView = parameterSet.get< std::vector<int> >("SelectedView");
-	fCrop = parameterSet.get< bool >("Crop");
 
 	const size_t TPC_CNT = (size_t)fGeometry->NTPC(0);
 	if (fSelectedTPC.empty())

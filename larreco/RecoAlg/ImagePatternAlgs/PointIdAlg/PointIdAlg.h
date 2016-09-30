@@ -15,6 +15,10 @@
 // Framework includes
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "fhiclcpp/types/Atom.h"
+//#include "fhiclcpp/types/Sequence.h"
+#include "fhiclcpp/types/Table.h"
+#include "canvas/Utilities/InputTag.h"
 
 // LArSoft includes
 #include "larcore/Geometry/GeometryCore.h"
@@ -50,10 +54,46 @@ class nnet::DataProviderAlg
 public:
 	enum EDownscaleMode { kMax = 1, kMaxMean = 2, kMean = 3 };
 
-	DataProviderAlg(const fhicl::ParameterSet& pset);
+    struct Config
+    {
+	    using Name = fhicl::Name;
+	    using Comment = fhicl::Comment;
+
+		fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlg {
+			Name("CalorimetryAlg"),
+			Comment("Used to eliminate amplitude variation due to electron lifetime.")
+		};
+
+		fhicl::Atom<unsigned int> DriftWindow {
+			Name("DriftWindow"),
+			Comment("Downsampling window (in drift ticks).")
+		};
+
+		fhicl::Atom<std::string> DownscaleFn {
+			Name("DownscaleFn"),
+			Comment("Downsampling function")
+		};
+
+		fhicl::Atom<unsigned int> PatchSizeW {
+			Name("PatchSizeW"),
+			Comment("How many wires in patch.")
+		};
+
+		fhicl::Atom<unsigned int> PatchSizeD {
+			Name("PatchSizeD"),
+			Comment("How many downsampled ADC entries in patch")
+		};
+    };
+
+	DataProviderAlg(const fhicl::ParameterSet& pset) :
+		DataProviderAlg(fhicl::Table<Config>(pset, {})())
+	{}
+
+    DataProviderAlg(const Config& config);
+
 	virtual ~DataProviderAlg(void);
 
-	virtual void reconfigure(const fhicl::ParameterSet& p); // setup patch buffer, ...
+	void reconfigure(const Config& config); // setup patch buffer, ...
 
 	bool setWireDriftData(const std::vector<recob::Wire> & wires, // once per view: setup ADC buffer, collect & downscale ADC's
 		unsigned int view, unsigned int tpc, unsigned int cryo);
@@ -170,10 +210,27 @@ private:
 class nnet::PointIdAlg : public nnet::DataProviderAlg
 {
 public:
-	PointIdAlg(const fhicl::ParameterSet& pset);
+
+    struct Config : public nnet::DataProviderAlg::Config
+    {
+	    using Name = fhicl::Name;
+	    using Comment = fhicl::Comment;
+
+		fhicl::Atom<std::string> NNetModelFile {
+			Name("NNetModelFile"),
+			Comment("Neural net model to apply.")
+		};
+    };
+
+	PointIdAlg(const fhicl::ParameterSet& pset) :
+		PointIdAlg(fhicl::Table<Config>(pset, {})())
+	{}
+
+    PointIdAlg(const Config& config);
+
 	virtual ~PointIdAlg(void);
 
-	virtual void reconfigure(const fhicl::ParameterSet& p) override;  // read-in nnet
+	void reconfigure(const Config& config);  // read-in nnet
 
 	size_t NClasses(void) const;
 
@@ -213,10 +270,36 @@ public:
 		kPdgMask = 0x0000FFFF  // pdg code mask (pdg is saved in the same int as vtx flags)
 	};
 
-	TrainingDataAlg(const fhicl::ParameterSet& pset);
+    struct Config : public nnet::DataProviderAlg::Config
+    {
+	    using Name = fhicl::Name;
+	    using Comment = fhicl::Comment;
+
+		fhicl::Atom< art::InputTag > WireLabel {
+			Name("WireLabel"),
+			Comment("Tag of recob::Wire.")
+		};
+
+		fhicl::Atom< art::InputTag > SimulationLabel {
+			Name("SimulationLabel"),
+			Comment("Tag of simulation producer.")
+		};
+
+		fhicl::Atom< bool > SaveVtxFlags {
+			Name("SaveVtxFlags"),
+			Comment("Include (or not) vertex info in PDG map.")
+		};
+    };
+
+	TrainingDataAlg(const fhicl::ParameterSet& pset) :
+		TrainingDataAlg(fhicl::Table<Config>(pset, {})())
+	{}
+
+    TrainingDataAlg(const Config& config);
+
 	virtual ~TrainingDataAlg(void);
 
-	virtual void reconfigure(const fhicl::ParameterSet& p) override;
+	void reconfigure(const Config& config);
 
 	bool setEventData(const art::Event& event,   // collect & downscale ADC's, charge deposits, pdg labels
 		unsigned int view, unsigned int tpc, unsigned int cryo);
@@ -254,8 +337,8 @@ private:
 	std::vector< std::vector<float> > fWireDriftEdep;
 	std::vector< std::vector<int> > fWireDriftPdg;
 
-	std::string fWireProducerLabel;
-	std::string fSimulationProducerLabel;
+	art::InputTag fWireProducerLabel;
+	art::InputTag fSimulationProducerLabel;
 	bool fSaveVtxFlags;
 };
 // ------------------------------------------------------
