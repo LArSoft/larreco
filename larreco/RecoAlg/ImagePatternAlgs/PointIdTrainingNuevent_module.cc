@@ -21,12 +21,15 @@
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 // Framework includes
+#include "canvas/Utilities/InputTag.h"
 #include "canvas/Utilities/Exception.h"
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "fhiclcpp/ParameterSet.h"
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Table.h"
+#include "fhiclcpp/types/Sequence.h"
 
 // C++ Includes
 #include <vector>
@@ -48,12 +51,40 @@ namespace nnet	 {
   class PointIdTrainingNuevent : public art::EDAnalyzer
   {
   public:
- 
-    explicit PointIdTrainingNuevent(fhicl::ParameterSet const& parameterSet);
 
-    virtual void reconfigure(fhicl::ParameterSet const& parameterSet) override;
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
 
-    virtual void analyze (const art::Event& event) override;
+		fhicl::Table<nnet::TrainingDataAlg::Config> TrainingDataAlg {
+			Name("TrainingDataAlg")
+		};
+
+		fhicl::Atom<art::InputTag> GenModuleLabel {
+			Name("GenModuleLabel"),
+			Comment("...")
+		};
+
+		fhicl::Atom<std::string> OutTextFilePath {
+			Name("OutTextFilePath"),
+			Comment("...")
+		};
+
+		fhicl::Atom<double> FidVolCut {
+			Name("FidVolCut"),
+			Comment("...")
+		};
+
+		fhicl::Sequence<int> SelectedView {
+			Name("SelectedView"),
+			Comment("...")
+		};
+    };
+    using Parameters = art::EDAnalyzer::Table<Config>;
+
+    explicit PointIdTrainingNuevent(Parameters const& config);
+
+    virtual void analyze(const art::Event& event) override;
 
   private:
   
@@ -62,8 +93,10 @@ namespace nnet	 {
   	void CorrOffset(TVector3& vec, const simb::MCParticle& particle);
   	
 	TVector2 GetProjVtx(TVector3 const & vtx3d, const size_t cryo, const size_t tpc, const size_t plane) const;
-	
-	std::string fGenieGenLabel;
+
+    nnet::TrainingDataAlg fTrainingDataAlg;
+
+	art::InputTag fGenieGenLabel;
 	std::string fOutTextFilePath;
 
 	std::vector<int> fSelectedView;
@@ -76,28 +109,18 @@ namespace nnet	 {
 	
 	NUVTX fPointid;
 
-	nnet::TrainingDataAlg fTrainingDataAlg;
-
 	geo::GeometryCore const* fGeometry;
   };
 
   //-----------------------------------------------------------------------
-  PointIdTrainingNuevent::PointIdTrainingNuevent(fhicl::ParameterSet const& parameterSet) : EDAnalyzer(parameterSet),
-	fTrainingDataAlg(parameterSet.get< fhicl::ParameterSet >("TrainingDataAlg"))
+  PointIdTrainingNuevent::PointIdTrainingNuevent(PointIdTrainingNuevent::Parameters const& config) : art::EDAnalyzer(config),
+	fTrainingDataAlg(config().TrainingDataAlg()),
+	fGenieGenLabel(config().GenModuleLabel()),
+	fOutTextFilePath(config().OutTextFilePath()),
+	fSelectedView(config().SelectedView()),
+	fFidVolCut(config().FidVolCut())
   {
     fGeometry = &*(art::ServiceHandle<geo::Geometry>());
-    reconfigure(parameterSet);
-  }
-
-  //-----------------------------------------------------------------------
-  void PointIdTrainingNuevent::reconfigure(fhicl::ParameterSet const& parameterSet)
-  {
-	fTrainingDataAlg.reconfigure(parameterSet.get< fhicl::ParameterSet >("TrainingDataAlg"));
-	
-	fGenieGenLabel = parameterSet.get< std::string >("GenModuleLabel");
-	fOutTextFilePath = parameterSet.get< std::string >("OutTextFilePath");
-	fFidVolCut = parameterSet.get< double >("FidVolCut");
-	fSelectedView = parameterSet.get< std::vector<int> >("SelectedView");
   }
   
   //-----------------------------------------------------------------------

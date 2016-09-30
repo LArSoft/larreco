@@ -19,6 +19,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Wire.h"
 
 namespace tca {
   
@@ -45,7 +46,7 @@ namespace tca {
   struct ClusterStore {
     short ID {0};         // Cluster ID. ID < 0 = abandoned cluster
     CTP_t CTP {0};        // Cryostat/TPC/Plane code
-    unsigned short PDG {0}; // PDG-like code shower-like or line-like
+    unsigned short PDGCode {0}; // PDG-like code shower-like or line-like
     unsigned short ParentCluster {0};
     float BeginWir {0};   // begin wire
     float BeginTim {0};   // begin tick
@@ -62,20 +63,19 @@ namespace tca {
   
   /// struct of temporary 2D vertices (end points)
   struct VtxStore {
-    float Wire {0};
-    float WireErr {2};
-    float Time {0};
-    float TimeErr {0.1};
+    std::array<float, 2> Pos {{0,0}};
+    std::array<float, 2> PosErr {{2,1}};
     unsigned short NTraj {0};  // = 0 for abandoned vertices
+    unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
     short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
     bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
+    unsigned short ID {0};
   };
   
   /// struct of temporary 3D vertices
   struct Vtx3Store {
-    std::array<short, 3> Ptr2D {{-1, -1, -1}}; // pointers to 2D vertices in each plane
     float X {0};                    // x position
     float XErr {0};                 // x position error
     float Y {0};                    // y position
@@ -85,24 +85,23 @@ namespace tca {
     short Wire {-1};                 // wire number for an incomplete 3D vertex
     unsigned short CStat {0};
     unsigned short TPC {0};
-    unsigned short ProcCode {0};
+    std::array<short, 3> Ptr2D {{-1, -1, -1}}; // pointers to 2D vertices in each plane
   };
   
   struct TrajPoint {
     CTP_t CTP {0};                   ///< Cryostat, TPC, Plane code
     std::array<float, 2> HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
     std::array<float, 2> Pos {{0,0}}; // Trajectory position in wire equivalent units
-    std::array<float, 2> Dir {{0,0}}; // Direction
+    std::array<float, 2> Dir {{0,0}}; // Direction cosines in the StepDir direction
     float HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
     // HitPosErr2 < 0 = HitPos not defined because no hits used
     float Ang {0};                // Trajectory angle (-pi, +pi)
     float AngErr {0.1};             // Trajectory angle error
-    float KinkAng {-1};            // Just what it says
     float Chg {0};                // Charge
     float AveChg {-1};             // Average charge of last ~20 TPs
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
     float Delta {0};              // Deviation between trajectory and hits (WSE)
-    float DeltaRMS {0};           // RMS of Deviation between trajectory and hits (WSE)
+    float DeltaRMS {0.02};           // RMS of Deviation between trajectory and hits (WSE)
     unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
     unsigned short Step {0};      // Step number at which this TP was created
     float FitChi {0};             // Chi/DOF of the fit
@@ -112,23 +111,27 @@ namespace tca {
   
   // Global information for the trajectory
   struct Trajectory {
-    short ID;
+    std::vector<TrajPoint> Pts;    ///< Trajectory points
+    std::vector<TrajPoint> EndTP {(2)} ;    ///< Trajectory point at each end for merging
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
-    unsigned short Pass {0};            ///< the pass on which it was created
-    short StepDir {0};                 /// -1 = going US (CC proper order), 1 = going DS
-    unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
-    unsigned short PDG {0};            ///< shower-like or track-like {default is track-like}
-    unsigned short ParentTraj {USHRT_MAX};     ///< index of the parent (if PDG = 12)
+    unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
+    unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
+    unsigned short MCSMom {0};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
-    std::array<short, 2> Vtx {{-1,-1}};      ///< Index of 2D vertex
+    std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has a hit
-    std::vector<TrajPoint> Pts;    ///< Trajectory points
-    std::vector<TrajPoint> EndTP {(2)} ;    ///< Trajectory point at each end for merging
+    short ID;
+    unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
+    unsigned short Pass {0};            ///< the pass on which it was created
+    short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
+    short Dir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
+                                        ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
+    short WorkID {0};
   };
   
   // Trajectory "intersections" used to search for superclusters (aka showers)
@@ -155,10 +158,11 @@ namespace tca {
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
+    kUnMaskHits,
     kGottaKink,     ///< GottaKink found a kink
     kCWKink,        ///< kink found in CheckWork
     kCWStepChk,
-     kTryWithNextPass,
+    kTryWithNextPass,
     kRevProp,
     kChkHiMultHits,
     kSplitTraj,
@@ -172,28 +176,33 @@ namespace tca {
     kEndMerge,
     kTrimHits,
     kChkHiMultEndHits,
-    kChainMerge,
     kFillGap,
     kUseGhostHits,
+    kChkInTraj,
+    kFixBegin,
+    kUseUnusedHits,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
   extern const std::vector<std::string> AlgBitNames;
   
   struct TjStuff {
+    // These variables don't change in size from event to event
+    float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
+    std::vector<unsigned int> NumWires;
+    std::vector<float> MaxPos0;
+    std::vector<float> MaxPos1;
+    std::vector<unsigned int> FirstWire;    ///< the first wire with a hit
+    std::vector<unsigned int> LastWire;      ///< the last wire with a hit
+    // The variables below do change in size from event to event
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
-    std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
     std::vector<art::Ptr<recob::Hit>> fHits;
+    std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
+    std::vector<recob::Hit> newHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
-    std::vector<unsigned int> NumWires;
-    std::vector<float> MaxPos0;
-    std::vector<float> MaxPos1;
-    float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
-    std::vector<unsigned int> FirstWire;    ///< the first wire with a hit
-    std::vector<unsigned int> LastWire;      ///< the last wire with a hit
     std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices

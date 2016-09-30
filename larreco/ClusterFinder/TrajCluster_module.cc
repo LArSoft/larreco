@@ -49,6 +49,7 @@ namespace cluster {
     
   private:
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
+    bool fMakeNewHits;                           // Make a new collection of merged hits
     
   }; // class TrajCluster
   
@@ -70,6 +71,7 @@ namespace cluster {
 //LArSoft includes
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
@@ -78,9 +80,26 @@ namespace cluster {
 namespace cluster {
   
   //----------------------------------------------------------------------------
+  void TrajCluster::reconfigure(fhicl::ParameterSet const & pset)
+  {
+    // this trick avoids double configuration on construction
+    if (fTCAlg)
+      fTCAlg->reconfigure(pset.get< fhicl::ParameterSet >("TrajClusterAlg"));
+    else {
+      fTCAlg.reset(new tca::TrajClusterAlg(pset.get< fhicl::ParameterSet >("TrajClusterAlg")));
+    }
+    fMakeNewHits = pset.get<bool>("MakeNewHits", false);
+  } // TrajCluster::reconfigure()
+  
+  //----------------------------------------------------------------------------
   TrajCluster::TrajCluster(fhicl::ParameterSet const& pset) {
     
     reconfigure(pset);
+    
+    // let HitCollectionAssociator declare that we are going to produce
+    // hits and associations with wires and raw digits
+    // (with no particular product label)
+    if(fMakeNewHits) recob::HitCollectionAssociator::declare_products(*this);
     
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
@@ -90,19 +109,6 @@ namespace cluster {
     produces< std::vector<recob::PFParticle> >();
     produces< art::Assns<recob::Cluster, recob::PFParticle> >();
   } // TrajCluster::TrajCluster()
-  
-  
-  //----------------------------------------------------------------------------
-  void TrajCluster::reconfigure(fhicl::ParameterSet const & pset)
-  {
-    // this trick avoids double configuration on construction
-    if (fTCAlg)
-      fTCAlg->reconfigure(pset.get< fhicl::ParameterSet >("TrajClusterAlg"));
-    else {
-      fTCAlg.reset(new tca::TrajClusterAlg
-        (pset.get< fhicl::ParameterSet >("TrajClusterAlg")));
-    }
-  } // TrajCluster::reconfigure()
   
   //----------------------------------------------------------------------------
   void TrajCluster::endJob()
@@ -125,14 +131,16 @@ namespace cluster {
   {
 
     // look for clusters in all planes
-    fTCAlg->RunTrajClusterAlg(evt);
+    fTCAlg->RunTrajClusterAlg(evt, fMakeNewHits);
     
-//    std::cout<<"module back from TrajCluster \n";
-    
-    std::vector<art::Ptr<recob::Hit>> const& fHits = fTCAlg->YieldHits();
-    
-//    std::cout<<"module fHits size "<<fHits.size()<<"\n";
-    
+    std::vector<art::Ptr<recob::Hit>> oldHits;
+    std::unique_ptr<std::vector<recob::Hit>> newHits;
+    if(fMakeNewHits) {
+      newHits = std::make_unique<std::vector<recob::Hit>>(std::move(fTCAlg->YieldNewHits()));
+    } else {
+      oldHits = fTCAlg->YieldOldHits();
+    }
+
     std::vector<recob::Cluster> sccol;
     std::vector<recob::PFParticle> spcol;
     std::vector<recob::Vertex> sv3col;
@@ -147,47 +155,18 @@ namespace cluster {
 
     std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters();
     
-    std::vector<short> const& inClus = fTCAlg->GetinClus();
-    
-//    std::cout<<"module nclusters "<<Clusters.size()<<" inClus size "<<inClus.size()<<" fHits size "<<fHits.size()<<"\n";
-
-// Consistency check
-
-    for(unsigned int icl = 0; icl < Clusters.size(); ++icl) {
-      tca::ClusterStore const& clstr = Clusters[icl];
-        if(clstr.ID < 0) continue;
-      geo::PlaneID planeID = tca::DecodeCTP(clstr.CTP);
-        unsigned short plane = planeID.Plane;
-        for(unsigned short ii = 0; ii < clstr.tclhits.size(); ++ii) {
-          unsigned int iht = clstr.tclhits[ii];
-//          std::cout<<clstr.ID<<" hit "<<plane<<":"<<fHits[iht]->WireID().Wire<<":"<<(int)fHits[iht]->PeakTime()<<"\n";
-          if(fHits[iht]->WireID().Plane != plane) {
-            mf::LogError("TC")<<"Cluster-hit plane mis-match "<<fHits[iht]->WireID().Plane<<" "<<plane
-            <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" cluster CTP "<<clstr.CTP;
-            return;
-          }
-          if(inClus[iht] != clstr.ID) {
-            mf::LogError("TC") << "InClus mis-match " << inClus[iht]
-            << " ID " << clstr.ID << " in cluster ID " << clstr.ID;
-            return;
-          }
-        } // ii
-      } // icl
-
-    
     // make EndPoints (aka 2D vertices)
     std::vector<tca::VtxStore> const& EndPts = fTCAlg->GetEndPoints();
-//    std::cout<<"module endpoints "<<EndPts.size()<<"\n";
     art::ServiceHandle<geo::Geometry> geom;
-    unsigned int vtxID = 0, end, wire;
+    unsigned int vtxID = 0;
     for(tca::VtxStore const& vtx2: EndPts) {
       if(vtx2.NTraj == 0) continue;
       ++vtxID;
-      wire = (0.5 + vtx2.Wire);
+      unsigned int wire = std::nearbyint(vtx2.Pos[0]);
       geo::PlaneID plID = tca::DecodeCTP(vtx2.CTP);
       geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
       geo::View_t view = geom->View(wID);
-      sv2col.emplace_back((double)vtx2.Time,    // Time
+      sv2col.emplace_back((double)vtx2.Pos[1],  // Time
                           wID,                  // WireID
                           0,                    // strength - not relevant
                           vtxID,                // ID
@@ -218,26 +197,37 @@ namespace cluster {
     // make the clusters and associations
     std::vector<art::Ptr<recob::Hit>> clusterHits;
     float sumChg, sumADC;
-    unsigned int clsID = 0, nclhits, itt, iht, plane;
     std::vector<size_t> dtrIndices;
+    unsigned short clsID = 0;
     for(size_t icl = 0; icl < Clusters.size(); ++icl) {
       tca::ClusterStore const& clstr = Clusters[icl];
 //      std::cout<<"cls "<<clstr.ID<<" "<<(int)clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" "<<(int)clstr.EndWir<<":"<<(int)clstr.EndTim<<"\n";
       if(clstr.ID < 0) continue;
       ++clsID;
       geo::PlaneID planeID = tca::DecodeCTP(clstr.CTP);
-      plane = planeID.Plane;
-      nclhits = clstr.tclhits.size();
+      unsigned short plane = planeID.Plane;
+      unsigned short nclhits = clstr.tclhits.size();
 
       sumChg = 0;
       sumADC = 0;
-      for(itt = 0; itt < nclhits; ++itt) {
-        iht = clstr.tclhits[itt];
-        sumChg += fHits[iht]->Integral();
-        sumADC += fHits[iht]->SummedADC();
-      } // itt
+      geo::View_t view;
+      if(fMakeNewHits) {
+        for(unsigned short itt = 0; itt < nclhits; ++itt) {
+          unsigned int iht = clstr.tclhits[itt];
+          recob::Hit const& hit = (*newHits)[iht];
+          sumChg += hit.Integral();
+          sumADC += hit.SummedADC();
+        } // itt
+        view = (*newHits)[clstr.tclhits[0]].View();
+      } else {
+        for(unsigned short itt = 0; itt < nclhits; ++itt) {
+          unsigned int iht = clstr.tclhits[itt];
+          sumChg += oldHits[iht]->Integral();
+          sumADC += oldHits[iht]->SummedADC();
+        } // itt
+        view = oldHits[clstr.tclhits[0]]->View();
+      }
       
-      geo::View_t view = fHits[clstr.tclhits[0]]->View();
       sccol.emplace_back(
           clstr.BeginWir,  // Start wire
           0,                      // sigma start wire
@@ -260,20 +250,27 @@ namespace cluster {
           nclhits,                // n hits
           0,                      // wires over hits
           0,                      // width (0 for line-like clusters)
-          clsID,                  // ID
+          clstr.ID,               // ID from TrajClusterAlg
           view,                   // view
           planeID,                // plane
           recob::Cluster::Sentry  // sentry
           );
       // make the cluster - hit association
-      clusterHits.resize(clstr.tclhits.size());
-      for(iht = 0; iht < clstr.tclhits.size(); ++iht) clusterHits[iht] = fHits[clstr.tclhits[iht]];
-      if(!util::CreateAssn(*this, evt, sccol, clusterHits, *hc_assn))
-      {
-        throw art::Exception(art::errors::InsertFailure)
-          <<"Failed to associate hits with cluster ID "<<clstr.ID;
-      } // exception
+      if(fMakeNewHits) {
+        if(!util::CreateAssn(*this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end()))
+        {
+          throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
+        } // exception
+      } else {
+        clusterHits.resize(clstr.tclhits.size());
+        for(unsigned int iht = 0; iht < clstr.tclhits.size(); ++iht) clusterHits[iht] = oldHits[clstr.tclhits[iht]];
+        if(!util::CreateAssn(*this, evt, sccol, clusterHits, *hc_assn))
+        {
+          throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
+        } // exception
+      }
       // make the cluster - endpoint associations
+      unsigned short end;
       if(clstr.BeginVtx >= 0) {
         end = 0;
         // See if this endpoint is associated with a 3D vertex
@@ -320,7 +317,7 @@ namespace cluster {
       dtrIndices.clear();
       for(unsigned short jcl = 0; jcl < Clusters.size(); ++jcl)
         if(Clusters[jcl].ParentCluster == icl) dtrIndices.push_back(jcl);
-      spcol.emplace_back((int)clstr.PDG, icl, parent, dtrIndices);
+      spcol.emplace_back((int)clstr.PDGCode, icl, parent, dtrIndices);
       // cluster - PFParticle association
       size_t cEnd = sccol.size();
       size_t cStart = cEnd - 1;
@@ -336,11 +333,18 @@ namespace cluster {
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
     std::unique_ptr<std::vector<recob::PFParticle> > pcol(new std::vector<recob::PFParticle>(std::move(spcol)));
-    
+
+
     // clean up
     fTCAlg->ClearResults();
 
     // move the cluster collection and the associations into the event:
+    if(fMakeNewHits) {
+      art::InputTag hitModuleLabel = fTCAlg->GetHitFinderModuleLabel();
+      recob::HitRefinerAssociator shcol(*this, evt, hitModuleLabel);
+      shcol.use_hits(std::move(newHits));
+      shcol.put_into(evt);
+    }
     evt.put(std::move(ccol));
     evt.put(std::move(hc_assn));
     evt.put(std::move(v2col));

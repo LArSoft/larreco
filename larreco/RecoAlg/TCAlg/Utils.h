@@ -48,10 +48,11 @@ namespace tca {
   float PointTrajDOCA(TjStuff& tjs, float wire, float time, TrajPoint const& tp);
   // returns the DOCA^2 between a point and a trajectory
   float PointTrajDOCA2(TjStuff& tjs, float wire, float time, TrajPoint const& tp);
-  // returns the separation^2 between two TPs
-  float TrajPointHitSep2(TrajPoint const& tp1, TrajPoint const& tp2);
+
   // returns the separation^2 between a point and a TP
   float PointTrajSep2(float wire, float time, TrajPoint const& tp);
+  float PosSep(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
+  float PosSep2(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
   // finds the point on trajectory tj that is closest to trajpoint tp
   void TrajPointTrajDOCA(TjStuff& tjs, TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
   // returns the intersection position, intPos, of two trajectory points
@@ -67,22 +68,51 @@ namespace tca {
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
   // Put hits in each trajectory point into a flat vector. Only hits with UseHit if onlyUsedHits == true
   void PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec);
+  // returns true if hit iht appears in trajectory tj. The last nPtsToCheck points are checked
+  bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck);
+  // returns true if a hit is associated with more than one point
+  bool HasDuplicateHits(Trajectory const& tj);
   // Project TP to a "wire position" Pos[0] and update Pos[1]
   void MoveTPToWire(TrajPoint& tp, float wire);
-  void MaskTrajEndPoints(TjStuff& tjs, Trajectory& tj, unsigned short nPts);
   float DeltaAngle(float Ang1, float Ang2);
   // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
   void SetEndPoints(TjStuff& tjs, Trajectory& tj);
+  // Returns the hit width using StartTick() and EndTick()
+  float TPHitsRMSTick(TjStuff& tjs, TrajPoint& tp, bool onlyUsedHits);
+  float TPHitsRMSTime(TjStuff& tjs, TrajPoint& tp, bool onlyUsedHits);
+  float HitsRMSTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet);
+  float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet);
+  float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg);
+  float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg);
+  // Calculate MCS momentum
+  short MCSMom(TjStuff& tjs, Trajectory& tj);
+  // Calculate MCS momentum in a range of trajectory points
+  short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
+  // Flag delta ray trajectories in allTraj
+  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
+  // Tag muon directions using delta proximity
+  void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID);
+  void TagShowerTraj(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fShowerTag, short debugWorkID);
+  // Make a bare trajectory point that only has position and direction defined
+  void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
+  void MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
+  void MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  // ****************************** Vertex finding  ******************************
+  bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt);
+  float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx);
+  float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
+  bool FitVertex(TjStuff& tjs, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
-  void PrintTrajectory(TjStuff& tjs, Trajectory const& tj ,unsigned short tPoint);
-  void PrintAllTraj(TjStuff& tjs, DebugStuff& Debug, unsigned short itj, unsigned short ipt);
-  void PrintHeader();
-  void PrintTrajPoint(TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
+  void PrintTrajectory(std::string someText, TjStuff& tjs, Trajectory const& tj ,unsigned short tPoint);
+  void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& Debug, unsigned short itj, unsigned short ipt);
+  void PrintHeader(std::string someText);
+  void PrintTrajPoint(std::string someText, TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
   std::string PrintHit(const art::Ptr<recob::Hit>& hit);
+  std::string PrintHit(const recob::Hit& hit);
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);
 } // namespace tca

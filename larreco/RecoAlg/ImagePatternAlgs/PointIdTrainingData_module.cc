@@ -18,12 +18,15 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
 
 // Framework includes
+#include "canvas/Utilities/InputTag.h"
 #include "canvas/Utilities/Exception.h"
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "fhiclcpp/ParameterSet.h"
+#include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/Table.h"
+#include "fhiclcpp/types/Sequence.h"
 
 // C++ Includes
 #include <vector>
@@ -37,43 +40,67 @@ namespace nnet	 {
   {
   public:
  
-    explicit PointIdTrainingData(fhicl::ParameterSet const& parameterSet);
+ 	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
 
-    virtual void reconfigure(fhicl::ParameterSet const& parameterSet) override;
+		fhicl::Table<nnet::TrainingDataAlg::Config> TrainingDataAlg {
+			Name("TrainingDataAlg")
+		};
+
+		fhicl::Atom<std::string> OutTextFilePath {
+			Name("OutTextFilePath"),
+			Comment("...")
+		};
+
+		fhicl::Sequence<int> SelectedTPC {
+			Name("SelectedTPC"),
+			Comment("use selected views only, or all views if empty list")
+		};
+
+		fhicl::Sequence<int> SelectedView {
+			Name("SelectedView"),
+			Comment("use selected tpc's only, or all tpc's if empty list")
+		};
+
+		fhicl::Atom<bool> Crop {
+			Name("Crop"),
+			Comment("...")
+		};
+    };
+    using Parameters = art::EDAnalyzer::Table<Config>;
+
+    explicit PointIdTrainingData(Parameters const& config);
 
     virtual void analyze (const art::Event& event) override;
 
   private:
+
+    nnet::TrainingDataAlg fTrainingDataAlg;
 
 	std::string fOutTextFilePath;
 
 	std::vector<int> fSelectedTPC;
 	std::vector<int> fSelectedView;
 
-	int fEvent;     ///< number of the event being processed
-	int fRun;       ///< number of the run being processed
-	int fSubRun;    ///< number of the sub-run being processed
+	int fEvent;     /// number of the event being processed
+	int fRun;       /// number of the run being processed
+	int fSubRun;    /// number of the sub-run being processed
 
-	nnet::TrainingDataAlg fTrainingDataAlg;
+    bool fCrop;     /// crop data to event (set to false when dumping noise!)
 
 	geo::GeometryCore const* fGeometry;
   };
 
   //-----------------------------------------------------------------------
-  PointIdTrainingData::PointIdTrainingData(fhicl::ParameterSet const& parameterSet) : EDAnalyzer(parameterSet),
-	fTrainingDataAlg(parameterSet.get< fhicl::ParameterSet >("TrainingDataAlg"))
+  PointIdTrainingData::PointIdTrainingData(PointIdTrainingData::Parameters const& config) : art::EDAnalyzer(config),
+	fTrainingDataAlg(config().TrainingDataAlg()),
+	fOutTextFilePath(config().OutTextFilePath()),
+	fSelectedTPC(config().SelectedTPC()),
+	fSelectedView(config().SelectedView()),
+	fCrop(config().Crop())
   {
     fGeometry = &*(art::ServiceHandle<geo::Geometry>());
-    reconfigure(parameterSet);
-  }
-
-  //-----------------------------------------------------------------------
-  void PointIdTrainingData::reconfigure(fhicl::ParameterSet const& parameterSet)
-  {
-	fTrainingDataAlg.reconfigure(parameterSet.get< fhicl::ParameterSet >("TrainingDataAlg"));
-	fOutTextFilePath = parameterSet.get< std::string >("OutTextFilePath");
-	fSelectedTPC = parameterSet.get< std::vector<int> >("SelectedTPC");
-	fSelectedView = parameterSet.get< std::vector<int> >("SelectedView");
 
 	const size_t TPC_CNT = (size_t)fGeometry->NTPC(0);
 	if (fSelectedTPC.empty())
@@ -110,6 +137,29 @@ namespace nnet	 {
 	for (size_t i = 0; i < fSelectedTPC.size(); ++i)
 		for (size_t v = 0; v < fSelectedView.size(); ++v)
 	{
+		fTrainingDataAlg.setEventData(event, fSelectedView[v], fSelectedTPC[i], 0);
+
+        unsigned int w0, w1, d0, d1;
+        if (fCrop)
+        {
+            if (fTrainingDataAlg.findCrop(0.004F, w0, w1, d0, d1))
+            {
+                std::cout << "   crop: " << w0 << " " << w1 << " " << d0 << " " << d1 << std::endl;
+            }
+            else
+            {
+                std::cout << "   skip empty tpc:" << fSelectedTPC[i] << " / view:" << fSelectedView[v] << std::endl;
+                continue;
+            }
+        }
+        else
+        {
+            w0 = 0;
+            w1 = fTrainingDataAlg.NWires();
+            d0 = 0;
+            d1 = fTrainingDataAlg.NScaledDrifts();
+        }
+
 		std::ostringstream ss1;
 		ss1 << fOutTextFilePath << "/raw_" << os.str()
 			<< "_tpc_" << fSelectedTPC[i]
@@ -119,28 +169,26 @@ namespace nnet	 {
 		fout_deposit.open(ss1.str() + ".deposit");
 		fout_pdg.open(ss1.str() + ".pdg");
 
-		fTrainingDataAlg.setEventData(event, fSelectedView[v], fSelectedTPC[i], 0);
-
-		for (size_t w = 0; w < fTrainingDataAlg.NWires(); ++w)
+		for (size_t w = w0; w < w1; ++w)
 		{
 			auto const & raw = fTrainingDataAlg.wireData(w);
-			for (auto f : raw)
+			for (size_t d = d0; d < d1; ++d)
 			{
-				fout_raw << f << " ";
+				fout_raw << raw[d] << " ";
 			}
 			fout_raw << std::endl;
 
 			auto const & edep = fTrainingDataAlg.wireEdep(w);
-			for (auto f : edep)
+			for (size_t d = d0; d < d1; ++d)
 			{
-				fout_deposit << f << " ";
+				fout_deposit << edep[d] << " ";
 			}
 			fout_deposit << std::endl;
 
 			auto const & pdg = fTrainingDataAlg.wirePdg(w);
-			for (auto f : pdg)
+			for (size_t d = d0; d < d1; ++d)
 			{
-				fout_pdg << f << " ";
+				fout_pdg << pdg[d] << " ";
 			}
 			fout_pdg << std::endl;
 		}

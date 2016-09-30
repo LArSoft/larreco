@@ -3,6 +3,7 @@
 namespace tca {
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
+    "UnMaskHits",
     "Kink",
     "CWKink",
     "CWStepChk",
@@ -18,11 +19,13 @@ namespace tca {
     "Killed",
     "StopAtVtx",
     "EndMerge",
-     "TrimHits",
+    "TrimHits",
     "ChkHiMultEndHits",
-    "ChainMerge",
     "FillGap",
-    "UseGhostHits"
+    "UseGhostHits",
+    "ChkInTraj",
+    "FixBegin",
+    "UseUnusedHits"
   };
 } // namespace tca
 

@@ -1,6 +1,6 @@
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 
 namespace tca {
-  DebugStuff Debug;
+  DebugStuff debug;
 } // namespace tca
 
