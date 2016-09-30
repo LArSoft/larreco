@@ -24,7 +24,7 @@ namespace tca {
     "FillGap",
     "UseGhostHits",
     "ChkInTraj",
-    "FixBegin",
+    "FixEnd",
     "UseUnusedHits"
   };
 } // namespace tca
