@@ -29,6 +29,7 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
 
 #include <memory>
+#include <TVector3.h>
 
 namespace nnet {
 
@@ -77,6 +78,7 @@ private:
     bool DetectDecay(
         const std::vector<recob::Wire> & wires,
         const std::vector< art::Ptr<recob::Hit> > & hits,
+        std::map< size_t, TVector3 > & spoints,
         double* xyz);
 
 	PointIdAlg fPointIdAlg;
@@ -104,6 +106,8 @@ ParticleDecayId::ParticleDecayId(ParticleDecayId::Parameters const& config) :
 
 void ParticleDecayId::produce(art::Event & evt)
 {
+    std::cout << "event " << evt.id().event() << std::endl << std::endl;
+
     auto vtxs = std::make_unique< std::vector< recob::Vertex > >();
     auto vtx2trk = std::make_unique< art::Assns< recob::Vertex, recob::Track > >();
 
@@ -111,21 +115,30 @@ void ParticleDecayId::produce(art::Event & evt)
 
     auto wireHandle = evt.getValidHandle< std::vector<recob::Wire> >(fWireProducerLabel);
     auto trkListHandle = evt.getValidHandle< std::vector<recob::Track> >(fTrackModuleLabel);
-    //auto spListHandle = evt.getValidHandle< std::vector<recob::SpacePoint> >(fTrackModuleLabel);
+    auto spListHandle = evt.getValidHandle< std::vector<recob::SpacePoint> >(fTrackModuleLabel);
 
     art::FindManyP< recob::Hit > hitsFromTracks(trkListHandle, evt, fTrackModuleLabel);
-    //art::FindManyP< recob::SpacePoint > spFromTracks(trkListHandle, evt, fTrackModuleLabel);
-    //art::FindManyP< recob::Hit > hitsFromSPoints(spListHandle, evt, fTrackModuleLabel);
-    
+    art::FindManyP< recob::SpacePoint > spFromTracks(trkListHandle, evt, fTrackModuleLabel);
+    art::FindManyP< recob::Hit > hitsFromSPoints(spListHandle, evt, fTrackModuleLabel);
+
 	for (size_t i = 0; i < hitsFromTracks.size(); ++i)
 	{
 		auto hits = hitsFromTracks.at(i);
-		//auto spoints = spFromTracks.at(i);
-		//if (hits.empty() || spoints.empty()) continue;
+		auto spoints = spFromTracks.at(i);
 		if (hits.empty()) continue;
 
+        std::map< size_t, TVector3 > trkSpacePoints;
+        for (const auto & p : spoints)
+        {
+            auto sp_hits = hitsFromSPoints.at(p.key());
+            for (const auto & h : sp_hits)
+            {
+                trkSpacePoints[h.key()] = TVector3(p->XYZ()[0], p->XYZ()[1], p->XYZ()[2]);
+            }
+        }
+
         double xyz[3];
-        if (DetectDecay(*wireHandle, hits, xyz))
+        if (DetectDecay(*wireHandle, hits, trkSpacePoints, xyz))
         {
             size_t vidx = vtxs->size();
             vtxs->push_back(recob::Vertex(xyz, vidx));
@@ -144,14 +157,15 @@ void ParticleDecayId::produce(art::Event & evt)
 bool ParticleDecayId::DetectDecay(
     const std::vector<recob::Wire> & wires,
     const std::vector< art::Ptr<recob::Hit> > & hits,
+    std::map< size_t, TVector3 > & spoints,
     double* xyz)
 {
     const size_t nviews = 3;
 
-    std::vector< const recob::Hit * > wire_drift[nviews];
+    std::vector< art::Ptr<recob::Hit> > wire_drift[nviews];
     for (size_t i = 0; i < hits.size(); ++i) // split hits between views
     {
-        wire_drift[hits[i]->View()].push_back(&*(hits[i]));
+        wire_drift[hits[i]->View()].push_back(hits[i]);
     }
 
     std::vector< float > outputs[nviews];
@@ -165,8 +179,9 @@ bool ParticleDecayId::DetectDecay(
 
 	    	fPointIdAlg.setWireDriftData(wires, v, tpc, cryo);
 
-	        outputs[v].push_back(fPointIdAlg.predictIdVector(hits[i]->WireID().Wire, hits[i]->PeakTime())[0]); // p(decay)
+	        outputs[v][i] = fPointIdAlg.predictIdVector(wire_drift[v][i]->WireID().Wire, wire_drift[v][i]->PeakTime())[0]; // p(decay)
 	    }
+	    std::cout << std::endl;
     }
 
     std::vector< std::pair<size_t, float> > candidates[nviews];
@@ -196,11 +211,17 @@ bool ParticleDecayId::DetectDecay(
     {
         for (size_t i = 0; i < candidates[v].size(); ++i)
         {
-            std::cout << "view:" << v << " idx:" << candidates[v][i].first << " p:" << candidates[v][i].second << std::endl; 
+            TVector3 sp( spoints[wire_drift[v][candidates[v][i].first].key()] );
+
+            std::cout << "view:" << v << " idx:" << candidates[v][i].first
+                << " w:" << wire_drift[v][candidates[v][i].first]->WireID().Wire
+                << " d:" << wire_drift[v][candidates[v][i].first]->PeakTime()
+                << " x:" << sp.X() << " y:" << sp.Y() << " z:" << sp.Z()
+                << " p:" << candidates[v][i].second << std::endl;
         }
     }
 
-    std::cout << std::endl << std::endl;
+    std::cout << std::endl;
 
     return false;
 }
