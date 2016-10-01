@@ -316,8 +316,10 @@ namespace tca {
     // Does a local fit of just-added TPs to identify a kink while stepping.
     // Truncates the vector and returns true if one is found.
     void GottaKink(Trajectory& tj, unsigned short& killPts);
-    // Update the  parameters at the beginning of the trajectory
+    // Update the parameters at the beginning of the trajectory
     void FixTrajBegin(Trajectory& tj);
+    void FixTrajBegin(Trajectory& tj, unsigned short atPt);
+    void FixTrajEnd(Trajectory& tj, unsigned short atPt);
     bool IsGhost(std::vector<unsigned int>& tHits, unsigned short& ofTraj);
     void CheckTrajEnd();
     void EndMerge();

@@ -2,6 +2,17 @@
 
 namespace tca {
 
+  
+  ////////////////////////////////////////////////
+  bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP)
+  {
+    // returns true if the passed CTP code is consistent with the CT code of the WireHitRangeVector
+    geo::PlaneID planeID = DecodeCTP(inCTP);
+    if(planeID.Cryostat != tjs.WireHitRangeCstat) return false;
+    if(planeID.TPC != tjs.WireHitRangeTPC) return false;
+    return true;
+  }
+
   ////////////////////////////////////////////////
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
   {
@@ -189,7 +200,7 @@ namespace tca {
   }
   
   //////////////////////////////////////////
-  float PointTrajDOCA(TjStuff& tjs, unsigned int iht, TrajPoint const& tp)
+  float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp)
   {
     float wire = tjs.fHits[iht]->WireID().Wire;
     float time = tjs.fHits[iht]->PeakTime() * tjs.UnitsPerTick;
@@ -197,13 +208,13 @@ namespace tca {
   } // PointTrajDOCA
   
   //////////////////////////////////////////
-  float PointTrajDOCA(TjStuff& tjs, float wire, float time, TrajPoint const& tp)
+  float PointTrajDOCA(TjStuff const& tjs, float wire, float time, TrajPoint const& tp)
   {
     return sqrt(PointTrajDOCA2(tjs, wire, time, tp));
   } // PointTrajDOCA
   
   //////////////////////////////////////////
-  float PointTrajDOCA2(TjStuff& tjs, float wire, float time, TrajPoint const& tp)
+  float PointTrajDOCA2(TjStuff const& tjs, float wire, float time, TrajPoint const& tp)
   {
     // returns the distance of closest approach squared between a (wire, time(WSE)) point
     // and a trajectory point
@@ -368,29 +379,46 @@ namespace tca {
     tp.Pos[1] += dw * tp.Dir[1] / tp.Dir[0];
   } // MoveTPToWire
 
+
   //////////////////////////////////////////
-  std::vector<unsigned int> FindCloseHits(TjStuff& tjs, TrajPoint const& tp, const float& maxDelta, bool onlyUsedHits)
+  bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, bool onlyUsedHits)
   {
-    std::vector<unsigned int> closeHits;
+    // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
+    // close hits OR if the wire at this position is dead
+    
+    tp.Hits.clear();
+    tp.UseHit.clear();
+    if(!WireHitRangeOK(tjs, tp.CTP)) {
+      std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.WireHitRangeCstat<<" TPC "<<tjs.WireHitRangeTPC<<"\n";
+      return false;
+    }
     
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
     unsigned short ipl = planeID.Plane;
     
     unsigned int wire = std::nearbyint(tp.Pos[0]);
-    if(wire > tjs.LastWire[ipl]) return closeHits;
+    if(wire < tjs.FirstWire[ipl]) return false;
+    if(wire > tjs.LastWire[ipl]-1) return false;
     
-    if(tjs.WireHitRange[ipl][wire].first < 0) return closeHits;
+    // dead wire
+    if(tjs.WireHitRange[ipl][wire].first == -1) return true;
+    // live wire with no hits
+    if(tjs.WireHitRange[ipl][wire].first == -2) return false;
     
     unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
     unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
+
+    float fwire = wire;
     for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
       if(onlyUsedHits && tjs.inTraj[iht] > 0) continue;
       float ftime = tjs.UnitsPerTick * tjs.fHits[iht]->PeakTime();
-      float delta = PointTrajDOCA(tjs, tp.Pos[0], ftime, tp);
+      float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
 //      std::cout<<"chk "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<"\n";
-      if(delta < maxDelta) closeHits.push_back(iht);
+      if(delta < maxDelta) tp.Hits.push_back(iht);
     } // iht
-    return closeHits;
+    // Define UseHit size and set false. The calling routine should decide if these hits should be used
+    tp.UseHit.resize(tp.Hits.size(), false);
+    return true;
     
   } // FindCloseHits
   
@@ -418,8 +446,6 @@ namespace tca {
         std::reverse(tj.Pts[ipt].UseHit.begin(), tj.Pts[ipt].UseHit.end());
       }
     } // ipt
-    // the end TPs
-    std::reverse(tj.EndTP.begin(), tj.EndTP.end());
     SetEndPoints(tjs, tj);
   } // ReverseTraj
 
