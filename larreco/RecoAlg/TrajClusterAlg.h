@@ -177,7 +177,6 @@ namespace tca {
 
     unsigned int fCstat;         // the current cryostat
     unsigned int fTpc;         // the current TPC
-    unsigned short fPass;
     unsigned int fRun, fSubRun;
     unsigned int fEvent;
     unsigned int fEventsProcessed;
@@ -230,8 +229,8 @@ namespace tca {
     // Step through TPs starting at the end and moving to the beginning
     void ReversePropagate(Trajectory& tj);
     // Start a trajectory going from fromHit to (toWire, toTick)
-    void StartTraj(Trajectory& tj, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP);
-    void StartTraj(Trajectory& tj, unsigned int fromHit, unsigned int toHit);
+    bool StartTraj(Trajectory& tj, const unsigned int& fromHit, const unsigned int& toHit, const unsigned short& pass);
+    bool StartTraj(Trajectory& tj, const float& fromWire, const float& fromTick, const float& toWire, const float& toTick, const CTP_t& tCTP, const unsigned short& pass);
     void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet);
     void GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet, unsigned short& localIndex);
     // Returns fHits[iht]->RMS() * fScaleF * fHitErrFac * fHits[iht]->Multiplicity();
@@ -328,14 +327,13 @@ namespace tca {
     void FillTrajTruth();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
-    bool AttachAnyTrajToVertex(unsigned short iv);
-    bool AttachTrajToAnyVertex(unsigned short itj);
+    void FindVtxTraj(unsigned short ivx);
+    void Refine2DVertices();
     void SplitTrajCrossingVertices();
     void FindHammerVertices();
     void FindHammerVertices2();
     void Find3DVertices(geo::TPCID const& tpcid);
     void CompleteIncomplete3DVertices(geo::TPCID const& tpcid);
-    short TPNearVertex(const TrajPoint& tp);
     // ****************************** Shower/Track ID code  ******************************
     // Tag as shower-like or track-like
 //    void TagAllTraj();
