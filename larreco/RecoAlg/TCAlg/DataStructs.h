@@ -62,8 +62,9 @@ namespace tca {
     float ChiDOF {0};
     short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
-    bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
     unsigned short ID {0};
+    bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
+    bool VtxTrjTried {false};       // set true if FindVtxTraj was attempted using this vertex
   };
   
   /// struct of temporary 3D vertices
@@ -172,6 +173,8 @@ namespace tca {
     kChkInTraj,
     kFixEnd,
     kUseUnusedHits,
+    kVtxTj,
+    kRefineVtx,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
