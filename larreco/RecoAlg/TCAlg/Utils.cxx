@@ -12,6 +12,27 @@ namespace tca {
     if(planeID.TPC != tjs.WireHitRangeTPC) return false;
     return true;
   }
+  
+  ////////////////////////////////////////////////
+  bool EraseHit(TjStuff& tjs, unsigned int& dht)
+  {
+    // Removes the hit from tjs.fHits and corrects the trajectory hit associations
+    if(dht > tjs.fHits.size() - 1) return false;
+    if(tjs.inTraj[dht] != 0) {
+      std::cout<<"EraseHit: Trying to delete hit associated with trajectory "<<tjs.inTraj[dht]<<"\n";
+      return false;
+    }
+    for(unsigned int iht = dht; iht < tjs.fHits.size(); ++iht) --tjs.inTraj[iht];
+    for(auto& tj : tjs.allTraj) {
+      for(auto& tp : tj.Pts) {
+        for(auto& iht : tp.Hits) {
+          if(iht > dht) --iht;
+        } // iht
+      } // tp
+    } // tj
+    tjs.fHits.erase(tjs.fHits.begin() + dht);
+    return true;
+  } // EraseHit
 
   ////////////////////////////////////////////////
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
@@ -161,7 +182,7 @@ namespace tca {
   //////////////////////////////////////////
   void TrajTrajDOCA(Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
   {
-    // Find the Distance Of Closest Approach between two trajectories, exceeding minSep
+    // Find the Distance Of Closest Approach between two trajectories less than minSep
     float best = minSep * minSep;
     ipt1 = 0; ipt2 = 0;
     float dw, dt, dp2;
@@ -379,6 +400,38 @@ namespace tca {
     tp.Pos[1] += dw * tp.Dir[1] / tp.Dir[0];
   } // MoveTPToWire
 
+  //////////////////////////////////////////
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs,  std::array<std::array<float, 2>, 2> const& window, const unsigned short plane)
+  {
+    // returns a vector of hits that are within the Window[Pos0][Pos1] in plane
+    
+    std::vector<unsigned int> closeHits;
+    if(plane > tjs.FirstWire.size() - 1) return closeHits;
+    // window in the wire coordinate
+    float lpos = window[0][0];
+    if(lpos < (float)tjs.FirstWire[plane]) lpos = tjs.FirstWire[plane];
+    float maxpos = window[0][1] + 0.5;
+    if(maxpos > (float)tjs.LastWire[plane]) maxpos = tjs.LastWire[plane];
+    // window in the time coordinate
+    float minTick = (window[1][0]) / tjs.UnitsPerTick;
+    float maxTick = (window[1][1]) / tjs.UnitsPerTick;
+    while(lpos < maxpos) {
+      unsigned int wire = std::nearbyint(lpos);
+      if(tjs.WireHitRange[plane][wire].first >= 0) {
+        // there are hits on this wire
+        unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
+        unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
+        for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+          if(tjs.inTraj[iht] > 0) continue;
+          if(tjs.fHits[iht]->PeakTime() < minTick) continue;
+          if(tjs.fHits[iht]->PeakTime() > maxTick) break;
+          closeHits.push_back(iht);
+        } // iht
+      } // good wire
+      ++lpos ;
+    } // lpos0 < maxPos
+    return closeHits;
+  } // FindCloseHits
 
   //////////////////////////////////////////
   bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, bool onlyUsedHits)
@@ -430,9 +483,7 @@ namespace tca {
     // reverse the crawling direction flag
     tj.StepDir = -tj.StepDir;
     // Vertices
-    short tmp = tj.VtxID[0];
-    tj.VtxID[0] = tj.VtxID[1];
-    tj.VtxID[0] = tmp;
+    std::swap(tj.VtxID[0], tj.VtxID[1]);
     // trajectory points
     std::reverse(tj.Pts.begin(), tj.Pts.end());
     // reverse the direction vector on all points
@@ -440,11 +491,6 @@ namespace tca {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
       if(tj.Pts[ipt].Dir[1] != 0) tj.Pts[ipt].Dir[1] = -tj.Pts[ipt].Dir[1];
       tj.Pts[ipt].Ang = atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
-      // and the order of hits if more than 1
-      if(tj.Pts[ipt].Hits.size() > 1) {
-        std::reverse(tj.Pts[ipt].Hits.begin(), tj.Pts[ipt].Hits.end());
-        std::reverse(tj.Pts[ipt].UseHit.begin(), tj.Pts[ipt].UseHit.end());
-      }
     } // ipt
     SetEndPoints(tjs, tj);
   } // ReverseTraj
@@ -811,9 +857,75 @@ namespace tca {
     if(sum == 0) return 0;
     return pos / sum;
   } // HitsPosTick
+  
+  //////////////////////////////////////////
+  unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp)
+  {
+    // Returns the index of a vertex if tp is heading towards it
+    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
+      if(tjs.vtx[ivx].NTraj == 0) continue;
+      if(tjs.vtx[ivx].CTP != tp.CTP) continue;
+      if(std::abs(tjs.vtx[ivx].Pos[0] - tp.Pos[0]) > 3) continue;
+      if(std::abs(tjs.vtx[ivx].Pos[1] - tp.Pos[1]) > 3) continue;
+//      if(PointTrajDOCA2(tjs, tjs.vtx[ivx].Pos[0], tjs.vtx[ivx].Pos[1], tp) > 3) continue;
+      // see if the TP points to the vertex and not away from it
+      if(tp.Dir[0] > 0) {
+        if(tp.Pos[0] < tjs.vtx[ivx].Pos[0]) return (short)ivx;
+      } else {
+        if(tp.Pos[0] > tjs.vtx[ivx].Pos[0]) return (short)ivx;
+      }
+    } // ivx
+    return USHRT_MAX;
+  } // TPNearVertex
+  
+  //////////////////////////////////////////
+  bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short ivx, const std::vector<float>& fVertex2DCuts, bool vtxPrt)
+  {
+    
+    if(ivx > tjs.vtx.size() - 1) return false;
+    if(tjs.vtx[ivx].NTraj == 0) return false;
+    if(fVertex2DCuts[0] < 0) return false;
+    
+    VtxStore& vx = tjs.vtx[ivx];
+    
+    unsigned short nadd = 0;
+    for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+      Trajectory& tj = tjs.allTraj[itj];
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.CTP != vx.CTP) continue;
+      if(tj.VtxID[0] == vx.ID || tj.VtxID[1] == vx.ID) continue;
+      if(AttachTrajToVertex(tjs, tj, vx, fVertex2DCuts, vtxPrt)) ++nadd;
+    } // itj
+    if(nadd == 0) return false;
+    return true;
+    
+  } // AttachAnyTrajToVertex
+  
+  //////////////////////////////////////////
+  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned short itj, const std::vector<float>& fVertex2DCuts, bool vtxPrt)
+  {
+    
+    if(itj > tjs.allTraj.size() - 1) return false;
+    if(fVertex2DCuts[0] < 0) return false;
+    if(tjs.vtx.size() == 0) return false;
+    
+    Trajectory& tj = tjs.allTraj[itj];
+    
+    unsigned short nadd = 0;
+    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
+      VtxStore& vx = tjs.vtx[ivx];
+      if(vx.NTraj == 0) continue;
+      if(vx.CTP != tj.CTP) continue;
+      if(tj.VtxID[0] == vx.ID || tj.VtxID[1] == vx.ID) continue;
+      if(AttachTrajToVertex(tjs, tj, vx, fVertex2DCuts, vtxPrt)) ++nadd;
+    } // ivx
+    if(nadd == 0) return false;
+    return true;
+    
+  } // AttachAnyTrajToVertex
 
   //////////////////////////////////////////
-  bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt)
+  bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, const std::vector<float>& fVertex2DCuts, bool prt)
   {
     
     // fVertex2DCuts fcl input usage
@@ -894,6 +1006,9 @@ namespace tca {
     
     // fit failed so remove the tj -> vx assignment
     tj.VtxID[end] = 0;
+    // and refit
+    if(prt) mf::LogVerbatim("TC")<<" failed. Re-fit w/o this tj ";
+    FitVertex(tjs, vx, fVertex2DCuts, prt);
     return false;
     
   } // AttachTrajToVertex
@@ -945,7 +1060,7 @@ namespace tca {
   }
   
   /////////////////////////////////////////
-  bool FitVertex(TjStuff& tjs, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt)
+  bool FitVertex(TjStuff& tjs, VtxStore& vx, const std::vector<float>& fVertex2DCuts, bool prt)
   {
     // A poor-mans fitting scheme. If the fitted vertex position error is within the supplied
     // value, the position and errors are updated and we return true, otherwise the vertex is
@@ -1037,7 +1152,10 @@ namespace tca {
     
     if(prt) mf::LogVerbatim("TC")<<"FitVertex "<<vx.ID<<" CTP "<<vx.CTP<<" NTraj "<<vx.NTraj<<" in "<<std::fixed<<std::setprecision(1)<<vx.Pos[0]<<" : "<<vx.Pos[1]/tjs.UnitsPerTick<<" out "<<vxP0<<"+/-"<<vxP0rms<<" : "<<vxP1/tjs.UnitsPerTick<<"+/-"<<vxP1rms/tjs.UnitsPerTick;
     
-    if(vx.PosErr[0] > fVertex2DCuts[4] || vx.PosErr[1] > fVertex2DCuts[4]) return false;
+    if(vxP0rms > fVertex2DCuts[4] || vxP1rms > fVertex2DCuts[4]) {
+      if(prt) mf::LogVerbatim("TC")<<" fit failed. fVertex2DCuts[4] "<<fVertex2DCuts[4];
+      return false;
+    }
     
     vx.Pos[0] = vxP0;
     vx.PosErr[0] = vxP0rms;
@@ -1233,7 +1351,7 @@ namespace tca {
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
         mf::LogVerbatim myprt("TC");
-        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[0]<<" AlgMod names:";
+        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
       PrintHeader(someText);

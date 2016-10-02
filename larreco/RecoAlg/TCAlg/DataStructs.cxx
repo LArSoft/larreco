@@ -25,7 +25,9 @@ namespace tca {
     "UseGhostHits",
     "ChkInTraj",
     "FixEnd",
-    "UseUnusedHits"
+    "UseUnusedHits",
+    "VtxTj",
+    "RefineVtx"
   };
 } // namespace tca
 
