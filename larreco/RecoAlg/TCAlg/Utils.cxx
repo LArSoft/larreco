@@ -2,6 +2,17 @@
 
 namespace tca {
 
+  
+  ////////////////////////////////////////////////
+  bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP)
+  {
+    // returns true if the passed CTP code is consistent with the CT code of the WireHitRangeVector
+    geo::PlaneID planeID = DecodeCTP(inCTP);
+    if(planeID.Cryostat != tjs.WireHitRangeCstat) return false;
+    if(planeID.TPC != tjs.WireHitRangeTPC) return false;
+    return true;
+  }
+
   ////////////////////////////////////////////////
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
   {
@@ -189,7 +200,7 @@ namespace tca {
   }
   
   //////////////////////////////////////////
-  float PointTrajDOCA(TjStuff& tjs, unsigned int iht, TrajPoint const& tp)
+  float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp)
   {
     float wire = tjs.fHits[iht]->WireID().Wire;
     float time = tjs.fHits[iht]->PeakTime() * tjs.UnitsPerTick;
@@ -197,13 +208,13 @@ namespace tca {
   } // PointTrajDOCA
   
   //////////////////////////////////////////
-  float PointTrajDOCA(TjStuff& tjs, float wire, float time, TrajPoint const& tp)
+  float PointTrajDOCA(TjStuff const& tjs, float wire, float time, TrajPoint const& tp)
   {
     return sqrt(PointTrajDOCA2(tjs, wire, time, tp));
   } // PointTrajDOCA
   
   //////////////////////////////////////////
-  float PointTrajDOCA2(TjStuff& tjs, float wire, float time, TrajPoint const& tp)
+  float PointTrajDOCA2(TjStuff const& tjs, float wire, float time, TrajPoint const& tp)
   {
     // returns the distance of closest approach squared between a (wire, time(WSE)) point
     // and a trajectory point
@@ -367,6 +378,76 @@ namespace tca {
     tp.Pos[0] = wire;
     tp.Pos[1] += dw * tp.Dir[1] / tp.Dir[0];
   } // MoveTPToWire
+
+
+  //////////////////////////////////////////
+  bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, bool onlyUsedHits)
+  {
+    // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
+    // close hits OR if the wire at this position is dead
+    
+    tp.Hits.clear();
+    tp.UseHit.clear();
+    if(!WireHitRangeOK(tjs, tp.CTP)) {
+      std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.WireHitRangeCstat<<" TPC "<<tjs.WireHitRangeTPC<<"\n";
+      return false;
+    }
+    
+    geo::PlaneID planeID = DecodeCTP(tp.CTP);
+    unsigned short ipl = planeID.Plane;
+    
+    unsigned int wire = std::nearbyint(tp.Pos[0]);
+    if(wire < tjs.FirstWire[ipl]) return false;
+    if(wire > tjs.LastWire[ipl]-1) return false;
+    
+    // dead wire
+    if(tjs.WireHitRange[ipl][wire].first == -1) return true;
+    // live wire with no hits
+    if(tjs.WireHitRange[ipl][wire].first == -2) return false;
+    
+    unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
+    unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
+
+    float fwire = wire;
+    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+      if(onlyUsedHits && tjs.inTraj[iht] > 0) continue;
+      float ftime = tjs.UnitsPerTick * tjs.fHits[iht]->PeakTime();
+      float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
+//      std::cout<<"chk "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<"\n";
+      if(delta < maxDelta) tp.Hits.push_back(iht);
+    } // iht
+    // Define UseHit size and set false. The calling routine should decide if these hits should be used
+    tp.UseHit.resize(tp.Hits.size(), false);
+    return true;
+    
+  } // FindCloseHits
+  
+  //////////////////////////////////////////
+  void ReverseTraj(TjStuff& tjs, Trajectory& tj)
+  {
+    // reverse the trajectory
+    if(tj.Pts.empty()) return;
+    // reverse the crawling direction flag
+    tj.StepDir = -tj.StepDir;
+    // Vertices
+    short tmp = tj.VtxID[0];
+    tj.VtxID[0] = tj.VtxID[1];
+    tj.VtxID[0] = tmp;
+    // trajectory points
+    std::reverse(tj.Pts.begin(), tj.Pts.end());
+    // reverse the direction vector on all points
+    for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+      if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
+      if(tj.Pts[ipt].Dir[1] != 0) tj.Pts[ipt].Dir[1] = -tj.Pts[ipt].Dir[1];
+      tj.Pts[ipt].Ang = atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
+      // and the order of hits if more than 1
+      if(tj.Pts[ipt].Hits.size() > 1) {
+        std::reverse(tj.Pts[ipt].Hits.begin(), tj.Pts[ipt].Hits.end());
+        std::reverse(tj.Pts[ipt].UseHit.begin(), tj.Pts[ipt].UseHit.end());
+      }
+    } // ipt
+    SetEndPoints(tjs, tj);
+  } // ReverseTraj
 
   //////////////////////////////////////////
   float DeltaAngle(float Ang1, float Ang2) {
@@ -752,8 +833,6 @@ namespace tca {
     float maxSepCutShort2 = fVertex2DCuts[1] * fVertex2DCuts[1];
     float maxSepCutLong2 = fVertex2DCuts[2] * fVertex2DCuts[2];
     
-//    if(prt) mf::LogVerbatim("TC")<<"ATTV: tj ID "<<tj.ID<<" vx ID "<<vx.ID<<" maxSepCutShort2 "<<maxSepCutShort2<<" maxSepCutLong2 "<<maxSepCutLong2;
-    
     // assume that end 0 is closest to the vertex
     unsigned short end = 0;
     float vtxTjSep2 = PosSep2(vx.Pos, tj.Pts[tj.EndPt[0]].Pos);
@@ -790,13 +869,28 @@ namespace tca {
       dpt = tj.EndPt[end] - closePt;
     }
     
-    if(prt) mf::LogVerbatim("TC")<<" "<<vx.ID<<" tjID_end "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"ATTV: vx.ID "<<vx.ID;
+      myprt<<" oldTJs";
+      for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+        Trajectory& tj = tjs.allTraj[itj];
+        if(tj.AlgMod[kKilled]) continue;
+        if(tj.CTP != vx.CTP) continue;
+        if(tj.VtxID[0] == vx.ID) myprt<<" "<<tj.ID<<"_0";
+        if(tj.VtxID[1] == vx.ID) myprt<<" "<<tj.ID<<"_1";
+      }
+      myprt<<" +tjID "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull;
+    }
     if(tpVxPull > fVertex2DCuts[3]) return false;
     if(dpt > 2) return false;
 
     // Passed all the cuts. Attach it to the vertex and try a fit
     tj.VtxID[end] = vx.ID;
-    if(FitVertex(tjs, vx, fVertex2DCuts, prt)) return true;
+    if(FitVertex(tjs, vx, fVertex2DCuts, prt)) {
+      if(prt) mf::LogVerbatim("TC")<<" success";
+      return true;
+    }
     
     // fit failed so remove the tj -> vx assignment
     tj.VtxID[end] = 0;
