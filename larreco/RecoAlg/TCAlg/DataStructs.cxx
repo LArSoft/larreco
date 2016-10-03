@@ -29,5 +29,11 @@ namespace tca {
     "VtxTj",
     "RefineVtx"
   };
+  
+  const std::vector<std::string> VtxBitNames {
+    "Fixed",
+    "VtxTrjTried",
+    "VtxRefined"
+  } ;
 } // namespace tca
 
