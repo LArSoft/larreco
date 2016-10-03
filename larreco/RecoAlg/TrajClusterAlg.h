@@ -71,7 +71,7 @@ namespace tca {
     /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
     std::vector<art::Ptr<recob::Hit>> const& YieldOldHits() const { return tjs.fHits; }
     /// Returns the new hit collection made by TrajClusterAlg
-    std::vector<recob::Hit>&& YieldNewHits() { return std::move(tjs.newHits); }
+    std::vector<recob::Hit>&& YieldNewHits() { return std::move(tjs.nHits); }
     art::InputTag const& GetHitFinderModuleLabel() { return fHitFinderModuleLabel; }
     
     /// Returns a constant reference to the clusters found
