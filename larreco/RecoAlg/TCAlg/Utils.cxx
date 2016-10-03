@@ -12,27 +12,6 @@ namespace tca {
     if(planeID.TPC != tjs.WireHitRangeTPC) return false;
     return true;
   }
-  
-  ////////////////////////////////////////////////
-  bool EraseHit(TjStuff& tjs, unsigned int& dht)
-  {
-    // Removes the hit from tjs.fHits and corrects the trajectory hit associations
-    if(dht > tjs.fHits.size() - 1) return false;
-    if(tjs.inTraj[dht] != 0) {
-      std::cout<<"EraseHit: Trying to delete hit associated with trajectory "<<tjs.inTraj[dht]<<"\n";
-      return false;
-    }
-    for(unsigned int iht = dht; iht < tjs.fHits.size(); ++iht) --tjs.inTraj[iht];
-    for(auto& tj : tjs.allTraj) {
-      for(auto& tp : tj.Pts) {
-        for(auto& iht : tp.Hits) {
-          if(iht > dht) --iht;
-        } // iht
-      } // tp
-    } // tj
-    tjs.fHits.erase(tjs.fHits.begin() + dht);
-    return true;
-  } // EraseHit
 
   ////////////////////////////////////////////////
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
@@ -1402,12 +1381,12 @@ namespace tca {
     myprt<<std::setw(6)<<tp.NTPsFit;
     // print the hits associated with this traj point
     for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
-      if(tjs.newHits.empty()) {
+      if(tjs.nHits.empty()) {
         // print old hits
         myprt<<" "<<PrintHit(tjs.fHits[tp.Hits[iht]]);
       } else {
         // print new hits
-        myprt<<" "<<PrintHit(tjs.newHits[tp.Hits[iht]]);
+        myprt<<" "<<PrintHit(tjs.nHits[tp.Hits[iht]]);
       }
 //      myprt<<" "<<tjs.fHits[tp.Hits[iht]]->WireID().Wire<<":"<<(int)tjs.fHits[tp.Hits[iht]]->PeakTime();
       if(tp.UseHit[iht]) {
@@ -1416,7 +1395,7 @@ namespace tca {
       } else {
         myprt<<"x";
       }
-      if(tjs.newHits.empty()) { myprt<<tjs.inTraj[tp.Hits[iht]]; } else { myprt<<"NA"; }
+      if(tjs.nHits.empty()) { myprt<<tjs.inTraj[tp.Hits[iht]]; } else { myprt<<"NA"; }
     } // iht
   } // PrintTrajPoint
   
