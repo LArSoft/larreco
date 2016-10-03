@@ -192,7 +192,7 @@ namespace tca {
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<art::Ptr<recob::Hit>> fHits;
     std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
-    std::vector<recob::Hit> newHits;
+    std::vector<recob::Hit> nHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
