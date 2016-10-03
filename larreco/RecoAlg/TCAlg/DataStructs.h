@@ -63,9 +63,15 @@ namespace tca {
     short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
     unsigned short ID {0};
-    bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
-    bool VtxTrjTried {false};       // set true if FindVtxTraj was attempted using this vertex
+    std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
   };
+  
+  typedef enum {
+    kFixed,           ///< vertex position fixed manually - no fitting done
+    kVtxTrjTried,     ///< FindVtxTraj algorithm tried
+    kVtxRefined,
+    kVtxBitSize     ///< don't mess with this line
+  } VtxBit_t;
   
   /// struct of temporary 3D vertices
   struct Vtx3Store {
