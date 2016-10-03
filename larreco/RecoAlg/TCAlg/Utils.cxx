@@ -120,11 +120,10 @@ namespace tca {
     }
     
     // erase the TPs at the beginning of the new trajectory
-    //    newTj.Pts.erase(newTj.Pts.begin(), newTj.Pts.begin() + pos + 1);
     newTj.Pts.erase(newTj.Pts.begin(), newTj.Pts.begin() + eraseSize);
     // unset the first 3 TP hits
     for(ipt = 0; ipt < 3; ++ipt) {
-      for(ii = 0; ii < newTj.Pts[ipt].UseHit.size(); ++ii) newTj.Pts[ipt].UseHit[ii] = false;
+      for(ii = 0; ii < newTj.Pts[ipt].Hits.size(); ++ii) newTj.Pts[ipt].UseHit[ii] = false;
     } // ipt
     SetEndPoints(tjs, newTj);
     if(ivx != USHRT_MAX) newTj.VtxID[0] = tjs.vtx[ivx].ID;
@@ -419,7 +418,7 @@ namespace tca {
     // close hits OR if the wire at this position is dead
     
     tp.Hits.clear();
-    tp.UseHit.clear();
+    tp.UseHit.reset();
     if(!WireHitRangeOK(tjs, tp.CTP)) {
       std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.WireHitRangeCstat<<" TPC "<<tjs.WireHitRangeTPC<<"\n";
       return false;
@@ -448,8 +447,12 @@ namespace tca {
 //      std::cout<<"chk "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<"\n";
       if(delta < maxDelta) tp.Hits.push_back(iht);
     } // iht
-    // Define UseHit size and set false. The calling routine should decide if these hits should be used
-    tp.UseHit.resize(tp.Hits.size(), false);
+    if(tp.Hits.size() > 16) {
+      mf::LogWarning("TC")<<"FindCloseHits: Found "<<tp.Hits.size()<<" hits. Truncating to 16";
+      tp.Hits.resize(16);
+    }
+    // Set UseHit false. The calling routine should decide if these hits should be used
+    tp.UseHit.reset();
     return true;
     
   } // FindCloseHits
@@ -492,7 +495,7 @@ namespace tca {
     // make sure that the Chg is set correctly
     for(ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       tj.Pts[ipt].Chg = 0;
-      for(ii = 0; ii < tj.Pts[ipt].UseHit.size(); ++ii)
+      for(ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii)
         if(tj.Pts[ipt].UseHit[ii]) tj.Pts[ipt].Chg += tjs.fHits[tj.Pts[ipt].Hits[ii]]->Integral();
     } // ipt
     
