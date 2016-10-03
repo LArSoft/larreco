@@ -105,7 +105,7 @@ namespace tca {
     unsigned short Step {0};      // Step number at which this TP was created
     float FitChi {0};             // Chi/DOF of the fit
     std::vector<unsigned int> Hits; // vector of fHits indices
-    std::vector<bool> UseHit; // set true if the hit is used in the fit
+    std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
   };
   
   // Global information for the trajectory
