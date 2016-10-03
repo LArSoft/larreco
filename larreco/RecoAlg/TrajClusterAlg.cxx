@@ -2876,7 +2876,11 @@ namespace tca {
       } // itj
       std::cout<<"vtx "<<rvx.ID<<" tjlist "<<tjlist[0].size()<<" "<<tjlist[1].size()<<"\n";
       std::cout<<"wROC "<<wROC[0]<<" "<<wROC[1]<<" tROC "<<tROC[0]/tjs.UnitsPerTick<<" "<<tROC[1]/tjs.UnitsPerTick<<"\n";
+      // no sense continuing unless there are 2 or more Tjs at at least one end
+      if(tjlist[0].size() < 2 && tjlist[1].size() < 2) continue;
 //      unsigned int vtxWire = std::nearbyint(rvx.Pos[0]);
+      rvx.Stat[kVtxRefined] = true;
+      // TODO set the tj kRefineVtx bits here
     } // ivx
   } // Refine2DVertices
   
@@ -2889,7 +2893,7 @@ namespace tca {
     if(!fUseAlg[kVtxTj]) return;
     
     if(ivx > tjs.vtx.size() - 1) return;
-    if(tjs.vtx[ivx].VtxTrjTried) return;
+    if(tjs.vtx[ivx].Stat[kVtxTrjTried]) return;
     VtxStore& theVtx = tjs.vtx[ivx];
     
     std::array<std::array<float, 2>, 2> window;
@@ -2989,7 +2993,7 @@ namespace tca {
     } // ii
     
     // Flag this as tried so we don't try again
-    tjs.vtx[ivx].VtxTrjTried = true;
+    tjs.vtx[ivx].Stat[kVtxTrjTried] = true;
   } // FindVtxTraj
   
   //////////////////////////////////////////
@@ -3102,7 +3106,7 @@ namespace tca {
             aVtx.Topo = end1 + end2;
             aVtx.ChiDOF = 0;
             aVtx.CTP = fCTP;
-            aVtx.Fixed = false;
+//            aVtx.VtxMod[kFixed] = false;
             // try to fit it. We need to give it an ID to do that. Take the next
             // available ID
             unsigned short newVtxID = tjs.vtx.size() + 1;
@@ -3239,7 +3243,7 @@ namespace tca {
           aVtx.Topo = 6;
           aVtx.ChiDOF = 0;
           aVtx.CTP = fCTP;
-          aVtx.Fixed = false;
+//          aVtx.Fixed = false;
           tjs.vtx.push_back(aVtx);
           ivx = tjs.vtx.size() - 1;
           tjs.vtx[ivx].ID = ivx + 1;
@@ -3336,7 +3340,7 @@ namespace tca {
           aVtx.Topo = 6;
           aVtx.ChiDOF = 0;
           aVtx.CTP = fCTP;
-          aVtx.Fixed = false;
+//          aVtx.Fixed = false;
           tjs.vtx.push_back(aVtx);
           ivx = tjs.vtx.size() - 1;
           tjs.vtx[ivx].ID = ivx + 1;
