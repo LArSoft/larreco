@@ -1052,7 +1052,7 @@ namespace tca {
     // 3 = max position pull for adding TJs to a vertex
     // 4 = max allowed vertex position error
     
-    if(vx.Fixed) return false;
+    if(vx.Stat[kFixed]) return false;
     
     // Create a vector of trajectory points that will be used to fit the vertex position
     std::vector<TrajPoint> vxTp;
