@@ -32,7 +32,6 @@ namespace tca {
 
   // ****************************** General purpose  ******************************
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
-  bool EraseHit(TjStuff& tjs, unsigned int& dht);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp);
   bool SignalPresent(TjStuff& tjs, unsigned int wire1, float time1, unsigned int wire2, float time2, CTP_t pCTP, float minAmp);
