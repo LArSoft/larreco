@@ -25,7 +25,15 @@ namespace tca {
     "UseGhostHits",
     "ChkInTraj",
     "FixEnd",
-    "UseUnusedHits"
+    "UseUnusedHits",
+    "VtxTj",
+    "RefineVtx"
   };
+  
+  const std::vector<std::string> VtxBitNames {
+    "Fixed",
+    "VtxTrjTried",
+    "VtxRefined"
+  } ;
 } // namespace tca
 

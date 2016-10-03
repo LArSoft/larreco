@@ -52,6 +52,7 @@ namespace tca {
   // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
   // close hits OR if the wire at this position is dead
   bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, bool onlyUsedHits);
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<std::array<float, 2>, 2> const& window, const unsigned short plane);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
 
   // returns the separation^2 between a point and a TP
@@ -103,10 +104,13 @@ namespace tca {
   void MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   void MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
   // ****************************** Vertex finding  ******************************
-  bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt);
+  unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
+  bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, const std::vector<float>& fVertex2DCuts, bool prt);
+  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned short itj, const std::vector<float>& fVertex2DCuts, bool prt);
+  bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, const std::vector<float>& fVertex2DCuts, bool prt);
   float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx);
   float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
-  bool FitVertex(TjStuff& tjs, VtxStore& vx, std::vector<float>& fVertex2DCuts, bool prt);
+  bool FitVertex(TjStuff& tjs, VtxStore& vx, const std::vector<float>& fVertex2DCuts, bool prt);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
   void PrintTrajectory(std::string someText, TjStuff& tjs, Trajectory const& tj ,unsigned short tPoint);

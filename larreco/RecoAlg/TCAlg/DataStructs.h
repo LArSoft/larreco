@@ -62,9 +62,16 @@ namespace tca {
     float ChiDOF {0};
     short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
-    bool Fixed {false};                 // Vertex position fixed (should not be re-fit)
     unsigned short ID {0};
+    std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
   };
+  
+  typedef enum {
+    kFixed,           ///< vertex position fixed manually - no fitting done
+    kVtxTrjTried,     ///< FindVtxTraj algorithm tried
+    kVtxRefined,
+    kVtxBitSize     ///< don't mess with this line
+  } VtxBit_t;
   
   /// struct of temporary 3D vertices
   struct Vtx3Store {
@@ -172,6 +179,8 @@ namespace tca {
     kChkInTraj,
     kFixEnd,
     kUseUnusedHits,
+    kVtxTj,
+    kRefineVtx,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -189,7 +198,7 @@ namespace tca {
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<art::Ptr<recob::Hit>> fHits;
     std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
-    std::vector<recob::Hit> newHits;
+    std::vector<recob::Hit> nHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
