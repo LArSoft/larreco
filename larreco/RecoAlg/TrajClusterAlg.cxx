@@ -233,9 +233,10 @@ namespace tca {
     tjs.tcl.clear();
     tjs.inClus.clear();
     tjs.WireHitRange.clear();
-    tjs.newHits.clear();
+    tjs.nHits.clear();
     tjs.inTraj.clear();
     tjs.fHits.clear();
+//    tjs.newHits.clear();
     tjs.allTraj.clear();
   } // ClearResults()
 
@@ -5966,7 +5967,7 @@ namespace tca {
       cls.EndChg = tj.Pts[endPt1].Chg;
       cls.EndVtx = tj.VtxID[1]-1;
       PutTrajHitsInVector(tj, true, tHits);
-      for(auto& iht : tHits) if(iht > tjs.newHits.size() - 1) std::cout<<"Bad hit\n";
+      for(auto& iht : tHits) if(iht > tjs.nHits.size() - 1) std::cout<<"Bad hit\n";
       if(tHits.empty()) {
         mf::LogWarning("TC")<<"MakeAllTrajClusters: No hits found in trajectory "<<itj<<" so skip it";
         continue;
@@ -5979,7 +5980,7 @@ namespace tca {
       geo::PlaneID planeID = DecodeCTP(cls.CTP);
       for(ii = 0; ii < cls.tclhits.size(); ++ii) {
         iht = cls.tclhits[ii];
-        if(tjs.newHits.empty()) {
+        if(tjs.nHits.empty()) {
           if(tjs.fHits[iht]->WireID().Plane != planeID.Plane ||
              tjs.fHits[iht]->WireID().Cryostat != planeID.Cryostat ||
              tjs.fHits[iht]->WireID().TPC != planeID.TPC) {
@@ -5988,11 +5989,11 @@ namespace tca {
             return;
           }
         } else {
-          if(tjs.newHits[iht].WireID().Plane != planeID.Plane ||
-             tjs.newHits[iht].WireID().Cryostat != planeID.Cryostat ||
-             tjs.newHits[iht].WireID().TPC != planeID.TPC) {
-            mf::LogWarning("TC")<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.newHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.newHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.newHits[iht].WireID().TPC<<" vs "<<planeID.TPC;
-            std::cout<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.newHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.newHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.newHits[iht].WireID().TPC<<" vs "<<planeID.TPC<<"\n";
+          if(tjs.nHits[iht].WireID().Plane != planeID.Plane ||
+             tjs.nHits[iht].WireID().Cryostat != planeID.Cryostat ||
+             tjs.nHits[iht].WireID().TPC != planeID.TPC) {
+            mf::LogWarning("TC")<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.nHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.nHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.nHits[iht].WireID().TPC<<" vs "<<planeID.TPC;
+            std::cout<<"MakeAllTrajClusters: Bad NEW hit in itj "<<itj<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.nHits[iht].WireID().Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.nHits[iht].WireID().Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.nHits[iht].WireID().TPC<<" vs "<<planeID.TPC<<"\n";
 //            PrintAllTraj("MATC", tjs, debug, itj, USHRT_MAX);
             fQuitAlg = true;
             return;
@@ -6008,13 +6009,13 @@ namespace tca {
   void TrajClusterAlg::MakeNewHits()
   {
     // Make a new hit collection by merging close hits on each TP. The trajectory point -> hit
-    // association tj.Pts[].Hits[] is redirected to tjs.newHits instead of tjs.fHits. Currently this
+    // association tj.Pts[].Hits[] is redirected to tjs.nHits instead of tjs.fHits. Currently this
     // routine is called just before making clusters so there should be little confusion whether to use
-    // tjs.newHits or tjs.fHits but one can test tjs.newhits.empty() to be sure.
+    // tjs.nHits or tjs.fHits but one can test tjs.nHits.empty() to be sure.
 
 //    PrintAllTraj("MNH1", tjs, debug, 3, USHRT_MAX);
     
-    tjs.newHits.reserve(tjs.fHits.size());
+    tjs.nHits.reserve(tjs.fHits.size());
     std::vector<bool> flag(tjs.fHits.size(), false);
     // oldnew points from old hit to new hit, or UINT_MAX for obsolete hits
     std::vector<unsigned int> oldnew(tjs.fHits.size(), UINT_MAX);
@@ -6025,10 +6026,10 @@ namespace tca {
       
       if(tjs.inTraj[fht] <= 0) {
         // unused hit. Just copy it
-        tjs.newHits.emplace_back(*tjs.fHits[fht]);
+        tjs.nHits.emplace_back(*tjs.fHits[fht]);
         // flag it as considered
         flag[fht] = true;
-        oldnew[fht] = tjs.newHits.size() - 1;
+        oldnew[fht] = tjs.nHits.size() - 1;
         continue;
       }
       
@@ -6054,8 +6055,8 @@ namespace tca {
       }
       // This is simple if there is only one used hit
       if(NumUsedHits(tj.Pts[hitInPt]) == 1) {
-        tjs.newHits.emplace_back(*tjs.fHits[fht]);
-        oldnew[fht] = tjs.newHits.size() - 1;
+        tjs.nHits.emplace_back(*tjs.fHits[fht]);
+        oldnew[fht] = tjs.nHits.size() - 1;
         // flag it used
         flag[fht] = true;
       } else {
@@ -6128,7 +6129,7 @@ namespace tca {
         float chgNorm = tjs.fHits[fht]->PeakAmplitude() * tjs.fHits[fht]->RMS() / tjs.fHits[fht]->Integral();
         float mergedHitPeakAmp = chg * chgNorm / mergedHitRMS;
         float mergedHitPeakTick = loTick + aveIndx;
-        tjs.newHits.emplace_back(
+        tjs.nHits.emplace_back(
                                  tjs.fHits[wireInfoHit]->Channel(),
                                  loTick, hiTick,
                                  mergedHitPeakTick, 0,     // peak time & uncertainty
@@ -6147,7 +6148,7 @@ namespace tca {
           if(tj.Pts[hitInPt].Hits[ii] == wireInfoHit) {
             tj.Pts[hitInPt].UseHit[ii] = true;
             // define oldnew
-            oldnew[wireInfoHit] = tjs.newHits.size() - 1;
+            oldnew[wireInfoHit] = tjs.nHits.size() - 1;
           } else {
             // oldnew for obsolete hits was set to UINT_MAX
             tj.Pts[hitInPt].UseHit[ii] = false;
@@ -6165,10 +6166,10 @@ namespace tca {
           unsigned int iht = tjs.allTraj[itj].Pts[ipt].Hits[ii];
           unsigned int nht = oldnew[iht];
           if(nht != UINT_MAX) {
-            if(tjs.fHits[iht]->WireID().Plane != tjs.newHits[nht].WireID().Plane || tjs.fHits[iht]->WireID().Wire != tjs.newHits[nht].WireID().Wire) {
+            if(tjs.fHits[iht]->WireID().Plane != tjs.nHits[nht].WireID().Plane || tjs.fHits[iht]->WireID().Wire != tjs.nHits[nht].WireID().Wire) {
               unsigned short ipl = tjs.fHits[iht]->WireID().Plane;
-              unsigned short npl = tjs.newHits[nht].WireID().Plane;
-              std::cout<<"MakeNewHits: fHits "<<ipl<<":"<<PrintHit(tjs.fHits[iht])<<" inconsistent with newHits "<<npl<<":"<<PrintHit(tjs.newHits[nht])<<"\n";
+              unsigned short npl = tjs.nHits[nht].WireID().Plane;
+              std::cout<<"MakeNewHits: fHits "<<ipl<<":"<<PrintHit(tjs.fHits[iht])<<" inconsistent with newHits "<<npl<<":"<<PrintHit(tjs.nHits[nht])<<"\n";
             }
           }
           tjs.allTraj[itj].Pts[ipt].Hits[ii] = oldnew[iht];
@@ -6187,8 +6188,8 @@ namespace tca {
       if(nht == UINT_MAX) continue;
       unsigned short fpl = tjs.fHits[fht]->WireID().Plane;
       unsigned int fwire = tjs.fHits[fht]->WireID().Wire;
-      unsigned short npl = tjs.newHits[nht].WireID().Plane;;
-      unsigned int nwire = tjs.newHits[nht].WireID().Wire;
+      unsigned short npl = tjs.nHits[nht].WireID().Plane;;
+      unsigned int nwire = tjs.nHits[nht].WireID().Wire;
       if(fpl != npl || fwire != nwire) {
         std::cout<<"Oops "<<fpl<<":"<<fwire<<" != "<<npl<<":"<<nwire<<"\n";
         itsBad = true;
