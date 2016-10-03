@@ -3243,7 +3243,6 @@ namespace tca {
           aVtx.Topo = 6;
           aVtx.ChiDOF = 0;
           aVtx.CTP = fCTP;
-//          aVtx.Fixed = false;
           tjs.vtx.push_back(aVtx);
           ivx = tjs.vtx.size() - 1;
           tjs.vtx[ivx].ID = ivx + 1;
@@ -3340,7 +3339,6 @@ namespace tca {
           aVtx.Topo = 6;
           aVtx.ChiDOF = 0;
           aVtx.CTP = fCTP;
-//          aVtx.Fixed = false;
           tjs.vtx.push_back(aVtx);
           ivx = tjs.vtx.size() - 1;
           tjs.vtx[ivx].ID = ivx + 1;
