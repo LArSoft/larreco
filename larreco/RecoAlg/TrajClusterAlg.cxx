@@ -995,7 +995,7 @@ namespace tca {
     // clone the first point
     TrajPoint tp = tj.Pts[0];
     // strip off the hits
-    tp.Hits.clear(); tp.UseHit.clear();
+    tp.Hits.clear(); tp.UseHit.reset();
     // move it to the next wire
     MoveTPToWire(tp, (float)nextWire);
     // find close unused hits near this position
@@ -1251,7 +1251,9 @@ namespace tca {
     // make the TPs
     // work.Pts[0] is already defined but it needs hits added
     work.Pts[0].Hits = tpHits[0];
-    work.Pts[0].UseHit.resize(work.Pts[0].Hits.size(), true);
+    // set all bits true
+    work.Pts[0].UseHit.set();
+//    work.Pts[0].UseHit.resize(work.Pts[0].Hits.size(), true);
     DefineHitPos(work.Pts[0]);
     work.Pts[0].Pos = work.Pts[0].HitPos;
     if(prt) PrintTrajectory("MJT", tjs, work, USHRT_MAX);
@@ -1266,7 +1268,8 @@ namespace tca {
       tp.Step = ipt;
       tp.Hits = tpHits[ipt];
       // use all hits
-      tp.UseHit.resize(tp.Hits.size(), true);
+      tp.UseHit.set();
+//      tp.UseHit.resize(tp.Hits.size(), true);
       DefineHitPos(tp);
       // Just use the hit position as the traj position
       tp.Pos = tp.HitPos;
@@ -2000,7 +2003,7 @@ namespace tca {
 
     TrajPoint& tp = tj.Pts[ipt];
     tp.Hits.clear();
-    tp.UseHit.clear();
+    tp.UseHit.reset();
     sigOK = false;
 
     // look at adjacent wires for larger angle trajectories
@@ -2131,8 +2134,12 @@ namespace tca {
      return;
     }
     
+    if(tp.Hits.size() > 16) {
+      mf::LogWarning("TC")<<"AddHits: More than 16 hits added to TP. Truncating to the max for UseHit";
+      tp.Hits.resize(16);
+    }
     // Use all of the hits that are available
-    tp.UseHit.resize(tp.Hits.size(), false);
+    tp.UseHit.reset();
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       unsigned int iht = tp.Hits[ii];
       if(tjs.inTraj[iht] == 0) {
@@ -2169,7 +2176,10 @@ namespace tca {
     if(tj.Pts.empty()) return;
     if(ipt > tj.Pts.size() - 1) return;
     
-    if(AngleRange(tj.Pts[ipt]) > 0) {
+    // Call large angle hit finding only on the last 2 ranges
+    unsigned short lastRange = fAngleRanges.size() - 1;
+    if(lastRange > 1) --lastRange;
+    if(AngleRange(tj.Pts[ipt]) > lastRange) {
       AddLAHits(tj, ipt, sigOK);
       return;
     }
@@ -2281,8 +2291,15 @@ namespace tca {
     if(!closeHits.empty()) sigOK = true;
     if(!sigOK) return;
     tp.Hits.insert(tp.Hits.end(), closeHits.begin(), closeHits.end());
-    // resize the UseHit vector and assume that none of these hits will be used (yet)
-    tp.UseHit.resize(tp.Hits.size(), false);
+    if(tp.Hits.size() > 16) {
+//      mf::LogWarning("TC")<<"AddHits: More than 16 hits added to TP. Truncating to the max for UseHit";
+      // Actually this is a hopelessly messy region that we should ignore
+      tp.Hits.clear();
+      tp.Chg = 0;
+      return;
+    }
+    // reset UseHit and assume that none of these hits will be used (yet)
+    tp.UseHit.reset();
     // decide which of these hits should be used in the fit. Use a generous maximum delta
     // and require a charge check if we'not just starting out
     bool useChg = true;
@@ -2300,7 +2317,13 @@ namespace tca {
   void TrajClusterAlg::ReleaseHits(Trajectory& tj)
   {
     // Sets tjs.inTraj[] = 0 and UseHit false for all TPs in work. Called when abandoning work
-    for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt)  UnsetUsedHits(tj.Pts[ipt]);
+//    for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt)  UnsetUsedHits(tj.Pts[ipt]);
+    for(auto& tp : tj.Pts) {
+      for(auto& iht : tp.Hits) {
+        if(tjs.inTraj[iht] == tj.ID) tjs.inTraj[iht] = 0;
+      }
+    } // tp
+    
   } // ReleaseWorkHits
 
   //////////////////////////////////////////
@@ -2593,15 +2616,10 @@ namespace tca {
     
     tp.Chg = 0;
     if(tp.Hits.empty()) return;
-    if(tp.Hits.size() != tp.UseHit.size()) {
-      mf::LogWarning("TC")<<" Hits - UseHit size mis-match";
-      fQuitAlg = true;
-      return;
-    }
     
     unsigned short nused = 0;
     unsigned int iht = 0;
-    for(unsigned short ii = 0; ii < tp.UseHit.size(); ++ii) {
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       if(tp.UseHit[ii]) {
         iht = tp.Hits[ii];
         ++nused;
@@ -2970,9 +2988,11 @@ namespace tca {
       MoveTPToWire(tp, toWire);
       // attach the hit
       tp.Hits.push_back(iht);
-      tp.UseHit.push_back(true);
+      tp.UseHit[tp.Hits.size()-1] = true;
+//      tp.UseHit.push_back(true);
       tjs.inTraj[iht] = tj.ID;
-      tp.UseHit.push_back(false);
+      tp.UseHit[tp.Hits.size()-1] = false;
+//      tp.UseHit.push_back(false);
       if(vtxPrt) PrintTrajPoint("FVT", tjs, 0, tj.StepDir, tj.Pass, tp);
       // Step away and see what happens
       prt = vtxPrt;
@@ -3825,7 +3845,7 @@ namespace tca {
       if(tp.Pos[1] < 0 || tp.Pos[1] > tjs.MaxPos1[fPlane]) break;
       // remove the old hits and other stuff
       tp.Hits.clear();
-      tp.UseHit.clear();
+      tp.UseHit.reset();
       tp.FitChi = 0; tp.Chg = 0;
       // append to the trajectory
       tj.Pts.push_back(tp);
@@ -5751,9 +5771,9 @@ namespace tca {
       if(tj.AlgMod[kKilled]) continue;
       tID = tj.ID;
       for(auto& tp : tj.Pts) {
-        if(tp.Hits.size() != tp.UseHit.size()) {
+        if(tp.Hits.size() > 16) {
           tj.AlgMod[kKilled] = true;
-          mf::LogWarning("TC")<<"ChkInTraj Hits - UseHit mismatched\n";
+          mf::LogWarning("TC")<<"ChkInTraj: More than 16 hits created a UseHit bitset overflow\n";
           fQuitAlg = true;
           return;
         }
@@ -6263,6 +6283,11 @@ namespace tca {
       hitsInMultiplet.push_back(iht);
       theTime = tjs.fHits[iht]->PeakTime();
     } // iht
+    
+    if(hitsInMultiplet.size() > 16) {
+//      std::cout<<"Found > 16 hits in a multiplet which would be bad for UseHit. Truncating...\n";
+      hitsInMultiplet.resize(16);
+    }
 
   } //GetHitMultiplet
 
@@ -6552,7 +6577,7 @@ namespace tca {
     // Counts the number of used hits in tp
     unsigned short nused = 0;
     if(tp.Hits.empty()) return nused;
-    for(unsigned short ii = 0; ii < tp.UseHit.size(); ++ii) if(tp.UseHit[ii]) ++nused;
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) if(tp.UseHit[ii]) ++nused;
     return nused;
   } // NumUsedHits
   
