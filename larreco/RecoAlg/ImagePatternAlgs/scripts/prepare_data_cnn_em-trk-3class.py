@@ -17,12 +17,13 @@ def main(argv):
     selected_view_idx =  2   # set the view id
     patch_fraction =    30.0 # percent of used patches
     empty_fraction =     1.0 # percent of "empty background" patches
+    crop_event =       False # use true only if no crop on LArSoft level and not a noise dump
 
     print 'Using', patch_fraction, '% of data from view', selected_view_idx
     if doing_nue: print 'Neutrino mode, will skip more showers.'
 
     max_capacity = 1700000
-    db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D))
+    db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
     db_y = np.zeros((max_capacity, 3), dtype=np.int32)
 
     patch_area = PATCH_SIZE_W * PATCH_SIZE_D
@@ -48,8 +49,8 @@ def main(argv):
         print 'Process file', fcount, fname, 'EVT', evt_no
 
         # get clipped data, margin depends on patch size in drift direction
-        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2)
-        if raw == None:
+        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2, crop_event)
+        if raw is None:
             print 'Skip empty event...'
             continue
 

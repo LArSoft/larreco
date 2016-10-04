@@ -84,8 +84,8 @@ img_rows, img_cols = PATCH_SIZE_W, PATCH_SIZE_D
 
 X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
 X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
-X_train = X_train.astype("float32")
-X_test = X_test.astype("float32")
+#X_train = X_train.astype("float32") # should be already float32
+#X_test = X_test.astype("float32")   #          ''
 print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')

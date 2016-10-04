@@ -16,11 +16,12 @@ def main(argv):
     selected_view_idx =  2   # set the view id
     nearby_empty =       4   # number of patches near each vtx, but with empty area in the central pixel
     nearby_on_track =    8   # number of patches on tracks, somewhere close to each vtx
+    crop_event =       False # use true only if no crop on LArSoft level and not a noise dump
 
     print 'Using', nearby_empty, 'empty and', nearby_on_track, 'on track patches per each verex in view', selected_view_idx
 
     max_capacity = 500000
-    db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D))
+    db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
     db_y = np.zeros((max_capacity, 3), dtype=np.int32)
 
     kHadr  = 0x1   # hadronic inelastic scattering
@@ -50,8 +51,8 @@ def main(argv):
         print 'Process file', fcount, fname, 'EVT', evt_no
 
         # get clipped data, margin depends on patch size in drift direction
-        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2)
-        if raw == None:
+        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2, crop_event)
+        if raw is None:
             print 'Skip empty event...'
             continue
 
