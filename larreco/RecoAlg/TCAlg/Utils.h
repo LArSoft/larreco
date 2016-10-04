@@ -32,6 +32,8 @@ namespace tca {
 
   // ****************************** General purpose  ******************************
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
+  bool EraseHit(TjStuff& tjs, unsigned int delHit);
+  bool CloneHit(TjStuff& tjs, unsigned int& cloneHit, float& newHitTime, float& newHitAmp);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp);
   bool SignalPresent(TjStuff& tjs, unsigned int wire1, float time1, unsigned int wire2, float time2, CTP_t pCTP, float minAmp);
@@ -120,7 +122,6 @@ namespace tca {
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
-  std::string PrintHit(const art::Ptr<recob::Hit>& hit);
   std::string PrintHit(const recob::Hit& hit);
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);
