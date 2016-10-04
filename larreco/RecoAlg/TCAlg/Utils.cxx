@@ -12,7 +12,106 @@ namespace tca {
     if(planeID.TPC != tjs.WireHitRangeTPC) return false;
     return true;
   }
-
+  
+  ////////////////////////////////////////////////
+  bool EraseHit(TjStuff& tjs, unsigned int delHit)
+  {
+    if(delHit > tjs.fHits.size() - 1) {
+      mf::LogWarning("TC")<<"Trying to erase an invalid hit";
+      return false;
+    }
+    if(tjs.inTraj[delHit] != 0) {
+      mf::LogWarning("TC")<<"Trying to erase hit "<<PrintHit(tjs.fHits[delHit])<<" associated with inTraj "<<tjs.inTraj[delHit];
+      return false;
+    }
+    if(delHit == 0) {
+      mf::LogWarning("TC")<<"Trying to erase hit 0. Write some code";
+      return false;
+    }
+    // Correct inTraj
+    tjs.inTraj.erase(tjs.inTraj.begin()+delHit);
+    // Correct TP hits
+    for(auto& tj : tjs.allTraj) {
+      for(auto& tp : tj.Pts) {
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(tp.Hits[ii] == delHit) {
+            tp.Hits.erase(tp.Hits.begin()+ii);
+            // Shift UseHit by one
+            tp.UseHit << 1;
+          } else if(tp.Hits[ii] > delHit) {
+            --tp.Hits[ii];
+          }
+        }
+      } // tp
+    } // tj
+    // Correct WireHitRange
+    unsigned short hitPln = tjs.fHits[delHit].WireID().Plane;
+    for(unsigned short ipl = hitPln; ipl < tjs.NumPlanes; ++ipl) {
+      for(unsigned int wire = tjs.FirstWire[ipl]; wire < tjs.LastWire[ipl];  ++wire) {
+        if(tjs.WireHitRange[ipl][wire].first < 0) continue;
+        unsigned int firstHit = tjs.WireHitRange[ipl][wire].first;
+        if(firstHit < delHit) continue;
+        --tjs.WireHitRange[ipl][wire].first;
+        --tjs.WireHitRange[ipl][wire].second;
+      } // wire
+    } // ipl
+    tjs.fHits.erase(tjs.fHits.begin()+delHit);
+    return true;
+  } // EraseHit
+/*
+  ////////////////////////////////////////////////
+  bool CloneHit(TjStuff& tjs, unsigned int& cloneHit, float& newHitTime, float& newHitAmp)
+  {
+    // Puts a copy of cloneHit in tjs.fHits[cloneHit+1], corrects inTraj and trajectory TPs
+    if(cloneHit > tjs.fHits.size() - 1) {
+      mf::LogWarning("TC")<<"Trying to clone an invalid hit";
+      return false;
+    }
+    // Increase inTraj by one and set the inserted element to 0
+    tjs.inTraj.insert(tjs.inTraj.begin()+cloneHit, 0);
+    // Correct TP hits
+    for(auto& tj : tjs.allTraj) {
+      for(auto& tp : tj.Pts) {
+        for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
+          if(tp.Hits[iht] > cloneHit) ++tp.Hits[iht];
+        }
+      } // tp
+    } // tj
+    // Correct WireHitRange
+    unsigned short hitPln = tjs.fHits[cloneHit].WireID().Plane;
+    for(unsigned short ipl = hitPln; ipl < tjs.NumPlanes; ++ipl) {
+      for(unsigned int wire = tjs.FirstWire[ipl]; wire < tjs.LastWire[ipl];  ++wire) {
+        if(tjs.WireHitRange[ipl][wire].first < 0) continue;
+        unsigned int firstHit = tjs.WireHitRange[ipl][wire].first;
+        // This accounts for dead wires and those with no hits
+        if(firstHit < cloneHit) continue;
+        ++tjs.WireHitRange[ipl][wire].first;
+        ++tjs.WireHitRange[ipl][wire].second;
+      } // wire
+    } // ipl
+    // make the hit
+    float chg = 2.5066 * newHitAmp * tjs.fHits[cloneHit].RMS();
+    unsigned short multiplicity = tjs.fHits[cloneHit].Multiplicity() + 1;
+    unsigned short localIndex = tjs.fHits[cloneHit].LocalIndex() + 1;
+    recob::Hit newHit(
+                      tjs.fHits[cloneHit].Channel(),
+                      tjs.fHits[cloneHit].StartTick(),
+                      tjs.fHits[cloneHit].EndTick(),
+                      newHitTime, 0,
+                      tjs.fHits[cloneHit].RMS(),
+                      newHitAmp, 0,
+                      chg, chg, 0,              // SummedADC, Integral & uncertainty
+                      multiplicity, localIndex,          // Multiplicity, LocalIndex (wrong)
+                      0, 1,                   // GoodnessOfFit, DOF
+                      tjs.fHits[cloneHit].View(),
+                      tjs.fHits[cloneHit].SignalType(),
+                      tjs.fHits[cloneHit].WireID()
+                      );
+    // and insert it
+    tjs.fHits.insert(tjs.fHits.begin()+cloneHit, newHit);
+    return true;
+  } // CloneHit
+*/
   ////////////////////////////////////////////////
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
   {
@@ -120,11 +219,10 @@ namespace tca {
     }
     
     // erase the TPs at the beginning of the new trajectory
-    //    newTj.Pts.erase(newTj.Pts.begin(), newTj.Pts.begin() + pos + 1);
     newTj.Pts.erase(newTj.Pts.begin(), newTj.Pts.begin() + eraseSize);
     // unset the first 3 TP hits
     for(ipt = 0; ipt < 3; ++ipt) {
-      for(ii = 0; ii < newTj.Pts[ipt].UseHit.size(); ++ii) newTj.Pts[ipt].UseHit[ii] = false;
+      for(ii = 0; ii < newTj.Pts[ipt].Hits.size(); ++ii) newTj.Pts[ipt].UseHit[ii] = false;
     } // ipt
     SetEndPoints(tjs, newTj);
     if(ivx != USHRT_MAX) newTj.VtxID[0] = tjs.vtx[ivx].ID;
@@ -186,8 +284,8 @@ namespace tca {
   {
     // returns the separation^2 between two hits in WSE units
     if(iht > tjs.fHits.size()-1 || jht > tjs.fHits.size()-1) return 1E6;
-    float dw = (float)tjs.fHits[iht]->WireID().Wire - (float)tjs.fHits[jht]->WireID().Wire;
-    float dt = (tjs.fHits[iht]->PeakTime() - tjs.fHits[jht]->PeakTime()) * tjs.UnitsPerTick;
+    float dw = (float)tjs.fHits[iht].WireID().Wire - (float)tjs.fHits[jht].WireID().Wire;
+    float dt = (tjs.fHits[iht].PeakTime() - tjs.fHits[jht].PeakTime()) * tjs.UnitsPerTick;
     return dw * dw + dt * dt;
   } // HitSep2
   
@@ -202,8 +300,8 @@ namespace tca {
   //////////////////////////////////////////
   float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp)
   {
-    float wire = tjs.fHits[iht]->WireID().Wire;
-    float time = tjs.fHits[iht]->PeakTime() * tjs.UnitsPerTick;
+    float wire = tjs.fHits[iht].WireID().Wire;
+    float time = tjs.fHits[iht].PeakTime() * tjs.UnitsPerTick;
     return sqrt(PointTrajDOCA2(tjs, wire, time, tp));
   } // PointTrajDOCA
   
@@ -389,21 +487,22 @@ namespace tca {
     // window in the wire coordinate
     float lpos = window[0][0];
     if(lpos < (float)tjs.FirstWire[plane]) lpos = tjs.FirstWire[plane];
-    float maxpos = window[0][1] + 0.5;
-    if(maxpos > (float)tjs.LastWire[plane]) maxpos = tjs.LastWire[plane];
+    float maxpos = window[0][1];
+    if(maxpos > (float)tjs.LastWire[plane]-1) maxpos = tjs.LastWire[plane]-1;
     // window in the time coordinate
     float minTick = (window[1][0]) / tjs.UnitsPerTick;
     float maxTick = (window[1][1]) / tjs.UnitsPerTick;
     while(lpos < maxpos) {
       unsigned int wire = std::nearbyint(lpos);
+      if(wire > tjs.LastWire[plane]-1) break;
       if(tjs.WireHitRange[plane][wire].first >= 0) {
         // there are hits on this wire
         unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
         unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
         for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
           if(tjs.inTraj[iht] > 0) continue;
-          if(tjs.fHits[iht]->PeakTime() < minTick) continue;
-          if(tjs.fHits[iht]->PeakTime() > maxTick) break;
+          if(tjs.fHits[iht].PeakTime() < minTick) continue;
+          if(tjs.fHits[iht].PeakTime() > maxTick) break;
           closeHits.push_back(iht);
         } // iht
       } // good wire
@@ -419,7 +518,7 @@ namespace tca {
     // close hits OR if the wire at this position is dead
     
     tp.Hits.clear();
-    tp.UseHit.clear();
+    tp.UseHit.reset();
     if(!WireHitRangeOK(tjs, tp.CTP)) {
       std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.WireHitRangeCstat<<" TPC "<<tjs.WireHitRangeTPC<<"\n";
       return false;
@@ -443,13 +542,17 @@ namespace tca {
     float fwire = wire;
     for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
       if(onlyUsedHits && tjs.inTraj[iht] > 0) continue;
-      float ftime = tjs.UnitsPerTick * tjs.fHits[iht]->PeakTime();
+      float ftime = tjs.UnitsPerTick * tjs.fHits[iht].PeakTime();
       float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
 //      std::cout<<"chk "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<"\n";
       if(delta < maxDelta) tp.Hits.push_back(iht);
     } // iht
-    // Define UseHit size and set false. The calling routine should decide if these hits should be used
-    tp.UseHit.resize(tp.Hits.size(), false);
+    if(tp.Hits.size() > 16) {
+      mf::LogWarning("TC")<<"FindCloseHits: Found "<<tp.Hits.size()<<" hits. Truncating to 16";
+      tp.Hits.resize(16);
+    }
+    // Set UseHit false. The calling routine should decide if these hits should be used
+    tp.UseHit.reset();
     return true;
     
   } // FindCloseHits
@@ -492,8 +595,8 @@ namespace tca {
     // make sure that the Chg is set correctly
     for(ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       tj.Pts[ipt].Chg = 0;
-      for(ii = 0; ii < tj.Pts[ipt].UseHit.size(); ++ii)
-        if(tj.Pts[ipt].UseHit[ii]) tj.Pts[ipt].Chg += tjs.fHits[tj.Pts[ipt].Hits[ii]]->Integral();
+      for(ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii)
+        if(tj.Pts[ipt].UseHit[ii]) tj.Pts[ipt].Chg += tjs.fHits[tj.Pts[ipt].Hits[ii]].Integral();
     } // ipt
     
     for(ipt = 0; ipt < tj.Pts.size(); ++ipt) {
@@ -721,9 +824,9 @@ namespace tca {
   /////////////////////////////////////////
   void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
   {
-    CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit]->WireID());
-    MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit]->WireID().Wire, tjs.fHits[fromHit]->PeakTime(),
-                           (float)tjs.fHits[toHit]->WireID().Wire,   tjs.fHits[toHit]->PeakTime(), tCTP, tp);
+    CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].WireID());
+    MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit].WireID().Wire, tjs.fHits[fromHit].PeakTime(),
+                           (float)tjs.fHits[toHit].WireID().Wire,   tjs.fHits[toHit].PeakTime(), tCTP, tp);
     
   } // MakeBareTrajPoint
   
@@ -779,8 +882,8 @@ namespace tca {
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       if(!tp.UseHit[ii] && onlyUsedHits) continue;
       unsigned int iht = tp.Hits[ii];
-      float cv = tjs.fHits[iht]->PeakTime();
-      float rms = tjs.fHits[iht]->RMS();
+      float cv = tjs.fHits[iht].PeakTime();
+      float rms = tjs.fHits[iht].RMS();
       float arg = cv - rms;
       if(arg < minVal) minVal = arg;
       arg = cv + rms;
@@ -804,8 +907,8 @@ namespace tca {
     float maxVal = 0;
     for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
       unsigned int iht = hitsInMultiplet[ii];
-      float cv = tjs.fHits[iht]->PeakTime();
-      float rms = tjs.fHits[iht]->RMS();
+      float cv = tjs.fHits[iht].PeakTime();
+      float rms = tjs.fHits[iht].RMS();
       float arg = cv - rms;
       if(arg < minVal) minVal = arg;
       arg = cv + rms;
@@ -829,8 +932,8 @@ namespace tca {
     sum = 0;
     for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
       unsigned int iht = hitsInMultiplet[ii];
-      float chg = tjs.fHits[iht]->Integral();
-      pos += chg * tjs.fHits[iht]->PeakTime();
+      float chg = tjs.fHits[iht].Integral();
+      pos += chg * tjs.fHits[iht].PeakTime();
       sum += chg;
     } // ii
     if(sum == 0) return 0;
@@ -1381,29 +1484,17 @@ namespace tca {
     myprt<<std::setw(6)<<tp.NTPsFit;
     // print the hits associated with this traj point
     for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
-      if(tjs.nHits.empty()) {
-        // print old hits
-        myprt<<" "<<PrintHit(tjs.fHits[tp.Hits[iht]]);
-      } else {
-        // print new hits
-        myprt<<" "<<PrintHit(tjs.nHits[tp.Hits[iht]]);
-      }
-//      myprt<<" "<<tjs.fHits[tp.Hits[iht]]->WireID().Wire<<":"<<(int)tjs.fHits[tp.Hits[iht]]->PeakTime();
+      myprt<<" "<<PrintHit(tjs.fHits[tp.Hits[iht]]);
+//      myprt<<" "<<tjs.fHits[tp.Hits[iht]].WireID().Wire<<":"<<(int)tjs.fHits[tp.Hits[iht]].PeakTime();
       if(tp.UseHit[iht]) {
         // Distinguish used hits from nearby hits
         myprt<<"_";
       } else {
         myprt<<"x";
       }
-      if(tjs.nHits.empty()) { myprt<<tjs.inTraj[tp.Hits[iht]]; } else { myprt<<"NA"; }
+      myprt<<tjs.inTraj[tp.Hits[iht]];
     } // iht
   } // PrintTrajPoint
-  
-  /////////////////////////////////////////
-  std::string PrintHit(const art::Ptr<recob::Hit>& hit)
-  {
-    return std::to_string(hit->WireID().Wire) + ":" + std::to_string((int)hit->PeakTime());
-  } // PrintHit
   
   /////////////////////////////////////////
   std::string PrintHit(const recob::Hit& hit)

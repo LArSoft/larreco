@@ -105,7 +105,7 @@ namespace tca {
     unsigned short Step {0};      // Step number at which this TP was created
     float FitChi {0};             // Chi/DOF of the fit
     std::vector<unsigned int> Hits; // vector of fHits indices
-    std::vector<bool> UseHit; // set true if the hit is used in the fit
+    std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
   };
   
   // Global information for the trajectory
@@ -130,6 +130,14 @@ namespace tca {
     short Dir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
                                         ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
     short WorkID {0};
+  };
+  
+  // Information used to split/create hits near vertices
+  struct VtxHit {
+    unsigned int InfoHit;           ///< a fHits hit to define the view, channel, etc
+    float Tick;
+    float Amplitude;
+    float RMS;
   };
   
   // Trajectory "intersections" used to search for superclusters (aka showers)
@@ -189,6 +197,7 @@ namespace tca {
   struct TjStuff {
     // These variables don't change in size from event to event
     float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
+    unsigned short NumPlanes;
     std::vector<unsigned int> NumWires;
     std::vector<float> MaxPos0;
     std::vector<float> MaxPos1;
@@ -196,9 +205,8 @@ namespace tca {
     std::vector<unsigned int> LastWire;      ///< the last wire with a hit
     // The variables below do change in size from event to event
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
-    std::vector<art::Ptr<recob::Hit>> fHits;
+    std::vector<recob::Hit> fHits;
     std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
-    std::vector<recob::Hit> nHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead

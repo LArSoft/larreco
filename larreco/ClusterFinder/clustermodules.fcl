@@ -7,7 +7,6 @@ standard_trajcluster:
 {
   module_type:          "TrajCluster"
   TrajClusterAlg:       @local::standard_trajclusteralg
-  MakeNewHits:          true    # Make a new collection of merged hits
 } # standard_trajcluster
 
 standard_blurredcluster:
