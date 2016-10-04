@@ -7,7 +7,6 @@ from os import listdir
 from os.path import isfile, join
 import os,json
 from scipy import ndimage
-from skimage.measure import block_reduce
 
 from utils import read_config, get_data, get_vertices
 
