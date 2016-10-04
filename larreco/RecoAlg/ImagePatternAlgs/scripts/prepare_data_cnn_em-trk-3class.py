@@ -8,16 +8,21 @@ from utils import read_config, get_data, get_patch
 
 def main(argv):
 
+    config = read_config('config.json')
+
     print '#'*50,'\nPrepare data for CNN'
-    INPUT_DIR, OUTPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D = read_config()
+    INPUT_DIR = config['prepare_data_em_track']['input_dir']
+    OUTPUT_DIR = config['prepare_data_em_track']['output_dir']
+    PATCH_SIZE_W = config['prepare_data_em_track']['patch_size_w']
+    PATCH_SIZE_D = config['prepare_data_em_track']['patch_size_d']
     print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
     print '#'*50
 
-    doing_nue = False        # set to true for nu_e events (will skip more showers)
-    selected_view_idx =  2   # set the view id
-    patch_fraction =    30.0 # percent of used patches
-    empty_fraction =     1.0 # percent of "empty background" patches
-    crop_event =       False # use true only if no crop on LArSoft level and not a noise dump
+    doing_nue = config['prepare_data_em_track']['doing_nue']                 # set to true for nu_e events (will skip more showers)
+    selected_view_idx = config['prepare_data_em_track']['selected_view_idx'] # set the view id
+    patch_fraction = config['prepare_data_em_track']['patch_fraction']       # percent of used patches
+    empty_fraction = config['prepare_data_em_track']['empty_fraction']       # percent of "empty background" patches
+    crop_event = config['prepare_data_em_track']['crop_event']               # use true only if no crop on LArSoft level and not a noise dump
 
     print 'Using', patch_fraction, '% of data from view', selected_view_idx
     if doing_nue: print 'Neutrino mode, will skip more showers.'

@@ -12,9 +12,13 @@ import os, json
 
 from utils import read_config
 
-batch_size = 192
-nb_classes = 3
-nb_epoch = 500
+config = read_config('config.json')
+
+CNN_INPUT_DIR = config['training_on_patches']['input_dir']
+
+batch_size = config['training_on_patches']['batch_size']
+nb_classes = config['training_on_patches']['nb_classes']
+nb_epoch = config['training_on_patches']['nb_epoch']
 
 #       name,                 nflt1, kernel1, maxpool, nflt2, kernel2, convactfn, drop1, densesize,  actfn, drop2 -> softmax
 parameters = np.array([
@@ -26,7 +30,6 @@ parameters = np.array([
 ])
 
 
-
 def save_model(model, name):
     try:
         with open(name + '_architecture.json', 'w') as f:
@@ -36,8 +39,6 @@ def save_model(model, name):
     except:
         print 'save failed' #sys.exc_info()  # Prints exceptions
         return False  # Save failed
-
-_, CNN_INPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D = read_config()
 
 # read train and test sets
 X_train = None
@@ -78,14 +79,19 @@ for dirname in subdirs:
 
 print 'Train', X_train.shape, 'test', X_test.shape
 
-
 # input image dimensions
+PATCH_SIZE_W = X_train.shape[1]
+PATCH_SIZE_D = X_train.shape[2]
 img_rows, img_cols = PATCH_SIZE_W, PATCH_SIZE_D
 
 X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
+if X_train.dtype != np.dtype('float32'):
+    X_train = X_train.astype("float32")
+
 X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
-#X_train = X_train.astype("float32") # should be already float32
-#X_test = X_test.astype("float32")   #          ''
+if X_test.dtype != np.dtype('float32'):
+    X_test = X_test.astype("float32")
+
 print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')

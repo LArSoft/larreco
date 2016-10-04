@@ -104,16 +104,12 @@ def get_nu_vertices(A):
                 nvtx += 1
     return vtx[:nvtx]
 
-def read_config():
+def read_config(cfgname):
     config = None
-    with open('config.json', 'r') as fin:
+    with open(cfgname, 'r') as fin:
         config = json.loads(fin.read());
     if config is None:
         print 'This script requires configuration file: config.json'
         exit(1)
-    INPUT_DIR = config['prepare_data']['input_dir']
-    OUTPUT_DIR = config['prepare_data']['output_dir']
-    PATCH_SIZE_W = config['prepare_data']['patch_size_w']
-    PATCH_SIZE_D = config['prepare_data']['patch_size_d']
-    return INPUT_DIR, OUTPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D
+    return config
 
