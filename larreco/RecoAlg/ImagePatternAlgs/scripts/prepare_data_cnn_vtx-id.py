@@ -3,12 +3,17 @@ from sys import argv
 from os import listdir
 from os.path import isfile, join
 import os, json
+import argparse
 
 from utils import read_config, get_data, get_patch, get_vertices
 
 def main(argv):
 
-    config = read_config('config.json')
+    parser = argparse.ArgumentParser(description='Makes training data set for various vertex/decay ID')
+    parser.add_argument('-c', '--config', help="JSON with script configuration", default='config.json')
+    args = parser.parse_args()
+
+    config = read_config(args.config)
 
     print '#'*50,'\nPrepare data for CNN'
     INPUT_DIR = config['prepare_data_vtx_id']['input_dir']

@@ -9,10 +9,15 @@ from keras.optimizers import SGD
 from keras.utils import np_utils
 from os.path import exists, isfile, join
 import os, json
+import argparse
 
 from utils import read_config
 
-config = read_config('config.json')
+parser = argparse.ArgumentParser(description='Run CNN training on patches with a few different hyperparameter sets.')
+parser.add_argument('-c', '--config', help="JSON with script configuration", default='config.json')
+args = parser.parse_args()
+
+config = read_config(args.config)
 
 CNN_INPUT_DIR = config['training_on_patches']['input_dir']
 
