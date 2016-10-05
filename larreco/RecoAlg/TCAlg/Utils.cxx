@@ -493,21 +493,22 @@ namespace tca {
   } // MoveTPToWire
   
   //////////////////////////////////////////
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<float, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest)
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest)
   {
-    // returns a vector of hits that are within the Window[Pos0][Pos1] in plane
+    // returns a vector of hits that are within the Window[Pos0][Pos1] in plane.
+    // Note that hits on wire wireWindow[1] are returned as well
     
     std::vector<unsigned int> closeHits;
     if(plane > tjs.FirstWire.size() - 1) return closeHits;
     // window in the wire coordinate
-    unsigned int loWire = std::floor(wireWindow[0]);
+    unsigned int loWire = wireWindow[0];
     if(loWire < tjs.FirstWire[plane]) loWire = tjs.FirstWire[plane];
-    unsigned int hiWire = std::ceil(wireWindow[1]);
+    unsigned int hiWire = wireWindow[1];
     if(hiWire > tjs.LastWire[plane]) hiWire = tjs.LastWire[plane];
     // window in the time coordinate
     float minTick = timeWindow[0] / tjs.UnitsPerTick;
     float maxTick = timeWindow[1] / tjs.UnitsPerTick;
-    for(unsigned int wire = loWire; wire < hiWire; ++wire) {
+    for(unsigned int wire = loWire; wire <= hiWire; ++wire) {
       if(tjs.WireHitRange[plane][wire].first < 0) continue;
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
@@ -961,19 +962,13 @@ namespace tca {
   //////////////////////////////////////////
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp)
   {
-    // Returns the index of a vertex if tp is heading towards it
+    // Returns the index of a vertex if tp is nearby
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
       if(tjs.vtx[ivx].NTraj == 0) continue;
       if(tjs.vtx[ivx].CTP != tp.CTP) continue;
-      if(std::abs(tjs.vtx[ivx].Pos[0] - tp.Pos[0]) > 3) continue;
-      if(std::abs(tjs.vtx[ivx].Pos[1] - tp.Pos[1]) > 3) continue;
-//      if(PointTrajDOCA2(tjs, tjs.vtx[ivx].Pos[0], tjs.vtx[ivx].Pos[1], tp) > 3) continue;
-      // see if the TP points to the vertex and not away from it
-      if(tp.Dir[0] > 0) {
-        if(tp.Pos[0] < tjs.vtx[ivx].Pos[0]) return (short)ivx;
-      } else {
-        if(tp.Pos[0] > tjs.vtx[ivx].Pos[0]) return (short)ivx;
-      }
+      if(std::abs(tjs.vtx[ivx].Pos[0] - tp.Pos[0]) > 1.2) continue;
+      if(std::abs(tjs.vtx[ivx].Pos[1] - tp.Pos[1]) > 1.2) continue;
+      return ivx;
     } // ivx
     return USHRT_MAX;
   } // TPNearVertex
