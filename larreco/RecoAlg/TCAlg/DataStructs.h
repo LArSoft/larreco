@@ -134,12 +134,13 @@ namespace tca {
   
   // Information used to split/create hits near vertices
   struct VtxHit {
-    unsigned short TjID;
-    CTP_t CTP;
     unsigned int Wire;
     float Tick;
     float Chg;
     float RMS;
+    unsigned short TjID;
+    unsigned short Step;
+    CTP_t CTP;
   };
   
   // Trajectory "intersections" used to search for superclusters (aka showers)
