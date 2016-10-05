@@ -544,22 +544,22 @@ double shower::EMShowerAlg::FinddEdx(std::vector<art::Ptr<recob::Hit> > const& t
   if (!track)
     return -999;
 
-  size_t trajectory_point = 0;
-  double wirePitch   = fGeom->WirePitch(trackHits.at(0)->View(), 1, 0);
-  double angleToVert = fGeom->WireAngleToVertical(trackHits.at(0)->View(), 1, 0) - 0.5*::util::pi<>();
-  const TVector3& dir = track->DirectionAtPoint(trajectory_point);
-  //(sin(angleToVert),cos(angleToVert)) is the direction perpendicular to wire
-  double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() +
-  			     std::cos(angleToVert)*dir.Z());
+  // size_t trajectory_point = 0;
+  // double wirePitch   = fGeom->WirePitch(trackHits.at(0)->View(), 1, 0);
+  // double angleToVert = fGeom->WireAngleToVertical(trackHits.at(0)->View(), 1, 0) - 0.5*::util::pi<>();
+  // const TVector3& dir = track->DirectionAtPoint(trajectory_point);
+  // //(sin(angleToVert),cos(angleToVert)) is the direction perpendicular to wire
+  // double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() +
+  // 			     std::cos(angleToVert)*dir.Z());
 
-  if(cosgamma < 1.e-5)
-    throw cet::exception("Track") << "cosgamma is basically 0, that can't be right\n";
-  double pitch =  wirePitch/cosgamma;
+  // if(cosgamma < 1.e-5)
+  //   throw cet::exception("Track") << "cosgamma is basically 0, that can't be right\n";
+  // double pitch =  wirePitch/cosgamma;
 
-  // // Get the pitch
-  // double pitch = 0;
-  // try { pitch = lar::util::TrackPitchInView(*track, trackHits.at(0)->View()); }
-  // catch(...) { std::cout << "Whoa there!" << std::endl; pitch = 0; }
+  // Get the pitch
+  double pitch = 0;
+  try { pitch = lar::util::TrackPitchInView(*track, trackHits.at(0)->View()); }
+  catch(...) { pitch = 0; }
 
   // Deal with large pitches
   if (pitch > fdEdxTrackLength) {
