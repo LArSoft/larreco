@@ -60,7 +60,7 @@ namespace tca {
   // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
   // close hits OR if the wire at this position is dead
   bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<float, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest);
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
 
   // returns the separation^2 between a point and a TP
