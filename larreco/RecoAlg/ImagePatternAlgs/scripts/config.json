@@ -1,8 +1,34 @@
 {
-  "prepare_data" : {
+  "prepare_data_em_track" : {
     "input_dir": "cnn/raw_data",
     "output_dir": "cnn/for_nn",
     "patch_size_w": 32,
-    "patch_size_d": 40
+    "patch_size_d": 44,
+
+    "doing_nue": false,
+    "selected_view_idx": 2,
+    "patch_fraction": 30.0,
+    "empty_fraction": 1.0,
+    "crop_event": false
+  },
+
+  "prepare_data_vtx_id" : {
+    "input_dir": "cnn/raw_data",
+    "output_dir": "cnn/for_nn",
+    "patch_size_w": 32,
+    "patch_size_d": 44,
+
+    "selected_view_idx": 2,
+    "nearby_empty": 4,
+    "nearby_on_track": 8,
+    "crop_event": false
+  },
+
+  "training_on_patches" : {
+    "input_dir": "cnn/for_nn",
+
+    "batch_size": 192
+    "nb_classes": 3
+    "nb_epoch": 500
   }
 }

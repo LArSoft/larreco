@@ -3,20 +3,30 @@ from sys import argv
 from os import listdir
 from os.path import isfile, join
 import os, json
+import argparse
 
 from utils import read_config, get_data, get_patch, get_vertices
 
 def main(argv):
 
+    parser = argparse.ArgumentParser(description='Makes training data set for various vertex/decay ID')
+    parser.add_argument('-c', '--config', help="JSON with script configuration", default='config.json')
+    args = parser.parse_args()
+
+    config = read_config(args.config)
+
     print '#'*50,'\nPrepare data for CNN'
-    INPUT_DIR, OUTPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D = read_config()
+    INPUT_DIR = config['prepare_data_vtx_id']['input_dir']
+    OUTPUT_DIR = config['prepare_data_vtx_id']['output_dir']
+    PATCH_SIZE_W = config['prepare_data_vtx_id']['patch_size_w']
+    PATCH_SIZE_D = config['prepare_data_vtx_id']['patch_size_d']
     print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
     print '#'*50
 
-    selected_view_idx =  2   # set the view id
-    nearby_empty =       4   # number of patches near each vtx, but with empty area in the central pixel
-    nearby_on_track =    8   # number of patches on tracks, somewhere close to each vtx
-    crop_event =       False # use true only if no crop on LArSoft level and not a noise dump
+    selected_view_idx = config['prepare_data_vtx_id']['selected_view_idx']   # set the view id
+    nearby_empty = config['prepare_data_vtx_id']['nearby_empty']             # number of patches near each vtx, but with empty area in the central pixel
+    nearby_on_track = config['prepare_data_vtx_id']['nearby_on_track']       # number of patches on tracks, somewhere close to each vtx
+    crop_event = config['prepare_data_vtx_id']['crop_event']                 # use true only if no crop on LArSoft level and not a noise dump
 
     print 'Using', nearby_empty, 'empty and', nearby_on_track, 'on track patches per each verex in view', selected_view_idx
 
