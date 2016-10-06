@@ -14,8 +14,9 @@ namespace tca {
   }
   
   ////////////////////////////////////////////////
-  bool EraseHit(TjStuff& tjs, unsigned int delHit)
+  bool EraseHit(TjStuff& tjs, const unsigned int& delHit)
   {
+    // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
     if(delHit > tjs.fHits.size() - 1) {
       mf::LogWarning("TC")<<"Trying to erase an invalid hit";
       return false;
@@ -31,6 +32,8 @@ namespace tca {
     // Correct inTraj
     tjs.inTraj.erase(tjs.inTraj.begin()+delHit);
     // Correct TP hits
+    for(auto& tj : tjs.allTraj) CorrectTrajectoryHits(tjs, tj, true, delHit);
+/*
     for(auto& tj : tjs.allTraj) {
       for(auto& tp : tj.Pts) {
         for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
@@ -44,6 +47,7 @@ namespace tca {
         }
       } // tp
     } // tj
+*/
     // Correct WireHitRange
     unsigned short hitPln = tjs.fHits[delHit].WireID().Plane;
     for(unsigned short ipl = hitPln; ipl < tjs.NumPlanes; ++ipl) {
@@ -62,7 +66,9 @@ namespace tca {
   ////////////////////////////////////////////////
   unsigned int CreateHit(TjStuff& tjs, VtxHit const& vHit)
   {
-    // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure
+    // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.
+    // Returns the index of the newly created hit
+    
     geo::PlaneID planeID = DecodeCTP(vHit.CTP);
     // find a hit on this wire so we can get the channel, etc
     unsigned short newHitPlane = planeID.Plane;
@@ -118,6 +124,8 @@ namespace tca {
     tjs.inTraj.insert(tjs.inTraj.begin() + newHitIndex, 0);
     // now correct the hit indices in the trajectories
     // Correct TP hits
+    for(auto& tj : tjs.allTraj) CorrectTrajectoryHits(tjs, tj, false, newHitIndex);
+/*
     for(auto& tj : tjs.allTraj) {
       for(auto& tp : tj.Pts) {
         for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
@@ -125,9 +133,39 @@ namespace tca {
         }
       } // tp
     } // tj
+*/
     return newHitIndex;
   } // CreateHit
   
+  ////////////////////////////////////////////////
+  void CorrectTrajectoryHits(TjStuff& tjs, Trajectory& tj, bool didEraseHit, const unsigned int& atHit)
+  {
+    // Corrects the hit indices in trajectory points after an EraseHit (didErase) or CreateHit (!didErase) operation was completed
+    // starting at the atHit position
+    
+    if(didEraseHit) {
+      for(auto& tp : tj.Pts) {
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(tp.Hits[ii] == atHit) {
+            tp.Hits.erase(tp.Hits.begin()+ii);
+            // Shift UseHit by one
+            tp.UseHit << 1;
+          } else if(tp.Hits[ii] > atHit) {
+            --tp.Hits[ii];
+          }
+        }
+      } // tp
+    } else {
+      // Correct after CreateHit
+      for(auto& tp : tj.Pts) {
+        for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
+          if(tp.Hits[iht] >= atHit) ++tp.Hits[iht];
+        }
+      } // tp
+    }
+    
+  } // CorrectTrajectoryHits
+
   ////////////////////////////////////////////////
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
   {
