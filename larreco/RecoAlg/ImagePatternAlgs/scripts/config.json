@@ -9,6 +9,7 @@
     "selected_view_idx": 2,
     "patch_fraction": 30.0,
     "empty_fraction": 1.0,
+    "clean_track_fraction": 50.0,
     "crop_event": false
   },
 

@@ -23,11 +23,12 @@ def main(argv):
     print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
     print '#'*50
 
-    doing_nue = config['prepare_data_em_track']['doing_nue']                 # set to true for nu_e events (will skip more showers)
-    selected_view_idx = config['prepare_data_em_track']['selected_view_idx'] # set the view id
-    patch_fraction = config['prepare_data_em_track']['patch_fraction']       # percent of used patches
-    empty_fraction = config['prepare_data_em_track']['empty_fraction']       # percent of "empty background" patches
-    crop_event = config['prepare_data_em_track']['crop_event']               # use true only if no crop on LArSoft level and not a noise dump
+    doing_nue = config['prepare_data_em_track']['doing_nue']                       # set to true for nu_e events (will skip more showers)
+    selected_view_idx = config['prepare_data_em_track']['selected_view_idx']       # set the view id
+    patch_fraction = config['prepare_data_em_track']['patch_fraction']             # percent of used patches
+    empty_fraction = config['prepare_data_em_track']['empty_fraction']             # percent of "empty background" patches
+    clean_track_fraction = config['prepare_data_em_track']['clean_track_fraction'] # percent of selected patches, where only a clean track is present
+    crop_event = config['prepare_data_em_track']['crop_event']                     # use true only if no crop on LArSoft level and not a noise dump
 
     print 'Using', patch_fraction, '% of data from view', selected_view_idx
     if doing_nue: print 'Neutrino mode, will skip more showers.'
@@ -88,7 +89,7 @@ def main(argv):
                 target = np.zeros(3)
                 if tracks[i,j] == 1:
                     # skip some fraction (1/2) of almost-track-only patches
-                    if shower_pixels < 4 and np.random.randint(2) < 1: continue
+                    if shower_pixels < 4 and np.random.randint(10000) < int(100*clean_track_fraction): continue
                     else:
                         target[0] = 1
                         cnt_trk += 1
