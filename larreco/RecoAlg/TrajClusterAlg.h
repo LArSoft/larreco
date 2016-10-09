@@ -321,6 +321,13 @@ namespace tca {
     void CheckTrajEnd();
     void EndMerge();
     void FillWireHitRange(geo::TPCID const& tpcid);
+    /// sets fQuitAlg true if WireHitRange has a problem
+    bool CheckWireHitRange();
+    // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
+    bool EraseHit(const unsigned int& delHit);
+    // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.
+    // Returns the index of the newly created hit
+    unsigned int CreateHit(VtxHit const& vHit);
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
     void FillTrajTruth();
     // ****************************** Vertex code  ******************************
