@@ -277,7 +277,6 @@ namespace tca {
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
-    void MergeTpHits();
     void CheckHitClusterAssociations();
     // Push the trajectory into allTraj
     void StoreTraj(Trajectory& tj);
