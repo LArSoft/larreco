@@ -29,7 +29,7 @@
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 
 namespace tca {
-  
+
   typedef enum {
     kAllHits,
     kUsedHits,
@@ -38,14 +38,6 @@ namespace tca {
 
   // ****************************** General purpose  ******************************
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
-  // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
-  bool EraseHit(TjStuff& tjs, const unsigned int& delHit);
-  // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.
-  // Returns the index of the newly created hit
-  unsigned int CreateHit(TjStuff& tjs, VtxHit const& vHit);
-  // Corrects the hit indices in tj trajectory points after an EraseHit (didErase) or CreateHit (!didErase) operation was completed
-  // starting at the atHit position
-  void CorrectTrajectoryHits(TjStuff& tjs, Trajectory& tj, bool didErase, const unsigned int& atHit);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp);
   bool SignalPresent(TjStuff& tjs, unsigned int wire1, float time1, unsigned int wire2, float time2, CTP_t pCTP, float minAmp);
