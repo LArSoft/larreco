@@ -28,8 +28,8 @@
   "training_on_patches" : {
     "input_dir": "cnn/for_nn",
 
-    "batch_size": 192
-    "nb_classes": 3
+    "batch_size": 192,
+    "nb_classes": 3,
     "nb_epoch": 500
   }
 }
