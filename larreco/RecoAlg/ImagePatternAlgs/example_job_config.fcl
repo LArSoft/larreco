@@ -122,7 +122,7 @@ physics.producers.decayid.PointIdAlg.PatchSizeD:         44     # how many downs
 physics.producers.decayid.PointIdAlg.DriftWindow:        6      # downsampling window in drift ticks
 physics.producers.decayid.PointIdAlg.DownscaleFn:        "mean" # downsampling function
 physics.producers.decayid.TrackModuleLabel:              "pmtrack" # tracks to be processed
-physics.producers.decayid.Threshold:                     0.8 # threshold on p(decay) used to preselect decay candidates
+physics.producers.decayid.PointThreshold:                0.998  # threshold on p(decay) used to select decay candidates
 
 # EM vs track eff. test configuration, similar to the above:
 physics.analyzers.testeff.PointIdAlg.NNetModelFile:      "/home/your_dir/your_cnn_model.nnet"

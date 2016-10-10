@@ -134,10 +134,12 @@ namespace tca {
   
   // Information used to split/create hits near vertices
   struct VtxHit {
-    unsigned int InfoHit;           ///< a fHits hit to define the view, channel, etc
+    unsigned int Wire;
     float Tick;
-    float Amplitude;
+    float Chg;
     float RMS;
+    unsigned short TjID;
+    CTP_t CTP;
   };
   
   // Trajectory "intersections" used to search for superclusters (aka showers)
