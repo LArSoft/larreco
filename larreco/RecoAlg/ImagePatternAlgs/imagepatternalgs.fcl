@@ -67,8 +67,9 @@ standard_particledecayid:
 
     PointIdAlg:             @local::standard_pointidalg
 
-    Threshold:              0.8 # tag decay point if it is detected in at least two planes with net output > threshold
-    SkipView:               -1  # use all views to find decays if -1, or skip the view with provided index and use only the two other views
+    RoiThreshold:           0.8   # search for decay points where the net output > ROI threshold
+    PointThreshold:         0.998 # tag decay point if it is detected in at least two planes with net outputs product > POINT threshold
+    SkipView:               -1    # use all views to find decays if -1, or skip the view with provided index and use only the two other views
 }
 
 END_PROLOG

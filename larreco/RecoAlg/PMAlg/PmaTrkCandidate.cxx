@@ -64,14 +64,17 @@ void pma::TrkCandidateColl::setParentDaughterConnections(void)
 			pma::Track3D const * parentTrk = static_cast< pma::Segment3D* >(firstNode->Prev())->Parent();
 			fCandidates[t].SetParent(getCandidateIndex(parentTrk));
 		}
-		for (auto node : trk->Nodes())
-			for (size_t i = 0; i < node->NextCount(); ++i)
+		for (size_t n = 1; n < trk->Nodes().size(); ++n)
 		{
-			pma::Track3D const * daughterTrk = static_cast< pma::Segment3D* >(node->Next(i))->Parent();
-			if (daughterTrk != trk)
+			auto node = trk->Nodes()[n]; 
+			for (size_t i = 0; i < node->NextCount(); ++i)
 			{
-				int idx = getCandidateIndex(daughterTrk);
-				if (idx >= 0) fCandidates[t].Daughters().push_back((size_t)idx);
+				pma::Track3D const * daughterTrk = static_cast< pma::Segment3D* >(node->Next(i))->Parent();
+				if (daughterTrk != trk)
+				{
+					int idx = getCandidateIndex(daughterTrk);
+					if (idx >= 0) fCandidates[t].Daughters().push_back((size_t)idx);
+				}
 			}
 		}
 	}

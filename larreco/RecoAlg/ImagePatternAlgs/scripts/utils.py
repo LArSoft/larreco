@@ -10,10 +10,10 @@ def get_event_bounds(A, drift_margin = 0):
     end_ind = np.min([A.shape[1], np.where(cum > cum[-1]*0.995)[0][0] + drift_margin])
     return start_ind, end_ind
 
-def get_data(fname, drift_margin = 0):
+def get_data(fname, drift_margin = 0, crop = True):
     print 'Reading', fname + '.raw'
-    A_raw     = np.genfromtxt(fname + '.raw', delimiter=' ')
-    A_deposit = np.genfromtxt(fname + '.deposit', delimiter=' ')
+    A_raw     = np.genfromtxt(fname + '.raw', delimiter=' ', dtype=np.float32)
+    A_deposit = np.genfromtxt(fname + '.deposit', delimiter=' ', dtype=np.float32)
     A_pdg     = np.genfromtxt(fname + '.pdg', delimiter=' ', dtype=np.int32)
 
     if A_raw.shape[0] < 8 or A_raw.shape[1] < 8: return None, None, None, None, None
@@ -26,11 +26,15 @@ def get_data(fname, drift_margin = 0):
     print test_raw, test_dep, test_pdg
     #assert np.sum(A_deposit) > 0
     # get main event body (99% signal)
-    evt_start_ind, evt_stop_ind = get_event_bounds(A_deposit, drift_margin)
+    if crop:
+        evt_start_ind, evt_stop_ind = get_event_bounds(A_deposit, drift_margin)
+        A_raw     = A_raw[:,evt_start_ind:evt_stop_ind]
+        A_deposit = A_deposit[:,evt_start_ind:evt_stop_ind]
+        A_pdg     = A_pdg[:,evt_start_ind:evt_stop_ind]
+    else:
+        evt_start_ind = 0
+        evt_stop_ind = A_raw.shape[1]
     print evt_start_ind, evt_stop_ind
-    A_raw     = A_raw[:,evt_start_ind:evt_stop_ind]
-    A_deposit = A_deposit[:,evt_start_ind:evt_stop_ind]
-    A_pdg     = A_pdg[:,evt_start_ind:evt_stop_ind]
 
     deposit_th_ind = A_deposit < 2.0e-5
     A_pdg[deposit_th_ind] = 0
@@ -52,7 +56,7 @@ def get_patch(a, wire, drift, wsize, dsize):
     d0 = drift - halfSizeD;
     d1 = drift + halfSizeD;
 
-    patch = np.zeros((wsize, dsize))
+    patch = np.zeros((wsize, dsize), dtype=np.float32)
 
     wpatch = 0
     for w in range(w0, w1):
@@ -100,16 +104,12 @@ def get_nu_vertices(A):
                 nvtx += 1
     return vtx[:nvtx]
 
-def read_config():
+def read_config(cfgname):
     config = None
-    with open('config.json', 'r') as fin:
+    with open(cfgname, 'r') as fin:
         config = json.loads(fin.read());
     if config is None:
         print 'This script requires configuration file: config.json'
         exit(1)
-    INPUT_DIR = config['prepare_data']['input_dir']
-    OUTPUT_DIR = config['prepare_data']['output_dir']
-    PATCH_SIZE_W = config['prepare_data']['patch_size_w']
-    PATCH_SIZE_D = config['prepare_data']['patch_size_d']
-    return INPUT_DIR, OUTPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D
+    return config
 

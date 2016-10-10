@@ -64,14 +64,12 @@ namespace tca {
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
-    void RunTrajClusterAlg(art::Event & evt, bool fMakeNewHits);
+    void RunTrajClusterAlg(art::Event & evt);
     
     std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
     /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
-    std::vector<art::Ptr<recob::Hit>> const& YieldOldHits() const { return tjs.fHits; }
-    /// Returns the new hit collection made by TrajClusterAlg
-    std::vector<recob::Hit>&& YieldNewHits() { return std::move(tjs.newHits); }
+    std::vector<recob::Hit> const& YieldHits() const { return tjs.fHits; }
     art::InputTag const& GetHitFinderModuleLabel() { return fHitFinderModuleLabel; }
     
     /// Returns a constant reference to the clusters found
@@ -86,7 +84,7 @@ namespace tca {
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
     
-    static bool SortByMultiplet(art::Ptr<recob::Hit> const& a, art::Ptr<recob::Hit> const& b);
+    static bool SortByMultiplet(recob::Hit const& a, recob::Hit const& b);
     
     /// Deletes all the results
     void ClearResults();
@@ -278,8 +276,7 @@ namespace tca {
     // Merge and store the two trajectories in allTraj
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
-    void MakeAllTrajClusters(bool fMakeNewHits);
-    void MakeNewHits();
+    void MakeAllTrajClusters();
     void CheckHitClusterAssociations();
     // Push the trajectory into allTraj
     void StoreTraj(Trajectory& tj);
@@ -323,6 +320,13 @@ namespace tca {
     void CheckTrajEnd();
     void EndMerge();
     void FillWireHitRange(geo::TPCID const& tpcid);
+    /// sets fQuitAlg true if WireHitRange has a problem
+    bool CheckWireHitRange();
+    // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
+    bool EraseHit(const unsigned int& delHit);
+    // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.
+    // Returns the index of the newly created hit
+    unsigned int CreateHit(VtxHit const& vHit);
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
     void FillTrajTruth();
     // ****************************** Vertex code  ******************************

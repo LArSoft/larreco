@@ -30,9 +30,14 @@
 
 namespace tca {
 
+  typedef enum {
+    kAllHits,
+    kUsedHits,
+    kUnusedHits,
+  } HitStatus_t ;
+
   // ****************************** General purpose  ******************************
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
-  bool EraseHit(TjStuff& tjs, unsigned int& dht);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp);
   bool SignalPresent(TjStuff& tjs, unsigned int wire1, float time1, unsigned int wire2, float time2, CTP_t pCTP, float minAmp);
@@ -52,8 +57,8 @@ namespace tca {
   float PointTrajDOCA2(TjStuff const& tjs, float wire, float time, TrajPoint const& tp);
   // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
   // close hits OR if the wire at this position is dead
-  bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, bool onlyUsedHits);
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<std::array<float, 2>, 2> const& window, const unsigned short plane);
+  bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
 
   // returns the separation^2 between a point and a TP
@@ -73,8 +78,8 @@ namespace tca {
   void TrajTrajDOCA(Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
   // Calculates the angle between two TPs
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
-  // Put hits in each trajectory point into a flat vector. Only hits with UseHit if onlyUsedHits == true
-  void PutTrajHitsInVector(Trajectory const& tj, bool onlyUsedHits, std::vector<unsigned int>& hitVec);
+  // Put hits in each trajectory point into a flat vector.
+  void PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest, std::vector<unsigned int>& hitVec);
   // returns true if hit iht appears in trajectory tj. The last nPtsToCheck points are checked
   bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck);
   // returns true if a hit is associated with more than one point
@@ -85,8 +90,8 @@ namespace tca {
   // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
   void SetEndPoints(TjStuff& tjs, Trajectory& tj);
   // Returns the hit width using StartTick() and EndTick()
-  float TPHitsRMSTick(TjStuff& tjs, TrajPoint& tp, bool onlyUsedHits);
-  float TPHitsRMSTime(TjStuff& tjs, TrajPoint& tp, bool onlyUsedHits);
+  float TPHitsRMSTick(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest);
+  float TPHitsRMSTime(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest);
   float HitsRMSTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet);
   float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet);
   float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg);
@@ -121,7 +126,6 @@ namespace tca {
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
-  std::string PrintHit(const art::Ptr<recob::Hit>& hit);
   std::string PrintHit(const recob::Hit& hit);
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);

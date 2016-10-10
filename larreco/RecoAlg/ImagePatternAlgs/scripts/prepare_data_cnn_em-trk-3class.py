@@ -3,26 +3,38 @@ from sys import argv
 from os import listdir
 from os.path import isfile, join
 import os, json
+import argparse
 
 from utils import read_config, get_data, get_patch
 
 def main(argv):
 
+    parser = argparse.ArgumentParser(description='Makes training data set for EM vs track separation')
+    parser.add_argument('-c', '--config', help="JSON with script configuration", default='config.json')
+    args = parser.parse_args()
+
+    config = read_config(args.config)
+
     print '#'*50,'\nPrepare data for CNN'
-    INPUT_DIR, OUTPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D = read_config()
+    INPUT_DIR = config['prepare_data_em_track']['input_dir']
+    OUTPUT_DIR = config['prepare_data_em_track']['output_dir']
+    PATCH_SIZE_W = config['prepare_data_em_track']['patch_size_w']
+    PATCH_SIZE_D = config['prepare_data_em_track']['patch_size_d']
     print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
     print '#'*50
 
-    doing_nue = False        # set to true for nu_e events (will skip more showers)
-    selected_view_idx =  2   # set the view id
-    patch_fraction =    30.0 # percent of used patches
-    empty_fraction =     1.0 # percent of "empty background" patches
+    doing_nue = config['prepare_data_em_track']['doing_nue']                       # set to true for nu_e events (will skip more showers)
+    selected_view_idx = config['prepare_data_em_track']['selected_view_idx']       # set the view id
+    patch_fraction = config['prepare_data_em_track']['patch_fraction']             # percent of used patches
+    empty_fraction = config['prepare_data_em_track']['empty_fraction']             # percent of "empty background" patches
+    clean_track_fraction = config['prepare_data_em_track']['clean_track_fraction'] # percent of selected patches, where only a clean track is present
+    crop_event = config['prepare_data_em_track']['crop_event']                     # use true only if no crop on LArSoft level and not a noise dump
 
     print 'Using', patch_fraction, '% of data from view', selected_view_idx
     if doing_nue: print 'Neutrino mode, will skip more showers.'
 
     max_capacity = 1700000
-    db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D))
+    db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
     db_y = np.zeros((max_capacity, 3), dtype=np.int32)
 
     patch_area = PATCH_SIZE_W * PATCH_SIZE_D
@@ -48,8 +60,8 @@ def main(argv):
         print 'Process file', fcount, fname, 'EVT', evt_no
 
         # get clipped data, margin depends on patch size in drift direction
-        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2)
-        if raw == None:
+        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2, crop_event)
+        if raw is None:
             print 'Skip empty event...'
             continue
 
@@ -77,7 +89,7 @@ def main(argv):
                 target = np.zeros(3)
                 if tracks[i,j] == 1:
                     # skip some fraction (1/2) of almost-track-only patches
-                    if shower_pixels < 4 and np.random.randint(2) < 1: continue
+                    if shower_pixels < 4 and np.random.randint(10000) < int(100*clean_track_fraction): continue
                     else:
                         target[0] = 1
                         cnt_trk += 1
