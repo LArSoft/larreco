@@ -283,20 +283,7 @@ namespace tca {
         geo::TPCGeo const& TPC = geom->TPC(tpcid);
         FillWireHitRange(tpcid);
         if(fQuitAlg) return;
-/*
-        std::cout<<"Making a circle\n";
-        // create a circle of hits
-        VtxHit vHit;
-        vHit.CTP = 0;
-        vHit.Chg = 100;
-        vHit.RMS = 3;
-        vHit.TjID = 0;
-        for(float ang = 0; ang < 2 * M_PI; ang += 0.12) {
-          vHit.Wire = 150 + 10 * cos(ang);
-          vHit.Tick = 1500 + 10 * sin(ang) / tjs.UnitsPerTick;
-          CreateHit(vHit);
-        } // ang
-*/
+
         for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
           // no hits on this plane?
           if(tjs.FirstWire[fPlane] > tjs.LastWire[fPlane]) continue;
@@ -2836,8 +2823,6 @@ namespace tca {
       // ensure that it is within the active volume of the TPC
       if(rvx.Pos[0] < 0 || rvx.Pos[0] > tjs.MaxPos0[ipl]) continue;
       if(rvx.Pos[1] < 0 || rvx.Pos[1] > tjs.MaxPos1[ipl]) continue;
-      // debugging
-      if(rvx.ID != 1) continue;
       // make a list of TJs attached at each end and find the Region Of Confusion
       // wire and time ranges
       std::array<float, 2> wROC = {rvx.Pos[0], rvx.Pos[0]};
