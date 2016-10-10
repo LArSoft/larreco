@@ -139,7 +139,6 @@ namespace tca {
     float Chg;
     float RMS;
     unsigned short TjID;
-    unsigned short Step;
     CTP_t CTP;
   };
   
