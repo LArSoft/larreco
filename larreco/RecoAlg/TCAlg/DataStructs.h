@@ -191,6 +191,7 @@ namespace tca {
     kUseUnusedHits,
     kVtxTj,
     kRefineVtx,
+    kMaskBadTPs,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
