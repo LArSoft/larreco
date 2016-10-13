@@ -320,10 +320,10 @@ namespace tca {
   } // TwoTPAngle
   
   ////////////////////////////////////////////////
-  void PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest, std::vector<unsigned int>& hitVec)
+  std::vector<unsigned int> PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest)
   {
     // Put hits in each trajectory point into a flat vector
-    hitVec.clear();
+    std::vector<unsigned int> hitVec;
     hitVec.reserve(tj.Pts.size());
     unsigned short ipt, ii;
     unsigned int iht;
@@ -336,6 +336,7 @@ namespace tca {
         if(useit) hitVec.push_back(iht);
       } // iht
     } // ipt
+    return hitVec;
   } // PutTrajHitsInVector
   
   //////////////////////////////////////////
@@ -358,8 +359,7 @@ namespace tca {
   bool HasDuplicateHits(Trajectory const& tj)
   {
     // returns true if a hit is associated with more than one TP
-    std::vector<unsigned int> tjHits;
-    PutTrajHitsInVector(tj, kAllHits, tjHits);
+    auto tjHits = PutTrajHitsInVector(tj, kAllHits);
     for(unsigned short ii = 0; ii < tjHits.size() - 1; ++ii) {
       for(unsigned short jj = ii + 1; jj < tjHits.size(); ++jj) if(tjHits[ii] == tjHits[jj]) return true;
     } // iht
@@ -790,19 +790,26 @@ namespace tca {
   } // TPHitsRMSTick
   
   ////////////////////////////////////////////////
-  float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet)
+  float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, HitStatus_t hitRequest)
   {
-    return tjs.UnitsPerTick * HitsRMSTick(tjs, hitsInMultiplet);
+    return tjs.UnitsPerTick * HitsRMSTick(tjs, hitsInMultiplet, hitRequest);
   } // HitsRMSTick
 
   ////////////////////////////////////////////////
-  float HitsRMSTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet)
+  float HitsRMSTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, HitStatus_t hitRequest)
   {
     if(hitsInMultiplet.empty()) return 0;
+    
+    if(hitsInMultiplet.size() == 1) return tjs.fHits[hitsInMultiplet[0]].RMS();
+ 
     float minVal = 9999;
     float maxVal = 0;
     for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
       unsigned int iht = hitsInMultiplet[ii];
+      bool useit = (hitRequest == kAllHits);
+      if(hitRequest == kUsedHits && tjs.inTraj[iht] > 0) useit = true;
+      if(hitRequest == kUnusedHits && tjs.inTraj[iht] == 0) useit = true;
+      if(!useit) continue;
       float cv = tjs.fHits[iht].PeakTime();
       float rms = tjs.fHits[iht].RMS();
       float arg = cv - rms;
@@ -815,19 +822,23 @@ namespace tca {
   } // HitsRMSTick
   
   ////////////////////////////////////////////////
-  float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum)
+  float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum, HitStatus_t hitRequest)
   {
-    return tjs.UnitsPerTick * HitsPosTick(tjs, hitsInMultiplet, sum);
+    return tjs.UnitsPerTick * HitsPosTick(tjs, hitsInMultiplet, sum, hitRequest);
   } // HitsPosTime
   
   ////////////////////////////////////////////////
-  float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum)
+  float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum, HitStatus_t hitRequest)
   {
     // returns the position and the charge
     float pos = 0;
     sum = 0;
     for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
       unsigned int iht = hitsInMultiplet[ii];
+      bool useit = (hitRequest == kAllHits);
+      if(hitRequest == kUsedHits && tjs.inTraj[iht] > 0) useit = true;
+      if(hitRequest == kUnusedHits && tjs.inTraj[iht] == 0) useit = true;
+      if(!useit) continue;
       float chg = tjs.fHits[iht].Integral();
       pos += chg * tjs.fHits[iht].PeakTime();
       sum += chg;
