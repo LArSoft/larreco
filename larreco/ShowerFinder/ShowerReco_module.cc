@@ -70,7 +70,7 @@ extern "C" {
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/Utilities/GeometryUtilities.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 
 

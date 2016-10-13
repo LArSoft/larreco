@@ -95,7 +95,7 @@ namespace trkf {
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "lardata/RecoObjects/BezierTrack.h"
+#include "larreco/Deprecated/BezierTrack.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/BezierTrackerAlgorithm.h"
 
