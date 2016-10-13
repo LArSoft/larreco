@@ -6,7 +6,6 @@ art_make(
 		        lardata_RecoBaseArt
 		        larcore_Geometry
 		        larcore_Geometry_Geometry_service
-                        lardata_AnalysisAlg
                         lardataobj_AnalysisBase
                         lardata_Utilities
                         ${MF_MESSAGELOGGER}
@@ -17,16 +16,16 @@ art_make(
                         ${Boost_SYSTEM_LIBRARY}
 		        ${ROOT_BASIC_LIB_LIST}
           MODULE_LIBRARIES 
-	  		larana_Calorimetry
+	  		larreco_Calorimetry
                         larevt_Filters
-                        lardata_RecoObjects
+                        lardata_RecoObjects larreco_Deprecated
                         lardataobj_RecoBase
 		        lardata_RecoBaseArt
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        larsim_Simulation lardataobj_Simulation
+                        larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
                         lardataobj_RawData
-                        lardata_AnalysisAlg
+                        larreco_Calorimetry
                         lardataobj_AnalysisBase
                         lardata_Utilities
 		        larreco_RecoAlg

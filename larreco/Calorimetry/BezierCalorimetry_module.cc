@@ -21,8 +21,8 @@ extern "C" {
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/AnalysisAlg/CalorimetryAlg.h"
-#include "lardata/RecoObjects/BezierTrack.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larreco/Deprecated/BezierTrack.h"
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"

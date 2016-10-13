@@ -15,7 +15,7 @@
 #include <sstream>
 
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoObjects/BezierCurveHelper.h"
+#include "larreco/Deprecated/BezierCurveHelper.h"
 
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Optional/TFileService.h"

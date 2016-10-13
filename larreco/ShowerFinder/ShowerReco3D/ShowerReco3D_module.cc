@@ -24,7 +24,7 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardata/Utilities/PxHitConverter.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larreco/RecoAlg/CMTool/CMTAlgMatch/CFAlgoTimeOverlap.h"
 #include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoNHits.h"
 #include "larreco/RecoAlg/CMTool/CMTAlgPriority/CPAlgoIgnoreTracks.h"

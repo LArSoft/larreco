@@ -16,7 +16,7 @@
 
 // LArSoft includes
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 namespace calo{
 

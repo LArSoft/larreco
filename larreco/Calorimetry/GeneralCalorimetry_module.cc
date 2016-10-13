@@ -24,7 +24,7 @@ extern "C" {
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "lardata/RecoBaseArt/TrackUtils.h" // lar::util::TrackPitchInView()
 
 // Framework includes

@@ -1,6 +1,6 @@
-#include "lardata/RecoObjects/BezierTrack.h"
+#include "larreco/Deprecated/BezierTrack.h"
 
-#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/CryostatGeo.h"
 #include "larcore/Geometry/TPCGeo.h"
@@ -9,7 +9,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "lardata/RecoObjects/BezierCurveHelper.h"
+#include "larreco/Deprecated/BezierCurveHelper.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "TVector3.h"

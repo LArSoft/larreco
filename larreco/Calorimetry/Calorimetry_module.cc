@@ -23,7 +23,7 @@ extern "C" {
 #include <iostream>
 #include <fstream>
 
-#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "lardata/DetectorInfoServices/LArPropertiesService.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"

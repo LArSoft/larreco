@@ -21,7 +21,7 @@
 #include "lardata/DetectorInfo/DetectorProperties.h"
 #include "larcore/CoreUtils/ProviderPack.h"
 
-#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include <set>
 #include "TTree.h"
