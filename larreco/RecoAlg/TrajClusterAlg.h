@@ -110,6 +110,7 @@ namespace tca {
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
+    bool fMakeNewHits;
    
     float fJTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
     
@@ -117,14 +118,16 @@ namespace tca {
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
     short fFillTruth;     ///< Match to MC truth
-    bool fuBCode;         ///< temporary switch to enable uB-specific code
-
+ 
     std::vector<float> fMaxVertexTrajSep;
     std::bitset<32> fUseAlg;  ///< Allow user to mask off specific algorithms
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
     std::vector<float> fAngleRanges; ///< list of max angles for each angle range
+    std::vector<float> fAngleRangesMaxHitsRMS;
+    bool fCompatibleHitsRMS;
+    
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
 		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
@@ -299,6 +302,7 @@ namespace tca {
     void UpdateAveChg(Trajectory& tj);
    // Estimate the Delta RMS of the TPs on the end of tj.
     void UpdateDeltaRMS(Trajectory& tj);
+    void MaskBadTPs(Trajectory& tj, float const& maxChi);
     // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
     // current configuration or whether to stop and possibly try with the next pass settings
     bool MaskedHitsOK(Trajectory& tj);
@@ -320,6 +324,7 @@ namespace tca {
     void CheckTrajEnd();
     void EndMerge();
     void FillWireHitRange(geo::TPCID const& tpcid);
+    float ExpectedHitsRMS(TrajPoint const& tp);
     /// sets fQuitAlg true if WireHitRange has a problem
     bool CheckWireHitRange();
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
@@ -327,6 +332,8 @@ namespace tca {
     // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.
     // Returns the index of the newly created hit
     unsigned int CreateHit(VtxHit const& vHit);
+    // Merges all of the hits used in each TP into one hit
+    void MergeTPHits();
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
     void FillTrajTruth();
     // ****************************** Vertex code  ******************************
