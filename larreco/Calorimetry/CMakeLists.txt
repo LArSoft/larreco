@@ -1,13 +1,17 @@
-include_directories ( ${PROJECT_SOURCE_DIR} )
-art_make( 
-	  
-	  LIB_LIBRARIES	larevt_Filters
+#include_directories ( ${PROJECT_SOURCE_DIR} )
+art_make( LIB_LIBRARIES	larevt_Filters
 		        lardataobj_RecoBase
 		        lardata_RecoBaseArt
 		        larcore_Geometry
 		        larcore_Geometry_Geometry_service
                         lardataobj_AnalysisBase
                         lardata_Utilities
+                        ${ART_FRAMEWORK_CORE}
+			${ART_FRAMEWORK_PRINCIPAL}
+			${ART_FRAMEWORK_SERVICES_REGISTRY}
+			art_Persistency_Common canvas_Persistency_Common
+			art_Utilities canvas_Utilities
+                        art_Persistency_Provenance canvas_Persistency_Provenance
                         ${MF_MESSAGELOGGER}
 		        ${MF_UTILITIES}
 		        ${FHICLCPP}
@@ -16,16 +20,14 @@ art_make(
                         ${Boost_SYSTEM_LIBRARY}
 		        ${ROOT_BASIC_LIB_LIST}
           MODULE_LIBRARIES 
-	  		larreco_Calorimetry
                         larevt_Filters
                         lardata_RecoObjects larreco_Deprecated
                         lardataobj_RecoBase
 		        lardata_RecoBaseArt
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+                        larsim_Simulation lardataobj_Simulation
                         lardataobj_RawData
-                        larreco_Calorimetry
                         lardataobj_AnalysisBase
                         lardata_Utilities
 		        larreco_RecoAlg
