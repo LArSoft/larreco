@@ -193,6 +193,7 @@ namespace tca {
     kRefineVtx,
     kMaskBadTPs,
     kNoKinkChk,
+    kSoftKink,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
