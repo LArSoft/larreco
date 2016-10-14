@@ -3,7 +3,7 @@ simple_plugin(PointIdTrainingData "module"
 			larcore_Geometry_Geometry_service
 			larcore_Geometry
 			lardataobj_RecoBase
-			lardata_AnalysisAlg
+			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			nusimdata_SimulationBase
 			${ART_FRAMEWORK_CORE}
@@ -24,7 +24,7 @@ simple_plugin(PointIdTrainingNuevent "module"
 			larcore_Geometry_Geometry_service
 			larcore_Geometry
 			lardataobj_RecoBase
-			lardata_AnalysisAlg
+			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			larreco_RecoAlg_PMAlg
 			nusimdata_SimulationBase
@@ -46,7 +46,7 @@ simple_plugin(PointIdEffTest "module"
 			larcore_Geometry_Geometry_service
 			larcore_Geometry
 			lardataobj_RecoBase
-			lardata_AnalysisAlg
+			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			nusimdata_SimulationBase
 			${ART_FRAMEWORK_CORE}
@@ -67,7 +67,7 @@ simple_plugin(EmTrackClusterId "module"
 			larcore_Geometry_Geometry_service
 			larcore_Geometry
 			lardataobj_RecoBase
-			lardata_AnalysisAlg
+			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -87,7 +87,7 @@ simple_plugin(ParticleDecayId "module"
 			larcore_Geometry_Geometry_service
 			larcore_Geometry
 			lardataobj_RecoBase
-			lardata_AnalysisAlg
+			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

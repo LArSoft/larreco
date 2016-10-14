@@ -36,7 +36,7 @@
 #include <memory>
 
 #include "larreco/DirOfGamma/DirOfGamma.h"
-#include "lardata/AnalysisAlg/CalorimetryAlg.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 // ROOT includes
 #include "TLorentzVector.h"

@@ -3,7 +3,7 @@ art_make(
           LIB_LIBRARIES lardataobj_RecoBase
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
-#                        lardata_RecoObjects
+#                        lardata_RecoObjects larreco_Deprecated
       ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
       art_Persistency_Common canvas_Persistency_Common
