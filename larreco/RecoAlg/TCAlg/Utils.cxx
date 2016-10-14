@@ -524,8 +524,14 @@ namespace tca {
     if(lastPt > tj.EndPt[1]) return 0;
     
     TrajPoint tmp;
-    // make a bare trajectory point to define a line between firstPt and lastPt
-    MakeBareTrajPoint(tjs, tj.Pts[firstPt], tj.Pts[lastPt], tmp);
+    // make a bare trajectory point to define a line between firstPt and lastPt.
+    // Use the position of the hits at these points
+    TrajPoint firstTP = tj.Pts[firstPt];
+    firstTP.Pos = firstTP.HitPos;
+    TrajPoint lastTP = tj.Pts[lastPt];
+    lastTP.Pos = lastTP.HitPos;
+    MakeBareTrajPoint(tjs, firstTP, lastTP, tmp);
+//    MakeBareTrajPoint(tjs, tj.Pts[firstPt], tj.Pts[lastPt], tmp);
     // sum up the deviations^2
     double dsum = 0;
     unsigned short cnt = 0;
