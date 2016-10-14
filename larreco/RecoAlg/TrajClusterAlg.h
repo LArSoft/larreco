@@ -69,7 +69,7 @@ namespace tca {
     std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
     /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
-    std::vector<recob::Hit> const& YieldHits() const { return tjs.fHits; }
+    std::vector<recob::Hit> YieldHits();
     art::InputTag const& GetHitFinderModuleLabel() { return fHitFinderModuleLabel; }
     
     /// Returns a constant reference to the clusters found
@@ -84,7 +84,7 @@ namespace tca {
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
     
-    static bool SortByMultiplet(recob::Hit const& a, recob::Hit const& b);
+    static bool SortByMultiplet(TCHit const& a, TCHit const& b);
     
     /// Deletes all the results
     void ClearResults();
@@ -328,18 +328,18 @@ namespace tca {
     /// sets fQuitAlg true if WireHitRange has a problem
     bool CheckWireHitRange();
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
-    bool EraseHit(const unsigned int& delHit);
+//    bool EraseHit(const unsigned int& delHit);
     // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.
     // Returns the index of the newly created hit
-    unsigned int CreateHit(VtxHit const& vHit);
+//    unsigned int CreateHit(VtxHit const& vHit);
     // Merges all of the hits used in each TP into one hit
-    void MergeTPHits();
+//    void MergeTPHits();
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
     void FillTrajTruth();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void FindVtxTraj(unsigned short ivx);
-    void Refine2DVertices();
+//    void Refine2DVertices();
     void SplitTrajCrossingVertices();
     void FindHammerVertices();
     void FindHammerVertices2();
