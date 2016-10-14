@@ -3491,7 +3491,7 @@ namespace tca {
 
     // Split trajectories that cross a vertex
 //    SplitTrajCrossingVertices();
-//    FindHammerVertices();
+    FindHammerVertices();
 //    FindHammerVertices2();
     
 //    for(auto& vx : tjs.vtx) FitVertex(tjs, vx, fVertex2DCuts, vtxPrt);
@@ -3673,7 +3673,7 @@ namespace tca {
           if(tj2.VtxID[0] > 0 || tj2.VtxID[1] > 0) continue;
           doca = minDOCA;
           TrajPointTrajDOCA(tjs, tjs.allTraj[itj1].Pts[endPt1], tj2, closePt2, doca);
-//          std::cout<<"FHV "<<tj2.CTP<<" "<<tjs.allTraj[itj1].ID<<" "<<tj2.ID<<" doca "<<doca<<"\n";
+//          std::cout<<"FHV "<<tjs.allTraj[itj1].ID<<"  "<<tj2.ID<<" doca "<<doca<<" tj2.EndPt[0] "<<tj2.EndPt[0]<<" closePt2 "<<closePt2<<" tj2.EndPt[1] "<<tj2.EndPt[1]<<" doca "<<doca<<"\n";
           if(doca == minDOCA) continue;
           // ensure that the closest point is not near an end
           if(vtxPrt) mf::LogVerbatim("TC")<<"FindHammerVertices: Candidate "<<tjs.allTraj[itj1].ID<<"  "<<tj2.ID<<" doca "<<doca<<" tj2.EndPt[0] "<<tj2.EndPt[0]<<" closePt2 "<<closePt2<<" tj2.EndPt[1] "<<tj2.EndPt[1];
@@ -4577,6 +4577,8 @@ namespace tca {
       } // fUseAlg[kCWStepChk]
     } // angRange == 0
     
+    FindSoftKink(tj);
+    
     // Check either large angle or not-large angles
     CheckHiDeltas(tj);
     
@@ -4587,6 +4589,55 @@ namespace tca {
     CheckHiMultEndHits(tj);
     
   } // CheckTraj
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::FindSoftKink(Trajectory& tj)
+  {
+    // Looks for a soft kink in the trajectory and truncates it if one is found.
+    // This is best done after FixTrajBegin has been called.
+    
+    if(!fUseAlg[kSoftKink]) return;
+    if(tj.Pts.size() < 15) return;
+    float dang = DeltaAngle(tj.Pts[tj.EndPt[0]].Ang, tj.Pts[tj.EndPt[1]].Ang);
+    
+    if(prt) {
+      mf::LogVerbatim("TC")<<"FindSoftKink "<<tj.ID<<" dang "<<dang<<" cut "<<0.5 * fKinkAngCut;
+    }
+    if(dang < 0.5 * fKinkAngCut) return;
+    // require at least 5 points fitted at the end of the trajectory
+    unsigned short endPt = tj.EndPt[1];
+    if(tj.Pts[endPt].NTPsFit < 5) return;
+    if(tj.Pts[endPt].NTPsFit > endPt) return;
+    // Estimate where where the kink would be
+    unsigned short kinkPt = endPt - tj.Pts[endPt].NTPsFit;
+    // Require at least 5 points in the trajectory before the kink
+    if(kinkPt < 5) return;
+    // require very few points fitted in this region compared the number of points prior to it
+    if(tj.Pts[kinkPt].NTPsFit > 0.3 * kinkPt) return;
+    // scan back until we find the maximum number of points fitted
+    unsigned short maxPtsFit = tj.Pts[kinkPt].NTPsFit;
+    unsigned short atPt = kinkPt;
+    for(unsigned short ipt = kinkPt; kinkPt > tj.EndPt[0] + 5; --ipt) {
+      if(tj.Pts[ipt].NTPsFit > maxPtsFit) {
+        maxPtsFit = tj.Pts[ipt].NTPsFit;
+        atPt = ipt;
+      }
+      // stop scanning when the max starts falling
+      if(tj.Pts[ipt].NTPsFit < maxPtsFit) break;
+      if(ipt == 0) break;
+    } // ipt
+    if(atPt < 5) return;
+    // require the trajectory be straight before the kink - the section we are going to keep
+    if(MCSMom(tjs, tj, tj.EndPt[0], atPt) < 500) return;
+    // release the hits in TPs after this point
+    for(unsigned short ipt = atPt; ipt < tj.Pts.size(); ++ipt) UnsetUsedHits(tj.Pts[ipt]);
+    // Truncate the trajectory at this point
+    tj.Pts.resize(atPt + 1);
+    SetEndPoints(tjs, tj);
+    tj.AlgMod[kSoftKink] = true;
+    if(prt) mf::LogVerbatim("TC")<<" truncated trajectory at "<<PrintPos(tjs, tj.Pts[tj.Pts.size()-1]);
+    
+  } // FindSoftKinks
 
   ////////////////////////////////////////////////
   void TrajClusterAlg::FixTrajBegin(Trajectory& tj)
