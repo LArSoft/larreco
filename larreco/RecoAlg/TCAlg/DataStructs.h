@@ -117,7 +117,7 @@ namespace tca {
     unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
-    unsigned short MCSMom {0};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
+    unsigned short MCSMom {USHRT_MAX};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
@@ -192,6 +192,7 @@ namespace tca {
     kVtxTj,
     kRefineVtx,
     kMaskBadTPs,
+    kNoKinkChk,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
