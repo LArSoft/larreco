@@ -29,7 +29,8 @@ namespace tca {
     "VtxTj",
     "RefineVtx",
     "MaskBadTPs",
-    "NoKinkChk"
+    "NoKinkChk",
+    "SoftKink"
   };
   
   const std::vector<std::string> VtxBitNames {
