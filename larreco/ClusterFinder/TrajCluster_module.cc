@@ -209,24 +209,7 @@ namespace cluster {
         sumADC += hit.SummedADC();
       } // itt
       geo::View_t view = (*newHits)[clstr.tclhits[0]].View();
-/*
-      if(fMakeNewHits) {
-        for(unsigned short itt = 0; itt < nclhits; ++itt) {
-          unsigned int iht = clstr.tclhits[itt];
-          recob::Hit const& hit = (*newHits)[iht];
-          sumChg += hit.Integral();
-          sumADC += hit.SummedADC();
-        } // itt
-        view = (*newHits)[clstr.tclhits[0]].View();
-      } else {
-        for(unsigned short itt = 0; itt < nclhits; ++itt) {
-          unsigned int iht = clstr.tclhits[itt];
-          sumChg += oldHits[iht]->Integral();
-          sumADC += oldHits[iht]->SummedADC();
-        } // itt
-        view = oldHits[clstr.tclhits[0]]->View();
-      }
-*/
+
       sccol.emplace_back(
           clstr.BeginWir,  // Start wire
           0,                      // sigma start wire
@@ -259,21 +242,7 @@ namespace cluster {
       {
         throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
       } // exception
-/*
-      if(fMakeNewHits) {
-        if(!util::CreateAssn(*this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end()))
-        {
-          throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
-        } // exception
-      } else {
-        clusterHits.resize(clstr.tclhits.size());
-        for(unsigned int iht = 0; iht < clstr.tclhits.size(); ++iht) clusterHits[iht] = oldHits[clstr.tclhits[iht]];
-        if(!util::CreateAssn(*this, evt, sccol, clusterHits, *hc_assn))
-        {
-          throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
-        } // exception
-      }
-*/
+
       // make the cluster - endpoint associations
       unsigned short end;
       if(clstr.BeginVtx >= 0) {
