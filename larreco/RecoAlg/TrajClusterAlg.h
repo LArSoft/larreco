@@ -257,8 +257,6 @@ namespace tca {
     unsigned short NumPtsWithCharge(Trajectory& tj, bool includeDeadWires);
     // Sets inTraj[] = 0 and UseHit false for all TPs. Called when abandoning work
     void ReleaseHits(Trajectory& tj);
-    // Returns true if the TP angle exceeds user cut fLargeAngle
-//    bool IsLargeAngle(TrajPoint const& tp);
     // returns the index of the angle range that tp is in
     unsigned short AngleRange(TrajPoint const& tp);
      // Print debug output if hit iht exists in work or allTraj
@@ -287,7 +285,9 @@ namespace tca {
     void CalculateQuality(Trajectory& tj);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
-    // Fill in missed hits
+    // Truncates the trajectory if a soft kink is found in it
+    void FindSoftKink(Trajectory& tj);
+    // Fill gaps in the trajectory
     void FillGaps(Trajectory& tj);
     // Check for many unused hits and try to use them
     void CheckHiMultUnusedHits(Trajectory& tj);
