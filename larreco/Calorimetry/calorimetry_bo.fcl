@@ -1,0 +1,32 @@
+#include "calorimetry.fcl"
+
+BEGIN_PROLOG
+
+bo_calorimetryalgdata:	@local::standard_calorimetryalgdata
+bo_calorimetryalgmc:	@local::standard_calorimetryalgmc
+
+#bo_calorimetryalgmc.CalAmpConstants: [ 6.8906513e-3, 6.8906513e-3,6.8906513e-3 ] # Temporarily leaving all
+# planes same. Will need to change after calibration is done.
+#New constants derived using muon MC - T. Yang 11/27/13
+#bo_calorimetryalgmc.CalAmpConstants: [ 3.641e-3, 3.613e-3, 7.198e-3 ] # Temporarily leaving all
+
+bo_calodata:                  @local::standard_calodata
+bo_calodata.CaloAlg:          @local::bo_calorimetryalgdata
+
+bo_calomc:                    @local::standard_calomc
+bo_calomc.CaloAlg:            @local::bo_calorimetryalgmc
+bo_calomc.CaloAlg.CaloUseModBox: true
+
+bo_generalcalomc:
+{
+ module_type:            "GeneralCalorimetry"
+ TrackModuleLabel:       "track3d"
+ CaloAlg:	         @local::bo_calorimetryalgmc
+}
+
+bo_beziercalorimetry:         @local::standard_beziercalorimetry
+bo_beziercalorimetry.CaloAlg: @local::bo_calorimetryalgmc
+
+
+
+END_PROLOG
