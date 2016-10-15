@@ -100,6 +100,8 @@ public:
 	std::vector< TrkCandidate > const & tracks(void) const { return fCandidates; }
 	std::vector< TrkCandidate > & tracks(void) { return fCandidates; }
 
+    std::vector< TrkCandidate > const & parents(void) const { return fParents; }
+
 	int getCandidateIndex(pma::Track3D const * candidate) const;
 	void setParentDaughterConnections(void);
 
@@ -113,6 +115,7 @@ public:
 
 private:
 	std::vector< TrkCandidate > fCandidates;
+	std::vector< TrkCandidate > fParents;
 };
 
 #endif
