@@ -434,12 +434,16 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			size_t parentIdx = recob::PFParticle::kPFParticlePrimary;
 			if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent();
 
-            std::cout << "particle " << pfps->size() << std::endl;
-            std::cout << "   parent " << parentIdx << std::endl;
+            //std::cout << "particle " << pfps->size() << std::endl;
+            //std::cout << "   parent " << parentIdx << std::endl;
 
 			std::vector< size_t > daughterIdxs;
-			for (size_t idx : result[t].Daughters()) { std::cout << " " << idx; daughterIdxs.push_back(idx); }
-			std::cout << std::endl;
+			for (size_t idx : result[t].Daughters())
+			{
+			    //std::cout << " " << idx;
+			    daughterIdxs.push_back(idx);
+			}
+			//std::cout << std::endl;
 
 			size_t pfpidx = pfps->size();
 			pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
@@ -460,12 +464,16 @@ void PMAlgTrackMaker::produce(art::Event& evt)
         mf::LogVerbatim("Summary") << "Adding " << result.parents().size() << " primary PFParticles.";
 		for (size_t t = 0; t < result.parents().size(); ++t)
 		{
-            std::cout << "particle " << pfps->size() << std::endl;
-            std::cout << "   primary" << std::endl;
+            //std::cout << "particle " << pfps->size() << std::endl;
+            //std::cout << "   primary" << std::endl;
 
 			std::vector< size_t > daughterIdxs;
-			for (size_t idx : result.parents()[t].Daughters()) { std::cout << " " << idx; daughterIdxs.push_back(idx); }
-			std::cout << std::endl;
+			for (size_t idx : result.parents()[t].Daughters())
+			{
+			    //std::cout << " " << idx;
+			    daughterIdxs.push_back(idx);
+			}
+			//std::cout << std::endl;
 
 			size_t pfpidx = pfps->size();
 			size_t parentIdx = recob::PFParticle::kPFParticlePrimary;
