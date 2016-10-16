@@ -27,7 +27,10 @@ namespace tca {
     "FixEnd",
     "UseUnusedHits",
     "VtxTj",
-    "RefineVtx"
+    "RefineVtx",
+    "MaskBadTPs",
+    "NoKinkChk",
+    "SoftKink"
   };
   
   const std::vector<std::string> VtxBitNames {

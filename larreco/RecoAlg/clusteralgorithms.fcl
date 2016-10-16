@@ -5,6 +5,7 @@ BEGIN_PROLOG
 standard_trajclusteralg:
 {
    HitFinderModuleLabel: "gaushit"
+   MakeNewHits:   true      # Merge hits in trajectory points and write them out
    Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
    MinPtsFit: [4, 2]        # Min number of points in the trajectory fit required on each pass

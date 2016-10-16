@@ -117,7 +117,7 @@ namespace tca {
     unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
-    unsigned short MCSMom {0};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
+    unsigned short MCSMom {USHRT_MAX};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
@@ -132,14 +132,21 @@ namespace tca {
     short WorkID {0};
   };
   
-  // Information used to split/create hits near vertices
-  struct VtxHit {
-    unsigned int Wire;
-    float Tick;
-    float Chg;
+  // Local version of recob::Hit
+  struct TCHit {
+    raw::ChannelID_t Channel;
+    raw::TDCtick_t StartTick;
+    raw::TDCtick_t EndTick;
+    float PeakTime;     ///< Note that this the time in WSE units - NOT ticks
+    float PeakAmplitude;
+    float Integral;
     float RMS;
-    unsigned short TjID;
-    CTP_t CTP;
+    float GoodnessOfFit;
+    unsigned short NDOF;
+    unsigned short Multiplicity;
+    unsigned short LocalIndex;
+    geo::WireID WireID;
+    short InTraj {0};
   };
   
   // Trajectory "intersections" used to search for superclusters (aka showers)
@@ -191,6 +198,9 @@ namespace tca {
     kUseUnusedHits,
     kVtxTj,
     kRefineVtx,
+    kMaskBadTPs,
+    kNoKinkChk,
+    kSoftKink,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -199,7 +209,6 @@ namespace tca {
   struct TjStuff {
     // These variables don't change in size from event to event
     float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
-    unsigned short NumPlanes;
     std::vector<unsigned int> NumWires;
     std::vector<float> MaxPos0;
     std::vector<float> MaxPos1;
@@ -207,8 +216,8 @@ namespace tca {
     std::vector<unsigned int> LastWire;      ///< the last wire with a hit
     // The variables below do change in size from event to event
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
-    std::vector<recob::Hit> fHits;
-    std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
+    std::vector<TCHit> fHits;
+//    std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
@@ -224,6 +233,8 @@ namespace tca {
     std::vector<std::vector< VtxStore >> inTrialVtx;
     std::vector<std::vector< Vtx3Store >> inTrialVtx3;
     std::vector<TjPairHitShare> tjphs;
+    unsigned short NumPlanes;
+    bool ConvertTicksToTime;
   };
 
 } // namespace tca
