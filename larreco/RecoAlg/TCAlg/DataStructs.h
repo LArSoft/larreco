@@ -134,17 +134,17 @@ namespace tca {
   
   // Local version of recob::Hit
   struct TCHit {
-    raw::ChannelID_t Channel;
-    raw::TDCtick_t StartTick;
-    raw::TDCtick_t EndTick;
-    float PeakTime;     ///< Note that this the time in WSE units - NOT ticks
-    float PeakAmplitude;
-    float Integral;
-    float RMS;
-    float GoodnessOfFit;
-    unsigned short NDOF;
-    unsigned short Multiplicity;
-    unsigned short LocalIndex;
+//    raw::ChannelID_t Channel {0};
+    raw::TDCtick_t StartTick {0};
+    raw::TDCtick_t EndTick {0};
+    float PeakTime {0};     ///< Note that this the time in WSE units - NOT ticks
+    float PeakAmplitude {1};
+    float Integral {1};
+    float RMS {1};
+    float GoodnessOfFit {0};
+    unsigned short NDOF {0};
+    unsigned short Multiplicity {1};
+    unsigned short LocalIndex {0};
     geo::WireID WireID;
     short InTraj {0};
   };
@@ -224,7 +224,7 @@ namespace tca {
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
     unsigned short WireHitRangeCstat;
     unsigned short WireHitRangeTPC;
-     std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
+    std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
