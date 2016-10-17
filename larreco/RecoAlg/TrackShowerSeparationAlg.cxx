@@ -34,6 +34,52 @@ void shower::TrackShowerSeparationAlg::reconfigure(fhicl::ParameterSet const& ps
   fAvTrackHitDistance = pset.get<double>("AvTrackHitDistance");
 }
 
+std::vector<art::Ptr<recob::Hit> > shower::TrackShowerSeparationAlg::RemoveTrackHits(const std::vector<art::Ptr<recob::Hit> >& hits,
+										     const std::vector<art::Ptr<recob::Track> >& tracks,
+										     const art::FindManyP<recob::Hit>& fmh) {
+
+  // Ok, here we are again
+  // Playing the game in which no one wins, but everyone loses
+  // Trying to separate tracks from showers
+  //    Ode to track/shower separation
+  //    M Wallbank, Oct 2016
+
+  std::vector<int> showerTracks, trackTracks;
+  int showerTrack = InitialTrackLikeSegment(tracks, showerTracks, trackTracks);
+
+  std::cout << "Shower track is " << showerTrack << std::endl;
+
+  return hits;
+
+}
+
+int shower::TrackShowerSeparationAlg::InitialTrackLikeSegment(const std::vector<art::Ptr<recob::Track> >& tracks,
+							      std::vector<int>& showerTracks,
+							      std::vector<int>& trackTracks) {
+
+  const double angle = 20.;
+
+  for (std::vector<art::Ptr<recob::Track> >::const_iterator trackIt = tracks.begin(); trackIt != tracks.end(); ++trackIt) {
+    std::vector<int> forwardTracks, backwardTracks;
+    for (std::vector<art::Ptr<recob::Track> >::const_iterator otherTrackIt = tracks.begin(); otherTrackIt != tracks.end(); ++otherTrackIt) {
+      if (trackIt->key() == otherTrackIt->key())
+	continue;
+      if (((*otherTrackIt)->Vertex() - (*trackIt)->Vertex()).Angle((*trackIt)->DirectionAtPoint((*trackIt)->NumberTrajectoryPoints()/3)) < angle * TMath::Pi() / 180 or
+	  ((*otherTrackIt)->End() - (*trackIt)->Vertex()).Angle((*trackIt)->DirectionAtPoint((*trackIt)->NumberTrajectoryPoints()/3)) < angle * TMath::Pi() / 180)
+	forwardTracks.push_back(otherTrackIt->key());
+      if (((*otherTrackIt)->Vertex() - (*trackIt)->Vertex()).Angle((-1)*(*trackIt)->DirectionAtPoint((*trackIt)->NumberTrajectoryPoints()/3)) < angle * TMath::Pi() / 180 or
+	  ((*otherTrackIt)->End() - (*trackIt)->Vertex()).Angle((-1)*(*trackIt)->DirectionAtPoint((*trackIt)->NumberTrajectoryPoints()/3)) < angle * TMath::Pi() / 180)
+	backwardTracks.push_back(otherTrackIt->key());
+    }
+  }
+
+  return 0;
+
+}
+
+// --------------------------- OLD (late 2015) -------------------------------
+
+
 void shower::TrackShowerSeparationAlg::IdentifyTracksFromEventCentre(const std::vector<art::Ptr<recob::Track> >& tracks,
 								     const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints,
 								     const art::FindManyP<recob::Track>& fmtsp) {

@@ -157,6 +157,11 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     art::Handle<std::vector<recob::Cluster> > clusterCollection;
     evt.getByLabel(fPFParticleModuleLabel, clusterCollection);
 
+    if (trackCollection.isValid()) {
+      art::FindManyP<recob::Hit> fmh(trackCollection, evt, fTrackModuleLabel);
+      hitsToCluster = fTrackShowerSeparationAlg.RemoveTrackHits(hits, tracks, fmh);
+    }
+
     // Remove hits from tracks before performing any clustering
     if (pfParticleCollection.isValid() and clusterCollection.isValid()) {
       mf::LogInfo("BlurredCluster") << "Removing track-like hits before clustering: will use information from PFParticles." << std::endl;

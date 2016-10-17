@@ -48,6 +48,12 @@ class shower::TrackShowerSeparationAlg {
   /// Read in configurable parameters from provided parameter set
   void reconfigure(fhicl::ParameterSet const& pset);
 
+  std::vector<art::Ptr<recob::Hit> > RemoveTrackHits(const std::vector<art::Ptr<recob::Hit> >& hits,
+						     const std::vector<art::Ptr<recob::Track> >& tracks,
+						     const art::FindManyP<recob::Hit>& fmh);
+
+  // --------------------------- OLD (late 2015) -------------------------------
+
   /// Takes specific previously reconstructed quantites and removes hits which are considered track-like
   /// Returns a vector of hits which are determined to be shower-like
   std::vector<art::Ptr<recob::Hit> > RemoveTrackHits(const std::vector<art::Ptr<recob::Hit> >& initialHits,
@@ -68,6 +74,10 @@ class shower::TrackShowerSeparationAlg {
 						     const art::FindManyP<recob::Hit>& fmh);
 
  private:
+
+  int InitialTrackLikeSegment(const std::vector<art::Ptr<recob::Track> >& tracks, std::vector<int>& showerTracks, std::vector<int>& trackTracks);
+
+  // --------------------------- OLD (late 2015) -------------------------------
 
   /// Fill the output container with all the hits not associated with track-like objects
   std::vector<art::Ptr<recob::Hit> > FillHitsToCluster(const std::vector<art::Ptr<recob::Hit> >& initialHits,
