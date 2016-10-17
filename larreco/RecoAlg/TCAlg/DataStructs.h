@@ -122,7 +122,7 @@ namespace tca {
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
-    std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has a hit
+    std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     short ID;
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
@@ -130,6 +130,7 @@ namespace tca {
     short Dir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
                                         ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
     short WorkID {0};
+    std::bitset<2> StopsAtEnd {0};    // Set true if it looks like the trajectory stops at end[0] or end[1]
   };
   
   // Local version of recob::Hit
