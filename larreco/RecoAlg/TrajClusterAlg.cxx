@@ -86,13 +86,12 @@ namespace tca {
     fMakeNewHits          = pset.get< bool >("MakeNewHits", true);
     fMode                 = pset.get< short >("Mode", 0); // Default is don't use it
     fHitErrFac            = pset.get< float >("HitErrFac", 0.4);
-    fMinAmp               = pset.get< float >("MinAmp", 5);
+    fMinAmp               = pset.get< float >("MinAmp", 0.1);
     fAngleRanges          = pset.get< std::vector<float>>("AngleRanges");
     fNPtsAve              = pset.get< short >("NPtsAve", 20);
     fMinPtsFit            = pset.get< std::vector<unsigned short >>("MinPtsFit");
     fMinPts               = pset.get< std::vector<unsigned short >>("MinPts");
     fMaxAngleRange        = pset.get< std::vector<unsigned short>>("MaxAngleRange");
-    fCompatibleHitsRMS    = pset.get< bool >("CompatibleHitsRMS", false);
     fMaxChi               = pset.get< float >("MaxChi", 10);
     fChgPullCut           = pset.get< float >("ChgPullCut", 3);
     fMultHitSep           = pset.get< float >("MultHitSep", 2.5);
@@ -221,22 +220,24 @@ namespace tca {
     larprop = lar::providerFrom<detinfo::LArPropertiesService>();
     detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
-    tjs.fHits.resize(hitVecHandle->size());
+    tjs.fHits.reserve(hitVecHandle->size());
 
     for(unsigned int iht = 0; iht < hitVecHandle->size(); ++iht) {
       art::Ptr<recob::Hit> hit = art::Ptr<recob::Hit>(hitVecHandle, iht);
-//      tjs.fHits[iht].Channel = hit->Channel();
-      tjs.fHits[iht].StartTick = hit->StartTick();
-      tjs.fHits[iht].EndTick = hit->EndTick();
-      tjs.fHits[iht].PeakTime = hit->PeakTime(); // This will be converted to Time later
-      tjs.fHits[iht].PeakAmplitude = hit->PeakAmplitude(); // This will be converted to Time later
-      tjs.fHits[iht].Integral = hit->Integral();
-      tjs.fHits[iht].RMS = hit->RMS();
-      tjs.fHits[iht].GoodnessOfFit = hit->GoodnessOfFit();
-      tjs.fHits[iht].NDOF = hit->DegreesOfFreedom();
-      tjs.fHits[iht].Multiplicity = hit->Multiplicity();
-      tjs.fHits[iht].LocalIndex = hit->LocalIndex();
-      tjs.fHits[iht].WireID = hit->WireID();
+      if(hit->PeakAmplitude() < fMinAmp) continue;
+      TCHit localHit;
+      localHit.StartTick = hit->StartTick();
+      localHit.EndTick = hit->EndTick();
+      localHit.PeakTime = hit->PeakTime(); // This will be converted to Time later
+      localHit.PeakAmplitude = hit->PeakAmplitude(); // This will be converted to Time later
+      localHit.Integral = hit->Integral();
+      localHit.RMS = hit->RMS();
+      localHit.GoodnessOfFit = hit->GoodnessOfFit();
+      localHit.NDOF = hit->DegreesOfFreedom();
+      localHit.Multiplicity = hit->Multiplicity();
+      localHit.LocalIndex = hit->LocalIndex();
+      localHit.WireID = hit->WireID();
+      tjs.fHits.push_back(localHit);
     } // iht
     // set a flag so that we do the tick -> time conversion later and only once
 //    tjs.ConvertTicksToTime = true;
@@ -702,7 +703,6 @@ namespace tca {
           if(prt) didPrt = true;
           if(prt)  mf::LogVerbatim("TC")<<"+++++++ Pass "<<pass<<" Found debug hit "<<fPlane<<":"<<PrintHit(tjs.fHits[iht]);
           // ignore below-threshold hits
-          if(tjs.fHits[iht].PeakAmplitude < fMinAmp) continue;
           // clear out any leftover work tjs.inTraj's that weren't cleaned up properly
 //          for(oht = ifirsthit; oht < ilasthit; ++oht) if(tjs.inTraj[oht] < 0) tjs.inTraj[oht] = 0;
           // Only consider hits that are available
@@ -730,7 +730,6 @@ namespace tca {
             // Only consider hits that are available
             if(tjs.fHits[iht].InTraj != 0) continue;
             if(tjs.fHits[jht].InTraj != 0) continue;
-            if(tjs.fHits[jht].PeakAmplitude < fMinAmp) continue;
             // clear out any leftover work inTraj's that weren't cleaned up properly
             for(unsigned short oht = jfirsthit; oht < jlasthit; ++oht) {
               if(tjs.fHits[oht].InTraj < 0) {
@@ -1042,11 +1041,9 @@ namespace tca {
           mf::LogVerbatim("TC")<<"FindJunkTraj: Found debug hit "<<PrintHit(tjs.fHits[iht])<<" InTraj "<<tjs.fHits[iht].InTraj<<" fJTMaxHitSep2 "<<fJTMaxHitSep2;
         }
         if(tjs.fHits[iht].InTraj != 0) continue;
-        if(tjs.fHits[iht].PeakAmplitude < fMinAmp) continue;
         for(jht = jfirsthit; jht < jlasthit; ++jht) {
           if(tjs.fHits[jht].InTraj != 0) continue;
           if(prt && HitSep2(tjs, iht, jht) < 100) mf::LogVerbatim("TC")<<" use "<<PrintHit(tjs.fHits[jht])<<" HitSep2 "<<HitSep2(tjs, iht, jht);
-          if(tjs.fHits[jht].PeakAmplitude < fMinAmp) continue;
           if(HitSep2(tjs, iht, jht) > fJTMaxHitSep2) continue;
           tHits.clear();
           // add all hits and flag them
@@ -4548,6 +4545,8 @@ namespace tca {
     unsigned short angRange = AngleRange(tj.Pts[tj.EndPt[1]]);
     // checks are different for Very Large Angle trajectories
     bool isVLA = (angRange == fAngleRanges.size() - 1);
+    // The last two ranges are Large Angle and Very Large Angle. Determine if the TJ is Small Angle
+    bool isSA = (angRange < fAngleRanges.size() - 2);
     
     // First remove any TPs at the end that have no hits
     // TODO This shouldn't be done but first check to see what code will break
@@ -4596,18 +4595,17 @@ namespace tca {
           unsigned int wire1 = std::nearbyint(tj.Pts[lastPt].Pos[0]);
           unsigned int wire2 = std::nearbyint(tj.Pts[lastPt - 1].Pos[0]);
           unsigned int wire3 = std::nearbyint(tj.Pts[lastPt - 2].Pos[0]);
-          if(prt) std::cout<<"Trim? "<<PrintPos(tjs, tj.Pts[lastPt])<<" wires "<<wire1<<" "<<wire2<<" "<<wire3<<"\n";
           if(abs(wire1 - wire2) == 1 && abs(wire2 - wire3) == 1) break;
           UnsetUsedHits(tj.Pts[tj.EndPt[1]]);
           tj.Pts.resize(tj.EndPt[1]+1);
           SetEndPoints(tjs, tj);
-          if(prt) std::cout<<" yup\n";
           --tjSize;
           tj.AlgMod[kTrimHits] = true;
         } // tj.Pts.size() > fMinPts[tj.Pass]
         if(prt) PrintTrajectory("CT", tjs, tj, USHRT_MAX);
       } // not isVLA
 
+      // impose the requirement that 70% of the trajectory points should have hits with charge.
       float nPts = tj.EndPt[1] - tj.EndPt[0] + 1;
       dwc = DeadWireCount(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
       float nPtsWithCharge = NumPtsWithCharge(tj, false);
@@ -4640,8 +4638,8 @@ namespace tca {
     // ignore short trajectories
     if(tj.EndPt[1] < 4) return;
     
-    if(angRange == 0) {
-      // Not large angle checks
+    if(isSA) {
+      // Small angle checks
 
       if(fUseAlg[kCWKink] && tj.EndPt[1] > 8) {
         // look for the signature of a kink near the end of the trajectory.
@@ -4698,8 +4696,7 @@ namespace tca {
           return;
         } // newSize < tj.Pts.size()
       } // fUseAlg[kCWStepChk]
-    } // angRange == 0
-    
+    } // isSA
     FindSoftKink(tj);
     
     // Check either large angle or not-large angles
