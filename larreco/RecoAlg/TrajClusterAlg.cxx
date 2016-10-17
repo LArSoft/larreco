@@ -2396,14 +2396,16 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<" bestHit "<<PrintHit(tjs.fHits[bestHit])<<" Delta "<<tp.Delta<<" Charge "<<(int)tjs.fHits[bestHit].Integral<<" ChgPull "<<bestHitChgPull<<" nAvailable "<<nAvailable<<" tj.AveChg "<<tj.AveChg<<" tj.ChgRMS "<<tj.ChgRMS;
     
     // always use the best hit if the charge pull is OK
-    if(bestHitChgPull < chgPullCut) {
+    if(bestHitChgPull > -chgPullCut && bestHitChgPull < chgPullCut) {
       tp.UseHit[imBest] = true;
       tjs.fHits[bestHit].InTraj = tj.ID;
     } // good charge
-     else if(nAvailable == 1 && tj.PDGCode == 13 && tp.Delta < 2 * tp.DeltaRMS && bestHitChgPull < 2 * chgPullCut) {
-       // special handling for muons. Allow higher charge if the delta is very good
-       tp.UseHit[imBest] = true;
-       tjs.fHits[bestHit].InTraj = tj.ID;
+     else if(nAvailable == 1 && tj.PDGCode == 13 && tp.Delta < 2 * tp.DeltaRMS) {
+       // special handling for muons. Allow higher or lower charge if the delta is very good
+       if(bestHitChgPull > -2 * chgPullCut && bestHitChgPull < 2 * chgPullCut) {
+         tp.UseHit[imBest] = true;
+         tjs.fHits[bestHit].InTraj = tj.ID;
+       }
     }
       
     // nothing fancy if there is only one hit available or if we are just starting out
