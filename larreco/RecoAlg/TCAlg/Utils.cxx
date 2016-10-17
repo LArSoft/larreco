@@ -490,6 +490,10 @@ namespace tca {
     std::swap(tj.VtxID[0], tj.VtxID[1]);
     // trajectory points
     std::reverse(tj.Pts.begin(), tj.Pts.end());
+    // Reverse the stopping bits
+    std::bitset<2> flipped;
+    for(unsigned short ii = 0; ii < 2; ++ii) flipped[1 - ii] = tj.StopsAtEnd[ii];
+    tj.StopsAtEnd = flipped;
     // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
@@ -503,6 +507,40 @@ namespace tca {
   float DeltaAngle(float Ang1, float Ang2) {
     return std::abs(std::remainder(Ang1 - Ang2, M_PI));
   }
+  
+  ////////////////////////////////////////////////
+  void SetStopsAtEnd(TjStuff& tjs, Trajectory& tj)
+  {
+    // Sets the StopsAtEnd bits on the trajectory using a trivial algorithm
+    if(tj.Pts.size() < 8) return;
+    
+    tj.StopsAtEnd[0] = false;
+    tj.StopsAtEnd[1] = false;
+    
+    // require a significant increase in charge for the first (last) end points ignoring the first and last
+    const float chgrat = 1.5;
+    
+    unsigned short endPt = tj.EndPt[0];
+    // require 3 charged points at end 0
+    if(tj.Pts[endPt + 1].Chg > 0 &&  tj.Pts[endPt + 2].Chg > 0 &&  tj.Pts[endPt + 3].Chg > 0) {
+      // end 0
+      if(tj.Pts[endPt + 1].Chg > chgrat * tj.Pts[endPt + 2].Chg &&
+         tj.Pts[endPt + 2].Chg > chgrat * tj.Pts[endPt + 3].Chg) {
+        tj.StopsAtEnd[0] = true;
+      }
+    } // 3 charged points at end 0
+    
+    endPt = tj.EndPt[1];
+    // require 3 charged points at end 1
+    if(tj.Pts[endPt - 1].Chg > 0 &&  tj.Pts[endPt - 2].Chg > 0 &&  tj.Pts[endPt - 3].Chg > 0) {
+      // end 0
+      if(tj.Pts[endPt - 1].Chg > chgrat * tj.Pts[endPt - 2].Chg &&
+         tj.Pts[endPt - 2].Chg > chgrat * tj.Pts[endPt - 3].Chg) {
+        tj.StopsAtEnd[1] = true;
+      }
+    } // 3 charged points at end 0
+    
+  } // StopsAtEnd
   
   ////////////////////////////////////////////////
   void SetEndPoints(TjStuff& tjs, Trajectory& tj)
@@ -1267,7 +1305,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ PDG   Par TRuPDG   EP   KE  WorkID\n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ Stop PDG   Par TRuPDG   EP   KE  WorkID\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && (unsigned short)debug.Plane != aTj.CTP) continue;
@@ -1298,6 +1336,7 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.Dir;
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
+        myprt<<std::setw(2)<<aTj.StopsAtEnd[0]<<aTj.StopsAtEnd[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
         myprt<<std::setw(5)<<aTj.ParentTrajID;
         myprt<<std::setw(6)<<aTj.TruPDG;
@@ -1348,11 +1387,13 @@ namespace tca {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" AlgMod names:";
+        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
         mf::LogVerbatim myprt("TC");
-        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" AlgMod names:";
+        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
       PrintHeader(someText);
