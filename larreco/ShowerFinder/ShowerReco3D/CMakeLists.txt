@@ -7,7 +7,7 @@ art_make(
 			lardataobj_MCBase
                         lardataobj_RecoBase
                         lardata_Utilities
-			lardata_AnalysisAlg
+			larreco_Calorimetry
                         larreco_RecoAlg_ClusterRecoUtil
 			larreco_RecoAlg_CMTool_CMToolBase
 	  		larreco_RecoAlg_CMTool_CMTAlgPriority

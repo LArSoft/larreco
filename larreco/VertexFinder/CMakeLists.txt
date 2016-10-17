@@ -8,7 +8,7 @@ art_make(
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
-                        larsim_Simulation lardataobj_Simulation
+                        larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
                         nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

@@ -4,12 +4,12 @@ include_directories ( $ENV{G4INCLUDE} )
 art_make(  
           EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc
           MODULE_LIBRARIES  larreco_RecoAlg
-			    larsim_Simulation lardataobj_Simulation
-			    lardata_RecoObjects
+			    larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+			    lardata_RecoObjects larreco_Deprecated
 			    lardataobj_RecoBase
 			    larcore_Geometry
 			    larcore_Geometry_Geometry_service
-			    lardata_AnalysisAlg
+			    larreco_Calorimetry
 			    lardataobj_AnalysisBase
 			    lardata_Utilities
 			    nutools_MagneticField_MagneticField_service
@@ -35,12 +35,12 @@ art_make(
 simple_plugin( Track3DKalman "module"
   			 larreco_Genfit 
 			 larreco_RecoAlg
-			 larsim_Simulation lardataobj_Simulation
-			 lardata_RecoObjects
+			 larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+			 lardata_RecoObjects larreco_Deprecated
 			 lardataobj_RecoBase
 			 larcore_Geometry
 			 larcore_Geometry_Geometry_service
-			 lardata_AnalysisAlg
+			 larreco_Calorimetry
 			 lardataobj_AnalysisBase
 			 lardata_Utilities
 			 larsim_RandomUtils_LArSeedService_service
@@ -65,12 +65,12 @@ simple_plugin( Track3DKalman "module"
 simple_plugin( Track3DKalmanSPS "module"
 			 larreco_Genfit 
 			 larreco_RecoAlg
-			 larsim_Simulation lardataobj_Simulation
-			 lardata_RecoObjects
+			 larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
+			 lardata_RecoObjects larreco_Deprecated
 			 lardataobj_RecoBase
 			 larcore_Geometry
 			 larcore_Geometry_Geometry_service
-			 lardata_AnalysisAlg
+			 larreco_Calorimetry
 			 lardataobj_AnalysisBase
 			 lardata_Utilities
 			 nutools_MagneticField_MagneticField_service
