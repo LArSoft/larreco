@@ -426,24 +426,13 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			}
 		}
 
-		// first particle, to be replaced with nu reco when possible
-		//pfps->emplace_back(0, 0, 0, std::vector< size_t >());
-
 		for (size_t t = 0; t < result.size(); ++t)
 		{
 			size_t parentIdx = recob::PFParticle::kPFParticlePrimary;
 			if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent();
 
-            //std::cout << "particle " << pfps->size() << std::endl;
-            //std::cout << "   parent " << parentIdx << std::endl;
-
 			std::vector< size_t > daughterIdxs;
-			for (size_t idx : result[t].Daughters())
-			{
-			    //std::cout << " " << idx;
-			    daughterIdxs.push_back(idx);
-			}
-			//std::cout << std::endl;
+			for (size_t idx : result[t].Daughters()) { daughterIdxs.push_back(idx); }
 
 			size_t pfpidx = pfps->size();
 			pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
@@ -452,7 +441,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			art::Ptr<recob::Track> tptr(tid, t, trkGetter);
 			pfp2trk->addSingle(pfpptr, tptr);
 
-			// vertexing was selected, so add assns to front vertex of each particle
+			// add assns to FRONT vertex of each particle
 			if (fPmaTrackerConfig.RunVertexing())
 			{
 				art::Ptr<recob::Vertex> vptr = frontVtxs[t];
@@ -464,20 +453,21 @@ void PMAlgTrackMaker::produce(art::Event& evt)
         mf::LogVerbatim("Summary") << "Adding " << result.parents().size() << " primary PFParticles.";
 		for (size_t t = 0; t < result.parents().size(); ++t)
 		{
-            //std::cout << "particle " << pfps->size() << std::endl;
-            //std::cout << "   primary" << std::endl;
-
 			std::vector< size_t > daughterIdxs;
-			for (size_t idx : result.parents()[t].Daughters())
-			{
-			    //std::cout << " " << idx;
-			    daughterIdxs.push_back(idx);
-			}
-			//std::cout << std::endl;
+			for (size_t idx : result.parents()[t].Daughters()) { daughterIdxs.push_back(idx); }
 
 			size_t pfpidx = pfps->size();
 			size_t parentIdx = recob::PFParticle::kPFParticlePrimary;
 			pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
+
+			// add assns to END vertex of primary
+			if (fPmaTrackerConfig.RunVertexing() && !daughterIdxs.empty())
+			{
+			    art::Ptr<recob::PFParticle> pfpptr(pfpid, pfpidx, evt.productGetter(pfpid));
+				art::Ptr<recob::Vertex> vptr = frontVtxs[daughterIdxs.front()]; // same vertex for all daughters
+				if (!vptr.isNull()) pfp2vtx->addSingle(pfpptr, vptr);
+				else mf::LogWarning("PMAlgTrackMaker") << "Front vertex for PFParticle is missing.";
+			}
 		}
 		mf::LogVerbatim("Summary") << pfps->size() << " PFParticles created in total.";
 	}

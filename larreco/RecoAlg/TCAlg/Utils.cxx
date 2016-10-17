@@ -378,11 +378,22 @@ namespace tca {
   } // MoveTPToWire
   
   //////////////////////////////////////////
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest)
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime,  bool& hitsNear)
   {
     // returns a vector of hits that are within the Window[Pos0][Pos1] in plane.
-    // Note that hits on wire wireWindow[1] are returned as well
+    // Note that hits on wire wireWindow[1] are returned as well. The definition of close
+    // depends on setting of usePeakTime. If UsePeakTime is true, a hit is considered nearby if
+    // the PeakTime is within the window. This is shown schematically here where
+    // the time is on the horizontal axis and a "-" denotes a valid entry
+    // timeWindow     -----------------
+    // hit PeakTime             +         close
+    // hit PeakTime  +                    not close
+    // If usePeakTime is false, a hit is considered nearby if the hit StartTick and EndTick overlap with the timeWindow
+    // Time window                  ---------
+    // Hit StartTick-EndTick      --------        close
+    // Hit StartTick - EndTick                  --------  not close
     
+    hitsNear = false;
     std::vector<unsigned int> closeHits;
     if(plane > tjs.FirstWire.size() - 1) return closeHits;
     // window in the wire coordinate
@@ -398,8 +409,18 @@ namespace tca {
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-        if(tjs.fHits[iht].PeakTime < minTick) continue;
-        if(tjs.fHits[iht].PeakTime > maxTick) break;
+        if(usePeakTime) {
+          if(tjs.fHits[iht].PeakTime < minTick) continue;
+          if(tjs.fHits[iht].PeakTime > maxTick) break;
+        } else {
+          int hiLo = minTick;
+          if(tjs.fHits[iht].StartTick > hiLo) hiLo = tjs.fHits[iht].StartTick;
+          int loHi = maxTick;
+          if(tjs.fHits[iht].EndTick < loHi) loHi = tjs.fHits[iht].EndTick;
+          if(loHi < hiLo) continue;
+          if(hiLo > loHi) break;
+        }
+        hitsNear = true;
         bool takeit = (hitRequest == kAllHits);
         if(hitRequest == kUsedHits && tjs.fHits[iht].InTraj > 0) takeit = true;
         if(hitRequest == kUnusedHits && tjs.fHits[iht].InTraj == 0) takeit = true;
@@ -415,7 +436,7 @@ namespace tca {
     // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
     // close hits OR if the wire at this position is dead
     
-    tp.Hits.clear();
+     tp.Hits.clear();
     tp.UseHit.reset();
     if(!WireHitRangeOK(tjs, tp.CTP)) {
       std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.WireHitRangeCstat<<" TPC "<<tjs.WireHitRangeTPC<<"\n";
@@ -792,7 +813,7 @@ namespace tca {
       if(arg > maxVal) maxVal = arg;
     } // ii
     if(maxVal == 0) return 0;
-    return maxVal - minVal;
+    return (maxVal - minVal) / 2;
   } // TPHitsRMSTick
   
   ////////////////////////////////////////////////
@@ -824,7 +845,7 @@ namespace tca {
       if(arg > maxVal) maxVal = arg;
     } // ii
     if(maxVal == 0) return 0;
-    return maxVal - minVal;
+    return (maxVal - minVal) / 2;
   } // HitsRMSTick
   
   ////////////////////////////////////////////////
@@ -1379,7 +1400,7 @@ namespace tca {
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       unsigned int iht = tp.Hits[ii];
       myprt<<" "<<tjs.fHits[iht].WireID.Wire<<":"<<(int)tjs.fHits[iht].PeakTime;
-      if(tp.UseHit[iht]) {
+      if(tp.UseHit[ii]) {
         // Distinguish used hits from nearby hits
         myprt<<"_";
       } else {

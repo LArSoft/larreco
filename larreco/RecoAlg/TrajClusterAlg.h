@@ -126,7 +126,6 @@ namespace tca {
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
     std::vector<float> fAngleRanges; ///< list of max angles for each angle range
     std::vector<float> fAngleRangesMaxHitsRMS;
-    bool fCompatibleHitsRMS;
     
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
@@ -328,18 +327,19 @@ namespace tca {
     /// sets fQuitAlg true if WireHitRange has a problem
     bool CheckWireHitRange();
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
-//    bool EraseHit(const unsigned int& delHit);
+    bool EraseHit(const unsigned int& delHit);
     // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.
     // Returns the index of the newly created hit
-//    unsigned int CreateHit(VtxHit const& vHit);
+    void DefineHit(TCHit& tcHit, CTP_t& hitCTP, unsigned int& hitWire);
+    unsigned int CreateHit(TCHit tcHit);
     // Merges all of the hits used in each TP into one hit
-//    void MergeTPHits();
+    void MergeTPHits();
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
     void FillTrajTruth();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void FindVtxTraj(unsigned short ivx);
-//    void Refine2DVertices();
+    void Refine2DVertices();
     void SplitTrajCrossingVertices();
     void FindHammerVertices();
     void FindHammerVertices2();
