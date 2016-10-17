@@ -878,6 +878,8 @@ namespace tca {
     
     // last attempt to attach Tjs to vertices
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, fVertex2DCuts, vtxPrt);
+    
+    // Refine vertices, trajectories and nearby hits
     Refine2DVertices();
     
   } // ReconstructAllTraj
@@ -4709,6 +4711,9 @@ namespace tca {
     
     // lop off high multiplicity hits at the end
     CheckHiMultEndHits(tj);
+    
+    // Set the StopsAtEnd flag
+    SetStopsAtEnd(tjs, tj);
     
   } // CheckTraj
   
