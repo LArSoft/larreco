@@ -343,7 +343,7 @@ namespace tca {
 
     //    bool reAnalyze = false;
     // put MC info into the trajectory struct
-//    FillTrajTruth();
+    FillTrajTruth();
  
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
@@ -878,6 +878,8 @@ namespace tca {
     
     // last attempt to attach Tjs to vertices
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, fVertex2DCuts, vtxPrt);
+    
+    // Refine vertices, trajectories and nearby hits
     Refine2DVertices();
     
   } // ReconstructAllTraj
@@ -1263,6 +1265,69 @@ namespace tca {
     // return with a valid index for the new trajectory
     newTjIndex = tjs.allTraj.size() - 1;
   } // MakeJunkTraj
+
+  //////////////////////////////////////////
+  void TrajClusterAlg::FillTrajTruth()
+  {
+    
+    if(fIsRealData) return;
+    if(fFillTruth <= 0) return;
+    
+    art::ServiceHandle<cheat::BackTracker> bt;
+    // list of all true particles
+    sim::ParticleList const& plist = bt->ParticleList();
+    if(plist.empty()) return;
+    
+    // MC track IDs for these particles
+    std::vector<simb::MCParticle*> partList(plist.size());
+    unsigned int cnt = 0;
+    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+      partList[cnt] = (*ipart).second;
+      ++cnt;
+    } // ipart
+
+    // Match all hits to the truth. Put the track ID in a temp vector
+    std::vector<int> truTrkID(tjs.fHits.size());
+    // Count of the number of hits matched to each MC Track
+    std::vector<unsigned short> nTruHitsInPlist(plist.size());
+    
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      TCHit& tcHit = tjs.fHits[iht];
+      raw::ChannelID_t channel = geom->PlaneWireToChannel((int)tcHit.WireID.Plane, (int)tcHit.WireID.Wire, (int)tcHit.WireID.TPC, (int)tcHit.WireID.Cryostat);
+      double startTick = tcHit.PeakTime - tcHit.RMS;
+      double endTick = tcHit.PeakTime + tcHit.RMS;
+      std::vector<sim::TrackIDE> tids;
+      bt->ChannelToTrackID(tids, channel, startTick, endTick);
+      float big = 0;
+      for(auto itid = tids.begin(); itid != tids.end(); ++itid) {
+        if(itid->energyFrac > big) {
+          big = itid->energyFrac;
+          truTrkID[iht] = itid->trackID;
+        }
+      } // itid
+      // not matched to a MC track
+      if(truTrkID[iht] == 0) continue;
+      // count the number of matched hits for each MC track
+      for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
+        if(truTrkID[iht] == partList[ipl]->TrackId()) {
+          ++nTruHitsInPlist[ipl];
+          break;
+        }
+      } // ipl
+    } // iht
+
+    std::cout<<"ipl  tidlist  \n";
+    for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
+      unsigned short pdg = abs(partList[ipl]->PdgCode());
+      bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
+      if(!isCharged) continue;
+      // Kinetic energy in MeV
+      int T = 1000 * (partList[ipl]->E() - partList[ipl]->Mass());
+      std::cout<<ipl<<" PDG "<<pdg<<" Mother "<<partList[ipl]->Mother()<<" nTruHitsInPlist "<<" T "<<T<<" nTruHitsInPlist "<<nTruHitsInPlist[ipl]<<"\n";
+    } // ipl
+
+  } // FillTrajTruth
+
 /*
   //////////////////////////////////////////
   void TrajClusterAlg::FillTrajTruth()
@@ -2396,14 +2461,16 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<" bestHit "<<PrintHit(tjs.fHits[bestHit])<<" Delta "<<tp.Delta<<" Charge "<<(int)tjs.fHits[bestHit].Integral<<" ChgPull "<<bestHitChgPull<<" nAvailable "<<nAvailable<<" tj.AveChg "<<tj.AveChg<<" tj.ChgRMS "<<tj.ChgRMS;
     
     // always use the best hit if the charge pull is OK
-    if(bestHitChgPull < chgPullCut) {
+    if(bestHitChgPull > -chgPullCut && bestHitChgPull < chgPullCut) {
       tp.UseHit[imBest] = true;
       tjs.fHits[bestHit].InTraj = tj.ID;
     } // good charge
-     else if(nAvailable == 1 && tj.PDGCode == 13 && tp.Delta < 2 * tp.DeltaRMS && bestHitChgPull < 2 * chgPullCut) {
-       // special handling for muons. Allow higher charge if the delta is very good
-       tp.UseHit[imBest] = true;
-       tjs.fHits[bestHit].InTraj = tj.ID;
+     else if(nAvailable == 1 && tj.PDGCode == 13 && tp.Delta < 2 * tp.DeltaRMS) {
+       // special handling for muons. Allow higher or lower charge if the delta is very good
+       if(bestHitChgPull > -2 * chgPullCut && bestHitChgPull < 2 * chgPullCut) {
+         tp.UseHit[imBest] = true;
+         tjs.fHits[bestHit].InTraj = tj.ID;
+       }
     }
       
     // nothing fancy if there is only one hit available or if we are just starting out
@@ -4707,6 +4774,9 @@ namespace tca {
     
     // lop off high multiplicity hits at the end
     CheckHiMultEndHits(tj);
+    
+    // Set the StopsAtEnd flag
+    SetStopsAtEnd(tjs, tj);
     
   } // CheckTraj
   
