@@ -58,7 +58,7 @@ namespace tca {
   // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
   // close hits OR if the wire at this position is dead
   bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest);
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
 
   // returns the separation^2 between a point and a TP
@@ -79,7 +79,7 @@ namespace tca {
   // Calculates the angle between two TPs
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
   // Put hits in each trajectory point into a flat vector.
-  void PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest, std::vector<unsigned int>& hitVec);
+  std::vector<unsigned int> PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest);
   // returns true if hit iht appears in trajectory tj. The last nPtsToCheck points are checked
   bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck);
   // returns true if a hit is associated with more than one point
@@ -92,10 +92,10 @@ namespace tca {
   // Returns the hit width using StartTick() and EndTick()
   float TPHitsRMSTick(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest);
   float TPHitsRMSTime(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest);
-  float HitsRMSTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet);
-  float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet);
-  float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg);
-  float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg);
+  float HitsRMSTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, HitStatus_t hitRequest);
+  float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, HitStatus_t hitRequest);
+  float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
+  float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   // Calculate MCS momentum
   short MCSMom(TjStuff& tjs, Trajectory& tj);
   // Calculate MCS momentum in a range of trajectory points
@@ -126,7 +126,7 @@ namespace tca {
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
-  std::string PrintHit(const recob::Hit& hit);
+  std::string PrintHit(const TCHit& hit);
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);
 } // namespace tca

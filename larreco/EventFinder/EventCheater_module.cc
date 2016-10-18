@@ -20,7 +20,7 @@
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
-#include "larsim/Simulation/ParticleList.h"
+#include "nutools/ParticleNavigation/ParticleList.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 // Framework includes

@@ -41,7 +41,7 @@
 #include "larcore/Geometry/TPCGeo.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
-#include "larsim/Simulation/ParticleList.h"
+#include "nutools/ParticleNavigation/ParticleList.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/LArFFT.h"
 

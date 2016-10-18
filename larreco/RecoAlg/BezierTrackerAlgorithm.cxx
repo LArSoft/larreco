@@ -14,8 +14,8 @@
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardata/RecoObjects/BezierTrack.h"
-#include "lardata/RecoObjects/BezierCurveHelper.h"
+#include "larreco/Deprecated/BezierTrack.h"
+#include "larreco/Deprecated/BezierCurveHelper.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 

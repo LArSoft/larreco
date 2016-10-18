@@ -23,7 +23,7 @@
 
 #include "larreco/RecoAlg/CornerFinderAlg.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
-#include "lardata/RecoObjects/BezierTrack.h"
+#include "larreco/Deprecated/BezierTrack.h"
 
 namespace recob
 {
