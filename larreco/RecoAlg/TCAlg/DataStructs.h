@@ -135,7 +135,6 @@ namespace tca {
   
   // Local version of recob::Hit
   struct TCHit {
-//    raw::ChannelID_t Channel {0};
     raw::TDCtick_t StartTick {0};
     raw::TDCtick_t EndTick {0};
     float PeakTime {0};     ///< Note that this the time in WSE units - NOT ticks
