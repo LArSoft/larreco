@@ -68,6 +68,6 @@ class GFGeoMatManager : public GFAbsGeoMatManager{
 } // namespace genf
 #endif
 
-/* @} **/
+/** @} */
 
 

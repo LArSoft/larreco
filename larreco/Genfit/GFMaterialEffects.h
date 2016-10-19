@@ -380,5 +380,5 @@ class GFMaterialEffects : public TObject{
 
 #endif
 
-/* @} **/
+/** @} */
 

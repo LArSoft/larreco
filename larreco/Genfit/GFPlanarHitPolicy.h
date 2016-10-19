@@ -110,4 +110,4 @@ protected:
 } // end namespace genf
 #endif
 
-/* @} **/
+/** @} */

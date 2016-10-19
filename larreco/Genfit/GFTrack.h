@@ -439,6 +439,6 @@ private:
 };
 } // namespace genf
 
-/* @} **/
-
 #endif 
+
+/** @} */

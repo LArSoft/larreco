@@ -66,6 +66,6 @@ public:
 
 } // namespace genf
 
-/* @} **/
-
 #endif
+
+/** @} */
