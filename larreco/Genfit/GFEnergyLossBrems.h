@@ -72,5 +72,5 @@ class GFEnergyLossBrems : public GFAbsEnergyLoss{
 
 #endif
 
-/* @} **/
+/** @} */
 

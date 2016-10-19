@@ -323,7 +323,6 @@ class GFAbsTrackRep : public TObject{
 };
 
 } // namespace genf
-/* @} **/
-
 
 #endif
+/** @} */

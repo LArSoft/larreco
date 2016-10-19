@@ -79,6 +79,6 @@ class GFAbsGeoMatManager : public TObject{
 } // namespace genf
 #endif
 
-/* @} **/
+/** @} */
 
 
