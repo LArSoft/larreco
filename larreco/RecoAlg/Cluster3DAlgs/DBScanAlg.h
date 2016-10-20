@@ -17,6 +17,9 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/RecoObjects/Cluster3D.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/Hit3DBuilderAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 
 // std includes
 #include <vector>
@@ -54,31 +57,6 @@ private:
     bool           m_inCluster;
     mutable size_t m_count;
 };
-    
-/**
- *   @brief What follows are several highly useful typedefs which we 
- *          want to expose to the outside world
- */
-
-typedef std::vector<reco::ClusterHit2D*>       HitVector;
-typedef std::vector<const reco::ClusterHit2D*> HitVectorConst;
-typedef std::map<int, HitVector >              HitClusterMap;
-typedef std::map<geo::View_t, HitVector>       ViewToHitVectorMap;
-
-// forward declaration to define an ordering function for our hit set
-struct Hit2DSetCompare
-{
-    bool operator() (const reco::ClusterHit2D*, const reco::ClusterHit2D*) const;
-};
-    
-typedef std::vector<reco::ClusterHit2D>                      Hit2DVector;
-typedef std::set<const reco::ClusterHit2D*, Hit2DSetCompare> Hit2DSet;
-typedef std::map<unsigned int, Hit2DSet >                    WireToHitSetMap;
-typedef std::map<geo::View_t, WireToHitSetMap >              ViewToWireToHitSetMap;
-typedef std::map<geo::View_t, HitVector >                    HitVectorMap;
-    
-typedef std::vector<std::unique_ptr<reco::ClusterHit3D> >    HitPairVector;
-typedef std::list<std::unique_ptr<reco::ClusterHit3D> >      HitPairList;
 
 /**
  *  @brief  DBScanAlg class definiton
@@ -102,11 +80,35 @@ public:
     
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
+     *
+     *  @param hitPairList           The input list of 3D hits to run clustering on
+     *  @param hitPairClusterMap     A map of hits that have been clustered
+     *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    void ClusterHitsDBScan(ViewToHitVectorMap&      viewToHitVectorMap,
-                           ViewToWireToHitSetMap&   viewToWiretoHitSetMap,
-                           HitPairList&             hitPairList,
-                           reco::HitPairClusterMap& hitPairClusterMap);
+    void ClusterHitsDBScan(reco::HitPairList&           hitPairList,
+                           reco::HitPairClusterMap&     hitPairClusterMap,
+                           reco::ClusterParametersList& clusterParametersList);
+    
+    /**
+     *  @brief Given the results of running DBScan, format the clusters so that they can be
+     *         easily transferred back to the larsoft world
+     *
+     *  @param hitPairClusterMap      map between view and a list of 3D hits
+     *  @param clusterParametersList  a container for our candidate 3D clusters
+     *  @param rejectionFraction      Used for determine "hit purity" when rejecting clusters
+     *
+     *                                The last two parameters are passed through to the FillClusterParams method
+     */
+    void BuildClusterInfo(reco::HitPairClusterMap&     hitPairClusterMap,
+                          reco::ClusterParametersList& clusterParametersList) const;
+    
+    /**
+     *  @brief A generic routine to actually fill the clusterParams
+     *
+     *  @param clusterParametersList  a container for our candidate 3D clusters
+     *  @param rejectionFraction      Used for determine "hit purity" when rejecting clusters
+     */
+    void FillClusterParams(reco::ClusterParameters& clusterParams, double minUniqueFrac = 0., double maxLostFrac=1.) const;
 
     /**
      *  @brief enumerate the possible values for time checking if monitoring timing
@@ -114,6 +116,7 @@ public:
     enum TimeValues {BUILDTHREEDHITS  = 0,
                      BUILDHITTOHITMAP = 1,
                      RUNDBSCAN        = 2,
+                     BUILDCLUSTERINFO = 3,
                      NUMTIMEVALUES
     };
     
@@ -125,38 +128,12 @@ public:
 private:
     
     /**
-     *  @brief Given the ClusterHit2D objects, build the HitPairMap
-     */
-    size_t BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, ViewToWireToHitSetMap& viewToWiretoHitSetMap, HitPairList& hitPairList) const;
-    
-    /**
-     *  @brief Make a HitPair object by checking two hits
-     */
-    reco::ClusterHit3D makeHitPair(const reco::ClusterHit2D* hit1,
-                                   const reco::ClusterHit2D* hit2,
-                                   double                    hitWidthSclFctr = 1.,
-                                   size_t                    hitPairCntr = 0) const;
-    
-    /**
-     *  @brief Make a HitPair object by checking two hits
-     */
-    reco::ClusterHit3D makeHitTriplet(const reco::ClusterHit3D& pair,
-                                      const reco::ClusterHit2D* hit2) const;
-    
-    /**
-     *  @brief A utility routine for finding a 2D hit closest in time to the given pair
-     */
-    const reco::ClusterHit2D* FindBestMatchingHit(const Hit2DSet& hit2DSet, const reco::ClusterHit3D& pair, double pairDeltaTimeLimits) const;
-    
-    /**
-     *  @brief A utility routine for returning the number of 2D hits from the list in a given range
-     */
-    int FindNumberInRange(const Hit2DSet& hit2DSet, const reco::ClusterHit3D& pair, double range) const;
-    
-    /**
      *  @brief The bigger question: are two pairs of hits consistent?
      */
-    bool consistentPairs(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2) const;
+    bool consistentPairsOrig(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2, double& hitSeparation, int* wireDeltas) const;
+    bool consistentPairs(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2, double& hitSeparation, int* wireDeltas) const;
+
+    bool consistentPairsTest(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2, double& hitSeparation, int* wireDeltas) const;
     
     typedef std::list<const reco::ClusterHit3D*>                           EpsPairNeighborhoodList;
     typedef std::pair<DBScanParams, EpsPairNeighborhoodList >              EpsPairNeighborhoodPair;
@@ -175,29 +152,42 @@ private:
     /**
      *  @brief Given an input HitPairList, build out the map of nearest neighbors
      */
-    size_t BuildNeighborhoodMap(HitPairList& hitPairList, EpsPairNeighborhoodMapVec& epsPairNeighborhoodMapVec) const;
+    size_t BuildNeighborhoodMap(reco::HitPairList& hitPairList, EpsPairNeighborhoodMapVec& epsPairNeighborhoodMapVec) const;
     
-    /** 
-     *  @brief Jacket the calls to finding the nearest wire in order to intercept the exceptions if out of range
+    /**
+     *  @brief define data structure for keeping track of channel status
      */
-    geo::WireID NearestWireID(const double* position, const geo::View_t& view) const;
-
+    
+    using ChannelStatusVec       = std::vector<size_t>;
+    using ChannelStatusByViewVec = std::vector<ChannelStatusVec>;
     
     /**
      *  @brief Data members to follow
      */
     
-    size_t                    m_minPairPts;
-    double                    m_timeAdvanceGap;
-    double                    m_numSigmaPeakTime;
-
-    bool                      m_enableMonitoring;      ///<
-    int                       m_hits;                  ///<
-    std::vector<float>        m_timeVector;            ///<
-
-    geo::Geometry*            m_geometry;  // pointer to the Geometry service
-    //    const detinfo::DetectorProperties* m_detector;  // Pointer to the detector properties
+    size_t                               m_minPairPts;
+    double                               m_timeAdvanceGap;
+    double                               m_numSigmaPeakTime;
+    double                               m_pairSigmaPeakTime;
+    double                               m_pairMaxDistance;
+    size_t                               m_clusterMinHits;
+    double                               m_clusterMinUniqueFraction;
+    double                               m_clusterMaxLostFraction;
+    
+    bool                                 m_enableMonitoring;      ///<
+    int                                  m_hits;                  ///<
+    double                               m_wirePitch[3];
+    mutable std::vector<float>           m_timeVector;            ///<
+    std::vector<std::vector<double>>     m_wireDir;               ///<
+    std::vector<std::vector<double>>     m_wireNormal;            ///<
+    
+    ChannelStatusByViewVec               m_channelStatus;
+ 
+    geo::Geometry*                       m_geometry;              //< pointer to the Geometry service
+    const lariov::ChannelStatusProvider* m_channelFilter;
+    
+    PrincipalComponentsAlg               m_pcaAlg;                // For running Principal Components Analysis
 };
-
+    
 } // namespace lar_cluster3d
 #endif
