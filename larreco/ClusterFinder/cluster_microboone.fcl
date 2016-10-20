@@ -15,6 +15,7 @@ microboone_linecluster.ClusterCrawlerAlg:     @local::microboone_clustercrawlera
 
 
 microboone_cluster3d:                         @local::standard_cluster3d
+microboone_cluster3d.Hit3DBuilderAlg:         @local::microboone_cluster3dhit3dbuilderalg
 microboone_cluster3d.DBScanAlg:               @local::microboone_cluster3ddbscanalg
 microboone_cluster3d.PrincipalComponentsAlg:  @local::microboone_cluster3dprincipalcomponentsalg
 microboone_cluster3d.SkeletonAlg:             @local::microboone_cluster3dskeletonalg

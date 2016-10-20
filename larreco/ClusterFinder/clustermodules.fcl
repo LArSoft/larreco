@@ -7,6 +7,7 @@ standard_trajcluster:
 {
   module_type:          "TrajCluster"
   TrajClusterAlg:       @local::standard_trajclusteralg
+  MakeNewHits:          true    # Make a new collection of merged hits
 } # standard_trajcluster
 
 standard_blurredcluster:
@@ -70,6 +71,7 @@ standard_cluster3d:
   HitFinderModuleLabel:   "gaushit"
   EnableMonitoring:       false
   EnableProduction:       false
+  Hit3DBuilderAlg:        @local::standard_cluster3dhit3dbuilderalg
   DBScanAlg:              @local::standard_cluster3ddbscanalg
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
   SkeletonAlg:            @local::standard_cluster3dskeletonalg
