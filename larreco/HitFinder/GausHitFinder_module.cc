@@ -269,6 +269,25 @@ void GausHitFinder::produce(art::Event& evt)
    
     // Channel Number
     raw::ChannelID_t channel = raw::InvalidChannelID;
+    
+    //#################################################
+    //###    Set the charge determination method    ###
+    //### Default is to compute the normalized area ###
+    //#################################################
+    std::function<double (double,double,double,double,int,int)> chargeFunc = [](double peakMean, double peakAmp, double peakWidth, double areaNorm, int low, int hi){return std::sqrt(2*TMath::Pi())*peakAmp*peakWidth/areaNorm;};
+    
+    //##############################################
+    //### Alternative is to integrate over pulse ###
+    //##############################################
+    if (fAreaMethod == 0)
+        chargeFunc = [](double peakMean, double peakAmp, double peakWidth, double areaNorm, int low, int hi)
+                        {
+                            double charge(0);
+                            for(int sigPos = low; sigPos < hi; sigPos++)
+                                charge += peakAmp * TMath::Gaus(sigPos,peakMean,peakWidth);
+                            return charge;
+                        };
+    
     //##############################
     //### Looping over the wires ###
     //##############################
@@ -286,16 +305,18 @@ void GausHitFinder::produce(art::Event& evt)
         // get the WireID for this hit
         std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
         // for now, just take the first option returned from ChannelToWire
-        geo::WireID wid = wids[0];
+        geo::WireID wid  = wids[0];
+        // We'll use the view as well...
+        geo::View_t view = wire->View();
        
         // ----------------------------------------------------------
         // -- Setting the appropriate signal widths and thresholds --
         // --    for the right plane.      --
         // ----------------------------------------------------------
        
-        threshold = fMinSig.at(wire->View());
-        fitWidth  = fInitWidth.at(wire->View());
-        minWidth  = fMinWidth.at(wire->View());
+        threshold = fMinSig.at(view);
+        fitWidth  = fInitWidth.at(view);
+        minWidth  = fMinWidth.at(view);
         
 //            if (wid.Plane == geo::kV)
 //                roiThreshold = std::max(threshold,std::min(2.*threshold,*std::max_element(signal.begin(),signal.end())/3.));
@@ -471,7 +492,7 @@ void GausHitFinder::produce(art::Event& evt)
                     double sumADC    = std::accumulate(signal.begin() + startT, signal.begin() + endT,0.);
                     double peakAmp   = 1.5 * sumADC / (endT - startT);  // hedge between triangle and a box
                     double peakMean  = (startT + endT) / 2.;
-                    double peakWidth = (endT - startT) / 4.;
+                    double peakWidth = (endT - startT) / 3.;   // was 4 but makes large pulses too narrow
                     
                     nGausForFit =  1;
                     chi2PerNDF  =  chi2PerNDF > fChi2NDF ? chi2PerNDF : -1.;
@@ -505,26 +526,7 @@ void GausHitFinder::produce(art::Event& evt)
                     double peakWidthErr = paramVec[hitIdx + 2].second;
                     
                     // ### Charge ###
-                    double totSig(0.);
-                    
-                    // ######################################################
-                    // ### Getting the total charge using the area method ###
-                    // ######################################################
-                    if(fAreaMethod)
-                    {
-                        totSig = std::sqrt(2*TMath::Pi())*peakAmp*peakWidth/fAreaNorms[(size_t)(wire->View())];
-                    }//<---End Area Method
-                    
-                    // ##################################
-                    // ### Integral Method for charge ###
-                    // ##################################
-                    else
-                    {
-                        for(int sigPos = startT; sigPos < endT; sigPos++)
-                            totSig += peakAmp * TMath::Gaus(sigPos,peakMean,peakWidth);
-                    }
-                    
-                    double charge(totSig);
+                    double charge    = chargeFunc(peakMean, peakAmp, peakWidth, fAreaNorms[view],startT,endT);;
                     double chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);
                     
                     // ### limits for getting sums
@@ -536,29 +538,29 @@ void GausHitFinder::produce(art::Event& evt)
 
                     // ok, now create the hit
                     recob::HitCreator hitcreator(*wire,                            // wire reference
-                                        	 wid,                              // wire ID
-                                        	 startT+roiFirstBinTick,           // start_tick TODO check
-                                        	 endT+roiFirstBinTick,             // end_tick TODO check
-                                        	 peakWidth,                        // rms
-                                        	 peakMean+roiFirstBinTick,         // peak_time
-                                        	 peakMeanErr,                      // sigma_peak_time
-                                        	 peakAmp,                          // peak_amplitude
-                                        	 peakAmpErr,                       // sigma_peak_amplitude
-                                        	 charge,                           // hit_integral
-                                        	 chargeErr,                        // hit_sigma_integral
-                                        	 sumADC,                           // summedADC FIXME
-                                        	 nGausForFit,                      // multiplicity
-                                        	 numHits,                          // local_index TODO check that the order is correct
-                                        	 chi2PerNDF,                       // goodness_of_fit
-                                        	 NDF                               // dof
-                                        	 );
+                                                 wid,                              // wire ID
+                                                 startT+roiFirstBinTick,           // start_tick TODO check
+                                                 endT+roiFirstBinTick,             // end_tick TODO check
+                                                 peakWidth,                        // rms
+                                                 peakMean+roiFirstBinTick,         // peak_time
+                                                 peakMeanErr,                      // sigma_peak_time
+                                                 peakAmp,                          // peak_amplitude
+                                                 peakAmpErr,                       // sigma_peak_amplitude
+                                                 charge,                           // hit_integral
+                                                 chargeErr,                        // hit_sigma_integral
+                                                 sumADC,                           // summedADC FIXME
+                                                 nGausForFit,                      // multiplicity
+                                                 numHits,                          // local_index TODO check that the order is correct
+                                                 chi2PerNDF,                       // goodness_of_fit
+                                                 NDF                               // dof
+                                                 );
                     
-		    const recob::Hit hit(hitcreator.move());
+                    const recob::Hit hit(hitcreator.move());
 		    
-		    if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(hit)) {
-                      hcol.emplace_back(std::move(hit), wire, rawdigits);                   
-                      numHits++;
-		    }
+                    if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(hit)) {
+                        hcol.emplace_back(std::move(hit), wire, rawdigits);
+                        numHits++;
+                    }
                 } // <---End loop over gaussians
                 
                 fChi2->Fill(chi2PerNDF);
