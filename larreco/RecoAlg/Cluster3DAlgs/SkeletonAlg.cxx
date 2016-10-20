@@ -128,9 +128,21 @@ public:
     
     bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
     {
-        int viewToCheck = (m_view + 1) % 3;
-        
-        return left->getHits()[viewToCheck]->getHit().WireID().Wire < right->getHits()[viewToCheck]->getHit().WireID().Wire;
+        for(const auto leftHit : left->getHits())
+        {
+            if (leftHit->getHit().View() == m_view)
+            {
+                for(const auto rightHit : right->getHits())
+                {
+                    if (rightHit->getHit().View() == m_view)
+                    {
+                        return leftHit->getHit().WireID().Wire < rightHit->getHit().WireID().Wire;
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
     }
 private:
     int m_view;
@@ -160,6 +172,11 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
         // Don't consider points "rejected" earlier
         if (hitPair->bitsAreSet(reco::ClusterHit3D::REJECTEDHIT)) continue;
         
+        // Don't consider hitPair's with less than 3 hits
+        unsigned status = hitPair->getStatusBits();
+        
+        if ((status & 0x7) != 0x7) continue;
+        
         for(const auto& hit2D : hitPair->getHits())
         {
             size_t view = hit2D->getHit().View();
@@ -174,8 +191,9 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
         for(auto& mapPair : hit2DToHit3DMap[idx])
         {
             size_t numHitPairs = mapPair.second.size();
+            int    viewToCheck = (idx + 1) % 3;    // have forgotten reasoning here...
             
-            if (numHitPairs > 1) std::sort(mapPair.second.begin(), mapPair.second.end(), OrderHitsAlongWire(idx));
+            if (numHitPairs > 1) std::sort(mapPair.second.begin(), mapPair.second.end(), OrderHitsAlongWire(viewToCheck));
         }
     }
     
@@ -189,7 +207,7 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
         if (hitPair->bitsAreSet(reco::ClusterHit3D::REJECTEDHIT)) continue;
         
         // If a hit pair we skip for now
-        if (hitPair->getHits().size() < 3) continue;
+        if ((hitPair->getStatusBits() & 0x7) != 7) continue;
         
         // Hopefully I am not confusing myself here.
         // The goal is to know, for a given 3D hit, how many other 3D hits share the 2D hits that it is made of
@@ -352,8 +370,9 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
         for(auto& mapPair : hit2DToHit3DMap[idx])
         {
             size_t numHitPairs = mapPair.second.size();
+            int    viewToCheck = (idx + 1) % 3;    // have forgotten reasoning here...
             
-            if (numHitPairs > 1) std::sort(mapPair.second.begin(), mapPair.second.end(), OrderHitsAlongWire(idx));
+            if (numHitPairs > 1) std::sort(mapPair.second.begin(), mapPair.second.end(), OrderHitsAlongWire(viewToCheck));
         }
     }
     
@@ -414,6 +433,7 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
                                                             hit3D->getDocaToAxis(),
                                                             hit3D->getArclenToPoca(),
                                                             hit3D->getOverlapFraction(),
+                                                            hit3D->getWireIDs(),
                                                             hit3D->getHits()));
             
             tempHitPairListPtr.push_back(&tempHitPairList.back());
