@@ -228,11 +228,6 @@ namespace tca {
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
-    std::vector<std::vector<Trajectory>> trial; ///< vector of all trajectories for all trials in one plane
-    std::vector<std::vector<short>> inTrialTraj;
-    std::vector<std::vector< VtxStore >> inTrialVtx;
-    std::vector<std::vector< Vtx3Store >> inTrialVtx3;
-    std::vector<TjPairHitShare> tjphs;
     unsigned short NumPlanes;
     bool ConvertTicksToTime;
   };
