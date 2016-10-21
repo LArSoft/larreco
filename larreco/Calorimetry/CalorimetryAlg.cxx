@@ -17,6 +17,8 @@
 // LArSoft includes
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larevt/CalibrationDBI/Interface/ElectronLifetimeService.h"
+#include "larevt/CalibrationDBI/Interface/ElectronLifetimeProvider.h"
 
 namespace calo{
 
@@ -41,6 +43,7 @@ namespace calo{
     fCalAmpConstants 	= config.CalAmpConstants();
     fCalAreaConstants   = config.CalAreaConstants();
     fUseModBox          = config.CaloUseModBox();
+    fLifeTimeForm       = config.CaloLifeTimeForm();
 
     return;
   }
@@ -134,11 +137,24 @@ namespace calo{
     
     t -= presamplings;
     time = t * timetick - T0*1e-3;  //  (in microsec)
+
+    if (fLifeTimeForm==0){
+      //Exponential form
+      double tau = detprop->ElectronLifetime();
     
-    double tau = detprop->ElectronLifetime();
-    
-    double correction = exp(time/tau);
-    return correction;
+      double correction = exp(time/tau);
+      return correction;
+    }
+    else if (fLifeTimeForm==1){
+      //Exponential+constant form
+      const lariov::ElectronLifetimeProvider& elifetime_provider = art::ServiceHandle<lariov::ElectronLifetimeService>()->GetProvider();
+      double correction = elifetime_provider.Lifetime(time);
+      //std::cout<<correction<<std::endl;
+      return correction;
+    }
+    else{
+      throw cet::exception("CalorimetryAlg") << "Unknow CaloLifeTimeForm "<<fLifeTimeForm<<std::endl;
+    }
   }
 
 } // namespace
