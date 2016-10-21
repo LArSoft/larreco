@@ -12,7 +12,7 @@ services:
   TFileService: { fileName: "HitAnaOutput3_hist.root" }
   Timing:       {}
   RandomNumberGenerator: {} #ART native random number generator
-  user:         @local::microboone_services
+                @table::microboone_services
 }
 
 

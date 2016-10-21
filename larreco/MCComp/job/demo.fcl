@@ -13,7 +13,7 @@ services:
 {
   TFileService: { fileName: "out.root" }
   Timing:       {}
-  user:         @local::microboone_simulation_services
+                @table::microboone_simulation_services
 }
 
 source:

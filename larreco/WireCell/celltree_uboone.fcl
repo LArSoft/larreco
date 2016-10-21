@@ -8,7 +8,7 @@ services:
   Timing:       {}
   RandomNumberGenerator: {}
   message:      @local::standard_info
-  user:          @local::microboone_services
+                 @table::microboone_services
 }
 
 

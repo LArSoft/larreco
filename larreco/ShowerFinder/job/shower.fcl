@@ -14,15 +14,12 @@ services:
 {
   TFileService: {fileName: "showers_hist.root"}
   Timing:       {}
-  user:         
-  { 
-   ExptGeoHelperInterface: @local::argoneut_geometry_helper
-   Geometry:	     @local::argoneut_geo
-   LArPropertiesService:    @local::argoneut_properties
-   LArFFT:           @local::argoneut_larfft
-   DBScanService:    @local::argoneut_dbscanservice
-   HoughLineService: @local::argoneut_houghlineservice
-  }
+  ExptGeoHelperInterface: @local::argoneut_geometry_helper
+  Geometry:	     @local::argoneut_geo
+  LArPropertiesService:    @local::argoneut_properties
+  LArFFT:           @local::argoneut_larfft
+  DBScanService:    @local::argoneut_dbscanservice
+  HoughLineService: @local::argoneut_houghlineservice
   MessageLogger: 
   {
     destinations: ["detailedInfo"]

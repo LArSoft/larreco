@@ -9,7 +9,7 @@ services:
   Timing:       {}
   RandomNumberGenerator: {}
   message:      @local::standard_warning
-  user:         @local::microboone_services 	     
+                @table::microboone_services 	     
 }
 
 source:

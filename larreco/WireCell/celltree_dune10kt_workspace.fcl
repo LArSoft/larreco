@@ -8,9 +8,9 @@ services:
   Timing:       {}
   RandomNumberGenerator: {}
   message:      @local::standard_info
-  user:          @local::dunefd_services
+                 @table::dunefd_services
 }
-services.user.Geometry: @local::dune10kt_workspace_geo
+services.Geometry: @local::dune10kt_workspace_geo
 
 source:
 {
