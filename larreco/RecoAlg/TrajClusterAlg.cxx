@@ -278,48 +278,33 @@ namespace tca {
     fIsRealData = evt.isRealData();
     didPrt = false;
     
-    // Stepping directions for a number of trial reconstruction runs
-    std::vector<short> sdirs;
-    
-    if(fMode == -1) {
-      // Step from DS to US
-      sdirs.push_back(-1);
-    } else if(fMode == 1) {
-      // Step from US to DS
-      sdirs.push_back(1);
-      sdirs.push_back(1);
-    }
-    
-    for(unsigned short itr = 0; itr < sdirs.size(); ++itr) {
-      fStepDir = sdirs[itr];
-      InitializeAllTraj();
-      for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
-        geo::TPCGeo const& TPC = geom->TPC(tpcid);
-        FillWireHitRange(tpcid);
-        if(fQuitAlg) return;
+    fStepDir = fMode;
+    InitializeAllTraj();
+    for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
+      geo::TPCGeo const& TPC = geom->TPC(tpcid);
+      FillWireHitRange(tpcid);
+      if(fQuitAlg) return;
+      for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
+        // no hits on this plane?
+        if(tjs.FirstWire[fPlane] > tjs.LastWire[fPlane]) continue;
+        // Set the CTP code to ensure objects are compared within the same plane
+        fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
+        fCstat = tpcid.Cryostat;
+        fTpc = tpcid.TPC;
+        // reconstruct all trajectories in the current plane
+        ReconstructAllTraj();
+        if(fQuitAlg) {
+          std::cout<<"RunTrajCluster failed in ReconstructAllTraj Run "<<fRun<<" Event "<<fEvent<<" EventsProcessed "<<fEventsProcessed<<"\n";
+          mf::LogVerbatim("TC")<<"RunTrajCluster failed after ReconstructAllTraj";
+          ClearResults();
+          return;
+        }
+      } // fPlane
+      // No sense taking muon direction if delta ray tagging is disabled
+      if(fDeltaRayTag[0] >= 0) TagMuonDirections(tjs, fMuonTag[3], debug.WorkID);
+      if(fVertex3DChiCut > 0) Find3DVertices(tpcid);
+    } // tpcid
 
-        for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
-          // no hits on this plane?
-          if(tjs.FirstWire[fPlane] > tjs.LastWire[fPlane]) continue;
-          // Set the CTP code to ensure objects are compared within the same plane
-          fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
-          fCstat = tpcid.Cryostat;
-          fTpc = tpcid.TPC;
-          // reconstruct all trajectories in the current plane
-          ReconstructAllTraj();
-          if(fQuitAlg) {
-            std::cout<<"RunTrajCluster failed in ReconstructAllTraj Run "<<fRun<<" Event "<<fEvent<<" EventsProcessed "<<fEventsProcessed<<"\n";
-            mf::LogVerbatim("TC")<<"RunTrajCluster failed after ReconstructAllTraj";
-            ClearResults();
-            return;
-          }
-        } // fPlane
-        // No sense taking muon direction if delta ray tagging is disabled
-        if(fDeltaRayTag[0] >= 0) TagMuonDirections(tjs, fMuonTag[3], debug.WorkID);
-        if(fVertex3DChiCut > 0) Find3DVertices(tpcid);
-      } // tpcid
-    } // itr
-    // put MC info into the trajectory struct
     FillTrajTruth();
  
     // Convert trajectories in allTraj into clusters
@@ -1225,8 +1210,6 @@ namespace tca {
       }
       // ignore anything that has the incorrect origin
       if(theTruth->Origin() != sourceOrigin) continue;
-      // not sure if this is the correct thing to do to pick up daughters...
-//      if(part->Process() != "primary") continue;
       // ignore processes that aren't a stable final state particle
       if(part->Process() == "neutronInelastic") continue;
       if(part->Process() == "hadElastic") continue;
@@ -1289,7 +1272,25 @@ namespace tca {
         } // hit matched to partList
       } // ipl
     } // iht
-/*
+    
+    // remove partList elements that have no matched hits
+     while(true) {
+      unsigned short killMe = USHRT_MAX;
+      for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
+        unsigned short nht = 0;
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) nht += nMatchedHitsInPartList[plane][ipl];
+        if(nht == 0) {
+          killMe = ipl;
+          break;
+        }
+      } // ipl
+       if(killMe < partList.size()) {
+         partList.erase(partList.begin() + killMe);
+       } else {
+         break;
+       }
+    } // didit
+
     for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
       unsigned short pdg = abs(partList[ipl]->PdgCode());
       bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
@@ -1304,11 +1305,15 @@ namespace tca {
       for(auto& tmp : nMatchedHitsInTj[ipl]) std::cout<<" "<<tmp[0]+1<<"_"<<tmp[1];
       std::cout<<"\n";
     } // ipl
-*/
+
     // Declare a TJ - partlist match for the trajectory which has the most true hits
+    // another temp vector for the one-to-one match
+    std::vector<std::vector<unsigned short>> partListToTjID(partList.size());
+    for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) partListToTjID[ipl].resize(tjs.NumPlanes);
+    
     for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        if(nMatchedHitsInPartList[plane][ipl] == 0) continue;
+        if(nMatchedHitsInPartList[plane][ipl] < 2) continue;
         unsigned short mostHits = 0;
         unsigned short tjWithMostHits = USHRT_MAX;
         for(unsigned short ii = 0; ii < nMatchedHitsInTj[ipl].size(); ++ii) {
@@ -1322,7 +1327,7 @@ namespace tca {
             tjWithMostHits = itj;
           }
         } // ii
-        if(tjWithMostHits == USHRT_MAX) continue;
+        if(tjWithMostHits > tjs.allTraj.size() - 1) continue;
         // the total number of hits used in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
         float nTjHits = tmp.size();
@@ -1336,29 +1341,42 @@ namespace tca {
           tjs.allTraj[tjWithMostHits].TruPDG = partList[ipl]->PdgCode();
           tjs.allTraj[tjWithMostHits].TruKE = 1000 * (partList[ipl]->E() - partList[ipl]->Mass());
           tjs.allTraj[tjWithMostHits].EffPur = effpur;
+          partListToTjID[ipl][plane] = tjs.allTraj[tjWithMostHits].ID;
 //          std::cout<<ipl<<" plane "<<plane<<" nTruHits "<<nTruHits<<" Tj ID "<<tjs.allTraj[tjWithMostHits].ID<<" nTjHits "<<nTjHits<<" nTjTruRecHits "<<nTjTruRecHits<<" eff "<<eff<<" pur "<<pur<<" effpur "<<eff*pur<<"\n";
         }
       } // plane
     } // ipl
     
     // Update the EP sums
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      if(tj.TruPDG == 0) continue;
-      if(abs(tj.TruPDG) == 13) {
-        ++nMu;
-        MuSum += tj.EffPur;
-      }
-      if(abs(tj.TruPDG) == 211) {
-        ++nPi;
-        PiSum += tj.EffPur;
-      }
-      if(abs(tj.TruPDG) == 2212) {
-        ++nPr;
-        PrSum += tj.EffPur;
-      }
-    } // tj
-    
+    for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
+      unsigned int pdg = abs(partList[ipl]->PdgCode());
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        std::cout<<"ipl "<<ipl<<" PDG "<<partList[ipl]->PdgCode()<<" plane "<<plane<<" partListToTjID "<<partListToTjID[ipl][plane]<<"\n";
+        // require at least 2 matched hits
+        if(nMatchedHitsInPartList[plane][ipl] < 2) continue;
+        if(partListToTjID[ipl][plane] == 0) {
+          // not matched
+          if(pdg == 13) ++nMu;
+          if(pdg == 211) ++nPi;
+          if(pdg == 2212) ++nPr;
+          continue;
+        }
+        unsigned short itj = partListToTjID[ipl][plane] - 1;
+        if(pdg == 13) {
+          ++nMu;
+          MuSum += tjs.allTraj[itj].EffPur;
+        }
+        if(pdg == 211) {
+          ++nPi;
+          PiSum += tjs.allTraj[itj].EffPur;
+        }
+        if(pdg == 2212) {
+          ++nPr;
+          PrSum  += tjs.allTraj[itj].EffPur;
+        }
+      } // plane
+    } // ipl
+
   } // FillTrajTruth
 
   ////////////////////////////////////////////////
@@ -3388,8 +3406,8 @@ namespace tca {
         mf::LogVerbatim("TC")<<"StepCrawl "<<step<<" Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" Dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" stepSize "<<stepSize<<" AngleRange "<<angRange;
       }
       // hit the boundary of the TPC?
-      if(tp.Pos[0] < 0 || tp.Pos[0] > tjs.MaxPos0[fPlane]) break;
-      if(tp.Pos[1] < 0 || tp.Pos[1] > tjs.MaxPos1[fPlane]) break;
+      if(tp.Pos[0] < 0 || tp.Pos[0] > tjs.MaxPos0[fPlane] ||
+         tp.Pos[1] < 0 || tp.Pos[1] > tjs.MaxPos1[fPlane]) break;
       // remove the old hits and other stuff
       tp.Hits.clear();
       tp.UseHit.reset();
@@ -6123,6 +6141,7 @@ namespace tca {
           mTick += tjs.fHits[iht].Integral * tjs.fHits[iht].PeakTime;
         } // ii
         mTick /= mChg;
+        if(mTick < 0) mTick = 0;
         // make a temporary signal waveform vector
         std::vector<float> signal(hiTick - loTick, 0);
         // fill it with the hit shapes
