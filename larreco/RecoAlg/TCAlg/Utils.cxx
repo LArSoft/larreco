@@ -107,7 +107,6 @@ namespace tca {
     tj.AlgMod[kSplitTraj] = true;
     if(prt) {
       mf::LogVerbatim("TC")<<"Splittjs.allTraj: itj "<<tj.ID<<" EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
-//      PrintTrajectory(tjs, tjs.allTraj[itj], USHRT_MAX);
     }
     
     // Append 3 points from the end of tj onto the
@@ -131,7 +130,6 @@ namespace tca {
     tjs.allTraj.push_back(newTj);
     if(prt) {
       mf::LogVerbatim("TC")<<"Splittjs.allTraj: NewTj "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
-//      PrintTrajectory(tjs, newTj, USHRT_MAX);
     }
     return true;
     
@@ -592,7 +590,6 @@ namespace tca {
     TrajPoint lastTP = tj.Pts[lastPt];
     lastTP.Pos = lastTP.HitPos;
     MakeBareTrajPoint(tjs, firstTP, lastTP, tmp);
-//    MakeBareTrajPoint(tjs, tj.Pts[firstPt], tj.Pts[lastPt], tmp);
     // sum up the deviations^2
     double dsum = 0;
     unsigned short cnt = 0;
