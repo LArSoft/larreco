@@ -1316,9 +1316,10 @@ namespace tca {
         myprt<<std::setw(5)<<aTj.Pts.size();
         myprt<<std::setw(4)<<aTj.EndPt[0];
         myprt<<std::setw(4)<<aTj.EndPt[1];
-        unsigned short endPt = aTj.EndPt[0];
+        int endPt = aTj.EndPt[0];
         TrajPoint tp = aTj.Pts[endPt];
-        unsigned short itick = tp.Pos[1]/tjs.UnitsPerTick;
+        int itick = tp.Pos[1]/tjs.UnitsPerTick;
+        if(itick < 0) itick = 0;
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
@@ -1460,7 +1461,7 @@ namespace tca {
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp)
   {
     unsigned int wire = std::nearbyint(tp.Pos[0]);
-    unsigned int time = std::nearbyint(tp.Pos[1]/tjs.UnitsPerTick);
+    int time = std::nearbyint(tp.Pos[1]/tjs.UnitsPerTick);
     return std::to_string(wire) + ":" + std::to_string(time);
   } // PrintPos
 
