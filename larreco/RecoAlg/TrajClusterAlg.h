@@ -136,8 +136,8 @@ namespace tca {
     std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
     // TEMP variables for summing Eff*Pur
-    double PrSum, MuPiSum;
-    unsigned short nPr, nMuPi;
+    double PrSum, MuSum, PiSum;
+    unsigned short nPr, nMu, nPi;
 
     bool fIsRealData;
 /*

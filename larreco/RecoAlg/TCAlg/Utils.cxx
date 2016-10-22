@@ -107,7 +107,6 @@ namespace tca {
     tj.AlgMod[kSplitTraj] = true;
     if(prt) {
       mf::LogVerbatim("TC")<<"Splittjs.allTraj: itj "<<tj.ID<<" EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
-//      PrintTrajectory(tjs, tjs.allTraj[itj], USHRT_MAX);
     }
     
     // Append 3 points from the end of tj onto the
@@ -131,7 +130,6 @@ namespace tca {
     tjs.allTraj.push_back(newTj);
     if(prt) {
       mf::LogVerbatim("TC")<<"Splittjs.allTraj: NewTj "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
-//      PrintTrajectory(tjs, newTj, USHRT_MAX);
     }
     return true;
     
@@ -592,7 +590,6 @@ namespace tca {
     TrajPoint lastTP = tj.Pts[lastPt];
     lastTP.Pos = lastTP.HitPos;
     MakeBareTrajPoint(tjs, firstTP, lastTP, tmp);
-//    MakeBareTrajPoint(tjs, tj.Pts[firstPt], tj.Pts[lastPt], tmp);
     // sum up the deviations^2
     double dsum = 0;
     unsigned short cnt = 0;
@@ -1307,7 +1304,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ Stop PDG   Par TRuPDG   EP   KE  WorkID\n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ Stp PDG  Par TRuPDG  E*P TruKE  WorkID\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && (unsigned short)debug.Plane != aTj.CTP) continue;
@@ -1319,9 +1316,10 @@ namespace tca {
         myprt<<std::setw(5)<<aTj.Pts.size();
         myprt<<std::setw(4)<<aTj.EndPt[0];
         myprt<<std::setw(4)<<aTj.EndPt[1];
-        unsigned short endPt = aTj.EndPt[0];
+        int endPt = aTj.EndPt[0];
         TrajPoint tp = aTj.Pts[endPt];
-        unsigned short itick = tp.Pos[1]/tjs.UnitsPerTick;
+        int itick = tp.Pos[1]/tjs.UnitsPerTick;
+        if(itick < 0) itick = 0;
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
@@ -1463,7 +1461,7 @@ namespace tca {
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp)
   {
     unsigned int wire = std::nearbyint(tp.Pos[0]);
-    unsigned int time = std::nearbyint(tp.Pos[1]/tjs.UnitsPerTick);
+    int time = std::nearbyint(tp.Pos[1]/tjs.UnitsPerTick);
     return std::to_string(wire) + ":" + std::to_string(time);
   } // PrintPos
 
