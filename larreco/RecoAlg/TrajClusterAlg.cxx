@@ -249,22 +249,22 @@ namespace tca {
     
     // check for debugging mode triggered by Plane, Wire, Tick
     if(debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
-      std::cout<<"Looking for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
+      mf::LogVerbatim("TC")<<"Looking for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
         if((int)tjs.fHits[iht].WireID.Plane != debug.Plane) continue;
         if((int)tjs.fHits[iht].WireID.Wire != debug.Wire) continue;
         if(tjs.fHits[iht].PeakTime < debug.Tick - 5) continue;
         if(tjs.fHits[iht].PeakTime > debug.Tick + 5) continue;
         debug.Hit = iht;
-        std::cout<<" iht "<<iht<<" "<<debug.Plane<<":"<<PrintHit(tjs.fHits[iht]);
-        std::cout<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
-        std::cout<<" RMS "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].RMS;
-        std::cout<<" Chisq "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].GoodnessOfFit;
-        std::cout<<" Mult "<<tjs.fHits[iht].Multiplicity;
-        std::cout<<"\n";
+        mf::LogVerbatim("TC")<<" iht "<<iht<<" "<<debug.Plane<<":"<<PrintHit(tjs.fHits[iht]);
+        mf::LogVerbatim("TC")<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
+        mf::LogVerbatim("TC")<<" RMS "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].RMS;
+        mf::LogVerbatim("TC")<<" Chisq "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].GoodnessOfFit;
+        mf::LogVerbatim("TC")<<" Mult "<<tjs.fHits[iht].Multiplicity;
+        mf::LogVerbatim("TC")<<"\n";
         break;
       } // iht
-      if(debug.Hit == UINT_MAX) std::cout<<" not found\n";
+      if(debug.Hit == UINT_MAX) mf::LogVerbatim("TC")<<" not found\n";
     } // debugging mode
 
     
