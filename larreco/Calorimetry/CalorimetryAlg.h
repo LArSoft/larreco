@@ -46,6 +46,12 @@ namespace calo{
 			Name("CaloUseModBox"),
 			Comment("Use modified box model if true, birks otherwise")
 		};
+
+                fhicl::Atom< int > CaloLifeTimeForm {
+                        Name("CaloLifeTimeForm"),
+                        Comment("0 = exponential, 1 = exponential + constant")
+		};
+
     };
 
 	CalorimetryAlg(const fhicl::ParameterSet& pset) :
@@ -88,7 +94,7 @@ namespace calo{
     std::vector< double > fCalAmpConstants;
     std::vector< double > fCalAreaConstants;
     bool fUseModBox;
-    
+    int  fLifeTimeForm;
     
     }; // class CalorimetryAlg
 } //namespace calo

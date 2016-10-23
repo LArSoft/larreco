@@ -79,5 +79,5 @@ class GFAbsEnergyLoss : public TObject{
 } // namespace genf
 #endif
 
-/* @} **/
+/** @} */
 

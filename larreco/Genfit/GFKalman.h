@@ -171,4 +171,4 @@ private:
 } // namespace genf
 #endif
 
-/* @} **/
+/** @} */
