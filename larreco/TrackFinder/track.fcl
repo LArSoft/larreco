@@ -17,7 +17,7 @@ process_name: FindTracks
 services:
 {
   TFileService: {fileName: "tracks_hist.root"}
-  Timing:       {}
+  TimeTracker   {}
   ExptGeoHelperInterface: @local::argoneut_geometry_helper
   Geometry:	     @local::argoneut_geo
   DetectorPropertiesService: @local::argoneut_detproperties

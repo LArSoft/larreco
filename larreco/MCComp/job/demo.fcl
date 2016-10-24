@@ -12,7 +12,7 @@ process_name: mcbtdemo
 services:
 {
   TFileService: { fileName: "out.root" }
-  Timing:       {}
+  TimeTracker   {}
                 @table::microboone_simulation_services
 }
 

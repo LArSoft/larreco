@@ -6,7 +6,7 @@ process_name: ShowerTest
 services:
 {
   TFileService: { fileName: "shower_test_hist.root" }
-  Timing:       {}
+  TimeTracker   {}
   RandomNumberGenerator: {}
   message:      @local::standard_warning
                 @table::microboone_services 	     

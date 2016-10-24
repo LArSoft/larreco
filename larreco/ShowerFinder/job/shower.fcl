@@ -13,7 +13,7 @@ process_name: FindShowers
 services:
 {
   TFileService: {fileName: "showers_hist.root"}
-  Timing:       {}
+  TimeTracker   {}
   ExptGeoHelperInterface: @local::argoneut_geometry_helper
   Geometry:	     @local::argoneut_geo
   LArPropertiesService:    @local::argoneut_properties

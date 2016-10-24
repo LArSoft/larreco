@@ -9,7 +9,7 @@ services:
   # Load the service that manages root files for histograms.
   TFileService: { fileName: "spacepoint_uboone.root" }
   scheduler:    { wantTracer: true wantSummary: true }
-  Timing:       {}
+  TimeTracker   {}
   message:   @local::standard_debug
   RandomNumberGenerator: {} #ART native random number generator
 }

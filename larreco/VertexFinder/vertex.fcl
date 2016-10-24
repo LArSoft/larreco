@@ -16,7 +16,7 @@ process_name: FindVertex
 services:
 {
   TFileService: {fileName: "vertex_hist.root"}
-  Timing:       {}
+  TimeTracker   {}
   RandomNumberGenerator: {} #ART native random number generator
   MessageLogger: {
   				   destinations: ["detailedInfo"]
