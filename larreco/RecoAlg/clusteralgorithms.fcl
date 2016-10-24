@@ -5,6 +5,7 @@ BEGIN_PROLOG
 standard_trajclusteralg:
 {
    HitFinderModuleLabel: "gaushit"
+   MakeNewHits:   true      # Merge hits in trajectory points and write them out
    Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
    MinPtsFit: [4, 2]        # Min number of points in the trajectory fit required on each pass
@@ -12,8 +13,8 @@ standard_trajclusteralg:
    MaxAngleRange: [0, 2]    # Max angle range allowed on each pass
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
    HitErrFac: 0.2           # hit time error for fitting = fHitErrFac * (hit RMS)
-   MinAmp: 2                # Min amplitude for a wire signal being considered present
-   AngleRanges: [65,80,90]  # Max angle (degrees) for small, intermediate and large angle trajectories
+   MinAmp: 0.1              # Min amplitude for a wire signal being considered present (must be > 0)
+   AngleRanges: [65,85,90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
    ChgPullCut: 3            # Use trajectory points/hits if (Chg/AveChg - 1) / ChgRMS < cut
    KinkAngCut: 0.5          # Kink angle to decide whether to merge or create a 2D vtx

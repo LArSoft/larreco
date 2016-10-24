@@ -263,5 +263,5 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
 
 #endif
 
-/* @} **/
+/** @} */
 

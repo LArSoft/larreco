@@ -23,7 +23,7 @@ namespace tca {
     for(auto& tp : tjs.allTraj[itj].Pts) {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         iht = tp.Hits[ii];
-        if(tjs.inTraj[iht] == tjs.allTraj[itj].ID) tjs.inTraj[iht] = 0;
+        if(tjs.fHits[iht].InTraj == tjs.allTraj[itj].ID) tjs.fHits[iht].InTraj = 0;
       } // ii
     } // tp
     tjs.allTraj[itj].AlgMod[kKilled] = true;
@@ -42,8 +42,8 @@ namespace tca {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         if(tp.UseHit[ii]) {
           iht = tp.Hits[ii];
-          if(tjs.inTraj[iht] == 0) {
-            tjs.inTraj[iht] = tjs.allTraj[itj].ID;
+          if(tjs.fHits[iht].InTraj == 0) {
+            tjs.fHits[iht].InTraj = tjs.allTraj[itj].ID;
           }
         }
       } // ii
@@ -97,8 +97,8 @@ namespace tca {
         if(!tj.Pts[ipt].UseHit[ii]) continue;
         iht = tj.Pts[ipt].Hits[ii];
         // This shouldn't happen but check anyway
-        if(tjs.inTraj[iht] != tj.ID) continue;
-        tjs.inTraj[iht] = newTj.ID;
+        if(tjs.fHits[iht].InTraj != tj.ID) continue;
+        tjs.fHits[iht].InTraj = newTj.ID;
         tj.Pts[ipt].UseHit[ii] = false;
       } // ii
     } // ipt
@@ -185,8 +185,8 @@ namespace tca {
   {
     // returns the separation^2 between two hits in WSE units
     if(iht > tjs.fHits.size()-1 || jht > tjs.fHits.size()-1) return 1E6;
-    float dw = (float)tjs.fHits[iht].WireID().Wire - (float)tjs.fHits[jht].WireID().Wire;
-    float dt = (tjs.fHits[iht].PeakTime() - tjs.fHits[jht].PeakTime()) * tjs.UnitsPerTick;
+    float dw = (float)tjs.fHits[iht].WireID.Wire - (float)tjs.fHits[jht].WireID.Wire;
+    float dt = (tjs.fHits[iht].PeakTime - tjs.fHits[jht].PeakTime) * tjs.UnitsPerTick;
     return dw * dw + dt * dt;
   } // HitSep2
   
@@ -201,8 +201,8 @@ namespace tca {
   //////////////////////////////////////////
   float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp)
   {
-    float wire = tjs.fHits[iht].WireID().Wire;
-    float time = tjs.fHits[iht].PeakTime() * tjs.UnitsPerTick;
+    float wire = tjs.fHits[iht].WireID.Wire;
+    float time = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
     return sqrt(PointTrajDOCA2(tjs, wire, time, tp));
   } // PointTrajDOCA
   
@@ -320,10 +320,10 @@ namespace tca {
   } // TwoTPAngle
   
   ////////////////////////////////////////////////
-  void PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest, std::vector<unsigned int>& hitVec)
+  std::vector<unsigned int> PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest)
   {
     // Put hits in each trajectory point into a flat vector
-    hitVec.clear();
+    std::vector<unsigned int> hitVec;
     hitVec.reserve(tj.Pts.size());
     unsigned short ipt, ii;
     unsigned int iht;
@@ -336,6 +336,7 @@ namespace tca {
         if(useit) hitVec.push_back(iht);
       } // iht
     } // ipt
+    return hitVec;
   } // PutTrajHitsInVector
   
   //////////////////////////////////////////
@@ -358,8 +359,7 @@ namespace tca {
   bool HasDuplicateHits(Trajectory const& tj)
   {
     // returns true if a hit is associated with more than one TP
-    std::vector<unsigned int> tjHits;
-    PutTrajHitsInVector(tj, kAllHits, tjHits);
+    auto tjHits = PutTrajHitsInVector(tj, kAllHits);
     for(unsigned short ii = 0; ii < tjHits.size() - 1; ++ii) {
       for(unsigned short jj = ii + 1; jj < tjHits.size(); ++jj) if(tjHits[ii] == tjHits[jj]) return true;
     } // iht
@@ -378,11 +378,22 @@ namespace tca {
   } // MoveTPToWire
   
   //////////////////////////////////////////
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest)
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime,  bool& hitsNear)
   {
     // returns a vector of hits that are within the Window[Pos0][Pos1] in plane.
-    // Note that hits on wire wireWindow[1] are returned as well
+    // Note that hits on wire wireWindow[1] are returned as well. The definition of close
+    // depends on setting of usePeakTime. If UsePeakTime is true, a hit is considered nearby if
+    // the PeakTime is within the window. This is shown schematically here where
+    // the time is on the horizontal axis and a "-" denotes a valid entry
+    // timeWindow     -----------------
+    // hit PeakTime             +         close
+    // hit PeakTime  +                    not close
+    // If usePeakTime is false, a hit is considered nearby if the hit StartTick and EndTick overlap with the timeWindow
+    // Time window                  ---------
+    // Hit StartTick-EndTick      --------        close
+    // Hit StartTick - EndTick                  --------  not close
     
+    hitsNear = false;
     std::vector<unsigned int> closeHits;
     if(plane > tjs.FirstWire.size() - 1) return closeHits;
     // window in the wire coordinate
@@ -398,11 +409,21 @@ namespace tca {
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-        if(tjs.fHits[iht].PeakTime() < minTick) continue;
-        if(tjs.fHits[iht].PeakTime() > maxTick) break;
+        if(usePeakTime) {
+          if(tjs.fHits[iht].PeakTime < minTick) continue;
+          if(tjs.fHits[iht].PeakTime > maxTick) break;
+        } else {
+          int hiLo = minTick;
+          if(tjs.fHits[iht].StartTick > hiLo) hiLo = tjs.fHits[iht].StartTick;
+          int loHi = maxTick;
+          if(tjs.fHits[iht].EndTick < loHi) loHi = tjs.fHits[iht].EndTick;
+          if(loHi < hiLo) continue;
+          if(hiLo > loHi) break;
+        }
+        hitsNear = true;
         bool takeit = (hitRequest == kAllHits);
-        if(hitRequest == kUsedHits && tjs.inTraj[iht] > 0) takeit = true;
-        if(hitRequest == kUnusedHits && tjs.inTraj[iht] == 0) takeit = true;
+        if(hitRequest == kUsedHits && tjs.fHits[iht].InTraj > 0) takeit = true;
+        if(hitRequest == kUnusedHits && tjs.fHits[iht].InTraj == 0) takeit = true;
         if(takeit) closeHits.push_back(iht);
       } // iht
     } // wire
@@ -415,7 +436,7 @@ namespace tca {
     // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
     // close hits OR if the wire at this position is dead
     
-    tp.Hits.clear();
+     tp.Hits.clear();
     tp.UseHit.reset();
     if(!WireHitRangeOK(tjs, tp.CTP)) {
       std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.WireHitRangeCstat<<" TPC "<<tjs.WireHitRangeTPC<<"\n";
@@ -440,10 +461,10 @@ namespace tca {
     float fwire = wire;
     for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
       bool useit = (hitRequest == kAllHits);
-      if(hitRequest == kUsedHits && tjs.inTraj[iht] > 0) useit = true;
-      if(hitRequest == kUnusedHits && tjs.inTraj[iht] == 0) useit = true;
+      if(hitRequest == kUsedHits && tjs.fHits[iht].InTraj > 0) useit = true;
+      if(hitRequest == kUnusedHits && tjs.fHits[iht].InTraj == 0) useit = true;
       if(!useit) continue;
-      float ftime = tjs.UnitsPerTick * tjs.fHits[iht].PeakTime();
+      float ftime = tjs.UnitsPerTick * tjs.fHits[iht].PeakTime;
       float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
 //      std::cout<<"chk "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<"\n";
       if(delta < maxDelta) tp.Hits.push_back(iht);
@@ -524,8 +545,14 @@ namespace tca {
     if(lastPt > tj.EndPt[1]) return 0;
     
     TrajPoint tmp;
-    // make a bare trajectory point to define a line between firstPt and lastPt
-    MakeBareTrajPoint(tjs, tj.Pts[firstPt], tj.Pts[lastPt], tmp);
+    // make a bare trajectory point to define a line between firstPt and lastPt.
+    // Use the position of the hits at these points
+    TrajPoint firstTP = tj.Pts[firstPt];
+    firstTP.Pos = firstTP.HitPos;
+    TrajPoint lastTP = tj.Pts[lastPt];
+    lastTP.Pos = lastTP.HitPos;
+    MakeBareTrajPoint(tjs, firstTP, lastTP, tmp);
+//    MakeBareTrajPoint(tjs, tj.Pts[firstPt], tj.Pts[lastPt], tmp);
     // sum up the deviations^2
     double dsum = 0;
     unsigned short cnt = 0;
@@ -717,9 +744,9 @@ namespace tca {
   /////////////////////////////////////////
   void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
   {
-    CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].WireID());
-    MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit].WireID().Wire, tjs.fHits[fromHit].PeakTime(),
-                           (float)tjs.fHits[toHit].WireID().Wire,   tjs.fHits[toHit].PeakTime(), tCTP, tp);
+    CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].WireID);
+    MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit].WireID.Wire, tjs.fHits[fromHit].PeakTime,
+                           (float)tjs.fHits[toHit].WireID.Wire,   tjs.fHits[toHit].PeakTime, tCTP, tp);
     
   } // MakeBareTrajPoint
   
@@ -778,58 +805,69 @@ namespace tca {
       if(hitRequest == kUnusedHits && !tp.UseHit[ii]) useit = true;
       if(!useit) continue;
       unsigned int iht = tp.Hits[ii];
-      float cv = tjs.fHits[iht].PeakTime();
-      float rms = tjs.fHits[iht].RMS();
+      float cv = tjs.fHits[iht].PeakTime;
+      float rms = tjs.fHits[iht].RMS;
       float arg = cv - rms;
       if(arg < minVal) minVal = arg;
       arg = cv + rms;
       if(arg > maxVal) maxVal = arg;
     } // ii
     if(maxVal == 0) return 0;
-    return maxVal - minVal;
+    return (maxVal - minVal) / 2;
   } // TPHitsRMSTick
   
   ////////////////////////////////////////////////
-  float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet)
+  float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, HitStatus_t hitRequest)
   {
-    return tjs.UnitsPerTick * HitsRMSTick(tjs, hitsInMultiplet);
+    return tjs.UnitsPerTick * HitsRMSTick(tjs, hitsInMultiplet, hitRequest);
   } // HitsRMSTick
 
   ////////////////////////////////////////////////
-  float HitsRMSTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet)
+  float HitsRMSTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, HitStatus_t hitRequest)
   {
     if(hitsInMultiplet.empty()) return 0;
+    
+    if(hitsInMultiplet.size() == 1) return tjs.fHits[hitsInMultiplet[0]].RMS;
+ 
     float minVal = 9999;
     float maxVal = 0;
     for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
       unsigned int iht = hitsInMultiplet[ii];
-      float cv = tjs.fHits[iht].PeakTime();
-      float rms = tjs.fHits[iht].RMS();
+      bool useit = (hitRequest == kAllHits);
+      if(hitRequest == kUsedHits && tjs.fHits[iht].InTraj > 0) useit = true;
+      if(hitRequest == kUnusedHits && tjs.fHits[iht].InTraj == 0) useit = true;
+      if(!useit) continue;
+      float cv = tjs.fHits[iht].PeakTime;
+      float rms = tjs.fHits[iht].RMS;
       float arg = cv - rms;
       if(arg < minVal) minVal = arg;
       arg = cv + rms;
       if(arg > maxVal) maxVal = arg;
     } // ii
     if(maxVal == 0) return 0;
-    return maxVal - minVal;
+    return (maxVal - minVal) / 2;
   } // HitsRMSTick
   
   ////////////////////////////////////////////////
-  float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum)
+  float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum, HitStatus_t hitRequest)
   {
-    return tjs.UnitsPerTick * HitsPosTick(tjs, hitsInMultiplet, sum);
+    return tjs.UnitsPerTick * HitsPosTick(tjs, hitsInMultiplet, sum, hitRequest);
   } // HitsPosTime
   
   ////////////////////////////////////////////////
-  float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum)
+  float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& sum, HitStatus_t hitRequest)
   {
     // returns the position and the charge
     float pos = 0;
     sum = 0;
     for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
       unsigned int iht = hitsInMultiplet[ii];
-      float chg = tjs.fHits[iht].Integral();
-      pos += chg * tjs.fHits[iht].PeakTime();
+      bool useit = (hitRequest == kAllHits);
+      if(hitRequest == kUsedHits && tjs.fHits[iht].InTraj > 0) useit = true;
+      if(hitRequest == kUnusedHits && tjs.fHits[iht].InTraj == 0) useit = true;
+      if(!useit) continue;
+      float chg = tjs.fHits[iht].Integral;
+      pos += chg * tjs.fHits[iht].PeakTime;
       sum += chg;
     } // ii
     if(sum == 0) return 0;
@@ -1359,22 +1397,23 @@ namespace tca {
     myprt<<std::setw(7)<<tp.FitChi;
     myprt<<std::setw(6)<<tp.NTPsFit;
     // print the hits associated with this traj point
-    for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
-      myprt<<" "<<PrintHit(tjs.fHits[tp.Hits[iht]]);
-      if(tp.UseHit[iht]) {
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+      unsigned int iht = tp.Hits[ii];
+      myprt<<" "<<tjs.fHits[iht].WireID.Wire<<":"<<(int)tjs.fHits[iht].PeakTime;
+      if(tp.UseHit[ii]) {
         // Distinguish used hits from nearby hits
         myprt<<"_";
       } else {
         myprt<<"x";
       }
-      myprt<<tjs.inTraj[tp.Hits[iht]];
+      myprt<<tjs.fHits[iht].InTraj;
     } // iht
   } // PrintTrajPoint
   
   /////////////////////////////////////////
-  std::string PrintHit(const recob::Hit& hit)
+  std::string PrintHit(const TCHit& hit)
   {
-    return std::to_string(hit.WireID().Wire) + ":" + std::to_string((int)hit.PeakTime());
+    return std::to_string(hit.WireID.Plane) + ":" + std::to_string(hit.WireID.Wire) + ":" + std::to_string((int)hit.PeakTime) + "_" + std::to_string(hit.InTraj);
   } // PrintHit
   
   /////////////////////////////////////////

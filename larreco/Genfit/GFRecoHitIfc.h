@@ -111,6 +111,6 @@ class GFRecoHitIfc : public GFAbsRecoHit{
 #endif
 
 
-/* @} **/
+/** @} */
 
 

@@ -216,4 +216,4 @@ class RKTrackRep : public GFAbsTrackRep {
 } // end namespace
 #endif
 
-/* @} **/
+/** @} */
