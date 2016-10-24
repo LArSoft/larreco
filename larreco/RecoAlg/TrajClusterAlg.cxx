@@ -56,13 +56,11 @@ namespace tca {
     fExpect_Angle[0] = tfs->make<TProfile>("expect_angle0","Expected width vs Angle Pln 0", 11, 0, M_PI/2, "S");
     fExpect_Angle[1] = tfs->make<TProfile>("expect_angle1","Expected width vs Angle Pln 1", 11, 0, M_PI/2, "S");
     fExpect_Angle[2] = tfs->make<TProfile>("expect_angle2","Expected width vs Angle Pln 2", 11, 0, M_PI/2, "S");
-
-    PrSum = 0;
-    nPr = 0;
-    PiSum = 0;
-    nPi = 0;
-    MuSum = 0;
-    nMu = 0;
+    
+    for(unsigned short pdgIndex = 0; pdgIndex < 6; ++pdgIndex) {
+      EPCounts[pdgIndex] = 0;
+      EPSums[pdgIndex] = 0;
+    }
     fEventsProcessed = 0;
 //    if(fStudyMode) outFile.open("quality.txt");
     
@@ -107,7 +105,7 @@ namespace tca {
     
     fStudyMode            = pset.get< bool  >("StudyMode", false);
     fTagAllTraj           = pset.get< bool  >("TagAllTraj", false);
-    fFillTruth            = pset.get< short >("FillTruth", 0);
+    fMatchTruth           = pset.get< std::vector<float> >("FillTruth", {-1, -1, -1, -1});
     fDeltaRayTag          = pset.get< std::vector<short>>("DeltaRayTag", {-1, -1, -1});
     fMuonTag              = pset.get< std::vector<short>>("MuonTag", {-1, -1, -1, - 1});
     fShowerTag            = pset.get< std::vector<short>>("ShowerTag", {-1, -1});
@@ -385,25 +383,27 @@ namespace tca {
  */
       } // itj
     } // studymode
-
-    // Print some reco-truth information to the screen
-    if(fFillTruth > 0) {
+    
+    if(fMatchTruth[0] >= 0) {
       mf::LogVerbatim myprt("TC");
       myprt<<"Event "<<evt.event();
-      double ave = -1;
-      if(nMu > 0) ave = MuSum / (double)nMu;
-      myprt<<" nMu "<<nMu<<" MuEP "<<std::fixed<<std::setprecision(2)<<ave;
-      ave = -1;
-      if(nPi > 0) ave = PiSum / (double)nPi;
-      myprt<<" nPi "<<nPi<<" PiEP "<<std::setprecision(2)<<ave;
-      ave = -1;
-      if(nPr > 0) ave = PrSum / (double)nPr;
-      myprt<<" nPr "<<nPr<<" PrEP "<<std::setprecision(2)<<ave;
-      ave = -1;
-      double sum = nPr + nPi + nMu;
-      if(sum > 0) ave = (PrSum + PiSum + MuSum) / sum;
-      myprt<<" combined "<<std::setprecision(3)<<ave;
-    }
+      float sum = 0;
+      float cnt = 0;
+      for(unsigned short pdgIndex = 0; pdgIndex < 6; ++pdgIndex) {
+        if(EPCounts[pdgIndex] == 0) continue;
+        if(pdgIndex == 0) myprt<<" Electron ";
+        if(pdgIndex == 1) myprt<<" Muon ";
+        if(pdgIndex == 2) myprt<<" Pion ";
+        if(pdgIndex == 3) myprt<<" Kaon ";
+        if(pdgIndex == 4) myprt<<" Proton ";
+        float ave = EPSums[pdgIndex] / (float)EPCounts[pdgIndex];
+        myprt<<" ave "<<std::fixed<<std::setprecision(2)<<ave;
+        myprt<<" cnt "<<EPCounts[pdgIndex];
+        sum += EPSums[pdgIndex];
+        cnt += EPCounts[pdgIndex];
+      } // pdgIndex
+      if(cnt > 0) myprt<<" combined "<<std::fixed<<std::setprecision(2)<<sum / cnt;
+    } // fMatchTruth[0] >= 0
 
     // convert vertex time from WSE to ticks
     for(auto& avtx : tjs.vtx) avtx.Pos[1] /= tjs.UnitsPerTick;
@@ -1172,7 +1172,7 @@ namespace tca {
   {
     
     if(fIsRealData) return;
-    if(fFillTruth <= 0) return;
+    if(fMatchTruth[0] < 0) return;
     
     art::ServiceHandle<cheat::BackTracker> bt;
     // list of all true particles
@@ -1190,7 +1190,7 @@ namespace tca {
       int trackID = part->TrackId();
       art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
       if(sourcePtclTrackID < 0) {
-        if(fFillTruth == 1) {
+        if(fMatchTruth[0] == 1) {
           // Look for beam neutrino or single particle
           if(theTruth->Origin() == simb::kBeamNeutrino) {
             sourcePtclTrackID = trackID;
@@ -1217,14 +1217,14 @@ namespace tca {
       unsigned short pdg = abs(part->PdgCode());
       bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
       if(!isCharged) continue;
-//      std::cout<<"part "<<part->PdgCode()<<" TrackId "<<part->TrackId()<<" sourcePtclTrackID  "<<sourcePtclTrackID<<" Origin "<<theTruth->Origin()<<" Process "<<part->Process()<<"\n";
+      if(fMatchTruth[1] > 2) std::cout<<partList.size()<<" PDG Code  "<<part->PdgCode()<<" TrackId "<<part->TrackId()<<" sourcePtclTrackID  "<<sourcePtclTrackID<<" Origin "<<theTruth->Origin()<<" Process "<<part->Process()<<"\n";
       partList.push_back(part);
     } // ipart
     // Match all hits to the truth. Put the MC track ID in a temp vector
     std::vector<int> hitTruTrkID(tjs.fHits.size());
     // Prepare to count of the number of hits matched to each MC Track in each plane
-    std::vector<std::vector<unsigned short>> nMatchedHitsInPartList(tjs.NumPlanes);
-    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) nMatchedHitsInPartList[plane].resize(plist.size());
+    std::vector<std::vector<unsigned short>> nMatchedHitsInPartList(plist.size());
+    for(unsigned short ipl = 0; ipl < plist.size(); ++ipl) nMatchedHitsInPartList[ipl].resize(tjs.NumPlanes);
     // and make a list of the TJs and hit count for each MC Track
     std::vector<std::vector<std::array<unsigned short, 2>>> nMatchedHitsInTj(partList.size());
     
@@ -1238,23 +1238,18 @@ namespace tca {
       std::vector<sim::TrackIDE> tides;
       bt->ChannelToTrackIDEs(tides, channel, startTick, endTick);
       // Declare a match to the one which has an energy fraction > 0.5
-//      bool doprt = (hit.WireID.Wire >= 125 && hit.WireID.Wire <= 150);
-//      if(doprt) std::cout<<"channel "<<channel<<"  "<<PrintHit(tjs.fHits[iht])<<" Chg "<<(int)hit.Integral<<" "<<(int)startTick<<"-"<<(int)endTick;
       for(auto itide = tides.begin(); itide != tides.end(); ++itide) {
-        // This is an EM energy deposition from an untracked daughter if trackID < 0
-//        if(doprt) std::cout<<" tkID "<<itide->trackID<<" efrac "<<std::fixed<<std::setprecision(2)<<itide->energyFrac;
         if(itide->energyFrac > 0.5) {
           hitTruTrkID[iht] = itide->trackID;
           break;
         }
       } // itid
-//      if(doprt) std::cout<<"\n";
       // not matched (confidently) to a MC track
       if(hitTruTrkID[iht] == 0) continue;
       // count the number of matched hits for each MC track in each plane
       for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
         if(hitTruTrkID[iht] == partList[ipl]->TrackId()) {
-          ++nMatchedHitsInPartList[plane][ipl];
+          ++nMatchedHitsInPartList[ipl][plane];
           if(tjs.fHits[iht].InTraj > 0) {
             unsigned short itj = tjs.fHits[iht].InTraj - 1;
             bool gotit = false;
@@ -1274,37 +1269,44 @@ namespace tca {
     } // iht
     
     // remove partList elements that have no matched hits
-     while(true) {
-      unsigned short killMe = USHRT_MAX;
-      for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
-        unsigned short nht = 0;
-        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) nht += nMatchedHitsInPartList[plane][ipl];
-        if(nht == 0) {
-          killMe = ipl;
-          break;
-        }
-      } // ipl
-       if(killMe < partList.size()) {
-         partList.erase(partList.begin() + killMe);
-       } else {
-         break;
-       }
-    } // didit
-
+    std::vector<simb::MCParticle*> newPartList;
+    std::vector<std::vector<unsigned short>> newnMatchedHitsInPartList;
+    std::vector<std::vector<std::array<unsigned short, 2>>> newnMatchedHitsInTj;
     for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
-      unsigned short pdg = abs(partList[ipl]->PdgCode());
-      bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
-      if(!isCharged) continue;
-      // Kinetic energy in MeV
-      int T = 1000 * (partList[ipl]->E() - partList[ipl]->Mass());
-      int motherID = partList[ipl]->Mother() + sourcePtclTrackID - 1;
-      std::cout<<ipl<<" PDG "<<partList[ipl]->PdgCode()<<" TrackId "<<partList[ipl]->TrackId()<<" motherID "<<motherID<<" T "<<T<<" nMatchedHitsInPartList";
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) std::cout<<" "<<nMatchedHitsInPartList[plane][ipl];
-      std::cout<<" Proc "<<partList[ipl]->Process();
-      std::cout<<" Matched hits used in TJs";
-      for(auto& tmp : nMatchedHitsInTj[ipl]) std::cout<<" "<<tmp[0]+1<<"_"<<tmp[1];
-      std::cout<<"\n";
+      unsigned short nht = 0;
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) nht += nMatchedHitsInPartList[ipl][plane];
+      if(nht == 0) continue;
+      newPartList.push_back(partList[ipl]);
+      newnMatchedHitsInPartList.push_back(nMatchedHitsInPartList[ipl]);
+      newnMatchedHitsInTj.push_back(nMatchedHitsInTj[ipl]);
     } // ipl
+    partList = newPartList;
+    nMatchedHitsInPartList = newnMatchedHitsInPartList;
+    nMatchedHitsInTj = newnMatchedHitsInTj;
+    
+    if(fMatchTruth[1] > 1) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"part   PDG TrkID MomID KE(MeV)   Process nMatchedHits[plane]\n";
+      for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
+        unsigned short pdg = abs(partList[ipl]->PdgCode());
+        bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
+        if(!isCharged) continue;
+        // Kinetic energy in MeV
+        int T = 1000 * (partList[ipl]->E() - partList[ipl]->Mass());
+        int motherID = partList[ipl]->Mother() + sourcePtclTrackID - 1;
+        myprt<<std::setw(4)<<ipl;
+        myprt<<std::setw(6)<<partList[ipl]->PdgCode();
+        myprt<<std::setw(6)<<partList[ipl]->TrackId();
+        myprt<<std::setw(6)<<motherID;
+        myprt<<std::setw(6)<<T;
+        myprt<<std::setw(12)<<partList[ipl]->Process();
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) myprt<<std::setw(4)<<nMatchedHitsInPartList[ipl][plane];
+        myprt<<"  tjID_nTruHits";
+        for(auto& tmp : nMatchedHitsInTj[ipl]) myprt<<" "<<tmp[0]+1<<"_"<<tmp[1];
+        myprt<<"\n";
+      } // ipl
+    }
+
 
     // Declare a TJ - partlist match for the trajectory which has the most true hits
     // another temp vector for the one-to-one match
@@ -1313,7 +1315,7 @@ namespace tca {
     
     for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        if(nMatchedHitsInPartList[plane][ipl] < 2) continue;
+        if(nMatchedHitsInPartList[ipl][plane] < 2) continue;
         unsigned short mostHits = 0;
         unsigned short tjWithMostHits = USHRT_MAX;
         for(unsigned short ii = 0; ii < nMatchedHitsInTj[ipl].size(); ++ii) {
@@ -1331,7 +1333,7 @@ namespace tca {
         // the total number of hits used in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
         float nTjHits = tmp.size();
-        float nTruHits = nMatchedHitsInPartList[plane][ipl];
+        float nTruHits = nMatchedHitsInPartList[ipl][plane];
         float nTjTruRecHits = mostHits;
         float eff = nTjTruRecHits / nTruHits;
         float pur = nTjTruRecHits / nTjHits;
@@ -1349,30 +1351,46 @@ namespace tca {
     
     // Update the EP sums
     for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
-      unsigned int pdg = abs(partList[ipl]->PdgCode());
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        std::cout<<"ipl "<<ipl<<" PDG "<<partList[ipl]->PdgCode()<<" plane "<<plane<<" partListToTjID "<<partListToTjID[ipl][plane]<<"\n";
+//        std::cout<<"ipl "<<ipl<<" PDG "<<partList[ipl]->PdgCode()<<" plane "<<plane<<" partListToTjID "<<partListToTjID[ipl][plane]<<"\n";
         // require at least 2 matched hits
-        if(nMatchedHitsInPartList[plane][ipl] < 2) continue;
+        if(nMatchedHitsInPartList[ipl][plane] < 2) continue;
+        unsigned short pdgIndex = PDGCodeIndex(tjs, partList[ipl]->PdgCode());
+        // count the number of EP sums for this PDG code
+        ++EPCounts[pdgIndex];
         if(partListToTjID[ipl][plane] == 0) {
-          // not matched
-          if(pdg == 13) ++nMu;
-          if(pdg == 211) ++nPi;
-          if(pdg == 2212) ++nPr;
+          if(nMatchedHitsInPartList[ipl][plane] > fMatchTruth[3]) {
+            mf::LogVerbatim myprt("TC");
+            myprt<<"pdgIndex "<<pdgIndex<<" No matched trajectory to partList["<<ipl<<"]";
+            // find the first and last hits in this plane
+            unsigned int fht = UINT_MAX;
+            unsigned int lht = 0;
+            for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+              if(tjs.fHits[iht].WireID.Plane != plane) continue;
+              if(hitTruTrkID[iht] != partList[ipl]->TrackId()) continue;
+              if(fht == UINT_MAX) fht = iht;
+              lht = iht;
+            } // iht
+            myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht]);
+          }
           continue;
         }
         unsigned short itj = partListToTjID[ipl][plane] - 1;
-        if(pdg == 13) {
-          ++nMu;
-          MuSum += tjs.allTraj[itj].EffPur;
-        }
-        if(pdg == 211) {
-          ++nPi;
-          PiSum += tjs.allTraj[itj].EffPur;
-        }
-        if(pdg == 2212) {
-          ++nPr;
-          PrSum  += tjs.allTraj[itj].EffPur;
+        EPSums[pdgIndex] += tjs.allTraj[itj].EffPur;
+        // print out some debugging information if the EP was pitiful and the number of matched hits is large
+        if(tjs.allTraj[itj].EffPur < fMatchTruth[2] && nMatchedHitsInPartList[ipl][plane] > fMatchTruth[3]) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<tjs.allTraj[itj].EffPur<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipl][plane];
+          // find the first and last hits in this plane
+          unsigned int fht = UINT_MAX;
+          unsigned int lht = 0;
+          for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+            if(tjs.fHits[iht].WireID.Plane != plane) continue;
+            if(hitTruTrkID[iht] != partList[ipl]->TrackId()) continue;
+            if(fht == UINT_MAX) fht = iht;
+            lht = iht;
+          } // iht
+          myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht]);
         }
       } // plane
     } // ipl
@@ -1531,7 +1549,7 @@ namespace tca {
     }
     
     if(tp.Hits.size() > 16) {
-      mf::LogWarning("TC")<<"AddLAHits: More than 16 hits added to TP. Truncating to the max for UseHit";
+//      mf::LogWarning("TC")<<"AddLAHits: More than 16 hits added to TP. Truncating to the max for UseHit";
       tp.Hits.resize(16);
     }
     // Use all of the hits that are available
@@ -2155,6 +2173,8 @@ namespace tca {
         if(tjs.allTraj[tj1].CTP != fCTP) continue;
         // no merge if there is a vertex at the end
         if(tjs.allTraj[tj1].VtxID[1] > 0) continue;
+        // no merge if it stops at end 1
+        if(tjs.allTraj[tj1].StopsAtEnd[1]) continue;
         // ignore bad trajectories
         if(tjs.allTraj[tj1].MCSMom < 5) continue;
         ipt = tjs.allTraj[tj1].EndPt[1];
@@ -2166,6 +2186,8 @@ namespace tca {
           if(tjs.allTraj[tj2].AlgMod[kKilled]) continue;
           if(tjs.allTraj[tj2].CTP != fCTP) continue;
           if(tjs.allTraj[tj2].VtxID[0] > 0) continue;
+          // no merge if it stops at end 1
+          if(tjs.allTraj[tj1].StopsAtEnd[0]) continue;
           // ignore bad trajectories
           if(tjs.allTraj[tj2].MCSMom < 5) continue;
           ipt = tjs.allTraj[tj2].EndPt[0];
@@ -2224,11 +2246,12 @@ namespace tca {
           // check the charge?
           chgpull = 0;
           if(notJunk && tjs.allTraj[tj1].AveChg > 0 && tjs.allTraj[tj2].AveChg > 0) {
-            // calculate charge pull
+            // calculate charge pull using the trajectory with the lowest charge RMS
             chg1rms = tjs.allTraj[tj1].ChgRMS * tjs.allTraj[tj1].AveChg;
             chg2rms = tjs.allTraj[tj2].ChgRMS * tjs.allTraj[tj2].AveChg;
-            if(chg2rms > chg1rms) chg1rms = chg2rms;
-            if(chg1rms < 1) chg1rms = 0.15 * (tjs.allTraj[tj1].AveChg + tjs.allTraj[tj2].AveChg);
+            if(chg2rms < chg1rms) chg1rms = chg2rms;
+            // What is this for?
+//            if(chg1rms < 1) chg1rms = 0.15 * (tjs.allTraj[tj1].AveChg + tjs.allTraj[tj2].AveChg);
             chgpull = std::abs(tjs.allTraj[tj1].AveChg - tjs.allTraj[tj2].AveChg) / chg1rms;
             if(mrgPrt) mf::LogVerbatim("TC")<<"   chk tp1 chg "<<tp1.AveChg<<" tj1 chg "<<tjs.allTraj[tj1].AveChg<<" rms "<<tjs.allTraj[tj1].ChgRMS<<" tp2 chg "<<tp2.AveChg<<" tj2 chg "<<tjs.allTraj[tj2].AveChg<<" rms "<<tjs.allTraj[tj2].ChgRMS;
           } // charge is known.
@@ -3662,7 +3685,6 @@ namespace tca {
       return;
     }
     
-    unsigned short newSize;
     unsigned short angRange = AngleRange(tj.Pts[tj.EndPt[1]]);
     // checks are different for Very Large Angle trajectories
     bool isVLA = (angRange == fAngleRanges.size() - 1);
@@ -3680,6 +3702,8 @@ namespace tca {
     }
     
     // Fill in any gaps with hits that were skipped, most likely delta rays on muon tracks
+    
+    CalculateQuality(tj);
     if(!isVLA) FillGaps(tj);
     
     if(prt) mf::LogVerbatim("TC")<<" CheckTraj MCSMom "<<tj.MCSMom<<" isVLA? "<<isVLA<<" NumPtsWithCharge "<<NumPtsWithCharge(tj, false)<<" Min Req'd "<<fMinPts[tj.Pass];
@@ -3689,15 +3713,25 @@ namespace tca {
       return;
     }
     
-    CalculateQuality(tj);
-    
     // Update the trajectory parameters at the beginning of the trajectory
     FixTrajBegin(tj);
 
     // check the fraction of the trajectory points that have hits
-    if(fUseAlg[kTrimHits] && NumPtsWithCharge(tj, false) >= fMinPts[tj.Pass]) {
-      // first ensure that there are at least 2 good TPs at the end after a dead wire section.
+    if(fUseAlg[kTrimHits]) {
+      // First ensure that there are at least two points with charge at the end
+      while(NumPtsWithCharge(tj, false) > fMinPts[tj.Pass]) {
+        unsigned short lastPt = tj.EndPt[1];
+        if(tj.Pts[lastPt - 1].Chg == 0) {
+          UnsetUsedHits(tj.Pts[lastPt]);
+          SetEndPoints(tjs, tj);
+          tj.AlgMod[kTrimHits] = true;
+        } else {
+          break;
+        }
+      } // tjSize > fMinPts[tj.Pass]
+      // Next ensure that there are at least 2 good TPs at the end after a dead wire section.
       unsigned short dwc = DeadWireCount(tj.Pts[tj.EndPt[1]-1], tj.Pts[tj.EndPt[1]]);
+      if(prt) mf::LogVerbatim("TC")<<"kTrimHits: dead wire count "<<dwc;
       while(dwc > 0 && NumPtsWithCharge(tj, false) > fMinPts[tj.Pass]) {
         // clobber the TPs (most of which are presumed to be on dead wires) after
         // the last TP that has used hits
@@ -3716,6 +3750,7 @@ namespace tca {
           unsigned int wire1 = std::nearbyint(tj.Pts[lastPt].Pos[0]);
           unsigned int wire2 = std::nearbyint(tj.Pts[lastPt - 1].Pos[0]);
           unsigned int wire3 = std::nearbyint(tj.Pts[lastPt - 2].Pos[0]);
+          if(prt) mf::LogVerbatim("TC")<<" consecutive end wire check "<<wire1<<" "<<wire2<<" "<<wire3;
           if(abs(wire1 - wire2) == 1 && abs(wire2 - wire3) == 1) break;
           UnsetUsedHits(tj.Pts[tj.EndPt[1]]);
           tj.Pts.resize(tj.EndPt[1]+1);
@@ -3783,6 +3818,7 @@ namespace tca {
         } // ii
         if(prt) mf::LogVerbatim("TC")<<"CheckTraj: nBigRat "<<nBigRat<<" tpGap "<<tpGap;
         if(tpGap != USHRT_MAX && nBigRat > 0) {
+          unsigned short newSize;
           if(tpGap != USHRT_MAX) {
             newSize = tpGap;
           } else {
@@ -3803,7 +3839,7 @@ namespace tca {
         short nStepBegin = tj.Pts[2].Step - tj.Pts[1].Step;
         short nStepEnd;
         unsigned short lastPt = tj.Pts.size() - 1;
-        newSize = tj.Pts.size();
+        unsigned short newSize = tj.Pts.size();
         for(unsigned short ipt = lastPt; ipt > lastPt - 2; --ipt) {
           nStepEnd = tj.Pts[ipt].Step - tj.Pts[ipt - 1].Step;
           if(nStepEnd > 3 * nStepBegin) newSize = ipt;
@@ -4055,9 +4091,13 @@ namespace tca {
   ////////////////////////////////////////////////
   void TrajClusterAlg::FillGaps(Trajectory& tj)
   {
-    // Fill in any gaps in the trajectory with close hits regardless of charge
+    // Fill in any gaps in the trajectory with close hits regardless of charge (well maybe not quite that)
    
     if(!fUseAlg[kFillGap]) return;
+    
+    // Find the min (max) charge that we should allow = (half) double the ChgPullCut
+    float minChg = tj.AveChg * (1 - 2 * fChgPullCut * tj.ChgRMS);
+    float maxChg = tj.AveChg * (1 + 2 * fChgPullCut * tj.ChgRMS);
     
     // start with the first point that has charge
     unsigned short firstPtWithChg = tj.EndPt[0];
@@ -4091,6 +4131,7 @@ namespace tca {
           return;
         }
         bool filled = false;
+        float chg = 0;
         for(unsigned short ii = 0; ii < tj.Pts[mpt].Hits.size(); ++ii) {
           unsigned int iht = tj.Pts[mpt].Hits[ii];
           if(tjs.fHits[iht].InTraj > 0) continue;
@@ -4103,8 +4144,14 @@ namespace tca {
           }
           tj.Pts[mpt].UseHit[ii] = true;
           tjs.fHits[iht].InTraj = tj.ID;
+          chg += tjs.fHits[iht].Integral;
           filled = true;
         } // ii
+        if(chg < minChg  || chg > maxChg) {
+          // don't use these hits after all
+          UnsetUsedHits(tj.Pts[mpt]);
+          filled = false;
+        }
         if(filled) {
           DefineHitPos(tj.Pts[mpt]);
           tj.AlgMod[kFillGap] = true;
@@ -5899,7 +5946,7 @@ namespace tca {
         // Deal with the situation where this is the only hit on a wire
         int firstHit = tjs.WireHitRange[ipl][wire].first;
         int lastHit = tjs.WireHitRange[ipl][wire].second - 1;
-        if(firstHit == lastHit) {
+        if(lastHit <= firstHit) {
           // erasing the only hit on this wire
           tjs.WireHitRange[ipl][wire].first = -2;
           tjs.WireHitRange[ipl][wire].second = -2;
