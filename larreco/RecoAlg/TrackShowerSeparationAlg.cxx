@@ -44,23 +44,39 @@ std::vector<art::Ptr<recob::Hit> > shower::TrackShowerSeparationAlg::RemoveTrack
   //    Ode to track/shower separation
   //    M Wallbank, Oct 2016
 
-  std::vector<int> showerTracks, trackTracks;
-  int showerTrack = InitialTrackLikeSegment(tracks, showerTracks, trackTracks);
+  std::vector<int> showerLikeTracks, trackLikeTracks;
+  std::vector<int> showerTracks = InitialTrackLikeSegment(tracks, showerLikeTracks, trackLikeTracks);
 
-  std::cout << "Shower track is " << showerTrack << std::endl;
+  std::cout << "Shower tracks are:" << std::endl;
+  for (std::vector<int>::iterator showerTrackIt = showerTracks.begin(); showerTrackIt != showerTracks.end(); ++showerTrackIt)
+    std::cout << *showerTrackIt << std::endl;
 
-  return hits;
+  // Shower hits
+  std::vector<art::Ptr<recob::Hit> > showerHits;
+  for (std::vector<int>::iterator showerLikeTrackIt = showerLikeTracks.begin(); showerLikeTrackIt != showerLikeTracks.end(); ++showerLikeTrackIt) {
+    std::vector<art::Ptr<recob::Hit> > showerLikeHits = fmh.at(*showerLikeTrackIt);
+    for (std::vector<art::Ptr<recob::Hit> >::iterator showerLikeHitIt = showerLikeHits.begin(); showerLikeHitIt != showerLikeHits.end(); ++showerLikeHitIt)
+      showerHits.push_back(*showerLikeHitIt);
+  }
+
+  return showerHits;
 
 }
 
-int shower::TrackShowerSeparationAlg::InitialTrackLikeSegment(const std::vector<art::Ptr<recob::Track> >& tracks,
-							      std::vector<int>& showerTracks,
-							      std::vector<int>& trackTracks) {
+std::vector<int> shower::TrackShowerSeparationAlg::InitialTrackLikeSegment(const std::vector<art::Ptr<recob::Track> >& tracks,
+									   std::vector<int>& showerLikeTracks,
+									   std::vector<int>& trackLikeTracks) {
+
+  // Vector to hold tracks that are identified to be from the start of a shower
+  std::vector<int> showerTrackCandidates;
+  std::vector<std::vector<int> > showerLikeParts;
 
   const double angle = 20.;
 
   for (std::vector<art::Ptr<recob::Track> >::const_iterator trackIt = tracks.begin(); trackIt != tracks.end(); ++trackIt) {
+
     std::vector<int> forwardTracks, backwardTracks;
+    
     for (std::vector<art::Ptr<recob::Track> >::const_iterator otherTrackIt = tracks.begin(); otherTrackIt != tracks.end(); ++otherTrackIt) {
       if (trackIt->key() == otherTrackIt->key())
 	continue;
@@ -71,9 +87,54 @@ int shower::TrackShowerSeparationAlg::InitialTrackLikeSegment(const std::vector<
 	  ((*otherTrackIt)->End() - (*trackIt)->Vertex()).Angle((-1)*(*trackIt)->DirectionAtPoint((*trackIt)->NumberTrajectoryPoints()/3)) < angle * TMath::Pi() / 180)
 	backwardTracks.push_back(otherTrackIt->key());
     }
+
+    std::cout << "Track " << trackIt->key() << " has " << forwardTracks.size() << " forward tracks and " << backwardTracks.size() << " backward tracks" << std::endl;
+    
+    if ((int)forwardTracks.size() - (int)backwardTracks.size() > 5) {
+      showerTrackCandidates.push_back(trackIt->key());
+      std::cout << "Track " << trackIt->key() << " is a candidate" << std::endl;
+      showerLikeParts.push_back(forwardTracks); //forwardTracks.size() > backwardTracks.size() ? forwardTracks : backwardTracks);
+      for (std::vector<int>::iterator it = showerLikeParts.back().begin(); it != showerLikeParts.back().end(); ++it)
+	std::cout << "  Track " << *it << " is in the forward part of this track" << std::endl;
+    }
+
   }
 
-  return 0;
+  // Decide which tracks are shower track starts
+  std::vector<int> showerTracks;
+
+  for (std::vector<int>::iterator showerTrackCandidateIt = showerTrackCandidates.begin(); showerTrackCandidateIt != showerTrackCandidates.end(); ++showerTrackCandidateIt) {
+    std::cout << "Looking at candidate " << *showerTrackCandidateIt << std::endl;
+    bool notInShower = true;
+    for (std::vector<std::vector<int> >::iterator showersLikePartsIt = showerLikeParts.begin(); showersLikePartsIt != showerLikeParts.end(); ++showersLikePartsIt)
+      for (std::vector<int>::iterator showerLikePartsIt = showersLikePartsIt->begin(); showerLikePartsIt != showersLikePartsIt->end(); ++showerLikePartsIt)
+	if (*showerLikePartsIt == *showerTrackCandidateIt) {
+	  std::cout << "In the forward part of track " << *showerLikePartsIt << " -- can't be initial track like part" << std::endl;
+	  notInShower = false;
+	}
+    if (notInShower)
+      showerTracks.push_back(*showerTrackCandidateIt);
+  }
+
+  for (std::vector<int>::iterator showerTrackIt = showerTracks.begin(); showerTrackIt != showerTracks.end(); ++showerTrackIt) {
+    for (std::vector<int>::iterator showerTrackCandidateIt = showerTrackCandidates.begin(); showerTrackCandidateIt != showerTrackCandidates.end(); ++showerTrackCandidateIt) {
+      if (*showerTrackIt == *showerTrackCandidateIt) {
+	showerLikeTracks.push_back(*showerTrackCandidateIt);
+	for (std::vector<int>::iterator showerLikeTrackIt = showerLikeParts.at(std::distance(showerTrackCandidates.begin(),showerTrackCandidateIt)).begin();
+	     showerLikeTrackIt != showerLikeParts.at(std::distance(showerTrackCandidates.begin(),showerTrackCandidateIt)).end();
+	     ++showerLikeTrackIt)
+	  if (std::find(showerLikeTracks.begin(), showerLikeTracks.end(), *showerLikeTrackIt) == showerLikeTracks.end())
+	    showerLikeTracks.push_back(*showerLikeTrackIt);
+      }
+    }
+  }
+
+  std::cout << std::endl << "Here are the track determined to be showers" << std::endl;
+  for (std::vector<int>::iterator showerTrackIt = showerLikeTracks.begin(); showerTrackIt != showerLikeTracks.end(); ++showerTrackIt)
+    std::cout << "  " << *showerTrackIt << std::endl;
+  std::cout << std::endl;
+
+  return showerTracks;
 
 }
 

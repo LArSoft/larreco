@@ -75,7 +75,7 @@ class shower::TrackShowerSeparationAlg {
 
  private:
 
-  int InitialTrackLikeSegment(const std::vector<art::Ptr<recob::Track> >& tracks, std::vector<int>& showerTracks, std::vector<int>& trackTracks);
+  std::vector<int> InitialTrackLikeSegment(const std::vector<art::Ptr<recob::Track> >& tracks, std::vector<int>& showerTracks, std::vector<int>& trackTracks);
 
   // --------------------------- OLD (late 2015) -------------------------------
 
