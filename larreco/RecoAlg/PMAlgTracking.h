@@ -45,6 +45,7 @@ namespace pma
 
 	class PMAlgTrackingBase;
 	class PMAlgFitter;
+	class PMAlgRefitter;
 	class PMAlgTracker;
 }
 
@@ -62,10 +63,11 @@ public:
 	{ return fPMAlgVertexing.getKinks(fResult); }
 
 protected:
-
 	PMAlgTrackingBase(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
 		const pma::ProjectionMatchingAlg::Config& pmalgConfig,
 		const pma::PMAlgVertexing::Config& pmvtxConfig);
+	PMAlgTrackingBase(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
+		const pma::ProjectionMatchingAlg::Config& pmalgConfig);
 	~PMAlgTrackingBase(void);
 
 	void guideEndpoints(pma::TrkCandidateColl & tracks);
@@ -76,6 +78,9 @@ protected:
 	pma::PMAlgVertexing fPMAlgVertexing;
 
 	pma::TrkCandidateColl fResult;
+
+private:
+    void initHitList(const std::vector< art::Ptr<recob::Hit> > & hits);
 };
 
 
@@ -136,6 +141,51 @@ private:
 	std::vector<int> fTrackingSkipPdg; // skip tracks with this pdg's when using input from PFParticles
 	bool fRunVertexing;                // run vertex finding
 };
+
+
+class pma::PMAlgRefitter : public pma::PMAlgTrackingBase
+{
+public:
+
+	struct Config {
+		using Name = fhicl::Name;
+		using Comment = fhicl::Comment;
+
+		fhicl::Atom<double> LongTrackMinRange {
+			Name("LongTrackMinRange"),
+			Comment("min track range")
+		};
+		
+		fhicl::Atom<double> LongTrackMinDistToWall {
+			Name("LongTrackMinDistToWall"),
+			Comment("min dist to wall")
+		};
+    };
+
+	PMAlgRefitter(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
+		const std::vector< recob::PFParticle > & pfparticles,
+		const art::FindManyP< recob::Track > & tracksFromPfps,
+		const art::FindManyP< recob::Vertex > & vtxFromPfps,
+		const art::FindManyP< recob::Hit > & hitsFromTracks,
+		const pma::ProjectionMatchingAlg::Config& pmalgConfig,
+		const pma::PMAlgRefitter::Config& pmalgRefitterConfig);
+
+	int build(void);
+
+private:
+    double fMinX, fMaxX, fMinY, fMaxY, fMinZ, fMaxZ;
+    double getDistToWall(const TVector3 & p) const;
+
+    void buildTracks(void);
+
+	std::map< int, std::vector< art::Ptr<recob::Hit> > > fPfpHits;
+	std::map< int, pma::Vector3D > fPfpVtx;
+
+	// ******************** fcl parameters ***********************
+	double fLongTrackMinRange; // ...
+	double fLongTrackMinDistToWall; // ...
+};
+
 
 class pma::PMAlgTracker : public pma::PMAlgTrackingBase
 {

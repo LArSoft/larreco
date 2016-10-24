@@ -90,6 +90,16 @@ standard_pmalgtrajfitter:
   PfpModuleLabel:         "pandora"   # tag of the input PFParticles and associated clusters
 }
 
+standard_pmalgtrajrefitter:
+{
+  module_type:            "PMAlgRefitter"
+  ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
+  PMAlgRefitting:         @local::standard_pmalgrefitter
+                                      #
+  HitModuleLabel:         "hits"      # tag of unclustered hits, which were used to produce PFPs and tracks
+  PfpModuleLabel:         "pmtrack"   # tag of the input PFParticles and associated tracks
+}
+
 standard_featuretracker:
 {
  module_type:         "FeatureTracker"
