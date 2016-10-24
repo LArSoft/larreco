@@ -117,7 +117,7 @@ namespace tca {
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
-    short fFillTruth;     ///< Match to MC truth
+    std::vector<float> fMatchTruth;     ///< Match to MC truth
  
     std::vector<float> fMaxVertexTrajSep;
     std::bitset<32> fUseAlg;  ///< Allow user to mask off specific algorithms
@@ -135,9 +135,9 @@ namespace tca {
     std::vector<short> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
-    // TEMP variables for summing Eff*Pur
-    double PrSum, MuSum, PiSum;
-    unsigned short nPr, nMu, nPi;
+    // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
+    std::array<float, 5> EPSums;
+    std::array<int, 5> EPCounts;
 
     bool fIsRealData;
 /*
