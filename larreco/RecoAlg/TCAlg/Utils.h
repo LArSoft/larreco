@@ -37,6 +37,7 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp);
