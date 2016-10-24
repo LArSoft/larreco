@@ -2,6 +2,19 @@
 
 namespace tca {
 
+  ////////////////////////////////////////////////
+  unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode)
+  {
+    unsigned short pdg = abs(PDGCode);
+    if(pdg == 11) return 0; // electron
+    if(pdg == 13) return 1; // muon
+    if(pdg == 211) return 2; // pion
+    if(pdg == 321) return 3; // kaon
+    if(pdg == 2212) return 4; // proton
+    
+    return USHRT_MAX;
+    
+  } // PDGCodeIndex
   
   ////////////////////////////////////////////////
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP)
