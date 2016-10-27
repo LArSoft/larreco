@@ -154,6 +154,19 @@ namespace tca {
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
 */
+    // Reco-MC vertex position difference
+    TH1F* fNuVtx_dx;
+    TH1F* fNuVtx_dy;
+    TH1F* fNuVtx_dz;
+    
+    // Reco-MC stopping wire difference for different MC Particles
+    TH1F* fdWire[5];
+    TH1F *fKaonEP;
+    TH1F *fKaonMCSMom;
+    TH1F* fChgSlope;
+    TH1F* fChgSlopeErr;
+    TH1F* fChgFitChi;
+
     TH1F *fDeltaN[3];
     TH1F *fHitRMS[3];
     TH2F *fTPWidth_Angle[3];
@@ -335,7 +348,9 @@ namespace tca {
     // Merges all of the hits used in each TP into one hit
     void MergeTPHits();
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
-    void FillTrajTruth();
+    // Sets the StopsAtEnd bits for the trajectory
+    void ChkStop(Trajectory& tj);
+    void MatchTruth();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void FindVtxTraj(unsigned short ivx);
