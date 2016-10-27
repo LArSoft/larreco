@@ -112,7 +112,7 @@ namespace tca {
   struct Trajectory {
     std::vector<TrajPoint> Pts;    ///< Trajectory points
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
-    std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
+    std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
     unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
@@ -131,6 +131,9 @@ namespace tca {
                                         ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
     short WorkID {0};
     std::bitset<2> StopsAtEnd {0};    // Set true if it looks like the trajectory stops at end[0] or end[1]
+    std::array<float, 2> ChgSlope {{0,0}};    // temp for debugging
+    std::array<float, 2> ChgSlopeErr {{0,0}};    // temp for debugging
+    std::array<float, 2> ChgFitChi {{999,999}};    // temp for debugging
   };
   
   // Local version of recob::Hit
@@ -201,6 +204,7 @@ namespace tca {
     kMaskBadTPs,
     kNoKinkChk,
     kSoftKink,
+    kChkStop,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
