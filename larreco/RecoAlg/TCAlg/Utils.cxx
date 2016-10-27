@@ -520,42 +520,6 @@ namespace tca {
   }
   
   ////////////////////////////////////////////////
-  void SetStopsAtEnd(TjStuff& tjs, Trajectory& tj)
-  {
-    // Sets the StopsAtEnd bits on the trajectory using a trivial algorithm
-    if(tj.Pts.size() < 4) return;
-    
-    tj.StopsAtEnd[0] = false;
-    tj.StopsAtEnd[1] = false;
-    
-    // require a significant increase in charge for the first (last) end points ignoring the first and last
-    const float chgrat = 1.2;
-
-    unsigned short endPt = tj.EndPt[0];
-    // require 3 charged points at end 0
-//    std::cout<<"ID "<<tj.ID<<"_0 "<<(int)tj.Pts[endPt + 1].Chg<<" "<<(int)tj.Pts[endPt + 2].Chg<<" "<<(int)tj.Pts[endPt + 3].Chg<<"\n";
-    if(tj.Pts[endPt + 1].Chg > 0 &&  tj.Pts[endPt + 2].Chg > 0 &&  tj.Pts[endPt + 3].Chg > 0) {
-      // end 0
-      if(tj.Pts[endPt + 1].Chg > chgrat * tj.Pts[endPt + 2].Chg &&
-         tj.Pts[endPt + 2].Chg > chgrat * tj.Pts[endPt + 3].Chg) {
-        tj.StopsAtEnd[0] = true;
-      }
-    } // 3 charged points at end 0
-    
-    endPt = tj.EndPt[1];
-    // require 3 charged points at end 1
-//    std::cout<<"ID "<<tj.ID<<"_1 "<<(int)tj.Pts[endPt - 1].Chg<<" "<<(int)tj.Pts[endPt - 2].Chg<<" "<<(int)tj.Pts[endPt - 3].Chg<<"\n";
-    if(tj.Pts[endPt - 1].Chg > 0 &&  tj.Pts[endPt - 2].Chg > 0 &&  tj.Pts[endPt - 3].Chg > 0) {
-      // end 0
-      if(tj.Pts[endPt - 1].Chg > chgrat * tj.Pts[endPt - 2].Chg &&
-         tj.Pts[endPt - 2].Chg > chgrat * tj.Pts[endPt - 3].Chg) {
-        tj.StopsAtEnd[1] = true;
-      }
-    } // 3 charged points at end 0
-    
-  } // StopsAtEnd
-  
-  ////////////////////////////////////////////////
   void SetEndPoints(TjStuff& tjs, Trajectory& tj)
   {
     // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
