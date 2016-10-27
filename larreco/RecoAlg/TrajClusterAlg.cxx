@@ -1763,7 +1763,7 @@ namespace tca {
     geo::PlaneID iplID = DecodeCTP(tj.CTP);
     unsigned short ipl = iplID.Plane;
     bool fatHit = (TPHitsRMSTick(tjs, tp, kUnusedHits) > 4 * fAveHitRMS[ipl]);
-    if(AngleRange(tp) > 0 || (fatHit && tj.Pts.size() < 4)) {
+    if(AngleRange(tp) == fAngleRanges.size() - 1 || (fatHit && tj.Pts.size() < 4)) {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         unsigned int iht = tp.Hits[ii];
         if(tjs.fHits[iht].InTraj > 0) continue;
