@@ -49,7 +49,6 @@ namespace calo {
     public:
     
       explicit GeneralCalorimetry(fhicl::ParameterSet const& pset); 
-      virtual ~GeneralCalorimetry();
     
       void reconfigure(fhicl::ParameterSet const& pset);
       void produce(art::Event& evt);
@@ -92,12 +91,6 @@ calo::GeneralCalorimetry::GeneralCalorimetry(fhicl::ParameterSet const& pset)
 
   produces< std::vector<anab::Calorimetry>              >();
   produces< art::Assns<recob::Track, anab::Calorimetry> >();
-}
-
-//-------------------------------------------------
-calo::GeneralCalorimetry::~GeneralCalorimetry()
-{
-  
 }
 
 //------------------------------------------------------------------------------------//
