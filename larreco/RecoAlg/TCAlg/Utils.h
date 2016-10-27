@@ -90,8 +90,6 @@ namespace tca {
   float DeltaAngle(float Ang1, float Ang2);
   // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
   void SetEndPoints(TjStuff& tjs, Trajectory& tj);
-  // Sets the StopsAtEnd bits for the trajectory
-  void SetStopsAtEnd(TjStuff& tjs, Trajectory& tj);
   // Returns the hit width using StartTick() and EndTick()
   float TPHitsRMSTick(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest);
   float TPHitsRMSTime(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest);
