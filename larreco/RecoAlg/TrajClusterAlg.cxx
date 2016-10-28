@@ -4080,7 +4080,7 @@ namespace tca {
       // Find the maximum delta between hits and the trajectory Pos for all
       // hits on this trajectory
       if(first) {
-        maxDelta = MaxHitDelta(tj);
+        maxDelta = 2.5*MaxHitDelta(tj);
         first = false;
       } // first
       // fill in the gap
