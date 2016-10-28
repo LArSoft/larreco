@@ -280,22 +280,22 @@ namespace tca {
     
     // check for debugging mode triggered by Plane, Wire, Tick
     if(debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
-      std::cout<<"Looking for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
+      mf::LogVerbatim("TC")<<"Looking for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
         if((int)tjs.fHits[iht].WireID.Plane != debug.Plane) continue;
         if((int)tjs.fHits[iht].WireID.Wire != debug.Wire) continue;
         if(tjs.fHits[iht].PeakTime < debug.Tick - 5) continue;
         if(tjs.fHits[iht].PeakTime > debug.Tick + 5) continue;
         debug.Hit = iht;
-        std::cout<<" iht "<<iht<<" "<<debug.Plane<<":"<<PrintHit(tjs.fHits[iht]);
-        std::cout<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
-        std::cout<<" RMS "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].RMS;
-        std::cout<<" Chisq "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].GoodnessOfFit;
-        std::cout<<" Mult "<<tjs.fHits[iht].Multiplicity;
-        std::cout<<"\n";
+        mf::LogVerbatim("TC")<<" iht "<<iht<<" "<<debug.Plane<<":"<<PrintHit(tjs.fHits[iht]);
+        mf::LogVerbatim("TC")<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
+        mf::LogVerbatim("TC")<<" RMS "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].RMS;
+        mf::LogVerbatim("TC")<<" Chisq "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].GoodnessOfFit;
+        mf::LogVerbatim("TC")<<" Mult "<<tjs.fHits[iht].Multiplicity;
+        mf::LogVerbatim("TC")<<"\n";
         break;
       } // iht
-      if(debug.Hit == UINT_MAX) std::cout<<" not found\n";
+      if(debug.Hit == UINT_MAX) mf::LogVerbatim("TC")<<" not found\n";
     } // debugging mode
 
     
@@ -1831,7 +1831,7 @@ namespace tca {
     geo::PlaneID iplID = DecodeCTP(tj.CTP);
     unsigned short ipl = iplID.Plane;
     bool fatHit = (TPHitsRMSTick(tjs, tp, kUnusedHits) > 4 * fAveHitRMS[ipl]);
-    if(AngleRange(tp) > 0 || (fatHit && tj.Pts.size() < 4)) {
+    if(AngleRange(tp) == fAngleRanges.size() - 1 || (fatHit && tj.Pts.size() < 4)) {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         unsigned int iht = tp.Hits[ii];
         if(tjs.fHits[iht].InTraj > 0) continue;
@@ -4181,7 +4181,7 @@ namespace tca {
       // Find the maximum delta between hits and the trajectory Pos for all
       // hits on this trajectory
       if(first) {
-        maxDelta = MaxHitDelta(tj);
+        maxDelta = 2.5*MaxHitDelta(tj);
         first = false;
       } // first
       // fill in the gap
@@ -4436,9 +4436,11 @@ namespace tca {
         if(tjs.fHits[iht].InTraj > 0) continue;
         delta = PointTrajDOCA(tjs, iht, tj.Pts[ipt]);
         if(delta > maxDelta) continue;
-        tj.Pts[ipt].UseHit[ii] = true;
-        tjs.fHits[iht].InTraj = tj.ID;
-        added = true;
+        if (!NumUsedHits(TjCopy.Pts[ipt])||TjCopy.Pts[ipt].UseHit[ii]){
+          tj.Pts[ipt].UseHit[ii] = true;
+          tjs.fHits[iht].InTraj = tj.ID;
+          added = true;
+        }
       } // ii
       if(added) DefineHitPos(tj.Pts[ipt]);
       if(tj.Pts[ipt].Chg == 0) continue;
@@ -6350,13 +6352,17 @@ namespace tca {
         tjs.fHits[mht].GoodnessOfFit = 1; // flag?
         tjs.fHits[mht].NDOF = 0;
         // then flag the other hits for erasing
-        for(unsigned short ii = 1; ii < oldHits.size(); ++ii) {
-          tp.UseHit[ii] = false;
-          // put it in the removal list
-          delHits.push_back(tp.Hits[ii]);
-          // Flag this hit
-          tp.Hits[ii] = INT_MAX;
-          tjs.fHits[ii].InTraj = SHRT_MAX;
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          for(unsigned short jj = 1; jj < oldHits.size(); ++jj) {
+            if (tp.Hits[ii]==oldHits[jj]){
+              tp.UseHit[ii] = false;
+              // put it in the removal list
+              delHits.push_back(tp.Hits[ii]);
+              // Flag this hit
+              tjs.fHits[tp.Hits[ii]].InTraj = SHRT_MAX;
+              tp.Hits[ii] = INT_MAX;
+            }
+          }
         } // ii
       } // ipt
     } // itj
