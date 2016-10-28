@@ -131,9 +131,6 @@ namespace tca {
                                         ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
     short WorkID {0};
     std::bitset<2> StopsAtEnd {0};    // Set true if it looks like the trajectory stops at end[0] or end[1]
-    std::array<float, 2> ChgSlope {{0,0}};    // temp for debugging
-    std::array<float, 2> ChgSlopeErr {{0,0}};    // temp for debugging
-    std::array<float, 2> ChgFitChi {{999,999}};    // temp for debugging
   };
   
   // Local version of recob::Hit
