@@ -133,12 +133,14 @@ namespace tca {
     std::vector<short> fDeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> fMuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<short> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
+
     std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
     std::array<float, 5> EPSums;
     std::array<int, 5> EPCounts;
-
     bool fIsRealData;
 /*
     TH2F *fMCSMom_KE_e;
@@ -161,11 +163,8 @@ namespace tca {
     
     // Reco-MC stopping wire difference for different MC Particles
     TH1F* fdWire[5];
-    TH1F *fKaonEP;
-    TH1F *fKaonMCSMom;
-    TH1F* fChgSlope;
-    TH1F* fChgSlopeErr;
-    TH1F* fChgFitChi;
+    // EP vs KE for different MC Particles
+    TProfile* fEP_T[5];
 
     TH1F *fDeltaN[3];
     TH1F *fHitRMS[3];
