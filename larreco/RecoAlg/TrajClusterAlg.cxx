@@ -137,18 +137,6 @@ namespace tca {
     debug.Wire            = pset.get< int >("DebugWire", -1);
     debug.Tick            = pset.get< int >("DebugTick", -1);
     debug.WorkID          = pset.get< short>("DebugWorkID", 0);
-    
-    // check the angle ranges and convert from degrees to radians
-    if(fAngleRanges.back() < 90) {
-      std::cout<<"Last element of AngleRange != 90 degrees. Fixing it\n";
-      fAngleRanges.back() = 90;
-    }
-    for(auto& range : fAngleRanges) {
-      if(range < 0 || range > 90) throw art::Exception(art::errors::Configuration)<< "Invalid angle range "<<range<<" Must be 0 - 90 degrees";
-      range *= M_PI / 180;
-    } // range
-    // size this and set it later
-    fAngleRangesMaxHitsRMS.resize(fAngleRanges.size());
 
     // convert the max traj separation into a separation^2
     fMaxTrajSep *= fMaxTrajSep;
@@ -165,6 +153,31 @@ namespace tca {
     if(fDeltaRayTag.size() < 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3 [max endpoint sep, min MCSMom, max MCSMom]";
     if(fChkStopCuts.size() < 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3 [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]";
     if(fShowerTag.size() < 3) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 3";
+    
+    // check the angle ranges and convert from degrees to radians
+    if(fAngleRanges.back() < 90) {
+      std::cout<<"Last element of AngleRange != 90 degrees. Fixing it\n";
+      fAngleRanges.back() = 90;
+    }
+    if(debug.Plane >= 0 || debug.WorkID < 0) {
+      std::cout<<"Pass MinPts  MinPtsFit Max Angle\n";
+      for(unsigned short pass = 0; pass < fMinPts.size(); ++pass) {
+        unsigned short ir = fMaxAngleRange[pass];
+        if(ir > fAngleRanges.size() - 1) ir = fAngleRanges.size() - 1;
+        std::cout<<std::setw(3)<<pass;
+        std::cout<<std::setw(7)<<fMinPts[pass];
+        std::cout<<std::setw(7)<<fMinPtsFit[pass];
+        std::cout<<std::setw(12)<<(int)fAngleRanges[ir]<<"\n";
+      }
+    }
+    
+    for(auto& range : fAngleRanges) {
+      if(range < 0 || range > 90) throw art::Exception(art::errors::Configuration)<< "Invalid angle range "<<range<<" Must be 0 - 90 degrees";
+      range *= M_PI / 180;
+    } // range
+    // size this and set it later
+    fAngleRangesMaxHitsRMS.resize(fAngleRanges.size());
+
     
     if(kAlgBitSize != AlgBitNames.size())
       throw art::Exception(art::errors::Configuration)<<"kAlgBitSize "<<kAlgBitSize<<" != AlgBitNames size "<<AlgBitNames.size();
