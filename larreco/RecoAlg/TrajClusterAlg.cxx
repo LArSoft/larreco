@@ -4328,9 +4328,11 @@ namespace tca {
         if(tjs.fHits[iht].InTraj > 0) continue;
         delta = PointTrajDOCA(tjs, iht, tj.Pts[ipt]);
         if(delta > maxDelta) continue;
-        tj.Pts[ipt].UseHit[ii] = true;
-        tjs.fHits[iht].InTraj = tj.ID;
-        added = true;
+        if (!NumUsedHits(TjCopy.Pts[ipt])||TjCopy.Pts[ipt].UseHit[ii]){
+          tj.Pts[ipt].UseHit[ii] = true;
+          tjs.fHits[iht].InTraj = tj.ID;
+          added = true;
+        }
       } // ii
       if(added) DefineHitPos(tj.Pts[ipt]);
       if(tj.Pts[ipt].Chg == 0) continue;
