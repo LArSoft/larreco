@@ -2722,6 +2722,14 @@ namespace tca {
             if(tint < 0 || tint > tjs.MaxPos1[fPlane]) continue;
             // Next cut on separation between the TPs and the intersection point
             if(tj1Short || tj2Short) { sepCut = fVertex2DCuts[1]; } else { sepCut = fVertex2DCuts[2]; }
+            // Try to reduce the amount of debug info printed out
+            if(vtxPrt && std::abs(wint - tp1.Pos[0]) < 20 && std::abs(wint - tp2.Pos[0]) < 20 && std::abs(tint - tp1.Pos[1]) < 20 && std::abs(tint - tp2.Pos[1]) < 20) {
+              mf::LogVerbatim myprt("TC");
+              myprt<<"F2DV candidate tj1-tj2 "<<tjs.allTraj[tj1].ID<<"_"<<end1<<"-"<<tjs.allTraj[tj2].ID<<"_"<<end2;
+              myprt<<" vtx pos "<<(int)wint<<":"<<(int)(tint/tjs.UnitsPerTick)<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2);
+              myprt<<" dw1 "<<(wint - tp1.Pos[0])<<" dt1 "<<(tint - tp1.Pos[1]);
+              myprt<<" dw2 "<<(wint - tp2.Pos[0])<<" dt2 "<<(tint - tp2.Pos[1]);
+            }
             float dw1 = wint - tp1.Pos[0];
             if(std::abs(dw1) > sepCut) continue;
             float dt1 = tint - tp1.Pos[1];
@@ -2730,7 +2738,6 @@ namespace tca {
             if(std::abs(dw2) > sepCut) continue;
             float dt2 = tint - tp2.Pos[1];
             if(std::abs(dt2) > sepCut) continue;
-            if(vtxPrt) mf::LogVerbatim("TC")<<"F2DV candidate tj1-tj2 "<<tjs.allTraj[tj1].ID<<"_"<<end1<<"-"<<tjs.allTraj[tj2].ID<<"_"<<end2<<" tjs.vtx pos "<<(int)wint<<":"<<(int)(tint/tjs.UnitsPerTick)<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2);
             // make sure that the other end isn't closer
             if(PointTrajDOCA2(tjs, wint, tint, tp1) > PointTrajDOCA2(tjs, wint, tint, tjs.allTraj[tj1].Pts[oendPt1])) continue;
             if(PointTrajDOCA2(tjs, wint, tint, tp2) > PointTrajDOCA2(tjs, wint, tint, tjs.allTraj[tj2].Pts[oendPt2])) continue;
