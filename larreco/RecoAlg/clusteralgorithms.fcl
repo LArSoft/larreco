@@ -25,6 +25,7 @@ standard_trajclusteralg:
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
    ShowerTag: [50, 5, 1]    # max MCSMom for a shower tag, max separation, min #traj < separation
+   ChkStopCuts: [1.4, 5, 1] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
    Vertex2DCuts:  [10, 2, 30, 3, 5] # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr
    Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
    MaxVertexTrajSep: [6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
