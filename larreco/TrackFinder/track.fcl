@@ -17,15 +17,12 @@ process_name: FindTracks
 services:
 {
   TFileService: {fileName: "tracks_hist.root"}
-  Timing:       {}
-  user:         
-  { 
-   ExptGeoHelperInterface: @local::argoneut_geometry_helper
-   Geometry:	     @local::argoneut_geo
-   DetectorPropertiesService: @local::argoneut_detproperties
-   LArPropertiesService:    @local::argoneut_properties
-   LArFFT:           @local::argoneut_larfft
-  }
+  TimeTracker   {}
+  ExptGeoHelperInterface: @local::argoneut_geometry_helper
+  Geometry:	     @local::argoneut_geo
+  DetectorPropertiesService: @local::argoneut_detproperties
+  LArPropertiesService:    @local::argoneut_properties
+  LArFFT:           @local::argoneut_larfft
   MessageLogger: 
   {
     destinations: ["detailedInfo"]
