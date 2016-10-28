@@ -6183,13 +6183,17 @@ namespace tca {
         tjs.fHits[mht].GoodnessOfFit = 1; // flag?
         tjs.fHits[mht].NDOF = 0;
         // then flag the other hits for erasing
-        for(unsigned short ii = 1; ii < oldHits.size(); ++ii) {
-          tp.UseHit[ii] = false;
-          // put it in the removal list
-          delHits.push_back(tp.Hits[ii]);
-          // Flag this hit
-          tp.Hits[ii] = INT_MAX;
-          tjs.fHits[ii].InTraj = SHRT_MAX;
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          for(unsigned short jj = 1; jj < oldHits.size(); ++jj) {
+            if (tp.Hits[ii]==oldHits[jj]){
+              tp.UseHit[ii] = false;
+              // put it in the removal list
+              delHits.push_back(tp.Hits[ii]);
+              // Flag this hit
+              tjs.fHits[tp.Hits[ii]].InTraj = SHRT_MAX;
+              tp.Hits[ii] = INT_MAX;
+            }
+          }
         } // ii
       } // ipt
     } // itj
