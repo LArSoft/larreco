@@ -584,6 +584,7 @@ namespace tca {
     if(numPts > 5 && cnt < 0.7 * numPts) return tj.MCSMom;
     double sigmaS = sqrt(dsum / (double)cnt);
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
+    if(tjLen == 0) return 0;
     // Theta_o =  4 * sqrt(3) * sigmaS / path
     double thetaRMS = 6.8 * sigmaS / tjLen;
     double mom = 14 * sqrt(tjLen / 14) / thetaRMS;
@@ -887,6 +888,26 @@ namespace tca {
     if(sum == 0) return 0;
     return pos / sum;
   } // HitsPosTick
+  
+  //////////////////////////////////////////
+  unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest)
+  {
+    // Counts the number of hits of the specified type in tp
+    if(tp.Hits.empty()) return 0;
+    
+    if(hitRequest == kAllHits) return tp.Hits.size();
+    
+    unsigned short nhits = 0;
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+      if(hitRequest == kUsedHits) {
+        if(tp.UseHit[ii]) ++nhits;
+      } else {
+        // looking for unused hits
+        if(!tp.UseHit[ii]) ++nhits;
+      }
+    } // ii
+    return nhits;
+  } // NumHitsInTP
   
   //////////////////////////////////////////
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp)
