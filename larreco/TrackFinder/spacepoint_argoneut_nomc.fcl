@@ -9,23 +9,22 @@ services:
   # Load the service that manages root files for histograms.
   TFileService: { fileName: "spacepoint_argoneut_nomc.root" }
   scheduler:    { wantTracer: true wantSummary: true }
-  Timing:       {}
+  TimeTracker   {}
   message:   @local::standard_debug
   RandomNumberGenerator: {} #ART native random number generator
-  user: { }
 }
 
 
 # services from LArSoft - see definitions for configurations in 
 # geometry.fcl
 # services.fcl
-services.user.ExptGeoHelperInterface: @local::argoneut_geometry_helper
-services.user.Geometry:           @local::argoneut_geo 
-services.user.DetectorPropertiesService: @local::argoneut_detproperties
-services.user.LArPropertiesService:      @local::argoneut_properties
-services.user.LArFFT:             @local::argoneut_larfft  
-services.user.DatabaseUtil:       @local::argoneut_database
-services.user.BackTracker:        @local::argoneut_backtracker
+services.ExptGeoHelperInterface: @local::argoneut_geometry_helper
+services.Geometry:           @local::argoneut_geo 
+services.DetectorPropertiesService: @local::argoneut_detproperties
+services.LArPropertiesService:      @local::argoneut_properties
+services.LArFFT:             @local::argoneut_larfft  
+services.DatabaseUtil:       @local::argoneut_database
+services.BackTracker:        @local::argoneut_backtracker
 
 services.message.destinations.debugmsg.type: "cout"
 services.message.destinations.debugmsg.categories.default.limit: 1000000
