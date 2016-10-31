@@ -97,6 +97,7 @@ namespace tca {
   float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, HitStatus_t hitRequest);
   float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
+  unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest);
   // Calculate MCS momentum
   short MCSMom(TjStuff& tjs, Trajectory& tj);
   // Calculate MCS momentum in a range of trajectory points
