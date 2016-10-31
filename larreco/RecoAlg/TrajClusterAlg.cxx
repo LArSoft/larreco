@@ -280,22 +280,22 @@ namespace tca {
     
     // check for debugging mode triggered by Plane, Wire, Tick
     if(debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
-      mf::LogVerbatim("TC")<<"Looking for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
+      std::cout<<"Looking for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
         if((int)tjs.fHits[iht].WireID.Plane != debug.Plane) continue;
         if((int)tjs.fHits[iht].WireID.Wire != debug.Wire) continue;
         if(tjs.fHits[iht].PeakTime < debug.Tick - 5) continue;
         if(tjs.fHits[iht].PeakTime > debug.Tick + 5) continue;
         debug.Hit = iht;
-        mf::LogVerbatim("TC")<<" iht "<<iht<<" "<<debug.Plane<<":"<<PrintHit(tjs.fHits[iht]);
-        mf::LogVerbatim("TC")<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
-        mf::LogVerbatim("TC")<<" RMS "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].RMS;
-        mf::LogVerbatim("TC")<<" Chisq "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].GoodnessOfFit;
-        mf::LogVerbatim("TC")<<" Mult "<<tjs.fHits[iht].Multiplicity;
-        mf::LogVerbatim("TC")<<"\n";
+        std::cout<<" iht "<<iht<<" "<<debug.Plane<<":"<<PrintHit(tjs.fHits[iht]);
+        std::cout<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
+        std::cout<<" RMS "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].RMS;
+        std::cout<<" Chisq "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].GoodnessOfFit;
+        std::cout<<" Mult "<<tjs.fHits[iht].Multiplicity;
+        std::cout<<"\n";
         break;
       } // iht
-      if(debug.Hit == UINT_MAX) mf::LogVerbatim("TC")<<" not found\n";
+      if(debug.Hit == UINT_MAX) std::cout<<" not found\n";
     } // debugging mode
 
     
@@ -814,7 +814,7 @@ namespace tca {
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, fVertex2DCuts, vtxPrt);
     
     // Refine vertices, trajectories and nearby hits
-    Refine2DVertices();
+//    Refine2DVertices();
     
   } // ReconstructAllTraj
 
@@ -1369,7 +1369,7 @@ namespace tca {
             tjWithMostHits = itj;
           }
         } // ii
-        if(tjWithMostHits > tjs.allTraj.size() - 1) continue;
+        if(tjWithMostHits == USHRT_MAX) continue;
         // the total number of hits used in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
         float nTjHits = tmp.size();
@@ -1425,7 +1425,7 @@ namespace tca {
         if(tjs.allTraj[itj].EffPur < fMatchTruth[2] && nMatchedHitsInPartList[ipl][plane] > fMatchTruth[3]) {
           mf::LogVerbatim myprt("TC");
           myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<tjs.allTraj[itj].EffPur<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipl][plane];
-          myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht]);
+          myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<fEventsProcessed;
         }
         // histogram the MC-reco stopping point difference
         unsigned short endPt = tjs.allTraj[itj].EndPt[0];
@@ -4732,6 +4732,11 @@ namespace tca {
     // This routine requires that EndPt is defined
     killPts = 0;
     
+    // decide whether to turn kink checking back on
+    if(tj.EndPt[1] == 20) {
+      if(MCSMom(tjs, tj, 10, 19) > 50) tj.AlgMod[kNoKinkChk] = false;
+      if(prt) mf::LogVerbatim("TC")<<"GottaKink turn kink checking back on? "<<tj.AlgMod[kNoKinkChk]<<" with MCSMom "<<MCSMom(tjs, tj, 10, 19);
+    }
     if(tj.AlgMod[kNoKinkChk]) return;
 
     unsigned short lastPt = tj.EndPt[1];
@@ -5513,6 +5518,12 @@ namespace tca {
 
     if(!(tj.StepDir == 1 || tj.StepDir == -1)) {
       mf::LogError("TC")<<"StoreTraj: Invalid StepDir "<<tj.StepDir;
+      fQuitAlg = true;
+      return;
+    }
+    
+    if(tjs.allTraj.size() >= USHRT_MAX) {
+      mf::LogError("TC")<<"StoreTraj: Too many trajectories "<<tjs.allTraj.size();
       fQuitAlg = true;
       return;
     }
@@ -6635,6 +6646,7 @@ namespace tca {
     SetEndPoints(tjs, tj);
     
   } // MaskTrajEndPoints
+
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::ChkStop(Trajectory& tj)
@@ -6646,6 +6658,142 @@ namespace tca {
     tj.StopsAtEnd[0] = false;
     tj.StopsAtEnd[1] = false;
     
+    if(!fUseAlg[kChkStop]) return;
+    if(fChkStopCuts[0] < 0) return;
+    
+    // don't attempt with low momentum trajectories
+    if(tj.MCSMom < 50) return;
+    
+    // ignore trajectories that are very large angle at both ends
+    bool isVLA0 = (AngleRange(tj.Pts[tj.EndPt[0]]) == fAngleRanges.size() - 1);
+    bool isVLA1 = (AngleRange(tj.Pts[tj.EndPt[1]]) == fAngleRanges.size() - 1);
+    if(isVLA0 && isVLA1) return;
+    
+    unsigned short nPtsToCheck = 10;
+    if(tj.Pts.size() < nPtsToCheck) return;
+    
+    for(unsigned short end = 0; end < 2; ++end) {
+      // find the max charge near this end
+      float maxChg = 0;
+      short PtWithMaxChg = 0;
+      // then find the min charge after the max charge point is found
+      float minChg = 1E6;
+      short PtWithMinChg = 0;
+      short dir = 1;
+      if(end == 1) dir = -1;
+      // look for the max charge
+      unsigned short npts = 0;
+      // the last point ii index that is being considered
+      unsigned short lastii = 0;
+      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+        unsigned short ipt = tj.EndPt[end] + ii * dir;
+        if(tj.Pts[ipt].Chg == 0) continue;
+        if(tj.Pts[ipt].Chg > maxChg) {
+          maxChg = tj.Pts[ipt].Chg;
+          PtWithMaxChg = ipt;
+        }
+        // hit the other end of the trajectory?
+        if(ipt == tj.EndPt[1 - end]) break;
+        // got enough points?
+        ++npts;
+        if(npts == nPtsToCheck) break;
+        lastii = ii;
+      } // ii
+      // too few points to do a credible fit
+      if(npts < 5) return;
+      // now find the minimum point after the max point
+      for(unsigned short ii = 0; ii <= lastii; ++ii) {
+        short ipt = PtWithMaxChg + ii * dir;
+        if(tj.Pts[ipt].Chg == 0) continue;
+        if(tj.Pts[ipt].Chg < minChg) {
+          minChg = tj.Pts[ipt].Chg;
+          PtWithMinChg = ipt;
+        }
+      } // ii
+      // require at least 5 points between the min and max point
+      if(prt) mf::LogVerbatim("TC")<<"ChkStop: end "<<end<<" minChg = "<<(int)minChg<<" at point "<<PtWithMinChg<<" maxChg = "<<(int)maxChg<<" at point "<<PtWithMaxChg<<" Pos "<<PrintPos(tjs, tj.Pts[PtWithMaxChg])<<" charge ratio "<<maxChg / minChg;
+      if(abs(PtWithMinChg - PtWithMaxChg) < 5) continue;
+      // require significant charge ratio
+      if(maxChg / minChg < fChkStopCuts[0]) continue;
+      // assume that the trajectory stops at the end we are considering
+      unsigned short stopEnd = end;
+      // unless it is a short trajectory in which case it may be at the other end
+      if(npts < nPtsToCheck && PtWithMaxChg > PtWithMinChg) {
+        stopEnd = 1 - end;
+        dir = -dir;
+      }
+      // Fit the charge of these points
+      // Fit the charge pattern to an exponential hypothesis
+      std::vector<float> x, y, yerr2;
+      for(unsigned short ii = 0; ii <= lastii; ++ii) {
+        short ipt = PtWithMaxChg + ii * dir;
+        if(tj.Pts[ipt].Chg == 0) continue;
+        float rr = log(0.5 + TrajPointSeparation(tj.Pts[PtWithMaxChg], tj.Pts[ipt]));
+        x.push_back(rr);
+        y.push_back(tj.Pts[ipt].Chg);
+        // Expected charge error is ~10%
+        float err = 0.1 * tj.Pts[ipt].Chg;
+        yerr2.push_back(err * err);
+        //        if(prt) mf::LogVerbatim("TC")<<ipt<<" ChkStop "<<PrintPos(tjs, tj.Pts[ipt])<<" rr "<<rr<<" Chg "<<tj.Pts[ipt].Chg;
+      } // ii
+      if(x.size() < 3) continue;
+      float intcpt, slope, intcpterr, slopeerr, chidof;
+      fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
+      if(prt) mf::LogVerbatim("TC")<<"ChkStop: Trajectory Fit intcpt "<<intcpt<<" slope "<<slope<<" err "<<slopeerr<<" chidof "<<chidof;
+      // should be negative slope
+      if(slope < -fChkStopCuts[1] * slopeerr && chidof < fChkStopCuts[2]) {
+        // looks like it stops
+        tj.StopsAtEnd[stopEnd] = true;
+        tj.AlgMod[kChkStop] = true;
+        // Mask off the points on the wrong side of PtWithMaxChg + 1 = nextPt
+      } // slope < -fCheckStop...
+      // mask off the points before/after PtWithMaxChg
+      unsigned short nextPt = PtWithMaxChg;
+      if(PtWithMaxChg != tj.EndPt[stopEnd]) {
+        // Keep the point just past PtWithMaxChg in the trajectory if it exists
+        if(end == 0) {
+          if(PtWithMaxChg > 0) nextPt = PtWithMaxChg - 1;
+        } else {
+          if(PtWithMaxChg < (short)tj.Pts.size() - 1) nextPt = PtWithMaxChg + 1;
+        } // end
+        // See if the next TP has no Chg but has a hit
+        if(tj.Pts[nextPt].Chg == 0 && NumHitsInTP(tj.Pts[nextPt], kUnusedHits) == 1) {
+          // Use this hit
+          for(unsigned short ii = 0; ii < tj.Pts[nextPt].Hits.size(); ++ii) {
+            unsigned int iht = tj.Pts[nextPt].Hits[ii];
+            if(tjs.fHits[iht].InTraj == 0) {
+              tj.Pts[nextPt].UseHit[0] = true;
+              tjs.fHits[iht].InTraj = tj.ID;
+              DefineHitPos(tj.Pts[nextPt]);
+              break;
+            }
+          } // ii
+        } // next point has 0 Chg and 1 hit
+      } // PtWithMaxChg != tj.EndPt[end]
+      // Now mask off the TPs from the stopEnd to nextPt - 1
+      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+        short ipt = tj.EndPt[stopEnd] + ii * dir;
+        if(ipt == nextPt) break;
+        UnsetUsedHits(tj.Pts[ipt]);
+      } // ii
+      SetEndPoints(tjs, tj);
+      //      if(prt) mf::LogVerbatim("TC")<<" stopEnd "<<stopEnd<<" npts "<<npts<<" nPtsToCheck "<<nPtsToCheck;
+      // no sense checking the other end if the TJ is short
+      if(npts < nPtsToCheck) break;
+    } // end
+  } // StopsAtEnd
+
+  /*
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::ChkStop(Trajectory& tj)
+  {
+    // Sets the StopsAtEnd bits on the trajectory by identifying the Bragg peak
+    // at each end. This is done by inspecting points near both ends for long trajectories
+    // and all points for short trajectories and fitting them to an exponential charge pattern hypothesis
+   
+    tj.StopsAtEnd[0] = false;
+    tj.StopsAtEnd[1] = false;
+   
     if(!fUseAlg[kChkStop]) return;
     if(fChkStopCuts[0] < 0) return;
     
@@ -6782,5 +6930,5 @@ namespace tca {
     } // end
     
   } // StopsAtEnd
-
+*/
 } // namespace cluster
