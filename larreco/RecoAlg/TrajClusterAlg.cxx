@@ -75,8 +75,9 @@ namespace tca {
     fExpect_Angle[2] = tfs->make<TProfile>("expect_angle2","Expected width vs Angle Pln 2", 11, 0, M_PI/2, "S");
     
     for(unsigned short pdgIndex = 0; pdgIndex < 6; ++pdgIndex) {
-      EPCounts[pdgIndex] = 0;
+      EPTSums[pdgIndex] = 0;
       EPSums[pdgIndex] = 0;
+      EPCnts[pdgIndex] = 0;
     }
     fEventsProcessed = 0;
 //    if(fStudyMode) outFile.open("quality.txt");
@@ -112,7 +113,7 @@ namespace tca {
     fMaxChi               = pset.get< float >("MaxChi", 10);
     fChgPullCut           = pset.get< float >("ChgPullCut", 3);
     fMultHitSep           = pset.get< float >("MultHitSep", 2.5);
-    fKinkAngCut           = pset.get< float >("KinkAngCut", 0.4);
+    fKinkCuts             = pset.get< std::vector<float >>("KinkCuts", {0.4, 1.5});
     fMaxWireSkipNoSignal  = pset.get< float >("MaxWireSkipNoSignal", 1);
     fMaxWireSkipWithSignal= pset.get< float >("MaxWireSkipWithSignal", 100);
     fProjectionErrFactor  = pset.get< float >("ProjectionErrFactor", 2);
@@ -129,7 +130,7 @@ namespace tca {
     
     fStudyMode            = pset.get< bool  >("StudyMode", false);
     fMatchTruth           = pset.get< std::vector<float> >("MatchTruth", {-1, -1, -1, -1});
-    fVertex2DCuts         = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1});
+    fVertex2DCuts         = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1});
     fVertex3DChiCut       = pset.get< float >("Vertex3DChiCut", -1);
     fMaxVertexTrajSep     = pset.get< std::vector<float>>("MaxVertexTrajSep");
     
@@ -145,14 +146,15 @@ namespace tca {
     if(fMinPtsFit.size() != fMinPts.size()) badinput = true;
     if(fMaxVertexTrajSep.size() != fMinPts.size()) badinput = true;
     if(fMaxAngleRange.size() != fMinPts.size()) badinput = true;
-    if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxVertexTrajSep and MaxAngleRange are not the same";
+    if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxVertexTrajSep and MaxAngleRange should be defined for each reconstruction pass";
     
-    if(fVertex2DCuts.size() < 5) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 5";
+    if(fVertex2DCuts.size() != 6) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 6\n 0 = Max length definitino for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs";
+    if(fKinkCuts.size() != 2) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance";
     
-    if(fMuonTag.size() < 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4 [minPtsFit, minMCSMom, maxWireSkipNoSignal, minDeltaLen]";
-    if(fDeltaRayTag.size() < 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3 [max endpoint sep, min MCSMom, max MCSMom]";
-    if(fChkStopCuts.size() < 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3 [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]";
-    if(fShowerTag.size() < 3) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 3";
+    if(fMuonTag.size() != 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging";
+    if(fDeltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
+    if(fChkStopCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut";
+    if(fShowerTag.size() != 3) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 3";
     
     // check the angle ranges and convert from degrees to radians
     if(fAngleRanges.back() < 90) {
@@ -183,22 +185,25 @@ namespace tca {
       throw art::Exception(art::errors::Configuration)<<"kAlgBitSize "<<kAlgBitSize<<" != AlgBitNames size "<<AlgBitNames.size();
     fAlgModCount.resize(kAlgBitSize);
     
-    unsigned short ib;
     bool gotit, printHelp = false;
-    for(ib = 0; ib < AlgBitNames.size(); ++ib) fUseAlg[ib] = true;
+    bool skipped = false;
+    for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) fUseAlg[ib] = true;
     for(auto strng : skipAlgsVec) {
       gotit = false;
       if(strng == "All") {
         // turn everything off
-        for(ib = 0; ib < AlgBitNames.size(); ++ib) fUseAlg[ib] = false;
+        for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) fUseAlg[ib] = false;
         std::cout<<"Turning all algs off\n";
+        mf::LogVerbatim("TC")<<"Turning all algs off";
         gotit = true;
+        skipped = true;
         break;
       } // All off
-      for(ib = 0; ib < AlgBitNames.size(); ++ib) {
+      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
         if(strng == AlgBitNames[ib]) {
           fUseAlg[ib] = false;
           gotit = true;
+          skipped = true;
           break;
         }
       } // ib
@@ -216,6 +221,12 @@ namespace tca {
     }
     // Change the polarity of ChkInTraj
     if(fUseAlg[kChkInTraj]) { fUseAlg[kChkInTraj] = false; } else { fUseAlg[kChkInTraj] = true; std::cout<<"Note: ChkInTraj will be slow...\n"; }
+    
+    if(skipped) {
+      std::cout<<"Skipping algs:";
+      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(!fUseAlg[ib] && ib != kChkInTraj) std::cout<<" "<<AlgBitNames[ib];
+      std::cout<<"\n";
+    }
    
   } // reconfigure
   
@@ -421,21 +432,21 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"Event "<<evt.event();
       float sum = 0;
-      float cnt = 0;
+      float sumt = 0;
       for(unsigned short pdgIndex = 0; pdgIndex < 6; ++pdgIndex) {
-        if(EPCounts[pdgIndex] == 0) continue;
+        if(EPSums[pdgIndex] == 0) continue;
         if(pdgIndex == 0) myprt<<" Electron";
         if(pdgIndex == 1) myprt<<" Muon";
         if(pdgIndex == 2) myprt<<" Pion";
         if(pdgIndex == 3) myprt<<" Kaon";
         if(pdgIndex == 4) myprt<<" Proton";
-        float ave = EPSums[pdgIndex] / (float)EPCounts[pdgIndex];
+        float ave = EPTSums[pdgIndex] / (float)EPSums[pdgIndex];
         myprt<<" ave "<<std::fixed<<std::setprecision(2)<<ave;
-        myprt<<" cnt "<<EPCounts[pdgIndex];
-        sum += EPSums[pdgIndex];
-        cnt += EPCounts[pdgIndex];
+        myprt<<" cnt "<<EPCnts[pdgIndex];
+        sum  += EPSums[pdgIndex];
+        sumt += EPTSums[pdgIndex];
       } // pdgIndex
-      if(cnt > 0) myprt<<" combined "<<std::fixed<<std::setprecision(2)<<sum / cnt;
+      if(sum > 0) myprt<<" combined "<<std::fixed<<std::setprecision(2)<<sumt / sum;
     } // fMatchTruth[0] >= 0
 
     // convert vertex time from WSE to ticks
@@ -664,6 +675,7 @@ namespace tca {
             // Only consider hits that are available
             if(tjs.fHits[iht].InTraj != 0) continue;
             if(tjs.fHits[jht].InTraj != 0) continue;
+            if(prt) std::cout<<"pass "<<pass<<" "<<PrintHit(tjs.fHits[jht])<<" "<<jHitsInMultiplet.size()<<"\n";
             // clear out any leftover work inTraj's that weren't cleaned up properly
             for(unsigned short oht = jfirsthit; oht < jlasthit; ++oht) {
               if(tjs.fHits[oht].InTraj < 0) {
@@ -730,7 +742,8 @@ namespace tca {
             AddHits(work, 0, sigOK);
             // check for a major failure
             if(fQuitAlg) return;
-            if(!sigOK || NumUsedHits(work.Pts[0]) == 0) {
+//            if(!sigOK || NumUsedHits(work.Pts[0]) == 0) {
+            if(!sigOK || work.Pts[0].Chg == 0) {
               if(prt) mf::LogVerbatim("TC")<<" No hits at initial trajectory point ";
               prt = false;
               ReleaseHits(work);
@@ -1327,7 +1340,7 @@ namespace tca {
     
     if(fMatchTruth[1] > 1) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"part   PDG TrkID MomID KE(MeV)   Process nMatchedHits[plane]\n";
+      myprt<<"part   PDG TrkID MomID KE(MeV)   Process nMatchedHits[plane]   Trajectory_extent_in_plane \n";
       for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
         unsigned short pdg = abs(partList[ipl]->PdgCode());
         bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
@@ -1340,10 +1353,20 @@ namespace tca {
         myprt<<std::setw(6)<<partList[ipl]->TrackId();
         myprt<<std::setw(6)<<motherID;
         myprt<<std::setw(6)<<TMeV;
-        myprt<<std::setw(12)<<partList[ipl]->Process();
-        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) myprt<<std::setw(4)<<nMatchedHitsInPartList[ipl][plane];
-        myprt<<"  tjID_nTruHits";
-        for(auto& tmp : nMatchedHitsInTj[ipl]) myprt<<" "<<tmp[0]+1<<"_"<<tmp[1];
+        myprt<<std::setw(20)<<partList[ipl]->Process();
+        // print the extent of the particle in each plane
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+          unsigned int fht = UINT_MAX;
+          unsigned int lht = 0;
+          for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+            if(tjs.fHits[iht].WireID.Plane != plane) continue;
+            if(hitTruTrkID[iht] != partList[ipl]->TrackId()) continue;
+            if(fht == UINT_MAX) fht = iht;
+            lht = iht;
+          } // iht
+          if(fht == UINT_MAX) continue;
+          myprt<<" "<<PrintHitShort(tjs.fHits[fht])<<"-"<<PrintHitShort(tjs.fHits[lht]);
+        } // plane
         myprt<<"\n";
       } // ipl
     }
@@ -1397,7 +1420,8 @@ namespace tca {
         if(nMatchedHitsInPartList[ipl][plane] < 2) continue;
         unsigned short pdgIndex = PDGCodeIndex(tjs, partList[ipl]->PdgCode());
         // count the number of EP sums for this PDG code
-        ++EPCounts[pdgIndex];
+        EPSums[pdgIndex] += TMeV;
+        ++EPCnts[pdgIndex];
         // find the first and last matched hit in this plane
         unsigned int fht = UINT_MAX;
         unsigned int lht = 0;
@@ -1419,7 +1443,7 @@ namespace tca {
           continue;
         }
         unsigned short itj = partListToTjID[ipl][plane] - 1;
-        EPSums[pdgIndex] += tjs.allTraj[itj].EffPur;
+        EPTSums[pdgIndex] += TMeV * tjs.allTraj[itj].EffPur;
         fEP_T[pdgIndex]->Fill(TMeV, tjs.allTraj[itj].EffPur);
         // print out some debugging information if the EP was pitiful and the number of matched hits is large
         if(tjs.allTraj[itj].EffPur < fMatchTruth[2] && nMatchedHitsInPartList[ipl][plane] > fMatchTruth[3]) {
@@ -1776,7 +1800,8 @@ namespace tca {
     FindUseHits(tj, ipt, 10, useChg);
     DefineHitPos(tp);
     SetEndPoints(tjs, tj);
-    if(prt) mf::LogVerbatim("TC")<<" number of close hits "<<closeHits.size()<<" used hits "<<NumUsedHits(tp);
+//    if(prt) mf::LogVerbatim("TC")<<" number of close hits "<<closeHits.size()<<" used hits "<<NumUsedHits(tp);
+    if(prt) mf::LogVerbatim("TC")<<" number of close hits "<<closeHits.size()<<" used hits "<<NumHitsInTP(tp, kUsedHits);
   } // AddHits
   
   ////////////////////////////////////////////////
@@ -2225,8 +2250,13 @@ namespace tca {
         if(tjs.allTraj[tj1].VtxID[1] > 0) continue;
         // no merge if it stops at end 1
         if(tjs.allTraj[tj1].StopsAtEnd[1]) continue;
+        // or if there is a kink
+        if(tjs.allTraj[tj1].KinkAtEnd[1]) continue;
         // ignore bad trajectories
         if(tjs.allTraj[tj1].MCSMom < 5) continue;
+        float thetaRMS1 = MCSThetaRMS(tjs, tjs.allTraj[tj1], tjs.allTraj[tj1].EndPt[0], tjs.allTraj[tj1].EndPt[1]);
+        // square it here once
+        thetaRMS1 *= thetaRMS1;
         ipt = tjs.allTraj[tj1].EndPt[1];
         TrajPoint& tp1 = tjs.allTraj[tj1].Pts[ipt];
         for(tj2 = 0; tj2 < tjsize; ++tj2) {
@@ -2237,7 +2267,9 @@ namespace tca {
           if(tjs.allTraj[tj2].CTP != fCTP) continue;
           if(tjs.allTraj[tj2].VtxID[0] > 0) continue;
           // no merge if it stops at end 1
-          if(tjs.allTraj[tj1].StopsAtEnd[0]) continue;
+          if(tjs.allTraj[tj2].StopsAtEnd[0]) continue;
+          // or if there is a kink
+          if(tjs.allTraj[tj2].KinkAtEnd[0]) continue;
           // ignore bad trajectories
           if(tjs.allTraj[tj2].MCSMom < 5) continue;
           ipt = tjs.allTraj[tj2].EndPt[0];
@@ -2245,6 +2277,9 @@ namespace tca {
           float doca = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
           if(doca > 50) continue;
           float dang = DeltaAngle(tp1.Ang, tp2.Ang);
+          float thetaRMS2 = MCSThetaRMS(tjs, tjs.allTraj[tj2], tjs.allTraj[tj2].EndPt[0], tjs.allTraj[tj2].EndPt[1]);
+          // Find the expected error from MCS
+          float dangErr = 0.5 * sqrt(thetaRMS1 + thetaRMS2 * thetaRMS2);
           float dwc = DeadWireCount(tp1, tp2);
           float ptSep0;
           if(tjs.allTraj[tj1].StepDir > 0) {
@@ -2256,11 +2291,12 @@ namespace tca {
           float maxWireSkip = fMaxWireSkipNoSignal;
           float tpSep2 = PosSep2(tp1.Pos, tp2.Pos);
           if(mrgPrt) {
-            mf::LogVerbatim("TC")<<"Candidate tj1-tj2 "<<tjs.allTraj[tj1].ID<<"_1"<<"-"<<tjs.allTraj[tj2].ID<<"_0"<<" dang "<<dang<<" DeadWireCount "<<(int)dwc<<" ptSep0 "<<ptSep0<<" maxWireSkip "<<maxWireSkip<<" twoMuons? "<<twoMuons<<" doca "<<doca<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2)<<" tpSep2 "<<tpSep2;
+            mf::LogVerbatim("TC")<<"Candidate tj1-tj2 "<<tjs.allTraj[tj1].ID<<"_1"<<"-"<<tjs.allTraj[tj2].ID<<"_0"<<" dang "<<dang<<" MCS dang error "<<dangErr<<" DeadWireCount "<<(int)dwc<<" ptSep0 "<<ptSep0<<" maxWireSkip "<<maxWireSkip<<" twoMuons? "<<twoMuons<<" doca "<<doca<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2)<<" tpSep2 "<<tpSep2;
           }
           // maximum overlap && maximum missed (live) wires
           if(ptSep0 < -2 || ptSep0 > maxWireSkip) continue;
           // Merge short trajectories, regardless of charge as long as the separation is small
+/*
           bool isClose = tpSep2 < 15 && dang < 1 && doca < 2;
           bool shortTraj = NumPtsWithCharge(tjs.allTraj[tj1], false) < 15 && NumPtsWithCharge(tjs.allTraj[tj2], false) < 15;
           bool OneIsDeltaRay = tjs.allTraj[tj1].PDGCode == 12 || tjs.allTraj[tj2].PDGCode == 12;
@@ -2274,6 +2310,7 @@ namespace tca {
             if(OneIsDeltaRay) tjs.allTraj[tjsize-1].PDGCode = 12;
             continue;
           }
+*/
           // handle muons here + uB problem with uncharacterized dead wires
           if(twoMuons && dang < 0.4 && doca < 10) {
             if(mrgPrt) mf::LogVerbatim("TC")<<" merge muon tj1-tj2 "<<tjs.allTraj[tj1].ID<<"_1"<<"-"<<tjs.allTraj[tj2].ID<<"_0"<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2)<<" doca "<<doca;
@@ -2284,11 +2321,9 @@ namespace tca {
             tjs.allTraj[tjsize-1].AlgMod[kEndMerge] = true;
             continue;
           }
-          if(dang > 0.4) continue;
           // Inflate the doca cut if we are bridging a block of dead wires
           float docaCut = 1;
           if(dwc > 10) docaCut *= 2;
-          //        doca = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
           if(mrgPrt) mf::LogVerbatim("TC")<<" EM "<<tjs.allTraj[tj1].ID<<"_1"<<"-"<<tjs.allTraj[tj2].ID<<"_0 DOCA "<<doca<<" docaCut "<<docaCut<<" dang "<<dang;
           if(doca > docaCut) continue;
           notJunk = (!tjs.allTraj[tj1].AlgMod[kJunkTj] && !tjs.allTraj[tj1].AlgMod[kJunkTj]);
@@ -2300,8 +2335,6 @@ namespace tca {
             chg1rms = tjs.allTraj[tj1].ChgRMS * tjs.allTraj[tj1].AveChg;
             chg2rms = tjs.allTraj[tj2].ChgRMS * tjs.allTraj[tj2].AveChg;
             if(chg2rms < chg1rms) chg1rms = chg2rms;
-            // What is this for?
-//            if(chg1rms < 1) chg1rms = 0.15 * (tjs.allTraj[tj1].AveChg + tjs.allTraj[tj2].AveChg);
             chgpull = std::abs(tjs.allTraj[tj1].AveChg - tjs.allTraj[tj2].AveChg) / chg1rms;
             if(mrgPrt) mf::LogVerbatim("TC")<<"   chk tp1 chg "<<tp1.AveChg<<" tj1 chg "<<tjs.allTraj[tj1].AveChg<<" rms "<<tjs.allTraj[tj1].ChgRMS<<" tp2 chg "<<tp2.AveChg<<" tj2 chg "<<tjs.allTraj[tj2].AveChg<<" rms "<<tjs.allTraj[tj2].ChgRMS;
           } // charge is known.
@@ -2580,6 +2613,7 @@ namespace tca {
     // 2 = max vertex - trajectory separation for long trajectories
     // 3 = max position pull for adding TJs to a vertex
     // 4 = max allowed vertex position error
+    // 5 = min MCSMom
     wireWindow[0] = std::nearbyint(theVtx.Pos[0] - fVertex2DCuts[2]);
     wireWindow[1] = std::nearbyint(theVtx.Pos[0] + fVertex2DCuts[2]);
     timeWindow[0] = theVtx.Pos[1] - 5;
@@ -2675,6 +2709,7 @@ namespace tca {
     // 2 = max vertex - trajectory separation for long trajectories
     // 3 = max position pull for adding TJs to a vertex
     // 4 = max allowed vertex position error
+    // 5 = min MCSMom for one of the two TJs
     
     if(fVertex2DCuts[0] <= 0) return;
 
@@ -2703,6 +2738,7 @@ namespace tca {
           if(tjs.allTraj[tj2].AlgMod[kKilled]) continue;
           if(tjs.allTraj[tj2].CTP != fCTP) continue;
           if(tjs.allTraj[tj2].PDGCode == 12) continue;
+          if(tjs.allTraj[tj1].MCSMom < fVertex2DCuts[5] && tjs.allTraj[tj2].MCSMom < fVertex2DCuts[5]) continue;
           bool tj2Short = (tjs.allTraj[tj2].EndPt[1] - tjs.allTraj[tj2].EndPt[0] < maxShortTjLen);
           for(unsigned short end2 = 0; end2 < 2; ++end2) {
             unsigned short  endPt2 = tjs.allTraj[tj2].EndPt[end2];
@@ -3002,8 +3038,8 @@ namespace tca {
           if(closePt2 > tj2.EndPt[1] - 3) continue;
           // make an angle cut
           dang = DeltaAngle(tjs.allTraj[itj1].Pts[endPt1].Ang, tj2.Pts[closePt2].Ang);
-          if(vtxPrt) mf::LogVerbatim("TC")<<" dang "<<dang<<" fKinkAngCut "<<fKinkAngCut;
-          if(dang < fKinkAngCut) continue;
+          if(vtxPrt) mf::LogVerbatim("TC")<<" dang "<<dang<<" imposing a hard cut of 0.4 for now ";
+          if(dang < 0.4) continue;
           // we have a winner
           // create a new vertex
           VtxStore aVtx;
@@ -3794,7 +3830,7 @@ namespace tca {
     FixTrajBegin(tj);
 
     // check the fraction of the trajectory points that have hits
-    if(fUseAlg[kTrimHits]) {
+    if(fUseAlg[kTrimHits] && !tj.StopsAtEnd[1]) {
       // First ensure that there are at least two points with charge at the end
       while(NumPtsWithCharge(tj, false) > fMinPts[tj.Pass]) {
         unsigned short lastPt = tj.EndPt[1];
@@ -3871,7 +3907,7 @@ namespace tca {
     // ignore short trajectories
     if(tj.EndPt[1] < 4) return;
     
-    if(isSA) {
+    if(isSA && !tj.StopsAtEnd[1]) {
       // Small angle checks
 
       if(fUseAlg[kCWKink] && tj.EndPt[1] > 8) {
@@ -3931,6 +3967,7 @@ namespace tca {
         } // newSize < tj.Pts.size()
       } // fUseAlg[kCWStepChk]
     } // isSA
+    
     FindSoftKink(tj);
     
     // Check either large angle or not-large angles
@@ -3955,9 +3992,9 @@ namespace tca {
     float dang = DeltaAngle(tj.Pts[tj.EndPt[0]].Ang, tj.Pts[tj.EndPt[1]].Ang);
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"FindSoftKink "<<tj.ID<<" dang "<<dang<<" cut "<<0.5 * fKinkAngCut;
+      mf::LogVerbatim("TC")<<"FindSoftKink: "<<tj.ID<<" dang "<<dang<<" cut "<<0.5 * fKinkCuts[0];
     }
-    if(dang < 0.5 * fKinkAngCut) return;
+    if(dang < 0.5 * fKinkCuts[0]) return;
     // require at least 5 points fitted at the end of the trajectory
     unsigned short endPt = tj.EndPt[1];
     if(tj.Pts[endPt].NTPsFit < 5) return;
@@ -3965,9 +4002,10 @@ namespace tca {
     // Estimate where where the kink would be
     unsigned short kinkPt = endPt - tj.Pts[endPt].NTPsFit;
     // Require at least 5 points in the trajectory before the kink
+    if(prt) mf::LogVerbatim("TC")<<" kinkPt "<<kinkPt<<" NTPsFit at kinkPt "<<tj.Pts[kinkPt].NTPsFit<<" max "<<0.5 * kinkPt;
     if(kinkPt < 5) return;
-    // require very few points fitted in this region compared the number of points prior to it
-    if(tj.Pts[kinkPt].NTPsFit > 0.3 * kinkPt) return;
+    // require fewer points fitted in this region compared the number of points prior to it
+    if(tj.Pts[kinkPt].NTPsFit > 0.5 * kinkPt) return;
     // scan back until we find the maximum number of points fitted
     unsigned short maxPtsFit = tj.Pts[kinkPt].NTPsFit;
     unsigned short atPt = kinkPt;
@@ -4256,6 +4294,7 @@ namespace tca {
     // Delta is too high
     
     if(!fUseAlg[kHiEndDelta]) return;
+    if(tj.StopsAtEnd[1]) return;
 
     // don't bother with LA trajectories
     if(AngleRange(tj.Pts[tj.EndPt[1]]) > 0) return;
@@ -4269,7 +4308,7 @@ namespace tca {
 
     // Check the beginning first.
     unsigned short endPt = tj.EndPt[0];
-    bool checkEnd = (endPt > 0 && !tj.Pts[0].Hits.empty());
+    bool checkEnd = (endPt > 0 && !tj.Pts[0].Hits.empty() && !tj.StopsAtEnd[0]);
     if(checkEnd) {
       // find the first value of delta RMS that is not the default value
       didit = false;
@@ -4307,7 +4346,7 @@ namespace tca {
 
     // now check the other end using a similar procedure
     endPt = tj.EndPt[1];
-    checkEnd = (endPt < tj.Pts.size() - 1 && !tj.Pts[endPt + 1].Hits.empty());
+    checkEnd = (endPt < tj.Pts.size() - 1 && !tj.Pts[endPt + 1].Hits.empty() && !tj.StopsAtEnd[1]);
     if(checkEnd) {
       usePt = USHRT_MAX;
       didit = false;
@@ -4388,7 +4427,8 @@ namespace tca {
       if(tj.Pts[stopPt].Hits.size() > 1) {
         ++nHiMultPt;
         nHiMultPtHits += tj.Pts[stopPt].Hits.size();
-        nHiMultPtUsedHits += NumUsedHits(tj.Pts[stopPt]);
+//        nHiMultPtUsedHits += NumUsedHits(tj.Pts[stopPt]);
+        nHiMultPtUsedHits += NumHitsInTP(tj.Pts[stopPt], kUsedHits);
       } // high multiplicity TP
       // stop looking when two consecutive single multiplicity TPs are found
       if(lastMult1Pt != USHRT_MAX) break;
@@ -4443,7 +4483,8 @@ namespace tca {
         if(tjs.fHits[iht].InTraj > 0) continue;
         delta = PointTrajDOCA(tjs, iht, tj.Pts[ipt]);
         if(delta > maxDelta) continue;
-        if (!NumUsedHits(TjCopy.Pts[ipt])||TjCopy.Pts[ipt].UseHit[ii]){
+//        if (!NumUsedHits(TjCopy.Pts[ipt])||TjCopy.Pts[ipt].UseHit[ii]){
+        if (!NumHitsInTP(TjCopy.Pts[ipt], kUsedHits)||TjCopy.Pts[ipt].UseHit[ii]){
           tj.Pts[ipt].UseHit[ii] = true;
           tjs.fHits[iht].InTraj = tj.ID;
           added = true;
@@ -4501,6 +4542,7 @@ namespace tca {
   {
     // mask off high multiplicity TPs at the end
     if(!fUseAlg[kChkHiMultEndHits]) return;
+    if(tj.StopsAtEnd[1]) return;
     if(tj.Pts.size() < 10) return;
     // find the average multiplicity in the first half
     unsigned short aveMult= 0;
@@ -4729,19 +4771,28 @@ namespace tca {
   ////////////////////////////////////////////////
   void TrajClusterAlg::GottaKink(Trajectory& tj, unsigned short& killPts)
   {
-    // This routine requires that EndPt is defined
+    // Checks the last few points on the trajectory and returns with the number of
+    // points (killPts) that should be killed (aka masked) at the end
+    // fKinkCuts
+    // 0 = kink angle cut (radians)
+    // 1 = kink angle significance cut
+    // Kink angle cut = fKinkCuts[0] + fKinkCuts[1] * MCSThetaRMS
+    
     killPts = 0;
     
     // decide whether to turn kink checking back on
-    if(tj.EndPt[1] == 20) {
+    if(fKinkCuts[0] > 0 && tj.EndPt[1] == 20) {
       if(MCSMom(tjs, tj, 10, 19) > 50) tj.AlgMod[kNoKinkChk] = false;
       if(prt) mf::LogVerbatim("TC")<<"GottaKink turn kink checking back on? "<<tj.AlgMod[kNoKinkChk]<<" with MCSMom "<<MCSMom(tjs, tj, 10, 19);
     }
     if(tj.AlgMod[kNoKinkChk]) return;
 
     unsigned short lastPt = tj.EndPt[1];
-    if(lastPt < 6) return;
+    if(lastPt < 10) return;
     if(tj.Pts[lastPt].Chg == 0) return;
+    
+    // standard fixed angle cut
+    float kinkAngCut = fKinkCuts[0] + fKinkCuts[1] * MCSThetaRMS(tjs, tj, tj.EndPt[0], tj.EndPt[1]);
     
     // A simple check when there are few points being fit and the TJ is short
     if(tj.Pts[lastPt].NTPsFit < 6 && tj.Pts.size() < 20) {
@@ -4757,11 +4808,12 @@ namespace tca {
       } // ii
       if(prevPtWithHits == USHRT_MAX) return;
       float dang = DeltaAngle(tj.Pts[lastPt].Ang, tj.Pts[prevPtWithHits].Ang);
-      if(prt) mf::LogVerbatim("TC")<<"GottaKink Simple check lastPt "<<lastPt<<" prevPtWithHits "<<prevPtWithHits<<" dang "<<dang<<" cut "<<fKinkAngCut;
+      if(prt) mf::LogVerbatim("TC")<<"GottaKink Simple check lastPt "<<lastPt<<" prevPtWithHits "<<prevPtWithHits<<" dang "<<dang<<" cut "<<kinkAngCut;
       // need to be more generous since the angle error isn't being considered - BAD IDEA
-      if(dang > fKinkAngCut) {
+      if(dang > kinkAngCut) {
         killPts = 1;
         tj.AlgMod[kGottaKink] = true;
+        tj.KinkAtEnd[1] = true;
       }
       // Another case where there are few hits fit just prior to a dead wire
       // section or there were no hits added for several steps or due to a large
@@ -4772,12 +4824,14 @@ namespace tca {
         TrajPoint tmp;
         MakeBareTrajPoint(tjs, tj.Pts[lastPt-1], tj.Pts[lastPt], tmp);
         dang = DeltaAngle(tmp.Ang, tj.Pts[prevPtWithHits].Ang);
-        if(prt) mf::LogVerbatim("TC")<<"GottaKink Simple check after gap lastPt "<<lastPt<<" prevPtWithHits "<<prevPtWithHits<<" dang "<<dang<<" cut "<<fKinkAngCut;
-        if(dang > 1.5 * fKinkAngCut) {
+        if(prt) mf::LogVerbatim("TC")<<"GottaKink Simple check after gap lastPt "<<lastPt<<" prevPtWithHits "<<prevPtWithHits<<" dang "<<dang<<" cut "<<kinkAngCut;
+        if(dang > 1.5 * kinkAngCut) {
           killPts = 1;
           tj.AlgMod[kGottaKink] = true;
+          tj.KinkAtEnd[1] = true;
         }
       }
+/*
       // Few points fit in a long trajectory, indicating that chisq went to pot
       // maybe because we just passed through a bad section. Go back a few points
       // and check
@@ -4792,10 +4846,10 @@ namespace tca {
         if(ipt == 0) break;
       } // ii
       if(killPts > 0) tj.AlgMod[kGottaKink] = true;
+*/
       return;
-    } // tj.NTPSFit < 4
+    } // tj.Pts[lastPt].NTPsFit < 6 && tj.Pts.size() < 20
 
-    
     if(tj.EndPt[1] < 10) return;
     
     unsigned short kinkPt = USHRT_MAX;
@@ -4826,15 +4880,11 @@ namespace tca {
     if(tpFit.FitChi > 900) return;
  
     float dang = DeltaAngle(tj.Pts[kinkPt].Ang, tpFit.Ang);
-
-    float kinkSig = dang / tpFit.AngErr;
     
-    if(dang > fKinkAngCut && kinkSig > 3) {
-      // Kink larger than hard user cut
+    if(dang > kinkAngCut) {
       killPts = 3;
-    } else if(dang > 0.8 * fKinkAngCut && kinkSig > 10 && tpFit.FitChi < 2) {
-      // Found a very significant smaller angle kink
-      killPts = 3;
+      tj.AlgMod[kGottaKink] = true;
+      tj.KinkAtEnd[1] = true;
     }
     
     if(killPts > 0) {
@@ -4850,16 +4900,17 @@ namespace tca {
       // turn off kink checking
       if(tj.EndPt[1] < 20) {
         // Find MCSMom if it hasn't been done
-        if(tj.MCSMom == USHRT_MAX) tj.MCSMom = MCSMom(tjs, tj);
+        if(tj.MCSMom < 0) tj.MCSMom = MCSMom(tjs, tj);
         if(tj.MCSMom < 50) {
           killPts = 0;
           tj.AlgMod[kGottaKink] = false;
+          tj.KinkAtEnd[1] = false;
           tj.AlgMod[kNoKinkChk] = true;
           if(prt) mf::LogVerbatim("TC")<<"GottaKink turning off kink checking. MCSMom "<<tj.MCSMom;
         }
       } // turn off kink check
     }
-    if(prt) mf::LogVerbatim("TC")<<"GottaKink kinkPt "<<kinkPt<<" Pos "<<PrintPos(tjs, tj.Pts[kinkPt])<<" dang "<<dang<<" cut "<<fKinkAngCut<<" kinkSig "<<kinkSig<<" tpFit chi "<<tpFit.FitChi<<" nHiMultPt "<<nHiMultPt<<" killPts "<<killPts<<" GottaKink? "<<tj.AlgMod[kGottaKink];
+    if(prt) mf::LogVerbatim("TC")<<"GottaKink kinkPt "<<kinkPt<<" Pos "<<PrintPos(tjs, tj.Pts[kinkPt])<<" dang "<<std::setprecision(2)<<dang<<" cut "<<kinkAngCut<<" tpFit chi "<<tpFit.FitChi<<" nHiMultPt "<<nHiMultPt<<" killPts "<<killPts<<" GottaKink? "<<tj.AlgMod[kGottaKink]<<" MCSMom "<<tj.MCSMom;
     
   } // GottaKink
 
@@ -6310,7 +6361,8 @@ namespace tca {
       Trajectory& tj = tjs.allTraj[itj];
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         TrajPoint& tp = tj.Pts[ipt];
-        if(NumUsedHits(tp) < 2) continue;
+//        if(NumUsedHits(tp) < 2) continue;
+        if(NumHitsInTP(tp, kUsedHits) < 2) continue;
         // Make a list of the old hits on this TP before doing anything invasive
         std::vector<unsigned int> oldHits;
         // get some info so we can calculate the RMS
@@ -6450,7 +6502,7 @@ namespace tca {
     if(includeDeadWires) ntp += DeadWireCount(tj.Pts[ipt0], tj.Pts[ipt1]);
     return ntp;
   } // NumTPsWithCharge
-  
+/*
   //////////////////////////////////////////
   unsigned short TrajClusterAlg::NumUsedHits(TrajPoint& tp)
   {
@@ -6460,7 +6512,7 @@ namespace tca {
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) if(tp.UseHit[ii]) ++nused;
     return nused;
   } // NumUsedHits
-  
+*/
   //////////////////////////////////////////
   float TrajClusterAlg::DeadWireCount(TrajPoint& tp1, TrajPoint& tp2)
   {
@@ -6704,6 +6756,7 @@ namespace tca {
       // now find the minimum point after the max point
       for(unsigned short ii = 0; ii <= lastii; ++ii) {
         short ipt = PtWithMaxChg + ii * dir;
+        if(ipt < 0 || ipt == (short)tj.Pts.size()) break;
         if(tj.Pts[ipt].Chg == 0) continue;
         if(tj.Pts[ipt].Chg < minChg) {
           minChg = tj.Pts[ipt].Chg;
@@ -6727,6 +6780,7 @@ namespace tca {
       std::vector<float> x, y, yerr2;
       for(unsigned short ii = 0; ii <= lastii; ++ii) {
         short ipt = PtWithMaxChg + ii * dir;
+        if(ipt < 0 || ipt == (short)tj.Pts.size()) break;
         if(tj.Pts[ipt].Chg == 0) continue;
         float rr = log(0.5 + TrajPointSeparation(tj.Pts[PtWithMaxChg], tj.Pts[ipt]));
         x.push_back(rr);
@@ -6757,6 +6811,7 @@ namespace tca {
           if(PtWithMaxChg < (short)tj.Pts.size() - 1) nextPt = PtWithMaxChg + 1;
         } // end
         // See if the next TP has no Chg but has a hit
+        if(prt) mf::LogVerbatim("TC")<<"ChkStop TRP masking points "<<tj.EndPt[stopEnd]<<" to "<<nextPt;
         if(tj.Pts[nextPt].Chg == 0 && NumHitsInTP(tj.Pts[nextPt], kUnusedHits) == 1) {
           // Use this hit
           for(unsigned short ii = 0; ii < tj.Pts[nextPt].Hits.size(); ++ii) {
@@ -6782,153 +6837,5 @@ namespace tca {
       if(npts < nPtsToCheck) break;
     } // end
   } // StopsAtEnd
-
-  /*
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::ChkStop(Trajectory& tj)
-  {
-    // Sets the StopsAtEnd bits on the trajectory by identifying the Bragg peak
-    // at each end. This is done by inspecting points near both ends for long trajectories
-    // and all points for short trajectories and fitting them to an exponential charge pattern hypothesis
-   
-    tj.StopsAtEnd[0] = false;
-    tj.StopsAtEnd[1] = false;
-   
-    if(!fUseAlg[kChkStop]) return;
-    if(fChkStopCuts[0] < 0) return;
-    
-    // ignore trajectories that are very large angle at both ends
-    bool isVLA0 = (AngleRange(tj.Pts[tj.EndPt[0]]) == fAngleRanges.size() - 1);
-    bool isVLA1 = (AngleRange(tj.Pts[tj.EndPt[1]]) == fAngleRanges.size() - 1);
-    if(isVLA0 && isVLA1) return;
-    
-    // find the minimum and maximum charged points
-    float minChg = 1E6;
-    float maxChg = 0;
-    unsigned short PtWithMaxChg = 0;
-    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-      if(tj.Pts[ipt].Chg == 0) continue;
-      if(tj.Pts[ipt].Chg > maxChg) {
-        maxChg = tj.Pts[ipt].Chg;
-        PtWithMaxChg = ipt;
-      }
-      if(tj.Pts[ipt].Chg < minChg) minChg = tj.Pts[ipt].Chg;
-    } // ipt
-    // no sense continuing if there is little variation
-    if(prt) mf::LogVerbatim("TC")<<"ChkStop: Min Chg "<<(int)minChg<<" maxChg "<<(int)maxChg<<" at point "<<PtWithMaxChg<<" Pos "<<PrintPos(tjs, tj.Pts[PtWithMaxChg])<<" charge ratio "<<maxChg / minChg;
-    if(maxChg / minChg < fChkStopCuts[0]) return;
-    
-    // Try to fit the points whose charge > minChgCut to an exponential
-    float minChgCut = fChkStopCuts[0] * minChg;
-    
-    // check short trajectories using all points.
-    if(tj.Pts.size() < 7) {
-      // determine which end is most likely the stopping point
-      unsigned short end = 0;
-      short dir = 1;
-      if(abs(PtWithMaxChg - tj.EndPt[1]) < abs(PtWithMaxChg - tj.EndPt[0])) {
-        end = 1;
-        dir = -1;
-      } // end check
-      // Fit the charge pattern to an exponential hypothesis
-      std::vector<float> x, y, yerr2;
-      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = PtWithMaxChg + ii * dir;
-        if(tj.Pts[ipt].Chg > 0) {
-          // See if we are below the minimum charge cut
-          if(tj.Pts[ipt].Chg < minChgCut) break;
-          float rr = log(0.5 + TrajPointSeparation(tj.Pts[PtWithMaxChg], tj.Pts[ipt]));
-          x.push_back(rr);
-          y.push_back(tj.Pts[ipt].Chg);
-          // Expected charge error is ~10%
-          float err = 0.1 * tj.Pts[ipt].Chg;
-          yerr2.push_back(err * err);
-          if(prt) mf::LogVerbatim("TC")<<"ChkStop "<<PrintPos(tjs, tj.Pts[ipt])<<" rr "<<rr<<" Chg "<<tj.Pts[ipt].Chg;
-        } //  Chg > 0
-        // hit the end of the trajectory?
-        if(ipt == tj.EndPt[1 - end]) break;
-      } // ii
-      if(x.size() < 3) return;
-      float intcpt, slope, intcpterr, slopeerr, chidof;
-      fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
-      if(prt) mf::LogVerbatim("TC")<<"ChkStop: Short Trajectory Fit intcpt "<<intcpt<<" slope "<<slope<<" err "<<slopeerr<<" chidof "<<chidof;
-      // should be negative slope
-      if(slope < -fChkStopCuts[1] * slopeerr && chidof < fChkStopCuts[2]) {
-        // looks like it stops
-        tj.StopsAtEnd[end] = true;
-        tj.AlgMod[kChkStop] = true;
-        if(prt) mf::LogVerbatim("TC")<<" Stops at end "<<end;
-        // mask off the points before/after atPtEnd
-        if(PtWithMaxChg != tj.EndPt[end]) {
-          for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
-            unsigned short ipt = PtWithMaxChg + ii * dir;
-            UnsetUsedHits(tj.Pts[ipt]);
-            if(ipt == tj.EndPt[1 - end]) break;
-          } // ii
-          SetEndPoints(tjs, tj);
-        } // not at EndPt
-      }
-      return;
-    } // short trajectory
-    
-    // Long trajectory >= 7 points. Check both ends
-    for(unsigned short end = 0; end < 2; ++end) {
-      short dir = 1;
-      if(end == 1) dir = -1;
-      unsigned short nPtsToCheck = tj.Pts.size() / 2;
-      float maxChg = 0;
-      float PtWithMaxChg = 0;
-      unsigned short cnt = 0;
-      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = tj.EndPt[end] + ii * dir;
-        if(tj.Pts[ipt].Chg > maxChg) {
-          maxChg = tj.Pts[ipt].Chg;
-          PtWithMaxChg = ipt;
-          ++cnt;
-        }
-        if(cnt == nPtsToCheck) break;
-        if(ipt == tj.EndPt[1 - end]) break;
-      } // ii
-      // Fit the charge pattern to an exponential hypothesis
-      std::vector<float> x, y, yerr2;
-      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = PtWithMaxChg + ii * dir;
-        if(tj.Pts[ipt].Chg > 0) {
-          // See if we are below the minimum charge cut
-          if(tj.Pts[ipt].Chg < minChgCut) break;
-          float rr = log(0.5 + TrajPointSeparation(tj.Pts[PtWithMaxChg], tj.Pts[ipt]));
-          x.push_back(rr);
-          y.push_back(tj.Pts[ipt].Chg);
-          // Expected charge error is ~10%
-          float err = 0.1 * tj.Pts[ipt].Chg;
-          yerr2.push_back(err * err);
-          if(prt) mf::LogVerbatim("TC")<<"ChkStop "<<PrintPos(tjs, tj.Pts[ipt])<<" rr "<<rr<<" Chg "<<tj.Pts[ipt].Chg;
-        }
-        if(x.size() == nPtsToCheck) break;
-        if(ipt == tj.EndPt[1 - end]) break;
-      } // ii
-      if(x.size() < 4) continue;
-      float intcpt, slope, intcpterr, slopeerr, chidof;
-      fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
-      if(prt) mf::LogVerbatim("TC")<<"ChkStop: Long trajectory end "<<end<<" Fit intcpt "<<intcpt<<" slope "<<slope<<" err "<<slopeerr<<" chidof "<<chidof<<" nPts fit "<<x.size()<<" PtWithMaxChg "<<PrintPos(tjs, tj.Pts[PtWithMaxChg]);
-      // should be negative slope
-      if(slope < -fChkStopCuts[1] * slopeerr && chidof < fChkStopCuts[2]) {
-        // looks like it stops at atPtEnd1
-        tj.StopsAtEnd[end] = true;
-        tj.AlgMod[kChkStop] = true;
-        if(prt) mf::LogVerbatim("TC")<<" Stops at end "<<end;
-        if(PtWithMaxChg != tj.EndPt[end]) {
-          for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
-            unsigned short ipt = tj.EndPt[end] + ii * dir;
-            if(ipt == PtWithMaxChg) break;
-            UnsetUsedHits(tj.Pts[ipt]);
-          } // ii
-          SetEndPoints(tjs, tj);
-          if(prt) mf::LogVerbatim("TC")<<" new end points "<<PrintPos(tjs, tj.Pts[tj.EndPt[0]])<<" "<<PrintPos(tjs, tj.Pts[tj.EndPt[1]]);
-        } // not at EndPt
-      }
-    } // end
-    
-  } // StopsAtEnd
-*/
+  
 } // namespace cluster
