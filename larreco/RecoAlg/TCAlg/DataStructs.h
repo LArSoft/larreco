@@ -117,7 +117,7 @@ namespace tca {
     unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
-    unsigned short MCSMom {USHRT_MAX};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
+    short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
@@ -131,6 +131,7 @@ namespace tca {
                                         ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
     short WorkID {0};
     std::bitset<2> StopsAtEnd {0};    // Set true if it looks like the trajectory stops at end[0] or end[1]
+    std::bitset<2> KinkAtEnd {0};    // Set true if there is a kink at end[0] or end[1]
   };
   
   // Local version of recob::Hit

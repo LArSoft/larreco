@@ -97,10 +97,12 @@ namespace tca {
   float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, HitStatus_t hitRequest);
   float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
+  unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest);
   // Calculate MCS momentum
   short MCSMom(TjStuff& tjs, Trajectory& tj);
-  // Calculate MCS momentum in a range of trajectory points
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
+  // Calculate MCS theta RMS
+  double MCSThetaRMS(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt);
   // Flag delta ray trajectories in allTraj
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
   // Tag muon directions using delta proximity
@@ -128,6 +130,7 @@ namespace tca {
   void PrintClusters();
   // Print a single hit in the standard format
   std::string PrintHit(const TCHit& hit);
+  std::string PrintHitShort(const TCHit& hit);
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);
 } // namespace tca

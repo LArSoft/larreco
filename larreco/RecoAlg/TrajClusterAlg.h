@@ -105,7 +105,7 @@ namespace tca {
     std::vector<unsigned short> fMaxAngleRange;   ///< max llowed angle range for each pass
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
-    float fKinkAngCut;     ///  kink angle cut
+    std::vector<float> fKinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
     float fChgPullCut;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
@@ -139,8 +139,9 @@ namespace tca {
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
     
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
+    std::array<short, 5> EPCnts;
     std::array<float, 5> EPSums;
-    std::array<int, 5> EPCounts;
+    std::array<float, 5> EPTSums;
     bool fIsRealData;
 /*
     TH2F *fMCSMom_KE_e;
@@ -263,7 +264,7 @@ namespace tca {
     // Sets inTraj[] = 0 and UseHit false for all used hits in tp
     void UnsetUsedHits(TrajPoint& tp);
     // Counts the number of used hits in tp
-    unsigned short NumUsedHits(TrajPoint& tp);
+//    unsigned short NumUsedHits(TrajPoint& tp);
     // Counts the number of TPs in the trajectory that have charge
     unsigned short NumPtsWithCharge(Trajectory& tj, bool includeDeadWires);
     // Sets inTraj[] = 0 and UseHit false for all TPs. Called when abandoning work
@@ -277,14 +278,8 @@ namespace tca {
     // Returns true if there a is wire signal at tp
     bool SignalAtTp(TrajPoint const& tp);
     bool SignalAtPos(float pos0, float pos1, CTP_t tCTP);
-    // analyze the sat vector to construct a vector of trajectories that is the best
-    void AnalyzeTrials();
     // Counts the number of hits that are used in two different vectors of hits
     void CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits);
-    void AdjudicateTrials(bool& reAnalyze);
-    // merge the trajectories and put the results into allTraj. Returns
-    // reAnalyze true if AnalyzeTrials needs to be called again
-    void MergeTrajPair(unsigned short ipr, bool& reAnalyze);
     // Merge and store the two trajectories in allTraj
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
