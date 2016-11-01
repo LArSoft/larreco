@@ -505,6 +505,9 @@ namespace tca {
     std::bitset<2> flipped;
     for(unsigned short ii = 0; ii < 2; ++ii) flipped[1 - ii] = tj.StopsAtEnd[ii];
     tj.StopsAtEnd = flipped;
+    // and the kink bits
+    for(unsigned short ii = 0; ii < 2; ++ii) flipped[1 - ii] = tj.KinkAtEnd[ii];
+    tj.KinkAtEnd = flipped;
     // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
@@ -546,18 +549,31 @@ namespace tca {
   ////////////////////////////////////////////////
   short MCSMom(TjStuff& tjs, Trajectory& tj)
   {
-    unsigned short firstPt = tj.EndPt[0];
-    unsigned short lastPt = tj.EndPt[1];
-    return MCSMom(tjs, tj, firstPt, lastPt);
+    return MCSMom(tjs, tj, tj.EndPt[0], tj.EndPt[1]);
   } // MCSMom
+  
   
   ////////////////////////////////////////////////
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
   {
     // Estimate the trajectory momentum using Multiple Coulomb Scattering ala PDG RPP
     
+
     if(firstPt < tj.EndPt[0]) return 0;
     if(lastPt > tj.EndPt[1]) return 0;
+    
+    double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
+    if(tjLen == 0) return 0;
+    double mom = 14 * sqrt(tjLen / 14) / MCSThetaRMS(tjs, tj, firstPt, lastPt);
+    if(mom > 999) mom = 999;
+    return (short)mom;
+  } // MCSMom
+  
+  /////////////////////////////////////////
+  double MCSThetaRMS(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
+  {
+    if(firstPt < tj.EndPt[0]) return 1;
+    if(lastPt > tj.EndPt[1]) return 1;
     
     TrajPoint tmp;
     // make a bare trajectory point to define a line between firstPt and lastPt.
@@ -575,7 +591,7 @@ namespace tca {
       dsum += PointTrajDOCA2(tjs, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
       ++cnt;
     } // ipt
-    if(cnt == 0) return 0;
+    if(cnt == 0) return 1;
     // require that cnt is a significant fraction of the total number of charged points
     // so that we don't get erroneously high MCSMom when there are large gaps.
     // This is the number of points expected in the count if there are no gaps
@@ -586,11 +602,9 @@ namespace tca {
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
     if(tjLen == 0) return 0;
     // Theta_o =  4 * sqrt(3) * sigmaS / path
-    double thetaRMS = 6.8 * sigmaS / tjLen;
-    double mom = 14 * sqrt(tjLen / 14) / thetaRMS;
-    if(mom > 999) mom = 999;
-    return (short)mom;
-  } // MCSMom
+    return (6.8 * sigmaS / tjLen);
+    
+  } // MCSThetaRMS
 
   /////////////////////////////////////////
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID)
@@ -1448,6 +1462,12 @@ namespace tca {
       myprt<<tjs.fHits[iht].InTraj;
     } // iht
   } // PrintTrajPoint
+  
+  /////////////////////////////////////////
+  std::string PrintHitShort(const TCHit& hit)
+  {
+    return std::to_string(hit.WireID.Plane) + ":" + std::to_string(hit.WireID.Wire) + ":" + std::to_string((int)hit.PeakTime);
+  } // PrintHit
   
   /////////////////////////////////////////
   std::string PrintHit(const TCHit& hit)
