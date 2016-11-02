@@ -153,7 +153,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     // const trkf::KHitWireX* khittmp = dynamic_cast<const trkf::KHitWireX*>(fwdTrack.getHit().get());
     // trkf::KHitWireX khit(*khittmp);
     // khit.setMeasError(khit.getMeasError()*25.);
-    
+    // khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
+
     boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
     if (!pdist) {
       //in case of zero distance the prediction surface is the one from the original track
