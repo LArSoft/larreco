@@ -5,10 +5,10 @@ process_name: celltree
 services:
 {
   # TFileService: { fileName: "test.root" }
-  Timing:       {}
+  TimeTracker   {}
   RandomNumberGenerator: {}
   message:      @local::standard_info
-  user:          @local::microboone_services
+                 @table::microboone_services
 }
 
 

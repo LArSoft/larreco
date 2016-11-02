@@ -18,7 +18,7 @@
 
 #include <memory>
 
-#include "larsimobj/Simulation/SimChannel.h"
+#include "lardataobj/Simulation/SimChannel.h"
 
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/MCBase/MCDataHolder.h"

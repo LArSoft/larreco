@@ -45,5 +45,5 @@ public:
  
 };
 } // namespace genf
-/** @} */ 
 #endif
+/** @} */ 

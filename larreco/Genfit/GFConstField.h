@@ -47,5 +47,5 @@ class GFConstField : public GFAbsBField{
   double fF1,fF2,fF3;
 };
 } //  namespace genf
-/** @} */ 
 #endif
+/** @} */ 

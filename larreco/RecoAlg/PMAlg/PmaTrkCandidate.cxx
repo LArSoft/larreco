@@ -55,23 +55,60 @@ int pma::TrkCandidateColl::getCandidateIndex(pma::Track3D const * candidate) con
 
 void pma::TrkCandidateColl::setParentDaughterConnections(void)
 {
-	for (size_t t = 0; t < fCandidates.size(); ++t)
+    fParents.clear();
+
+    size_t t = 0;
+    while (t < fCandidates.size())
+    {
+        if (fCandidates[t].IsValid())
+        {
+            fCandidates[t].SetParent(-1);
+            fCandidates[t].Daughters().clear();
+            t++;
+        }
+        else fCandidates.erase(fCandidates.begin() + t);
+    }
+
+	for (t = 0; t < fCandidates.size(); ++t)
 	{
+	    if (!fCandidates[t].IsValid()) continue;
+
 		pma::Track3D const * trk = fCandidates[t].Track();
 		pma::Node3D const * firstNode = trk->Nodes().front();
-		if (firstNode->Prev())
+		if (firstNode->Prev()) // parent is a reconstructed track
 		{
 			pma::Track3D const * parentTrk = static_cast< pma::Segment3D* >(firstNode->Prev())->Parent();
 			fCandidates[t].SetParent(getCandidateIndex(parentTrk));
 		}
-		for (auto node : trk->Nodes())
-			for (size_t i = 0; i < node->NextCount(); ++i)
+		else if (fCandidates[t].Parent() < 0) // parent not reconstructed and not yet set, add empty candidate as a "primary" particle
 		{
-			pma::Track3D const * daughterTrk = static_cast< pma::Segment3D* >(node->Next(i))->Parent();
-			if (daughterTrk != trk)
+		    fParents.push_back(pma::TrkCandidate());
+		    fParents.back().SetTreeId(fCandidates[t].TreeId());
+		    size_t pri_idx = fCandidates.size() + fParents.size() - 1;
+
+		    for (size_t i = 0; i < firstNode->NextCount(); ++i)
+		    {
+		        pma::Track3D const * daughterTrk = static_cast< pma::Segment3D* >(firstNode->Next(i))->Parent();
+		        int idx = getCandidateIndex(daughterTrk);
+				if (idx >= 0)
+				{
+				    fCandidates[(size_t)idx].SetParent(pri_idx);
+				    fParents.back().Daughters().push_back((size_t)idx);				    
+				}
+		    }
+		}
+
+		for (size_t n = 1; n < trk->Nodes().size(); ++n)
+		{
+			auto node = trk->Nodes()[n]; 
+			for (size_t i = 0; i < node->NextCount(); ++i)
 			{
-				int idx = getCandidateIndex(daughterTrk);
-				if (idx >= 0) fCandidates[t].Daughters().push_back((size_t)idx);
+				pma::Track3D const * daughterTrk = static_cast< pma::Segment3D* >(node->Next(i))->Parent();
+				if (daughterTrk != trk)
+				{
+					int idx = getCandidateIndex(daughterTrk);
+					if (idx >= 0) fCandidates[t].Daughters().push_back((size_t)idx);
+				}
 			}
 		}
 	}
@@ -103,7 +140,7 @@ void pma::TrkCandidateColl::setTreeId(int id, size_t trkIdx, bool isRoot)
 				int idx = getCandidateIndex(seg->Parent());
 
 				if (idx >= 0) setTreeId(id, idx, false);
-				else mf::LogError("pma::setTreeIds") << "Branch of the tree not found in tracks collection.";
+				else mf::LogError("pma::setTreeId") << "Branch of the tree not found in tracks collection.";
 			}
 		}
 
@@ -121,8 +158,9 @@ int pma::TrkCandidateColl::setTreeIds(void)
 	int id = 0;
 	for (auto & t : fCandidates)
 	{
-		if (t.TreeId() >= 0) continue;
+		if (!t.IsValid() || (t.TreeId() >= 0)) continue;
 
+        // index of a valid (reconstructed) track without reconstructed parent track
 		int rootTrkIdx = getCandidateIndex(t.Track()->GetRoot());
 
 		if (rootTrkIdx >= 0) setTreeId(id, rootTrkIdx);
@@ -143,6 +181,8 @@ void pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
 	setTreeIds();
 	for (auto & t : fCandidates)
 	{
+	    if (!t.IsValid()) continue;
+
 		int tid = t.TreeId();
 		if (minVal.find(tid) == minVal.end()) minVal[tid] = 1.0e12;
 
@@ -183,7 +223,10 @@ void pma::TrkCandidateColl::flipTreesByDQdx(void)
 	std::map< int, std::vector< pma::Track3D* > > trkMap;
 
 	setTreeIds();
-	for (auto const & t : fCandidates) trkMap[t.TreeId()].push_back(t.Track());
+	for (auto const & t : fCandidates)
+	{
+	    if (t.IsValid()) trkMap[t.TreeId()].push_back(t.Track());
+	}
 
 	for (auto & tEntry : trkMap)
 	{

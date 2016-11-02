@@ -9,22 +9,30 @@ from keras.optimizers import SGD
 from keras.utils import np_utils
 from os.path import exists, isfile, join
 import os, json
+import argparse
 
 from utils import read_config
 
-batch_size = 256
-nb_classes = 3
-nb_epoch = 1000 #1000
+parser = argparse.ArgumentParser(description='Run CNN training on patches with a few different hyperparameter sets.')
+parser.add_argument('-c', '--config', help="JSON with script configuration", default='config.json')
+args = parser.parse_args()
 
-#       name,      nflt1, kernel1, maxpool, nflt2, kernel2, convactfn, drop1, densesize, actfn, drop2 -> softmax
+config = read_config(args.config)
+
+CNN_INPUT_DIR = config['training_on_patches']['input_dir']
+
+batch_size = config['training_on_patches']['batch_size']
+nb_classes = config['training_on_patches']['nb_classes']
+nb_epoch = config['training_on_patches']['nb_epoch']
+
+#       name,                 nflt1, kernel1, maxpool, nflt2, kernel2, convactfn, drop1, densesize,  actfn, drop2 -> softmax
 parameters = np.array([
-#      ['deep',      64,     5,        0,     32,      7,     'relu',   0.2,      64,     'tanh', 0.2]
-       ['small1_sgd_lorate_8k_coll',    32,     5,        0,      0,      7,     'relu',   0.2,     128,     'tanh', 0.2]
-#      ['small1_ada_def',    64,     5,        0,      0,      7,     'relu',   0.2,     128,     'relu', 0.2]
-#    , ['large',     64,     5,        1,     64,      7,     'relu',   0.2,     128,     'relu', 0.2]
-#    , ['leakytanh', 64,     5,        1,     64,      5,     'leaky',  0.2,      64,     'tanh', 0.1]
+#      ['deep',                 64,     5,        0,     32,      7,     'relu',   0.2,      64,     'tanh', 0.2]
+       ['small1_sgd_lorate',    48,     5,        0,      0,      7,     'relu',   0.2,     128,     'tanh', 0.2]
+#      ['small1_ada_def',       64,     5,        0,      0,      7,     'relu',   0.2,     128,     'relu', 0.2]
+#    , ['large',                64,     5,        1,     64,      7,     'relu',   0.2,     128,     'relu', 0.2]
+#    , ['leakytanh',            64,     5,        1,     64,      5,     'leaky',  0.2,      64,     'tanh', 0.1]
 ])
-
 
 
 def save_model(model, name):
@@ -37,40 +45,58 @@ def save_model(model, name):
         print 'save failed' #sys.exc_info()  # Prints exceptions
         return False  # Save failed
 
-_, CNN_INPUT_DIR, PATCH_SIZE_W, PATCH_SIZE_D = read_config()
-
 # read train and test sets
 X_train = None
 Y_train = None
 X_test = None
 Y_test = None
-filesX = [f for f in os.listdir(CNN_INPUT_DIR) if 'db_x' in f]
-for fnameX in filesX:
-    fnameY = fnameX.replace('_x_', '_y_')
-    dataX = np.load(CNN_INPUT_DIR + '/' + fnameX)
-    dataY = np.load(CNN_INPUT_DIR + '/' + fnameY)
-    
-    if '5000' in fnameX:
-        X_test = dataX
-        Y_test = dataY        
-        continue
-    
-    if X_train is None:
-        X_train = dataX
-        Y_train = dataY
-    else:
-        X_train = np.concatenate((X_train, dataX))
-        Y_train = np.concatenate((Y_train, dataY))
+
+n_test_dir = 1 # how many dirs us as testing data
+
+subdirs = [f for f in os.listdir(CNN_INPUT_DIR) if '000' in f]
+subdirs.sort()
+for dirname in subdirs:
+    print 'Reading data in', dirname
+    filesX = [f for f in os.listdir(CNN_INPUT_DIR + '/' + dirname) if '_x.npy' in f]
+    for fnameX in filesX:
+        fnameY = fnameX.replace('_x.npy', '_y.npy')
+        dataX = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameX)
+        dataY = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameY)
+
+        if n_test_dir > 0:
+            print '...testing data', fnameX
+            if X_test is None:
+                X_test = dataX
+                Y_test = dataY
+            else:
+                X_test = np.concatenate((X_test, dataX))
+                Y_test = np.concatenate((Y_test, dataY))
+        else:
+            print '...training data', fnameX
+            if X_train is None:
+                X_train = dataX
+                Y_train = dataY
+            else:
+                X_train = np.concatenate((X_train, dataX))
+                Y_train = np.concatenate((Y_train, dataY))
+
+    n_test_dir -= 1
 
 print 'Train', X_train.shape, 'test', X_test.shape
 
 # input image dimensions
+PATCH_SIZE_W = X_train.shape[1]
+PATCH_SIZE_D = X_train.shape[2]
 img_rows, img_cols = PATCH_SIZE_W, PATCH_SIZE_D
 
 X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
+if X_train.dtype != np.dtype('float32'):
+    X_train = X_train.astype("float32")
+
 X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
-X_train = X_train.astype("float32")
-X_test = X_test.astype("float32")
+if X_test.dtype != np.dtype('float32'):
+    X_test = X_test.astype("float32")
+
 print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')

@@ -9,10 +9,11 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
+#include "larcore/Geometry/ChannelMapAlg.h" // geo::InvalidWireIDError
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
-#include "larsimobj/Simulation/SimChannel.h"
+#include "lardataobj/Simulation/SimChannel.h"
 #include "larsim/Simulation/LArG4Parameters.h"
 
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
@@ -20,18 +21,18 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-nnet::DataProviderAlg::DataProviderAlg(const fhicl::ParameterSet& pset) :
+nnet::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fCryo(9999), fTPC(9999), fView(9999),
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0),
 	fDriftWindow(10), fPatchSizeW(32), fPatchSizeD(32),
 	fDownscaleMode(nnet::DataProviderAlg::kMax),
 	fCurrentWireIdx(99999), fCurrentScaledDrift(99999),
-	fCalorimetryAlg(pset.get< fhicl::ParameterSet >("CalorimetryAlg")),
+	fCalorimetryAlg(config.CalorimetryAlg()),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
 	fGeometry = &*(art::ServiceHandle<geo::Geometry>());
 
-	this->reconfigure(pset); 
+	this->reconfigure(config); 
 }
 // ------------------------------------------------------
 
@@ -40,15 +41,15 @@ nnet::DataProviderAlg::~DataProviderAlg(void)
 }
 // ------------------------------------------------------
 
-void nnet::DataProviderAlg::reconfigure(const fhicl::ParameterSet& p)
+void nnet::DataProviderAlg::reconfigure(const Config& config)
 {
-	fCalorimetryAlg.reconfigure(p.get< fhicl::ParameterSet >("CalorimetryAlg"));
+	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
 
-	fDriftWindow = p.get< unsigned int >("DriftWindow");
-	fPatchSizeW = p.get< unsigned int >("PatchSizeW");
-	fPatchSizeD = p.get< unsigned int >("PatchSizeD");
+	fDriftWindow = config.DriftWindow();
+	fPatchSizeW = config.PatchSizeW();
+	fPatchSizeD = config.PatchSizeD();
 
-	std::string mode_str = p.get< std::string >("DownscaleFn");
+	std::string mode_str = config.DownscaleFn();
 	if (mode_str == "maxpool")      fDownscaleMode = nnet::DataProviderAlg::kMax;
 	else if (mode_str == "maxmean") fDownscaleMode = nnet::DataProviderAlg::kMaxMean;
 	else if (mode_str == "mean")    fDownscaleMode = nnet::DataProviderAlg::kMean;
@@ -399,10 +400,10 @@ float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
 // --------------------PointIdAlg------------------------
 // ------------------------------------------------------
 
-nnet::PointIdAlg::PointIdAlg(const fhicl::ParameterSet& pset) : nnet::DataProviderAlg(pset),
+nnet::PointIdAlg::PointIdAlg(const Config& config) : nnet::DataProviderAlg(config),
 	fNNet(0)
 {
-	this->reconfigure(pset); 
+	this->reconfigure(config); 
 }
 // ------------------------------------------------------
 
@@ -412,9 +413,9 @@ nnet::PointIdAlg::~PointIdAlg(void)
 }
 // ------------------------------------------------------
 
-void nnet::PointIdAlg::reconfigure(const fhicl::ParameterSet& p)
+void nnet::PointIdAlg::reconfigure(const Config& config)
 {
-	fNNetModelFilePath = p.get< std::string >("NNetModelFile");
+	fNNetModelFilePath = config.NNetModelFile();
 
 	deleteNNet();
 
@@ -593,9 +594,9 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(std::vector< art::Ptr<recob
 // ------------------TrainingDataAlg---------------------
 // ------------------------------------------------------
 
-nnet::TrainingDataAlg::TrainingDataAlg(const fhicl::ParameterSet& pset) : nnet::DataProviderAlg(pset)
+nnet::TrainingDataAlg::TrainingDataAlg(const Config& config) : nnet::DataProviderAlg(config)
 {
-	this->reconfigure(pset); 
+	this->reconfigure(config); 
 }
 // ------------------------------------------------------
 
@@ -604,11 +605,11 @@ nnet::TrainingDataAlg::~TrainingDataAlg(void)
 }
 // ------------------------------------------------------
 
-void nnet::TrainingDataAlg::reconfigure(const fhicl::ParameterSet& p)
+void nnet::TrainingDataAlg::reconfigure(const Config& config)
 {
-	fWireProducerLabel = p.get< std::string >("WireLabel");
-	fSimulationProducerLabel = p.get< std::string >("SimulationLabel");
-	fSaveVtxFlags = p.get< bool >("SaveVtxFlags");
+	fWireProducerLabel = config.WireLabel();
+	fSimulationProducerLabel = config.SimulationLabel();
+	fSaveVtxFlags = config.SaveVtxFlags();
 }
 // ------------------------------------------------------
 
@@ -676,15 +677,22 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, 
 	nnet::TrainingDataAlg::WireDrift wd;
 	wd.Wire = 0; wd.Drift = 0; wd.TPC = -1;
 
-	double vtx[3] = {x, y, z};
-	if (fGeometry->FindTPCAtPosition(vtx).isValid)
-	{
-		unsigned int cryo = fGeometry->FindCryostatAtPosition(vtx);
-		unsigned int tpc = fGeometry->FindTPCAtPosition(vtx).TPC;
+    try
+    {
+    	double vtx[3] = {x, y, z};
+	    if (fGeometry->FindTPCAtPosition(vtx).isValid)
+	    {
+	    	unsigned int cryo = fGeometry->FindCryostatAtPosition(vtx);
+	    	unsigned int tpc = fGeometry->FindTPCAtPosition(vtx).TPC;
 
-		wd.Wire = fGeometry->NearestWire(vtx, view, tpc, cryo);
-		wd.Drift = fDetProp->ConvertXToTicks(x, view, tpc, cryo);
-		wd.TPC = tpc;
+	    	wd.Wire = fGeometry->NearestWire(vtx, view, tpc, cryo);
+	    	wd.Drift = fDetProp->ConvertXToTicks(x, view, tpc, cryo);
+	    	wd.TPC = tpc;
+	    }
+	}
+	catch (const geo::InvalidWireIDError & e)
+	{
+	    mf::LogWarning("TrainingDataAlg") << "Vertex projection out of wire planes, just skipping this vertex.";
 	}
 	return wd;
 }
@@ -990,6 +998,69 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 	} // for each Wire
 
 	return true;
+}
+// ------------------------------------------------------
+
+bool nnet::TrainingDataAlg::findCrop(float max_e_cut, unsigned int & w0, unsigned int & w1, unsigned int & d0, unsigned int & d1) const
+{
+    if (fWireDriftEdep.empty() || fWireDriftEdep.front().empty()) return false;
+
+    float max_cut = 0.25 * max_e_cut;
+
+    w0 = 0;
+    float cut = 0;
+    while (w0 < fWireDriftEdep.size())
+    {
+        for (auto const d : fWireDriftEdep[w0]) cut += d;
+        if (cut < max_cut) w0++;
+        else break;
+    }
+    w1 = fWireDriftEdep.size() - 1;
+    cut = 0;
+    while (w1 > w0)
+    {
+        for (auto const d : fWireDriftEdep[w1]) cut += d;
+        if (cut < max_cut) w1--;
+        else break;
+    }
+    w1++;
+
+    d0 = 0;
+    cut = 0;
+    while (d0 < fWireDriftEdep.front().size())
+    {
+        for (size_t i = w0; i < w1; ++i) cut += fWireDriftEdep[i][d0];
+        if (cut < max_cut) d0++;
+        else break;
+    }
+    d1 = fWireDriftEdep.front().size() - 1;
+    cut = 0;
+    while (d1 > d0)
+    {
+        for (size_t i = w0; i < w1; ++i) cut += fWireDriftEdep[i][d1];
+        if (cut < max_cut) d1--;
+        else break;
+    }
+    d1++;
+
+    unsigned int margin = 20;
+    if ((w1 - w0 > 8) && (d1 - d0 > 8))
+    {
+        if (w0 < margin) w0 = 0;
+        else w0 -= margin;
+
+        if (w1 > fWireDriftEdep.size() - margin) w1 = fWireDriftEdep.size();
+        else w1 += margin;
+        
+        if (d0 < margin) d0 = 0;
+        else d0 -= margin;
+        
+        if (d1 > fWireDriftEdep.front().size() - margin) d1 = fWireDriftEdep.front().size();
+        else d1 += margin;
+        
+        return true;
+    }
+    else return false;
 }
 // ------------------------------------------------------
 

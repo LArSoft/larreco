@@ -4,7 +4,7 @@ art_make(
                         larevt_Filters
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
-                        lardata_RecoObjects
+                        lardata_RecoObjects larreco_Deprecated
                         lardataobj_AnalysisBase
                         lardata_Utilities
            		${ART_FRAMEWORK_CORE}

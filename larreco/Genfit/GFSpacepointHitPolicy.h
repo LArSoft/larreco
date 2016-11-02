@@ -94,4 +94,4 @@ public:
 } // namespace genf
 #endif
 
-/* @} **/
+/** @} */

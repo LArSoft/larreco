@@ -39,7 +39,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
-#include "larsimobj/Simulation/sim.h"
+#include "lardataobj/Simulation/sim.h"
 #include "lardataobj/MCBase/MCTrack.h"
 
 #include "TH2F.h"

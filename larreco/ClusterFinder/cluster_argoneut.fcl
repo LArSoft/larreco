@@ -2,7 +2,26 @@
 
 BEGIN_PROLOG
 
-argoneut_dbscanalg:                  @local::standard_dbscanalg       
+argoneut_dbscanalg:                  @local::standard_dbscanalg
+
+argoneut_trajclusteralg:             @local::standard_trajclusteralg
+argoneut_trajclusteralg.Mode:                  -1  # step from DS to US
+argoneut_trajclusteralg.MaxWireSkipNoSignal:    2
+argoneut_trajclusteralg.MaxWireSkipWithSignal: 10
+argoneut_trajclusteralg.HitErrFac:            0.2
+argoneut_trajclusteralg.ProjectionErrFactor:    3
+argoneut_trajclusteralg.KinkAngCut:           0.3
+argoneut_trajclusteralg.TrajClusterAlg.AngleRanges: [30, 65, 80, 90]
+argoneut_trajclusteralg.MuonTag:          [40, 500, 3, 3] # [minPtsFit, minMCSMom, maxWireSkipNoSignal, minDeltaLen]
+
+# 3 passes through the ArgoNeuT hit collection
+argoneut_trajclusteralg.MinPtsFit:        [ 4,  4, 2]
+argoneut_trajclusteralg.MinPts:           [10, 10, 3]
+argoneut_trajclusteralg.MaxAngleRange:    [ 0,  1, 9]
+
+argoneut_trajclusteralg.Vertex2DCuts:     [10, 2, 30, 3, 5]
+argoneut_trajclusteralg.MaxVertexTrajSep: [ 6,  6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
+
 argoneut_clustercrawleralg:          @local::standard_clustercrawleralg
 argoneut_clustercrawleralg.AllowNoHitWire:  3
 argoneut_clustercrawleralg.MaxWirSkip:      [12, 8, 2]

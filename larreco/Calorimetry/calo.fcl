@@ -1,0 +1,107 @@
+#include "job/services.fcl"
+
+#include "job/caldata.fcl"
+#include "job/hitfindermodules.fcl"
+#include "job/clustermodules.fcl"
+
+#include "job/trackfindermodules.fcl"
+#include "job/vertexfindermodules.fcl"
+#include "job/calorimetry_microboone.fcl"
+#include "job/particleid.fcl"
+#include "job/analysistreemodule.fcl"
+#include "job/filters.fcl"
+
+process_name: AnaTree
+
+services:
+{
+  # Load the service that manages root files for histograms.
+  TFileService: { fileName: "standard_reco_hist.root" }
+  TimeTracker   {}
+  MemoryTracker:     { ignoreTotal: 1 } # default is one
+  RandomNumberGenerator: {} #ART native random number generator
+                @table::microboone_services
+}
+
+#source is now a root file
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1      # Number of events to create
+}
+
+outputs:
+{
+ out1:
+ {
+   module_type: RootOutput
+   fileName:    "standard_reco.root" #default file name, can override from command line with -o or --output
+   #SelectEvents: {SelectEvents: [reco] }
+ }
+
+ 
+}
+
+physics:
+{
+
+ producers:{}
+
+ filters:{} 
+
+  analyzers:{}
+
+ #define the producer and filter modules for this path, order matters, 
+ #filters reject all following items.  see lines starting physics.producers below
+ # reco: [  scanfilt, caldata, ffthit, dbcluster, hough, linemerger, track3d  ] 
+ #reco: [ caldata, ffthit, dbcluster, hough, linemerger, vertex2d, kingacluster, spacepts, matchtracks, calo, pid ]
+reco: [ calo ]
+# reco: [   caldata, ffthit, dbcluster, hough, linemerger, track3d  ]
+ # reco: [ scanfilt ]
+#  ana: [ analysistree ]
+# ana: [matchtracks]
+ #define the output stream, there could be more than one if using filters 
+  stream1:  [ out1 ]
+
+ #trigger_paths is a keyword and contains the paths that modify the art::event, 
+ #ie filters and producers
+   trigger_paths: [reco] 
+
+ #end_paths is a keyword and contains the paths that do not modify the art::Event, 
+ #ie analyzers and output streams.  these all run simultaneously
+# end_paths:     [ stream1, ana ] 
+ end_paths:     [ stream1 ] 
+# end_paths:     [  ana ] 
+}
+
+# define the list of LArSoft modules to run through the simulate path
+#physics.filters.scanfilt:    @local::argoneut_scanfilter
+#physics.producers.filter:       @local::evtfilter
+#physics.producers.caldata:      @local::argoneut_calwire	
+#physics.producers.ffthit:       @local::argoneut_gaushitfinder	
+#physics.producers.dbcluster:    @local::argoneut_dbcluster	
+#physics.producers.hough:        @local::argoneut_houghlinefinder
+#physics.producers.linemerger:   @local::argoneut_linemerger
+#physics.producers.vertex2d:     @local::argoneut_vertex2d
+#physics.producers.kingacluster: @local::argoneut_kingacluster
+#physics.producers.spacepts:     @local::argoneut_spacepts
+#physics.producers.matchtracks:  @local::argoneut_matchtracks
+physics.producers.calo:         @local::microboone_calomc
+#physics.producers.pid:          @local::argoneut_chi2pid
+#physics.analyzers.analysistree: @local::microboone_analysistree
+#physics.producers.filter.BadEvents:    [5]
+#physics.producers.filter.BadRuns:      [10]
+#physics.producers.matchtracks.lartracks:                "spacepts"
+physics.producers.calo.TrackModuleLabel:                "trackkalmanhit"
+#physics.producers.calo.CaloAlg.CaloUseModBox:            true
+#physics.producers.calo.UseArea:                         true
+#physics.producers.pid.TrackModuleLabel:                 "spacepts"
+#physics.producers.pid.CalorimetryModuleLabel:           "calo"
+#physics.analyzers.analysistree.TrackModuleLabel:        "beziertracker"
+#physics.analyzers.analysistree.TrackMatchModuleLabel:   "matchtracks"
+#physics.analyzers.analysistree.CalorimetryModuleLabel:  "calo"
+#physics.analyzers.analysistree.ParticleIDModuleLabel:   "pid"
+#physics.analyzers.analysistree.GenieGenModuleLabel:     "generator"
+#physics.analyzers.analysistree.POTModuleLabel:          "generator"
+
+

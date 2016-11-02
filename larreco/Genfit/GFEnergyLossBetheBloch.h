@@ -77,5 +77,5 @@ class GFEnergyLossBetheBloch : public GFAbsEnergyLoss{
 
 #endif
 
-/* @} **/
+/** @} */
 

@@ -13,8 +13,8 @@ services:
   BackTracker:  @local::microboone_backtracker
                 @table::microboone_reco_mcc7_services
 }
-#services.user.Geometry: @local::dune10kt_workspace_geo
-#services.user.DetectorClocksService.InheritClockConfig:              false
+#services.Geometry: @local::dune10kt_workspace_geo
+#services.DetectorClocksService.InheritClockConfig:              false
 
 source:
 {
