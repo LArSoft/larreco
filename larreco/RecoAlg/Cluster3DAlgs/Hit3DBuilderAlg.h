@@ -155,8 +155,8 @@ private:
     
     double                               m_timeAdvanceGap;
     double                               m_numSigmaPeakTime;
-    double                               m_pairSigmaPeakTime;
-    double                               m_pairMaxDistance;
+    double                               m_pairOverlapSmall;
+    double                               m_pairOverlapLarge;
     
     bool                                 m_enableMonitoring;      ///<
     int                                  m_hits;                  ///<

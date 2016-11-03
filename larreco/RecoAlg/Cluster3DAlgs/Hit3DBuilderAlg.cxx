@@ -51,8 +51,8 @@ void Hit3DBuilderAlg::reconfigure(fhicl::ParameterSet const &pset)
     m_enableMonitoring       = pset.get<bool>  ("EnableMonitoring",  true  );
     m_timeAdvanceGap         = pset.get<double>("TimeAdvanceGap",   50.    );
     m_numSigmaPeakTime       = pset.get<double>("NumSigmaPeakTime",  3.    );
-    m_pairSigmaPeakTime      = pset.get<double>("PairSigmaPeakTime", 3.    );
-    m_pairMaxDistance        = pset.get<double>("PairMaxDistance",   0.95  );
+    m_pairOverlapSmall       = pset.get<double>("PairOverlapSmall",  0.6   );
+    m_pairOverlapLarge       = pset.get<double>("PairOverlapLarge",  0.2   );
     
     art::ServiceHandle<geo::Geometry> geometry;
     
@@ -349,6 +349,12 @@ size_t Hit3DBuilderAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, 
         double goldenTimeStart = goldenHit->getTimeTicks() - numRMS * goldenHit->getHit().RMS() - 0.1;
         double goldenTimeEnd   = goldenHit->getTimeTicks() + numRMS * goldenHit->getHit().RMS() + 0.1;
         
+//        bool dumpEm(false);
+//        if ((goldenHit->getHit().WireID().Plane == 0 && goldenHit->getHit().WireID().Wire == 1406) || (goldenHit->getHit().WireID().Plane == 1 && goldenHit->getHit().WireID().Wire == 1501) || (goldenHit->getHit().WireID().Plane == 2 && goldenHit->getHit().WireID().Wire == 2236)) dumpEm = true;
+        
+//        if (dumpEm) std::cout << "-----------------------------------------------------------------------" << std::endl;
+//        if (dumpEm) std::cout << "      golden hit plane/wire: " << goldenHit->getHit().WireID().Plane << "/" << goldenHit->getHit().WireID().Wire << ", range: " << numRMS * goldenHit->getHit().RMS() << std::endl;
+        
         // Set iterators to insure we'll be in the overlap ranges
         HitVector::iterator hitItr1Start = SetStartIterator(hitItrVec[1].first, hitItrVec[1].second, m_numSigmaPeakTime, goldenTimeStart);
         HitVector::iterator hitItr1End   = SetEndIterator( hitItr1Start,        hitItrVec[1].second, m_numSigmaPeakTime, goldenTimeEnd);
@@ -394,10 +400,10 @@ size_t Hit3DBuilderAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, 
 }
     
 size_t Hit3DBuilderAlg::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
-                                   HitVector::iterator&      startItr,
-                                   HitVector::iterator&      endItr,
-                                   reco::HitPairList&        hitPairList,
-                                   HitMatchPairVecMap&       hitMatchMap) const
+                                         HitVector::iterator&      startItr,
+                                         HitVector::iterator&      endItr,
+                                         reco::HitPairList&        hitPairList,
+                                         HitMatchPairVecMap&       hitMatchMap) const
 {
     // temporary container for dead channel hits
     std::vector<reco::ClusterHit3D> tempDeadChanVec;
@@ -406,25 +412,32 @@ size_t Hit3DBuilderAlg::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
     // Temporary container for pairs
     HitMatchPairVec tempPairVec;
     
+//    bool dumpEm(false);
+//    if ((goldenHit->getHit().WireID().Plane == 0 && goldenHit->getHit().WireID().Wire == 1406) || (goldenHit->getHit().WireID().Plane == 1 && goldenHit->getHit().WireID().Wire == 1501) || (goldenHit->getHit().WireID().Plane == 2 && goldenHit->getHit().WireID().Wire == 2236)) dumpEm = true;
+    
     while(startItr != endItr)
     {
         reco::ClusterHit2D* hit = *startItr++;
-        reco::ClusterHit3D  pair2;
+        reco::ClusterHit3D  pair;
         
-        makeHitPair(pair2, goldenHit, hit, m_numSigmaPeakTime);
+//        if ((hit->getHit().WireID().Plane == 0 && hit->getHit().WireID().Wire == 1406) || (hit->getHit().WireID().Plane == 1 && hit->getHit().WireID().Wire == 1501) || (hit->getHit().WireID().Plane == 2 && hit->getHit().WireID().Wire == 2236)) dumpEm = true;
         
-        if (!(pair2.getAvePeakTime() > 0.)) continue;
+//        if (dumpEm) std::cout << "++++++++++ golden hit plane/wire: " << goldenHit->getHit().WireID().Plane << "/" << goldenHit->getHit().WireID().Wire << ", hit plane/wire: " << hit->getHit().WireID().Plane << "/" << hit->getHit().WireID().Wire << std::endl;
+        
+        makeHitPair(pair, goldenHit, hit, m_numSigmaPeakTime);
+        
+        if (!(pair.getAvePeakTime() > 0.)) continue;
         
         // Check if this pair matches to a dead wire
-        if (makeDeadChannelPair(deadChanPair, pair2, 3, 0))
+        if (makeDeadChannelPair(deadChanPair, pair, 3, 0))
             tempDeadChanVec.emplace_back(deadChanPair);
         else
-            tempPairVec.emplace_back(HitMatchPair(hit,pair2));
+            tempPairVec.emplace_back(HitMatchPair(hit,pair));
     }
     
     if (!tempPairVec.empty())
     {
-        if (tempPairVec.size() > 5)
+        if (tempPairVec.size() > 6)
         {
             std::sort(tempPairVec.begin(),tempPairVec.end(),[](HitMatchPair& left, HitMatchPair& right){return left.second.getOverlapFraction() > right.second.getOverlapFraction();});
     
@@ -452,8 +465,12 @@ size_t Hit3DBuilderAlg::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
         {
             const reco::ClusterHit2D* hit   = pair.first;
             reco::ClusterHit3D&       pair2 = pair.second;
+            
+//            if ((hit->getHit().WireID().Plane == 0 && hit->getHit().WireID().Wire == 1406) || (hit->getHit().WireID().Plane == 1 && hit->getHit().WireID().Wire == 1501) || (hit->getHit().WireID().Plane == 2 && hit->getHit().WireID().Wire == 2236)) dumpEm = true;
         
             geo::WireID wireID = hit->getHit().WireID();
+            
+//            if (dumpEm) std::cout << "----------- adding to map, wireID: " << wireID.Plane << "/" << wireID.Wire << std::endl;
         
             hitMatchMap[wireID.Wire].emplace_back(HitMatchPair(hit,pair2));
         }
@@ -518,11 +535,16 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
             {
                 const reco::ClusterHit3D& pair1  = hit2Dhit3DPair.second;
                 
+//                bool dumpEm(false);
+//                if (pair1.getWireIDs()[0].Wire == 1406 || pair1.getWireIDs()[1].Wire == 1501 || pair1.getWireIDs()[2].Wire == 2236) dumpEm = true;
+                
+//                if (dumpEm) std::cout << "====> Make triplet, starting pair wires: " << pair1.getWireIDs()[0].Wire << ", "  << pair1.getWireIDs()[1].Wire << ", "  << pair1.getWireIDs()[2].Wire << std::endl;
+                
                 // Now look up the hit pairs on the wire which matches the current hit pair
                 std::map<size_t,HitMatchPairVec>::iterator thirdPlaneHitMapItr = pair13Map.find(wireID.Wire);
                 
                 // Watch for the interesting case of round off error... which means we look at the next wire
-//                if (thirdPlaneHitMapItr == pair13Map.end()) thirdPlaneHitMapItr = pair13Map.find(wireID.Wire+1);
+                if (thirdPlaneHitMapItr == pair13Map.end()) thirdPlaneHitMapItr = pair13Map.find(wireID.Wire+1);
                 
                 bool noTriplets(true);
                 
@@ -534,6 +556,8 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
                         const reco::ClusterHit2D* hit2  = thirdPlaneHitItr.first;
                         const reco::ClusterHit3D& pair2 = thirdPlaneHitItr.second;
                         
+//                        if (dumpEm) std::cout << "      Match triplet, starting pair wires: " << pair2.getWireIDs()[0].Wire << ", "  << pair2.getWireIDs()[1].Wire << ", "  << pair2.getWireIDs()[2].Wire << std::endl;
+                        
                         // If success try for the triplet
                         reco::ClusterHit3D triplet;
                         
@@ -543,6 +567,8 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
                             hitPairList.emplace_back(std::unique_ptr<reco::ClusterHit3D>(new reco::ClusterHit3D(triplet)));
                             noTriplets = false;
                             usedThirdPlaneHitSet.insert(&pair2);
+                            
+//                            if (dumpEm) std::cout << "      ----> made triplet" << std::endl;
                         }
                     }
                 }
@@ -597,10 +623,10 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
 }
 
 bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
-                            const reco::ClusterHit2D* hit1,
-                            const reco::ClusterHit2D* hit2,
-                            double                    hitWidthSclFctr,
-                            size_t                    hitPairCntr) const
+                                  const reco::ClusterHit2D* hit1,
+                                  const reco::ClusterHit2D* hit2,
+                                  double                    hitWidthSclFctr,
+                                  size_t                    hitPairCntr) const
 {
     // Assume failure
     bool result(false);
@@ -609,6 +635,12 @@ bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
     // The first mission is to check that the wires intersect
     const geo::WireID& hit1WireID = hit1->getHit().WireID();
     const geo::WireID& hit2WireID = hit2->getHit().WireID();
+    
+//    bool dumpEm(false);
+//    if ((hit1WireID.Plane == 0 && hit1WireID.Wire == 1406) || (hit1WireID.Plane == 1 && hit1WireID.Wire == 1501) || (hit1WireID.Plane == 2 && hit1WireID.Wire == 2236)) dumpEm = true;
+//    if ((hit2WireID.Plane == 0 && hit2WireID.Wire == 1406) || (hit2WireID.Plane == 1 && hit2WireID.Wire == 1501) || (hit2WireID.Plane == 2 && hit2WireID.Wire == 2236)) dumpEm = true;
+    
+//    if (dumpEm) std::cout << "****> hit1: plane: " << hit1WireID.Plane << ", wire: " << hit1WireID.Wire << ", hit2 plane: " << hit2WireID.Plane << ", wire: " << hit2WireID.Wire << std::endl;
     
     geo::WireIDIntersection widIntersect;
     
@@ -629,6 +661,8 @@ bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
         if (hit1->getHit().DegreesOfFreedom() == 1) hit1Width *= 2.;
         if (hit2->getHit().DegreesOfFreedom() == 1) hit2Width *= 2.;
         
+//        if (dumpEm) std::cout << "      hit1 peak: " << hit1Peak << ", hit1Width: " << hit1Width << ", hit2 peak: " << hit2Peak << ", hit2Width: " << hit2Width << std::endl;
+        
         // Check hit times are consistent
         if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
         {
@@ -639,15 +673,17 @@ bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
             double overlapFractionSmall = 0.5 * overlap / std::min(hit1Width,hit2Width);
             double overlapFractionLarge = 0.5 * overlap / std::min(hit1Width,hit2Width);
             
+//            if (dumpEm) std::cout << "      overlap: " << overlapFractionSmall << ", " << overlapFractionLarge << std::endl;
+            
             // require at least 10% overlap of pulses
-            if (overlapFractionSmall > 0.6 && overlapFractionLarge > 0.2)
+            if (overlapFractionSmall > m_pairOverlapSmall && overlapFractionLarge > m_pairOverlapLarge)
             {
-                double hit1WidSq       = hit1Width * hit1Width;
-                double hit2WidSq       = hit2Width * hit2Width;
-                double avePeakTime     = (hit1Peak / hit1WidSq + hit2Peak / hit2WidSq) * hit1WidSq * hit2WidSq / (hit1WidSq + hit2WidSq);
-                double deltaPeakTime   = fabs(hit1Peak - hit2Peak);
-                double sigmaPeakTime   = sqrt(hit1Sigma*hit1Sigma + hit2Sigma*hit2Sigma);
-                double totalCharge     = hit1->getHit().Integral() + hit2->getHit().Integral();
+                double hit1WidSq     = hit1Width * hit1Width;
+                double hit2WidSq     = hit2Width * hit2Width;
+                double avePeakTime   = (hit1Peak / hit1WidSq + hit2Peak / hit2WidSq) * hit1WidSq * hit2WidSq / (hit1WidSq + hit2WidSq);
+                double deltaPeakTime = fabs(hit1Peak - hit2Peak);
+                double sigmaPeakTime = sqrt(hit1Sigma*hit1Sigma + hit2Sigma*hit2Sigma);
+                double totalCharge   = hit1->getHit().Integral() + hit2->getHit().Integral();
             
                 double xPositionHit1(hit1->getXPosition());
                 double xPositionHit2(hit2->getXPosition());
