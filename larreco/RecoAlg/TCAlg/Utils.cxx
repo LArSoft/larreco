@@ -389,7 +389,7 @@ namespace tca {
   } // MoveTPToWire
   
   //////////////////////////////////////////
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime,  bool& hitsNear)
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime,  bool& hitsNear)
   {
     // returns a vector of hits that are within the Window[Pos0][Pos1] in plane.
     // Note that hits on wire wireWindow[1] are returned as well. The definition of close
@@ -408,14 +408,14 @@ namespace tca {
     std::vector<unsigned int> closeHits;
     if(plane > tjs.FirstWire.size() - 1) return closeHits;
     // window in the wire coordinate
-    unsigned int loWire = wireWindow[0];
-    if(loWire < tjs.FirstWire[plane]) loWire = tjs.FirstWire[plane];
-    unsigned int hiWire = wireWindow[1];
-    if(hiWire > tjs.LastWire[plane]-1) hiWire = tjs.LastWire[plane]-1;
+    int loWire = wireWindow[0];
+    if(loWire < (int)tjs.FirstWire[plane]) loWire = tjs.FirstWire[plane];
+    int hiWire = wireWindow[1];
+    if(hiWire > (int)tjs.LastWire[plane]-1) hiWire = tjs.LastWire[plane]-1;
     // window in the time coordinate
     float minTick = timeWindow[0] / tjs.UnitsPerTick;
     float maxTick = timeWindow[1] / tjs.UnitsPerTick;
-    for(unsigned int wire = loWire; wire <= hiWire; ++wire) {
+    for(int wire = loWire; wire <= hiWire; ++wire) {
       if(tjs.WireHitRange[plane][wire].first < 0) continue;
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
@@ -447,7 +447,7 @@ namespace tca {
     // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
     // close hits OR if the wire at this position is dead
     
-     tp.Hits.clear();
+    tp.Hits.clear();
     tp.UseHit.reset();
     if(!WireHitRangeOK(tjs, tp.CTP)) {
       std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.WireHitRangeCstat<<" TPC "<<tjs.WireHitRangeTPC<<"\n";
@@ -564,7 +564,8 @@ namespace tca {
     
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
     if(tjLen == 0) return 0;
-    double mom = 14 * sqrt(tjLen / 14) / MCSThetaRMS(tjs, tj, firstPt, lastPt);
+    // mom calculated in MeV
+    double mom = 13.8 * sqrt(tjLen / 14) / MCSThetaRMS(tjs, tj, firstPt, lastPt);
     if(mom > 999) mom = 999;
     return (short)mom;
   } // MCSMom
@@ -1132,8 +1133,6 @@ namespace tca {
     // 3 = max position pull for adding TJs to a vertex
     // 4 = max allowed vertex position error
     
-    if(vx.Stat[kFixed]) return false;
-    
     // Create a vector of trajectory points that will be used to fit the vertex position
     std::vector<TrajPoint> vxTp;
     for(auto& tj : tjs.allTraj) {
@@ -1150,6 +1149,10 @@ namespace tca {
     if(prt) {
       PrintHeader("FV");
       for(auto& tp : vxTp) PrintTrajPoint("FV", tjs, 0, 1, 1, tp);
+    }
+    if(vx.Stat[kFixed]) {
+      if(prt) mf::LogVerbatim("TC")<<" vertex position fixed. No fit.";
+      return true;
     }
  
     // Find trajectory intersections pair-wise tweaking the angle and position(?) within
