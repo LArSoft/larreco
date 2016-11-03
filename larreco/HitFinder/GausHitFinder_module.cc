@@ -125,7 +125,7 @@ namespace hit{
     size_t              fMaxMultiHit;              ///<maximum hits for multi fit
     int                 fAreaMethod;               ///<Type of area calculation
     std::vector<double> fAreaNorms;                ///<factors for converting area to same units as peak height
-    int		            fTryNplus1Fits;            ///<whether we will (0) or won't (1) try n+1 fits
+    bool	            fTryNplus1Fits;            ///<whether we will (0) or won't (1) try n+1 fits
     double	            fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
     size_t              fNumBinsToAverage;         ///< If bin averaging for peak finding, number bins to average
@@ -202,7 +202,7 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
   
     fMaxMultiHit      = p.get< int          >("MaxMultiHit");
     fAreaMethod       = p.get< int          >("AreaMethod");
-    fTryNplus1Fits    = p.get< int          >("TryNplus1Fits");
+    fTryNplus1Fits    = p.get< bool         >("TryNplus1Fits");
     fChi2NDFRetry     = p.get< double       >("Chi2NDFRetry");
     fChi2NDF          = p.get< double       >("Chi2NDF");
     fNumBinsToAverage = p.get< size_t       >("NumBinsToAverage", 0);
@@ -451,8 +451,8 @@ void GausHitFinder::produce(art::Event& evt)
                     // #####################################################
                     // ### Trying extra gaussians for an initial bad fit ###
                     // #####################################################
-                    if( (chi2PerNDF > (2*fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit == 1)||
-                        (chi2PerNDF > (fChi2NDFRetry)   && fTryNplus1Fits == 0 && nGausForFit >  1))
+                    if( (chi2PerNDF > (2*fChi2NDFRetry) && fTryNplus1Fits && nGausForFit == 1)||
+                        (chi2PerNDF > (fChi2NDFRetry)   && fTryNplus1Fits && nGausForFit >  1))
                     {
                         // ############################################################
                         // ### Modify input parameters for re-fitting n+1 Gaussians ###
