@@ -74,6 +74,7 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/SkeletonAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Hit3DBuilderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/DBScanAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/MinSpanTreeAlg.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/OverriddenClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
@@ -237,11 +238,12 @@ private:
     /** 
      *   Other useful variables
      */
-    geo::Geometry*            m_geometry;              ///<  pointer to the Geometry service
-  const detinfo::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
+    geo::Geometry*                     m_geometry;              ///<  pointer to the Geometry service
+    const detinfo::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
     
     Hit3DBuilderAlg           m_hit3DBuilderAlg;       ///<  Algorithm to build 3D hits
     DBScanAlg                 m_dbScanAlg;             ///<  Algorithm to cluster hits
+    MinSpanTreeAlg            m_minSpanTreeAlg;        ///<  Algorithm to cluster hits
     PrincipalComponentsAlg    m_pcaAlg;                ///<  Principal Components algorithm
     SkeletonAlg               m_skeletonAlg;           ///<  Skeleton point finder
     HoughSeedFinderAlg        m_seedFinderAlg;         ///<  Seed finder
@@ -261,6 +263,7 @@ namespace lar_cluster3d {
 Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
     m_hit3DBuilderAlg(pset.get<fhicl::ParameterSet>("Hit3DBuilderAlg")),
     m_dbScanAlg(pset.get<fhicl::ParameterSet>("DBScanAlg")),
+    m_minSpanTreeAlg(pset.get<fhicl::ParameterSet>("DBScanAlg")),
     m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg")),
     m_skeletonAlg(pset.get<fhicl::ParameterSet>("SkeletonAlg")),
     m_seedFinderAlg(pset.get<fhicl::ParameterSet>("SeedFinderAlg")),
@@ -317,7 +320,7 @@ void Cluster3D::beginJob()
     if (m_enableMonitoring)
         this->InitializeMonitoring();
     
-    art::ServiceHandle<geo::Geometry>            geometry;
+    art::ServiceHandle<geo::Geometry> geometry;
     
     m_geometry = &*geometry;
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -375,7 +378,8 @@ void Cluster3D::produce(art::Event &evt)
         m_hit3DBuilderAlg.BuildHit3D(viewToHitVectorMap, viewToWireToHitSetMap, *hitPairList);
         
         // Call the main workhorse algorithm for building the local version of candidate 3D clusters
-        m_dbScanAlg.ClusterHitsDBScan(*hitPairList, hitPairClusterMap, clusterParametersList);
+        //m_dbScanAlg.ClusterHitsDBScan(*hitPairList, hitPairClusterMap, clusterParametersList);
+        m_minSpanTreeAlg.ClusterHitsDBScan(*hitPairList, hitPairClusterMap, clusterParametersList);
         
         // Given the work above, process and build the list of 3D clusters to output
 //        m_dbScanAlg.BuildClusterInfo(hitPairClusterMap, clusterParametersList);
@@ -399,9 +403,12 @@ void Cluster3D::produce(art::Event &evt)
         m_totalTime             = theClockTotal.accumulated_real_time();
         m_artHitsTime           = theClockArtHits.accumulated_real_time();
         m_makeHitsTime          = m_hit3DBuilderAlg.getTimeToExecute();
-        m_buildNeighborhoodTime = m_dbScanAlg.getTimeToExecute(DBScanAlg::BUILDHITTOHITMAP);
-        m_dbscanTime            = m_dbScanAlg.getTimeToExecute(DBScanAlg::RUNDBSCAN) +
-                                  m_dbScanAlg.getTimeToExecute(DBScanAlg::BUILDCLUSTERINFO);
+//        m_buildNeighborhoodTime = m_dbScanAlg.getTimeToExecute(DBScanAlg::BUILDHITTOHITMAP);
+//        m_dbscanTime            = m_dbScanAlg.getTimeToExecute(DBScanAlg::RUNDBSCAN) +
+//                                  m_dbScanAlg.getTimeToExecute(DBScanAlg::BUILDCLUSTERINFO);
+        m_buildNeighborhoodTime = m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::BUILDHITTOHITMAP);
+        m_dbscanTime            = m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::RUNDBSCAN) +
+                                  m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::BUILDCLUSTERINFO);
         m_finishTime            = theClockFinish.accumulated_real_time();
         m_hits                  = static_cast<int>(clusterHit2DMasterVec.size());
         m_pRecoTree->Fill();
@@ -1213,6 +1220,18 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                 hitPair->setStatusBit(reco::ClusterHit3D::MADESPACEPOINT);
                 double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
                 artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, spacePointID++));
+                
+                // space point hits associations
+                RecobHitVector recobHits;
+                
+                for(const auto& hit : hitPair->getHits())
+                {
+                    if (!hit) continue;
+                    art::Ptr<recob::Hit> hitPtr = hitToPtrMap[&hit->getHit()];
+                    recobHits.push_back(hitPtr);
+                }
+                
+                if (!recobHits.empty()) util::CreateAssn(*this, evt, *artSpacePointVector, recobHits, *artSPHitAssociations);
             }
             
             // Empty daughter vector for now
