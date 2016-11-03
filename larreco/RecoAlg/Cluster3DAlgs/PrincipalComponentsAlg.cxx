@@ -253,21 +253,27 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     meanPos[2] /= numPairs;
     
     // Define elements of our covariance matrix
-    double xi2  = 0.;
-    double xiyi = 0.;
-    double xizi = 0.;
-    double yi2  = 0.;
-    double yizi = 0.;
-    double zi2  = 0.;
+    double xi2(0.);
+    double xiyi(0.);
+    double xizi(0.0);
+    double yi2(0.0);
+    double yizi(0.0);
+    double zi2(0.);
+    double weightSum(0.);
     
     // Back through the hits to build the matrix
     for (const auto& hit : hitPairVector)
     {
-        if (skeletonOnly && !((hit->getStatusBits() & 0x10000000) == 0x10000000)) continue;
+        double weight(1.);
         
-        double x = hit->getPosition()[0] - meanPos[0];
-        double y = hit->getPosition()[1] - meanPos[1];
-        double z = hit->getPosition()[2] - meanPos[2];
+        if (skeletonOnly && !((hit->getStatusBits() & 0x10000000) == 0x10000000)) continue;
+        if (hit->getHits()[2]) weight = hit->getHits()[2]->getHit().PeakAmplitude();
+        
+        double x = (hit->getPosition()[0] - meanPos[0]) * weight;
+        double y = (hit->getPosition()[1] - meanPos[1]) * weight;
+        double z = (hit->getPosition()[2] - meanPos[2]) * weight;
+        
+        weightSum += weight*weight;
         
         xi2  += x * x;
         xiyi += x * y;
@@ -288,7 +294,8 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     sigma(2,2) = zi2;
     
     // Scale by number of pairs
-    sigma *= (1./(numPairs - 1.));
+//    sigma *= 1./(numPairs - 1.);
+    sigma *= 1./weightSum;
     
     // Set up the SVD
     TDecompSVD rootSVD(sigma);
