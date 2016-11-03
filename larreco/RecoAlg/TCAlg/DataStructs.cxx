@@ -31,7 +31,8 @@ namespace tca {
     "MaskBadTPs",
     "NoKinkChk",
     "SoftKink",
-    "ChkStop"
+    "ChkStop",
+    "ChkAllStop"
   };
   
   const std::vector<std::string> VtxBitNames {

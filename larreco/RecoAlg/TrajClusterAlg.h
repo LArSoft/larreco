@@ -287,8 +287,6 @@ namespace tca {
     void CheckHitClusterAssociations();
     // Push the trajectory into allTraj
     void StoreTraj(Trajectory& tj);
-    // Calculate the trajectory Quality
-    void CalculateQuality(Trajectory& tj);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
     // Truncates the trajectory if a soft kink is found in it
@@ -342,6 +340,8 @@ namespace tca {
     // Merges all of the hits used in each TP into one hit
     void MergeTPHits();
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
+    // Sets the StopsAtEnd bits for all trajectories in the current CTP
+    void ChkAllStop();
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
     void MatchTruth();
