@@ -9,6 +9,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
+#include "larcore/Geometry/ChannelMapAlg.h" // geo::InvalidWireIDError
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
@@ -676,15 +677,22 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, 
 	nnet::TrainingDataAlg::WireDrift wd;
 	wd.Wire = 0; wd.Drift = 0; wd.TPC = -1;
 
-	double vtx[3] = {x, y, z};
-	if (fGeometry->FindTPCAtPosition(vtx).isValid)
-	{
-		unsigned int cryo = fGeometry->FindCryostatAtPosition(vtx);
-		unsigned int tpc = fGeometry->FindTPCAtPosition(vtx).TPC;
+    try
+    {
+    	double vtx[3] = {x, y, z};
+	    if (fGeometry->FindTPCAtPosition(vtx).isValid)
+	    {
+	    	unsigned int cryo = fGeometry->FindCryostatAtPosition(vtx);
+	    	unsigned int tpc = fGeometry->FindTPCAtPosition(vtx).TPC;
 
-		wd.Wire = fGeometry->NearestWire(vtx, view, tpc, cryo);
-		wd.Drift = fDetProp->ConvertXToTicks(x, view, tpc, cryo);
-		wd.TPC = tpc;
+	    	wd.Wire = fGeometry->NearestWire(vtx, view, tpc, cryo);
+	    	wd.Drift = fDetProp->ConvertXToTicks(x, view, tpc, cryo);
+	    	wd.TPC = tpc;
+	    }
+	}
+	catch (const geo::InvalidWireIDError & e)
+	{
+	    mf::LogWarning("TrainingDataAlg") << "Vertex projection out of wire planes, just skipping this vertex.";
 	}
 	return wd;
 }

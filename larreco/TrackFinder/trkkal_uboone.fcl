@@ -12,20 +12,19 @@ services:
 {
   # Load the service that manages root files for histograms.
   TFileService: { fileName: "recon_hist_Kal_mu_dbs.root" }
-  Timing:       {}
-  SimpleMemoryCheck:     { ignoreTotal: 1 } # default is one
+  TimeTracker   {}
+  MemoryTracker:     { ignoreTotal: 1 } # default is one
   RandomNumberGenerator: {} #ART native random number generator
-  user: { }
 }
 
-services.user.ExptGeoHelperInterface: @local::microboone_geometry_helper
-services.user.Geometry:           @local::microboone_geo 
-services.user.LArPropertiesService:      @local::microboone_properties
-services.user.DetectorPropertiesService: @local::microboone_detproperties
-services.user.LArFFT:             @local::microboone_larfft  
-services.user.LArG4Parameters:    @local::microboone_largeantparameters
-services.user.LArVoxelCalculator: @local::microboone_larvoxelcalculator
-services.user.DatabaseUtil:       @local::microboone_database
+services.ExptGeoHelperInterface: @local::microboone_geometry_helper
+services.Geometry:           @local::microboone_geo 
+services.LArPropertiesService:      @local::microboone_properties
+services.DetectorPropertiesService: @local::microboone_detproperties
+services.LArFFT:             @local::microboone_larfft  
+services.LArG4Parameters:    @local::microboone_largeantparameters
+services.LArVoxelCalculator: @local::microboone_larvoxelcalculator
+services.DatabaseUtil:       @local::microboone_database
 
 
 source:
