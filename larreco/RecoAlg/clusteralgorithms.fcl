@@ -17,7 +17,7 @@ standard_trajclusteralg:
    AngleRanges: [65,85,90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
    ChgPullCut: 3            # Use trajectory points/hits if (Chg/AveChg - 1) / ChgRMS < cut
-   KinkAngCut: 0.5          # Kink angle to decide whether to merge or create a 2D vtx
+   KinkCuts: [0.35, 1.5, 3] # kink angle, MCS kink significance, nPts fit
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
    MaxWireSkipNoSignal:  3  # max allowed number of not-dead wires if no signal is present
@@ -25,13 +25,14 @@ standard_trajclusteralg:
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
    ShowerTag: [50, 5, 1]    # max MCSMom for a shower tag, max separation, min #traj < separation
-   Vertex2DCuts:  [10, 2, 30, 3, 5] # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr
+   ChkStopCuts: [1.4, 5, 1] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
+   Vertex2DCuts:  [10, 4, 30, 10, 5, 100] # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr, Min MCSMom
    Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
    MaxVertexTrajSep: [6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
-   SkipAlgs: [ "RefineVtx" ]   # List of algs that should not be called
+   SkipAlgs: [  "MaskBadTPs", "ChkAllStop", "ChkStop" ]   # List of algs that should not be called
    StudyMode: false         # Set true to generate histograms (commented out)
    TagAllTraj: false        # Tag trajectories as track-like or shower-like
-   FillTruth: 0             # 0 = no, 1 = neutrino particles, > 1 neutrino + cosmics (commented out)
+   MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
    DebugPlane: -1           # Print debug output in a plane (3 = all planes, <0 = none)
    DebugWire: -1            # Print debug output for a trajectory that starts on DebugWire (<0 = print merging)
    DebugTick: -1            # Print debug output for a trajectory that starts at DebugTick +/- 5 ticks (<0 = print vtx finding)
