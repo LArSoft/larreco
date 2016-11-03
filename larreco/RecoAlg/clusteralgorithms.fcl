@@ -17,7 +17,7 @@ standard_trajclusteralg:
    AngleRanges: [65,85,90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
    ChgPullCut: 3            # Use trajectory points/hits if (Chg/AveChg - 1) / ChgRMS < cut
-   KinkCuts: [ 0.4, 1 ] # kink angle, kink significance
+   KinkCuts: [0.35, 1.5, 3] # kink angle, MCS kink significance, nPts fit
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
    MaxWireSkipNoSignal:  3  # max allowed number of not-dead wires if no signal is present
@@ -29,7 +29,7 @@ standard_trajclusteralg:
    Vertex2DCuts:  [10, 4, 30, 10, 5, 100] # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr, Min MCSMom
    Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
    MaxVertexTrajSep: [6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
-   SkipAlgs: [  ]   # List of algs that should not be called
+   SkipAlgs: [  "MaskBadTPs", "ChkAllStop", "ChkStop" ]   # List of algs that should not be called
    StudyMode: false         # Set true to generate histograms (commented out)
    TagAllTraj: false        # Tag trajectories as track-like or shower-like
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
