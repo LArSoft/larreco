@@ -37,6 +37,7 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp);
@@ -58,7 +59,7 @@ namespace tca {
   // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
   // close hits OR if the wire at this position is dead
   bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
 
   // returns the separation^2 between a point and a TP
@@ -89,8 +90,6 @@ namespace tca {
   float DeltaAngle(float Ang1, float Ang2);
   // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
   void SetEndPoints(TjStuff& tjs, Trajectory& tj);
-  // Sets the StopsAtEnd bits for the trajectory
-  void SetStopsAtEnd(TjStuff& tjs, Trajectory& tj);
   // Returns the hit width using StartTick() and EndTick()
   float TPHitsRMSTick(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest);
   float TPHitsRMSTime(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest);
@@ -98,10 +97,12 @@ namespace tca {
   float HitsRMSTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, HitStatus_t hitRequest);
   float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
+  unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest);
   // Calculate MCS momentum
   short MCSMom(TjStuff& tjs, Trajectory& tj);
-  // Calculate MCS momentum in a range of trajectory points
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
+  // Calculate MCS theta RMS
+  double MCSThetaRMS(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt);
   // Flag delta ray trajectories in allTraj
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
   // Tag muon directions using delta proximity
@@ -129,6 +130,7 @@ namespace tca {
   void PrintClusters();
   // Print a single hit in the standard format
   std::string PrintHit(const TCHit& hit);
+  std::string PrintHitShort(const TCHit& hit);
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);
 } // namespace tca

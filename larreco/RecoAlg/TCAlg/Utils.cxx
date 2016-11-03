@@ -2,6 +2,19 @@
 
 namespace tca {
 
+  ////////////////////////////////////////////////
+  unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode)
+  {
+    unsigned short pdg = abs(PDGCode);
+    if(pdg == 11) return 0; // electron
+    if(pdg == 13) return 1; // muon
+    if(pdg == 211) return 2; // pion
+    if(pdg == 321) return 3; // kaon
+    if(pdg == 2212) return 4; // proton
+    
+    return USHRT_MAX;
+    
+  } // PDGCodeIndex
   
   ////////////////////////////////////////////////
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP)
@@ -376,7 +389,7 @@ namespace tca {
   } // MoveTPToWire
   
   //////////////////////////////////////////
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<unsigned int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime,  bool& hitsNear)
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime,  bool& hitsNear)
   {
     // returns a vector of hits that are within the Window[Pos0][Pos1] in plane.
     // Note that hits on wire wireWindow[1] are returned as well. The definition of close
@@ -395,14 +408,14 @@ namespace tca {
     std::vector<unsigned int> closeHits;
     if(plane > tjs.FirstWire.size() - 1) return closeHits;
     // window in the wire coordinate
-    unsigned int loWire = wireWindow[0];
-    if(loWire < tjs.FirstWire[plane]) loWire = tjs.FirstWire[plane];
-    unsigned int hiWire = wireWindow[1];
-    if(hiWire > tjs.LastWire[plane]-1) hiWire = tjs.LastWire[plane]-1;
+    int loWire = wireWindow[0];
+    if(loWire < (int)tjs.FirstWire[plane]) loWire = tjs.FirstWire[plane];
+    int hiWire = wireWindow[1];
+    if(hiWire > (int)tjs.LastWire[plane]-1) hiWire = tjs.LastWire[plane]-1;
     // window in the time coordinate
     float minTick = timeWindow[0] / tjs.UnitsPerTick;
     float maxTick = timeWindow[1] / tjs.UnitsPerTick;
-    for(unsigned int wire = loWire; wire <= hiWire; ++wire) {
+    for(int wire = loWire; wire <= hiWire; ++wire) {
       if(tjs.WireHitRange[plane][wire].first < 0) continue;
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
@@ -434,7 +447,7 @@ namespace tca {
     // Fills tp.Hits sets tp.UseHit true for hits that are close to tp.Pos. Returns true if there are
     // close hits OR if the wire at this position is dead
     
-     tp.Hits.clear();
+    tp.Hits.clear();
     tp.UseHit.reset();
     if(!WireHitRangeOK(tjs, tp.CTP)) {
       std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.WireHitRangeCstat<<" TPC "<<tjs.WireHitRangeTPC<<"\n";
@@ -492,6 +505,9 @@ namespace tca {
     std::bitset<2> flipped;
     for(unsigned short ii = 0; ii < 2; ++ii) flipped[1 - ii] = tj.StopsAtEnd[ii];
     tj.StopsAtEnd = flipped;
+    // and the kink bits
+    for(unsigned short ii = 0; ii < 2; ++ii) flipped[1 - ii] = tj.KinkAtEnd[ii];
+    tj.KinkAtEnd = flipped;
     // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
@@ -505,42 +521,6 @@ namespace tca {
   float DeltaAngle(float Ang1, float Ang2) {
     return std::abs(std::remainder(Ang1 - Ang2, M_PI));
   }
-  
-  ////////////////////////////////////////////////
-  void SetStopsAtEnd(TjStuff& tjs, Trajectory& tj)
-  {
-    // Sets the StopsAtEnd bits on the trajectory using a trivial algorithm
-    if(tj.Pts.size() < 4) return;
-    
-    tj.StopsAtEnd[0] = false;
-    tj.StopsAtEnd[1] = false;
-    
-    // require a significant increase in charge for the first (last) end points ignoring the first and last
-    const float chgrat = 1.2;
-
-    unsigned short endPt = tj.EndPt[0];
-    // require 3 charged points at end 0
-//    std::cout<<"ID "<<tj.ID<<"_0 "<<(int)tj.Pts[endPt + 1].Chg<<" "<<(int)tj.Pts[endPt + 2].Chg<<" "<<(int)tj.Pts[endPt + 3].Chg<<"\n";
-    if(tj.Pts[endPt + 1].Chg > 0 &&  tj.Pts[endPt + 2].Chg > 0 &&  tj.Pts[endPt + 3].Chg > 0) {
-      // end 0
-      if(tj.Pts[endPt + 1].Chg > chgrat * tj.Pts[endPt + 2].Chg &&
-         tj.Pts[endPt + 2].Chg > chgrat * tj.Pts[endPt + 3].Chg) {
-        tj.StopsAtEnd[0] = true;
-      }
-    } // 3 charged points at end 0
-    
-    endPt = tj.EndPt[1];
-    // require 3 charged points at end 1
-//    std::cout<<"ID "<<tj.ID<<"_1 "<<(int)tj.Pts[endPt - 1].Chg<<" "<<(int)tj.Pts[endPt - 2].Chg<<" "<<(int)tj.Pts[endPt - 3].Chg<<"\n";
-    if(tj.Pts[endPt - 1].Chg > 0 &&  tj.Pts[endPt - 2].Chg > 0 &&  tj.Pts[endPt - 3].Chg > 0) {
-      // end 0
-      if(tj.Pts[endPt - 1].Chg > chgrat * tj.Pts[endPt - 2].Chg &&
-         tj.Pts[endPt - 2].Chg > chgrat * tj.Pts[endPt - 3].Chg) {
-        tj.StopsAtEnd[1] = true;
-      }
-    } // 3 charged points at end 0
-    
-  } // StopsAtEnd
   
   ////////////////////////////////////////////////
   void SetEndPoints(TjStuff& tjs, Trajectory& tj)
@@ -569,18 +549,32 @@ namespace tca {
   ////////////////////////////////////////////////
   short MCSMom(TjStuff& tjs, Trajectory& tj)
   {
-    unsigned short firstPt = tj.EndPt[0];
-    unsigned short lastPt = tj.EndPt[1];
-    return MCSMom(tjs, tj, firstPt, lastPt);
+    return MCSMom(tjs, tj, tj.EndPt[0], tj.EndPt[1]);
   } // MCSMom
+  
   
   ////////////////////////////////////////////////
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
   {
     // Estimate the trajectory momentum using Multiple Coulomb Scattering ala PDG RPP
     
+
     if(firstPt < tj.EndPt[0]) return 0;
     if(lastPt > tj.EndPt[1]) return 0;
+    
+    double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
+    if(tjLen == 0) return 0;
+    // mom calculated in MeV
+    double mom = 13.8 * sqrt(tjLen / 14) / MCSThetaRMS(tjs, tj, firstPt, lastPt);
+    if(mom > 999) mom = 999;
+    return (short)mom;
+  } // MCSMom
+  
+  /////////////////////////////////////////
+  double MCSThetaRMS(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
+  {
+    if(firstPt < tj.EndPt[0]) return 1;
+    if(lastPt > tj.EndPt[1]) return 1;
     
     TrajPoint tmp;
     // make a bare trajectory point to define a line between firstPt and lastPt.
@@ -598,7 +592,7 @@ namespace tca {
       dsum += PointTrajDOCA2(tjs, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
       ++cnt;
     } // ipt
-    if(cnt == 0) return 0;
+    if(cnt == 0) return 1;
     // require that cnt is a significant fraction of the total number of charged points
     // so that we don't get erroneously high MCSMom when there are large gaps.
     // This is the number of points expected in the count if there are no gaps
@@ -607,12 +601,11 @@ namespace tca {
     if(numPts > 5 && cnt < 0.7 * numPts) return tj.MCSMom;
     double sigmaS = sqrt(dsum / (double)cnt);
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
+    if(tjLen == 0) return 0;
     // Theta_o =  4 * sqrt(3) * sigmaS / path
-    double thetaRMS = 6.8 * sigmaS / tjLen;
-    double mom = 14 * sqrt(tjLen / 14) / thetaRMS;
-    if(mom > 999) mom = 999;
-    return (short)mom;
-  } // MCSMom
+    return (6.8 * sigmaS / tjLen);
+    
+  } // MCSThetaRMS
 
   /////////////////////////////////////////
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID)
@@ -912,6 +905,26 @@ namespace tca {
   } // HitsPosTick
   
   //////////////////////////////////////////
+  unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest)
+  {
+    // Counts the number of hits of the specified type in tp
+    if(tp.Hits.empty()) return 0;
+    
+    if(hitRequest == kAllHits) return tp.Hits.size();
+    
+    unsigned short nhits = 0;
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+      if(hitRequest == kUsedHits) {
+        if(tp.UseHit[ii]) ++nhits;
+      } else {
+        // looking for unused hits
+        if(!tp.UseHit[ii]) ++nhits;
+      }
+    } // ii
+    return nhits;
+  } // NumHitsInTP
+  
+  //////////////////////////////////////////
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp)
   {
     // Returns the index of a vertex if tp is nearby
@@ -1120,8 +1133,6 @@ namespace tca {
     // 3 = max position pull for adding TJs to a vertex
     // 4 = max allowed vertex position error
     
-    if(vx.Stat[kFixed]) return false;
-    
     // Create a vector of trajectory points that will be used to fit the vertex position
     std::vector<TrajPoint> vxTp;
     for(auto& tj : tjs.allTraj) {
@@ -1138,6 +1149,10 @@ namespace tca {
     if(prt) {
       PrintHeader("FV");
       for(auto& tp : vxTp) PrintTrajPoint("FV", tjs, 0, 1, 1, tp);
+    }
+    if(vx.Stat[kFixed]) {
+      if(prt) mf::LogVerbatim("TC")<<" vertex position fixed. No fit.";
+      return true;
     }
  
     // Find trajectory intersections pair-wise tweaking the angle and position(?) within
@@ -1450,6 +1465,12 @@ namespace tca {
       myprt<<tjs.fHits[iht].InTraj;
     } // iht
   } // PrintTrajPoint
+  
+  /////////////////////////////////////////
+  std::string PrintHitShort(const TCHit& hit)
+  {
+    return std::to_string(hit.WireID.Plane) + ":" + std::to_string(hit.WireID.Wire) + ":" + std::to_string((int)hit.PeakTime);
+  } // PrintHit
   
   /////////////////////////////////////////
   std::string PrintHit(const TCHit& hit)

@@ -105,7 +105,7 @@ namespace tca {
     std::vector<unsigned short> fMaxAngleRange;   ///< max llowed angle range for each pass
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
-    float fKinkAngCut;     ///  kink angle cut
+    std::vector<float> fKinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
     float fChgPullCut;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
@@ -117,7 +117,7 @@ namespace tca {
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
-    short fFillTruth;     ///< Match to MC truth
+    std::vector<float> fMatchTruth;     ///< Match to MC truth
  
     std::vector<float> fMaxVertexTrajSep;
     std::bitset<32> fUseAlg;  ///< Allow user to mask off specific algorithms
@@ -133,12 +133,15 @@ namespace tca {
     std::vector<short> fDeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> fMuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<short> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
+
     std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
-    // TEMP variables for summing Eff*Pur
-    double PrSum, MuSum, PiSum;
-    unsigned short nPr, nMu, nPi;
-
+    
+    // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
+    std::array<short, 5> EPCnts;
+    std::array<float, 5> EPSums;
+    std::array<float, 5> EPTSums;
     bool fIsRealData;
 /*
     TH2F *fMCSMom_KE_e;
@@ -154,6 +157,16 @@ namespace tca {
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
 */
+    // Reco-MC vertex position difference
+    TH1F* fNuVtx_dx;
+    TH1F* fNuVtx_dy;
+    TH1F* fNuVtx_dz;
+    
+    // Reco-MC stopping wire difference for different MC Particles
+    TH1F* fdWire[5];
+    // EP vs KE for different MC Particles
+    TProfile* fEP_T[5];
+
     TH1F *fDeltaN[3];
     TH1F *fHitRMS[3];
     TH2F *fTPWidth_Angle[3];
@@ -251,7 +264,7 @@ namespace tca {
     // Sets inTraj[] = 0 and UseHit false for all used hits in tp
     void UnsetUsedHits(TrajPoint& tp);
     // Counts the number of used hits in tp
-    unsigned short NumUsedHits(TrajPoint& tp);
+//    unsigned short NumUsedHits(TrajPoint& tp);
     // Counts the number of TPs in the trajectory that have charge
     unsigned short NumPtsWithCharge(Trajectory& tj, bool includeDeadWires);
     // Sets inTraj[] = 0 and UseHit false for all TPs. Called when abandoning work
@@ -265,14 +278,8 @@ namespace tca {
     // Returns true if there a is wire signal at tp
     bool SignalAtTp(TrajPoint const& tp);
     bool SignalAtPos(float pos0, float pos1, CTP_t tCTP);
-    // analyze the sat vector to construct a vector of trajectories that is the best
-    void AnalyzeTrials();
     // Counts the number of hits that are used in two different vectors of hits
     void CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits);
-    void AdjudicateTrials(bool& reAnalyze);
-    // merge the trajectories and put the results into allTraj. Returns
-    // reAnalyze true if AnalyzeTrials needs to be called again
-    void MergeTrajPair(unsigned short ipr, bool& reAnalyze);
     // Merge and store the two trajectories in allTraj
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
@@ -280,8 +287,6 @@ namespace tca {
     void CheckHitClusterAssociations();
     // Push the trajectory into allTraj
     void StoreTraj(Trajectory& tj);
-    // Calculate the trajectory Quality
-    void CalculateQuality(Trajectory& tj);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
     // Truncates the trajectory if a soft kink is found in it
@@ -335,7 +340,11 @@ namespace tca {
     // Merges all of the hits used in each TP into one hit
     void MergeTPHits();
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
-    void FillTrajTruth();
+    // Sets the StopsAtEnd bits for all trajectories in the current CTP
+    void ChkAllStop();
+    // Sets the StopsAtEnd bits for the trajectory
+    void ChkStop(Trajectory& tj);
+    void MatchTruth();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void FindVtxTraj(unsigned short ivx);
