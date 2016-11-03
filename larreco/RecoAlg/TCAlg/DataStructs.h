@@ -203,6 +203,7 @@ namespace tca {
     kNoKinkChk,
     kSoftKink,
     kChkStop,
+    kChkAllStop,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
