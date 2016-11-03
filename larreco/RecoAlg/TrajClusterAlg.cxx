@@ -439,7 +439,7 @@ namespace tca {
       myprt<<"Event "<<evt.event();
       float sum = 0;
       float sumt = 0;
-      for(unsigned short pdgIndex = 0; pdgIndex < 6; ++pdgIndex) {
+      for(unsigned short pdgIndex = 0; pdgIndex < EPSums.size(); ++pdgIndex) {
         if(EPSums[pdgIndex] == 0) continue;
         if(pdgIndex == 0) myprt<<" Electron";
         if(pdgIndex == 1) myprt<<" Muon";
@@ -447,8 +447,8 @@ namespace tca {
         if(pdgIndex == 3) myprt<<" Kaon";
         if(pdgIndex == 4) myprt<<" Proton";
         float ave = EPTSums[pdgIndex] / (float)EPSums[pdgIndex];
-        myprt<<" ave "<<std::fixed<<std::setprecision(2)<<ave;
-        myprt<<" cnt "<<EPCnts[pdgIndex];
+        myprt<<" "<<std::fixed<<std::setprecision(2)<<ave;
+        myprt<<" "<<EPCnts[pdgIndex];
         sum  += EPSums[pdgIndex];
         sumt += EPTSums[pdgIndex];
       } // pdgIndex
