@@ -98,11 +98,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 
       const trkf::KHitWireX* khitp = dynamic_cast<const trkf::KHitWireX*>(&*ihit);
       assert(khitp);
-      const trkf::KHitWireX& khit = *khitp;
-      // const trkf::KHitWireX& khittmp = *khitp;
-      // trkf::KHitWireX khit(khittmp);
+      trkf::KHitWireX khit(*khitp);//need a non const copy in case we want to modify the error
+      if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
       // khit.setMeasError(khit.getMeasError()*25.);
-      // khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
 
       //propagate to measurement surface 
       boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
@@ -140,7 +138,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 
   // LOG_DEBUG("TrackKalmanFitter") << "AFTER FORWARD\n" << trf.Print(std::cout);
   
-  //reinitialize trk for backward fit
+  //reinitialize trf for backward fit
   trf.setError(100.*trf.getError());
   trf.setStat(trkf::KFitTrack::BACKWARD_PREDICTED);
   trf.setPath(0.);
@@ -149,11 +147,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   //backward loop over track states and hits in fittedTrack: use hits for backward fit and fwd track states for smoothing
   for (auto itertrack = fittedTrack.getTrackMap().rbegin(); itertrack != fittedTrack.getTrackMap().rend(); ++itertrack) {
     trkf::KHitTrack& fwdTrack = itertrack->second;    
-    const trkf::KHitBase& khit = *(fwdTrack.getHit());
-    // const trkf::KHitWireX* khittmp = dynamic_cast<const trkf::KHitWireX*>(fwdTrack.getHit().get());
-    // trkf::KHitWireX khit(*khittmp);
-    // khit.setMeasError(khit.getMeasError()*25.);
-    // khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
+    trkf::KHitWireX khit(dynamic_cast<const trkf::KHitWireX&>(*fwdTrack.getHit().get()));//need a non const copy in case we want to modify the error
+    if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
 
     boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
     if (!pdist) {

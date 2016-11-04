@@ -30,7 +30,7 @@ namespace trkf {
   class TrackKalmanFitter {
     
   public:
-    TrackKalmanFitter(const trkf::Propagator* prop){prop_=prop;}
+    TrackKalmanFitter(const trkf::Propagator* prop, bool useRMS){prop_=prop;useRMS_=useRMS;}
     
     bool fitTrack(const recob::Track& inputTrack, const std::vector<art::Ptr<recob::Hit> >& hits,  const double pval, const int pdgid,
 		  recob::Track& outputTrack,      art::PtrVector<recob::Hit>& outputHits);
@@ -40,6 +40,7 @@ namespace trkf {
   private:
     
     const trkf::Propagator* prop_;
+    bool useRMS_;
   };
 
 }

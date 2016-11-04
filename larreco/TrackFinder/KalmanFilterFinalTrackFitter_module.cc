@@ -61,6 +61,7 @@ private:
   std::string inputMCLabel;
   double pval;
   int pdgId;
+  bool useRMS;
   trkf::TrackKalmanFitter* kalmanFitter;
   trkf::Propagator* prop;
 };
@@ -78,9 +79,10 @@ KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(fhicl::ParameterSet c
     pval = p.get<double>("momentumInGeV");
   }
   pdgId = p.get<int>("pdgId");
+  useRMS = p.get<bool>("useRMSError");
   
   prop = new trkf::PropYZPlane(0., false);
-  kalmanFitter = new trkf::TrackKalmanFitter(prop);
+  kalmanFitter = new trkf::TrackKalmanFitter(prop,useRMS);
 
   produces<std::vector<recob::Track> >();
   produces<art::Assns<recob::Track, recob::Hit> >();
