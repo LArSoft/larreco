@@ -176,8 +176,8 @@ namespace tca {
     kMaskHits,
     kUnMaskHits,
     kGottaKink,     ///< GottaKink found a kink
-    kCWKink,        ///< kink found in CheckWork
-    kCWStepChk,
+    kCTKink,        ///< kink found in CheckWork
+    kCTStepChk,
     kTryWithNextPass,
     kRevProp,
     kChkHiMultHits,

@@ -329,6 +329,7 @@ namespace tca {
     void EndMerge();
     void FillWireHitRange(geo::TPCID const& tpcid);
     float ExpectedHitsRMS(TrajPoint const& tp);
+    void SetHitMultiplicity();
     /// sets fQuitAlg true if WireHitRange has a problem
     bool CheckWireHitRange();
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
