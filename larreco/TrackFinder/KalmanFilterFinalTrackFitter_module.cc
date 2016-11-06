@@ -42,7 +42,7 @@
 #include <memory>
 
 namespace trkf {
-  
+
   class KalmanFilterFinalTrackFitter : public art::EDProducer {
   public:
 
@@ -89,30 +89,30 @@ namespace trkf {
 	Comment("Flag to replace the default hit error SigmaPeakTime() with RMS().")
       };
     };
-    
+
     struct Config {
       using Name = fhicl::Name;
-      
+
       fhicl::Table<KalmanFilterFinalTrackFitter::Inputs> inputs {
 	Name("inputs"),
-      };  
+      };
       fhicl::Table<KalmanFilterFinalTrackFitter::Options> options {
 	Name("options")
       };
     };
     using Parameters = art::EDProducer::Table<Config>;
-    
+
     explicit KalmanFilterFinalTrackFitter(Parameters const & p);
     ~KalmanFilterFinalTrackFitter();
-    
+
     // Plugins should not be copied or assigned.
     KalmanFilterFinalTrackFitter(KalmanFilterFinalTrackFitter const &) = delete;
     KalmanFilterFinalTrackFitter(KalmanFilterFinalTrackFitter &&) = delete;
     KalmanFilterFinalTrackFitter & operator = (KalmanFilterFinalTrackFitter const &) = delete;
     KalmanFilterFinalTrackFitter & operator = (KalmanFilterFinalTrackFitter &&) = delete;
-    
+
     void produce(art::Event & e) override;
-    
+
   private:
     Parameters p_;
     double pval;
@@ -125,7 +125,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   : p_(p)
 {
   pval = p_().options().pval();
-  
+
   prop = new trkf::PropYZPlane(0., false);
   kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().options().useRMS());
 
@@ -140,13 +140,13 @@ trkf::KalmanFilterFinalTrackFitter::~KalmanFilterFinalTrackFitter() {
 
 void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 {
-  
+
   auto outputTracks = std::make_unique<std::vector<recob::Track> >();
   auto outputHits   = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
 
   auto const tid = getProductID<std::vector<recob::Track> >(e);
   auto const tidgetter = e.productGetter(tid);
-  
+
   art::InputTag TrackInputTag(p_().inputs().inputTracksLabel());
   art::ValidHandle<std::vector<recob::Track> > inputTracks = e.getValidHandle<std::vector<recob::Track> >(TrackInputTag);
   std::unique_ptr<art::FindManyP<recob::Hit> > trackHits(new art::FindManyP<recob::Hit>(inputTracks, e, TrackInputTag));
@@ -171,7 +171,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     }
     //std::cout << "mc momentum value = " << pval << " GeV" << std::endl;
   }
-  
+
   for (unsigned int iTrack = 0; iTrack < inputTracks->size(); ++iTrack) {
 
     const recob::Track& track = inputTracks->at(iTrack);
@@ -194,7 +194,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     bool fitok = kalmanFitter->fitTrack(track, trackHits->at(iTrack), pval, p_().options().pdgId(), outTrack, outHits);
 
     if (!fitok) continue;
-    
+
     outputTracks->emplace_back(std::move(outTrack));
     art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
     for (auto const& trhit: outHits) {
@@ -204,7 +204,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
   e.put(std::move(outputTracks));
   e.put(std::move(outputHits));
-  
+
 }
 
 DEFINE_ART_MODULE(trkf::KalmanFilterFinalTrackFitter)

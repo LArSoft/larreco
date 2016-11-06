@@ -14,7 +14,7 @@ namespace trkf {
 
   class Propagator;
   class KTrack;
-  
+
   /**
    * @brief Fit tracks using Kalman Filter fit+smooth.
    *
@@ -26,19 +26,19 @@ namespace trkf {
    * Note: the fit assumes the track direction to be towards increasing z.
    *
    */
-  
+
   class TrackKalmanFitter {
-    
+
   public:
     TrackKalmanFitter(const trkf::Propagator* prop, bool useRMS){prop_=prop;useRMS_=useRMS;}
-    
+
     bool fitTrack(const recob::Track& inputTrack, const std::vector<art::Ptr<recob::Hit> >& hits,  const double pval, const int pdgid,
 		  recob::Track& outputTrack,      art::PtrVector<recob::Hit>& outputHits);
 
     trkf::KTrack convertRecobTrackIntoKTrack(const TVector3& position, const TVector3&  direction,  const double pval, const int pdgid);
-    
+
   private:
-    
+
     const trkf::Propagator* prop_;
     bool useRMS_;
   };
