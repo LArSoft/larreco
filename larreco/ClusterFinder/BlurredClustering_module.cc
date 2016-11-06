@@ -158,8 +158,11 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     evt.getByLabel(fPFParticleModuleLabel, clusterCollection);
 
     if (trackCollection.isValid()) {
-      art::FindManyP<recob::Hit> fmh(trackCollection, evt, fTrackModuleLabel);
-      hitsToCluster = fTrackShowerSeparationAlg.RemoveTrackHits(hits, tracks, fmh);
+      art::FindManyP<recob::Hit> fmht(trackCollection, evt, fTrackModuleLabel);
+      art::FindManyP<recob::Track> fmth(hitCollection, evt, fTrackModuleLabel);
+      art::FindManyP<recob::SpacePoint> fmspt(trackCollection, evt, fTrackModuleLabel);
+      art::FindManyP<recob::Track> fmtsp(spacePointCollection, evt, fTrackModuleLabel);
+      hitsToCluster = fTrackShowerSeparationAlg.SelectShowerHits(evt.event(), hits, tracks, spacePoints, fmht, fmth, fmspt, fmtsp);
     }
 
     // // Remove hits from tracks before performing any clustering
