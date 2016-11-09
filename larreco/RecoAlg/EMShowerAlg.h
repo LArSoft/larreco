@@ -126,6 +126,9 @@ public:
 			   art::Ptr<recob::Vertex> const& vertex,
 			   int & iok);
 
+  /// Makes space points from the shower hits in each plane
+  std::vector<recob::SpacePoint> MakeSpacePoints(const art::PtrVector<recob::Hit>& hits);
+
   /// <Tingjun to document>
   void FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> >const& showerHits,
 			    art::Ptr<recob::Vertex> const& vertex,

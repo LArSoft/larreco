@@ -106,6 +106,7 @@ void shower::EMShower::produce(art::Event& evt) {
 
   // Output -- showers and associations with hits and clusters
   std::unique_ptr<std::vector<recob::Shower> > showers(new std::vector<recob::Shower>);
+  std::unique_ptr<std::vector<recob::SpacePoint> > spacePoints(new std::vector<recob::SpacePoint>);
   std::unique_ptr<art::Assns<recob::Shower, recob::Cluster> > clusterAssociations(new art::Assns<recob::Shower, recob::Cluster>);
   std::unique_ptr<art::Assns<recob::Shower, recob::Hit> > hitAssociations(new art::Assns<recob::Shower, recob::Hit>);
   std::unique_ptr<art::Assns<recob::Shower, recob::Track> > trackAssociations(new art::Assns<recob::Shower, recob::Track>);
@@ -209,7 +210,6 @@ void shower::EMShower::produce(art::Event& evt) {
     art::PtrVector<recob::Hit> showerHits;
     art::PtrVector<recob::Cluster> showerClusters;
     art::PtrVector<recob::Track> showerTracks;
-    art::PtrVector<recob::SpacePoint> showerSpacePoints;
 
     std::vector<int> associatedTracks;
 
@@ -239,9 +239,6 @@ void shower::EMShower::produce(art::Event& evt) {
       for (std::vector<int>::iterator associatedTracksIt = associatedTracks.begin(); associatedTracksIt != associatedTracks.end(); ++associatedTracksIt) {
 	art::Ptr<recob::Track> showerTrack = tracks.at(*associatedTracksIt);
 	showerTracks.push_back(showerTrack);
-	std::vector<art::Ptr<recob::SpacePoint> > spacePoints = fmsp.at(showerTrack.key());
-	for (std::vector<art::Ptr<recob::SpacePoint> >::iterator spacePointsIt = spacePoints.begin(); spacePointsIt != spacePoints.end(); ++spacePointsIt)
-	  showerSpacePoints.push_back(*spacePointsIt);
       }
     }
 
@@ -251,7 +248,7 @@ void shower::EMShower::produce(art::Event& evt) {
 	if (fmspp.isValid()){
 	  std::vector<art::Ptr<recob::SpacePoint> >spacePoints = fmspp.at(ihit);
 	  for (std::vector<art::Ptr<recob::SpacePoint> >::iterator spacePointsIt = spacePoints.begin(); spacePointsIt != spacePoints.end(); ++spacePointsIt)
-	    showerSpacePoints.push_back(*spacePointsIt);
+	    spacePoints.push_back(*spacePointsIt);
 	}
       }
     }
@@ -263,15 +260,18 @@ void shower::EMShower::produce(art::Event& evt) {
       std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits;
       fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fPlane);
 
+      // Make space points
+      spacePoints = std::make_unique<std::vector<recob::SpacePoint> >(fEMShowerAlg.MakeSpacePoints(showerHits));
+
       // Make shower object and associations
       recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
       shower.set_id(showerNum);
       if ( fSaveNonCompleteShowers or (!fSaveNonCompleteShowers and shower.ShowerStart() != TVector3(0,0,0)) ) {
 	showers->push_back(shower);
-	util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
-	util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
-	util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
-	util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), showerHits,           *(hitAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), showerClusters,       *(clusterAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), showerTracks,         *(trackAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), *(spacePoints.get()), *(spacePointAssociations.get()));
       }
       else
 	mf::LogInfo("EMShower") << "Discarding shower " << showerNum << " due to incompleteness (SaveNonCompleteShowers == false)";
@@ -300,6 +300,7 @@ void shower::EMShower::produce(art::Event& evt) {
 
   // Put in event
   evt.put(std::move(showers));
+  evt.put(std::move(spacePoints));
   evt.put(std::move(hitAssociations));
   evt.put(std::move(clusterAssociations));
   evt.put(std::move(trackAssociations));
