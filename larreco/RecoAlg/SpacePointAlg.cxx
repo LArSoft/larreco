@@ -125,17 +125,18 @@ namespace  trkf{
             
             // Loop over TPCs.
             
-            int ntpc = geom->Cryostat(cstat).NTPC();
+            unsigned int const ntpc = geom->Cryostat(cstat).NTPC();
             
-            for(int tpc = 0; tpc < ntpc; ++tpc) {
+            for(unsigned int tpc = 0; tpc < ntpc; ++tpc) {
                 const geo::TPCGeo& tpcgeom = geom->Cryostat(cstat).TPC(tpc);
                 
                 // Loop over planes.
                 
-                int nplane = tpcgeom.Nplanes();
+                unsigned int const nplane = tpcgeom.Nplanes();
                 
-                for(int plane = 0; plane < nplane; ++plane) {
-                    const geo::PlaneGeo& pgeom = tpcgeom.Plane(plane);
+                for(unsigned int plane = 0; plane < nplane; ++plane) {
+                    geo::PlaneID planeid(cstat, tpc, plane);
+                    const geo::PlaneGeo& pgeom = tpcgeom.Plane(planeid);
                     
                     // Fill view-dependent quantities.
                     
@@ -155,7 +156,7 @@ namespace  trkf{
                         << view << "\n";
                     
                     std::string sigtypename = "?";
-                    geo::SigType_t sigtype = pgeom.SignalType();
+                    geo::SigType_t sigtype = geom->SignalType(planeid);
                     if(sigtype == geo::kInduction)
                         sigtypename = "Induction";
                     else if(sigtype == geo::kCollection)
@@ -1041,6 +1042,8 @@ namespace  trkf{
         for(unsigned int cstat = 0; cstat < ncstat; ++cstat){
             for(unsigned int tpc = 0; tpc < geom->Cryostat(cstat).NTPC(); ++tpc) {
                 
+                geo::TPCID tpcid(cstat, tpc);
+                
                 // Sort maps in increasing order of number of hits.
                 // This is so that we can do the outer loops over hits
                 // over the views with fewer hits.
@@ -1062,9 +1065,9 @@ namespace  trkf{
                     
                     for(int j=i+1; j<nplane; ++j) {
                         bool icoll = fPreferColl &&
-                        geom->Plane(index[i], tpc, cstat).SignalType() == geo::kCollection;
+                        geom->SignalType(geo::PlaneID(tpcid, index[i])) == geo::kCollection;
                         bool jcoll = fPreferColl &&
-                        geom->Plane(index[j], tpc, cstat).SignalType() == geo::kCollection;
+                        geom->SignalType(geo::PlaneID(tpcid, index[j])) == geo::kCollection;
                         if((hitmap[cstat][tpc][index[i]].size() > hitmap[cstat][tpc][index[j]].size() &&
                             !jcoll) || icoll) {
                             int temp = index[i];
