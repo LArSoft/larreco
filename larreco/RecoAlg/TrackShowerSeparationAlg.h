@@ -64,8 +64,8 @@ class shower::ReconTrack {
   void SetHits(std::vector<art::Ptr<recob::Hit> > hits) { fHits = hits; }
   void SetSpacePoints(std::vector<art::Ptr<recob::SpacePoint> > spacePoints) { fSpacePoints = spacePoints; }
 
-  void AddForwardTrack(int track) { fForwardConeTracks.push_back(track); }
-  void AddBackwardTrack(int track) { fBackwardConeTracks.push_back(track); }
+  void AddForwardTrack(int track) { if (std::find(fForwardConeTracks.begin(), fForwardConeTracks.end(), track) == fForwardConeTracks.end()) fForwardConeTracks.push_back(track); }
+  void AddBackwardTrack(int track) { if (std::find(fBackwardConeTracks.begin(), fBackwardConeTracks.end(), track) == fBackwardConeTracks.end()) fBackwardConeTracks.push_back(track); }
   void AddShowerTrack(int track) { fShowerTracks.push_back(track); }
 
   void AddForwardSpacePoint(int spacePoint) { fForwardSpacePoints.push_back(spacePoint); }
@@ -83,6 +83,13 @@ class shower::ReconTrack {
   TVector3 Direction() const { return fDirection; }
   const std::vector<art::Ptr<recob::Hit> >& Hits() const { return fHits; }
   const std::vector<art::Ptr<recob::SpacePoint> >& SpacePoints() const { return fSpacePoints; }
+
+  void FlipTrack() {
+    TVector3 tmp = fEnd;
+    fEnd = fVertex;
+    fVertex = tmp;
+    fDirection *= -1;
+  }
 
   void MakeShower() {
     if (fTrack)
@@ -115,8 +122,8 @@ class shower::ReconTrack {
   bool IsTrack() const { return fTrack; }
   bool IsUndetermined() const { return !fTrack and !fShower; }
 
-  int NumConeTracks() const { return (int)fForwardConeTracks.size() - (int)fBackwardConeTracks.size(); }
-  bool ShowerTrackCandidate() const { return NumConeTracks() > 5; }
+  int TrackConeSize() const { return (int)fForwardConeTracks.size() - (int)fBackwardConeTracks.size(); }
+  bool ShowerTrackCandidate() const { return TrackConeSize() > 5; }
   const std::vector<int>& ShowerTracks() const { return fShowerTracks; }
   const std::vector<int>& ForwardConeTracks() const { return fForwardConeTracks; }
 
@@ -182,7 +189,13 @@ class shower::TrackShowerSeparationAlg {
   std::vector<int> InitialTrackLikeSegment(std::map<int,std::unique_ptr<ReconTrack> >& reconTracks);
 
   ///
+  TVector3 Gradient(const std::vector<TVector3>& points, const std::unique_ptr<TVector3>& dir);
+
+  ///
   TVector3 Gradient(const art::Ptr<recob::Track>& track);
+
+  ///
+  TVector3 Gradient(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints);
 
   /// Projects the 3D point given along the line defined by the specified direction
   /// Coordinate system is assumed to be centred at the origin unless a difference point is specified
@@ -191,13 +204,20 @@ class shower::TrackShowerSeparationAlg {
   /// Return 3D point of this space point
   TVector3 SpacePointPos(const art::Ptr<recob::SpacePoint>& spacePoint);
 
+  ///
+  double SpacePointsRMS(const std::vector<art::Ptr<recob::SpacePoint> >& spacePoints);
+
+  // Parameters
+  int fDebug;
+
   // Properties
   double fConeAngle;
   double fCylinderRadius;
 
   // Cuts
+  double fTrackVertexCut;
   double fCylinderCut;
-  int fShowerConeCut;
+  double fShowerConeCut;
 
 };
 
