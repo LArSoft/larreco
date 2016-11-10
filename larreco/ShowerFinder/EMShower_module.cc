@@ -248,8 +248,8 @@ void shower::EMShower::produce(art::Event& evt) {
       art::FindManyP<recob::SpacePoint> fmspp(showerHits, evt, fPFParticleModuleLabel);
       for (size_t ihit = 0; ihit<showerHits.size(); ++ihit){
 	if (fmspp.isValid()){
-	  std::vector<art::Ptr<recob::SpacePoint> >spacePoints = fmspp.at(ihit);
-	  for (std::vector<art::Ptr<recob::SpacePoint> >::iterator spacePointsIt = spacePoints.begin(); spacePointsIt != spacePoints.end(); ++spacePointsIt)
+	  std::vector<art::Ptr<recob::SpacePoint> > spacePoints_pfp = fmspp.at(ihit);
+	  for (std::vector<art::Ptr<recob::SpacePoint> >::iterator spacePointsIt = spacePoints_pfp.begin(); spacePointsIt != spacePoints_pfp.end(); ++spacePointsIt)
 	    showerSpacePoints_p.push_back(*spacePointsIt);
 	}
       }
@@ -264,18 +264,20 @@ void shower::EMShower::produce(art::Event& evt) {
 
       // Make space points
       std::vector<recob::SpacePoint> showerSpacePoints = fEMShowerAlg.MakeSpacePoints(showerHits);
+      int firstSpacePoint = spacePoints->size();
       for (std::vector<recob::SpacePoint>::const_iterator spacePointIt = showerSpacePoints.begin(); spacePointIt != showerSpacePoints.end(); ++spacePointIt)
 	spacePoints->emplace_back(spacePointIt->XYZ(), spacePointIt->ErrXYZ(), spacePointIt->Chisq(), spacePoints->size());
+      int lastSpacePoint = spacePoints->size();
 
       // Make shower object and associations
       recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
       shower.set_id(showerNum);
       if ( fSaveNonCompleteShowers or (!fSaveNonCompleteShowers and shower.ShowerStart() != TVector3(0,0,0)) ) {
 	showers->push_back(shower);
-	util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
-	util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
-	util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
-	util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()), 0, TMath::Max((int)showerSpacePoints.size()-1,0));
+	util::CreateAssn(*this, evt, *(showers.get()), showerHits,           *(hitAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), showerClusters,       *(clusterAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), showerTracks,         *(trackAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), *(spacePoints.get()), *(spacePointAssociations.get()), firstSpacePoint, lastSpacePoint);
       }
       else
 	mf::LogInfo("EMShower") << "Discarding shower " << showerNum << " due to incompleteness (SaveNonCompleteShowers == false)";

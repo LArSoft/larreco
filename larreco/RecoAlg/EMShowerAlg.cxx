@@ -1186,6 +1186,11 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
   for (art::PtrVector<recob::Hit>::const_iterator hitIt = hits.begin(); hitIt != hits.end(); ++hitIt)
     showerHits[(*hitIt)->WireID().Plane].push_back(*hitIt);
 
+  // Sort the hits by charge
+  for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeIt = showerHits.begin(); planeIt != showerHits.end(); ++planeIt)
+    //std::reverse(planeIt->second.begin(), planeIt->second.end());
+    std::sort(planeIt->second.begin(), planeIt->second.end(), [](const art::Ptr<recob::Hit>& h1, const art::Ptr<recob::Hit>& h2){return h1->Integral() > h2->Integral();});
+
   // Make space points
   // Use the following procedure:
   //  -- Consider hits plane by plane
@@ -1202,7 +1207,7 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
   // Look through plane by plane
   for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::const_iterator showerHitIt = showerHits.begin(); showerHitIt != showerHits.end(); ++showerHitIt) {
 
-    // Find the other two planes
+    // Find the other planes with hits
     std::vector<int> otherPlanes;
     for (unsigned int otherPlane = 0; otherPlane < fGeom->MaxPlanes(); ++otherPlane)
       if ((int)otherPlane != showerHitIt->first and showerHits.count(otherPlane))
@@ -1220,9 +1225,12 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
 
       // Make a 3D point with every hit on the second plane
       const std::vector<art::Ptr<recob::Hit> > otherPlaneHits = showerHits.at(otherPlanes.at(0));
-      for (std::vector<art::Ptr<recob::Hit> >::const_iterator otherPlaneHitIt = otherPlaneHits.begin(); otherPlaneHitIt != otherPlaneHits.end(); ++otherPlaneHitIt) {
+      for (std::vector<art::Ptr<recob::Hit> >::const_iterator otherPlaneHitIt = otherPlaneHits.begin();
+	   otherPlaneHitIt != otherPlaneHits.end() and std::find(usedHits.begin(), usedHits.end(), planeHitIt->key()) == usedHits.end();
+	   ++otherPlaneHitIt) {
 
-	if (std::find(usedHits.begin(), usedHits.end(), otherPlaneHitIt->key()) != usedHits.end())
+	if ((*otherPlaneHitIt)->WireID().TPC != (*planeHitIt)->WireID().TPC or
+	    std::find(usedHits.begin(), usedHits.end(), otherPlaneHitIt->key()) != usedHits.end())
 	  continue;
 
 	TVector3 point = Construct3DPoint(*planeHitIt, *otherPlaneHitIt);
@@ -1246,21 +1254,22 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
 
 	  // Also remove hits from third plane (if exists)
 	  // which are associated with these hits
-	  if (otherPlanes.size() > 1 and showerHits.count(otherPlanes.at(1))) {
+	  if (otherPlanes.size() > 1) {
 	    TVector2 projThirdPlane = Project3DPointOntoPlane(point, showerHits.at(otherPlanes.at(1)).at(0)->WireID().planeID());
 	    const std::vector<art::Ptr<recob::Hit> > otherOtherPlaneHits = showerHits.at(otherPlanes.at(1));
 	    for (std::vector<art::Ptr<recob::Hit> >::const_iterator otherOtherPlaneHitIt = otherOtherPlaneHits.begin();
-		 otherOtherPlaneHitIt != otherOtherPlaneHits.end();
-		 ++otherOtherPlaneHitIt)
-	      if ((projThirdPlane-HitPosition(*otherOtherPlaneHitIt)).Mod() < fSpacePointSize)
-		usedHits.push_back(otherOtherPlaneHitIt->key());
+	  	 otherOtherPlaneHitIt != otherOtherPlaneHits.end();
+	  	 ++otherOtherPlaneHitIt)
+	      if ((*otherOtherPlaneHitIt)->WireID().TPC == (*planeHitIt)->WireID().TPC and
+	  	  (projThirdPlane-HitPosition(*otherOtherPlaneHitIt)).Mod() < fSpacePointSize)
+	  	usedHits.push_back(otherOtherPlaneHitIt->key());
 	  }
 	}
 
 	// Make space point
 	if (truePoint) {
 	  double xyz[3] = {point.X(), point.Y(), point.Z()};
-	  double xyzerr[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	  double xyzerr[6] = {fSpacePointSize, fSpacePointSize, fSpacePointSize, fSpacePointSize, fSpacePointSize, fSpacePointSize};
 	  double chisq = 0.;
 	  spacePoints.emplace_back(xyz, xyzerr, chisq);
 	}
@@ -1270,7 +1279,16 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
     } // end loop over first plane hits
 
   } // end loop over planes
-	  
+
+  if (fDebug > 0) {
+    std::cout << "-------------------- Space points -------------------" << std::endl;
+    std::cout << "There are " << spacePoints.size() << " space points:" << std::endl;
+    for (std::vector<recob::SpacePoint>::const_iterator spacePointIt = spacePoints.begin(); spacePointIt != spacePoints.end(); ++spacePointIt) {
+      const double* xyz = spacePointIt->XYZ();
+      std::cout << "  Space point (" << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << ")" << std::endl;
+    }
+  }
+
   return spacePoints;
 
 }
