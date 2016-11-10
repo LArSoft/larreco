@@ -83,6 +83,7 @@ private:
 shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(pset.get<fhicl::ParameterSet>("EMShowerAlg")) {
   this->reconfigure(pset);
   produces<std::vector<recob::Shower> >();
+  produces<std::vector<recob::SpacePoint> >();
   produces<art::Assns<recob::Shower, recob::Hit> >();
   produces<art::Assns<recob::Shower, recob::Cluster> >();
   produces<art::Assns<recob::Shower, recob::Track> >();
@@ -210,6 +211,7 @@ void shower::EMShower::produce(art::Event& evt) {
     art::PtrVector<recob::Hit> showerHits;
     art::PtrVector<recob::Cluster> showerClusters;
     art::PtrVector<recob::Track> showerTracks;
+    art::PtrVector<recob::SpacePoint> showerSpacePoints_p;
 
     std::vector<int> associatedTracks;
 
@@ -248,7 +250,7 @@ void shower::EMShower::produce(art::Event& evt) {
 	if (fmspp.isValid()){
 	  std::vector<art::Ptr<recob::SpacePoint> >spacePoints = fmspp.at(ihit);
 	  for (std::vector<art::Ptr<recob::SpacePoint> >::iterator spacePointsIt = spacePoints.begin(); spacePointsIt != spacePoints.end(); ++spacePointsIt)
-	    spacePoints.push_back(*spacePointsIt);
+	    showerSpacePoints_p.push_back(*spacePointsIt);
 	}
       }
     }
@@ -261,17 +263,19 @@ void shower::EMShower::produce(art::Event& evt) {
       fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fPlane);
 
       // Make space points
-      spacePoints = std::make_unique<std::vector<recob::SpacePoint> >(fEMShowerAlg.MakeSpacePoints(showerHits));
+      std::vector<recob::SpacePoint> showerSpacePoints = fEMShowerAlg.MakeSpacePoints(showerHits);
+      for (std::vector<recob::SpacePoint>::const_iterator spacePointIt = showerSpacePoints.begin(); spacePointIt != showerSpacePoints.end(); ++spacePointIt)
+	spacePoints->emplace_back(spacePointIt->XYZ(), spacePointIt->ErrXYZ(), spacePointIt->Chisq(), spacePoints->size());
 
       // Make shower object and associations
       recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, initialTrack, initialTrackHits);
       shower.set_id(showerNum);
       if ( fSaveNonCompleteShowers or (!fSaveNonCompleteShowers and shower.ShowerStart() != TVector3(0,0,0)) ) {
 	showers->push_back(shower);
-	util::CreateAssn(*this, evt, *(showers.get()), showerHits,           *(hitAssociations.get()));
-	util::CreateAssn(*this, evt, *(showers.get()), showerClusters,       *(clusterAssociations.get()));
-	util::CreateAssn(*this, evt, *(showers.get()), showerTracks,         *(trackAssociations.get()));
-	util::CreateAssn(*this, evt, *(showers.get()), *(spacePoints.get()), *(spacePointAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
+	util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()), 0, TMath::Max((int)showerSpacePoints.size()-1,0));
       }
       else
 	mf::LogInfo("EMShower") << "Discarding shower " << showerNum << " due to incompleteness (SaveNonCompleteShowers == false)";
@@ -287,10 +291,10 @@ void shower::EMShower::produce(art::Event& evt) {
 	if (iok==0) {
 	  showers->push_back(shower);
 	  showers->back().set_id(showers->size()-1);
-	  util::CreateAssn(*this, evt, *(showers.get()), showerHits,        *(hitAssociations.get()));
-	  util::CreateAssn(*this, evt, *(showers.get()), showerClusters,    *(clusterAssociations.get()));
-	  util::CreateAssn(*this, evt, *(showers.get()), showerTracks,      *(trackAssociations.get()));
-	  util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints, *(spacePointAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerHits,          *(hitAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerClusters,      *(clusterAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerTracks,        *(trackAssociations.get()));
+	  util::CreateAssn(*this, evt, *(showers.get()), showerSpacePoints_p, *(spacePointAssociations.get()));
 	}
       }
 

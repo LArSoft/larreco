@@ -223,6 +223,7 @@ private:
   // Parameters
   double fMinTrackLength;
   double fdEdxTrackLength;
+  double fSpacePointSize;
   // Parameters to fit wire vs time
   unsigned int         fNfitpass;
   std::vector<unsigned int>     fNfithits;
