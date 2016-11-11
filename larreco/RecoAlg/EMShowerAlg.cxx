@@ -1176,7 +1176,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
   return recob::Shower();
 }
 
-std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::PtrVector<recob::Hit>& hits) {
+std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::PtrVector<recob::Hit>& hits, std::vector<std::vector<art::Ptr<recob::Hit> > >& hitAssns) {
 
   // Space points to return
   std::vector<recob::SpacePoint> spacePoints;
@@ -1198,11 +1198,11 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
   //  -- Project this 3D point back into the two planes
   //  -- Determine how close to a the original hits this point lies
   //  -- If close enough, make a 3D space point from this point
-  //  -- Discard these used hits in future iterations, along with hits in the
-  //       third plane (if exists) close to the projection of the point into this plane
+  // //  -- Discard these used hits in future iterations, along with hits in the
+  // //       third plane (if exists) close to the projection of the point into this plane
 
-  // Container to hold used hits
-  std::vector<int> usedHits;
+  // // Container to hold used hits
+  // std::vector<int> usedHits;
 
   // Look through plane by plane
   for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::const_iterator showerHitIt = showerHits.begin(); showerHitIt != showerHits.end(); ++showerHitIt) {
@@ -1220,20 +1220,21 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
     // Look at all hits on this plane
     for (std::vector<art::Ptr<recob::Hit> >::const_iterator planeHitIt = showerHitIt->second.begin(); planeHitIt != showerHitIt->second.end(); ++planeHitIt) {
 
-      if (std::find(usedHits.begin(), usedHits.end(), planeHitIt->key()) != usedHits.end())
-	continue;
+      // if (std::find(usedHits.begin(), usedHits.end(), planeHitIt->key()) != usedHits.end())
+      // 	continue;
 
       // Make a 3D point with every hit on the second plane
       const std::vector<art::Ptr<recob::Hit> > otherPlaneHits = showerHits.at(otherPlanes.at(0));
       for (std::vector<art::Ptr<recob::Hit> >::const_iterator otherPlaneHitIt = otherPlaneHits.begin();
-	   otherPlaneHitIt != otherPlaneHits.end() and std::find(usedHits.begin(), usedHits.end(), planeHitIt->key()) == usedHits.end();
+	   otherPlaneHitIt != otherPlaneHits.end();// and std::find(usedHits.begin(), usedHits.end(), planeHitIt->key()) == usedHits.end();
 	   ++otherPlaneHitIt) {
 
-	if ((*otherPlaneHitIt)->WireID().TPC != (*planeHitIt)->WireID().TPC or
-	    std::find(usedHits.begin(), usedHits.end(), otherPlaneHitIt->key()) != usedHits.end())
+	if ((*otherPlaneHitIt)->WireID().TPC != (*planeHitIt)->WireID().TPC)// or
+	    //std::find(usedHits.begin(), usedHits.end(), otherPlaneHitIt->key()) != usedHits.end())
 	  continue;
 
 	TVector3 point = Construct3DPoint(*planeHitIt, *otherPlaneHitIt);
+	std::vector<art::Ptr<recob::Hit> > pointHits;
 	bool truePoint = false;
 
 	// Determine whether or not this 3D point makes sense
@@ -1248,9 +1249,13 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
 	  // True point!
 	  truePoint = true;
 
-	  // Remove hits used to make the point
-	  usedHits.push_back(planeHitIt->key());
-	  usedHits.push_back(otherPlaneHitIt->key());
+	  // // Remove hits used to make the point
+	  // usedHits.push_back(planeHitIt->key());
+	  // usedHits.push_back(otherPlaneHitIt->key());
+
+	  // Associate these hits with the space point
+	  pointHits.push_back(*planeHitIt);
+	  pointHits.push_back(*otherPlaneHitIt);
 
 	  // Also remove hits from third plane (if exists)
 	  // which are associated with these hits
@@ -1259,10 +1264,13 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
 	    const std::vector<art::Ptr<recob::Hit> > otherOtherPlaneHits = showerHits.at(otherPlanes.at(1));
 	    for (std::vector<art::Ptr<recob::Hit> >::const_iterator otherOtherPlaneHitIt = otherOtherPlaneHits.begin();
 	  	 otherOtherPlaneHitIt != otherOtherPlaneHits.end();
-	  	 ++otherOtherPlaneHitIt)
+	  	 ++otherOtherPlaneHitIt) {
 	      if ((*otherOtherPlaneHitIt)->WireID().TPC == (*planeHitIt)->WireID().TPC and
-	  	  (projThirdPlane-HitPosition(*otherOtherPlaneHitIt)).Mod() < fSpacePointSize)
-	  	usedHits.push_back(otherOtherPlaneHitIt->key());
+	  	  (projThirdPlane-HitPosition(*otherOtherPlaneHitIt)).Mod() < fSpacePointSize) {
+	  	//usedHits.push_back(otherOtherPlaneHitIt->key());
+		pointHits.push_back(*otherOtherPlaneHitIt);
+	      }
+	    }
 	  }
 	}
 
@@ -1272,6 +1280,7 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(const art::P
 	  double xyzerr[6] = {fSpacePointSize, fSpacePointSize, fSpacePointSize, fSpacePointSize, fSpacePointSize, fSpacePointSize};
 	  double chisq = 0.;
 	  spacePoints.emplace_back(xyz, xyzerr, chisq);
+	  hitAssns.push_back(pointHits);
 	}
 
       } // end loop over second plane hits
