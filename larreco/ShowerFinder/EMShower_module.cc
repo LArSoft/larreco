@@ -269,7 +269,6 @@ void shower::EMShower::produce(art::Event& evt) {
       std::vector<recob::SpacePoint> showerSpacePoints = fEMShowerAlg.MakeSpacePoints(showerHits, hitAssns);
       int firstSpacePoint = spacePoints->size(), nSpacePoint = 0;
       for (std::vector<recob::SpacePoint>::const_iterator spacePointIt = showerSpacePoints.begin(); spacePointIt != showerSpacePoints.end(); ++spacePointIt, ++nSpacePoint) {
-	std::cout << "Looking at space point " << nSpacePoint << std::endl;
 	spacePoints->emplace_back(spacePointIt->XYZ(), spacePointIt->ErrXYZ(), spacePointIt->Chisq(), spacePoints->size());
 	util::CreateAssn(*this, evt, *(spacePoints.get()), hitAssns.at(nSpacePoint), *(hitSpAssociations.get()));
       }
