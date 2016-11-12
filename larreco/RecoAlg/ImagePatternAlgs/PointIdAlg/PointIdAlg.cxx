@@ -694,6 +694,10 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, 
 	{
 	    mf::LogWarning("TrainingDataAlg") << "Vertex projection out of wire planes, just skipping this vertex.";
 	}
+	catch (...)
+	{
+	    mf::LogWarning("TrainingDataAlg") << "Vertex projection out of wire planes, skip MC vertex.";
+	}
 	return wd;
 }
 // ------------------------------------------------------
