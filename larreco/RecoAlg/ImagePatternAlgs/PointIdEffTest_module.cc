@@ -52,9 +52,9 @@
 
 namespace nnet
 {
-	typedef std::map< unsigned int, std::vector< std::vector< art::Ptr<recob::Hit> > > > view_clmap;
-	typedef std::map< unsigned int, view_clmap > tpc_view_clmap;
-	typedef std::map< unsigned int, tpc_view_clmap > cryo_tpc_view_clmap;
+	typedef std::unordered_map< unsigned int, std::vector< std::vector< art::Ptr<recob::Hit> > > > view_clmap;
+	typedef std::unordered_map< unsigned int, view_clmap > tpc_view_clmap;
+	typedef std::unordered_map< unsigned int, tpc_view_clmap > cryo_tpc_view_clmap;
 
 	class PointIdEffTest;
 }
@@ -126,17 +126,14 @@ public:
     virtual void analyze(art::Event const & e) override;
 
 private:
-
-  // Declare member data here.
+    void cleanup(void);
 
 	int GetMCParticle(std::vector< art::Ptr<recob::Hit> > const & hits);
 
 	void GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, int mctype);
 
-	void TestEffParticle();
-
-	int fRun;
-	int fEvent;
+	int fRun, fEvent;
+    float fMcDepEM, fMcDepTrack;
 
 	int fShower;
 	int fTrack;
@@ -155,11 +152,10 @@ private:
 	int fTotal;
 
 	double fElectronsToGeV;
-	int fSimTrackID;
 	float fOutTrk;
 	float fOutSh;
 
-	TTree *fTree, *fTreecl;
+	TTree *fEventTree, *fClusterTree, *fHitTree;
 
 	std::ofstream fHitsOutFile;
 
@@ -169,18 +165,13 @@ private:
 
 	geo::GeometryCore const* fGeometry;
 
-	std::map< int, const simb::MCParticle* > fParticleMap;
+	std::unordered_map< int, const simb::MCParticle* > fParticleMap;
 
 	art::Handle< std::vector<simb::MCParticle> > fParticleHandle;
 	art::Handle< std::vector<sim::SimChannel> > fSimChannelHandle;
 	art::Handle< std::vector<recob::Wire> > fWireHandle;
 	art::Handle< std::vector<recob::Hit> > fHitListHandle;
 	art::Handle< std::vector<recob::Cluster> > fClusterListHandle;
-
-	std::vector< art::Ptr<sim::SimChannel> > fChannellist;
-	std::vector< art::Ptr<simb::MCParticle> > fSimlist;
-	std::vector< art::Ptr<recob::Hit> > fHitlist;
-	std::vector< art::Ptr<recob::Cluster> > fClusterlist;
 
 	cryo_tpc_view_clmap fClMap;	
 
@@ -192,13 +183,10 @@ private:
 };
 
 nnet::PointIdEffTest::PointIdEffTest(nnet::PointIdEffTest::Parameters const& config) : art::EDAnalyzer(config),
-	fShower(0),
-	fTrack(1),
-	fMCpid(-1),
-	fClsize(0),
-	fRecoPid(-1),
+	fShower(0), fTrack(1), fMCpid(-1), fClsize(0), fRecoPid(-1),
 	fTrkOk(0), fTrkB(0), fShOk(0),
 	fShB(0), fNone(0), fTotal(0),
+
  	fPointIdAlg(config().PointIdAlg()),
 	fThreshold(config().Threshold()),
 	fView(config().View()),
@@ -219,19 +207,21 @@ void nnet::PointIdEffTest::beginRun(const art::Run&)
 
 void nnet::PointIdEffTest::beginJob()
 {
-	// access art's TFileService, which will handle creating and writing hists
 	art::ServiceHandle<art::TFileService> tfs;
 
-	fTree = tfs->make<TTree>("hit","hit tree");
+    fEventTree = tfs->make<TTree>("event","event info");
+    fEventTree->Branch("fRun", &fRun, "fRun/I");
+    fEventTree->Branch("fEvent", &fEvent, "fEvent/I");
 
-	fTree->Branch("fOutSh", &fOutSh, "fOutSh/F");
-	fTree->Branch("fOutTrk", &fOutTrk, "fOutTrk/F");
+	fHitTree = tfs->make<TTree>("hit","hits info");
+	fHitTree->Branch("fOutSh", &fOutSh, "fOutSh/F");
+	fHitTree->Branch("fOutTrk", &fOutTrk, "fOutTrk/F");
 
-	fTreecl = tfs->make<TTree>("cluster","cluster tree");
-	fTreecl->Branch("fMCpid", &fMCpid, "fMCpid/I");
-	fTreecl->Branch("fClsize", &fClsize, "fClsize/I");
-	fTreecl->Branch("fRecoPid", &fRecoPid, "fRecoPid/I");
-	fTreecl->Branch("fPidValue", &fPidValue, "fPidValue/D");
+	fClusterTree = tfs->make<TTree>("cluster","clusters info");
+	fClusterTree->Branch("fMCpid", &fMCpid, "fMCpid/I");
+	fClusterTree->Branch("fClsize", &fClsize, "fClsize/I");
+	fClusterTree->Branch("fRecoPid", &fRecoPid, "fRecoPid/I");
+	fClusterTree->Branch("fPidValue", &fPidValue, "fPidValue/D");
 
 	if (fSaveHitsFile) fHitsOutFile.open("hits_pid.prn");
 }
@@ -247,33 +237,38 @@ void nnet::PointIdEffTest::endJob()
 	std::cout << " fShErr " << fShB / float(fShB + fShOk) << " fTrkErr " << fTrkB / float(fTrkB + fTrkOk) << std::endl;
 }
 
+void nnet::PointIdEffTest::cleanup(void)
+{
+    fClMap.clear();
+
+	fOutSh = -1; fOutTrk = -1;
+
+    fMcDepEM = 0; fMcDepTrack = 0;
+}
+
 void nnet::PointIdEffTest::analyze(art::Event const & e)
 {
-  // Implementation of required member function here.
+    cleanup(); // remove everything from member vectors and maps
 
 	fRun = e.run();
 	fEvent = e.id().event();
-	fSimTrackID = -1; 
-	fOutSh = -1; fOutTrk = -1;
-	fClMap.clear();
 
 	// access to MC information
 	
-	// MC Particle
-
+	// MC particles list
+	std::vector< art::Ptr<simb::MCParticle> > particleList;
 	if (e.getByLabel(fSimulationProducerLabel, fParticleHandle))
-		art::fill_ptr_vector(fSimlist, fParticleHandle);
-	
-	
-	for ( auto const& particle : (*fParticleHandle) )
+		art::fill_ptr_vector(particleList, fParticleHandle);
+
+	for (auto const& particle : *fParticleHandle)
 	{
-		fSimTrackID = particle.TrackId();
-		fParticleMap[fSimTrackID] = &particle;
+		fParticleMap[particle.TrackId()] = &particle;
 	}
 
-	// simChannel
+	// SimChannels
+	std::vector< art::Ptr<sim::SimChannel> > channelList;
 	if (e.getByLabel(fSimulationProducerLabel, fSimChannelHandle))
-		art::fill_ptr_vector(fChannellist, fSimChannelHandle);
+		art::fill_ptr_vector(channelList, fSimChannelHandle);
 
 	// output from reconstruction
 
@@ -281,12 +276,14 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	if (!e.getByLabel(fWireProducerLabel, fWireHandle)) return;
 
 	// hits
+	std::vector< art::Ptr<recob::Hit> > hitList;
 	if (e.getByLabel(fHitsModuleLabel, fHitListHandle))
-		art::fill_ptr_vector(fHitlist, fHitListHandle);
+		art::fill_ptr_vector(hitList, fHitListHandle);
 
 	// clusters
+	std::vector< art::Ptr<recob::Cluster> > clusterList;
 	if (e.getByLabel(fClusterModuleLabel, fClusterListHandle))
-		art::fill_ptr_vector(fClusterlist, fClusterListHandle);
+		art::fill_ptr_vector(clusterList, fClusterListHandle);
  
 
 	const art::FindManyP<recob::Hit> findManyHits(fClusterListHandle, e, fClusterModuleLabel);
@@ -325,7 +322,9 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 				}
 			}
 		}
-	}	
+	}
+
+	cleanup(); // remove everything from member vectors and maps
 }
 
 /******************************************/
@@ -470,14 +469,7 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 		}
 	}
 	
-	fTreecl->Fill();	
-}
-
-/******************************************/
-
-void nnet::PointIdEffTest::TestEffParticle()
-{
-		// to be filled.
+	fClusterTree->Fill();	
 }
 
 /******************************************/
