@@ -128,7 +128,9 @@ public:
 private:
     void cleanup(void);
 
-	int GetMCParticle(std::vector< art::Ptr<recob::Hit> > const & hits);
+	int GetMCParticle(
+	    const std::vector< sim::SimChannel > & channels,
+        const std::vector< art::Ptr<recob::Hit> > & hits);
 
 	void GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, int mctype);
 
@@ -166,12 +168,6 @@ private:
 	geo::GeometryCore const* fGeometry;
 
 	std::unordered_map< int, const simb::MCParticle* > fParticleMap;
-
-	art::Handle< std::vector<simb::MCParticle> > fParticleHandle;
-	art::Handle< std::vector<sim::SimChannel> > fSimChannelHandle;
-	art::Handle< std::vector<recob::Wire> > fWireHandle;
-	art::Handle< std::vector<recob::Hit> > fHitListHandle;
-	art::Handle< std::vector<recob::Cluster> > fClusterListHandle;
 
 	cryo_tpc_view_clmap fClMap;	
 
@@ -256,39 +252,39 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	// access to MC information
 	
 	// MC particles list
+	auto particleHandle = e.getValidHandle< std::vector<simb::MCParticle> >(fSimulationProducerLabel);
 	std::vector< art::Ptr<simb::MCParticle> > particleList;
-	if (e.getByLabel(fSimulationProducerLabel, fParticleHandle))
-		art::fill_ptr_vector(particleList, fParticleHandle);
+	art::fill_ptr_vector(particleList, particleHandle);
 
-	for (auto const& particle : *fParticleHandle)
+	for (auto const& particle : *particleHandle)
 	{
 		fParticleMap[particle.TrackId()] = &particle;
 	}
 
 	// SimChannels
+	auto simChannelHandle = e.getValidHandle< std::vector<sim::SimChannel> >(fSimulationProducerLabel);
 	std::vector< art::Ptr<sim::SimChannel> > channelList;
-	if (e.getByLabel(fSimulationProducerLabel, fSimChannelHandle))
-		art::fill_ptr_vector(channelList, fSimChannelHandle);
+	art::fill_ptr_vector(channelList, simChannelHandle);
 
 	// output from reconstruction
 
 	// wires
-	if (!e.getByLabel(fWireProducerLabel, fWireHandle)) return;
+	auto wireHandle = e.getValidHandle< std::vector<recob::Wire> >(fWireProducerLabel);
 
 	// hits
+	auto hitListHandle = e.getValidHandle< std::vector<recob::Hit> >(fHitsModuleLabel);
 	std::vector< art::Ptr<recob::Hit> > hitList;
-	if (e.getByLabel(fHitsModuleLabel, fHitListHandle))
-		art::fill_ptr_vector(hitList, fHitListHandle);
+	art::fill_ptr_vector(hitList, hitListHandle);
 
 	// clusters
+	auto clusterListHandle = e.getValidHandle< std::vector<recob::Cluster> >(fClusterModuleLabel);
 	std::vector< art::Ptr<recob::Cluster> > clusterList;
-	if (e.getByLabel(fClusterModuleLabel, fClusterListHandle))
-		art::fill_ptr_vector(clusterList, fClusterListHandle);
+	art::fill_ptr_vector(clusterList, clusterListHandle);
  
 
-	const art::FindManyP<recob::Hit> findManyHits(fClusterListHandle, e, fClusterModuleLabel);
+	const art::FindManyP<recob::Hit> findManyHits(clusterListHandle, e, fClusterModuleLabel);
 
-	for (size_t clid = 0; clid != fClusterListHandle->size(); ++clid)
+	for (size_t clid = 0; clid != clusterListHandle->size(); ++clid)
 	{
 		auto const& hits = findManyHits.at(clid);
 		if (!hits.size()) continue;
@@ -311,13 +307,15 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 				unsigned int view = v.first;
 				if (view == fView)
 				{
-					fPointIdAlg.setWireDriftData(*fWireHandle, view, tpc, cryo);
+					fPointIdAlg.setWireDriftData(*wireHandle, view, tpc, cryo);
 
 					for (auto const& h : v.second)
 					{  
-						int mctype = GetMCParticle(h); // mctype == -1 : problem with simchannel
+						int mctype = GetMCParticle(*simChannelHandle, h); // mctype == -1 : problem with simchannel
 						if (mctype > -1)
-							GetRecoParticle(h, mctype);
+						{
+						    GetRecoParticle(h, mctype);
+						}
 					}
 				}
 			}
@@ -329,7 +327,9 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
 /******************************************/
 
-int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > const & hits)
+int nnet::PointIdEffTest::GetMCParticle(
+    const std::vector< sim::SimChannel > & channels,
+    const std::vector< art::Ptr<recob::Hit> > & hits)
 {
 
 	// in argument vector hitow danego klastra
@@ -345,7 +345,7 @@ int nnet::PointIdEffTest::GetMCParticle(std::vector< art::Ptr<recob::Hit> > cons
 		// the channel associated with this hit.
 		auto hitChannelNumber = hit->Channel();
 
-		for ( auto const& channel : (*fSimChannelHandle) )
+		for ( auto const& channel : channels )
 		{
 			auto simChannelNumber = channel.Channel();
 
