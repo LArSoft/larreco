@@ -294,8 +294,6 @@ namespace tca {
     // then by start of the region of interest in time, then by the multiplet
     std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
 
-//    SetHitMultiplicity();
-
     // check for debugging mode triggered by Plane, Wire, Tick
     if(debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
       std::cout<<"Looking for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
@@ -327,11 +325,17 @@ namespace tca {
     fIsRealData = evt.isRealData();
     didPrt = false;
     
-    fStepDir = fMode;
+    if(fMode > 0) {
+      fStepDir = 1;
+    } else {
+      fStepDir = -1;
+    }
     InitializeAllTraj();
     for (geo::TPCID const& tpcid: geom->IterateTPCIDs()) {
       geo::TPCGeo const& TPC = geom->TPC(tpcid);
       FillWireHitRange(tpcid);
+      // temp for evaluation
+//      if(abs(fMode) > 1) SetHitMultiplicity();
       if(fQuitAlg) return;
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         // no hits on this plane?
@@ -1287,9 +1291,47 @@ namespace tca {
       unsigned short pdg = abs(part->PdgCode());
       bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
       if(!isCharged) continue;
-      if(fMatchTruth[1] > 2) std::cout<<partList.size()<<" PDG Code  "<<part->PdgCode()<<" TrackId "<<part->TrackId()<<" sourcePtclTrackID  "<<sourcePtclTrackID<<" Origin "<<theTruth->Origin()<<" Process "<<part->Process()<<"\n";
+      if(fMatchTruth[1] > 2) std::cout<<partList.size()<<" PDG Code  "<<part->PdgCode()<<" TrackId "<<part->TrackId()<<" Mother  "<<part->Mother()<<" Origin "<<theTruth->Origin()<<" Process "<<part->Process()<<"\n";
       partList.push_back(part);
     } // ipart
+    
+    // vector of (mother, daughter) pairs
+    std::vector<std::pair<int, int>> moda;
+
+    if(sourcePtclTrackID >= 0) {
+      // daughters appear later in the list so reverse iterate
+      for(unsigned short ii = 0; ii < partList.size(); ++ii) {
+        unsigned short dpl = partList.size() - 1 - ii;
+        if(partList[dpl]->Mother() == 0) continue;
+        int motherID = partList[dpl]->Mother() + sourcePtclTrackID - 1;
+        // count the number of daughters
+        unsigned short ndtr = 0;
+        for(unsigned short jj = 0; jj < partList.size(); ++jj) {
+          // some processes to ignore
+          if(partList[jj]->Process() == "hIoni") continue;
+          if(partList[jj]->Process() == "eIoni") continue;
+          if(partList[jj]->Mother() == partList[dpl]->Mother()) ++ndtr;
+        } // jj
+        // require only one daughter
+        if(ndtr != 1) continue;
+        // Then find the mother index
+        unsigned short momIndex = USHRT_MAX;
+        for(unsigned short jj = 0; jj < partList.size(); ++jj) {
+          if(partList[jj]->TrackId() == motherID) {
+            momIndex = jj;
+            break;
+          }
+        } // jj
+        // Mother not found for some reason
+        if(momIndex == USHRT_MAX) continue;
+        // ensure that mother and daughter have the same PDG code
+        if(partList[momIndex]->PdgCode() != partList[dpl]->PdgCode()) continue;
+        moda.push_back(std::make_pair(partList[momIndex]->TrackId(), partList[dpl]->TrackId()));
+        if(fMatchTruth[1] > 1) mf::LogVerbatim("TC")<<"dtr "<<partList[dpl]->TrackId()<<" mother "<<partList[momIndex]->TrackId();
+      } // ii
+    } // sourcePtclTrackID >= 0
+
+    
     // Match all hits to the truth. Put the MC track ID in a temp vector
     std::vector<int> hitTruTrkID(tjs.fHits.size());
     // Prepare to count of the number of hits matched to each MC Track in each plane
@@ -1316,6 +1358,12 @@ namespace tca {
       } // itid
       // not matched (confidently) to a MC track
       if(hitTruTrkID[iht] == 0) continue;
+
+      // Try to re-assign it to a mother. Note that the mother-daughter pairs
+      // are in reverse order, so this loop will transfer all-generation daughters
+      // to the (grand) mother
+      for(auto& md : moda) if(md.second == hitTruTrkID[iht]) hitTruTrkID[iht] = md.first;
+
       // count the number of matched hits for each MC track in each plane
       for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
         if(hitTruTrkID[iht] == partList[ipl]->TrackId()) {
@@ -1376,7 +1424,10 @@ namespace tca {
           unsigned int lht = 0;
           for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
             if(tjs.fHits[iht].WireID.Plane != plane) continue;
-            if(hitTruTrkID[iht] != partList[ipl]->TrackId()) continue;
+            unsigned short momTrackID = partList[ipl]->TrackId();
+            // Look for the real mother
+            for(auto& md : moda) if(md.second == momTrackID) momTrackID = md.first;
+            if(hitTruTrkID[iht] != momTrackID) continue;
             if(fht == UINT_MAX) fht = iht;
             lht = iht;
           } // iht
@@ -1387,7 +1438,7 @@ namespace tca {
       } // ipl
     }
 
-    // Declare a TJ - partlist match for the trajectory which has the most true hits
+    // Declare a TJ - partlist match for the trajectory which has the most true hits.
     // another temp vector for the one-to-one match
     std::vector<std::vector<unsigned short>> partListToTjID(partList.size());
     for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) partListToTjID[ipl].resize(tjs.NumPlanes);
@@ -1423,7 +1474,6 @@ namespace tca {
           tjs.allTraj[tjWithMostHits].TruKE = 1000 * (partList[ipl]->E() - partList[ipl]->Mass());
           tjs.allTraj[tjWithMostHits].EffPur = effpur;
           partListToTjID[ipl][plane] = tjs.allTraj[tjWithMostHits].ID;
-//          std::cout<<ipl<<" plane "<<plane<<" nTruHits "<<nTruHits<<" Tj ID "<<tjs.allTraj[tjWithMostHits].ID<<" nTjHits "<<nTjHits<<" nTjTruRecHits "<<nTjTruRecHits<<" eff "<<eff<<" pur "<<pur<<" effpur "<<eff*pur<<"\n";
         }
       } // plane
     } // ipl
@@ -1444,7 +1494,10 @@ namespace tca {
         // find the first and last matched hit in this plane
         for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
           if(tjs.fHits[iht].WireID.Plane != plane) continue;
-          if(hitTruTrkID[iht] != partList[ipl]->TrackId()) continue;
+          unsigned short momTrackID = partList[ipl]->TrackId();
+          // Look for the real mother
+          for(auto& md : moda) if(md.second == momTrackID) momTrackID = md.first;
+          if(hitTruTrkID[iht] != momTrackID) continue;
           if(fht == UINT_MAX) fht = iht;
           lht = iht;
         } // iht
@@ -1897,10 +1950,10 @@ namespace tca {
       }
     } // ii
     if(secondBest == USHRT_MAX) return;
-/*
     // determine if the second best hit should be considered with the
     // first as a multiplet. Find the hit separation significance.
     unsigned int secondBestHit = tp.Hits[secondBest];
+/*
     float dtick = std::abs(tjs.fHits[bestHit].PeakTime - tjs.fHits[secondBestHit].PeakTime);
     float rms = tjs.fHits[bestHit].RMS;
     if(tjs.fHits[secondBestHit].RMS > rms) rms = tjs.fHits[secondBestHit].RMS;
@@ -3292,8 +3345,8 @@ namespace tca {
             dXSigma = sqrt(vXsigma[ivx] * vXsigma[ivx] + vXsigma[jvx] * vXsigma[jvx]);
             dXChi = dX / dXSigma;
             
-            if(vtxPrt) mf::LogVerbatim("CC")<<"Find3DVertices: ipl "<<ipl<<" ivx "<<ivx<<" ivX "<<vX[ivx]
-              <<" jpl "<<jpl<<" jvx "<<jvx<<" jvX "<<vX[jvx]<<" W:T "<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" fVertex3DChiCut "<<fVertex3DChiCut;
+            if(vtxPrt) mf::LogVerbatim("CC")<<"Find3DVertices: ipl "<<ipl<<" ivxID "<<tjs.vtx[ivx].ID<<" ivX "<<vX[ivx]
+              <<" jpl "<<jpl<<" jvxID "<<tjs.vtx[jvx].ID<<" jvX "<<vX[jvx]<<" W:T "<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" fVertex3DChiCut "<<fVertex3DChiCut;
             
             if(dXChi > fVertex3DChiCut) continue;
             if (geom->HasWire(geo::WireID(cstat, tpc, ipl, iWire))&&
@@ -3346,7 +3399,7 @@ namespace tca {
             // push the incomplete vertex onto the list
             v3temp.push_back(v3d);
             
-            if(vtxPrt) mf::LogVerbatim("CC")<<"Find3DVertices: 2 Plane match ivx "<<ivx<<" P:W:T "<<ipl<<":"<<(int)tjs.vtx[ivx].Pos[0]<<":"<<(int)tjs.vtx[ivx].Pos[1]<<" jvx "<<jvx<<" P:W:T "<<jpl<<":"<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" yzSigma "<<yzSigma;
+            if(vtxPrt) mf::LogVerbatim("CC")<<"Find3DVertices: 2 Plane match ivxID "<<tjs.vtx[ivx].ID<<" P:W:T "<<ipl<<":"<<(int)tjs.vtx[ivx].Pos[0]<<":"<<(int)tjs.vtx[ivx].Pos[1]<<" jvxID "<<tjs.vtx[jvx].ID<<" P:W:T "<<jpl<<":"<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" yzSigma "<<yzSigma;
             
             if(TPC.Nplanes() == 2) continue;
 
@@ -3452,7 +3505,7 @@ namespace tca {
     } // ivx
 
     // Try to complete incomplete vertices
-//    if(ninc > 0) CompleteIncomplete3DVertices(tpcid);
+    if(ninc > 0) CompleteIncomplete3DVertices(tpcid);
     
   } // Find3DVertices
   
@@ -3549,7 +3602,7 @@ namespace tca {
       tjs.vtx.push_back(aVtx);
       unsigned short ivx = tjs.vtx.size() - 1;
       tjs.vtx[ivx].ID = ivx + 1;
-      std::cout<<"CIC new vtx "<<tjs.vtx[ivx].ID<<"\n";
+//      std::cout<<"CIC new vtx "<<tjs.vtx[ivx].ID<<"\n";
       vx3.Ptr2D[mPlane] = aVtxIndx;
       vx3.Wire = -1;
       if(prt) mf::LogVerbatim("TC")<<"CompleteIncomplete3DVertices: new 2D tjs.vtx "<<aVtxIndx<<" points to 3D tjs.vtx ";
@@ -3998,7 +4051,7 @@ namespace tca {
           --tjSize;
           tj.AlgMod[kTrimHits] = true;
         } // tj.Pts.size() > fMinPts[tj.Pass]
-        if(prt) PrintTrajectory("CT", tjs, tj, USHRT_MAX);
+        if(prt && tj.Pts.size() < 100) PrintTrajectory("CT", tjs, tj, USHRT_MAX);
       } // not isVLA
 
       // impose the requirement that 70% of the trajectory points should have hits with charge.
@@ -5081,8 +5134,8 @@ namespace tca {
     unsigned short minPtsFit = fMinPtsFit[tj.Pass];
     // just starting out?
     if(lastPt < 6) minPtsFit = 2;
-    if(tj.PDGCode == 13) {
-      // Fitting a muon
+    if(tj.PDGCode == 13 && !TrajIsClean(tjs, tj, prt)) {
+      // Fitting a clean muon
       maxChi = fMaxChi;
       minPtsFit = lastPt / 3;
     }
@@ -5877,55 +5930,97 @@ namespace tca {
     } // itj
 
   } // MakeAllTrajClusters
-  
+/*
   ////////////////////////////////////////////////
   void TrajClusterAlg::SetHitMultiplicity()
   {
     // Define the hit multiplicity
-    unsigned int iht = 0;
-    while(iht < tjs.fHits.size()) {
-      TCHit& theHit = tjs.fHits[iht];
-      unsigned int wire = theHit.WireID.Wire;
-      unsigned short plane = theHit.WireID.Plane;
-      float theTime = theHit.PeakTime;
-      float multRMS = theHit.RMS;
-      float maxAmp = theHit.PeakAmplitude;
-      unsigned int imTall = iht;
-      unsigned int lastHitInMultiplet = iht;
-      for(unsigned int jht = iht + 1; jht < tjs.fHits.size(); ++jht) {
-        if(tjs.fHits[jht].WireID.Plane != plane) break;
-        if(tjs.fHits[jht].WireID.Wire != wire) break;
-        if(tjs.fHits[jht].RMS > multRMS) multRMS = tjs.fHits[iht].RMS;
-        float hitSep = fMultHitSep * multRMS;
-        if(tjs.fHits[jht].PeakTime - theTime > hitSep) break;
-        if(tjs.fHits[jht].PeakAmplitude > maxAmp) {
-          imTall = jht;
-          maxAmp = tjs.fHits[jht].PeakAmplitude;
-        }
-        lastHitInMultiplet = jht;
-      } // jht
-      if(lastHitInMultiplet > iht + 1) {
-        // multiplet
-        std::cout<<"Mult";
-        for(unsigned int mht = iht; mht <= lastHitInMultiplet; ++mht) std::cout<<" "<<PrintHit(tjs.fHits[mht]);
-        std::cout<<"\n";
-        // See if the max amplitude hit is narrow and significantly larger than the other hits
-        bool isNarrow = (tjs.fHits[imTall].RMS < 1.5 * fAveHitRMS[plane]);
-        float nextMaxAmp = 0;
-        for(unsigned int mht = iht; mht <= lastHitInMultiplet; ++mht) {
-          if(mht == imTall) continue;
-          if(tjs.fHits[mht].PeakAmplitude > nextMaxAmp) nextMaxAmp = tjs.fHits[mht].PeakAmplitude;
-        } // mht
-      } else {
-        // singlet
-        theHit.Multiplicity = 1;
-        theHit.LocalIndex = 0;
-      }
-      iht = lastHitInMultiplet + 1;
-    } // iht
     
-  } // SetHitMultiplicity
-
+    // QC check
+    for(auto& hit : tjs.fHits) hit.Multiplicity = 0;
+    
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      for(unsigned int wire = tjs.FirstWire[plane]; wire < tjs.LastWire[plane]; ++wire) {
+        // skip bad wires or no hits on the wire
+        if(tjs.WireHitRange[plane][wire].first < 0) continue;
+        unsigned int iht = (unsigned int)tjs.WireHitRange[plane][wire].first;
+        unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
+        while(iht < lastHit) {
+          TCHit& theHit = tjs.fHits[iht];
+          float theTime = theHit.PeakTime;
+          float multRMS = theHit.RMS;
+          float maxAmp = theHit.PeakAmplitude;
+          unsigned int lastHitInMultiplet = iht;
+          unsigned int imTall = iht;
+          for(unsigned int jht = iht + 1; jht < lastHit; ++jht) {
+            if(tjs.fHits[jht].RMS > multRMS) multRMS = tjs.fHits[jht].RMS;
+            float hitSep = fMultHitSep * multRMS;
+            if(tjs.fHits[jht].PeakTime - theTime > hitSep) break;
+            if(tjs.fHits[jht].PeakAmplitude > maxAmp) {
+              imTall = jht;
+              maxAmp = tjs.fHits[jht].PeakAmplitude;
+            }
+            lastHitInMultiplet = jht;
+          } // jht
+//          std::cout<<"iht "<<iht<<" "<<PrintHit(tjs.fHits[iht])<<" lastHitInMultiplet "<<lastHitInMultiplet<<PrintHit(tjs.fHits[lastHitInMultiplet])<<"\n";
+          if(lastHitInMultiplet > iht) {
+            // multiplet
+            // See if the tall hit is narrow and significantly larger than the other hits
+            bool isNarrow = (tjs.fHits[imTall].RMS < 1.5 * fAveHitRMS[plane]);
+            float nextMaxAmp = 0;
+            for(unsigned int mht = iht; mht <= lastHitInMultiplet; ++mht) {
+              if(mht == imTall) continue;
+              if(tjs.fHits[mht].PeakAmplitude > nextMaxAmp) nextMaxAmp = tjs.fHits[mht].PeakAmplitude;
+            } // mht
+//            std::cout<<"chk "<<iht<<" imTall "<<imTall<<" lastHitInMultiplet "<<lastHitInMultiplet<<" maxAmp "<<maxAmp<<" nextMaxAmp "<<nextMaxAmp<<" isNarrow "<<isNarrow<<"\n";
+            if(isNarrow && maxAmp > 1.5 * nextMaxAmp) {
+              // Tall narrow hit in the range.
+              // Make a multiplet with the hits earlier in time from imTall
+              unsigned short mult = imTall - iht;
+              for(unsigned int mht = iht; mht < imTall; ++mht) {
+                tjs.fHits[mht].Multiplicity = mult;
+                tjs.fHits[mht].LocalIndex = mht - iht;
+                std::cout<<" lo  "<<mht<<" "<<PrintHit(tjs.fHits[mht])<<" mult "<<mult<<" LI "<<tjs.fHits[mht].LocalIndex<<"\n";
+              } // mht
+              // The tall singlet
+              tjs.fHits[imTall].Multiplicity = 1;
+              tjs.fHits[imTall].LocalIndex = 0;
+              std::cout<<" tall "<<imTall<<" "<<PrintHit(tjs.fHits[imTall])<<"\n";
+              // Make a multiplet with the hits later in time from imTall
+              mult = lastHitInMultiplet - imTall;
+              for(unsigned int mht = imTall + 1; mht <= lastHitInMultiplet; ++mht) {
+                tjs.fHits[mht].Multiplicity = mult;
+                tjs.fHits[mht].LocalIndex = mht - imTall - 1;
+                std::cout<<" hi  "<<mht<<" "<<PrintHit(tjs.fHits[mht])<<" mult "<<mult<<" LI "<<tjs.fHits[mht].LocalIndex<<"\n";
+              } // mht
+            } else {
+              // No tall narrow hit - make 1 multiplet
+              std::cout<<"mult "<<lastHitInMultiplet - iht;
+              for(unsigned int mht = iht; mht <= lastHitInMultiplet; ++mht) {
+                tjs.fHits[mht].Multiplicity = lastHitInMultiplet - iht;
+                tjs.fHits[mht].LocalIndex = mht - iht;
+                std::cout<<" "<<PrintHit(tjs.fHits[mht]);
+              } // mht
+              std::cout<<"\n";
+            } // No tall narrow hit
+          } else {
+            // single hit
+            tjs.fHits[iht].Multiplicity = 1;
+            tjs.fHits[iht].LocalIndex = 0;
+          }
+          iht = lastHitInMultiplet + 1;
+        } // iht
+        for(unsigned int iht = tjs.WireHitRange[plane][wire].first; iht < lastHit; ++iht) {
+          if(tjs.fHits[iht].Multiplicity == 0) {
+            std::cout<<"Oops "<<iht<<" "<<PrintHit(tjs.fHits[iht])<<"\n";
+            exit(1);
+          }
+        } // iht
+      } // wire
+    } // plane
+    
+    } // SetHitMultiplicity
+*/
   ////////////////////////////////////////////////
   void TrajClusterAlg::GetHitMultiplet(unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet)
   {
@@ -5938,7 +6033,17 @@ namespace tca {
   {
     hitsInMultiplet.clear();
     if(theHit > tjs.fHits.size() - 1) return;
-
+/*
+    // testing
+    if(abs(fMode) > 1) {
+      unsigned int mult = tjs.fHits[theHit].Multiplicity;
+      hitsInMultiplet.resize(mult);
+      localIndex = tjs.fHits[theHit].LocalIndex;
+      unsigned int first = theHit - localIndex;
+      for(unsigned short cnt = 0; cnt < mult; ++cnt) hitsInMultiplet[cnt] = first + cnt;
+      return;
+    } // testing
+*/
     hitsInMultiplet.resize(1);
     hitsInMultiplet[0] = theHit;
     
