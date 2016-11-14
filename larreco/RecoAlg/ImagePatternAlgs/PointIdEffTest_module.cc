@@ -61,6 +61,7 @@ namespace nnet
 
 class nnet::PointIdEffTest : public art::EDAnalyzer {
 public:
+    enum EId { kShower = 0, kTrack = 1 };
 
 	struct Config {
 		using Name = fhicl::Name;
@@ -128,6 +129,10 @@ public:
 private:
     void cleanup(void);
 
+    void countTruthDep(
+        const std::vector< sim::SimChannel > & channels,
+        float & emLike, float & trackLike) const;
+
 	int GetMCParticle(
 	    const std::vector< sim::SimChannel > & channels,
         const std::vector< art::Ptr<recob::Hit> > & hits);
@@ -135,12 +140,13 @@ private:
 	void GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, int mctype);
 
 	int fRun, fEvent;
-    float fMcDepEM, fMcDepTrack;
+    float fMcDepEM, fMcDepTrack, fMcFractionEM;
+    float fHitEM_0p5, fHitTrack_0p5, fHitFractionEM_0p5;
+    float fHitEM_0p85, fHitTrack_0p85;
+    float fTotHit, fCleanHit;
 
-	int fShower;
-	int fTrack;
-	int fMCpid;
-	int fClsize;
+	int fMcPid;
+	int fClSize;
 	int fRecoPid;
 	int fPure;
 	double fPidValue;
@@ -179,7 +185,7 @@ private:
 };
 
 nnet::PointIdEffTest::PointIdEffTest(nnet::PointIdEffTest::Parameters const& config) : art::EDAnalyzer(config),
-	fShower(0), fTrack(1), fMCpid(-1), fClsize(0), fRecoPid(-1),
+	fMcPid(-1), fClSize(0), fRecoPid(-1),
 	fTrkOk(0), fTrkB(0), fShOk(0),
 	fShB(0), fNone(0), fTotal(0),
 
@@ -208,14 +214,23 @@ void nnet::PointIdEffTest::beginJob()
     fEventTree = tfs->make<TTree>("event","event info");
     fEventTree->Branch("fRun", &fRun, "fRun/I");
     fEventTree->Branch("fEvent", &fEvent, "fEvent/I");
+    fEventTree->Branch("fMcDepEM", &fMcDepEM, "fMcDepEM/F");
+    fEventTree->Branch("fMcDepTrack", &fMcDepTrack, "fMcDepTrack/F");
+    fEventTree->Branch("fMcFractionEM", &fMcFractionEM, "fMcFractionEM/F");
+    fEventTree->Branch("fHitEM_0p5", &fHitEM_0p5, "fHitEM_0p5/F");
+    fEventTree->Branch("fHitTrack_0p5", &fHitTrack_0p5, "fHitTrack_0p5/F");
+    fEventTree->Branch("fHitFractionEM_0p5", &fHitFractionEM_0p5, "fHitFractionEM_0p5/F");
+    fEventTree->Branch("fHitEM_0p85", &fHitEM_0p85, "fHitEM_0p85/F");
+    fEventTree->Branch("fHitTrack_0p85", &fHitTrack_0p85, "fHitTrack_0p85/F");
+    fEventTree->Branch("fCleanHit", &fCleanHit, "fCleanHit/F");
 
 	fHitTree = tfs->make<TTree>("hit","hits info");
 	fHitTree->Branch("fOutSh", &fOutSh, "fOutSh/F");
 	fHitTree->Branch("fOutTrk", &fOutTrk, "fOutTrk/F");
 
 	fClusterTree = tfs->make<TTree>("cluster","clusters info");
-	fClusterTree->Branch("fMCpid", &fMCpid, "fMCpid/I");
-	fClusterTree->Branch("fClsize", &fClsize, "fClsize/I");
+	fClusterTree->Branch("fMcPid", &fMcPid, "fMcPid/I");
+	fClusterTree->Branch("fClSize", &fClSize, "fClSize/I");
 	fClusterTree->Branch("fRecoPid", &fRecoPid, "fRecoPid/I");
 	fClusterTree->Branch("fPidValue", &fPidValue, "fPidValue/D");
 
@@ -239,7 +254,10 @@ void nnet::PointIdEffTest::cleanup(void)
 
 	fOutSh = -1; fOutTrk = -1;
 
-    fMcDepEM = 0; fMcDepTrack = 0;
+    fMcDepEM = 0; fMcDepTrack = 0; fMcFractionEM = 0;
+    fHitEM_0p5 = 0; fHitTrack_0p5 = 0; fHitFractionEM_0p5 = 0;
+    fHitEM_0p85 = 0; fHitTrack_0p85 = 0;
+    fTotHit = 0; fCleanHit = 0;
 }
 
 void nnet::PointIdEffTest::analyze(art::Event const & e)
@@ -266,6 +284,8 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	std::vector< art::Ptr<sim::SimChannel> > channelList;
 	art::fill_ptr_vector(channelList, simChannelHandle);
 
+    countTruthDep(*simChannelHandle, fMcDepEM, fMcDepTrack);
+
 	// output from reconstruction
 
 	// wires
@@ -281,19 +301,43 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	std::vector< art::Ptr<recob::Cluster> > clusterList;
 	art::fill_ptr_vector(clusterList, clusterListHandle);
  
-
-	const art::FindManyP<recob::Hit> findManyHits(clusterListHandle, e, fClusterModuleLabel);
-
+	const art::FindManyP<recob::Hit> hitsFromClusters(clusterListHandle, e, fClusterModuleLabel);
 	for (size_t clid = 0; clid != clusterListHandle->size(); ++clid)
 	{
-		auto const& hits = findManyHits.at(clid);
+		auto const& hits = hitsFromClusters.at(clid);
 		if (!hits.size()) continue;
 
 		unsigned int cryo = hits.front()->WireID().Cryostat;
 		unsigned int tpc = hits.front()->WireID().TPC;
 		unsigned int view = hits.front()->WireID().Plane;
 
-		fClMap[cryo][tpc][view].push_back(hits);		 
+		fClMap[cryo][tpc][view].push_back(hits);
+	}
+
+    for (auto const & hi : hitList)
+	{
+		bool unclustered = true;
+		for (size_t k = 0; k < hitsFromClusters.size(); ++k)
+		{
+			auto v = hitsFromClusters.at(k);
+			for (auto const & hj : v)
+			{
+				if (hi.key() == hj.key()) { unclustered = false; break; }
+			}
+			if (!unclustered) break;
+		}
+
+		if (unclustered)
+		{
+			unsigned int cryo = hi->WireID().Cryostat;
+		    unsigned int tpc = hi->WireID().TPC;
+		    unsigned int view = hi->WireID().Plane;
+
+            std::vector< art::Ptr<recob::Hit> > singlehit;
+            singlehit.push_back(hi);
+
+		    fClMap[cryo][tpc][view].push_back(singlehit);
+		}
 	}
 
 	for (auto const& c : fClMap)
@@ -310,9 +354,9 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 					fPointIdAlg.setWireDriftData(*wireHandle, view, tpc, cryo);
 
 					for (auto const& h : v.second)
-					{  
-						int mctype = GetMCParticle(*simChannelHandle, h); // mctype == -1 : problem with simchannel
-						if (mctype > -1)
+					{
+						int mctype = GetMCParticle(*simChannelHandle, h); // mctype == -1 : cluster out of fiducial area
+						if (mctype > -1)                                  //                or mixed track-em custer
 						{
 						    GetRecoParticle(h, mctype);
 						}
@@ -322,7 +366,70 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 		}
 	}
 
+    if (fTotHit > 0) fCleanHit = fCleanHit / fTotHit;
+    else fCleanHit = 0;
+
+    double totEmTrk = fHitEM_0p5 + fHitTrack_0p5;
+    if (totEmTrk > 0) fHitFractionEM_0p5 = fHitEM_0p5;
+    else fHitFractionEM_0p5 = 0;
+
+    double totMcDep = fMcDepEM + fMcDepTrack;
+    if (totMcDep) fMcFractionEM = fMcDepEM / totMcDep;
+    else fMcFractionEM = 0;
+
+	fEventTree->Fill();
+
 	cleanup(); // remove everything from member vectors and maps
+}
+
+/******************************************/
+
+void nnet::PointIdEffTest::countTruthDep(
+    const std::vector< sim::SimChannel > & channels,
+    float & emLike, float & trackLike) const
+{
+    emLike = 0; trackLike = 0;
+	for (auto const& channel : channels)
+	{
+		// for every time slice in this channel:
+		auto const& timeSlices = channel.TDCIDEMap();
+		for (auto const& timeSlice : timeSlices)
+		{
+			// loop over the energy deposits.
+			auto const& energyDeposits = timeSlice.second;
+			for (auto const& energyDeposit : energyDeposits)
+			{
+				int trackID = energyDeposit.trackID;
+
+				double energy = energyDeposit.numElectrons * fElectronsToGeV * 1000;
+
+				if (trackID < 0)
+				{
+					emLike += energy;
+				}
+				else if (trackID > 0)
+				{
+					auto search = fParticleMap.find(trackID);
+					bool found = true;
+					if (search == fParticleMap.end())
+					{
+						mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
+						found = false;
+					}
+
+					int pdg = 0;
+					if (found)
+					{
+						const simb::MCParticle& particle = *((*search).second);
+						if (!pdg) pdg = particle.PdgCode(); // not EM activity so read what PDG it is
+					}
+
+					if ((pdg == 11) || (pdg == -11) || (pdg == 22)) emLike += energy;
+					else trackLike += energy;
+				}
+			}
+		}
+	}
 }
 
 /******************************************/
@@ -331,10 +438,7 @@ int nnet::PointIdEffTest::GetMCParticle(
     const std::vector< sim::SimChannel > & channels,
     const std::vector< art::Ptr<recob::Hit> > & hits)
 {
-
-	// in argument vector hitow danego klastra
-
-	double ensh = 0.; double entrk = 0.;
+	double totEnSh = 0, totEnTrk = 0;
 	size_t insideFidArea = 0;
 
 	for (auto const& hit: hits)
@@ -345,23 +449,22 @@ int nnet::PointIdEffTest::GetMCParticle(
 		// the channel associated with this hit.
 		auto hitChannelNumber = hit->Channel();
 
-		for ( auto const& channel : channels )
+        double hitEnSh = 0, hitEnTrk = 0;
+		for (auto const& channel : channels)
 		{
-			auto simChannelNumber = channel.Channel();
-
-			if ( simChannelNumber != hitChannelNumber ) continue;
+			if (channel.Channel() != hitChannelNumber) continue;
 
 			// for every time slice in this channel:
 			auto const& timeSlices = channel.TDCIDEMap();
-			for ( auto const& timeSlice : timeSlices )
+			for (auto const& timeSlice : timeSlices)
 			{
 				int time = timeSlice.first;
-				if ( std::abs(hit->TimeDistanceAsRMS(time) ) < 1.0 )
+				if (std::abs(hit->TimeDistanceAsRMS(time)) < 1.0)
 				{
 					// loop over the energy deposits.
 					auto const& energyDeposits = timeSlice.second;
 		
-					for ( auto const& energyDeposit : energyDeposits )
+					for (auto const& energyDeposit : energyDeposits)
 					{
 						int trackID = energyDeposit.trackID;
 
@@ -369,7 +472,7 @@ int nnet::PointIdEffTest::GetMCParticle(
 
 						if (trackID < 0)
 						{
-							ensh += energy;
+							hitEnSh += energy;
 						}
 						else if (trackID > 0)
 						{
@@ -388,25 +491,37 @@ int nnet::PointIdEffTest::GetMCParticle(
 								if (!pdg) pdg = particle.PdgCode(); // not EM activity so read what PDG it is
 							}
 
-							if ((pdg == 11) || (pdg == -11) || (pdg == 22)) ensh += energy;
-							else entrk += energy;
+							if ((pdg == 11) || (pdg == -11) || (pdg == 22)) hitEnSh += energy;
+							else hitEnTrk += energy;
 						}
 					}
 				}
 			}
 		}
+		totEnSh += hitEnSh;
+		totEnTrk += hitEnTrk;
+
+        double hitAdc = hit->SummedADC() * fPointIdAlg.LifetimeCorrection(hit->PeakTime());
+		fTotHit += hitAdc;
+
+		if (hitEnSh > hitEnTrk) { fHitEM_0p5 += hitAdc; }
+		else { fHitTrack_0p5 += hitAdc; }
+
+        double hitDep = hitEnSh + hitEnTrk;
+		if (hitEnSh > 0.85 * hitDep) { fHitEM_0p85 += hitAdc; fCleanHit += hitAdc; }
+		else if (hitEnTrk > 0.85 * hitDep) { fHitTrack_0p85 += hitAdc; fCleanHit += hitAdc; }
 	}
 
 	int result = -1;
 	if (insideFidArea > 2 * hits.size() / 3) // 2/3 of the cluster hits inside fiducial area
 	{
-		if (ensh > 1.5 * entrk) // major energy deposit from EM activity
+		if (totEnSh > 1.5 * totEnTrk) // major energy deposit from EM activity
 		{
-			result = fShower;
+			result = nnet::PointIdEffTest::kShower;
 		}
-		else if (entrk > 1.5 * ensh)
+		else if (totEnTrk > 1.5 * totEnSh)
 		{
-			result = fTrack;
+			result = nnet::PointIdEffTest::kTrack;
 		}
 	}
 
@@ -417,8 +532,8 @@ int nnet::PointIdEffTest::GetMCParticle(
 
 void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > const & hits, int mctype)
 {
-	fMCpid = mctype;
-	fClsize = hits.size();
+	fMcPid = mctype;
+	fClSize = hits.size();
 
 	fPidValue = 0;
 	if (fPointIdAlg.NClasses() == 1)
@@ -432,23 +547,23 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 		if (p_trk_or_sh > 0) fPidValue = vout[0] / p_trk_or_sh;
 	}
 
-	if (fPidValue < fThreshold) fRecoPid = fShower;
-	else if (fPidValue > fThreshold) fRecoPid = fTrack;
+	if (fPidValue < fThreshold) fRecoPid = nnet::PointIdEffTest::kShower;
+	else if (fPidValue > fThreshold) fRecoPid = nnet::PointIdEffTest::kTrack;
 	else fRecoPid = -1;
 
-	if ((fRecoPid == fShower) && (mctype == fShower))
+	if ((fRecoPid == nnet::PointIdEffTest::kShower) && (mctype == nnet::PointIdEffTest::kShower))
 	{
 		fShOk++;
 	}
-	else if ((fRecoPid == fTrack) && (mctype == fTrack))
+	else if ((fRecoPid == nnet::PointIdEffTest::kTrack) && (mctype == nnet::PointIdEffTest::kTrack))
 	{
 		fTrkOk++;
 	}	
-	else if ((fRecoPid == fShower) && (mctype == fTrack))
+	else if ((fRecoPid == nnet::PointIdEffTest::kShower) && (mctype == nnet::PointIdEffTest::kTrack))
 	{
 		fTrkB++;
 	}
-	else if ((fRecoPid == fTrack) && (mctype == fShower))
+	else if ((fRecoPid == nnet::PointIdEffTest::kTrack) && (mctype == nnet::PointIdEffTest::kShower))
 	{
 		fShB++;
 	}
@@ -469,7 +584,7 @@ void nnet::PointIdEffTest::GetRecoParticle(std::vector< art::Ptr<recob::Hit> > c
 		}
 	}
 	
-	fClusterTree->Fill();	
+	fClusterTree->Fill();
 }
 
 /******************************************/
