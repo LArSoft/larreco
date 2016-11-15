@@ -19,7 +19,7 @@ argoneut_trajclusteralg.MinPtsFit:        [ 4,  4, 2]
 argoneut_trajclusteralg.MinPts:           [10, 10, 3]
 argoneut_trajclusteralg.MaxAngleRange:    [ 0,  1, 9]
 
-argoneut_trajclusteralg.Vertex2DCuts:     [10, 2, 30, 3, 5]
+#argoneut_trajclusteralg.Vertex2DCuts:     [10, 2, 30, 3, 5]
 argoneut_trajclusteralg.MaxVertexTrajSep: [ 6,  6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
 
 argoneut_clustercrawleralg:          @local::standard_clustercrawleralg
