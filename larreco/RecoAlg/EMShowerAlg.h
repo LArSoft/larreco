@@ -126,6 +126,9 @@ public:
 			   art::Ptr<recob::Vertex> const& vertex,
 			   int & iok);
 
+  /// Makes space points from the shower hits in each plane
+  std::vector<recob::SpacePoint> MakeSpacePoints(const art::PtrVector<recob::Hit>& hits, std::vector<std::vector<art::Ptr<recob::Hit> > >& hitAssns);
+
   /// <Tingjun to document>
   void FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> >const& showerHits,
 			    art::Ptr<recob::Vertex> const& vertex,
@@ -220,6 +223,7 @@ private:
   // Parameters
   double fMinTrackLength;
   double fdEdxTrackLength;
+  double fSpacePointSize;
   // Parameters to fit wire vs time
   unsigned int         fNfitpass;
   std::vector<unsigned int>     fNfithits;
