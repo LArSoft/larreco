@@ -547,6 +547,29 @@ namespace tca {
   } // SetEndPoints
   
   ////////////////////////////////////////////////
+  bool TrajIsClean(TjStuff& tjs, Trajectory& tj, bool prt)
+  {
+    // Returns true if the trajectory has low hit multiplicity and is in a
+    // clean environment
+    unsigned short nUsed = 0;
+    unsigned short nTotHits = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      TrajPoint& tp = tj.Pts[ipt];
+      nTotHits += tp.Hits.size();
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(tp.UseHit[ii]) ++nUsed;
+      } // ii
+    } // ipt
+    if(nTotHits == 0) return false;
+    float fracUsed = (float)nUsed / (float)nTotHits;
+    if(prt) mf::LogVerbatim("TC")<<"TrajIsClean: nTotHits "<<nTotHits<<" nUsed "<<nUsed<<" fracUsed "<<fracUsed;
+    
+    if(fracUsed > 0.9) return true;
+    return false;
+    
+  } // TrajIsClean
+  
+  ////////////////////////////////////////////////
   short MCSMom(TjStuff& tjs, Trajectory& tj)
   {
     return MCSMom(tjs, tj, tj.EndPt[0], tj.EndPt[1]);
@@ -571,8 +594,22 @@ namespace tca {
   } // MCSMom
   
   /////////////////////////////////////////
+  float MCSThetaRMS(TjStuff& tjs, Trajectory& tj)
+  {
+    // This returns the MCS scattering angle expected for one WSE unit of travel along the trajectory.
+    // It is used to define kink and vertex cuts. This should probably be named something different to
+    // prevent confusion
+    
+    return MCSThetaRMS(tjs, tj, tj.EndPt[0], tj.EndPt[1]) / sqrt(TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]));
+    
+  } // MCSThetaRMS
+  
+  /////////////////////////////////////////
   double MCSThetaRMS(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
   {
+    // This returns the MCS scattering angle expected for the length of the trajectory
+    // spanned by firstPt to lastPt. It is used primarily to calculate MCSMom
+    
     if(firstPt < tj.EndPt[0]) return 1;
     if(lastPt > tj.EndPt[1]) return 1;
     
@@ -956,6 +993,7 @@ namespace tca {
       if(tj.VtxID[0] == vx.ID || tj.VtxID[1] == vx.ID) continue;
       if(AttachTrajToVertex(tjs, tj, vx, fVertex2DCuts, vtxPrt)) ++nadd;
     } // itj
+    if(vtxPrt) mf::LogVerbatim("TC")<<" AttachAnyTrajToVertex: nadd "<<nadd;
     if(nadd == 0) return false;
     return true;
     
@@ -1052,7 +1090,7 @@ namespace tca {
         if(tj.VtxID[0] == vx.ID) myprt<<" "<<tj.ID<<"_0";
         if(tj.VtxID[1] == vx.ID) myprt<<" "<<tj.ID<<"_1";
       }
-      myprt<<" +tjID "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull;
+      myprt<<" +tjID "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull<<" fVertex2DCuts[3] "<<fVertex2DCuts[3];
     }
     if(tpVxPull > fVertex2DCuts[3]) return false;
     if(dpt > 2) return false;
@@ -1212,7 +1250,7 @@ namespace tca {
     if(vxP0rms < 0.5) vxP0rms = 0.5;
     if(vxP1rms < 0.5) vxP1rms = 0.5;
     
-    if(prt) mf::LogVerbatim("TC")<<"FitVertex "<<vx.ID<<" CTP "<<vx.CTP<<" NTraj "<<vx.NTraj<<" in "<<std::fixed<<std::setprecision(1)<<vx.Pos[0]<<" : "<<vx.Pos[1]/tjs.UnitsPerTick<<" out "<<vxP0<<"+/-"<<vxP0rms<<" : "<<vxP1/tjs.UnitsPerTick<<"+/-"<<vxP1rms/tjs.UnitsPerTick;
+    if(prt) mf::LogVerbatim("TC")<<"FitVertex "<<vx.ID<<" CTP "<<vx.CTP<<" NTraj "<<vx.NTraj<<" in "<<std::fixed<<std::setprecision(1)<<vx.Pos[0]<<":"<<vx.Pos[1]/tjs.UnitsPerTick<<" out "<<vxP0<<"+/-"<<vxP0rms<<":"<<vxP1/tjs.UnitsPerTick<<"+/-"<<vxP1rms/tjs.UnitsPerTick;
     
     if(vxP0rms > fVertex2DCuts[4] || vxP1rms > fVertex2DCuts[4]) {
       if(prt) mf::LogVerbatim("TC")<<" fit failed. fVertex2DCuts[4] "<<fVertex2DCuts[4];

@@ -101,8 +101,12 @@ namespace tca {
   // Calculate MCS momentum
   short MCSMom(TjStuff& tjs, Trajectory& tj);
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
-  // Calculate MCS theta RMS
+  // Calculate MCS theta RMS over the points specified. Returns MCS angle for the full length
   double MCSThetaRMS(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt);
+  // Calculate MCS theta RMS over the entire length. Returns MCS angle for 1 WSE unit
+  float MCSThetaRMS(TjStuff& tjs, Trajectory& tj);
+  // Returns true if the trajectory has low hit multiplicity and is in a clean environment
+  bool TrajIsClean(TjStuff& tjs, Trajectory& tj, bool prt);
   // Flag delta ray trajectories in allTraj
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
   // Tag muon directions using delta proximity
