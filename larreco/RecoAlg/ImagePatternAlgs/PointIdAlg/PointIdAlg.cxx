@@ -694,13 +694,17 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, 
 	{
 	    mf::LogWarning("TrainingDataAlg") << "Vertex projection out of wire planes, just skipping this vertex.";
 	}
+	catch (...)
+	{
+	    mf::LogWarning("TrainingDataAlg") << "Vertex projection out of wire planes, skip MC vertex.";
+	}
 	return wd;
 }
 // ------------------------------------------------------
 
 void nnet::TrainingDataAlg::collectVtxFlags(
-	std::map< size_t, std::map< int, int > > & wireToDriftToVtxFlags,
-	const std::map< int, const simb::MCParticle* > & particleMap,
+	std::unordered_map< size_t, std::unordered_map< int, int > > & wireToDriftToVtxFlags,
+	const std::unordered_map< int, const simb::MCParticle* > & particleMap,
 	unsigned int view) const
 {
 	for (auto const & p : particleMap)
@@ -901,19 +905,17 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 	art::ServiceHandle<sim::LArG4Parameters> larParameters;
 	double electronsToGeV = 1. / larParameters->GeVToElectrons();
 
-	art::ValidHandle< std::vector<simb::MCParticle> > particleHandle
-		= event.getValidHandle< std::vector<simb::MCParticle> >(fSimulationProducerLabel);
+	auto particleHandle = event.getValidHandle< std::vector<simb::MCParticle> >(fSimulationProducerLabel);
 
-	art::ValidHandle< std::vector<sim::SimChannel> > simChannelHandle
-		= event.getValidHandle< std::vector<sim::SimChannel> >(fSimulationProducerLabel);
+	auto simChannelHandle = event.getValidHandle< std::vector<sim::SimChannel> >(fSimulationProducerLabel);
 
-    std::map< int, const simb::MCParticle* > particleMap;
-	for (auto const & particle : (*particleHandle))
+    std::unordered_map< int, const simb::MCParticle* > particleMap;
+	for (auto const & particle : *particleHandle)
     {
 		particleMap[particle.TrackId()] = &particle;
 	}
 
-	std::map< size_t, std::map< int, int > > wireToDriftToVtxFlags;
+	std::unordered_map< size_t, std::unordered_map< int, int > > wireToDriftToVtxFlags;
 	if (fSaveVtxFlags) collectVtxFlags(wireToDriftToVtxFlags, particleMap, view);
 
 	std::map< int, int > trackToPDG;
@@ -926,12 +928,9 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 		std::vector< int > labels_pdg(fNDrifts, 0);
 
 		std::map< int, std::map< int, double > > timeToTrackToCharge;
-		
-		for (auto const & channel : (*simChannelHandle))
+		for (auto const & channel : *simChannelHandle)
 		{
-			auto simChannelNumber = channel.Channel();
-
-			if (simChannelNumber != wireChannelNumber) continue;		
+			if (channel.Channel() != wireChannelNumber) continue;		
 
 			auto const & timeSlices = channel.TDCIDEMap();
 			for (auto const & timeSlice : timeSlices)
