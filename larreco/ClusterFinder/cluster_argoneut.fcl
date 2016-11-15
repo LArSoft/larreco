@@ -6,7 +6,7 @@ argoneut_dbscanalg:                  @local::standard_dbscanalg
 
 argoneut_trajclusteralg:             @local::standard_trajclusteralg
 argoneut_trajclusteralg.Mode:                  -1  # step from DS to US
-argoneut_trajclusteralg.MaxWireSkipNoSignal:    2
+argoneut_trajclusteralg.MaxWireSkipNoSignal:    4
 argoneut_trajclusteralg.MaxWireSkipWithSignal: 10
 argoneut_trajclusteralg.HitErrFac:            0.2
 argoneut_trajclusteralg.ProjectionErrFactor:    3
