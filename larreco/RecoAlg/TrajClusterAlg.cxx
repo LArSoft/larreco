@@ -454,10 +454,12 @@ namespace tca {
         float ave = EPTSums[pdgIndex] / (float)EPSums[pdgIndex];
         myprt<<" "<<std::fixed<<std::setprecision(2)<<ave;
         myprt<<" "<<EPCnts[pdgIndex];
-        sum  += EPSums[pdgIndex];
-        sumt += EPTSums[pdgIndex];
+        if(pdgIndex > 0) {
+          sum  += EPSums[pdgIndex];
+          sumt += EPTSums[pdgIndex];
+        }
       } // pdgIndex
-      if(sum > 0) myprt<<" combined "<<std::fixed<<std::setprecision(2)<<sumt / sum;
+      if(sum > 0) myprt<<" MuPiKP "<<std::fixed<<std::setprecision(2)<<sumt / sum;
     } // fMatchTruth[0] >= 0
 
     // convert vertex time from WSE to ticks
@@ -580,14 +582,14 @@ namespace tca {
       prt = mrgPrt;
       if(prt) mf::LogVerbatim("TC")<<"MergeAngStore: Fix Begin of tj1.ID "<<tj1.ID;
       FixTrajBegin(tj1, mergePt);
-      if(mrgPrt) prt = false;
+//      if(mrgPrt) prt = false;
     } else if (fixTj2) {
       // tj2 is short so extrapolate tj1 into tj2
       --mergePt;
       prt = mrgPrt;
       if(prt) mf::LogVerbatim("TC")<<"MergeAngStore: Fix End of tj1.ID "<<tj1.ID;
       FixTrajEnd(tj1, mergePt);
-      if(mrgPrt) prt = false;
+//      if(mrgPrt) prt = false;
     }
 
     // kill the original trajectories
@@ -656,8 +658,10 @@ namespace tca {
         unsigned int jlasthit = (unsigned int)tjs.WireHitRange[fPlane][jwire].second;
         for(iht = ifirsthit; iht < ilasthit; ++iht) {
           prt = (iht == debug.Hit);
-          if(prt) didPrt = true;
-          if(prt)  mf::LogVerbatim("TC")<<"+++++++ Pass "<<pass<<" Found debug hit "<<fPlane<<":"<<PrintHit(tjs.fHits[iht]);
+          if(prt)  {
+            mf::LogVerbatim("TC")<<"+++++++ Pass "<<pass<<" Found debug hit "<<fPlane<<":"<<PrintHit(tjs.fHits[iht]);
+            didPrt = true;
+          }
           // ignore below-threshold hits
           // clear out any leftover work tjs.inTraj's that weren't cleaned up properly
 //          for(oht = ifirsthit; oht < ilasthit; ++oht) if(tjs.inTraj[oht] < 0) tjs.inTraj[oht] = 0;
@@ -669,6 +673,7 @@ namespace tca {
           float fromTick = tjs.fHits[iht].PeakTime;
           float iqtot = tjs.fHits[iht].Integral;
           float hitsRMSTick = tjs.fHits[iht].RMS;
+          std::vector<unsigned int> iHitsInMultiplet;
           if(pass == 0) {
             // only use the hit on the first pass
             iHitsInMultiplet.resize(1);
@@ -686,21 +691,19 @@ namespace tca {
             // Only consider hits that are available
             if(tjs.fHits[iht].InTraj != 0) continue;
             if(tjs.fHits[jht].InTraj != 0) continue;
-//            if(prt) std::cout<<"pass "<<pass<<" "<<PrintHit(tjs.fHits[jht])<<" "<<jHitsInMultiplet.size()<<"\n";
             // clear out any leftover work inTraj's that weren't cleaned up properly
             for(unsigned short oht = jfirsthit; oht < jlasthit; ++oht) {
               if(tjs.fHits[oht].InTraj < 0) {
                 mf::LogVerbatim("TC")<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.fHits[oht].InTraj<<" events processed "<<fEventsProcessed;
                 std::cout<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.fHits[oht].InTraj<<" events processed "<<fEventsProcessed<<" fWorkID "<<fWorkID<<"\n";
                 tjs.fHits[oht].InTraj = 0;
-//                fQuitAlg = true;
-//                return;
               }
             }
             unsigned int toWire = jwire;
             float toTick = tjs.fHits[jht].PeakTime;
             float jqtot = tjs.fHits[jht].Integral;
             if(jqtot < 1) continue;
+            std::vector<unsigned int> jHitsInMultiplet;
             if(pass == 0) {
               // only use the hit on the first pass
               jHitsInMultiplet.resize(1);
@@ -721,7 +724,9 @@ namespace tca {
               if(jHitsInMultiplet.size() > 1) toTick = HitsPosTick(tjs, jHitsInMultiplet, jqtot, kUnusedHits);
 //              HitMultipletPosition(jht, toTick, deltaRms, jqtot);
             }
-            if(prt) mf::LogVerbatim("TC")<<"+++++++ checking ClusterHitsOK with jht "<<fPlane<<":"<<PrintHit(tjs.fHits[jht])<<" BB Multiplicity "<<jHitsInMultiplet.size()<<" HitsRMSTick "<<HitsRMSTick(tjs, jHitsInMultiplet, kUnusedHits)<<" fatJhit "<<fatJHit<<" setting toTick to "<<(int)toTick;
+            if(prt) {
+              mf::LogVerbatim("TC")<<"+++++++ checking TrajHitsOK with jht "<<fPlane<<":"<<PrintHit(tjs.fHits[jht])<<" BB Multiplicity "<<jHitsInMultiplet.size()<<" HitsRMSTick "<<HitsRMSTick(tjs, jHitsInMultiplet, kUnusedHits)<<" fatJhit "<<fatJHit<<" setting toTick to "<<(int)toTick<<" TrajHitsOK "<<TrajHitsOK(iHitsInMultiplet, jHitsInMultiplet);
+            }
             // Ensure that the hits StartTick and EndTick have the proper overlap
             if(!TrajHitsOK(iHitsInMultiplet, jHitsInMultiplet)) continue;
             // start a trajectory with direction from iht -> jht
@@ -732,7 +737,6 @@ namespace tca {
             if(fQuitAlg) return;
             if(work.Pts.empty()) {
               if(prt) mf::LogVerbatim("TC")<<"ReconstructAllTraj: StartTraj failed";
-              prt = false;
               ReleaseHits(work);
               continue;
             }
@@ -740,7 +744,6 @@ namespace tca {
             // check for a large angle crawl
             if(angRange > fMaxAngleRange[work.Pass]) {
               if(prt) mf::LogVerbatim("TC")<<"ReconstructAllTraj: Wrong angle range "<<angRange<<" for this pass "<<work.Pass;
-              prt = false;
               ReleaseHits(work);
               continue;
             }
@@ -756,7 +759,6 @@ namespace tca {
 //            if(!sigOK || NumUsedHits(work.Pts[0]) == 0) {
             if(!sigOK || work.Pts[0].Chg == 0) {
               if(prt) mf::LogVerbatim("TC")<<" No hits at initial trajectory point ";
-              prt = false;
               ReleaseHits(work);
               continue;
             }
@@ -773,7 +775,6 @@ namespace tca {
               StepCrawl(work);
               if(!fGoodTraj || !fUpdateTrajOK) {
                 if(prt) mf::LogVerbatim("TC")<<" xxxxxxx StepCrawl failed AGAIN. fTryWithNextPass "<<fTryWithNextPass;
-                prt = false;
                 ReleaseHits(work);
                 continue;
               } // Failed again
