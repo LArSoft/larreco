@@ -1,0 +1,17 @@
+BEGIN_PROLOG
+kalmantrackfit: {
+  module_type:  KalmanFilterFinalTrackFitter
+  inputs: {
+  	inputTracksLabel: @nil
+  	inputCaloLabel: @nil
+  	inputMCLabel: mcreco
+  }
+  options: {
+  	momFromCalo: false
+  	momFromMC: false
+  	momentumInGeV: 1.0
+  	pdgId: 13
+  	useRMSError: true
+  }
+}
+END_PROLOG

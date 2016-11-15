@@ -203,7 +203,7 @@ void corner::CornerFinderAlg::get_feature_points(std::vector<recob::EndPoint2D> 
 
   
 
-  for(auto pid : my_geometry.PlaneIDs()){
+  for(auto const& pid : my_geometry.IteratePlaneIDs()){
     attach_feature_points(WireData_histos.at(pid.Plane),
 			  WireData_IDs.at(pid.Plane),
 			  my_geometry.View(pid),
@@ -255,7 +255,7 @@ void corner::CornerFinderAlg::get_feature_points_LineIntegralScore(std::vector<r
 
   
 
-  for(auto pid : my_geometry.PlaneIDs()){
+  for(auto const& pid : my_geometry.IteratePlaneIDs()){
     attach_feature_points_LineIntegralScore(WireData_histos.at(pid.Plane),
 					    WireData_IDs.at(pid.Plane),
 					    my_geometry.View(pid),
@@ -329,7 +329,7 @@ struct compare_to_range{
 // This looks for areas of the wires that are non-noise, to speed up evaluation
 void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geometry){
 
-  for(auto pid : my_geometry.PlaneIDs() ){
+  for(auto const& pid : my_geometry.IteratePlaneIDs() ){
 
     LOG_DEBUG("CornerFinderAlg") 
       << "Working plane " << pid.Plane << ".";

@@ -49,7 +49,6 @@ namespace calo {
     public:
     
       explicit GeneralCalorimetry(fhicl::ParameterSet const& pset); 
-      virtual ~GeneralCalorimetry();
     
       void reconfigure(fhicl::ParameterSet const& pset);
       void produce(art::Event& evt);
@@ -81,9 +80,11 @@ calo::GeneralCalorimetry::GeneralCalorimetry(fhicl::ParameterSet const& pset)
   // determine the view of the collection plane
   // just look at one cryostat, the first TPC and loop over those 
   // planes
-  for(size_t p = 0; p < fGeo->Cryostat(0).TPC(0).Nplanes(); ++p){
-    if(fGeo->Cryostat(0).TPC(0).Plane(p).SignalType() == geo::kCollection){
-      fCollectionView = fGeo->Cryostat(0).TPC(0).Plane(p).View();
+  geo::TPCID FirstTPC(0, 0);
+  for(unsigned int p = 0; p < fGeo->Nplanes(FirstTPC); ++p){
+    geo::PlaneID planeid{ FirstTPC, p };
+    if(fGeo->SignalType(planeid) == geo::kCollection){
+      fCollectionView = fGeo->View(planeid);
       fCollectionPlane = p;
     }
   }
@@ -92,12 +93,6 @@ calo::GeneralCalorimetry::GeneralCalorimetry(fhicl::ParameterSet const& pset)
 
   produces< std::vector<anab::Calorimetry>              >();
   produces< art::Assns<recob::Track, anab::Calorimetry> >();
-}
-
-//-------------------------------------------------
-calo::GeneralCalorimetry::~GeneralCalorimetry()
-{
-  
 }
 
 //------------------------------------------------------------------------------------//

@@ -403,7 +403,7 @@ void FeatureVertexFinderAna::analyze(const art::Event& evt)
   // ##############################
   // ### Looping over geo::PlaneIDs ###
   // ##############################
-  for(auto pid : geom->PlaneIDs()){
+  for(auto const& pid : geom->IteratePlaneIDs()){
     // ############################################################################
     // ### Calculating the nearest wire the vertex corresponds to in each plane ###
     // ############################################################################
@@ -477,7 +477,7 @@ void FeatureVertexFinderAna::analyze(const art::Event& evt)
    	// ##############################
    	// ### Looping over geo::PlaneIDs ###
    	// ##############################
-	  for(auto pid : geom->PlaneIDs() ){
+	  for(auto const& pid : geom->IteratePlaneIDs() ){
 	    for(size_t ww = 0; ww<vert2d.size(); ++ww){
 	      //std::cout<<"plane = "<<plane<<std::endl;
 	      //std::cout<<"vert2d[ww]->WireID().Plane = "<<vert2d[ww]->WireID().Plane<<std::endl;

@@ -954,8 +954,10 @@ void ShowerReco::LongTransEnergy(unsigned int set, std::vector < art::Ptr<recob:
         
   }// end first loop on hits.
   
+  auto const signalType
+    = hitlist.empty()? geo::kMysteryType: geom->SignalType(hitlist.front()->WireID());
  
-  if(geom->Plane(plane).SignalType()== geo::kCollection)
+  if(signalType == geo::kCollection)
 	{
       fTotChargeADC[set]=totCnrg*newpitch; 
       fTotChargeMeV[set]=totCnrg_corr*newpitch;  
