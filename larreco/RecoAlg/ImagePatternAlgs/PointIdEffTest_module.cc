@@ -142,7 +142,7 @@ private:
     //const int kEffSize = 100;
     float fHitsEM_OK_0p5[100], fHitsTrack_OK_0p5[100];
     float fHitsEM_OK_0p85[100], fHitsTrack_OK_0p85[100];
-    float fHitRecoFractionEM[100];
+    float fHitRecoEM[100], fHitRecoFractionEM[100];
 
 	int fMcPid;
 	int fClSize;
@@ -220,6 +220,7 @@ void nnet::PointIdEffTest::beginJob()
     fEventTree->Branch("fHitsEM_OK_0p85", fHitsEM_OK_0p85, "fHitsEM_OK_0p85[100]/F");
     fEventTree->Branch("fHitsTrack_OK_0p85", fHitsTrack_OK_0p85, "fHitsTrack_OK_0p85[100]/F");
 
+    fEventTree->Branch("fHitRecoEM", fHitRecoEM, "fHitRecoEM[100]/F");
     fEventTree->Branch("fHitRecoFractionEM", fHitRecoFractionEM, "fHitRecoFractionEM[100]/F");
 
 
@@ -242,13 +243,23 @@ void nnet::PointIdEffTest::endJob()
 {
 	if (fSaveHitsFile) fHitsOutFile.close();
 
+    art::ServiceHandle<art::TFileService> tfs;
+
+    TTree *thrTree = tfs->make<TTree>("threshold","error rate vs threshold");
+
+    float thr, shErr, trkErr;
+    thrTree->Branch("thr", &thr, "thr/F");
+    thrTree->Branch("shErr", &shErr, "shErr/F");
+    thrTree->Branch("trkErr", &trkErr, "trkErr/F");
+
     for (size_t i = 0; i < 100; ++i)
     {
-        double shErr = fShBad[i] / float(fShBad[i] + fShOk[i]);
-        double trkErr = fTrkBad[i] / float(fTrkBad[i] + fTrkOk[i]);
+        thr = 0.01 * i;
+        shErr = fShBad[i] / float(fShBad[i] + fShOk[i]);
+        trkErr = fTrkBad[i] / float(fTrkBad[i] + fTrkOk[i]);
+        thrTree->Fill();
 
-        std::cout << "Threshold " << 0.01 * i
-            << "   fShErr " << shErr << " fTrkErr " << trkErr << " sum:" << shErr + trkErr <<  std::endl;
+        //std::cout << "Threshold " << thr << "  fShErr " << shErr << " fTrkErr " << trkErr << " sum:" << shErr + trkErr <<  std::endl;
 	}
 	std::cout << "Total " << fTotal << std::endl;
 }
@@ -268,7 +279,7 @@ void nnet::PointIdEffTest::cleanup(void)
     {
         fHitsEM_OK_0p5[i] = 0; fHitsTrack_OK_0p5[i] = 0;
         fHitsEM_OK_0p85[i] = 0; fHitsTrack_OK_0p85[i] = 0;
-        fHitRecoFractionEM[i] = 0;
+        fHitRecoEM[i] = 0; fHitRecoFractionEM[i] = 0;
     }
 }
 
@@ -401,7 +412,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
         else fHitsTrack_OK_0p85[i] = 0;
 
 
-        if (totEmTrk0p5 > 0) fHitRecoFractionEM[i] /= totEmTrk0p5;
+        if (totEmTrk0p5 > 0) fHitRecoFractionEM[i] = fHitRecoEM[i] / totEmTrk0p5;
         else fHitRecoFractionEM[i] = 0;
     }
 
@@ -580,7 +591,7 @@ int nnet::PointIdEffTest::RunCNN(
     	    if (fPidValue < thr)
     	    {
     	        recoPid = nnet::PointIdEffTest::kShower;
-    	        fHitRecoFractionEM[i] += hitAdc;
+    	        fHitRecoEM[i] += hitAdc;
     	    }
 	        else recoPid = nnet::PointIdEffTest::kTrack;
 
