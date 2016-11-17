@@ -37,7 +37,7 @@ standard_emshoweralg:
  ProjectionMatchingAlg: @local::standard_projectionmatchingalg
  MinTrackLength:  3
  dEdxTrackLength: 3
- SpacePointSize:  0.05
+ SpacePointSize:  0.1
  Nfitpass:        4
  Nfithits:        [50, 30, 20, 20]
  Toler:           [30., 5., 2., 2.]
@@ -45,11 +45,14 @@ standard_emshoweralg:
 
 standard_emshower:
 {
- module_type:        "EMShower"
- HitsModuleLabel:    "linecluster"
- ClusterModuleLabel: "blurredcluster"
- TrackModuleLabel:   "pmtrack"
- EMShowerAlg:        @local::standard_emshoweralg
+ module_type:            "EMShower"
+ HitsModuleLabel:        "linecluster"
+ ClusterModuleLabel:     "blurredcluster"
+ TrackModuleLabel:       "pmtrack"
+ SaveNonCompleteShowers: true
+ FindBadPlanes:          true
+ MakeSpacePoints:        true
+ EMShowerAlg:            @local::standard_emshoweralg
 }
 
 argoneut_shower:     @local::standard_shower

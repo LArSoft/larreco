@@ -69,6 +69,7 @@ private:
   EMShowerAlg fEMShowerAlg;
   bool fSaveNonCompleteShowers;
   bool fFindBadPlanes;
+  bool fMakeSpacePoints;
 
   art::ServiceHandle<geo::Geometry> fGeom;
   detinfo::DetectorProperties const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -96,8 +97,9 @@ void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
   fClusterModuleLabel     = p.get<std::string>("ClusterModuleLabel");
   fTrackModuleLabel       = p.get<std::string>("TrackModuleLabel");
   fPFParticleModuleLabel  = p.get<std::string>("PFParticleModuleLabel","");
-  fFindBadPlanes          = p.get<bool>       ("FindBadPlanes","true");
-  fSaveNonCompleteShowers = p.get<bool>       ("SaveNonCompleteShowers","true");
+  fFindBadPlanes          = p.get<bool>       ("FindBadPlanes");
+  fSaveNonCompleteShowers = p.get<bool>       ("SaveNonCompleteShowers");
+  fMakeSpacePoints        = p.get<bool>       ("MakeSpacePoints");
   fShower = p.get<int>("Shower",-1);
   fPlane = p.get<int>("Plane",-1);
   fDebug = p.get<int>("Debug",0);
@@ -259,17 +261,37 @@ void shower::EMShower::produce(art::Event& evt) {
 
     if (!pfpHandle.isValid()) {
 
+      // First, order the hits into the correct shower order in each plane
+      if (fDebug > 1)
+	std::cout << " ------------------ Ordering shower hits -------------------- " << std::endl;
+      std::map<int,std::vector<art::Ptr<recob::Hit> > > showerHitsMap = fEMShowerAlg.OrderShowerHits(showerHits, fPlane);
+      if (fDebug > 1)
+	std::cout << " ------------------ End ordering shower hits -------------------- " << std::endl;
+
       // Find the track at the start of the shower
       std::unique_ptr<recob::Track> initialTrack;
       std::map<int,std::vector<art::Ptr<recob::Hit> > > initialTrackHits;
-      fEMShowerAlg.FindInitialTrack(showerHits, initialTrack, initialTrackHits, fPlane);
+      fEMShowerAlg.FindInitialTrack(showerHitsMap, initialTrack, initialTrackHits, fPlane);
 
       // Make space points
       std::vector<std::vector<art::Ptr<recob::Hit> > > hitAssns;
-      std::vector<recob::SpacePoint> showerSpacePoints = fEMShowerAlg.MakeSpacePoints(showerHits, hitAssns);
+      std::vector<recob::SpacePoint> showerSpacePoints;
+      if (fMakeSpacePoints)
+	showerSpacePoints = fEMShowerAlg.MakeSpacePoints(showerHitsMap, hitAssns);
+      else {
+	for (art::PtrVector<recob::Track>::const_iterator trackIt = showerTracks.begin(); trackIt != showerTracks.end(); ++trackIt) {
+	  const std::vector<art::Ptr<recob::SpacePoint> > trackSpacePoints = fmsp.at(trackIt->key());
+	  for (std::vector<art::Ptr<recob::SpacePoint> >::const_iterator trackSpIt = trackSpacePoints.begin(); trackSpIt != trackSpacePoints.end(); ++trackSpIt) {
+	    showerSpacePoints.push_back(*(*trackSpIt));
+	    hitAssns.push_back(std::vector<art::Ptr<recob::Hit> >());
+	  }
+        }
+      }
+
+      // Save space points
       int firstSpacePoint = spacePoints->size(), nSpacePoint = 0;
-      for (std::vector<recob::SpacePoint>::const_iterator spacePointIt = showerSpacePoints.begin(); spacePointIt != showerSpacePoints.end(); ++spacePointIt, ++nSpacePoint) {
-	spacePoints->emplace_back(spacePointIt->XYZ(), spacePointIt->ErrXYZ(), spacePointIt->Chisq(), spacePoints->size());
+      for (std::vector<recob::SpacePoint>::const_iterator sspIt = showerSpacePoints.begin(); sspIt != showerSpacePoints.end(); ++sspIt, ++nSpacePoint) {
+	spacePoints->emplace_back(sspIt->XYZ(), sspIt->ErrXYZ(), sspIt->Chisq(), spacePoints->size());
 	util::CreateAssn(*this, evt, *(spacePoints.get()), hitAssns.at(nSpacePoint), *(hitSpAssociations.get()));
       }
       int lastSpacePoint = spacePoints->size();

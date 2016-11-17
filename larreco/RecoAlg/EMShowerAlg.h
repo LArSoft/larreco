@@ -109,7 +109,7 @@ public:
 					       std::vector<art::Ptr<recob::Hit> > const& track2);
 
   /// Finds the initial track-like part of the shower and the hits in all views associated with it
-  void FindInitialTrack(art::PtrVector<recob::Hit> const& hits,
+  void FindInitialTrack(const std::map<int,std::vector<art::Ptr<recob::Hit> > >& hits,//art::PtrVector<recob::Hit> const& hits,
 			std::unique_ptr<recob::Track>& initialTrack,
 			std::map<int,std::vector<art::Ptr<recob::Hit> > >& initialTrackHits, int plane);
 
@@ -127,7 +127,11 @@ public:
 			   int & iok);
 
   /// Makes space points from the shower hits in each plane
-  std::vector<recob::SpacePoint> MakeSpacePoints(const art::PtrVector<recob::Hit>& hits, std::vector<std::vector<art::Ptr<recob::Hit> > >& hitAssns);
+  std::vector<recob::SpacePoint> MakeSpacePoints(std::map<int,std::vector<art::Ptr<recob::Hit> > > hits, std::vector<std::vector<art::Ptr<recob::Hit> > >& hitAssns);
+
+  /// Takes the hits associated with a shower and orders them so they follow the direction of the shower
+  //std::map<int,std::vector<art::Ptr<recob::Hit> > > OrderShowerHits(art::PtrVector<recob::Hit> const& shower, int plane);
+  std::map<int,std::vector<art::Ptr<recob::Hit> > > OrderShowerHits(const art::PtrVector<recob::Hit>& shower, int plane);
 
   /// <Tingjun to document>
   void FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> >const& showerHits,
@@ -186,9 +190,6 @@ private:
   /// Takes initial track hits from multiple views and forms a track object which best represents the start of the shower
   std::unique_ptr<recob::Track> MakeInitialTrack(std::map<int,std::vector<art::Ptr<recob::Hit> > > const& initialHitsMap,
 						 std::map<int,std::vector<art::Ptr<recob::Hit> > > const& showerHitsMap);
-
-  /// Takes the hits associated with a shower and orders them so they follow the direction of the shower
-  std::map<int,std::vector<art::Ptr<recob::Hit> > > OrderShowerHits(art::PtrVector<recob::Hit> const& shower, int plane);
 
   /// Takes the hits associated with a shower and orders then so they follow the direction of the shower
   void OrderShowerHits(std::vector<art::Ptr<recob::Hit> > const& shower,
