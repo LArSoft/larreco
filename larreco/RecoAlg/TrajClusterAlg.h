@@ -126,6 +126,7 @@ namespace tca {
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
     std::vector<float> fAngleRanges; ///< list of max angles for each angle range
     std::vector<float> fAngleRangesMaxHitsRMS;
+    float fVLAStepSize;
     
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
