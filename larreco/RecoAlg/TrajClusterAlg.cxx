@@ -1463,7 +1463,10 @@ namespace tca {
         if(tjWithMostHits == USHRT_MAX) continue;
         // the total number of hits used in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
-        float nTjHits = tmp.size();
+        // count the number matched to a true particle
+        float nTjHits = 0;
+        for(auto& iht : tmp) if(hitTruTrkID[iht] > 0) ++nTjHits;
+//        float nTjHits = tmp.size();
         float nTruHits = nMatchedHitsInPartList[ipl][plane];
         float nTjTruRecHits = mostHits;
         float eff = nTjTruRecHits / nTruHits;
