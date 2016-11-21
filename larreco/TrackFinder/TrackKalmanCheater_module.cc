@@ -443,7 +443,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
     // Add Track object to collection.
 
     tracks->push_back(recob::Track());
-    kalman_track.fillTrack(tracks->back(), tracks->size() - 1, true);
+    kalman_track.fillTrack(tracks->back(), tracks->size() - 1);
 
     // Make Track to Hit associations.  
 

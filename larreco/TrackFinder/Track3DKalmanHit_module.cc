@@ -395,7 +395,7 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
          
          // Add Track object to collection.
          recob::Track track;
-         kalman_track.fillTrack(track, tracks.size(), true);
+         kalman_track.fillTrack(track, tracks.size());
          if(track.NumberTrajectoryPoints() < 2) {
             continue;
          }
