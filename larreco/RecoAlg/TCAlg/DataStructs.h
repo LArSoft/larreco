@@ -91,11 +91,11 @@ namespace tca {
     CTP_t CTP {0};                   ///< Cryostat, TPC, Plane code
     std::array<float, 2> HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
     std::array<float, 2> Pos {{0,0}}; // Trajectory position in wire equivalent units
-    std::array<float, 2> Dir {{0,0}}; // Direction cosines in the StepDir direction
-    float HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
+    std::array<double, 2> Dir {{0,0}}; // Direction cosines in the StepDir direction
+    double HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
     // HitPosErr2 < 0 = HitPos not defined because no hits used
-    float Ang {0};                // Trajectory angle (-pi, +pi)
-    float AngErr {0.1};             // Trajectory angle error
+    double Ang {0};                // Trajectory angle (-pi, +pi)
+    double AngErr {0.1};             // Trajectory angle error
     float Chg {0};                // Charge
     float AveChg {-1};             // Average charge of last ~20 TPs
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
