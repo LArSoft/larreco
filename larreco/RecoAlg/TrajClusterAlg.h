@@ -106,7 +106,7 @@ namespace tca {
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     std::vector<float> fKinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
-    float fChgPullCut;
+    std::vector<float> fChargeCuts;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
