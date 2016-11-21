@@ -448,7 +448,8 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
     // Make Track to Hit associations.  
 
     art::PtrVector<recob::Hit> trhits;
-    kalman_track.fillHits(hits);
+    std::vector<unsigned int> hittpindex;
+    kalman_track.fillHits(hits, hittpindex);
     util::CreateAssn(*this, evt, *tracks, trhits, *th_assn, tracks->size()-1);
 
     // Make space points from this track.

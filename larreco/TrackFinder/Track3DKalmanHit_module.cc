@@ -56,6 +56,7 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Seed.h"
+#include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "larreco/RecoAlg/Track3DKalmanHitAlg.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -92,6 +93,7 @@ namespace trkf {
                          std::vector<recob::Track> &tracks,
                          std::vector<recob::SpacePoint> &spts,
                          art::Assns<recob::Track, recob::Hit> &th_assn,
+                         art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> &thm_assn,
                          art::Assns<recob::Track, recob::SpacePoint> &tsp_assn,
                          art::Assns<recob::SpacePoint, recob::Hit> &sph_assn,
                          art::Assns<recob::PFParticle, recob::Track> &pfPartTrack_assns);
@@ -140,7 +142,8 @@ fNumEvent(0)
    reconfigure(pset);
    produces<std::vector<recob::Track> >();
    produces<std::vector<recob::SpacePoint>            >();
-   produces<art::Assns<recob::Track, recob::Hit> >();
+   produces<art::Assns<recob::Track, recob::Hit> >(); // ****** REMEMBER to remove when FindMany improved ******
+   produces<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
    produces<art::Assns<recob::Track, recob::SpacePoint> >();
    produces<art::Assns<recob::SpacePoint, recob::Hit> >();
    produces<art::Assns<recob::PFParticle, recob::Track> >();
@@ -201,6 +204,7 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
    ++fNumEvent;
    auto tracks = std::make_unique<std::vector<recob::Track>>();
    auto th_assn = std::make_unique<art::Assns<recob::Track, recob::Hit>>();
+   auto thm_assn = std::make_unique< art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta > >();
    auto tsp_assn = std::make_unique<art::Assns<recob::Track, recob::SpacePoint>>();
    auto pfPartTrack_assns = std::make_unique<art::Assns<recob::PFParticle, recob::Track>>();
    auto spts = std::make_unique<std::vector<recob::SpacePoint>>();
@@ -215,13 +219,14 @@ void trkf::Track3DKalmanHit::produce(art::Event & evt)
       fillHistograms(outputs);
    }
    
-   createOutputs(evt, outputs, inputs, *tracks, *spts, *th_assn, *tsp_assn, *sph_assn, *pfPartTrack_assns);
+   createOutputs(evt, outputs, inputs, *tracks, *spts, *th_assn, *thm_assn, *tsp_assn, *sph_assn, *pfPartTrack_assns);
    
    fSpacePointAlg.clearHitMap();
    
    evt.put(std::move(tracks));
    evt.put(std::move(spts));
    evt.put(std::move(th_assn));
+   evt.put(std::move(thm_assn));
    evt.put(std::move(tsp_assn));
    evt.put(std::move(sph_assn));
    evt.put(std::move(pfPartTrack_assns));
@@ -370,6 +375,7 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
                                            std::vector<recob::Track> &tracks,
                                            std::vector<recob::SpacePoint> &spts,
                                            art::Assns<recob::Track, recob::Hit> &th_assn,
+                                           art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> &thm_assn,
                                            art::Assns<recob::Track, recob::SpacePoint> &tsp_assn,
                                            art::Assns<recob::SpacePoint, recob::Hit> &sph_assn,
                                            art::Assns<recob::PFParticle, recob::Track> &pfPartTrack_assns)
@@ -399,17 +405,22 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
          if(track.NumberTrajectoryPoints() < 2) {
             continue;
          }
+         unsigned int numtrajpts = track.NumberTrajectoryPoints();
          tracks.emplace_back(std::move(track));
          // SS: tracks->size() does not change after this point in each iteration
          
          //fill hits from this track
          Hits trhits;
-         kalman_track.fillHits(trhits);
+         std::vector<unsigned int> hittpindex; //hit-trajectory point index
+         kalman_track.fillHits(trhits, hittpindex);
+         if (hittpindex.back()>=numtrajpts){ //something is wrong
+           throw cet::exception("Track3DKalmanHit")
+             << "Last hit corresponds to trajectory point index "<<hittpindex.back()<<" while the number of trajectory points is "<<numtrajpts<<'\n';
+         }
          
          // Make space points from this track.
          auto nspt = spts.size();
          fSpacePointAlg.fillSpacePoints(spts, kalman_track.TrackMap());
-         
          
          std::vector<art::Ptr<recob::SpacePoint>> sptvec;
          for(auto ispt = nspt; ispt < spts.size(); ++ispt) {
@@ -425,8 +436,10 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
          art::Ptr<recob::Track> aptr(tid, tracks.size()-1, tidgetter);
          
          // Make Track to Hit associations.
-         for (auto const& trhit: trhits) {
-            th_assn.addSingle(aptr, trhit);
+         for (size_t h = 0; h< trhits.size(); ++h){
+            th_assn.addSingle(aptr, trhits[h]);
+            recob::TrackHitMeta metadata(hittpindex[h], -1);
+            thm_assn.addSingle(aptr, trhits[h], metadata);
          }
          
          // Make track to space point associations
