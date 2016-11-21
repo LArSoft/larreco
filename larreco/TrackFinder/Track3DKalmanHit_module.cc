@@ -15,7 +15,6 @@
 // HitModuleLabel        - Module label for unclustered Hits.
 // ClusterModuleLabel    - Module label for Clusters.
 // PFParticleModuleLabel - Module label for PFParticles.
-// StoreNPPlane          - Store nonpreferred planes trajectory points.
 // Track3DKalmanHitAlg   - Algorithm class for Track3DKalmanHit module
 // SpacePointAlg         - Parmaeter set for space points.
 //
@@ -107,7 +106,6 @@ namespace trkf {
       std::string fHitModuleLabel;        ///< Unclustered Hits.
       std::string fClusterModuleLabel;    ///< Clustered Hits.
       std::string fPFParticleModuleLabel; ///< PFParticle label.
-      bool fStoreNPPlane;                 ///< Store nonpreferred planes trajectory points.
       Track3DKalmanHitAlg fTKHAlg;        ///< Track3DKalmanHit algorithm.
       SpacePointAlg fSpacePointAlg;       ///< Space point algorithm.
       
@@ -133,7 +131,6 @@ fHist(false),
 fUseClusterHits(false),
 fUsePFParticleHits(false),
 fUsePFParticleSeeds(false),
-fStoreNPPlane(true),
 fTKHAlg(pset.get<fhicl::ParameterSet>("Track3DKalmanHitAlg")),
 fSpacePointAlg(pset.get<fhicl::ParameterSet>("SpacePointAlg")),
 fHIncChisq(0),
@@ -176,7 +173,6 @@ void trkf::Track3DKalmanHit::reconfigure(fhicl::ParameterSet const & pset)
    fHitModuleLabel = pset.get<std::string>("HitModuleLabel");
    fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
    fPFParticleModuleLabel = pset.get<std::string>("PFParticleModuleLabel");
-   fStoreNPPlane = pset.get<bool>("StoreNPPlane");
    if(fUseClusterHits && fUsePFParticleHits) {
       throw cet::exception("Track3DKalmanHit")
       << "Using input from both clustered and PFParticle hits.\n";
@@ -399,7 +395,7 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
          
          // Add Track object to collection.
          recob::Track track;
-         kalman_track.fillTrack(track, tracks.size(), fStoreNPPlane);
+         kalman_track.fillTrack(track, tracks.size(), true);
          if(track.NumberTrajectoryPoints() < 2) {
             continue;
          }
