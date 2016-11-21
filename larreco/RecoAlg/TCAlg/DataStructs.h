@@ -116,7 +116,7 @@ namespace tca {
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
     unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
-    float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
+    float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
