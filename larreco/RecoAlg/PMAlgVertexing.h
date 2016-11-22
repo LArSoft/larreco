@@ -55,8 +55,6 @@ public:
 		};
     };
 
-    PMAlgVertexing(void); // just default values
-
 	PMAlgVertexing(const Config& config);
 	void reconfigure(const Config& config);
 

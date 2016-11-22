@@ -11,14 +11,6 @@
 
 #include "TMath.h"
 
-pma::PMAlgVertexing::PMAlgVertexing(void) :
-	fMinTrackLength(3.0),
-	fFindKinks(false),
-	fKinkMinDeg(2.5),
-	fKinkMinStd(5.0)
-{
-}
-
 pma::PMAlgVertexing::PMAlgVertexing(const pma::PMAlgVertexing::Config& config)
 {
 	this->reconfigure(config); 

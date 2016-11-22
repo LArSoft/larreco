@@ -147,16 +147,9 @@ public:
 		const std::vector< art::Ptr<recob::Hit> >& hits_1,
 		const std::vector< art::Ptr<recob::Hit> >& hits_2 = std::vector< art::Ptr<recob::Hit> >()) const;
 
-	/// Build a track from set of hits, multiple TPCs are OK (like taken from PFParticles),
+	/// Build a track from sets of hits, multiple TPCs are OK (like taken from PFParticles),
     /// as far as hits origin from at least two wire planes.
 	pma::Track3D* buildMultiTPCTrack(const std::vector< art::Ptr<recob::Hit> >& hits) const;
-
-	/// Build a straight-line track from set of hits, multiple TPCs are OK (1 seg / TPC is made),
-    /// hits must origin from at least two wire planes in each TPC; vtx if provided is where
-    /// the track is fixed with one of its endpoints.
-    pma::Track3D* buildMultiTPCSegment(const std::vector< art::Ptr<recob::Hit> >& hits) const;
-    pma::Track3D* buildMultiTPCSegment(const std::vector< art::Ptr<recob::Hit> >& hits,
-        const pma::Vector3D & vtx) const;
 
 	/// Build a shower segment from sets of hits and attached to the provided vertex.
 	pma::Track3D* buildShowerSeg(
@@ -246,9 +239,6 @@ private:
 		const std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > >& hits,
 		std::pair<int, int> const * wires, double const * xPos,
 		unsigned int tpc, unsigned int cryo) const;
-
-    // Helper for multi-tpc track or segment making
-    bool mergeSubtracks(std::vector< pma::Track3D* > & tracks) const;
 
 	// Helpers for FilterOutSmallParts 
 	bool GetCloseHits(
