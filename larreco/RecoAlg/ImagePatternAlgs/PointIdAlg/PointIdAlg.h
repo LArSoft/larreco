@@ -112,6 +112,8 @@ public:
 	unsigned int NWires(void) const { return fNWires; }
 	unsigned int NScaledDrifts(void) const { return fNScaledDrifts; }
 
+    double LifetimeCorrection(double tick) const { return fCalorimetryAlg.LifetimeCorrection(tick); }
+
 	bool isInsideFiducialRegion(unsigned int wire, float drift) const;
 
 protected:
@@ -330,8 +332,8 @@ private:
 		size_t wireIdx);
 
 	void collectVtxFlags(
-		std::map< size_t, std::map< int, int > > & wireToDriftToVtxFlags,
-		const std::map< int, const simb::MCParticle* > & particleMap,
+		std::unordered_map< size_t, std::unordered_map< int, int > > & wireToDriftToVtxFlags,
+		const std::unordered_map< int, const simb::MCParticle* > & particleMap,
 		unsigned int view) const;
 
 	std::vector< std::vector<float> > fWireDriftEdep;

@@ -106,7 +106,7 @@ namespace tca {
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     std::vector<float> fKinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
-    float fChgPullCut;
+    std::vector<float> fChargeCuts;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
@@ -126,6 +126,7 @@ namespace tca {
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
     std::vector<float> fAngleRanges; ///< list of max angles for each angle range
     std::vector<float> fAngleRangesMaxHitsRMS;
+    float fVLAStepSize;
     
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
@@ -329,7 +330,7 @@ namespace tca {
     void EndMerge();
     void FillWireHitRange(geo::TPCID const& tpcid);
     float ExpectedHitsRMS(TrajPoint const& tp);
-    void SetHitMultiplicity();
+//    void SetHitMultiplicity();
     /// sets fQuitAlg true if WireHitRange has a problem
     bool CheckWireHitRange();
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange

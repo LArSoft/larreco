@@ -547,6 +547,29 @@ namespace tca {
   } // SetEndPoints
   
   ////////////////////////////////////////////////
+  bool TrajIsClean(TjStuff& tjs, Trajectory& tj, bool prt)
+  {
+    // Returns true if the trajectory has low hit multiplicity and is in a
+    // clean environment
+    unsigned short nUsed = 0;
+    unsigned short nTotHits = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      TrajPoint& tp = tj.Pts[ipt];
+      nTotHits += tp.Hits.size();
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(tp.UseHit[ii]) ++nUsed;
+      } // ii
+    } // ipt
+    if(nTotHits == 0) return false;
+    float fracUsed = (float)nUsed / (float)nTotHits;
+    if(prt) mf::LogVerbatim("TC")<<"TrajIsClean: nTotHits "<<nTotHits<<" nUsed "<<nUsed<<" fracUsed "<<fracUsed;
+    
+    if(fracUsed > 0.9) return true;
+    return false;
+    
+  } // TrajIsClean
+  
+  ////////////////////////////////////////////////
   short MCSMom(TjStuff& tjs, Trajectory& tj)
   {
     return MCSMom(tjs, tj, tj.EndPt[0], tj.EndPt[1]);
@@ -1418,11 +1441,13 @@ namespace tca {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
         myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
         mf::LogVerbatim myprt("TC");
         myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
