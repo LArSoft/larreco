@@ -281,23 +281,8 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildTrack(
 }
 // ------------------------------------------------------
 
-pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
-	const std::vector< art::Ptr<recob::Hit> >& hits) const
+bool pma::ProjectionMatchingAlg::mergeSubtracks(std::vector< pma::Track3D* > & tracks) const
 {
-	std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > hits_by_tpc;
-	for (auto const & h : hits)
-	{
-		hits_by_tpc[h->WireID().TPC].push_back(h);
-	}
-
-	std::vector< pma::Track3D* > tracks;
-	for(auto const & hsel : hits_by_tpc)
-	{
-		//pma::Track3D* trk = buildTrack(hsel.second);
-		pma::Track3D* trk = buildSegment(hsel.second);
-		if (trk) tracks.push_back(trk);
-	}
-
 	bool need_reopt = false;
 	while (tracks.size() > 1)
 	{
@@ -340,8 +325,127 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
 			}
 			tracks.erase(tracks.begin() + t_best);
 		}
-		else break; // should not happen
+		else { mf::LogError("ProjectionMatchingAlg") << "should not happen"; break; }
 	}
+	return need_reopt;
+}
+
+pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCSegment(
+	const std::vector< art::Ptr<recob::Hit> >& hits) const
+{
+	std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > hits_by_tpc;
+	for (auto const & h : hits)
+	{
+		hits_by_tpc[h->WireID().TPC].push_back(h);
+	}
+
+	std::vector< pma::Track3D* > tracks;
+	for(auto const & hsel : hits_by_tpc)
+	{
+		pma::Track3D* trk = buildSegment(hsel.second);
+		if (trk) tracks.push_back(trk);
+	}
+
+	bool need_reopt = mergeSubtracks(tracks);
+
+	pma::Track3D* trk = 0;
+	if (!tracks.empty())
+	{
+		trk = tracks.front();
+		if (need_reopt)
+		{
+			double g = trk->Optimize(0, fOptimizationEps);
+			mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging initial tpc segments: done, g = " << g;
+		}
+
+		trk->SortHits();
+	}
+	return trk;
+}
+// ------------------------------------------------------
+
+pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCSegment(
+	const std::vector< art::Ptr<recob::Hit> >& hits,
+	const pma::Vector3D & vtx) const
+{
+    double xyz[3] = {vtx.X(), vtx.Y(), vtx.Z()};
+    auto tpcid = fGeom->FindTPCAtPosition(xyz);
+
+	std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > hits_by_tpc;
+	for (auto const & h : hits)
+	{
+		hits_by_tpc[h->WireID().TPC].push_back(h);
+	}
+
+	std::vector< pma::Track3D* > tracks;
+	for(auto const & hsel : hits_by_tpc)
+	{
+		pma::Track3D* trk = 0;
+		if (tpcid.isValid && (tpcid.TPC == hsel.first))
+		{
+		    TVector3 tv(vtx.X(), vtx.Y(), vtx.Z());
+		    trk = buildSegment(hsel.second, tv);
+		}
+		else
+		{
+		    trk = buildSegment(hsel.second);
+		}
+		if (trk) tracks.push_back(trk);
+	}
+
+	bool need_reopt = mergeSubtracks(tracks);
+
+	pma::Track3D* trk = 0;
+	if (!tracks.empty())
+	{
+		trk = tracks.front();
+		if (need_reopt)
+		{
+		    if (tpcid.isValid)
+		    {
+		        TVector3 tv(vtx.X(), vtx.Y(), vtx.Z());
+    		    double dfront = pma::Dist2(trk->Nodes().front()->Point3D(), tv);
+	    	    double dback = pma::Dist2(trk->Nodes().back()->Point3D(), tv);
+	    	    
+	    	    pma::Node3D* node = 0;
+	    	    if (dfront < dback) { node = trk->Nodes().front(); }
+	    	    else { node = trk->Nodes().back(); }
+	    	    
+	    	    if (node && (node->TPC() == (int)tpcid.TPC))
+	    	    {
+        		    node->SetPoint3D(tv);
+		            node->SetFrozen(true);
+		        }
+		    }
+
+			double g = trk->Optimize(0, fOptimizationEps);
+			mf::LogVerbatim("ProjectionMatchingAlg") << "  reopt after merging initial tpc segments: done, g = " << g;
+		}
+
+		trk->SortHits();
+	}
+	return trk;
+}
+// ------------------------------------------------------
+
+pma::Track3D* pma::ProjectionMatchingAlg::buildMultiTPCTrack(
+	const std::vector< art::Ptr<recob::Hit> >& hits) const
+{
+	std::map< unsigned int, std::vector< art::Ptr<recob::Hit> > > hits_by_tpc;
+	for (auto const & h : hits)
+	{
+		hits_by_tpc[h->WireID().TPC].push_back(h);
+	}
+
+	std::vector< pma::Track3D* > tracks;
+	for(auto const & hsel : hits_by_tpc)
+	{
+		//pma::Track3D* trk = buildTrack(hsel.second);
+		pma::Track3D* trk = buildSegment(hsel.second);
+		if (trk) tracks.push_back(trk);
+	}
+
+	bool need_reopt = mergeSubtracks(tracks);
 
 	pma::Track3D* trk = 0;
 	if (!tracks.empty())
