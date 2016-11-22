@@ -2814,54 +2814,61 @@ namespace tca {
             // Next cut on separation between the TPs and the intersection point
             if(tj1Short || tj2Short) { sepCut = fVertex2DCuts[1]; } else { sepCut = fVertex2DCuts[2]; }
             // Try to reduce the amount of debug info printed out
-            if(vtxPrt && std::abs(wint - tp1.Pos[0]) < 20 && std::abs(wint - tp2.Pos[0]) < 20 && std::abs(tint - tp1.Pos[1]) < 20 && std::abs(tint - tp2.Pos[1]) < 20) {
+            std::array<float, 2> vPos {wint, tint};
+            float vt1Sep = PosSep(vPos, tp1.Pos);
+            float vt2Sep = PosSep(vPos, tp2.Pos);
+            if(vtxPrt && vt1Sep < 20 && vt2Sep < 20) {
               mf::LogVerbatim myprt("TC");
               myprt<<"F2DV candidate tj1-tj2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2;
-              myprt<<" vtx pos "<<(int)wint<<":"<<(int)(tint/tjs.UnitsPerTick)<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2)<<" sepCut "<<sepCut;
-              myprt<<" dw1 "<<(wint - tp1.Pos[0])<<" dt1 "<<(tint - tp1.Pos[1]);
-              myprt<<" dw2 "<<(wint - tp2.Pos[0])<<" dt2 "<<(tint - tp2.Pos[1]);
+              myprt<<" vtx pos "<<(int)wint<<":"<<(int)(tint/tjs.UnitsPerTick)<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2);
+              myprt<<" vt1Sep "<<vt1Sep<<" vt2Sep "<<vt2Sep<<" sepCut "<<sepCut;
             }
-            float dw1 = wint - tp1.Pos[0];
-            if(std::abs(dw1) > sepCut) continue;
-            float dt1 = tint - tp1.Pos[1];
-            if(std::abs(dt1) > sepCut) continue;
-            float dw2 = wint - tp2.Pos[0];
-            if(std::abs(dw2) > sepCut) continue;
-            float dt2 = tint - tp2.Pos[1];
-            if(std::abs(dt2) > sepCut) continue;
+            if(vt1Sep > sepCut || vt2Sep > sepCut) continue;
             // make sure that the other end isn't closer
-            if(PointTrajDOCA2(tjs, wint, tint, tp1) > PointTrajDOCA2(tjs, wint, tint, tjs.allTraj[it1].Pts[oendPt1])) continue;
-            if(PointTrajDOCA2(tjs, wint, tint, tp2) > PointTrajDOCA2(tjs, wint, tint, tjs.allTraj[it2].Pts[oendPt2])) continue;
-            bool hitsNear;
+            if(PosSep(vPos, tjs.allTraj[it1].Pts[oendPt1].Pos) < vt1Sep) {
+              if(vtxPrt) mf::LogVerbatim("TC")<<" tj1 other end "<<PrintPos(tjs, tjs.allTraj[it1].Pts[oendPt1])<<" is closer to the vertex";
+              continue;
+            }
+            if(PosSep(vPos, tjs.allTraj[it2].Pts[oendPt2].Pos) < vt2Sep) {
+              if(vtxPrt) mf::LogVerbatim("TC")<<" tj2 other end "<<PrintPos(tjs, tjs.allTraj[it2].Pts[oendPt2])<<" is closer to the vertex";
+              continue;
+            }
+//            if(PointTrajDOCA2(tjs, wint, tint, tp1) > PointTrajDOCA2(tjs, wint, tint, tjs.allTraj[it1].Pts[oendPt1])) continue;
+//            if(PointTrajDOCA2(tjs, wint, tint, tp2) > PointTrajDOCA2(tjs, wint, tint, tjs.allTraj[it2].Pts[oendPt2])) continue;
+            bool signalAtVtx;
             std::array<int, 2> wireWindow;
             wireWindow[0] = wint - 2;
             wireWindow[1] = wint + 2;
             std::array<float, 2> timeWindow;
             timeWindow[0] = tint - 2;
             timeWindow[1] = tint + 2;
-            std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, fPlane, kAllHits, false, hitsNear);
-            if(prt) mf::LogVerbatim("TC")<<" No hits in the vicinity ";
-            if(closeHits.empty()) continue;
+            std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, fPlane, kAllHits, false, signalAtVtx);
+            if(vtxPrt) mf::LogVerbatim("TC")<<" Hits in the vicinity "<<closeHits.size()<<" signalAtVtx? "<<signalAtVtx;
+            // no signal (no hits, not in a dead wire region)
+            if(!signalAtVtx) continue;
             // find the closest hit and determine if the vertex should be moved to it
             float close2 = sepCut * sepCut;
-            unsigned int vtxAtHit = UINT_MAX;
-            for(auto& iht : closeHits) {
-              float dw = tjs.fHits[iht].WireID.Wire - wint;
-              float dt = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick - tint;
-              float dr = dw * dw + dt * dt;
-              if(dr < close2) {
-                close2 = dr;
-                vtxAtHit = iht;
-              }
-            } // iht
-            if(vtxAtHit == UINT_MAX) continue;
-            wint = tjs.fHits[vtxAtHit].WireID.Wire;
-            tint = tjs.fHits[vtxAtHit].PeakTime * tjs.UnitsPerTick;
+            if(!closeHits.empty()) {
+              unsigned int vtxAtHit = UINT_MAX;
+              for(auto& iht : closeHits) {
+                float dw = tjs.fHits[iht].WireID.Wire - wint;
+                float dt = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick - tint;
+                float dr = dw * dw + dt * dt;
+                if(dr < close2) {
+                  close2 = dr;
+                  vtxAtHit = iht;
+                }
+              } // iht
+              if(vtxAtHit == UINT_MAX) continue;
+              wint = tjs.fHits[vtxAtHit].WireID.Wire;
+              tint = tjs.fHits[vtxAtHit].PeakTime * tjs.UnitsPerTick;
+            }
             // Ensure that the vertex position is close to an end
             unsigned short closePt1;
             float doca;
             TrajClosestApproach(tjs.allTraj[it1], wint, tint, closePt1, doca);
             short dpt = abs((short)endPt1 - (short)closePt1);
+            if(vtxPrt) mf::LogVerbatim("TC")<<" endPt1 "<<endPt1<<" closePt1 "<<closePt1<<" dpt "<<dpt;
             if(tjs.allTraj[it1].EndPt[1] > 4) {
               if(dpt > 3) continue;
             } else {
@@ -2871,6 +2878,7 @@ namespace tca {
             unsigned short closePt2;
             TrajClosestApproach(tjs.allTraj[it2], wint, tint, closePt2, doca);
             dpt = abs((short)endPt2 - (short)closePt2);
+            if(vtxPrt) mf::LogVerbatim("TC")<<" endPt2 "<<endPt2<<" closePt2 "<<closePt2<<" dpt "<<dpt;
             if(tjs.allTraj[it2].EndPt[1] > 4) {
               if(dpt > 3) continue;
             } else {
@@ -2887,7 +2895,7 @@ namespace tca {
             aVtx.Topo = end1 + end2;
             aVtx.ChiDOF = 0;
             aVtx.CTP = fCTP;
-            // fix the vertex position if we needed to move it significantly
+            // fix the vertex position if we needed to move it significantly, or if it is on a dead wire
             if(close2 > 1) aVtx.Stat[kFixed] = true;
             // try to fit it. We need to give it an ID to do that. Take the next
             // available ID
@@ -4376,9 +4384,6 @@ namespace tca {
     float drms, pull;
     bool didit;
     unsigned short ipt, usePt;
-
-    // Don't check the end if this appears to be a stopping particle since
-    // there can be a lot of scatter near the stopping point.
 
     // Check the beginning first.
     unsigned short endPt = tj.EndPt[0];
