@@ -2274,15 +2274,16 @@ namespace tca {
         if(tjs.allTraj[it1].VtxID[end1] > 0) continue;
         // Don't check for a stop-on-kink condition since it will be done below
         // define the trajectory point at this end of tj1
-        for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
+        for(unsigned short it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
+          if(it1 == it2) continue;
           if(tjs.allTraj[it2].AlgMod[kKilled]) continue;
           if(tjs.allTraj[it2].CTP != fCTP) continue;
           // ignore bad trajectories
           if(tjs.allTraj[it2].MCSMom < 5) continue;
           // assume that end 0 of tj2 is closest to the end of tj1
-          unsigned short end2 = 0;
+          unsigned short end2 = 1 - end1;
+/*
           bool order12 = true;
-          TrajPoint& tp1 = tjs.allTraj[it1].Pts[tjs.allTraj[it1].EndPt[end1]];
           TrajPoint& tp2_0 = tjs.allTraj[it2].Pts[tjs.allTraj[it2].EndPt[0]];
           TrajPoint& tp2_1 = tjs.allTraj[it2].Pts[tjs.allTraj[it2].EndPt[1]];
           float end2_0Sep2 = PosSep2(tp1.Pos, tp2_0.Pos);
@@ -2295,9 +2296,11 @@ namespace tca {
           }
           // check for an invalid end match
           if(end1 == end2) continue;
-          // check for a vertex at this end
+*/
+            // check for a vertex at this end
           if(tjs.allTraj[it2].VtxID[end2] > 0) continue;
           bool tj2Short = (tjs.allTraj[it2].EndPt[1] - tjs.allTraj[it2].EndPt[0] < maxShortTjLen);
+          TrajPoint& tp1 = tjs.allTraj[it1].Pts[tjs.allTraj[it1].EndPt[end1]];
           TrajPoint& tp2 = tjs.allTraj[it2].Pts[tjs.allTraj[it2].EndPt[end2]];
           // count the number of dead wires between them
           float dwc = DeadWireCount(tp1, tp2);
@@ -2344,7 +2347,7 @@ namespace tca {
             if(mrgPrt) mf::LogVerbatim("TC")<<" Merge ";
             if(fQuitAlg) return;
             bool didMerge;
-            if(order12) {
+            if(end1 == 1) {
               didMerge = MergeAndStore(it1, it2);
             } else {
               didMerge = MergeAndStore(it2, it1);
@@ -4678,9 +4681,9 @@ namespace tca {
         ++nUnusedHits;
         chg += tjs.fHits[iht].Integral;
       } // jj
-      float chgPull = (chg / tj.Pts[ipt].Chg - 1) / tj.ChgRMS;
-      if(chgPull < -2) ++nLoChg;
-      if(chgPull >  2) ++nHiChg;
+      float chgPull = (chg / tj.Pts[ipt].AveChg - 1) / tj.ChgRMS;
+      if(chgPull < -3) ++nLoChg;
+      if(chgPull >  3) ++nHiChg;
       if(nUnusedHits == 1) ++nOneHit;
       if(tj.Pts[ipt].Delta < maxOKDelta) ++nOKDelta;
       ++nMasked;
@@ -4710,8 +4713,10 @@ namespace tca {
       if(nMasked > tj.Pts[endPt].NTPsFit) return false;
       return true;
     }
-    
-    // Reduce the number of points fit to the minimum for this pass and include the points
+    // Reduce the number of points fit and try to include the points
+    unsigned short newNTPSFit = tj.Pts[endPt].NTPsFit / 2;
+    if(newNTPSFit < fMinPtsFit[tj.Pass]) newNTPSFit = fMinPtsFit[tj.Pass];
+//    unsigned short nPtAdded = 0;
     for(unsigned ipt = endPt + 1; ipt < tj.Pts.size(); ++ipt) {
       TrajPoint& tp = tj.Pts[ipt];
       for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
@@ -4723,13 +4728,23 @@ namespace tca {
         }
       } // ii
       DefineHitPos(tp);
+      float chgPull = (tp.Chg / tp.AveChg - 1) / tj.ChgRMS;
+      if(chgPull > 3) {
+        if(prt) mf::LogVerbatim("TC")<<" chgPull too high "<<chgPull<<". Stop unmasking hits";
+        UnsetUsedHits(tp);
+        SetEndPoints(tjs, tj);
+        break;
+      }
+      // stop adding points if the charge pull gets large
       SetEndPoints(tjs, tj);
-      tp.NTPsFit = fMinPtsFit[tj.Pass];
+      tp.NTPsFit = newNTPSFit;
       FitTraj(tj);
       if(prt) PrintTrajectory("MHOK", tjs, tj, ipt);
+//      if(tp.FitChi < 5) ++nPtAdded;
       tj.AlgMod[kUnMaskHits] = true;
-      if(tp.FitChi > 2) return false;
     } // ipt
+    
+//    if(nPtAdded == 0 && tj.Pts[tj.EndPt[1]].FitChi > 5) return false;
     
     return true;
   } // MaskedHitsOK
