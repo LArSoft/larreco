@@ -16,7 +16,7 @@ standard_trajclusteralg:
    MinAmp: 0.1              # Min amplitude for a wire signal being considered present (must be > 0)
    AngleRanges: [65,85,90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
-   ChgPullCut: 3            # Use trajectory points/hits if (Chg/AveChg - 1) / ChgRMS < cut
+   ChargeCuts: [3, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
    KinkCuts: [0.35, 1.5, 3] # kink angle, MCS kink significance, nPts fit
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
