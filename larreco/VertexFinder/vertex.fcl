@@ -16,9 +16,8 @@ process_name: FindVertex
 services:
 {
   TFileService: {fileName: "vertex_hist.root"}
-  Timing:       {}
+  TimeTracker   {}
   RandomNumberGenerator: {} #ART native random number generator
-  user:         {}
   MessageLogger: {
   				   destinations: ["detailedInfo"]
 				   categories:   ["Summary"]
@@ -27,13 +26,13 @@ services:
 				 }
 }
 
-services.user.ExptGeoHelperInterface: @local::argoneut_geometry_helper
-services.user.Geometry:	        @local::argoneut_geo
-services.user.DetectorPropertiesService: @local::argoneut_detproperties
-services.user.LArPropertiesService:    @local::argoneut_properties
-services.user.LArFFT:           @local::argoneut_larfft
-services.user.DBScanService:    @local::argoneut_dbscanservice
-services.user.HoughLineService: @local::argoneut_houghlineservice
+services.ExptGeoHelperInterface: @local::argoneut_geometry_helper
+services.Geometry:	        @local::argoneut_geo
+services.DetectorPropertiesService: @local::argoneut_detproperties
+services.LArPropertiesService:    @local::argoneut_properties
+services.LArFFT:           @local::argoneut_larfft
+services.DBScanService:    @local::argoneut_dbscanservice
+services.HoughLineService: @local::argoneut_houghlineservice
 
 source:
 {

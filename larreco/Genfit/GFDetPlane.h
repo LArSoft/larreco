@@ -173,7 +173,7 @@ namespace genf {
   bool operator!=(const genf::GFDetPlane&, const genf::GFDetPlane&);
   
 } // namespace genf
-/* @} **/
 
 #endif
 
+/** @} */

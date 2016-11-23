@@ -157,24 +157,32 @@ void cluster::BlurredClustering::produce(art::Event &evt) {
     art::Handle<std::vector<recob::Cluster> > clusterCollection;
     evt.getByLabel(fPFParticleModuleLabel, clusterCollection);
 
-    // Remove hits from tracks before performing any clustering
-    if (pfParticleCollection.isValid() and clusterCollection.isValid()) {
-      mf::LogInfo("BlurredCluster") << "Removing track-like hits before clustering: will use information from PFParticles." << std::endl;
-      art::FindManyP<recob::Cluster> fmcpfp(pfParticleCollection, evt, fPFParticleModuleLabel);
-      art::FindManyP<recob::Hit> fmhpfp(clusterCollection, evt, fPFParticleModuleLabel);
-      hitsToCluster = fTrackShowerSeparationAlg.RemoveTrackHits(hits, pfParticles, fmcpfp, fmhpfp);
-    }
-    else if (trackCollection.isValid() and trackCollection.isValid() and spacePointCollection.isValid()) {
-      mf::LogInfo("BlurredCluster") << "Removing track-like hits before clustering: no PFParticle information available so will use tracks and vertices." << std::endl;
+    if (trackCollection.isValid()) {
+      art::FindManyP<recob::Hit> fmht(trackCollection, evt, fTrackModuleLabel);
       art::FindManyP<recob::Track> fmth(hitCollection, evt, fTrackModuleLabel);
+      art::FindManyP<recob::SpacePoint> fmspt(trackCollection, evt, fTrackModuleLabel);
       art::FindManyP<recob::Track> fmtsp(spacePointCollection, evt, fTrackModuleLabel);
-      art::FindManyP<recob::Hit> fmh(trackCollection, evt, fTrackModuleLabel);
-      hitsToCluster = fTrackShowerSeparationAlg.RemoveTrackHits(hits, tracks, spacePoints, vertices, fmth, fmtsp, fmh, evt.event(), evt.run());
+      hitsToCluster = fTrackShowerSeparationAlg.SelectShowerHits(evt.event(), hits, tracks, spacePoints, fmht, fmth, fmspt, fmtsp);
     }
-    else
-      throw art::Exception(art::errors::Configuration) << "Error: configuration is set to remove track-like hits before clustering but no prior reconstruction is provided... "
-						       << std::endl
-						       << "Require either a) Pandora or b) track, vertices and space points to have already been found." << std::endl;
+
+    // // Remove hits from tracks before performing any clustering
+    // if (pfParticleCollection.isValid() and clusterCollection.isValid()) {
+    //   mf::LogInfo("BlurredCluster") << "Removing track-like hits before clustering: will use information from PFParticles." << std::endl;
+    //   art::FindManyP<recob::Cluster> fmcpfp(pfParticleCollection, evt, fPFParticleModuleLabel);
+    //   art::FindManyP<recob::Hit> fmhpfp(clusterCollection, evt, fPFParticleModuleLabel);
+    //   hitsToCluster = fTrackShowerSeparationAlg.RemoveTrackHits(hits, pfParticles, fmcpfp, fmhpfp);
+    // }
+    // else if (trackCollection.isValid() and trackCollection.isValid() and spacePointCollection.isValid()) {
+    //   mf::LogInfo("BlurredCluster") << "Removing track-like hits before clustering: no PFParticle information available so will use tracks and vertices." << std::endl;
+    //   art::FindManyP<recob::Track> fmth(hitCollection, evt, fTrackModuleLabel);
+    //   art::FindManyP<recob::Track> fmtsp(spacePointCollection, evt, fTrackModuleLabel);
+    //   art::FindManyP<recob::Hit> fmh(trackCollection, evt, fTrackModuleLabel);
+    //   hitsToCluster = fTrackShowerSeparationAlg.RemoveTrackHits(hits, tracks, spacePoints, vertices, fmth, fmtsp, fmh, evt.event(), evt.run());
+    // }
+    // else
+    //   throw art::Exception(art::errors::Configuration) << "Error: configuration is set to remove track-like hits before clustering but no prior reconstruction is provided... "
+    // 						       << std::endl
+    // 						       << "Require either a) Pandora or b) track, vertices and space points to have already been found." << std::endl;
 
   }
 
