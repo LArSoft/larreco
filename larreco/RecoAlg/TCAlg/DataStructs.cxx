@@ -5,8 +5,8 @@ namespace tca {
     "MaskHits",
     "UnMaskHits",
     "Kink",
-    "CWKink",
-    "CWStepChk",
+    "CTKink",
+    "CTStepChk",
     "TryNextPass",
     "RevProp",
     "ChkHiMultHits",
@@ -30,7 +30,9 @@ namespace tca {
     "RefineVtx",
     "MaskBadTPs",
     "NoKinkChk",
-    "SoftKink"
+    "SoftKink",
+    "ChkStop",
+    "ChkAllStop"
   };
   
   const std::vector<std::string> VtxBitNames {
