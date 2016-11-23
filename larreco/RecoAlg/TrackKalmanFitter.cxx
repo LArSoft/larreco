@@ -17,7 +17,7 @@
 
 trkf::KTrack trkf::TrackKalmanFitter::convertRecobTrackIntoKTrack(const TVector3& pos, const TVector3&  dir,  const double pval, const int pdgid) {
   //build a KTrack on the surface orthogonal to the dir at the vertex
-  const std::shared_ptr<const trkf::SurfXYZPlane> vtxsurf(new trkf::SurfXYZPlane(pos.X(),  pos.Y(),  pos.Z(), dir.X(), dir.Y(), dir.Z()));  
+  const std::shared_ptr<const trkf::SurfXYZPlane> vtxsurf(new trkf::SurfXYZPlane(pos.X(),  pos.Y(),  pos.Z(), dir.X(), dir.Y(), dir.Z()));
   const double vtxsintheta = std::sin(vtxsurf->theta());
   const double vtxcostheta = std::cos(vtxsurf->theta());
   const double vtxsinphi = std::sin(vtxsurf->phi());
@@ -43,7 +43,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 
   auto position = track.Vertex();
   auto direction = track.VertexDirection();
-  
+
   if (direction.Z()<0) {
     position = track.End();
     direction = -track.EndDirection();
@@ -72,7 +72,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     vtxTrack.getSurface()->getStartingError(vtxerr);
   }
   const trkf::KETrack tre(vtxTrack, vtxerr);
-  
+
   //setup the KFitTrack we'll use throughout the fit, it's initial status in INVALID
   trkf::KFitTrack trf = trkf::KFitTrack(tre, 0., 0., trkf::KFitTrack::INVALID);
 
@@ -98,28 +98,26 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 
       const trkf::KHitWireX* khitp = dynamic_cast<const trkf::KHitWireX*>(&*ihit);
       assert(khitp);
-      const trkf::KHitWireX& khit = *khitp;
-      // const trkf::KHitWireX& khittmp = *khitp;
-      // trkf::KHitWireX khit(khittmp);
+      trkf::KHitWireX khit(*khitp);//need a non const copy in case we want to modify the error
+      if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
       // khit.setMeasError(khit.getMeasError()*25.);
-      // khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
 
-      //propagate to measurement surface 
+      //propagate to measurement surface
       boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
       if (!pdist) {
 	//in case of zero distance the prediction surface is the one from the original track
 	//this is not good, we need it to be on the hit measurement surface, do a dummy propagation to fix it
 	boost::optional<double> dist = prop_->err_prop(trf,khit.getMeasSurface(),trkf::Propagator::UNKNOWN,false);
-      }      
+      }
       trf.setStat(trkf::KFitTrack::FORWARD_PREDICTED);
-      bool okpred = khit.predict(trf, prop_);      
+      bool okpred = khit.predict(trf, prop_);
       if (khit.getPredSurface()!=khit.getMeasSurface()) {
 	mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
 	continue;
       }
 
       //now update the forward fitted track
-      if (okpred) {      
+      if (okpred) {
 	khit.update(trf);
 	trf.setStat(trkf::KFitTrack::FORWARD);
 	//store this track for the backward fit+smooth
@@ -139,30 +137,27 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   }//for (auto itergroup : sortedHits)
 
   // LOG_DEBUG("TrackKalmanFitter") << "AFTER FORWARD\n" << trf.Print(std::cout);
-  
-  //reinitialize trk for backward fit
+
+  //reinitialize trf for backward fit
   trf.setError(100.*trf.getError());
   trf.setStat(trkf::KFitTrack::BACKWARD_PREDICTED);
   trf.setPath(0.);
   trf.setChisq(0.);
-  
+
   //backward loop over track states and hits in fittedTrack: use hits for backward fit and fwd track states for smoothing
   for (auto itertrack = fittedTrack.getTrackMap().rbegin(); itertrack != fittedTrack.getTrackMap().rend(); ++itertrack) {
-    trkf::KHitTrack& fwdTrack = itertrack->second;    
-    const trkf::KHitBase& khit = *(fwdTrack.getHit());
-    // const trkf::KHitWireX* khittmp = dynamic_cast<const trkf::KHitWireX*>(fwdTrack.getHit().get());
-    // trkf::KHitWireX khit(*khittmp);
-    // khit.setMeasError(khit.getMeasError()*25.);
-    // khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
+    trkf::KHitTrack& fwdTrack = itertrack->second;
+    trkf::KHitWireX khit(dynamic_cast<const trkf::KHitWireX&>(*fwdTrack.getHit().get()));//need a non const copy in case we want to modify the error
+    if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
 
     boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
     if (!pdist) {
       //in case of zero distance the prediction surface is the one from the original track
       //this is not good, we need it to be on the hit measurement surface, do a dummy propagation to fix it
       boost::optional<double> dist = prop_->err_prop(trf,khit.getMeasSurface(),trkf::Propagator::UNKNOWN,false);
-    }    
+    }
     bool okpred = khit.predict(trf, prop_);
-    if (okpred) {      
+    if (okpred) {
       trf.setStat(trkf::KFitTrack::BACKWARD_PREDICTED);
       //combine forward updated and backward predicted, add this to the output track
       fwdTrack.combineFit(trf);
@@ -179,10 +174,10 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   }//for (auto itertrack = fittedTrack.getTrackMap().rbegin(); itertrack != fittedTrack.getTrackMap().rend(); ++itertrack)
 
   // LOG_DEBUG("TrackKalmanFitter") << "AFTER BACKWARD\n" << trf.Print(std::cout);
-  
+
   bool zeromom = false;
   for (auto itertrack = fittedTrack.getTrackMap().rbegin(); itertrack != fittedTrack.getTrackMap().rend(); ++itertrack) {
-    trkf::KHitTrack& trh = itertrack->second;    
+    trkf::KHitTrack& trh = itertrack->second;
     double mom[3];
     trh.getMomentum(mom);
     double p = std::sqrt(mom[0]*mom[0] + mom[1]*mom[1] + mom[2]*mom[2]);
@@ -192,12 +187,11 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " " << trf.getStat();
     return false;
   }
-  
+
   //fill return objects with smoothed track and its hits
   fittedTrack.fillTrack(outTrack,track.ID(),true);
   fittedTrack.fillHits(outHits);
 
   return true;
-  
-}
 
+}
