@@ -51,8 +51,8 @@ void Hit3DBuilderAlg::reconfigure(fhicl::ParameterSet const &pset)
     m_enableMonitoring       = pset.get<bool>  ("EnableMonitoring",  true  );
     m_timeAdvanceGap         = pset.get<double>("TimeAdvanceGap",   50.    );
     m_numSigmaPeakTime       = pset.get<double>("NumSigmaPeakTime",  3.    );
-    m_pairOverlapSmall       = pset.get<double>("PairOverlapSmall",  0.6   );
-    m_pairOverlapLarge       = pset.get<double>("PairOverlapLarge",  0.2   );
+    m_pairOverlapSmall       = pset.get<double>("PairOverlapSmall",  0.5   ); //0.6   );
+    m_pairOverlapLarge       = pset.get<double>("PairOverlapLarge",  0.1   ); //0.2   );
     
     art::ServiceHandle<geo::Geometry> geometry;
     
@@ -666,23 +666,25 @@ bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
         // Check hit times are consistent
         if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
         {
-            double maxUpper        = std::min(hit1Peak+hit1Width,hit2Peak+hit2Width);
-            double minLower        = std::max(hit1Peak-hit1Width,hit2Peak-hit2Width);
-            double overlap         = maxUpper - minLower;
-            
-            double overlapFractionSmall = 0.5 * overlap / std::min(hit1Width,hit2Width);
-            double overlapFractionLarge = 0.5 * overlap / std::min(hit1Width,hit2Width);
+            double maxUpper             = std::min(hit1Peak+hit1Width,hit2Peak+hit2Width);
+            double minLower             = std::max(hit1Peak-hit1Width,hit2Peak-hit2Width);
+            double overlap              = maxUpper - minLower;
+            double overlapFractionSmall = 0.5 * overlap / std::min(hit1Width,hit2Width);  // essentially fraction of small pulse contained in larger
+            double overlapFractionLarge = 0.5 * overlap / std::max(hit1Width,hit2Width);  // fraction of larger pulse overlapped by smaller
+            double minOverlapLarge      = m_pairOverlapLarge;
             
 //            if (dumpEm) std::cout << "      overlap: " << overlapFractionSmall << ", " << overlapFractionLarge << std::endl;
             
+            if (hit1->getHit().DegreesOfFreedom() == 1 || hit2->getHit().DegreesOfFreedom() == 1) minOverlapLarge = 0.;
+            
             // require at least 10% overlap of pulses
-            if (overlapFractionSmall > m_pairOverlapSmall && overlapFractionLarge > m_pairOverlapLarge)
+            if (overlapFractionSmall > m_pairOverlapSmall && overlapFractionLarge > minOverlapLarge)
             {
                 double hit1WidSq     = hit1Width * hit1Width;
                 double hit2WidSq     = hit2Width * hit2Width;
                 double avePeakTime   = (hit1Peak / hit1WidSq + hit2Peak / hit2WidSq) * hit1WidSq * hit2WidSq / (hit1WidSq + hit2WidSq);
                 double deltaPeakTime = fabs(hit1Peak - hit2Peak);
-                double sigmaPeakTime = sqrt(hit1Sigma*hit1Sigma + hit2Sigma*hit2Sigma);
+                double sigmaPeakTime = std::sqrt(hit1Sigma*hit1Sigma + hit2Sigma*hit2Sigma);
                 double totalCharge   = hit1->getHit().Integral() + hit2->getHit().Integral();
             
                 double xPositionHit1(hit1->getXPosition());
@@ -693,6 +695,13 @@ bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
             
                 // If to here then we need to sort out the hit pair code telling what views are used
                 unsigned statusBits = 1 << hit1->getHit().View() | 1 << hit2->getHit().View();
+                
+                // handle status bits for the 2D hits
+                if (hit1->getStatusBits() & reco::ClusterHit2D::USEDINPAIR) hit1->setStatusBit(reco::ClusterHit2D::SHAREDINPAIR);
+                if (hit2->getStatusBits() & reco::ClusterHit2D::USEDINPAIR) hit2->setStatusBit(reco::ClusterHit2D::SHAREDINPAIR);
+                
+                hit1->setStatusBit(reco::ClusterHit2D::USEDINPAIR);
+                hit2->setStatusBit(reco::ClusterHit2D::USEDINPAIR);
                 
                 std::vector<const reco::ClusterHit2D*> hitVector = {0,0,0};
                 
@@ -801,7 +810,14 @@ bool Hit3DBuilderAlg::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     // And get the wire IDs
                     std::vector<geo::WireID> wireIDVec = {geo::WireID(0,0,geo::kU,0), geo::WireID(0,0,geo::kV,0), geo::WireID(0,0,geo::kW,0)};
                     
-                    for(const auto& hit : hitVector) wireIDVec[hit->getHit().WireID().Plane] = hit->getHit().WireID();
+                    for(const auto& hit : hitVector)
+                    {
+                        wireIDVec[hit->getHit().WireID().Plane] = hit->getHit().WireID();
+                        
+                        if (hit->getStatusBits() & reco::ClusterHit2D::USEDINTRIPLET) hit->setStatusBit(reco::ClusterHit2D::SHAREDINTRIPLET);
+                        
+                        hit->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
+                    }
                     
                     // Create the 3D cluster hit
                     hitTriplet = reco::ClusterHit3D(0,
@@ -888,6 +904,12 @@ bool Hit3DBuilderAlg::makeDeadChannelPair(reco::ClusterHit3D& pairOut, const rec
                 pairOut = pair;
                 pairOut.setWireID(wireID);
                 pairOut.setPosition(newPosition);
+                
+                if (hit0->getStatusBits() & reco::ClusterHit2D::USEDINTRIPLET) hit0->setStatusBit(reco::ClusterHit2D::SHAREDINTRIPLET);
+                if (hit1->getStatusBits() & reco::ClusterHit2D::USEDINTRIPLET) hit1->setStatusBit(reco::ClusterHit2D::SHAREDINTRIPLET);
+                
+                hit0->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
+                hit1->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
             
                 result  = true;
             }
