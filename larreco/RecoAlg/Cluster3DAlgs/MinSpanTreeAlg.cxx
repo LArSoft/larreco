@@ -28,11 +28,66 @@
 #include <iostream>
 #include <memory>
 #include <unordered_map>
+#include <Eigen/Dense>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows
 
 namespace lar_cluster3d {
+    
+/**
+ *  @brief define a kd tree node
+ */
+class MinSpanTreeAlg::KdTreeNode
+{
+public:
+    enum SplitAxis { xPlane,
+        yPlane,
+        zPlane,
+        leaf,
+        null
+    };
+    
+    KdTreeNode(SplitAxis axis, double axisVal, const KdTreeNode& left, const KdTreeNode& right) :
+    m_splitAxis(axis),
+    m_axisValue(axisVal),
+    m_clusterHit3D(0),
+    m_leftTree(left),
+    m_rightTree(right)
+    {}
+    
+    KdTreeNode(const reco::ClusterHit3D* hit) :
+    m_splitAxis(SplitAxis::leaf),
+    m_axisValue(0.),
+    m_clusterHit3D(hit),
+    m_leftTree(*this),
+    m_rightTree(*this)
+    {}
+    
+    KdTreeNode() : m_splitAxis(SplitAxis::null),
+    m_axisValue(0.),
+    m_clusterHit3D(0),
+    m_leftTree(*this),
+    m_rightTree(*this)
+    {}
+    
+    bool                      isLeafNode()      const {return m_splitAxis == SplitAxis::leaf;}
+    bool                      isNullNode()      const {return m_splitAxis == SplitAxis::null;}
+    
+    SplitAxis                 getSplitAxis()    const {return m_splitAxis;}
+    double                    getAxisValue()    const {return m_axisValue;}
+    const reco::ClusterHit3D* getClusterHit3D() const {return m_clusterHit3D;}
+    const KdTreeNode&         leftTree()        const {return m_leftTree;}
+    const KdTreeNode&         rightTree()       const {return m_rightTree;}
+    
+private:
+    
+    SplitAxis                 m_splitAxis;
+    double                    m_axisValue;
+    const reco::ClusterHit3D* m_clusterHit3D;
+    const KdTreeNode&         m_leftTree;
+    const KdTreeNode&         m_rightTree;
+};
 
 MinSpanTreeAlg::MinSpanTreeAlg(fhicl::ParameterSet const &pset) :
     m_channelFilter(&art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider()),
@@ -66,62 +121,11 @@ void MinSpanTreeAlg::reconfigure(fhicl::ParameterSet const &pset)
     m_geometry = &*geometry;
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
-    // Determine the unit directon and normal vectors to the wires
-    m_wireDir.resize(3);
-    m_wireNormal.resize(3);
-    
-    raw::ChannelID_t uChannel(0);
-    std::vector<geo::WireID> uWireID = m_geometry->ChannelToWire(uChannel);
-    const geo::WireGeo* uWireGeo = m_geometry->WirePtr(uWireID[0]);
-    
-    TVector3 uWireDir = uWireGeo->Direction();
-    
-    m_wireDir[0].resize(3);
-    m_wireDir[0][0] = uWireDir[0];
-    m_wireDir[0][1] = uWireDir[1];
-    m_wireDir[0][2] = uWireDir[2];
-    
-    m_wireNormal[0].resize(3);
-    m_wireNormal[0][0] = 0.;
-    m_wireNormal[0][1] = -uWireDir[2];
-    m_wireNormal[0][2] =  uWireDir[1];
-    
-    raw::ChannelID_t vChannel(2400);
-    std::vector<geo::WireID> vWireID = m_geometry->ChannelToWire(vChannel);
-    const geo::WireGeo* vWireGeo = m_geometry->WirePtr(vWireID[0]);
-    
-    TVector3 vWireDir = vWireGeo->Direction();
-    
-    m_wireDir[1].resize(3);
-    m_wireDir[1][0] = vWireDir[0];
-    m_wireDir[1][1] = vWireDir[1];
-    m_wireDir[1][2] = vWireDir[2];
-    
-    m_wireNormal[1].resize(3);
-    m_wireNormal[1][0] = 0.;
-    m_wireNormal[1][1] = -vWireDir[2];
-    m_wireNormal[1][2] =  vWireDir[1];
-    
-    m_wireDir[2].resize(3);
-    m_wireDir[2][0] = 0.;
-    m_wireDir[2][1] = 1.;
-    m_wireDir[2][2] = 0.;
-    
-    m_wireNormal[2].resize(3);
-    m_wireNormal[2][0] = 0.;
-    m_wireNormal[2][1] = 0.;
-    m_wireNormal[2][2] = 1.;
-    
-    m_wirePitch[0] = m_geometry->WirePitch(0);
-    m_wirePitch[1] = m_geometry->WirePitch(1);
-    m_wirePitch[2] = m_geometry->WirePitch(2);
-    
     m_timeVector.resize(NUMTIMEVALUES, 0.);
 }
     
-void MinSpanTreeAlg::ClusterHitsDBScan(reco::HitPairList&           hitPairList,
-                                       reco::HitPairClusterMap&     hitPairClusterMap,
-                                       reco::ClusterParametersList& clusterParametersList)
+void MinSpanTreeAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
+                                   reco::ClusterParametersList& clusterParametersList)
 {
     /**
      *  @brief Driver for processing input 2D hits, transforming to 3D hits and building lists
@@ -129,33 +133,31 @@ void MinSpanTreeAlg::ClusterHitsDBScan(reco::HitPairList&           hitPairList,
      */
     m_timeVector.resize(NUMTIMEVALUES, 0.);
     
-    // The container of pairs and those in each pair's epsilon neighborhood
-    EpsPairNeighborhoodMapVec epsPairNeighborhoodMapVec;
-    
-    epsPairNeighborhoodMapVec.resize(hitPairList.size(), EpsPairNeighborhoodMapPair(0,EpsPairNeighborhoodPair()));  //<-- initialize too!
-    
     // DBScan is driven of its "epsilon neighborhood". Computing adjacency within DBScan can be time
     // consuming so the idea is the prebuild the adjaceny map and then run DBScan.
     // The following call does this work
-    //BuildNeighborhoodMap(hitPairList, epsPairNeighborhoodMapVec);
     
     KdTreeNodeList kdTreeNodeContainer;
     KdTreeNode     topNode = BuildKdTree(hitPairList, kdTreeNodeContainer);
     
     // Run DBScan to get candidate clusters
-    //RunDBScan(epsPairNeighborhoodMapVec, hitPairClusterMap);
-    RunPrimsAlgorithm(hitPairList, topNode, hitPairClusterMap);
+    RunPrimsAlgorithm(hitPairList, topNode, clusterParametersList);
+    
+    // Test run the path finding algorithm
+    for (auto& clusterParams : clusterParametersList) FindBestPathInCluster(clusterParams, topNode);
     
     // Initial clustering is done, now trim the list and get output parameters
-    BuildClusterInfo(hitPairClusterMap, clusterParametersList);
+    BuildClusterInfo(clusterParametersList);
     
-    mf::LogDebug("Cluster3D") << ">>>>> DBScan done, found " << hitPairClusterMap.size() << " clusters" << std::endl;
+    mf::LogDebug("Cluster3D") << ">>>>> Cluster3DHits done, found " << clusterParametersList.size() << " clusters" << std::endl;
     
     return;
 }
     
 //------------------------------------------------------------------------------------------------------------------------------------------
-void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList& hitPairList, KdTreeNode& topNode, reco::HitPairClusterMap& hitPairClusterMap) const
+void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
+                                       KdTreeNode&                  topNode,
+                                       reco::ClusterParametersList& clusterParametersList) const
 {
     // If no hits then no work
     if (hitPairList.empty()) return;
@@ -170,8 +172,7 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList& hitPairList, KdTreeNod
     size_t clusterIdx(0);
     
     // This will contain our list of edges
-    MSTEdgeList         curEdgeList;
-    MSTClusterToEdgeMap hitToEdgeMap;
+    reco::EdgeList curEdgeList;
     
     // Get the first point
     reco::HitPairList::iterator freeHitItr   = hitPairList.begin();
@@ -179,16 +180,45 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList& hitPairList, KdTreeNod
     
     lastAddedHit->setStatusBit(reco::ClusterHit3D::CLUSTERATTACHED);
     
-    // Get the first cluster
-    MST3DHitToEdgeMap*    curEdgeMap = &hitToEdgeMap[clusterIdx];
-    reco::HitPairListPtr* curCluster = &hitPairClusterMap[clusterIdx++];
+    // Make a cluster...
+    clusterParametersList.push_back(reco::ClusterParameters());
+    
+    // Get an iterator to the first cluster
+    reco::ClusterParametersList::iterator curClusterItr = --clusterParametersList.end();
+    
+    // We use pointers here because the objects they point to will change in the loop below
+    reco::Hit3DToEdgeMap* curEdgeMap = &(*curClusterItr).getHit3DToEdgeMap();
+    reco::HitPairListPtr* curCluster = &(*curClusterItr).getHitPairListPtr();
+    
+    // Keep track of where the hits get distributed...
+    std::unordered_map<const reco::ClusterHit2D*,std::set<reco::ClusterParameters*>> hit2DToClusterMap;
     
     // Loop until all hits have been associated to a cluster
     while(1)
     {
+        // Update the 2D hit status bits
+        for(auto& hit : lastAddedHit->getHits())
+        {
+            if (!hit) continue;
+            
+            hit2DToClusterMap[hit].emplace(&(*curClusterItr));
+        }
+        
+        // and the 3D hit status bits
+        lastAddedHit->setStatusBit(reco::ClusterHit3D::CLUSTERATTACHED);
+        
+        // Purge the current list to get rid of edges which point to hits already in the cluster
+        reco::EdgeList::iterator curEdgeItr = curEdgeList.begin();
+        while(curEdgeItr != curEdgeList.end())
+        {
+            if (std::get<1>(*curEdgeItr)->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED)
+                curEdgeItr = curEdgeList.erase(curEdgeItr);
+            else curEdgeItr++;
+        }
+        
         // Add the lastUsedHit to the current cluster
         curCluster->push_back(lastAddedHit);
-
+        
         // Set up to find the list of nearest neighbors to the last used hit...
         CandPairVec candPairVec;
         double      bestDistance(std::numeric_limits<double>::max());
@@ -197,69 +227,31 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList& hitPairList, KdTreeNod
         FindNearestNeighbors(lastAddedHit, topNode, candPairVec, bestDistance);
         
         // Copy edges to the current list (but only for hits not already in a cluster)
-        for(auto& pair : candPairVec) curEdgeList.push_back(MSTEdgeTuple(lastAddedHit,pair.second,pair.first));
-//            if (!(pair.second->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED)) curEdgeList.push_back(MSTEdgeTuple(lastUsedHit,pair.second,pair.first));
+        for(auto& pair : candPairVec)
+            if (!(pair.second->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED)) curEdgeList.push_back(reco::EdgeTuple(lastAddedHit,pair.second,pair.first));
         
         // If the edge list is empty then we have a complete cluster
         if (curEdgeList.empty())
         {
-//            std::cout << "-----------------------------------------------------------------------------------------" << std::endl;
-//            std::cout << "**> Cluster idx: " << clusterIdx-1 << " has " << curCluster->size() << " hits, " << hitPairClusterMap[clusterIdx-1].size() << std::endl;
-/*
-            reco::HitPairListPtr longestCluster;
-            double               deepest(0.);
-            double               aveNumEdges(0.);
-            size_t               maxNumEdges(0);
-            size_t               nIsolatedHits(0);
-            
-            // Do some spelunking...
-            for(const auto& hit : *curCluster)
-            {
-                if (!(*curEdgeMap)[hit].empty() && (*curEdgeMap)[hit].size() < 3) //== 1)
-                {
-                    double depth(0.);
-                    
-                    reco::HitPairListPtr tempList = DepthFirstSearch((*curEdgeMap)[hit].front(), *curEdgeMap, depth);
-                    
-                    tempList.push_front(std::get<0>((*curEdgeMap)[hit].front()));
-                    
-                    if (depth > deepest)
-                    {
-                        longestCluster = tempList;
-                        deepest        = depth;
-                    }
-                    
-                    nIsolatedHits++;
-                }
-                
-                aveNumEdges += double((*curEdgeMap)[hit].size());
-                maxNumEdges  = std::max(maxNumEdges,(*curEdgeMap)[hit].size());
-            }
-            
-            aveNumEdges /= double(curCluster->size());
-//            std::cout << "----> # isolated hits: " << nIsolatedHits << ", longest branch: " << longestCluster.size() << ", cluster size: " << curCluster->size() << ", ave # edges: " << aveNumEdges << ", max: " << maxNumEdges << std::endl;
-            
-            if (!longestCluster.empty())
-            {
-                *curCluster = longestCluster;
-                
-//                std::cout << "        ====> new cluster size: " << curCluster->size() << ", " << hitPairClusterMap[clusterIdx-1].size() << std::endl;
-            }
-*/            
+            std::cout << "-----------------------------------------------------------------------------------------" << std::endl;
+            std::cout << "**> Cluster idx: " << clusterIdx++ << " has " << curCluster->size() << " hits" << std::endl;
+
             // Look for the next "free" hit
             freeHitItr = std::find_if(freeHitItr,hitPairList.end(),[](const auto& hit){return !(hit->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED);});
             
             // If at end of input list we are done with all hits
             if (freeHitItr == hitPairList.end()) break;
             
-//            std::cout << "##################################################################>Processing another cluster" << std::endl;
+            std::cout << "##################################################################>Processing another cluster" << std::endl;
             
             // Otherwise, get a new cluster and set up
-            curEdgeMap   = &hitToEdgeMap[clusterIdx];
-            curCluster   = &hitPairClusterMap[clusterIdx++];
-            lastAddedHit = (*freeHitItr++).get();
+            clusterParametersList.push_back(reco::ClusterParameters());
             
-            lastAddedHit->setStatusBit(reco::ClusterHit3D::CLUSTERATTACHED);
+            curClusterItr = --clusterParametersList.end();
+            
+            curEdgeMap   = &(*curClusterItr).getHit3DToEdgeMap();
+            curCluster   = &(*curClusterItr).getHitPairListPtr();
+            lastAddedHit = (*freeHitItr++).get();
         }
         // Otherwise we are still processing the current cluster
         else
@@ -268,29 +260,35 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList& hitPairList, KdTreeNod
             curEdgeList.sort([](const auto& left,const auto& right){return std::get<2>(left) < std::get<2>(right);});
             
             // Populate the map with the edges...
-            (*curEdgeMap)[std::get<0>(curEdgeList.front())].push_back(curEdgeList.front());
-            (*curEdgeMap)[std::get<1>(curEdgeList.front())].push_back(curEdgeList.front());
-
-//            std::cout << "====> Add hit to cluster, hit in cluster: " << std::get<0>(curEdgeList.front())->getWireIDs()[0].Wire << "/" << std::get<0>(curEdgeList.front())->getWireIDs()[1].Wire << "/" << std::get<0>(curEdgeList.front())->getWireIDs()[2].Wire << ", # links: " << (*curEdgeMap)[std::get<0>(curEdgeList.front())].size() << ", added: " << std::get<1>(curEdgeList.front())->getWireIDs()[0].Wire << "/" << std::get<1>(curEdgeList.front())->getWireIDs()[1].Wire << "/" << std::get<1>(curEdgeList.front())->getWireIDs()[2].Wire << ", # links: " << (*curEdgeMap)[std::get<1>(curEdgeList.front())].size() << ", edge len: " << std::get<2>(curEdgeList.front()) << std::endl;
-//            std::cout << "      last added hit in cluster: " << lastAddedHit->getWireIDs()[0].Wire << "/" << lastAddedHit->getWireIDs()[1].Wire << "/" << lastAddedHit->getWireIDs()[2].Wire << ", # links: " << (*curEdgeMap)[lastAddedHit].size() << ", current edge list size: " << curEdgeList.size() << std::endl;
-//            std::cout << "-----------------------------------------------------------------------------------------" << std::endl;
+            reco::EdgeTuple& curEdge = curEdgeList.front();
+            
+            (*curEdgeMap)[std::get<0>(curEdge)].push_back(curEdge);
+            (*curEdgeMap)[std::get<1>(curEdge)].push_back(reco::EdgeTuple(std::get<1>(curEdge),std::get<0>(curEdge),std::get<2>(curEdge)));
             
             // Update the last hit to be added to the collection
             lastAddedHit = std::get<1>(curEdgeList.front());
+        }
+    }
+    
+    // Spin through to look for hit sharing
+    for(auto& hit3D : hitPairList)
+    {
+        bool shared(false);
+        
+        for(const auto& hit : hit3D->getHits())
+        {
+            if (!hit) continue;
             
-            lastAddedHit->setStatusBit(reco::ClusterHit3D::CLUSTERATTACHED);
+            std::unordered_map<const reco::ClusterHit2D*,std::set<reco::ClusterParameters*>>::iterator hitItr = hit2DToClusterMap.find(hit);
             
-            // Purge the current list to get rid of edges which point to hits already in the cluster
-            MSTEdgeList::iterator curEdgeItr = curEdgeList.begin();
-            while(curEdgeItr != curEdgeList.end())
+            if (hitItr != hit2DToClusterMap.end() && hitItr->second.size() > 1)
             {
-                if (std::get<1>(*curEdgeItr)->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED)
-                {
-                    curEdgeItr = curEdgeList.erase(curEdgeItr);
-                }
-                else curEdgeItr++;
+                shared = true;
+                hit->setStatusBit(reco::ClusterHit2D::SHAREDINCLUSTER);
             }
         }
+        
+        if (shared) hit3D->setStatusBit(reco::ClusterHit3D::CLUSTERSHARED);
     }
     
     if (m_enableMonitoring)
@@ -303,180 +301,398 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList& hitPairList, KdTreeNod
     return;
 }
     
-reco::HitPairListPtr MinSpanTreeAlg::DepthFirstSearch(const MSTEdgeTuple&      curEdge,
-                                                      const MST3DHitToEdgeMap& hitToEdgeMap,
-                                                      double&                  depth) const
+void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& curCluster) const
 {
-    reco::HitPairListPtr hitPairListPtr;
-    double               deepest(0.);
+    reco::HitPairListPtr longestCluster;
+    double               bestQuality(0.);
+    double               aveNumEdges(0.);
+    size_t               maxNumEdges(0);
+    size_t               nIsolatedHits(0);
     
-    MST3DHitToEdgeMap::const_iterator edgeListItr = hitToEdgeMap.find(std::get<1>(curEdge));
+    reco::HitPairListPtr& hitPairList  = curCluster.getHitPairListPtr();
+    reco::Hit3DToEdgeMap& curEdgeMap   = curCluster.getHit3DToEdgeMap();
+    reco::EdgeList&       bestEdgeList = curCluster.getBestEdgeList();
+    
+    // Do some spelunking...
+    for(const auto& hit : hitPairList)
+    {
+        if (!curEdgeMap[hit].empty() && curEdgeMap[hit].size() == 1)
+        {
+            double quality(0.);
+            
+            reco::HitPairListPtr tempList = DepthFirstSearch(curEdgeMap[hit].front(), curEdgeMap, quality);
+            
+            tempList.push_front(std::get<0>(curEdgeMap[hit].front()));
+            
+            if (quality > bestQuality)
+            {
+                longestCluster = tempList;
+                bestQuality    = quality;
+            }
+            
+            nIsolatedHits++;
+        }
+        
+        aveNumEdges += double(curEdgeMap[hit].size());
+        maxNumEdges  = std::max(maxNumEdges,curEdgeMap[hit].size());
+    }
+    
+    aveNumEdges /= double(hitPairList.size());
+    std::cout << "----> # isolated hits: " << nIsolatedHits << ", longest branch: " << longestCluster.size() << ", cluster size: " << hitPairList.size() << ", ave # edges: " << aveNumEdges << ", max: " << maxNumEdges << std::endl;
+    
+    if (!longestCluster.empty())
+    {
+        hitPairList = longestCluster;
+        for(const auto& hit : hitPairList)
+        {
+            for(const auto& edge : curEdgeMap[hit]) bestEdgeList.emplace_back(edge);
+        }
+        
+        std::cout << "        ====> new cluster size: " << hitPairList.size() << std::endl;
+    }
+    
+    return;
+}
+    
+void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParams, KdTreeNode& topNode) const
+{
+    reco::HitPairListPtr& curCluster = clusterParams.getHitPairListPtr();
+    reco::Hit3DToEdgeMap& curEdgeMap = clusterParams.getHit3DToEdgeMap();
+    
+    // Trial A* here
+    if (curCluster.size() > 2)
+    {
+        // Do a quick PCA to determine our parameter "alpha"
+        reco::PrincipalComponents pca;
+        m_pcaAlg.PCAAnalysis_3D(curCluster, pca);
+        
+        if (pca.getSvdOK())
+        {
+            const std::vector<double>& pcaAxis  = pca.getEigenVectors()[0];
+            double                     pcaLen   = 1.5*sqrt(pca.getEigenValues()[0]);
+            double                     pcaWidth = 1.5*sqrt(pca.getEigenValues()[1]);
+            const double*              pcaPos   = pca.getAvePosition();
+            double                     alpha    = std::min(1.,std::max(0.001,pcaWidth/pcaLen));
+        
+            // The first task is to find the list of hits which are "isolated"
+            reco::HitPairListPtr isolatedHitList;
+            for(const auto& hit : curCluster)
+                if (!curEdgeMap[hit].empty() && curEdgeMap[hit].size() == 1)
+                    isolatedHitList.emplace_back(std::get<0>(curEdgeMap[hit].front()));
+        
+            std::cout << "************* Finding best path with A* in cluster *****************" << std::endl;
+            std::cout << "**> There are " << isolatedHitList.size() << " isolated hits, the alpha parameter is " << alpha << std::endl;
+        
+            // Goal is to now find separated pairs of isolated hits
+            reco::EdgeList edgeList;
+            reco::HitPairListPtr::iterator firstItr = isolatedHitList.begin();
+            while(firstItr != isolatedHitList.end())
+            {
+                const reco::ClusterHit3D* firstHit = *firstItr++;
+            
+                const double* firstPos      = firstHit->getPosition();
+                double        delta1stPca[] = {firstPos[0]-pcaPos[0],firstPos[1]-pcaPos[1],firstPos[2]-pcaPos[2]};
+                double        firstPcaProj  = std::fabs(delta1stPca[0]*pcaAxis[0] + delta1stPca[1]*pcaAxis[1] + delta1stPca[2]*pcaAxis[2]);
+            
+                if (firstPcaProj < 0.75 * pcaLen) continue;
+            
+                for(reco::HitPairListPtr::iterator secondItr = firstItr; secondItr != isolatedHitList.end(); secondItr++)
+                {
+                    const double* secondPos     = (*secondItr)->getPosition();
+                    double        delta2ndPca[] = {secondPos[0]-pcaPos[0],secondPos[1]-pcaPos[1],secondPos[2]-pcaPos[2]};
+                    double        secondPcaProj = std::fabs(delta2ndPca[0]*pcaAxis[0] + delta2ndPca[1]*pcaAxis[1] + delta2ndPca[2]*pcaAxis[2]);
+                
+                    if (secondPcaProj < 0.75 * pcaLen) continue;
+                
+                    double deltaPos[] = {secondPos[0]-firstPos[0],secondPos[1]-firstPos[1],secondPos[2]-firstPos[2]};
+                    double projection = std::fabs(deltaPos[0]*pcaAxis[0]+deltaPos[1]*pcaAxis[1]+deltaPos[2]*pcaAxis[2]);
+                
+                    edgeList.emplace_back(reco::EdgeTuple(firstHit,*secondItr,projection));
+                    //edgeList.emplace_back(reco::EdgeTuple(firstHit,*secondItr,DistanceBetweenNodes(firstHit,*secondItr)));
+                }
+            }
+            
+            if (!edgeList.empty())
+            {
+                edgeList.sort([](const auto& left,const auto& right){return std::get<2>(left) > std::get<2>(right);});
+        
+                // Ok, trial the algorithm by simply looking for the path between the hits at the front of the list
+                reco::EdgeTuple& bestEdge = edgeList.front();
+        
+                std::cout << "**> Sorted " << edgeList.size() << " edges, longest distance: " << DistanceBetweenNodes(std::get<0>(bestEdge),std::get<1>(bestEdge)) << std::endl;
+        
+                reco::HitPairListPtr bestPathHitList;
+                reco::EdgeList&      bestEdgeList = clusterParams.getBestEdgeList();
+        
+                AStar(std::get<0>(bestEdge),std::get<1>(bestEdge),alpha,topNode,bestPathHitList,bestEdgeList);
+
+//                double cost(std::numeric_limits<double>::max());
+                
+//                LeastCostPath(curEdgeMap[std::get<0>(bestEdge)].front(),std::get<1>(bestEdge),curEdgeMap,bestPathHitList,bestEdgeList,cost);
+                
+//                bestPathHitList.push_front(std::get<0>(bestEdge));
+        
+                std::cout << "**> Best path has " << bestPathHitList.size() << " hits, " << bestEdgeList.size() << " edges" << std::endl;
+        
+                // overwrite old version
+//                if (cost < std::numeric_limits<double>::max()) curCluster = bestPathHitList;
+                if (!bestEdgeList.empty()) curCluster = bestPathHitList;
+//                curCluster = isolatedHitList;
+            }
+        }
+    }
+    
+    return;
+}
+    
+void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
+                           const reco::ClusterHit3D* goalNode,
+                           double                    alpha,
+                           KdTreeNode&               topNode,
+                           reco::HitPairListPtr&     pathNodeList,
+                           reco::EdgeList&           bestEdgeList) const
+{
+    // Find the shortest path from start to goal using an A* algorithm
+    // Keep track of the nodes which have already been evaluated
+    reco::HitPairListPtr closedList;
+    
+    // Keep track of the nodes that have been "discovered" but yet to be evaluated
+    reco::HitPairListPtr openList = {startNode};
+    
+    // Create a map which, for each node, will tell us the node it can be most efficiencly reached from.
+    BestNodeMap bestNodeMap;
+    
+    bestNodeMap[startNode] = BestNodeTuple(startNode,0.,DistanceBetweenNodes(startNode,goalNode));
+    
+    while(!openList.empty())
+    {
+        openList.sort([bestNodeMap](const auto& left, const auto& right){return std::get<2>(bestNodeMap.at(left)) < std::get<2>(bestNodeMap.at(right));});
+        
+        const reco::ClusterHit3D* currentNode = openList.front();
+        
+        // Check to see if we have reached the goal and need to evaluate the path
+        if (currentNode == goalNode)
+        {
+            ReconstructBestPath(goalNode, bestNodeMap, pathNodeList, bestEdgeList);
+            
+            std::cout << "**> Reconstructed best path... ended with " << openList.size() << " hits in openList" << std::endl;
+            
+            break;
+        }
+        
+        // Otherwise need to keep evaluating
+        else
+        {
+            openList.pop_front();
+            closedList.push_front(currentNode);
+            
+            // Set up to find the list of nearest neighbors to the last used hit...
+            CandPairVec candPairVec;
+            double      bestDistance(std::numeric_limits<double>::max());
+            
+            // And find them... result will be an unordered list of neigbors
+            FindNearestNeighbors(currentNode, topNode, candPairVec, bestDistance);
+            
+            std::cout << "**> found " << candPairVec.size() << " nearest neigbhors, bestDistance: " << bestDistance;
+            size_t nAdded(0);
+            
+            // Get tuple values for the current node
+            const BestNodeTuple& currentNodeTuple = bestNodeMap.at(currentNode);
+            double               currentNodeScore = std::get<1>(currentNodeTuple);
+            
+            for(auto& candPair : candPairVec)
+            {
+                // Ignore those nodes we're already aware of
+                if (std::find(closedList.begin(),closedList.end(),candPair.second) != closedList.end()) continue;
+                
+                double tentative_gScore = currentNodeScore + candPair.first;
+                
+                // Have we seen the candidate node before?
+                BestNodeMap::iterator candNodeItr = bestNodeMap.find(candPair.second);
+                
+                if (candNodeItr == bestNodeMap.end())
+                {
+                    openList.push_back(candPair.second);
+                    nAdded++;
+                }
+                else if (tentative_gScore > std::get<1>(candNodeItr->second)) continue;
+/*
+                // Experiment with modification to cost estimate
+                const double* currentNodePos  = currentNode->getPosition();
+                const double* nextNodePos     = candPair.second->getPosition();
+                double        curNextDelta[]  = {nextNodePos[0]-currentNodePos[0], nextNodePos[1]-currentNodePos[1], nextNodePos[2]-currentNodePos[2]};
+                
+                const double* goalNodePos     = goalNode->getPosition();
+                double        goalNextDelta[] = {goalNodePos[0]-nextNodePos[0], goalNodePos[1]-nextNodePos[1], goalNodePos[2]-nextNodePos[2]};
+                
+                double        curNextMag      = std::sqrt(curNextDelta[0]*curNextDelta[0]   + curNextDelta[1]*curNextDelta[1]   + curNextDelta[2]*curNextDelta[2]);
+                double        goalNextMag     = std::sqrt(goalNextDelta[0]*goalNextDelta[0] + goalNextDelta[1]*goalNextDelta[1] + goalNextDelta[2]*goalNextDelta[2]);
+                
+                double        cosTheta        = (curNextDelta[0]*goalNextDelta[0] + curNextDelta[1]*goalNextDelta[1] + curNextDelta[2]*goalNextDelta[2]);
+                
+                if (cosTheta > 0. || cosTheta < 0.) cosTheta /= (curNextMag * goalNextMag);
+                
+                double        hWeight         = alpha*goalNextMag/std::max(0.001,0.5*(1.+cosTheta));
+*/
+                // update our records
+                //bestNodeMap[candPair.second] = BestNodeTuple(currentNode,tentative_gScore, tentative_gScore + hWeight);
+                bestNodeMap[candPair.second] = BestNodeTuple(currentNode, tentative_gScore, tentative_gScore + alpha*DistanceBetweenNodes(candPair.second,goalNode));
+            }
+            
+            std::cout << ", added: " << nAdded << ", openList size: " << openList.size() << std::endl;
+        }
+    }
+    
+    return;
+}
+
+void MinSpanTreeAlg::ReconstructBestPath(const reco::ClusterHit3D* goalNode,
+                                         BestNodeMap&              bestNodeMap,
+                                         reco::HitPairListPtr&     pathNodeList,
+                                         reco::EdgeList&           bestEdgeList) const
+{
+    while(std::get<0>(bestNodeMap.at(goalNode)) != goalNode)
+    {
+        const reco::ClusterHit3D* nextNode = std::get<0>(bestNodeMap[goalNode]);
+        reco::EdgeTuple           bestEdge = reco::EdgeTuple(goalNode,nextNode,DistanceBetweenNodes(goalNode,nextNode));
+        
+        pathNodeList.push_front(goalNode);
+        bestEdgeList.push_front(bestEdge);
+        
+        goalNode = nextNode;
+    }
+    
+    pathNodeList.push_front(goalNode);
+    
+    return;
+}
+    
+void MinSpanTreeAlg::LeastCostPath(const reco::EdgeTuple&      curEdge,
+                                   const reco::ClusterHit3D*   goalNode,
+                                   const reco::Hit3DToEdgeMap& hitToEdgeMap,
+                                   reco::HitPairListPtr&       bestNodeList,
+                                   reco::EdgeList&             bestEdgeList,
+                                   double&                     showMeTheMoney) const
+{
+    reco::Hit3DToEdgeMap::const_iterator edgeListItr = hitToEdgeMap.find(std::get<1>(curEdge));
+    
+    showMeTheMoney = std::numeric_limits<double>::max();
     
     if (edgeListItr != hitToEdgeMap.end())
     {
-//        const double* firstHitPos  = std::get<0>(curEdge)->getPosition();
-//        const double* secondHitPos = std::get<1>(curEdge)->getPosition();
-//        double        curEdgeVec[] = {secondHitPos[0]-firstHitPos[0],secondHitPos[1]-firstHitPos[1],secondHitPos[2]-firstHitPos[2]};
-//        double        curEdgeMag   = std::sqrt(curEdgeVec[0]*curEdgeVec[0]+curEdgeVec[1]*curEdgeVec[1]+curEdgeVec[2]*curEdgeVec[2]);
+        for(const auto& edge : edgeListItr->second)
+        {
+            // skip the self reference
+            if (std::get<1>(edge) == std::get<0>(curEdge)) continue;
+            
+            // Have we found the droid we are looking for?
+            if (std::get<1>(edge) == goalNode)
+            {
+                bestNodeList.push_back(goalNode);
+                bestEdgeList.push_back(edge);
+                showMeTheMoney = std::get<2>(edge);
+                break;
+            }
+            
+            // Keep searching, it is out there somewhere...
+            double currentCost(0.);
+            
+            LeastCostPath(edge,goalNode,hitToEdgeMap,bestNodeList,bestEdgeList,currentCost);
+            
+            if (currentCost < std::numeric_limits<double>::max())
+            {
+                showMeTheMoney = std::get<2>(edge) + currentCost;
+                break;
+            }
+        }
+    }
+    
+    if (showMeTheMoney < std::numeric_limits<double>::max())
+    {
+        bestNodeList.push_front(std::get<1>(curEdge));
+        bestEdgeList.push_front(curEdge);
+    }
+    
+    return;
+}
+    
+double MinSpanTreeAlg::DistanceBetweenNodes(const reco::ClusterHit3D* node1,const reco::ClusterHit3D* node2) const
+{
+    const double* node1Pos    = node1->getPosition();
+    const double* node2Pos    = node2->getPosition();
+    double        deltaNode[] = {node1Pos[0]-node2Pos[0], node1Pos[1]-node2Pos[1], node1Pos[2]-node2Pos[2]};
+    
+    // Standard euclidean distance
+    return std::sqrt(deltaNode[0]*deltaNode[0]+deltaNode[1]*deltaNode[1]+deltaNode[2]*deltaNode[2]);
+    
+    // Manhatten distance
+    //return std::fabs(deltaNode[0]) + std::fabs(deltaNode[1]) + std::fabs(deltaNode[2]);
+/*
+    // Chebyshev distance
+    // We look for maximum distance by wires...
+    
+    // Now go through the hits and compare view by view to look for delta wire and tigher constraint on delta t
+    int wireDeltas[] = {0,0,0};
+    
+    for(size_t idx = 0; idx < 3; idx++)
+        wireDeltas[idx] = std::abs(int(node1->getWireIDs()[idx].Wire) - int(node2->getWireIDs()[idx].Wire));
+    
+    // put wire deltas in order...
+    std::sort(wireDeltas, wireDeltas + 3);
+    
+    return std::sqrt(deltaNode[0]*deltaNode[0] + 0.09 * double(wireDeltas[2]*wireDeltas[2]));
+ */
+}
+
+reco::HitPairListPtr MinSpanTreeAlg::DepthFirstSearch(const reco::EdgeTuple&      curEdge,
+                                                      const reco::Hit3DToEdgeMap& hitToEdgeMap,
+                                                      double&                     bestTreeQuality) const
+{
+    reco::HitPairListPtr hitPairListPtr;
+    double               bestQuality(0.);
+    double               curEdgeWeight = std::max(0.3,std::get<2>(curEdge));
+    double               curEdgeProj(1./curEdgeWeight);
+    
+    reco::Hit3DToEdgeMap::const_iterator edgeListItr = hitToEdgeMap.find(std::get<1>(curEdge));
+    
+    if (edgeListItr != hitToEdgeMap.end())
+    {
+        // The input edge weight has quality factors applied, recalculate just the position difference
+        const double* firstHitPos  = std::get<0>(curEdge)->getPosition();
+        const double* secondHitPos = std::get<1>(curEdge)->getPosition();
+        double        curEdgeVec[] = {secondHitPos[0]-firstHitPos[0],secondHitPos[1]-firstHitPos[1],secondHitPos[2]-firstHitPos[2]};
+        double        curEdgeMag   = std::sqrt(curEdgeVec[0]*curEdgeVec[0]+curEdgeVec[1]*curEdgeVec[1]+curEdgeVec[2]*curEdgeVec[2]);
         
-//        std::cout << "***> edge comparison, # edges to compare: " << edgeListItr->second.size() << ", curEdge wires: " << std::get<1>(curEdge)->getWireIDs()[0].Wire << ", " << std::get<1>(curEdge)->getWireIDs()[1].Wire << ", " << std::get<1>(curEdge)->getWireIDs()[2].Wire << ", mag: " << curEdgeMag << ", sep: " << std::get<2>(curEdge) << std::endl;
+        curEdgeMag = std::max(0.1,curEdgeMag);
         
         for(const auto& edge : edgeListItr->second)
         {
             // skip the self reference
-            if (edge == curEdge)
-            {
-//                std::cout << "    ***> matching edges, skipping" << std::endl;
-                continue;
-            }
-
-            // Don't consider edges which fold back on themselves
-//            const double* nextHitPos     = std::get<1>(edge)->getPosition();
-//            double        firstEdgeVec[] = {nextHitPos[0]-firstHitPos[0], nextHitPos[1]-firstHitPos[1], nextHitPos[2]-firstHitPos[2]};
-//            double        nextEdgeVec[]  = {nextHitPos[0]-secondHitPos[0],nextHitPos[1]-secondHitPos[1],nextHitPos[2]-secondHitPos[2]};
-//            double        firstEdgeMag   = std::sqrt(firstEdgeVec[0]*firstEdgeVec[0]+firstEdgeVec[1]*firstEdgeVec[1]+firstEdgeVec[2]*firstEdgeVec[2]);
-//            double        nextEdgeMag    = std::sqrt(nextEdgeVec[0]*nextEdgeVec[0]+nextEdgeVec[1]*nextEdgeVec[1]+nextEdgeVec[2]*nextEdgeVec[2]);
-//            double        curDotFirst    = (curEdgeVec[0]*firstEdgeVec[0]+curEdgeVec[1]*firstEdgeVec[1]+curEdgeVec[2]*firstEdgeVec[2]) / (firstEdgeMag);  // Projection of current onto direction of next
-//            double        curDotNext     = (curEdgeVec[0]*nextEdgeVec[0]+curEdgeVec[1]*nextEdgeVec[1]+curEdgeVec[2]*nextEdgeVec[2]) / (nextEdgeMag*curEdgeMag);
+            if (std::get<1>(edge) == std::get<0>(curEdge)) continue;
             
-//            std::cout << "     --> projection: " << curDotFirst << ", dot: " << curDotNext << ", wires: " << std::get<1>(edge)->getWireIDs()[0].Wire << ", " << std::get<1>(edge)->getWireIDs()[1].Wire << ", " << std::get<1>(edge)->getWireIDs()[2].Wire << ", mag: " << nextEdgeMag << ", sep: " << std::get<2>(edge) << std::endl;
+            double quality(0.);
             
-//            if (curDotFirst < 0.) continue;
+            reco::HitPairListPtr tempList = DepthFirstSearch(edge,hitToEdgeMap,quality);
             
-            double tempDepth(0.);
-            
-            reco::HitPairListPtr tempList = DepthFirstSearch(edge,hitToEdgeMap,tempDepth);
-            
-            if (tempDepth > deepest)
+            if (quality > bestQuality)
             {
                 hitPairListPtr = tempList;
-                deepest        = tempDepth;
+                bestQuality    = quality;
+                curEdgeProj    = 1./curEdgeMag;
             }
         }
     }
     
     hitPairListPtr.push_front(std::get<1>(curEdge));
     
-    depth += deepest + 1./std::get<2>(curEdge);
+    bestTreeQuality += bestQuality + curEdgeProj;
     
     return hitPairListPtr;
 }
     
 //------------------------------------------------------------------------------------------------------------------------------------------
-void MinSpanTreeAlg::RunDBScan(EpsPairNeighborhoodMapVec& epsPairNeighborhoodMapVec, reco::HitPairClusterMap& hitPairClusterMap) const
-{
-    cet::cpu_timer theClockDBScan;
-    
-    // Start clocks if requested
-    if (m_enableMonitoring) theClockDBScan.start();
-    
-    // With the neighborhood built we can now form "clusters" with DBScan
-    int pairClusterIdx(0);
-    
-    // Clear the cluster list just for something to do here...
-    hitPairClusterMap.clear();
-    
-    // Ok, here we go!
-    // We can simply iterate over the map we have just built to loop through the hits "simply"
-    for(EpsPairNeighborhoodMapVec::iterator epsPairVecItr  = epsPairNeighborhoodMapVec.begin();
-        epsPairVecItr != epsPairNeighborhoodMapVec.end();
-        epsPairVecItr++)
-    {
-        // Skip the null entries (they were filtered out)
-        if (!epsPairVecItr->first) continue;
-        
-        // If this hit has been "visited" already then skip
-        if (epsPairVecItr->second.first.visited()) continue;
-        
-        // We are now visiting it so mark it as so
-        epsPairVecItr->second.first.setVisited();
-        
-        // Check that density is sufficient
-        if (epsPairVecItr->second.first.getCount() < m_minPairPts)
-        {
-            epsPairVecItr->second.first.setNoise();
-        }
-        else
-        {
-            // "Create" a new cluster and get a reference to it
-            reco::HitPairListPtr& curCluster = hitPairClusterMap[pairClusterIdx++];
-            
-            // expand the cluster
-            expandCluster(epsPairNeighborhoodMapVec, epsPairVecItr, curCluster, m_minPairPts);
-        }
-    }
-    
-    if (m_enableMonitoring)
-    {
-        theClockDBScan.stop();
-        
-        m_timeVector[RUNDBSCAN] = theClockDBScan.accumulated_real_time();
-    }
-    
-    return;
-}
-    
-void MinSpanTreeAlg::expandCluster(EpsPairNeighborhoodMapVec&          epsNeighborhoodMapVec,
-                                   EpsPairNeighborhoodMapVec::iterator epsVecItr,
-                                   reco::HitPairListPtr&               curCluster,
-                                   size_t                              minPts) const
-{
-    // This is the main inside loop for the DBScan based clustering algorithm
-    //
-    // Add the current hit to the current cluster
-    epsVecItr->second.first.setInCluster();
-    curCluster.push_back(epsVecItr->first);
-    
-    // Get the list of points in this hit's epsilon neighborhood
-    // Note this is a copy so we can modify locally
-    EpsPairNeighborhoodList epsNeighborhoodList = epsVecItr->second.second;
-    
-    while(!epsNeighborhoodList.empty())
-    {
-        // Dereference the point so we can see in the debugger...
-        const reco::ClusterHit3D* neighborPtr = epsNeighborhoodList.front();
-        
-        // Use that to look up the iterator in the general neighborhood map
-        EpsPairNeighborhoodMapVec::iterator curPtEpsVecItr = epsNeighborhoodMapVec.begin();
-        
-        std::advance(curPtEpsVecItr, neighborPtr->getID());
-        
-        // If we've not been here before then take action...
-        if (!curPtEpsVecItr->second.first.visited())
-        {
-            curPtEpsVecItr->second.first.setVisited();
-            
-            // If this epsilon neighborhood of this point is large enough then add its points to our list
-            if (curPtEpsVecItr->second.first.getCount() >= minPts)
-            {
-                // Plan is to loop through the hits in this point's neighborhood and add them to our list provided
-                // they have not already been added, or are part of a cluster, etc.
-                // So, get the list of points in the neighborhood
-                EpsPairNeighborhoodList& locList = curPtEpsVecItr->second.second;
-                
-                // And loop through them...
-                for(EpsPairNeighborhoodList::iterator hitItr = locList.begin(); hitItr != locList.end(); hitItr++)
-                {
-                    epsNeighborhoodList.push_back(*hitItr);
-                }
-            }
-        }
-        
-        // If the point is not yet in a cluster then we now add
-        if (!curPtEpsVecItr->second.first.inCluster())
-        {
-            curPtEpsVecItr->second.first.setInCluster();
-            curCluster.push_back(curPtEpsVecItr->first);
-        }
-        
-        epsNeighborhoodList.pop_front();
-    }
-    
-    return;
-}
-    
-//------------------------------------------------------------------------------------------------------------------------------------------
-KdTreeNode MinSpanTreeAlg::BuildKdTree(const reco::HitPairList& hitPairList, KdTreeNodeList& kdTreeNodeContainer) const
+MinSpanTreeAlg::KdTreeNode MinSpanTreeAlg::BuildKdTree(const reco::HitPairList& hitPairList,
+                                                       KdTreeNodeList&          kdTreeNodeContainer) const
 {
     
     // The first task is to build the kd tree
@@ -484,14 +700,11 @@ KdTreeNode MinSpanTreeAlg::BuildKdTree(const reco::HitPairList& hitPairList, KdT
     
     if (m_enableMonitoring) theClockBuildNeighborhood.start();
     
-    // Start by constructing a kd tree to locate the 3D hits
+    // The input is a list and we need to copy to a vector so we can sort ranges
     Hit3DVec hit3DVec;
     
     hit3DVec.reserve(hitPairList.size());
-    
-    Hit3DVec::iterator first = hit3DVec.begin();
-    Hit3DVec::iterator last  = hit3DVec.end();
-    
+
     for(const auto& hitPtr : hitPairList) hit3DVec.emplace_back(hitPtr.get());
     
     KdTreeNode topNode = BuildKdTree(hit3DVec.begin(), hit3DVec.end(), kdTreeNodeContainer);
@@ -505,10 +718,10 @@ KdTreeNode MinSpanTreeAlg::BuildKdTree(const reco::HitPairList& hitPairList, KdT
     return topNode;
 }
     
-KdTreeNode& MinSpanTreeAlg::BuildKdTree(Hit3DVec::iterator first,
-                                        Hit3DVec::iterator last,
-                                        KdTreeNodeList&    kdTreeNodeContainer,
-                                        int                depth) const
+MinSpanTreeAlg::KdTreeNode& MinSpanTreeAlg::BuildKdTree(Hit3DVec::iterator first,
+                                                        Hit3DVec::iterator last,
+                                                        KdTreeNodeList&    kdTreeNodeContainer,
+                                                        int                depth) const
 {
     // Ok, so if the input list is more than one element then we have work to do... but if less then handle end condition
     if (std::distance(first,last) < 2)
@@ -575,13 +788,14 @@ size_t MinSpanTreeAlg::FindNearestNeighbors(const reco::ClusterHit3D* refHit, co
 //        std::cout << "###>> nearest neighbor, refHit wires: " << refHit->getWireIDs()[0].Wire << "/" << refHit->getWireIDs()[1].Wire << "/" << refHit->getWireIDs()[2].Wire << ", compare to: " << node.getClusterHit3D()->getWireIDs()[0].Wire << "/" << node.getClusterHit3D()->getWireIDs()[1].Wire << "/" << node.getClusterHit3D()->getWireIDs()[2].Wire << std::endl;
         
         // Is this the droid we are looking for?
-        if (refHit == node.getClusterHit3D()) bestDist = 1.0;
+        if (refHit == node.getClusterHit3D()) bestDist = 0.5;  // This distance will grab neighbors with delta wire # = 1 in all three planes
         // This is the tight constraint on the hits
-        else if (bestDist < std::numeric_limits<double>::max() && !(node.getClusterHit3D()->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED) && consistentPairs(refHit, node.getClusterHit3D(), hitSeparation, wireDeltas))
+        else if (bestDist < std::numeric_limits<double>::max() && consistentPairs(refHit, node.getClusterHit3D(), hitSeparation, wireDeltas))
         {
             candPairVec.emplace_back(CandPair(hitSeparation,node.getClusterHit3D()));
             
-            bestDist = std::max(0.65,std::min(bestDist,hitSeparation));
+            //bestDist = std::max(0.35,std::min(bestDist,hitSeparation));  // This insures we will always consider neighbors with wire # changing in 2 planes
+            bestDist = std::max(0.47,std::min(bestDist,hitSeparation));  // This insures we will always consider neighbors with wire # changing in 2 planes
             
 //            std::cout << "###>> nearest neighbor, refHit wires: " << refHit->getWireIDs()[0].Wire << "/" << refHit->getWireIDs()[1].Wire << "/" << refHit->getWireIDs()[2].Wire << ", compare to: " << node.getClusterHit3D()->getWireIDs()[0].Wire << "/" << node.getClusterHit3D()->getWireIDs()[1].Wire << "/" << node.getClusterHit3D()->getWireIDs()[2].Wire << std::endl;
             
@@ -676,93 +890,6 @@ bool MinSpanTreeAlg::FindEntryBrute(const reco::ClusterHit3D* refHit, const KdTr
     
 //------------------------------------------------------------------------------------------------------------------------------------------
     
-size_t MinSpanTreeAlg::BuildNeighborhoodMap(const reco::HitPairList&   hitPairList,
-                                            EpsPairNeighborhoodMapVec& epsPairNeighborhoodMapVec) const
-{
-    /**
-     *  @brief build out the epsilon neighborhood map to be used by DBScan
-     */
-    
-    cet::cpu_timer theClockBuildNeighborhood;
-    size_t         consistentPairsCnt(0);
-    size_t         pairsChecked(0);
-    
-    if (m_enableMonitoring) theClockBuildNeighborhood.start();
-
-    // Start by constructing a kd tree to locate the 3D hits
-    KdTreeNodeList kdTreeNodeContainer;
-    Hit3DVec       hit3DVec;
-    
-    hit3DVec.reserve(hitPairList.size());
-    
-    for(const auto& hitPtr : hitPairList) hit3DVec.emplace_back(hitPtr.get());
-    
-    KdTreeNode topNode = BuildKdTree(hit3DVec.begin(), hit3DVec.end(), kdTreeNodeContainer);
-
-    // Make a container to hold candidate consistent pairs
-    CandPairVec candPairVec;
-    
-    //**********************************************************************************
-    // Given the list of pairs of hits which are consistent with each other, build out the
-    // epsilon neighbor maps
-    // Now we go through the pair list and basically repeat the same exercise as above
-    // The following assumes that the HitPairList is ordered
-    // a) in increasing Z for hits which are not on the "same W wire",
-    // b) in increasing U (Y) for hits on the same W wire
-    
-    for (reco::HitPairList::const_iterator pairItrO = hitPairList.begin(); pairItrO != hitPairList.end(); pairItrO++)
-    {
-        const reco::ClusterHit3D* hitPairO   = (*pairItrO).get();
-        const size_t              hitPairOID = hitPairO->getID();
-        
-        // Need to initialize the "first" part of the vector pseudo map
-        epsPairNeighborhoodMapVec[hitPairOID].first = hitPairO;
-        
-        // Get reference to the list for this hit so we don't look it up inside the loop
-        EpsPairNeighborhoodPair& hitPairOPair(epsPairNeighborhoodMapVec[hitPairOID].second);
-        
-        // Clear the container
-        candPairVec.clear();
-        
-        double bestDistance(std::numeric_limits<double>::max());
-
-        FindNearestNeighbors(hitPairO, topNode, candPairVec, bestDistance);
-        
-        if (candPairVec.empty()) continue;
-        
-        // Sort by the maximum delta wires
-        std::sort(candPairVec.begin(),candPairVec.end(),[](const CandPair& left, const CandPair& right){return left.first < right.first;});
-        
-        size_t minNeighbors = std::min(candPairVec.size()-1,3*m_minPairPts);  // within range of our minimum points...
-        double maxDistance  = 1.2 * candPairVec.at(minNeighbors).first;
-        
-        for(const auto& candPair : candPairVec)
-        {
-            if (candPair.first > maxDistance) break;
-            
-            const reco::ClusterHit3D* hitPairI(candPair.second);
-            
-            hitPairOPair.first.incrementCount();
-            hitPairOPair.second.emplace_back(hitPairI);
-            
-            epsPairNeighborhoodMapVec[hitPairI->getID()].second.first.incrementCount();
-            epsPairNeighborhoodMapVec[hitPairI->getID()].second.second.emplace_back(hitPairO);
-            
-            consistentPairsCnt++;
-        }
-    }
-    
-    if (m_enableMonitoring)
-    {
-        theClockBuildNeighborhood.stop();
-        m_timeVector[BUILDHITTOHITMAP] = theClockBuildNeighborhood.accumulated_real_time();
-    }
-    
-    mf::LogDebug("Cluster3D") << "Consistent pairs: " << consistentPairsCnt << " of " << pairsChecked << " checked." << std::endl;
-    
-    return consistentPairsCnt;
-}
-    
 bool MinSpanTreeAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2, double& hitSeparation, int* wireDeltas) const
 {
     // Strategy: We consider comparing "hit pairs" which may consist of 2 or 3 actual hits.
@@ -783,35 +910,35 @@ bool MinSpanTreeAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco
     // Loose constraint to weed out the obviously bad combinations
     if (pairOverlap > 0.1)
     {
-        double pairDistVec[] = {pair1->getPosition()[0] - pair2->getPosition()[0], pair1->getPosition()[1] - pair2->getPosition()[1], pair1->getPosition()[2] - pair2->getPosition()[2]};
+        hitSeparation = DistanceBetweenNodes(pair1,pair2);
         
-        hitSeparation = std::sqrt(pairDistVec[0]*pairDistVec[0] + pairDistVec[1]*pairDistVec[1] + pairDistVec[2]*pairDistVec[2]);
-        
-        size_t hitCount(0);
+//        size_t hitCount(0);
         
         // Now go through the hits and compare view by view to look for delta wire and tigher constraint on delta t
         for(size_t idx = 0; idx < 3; idx++)
         {
             wireDeltas[idx] = std::abs(int(pair1->getWireIDs()[idx].Wire) - int(pair2->getWireIDs()[idx].Wire));
             
-            if (pair1->getHits()[idx]) hitCount++;
-            if (pair2->getHits()[idx]) hitCount++;
+//            if (pair1->getHits()[idx]) hitCount++;
+//            if (pair2->getHits()[idx]) hitCount++;
         }
         
         // put wire deltas in order...
         std::sort(wireDeltas, wireDeltas + 3);
         
+        // Requirement to be considered a nearest neighbor
         if (wireDeltas[0] < 2 && wireDeltas[1] < 2 && wireDeltas[2] < 3)
         {
-            double overlapFraction = 0.5 * pairOverlap / std::min(pair1Width,pair2Width);
+//            double overlapFraction = 0.5 * pairOverlap / std::min(pair1Width,pair2Width);
 
-            for(size_t idx = 0; idx < 6-hitCount; idx++) hitSeparation *= 1.1;
-
-            hitSeparation /= overlapFraction;
+//            hitSeparation /= overlapFraction;
+            
+            // Scale the hit separation by the number of missing wires
+//            for(size_t idx = 0; idx < 6-hitCount; idx++) hitSeparation *= 2.0; //1.1;
+            
+//            if (wireDeltas[0] == 0) hitSeparation *= 2.0;
             
             hitSeparation = std::max(0.0001,hitSeparation);
-            
-//            if (hitSeparation < 0.001) std::cout << "*********> small separation, pairs: " << pair1 << ", " << pair2 << std::endl;
             
             return true;
         }
@@ -822,17 +949,14 @@ bool MinSpanTreeAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco
     
 struct HitPairClusterOrder
 {
-    bool operator()(const reco::HitPairClusterMap::iterator& left, const reco::HitPairClusterMap::iterator& right)
+    bool operator()(const reco::ClusterParametersList::iterator& left, const reco::ClusterParametersList::iterator& right)
     {
         // Watch out for the case where two clusters can have the same number of hits!
-        if (left->second.size() == right->second.size())
-            return left->first < right->first;
-        
-        return left->second.size() > right->second.size();
+        return (*left).getHitPairListPtr().size() > (*right).getHitPairListPtr().size();
     }
 };
     
-void MinSpanTreeAlg::BuildClusterInfo(reco::HitPairClusterMap& hitPairClusterMap, reco::ClusterParametersList& clusterParametersList) const
+void MinSpanTreeAlg::BuildClusterInfo(reco::ClusterParametersList& clusterParametersList) const
 {
     /**
      *  @brief Given a list of a list of candidate cluster hits, build these out into the intermediate
@@ -848,47 +972,34 @@ void MinSpanTreeAlg::BuildClusterInfo(reco::HitPairClusterMap& hitPairClusterMap
     if (m_enableMonitoring) theClockBuildClusterInfo.start();
     
     // This is a remote possibility but why not check?
-    if (!hitPairClusterMap.empty())
+    if (!clusterParametersList.empty())
     {
         // We want to order our clusters on by largest (most number hits) to smallest. So, we'll loop through the clusters,
         // weeding out the unwanted ones and keep track of things in a set of "good" clusters which we'll order
         // by cluster size.
-        std::set<reco::HitPairClusterMap::iterator, HitPairClusterOrder> hitPairClusterSet;
+        clusterParametersList.sort();
         
-        // Loop over the "Clusters" in our map where this loop serves a double purpose
-        // In the first we are weeding out clusters which fall below what we think is the minimum number of hits
-        // More importantly, we are transferring the cluster ownership to a set so it can order the clusters by
-        // number of associated hits
-        for (reco::HitPairClusterMap::iterator mapItr = hitPairClusterMap.begin(); mapItr != hitPairClusterMap.end(); mapItr++)
-        {
-            // Weed out the little people
-            if (mapItr->second.size() < m_clusterMinHits) continue;
-            
-            // Add to the set
-            hitPairClusterSet.insert(mapItr);
-        }
+        // The smallest clusters are now at the end, drop those off the back that are less than the mininum necessary
+        while(!clusterParametersList.empty() && clusterParametersList.back().getHitPairListPtr().size() < m_clusterMinHits) clusterParametersList.pop_back();
         
         // What remains is an order set of clusters, largest first
         // Now go through and obtain cluster parameters
-        for(std::set<reco::HitPairClusterMap::iterator, HitPairClusterOrder>::iterator setItr = hitPairClusterSet.begin(); setItr != hitPairClusterSet.end(); setItr++)
+        reco::ClusterParametersList::iterator clusterItr = clusterParametersList.begin();
+        
+        while(clusterItr != clusterParametersList.end())
         {
-            // Recover original map iterator
-            reco::HitPairClusterMap::iterator hitPairClusterMapItr = *setItr;
-            
-            // Create a new cluster params object in the vector
-            clusterParametersList.push_back(reco::ClusterParameters(hitPairClusterMapItr));
-            
-            // Can we get a reference to what we just created?
-            reco::ClusterParameters& clusterParams = clusterParametersList.back();
+            // Dereference for ease...
+            reco::ClusterParameters& clusterParams = *clusterItr;
             
             // Do the actual work of filling the parameters
             FillClusterParams(clusterParams, m_clusterMinUniqueFraction, m_clusterMaxLostFraction);
             
             // If this cluster is rejected then the parameters will be empty
-            if (clusterParams.m_clusterParams.empty() || !clusterParams.m_fullPCA.getSvdOK())
+            if (clusterParams.getClusterParams().empty() || !clusterParams.getFullPCA().getSvdOK())
             {
-                clusterParametersList.pop_back();
+                clusterItr = clusterParametersList.erase(clusterItr);
             }
+            else clusterItr++;
         }
     }
     
@@ -911,11 +1022,14 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, d
     
     // Recover the HitPairListPtr from the input clusterParams (which will be the
     // only thing that has been provided)
-    reco::HitPairListPtr& hitPairVector = clusterParams.m_hitPairListPtr;
+    reco::HitPairListPtr& hitPairVector = clusterParams.getHitPairListPtr();
     
     // To be sure, we should clear the other data members
-    clusterParams.m_clusterParams.clear();
-    clusterParams.m_fullPCA = reco::PrincipalComponents();
+    clusterParams.getClusterParams().clear();
+    clusterParams.getFullPCA() = reco::PrincipalComponents();
+    
+    // A test of the emergency broadcast system...
+//    FindBestPathInCluster(clusterParams);
     
     // See if we can avoid duplicates by temporarily transferring to a set
     //std::set<const reco::ClusterHit2D*> hitSet;
@@ -1004,12 +1118,12 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, d
                 clusterParams.UpdateParameters(hit2D);
             }
             
-            size_t nViewsWithHits    = (clusterParams.m_clusterParams[geo::kU].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.m_clusterParams[geo::kV].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.m_clusterParams[geo::kW].m_hitVector.size() > 0 ? 1 : 0);
-            size_t nViewsWithMinHits = (clusterParams.m_clusterParams[geo::kU].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.m_clusterParams[geo::kV].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.m_clusterParams[geo::kW].m_hitVector.size() > 2 ? 1 : 0);
+            size_t nViewsWithHits    = (clusterParams.getClusterParams()[geo::kU].m_hitVector.size() > 0 ? 1 : 0)
+            + (clusterParams.getClusterParams()[geo::kV].m_hitVector.size() > 0 ? 1 : 0)
+            + (clusterParams.getClusterParams()[geo::kW].m_hitVector.size() > 0 ? 1 : 0);
+            size_t nViewsWithMinHits = (clusterParams.getClusterParams()[geo::kU].m_hitVector.size() > 2 ? 1 : 0)
+            + (clusterParams.getClusterParams()[geo::kV].m_hitVector.size() > 2 ? 1 : 0)
+            + (clusterParams.getClusterParams()[geo::kW].m_hitVector.size() > 2 ? 1 : 0);
             //            // Final selection cut, need at least 3 hits each view
             //            if (nViewsWithHits == 3 && nViewsWithMinHits > 1)
             // Final selection cut, need at least 3 hits each view for at least 2 views
@@ -1030,32 +1144,32 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, d
                 }
                 
                 // First stage of feature extraction runs here
-                m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairListPtr, clusterParams.m_fullPCA);
+                m_pcaAlg.PCAAnalysis_3D(clusterParams.getHitPairListPtr(), clusterParams.getFullPCA());
                 
                 // Must have a valid pca
-                if (clusterParams.m_fullPCA.getSvdOK())
+                if (clusterParams.getFullPCA().getSvdOK())
                 {
                     // If any hits were thrown away, see if we can rescue them
                     if (!usedHitPairList.empty())
                     {
-                        double maxDoca = 2. * sqrt(clusterParams.m_fullPCA.getEigenValues()[1]);
+                        double maxDoca = 2. * sqrt(clusterParams.getFullPCA().getEigenValues()[1]);
                         
                         if (maxDoca < 5.)
                         {
                             size_t curHitVectorSize = hitPairVector.size();
                             
-                            m_pcaAlg.PCAAnalysis_calc3DDocas(usedHitPairList, clusterParams.m_fullPCA);
+                            m_pcaAlg.PCAAnalysis_calc3DDocas(usedHitPairList, clusterParams.getFullPCA());
                             
                             for(const auto& hit3D : usedHitPairList)
                                 if (hit3D->getDocaToAxis() < maxDoca) hitPairVector.push_back(hit3D);
                             
                             if (hitPairVector.size() > curHitVectorSize)
-                                m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairListPtr, clusterParams.m_fullPCA);
+                                m_pcaAlg.PCAAnalysis_3D(clusterParams.getHitPairListPtr(), clusterParams.getFullPCA());
                         }
                     }
                     
                     // Set the skeleton PCA to make sure it has some value
-                    clusterParams.m_skeletonPCA = clusterParams.m_fullPCA;
+                    clusterParams.getSkeletonPCA() = clusterParams.getFullPCA();
                 }
             }
         }

@@ -31,92 +31,6 @@
 namespace lar_cluster3d
 {
 /**
- *  @brief define a kd tree node
- */
-class KdTreeNode
-{
-public:
-    enum SplitAxis { xPlane,
-                     yPlane,
-                     zPlane,
-                     leaf,
-                     null
-    };
-    
-    KdTreeNode(SplitAxis axis, double axisVal, const KdTreeNode& left, const KdTreeNode& right) :
-               m_splitAxis(axis),
-               m_axisValue(axisVal),
-               m_clusterHit3D(0),
-               m_leftTree(left),
-               m_rightTree(right)
-    {}
-    
-    KdTreeNode(const reco::ClusterHit3D* hit) :
-               m_splitAxis(SplitAxis::leaf),
-               m_axisValue(0.),
-               m_clusterHit3D(hit),
-               m_leftTree(*this),
-               m_rightTree(*this)
-    {}
-    
-    KdTreeNode() : m_splitAxis(SplitAxis::null),
-    m_axisValue(0.),
-    m_clusterHit3D(0),
-    m_leftTree(*this),
-    m_rightTree(*this)
-    {}
-    
-    bool                      isLeafNode()      const {return m_splitAxis == SplitAxis::leaf;}
-    bool                      isNullNode()      const {return m_splitAxis == SplitAxis::null;}
-    
-    SplitAxis                 getSplitAxis()    const {return m_splitAxis;}
-    double                    getAxisValue()    const {return m_axisValue;}
-    const reco::ClusterHit3D* getClusterHit3D() const {return m_clusterHit3D;}
-    const KdTreeNode&         leftTree()        const {return m_leftTree;}
-    const KdTreeNode&         rightTree()       const {return m_rightTree;}
-    
-private:
-    
-    SplitAxis                 m_splitAxis;
-    double                    m_axisValue;
-    const reco::ClusterHit3D* m_clusterHit3D;
-    const KdTreeNode&         m_leftTree;
-    const KdTreeNode&         m_rightTree;
-};
-    
-using KdTreeNodeVec  = std::vector<KdTreeNode>;
-using KdTreeNodeList = std::list<KdTreeNode>;
-using Hit3DVec       = std::vector<const reco::ClusterHit3D*>;
-    
-/**
- *  @brief a utility class for keeping track of the state of a hit for DBScan
- */
-class MSTScanParams
-{
-public:
-    MSTScanParams() : m_visited(false), m_noise(false), m_inCluster(false), m_count(0) {}
-        
-    void setVisited()         {m_visited   = true;}
-    void setNoise()           {m_noise     = true;}
-    void setInCluster()       {m_inCluster = true;}
-    void setCount(int count)  {m_count     = count;}
-    
-    void clearVisited()                   const {m_visited   = false;}
-    void incrementCount(size_t count = 1) const {m_count    += count;}
-        
-    bool   visited()   const {return m_visited;}
-    bool   isNoise()   const {return m_noise;}
-    bool   inCluster() const {return m_inCluster;}
-    size_t getCount()  const {return m_count;}
-        
-private:
-    mutable bool   m_visited;
-    bool           m_noise;
-    bool           m_inCluster;
-    mutable size_t m_count;
-};
-
-/**
  *  @brief  MinSpanTreeAlg class definiton
  */
 class MinSpanTreeAlg
@@ -143,9 +57,8 @@ public:
      *  @param hitPairClusterMap     A map of hits that have been clustered
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    void ClusterHitsDBScan(reco::HitPairList&           hitPairList,
-                           reco::HitPairClusterMap&     hitPairClusterMap,
-                           reco::ClusterParametersList& clusterParametersList);
+    void Cluster3DHits(reco::HitPairList&           hitPairList,
+                       reco::ClusterParametersList& clusterParametersList);
     
     /**
      *  @brief Given the results of running DBScan, format the clusters so that they can be
@@ -157,8 +70,7 @@ public:
      *
      *                                The last two parameters are passed through to the FillClusterParams method
      */
-    void BuildClusterInfo(reco::HitPairClusterMap&     hitPairClusterMap,
-                          reco::ClusterParametersList& clusterParametersList) const;
+    void BuildClusterInfo(reco::ClusterParametersList& clusterParametersList) const;
     
     /**
      *  @brief A generic routine to actually fill the clusterParams
@@ -185,6 +97,12 @@ public:
     
 private:
     
+    class KdTreeNode;
+    
+    using KdTreeNodeVec  = std::vector<KdTreeNode>;
+    using KdTreeNodeList = std::list<KdTreeNode>;
+    using Hit3DVec       = std::vector<const reco::ClusterHit3D*>;
+    
     /**
      *  @brief Given an input set of ClusterHit3D objects, build a kd tree structure
      *
@@ -201,51 +119,56 @@ private:
     bool   FindEntryBrute(const reco::ClusterHit3D*, const KdTreeNode&, int) const;
     
     /**
-     *  @brief a depth first search to find longest branches
-     */
-    using MSTEdgeTuple        = std::tuple<const reco::ClusterHit3D*,const reco::ClusterHit3D*,double>;
-    using MSTEdgeList         = std::list<MSTEdgeTuple>;
-    using MST3DHitToEdgePair  = std::pair<const reco::ClusterHit3D*, MSTEdgeList>;
-    using MST3DHitToEdgeMap   = std::unordered_map<const reco::ClusterHit3D*, MSTEdgeList>;
-    using MSTClusterToEdgeMap = std::map<int,MST3DHitToEdgeMap>;
-    
-    reco::HitPairListPtr DepthFirstSearch(const MSTEdgeTuple&, const MST3DHitToEdgeMap&, double&) const;
-    
-    /**
      *  @brief The bigger question: are two pairs of hits consistent?
      */
     bool consistentPairs(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2, double& hitSeparation, int* wireDeltas) const;
     
-    typedef std::list<const reco::ClusterHit3D*>                           EpsPairNeighborhoodList;
-    typedef std::pair<MSTScanParams, EpsPairNeighborhoodList >             EpsPairNeighborhoodPair;
-    typedef std::map<const reco::ClusterHit3D*, EpsPairNeighborhoodPair >  EpsPairNeighborhoodMap;
-    typedef std::pair<const reco::ClusterHit3D*, EpsPairNeighborhoodPair > EpsPairNeighborhoodMapPair;
-    typedef std::vector<EpsPairNeighborhoodMapPair >                       EpsPairNeighborhoodMapVec;
-    
     /**
      *  @brief Driver for Prim's algorithm
      */
-    void RunPrimsAlgorithm(reco::HitPairList&, KdTreeNode&, reco::HitPairClusterMap&) const;
+    void RunPrimsAlgorithm(reco::HitPairList&, KdTreeNode&, reco::ClusterParametersList&) const;
     
     /**
-     *  @brief Driver for DBScan
+     *  @brief Algorithm to find the best path through the given cluster
      */
-    void RunDBScan(EpsPairNeighborhoodMapVec&, reco::HitPairClusterMap&) const;
+    void FindBestPathInCluster(reco::ClusterParameters&) const;
     
     /**
-     *  @brief The primary cluster building section for DBScan
+     *  @brief a depth first search to find longest branches
      */
-    void expandCluster(EpsPairNeighborhoodMapVec&, EpsPairNeighborhoodMapVec::iterator, reco::HitPairListPtr&, size_t) const;
+    reco::HitPairListPtr DepthFirstSearch(const reco::EdgeTuple&, const reco::Hit3DToEdgeMap&, double&) const;
+    
+    /**
+     *  @brief Alternative version of FindBestPathInCluster utilizing an A* algorithm
+     */
+    void FindBestPathInCluster(reco::ClusterParameters&, KdTreeNode&) const;
+    
+    /**
+     *  @brief Algorithm to find shortest path between two 3D hits
+     */
+    void AStar(const reco::ClusterHit3D*, const reco::ClusterHit3D*, double alpha, KdTreeNode&, reco::HitPairListPtr&, reco::EdgeList&) const;
+
+    using BestNodeTuple = std::tuple<const reco::ClusterHit3D*,double,double>;
+    using BestNodeMap   = std::unordered_map<const reco::ClusterHit3D*,BestNodeTuple>;
+    
+    void ReconstructBestPath(const reco::ClusterHit3D*, BestNodeMap&, reco::HitPairListPtr&, reco::EdgeList&) const;
+    
+    double DistanceBetweenNodes(const reco::ClusterHit3D*,const reco::ClusterHit3D*) const;
+    
+    /**
+     *  @brief Find the lowest cost path between two nodes using MST edges
+     */
+    void LeastCostPath(const reco::EdgeTuple&,
+                       const reco::ClusterHit3D*,
+                       const reco::Hit3DToEdgeMap&,
+                       reco::HitPairListPtr&,
+                       reco::EdgeList&,
+                       double&) const;
     
     /**
      *  @brief Given an input HitPairList, build out the map of nearest neighbors
      */
     KdTreeNode BuildKdTree(const reco::HitPairList&, KdTreeNodeList&) const;
-    
-    /**
-     *  @brief Given an input HitPairList, build out the map of nearest neighbors
-     */
-    size_t BuildNeighborhoodMap(const reco::HitPairList&, EpsPairNeighborhoodMapVec&) const;
     
     /**
      *  @brief define data structure for keeping track of channel status
@@ -269,10 +192,7 @@ private:
     
     bool                                 m_enableMonitoring;      ///<
     int                                  m_hits;                  ///<
-    double                               m_wirePitch[3];
     mutable std::vector<float>           m_timeVector;            ///<
-    std::vector<std::vector<double>>     m_wireDir;               ///<
-    std::vector<std::vector<double>>     m_wireNormal;            ///<
     
     ChannelStatusByViewVec               m_channelStatus;
  
