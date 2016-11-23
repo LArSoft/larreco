@@ -7,6 +7,7 @@ fcldir product_dir job
 #
 product         version
 larsim		v06_05_03
+eigen           v3_2_9a
 nutools         v2_06_02
 gcc		v4_9_3a
 
