@@ -1324,7 +1324,7 @@ namespace tca {
       myprt<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NTj Pass  Topo traj IDs\n";
       for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
         auto const& aVtx = tjs.vtx[iv];
-        if(debug.Plane < 3 && debug.Plane != (int)aVtx.CTP) continue;
+        if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
         if(aVtx.NTraj == 0) continue;
         myprt<<std::right<<std::setw(3)<<std::fixed<<aVtx.ID<<std::setprecision(1);
         myprt<<std::right<<std::setw(6)<<aVtx.CTP;
@@ -1340,7 +1340,7 @@ namespace tca {
         // display the traj indices
         for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
           auto const& aTj = tjs.allTraj[ii];
-          if(debug.Plane < 3 && debug.Plane != (int)aTj.CTP) continue;
+          if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
           if(aTj.AlgMod[kKilled]) continue;
           for(unsigned short end = 0; end < 2; ++end)
             if(aTj.VtxID[end] == (short)aVtx.ID) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
@@ -1362,7 +1362,7 @@ namespace tca {
       myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ Stp PDG  Par TRuPDG  E*P TruKE  WorkID\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
-        if(debug.Plane >=0 && debug.Plane < 3 && (unsigned short)debug.Plane != aTj.CTP) continue;
+        if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
         myprt<<someText<<" ";
         if(aTj.AlgMod[kKilled]) { myprt<<"xxx"; } else { myprt<<"TRJ"; }
         myprt<<std::fixed<<std::setw(4)<<aTj.ID;

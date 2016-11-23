@@ -78,12 +78,6 @@ standard_pmalgfitter:
   RunVertexing:           false   # find vertices, join with tracks, reoptimize track-vertex structure
 }
 
-standard_pmalgrefitter:
-{
-  LongTrackMinRange:      2.0     # ...
-  LongTrackMinDistToWall: 3.0     # ...
-}
-
 standard_beziertrackeralgorithm:
 {	
   OverlapCut:            0.2
