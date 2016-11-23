@@ -599,7 +599,7 @@ void DBScanAlg::BuildClusterInfo(reco::HitPairClusterMap& hitPairClusterMap, rec
             FillClusterParams(clusterParams, m_clusterMinUniqueFraction, m_clusterMaxLostFraction);
             
             // If this cluster is rejected then the parameters will be empty
-            if (clusterParams.m_clusterParams.empty() || !clusterParams.m_fullPCA.getSvdOK())
+            if (clusterParams.getClusterParams().empty() || !clusterParams.getFullPCA().getSvdOK())
             {
                 clusterParametersList.pop_back();
             }
@@ -625,11 +625,11 @@ void DBScanAlg::FillClusterParams(reco::ClusterParameters& clusterParams, double
     
     // Recover the HitPairListPtr from the input clusterParams (which will be the
     // only thing that has been provided)
-    reco::HitPairListPtr& hitPairVector = clusterParams.m_hitPairListPtr;
+    reco::HitPairListPtr& hitPairVector = clusterParams.getHitPairListPtr();
     
     // To be sure, we should clear the other data members
-    clusterParams.m_clusterParams.clear();
-    clusterParams.m_fullPCA = reco::PrincipalComponents();
+    clusterParams.getClusterParams().clear();
+    clusterParams.getFullPCA() = reco::PrincipalComponents();
     
     // See if we can avoid duplicates by temporarily transferring to a set
     std::set<const reco::ClusterHit2D*> hitSet;
@@ -716,12 +716,12 @@ void DBScanAlg::FillClusterParams(reco::ClusterParameters& clusterParams, double
                 clusterParams.UpdateParameters(hit2D);
             }
             
-            size_t nViewsWithHits    = (clusterParams.m_clusterParams[geo::kU].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.m_clusterParams[geo::kV].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.m_clusterParams[geo::kW].m_hitVector.size() > 0 ? 1 : 0);
-            size_t nViewsWithMinHits = (clusterParams.m_clusterParams[geo::kU].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.m_clusterParams[geo::kV].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.m_clusterParams[geo::kW].m_hitVector.size() > 2 ? 1 : 0);
+            size_t nViewsWithHits    = (clusterParams.getClusterParams()[geo::kU].m_hitVector.size() > 0 ? 1 : 0)
+            + (clusterParams.getClusterParams()[geo::kV].m_hitVector.size() > 0 ? 1 : 0)
+            + (clusterParams.getClusterParams()[geo::kW].m_hitVector.size() > 0 ? 1 : 0);
+            size_t nViewsWithMinHits = (clusterParams.getClusterParams()[geo::kU].m_hitVector.size() > 2 ? 1 : 0)
+            + (clusterParams.getClusterParams()[geo::kV].m_hitVector.size() > 2 ? 1 : 0)
+            + (clusterParams.getClusterParams()[geo::kW].m_hitVector.size() > 2 ? 1 : 0);
             //            // Final selection cut, need at least 3 hits each view
             //            if (nViewsWithHits == 3 && nViewsWithMinHits > 1)
             // Final selection cut, need at least 3 hits each view for at least 2 views
@@ -742,32 +742,32 @@ void DBScanAlg::FillClusterParams(reco::ClusterParameters& clusterParams, double
                 }
                 
                 // First stage of feature extraction runs here
-                m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairListPtr, clusterParams.m_fullPCA);
+                m_pcaAlg.PCAAnalysis_3D(clusterParams.getHitPairListPtr(), clusterParams.getFullPCA());
                 
                 // Must have a valid pca
-                if (clusterParams.m_fullPCA.getSvdOK())
+                if (clusterParams.getFullPCA().getSvdOK())
                 {
                     // If any hits were thrown away, see if we can rescue them
                     if (!usedHitPairList.empty())
                     {
-                        double maxDoca = 2. * sqrt(clusterParams.m_fullPCA.getEigenValues()[1]);
+                        double maxDoca = 2. * sqrt(clusterParams.getFullPCA().getEigenValues()[1]);
                         
                         if (maxDoca < 5.)
                         {
                             size_t curHitVectorSize = hitPairVector.size();
                             
-                            m_pcaAlg.PCAAnalysis_calc3DDocas(usedHitPairList, clusterParams.m_fullPCA);
+                            m_pcaAlg.PCAAnalysis_calc3DDocas(usedHitPairList, clusterParams.getFullPCA());
                             
                             for(const auto& hit3D : usedHitPairList)
                                 if (hit3D->getDocaToAxis() < maxDoca) hitPairVector.push_back(hit3D);
                             
                             if (hitPairVector.size() > curHitVectorSize)
-                                m_pcaAlg.PCAAnalysis_3D(clusterParams.m_hitPairListPtr, clusterParams.m_fullPCA);
+                                m_pcaAlg.PCAAnalysis_3D(clusterParams.getHitPairListPtr(), clusterParams.getFullPCA());
                         }
                     }
                     
                     // Set the skeleton PCA to make sure it has some value
-                    clusterParams.m_skeletonPCA = clusterParams.m_fullPCA;
+                    clusterParams.getSkeletonPCA() = clusterParams.getFullPCA();
                 }
             }
         }
