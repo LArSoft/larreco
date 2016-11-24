@@ -101,7 +101,7 @@ public:
   /// This implementation also orients the track in the correct direction if a map of shower centres (units [cm]) in each view is provided.
   std::unique_ptr<recob::Track> ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
 					       std::vector<art::Ptr<recob::Hit> > const& track2,
-					       std::map<geo::PlaneID,TVector2> const& showerCentreMap);
+					       std::map<int,TVector2> const& showerCentreMap);
 
   /// Constructs a recob::Track from sets of hits in two views. Intended to be used to construct the initial first part of a shower.
   /// All methods taken from the pma tracking algorithm (R. Sulej and D. Stefan).
@@ -198,7 +198,7 @@ private:
 
   /// Projects a 3D point (units [cm]) onto a 2D plane
   /// Returns 2D point (units [cm])
-  TVector2 Project3DPointOntoPlane(TVector3 const& point, geo::PlaneID planeID);
+  TVector2 Project3DPointOntoPlane(TVector3 const& point, int plane, int cryostat = 0);
 
   /// Determines the 'relative wire width', i.e. how spread a shower is across wires of each plane relative to the others
   /// If a shower travels along the wire directions in a particular view, it will have a smaller wire width in that view

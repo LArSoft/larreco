@@ -1,13 +1,15 @@
 
 BEGIN_PROLOG
 
-standard_trackshowerseparationalg:
+standard_trackshowersepalg:
 {
-  AngleCut:           15
-  DistanceCut:        50
-  VertexProximityCut: 10
-  TrackProximityCut:  4
-  AvTrackHitDistance: 1
+  ConeAngle: 15
+  CylinderRadius: 20.
+  TrackVertexCut: 5.
+  CylinderCut: 0.2
+  ShowerConeCut: 5.
+  RectangleWidth: 1.
+  RectangleCut: 0.5
 }
 
 standard_showerenergyalg:
