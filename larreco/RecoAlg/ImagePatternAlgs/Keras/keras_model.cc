@@ -57,7 +57,7 @@ void keras::LayerConv2D::load_weights(std::ifstream &fin) {
         vector<float> tmp_row;
         for(int c = 0; c < m_cols; ++c) {
           fin >> tmp_float;
-          cout << tmp_float << " ";
+          //cout << tmp_float << " ";
           tmp_row.push_back(tmp_float);
         }
         fin >> tmp_char; // for ']'
