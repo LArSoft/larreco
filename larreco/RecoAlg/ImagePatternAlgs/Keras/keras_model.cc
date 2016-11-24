@@ -40,18 +40,24 @@ void keras::LayerConv2D::load_weights(std::ifstream &fin) {
   char tmp_char = ' ';
   string tmp_str = "";
   float tmp_float;
-  fin >> m_kernels_cnt >> m_depth >> m_rows >> m_cols;
-  cout << "LayerConv2D " << m_kernels_cnt << "x" << m_depth << "x" << m_rows << "x" << m_cols << endl;
+  bool skip = false;
+  fin >> m_kernels_cnt >> m_depth >> m_rows >> m_cols >> m_border_mode;
+  if (m_border_mode == "[") { m_border_mode = "valid"; skip = true; }
+
+  cout << "LayerConv2D " << m_kernels_cnt
+    << "x" << m_depth << "x" << m_rows << "x" << m_cols << " border_mode " << m_border_mode << endl;
   // reading kernel weights
   for(int k = 0; k < m_kernels_cnt; ++k) {
     vector<vector<vector<float> > > tmp_depths;
     for(int d = 0; d < m_depth; ++d) {
       vector<vector<float> > tmp_single_depth;
       for(int r = 0; r < m_rows; ++r) {
-        fin >> tmp_char; // for '['
+        if (!skip) { fin >> tmp_char; } // for '['
+        else { skip = false; }
         vector<float> tmp_row;
         for(int c = 0; c < m_cols; ++c) {
           fin >> tmp_float;
+          cout << tmp_float << " ";
           tmp_row.push_back(tmp_float);
         }
         fin >> tmp_char; // for ']'
@@ -217,7 +223,8 @@ keras::DataChunk* keras::LayerActivation::compute_output(keras::DataChunk* dc) {
   return dc;
 }
 
-std::vector< std::vector<float> > keras::conv_single_depth(
+// with border mode = valid
+std::vector< std::vector<float> > keras::conv_single_depth_valid(
 	std::vector< std::vector<float> > const & im,
 	std::vector< std::vector<float> > const & k)
 {
@@ -240,14 +247,43 @@ std::vector< std::vector<float> > keras::conv_single_depth(
   return y;
 }
 
+// with border mode = same
+std::vector< std::vector<float> > keras::conv_single_depth_same(
+	std::vector< std::vector<float> > const & im,
+	std::vector< std::vector<float> > const & k)
+{
+  unsigned int st_x = (k.size() - 1) / 2;
+  unsigned int st_y = (k[0].size() - 1) / 2;
+
+  std::vector< std::vector<float> > y;
+  for(unsigned int i = 0; i < im.size(); ++i) {
+    y.emplace_back(vector<float>(im[0].size(), 0.0));
+  }
+  for(unsigned int i = 0; i < im.size(); ++i) {
+    for(unsigned int j = 0; j < im[0].size(); ++j) {
+      for(unsigned int k1 = 0; k1 < k.size(); ++k1) {
+        for(unsigned int k2 = 0; k2 < k[0].size(); ++k2) {
+          if(i-st_x+k1 < 0) continue;
+          if(i-st_x+k1 > im.size()-1) continue;
+          if(j-st_y+k2 < 0) continue;
+          if(j-st_y+k2 > im[0].size()-1) continue;
+
+          y[i][j] += k[k.size()-k1-1][k[0].size()-k2-1] * im[i-st_x+k1][j-st_y+k2];
+        }
+      }
+    }
+  }
+  return y;
+}
+
 keras::DataChunk* keras::LayerConv2D::compute_output(keras::DataChunk* dc) {
   unsigned int st_x = (m_kernels[0][0].size()-1)/2;
   unsigned int st_y = (m_kernels[0][0][0].size()-1)/2;
   vector< vector< vector<float> > > y_ret;
   auto const & im = dc->get_3d();
 
-  size_t size_x = im[0].size() - 2 * st_x;
-  size_t size_y = im[0][0].size() - 2 * st_y;
+  size_t size_x = (m_border_mode == "valid")? im[0].size() - 2 * st_x : im[0].size();
+  size_t size_y = (m_border_mode == "valid")? im[0][0].size() - 2 * st_y: im[0][0].size();
   for(unsigned int i = 0; i < m_kernels.size(); ++i) { // depth
     vector<vector<float> > tmp;
     tmp.reserve(size_x);
@@ -259,7 +295,11 @@ keras::DataChunk* keras::LayerConv2D::compute_output(keras::DataChunk* dc) {
 
   for(unsigned int j = 0; j < m_kernels.size(); ++j) { // loop over kernels
     for(unsigned int m = 0; m < im.size(); ++m) { // loope over image depth
-      vector<vector<float> > tmp_w = keras::conv_single_depth(im[m], m_kernels[j][m]);
+
+      vector<vector<float> > tmp_w = (m_border_mode == "valid")?
+                        keras::conv_single_depth_valid(im[m], m_kernels[j][m]) :
+                        keras::conv_single_depth_same(im[m], m_kernels[j][m]);
+
       for(unsigned int x = 0; x < tmp_w.size(); ++x) {
         for(unsigned int y = 0; y < tmp_w[0].size(); ++y) {
           y_ret[j][x][y] += tmp_w[x][y];
@@ -317,7 +357,7 @@ std::vector<float> keras::KerasModel::compute_output(keras::DataChunk *dc) {
     //cout << "Output" << endl;
     //out->show_name();
 
-    delete inp;
+    if (inp != dc) delete inp;
     inp = 0L;
     inp = out;
   }
