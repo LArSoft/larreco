@@ -194,10 +194,10 @@ bool shower::EMShowerAlg::CheckShowerHits(std::map<int,std::vector<art::Ptr<reco
     //  -- the 3D start point makes sense when projected back onto the individual planes
 
     std::vector<art::Ptr<recob::Hit> > startHits;
-    std::vector<geo::PlaneID> planes;
+    std::vector<int> planes;
     for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::const_iterator showerHitsIt = showerHitsMap.begin(); showerHitsIt != showerHitsMap.end(); ++showerHitsIt) {
       startHits.push_back(showerHitsIt->second.front());
-      planes.push_back(showerHitsIt->second.front()->WireID().planeID());
+      planes.push_back(showerHitsIt->first);
     }
 
     TVector3 showerStartPos = Construct3DPoint(startHits.at(0), startHits.at(1));
@@ -238,7 +238,7 @@ bool shower::EMShowerAlg::CheckShowerHits(std::map<int,std::vector<art::Ptr<reco
 	  otherPlanes.push_back(otherPlane);
 
       TVector3 showerStartPos = Construct3DPoint(start2DMap.at(otherPlanes.at(0)), start2DMap.at(otherPlanes.at(1)));
-      TVector2 showerStartProj = Project3DPointOntoPlane(showerStartPos, start2DMap.at(plane)->WireID().planeID());
+      TVector2 showerStartProj = Project3DPointOntoPlane(showerStartPos, plane);
 
       if (fDebug > 2) {
 	std::cout << "Plane... " << plane << std::endl;
@@ -408,7 +408,7 @@ TVector3 shower::EMShowerAlg::Construct3DPoint(art::Ptr<recob::Hit> const& hit1,
 
 std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& hits1,
 								  std::vector<art::Ptr<recob::Hit> > const& hits2,
-								  std::map<geo::PlaneID,TVector2> const& showerCentreMap) {
+								  std::map<int,TVector2> const& showerCentreMap) {
 
   std::unique_ptr<recob::Track> track;
 
@@ -484,11 +484,11 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
   }
 
   // Orient the track correctly
-  std::map<geo::PlaneID,double> distanceToVertex, distanceToEnd;
+  std::map<int,double> distanceToVertex, distanceToEnd;
   TVector3 vertex = *xyz.begin(), end = *xyz.rbegin();
 
   // Loop over all the planes and find the distance from the vertex and end projections to the centre in each plane
-  for (std::map<geo::PlaneID,TVector2>::const_iterator showerCentreIt = showerCentreMap.begin(); showerCentreIt != showerCentreMap.end(); ++showerCentreIt) {
+  for (std::map<int,TVector2>::const_iterator showerCentreIt = showerCentreMap.begin(); showerCentreIt != showerCentreMap.end(); ++showerCentreIt) {
 
     // Project the vertex and the end point onto this plane
     TVector2 vertexProj = Project3DPointOntoPlane(vertex, showerCentreIt->first);
@@ -502,11 +502,11 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
 
   // Find the average distance to the vertex and the end across the planes
   double avDistanceToVertex = 0, avDistanceToEnd = 0;
-  for (std::map<geo::PlaneID,double>::iterator distanceToVertexIt = distanceToVertex.begin(); distanceToVertexIt != distanceToVertex.end(); ++distanceToVertexIt)
+  for (std::map<int,double>::iterator distanceToVertexIt = distanceToVertex.begin(); distanceToVertexIt != distanceToVertex.end(); ++distanceToVertexIt)
     avDistanceToVertex += distanceToVertexIt->second;
   avDistanceToVertex /= distanceToVertex.size();
 
-  for (std::map<geo::PlaneID,double>::iterator distanceToEndIt = distanceToEnd.begin(); distanceToEndIt != distanceToEnd.end(); ++distanceToEndIt)
+  for (std::map<int,double>::iterator distanceToEndIt = distanceToEnd.begin(); distanceToEndIt != distanceToEnd.end(); ++distanceToEndIt)
     avDistanceToEnd += distanceToEndIt->second;
   avDistanceToEnd /= distanceToEnd.size();
 
@@ -531,7 +531,7 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
 std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<art::Ptr<recob::Hit> > const& track1,
 								  std::vector<art::Ptr<recob::Hit> > const& track2) {
 
-  std::map<geo::PlaneID,TVector2> showerCentreMap;
+  std::map<int,TVector2> showerCentreMap;
 
   return this->ConstructTrack(track1, track2, showerCentreMap);
 
@@ -1234,7 +1234,7 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(std::map<int
 
 	if (otherPlanes.size() > 1) {
 
-	  TVector2 projThirdPlane = Project3DPointOntoPlane(point, showerHits.at(otherPlanes.at(1)).at(0)->WireID().planeID());
+	  TVector2 projThirdPlane = Project3DPointOntoPlane(point, otherPlanes.at(1));
 	  const std::vector<art::Ptr<recob::Hit> > otherOtherPlaneHits = showerHits.at(otherPlanes.at(1));
 
 	  for (std::vector<art::Ptr<recob::Hit> >::const_iterator otherOtherPlaneHitIt = otherOtherPlaneHits.begin();
@@ -1259,8 +1259,8 @@ std::vector<recob::SpacePoint> shower::EMShowerAlg::MakeSpacePoints(std::map<int
 	  }
 	}
 
-	else if ((Project3DPointOntoPlane(point, (*planeHitIt)->WireID().planeID()) - HitPosition(*planeHitIt)).Mod() < fSpacePointSize and
-		 (Project3DPointOntoPlane(point, (*otherPlaneHitIt)->WireID().planeID()) - HitPosition(*otherPlaneHitIt)).Mod() < fSpacePointSize) {
+	else if ((Project3DPointOntoPlane(point, (*planeHitIt)->WireID().Plane) - HitPosition(*planeHitIt)).Mod() < fSpacePointSize and
+		 (Project3DPointOntoPlane(point, (*otherPlaneHitIt)->WireID().Plane) - HitPosition(*otherPlaneHitIt)).Mod() < fSpacePointSize) {
 
 	  truePoint = true;
 
@@ -1337,7 +1337,7 @@ std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::OrderShow
       continue;
     std::vector<art::Ptr<recob::Hit> > orderedHits = FindOrderOfHits(showerHitsIt->second);
     planeRMS[showerHitsIt->first] = ShowerHitRMS(orderedHits);
-    //TVector2 trueStart2D = Project3DPointOntoPlane(trueStart3D, showerHitsIt->second.at(0)->WireID().planeID());
+    //TVector2 trueStart2D = Project3DPointOntoPlane(trueStart3D, showerHitsIt->first);
     planeRMSGradients[showerHitsIt->first] = ShowerHitRMSGradient(orderedHits);
     showerHitsMap[showerHitsIt->first] = orderedHits;
   }
@@ -2077,12 +2077,28 @@ double shower::EMShowerAlg::ShowerHitRMSGradient(const std::vector<art::Ptr<reco
 
 }
 
-TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, geo::PlaneID planeID) {
+TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, int plane, int cryostat) {
 
+  TVector2 wireTickPos = TVector2(-999., -999.);
+
+  double pointPosition[3] = {point.X(), point.Y(), point.Z()};
+ 
+  geo::TPCID tpcID = fGeom->FindTPCAtPosition(pointPosition);
+  int tpc = 0;
+  if (tpcID.isValid)
+    tpc = tpcID.TPC;
+  else
+    return wireTickPos;
+
+  // Construct wire ID for this point projected onto the plane
+  geo::PlaneID planeID = geo::PlaneID(cryostat, tpc, plane);
   geo::WireID wireID = geo::WireID(planeID, fGeom->WireCoordinate(point.Y(), point.Z(), planeID));
 
-  TVector2 wireTickPos = TVector2(GlobalWire(wireID),
-				  fDetProp->ConvertXToTicks(point.X(), planeID));
+  wireTickPos = TVector2(GlobalWire(wireID),
+                         fDetProp->ConvertXToTicks(point.X(), planeID));
+
+  // wireTickPos = TVector2(fGeom->WireCoordinate(point.Y(), point.Z(), planeID.Plane, tpc % 2, planeID.Cryostat),
+  // 			 fDetProp->ConvertXToTicks(point.X(), planeID.Plane, tpc % 2, planeID.Cryostat));
 
   //return wireTickPos;
   return HitPosition(wireTickPos, planeID);
