@@ -477,16 +477,19 @@ int cluster::BlurredClusteringAlg::FindClusters(std::vector<std::vector<double> 
 
 }
 
-int cluster::BlurredClusteringAlg::GlobalWire(geo::WireID const& wireID) {
-
-  double wireCentre[3];
-  fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
+int cluster::BlurredClusteringAlg::GlobalWire(const geo::WireID& wireID) {
 
   double globalWire = -999;
+
+  // Induction
   if (fGeom->SignalType(wireID) == geo::kInduction) {
+    double wireCentre[3];
+    fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
     if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
     else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
   }
+
+  // Collection
   else {
     // FOR COLLECTION WIRES, HARD CODE THE GEOMETRY FOR GIVEN DETECTORS
     // THIS _SHOULD_ BE TEMPORARY. GLOBAL WIRE SUPPORT IS BEING ADDED TO THE LARSOFT GEOMETRY AND SHOULD BE AVAILABLE SOON
@@ -495,15 +498,17 @@ int cluster::BlurredClusteringAlg::GlobalWire(geo::WireID const& wireID) {
       if (wireID.TPC == 0 or wireID.TPC == 1) globalWire = wireID.Wire;
       else if (wireID.TPC == 2 or wireID.TPC == 3 or wireID.TPC == 4 or wireID.TPC == 5) globalWire = nwires + wireID.Wire;
       else if (wireID.TPC == 6 or wireID.TPC == 7) globalWire = (2*nwires) + wireID.Wire;
-      else mf::LogError("BlurredClusterAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC << " (geometry" << fDetector << ")";
+      else mf::LogError("BlurredClusterAlg") << "Error when trying to find a global induction plane coordinate for TPC " << wireID.TPC << " (geometry " << fDetector << ")";
     }
-    else if (fDetector == "dunefd") {
+    else if (fDetector == "dune10kt") {
       unsigned int nwires = fGeom->Nwires(wireID.Plane, 0, wireID.Cryostat);
       // Detector geometry has four TPCs, two on top of each other, repeated along z...
       int block = wireID.TPC / 4;
       globalWire = (nwires*block) + wireID.Wire;
     }
     else {
+      double wireCentre[3];
+      fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
       if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
       else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
     }

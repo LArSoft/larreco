@@ -1624,14 +1624,17 @@ TVector2 shower::EMShowerAlg::HitPosition(TVector2 const& pos, geo::PlaneID plan
 
 double shower::EMShowerAlg::GlobalWire(const geo::WireID& wireID) {
 
-  double wireCentre[3];
-  fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
-
   double globalWire = -999;
+
+  // Induction
   if (fGeom->SignalType(wireID) == geo::kInduction) {
+    double wireCentre[3];
+    fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
     if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
     else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
   }
+
+  // Collection
   else {
     // FOR COLLECTION WIRES, HARD CODE THE GEOMETRY FOR GIVEN DETECTORS
     // THIS _SHOULD_ BE TEMPORARY. GLOBAL WIRE SUPPORT IS BEING ADDED TO THE LARSOFT GEOMETRY AND SHOULD BE AVAILABLE SOON
@@ -1649,6 +1652,8 @@ double shower::EMShowerAlg::GlobalWire(const geo::WireID& wireID) {
       globalWire = (nwires*block) + wireID.Wire;
     }
     else {
+      double wireCentre[3];
+      fGeom->WireIDToWireGeo(wireID).GetCenter(wireCentre);
       if (wireID.TPC % 2 == 0) globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 0, wireID.Cryostat);
       else globalWire = fGeom->WireCoordinate(wireCentre[1], wireCentre[2], wireID.Plane, 1, wireID.Cryostat);
     }
