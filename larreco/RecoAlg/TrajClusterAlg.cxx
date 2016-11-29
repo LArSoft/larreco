@@ -933,11 +933,13 @@ namespace tca {
     // be truly reverse propagated, which necessitates re-fitting the trajectory points at the beginning
 
     if(prt) {
-      mf::LogVerbatim("TC")<<"ReversePropagate: ";
+      mf::LogVerbatim("TC")<<"ReversePropagate: tj.EndPt[0] "<<tj.EndPt[0];
     }
     
-    // deal with this case later
-    if(tj.EndPt[0] != 0) return;
+    if(tj.EndPt[0] > 0) {
+      tj.Pts.erase(tj.Pts.begin(), tj.Pts.begin() + tj.EndPt[0] - 1);
+      SetEndPoints(tjs, tj);
+    }
     // find the wire on which EndPt resides
     unsigned int wire0 = std::nearbyint(tj.Pts[0].Pos[0]);
     unsigned int nextWire = wire0 - tj.StepDir;
@@ -4416,15 +4418,17 @@ namespace tca {
       break;
     } // ii
     
-    FixTrajBegin(tj, lastPtFit);
+    // Don't use new code below that calls ReverseProp?
+    if(!fUseAlg[kFTBRevProp]) {
+      FixTrajBegin(tj, lastPtFit);
+      return;
+    }
 
-/*
     // find the point that includes the most points in the fit. Assume it is the last point
     unsigned short ptWithMostPtFitted = tj.EndPt[1];
     unsigned short ptsFitted = tj.Pts[ptWithMostPtFitted].NTPsFit;
     for(short ipt = ptWithMostPtFitted - ptsFitted; ipt > tj.EndPt[0]; --ipt) {
       if(ipt <= 0) break;
-      std::cout<<"ipt "<<ipt<<" tj.Pts[ipt].NTPsFit "<<tj.Pts[ipt].NTPsFit<<" ptWithMostPtFitted "<<ptWithMostPtFitted<<" ptsFitted "<<ptsFitted<<"\n";
       if(tj.Pts[ipt].NTPsFit > ptsFitted) {
         ptsFitted = tj.Pts[ipt].NTPsFit;
         ptWithMostPtFitted = ipt;
@@ -4445,12 +4449,12 @@ namespace tca {
     }
     
     // lop off the points before firstPtFit and reverse propagate
-    if(prt) mf::LogVerbatim("TC")<<"  reverse propagate ";
+    if(prt) mf::LogVerbatim("TC")<<"  FTB call ReversePropagate ";
     for(unsigned short ipt = 0; ipt < firstPtFit; ++ipt) UnsetUsedHits(tj.Pts[ipt]);
     SetEndPoints(tjs, tj);
     tj.AlgMod[kFixEnd] = true;
     ReversePropagate(tj);
-*/
+
   } // FixTrajBegin
   
   ////////////////////////////////////////////////
