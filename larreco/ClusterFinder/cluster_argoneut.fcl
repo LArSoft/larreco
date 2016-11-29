@@ -12,7 +12,7 @@ argoneut_trajclusteralg.NPTsAve:  10
 argoneut_trajclusteralg.MaxChi: 3
 argoneut_trajclusteralg.HitErrFac: 0.5
 argoneut_trajclusteralg.ChargeCuts: [5, 0.15, 0.25]
-argoneut_trajclusteralg.MaxWireSkipNoSignal: 4
+argoneut_trajclusteralg.MaxWireSkipNoSignal: 5
 argoneut_trajclusteralg.MaxWireSkipWithSignal: 20
 argoneut_trajclusteralg.KinkCuts: [ 0.45, 4, 3 ] # kink angle, MCS kink significance, nPts fit
 argoneut_trajclusteralg.ProjectionErrFactor: 1
