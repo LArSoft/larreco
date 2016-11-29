@@ -204,6 +204,7 @@ namespace tca {
     kSoftKink,
     kChkStop,
     kChkAllStop,
+    kFTBRevProp,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
