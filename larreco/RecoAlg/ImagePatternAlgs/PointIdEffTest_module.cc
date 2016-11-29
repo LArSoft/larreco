@@ -667,6 +667,7 @@ int nnet::PointIdEffTest::RunCNN(
 		{
 			fHitsOutFile << fRun << " " << fEvent << " "
 				<< h->WireID().TPC  << " " << h->WireID().Wire << " " << h->PeakTime() << " "
+				<< h->SummedADC() * fPointIdAlg.LifetimeCorrection(h->PeakTime()) << " "
 				<< fMcPid << " " << fPidValue << std::endl;
 		}
 	}

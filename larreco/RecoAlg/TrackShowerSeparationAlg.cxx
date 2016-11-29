@@ -22,7 +22,7 @@ void shower::TrackShowerSeparationAlg::reconfigure(fhicl::ParameterSet const& ps
   fCylinderCut    = pset.get<double>("CylinderCut");
   fShowerConeCut  = pset.get<double>("ShowerConeCut");
 
-  fDebug = pset.get<int>("Debug");
+  fDebug = pset.get<int>("Debug",0);
 }
 
 std::vector<art::Ptr<recob::Hit> > shower::TrackShowerSeparationAlg::SelectShowerHits(int event,

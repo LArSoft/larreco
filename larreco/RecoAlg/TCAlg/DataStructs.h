@@ -91,11 +91,11 @@ namespace tca {
     CTP_t CTP {0};                   ///< Cryostat, TPC, Plane code
     std::array<float, 2> HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
     std::array<float, 2> Pos {{0,0}}; // Trajectory position in wire equivalent units
-    std::array<float, 2> Dir {{0,0}}; // Direction cosines in the StepDir direction
-    float HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
+    std::array<double, 2> Dir {{0,0}}; // Direction cosines in the StepDir direction
+    double HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
     // HitPosErr2 < 0 = HitPos not defined because no hits used
-    float Ang {0};                // Trajectory angle (-pi, +pi)
-    float AngErr {0.1};             // Trajectory angle error
+    double Ang {0};                // Trajectory angle (-pi, +pi)
+    double AngErr {0.1};             // Trajectory angle error
     float Chg {0};                // Charge
     float AveChg {-1};             // Average charge of last ~20 TPs
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
@@ -112,17 +112,17 @@ namespace tca {
   struct Trajectory {
     std::vector<TrajPoint> Pts;    ///< Trajectory points
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
-    std::bitset<32> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
+    std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
     unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
     float AveChg {0};                   ///< Calculated using ALL hits
-    float ChgRMS {1};                 /// Normalized RMS using ALL hits. Assume it is 100% to start
-    unsigned short MCSMom {USHRT_MAX};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
+    float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
+    short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
-    std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has a hit
+    std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     short ID;
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
@@ -130,11 +130,12 @@ namespace tca {
     short Dir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
                                         ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
     short WorkID {0};
+    std::bitset<2> StopsAtEnd {0};    // Set true if it looks like the trajectory stops at end[0] or end[1]
+    std::bitset<2> KinkAtEnd {0};    // Set true if there is a kink at end[0] or end[1]
   };
   
   // Local version of recob::Hit
   struct TCHit {
-//    raw::ChannelID_t Channel {0};
     raw::TDCtick_t StartTick {0};
     raw::TDCtick_t EndTick {0};
     float PeakTime {0};     ///< Note that this the time in WSE units - NOT ticks
@@ -175,8 +176,8 @@ namespace tca {
     kMaskHits,
     kUnMaskHits,
     kGottaKink,     ///< GottaKink found a kink
-    kCWKink,        ///< kink found in CheckWork
-    kCWStepChk,
+    kCTKink,        ///< kink found in CheckWork
+    kCTStepChk,
     kTryWithNextPass,
     kRevProp,
     kChkHiMultHits,
@@ -201,6 +202,8 @@ namespace tca {
     kMaskBadTPs,
     kNoKinkChk,
     kSoftKink,
+    kChkStop,
+    kChkAllStop,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -228,11 +231,6 @@ namespace tca {
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
-    std::vector<std::vector<Trajectory>> trial; ///< vector of all trajectories for all trials in one plane
-    std::vector<std::vector<short>> inTrialTraj;
-    std::vector<std::vector< VtxStore >> inTrialVtx;
-    std::vector<std::vector< Vtx3Store >> inTrialVtx3;
-    std::vector<TjPairHitShare> tjphs;
     unsigned short NumPlanes;
     bool ConvertTicksToTime;
   };
