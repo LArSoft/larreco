@@ -47,7 +47,7 @@ services:
   TimeTracker:           {}
   MemoryTracker:         {}
   RandomNumberGenerator: {} # ART native random number generator
-  LArSeedService:           @local::lartpcdetector_seedservice # from seedservice_lartpcdetector.fcl (larsim)
+  NuRandomService:           @local::lartpcdetector_seedservice # from seedservice_lartpcdetector.fcl (larsim)
   
   # LArSoft services
   Geometry:               @local::standard_geo # from geometry.fcl
