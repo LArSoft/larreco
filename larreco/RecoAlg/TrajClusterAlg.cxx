@@ -925,6 +925,8 @@ namespace tca {
     // Only consider trajectories that have had their beginning trajectory points
     // updated by FixTrajBegin
     if(!tj.AlgMod[kFixEnd]) return;
+    // only do this once
+    if(tj.AlgMod[kRevProp]) return;
     
     // decide how complicated this should get. If the delta values at the beginning are not
     // too bad, we can just mask them off. If this is not the case, then the trajectory should
@@ -4412,9 +4414,43 @@ namespace tca {
       if(firstPtFit > 1) continue;
       lastPtFit = ipt;
       break;
-    }
-    FixTrajBegin(tj, lastPtFit);
+    } // ii
     
+    FixTrajBegin(tj, lastPtFit);
+
+/*
+    // find the point that includes the most points in the fit. Assume it is the last point
+    unsigned short ptWithMostPtFitted = tj.EndPt[1];
+    unsigned short ptsFitted = tj.Pts[ptWithMostPtFitted].NTPsFit;
+    for(short ipt = ptWithMostPtFitted - ptsFitted; ipt > tj.EndPt[0]; --ipt) {
+      if(ipt <= 0) break;
+      std::cout<<"ipt "<<ipt<<" tj.Pts[ipt].NTPsFit "<<tj.Pts[ipt].NTPsFit<<" ptWithMostPtFitted "<<ptWithMostPtFitted<<" ptsFitted "<<ptsFitted<<"\n";
+      if(tj.Pts[ipt].NTPsFit > ptsFitted) {
+        ptsFitted = tj.Pts[ipt].NTPsFit;
+        ptWithMostPtFitted = ipt;
+      }
+    } // ipt
+    
+    // find the approximate point which is included in this fit (ignores gaps)
+    short firstPtFit = (short)ptWithMostPtFitted - (short)tj.Pts[ptWithMostPtFitted].NTPsFit;
+    
+    if(prt) mf::LogVerbatim("TC")<<"FTB: lastPtFit "<<lastPtFit<<" Pt with most pts fitted "<<ptWithMostPtFitted<<" firstPtFit "<<firstPtFit;
+    
+    // fix the beginning if the first point fit is somewhere close to lastPtFit
+    short ptdiff = (short)firstPtFit - (short)lastPtFit;
+    
+    if(abs(ptdiff) < 10) {
+      FixTrajBegin(tj, lastPtFit);
+      return;
+    }
+    
+    // lop off the points before firstPtFit and reverse propagate
+    if(prt) mf::LogVerbatim("TC")<<"  reverse propagate ";
+    for(unsigned short ipt = 0; ipt < firstPtFit; ++ipt) UnsetUsedHits(tj.Pts[ipt]);
+    SetEndPoints(tjs, tj);
+    tj.AlgMod[kFixEnd] = true;
+    ReversePropagate(tj);
+*/
   } // FixTrajBegin
   
   ////////////////////////////////////////////////
@@ -5005,8 +5041,6 @@ namespace tca {
     
     // stop stepping if the charge of most of the masked off TPs is too low
     if(nLoChg > trigger) return false;
-    // stop stepping if the OK delta count is low
-    if(nOKDelta < trigger) return false;
 
     // keep stepping if the charge is too high and delta isn't too bad
     if(nHiChg > trigger && nOKDelta > trigger) return true;
