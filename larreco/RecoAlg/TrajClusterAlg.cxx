@@ -4705,8 +4705,6 @@ namespace tca {
     
     // stop stepping if the charge of most of the masked off TPs is too low
     if(nLoChg > trigger) return false;
-    // stop stepping if the OK delta count is low
-    if(nOKDelta < trigger) return false;
 
     // keep stepping if the charge is too high and delta isn't too bad
     if(nHiChg > trigger && nOKDelta > trigger) return true;
