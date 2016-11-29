@@ -32,7 +32,8 @@ namespace tca {
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
-    "ChkAllStop"
+    "ChkAllStop",
+    "FTBRevProp"
   };
   
   const std::vector<std::string> VtxBitNames {
