@@ -11,10 +11,10 @@ argoneut_trajclusteralg.MinAmp:  0.1
 argoneut_trajclusteralg.NPTsAve:  10
 argoneut_trajclusteralg.MaxChi: 3
 argoneut_trajclusteralg.HitErrFac: 0.5
-argoneut_trajclusteralg.ChargeCuts: [4, 0.15, 0.25]
-argoneut_trajclusteralg.MaxWireSkipNoSignal: 4
+argoneut_trajclusteralg.ChargeCuts: [5, 0.15, 0.25]
+argoneut_trajclusteralg.MaxWireSkipNoSignal: 5
 argoneut_trajclusteralg.MaxWireSkipWithSignal: 20
-argoneut_trajclusteralg.KinkCuts: [ 0.35, 1.5, 3 ] # kink angle, MCS kink significance, nPts fit
+argoneut_trajclusteralg.KinkCuts: [ 0.45, 4, 3 ] # kink angle, MCS kink significance, nPts fit
 argoneut_trajclusteralg.ProjectionErrFactor: 1
 argoneut_trajclusteralg.ChkStopCuts: [1.3, 5, 2.5] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
 argoneut_trajclusteralg.JTMaxHitSep: -3

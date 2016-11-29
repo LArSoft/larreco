@@ -389,7 +389,7 @@ namespace tca {
   } // MoveTPToWire
   
   //////////////////////////////////////////
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime,  bool& hitsNear)
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear)
   {
     // returns a vector of hits that are within the Window[Pos0][Pos1] in plane.
     // Note that hits on wire wireWindow[1] are returned as well. The definition of close
@@ -416,6 +416,8 @@ namespace tca {
     float minTick = timeWindow[0] / tjs.UnitsPerTick;
     float maxTick = timeWindow[1] / tjs.UnitsPerTick;
     for(int wire = loWire; wire <= hiWire; ++wire) {
+      // Set hitsNear if the wire is dead
+      if(tjs.WireHitRange[plane][wire].first == -2) hitsNear = true;
       if(tjs.WireHitRange[plane][wire].first < 0) continue;
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
