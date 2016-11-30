@@ -130,8 +130,7 @@ namespace tca {
     short Dir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
                                         ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
     short WorkID {0};
-    std::bitset<2> StopsAtEnd {0};    // Set true if it looks like the trajectory stops at end[0] or end[1]
-    std::bitset<2> KinkAtEnd {0};    // Set true if there is a kink at end[0] or end[1]
+    std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
   };
   
   // Local version of recob::Hit
@@ -175,7 +174,6 @@ namespace tca {
   typedef enum {
     kMaskHits,
     kUnMaskHits,
-    kGottaKink,     ///< GottaKink found a kink
     kCTKink,        ///< kink found in CheckWork
     kCTStepChk,
     kTryWithNextPass,
@@ -188,7 +186,6 @@ namespace tca {
     kHammerVx2,
     kJunkTj,
     kKilled,
-    kStopAtVtx,
     kEndMerge,
     kTrimHits,
     kChkHiMultEndHits,
@@ -208,7 +205,17 @@ namespace tca {
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
+  // Stop flag bits
+  typedef enum {
+    kSignal,
+    kAtKink,
+    kAtVtx,
+    kBragg,
+    kFlagBigSize     ///< don't mess with this line
+  } StopFlag_t; 
+  
   extern const std::vector<std::string> AlgBitNames;
+  extern const std::vector<std::string> StopFlagNames;
   
   struct TjStuff {
     // These variables don't change in size from event to event
@@ -221,7 +228,6 @@ namespace tca {
     // The variables below do change in size from event to event
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
-//    std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
