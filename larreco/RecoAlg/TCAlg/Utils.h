@@ -84,7 +84,7 @@ namespace tca {
   // returns true if hit iht appears in trajectory tj. The last nPtsToCheck points are checked
   bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck);
   // returns true if a hit is associated with more than one point
-  bool HasDuplicateHits(Trajectory const& tj);
+  bool HasDuplicateHits(TjStuff const& tjs, Trajectory const& tj, bool prt);
   // Project TP to a "wire position" Pos[0] and update Pos[1]
   void MoveTPToWire(TrajPoint& tp, float wire);
   float DeltaAngle(float Ang1, float Ang2);
@@ -137,6 +137,7 @@ namespace tca {
   std::string PrintHitShort(const TCHit& hit);
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);
+  std::string PrintStopFlag(TjStuff& tjs, const Trajectory& tj, unsigned short end);
 } // namespace tca
 
 #endif // ifndef TRAJCLUSTERALGUTILS_H
