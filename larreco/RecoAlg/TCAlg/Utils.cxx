@@ -367,13 +367,19 @@ namespace tca {
   } // HitIsInTj
   
   //////////////////////////////////////////
-  bool HasDuplicateHits(Trajectory const& tj)
+  bool HasDuplicateHits(TjStuff const& tjs, Trajectory const& tj, bool prt)
   {
     // returns true if a hit is associated with more than one TP
     auto tjHits = PutTrajHitsInVector(tj, kAllHits);
     for(unsigned short ii = 0; ii < tjHits.size() - 1; ++ii) {
-      for(unsigned short jj = ii + 1; jj < tjHits.size(); ++jj) if(tjHits[ii] == tjHits[jj]) return true;
-    } // iht
+      for(unsigned short jj = ii + 1; jj < tjHits.size(); ++jj) {
+        if(tjHits[ii] == tjHits[jj]) {
+          std::cout<<"HDH: Hit "<<PrintHit(tjs.fHits[ii])<<" is a duplicate "<<ii<<" "<<jj<<"\n";
+          if(prt) mf::LogVerbatim()<<"HDH: Hit "<<PrintHit(tjs.fHits[ii])<<" is a duplicate "<<ii<<" "<<jj;
+          return true;
+        }
+      } // jj
+    } // ii
     return false;
   } // HasDuplicateHits
   
@@ -503,6 +509,9 @@ namespace tca {
     std::swap(tj.VtxID[0], tj.VtxID[1]);
     // trajectory points
     std::reverse(tj.Pts.begin(), tj.Pts.end());
+    // reverse the stop flag
+    std::reverse(tj.StopFlag.begin(), tj.StopFlag.end());
+/*
     // Reverse the stopping bits
     std::bitset<2> flipped;
     for(unsigned short ii = 0; ii < 2; ++ii) flipped[1 - ii] = tj.StopsAtEnd[ii];
@@ -510,6 +519,7 @@ namespace tca {
     // and the kink bits
     for(unsigned short ii = 0; ii < 2; ++ii) flipped[1 - ii] = tj.KinkAtEnd[ii];
     tj.KinkAtEnd = flipped;
+*/
     // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
@@ -1359,7 +1369,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ Stp PDG  Par TRuPDG  E*P TruKE  WorkID\n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ PDG  Par TRuPDG  E*P TruKE  WorkID StopFlags\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -1391,20 +1401,14 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.Dir;
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
-        myprt<<std::setw(2)<<aTj.StopsAtEnd[0]<<aTj.StopsAtEnd[1];
+//        myprt<<std::setw(2)<<aTj.StopsAtEnd[0]<<aTj.StopsAtEnd[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
         myprt<<std::setw(5)<<aTj.ParentTrajID;
         myprt<<std::setw(6)<<aTj.TruPDG;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(5)<<(int)aTj.TruKE;
         myprt<<std::setw(7)<<aTj.WorkID;
-        // print the seed hit that started this trajectory
-        if(aTj.StepDir > 0) {
-          if(aTj.Pts[0].Chg == 0) myprt<<" "<<PrintPos(tjs, aTj.Pts[0]);
-        } else {
-          endPt = aTj.EndPt[1];
-          if(aTj.Pts[0].Chg == 0) myprt<<" "<<PrintPos(tjs, aTj.Pts[endPt]);
-        }
+        myprt<<" "<<PrintStopFlag(tjs, aTj, 0)<<" "<<PrintStopFlag(tjs, aTj, 1)<<" ";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         myprt<<"\n";
       } // ii
@@ -1444,12 +1448,14 @@ namespace tca {
         myprt<<someText<<" ";
         myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
+        myprt<<" StopFlags "<<PrintStopFlag(tjs, tj, 0)<<" "<<PrintStopFlag(tjs, tj, 1);
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
         mf::LogVerbatim myprt("TC");
         myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
+        myprt<<" StopFlags "<<PrintStopFlag(tjs, tj, 0)<<" "<<PrintStopFlag(tjs, tj, 1);
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
@@ -1507,6 +1513,25 @@ namespace tca {
       myprt<<tjs.fHits[iht].InTraj;
     } // iht
   } // PrintTrajPoint
+  
+  /////////////////////////////////////////
+  std::string PrintStopFlag(TjStuff& tjs, const Trajectory& tj, unsigned short end)
+  {
+    if(end > 1) return "Invalid end";
+    std::string tmp;
+    bool first = true;
+    for(unsigned short ib = 0; ib < StopFlagNames.size(); ++ib) {
+      if(tj.StopFlag[end][ib]) {
+        if(first) {
+          tmp = std::to_string(end) + ":" + StopFlagNames[ib];
+          first = false;
+        } else {
+          tmp += "," + StopFlagNames[ib];
+        }
+      }
+    } // ib
+    return tmp;
+  } // PrintStopFlag
   
   /////////////////////////////////////////
   std::string PrintHitShort(const TCHit& hit)
