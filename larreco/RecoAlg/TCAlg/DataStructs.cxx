@@ -4,36 +4,41 @@ namespace tca {
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
     "UnMaskHits",
-    "Kink",
     "CTKink",
     "CTStepChk",
     "TryNextPass",
     "RevProp",
-    "ChkHiMultHits",
+    "CHMH",
     "SplitTraj",
     "Comp3DVx",
-    "HiEndDelta",
-    "HammerVx",
-    "HammerVx2",
+    "HED",
+    "HamVx",
+    "HamVx2",
     "JunkTj",
     "Killed",
-    "StopAtVtx",
     "EndMerge",
     "TrimHits",
-    "ChkHiMultEndHits",
+    "CHMEH",
     "FillGap",
-    "UseGhostHits",
-    "ChkInTraj",
+    "Ghost",
+    "CIT",
     "FixEnd",
-    "UseUnusedHits",
+    "UUH",
     "VtxTj",
-    "RefineVtx",
-    "MaskBadTPs",
+    "RefVtx",
+    "MBadTPs",
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
     "ChkAllStop",
-    "FTBRevProp"
+    "FTBRP"
+  };
+
+  const std::vector<std::string> StopFlagNames {
+    "Signal",
+    "AtKink",
+    "AtVtx",
+    "Bragg"
   };
   
   const std::vector<std::string> VtxBitNames {
