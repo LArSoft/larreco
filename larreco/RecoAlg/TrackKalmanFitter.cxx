@@ -189,8 +189,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   }
 
   //fill return objects with smoothed track and its hits
-  fittedTrack.fillTrack(outTrack,track.ID(),true);
-  fittedTrack.fillHits(outHits);
+  fittedTrack.fillTrack(outTrack,track.ID());
+  std::vector<unsigned int> hittpindex;
+  fittedTrack.fillHits(outHits, hittpindex);
 
   return true;
 

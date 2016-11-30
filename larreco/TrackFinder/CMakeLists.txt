@@ -43,7 +43,7 @@ simple_plugin( Track3DKalman "module"
 			 larreco_Calorimetry
 			 lardataobj_AnalysisBase
 			 lardata_Utilities
-			 larsim_RandomUtils_LArSeedService_service
+			 nutools_RandomUtils_NuRandomService_service
 			 nutools_MagneticField_MagneticField_service
 			 nusimdata_SimulationBase
 			 ${ART_FRAMEWORK_CORE}
