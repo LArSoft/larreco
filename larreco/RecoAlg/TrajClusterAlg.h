@@ -323,6 +323,8 @@ namespace tca {
     // Does a local fit of just-added TPs to identify a kink while stepping.
     // Truncates the vector and returns true if one is found.
     void GottaKink(Trajectory& tj, unsigned short& killPts);
+    // Check the environment in the vicinity of the start and define StopFlag[kSignal]
+    void ChkTrajBegin(Trajectory& tj);
     // Update the parameters at the beginning of the trajectory
     void FixTrajBegin(Trajectory& tj);
     void FixTrajBegin(Trajectory& tj, unsigned short atPt);
