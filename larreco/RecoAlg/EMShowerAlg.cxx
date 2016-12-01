@@ -2087,7 +2087,7 @@ TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, int
   TVector2 wireTickPos = TVector2(-999., -999.);
 
   double pointPosition[3] = {point.X(), point.Y(), point.Z()};
- 
+
   geo::TPCID tpcID = fGeom->FindTPCAtPosition(pointPosition);
   int tpc = 0;
   if (tpcID.isValid)
@@ -2097,7 +2097,7 @@ TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, int
 
   // Construct wire ID for this point projected onto the plane
   geo::PlaneID planeID = geo::PlaneID(cryostat, tpc, plane);
-  geo::WireID wireID = geo::WireID(planeID, fGeom->WireCoordinate(point.Y(), point.Z(), planeID));
+  geo::WireID wireID = fGeom->NearestWireID(point, planeID);
 
   wireTickPos = TVector2(GlobalWire(wireID),
                          fDetProp->ConvertXToTicks(point.X(), planeID));
