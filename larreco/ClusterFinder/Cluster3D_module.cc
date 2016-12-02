@@ -233,6 +233,7 @@ private:
     float                     m_makeHitsTime;          ///< Keeps track of time to build 3D hits
     float                     m_buildNeighborhoodTime; ///< Keeps track of time to build epsilon neighborhood
     float                     m_dbscanTime;            ///< Keeps track of time to run DBScan
+    float                     m_pathFindingTime;       ///< Keeps track of the path finding time
     float                     m_finishTime;            ///< Keeps track of time to run output module
     
     /** 
@@ -411,12 +412,13 @@ void Cluster3D::produce(art::Event &evt)
         m_buildNeighborhoodTime = m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::BUILDHITTOHITMAP);
         m_dbscanTime            = m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::RUNDBSCAN) +
                                   m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::BUILDCLUSTERINFO);
+        m_pathFindingTime       = m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::PATHFINDING);
         m_finishTime            = theClockFinish.accumulated_real_time();
         m_hits                  = static_cast<int>(clusterHit2DMasterVec.size());
         m_pRecoTree->Fill();
         
         mf::LogDebug("Cluster3D") << "*** Cluster3D total time: " << m_totalTime << ", art: " << m_artHitsTime << ", make: " << m_makeHitsTime
-        << ", build: " << m_buildNeighborhoodTime << ", clustering: " << m_dbscanTime << ", finish: " << m_finishTime << std::endl;
+        << ", build: " << m_buildNeighborhoodTime << ", clustering: " << m_dbscanTime << ", path: " << m_pathFindingTime << ", finish: " << m_finishTime << std::endl;
     }
     
     // Will we ever get here? ;-)
@@ -437,6 +439,7 @@ void Cluster3D::InitializeMonitoring()
     m_pRecoTree->Branch("makeHitsTime",         &m_makeHitsTime,          "time/F");
     m_pRecoTree->Branch("buildneigborhoodTime", &m_buildNeighborhoodTime, "time/F");
     m_pRecoTree->Branch("dbscanTime",           &m_dbscanTime,            "time/F");
+    m_pRecoTree->Branch("pathfindingtime",      &m_pathFindingTime,       "time/F");
     m_pRecoTree->Branch("finishTime",           &m_finishTime,            "time/F");
 }
 
@@ -452,6 +455,7 @@ void Cluster3D::PrepareEvent(const art::Event &evt)
     m_makeHitsTime          = 0.f;
     m_buildNeighborhoodTime = 0.f;
     m_dbscanTime            = 0.f;
+    m_pathFindingTime       = 0.f;
     m_finishTime            = 0.f;
 }
 
