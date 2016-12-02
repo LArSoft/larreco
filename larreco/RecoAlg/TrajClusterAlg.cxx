@@ -82,6 +82,9 @@ namespace tca {
     fEventsProcessed = 0;
 //    if(fStudyMode) outFile.open("quality.txt");
     
+    nTruPrimaryVtxOK = 0;
+    nTruPrimaryVtxReco = 0;
+    
   }
   
   bool TrajClusterAlg::SortByMultiplet(TCHit const& a, TCHit const& b)
@@ -475,7 +478,7 @@ namespace tca {
     // convert vertex time from WSE to ticks
     for(auto& avtx : tjs.vtx) avtx.Pos[1] /= tjs.UnitsPerTick;
     
-    std::cout<<"RunTrajCluster success run "<<fRun<<" event "<<fEvent<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<fEventsProcessed<<"\n";
+    std::cout<<"RunTrajCluster success run "<<fRun<<" event "<<fEvent<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<fEventsProcessed<<" last workID "<<fWorkID<<"\n";
     
   } // RunTrajClusterAlg
 
@@ -774,7 +777,8 @@ namespace tca {
             }
             unsigned short angRange = AngleRange(work.Pts[0]);
             // check for a large angle crawl
-            if(angRange > fMaxAngleRange[work.Pass]) {
+            // BB Dec 1, 2016 angRange > fMaxAngleRange[work.Pass]
+            if(iHitsInMultiplet.size() > 1 && jHitsInMultiplet.size() > 1 && angRange > fMaxAngleRange[work.Pass]) {
               if(prt) mf::LogVerbatim("TC")<<"ReconstructAllTraj: Wrong angle range "<<angRange<<" for this pass "<<work.Pass;
               ReleaseHits(work);
               continue;
@@ -788,12 +792,13 @@ namespace tca {
             AddHits(work, 0, sigOK);
             // check for a major failure
             if(fQuitAlg) return;
-//            if(!sigOK || NumUsedHits(work.Pts[0]) == 0) {
             if(!sigOK || work.Pts[0].Chg == 0) {
               if(prt) mf::LogVerbatim("TC")<<" No hits at initial trajectory point ";
               ReleaseHits(work);
               continue;
             }
+            // move the TP position to the hit position but don't mess with the direction Dec 1, 2016
+            work.Pts[0].Pos = work.Pts[0].HitPos;
             // print the header and the first TP
             if(prt) PrintTrajectory("RAT", tjs, work, USHRT_MAX);
             // We can't update the trajectory yet because there is only one TP.
@@ -837,7 +842,6 @@ namespace tca {
               ReleaseHits(work);
               continue;
             }
-            ReversePropagate(work);
             if(prt) mf::LogVerbatim("TC")<<"ReconstructAllTraj: calling StoreTraj with npts "<<work.EndPt[1];
             StoreTraj(work);
             // check for a major failure
@@ -893,7 +897,8 @@ namespace tca {
       if(tj.AlgMod[kKilled]) continue;
       for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
         if(AngleRange(tj.Pts[ipt]) == 0) continue;
-//        if(!IsLargeAngle(tj.Pts[ipt])) continue;
+        // Find the max delta
+        float maxDelta = 2 * MaxHitDelta(tjs, tj);
         bool hitsAdded = false;
         for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
           // hit is associated with this point and it is not used
@@ -901,6 +906,8 @@ namespace tca {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
           // and it is not used in any other trajectory
           if(tjs.fHits[iht].InTraj != 0) continue;
+          // and it doesn't have a high delta
+          if(PointTrajDOCA(tjs, tj.Pts[ipt].Pos[0], tjs.fHits[iht].PeakTime * tjs.UnitsPerTick, tj.Pts[ipt]) > maxDelta ) continue;
           tj.Pts[ipt].UseHit[ii] = true;
           tjs.fHits[iht].InTraj = tj.ID;
           hitsAdded = true;
@@ -1282,6 +1289,10 @@ namespace tca {
     sim::ParticleList const& plist = bt->ParticleList();
     if(plist.empty()) return;
     
+    // set true if there is a reconstructed 3D vertex within 1 cm of the true vertex
+    bool nuVtxRecoOK = false;
+    float neutrinoEnergy = -1;
+
     // MC Particles for the desired true particles
     int sourcePtclTrackID = -1;
     simb::Origin_t sourceOrigin = simb::kUnknown;
@@ -1304,11 +1315,13 @@ namespace tca {
             sourceOrigin = simb::kSingleParticle;
           }
           if(sourceOrigin == simb::kBeamNeutrino) {
+            neutrinoEnergy = part->E();
             // histogram the vertex position difference
             for(auto& aVtx3 : tjs.vtx3) {
               fNuVtx_dx->Fill(part->Vx() - aVtx3.X);
               fNuVtx_dy->Fill(part->Vy() - aVtx3.Y);
               fNuVtx_dz->Fill(part->Vz() - aVtx3.Z);
+              if(std::abs(part->Vx()-aVtx3.X) < 1 && std::abs(part->Vy()-aVtx3.Y) < 1 && std::abs(part->Vz()-aVtx3.Z) < 1) nuVtxRecoOK = true;
             } // aVtx3
           } // sourceOrigin != simb::kUnknown
         } else {
@@ -1439,8 +1452,30 @@ namespace tca {
     nMatchedHitsInPartList = newnMatchedHitsInPartList;
     nMatchedHitsInTj = newnMatchedHitsInTj;
     
+    // count the number of primary tracks that have at least 3 hits in at least 2 planes
+    nTruPrimary = 0;
+    nTruPrimaryOK = 0;
+    for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
+      if(partList[ipl]->Mother() != 0) continue;
+      ++nTruPrimary;
+      unsigned short nInPln = 0;
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        if(nMatchedHitsInPartList[ipl][plane] > 2) ++nInPln;
+      } // plane
+      if(nInPln > 1) ++nTruPrimaryOK;
+    } // ipl
+    
+    if(nTruPrimaryOK > 1) {
+      // More than one reconstructable primaries so there must a reconstructable neutrino vertex
+      ++nTruPrimaryVtxOK;
+      // was it reconstructed?
+      if(nuVtxRecoOK) ++nTruPrimaryVtxReco;
+      if(neutrinoEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx neutrino E "<<std::fixed<<std::setprecision(3)<<neutrinoEnergy<<" events processed "<<fEventsProcessed;
+    }
+    
     if(fMatchTruth[1] > 1) {
       mf::LogVerbatim myprt("TC");
+      myprt<<"Number of primary particles "<<nTruPrimary<<" Number reconstructable "<<nTruPrimaryOK<<" Found neutrino vertex? "<<nuVtxRecoOK<<"\n";
       myprt<<"part   PDG TrkID MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
       for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
         unsigned short pdg = abs(partList[ipl]->PdgCode());
@@ -1691,10 +1726,12 @@ namespace tca {
     if(ipt > tj.Pts.size() - 1) return;
     
     // Call large angle hit finding only on the last range
-    if(AngleRange(tj.Pts[ipt]) == fAngleRanges.size() - 1) {
+    unsigned short angleRange = AngleRange(tj.Pts[ipt]);
+    if(angleRange == fAngleRanges.size() - 1) {
       AddLAHits(tj, ipt, sigOK);
       return;
     }
+//    bool  = (angleRange == fAngleRanges.size() - 2);
     
     std::vector<unsigned int> closeHits;
 
@@ -1762,6 +1799,8 @@ namespace tca {
         myprt<<" Chg "<<(int)tjs.fHits[iht].Integral;
         myprt<<" Signal? "<<sigOK;
       }
+      // ignore narrow multiplicity-one hits for large angles - A not so great idea
+//      if(isLA && hitsInMultiplet.size() == 1 && tjs.fHits[iht].RMS < fAveHitRMS[ipl]) continue;
       if(tjs.fHits[iht].InTraj == 0 && delta < bigDelta) {
         // An available hit that is just outside the window
         bigDelta = delta;
@@ -1825,7 +1864,6 @@ namespace tca {
     FindUseHits(tj, ipt, 10, useChg);
     DefineHitPos(tp);
     SetEndPoints(tjs, tj);
-//    if(prt) mf::LogVerbatim("TC")<<" number of close hits "<<closeHits.size()<<" used hits "<<NumUsedHits(tp);
     if(prt) mf::LogVerbatim("TC")<<" number of close hits "<<closeHits.size()<<" used hits "<<NumHitsInTP(tp, kUsedHits);
   } // AddHits
   
@@ -1883,7 +1921,11 @@ namespace tca {
         tp.UseHit[ii] = true;
         tjs.fHits[iht].InTraj = tj.ID;
       } // ii
-      if(prt) mf::LogVerbatim("TC")<<"FUH: Using all hits ";
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"FUH2: Using all hits ";
+        for(auto& iht : tp.Hits) myprt<<" "<<PrintHit(tjs.fHits[iht]);
+      }
       return;
     }
     
@@ -2044,6 +2086,28 @@ namespace tca {
     } // nAvailable == 2
     
     // we are left with nAvailable > 2 
+
+    // Use all of the hits if they are all available and are in the same multiplet
+    if(nAvailable == tp.Hits.size()) {
+      unsigned int iht = tp.Hits[0];
+      // the first hit in the multiplet
+      unsigned int hit0 = iht - tjs.fHits[iht].LocalIndex;
+      unsigned short cnt = 0;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        unsigned int iht = tp.Hits[ii];
+        if(iht - tjs.fHits[iht].LocalIndex == hit0) ++cnt;
+      } // ii
+      // all in the same multiplet
+      if(cnt == tp.Hits.size()) {
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(tjs.fHits[iht].InTraj > 0) continue;
+          tp.UseHit[ii] = true;
+          tjs.fHits[iht].InTraj = tj.ID;
+        } // ii
+        return;
+      } // all in the same multiplet
+    } // nAvailable == tp.Hits.size()
+
     float hitsWidth = TPHitsRMSTick(tjs, tp, kUnusedHits);
     float maxTick = tp.Pos[1] / tjs.UnitsPerTick + 0.6 * expectedWidth;
     float minTick = tp.Pos[1] / tjs.UnitsPerTick - 0.6 * expectedWidth;
@@ -2072,7 +2136,7 @@ namespace tca {
     
     if(tp.Hits.empty()) return;
     
-    if(fMode == 2) {
+    if(abs(fMode) == 2) {
       FindUseHits2(tj, ipt, maxDelta, useChg);
       return;
     }
@@ -2349,7 +2413,7 @@ namespace tca {
     if(nused == 1) {
       tp.Chg = tjs.fHits[iht].Integral;
       // testing. Normalize to 1 WSE path length
-      if(fMode == 2) {
+      if(abs(fMode) == 2) {
         float pathInv = std::abs(tp.Dir[0]);
         if(pathInv < 0.05) pathInv = 0.05;
         tp.Chg *= pathInv;
@@ -2359,7 +2423,7 @@ namespace tca {
       float wireErr = tp.Dir[1] * 0.289;
       float timeErr = tp.Dir[0] * HitTimeErr(iht);
       tp.HitPosErr2 = wireErr * wireErr + timeErr * timeErr;
-      if(prt) mf::LogVerbatim("TC")<<"DefineHitPos: singlet "<<std::fixed<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]<<" HitPosErr "<<sqrt(tp.HitPosErr2);
+      if(prt) mf::LogVerbatim("TC")<<"DefineHitPos: singlet "<<std::fixed<<std::setprecision(1)<<tp.HitPos[0]<<":"<<(int)(tp.HitPos[1]/tjs.UnitsPerTick)<<" ticks. HitPosErr "<<sqrt(tp.HitPosErr2);
       return;
     } // nused == 1
     
@@ -2392,7 +2456,7 @@ namespace tca {
     tp.HitPos[1] = newpos[1] * tjs.UnitsPerTick / tp.Chg;
     
     // testing. Normalize to 1 WSE path length
-    if(fMode == 2) {
+    if(abs(fMode) == 2) {
       float pathInv = std::abs(tp.Dir[0]);
       if(pathInv < 0.05) pathInv = 0.05;
       tp.Chg *= pathInv;
@@ -2404,7 +2468,7 @@ namespace tca {
     float wireErr = tp.Dir[1] * dWire * 0.289;
     float timeErr2 = tp.Dir[0] * tp.Dir[0] * HitsTimeErr2(hitVec);
     tp.HitPosErr2 = wireErr * wireErr + timeErr2;
-    if(prt) mf::LogVerbatim("TC")<<"DefineHitPos: multiplet "<<std::fixed<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]<<" HitPosErr "<<sqrt(tp.HitPosErr2);
+    if(prt) mf::LogVerbatim("TC")<<"DefineHitPos: multiplet "<<std::fixed<<std::setprecision(1)<<tp.HitPos[0]<<":"<<(int)(tp.HitPos[1]/tjs.UnitsPerTick)<<" ticks. HitPosErr "<<sqrt(tp.HitPosErr2);
 
   } // HitPosErr2
 
@@ -2570,7 +2634,7 @@ namespace tca {
               if(mrgPrt) mf::LogVerbatim("TC")<<" MergeAndStore failed ";
             }
           } else {
-            // create a vertex instead if it passes the vertex cuts yyy
+            // create a vertex instead if it passes the vertex cuts
             // assume that both are long
             float sepCut = fVertex2DCuts[2];
             if(tj1Short || tj2Short) sepCut = fVertex2DCuts[1];
@@ -3156,7 +3220,7 @@ namespace tca {
     // tj1       /
     // minimum^2 DOCA of tj1 endpoint with tj2
     
-    if(!fUseAlg[kHammerVx2]) return;
+    if(!fUseAlg[kHamVx2]) return;
    
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
@@ -3258,9 +3322,9 @@ namespace tca {
             continue;
           }
           tjs.allTraj[it1].VtxID[end1] = tjs.vtx[ivx].ID;
-          tjs.allTraj[it1].AlgMod[kHammerVx2] = true;
-          tjs.allTraj[it2].AlgMod[kHammerVx] = true;
-          tjs.allTraj[tjs.allTraj.size()-1].AlgMod[kHammerVx2] = true;
+          tjs.allTraj[it1].AlgMod[kHamVx2] = true;
+          tjs.allTraj[it2].AlgMod[kHamVx2] = true;
+          tjs.allTraj[tjs.allTraj.size()-1].AlgMod[kHamVx2] = true;
           if(vtxPrt) mf::LogVerbatim("TC")<<" made new vertex "<<tjs.vtx[ivx].ID;
           didaSplit = true;
           break;
@@ -3282,7 +3346,7 @@ namespace tca {
     // tj1        /
     // tj1       /
     
-    if(!fUseAlg[kHammerVx]) return;
+    if(!fUseAlg[kHamVx]) return;
     
     // minimum^2 DOCA of tj1 endpoint with tj2
 //    float doca, minDOCA = 3, dang;
@@ -3348,9 +3412,9 @@ namespace tca {
             continue;
           }
           tjs.allTraj[it1].VtxID[end1] = tjs.vtx[ivx].ID;
-          tjs.allTraj[it1].AlgMod[kHammerVx] = true;
-          tjs.allTraj[it2].AlgMod[kHammerVx] = true;
-          tjs.allTraj[tjs.allTraj.size()-1].AlgMod[kHammerVx] = true;
+          tjs.allTraj[it1].AlgMod[kHamVx] = true;
+          tjs.allTraj[it2].AlgMod[kHamVx] = true;
+          tjs.allTraj[tjs.allTraj.size()-1].AlgMod[kHamVx] = true;
           didaSplit = true;
           break;
         } // tj2
@@ -4155,7 +4219,7 @@ namespace tca {
     // Ensure that a hit only appears once in the TJ
     if(HasDuplicateHits(tjs, tj, prt)) {
       if(prt) mf::LogVerbatim("TC")<<" HasDuplicateHits ";
-      fGoodTraj = false;
+       fGoodTraj = false;
       return;
     }
     
@@ -4265,7 +4329,6 @@ namespace tca {
           --tjSize;
           tj.AlgMod[kTrimHits] = true;
         } // tj.Pts.size() > fMinPts[tj.Pass]
-        if(prt && tj.Pts.size() < 100) PrintTrajectory("CT", tjs, tj, USHRT_MAX);
       } // not isVLA
 
       // impose the requirement that 70% of the trajectory points should have hits with charge.
@@ -4348,6 +4411,8 @@ namespace tca {
     // lop off high multiplicity hits at the end
     CheckHiMultEndHits(tj);
     
+    if(prt && tj.Pts.size() < 100) PrintTrajectory("CTo", tjs, tj, USHRT_MAX);
+    
   } // CheckTraj
   
   //////////////////////////////////////////
@@ -4410,7 +4475,7 @@ namespace tca {
       tj.StopFlag[0][kSignal] = true;
       return;
     }
-    // check one wire on the other side of EndPt[0] to see if it is clean. yyy
+    // check one wire on the other side of EndPt[0] to see if it is clean.
     TrajPoint tp = tj.Pts[0];
     // Move the TP "backwards"
     unsigned short angRange = AngleRange(tp);
@@ -4655,7 +4720,7 @@ namespace tca {
       // Find the maximum delta between hits and the trajectory Pos for all
       // hits on this trajectory
       if(first) {
-        maxDelta = 2.5*MaxHitDelta(tj);
+        maxDelta = 2.5 * MaxHitDelta(tjs, tj);
         first = false;
       } // first
       // define a loose charge cut using the average charge at the first point with charge
@@ -4715,25 +4780,7 @@ namespace tca {
       firstPtWithChg = nextPtWithChg;
     } // firstPtWithChg
     
-  } // FillGaps
-
-  ////////////////////////////////////////////////
-  float TrajClusterAlg::MaxHitDelta(Trajectory& tj)
-  {
-    float delta, md = 0;
-    unsigned short ii;
-    unsigned int iht;
-    for(auto& tp : tj.Pts) {
-      for(ii = 0; ii < tp.Hits.size(); ++ii) {
-        if(!tp.UseHit[ii]) continue;
-        iht = tp.Hits[ii];
-        delta = PointTrajDOCA(tjs, iht, tp);
-        if(delta > md) md = delta;
-      } // ii
-    } // pts
-    return md;
-  } // MaxHitDelta
- 
+  } // FillGaps 
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::CheckHiDeltas(Trajectory& tj)
@@ -4902,7 +4949,7 @@ namespace tca {
     if(fracHiMult < 0.3) return;
     if(fracHitsUsed > 0.98) return;
     
-    float maxDelta = 2.5 * MaxHitDelta(tj);
+    float maxDelta = 2.5 * MaxHitDelta(tjs, tj);
 
     if(prt) {
       mf::LogVerbatim("TC")<<" Pts size "<<tj.Pts.size()<<" nHiMultPt "<<nHiMultPt<<" nHiMultPtHits "<<nHiMultPtHits<<" nHiMultPtUsedHits "<<nHiMultPtUsedHits<<" sortaLargeAngle "<<sortaLargeAngle<<" maxHitDelta "<<maxDelta;
@@ -5026,13 +5073,96 @@ namespace tca {
     }
   } // CheckHiMultEndHits
 
-    ////////////////////////////////////////////////
+  ////////////////////////////////////////////////
   bool TrajClusterAlg::MaskedHitsOK(Trajectory& tj)
   {
     // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
-    // current configuration (true) or whether to stop and possibly try with the next pass settings (false)
+    // current configuration or whether to stop and possibly try with the next pass settings
     
-    if(!fUseAlg[kUnMaskHits]) return true;
+    // Use Version 2 instead
+    if(fUseAlg[kMHOK2]) {
+      return MaskedHitsOK2(tj);
+    }
+    
+    unsigned short lastPt = tj.EndPt[1];
+    if(tj.Pts[lastPt].Chg > 0) return true;
+    
+    // count the number of points w/o used hits and the number of close hits
+    unsigned short nClose = 0, nMasked = 0;
+    for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
+      unsigned short ipt = tj.Pts.size() - ii;
+      if(!tj.Pts[ipt].Hits.empty()) ++nClose;
+      if(tj.Pts[ipt].Chg > 0) break;
+      ++nMasked;
+    } // ii
+    
+    if(prt) {
+      mf::LogVerbatim("TC")<<"MaskedHitsOK:  nMasked "<<nMasked<<" nClose "<<nClose<<" fMaxWireSkipWithSignal "<<fMaxWireSkipWithSignal;
+    }
+    
+    if(nMasked == 0) return true;
+    
+    // Check for many masked hits and nearby hits to see if they can be included
+    // Only allow this to happen once
+    if(!tj.AlgMod[kUnMaskHits] && lastPt > 10 && nMasked > 4 && nMasked == nClose) {
+      float maxDelta = 4 * tj.Pts[lastPt].DeltaRMS;
+      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
+        unsigned short ipt = tj.Pts.size() - ii;
+        if(tj.Pts[ipt].Chg > 0) break;
+        if(tj.Pts[ipt].Delta > maxDelta) continue;
+        if(tj.Pts[ipt].Hits.size() != 1) continue;
+        unsigned int iht = tj.Pts[ipt].Hits[0];
+        if(tjs.fHits[iht].InTraj > 0) continue;
+        tj.Pts[ipt].UseHit[0] = true;
+        tjs.fHits[iht].InTraj = tj.ID;
+        DefineHitPos(tj.Pts[ipt]);
+      } // ii
+      SetEndPoints(tjs, tj);
+      // try to fit them all
+      tj.Pts[lastPt].NTPsFit = NumPtsWithCharge(tj, false);
+      if(prt) mf::LogVerbatim("TC")<<" Add close hits and try UpdateTraj ";
+      UpdateTraj(tj);
+      tj.AlgMod[kUnMaskHits] = true;
+      return true;
+    }
+    
+    // Be a bit more lenient with short trajectories on the first pass if
+    // the FitChi is not terribly bad and there is ony one hit associated with the last TP
+    if(tj.Pass < (fMinPtsFit.size()-1) && tj.Pts.size() > 5 && tj.Pts.size() < 15 && nMasked < 4
+       && tj.Pts[lastPt].FitChi < 2 * fMaxChi && tj.Pts[lastPt].Hits.size() == 1) {
+      // set this hit used if it is available
+      unsigned int iht = tj.Pts[lastPt].Hits[0];
+      if(tjs.fHits[iht].InTraj <= 0) {
+        tj.Pts[lastPt].UseHit[0] = true;
+        tjs.fHits[iht].InTraj = tj.ID;
+      }
+      SetEndPoints(tjs, tj);
+      PrepareForNextPass(tj);
+      if(prt) mf::LogVerbatim("TC")<<"MaskedWorkHitsOK: Try next pass with kinda short, kinda bad trajectory. "<<fTryWithNextPass;
+      return false;
+    }
+    
+    // OK if we haven't exceeded the user cut
+    if(nMasked < fMaxWireSkipWithSignal) return true;
+    
+    // not a lot of close hits try with the next pass settings
+    if(nClose < 1.5 * nMasked) {
+      // trim the trajectory
+      unsigned short newSize = tj.Pts.size() - nMasked;
+      if(prt) mf::LogVerbatim("TC")<<"MaskedHitsOK:  Trimming  to size "<<newSize;
+      tj.Pts.resize(newSize);
+      PrepareForNextPass(tj);
+    }
+    return false;
+    
+  } // MaskedHitsOK
+
+    ////////////////////////////////////////////////
+  bool TrajClusterAlg::MaskedHitsOK2(Trajectory& tj)
+  {
+    // Version 2 of MaskedHitsOK.
+    // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
+    // current configuration (true) or whether to stop and possibly try with the next pass settings (false)
     
     unsigned short lastPt = tj.Pts.size() - 1;
     if(tj.Pts[lastPt].Chg > 0) return true;
@@ -5041,10 +5171,13 @@ namespace tca {
     // count the number of points w/o used hits and the number with one unused hit
     unsigned short nMasked = 0;
     unsigned short nOneHit = 0;
-    unsigned short nLoChg = 0;
-    unsigned short nHiChg = 0;
+    unsigned short nOKChg = 0;
     unsigned short nOKDelta = 0;
     float maxOKDelta = 10 * tj.Pts[endPt].DeltaRMS;
+    float maxOKChg = 0;
+    // find the maximum charge point on the trajectory
+    // TODO: Might have to be more careful if we use 1 WSEU normalized charge
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) if(tj.Pts[ipt].Chg > maxOKChg) maxOKChg = tj.Pts[ipt].Chg;
     for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
       unsigned short ipt = tj.Pts.size() - ii;
       if(tj.Pts[ipt].Chg > 0) break;
@@ -5056,29 +5189,20 @@ namespace tca {
         ++nUnusedHits;
         chg += tjs.fHits[iht].Integral;
       } // jj
-      float chgPull = (chg / tj.Pts[ipt].AveChg - 1) / tj.ChgRMS;
-      if(chgPull < -3) ++nLoChg;
-      if(chgPull >  3) ++nHiChg;
+      if(chg < maxOKChg) ++nOKChg;
       if(nUnusedHits == 1) ++nOneHit;
       if(tj.Pts[ipt].Delta < maxOKDelta) ++nOKDelta;
       ++nMasked;
     } // ii
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"MaskedHitsOK:  nMasked "<<nMasked<<" nOneHit "<<nOneHit<<" nLoChg "<<nLoChg<<" nHiChg "<<nHiChg<<" nOKDelta "<<nOKDelta;
+      mf::LogVerbatim("TC")<<"MaskedHitsOK2:  nMasked "<<nMasked<<" nOneHit "<<nOneHit<<" nOKChg "<<nOKChg<<" nOKDelta "<<nOKDelta;
     }
 
-    if(nMasked < 3 || nOneHit < 3) return true;
+    if(nMasked < 10 || nOneHit < 10) return true;
     
-    // do something if 3/4 the masked off hits meet a condition
-    unsigned short trigger = 0.75 * nMasked;
-    
-    // stop stepping if the charge of most of the masked off TPs is too low
-    if(nLoChg > trigger) return false;
-
-    // keep stepping if the charge is too high and delta isn't too bad
-    if(nHiChg > trigger && nOKDelta > trigger) return true;
-    
+    if(nOKDelta != nMasked) return true;
+    if(nOKChg != nMasked) return true;
     // we would like to reduce the number of fitted points to a minimum and include
     // the masked hits, but we can only do that if there are enough points
     if(tj.Pts[endPt].NTPsFit <= fMinPtsFit[tj.Pass]) {
@@ -5089,7 +5213,6 @@ namespace tca {
     // Reduce the number of points fit and try to include the points
     unsigned short newNTPSFit = tj.Pts[endPt].NTPsFit / 2;
     if(newNTPSFit < fMinPtsFit[tj.Pass]) newNTPSFit = fMinPtsFit[tj.Pass];
-//    unsigned short nPtAdded = 0;
     for(unsigned ipt = endPt + 1; ipt < tj.Pts.size(); ++ipt) {
       TrajPoint& tp = tj.Pts[ipt];
       for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
@@ -5101,26 +5224,18 @@ namespace tca {
         }
       } // ii
       DefineHitPos(tp);
-      float chgPull = (tp.Chg / tp.AveChg - 1) / tj.ChgRMS;
-      if(chgPull > 3) {
-        if(prt) mf::LogVerbatim("TC")<<" chgPull too high "<<chgPull<<". Stop unmasking hits";
-        UnsetUsedHits(tp);
-        SetEndPoints(tjs, tj);
-        break;
-      }
-      // stop adding points if the charge pull gets large
       SetEndPoints(tjs, tj);
       tp.NTPsFit = newNTPSFit;
       FitTraj(tj);
-      if(prt) PrintTrajectory("MHOK", tjs, tj, ipt);
-//      if(tp.FitChi < 5) ++nPtAdded;
-      tj.AlgMod[kUnMaskHits] = true;
+      if(prt) PrintTrajectory("MHOK2", tjs, tj, ipt);
     } // ipt
     
-//    if(nPtAdded == 0 && tj.Pts[tj.EndPt[1]].FitChi > 5) return false;
-    
+    tj.AlgMod[kUnMaskHits] = true;
+    tj.AlgMod[kMHOK2] = true;
+    UpdateAveChg(tj);
     return true;
-  } // MaskedHitsOK
+    
+  } // MaskedHitsOK2
 
   ////////////////////////////////////////////////
   void TrajClusterAlg::PrepareForNextPass(Trajectory& tj)
@@ -6024,7 +6139,7 @@ namespace tca {
         if(tj.Pts[ipt].UseHit[ii]) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
           if(tjs.fHits[iht].InTraj > 0) {
-            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" print and quit";
+            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
             PrintTrajectory("SW", tjs, tj, USHRT_MAX);
             ReleaseHits(tj);
             fQuitAlg = true;
@@ -6398,11 +6513,6 @@ namespace tca {
       if(tjs.WireHitRange[ipl][wire].first < 0) tjs.WireHitRange[ipl][wire].first = iht;
       tjs.WireHitRange[ipl][wire].second = iht + 1;
       tjs.LastWire[ipl] = wire + 1;
-/*
-      if(tjs.fHits[iht].StartTick > (int)detprop->NumberTimeSamples() || tjs.fHits[iht].EndTick > (int)detprop->NumberTimeSamples()) {
-        std::cout<<"Bad StartTick "<<tjs.fHits[iht].StartTick<<" or EndTick "<<tjs.fHits[iht].EndTick<<" NumberTimeSamples "<<detprop->NumberTimeSamples()<<"\n";
-      }
-*/
     } // iht
     
     if(!CheckWireHitRange()) {
@@ -6411,22 +6521,31 @@ namespace tca {
     }
     
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
-//    std::cout<<"pln  AngleRange  AngleRangeMaxHitsRMS\n";
+    bool inDebugMode = debug.Plane >= 0 || debug.WorkID < 0;
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
       float sumRMS = 0;
+      float sumAmp = 0;
       unsigned int cnt = 0;
       for(unsigned int wire = 0; wire < tjs.NumWires[ipl]; ++wire) {
         if(tjs.WireHitRange[ipl][wire].first < 0) continue;
         unsigned int firstHit = tjs.WireHitRange[ipl][wire].first;
         unsigned int lastHit = tjs.WireHitRange[ipl][wire].second;
+        // don't let noisy wires screw up the calculation
+        if(lastHit - firstHit > 100) continue;
         for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
           if(tjs.fHits[iht].Multiplicity != 1) continue;
+          if(tjs.fHits[iht].GoodnessOfFit < 0 || tjs.fHits[iht].GoodnessOfFit > 100) continue;
+          // don't let a lot of runt hits screw up the calculation
+          if(tjs.fHits[iht].PeakAmplitude < 1) continue;
           ++cnt;
           sumRMS += tjs.fHits[iht].RMS;
+          sumAmp += tjs.fHits[iht].PeakAmplitude;
         } // iht
       } // wire
       if(cnt < 4) continue;
       fAveHitRMS[ipl] = sumRMS/(float)cnt;
+      sumAmp  /= (float)cnt;
+      if(inDebugMode) std::cout<<"Pln "<<ipl<<" fAveHitRMS "<<fAveHitRMS[ipl]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
       // calculate the max RMS expected for each angle range
       for(unsigned short ii = 0; ii < fAngleRanges.size(); ++ii) {
         float angle = fAngleRanges[ii];
@@ -6435,7 +6554,6 @@ namespace tca {
         } else {
           fAngleRangesMaxHitsRMS[ii] = 1000;
         }
-//        std::cout<<"Pln "<<ipl<<" MaxAngle "<<(int)(angle*180/M_PI)<<" "<<std::fixed<<std::setprecision(1)<<fAngleRangesMaxHitsRMS[ii]<<"\n";
       } // ii
     } // ipl
     
