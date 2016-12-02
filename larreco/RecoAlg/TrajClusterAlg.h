@@ -173,7 +173,16 @@ namespace tca {
     TH2F *fTPWidth_Angle[3];
     TProfile *fTPWidth_AngleP[3];
     TProfile *fExpect_Angle[3];
-
+    
+    // number of primary particles in the event
+    unsigned short nTruPrimary;
+    // number of reconstructable primary particles in the event
+    unsigned short nTruPrimaryOK;
+    // number of reconstructable neutrino vertices in ALL events
+    unsigned short nTruPrimaryVtxOK;
+    // number of reconstructable neutrino vertices in ALL events that were reconstructed
+    unsigned short nTruPrimaryVtxReco;
+ 
     bool prt;
     bool mrgPrt;
     bool vtxPrt;
@@ -253,8 +262,6 @@ namespace tca {
     float HitsTimeErr2(const std::vector<unsigned int>& hitVec);
     // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
     void DefineHitPos(TrajPoint& tp);
-    // max hit delta for all used hits on all points
-    float MaxHitDelta(Trajectory& tj);
     // Decide which hits to use to determine the trajectory point
     // fit, charge, etc. This is done by setting UseHit true and
     // setting inTraj < 0.
@@ -313,6 +320,8 @@ namespace tca {
     // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
     // current configuration or whether to stop and possibly try with the next pass settings
     bool MaskedHitsOK(Trajectory& tj);
+    // Version 2
+    bool MaskedHitsOK2(Trajectory& tj);
     // Any re-sizing should have been done by the calling routine. This code updates the Pass and adjusts the number of
     // fitted points to get FitCHi < 2
     void PrepareForNextPass(Trajectory& tj);
