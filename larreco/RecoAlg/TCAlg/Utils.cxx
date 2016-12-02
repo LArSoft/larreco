@@ -374,7 +374,6 @@ namespace tca {
     for(unsigned short ii = 0; ii < tjHits.size() - 1; ++ii) {
       for(unsigned short jj = ii + 1; jj < tjHits.size(); ++jj) {
         if(tjHits[ii] == tjHits[jj]) {
-          std::cout<<"HDH: Hit "<<PrintHit(tjs.fHits[ii])<<" is a duplicate "<<ii<<" "<<jj<<"\n";
           if(prt) mf::LogVerbatim()<<"HDH: Hit "<<PrintHit(tjs.fHits[ii])<<" is a duplicate "<<ii<<" "<<jj;
           return true;
         }
@@ -498,6 +497,23 @@ namespace tca {
     
   } // FindCloseHits
   
+  ////////////////////////////////////////////////
+  float MaxHitDelta(TjStuff& tjs, Trajectory& tj)
+  {
+    float delta, md = 0;
+    unsigned short ii;
+    unsigned int iht;
+    for(auto& tp : tj.Pts) {
+      for(ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(!tp.UseHit[ii]) continue;
+        iht = tp.Hits[ii];
+        delta = PointTrajDOCA(tjs, iht, tp);
+        if(delta > md) md = delta;
+      } // ii
+    } // pts
+    return md;
+  } // MaxHitDelta
+
   //////////////////////////////////////////
   void ReverseTraj(TjStuff& tjs, Trajectory& tj)
   {
