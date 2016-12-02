@@ -182,8 +182,8 @@ namespace tca {
     kSplitTraj,
     kComp3DVx,
     kHiEndDelta,
-    kHammerVx,
-    kHammerVx2,
+    kHamVx,
+    kHamVx2,
     kJunkTj,
     kKilled,
     kEndMerge,
@@ -202,6 +202,7 @@ namespace tca {
     kChkStop,
     kChkAllStop,
     kFTBRevProp,
+    kMHOK2,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
