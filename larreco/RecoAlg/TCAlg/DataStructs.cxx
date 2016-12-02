@@ -31,7 +31,8 @@ namespace tca {
     "SoftKink",
     "ChkStop",
     "ChkAllStop",
-    "FTBRP"
+    "FTBRP",
+    "MHOK2"
   };
 
   const std::vector<std::string> StopFlagNames {
