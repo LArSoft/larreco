@@ -30,7 +30,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
 // art extensions
-#include "larsim/RandomUtils/LArSeedService.h"
+#include "nutools/RandomUtils/NuRandomService.h"
 
 // LArSoft includes
 
@@ -150,9 +150,9 @@ Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset)
 
   this->reconfigure(pset);
   
-  // create a default random engine; obtain the random seed from LArSeedService,
+  // create a default random engine; obtain the random seed from NuRandomService,
   // unless overridden in configuration with key "Seed"
-  art::ServiceHandle<sim::LArSeedService>()->createEngine(*this, pset, "Seed");
+  art::ServiceHandle<rndm::NuRandomService>()->createEngine(*this, pset, "Seed");
   
   produces< std::vector<recob::Track> >();
   produces< std::vector<recob::SpacePoint>              >();

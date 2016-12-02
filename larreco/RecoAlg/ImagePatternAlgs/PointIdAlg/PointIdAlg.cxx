@@ -370,9 +370,8 @@ bool nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & in
 
 	keras::DataChunk *sample = new keras::DataChunk2D();
 	sample->set_data(inp3d); // and more copy...
-	fOutput = m.compute_output(sample); // add using reference to input so no need for new/delete
-
-	// anyway time is spent in 2D convolutions, not much to be improved in this simple approach...
+	fOutput = m.compute_output(sample);
+	delete sample;
 
 	return true;
 }

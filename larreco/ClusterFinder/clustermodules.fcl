@@ -23,7 +23,7 @@ standard_blurredcluster:
  PFParticleModuleLabel:    "pandora"
  BlurredClusterAlg:        @local::standard_blurredclusteralg
  MergeClusterAlg:          @local::standard_mergeclusteralg
- TrackShowerSeparationAlg: @local::standard_trackshowerseparationalg
+ TrackShowerSeparationAlg: @local::standard_trackshowersepalg
 }
 
 standard_clusterpca:
