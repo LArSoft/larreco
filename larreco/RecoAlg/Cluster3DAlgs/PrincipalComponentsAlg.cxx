@@ -236,7 +236,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     
     for (const auto& hit : hitPairVector)
     {
-        if (skeletonOnly && !((hit->getStatusBits() & 0x10000000) == 0x10000000)) continue;
+        if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
         
         meanPos[0] += hit->getPosition()[0];
         meanPos[1] += hit->getPosition()[1];
@@ -264,7 +264,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     {
         double weight(1.);
         
-        if (skeletonOnly && !((hit->getStatusBits() & 0x10000000) == 0x10000000)) continue;
+        if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
         if (hit->getHits()[2]) weight = hit->getHits()[2]->getHit().PeakAmplitude();
         
         double x = (hit->getPosition()[0] - meanPos[0]) * weight;
