@@ -143,11 +143,11 @@ void MinSpanTreeAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
     // Run DBScan to get candidate clusters
     RunPrimsAlgorithm(hitPairList, topNode, clusterParametersList);
     
-    // Test run the path finding algorithm
-    for (auto& clusterParams : clusterParametersList) FindBestPathInCluster(clusterParams, topNode);
-    
     // Initial clustering is done, now trim the list and get output parameters
     BuildClusterInfo(clusterParametersList);
+    
+    // Test run the path finding algorithm
+    for (auto& clusterParams : clusterParametersList) FindBestPathInCluster(clusterParams, topNode);
     
     mf::LogDebug("Cluster3D") << ">>>>> Cluster3DHits done, found " << clusterParametersList.size() << " clusters" << std::endl;
     
@@ -190,20 +190,9 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
     reco::Hit3DToEdgeMap* curEdgeMap = &(*curClusterItr).getHit3DToEdgeMap();
     reco::HitPairListPtr* curCluster = &(*curClusterItr).getHitPairListPtr();
     
-    // Keep track of where the hits get distributed...
-    std::unordered_map<const reco::ClusterHit2D*,std::set<reco::ClusterParameters*>> hit2DToClusterMap;
-    
     // Loop until all hits have been associated to a cluster
     while(1)
     {
-        // Update the 2D hit status bits
-        for(auto& hit : lastAddedHit->getHits())
-        {
-            if (!hit) continue;
-            
-            hit2DToClusterMap[hit].emplace(&(*curClusterItr));
-        }
-        
         // and the 3D hit status bits
         lastAddedHit->setStatusBit(reco::ClusterHit3D::CLUSTERATTACHED);
         
@@ -269,28 +258,7 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
             lastAddedHit = std::get<1>(curEdgeList.front());
         }
     }
-    
-    // Spin through to look for hit sharing
-    for(auto& hit3D : hitPairList)
-    {
-        bool shared(false);
-        
-        for(const auto& hit : hit3D->getHits())
-        {
-            if (!hit) continue;
-            
-            std::unordered_map<const reco::ClusterHit2D*,std::set<reco::ClusterParameters*>>::iterator hitItr = hit2DToClusterMap.find(hit);
-            
-            if (hitItr != hit2DToClusterMap.end() && hitItr->second.size() > 1)
-            {
-                shared = true;
-                hit->setStatusBit(reco::ClusterHit2D::SHAREDINCLUSTER);
-            }
-        }
-        
-        if (shared) hit3D->setStatusBit(reco::ClusterHit3D::CLUSTERSHARED);
-    }
-    
+
     if (m_enableMonitoring)
     {
         theClockDBScan.stop();
@@ -300,7 +268,7 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
     
     return;
 }
-    
+
 void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& curCluster) const
 {
     reco::HitPairListPtr longestCluster;
@@ -308,6 +276,12 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& curCluster) 
     double               aveNumEdges(0.);
     size_t               maxNumEdges(0);
     size_t               nIsolatedHits(0);
+    
+    // Now proceed with building the clusters
+    cet::cpu_timer theClockPathFinding;
+    
+    // Start clocks if requested
+    if (m_enableMonitoring) theClockPathFinding.start();
     
     reco::HitPairListPtr& hitPairList  = curCluster.getHitPairListPtr();
     reco::Hit3DToEdgeMap& curEdgeMap   = curCluster.getHit3DToEdgeMap();
@@ -351,11 +325,24 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& curCluster) 
         std::cout << "        ====> new cluster size: " << hitPairList.size() << std::endl;
     }
     
+    if (m_enableMonitoring)
+    {
+        theClockPathFinding.stop();
+        
+        m_timeVector[PATHFINDING] += theClockPathFinding.accumulated_real_time();
+    }
+    
     return;
 }
     
 void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParams, KdTreeNode& topNode) const
 {
+    // Set up for timing the function
+    cet::cpu_timer theClockPathFinding;
+    
+    // Start clocks if requested
+    if (m_enableMonitoring) theClockPathFinding.start();
+    
     reco::HitPairListPtr& curCluster = clusterParams.getHitPairListPtr();
     reco::Hit3DToEdgeMap& curEdgeMap = clusterParams.getHit3DToEdgeMap();
     
@@ -381,7 +368,7 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParam
                     isolatedHitList.emplace_back(std::get<0>(curEdgeMap[hit].front()));
         
             std::cout << "************* Finding best path with A* in cluster *****************" << std::endl;
-            std::cout << "**> There are " << isolatedHitList.size() << " isolated hits, the alpha parameter is " << alpha << std::endl;
+            std::cout << "**> There are " << curCluster.size() << " hits, " << isolatedHitList.size() << " isolated hits, the alpha parameter is " << alpha << std::endl;
         
             // Goal is to now find separated pairs of isolated hits
             reco::EdgeList edgeList;
@@ -412,6 +399,14 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParam
                 }
             }
             
+            if (edgeList.empty())
+            {
+                if (isolatedHitList.size() > 20)
+                {
+                    std::cout << "!!!! What happened???? " << std::endl;
+                }
+            }
+            
             if (!edgeList.empty())
             {
                 edgeList.sort([](const auto& left,const auto& right){return std::get<2>(left) > std::get<2>(right);});
@@ -421,10 +416,10 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParam
         
                 std::cout << "**> Sorted " << edgeList.size() << " edges, longest distance: " << DistanceBetweenNodes(std::get<0>(bestEdge),std::get<1>(bestEdge)) << std::endl;
         
-                reco::HitPairListPtr bestPathHitList;
-                reco::EdgeList&      bestEdgeList = clusterParams.getBestEdgeList();
+                reco::HitPairListPtr& bestHitPairListPtr = clusterParams.getBestHitPairListPtr();
+                reco::EdgeList&       bestEdgeList       = clusterParams.getBestEdgeList();
         
-                AStar(std::get<0>(bestEdge),std::get<1>(bestEdge),alpha,topNode,bestPathHitList,bestEdgeList);
+                AStar(std::get<0>(bestEdge),std::get<1>(bestEdge),alpha,topNode,bestHitPairListPtr,bestEdgeList);
 
 //                double cost(std::numeric_limits<double>::max());
                 
@@ -432,14 +427,20 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParam
                 
 //                bestPathHitList.push_front(std::get<0>(bestEdge));
         
-                std::cout << "**> Best path has " << bestPathHitList.size() << " hits, " << bestEdgeList.size() << " edges" << std::endl;
-        
-                // overwrite old version
-//                if (cost < std::numeric_limits<double>::max()) curCluster = bestPathHitList;
-                if (!bestEdgeList.empty()) curCluster = bestPathHitList;
-//                curCluster = isolatedHitList;
+                std::cout << "**> Best path has " << bestHitPairListPtr.size() << " hits, " << bestEdgeList.size() << " edges" << std::endl;
             }
         }
+        else
+        {
+            std::cout << "++++++>>> PCA failure! # hits: " << curCluster.size() << std::endl;
+        }
+    }
+    
+    if (m_enableMonitoring)
+    {
+        theClockPathFinding.stop();
+        
+        m_timeVector[PATHFINDING] += theClockPathFinding.accumulated_real_time();
     }
     
     return;
@@ -463,19 +464,28 @@ void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
     BestNodeMap bestNodeMap;
     
     bestNodeMap[startNode] = BestNodeTuple(startNode,0.,DistanceBetweenNodes(startNode,goalNode));
+
+    alpha = 1.; //std::max(0.5,alpha);
     
     while(!openList.empty())
     {
-        openList.sort([bestNodeMap](const auto& left, const auto& right){return std::get<2>(bestNodeMap.at(left)) < std::get<2>(bestNodeMap.at(right));});
+        // The list is not empty so by def we will return something
+        reco::HitPairListPtr::iterator currentNodeItr = openList.begin();
         
-        const reco::ClusterHit3D* currentNode = openList.front();
+        // If the list contains more than one element then we need to find the one with the smallest total estimated cost to the end
+        if (openList.size() > 1)
+            currentNodeItr = std::min_element(openList.begin(),openList.end(),[bestNodeMap](const auto& next, const auto& best){return std::get<2>(bestNodeMap.at(next)) < std::get<2>(bestNodeMap.at(best));});
+
+        // Easier to deal directly with the pointer to the node
+        const reco::ClusterHit3D* currentNode = *currentNodeItr;
         
         // Check to see if we have reached the goal and need to evaluate the path
         if (currentNode == goalNode)
         {
+            // The path reconstruction will
             ReconstructBestPath(goalNode, bestNodeMap, pathNodeList, bestEdgeList);
             
-            std::cout << "**> Reconstructed best path... ended with " << openList.size() << " hits in openList" << std::endl;
+//            std::cout << "**> Reconstructed best path... ended with " << openList.size() << " hits in openList" << std::endl;
             
             break;
         }
@@ -483,8 +493,9 @@ void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
         // Otherwise need to keep evaluating
         else
         {
-            openList.pop_front();
-            closedList.push_front(currentNode);
+            openList.erase(currentNodeItr);
+//            closedList.push_front(currentNode);
+            currentNode->setStatusBit(reco::ClusterHit3D::PATHCHECKED);
             
             // Set up to find the list of nearest neighbors to the last used hit...
             CandPairVec candPairVec;
@@ -493,8 +504,8 @@ void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
             // And find them... result will be an unordered list of neigbors
             FindNearestNeighbors(currentNode, topNode, candPairVec, bestDistance);
             
-            std::cout << "**> found " << candPairVec.size() << " nearest neigbhors, bestDistance: " << bestDistance;
-            size_t nAdded(0);
+//            std::cout << "**> found " << candPairVec.size() << " nearest neigbhors, bestDistance: " << bestDistance;
+//            size_t nAdded(0);
             
             // Get tuple values for the current node
             const BestNodeTuple& currentNodeTuple = bestNodeMap.at(currentNode);
@@ -503,7 +514,8 @@ void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
             for(auto& candPair : candPairVec)
             {
                 // Ignore those nodes we're already aware of
-                if (std::find(closedList.begin(),closedList.end(),candPair.second) != closedList.end()) continue;
+                //if (std::find(closedList.begin(),closedList.end(),candPair.second) != closedList.end()) continue;
+                if (candPair.second->getStatusBits() & reco::ClusterHit3D::PATHCHECKED) continue;
                 
                 double tentative_gScore = currentNodeScore + candPair.first;
                 
@@ -513,10 +525,10 @@ void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
                 if (candNodeItr == bestNodeMap.end())
                 {
                     openList.push_back(candPair.second);
-                    nAdded++;
+//                    nAdded++;
                 }
                 else if (tentative_gScore > std::get<1>(candNodeItr->second)) continue;
-/*
+
                 // Experiment with modification to cost estimate
                 const double* currentNodePos  = currentNode->getPosition();
                 const double* nextNodePos     = candPair.second->getPosition();
@@ -532,14 +544,14 @@ void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
                 
                 if (cosTheta > 0. || cosTheta < 0.) cosTheta /= (curNextMag * goalNextMag);
                 
-                double        hWeight         = alpha*goalNextMag/std::max(0.001,0.5*(1.+cosTheta));
-*/
+                double        hWeight         = alpha*goalNextMag/std::max(0.01,0.5*(1.+cosTheta));
+
                 // update our records
-                //bestNodeMap[candPair.second] = BestNodeTuple(currentNode,tentative_gScore, tentative_gScore + hWeight);
-                bestNodeMap[candPair.second] = BestNodeTuple(currentNode, tentative_gScore, tentative_gScore + alpha*DistanceBetweenNodes(candPair.second,goalNode));
+                bestNodeMap[candPair.second] = BestNodeTuple(currentNode,tentative_gScore, tentative_gScore + hWeight);
+                //bestNodeMap[candPair.second] = BestNodeTuple(currentNode, tentative_gScore, tentative_gScore + alpha*DistanceBetweenNodes(candPair.second,goalNode));
             }
             
-            std::cout << ", added: " << nAdded << ", openList size: " << openList.size() << std::endl;
+//            std::cout << ", added: " << nAdded << ", openList size: " << openList.size() << std::endl;
         }
     }
     
@@ -947,6 +959,90 @@ bool MinSpanTreeAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco
     return false;
 }
     
+void MinSpanTreeAlg::PruneAmbiguousHits(reco::ClusterParameters& clusterParams, Hit2DToClusterMap& hit2DToClusterMap) const
+{
+    
+    // Recover the HitPairListPtr from the input clusterParams (which will be the
+    // only thing that has been provided)
+    reco::HitPairListPtr& hitPairVector = clusterParams.getHitPairListPtr();
+    
+    size_t nStartedWith(hitPairVector.size());
+    size_t nRejectedHits(0);
+    
+    reco::HitPairListPtr goodHits;
+    
+    // Loop through the hits and try to week out the clearly ambiguous ones
+    for(const auto& hit3D : hitPairVector)
+    {
+        // Loop to try to remove ambiguous hits
+        size_t n2DHitsIn3DHit(0);
+        size_t nThisClusterOnly(0);
+        size_t nOtherCluster(0);
+        
+        //        reco::ClusterParameters* otherCluster;
+        const std::set<const reco::ClusterHit3D*>* otherClusterHits;
+        
+        for(const auto& hit2D : hit3D->getHits())
+        {
+            if (!hit2D) continue;
+            
+            n2DHitsIn3DHit++;
+            
+            if (hit2DToClusterMap[hit2D].size() < 2) nThisClusterOnly = hit2DToClusterMap[hit2D][&clusterParams].size();
+            else
+            {
+                for(const auto& clusterHitMap : hit2DToClusterMap[hit2D])
+                {
+                    if (clusterHitMap.first == &clusterParams) continue;
+                    
+                    if (clusterHitMap.second.size() > nOtherCluster)
+                    {
+                        nOtherCluster    = clusterHitMap.second.size();
+                        //                        otherCluster     = clusterHitMap.first;
+                        otherClusterHits = &clusterHitMap.second;
+                    }
+                }
+            }
+        }
+        
+        if (n2DHitsIn3DHit < 3 && nThisClusterOnly > 1 && nOtherCluster > 0)
+        {
+            bool skip3DHit(false);
+            
+            for(const auto& otherHit3D : *otherClusterHits)
+            {
+                size_t nOther2DHits(0);
+                
+                for(const auto& otherHit2D : otherHit3D->getHits())
+                {
+                    if (!otherHit2D) continue;
+                    
+                    nOther2DHits++;
+                }
+                
+                if (nOther2DHits > 2)
+                {
+                    skip3DHit = true;
+                    nRejectedHits++;
+                    break;
+                }
+            }
+            
+            if (skip3DHit) continue;
+            
+        }
+        
+        goodHits.emplace_back(hit3D);
+    }
+    
+    std::cout << "###>> Input " << nStartedWith << " hits, rejected: " << nRejectedHits << std::endl;
+    
+    hitPairVector.resize(goodHits.size());
+    std::copy(goodHits.begin(),goodHits.end(),hitPairVector.begin());
+
+    return;
+}
+    
 struct HitPairClusterOrder
 {
     bool operator()(const reco::ClusterParametersList::iterator& left, const reco::ClusterParametersList::iterator& right)
@@ -982,9 +1078,31 @@ void MinSpanTreeAlg::BuildClusterInfo(reco::ClusterParametersList& clusterParame
         // The smallest clusters are now at the end, drop those off the back that are less than the mininum necessary
         while(!clusterParametersList.empty() && clusterParametersList.back().getHitPairListPtr().size() < m_clusterMinHits) clusterParametersList.pop_back();
         
+        // The next step is to build out a mapping of all 2D hits to clusters
+        // Keep track of where the hits get distributed...
+        Hit2DToClusterMap hit2DToClusterMap;
+        
+        reco::ClusterParametersList::iterator clusterItr = clusterParametersList.begin();
+        
+        for(auto& clusterParams : clusterParametersList)
+        {
+            for(const auto& hit3D : clusterParams.getHitPairListPtr())
+            {
+                for(const auto& hit2D : hit3D->getHits())
+                {
+                    if (!hit2D) continue;
+                    
+                    hit2DToClusterMap[hit2D][&clusterParams].insert(hit3D);
+                }
+            }
+        }
+        
+        // Ok, spin through again to remove ambiguous hits
+        for(auto& clusterParams : clusterParametersList) PruneAmbiguousHits(clusterParams,hit2DToClusterMap);
+        
         // What remains is an order set of clusters, largest first
         // Now go through and obtain cluster parameters
-        reco::ClusterParametersList::iterator clusterItr = clusterParametersList.begin();
+        clusterItr = clusterParametersList.begin();
         
         while(clusterItr != clusterParametersList.end())
         {
@@ -992,7 +1110,7 @@ void MinSpanTreeAlg::BuildClusterInfo(reco::ClusterParametersList& clusterParame
             reco::ClusterParameters& clusterParams = *clusterItr;
             
             // Do the actual work of filling the parameters
-            FillClusterParams(clusterParams, m_clusterMinUniqueFraction, m_clusterMaxLostFraction);
+            FillClusterParams(clusterParams, hit2DToClusterMap, m_clusterMinUniqueFraction, m_clusterMaxLostFraction);
             
             // If this cluster is rejected then the parameters will be empty
             if (clusterParams.getClusterParams().empty() || !clusterParams.getFullPCA().getSvdOK())
@@ -1013,7 +1131,7 @@ void MinSpanTreeAlg::BuildClusterInfo(reco::ClusterParametersList& clusterParame
     return;
 }
 
-void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, double minUniqueFrac, double maxLostFrac) const
+void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, Hit2DToClusterMap& hit2DToClusterMap, double minUniqueFrac, double maxLostFrac) const
 {
     /**
      *  @brief Given a list of hits fill out the remaining parameters for this cluster and evaluate the
@@ -1038,6 +1156,10 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, d
     size_t nTotalHits[]  = {0,0,0};
     size_t nUniqueHits[] = {0,0,0};
     size_t nLostHits[]   = {0,0,0};
+    size_t nMultShared2DHits(0);
+    size_t nAllHitsShared(0);
+    
+    std::map<reco::ClusterParameters*,int> clusterHitCountMap;
     
     // Create a list to hold 3D hits which are already in use (criteria below)
     reco::HitPairListPtr usedHitPairList;
@@ -1048,6 +1170,7 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, d
     // The secondary goal is to remove 3D hits marked by hit arbitration to be tossed
     for(const auto& hit3D : hitPairVector)
     {
+        size_t nMultClusters(0);
         size_t nHits2D(0);
         size_t nHitsUsed[] = {0,0,0};
         
@@ -1056,13 +1179,22 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, d
         {
             if (!hit2D) continue;
             size_t view = hit2D->getHit().View();
+
             if (hit2D->getStatusBits() & reco::ClusterHit2D::USED) nHitsUsed[view]++;
             else                                                   nUniqueHits[view]++;
+            
+            // Is this 2D hit shared?
+            if (hit2DToClusterMap[hit2D].size() > 1) nMultClusters++;
+            for(auto& clusterCntPair : hit2DToClusterMap[hit2D]) clusterHitCountMap[clusterCntPair.first]++;
+            
             nTotalHits[view]++;
             nHits2D++;
         }
         
         size_t nHitsAlreadyUsed = std::accumulate(nHitsUsed,nHitsUsed+3,0);
+        
+        if (nMultClusters > 1)        nMultShared2DHits++;
+        if (nMultClusters == nHits2D) nAllHitsShared++;
         
         for(size_t idx=0;idx<3;idx++)
         {
@@ -1081,10 +1213,19 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, d
     int numUniqueHits = std::accumulate(nUniqueHits,nUniqueHits+3,0);
     int numLostHits   = std::accumulate(nLostHits,nLostHits+3,0);
     
+    std::cout << "*********************************************************************" << std::endl;
+    std::cout << "**--> cluster: " << &clusterParams << " has " << hitPairVector.size() << " 3D hits, " << numTotal << " 2D hits, match: " << clusterHitCountMap[&clusterParams] << ", shared: " << nMultShared2DHits << ", all: " << nAllHitsShared << std::endl;
+    
+    for(const auto& clusterCnt : clusterHitCountMap)
+    {
+        if (clusterCnt.first == &clusterParams) continue;
+        std::cout << "      --> cluster " << clusterCnt.first << ", # hits: " << clusterCnt.second << std::endl;
+    }
+    
     // If we have something left then at this point we make one more check
     // This check is intended to weed out clusters made from isolated groups of ambiguous hits which
     // really belong to a larger cluster
-    if (numUniqueHits > 3)
+    if (numUniqueHits > 3 && nMultShared2DHits < hitPairVector.size())
     {
         // Look at reject to accept ratio
         //double rejectToAccept = double(numRejected) / double(numAccepted);

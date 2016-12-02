@@ -78,7 +78,9 @@ public:
      *  @param clusterParametersList  a container for our candidate 3D clusters
      *  @param rejectionFraction      Used for determine "hit purity" when rejecting clusters
      */
-    void FillClusterParams(reco::ClusterParameters& clusterParams, double minUniqueFrac = 0., double maxLostFrac=1.) const;
+    using Hit2DToClusterMap = std::unordered_map<const reco::ClusterHit2D*,std::unordered_map<reco::ClusterParameters*,std::set<const reco::ClusterHit3D*>>>;
+    
+    void FillClusterParams(reco::ClusterParameters& clusterParams, Hit2DToClusterMap& hit2DToClusterMap, double minUniqueFrac = 0., double maxLostFrac=1.) const;
 
     /**
      *  @brief enumerate the possible values for time checking if monitoring timing
@@ -87,6 +89,7 @@ public:
                      BUILDHITTOHITMAP = 1,
                      RUNDBSCAN        = 2,
                      BUILDCLUSTERINFO = 3,
+                     PATHFINDING      = 4,
                      NUMTIMEVALUES
     };
     
@@ -127,6 +130,11 @@ private:
      *  @brief Driver for Prim's algorithm
      */
     void RunPrimsAlgorithm(reco::HitPairList&, KdTreeNode&, reco::ClusterParametersList&) const;
+    
+    /**
+     *  @brief Prune the obvious ambiguous hits
+     */
+    void PruneAmbiguousHits(reco::ClusterParameters&, Hit2DToClusterMap&) const;
     
     /**
      *  @brief Algorithm to find the best path through the given cluster
