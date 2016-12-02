@@ -478,7 +478,7 @@ namespace tca {
     // convert vertex time from WSE to ticks
     for(auto& avtx : tjs.vtx) avtx.Pos[1] /= tjs.UnitsPerTick;
     
-    std::cout<<"RunTrajCluster success run "<<fRun<<" event "<<fEvent<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<fEventsProcessed<<" last workID "<<fWorkID<<"\n";
+    std::cout<<"RunTrajCluster success run "<<fRun<<" event "<<fEvent<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<fEventsProcessed<<"\n";
     
   } // RunTrajClusterAlg
 
@@ -892,22 +892,37 @@ namespace tca {
     if(tjs.allTraj.size() == 0) return;
     if(!fUseAlg[kUseUnusedHits]) return;
     
+    std::vector<unsigned int> hitsInMuliplet;
     for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& tj = tjs.allTraj[itj];
       if(tj.AlgMod[kKilled]) continue;
+      // Find the max delta
+//      float maxDelta = MaxHitDelta(tjs, tj);
       for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
         if(AngleRange(tj.Pts[ipt]) == 0) continue;
-        // Find the max delta
-        float maxDelta = 2 * MaxHitDelta(tjs, tj);
         bool hitsAdded = false;
+        // Find the first hit in a multiplet
+        unsigned int hit0 = tj.Pts[ipt].Hits[0];
+        for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+          if(!tj.Pts[ipt].UseHit[ii]) continue;
+          unsigned int iht = tj.Pts[ipt].Hits[ii];
+          unsigned short localIndex;
+          GetHitMultiplet(iht, hitsInMuliplet, localIndex);
+          if(hitsInMuliplet.size() > 1) {
+            hit0 = iht - localIndex;
+            break;
+          }
+        } // ii
         for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
           // hit is associated with this point and it is not used
           if(tj.Pts[ipt].UseHit[ii]) continue;
           unsigned int iht = tj.Pts[ipt].Hits[ii];
           // and it is not used in any other trajectory
           if(tjs.fHits[iht].InTraj != 0) continue;
+          // and it isn't in the same multiplet as hit0
+          if(iht - tjs.fHits[iht].LocalIndex != hit0) continue;
           // and it doesn't have a high delta
-          if(PointTrajDOCA(tjs, tj.Pts[ipt].Pos[0], tjs.fHits[iht].PeakTime * tjs.UnitsPerTick, tj.Pts[ipt]) > maxDelta ) continue;
+//          if(PointTrajDOCA(tjs, tj.Pts[ipt].Pos[0], tjs.fHits[iht].PeakTime * tjs.UnitsPerTick, tj.Pts[ipt]) > maxDelta ) continue;
           tj.Pts[ipt].UseHit[ii] = true;
           tjs.fHits[iht].InTraj = tj.ID;
           hitsAdded = true;
@@ -1470,7 +1485,7 @@ namespace tca {
       ++nTruPrimaryVtxOK;
       // was it reconstructed?
       if(nuVtxRecoOK) ++nTruPrimaryVtxReco;
-      if(neutrinoEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx neutrino E "<<std::fixed<<std::setprecision(3)<<neutrinoEnergy<<" events processed "<<fEventsProcessed;
+      if(neutrinoEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx neutrino E "<<std::fixed<<std::setprecision(2)<<neutrinoEnergy<<" events processed "<<fEventsProcessed;
     }
     
     if(fMatchTruth[1] > 1) {
@@ -1634,9 +1649,9 @@ namespace tca {
 
     // look at adjacent wires for larger angle trajectories
     // We will check the most likely wire first
-    std::vector<unsigned int> wires(1);
+    std::vector<int> wires(1);
     wires[0] = std::nearbyint(tp.Pos[0]);
-    if(wires[0] > tjs.LastWire[ipl]-1) return;
+    if(wires[0] > (int)tjs.LastWire[ipl]-1) return;
     
     unsigned short angRange = AngleRange(tp);
     if(angRange != fAngleRanges.size() - 1) {
@@ -1647,12 +1662,12 @@ namespace tca {
     // after the first point has been defined and for the largest angle range
     if(ipt > 0 && angRange == fAngleRanges.size() - 1) {
       if(wires[0] > 0) wires.push_back(wires[0] - 1);
-      if(wires[0] < tjs.LastWire[ipl]-1) wires.push_back(wires[0] + 1);
+      if(wires[0] < (int)tjs.LastWire[ipl]-1) wires.push_back(wires[0] + 1);
     } // ipt > 0 ...
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<" AddLAHits: AngleRange "<<angRange<<" Wires under consideration";
+      myprt<<" AddLAHits: Pos "<<PrintPos(tjs, tp)<<" AngleRange "<<angRange<<" Wires under consideration";
       for(auto& wire : wires) myprt<<" "<<wire;
     }
     
@@ -1664,23 +1679,26 @@ namespace tca {
     float pos1Window = fVLAStepSize/2;
     
     tp.Hits.clear();
+    std::array<int, 2> wireWindow;
+    std::array<float, 2> timeWindow;
     for(unsigned short ii = 0; ii < wires.size(); ++ii) {
-      unsigned int wire = wires[ii];
-      if(wire > tjs.LastWire[ipl]) continue;
+      int wire = wires[ii];
+      if(wire > (int)tjs.LastWire[ipl]) continue;
       // Assume a signal exists on a dead wire
       if(tjs.WireHitRange[fPlane][wire].first == -1) sigOK = true;
       if(tjs.WireHitRange[fPlane][wire].first < 0) continue;
-      std::array<int, 2> wireWindow {(int)wire, (int)wire};
-      MoveTPToWire(ltp, wire);
-      std::array<float, 2> timeWindow {(float)(ltp.Pos[1] - pos1Window), (float)(ltp.Pos[1] + pos1Window)};
+      wireWindow[0] = wire;
+      wireWindow[1] = wire;
+      timeWindow[0] = ltp.Pos[1] - pos1Window;
+      timeWindow[1] = ltp.Pos[1] + pos1Window;
       bool hitsNear;
       // Look for hits using the requirement that the timeWindow overlaps with the hit StartTick and EndTick
       auto closeHits = FindCloseHits(tjs, wireWindow, timeWindow, ipl, kUnusedHits, false, hitsNear);
       if(hitsNear) sigOK = true;
-      tp.Hits.insert(tp.Hits.end(), closeHits.begin(), closeHits.end());
+//      for(auto iht : closeHits) if(tjs.fHits[iht].InTraj == 0) tp.Hits.push_back(iht);
       if(prt) {
         mf::LogVerbatim myprt("TC");
-        myprt<<" LAPos "<<tp.CTP<<":"<<PrintPos(tjs, ltp)<<" Tick window "<<(int)(timeWindow[0]/tjs.UnitsPerTick)<<" to "<<(int)(timeWindow[1]/tjs.UnitsPerTick);
+        myprt<<" LAPos wire "<<wire<<" Pos "<<PrintPos(tjs, ltp)<<" Tick window "<<(int)(timeWindow[0]/tjs.UnitsPerTick)<<" to "<<(int)(timeWindow[1]/tjs.UnitsPerTick);
         for(auto& iht : closeHits) myprt<<" "<<PrintHit(tjs.fHits[iht]);
       } // prt
     } // ii
@@ -1700,7 +1718,12 @@ namespace tca {
       myprt<<"\n";
     }
     tp.UseHit.reset();
-    FindUseHits(tj, ipt, pos1Window, false);
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+      unsigned int iht = tp.Hits[ii];
+      if(tjs.fHits[iht].InTraj != 0) continue;
+      tp.UseHit[ii] = true;
+      tjs.fHits[iht].InTraj = tj.ID;
+    } // ii
     DefineHitPos(tp);
     SetEndPoints(tjs, tj);
     UpdateAveChg(tj);
@@ -1731,7 +1754,7 @@ namespace tca {
       AddLAHits(tj, ipt, sigOK);
       return;
     }
-//    bool  = (angleRange == fAngleRanges.size() - 2);
+//    bool isLA = (angleRange == fAngleRanges.size() - 2);
     
     std::vector<unsigned int> closeHits;
 
@@ -1857,7 +1880,8 @@ namespace tca {
     // decide which of these hits should be used in the fit. Use a generous maximum delta
     // and require a charge check if we'not just starting out
     bool useChg = true;
-    if(ipt < 4) useChg = false;
+    // Dec 2, 2016
+//    if(ipt < 4) useChg = false;
     // Don't use charge for reverse propagation since we are probably trying to attach large charge
     // hits at the beginning of a trajectory
     if(tj.AlgMod[kRevProp]) useChg = false;
@@ -1912,7 +1936,7 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim("TC")<<"FUH2:  maxDelta "<<maxDelta<<" useChg requested "<<useChg<<" Norm AveChg "<<(int)tp.AveChg<<" TPHitsRMS "<<(int)TPHitsRMSTick(tjs, tp, kUnusedHits)<<" ExpectedHitsRMS "<<(int)ExpectedHitsRMS(tp)<<" AngleRange "<<AngleRange(tp);
     }
-    
+/* Disabled 12/2/2016
     // last pass - use all available hits, or the hit width for the multiplet is acceptable
     if(tj.Pass == fMinPts.size() - 1) {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
@@ -1928,7 +1952,7 @@ namespace tca {
       }
       return;
     }
-    
+*/
     // inverse of the path length for normalizing hit charge to 1 WSE unit
     float pathInv = std::abs(tp.Dir[0]);
     if(pathInv < 0.05) pathInv = 0.05;
@@ -1982,10 +2006,11 @@ namespace tca {
     // The best hit is the only one available
     if(nAvailable == 1) {
       float bestDeltaHitChgPull = std::abs(tjs.fHits[bestDeltaHit].Integral * pathInv / tp.AveChg - 1) / tj.ChgRMS;
-      if(bestDeltaHitChgPull < chgPullCut) {
+      if(prt) mf::LogVerbatim("TC")<<" bestDeltaHitChgPull "<<bestDeltaHitChgPull<<" chgPullCut "<<chgPullCut;
+      if(bestDeltaHitChgPull < chgPullCut || tp.Delta < 0.1) {
         tp.UseHit[imbest] = true;
         tjs.fHits[bestDeltaHit].InTraj = tj.ID;
-      } // good charge
+      } // good charge or very good delta
       return;
     } // bestDeltaHitMultiplicity == 1
     
