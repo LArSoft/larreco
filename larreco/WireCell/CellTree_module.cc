@@ -282,7 +282,7 @@ void CellTree::initOutput()
 
     fEventTree->Branch("mc_Ntrack", &mc_Ntrack);  // number of tracks in MC
     fEventTree->Branch("mc_id", &mc_id, "mc_id[mc_Ntrack]/I");  // track id; size == mc_Ntrack
-    fEventTree->Branch("mc_pdg", &mc_pdg, "mc_id[mc_Ntrack]/I");  // track particle pdg; size == mc_Ntrack
+    fEventTree->Branch("mc_pdg", &mc_pdg, "mc_pdg[mc_Ntrack]/I");  // track particle pdg; size == mc_Ntrack
     fEventTree->Branch("mc_process", &mc_process, "mc_process[mc_Ntrack]/I");  // track generation process code; size == mc_Ntrack
     fEventTree->Branch("mc_mother", &mc_mother, "mc_mother[mc_Ntrack]/I");  // mother id of this track; size == mc_Ntrack
     fEventTree->Branch("mc_daughters", &mc_daughters);  // daughters id of this track; vector
