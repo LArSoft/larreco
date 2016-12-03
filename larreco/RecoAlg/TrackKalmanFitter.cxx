@@ -5,6 +5,7 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Hit.h"
 
+#include "lardata/RecoObjects/SurfWireX.h"
 #include "lardata/RecoObjects/KHitWireX.h"
 #include "lardata/RecoObjects/KHitContainerWireX.h"
 #include "lardata/RecoObjects/Surface.h"
@@ -34,7 +35,8 @@ trkf::KTrack trkf::TrackKalmanFitter::convertRecobTrackIntoKTrack(const TVector3
   return trkf::KTrack(vtxsurf,vtxvec,trkf::Surface::FORWARD, pdgid);
 }
 
-bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& hits, const double pval, const int pdgid,
+bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& hits, 
+				       const double pval, const int pdgid, const bool flipDirection,
 				       recob::Track& outTrack,    art::PtrVector<recob::Hit>& outHits) {
 
   // LOG_DEBUG("TrackKalmanFitter") << "TMP POS --- " << track.Vertex().X() << " " << track.Vertex().Y() << " " << track.Vertex().Z();
@@ -44,7 +46,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   auto position = track.Vertex();
   auto direction = track.VertexDirection();
 
-  if (direction.Z()<0) {
+  if (flipDirection) {
     position = track.End();
     direction = -track.EndDirection();
   }
@@ -78,29 +80,39 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 
   // LOG_DEBUG("TrackKalmanFitter") << "INITIAL TRACK\n" << trf.Print(std::cout);
 
-  //fill the hit container and sort it according to the track direction
+  //fill the hit container and with order according to the track direction
+  trkf::KFitTrack trfVtxF = trkf::KFitTrack(tre, 0., 0.);
+  trkf::KFitTrack trfVtxB = trkf::KFitTrack(tre, 0., 0.);
+  std::shared_ptr<const trkf::SurfWireX> vtxsurfF(new trkf::SurfWireX(hits.front()->WireID()));
+  std::shared_ptr<const trkf::SurfWireX> vtxsurfB(new trkf::SurfWireX(hits.back()->WireID()));
+  const KHitWireX hitF(hits.front(),vtxsurfF);
+  const KHitWireX hitB(hits.back(),vtxsurfB);
+  boost::optional<double> distF = prop_->err_prop(trfVtxF,hitF.getMeasSurface(),trkf::Propagator::UNKNOWN,false);
+  boost::optional<double> distB = prop_->err_prop(trfVtxB,hitB.getMeasSurface(),trkf::Propagator::UNKNOWN,false);
+  double dF = (distF ? *distF : 0);
+  double dB = (distB ? *distB : 0);
+
   trkf::KHitContainerWireX hitCont;
   //there must be a better way to convert a vector<Ptr> into a PtrVector
   art::PtrVector<recob::Hit> hitsv;
-  for (auto hit : hits) {
-    hitsv.push_back(hit);
-  }
+  if (dF>dB) for (auto hit = hits.rbegin(); hit<hits.rend(); ++hit) hitsv.push_back(*hit);
+  else for (auto hit = hits.begin(); hit<hits.end(); ++hit) hitsv.push_back(*hit);
   hitCont.fill(hitsv, -1);
-  hitCont.sort(vtxTrack,true,prop_,trkf::Propagator::FORWARD);
-  auto sortedHits = hitCont.getSorted();
+  //optional re-sorting
+  if (sortHits_) hitCont.sort(vtxTrack,true,prop_,trkf::Propagator::FORWARD);
+  auto hitsToProcess = (sortHits_ ? hitCont.getSorted() : hitCont.getUnsorted());
 
-  //setup the KGTrack we'll ue for smoothing and to output the recob::Track
+  //setup the KGTrack we'll use for smoothing and to output the recob::Track
   trkf::KGTrack fittedTrack(hitCont.getPreferredPlane());
 
   //loop over groups and then on hits in groups
-  for (auto itergroup : sortedHits) {
+  for (auto itergroup : hitsToProcess) {
     for (auto ihit : itergroup.getHits()) {
 
       const trkf::KHitWireX* khitp = dynamic_cast<const trkf::KHitWireX*>(&*ihit);
       assert(khitp);
       trkf::KHitWireX khit(*khitp);//need a non const copy in case we want to modify the error
-      if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
-      // khit.setMeasError(khit.getMeasError()*25.);
+      if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(std::max(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime(),0.08333333333f)));//0.0833333333 is 1/12, see KHitWireX.cxx line 69
 
       //propagate to measurement surface
       boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
@@ -134,7 +146,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       }
 
     } //for (auto ihit : itergroup.getHits())
-  }//for (auto itergroup : sortedHits)
+  }//for (auto itergroup : hitsToProcess)
 
   // LOG_DEBUG("TrackKalmanFitter") << "AFTER FORWARD\n" << trf.Print(std::cout);
 
@@ -148,7 +160,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   for (auto itertrack = fittedTrack.getTrackMap().rbegin(); itertrack != fittedTrack.getTrackMap().rend(); ++itertrack) {
     trkf::KHitTrack& fwdTrack = itertrack->second;
     trkf::KHitWireX khit(dynamic_cast<const trkf::KHitWireX&>(*fwdTrack.getHit().get()));//need a non const copy in case we want to modify the error
-    if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime()));
+    if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(std::max(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime(),0.08333333333f)));
 
     boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
     if (!pdist) {
@@ -175,6 +187,11 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 
   // LOG_DEBUG("TrackKalmanFitter") << "AFTER BACKWARD\n" << trf.Print(std::cout);
 
+  if (fittedTrack.getTrackMap().size()==0) {
+    mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
+    return false;
+  }
+  
   bool zeromom = false;
   for (auto itertrack = fittedTrack.getTrackMap().rbegin(); itertrack != fittedTrack.getTrackMap().rend(); ++itertrack) {
     trkf::KHitTrack& trh = itertrack->second;

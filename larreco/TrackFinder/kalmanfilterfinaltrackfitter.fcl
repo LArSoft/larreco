@@ -2,16 +2,27 @@ BEGIN_PROLOG
 kalmantrackfit: {
   module_type:  KalmanFilterFinalTrackFitter
   inputs: {
+        inputPFParticleLabel: @nil
   	inputTracksLabel: @nil
   	inputCaloLabel: @nil
   	inputMCLabel: mcreco
+        inputPidLabel: @nil
   }
   options: {
-  	momFromCalo: false
-  	momFromMC: false
-  	momentumInGeV: 1.0
-  	pdgId: 13
+        trackFromPF: false
+        momFromMSChi2: false
+        momFromCalo: false
+        momFromLength: false
+        momFromMC: false
+        momentumInGeV: 1.0
+        idFromPF: false
+        idFromCollection: true
+        pdgId: 13
+        dirFromVec: true
+        dirVec: [0,0,1]
+        dirFromVtxPF: false
   	useRMSError: true
+        sortHits: false
   }
 }
 END_PROLOG
