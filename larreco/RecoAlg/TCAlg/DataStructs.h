@@ -129,7 +129,7 @@ namespace tca {
     short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
     short Dir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
                                         ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
-    short WorkID {0};
+    int WorkID {0};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
   };
   
