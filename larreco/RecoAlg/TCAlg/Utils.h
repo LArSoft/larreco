@@ -37,6 +37,9 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  unsigned short NumPtsWithCharge(TjStuff& tjs, Trajectory& tj, bool includeDeadWires);
+  float DeadWireCount(TjStuff& tjs, TrajPoint& tp1, TrajPoint& tp2);
+  float DeadWireCount(TjStuff& tjs, float inWirePos1, float inWirePos2, CTP_t tCTP);
   unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
