@@ -2,6 +2,47 @@
 
 namespace tca {
 
+  
+  //////////////////////////////////////////
+  unsigned short NumPtsWithCharge(TjStuff& tjs, Trajectory& tj, bool includeDeadWires)
+  {
+    unsigned short ntp = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]+1; ++ipt) if(tj.Pts[ipt].Chg > 0) ++ntp;
+    // Add the count of deadwires
+    unsigned short ipt0 = tj.EndPt[0];
+    unsigned short ipt1 = tj.EndPt[1];
+    if(ipt1 > tj.Pts.size() - 1) return 0;
+    if(includeDeadWires) ntp += DeadWireCount(tjs, tj.Pts[ipt0], tj.Pts[ipt1]);
+    return ntp;
+  } // NumTPsWithCharge
+  
+  //////////////////////////////////////////
+  float DeadWireCount(TjStuff& tjs, TrajPoint& tp1, TrajPoint& tp2)
+  {
+    return DeadWireCount(tjs, tp1.Pos[0], tp2.Pos[0], tp1.CTP);
+  } // DeadWireCount
+  
+  //////////////////////////////////////////
+  float DeadWireCount(TjStuff& tjs, float inWirePos1, float inWirePos2, CTP_t tCTP)
+  {
+    if(inWirePos1 < -0.4 || inWirePos2 < -0.4) return 0;
+    unsigned int inWire1 = std::nearbyint(inWirePos1);
+    unsigned int inWire2 = std::nearbyint(inWirePos2);
+    geo::PlaneID planeID = DecodeCTP(tCTP);
+    unsigned short plane = planeID.Plane;
+    if(inWire1 > tjs.NumWires[plane] || inWire2 > tjs.NumWires[plane]) return 0;
+    if(inWire1 > inWire2) {
+      // put in increasing order
+      unsigned int tmp = inWire1;
+      inWire1 = inWire2;
+      inWire2 = tmp;
+    } // inWire1 > inWire2
+    ++inWire2;
+    unsigned int wire, ndead = 0;
+    for(wire = inWire1; wire < inWire2; ++wire) if(tjs.WireHitRange[plane][wire].first == -1) ++ndead;
+    return ndead;
+  } // DeadWireCount
+
   ////////////////////////////////////////////////
   unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode)
   {
@@ -119,7 +160,7 @@ namespace tca {
     if(ivx != USHRT_MAX) tj.VtxID[1] = tjs.vtx[ivx].ID;
     tj.AlgMod[kSplitTraj] = true;
     if(prt) {
-      mf::LogVerbatim("TC")<<"Splittjs.allTraj: itj "<<tj.ID<<" EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
+      mf::LogVerbatim("TC")<<"Splitting trajectory ID "<<tj.ID<<" new EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
     }
     
     // Append 3 points from the end of tj onto the
@@ -127,7 +168,7 @@ namespace tca {
     // them later
     unsigned short eraseSize = pos - 2;
     if(eraseSize > newTj.Pts.size() - 1) {
-      mf::LogWarning("TC")<<"Splittjs.allTraj: Bad erase size ";
+      mf::LogWarning("TC")<<"SplitAllTraj: Bad erase size ";
       return false;
     }
     
@@ -136,13 +177,14 @@ namespace tca {
     // unset the first 3 TP hits
     for(ipt = 0; ipt < 3; ++ipt) {
       for(ii = 0; ii < newTj.Pts[ipt].Hits.size(); ++ii) newTj.Pts[ipt].UseHit[ii] = false;
+      newTj.Pts[ipt].Chg = 0;
     } // ipt
     SetEndPoints(tjs, newTj);
     if(ivx != USHRT_MAX) newTj.VtxID[0] = tjs.vtx[ivx].ID;
     newTj.AlgMod[kSplitTraj] = true;
     tjs.allTraj.push_back(newTj);
     if(prt) {
-      mf::LogVerbatim("TC")<<"Splittjs.allTraj: NewTj "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
+      mf::LogVerbatim("TC")<<"  newTj ID "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
     }
     return true;
     
@@ -1417,14 +1459,13 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.Dir;
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
-//        myprt<<std::setw(2)<<aTj.StopsAtEnd[0]<<aTj.StopsAtEnd[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
         myprt<<std::setw(5)<<aTj.ParentTrajID;
         myprt<<std::setw(6)<<aTj.TruPDG;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(5)<<(int)aTj.TruKE;
         myprt<<std::setw(7)<<aTj.WorkID;
-        myprt<<" "<<PrintStopFlag(tjs, aTj, 0)<<" "<<PrintStopFlag(tjs, aTj, 1)<<" ";
+//        myprt<<" "<<PrintStopFlag(tjs, aTj, 0)<<" "<<PrintStopFlag(tjs, aTj, 1)<<" ";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         myprt<<"\n";
       } // ii
@@ -1469,7 +1510,7 @@ namespace tca {
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
         mf::LogVerbatim myprt("TC");
-        myprt<<"tjs.allTraj: ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"tjs.allTraj: ID "<<tj.ID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" StopFlags "<<PrintStopFlag(tjs, tj, 0)<<" "<<PrintStopFlag(tjs, tj, 1);
         myprt<<" AlgMod names:";
