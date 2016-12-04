@@ -205,7 +205,7 @@ namespace tca {
     unsigned int fEventsProcessed;
     CTP_t fCTP;        ///< Cryostat/TPC/Plane code
     unsigned int fPlane;         // the current plane
-    short fWorkID;
+    int fWorkID;
 
 
     std::string fhitsModuleLabel;
@@ -236,8 +236,6 @@ namespace tca {
     void AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
     // Large Angle version
     void AddLAHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
-    float DeadWireCount(TrajPoint& tp1, TrajPoint& tp2);
-    float DeadWireCount(float inWirePos1, float inWirePos2, CTP_t tCTP);
     void HitSanityCheck();
     // Hits on two adjacent wires have an acceptable signal overlap
     bool TrajHitsOK(const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
@@ -273,10 +271,6 @@ namespace tca {
     void SetPoorUsedHits(Trajectory& tj, unsigned short ipt);
     // Sets inTraj[] = 0 and UseHit false for all used hits in tp
     void UnsetUsedHits(TrajPoint& tp);
-    // Counts the number of used hits in tp
-//    unsigned short NumUsedHits(TrajPoint& tp);
-    // Counts the number of TPs in the trajectory that have charge
-    unsigned short NumPtsWithCharge(Trajectory& tj, bool includeDeadWires);
     // Sets inTraj[] = 0 and UseHit false for all TPs. Called when abandoning work
     void ReleaseHits(Trajectory& tj);
     // returns the index of the angle range that tp is in
