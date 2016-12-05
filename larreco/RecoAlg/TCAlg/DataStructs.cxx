@@ -39,7 +39,8 @@ namespace tca {
     "Signal",
     "AtKink",
     "AtVtx",
-    "Bragg"
+    "Bragg",
+    "kRvPrp"
   };
   
   const std::vector<std::string> VtxBitNames {
