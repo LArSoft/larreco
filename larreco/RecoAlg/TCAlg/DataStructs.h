@@ -63,6 +63,7 @@ namespace tca {
     short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
     unsigned short ID {0};
+    short Ptr3D;
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
   };
   
@@ -212,6 +213,7 @@ namespace tca {
     kAtKink,
     kAtVtx,
     kBragg,
+    kRvPrp,
     kFlagBigSize     ///< don't mess with this line
   } StopFlag_t; 
   
