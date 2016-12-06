@@ -61,11 +61,11 @@ namespace trkf {
       };
       fhicl::Atom<art::InputTag> inputMCLabel {
 	Name("inputMCLabel"),
-	Comment("Label of sim::MCTrack Collection to be used for initial momentum estimate. Used only if momFromMC is set to true and momFromCalo is set to false.")
+	Comment("Label of sim::MCTrack Collection to be used for initial momentum estimate. Used only if momFromMC is set to true.")
       };
       fhicl::Atom<art::InputTag> inputPidLabel {
        Name("inputPidLabel"),
-       Comment("Label of anab::ParticleID Collection, matching inputTracksLabel, to be used for particle Id. Used only if pdgId is set to zero.")
+       Comment("Label of anab::ParticleID Collection, matching inputTracksLabel, to be used for particle Id.")
       };
     };
 
