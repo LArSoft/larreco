@@ -35,6 +35,12 @@
 
 namespace nnet {
 
+struct hInfo
+{
+    std::vector< float > vout;
+    bool fid, used;
+};
+
 class EmTrackClusterId : public art::EDProducer {
 public:
 
@@ -91,7 +97,7 @@ private:
 
     std::vector<float> pValuesMultiply(
         std::vector< art::Ptr<recob::Hit> > const & hits,
-        const std::vector< std::vector<float> > & pValues,
+        const std::vector< hInfo > & pValues,
         size_t nClasses) const;
 
 	PointIdAlg fPointIdAlg;
@@ -121,7 +127,7 @@ EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 
 std::vector<float> EmTrackClusterId::pValuesMultiply(
     std::vector< art::Ptr<recob::Hit> > const & hits,
-    const std::vector< std::vector<float> > & pValues,
+    const std::vector< hInfo > & pValues,
     size_t nClasses) const
 {
     if (pValues.empty())
@@ -140,14 +146,11 @@ std::vector<float> EmTrackClusterId::pValuesMultiply(
 
 	for (auto const & h : hits)
 	{
-		unsigned int wire = h->WireID().Wire;
-		float drift = h->PeakTime();
-
-		if (!fPointIdAlg.isInsideFiducialRegion(wire, drift)) continue;
+		if (!pValues[h.key()].fid) continue; // not in fid. region
 
 		double area = 1.0; // h->SummedADC();
 
-		auto vout = pValues[h.key()];
+		auto vout = pValues[h.key()].vout;
 		for (size_t i = 0; i < vout.size(); ++i)
 		{
 			if (vout[i] < pmin) vout[i] = log_pmin;
@@ -211,8 +214,7 @@ void EmTrackClusterId::produce(art::Event & evt)
 	}
 
     // ******************** classify all hits *******************
-    std::vector< std::vector<float> > pValues(allhitlist.size());
-    std::vector< bool > hUsed(allhitlist.size(), false);
+    std::vector< hInfo > pValues(allhitlist.size());
     for (auto & cryo : hitMap)
         for (auto & tpc : cryo.second)
             for (auto & view : tpc.second)
@@ -221,7 +223,13 @@ void EmTrackClusterId::produce(art::Event & evt)
                 for (auto & h : view.second)
                 {
                     const recob::Hit & hit = *(allhitlist[h]);
-				    pValues[h] = fPointIdAlg.predictIdVector(hit.WireID().Wire, hit.PeakTime());
+
+                    hInfo info;
+                    info.vout = fPointIdAlg.predictIdVector(hit.WireID().Wire, hit.PeakTime());
+                    info.fid = fPointIdAlg.isInsideFiducialRegion(hit.WireID().Wire, hit.PeakTime());
+                    info.used = false;
+
+                    pValues[h] = info;
                 }
             }
 
@@ -241,11 +249,11 @@ void EmTrackClusterId::produce(art::Event & evt)
 
         for (auto const & h : v)
         {
-            if (hUsed[h.key()])
+            if (pValues[h.key()].used)
             {
                 mf::LogWarning("EmTrackClusterId") << "hit already used in another cluster";
             }
-            hUsed[h.key()] = true;
+            pValues[h.key()].used = true;
         }
 
 		mf::LogVerbatim("EmTrackClusterId") << "cluster in tpc:" << tpc << " view:" << view
@@ -264,9 +272,9 @@ void EmTrackClusterId::produce(art::Event & evt)
 	// *************** add single hits as clusters **************
 	for (auto const & hi : allhitlist)
 	{
-	    const auto & vout = pValues[hi.key()];
+	    const auto & vout = pValues[hi.key()].vout;
 
-	    if (hUsed[hi.key()] || vout.empty()) continue;
+	    if (pValues[hi.key()].used || vout.empty()) continue;
 
     	int view = hi->View();
 		int tpc = hi->WireID().TPC;
