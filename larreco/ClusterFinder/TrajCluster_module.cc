@@ -20,6 +20,7 @@
 
 //LArSoft includes
 #include "larreco/RecoAlg/TrajClusterAlg.h"
+#include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 
 // ... more includes in the implementation section
@@ -118,6 +119,7 @@ namespace cluster {
     myprt<<"TrajCluster algorithm counts\n";
     unsigned short icol = 0;
     for(unsigned short ib = 0; ib < fAlgModCount.size(); ++ib) {
+      if(ib == tca::kKilled) continue;
       myprt<<std::left<<std::setw(16)<<fAlgBitNames[ib]<<std::right<<std::setw(10)<<fAlgModCount[ib]<<" ";
       ++icol;
       if(icol == 4) { myprt<<"\n"; icol = 0; }
