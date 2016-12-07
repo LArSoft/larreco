@@ -226,6 +226,8 @@ namespace tca {
     
     std::vector<unsigned int> fAlgModCount;
     
+//    void WatchHit(std::string someText, int wid);
+//    short watchInTraj;
     // runs the TrajCluster algorithm on one plane specified by the calling routine
     void RunStepCrawl();
     void InitializeAllTraj();
@@ -236,11 +238,8 @@ namespace tca {
     void AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
     // Large Angle version
     void AddLAHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
-    void HitSanityCheck();
     // Hits on two adjacent wires have an acceptable signal overlap
     bool TrajHitsOK(const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
-    // Find all trajectories in the plane using the pre-defined step direction, cuts, etc.
-    void TryRecoveryAlgs();
     // Try to use unused nearby hits in all trajectories after stepping is done
     void UseUnusedHits();
     // Finds junk trajectories using unassigned hits
@@ -266,16 +265,14 @@ namespace tca {
     void FindUseHits(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
     // Test a new version
     void FindUseHits2(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
-    // Try to use the hits on this TP by reducing the number of points fitted. This
-    // should only be done for reasonably long TJ's
-    void SetPoorUsedHits(Trajectory& tj, unsigned short ipt);
     // Sets inTraj[] = 0 and UseHit false for all used hits in tp
     void UnsetUsedHits(TrajPoint& tp);
     // Sets inTraj[] = 0 and UseHit false for all TPs. Called when abandoning work
     void ReleaseHits(Trajectory& tj);
     // returns the index of the angle range that tp is in
     unsigned short AngleRange(TrajPoint const& tp);
-     // Print debug output if hit iht exists in work or allTraj
+    unsigned short AngleRange(float angle);
+    // Print debug output if hit iht exists in work or allTraj
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);
