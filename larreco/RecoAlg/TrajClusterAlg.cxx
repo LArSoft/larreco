@@ -1849,8 +1849,10 @@ namespace tca {
     float deltaCut = 3 * (projErr + tp.DeltaRMS);
     
     deltaCut *= fProjectionErrFactor;
+    if(prt) mf::LogVerbatim("TC")<<" AddHits: calculated deltaCut "<<deltaCut;
+    
     if(deltaCut < 1) deltaCut = 1;
-    if(deltaCut > 3) deltaCut = 3;
+    if(deltaCut > 4) deltaCut = 4;
     
     // loosen up a bit if we just passed a block of dead wires
     if(abs(dw) > 20 && DeadWireCount(tjs, tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0], tj.CTP) > 10) deltaCut *= 2;
@@ -2065,7 +2067,7 @@ namespace tca {
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<" bestDeltaHit "<<PrintHit(tjs.fHits[bestDeltaHit]);
-        myprt<<" in multiplet: ";
+        myprt<<" in multiplet:";
         for(auto& iht : hitsInMultiplet) myprt<<" "<<PrintHit(tjs.fHits[iht]);
       }
       // Consider the case where a bad reco hit might be better. It is probably wider and
@@ -2109,8 +2111,8 @@ namespace tca {
       return;
     }
     
-    // The best hit is the only one available
-    if(nAvailable == 1) {
+    // The best hit is the only one available or this is a small angle trajectory
+    if(nAvailable == 1 || angleRange == 0) {
       float bestDeltaHitChgPull = std::abs(tjs.fHits[bestDeltaHit].Integral * pathInv / tp.AveChg - 1) / tj.ChgRMS;
       if(prt) mf::LogVerbatim("TC")<<" bestDeltaHitChgPull "<<bestDeltaHitChgPull<<" chgPullCut "<<chgPullCut;
       if(bestDeltaHitChgPull < chgPullCut || tp.Delta < 0.1) {
@@ -2594,6 +2596,74 @@ namespace tca {
     } // itj
     
   } // SplitTrajCrossingVertices
+  
+  //////////////////////////////////////////
+  bool TrajClusterAlg::GhostMerge(Trajectory& tj, unsigned short oldTj)
+  {
+    // Merge the trajectory under construction, tj, with an existing tj in allTraj. Returns true if successfull
+    // The old trajectory is killed.
+    
+    std::cout<<"GhostMerge "<<tj.ID<<" and "<<tjs.allTraj[oldTj].ID<<"\n";
+    if(!prt) return false;
+    
+    // make a copy first in case this fails
+    Trajectory oTj = tjs.allTraj[oldTj];
+    // nTj will become the merged trajectory. Start with tj to define all the basic stuff
+    Trajectory nTj = tj;
+    
+    // put these into the same order
+    if(oTj.StepDir < 0) ReverseTraj(tjs, oTj);
+    if(nTj.StepDir < 0) ReverseTraj(tjs, tj);
+    
+    // strip off unused points at the ends
+    if(oTj.EndPt[1] < oTj.Pts.size() - 1) oTj.Pts.resize(oTj.EndPt[1] + 1);
+    if(oTj.EndPt[0] > 0) oTj.Pts.erase(oTj.Pts.begin(), oTj.Pts.begin() + oTj.EndPt[0]);
+    SetEndPoints(tjs, oTj);
+    if(nTj.EndPt[1] < nTj.Pts.size() - 1) nTj.Pts.resize(nTj.EndPt[1] + 1);
+    if(nTj.EndPt[0] > 0) nTj.Pts.erase(nTj.Pts.begin(), nTj.Pts.begin() + nTj.EndPt[0]);
+    SetEndPoints(tjs, nTj);
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"GhostMerge trajectories";
+      PrintTrajectory("nTj", tjs, nTj, USHRT_MAX);
+      PrintTrajectory("oTj", tjs, oTj, USHRT_MAX);
+    }
+    
+    // We are now sure that the points on both Tjs are in increasing Pos[0] order
+    
+    // insert each point on oTj into nTj
+    for(unsigned short opt = 0; opt < oTj.Pts.size(); ++opt) {
+      // find out where to put it
+      if(oTj.Pts[opt].Pos[0] < nTj.Pts[0].Pos[0]) {
+        // at the beginning
+        nTj.Pts.insert(nTj.Pts.begin(), oTj.Pts[opt]);
+      } else if(oTj.Pts[opt].Pos[0] > nTj.Pts[nTj.EndPt[1]].Pos[0]) {
+        // at the end
+        nTj.Pts.insert(nTj.Pts.end(), oTj.Pts[opt]);
+      } else {
+        // in the middle
+        bool gotit = false;
+        for(unsigned short npt = nTj.EndPt[0]; npt < nTj.EndPt[1]; ++npt) {
+          if(oTj.Pts[opt].Pos[0] > nTj.Pts[npt].Pos[0] - 0.5 && oTj.Pts[opt].Pos[0] < nTj.Pts[npt + 1].Pos[0] - 0.5) {
+            nTj.Pts.insert(nTj.Pts.begin() + npt, oTj.Pts[opt]);
+            gotit = true;
+            break;
+          }
+        } // npt
+        if(!gotit) {
+          mf::LogVerbatim("TC")<<"GhostMerge: Failed to insert tp ";
+          return false;
+        }
+      } // in the middle
+      SetEndPoints(tjs, nTj);
+    } // opt
+    
+    PrintTrajectory("nTj", tjs, nTj, USHRT_MAX);
+    
+    return false;
+    
+  } // GhostMerge
   
   //////////////////////////////////////////
   void TrajClusterAlg::EndMerge()
@@ -4257,7 +4327,7 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"IsGhost tj hits size cut "<<hitCnt<<" tID_tCnt";
       for(unsigned short ii = 0; ii < tCnt.size(); ++ii) myprt<<" "<<tID[ii]<<"_"<<tCnt[ii];
-      myprt<<"Available hits "<<nAvailable;
+      myprt<<"\nAvailable hits "<<nAvailable;
     } // prt
     
     for(unsigned short ii = 0; ii < tCnt.size(); ++ii) {
@@ -4268,7 +4338,28 @@ namespace tca {
     } // ii
     if(oldTj == USHRT_MAX) return false;
     
+    // See if this looks like a short delta-ray on a long muon
+    Trajectory& oTj = tjs.allTraj[oldTj];
+    if(oTj.PDGCode == 13 && hitCnt < 0.1 * oTj.Pts.size()) return false;
+    
+    // See if there are gaps in this trajectory indicating that it is really a ghost and not
+    // just a close trajectory. Count the number of hits on the presumed ghost trajectory that are
+    // in a TP that has no charge
+    unsigned short ngh = 0;
+    for(unsigned short ipt = oTj.EndPt[0]; ipt <= oTj.EndPt[1]; ++ipt) {
+      if(oTj.Pts[ipt].Chg > 0) continue;
+      for(unsigned short ii = 0; ii < oTj.Pts[ipt].Hits.size(); ++ii) {
+        unsigned int iht = oTj.Pts[ipt].Hits[ii];
+        if(tjs.fHits[iht].InTraj == tj.ID) ++ngh;
+      } // ii
+    } // ipt
+    
+    if(ngh <  0.8 * hitCnt) return false;
+    
     if(prt) mf::LogVerbatim("TC")<<"is ghost of trajectory "<<tjs.allTraj[oldTj].ID;
+    
+    // Merge tj with the previously found trajectory?
+    if(fUseAlg[kGhostMerge]) return GhostMerge(tj, oldTj);
     
     // Transfer the shared hits from tj to allTraj[oldTj]
     for(unsigned short ipt = 0; ipt < tjs.allTraj[oldTj].Pts.size(); ++ipt) {
