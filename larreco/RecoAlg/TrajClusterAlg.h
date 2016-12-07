@@ -333,6 +333,7 @@ namespace tca {
     bool IsGhost(Trajectory& tj);
     void CheckTrajEnd();
     void EndMerge();
+    bool GhostMerge(Trajectory& tj, unsigned short oldTj);
     void FillWireHitRange(geo::TPCID const& tpcid);
     float ExpectedHitsRMS(TrajPoint const& tp);
 //    void SetHitMultiplicity();
