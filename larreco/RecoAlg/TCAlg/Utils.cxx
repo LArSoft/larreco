@@ -571,15 +571,6 @@ namespace tca {
     std::reverse(tj.Pts.begin(), tj.Pts.end());
     // reverse the stop flag
     std::reverse(tj.StopFlag.begin(), tj.StopFlag.end());
-/*
-    // Reverse the stopping bits
-    std::bitset<2> flipped;
-    for(unsigned short ii = 0; ii < 2; ++ii) flipped[1 - ii] = tj.StopsAtEnd[ii];
-    tj.StopsAtEnd = flipped;
-    // and the kink bits
-    for(unsigned short ii = 0; ii < 2; ++ii) flipped[1 - ii] = tj.KinkAtEnd[ii];
-    tj.KinkAtEnd = flipped;
-*/
     // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
