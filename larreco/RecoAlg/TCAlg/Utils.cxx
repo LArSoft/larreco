@@ -221,7 +221,9 @@ namespace tca {
     for(i1 = tj1.EndPt[0]; i1 < tj1.EndPt[1] + 1; ++i1) {
       for(i2 = tj2.EndPt[0]; i2 < tj2.EndPt[1] + 1; ++i2) {
         dw = tj1.Pts[i1].Pos[0] - tj2.Pts[i2].Pos[0];
+        if(std::abs(dw) > minSep) continue;
         dt = tj1.Pts[i1].Pos[1] - tj2.Pts[i2].Pos[1];
+        if(std::abs(dt) > minSep) continue;
         dp2 = dw * dw + dt * dt;
         if(dp2 < best) {
           best = dp2;
