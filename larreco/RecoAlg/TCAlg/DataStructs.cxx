@@ -35,7 +35,8 @@ namespace tca {
     "FTBRevProp",
     "MHOK2",
     "FUH2",
-    "StopAtTj"
+    "StopAtTj",
+    "GhostMerge"
   };
 
   const std::vector<std::string> StopFlagNames {
