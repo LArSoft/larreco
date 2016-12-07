@@ -207,6 +207,7 @@ namespace tca {
     kMHOK2,
     kFUH2,
     kStopAtTj,
+    kGhostMerge,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
