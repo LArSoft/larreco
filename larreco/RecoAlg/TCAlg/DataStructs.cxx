@@ -21,9 +21,10 @@ namespace tca {
     "CHMEH",
     "FillGap",
     "Ghost",
-    "CIT",
+    "ChkInTraj",
+    "FixBegin",
     "FixEnd",
-    "UUH",
+    "UseUnusedHits",
     "VtxTj",
     "RefVtx",
     "MBadTPs",
@@ -31,8 +32,10 @@ namespace tca {
     "SoftKink",
     "ChkStop",
     "ChkAllStop",
-    "FTBRP",
-    "MHOK2"
+    "FTBRevProp",
+    "MHOK2",
+    "FUH2",
+    "StopAtTj"
   };
 
   const std::vector<std::string> StopFlagNames {
@@ -40,7 +43,8 @@ namespace tca {
     "AtKink",
     "AtVtx",
     "Bragg",
-    "kRvPrp"
+    "RvPrp",
+    "AtTj"
   };
   
   const std::vector<std::string> VtxBitNames {
