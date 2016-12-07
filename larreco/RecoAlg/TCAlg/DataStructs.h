@@ -193,6 +193,7 @@ namespace tca {
     kFillGap,
     kUseGhostHits,
     kChkInTraj,
+    kFixBegin,
     kFixEnd,
     kUseUnusedHits,
     kVtxTj,
@@ -204,6 +205,8 @@ namespace tca {
     kChkAllStop,
     kFTBRevProp,
     kMHOK2,
+    kFUH2,
+    kStopAtTj,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -214,6 +217,7 @@ namespace tca {
     kAtVtx,
     kBragg,
     kRvPrp,
+    kAtTj,
     kFlagBigSize     ///< don't mess with this line
   } StopFlag_t; 
   
