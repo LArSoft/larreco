@@ -37,9 +37,17 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
-  unsigned short NumPtsWithCharge(TjStuff& tjs, Trajectory& tj, bool includeDeadWires);
-  float DeadWireCount(TjStuff& tjs, TrajPoint& tp1, TrajPoint& tp2);
-  float DeadWireCount(TjStuff& tjs, float inWirePos1, float inWirePos2, CTP_t tCTP);
+  void ReleaseHits(TjStuff& tjs, Trajectory& tj);
+  void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
+  void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
+  bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction);
+  bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
+  bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP);
+  bool CheckHitClusterAssociations(TjStuff& tjs);
+  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
+  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
+  float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2);
+  float DeadWireCount(TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP);
   unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
@@ -117,9 +125,9 @@ namespace tca {
   void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID);
   void TagShowerTraj(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fShowerTag, short debugWorkID);
   // Make a bare trajectory point that only has position and direction defined
-  void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
-  void MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
-  void MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
+  bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
+  bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
   // ****************************** Vertex finding  ******************************
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, const std::vector<float>& fVertex2DCuts, bool prt);
