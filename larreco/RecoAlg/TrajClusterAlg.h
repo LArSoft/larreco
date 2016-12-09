@@ -106,6 +106,7 @@ namespace tca {
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     std::vector<float> fKinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
+    std::vector<float> fQualityCuts; ///< Min points/wire, min consecutive pts after a gap
     std::vector<float> fChargeCuts;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
@@ -265,10 +266,6 @@ namespace tca {
     void FindUseHits(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
     // Test a new version
     void FindUseHits2(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
-    // Sets inTraj[] = 0 and UseHit false for all used hits in tp
-    void UnsetUsedHits(TrajPoint& tp);
-    // Sets inTraj[] = 0 and UseHit false for all TPs. Called when abandoning work
-    void ReleaseHits(Trajectory& tj);
     // returns the index of the angle range that tp is in
     unsigned short AngleRange(TrajPoint const& tp);
     unsigned short AngleRange(float angle);
@@ -276,21 +273,17 @@ namespace tca {
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);
-    // Returns true if there a is wire signal at tp
-    bool SignalAtTp(TrajPoint const& tp);
-    bool SignalAtPos(float pos0, float pos1, CTP_t tCTP);
     // Counts the number of hits that are used in two different vectors of hits
     void CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits);
     // Merge and store the two trajectories in allTraj
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
-    void CheckHitClusterAssociations();
     // Push the trajectory into allTraj
     void StoreTraj(Trajectory& tj);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
-    // Truncates the trajectory if a soft kink is found in it
+     // Truncates the trajectory if a soft kink is found in it
     void FindSoftKink(Trajectory& tj);
     // Fill gaps in the trajectory
     void FillGaps(Trajectory& tj);
@@ -323,8 +316,6 @@ namespace tca {
     // Does a local fit of just-added TPs to identify a kink while stepping.
     // Truncates the vector and returns true if one is found.
     void GottaKink(Trajectory& tj, unsigned short& killPts);
-    // Check the environment in the vicinity of the start and define StopFlag[kSignal]
-    void ChkTrajBegin(Trajectory& tj);
     // Update the parameters at the beginning of the trajectory
     void FixTrajBegin(Trajectory& tj);
     void FixTrajBegin(Trajectory& tj, unsigned short atPt);
@@ -333,10 +324,8 @@ namespace tca {
     bool IsGhost(Trajectory& tj);
     void CheckTrajEnd();
     void EndMerge();
-    bool GhostMerge(Trajectory& tj, unsigned short oldTj);
     void FillWireHitRange(geo::TPCID const& tpcid);
     float ExpectedHitsRMS(TrajPoint const& tp);
-//    void SetHitMultiplicity();
     /// sets fQuitAlg true if WireHitRange has a problem
     bool CheckWireHitRange();
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
