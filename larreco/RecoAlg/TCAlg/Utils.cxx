@@ -1,29 +1,231 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 namespace tca {
-
+  
+  ////////////////////////////////////////////////
+  void ReleaseHits(TjStuff& tjs, Trajectory& tj)
+  {
+    // Sets InTraj[] = 0 and UseHit false for all TPs in work. Called when abandoning work
+    for(auto& tp : tj.Pts) {
+      for(auto& iht : tp.Hits) {
+        if(tjs.fHits[iht].InTraj == tj.ID) tjs.fHits[iht].InTraj = 0;
+      }
+    } // tp
+    
+  } // ReleaseWorkHits
   
   //////////////////////////////////////////
-  unsigned short NumPtsWithCharge(TjStuff& tjs, Trajectory& tj, bool includeDeadWires)
+  void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp)
+  {
+    // Sets InTraj = 0 and UseHit false for all used hits in tp
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+      if(tp.UseHit[ii]) {
+        tjs.fHits[tp.Hits[ii]].InTraj = 0;
+        tp.UseHit[ii] = false;
+      } // UseHit
+    } // ii
+    tp.Chg = 0;
+  } // UnsetUsedHits
+
+  //////////////////////////////////////////
+  void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
+  {
+    // Trim the hits off the end until there are at least fMinPts consecutive hits at the end
+    // and the fraction of hits on the trajectory exceeds fQualityCuts[0]
+    
+    unsigned short minPts = fQualityCuts[1];
+    if(NumPtsWithCharge(tjs, tj, false) < minPts) return;
+    
+    if(prt) {
+      mf::LogVerbatim("TC")<<"TrimEndPts: minPts "<<minPts<<" required. Minimum hit fraction "<<fQualityCuts[0];
+    }
+
+    unsigned short newEndPt = tj.EndPt[1];
+    while(newEndPt > minPts) {
+      if(tj.Pts[newEndPt].Chg == 0) {
+        --newEndPt;
+        continue;
+      }
+      unsigned short nPtsWithCharge = 0;
+      for(unsigned short jj = 0; jj < minPts; ++jj) {
+        unsigned short jpt = newEndPt - jj;
+        if(jpt < minPts) break;
+        if(tj.Pts[jpt].Chg > 0) ++nPtsWithCharge; 
+      } // jj
+      if(nPtsWithCharge == minPts) {
+        // minPts consecutive points have charge. Check the hit fraction
+        float npwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], newEndPt);
+        float npts = newEndPt - tj.EndPt[0] + 1;
+        float hitFrac = npwc / npts;
+        if(prt) mf::LogVerbatim("TC")<<"newEndPt "<<newEndPt<<" npts "<<(int)npts<<" npwc "<<(int)npwc<<" hitFrac "<<hitFrac;
+        if(hitFrac > fQualityCuts[0]) break;
+        newEndPt -= minPts;
+      }
+      --newEndPt;
+    } // newEndPt
+    // ipt is now the last point that satisfies these conditions
+    
+    float npwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], newEndPt);
+    float npts = newEndPt - tj.EndPt[0] + 1;
+    float hitFrac = npwc / npts;
+    if(hitFrac < fQualityCuts[0]) tj.AlgMod[kKilled] = true;
+    if(prt) mf::LogVerbatim("TC")<<" Old endpoint "<<tj.EndPt[1]<<" New endpoint "<<newEndPt<<" hitFrac "<<hitFrac<<" Killed? "<<tj.AlgMod[kKilled];
+    
+    // failed the cuts
+    if(tj.AlgMod[kKilled]) return;
+    // passed the cuts with no modifications
+    if(newEndPt == tj.EndPt[1]) return;
+    
+    // modifications required
+    tj.EndPt[1] = newEndPt;    
+    for(unsigned short ipt = newEndPt + 1; ipt <= tj.EndPt[1]; ++ipt) {
+      if(tj.Pts[ipt].Chg > 0) UnsetUsedHits(tjs, tj.Pts[ipt]);
+    } // ipt
+    SetEndPoints(tjs, tj);
+    tj.Pts.resize(tj.EndPt[1] + 1);
+    tj.AlgMod[kTrimEndPts] = true;
+    if(prt) PrintTrajectory("TEP", tjs, tj, USHRT_MAX);
+    
+  } // TrimEndPts
+
+  /////////////////////////////////////////
+  bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction)
+  {
+    // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp and toPos0.
+    // Note that this uses the direction vector of the tp
+    
+    int fromWire = std::nearbyint(tp.Pos[0]);
+    int toWire = std::nearbyint(toPos0);
+    
+    if(fromWire == toWire) return SignalAtTp(tjs, tp);
+    
+    int nWires = abs(toWire - fromWire) + 1;
+    if(tp.Dir[0] > 0.001) tp.Dir[0] = 0.001;
+    if(tp.Dir[0] < -0.001) tp.Dir[0] = -0.001;
+    float stepSize = std::abs(1/tp.Dir[0]);
+    unsigned short nsig = 0;
+    unsigned short num = 0;
+    for(unsigned short cnt = 0; cnt < nWires; ++cnt) {
+      ++num;
+      if(SignalAtTp(tjs, tp)) ++nsig;
+      tp.Pos[0] += tp.Dir[0] * stepSize;
+      tp.Pos[1] += tp.Dir[1] * stepSize;
+    } // cnt
+    float sigFrac = (float)nsig / (float)nWires;
+    return (sigFrac >= MinWireSignalFraction);
+    
+  } // SignalBetween
+  
+  /////////////////////////////////////////
+  bool SignalAtTp(TjStuff& tjs, const TrajPoint& tp)
+  {
+    return SignalAtPos(tjs, tp.Pos[0], tp.Pos[1], tp.CTP);
+  } // SignalAtTp
+  
+  /////////////////////////////////////////
+  bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP)
+  {
+    // Returns true if the TP is near the position
+    
+    if(pos0 < 0) return false;
+    if(pos1 < 0) return false;
+    unsigned int wire = std::nearbyint(pos0);
+    geo::PlaneID planeID = DecodeCTP(tCTP);
+    unsigned int ipl = planeID.Plane;
+    if(wire >= tjs.NumWires[ipl]) return false;
+    if(pos1 > tjs.MaxPos1[ipl]) return false;
+    // Assume dead wires have a signal
+    if(tjs.WireHitRange[ipl][wire].first == -1) return true;
+    raw::TDCtick_t rawProjTick = (float)(pos1 / tjs.UnitsPerTick);
+    unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
+    unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
+    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+      if(rawProjTick > tjs.fHits[iht].StartTick && rawProjTick < tjs.fHits[iht].EndTick) return true;
+    } // iht
+    return false;
+  } // SignalAtPos
+
+  //////////////////////////////////////////
+  bool CheckHitClusterAssociations(TjStuff& tjs)
+  {
+    // check hit - cluster associations
+    
+    if(tjs.fHits.size() != tjs.inClus.size()) {
+      mf::LogWarning("TC")<<"CHCA: Sizes wrong "<<tjs.fHits.size()<<" "<<tjs.inClus.size();
+      return false;
+    }
+    
+    unsigned int iht;
+    short clID;
+    
+    // check cluster -> hit association
+    for(unsigned short icl = 0; icl < tjs.tcl.size(); ++icl) {
+      if(tjs.tcl[icl].ID < 0) continue;
+      clID = tjs.tcl[icl].ID;
+      for(unsigned short ii = 0; ii < tjs.tcl[icl].tclhits.size(); ++ii) {
+        iht = tjs.tcl[icl].tclhits[ii];
+        if(iht > tjs.fHits.size() - 1) {
+          mf::LogWarning("CC")<<"CHCA: Bad tclhits index "<<iht<<" tjs.fHits size "<<tjs.fHits.size();
+          return false;
+        } // iht > tjs.fHits.size() - 1
+        if(tjs.inClus[iht] != clID) {
+          mf::LogError("TC")<<"CHCA: Bad cluster -> hit association. clID "<<clID<<" hit "<<PrintHit(tjs.fHits[iht])<<" tjs.inClus "<<tjs.inClus[iht]<<" CTP "<<tjs.tcl[icl].CTP;
+//          FindHit("CHCA ", iht);
+          return false;
+        }
+      } // ii
+    } // icl
+    
+    // check hit -> cluster association
+    unsigned short icl;
+    for(iht = 0; iht < tjs.fHits.size(); ++iht) {
+      if(tjs.inClus[iht] <= 0) continue;
+      icl = tjs.inClus[iht] - 1;
+      // see if the cluster is obsolete
+      if(tjs.tcl[icl].ID < 0) {
+        mf::LogError("TC")<<"CHCA: Hit "<<PrintHit(tjs.fHits[iht])<<" associated with an obsolete cluster tjs.tcl[icl].ID "<<tjs.tcl[icl].ID;
+        return false;
+      }
+      if (std::find(tjs.tcl[icl].tclhits.begin(), tjs.tcl[icl].tclhits.end(), iht) == tjs.tcl[icl].tclhits.end()) {
+        mf::LogError("TC")<<"CHCA: Hit "<<":"<<PrintHit(tjs.fHits[iht])<<" -> tjs.inClus "<<tjs.inClus[iht]<<" but isn't in tjs.tcl[icl].ID "<<tjs.tcl[icl].ID<<" list of hits. icl "<<icl<<" iht "<<iht;
+        for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+          if(tjs.allTraj[itj].ClusterIndex == icl) mf::LogError("TC")<<"CHCA: Cluster index "<<icl<<" found in traj ID "<<tjs.allTraj[itj].ID;
+        } // itj
+        PrintAllTraj("CHCA", tjs, debug, USHRT_MAX, USHRT_MAX);
+        return false;
+      }
+    } // iht
+    
+    return true;
+    
+  } // CheckHitClusterAssociations()
+  
+  //////////////////////////////////////////
+  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires)
+  {
+    unsigned short firstPt = tj.EndPt[0];
+    unsigned short lastPt = tj.EndPt[1];
+    return NumPtsWithCharge(tjs, tj, includeDeadWires, firstPt, lastPt);
+  }
+  
+  //////////////////////////////////////////
+  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt)
   {
     unsigned short ntp = 0;
-    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]+1; ++ipt) if(tj.Pts[ipt].Chg > 0) ++ntp;
+    for(unsigned short ipt = firstPt; ipt <= lastPt; ++ipt) if(tj.Pts[ipt].Chg > 0) ++ntp;
     // Add the count of deadwires
-    unsigned short ipt0 = tj.EndPt[0];
-    unsigned short ipt1 = tj.EndPt[1];
-    if(ipt1 > tj.Pts.size() - 1) return 0;
-    if(includeDeadWires) ntp += DeadWireCount(tjs, tj.Pts[ipt0], tj.Pts[ipt1]);
+    if(includeDeadWires) ntp += DeadWireCount(tjs, tj.Pts[firstPt], tj.Pts[lastPt]);
     return ntp;
   } // NumTPsWithCharge
   
   //////////////////////////////////////////
-  float DeadWireCount(TjStuff& tjs, TrajPoint& tp1, TrajPoint& tp2)
+  float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2)
   {
     return DeadWireCount(tjs, tp1.Pos[0], tp2.Pos[0], tp1.CTP);
   } // DeadWireCount
   
   //////////////////////////////////////////
-  float DeadWireCount(TjStuff& tjs, float inWirePos1, float inWirePos2, CTP_t tCTP)
+  float DeadWireCount(TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP)
   {
     if(inWirePos1 < -0.4 || inWirePos2 < -0.4) return 0;
     unsigned int inWire1 = std::nearbyint(inWirePos1);
@@ -575,7 +777,7 @@ namespace tca {
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
       if(tj.Pts[ipt].Dir[1] != 0) tj.Pts[ipt].Dir[1] = -tj.Pts[ipt].Dir[1];
-      tj.Pts[ipt].Ang = atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
+      tj.Pts[ipt].Ang = std::atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
     } // ipt
     SetEndPoints(tjs, tj);
   } // ReverseTraj
@@ -647,6 +849,8 @@ namespace tca {
 
     if(firstPt < tj.EndPt[0]) return 0;
     if(lastPt > tj.EndPt[1]) return 0;
+    // Can't do this with only 2 points
+    if(NumPtsWithCharge(tjs, tj, false) < 3) return 0;
     
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
     if(tjLen == 0) return 0;
@@ -683,7 +887,7 @@ namespace tca {
     firstTP.Pos = firstTP.HitPos;
     TrajPoint lastTP = tj.Pts[lastPt];
     lastTP.Pos = lastTP.HitPos;
-    MakeBareTrajPoint(tjs, firstTP, lastTP, tmp);
+    if(!MakeBareTrajPoint(tjs, firstTP, lastTP, tmp)) return 1;
     // sum up the deviations^2
     double dsum = 0;
     unsigned short cnt = 0;
@@ -872,16 +1076,16 @@ namespace tca {
   
   
   /////////////////////////////////////////
-  void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
+  bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
   {
     CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].WireID);
-    MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit].WireID.Wire, tjs.fHits[fromHit].PeakTime,
-                           (float)tjs.fHits[toHit].WireID.Wire,   tjs.fHits[toHit].PeakTime, tCTP, tp);
+    return MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit].WireID.Wire, tjs.fHits[fromHit].PeakTime,
+                                  (float)tjs.fHits[toHit].WireID.Wire,   tjs.fHits[toHit].PeakTime, tCTP, tp);
     
   } // MakeBareTrajPoint
   
   /////////////////////////////////////////
-  void MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp)
+  bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp)
   {
     tp.CTP = tCTP;
     tp.Pos[0] = fromWire;
@@ -889,13 +1093,15 @@ namespace tca {
     tp.Dir[0] = toWire - fromWire;
     tp.Dir[1] = tjs.UnitsPerTick * (toTick - fromTick);
     float norm = sqrt(tp.Dir[0] * tp.Dir[0] + tp.Dir[1] * tp.Dir[1]);
+    if(norm == 0) return false;
     tp.Dir[0] /= norm;
     tp.Dir[1] /= norm;
     tp.Ang = atan2(tp.Dir[1], tp.Dir[0]);
+    return true;
   } // MakeBareTrajPoint
   
   /////////////////////////////////////////
-  void MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut)
+  bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut)
   {
     tpOut.CTP = tpIn1.CTP;
     tpOut.Pos = tpIn1.Pos;
@@ -907,12 +1113,12 @@ namespace tca {
       myprt<<"Bad Dir in MakeBareTrajPoint ";
       myprt<<" tpIn1 Pos "<<tpIn1.Pos[0]<<" "<<tpIn1.Pos[1];
       myprt<<" tpIn2 Pos "<<tpIn2.Pos[0]<<" "<<tpIn2.Pos[1];
-      tpOut.Pos[0] = -99;
-      return;
+      return false;
     }
     tpOut.Dir[0] /= norm;
     tpOut.Dir[1] /= norm;
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
+    return true;
   } // MakeBareTrajPoint
   
   ////////////////////////////////////////////////
@@ -1490,8 +1696,6 @@ namespace tca {
   {
     // prints one or all trajectory points on tj
     
-    unsigned short first = 0;
-    unsigned short last = tj.Pts.size();
     if(tPoint == USHRT_MAX) {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
@@ -1510,7 +1714,7 @@ namespace tca {
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
       PrintHeader(someText);
-      for(unsigned short ipt = first; ipt < last; ++ipt) PrintTrajPoint(someText, tjs, ipt, tj.StepDir, tj.Pass, tj.Pts[ipt]);
+      for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) PrintTrajPoint(someText, tjs, ipt, tj.StepDir, tj.Pass, tj.Pts[ipt]);
     } else {
       // just print one traj point
       if(tPoint > tj.Pts.size() -1) {
