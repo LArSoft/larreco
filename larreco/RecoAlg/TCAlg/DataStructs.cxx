@@ -17,7 +17,7 @@ namespace tca {
     "JunkTj",
     "Killed",
     "EndMerge",
-    "TrimHits",
+    "TrimEndPts",
     "CHMEH",
     "FillGap",
     "Ghost",
@@ -36,7 +36,6 @@ namespace tca {
     "MHOK2",
     "FUH2",
     "StopAtTj",
-    "GhostMerge"
   };
 
   const std::vector<std::string> StopFlagNames {
