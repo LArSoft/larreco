@@ -2597,15 +2597,32 @@ namespace tca {
         // Don't check for a stop-on-kink condition since it will be done below
         // Calculate the angle using the 2nd TP in from the end instead of the end TP if the TJ is long enough
         float tp1ang = tjs.allTraj[it1].Pts[e1].Ang;
-        if(tjs.allTraj[it1].Pts.size() > 5 && tjs.allTraj[it1].MCSMom > 100) {
+        if(tjs.allTraj[it1].Pts.size() > 15 && tjs.allTraj[it1].MCSMom > 100) {
           if(end1 == 0) {
-            unsigned short usePt = tjs.allTraj[it1].EndPt[end1] + 2;
+            unsigned short usePt = tjs.allTraj[it1].EndPt[0] + 2;
             tp1ang= tjs.allTraj[it1].Pts[usePt].Ang;
           } else {
-            unsigned short usePt = tjs.allTraj[it1].EndPt[end1] - 2;
+            unsigned short usePt = tjs.allTraj[it1].EndPt[1] - 2;
             tp1ang= tjs.allTraj[it1].Pts[usePt].Ang;
           }
-        } // long tj
+        } // high momentum long tj
+        // Low MCSMom
+        if(tjs.allTraj[it1].MCSMom < 50) {
+          // just use the first (last) two points
+          if(end1 == 0) {
+            unsigned short usePt = tjs.allTraj[it1].EndPt[0];
+            // make a bare tp to get the angle
+            TrajPoint tpdir;
+            if(!MakeBareTrajPoint(tjs, tjs.allTraj[it1].Pts[usePt], tjs.allTraj[it1].Pts[usePt + 1], tpdir)) continue;
+            tp1ang = tpdir.Ang;
+          } else {
+            unsigned short usePt = tjs.allTraj[it1].EndPt[1];
+            // make a bare tp to get the angle
+            TrajPoint tpdir;
+            if(!MakeBareTrajPoint(tjs, tjs.allTraj[it1].Pts[usePt], tjs.allTraj[it1].Pts[usePt - 1], tpdir)) continue;
+            tp1ang = tpdir.Ang;
+          }
+        } // low MCSMom
         // Use Large Angle cuts?
         bool isLA = (AngleRange(tp1ang) >= fAngleRanges.size() - 2);
         // Minimum separation between end points of tj1 and tj2
@@ -2651,6 +2668,23 @@ namespace tca {
               tp2ang= tjs.allTraj[it2].Pts[usePt].Ang;
             }
           } // Long enough TJs to not use the end points for the angle calculation
+          // Low MCSMom
+          if(tjs.allTraj[it2].MCSMom < 50) {
+            // just use the first (last) two points
+            if(end2 == 0) {
+              unsigned short usePt = tjs.allTraj[it2].EndPt[0];
+              // make a bare tp to get the angle
+              TrajPoint tpdir;
+              if(!MakeBareTrajPoint(tjs, tjs.allTraj[it2].Pts[usePt], tjs.allTraj[it2].Pts[usePt + 1], tpdir)) continue;
+              tp2ang = tpdir.Ang;
+            } else {
+              unsigned short usePt = tjs.allTraj[it2].EndPt[1];
+              // make a bare tp to get the angle
+              TrajPoint tpdir;
+              if(!MakeBareTrajPoint(tjs, tjs.allTraj[it2].Pts[usePt], tjs.allTraj[it2].Pts[usePt - 1], tpdir)) continue;
+              tp2ang = tpdir.Ang;
+            }
+          } // low MCSMom
           float dang = DeltaAngle(tp1ang, tp2ang);
           // Get the MCS angle expected for the highest MCSMom trajectory
           float thetaRMS2 = MCSThetaRMS(tjs, tjs.allTraj[it2]);
@@ -2660,16 +2694,19 @@ namespace tca {
           float len2 = TrajPointSeparation(tjs.allTraj[it2].Pts[e0], tjs.allTraj[it2].Pts[e1]);
           // Find the expected angle error from MCS
           float dangErr = 0.5 * sqrt(thetaRMS1 + thetaRMS2 * thetaRMS2 / len2);
-          // Use this to construct the merge/vertex angle cut
-          float dangCut = fKinkCuts[0] + fKinkCuts[1] * dangErr;
-          if(tjs.allTraj[it1].MCSMom < 50 && tjs.allTraj[it2].MCSMom < 50) {
-            // increase dangCut dramatically for low MCSMom tjs
-            dangCut = 1;
-          }
           // Find the distance of closest approach for small angle merging
           // Inflate the doca cut if we are bridging a block of dead wires
           float docaCut = 1;
           if(dwc > 10) docaCut = 2;
+          // Use this to construct the merge/vertex angle cut
+          float dangCut = fKinkCuts[0] + fKinkCuts[1] * dangErr;
+          bool loMCSMom = tjs.allTraj[it1].MCSMom < 50 && tjs.allTraj[it2].MCSMom < 50;
+          if(loMCSMom) {
+            // increase dangCut dramatically for low MCSMom tjs
+            dangCut = 1.0;
+            // and the doca cut
+            docaCut = 2;
+          }
           float doca = docaCut;
           if(isLA) {
             // compare the minimum separation between Large Angle trajectories using a generous cut
@@ -2696,7 +2733,7 @@ namespace tca {
           bool hiMCSMom = tjs.allTraj[it1].MCSMom > fVertex2DCuts[5] || tjs.allTraj[it2].MCSMom > fVertex2DCuts[5];
           // add a charge similarity requirement if not shower-like or low momentum or not LA
           if(doMerge && !showerTjs && hiMCSMom && chgPull > fChargeCuts[0] && !isLA) doMerge = false;
-          if(mrgPrt) mf::LogVerbatim("TC")<<"  doca "<<doca<<" docaCut "<<docaCut<<" dang "<<dang<<" dangErr "<<dangErr<<" dangCut "<<dangCut<<" tp1.Chg "<<tp1.Chg<<" tp2.Chg "<<tp2.Chg<<" chgPull "<<chgPull<<" cut "<<fChargeCuts[0]<<" showerTJs? "<<showerTjs<<" hiMCSMom? "<<hiMCSMom<<" Merge? "<<doMerge;
+          if(mrgPrt) mf::LogVerbatim("TC")<<"  doca "<<doca<<" docaCut "<<docaCut<<" dang "<<dang<<" dangErr "<<dangErr<<" dangCut "<<dangCut<<" tp1.Chg "<<tp1.Chg<<" tp2.Chg "<<tp2.Chg<<" chgPull "<<chgPull<<" cut "<<fChargeCuts[0]<<" showerTJs? "<<showerTjs<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" Merge? "<<doMerge;
           if(doMerge) {
             // Merge. Make a DOCA cut
             if(doca > docaCut) continue;
@@ -4094,7 +4131,13 @@ namespace tca {
           return;
         }
         // Keep stepping
-        if(prt) PrintTrajectory("SC", tjs, tj, lastPt);
+        if(prt) {
+          if(tj.AlgMod[kRevProp]) {
+            PrintTrajectory("RP", tjs, tj, lastPt);
+          } else {
+            PrintTrajectory("SC", tjs, tj, lastPt);
+          }
+        }
         continue;
       } // tp.Hits.empty()
       if(tj.Pts.size() == 3) {
@@ -4117,12 +4160,24 @@ namespace tca {
         // environment is clean. If so, return and try with next pass
         // cuts
         if(!MaskedHitsOK(tj)) {
-          if(prt) PrintTrajectory("SC", tjs, tj, lastPt);
+          if(prt) {
+            if(tj.AlgMod[kRevProp]) {
+              PrintTrajectory("RP", tjs, tj, lastPt);
+            } else {
+              PrintTrajectory("SC", tjs, tj, lastPt);
+            }
+          }
           return;
         }
         // Don't bother with the rest of the checking below if we
         // set all hits not used on this TP
-        if(prt) PrintTrajectory("SC", tjs, tj, lastPt);
+        if(prt) {
+          if(tj.AlgMod[kRevProp]) {
+            PrintTrajectory("RP", tjs, tj, lastPt);
+          } else {
+            PrintTrajectory("SC", tjs, tj, lastPt);
+          }
+        }
         continue;
       }
       // We have added a TP with hits
@@ -4144,7 +4199,13 @@ namespace tca {
       }
       // print the local tp unless we have killing to do
       if(killPts == 0) {
-        if(prt) PrintTrajectory("SC", tjs, tj, lastPt);
+        if(prt) {
+          if(tj.AlgMod[kRevProp]) {
+            PrintTrajectory("RP", tjs, tj, lastPt);
+          } else {
+            PrintTrajectory("SC", tjs, tj, lastPt);
+          }
+        }
       } else {
         MaskTrajEndPoints(tj, killPts);
         if(!fGoodTraj) return;
