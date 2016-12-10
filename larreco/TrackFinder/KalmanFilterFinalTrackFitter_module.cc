@@ -126,7 +126,7 @@ namespace trkf {
       };
       fhicl::Atom<bool> sortHits {
         Name("sortHits"),
-        Comment("Flag to decide whether the hits are sorted (once) based on the initial track state or the order from the pattern recognition is preserved.")
+        Comment("Flag to decide whether the hits are sorted (once) based on the initial track state or the order from the pattern recognition is preserved. To be used only if original sorting is not along the path length s in 3D (e.g. in case it is done by collection plane).")
       };
     };
 
@@ -166,7 +166,6 @@ namespace trkf {
 
     std::unique_ptr<art::FindManyP<anab::Calorimetry> > trackCalo;
     std::unique_ptr<art::FindManyP<anab::ParticleID> > trackId;
-    std::unique_ptr<art::FindManyP<recob::Hit> > trackHits;
     std::unique_ptr<art::FindManyP<recob::Track> > assocTracks;
     std::unique_ptr<art::FindManyP<recob::Vertex> > assocVertices;
 
@@ -258,7 +257,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     for (unsigned int iPF = 0; iPF < inputPFParticle->size(); ++iPF) {
       
       tracks = assocTracks->at(iPF);
-      trackHits = std::unique_ptr<art::FindManyP<recob::Hit> >(new art::FindManyP<recob::Hit>(tracks, e, pfParticleInputTag));
+      auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(pfParticleInputTag);
       vertices = assocVertices->at(iPF);
       
       if (p_().options().pFromCalo()) {
@@ -272,10 +271,17 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	const int pId = setPId(iTrack, trackId, inputPFParticle->at(iPF).PdgCode());
 	const double mom = setMomValue(ptrack, trackCalo, pMC, pId);
 	const bool flipDir = setDirFlip(track, &vertices);
-	
+
+	//this is not computationally optimal, but at least preserves the order unlike FindManyP
+	std::vector<art::Ptr<recob::Hit> > inHits;
+	for (auto it = tkHitsAssn.begin(); it!=tkHitsAssn.end(); ++it) {
+	  if (it->first == ptrack) inHits.push_back(it->second);
+	  else if (inHits.size()>0) break;
+	}
+ 
 	recob::Track outTrack;
 	art::PtrVector<recob::Hit> outHits;
-	bool fitok = kalmanFitter->fitTrack(track, trackHits->at(iTrack), mom, pId, flipDir, outTrack, outHits);
+	bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits);
 
 	if (!fitok) {
 	  mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for PFP # " << iPF << " track #" << iTrack << "\n";
@@ -292,7 +298,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
   } else {
 
     art::ValidHandle<std::vector<recob::Track> > inputTracks = e.getValidHandle<std::vector<recob::Track> >(trackInputTag);
-    trackHits = std::unique_ptr<art::FindManyP<recob::Hit> >(new art::FindManyP<recob::Hit>(inputTracks, e, trackInputTag));
+    auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(trackInputTag);
     
     if (p_().options().pFromCalo()) {
       trackCalo = std::unique_ptr<art::FindManyP<anab::Calorimetry> >(new art::FindManyP<anab::Calorimetry>(inputTracks, e, caloInputTag));
@@ -309,10 +315,17 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       const int pId = setPId(iTrack, trackId);
       const double mom = setMomValue(ptrack, trackCalo, pMC, pId);
       const bool flipDir = setDirFlip(track);
-      
+
+      //this is not computationally optimal, but at least preserves the order unlike FindManyP
+      std::vector<art::Ptr<recob::Hit> > inHits;
+      for (auto it = tkHitsAssn.begin(); it!=tkHitsAssn.end(); ++it) {
+	if (it->first == ptrack) inHits.push_back(it->second);
+	else if (inHits.size()>0) break;
+      }
+
       recob::Track outTrack;
       art::PtrVector<recob::Hit> outHits;
-      bool fitok = kalmanFitter->fitTrack(track, trackHits->at(iTrack), mom, pId, flipDir, outTrack, outHits);
+      bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits);
       
       if (!fitok) {
 	mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for track #" << iTrack << "\n";
