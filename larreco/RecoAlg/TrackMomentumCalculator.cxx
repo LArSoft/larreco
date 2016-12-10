@@ -163,7 +163,12 @@ namespace trkf{
    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////			      
    //*********For proton, the calculations are valid up to 3.022E3 cm range corresponding to a Muon KE of 5 GeV**********//
    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////			      
-		 					      			       			 			
+		 					      			       			 		
+    if (trkrange<0 || std::isnan(trkrange)){
+      mf::LogError("TrackMomentumCalculator")<<"Invalid track range "<<trkrange<<" return -1";
+      return -1.;
+    }
+
    double KE, Momentum, Muon_M = 105.7, Proton_M = 938.272, M;
    
    if (abs(pdg) == 13){

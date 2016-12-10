@@ -295,8 +295,6 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	
 	// MC particles list
 	auto particleHandle = e.getValidHandle< std::vector<simb::MCParticle> >(fSimulationProducerLabel);
-	std::vector< art::Ptr<simb::MCParticle> > particleList;
-	art::fill_ptr_vector(particleList, particleHandle);
 
 	for (auto const& particle : *particleHandle)
 	{
@@ -305,10 +303,8 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
 	// SimChannels
 	auto simChannelHandle = e.getValidHandle< std::vector<sim::SimChannel> >(fSimulationProducerLabel);
-	std::vector< art::Ptr<sim::SimChannel> > channelList;
-	art::fill_ptr_vector(channelList, simChannelHandle);
 
-    countTruthDep(*simChannelHandle, fMcDepEM, fMcDepTrack);
+	countTruthDep(*simChannelHandle, fMcDepEM, fMcDepTrack);
 
 	// output from reconstruction
 
