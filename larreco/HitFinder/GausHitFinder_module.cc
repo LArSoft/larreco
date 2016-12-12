@@ -490,9 +490,9 @@ void GausHitFinder::produce(art::Event& evt)
                 if (peakVals.size() > fMaxMultiHit || chi2PerNDF > fChi2NDF)
                 {
                     double sumADC    = std::accumulate(signal.begin() + startT, signal.begin() + endT,0.);
-                    double peakAmp   = 1.5 * sumADC / (endT - startT);  // hedge between triangle and a box
+                    double peakSigma = (endT - startT) / 2.;         // was 4, then 3, but makes large pulses too narrow
+                    double peakAmp   = 0.3989 * sumADC / peakSigma;  // Use gaussian formulation
                     double peakMean  = (startT + endT) / 2.;
-                    double peakWidth = (endT - startT) / 3.;   // was 4 but makes large pulses too narrow
                     
                     nGausForFit =  1;
                     chi2PerNDF  =  chi2PerNDF > fChi2NDF ? chi2PerNDF : -1.;
@@ -501,7 +501,7 @@ void GausHitFinder::produce(art::Event& evt)
                     paramVec.clear();
                     paramVec.emplace_back(peakAmp,   0.1 * peakAmp);
                     paramVec.emplace_back(peakMean,  0.1 * peakMean);
-                    paramVec.emplace_back(peakWidth, 0.1 * peakWidth);
+                    paramVec.emplace_back(peakSigma, 0.1 * peakSigma);
                 }
 	    
                 // #######################################################
@@ -516,9 +516,6 @@ void GausHitFinder::produce(art::Event& evt)
                     double peakAmp   = paramVec[hitIdx    ].first;
                     double peakMean  = paramVec[hitIdx + 1].first;
                     double peakWidth = paramVec[hitIdx + 2].first;
-                    
-                    // Selection cut
-                    if (nGausForFit == 1 && peakAmp < threshold) continue;
                     
                     // Extract errors
                     double peakAmpErr   = paramVec[hitIdx    ].second;
@@ -727,7 +724,6 @@ void hit::GausHitFinder::FitGaussians(const std::vector<float>& SignalVector,
     // #############################
     for(int aa = StartTime; aa < EndTime; aa++)
     {
-        //std::cout<<"Time Tick = "<<aa<<", ADC = "<<signal[aa]<<std::endl;
         hitSignal.Fill(aa,SignalVector[aa]);
       
         if(EndTime > 10000){break;} // FIXME why?
