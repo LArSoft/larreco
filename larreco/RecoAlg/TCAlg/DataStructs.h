@@ -70,6 +70,7 @@ namespace tca {
   typedef enum {
     kFixed,           ///< vertex position fixed manually - no fitting done
     kVtxTrjTried,     ///< FindVtxTraj algorithm tried
+    kOnDeadWire,
     kVtxRefined,
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
@@ -102,9 +103,10 @@ namespace tca {
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
     float Delta {0};              // Deviation between trajectory and hits (WSE)
     float DeltaRMS {0.02};           // RMS of Deviation between trajectory and hits (WSE)
+    float FitChi {0};             // Chi/DOF of the fit
     unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
     unsigned short Step {0};      // Step number at which this TP was created
-    float FitChi {0};             // Chi/DOF of the fit
+    unsigned short AngleCode {0};          // 0 = small angle, 1 = large angle, 2 = very large angle
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
   };
@@ -174,7 +176,6 @@ namespace tca {
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
-    kUnMaskHits,
     kCTKink,        ///< kink found in CheckWork
     kCTStepChk,
     kTryWithNextPass,
@@ -182,6 +183,7 @@ namespace tca {
     kChkHiMultHits,
     kSplitTraj,
     kComp3DVx,
+    kComp3DVxIG,
     kHiEndDelta,
     kHamVx,
     kHamVx2,
@@ -204,8 +206,6 @@ namespace tca {
     kChkStop,
     kChkAllStop,
     kFTBRevProp,
-    kMHOK2,
-    kFUH2,
     kStopAtTj,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
