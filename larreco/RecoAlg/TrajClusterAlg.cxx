@@ -3041,11 +3041,11 @@ namespace tca {
             if(!vtxOnDeadWire) {
               bool signalAtVtx;
               std::array<int, 2> wireWindow;
-              wireWindow[0] = wint - 2;
-              wireWindow[1] = wint + 2;
+              wireWindow[0] = wint - 5;
+              wireWindow[1] = wint + 5;
               std::array<float, 2> timeWindow;
-              timeWindow[0] = tint - 2;
-              timeWindow[1] = tint + 2;
+              timeWindow[0] = tint - 5;
+              timeWindow[1] = tint + 5;
               std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, fPlane, kAllHits, false, signalAtVtx);
               if(vtxPrt) mf::LogVerbatim("TC")<<" Hits in the vicinity "<<closeHits.size()<<" signalAtVtx? "<<signalAtVtx;
               // no signal (no hits, not in a dead wire region)
@@ -3495,8 +3495,8 @@ namespace tca {
             dXSigma = sqrt(vXsigma[ivx] * vXsigma[ivx] + vXsigma[jvx] * vXsigma[jvx]);
             dXChi = dX / dXSigma;
             
-            if(vtxPrt) mf::LogVerbatim("CC")<<"Find3DVertices: ipl "<<ipl<<" ivxID "<<tjs.vtx[ivx].ID<<" ivX "<<vX[ivx]
-              <<" jpl "<<jpl<<" jvxID "<<tjs.vtx[jvx].ID<<" jvX "<<vX[jvx]<<" W:T "<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" fVertex3DChiCut "<<fVertex3DChiCut;
+            if(vtxPrt) mf::LogVerbatim("CC")<<"Find3DVertices: ipl "<<ipl<<" ivxID "<<tjs.vtx[ivx].ID<<" ivX "<<vX[ivx]<<" +/- "<<vXsigma[ivx]
+              <<" jpl "<<jpl<<" jvxID "<<tjs.vtx[jvx].ID<<" jvX "<<vX[jvx]<<" +/- "<<vXsigma[jvx]<<" W:T "<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" fVertex3DChiCut "<<fVertex3DChiCut;
             
             if(dXChi > fVertex3DChiCut) continue;
             if (geom->HasWire(geo::WireID(cstat, tpc, ipl, iWire))&&
