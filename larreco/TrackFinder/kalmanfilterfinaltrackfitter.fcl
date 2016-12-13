@@ -23,6 +23,7 @@ kalmantrackfit: {
         dirFromVtxPF: false
   	useRMSError: true
         sortHits: false
+        skipNegProp: false
   }
 }
 END_PROLOG

@@ -126,7 +126,11 @@ namespace trkf {
       };
       fhicl::Atom<bool> sortHits {
         Name("sortHits"),
-        Comment("Flag to decide whether the hits are sorted (once) based on the initial track state or the order from the pattern recognition is preserved. To be used only if original sorting is not along the path length s in 3D (e.g. in case it is done by collection plane).")
+        Comment("Flag to decide whether the hits are sorted (once) based on the initial track state, along the main ; if false, the order from the pattern recognition is preserved. To be used only if original sorting is not along the path length s in 3D (e.g. in case it is done by collection plane).")
+      };
+      fhicl::Atom<bool> skipNegProp {
+        Name("skipNegProp"),
+        Comment("Flag to decide whether the hits corresponding to a negative propagation distance should be dropped.")
       };
     };
 
@@ -180,7 +184,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
 {
 
   prop = new trkf::PropYZPlane(0., false);
-  kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().options().useRMS(),p_().options().sortHits());
+  kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().options().useRMS(),p_().options().sortHits(),p_().options().skipNegProp());
   tmc = new trkf::TrackMomentumCalculator();
 
   if (p_().options().trackFromPF()) pfParticleInputTag = art::InputTag(p_().inputs().inputPFParticleLabel());
