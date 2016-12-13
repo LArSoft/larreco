@@ -102,7 +102,7 @@ namespace tca {
     short fNPtsAve;         /// number of points to find AveChg
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
     std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a trajectory
-    std::vector<unsigned short> fMaxAngleRange;   ///< max llowed angle range for each pass
+    std::vector<unsigned short> fMaxAngleCode;   ///< max allowed angle code for each pass
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     std::vector<float> fKinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
@@ -262,10 +262,10 @@ namespace tca {
     void DefineHitPos(TrajPoint& tp);
     // Decide which hits to use to determine the trajectory point
     // fit, charge, etc. This is done by setting UseHit true and
-    // setting inTraj < 0.
-    void FindUseHits(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
-    // Test a new version
-    void FindUseHits2(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
+    // setting inTraj < 0
+     void FindUseHits(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
+    // Sets the tp AngCode = 0 (small angle), 1 (large angle) or 2 (very large angle)
+    void SetAngleCode(TrajPoint& tp);
     // returns the index of the angle range that tp is in
     unsigned short AngleRange(TrajPoint const& tp);
     unsigned short AngleRange(float angle);
@@ -304,8 +304,6 @@ namespace tca {
     // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
     // current configuration or whether to stop and possibly try with the next pass settings
     bool MaskedHitsOK(Trajectory& tj);
-    // Version 2
-    bool MaskedHitsOK2(Trajectory& tj);
     // Any re-sizing should have been done by the calling routine. This code updates the Pass and adjusts the number of
     // fitted points to get FitCHi < 2
     void PrepareForNextPass(Trajectory& tj);
@@ -324,6 +322,7 @@ namespace tca {
     bool IsGhost(Trajectory& tj);
     void CheckTrajEnd();
     void EndMerge();
+    void EndMerge2();
     void FillWireHitRange(geo::TPCID const& tpcid);
     float ExpectedHitsRMS(TrajPoint const& tp);
     /// sets fQuitAlg true if WireHitRange has a problem
@@ -351,6 +350,7 @@ namespace tca {
     void FindHammerVertices2();
     void Find3DVertices(geo::TPCID const& tpcid);
     void CompleteIncomplete3DVertices(geo::TPCID const& tpcid);
+    void CompleteIncomplete3DVerticesInGaps(geo::TPCID const& tpcid);
     // ****************************** Shower/Track ID code  ******************************
     // Tag as shower-like or track-like
 //    void TagAllTraj();
