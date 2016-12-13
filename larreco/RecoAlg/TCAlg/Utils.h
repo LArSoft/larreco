@@ -40,7 +40,7 @@ namespace tca {
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
-  bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction);
+  bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
   bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
   bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP);
   bool CheckHitClusterAssociations(TjStuff& tjs);
@@ -56,6 +56,7 @@ namespace tca {
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, float wire2, float time2, CTP_t pCTP, float minAmp);
   bool SignalPresent(TrajPoint const& tp, float minAmp);
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
+  void MakeVertexObsolete(TjStuff& tjs, unsigned short ivx);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
