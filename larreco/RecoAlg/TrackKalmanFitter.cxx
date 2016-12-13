@@ -140,58 +140,54 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   //setup the KGTrack we'll use for smoothing and to output the recob::Track
   trkf::KGTrack fittedTrack(0);
 
-    for (auto ihit : hitsv) {
+  for (auto ihit : hitsv) {
 
-      std::shared_ptr<const trkf::SurfWireX> hsurf(new trkf::SurfWireX(ihit->WireID()));
-      trkf::KHitWireX khit(ihit,hsurf);
-      if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(std::max(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime(),0.08333333333f)));//0.0833333333 is 1/12, see KHitWireX.cxx line 69
+    std::shared_ptr<const trkf::SurfWireX> hsurf(new trkf::SurfWireX(ihit->WireID()));
+    trkf::KHitWireX khit(ihit,hsurf);
+    if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(std::max(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime(),0.08333333333f)));//0.0833333333 is 1/12, see KHitWireX.cxx line 69
 
-      if (skipNegProp_) {
-	auto trftmp = trf;
-	boost::optional<double> pdisttest = prop_->noise_prop(trftmp,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
-	if (pdisttest.get_value_or(-1.)<0.) {
-	  mf::LogWarning("TrackKalmanFitter") << "WARNING: negative propagation distance. Skip this hit...";
-	  continue;
-	}
-      }
-
-      //propagate to measurement surface
-      boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
-      if (!pdist) {
-	//in case of zero distance the prediction surface is the one from the original track
-	//this is not good, we need it to be on the hit measurement surface, do a dummy propagation to fix it
-	boost::optional<double> dist = prop_->err_prop(trf,khit.getMeasSurface(),trkf::Propagator::UNKNOWN,false);
-      }
-      trf.setStat(trkf::KFitTrack::FORWARD_PREDICTED);
-      bool okpred = khit.predict(trf, prop_);
-      if (khit.getPredSurface()!=khit.getMeasSurface()) {
-	mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
+    if (skipNegProp_) {
+      auto trftmp = trf;
+      boost::optional<double> pdisttest = prop_->noise_prop(trftmp,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
+      if (pdisttest.get_value_or(-1.)<0.) {
+	mf::LogWarning("TrackKalmanFitter") << "WARNING: negative propagation distance. Skip this hit...";
 	continue;
       }
+    }
 
-      //now update the forward fitted track
-      if (okpred) {
-	khit.update(trf);
-	trf.setStat(trkf::KFitTrack::FORWARD);
-	//store this track for the backward fit+smooth
-	const std::shared_ptr< const KHitBase > strp(new trkf::KHitWireX(khit));
-	trkf::KHitTrack khitTrack(trf, strp);
-	fittedTrack.addTrack(khitTrack);
-      } else {
-	mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " " << trf.getStat();
-	return false;
-      }
+    //propagate to measurement surface
+    boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
+    if (!pdist) {
+      //in case of zero distance the prediction surface is the one from the original track
+      //this is not good, we need it to be on the hit measurement surface, do a dummy propagation to fix it
+      boost::optional<double> dist = prop_->err_prop(trf,khit.getMeasSurface(),trkf::Propagator::UNKNOWN,false);
+    }
+    trf.setStat(trkf::KFitTrack::FORWARD_PREDICTED);
+    bool okpred = khit.predict(trf, prop_);
+    if (khit.getPredSurface()!=khit.getMeasSurface()) {
+      mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
+      continue;
+    }
 
-      if (trf.isValid()==0) {
-	mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " " << trf.getStat();
-	return false;
-      }
+    //now update the forward fitted track
+    if (okpred) {
+      khit.update(trf);
+      trf.setStat(trkf::KFitTrack::FORWARD);
+      //store this track for the backward fit+smooth
+      const std::shared_ptr< const KHitBase > strp(new trkf::KHitWireX(khit));
+      trkf::KHitTrack khitTrack(trf, strp);
+      fittedTrack.addTrack(khitTrack);
+    } else {
+      mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " " << trf.getStat();
+      return false;
+    }
 
-    } //for (auto ihit : hitsv)
-      /*
-    } //for (auto ihit : itergroup.getHits())
-  }//for (auto itergroup : hitsToProcess)
-      */
+    if (trf.isValid()==0) {
+      mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " " << trf.getStat();
+      return false;
+    }
+
+  } //for (auto ihit : hitsv)
 
   // LOG_DEBUG("TrackKalmanFitter") << "AFTER FORWARD\n" << trf.Print(std::cout);
 
