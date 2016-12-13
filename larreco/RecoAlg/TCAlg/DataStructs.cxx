@@ -3,7 +3,6 @@
 namespace tca {
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
-    "UnMaskHits",
     "CTKink",
     "CTStepChk",
     "TryNextPass",
@@ -11,13 +10,14 @@ namespace tca {
     "CHMH",
     "SplitTraj",
     "Comp3DVx",
+    "Comp3DVxIG",
     "HED",
     "HamVx",
     "HamVx2",
     "JunkTj",
     "Killed",
     "EndMerge",
-    "TrimEndPts",
+     "TrimEndPts",
     "CHMEH",
     "FillGap",
     "Ghost",
@@ -33,8 +33,6 @@ namespace tca {
     "ChkStop",
     "ChkAllStop",
     "FTBRevProp",
-    "MHOK2",
-    "FUH2",
     "StopAtTj",
   };
 
@@ -50,6 +48,7 @@ namespace tca {
   const std::vector<std::string> VtxBitNames {
     "Fixed",
     "VtxTrjTried",
+    "OnDeadWire",
     "VtxRefined"
   } ;
 } // namespace tca
