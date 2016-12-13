@@ -32,55 +32,96 @@ namespace tca {
   {
     // Trim the hits off the end until there are at least fMinPts consecutive hits at the end
     // and the fraction of hits on the trajectory exceeds fQualityCuts[0]
+    // Minimum length requirement accounting for dead wires where - denotes a wire with a point
+    // and D is a dead wire. Here is an example with minPts = 3
+    //  ---DDDDD--- is OK
+    //  ----DD-DD-- is OK
+    //  ----DDD-D-- is OK
+    //  ----DDDDD-- is not OK
     
     unsigned short minPts = fQualityCuts[1];
+    float maxPtSep = minPts + 2;
     if(NumPtsWithCharge(tjs, tj, false) < minPts) return;
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"TrimEndPts: minPts "<<minPts<<" required. Minimum hit fraction "<<fQualityCuts[0];
+      mf::LogVerbatim("TC")<<"TrimEndPts: minPts "<<minPts<<" required. maxPtSep "<<maxPtSep<<" Minimum hit fraction "<<fQualityCuts[0];
     }
 
     unsigned short newEndPt = tj.EndPt[1];
+    unsigned short nPtsWithCharge;
+    float hitFrac = 0;
     while(newEndPt > minPts) {
+      nPtsWithCharge = 0;
       if(tj.Pts[newEndPt].Chg == 0) {
         --newEndPt;
         continue;
       }
-      unsigned short nPtsWithCharge = 0;
       for(unsigned short jj = 0; jj < minPts; ++jj) {
         unsigned short jpt = newEndPt - jj;
         if(jpt < minPts) break;
         if(tj.Pts[jpt].Chg > 0) ++nPtsWithCharge; 
       } // jj
-      if(nPtsWithCharge == minPts) {
+      float ptSep = std::abs(tj.Pts[newEndPt - minPts].Pos[0] - tj.Pts[newEndPt].Pos[0]);
+      if(prt) mf::LogVerbatim("TC")<<" newEndPt "<<newEndPt<<" ptSep "<<ptSep<<" nPtsWithCharge "<<nPtsWithCharge;
+      // allow only one dead wire at the end
+      if(nPtsWithCharge == minPts && ptSep < maxPtSep) {
         // minPts consecutive points have charge. Check the hit fraction
         float npwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], newEndPt);
-        float npts = newEndPt - tj.EndPt[0] + 1;
-        float hitFrac = npwc / npts;
-        if(prt) mf::LogVerbatim("TC")<<"newEndPt "<<newEndPt<<" npts "<<(int)npts<<" npwc "<<(int)npwc<<" hitFrac "<<hitFrac;
+        float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[newEndPt].Pos[0]) + 1;
+        hitFrac = npwc / nwires;
+        if(prt) mf::LogVerbatim("TC")<<" check hitFrac "<<newEndPt<<" nwires "<<(int)nwires<<" npwc "<<(int)npwc<<" hitFrac "<<hitFrac;
         if(hitFrac > fQualityCuts[0]) break;
         newEndPt -= minPts;
       }
       --newEndPt;
     } // newEndPt
-    // ipt is now the last point that satisfies these conditions
+
+    // passed the cuts with no modifications
+    if(newEndPt == tj.EndPt[1]) return;
+
+    // newEndPt is now the last point that satisfies these conditions
+    // dead wire check
+    nPtsWithCharge = 0;
+    unsigned short nConsecutivePts = 0;
+    for(unsigned short jj = 0; jj < minPts; ++jj) {
+      unsigned short jpt = newEndPt - jj;
+      if(tj.Pts[jpt].Chg > 0) ++nPtsWithCharge;
+      if(jj > 0 && std::abs(tj.Pts[jpt+1].Pos[0] - tj.Pts[jpt].Pos[0]) < 1.5) ++nConsecutivePts;
+      if(jpt == 0) break;
+    } // jj
     
+    if(prt) mf::LogVerbatim("TC")<<" newEndPt "<<newEndPt<<" nConsecutivePts "<<nConsecutivePts<<" Required "<<minPts - 1;
+    
+    // lop off the last point if the consecutive point condition isn't met and re-calculate
+    if(nConsecutivePts < minPts - 1) {
+      --newEndPt;
+      nPtsWithCharge = 0;
+      unsigned short nConsecutivePts = 0;
+      for(unsigned short jj = 0; jj < minPts; ++jj) {
+        unsigned short jpt = newEndPt - jj;
+        if(tj.Pts[jpt].Chg > 0) ++nPtsWithCharge;
+        if(jj > 0 && std::abs(tj.Pts[jpt+1].Pos[0] - tj.Pts[jpt].Pos[0]) < 1.5) ++nConsecutivePts;
+        if(jpt == 0) break;
+      } // jj
+      if(prt) mf::LogVerbatim("TC")<<"   newEndPt "<<newEndPt<<" nConsecutivePts "<<nConsecutivePts<<" Required "<<minPts - 1;
+    }
+    
+    float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[newEndPt].Pos[0]) + 1;
     float npwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], newEndPt);
-    float npts = newEndPt - tj.EndPt[0] + 1;
-    float hitFrac = npwc / npts;
+    hitFrac = npwc / nwires;
+    
     if(hitFrac < fQualityCuts[0]) tj.AlgMod[kKilled] = true;
-    if(prt) mf::LogVerbatim("TC")<<" Old endpoint "<<tj.EndPt[1]<<" New endpoint "<<newEndPt<<" hitFrac "<<hitFrac<<" Killed? "<<tj.AlgMod[kKilled];
+    if(prt) mf::LogVerbatim("TC")<<" Old endpoint "<<tj.EndPt[1]<<"   newEndPt "<<newEndPt<<" nwires "<<nwires<<" npwc "<<npwc<<" nConsecutivePts "<<nConsecutivePts<<" hitFrac "<<hitFrac<<" Killed? "<<tj.AlgMod[kKilled];
     
     // failed the cuts
     if(tj.AlgMod[kKilled]) return;
-    // passed the cuts with no modifications
-    if(newEndPt == tj.EndPt[1]) return;
     
     // modifications required
     tj.EndPt[1] = newEndPt;    
-    for(unsigned short ipt = newEndPt + 1; ipt <= tj.EndPt[1]; ++ipt) {
-      if(tj.Pts[ipt].Chg > 0) UnsetUsedHits(tjs, tj.Pts[ipt]);
-    } // ipt
+    for(unsigned short ipt = newEndPt + 1; ipt < tj.Pts.size(); ++ipt) {
+      if(prt) mf::LogVerbatim("TC")<<" unset "<<ipt;
+      UnsetUsedHits(tjs, tj.Pts[ipt]);
+    }
     SetEndPoints(tjs, tj);
     tj.Pts.resize(tj.EndPt[1] + 1);
     tj.AlgMod[kTrimEndPts] = true;
@@ -89,29 +130,45 @@ namespace tca {
   } // TrimEndPts
 
   /////////////////////////////////////////
-  bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction)
+  bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt)
   {
     // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp and toPos0.
     // Note that this uses the direction vector of the tp
     
+    if(MinWireSignalFraction == 0) return true;
+    
     int fromWire = std::nearbyint(tp.Pos[0]);
     int toWire = std::nearbyint(toPos0);
     
-    if(fromWire == toWire) return SignalAtTp(tjs, tp);
+    if(fromWire == toWire) {
+      if(prt) mf::LogVerbatim("TC")<<" SignalBetween fromWire = toWire = "<<fromWire<<" SignalAtTp? "<<SignalAtTp(tjs, tp);
+      return SignalAtTp(tjs, tp);
+    }
     
     int nWires = abs(toWire - fromWire) + 1;
-    if(tp.Dir[0] > 0.001) tp.Dir[0] = 0.001;
-    if(tp.Dir[0] < -0.001) tp.Dir[0] = -0.001;
+    
+    unsigned short maxWiresNoSignal = (1 - MinWireSignalFraction) * nWires;
+    if(std::abs(tp.Dir[0]) < 0.001) tp.Dir[0] = 0.001;
     float stepSize = std::abs(1/tp.Dir[0]);
+    // ensure that we step in the right direction
+    if(toWire > fromWire && tp.Dir[0] < 0) stepSize = -stepSize;
+    if(toWire < fromWire && tp.Dir[0] > 0) stepSize = -stepSize;
     unsigned short nsig = 0;
     unsigned short num = 0;
+    unsigned short nmissed = 0;
     for(unsigned short cnt = 0; cnt < nWires; ++cnt) {
       ++num;
-      if(SignalAtTp(tjs, tp)) ++nsig;
+      if(SignalAtTp(tjs, tp)) {
+        ++nsig;
+      } else {
+        ++nmissed;
+        if(nmissed == maxWiresNoSignal) return false;
+      }
       tp.Pos[0] += tp.Dir[0] * stepSize;
       tp.Pos[1] += tp.Dir[1] * stepSize;
     } // cnt
     float sigFrac = (float)nsig / (float)nWires;
+    if(prt) mf::LogVerbatim("TC")<<"  SignalBetween fromWire "<<fromWire<<" toWire "<<toWire<<" nWires "<<nWires<<" nsig "<<nsig<<" "<<sigFrac;
     return (sigFrac >= MinWireSignalFraction);
     
   } // SignalBetween
@@ -268,6 +325,20 @@ namespace tca {
     if(planeID.TPC != tjs.WireHitRangeTPC) return false;
     return true;
   }
+  
+  ////////////////////////////////////////////////
+  void MakeVertexObsolete(TjStuff& tjs, unsigned short vtxID)
+  {
+    if(vtxID > tjs.vtx.size()) return;
+    unsigned short ivx = vtxID - 1;
+    tjs.vtx[ivx].NTraj = 0;
+    for(auto& tj : tjs.allTraj) {
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] == vtxID) tj.VtxID[end] = 0;
+      } // end
+    } // tj
+    
+  } // MakeVertexObsolete
 
   ////////////////////////////////////////////////
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
@@ -972,6 +1043,8 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<" delta ray "<<drTj.ID<<" near "<<PrintPos(tjs, muTj.Pts[muPt0]);
         drTj.ParentTrajID = muTj.ID;
         drTj.PDGCode = 12;
+        // check for a vertex with another tj and if one is found, kill it
+        for(unsigned short end = 0; end < 2; ++end) if(drTj.VtxID[end] > 0) MakeVertexObsolete(tjs, drTj.VtxID[end]);
       } // jtj
     } // itj
     
@@ -1301,6 +1374,8 @@ namespace tca {
     // 2 = max vertex - trajectory separation for long trajectories
     // 3 = max position pull for adding TJs to a vertex
     // 4 = max allowed vertex position error
+    // 5 = min MCSMom
+    // 6 = min Pts/Wire fraction
 
     if(tj.AlgMod[kKilled]) return false;
     if(tj.CTP != vx.CTP) return false;
@@ -1439,6 +1514,8 @@ namespace tca {
     // 2 = max vertex - trajectory separation for long trajectories
     // 3 = max position pull for adding TJs to a vertex
     // 4 = max allowed vertex position error
+    // 5 = min MCSMom
+    // 6 = min Pts/Wire fraction
     
     // Create a vector of trajectory points that will be used to fit the vertex position
     std::vector<TrajPoint> vxTp;
@@ -1626,7 +1703,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang AveQ     W:T      Ang AveQ ChgRMS  Mom Dir __Vtx__ PDG  Par TRuPDG  E*P TruKE  WorkID StopFlags\n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom Dir __Vtx__ PDG  Par TRuPDG  E*P TruKE  WorkID StopFlags\n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -1645,6 +1722,7 @@ namespace tca {
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
+        myprt<<std::setw(2)<<tp.AngleCode;
         myprt<<std::setw(5)<<(int)tp.AveChg;
         endPt = aTj.EndPt[1];
         tp = aTj.Pts[endPt];
@@ -1652,6 +1730,7 @@ namespace tca {
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
+        myprt<<std::setw(2)<<tp.AngleCode;
         myprt<<std::setw(5)<<(int)tp.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
@@ -1728,7 +1807,7 @@ namespace tca {
   //////////////////////////////////////////
   void PrintHeader(std::string someText)
   {
-    mf::LogVerbatim("TC")<<someText<<" TRP  CTP  Ind  Stp      W:Tick    Delta  RMS    Ang   Err   Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
+    mf::LogVerbatim("TC")<<someText<<" TRP  CTP  Ind  Stp      W:Tick    Delta  RMS    Ang C   Err   Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
   } // PrintHeader
   
   ////////////////////////////////////////////////
@@ -1746,6 +1825,7 @@ namespace tca {
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Delta;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.DeltaRMS;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
+    myprt<<std::setw(2)<<tp.AngleCode;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.AngErr;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Dir[0];
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Dir[1];
