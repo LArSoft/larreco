@@ -111,6 +111,7 @@ namespace tca {
   float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest);
+  unsigned short NearestPtWithChg(TjStuff& tjs, Trajectory& tj, unsigned short thePt);
   // Calculate MCS momentum
   short MCSMom(TjStuff& tjs, Trajectory& tj);
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
