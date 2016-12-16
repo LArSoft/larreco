@@ -2,6 +2,7 @@
 
 namespace tca {
   
+  
   ////////////////////////////////////////////////
   void ReleaseHits(TjStuff& tjs, Trajectory& tj)
   {
@@ -917,12 +918,15 @@ namespace tca {
   {
     // Estimate the trajectory momentum using Multiple Coulomb Scattering ala PDG RPP
     
-
+    firstPt = NearestPtWithChg(tjs, tj, firstPt);
+    lastPt = NearestPtWithChg(tjs, tj, lastPt);
+    if(firstPt >= lastPt) return 0;
+    
     if(firstPt < tj.EndPt[0]) return 0;
     if(lastPt > tj.EndPt[1]) return 0;
     // Can't do this with only 2 points
-    if(NumPtsWithCharge(tjs, tj, false) < 3) return 0;
-    
+    if(NumPtsWithCharge(tjs, tj, false, firstPt, lastPt) < 3) return 0;
+        
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
     if(tjLen == 0) return 0;
     // mom calculated in MeV
@@ -930,6 +934,25 @@ namespace tca {
     if(mom > 999) mom = 999;
     return (short)mom;
   } // MCSMom
+    
+  
+  ////////////////////////////////////////////////
+  unsigned short NearestPtWithChg(TjStuff& tjs, Trajectory& tj, unsigned short thePt)
+  {
+    // returns a point near thePt which has charge
+    if(thePt > tj.EndPt[1]) return thePt;
+    if(tj.Pts[thePt].Chg > 0) return thePt;
+    
+    short endPt0 = tj.EndPt[0];
+    short endPt1 = tj.EndPt[1];
+    for(short off = 1; off < 10; ++off) {
+      short ipt = thePt + off;
+      if(ipt <= endPt1 && tj.Pts[ipt].Chg > 0) return (unsigned short)ipt;
+      ipt = thePt - off;
+      if(ipt >= endPt0 && tj.Pts[ipt].Chg > 0) return (unsigned short)ipt;
+    } // off
+    return thePt;
+  } // NearestPtWithChg
   
   /////////////////////////////////////////
   float MCSThetaRMS(TjStuff& tjs, Trajectory& tj)
@@ -950,6 +973,10 @@ namespace tca {
     
     if(firstPt < tj.EndPt[0]) return 1;
     if(lastPt > tj.EndPt[1]) return 1;
+    
+    firstPt = NearestPtWithChg(tjs, tj, firstPt);
+    lastPt = NearestPtWithChg(tjs, tj, lastPt);
+    if(firstPt >= lastPt) return 1;
     
     TrajPoint tmp;
     // make a bare trajectory point to define a line between firstPt and lastPt.
@@ -1637,7 +1664,7 @@ namespace tca {
     
     if(!tjs.vtx3.empty()) {
       // print out 3D vertices
-      myprt<<"****** 3D vertices ******************************************__2DVtx_Indx__*******\n";
+      myprt<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
       myprt<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2  Wire\n";
       for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
         myprt<<std::right<<std::setw(3)<<std::fixed<<iv<<std::setprecision(1);
@@ -1649,9 +1676,9 @@ namespace tca {
         myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].XErr;
         myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].YErr;
         myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].ZErr;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[0];
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[1];
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[2];
+        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[0]+1;
+        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[1]+1;
+        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[2]+1;
         myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Wire;
         if(tjs.vtx3[iv].Wire < 0) {
           myprt<<"    Matched in all planes";
@@ -1703,7 +1730,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom Dir __Vtx__ PDG  Par TRuPDG  E*P TruKE  WorkID StopFlags\n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom Dir __Vtx__ PDG  Par TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
