@@ -106,7 +106,7 @@ namespace cluster {
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
     produces< std::vector<recob::PFParticle> >();
-    produces< art::Assns<recob::Cluster, recob::PFParticle> >();
+    produces< art::Assns<recob::PFParticle, recob::Cluster> >();
   } // TrajCluster::TrajCluster()
   
   //----------------------------------------------------------------------------
@@ -144,8 +144,8 @@ namespace cluster {
         hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
         cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::PFParticle>>
-        cp_assn(new art::Assns<recob::Cluster, recob::PFParticle>);
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::Cluster>>
+        pc_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
 
     std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters();
     
@@ -195,7 +195,6 @@ namespace cluster {
     unsigned short clsID = 0;
     for(size_t icl = 0; icl < Clusters.size(); ++icl) {
       tca::ClusterStore const& clstr = Clusters[icl];
-//      std::cout<<"cls "<<clstr.ID<<" "<<(int)clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" "<<(int)clstr.EndWir<<":"<<(int)clstr.EndTim<<"\n";
       if(clstr.ID < 0) continue;
       ++clsID;
       geo::PlaneID planeID = tca::DecodeCTP(clstr.CTP);
@@ -286,6 +285,7 @@ namespace cluster {
           ++vtxIndex;
         } // 3D vertices
       } // clstr.BeginVtx >= 0
+/*
       // make PFParticles with ID = cluster ID, parent index = 0, no daughters
       // There is one PFParticle for each cluster
       size_t parent = clstr.ParentCluster;
@@ -302,9 +302,28 @@ namespace cluster {
         throw art::Exception(art::errors::InsertFailure)
         <<"Failed to associate cluster ID "<<clsID<<" with PFParticle";
       } // exception
+*/
     } // icl
     
-//    std::cout<<"module clusters "<<Clusters.size()<<" sccol size "<<sccol.size()<<"\n";
+    // Get the lists of clusters that are matched between planes
+    std::vector<std::vector<unsigned short>> matchedClusters = fTCAlg->Get3DMatchedClusters();
+    std::cout<<"matchedClusters size "<<matchedClusters.size()<<"\n";
+    // ignore any daughters declared by TrajClusterAlg
+    dtrIndices.clear();
+    size_t parent = recob::PFParticle::kPFParticlePrimary;
+    for(size_t im = 0; im < matchedClusters.size(); ++im) {
+      std::cout<<" "<<matchedClusters[im][0]<<" "<<matchedClusters[im][1]<<" "<<matchedClusters[im][2]<<"\n";
+      // get the index of one of the clusters
+      unsigned short icl = matchedClusters[im][0];
+      tca::ClusterStore const& clstr = Clusters[icl];
+      // so that we can get the PDG code
+      spcol.emplace_back((int)clstr.PDGCode, icl, parent, dtrIndices);
+//    if(!util::CreateAssn(*this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end()))
+      if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, matchedClusters[im].begin(), matchedClusters[im].end()))
+      {
+        throw art::Exception(art::errors::InsertFailure)<<"Failed to associate cluster ID "<<clsID<<" with PFParticle";
+      } // exception
+    }
 
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
@@ -325,7 +344,7 @@ namespace cluster {
     evt.put(std::move(v3col));
     evt.put(std::move(cv_assn));
     evt.put(std::move(pcol));
-    evt.put(std::move(cp_assn));
+    evt.put(std::move(pc_assn));
 
   } // TrajCluster::produce()
   
