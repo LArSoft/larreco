@@ -63,7 +63,7 @@ namespace tca {
     short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
     unsigned short ID {0};
-    short Ptr3D;
+    short Ptr3D {SHRT_MAX};
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
   };
   
@@ -152,25 +152,13 @@ namespace tca {
     short InTraj {0};
   };
   
-  // Trajectory "intersections" used to search for superclusters (aka showers)
-  struct TrjInt {
-    unsigned short itj1;
-    unsigned short ipt1;
-    unsigned short itj2;
-    unsigned short ipt2;
-    float sep2;   // separation^2 at closest point
-    float dang;   // opening angle at closest point
-    float vw;     // intersection wire
-    float vt;     // intersection time
-  };
-  
-  struct TjPairHitShare {
-    // Trajectories in two different trials that share hits
-    unsigned short iTrial;
-    unsigned short iTj;
-    unsigned short jTrial;
-    unsigned short jTj;
-    unsigned short nSameHits;
+  // Struct for 3D trajectory matching
+  struct MatchStruct {
+    // IDs of Trajectories that match in all planes
+    std::array<unsigned short, 3> TjID;
+    std::array<unsigned int, 3> SeedHits;
+    // Count of the number of time-matched hits
+    int Count;
   };
   
   // Algorithm modification bits
@@ -207,6 +195,7 @@ namespace tca {
     kChkAllStop,
     kFTBRevProp,
     kStopAtTj,
+    kMatch3D,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -245,9 +234,14 @@ namespace tca {
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
+    std::vector<std::vector<unsigned short>> MatchedTjIDs;
+    std::vector<MatchStruct> matchVec; ///< 3D matching vector
     unsigned short NumPlanes;
-    bool ConvertTicksToTime;
-  };
+    float YLo; // fiducial volume of the current tpc
+    float YHi;
+    float ZLo;
+    float ZHi;
+   };
 
 } // namespace tca
 
