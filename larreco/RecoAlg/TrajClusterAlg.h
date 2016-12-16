@@ -81,6 +81,9 @@ namespace tca {
     /// Returns a constant reference to the 3D vertices found
     std::vector<Vtx3Store> const& GetVertices() const { return tjs.vtx3; }
     
+    /// Returns a constant reference to the 3D vertices found
+    std::vector<std::vector<unsigned short>> const& Get3DMatchedClusters() const { return tjs.MatchedTjIDs; }
+    
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
     
@@ -139,6 +142,7 @@ namespace tca {
 
     std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
     float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    std::vector<float> fMatch3DCuts;  ///< Max dX separation
     
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
     std::array<short, 5> EPCnts;
@@ -220,10 +224,6 @@ namespace tca {
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
     
     std::vector<float> fAveHitRMS;      ///< average RMS of an isolated hit
-
-    std::vector<TrjInt> trjint;
-    // vectors of clusters of trajectories => a set of somewhat intersecting trajectories
-    std::vector<std::vector<unsigned short>> ClsOfTrj;
     
     std::vector<unsigned int> fAlgModCount;
     
@@ -323,7 +323,7 @@ namespace tca {
     void CheckTrajEnd();
     void EndMerge();
     void EndMerge2();
-    void FillWireHitRange(geo::TPCID const& tpcid);
+    void FillWireHitRange(const geo::TPCID& tpcid);
     float ExpectedHitsRMS(TrajPoint const& tp);
     /// sets fQuitAlg true if WireHitRange has a problem
     bool CheckWireHitRange();
@@ -344,27 +344,16 @@ namespace tca {
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
     void FindVtxTraj(unsigned short ivx);
-    void Refine2DVertices();
+//    void Refine2DVertices();
     void SplitTrajCrossingVertices();
     void FindHammerVertices();
     void FindHammerVertices2();
-    void Find3DVertices(geo::TPCID const& tpcid);
-    void CompleteIncomplete3DVertices(geo::TPCID const& tpcid);
-    void CompleteIncomplete3DVerticesInGaps(geo::TPCID const& tpcid);
-    // ****************************** Shower/Track ID code  ******************************
-    // Tag as shower-like or track-like
-//    void TagAllTraj();
-//    void TagPhotons();
-    // Associate trajectories that are close to each into Clusters Of Trajectories (COTs)
-//    void FindClustersOfTrajectories(std::vector<std::vector<unsigned short>>& trjintIndices);
-    // Try to define a shower trajectory consisting of a single track-like trajectory (the electron/photon)
-    // plus a group of shower-like trajectories, using the vector of trjintIndices
-//    void DefineShowerTraj(unsigned short icot, std::vector<std::vector<unsigned short>> trjintIndices);
-    // Make a track-like cluster using primTraj and a shower-like cluster consisting
-    // of all other trajectories in ClsOfTrj[icot]
-//    void TagShowerTraj(unsigned short icot, unsigned short primTraj, unsigned short primTrajEnd, float showerAngle);
-//    void KillVerticesInShowers();
-
+    void Find3DVertices(const geo::TPCID& tpcid);
+    void CompleteIncomplete3DVertices(const geo::TPCID& tpcid);
+    void CompleteIncomplete3DVerticesInGaps(const geo::TPCID& tpcid);
+    // ****************************** 3D Tj matching code  ******************************
+    void Match3D(const geo::TPCID& tpcid);
+    bool SetMatch(unsigned int indx);
     
   }; // class TrajClusterAlg
 
