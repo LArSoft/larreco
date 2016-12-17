@@ -178,6 +178,8 @@ private:
      */
     KdTreeNode BuildKdTree(const reco::HitPairList&, KdTreeNodeList&) const;
     
+    void CheckHitSorting(reco::ClusterParameters& clusterParams) const;
+    
     /**
      *  @brief define data structure for keeping track of channel status
      */
@@ -201,6 +203,7 @@ private:
     bool                                 m_enableMonitoring;      ///<
     int                                  m_hits;                  ///<
     mutable std::vector<float>           m_timeVector;            ///<
+    std::vector<std::vector<float>>      m_wireDir;               ///<
     
     ChannelStatusByViewVec               m_channelStatus;
  

@@ -1045,7 +1045,7 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
             // of a standard medial skeleton procedure to get the 3D hits we want
             // But note that even this is hopeless in the worst case and, in fact, it can be a time waster
             // So bypass when you recognize that condition
-            if (!aParallelHitsCluster(fullPCA))
+/*            if (!aParallelHitsCluster(fullPCA))
             {
                 int nSkeletonPoints = m_skeletonAlg.FindMedialSkeleton(clusterParameters.getHitPairListPtr());
             
@@ -1075,7 +1075,7 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                     splitClustersWithHough(clusterParameters, clusterParametersList);
                 }
             }
-        
+*/
             // Start loop over views to build out the hit lists and the 2D cluster objects
             for(reco::ViewToClusterParamsMap::const_iterator viewItr = clusterParameters.getClusterParams().begin(); viewItr != clusterParameters.getClusterParams().end(); viewItr++)
             {
@@ -1103,58 +1103,7 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                 double endWire(clusParams.m_endWire);
                 double startTime(clusParams.m_startTime);
                 double endTime(clusParams.m_endTime);
-/*
-                double wirePitch(m_geometry->WirePitch(clusParams.m_view));
-                double midWire(0);
 
-                // Get wire number corresponding to the current position
-                try
-                {
-                    midWire = 1.*m_geometry->NearestWire(skeletonPCA.getAvePosition(), clusParams.m_view);
-                } catch (cet::exception& e)
-                {
-                    mf::LogWarning("Cluster3D") << "Exception caught finding nearest wire, position - " << e.what() << std::endl;
-                    midWire  = skeletonPCA.getAvePosition()[2];
-                    midWire /= wirePitch;
-                }
-                
-                // Now sort out the slope in this view
-                // This follows the code in the display pacakage
-                double thetaWire     = m_geometry->Plane(clusParams.m_view).Wire(0).ThetaZ();
-                double driftVelocity = m_detector->DriftVelocity();
-                double timeTick      = m_detector->SamplingRate()*1.e-3;
-                
-                //rotate coord system CCW around x-axis by pi-thetawire
-                //   new yprime direction is perpendicular to the wire direction
-                //   in the same plane as the wires and in the direction of
-                //   increasing wire number
-                //use yprime-component of dir cos in rotated coord sys to get
-                //   dTdW (number of time ticks per unit of wire pitch)
-                double rotAng = 3.1416-thetaWire;
-                double yPrime = std::cos(rotAng)*skeletonPCA.getEigenVectors()[0][1]+std::sin(rotAng)*skeletonPCA.getEigenVectors()[0][2];
-                
-                if (fabs(yPrime) < 0.0000001) yPrime = 0.0000001;
-                
-                dTdW = skeletonPCA.getEigenVectors()[0][0]*wirePitch/(driftVelocity*timeTick*yPrime);
- 
-                // override the end angles: instead of using the standard
-                // algorithm, we use a precomputed value
-                double tan_dTdW(std::tan(dTdW));
- 
-                ClusterParamAlgo.OverrideParameter(OverriddenClusterParamsAlg_t::cpStartAngle, tan_dTdW);
-                ClusterParamAlgo.OverrideParameter(OverriddenClusterParamsAlg_t::cpEndAngle, tan_dTdW);
- 
-                // Finally, use the time corresponding to this position
-                double midTime = m_detector->ConvertXToTicks(skeletonPCA.getAvePosition()[0], clusParams.m_view, 0, 0);
- 
-                // Ok, now adjust everything to draw a nice long line through our cluster
-                double deltaWires = 0.5 * (endWire - startWire);
-                
-                startWire = midWire - deltaWires;
-                endWire   = midWire + deltaWires;
-                startTime = midTime - dTdW * deltaWires;
-                endTime   = midTime + dTdW * deltaWires;
-*/
                 // plane ID is not a part of clusParams... get the one from the first hit
                 geo::PlaneID plane; // invalid by default
                 if (!recobHits.empty())
@@ -1186,16 +1135,17 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                 clusterEnd++;
             }
             
-            // Deal with converting the Hit Pairs to art
-            // Recover the hit pairs and start looping! Love to loop!
-            reco::HitPairListPtr& clusHitPairVector = clusterParameters.getHitPairListPtr();
-            
             // Last, let's try to get seeds for tracking..
             // Keep track of how many we have so far
             size_t numSeedsStart = artSeedVector->size();
             
             // Call the magical algorith to do the dirty work
-            findTrackSeeds(evt, clusterParameters, hitToPtrMap, *artSeedVector, *artSeedHitAssociations);
+//            findTrackSeeds(evt, clusterParameters, hitToPtrMap, *artSeedVector, *artSeedHitAssociations);
+            
+            // Deal with converting the Hit Pairs to art
+            // Recover the hit pairs and start looping! Love to loop!
+            reco::HitPairListPtr& clusHitPairVector = clusterParameters.getHitPairListPtr();
+//            reco::HitPairListPtr& clusHitPairVector = clusterParameters.getBestHitPairListPtr();
             
             // Right now error matrix is uniform...
             double spError[] = {1., 0., 1., 0., 0., 1.};

@@ -122,6 +122,38 @@ void MinSpanTreeAlg::reconfigure(fhicl::ParameterSet const &pset)
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     m_timeVector.resize(NUMTIMEVALUES, 0.);
+    
+    // Determine the unit directon and normal vectors to the wires
+    m_wireDir.resize(3);
+    
+    raw::ChannelID_t uChannel(0);
+    std::vector<geo::WireID> uWireID = m_geometry->ChannelToWire(uChannel);
+    const geo::WireGeo* uWireGeo = m_geometry->WirePtr(uWireID[0]);
+    
+    TVector3 uWireDir = uWireGeo->Direction();
+    
+    m_wireDir[0].resize(3);
+    m_wireDir[0][0] =  uWireDir[0];
+    m_wireDir[0][1] = -uWireDir[2];
+    m_wireDir[0][2] =  uWireDir[1];
+    
+    raw::ChannelID_t vChannel(2400);
+    std::vector<geo::WireID> vWireID = m_geometry->ChannelToWire(vChannel);
+    const geo::WireGeo* vWireGeo = m_geometry->WirePtr(vWireID[0]);
+    
+    TVector3 vWireDir = vWireGeo->Direction();
+    
+    m_wireDir[1].resize(3);
+    m_wireDir[1][0] =  vWireDir[0];
+    m_wireDir[1][1] = -vWireDir[2];
+    m_wireDir[1][2] =  vWireDir[1];
+    
+    m_wireDir[2].resize(3);
+    m_wireDir[2][0] = 0.;
+    m_wireDir[2][1] = 0.;
+    m_wireDir[2][2] = 1.;
+    
+    return;
 }
     
 void MinSpanTreeAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
@@ -131,7 +163,9 @@ void MinSpanTreeAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
      *  @brief Driver for processing input 2D hits, transforming to 3D hits and building lists
      *         of associated 3D hits (candidate 3D clusters)
      */
-    m_timeVector.resize(NUMTIMEVALUES, 0.);
+    
+    // Zero the time vector
+    if (m_enableMonitoring) std::fill(m_timeVector.begin(),m_timeVector.end(),0.);
     
     // DBScan is driven of its "epsilon neighborhood". Computing adjacency within DBScan can be time
     // consuming so the idea is the prebuild the adjaceny map and then run DBScan.
@@ -807,7 +841,8 @@ size_t MinSpanTreeAlg::FindNearestNeighbors(const reco::ClusterHit3D* refHit, co
             candPairVec.emplace_back(CandPair(hitSeparation,node.getClusterHit3D()));
             
             //bestDist = std::max(0.35,std::min(bestDist,hitSeparation));  // This insures we will always consider neighbors with wire # changing in 2 planes
-            bestDist = std::max(0.47,std::min(bestDist,hitSeparation));  // This insures we will always consider neighbors with wire # changing in 2 planes
+            //bestDist = std::max(0.47,std::min(bestDist,hitSeparation));  // This insures we will always consider neighbors with wire # changing in 2 planes
+            bestDist = std::max(0.85,std::min(bestDist,hitSeparation));  // This insures we will always consider neighbors with wire # changing in 2 planes
             
 //            std::cout << "###>> nearest neighbor, refHit wires: " << refHit->getWireIDs()[0].Wire << "/" << refHit->getWireIDs()[1].Wire << "/" << refHit->getWireIDs()[2].Wire << ", compare to: " << node.getClusterHit3D()->getWireIDs()[0].Wire << "/" << node.getClusterHit3D()->getWireIDs()[1].Wire << "/" << node.getClusterHit3D()->getWireIDs()[2].Wire << std::endl;
             
@@ -918,6 +953,17 @@ bool MinSpanTreeAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco
     double maxUpper      = std::min(pair1PeakTime+pair1Width,pair2PeakTime+pair2Width);
     double minLower      = std::max(pair1PeakTime-pair1Width,pair2PeakTime-pair2Width);
     double pairOverlap   = maxUpper - minLower;
+    
+    const std::vector<geo::WireID>& pair1Wires = pair1->getWireIDs();
+    const std::vector<geo::WireID>& pair2Wires = pair2->getWireIDs();
+    
+    if ((pair1Wires[0].Wire >  778 && pair1Wires[0].Wire <  784) && (pair2Wires[0].Wire >  778 && pair2Wires[0].Wire <  784) &&
+        (pair1Wires[1].Wire >  900 && pair1Wires[1].Wire <  907) && (pair2Wires[1].Wire >  900 && pair2Wires[1].Wire <  907) &&
+        (pair1Wires[2].Wire > 1008 && pair1Wires[2].Wire < 1014) && (pair2Wires[2].Wire > 1008 && pair2Wires[2].Wire < 1014))
+    {
+        std::cout << "++++ Checking pairs: " << pair1Wires[0].Wire << "/" << pair1Wires[1].Wire << "/" << pair1Wires[2].Wire << ", "  << pair2Wires[0].Wire << "/" << pair2Wires[1].Wire << "/" << pair2Wires[2].Wire << std::endl;
+        std::cout << "     pair1 time/width: " << pair1PeakTime << ", " << pair1Width << ", pair2 time/width: " << pair2PeakTime << ", " << pair2Width << ", overlap: " << pairOverlap << std::endl;
+    }
     
     // Loose constraint to weed out the obviously bad combinations
     if (pairOverlap > 0.1)
@@ -1052,6 +1098,181 @@ struct HitPairClusterOrder
     }
 };
     
+class SetCheckHitOrder
+{
+public:
+//    SetCheckHitOrder()                                : m_view(std::ve)    {}
+    SetCheckHitOrder(const std::vector<size_t>& view) : m_view(view) {}
+    
+    bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
+    {
+        // Check if primary view's hit is on the same wire
+        if (left->getWireIDs()[m_view[0]] == right->getWireIDs()[m_view[0]])
+        {
+            // Same wire but not same hit, order by primary hit time
+            if (left->getHits()[m_view[0]] && right->getHits()[m_view[0]] && left->getHits()[m_view[0]] != right->getHits()[m_view[0]])
+            {
+                return left->getHits()[m_view[0]]->getHit().PeakTime() < right->getHits()[m_view[0]]->getHit().PeakTime();
+            }
+            
+            // Primary view is same hit, look at next view's wire
+            if (left->getWireIDs()[m_view[1]] == right->getWireIDs()[m_view[1]])
+            {
+                // Same wire but not same hit, order by secondary hit time
+                if (left->getHits()[m_view[1]] && right->getHits()[m_view[1]] && left->getHits()[m_view[1]] != right->getHits()[m_view[1]])
+                {
+                    return left->getHits()[m_view[1]]->getHit().PeakTime() < right->getHits()[m_view[1]]->getHit().PeakTime();
+                }
+            
+                // All that is left is the final view... and this can't be the same hit... (else it is the same 3D hit)
+                return left->getWireIDs()[m_view[2]] < right->getWireIDs()[m_view[2]];
+            }
+            
+            return left->getWireIDs()[m_view[1]] < right->getWireIDs()[m_view[1]];
+        }
+
+        // Order by primary view's wire number
+        return left->getWireIDs()[m_view[0]] < right->getWireIDs()[m_view[0]];
+    }
+    
+private:
+    const std::vector<size_t>& m_view;
+};
+    
+void MinSpanTreeAlg::CheckHitSorting(reco::ClusterParameters& clusterParams) const
+{
+    reco::HitPairListPtr& curCluster = clusterParams.getHitPairListPtr();
+    
+    // Trial A* here
+    if (curCluster.size() > 2)
+    {
+        // Do a quick PCA to determine our parameter "alpha"
+        reco::PrincipalComponents pca;
+        m_pcaAlg.PCAAnalysis_3D(curCluster, pca);
+        
+        if (pca.getSvdOK())
+        {
+            const std::vector<double>& pcaAxis  = pca.getEigenVectors()[0];
+            
+            std::vector<size_t> closestView = {0, 0, 0 };
+            std::vector<float>  bestAngle   = {0.,0.,0.};
+            
+            for(size_t view = 0; view < 3; view++)
+            {
+                const std::vector<float>& wireDir = m_wireDir[view];
+                
+                float dotProd = std::fabs(pcaAxis[0]*wireDir[0] + pcaAxis[1]*wireDir[1] + pcaAxis[2]*wireDir[2]);
+                
+                if (dotProd > bestAngle[0])
+                {
+                    bestAngle[2]   = bestAngle[1];
+                    closestView[2] = closestView[1];
+                    bestAngle[1]   = bestAngle[0];
+                    closestView[1] = closestView[0];
+                    closestView[0] = view;
+                    bestAngle[0]   = dotProd;
+                }
+                else if (dotProd > bestAngle[1])
+                {
+                    bestAngle[2]   = bestAngle[1];
+                    closestView[2] = closestView[1];
+                    closestView[1] = view;
+                    bestAngle[1]   = dotProd;
+                }
+                else
+                {
+                    closestView[2] = view;
+                    bestAngle[2]   = dotProd;
+                }
+            }
+            
+            // Get a copy of our 3D hits
+            reco::HitPairListPtr localHitList = curCluster;
+            
+            // Sort the hits
+            localHitList.sort(SetCheckHitOrder(closestView));
+            
+            // Ok, let's print it all and take a look
+            std::cout << "********************************************************************************************" << std::endl;
+            std::cout << "**>>>>> longest axis: " << closestView[0] << ", best angle: " << bestAngle[0] << std::endl;
+            std::cout << "**>>>>> second  axis: " << closestView[1] << ", best angle: " << bestAngle[1] << std::endl;
+            std::cout << " " << std::endl;
+            
+            reco::HitPairListPtr::iterator firstHitItr = localHitList.begin();
+            reco::HitPairListPtr::iterator lastHitItr  = localHitList.begin();
+            
+            size_t bestView = closestView[0];
+            
+            reco::HitPairListPtr testList;
+            
+            while(firstHitItr != localHitList.end())
+            {
+                const reco::ClusterHit3D* currentHit = *firstHitItr;
+                
+                // Search for the last matching best view hit
+                while(lastHitItr != localHitList.end())
+                {
+                    // If a different wire on the best view then we're certainly done
+                    if (currentHit->getWireIDs()[bestView] != (*lastHitItr)->getWireIDs()[bestView]) break;
+                    
+                    // More subtle test to see if same wire but different hit (being careful of case of no hit)
+                    if (currentHit->getHits()[bestView] && (*lastHitItr)->getHits()[bestView] && currentHit->getHits()[bestView] != (*lastHitItr)->getHits()[bestView]) break;
+                    
+                    // Yet event more subtle test...
+                    if ((!(currentHit->getHits()[bestView]) && (*lastHitItr)->getHits()[bestView]) || (currentHit->getHits()[bestView] && !((*lastHitItr)->getHits()[bestView]))) break;
+                    
+                    // Not there yet...
+                    lastHitItr++;
+                }
+                
+                // How many hits in this chain?
+                size_t numHits(std::distance(firstHitItr,lastHitItr));
+                double minOverlapFraction(0.);
+                
+                if (numHits > 1)
+                {
+                    reco::HitPairListPtr::iterator bestMinOverlapItr = std::max_element(firstHitItr,lastHitItr,[](const auto& left, const auto& right){return left->getMinOverlapFraction() < right->getMinOverlapFraction();});
+                    
+                    minOverlapFraction = std::min(0.999*(*bestMinOverlapItr)->getMinOverlapFraction(),0.90);
+                }
+                
+                while(firstHitItr != lastHitItr)
+                {
+                    if (currentHit->getMinOverlapFraction() > minOverlapFraction) testList.push_back(currentHit); //currentHit->setStatusBit(reco::ClusterHit3D::SKELETONHIT);
+                    
+                    currentHit = *++firstHitItr;
+                }
+                
+                firstHitItr = lastHitItr;
+            }
+/*
+            for(const auto& hit : localHitList)
+            {
+                std::cout << "- wires: ";
+                
+                for(size_t idx = 0; idx < 3; idx++)
+                {
+                    float viewTime = -1.;
+                
+                    if (hit->getHits()[closestView[idx]]) viewTime = hit->getHits()[closestView[idx]]->getTimeTicks();
+                
+                    std::cout << closestView[idx] << ":" << hit->getWireIDs()[closestView[idx]].Wire << " - " << viewTime << ", ";
+                }
+                
+                bool isSkeleton = hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT;
+                
+                std::cout << "ave time: " << hit->getAvePeakTime() << ", min/max overlap: " << hit->getMinOverlapFraction() << "/" << hit->getMaxOverlapFraction() << ", tagged: " << isSkeleton << std::endl;
+                
+                if (isSkeleton) testList.push_back(hit);
+            }
+*/
+            curCluster = testList;
+        }
+    }
+    
+    return;
+}
+    
 void MinSpanTreeAlg::BuildClusterInfo(reco::ClusterParametersList& clusterParametersList) const
 {
     /**
@@ -1098,7 +1319,7 @@ void MinSpanTreeAlg::BuildClusterInfo(reco::ClusterParametersList& clusterParame
         }
         
         // Ok, spin through again to remove ambiguous hits
-        for(auto& clusterParams : clusterParametersList) PruneAmbiguousHits(clusterParams,hit2DToClusterMap);
+//        for(auto& clusterParams : clusterParametersList) PruneAmbiguousHits(clusterParams,hit2DToClusterMap);
         
         // What remains is an order set of clusters, largest first
         // Now go through and obtain cluster parameters
@@ -1148,6 +1369,7 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, H
     
     // A test of the emergency broadcast system...
 //    FindBestPathInCluster(clusterParams);
+    CheckHitSorting(clusterParams);
     
     // See if we can avoid duplicates by temporarily transferring to a set
     //std::set<const reco::ClusterHit2D*> hitSet;

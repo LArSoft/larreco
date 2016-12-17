@@ -432,7 +432,8 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
                                                             hit3D->getSigmaPeakTime(),
                                                             hit3D->getDocaToAxis(),
                                                             hit3D->getArclenToPoca(),
-                                                            hit3D->getOverlapFraction(),
+                                                            hit3D->getMaxOverlapFraction(),
+                                                            hit3D->getMinOverlapFraction(),
                                                             hit3D->getWireIDs(),
                                                             hit3D->getHits()));
             
