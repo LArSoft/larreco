@@ -125,7 +125,7 @@ namespace hit{
     size_t              fMaxMultiHit;              ///<maximum hits for multi fit
     int                 fAreaMethod;               ///<Type of area calculation
     std::vector<double> fAreaNorms;                ///<factors for converting area to same units as peak height
-    bool	            fTryNplus1Fits;            ///<whether we will (0) or won't (1) try n+1 fits
+    bool	            fTryNplus1Fits;            ///<whether we will (true) or won't (false) try n+1 fits
     double	            fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
     size_t              fNumBinsToAverage;         ///< If bin averaging for peak finding, number bins to average

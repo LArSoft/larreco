@@ -6061,6 +6061,11 @@ namespace tca {
         mf::LogWarning("TC")<<"MakeAllTrajClusters failed in SetEndPoints "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         continue;
       }
+      auto tHits = PutTrajHitsInVector(tj, kUsedHits);
+      if(tHits.empty()) {
+        mf::LogWarning("TC")<<"MakeAllTrajClusters: No hits found in trajectory "<<itj<<" so skip it";
+        continue;
+      } // error
       // count AlgMod bits
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) ++fAlgModCount[ib];
       ++clID;
@@ -6080,11 +6085,6 @@ namespace tca {
       cls.EndAng = tj.Pts[endPt1].Ang;
       cls.EndChg = tj.Pts[endPt1].Chg;
       cls.EndVtx = tj.VtxID[1]-1;
-      auto tHits = PutTrajHitsInVector(tj, kUsedHits);
-      if(tHits.empty()) {
-        mf::LogWarning("TC")<<"MakeAllTrajClusters: No hits found in trajectory "<<itj<<" so skip it";
-        continue;
-      } // error
       cls.tclhits = tHits;
       // Set the traj info
       tj.ClusterIndex = tjs.tcl.size();
@@ -6937,6 +6937,11 @@ namespace tca {
     for(iht = 0; iht < tjs.fHits.size(); ++iht) {
       if(tjs.inClus[iht] <= 0) continue;
       icl = tjs.inClus[iht] - 1;
+      if (icl >=tjs.tcl.size()){
+        mf::LogError("TC")<<"CHCA: icl = "<<icl<<" tjs.tcl.size() = "<<tjs.tcl.size();
+        fQuitAlg = true;
+        return;
+      }
       // see if the cluster is obsolete
       if(tjs.tcl[icl].ID < 0) {
         mf::LogError("TC")<<"CHCA: Hit "<<PrintHit(tjs.fHits[iht])<<" associated with an obsolete cluster tjs.tcl[icl].ID "<<tjs.tcl[icl].ID;

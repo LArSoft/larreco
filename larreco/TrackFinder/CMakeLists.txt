@@ -92,19 +92,6 @@ simple_plugin( Track3DKalmanSPS "module"
        )
 
 
-simple_plugin( DumpTracks "module"
-               lardataobj_RecoBase
-               ${ART_FRAMEWORK_CORE}
-               ${ART_FRAMEWORK_PRINCIPAL}
-               ${MF_MESSAGELOGGER}
-               ${MF_UTILITIES}
-               ${FHICLCPP}
-               ${CETLIB}
-               ${ROOT_BASIC_LIB_LIST}
-               
-        )
-
-
 install_headers()
 install_fhicl()
 install_source()
