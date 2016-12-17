@@ -258,18 +258,28 @@ class nnet::TrainingDataAlg : public nnet::DataProviderAlg
 {
 public:
 
+    enum EMask
+    {
+        kNone     = 0,
+        kPdgMask  = 0x00000FFF, // pdg code mask
+        kTypeMask = 0x0000F000, // track type mask
+        kVtxMask  = 0x0FFF0000  // vertex flags, still can use 0xFFFF0000 if more vtx types needed
+    };
+
+    enum ETrkType
+    {
+        kDelta  = 0x1000,      // delta electron
+        kMichel = 0x2000       // Michel electron
+    };
+
 	enum EVtxId
 	{
-		kNone  = 0,
 		kNuNC  = 0x0010000, kNuCC = 0x0020000,                      // nu interaction type
 		kNuE   = 0x0100000, kNuMu = 0x0200000, kNuTau = 0x0400000,  // nu flavor
 		kHadr  = 0x1000000,    // hadronic inelastic scattering
 		kPi0   = 0x2000000,    // pi0 produced in this vertex
 		kDecay = 0x4000000,    // point of particle decay
 		kConv  = 0x8000000,    // gamma conversion
-
-		kVtxMask = 0x0FFF0000, // vertex flags, still can use 0xFFFF0000 if more vtx types needed
-		kPdgMask = 0x0000FFFF  // pdg code mask (pdg is saved in the same int as vtx flags)
 	};
 
     struct Config : public nnet::DataProviderAlg::Config
@@ -335,6 +345,10 @@ private:
 		std::unordered_map< size_t, std::unordered_map< int, int > > & wireToDriftToVtxFlags,
 		const std::unordered_map< int, const simb::MCParticle* > & particleMap,
 		unsigned int view) const;
+
+    bool isMuonDecaying(
+        const simb::MCParticle & particle,
+        const std::unordered_map< int, const simb::MCParticle* > & particleMap) const;
 
 	std::vector< std::vector<float> > fWireDriftEdep;
 	std::vector< std::vector<int> > fWireDriftPdg;

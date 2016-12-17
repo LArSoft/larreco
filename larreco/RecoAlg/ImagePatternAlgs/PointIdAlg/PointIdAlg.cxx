@@ -235,15 +235,17 @@ bool nnet::DataProviderAlg::bufferPatch(size_t wire, float drift) const
 	int d0 = fCurrentScaledDrift - halfSizeD;
 	int d1 = fCurrentScaledDrift + halfSizeD;
 
+    int wsize = fWireDriftData.size();
 	for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch)
 	{
 		auto & dst = fWireDriftPatch[wpatch];
-		if ((w >= 0) && (w < (int)fWireDriftData.size()))
+		if ((w >= 0) && (w < wsize))
 		{
 			auto & src = fWireDriftData[w];
+			int dsize = src.size();
 			for (int d = d0, dpatch = 0; d < d1; ++d, ++dpatch)
 			{
-				if ((d >= 0) && (d < (int)src.size()))
+				if ((d >= 0) && (d < dsize))
 				{
 					dst[dpatch] = src[d];
 				}
@@ -649,6 +651,7 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 
 		int best_pdg = pdgs[i0] & nnet::TrainingDataAlg::kPdgMask;
 		int vtx_flags = pdgs[i0] & nnet::TrainingDataAlg::kVtxMask;
+		int type_flags = pdgs[i0] & nnet::TrainingDataAlg::kTypeMask;
 		float max_edep = edeps[i0];
 		for (size_t k = i0 + 1; k < i1; ++k)
 		{
@@ -658,11 +661,13 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 				max_edep = ek;
 				best_pdg = pdgs[k] & nnet::TrainingDataAlg::kPdgMask; // remember best matching pdg
 			}
+			type_flags |= pdgs[k] & nnet::TrainingDataAlg::kTypeMask; // accumulate track type flags
 			vtx_flags |= pdgs[k] & nnet::TrainingDataAlg::kVtxMask;   // accumulate all vtx flags
 		}
 
 		wEdep[i] = max_edep;
 
+        best_pdg |= type_flags;
 		if (fSaveVtxFlags) best_pdg |= vtx_flags;
 		wPdg[i] = best_pdg;
 	}
@@ -701,6 +706,32 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, 
 }
 // ------------------------------------------------------
 
+bool nnet::TrainingDataAlg::isMuonDecaying(const simb::MCParticle & particle,
+    const std::unordered_map< int, const simb::MCParticle* > & particleMap) const
+{
+    bool hasElectron = false, hasNuMu = false, hasNuE = false;
+
+    int pdg = abs(particle.PdgCode());
+	if ((pdg == 13) && (particle.EndProcess() == "FastScintillation")) // potential muon decay at rest
+	{
+		unsigned int nSec = particle.NumberDaughters();
+		for (size_t d = 0; d < nSec; ++d)
+		{
+			auto d_search = particleMap.find(particle.Daughter(d));
+			if (d_search != particleMap.end())
+			{
+				auto const & daughter = *((*d_search).second);
+				int d_pdg = abs(daughter.PdgCode());
+				if (d_pdg == 11) hasElectron = true;
+				else if (d_pdg == 14) hasNuMu = true;
+				else if (d_pdg == 12) hasNuE = true;
+			}
+		}
+	}
+
+	return (hasElectron && hasNuMu && hasNuE);
+}
+
 void nnet::TrainingDataAlg::collectVtxFlags(
 	std::unordered_map< size_t, std::unordered_map< int, int > > & wireToDriftToVtxFlags,
 	const std::unordered_map< int, const simb::MCParticle* > & particleMap,
@@ -729,26 +760,11 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 				break;
 
 			case 13:   // mu+/-
-				if ((particle.EndProcess() == "FastScintillation")) // potential decay at rest
-				{
-					unsigned int nSec = particle.NumberDaughters();
-					
-					for (size_t d = 0; d < nSec; ++d)
-					{
-						auto d_search = particleMap.find(particle.Daughter(d));
-						if (d_search != particleMap.end())
-						{
-							auto const & daughter = *((*d_search).second);
-							int d_pdg = abs(daughter.PdgCode());
-							if (d_pdg == 11)
-							{
-								//std::cout << "---> mu decay to electron" << std::endl;
-								flagsEnd = nnet::TrainingDataAlg::kDecay;
-								break;
-							}
-						}
-					}
-				}
+			    if (nnet::TrainingDataAlg::isMuonDecaying(particle, particleMap))
+			    {
+			        //std::cout << "---> mu decay to electron" << std::endl;
+			        flagsEnd = nnet::TrainingDataAlg::kDecay;
+			    }
 				break;
 
 			case 111:  // pi0
@@ -941,19 +957,49 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 				{
 					int pdg = 0;
 					int tid = energyDeposit.trackID;
-					if (tid < 0) { pdg = 11; tid = -tid; } // negative tid means it is EM activity
-
-					auto search = particleMap.find(tid);
-					if (search == particleMap.end())
+					if (tid < 0) // negative tid means it is EM activity, and -tid is the mother
 					{
-						mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
-						continue;
+					    pdg = 11; tid = -tid;
+					    
+						auto search = particleMap.find(tid);
+					    if (search == particleMap.end())
+					    {
+						    mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
+						    continue;
+					    }
+					    auto const & mother = *((*search).second); // mother particle of this EM
+    					int mPdg = abs(mother.PdgCode());
+                        if ((mPdg == 13) || (mPdg == 211) || (mPdg == 2212))
+                        {
+                            if (energyDeposit.numElectrons > 10) pdg |= nnet::TrainingDataAlg::kDelta; // tag delta ray
+                        }
+					}
+					else
+					{
+						auto search = particleMap.find(tid);
+					    if (search == particleMap.end())
+					    {
+						    mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
+						    continue;
+					    }
+					    auto const & particle = *((*search).second);
+					    pdg = abs(particle.PdgCode());
+
+                        if (pdg == 11) // electron, check if it is Michel
+                        {
+                            auto msearch = particleMap.find(particle.Mother());
+	    					if (msearch != particleMap.end())
+	    					{
+	    					    auto const & mother = *((*msearch).second);
+	    		                if (nnet::TrainingDataAlg::isMuonDecaying(mother, particleMap))
+	    		                {
+                			        pdg |= nnet::TrainingDataAlg::kMichel; // tag Michel
+	    		                }
+	    					}
+                        }
 					}
 
-					auto const & particle = *((*search).second);
-					if (!pdg) pdg = particle.PdgCode(); // not EM activity so read what PDG it is
-
-					trackToPDG[energyDeposit.trackID] = abs(pdg);
+					trackToPDG[energyDeposit.trackID] = pdg;
 
 					double energy = energyDeposit.numElectrons * electronsToGeV;
 					timeToTrackToCharge[time][energyDeposit.trackID] += energy;
@@ -962,6 +1008,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
       		} // loop over time slices
       	} // for each SimChannel
 
+        int type_pdg_mask = nnet::TrainingDataAlg::kTypeMask | nnet::TrainingDataAlg::kPdgMask;
 		for (auto const & ttc : timeToTrackToCharge)
 		{
 			float max_deposit = 0.0;
@@ -974,11 +1021,11 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					max_pdg = trackToPDG[tc.first];
 				}			
 			}
-			
+
 			if (ttc.first < (int)labels_deposit.size())
 			{
 				labels_deposit[ttc.first] = max_deposit;
-				labels_pdg[ttc.first]     = max_pdg & 0xFFFF;
+				labels_pdg[ttc.first]     = max_pdg & type_pdg_mask;
 			}
 		}
 
