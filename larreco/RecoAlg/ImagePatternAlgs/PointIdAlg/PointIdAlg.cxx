@@ -301,12 +301,30 @@ bool nnet::DataProviderAlg::isInsideFiducialRegion(unsigned int wire, float drif
 }
 // ------------------------------------------------------
 
+
+
+// ------------------------------------------------------
+// -------------------ModelInterface---------------------
+// ------------------------------------------------------
+
+std::string nnet::ModelInterface::findFile(const char* fileName) const
+{
+    std::string fname_out;
+    cet::search_path sp("FW_SEARCH_PATH");
+    if (!sp.find_file(fileName, fname_out))
+    {
+        throw art::Exception(art::errors::NotFound)
+            << "Could not find the model file " << fileName;
+    }
+    return fname_out;
+}
+
 // ------------------------------------------------------
 // -----------------MlpModelInterface--------------------
 // ------------------------------------------------------
 
 nnet::MlpModelInterface::MlpModelInterface(const char* xmlFileName) :
-	m(xmlFileName)
+	m(nnet::ModelInterface::findFile(xmlFileName).c_str())
 {
 	mf::LogInfo("MlpModelInterface") << "MLP model loaded.";
 }
@@ -359,7 +377,7 @@ float nnet::MlpModelInterface::GetOneOutput(int neuronIndex) const
 // ------------------------------------------------------
 
 nnet::KerasModelInterface::KerasModelInterface(const char* modelFileName) :
-	m(modelFileName)
+	m(nnet::ModelInterface::findFile(modelFileName).c_str())
 {
 	mf::LogInfo("KerasModelInterface") << "Keras model loaded.";
 }

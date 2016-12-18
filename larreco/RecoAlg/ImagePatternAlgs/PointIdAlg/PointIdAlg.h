@@ -168,7 +168,7 @@ public:
 protected:
 	ModelInterface(void) { }
 
-private:
+    std::string findFile(const char* fileName) const;
 };
 // ------------------------------------------------------
 
