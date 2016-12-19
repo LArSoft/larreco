@@ -329,9 +329,12 @@ namespace tca {
       TCHit localHit;
       localHit.StartTick = hit->StartTick();
       localHit.EndTick = hit->EndTick();
-      localHit.PeakTime = hit->PeakTime(); // This will be converted to Time later
-      localHit.PeakAmplitude = hit->PeakAmplitude(); // This will be converted to Time later
+      localHit.PeakTime = hit->PeakTime();
+      localHit.SigmaPeakTime = hit->SigmaPeakTime();
+      localHit.PeakAmplitude = hit->PeakAmplitude();
+      localHit.SigmaPeakAmp = hit->SigmaPeakAmplitude();
       localHit.Integral = hit->Integral();
+      localHit.SigmaIntegral = hit->SigmaIntegral();
       localHit.RMS = hit->RMS();
       localHit.GoodnessOfFit = hit->GoodnessOfFit();
       localHit.NDOF = hit->DegreesOfFreedom();
@@ -406,6 +409,7 @@ namespace tca {
       // No sense taking muon direction if delta ray tagging is disabled
       if(fDeltaRayTag[0] >= 0) TagMuonDirections(tjs, fMuonTag[3], debug.WorkID);
       if(fVertex3DChiCut > 0) Find3DVertices(tpcid);
+      // Match3D should be the last thing called for this tpcid
       Match3D(tpcid);
     } // tpcid
 
@@ -3676,21 +3680,6 @@ namespace tca {
       CompleteIncomplete3DVertices(tpcid);
     }
     
-    // update the 2D -> 3D vertex pointers
-    for(auto& vx2 : tjs.vtx) vx2.Ptr3D = -1;
-    for(unsigned short ivx3 = 0; ivx3 < tjs.vtx3.size(); ++ivx3) {
-      for(unsigned short ipl = 0; ipl < 3; ++ipl) {
-        if(tjs.vtx3[ivx3].Ptr2D[ipl] < 0) continue;
-        unsigned short ivx2 = tjs.vtx3[ivx3].Ptr2D[ipl];
-        tjs.vtx[ivx2].Ptr3D = ivx3;
-        // set the tj Match3D bit. ivx2 is the index of the 2D vertex
-        unsigned short vx2ID = ivx2 + 1;
-        for(auto& tj : tjs.allTraj) {
-          if(tj.VtxID[0] == vx2ID || tj.VtxID[1] == vx2ID) tj.AlgMod[kMatch3D] = true;
-        } // tj
-      } // ipl
-    } // vx3
-    
   } // Find3DVertices
   
   //////////////////////////////////////////
@@ -3803,9 +3792,9 @@ namespace tca {
                 ms.TjID[jpl] = tjs.fHits[jht].InTraj;
                 ms.TjID[kpl] = tjs.fHits[kht].InTraj;
                 ms.Count = 1;
-                ms.SeedHits[ipl] = iht;
-                ms.SeedHits[jpl] = jht;
-                ms.SeedHits[kpl] = kht;
+                ms.SeedHit[ipl] = iht;
+                ms.SeedHit[jpl] = jht;
+                ms.SeedHit[kpl] = kht;
                 tjs.matchVec.push_back(ms);
               } // not found in the list
             } // kht
@@ -3815,7 +3804,6 @@ namespace tca {
     } // iwire
     
     if(prt) mf::LogVerbatim("TC")<<"matchVec size "<<tjs.matchVec.size();
-    std::cout<<"matchVec size "<<tjs.matchVec.size()<<"\n";
     
     if(tjs.matchVec.empty()) return;
      
@@ -3833,32 +3821,56 @@ namespace tca {
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<" match "<<maxCnt<<" SeedHits";
-        unsigned int iht = tjs.matchVec[imax].SeedHits[0];
-        myprt<<" "<<PrintHit(tjs.fHits[iht]);
-        iht = tjs.matchVec[imax].SeedHits[1];
-        myprt<<" "<<PrintHit(tjs.fHits[iht]);
-        iht = tjs.matchVec[imax].SeedHits[2];
-        myprt<<" "<<PrintHit(tjs.fHits[iht]);
-      }
-      // declare a 3D match
-      if(!SetMatch(imax)) {
-        tjs.matchVec[imax].Count = 0;
-        continue;
-      }
+        for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+          unsigned int iht = tjs.matchVec[imax].SeedHit[ipl];
+          myprt<<" "<<PrintHit(tjs.fHits[iht]);
+        }
+      } // prt
       std::vector<unsigned short> mt(tjs.NumPlanes);
-      for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) mt[ipl] = tjs.matchVec[imax].TjID[ipl];
-      tjs.MatchedTjIDs.push_back(mt);
-      // rationalize the PDG codes for the TJs
+      // Set the AlgMod bit and rationalize the PDG codes for the TJs
       unsigned short pdgc = 0;
+      // Also check the consistency with a 3D vertex while we are here
+      short ptr3d0 = SHRT_MAX;
+      short ptr3d1 = SHRT_MAX;
+      bool badTjVtx = false;
       for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+        mt[ipl] = tjs.matchVec[imax].TjID[ipl];
         unsigned short itj = tjs.matchVec[imax].TjID[ipl] - 1;
-        if(tjs.allTraj[itj].PDGCode == 13) pdgc = 13;
+        Trajectory& tj = tjs.allTraj[itj];
+        tj.AlgMod[kMatch3D] = true;
+        if(tj.PDGCode == 13) pdgc = 13;
+        if(tj.VtxID[0] != SHRT_MAX) {
+          // tj has a 2D vtx at end 0
+          unsigned short ivx = tj.VtxID[0];
+          // see if the 2D vtx is matched to a 3D vtx
+          short ptr3d = tjs.vtx[ivx].Ptr3D;
+          if(ptr3d0 != SHRT_MAX) ptr3d0 = ptr3d;
+          if(ptr3d0 != SHRT_MAX && ptr3d0 != ptr3d) badTjVtx = true;
+        }
+        if(tj.VtxID[1] != SHRT_MAX) {
+          // tj has a 2D vtx at end 0
+          unsigned short ivx = tj.VtxID[1];
+          // see if the 2D vtx is matched to a 3D vtx
+          short ptr3d = tjs.vtx[ivx].Ptr3D;
+          if(ptr3d1 != SHRT_MAX) ptr3d1 = ptr3d;
+          if(ptr3d1 != SHRT_MAX && ptr3d1 != ptr3d) badTjVtx = true;
+        }
       } // ipl
+      if(badTjVtx) {
+        mf::LogWarning myprt("TC");
+        std::cout<<" Inconsistent trajectory - vertex match. TjID";
+        for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+          unsigned short itj = tjs.matchVec[imax].TjID[ipl] - 1;
+          Trajectory& tj = tjs.allTraj[itj];
+          std::cout<<" "<<tj.ID<<" VtxID "<<tj.VtxID[0]<<" "<<tj.VtxID[0]<<"\n";
+        }
+        std::cout<<"\n";
+      } // badTjVtx
+      tjs.MatchedTjIDs.push_back(mt);
       for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
         unsigned short itj = tjs.matchVec[imax].TjID[ipl] - 1;
         tjs.allTraj[itj].PDGCode = pdgc;
       }
-
       // clobber all matches that have these Tj IDs
       for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
         if(tjs.matchVec[indx].Count <= 0) continue;
@@ -3871,97 +3883,8 @@ namespace tca {
       } // indx
     } // !cnt.empty()
     
-    tjs.matchVec.clear();
-    
   } // Match3D
-  //////////////////////////////////////////
-  bool TrajClusterAlg::SetMatch(unsigned int indx)
-  {
-    if(indx > tjs.matchVec.size() - 1) return false;
-    
-    MatchStruct& ms = tjs.matchVec[indx];
 
-    // find the tj points which have the seed hits
-    std::vector<unsigned short> mpts(tjs.NumPlanes);
-    // the direction through the list of tj points in which we should step. The seed hits were defined to be the
-    // first occurrence of three hits with a X match. The hits have been sorted by increasing time (X) so the seed hits
-    // must be in trajectory points that are at small X.
-    std::vector<short> mdir(tjs.NumPlanes, 1);
-    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-      unsigned short itj = ms.TjID[ipl] - 1;
-      mpts[ipl] = USHRT_MAX;
-      Trajectory& tj = tjs.allTraj[itj];
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        for(auto& iht : tj.Pts[ipt].Hits) {
-          if(iht == ms.SeedHits[ipl]) {
-            mpts[ipl] = ipt;
-            break;
-          }
-        } // iht
-      } // ipt
-      if(mpts[ipl] == USHRT_MAX) return false;
-      if(mpts[ipl] > (tj.EndPt[0] + tj.EndPt[1])/2) mdir[ipl] = -1;
-      if(prt) mf::LogVerbatim("TC")<<" SetMatch start at "<<mpts[ipl]<<" "<<ipl<<":"<<PrintPos(tjs, tj.Pts[mpts[ipl]])<<" "<<mdir[ipl];
-    } // ipl
-    
-    // put a vertex at this point
-    Vtx3Store avx3;
-    unsigned short ipl = 0;
-    unsigned short itj = ms.TjID[ipl] - 1;
-    geo::PlaneID iplnID = DecodeCTP(tjs.allTraj[itj].CTP);
-    avx3.CStat = iplnID.Cryostat;
-    avx3.TPC = iplnID.TPC;
-    
-    TrajPoint& itp = tjs.allTraj[itj].Pts[mpts[ipl]];
-    avx3.X = detprop->ConvertTicksToX(itp.Pos[1]/tjs.UnitsPerTick, iplnID.Plane, iplnID.TPC, iplnID.Cryostat);
-    
-    // get the Y,Z position
-    unsigned int iwire = std::nearbyint(itp.Pos[0]);
-    
-    unsigned short jpl = 1;
-    unsigned short jtj = ms.TjID[jpl] - 1;
-    TrajPoint& jtp = tjs.allTraj[jtj].Pts[mpts[jpl]];
-    unsigned int jwire = std::nearbyint(jtp.Pos[0]);
-
-    double yp, zp;
-    geom->IntersectionPoint(iwire, jwire, ipl, jpl, iplnID.Cryostat, iplnID.TPC, yp, zp);
-    avx3.Y = yp;
-    avx3.Z = zp;
-    avx3.Wire = -1;
-    tjs.vtx3.push_back(avx3);
-    if(prt) mf::LogVerbatim("TC")<<" Vertex at "<<avx3.X<<" "<<avx3.Y<<" "<<avx3.Z;
-    unsigned short vx3Index = tjs.vtx3.size() - 1;
-    // make 2D vertices
-    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-      unsigned short itj = ms.TjID[ipl] - 1;
-      TrajPoint& tp = tjs.allTraj[itj].Pts[mpts[ipl]];
-      unsigned short end = 0;
-      if(mdir[ipl] < 0) end = 1;
-      // see if there is already a vertex at this end
-      if(tjs.allTraj[itj].VtxID[end] > 0) {
-        // make sure it doesn't already point to a 3D vertex
-        unsigned short ivx = tjs.allTraj[itj].VtxID[end] - 1;
-        if(tjs.vtx[ivx].Ptr3D != SHRT_MAX) {
-          if(prt) mf::LogVerbatim("TC")<<" 2D Vertex already has a 3D vertex associated with it ";
-          return false;
-        }
-        unsigned short vxID = tjs.allTraj[itj].VtxID[end];
-        tjs.vtx3[vx3Index].Ptr2D[ipl] = vxID - 1;
-      } else {
-        VtxStore avx;
-        avx.CTP = tp.CTP;
-        avx.Pos = tp.Pos;
-        avx.NTraj = 1;
-        avx.ID = tjs.vtx.size() + 1;
-        avx.Ptr3D = vx3Index;
-        tjs.vtx.push_back(avx);
-        tjs.allTraj[itj].VtxID[end] = avx.ID;
-        tjs.vtx3[vx3Index].Ptr2D[ipl] = avx.ID - 1;
-      }
-    } // ipl
-    return true;
-  } // SetMatch
-  
   //////////////////////////////////////////
   void TrajClusterAlg::CompleteIncomplete3DVerticesInGaps(const geo::TPCID& tpcid)
   {
@@ -4022,7 +3945,6 @@ namespace tca {
           // attach to the vertex
           tjs.allTraj[itj].VtxID[end] = aVtx.ID;
           tjs.allTraj[itj].AlgMod[kComp3DVxIG] = true;
-          tjs.allTraj[itj].AlgMod[kMatch3D] = true;
           ++aVtx.NTraj;
         } // end
       } // itj
@@ -4126,10 +4048,8 @@ namespace tca {
           } // !SplitAllTraj
         } // closePt is not near an end, so split the trajectory
         tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
-        tjs.allTraj[itj].AlgMod[kMatch3D] = true;
         itj = tjs.allTraj.size() - 1;
         tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
-        tjs.allTraj[itj].AlgMod[kMatch3D] = true;
       } // ii
       tjs.vtx.push_back(aVtx);
       unsigned short ivx = tjs.vtx.size() - 1;
@@ -6604,9 +6524,9 @@ namespace tca {
     
     unsigned short itj, endPt0, endPt1, ii;
     
-    // prepare to over write the list of 3D matched trajectory IDs with the indices of matched clusters
-    std::vector<std::vector<unsigned short>> MatchedClusters = tjs.MatchedTjIDs;
-    for(auto& vec : MatchedClusters) std::fill(vec.begin(), vec.end(), 0);
+    // Overwrite the MatchClusters vectors to ensure that it maps to MatchedTjIDs
+    tjs.MatchedClusters = tjs.MatchedTjIDs;
+    for(auto& vec : tjs.MatchedClusters) std::fill(vec.begin(), vec.end(), 0);
     
     // Make one cluster for each trajectory. The indexing of trajectory parents
     // should map directly to cluster parents
@@ -6617,11 +6537,6 @@ namespace tca {
       if(tj.StepDir > 0) ReverseTraj(tjs, tj);
       // ensure that the endPts are correct
       SetEndPoints(tjs, tj);
-      // some sort of error occurred
-      if(tj.EndPt[0] >= tj.EndPt[1]) {
-        mf::LogWarning("TC")<<"MakeAllTrajClusters failed in SetEndPoints "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
-        continue;
-      }
       auto tHits = PutTrajHitsInVector(tj, kUsedHits);
       if(tHits.empty()) {
         mf::LogWarning("TC")<<"MakeAllTrajClusters: No hits found in trajectory "<<itj<<" so skip it";
@@ -6629,6 +6544,37 @@ namespace tca {
       } // error
       // count AlgMod bits
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) ++fAlgModCount[ib];
+      // decide whether the hits should be reversed if they were matched in 3D
+      if(tj.AlgMod[kMatch3D]) {
+        // find this tj in the matchVec
+        bool gotit = false;
+        unsigned short indx = USHRT_MAX;
+        for(unsigned short im = 0; im < tjs.matchVec.size(); ++im) {
+          for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+            if(tj.ID == tjs.matchVec[im].TjID[ipl]) {
+              unsigned int shit = tjs.matchVec[im].SeedHit[ipl];
+              for(unsigned short ii = 0; ii < tHits.size(); ++ii) {
+                if(tHits[ii] == shit) {
+                  indx = ii;
+                  gotit = true;
+                  break;
+                }
+              } // ii
+            } // tj.ID == tjs.matchVec[im].TjID[ipl]
+            if(gotit) break;
+          } // ipl
+          if(gotit) break;
+        } // im
+        if(gotit) {
+          // decide whether to reverse. This will put all hits in the same order for downstream modules
+          if(indx > tHits.size() / 2) {
+            ReverseTraj(tjs, tj);
+            std::reverse(tHits.begin(), tHits.end());
+          }
+        } else {
+          mf::LogWarning("TC")<<"MakeAllTrajClusters failed to find 3D Matched tj in matchVec "<<tj.ID;
+        }
+      } // match3D
       ++clID;
       cls.ID = clID;
       cls.CTP = tj.CTP;
@@ -6649,13 +6595,15 @@ namespace tca {
       cls.tclhits = tHits;
       // Set the traj info
       tj.ClusterIndex = tjs.tcl.size();
+      tjs.tcl.push_back(cls);
+      unsigned short clsIndex = tjs.tcl.size() - 1;
       // look for this Tj ID in the 3D match list
       geo::PlaneID planeID = DecodeCTP(cls.CTP);
       unsigned short ipl = planeID.Plane;
       for(unsigned short im = 0; im < tjs.MatchedTjIDs.size(); ++im) {
-        if(tj.ID == tjs.MatchedTjIDs[im][ipl]) MatchedClusters[im][ipl] = clID - 1;
+        if(tj.ID == tjs.MatchedTjIDs[im][ipl]) tjs.MatchedClusters[im][ipl] = clsIndex;
       } // im
-      tjs.tcl.push_back(cls);
+//      std::cout<<" TJ ID "<<tj.ID<<" cls index "<<clsIndex<<" nHits "<<cls.tclhits.size()<<"\n";
       // do some checking and define tjs.inClus
       for(ii = 0; ii < cls.tclhits.size(); ++ii) {
         iht = cls.tclhits[ii];
@@ -6674,8 +6622,6 @@ namespace tca {
         tjs.inClus[iht] = clID;
       } //iht
     } // itj
-    
-    tjs.MatchedTjIDs = MatchedClusters;
 
   } // MakeAllTrajClusters
   
@@ -6986,10 +6932,10 @@ namespace tca {
       raw::ChannelID_t channel = geom->PlaneWireToChannel((int)tcHit.WireID.Plane, (int)tcHit.WireID.Wire, (int)tcHit.WireID.TPC, (int)tcHit.WireID.Cryostat);
       tmp.emplace_back(channel,
                        tcHit.StartTick, tcHit.EndTick,
-                       tcHit.PeakTime, 0,
+                       tcHit.PeakTime, tcHit.SigmaPeakTime,
                        tcHit.RMS,
-                       tcHit.PeakAmplitude, 0,
-                       tcHit.Integral, tcHit.Integral, 0,
+                       tcHit.PeakAmplitude, tcHit.SigmaPeakAmp,
+                       tcHit.Integral, tcHit.Integral, tcHit.SigmaIntegral,
                        tcHit.Multiplicity, tcHit.LocalIndex,
                        tcHit.GoodnessOfFit, tcHit.NDOF,
                        geom->View(channel),
@@ -7300,6 +7246,10 @@ namespace tca {
         raw::TDCtick_t hiTick = 0;
         float mChg = 0;
         float mTick = 0;
+        // estimate the uncertainties
+        float mSigmaPeakAmp = 0;
+        float mSigmaPeakTime = 0;
+        float mSigmaIntegral = 0;
         for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
           if(!tp.UseHit[ii]) continue;
           unsigned int iht = tp.Hits[ii];
@@ -7308,9 +7258,15 @@ namespace tca {
           if(tjs.fHits[iht].EndTick > hiTick) hiTick = tjs.fHits[iht].EndTick;
           mChg += tjs.fHits[iht].Integral;
           mTick += tjs.fHits[iht].Integral * tjs.fHits[iht].PeakTime;
+          mSigmaPeakAmp += tjs.fHits[iht].Integral * tjs.fHits[iht].SigmaPeakAmp;
+          mSigmaPeakTime += tjs.fHits[iht].Integral * tjs.fHits[iht].SigmaPeakTime;
+          mSigmaIntegral += tjs.fHits[iht].Integral * tjs.fHits[iht].SigmaIntegral;
         } // ii
         mTick /= mChg;
         if(mTick < 0) mTick = 0;
+        mSigmaPeakAmp /= mChg;
+        mSigmaPeakTime /= mChg;
+        mSigmaIntegral /= mChg;
         // make a temporary signal waveform vector
         std::vector<float> signal(hiTick - loTick, 0);
         // fill it with the hit shapes
@@ -7343,8 +7299,11 @@ namespace tca {
         // Modify the first hit in the list
         unsigned int mht = oldHits[0];
         tjs.fHits[mht].PeakTime = mTick;
+        tjs.fHits[mht].SigmaPeakTime = mSigmaPeakTime;
         tjs.fHits[mht].PeakAmplitude = mChg / (2.5066 * mRMS);
+        tjs.fHits[mht].SigmaPeakAmp = mSigmaPeakAmp;
         tjs.fHits[mht].Integral = mChg;
+        tjs.fHits[mht].SigmaIntegral = mSigmaIntegral;
         tjs.fHits[mht].RMS = mRMS;
         tjs.fHits[mht].Multiplicity = 1;
         tjs.fHits[mht].LocalIndex = 0;
