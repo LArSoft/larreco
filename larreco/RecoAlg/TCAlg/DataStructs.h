@@ -141,8 +141,11 @@ namespace tca {
     raw::TDCtick_t StartTick {0};
     raw::TDCtick_t EndTick {0};
     float PeakTime {0};     ///< Note that this the time in WSE units - NOT ticks
+    float SigmaPeakTime {1};
     float PeakAmplitude {1};
+    float SigmaPeakAmp {1};
     float Integral {1};
+    float SigmaIntegral {1};
     float RMS {1};
     float GoodnessOfFit {0};
     unsigned short NDOF {0};
@@ -156,7 +159,7 @@ namespace tca {
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::array<unsigned short, 3> TjID;
-    std::array<unsigned int, 3> SeedHits;
+    std::array<unsigned int, 3> SeedHit;
     // Count of the number of time-matched hits
     int Count;
   };
@@ -235,6 +238,7 @@ namespace tca {
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
     std::vector<std::vector<unsigned short>> MatchedTjIDs;
+    std::vector<std::vector<unsigned short>> MatchedClusters;
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
     unsigned short NumPlanes;
     float YLo; // fiducial volume of the current tpc
