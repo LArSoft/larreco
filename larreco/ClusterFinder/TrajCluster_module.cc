@@ -285,40 +285,19 @@ namespace cluster {
           ++vtxIndex;
         } // 3D vertices
       } // clstr.BeginVtx >= 0
-/*
-      // make PFParticles with ID = cluster ID, parent index = 0, no daughters
-      // There is one PFParticle for each cluster
-      size_t parent = clstr.ParentCluster;
-      if(parent == USHRT_MAX) parent = recob::PFParticle::kPFParticlePrimary;
-      dtrIndices.clear();
-      for(unsigned short jcl = 0; jcl < Clusters.size(); ++jcl)
-        if(Clusters[jcl].ParentCluster == icl) dtrIndices.push_back(jcl);
-      spcol.emplace_back((int)clstr.PDGCode, icl, parent, dtrIndices);
-      // cluster - PFParticle association
-      size_t cEnd = sccol.size();
-      size_t cStart = cEnd - 1;
-      if(!util::CreateAssn(*this, evt, sccol, spcol, *cp_assn, cStart, cEnd, sccol.size()-1))
-      {
-        throw art::Exception(art::errors::InsertFailure)
-        <<"Failed to associate cluster ID "<<clsID<<" with PFParticle";
-      } // exception
-*/
     } // icl
     
     // Get the lists of clusters that are matched between planes
     std::vector<std::vector<unsigned short>> matchedClusters = fTCAlg->Get3DMatchedClusters();
-    std::cout<<"matchedClusters size "<<matchedClusters.size()<<"\n";
     // ignore any daughters declared by TrajClusterAlg
     dtrIndices.clear();
     size_t parent = recob::PFParticle::kPFParticlePrimary;
     for(size_t im = 0; im < matchedClusters.size(); ++im) {
-      std::cout<<" "<<matchedClusters[im][0]<<" "<<matchedClusters[im][1]<<" "<<matchedClusters[im][2]<<"\n";
-      // get the index of one of the clusters
+       // get the index of one of the clusters
       unsigned short icl = matchedClusters[im][0];
       tca::ClusterStore const& clstr = Clusters[icl];
       // so that we can get the PDG code
       spcol.emplace_back((int)clstr.PDGCode, icl, parent, dtrIndices);
-//    if(!util::CreateAssn(*this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end()))
       if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, matchedClusters[im].begin(), matchedClusters[im].end()))
       {
         throw art::Exception(art::errors::InsertFailure)<<"Failed to associate cluster ID "<<clsID<<" with PFParticle";
