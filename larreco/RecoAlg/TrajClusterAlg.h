@@ -82,7 +82,7 @@ namespace tca {
     std::vector<Vtx3Store> const& GetVertices() const { return tjs.vtx3; }
     
     /// Returns a constant reference to the 3D vertices found
-    std::vector<std::vector<unsigned short>> const& Get3DMatchedClusters() const { return tjs.MatchedTjIDs; }
+    std::vector<std::vector<unsigned short>> const& Get3DMatchedClusters() const { return tjs.MatchedClusters; }
     
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
@@ -353,7 +353,6 @@ namespace tca {
     void CompleteIncomplete3DVerticesInGaps(const geo::TPCID& tpcid);
     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
-    bool SetMatch(unsigned int indx);
     
   }; // class TrajClusterAlg
 
