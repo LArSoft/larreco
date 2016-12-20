@@ -60,7 +60,7 @@ namespace tca {
     unsigned short NTraj {0};  // = 0 for abandoned vertices
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
-    short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
+    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
     unsigned short ID {0};
     short Ptr3D {SHRT_MAX};
@@ -154,16 +154,16 @@ namespace tca {
     geo::WireID WireID;
     short InTraj {0};
   };
-  
+
   // Struct for 3D trajectory matching
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
-    std::array<unsigned short, 3> TjID;
-    std::array<unsigned int, 3> SeedHit;
+    std::vector<unsigned short> TjIDs;
+    std::vector<unsigned int> SeedHit;
     // Count of the number of time-matched hits
     int Count;
   };
-  
+
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
@@ -237,9 +237,9 @@ namespace tca {
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
+    std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<std::vector<unsigned short>> MatchedTjIDs;
     std::vector<std::vector<unsigned short>> MatchedClusters;
-    std::vector<MatchStruct> matchVec; ///< 3D matching vector
     unsigned short NumPlanes;
     float YLo; // fiducial volume of the current tpc
     float YHi;
