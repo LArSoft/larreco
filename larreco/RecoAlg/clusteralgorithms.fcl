@@ -31,7 +31,7 @@ standard_trajclusteralg:
    Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6]
    # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr, Min MCSMom, min frac Pts/Wire btw vtx and Tjs
    Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
-   Match3DCuts: [ 1, 0 ] # dx (cm) matching cut, min MCSMom
+   Match3DCuts: [ 0.5, 0, 3 ] # dx (cm) matching cut, min MCSMom, min length for 2-view match
    SkipAlgs: [  "MBadTPs", "ChkAllStop", "ChkStop", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs
    StudyMode: false         # Set true to generate histograms (commented out)
