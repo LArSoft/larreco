@@ -353,6 +353,7 @@ namespace tca {
     void CompleteIncomplete3DVerticesInGaps(const geo::TPCID& tpcid);
     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
+    void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
     
   }; // class TrajClusterAlg
 
