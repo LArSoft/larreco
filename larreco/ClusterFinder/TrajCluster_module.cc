@@ -295,6 +295,7 @@ namespace cluster {
     for(size_t im = 0; im < matchedClusters.size(); ++im) {
        // get the index of one of the clusters
       unsigned short icl = matchedClusters[im][0];
+      if(icl == USHRT_MAX) continue;
       tca::ClusterStore const& clstr = Clusters[icl];
       // so that we can get the PDG code
       spcol.emplace_back((int)clstr.PDGCode, icl, parent, dtrIndices);
