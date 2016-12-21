@@ -144,7 +144,7 @@ namespace tca {
     fVertex2DCuts         = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1, -1});
     fVertex3DChiCut       = pset.get< float >("Vertex3DChiCut", -1);
     fMaxVertexTrajSep     = pset.get< std::vector<float>>("MaxVertexTrajSep");
-    fMatch3DCuts          = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1});
+    fMatch3DCuts          = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1});
     
     debug.Plane           = pset.get< int >("DebugPlane", -1);
     debug.Wire            = pset.get< int >("DebugWire", -1);
@@ -171,7 +171,7 @@ namespace tca {
     if(fDeltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
     if(fChkStopCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut";
     if(fShowerTag.size() != 3) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 3";
-    if(fMatch3DCuts.size() != 3) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = MinMCSMom\n 2 = Min length for 2-view match";
+    if(fMatch3DCuts.size() != 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = MinMCSMom\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?";
     
     // check the angle ranges and convert from degrees to radians
     if(fAngleRanges.back() < 90) {
@@ -3873,13 +3873,12 @@ namespace tca {
       } // ipl
       if(badTjVtx) {
         mf::LogWarning myprt("TC");
-        std::cout<<" Inconsistent trajectory - vertex match. TjID";
+        myprt<<" Inconsistent trajectory - vertex match. TjID\n";
         for(unsigned short ipl = 0; ipl < tjs.matchVec[indx].TjIDs.size(); ++ipl) {
           unsigned short itj = tjs.matchVec[indx].TjIDs[ipl] - 1;
           Trajectory& tj = tjs.allTraj[itj];
-          std::cout<<" "<<tj.ID<<" VtxID "<<tj.VtxID[0]<<" "<<tj.VtxID[0]<<"\n";
+          myprt<<" "<<tj.ID<<" VtxID "<<tj.VtxID[0]<<" "<<tj.VtxID[0]<<"\n";
         }
-        std::cout<<"\n";
       } // badTjVtx
       for(unsigned short ipl = 0; ipl < tjs.matchVec[indx].TjIDs.size(); ++ipl) {
         unsigned short itj = tjs.matchVec[indx].TjIDs[ipl] - 1;
@@ -3908,7 +3907,7 @@ namespace tca {
         } // jpl
         // Look for a 2-plane match
         if(nmTj == 2 && mID != USHRT_MAX) {
-          if(prt) mf::LogVerbatim("TC")<<"  Two plane match. Missing trajectory ID "<<mID;
+          if(prt) mf::LogVerbatim("TC")<<"  Found broken tj. Adding missed trajectory ID "<<mID<<" to 3D match";
           Trajectory& mtj = tjs.allTraj[mID - 1];
           mtj.AlgMod[kMatch3D] = true;
           mtids.push_back(mID);
@@ -3919,9 +3918,11 @@ namespace tca {
 
     // clobber vertices between tjs that will be merged
     for(unsigned short im = 0; im < tjs.MatchedTjIDs.size(); ++im) {
+/*
       std::cout<<"vtx chk "<<im;
       for(auto& ii : tjs.MatchedTjIDs[im]) std::cout<<" "<<ii;
       std::cout<<"\n";
+*/
       for(unsigned short ii = 0; ii < tjs.MatchedTjIDs[im].size() - 1; ++ii) {
         unsigned short itj = tjs.MatchedTjIDs[im][ii] - 1;
         Trajectory& iTJ = tjs.allTraj[itj];
@@ -3933,7 +3934,11 @@ namespace tca {
             return;
           } // bad ivx
           if(tjs.vtx[ivx].NTraj != 2) continue;
-          mf::LogVerbatim("TC")<<" Checking VtxID "<<iTJ.VtxID[iend]<<" in TjID "<<iTJ.ID;
+          if(tjs.vtx[ivx].Ptr3D != SHRT_MAX) {
+            mf::LogWarning("TC")<<"Match3D trying to clobber 2D vtx "<<iTJ.VtxID[iend]<<" that is matched to 3D vtx "<<tjs.vtx[ivx].Ptr3D<<" skipping the clobber";
+            continue;
+          }
+//          if(prt) mf::LogVerbatim("TC")<<" Checking VtxID "<<iTJ.VtxID[iend]<<" in TjID "<<iTJ.ID;
           // look for this vtx in mtids tjs
           for(unsigned short jj = ii + 1; jj < tjs.MatchedTjIDs[im].size(); ++jj) {
             unsigned short jtj = tjs.MatchedTjIDs[im][jj] - 1;
@@ -3980,6 +3985,9 @@ namespace tca {
     
     unsigned short minTjLen = fMatch3DCuts[2];
     
+    // Three plane TPC - require a 2-plane match reside in a dead region of the 3rd plane?
+    bool require3rdPlnDeadRegion = (tjs.NumPlanes == 3 && fMatch3DCuts[3] > 0);
+    
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes - 1; ++ipl) {
       for(unsigned int iwire = tjs.FirstWire[ipl]; iwire < tjs.LastWire[ipl]; ++iwire) {
         if(tjs.WireHitRange[ipl][iwire].first < 0) continue;
@@ -3990,6 +3998,15 @@ namespace tca {
             geom->IntersectionPoint(iwire, jwire, ipl, jpl, tpcid.Cryostat, tpcid.TPC, yp, zp);
             // ensure this is inside the TPC
             if(yp < tjs.YLo || yp > tjs.YHi || zp < tjs.ZLo || zp > tjs.ZHi) continue;
+            if(require3rdPlnDeadRegion) {
+              unsigned short kpl = 3 - ipl - jpl;
+              float fkwire = geom->WireCoordinate(yp, zp, kpl, tpcid.TPC, tpcid.Cryostat);
+              if(fkwire < 0 || fkwire > tjs.MaxPos0[kpl]) continue;
+              unsigned int kwire = std::nearbyint(fkwire);
+              unsigned int lastWire = tjs.LastWire[2] - 1;
+              if(kwire > lastWire) continue;
+              if(tjs.WireHitRange[kpl][kwire].first == -1) continue;
+            }
             // Have intersecting wire matches. Now look for time matches
             unsigned int ifirsthit = (unsigned int)tjs.WireHitRange[ipl][iwire].first;
             unsigned int ilasthit = (unsigned int)tjs.WireHitRange[ipl][iwire].second;
@@ -4045,7 +4062,7 @@ namespace tca {
     } // ipl
     
     if(tjs.matchVec.size() == nTriple) {
-      if(prt) mf::LogVerbatim("TC")<<"Match3D2Views: no matches found";
+      if(prt) mf::LogVerbatim("TC")<<"Match3D2Views: no 2-view matches found";
       return;
     }
     
@@ -4267,7 +4284,6 @@ namespace tca {
       tjs.vtx.push_back(aVtx);
       unsigned short ivx = tjs.vtx.size() - 1;
       tjs.vtx[ivx].ID = ivx + 1;
-//      std::cout<<"CIC new vtx "<<tjs.vtx[ivx].ID<<"\n";
       vx3.Ptr2D[mPlane] = aVtxIndx;
       vx3.Wire = -1;
       if(vtxPrt) mf::LogVerbatim("TC")<<"CI3DV: new 2D vtx ID "<<tjs.vtx[ivx].ID<<" at "<<(int)aVtx.Pos[0]<<":"<<(int)aVtx.Pos[1]/tjs.UnitsPerTick<<" points to 3D tjs.vtx ";
