@@ -88,17 +88,10 @@ namespace trkf {
     // all data products are assumed to be produced by the same module that produced the PFParticles -> TrajCluster_module
     art::InputTag DataInputTag(fPFPModuleLabel);
     art::ValidHandle<std::vector<recob::PFParticle>> pfpHandle = evt.getValidHandle<std::vector<recob::PFParticle>>(DataInputTag);
-    std::cout<<"pfpHandle size "<<pfpHandle->size()<<"\n";
-    if(pfpHandle->size() == 0) return;
 
     art::ValidHandle<std::vector<recob::Cluster>> clsHandle = evt.getValidHandle<std::vector<recob::Cluster>>(DataInputTag);
-    std::cout<<"clsHandle size "<<clsHandle->size()<<"\n";
-    if(clsHandle->size() == 0) return;
     
-//    art::InputTag HitInputTag(fHitModuleLabel);
     art::ValidHandle<std::vector<recob::Hit>> hitHandle = evt.getValidHandle<std::vector<recob::Hit>>(DataInputTag);
-    std::cout<<fHitModuleLabel<<" hitHandle size "<<hitHandle->size()<<"\n";
-    if(hitHandle->size() == 0) return;
 
     art::FindManyP<recob::Cluster> pfp_cls(pfpHandle, evt, fPFPModuleLabel);
     art::FindManyP<recob::Hit> cls_hit(clsHandle, evt, fPFPModuleLabel);
@@ -125,6 +118,7 @@ namespace trkf {
       std::vector<recob::SpacePoint> new_spts;
       fSptalg.makeSpacePoints(hits, new_spts);
       if(new_spts.empty()) continue;
+/*
       if(ipfp == 0) {
         std::cout<<"new_spts size "<<new_spts.size()<<"\n";
         for(auto& spt : new_spts) {
@@ -132,6 +126,7 @@ namespace trkf {
         } // spt
         std::cout<<"\n";
       } // ipfp == 0
+*/
       int nspt = spts->size();
       spts->insert(spts->end(), new_spts.begin(), new_spts.end());
       // associate the hits with the spacepoints
