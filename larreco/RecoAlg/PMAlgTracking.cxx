@@ -275,7 +275,12 @@ void pma::PMAlgFitter::buildTracks(void)
 			    candidate.Track()->HasTwoViews() &&
 			    (candidate.Track()->Nodes().size() > 1))
 			{
-	   			fResult.push_back(candidate);
+			    if (!std::isnan(candidate.Track()->Length())) { fResult.push_back(candidate); }
+			    else
+			    {
+			        mf::LogError("PMAlgFitter") << "Trajectory fit lenght is nan.";
+				    candidate.DeleteTrack();
+			    }
 			}
 			else
 			{
@@ -326,9 +331,11 @@ void pma::PMAlgFitter::buildShowers(void)
 			if (search != fPfpVtx.end())
 			{
 				candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, search->second));
+
 				if (candidate.IsValid()
-						&& candidate.Track()->HasTwoViews() 
-						&& (candidate.Track()->Nodes().size() > 1)) 
+						&& candidate.Track()->HasTwoViews()
+						&& (candidate.Track()->Nodes().size() > 1)
+						&& !std::isnan(candidate.Track()->Length()))
 				{
 					fResult.push_back(candidate);
 				}

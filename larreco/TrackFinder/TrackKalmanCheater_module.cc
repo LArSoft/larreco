@@ -443,12 +443,13 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
     // Add Track object to collection.
 
     tracks->push_back(recob::Track());
-    kalman_track.fillTrack(tracks->back(), tracks->size() - 1, true);
+    kalman_track.fillTrack(tracks->back(), tracks->size() - 1);
 
     // Make Track to Hit associations.  
 
     art::PtrVector<recob::Hit> trhits;
-    kalman_track.fillHits(hits);
+    std::vector<unsigned int> hittpindex;
+    kalman_track.fillHits(hits, hittpindex);
     util::CreateAssn(*this, evt, *tracks, trhits, *th_assn, tracks->size()-1);
 
     // Make space points from this track.

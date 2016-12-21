@@ -321,7 +321,8 @@ void trkf::Track3DKalmanHitAlg::filterHitsOnKalmanTrack(const KGTrack& trg,
                                                         Hits& hits,
                                                         Hits& seederhits) const{
    Hits track_used_hits;
-   trg.fillHits(track_used_hits);
+   std::vector<unsigned int> hittpindex;
+   trg.fillHits(track_used_hits, hittpindex);
    filterHits(hits, track_used_hits);
    filterHits(seederhits, track_used_hits);
 }
@@ -444,7 +445,8 @@ bool trkf::Track3DKalmanHitAlg::extendandsmoothLoop(KGTrack &trg1,
       // Fill a collection of hits from the last good track
       // (initially the seed track).
       Hits goodhits;
-      trg1.fillHits(goodhits);
+      std::vector<unsigned int> hittpindex;
+      trg1.fillHits(goodhits, hittpindex);
       
       // Filter hits already on the track out of the available hits.
       filterHits(trackhits, goodhits);

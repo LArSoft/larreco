@@ -43,7 +43,7 @@ simple_plugin( Track3DKalman "module"
 			 larreco_Calorimetry
 			 lardataobj_AnalysisBase
 			 lardata_Utilities
-			 larsim_RandomUtils_LArSeedService_service
+			 nutools_RandomUtils_NuRandomService_service
 			 nutools_MagneticField_MagneticField_service
 			 nusimdata_SimulationBase
 			 ${ART_FRAMEWORK_CORE}
@@ -90,19 +90,6 @@ simple_plugin( Track3DKalmanSPS "module"
 			 ${CETLIB}
  	   
        )
-
-
-simple_plugin( DumpTracks "module"
-               lardataobj_RecoBase
-               ${ART_FRAMEWORK_CORE}
-               ${ART_FRAMEWORK_PRINCIPAL}
-               ${MF_MESSAGELOGGER}
-               ${MF_UTILITIES}
-               ${FHICLCPP}
-               ${CETLIB}
-               ${ROOT_BASIC_LIB_LIST}
-               
-        )
 
 
 install_headers()

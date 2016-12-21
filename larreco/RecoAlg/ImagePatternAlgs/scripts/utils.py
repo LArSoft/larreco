@@ -40,9 +40,9 @@ def get_data(fname, drift_margin = 0, crop = True):
     A_pdg[deposit_th_ind] = 0
     tracks = A_pdg.copy()
     showers = A_pdg.copy()
-    tracks[(A_pdg & 0xFFFF) == 11] = 0
+    tracks[(A_pdg & 0x0FFF) == 11] = 0
     tracks[tracks > 0]   = 1
-    showers[(A_pdg & 0xFFFF) != 11] = 0
+    showers[(A_pdg & 0x0FFF) != 11] = 0
     showers[showers > 0] = 1
     return A_raw, A_deposit, A_pdg, tracks, showers
 

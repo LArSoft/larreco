@@ -90,8 +90,6 @@ namespace trkf {
     art::ValidHandle<std::vector<recob::PFParticle>> pfpHandle = evt.getValidHandle<std::vector<recob::PFParticle>>(DataInputTag);
 
     art::ValidHandle<std::vector<recob::Cluster>> clsHandle = evt.getValidHandle<std::vector<recob::Cluster>>(DataInputTag);
-    
-    art::ValidHandle<std::vector<recob::Hit>> hitHandle = evt.getValidHandle<std::vector<recob::Hit>>(DataInputTag);
 
     art::FindManyP<recob::Cluster> pfp_cls(pfpHandle, evt, fPFPModuleLabel);
     art::FindManyP<recob::Hit> cls_hit(clsHandle, evt, fPFPModuleLabel);
