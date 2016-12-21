@@ -1045,7 +1045,8 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
             // of a standard medial skeleton procedure to get the 3D hits we want
             // But note that even this is hopeless in the worst case and, in fact, it can be a time waster
             // So bypass when you recognize that condition
-/*            if (!aParallelHitsCluster(fullPCA))
+/*
+            if (!aParallelHitsCluster(fullPCA))
             {
                 int nSkeletonPoints = m_skeletonAlg.FindMedialSkeleton(clusterParameters.getHitPairListPtr());
             
@@ -1075,7 +1076,8 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                     splitClustersWithHough(clusterParameters, clusterParametersList);
                 }
             }
-*/
+ */
+
             // Start loop over views to build out the hit lists and the 2D cluster objects
             for(reco::ViewToClusterParamsMap::const_iterator viewItr = clusterParameters.getClusterParams().begin(); viewItr != clusterParameters.getClusterParams().end(); viewItr++)
             {
@@ -1098,7 +1100,6 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
 //                std::sort(recobHits.begin(), recobHits.end());
                 
                 // Get the tdc/wire slope... from the unit vector...
-//                double dTdW(0.);
                 double startWire(clusParams.m_startWire);
                 double endWire(clusParams.m_endWire);
                 double startTime(clusParams.m_startTime);
@@ -1169,6 +1170,10 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                 else if ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -3.;  // skeleton and edge point
 
                 if      (hitPair->bitsAreSet(reco::ClusterHit3D::SEEDHIT)                                                          ) chisq = -4.;  // Seed point
+                
+                // "hide" the minimum overlap fraction in here too
+                if (chisq > 0.) chisq += 0.999 * hitPair->getMinOverlapFraction();
+                else            chisq -= 0.999 * hitPair->getMinOverlapFraction();
                 
                 if ((hitPair->getStatusBits() & 0x7) != 0x7) chisq = -10.;
                 

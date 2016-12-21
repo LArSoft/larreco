@@ -389,11 +389,12 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParam
         
         if (pca.getSvdOK())
         {
-            const std::vector<double>& pcaAxis  = pca.getEigenVectors()[0];
-            double                     pcaLen   = 1.5*sqrt(pca.getEigenValues()[0]);
-            double                     pcaWidth = 1.5*sqrt(pca.getEigenValues()[1]);
-            const double*              pcaPos   = pca.getAvePosition();
-            double                     alpha    = std::min(1.,std::max(0.001,pcaWidth/pcaLen));
+            const std::vector<double>& pcaAxis   = pca.getEigenVectors()[0];
+            double                     pcaLen    = 1.5*sqrt(pca.getEigenValues()[0]);
+            double                     pcaWidth  = 1.5*sqrt(pca.getEigenValues()[1]);
+            double                     pcaHeight = 1.5*sqrt(pca.getEigenValues()[2]);
+            const double*              pcaPos    = pca.getAvePosition();
+            double                     alpha     = std::min(1.,std::max(0.001,pcaWidth/pcaLen));
         
             // The first task is to find the list of hits which are "isolated"
             reco::HitPairListPtr isolatedHitList;
@@ -403,6 +404,7 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParam
         
             std::cout << "************* Finding best path with A* in cluster *****************" << std::endl;
             std::cout << "**> There are " << curCluster.size() << " hits, " << isolatedHitList.size() << " isolated hits, the alpha parameter is " << alpha << std::endl;
+            std::cout << "**> PCA len: " << pcaLen << ", wid: " << pcaWidth << ", height: " << pcaHeight << ", ratio: " << pcaHeight/pcaWidth << std::endl;
         
             // Goal is to now find separated pairs of isolated hits
             reco::EdgeList edgeList;
@@ -578,7 +580,10 @@ void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
                 
                 if (cosTheta > 0. || cosTheta < 0.) cosTheta /= (curNextMag * goalNextMag);
                 
-                double        hWeight         = alpha*goalNextMag/std::max(0.01,0.5*(1.+cosTheta));
+//                alpha = candPair.second->getMinOverlapFraction();
+                cosTheta = 1.;
+                
+                double hWeight = alpha*goalNextMag/std::max(0.01,0.5*(1.+cosTheta));
 
                 // update our records
                 bestNodeMap[candPair.second] = BestNodeTuple(currentNode,tentative_gScore, tentative_gScore + hWeight);
