@@ -197,6 +197,9 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
 
   produces<std::vector<recob::Track> >();
   produces<art::Assns<recob::Track, recob::Hit> >();
+  if (p_().options().trackFromPF()) {
+    produces<art::Assns<recob::PFParticle, recob::Track> >();
+  }
 
   //throw expections to avoid possible silent failures due to incompatible configuration options
   if (p_().options().trackFromPF()==0 && p_().options().idFromPF())
@@ -209,7 +212,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
     throw cet::exception("KalmanFilterFinalTrackFitter") << "Incompatible configuration parameters: cannot use dirFromVec=true with dirFromVtxPF=true." << "\n";
   unsigned int nPFroms = 0;
   if (p_().options().pFromCalo())   nPFroms++;
-  if (p_().options().pFromMSChi2())    nPFroms++;
+  if (p_().options().pFromMSChi2()) nPFroms++;
   if (p_().options().pFromLength()) nPFroms++;
   if (p_().options().pFromMC())     nPFroms++;
   if (nPFroms>1) {
@@ -251,6 +254,8 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
   }
 
   if (p_().options().trackFromPF()) {
+
+    auto outputPFAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Track> >();
     
     art::ValidHandle<std::vector<recob::PFParticle> > inputPFParticle = e.getValidHandle<std::vector<recob::PFParticle> >(pfParticleInputTag);
     assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, pfParticleInputTag));
@@ -297,8 +302,12 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	for (auto const& trhit: outHits) {
 	  outputHits->addSingle(aptr, trhit);
 	}
+	outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
       }
     }
+    e.put(std::move(outputTracks));
+    e.put(std::move(outputHits));
+    e.put(std::move(outputPFAssn));
   } else {
 
     art::ValidHandle<std::vector<recob::Track> > inputTracks = e.getValidHandle<std::vector<recob::Track> >(trackInputTag);
@@ -342,11 +351,9 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	outputHits->addSingle(aptr, trhit);
       }
     }
+    e.put(std::move(outputTracks));
+    e.put(std::move(outputHits));
   }
-  
-  e.put(std::move(outputTracks));
-  e.put(std::move(outputHits));
-  
 }
 
 double trkf::KalmanFilterFinalTrackFitter::setMomValue(art::Ptr<recob::Track> ptrack, const std::unique_ptr<art::FindManyP<anab::Calorimetry> >& trackCalo, const double pMC, const int pId) const {
