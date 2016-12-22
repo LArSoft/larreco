@@ -3831,7 +3831,7 @@ namespace tca {
         if(tjs.allTraj[itj].AlgMod[kMatch3D]) skipit = true;
       }
       if(skipit) continue;
-      if(prt) {
+      if(prt && tjs.matchVec[indx].Count > 20) {
         mf::LogVerbatim myprt("TC");
         myprt<<"Match3D indx "<<indx<<" Count "<<tjs.matchVec[indx].Count<<" SeedHits";
         for(unsigned short ipl = 0; ipl < tjs.matchVec[indx].SeedHit.size(); ++ipl) {
@@ -3885,8 +3885,11 @@ namespace tca {
         tjs.allTraj[itj].PDGCode = pdgc;
       }
       // look for broken trajectories
+      // stop searching when the triplet count gets low
+      int minCount = 0.5 * tjs.matchVec[indx].Count;
       for(unsigned int jj = ii + 1; jj < tjs.matchVec.size(); ++jj) {
         unsigned int jndx = sortVec[jj].index;
+        if(tjs.matchVec[jndx].Count < minCount) break;
         // we have tjs.NumPlanes entries in tjs.matchVec for the later matches unlike the
         // current match where we may be appending the IDs of broken trajectories.
         // mID is the ID of the missing trajectory
@@ -4041,7 +4044,6 @@ namespace tca {
                     break;
                   }
                 } // indx
-                std::cout<<"found match "<<PrintHit(tjs.fHits[iht])<<" "<<PrintHit(tjs.fHits[jht])<<" indx "<<indx<<" size "<<tjs.matchVec.size()<<"\n";
                 if(indx == tjs.matchVec.size()) {
                   // not found in the match vector so add it
                   MatchStruct ms;
@@ -4071,7 +4073,6 @@ namespace tca {
     std::vector<SortEntry> sortVec;
     SortEntry se;
     for(unsigned int ii = nTriple; ii < tjs.matchVec.size(); ++ii) {
-      std::cout<<ii<<" "<<tjs.matchVec[ii].Count<<" pre-sort\n";
       se.index = ii;
       se.length = tjs.matchVec[ii].Count;
       sortVec.push_back(se);
@@ -4090,7 +4091,11 @@ namespace tca {
           myprt<<" "<<PrintHit(tjs.fHits[iht]);
         }
         myprt<<"\n";
-      }
+        if(ii > 100) {
+          myprt<<" too many to print";
+          break;
+        }
+      } // ii
     } // prt
     
     // stash the matches in MatchTjIDs
