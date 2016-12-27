@@ -18,12 +18,15 @@ kalmantrackfit: {
         idFromPF: false
         idFromCollection: false
         pdgId: 13
+        dirFromMC: false
         dirFromVec: false
         dirVec: [0,0,1]
         dirFromVtxPF: false
   	useRMSError: true
-        sortHits: false
+        sortHitsByPlane: false
+        sortOutputHitsMinLength: false
         skipNegProp: false
+	hitErrScaleFact: 1.0
   }
 }
 END_PROLOG
