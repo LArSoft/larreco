@@ -110,13 +110,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   //setup the track vector we use to store the fit results
   std::vector<trkf::KHitTrack> fwdTracks;
 
-  std::vector<std::vector<unsigned int> > hitsInPlanes(nplanes);
-  unsigned int ihit = 0;
-  for (auto khit : hitsv) {
-    hitsInPlanes[khit.getHit()->WireID().Plane].push_back(ihit++);
-  }
-
   if (sortHitsByPlane_) {
+    std::vector<std::vector<unsigned int> > hitsInPlanes(nplanes);
+    unsigned int ihit = 0;
+    for (auto khit : hitsv) {
+      hitsInPlanes[khit.getHit()->WireID().Plane].push_back(ihit++);
+    }
     std::vector<unsigned int> iterHitsInPlanes;
     for (auto it : hitsInPlanes) iterHitsInPlanes.push_back(0);
     for (unsigned int p = 0; p<hitsv.size(); ++p) {
@@ -266,7 +265,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   trkf::KGTrack fittedTrack(0);
   if (sortOutputHitsMinLength_) {
     //try to sort fixing wires order on planes and picking the closest next plane
-    std::vector<std::vector<unsigned int> > tracksInPlanes(3);//fixme get from somewhere
+    std::vector<std::vector<unsigned int> > tracksInPlanes(nplanes);
     unsigned int itrk = 0;
     for (auto fwdTrack : fwdTracks) {
       trkf::KHitWireX khit(dynamic_cast<const trkf::KHitWireX&>(*fwdTrack.getHit().get()));
