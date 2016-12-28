@@ -82,12 +82,10 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   const KHitWireX hitB(hits.back(),vtxsurfB);
   boost::optional<double> distF = prop_->err_prop(trfVtxF,hitF.getMeasSurface(),trkf::Propagator::UNKNOWN,false);
   boost::optional<double> distB = prop_->err_prop(trfVtxB,hitB.getMeasSurface(),trkf::Propagator::UNKNOWN,false);
-  double dF = (distF ? *distF : 0);
-  double dB = (distB ? *distB : 0);
 
   unsigned int nplanes = 0;
   std::vector<KHitWireX> hitsv;
-  if (dB<dF) {
+  if (distB.get_value_or(DBL_MAX)<distF.get_value_or(DBL_MAX)) {
     for (auto hit = hits.rbegin(); hit<hits.rend(); ++hit) {
       std::shared_ptr<const trkf::SurfWireX> vtxsurf(new trkf::SurfWireX((*hit)->WireID()));
       hitsv.push_back(std::move(KHitWireX(*hit,vtxsurf)));
@@ -132,7 +130,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	    mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
 	    continue;
 	  }
-	  const double dist = pdist.get_value_or(9999.);
+	  const double dist = *pdist;
 	  if (skipNegProp_ && dist<0.) continue;
 	  if (dist<min_dist) {
 	    min_plane = iplane;
@@ -159,7 +157,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       }
       //now update the forward fitted track
       if (okpred) {
-	trf.setPath(trf.getPath()+pdist.get_value_or(0.));
+	trf.setPath(trf.getPath()+(*pdist));
 	trf.setChisq(trf.getChisq()+khit.getChisq());
 	trf.setStat(trkf::KFitTrack::FORWARD_PREDICTED);
 	khit.update(trf);
@@ -180,7 +178,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   } else {
     for (auto khit : hitsv) {
       if (skipNegProp_) {
-	auto trftmp = trf;
+	auto trftmp = trf;//is there a way to avoid creating this copy (i.e. to check propagation distance without modifying the track)?
 	boost::optional<double> pdisttest = prop_->noise_prop(trftmp,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
 	if (pdisttest.get_value_or(-1.)<0.) {
 	  mf::LogWarning("TrackKalmanFitter") << "WARNING: negative propagation distance. Skip this hit...";
@@ -201,7 +199,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       }
       //now update the forward fitted track
       if (okpred) {
-	trf.setPath(trf.getPath()+pdist.get_value_or(0.));
+	trf.setPath(trf.getPath()+(*pdist));
 	trf.setChisq(trf.getChisq()+khit.getChisq());
 	trf.setStat(trkf::KFitTrack::FORWARD_PREDICTED);
 	khit.update(trf);
@@ -238,12 +236,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     }
     bool okpred = khit.predict(trf, prop_);
     if (okpred) {
-      trf.setPath(trf.getPath()+pdist.get_value_or(0.));
+      trf.setPath(trf.getPath()+(*pdist));
       trf.setChisq(trf.getChisq()+khit.getChisq());
       trf.setStat(trkf::KFitTrack::BACKWARD_PREDICTED);
       //combine forward updated and backward predicted, add this to the output track
       fwdTrack.combineFit(trf);
-      fwdTrack.setPath(trf.getPath()+pdist.get_value_or(0.));
+      fwdTrack.setPath(trf.getPath()+(*pdist));
       //now update the backward fitted track
       khit.update(trf);
       trf.setStat(trkf::KFitTrack::BACKWARD);
