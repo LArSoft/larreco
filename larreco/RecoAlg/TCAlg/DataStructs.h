@@ -210,7 +210,7 @@ namespace tca {
     kBragg,
     kRvPrp,
     kAtTj,
-    kFlagBigSize     ///< don't mess with this line
+    kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   
   extern const std::vector<std::string> AlgBitNames;
