@@ -30,6 +30,7 @@
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/MVAWriter.h"
 
 #include <memory>
 
@@ -101,6 +102,7 @@ private:
         size_t nClasses) const;
 
 	PointIdAlg fPointIdAlg;
+	anab::MVAWriter<3> fMVAWriter;
 
 	art::InputTag fWireProducerLabel;
 	art::InputTag fHitModuleLabel;
@@ -113,7 +115,7 @@ private:
 // ------------------------------------------------------
 
 EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
-	fPointIdAlg(config().PointIdAlg()),
+	fPointIdAlg(config().PointIdAlg()), fMVAWriter("emtrack"),
 	fWireProducerLabel(config().WireLabel()),
 	fHitModuleLabel(config().HitModuleLabel()),
 	fClusterModuleLabel(config().ClusterModuleLabel()),
