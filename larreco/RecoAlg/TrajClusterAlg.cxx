@@ -151,13 +151,14 @@ namespace tca {
     debug.Tick            = pset.get< int >("DebugTick", -1);
     debug.WorkID          = pset.get< short>("DebugWorkID", 0);
     
-    // Define the step size for the last angle range
+    // Define the step size for the last angle range - (VLA = Very Large Angle)
     fVLAStepSize = 1.5;
 
     // convert the max traj separation into a separation^2
     fMaxTrajSep *= fMaxTrajSep;
     if(fJTMaxHitSep2 > 0) fJTMaxHitSep2 *= fJTMaxHitSep2;
     
+    // in the following section we ensure that the fcl vectors are appropriately sized so that later references are valid
     if(fMinPtsFit.size() != fMinPts.size()) badinput = true;
     if(fMaxVertexTrajSep.size() != fMinPts.size()) badinput = true;
     if(fMaxAngleCode.size() != fMinPts.size()) badinput = true;
@@ -178,6 +179,8 @@ namespace tca {
       mf::LogVerbatim("TC")<<"Last element of AngleRange != 90 degrees. Fixing it\n";
       fAngleRanges.back() = 90;
     }
+    
+    // decide whether debug information should be printed
     bool inDebugMode = debug.Plane >= 0 || debug.WorkID < 0;
     if(inDebugMode) {
       std::cout<<"Pass MinPts  MinPtsFit Max Angle\n";
@@ -205,10 +208,11 @@ namespace tca {
     // size this and set it later
     fAngleRangesMaxHitsRMS.resize(fAngleRanges.size());
     
+    
     if(kAlgBitSize != AlgBitNames.size()) throw art::Exception(art::errors::Configuration)<<"kAlgBitSize "<<kAlgBitSize<<" != AlgBitNames size "<<AlgBitNames.size();
     fAlgModCount.resize(kAlgBitSize);
     
-    if(kFlagBigSize != StopFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBigSize "<<kFlagBigSize<<" != StopFlagNames size "<<StopFlagNames.size();
+    if(kFlagBitSize != StopFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != StopFlagNames size "<<StopFlagNames.size();
     
     bool gotit, printHelp = false;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) fUseAlg[ib] = true;
@@ -1586,7 +1590,6 @@ namespace tca {
         // count the number matched to a true particle
         float nTjHits = 0;
         for(auto& iht : tmp) if(hitTruTrkID[iht] > 0) ++nTjHits;
-//        float nTjHits = tmp.size();
         float nTruHits = nMatchedHitsInPartList[ipl][plane];
         float nTjTruRecHits = mostHits;
         float eff = nTjTruRecHits / nTruHits;
@@ -2414,7 +2417,7 @@ namespace tca {
             if(tp2.Pos[0] > tp1.Pos[0] + 2) continue;
           }
           // ensure that there is a signal on most of the wires between these points
-          if(!SignalBetween(tjs, tp1, tp2.Pos[0], 0.8, false)) continue;
+          if(!SignalBetween(tjs, tp1, tp2, 0.8, false)) continue;
           // Find the distance of closest approach for small angle merging
           // Inflate the doca cut if we are bridging a block of dead wires
           float dang = DeltaAngle(tp1.Ang, tp2.Ang);
@@ -2532,7 +2535,7 @@ namespace tca {
         if(!doMerge && tjs.allTraj[it1].MCSMom > 900 && tjs.allTraj[it2].MCSMom && dang < 0.1) doMerge = true;
         
         bool signalBetween = true;
-        if(!isVLA) signalBetween = SignalBetween(tjs, tp1, tp2.Pos[0], 0.99, mrgPrt);
+        if(!isVLA) signalBetween = SignalBetween(tjs, tp1, tp2, 0.99, mrgPrt);
         doMerge = doMerge && signalBetween;
         
         if(mrgPrt) mf::LogVerbatim("TC")<<" EM2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2)<<" bestFOM "<<bestFOM<<" bestDOCA "<<bestDOCA<<" docaCut "<<docaCut<<" isVLA? "<<isVLA<<" dang "<<dang<<" dangCut "<<dangCut<<" chgPull "<<chgPull<<" doMerge? "<<doMerge<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" signalBetween? "<<signalBetween;
@@ -3477,7 +3480,6 @@ namespace tca {
     // temp vector of all 2D vertex matches
     std::vector<Vtx3Store> v3temp;
     
-    double y = 0, z = 0;
     TVector3 WPos = {0, 0, 0};
     TrajPoint tp;
     // i, j, k indicates 3 different wire planes
@@ -3514,12 +3516,13 @@ namespace tca {
               <<" jpl "<<jpl<<" jvxID "<<tjs.vtx[jvx].ID<<" jvX "<<vX[jvx]<<" +/- "<<vXsigma[jvx]<<" W:T "<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" fVertex3DChiCut "<<fVertex3DChiCut;
             
             if(dXChi > fVertex3DChiCut) continue;
-            if (geom->HasWire(geo::WireID(cstat, tpc, ipl, iWire))&&
-                geom->HasWire(geo::WireID(cstat, tpc, jpl, jWire))){
+            double y = -1000, z = -1000;
+            if (geom->HasWire(geo::WireID(cstat, tpc, ipl, iWire)) && geom->HasWire(geo::WireID(cstat, tpc, jpl, jWire))) {
               geom->IntersectionPoint(iWire, jWire, ipl, jpl, cstat, tpc, y, z);
+              if(y < tjs.YLo || y > tjs.YHi || z < tjs.ZLo || z > tjs.ZHi) continue;
+            } else {
+              continue;
             }
-            else continue;
-            if(y < tjs.YLo || y > tjs.YHi || z < tjs.ZLo || z > tjs.ZHi) continue;
             WPos[1] = y;
             WPos[2] = z;
             kpl = 3 - ipl - jpl;
@@ -3711,7 +3714,7 @@ namespace tca {
     unsigned short ipl = 2;
     unsigned short jpl = 0;
     unsigned short kpl = 1;
-    unsigned int lastWire = tjs.LastWire[2] - 1;
+    unsigned int klastWire = tjs.LastWire[kpl] - 1;
 
     unsigned int nTriple = 0;
     for(unsigned int iwire = tjs.FirstWire[ipl]; iwire < tjs.LastWire[ipl]; ++iwire) {
@@ -3723,7 +3726,7 @@ namespace tca {
         float fkwire = geom->WireCoordinate(yp, zp, kpl, tpcid.TPC, tpcid.Cryostat);
         if(fkwire < 0 || fkwire > tjs.MaxPos0[kpl]) continue;
         unsigned int kwire = std::nearbyint(fkwire);
-        if(kwire > lastWire) continue;
+        if(kwire > klastWire) continue;
         if(tjs.WireHitRange[kpl][kwire].first < 0) continue;
         // Have intersecting wire matches. Now look for time matches
         unsigned int ifirsthit = (unsigned int)tjs.WireHitRange[ipl][iwire].first;
@@ -3746,6 +3749,9 @@ namespace tca {
             if(xx[jht] < xx[iht] - fMatch3DCuts[0]) continue;
             if(xx[jht] > xx[iht] + fMatch3DCuts[0]) break;
             for(unsigned int kht = kfirsthit; kht < klasthit; ++kht) {
+              if(kht > tjs.fHits.size() - 1) {
+                std::cout<<"Gack\n";
+              }
               if(tjs.fHits[kht].InTraj <= 0) continue;
               unsigned short ktj = tjs.fHits[kht].InTraj - 1;
               if(tjs.allTraj[ktj].AlgMod[kMatch3D]) continue;
@@ -4207,17 +4213,16 @@ namespace tca {
     geo::TPCGeo const& TPC = geom->TPC(tpcid);
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
-    unsigned short ipl, itj, mPlane, closePt;
-    unsigned short nEndPt, ii, end, aVtxIndx;
-    unsigned short dpt;
-    float doca, maxdoca = 6;
+    float maxdoca = 6;
     // list of candidate trajectory indices and ipt index
     std::vector<std::pair<unsigned short, unsigned short>> mTjs;
+    unsigned short ivx3 = 0;
     for(auto& vx3 : tjs.vtx3) {
+      ++ivx3;
       // check for a completed 3D vertex
       if(vx3.Wire < 0) continue;
-      mPlane = USHRT_MAX;
-      for(ipl = 0; ipl < TPC.Nplanes(); ++ipl) {
+      unsigned short mPlane = USHRT_MAX;
+      for(unsigned short ipl = 0; ipl < TPC.Nplanes(); ++ipl) {
         if(vx3.Ptr2D[ipl] >= 0) continue;
         mPlane = ipl;
         break;
@@ -4229,56 +4234,57 @@ namespace tca {
       TrajPoint tp;
       tp.Pos[0] = vx3.Wire;
       tp.Pos[1] = detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPC, vx3.CStat) * tjs.UnitsPerTick;
-      for(itj = 0; itj < tjs.allTraj.size(); ++itj) {
+      mTjs.clear();
+      for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         if(tjs.allTraj[itj].CTP != mCTP) continue;
         if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
-        doca = maxdoca;
+        float doca = maxdoca;
         // find the closest distance between the vertex and the trajectory
+        unsigned short closePt = 0;
         TrajPointTrajDOCA(tjs, tp, tjs.allTraj[itj], closePt, doca);
-        if(vtxPrt) mf::LogVerbatim("TC")<<"CI3DV itj ID "<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
         if(closePt > tjs.allTraj[itj].EndPt[1]) continue;
+        if(vtxPrt) mf::LogVerbatim("TC")<<" CI3DV candidate itj ID "<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca<<" ivx3 "<<ivx3;
         mTjs.push_back(std::make_pair(itj, closePt));
       } // itj
       // handle the case where there are one or more TJs with TPs near the ends
       // that make a vertex (a failure by Find2DVertices)
       if(mTjs.empty()) continue;
       // 2D vertex
-      VtxStore aVtx;
-      aVtxIndx = tjs.vtx.size();
-      aVtx.CTP = mCTP;
-      aVtx.Topo = 8;
-      aVtx.NTraj = mTjs.size();
+      VtxStore newVtx;
+      unsigned short newVtxIndx = tjs.vtx.size();
+      newVtx.ID = newVtxIndx + 1;
+      newVtx.CTP = mCTP;
+      newVtx.Topo = 8;
+      newVtx.NTraj = mTjs.size();
       // Give it a bogus pass to indicate it wasn't created while stepping
-      aVtx.Pass = 9;
-      aVtx.Pos = tp.Pos;
-      nEndPt = 0;
-      for(ii = 0; ii < mTjs.size(); ++ii) {
-        itj = mTjs[ii].first;
-        closePt = mTjs[ii].second;
+      newVtx.Pass = 9;
+      newVtx.Pos = tp.Pos;
+      tjs.vtx.push_back(newVtx);
+      unsigned short nEndPt = 0;
+      for(unsigned short ii = 0; ii < mTjs.size(); ++ii) {
+        unsigned short itj = mTjs[ii].first;
+        unsigned short closePt = mTjs[ii].second;
         // determine which end is the closest
-        if(fabs(closePt - tjs.allTraj[itj].EndPt[0]) < fabs(closePt - tjs.allTraj[itj].EndPt[1])) {
-          // closest to the beginning
-          end = 0;
-        } else {
-          // closest to the end
-          end = 1;
-        }// closest to the end
-        dpt = fabs(closePt - tjs.allTraj[itj].EndPt[end]);
+        unsigned short end = 1;
+        // closest to the beginning?
+        if(fabs(closePt - tjs.allTraj[itj].EndPt[0]) < fabs(closePt - tjs.allTraj[itj].EndPt[1])) end = 0;
+        short dpt = fabs(closePt - tjs.allTraj[itj].EndPt[end]);
         if(dpt < 4) {
           // close to an end
-          tjs.allTraj[itj].VtxID[end] = tjs.vtx[aVtxIndx].ID;
+          tjs.allTraj[itj].VtxID[end] = tjs.vtx[newVtxIndx].ID;
           tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
           ++nEndPt;
         } else {
           // closePt is not near an end, so split the trajectory
-          if(!SplitAllTraj(tjs, itj, closePt, aVtxIndx, vtxPrt)) {
-            mf::LogVerbatim("TC")<<"SplitAllTraj failed. Traj ID "<<tjs.allTraj[itj].ID;
+          if(!SplitAllTraj(tjs, itj, closePt, newVtxIndx, vtxPrt)) {
+            if(vtxPrt) mf::LogVerbatim("TC")<<"SplitAllTraj failed. Traj ID "<<tjs.allTraj[itj].ID;
             // failure occurred. Recover
             for(auto mTj : mTjs) {
               unsigned short jtj = mTj.first;
-              if(tjs.allTraj[jtj].VtxID[0] == tjs.vtx[aVtxIndx].ID) tjs.allTraj[jtj].VtxID[0] = 0;
-              if(tjs.allTraj[jtj].VtxID[1] == tjs.vtx[aVtxIndx].ID) tjs.allTraj[jtj].VtxID[1] = 0;
+              if(tjs.allTraj[jtj].VtxID[0] == tjs.vtx[newVtxIndx].ID) tjs.allTraj[jtj].VtxID[0] = 0;
+              if(tjs.allTraj[jtj].VtxID[1] == tjs.vtx[newVtxIndx].ID) tjs.allTraj[jtj].VtxID[1] = 0;
             } // itj
+            tjs.vtx.pop_back();
             continue;
           } // !SplitAllTraj
         } // closePt is not near an end, so split the trajectory
@@ -4286,12 +4292,10 @@ namespace tca {
         itj = tjs.allTraj.size() - 1;
         tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
       } // ii
-      tjs.vtx.push_back(aVtx);
-      unsigned short ivx = tjs.vtx.size() - 1;
-      tjs.vtx[ivx].ID = ivx + 1;
-      vx3.Ptr2D[mPlane] = aVtxIndx;
+      vx3.Ptr2D[mPlane] = newVtxIndx;
       vx3.Wire = -1;
-      if(vtxPrt) mf::LogVerbatim("TC")<<"CI3DV: new 2D vtx ID "<<tjs.vtx[ivx].ID<<" at "<<(int)aVtx.Pos[0]<<":"<<(int)aVtx.Pos[1]/tjs.UnitsPerTick<<" points to 3D tjs.vtx ";
+      unsigned short ivx = tjs.vtx.size() - 1;
+      if(vtxPrt) mf::LogVerbatim("TC")<<"CI3DV: new 2D vtx "<<ivx<<" ID "<<tjs.vtx[ivx].ID<<" at "<<(int)tjs.vtx[ivx].Pos[0]<<":"<<(int)tjs.vtx[ivx].Pos[1]/tjs.UnitsPerTick<<" points to 3D tjs.vtx ";
     } // vx3
   } // CompleteIncomplete3DVertices
 
@@ -6635,6 +6639,17 @@ namespace tca {
           PrintTrajectory("CIT", tjs, tj, USHRT_MAX);
         } // tHit.size > atHits.size()
       }
+      // check the VtxID
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] > tjs.vtx.size()) {
+          mf::LogVerbatim("TC")<<someText<<" ChkInTraj: Bad VtxID "<<tj.ID;
+          std::cout<<someText<<" ChkInTraj: Bad VtxID "<<tj.ID<<" vtx size "<<tjs.vtx.size()<<"\n";
+          tj.AlgMod[kKilled] = true;
+          PrintTrajectory("CIT", tjs, tj, USHRT_MAX);
+          fQuitAlg = true;
+          return;
+        }
+      } // end
       ++itj;
       if(fQuitAlg) return;
     } // tj
