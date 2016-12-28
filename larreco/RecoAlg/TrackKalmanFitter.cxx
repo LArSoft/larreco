@@ -201,7 +201,6 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   for (auto itertrack = fittedTrack.getTrackMap().rbegin(); itertrack != fittedTrack.getTrackMap().rend(); ++itertrack) {
     trkf::KHitTrack& fwdTrack = itertrack->second;
     trkf::KHitWireX khit(dynamic_cast<const trkf::KHitWireX&>(*fwdTrack.getHit().get()));//need a non const copy in case we want to modify the error
-    if (useRMS_) khit.setMeasError(khit.getMeasError()*khit.getHit()->RMS()*khit.getHit()->RMS()/(std::max(khit.getHit()->SigmaPeakTime()*khit.getHit()->SigmaPeakTime(),0.08333333333f)));
 
     boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
     if (!pdist) {
