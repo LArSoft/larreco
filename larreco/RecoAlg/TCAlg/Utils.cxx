@@ -129,6 +129,28 @@ namespace tca {
     if(prt) PrintTrajectory("TEP", tjs, tj, USHRT_MAX);
     
   } // TrimEndPts
+  
+  /////////////////////////////////////////
+  bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt)
+  {
+    // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp1 and tp2.
+    if(MinWireSignalFraction == 0) return true;
+    
+    int fromWire = std::nearbyint(tp1.Pos[0]);
+    int toWire = std::nearbyint(tp2.Pos[0]);
+    
+    if(fromWire == toWire) {
+      if(prt) mf::LogVerbatim("TC")<<" SignalBetween fromWire = toWire = "<<fromWire<<" SignalAtTp? "<<SignalAtTp(tjs, tp1);
+      return SignalAtTp(tjs, tp1);
+    }
+
+    // define a trajectory point located at tp1 that has a direction towards tp2
+    TrajPoint tp;
+    if(!MakeBareTrajPoint(tjs, tp1, tp2, tp)) return true;
+    
+    return SignalBetween(tjs, tp, toWire, MinWireSignalFraction, prt);
+
+  } // SignalBetween
 
   /////////////////////////////////////////
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt)
@@ -806,7 +828,7 @@ namespace tca {
       if(delta < maxDelta) tp.Hits.push_back(iht);
     } // iht
     if(tp.Hits.size() > 16) {
-      mf::LogWarning("TC")<<"FindCloseHits: Found "<<tp.Hits.size()<<" hits. Truncating to 16";
+//      mf::LogWarning("TC")<<"FindCloseHits: Found "<<tp.Hits.size()<<" hits. Truncating to 16";
       tp.Hits.resize(16);
     }
     // Set UseHit false. The calling routine should decide if these hits should be used
