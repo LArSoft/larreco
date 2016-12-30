@@ -36,19 +36,13 @@
 
 namespace nnet {
 
-struct hInfo
-{
-    std::vector< float > vout;
-    bool fid, used;
-};
-
 class EmTrackClusterId : public art::EDProducer {
 public:
 
 	// these types to be replaced with use of feature proposed in redmine #12602
-	typedef std::unordered_map< unsigned int, std::vector< size_t > > view_hitmap;
-	typedef std::unordered_map< unsigned int, view_hitmap > tpc_view_hitmap;
-	typedef std::unordered_map< unsigned int, tpc_view_hitmap > cryo_tpc_view_hitmap;
+	typedef std::unordered_map< unsigned int, std::vector< size_t > > view_keymap;
+	typedef std::unordered_map< unsigned int, view_keymap > tpc_view_keymap;
+	typedef std::unordered_map< unsigned int, tpc_view_keymap > cryo_tpc_view_keymap;
 
 	struct Config {
 		using Name = fhicl::Name;
@@ -96,11 +90,6 @@ public:
 private:
 	bool isViewSelected(int view) const;
 
-    std::vector<float> pValuesMultiply(
-        std::vector< art::Ptr<recob::Hit> > const & hits,
-        const std::vector< hInfo > & pValues,
-        size_t nClasses) const;
-
 	PointIdAlg fPointIdAlg;
 	anab::MVAWriter<3> fMVAWriter;
 
@@ -115,7 +104,7 @@ private:
 // ------------------------------------------------------
 
 EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
-	fPointIdAlg(config().PointIdAlg()), fMVAWriter("emtrack"),
+	fPointIdAlg(config().PointIdAlg()), fMVAWriter(this, "emtrack"),
 	fWireProducerLabel(config().WireLabel()),
 	fHitModuleLabel(config().HitModuleLabel()),
 	fClusterModuleLabel(config().ClusterModuleLabel()),
@@ -124,87 +113,35 @@ EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 {
 	produces< std::vector<recob::Cluster> >();
 	produces< art::Assns<recob::Cluster, recob::Hit> >();
+
+    std::cout << fMVAWriter << std::endl;
+
+	fMVAWriter.produces< recob::Hit >();
+	fMVAWriter.produces< recob::Cluster >();
+
+	std::cout << fMVAWriter << std::endl;
 }
 // ------------------------------------------------------
-
-std::vector<float> EmTrackClusterId::pValuesMultiply(
-    std::vector< art::Ptr<recob::Hit> > const & hits,
-    const std::vector< hInfo > & pValues,
-    size_t nClasses) const
-{
-    if (pValues.empty())
-    {
-        mf::LogError("EmTrackClusterId") << "no pValues!";
-        return std::vector<float>();
-    }
-
-	std::vector<float> result(nClasses, 0);
-	if (result.empty()) return result;
-
-	double pmin = 1.0e-6, pmax = 1.0 - pmin;
-	double log_pmin = log(pmin), log_pmax = log(pmax);
-	double totarea = 0.0;
-	size_t nhits = 0;
-
-	for (auto const & h : hits)
-	{
-		if (!pValues[h.key()].fid) continue; // not in fid. region
-
-		double area = 1.0; // h->SummedADC();
-
-		auto vout = pValues[h.key()].vout;
-		for (size_t i = 0; i < vout.size(); ++i)
-		{
-			if (vout[i] < pmin) vout[i] = log_pmin;
-			else if (vout[i] > pmax) vout[i] = log_pmax;
-			else vout[i] = log(vout[i]);
-
-			result[i] += area * vout[i];
-		}
-		totarea += area;
-		nhits++;
-	}
-
-	if (nhits)
-	{
-		double totp = 0.0;
-		for (size_t i = 0; i < result.size(); ++i)
-		{
-			result[i] = exp(result[i] / totarea);
-			totp += result[i];
-		}
-		for (size_t i = 0; i < result.size(); ++i)
-		{
-			result[i] /= totp;
-		}
-	}
-	else std::fill(result.begin(), result.end(), 1.0 / result.size());
-
-	return result;
-}
 
 void EmTrackClusterId::produce(art::Event & evt)
 {
     mf::LogVerbatim("EmTrackClusterId") << "next event: " << evt.run() << " / " << evt.id().event();
 
 	auto wireHandle = evt.getValidHandle< std::vector<recob::Wire> >(fWireProducerLabel);
-	auto cluListHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fClusterModuleLabel);
 
 	auto clusters = std::make_unique< std::vector< recob::Cluster > >();
 	auto clu2hit = std::make_unique< art::Assns< recob::Cluster, recob::Hit > >();
 
 	unsigned int cidx = 0;
-	const unsigned int emTag = 0x10000;
+	unsigned int cryo, tpc, view;
 
     // ******************* get and sort hits ********************
 	auto hitListHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
+	std::vector< art::Ptr<recob::Hit> > hitPtrList;
+	art::fill_ptr_vector(hitPtrList, hitListHandle);
 
-	std::vector< art::Ptr<recob::Hit> > allhitlist;
-	art::fill_ptr_vector(allhitlist, hitListHandle);
-
-    EmTrackClusterId::cryo_tpc_view_hitmap hitMap;
-	unsigned int cryo, tpc, view;
-	for (auto const& h : allhitlist)
+    EmTrackClusterId::cryo_tpc_view_keymap hitMap;
+	for (auto const& h : hitPtrList)
 	{
 		view = h->WireID().Plane;
 		if (!isViewSelected(view)) continue;
@@ -214,92 +151,120 @@ void EmTrackClusterId::produce(art::Event & evt)
 
 		hitMap[cryo][tpc][view].push_back(h.key());
 	}
+	
+    // ***************** get and sort clusters ******************
+	auto cluListHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fClusterModuleLabel);
+	std::vector< art::Ptr<recob::Cluster> > cluPtrList;
+	art::fill_ptr_vector(cluPtrList, cluListHandle);
 
-    // ******************** classify all hits *******************
-    std::vector< hInfo > pValues(allhitlist.size());
-    for (auto & cryo : hitMap)
-        for (auto & tpc : cryo.second)
-            for (auto & view : tpc.second)
-            {
-                fPointIdAlg.setWireDriftData(*wireHandle, view.first, tpc.first, cryo.first);
-                for (auto & h : view.second)
-                {
-                    const recob::Hit & hit = *(allhitlist[h]);
-
-                    hInfo info;
-                    info.vout = fPointIdAlg.predictIdVector(hit.WireID().Wire, hit.PeakTime());
-                    info.fid = fPointIdAlg.isInsideFiducialRegion(hit.WireID().Wire, hit.PeakTime());
-                    info.used = false;
-
-                    pValues[h] = info;
-                }
-            }
-
-	// ******************* classify clusters ********************
-	art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fClusterModuleLabel);
-	for (size_t i = 0; i < hitsFromClusters.size(); ++i)
+    EmTrackClusterId::cryo_tpc_view_keymap cluMap;
+	for (auto const& c : cluPtrList)
 	{
-		auto v = hitsFromClusters.at(i);
-		if (v.empty()) continue;
-
-        int tpc = v.front()->WireID().TPC;
-		int view = v.front()->View();
+		view = c->Plane().Plane;
 		if (!isViewSelected(view)) continue;
 
-		auto vout = pValuesMultiply(v, pValues, fPointIdAlg.NClasses());
-		float pvalue = vout[0] / (vout[0] + vout[1]);
+		cryo = c->Plane().Cryostat;
+		tpc = c->Plane().TPC;
 
-        for (auto const & h : v)
+		cluMap[cryo][tpc][view].push_back(c.key());
+	}
+
+    // *************** classify hits and clusters ****************
+    auto hitID = fMVAWriter.initOutputs<recob::Hit>(fHitModuleLabel, hitPtrList.size());
+    auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fHitModuleLabel); /// USE THIS MODULE LABEL FOR CLUSTERS PRODUCED HERE
+
+    art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fClusterModuleLabel);
+    std::vector< bool > hitUsed(hitPtrList.size(), false); // tag hits used in clusters
+    for (auto const & pcryo : hitMap)
+    {
+        cryo = pcryo.first;
+        for (auto const & ptpc : pcryo.second)
         {
-            if (pValues[h.key()].used)
+            tpc = ptpc.first;
+            for (auto const & pview : ptpc.second)
             {
-                mf::LogWarning("EmTrackClusterId") << "hit already used in another cluster";
+                view = pview.first;
+                if (!isViewSelected(view)) continue; // should not happen, hits were selected
+
+                fPointIdAlg.setWireDriftData(*wireHandle, view, tpc, cryo);
+
+                // (1) do all hits in this plane --------------------------------------------
+                for (size_t h : pview.second) // h is the Ptr::key()
+                {
+                    const recob::Hit & hit = *(hitPtrList[h]);
+                    fMVAWriter.setOutput(hitID, h,
+                        fPointIdAlg.predictIdVector(hit.WireID().Wire, hit.PeakTime()));
+                } // hits done --------------------------------------------------------------
+
+                // (2a) do clusters when hits are ready in this plane -----------------------
+                for (size_t c : cluMap[cryo][tpc][view]) // c is the Ptr::key()
+                {
+		            auto v = hitsFromClusters.at(c);
+		            if (v.empty()) continue;
+
+                    auto vout = fMVAWriter.getOutput<recob::Hit>(v,
+                        [&](auto const & hit)
+                        {
+                            if (fPointIdAlg.isInsideFiducialRegion(hit.WireID().Wire, hit.PeakTime())) return 1.0F;
+                            else return 0.0F;
+                        });
+
+                    for (auto const & hit : v)
+                    {
+                        if (hitUsed[hit.key()]) { mf::LogWarning("EmTrackClusterId") << "hit already used in another cluster"; }
+                        hitUsed[hit.key()] = true;
+                    }
+
+		            float pvalue = vout[0] / (vout[0] + vout[1]);
+		            mf::LogVerbatim("EmTrackClusterId") << "cluster in tpc:" << tpc << " view:" << view
+                        << " size:" << v.size() << " p:" << pvalue;
+
+		            if (pvalue > fThreshold) continue; // identified as track-like, for the moment we save only em-like parts
+
+            		clusters->emplace_back(
+			            recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
+				            v.size(), 0.0F, 0.0F, cidx, (geo::View_t)view, v.front()->WireID().planeID()));
+		            util::CreateAssn(*this, evt, *clusters, v, *clu2hit);
+		            cidx++;
+
+		            fMVAWriter.addOutput(cluID, vout);
+                }
+                // (2b) make single-hit clusters --------------------------------------------
+                for (size_t h : pview.second) // h is the Ptr::key()
+                {
+                    if (hitUsed[h]) continue;
+
+                    auto vout = fMVAWriter.getOutput<recob::Hit>(h);
+		            float pvalue = vout[0] / (vout[0] + vout[1]);
+
+		            mf::LogVerbatim("EmTrackClusterId") << "single hit in tpc:" << tpc << " view:" << view
+			            << " wire:" << hitPtrList[h]->WireID().Wire << " drift:" << hitPtrList[h]->PeakTime() << " p:" << pvalue;
+
+		            if (pvalue > fThreshold) continue; // identified as track-like, for the moment we save only em-like parts
+
+		            art::PtrVector< recob::Hit > cluster_hits;
+		            cluster_hits.push_back(hitPtrList[h]);
+		            clusters->emplace_back(
+			            recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
+			                1, 0.0F, 0.0F, cidx, (geo::View_t)view, hitPtrList[h]->WireID().planeID()));
+		            util::CreateAssn(*this, evt, *clusters, cluster_hits, *clu2hit);
+		            cidx++;
+
+		            fMVAWriter.addOutput(cluID, vout);
+                } // all clusters done ------------------------------------------------------
+
+                // (3) do tracks which are best seen in this plane --------------------------
+                // ....TO DO....
+                // tracks done --------------------------------------------------------------
             }
-            pValues[h.key()].used = true;
         }
-
-		mf::LogVerbatim("EmTrackClusterId") << "cluster in tpc:" << tpc << " view:" << view
-			<< " size:" << v.size() << " p:" << pvalue;
-
-		if (pvalue > fThreshold) continue; // identified as track-like, for the moment we save only em-like parts
-
-		clusters->emplace_back(
-			recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
-				v.size(), 0.0F, 0.0F, cidx + emTag, (geo::View_t)v.front()->View(), v.front()->WireID().planeID()));
-		util::CreateAssn(*this, evt, *clusters, v, *clu2hit);
-		cidx++;
-	}
-	// **********************************************************
-
-	// *************** add single hits as clusters **************
-	for (auto const & hi : allhitlist)
-	{
-	    const auto & vout = pValues[hi.key()].vout;
-
-	    if (pValues[hi.key()].used || vout.empty()) continue;
-
-    	int view = hi->View();
-		int tpc = hi->WireID().TPC;
-
-		float pvalue = vout[0] / (vout[0] + vout[1]);
-
-		mf::LogVerbatim("EmTrackClusterId") << "hit in tpc:" << tpc << " view:" << view
-			<< " wire:" << hi->WireID().Wire << " drift:" << hi->PeakTime() << " p:" << pvalue;
-
-		if (pvalue > fThreshold) continue; // identified as track-like, for the moment we save only em-like parts
-
-		art::PtrVector< recob::Hit > cluster_hits;
-		cluster_hits.push_back(hi);
-		clusters->emplace_back(
-			recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
-			1, 0.0F, 0.0F, cidx + emTag, (geo::View_t)hi->View(), hi->WireID().planeID()));
-		util::CreateAssn(*this, evt, *clusters, cluster_hits, *clu2hit);
-		cidx++;
-	}
-	// **********************************************************
+    }
 
 	evt.put(std::move(clusters));
 	evt.put(std::move(clu2hit));
+
+	fMVAWriter.saveOutputs(evt);
+	std::cout << "MVA saved" << std::endl;
 }
 // ------------------------------------------------------
 

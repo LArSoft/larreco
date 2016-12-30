@@ -13,8 +13,6 @@
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Utilities/InputTag.h"
 
-#include "lardataobj/AnalysisBase/MVAOutput.h"
-
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/MVAWrapperBase.h"
 
 namespace anab {
@@ -48,15 +46,23 @@ public:
         return vout;
     }
 
-    /// Get MVA results accumulated over the vector of items (eg. over hits
-    /// associated to a cluster).
-    std::array<float, N> getOutput(std::vector< art::Ptr<T> > const & items) const;
+    /// Get MVA results accumulated over the vector of items (eg. over hits associated to a cluster).
+    std::array<float, N> getOutput(std::vector< art::Ptr<T> > const & items) const
+    { return pAccumulate(items, *fOutputs); }
 
-    /// Get MVA results accumulated over the vector of items (eg. over clusters
-    /// associated to a track, weighted by the cluster size; or over hits associated
-    /// to a cluster, weighted by the hit area).
+    /// Get MVA results accumulated with provided weights over the vector of items
+    /// (eg. over clusters associated to a track, weighted by the cluster size; or
+    /// over hits associated to a cluster, weighted by the hit area).
     std::array<float, N> getOutput(std::vector< art::Ptr<T> > const & items,
-        std::vector<float> const & weights) const;
+        std::vector<float> const & weights) const
+    { return pAccumulate(items, weights, *fOutputs); }
+
+    /// Get MVA results accumulated with provided weighting function over the vector
+    /// of items (eg. over clusters associated to a track, weighted by the cluster size;
+    /// or over hits associated to a cluster, weighted by the hit area).
+    std::array<float, N> getOutput(std::vector< art::Ptr<T> > const & items,
+        std::function<float (T const &)> fweight) const
+    { return pAccumulate(items, fweight, *fOutputs); }
 
     /// Get the number of contained items (no. of data product objjects equal to no. of MVA output vectors).
     size_t size() const { return fOutputs->size(); }
@@ -114,101 +120,5 @@ anab::MVAReader<T, N>::MVAReader(const art::Event & evt, const art::InputTag & t
 }
 //----------------------------------------------------------------------------
 
-template <class T, size_t N>
-std::array<float, N> anab::MVAReader<T, N>::getOutput(std::vector< art::Ptr<T> > const & items) const
-{
-    std::array<double, N> acc;
-    acc.fill(0);
-
-	float pmin = 1.0e-6, pmax = 1.0 - pmin;
-	float log_pmin = log(pmin), log_pmax = log(pmax);
-
-	for (auto const & ptr : items)
-	{
-		auto vout = anab::MVAReader<T, N>::getOutput(ptr.key());
-		for (size_t i = 0; i < vout.size(); ++i)
-		{
-			if (vout[i] < pmin) vout[i] = log_pmin;
-			else if (vout[i] > pmax) vout[i] = log_pmax;
-			else vout[i] = log(vout[i]);
-
-			acc[i] += vout[i];
-		}
-	}
-
-	if (!items.empty())
-	{
-		double totp = 0.0;
-		for (size_t i = 0; i < N; ++i)
-		{
-			acc[i] = exp(acc[i] / items.size());
-			totp += acc[i];
-		}
-		for (size_t i = 0; i < N; ++i)
-		{
-			acc[i] /= totp;
-		}
-	}
-	else std::fill(acc.begin(), acc.end(), 1.0 / N);
-
-
-    std::array<float, N> result;
-    for (size_t i = 0; i < N; ++i) result[i] = acc[i];
-    return result;
-}
-//----------------------------------------------------------------------------
-
-template <class T, size_t N>
-std::array<float, N> anab::MVAReader<T, N>::getOutput(
-    std::vector< art::Ptr<T> > const & items,
-    std::vector<float> const & weights) const
-{
-    std::array<double, N> acc;
-    acc.fill(0);
-
-	float pmin = 1.0e-6, pmax = 1.0 - pmin;
-	float log_pmin = log(pmin), log_pmax = log(pmax);
-	double totw = 0.0;
-
-	for (size_t k = 0; k < items.size(); ++k)
-	{
-	    auto const & ptr = items[k];
-		float w = weights[k];
-
-		if (w == 0) continue;
-
-		auto vout = anab::MVAReader<T, N>::getOutput(ptr.key());
-		for (size_t i = 0; i < vout.size(); ++i)
-		{
-			if (vout[i] < pmin) vout[i] = log_pmin;
-			else if (vout[i] > pmax) vout[i] = log_pmax;
-			else vout[i] = log(vout[i]);
-
-			acc[i] += w * vout[i];
-		}
-		totw += w;
-	}
-
-	if (!items.empty())
-	{
-		double totp = 0.0;
-		for (size_t i = 0; i < N; ++i)
-		{
-			acc[i] = exp(acc[i] / totw);
-			totp += acc[i];
-		}
-		for (size_t i = 0; i < N; ++i)
-		{
-			acc[i] /= totp;
-		}
-	}
-	else std::fill(acc.begin(), acc.end(), 1.0 / N);
-
-
-    std::array<float, N> result;
-    for (size_t i = 0; i < N; ++i) result[i] = acc[i];
-    return result;
-}
-//----------------------------------------------------------------------------
 #endif //ANAB_MVAREADER
 
