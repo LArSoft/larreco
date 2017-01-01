@@ -45,7 +45,7 @@ public:
     /// for which MVA is saved) and the collection of MVAOutputs<N> (using data type name
     /// added to fInstanceName as instance name of the collection made for the type T).
     template <class T>
-    void produces();
+    void produces_using();
 
     /// Initialize container for MVA outputs and, if not yet done, the container for
     /// metadata, then creates metadata for data products of type T. MVA output container
@@ -102,6 +102,11 @@ public:
     template <class T>
     std::array<float, N> getOutput(std::vector< art::Ptr<T> > const & items,
         std::function<float (T const &)> fweight) const
+    { return pAccumulate<T, N>(items, fweight, *(fOutputs[getProductID<T>()])); }
+
+    template <class T>
+    std::array<float, N> getOutput(std::vector< art::Ptr<T> > const & items,
+        std::function<float (art::Ptr<T> const &)> fweight) const
     { return pAccumulate<T, N>(items, fweight, *(fOutputs[getProductID<T>()])); }
 
     /// Get copy of the MVA output vector for the type T, at index "key".
@@ -182,7 +187,7 @@ anab::MVAOutput_ID anab::MVAWriter<N>::getProductID() const
 
 template <size_t N>
 template <class T>
-void anab::MVAWriter<N>::produces()
+void anab::MVAWriter<N>::produces_using()
 {
     if (!fIsDescriptionRegistered)
     {
