@@ -27,6 +27,7 @@
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Track.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
@@ -64,7 +65,12 @@ public:
 
 		fhicl::Atom<art::InputTag> ClusterModuleLabel {
 			Name("ClusterModuleLabel"),
-			Comment("tag of clusters, to be EM/track tagged using accumulated results from hits")
+			Comment("tag of clusters to be used as a source of EM/track tagged new clusters (incl. single-hit clusters ) using accumulated results from hits")
+		};
+
+		fhicl::Atom<art::InputTag> TrackModuleLabel {
+			Name("TrackModuleLabel"),
+			Comment("tag of 3D tracks to be EM/track tagged using accumulated results from hits in the best 2D projection")
 		};
 
 		fhicl::Atom<double> Threshold {
@@ -96,6 +102,8 @@ private:
 	art::InputTag fWireProducerLabel;
 	art::InputTag fHitModuleLabel;
 	art::InputTag fClusterModuleLabel;
+	art::InputTag fTrackModuleLabel;
+	bool fDoTracks;
 
 	double fThreshold;
 
@@ -108,6 +116,7 @@ EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 	fWireProducerLabel(config().WireLabel()),
 	fHitModuleLabel(config().HitModuleLabel()),
 	fClusterModuleLabel(config().ClusterModuleLabel()),
+	fTrackModuleLabel(config().TrackModuleLabel()),
 	fThreshold(config().Threshold()),
 	fViews(config().Views())
 {
@@ -116,8 +125,15 @@ EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 
     std::cout << fMVAWriter << std::endl;
 
-	fMVAWriter.produces< recob::Hit >();
-	fMVAWriter.produces< recob::Cluster >();
+	fMVAWriter.produces_using< recob::Hit >();
+	fMVAWriter.produces_using< recob::Cluster >();
+
+    if (!fTrackModuleLabel.label().empty())
+    {
+        fMVAWriter.produces_using< recob::Track >();
+        fDoTracks = true;
+    }
+    else { fDoTracks = false; }
 
 	std::cout << fMVAWriter << std::endl;
 }
@@ -131,6 +147,9 @@ void EmTrackClusterId::produce(art::Event & evt)
 
 	auto clusters = std::make_unique< std::vector< recob::Cluster > >();
 	auto clu2hit = std::make_unique< art::Assns< recob::Cluster, recob::Hit > >();
+
+    art::ProductID newClustersId = getProductID< std::vector<recob::Cluster> >(evt);
+    std::cout << "clu id: " << newClustersId << std::endl;
 
 	unsigned int cidx = 0;
 	unsigned int cryo, tpc, view;
@@ -169,12 +188,35 @@ void EmTrackClusterId::produce(art::Event & evt)
 		cluMap[cryo][tpc][view].push_back(c.key());
 	}
 
+    // ****************** get hits from tracks *******************
+    std::vector< std::vector< art::Ptr<recob::Hit> > > trkHitPtrList;
+    if (fDoTracks)
+    {
+        auto trkListHandle = evt.getValidHandle< std::vector<recob::Track> >(fTrackModuleLabel);
+        art::FindManyP< recob::Hit > hitsFromTracks(trkListHandle, evt, fTrackModuleLabel);
+        trkHitPtrList.resize(trkListHandle->size());
+        for (size_t t = 0; t < trkListHandle->size(); ++t)
+        {
+            auto v = hitsFromTracks.at(t);
+            size_t nh[3] = { 0, 0, 0 };
+            for (auto const & hptr : v) { ++nh[hptr->View()]; }
+            size_t best_view = 2; // collection
+            if ((nh[0] >= nh[1]) && (nh[0] > 2 * nh[2])) best_view = 0; // ind1
+            if ((nh[1] >= nh[0]) && (nh[1] > 2 * nh[2])) best_view = 1; // ind2
+            for (auto const & hptr : v)
+            {
+                if (hptr->View() == best_view) trkHitPtrList[t].emplace_back(hptr);
+            }
+        }
+    }
+
     // *************** classify hits and clusters ****************
-    auto hitID = fMVAWriter.initOutputs<recob::Hit>(fHitModuleLabel, hitPtrList.size());
-    auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fHitModuleLabel); /// USE THIS MODULE LABEL FOR CLUSTERS PRODUCED HERE
+    auto hitID = fMVAWriter.initOutputs<recob::Hit>(fHitModuleLabel, hitPtrList.size(), { "track", "em", "none" });
+    auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fHitModuleLabel,  { "track", "em", "none" }); /// USE THIS MODULE LABEL FOR CLUSTERS PRODUCED HERE
 
     art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fClusterModuleLabel);
     std::vector< bool > hitUsed(hitPtrList.size(), false); // tag hits used in clusters
+    std::vector< float > hitInFA(hitPtrList.size(), 0);    // tag hits in fid. area
     for (auto const & pcryo : hitMap)
     {
         cryo = pcryo.first;
@@ -189,25 +231,22 @@ void EmTrackClusterId::produce(art::Event & evt)
                 fPointIdAlg.setWireDriftData(*wireHandle, view, tpc, cryo);
 
                 // (1) do all hits in this plane --------------------------------------------
-                for (size_t h : pview.second) // h is the Ptr::key()
+                for (size_t h : pview.second) // h is the Ptr< recob::Hit >::key()
                 {
                     const recob::Hit & hit = *(hitPtrList[h]);
                     fMVAWriter.setOutput(hitID, h,
                         fPointIdAlg.predictIdVector(hit.WireID().Wire, hit.PeakTime()));
+                    if (fPointIdAlg.isInsideFiducialRegion(hit.WireID().Wire, hit.PeakTime()))
+                    { hitInFA[h] = 1; }
                 } // hits done --------------------------------------------------------------
 
                 // (2a) do clusters when hits are ready in this plane -----------------------
-                for (size_t c : cluMap[cryo][tpc][view]) // c is the Ptr::key()
+                for (size_t c : cluMap[cryo][tpc][view]) // c is the Ptr< recob::Cluster >::key()
                 {
 		            auto v = hitsFromClusters.at(c);
 		            if (v.empty()) continue;
 
-                    auto vout = fMVAWriter.getOutput<recob::Hit>(v,
-                        [&](auto const & hit)
-                        {
-                            if (fPointIdAlg.isInsideFiducialRegion(hit.WireID().Wire, hit.PeakTime())) return 1.0F;
-                            else return 0.0F;
-                        });
+                    auto vout = fMVAWriter.getOutput<recob::Hit>(v, [&](art::Ptr<recob::Hit> const & ptr) { return hitInFA[ptr.key()]; });
 
                     for (auto const & hit : v)
                     {
@@ -230,7 +269,7 @@ void EmTrackClusterId::produce(art::Event & evt)
 		            fMVAWriter.addOutput(cluID, vout);
                 }
                 // (2b) make single-hit clusters --------------------------------------------
-                for (size_t h : pview.second) // h is the Ptr::key()
+                for (size_t h : pview.second) // h is the Ptr< recob::Hit >::key()
                 {
                     if (hitUsed[h]) continue;
 
@@ -252,13 +291,23 @@ void EmTrackClusterId::produce(art::Event & evt)
 
 		            fMVAWriter.addOutput(cluID, vout);
                 } // all clusters done ------------------------------------------------------
-
-                // (3) do tracks which are best seen in this plane --------------------------
-                // ....TO DO....
-                // tracks done --------------------------------------------------------------
             }
         }
     }
+
+    // (3) do tracks when all hits in all cryo/tpc/plane are done ---------------------------
+    if (fDoTracks)
+    {
+        auto trkID = fMVAWriter.initOutputs<recob::Track>(fTrackModuleLabel, trkHitPtrList.size(), { "track", "em", "none" });
+        for (size_t t = 0; t < trkHitPtrList.size(); ++t) // t is the Ptr< recob::Track >::key()
+        {
+            auto vout = fMVAWriter.getOutput<recob::Hit>(trkHitPtrList[t],
+                [&](art::Ptr<recob::Hit> const & ptr) { return hitInFA[ptr.key()]; });
+            fMVAWriter.setOutput(trkID, t, vout);
+            //std::cout << "trk " << vout[0] << " " << vout[1] << " " << vout[2] << std::endl;
+        }
+    }
+    // tracks done --------------------------------------------------------------------------
 
 	evt.put(std::move(clusters));
 	evt.put(std::move(clu2hit));
