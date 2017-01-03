@@ -30,8 +30,8 @@ standard_trajclusteralg:
    ChkStopCuts: [1.4, 5, 1] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
    Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6]
    # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr, Min MCSMom, min frac Pts/Wire btw vtx and Tjs
-   Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
-   Match3DCuts: [ 0.5, 0, 3, 1 ] 
+   Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
+   Match3DCuts: [ 0.3, 0, 3, 1 ] 
    # dx (cm) matching cut, min MCSMom, min length for 2-view match, 2-view missing plane requirement
    SkipAlgs: [  "MBadTPs", "ChkAllStop", "ChkStop", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs
