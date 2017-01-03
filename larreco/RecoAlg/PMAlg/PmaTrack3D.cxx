@@ -2373,7 +2373,7 @@ pma::Element3D* pma::Track3D::GetNearestElement(
 			min_dist = dist; pe_min = fSegments[i];
 		}
 	}
-	if (!pe_min) mf::LogError("pma::Track3D") << "Nearest element not found.";
+	if (!pe_min) throw cet::exception("pma::Track3D") << "Nearest element not found." << std::endl;
 	return pe_min;
 }
 
