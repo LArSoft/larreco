@@ -37,6 +37,9 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
+  // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
+  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
