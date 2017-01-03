@@ -81,8 +81,10 @@ namespace tca {
     /// Returns a constant reference to the 3D vertices found
     std::vector<Vtx3Store> const& GetVertices() const { return tjs.vtx3; }
     
-    /// Returns a constant reference to the 3D vertices found
-    std::vector<std::vector<unsigned short>> const& Get3DMatchedClusters() const { return tjs.MatchedClusters; }
+    // Get the index list of matchVec entries that have PFParticle info defined
+    std::vector<unsigned short> const& GetPFPList() const { return tjs.matchVecPFPList; }
+    // Get a specific matchVec entry that will be turned into a PFParticle
+    MatchStruct const& GetMatchStruct(unsigned short im) {return tjs.matchVec[im]; };
     
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
@@ -354,6 +356,7 @@ namespace tca {
     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
     void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
+    void FillPFPInfo();
     
   }; // class TrajClusterAlg
 
