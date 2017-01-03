@@ -2,6 +2,87 @@
 
 namespace tca {
   
+  ////////////////////////////////////////////////
+  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im)
+  {
+    // Return true if the 3D matched hits in the trajectories in tjs.matchVecPFPList are in the wrong order in terms of the
+    // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc. All Tjs have been reversed
+    // as needed so that end0 corresponds to the sSeedHit.
+    
+    if(im > tjs.matchVecPFPList.size() - 1) return false;
+    
+    auto& mv = tjs.matchVec[im];
+    
+    // See if the direction (relative to the Tj hit order) has been deteremined
+    unsigned short itj = mv.TjIDs[0] - 1;
+    unsigned short tjDir = tjs.allTraj[itj].TjDir;
+    for(auto& tjID : mv.TjIDs) {
+      unsigned short itj = tjID - 1;
+      if(tjs.allTraj[itj].TjDir != 0) {
+        // check for consistency
+        if(tjDir != 0 && tjs.allTraj[itj].TjDir != tjDir) {
+          std::cout<<"Reverse3DMatchTjs: TjDir inconsistent. Ignoring this for now...\n";
+        }
+        tjDir = tjs.allTraj[itj].TjDir;
+      } // tjs.allTraj[itj].TjDir != 0
+    } // itj
+    
+    if(tjDir < 0) return true;
+
+    // through-going track? Check for outside the Fiducial Volume at the start (s) and end (e).
+    // These variables assume that the TPC is exposed to a beam that contains muons entering at the front and
+    // a background of cosmic rays that enter from the top
+    bool sAtSide = (mv.sXYZ[0] < tjs.XLo || mv.sXYZ[0] > tjs.XHi);
+    bool sAtTop = (mv.sXYZ[1] > tjs.YHi);
+    bool sAtBottom = (mv.sXYZ[1] < tjs.YLo);
+    bool sAtFront = (mv.sXYZ[2] < tjs.ZLo);
+    bool sAtBack = (mv.sXYZ[2] > tjs.ZHi);
+    
+    bool eAtSide = (mv.eXYZ[0] < tjs.XLo || mv.eXYZ[0] > tjs.XHi);
+    bool eAtTop = (mv.sXYZ[1] > tjs.YHi);
+    bool eAtBottom = (mv.sXYZ[1] < tjs.YLo);
+    bool eAtFront = (mv.sXYZ[2] < tjs.ZLo);
+    bool eAtBack = (mv.sXYZ[2] > tjs.ZHi);
+    
+    // the start (end) is outside the FV
+    bool sOutsideFV = sAtBottom || sAtTop || sAtFront || sAtBack;
+    bool eOutsideFV = eAtBottom || eAtTop || eAtFront || eAtBack;
+    
+    if(sOutsideFV && eOutsideFV) {
+      // both ends are outside the FV - probably a through-going muon. See if it enters at the top or the front.
+      if(sAtFront && eAtBack) return false;
+      if(eAtFront && sAtBack) return true;
+      // Next consider cosmic rays entering the top
+      if(sAtTop && eAtBottom) return false;
+      if(eAtTop && sAtBottom) return true;
+      // entering/leaving the sides
+      if(sAtSide && eAtBottom) return false;
+      if(eAtSide && sAtBottom) return true;
+      return false;
+    } // outside the FV
+
+    // Use a simple voting scheme using charge and muon tag direction
+    // ngt is the number of times that something (charge) has the correct behavior (for a stopping track)
+    unsigned short ngt = 0;
+    unsigned short nlt = 0;
+    for(auto& tjID : mv.TjIDs) {
+      unsigned short itj = tjID - 1;
+      unsigned short endPt0 = tjs.allTraj[itj].EndPt[0];
+      unsigned short endPt1 = tjs.allTraj[itj].EndPt[1];
+      float chgrat = tjs.allTraj[itj].Pts[endPt1].AveChg / tjs.allTraj[itj].Pts[endPt0].AveChg;
+      if(chgrat > 1.1) {
+        ++ngt;
+      } else if(chgrat < 0.9) {
+        ++nlt;
+      }
+    } // itj
+    
+    // everything seems to be in proper order
+    if(ngt >= nlt) return false;
+    
+    return true;
+    
+  } // Reverse3DMatchTjs
   
   ////////////////////////////////////////////////
   void ReleaseHits(TjStuff& tjs, Trajectory& tj)
@@ -861,6 +942,8 @@ namespace tca {
     if(tj.Pts.empty()) return;
     // reverse the crawling direction flag
     tj.StepDir = -tj.StepDir;
+    // reverse the direction
+    tj.TjDir = -tj.TjDir;
     // Vertices
     std::swap(tj.VtxID[0], tj.VtxID[1]);
     // trajectory points
@@ -1143,11 +1226,11 @@ namespace tca {
       if(n0 == n1) continue;
       if(n0 > n1) {
         // Delta-rays are closer to the beginning (0) end than the end (1) end
-        muTj.Dir = 1;
+        muTj.TjDir = 1;
       } else {
-        muTj.Dir = -1;
+        muTj.TjDir = -1;
       }
-      if(muTj.StepDir < 0) muTj.Dir = -muTj.Dir;
+      if(muTj.StepDir < 0) muTj.TjDir = -muTj.TjDir;
     } // itj
   } // TagMuonDirections
   
@@ -1783,7 +1866,7 @@ namespace tca {
         myprt<<std::setw(5)<<(int)tp.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
-        myprt<<std::setw(4)<<aTj.Dir;
+        myprt<<std::setw(4)<<aTj.TjDir;
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
