@@ -7647,6 +7647,8 @@ namespace tca {
   //////////////////////////////////////////
   void TrajClusterAlg::MaskTrajEndPoints(Trajectory& tj, unsigned short nPts)
   {
+    //PrintTrajectory("MTEP", tjs, tj, USHRT_MAX);
+
     // Masks off (sets all hits not-Used) nPts trajectory points at the leading edge of the
     // trajectory, presumably because the fit including this points is poor. The position, direction
     // and Delta of the last nPts points is updated as well
@@ -7664,22 +7666,27 @@ namespace tca {
     
     // find the last good point (with charge)
     unsigned short lastGoodPt = USHRT_MAX ;
-    for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
-      unsigned short ipt = tj.EndPt[1] - nPts - ii;
-      if(tj.Pts[ipt].Chg > 0) {
-        lastGoodPt = ipt;
-        break;
-      }
-      if(ipt == 0) break;
-    } // ii
+
+    if (!ChkMichel(tj, lastGoodPt)){ //did not find michel electron
+      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+        unsigned short ipt = tj.EndPt[1] - nPts - ii;
+        if(tj.Pts[ipt].Chg > 0) {
+          lastGoodPt = ipt;
+          break;
+        }
+        if(ipt == 0) break;
+      } // ii
+    }
     if(prt) {
       mf::LogVerbatim("TC")<<"MTEP: lastGoodPt "<<lastGoodPt<<" Pts size "<<tj.Pts.size()<<" fGoodTraj "<<fGoodTraj;
     }
     if(lastGoodPt == USHRT_MAX) return;
     tj.EndPt[1] = lastGoodPt;
     
-    for(unsigned short ii = 0; ii < nPts; ++ii) {
+    //for(unsigned short ii = 0; ii < nPts; ++ii) {
+    for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
       unsigned short ipt = tj.Pts.size() - 1 - ii;
+      if (ipt==lastGoodPt) break;
       UnsetUsedHits(tjs, tj.Pts[ipt]);
       // Reset the position and direction of the masked off points
       tj.Pts[ipt].Dir = tj.Pts[lastGoodPt].Dir;
@@ -7852,5 +7859,56 @@ namespace tca {
       if(npts < nPtsToCheck) break;
     } // end
   } // StopsAtEnd
-  
+
+  ////////////////////////////////////////////////
+  bool TrajClusterAlg::ChkMichel(Trajectory& tj, unsigned short& lastGoodPt){
+
+    //find number of hits that are consistent with Michel electron
+    unsigned short nmichelhits = 0;
+    //find number of hits that are consistent with Bragg peak
+    unsigned short nbragghits = 0;
+    float lastChg = 0;
+
+    bool isfirsthit = true;
+    unsigned short braggpeak = 0;
+
+    for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+      if (ii>tj.EndPt[1]) continue;
+      unsigned short ipt = tj.EndPt[1] - ii;
+      if (tj.Pts[ipt].Chg>0){
+        if (isfirsthit){
+          isfirsthit = false;
+          if (tj.Pts[ipt].ChgPull<0){
+            ++nmichelhits;
+          }
+        }
+        else{
+          if (tj.Pts[ipt].ChgPull<0&&nmichelhits&&!nbragghits){//still Michel
+            ++nmichelhits;
+          }
+          else{
+            if (!nbragghits){
+              ++nbragghits; //Last Bragg peak hit
+              lastChg  = tj.Pts[ipt].Chg;
+              braggpeak = ipt;
+            }
+            else if (tj.Pts[ipt].Chg<lastChg){ //still Bragg peak
+              ++nbragghits;
+              lastChg  = tj.Pts[ipt].Chg;
+            }
+            else break;
+          }
+        }
+      }
+    }
+    mf::LogVerbatim("TC")<<"ChkMichel Michel hits: "<<nmichelhits<<" Bragg peak hits: "<<nbragghits;
+    if (nmichelhits>0&&nbragghits>2){//find Michel topology
+      lastGoodPt = braggpeak;
+      return true;
+    }
+    else{
+      return false;
+    }
+  }
+
 } // namespace cluster

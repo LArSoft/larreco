@@ -340,6 +340,8 @@ namespace tca {
     void ChkAllStop();
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
+    // Check the Michel electron topology, lastGoodPt is the last point of muon
+    bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
     void MatchTruth();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
