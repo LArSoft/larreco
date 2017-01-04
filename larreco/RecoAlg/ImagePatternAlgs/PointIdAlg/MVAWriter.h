@@ -191,12 +191,12 @@ void anab::MVAWriter<N>::produces_using()
 {
     if (!fIsDescriptionRegistered)
     {
-        //fProducer->produces< anab::MVADescription<N> >(fInstanceName);
+        fProducer->produces< std::vector< anab::MVADescription<N> > >(fInstanceName);
         fIsDescriptionRegistered = true;
     }
 
     std::string dataName = getProductName(typeid(T));
-    //fProducer->produces< anab::MVAOutput<N> >(fInstanceName + dataName);
+    fProducer->produces< std::vector< anab::MVAOutput<N> > >(fInstanceName + dataName);
     fRegisteredDataTypes.push_back(dataName);
 }
 //----------------------------------------------------------------------------
@@ -262,9 +262,9 @@ void anab::MVAWriter<N>::saveOutputs(art::Event & evt)
     std::cout << "put..." << std::endl;
     for (size_t i = 0; i < fOutputs.size(); ++i)
     {
-        //evt.put(std::move(fOutputs[i]), (*fDescriptions)[i].outputInstance());
+        evt.put(std::move(fOutputs[i]), (*fDescriptions)[i].outputInstance());
     }
-    //evt.put(std::move(fDescriptions), fInstanceName);
+    evt.put(std::move(fDescriptions), fInstanceName);
     std::cout << "...done" << std::endl;
 
     clearEventData();
