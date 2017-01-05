@@ -53,8 +53,13 @@ public:
     /// store values.
     /// Returns index of outputs which should be used when saving actual output values.
     template <class T>
-    MVAOutput_ID initOutputs(art::InputTag const & dataTag, size_t dataSize,
+    MVAOutput_ID initOutputs(std::string const & dataTag, size_t dataSize,
         std::vector< std::string > const & names = std::vector< std::string >(N, ""));
+
+    template <class T>
+    MVAOutput_ID initOutputs(art::InputTag const & dataTag, size_t dataSize,
+        std::vector< std::string > const & names = std::vector< std::string >(N, ""))
+    { return initOutputs<T>(dataTag.encode(), dataSize, names); }
 
     void setOutput(MVAOutput_ID id, size_t key, std::array<float, N> const & values) { (*(fOutputs[id]))[key] = values; }
     void setOutput(MVAOutput_ID id, size_t key, std::array<double, N> const & values) { (*(fOutputs[id]))[key] = values; }
@@ -69,13 +74,20 @@ public:
     template <class T>
     MVAOutput_ID initOutputs(art::InputTag const & dataTag,
         std::vector< std::string > const & names = std::vector< std::string >(N, ""))
-    { return initOutputs<T>(dataTag, 0, names); }
+    { return initOutputs<T>(dataTag.encode(), 0, names); }
+
+    template <class T>
+    MVAOutput_ID initOutputs(
+        std::vector< std::string > const & names = std::vector< std::string >(N, ""))
+    { return initOutputs<T>(std::string(""), 0, names); }
 
     void addOutput(MVAOutput_ID id, std::array<float, N> const & values) { fOutputs[id]->emplace_back(values); }
     void addOutput(MVAOutput_ID id, std::array<double, N> const & values) { fOutputs[id]->emplace_back(values); }
     void addOutput(MVAOutput_ID id, std::vector<float> const & values) { fOutputs[id]->emplace_back(values); }
     void addOutput(MVAOutput_ID id, std::vector<double> const & values) { fOutputs[id]->emplace_back(values); }
 
+    /// Set tag of associated data products in case it was not ready at the initialization time.
+    void setDataTag(MVAOutput_ID id, art::InputTag const & dataTag) { (*fDescriptions)[id].setDataTag(dataTag.encode()); }
 
     /// Check consistency and save all the results in the event.
     void saveOutputs(art::Event & evt);
@@ -218,7 +230,7 @@ bool anab::MVAWriter<N>::descriptionExists(std::string tname)
 template <size_t N>
 template <class T>
 anab::MVAOutput_ID anab::MVAWriter<N>::initOutputs(
-    art::InputTag const & dataTag, size_t dataSize,
+    std::string const & dataTag, size_t dataSize,
     std::vector< std::string > const & names)
 {
     size_t dataHash = getProductHash(typeid(T));
@@ -231,7 +243,7 @@ anab::MVAOutput_ID anab::MVAWriter<N>::initOutputs(
     {
         throw cet::exception("MVAWriter") << "MVADescription<N> already initialized for " << dataName;
     }
-    fDescriptions->emplace_back(dataTag.encode(), fInstanceName + dataName);
+    fDescriptions->emplace_back(dataTag, fInstanceName + dataName);
 
     fOutputs.push_back( std::make_unique< std::vector< anab::MVAOutput<N> > >() );
     anab::MVAOutput_ID id = fOutputs.size() - 1;
@@ -259,16 +271,17 @@ void anab::MVAWriter<N>::saveOutputs(art::Event & evt)
         throw cet::exception("MVAWriter") << "MVADescription<N> vector length not equal to the number of MVAOutput<N> vectors";
     }
 
-    std::cout << "put..." << std::endl;
     for (size_t i = 0; i < fOutputs.size(); ++i)
     {
-        evt.put(std::move(fOutputs[i]), (*fDescriptions)[i].outputInstance());
+        auto const & outInstName = (*fDescriptions)[i].outputInstance();
+        if ((*fDescriptions)[i].dataTag().empty())
+        {
+            throw cet::exception("MVAWriter") << "MVADescription<N> reco data tag not set for " << outInstName;
+        }
+        evt.put(std::move(fOutputs[i]), outInstName);
     }
     evt.put(std::move(fDescriptions), fInstanceName);
-    std::cout << "...done" << std::endl;
-
     clearEventData();
-    std::cout << "reset ok" << std::endl;
 }
 //----------------------------------------------------------------------------
 
