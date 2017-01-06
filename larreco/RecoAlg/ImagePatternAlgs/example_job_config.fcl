@@ -101,7 +101,7 @@ physics.analyzers.pointid.Crop:            true  # set to false when dumping noi
 # EM vs track separation configuration:
 # PatchSizeW and PatchSizeD together with DriftWindow have to be corresponding
 # to the CNN model parameters (here the patch is 16cm2, assuming ProtoDUNE's
-# 5mm wire pitch, 2.5MHz sampling and drift speed at 500V/cm)
+# 5mm wire pitch, 2MHz sampling and drift speed at 500V/cm)
 physics.producers.emtrackid.PointIdAlg.NNetModelFile:      "/home/your_dir/your_cnn_model.nnet"
 physics.producers.emtrackid.PointIdAlg.PatchSizeW:         32     # how many wires in patch
 physics.producers.emtrackid.PointIdAlg.PatchSizeD:         44     # how many downsampled ADC entries
@@ -109,13 +109,12 @@ physics.producers.emtrackid.PointIdAlg.DriftWindow:        6      # downsampling
 physics.producers.emtrackid.PointIdAlg.DownscaleFn:        "mean" # downsampling function
 physics.producers.emtrackid.HitModuleLabel:                "lineclusterdc" # all hits (used to classify leftovers from clustering)
 physics.producers.emtrackid.ClusterModuleLabel:            "lineclusterdc" # clusters to be classified
-physics.producers.emtrackid.Threshold:                     0.3 # **** imporant **** optimize this threshold to your needs
 physics.producers.emtrackid.Views:                         []  # possible to run over selected views only (all views if empty list)
 
 # decay detection configuration:
 # PatchSizeW and PatchSizeD together with DriftWindow have to be corresponding
 # to the CNN model parameters (here the patch is 16cm2, assuming ProtoDUNE's
-# 5mm wire pitch, 2.5MHz sampling and drift speed at 500V/cm)
+# 5mm wire pitch, 2MHz sampling and drift speed at 500V/cm)
 physics.producers.decayid.PointIdAlg.NNetModelFile:      "/home/your_dir/your_cnn_model.nnet"
 physics.producers.decayid.PointIdAlg.PatchSizeW:         32     # how many wires in patch
 physics.producers.decayid.PointIdAlg.PatchSizeD:         44     # how many downsampled ADC entries
@@ -125,14 +124,7 @@ physics.producers.decayid.TrackModuleLabel:              "pmtrack" # tracks to b
 physics.producers.decayid.PointThreshold:                0.998  # threshold on p(decay) used to select decay candidates
 
 # EM vs track eff. test configuration, similar to the above:
-physics.analyzers.testeff.PointIdAlg.NNetModelFile:      "/home/your_dir/your_cnn_model.nnet"
-physics.analyzers.testeff.PointIdAlg.PatchSizeW:         32
-physics.analyzers.testeff.PointIdAlg.PatchSizeD:         44
-physics.analyzers.testeff.PointIdAlg.DriftWindow:        6
-physics.analyzers.testeff.PointIdAlg.DownscaleFn:        "mean"
-physics.analyzers.testeff.HitsModuleLabel:               "linecluster"
-physics.analyzers.testeff.ClusterModuleLabel:            "linecluster"
+physics.analyzers.testeff.NNetModuleLabel:               "emtrackid"
 physics.analyzers.testeff.View:                          2
-physics.analyzers.testeff.Threshold:                     0.3
 physics.analyzers.testeff.SaveHitsFile:                  true
 

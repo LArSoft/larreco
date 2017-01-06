@@ -31,10 +31,11 @@ class MVAWriter : public MVAWrapperBase {
 public:
 
     /// Name provided to the constructor is used as an instance name for MVADescription<N>
-    /// and MVAOutput<N> (for which it is combined with the processed data product names);
-    /// good idea is to use the name as an indication of what MVA model was used on the data
+    /// and MVAOutput<N> (for which it is combined with the processed data product names).
+    /// Good idea is to use the name as an indication of what MVA model was used on the data
     /// (like eg. "emtrack" for outputs from a model distinguishing EM from track-like hits
-    /// and clusters).
+    /// and clusters). The name is used as an instance name for the MVADescription data product
+    /// which lets you to save multiple MVA results from a single art module.
     MVAWriter(art::EDProducer* module, const char* name = "") :
         fProducer(module), fInstanceName(name),
         fIsDescriptionRegistered(false),
@@ -140,6 +141,12 @@ public:
         for (size_t i = 0; i < N; ++i) vout[i] = src[i];
         return vout;
     }
+
+    /// Get the number of contained MVA output vectors.
+    size_t size(MVAOutput_ID id) const { return fOutputs[id]->size(); }
+
+    /// Get the length of a single vector of MVA values.
+    size_t length() const { return N; }
 
     friend std::ostream& operator<< (std::ostream &o, MVAWriter const& a)
     {

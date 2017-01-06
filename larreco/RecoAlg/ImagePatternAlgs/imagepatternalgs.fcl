@@ -30,15 +30,11 @@ standard_pointidtrainingnuevent:
 standard_pointidefftest:
 {
 	module_type:            "PointIdEffTest"
+	CalorimetryAlg:         @local::standard_calorimetryalgmc
 
-    WireLabel:              "caldata"
     SimModuleLabel:         "largeant"	
-   	HitsModuleLabel:        "linecluster"
-   	ClusterModuleLabel:     "linecluster"
 
-    PointIdAlg:             @local::standard_pointidalg
-
-    Threshold:              0.5
+   	NNetModuleLabel:        "emtrackid"
     View:                   2
 
     SaveHitsFile:           false
@@ -63,8 +59,7 @@ standard_emtrackclusterid:
 
     PointIdAlg:             @local::standard_pointidalg
 
-    Threshold:              0.5 # tag cluster as EM-like if net output accumulated over hits > threshold
-    Views:                  []  # do processing using selected views only, or use all views if empty list
+    Views:                  []  # do processing in selected views only, or use all views if empty list
 }
 
 standard_particledecayid:

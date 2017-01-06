@@ -72,11 +72,6 @@ public:
 			Comment("tag of 3D tracks to be EM/track tagged using accumulated results from hits in the best 2D projection")
 		};
 
-		fhicl::Atom<double> Threshold {
-			Name("Threshold"),
-			Comment("tag cluster as EM-like if net output accumulated over hits > threshold")
-		};
-
 		fhicl::Sequence<int> Views {
 			Name("Views"),
 			Comment("tag clusters in selected views only, or in all views if empty list")
@@ -105,8 +100,6 @@ private:
 	std::string fThisModuleLabel;
 	bool fDoClusters, fDoTracks;
 
-	double fThreshold;
-
 	std::vector< int > fViews;
 };
 // ------------------------------------------------------
@@ -118,7 +111,6 @@ EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 	fClusterModuleLabel(config().ClusterModuleLabel()),
 	fTrackModuleLabel(config().TrackModuleLabel()),
 	fThisModuleLabel(config.get_PSet().get<std::string>("module_label")),
-	fThreshold(config().Threshold()),
 	fViews(config().Views())
 {
 	fMVAWriter.produces_using< recob::Hit >();
@@ -204,11 +196,6 @@ void EmTrackClusterId::produce(art::Event & evt)
 	    auto clusters = std::make_unique< std::vector< recob::Cluster > >();
 	    auto clu2hit = std::make_unique< art::Assns< recob::Cluster, recob::Hit > >();
 
-        art::ProductID newClustersId = getProductID< std::vector<recob::Cluster> >(evt);
-        std::cout << "clu id: " << newClustersId << std::endl;
-
-	    unsigned int cidx = 0;
-
         // ************** get and sort input clusters ***************
     	auto cluListHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fClusterModuleLabel);
 	    std::vector< art::Ptr<recob::Cluster> > cluPtrList;
@@ -227,7 +214,8 @@ void EmTrackClusterId::produce(art::Event & evt)
 	    }
 
         auto cluID = fMVAWriter.initOutputs<recob::Cluster>(art::InputTag(fThisModuleLabel), { "track", "em", "none" });
-        
+
+        unsigned int cidx = 0; // new clusters index
         art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fClusterModuleLabel);
         std::vector< bool > hitUsed(hitPtrList.size(), false); // tag hits used in clusters
         for (auto const & pcryo : cluMap)
@@ -259,15 +247,13 @@ void EmTrackClusterId::produce(art::Event & evt)
 	    	            mf::LogVerbatim("EmTrackClusterId") << "cluster in tpc:" << tpc << " view:" << view
                             << " size:" << v.size() << " p:" << pvalue;
 
-	    	            if (pvalue > fThreshold) continue; // identified as track-like, for the moment we save only em-like parts
-
                 		clusters->emplace_back(
 	    		            recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
 	    			            v.size(), 0.0F, 0.0F, cidx, (geo::View_t)view, v.front()->WireID().planeID()));
 	    	            util::CreateAssn(*this, evt, *clusters, v, *clu2hit);
 	    	            cidx++;
 
-	    	            fMVAWriter.addOutput(cluID, vout);
+	    	            fMVAWriter.addOutput(cluID, vout); // add copy of the input cluster
                     }
 
                     // (2b) make single-hit clusters --------------------------------------------
@@ -281,8 +267,6 @@ void EmTrackClusterId::produce(art::Event & evt)
 		                mf::LogVerbatim("EmTrackClusterId") << "single hit in tpc:" << tpc << " view:" << view
 			                << " wire:" << hitPtrList[h]->WireID().Wire << " drift:" << hitPtrList[h]->PeakTime() << " p:" << pvalue;
 
-		                if (pvalue > fThreshold) continue; // identified as track-like, for the moment we save only em-like parts
-
 		                art::PtrVector< recob::Hit > cluster_hits;
 		                cluster_hits.push_back(hitPtrList[h]);
 		                clusters->emplace_back(
@@ -291,8 +275,9 @@ void EmTrackClusterId::produce(art::Event & evt)
 		                util::CreateAssn(*this, evt, *clusters, cluster_hits, *clu2hit);
 		                cidx++;
 
-		                fMVAWriter.addOutput(cluID, vout);
+		                fMVAWriter.addOutput(cluID, vout); // add single-hit cluster tagging unclutered hit
                     }
+                    mf::LogVerbatim("EmTrackClusterId") << "...produced " << cidx - pview.second.size() << " single-hit clusters.";
                 }
             }
         }

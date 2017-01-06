@@ -28,7 +28,11 @@ public:
     MVAReader(const art::Event & evt, const art::InputTag & tag);
 
     /// Access data product at index "key".
-    T const & item(size_t key) const { return (*fDataProd)[key]; }
+    T const & item(size_t key) const { return (*fDataHandle)[key]; }
+    std::vector<T> const & items() const { return *fDataHandle; }
+
+    /// Access the vector of data products.
+    std::vector< MVAOutput<N> > const & outputs() const { return *fOutputs; }
 
     /// Get copy of the MVA output vector at index "key".
     std::array<float, N> getOutput(size_t key) const
@@ -40,11 +44,7 @@ public:
 
     /// Get copy of the MVA output vector idicated with art::Ptr::key().
     std::array<float, N> getOutput(art::Ptr<T> const & item) const
-    {
-        std::array<float, N> vout;
-        for (size_t i = 0; i < N; ++i) vout[i] = (*fOutputs)[item.key()][i];
-        return vout;
-    }
+    { return getOutput(item.key()); }
 
     /// Get MVA results accumulated over the vector of items (eg. over hits associated to a cluster).
     std::array<float, N> getOutput(std::vector< art::Ptr<T> > const & items) const
@@ -64,14 +64,19 @@ public:
         std::function<float (T const &)> fweight) const
     { return pAccumulate(items, fweight, *fOutputs); }
 
-    /// Get the number of contained items (no. of data product objjects equal to no. of MVA output vectors).
+    /// Get the number of contained items (no. of data product objects equal to no. of MVA output vectors).
     size_t size() const { return fOutputs->size(); }
 
     /// Get the length of a single vector of MVA values.
     size_t length() const { return N; }
 
+    /// Get the input tag (string representation) of data product used to calculate MVA values.
     const std::string & dataTag() const { return fDescription->dataTag(); }
 
+    /// Access the data product handle.
+    const art::Handle< std::vector<T> > & dataHandle() const { return fDataHandle; }
+
+    /// Meaning/name of the index'th column in the collection of MVA output vectors.
     const std::string & outputName(size_t index) const { return fDescription->outputName(index); }
 
     friend std::ostream& operator<< (std::ostream &o, MVAReader const& a)
@@ -84,7 +89,7 @@ private:
 
     MVADescription<N> const * fDescription;
     std::vector< MVAOutput<N> > const * fOutputs;
-    std::vector<T> const * fDataProd;
+    art::Handle< std::vector<T> > fDataHandle;
 };
 
 } // namespace anab
@@ -94,8 +99,7 @@ private:
 //
 template <class T, size_t N>
 anab::MVAReader<T, N>::MVAReader(const art::Event & evt, const art::InputTag & tag) :
-    fDescription(0),
-    fDataProd(0)
+    fDescription(0)
 {
     if (!N) { throw cet::exception("MVAReader") << "MVA size should be > 0."; }
 
@@ -110,13 +114,19 @@ anab::MVAReader<T, N>::MVAReader(const art::Event & evt, const art::InputTag & t
             fDescription = &dscr; break;
         }
     }
-    if (!fDescription) { throw cet::exception("MVAReader") << "MVA description not found."; }
+    if (!fDescription) { throw cet::exception("MVAReader") << "MVA description not found for " << outputInstanceName; }
 
     fOutputs = &*(evt.getValidHandle< std::vector< MVAOutput<N> > >( art::InputTag(tag.label(), fDescription->outputInstance(), tag.process()) ));
 
-    fDataProd = &*(evt.getValidHandle< std::vector<T> >( fDescription->dataTag() ));
+    if (!evt.getByLabel( fDescription->dataTag(), fDataHandle ))
+    {
+        throw cet::exception("MVAReader") << "Associated data product handle failed: " << *(fDataHandle.whyFailed());
+    }
 
-    if (fOutputs->size() != fDataProd->size()) { throw cet::exception("MVAReader") << "MVA outputs and data products sizes inconsistent."; }
+    if (fOutputs->size() != fDataHandle->size())
+    {
+        throw cet::exception("MVAReader") << "MVA outputs and data products sizes inconsistent: " << fOutputs->size() << "!=" << fDataHandle->size();
+    }
 }
 //----------------------------------------------------------------------------
 
