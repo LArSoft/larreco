@@ -292,7 +292,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	    const std::vector< art::Ptr<recob::Hit> > & hits = hitsFromClusters.at(c);
 	    std::array<float, 3> cnn_out = cluResults.getOutput(c);
 
-        testCNN(*simChannelHandle, hits, cnn_out, hitResults.outputs());
+        testCNN(*simChannelHandle, hits, cnn_out, hitResults.outputs()); // test hits in the cluster
 	}
 
     if (fTotHit > 0) fCleanHit = fCleanHit / fTotHit;
