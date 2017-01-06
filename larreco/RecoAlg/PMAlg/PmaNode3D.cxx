@@ -416,8 +416,12 @@ double pma::Node3D::Pi(float endSegWeight, bool doAsymm) const
 		{
 			double lPrev = segPrev->Length();
 			double lNext = segNext->Length();
-			double lAsymm = (1.0 - segCos) * (lPrev - lNext) / (lPrev + lNext);
-			lAsymmFactor = 0.05 * lAsymm * lAsymm;
+			double lSum = lPrev + lNext;
+			if (lSum > 0.1)
+			{
+				double lAsymm = (1.0 - segCos) * (lPrev - lNext) / lSum;
+				lAsymmFactor = 0.05 * lAsymm * lAsymm;
+			}
 		}
 
 		if (fHitsRadius > 0.0F) return scale * (1.0 + segCos + lAsymmFactor) * fHitsRadius * fHitsRadius;
