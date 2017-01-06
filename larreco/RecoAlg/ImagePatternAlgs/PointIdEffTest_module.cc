@@ -110,7 +110,8 @@ private:
 	int testCNN(
 	    const std::vector< sim::SimChannel > & channels,
         const std::vector< art::Ptr<recob::Hit> > & hits,
-        const std::array<float, 3> & cnn_out);
+        const std::array<float, 3> & cnn_out,
+        const std::vector< anab::MVAOutput<3> > & hit_outs);
 
 	int fRun, fEvent;
     float fMcDepEM, fMcDepTrack, fMcFractionEM;
@@ -277,8 +278,8 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
     // output from cnn's
 
-    //anab::MVAReader<recob::Hit, 3> hitResults(e, fNNetModuleLabel);
-    anab::MVAReader<recob::Cluster, 3> cluResults(e, fNNetModuleLabel);
+    anab::MVAReader<recob::Hit, 3> hitResults(e, fNNetModuleLabel);     // hit-by-hit outpus just dumped to file for debugging
+    anab::MVAReader<recob::Cluster, 3> cluResults(e, fNNetModuleLabel); // outputs for clusters used as a EM/track decision
  
 	const art::FindManyP<recob::Hit> hitsFromClusters(cluResults.dataHandle(), e, cluResults.dataTag());
 
@@ -291,7 +292,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	    const std::vector< art::Ptr<recob::Hit> > & hits = hitsFromClusters.at(c);
 	    std::array<float, 3> cnn_out = cluResults.getOutput(c);
 
-        testCNN(*simChannelHandle, hits, cnn_out);
+        testCNN(*simChannelHandle, hits, cnn_out, hitResults.outputs());
 	}
 
     if (fTotHit > 0) fCleanHit = fCleanHit / fTotHit;
@@ -384,7 +385,8 @@ void nnet::PointIdEffTest::countTruthDep(
 int nnet::PointIdEffTest::testCNN(
     const std::vector< sim::SimChannel > & channels,
     const std::vector< art::Ptr<recob::Hit> > & hits,
-    const std::array<float, 3> & cnn_out)
+    const std::array<float, 3> & cnn_out,
+    const std::vector< anab::MVAOutput<3> > & hit_outs)
 {
 	fClSize = hits.size();
 
@@ -556,10 +558,15 @@ int nnet::PointIdEffTest::testCNN(
 	{
 		for (auto const & h : hits)
 		{
+		    auto const & vout = hit_outs[h.key()];
+	    	double hitPidValue = 0;
+        	double h_trk_or_sh = vout[0] + vout[1];
+        	if (h_trk_or_sh > 0) hitPidValue = vout[0] / h_trk_or_sh;
+
 			fHitsOutFile << fRun << " " << fEvent << " "
 				<< h->WireID().TPC  << " " << h->WireID().Wire << " " << h->PeakTime() << " "
 				<< h->SummedADC() * fCalorimetryAlg.LifetimeCorrection(h->PeakTime()) << " "
-				<< fMcPid << " " << fPidValue << std::endl;
+				<< fMcPid << " " << fPidValue << " " << hitPidValue << std::endl;
 		}
 	}
 
