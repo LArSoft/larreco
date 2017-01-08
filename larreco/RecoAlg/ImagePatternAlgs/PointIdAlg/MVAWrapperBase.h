@@ -31,22 +31,22 @@ protected:
     template <class T, size_t N>
     std::array<float, N> pAccumulate(
         std::vector< art::Ptr<T> > const & items,
-        std::vector< MVAOutput<N> > const & outs) const;
+        std::vector< FeatureVector<N> > const & outs) const;
 
     template <class T, size_t N>
     std::array<float, N> pAccumulate(
         std::vector< art::Ptr<T> > const & items, std::vector<float> const & weights,
-        std::vector< MVAOutput<N> > const & outs) const;
+        std::vector< FeatureVector<N> > const & outs) const;
 
     template <class T, size_t N>
     std::array<float, N> pAccumulate(
         std::vector< art::Ptr<T> > const & items, std::function<float (T const &)> fweight,
-        std::vector< MVAOutput<N> > const & outs) const;
+        std::vector< FeatureVector<N> > const & outs) const;
 
     template <class T, size_t N>
     std::array<float, N> pAccumulate(
         std::vector< art::Ptr<T> > const & items, std::function<float (art::Ptr<T> const &)> fweight,
-        std::vector< MVAOutput<N> > const & outs) const;
+        std::vector< FeatureVector<N> > const & outs) const;
 };
 
 } // namespace anab
@@ -57,7 +57,7 @@ protected:
 template <class T, size_t N>
 std::array<float, N> anab::MVAWrapperBase::pAccumulate(
     std::vector< art::Ptr<T> > const & items,
-    std::vector< anab::MVAOutput<N> > const & outs) const
+    std::vector< anab::FeatureVector<N> > const & outs) const
 {
     std::array<double, N> acc;
     acc.fill(0);
@@ -104,7 +104,7 @@ std::array<float, N> anab::MVAWrapperBase::pAccumulate(
 template <class T, size_t N>
 std::array<float, N> anab::MVAWrapperBase::pAccumulate(
     std::vector< art::Ptr<T> > const & items, std::vector<float> const & weights,
-    std::vector< anab::MVAOutput<N> > const & outs) const
+    std::vector< anab::FeatureVector<N> > const & outs) const
 {
     std::array<double, N> acc;
     acc.fill(0);
@@ -158,7 +158,7 @@ std::array<float, N> anab::MVAWrapperBase::pAccumulate(
 template <class T, size_t N>
 std::array<float, N> anab::MVAWrapperBase::pAccumulate(
     std::vector< art::Ptr<T> > const & items, std::function<float (T const &)> fweight,
-    std::vector< anab::MVAOutput<N> > const & outs) const
+    std::vector< anab::FeatureVector<N> > const & outs) const
 {
     std::array<double, N> acc;
     acc.fill(0);
@@ -212,7 +212,7 @@ std::array<float, N> anab::MVAWrapperBase::pAccumulate(
 template <class T, size_t N>
 std::array<float, N> anab::MVAWrapperBase::pAccumulate(
     std::vector< art::Ptr<T> > const & items, std::function<float (art::Ptr<T> const &)> fweight,
-    std::vector< anab::MVAOutput<N> > const & outs) const
+    std::vector< anab::FeatureVector<N> > const & outs) const
 {
     std::array<double, N> acc;
     acc.fill(0);

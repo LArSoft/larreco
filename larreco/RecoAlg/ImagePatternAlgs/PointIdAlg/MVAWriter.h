@@ -31,7 +31,7 @@ class MVAWriter : public MVAWrapperBase {
 public:
 
     /// Name provided to the constructor is used as an instance name for MVADescription<N>
-    /// and MVAOutput<N> (for which it is combined with the processed data product names).
+    /// and FeatureVector<N> (for which it is combined with the processed data product names).
     /// Good idea is to use the name as an indication of what MVA model was used on the data
     /// (like eg. "emtrack" for outputs from a model distinguishing EM from track-like hits
     /// and clusters). The name is used as an instance name for the MVADescription data product
@@ -43,7 +43,7 @@ public:
     { }
 
     /// Register the collection of metadata type MVADescription<N> (once for all data types
-    /// for which MVA is saved) and the collection of MVAOutputs<N> (using data type name
+    /// for which MVA is saved) and the collection of FeatureVectors<N> (using data type name
     /// added to fInstanceName as instance name of the collection made for the type T).
     template <class T>
     void produces_using();
@@ -173,7 +173,7 @@ private:
     std::unordered_map< size_t, MVAOutput_ID > fTypeHashToID;
     template <class T> MVAOutput_ID getProductID() const;
 
-    std::vector< std::unique_ptr< std::vector< anab::MVAOutput<N> > > > fOutputs;
+    std::vector< std::unique_ptr< std::vector< anab::FeatureVector<N> > > > fOutputs;
     std::unique_ptr< std::vector< anab::MVADescription<N> > > fDescriptions;
     void clearEventData()
     {
@@ -181,8 +181,10 @@ private:
         fDescriptions.reset(nullptr);
     }
 
+    /// Check if the the writer is configured to write results for data product type name.
+    bool dataTypeRegistered(const std::string & dname) const;
     /// Check if the containers for results prepared for "tname" data type are ready.
-    bool descriptionExists(std::string tname);
+    bool descriptionExists(const std::string & tname) const;
 };
 
 } // namespace anab
@@ -199,8 +201,19 @@ anab::MVAOutput_ID anab::MVAWriter<N>::getProductID() const
     if (search != fTypeHashToID.end()) { return search->second; }
     else
     {
-        throw cet::exception("MVAWriter") << "MVA not initialized for product " << getProductName(ti);
+        throw cet::exception("MVAWriter") << "MVA not initialized for product " << getProductName(ti) << std::endl;
     }
+}
+//----------------------------------------------------------------------------
+
+template <size_t N>
+bool anab::MVAWriter<N>::dataTypeRegistered(const std::string & dname) const
+{
+    for (auto const & s : fRegisteredDataTypes)
+    {
+        if (s == dname) { return true; }
+    }
+    return false;
 }
 //----------------------------------------------------------------------------
 
@@ -208,20 +221,25 @@ template <size_t N>
 template <class T>
 void anab::MVAWriter<N>::produces_using()
 {
+    std::string dataName = getProductName(typeid(T));
+    if (dataTypeRegistered(dataName))
+    {
+        throw cet::exception("MVAWriter") << "Type " << dataName << "was already registered." << std::endl;
+    }
+
     if (!fIsDescriptionRegistered)
     {
         fProducer->produces< std::vector< anab::MVADescription<N> > >(fInstanceName);
         fIsDescriptionRegistered = true;
     }
 
-    std::string dataName = getProductName(typeid(T));
-    fProducer->produces< std::vector< anab::MVAOutput<N> > >(fInstanceName + dataName);
+    fProducer->produces< std::vector< anab::FeatureVector<N> > >(fInstanceName + dataName);
     fRegisteredDataTypes.push_back(dataName);
 }
 //----------------------------------------------------------------------------
 
 template <size_t N>
-bool anab::MVAWriter<N>::descriptionExists(std::string tname)
+bool anab::MVAWriter<N>::descriptionExists(const std::string & tname) const
 {
     if (!fDescriptions) return false;
 
@@ -242,21 +260,27 @@ anab::MVAOutput_ID anab::MVAWriter<N>::initOutputs(
 {
     size_t dataHash = getProductHash(typeid(T));
     std::string dataName = getProductName(typeid(T));
+
+    if (!dataTypeRegistered(dataName))
+    {
+        throw cet::exception("MVAWriter") << "Type " << dataName << "not registered with produces_using() function." << std::endl;
+    }
+
     if (!fDescriptions)
     {
         fDescriptions = std::make_unique< std::vector< anab::MVADescription<N> > >();
     }
     else if (descriptionExists(dataName))
     {
-        throw cet::exception("MVAWriter") << "MVADescription<N> already initialized for " << dataName;
+        throw cet::exception("MVAWriter") << "MVADescription<N> already initialized for " << dataName << std::endl;
     }
     fDescriptions->emplace_back(dataTag, fInstanceName + dataName);
 
-    fOutputs.push_back( std::make_unique< std::vector< anab::MVAOutput<N> > >() );
+    fOutputs.push_back( std::make_unique< std::vector< anab::FeatureVector<N> > >() );
     anab::MVAOutput_ID id = fOutputs.size() - 1;
     fTypeHashToID[dataHash] = id;
 
-    if (dataSize) { fOutputs[id]->resize(dataSize, anab::MVAOutput<N>(0.0F)); }
+    if (dataSize) { fOutputs[id]->resize(dataSize, anab::FeatureVector<N>(0.0F)); }
 
     return id;
 }
@@ -269,13 +293,13 @@ void anab::MVAWriter<N>::saveOutputs(art::Event & evt)
     {
         if (!descriptionExists(n))
         {
-            throw cet::exception("MVAWriter") << "No MVADescription<N> prepared for type " << n;
+            throw cet::exception("MVAWriter") << "No MVADescription<N> prepared for type " << n << std::endl;
         }
     }
 
     if (fOutputs.size() != fDescriptions->size())
     {
-        throw cet::exception("MVAWriter") << "MVADescription<N> vector length not equal to the number of MVAOutput<N> vectors";
+        throw cet::exception("MVAWriter") << "MVADescription<N> vector length not equal to the number of FeatureVector<N> vectors" << std::endl;
     }
 
     for (size_t i = 0; i < fOutputs.size(); ++i)
@@ -283,7 +307,7 @@ void anab::MVAWriter<N>::saveOutputs(art::Event & evt)
         auto const & outInstName = (*fDescriptions)[i].outputInstance();
         if ((*fDescriptions)[i].dataTag().empty())
         {
-            throw cet::exception("MVAWriter") << "MVADescription<N> reco data tag not set for " << outInstName;
+            throw cet::exception("MVAWriter") << "MVADescription<N> reco data tag not set for " << outInstName << std::endl;
         }
         evt.put(std::move(fOutputs[i]), outInstName);
     }

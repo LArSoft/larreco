@@ -17,6 +17,7 @@
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
+#include "art/Framework/Services/System/TriggerNamesService.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Sequence.h"
@@ -97,10 +98,11 @@ private:
 	art::InputTag fHitModuleLabel;
 	art::InputTag fClusterModuleLabel;
 	art::InputTag fTrackModuleLabel;
-	std::string fThisModuleLabel;
 	bool fDoClusters, fDoTracks;
 
 	std::vector< int > fViews;
+
+    art::InputTag fNewClustersTag; // input tag for the clusters produced by this module
 };
 // ------------------------------------------------------
 
@@ -110,10 +112,13 @@ EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 	fHitModuleLabel(config().HitModuleLabel()),
 	fClusterModuleLabel(config().ClusterModuleLabel()),
 	fTrackModuleLabel(config().TrackModuleLabel()),
-	fThisModuleLabel(config.get_PSet().get<std::string>("module_label")),
-	fViews(config().Views())
+	fViews(config().Views()),
+
+	fNewClustersTag(
+	    config.get_PSet().get<std::string>("module_label"), "",
+	    art::ServiceHandle<art::TriggerNamesService>()->getProcessName())
 {
-	fMVAWriter.produces_using< recob::Hit >();
+    fMVAWriter.produces_using< recob::Hit >();
 
     if (!fClusterModuleLabel.label().empty())
     {
@@ -213,7 +218,7 @@ void EmTrackClusterId::produce(art::Event & evt)
 	    	cluMap[cryo][tpc][view].push_back(c.key());
 	    }
 
-        auto cluID = fMVAWriter.initOutputs<recob::Cluster>(art::InputTag(fThisModuleLabel), { "track", "em", "none" });
+        auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fNewClustersTag, { "track", "em", "none" });
 
         unsigned int cidx = 0; // new clusters index
         art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fClusterModuleLabel);
@@ -305,7 +310,7 @@ void EmTrackClusterId::produce(art::Event & evt)
             while (!isViewSelected(best_view))
             {
                 best_view = (best_view + 1) % 3;
-                if (++k > 3) { throw cet::exception("EmTrackClusterId") << "No views selected at all?"; }
+                if (++k > 3) { throw cet::exception("EmTrackClusterId") << "No views selected at all?" << std::endl; }
             }
 
             for (auto const & hptr : v)

@@ -32,7 +32,7 @@ public:
     std::vector<T> const & items() const { return *fDataHandle; }
 
     /// Access the vector of data products.
-    std::vector< MVAOutput<N> > const & outputs() const { return *fOutputs; }
+    std::vector< FeatureVector<N> > const & outputs() const { return *fOutputs; }
 
     /// Get copy of the MVA output vector at index "key".
     std::array<float, N> getOutput(size_t key) const
@@ -88,7 +88,7 @@ public:
 private:
 
     MVADescription<N> const * fDescription;
-    std::vector< MVAOutput<N> > const * fOutputs;
+    std::vector< FeatureVector<N> > const * fOutputs;
     art::Handle< std::vector<T> > fDataHandle;
 };
 
@@ -101,7 +101,7 @@ template <class T, size_t N>
 anab::MVAReader<T, N>::MVAReader(const art::Event & evt, const art::InputTag & tag) :
     fDescription(0)
 {
-    if (!N) { throw cet::exception("MVAReader") << "MVA size should be > 0."; }
+    if (!N) { throw cet::exception("MVAReader") << "MVA size should be > 0." << std::endl; }
 
     auto descriptionHandle = evt.getValidHandle< std::vector< anab::MVADescription<N> > >(tag);
 
@@ -114,18 +114,18 @@ anab::MVAReader<T, N>::MVAReader(const art::Event & evt, const art::InputTag & t
             fDescription = &dscr; break;
         }
     }
-    if (!fDescription) { throw cet::exception("MVAReader") << "MVA description not found for " << outputInstanceName; }
+    if (!fDescription) { throw cet::exception("MVAReader") << "MVA description not found for " << outputInstanceName << std::endl; }
 
-    fOutputs = &*(evt.getValidHandle< std::vector< MVAOutput<N> > >( art::InputTag(tag.label(), fDescription->outputInstance(), tag.process()) ));
+    fOutputs = &*(evt.getValidHandle< std::vector< FeatureVector<N> > >( art::InputTag(tag.label(), fDescription->outputInstance(), tag.process()) ));
 
     if (!evt.getByLabel( fDescription->dataTag(), fDataHandle ))
     {
-        throw cet::exception("MVAReader") << "Associated data product handle failed: " << *(fDataHandle.whyFailed());
+        throw cet::exception("MVAReader") << "Associated data product handle failed: " << *(fDataHandle.whyFailed()) << std::endl;
     }
 
     if (fOutputs->size() != fDataHandle->size())
     {
-        throw cet::exception("MVAReader") << "MVA outputs and data products sizes inconsistent: " << fOutputs->size() << "!=" << fDataHandle->size();
+        throw cet::exception("MVAReader") << "MVA outputs and data products sizes inconsistent: " << fOutputs->size() << "!=" << fDataHandle->size() << std::endl;
     }
 }
 //----------------------------------------------------------------------------

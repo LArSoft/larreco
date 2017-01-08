@@ -111,7 +111,7 @@ private:
 	    const std::vector< sim::SimChannel > & channels,
         const std::vector< art::Ptr<recob::Hit> > & hits,
         const std::array<float, 3> & cnn_out,
-        const std::vector< anab::MVAOutput<3> > & hit_outs);
+        const std::vector< anab::FeatureVector<3> > & hit_outs);
 
 	int fRun, fEvent;
     float fMcDepEM, fMcDepTrack, fMcFractionEM;
@@ -386,7 +386,7 @@ int nnet::PointIdEffTest::testCNN(
     const std::vector< sim::SimChannel > & channels,
     const std::vector< art::Ptr<recob::Hit> > & hits,
     const std::array<float, 3> & cnn_out,
-    const std::vector< anab::MVAOutput<3> > & hit_outs)
+    const std::vector< anab::FeatureVector<3> > & hit_outs)
 {
 	fClSize = hits.size();
 
