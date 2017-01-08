@@ -231,8 +231,7 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
         lastAddedHit->setStatusBit(reco::ClusterHit3D::CLUSTERATTACHED);
         
         // Purge the current list to get rid of edges which point to hits already in the cluster
-        reco::EdgeList::iterator curEdgeItr = curEdgeList.begin();
-        while(curEdgeItr != curEdgeList.end())
+        for(reco::EdgeList::iterator curEdgeItr = curEdgeList.begin(); curEdgeItr != curEdgeList.end();)
         {
             if (std::get<1>(*curEdgeItr)->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED)
                 curEdgeItr = curEdgeList.erase(curEdgeItr);
@@ -289,7 +288,7 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
             (*curEdgeMap)[std::get<1>(curEdge)].push_back(reco::EdgeTuple(std::get<1>(curEdge),std::get<0>(curEdge),std::get<2>(curEdge)));
             
             // Update the last hit to be added to the collection
-            lastAddedHit = std::get<1>(curEdgeList.front());
+            lastAddedHit = std::get<1>(curEdge);
         }
     }
 
@@ -959,19 +958,8 @@ bool MinSpanTreeAlg::consistentPairs(const reco::ClusterHit3D* pair1, const reco
     double minLower      = std::max(pair1PeakTime-pair1Width,pair2PeakTime-pair2Width);
     double pairOverlap   = maxUpper - minLower;
     
-    const std::vector<geo::WireID>& pair1Wires = pair1->getWireIDs();
-    const std::vector<geo::WireID>& pair2Wires = pair2->getWireIDs();
-    
-    if ((pair1Wires[0].Wire >  778 && pair1Wires[0].Wire <  784) && (pair2Wires[0].Wire >  778 && pair2Wires[0].Wire <  784) &&
-        (pair1Wires[1].Wire >  900 && pair1Wires[1].Wire <  907) && (pair2Wires[1].Wire >  900 && pair2Wires[1].Wire <  907) &&
-        (pair1Wires[2].Wire > 1008 && pair1Wires[2].Wire < 1014) && (pair2Wires[2].Wire > 1008 && pair2Wires[2].Wire < 1014))
-    {
-        std::cout << "++++ Checking pairs: " << pair1Wires[0].Wire << "/" << pair1Wires[1].Wire << "/" << pair1Wires[2].Wire << ", "  << pair2Wires[0].Wire << "/" << pair2Wires[1].Wire << "/" << pair2Wires[2].Wire << std::endl;
-        std::cout << "     pair1 time/width: " << pair1PeakTime << ", " << pair1Width << ", pair2 time/width: " << pair2PeakTime << ", " << pair2Width << ", overlap: " << pairOverlap << std::endl;
-    }
-    
     // Loose constraint to weed out the obviously bad combinations
-    if (pairOverlap > 0.1)
+    if (pairOverlap > 0.0)
     {
         hitSeparation = DistanceBetweenNodes(pair1,pair2);
         
@@ -1374,7 +1362,7 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, H
     
     // A test of the emergency broadcast system...
 //    FindBestPathInCluster(clusterParams);
-    CheckHitSorting(clusterParams);
+//    CheckHitSorting(clusterParams);
     
     // See if we can avoid duplicates by temporarily transferring to a set
     //std::set<const reco::ClusterHit2D*> hitSet;

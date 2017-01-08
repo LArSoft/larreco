@@ -1179,6 +1179,8 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                 
                 // Mark this hit pair as in use
                 hitPair->setStatusBit(reco::ClusterHit3D::MADESPACEPOINT);
+                
+                // Create and store the space point
                 double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
                 artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, spacePointID));
                 
@@ -1258,20 +1260,38 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
     
     // Right now error matrix is uniform...
     double spError[] = {1., 0., 1., 0., 0., 1.};
+    int    nFreePoints(0);
     
     // Run through the HitPairVector and add any unused hit pairs to the list
     for(auto& hitPair : hitPairVector)
     {
-        if (!hitPair->bitsAreSet(reco::ClusterHit3D::MADESPACEPOINT))
+        if (hitPair->bitsAreSet(reco::ClusterHit3D::MADESPACEPOINT)) continue;
+
+        double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
+        double chisq(-100.);
+        
+        RecobHitVector recobHits;
+        
+        for(const auto hit : hitPair->getHits())
         {
-            double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
-            double chisq(1.);
+            if (!hit)
+            {
+                chisq = -1000.;
+                continue;
+            }
             
-            for(const auto hit : hitPair->getHits()) if (!hit) chisq = -100.;
-            
-            artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, spacePointID++));
+            art::Ptr<recob::Hit> hitPtr = hitToPtrMap[&hit->getHit()];
+            recobHits.push_back(hitPtr);
         }
+        
+        nFreePoints++;
+        
+        artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, spacePointID++));
+        
+        if (!recobHits.empty()) util::CreateAssn(*this, evt, *artSpacePointVector, recobHits, *artSPHitAssociations);
     }
+    
+    std::cout << "++++>>>> total num hits: " << hitPairVector.size() << ", num free: " << nFreePoints << std::endl;
     
     // Finaly done, now output everything to art
     evt.put(std::move(artPCAxisVector));

@@ -417,70 +417,29 @@ size_t Hit3DBuilderAlg::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
         
         if (!(pair.getAvePeakTime() > 0.)) continue;
         
-        // Check if this pair matches to a dead wire
-        if (makeDeadChannelPair(deadChanPair, pair, 3, 0))
-            tempDeadChanVec.emplace_back(deadChanPair);
-        else
-            tempPairVec.emplace_back(HitMatchPair(hit,pair));
+        tempPairVec.emplace_back(HitMatchPair(hit,pair));
     }
     
-    if (!tempPairVec.empty())
+    if (tempPairVec.size() > 10)
     {
-        if (tempPairVec.size() > 6)
-        {
-            std::sort(tempPairVec.begin(),tempPairVec.end(),[](HitMatchPair& left, HitMatchPair& right){return left.second.getMaxOverlapFraction() > right.second.getMaxOverlapFraction();});
+        std::sort(tempPairVec.begin(),tempPairVec.end(),[](HitMatchPair& left, HitMatchPair& right){return left.second.getMaxOverlapFraction() > right.second.getMaxOverlapFraction();});
     
-            //double minOverlap = std::min(0.75 * tempPairVec.front().second.getMaxOverlapFraction(),0.5);
-            double minOverlap = 0.75 * tempPairVec.front().second.getMaxOverlapFraction();
-            
-            HitMatchPairVec::iterator firstBadElem = std::find_if(tempPairVec.begin(),tempPairVec.end(),[&minOverlap](HitMatchPair& pair){return pair.second.getMaxOverlapFraction() < minOverlap;});
-            
-            tempPairVec.resize(std::distance(tempPairVec.begin(),firstBadElem));
-            
-            // focus on time now
-            if (tempPairVec.size() > 1000000)
-            {
-                std::sort(tempPairVec.begin(),tempPairVec.end(),[](HitMatchPair& left, HitMatchPair& right){return std::fabs(left.second.getDeltaPeakTime()) < std::fabs(right.second.getDeltaPeakTime());});
-                
-                double maxDeltaTime = std::max(1.5 * std::fabs(tempPairVec.front().second.getDeltaPeakTime()), 1.0);
-                
-                firstBadElem = std::find_if(tempPairVec.begin(),tempPairVec.end(),[&maxDeltaTime](HitMatchPair& pair){return std::fabs(pair.second.getDeltaPeakTime()) > maxDeltaTime;});
-                
-                if (firstBadElem != tempPairVec.end()) tempPairVec.resize(std::distance(tempPairVec.begin(),firstBadElem));
-            }
-        }
-    
-        for(auto& pair : tempPairVec)
-        {
-            const reco::ClusterHit2D* hit   = pair.first;
-            reco::ClusterHit3D&       pair2 = pair.second;
+        //double minOverlap = std::min(0.75 * tempPairVec.front().second.getMaxOverlapFraction(),0.5);
+        double minOverlap = 0.75 * tempPairVec.front().second.getMaxOverlapFraction();
         
-            geo::WireID wireID = hit->getHit().WireID();
+        HitMatchPairVec::iterator firstBadElem = std::find_if(tempPairVec.begin(),tempPairVec.end(),[&minOverlap](HitMatchPair& pair){return pair.second.getMaxOverlapFraction() < minOverlap;});
         
-            hitMatchMap[wireID.Wire].emplace_back(HitMatchPair(hit,pair2));
-        }
+        tempPairVec.resize(std::distance(tempPairVec.begin(),firstBadElem));
     }
     
-    // Now handle the dead channels...
-    if(!tempDeadChanVec.empty())
+    for(auto& pair : tempPairVec)
     {
-        // If we have many then see if we can trim down a bit by keeping those with the best overlap
-        if (tempDeadChanVec.size() > 10)
-        {
-            std::sort(tempDeadChanVec.begin(),tempDeadChanVec.end(),[](const reco::ClusterHit3D& left, const reco::ClusterHit3D& right){return left.getMaxOverlapFraction() > right.getMaxOverlapFraction();});
-            
-            double minOverlap = 0.5 * tempDeadChanVec.front().getMaxOverlapFraction();
-            
-            std::vector<reco::ClusterHit3D>::iterator firstBadElem = std::find_if(tempDeadChanVec.begin(),tempDeadChanVec.end(),[&minOverlap](const reco::ClusterHit3D& pair){return pair.getMaxOverlapFraction() < minOverlap;});
-            
-            if (firstBadElem != tempDeadChanVec.end()) tempDeadChanVec.resize(std::distance(tempDeadChanVec.begin(),firstBadElem));
-        }
-        
-        for(auto& pair : tempDeadChanVec)
-        {
-            pair.setID(hitPairList.size());
-            hitPairList.emplace_back(std::unique_ptr<reco::ClusterHit3D>(new reco::ClusterHit3D(pair)));
-        }
+        const reco::ClusterHit2D* hit   = pair.first;
+        reco::ClusterHit3D&       pair2 = pair.second;
+    
+        geo::WireID wireID = hit->getHit().WireID();
+    
+        hitMatchMap[wireID.Wire].emplace_back(HitMatchPair(hit,pair2));
     }
     
     return tempPairVec.size();
@@ -496,7 +455,13 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
         reco::ClusterHit3D              deadChanPair;
         
         // Keep track of which third plane hits have been used
-        std::set<const reco::ClusterHit3D*> usedThirdPlaneHitSet;
+        std::map<const reco::ClusterHit3D*,bool> usedPairMap;
+        
+        // Initial population of this map with the pair13Map hits
+        for(const auto& pair13 : pair13Map)
+        {
+            for(const auto& hit2Dhit3DPair : pair13.second) usedPairMap[&hit2Dhit3DPair.second] = false;
+        }
         
         // The outer loop is over all hit pairs made from the first two plane combinations
         for(const auto& pair12 : pair12Map)
@@ -520,13 +485,14 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
             {
                 const reco::ClusterHit3D& pair1  = hit2Dhit3DPair.second;
                 
+                // populate the map with initial value
+                usedPairMap[&pair1] = false;
+                
                 // Now look up the hit pairs on the wire which matches the current hit pair
                 std::map<size_t,HitMatchPairVec>::iterator thirdPlaneHitMapItr = pair13Map.find(wireID.Wire);
                 
                 // Watch for the interesting case of round off error... which means we look at the next wire
                 if (thirdPlaneHitMapItr == pair13Map.end()) thirdPlaneHitMapItr = pair13Map.find(wireID.Wire+1);
-                
-                bool noTriplets(true);
                 
                 // Loop over third plane hits and try to form a triplet
                 if (thirdPlaneHitMapItr != pair13Map.end())
@@ -543,40 +509,31 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
                         {
                             triplet.setID(hitPairList.size());
                             hitPairList.emplace_back(std::unique_ptr<reco::ClusterHit3D>(new reco::ClusterHit3D(triplet)));
-                            noTriplets = false;
-                            usedThirdPlaneHitSet.insert(&pair2);
+                            usedPairMap[&pair1] = true;
+                            usedPairMap[&pair2] = true;
                         }
                     }
                 }
-                
-                // Consider the case that the third plane might be "sick"...
-                if (noTriplets && makeDeadChannelPair(deadChanPair, pair1, 4, 3))
-                    tempDeadChanVec.emplace_back(deadChanPair);
             }
         }
 
         // One more loop through the other pairs to check for sick channels
-        for(const auto& pair13 : pair13Map)
+        for(const auto& pairMapPair : usedPairMap)
         {
-            if (pair13.second.empty()) continue;
+            if (pairMapPair.second) continue;
 
-            for(const auto& hit2Dhit3DPair : pair13.second)
-            {
-                const reco::ClusterHit3D& pair = hit2Dhit3DPair.second;
-                
-                if (usedThirdPlaneHitSet.find(&pair) != usedThirdPlaneHitSet.end()) continue;
+            const reco::ClusterHit3D* pair = pairMapPair.first;
 
-                // Consider the case that the third plane might be "sick"...
-                if (makeDeadChannelPair(deadChanPair, pair, 4, 3))
+            // Here we look to see if we failed to make a triplet because the partner wire was dead/noisy/sick
+            if (makeDeadChannelPair(deadChanPair, *pair, 4, 0))
                 tempDeadChanVec.emplace_back(deadChanPair);
-            }
         }
 
         // Handle the dead wire triplets
         if(!tempDeadChanVec.empty())
         {
             // If we have many then see if we can trim down a bit by keeping those with the best overlap
-            if (tempDeadChanVec.size() > 10)
+            if (tempDeadChanVec.size() > 50)
             {
                 std::sort(tempDeadChanVec.begin(),tempDeadChanVec.end(),[](const reco::ClusterHit3D& left, const reco::ClusterHit3D& right){return left.getMaxOverlapFraction() > right.getMaxOverlapFraction();});
                 
