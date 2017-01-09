@@ -161,7 +161,7 @@ void vertex::VertexMatch::produce(art::Event& evt)
   int startwire, endwire;
   double strength; //the strength of a strong vertex
 
-  for(auto pid : geom->PlaneIDs() ){
+  for(auto const& pid : geom->IteratePlaneIDs() ){
     //create the vector of vertex hits 
     art::PtrVector<recob::EndPoint2D>::const_iterator vertexIter = vertIn.begin();
     art::PtrVector<recob::Cluster>::const_iterator houghIter = houghIn.begin();
