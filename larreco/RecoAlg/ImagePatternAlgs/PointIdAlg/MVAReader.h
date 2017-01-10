@@ -17,21 +17,37 @@
 
 namespace anab {
 
-/// Wrapper for navigation through reconstructed objects of type T and associated
+/// Wrapper for navigation through the reconstructed objects of type T and associated
 /// N-outputs MVA results with their metadata (this class is not a data product).
 template <class T, size_t N>
 class MVAReader : public MVAWrapperBase {
 public:
 
-    /// Creathe the wrapper for MVA data stored in the event evt with the provided input tag
+    /// Create the wrapper for MVA data stored in the event evt with the provided input tag
     /// (the same tag which was used to save MVA results with MVAWriter class).
+    /// Returns nullptr if data products not found in the event.
+    static std::unique_ptr<MVAReader> create(const art::Event & evt, const art::InputTag & tag)
+    {
+        bool success;
+        std::unique_ptr<MVAReader> ptr(new MVAReader(evt, tag, success));
+        if (success) { return ptr; }
+        else { return nullptr; }
+    }
+
+    /// Create the wrapper for MVA data stored in the event evt with the provided input tag
+    /// (the same tag which was used to save MVA results with MVAWriter class).
+    /// Throws exception if data products not found in the event.
     MVAReader(const art::Event & evt, const art::InputTag & tag);
 
     /// Access data product at index "key".
     T const & item(size_t key) const { return (*fDataHandle)[key]; }
     std::vector<T> const & items() const { return *fDataHandle; }
 
-    /// Access the vector of data products.
+    /// Access feature vector data at index "key".
+    /// *** WOULD LIKE TO CHANGE TYPE OF FVEC DATA MEMBER TO std::array AND THEN ENABLE THIS FUNCTION ***
+    //const std::array<float, N> & getOutput(size_t key) const { return (*fOutputs)[key].data(); }
+
+    /// Access the vector of the feature vectors.
     std::vector< FeatureVector<N> > const & outputs() const { return *fOutputs; }
 
     /// Get copy of the MVA output vector at index "key".
@@ -86,6 +102,8 @@ public:
     }
 
 private:
+    /// Not-throwing constructor.
+    MVAReader(const art::Event & evt, const art::InputTag & tag, bool & success);
 
     MVADescription<N> const * fDescription;
     std::vector< FeatureVector<N> > const * fOutputs;
@@ -127,6 +145,43 @@ anab::MVAReader<T, N>::MVAReader(const art::Event & evt, const art::InputTag & t
     {
         throw cet::exception("MVAReader") << "MVA outputs and data products sizes inconsistent: " << fOutputs->size() << "!=" << fDataHandle->size() << std::endl;
     }
+}
+//----------------------------------------------------------------------------
+
+template <class T, size_t N>
+anab::MVAReader<T, N>::MVAReader(const art::Event & evt, const art::InputTag & tag, bool & success) :
+    fDescription(0)
+{
+    success = false; // until all is done correctly
+
+    if (!N) { std::cout << "MVAReader: MVA size should be > 0." << std::endl; return; }
+
+    auto descriptionHandle = evt.getValidHandle< std::vector< anab::MVADescription<N> > >(tag);
+
+    // search for MVADescription<N> produced for the type T, with the instance name from the tag
+    std::string outputInstanceName = tag.instance() + getProductName(typeid(T));
+    for (auto const & dscr : *descriptionHandle)
+    {
+        if (dscr.outputInstance() == outputInstanceName)
+        {
+            fDescription = &dscr; break;
+        }
+    }
+    if (!fDescription) { std::cout << "MVAReader: MVA description not found for " << outputInstanceName << std::endl; return; }
+
+    fOutputs = &*(evt.getValidHandle< std::vector< FeatureVector<N> > >( art::InputTag(tag.label(), fDescription->outputInstance(), tag.process()) ));
+
+    if (!evt.getByLabel( fDescription->dataTag(), fDataHandle ))
+    {
+        std::cout << "MVAReader: Associated data product handle failed: " << *(fDataHandle.whyFailed()) << std::endl; return;
+    }
+
+    if (fOutputs->size() != fDataHandle->size())
+    {
+        std::cout << "MVAReader: MVA outputs and data products sizes inconsistent: " << fOutputs->size() << "!=" << fDataHandle->size() << std::endl; return;
+    }
+
+    success = true; // ok, all data found in the event
 }
 //----------------------------------------------------------------------------
 

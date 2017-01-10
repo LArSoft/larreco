@@ -278,54 +278,57 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
     // output from cnn's
 
-    anab::MVAReader<recob::Hit, 3> hitResults(e, fNNetModuleLabel);     // hit-by-hit outpus just dumped to file for debugging
-    anab::MVAReader<recob::Cluster, 3> cluResults(e, fNNetModuleLabel); // outputs for clusters used as a EM/track decision
- 
-	const art::FindManyP<recob::Hit> hitsFromClusters(cluResults.dataHandle(), e, cluResults.dataTag());
-
-	for (size_t c = 0; c < cluResults.size(); ++c)
-	{
-	    const recob::Cluster & clu = cluResults.item(c);
-
-        if (clu.Plane().Plane != fView) continue;
-
-	    const std::vector< art::Ptr<recob::Hit> > & hits = hitsFromClusters.at(c);
-	    std::array<float, 3> cnn_out = cluResults.getOutput(c);
-
-        testCNN(*simChannelHandle, hits, cnn_out, hitResults.outputs()); // test hits in the cluster
-	}
-
-    if (fTotHit > 0) fCleanHit = fCleanHit / fTotHit;
-    else fCleanHit = 0;
-
-    double totMcDep = fMcDepEM + fMcDepTrack;
-    if (totMcDep) fMcFractionEM = fMcDepEM / totMcDep;
-    else fMcFractionEM = 0;
-
-    double totEmTrk0p5 = fHitEM_0p5 + fHitTrack_0p5;
-    if (totEmTrk0p5 > 0) fHitMcFractionEM = fHitEM_0p5 / totEmTrk0p5;
-    else fHitMcFractionEM = 0;
-
-    for (size_t i = 0; i < 100; ++i)
+    anab::MVAReader<recob::Hit, 3> hitResults(e, fNNetModuleLabel);                        // hit-by-hit outpus just to be dumped to file for debugging
+    auto cluResults = anab::MVAReader<recob::Cluster, 3>::create(e, fNNetModuleLabel);     // outputs for clusters recovered in not-throwing way 
+    if (cluResults)
     {
-        if (fHitEM_0p5 > 0) fHitsEM_OK_0p5[i] /= fHitEM_0p5;
-        else fHitsEM_OK_0p5[i] = 0;
+    	const art::FindManyP<recob::Hit> hitsFromClusters(cluResults->dataHandle(), e, cluResults->dataTag());
 
-        if (fHitTrack_0p5 > 0) fHitsTrack_OK_0p5[i] /= fHitTrack_0p5;
-        else fHitsTrack_OK_0p5[i] = 0;
+	    for (size_t c = 0; c < cluResults->size(); ++c)
+	    {
+	        const recob::Cluster & clu = cluResults->item(c);
 
-        if (fHitEM_0p85 > 0) fHitsEM_OK_0p85[i] /= fHitEM_0p85;
-        else fHitsEM_OK_0p85[i] = 0;
+            if (clu.Plane().Plane != fView) continue;
 
-        if (fHitTrack_0p85 > 0) fHitsTrack_OK_0p85[i] /= fHitTrack_0p85;
-        else fHitsTrack_OK_0p85[i] = 0;
+    	    const std::vector< art::Ptr<recob::Hit> > & hits = hitsFromClusters.at(c);
+    	    std::array<float, 3> cnn_out = cluResults->getOutput(c);
+
+            testCNN(*simChannelHandle, hits, cnn_out, hitResults.outputs()); // test hits in the cluster
+    	}
+
+        if (fTotHit > 0) fCleanHit = fCleanHit / fTotHit;
+        else fCleanHit = 0;
+
+        double totMcDep = fMcDepEM + fMcDepTrack;
+        if (totMcDep) fMcFractionEM = fMcDepEM / totMcDep;
+        else fMcFractionEM = 0;
+
+        double totEmTrk0p5 = fHitEM_0p5 + fHitTrack_0p5;
+        if (totEmTrk0p5 > 0) fHitMcFractionEM = fHitEM_0p5 / totEmTrk0p5;
+        else fHitMcFractionEM = 0;
+
+        for (size_t i = 0; i < 100; ++i)
+        {
+            if (fHitEM_0p5 > 0) fHitsEM_OK_0p5[i] /= fHitEM_0p5;
+            else fHitsEM_OK_0p5[i] = 0;
+
+            if (fHitTrack_0p5 > 0) fHitsTrack_OK_0p5[i] /= fHitTrack_0p5;
+            else fHitsTrack_OK_0p5[i] = 0;
+
+            if (fHitEM_0p85 > 0) fHitsEM_OK_0p85[i] /= fHitEM_0p85;
+            else fHitsEM_OK_0p85[i] = 0;
+
+            if (fHitTrack_0p85 > 0) fHitsTrack_OK_0p85[i] /= fHitTrack_0p85;
+            else fHitsTrack_OK_0p85[i] = 0;
 
 
-        if (totEmTrk0p5 > 0) fHitRecoFractionEM[i] = fHitRecoEM[i] / totEmTrk0p5;
-        else fHitRecoFractionEM[i] = 0;
+            if (totEmTrk0p5 > 0) fHitRecoFractionEM[i] = fHitRecoEM[i] / totEmTrk0p5;
+            else fHitRecoFractionEM[i] = 0;
+        }
+
+    	fEventTree->Fill();
     }
-
-	fEventTree->Fill();
+    else { mf::LogWarning("TrainingDataAlg") << "MVA FOR CLUSTERS NOT FOUND"; }
 
 	cleanup(); // remove everything from members
 }
