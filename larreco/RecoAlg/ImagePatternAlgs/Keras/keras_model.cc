@@ -228,20 +228,25 @@ std::vector< std::vector<float> > keras::conv_single_depth_valid(
 	std::vector< std::vector<float> > const & im,
 	std::vector< std::vector<float> > const & k)
 {
-  unsigned int st_x = (k.size() - 1) / 2;
-  unsigned int st_y = (k[0].size() - 1) / 2;
+  size_t k1_size = k.size(), k2_size = k[0].size();
+  unsigned int st_x = (k1_size - 1) / 2;
+  unsigned int st_y = (k2_size - 1) / 2;
 
   std::vector< std::vector<float> > y;
   for(unsigned int i = 0; i < im.size()-2*st_x; ++i) {
     y.emplace_back(vector<float>(im[0].size()-2*st_y, 0.0));
   }
+
   for(unsigned int i = st_x; i < im.size()-st_x; ++i) {
     for(unsigned int j = st_y; j < im[0].size()-st_y; ++j) {
-      for(unsigned int k1 = 0; k1 < k.size(); ++k1) {
-        for(unsigned int k2 = 0; k2 < k[0].size(); ++k2) {
-          y[i-st_x][j-st_y] += k[k.size()-k1-1][k[0].size()-k2-1] * im[i-st_x+k1][j-st_y+k2];
+
+      float sum = 0;
+      for(unsigned int k1 = 0; k1 < k1_size; ++k1) {
+        for(unsigned int k2 = 0; k2 < k2_size; ++k2) {
+          sum += k[k1_size-k1-1][k2_size-k2-1] * im[i-st_x+k1][j-st_y+k2];
         }
       }
+      y[i-st_x][j-st_y] = sum;
     }
   }
   return y;
@@ -252,8 +257,9 @@ std::vector< std::vector<float> > keras::conv_single_depth_same(
 	std::vector< std::vector<float> > const & im,
 	std::vector< std::vector<float> > const & k)
 {
-  unsigned int st_x = (k.size() - 1) / 2;
-  unsigned int st_y = (k[0].size() - 1) / 2;
+  size_t k1_size = k.size(), k2_size = k[0].size();
+  unsigned int st_x = (k1_size - 1) / 2;
+  unsigned int st_y = (k2_size - 1) / 2;
 
   std::vector< std::vector<float> > y;
   for(unsigned int i = 0; i < im.size(); ++i) {
@@ -261,16 +267,19 @@ std::vector< std::vector<float> > keras::conv_single_depth_same(
   }
   for(unsigned int i = 0; i < im.size(); ++i) {
     for(unsigned int j = 0; j < im[0].size(); ++j) {
-      for(unsigned int k1 = 0; k1 < k.size(); ++k1) {
-        for(unsigned int k2 = 0; k2 < k[0].size(); ++k2) {
+
+      float sum = 0;
+      for(unsigned int k1 = 0; k1 < k1_size; ++k1) {
+        for(unsigned int k2 = 0; k2 < k2_size; ++k2) {
           if(i-st_x+k1 < 0) continue;
           if(i-st_x+k1 > im.size()-1) continue;
           if(j-st_y+k2 < 0) continue;
           if(j-st_y+k2 > im[0].size()-1) continue;
 
-          y[i][j] += k[k.size()-k1-1][k[0].size()-k2-1] * im[i-st_x+k1][j-st_y+k2];
+          sum += k[k1_size-k1-1][k2_size-k2-1] * im[i-st_x+k1][j-st_y+k2];
         }
       }
+      y[i][j] = sum;
     }
   }
   return y;

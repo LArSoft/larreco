@@ -1326,7 +1326,7 @@ bool pma::Track3D::AttachTo(pma::Node3D* vStart, bool noFlip)
 
 	for (auto n : fNodes) if (n == vStart) { mf::LogError("pma::Track3D") << "Don't create loops!"; return false; }
 
-	if ( !noFlip && CanFlip() &&
+	if ( !noFlip && CanFlip() && (vStart->TPC() == fNodes.back()->TPC()) &&
 	     (pma::Dist2(vtx->Point3D(), vStart->Point3D()) > pma::Dist2(fNodes.back()->Point3D(), vStart->Point3D())) &&
 	     (fNodes.back()->NextCount() == 0) )
 	{
@@ -2373,7 +2373,7 @@ pma::Element3D* pma::Track3D::GetNearestElement(
 			min_dist = dist; pe_min = fSegments[i];
 		}
 	}
-	if (!pe_min) mf::LogError("pma::Track3D") << "Nearest element not found.";
+	if (!pe_min) throw cet::exception("pma::Track3D") << "Nearest element not found." << std::endl;
 	return pe_min;
 }
 
@@ -2949,6 +2949,7 @@ bool pma::Track3D::CheckEndSegment(pma::Track3D::ETrackEnd endCode)
 			break;
 		default: return false;
 	}
+	if (fNodes[v1]->TPC() != fNodes[v2]->TPC()) return false;
 
 	double g1, g0 = GetObjFunction();
 

@@ -30,10 +30,18 @@ namespace trkf {
   class TrackKalmanFitter {
 
   public:
-    TrackKalmanFitter(const trkf::Propagator* prop, bool useRMS){prop_=prop;useRMS_=useRMS;}
+    TrackKalmanFitter(const trkf::Propagator* prop, bool useRMS, bool sortHitsByPlane, bool sortOutputHitsMinLength, bool skipNegProp, float hitErrScaleFact){
+      prop_=prop;
+      useRMS_=useRMS;
+      sortHitsByPlane_=sortHitsByPlane;
+      sortOutputHitsMinLength_=sortOutputHitsMinLength;
+      skipNegProp_=skipNegProp;
+      hitErrScaleFact_=hitErrScaleFact;
+    }
 
-    bool fitTrack(const recob::Track& inputTrack, const std::vector<art::Ptr<recob::Hit> >& hits,  const double pval, const int pdgid,
-		  recob::Track& outputTrack,      art::PtrVector<recob::Hit>& outputHits);
+    bool fitTrack(const recob::Track& inputTrack, const std::vector<art::Ptr<recob::Hit> >& hits,
+		  const double pval, const int pdgid, const bool flipDirection,
+		  recob::Track& outputTrack, art::PtrVector<recob::Hit>& outputHits);
 
     trkf::KTrack convertRecobTrackIntoKTrack(const TVector3& position, const TVector3&  direction,  const double pval, const int pdgid);
 
@@ -41,6 +49,10 @@ namespace trkf {
 
     const trkf::Propagator* prop_;
     bool useRMS_;
+    bool sortHitsByPlane_;
+    bool sortOutputHitsMinLength_;
+    bool skipNegProp_;
+    float hitErrScaleFact_;
   };
 
 }

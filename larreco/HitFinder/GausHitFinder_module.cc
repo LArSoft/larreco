@@ -125,7 +125,7 @@ namespace hit{
     size_t              fMaxMultiHit;              ///<maximum hits for multi fit
     int                 fAreaMethod;               ///<Type of area calculation
     std::vector<double> fAreaNorms;                ///<factors for converting area to same units as peak height
-    int		            fTryNplus1Fits;            ///<whether we will (0) or won't (1) try n+1 fits
+    bool	            fTryNplus1Fits;            ///<whether we will (true) or won't (false) try n+1 fits
     double	            fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
     size_t              fNumBinsToAverage;         ///< If bin averaging for peak finding, number bins to average
@@ -202,7 +202,7 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
   
     fMaxMultiHit      = p.get< int          >("MaxMultiHit");
     fAreaMethod       = p.get< int          >("AreaMethod");
-    fTryNplus1Fits    = p.get< int          >("TryNplus1Fits");
+    fTryNplus1Fits    = p.get< bool         >("TryNplus1Fits");
     fChi2NDFRetry     = p.get< double       >("Chi2NDFRetry");
     fChi2NDF          = p.get< double       >("Chi2NDF");
     fNumBinsToAverage = p.get< size_t       >("NumBinsToAverage", 0);
@@ -269,6 +269,25 @@ void GausHitFinder::produce(art::Event& evt)
    
     // Channel Number
     raw::ChannelID_t channel = raw::InvalidChannelID;
+    
+    //#################################################
+    //###    Set the charge determination method    ###
+    //### Default is to compute the normalized area ###
+    //#################################################
+    std::function<double (double,double,double,double,int,int)> chargeFunc = [](double peakMean, double peakAmp, double peakWidth, double areaNorm, int low, int hi){return std::sqrt(2*TMath::Pi())*peakAmp*peakWidth/areaNorm;};
+    
+    //##############################################
+    //### Alternative is to integrate over pulse ###
+    //##############################################
+    if (fAreaMethod == 0)
+        chargeFunc = [](double peakMean, double peakAmp, double peakWidth, double areaNorm, int low, int hi)
+                        {
+                            double charge(0);
+                            for(int sigPos = low; sigPos < hi; sigPos++)
+                                charge += peakAmp * TMath::Gaus(sigPos,peakMean,peakWidth);
+                            return charge;
+                        };
+    
     //##############################
     //### Looping over the wires ###
     //##############################
@@ -286,16 +305,18 @@ void GausHitFinder::produce(art::Event& evt)
         // get the WireID for this hit
         std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
         // for now, just take the first option returned from ChannelToWire
-        geo::WireID wid = wids[0];
+        geo::WireID wid  = wids[0];
+        // We'll use the view as well...
+        geo::View_t view = wire->View();
        
         // ----------------------------------------------------------
         // -- Setting the appropriate signal widths and thresholds --
         // --    for the right plane.      --
         // ----------------------------------------------------------
        
-        threshold = fMinSig.at(wire->View());
-        fitWidth  = fInitWidth.at(wire->View());
-        minWidth  = fMinWidth.at(wire->View());
+        threshold = fMinSig.at(view);
+        fitWidth  = fInitWidth.at(view);
+        minWidth  = fMinWidth.at(view);
         
 //            if (wid.Plane == geo::kV)
 //                roiThreshold = std::max(threshold,std::min(2.*threshold,*std::max_element(signal.begin(),signal.end())/3.));
@@ -430,8 +451,8 @@ void GausHitFinder::produce(art::Event& evt)
                     // #####################################################
                     // ### Trying extra gaussians for an initial bad fit ###
                     // #####################################################
-                    if( (chi2PerNDF > (2*fChi2NDFRetry) && fTryNplus1Fits == 0 && nGausForFit == 1)||
-                        (chi2PerNDF > (fChi2NDFRetry)   && fTryNplus1Fits == 0 && nGausForFit >  1))
+                    if( (chi2PerNDF > (2*fChi2NDFRetry) && fTryNplus1Fits && nGausForFit == 1)||
+                        (chi2PerNDF > (fChi2NDFRetry)   && fTryNplus1Fits && nGausForFit >  1))
                     {
                         // ############################################################
                         // ### Modify input parameters for re-fitting n+1 Gaussians ###
@@ -469,9 +490,9 @@ void GausHitFinder::produce(art::Event& evt)
                 if (peakVals.size() > fMaxMultiHit || chi2PerNDF > fChi2NDF)
                 {
                     double sumADC    = std::accumulate(signal.begin() + startT, signal.begin() + endT,0.);
-                    double peakAmp   = 1.5 * sumADC / (endT - startT);  // hedge between triangle and a box
+                    double peakSigma = (endT - startT) / 2.;         // was 4, then 3, but makes large pulses too narrow
+                    double peakAmp   = 0.3989 * sumADC / peakSigma;  // Use gaussian formulation
                     double peakMean  = (startT + endT) / 2.;
-                    double peakWidth = (endT - startT) / 4.;
                     
                     nGausForFit =  1;
                     chi2PerNDF  =  chi2PerNDF > fChi2NDF ? chi2PerNDF : -1.;
@@ -480,7 +501,7 @@ void GausHitFinder::produce(art::Event& evt)
                     paramVec.clear();
                     paramVec.emplace_back(peakAmp,   0.1 * peakAmp);
                     paramVec.emplace_back(peakMean,  0.1 * peakMean);
-                    paramVec.emplace_back(peakWidth, 0.1 * peakWidth);
+                    paramVec.emplace_back(peakSigma, 0.1 * peakSigma);
                 }
 	    
                 // #######################################################
@@ -496,35 +517,13 @@ void GausHitFinder::produce(art::Event& evt)
                     double peakMean  = paramVec[hitIdx + 1].first;
                     double peakWidth = paramVec[hitIdx + 2].first;
                     
-                    // Selection cut
-                    if (nGausForFit == 1 && peakAmp < threshold) continue;
-                    
                     // Extract errors
                     double peakAmpErr   = paramVec[hitIdx    ].second;
                     double peakMeanErr  = paramVec[hitIdx + 1].second;
                     double peakWidthErr = paramVec[hitIdx + 2].second;
                     
                     // ### Charge ###
-                    double totSig(0.);
-                    
-                    // ######################################################
-                    // ### Getting the total charge using the area method ###
-                    // ######################################################
-                    if(fAreaMethod)
-                    {
-                        totSig = std::sqrt(2*TMath::Pi())*peakAmp*peakWidth/fAreaNorms[(size_t)(wire->View())];
-                    }//<---End Area Method
-                    
-                    // ##################################
-                    // ### Integral Method for charge ###
-                    // ##################################
-                    else
-                    {
-                        for(int sigPos = startT; sigPos < endT; sigPos++)
-                            totSig += peakAmp * TMath::Gaus(sigPos,peakMean,peakWidth);
-                    }
-                    
-                    double charge(totSig);
+                    double charge    = chargeFunc(peakMean, peakAmp, peakWidth, fAreaNorms[view],startT,endT);;
                     double chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);
                     
                     // ### limits for getting sums
@@ -536,29 +535,29 @@ void GausHitFinder::produce(art::Event& evt)
 
                     // ok, now create the hit
                     recob::HitCreator hitcreator(*wire,                            // wire reference
-                                        	 wid,                              // wire ID
-                                        	 startT+roiFirstBinTick,           // start_tick TODO check
-                                        	 endT+roiFirstBinTick,             // end_tick TODO check
-                                        	 peakWidth,                        // rms
-                                        	 peakMean+roiFirstBinTick,         // peak_time
-                                        	 peakMeanErr,                      // sigma_peak_time
-                                        	 peakAmp,                          // peak_amplitude
-                                        	 peakAmpErr,                       // sigma_peak_amplitude
-                                        	 charge,                           // hit_integral
-                                        	 chargeErr,                        // hit_sigma_integral
-                                        	 sumADC,                           // summedADC FIXME
-                                        	 nGausForFit,                      // multiplicity
-                                        	 numHits,                          // local_index TODO check that the order is correct
-                                        	 chi2PerNDF,                       // goodness_of_fit
-                                        	 NDF                               // dof
-                                        	 );
+                                                 wid,                              // wire ID
+                                                 startT+roiFirstBinTick,           // start_tick TODO check
+                                                 endT+roiFirstBinTick,             // end_tick TODO check
+                                                 peakWidth,                        // rms
+                                                 peakMean+roiFirstBinTick,         // peak_time
+                                                 peakMeanErr,                      // sigma_peak_time
+                                                 peakAmp,                          // peak_amplitude
+                                                 peakAmpErr,                       // sigma_peak_amplitude
+                                                 charge,                           // hit_integral
+                                                 chargeErr,                        // hit_sigma_integral
+                                                 sumADC,                           // summedADC FIXME
+                                                 nGausForFit,                      // multiplicity
+                                                 numHits,                          // local_index TODO check that the order is correct
+                                                 chi2PerNDF,                       // goodness_of_fit
+                                                 NDF                               // dof
+                                                 );
                     
-		    const recob::Hit hit(hitcreator.move());
+                    const recob::Hit hit(hitcreator.move());
 		    
-		    if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(hit)) {
-                      hcol.emplace_back(std::move(hit), wire, rawdigits);                   
-                      numHits++;
-		    }
+                    if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(hit)) {
+                        hcol.emplace_back(std::move(hit), wire, rawdigits);
+                        numHits++;
+                    }
                 } // <---End loop over gaussians
                 
                 fChi2->Fill(chi2PerNDF);
@@ -725,7 +724,6 @@ void hit::GausHitFinder::FitGaussians(const std::vector<float>& SignalVector,
     // #############################
     for(int aa = StartTime; aa < EndTime; aa++)
     {
-        //std::cout<<"Time Tick = "<<aa<<", ADC = "<<signal[aa]<<std::endl;
         hitSignal.Fill(aa,SignalVector[aa]);
       
         if(EndTime > 10000){break;} // FIXME why?

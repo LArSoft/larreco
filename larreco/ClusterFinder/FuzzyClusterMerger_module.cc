@@ -319,9 +319,25 @@ namespace cluster {
 
       local_clusters.push_back(std::vector< ::util::PxHit>());
 
-      const std::vector<art::Ptr<recob::Hit> >& hits = hit_m.at(i);
+      const std::vector<art::Ptr<recob::Hit> >& all_hits = hit_m.at(i);
+      std::vector<art::Ptr<recob::Hit>> good_hits;
+      std::copy_if(
+        all_hits.begin(), all_hits.end(), std::back_inserter(good_hits),
+        [](auto const& pHit){ return pHit->Integral() > 0.; }
+        );
+      if (all_hits.size() > good_hits.size()) {
+        mf::LogWarning("FuzzyClusterMerger")
+          << "Dropped " << (all_hits.size() - good_hits.size()) << "/"
+          << all_hits.size()
+          << " hits which had non-positive integral in cluster #" << i;
+      }
+      if (good_hits.empty()) {
+        mf::LogError("FuzzyClusterMerger")
+          << "Cluster #" << i << " is skipped because of no good hits!";
+        continue;
+      }
 
-      conv.GeneratePxHit(hits, local_clusters.back());
+      conv.GeneratePxHit(good_hits, local_clusters.back());
     }
 
     //--- Process merging ---//
@@ -349,7 +365,9 @@ namespace cluster {
       for(auto const& c_index : merged_clusters[out_index]) {
         const std::vector<art::Ptr<recob::Hit> >& hits = hit_m.at(c_index);
         merged_hits.reserve(merged_hits.size() + hits.size());
-        for(auto const& ptr : hits) merged_hits.push_back(ptr);
+        for(auto const& hit : hits) {
+          if (hit->Integral() > 0.) merged_hits.push_back(hit);
+        }
       }
       
       // the full plane needed but not a part of cluster_params...
