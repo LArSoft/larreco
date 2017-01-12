@@ -4,6 +4,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/PMAlgTracking.h"
+#include "larreco/RecoAlg/PMAlgStitching.h"
 
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
@@ -923,6 +924,10 @@ bool pma::PMAlgTracker::areCoLinear(double& cos3d,
 
 void pma::PMAlgTracker::matchCoLinearAnyT0(void)
 {
+
+  // Can we try using Leigh's stitcher?
+  pma::PMAlgStitching stitcher(fResult);
+
 	double distProjThr = fStitchTransverseShift;
 	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
 	double xApaDistDiffThr = 10.0;
