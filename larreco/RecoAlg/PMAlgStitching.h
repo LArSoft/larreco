@@ -45,7 +45,7 @@ public:
   void StitchTracks();
 
 private: 
-  void GetBestPosAndDir(TVector3 &pos1, TVector3 &dir1, TVector3 &pos2, TVector3 &dir2, TVector3 &bestPos, TVector3 &bestDir, double offset);
+  void GetBestPosAndDir(TVector3 &pos1, TVector3 &dir1, TVector3 &pos2, TVector3 &dir2, TVector3 &bestPos, TVector3 &bestDir, double offset, bool& isFront);
   double GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double mergePointX);
 
   void GetTPCXOffsets();

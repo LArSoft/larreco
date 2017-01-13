@@ -53,8 +53,18 @@ void pma::PMAlgStitching::StitchTracks(){
     // For stitching, we only need the end nearest the stitching surface.
     double offset1 = GetTPCOffset(t1->FrontTPC(),t1->FrontCryo(),true);
     TVector3 t1Pos, t1Dir;
-    GetBestPosAndDir(trk1Front,trk1FrontDir,trk1Back,trk1BackDir,t1Pos,t1Dir,offset1);
-
+    bool isFront1 = false;
+    GetBestPosAndDir(trk1Front,trk1FrontDir,trk1Back,trk1BackDir,t1Pos,t1Dir,offset1,isFront1);
+    // Shift the best position in x to move the end point to the stitching surface
+    double xShift1 = 0;
+    if(isFront1){
+      xShift1 = t1->Nodes()[0]->Point3D().X() - offset1;
+    }
+    else{
+      xShift1 = t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() - offset1;
+    }
+    t1Pos.X() -= xShift1;
+    
     for(unsigned int u = t+1; u < fInputTracks.size(); ++u){
 
       pma::Track3D* t2 = fInputTracks[u].Track();
@@ -68,7 +78,17 @@ void pma::PMAlgStitching::StitchTracks(){
       // For stitching, we only need the end nearest the stitching surface.
       double offset2 = GetTPCOffset(t2->FrontTPC(),t2->FrontCryo(),true);
       TVector3 t2Pos, t2Dir;
-      GetBestPosAndDir(trk2Front,trk2FrontDir,trk2Back,trk2BackDir,t2Pos,t2Dir,offset2);
+      bool isFront2 = false;
+      GetBestPosAndDir(trk2Front,trk2FrontDir,trk2Back,trk2BackDir,t2Pos,t2Dir,offset2,isFront2);
+      // Shift the best position in x to move the end point to the stitching surface
+      double xShift2 = 0;
+      if(isFront2){
+        xShift2 = t2->Nodes()[0]->Point3D().X() - offset2;
+      }
+      else{
+        xShift2 = t2->Nodes()[t2->Nodes().size()-1]->Point3D().X() - offset2;
+      }
+      t2Pos.X() -= xShift2;
 
       double score = 0;
       score = GetTrackPairDelta(t1Pos,t2Pos,t1Dir,t2Dir,offset1);
@@ -85,15 +105,17 @@ void pma::PMAlgStitching::StitchTracks(){
 
 }
 
-void pma::PMAlgStitching::GetBestPosAndDir(TVector3 &pos1, TVector3 &dir1, TVector3 &pos2, TVector3 &dir2, TVector3 &bestPos, TVector3 &bestDir, double offset){ 
+void pma::PMAlgStitching::GetBestPosAndDir(TVector3 &pos1, TVector3 &dir1, TVector3 &pos2, TVector3 &dir2, TVector3 &bestPos, TVector3 &bestDir, double offset, bool& isFront){ 
 
   if(fabs(pos1.X()-offset) < fabs(pos2.X()-offset)){
     bestPos = pos1;
     bestDir = dir1;
+    isFront = true;
   }
   else{
     bestPos = pos2;
     bestDir = dir2;
+    isFront = false;
   }
 
 }

@@ -934,6 +934,7 @@ void pma::PMAlgTracker::matchCoLinearAnyT0(void)
 
   // Can we try using Leigh's stitcher?
   pma::PMAlgStitching stitcher(fResult);
+  stitcher.StitchTracks();
 
 	double distProjThr = fStitchTransverseShift;
 	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
