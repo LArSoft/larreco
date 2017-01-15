@@ -128,11 +128,18 @@ namespace tca {
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID);
-  void TagShowerTraj(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fShowerTag, short debugWorkID);
+  void TagShowerTraj(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag);
   // Make a bare trajectory point that only has position and direction defined
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  // ****************************** Shower finding  ******************************
+  // Create showers (aka clusters of trajectories, tjs.cots)
+  void FindShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag);
+  void DefineShower(TjStuff& tjs, const CTP_t& inCTP, const unsigned short& showerIndex, const CTP_t& printCTP);
+  void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, const CTP_t& printCTP);
+  void CollectHits(TjStuff& tjs, const CTP_t& inCTP, const unsigned short& showerIndex, const std::vector<float>& fShowerTag, const CTP_t& printCTP);
+  void FindShowerParent(TjStuff& tjs, const CTP_t& inCTP, const unsigned short& showerIndex, const std::vector<float>& fShowerTag, const CTP_t& printCTP);
   // ****************************** Vertex finding  ******************************
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, const std::vector<float>& fVertex2DCuts, bool prt);
@@ -153,7 +160,8 @@ namespace tca {
   std::string PrintHit(const TCHit& hit);
   std::string PrintHitShort(const TCHit& hit);
   // Print Trajectory position in the standard format
-  std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);
+  std::string PrintPos(TjStuff& tjs, const TrajPoint& tp);
+  std::string PrintPos(TjStuff& tjs, const std::array<float, 2>& pos);
   std::string PrintStopFlag(TjStuff& tjs, const Trajectory& tj, unsigned short end);
 } // namespace tca
 
