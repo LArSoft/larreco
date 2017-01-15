@@ -166,7 +166,7 @@ namespace tca {
     // Count of the number of time-matched hits
     int Count {0};
     unsigned short Vtx3DIndex {USHRT_MAX};         // index of the 3D vertex
-    std::array<float, 3> sXYZ;        // XYZ position near the SeedHit (start)
+    std::array<float, 3> sXYZ;        // XYZ position at the start
     std::array<float, 3> eXYZ;        // XYZ position at the other end
     // stuff for constructing the PFParticle
     int PDGCode;
@@ -174,6 +174,16 @@ namespace tca {
     short MCSMom {-1};                // Average MCSMom from all matched trajectories
     size_t Parent;
   };
+  
+  struct ShowerStruct {
+    std::array<float, 2> StartPos;
+    std::array<float, 2> EndPos;
+    // A TrajPoint that defines the Charge centroid position, Angle, Charge, etc
+    TrajPoint ChgTP;
+    float HalfWidth {0.1};           // shower half width for ~99% containment (2.5 sigma)
+    std::vector<unsigned short> TjIDs;
+    unsigned short ParentTjID {0};
+ };
 
   // Algorithm modification bits
   typedef enum {
@@ -210,6 +220,7 @@ namespace tca {
     kFTBRevProp,
     kStopAtTj,
     kMatch3D,
+    kShowerTag,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -257,6 +268,7 @@ namespace tca {
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<unsigned short> matchVecPFPList;  /// list of matchVec entries that will become PFPs
+    std::vector<ShowerStruct> cots;
    };
 
 } // namespace tca
