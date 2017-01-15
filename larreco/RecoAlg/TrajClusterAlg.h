@@ -139,7 +139,7 @@ namespace tca {
 		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
     std::vector<short> fDeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> fMuonTag; ///< min length and min MCSMom for a muon tag
-    std::vector<short> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::vector<float> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
 
     std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
@@ -357,6 +357,7 @@ namespace tca {
     void Match3D(const geo::TPCID& tpcid);
     void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
     void FillPFPInfo();
+    void FindMatchEndPoints();
     
   }; // class TrajClusterAlg
 
