@@ -175,6 +175,7 @@ namespace tca {
     size_t Parent;
   };
   
+  // Defines a 2D shower
   struct ShowerStruct {
     std::array<float, 2> StartPos;
     std::array<float, 2> EndPos;
@@ -183,6 +184,7 @@ namespace tca {
     float HalfWidth {0.1};           // shower half width for ~99% containment (2.5 sigma)
     std::vector<unsigned short> TjIDs;
     unsigned short ParentTjID {0};
+    unsigned short ParentStartEnd {0};  // the start end of the parent that is outside the shower
  };
 
   // Algorithm modification bits
