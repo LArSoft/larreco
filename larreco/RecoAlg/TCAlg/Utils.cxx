@@ -1323,7 +1323,7 @@ namespace tca {
         mf::LogVerbatim myprt("TC");
         myprt<<ic<<" TjIDs ";
         for(auto& tjID : ss.TjIDs) myprt<<" "<<tjID;
-        myprt<<" Parent ID_end "<<ss.ParentTjID;
+        myprt<<" Parent ID_StartEnd "<<ss.ParentTjID<<"_"<<ss.ParentStartEnd;
       } // ic
     }
 
@@ -1431,12 +1431,18 @@ namespace tca {
         float minSep = fShowerTag[1];
         TrajPointTrajDOCA(tjs, ss.ChgTP, tj, closePt, minSep);
         if(closePt == USHRT_MAX) continue;
-        float dang = DeltaAngle(tj.Pts[closePt].Ang, ss.ChgTP.Ang);
+        // determine which end of the parent should be considered the start (outside the shower)
+        unsigned short parentStartEnd = 0;
+        if(closePt > tj.Pts.size() / 2) parentStartEnd = 1;
+        // Check the angle between the start of the purported parent and the shower angle
+        unsigned short startEndPt = tj.EndPt[parentStartEnd];
+        float dang = DeltaAngle(tj.Pts[startEndPt].Ang, ss.ChgTP.Ang);
         float fom = minSep * dang / npwc;
         if(fom < bestFOM) {
           ss.ParentTjID = tj.ID;
+          ss.ParentStartEnd = parentStartEnd;
           bestFOM = fom;
-          if(inCTP == printCTP) mf::LogVerbatim("TC")<<"FSP: ish "<<ish<<" Parent tj.ID "<<tj.ID<<" minSep "<<minSep<<" dang  "<<dang<<" fom  "<<fom;
+          if(inCTP == printCTP) mf::LogVerbatim("TC")<<"FSP: ish "<<ish<<" Parent tj.ID "<<tj.ID<<" start end "<<ss.ParentStartEnd<<" minSep "<<minSep<<" dang  "<<dang<<" fom  "<<fom;
         }
       } // itj
     } // ish
@@ -1561,8 +1567,11 @@ namespace tca {
       ss.ChgTP.Hits.clear();
       // Note that UseHit is not used since the size is limited.
       for(auto& tjID : ss.TjIDs) {
-        auto thits = PutTrajHitsInVector(tjs.allTraj[tjID - 1], kUsedHits);
+        unsigned short itj = tjID - 1;
+        auto thits = PutTrajHitsInVector(tjs.allTraj[itj], kUsedHits);
         ss.ChgTP.Hits.insert(ss.ChgTP.Hits.end(), thits.begin(), thits.end());
+        // kill Tjs that are in showers
+        MakeTrajectoryObsolete(tjs, itj);
       } //  tjID
     } // ish
   } // CollectHits
