@@ -112,6 +112,10 @@ namespace trkf {
         Name("dirFromVtxPF"),
         Comment("Assume track direction from Vertex in PFParticle. Needs trackFromPF=true.")
       };
+      fhicl::Atom<bool> dirFromMC {
+        Name("dirFromMC"),
+        Comment("Assume track direction from MC.")
+      };
       fhicl::Atom<bool> dirFromVec {
         Name("dirFromVec"),
         Comment("Assume track direction from as the one giving positive dot product with vector specified by dirVec.")
@@ -124,15 +128,23 @@ namespace trkf {
 	Name("useRMSError"),
 	Comment("Flag to replace the default hit error SigmaPeakTime() with RMS().")
       };
-      fhicl::Atom<bool> sortHits {
-        Name("sortHits"),
-        Comment("Flag to decide whether the hits are sorted (once) based on the initial track state, along the main ; if false, the order from the pattern recognition is preserved. To be used only if original sorting is not along the path length s in 3D (e.g. in case it is done by collection plane).")
+      fhicl::Atom<bool> sortHitsByPlane {
+        Name("sortHitsByPlane"),
+        Comment("Flag to sort hits along the forward fit. The hit order in each plane is preserved, the next hit to process in 3D is chosen as the one with shorter 3D propagation distance among the next hit in all planes.")
+      };
+      fhicl::Atom<bool> sortOutputHitsMinLength {
+        Name("sortOutputHitsMinLength"),
+        Comment("Flag to decide whether the hits are sorted before creating the output track in order to avoid tracks with huge length.")
       };
       fhicl::Atom<bool> skipNegProp {
         Name("skipNegProp"),
-        Comment("Flag to decide whether the hits corresponding to a negative propagation distance should be dropped.")
+        Comment("Flag to decide whether, during the forward fit, the hits corresponding to a negative propagation distance should be dropped.")
       };
-    };
+      fhicl::Atom<float> hitErrScaleFact {
+        Name("hitErrScaleFact"),
+        Comment(".")
+      };
+  };
 
     struct Config {
       using Name = fhicl::Name;
@@ -175,7 +187,7 @@ namespace trkf {
 
     double setMomValue(art::Ptr<recob::Track> ptrack, const std::unique_ptr<art::FindManyP<anab::Calorimetry> >& trackCalo, const double pMC, const int pId) const;
     int    setPId(const unsigned int iTrack, const std::unique_ptr<art::FindManyP<anab::ParticleID> >& trackId, const int pfPid = 0) const;
-    bool   setDirFlip(const recob::Track& track, const std::vector<art::Ptr<recob::Vertex> >* vertices = 0) const;
+    bool   setDirFlip(const recob::Track& track, TVector3& mcdir, const std::vector<art::Ptr<recob::Vertex> >* vertices = 0) const;
   };
 }
 
@@ -184,7 +196,11 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
 {
 
   prop = new trkf::PropYZPlane(0., false);
-  kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().options().useRMS(),p_().options().sortHits(),p_().options().skipNegProp());
+  kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().options().useRMS(),
+					     p_().options().sortHitsByPlane(),
+					     p_().options().sortOutputHitsMinLength(),
+					     p_().options().skipNegProp(),
+					     p_().options().hitErrScaleFact());
   tmc = new trkf::TrackMomentumCalculator();
 
   if (p_().options().trackFromPF()) pfParticleInputTag = art::InputTag(p_().inputs().inputPFParticleLabel());
@@ -193,7 +209,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
     if (p_().options().idFromCollection()) pidInputTag = art::InputTag(p_().inputs().inputPidLabel());
   }
   if (p_().options().pFromCalo()) caloInputTag = art::InputTag(p_().inputs().inputCaloLabel());
-  if (p_().options().pFromMC()) simTrackInputTag = art::InputTag(p_().inputs().inputMCLabel());
+  if (p_().options().pFromMC() || p_().options().dirFromMC()) simTrackInputTag = art::InputTag(p_().inputs().inputMCLabel());
 
   produces<std::vector<recob::Track> >();
   produces<art::Assns<recob::Track, recob::Hit> >();
@@ -206,18 +222,32 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
     throw cet::exception("KalmanFilterFinalTrackFitter") << "Incompatible configuration parameters: cannot use idFromPF=true with trackFromPF=false." << "\n";
   if (p_().options().trackFromPF()==0 && p_().options().dirFromVtxPF())
     throw cet::exception("KalmanFilterFinalTrackFitter") << "Incompatible configuration parameters: cannot use dirFromVtxPF=true with trackFromPF=false." << "\n";
-  if (p_().options().idFromPF() && p_().options().idFromCollection())
-    throw cet::exception("KalmanFilterFinalTrackFitter") << "Incompatible configuration parameters: cannot use idFromCollection=true with idFromPF=true." << "\n";
-  if (p_().options().dirFromVec() && p_().options().dirFromVtxPF())
-    throw cet::exception("KalmanFilterFinalTrackFitter") << "Incompatible configuration parameters: cannot use dirFromVec=true with dirFromVtxPF=true." << "\n";
+
+  unsigned int nIds = 0;
+  if (p_().options().idFromPF())         nIds++;
+  if (p_().options().idFromCollection()) nIds++;
+  if (nIds>1) {
+    throw cet::exception("KalmanFilterFinalTrackFitter")
+      << "Incompatible configuration parameters: only at most one can be set to true among idFromPF and idFromCollection." << "\n";
+  }
+
+  unsigned int nDirs = 0;
+  if (p_().options().dirFromVtxPF()) nDirs++;
+  if (p_().options().dirFromMC())    nDirs++;
+  if (p_().options().dirFromVec())   nDirs++;
+  if (nDirs>1) {
+    throw cet::exception("KalmanFilterFinalTrackFitter")
+      << "Incompatible configuration parameters: only at most one can be set to true among dirFromVtxPF, dirFromMC, and dirFromVec." << "\n";
+  }
+
   unsigned int nPFroms = 0;
   if (p_().options().pFromCalo())   nPFroms++;
   if (p_().options().pFromMSChi2()) nPFroms++;
   if (p_().options().pFromLength()) nPFroms++;
   if (p_().options().pFromMC())     nPFroms++;
   if (nPFroms>1) {
-    throw cet::exception("KalmanFilterFinalTrackFitter") 
-      << "Incompatible configuration parameters: only at most one can be set to true among pFromCalo, pFromMSChi2, pFromLength and pFromMC." << "\n";
+    throw cet::exception("KalmanFilterFinalTrackFitter")
+      << "Incompatible configuration parameters: only at most one can be set to true among pFromCalo, pFromMSChi2, pFromLength, and pFromMC." << "\n";
   }
 }
 
@@ -238,16 +268,16 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
   //FIXME, eventually remove this (ok only for single particle MC)
   double pMC = -1.;
-  if (p_().options().pFromMC()) {
+  TVector3 mcdir;
+  if (p_().options().pFromMC() || p_().options().dirFromMC()) {
     art::ValidHandle<std::vector<sim::MCTrack> > simTracks = e.getValidHandle<std::vector<sim::MCTrack> >(simTrackInputTag);
     for (unsigned int iMC = 0; iMC < simTracks->size(); ++iMC) {
       const sim::MCTrack& mctrack = simTracks->at(iMC);
       //fiducial cuts on MC tracks
-      if (mctrack.Start().Position().X()< 80 || mctrack.Start().Position().X()>176) continue;
-      if (mctrack.Start().Position().Y()<-30 || mctrack.Start().Position().Y()> 30) continue;
-      if (mctrack.Start().Position().Z()< 10 || mctrack.Start().Position().Z()>100) continue;
-      if (mctrack.Start().Momentum().P()<500) continue;
+      if (mctrack.PdgCode()!=13)   continue;
+      if (mctrack.Process()!="primary")   continue;
       pMC = mctrack.Start().Momentum().P()*0.001;
+      mcdir = TVector3(mctrack.Start().Momentum().X()*0.001/pMC,mctrack.Start().Momentum().Y()*0.001/pMC,mctrack.Start().Momentum().Z()*0.001/pMC);
       break;
     }
     //std::cout << "mc momentum value = " << pval << " GeV" << std::endl;
@@ -256,7 +286,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
   if (p_().options().trackFromPF()) {
 
     auto outputPFAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Track> >();
-    
+
     art::ValidHandle<std::vector<recob::PFParticle> > inputPFParticle = e.getValidHandle<std::vector<recob::PFParticle> >(pfParticleInputTag);
     assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, pfParticleInputTag));
     assocVertices = std::unique_ptr<art::FindManyP<recob::Vertex> >(new art::FindManyP<recob::Vertex>(inputPFParticle, e, pfParticleInputTag));
@@ -264,22 +294,22 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     std::vector<art::Ptr<recob::Vertex> > vertices;
 
     for (unsigned int iPF = 0; iPF < inputPFParticle->size(); ++iPF) {
-      
+
       tracks = assocTracks->at(iPF);
       auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(pfParticleInputTag);
       vertices = assocVertices->at(iPF);
-      
+
       if (p_().options().pFromCalo()) {
 	trackCalo = std::unique_ptr<art::FindManyP<anab::Calorimetry> >(new art::FindManyP<anab::Calorimetry>(tracks, e, caloInputTag));
       }
-      
+
       for (unsigned int iTrack = 0; iTrack < tracks.size(); ++iTrack) {
-	
+
 	const recob::Track& track = *tracks[iTrack];
 	art::Ptr<recob::Track> ptrack = tracks[iTrack];
 	const int pId = setPId(iTrack, trackId, inputPFParticle->at(iPF).PdgCode());
 	const double mom = setMomValue(ptrack, trackCalo, pMC, pId);
-	const bool flipDir = setDirFlip(track, &vertices);
+	const bool flipDir = setDirFlip(track, mcdir, &vertices);
 
 	//this is not computationally optimal, but at least preserves the order unlike FindManyP
 	std::vector<art::Ptr<recob::Hit> > inHits;
@@ -287,7 +317,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  if (it->first == ptrack) inHits.push_back(it->second);
 	  else if (inHits.size()>0) break;
 	}
- 
+
 	recob::Track outTrack;
 	art::PtrVector<recob::Hit> outHits;
 	bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits);
@@ -296,7 +326,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for PFP # " << iPF << " track #" << iTrack << "\n";
 	  continue;
 	}
-	
+
 	outputTracks->emplace_back(std::move(outTrack));
 	art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
 	for (auto const& trhit: outHits) {
@@ -312,22 +342,22 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
     art::ValidHandle<std::vector<recob::Track> > inputTracks = e.getValidHandle<std::vector<recob::Track> >(trackInputTag);
     auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(trackInputTag);
-    
+
     if (p_().options().pFromCalo()) {
       trackCalo = std::unique_ptr<art::FindManyP<anab::Calorimetry> >(new art::FindManyP<anab::Calorimetry>(inputTracks, e, caloInputTag));
     }
-    
+
     if (p_().options().idFromCollection()) {
       trackId = std::unique_ptr<art::FindManyP<anab::ParticleID> >(new art::FindManyP<anab::ParticleID>(inputTracks, e, pidInputTag));
     }
-    
+
     for (unsigned int iTrack = 0; iTrack < inputTracks->size(); ++iTrack) {
-      
+
       const recob::Track& track = inputTracks->at(iTrack);
       art::Ptr<recob::Track> ptrack(inputTracks, iTrack);
       const int pId = setPId(iTrack, trackId);
       const double mom = setMomValue(ptrack, trackCalo, pMC, pId);
-      const bool flipDir = setDirFlip(track);
+      const bool flipDir = setDirFlip(track, mcdir);
 
       //this is not computationally optimal, but at least preserves the order unlike FindManyP
       std::vector<art::Ptr<recob::Hit> > inHits;
@@ -339,12 +369,12 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       recob::Track outTrack;
       art::PtrVector<recob::Hit> outHits;
       bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits);
-      
+
       if (!fitok) {
 	mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for track #" << iTrack << "\n";
 	continue;
       }
-      
+
       outputTracks->emplace_back(std::move(outTrack));
       art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
       for (auto const& trhit: outHits) {
@@ -367,7 +397,7 @@ double trkf::KalmanFilterFinalTrackFitter::setMomValue(art::Ptr<recob::Track> pt
     const std::vector<art::Ptr<anab::Calorimetry> >& calo = trackCalo->at(ptrack.key());
     double sumenergy = 0.;
     int nviews = 0.;
-    for (auto caloit :  calo) {
+    for (auto caloit : calo) {
       if (caloit->KineticEnergy()>0.) {
 	sumenergy+=caloit->KineticEnergy();
 	nviews+=1;
@@ -391,7 +421,6 @@ int trkf::KalmanFilterFinalTrackFitter::setPId(const unsigned int iTrack, const 
     //take the pdgId corresponding to the minimum chi2 (should we give preference to the majority? fixme)
     double minChi2 = -1.;
     for (auto idit : trackId->at(iTrack)) {
-      //std::cout << "plane pdgId = " << idit->Pdg() << " chi2=" << idit->MinChi2() << std::endl;
       if ( idit->MinChi2()>0. && (minChi2<0. || idit->MinChi2()<minChi2) ) {
 	result = idit->Pdg();
 	minChi2 = idit->MinChi2();
@@ -401,12 +430,15 @@ int trkf::KalmanFilterFinalTrackFitter::setPId(const unsigned int iTrack, const 
   return result;
 }
 
-bool trkf::KalmanFilterFinalTrackFitter::setDirFlip(const recob::Track& track, const std::vector<art::Ptr<recob::Vertex> >* vertices) const {
+bool trkf::KalmanFilterFinalTrackFitter::setDirFlip(const recob::Track& track, TVector3& mcdir, const std::vector<art::Ptr<recob::Vertex> >* vertices) const {
   bool result = false;
-  if (p_().options().dirFromVec()) {
+  if (p_().options().dirFromMC()) {
+    auto& tdir =  track.VertexDirection();
+    if ( (mcdir.X()*tdir.X() + mcdir.Y()*tdir.Y() + mcdir.Z()*tdir.Z())<0. ) result = true;
+  } else if (p_().options().dirFromVec()) {
     std::array<float, 3> dir = p_().options().dirVec();
     auto& tdir =  track.VertexDirection();
-    if ( dir[0]*tdir.X() + dir[1]*tdir.Y() + dir[2]*tdir.Z() ) result = true;
+    if ( (dir[0]*tdir.X() + dir[1]*tdir.Y() + dir[2]*tdir.Z())<0. ) result = true;
   } else if (p_().options().trackFromPF() && p_().options().dirFromVtxPF() && vertices->size()>0) {
     //if track end is closer to first vertex then track vertex, flip direction
     double xyz[3];
