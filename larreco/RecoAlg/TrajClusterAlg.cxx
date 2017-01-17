@@ -2490,6 +2490,13 @@ namespace tca {
         float dangCut;
         float docaCut;
         float chgPull = 0;
+        float minChgRMS = tjs.allTraj[it1].ChgRMS;
+        if(tjs.allTraj[it2].ChgRMS < minChgRMS) minChgRMS = tjs.allTraj[it2].ChgRMS;
+        if(tp1.Chg > tp2.Chg) {
+          chgPull = (tp1.Chg / tp2.Chg - 1) / minChgRMS;
+        } else {
+          chgPull = (tp2.Chg / tp1.Chg - 1) / minChgRMS;
+        }
         if(loMCSMom) {
           // increase dangCut dramatically for low MCSMom tjs
           dangCut = 1.0;
@@ -2513,13 +2520,6 @@ namespace tca {
           dangCut = fKinkCuts[0] + fKinkCuts[1] * dangErr;
           docaCut = 1;
           if(isVLA) docaCut = 15;
-          float minChgRMS = tjs.allTraj[it1].ChgRMS;
-          if(tjs.allTraj[it2].ChgRMS < minChgRMS) minChgRMS = tjs.allTraj[it2].ChgRMS;
-          if(tp1.Chg > tp2.Chg) {
-            chgPull = (tp1.Chg / tp2.Chg - 1) / minChgRMS;
-          } else {
-            chgPull = (tp2.Chg / tp1.Chg - 1) / minChgRMS;
-          }
         }
         
         // check the merge cuts. Start with doca and dang requirements
@@ -2530,7 +2530,9 @@ namespace tca {
         if(doMerge && !showerTjs && hiMCSMom && chgPull > fChargeCuts[0] && !isVLA) doMerge = false;
         // ignore the charge pull cut if both are high momentum and dang is really small
         if(!doMerge && tjs.allTraj[it1].MCSMom > 900 && tjs.allTraj[it2].MCSMom && dang < 0.1) doMerge = true;
-        
+        // do not merge if chgPull is really high
+        if(doMerge && chgPull > 2*fChargeCuts[0]) doMerge = false;
+
         bool signalBetween = true;
         if(!isVLA) signalBetween = SignalBetween(tjs, tp1, tp2.Pos[0], 0.99, mrgPrt);
         doMerge = doMerge && signalBetween;
