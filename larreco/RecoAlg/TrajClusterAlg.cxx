@@ -1858,6 +1858,9 @@ namespace tca {
     
     if(deltaCut < 1) deltaCut = 1;
     if(deltaCut > 4) deltaCut = 4;
+
+    // open it up for RevProp, since we might be following a stopping track
+    if(tj.AlgMod[kRevProp]) deltaCut *= 2;
     
     // loosen up a bit if we just passed a block of dead wires
     if(abs(dw) > 20 && DeadWireCount(tjs, tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0], tj.CTP) > 10) deltaCut *= 2;
@@ -2053,7 +2056,7 @@ namespace tca {
     } // isLA
 
     // don't use the best UNUSED hit if the best delta is for a USED hit and it is much better
-    if(bestDelta < 0.5 * tp.Delta) return;
+    if(bestDelta < 0.5 * tp.Delta && !tj.AlgMod[kRevProp]) return;
     
     if(!useChg || (useChg && (tj.AveChg <= 0 || tj.ChgRMS <= 0))) {
       // necessary quantities aren't available for more careful checking
