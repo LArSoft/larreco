@@ -502,6 +502,8 @@ void Cluster3D::CollectArtHits(art::Event&            evt,
     {
         art::Ptr<recob::Hit> recobHit(recobHitHandle, cIdx);
         
+        if (recobHit->StartTick() > 6300) continue;
+        
         const geo::WireID& hitWireID(recobHit->WireID());
         
         double hitPeakTime(recobHit->PeakTime() - viewOffsetMap[recobHit->View()]);
@@ -521,7 +523,7 @@ void Cluster3D::CollectArtHits(art::Event&            evt,
     std::sort(viewToHitVectorMap[geo::kV].begin(), viewToHitVectorMap[geo::kV].end(), SetHitTimeOrder);
     std::sort(viewToHitVectorMap[geo::kW].begin(), viewToHitVectorMap[geo::kW].end(), SetHitTimeOrder);
 
-    mf::LogDebug("Cluster3D") << ">>>>> Number of ART hits: " << recobHitHandle->size() << std::endl;
+    mf::LogDebug("Cluster3D") << ">>>>> Number of ART hits: " << hitVector.size() << std::endl;
 }
     
 void Cluster3D::findTrackSeeds(art::Event&                         evt,
