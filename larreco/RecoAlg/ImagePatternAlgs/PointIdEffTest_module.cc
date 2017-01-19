@@ -37,7 +37,7 @@
 #include "fhiclcpp/types/Table.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/MVAReader.h"
+#include "lardata/ArtDataHelper/MVAReader.h"
 
 #include "TH1.h"
 #include "TTree.h"

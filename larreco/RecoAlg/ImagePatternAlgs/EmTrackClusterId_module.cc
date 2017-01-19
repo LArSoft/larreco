@@ -31,7 +31,7 @@
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
-#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/MVAWriter.h"
+#include "lardata/ArtDataHelper/MVAWriter.h"
 
 #include <memory>
 
