@@ -353,6 +353,8 @@ namespace tca {
     void Find3DVertices(const geo::TPCID& tpcid);
     void CompleteIncomplete3DVertices(const geo::TPCID& tpcid);
     void CompleteIncomplete3DVerticesInGaps(const geo::TPCID& tpcid);
+    // Improve hit assignments near vertex 
+    void VtxHitsSwap();
     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
     void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);

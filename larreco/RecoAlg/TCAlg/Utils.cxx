@@ -204,6 +204,16 @@ namespace tca {
   } // SignalAtPos
 
   //////////////////////////////////////////
+  float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp){
+    float totchg = 0;
+    for (size_t i = 0; i<tp.Hits.size(); ++i){
+      if (!tp.UseHit[i]) continue;
+      totchg += tjs.fHits[tp.Hits[i]].Integral;
+    }
+    return totchg;
+  } // TpSumHitChg
+
+  //////////////////////////////////////////
   bool CheckHitClusterAssociations(TjStuff& tjs)
   {
     // check hit - cluster associations

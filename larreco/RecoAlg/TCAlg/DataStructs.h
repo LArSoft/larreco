@@ -199,6 +199,7 @@ namespace tca {
     kFTBRevProp,
     kStopAtTj,
     kMatch3D,
+    kVtxHitsSwap,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
