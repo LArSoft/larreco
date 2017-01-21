@@ -73,6 +73,7 @@ namespace tca {
     kVtxTrjTried,     ///< FindVtxTraj algorithm tried
     kOnDeadWire,
     kVtxRefined,
+    kNiceVtx,
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
@@ -84,7 +85,7 @@ namespace tca {
     float YErr {0.5};                 // y position error
     float Z {0};                    // z position
     float ZErr {0.5};                 // z position error
-    short Wire {-1};                 // wire number for an incomplete 3D vertex
+    short Wire {-1};                 // wire number for an incomplete 3D vertex, SHRT_MAX = abandoned vertex
     unsigned short CStat {0};
     unsigned short TPC {0};
     std::array<short, 3> Ptr2D {{-1, -1, -1}}; // pointers to 2D vertices in each plane
@@ -175,17 +176,12 @@ namespace tca {
     size_t Parent;
   };
   
-  // Defines a 2D shower
+  // A temporary structure that defines a 2D shower-like cluster
   struct ShowerStruct {
-    std::array<float, 2> StartPos;
-    std::array<float, 2> EndPos;
-    // A TrajPoint that defines the Charge centroid position, Angle, Charge, etc
-    TrajPoint ChgTP;
-    float HalfWidth {0.1};           // shower half width for ~99% containment (2.5 sigma)
+    unsigned short ShowerTjID {USHRT_MAX};
     std::vector<unsigned short> TjIDs;
-    unsigned short ParentTjID {0};
-    unsigned short ParentStartEnd {0};  // the start end of the parent that is outside the shower
- };
+    std::vector<std::array<float, 2>> Envelope;  // Vertices of a polygon that encompasses the shower
+  };
 
   // Algorithm modification bits
   typedef enum {
@@ -223,6 +219,7 @@ namespace tca {
     kStopAtTj,
     kMatch3D,
     kShowerTag,
+    kShowerTj,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
