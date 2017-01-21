@@ -178,7 +178,7 @@ namespace cluster {
     double xyz[3] = {0, 0, 0};
     vtxID = 0;
     for(tca::Vtx3Store const& vtx3: Vertices) {
-      // ignore incomplete vertices
+      // ignore incomplete vertices or obsolete
       if(vtx3.Wire >= 0) continue;
       ++vtxID;
       xyz[0] = vtx3.X;
