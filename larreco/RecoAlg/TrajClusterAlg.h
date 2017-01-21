@@ -342,6 +342,8 @@ namespace tca {
     void ChkAllStop();
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
+    void SetPDGCode(Trajectory& tj);
+    void SetPDGCode(unsigned short itj);
     void MatchTruth();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
