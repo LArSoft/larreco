@@ -35,7 +35,8 @@ namespace tca {
     "FTBRevProp",
     "StopAtTj",
     "Match3D",
-    "ShowerTag"
+    "ShowerTag",
+    "ShowerTj"
   };
 
   const std::vector<std::string> StopFlagNames {
@@ -51,7 +52,8 @@ namespace tca {
     "Fixed",
     "VtxTrjTried",
     "OnDeadWire",
-    "VtxRefined"
+    "VtxRefined",
+    "NiceVtx"
   } ;
 } // namespace tca
 
