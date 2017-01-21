@@ -134,7 +134,7 @@ namespace tca {
     
     fDeltaRayTag          = pset.get< std::vector<short>>("DeltaRayTag", {-1, -1, -1});
     fMuonTag              = pset.get< std::vector<short>>("MuonTag", {-1, -1, -1, - 1});
-    fShowerTag            = pset.get< std::vector<float>>("ShowerTag", {-1, -1, -1, -1, -1});
+    fShowerTag            = pset.get< std::vector<float>>("ShowerTag", {-1, -1, -1, -1, -1, -1});
     fChkStopCuts          = pset.get< std::vector<float>>("ChkStopCuts", {-1, -1, -1});
     fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
     
@@ -170,7 +170,8 @@ namespace tca {
     if(fMuonTag.size() != 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging";
     if(fDeltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
     if(fChkStopCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut";
-    if(fShowerTag.size() != 5) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 3\n 0 = min MCSMom\n 1 = min separation (WSE units)\n 2 = Min parent length\n, 3 = Make shower PFPs? (0,1)\n 4 = Print showers in plane";
+    if(fShowerTag.size() != 8) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 8\n 0 = Print showers in plane\n 1 = max MCSMom\n 2 = max separation (WSE units)\n 3 = Max angle diff\n 4 = Factor * rms width\n 5 = Min half width\n 6 = min total Tps\n 7 = Min Tjs";
+    
     if(fMatch3DCuts.size() != 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = MinMCSMom\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?";
     
     // check the angle ranges and convert from degrees to radians
@@ -639,45 +640,12 @@ namespace tca {
       }
       return false;
     }
-/*
- 
-    // determine if some re-fitting of one of the trajectories at one end is required
-    // mergePt will be the first point in the new trajectory that belonged to tj2
-    unsigned short mergePt = tj1.Pts.size();
-    // Correct the trajectory in the merging region if one of the tjs is short
-    bool fixTj1 = (tj1.Pts.size() < 10 && tj2.Pts.size() > 10);
-    bool fixTj2 = (tj1.Pts.size() > 10 && tj2.Pts.size() < 10);
-    if(fixTj1) {
-      // tj1 is short so extrapolate tj2 into tj1
-      // We can use FixTrajBegin for this
-      prt = mrgPrt;
-      if(prt) mf::LogVerbatim("TC")<<"MergeAngStore: Fix Begin of tj1.ID "<<tj1.ID;
-      FixTrajBegin(tj1, mergePt);
-    } else if (fixTj2) {
-      // tj2 is short so extrapolate tj1 into tj2
-      --mergePt;
-      prt = mrgPrt;
-      FixTrajEnd(tj1, mergePt);
-      // see if we need to re-fit the trajectory at this end
-      FitTraj(tj1);
-      if(prt) {
-        mf::LogVerbatim("TC")<<"MergeAngStore: Fix End of tj1.ID "<<tj1.ID<<". First fit";
-        PrintTrajectory("MAS", tjs, tj1, tj1.EndPt[1]);
-      }
-      unsigned short nit = 0;
-      while(tj.Pts[tj.EndPt[1]].FitChi > 2 && tj.NTPsFit > fMinPtsFit[tj.Pass]) {
-        --tj.NTPsFit;
-        FitTraj(tj);
-        ++nit;
-        if(nit > 20) break;
-      }
-    } // fixTj2
-*/
     // kill the original trajectories
     MakeTrajectoryObsolete(tjs, itj1);
     MakeTrajectoryObsolete(tjs, itj2);
     // Do this so that StoreTraj keeps the correct WorkID (of itj1)
     tj1.ID = tj1.WorkID;
+    SetPDGCode(tj1);
     StoreTraj(tj1);
     return true;
     
@@ -925,6 +893,9 @@ namespace tca {
     
     // Refine vertices, trajectories and nearby hits
 //    Refine2DVertices();
+    
+    // Check the associations and set the kNiceVtx bit
+    CheckVtxAssociations(tjs, fCTP);
     
   } // ReconstructAllTraj
 
@@ -2426,7 +2397,7 @@ namespace tca {
           if(isVLA) {
             // compare the minimum separation between Large Angle trajectories using a generous cut
             unsigned short ipt1, ipt2;
-            TrajTrajDOCA(tjs.allTraj[it1], tjs.allTraj[it2], ipt1, ipt2, doca);
+            TrajTrajDOCA(tjs, tjs.allTraj[it1], tjs.allTraj[it2], ipt1, ipt2, doca);
             if(mrgPrt) mf::LogVerbatim("TC")<<" isVLA check ipt1 "<<ipt1<<" ipt2 "<<ipt2<<" doca "<<doca;
           } else {
             // small angle
@@ -3314,7 +3285,12 @@ namespace tca {
           tjs.allTraj[it1].VtxID[end1] = tjs.vtx[ivx].ID;
           tjs.allTraj[it1].AlgMod[kHamVx2] = true;
           tjs.allTraj[it2].AlgMod[kHamVx2] = true;
-          tjs.allTraj[tjs.allTraj.size()-1].AlgMod[kHamVx2] = true;
+          unsigned short newTjIndex = tjs.allTraj.size() - 1;
+          tjs.allTraj[newTjIndex].AlgMod[kHamVx2] = true;
+          // Update the PDGCode for the chopped trajectory
+          SetPDGCode(it2);
+          // and for the new trajectory
+          SetPDGCode(newTjIndex);
           if(vtxPrt) mf::LogVerbatim("TC")<<" made new vertex "<<tjs.vtx[ivx].ID;
           didaSplit = true;
           break;
@@ -3407,7 +3383,12 @@ namespace tca {
           tjs.allTraj[it1].VtxID[end1] = tjs.vtx[ivx].ID;
           tjs.allTraj[it1].AlgMod[kHamVx] = true;
           tjs.allTraj[it2].AlgMod[kHamVx] = true;
-          tjs.allTraj[tjs.allTraj.size()-1].AlgMod[kHamVx] = true;
+          unsigned short newTjIndex = tjs.allTraj.size() - 1;
+          tjs.allTraj[newTjIndex].AlgMod[kHamVx] = true;
+          // Update the PDGCode for the chopped trajectory
+          SetPDGCode(it2);
+          // and for the new trajectory
+          SetPDGCode(newTjIndex);
           didaSplit = true;
           break;
         } // tj2
@@ -4630,6 +4611,10 @@ namespace tca {
             tjs.vtx.pop_back();
             continue;
           } // !SplitAllTraj
+          // Update the PDGCode for the chopped trajectory
+          SetPDGCode(itj);
+          // and for the new trajectory
+          SetPDGCode(tjs.allTraj.size()-1);
         } // closePt is not near an end, so split the trajectory
         tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
         itj = tjs.allTraj.size() - 1;
@@ -4701,14 +4686,8 @@ namespace tca {
         break;
       }
 
-      // Special handling of very long straight trajectories, e.g. uB cosmic rays
-      if(fMuonTag[0] >= 0 && tj.PDGCode == 0 && tj.Pts.size() > (unsigned short)fMuonTag[0]) {
-        if(tj.MCSMom > fMuonTag[1]) tj.PDGCode = 13;
-        if(prt) mf::LogVerbatim("TC")<<" Check MCSMom "<<tj.MCSMom<<" PDGCode "<<tj.PDGCode;
-      }
+      SetPDGCode(tj);
 
-      // anything really really long must be a muon
-      if(tj.Pts.size() > 200) tj.PDGCode = 13;
       // copy this position into tp
       tp.Pos = ltp.Pos;
       tp.Dir = ltp.Dir;
@@ -8194,5 +8173,36 @@ namespace tca {
       if(npts < nPtsToCheck) break;
     } // end
   } // StopsAtEnd
+
   
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::SetPDGCode(unsigned short itj)
+  {
+    if(itj > tjs.allTraj.size() - 1) return;
+    SetPDGCode(tjs.allTraj[itj]);
+  }
+  
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::SetPDGCode(Trajectory& tj)
+  {
+    // Sets the PDG code for the supplied trajectory, currently only to 13
+    
+    // assume it is unknown
+    tj.PDGCode = 0;
+    
+    tj.MCSMom = MCSMom(tjs, tj);
+    
+    if(fMuonTag[0] <= 0) return;
+    
+    // Special handling of very long straight trajectories, e.g. uB cosmic rays
+    bool isAMuon = (tj.Pts.size() > (unsigned short)fMuonTag[0] && tj.MCSMom > fMuonTag[1]);
+    // anything really really long must be a muon
+    if(tj.Pts.size() > 200) isAMuon = true;
+    if(isAMuon) {
+      tj.PDGCode = 13;
+      if(prt) mf::LogVerbatim("TC")<<" SetPDGCode: MCSMom "<<tj.MCSMom<<" PDGCode set to 13";
+    }
+    
+  } // SetPDGCode
+
 } // namespace cluster
