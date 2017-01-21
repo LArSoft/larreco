@@ -62,6 +62,7 @@ namespace tca {
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
+  bool SplitAllTraj(TjStuff& tjs, Trajectory& tj, unsigned short pos, unsigned short ivx, bool prt);
   void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
   // returns the DOCA between a hit and a trajectory
   float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp);

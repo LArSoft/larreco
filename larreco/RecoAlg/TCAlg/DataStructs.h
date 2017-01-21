@@ -200,6 +200,7 @@ namespace tca {
     kStopAtTj,
     kMatch3D,
     kVtxHitsSwap,
+    kSplitHiChgHits,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   

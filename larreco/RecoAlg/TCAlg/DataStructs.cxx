@@ -35,7 +35,8 @@ namespace tca {
     "FTBRevProp",
     "StopAtTj",
     "Match3D",
-    "VtxHitsSwap"
+    "VtxHitsSwap",
+    "SplitHiChgHits"
   };
 
   const std::vector<std::string> StopFlagNames {

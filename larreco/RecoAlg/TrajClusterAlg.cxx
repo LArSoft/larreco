@@ -895,7 +895,7 @@ namespace tca {
       TagDeltaRays(tjs, fCTP, fDeltaRayTag, debug.WorkID);
       
       ChkAllStop();
-      
+
       Find2DVertices();
       if(fQuitAlg) return;
 
@@ -915,7 +915,7 @@ namespace tca {
     // check for a major failure
     if(fQuitAlg) return;
 
-    // Improve hit assignments near vertex 
+    // TY: Improve hit assignments near vertex 
     VtxHitsSwap();
 
     // last attempt to attach Tjs to vertices
@@ -4956,6 +4956,9 @@ namespace tca {
     
     // lop off high multiplicity hits at the end
     CheckHiMultEndHits(tj);
+
+    // TY: Split high charge hits near the trajectory end
+    SplitHiChgHits(tj);
     
     if(prt && tj.Pts.size() < 100) PrintTrajectory("CTo", tjs, tj, USHRT_MAX);
     
@@ -7869,7 +7872,7 @@ namespace tca {
     } // end
   } // StopsAtEnd
 
-  ////////////////////////////////////////////////
+  //////////////////////TY://////////////////////////
   bool TrajClusterAlg::ChkMichel(Trajectory& tj, unsigned short& lastGoodPt){
 
     //find number of hits that are consistent with Michel electron
@@ -8070,8 +8073,102 @@ namespace tca {
         }
       }//loop over two trajectories
     }//loop over vertices
-    
   }
 
+  /////////////////////TY:///////////////////////////
+  void TrajClusterAlg::SplitHiChgHits(Trajectory& tj){
+    
+    // Check allTraj trajectories in the current CTP and split high charge hits 
+    if(!fUseAlg[kSplitHiChgHits]) return;
+    
+    if(tj.CTP != fCTP) return;
+    if(tj.AlgMod[kKilled]) return;
+    //Ignore short trajectories
+    if (tj.EndPt[1]<10) return;
+    for(unsigned short end = 0; end < 2; ++end) {
+      //if (prt) mf::LogVerbatim("TC")<<"SplitHiChghits "<<end<<" "<<tj.VtxID[end];
+      float hichg = 0;
+      unsigned short tp = tj.EndPt[end];
+      unsigned short nlohits = 0;
+      unsigned short lastHiTP = USHRT_MAX;
+      while (tp != tj.EndPt[1-end]){
+        float ptchg = TpSumHitChg(tjs, tj.Pts[tp]);
+        //if (prt) mf::LogVerbatim("TC")<<"SplitHiChgHits "<<tp<<" "<<ptchg;
+        if (ptchg){
+          if (tp == tj.EndPt[end]){
+            hichg = ptchg;
+            lastHiTP = tp;
+          }
+          else if (ptchg>0.4*hichg){
+            if (!nlohits){
+              hichg = ptchg;
+              lastHiTP = tp;
+            }
+            else{
+              break;
+            }
+          }
+          else ++nlohits;
+        }
+        if (end==0){
+          ++tp;
+        }
+        else{
+          --tp;
+        }
+      }
+      //if (prt) mf::LogVerbatim("TC")<<"SplitHiChgHits "<<end<<" "<<nlohits;
+      if (nlohits>4&&lastHiTP!=USHRT_MAX){
+        //Create new vertex
+        VtxStore aVtx;
+        aVtx.Pos = tj.Pts[lastHiTP].Pos;
+        aVtx.NTraj = 2;
+        aVtx.Pass = tj.Pass;
+        aVtx.Topo = 10;
+        aVtx.ChiDOF = 0;
+        aVtx.CTP = fCTP;
+        tjs.vtx.push_back(aVtx);
+        unsigned short ivx = tjs.vtx.size() - 1;
+        tjs.vtx[ivx].ID = ivx + 1;
 
+        // make a copy
+        Trajectory newTj = tj;
+        newTj.ID = tjs.allTraj.size() + 1;
+
+        // keep high charge hits, reassign other hits to the new trajectory
+        unsigned short tp1 = lastHiTP+1;
+        if (end==1) tp1 = lastHiTP-1;
+        for (unsigned short ipt = std::min(tj.EndPt[1-end], tp1); ipt <= std::max(tj.EndPt[1-end], tp1); ++ipt){
+          tj.Pts[ipt].Chg = 0;
+          for (unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+            if(!tj.Pts[ipt].UseHit[ii]) continue;
+            unsigned int iht = tj.Pts[ipt].Hits[ii];
+            // This shouldn't happen but check anyway
+            if(tjs.fHits[iht].InTraj != tj.ID) continue;
+            tjs.fHits[iht].InTraj = newTj.ID;
+            tj.Pts[ipt].UseHit[ii] = false;
+          }//ii
+        }//ipt
+        SetEndPoints(tjs, tj);
+        tj.VtxID[1] = tjs.vtx[ivx].ID;
+        tj.AlgMod[kSplitHiChgHits] = true;
+        if(prt) {
+          mf::LogVerbatim("TC")<<"Splitting trajectory ID "<<tj.ID<<" new EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
+        }
+
+        for (unsigned short ipt = std::min(newTj.EndPt[end], lastHiTP); ipt <= std::max(newTj.EndPt[end], lastHiTP); ++ipt){
+          newTj.Pts[ipt].Chg = 0;
+          for (unsigned short ii = 0; ii < newTj.Pts[ipt].Hits.size(); ++ii) {
+            newTj.Pts[ipt].UseHit[ii] = false;
+          }//ii
+        }//ipt
+        SetEndPoints(tjs, newTj);
+        newTj.VtxID[0] = tjs.vtx[ivx].ID;
+        newTj.AlgMod[kSplitHiChgHits] = true;
+        tjs.allTraj.push_back(newTj);
+        
+        break;     
+      }
+    }
+  }
 } // namespace cluster
