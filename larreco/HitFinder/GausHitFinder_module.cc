@@ -121,6 +121,8 @@ namespace hit{
     std::vector<double> fMinSig;                   ///<signal height threshold
     std::vector<double> fInitWidth;                ///<Initial width for fit
     std::vector<double> fMinWidth;                 ///<Minimum hit width
+    std::vector<int>    fLongMaxHits;              ///<Maximum number hits on a really long pulse train
+    std::vector<int>    fLongPulseWidth;           ///<Sets width of hits used to describe long pulses
     
     size_t              fMaxMultiHit;              ///<maximum hits for multi fit
     int                 fAreaMethod;               ///<Type of area calculation
@@ -195,17 +197,19 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
       }
     }
 
-    FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),fMinSig);
-    FillOutHitParameterVector(p.get< std::vector<double> >("InitWidth"),fInitWidth);
-    FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),fMinWidth);
-    FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),fAreaNorms);
-  
-    fMaxMultiHit      = p.get< int          >("MaxMultiHit");
-    fAreaMethod       = p.get< int          >("AreaMethod");
-    fTryNplus1Fits    = p.get< bool         >("TryNplus1Fits");
-    fChi2NDFRetry     = p.get< double       >("Chi2NDFRetry");
-    fChi2NDF          = p.get< double       >("Chi2NDF");
-    fNumBinsToAverage = p.get< size_t       >("NumBinsToAverage", 0);
+    FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),         fMinSig);
+    FillOutHitParameterVector(p.get< std::vector<double> >("InitWidth"),      fInitWidth);
+    FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),       fMinWidth);
+    FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),      fAreaNorms);
+
+    fLongMaxHits      = p.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
+    fLongPulseWidth   = p.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {32,32,32});
+    fMaxMultiHit      = p.get< int             >("MaxMultiHit");
+    fAreaMethod       = p.get< int             >("AreaMethod");
+    fTryNplus1Fits    = p.get< bool            >("TryNplus1Fits");
+    fChi2NDFRetry     = p.get< double          >("Chi2NDFRetry");
+    fChi2NDF          = p.get< double          >("Chi2NDF");
+    fNumBinsToAverage = p.get< size_t          >("NumBinsToAverage", 0);
 }  
 
 //-------------------------------------------------
@@ -414,6 +418,10 @@ void GausHitFinder::produce(art::Event& evt)
                 // ### In the end, this primarily catches the case where ###
                 // ### a fake pulse is at the start of the ROI           ###
                 if (endT - startT < 5) continue;
+                
+                
+                /// TEMPORARY
+                if (endT > 6380) continue;
 	 
                 // #######################################################
                 // ### Clearing the parameter vector for the new pulse ###
@@ -483,25 +491,50 @@ void GausHitFinder::produce(art::Event& evt)
                     }
                 }
                 
-                // ############################################
-                // ### If too large then make one large hit ###
-                // ### Also do this if chi^2 is too large   ###
-                // ############################################
+                // #######################################################
+                // ### If too large then force alternate solution      ###
+                // ### - Make n hits from pulse train where n will     ###
+                // ###   depend on the fhicl parameter fLongPulseWidth ###
+                // ### Also do this if chi^2 is too large              ###
+                // #######################################################
                 if (peakVals.size() > fMaxMultiHit || chi2PerNDF > fChi2NDF)
                 {
-                    double sumADC    = std::accumulate(signal.begin() + startT, signal.begin() + endT,0.);
-                    double peakSigma = (endT - startT) / 2.;         // was 4, then 3, but makes large pulses too narrow
-                    double peakAmp   = 0.3989 * sumADC / peakSigma;  // Use gaussian formulation
-                    double peakMean  = (startT + endT) / 2.;
+                    int longPulseWidth = fLongPulseWidth.at(view);
+                    int nHitsThisPulse = (endT - startT) / longPulseWidth;
                     
-                    nGausForFit =  1;
-                    chi2PerNDF  =  chi2PerNDF > fChi2NDF ? chi2PerNDF : -1.;
-                    NDF         =  1;
+                    if (nHitsThisPulse > fLongMaxHits.at(view))
+                    {
+                        nHitsThisPulse = fLongMaxHits.at(view);
+                        longPulseWidth = (endT - startT) / nHitsThisPulse;
+                    }
+                    
+                    if (nHitsThisPulse * longPulseWidth < endT - startT) nHitsThisPulse++;
+                    
+                    int firstTick = startT;
+                    int lastTick  = firstTick + std::min(endT,longPulseWidth);
                     
                     paramVec.clear();
-                    paramVec.emplace_back(peakAmp,   0.1 * peakAmp);
-                    paramVec.emplace_back(peakMean,  0.1 * peakMean);
-                    paramVec.emplace_back(peakSigma, 0.1 * peakSigma);
+                    nGausForFit = nHitsThisPulse;
+                    NDF         = 1.;
+                    chi2PerNDF  =  chi2PerNDF > fChi2NDF ? chi2PerNDF : -1.;
+                    
+                    for(int hitIdx = 0; hitIdx < nHitsThisPulse; hitIdx++)
+                    {
+                        // This hit parameters
+                        double sumADC    = std::accumulate(signal.begin() + firstTick, signal.begin() + lastTick, 0.);
+                        double peakSigma = (lastTick - firstTick) / 3.;  // Set the width...
+                        double peakAmp   = 0.3989 * sumADC / peakSigma;  // Use gaussian formulation
+                        double peakMean  = (firstTick + lastTick) / 2.;
+                    
+                        // Store hit params
+                        paramVec.emplace_back(peakAmp,   0.1 * peakAmp);
+                        paramVec.emplace_back(peakMean,  0.1 * peakMean);
+                        paramVec.emplace_back(peakSigma, 0.1 * peakSigma);
+                        
+                        // set for next loop
+                        firstTick = lastTick;
+                        lastTick  = std::min(lastTick  + longPulseWidth, endT);
+                    }
                 }
 	    
                 // #######################################################
