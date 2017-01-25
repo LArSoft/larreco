@@ -418,10 +418,6 @@ void GausHitFinder::produce(art::Event& evt)
                 // ### In the end, this primarily catches the case where ###
                 // ### a fake pulse is at the start of the ROI           ###
                 if (endT - startT < 5) continue;
-                
-                
-                /// TEMPORARY
-                if (endT > 6380) continue;
 	 
                 // #######################################################
                 // ### Clearing the parameter vector for the new pulse ###
