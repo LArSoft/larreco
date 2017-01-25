@@ -60,7 +60,7 @@ namespace hit {
 //LArSoft includes
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
+#include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
 
 
 namespace hit {
