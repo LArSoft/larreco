@@ -49,6 +49,8 @@
 
 #include <cmath>
 
+#define MVA_LENGTH 4
+
 namespace nnet {
 
 class PointIdEffTest : public art::EDAnalyzer {
@@ -110,8 +112,8 @@ private:
 	int testCNN(
 	    const std::vector< sim::SimChannel > & channels,
         const std::vector< art::Ptr<recob::Hit> > & hits,
-        const std::array<float, 3> & cnn_out,
-        const std::vector< anab::FeatureVector<3> > & hit_outs);
+        const std::array<float, MVA_LENGTH> & cnn_out,
+        const std::vector< anab::FeatureVector<MVA_LENGTH> > & hit_outs);
 
 	int fRun, fEvent;
     float fMcDepEM, fMcDepTrack, fMcFractionEM;
@@ -278,8 +280,8 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
     // output from cnn's
 
-    anab::MVAReader<recob::Hit, 3> hitResults(e, fNNetModuleLabel);                        // hit-by-hit outpus just to be dumped to file for debugging
-    auto cluResults = anab::MVAReader<recob::Cluster, 3>::create(e, fNNetModuleLabel);     // outputs for clusters recovered in not-throwing way 
+    anab::MVAReader<recob::Hit, MVA_LENGTH> hitResults(e, fNNetModuleLabel);                     // hit-by-hit outpus just to be dumped to file for debugging
+    auto cluResults = anab::MVAReader<recob::Cluster, MVA_LENGTH>::create(e, fNNetModuleLabel);  // outputs for clusters recovered in not-throwing way 
     if (cluResults)
     {
     	const art::FindManyP<recob::Hit> hitsFromClusters(cluResults->dataHandle(), e, cluResults->dataTag());
@@ -291,7 +293,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
             if (clu.Plane().Plane != fView) continue;
 
     	    const std::vector< art::Ptr<recob::Hit> > & hits = hitsFromClusters.at(c);
-    	    std::array<float, 3> cnn_out = cluResults->getOutput(c);
+    	    std::array<float, MVA_LENGTH> cnn_out = cluResults->getOutput(c);
 
             testCNN(*simChannelHandle, hits, cnn_out, hitResults.outputs()); // test hits in the cluster
     	}
@@ -388,8 +390,8 @@ void nnet::PointIdEffTest::countTruthDep(
 int nnet::PointIdEffTest::testCNN(
     const std::vector< sim::SimChannel > & channels,
     const std::vector< art::Ptr<recob::Hit> > & hits,
-    const std::array<float, 3> & cnn_out,
-    const std::vector< anab::FeatureVector<3> > & hit_outs)
+    const std::array<float, MVA_LENGTH> & cnn_out,
+    const std::vector< anab::FeatureVector<MVA_LENGTH> > & hit_outs)
 {
 	fClSize = hits.size();
 
@@ -554,7 +556,7 @@ int nnet::PointIdEffTest::testCNN(
 	    {
 	    	fNone++;
 	    }
-	}	
+	}
 	fTotal++;
 
 	if (fSaveHitsFile)
@@ -569,7 +571,14 @@ int nnet::PointIdEffTest::testCNN(
 			fHitsOutFile << fRun << " " << fEvent << " "
 				<< h->WireID().TPC  << " " << h->WireID().Wire << " " << h->PeakTime() << " "
 				<< h->SummedADC() * fCalorimetryAlg.LifetimeCorrection(h->PeakTime()) << " "
-				<< fMcPid << " " << fPidValue << " " << hitPidValue << std::endl;
+				<< fMcPid << " " << fPidValue << " " << hitPidValue;
+
+			if (MVA_LENGTH == 4)
+			{
+			    fHitsOutFile << " " << vout[2]; // is michel?
+			}
+
+			fHitsOutFile << std::endl;
 		}
 	}
 
