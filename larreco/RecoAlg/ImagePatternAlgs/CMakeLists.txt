@@ -46,6 +46,7 @@ simple_plugin(PointIdEffTest "module"
 			larcore_Geometry_Geometry_service
 			larcore_Geometry
 			lardataobj_RecoBase
+			lardata_ArtDataHelper
 			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			nusimdata_SimulationBase
@@ -67,6 +68,7 @@ simple_plugin(EmTrackClusterId "module"
 			larcore_Geometry_Geometry_service
 			larcore_Geometry
 			lardataobj_RecoBase
+			lardata_ArtDataHelper
 			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			${ART_FRAMEWORK_CORE}
@@ -87,6 +89,7 @@ simple_plugin(ParticleDecayId "module"
 			larcore_Geometry_Geometry_service
 			larcore_Geometry
 			lardataobj_RecoBase
+			lardata_ArtDataHelper
 			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			${ART_FRAMEWORK_CORE}
