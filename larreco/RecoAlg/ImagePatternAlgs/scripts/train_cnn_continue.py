@@ -23,8 +23,8 @@ out_name = args.output
 CNN_INPUT_DIR = config['training_on_patches']['input_dir']
 
 batch_size = config['training_on_patches']['batch_size']
-nb_classes = config['training_on_patches']['nb_classes']
 nb_epoch = config['training_on_patches']['nb_epoch']
+# nb_classes = config['training_on_patches']['nb_classes']
 
 def load_model(name):
     with open(name + '_architecture.json') as f:
