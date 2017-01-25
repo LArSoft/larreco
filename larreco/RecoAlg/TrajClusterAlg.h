@@ -81,8 +81,10 @@ namespace tca {
     /// Returns a constant reference to the 3D vertices found
     std::vector<Vtx3Store> const& GetVertices() const { return tjs.vtx3; }
     
-    /// Returns a constant reference to the 3D vertices found
-    std::vector<std::vector<unsigned short>> const& Get3DMatchedClusters() const { return tjs.MatchedClusters; }
+    // Get the index list of matchVec entries that have PFParticle info defined
+    std::vector<unsigned short> const& GetPFPList() const { return tjs.matchVecPFPList; }
+    // Get a specific matchVec entry that will be turned into a PFParticle
+    MatchStruct const& GetMatchStruct(unsigned short im) {return tjs.matchVec[im]; };
     
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
@@ -137,7 +139,7 @@ namespace tca {
 		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
     std::vector<short> fDeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> fMuonTag; ///< min length and min MCSMom for a muon tag
-    std::vector<short> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::vector<float> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
 
     std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
@@ -344,6 +346,8 @@ namespace tca {
     bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
     // Split high charge hits near the trajectory end
     void SplitHiChgHits(Trajectory& tj);
+    void SetPDGCode(Trajectory& tj);
+    void SetPDGCode(unsigned short itj);
     void MatchTruth();
     // ****************************** Vertex code  ******************************
     void Find2DVertices();
@@ -360,6 +364,8 @@ namespace tca {
     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
     void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
+    void FillPFPInfo();
+    void FindMatchEndPoints();
     
   }; // class TrajClusterAlg
 

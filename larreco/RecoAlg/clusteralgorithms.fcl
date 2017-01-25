@@ -26,15 +26,16 @@ standard_trajclusteralg:
    QualityCuts: [ 0.8, 3] # Min points/wire, min consecutive pts after a gap
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
-   ShowerTag: [50, 5, 1]    # max MCSMom for a shower tag, max separation, min #traj < separation
+   ShowerTag: [ 2, 150, 30, 0.5, 4, 6, 20, 3]
+   # print in plane, Max MCSMom, Max separation, Max delta angle, rms width factor, Min shower 1/2 width, Min total Tj Pts, Min Tjs
    ChkStopCuts: [1.4, 5, 1] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
    Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6]
    # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr, Min MCSMom, min frac Pts/Wire btw vtx and Tjs
-   Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
-   Match3DCuts: [ 0.5, 0, 3, 1 ] 
+   Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
+   Match3DCuts: [ 0.3, 0, 3, 1 ] 
    # dx (cm) matching cut, min MCSMom, min length for 2-view match, 2-view missing plane requirement
    SkipAlgs: [  "MBadTPs", "ChkAllStop", "ChkStop", "CTKink", "HED" ]   # List of algs that should not be called
-   SpecialAlgs: []          # list of special purpose algs
+   SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    StudyMode: false         # Set true to generate histograms (commented out)
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
    DebugPlane: -1           # Print debug output in a plane (3 = all planes, <0 = none)

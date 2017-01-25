@@ -17,7 +17,7 @@ namespace tca {
     "JunkTj",
     "Killed",
     "EndMerge",
-     "TrimEndPts",
+    "TrimEndPts",
     "CHMEH",
     "FillGap",
     "Ghost",
@@ -37,6 +37,8 @@ namespace tca {
     "Match3D",
     "VtxHitsSwap",
     "SplitHiChgHits"
+    "ShowerTag",
+    "ShowerTj"
   };
 
   const std::vector<std::string> StopFlagNames {
@@ -52,7 +54,8 @@ namespace tca {
     "Fixed",
     "VtxTrjTried",
     "OnDeadWire",
-    "VtxRefined"
+    "VtxRefined",
+    "NiceVtx"
   } ;
 } // namespace tca
 

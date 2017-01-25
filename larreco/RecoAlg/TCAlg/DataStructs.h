@@ -20,6 +20,7 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/PFParticle.h"
 
 namespace tca {
   
@@ -72,18 +73,19 @@ namespace tca {
     kVtxTrjTried,     ///< FindVtxTraj algorithm tried
     kOnDeadWire,
     kVtxRefined,
+    kNiceVtx,
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
   /// struct of temporary 3D vertices
   struct Vtx3Store {
     float X {0};                    // x position
-    float XErr {0};                 // x position error
+    float XErr {0.5};                 // x position error
     float Y {0};                    // y position
-    float YErr {0};                 // y position error
+    float YErr {0.5};                 // y position error
     float Z {0};                    // z position
-    float ZErr {0};                 // z position error
-    short Wire {-1};                 // wire number for an incomplete 3D vertex
+    float ZErr {0.5};                 // z position error
+    short Wire {-1};                 // wire number for an incomplete 3D vertex, SHRT_MAX = abandoned vertex
     unsigned short CStat {0};
     unsigned short TPC {0};
     std::array<short, 3> Ptr2D {{-1, -1, -1}}; // pointers to 2D vertices in each plane
@@ -130,8 +132,8 @@ namespace tca {
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
-    short Dir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
-                                        ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
+    short TjDir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
+                                        ///< 1 = in the StepDir direction, -1 in the opposite direction, 0 = don't know
     int WorkID {0};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
   };
@@ -159,9 +161,26 @@ namespace tca {
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::vector<unsigned short> TjIDs;
-    std::vector<unsigned int> SeedHit;
+    std::vector<unsigned short> ClusterIndices;
+    std::vector<unsigned int> sSeedHit;
+    std::vector<unsigned int> eSeedHit;
     // Count of the number of time-matched hits
-    int Count;
+    int Count {0};
+    unsigned short Vtx3DIndex {USHRT_MAX};         // index of the 3D vertex
+    std::array<float, 3> sXYZ;        // XYZ position at the start
+    std::array<float, 3> eXYZ;        // XYZ position at the other end
+    // stuff for constructing the PFParticle
+    int PDGCode;
+    std::vector<size_t> DtrIndices;
+    short MCSMom {-1};                // Average MCSMom from all matched trajectories
+    size_t Parent;
+  };
+  
+  // A temporary structure that defines a 2D shower-like cluster
+  struct ShowerStruct {
+    unsigned short ShowerTjID {USHRT_MAX};
+    std::vector<unsigned short> TjIDs;
+    std::vector<std::array<float, 2>> Envelope;  // Vertices of a polygon that encompasses the shower
   };
 
   // Algorithm modification bits
@@ -201,6 +220,8 @@ namespace tca {
     kMatch3D,
     kVtxHitsSwap,
     kSplitHiChgHits,
+    kShowerTag,
+    kShowerTj,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -212,7 +233,7 @@ namespace tca {
     kBragg,
     kRvPrp,
     kAtTj,
-    kFlagBigSize     ///< don't mess with this line
+    kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   
   extern const std::vector<std::string> AlgBitNames;
@@ -226,6 +247,13 @@ namespace tca {
     std::vector<float> MaxPos1;
     std::vector<unsigned int> FirstWire;    ///< the first wire with a hit
     std::vector<unsigned int> LastWire;      ///< the last wire with a hit
+    unsigned short NumPlanes;
+    float XLo; // fiducial volume of the current tpc
+    float XHi;
+    float YLo;
+    float YHi;
+    float ZLo;
+    float ZHi;
     // The variables below do change in size from event to event
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
@@ -240,13 +268,8 @@ namespace tca {
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
-    std::vector<std::vector<unsigned short>> MatchedTjIDs;
-    std::vector<std::vector<unsigned short>> MatchedClusters;
-    unsigned short NumPlanes;
-    float YLo; // fiducial volume of the current tpc
-    float YHi;
-    float ZLo;
-    float ZHi;
+    std::vector<unsigned short> matchVecPFPList;  /// list of matchVec entries that will become PFPs
+    std::vector<ShowerStruct> cots;
    };
 
 } // namespace tca
