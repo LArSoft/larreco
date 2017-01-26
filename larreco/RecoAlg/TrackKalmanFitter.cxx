@@ -358,7 +358,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   recob::Track::SMatrixSym55 endCov;
   auto endCovOld = fittedTrack.getTrackMap().begin()->second.getError();
   for (int i=0;i<5;++i) for (int j=i;j<5;++j) endCov(i,j)=endCovOld(i,j);
-  int ndof = fittedTrack.getTrackMap().size()-4;
+  int ndof = fittedTrack.getTrackMap().size()-4;//hits are 1D measurement, i.e. each hit is one d.o.f.; no B field: 4 fitted parameters
   outTrack = recob::Track(std::move(outTrackTmp.Trajectory()),pdgid,totChi2,ndof,std::move(startCov),std::move(endCov),track.ID());
 
   return true;

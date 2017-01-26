@@ -199,7 +199,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   : p_(p)
 {
 
-  prop = new trkf::PropYZPlane(0., false);
+  prop = new trkf::PropYZPlane(0., true);
   kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().options().useRMS(),
 					     p_().options().sortHitsByPlane(),
 					     p_().options().sortOutputHitsMinLength(),
