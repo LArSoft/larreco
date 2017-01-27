@@ -24,9 +24,9 @@ kalmantrackfit: {
         dirFromVtxPF: false
 	alwaysInvertDir: false
   	useRMSError: true
-        sortHitsByPlane: false
-        sortOutputHitsMinLength: false
-        skipNegProp: false
+        sortHitsByPlane: true
+        sortOutputHitsMinLength: true
+        skipNegProp: true
 	hitErrScaleFact: 1.0
   }
 }
