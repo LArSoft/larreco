@@ -59,7 +59,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   vtxerr.clear();
   //if covariance exists use it (scaled by 100 to remove bias from previous fits), otherwise "dummy" initialization
   if (track.NumberCovariance()) {
-    auto covariance = direction.Z()<0 ? track.VertexCovariance() : track.EndCovariance();
+    auto covariance = flipDirection ? track.VertexCovariance() : track.EndCovariance();
     for(int i=0; i<5; ++i) {
       for(int j=0; j<5; ++j) {
 	vtxerr(i,j) = 100.*covariance(i,j);
@@ -73,9 +73,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   //setup the KFitTrack we'll use throughout the fit, it's initial status in INVALID
   trkf::KFitTrack trf = trkf::KFitTrack(tre, 0., 0., trkf::KFitTrack::INVALID);
 
+  // std::cout << "INITIAL TRACK" << std::endl;
+  // std::cout << trf.Print(std::cout) << std::endl;
+  
   //figure out if hit vector is sorted along or opposite to track direction (ideally the track should be aware of it...)
-  trkf::KFitTrack trfVtxF = trkf::KFitTrack(tre, 0., 0.);
-  trkf::KFitTrack trfVtxB = trkf::KFitTrack(tre, 0., 0.);
+  trkf::KFitTrack trfVtxF = trkf::KFitTrack(trf, 0., 0.);
+  trkf::KFitTrack trfVtxB = trkf::KFitTrack(trf, 0., 0.);
   std::shared_ptr<const trkf::SurfWireX> vtxsurfF(new trkf::SurfWireX(hits.front()->WireID()));
   std::shared_ptr<const trkf::SurfWireX> vtxsurfB(new trkf::SurfWireX(hits.back()->WireID()));
   const KHitWireX hitF(hits.front(),vtxsurfF);
@@ -106,7 +109,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   }
 
   //setup the track vector we use to store the fit results
-  std::vector<trkf::KHitTrack> fwdTracks;
+  std::vector<trkf::KFitTrack> fwdPrdTracks;
+  std::vector<trkf::KHitTrack> fwdUpdTracks;
 
   if (sortHitsByPlane_) {
     std::vector<std::vector<unsigned int> > hitsInPlanes(nplanes);
@@ -127,7 +131,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	  boost::optional<double> pdist = prop_->noise_prop(trftmp,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
 	  if (!pdist) pdist = prop_->noise_prop(trftmp,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
 	  if (!pdist) {
-	    mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
+	    //mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
 	    continue;
 	  }
 	  const double dist = *pdist;
@@ -147,12 +151,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
       if (!pdist) pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
       if (!pdist) {
-	mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
+	//mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
 	continue;
       }
       bool okpred = khit.predict(trf, prop_);
       if (khit.getPredSurface()!=khit.getMeasSurface()) {
-	mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
+	//mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
 	continue;
       }
       //now update the forward fitted track
@@ -160,12 +164,15 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	trf.setPath(trf.getPath()+(*pdist));
 	trf.setChisq(trf.getChisq()+khit.getChisq());
 	trf.setStat(trkf::KFitTrack::FORWARD_PREDICTED);
+	fwdPrdTracks.push_back(trf);
 	khit.update(trf);
 	trf.setStat(trkf::KFitTrack::FORWARD);
+	//std::cout << "UPDATED FWD TRACK" << std::endl;
+	//std::cout << trf.Print(std::cout) << std::endl;
 	//store this track for the backward fit+smooth
 	const std::shared_ptr< const KHitBase > strp(new trkf::KHitWireX(khit));
 	trkf::KHitTrack khitTrack(trf, strp);
-	fwdTracks.push_back(khitTrack);
+	fwdUpdTracks.push_back(khitTrack);
       } else {
 	mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " " << trf.getStat();
 	return false;
@@ -181,7 +188,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	auto trftmp = trf;//is there a way to avoid creating this copy (i.e. to check propagation distance without modifying the track)?
 	boost::optional<double> pdisttest = prop_->noise_prop(trftmp,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
 	if (pdisttest.get_value_or(-1.)<0.) {
-	  mf::LogWarning("TrackKalmanFitter") << "WARNING: negative propagation distance. Skip this hit...";
+	  //mf::LogWarning("TrackKalmanFitter") << "WARNING: negative propagation distance. Skip this hit...";
 	  continue;
 	}
       }
@@ -189,12 +196,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
       if (!pdist) pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
       if (!pdist) {
-	mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
+	//mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
 	continue;
       }
       bool okpred = khit.predict(trf, prop_);
       if (khit.getPredSurface()!=khit.getMeasSurface()) {
-	mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
+	//mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
 	continue;
       }
       //now update the forward fitted track
@@ -202,12 +209,13 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	trf.setPath(trf.getPath()+(*pdist));
 	trf.setChisq(trf.getChisq()+khit.getChisq());
 	trf.setStat(trkf::KFitTrack::FORWARD_PREDICTED);
+	fwdPrdTracks.push_back(trf);
 	khit.update(trf);
 	trf.setStat(trkf::KFitTrack::FORWARD);
 	//store this track for the backward fit+smooth
 	const std::shared_ptr< const KHitBase > strp(new trkf::KHitWireX(khit));
 	trkf::KHitTrack khitTrack(trf, strp);
-	fwdTracks.push_back(khitTrack);
+	fwdUpdTracks.push_back(khitTrack);
       } else {
 	mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " " << trf.getStat();
 	return false;
@@ -224,14 +232,20 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   trf.setStat(trkf::KFitTrack::BACKWARD_PREDICTED);
   trf.setChisq(0.);
 
-  //backward loop over track states and hits in fwdTracks: use hits for backward fit and fwd track states for smoothing
-  for (auto fwdTrackIt = fwdTracks.rbegin(); fwdTrackIt != fwdTracks.rend(); ++fwdTrackIt) {
-    auto& fwdTrack = *fwdTrackIt;
-    trkf::KHitWireX khit(dynamic_cast<const trkf::KHitWireX&>(*fwdTrack.getHit().get()));//need a non const copy in case we want to modify the error
+  // std::cout << "START BWD TRACK" << std::endl;
+  // std::cout << trf.Print(std::cout) << std::endl;
+  
+  //backward loop over track states and hits in fwdUpdTracks: use hits for backward fit and fwd track states for smoothing
+  float totChi2 = 0.;
+  auto fwdPrdTrackIt = fwdPrdTracks.rbegin();
+  for (auto fwdUpdTrackIt = fwdUpdTracks.rbegin(); fwdUpdTrackIt != fwdUpdTracks.rend(); ++fwdUpdTrackIt, ++fwdPrdTrackIt) {
+    auto& fwdPrdTrack = *fwdPrdTrackIt;
+    auto& fwdUpdTrack = *fwdUpdTrackIt;
+    trkf::KHitWireX khit(dynamic_cast<const trkf::KHitWireX&>(*fwdUpdTrack.getHit().get()));//need a non const copy in case we want to modify the error
     boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
     if (!pdist) pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
     if (!pdist) {
-      mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
+      //mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
       continue;
     }
     bool okpred = khit.predict(trf, prop_);
@@ -239,9 +253,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       trf.setPath(trf.getPath()+(*pdist));
       trf.setChisq(trf.getChisq()+khit.getChisq());
       trf.setStat(trkf::KFitTrack::BACKWARD_PREDICTED);
-      //combine forward updated and backward predicted, add this to the output track
-      fwdTrack.combineFit(trf);
-      fwdTrack.setPath(trf.getPath()+(*pdist));
+      //combine forward updated and backward, add this to the output track
+      fwdPrdTrack.combineFit(trf);
+      fwdUpdTrack.combineFit(trf);
+      fwdUpdTrack.setPath(trf.getPath()+(*pdist));
+      //compute the chi2 between the combined predicted and the hit
+      totChi2+=((khit.getMeasVector()[0]-fwdPrdTrack.getVector()[0])*(khit.getMeasVector()[0]-fwdPrdTrack.getVector()[0])/(fwdPrdTrack.getError()(0,0)+khit.getMeasError()(0,0)));
       //now update the backward fitted track
       khit.update(trf);
       trf.setStat(trkf::KFitTrack::BACKWARD);
@@ -252,9 +269,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " " << trf.getStat();
       return false;
     }
-  }//for (auto fwdTrackIt = fwdTracks.rbegin(); fwdTrackIt != fwdTracks.rend(); ++fwdTrackIt) {
+  }//for (auto fwdUpdTrackIt = fwdUpdTracks.rbegin(); fwdUpdTrackIt != fwdUpdTracks.rend(); ++fwdUpdTrackIt) {
 
-  if (fwdTracks.size()<2) {
+  if (fwdUpdTracks.size()<2) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
     return false;
   }
@@ -265,24 +282,24 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     //try to sort fixing wires order on planes and picking the closest next plane
     std::vector<std::vector<unsigned int> > tracksInPlanes(nplanes);
     unsigned int itrk = 0;
-    for (auto fwdTrack : fwdTracks) {
-      trkf::KHitWireX khit(dynamic_cast<const trkf::KHitWireX&>(*fwdTrack.getHit().get()));
+    for (auto fwdUpdTrack : fwdUpdTracks) {
+      trkf::KHitWireX khit(dynamic_cast<const trkf::KHitWireX&>(*fwdUpdTrack.getHit().get()));
       tracksInPlanes[khit.getHit()->WireID().Plane].push_back(itrk++);
     }
     //this assumes that the first hit/state is a good one, may want to check if that's the case
     std::vector<unsigned int> iterTracksInPlanes;
     for (auto it : tracksInPlanes) iterTracksInPlanes.push_back(0);
-    assert(fwdTracks.front().isValid());
+    assert(fwdUpdTracks.front().isValid());
     double pos[3], dir[3];
-    fwdTracks.front().getPosition(pos);
-    fwdTracks.front().getMomentum(dir);
-    for (unsigned int p = 0; p<fwdTracks.size(); ++p) {
+    fwdUpdTracks.front().getPosition(pos);
+    fwdUpdTracks.front().getMomentum(dir);
+    for (unsigned int p = 0; p<fwdUpdTracks.size(); ++p) {
       int min_plane = -1;
       double min_dotp = DBL_MAX;
       double tmppos[3], tmpdir[3];
       for (unsigned int iplane = 0; iplane<iterTracksInPlanes.size(); ++iplane) {
 	for (unsigned int& itk = iterTracksInPlanes[iplane]; itk<tracksInPlanes[iplane].size(); ++itk) {
-	  auto& track = fwdTracks[tracksInPlanes[iplane][iterTracksInPlanes[iplane]]];
+	  auto& track = fwdUpdTracks[tracksInPlanes[iplane][iterTracksInPlanes[iplane]]];
 	  assert(track.isValid());
 	  track.getPosition(tmppos);
 	  track.getMomentum(tmpdir);
@@ -295,8 +312,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	}
       }
       if (min_plane<0) continue;
-      auto& track = fwdTracks[tracksInPlanes[min_plane][iterTracksInPlanes[min_plane]]];
-      track.setPath(1000.*p);
+      auto& track = fwdUpdTracks[tracksInPlanes[min_plane][iterTracksInPlanes[min_plane]]];
+      track.setPath(1000.*p);//this preserves the order
       fittedTrack.addTrack(track);
       track.getPosition(pos);
       track.getMomentum(dir);
@@ -304,14 +321,14 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     }
   } else {
     int p = 0;
-    for (auto fwdTrackIt = fwdTracks.begin(); fwdTrackIt != fwdTracks.end(); ++fwdTrackIt, ++p) {
-      auto& fwdTrack = *fwdTrackIt;
-      fwdTrack.setPath(1000.*p);//this preserves the order
-      fittedTrack.addTrack(fwdTrack);
+    for (auto fwdUpdTrackIt = fwdUpdTracks.begin(); fwdUpdTrackIt != fwdUpdTracks.end(); ++fwdUpdTrackIt, ++p) {
+      auto& fwdUpdTrack = *fwdUpdTrackIt;
+      fwdUpdTrack.setPath(1000.*p);//this preserves the order
+      fittedTrack.addTrack(fwdUpdTrack);
     }
   }
 
-  if (fittedTrack.getTrackMap().size()<2) {
+  if (fittedTrack.getTrackMap().size()<4) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
     return false;
   }
@@ -330,9 +347,19 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   }
 
   //fill return objects with smoothed track and its hits
-  fittedTrack.fillTrack(outTrack,track.ID());
+  recob::Track outTrackTmp;
+  fittedTrack.fillTrack(outTrackTmp,track.ID());
   std::vector<unsigned int> hittpindex;
   fittedTrack.fillHits(outHits, hittpindex);
+
+  recob::Track::SMatrixSym55 startCov;
+  auto startCovOld = fittedTrack.getTrackMap().begin()->second.getError();
+  for (int i=0;i<5;++i) for (int j=i;j<5;++j) startCov(i,j)=startCovOld(i,j);
+  recob::Track::SMatrixSym55 endCov;
+  auto endCovOld = fittedTrack.getTrackMap().begin()->second.getError();
+  for (int i=0;i<5;++i) for (int j=i;j<5;++j) endCov(i,j)=endCovOld(i,j);
+  int ndof = fittedTrack.getTrackMap().size()-4;//hits are 1D measurement, i.e. each hit is one d.o.f.; no B field: 4 fitted parameters
+  outTrack = recob::Track(std::move(outTrackTmp.Trajectory()),pdgid,totChi2,ndof,std::move(startCov),std::move(endCov),track.ID());
 
   return true;
 
