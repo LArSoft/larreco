@@ -203,7 +203,7 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
     FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),      fAreaNorms);
 
     fLongMaxHits      = p.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
-    fLongPulseWidth   = p.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {32,32,32});
+    fLongPulseWidth   = p.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {16,16,16});
     fMaxMultiHit      = p.get< int             >("MaxMultiHit");
     fAreaMethod       = p.get< int             >("AreaMethod");
     fTryNplus1Fits    = p.get< bool            >("TryNplus1Fits");
@@ -348,7 +348,7 @@ void GausHitFinder::produce(art::Event& evt)
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
             
             MergedTimeWidVec mergedVec;
-            float       roiThreshold(threshold);
+            float            roiThreshold(threshold);
             
             // ###########################################################
             // ### If option set do bin averaging before finding peaks ###
@@ -632,6 +632,9 @@ void hit::GausHitFinder::findCandidatePeaks(std::vector<float>::const_iterator  
             
             while(firstItr != startItr)
             {
+                // Check for pathology where waveform goes too negative
+                if (*firstItr < -roiThreshold) break;
+                
                 // Check both sides of firstItr and look for min/inflection point
                 if (*firstItr < *(firstItr+1) && *firstItr <= *(firstItr-1)) break;
             
@@ -648,6 +651,9 @@ void hit::GausHitFinder::findCandidatePeaks(std::vector<float>::const_iterator  
             
             while(lastItr != stopItr - 1)
             {
+                // Check for pathology where waveform goes too negative
+                if (*lastItr < -roiThreshold) break;
+                
                 // Check both sides of firstItr and look for min/inflection point
                 if (*lastItr <= *(lastItr+1) && *lastItr < *(lastItr-1)) break;
                 
