@@ -131,7 +131,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	  boost::optional<double> pdist = prop_->noise_prop(trftmp,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
 	  if (!pdist) pdist = prop_->noise_prop(trftmp,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
 	  if (!pdist) {
-	    mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
+	    //mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
 	    continue;
 	  }
 	  const double dist = *pdist;
@@ -151,12 +151,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
       if (!pdist) pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
       if (!pdist) {
-	mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
+	//mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
 	continue;
       }
       bool okpred = khit.predict(trf, prop_);
       if (khit.getPredSurface()!=khit.getMeasSurface()) {
-	mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
+	//mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
 	continue;
       }
       //now update the forward fitted track
@@ -188,7 +188,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	auto trftmp = trf;//is there a way to avoid creating this copy (i.e. to check propagation distance without modifying the track)?
 	boost::optional<double> pdisttest = prop_->noise_prop(trftmp,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
 	if (pdisttest.get_value_or(-1.)<0.) {
-	  mf::LogWarning("TrackKalmanFitter") << "WARNING: negative propagation distance. Skip this hit...";
+	  //mf::LogWarning("TrackKalmanFitter") << "WARNING: negative propagation distance. Skip this hit...";
 	  continue;
 	}
       }
@@ -196,12 +196,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
       if (!pdist) pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
       if (!pdist) {
-	mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
+	//mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
 	continue;
       }
       bool okpred = khit.predict(trf, prop_);
       if (khit.getPredSurface()!=khit.getMeasSurface()) {
-	mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
+	//mf::LogWarning("TrackKalmanFitter") << "WARNING: khit.getPredSurface()!=khit.getMeasSurface(). Skip this hit...";
 	continue;
       }
       //now update the forward fitted track
@@ -245,7 +245,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     boost::optional<double> pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::BACKWARD,true);
     if (!pdist) pdist = prop_->noise_prop(trf,khit.getMeasSurface(),trkf::Propagator::FORWARD,true);
     if (!pdist) {
-      mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
+      //mf::LogWarning("TrackKalmanFitter") << "WARNING: both forward and backward propagation failed. Skip this hit...";
       continue;
     }
     bool okpred = khit.predict(trf, prop_);
