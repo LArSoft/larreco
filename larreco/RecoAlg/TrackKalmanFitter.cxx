@@ -328,7 +328,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     }
   }
 
-  if (fittedTrack.getTrackMap().size()<2) {
+  if (fittedTrack.getTrackMap().size()<4) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
     return false;
   }
