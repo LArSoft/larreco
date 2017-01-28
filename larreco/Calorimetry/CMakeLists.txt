@@ -1,7 +1,7 @@
 #include_directories ( ${PROJECT_SOURCE_DIR} )
 art_make( LIB_LIBRARIES	larevt_Filters
 		        lardataobj_RecoBase
-		        lardata_RecoBaseArt
+		        lardata_ArtDataHelper
 		        larcore_Geometry
 		        larcore_Geometry_Geometry_service
                         lardataobj_AnalysisBase
@@ -23,7 +23,7 @@ art_make( LIB_LIBRARIES	larevt_Filters
                         larevt_Filters
                         lardata_RecoObjects larreco_Deprecated
                         lardataobj_RecoBase
-		        lardata_RecoBaseArt
+		        lardata_ArtDataHelper
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         larsim_Simulation lardataobj_Simulation

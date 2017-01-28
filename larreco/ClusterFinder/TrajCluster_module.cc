@@ -70,7 +70,7 @@ namespace cluster {
 //LArSoft includes
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
+#include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
