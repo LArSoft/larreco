@@ -55,7 +55,7 @@
 #include "lardataobj/AnalysisBase/T0.h" 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
-//#include "lardata/Utilities/PtrMaker.h"
+#include "lardata/Utilities/PtrMaker.h"
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgTracking.h"
@@ -270,8 +270,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		double sp_pos[3], sp_err[6];
 		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
 
-		//auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
-		//auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
+		auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
+		auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
 
 		tracks->reserve(result.size());
 		for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex)
@@ -286,7 +286,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			tracks->push_back(pma::convertFrom(*trk, trkIndex));
 
-			//auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
+			auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
 
 			double xShift = trk->GetXShift();
 			if (xShift > 0.0)
@@ -297,14 +297,13 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				// TriggBits=3 means from 3d reco (0,1,2 mean something else)
 				t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
 
-				util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
-				//auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
-				//trk2t0->addSingle(trkPtr, t0Ptr);
+				auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
+				trk2t0->addSingle(trkPtr, t0Ptr);
 			}
 
-			size_t trkIdx = tracks->size() - 1; // stuff for assns:
-			art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
-			art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
+			//size_t trkIdx = tracks->size() - 1; // stuff for assns:
+			//art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
+			//art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
 
 			// which idx from start, except disabled, really....
 			unsigned int hIdxs[trk->size()];
@@ -356,8 +355,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		auto kid = getProductID< std::vector<recob::Vertex> >(evt, kKinksName);
 		auto const* kinkGetter = evt.productGetter(kid);
 
-		auto tid = getProductID< std::vector<recob::Track> >(evt);
-		auto const* trkGetter = evt.productGetter(tid);
+		//auto tid = getProductID< std::vector<recob::Track> >(evt);
+		//auto const* trkGetter = evt.productGetter(tid);
 
 		auto vsel = pmalgTracker.getVertices(fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
 		auto ksel = pmalgTracker.getKinks(); // pairs of kink position - associated track idx 
@@ -387,7 +386,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 						if (isFront) frontVtxs[tidx] = vptr; // keep ptr of the front vtx
 
-						art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
+						//art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
+						auto const tptr = make_trkptr(tidx);
 						vtx2trk->addSingle(vptr, tptr);
 					}
 				}
@@ -405,7 +405,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				kinks->push_back(recob::Vertex(xyz, tidx)); // save index of track (will have color of trk in evd)
 
-				art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
+				//art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
+				auto const tptr = make_trkptr(tidx);
 				art::Ptr<recob::Vertex> kptr(kid, kidx, kinkGetter);
 				trk2kink->addSingle(tptr, kptr);
 			}
@@ -438,7 +439,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
 
 			art::Ptr<recob::PFParticle> pfpptr(pfpid, pfpidx, evt.productGetter(pfpid));
-			art::Ptr<recob::Track> tptr(tid, t, trkGetter);
+			auto const tptr = make_trkptr(t);
+			//art::Ptr<recob::Track> tptr(tid, t, trkGetter);
 			pfp2trk->addSingle(pfpptr, tptr);
 
 			// add assns to FRONT vertex of each particle
