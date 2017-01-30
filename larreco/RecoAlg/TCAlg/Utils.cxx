@@ -3,31 +3,14 @@
 namespace tca {
   
   ////////////////////////////////////////////////
-  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im)
+  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt)
   {
     // Return true if the 3D matched hits in the trajectories in tjs.matchVecPFPList are in the wrong order in terms of the
-    // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc. All Tjs have been reversed
-    // as needed so that end0 corresponds to the sSeedHit.
+    // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc. 
     
     if(im > tjs.matchVecPFPList.size() - 1) return false;
     
     auto& mv = tjs.matchVec[im];
-    
-    // See if the direction (relative to the Tj hit order) has been deteremined
-    unsigned short itj = mv.TjIDs[0] - 1;
-    unsigned short tjDir = tjs.allTraj[itj].TjDir;
-    for(auto& tjID : mv.TjIDs) {
-      unsigned short itj = tjID - 1;
-      if(tjs.allTraj[itj].TjDir != 0) {
-        // check for consistency
-        if(tjDir != 0 && tjs.allTraj[itj].TjDir != tjDir) {
-          std::cout<<"Reverse3DMatchTjs: TjDir inconsistent. Ignoring this for now...\n";
-        }
-        tjDir = tjs.allTraj[itj].TjDir;
-      } // tjs.allTraj[itj].TjDir != 0
-    } // itj
-    
-    if(tjDir < 0) return true;
 
     // through-going track? Check for outside the Fiducial Volume at the start (s) and end (e).
     // These variables assume that the TPC is exposed to a beam that contains muons entering at the front and
@@ -47,6 +30,12 @@ namespace tca {
     // the start (end) is outside the FV
     bool sOutsideFV = sAtBottom || sAtTop || sAtFront || sAtBack;
     bool eOutsideFV = eAtBottom || eAtTop || eAtFront || eAtBack;
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"sXYZ ("<<(int)mv.sXYZ[0]<<", "<<(int)mv.sXYZ[1]<<", "<<(int)mv.sXYZ[2]<<") sOutsideFV "<<sOutsideFV;
+      myprt<<" eXYZ ("<<(int)mv.eXYZ[0]<<", "<<(int)mv.eXYZ[1]<<", "<<(int)mv.eXYZ[2]<<") eOutsideFV "<<eOutsideFV;
+    } // prt
     
     if(sOutsideFV && eOutsideFV) {
       // both ends are outside the FV - probably a through-going muon. See if it enters at the top or the front.
@@ -83,6 +72,74 @@ namespace tca {
     return true;
     
   } // Reverse3DMatchTjs
+  
+  ////////////////////////////////////////////////
+  unsigned short Matched3DVtx(TjStuff& tjs, unsigned short im)
+  {
+    // Checks for a 3D vertex associated with trajectoris in the MatchStruct. If one or more are found,
+    // define sVtx3DIndex and eVtx3DIndex (if there are a 2 vertices) and return true
+    
+    if(im > tjs.matchVecPFPList.size() - 1) return 0;
+    
+    auto& ms = tjs.matchVec[im];
+    if(ms.TjIDs.empty()) return 0;
+    
+    // There should be at most 2 unless there is a problem
+    std::vector<unsigned short> vIndex;
+    
+    for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
+      unsigned short itj = ms.TjIDs[ii] - 1;
+      Trajectory& tj = tjs.allTraj[itj];
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] <= 0) continue;
+        // Has a 2D vertex
+        unsigned short iv2 = tj.VtxID[end] - 1;
+        if(tjs.vtx[iv2].Ptr3D == SHRT_MAX) continue;
+        if(tjs.vtx[iv2].Ptr3D < 0) continue;
+        // Has a 3D vertex
+        unsigned short iv3 = tjs.vtx[iv2].Ptr3D;
+        // already in the list?
+        if(std::find(vIndex.begin(), vIndex.end(), iv3) != vIndex.end()) continue;
+        vIndex.push_back(iv3);
+      } // end
+    } // ii
+    
+    if(vIndex.empty()) return 0;
+    
+    // Need to do something here when there are more than 2 vertices
+    if(vIndex.size() > 2) {
+      mf::LogVerbatim("TC")<<"MatchHas3DVtx found more than 2 3D vertices. Ignore for now - Write some code";
+      vIndex.resize(2);
+    }
+    
+    if(vIndex.size() == 2) {
+      // Determine which should be the start vertex. Pick the one at larger X
+      if(tjs.vtx3[vIndex[0]].X > tjs.vtx3[vIndex[1]].X) {
+        ms.sVtx3DIndex = vIndex[0];
+        ms.eVtx3DIndex = vIndex[1];
+      } else {
+        ms.sVtx3DIndex = vIndex[1];
+        ms.eVtx3DIndex = vIndex[0];
+      }
+      // This shouldn't be necessary but do it anyway
+      ms.sXYZ[0] = tjs.vtx3[ms.sVtx3DIndex].X;
+      ms.sXYZ[1] = tjs.vtx3[ms.sVtx3DIndex].Y;
+      ms.sXYZ[2] = tjs.vtx3[ms.sVtx3DIndex].X;
+      ms.eXYZ[0] = tjs.vtx3[ms.eVtx3DIndex].X;
+      ms.eXYZ[1] = tjs.vtx3[ms.eVtx3DIndex].Y;
+      ms.eXYZ[2] = tjs.vtx3[ms.eVtx3DIndex].X;
+      return 2;
+    } // vIndex.size() == 2
+    
+    // Have 1 3D vertex. Make it the start vertex
+    ms.sVtx3DIndex = vIndex[0];
+    ms.sXYZ[0] = tjs.vtx3[ms.sVtx3DIndex].X;
+    ms.sXYZ[1] = tjs.vtx3[ms.sVtx3DIndex].Y;
+    ms.sXYZ[2] = tjs.vtx3[ms.sVtx3DIndex].X;
+    return 1;
+    
+  } // Matched3DVtx
+
   
   ////////////////////////////////////////////////
   void ReleaseHits(TjStuff& tjs, Trajectory& tj)
@@ -536,7 +593,7 @@ namespace tca {
           ++tjs.vtx[ivx].NTraj;
           // set the NiceVtx bit?
           bool niceVtx = (tj.PDGCode == 13);
-          if(NumPtsWithCharge(tjs, tj, false) > 50 && tj.MCSMom > 100) niceVtx = true;
+          if(NumPtsWithCharge(tjs, tj, false) > 20 && tj.MCSMom > 100) niceVtx = true;
           if(niceVtx) tjs.vtx[ivx].Stat[kNiceVtx] = true;
           if(tjs.vtx[ivx].CTP != inCTP) std::cout<<"CheckVertexAssociations: CTP tj-vtx mis-match\n";
         }
@@ -775,6 +832,16 @@ namespace tca {
   } // PosSep2
   
   //////////////////////////////////////////
+  float PosSep2(const std::array<float, 3>& pos1, const std::array<float, 3>& pos2)
+  {
+    // returns the separation distance^2 between two positions in 3D
+    float d0 = pos1[0] - pos2[0];
+    float d1 = pos1[1] - pos2[1];
+    float d2 = pos1[2] - pos2[2];
+    return d0*d0 + d1*d1 + d2*d2;
+  } // PosSep2
+  
+  //////////////////////////////////////////
   float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2)
   {
     // Returns the separation distance between two trajectory points
@@ -824,12 +891,15 @@ namespace tca {
   {
     // Put hits in each trajectory point into a flat vector
     std::vector<unsigned int> hitVec;
+    
+    // special handling for shower trajectories
+    if(tj.AlgMod[kShowerTj]) return tj.Pts[1].Hits;
+    
+    // reserve under the assumption that there will be one hit per point
     hitVec.reserve(tj.Pts.size());
-    unsigned short ipt, ii;
-    unsigned int iht;
-    for(ipt = 0; ipt < tj.Pts.size(); ++ipt) {
-      for(ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-        iht = tj.Pts[ipt].Hits[ii];
+    for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+        unsigned int iht = tj.Pts[ipt].Hits[ii];
         bool useit = (hitRequest == kAllHits);
         if(tj.Pts[ipt].UseHit[ii] && hitRequest == kUsedHits) useit = true;
         if(!tj.Pts[ipt].UseHit[ii] && hitRequest == kUnusedHits) useit = true;
@@ -1305,7 +1375,7 @@ namespace tca {
     for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& muTj = tjs.allTraj[itj];
       if(muTj.AlgMod[kKilled]) continue;
-      bool prt = (muTj.WorkID == debugWorkID);
+      bool prt = (debugWorkID < 0 && muTj.WorkID == debugWorkID);
       if(prt) {
         mf::LogVerbatim("TC")<<"TagMuonDirection: Muon "<<muTj.CTP<<" "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]]);
       }
@@ -1351,24 +1421,26 @@ namespace tca {
     // Construct clusters of trajectories (cots) which will become shower PFParticles
     
     // fShowerTag[] parameters
-    //  0 print in plane
-    //  1 max MCSMom for a shower tag
-    //  2 max separation
-    //  3 max angle
-    //  4 rms width factor WF (width = WF * rms)
-    //  5 Min shower 1/2 width (WSE units)
-    //  6 Min total number of Tps
-    //  7 Min number of Tjs
+    //  0 max Tj MCSMom for a shower tag
+    //  1 max separation
+    //  2 max angle
+    //  3 rms width factor WF (width = WF * rms)
+    //  4 Min shower 1/2 width (WSE units)
+    //  5 Min total number of Tps
+    //  6 Min number of Tjs
+    //  7 print in plane
+    
+    if(fShowerTag[0] < 0) return;
     
     CTP_t printCTP = UINT_MAX;
-    if(fShowerTag[0] >= 0) {
+    if(fShowerTag[7] >= 0) {
       geo::PlaneID planeID = DecodeCTP(inCTP);
-      printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(fShowerTag[5]));
+      printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(fShowerTag[7]));
     }
     
     unsigned short minLenMCSMomCut = 10;
 
-    short maxMCSMom = fShowerTag[1];
+    short maxMCSMom = fShowerTag[0];
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       Trajectory& tj1 = tjs.allTraj[it1];
       if(tj1.CTP != inCTP) continue;
@@ -1387,10 +1459,10 @@ namespace tca {
       for(unsigned short ish = 0; ish < tjs.cots.size(); ++ish) {
         for(auto& tjID : tjs.cots[ish].TjIDs) {
           Trajectory& stj = tjs.allTraj[tjID - 1];
-          float minSep = fShowerTag[2];
+          float minSep = fShowerTag[1];
           unsigned short ipt1, ipt2;
           TrajTrajDOCA(tjs, tj1, stj, ipt1, ipt2, minSep, true);
-          if(minSep == fShowerTag[2]) continue;
+          if(minSep == fShowerTag[1]) continue;
           tjs.cots[ish].TjIDs.push_back(tj1.ID);
           tj1.AlgMod[kShowerTag] = true;
           break;
@@ -1414,10 +1486,10 @@ namespace tca {
         if(tj2.Pts.size() >= minLenMCSMomCut && tj2.MCSMom > maxMCSMom) continue;
         // check for a high-quality vertex at either ends
         if(TjHasNiceVtx(tjs, tj2)) continue;
-        float minSep = fShowerTag[2];
+        float minSep = fShowerTag[1];
         unsigned short ipt1, ipt2;
         TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, minSep, true);
-        if(minSep == fShowerTag[2]) continue;
+        if(minSep == fShowerTag[1]) continue;
         // Start a new shower. This is the index to a "shower" Tj that will have 3 Tps, the first for the
         // start position, the second for the charge center and the third for the end position. The number
         // of points may be increased later in DefineShowerTj
@@ -1448,6 +1520,8 @@ namespace tca {
       } // it2 (tj2)
     } // it1 (tj1)
     
+    if(tjs.cots.empty()) return;
+    
     // Define the charge, angle, etc of the shower Tj. DefineShowerTj does not re-assign hits to the ShowerTj.
     DefineShowerTj(tjs, inCTP, USHRT_MAX, fShowerTag, printCTP);
     MergeShowers(tjs, inCTP, fShowerTag, printCTP);
@@ -1458,7 +1532,7 @@ namespace tca {
     for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
       if(tjs.cots[ic].TjIDs.empty()) continue;
       // enough Tjs?
-      bool killit = (tjs.cots[ic].TjIDs.size() < fShowerTag[7]);
+      bool killit = (tjs.cots[ic].TjIDs.size() < fShowerTag[6]);
       unsigned short nTjWithVtx = 0;
       if(!killit) {
         // count the number of Tj points
@@ -1468,9 +1542,13 @@ namespace tca {
           nTjPts += NumPtsWithCharge(tjs, tj, false);
           if(tj.VtxID[0] > 0 || tj.VtxID[1] > 0) ++nTjWithVtx;
         }  // tjID
-        if(nTjPts < fShowerTag[6]) killit = true;
+        if(nTjPts < fShowerTag[5]) killit = true;
       } // !killit
-      if(killit) tjs.cots[ic].TjIDs.clear();
+      if(killit) {
+        tjs.cots[ic].TjIDs.clear();
+        unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
+        MakeTrajectoryObsolete(tjs, itj);
+      }
       if(!killit && nTjWithVtx > 0) {
         // kill vertices in showers
         for(auto& tjID : tjs.cots[ic].TjIDs) {
@@ -1482,7 +1560,30 @@ namespace tca {
       } // !killit
     } // ic
     
-    if(fShowerTag[0] > 0) {
+    // temp for debugging
+    if(fShowerTag[7] > 0) {
+      // only keep the biggest shower
+      unsigned short imbig;
+      float big = 0;
+      for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
+        if(tjs.cots[ic].TjIDs.empty()) continue;
+        unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
+        TrajPoint& tp = tjs.allTraj[itj].Pts[1];
+        if(tp.Chg > big) {
+          big = tp.Chg;
+          imbig = ic;
+        }
+      } // ic
+      for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
+        if(ic != imbig) {
+          unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
+          MakeTrajectoryObsolete(tjs, itj);
+          tjs.cots[ic].TjIDs.clear();
+        }
+      } // ic
+    } //  temp
+    
+    if(fShowerTag[7] > 0) {
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
         if(tjs.cots[ic].TjIDs.empty()) continue;
         unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
@@ -1509,14 +1610,16 @@ namespace tca {
     // showerIndex is USHRT_MAX. 
     
     // fShowerTag[] parameters
-    //  0 print in plane
-    //  1 max MCSMom for a shower tag
-    //  2 max separation
-    //  3 max angle
-    //  4 rms width factor WF (width = WF * rms)
-    //  5 Min shower 1/2 width (WSE units)
-    //  6 Min total number of Tps
-    //  7 Min number of Tjs
+    //  0 max Tj MCSMom for a shower tag
+    //  1 max separation
+    //  2 max angle
+    //  3 rms width factor WF (width = WF * rms)
+    //  4 Min shower 1/2 width (WSE units)
+    //  5 Min total number of Tps
+    //  6 Min number of Tjs
+    //  7 print in plane
+    
+    if(tjs.cots.empty()) return;
     
     unsigned short first = showerIndex;
     unsigned short last = showerIndex + 1;
@@ -1628,9 +1731,9 @@ namespace tca {
         } // ipt
       } // it1
       // The rms width will be used to define the envelope
-      if(cnt0 > 2) sTp0.Delta = fShowerTag[4] * sqrt(sTp0.Delta / cnt0);
-      sTp1.Delta = fShowerTag[4] * sqrt(sTp1.Delta / (float)(cnt0 + cnt2));
-      if(cnt2 > 2) sTp2.Delta = fShowerTag[4] * sqrt(sTp2.Delta / cnt2);
+      if(cnt0 > 2) sTp0.Delta = fShowerTag[3] * sqrt(sTp0.Delta / cnt0);
+      sTp1.Delta = fShowerTag[3] * sqrt(sTp1.Delta / (float)(cnt0 + cnt2));
+      if(cnt2 > 2) sTp2.Delta = fShowerTag[3] * sqrt(sTp2.Delta / cnt2);
       // set the shower direction equal to the step direction
       stj.TjDir = 1;
       // Reverse it if the end0 width is wider than the end1 width
@@ -1646,10 +1749,10 @@ namespace tca {
       ss.Envelope.resize(4);
       // First vertex
       ss.Envelope[0][0] = sTp0.Pos[0] - sTp1.Pos[0];
-      ss.Envelope[0][1] = fShowerTag[5] + 0.5 * sTp0.Delta;
+      ss.Envelope[0][1] = fShowerTag[4] + 0.5 * sTp0.Delta;
       // second vertex
       ss.Envelope[1][0] = sTp2.Pos[0] - sTp1.Pos[0];
-      ss.Envelope[1][1] = fShowerTag[5] + 0.5 * sTp2.Delta;
+      ss.Envelope[1][1] = fShowerTag[4] + 0.5 * sTp2.Delta;
       // third and fourth are reflections of the first and second
       ss.Envelope[2][0] =  ss.Envelope[1][0];
       ss.Envelope[2][1] = -ss.Envelope[1][1];
@@ -1694,13 +1797,15 @@ namespace tca {
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, const CTP_t& printCTP)
   {
     
-    //  0 print in plane
-    //  1 max MCSMom for a shower tag, 
-    //  2 max separation, 
-    //  3 max angle, 
-    //  4 rms width factor, 
-    //  5 Min shower 1/2 width (WSE units), 
-    
+    // fShowerTag[] parameters
+    //  0 max Tj MCSMom for a shower tag
+    //  1 max separation
+    //  2 max angle
+    //  3 rms width factor WF (width = WF * rms)
+    //  4 Min shower 1/2 width (WSE units)
+    //  5 Min total number of Tps
+    //  6 Min number of Tjs
+    //  7 print in plane
     
     if(printCTP == inCTP) PrintHeader("MS");
     
@@ -1793,6 +1898,7 @@ namespace tca {
       } // vtx
       unsigned int loWire = std::nearbyint(fLoWire);
       unsigned int hiWire = std::nearbyint(fHiWire) + 1;
+      if(hiWire > tjs.LastWire[ipl]-1) hiWire = tjs.LastWire[ipl]-1;
       std::array<float, 2> point;
       for(unsigned int wire = loWire; wire < hiWire; ++wire) {
         // skip bad wires or no hits on the wire
@@ -1911,63 +2017,7 @@ namespace tca {
     } // ish
 
   } // FindShowerParent
-*/
-  ////////////////////////////////////////////////
-  void TagShowerTraj(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag)
-  {
-    // Tag trajectories as shower-like or alternatively construct showers
-    // fShowerTag[] parameters
-    // 0 = Max MCSMom
-    // 1 = Max separation WSE units
-    // 2 = Min parent length
-    // 3 = Factor * rms width
-    // 4 = Min shower 1/2 width (WSE units)
-    // 5 = Print?
-    
-    
-    if(fShowerTag[0] < 0) return;
-    
-    if(fShowerTag[2] > 0) {
-      FindShowers(tjs, inCTP, fShowerTag);
-      return;
-    }
-    
-    // Tag as shower-like (PDGCode = 11) if the MCSMom is < fShowerTag[0]
-    // and the number of other trajectories that have a separation < fShowerTag[1]
-    short maxMCSMom = fShowerTag[0];
-    for(auto& tj : tjs.allTraj) {
-      if(tj.CTP != inCTP) continue;
-      if(tj.AlgMod[kKilled]) continue;
-      // already tagged
-      if(tj.PDGCode > 0) continue;
-      // first we cut on MCSMom
-      if(tj.MCSMom > maxMCSMom) continue;
-      // Count the number of trajectories that are within fShowerTag[1]
-      unsigned short nNear = 0;
-      for(auto& atj : tjs.allTraj) {
-        if(atj.CTP != inCTP) continue;
-        if(atj.AlgMod[kKilled]) continue;
-        if(atj.ID == tj.ID) continue;
-        // ignore nearby muons
-        if(atj.PDGCode == 13) continue;
-        float minSep = fShowerTag[1];
-        unsigned short ipt1, ipt2;
-        // Find the Distance Of Closest Approach between the two trajectories
-        // with the specified minimum separation
-        TrajTrajDOCA(tjs, tj, atj, ipt1, ipt2, minSep, true);
-        // Count the number of nearby trajectories within the cut
-        if(minSep < fShowerTag[1]) ++nNear;
-        // no sense continuing if we are there
-        if(nNear == 2) break;
-      } // atj
-      if(nNear > 1) {
-        tj.PDGCode = 11;
-        tj.AlgMod[kShowerTag] = true;
-      }
-    } // tj
-  } // TagShowerTraj
-  
-  
+*/  
   /////////////////////////////////////////
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
   {
@@ -2486,7 +2536,7 @@ namespace tca {
     if(!tjs.vtx.empty()) {
       // print out 2D vertices
       myprt<<"************ 2D vertices ************\n";
-      myprt<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NTj Pass  Topo traj IDs\n";
+      myprt<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NTj Pass  Topo Nice? traj IDs\n";
       for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
         auto const& aVtx = tjs.vtx[iv];
         if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
@@ -2501,6 +2551,7 @@ namespace tca {
         myprt<<std::right<<std::setw(5)<<aVtx.NTraj;
         myprt<<std::right<<std::setw(5)<<aVtx.Pass;
         myprt<<std::right<<std::setw(6)<<aVtx.Topo;
+        myprt<<std::right<<std::setw(6)<<aVtx.Stat[kNiceVtx];
         myprt<<"    ";
         // display the traj indices
         for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
@@ -2524,7 +2575,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm  to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom Dir __Vtx__ PDG  Par TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm   to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom Dir __Vtx__ PDG  Par TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -2535,7 +2586,7 @@ namespace tca {
         myprt<<std::setw(5)<<aTj.Pass;
         myprt<<std::setw(5)<<aTj.Pts.size();
         myprt<<std::setw(4)<<aTj.EndPt[0];
-        myprt<<std::setw(4)<<aTj.EndPt[1];
+        myprt<<std::setw(5)<<aTj.EndPt[1];
         int endPt = aTj.EndPt[0];
         TrajPoint tp = aTj.Pts[endPt];
         int itick = tp.Pos[1]/tjs.UnitsPerTick;
