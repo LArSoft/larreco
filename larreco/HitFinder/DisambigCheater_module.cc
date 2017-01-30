@@ -22,7 +22,7 @@
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoBaseArt/HitCreator.h"
+#include "lardata/ArtDataHelper/HitCreator.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larsim/MCCheater/BackTracker.h"
 

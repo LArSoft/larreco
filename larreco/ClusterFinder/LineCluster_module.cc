@@ -77,7 +77,7 @@ namespace cluster {
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Vertex.h"
-#include "lardata/RecoBaseArt/HitCreator.h" // recob::HitCollectionAssociator
+#include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
 

@@ -31,7 +31,7 @@
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RawData/raw.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoBaseArt/HitCreator.h"
+#include "lardata/ArtDataHelper/HitCreator.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 

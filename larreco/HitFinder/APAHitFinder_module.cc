@@ -31,7 +31,7 @@
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoBaseArt/HitCreator.h"
+#include "lardata/ArtDataHelper/HitCreator.h"
 #include "larreco/RecoAlg/DisambigAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
