@@ -162,17 +162,15 @@ namespace tca {
     // IDs of Trajectories that match in all planes
     std::vector<unsigned short> TjIDs;
     std::vector<unsigned short> ClusterIndices;
-    std::vector<unsigned int> sSeedHit;
-    std::vector<unsigned int> eSeedHit;
     // Count of the number of time-matched hits
     int Count {0};
-    unsigned short Vtx3DIndex {USHRT_MAX};         // index of the 3D vertex
-    std::array<float, 3> sXYZ;        // XYZ position at the start
+    std::array<float, 3> sXYZ;        // XYZ position at the start (NOT WSE units)
     std::array<float, 3> eXYZ;        // XYZ position at the other end
+    unsigned short sVtx3DIndex {USHRT_MAX};
+    unsigned short eVtx3DIndex {USHRT_MAX};
     // stuff for constructing the PFParticle
     int PDGCode;
     std::vector<size_t> DtrIndices;
-    short MCSMom {-1};                // Average MCSMom from all matched trajectories
     size_t Parent;
   };
   
