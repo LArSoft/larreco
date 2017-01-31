@@ -36,7 +36,7 @@ namespace tca {
     "StopAtTj",
     "Match3D",
     "VtxHitsSwap",
-    "SplitHiChgHits"
+    "SplitHiChgHits",
     "ShowerTag",
     "ShowerTj"
   };
