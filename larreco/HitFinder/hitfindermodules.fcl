@@ -43,7 +43,7 @@ gaus_hitfinder:
  AreaMethod:           0                # 0 = area by integral, 1 = area by gaussian area formula
  AreaNorms:            [ 13.25, 26.31 ] # normalizations that put signal area in 
                                         # same scale as peak height.
- LongMaxHits:          [ 25, 25, 25]    # max number hits in long pulse trains
+ LongMaxHits:          [  1,  1,  1]    # max number hits in long pulse trains
  LongPulseWidth:       [ 16, 16, 16]    # max widths for hits in long pulse trains
  TryNplus1Fits:        true		        # true will try to re-fit poorly modeled hits with n+1 gaussians
  					                    # false will NOT try to re-fit poorly modled hits
