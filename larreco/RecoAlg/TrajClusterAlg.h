@@ -108,6 +108,7 @@ namespace tca {
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
     std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a trajectory
     std::vector<unsigned short> fMaxAngleCode;   ///< max allowed angle code for each pass
+    std::vector<short> fMinMCSMom;   ///< Min MCSMom for each pass
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     std::vector<float> fKinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
@@ -364,8 +365,8 @@ namespace tca {
     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
     void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
+    void Find3DEndPoints(const geo::TPCID& tpcid);
     void FillPFPInfo();
-    void FindMatchEndPoints();
     
   }; // class TrajClusterAlg
 

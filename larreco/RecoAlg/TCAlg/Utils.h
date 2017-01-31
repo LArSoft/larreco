@@ -39,7 +39,8 @@ namespace tca {
   // ****************************** General purpose  ******************************
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
-  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im);
+  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt);
+  unsigned short Matched3DVtx(TjStuff& tjs, unsigned short im);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
@@ -86,6 +87,7 @@ namespace tca {
   float PointTrajSep2(float wire, float time, TrajPoint const& tp);
   float PosSep(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
   float PosSep2(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
+  float PosSep2(const std::array<float, 3>& pos1, const std::array<float, 3>& pos2);
   // finds the point on trajectory tj that is closest to trajpoint tp
   void TrajPointTrajDOCA(TjStuff& tjs, TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
   // returns the intersection position, intPos, of two trajectory points
@@ -136,7 +138,6 @@ namespace tca {
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID);
-  void TagShowerTraj(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag);
   // Make a bare trajectory point that only has position and direction defined
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);

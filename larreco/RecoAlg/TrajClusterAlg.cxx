@@ -117,6 +117,8 @@ namespace tca {
     } else {
       fMaxAngleCode         = pset.get< std::vector<unsigned short>>("MaxAngleCode");
     }
+    fMinMCSMom             = pset.get< std::vector<short >>("MinMCSMom");
+
     fMaxChi               = pset.get< float >("MaxChi", 10);
     fChargeCuts           = pset.get< std::vector<float >>("ChargeCuts", {3, 0.15, 0.25});
     fMultHitSep           = pset.get< float >("MultHitSep", 2.5);
@@ -161,7 +163,8 @@ namespace tca {
     if(fMinPtsFit.size() != fMinPts.size()) badinput = true;
     if(fMaxVertexTrajSep.size() != fMinPts.size()) badinput = true;
     if(fMaxAngleCode.size() != fMinPts.size()) badinput = true;
-    if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxVertexTrajSep and MaxAngleRange should be defined for each reconstruction pass";
+    if(fMinMCSMom.size() != fMinPts.size()) badinput = true;
+    if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxVertexTrajSep, MaxAngleRange and MinMCSMom should be defined for each reconstruction pass";
     
     if(fVertex2DCuts.size() != 7) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 7\n 0 = Max length definitino for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs";
     if(fKinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
@@ -170,7 +173,7 @@ namespace tca {
     if(fMuonTag.size() != 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging";
     if(fDeltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
     if(fChkStopCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut";
-    if(fShowerTag.size() != 8) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 8\n 0 = Print showers in plane\n 1 = max MCSMom\n 2 = max separation (WSE units)\n 3 = Max angle diff\n 4 = Factor * rms width\n 5 = Min half width\n 6 = min total Tps\n 7 = Min Tjs";
+    if(fShowerTag.size() != 8) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 8\n  0 = max MCSMom\n 1 = max separation (WSE units)\n 2 = Max angle diff\n 3 = Factor * rms width\n 4 = Min half width\n 5 = min total Tps\n 6 = Min Tjs\n 7 = Print showers in plane\n";
     
     if(fMatch3DCuts.size() != 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = MinMCSMom\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?";
     
@@ -415,18 +418,6 @@ namespace tca {
     } // tpcid
 
     MatchTruth();
-    
-    if(TJPrt > 0 || debug.Plane >= 0) {
-      mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
-      for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
-        if(tjs.allTraj[itj].WorkID == TJPrt) {
-          PrintAllTraj("DBG", tjs, debug, itj, USHRT_MAX);
-          break;
-        }
-      } // itj
-      // Print summary of all TJs
-      PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
-    }
  
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
@@ -439,6 +430,18 @@ namespace tca {
       ClearResults();
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in CheckHitClusterAssociations";
       return;
+    }
+    
+    if(TJPrt > 0 || debug.Plane >= 0) {
+      mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
+      for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+        if(tjs.allTraj[itj].WorkID == TJPrt) {
+          PrintAllTraj("DBG", tjs, debug, itj, USHRT_MAX);
+          break;
+        }
+      } // itj
+      // Print summary of all TJs
+      PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
 
     // temp
@@ -883,7 +886,6 @@ namespace tca {
       if(fQuitAlg) return;
     }
     TagDeltaRays(tjs, fCTP, fDeltaRayTag, debug.WorkID);
-    if(fUseAlg[kShowerTag]) TagShowerTraj(tjs, fCTP, fShowerTag);
     Find2DVertices();
     // check for a major failure
     if(fQuitAlg) return;
@@ -894,11 +896,19 @@ namespace tca {
     // last attempt to attach Tjs to vertices
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, fVertex2DCuts, vtxPrt);
     
-    // Refine vertices, trajectories and nearby hits
-//    Refine2DVertices();
-    
     // Check the associations and set the kNiceVtx bit
     CheckVtxAssociations(tjs, fCTP);
+
+    if(fShowerTag[0] >= 0 && fUseAlg[kShowerTag]) {
+      if(fShowerTag[7] >= 0) {
+        std::cout<<"temp prt\n";
+        PrintAllTraj("FSi", tjs, debug, USHRT_MAX, tjs.allTraj.size());
+      }
+      FindShowers(tjs, fCTP, fShowerTag);
+    }
+    
+    // Refine vertices, trajectories and nearby hits
+//    Refine2DVertices();
     
   } // ReconstructAllTraj
 
@@ -3703,7 +3713,13 @@ namespace tca {
   //////////////////////////////////////////
   void TrajClusterAlg::Match3D(const geo::TPCID& tpcid)
   {
-    // Match trajectories in each view using hits
+    // Match trajectories in each view using hits. This function loops through hits that are used in trajectories
+    // in all (3) planes in the current tpcid. The triplet of Tj IDs is stored in a MatchStruct, ms, and pushed onto
+    // tjs.matchVec. A count is made of all subsequent hit triplets that have the same Tj ID triplet.  The matchVec vector
+    // is sorted by the decreasing number of hit triplet counts. The matchVec entries with the most hit triplet counts are
+    // identified as to-be-made PFParticles and put in matchVecPFPList. The function Find3DEndPOints defines the sXYZ and eXYZ
+    // elements of the Match Struct using a convention that sXYZ[0] is at low X end of the matched trajectories.
+    
     if(!fUseAlg[kMatch3D]) return;
     if(fMatch3DCuts[0] < 0) return;
      
@@ -3724,10 +3740,9 @@ namespace tca {
       xx[iht] = detprop->ConvertTicksToX(hit.PeakTime, hit.WireID.Plane, hit.WireID.TPC, hit.WireID.Cryostat);
     } // iht
     
-    tjs.matchVec.clear();
-    
     if(tjs.NumPlanes != 3) {
       Match3D2Views(tpcid, xx);
+      Find3DEndPoints(tpcid);
       return;
     }
     
@@ -3799,12 +3814,6 @@ namespace tca {
                 if(tjs.fHits[jht].InTraj != tjs.matchVec[indx].TjIDs[jpl]) continue;
                 if(tjs.fHits[kht].InTraj != tjs.matchVec[indx].TjIDs[kpl]) continue;
                 ++tjs.matchVec[indx].Count;
-                tjs.matchVec[indx].eXYZ[0] = xx[iht];
-                tjs.matchVec[indx].eXYZ[1] = yp;
-                tjs.matchVec[indx].eXYZ[2] = zp;
-                tjs.matchVec[indx].eSeedHit[ipl] = iht;
-                tjs.matchVec[indx].eSeedHit[jpl] = jht;
-                tjs.matchVec[indx].eSeedHit[kpl] = kht;
                 break;
               } // indx
               if(indx == tjs.matchVec.size()) {
@@ -3816,17 +3825,6 @@ namespace tca {
                 ms.TjIDs[kpl] = tjs.fHits[kht].InTraj;
                 ms.ClusterIndices.resize(3, USHRT_MAX);
                 ms.Count = 1;
-                ms.sSeedHit.resize(3);
-                ms.sSeedHit[ipl] = iht;
-                ms.sSeedHit[jpl] = jht;
-                ms.sSeedHit[kpl] = kht;
-                ms.eSeedHit.resize(3);
-                ms.eSeedHit[ipl] = iht;
-                ms.eSeedHit[jpl] = jht;
-                ms.eSeedHit[kpl] = kht;
-                ms.sXYZ[0] = xx[iht];
-                ms.sXYZ[1] = yp;
-                ms.sXYZ[2] = zp;
                 tjs.matchVec.push_back(ms);
               } // not found in the list
             } // kht
@@ -3854,16 +3852,8 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
         unsigned int indx = sortVec[ii].index;
-        myprt<<" Count "<<tjs.matchVec[indx].Count<<" SeedHits";
-        for(unsigned short ipl = 0; ipl < tjs.matchVec[indx].sSeedHit.size(); ++ipl) {
-          unsigned int iht = tjs.matchVec[indx].sSeedHit[ipl];
-          myprt<<" "<<PrintHit(tjs.fHits[iht]);
-          iht = tjs.matchVec[indx].eSeedHit[ipl];
-          myprt<<"-"<<PrintHit(tjs.fHits[iht]);
-        }
-        myprt<<" XX "<<tjs.matchVec[indx].sXYZ[0]<<" "<<tjs.matchVec[indx].eXYZ[0];;
-        myprt<<"\n";
-      }
+        myprt<<" Count "<<tjs.matchVec[indx].Count;
+      } // ii
     } // prt
 
     for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
@@ -3878,13 +3868,7 @@ namespace tca {
       auto& mv = tjs.matchVec[indx];
       if(prt && mv.Count > 20) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"Match3D indx "<<indx<<" Count "<<mv.Count<<" SeedHits";
-        for(unsigned short ipl = 0; ipl < mv.sSeedHit.size(); ++ipl) {
-          unsigned int iht = mv.sSeedHit[ipl];
-          myprt<<" "<<PrintHit(tjs.fHits[iht]);
-          iht = mv.eSeedHit[ipl];
-          myprt<<"-"<<PrintHit(tjs.fHits[iht]);
-        } // ipl
+        myprt<<"Match3D indx "<<indx<<" Count "<<mv.Count;
       } // prt
       // Set the AlgMod bit
       for(unsigned short ipl = 0; ipl < mv.TjIDs.size(); ++ipl) {
@@ -3925,47 +3909,28 @@ namespace tca {
           ftj.AlgMod[kMatch3D] = true;
           mv.TjIDs.push_back(fragID);
           mv.ClusterIndices.push_back(USHRT_MAX);
-          // Update the eXYZ or sXYZ end points
-          // Reference to the trajectory fragment
-          auto& mvf = tjs.matchVec[jndx];
-          // Update the end points after figuring out which is larger/smaller in X
-          if(mvf.sXYZ[0] < mv.sXYZ[0]) {
-            mv.sXYZ = mvf.sXYZ;
-            mv.sSeedHit = mvf.sSeedHit;
-          }
-          if(mvf.eXYZ[0] > mv.eXYZ[0]) {
-            mv.eXYZ = mvf.eXYZ;
-            mv.eSeedHit = mvf.eSeedHit;
-          }
         } // nmTj == 2 && mID != USHRT_MAX
       } // jj
       //  Index the matches that will become PFParticles into matchVecPFPList
       tjs.matchVecPFPList.push_back(indx);
     } // ii (indx)
     
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"matchVecPFPList \n";
-      for(unsigned int ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
-        unsigned short im = tjs.matchVecPFPList[ii];
-        auto& mv = tjs.matchVec[im];
-        myprt<<ii<<" im "<<im<<" Count "<<mv.Count<<" TjIDs";
-        for(auto& itj : mv.TjIDs) {
-          myprt<<" "<<itj;
-        } // ms
-        myprt<<" SeedHits";
-        for(unsigned short ipl = 0; ipl < mv.sSeedHit.size(); ++ipl) {
-          unsigned int iht = mv.sSeedHit[ipl];
-          myprt<<" "<<PrintHit(tjs.fHits[iht]);
-          iht = mv.eSeedHit[ipl];
-          myprt<<"-"<<PrintHit(tjs.fHits[iht]);
-        } // ipl
-        myprt<<"\n";
-      } // ii
-    } // prt
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"matchVecPFPList \n";
+        for(unsigned int ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
+          unsigned short im = tjs.matchVecPFPList[ii];
+          auto& mv = tjs.matchVec[im];
+          myprt<<ii<<" im "<<im<<" Count "<<mv.Count<<" TjIDs";
+          for(auto& itj : mv.TjIDs) {
+            myprt<<" "<<itj;
+          } // ms
+        } // ii
+      } // prt
     
     // Now try to find 3D matches in 2 views using the unmatched hits
     Match3D2Views(tpcid, xx);
+    Find3DEndPoints(tpcid);
     
     // TODO: Need to define DtrIndices
 
@@ -4041,11 +4006,6 @@ namespace tca {
                   } // ii
                   if(nm == 2) {
                     ++tjs.matchVec[indx].Count;
-                    tjs.matchVec[indx].eSeedHit[0] = iht;
-                    tjs.matchVec[indx].eSeedHit[1] = jht;
-                    tjs.matchVec[indx].eXYZ[0] = xx[iht];
-                    tjs.matchVec[indx].eXYZ[1] = yp;
-                    tjs.matchVec[indx].eXYZ[2] = zp;
                     break;
                   }
                 } // indx
@@ -4057,18 +4017,6 @@ namespace tca {
                   ms.TjIDs[1] = tjs.fHits[jht].InTraj;
                   ms.ClusterIndices.resize(2, USHRT_MAX);
                   ms.Count = 1;
-                  ms.sSeedHit.resize(2);
-                  ms.sSeedHit[0] = iht;
-                  ms.sSeedHit[1] = jht;
-                  ms.eSeedHit.resize(2);
-                  ms.eSeedHit[0] = iht;
-                  ms.eSeedHit[1] = jht;
-                  ms.sXYZ[0] = xx[iht];
-                  ms.sXYZ[1] = yp;
-                  ms.sXYZ[2] = zp;
-                  ms.eXYZ[0] = xx[iht];
-                  ms.eXYZ[1] = yp;
-                  ms.eXYZ[2] = zp;
                   tjs.matchVec.push_back(ms);
                 } // not found in the list
               } // jht
@@ -4099,18 +4047,7 @@ namespace tca {
       for(unsigned int ii = 0; ii < sortVec.size(); ++ii) {
         myprt<<ii<<" indx "<<sortVec[ii].index;
         unsigned int indx = sortVec[ii].index;
-        myprt<<" Count "<<tjs.matchVec[indx].Count<<" SeedHits";
-        for(unsigned short ipl = 0; ipl < tjs.matchVec[indx].sSeedHit.size(); ++ipl) {
-          unsigned int iht = tjs.matchVec[indx].sSeedHit[ipl];
-          myprt<<" "<<PrintHit(tjs.fHits[iht]);
-          iht = tjs.matchVec[indx].eSeedHit[ipl];
-          myprt<<"-"<<PrintHit(tjs.fHits[iht]);
-        }
-        myprt<<"\n";
-        if(ii > 100) {
-          myprt<<" too many to print";
-          break;
-        }
+        myprt<<" Count "<<tjs.matchVec[indx].Count;
       } // ii
     } // prt
     
@@ -4136,329 +4073,233 @@ namespace tca {
   } // Match3D2Views
   
   ////////////////////////////////////////////////
-  void TrajClusterAlg::FindMatchEndPoints()
+  void TrajClusterAlg::Find3DEndPoints(const geo::TPCID& tpcid)
   {
+    // Define the sXYZ and eXYZ endpoints of the matched trajectories. This is done by matching the
+    // endpoints of the two longest trajectories in all planes. The endpoints and trajectories are then
+    // reversed if necessary to put sXYZ[0] > eXYZ[0] and EndPt[0] => sXYZ 
     
-    // This routine finds a matching 3D end points of trajectories in the PFPlist and puts them into
-    // the matchVec sXYZ (start) positions. The trajectories are then reversed if necessary so that end0 of each one
-    // is at the start position. This start position will be converted to a Vertex in FillPFPInfo.
-    // The first tjs.NumPlanes entries in the TjIDs vector refer to the matching trajectories. Additional entries
-    // in TjIDs refer to trajectory fragments that were added after the initial matching was done. It is possible that
-    // these fragmented trajectories do not have an endpoint match. In this situation, they will be reversed so that
-    // they have the same StepDir as the matched trajectories in the same plane.
+    unsigned int cstat = tpcid.Cryostat;
+    unsigned int tpc = tpcid.TPC;
     
-    // In the pictograph, M indicates the trajectory EndPt where the match will be defined. This point 
-    //              end  0             1
-    // pln 0 TjIDs 1     MxxxxxxXXXXXXXX
-    //              end  0       1
-    // pln 1 TjIDs 2     MxxxxXXXX
-    //              end  0   1  0     1
-    // pln 2 TjIDs 3, 4  XXXxx  XXXxxxM
-    // TjID 1, 2 and 4 are matched at low X at ends 0, 0 and 1.
-    
-    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    
-    float maxDx = 3 * fMatch3DCuts[0];
-
     for(auto& im : tjs.matchVecPFPList) {
       // a reference to a set of 3D matched trajectories
       auto& ms = tjs.matchVec[im];
-      float xlo = 1E6;
-      float xhi = 0;
-      // Vectors for the end (0 or 1) for a valid X match. Initialize to an invalid value (2)
-      std::vector<unsigned short>xloEnd(ms.TjIDs.size(), 2);
-      std::vector<unsigned short>xhiEnd(ms.TjIDs.size(), 2);
-      // consider the Tjs pair-wise and find the min/max X at the end points
-      for(unsigned short i1 = 0; i1 < ms.TjIDs.size() - 1; ++i1) {
-        unsigned short it1 = ms.TjIDs[i1] - 1;
-        Trajectory& tj1 = tjs.allTraj[it1];
-        geo::PlaneID planeID = DecodeCTP(tj1.CTP);
-        if(!planeID.isValid) {
-          std::cout<<"Invalid planeID "<<planeID<<"\n";
-          continue;
+      if(ms.TjIDs.empty()) continue;
+      // ensure we are in the correct tpcid using the first Tj CTP
+      unsigned short it1 = ms.TjIDs[0] - 1;
+      geo::PlaneID plane1ID = DecodeCTP(tjs.allTraj[it1].CTP);
+      if(plane1ID.Cryostat != cstat) continue;
+      if(plane1ID.TPC != tpc) continue;
+      // Check for the existence of a 3D vertex with these trajectories and if so define the
+      // 3D vertex start and end indices. Note that in it's current state MatchHas3DVertex may not
+      // always define eXYZ.
+      if(Matched3DVtx(tjs, im) == 2) continue;
+      // find the longest Tj
+      unsigned short itjLong = USHRT_MAX;
+      unsigned short ilen = 0;
+      for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
+        unsigned short itj = ms.TjIDs[ii] - 1;
+        Trajectory& tj = tjs.allTraj[itj];
+        if(tj.Pts.size() > ilen) {
+          ilen = tj.Pts.size();
+          itjLong = itj;
         }
-        for(unsigned short end1 = 0; end1 < 2; ++end1) {
-          unsigned short endPt1 = tj1.EndPt[end1];
-          TrajPoint& tp1 = tj1.Pts[endPt1];
-          float x1 = detprop->ConvertTicksToX(tp1.Pos[1]/tjs.UnitsPerTick, planeID.Plane, planeID.TPC, planeID.Cryostat);
-          for(unsigned short i2 = i1 + 1; i2 < ms.TjIDs.size(); ++i2) {
-            unsigned short it2 = ms.TjIDs[i2] - 1;
-            Trajectory& tj2 = tjs.allTraj[it2];
-            for(unsigned short end2 = 0; end2 < 2; ++end2) {
-              unsigned short endPt2 = tj2.EndPt[end2];
-              TrajPoint& tp2 = tj2.Pts[endPt2];
-              float x2 = detprop->ConvertTicksToX(tp2.Pos[1]/tjs.UnitsPerTick, planeID.Plane, planeID.TPC, planeID.Cryostat);
-              if(std::abs(x1 - x2) > maxDx) continue;
-              float xx = 0.5 * (x1 + x2);
-              if(xx < xlo) xlo = xx;
-              if(xx > xhi) xhi = xx;
-            } // end2
-          } // i2 (tj2)
-        } // end1
-      } // i1 (tj1)
-      // now try to define the end points. Count the number of occurrences of a match at the low/high X end
-      unsigned short cntLo = 0;
-      unsigned short cntHi = 0;
-      for(unsigned short i1 = 0; i1 < ms.TjIDs.size(); ++i1) {
-        unsigned short it1 = ms.TjIDs[i1] - 1;
-        Trajectory& tj1 = tjs.allTraj[it1];
-        geo::PlaneID planeID = DecodeCTP(tj1.CTP);
-        for(unsigned short end1 = 0; end1 < 2; ++end1) {
-          unsigned short endPt1 = tj1.EndPt[end1];
-          TrajPoint& tp1 = tj1.Pts[endPt1];
-          float x1 = detprop->ConvertTicksToX(tp1.Pos[1]/tjs.UnitsPerTick, planeID.Plane, planeID.TPC, planeID.Cryostat);
-//          mf::LogVerbatim("TC")<<im<<" "<<tj1.ID<<" end "<<end1<<" x "<<x1;
-          if(std::abs(x1 - xlo) < maxDx) {
-            xloEnd[i1] = end1;
-            ++cntLo;
+      } // ii
+      Trajectory& iTj = tjs.allTraj[itjLong];
+      // find the 2nd longest tj
+      unsigned short jtjLong = USHRT_MAX;
+      unsigned short jlen = 0;
+      for(unsigned short jj = 0; jj < ms.TjIDs.size(); ++jj) {
+        unsigned short jtj = ms.TjIDs[jj] - 1;
+        if(jtj == itjLong) continue;
+        Trajectory& tj = tjs.allTraj[jtj];
+        // ensure that this Tj is in a different plane than the longest one
+        if(tj.CTP == iTj.CTP) continue;
+        if(tj.Pts.size() > jlen) {
+          jlen = tj.Pts.size();
+          jtjLong = jtj;
+        }
+      } // ii
+      // consider both ends of each Tj
+      unsigned short iPln = DecodeCTP(iTj.CTP).Plane;
+      Trajectory& jTj = tjs.allTraj[jtjLong];
+      unsigned short jPln = DecodeCTP(jTj.CTP).Plane;
+      unsigned short iEnd = 0, jEnd = 0;
+      float bestDx = 1E6;
+      float bestDxX = 0;
+      for(unsigned short ie = 0; ie < 2; ++ie) {
+        unsigned short iEndPt = iTj.EndPt[ie];
+        TrajPoint& iTp = iTj.Pts[iEndPt];
+        unsigned short iPln = DecodeCTP(iTp.CTP).Plane;
+        float iX = detprop->ConvertTicksToX(iTp.Pos[1]/tjs.UnitsPerTick, iPln, tpc, cstat);
+        for(unsigned short je = 0; je < 2; ++je) {
+          unsigned short jEndPt = jTj.EndPt[je];
+          TrajPoint& jTp = jTj.Pts[jEndPt];
+          unsigned short jPln = DecodeCTP(jTp.CTP).Plane;
+          float jX = detprop->ConvertTicksToX(jTp.Pos[1]/tjs.UnitsPerTick, jPln, tpc, cstat);
+          float dx = std::abs(iX - jX);
+          if(dx < bestDx) {
+            bestDx = dx;
+            iEnd = ie;
+            jEnd = je;
+            bestDxX = iX;
           }
-          if(std::abs(x1 - xhi) < maxDx) {
-            xhiEnd[i1] = end1;
-            ++cntHi;
-          }
-        } // end1
-      } // i1
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"FMEP "<<im<<" xlo "<<xlo<<" xhi "<<xhi<<"\n";
-        for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-          myprt<<" "<<ms.TjIDs[ii]<<" xloEnd "<<xloEnd[ii]<<" xhiEnd "<<xhiEnd[ii]<<"\n";
-        } // ii
-        myprt<<"cntLo "<<cntLo<<" cntHi "<<cntHi;
-      } // prt
-      // Pick the end that has the highest match count and find the sXYZ position. This will be used to create a Vertex.
-      // Don't get too fancy. Just use the first two Tjs with a valid end point match
-      // define a temp vector of the ends of these Tjs to use for the other end
-      std::cout<<"Code incomplete in FindMatchEndPoints\n";
-/* Code incomplete
-      std::vector<unsigned short> matchEnds(ms.TjIDs.size(), 2);
-      if(cntHi > cntLo) {
-        for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-          if(xhiEnd[ii] < 2) {
-            if() {
-              
-            } else {
-              
-            }
-          } // xhiEnd[ii] < 2
-        } // ii
+        } // e2
+      } // e1
+      // Now decide which end should be the start, taking into account the possible existence of a 3D vertex.
+      // Reference the Tps at the end with the best match
+      unsigned short iEndPt = iTj.EndPt[iEnd];
+      TrajPoint& iTp = iTj.Pts[iEndPt];
+      unsigned short jEndPt = jTj.EndPt[jEnd];
+      TrajPoint& jTp = jTj.Pts[jEndPt];
+      std::array<float, 3> xyz;
+      double yp, zp;
+      geom->IntersectionPoint(std::nearbyint(iTp.Pos[0]), std::nearbyint(jTp.Pos[0]), iPln, jPln, cstat, tpc, yp, zp);
+      xyz[0] = bestDxX;
+      xyz[1] = yp;
+      xyz[2] = zp;
+      // find the xyz position of the other end
+      iEndPt = iTj.EndPt[1 - iEnd];
+      TrajPoint& ioTp = iTj.Pts[iEndPt];
+      jEndPt = jTj.EndPt[1 - jEnd];
+      TrajPoint& joTp = jTj.Pts[jEndPt];
+      std::array<float, 3> oxyz;
+      geom->IntersectionPoint(std::nearbyint(ioTp.Pos[0]), std::nearbyint(joTp.Pos[0]), iPln, jPln, cstat, tpc, yp, zp);
+      geo::PlaneID iPlaneID = DecodeCTP(ioTp.CTP);
+      float xi = detprop->ConvertTicksToX(ioTp.Pos[1]/tjs.UnitsPerTick, iPlaneID.Plane, tpc, cstat);
+      geo::PlaneID jPlaneID = DecodeCTP(joTp.CTP);
+      float xj = detprop->ConvertTicksToX(joTp.Pos[1]/tjs.UnitsPerTick, jPlaneID.Plane, tpc, cstat);
+      oxyz[0] = 0.5 * (xi + xj);
+      oxyz[1] = yp;
+      oxyz[2] = zp;
+      
+      if(ms.sVtx3DIndex != USHRT_MAX) {
+        // 3D vertex assignment exists at the start. Define the other end
+        std::array<float, 3> vpos;
+        vpos[0] = tjs.vtx3[ms.sVtx3DIndex].X;
+        vpos[1] = tjs.vtx3[ms.sVtx3DIndex].Y;
+        vpos[2] = tjs.vtx3[ms.sVtx3DIndex].Z;
+        if(PosSep2(xyz, vpos) < PosSep2(oxyz, vpos)) {
+          ms.eXYZ = oxyz;
+        } else {
+          ms.eXYZ = xyz;
+        }
       } else {
-        
-      }
-*/
-      if(cntHi > cntLo) {
-        // Match at the high end. Find the first one
-        unsigned short i1 = 0;
-        for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-          if(xhiEnd[ii] < 2) {
-            i1 = ii;
-            break;
-          }
-        } // ii
-        // find the next one
-        unsigned short i2 = 0;
-        for(unsigned short ii = i1 + 1; ii < ms.TjIDs.size(); ++ii) {
-          if(xhiEnd[ii] < 2) {
-            i2 = ii;
-            break;
-          }
-        } // ii
-        unsigned short end1 = xhiEnd[i1];
-        unsigned short it1 = ms.TjIDs[i1] - 1;
-        unsigned short endPt1 = tjs.allTraj[it1].EndPt[end1];
-        TrajPoint& tp1 = tjs.allTraj[it1].Pts[endPt1];
-        int wire1 = std::nearbyint(tp1.Pos[0]);
-        geo::PlaneID plane1ID = DecodeCTP(tp1.CTP);
-        unsigned short end2 = xhiEnd[i2];
-        unsigned short it2 = ms.TjIDs[i2] - 1;
-        unsigned short endPt2 = tjs.allTraj[it2].EndPt[end2];
-        TrajPoint& tp2 = tjs.allTraj[it2].Pts[endPt2];
-        int wire2 = std::nearbyint(tp2.Pos[0]);
-        geo::PlaneID plane2ID = DecodeCTP(tp2.CTP);
-        double yp, zp;
-        geom->IntersectionPoint(wire1, wire2, plane1ID.Plane, plane2ID.Plane, plane1ID.Cryostat, plane1ID.TPC, yp, zp);
-        ms.sXYZ[1] = yp;
-        ms.sXYZ[2] = zp;
-      } else {
-        // Match at the low end (or it doesn't matter)
-        unsigned short i1 = 0;
-        for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-          if(xloEnd[ii] < 2) {
-            i1 = ii;
-            break;
-          }
-        } // ii
-        // find the next one
-        unsigned short i2 = 0;
-        for(unsigned short ii = i1 + 1; ii < ms.TjIDs.size(); ++ii) {
-          if(xloEnd[ii] < 2) {
-            i2 = ii;
-            break;
-          }
-        } // ii
-        // find the wire at the matched end of tj1
-        unsigned short end1 = xloEnd[i1];
-        unsigned short it1 = ms.TjIDs[i1] - 1;
-        unsigned short endPt1 = tjs.allTraj[it1].EndPt[end1];
-        TrajPoint& tp1 = tjs.allTraj[it1].Pts[endPt1];
-        int wire1 = std::nearbyint(tp1.Pos[0]);
-        geo::PlaneID plane1ID = DecodeCTP(tp1.CTP);
-        // do the same for tj2
-        unsigned short end2 = xloEnd[i2];
-        unsigned short it2 = ms.TjIDs[i2] - 1;
-        unsigned short endPt2 = tjs.allTraj[it2].EndPt[end2];
-        TrajPoint& tp2 = tjs.allTraj[it2].Pts[endPt2];
-        int wire2 = std::nearbyint(tp2.Pos[0]);
-        geo::PlaneID plane2ID = DecodeCTP(tp2.CTP);
-        double yp, zp;
-        geom->IntersectionPoint(wire1, wire2, plane1ID.Plane, plane2ID.Plane, plane1ID.Cryostat, plane1ID.TPC, yp, zp);
-        ms.sXYZ[1] = yp;
-        ms.sXYZ[2] = zp;
-      }
-    } // im
-  } // FindMatchEndPoints
+        // No 3D vertex assignment exists at either end so define the end positions. A new 3D vertex will be created in FillPFPInfo
+        if(xyz[0] > oxyz[0]) {
+          ms.sXYZ = xyz;
+          ms.eXYZ = oxyz;
+        } else {
+          ms.sXYZ = oxyz;
+          ms.eXYZ = xyz;
+        }
+      } // No 3D vertex assignment exists at either end
+      
+      // Reverse trajectories as necessary so that EndPt[0] is at the sXYZ end
+      double wpos[3] = {0, ms.sXYZ[1], ms.sXYZ[2]};
+      std::array<float, 2> vpos;
+      for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
+        unsigned short itj = ms.TjIDs[ii] - 1;
+        Trajectory& tj = tjs.allTraj[itj];
+        unsigned short endPt0 = tj.EndPt[0];
+        unsigned short endPt1 = tj.EndPt[1];
+        // Project sXYZ to this plane coordinate system yyy
+        geo::PlaneID planeID = DecodeCTP(tj.CTP);
+        vpos[0] = geom->NearestWire(wpos, planeID.Plane, tpc, cstat);
+        vpos[1] = detprop->ConvertXToTicks(ms.sXYZ[0], planeID.Plane, tpc, cstat) * tjs.UnitsPerTick;
+        // Reverse if end 0 is further away from vpos than end 1
+        if(PosSep2(tj.Pts[endPt0].Pos, vpos) > PosSep2(tj.Pts[endPt1].Pos, vpos)) ReverseTraj(tjs, tj);
+      } // ii
+      
+      if(prt)  mf::LogVerbatim("TC")<<"F3DEP: im "<<im<<" itjLong "<<itjLong<<" iEnd "<<iEnd<<" jtjLong "<<jtjLong<<" jEnd "<<jEnd;
 
+    } // im (ms)
+        
+  } // Find3DEndPoints
+  
   //////////////////////////////////////////
   void TrajClusterAlg::FillPFPInfo()
   {
-    // Fills the PFParticle info in matchVec 
-    
-    // find the track extent in 3D
-    FindMatchEndPoints();
+    // Fills the PFParticle info in matchVec. Each entry contains a list of trajectories and has a defined
+    // start and end XYZ position, possibly with the index of a 3D vertex. 
     
     unsigned short ip = 0;
     for(auto& im : tjs.matchVecPFPList) {
-      auto& mv = tjs.matchVec[im];
-      // mv contains a list of tjs that were matched in 3D. The SeedHit and sXYZ array were defined by the
-      // first set of matched hits. eXYZ is the position of the last match. Keep it simple and declare the
-      // true start of the PFParticle will be at the end that has a 3D vertex match.
-      // First check the PDG code
-      unsigned short pdgc = 0;
-      for(auto& tjID : mv.TjIDs) {
+      auto& ms = tjs.matchVec[im];
+      // ms contains a list of tjs that were matched in 3D. 
+      // Define the PDG code; track-like or shower-like
+      unsigned short n13 = 0;
+      unsigned short n11 = 0;
+      for(auto& tjID : ms.TjIDs) {
         unsigned short itj = tjID - 1;
-        if(tjs.allTraj[itj].PDGCode == 13) pdgc = 13;
-        if(pdgc == 0 && tjs.allTraj[itj].PDGCode == 11) pdgc = 11;
+        if(tjs.allTraj[itj].PDGCode == 13) ++n13;
+        if(tjs.allTraj[itj].PDGCode == 11) ++n11;
       } // tjID
-      mv.PDGCode = pdgc;
-      // Assume it is a parent for now
-      mv.Parent = ip;
+      // assume it is track-like
+      ms.PDGCode = 13;
+      if(n13 == 0 && n11 > 0) ms.PDGCode = 11;
+      // Assume it is a parent and there are no daughters for now
+      ms.Parent = ip;
       ++ip;
-      // vtxIndex0 points to a 3D vertex at end0 = the end with the SeedHit
-      short vtx3Index0 = SHRT_MAX;
-      // vtxIndex1 points to the other end
-      short vtx3Index1 = SHRT_MAX;
-//      if(prt)  mf::LogVerbatim("TC")<<"im "<<im<<" Count "<<mv.Count;
-      std::vector<unsigned short> vtx2Index, vtx2IndCnt;
-      float mcsmom = 0;
-      float nptsum = 0;
-      for(auto& tjID : mv.TjIDs) {
-        unsigned short itj = tjID - 1;
-        if(itj > tjs.allTraj.size() - 1) {
-          std::cout<<"FillPFPInfo: Invalid tjID "<<tjID<<"\n";
-          continue;
-        }
-        // Try to use MCSMom to decide on the mother - daughter. Sum to find the average
-        float npwc = NumPtsWithCharge(tjs, tjs.allTraj[itj], false);
-        mcsmom += npwc * tjs.allTraj[itj].MCSMom;
-        nptsum += npwc;
-        Trajectory& tj = tjs.allTraj[itj];
-        if(tj.VtxID[0] > 0) {
-          unsigned short ivx = tj.VtxID[0] - 1;
-//          if(prt)  mf::LogVerbatim("TC")<<" tj.ID "<<tj.ID<<" end0 vtx ID "<<tjs.vtx[ivx].ID<<" Ptr3D "<<tjs.vtx[ivx].Ptr3D;
-          if(tjs.vtx[ivx].Ptr3D != SHRT_MAX) {
-            vtx3Index0 = tjs.vtx[ivx].Ptr3D;
-          } // tjs.vtx.[ivx].Ptr3D != SHRT_MAX
-          // Count the number of times this 2D vertex is used.
-          unsigned short indx;
-          for(indx = 0; indx < vtx2Index.size(); ++indx) if(ivx == vtx2Index[indx]) break;
-          if(indx == vtx2Index.size()) {
-            // not found so add it
-            vtx2Index.push_back(ivx);
-            vtx2IndCnt.push_back(1);
-          } else {
-            ++vtx2IndCnt[indx];
-          }
-        } // tj.VtxID[0] >= 0
-        if(tj.VtxID[1] > 0) {
-          unsigned short ivx = tj.VtxID[1] - 1;
-//          if(prt)  mf::LogVerbatim("TC")<<" tj.ID "<<tj.ID<<" end1 vtx ID "<<tjs.vtx[ivx].ID<<" Ptr3D "<<tjs.vtx[ivx].Ptr3D;
-          if(tjs.vtx[ivx].Ptr3D != SHRT_MAX) {
-            vtx3Index1 = tjs.vtx[ivx].Ptr3D;
-          } // tjs.vtx.[ivx].Ptr3D != SHRT_MAX
-        } // tj.VtxID[0] >= 0
-
-      } // tjID
-      
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"FillPFPInfo";
-        for(unsigned short ii = 0; ii < mv.TjIDs.size(); ++ii) {
-          unsigned short itj = mv.TjIDs[ii] - 1;
-          Trajectory& tj = tjs.allTraj[itj];
-          myprt<<" "<<mv.TjIDs[ii]<<" Pos "<<PrintPos(tjs, tj.Pts[tj.EndPt[0]]);
-        }
-        myprt<<" SeedHits ";
-        for(unsigned short ii = 0; ii < mv.sSeedHit.size(); ++ii) {
-          unsigned int iht = mv.sSeedHit[ii];
-          myprt<<" "<<PrintHit(tjs.fHits[iht]);
-          iht = mv.eSeedHit[ii];
-          myprt<<"-"<<PrintHit(tjs.fHits[iht]);
-        }
-        myprt<<" XX "<<mv.sXYZ[0]<<" "<<mv.eXYZ[0];
-      } // prt
-      mv.MCSMom = (short)(mcsmom / nptsum);
-      // We looked at all trajectories in the 3D match. Trajectories have been reversed so that the hit order is consistent. The
+      // Trajectories have been reversed so that the Tj and hit order are consistent. The
       // next step is to decide whether the start of the PFParticle (where the 3D vertex association will be made) is indeed the
       // start of the trajectory from a physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc.
-      // Hand this decision to a utility routine.
-      if(Reverse3DMatchTjs(tjs, im)) {
+      // Make this decision in a utility function.
+      if(Reverse3DMatchTjs(tjs, im, prt)) {
         // All of the trajectories should be reversed
-        for(auto& tjID : mv.TjIDs) {
+        for(auto& tjID : ms.TjIDs) {
           unsigned short itj = tjID - 1;
           ReverseTraj(tjs, tjs.allTraj[itj]);
         } // tjID
         if(prt)  mf::LogVerbatim("TC")<<" Reversed all Tjs using advice from Reverse3DMatchTjs";
         // swap the matchVec end info also
-        for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) std::swap(mv.sSeedHit[ipl], mv.eSeedHit[ipl]);
-        for(unsigned short i3 = 0; i3 < 3; ++i3) std::swap(mv.sXYZ[i3], mv.eXYZ[i3]);
-        std::swap(vtx3Index0, vtx3Index1);
+        std::swap(ms.sXYZ, ms.eXYZ);
+        std::swap(ms.sVtx3DIndex, ms.eVtx3DIndex);
       } // Reverse3DMatchTjs
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"im "<<im<<" vtx3Index0 "<<vtx3Index0<<" "<<vtx3Index1<<" ave MCSMom "<<mv.MCSMom;
-      } // prt
-      if(vtx3Index0 == SHRT_MAX) {
-        // There is no 3D vertex so we need to make one. The trajectory has been reversed as necessary so that
-        // the vertex should be made at the sSeedHit end
-        // Figure out what Cryostat and TPC we are in
-        unsigned short itj = mv.TjIDs[0] - 1;
+      // we may need to clobber 2D vertices so start a list and count them
+      std::vector<unsigned short> vtxIDs, vtxIDCnt;
+      for(auto& tjID : ms.TjIDs) {
+        unsigned short itj = tjID - 1;
+        Trajectory& tj = tjs.allTraj[itj];
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(tj.VtxID[end] > 0) {
+            // Count the number of times this 2D vertex is used.
+            unsigned short indx;
+            for(indx = 0; indx < vtxIDs.size(); ++indx) if(tj.VtxID[end] == vtxIDs[indx]) break;
+            if(indx == vtxIDs.size()) {
+              // not found so add it
+              vtxIDs.push_back(tj.VtxID[end]);
+              vtxIDCnt.push_back(1);
+            } else {
+              ++vtxIDCnt[indx];
+            }
+          } // 2D vertex exists
+        } // end
+      } // tjID
+      // clobber any 2D vertices that exist between trajectories in the match list
+      for(unsigned short ii = 0; ii < vtxIDs.size(); ++ii) {
+        if(vtxIDCnt[ii] > 1) MakeVertexObsolete(tjs, vtxIDs[ii]);
+      } // ii
+      // Make a 3D vertex at the start of the PFParticle if one doesn't already exist
+      if(ms.sVtx3DIndex == USHRT_MAX) {
+        // get a reference to one of the Tjs to define the cryostat and TPC
+        unsigned short itj = ms.TjIDs[0] - 1;
         geo::PlaneID planeID = DecodeCTP(tjs.allTraj[itj].CTP);
         Vtx3Store newVx3;
         newVx3.CStat = planeID.Cryostat;
         newVx3.TPC = planeID.TPC;
-        // Set Wire < 0 as a flag that this is a "complete" 3D vertex even though no 2D vertices have been made. This
-        // could be done but it is hopefully not necessary at this point
+        // Set Wire < 0 as a flag that this is a "complete" 3D vertex even though no 2D vertices have been made.
         newVx3.Wire = -1;
-        // Note that this isn't necessarily the 3D position of the actual start of the track but the first point in space
-        // where there are matched hits in all planes in the TPC
-        newVx3.X = mv.sXYZ[0];
-        newVx3.Y = mv.sXYZ[1];
-        newVx3.Z = mv.sXYZ[2];
+        newVx3.X = ms.sXYZ[0];
+        newVx3.Y = ms.sXYZ[1];
+        newVx3.Z = ms.sXYZ[2];
         tjs.vtx3.push_back(newVx3);
-        mv.Vtx3DIndex = tjs.vtx3.size() - 1;
-        if(prt) mf::LogVerbatim("TC")<<" Made 3D vertex "<<tjs.vtx3.size() - 1;
-      } else {
-        // a 3D vertex exists
-        mv.Vtx3DIndex = vtx3Index0;
+        ms.sVtx3DIndex = tjs.vtx3.size() - 1;
+        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<tjs.vtx3.size() - 1;
       }
-      // clobber any 2D vertices that exist between trajectories in the match list
-      // TODO: These were probably formed because a 2D kink was found in one view so this might not be a good idea
-      for(unsigned short ii = 0; ii < vtx2Index.size(); ++ii) {
-        if(vtx2IndCnt[ii] > 1) {
-          std::cout<<"FillPFPInfo: Need to clobber 2D vertex "<<vtx2Index[ii]<<"\n";
-        }
-      } // ii
-    } // ii (im)
+    } // im (ms)
+
   } // FillPFPInfo
 
   //////////////////////////////////////////
@@ -4882,6 +4723,8 @@ namespace tca {
           tj.Pts[lastPt].Pos[0] = onWire;
           tj.Pts[lastPt].Pos[1] += dw * tj.Pts[lastPt].Dir[1] / tj.Pts[lastPt].Dir[0];
         }
+        // check the MCSMom after we going
+        if(tj.Pts.size() > 20 && tj.Pass < fMinMCSMom.size() && tj.MCSMom < fMinMCSMom[tj.Pass]) break;
         // copy to the local trajectory point
         ltp.Pos = tj.Pts[lastPt].Pos;
         ltp.Dir = tj.Pts[lastPt].Dir;
@@ -7122,6 +6965,7 @@ namespace tca {
       auto tHits = PutTrajHitsInVector(tj, kUsedHits);
       if(tHits.empty()) {
         mf::LogWarning("TC")<<"MakeAllTrajClusters: No hits found in trajectory "<<itj<<" so skip it";
+        PrintTrajectory("MATC", tjs, tj, USHRT_MAX);
         continue;
       } // error
       // count AlgMod bits

@@ -294,7 +294,7 @@ namespace cluster {
       for(auto& icl : ms.ClusterIndices) {
         if(icl > Clusters.size() - 1) std::cout<<"TC module: Bad cluster index "<<icl<<" size "<<Clusters.size()<<"\n";
       } // icl
-      if(ms.Vtx3DIndex > Vertices.size() - 1) std::cout<<"TC module: Bad Vtx3DIndex = "<<ms.Vtx3DIndex<<" size "<<Vertices.size()<<"\n";
+      if(ms.sVtx3DIndex > Vertices.size() - 1) std::cout<<"TC module: Bad Vtx3DIndex = "<<ms.sVtx3DIndex<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
       if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, ms.ClusterIndices.begin(), ms.ClusterIndices.end()))
@@ -307,7 +307,7 @@ namespace cluster {
       unsigned short vtxIndex = 0;
       for(unsigned short iv = 0; iv < Vertices.size(); ++iv) {
         if(Vertices[iv].Wire >= 0) continue;
-        if(ms.Vtx3DIndex == iv) {
+        if(ms.sVtx3DIndex == iv) {
           vtmp[0] = vtxIndex;
           if(!util::CreateAssn(*this, evt, *pv_assn, spcol.size()-1, vtmp.begin(), vtmp.end())) 
           {
