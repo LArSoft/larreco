@@ -202,7 +202,7 @@ public:
 	pma::Node3D* LastElement(void) const { return fNodes.back(); }
 
 	void AddNode(pma::Node3D* node);
-	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo) { AddNode(new pma::Node3D(p3d, tpc, cryo)); }
+	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo) { AddNode(new pma::Node3D(p3d, tpc, cryo, false, fXShift)); }
 	bool AddNode(void);
 
 	void InsertNode(

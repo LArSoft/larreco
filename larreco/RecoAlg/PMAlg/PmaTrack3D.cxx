@@ -66,7 +66,7 @@ pma::Track3D::Track3D(const Track3D& src) :
 	}
 
 	fNodes.reserve(src.fNodes.size());
-	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo(), node->IsVertex()));
+	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo(), node->IsVertex(), node->GetXShift()));
 
 	for (auto const& point : src.fAssignedPoints) fAssignedPoints.push_back(new TVector3(*point));
 
@@ -1167,7 +1167,7 @@ bool pma::Track3D::AddNode(void)
 		unsigned int tpc = maxSeg->Hit(i0).TPC();
 		unsigned int cryo = maxSeg->Hit(i0).Cryo();
 
-		pma::Node3D* p = new pma::Node3D((maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5, tpc, cryo);
+		pma::Node3D* p = new pma::Node3D((maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5, tpc, cryo, false, fXShift);
 
 		//mf::LogVerbatim("pma::Track3D") << "add node x:" << p->Point3D().X()
 		//	<< " y:" << p->Point3D().Y() << " z:" << p->Point3D().Z();
@@ -1188,7 +1188,7 @@ void pma::Track3D::InsertNode(
 	unsigned int tpc, unsigned int cryo)
 {
 	//std::cout << " insert after " << at_idx << " in " << fNodes.size() << std::endl;
-	pma::Node3D* vtx = new pma::Node3D(p3d, tpc, cryo);
+	pma::Node3D* vtx = new pma::Node3D(p3d, tpc, cryo, false, fXShift);
 	fNodes.insert(fNodes.begin() + at_idx, vtx);
 	//std::cout << " inserted " << std::endl;
 
@@ -1217,6 +1217,8 @@ pma::Track3D* pma::Track3D::Split(size_t idx)
 
 	pma::Node3D* n = 0;
 	pma::Track3D* t0 = new pma::Track3D();
+	t0->fXShift = fXShift;
+
 	for (size_t i = 0; i < idx; ++i)
 	{
 		n = fNodes.front();
@@ -1238,7 +1240,7 @@ pma::Track3D* pma::Track3D::Split(size_t idx)
 	}
 
 	n = fNodes.front();
-	t0->fNodes.push_back(new pma::Node3D(n->Point3D(), n->TPC(), n->Cryo()));
+	t0->fNodes.push_back(new pma::Node3D(n->Point3D(), n->TPC(), n->Cryo(), false, fXShift));
 	t0->RebuildSegments();
 	RebuildSegments();
 
@@ -2099,6 +2101,8 @@ void pma::Track3D::ApplyXShiftInTree(double dx, bool skipFirst)
 
 	while (node)
 	{
+	    node->ApplyXShift(dx);
+
 		segThis = NextSegment(node);
 		for (size_t i = 0; i < node->NextCount(); i++)
 		{
