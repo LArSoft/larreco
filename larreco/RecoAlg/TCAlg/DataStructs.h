@@ -176,9 +176,10 @@ namespace tca {
   
   // A temporary structure that defines a 2D shower-like cluster
   struct ShowerStruct {
-    unsigned short ShowerTjID {USHRT_MAX};
+    unsigned short ShowerTjID {USHRT_MAX};      // ID of the Trajectory composed of many shower Tjs
     std::vector<unsigned short> TjIDs;
     std::vector<std::array<float, 2>> Envelope;  // Vertices of a polygon that encompasses the shower
+    unsigned short ParentTjID {USHRT_MAX};      // ID of the shower Tj parent
   };
 
   // Algorithm modification bits
@@ -216,7 +217,7 @@ namespace tca {
     kFTBRevProp,
     kStopAtTj,
     kMatch3D,
-    kShowerTag,
+    kShowerParent,
     kShowerTj,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
