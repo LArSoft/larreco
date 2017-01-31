@@ -35,7 +35,7 @@ namespace tca {
     "FTBRevProp",
     "StopAtTj",
     "Match3D",
-    "ShowerTag",
+    "ShowerParent",
     "ShowerTj"
   };
 
