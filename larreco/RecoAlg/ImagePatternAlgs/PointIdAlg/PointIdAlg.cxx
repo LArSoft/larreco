@@ -21,6 +21,8 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include <sys/stat.h>
+
 nnet::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fCryo(9999), fTPC(9999), fView(9999),
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0),
@@ -313,8 +315,13 @@ std::string nnet::ModelInterface::findFile(const char* fileName) const
     cet::search_path sp("FW_SEARCH_PATH");
     if (!sp.find_file(fileName, fname_out))
     {
-        throw art::Exception(art::errors::NotFound)
-            << "Could not find the model file " << fileName;
+        struct stat buffer;
+        if (stat(fileName, &buffer) == 0) { fname_out = fileName; }
+        else
+        {
+            throw art::Exception(art::errors::NotFound)
+                << "Could not find the model file " << fileName;
+        }
     }
     return fname_out;
 }

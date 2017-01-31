@@ -9,7 +9,7 @@
 
 #include "TrackCalorimetryAlg.h"
 
-#include "lardata/RecoBaseArt/TrackUtils.h" // lar::util::TrackPitchInView()
+#include "lardata/ArtDataHelper/TrackUtils.h" // lar::util::TrackPitchInView()
 
 #include <limits>
 
