@@ -37,7 +37,7 @@ extern "C" {
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
-#include "lardata/RecoBaseArt/TrackUtils.h" // lar::util::TrackPitchInView()
+#include "lardata/ArtDataHelper/TrackUtils.h" // lar::util::TrackPitchInView()
 #include "larcore/Geometry/PlaneGeo.h"
 #include "larcore/Geometry/WireGeo.h"
 
