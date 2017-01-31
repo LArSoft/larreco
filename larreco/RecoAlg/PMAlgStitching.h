@@ -41,12 +41,15 @@ public:
   // Destructor
   ~PMAlgStitching();
 
-  // Main function of the algorithm
-  void StitchTracks();
+  // CPA and APA stitching wrappers
+  void StitchTracksCPA();
+  void StitchTracksAPA();
 
 private: 
-  void GetBestPosAndDir(TVector3 &pos1, TVector3 &dir1, TVector3 &pos2, TVector3 &dir2, TVector3 &bestPos, TVector3 &bestDir, double offset, bool& isFront);
-  double GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double mergePointX);
+  // Main function of the algorithm
+  void StitchTracks(bool isCPA);
+  
+  double GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2);
 
   void GetTPCXOffsets();
   double GetTPCOffset(unsigned int tpc, unsigned int cryo, bool isCPA);

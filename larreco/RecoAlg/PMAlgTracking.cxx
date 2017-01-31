@@ -933,9 +933,13 @@ void pma::PMAlgTracker::matchCoLinearAnyT0(void)
 {
 
   // Can we try using Leigh's stitcher?
+  std::cout << "Running Leigh's new stitcher" << std::endl;
   pma::PMAlgStitching stitcher(fResult);
-  stitcher.StitchTracks();
+  stitcher.StitchTracksCPA();
+//  stitcher.StitchTracksAPA();
+  std::cout << "Done" << std::endl;
 
+/*
 	double distProjThr = fStitchTransverseShift;
 	double cosThr = cos(TMath::Pi() * fStitchAngle / 180.0);
 	double xApaDistDiffThr = 10.0;
@@ -1085,6 +1089,7 @@ void pma::PMAlgTracker::matchCoLinearAnyT0(void)
 			}
 		}
 	}
+*/
 }
 // ------------------------------------------------------
 
