@@ -3730,8 +3730,6 @@ namespace tca {
       xx[iht] = detprop->ConvertTicksToX(hit.PeakTime, hit.WireID.Plane, hit.WireID.TPC, hit.WireID.Cryostat);
     } // iht
     
-    tjs.matchVec.clear();
-    
     if(tjs.NumPlanes != 3) {
       Match3D2Views(tpcid, xx);
       Find3DEndPoints(tpcid);
