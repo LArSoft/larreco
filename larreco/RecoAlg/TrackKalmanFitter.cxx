@@ -73,8 +73,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   //setup the KFitTrack we'll use throughout the fit, it's initial status in INVALID
   trkf::KFitTrack trf = trkf::KFitTrack(tre, 0., 0., trkf::KFitTrack::INVALID);
 
-  // std::cout << "INITIAL TRACK" << std::endl;
-  // std::cout << trf.Print(std::cout) << std::endl;
+  std::cout << "INITIAL TRACK" << std::endl;
+  std::cout << trf.Print(std::cout) << std::endl;
   
   //figure out if hit vector is sorted along or opposite to track direction (ideally the track should be aware of it...)
   trkf::KFitTrack trfVtxF = trkf::KFitTrack(trf, 0., 0.);
@@ -167,8 +167,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	fwdPrdTracks.push_back(trf);
 	khit.update(trf);
 	trf.setStat(trkf::KFitTrack::FORWARD);
-	//std::cout << "UPDATED FWD TRACK" << std::endl;
-	//std::cout << trf.Print(std::cout) << std::endl;
+	std::cout << "UPDATED FWD TRACK" << std::endl;
+	std::cout << trf.Print(std::cout) << std::endl;
 	//store this track for the backward fit+smooth
 	const std::shared_ptr< const KHitBase > strp(new trkf::KHitWireX(khit));
 	trkf::KHitTrack khitTrack(trf, strp);
@@ -227,6 +227,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     } //for (auto khit : hitsv)
   }
 
+  std::cout << "TRACK AFTER FWD" << std::endl;
+  std::cout << trf.Print(std::cout) << std::endl;
+
   //reinitialize trf for backward fit, scale the error to avoid biasing the backward fit
   trf.setError(100.*trf.getError());
   trf.setStat(trkf::KFitTrack::BACKWARD_PREDICTED);
@@ -262,6 +265,10 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       //now update the backward fitted track
       khit.update(trf);
       trf.setStat(trkf::KFitTrack::BACKWARD);
+      std::cout << "UPDATED BWD TRACK" << std::endl;
+      std::cout << trf.Print(std::cout) << std::endl;
+      std::cout << "COMBINED TRACK" << std::endl;
+      std::cout << fwdUpdTrack.Print(std::cout) << std::endl;
     } else {
       mf::LogWarning("TrackKalmanFitter") << "WARNING invalid predicted surface";
     }
@@ -271,6 +278,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     }
   }//for (auto fwdUpdTrackIt = fwdUpdTracks.rbegin(); fwdUpdTrackIt != fwdUpdTracks.rend(); ++fwdUpdTrackIt) {
 
+  std::cout << "TRACK AFTER BWD" << std::endl;
+  std::cout << trf.Print(std::cout) << std::endl;
+  
   if (fwdUpdTracks.size()<2) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
     return false;
