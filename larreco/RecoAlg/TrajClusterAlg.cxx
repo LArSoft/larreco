@@ -8259,7 +8259,7 @@ namespace tca {
       unsigned short lastHiTP = USHRT_MAX;
       while (tp != tj.EndPt[1-end]){
         float ptchg = TpSumHitChg(tjs, tj.Pts[tp]);
-        //if (prt) mf::LogVerbatim("TC")<<"SplitHiChgHits "<<tp<<" "<<ptchg;
+        //if (prt) mf::LogVerbatim("TC")<<"SplitHiChgHits "<<tp<<" "<<ptchg<<" "<<PrintPos(tjs, tj.Pts[tp]);
         if (ptchg){
           if (tp == tj.EndPt[end]){
             hichg = ptchg;
