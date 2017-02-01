@@ -55,7 +55,7 @@
 #include "lardataobj/AnalysisBase/T0.h" 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
-//#include "lardata/Utilities/PtrMaker.h"
+#include "lardata/Utilities/PtrMaker.h"
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgTracking.h"
@@ -270,8 +270,11 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		double sp_pos[3], sp_err[6];
 		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
 
-		//auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
-		//auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
+        auto const make_pfpptr = lar::PtrMaker<recob::PFParticle>(evt, *this);
+		auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
+		auto const make_vtxptr = lar::PtrMaker<recob::Vertex>(evt, *this);
+		auto const make_kinkptr = lar::PtrMaker<recob::Vertex>(evt, *this, kKinksName);
+		auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
 
 		tracks->reserve(result.size());
 		for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex)
@@ -286,7 +289,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			tracks->push_back(pma::convertFrom(*trk, trkIndex));
 
-			//auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
+			auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
 
 			double xShift = trk->GetXShift();
 			if (xShift > 0.0)
@@ -297,14 +300,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				// TriggBits=3 means from 3d reco (0,1,2 mean something else)
 				t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
 
-				util::CreateAssn(*this, evt, *tracks, *t0s, *trk2t0, t0s->size() - 1, t0s->size());
-				//auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
-				//trk2t0->addSingle(trkPtr, t0Ptr);
+				auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
+				trk2t0->addSingle(trkPtr, t0Ptr);
 			}
-
-			size_t trkIdx = tracks->size() - 1; // stuff for assns:
-			art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
-			art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
 
 			// which idx from start, except disabled, really....
 			unsigned int hIdxs[trk->size()];
@@ -351,14 +349,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			if (spEnd > spStart) util::CreateAssn(*this, evt, *tracks, *allsp, *trk2sp, spStart, spEnd);
 		}
 
-		auto pfpid = getProductID< std::vector<recob::PFParticle> >(evt);
-		auto vid = getProductID< std::vector<recob::Vertex> >(evt);
-		auto kid = getProductID< std::vector<recob::Vertex> >(evt, kKinksName);
-		auto const* kinkGetter = evt.productGetter(kid);
-
-		auto tid = getProductID< std::vector<recob::Track> >(evt);
-		auto const* trkGetter = evt.productGetter(tid);
-
 		auto vsel = pmalgTracker.getVertices(fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
 		auto ksel = pmalgTracker.getKinks(); // pairs of kink position - associated track idx 
 		std::map< size_t, art::Ptr<recob::Vertex> > frontVtxs; // front vertex ptr for each track index
@@ -376,8 +366,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				size_t vidx = vtxs->size();
 				vtxs->push_back(recob::Vertex(xyz, vidx));
 
-				art::Ptr<recob::Vertex> vptr(vid, vidx, evt.productGetter(vid));
-				if (vptr.isNull()) mf::LogWarning("PMAlgTrackMaker") << "Vertex ptr is null.";
+                auto const vptr = make_vtxptr(vidx);
 				if (!v.second.empty())
 				{
 					for (const auto & vEntry : v.second)
@@ -387,7 +376,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 						if (isFront) frontVtxs[tidx] = vptr; // keep ptr of the front vtx
 
-						art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
+						auto const tptr = make_trkptr(tidx);
 						vtx2trk->addSingle(vptr, tptr);
 					}
 				}
@@ -405,8 +394,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				kinks->push_back(recob::Vertex(xyz, tidx)); // save index of track (will have color of trk in evd)
 
-				art::Ptr<recob::Track> tptr(tid, tidx, trkGetter);
-				art::Ptr<recob::Vertex> kptr(kid, kidx, kinkGetter);
+				auto const tptr = make_trkptr(tidx);
+				auto const kptr = make_kinkptr(kidx);
 				trk2kink->addSingle(tptr, kptr);
 			}
 			mf::LogVerbatim("Summary") << ksel.size() << " kinks ready";
@@ -437,8 +426,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			size_t pfpidx = pfps->size();
 			pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
 
-			art::Ptr<recob::PFParticle> pfpptr(pfpid, pfpidx, evt.productGetter(pfpid));
-			art::Ptr<recob::Track> tptr(tid, t, trkGetter);
+			auto const pfpptr = make_pfpptr(pfpidx);
+			auto const tptr = make_trkptr(t);
 			pfp2trk->addSingle(pfpptr, tptr);
 
 			// add assns to FRONT vertex of each particle
@@ -463,7 +452,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			// add assns to END vertex of primary
 			if (fPmaTrackerConfig.RunVertexing() && !daughterIdxs.empty())
 			{
-			    art::Ptr<recob::PFParticle> pfpptr(pfpid, pfpidx, evt.productGetter(pfpid));
+			    auto const pfpptr = make_pfpptr(pfpidx);
 				art::Ptr<recob::Vertex> vptr = frontVtxs[daughterIdxs.front()]; // same vertex for all daughters
 				if (!vptr.isNull()) pfp2vtx->addSingle(pfpptr, vptr);
 				else mf::LogWarning("PMAlgTrackMaker") << "Front vertex for PFParticle is missing.";
