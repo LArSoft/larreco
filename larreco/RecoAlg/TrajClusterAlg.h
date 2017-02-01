@@ -230,7 +230,6 @@ namespace tca {
     
     std::vector<unsigned int> fAlgModCount;
     
-//    void WatchHit(std::string someText, int wid);
 //    short watchInTraj;
     // runs the TrajCluster algorithm on one plane specified by the calling routine
     void RunStepCrawl();
@@ -309,6 +308,7 @@ namespace tca {
     bool MaskedHitsOK(Trajectory& tj);
     // Any re-sizing should have been done by the calling routine. This code updates the Pass and adjusts the number of
     // fitted points to get FitCHi < 2
+    bool StopIfBadFits(Trajectory& tj);
     void PrepareForNextPass(Trajectory& tj);
     // Fit the supplied trajectory using HitPos positions with the origin at originPt.
     void FitTraj(Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
