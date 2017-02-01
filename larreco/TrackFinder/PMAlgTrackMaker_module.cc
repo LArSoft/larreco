@@ -323,7 +323,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
 				trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 
-				double hx = h3d->Point3D().X() + xShift;
+				double hx = h3d->Point3D().X(); // + xShift; // now done inside track
 				double hy = h3d->Point3D().Y();
 				double hz = h3d->Point3D().Z();
 
