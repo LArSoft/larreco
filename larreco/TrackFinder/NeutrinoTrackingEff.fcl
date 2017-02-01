@@ -1,7 +1,7 @@
 #include "services_dune.fcl"
 #include "trackfindermodules.fcl"
 
-process_name: MuonTrackingEff 
+process_name: NeutrinoTrackingEff 
 
 services:
 {
