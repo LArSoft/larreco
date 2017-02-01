@@ -979,10 +979,9 @@ namespace tca {
       SetEndPoints(tjs, tj);
     }
     
-    if(prt) {
-      mf::LogVerbatim("TC")<<"ReversePropagate: Prepping Tj "<<tj.ID;
-//      PrintTrajectory("RPi", tjs, tj, USHRT_MAX);
-    }
+    if(prt) mf::LogVerbatim("TC")<<"ReversePropagate: Prepping Tj "<<tj.ID<<" incoming StepDir "<<tj.StepDir;
+    
+    short stepDir = tj.StepDir;
 
     // find the wire on which EndPt resides
     unsigned int wire0 = std::nearbyint(tj.Pts[0].Pos[0]);
@@ -1040,13 +1039,10 @@ namespace tca {
       return;
     }
     // restore the original direction
-    ReverseTraj(tjs, tjWork);
+    if(tjWork.StepDir != stepDir) ReverseTraj(tjs, tjWork);
     tj = tjWork;
     tj.StopFlag[0][kRvPrp] = true;
-    if(prt) {
-      mf::LogVerbatim("TC")<<" ReversePropagate success";
-//      PrintTrajectory("RPo", tjs, tj, USHRT_MAX);
-    }
+    if(prt) mf::LogVerbatim("TC")<<" ReversePropagate success. Outgoing StepDir "<<tj.StepDir;
 
   } // ReversePropagate
   
@@ -2523,13 +2519,8 @@ namespace tca {
         if(mrgPrt) mf::LogVerbatim("TC")<<" EM2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2)<<" bestFOM "<<bestFOM<<" bestDOCA "<<bestDOCA<<" docaCut "<<docaCut<<" isVLA? "<<isVLA<<" dang "<<dang<<" dangCut "<<dangCut<<" chgPull "<<chgPull<<" doMerge? "<<doMerge<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" signalBetween? "<<signalBetween;
 
         if(doMerge) {
-          if(mrgPrt) {
-            mf::LogVerbatim("TC")<<"  Merge ";
-//            PrintTrajectory("EM", tjs, tjs.allTraj[it1], USHRT_MAX);
-//            PrintTrajectory("EM", tjs, tjs.allTraj[it2], USHRT_MAX);
-          }
-          if(fQuitAlg) return;
-          bool didMerge;
+          if(mrgPrt) mf::LogVerbatim("TC")<<"  Merge ";
+          bool didMerge = false;
           if(end1 == 1) {
             didMerge = MergeAndStore(it1, it2);
           } else {
@@ -2553,40 +2544,50 @@ namespace tca {
         } else {
           // create a vertex instead if it passes the vertex cuts
           // assume that both are long
-          float sepCut = fVertex2DCuts[2];
-          bool tj1Short = (tjs.allTraj[it1].EndPt[1] - tjs.allTraj[it1].EndPt[0] < maxShortTjLen);
-          bool tj2Short = (tjs.allTraj[it2].EndPt[1] - tjs.allTraj[it2].EndPt[0] < maxShortTjLen);
-          if(tj1Short || tj2Short) sepCut = fVertex2DCuts[1];
-          float wint, tint;
-          TrajIntersection(tp1, tp2, wint, tint);
-          float dw = wint - tp1.Pos[0];
-          if(std::abs(dw) > sepCut) continue;
-          float dt = tint - tp1.Pos[1];
-          if(std::abs(dt) > sepCut) continue;
-          dw = wint - tp2.Pos[0];
-          if(std::abs(dw) > sepCut) continue;
-          dt = tint - tp2.Pos[1];
-          if(std::abs(dt) > sepCut) continue;
-          
-          // ensure that the vertex is not closer to the other end if the tj is short
-          if(tj1Short) {
-            TrajPoint otp1 = tjs.allTraj[it1].Pts[tjs.allTraj[it1].EndPt[1-end1]];
-            std::array<float, 2> vpos;
-            vpos[0] = wint; vpos[1] = tint;
-            if(PosSep2(otp1.Pos, vpos) < PosSep2(tp1.Pos, vpos)) continue;
-          }
-          if(tj2Short) {
-            TrajPoint otp2 = tjs.allTraj[it2].Pts[tjs.allTraj[it2].EndPt[1-end2]];
-            std::array<float, 2> vpos;
-            vpos[0] = wint; vpos[1] = tint;
-            if(PosSep2(otp2.Pos, vpos) < PosSep2(tp2.Pos, vpos)) continue;
-          }
-
           // make a vertex
           VtxStore aVtx;
-          aVtx.Pos[0] = wint;
-          aVtx.Pos[1] = tint;
-          aVtx.NTraj = 0;
+          // keep it simple if tp1 and tp2 are very close
+          if(std::abs(tp1.Pos[0] - tp2.Pos[0]) < 2 && std::abs(tp1.Pos[1] - tp2.Pos[1]) < 2) {
+            aVtx.Pos[0] = 0.5 * (tp1.Pos[0] + tp2.Pos[0]);
+            aVtx.Pos[1] = 0.5 * (tp1.Pos[1] + tp2.Pos[1]);
+          } else {
+            // Tps not so close
+            float sepCut = fVertex2DCuts[2];
+            bool tj1Short = (tjs.allTraj[it1].EndPt[1] - tjs.allTraj[it1].EndPt[0] < maxShortTjLen);
+            bool tj2Short = (tjs.allTraj[it2].EndPt[1] - tjs.allTraj[it2].EndPt[0] < maxShortTjLen);
+            if(tj1Short || tj2Short) sepCut = fVertex2DCuts[1];
+            TrajIntersection(tp1, tp2, aVtx.Pos);
+            float dw = aVtx.Pos[0] - tp1.Pos[0];
+            if(std::abs(dw) > sepCut) continue;
+            float dt = aVtx.Pos[1] - tp1.Pos[1];
+            if(std::abs(dt) > sepCut) continue;
+            dw = aVtx.Pos[0] - tp2.Pos[0];
+            if(std::abs(dw) > sepCut) continue;
+            dt = aVtx.Pos[1] - tp2.Pos[1];
+            if(std::abs(dt) > sepCut) continue;
+            // ensure that the vertex is not closer to the other end if the tj is short
+            if(tj1Short) {
+              TrajPoint otp1 = tjs.allTraj[it1].Pts[tjs.allTraj[it1].EndPt[1-end1]];
+              if(PosSep2(otp1.Pos, aVtx.Pos) < PosSep2(tp1.Pos, aVtx.Pos)) continue;
+            }
+            if(tj2Short) {
+              TrajPoint otp2 = tjs.allTraj[it2].Pts[tjs.allTraj[it2].EndPt[1-end2]];
+              if(PosSep2(otp2.Pos, aVtx.Pos) < PosSep2(tp2.Pos, aVtx.Pos)) continue;
+            }
+            // we expect the vertex to be between tp1 and tp2
+            if(aVtx.Pos[0] < tp1.Pos[0] && aVtx.Pos[0] < tp2.Pos[0]) {
+              aVtx.Pos[0] = std::min(tp1.Pos[0], tp2.Pos[0]);
+              aVtx.Stat[kFixed] = true;
+            }
+            if(aVtx.Pos[0] > tp1.Pos[0] && aVtx.Pos[0] > tp2.Pos[0]) {
+              aVtx.Pos[0] = std::max(tp1.Pos[0], tp2.Pos[0]);
+              aVtx.Stat[kFixed] = true;
+            }
+          } // Tps not so close
+
+          aVtx.PosErr[0] = std::abs(tp1.Pos[0] - aVtx.Pos[0]);
+          aVtx.PosErr[1] = std::abs(tp1.Pos[1] - aVtx.Pos[1]);
+          aVtx.NTraj = 2;
           aVtx.Pass = tjs.allTraj[it1].Pass;
           aVtx.Topo = end1 + end2;
           aVtx.ChiDOF = 0;
@@ -2598,22 +2599,6 @@ namespace tca {
           tjs.allTraj[it2].VtxID[end2] = newVtxID;
           tjs.allTraj[it2].AlgMod[kEndMerge] = true;
           if(mrgPrt) mf::LogVerbatim("TC")<<"  Make vertex ID "<<newVtxID<<" at "<<(int)aVtx.Pos[0]<<":"<<(int)(aVtx.Pos[1]/tjs.UnitsPerTick);
-          if(!FitVertex(tjs, aVtx, fVertex2DCuts, mrgPrt)) {
-            tjs.allTraj[it1].VtxID[end1] = 0;
-            tjs.allTraj[it1].AlgMod[kEndMerge] = false;
-            tjs.allTraj[it2].VtxID[end2] = 0;
-            tjs.allTraj[it2].AlgMod[kEndMerge] = false;
-            continue;
-          }
-          // we expect the vertex to be between tp1 and tp2
-          if(aVtx.Pos[0] < tp1.Pos[0] && aVtx.Pos[0] < tp2.Pos[0]) {
-            aVtx.Pos[0] = std::min(tp1.Pos[0], tp2.Pos[0]);
-            aVtx.Stat[kFixed] = true;
-          }
-          if(aVtx.Pos[0] > tp1.Pos[0] && aVtx.Pos[0] > tp2.Pos[0]) {
-            aVtx.Pos[0] = std::max(tp1.Pos[0], tp2.Pos[0]);
-            aVtx.Stat[kFixed] = true;
-          }
           tjs.vtx.push_back(aVtx);
         } // create a vertex
         if(tjs.allTraj[it1].AlgMod[kKilled]) break;
@@ -2990,7 +2975,7 @@ namespace tca {
 
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
-      if(tjs.allTraj[it1].AlgMod[kShowerTj]) continue;
+      if(tjs.allTraj[it1].AlgMod[kInShower]) continue;
       if(tjs.allTraj[it1].CTP != fCTP) continue;
       if(tjs.allTraj[it1].PDGCode == 11) continue;
       bool tj1Short = (TrajLength(tjs.allTraj[it1]) < maxShortTjLen);
@@ -3002,7 +2987,7 @@ namespace tca {
         TrajPoint& tp1 = tjs.allTraj[it1].Pts[endPt1];
         for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
           if(tjs.allTraj[it2].AlgMod[kKilled]) continue;
-          if(tjs.allTraj[it2].AlgMod[kShowerTj]) continue;
+          if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
           if(tjs.allTraj[it2].CTP != fCTP) continue;
           if(tjs.allTraj[it2].PDGCode == 11) continue;
           if(tjs.allTraj[it1].MCSMom < fVertex2DCuts[5] && tjs.allTraj[it2].MCSMom < fVertex2DCuts[5]) continue;
@@ -3477,8 +3462,6 @@ namespace tca {
     TVector3 WPos = {0, 0, 0};
     TrajPoint tp;
     // i, j, k indicates 3 different wire planes
-//    unsigned short ii, jpl, jj, kpl, kk, ivx, jvx, kvx, i3t;
-//    float kX, kWire, kChi, dX, dXChi, dXSigma, dW;
     // compare vertices in each view
     for(unsigned short ipl = 0; ipl < 2; ++ipl) {
       for(unsigned short ii = 0; ii < vIndex[ipl].size(); ++ii) {
@@ -3527,7 +3510,7 @@ namespace tca {
               tp.Pos[1] = detprop->ConvertXToTicks(kX, kpl, fTpc, fCstat) * tjs.UnitsPerTick;
               tp.CTP = EncodeCTP(fCstat, fTpc, kpl);
               bool sigOK = SignalAtTp(tjs, tp);
-              if(vtxPrt) mf::LogVerbatim("TC")<<" 3rd plane pos "<<kWire<<" "<<tp.Pos[1]<<" sig present? "<<sigOK;
+//              if(vtxPrt) mf::LogVerbatim("TC")<<" 3rd plane pos "<<kWire<<" "<<tp.Pos[1]<<" sig present? "<<sigOK;
               if(!sigOK) continue;
             }
             kpl = 3 - ipl - jpl;
@@ -3563,7 +3546,6 @@ namespace tca {
             
             if(TPC.Nplanes() == 2) continue;
 
-            // See if the expected position of the vertex in the 3rd view
             // look for a 3 plane match
             for(unsigned short kk = 0; kk < vIndex[kpl].size(); ++kk) {
               unsigned short kvx = vIndex[kpl][kk];
@@ -3600,78 +3582,55 @@ namespace tca {
     
     if(v3temp.empty()) return;
     
+    // We will sort this list by increasing chisq. First add fVertex3DChiCut to chisq for 2-plane matches so that
+    // they are considered after the 3-plane matches
+    for(auto& v3 : v3temp) if(v3.Wire >= 0) v3.XErr += fVertex3DChiCut;
+    
     if(vtxPrt) {
       mf::LogVerbatim("TC")<<"v3temp list";
-      for(auto& v3d : v3temp) {
-        mf::LogVerbatim("TC")<<v3d.Ptr2D[0]<<" "<<v3d.Ptr2D[1]<<" "<<v3d.Ptr2D[2]<<" wire "<<v3d.Wire<<" "<<v3d.XErr;
-      } // v3d
+      for(auto& v3 : v3temp) {
+        mf::LogVerbatim("TC")<<v3.Ptr2D[0]<<" "<<v3.Ptr2D[1]<<" "<<v3.Ptr2D[2]<<" wire "<<v3.Wire<<" "<<v3.XErr;
+      } // v3
     }
+    SortEntry sEntry;
+    std::vector<SortEntry> sortVec(v3temp.size());
+    for(unsigned short ivx = 0; ivx < v3temp.size(); ++ivx) {
+      sEntry.index = ivx;
+      sEntry.length = v3temp[ivx].XErr;
+      sortVec[ivx] = sEntry;
+    } // ivx
+    if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), lessThan);
+    // create a new vector of selected 3D vertices
+    std::vector<Vtx3Store> v3sel;
+    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
+      unsigned short ivx = sortVec[ii].index;
+      // ensure that all 2D vertices are unique
+      bool skipit = false;
+      for(auto& v3 : v3sel) {
+        for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+          if(v3temp[ivx].Ptr2D[ipl] < 0) continue;
+          if(v3temp[ivx].Ptr2D[ipl] == v3.Ptr2D[ipl]) {
+            skipit = true;
+            break;
+          }
+        } // ipl
+        if(skipit) break;
+      } // v3
+      if(skipit) continue;
+      v3sel.push_back(v3temp[ivx]);
+    } // ii
+    v3temp.clear();
     
-    // clobber any 2-plane matches that have 3-plane matches
-    if(TPC.Nplanes() > 2) {
-      for(unsigned short ivx = 0; ivx < v3temp.size() - 1; ++ivx) {
-        for(unsigned short jvx = ivx + 1; jvx < v3temp.size(); ++jvx) {
-          unsigned short nsame = 0;
-          for(unsigned short ipl = 0; ipl < 3; ++ipl) {
-            if(v3temp[ivx].Ptr2D[ipl] == v3temp[jvx].Ptr2D[ipl]) ++nsame;
-          } // ipl
-          if(nsame > 1) {
-            // kill the one that has only a 2 plane match (Wire < 0)
-            if(v3temp[ivx].Wire > 0) v3temp[ivx].XErr = 9999;
-            if(v3temp[jvx].Wire > 0) v3temp[jvx].XErr = 9999;
-          } // nsame > 1
-        } // jvx
-      } // ivx
-    } // TPC.Nplanes() > 2
-    
-    // find the best 3 plane matches
-    if(TPC.Nplanes() > 2) {
-      float best;
-      unsigned short imbest;
-      bool gotone = true;
-      std::vector<Vtx3Store> v3temp2;
-      while(gotone) {
-        gotone = false;
-        best = fVertex3DChiCut;
-        imbest = USHRT_MAX;
-        for(unsigned short ivx = 0; ivx < v3temp.size(); ++ivx) {
-          if(v3temp[ivx].Wire < 0) continue;
-          if(v3temp[ivx].XErr > best) continue;
-          best = v3temp[ivx].XErr;
-          imbest = ivx;
-        } // ivx
-        if(imbest == USHRT_MAX) break;
-        // stash the best one temporarily in a second vector
-        v3temp2.push_back(v3temp[imbest]);
-        // set the XErr large so it isn't checked again
-        v3temp[imbest].XErr = 9999;
-        // look for these trajectory IDs in other vertices (complete or incomplete)
-        for(unsigned short ivx = 0; ivx < v3temp.size(); ++ivx) {
-          if(ivx == imbest) continue;
-          for(ipl = 0; ipl < 3; ++ipl) {
-            if(v3temp[ivx].Ptr2D[ipl] == v3temp[imbest].Ptr2D[ipl]) {
-              v3temp[ivx].XErr = 9999;
-              gotone = true;
-            }
-          } // ipl
-        } // ivx
-      } // gotone
-      // concatenate the two vectors
-      v3temp.insert(v3temp.end(), v3temp2.begin(), v3temp2.end());
-    } // TPC.Nplanes() > 2
-
     if(vtxPrt) {
-      mf::LogVerbatim("TC")<<"v3temp list after";
-      for(auto& v3d : v3temp) {
-        if(v3d.XErr > fVertex3DChiCut) continue;
+      mf::LogVerbatim("TC")<<"v3sel list";
+      for(auto& v3d : v3sel) {
         mf::LogVerbatim("TC")<<v3d.Ptr2D[0]<<" "<<v3d.Ptr2D[1]<<" "<<v3d.Ptr2D[2]<<" wire "<<v3d.Wire<<" "<<v3d.XErr;
       } // v3d
     }
 
-    // Store the vertices
+    // Count the number of incomplete vertices and store
     unsigned short ninc = 0;
-    for(auto& v3d : v3temp) {
-      if(v3d.XErr > fVertex3DChiCut) continue;
+    for(auto& v3d : v3sel) {
       if(TPC.Nplanes() == 2) {
         v3d.Ptr2D[2] = 666;
       } else {
@@ -3766,15 +3725,15 @@ namespace tca {
           // see if this trajectory already has a 3D match
           unsigned short itj = tjs.fHits[iht].InTraj - 1;
           if(tjs.allTraj[itj].AlgMod[kMatch3D]) continue;
-          // don't try to match shower Tjs
-          if(tjs.allTraj[itj].AlgMod[kShowerTj]) continue;
+          // don't try to match Tjs in showers
+          if(tjs.allTraj[itj].AlgMod[kInShower]) continue;
           for(unsigned int jht = jfirsthit; jht < jlasthit; ++jht) {
             if(tjs.fHits[jht].InTraj <= 0) continue;
             // see if this trajectory already has a 3D match
             unsigned short jtj = tjs.fHits[jht].InTraj - 1;
             if(tjs.allTraj[jtj].AlgMod[kMatch3D]) continue;
-            // don't try to match shower Tjs
-            if(tjs.allTraj[jtj].AlgMod[kShowerTj]) continue;
+            // don't try to match Tjs in showers
+            if(tjs.allTraj[jtj].AlgMod[kInShower]) continue;
             if(xx[jht] < xx[iht] - fMatch3DCuts[0]) continue;
             if(xx[jht] > xx[iht] + fMatch3DCuts[0]) break;
             for(unsigned int kht = kfirsthit; kht < klasthit; ++kht) {
@@ -3972,8 +3931,8 @@ namespace tca {
               // see if this trajectory already has a 3D match
               unsigned short itj = tjs.fHits[iht].InTraj - 1;
               if(tjs.allTraj[itj].AlgMod[kMatch3D]) continue;
-              // don't try to match shower Tjs
-              if(tjs.allTraj[itj].AlgMod[kShowerTj]) continue;
+              // don't try to match Tjs in showers
+              if(tjs.allTraj[itj].AlgMod[kInShower]) continue;
               if(tjs.allTraj[itj].Pts.size() < minTjLen) continue;
               for(unsigned int jht = jfirsthit; jht < jlasthit; ++jht) {
                 // Only consider hits that are associated with a trajectory
@@ -3981,8 +3940,8 @@ namespace tca {
                 // see if this trajectory already has a 3D match
                 unsigned short jtj = tjs.fHits[jht].InTraj - 1;
                 if(tjs.allTraj[jtj].AlgMod[kMatch3D]) continue;
-                // don't try to match shower Tjs
-                if(tjs.allTraj[jtj].AlgMod[kShowerTj]) continue;
+                // don't try to match Tjs in showers
+                if(tjs.allTraj[jtj].AlgMod[kInShower]) continue;
                 if(tjs.allTraj[jtj].Pts.size() < minTjLen) continue;
                 if(xx[jht] < xx[iht] - fMatch3DCuts[0]) continue;
                 if(xx[jht] > xx[iht] + fMatch3DCuts[0]) break;
@@ -4194,7 +4153,7 @@ namespace tca {
         Trajectory& tj = tjs.allTraj[itj];
         unsigned short endPt0 = tj.EndPt[0];
         unsigned short endPt1 = tj.EndPt[1];
-        // Project sXYZ to this plane coordinate system yyy
+        // Project sXYZ to this plane coordinate system
         geo::PlaneID planeID = DecodeCTP(tj.CTP);
         vpos[0] = geom->NearestWire(wpos, planeID.Plane, tpc, cstat);
         vpos[1] = detprop->ConvertXToTicks(ms.sXYZ[0], planeID.Plane, tpc, cstat) * tjs.UnitsPerTick;
@@ -4622,6 +4581,8 @@ namespace tca {
         if(!MaskedHitsOK(tj)) {
           return;
         }
+        // check for a series of bad fits and stop stepping
+        if(fUseAlg[kStopBadFits] && nMissedWires > 4 && StopIfBadFits(tj)) break;
         // Keep stepping
         if(prt) {
           if(tj.AlgMod[kRevProp]) {
@@ -5726,12 +5687,6 @@ namespace tca {
     // trim the end points although this shouldn't happen
     if(tj.EndPt[1] != tj.Pts.size() - 1) tj.Pts.resize(tj.EndPt[1] + 1);
     tj.AlgMod[kChkHiMultHits] = true;
-/*
-    // Don't try to extend trajectories that were trimmed
-    if(tj.AlgMod[kTrimHits]) return;
-    if(prt) mf::LogVerbatim("TC")<<"TRP CheckHiMultUnusedHits successfull. Calling StepCrawl to extend it";
-    StepCrawl(tj);
-*/
   } // CheckHiMultUnusedHits
 
   
@@ -5773,92 +5728,35 @@ namespace tca {
       SetEndPoints(tjs, tj);
     }
   } // CheckHiMultEndHits
-/*
+
   ////////////////////////////////////////////////
-  bool TrajClusterAlg::MaskedHitsOK(Trajectory& tj)
+  bool TrajClusterAlg::StopIfBadFits(Trajectory& tj)
   {
-    // The hits in the TP at the end of the trajectory were masked off. Decide whether to continue stepping with the
-    // current configuration or whether to stop and possibly try with the next pass settings
+    // Returns true if there are a number of Tps that were not used in the trajectory because the fit was poor and the
+    // charge pull is not really high. This 
     
-    // Use Version 2 instead
-    if(fUseAlg[kMHOK2]) {
-      return MaskedHitsOK2(tj);
-    }
+    // don't consider muons
+    if(tj.PDGCode == 13) return false;
+    // or long straight Tjs
+    if(tj.Pts.size() > 40 && tj.MCSMom > 200) return false;
     
-    unsigned short lastPt = tj.EndPt[1];
-    if(tj.Pts[lastPt].Chg > 0) return true;
+    unsigned short nBadFit = 0;
+    unsigned short nHiChg = 0;
+    unsigned short cnt = 0;
+    for(unsigned short ipt = tj.Pts.size() - 1; ipt > tj.EndPt[1]; --ipt ) {
+      if(tj.Pts[ipt].FitChi > 2) ++nBadFit;
+      if(tj.Pts[ipt].ChgPull > 3) ++nHiChg;
+      ++cnt;
+      if(cnt == 5) break;
+    } // ipt
     
-    // count the number of points w/o used hits and the number of close hits
-    unsigned short nClose = 0, nMasked = 0;
-    for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
-      unsigned short ipt = tj.Pts.size() - ii;
-      if(!tj.Pts[ipt].Hits.empty()) ++nClose;
-      if(tj.Pts[ipt].Chg > 0) break;
-      ++nMasked;
-    } // ii
-    
-    if(prt) {
-      mf::LogVerbatim("TC")<<"MaskedHitsOK:  nMasked "<<nMasked<<" nClose "<<nClose<<" fMaxWireSkipWithSignal "<<fMaxWireSkipWithSignal;
-    }
-    
-    if(nMasked == 0) return true;
-    
-    // Check for many masked hits and nearby hits to see if they can be included
-    // Only allow this to happen once
-    if(!tj.AlgMod[kUnMaskHits] && lastPt > 10 && nMasked > 4 && nMasked == nClose) {
-      float maxDelta = 4 * tj.Pts[lastPt].DeltaRMS;
-      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = tj.Pts.size() - ii;
-        if(tj.Pts[ipt].Chg > 0) break;
-        if(tj.Pts[ipt].Delta > maxDelta) continue;
-        if(tj.Pts[ipt].Hits.size() != 1) continue;
-        unsigned int iht = tj.Pts[ipt].Hits[0];
-        if(tjs.fHits[iht].InTraj > 0) continue;
-        tj.Pts[ipt].UseHit[0] = true;
-        tjs.fHits[iht].InTraj = tj.ID;
-        DefineHitPos(tj.Pts[ipt]);
-      } // ii
-      SetEndPoints(tjs, tj);
-      // try to fit them all
-      tj.Pts[lastPt].NTPsFit = NumPtsWithCharge(tjs, tj, false);
-      if(prt) mf::LogVerbatim("TC")<<" Add close hits and try UpdateTraj ";
-      UpdateTraj(tj);
-      tj.AlgMod[kUnMaskHits] = true;
-      return true;
-    }
-    
-    // Be a bit more lenient with short trajectories on the first pass if
-    // the FitChi is not terribly bad and there is ony one hit associated with the last TP
-    if(tj.Pass < (fMinPtsFit.size()-1) && tj.Pts.size() > 5 && tj.Pts.size() < 15 && nMasked < 4
-       && tj.Pts[lastPt].FitChi < 2 * fMaxChi && tj.Pts[lastPt].Hits.size() == 1) {
-      // set this hit used if it is available
-      unsigned int iht = tj.Pts[lastPt].Hits[0];
-      if(tjs.fHits[iht].InTraj <= 0) {
-        tj.Pts[lastPt].UseHit[0] = true;
-        tjs.fHits[iht].InTraj = tj.ID;
-      }
-      SetEndPoints(tjs, tj);
-      PrepareForNextPass(tj);
-      if(prt) mf::LogVerbatim("TC")<<"MaskedWorkHitsOK: Try next pass with kinda short, kinda bad trajectory. "<<fTryWithNextPass;
-      return false;
-    }
-    
-    // OK if we haven't exceeded the user cut
-    if(nMasked < fMaxWireSkipWithSignal) return true;
-    
-    // not a lot of close hits try with the next pass settings
-    if(nClose < 1.5 * nMasked) {
-      // trim the trajectory
-      unsigned short newSize = tj.Pts.size() - nMasked;
-      if(prt) mf::LogVerbatim("TC")<<"MaskedHitsOK:  Trimming  to size "<<newSize;
-      tj.Pts.resize(newSize);
-      PrepareForNextPass(tj);
-    }
+    if(prt) mf::LogVerbatim("TC")<<"StopIfBadFits: nBadFit "<<nBadFit<<" nHiChg "<<nHiChg;
+    if(nBadFit > 3 && nHiChg == 0) return true;
     return false;
     
-  } // MaskedHitsOK
-*/
-    ////////////////////////////////////////////////
+  } // StopIfBadFits
+
+  ////////////////////////////////////////////////
   bool TrajClusterAlg::MaskedHitsOK(Trajectory& tj)
   {
     // Version 2 of MaskedHitsOK.
@@ -5975,33 +5873,6 @@ namespace tca {
     fTryWithNextPass = true;
     
   } // PrepareForNextPass
-/*
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::WatchHit(std::string someText, int tjID)
-  {
-    // a temp routine to watch when inTraj changes.
-    if(tjs.fHits[1821].InTraj != watchInTraj) {
-      std::cout<<someText<<" "<<tjID<<" Change "<<tjs.fHits[1821].InTraj<<"\n";
-      watchInTraj = tjs.fHits[1821].InTraj;
-    }
-  }
-*/
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::FindHit(std::string someText, unsigned int iht)
-  {
-
-    // look in tjs.allTraj
-    for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
-      for(unsigned short ipt = 0; ipt < tjs.allTraj[itj].Pts.size(); ++ipt) {
-        TrajPoint& tp = tjs.allTraj[itj].Pts[ipt];
-        if(std::find(tp.Hits.begin(), tp.Hits.end(), iht) != tp.Hits.end()) {
-          mf::LogVerbatim("TC")<<"FindHit: found hit from "<<someText<<" "<<tjs.allTraj[itj].CTP<<" "<<PrintHit(tjs.fHits[iht])<<" InTraj "<<tjs.fHits[iht].InTraj<<" tjs.allTraj ID "<<tjs.allTraj[itj].ID<<" trajectory below ";
-          PrintTrajectory("FH", tjs, tjs.allTraj[itj], USHRT_MAX);
-          return;
-        }
-      } // ipt
-    } // itj
-  } // FindHit
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::GottaKink(Trajectory& tj, unsigned short& killPts)
@@ -6728,7 +6599,7 @@ namespace tca {
     SetAngleCode(tp);
     tp.AngErr = 0.1;
     if(tj.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = fPlane; TJPrt = tj.ID; }
-    if(prt) mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tp);
+    if(prt) mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tp);
     tj.Pts.push_back(tp);
     return true;
     
@@ -6946,7 +6817,6 @@ namespace tca {
     for(itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& tj = tjs.allTraj[itj];
       if(tj.AlgMod[kKilled]) continue;
-      if(tj.StepDir > 0) ReverseTraj(tjs, tj);
       // ensure that the endPts are correct
       SetEndPoints(tjs, tj);
       auto tHits = PutTrajHitsInVector(tj, kUsedHits);
@@ -6955,6 +6825,26 @@ namespace tca {
         PrintTrajectory("MATC", tjs, tj, USHRT_MAX);
         continue;
       } // error
+      // special handling for shower Tjs: Sort the hits by distance from the start position
+      if(tj.AlgMod[kShowerTj]) {
+        std::vector<SortEntry> sortVec(tHits.size());
+        SortEntry sortEntry;
+        std::array<float, 2> hpos;
+        for(unsigned short ii = 0; ii < tHits.size(); ++ii) {
+          unsigned int iht = tHits[ii];
+          hpos[0] = tjs.fHits[iht].WireID.Wire;
+          hpos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
+          sortEntry.index = ii;
+          sortEntry.length = PosSep2(hpos, tj.Pts[0].Pos);
+          sortVec[ii] = sortEntry;
+        } // ii
+        std::sort(sortVec.begin(), sortVec.end(), lessThan);
+        // make a temp vector
+        std::vector<unsigned int> tmp(sortVec.size());
+        // enter the sorted hits
+        for(unsigned short ii = 0; ii < sortVec.size(); ++ii) tmp[ii] = tHits[sortVec[ii].index];
+        tHits = tmp;
+      } // showerTj
       // count AlgMod bits
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) ++fAlgModCount[ib];
       ++clID;
