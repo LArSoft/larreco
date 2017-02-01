@@ -371,4 +371,15 @@ standard_neutrinotrackingeff:
       FidVolCutZ:               10
 }
 
+standard_muontrackingeff:
+{
+      module_type:      	"MuonTrackingEff"
+      MCTruthModuleLabel:	"generator"
+      TrackModuleLabel: 	"pmtrack"
+      MuonPDGCode:		13
+      FidVolCutX:               10
+      FidVolCutY:               10
+      FidVolCutZ:               10
+}
+
 END_PROLOG
