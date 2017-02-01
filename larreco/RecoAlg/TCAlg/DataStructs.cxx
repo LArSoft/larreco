@@ -22,6 +22,7 @@ namespace tca {
     "FillGap",
     "Ghost",
     "ChkInTraj",
+    "StopBadFits",
     "FixBegin",
     "FixEnd",
     "UseUnusedHits",
@@ -35,6 +36,7 @@ namespace tca {
     "FTBRevProp",
     "StopAtTj",
     "Match3D",
+    "InShower",
     "ShowerParent",
     "ShowerTj"
   };
@@ -45,7 +47,8 @@ namespace tca {
     "AtVtx",
     "Bragg",
     "RvPrp",
-    "AtTj"
+    "AtTj",
+    "BadFits"
   };
   
   const std::vector<std::string> VtxBitNames {
