@@ -115,9 +115,8 @@ private:
 	/// Remove penalty on the angle if kink detected and reopt track.
 	void findKinksOnTracks(pma::TrkCandidateColl& trk_input) const;
 
-	pma::TrkCandidateColl fOutTracks;
-	pma::TrkCandidateColl fShortTracks;
-	pma::TrkCandidateColl fEmTracks;
+	pma::TrkCandidateColl fOutTracks, fShortTracks, fEmTracks;
+	pma::TrkCandidateColl fExcludedTracks;
 	void cleanTracks(void);
 
 	void sortTracks(const pma::TrkCandidateColl & trk_input);
