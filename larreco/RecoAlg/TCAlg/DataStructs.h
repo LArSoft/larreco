@@ -204,6 +204,7 @@ namespace tca {
     kFillGap,
     kUseGhostHits,
     kChkInTraj,
+    kStopBadFits,
     kFixBegin,
     kFixEnd,
     kUseUnusedHits,
@@ -219,6 +220,7 @@ namespace tca {
     kMatch3D,
     kVtxHitsSwap,
     kSplitHiChgHits,
+    kInShower,
     kShowerParent,
     kShowerTj,
     kAlgBitSize     ///< don't mess with this line
@@ -232,6 +234,7 @@ namespace tca {
     kBragg,
     kRvPrp,
     kAtTj,
+    kBadFits,
     kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   

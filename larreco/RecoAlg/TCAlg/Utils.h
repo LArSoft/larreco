@@ -37,6 +37,7 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
   bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt);
@@ -91,6 +92,7 @@ namespace tca {
   // finds the point on trajectory tj that is closest to trajpoint tp
   void TrajPointTrajDOCA(TjStuff& tjs, TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
   // returns the intersection position, intPos, of two trajectory points
+  void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, std::array<float, 2>& pos);
   void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
   // Returns the separation distance between two trajectory points
   float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);

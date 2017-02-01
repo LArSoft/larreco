@@ -11,6 +11,7 @@ standard_trajclusteralg:
    MinPtsFit: [4, 4, 3]     # Min number of points in the trajectory fit required on each pass
    MinPts:    [5, 5, 3]     # Min number of points in the trajectory required on each pass
    MaxAngleCode: [0, 1, 2]  # Max angle range code allowed on each pass
+   MinMCSMom: [100, 0, 0]   # Minimum MCSMom for each pass
    MaxVertexTrajSep: [6, 6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
    HitErrFac: 0.15          # hit time error for fitting = fHitErrFac * (hit RMS)
