@@ -31,7 +31,7 @@ class pma::Track3D
 public:
 	enum ETrackEnd { kBegin = -1, kEnd = 1 };
 	enum EDirection { kForward = -1, kBackward = 1 };
-	enum ETag { kNotTagged = -1, kTrackLike = 0, kEmLike = 1, kStopping = 2 };
+	enum ETag { kNotTagged = -1, kTrackLike = 0, kEmLike = 1, kStopping = 2, kCosmicMu = 3 };
 
 	Track3D(void);
 	Track3D(const Track3D& src);
