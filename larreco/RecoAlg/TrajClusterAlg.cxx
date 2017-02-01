@@ -899,7 +899,7 @@ namespace tca {
     // Check the associations and set the kNiceVtx bit
     CheckVtxAssociations(tjs, fCTP);
 
-    if(fShowerTag[0] >= 0 && fUseAlg[kShowerTag]) {
+    if(fShowerTag[0] >= 0 && fUseAlg[kShowerTj]) {
       if(fShowerTag[7] >= 0) {
         std::cout<<"temp prt\n";
         PrintAllTraj("FSi", tjs, debug, USHRT_MAX, tjs.allTraj.size());
@@ -3000,7 +3000,7 @@ namespace tca {
 
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
-      if(tjs.allTraj[it1].AlgMod[kShowerTag]) continue;
+      if(tjs.allTraj[it1].AlgMod[kShowerTj]) continue;
       if(tjs.allTraj[it1].CTP != fCTP) continue;
       if(tjs.allTraj[it1].PDGCode == 11) continue;
       bool tj1Short = (TrajLength(tjs.allTraj[it1]) < maxShortTjLen);
@@ -3012,7 +3012,7 @@ namespace tca {
         TrajPoint& tp1 = tjs.allTraj[it1].Pts[endPt1];
         for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
           if(tjs.allTraj[it2].AlgMod[kKilled]) continue;
-          if(tjs.allTraj[it2].AlgMod[kShowerTag]) continue;
+          if(tjs.allTraj[it2].AlgMod[kShowerTj]) continue;
           if(tjs.allTraj[it2].CTP != fCTP) continue;
           if(tjs.allTraj[it2].PDGCode == 11) continue;
           if(tjs.allTraj[it1].MCSMom < fVertex2DCuts[5] && tjs.allTraj[it2].MCSMom < fVertex2DCuts[5]) continue;
@@ -3777,14 +3777,14 @@ namespace tca {
           unsigned short itj = tjs.fHits[iht].InTraj - 1;
           if(tjs.allTraj[itj].AlgMod[kMatch3D]) continue;
           // don't try to match shower Tjs
-          if(tjs.allTraj[itj].AlgMod[kShowerTag]) continue;
+          if(tjs.allTraj[itj].AlgMod[kShowerTj]) continue;
           for(unsigned int jht = jfirsthit; jht < jlasthit; ++jht) {
             if(tjs.fHits[jht].InTraj <= 0) continue;
             // see if this trajectory already has a 3D match
             unsigned short jtj = tjs.fHits[jht].InTraj - 1;
             if(tjs.allTraj[jtj].AlgMod[kMatch3D]) continue;
             // don't try to match shower Tjs
-            if(tjs.allTraj[jtj].AlgMod[kShowerTag]) continue;
+            if(tjs.allTraj[jtj].AlgMod[kShowerTj]) continue;
             if(xx[jht] < xx[iht] - fMatch3DCuts[0]) continue;
             if(xx[jht] > xx[iht] + fMatch3DCuts[0]) break;
             for(unsigned int kht = kfirsthit; kht < klasthit; ++kht) {
@@ -3983,7 +3983,7 @@ namespace tca {
               unsigned short itj = tjs.fHits[iht].InTraj - 1;
               if(tjs.allTraj[itj].AlgMod[kMatch3D]) continue;
               // don't try to match shower Tjs
-              if(tjs.allTraj[itj].AlgMod[kShowerTag]) continue;
+              if(tjs.allTraj[itj].AlgMod[kShowerTj]) continue;
               if(tjs.allTraj[itj].Pts.size() < minTjLen) continue;
               for(unsigned int jht = jfirsthit; jht < jlasthit; ++jht) {
                 // Only consider hits that are associated with a trajectory
@@ -3992,7 +3992,7 @@ namespace tca {
                 unsigned short jtj = tjs.fHits[jht].InTraj - 1;
                 if(tjs.allTraj[jtj].AlgMod[kMatch3D]) continue;
                 // don't try to match shower Tjs
-                if(tjs.allTraj[jtj].AlgMod[kShowerTag]) continue;
+                if(tjs.allTraj[jtj].AlgMod[kShowerTj]) continue;
                 if(tjs.allTraj[jtj].Pts.size() < minTjLen) continue;
                 if(xx[jht] < xx[iht] - fMatch3DCuts[0]) continue;
                 if(xx[jht] > xx[iht] + fMatch3DCuts[0]) break;
@@ -8316,7 +8316,7 @@ namespace tca {
           }//ii
         }//ipt
         SetEndPoints(tjs, tj);
-        tj.VtxID[1] = tjs.vtx[ivx].ID;
+        tj.VtxID[1-end] = tjs.vtx[ivx].ID;
         tj.AlgMod[kSplitHiChgHits] = true;
         if(prt) {
           mf::LogVerbatim("TC")<<"Splitting trajectory ID "<<tj.ID<<" new EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
@@ -8329,7 +8329,7 @@ namespace tca {
           }//ii
         }//ipt
         SetEndPoints(tjs, newTj);
-        newTj.VtxID[0] = tjs.vtx[ivx].ID;
+        newTj.VtxID[end] = tjs.vtx[ivx].ID;
         newTj.AlgMod[kSplitHiChgHits] = true;
         tjs.allTraj.push_back(newTj);
         

@@ -1455,8 +1455,8 @@ namespace tca {
       Trajectory& tj1 = tjs.allTraj[it1];
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kKilled]) continue;
-      // already tagged
-      if(tj1.AlgMod[kShowerTag]) continue;
+      // identified as a parent
+      if(tj1.AlgMod[kShowerParent]) continue;
       // ignore shower Tjs
       if(tj1.AlgMod[kShowerTj]) continue;
       // ignore nearby muons
@@ -1474,19 +1474,19 @@ namespace tca {
           TrajTrajDOCA(tjs, tj1, stj, ipt1, ipt2, minSep, true);
           if(minSep == fShowerTag[1]) continue;
           tjs.cots[ish].TjIDs.push_back(tj1.ID);
-          tj1.AlgMod[kShowerTag] = true;
+          tj1.AlgMod[kShowerTj] = true;
           break;
         } // tjID
-        if(tj1.AlgMod[kShowerTag]) break;
+        if(tj1.AlgMod[kShowerTj]) break;
       } // ish
-      if(tj1.AlgMod[kShowerTag]) continue;
+      if(tj1.AlgMod[kShowerTj]) continue;
       // Look for nearby tjs and possibly start a new shower
       for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
         Trajectory& tj2 = tjs.allTraj[it2];
         if(tj2.CTP != inCTP) continue;
         if(tj2.AlgMod[kKilled]) continue;
         // already tagged
-        if(tj2.AlgMod[kShowerTag]) continue;
+        if(tj2.AlgMod[kShowerTj]) continue;
         if(tj2.PDGCode == 13) continue;
         if(tj2.StepDir != tj1.StepDir) {
           std::cout<<"FindShowers: Tj StepDirs are different\n";
@@ -1524,8 +1524,8 @@ namespace tca {
         ss.TjIDs[1] = tj2.ID;
         // put it in TJ stuff
         tjs.cots.push_back(ss);
-        tj1.AlgMod[kShowerTag] = true;
-        tj2.AlgMod[kShowerTag] = true;
+        tj1.AlgMod[kShowerTj] = true;
+        tj2.AlgMod[kShowerTj] = true;
         break;
       } // it2 (tj2)
     } // it1 (tj1)
@@ -1573,7 +1573,7 @@ namespace tca {
     // temp for debugging
     if(fShowerTag[7] > 0) {
       // only keep the biggest shower
-      unsigned short imbig;
+      unsigned short imbig = 0;
       float big = 0;
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
         if(tjs.cots[ic].TjIDs.empty()) continue;
@@ -1956,9 +1956,7 @@ namespace tca {
       } // wire
     } // ish
   } // CollectHits
-
 /*
-
   ////////////////////////////////////////////////
   void FindShowerParent(TjStuff& tjs, const CTP_t& inCTP, const unsigned short& showerIndex, const std::vector<float>& fShowerTag, const CTP_t& printCTP)
   {
@@ -1992,12 +1990,14 @@ namespace tca {
         if(tj.CTP != inCTP) continue;
         if(tj.AlgMod[kKilled]) continue;
         // it can't be a parent if it is a shower tj
-        if(tj.AlgMod[kShowerTag]) continue;
+        if(tj.AlgMod[kShowerTj]) continue;
         // or if it has low MCSMom
         if(tj.MCSMom < fShowerTag[1]) continue;
         // or if it is too short
         float npwc = NumPtsWithCharge(tjs, tj, false);
         if(npwc < fShowerTag[2]) continue;
+        // Reference the Tp charge center of the shower
+        Trajpoint& stp = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
         // make a rough DOCA and angle cut using the tj angles at both ends
         bool skipit = true;
         for(unsigned short end = 0; end < 2; ++end) {
@@ -2027,8 +2027,8 @@ namespace tca {
     } // ish
 
   } // FindShowerParent
-*/  
-  /////////////////////////////////////////
+*/
+ /////////////////////////////////////////
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
   {
     CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].WireID);
@@ -2661,7 +2661,7 @@ namespace tca {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"Work:    ID "<<tj.ID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" StopFlags "<<PrintStopFlag(tjs, tj, 0)<<" "<<PrintStopFlag(tjs, tj, 1);
         myprt<<" AlgMod names:";
@@ -2689,7 +2689,7 @@ namespace tca {
   //////////////////////////////////////////
   void PrintHeader(std::string someText)
   {
-    mf::LogVerbatim("TC")<<someText<<" TRP  CTP  Ind  Stp      W:Tick    Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
+    mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp      W:Tick    Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
   } // PrintHeader
   
   ////////////////////////////////////////////////
@@ -2699,7 +2699,7 @@ namespace tca {
     myprt<<someText<<" TRP"<<std::fixed;
     myprt<<pass;
     if(dir > 0) { myprt<<"+"; } else { myprt<<"-"; }
-    myprt<<std::setw(3)<<tp.CTP;
+    myprt<<std::setw(6)<<tp.CTP;
     myprt<<std::setw(5)<<ipt;
     myprt<<std::setw(5)<<tp.Step;
     myprt<<std::setw(7)<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]/tjs.UnitsPerTick; // W:T
