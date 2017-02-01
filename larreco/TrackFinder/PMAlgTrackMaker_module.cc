@@ -292,7 +292,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
 
 			double xShift = trk->GetXShift();
-			if (xShift > 0.0)
+			if (xShift != 0.0)
 			{
 				double tisk2time = 1.0; // what is the coefficient, offset?
 				double t0time = tisk2time * xShift / detProp->GetXTicksCoefficient(trk->FrontTPC(), trk->FrontCryo());
