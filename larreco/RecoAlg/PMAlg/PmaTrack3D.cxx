@@ -2114,6 +2114,10 @@ void pma::Track3D::ApplyXShiftInTree(double dx, bool skipFirst)
 		else break;
 	}
 
+    for (auto h : fHits) { h->fPoint3D[0] += dx; }
+
+    for (auto p : fAssignedPoints) { (*p)[0] += dx; }
+
 	fXShift += dx;
 }
 
