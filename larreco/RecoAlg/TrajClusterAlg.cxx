@@ -8195,7 +8195,7 @@ namespace tca {
               if (this_delta<delta) delta = this_delta;
               //if (vtxPrt) mf::LogVerbatim("TC")<<j<<" "<<k<<" "<<PrintPos(tjs, tj0.Pts[j])<<" "<<PointTrajDOCA(tjs, tj0.Pts[j].Hits[k], tj1.Pts[endPt1]);
             }
-            if (delta < 0.3 && (j==endPt0 || !tplist.empty())){
+            if (delta < 0.3 && tj0.Pts[j].Delta > 1.0 && (j==endPt0 || !tplist.empty())){
               tplist.push_back(j);
             }
             else break;
