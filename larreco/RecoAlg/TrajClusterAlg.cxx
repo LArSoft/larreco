@@ -8137,7 +8137,8 @@ namespace tca {
     // Check allTraj trajectories in the current CTP to see if they are stopping
     if(!fUseAlg[kSplitHiChgHits]) return;
     
-    for(auto& tj : tjs.allTraj) {
+    for(size_t i = 0; i< tjs.allTraj.size(); ++i) {
+      auto & tj = tjs.allTraj[i];
       if(tj.CTP != fCTP) continue;
       if(tj.AlgMod[kKilled]) continue;
       SplitHiChgHits(tj);
@@ -8150,7 +8151,10 @@ namespace tca {
     
     // Check allTraj trajectories in the current CTP and split high charge hits 
     if(!fUseAlg[kSplitHiChgHits]) return;
-    
+
+    // Only do it once
+    if (tj.AlgMod[kSplitHiChgHits]) return;
+
     if(tj.CTP != fCTP) return;
     if(tj.AlgMod[kKilled]) return;
     //Ignore short trajectories
