@@ -245,7 +245,7 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<" newEndPt "<<newEndPt<<" nConsecutivePts "<<nConsecutivePts<<" Required "<<minPts - 1;
     
     // lop off the last point if the consecutive point condition isn't met and re-calculate
-    if(nConsecutivePts < minPts - 1) {
+    if(nConsecutivePts < minPts - 1 && newEndPt > minPts) {
       --newEndPt;
       nPtsWithCharge = 0;
       unsigned short nConsecutivePts = 0;
@@ -256,6 +256,11 @@ namespace tca {
         if(jpt == 0) break;
       } // jj
       if(prt) mf::LogVerbatim("TC")<<"   newEndPt "<<newEndPt<<" nConsecutivePts "<<nConsecutivePts<<" Required "<<minPts - 1;
+    }
+    
+    if(newEndPt < minPts) {
+      tj.AlgMod[kKilled] = true;
+      return;
     }
     
     float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[newEndPt].Pos[0]) + 1;
@@ -1441,7 +1446,66 @@ namespace tca {
       if(muTj.StepDir < 0) muTj.TjDir = -muTj.TjDir;
     } // itj
   } // TagMuonDirections
-
+  
+  ////////////////////////////////////////////////
+  void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, std::vector<std::vector<unsigned short>>& tjList)
+  {
+    // Tag Tjs with PDGCode = 12 if they have MCSMom < fShowerTag[0] and there are more than
+    // fShowerTag[6] other Tjs with a separation < fShowerTag[1]. Returns a list of Tjs that meet this criteria
+    
+    tjList.clear();
+    
+    short maxMCSMom = fShowerTag[0];
+    unsigned short minCnt = fShowerTag[6];
+    
+    for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
+      Trajectory& tj1 = tjs.allTraj[it1];
+      if(tj1.CTP != inCTP) continue;
+      if(tj1.AlgMod[kKilled]) continue;
+      // identified as a parent
+      if(tj1.AlgMod[kShowerParent]) continue;
+      // ignore shower Tjs
+      if(tj1.AlgMod[kShowerTj]) continue;
+      // and Tjs that are already in showers
+      if(tj1.AlgMod[kInShower]) continue;
+      // ignore muons
+      if(tj1.PDGCode == 13) continue;
+      // Cut on length and MCSMom
+      if(tj1.MCSMom > maxMCSMom) continue;
+      tj1.PDGCode = 0;
+      std::vector<unsigned short> list;
+      for(unsigned short it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
+        if(it1 == it2) continue;
+        Trajectory& tj2 = tjs.allTraj[it2];
+        if(tj2.CTP != inCTP) continue;
+        if(tj2.AlgMod[kKilled]) continue;
+        // identified as a parent
+        if(tj2.AlgMod[kShowerParent]) continue;
+        // ignore shower Tjs
+        if(tj2.AlgMod[kShowerTj]) continue;
+        // and Tjs that are already in showers
+        if(tj2.AlgMod[kInShower]) continue;
+        // ignore muons
+        if(tj2.PDGCode == 13) continue;
+        // Cut on length and MCSMom
+        if(tj2.MCSMom > maxMCSMom) continue;
+        unsigned short ipt1, ipt2;
+        float doca = fShowerTag[1];
+        TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca);
+        if(doca < fShowerTag[1]) {
+          // start the list with the ID of tj1
+          if(list.empty()) list.push_back(tj1.ID);
+          list.push_back(tj2.ID);
+        }
+      } // it2
+      if(list.size() > minCnt) {
+        tj1.PDGCode = 11;
+        tjList.push_back(list);
+      }
+    } // it1
+    
+  } // TagShowerTjs
+  
   ////////////////////////////////////////////////
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag)
   {
@@ -1455,15 +1519,34 @@ namespace tca {
     //  4 Min shower 1/2 width (WSE units)
     //  5 Min total number of Tps
     //  6 Min number of Tjs
-    //  7 print in plane
+    //  7 Mode (0 = only tag, 1 = find showers)
+    //  8 print in plane
     
     if(fShowerTag[0] < 0) return;
     
     CTP_t printCTP = UINT_MAX;
-    if(fShowerTag[7] >= 0) {
+    if(fShowerTag[8] >= 0) {
       geo::PlaneID planeID = DecodeCTP(inCTP);
-      printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(fShowerTag[7]));
+      printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(fShowerTag[8]));
     }
+    
+    std::vector<std::vector<unsigned short>> tjList;
+    TagShowerTjs(tjs, inCTP, fShowerTag, tjList);
+    if(fShowerTag[7] == 0) return;
+    if(tjList.empty()) return;
+    /*
+    
+    // Merge the lists of Tjs in showers. Start by sorting the IDs in increasing order
+    for(auto& list : tjList) std::sort(list.begin(), list.end());
+    for(unsigned short itl = 0; itl < tjList.size() - 1; ++itl) {
+      auto& itList = tjList[itl];
+      for(unsigned short jtl = itl + 1; jtl < tjList.size(); ++jtl) {
+        auto& jtList = tjList[jtl];
+        for(unsigned short ) {
+          
+        }
+      } // jtl
+    } // itl
     
     unsigned short minLenMCSMomCut = 10;
 
@@ -1548,7 +1631,7 @@ namespace tca {
         break;
       } // it2 (tj2)
     } // it1 (tj1)
-    
+*/
     if(tjs.cots.empty()) return;
     
     // Define the charge, angle, etc of the shower Tj. DefineShowerTj does not re-assign hits to the ShowerTj.
@@ -1589,7 +1672,7 @@ namespace tca {
       } // !killit
     } // ic
 
-    if(fShowerTag[7] > 0) {
+    if(fShowerTag[8] > 0) {
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
         if(tjs.cots[ic].TjIDs.empty()) continue;
         unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
