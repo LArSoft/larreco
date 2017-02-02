@@ -872,6 +872,9 @@ namespace tca {
       
       ChkAllStop();
 
+      // TY: Split high charge hits near the trajectory end
+      ChkHiChgHits();
+
       Find2DVertices();
       if(fQuitAlg) return;
 
@@ -5088,9 +5091,6 @@ namespace tca {
     // lop off high multiplicity hits at the end
     CheckHiMultEndHits(tj);
 
-    // TY: Split high charge hits near the trajectory end
-    SplitHiChgHits(tj);
-    
     if(prt && tj.Pts.size() < 100) PrintTrajectory("CTo", tjs, tj, USHRT_MAX);
     
   } // CheckTraj
@@ -8130,6 +8130,20 @@ namespace tca {
       }//loop over two trajectories
     }//loop over vertices
   }
+
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::ChkHiChgHits()
+  {
+    // Check allTraj trajectories in the current CTP to see if they are stopping
+    if(!fUseAlg[kSplitHiChgHits]) return;
+    
+    for(auto& tj : tjs.allTraj) {
+      if(tj.CTP != fCTP) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      SplitHiChgHits(tj);
+    } // tj
+
+  } // ChkAllStop
 
   /////////////////////TY:///////////////////////////
   void TrajClusterAlg::SplitHiChgHits(Trajectory& tj){

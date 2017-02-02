@@ -345,7 +345,8 @@ namespace tca {
     void ChkStop(Trajectory& tj);
     // Check the Michel electron topology, lastGoodPt is the last point of muon
     bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
-    // Split high charge hits near the trajectory end
+    // TY: Split high charge hits near the trajectory end
+    void ChkHiChgHits();
     void SplitHiChgHits(Trajectory& tj);
     void SetPDGCode(Trajectory& tj);
     void SetPDGCode(unsigned short itj);
