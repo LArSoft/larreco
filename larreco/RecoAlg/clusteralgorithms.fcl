@@ -27,13 +27,21 @@ standard_trajclusteralg:
    QualityCuts: [ 0.8, 3] # Min points/wire, min consecutive pts after a gap
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
-   ShowerTag: [ 2, 150, 30, 0.5, 4, 6, 20, 3]
-   # print in plane, Max MCSMom, Max separation, Max delta angle, rms width factor, Min shower 1/2 width, Min total Tj Pts, Min Tjs
+   ShowerTag: [ -150, 20, 0.5, 3, 2, 100, 10, 0, 0]
+   # 0 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
+   # 1 Max separation
+   # 2 Max delta angle
+   # 3 rms width factor
+   # 4 Min shower 1/2 width (WSE units)
+   # 5 Min total Tj Pts
+   # 6 Min Tjs
+   # 7 Mode (0 = only tag, 1 = find showers)
+   # 8 print in plane
    ChkStopCuts: [1.4, 5, 1] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
    Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6]
    # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr, Min MCSMom, min frac Pts/Wire btw vtx and Tjs
    Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
-   Match3DCuts: [ 0.3, 0, 3, 1 ] 
+   Match3DCuts: [ -0.3, 0, 3, 1 ] 
    # dx (cm) matching cut, min MCSMom, min length for 2-view match, 2-view missing plane requirement
    SkipAlgs: [  "MBadTPs", "ChkAllStop", "ChkStop", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
