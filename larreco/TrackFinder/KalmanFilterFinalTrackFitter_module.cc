@@ -124,6 +124,10 @@ namespace trkf {
         Name("dirVec"),
         Comment("Fhicl sequence defining the vector used when dirFromVec=true. It must have 3 elements.")
       };
+      fhicl::Atom<bool> alwaysInvertDir {
+	Name("alwaysInvertDir"),
+	Comment("If true, fit all tracks from end to vertex assuming inverted direction.")
+      };
       fhicl::Atom<bool> useRMS {
 	Name("useRMSError"),
 	Comment("Flag to replace the default hit error SigmaPeakTime() with RMS().")
@@ -195,7 +199,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   : p_(p)
 {
 
-  prop = new trkf::PropYZPlane(0., false);
+  prop = new trkf::PropYZPlane(10., true);
   kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().options().useRMS(),
 					     p_().options().sortHitsByPlane(),
 					     p_().options().sortOutputHitsMinLength(),
@@ -232,12 +236,13 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   }
 
   unsigned int nDirs = 0;
-  if (p_().options().dirFromVtxPF()) nDirs++;
-  if (p_().options().dirFromMC())    nDirs++;
-  if (p_().options().dirFromVec())   nDirs++;
+  if (p_().options().dirFromVtxPF())    nDirs++;
+  if (p_().options().dirFromMC())       nDirs++;
+  if (p_().options().dirFromVec())      nDirs++;
+  if (p_().options().alwaysInvertDir()) nDirs++;
   if (nDirs>1) {
     throw cet::exception("KalmanFilterFinalTrackFitter")
-      << "Incompatible configuration parameters: only at most one can be set to true among dirFromVtxPF, dirFromMC, and dirFromVec." << "\n";
+      << "Incompatible configuration parameters: only at most one can be set to true among dirFromVtxPF, dirFromMC, dirFromVec, and alwaysInvertDir." << "\n";
   }
 
   unsigned int nPFroms = 0;
@@ -432,19 +437,21 @@ int trkf::KalmanFilterFinalTrackFitter::setPId(const unsigned int iTrack, const 
 
 bool trkf::KalmanFilterFinalTrackFitter::setDirFlip(const recob::Track& track, TVector3& mcdir, const std::vector<art::Ptr<recob::Vertex> >* vertices) const {
   bool result = false;
-  if (p_().options().dirFromMC()) {
-    auto& tdir =  track.VertexDirection();
+  if (p_().options().alwaysInvertDir()) {
+    return true;
+  } else if (p_().options().dirFromMC()) {
+    auto tdir =  track.VertexDirection();
     if ( (mcdir.X()*tdir.X() + mcdir.Y()*tdir.Y() + mcdir.Z()*tdir.Z())<0. ) result = true;
   } else if (p_().options().dirFromVec()) {
     std::array<float, 3> dir = p_().options().dirVec();
-    auto& tdir =  track.VertexDirection();
+    auto tdir =  track.VertexDirection();
     if ( (dir[0]*tdir.X() + dir[1]*tdir.Y() + dir[2]*tdir.Z())<0. ) result = true;
   } else if (p_().options().trackFromPF() && p_().options().dirFromVtxPF() && vertices->size()>0) {
     //if track end is closer to first vertex then track vertex, flip direction
     double xyz[3];
     (*vertices)[0]->XYZ(xyz);
-    auto tv = track.Vertex();
-    auto te = track.End();
+    auto& tv = track.Trajectory().Vertex();
+    auto& te = track.Trajectory().End();
     if ( ((xyz[0]-te.X())*(xyz[0]-te.X()) + (xyz[1]-te.Y())*(xyz[1]-te.Y()) + (xyz[2]-te.Z())*(xyz[2]-te.Z())) >
 	 ((xyz[0]-tv.X())*(xyz[0]-tv.X()) + (xyz[1]-tv.Y())*(xyz[1]-tv.Y()) + (xyz[2]-tv.Z())*(xyz[2]-tv.Z())) ) result = true;
   }
