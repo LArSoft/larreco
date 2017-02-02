@@ -1528,26 +1528,67 @@ namespace tca {
     if(fShowerTag[8] >= 0) {
       geo::PlaneID planeID = DecodeCTP(inCTP);
       printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(fShowerTag[8]));
+      if(printCTP == inCTP) std::cout<<"Inside FindShowers\n";
     }
     
     std::vector<std::vector<unsigned short>> tjList;
     TagShowerTjs(tjs, inCTP, fShowerTag, tjList);
     if(fShowerTag[7] == 0) return;
     if(tjList.empty()) return;
-    /*
     
-    // Merge the lists of Tjs in showers. Start by sorting the IDs in increasing order
-    for(auto& list : tjList) std::sort(list.begin(), list.end());
+    if(printCTP == inCTP) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"tjlist\n";
+      for(auto& tjl : tjList) {
+        for(auto& tjID : tjl) myprt<<" "<<tjID;
+        myprt<<"\n";
+      } // tjl
+    } // printCTP
+    
+    // Merge the lists of Tjs in showers
     for(unsigned short itl = 0; itl < tjList.size() - 1; ++itl) {
-      auto& itList = tjList[itl];
+      if(tjList[itl].empty()) continue;
       for(unsigned short jtl = itl + 1; jtl < tjList.size(); ++jtl) {
+        if(tjList[itl].empty()) continue;
+        auto& itList = tjList[itl];
         auto& jtList = tjList[jtl];
-        for(unsigned short ) {
-          
+        // See if the j Tj is in the i tjList
+        bool jtjInItjList = false;
+        for(auto& jtj : jtList) {
+          if(std::find(itList.begin(), itList.end(), jtj) != itList.end()) {
+            jtjInItjList = true;
+            break;
+          }
+          if(jtjInItjList) break;
+        } // jtj
+        if(jtjInItjList) {
+          // append the jtList to itList
+          itList.insert(itList.end(), jtList.begin(), jtList.end());
+          // clear jtList
+          jtList.clear();
         }
       } // jtl
     } // itl
     
+    // sort the lists by increasing ID and remove duplicates
+    for(auto& tjl : tjList) {
+      if(tjl.empty()) continue;
+      std::sort(tjl.begin(), tjl.end());
+      auto last = std::unique(tjl.begin(), tjl.end());
+      tjl.erase(last, tjl.end());
+    } // tjl
+    
+    if(printCTP == inCTP) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"tjlist\n";
+      for(auto& tjl : tjList) {
+        if(tjl.empty()) continue;
+        for(auto& tjID : tjl) myprt<<" "<<tjID;
+        myprt<<"\n";
+      } // tjl
+    } // printCTP
+
+/*
     unsigned short minLenMCSMomCut = 10;
 
     short maxMCSMom = fShowerTag[0];

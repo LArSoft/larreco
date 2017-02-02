@@ -903,7 +903,7 @@ namespace tca {
     CheckVtxAssociations(tjs, fCTP);
 
     if(fShowerTag[0] >= 0 && fUseAlg[kShowerTj]) {
-      if(fShowerTag[8] >= 0) {
+      if((CTP_t)fShowerTag[8] == fCTP) {
         std::cout<<"temp prt\n";
         PrintAllTraj("FSi", tjs, debug, USHRT_MAX, tjs.allTraj.size());
       }
