@@ -348,7 +348,7 @@ void GausHitFinder::produce(art::Event& evt)
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
             
             MergedTimeWidVec mergedVec;
-            float       roiThreshold(threshold);
+            float            roiThreshold(threshold);
             
             // ###########################################################
             // ### If option set do bin averaging before finding peaks ###
