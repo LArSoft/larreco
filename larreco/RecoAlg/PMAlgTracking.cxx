@@ -44,13 +44,10 @@ recob::Track pma::convertFrom(const pma::Track3D& src, unsigned int tidx)
 	}
 
 	TVector3 p3d;
-	double xshift = src.GetXShift();
-	bool has_shift = (xshift != 0.0);
 	for (size_t i = 0; i < src.size(); i++)
 		if (src[i]->IsEnabled())
 	{
 		p3d = src[i]->Point3D();
-		if (has_shift) p3d.SetX(p3d.X() + xshift);
 		xyz.push_back(p3d);
 
 		if (i < src.size() - 1)
