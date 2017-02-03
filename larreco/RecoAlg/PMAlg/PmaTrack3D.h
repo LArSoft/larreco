@@ -89,10 +89,17 @@ public:
 	/// of neighbouring hits in the track validation functions.
 	std::pair< TVector2, TVector2 > WireDriftRange(unsigned int view, unsigned int tpc, unsigned int cryo) const;
 
-	/// Invert the order of hits and vertices in the track.
+	/// Invert the order of hits and vertices in the track, break other tracks if needed
+	/// (new tracks are added to the allTracks vector). Returns true if successful or false
+	/// if any of required track flips was not possible (e.g. resulting track would be composed
+	/// of hits from a single 2D projection).
+	bool Flip(std::vector< pma::Track3D* >& allTracks);
+
+	/// Invert the order of hits and vertices in the track, will fail on configuration that
+	/// causes breaking another track.
 	void Flip(void);
 
-	/// Check if the track can be flipped.
+	/// Check if the track can be flipped without breaking any other track.
 	bool CanFlip(void) const;
 
 	void AutoFlip(pma::Track3D::EDirection dir, double thr = 0.0, unsigned int n = 0);
@@ -174,7 +181,7 @@ public:
 	double TuneSinglePass(bool skipFirst = false);
 	double TuneFullTree(double eps = 0.001, double gmax = 50.0);
 
-	/// Adjust tree position in drift direction (when T0 is corrected).
+	/// Adjust track tree position in the drift direction (when T0 is being corrected).
 	void ApplyXShiftInTree(double dx, bool skipFirst = false);
 	double GetXShift(void) const { return fXShift; }
 
@@ -290,6 +297,8 @@ private:
 	pma::Element3D* GetNearestElement(const TVector2& p2d, unsigned int view, int tpc = -1,
 		bool skipFrontVtx = false, bool skipBackVtx = false) const;
 	pma::Element3D* GetNearestElement(const TVector3& p3d) const;
+
+	int index_of(const pma::Node3D* n) const;
 	std::vector< pma::Node3D* > fNodes;
 	std::vector< pma::Segment3D* > fSegments;
 

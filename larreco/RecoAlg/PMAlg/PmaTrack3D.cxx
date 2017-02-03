@@ -326,6 +326,13 @@ void pma::Track3D::InitFromMiddle(int tpc, int cryo)
 	Optimize(0, 0.01F);
 }
 
+int pma::Track3D::index_of(const pma::Node3D* n) const
+{
+    for (size_t i = 0; i < fNodes.size(); ++i)
+        if (fNodes[i] == n) return (int)i;
+    return -1;
+}
+
 int pma::Track3D::index_of(const pma::Hit3D* hit) const
 {
 	for (size_t i = 0; i < size(); i++)
@@ -472,6 +479,72 @@ std::pair< TVector2, TVector2 > pma::Track3D::WireDriftRange(unsigned int view, 
 	return range;
 }
 
+bool pma::Track3D::Flip(std::vector< pma::Track3D* >& allTracks)
+{
+	if (!fNodes.size()) { return true; }
+
+	std::vector< pma::Track3D* > toSort;
+
+	pma::Node3D* n = fNodes.front();
+	if (n->Prev())
+	{
+		pma::Segment3D* s = static_cast< pma::Segment3D* >(n->Prev());
+		pma::Track3D* t = s->Parent();
+
+		if (t->NextSegment(n)) // starts from middle of another track: need to break that one first
+		{
+		    int idx = t->index_of(n);
+		    if (idx >= 0)
+		    {
+    		    pma::Track3D* u = t->Split(idx);
+    		    if (u)
+    		    {
+    		        allTracks.push_back(u);
+    		        if (u->Flip(allTracks))
+    		        {
+                    	InternalFlip(toSort);
+                	    toSort.push_back(this);
+        		    }
+        		    else
+        		    {
+        		        mf::LogWarning("pma::Track3D") << "Flip(): Could not flip after split.";
+        		        return false;
+        		    }
+    		    }
+    		    else { return false; }  // could not flip/break associated tracks, so give up on this one
+    		}
+    		else { throw cet::exception("pma::Track3D") << "Node not found." << std::endl; }
+		}
+		else // flip root
+		{
+		    if (t->Flip(allTracks)) // all ok, so can flip this track
+		    {
+            	InternalFlip(toSort);
+        	    toSort.push_back(this);
+		    }
+		    else { return false; }  // could not flip/break associated tracks, so give up on this one
+		}
+	}
+	else // simply flip
+	{
+    	InternalFlip(toSort);
+	    toSort.push_back(this);
+	}
+
+   	for (size_t t = 0; t < toSort.size(); t++)
+	{
+		bool sorted = false;
+		for (size_t u = 0; u < t; u++)
+			if (toSort[u] == toSort[t]) { sorted = true; break; }
+		if (!sorted)
+		{
+			toSort[t]->MakeProjection();
+			toSort[t]->SortHits();
+		}
+	}
+	return true;
+}
+
 void pma::Track3D::InternalFlip(std::vector< pma::Track3D* >& toSort)
 {
 	for (size_t i = 0; i < fNodes.size() - 1; i++)
@@ -524,29 +597,17 @@ void pma::Track3D::Flip(void)
 
 bool pma::Track3D::CanFlip(void) const
 {
-	if (!fNodes.size())
-	{
-		//std::cout << "---- track with no nodes ----" << std::endl;
-		return false;
-	}
+	if (!fNodes.size()) { return false; }
 
 	pma::Node3D* n = fNodes.front();
 	if (n->Prev())
 	{
 		pma::Segment3D* s = static_cast< pma::Segment3D* >(n->Prev());
 		pma::Track3D* t = s->Parent();
-		if (t->NextSegment(n))
-		{
-			//std::cout << "starts from middle" << std::endl;
-			return false;
-		} // cannot flip if starts from middle of another track
-		else
-		{
-			//std::cout << "check root" << std::endl;
-			return t->CanFlip();
-		}
+		if (t->NextSegment(n)) { return false; } // cannot flip if starts from middle of another track
+		else { return t->CanFlip(); }            // check root
 	}
-	else return true;
+	else { return true; }
 }
 
 void pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned int n)
@@ -1421,7 +1482,6 @@ bool pma::Track3D::AttachToSameTPC(pma::Node3D* vStart)
 	if (vtx->NextCount() || vtx->Prev()) // better throw here
 	{
 		throw cet::exception("pma::Track3D") << "Something is still using disconnected vertex.";
-		return false;
 	}
 	else delete vtx; // ok
 	return true;
