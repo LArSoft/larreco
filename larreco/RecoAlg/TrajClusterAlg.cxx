@@ -173,7 +173,7 @@ namespace tca {
     if(fMuonTag.size() != 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging";
     if(fDeltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
     if(fChkStopCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut";
-    if(fShowerTag.size() != 9) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 8\n 0 = max MCSMom\n 1 = max separation (WSE units)\n 2 = Max angle diff\n 3 = Factor * rms width\n 4 = Min half width\n 5 = min total Tps\n 6 = Min Tjs\n 7 = Mode (0 = only tag, 1 = find showers)\n 8 = Print showers in plane\n";
+    if(fShowerTag.size() != 9) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 8\n 0 = Mode\n 1 = max MCSMom\n 2 = max separation (WSE units)\n 3 = Max angle diff\n 4 = Factor * rms width\n 5 = Min half width\n 6 = min total Tps\n 7 = Min Tjs\n 8 = Debug showers in CTP\n";
     
     if(fMatch3DCuts.size() != 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = MinMCSMom\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?";
     
@@ -896,12 +896,13 @@ namespace tca {
     // Check the associations and set the kNiceVtx bit
     CheckVtxAssociations(tjs, fCTP);
 
-    if(fShowerTag[0] >= 0 && fUseAlg[kShowerTj]) {
+    if(fShowerTag[0] > 0 && fUseAlg[kShowerTj]) {
+      FindShowers(tjs, fCTP, fShowerTag);
       if((CTP_t)fShowerTag[8] == fCTP) {
         std::cout<<"temp prt\n";
-        PrintAllTraj("FSi", tjs, debug, USHRT_MAX, tjs.allTraj.size());
+        debug.Plane = fShowerTag[8];
+        PrintAllTraj("FSo", tjs, debug, USHRT_MAX, tjs.allTraj.size());
       }
-      FindShowers(tjs, fCTP, fShowerTag);
     }
     
     // Refine vertices, trajectories and nearby hits
