@@ -172,9 +172,6 @@ namespace vertex{
 
     std::vector<recob::SpacePoint> startpoints_vec; // first space point of each track
 
-    std::vector<double> start;
-    std::vector<double> end;
-
     std::vector <TVector3> startvec;
     TVector3 startXYZ;
     
@@ -190,9 +187,10 @@ namespace vertex{
       (trackListHandle, evt, fTrackModuleLabel);
     
     for(unsigned int i = 0; i<trkIn.size(); ++i){
-      trkIn[i].Extent(start, end);
-      startXYZ.SetXYZ(start[0],start[1],start[2]);
-      endXYZ.SetXYZ(end[0],end[1],end[2]);
+      recob::Track::Point_t start, end;
+      std::tie(start, end) = trkIn[i].Extent();
+      startXYZ.SetXYZ(start.X(),start.Y(),start.Z());
+      endXYZ.SetXYZ(end.X(),end.Y(),end.Z());
 
 
       double length = (endXYZ-startXYZ).Mag();// (endvec[i]-startvec[i]).Mag();
@@ -244,10 +242,6 @@ namespace vertex{
       endvec.push_back(endXYZ);
       dircosvec.push_back(dircosXYZ);
       
-      start.clear();
-      end.clear();
-      
-
       mf::LogInfo("PrimaryVertexFinder") << "PrimaryVertexFinder got "<< spacepoints.size() 
 					 <<" 3D spacepoint(s) from Track3Dreco.cxx";
             
