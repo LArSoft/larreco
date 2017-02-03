@@ -1445,8 +1445,8 @@ namespace tca {
     
     tjList.clear();
     
-    short maxMCSMom = fShowerTag[0];
-    unsigned short minCnt = fShowerTag[6];
+    short maxMCSMom = fShowerTag[1];
+    unsigned short minCnt = fShowerTag[7];
     
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       Trajectory& tj1 = tjs.allTraj[it1];
@@ -1480,9 +1480,9 @@ namespace tca {
         // Cut on length and MCSMom
         if(tj2.MCSMom > maxMCSMom) continue;
         unsigned short ipt1, ipt2;
-        float doca = fShowerTag[1];
+        float doca = fShowerTag[2];
         TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca);
-        if(doca < fShowerTag[1]) {
+        if(doca < fShowerTag[2]) {
           // start the list with the ID of tj1
           if(list.empty()) list.push_back(tj1.ID);
           list.push_back(tj2.ID);
@@ -1502,28 +1502,28 @@ namespace tca {
     // Construct clusters of trajectories (cots) which will become shower PFParticles
     
     // fShowerTag[] parameters
-    //  0 max Tj MCSMom for a shower tag
-    //  1 max separation
-    //  2 max angle
-    //  3 rms width factor WF (width = WF * rms)
-    //  4 Min shower 1/2 width (WSE units)
-    //  5 Min total number of Tps
-    //  6 Min number of Tjs
-    //  7 Mode (0 = only tag, 1 = find showers)
-    //  8 print in plane
+    // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+    // 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
+    // 2 Max separation
+    // 3 Max delta angle
+    // 4 rms width factor
+    // 5 Min shower 1/2 width (WSE units)
+    // 6 Min total Tj Pts
+    // 7 Min Tjs
+    // 8 Debug in CTP
     
-    if(fShowerTag[0] < 0) return;
+    if(fShowerTag[0] <= 0) return;
     
     CTP_t printCTP = UINT_MAX;
     if(fShowerTag[8] >= 0) {
       geo::PlaneID planeID = DecodeCTP(inCTP);
       printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(fShowerTag[8]));
-      if(printCTP == inCTP) std::cout<<"Inside FindShowers\n";
+      if(printCTP == inCTP) std::cout<<"Inside FindShowers "<<inCTP<<"\n";
     }
     
     std::vector<std::vector<unsigned short>> tjList;
     TagShowerTjs(tjs, inCTP, fShowerTag, tjList);
-    if(fShowerTag[7] == 0) return;
+    if(fShowerTag[0] == 1) return;
     if(tjList.empty()) return;
     
     if(printCTP == inCTP) {
@@ -1536,33 +1536,44 @@ namespace tca {
     } // printCTP
     
     // Merge the lists of Tjs in showers
-    for(unsigned short itl = 0; itl < tjList.size() - 1; ++itl) {
-      if(tjList[itl].empty()) continue;
-      for(unsigned short jtl = itl + 1; jtl < tjList.size(); ++jtl) {
+    bool didMerge = true;
+    while(didMerge) {
+      didMerge = false;
+      for(unsigned short itl = 0; itl < tjList.size() - 1; ++itl) {
         if(tjList[itl].empty()) continue;
-        auto& itList = tjList[itl];
-        auto& jtList = tjList[jtl];
-        // See if the j Tj is in the i tjList
-        bool jtjInItjList = false;
-        for(auto& jtj : jtList) {
-          if(std::find(itList.begin(), itList.end(), jtj) != itList.end()) {
-            jtjInItjList = true;
-            break;
+        for(unsigned short jtl = itl + 1; jtl < tjList.size(); ++jtl) {
+          if(tjList[itl].empty()) continue;
+          auto& itList = tjList[itl];
+          auto& jtList = tjList[jtl];
+          // See if the j Tj is in the i tjList
+          bool jtjInItjList = false;
+          for(auto& jtj : jtList) {
+            if(std::find(itList.begin(), itList.end(), jtj) != itList.end()) {
+              jtjInItjList = true;
+              break;
+            }
+            if(jtjInItjList) break;
+          } // jtj
+          if(jtjInItjList) {
+            // append the jtList to itList
+            itList.insert(itList.end(), jtList.begin(), jtList.end());
+            // clear jtList
+            jtList.clear();
+            didMerge = true;
           }
-          if(jtjInItjList) break;
-        } // jtj
-        if(jtjInItjList) {
-          // append the jtList to itList
-          itList.insert(itList.end(), jtList.begin(), jtList.end());
-          // clear jtList
-          jtList.clear();
-        }
-      } // jtl
-    } // itl
+        } // jtl
+      } // itl
+    } // didMerge
+    
+    // erase the deleted elements
+    unsigned short imEmpty = 0;
+    while(imEmpty < tjList.size()) {
+      for(imEmpty = 0; imEmpty < tjList.size(); ++imEmpty) if(tjList[imEmpty].empty()) break;
+      if(imEmpty < tjList.size()) tjList.erase(tjList.begin() + imEmpty);
+    } // imEmpty < tjList.size()
     
     // sort the lists by increasing ID and remove duplicates
     for(auto& tjl : tjList) {
-      if(tjl.empty()) continue;
       std::sort(tjl.begin(), tjl.end());
       auto last = std::unique(tjl.begin(), tjl.end());
       tjl.erase(last, tjl.end());
@@ -1572,110 +1583,46 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"tjlist\n";
       for(auto& tjl : tjList) {
-        if(tjl.empty()) continue;
         for(auto& tjID : tjl) myprt<<" "<<tjID;
         myprt<<"\n";
       } // tjl
     } // printCTP
+    
+    // Convert each one into a shower with a shower Tj
+    for(auto& tjl : tjList) {
+      // Create the shower Tj
+      Trajectory stj;
+      stj.CTP = inCTP;
+      // with three points
+      stj.Pts.resize(3);
+      for(auto& stp : stj.Pts) stp.CTP = stj.CTP;
+      stj.EndPt[0] = 0;
+      stj.EndPt[1] = 2;
+      stj.ID = tjs.allTraj.size() + 1;
+      // Declare that stj is a shower Tj
+      stj.AlgMod[kShowerTj] = true;
+      tjs.allTraj.push_back(stj);
+      // Create the shower struct
+      ShowerStruct ss;
+      // assign all TJ IDs to this ShowerStruct
+      ss.TjIDs = tjl;
+      ss.ShowerTjID = stj.ID;
+      // put it in TJ stuff. The rest of the info will be added in DefineShower
+      tjs.cots.push_back(ss);
+      // flag them all as belonging in a shower
+      for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
+      DefineShowerTj(tjs, inCTP, tjs.cots.size() - 1, fShowerTag, printCTP);
+      FindShowerParent(tjs, inCTP, tjs.cots.size() - 1, fShowerTag, printCTP);
+    } // tjl
 
-/*
-    unsigned short minLenMCSMomCut = 10;
-
-    short maxMCSMom = fShowerTag[0];
-    for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
-      Trajectory& tj1 = tjs.allTraj[it1];
-      if(tj1.CTP != inCTP) continue;
-      if(tj1.AlgMod[kKilled]) continue;
-      // identified as a parent
-      if(tj1.AlgMod[kShowerParent]) continue;
-      // ignore shower Tjs
-      if(tj1.AlgMod[kShowerTj]) continue;
-      // and Tjs that are already in showers
-      if(tj1.AlgMod[kInShower]) continue;
-      // ignore nearby muons
-      if(tj1.PDGCode == 13) continue;
-      // Cut on length and MCSMom
-      if(tj1.Pts.size() >= minLenMCSMomCut && tj1.MCSMom > maxMCSMom) continue;
-      // check for a high-quality vertex at either end
-      if(TjHasNiceVtx(tjs, tj1)) continue;
-      // Check for proximity to Tjs in existing cots
-      for(unsigned short ish = 0; ish < tjs.cots.size(); ++ish) {
-        for(auto& tjID : tjs.cots[ish].TjIDs) {
-          Trajectory& stj = tjs.allTraj[tjID - 1];
-          float minSep = fShowerTag[1];
-          unsigned short ipt1, ipt2;
-          TrajTrajDOCA(tjs, tj1, stj, ipt1, ipt2, minSep, true);
-          if(minSep == fShowerTag[1]) continue;
-          tjs.cots[ish].TjIDs.push_back(tj1.ID);
-          tj1.AlgMod[kInShower] = true;
-          break;
-        } // tjID
-        if(tj1.AlgMod[kInShower]) break;
-      } // ish
-      if(tj1.AlgMod[kInShower]) continue;
-      // Look for nearby tjs and possibly start a new shower
-      for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
-        Trajectory& tj2 = tjs.allTraj[it2];
-        if(tj2.CTP != inCTP) continue;
-        if(tj2.AlgMod[kKilled]) continue;
-        // already tagged
-        if(tj2.AlgMod[kInShower]) continue;
-        if(tj2.PDGCode == 13) continue;
-        if(tj2.StepDir != tj1.StepDir) {
-          std::cout<<"FindShowers: Tj StepDirs are different\n";
-          continue;
-        }
-        // Cut on MCSMom
-        if(tj2.Pts.size() >= minLenMCSMomCut && tj2.MCSMom > maxMCSMom) continue;
-        // check for a high-quality vertex at either end
-        if(TjHasNiceVtx(tjs, tj2)) continue;
-        float minSep = fShowerTag[1];
-        unsigned short ipt1, ipt2;
-        TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, minSep, true);
-        if(minSep == fShowerTag[1]) continue;
-        // Start a new shower. This is the index to a "shower" Tj that will have 3 Tps, the first for the
-        // start position, the second for the charge center and the third for the end position. The number
-        // of points may be increased later in DefineShowerTj
-        ShowerStruct ss;
-        // Create the shower trajectory
-        Trajectory stj;
-        stj.CTP = tj1.CTP;
-        stj.ID = tjs.allTraj.size() + 1;
-        stj.StepDir = tj1.StepDir;
-        // Declare that it is a shower Tj
-        stj.AlgMod[kShowerTj] = true;
-        // define the points
-        stj.Pts.resize(3);
-        for(auto& stp : stj.Pts) stp.CTP = stj.CTP;
-        stj.EndPt[0] = 0;
-        stj.EndPt[1] = 2;
-        tjs.allTraj.push_back(stj);
-        ss.ShowerTjID = stj.ID;
-        // now specify the IDs of the Tjs which are in the shower Tj
-        ss.TjIDs.resize(2);
-        ss.TjIDs[0] = tj1.ID;
-        ss.TjIDs[1] = tj2.ID;
-        // put it in TJ stuff
-        tjs.cots.push_back(ss);
-        tj1.AlgMod[kInShower] = true;
-        tj2.AlgMod[kInShower] = true;
-        break;
-      } // it2 (tj2)
-    } // it1 (tj1)
-*/
     if(tjs.cots.empty()) return;
     
-    // Define the charge, angle, etc of the shower Tj. DefineShowerTj does not re-assign hits to the ShowerTj.
-    DefineShowerTj(tjs, inCTP, USHRT_MAX, fShowerTag, printCTP);
-//    MergeShowers(tjs, inCTP, fShowerTag, printCTP);
-    FindShowerParent(tjs, inCTP, USHRT_MAX, fShowerTag, printCTP);
-    CollectHits(tjs, inCTP, USHRT_MAX, printCTP);
     
     // drop those that don't meet the requirements
     for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
       if(tjs.cots[ic].TjIDs.empty()) continue;
       // enough Tjs?
-      bool killit = (tjs.cots[ic].TjIDs.size() < fShowerTag[6]);
+      bool killit = (tjs.cots[ic].TjIDs.size() < fShowerTag[7]);
       unsigned short nTjWithVtx = 0;
       if(!killit) {
         // count the number of Tj points
@@ -1685,7 +1632,7 @@ namespace tca {
           nTjPts += NumPtsWithCharge(tjs, tj, false);
           if(tj.VtxID[0] > 0 || tj.VtxID[1] > 0) ++nTjWithVtx;
         }  // tjID
-        if(nTjPts < fShowerTag[5]) killit = true;
+        if(nTjPts < fShowerTag[6]) killit = true;
       } // !killit
       if(killit) {
         tjs.cots[ic].TjIDs.clear();
@@ -1702,6 +1649,8 @@ namespace tca {
         } // tjID
       } // !killit
     } // ic
+
+    CollectHits(tjs, inCTP, USHRT_MAX, printCTP);
 
     if(fShowerTag[8] > 0) {
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
@@ -1728,16 +1677,7 @@ namespace tca {
   {
     // Defines the shower Tj variables for the showerIndex shower or all showers if
     // showerIndex is USHRT_MAX. 
-    
-    // fShowerTag[] parameters
-    //  0 max Tj MCSMom for a shower tag
-    //  1 max separation
-    //  2 max angle
-    //  3 rms width factor WF (width = WF * rms)
-    //  4 Min shower 1/2 width (WSE units)
-    //  5 Min total number of Tps
-    //  6 Min number of Tjs
-    //  7 print in plane
+
     
     if(tjs.cots.empty()) return;
     
@@ -1745,9 +1685,12 @@ namespace tca {
     unsigned short last = showerIndex + 1;
     if(showerIndex == USHRT_MAX) {
       first = 0;
-      last = tjs.cots.size() - 1;
+      last = tjs.cots.size();
+    } else {
+      first = showerIndex;
+      last = showerIndex + 1;
     }
-    if(last > tjs.cots.size() - 1) return;
+    if(last > tjs.cots.size()) return;
     
     for(unsigned short ish = first; ish < last; ++ish) {
       ShowerStruct& ss = tjs.cots[ish];
@@ -1851,9 +1794,9 @@ namespace tca {
         } // ipt
       } // it1
       // The rms width will be used to define the envelope
-      if(cnt0 > 2) sTp0.Delta = fShowerTag[3] * sqrt(sTp0.Delta / cnt0);
-      sTp1.Delta = fShowerTag[3] * sqrt(sTp1.Delta / (float)(cnt0 + cnt2));
-      if(cnt2 > 2) sTp2.Delta = fShowerTag[3] * sqrt(sTp2.Delta / cnt2);
+      if(cnt0 > 2) sTp0.Delta = fShowerTag[4] * sqrt(sTp0.Delta / cnt0);
+      sTp1.Delta = fShowerTag[4] * sqrt(sTp1.Delta / (float)(cnt0 + cnt2));
+      if(cnt2 > 2) sTp2.Delta = fShowerTag[4] * sqrt(sTp2.Delta / cnt2);
       // set the shower direction equal to the step direction
       stj.TjDir = 1;
       // Reverse it if the end0 width is wider than the end1 width
@@ -1869,10 +1812,10 @@ namespace tca {
       ss.Envelope.resize(4);
       // First vertex
       ss.Envelope[0][0] = sTp0.Pos[0] - sTp1.Pos[0];
-      ss.Envelope[0][1] = fShowerTag[4] + 0.5 * sTp0.Delta;
+      ss.Envelope[0][1] = fShowerTag[5] + 0.5 * sTp0.Delta;
       // second vertex
       ss.Envelope[1][0] = sTp2.Pos[0] - sTp1.Pos[0];
-      ss.Envelope[1][1] = fShowerTag[4] + 0.5 * sTp2.Delta;
+      ss.Envelope[1][1] = fShowerTag[5] + 0.5 * sTp2.Delta;
       // third and fourth are reflections of the first and second
       ss.Envelope[2][0] =  ss.Envelope[1][0];
       ss.Envelope[2][1] = -ss.Envelope[1][1];
@@ -1902,6 +1845,7 @@ namespace tca {
         // This is only necessary so the debug printing makes sense
         stj.Pts[ipt].HitPos = stj.Pts[ipt].Pos;
       }
+/*
       if(printCTP == stj.CTP) {
         // This is done purely for printing
         stj.MCSMom = ss.TjIDs.size();
@@ -1910,22 +1854,13 @@ namespace tca {
         myprt<<" Envelope";
         for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
       } // print
+*/
     } // ish
   } // DefineShowerTj
-
+/*
   ////////////////////////////////////////////////
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, const CTP_t& printCTP)
   {
-    
-    // fShowerTag[] parameters
-    //  0 max Tj MCSMom for a shower tag
-    //  1 max separation
-    //  2 max angle
-    //  3 rms width factor WF (width = WF * rms)
-    //  4 Min shower 1/2 width (WSE units)
-    //  5 Min total number of Tps
-    //  6 Min number of Tjs
-    //  7 print in plane
     
     if(printCTP == inCTP) PrintHeader("MS");
     
@@ -1973,7 +1908,7 @@ namespace tca {
       } // ish2
     } // ish1
   } // MergeShowers
-
+*/
   ////////////////////////////////////////////////
   void CollectHits(TjStuff& tjs, const CTP_t& inCTP, const unsigned short& showerIndex, const CTP_t& printCTP)
   {
