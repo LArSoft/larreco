@@ -53,6 +53,13 @@ int pma::TrkCandidateColl::getCandidateIndex(pma::Track3D const * candidate) con
 	return -1;
 }
 
+int pma::TrkCandidateColl::getCandidateTreeId(pma::Track3D const * candidate) const
+{
+    int id = getCandidateIndex(candidate);
+	if (id >= 0) return fCandidates[id].TreeId();
+	else return -1;
+}
+
 void pma::TrkCandidateColl::setParentDaughterConnections(void)
 {
     fParents.clear();
@@ -208,7 +215,16 @@ void pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
 
 			if (pFront[coordinate] > pBack[coordinate])
 			{
-				if (trk->CanFlip()) { trk->Flip(); break; } // go to the next tree if managed to flip
+				//if (trk->CanFlip()) { trk->Flip(); break; } // go to the next tree if managed to flip
+				
+				std::vector< pma::Track3D* > newTracks;
+				if (trk->Flip(newTracks))
+				{
+                    for (const auto ts : newTracks) { fCandidates.emplace_back(ts, -1, tEntry.first); }
+                    //std::cout << "FLIP OK, NEW TRACKS: " << newTracks.size() << std::endl;
+				    break;
+				}
+				else { std::cout << "FLIP FAILED, NEW TRACKS: " << newTracks.size() << std::endl; }
 			}
 			else break; // good orientation, go to the next tree
 

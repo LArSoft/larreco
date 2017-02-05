@@ -149,7 +149,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
           t2Dir = trk2BackDir;
           xShift2 = backShift2;
         }
-        t1Pos.SetX(t1Pos.X() - xShift1); 
+        t1Pos.SetX(t1Pos.X() - xShift1);
         t2Pos.SetX(t2Pos.X() - xShift2);
 
         double score = 0;
@@ -160,6 +160,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
           std::cout << " - " << t2Pos.X() << ", " << t2Pos.Y() << ", " << t2Pos.Z() << " :: " << t2Dir.X() << ", " << t2Dir.Y() << ", " << t2Dir.Z() << std::endl;
           std::cout << " - " << t1->FrontCryo() << ", " << t1->FrontTPC() << " :: " << t1->BackCryo() << ", " << t1->BackTPC() << std::endl;
           std::cout << " - " << t2->FrontCryo() << ", " << t2->FrontTPC() << " :: " << t2->BackCryo() << ", " << t2->BackTPC() << std::endl;
+
           bestTrkMatch = t2;
           xBestShift1 = xShift1;
           xBestShift2 = xShift2;
@@ -203,8 +204,12 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
       // Back-to-front match (do nothing)
 
       if (flip1){
-        if(t1->CanFlip()){
-          t1->Flip();
+      
+        std::vector< pma::Track3D* > newTracks;
+        if(t1->Flip(newTracks)){ // instead of: t1->CanFlip()
+        //  t1->Flip();
+          int tid = fInputTracks.getCandidateTreeId(t1);
+          for (const auto ts : newTracks) { fInputTracks.tracks().emplace_back(ts, -1, tid); }
           std::cout << "Track 1 flipped." << std::endl;
         }
         else{
@@ -213,9 +218,13 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
           std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift2 << std::endl;
         }
       }
-      if (flip2){ 
-        if(bestTrkMatch->CanFlip()){
-          bestTrkMatch->Flip();
+      if (flip2){
+
+        std::vector< pma::Track3D* > newTracks;
+        if(bestTrkMatch->Flip(newTracks)){ // instead of: bestTrkMatch->CanFlip()
+        //  bestTrkMatch->Flip();
+          int tid = fInputTracks.getCandidateTreeId(bestTrkMatch);
+          for (const auto ts : newTracks) { fInputTracks.tracks().emplace_back(ts, -1, tid); }
           std::cout << "Track 2 flipped." << std::endl;
         }
         else{

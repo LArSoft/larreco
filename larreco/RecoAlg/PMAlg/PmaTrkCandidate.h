@@ -103,6 +103,7 @@ public:
     std::vector< TrkCandidate > const & parents(void) const { return fParents; }
 
 	int getCandidateIndex(pma::Track3D const * candidate) const;
+	int getCandidateTreeId(pma::Track3D const * candidate) const;
 	void setParentDaughterConnections(void);
 
 	void setTreeId(int id, size_t trkIdx, bool isRoot = true);

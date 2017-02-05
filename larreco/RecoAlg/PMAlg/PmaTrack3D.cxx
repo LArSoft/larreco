@@ -508,6 +508,12 @@ bool pma::Track3D::Flip(std::vector< pma::Track3D* >& allTracks)
         		    else
         		    {
         		        mf::LogWarning("pma::Track3D") << "Flip(): Could not flip after split.";
+        		        if (allTracks.back() == u)
+        		        {
+        		            // ****** MERGE BACK TRACK u INTO TRACK t *******
+        		            allTracks.pop_back();
+        		        }
+        		        else { mf::LogWarning("pma::Track3D") << "Flip(): Cleanup problem."; }
         		        return false;
         		    }
     		    }
