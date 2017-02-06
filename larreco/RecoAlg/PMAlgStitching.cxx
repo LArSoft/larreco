@@ -67,8 +67,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
 
     bool isBestFront1 = false;
     bool isBestFront2 = false;
-    double xBestShift1 = 0;
-    double xBestShift2 = 0;
+    double xBestShift = 0;
     double frontShift1 = t1->Nodes()[0]->Point3D().X() - offsetFront1;
     double backShift1 = t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() - offsetBack1;
    
@@ -89,9 +88,6 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
       double offsetFront2 = GetTPCOffset(t2->FrontTPC(),t2->FrontCryo(),true);
       double offsetBack2 = GetTPCOffset(t2->BackTPC(),t2->BackCryo(),true);
  
-      double frontShift2 = t2->Nodes()[0]->Point3D().X() - offsetFront2;
-      double backShift2 = t2->Nodes()[t2->Nodes().size()-1]->Point3D().X() - offsetBack2;
-  
       // If the points to match are in the same TPC, then don't bother.
       // Remember we have 4 points to consider here.
       bool carryOn[4] = {false,false,false,false};
@@ -128,7 +124,6 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
         TVector3 t1Dir;
         TVector3 t2Dir;
         double xShift1;
-        double xShift2;
         if(i < 2){
           t1Pos = trk1Front;
           t1Dir = trk1FrontDir;
@@ -142,18 +137,22 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
         if(i%2 == 0){
           t2Pos = trk2Front;
           t2Dir = trk2FrontDir;
-          xShift2 = frontShift2;
         }
         else{
           t2Pos = trk2Back;
           t2Dir = trk2BackDir;
-          xShift2 = backShift2;
         }
-        t1Pos.SetX(t1Pos.X() - xShift1);
-        t2Pos.SetX(t2Pos.X() - xShift2);
+
+        // Make sure the x directions point towards eachother (could be an issue for matching a short track)
+        if(t1Dir.X() * t2Dir.X() > 0){
+          continue;
+        }
+//        t1Pos.SetX(t1Pos.X() - xShift1);
+//        t2Pos.SetX(t2Pos.X() + xShift1);
 
         double score = 0;
-        score = GetTrackPairDelta(t1Pos,t2Pos,t1Dir,t2Dir);
+//        score = GetTrackPairDelta(t1Pos,t2Pos,t1Dir,t2Dir);
+        score = GetOptimalStitchShift(t1Pos,t2Pos,t1Dir,t2Dir,xShift1);
         if(score < 10 && score < bestMatchScore){
           std::cout << "Tracks " << t << " and " << u << " matching score = " << score << std::endl;
           std::cout << " - " << t1Pos.X() << ", " << t1Pos.Y() << ", " << t1Pos.Z() << " :: " << t1Dir.X() << ", " << t1Dir.Y() << ", " << t1Dir.Z() << std::endl;
@@ -162,8 +161,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
           std::cout << " - " << t2->FrontCryo() << ", " << t2->FrontTPC() << " :: " << t2->BackCryo() << ", " << t2->BackTPC() << std::endl;
 
           bestTrkMatch = t2;
-          xBestShift1 = xShift1;
-          xBestShift2 = xShift2;
+          xBestShift = xShift1;
           bestMatchScore = score;
           if(i < 2){
             isBestFront1 = true;
@@ -180,7 +178,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
           std::cout << " - " << isBestFront1 << " :: " << isBestFront2 << std::endl;
         } // End successful match if
       } // Loop over matching options
-    } // Loop over track 1
+    } // Loop over track 2
 
     // If we found a match, do something about it.
     if(bestTrkMatch != 0x0){
@@ -214,8 +212,8 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
         }
         else{
           std::cout << "Was not possible to flip the track with nHits = " << t1->size() << std::endl;
-          std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift1 << std::endl;
-          std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift2 << std::endl;
+          std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
+          std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
         }
       }
       if (flip2){
@@ -229,13 +227,13 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
         }
         else{
           std::cout << "Was not possible to flip the track with nHits = " << bestTrkMatch->size() << std::endl;
-          std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift1 << std::endl;
-          std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift2 << std::endl;
+          std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
+          std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
         }
       }
 
-      t1->GetRoot()->ApplyXShiftInTree(-xBestShift1);
-      bestTrkMatch->GetRoot()->ApplyXShiftInTree(-xBestShift2);
+      t1->GetRoot()->ApplyXShiftInTree(-xBestShift);
+      bestTrkMatch->GetRoot()->ApplyXShiftInTree(+xBestShift);
 
       if (reverse)
       {
@@ -252,6 +250,30 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
 
   }
 
+}
+
+double pma::PMAlgStitching::GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double &shift){
+
+  double stepSize = 0.1;
+  double minShift = shift - (50. * stepSize);
+  double maxShift = shift + (50. * stepSize);
+  double bestShift = 99999;
+  double bestScore = 99999;
+
+  for(shift = minShift; shift <= maxShift; shift += stepSize){
+    TVector3 newPos1 = pos1;
+    TVector3 newPos2 = pos2;
+    newPos1.SetX(pos1.X() - shift);
+    newPos2.SetX(pos2.X() + shift);
+    double thisScore = GetTrackPairDelta(newPos1,newPos2,dir1,dir2);
+    if(thisScore < bestScore){
+      bestShift = shift;
+      bestScore = thisScore;
+    }
+  }
+
+  shift = bestShift;
+  return bestScore;
 }
 
 double pma::PMAlgStitching::GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2){
