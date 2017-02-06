@@ -31,11 +31,13 @@ pma::PMAlgStitching::~PMAlgStitching(){
 
 // CPA stitching wrapper
 void pma::PMAlgStitching::StitchTracksCPA(){
+  std::cout << "Passed " << fInputTracks.size() << " tracks for CPA stitching." << std::endl;
   StitchTracks(true);
 }
 
 // APA stitching wrapper
 void pma::PMAlgStitching::StitchTracksAPA(){
+  std::cout << "Passed " << fInputTracks.size() << " tracks for APA stitching." << std::endl;
   StitchTracks(false);
 } 
 
@@ -44,7 +46,6 @@ void pma::PMAlgStitching::StitchTracksAPA(){
 //       = false : attempt to stitch tracks across the anode.
 void pma::PMAlgStitching::StitchTracks(bool isCPA){
 
-  std::cout << "Passed " << fInputTracks.size() << " tracks." << std::endl;
 
   // Loop over the track collection
   for(unsigned int t = 0; t < fInputTracks.size(); ++t){
@@ -159,7 +160,9 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
           std::cout << " - " << t2Pos.X() << ", " << t2Pos.Y() << ", " << t2Pos.Z() << " :: " << t2Dir.X() << ", " << t2Dir.Y() << ", " << t2Dir.Z() << std::endl;
           std::cout << " - " << t1->FrontCryo() << ", " << t1->FrontTPC() << " :: " << t1->BackCryo() << ", " << t1->BackTPC() << std::endl;
           std::cout << " - " << t2->FrontCryo() << ", " << t2->FrontTPC() << " :: " << t2->BackCryo() << ", " << t2->BackTPC() << std::endl;
-
+          if(!isCPA){
+            std::cout << " APA match?! " << offsetFront1 << ", " << offsetBack1 << " :: " << offsetFront2 << ", " << offsetBack2 << std::endl;
+          }
           bestTrkMatch = t2;
           xBestShift = xShift1;
           bestMatchScore = score;
@@ -355,8 +358,7 @@ void pma::PMAlgStitching::GetTPCXOffsets(){
 
 double pma::PMAlgStitching::GetTPCOffset(unsigned int tpc, unsigned int cryo, bool isCPA){
 
-  geo::TPCID thisTPCID(tpc,cryo);
-//  std::cout << "Looking for TPCID = " << tpc << ", " << cryo << std::endl;
+  geo::TPCID thisTPCID(cryo,tpc);
   double offset = 0.0;
   if(isCPA){
     offset = fTPCXOffsetsCPA[thisTPCID];
