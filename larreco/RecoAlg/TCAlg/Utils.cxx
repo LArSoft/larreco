@@ -1452,6 +1452,7 @@ namespace tca {
       Trajectory& tj1 = tjs.allTraj[it1];
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kKilled]) continue;
+      tj1.NNeighbors = 0;
       // identified as a parent
       if(tj1.AlgMod[kShowerParent]) continue;
       // ignore shower Tjs
@@ -1486,10 +1487,11 @@ namespace tca {
           // start the list with the ID of tj1
           if(list.empty()) list.push_back(tj1.ID);
           list.push_back(tj2.ID);
+          ++tj1.NNeighbors;
         }
       } // it2
       if(list.size() > minCnt) {
-        tj1.PDGCode = 11;
+//        tj1.PDGCode = 11;
         tjList.push_back(list);
       }
     } // it1
@@ -1530,7 +1532,7 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"tjlist\n";
       for(auto& tjl : tjList) {
-        for(auto& tjID : tjl) myprt<<" "<<tjID;
+        for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
         myprt<<"\n";
       } // tjl
     } // printCTP
@@ -1579,11 +1581,29 @@ namespace tca {
       tjl.erase(last, tjl.end());
     } // tjl
     
+    // remove Tjs that don't have enough neighbors
+    unsigned short minNeighbors = fShowerTag[7];
+    for(auto& tjl : tjList) {
+      bool didErase = true;
+      while(didErase) {
+        didErase = false;
+        unsigned short indx = 0;
+        for(indx = 0; indx < tjl.size(); ++indx) {
+          unsigned short itj = tjl[indx] - 1;
+          if(tjs.allTraj[itj].NNeighbors < minNeighbors) break;
+        } // indx
+        if(indx < tjl.size()) {
+          tjl.erase(tjl.begin() + indx);
+          didErase = true;
+        }
+      } // didErase
+    } // tjl
+    
     if(printCTP == inCTP) {
       mf::LogVerbatim myprt("TC");
       myprt<<"tjlist\n";
       for(auto& tjl : tjList) {
-        for(auto& tjID : tjl) myprt<<" "<<tjID;
+        for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
         myprt<<"\n";
       } // tjl
     } // printCTP
@@ -1609,8 +1629,6 @@ namespace tca {
       ss.ShowerTjID = stj.ID;
       // put it in TJ stuff. The rest of the info will be added in DefineShower
       tjs.cots.push_back(ss);
-      // flag them all as belonging in a shower
-      for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
       DefineShowerTj(tjs, inCTP, tjs.cots.size() - 1, fShowerTag, printCTP);
       FindShowerParent(tjs, inCTP, tjs.cots.size() - 1, fShowerTag, printCTP);
     } // tjl
@@ -1620,14 +1638,15 @@ namespace tca {
     
     // drop those that don't meet the requirements
     for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
-      if(tjs.cots[ic].TjIDs.empty()) continue;
+      ShowerStruct& ss = tjs.cots[ic];
+      if(ss.TjIDs.empty()) continue;
       // enough Tjs?
-      bool killit = (tjs.cots[ic].TjIDs.size() < fShowerTag[7]);
+      bool killit = (ss.TjIDs.size() < fShowerTag[7]);
       unsigned short nTjWithVtx = 0;
       if(!killit) {
         // count the number of Tj points
         unsigned short nTjPts = 0;
-        for(auto& tjID : tjs.cots[ic].TjIDs) {
+        for(auto& tjID : ss.TjIDs) {
           Trajectory& tj = tjs.allTraj[tjID - 1];
           nTjPts += NumPtsWithCharge(tjs, tj, false);
           if(tj.VtxID[0] > 0 || tj.VtxID[1] > 0) ++nTjWithVtx;
@@ -1635,17 +1654,21 @@ namespace tca {
         if(nTjPts < fShowerTag[6]) killit = true;
       } // !killit
       if(killit) {
-        tjs.cots[ic].TjIDs.clear();
-        unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
+        // kill the shower parent Tj
+        ss.TjIDs.clear();
+        unsigned short itj = ss.ShowerTjID - 1;
         MakeTrajectoryObsolete(tjs, itj);
+        // Trajectories that are in showers haven't had their hits re-assigned to the
+        // shower Tj yet so nothing needs to be done to them
       }
+      // kill vertices in the showers that are left
       if(!killit && nTjWithVtx > 0) {
-        // kill vertices in showers
-        for(auto& tjID : tjs.cots[ic].TjIDs) {
+        for(auto& tjID : ss.TjIDs) {
           Trajectory& tj = tjs.allTraj[tjID - 1];
           for(unsigned short end = 0; end < 2; ++end) {
             if(tj.VtxID[end] > 0) MakeVertexObsolete(tjs, tj.VtxID[end]);
           } // end
+          tj.AlgMod[kInShower] = true;
         } // tjID
       } // !killit
     } // ic
@@ -1766,10 +1789,13 @@ namespace tca {
       sTp1.Dir = tmp.Dir;
       sTp1.Pos[0] = chgPos0 / chgSum;
       sTp1.Pos[1] = chgPos1 / chgSum;
+      sTp0.Chg = 0;
       sTp1.Chg = chgSum;
+      sTp2.Chg = 0;
       // Calculate the rms width of the hits wrt to the shower axis. Try to determine the
       // shower direction by finding the rms width for trajectory Tps that are closest to the start
-      // and end points of the shower Tj
+      // and end points of the shower Tj. While we are here, sum the charge at each end and put it in
+      // Chg
       sTp0.Delta = 0;
       float cnt0 = 0;
       sTp1.Delta = 0;
@@ -1785,10 +1811,12 @@ namespace tca {
           if(PosSep2(tj.Pts[ipt].Pos, sTp0.Pos) < PosSep2(tj.Pts[ipt].Pos, sTp2.Pos)) {
             // Tj point is closer to shower Tj point 0 
             sTp0.Delta += delta;
+            sTp0.Chg += tj.Pts[ipt].Chg;
             ++cnt0;
           } else {
             // Tj point is closer to shower Tj point 2
             sTp2.Delta += delta;
+            sTp2.Chg += tj.Pts[ipt].Chg;
             ++cnt2;
           }
         } // ipt
@@ -1799,6 +1827,9 @@ namespace tca {
       if(cnt2 > 2) sTp2.Delta = fShowerTag[4] * sqrt(sTp2.Delta / cnt2);
       // set the shower direction equal to the step direction
       stj.TjDir = 1;
+      sTp0.AveChg = sTp0.Chg;
+      sTp1.AveChg = sTp1.Chg;
+      sTp2.AveChg = sTp2.Chg;
       // Reverse it if the end0 width is wider than the end1 width
       if(sTp0.Delta > sTp2.Delta) {
         // Don't use ReverseTraj here or it will screw up the references to sTp0 and sTp2.
@@ -1845,16 +1876,6 @@ namespace tca {
         // This is only necessary so the debug printing makes sense
         stj.Pts[ipt].HitPos = stj.Pts[ipt].Pos;
       }
-/*
-      if(printCTP == stj.CTP) {
-        // This is done purely for printing
-        stj.MCSMom = ss.TjIDs.size();
-        PrintTrajectory("DSTj", tjs, stj, USHRT_MAX);
-        mf::LogVerbatim myprt("TC");
-        myprt<<" Envelope";
-        for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
-      } // print
-*/
     } // ish
   } // DefineShowerTj
 /*
@@ -1918,9 +1939,12 @@ namespace tca {
     unsigned short last = showerIndex + 1;
     if(showerIndex == USHRT_MAX) {
       first = 0;
-      last = tjs.cots.size() - 1;
+      last = tjs.cots.size();
+    } else {
+      first = showerIndex;
+      last = showerIndex + 1;
     }
-    if(last > tjs.cots.size() - 1) return;
+    if(last > tjs.cots.size()) return;
     
     geo::PlaneID planeID = DecodeCTP(inCTP);
     unsigned short ipl = planeID.Plane;
@@ -2667,7 +2691,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID CTP Pass Pts frm   to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom sDr tDr __Vtx__ PDG  Par TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID CTP Pass Pts frm   to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom SDrTDr NN __Vtx__  PDG  Par TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto const& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -2700,6 +2724,7 @@ namespace tca {
         myprt<<std::setw(5)<<aTj.MCSMom;
         myprt<<std::setw(4)<<aTj.StepDir;
         myprt<<std::setw(3)<<aTj.TjDir;
+        myprt<<std::setw(3)<<aTj.NNeighbors;
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
