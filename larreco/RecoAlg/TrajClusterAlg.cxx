@@ -53,7 +53,7 @@ namespace tca {
     fEP_T[2] = tfs->make<TProfile>("EP_T_Pi","EP vs T(MeV) - Pions", 20, 0, 1000);
     fEP_T[3] = tfs->make<TProfile>("EP_T_Ka","EP vs T(MeV) - Kaons", 20, 0, 1000);
     fEP_T[4] = tfs->make<TProfile>("EP_T_Pr","EP vs T(MeV) - Protons", 20, 0, 1000);
-    
+/*
     fDeltaN[0] = tfs->make<TH1F>("DeltaN0","Normalized Delta Pln 0", 50, 0, 4);
     fDeltaN[1] = tfs->make<TH1F>("DeltaN1","Normalized Delta Pln 1", 50, 0, 4);
     fDeltaN[2] = tfs->make<TH1F>("DeltaN2","Normalized Delta Pln 2", 50, 0, 4);
@@ -73,7 +73,17 @@ namespace tca {
     fExpect_Angle[0] = tfs->make<TProfile>("expect_angle0","Expected width vs Angle Pln 0", 11, 0, M_PI/2, "S");
     fExpect_Angle[1] = tfs->make<TProfile>("expect_angle1","Expected width vs Angle Pln 1", 11, 0, M_PI/2, "S");
     fExpect_Angle[2] = tfs->make<TProfile>("expect_angle2","Expected width vs Angle Pln 2", 11, 0, M_PI/2, "S");
-    
+*/
+    fMCSMom_Length = tfs->make<TH2F>("MCSMom_Length","MCSMom vs Length", 50, 0, 100, 50, 0, 1000);
+
+    fMCSMom_TruMom_e = tfs->make<TH2F>("MCSMom_TruMom_e","MCSMom vs Tru Mom electrons", 50, 0, 100, 50, 0, 1000);
+    fMCSMom_TruMom_mu = tfs->make<TH2F>("MCSMom_TruMom_mu","MCSMom vs Tru Mom electrons", 50, 0, 1000, 50, 0, 1000);
+    fMCSMom_TruMom_pi = tfs->make<TH2F>("MCSMom_TruMom_pi","MCSMom vs Tru Mom electrons", 50, 0, 1000, 50, 0, 1000);
+    fMCSMom_TruMom_p = tfs->make<TH2F>("MCSMom_TruMom_p","MCSMom vs Tru Mom electrons", 50, 0, 1000, 50, 0, 1000);
+
+    // Same as above but with good Efficiency * Purity
+    fMCSMomEP_TruMom_e = tfs->make<TH2F>("MCSMomEP_TruMom_e","MCSMom vs Tru Mom electrons", 50, 0, 100, 50, 0, 1000);
+
     for(unsigned short pdgIndex = 0; pdgIndex < 6; ++pdgIndex) {
       EPTSums[pdgIndex] = 0;
       EPSums[pdgIndex] = 0;
@@ -446,6 +456,7 @@ namespace tca {
 
     // temp
     if(fStudyMode) {
+/*
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
         if(tjs.fHits[iht].Multiplicity != 1) continue;
         if(tjs.fHits[iht].GoodnessOfFit < 0) continue;
@@ -453,10 +464,10 @@ namespace tca {
         unsigned short ipl = tjs.fHits[iht].WireID.Plane;
         fHitRMS[ipl]->Fill(tjs.fHits[iht].RMS);
       } // iht
+*/
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         Trajectory& tj = tjs.allTraj[itj];
         if(tj.AlgMod[kKilled]) continue;
-        if(tj.MCSMom == 0) continue;
 /*
         // TP hit width plots
         unsigned short ipl = tj.CTP;
@@ -479,7 +490,15 @@ namespace tca {
           float dn = tp.Delta / fHitErrFac;
           if(dn > 0) fDeltaN[ipl]->Fill(dn);
         } // ipt
+*/
+        // reco MCSMom vs reco range
+        float len = TrajLength(tj);
+        if(len > 99) len = 99;
+        // ignore really short Tjs
+        if(len < 2) continue;
+        fMCSMom_Length->Fill(len, tj.MCSMom);
         if(tj.TruKE == 0) continue;
+        // some reco-truth histos
         unsigned short pdg = std::abs(tj.TruPDG);
         double mass = 0.511;
         if(pdg == 13) mass = 105.7;
@@ -487,13 +506,13 @@ namespace tca {
         if(pdg == 2212) mass = 938.3;
         double tPlusM = tjs.allTraj[itj].TruKE + mass;
         double truMom = sqrt(tPlusM * tPlusM - mass * mass);
-        std::cout<<tj.CTP<<":"<<PrintPos(tjs, tj.Pts[tj.EndPt[0]])<<"-"<<tj.CTP<<":"<<PrintPos(tjs, tj.Pts[tj.EndPt[1]]);
-        std::cout<<" MCS TruKE "<<tj.TruKE<<" pdg "<<tj.TruPDG<<" MCSMom "<<(int)tj.MCSMom<<" EffPur "<<std::setprecision(2)<<tj.EffPur<<"\n";
-        if(pdg == 11) fMCSMom_KE_e->Fill(tj.TruKE, tj.MCSMom);
-        if(pdg == 13) fMCSMom_KE_mu->Fill(tj.TruKE, tj.MCSMom);
-        if(pdg == 211) fMCSMom_KE_pi->Fill(tj.TruKE, tj.MCSMom);
-        if(pdg == 2212) fMCSMom_KE_p->Fill(tj.TruKE, tj.MCSMom);
- */
+        if(tj.EffPur > 0.7) std::cout<<"Good MC match: PDG "<<tj.TruPDG<<" truMom "<<(int)truMom<<" length "<<(int)len<<" MCSMom "<<tj.MCSMom<<"\n";
+        if(pdg == 11) fMCSMom_TruMom_e->Fill(truMom, tj.MCSMom);
+        if(pdg == 13) fMCSMom_TruMom_mu->Fill(truMom, tj.MCSMom);
+        if(pdg == 211) fMCSMom_TruMom_pi->Fill(truMom, tj.MCSMom);
+        if(pdg == 2212) fMCSMom_TruMom_p->Fill(truMom, tj.MCSMom);
+        // See if a parameterization of expected MCSMom(Length) 
+        if(pdg == 11 && tj.EffPur > 0.7) fMCSMomEP_TruMom_e->Fill(truMom, tj.MCSMom);
       } // itj
     } // studymode
     
@@ -3506,6 +3525,7 @@ namespace tca {
             float kWire = -1;
             if(TPC.Nplanes() > 2) {
               kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
+              if((unsigned int)kWire > tjs.NumWires[kpl]) continue;
               tp.Pos[0] = kWire;
               // See if there is a wire signal nearby in kpl
               tp.Pos[1] = detprop->ConvertXToTicks(kX, kpl, fTpc, fCstat) * tjs.UnitsPerTick;
@@ -4157,6 +4177,7 @@ namespace tca {
         // Project sXYZ to this plane coordinate system
         geo::PlaneID planeID = DecodeCTP(tj.CTP);
         vpos[0] = geom->NearestWire(wpos, planeID.Plane, tpc, cstat);
+        if((unsigned int)vpos[0] > tjs.NumWires[planeID.Plane]) continue;
         vpos[1] = detprop->ConvertXToTicks(ms.sXYZ[0], planeID.Plane, tpc, cstat) * tjs.UnitsPerTick;
         // Reverse if end 0 is further away from vpos than end 1
         if(PosSep2(tj.Pts[endPt0].Pos, vpos) > PosSep2(tj.Pts[endPt1].Pos, vpos)) ReverseTraj(tjs, tj);
