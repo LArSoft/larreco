@@ -135,6 +135,7 @@ namespace tca {
     short TjDir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
                                         ///< 1 = in the StepDir direction, -1 in the opposite direction, 0 = don't know
     int WorkID {0};
+    unsigned short NNeighbors {0};    /// number of neighbors within window defined by ShowerTag
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
   };
   
