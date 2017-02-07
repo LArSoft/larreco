@@ -86,8 +86,8 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
       TVector3 trk2BackDir = (t2->Nodes()[t2->Nodes().size()-2]->Point3D() - trk2Back).Unit();
 
       // For stitching, we need to consider both ends of the track.
-      double offsetFront2 = GetTPCOffset(t2->FrontTPC(),t2->FrontCryo(),true);
-      double offsetBack2 = GetTPCOffset(t2->BackTPC(),t2->BackCryo(),true);
+      double offsetFront2 = GetTPCOffset(t2->FrontTPC(),t2->FrontCryo(),isCPA);
+      double offsetBack2 = GetTPCOffset(t2->BackTPC(),t2->BackCryo(),isCPA);
  
       // If the points to match are in the same TPC, then don't bother.
       // Remember we have 4 points to consider here.
@@ -110,10 +110,11 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
       carryOn[3] = !(tpc1 == tpc2);
 
       // Also check that these tpcs do meet at the stitching surface (not a problem for protoDUNE).
-      if(fabs(offsetFront1 - offsetFront2) > 10.0) carryOn[0] = false;
-      if(fabs(offsetFront1 - offsetBack2) > 10.0) carryOn[1] = false;
-      if(fabs(offsetBack1 - offsetFront2) > 10.0) carryOn[2] = false;
-      if(fabs(offsetBack1 - offsetBack2) > 10.0) carryOn[3] = false;
+      double surfaceGap = 10.0;
+      if(fabs(offsetFront1 - offsetFront2) > surfaceGap) carryOn[0] = false;
+      if(fabs(offsetFront1 - offsetBack2) > surfaceGap) carryOn[1] = false;
+      if(fabs(offsetBack1 - offsetFront2) > surfaceGap) carryOn[2] = false;
+      if(fabs(offsetBack1 - offsetBack2) > surfaceGap) carryOn[3] = false;
 
       // Loop over the four options
       for(int i = 0; i < 4; ++i){
@@ -154,15 +155,13 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
         double score = 0;
 //        score = GetTrackPairDelta(t1Pos,t2Pos,t1Dir,t2Dir);
         score = GetOptimalStitchShift(t1Pos,t2Pos,t1Dir,t2Dir,xShift1);
+        std::cout << "score = " << score << std::endl;
         if(score < 10 && score < bestMatchScore){
           std::cout << "Tracks " << t << " and " << u << " matching score = " << score << std::endl;
           std::cout << " - " << t1Pos.X() << ", " << t1Pos.Y() << ", " << t1Pos.Z() << " :: " << t1Dir.X() << ", " << t1Dir.Y() << ", " << t1Dir.Z() << std::endl;
           std::cout << " - " << t2Pos.X() << ", " << t2Pos.Y() << ", " << t2Pos.Z() << " :: " << t2Dir.X() << ", " << t2Dir.Y() << ", " << t2Dir.Z() << std::endl;
           std::cout << " - " << t1->FrontCryo() << ", " << t1->FrontTPC() << " :: " << t1->BackCryo() << ", " << t1->BackTPC() << std::endl;
           std::cout << " - " << t2->FrontCryo() << ", " << t2->FrontTPC() << " :: " << t2->BackCryo() << ", " << t2->BackTPC() << std::endl;
-          if(!isCPA){
-            std::cout << " APA match?! " << offsetFront1 << ", " << offsetBack1 << " :: " << offsetFront2 << ", " << offsetBack2 << std::endl;
-          }
           bestTrkMatch = t2;
           xBestShift = xShift1;
           bestMatchScore = score;
