@@ -114,7 +114,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
 
       // Also check that these tpcs do meet at the stitching surface (not a problem for protoDUNE).
       double surfaceGap = 10.0;
-      bool carryOn[4] = {false,false,false,false};
+      bool carryOn[4] = {true,true,true,true};
       if(fabs(offsetFront1 - offsetFront2) > surfaceGap) carryOn[0] = false;
       if(fabs(offsetFront1 - offsetBack2) > surfaceGap) carryOn[1] = false;
       if(fabs(offsetBack1 - offsetFront2) > surfaceGap) carryOn[2] = false;
