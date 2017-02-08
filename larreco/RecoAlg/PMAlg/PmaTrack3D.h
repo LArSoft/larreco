@@ -187,10 +187,10 @@ public:
 
 	/// Track found with stitching, but not included in the Prev/Next structure
 	/// (used to point tracks crossing APA, found at the end of processing).
-	pma::Track3D* GetPrecedingTrack(void) const { return fPrecedingTrack; }
-	void SetPrecedingTrack(pma::Track3D* trk) { fPrecedingTrack = trk; }
-	pma::Track3D* GetSubsequentTrack(void) const { return fSubsequentTrack; }
-	void SetSubsequentTrack(pma::Track3D* trk) { fSubsequentTrack = trk; }
+	//pma::Track3D* GetPrecedingTrack(void) const { return fPrecedingTrack; }
+	//void SetPrecedingTrack(pma::Track3D* trk) { fPrecedingTrack = trk; }
+	//pma::Track3D* GetSubsequentTrack(void) const { return fSubsequentTrack; }
+	//void SetSubsequentTrack(pma::Track3D* trk) { fSubsequentTrack = trk; }
 
 	/// Cut out tails with no hits assigned.
 	void CleanupTails(void);
@@ -222,6 +222,9 @@ public:
 	bool AttachTo(pma::Node3D* vStart, bool noFlip = false);
 	bool AttachBackTo(pma::Node3D* vStart);
 	bool IsAttachedTo(pma::Track3D const * trk) const;
+
+    /// Extend the track with everything from src, delete the src;
+    void ExtendWith(pma::Track3D* src);
 
 	pma::Track3D* GetRoot(void);
 	bool GetBranches(std::vector< pma::Track3D const * >& branches, bool skipFirst = false) const;
@@ -283,6 +286,7 @@ private:
 	/// the function returns true.
 	bool GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3d, double& dist2) const;
 
+    void DeleteSegments(void);
 	void RebuildSegments(void);
 	bool SwapVertices(size_t v0, size_t v1);
 	void UpdateParams(void);
@@ -317,8 +321,8 @@ private:
 
 	double fXShift;
 
-	pma::Track3D* fPrecedingTrack;
-	pma::Track3D* fSubsequentTrack;
+	//pma::Track3D* fPrecedingTrack;
+	//pma::Track3D* fSubsequentTrack;
 
 	ETag fTag;
 };

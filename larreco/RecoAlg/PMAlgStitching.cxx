@@ -48,10 +48,11 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
 
 
   // Loop over the track collection
-  for(unsigned int t = 0; t < fInputTracks.size(); ++t){
+  unsigned int t = 0;
+  while(t < fInputTracks.size()){
 
     pma::Track3D* t1 = fInputTracks[t].Track();
-    if(t1->Nodes().size() < 6) continue;
+    if(t1->Nodes().size() < 6) { ++t; continue; }
 
     // Look through the following tracks for one to stitch
     pma::Track3D* bestTrkMatch = 0x0;
@@ -203,59 +204,65 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
       }
       // Back-to-front match (do nothing)
 
+      int tid1 = fInputTracks.getCandidateTreeId(t1);
+      int tid2 = fInputTracks.getCandidateTreeId(bestTrkMatch);
+      bool canMerge = true;
+      if ((tid1 < 0) || (tid2 < 0))
+      {
+        throw cet::exception("pma::PMAlgStitching") << "Track not found in the collection." << std::endl;
+      }
       if (flip1){
-      
+
         std::vector< pma::Track3D* > newTracks;
-        if(t1->Flip(newTracks)){ // instead of: t1->CanFlip()
-        //  t1->Flip();
+        if(t1->Flip(newTracks)){
           std::cout << "Track 1 flipped." << std::endl;
         }
         else{
           std::cout << "Was not possible to flip the track with nHits = " << t1->size() << std::endl;
           std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
           std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
+          canMerge = false;
         }
-        int tid = fInputTracks.getCandidateTreeId(t1);
         for (const auto ts : newTracks){ // there may be a new track even if entire flip was not possible
-          fInputTracks.tracks().emplace_back(ts, -1, tid);
+          fInputTracks.tracks().emplace_back(ts, -1, tid1);
         }
       }
       if (flip2){
 
         std::vector< pma::Track3D* > newTracks;
-        if(bestTrkMatch->Flip(newTracks)){ // instead of: bestTrkMatch->CanFlip()
-        //  bestTrkMatch->Flip();
+        if(bestTrkMatch->Flip(newTracks)){
           std::cout << "Track 2 flipped." << std::endl;
         }
         else{
           std::cout << "Was not possible to flip the track with nHits = " << bestTrkMatch->size() << std::endl;
           std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
           std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
+          canMerge = false;
         }
-        int tid = fInputTracks.getCandidateTreeId(bestTrkMatch);
         for (const auto ts : newTracks){ // there may be a new track even if entire flip was not possible
-          fInputTracks.tracks().emplace_back(ts, -1, tid);
+          fInputTracks.tracks().emplace_back(ts, -1, tid2);
         }
       }
 
       t1->GetRoot()->ApplyXShiftInTree(-xBestShift);
       bestTrkMatch->GetRoot()->ApplyXShiftInTree(+xBestShift);
 
-      if (reverse)
+      if (canMerge)
       {
-        bestTrkMatch->SetSubsequentTrack(t1);
-        t1->SetPrecedingTrack(bestTrkMatch);
+        std::cout << "merge tracks" << std::endl;
+        if (reverse)
+        {
+          fInputTracks.merge((size_t)tid2, (size_t)tid1); ++t;
+        }
+        else // merge to the current track, do not increase the outer loop index t
+        {
+          fInputTracks.merge((size_t)tid1, (size_t)tid2);
+        }
       }
-      else
-      {
-        t1->SetSubsequentTrack(bestTrkMatch);
-        bestTrkMatch->SetPrecedingTrack(t1);
-      }
- 
+      else { ++t; } // track matched, but not merged, go to the next track in the outer loop
     }
-
+    else { ++t; } // no track matched, go to the next track in the outer loop
   }
-
 }
 
 double pma::PMAlgStitching::GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double &shift){

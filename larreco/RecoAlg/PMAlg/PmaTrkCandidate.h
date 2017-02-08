@@ -104,6 +104,9 @@ public:
 
 	int getCandidateIndex(pma::Track3D const * candidate) const;
 	int getCandidateTreeId(pma::Track3D const * candidate) const;
+
+	void merge(size_t idx1, size_t idx2);
+
 	void setParentDaughterConnections(void);
 
 	void setTreeId(int id, size_t trkIdx, bool isRoot = true);

@@ -30,8 +30,8 @@ pma::Track3D::Track3D(void) :
 
 	fXShift(0.0),
 
-	fPrecedingTrack(0),
-	fSubsequentTrack(0),
+	//fPrecedingTrack(0),
+	//fSubsequentTrack(0),
 
 	fTag(pma::Track3D::kNotTagged)
 {
@@ -52,8 +52,8 @@ pma::Track3D::Track3D(const Track3D& src) :
 
 	fXShift(src.fXShift),
 
-	fPrecedingTrack(src.fPrecedingTrack),
-	fSubsequentTrack(src.fSubsequentTrack),
+	//fPrecedingTrack(src.fPrecedingTrack),
+	//fSubsequentTrack(src.fSubsequentTrack),
 
 	fTag(src.fTag)
 {
@@ -1579,11 +1579,39 @@ bool pma::Track3D::AttachBackToSameTPC(pma::Node3D* vStart)
 
 	if (vtx->NextCount() || vtx->Prev())
 	{
-		throw cet::exception("pma::Track3D") << "Something is still using disconnected vertex.";
+		throw cet::exception("pma::Track3D") << "Something is still using disconnected vertex." << std::endl;
 	}
 	else delete vtx; // ok
 
 	return true;
+}
+
+void pma::Track3D::ExtendWith(pma::Track3D* src)
+{
+    if (src->fNodes.front()->Prev())
+    {
+        throw cet::exception("pma::Track3D") << "Cant extend with a track being a daughter of another track." << std::endl;
+    }
+
+    src->DeleteSegments(); // disconnect from vertices and delete
+    for (size_t i = 0; i < src->fNodes.size(); ++i)
+    {
+        fNodes.push_back(src->fNodes[i]);
+
+        size_t idx = fNodes.size() - 1;
+        fSegments.push_back(new pma::Segment3D(this, fNodes[idx - 1], fNodes[idx]));
+    }
+    src->fNodes.clear(); // just empty the node collection
+
+	while (src->size()) { push_back(src->release_at(0)); } // move hits
+
+    for (auto p : src->fAssignedPoints) { fAssignedPoints.push_back(p); } // move 3D reference points
+    src->fAssignedPoints.clear();
+
+	MakeProjection();
+	SortHits();
+
+    delete src;
 }
 
 pma::Track3D* pma::Track3D::GetRoot(void)
@@ -2183,10 +2211,15 @@ void pma::Track3D::ApplyXShiftInTree(double dx, bool skipFirst)
 	fXShift += dx;
 }
 
-void pma::Track3D::RebuildSegments(void)
+void pma::Track3D::DeleteSegments(void)
 {
 	for (size_t i = 0; i < fSegments.size(); i++) delete fSegments[i];
 	fSegments.clear();
+}
+
+void pma::Track3D::RebuildSegments(void)
+{
+	DeleteSegments();
 
 	fSegments.reserve(fNodes.size() - 1);
 	for (size_t i = 1; i < fNodes.size(); i++)

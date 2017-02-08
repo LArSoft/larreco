@@ -256,6 +256,17 @@ void pma::TrkCandidateColl::flipTreesByDQdx(void)
 }
 // ------------------------------------------------------
 
+void pma::TrkCandidateColl::merge(size_t idx1, size_t idx2)
+{
+    fCandidates[idx1].Track()->ExtendWith(fCandidates[idx2].Track()); // deletes track at idx2
+
+    for (auto c : fCandidates[idx2].Clusters()) { fCandidates[idx1].Clusters().push_back(c); }
+
+    fCandidates.erase(fCandidates.begin() + idx2);
+
+    setTreeId(fCandidates[idx1].TreeId(), idx1);
+}
+
 pma::Track3D* pma::TrkCandidateColl::getTreeCopy(pma::TrkCandidateColl & dst, size_t trkIdx, bool isRoot)
 {
 	pma::Track3D* trk = fCandidates[trkIdx].Track();
@@ -269,8 +280,8 @@ pma::Track3D* pma::TrkCandidateColl::getTreeCopy(pma::TrkCandidateColl & dst, si
 	pma::Track3D* trkCopy = new pma::Track3D(*trk);
 	pma::Node3D* vtxCopy = trkCopy->Nodes().front();
 	pma::Segment3D* segThisCopy = 0;
-	trkCopy->SetPrecedingTrack(0);
-	trkCopy->SetSubsequentTrack(0);
+	//trkCopy->SetPrecedingTrack(0);
+	//trkCopy->SetSubsequentTrack(0);
 
 	dst.tracks().emplace_back(trkCopy, key, tid);
 
