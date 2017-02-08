@@ -95,18 +95,18 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
       geo::TPCID tpc1(0,0);
       geo::TPCID tpc2(0,0);
       // Front-to-front
-      tpc1 = geo::TPCID(t1->FrontTPC(),t1->FrontCryo());
-      tpc2 = geo::TPCID(t2->FrontTPC(),t2->FrontCryo());
+      tpc1 = geo::TPCID(t1->FrontCryo(),t1->FrontTPC());
+      tpc2 = geo::TPCID(t2->FrontCryo(),t2->FrontTPC());
       if(tpc1 == tpc2) giveUp = true;
       // Front-to-back
-      tpc2 = geo::TPCID(t2->BackTPC(),t2->BackCryo());
+      tpc2 = geo::TPCID(t2->BackCryo(),t2->BackTPC());
       if(tpc1 == tpc2) giveUp = true;
       // Back-to-front
-      tpc1 = geo::TPCID(t1->BackTPC(),t1->BackCryo());
-      tpc2 = geo::TPCID(t2->FrontTPC(),t2->FrontCryo());
+      tpc1 = geo::TPCID(t1->BackCryo(),t1->BackTPC());
+      tpc2 = geo::TPCID(t2->FrontCryo(),t2->FrontTPC());
       if(tpc1 == tpc2) giveUp = true;
       // Back-to-back
-      tpc2 = geo::TPCID(t2->BackTPC(),t2->BackCryo());
+      tpc2 = geo::TPCID(t2->BackCryo(),t2->BackTPC());
       if(tpc1 == tpc2) giveUp = true;
 
       // If the tracks have one end in the same TPC, give up.
