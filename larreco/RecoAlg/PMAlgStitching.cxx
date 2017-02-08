@@ -214,8 +214,6 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
         std::vector< pma::Track3D* > newTracks;
         if(t1->Flip(newTracks)){ // instead of: t1->CanFlip()
         //  t1->Flip();
-          int tid = fInputTracks.getCandidateTreeId(t1);
-          for (const auto ts : newTracks) { fInputTracks.tracks().emplace_back(ts, -1, tid); }
           std::cout << "Track 1 flipped." << std::endl;
         }
         else{
@@ -223,20 +221,26 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
           std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
           std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
         }
+        int tid = fInputTracks.getCandidateTreeId(t1);
+        for (const auto ts : newTracks){ // there may be a new track even if entire flip was not possible
+          fInputTracks.tracks().emplace_back(ts, -1, tid);
+        }
       }
       if (flip2){
 
         std::vector< pma::Track3D* > newTracks;
         if(bestTrkMatch->Flip(newTracks)){ // instead of: bestTrkMatch->CanFlip()
         //  bestTrkMatch->Flip();
-          int tid = fInputTracks.getCandidateTreeId(bestTrkMatch);
-          for (const auto ts : newTracks) { fInputTracks.tracks().emplace_back(ts, -1, tid); }
           std::cout << "Track 2 flipped." << std::endl;
         }
         else{
           std::cout << "Was not possible to flip the track with nHits = " << bestTrkMatch->size() << std::endl;
           std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
           std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
+        }
+        int tid = fInputTracks.getCandidateTreeId(bestTrkMatch);
+        for (const auto ts : newTracks){ // there may be a new track even if entire flip was not possible
+          fInputTracks.tracks().emplace_back(ts, -1, tid);
         }
       }
 

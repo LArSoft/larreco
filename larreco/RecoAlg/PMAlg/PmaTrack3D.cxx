@@ -496,7 +496,7 @@ bool pma::Track3D::Flip(std::vector< pma::Track3D* >& allTracks)
 		    int idx = t->index_of(n);
 		    if (idx >= 0)
 		    {
-    		    pma::Track3D* u = t->Split(idx);
+    		    pma::Track3D* u = t->Split(idx, false); // u is in front of t
     		    if (u)
     		    {
     		        allTracks.push_back(u);
@@ -507,13 +507,7 @@ bool pma::Track3D::Flip(std::vector< pma::Track3D* >& allTracks)
         		    }
         		    else
         		    {
-        		        mf::LogWarning("pma::Track3D") << "Flip(): Could not flip after split.";
-        		        if (allTracks.back() == u)
-        		        {
-        		            // ****** MERGE BACK TRACK u INTO TRACK t *******
-        		            allTracks.pop_back();
-        		        }
-        		        else { mf::LogWarning("pma::Track3D") << "Flip(): Cleanup problem."; }
+        		        mf::LogWarning("pma::Track3D") << "Flip(): Could not flip after split (but new track is preserved!!).";
         		        return false;
         		    }
     		    }
@@ -1278,7 +1272,7 @@ bool pma::Track3D::RemoveNode(size_t idx)
 	else return false;
 }
 
-pma::Track3D* pma::Track3D::Split(size_t idx)
+pma::Track3D* pma::Track3D::Split(size_t idx, bool try_start_at_idx)
 {
 	if (!idx || (idx + 1 >= fNodes.size())) return 0;
 
@@ -1327,25 +1321,27 @@ pma::Track3D* pma::Track3D::Split(size_t idx)
 	bool passed = true;
 	if (HasTwoViews() && t0->HasTwoViews())
 	{
-		mf::LogVerbatim("pma::VtxCandidate") << "  attach trk to trk0";
-		//std::cout << "  split ok, attach src to t0" << std::endl;
-		if (t0->CanFlip())
+		if (try_start_at_idx && t0->CanFlip())
 		{
+		    mf::LogVerbatim("pma::Track3D") << "  attach new t0 and this trk to a common start node";
 			t0->Flip();
 			passed = t0->AttachTo(fNodes.front());
 		}
-		else passed = AttachTo(t0->fNodes.back());
+		else
+		{
+		    mf::LogVerbatim("pma::Track3D") << "  attach this trk to the new t0 end node";
+		    passed = AttachTo(t0->fNodes.back());
+		}
 	}
 	else
 	{
-		mf::LogVerbatim("pma::VtxCandidate") << "  single-view track";
+		mf::LogVerbatim("pma::Track3D") << "  single-view track";
 		passed = false;
 	}
 
 	if (!passed)
 	{
-		mf::LogVerbatim("pma::VtxCandidate") << "  undo split";
-		//std::cout << "  single-view track, undo split" << std::endl;
+		mf::LogVerbatim("pma::Track3D") << "  undo split";
 		while (t0->size()) push_back(t0->release_at(0));
 
 		for (size_t i = 0; i < idx; ++i)
@@ -2191,19 +2187,6 @@ void pma::Track3D::RebuildSegments(void)
 {
 	for (size_t i = 0; i < fSegments.size(); i++) delete fSegments[i];
 	fSegments.clear();
-
-/*	for (auto n : fNodes)
-	{
-		pma::Segment3D* seg = static_cast< pma::Segment3D* >(n->Prev());
-		if (seg && (seg->Parent() == this)) delete seg;
-
-		for (size_t i = 0; i < n->NextCount(); ++i)
-		{
-			seg = static_cast< pma::Segment3D* >(n->Next(i));
-			if (seg && (seg->Parent() == this)) delete seg;
-		}
-	}
-*/
 
 	fSegments.reserve(fNodes.size() - 1);
 	for (size_t i = 1; i < fNodes.size(); i++)

@@ -217,7 +217,7 @@ public:
 		unsigned int tpc, unsigned int cryo);
 	bool RemoveNode(size_t idx);
 
-	pma::Track3D* Split(size_t idx);
+	pma::Track3D* Split(size_t idx, bool try_start_at_idx = true);
 
 	bool AttachTo(pma::Node3D* vStart, bool noFlip = false);
 	bool AttachBackTo(pma::Node3D* vStart);
