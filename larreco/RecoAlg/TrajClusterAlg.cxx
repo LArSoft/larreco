@@ -3728,6 +3728,8 @@ namespace tca {
         if(tjs.WireHitRange[jpl][jwire].first < 0) continue;
         double yp, zp;
         geom->IntersectionPoint(iwire, jwire, ipl, jpl, tpcid.Cryostat, tpcid.TPC, yp, zp);
+        // ensure this is inside the TPC
+        if(yp < tjs.YLo || yp > tjs.YHi || zp < tjs.ZLo || zp > tjs.ZHi) continue;
         float fkwire = geom->WireCoordinate(yp, zp, kpl, tpcid.TPC, tpcid.Cryostat);
         if(fkwire < 0 || fkwire > tjs.MaxPos0[kpl]) continue;
         unsigned int kwire = std::nearbyint(fkwire);
