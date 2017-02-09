@@ -214,18 +214,15 @@ void pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
 			TVector3 pBack(trk->back()->Point3D()); pBack.SetY(-pBack.Y());
 
 			if (pFront[coordinate] > pBack[coordinate])
-			{	
-				std::vector< pma::Track3D* > newTracks;
-				bool done = trk->Flip(newTracks);
-				for (const auto ts : newTracks) { fCandidates.emplace_back(ts, -1, tEntry.first); }
-
-				if (done) { break; }
-				else
-				{
-				    mf::LogWarning("pma::TrkCandidateColl") << "Flip failed, new tracks: " << newTracks.size();
-				}
+			{
+				if (setTreeOriginAtBack(trk)) { break; }
+				else { mf::LogWarning("pma::TrkCandidateColl") << "Flip to coordinate failed."; }
 			}
-			else break; // good orientation, go to the next tree
+			else
+			{
+			    setTreeOriginAtFront(trk);
+			    break; // good orientation, go to the next tree
+			}
 
 			if (attempts++ > 2) break; // do not try all the tracks in the queue...
 		}
