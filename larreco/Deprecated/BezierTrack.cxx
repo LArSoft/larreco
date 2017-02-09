@@ -303,13 +303,13 @@ namespace trkf {
       {
 
 
-	Pt[0]=(fXYZ.at(i))[0];
-	Pt[1]=(fXYZ.at(i))[1];
-	Pt[2]=(fXYZ.at(i))[2];
+	Pt[0]=(LocationAtPoint(i))[0];
+	Pt[1]=(LocationAtPoint(i))[1];
+	Pt[2]=(LocationAtPoint(i))[2];
 
-	Dir[0]=(fDir.at(i))[0];
-	Dir[1]=(fDir.at(i))[1];
-	Dir[2]=(fDir.at(i))[2];
+	Dir[0]=(DirectionAtPoint(i))[0];
+	Dir[1]=(DirectionAtPoint(i))[1];
+	Dir[2]=(DirectionAtPoint(i))[2];
 
 	fSeedCollection.push_back(recob::Seed(Pt,Dir));
       }
@@ -332,13 +332,14 @@ namespace trkf {
 
 	it->GetPoint(Pt,ErrPt);
 	it->GetDirection(Dir, ErrDir);
-	TVector3 Point(Pt[0],Pt[1],Pt[2]);
-	TVector3 Direction(Dir[0],Dir[1],Dir[2]);
+	recob::Track::Point_t Point(Pt[0],Pt[1],Pt[2]);
+	recob::Track::Vector_t Direction(Dir[0],Dir[1],Dir[2]);
 
 	for(int i=0; i!=NPlanes; ++i)
 	  fdQdx.at(i).push_back(0);
-	fXYZ.push_back(Point);
-	fDir.push_back(Direction);
+
+	fTraj.fPositions.push_back(Point);
+	fTraj.fMomenta.push_back(Direction);
       }
   }
 
@@ -400,19 +401,19 @@ namespace trkf {
 	// catch these easy floating point errors
 	if((s>0.9999)&&(s<1.00001))
 	  {
-	    TVector3 End1 = fXYZ.at(fXYZ.size()-1);
-	    xyz[0]=End1[0];
-	    xyz[1]=End1[1];
-	    xyz[2]=End1[2];
+	    auto End1 = End();
+	    xyz[0]=End1.X();
+	    xyz[1]=End1.Y();
+	    xyz[2]=End1.Z();
 
 	    return;
 	  }
 	else if((s<0.0001)&&(s>-0.00001))
 	  {
-	    TVector3 End0 = fXYZ.at(0);
-	    xyz[0]=End0[0];
-	    xyz[1]=End0[1];
-	    xyz[2]=End0[2];
+	    auto End0 = Start();
+	    xyz[0]=End0.X();
+	    xyz[1]=End0.Y();
+	    xyz[2]=End0.Z();
 
 	    return;
 	  }
@@ -1158,7 +1159,7 @@ namespace trkf {
   std::unique_ptr<recob::Track> BezierTrack::GetBaseTrack()
   {
     std::vector<double> mom(2, util::kBogusD);
-    return std::unique_ptr<recob::Track>(new recob::Track(fXYZ, fDir, fdQdx, mom, ID()));
+    return std::unique_ptr<recob::Track>(new recob::Track(*this));
   }
 
   //----------------------------------------------------------------------

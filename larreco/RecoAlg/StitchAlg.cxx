@@ -304,7 +304,7 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
 		  dumc = (*it).get()->CovarianceAtPoint(ptHere);
 		cov.push_back(dumc);
 		double dumm(0.0); 
-		if (ptHere<(*it).get()->NumberFitMomentum())
+		if ((*it).get()->HasMomentum())
 		  dumm = (*it).get()->MomentumAtPoint(ptHere);
 		mom.push_back(dumm);
 		std::vector <double> dum; 

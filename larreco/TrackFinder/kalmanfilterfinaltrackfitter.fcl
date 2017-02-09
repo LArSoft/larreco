@@ -22,10 +22,11 @@ kalmantrackfit: {
         dirFromVec: false
         dirVec: [0,0,1]
         dirFromVtxPF: false
+	alwaysInvertDir: false
   	useRMSError: true
-        sortHitsByPlane: false
-        sortOutputHitsMinLength: false
-        skipNegProp: false
+        sortHitsByPlane: true
+        sortOutputHitsMinLength: true
+        skipNegProp: true
 	hitErrScaleFact: 1.0
   }
 }
