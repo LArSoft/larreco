@@ -4128,6 +4128,11 @@ namespace tca {
       std::array<float, 3> xyz;
       double yp, zp;
       geom->IntersectionPoint(std::nearbyint(iTp.Pos[0]), std::nearbyint(jTp.Pos[0]), iPln, jPln, cstat, tpc, yp, zp);
+      // ensure this is inside the TPC
+      if(yp < tjs.YLo) yp = tjs.YLo;
+      if(yp > tjs.YHi) yp = tjs.YLo;
+      if(zp < tjs.ZLo) zp = tjs.ZLo;
+      if(zp > tjs.ZHi) zp = tjs.ZLo;
       xyz[0] = bestDxX;
       xyz[1] = yp;
       xyz[2] = zp;
@@ -4138,6 +4143,11 @@ namespace tca {
       TrajPoint& joTp = jTj.Pts[jEndPt];
       std::array<float, 3> oxyz;
       geom->IntersectionPoint(std::nearbyint(ioTp.Pos[0]), std::nearbyint(joTp.Pos[0]), iPln, jPln, cstat, tpc, yp, zp);
+      // ensure this is inside the TPC
+      if(yp < tjs.YLo) yp = tjs.YLo;
+      if(yp > tjs.YHi) yp = tjs.YLo;
+      if(zp < tjs.ZLo) zp = tjs.ZLo;
+      if(zp > tjs.ZHi) zp = tjs.ZLo;
       geo::PlaneID iPlaneID = DecodeCTP(ioTp.CTP);
       float xi = detprop->ConvertTicksToX(ioTp.Pos[1]/tjs.UnitsPerTick, iPlaneID.Plane, tpc, cstat);
       geo::PlaneID jPlaneID = DecodeCTP(joTp.CTP);
