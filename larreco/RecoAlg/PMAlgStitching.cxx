@@ -276,6 +276,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
   }
 }
 
+// Perform the matching, allowing the shift to vary within +/- 5cm.
 double pma::PMAlgStitching::GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2, double &shift){
 
   double stepSize = 0.1;
@@ -300,6 +301,7 @@ double pma::PMAlgStitching::GetOptimalStitchShift(TVector3 &pos1, TVector3 &pos2
   return bestScore;
 }
 
+// Perform the extrapolation between the two vectors and return the distance between them.
 double pma::PMAlgStitching::GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TVector3 &dir1, TVector3 &dir2){
 
   double delta = -999.;
@@ -319,9 +321,8 @@ double pma::PMAlgStitching::GetTrackPairDelta(TVector3 &pos1, TVector3 &pos2, TV
 
 }
 
+// Get the CPA and APA positions from the geometry
 void pma::PMAlgStitching::GetTPCXOffsets(){
-
-//  std::cout << "Calculating TPC offsets" << std::endl;
 
   // Grab hold of the geometry
   auto const* geom = lar::providerFrom<geo::Geometry>();
@@ -331,21 +332,17 @@ void pma::PMAlgStitching::GetTPCXOffsets(){
 
     geo::TPCGeo const& aTPC = geom->TPC(tID);
 
-//    std::cout << " - Looking for APA position" << std::endl;
-
     // Loop over the 3 possible readout planes to find the x position
     unsigned int plane = 0;
     bool hasPlane = false;
     for(;plane < 4; ++plane){
       hasPlane = aTPC.HasPlane(plane);
-//      std::cout << "  - Has plane " << plane << "? " << hasPlane << std::endl; 
       if(hasPlane){
         break;
       }
     }
 
     if(!hasPlane){
-//      std::cout << "This is a dummy TPC, ignoring." << std::endl;
       continue;
     }
 
@@ -355,7 +352,6 @@ void pma::PMAlgStitching::GetTPCXOffsets(){
 
     // For the cathode, we have to try a little harder. Firstly, find the
     // min and max x values for the TPC.
-//    std::cout << " - Looking for CPA position" << std::endl;
     double origin[3] = {0.};
     double center[3] = {0.};
     aTPC.LocalToWorld(origin, center);
@@ -372,11 +368,9 @@ void pma::PMAlgStitching::GetTPCXOffsets(){
     }
     fTPCXOffsetsCPA.insert(std::make_pair(tID,xCathode));
   }
-
-//  std::cout << "Got all TPC offsets" << std::endl;
-
 }
 
+// Interface to get the CPA and APA positions from the maps in which they are stored.
 double pma::PMAlgStitching::GetTPCOffset(unsigned int tpc, unsigned int cryo, bool isCPA){
 
   geo::TPCID thisTPCID(cryo,tpc);
@@ -387,8 +381,6 @@ double pma::PMAlgStitching::GetTPCOffset(unsigned int tpc, unsigned int cryo, bo
   else{
     offset = fTPCXOffsetsAPA[thisTPCID];
   }
-//  std::cout << "Got it: " << offset << std::endl;
   return offset;
-
 }
 
