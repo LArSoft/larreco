@@ -185,13 +185,6 @@ public:
 	void ApplyXShiftInTree(double dx, bool skipFirst = false);
 	double GetXShift(void) const { return fXShift; }
 
-	/// Track found with stitching, but not included in the Prev/Next structure
-	/// (used to point tracks crossing APA, found at the end of processing).
-	//pma::Track3D* GetPrecedingTrack(void) const { return fPrecedingTrack; }
-	//void SetPrecedingTrack(pma::Track3D* trk) { fPrecedingTrack = trk; }
-	//pma::Track3D* GetSubsequentTrack(void) const { return fSubsequentTrack; }
-	//void SetSubsequentTrack(pma::Track3D* trk) { fSubsequentTrack = trk; }
-
 	/// Cut out tails with no hits assigned.
 	void CleanupTails(void);
 
@@ -320,9 +313,6 @@ private:
 	float fHitsRadius;
 
 	double fXShift;
-
-	//pma::Track3D* fPrecedingTrack;
-	//pma::Track3D* fSubsequentTrack;
 
 	ETag fTag;
 };

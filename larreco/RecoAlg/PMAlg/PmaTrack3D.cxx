@@ -30,9 +30,6 @@ pma::Track3D::Track3D(void) :
 
 	fXShift(0.0),
 
-	//fPrecedingTrack(0),
-	//fSubsequentTrack(0),
-
 	fTag(pma::Track3D::kNotTagged)
 {
 }
@@ -51,9 +48,6 @@ pma::Track3D::Track3D(const Track3D& src) :
 	fHitsRadius(src.fHitsRadius),
 
 	fXShift(src.fXShift),
-
-	//fPrecedingTrack(src.fPrecedingTrack),
-	//fSubsequentTrack(src.fSubsequentTrack),
 
 	fTag(src.fTag)
 {

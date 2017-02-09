@@ -233,6 +233,46 @@ void pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
 }
 // ------------------------------------------------------
 
+bool pma::TrkCandidateColl::setTreeOriginAtFront(pma::Track3D* trk)
+{
+    int trkIdx = getCandidateIndex(trk);
+    int treeId = getCandidateTreeId(trk);
+    if (trkIdx < 0) { throw cet::exception("pma::TrkCandidateColl") << "Track not found in the collection." << std::endl; }
+
+    bool done = true;
+    pma::Node3D* n = fCandidates[trkIdx].Track()->Nodes().front();
+    pma::Segment3D* seg = static_cast< pma::Segment3D* >(n->Prev());
+    if (seg)
+    {
+        pma::Track3D* incoming = seg->Parent();
+        std::vector< pma::Track3D* > newTracks;
+        done = incoming->Flip(newTracks);
+        for (const auto ts : newTracks)
+        {
+            fCandidates.emplace_back(ts, -1, treeId);
+        }
+    }
+    return done;
+}
+// ------------------------------------------------------
+
+bool pma::TrkCandidateColl::setTreeOriginAtBack(pma::Track3D* trk)
+{
+    int trkIdx = getCandidateIndex(trk);
+    int treeId = getCandidateTreeId(trk);
+    if (trkIdx < 0) { throw cet::exception("pma::TrkCandidateColl") << "Track not found in the collection." << std::endl; }
+
+    pma::Track3D* incoming = fCandidates[trkIdx].Track();
+    std::vector< pma::Track3D* > newTracks;
+    bool done = incoming->Flip(newTracks);
+    for (const auto ts : newTracks)
+    {
+        fCandidates.emplace_back(ts, -1, treeId);
+    }
+    return done;
+}
+// ------------------------------------------------------
+
 void pma::TrkCandidateColl::flipTreesByDQdx(void)
 {
 	std::map< int, std::vector< pma::Track3D* > > trkMap;
@@ -280,8 +320,6 @@ pma::Track3D* pma::TrkCandidateColl::getTreeCopy(pma::TrkCandidateColl & dst, si
 	pma::Track3D* trkCopy = new pma::Track3D(*trk);
 	pma::Node3D* vtxCopy = trkCopy->Nodes().front();
 	pma::Segment3D* segThisCopy = 0;
-	//trkCopy->SetPrecedingTrack(0);
-	//trkCopy->SetSubsequentTrack(0);
 
 	dst.tracks().emplace_back(trkCopy, key, tid);
 

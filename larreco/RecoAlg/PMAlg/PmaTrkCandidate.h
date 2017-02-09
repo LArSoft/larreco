@@ -115,6 +115,9 @@ public:
 	void flipTreesToCoordinate(size_t coordinate);
 	void flipTreesByDQdx();
 
+    bool setTreeOriginAtFront(pma::Track3D* trk);
+    bool setTreeOriginAtBack(pma::Track3D* trk);
+
 	pma::Track3D* getTreeCopy(pma::TrkCandidateColl & dst, size_t trkIdx, bool isRoot = true);
 
 private:
