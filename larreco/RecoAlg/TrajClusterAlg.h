@@ -284,8 +284,6 @@ namespace tca {
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);
-    // Counts the number of hits that are used in two different vectors of hits
-    void CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits);
     // Merge and store the two trajectories in allTraj
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
