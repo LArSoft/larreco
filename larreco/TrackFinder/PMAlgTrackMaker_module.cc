@@ -60,6 +60,7 @@
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgTracking.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
+#include "larreco/RecoAlg/PMAlgStitching.h"
 
 #include <memory>
 
@@ -83,6 +84,10 @@ public:
 		fhicl::Table<pma::PMAlgVertexing::Config> PMAlgVertexing {
 			Name("PMAlgVertexing")
 		};
+
+    fhicl::Table<pma::PMAlgStitching::Config> PMAlgStitching {
+      Name("PMAlgStitching")
+    };
 
 		fhicl::Atom<bool> SaveOnlyBranchingVtx {
 			Name("SaveOnlyBranchingVtx"),
@@ -129,6 +134,7 @@ private:
 	pma::ProjectionMatchingAlg::Config fPmaConfig;
 	pma::PMAlgTracker::Config fPmaTrackerConfig;
 	pma::PMAlgVertexing::Config fPmaVtxConfig;
+  pma::PMAlgStitching::Config fPmaStitchConfig;
 
 	bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
 	bool fSavePmaNodes;          // for debugging, save only track nodes
@@ -153,6 +159,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	fPmaConfig(config().ProjectionMatchingAlg()),
 	fPmaTrackerConfig(config().PMAlgTracking()),
 	fPmaVtxConfig(config().PMAlgVertexing()),
+  fPmaStitchConfig(config().PMAlgStitching()),
 
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
 	fSavePmaNodes(config().SavePmaNodes())
@@ -224,7 +231,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	// -------------- PMA Tracker for this event --------------
 	auto pmalgTracker = pma::PMAlgTracker(allhitlist,
-		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig);
+		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig);
 
 
 	if (fEmModuleLabel != "") // --- Exclude EM parts ---------

@@ -926,16 +926,6 @@ bool pma::PMAlgTracker::areCoLinear(double& cos3d,
 	else return false;
 }
 
-void pma::PMAlgTracker::matchCoLinearAnyT0(void)
-{
-
-  // Can we try using Leigh's stitcher?
-  std::cout << "Running Leigh's new stitcher" << std::endl;
-  pma::PMAlgStitching stitcher(fResult);
-  stitcher.StitchTracksCPA();
-//  stitcher.StitchTracksAPA();
-  std::cout << "Done" << std::endl;
-}
 // ------------------------------------------------------
 
 // ------------------------------------------------------
@@ -1013,10 +1003,16 @@ int pma::PMAlgTracker::build(void)
 		//reassignSingleViewEnds(result); // final check for correct hit-track assignments
 	}
 
+  if(fMatchT0inCPACrossing)
+  {
+		mf::LogVerbatim("PMAlgTracker") << "Find co-linear CPA-crossing tracks with any T0.";
+    fStitcher.StitchTracksCPA(fResult);
+  }
+
 	if (fMatchT0inAPACrossing)
 	{
 		mf::LogVerbatim("PMAlgTracker") << "Find co-linear APA-crossing tracks with any T0.";
-		matchCoLinearAnyT0();
+    fStitcher.StitchTracksAPA(fResult);
 	}
 
 	//double dQdxFlipThr = 0.0;

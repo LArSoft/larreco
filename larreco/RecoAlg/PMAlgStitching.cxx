@@ -15,10 +15,14 @@
 #include "TVector3.h"
 
 // Constructor
-//pma::PMAlgStitching::PMAlgStitching(pma::TrkCandidateColl &inputTracks, const pma::PMAlgStitching::Config &config):fInputTracks(inputTracks)
-pma::PMAlgStitching::PMAlgStitching(pma::TrkCandidateColl &inputTracks):fInputTracks(inputTracks)
+pma::PMAlgStitching::PMAlgStitching(const pma::PMAlgStitching::Config &config)
 {
 
+  // Set parameters from the config.
+  fStitchingThreshold = config.StitchingThreshold();
+  fNodesFromEnd = config.NodesFromEnd();
+
+  // Get CPA and APA positions.
   GetTPCXOffsets();
 
 }
@@ -30,38 +34,42 @@ pma::PMAlgStitching::~PMAlgStitching(){
 }
 
 // CPA stitching wrapper
-void pma::PMAlgStitching::StitchTracksCPA(){
-  std::cout << "Passed " << fInputTracks.size() << " tracks for CPA stitching." << std::endl;
-  StitchTracks(true);
+void pma::PMAlgStitching::StitchTracksCPA(pma::TrkCandidateColl &tracks){
+  std::cout << "Passed " << tracks.size() << " tracks for CPA stitching." << std::endl;
+  StitchTracks(tracks,true);
 }
 
 // APA stitching wrapper
-void pma::PMAlgStitching::StitchTracksAPA(){
-  std::cout << "Passed " << fInputTracks.size() << " tracks for APA stitching." << std::endl;
-  StitchTracks(false);
+void pma::PMAlgStitching::StitchTracksAPA(pma::TrkCandidateColl &tracks){
+  std::cout << "Passed " << tracks.size() << " tracks for APA stitching." << std::endl;
+  StitchTracks(tracks,false);
 } 
 
 // Main function of the algorithm
 // isCPA = true  : attempt to stitch tracks across the cathode.
 //       = false : attempt to stitch tracks across the anode.
-void pma::PMAlgStitching::StitchTracks(bool isCPA){
+void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA){
 
+  unsigned int minTrkLength = 2*fNodesFromEnd + 3;
+  // Special case for fNodesFromEnd = 0
+  if(minTrkLength < 6) minTrkLength = 6;
+  std::cout << "MinTrkLength = " << minTrkLength << std::endl;
 
   // Loop over the track collection
   unsigned int t = 0;
-  while(t < fInputTracks.size()){
+  while(t < tracks.size()){
 
-    pma::Track3D* t1 = fInputTracks[t].Track();
-    if(t1->Nodes().size() < 6) { ++t; continue; }
+    pma::Track3D* t1 = tracks[t].Track();
+    if(t1->Nodes().size() < minTrkLength) { ++t; continue; }
 
     // Look through the following tracks for one to stitch
     pma::Track3D* bestTrkMatch = 0x0;
 
     // Don't use the very end points of the tracks in case of scatter or distortion.
-    TVector3 trk1Front = t1->Nodes()[2]->Point3D();
-    TVector3 trk1Back = t1->Nodes()[t1->Nodes().size()-3]->Point3D();
-    TVector3 trk1FrontDir = (t1->Nodes()[1]->Point3D() - trk1Front).Unit();
-    TVector3 trk1BackDir = (t1->Nodes()[t1->Nodes().size()-2]->Point3D() - trk1Back).Unit();
+    TVector3 trk1Front = t1->Nodes()[(fNodesFromEnd)]->Point3D();
+    TVector3 trk1Back = t1->Nodes()[t1->Nodes().size()-1-fNodesFromEnd]->Point3D();
+    TVector3 trk1FrontDir = (trk1Front - t1->Nodes()[(fNodesFromEnd+1)]->Point3D()).Unit();
+    TVector3 trk1BackDir = (trk1Back - t1->Nodes()[t1->Nodes().size()-1-(fNodesFromEnd+1)]->Point3D()).Unit();
 
     // For stitching, we need to consider both ends of the track.
     double offsetFront1 = GetTPCOffset(t1->FrontTPC(),t1->FrontCryo(),isCPA);
@@ -75,16 +83,16 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
    
     double bestMatchScore = 99999;
  
-    for(unsigned int u = t+1; u < fInputTracks.size(); ++u){
+    for(unsigned int u = t+1; u < tracks.size(); ++u){
 
-      pma::Track3D* t2 = fInputTracks[u].Track();
-      if(t2->Nodes().size() < 6) continue;
+      pma::Track3D* t2 = tracks[u].Track();
+      if(t2->Nodes().size() < minTrkLength) continue;
 
       // Don't use the very end points of the tracks in case of scatter or distortion.
-      TVector3 trk2Front = t2->Nodes()[2]->Point3D();
-      TVector3 trk2Back = t2->Nodes()[t2->Nodes().size()-3]->Point3D();
-      TVector3 trk2FrontDir = (t2->Nodes()[1]->Point3D() - trk2Front).Unit();
-      TVector3 trk2BackDir = (t2->Nodes()[t2->Nodes().size()-2]->Point3D() - trk2Back).Unit();
+      TVector3 trk2Front = t2->Nodes()[(fNodesFromEnd)]->Point3D();
+      TVector3 trk2Back = t2->Nodes()[t2->Nodes().size()-1-fNodesFromEnd]->Point3D();
+      TVector3 trk2FrontDir = (trk2Front - t2->Nodes()[(fNodesFromEnd+1)]->Point3D()).Unit();
+      TVector3 trk2BackDir = (trk2Back - t2->Nodes()[t2->Nodes().size()-1-(fNodesFromEnd+1)]->Point3D()).Unit();
 
       // For stitching, we need to consider both ends of the track.
       double offsetFront2 = GetTPCOffset(t2->FrontTPC(),t2->FrontCryo(),isCPA);
@@ -161,7 +169,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
 //        score = GetTrackPairDelta(t1Pos,t2Pos,t1Dir,t2Dir);
         score = GetOptimalStitchShift(t1Pos,t2Pos,t1Dir,t2Dir,xShift1);
 
-        if(score < 10 && score < bestMatchScore){
+        if(score < fStitchingThreshold && score < bestMatchScore){
           std::cout << "Tracks " << t << " and " << u << " matching score = " << score << std::endl;
           std::cout << " - " << t1Pos.X() << ", " << t1Pos.Y() << ", " << t1Pos.Z() << " :: " << t1Dir.X() << ", " << t1Dir.Y() << ", " << t1Dir.Z() << std::endl;
           std::cout << " - " << t2Pos.X() << ", " << t2Pos.Y() << ", " << t2Pos.Z() << " :: " << t2Dir.X() << ", " << t2Dir.Y() << ", " << t2Dir.Z() << std::endl;
@@ -210,10 +218,10 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
       }
       // Back-to-front match (do nothing)
 
-      int idx1 = fInputTracks.getCandidateIndex(t1);
-      int tid1 = fInputTracks.getCandidateTreeId(t1);
-      int idx2 = fInputTracks.getCandidateIndex(bestTrkMatch);
-      int tid2 = fInputTracks.getCandidateTreeId(bestTrkMatch);
+      int idx1 = tracks.getCandidateIndex(t1);
+      int tid1 = tracks.getCandidateTreeId(t1);
+      int idx2 = tracks.getCandidateIndex(bestTrkMatch);
+      int tid2 = tracks.getCandidateTreeId(bestTrkMatch);
       bool canMerge = true;
       if ((idx1 < 0) || (idx2 < 0))
       {
@@ -232,7 +240,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
           canMerge = false;
         }
         for (const auto ts : newTracks){ // there may be a new track even if entire flip was not possible
-          fInputTracks.tracks().emplace_back(ts, -1, tid1);
+          tracks.tracks().emplace_back(ts, -1, tid1);
         }
       }
       if (flip2){
@@ -248,7 +256,7 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
           canMerge = false;
         }
         for (const auto ts : newTracks){ // there may be a new track even if entire flip was not possible
-          fInputTracks.tracks().emplace_back(ts, -1, tid2);
+          tracks.tracks().emplace_back(ts, -1, tid2);
         }
       }
 
@@ -260,12 +268,12 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
         mf::LogInfo("pma::PMAlgStitching") << "Merging tracks...";
         if (reverse) // merge current track to another track, do not increase the outer loop index t (next after current track jumps in at t)
         {
-          if (fInputTracks.setTreeOriginAtFront(t1)) { fInputTracks.merge((size_t)idx2, (size_t)idx1); }
+          if (tracks.setTreeOriginAtFront(t1)) { tracks.merge((size_t)idx2, (size_t)idx1); }
           else { mf::LogWarning("pma::PMAlgStitching") << "   could not merge."; ++t; }
         }
         else // merge to the current track, do not increase the outer loop index t (maybe something else will match to the extended track)
         {
-          if (fInputTracks.setTreeOriginAtFront(bestTrkMatch)) { fInputTracks.merge((size_t)idx1, (size_t)idx2); }
+          if (tracks.setTreeOriginAtFront(bestTrkMatch)) { tracks.merge((size_t)idx1, (size_t)idx2); }
           else { mf::LogWarning("pma::PMAlgStitching") << "   could not merge."; ++t; }
         }
         mf::LogInfo("pma::PMAlgStitching") << "...done";
