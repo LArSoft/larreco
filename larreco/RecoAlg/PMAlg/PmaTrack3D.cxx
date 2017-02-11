@@ -475,7 +475,7 @@ std::pair< TVector2, TVector2 > pma::Track3D::WireDriftRange(unsigned int view, 
 
 bool pma::Track3D::Flip(std::vector< pma::Track3D* >& allTracks)
 {
-	if (!fNodes.size()) { return true; }
+	if (fNodes.size() < 2) { return true; }
 
 	std::vector< pma::Track3D* > toSort;
 

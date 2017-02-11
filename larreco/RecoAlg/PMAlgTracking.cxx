@@ -933,7 +933,7 @@ void pma::PMAlgTracker::matchCoLinearAnyT0(void)
   std::cout << "Running Leigh's new stitcher" << std::endl;
   pma::PMAlgStitching stitcher(fResult);
   stitcher.StitchTracksCPA();
-//  stitcher.StitchTracksAPA();
+  stitcher.StitchTracksAPA();
   std::cout << "Done" << std::endl;
 }
 // ------------------------------------------------------

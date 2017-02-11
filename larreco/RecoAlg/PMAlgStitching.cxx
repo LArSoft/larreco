@@ -210,12 +210,10 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
       }
       // Back-to-front match (do nothing)
 
-      int idx1 = fInputTracks.getCandidateIndex(t1);
       int tid1 = fInputTracks.getCandidateTreeId(t1);
-      int idx2 = fInputTracks.getCandidateIndex(bestTrkMatch);
       int tid2 = fInputTracks.getCandidateTreeId(bestTrkMatch);
       bool canMerge = true;
-      if ((idx1 < 0) || (idx2 < 0))
+      if ((tid1 < 0) || (tid2 < 0))
       {
         throw cet::exception("pma::PMAlgStitching") << "Track not found in the collection." << std::endl;
       }
@@ -258,6 +256,8 @@ void pma::PMAlgStitching::StitchTracks(bool isCPA){
       if (canMerge)
       {
         mf::LogInfo("pma::PMAlgStitching") << "Merging tracks...";
+        int idx1 = fInputTracks.getCandidateIndex(t1);
+        int idx2 = fInputTracks.getCandidateIndex(bestTrkMatch);
         if (reverse) // merge current track to another track, do not increase the outer loop index t (next after current track jumps in at t)
         {
           if (fInputTracks.setTreeOriginAtFront(t1)) { fInputTracks.merge((size_t)idx2, (size_t)idx1); }

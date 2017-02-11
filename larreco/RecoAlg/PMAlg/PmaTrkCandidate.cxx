@@ -237,17 +237,30 @@ bool pma::TrkCandidateColl::setTreeOriginAtFront(pma::Track3D* trk)
     if (trkIdx < 0) { throw cet::exception("pma::TrkCandidateColl") << "Track not found in the collection." << std::endl; }
 
     bool done = true;
-    pma::Node3D* n = fCandidates[trkIdx].Track()->Nodes().front();
-    pma::Segment3D* seg = static_cast< pma::Segment3D* >(n->Prev());
-    if (seg)
+    pma::Node3D* n = trk->Nodes().front();
+    if (n->Prev())
     {
+        pma::Segment3D* seg = static_cast< pma::Segment3D* >(n->Prev());
         pma::Track3D* incoming = seg->Parent();
         std::vector< pma::Track3D* > newTracks;
-        done = incoming->Flip(newTracks);
-        for (const auto ts : newTracks)
+        if (incoming->NextSegment(n)) // upfff, need to break the parent track
         {
-            fCandidates.emplace_back(ts, -1, treeId);
+		    int idx = incoming->index_of(n);
+		    if (idx >= 0)
+		    {
+    		    pma::Track3D* u = incoming->Split(idx, false); // u is in front of incoming
+    		    if (u)
+    		    {
+    		        newTracks.push_back(u);
+    		        done = u->Flip(newTracks);
+    		    }
+    		    else { done = false; }
+    		}
+    		else { throw cet::exception("pma::Track3D") << "Node not found." << std::endl; }
         }
+        else { done = incoming->Flip(newTracks); } // just flip incoming
+
+        for (const auto ts : newTracks) { fCandidates.emplace_back(ts, -1, treeId); }
     }
     return done;
 }

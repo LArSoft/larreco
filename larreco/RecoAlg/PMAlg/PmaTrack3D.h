@@ -52,6 +52,9 @@ public:
 	pma::Hit3D* const & back() const { return fHits.back(); }
 	size_t size() const { return fHits.size(); }
 
+	int index_of(const pma::Hit3D* hit) const;
+	int index_of(const pma::Node3D* n) const;
+
 	double Length(size_t step = 1) const { return Length(0, size() - 1, step); }
 	double Length(size_t start, size_t stop, size_t step = 1) const;
 
@@ -286,7 +289,6 @@ private:
 
 	bool CheckEndSegment(pma::Track3D::ETrackEnd endCode);
 
-	int index_of(const pma::Hit3D* hit) const;
 	std::vector< pma::Hit3D* > fHits;
 
 	std::vector< TVector3* > fAssignedPoints;
@@ -295,7 +297,6 @@ private:
 		bool skipFrontVtx = false, bool skipBackVtx = false) const;
 	pma::Element3D* GetNearestElement(const TVector3& p3d) const;
 
-	int index_of(const pma::Node3D* n) const;
 	std::vector< pma::Node3D* > fNodes;
 	std::vector< pma::Segment3D* > fSegments;
 
