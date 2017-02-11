@@ -2,6 +2,10 @@
 #define TRACKKALMANFITTER_H
 
 #include "canvas/Persistency/Common/Ptr.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/RecoObjects/PropagatorToPlane.h"
+#include "lardataobj/RecoBase/TrackFitHitInfo.h"
 
 namespace recob {
   class Track;
@@ -11,9 +15,6 @@ namespace recob {
 class TVector3;
 
 namespace trkf {
-
-  class Propagator;
-  class KTrack;
 
   /**
    * @brief Fit tracks using Kalman Filter fit+smooth.
@@ -30,24 +31,29 @@ namespace trkf {
   class TrackKalmanFitter {
 
   public:
-    TrackKalmanFitter(const trkf::Propagator* prop, bool useRMS, bool sortHitsByPlane, bool sortOutputHitsMinLength, bool skipNegProp, float hitErrScaleFact){
-      prop_=prop;
+    TrackKalmanFitter(const PropagatorToPlane* prop, bool useRMS, bool sortHitsByPlane, bool sortOutputHitsMinLength, bool skipNegProp, float hitErrScaleFact){
+      propToPlane=prop;
       useRMS_=useRMS;
       sortHitsByPlane_=sortHitsByPlane;
       sortOutputHitsMinLength_=sortOutputHitsMinLength;
       skipNegProp_=skipNegProp;
       hitErrScaleFact_=hitErrScaleFact;
+      detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
     }
 
     bool fitTrack(const recob::Track& inputTrack, const std::vector<art::Ptr<recob::Hit> >& hits,
 		  const double pval, const int pdgid, const bool flipDirection,
-		  recob::Track& outputTrack, art::PtrVector<recob::Hit>& outputHits);
+		  recob::Track& outputTrack, art::PtrVector<recob::Hit>& outputHits,
+		  std::vector<recob::TrackFitHitInfo>& trackFitHitInfos);
 
-    trkf::KTrack convertRecobTrackIntoKTrack(const TVector3& position, const TVector3&  direction,  const double pval, const int pdgid);
+    bool getSkipNegProp() const     { return skipNegProp_; }
+    void setSkipNegProp(bool value) { skipNegProp_=value; }
 
   private:
 
-    const trkf::Propagator* prop_;
+    art::ServiceHandle<geo::Geometry> geom;
+    const detinfo::DetectorProperties* detprop;
+    const PropagatorToPlane* propToPlane;
     bool useRMS_;
     bool sortHitsByPlane_;
     bool sortOutputHitsMinLength_;

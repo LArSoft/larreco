@@ -33,7 +33,6 @@
 
 #include "larreco/RecoAlg/TrackKalmanFitter.h"
 #include "larreco/RecoAlg/TrackMomentumCalculator.h"
-#include "lardata/RecoObjects/PropYZPlane.h"
 
 #include "lardataobj/MCBase/MCTrack.h"
 
@@ -175,7 +174,7 @@ namespace trkf {
   private:
     Parameters p_;
     trkf::TrackKalmanFitter* kalmanFitter;
-    trkf::Propagator* prop;
+    PropagatorToPlane* prop;
     trkf::TrackMomentumCalculator* tmc;
 
     art::InputTag pfParticleInputTag;
@@ -199,8 +198,9 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   : p_(p)
 {
 
-  prop = new trkf::PropYZPlane(10., true);
-  kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().options().useRMS(),
+  prop = new PropagatorToPlane(0.,10.);
+  kalmanFitter = new trkf::TrackKalmanFitter(prop,
+					     p_().options().useRMS(),
 					     p_().options().sortHitsByPlane(),
 					     p_().options().sortOutputHitsMinLength(),
 					     p_().options().skipNegProp(),
@@ -220,6 +220,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   if (p_().options().trackFromPF()) {
     produces<art::Assns<recob::PFParticle, recob::Track> >();
   }
+  produces<std::vector<std::vector<recob::TrackFitHitInfo> > >();
 
   //throw expections to avoid possible silent failures due to incompatible configuration options
   if (p_().options().trackFromPF()==0 && p_().options().idFromPF())
@@ -265,8 +266,9 @@ trkf::KalmanFilterFinalTrackFitter::~KalmanFilterFinalTrackFitter() {
 void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 {
 
-  auto outputTracks = std::make_unique<std::vector<recob::Track> >();
-  auto outputHits   = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
+  auto outputTracks  = std::make_unique<std::vector<recob::Track> >();
+  auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
+  auto outputHitInfo = std::make_unique<std::vector<std::vector<recob::TrackFitHitInfo> > >();
 
   auto const tid = getProductID<std::vector<recob::Track> >(e);
   auto const tidgetter = e.productGetter(tid);
@@ -325,8 +327,14 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
 	recob::Track outTrack;
 	art::PtrVector<recob::Hit> outHits;
-	bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits);
-
+	std::vector<recob::TrackFitHitInfo> trackFitHitInfos;
+	bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
+	if (!fitok && kalmanFitter->getSkipNegProp()) {
+	  //ok try once more without skipping hits
+	  kalmanFitter->setSkipNegProp(false);
+	  fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
+	  kalmanFitter->setSkipNegProp(true);
+	}
 	if (!fitok) {
 	  mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for PFP # " << iPF << " track #" << iTrack << "\n";
 	  continue;
@@ -338,11 +346,13 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  outputHits->addSingle(aptr, trhit);
 	}
 	outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
+	outputHitInfo->emplace_back(std::move(trackFitHitInfos));
       }
     }
     e.put(std::move(outputTracks));
     e.put(std::move(outputHits));
     e.put(std::move(outputPFAssn));
+    e.put(std::move(outputHitInfo));
   } else {
 
     art::ValidHandle<std::vector<recob::Track> > inputTracks = e.getValidHandle<std::vector<recob::Track> >(trackInputTag);
@@ -373,8 +383,14 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
       recob::Track outTrack;
       art::PtrVector<recob::Hit> outHits;
-      bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits);
-
+      std::vector<recob::TrackFitHitInfo> trackFitHitInfos;
+      bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
+      if (!fitok && kalmanFitter->getSkipNegProp()) {
+	//ok try once more without skipping hits
+	kalmanFitter->setSkipNegProp(false);
+	fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
+	kalmanFitter->setSkipNegProp(true);
+      }
       if (!fitok) {
 	mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for track #" << iTrack << "\n";
 	continue;
@@ -385,9 +401,11 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       for (auto const& trhit: outHits) {
 	outputHits->addSingle(aptr, trhit);
       }
+      outputHitInfo->emplace_back(std::move(trackFitHitInfos));
     }
     e.put(std::move(outputTracks));
     e.put(std::move(outputHits));
+    e.put(std::move(outputHitInfo));
   }
 }
 
