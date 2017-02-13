@@ -35,13 +35,13 @@ pma::PMAlgStitching::~PMAlgStitching(){
 
 // CPA stitching wrapper
 void pma::PMAlgStitching::StitchTracksCPA(pma::TrkCandidateColl &tracks){
-  std::cout << "Passed " << tracks.size() << " tracks for CPA stitching." << std::endl;
+  mf::LogInfo("pma::PMAlgStitching") << "Passed " << tracks.size() << " tracks for CPA stitching.";
   StitchTracks(tracks,true);
 }
 
 // APA stitching wrapper
 void pma::PMAlgStitching::StitchTracksAPA(pma::TrkCandidateColl &tracks){
-  std::cout << "Passed " << tracks.size() << " tracks for APA stitching." << std::endl;
+  mf::LogInfo("pma::PMAlgStitching") << "Passed " << tracks.size() << " tracks for APA stitching.";
   StitchTracks(tracks,false);
 } 
 
@@ -53,7 +53,6 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
   unsigned int minTrkLength = 2*fNodesFromEnd + 3;
   // Special case for fNodesFromEnd = 0
   if(minTrkLength < 6) minTrkLength = 6;
-  std::cout << "MinTrkLength = " << minTrkLength << std::endl;
 
   // Loop over the track collection
   unsigned int t = 0;
@@ -170,12 +169,6 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
         score = GetOptimalStitchShift(t1Pos,t2Pos,t1Dir,t2Dir,xShift1);
 
         if(score < fStitchingThreshold && score < bestMatchScore){
-          std::cout << "Tracks " << t << " and " << u << " matching score = " << score << std::endl;
-          std::cout << " - " << t1Pos.X() << ", " << t1Pos.Y() << ", " << t1Pos.Z() << " :: " << t1Dir.X() << ", " << t1Dir.Y() << ", " << t1Dir.Z() << std::endl;
-          std::cout << " - " << t2Pos.X() << ", " << t2Pos.Y() << ", " << t2Pos.Z() << " :: " << t2Dir.X() << ", " << t2Dir.Y() << ", " << t2Dir.Z() << std::endl;
-          std::cout << " - " << t1->FrontCryo() << ", " << t1->FrontTPC() << " :: " << t1->BackCryo() << ", " << t1->BackTPC() << std::endl;
-          std::cout << " - " << t2->FrontCryo() << ", " << t2->FrontTPC() << " :: " << t2->BackCryo() << ", " << t2->BackTPC() << std::endl;
-
 
           bestTrkMatch = t2;
           xBestShift = xShift1;
@@ -192,7 +185,12 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
           else{
             isBestFront2 = false;
           }
-          std::cout << " - " << isBestFront1 << " :: " << isBestFront2 << std::endl;
+          mf::LogInfo("pma::PMAlgStitcher") << "Tracks " << t << " and " << u << " matching score = " << score << std::endl
+            << " - " << t1Pos.X() << ", " << t1Pos.Y() << ", " << t1Pos.Z() << " :: " << t1Dir.X() << ", " << t1Dir.Y() << ", " << t1Dir.Z() << std::endl
+            << " - " << t2Pos.X() << ", " << t2Pos.Y() << ", " << t2Pos.Z() << " :: " << t2Dir.X() << ", " << t2Dir.Y() << ", " << t2Dir.Z() << std::endl
+            << " - " << t1->FrontCryo() << ", " << t1->FrontTPC() << " :: " << t1->BackCryo() << ", " << t1->BackTPC() << std::endl
+            << " - " << t2->FrontCryo() << ", " << t2->FrontTPC() << " :: " << t2->BackCryo() << ", " << t2->BackTPC() << std::endl
+            << " - " << isBestFront1 << " :: " << isBestFront2 << std::endl;
         } // End successful match if
       } // Loop over matching options
     } // Loop over track 2
@@ -230,12 +228,10 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
 
         std::vector< pma::Track3D* > newTracks;
         if(t1->Flip(newTracks)){
-          std::cout << "Track 1 flipped." << std::endl;
+          mf::LogInfo("pma::PMAlgStitching") << "Track 1 flipped.";
         }
         else{
-          std::cout << "Was not possible to flip the track with nHits = " << t1->size() << std::endl;
-          std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
-          std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
+          mf::LogInfo("pma::PMAlgStitching") << "Unable to flip Track 1.";
           canMerge = false;
         }
         for (const auto ts : newTracks){ // there may be a new track even if entire flip was not possible
@@ -246,12 +242,10 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
 
         std::vector< pma::Track3D* > newTracks;
         if(bestTrkMatch->Flip(newTracks)){
-          std::cout << "Track 2 flipped." << std::endl;
+          mf::LogInfo("pma::PMAlgStitching") << "Track 2 flipped.";
         }
         else{
-          std::cout << "Was not possible to flip the track with nHits = " << bestTrkMatch->size() << std::endl;
-          std::cout << " - Track 1: " << t1->Nodes()[0]->Point3D().X() << ", " << t1->Nodes()[t1->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
-          std::cout << " - Track 2: " << bestTrkMatch->Nodes()[0]->Point3D().X() << ", " << bestTrkMatch->Nodes()[bestTrkMatch->Nodes().size()-1]->Point3D().X() << ", " << xBestShift << std::endl;
+          mf::LogInfo("pma::PMAlgStitching") << "Unable to flip Track 1.";
           canMerge = false;
         }
         for (const auto ts : newTracks){ // there may be a new track even if entire flip was not possible
