@@ -175,10 +175,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 
   for(size_t trkIter = 0; trkIter < tracklist.size(); ++trkIter){   
 
-    std::vector<double> larStart;
-    std::vector<double> larEnd;
-    //put xyz coordinates at begin/end of track into vectors(?)
-    tracklist[trkIter]->Extent(larStart,larEnd);
+    decltype(auto) larEnd = tracklist[trkIter]->Trajectory().End();
     //store track directional cosines
     double trackCosStart[3]={0.,0.,0.};
     double trackCosEnd[3]={0.,0.,0.};
@@ -517,12 +514,10 @@ void calo::Calorimetry::produce(art::Event& evt)
 	    if(sppv.size() < 1) continue;
 	    // only use the first space point in the collection, really each hit should
 	    // only map to 1 space point
-	    const double xyz[3] = {sppv[0]->XYZ()[0],
+	    const recob::Track::Point_t xyz{sppv[0]->XYZ()[0],
 				   sppv[0]->XYZ()[1],
 				   sppv[0]->XYZ()[2]};
-	    double dis1 = (larEnd[0]-xyz[0])*(larEnd[0]-xyz[0]) +
-	      (larEnd[1]-xyz[1])*(larEnd[1]-xyz[1]) +
-	      (larEnd[2]-xyz[2])*(larEnd[2]-xyz[2]);
+	    double dis1 = (larEnd - xyz).Mag2();
 	    if (dis1) dis1 = std::sqrt(dis1);
 	    if (dis1 < mindis){
 	      endwire = allHits[hits[ipl][ihit]]->WireID().Wire;
