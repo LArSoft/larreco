@@ -89,7 +89,7 @@ def main(argv):
                 target = np.zeros(3)
                 if tracks[i,j] == 1:
                     # skip some fraction (1/2) of almost-track-only patches
-                    if shower_pixels < 4 and np.random.randint(10000) < int(100*clean_track_fraction): continue
+                    if shower_pixels < 4 and np.random.randint(10000) > int(100*clean_track_fraction): continue
                     else:
                         target[0] = 1
                         cnt_trk += 1
