@@ -200,9 +200,9 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 		if (right_plane)
 		{
 			auto adc = wire.Signal();
-			if (adc.size() != ndrifts)
+			if (adc.size() < ndrifts)
 			{
-				mf::LogError("DataProviderAlg") << "ADC vector sizes not match.";
+				mf::LogError("DataProviderAlg") << "Wire ADC vector size lower than NumberTimeSamples.";
 				return false;
 			}
 
