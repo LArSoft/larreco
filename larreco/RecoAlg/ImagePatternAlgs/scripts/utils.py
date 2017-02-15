@@ -16,7 +16,7 @@ def get_data(fname, drift_margin = 0, crop = True):
         A_raw     = np.genfromtxt(fname + '.raw', delimiter=' ', dtype=np.float32)
         A_deposit = np.genfromtxt(fname + '.deposit', delimiter=' ', dtype=np.float32)
         A_pdg     = np.genfromtxt(fname + '.pdg', delimiter=' ', dtype=np.int32)
-    except Exception as exc:
+    except:
         print 'Bad event, return empty arrays'
         return None, None, None, None, None
 
