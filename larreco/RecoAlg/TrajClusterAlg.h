@@ -166,6 +166,15 @@ namespace tca {
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
 */
+    TH2F *fMCSMom_Length;
+
+    TH2F *fMCSMom_TruMom_e;
+    TH2F *fMCSMom_TruMom_mu;
+    TH2F *fMCSMom_TruMom_pi;
+    TH2F *fMCSMom_TruMom_p;
+
+    TH2F *fMCSMomEP_TruMom_e;
+    
     // Reco-MC vertex position difference
     TH1F* fNuVtx_dx;
     TH1F* fNuVtx_dy;
@@ -175,13 +184,13 @@ namespace tca {
     TH1F* fdWire[5];
     // EP vs KE for different MC Particles
     TProfile* fEP_T[5];
-
+/*
     TH1F *fDeltaN[3];
     TH1F *fHitRMS[3];
     TH2F *fTPWidth_Angle[3];
     TProfile *fTPWidth_AngleP[3];
     TProfile *fExpect_Angle[3];
-    
+*/
     // number of primary particles in the event
     unsigned short nTruPrimary;
     // number of reconstructable primary particles in the event
@@ -275,8 +284,6 @@ namespace tca {
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);
-    // Counts the number of hits that are used in two different vectors of hits
-    void CountSameHits(std::vector<unsigned int>& iHitVec, std::vector<unsigned int>& jHitVec, unsigned short& nSameHits);
     // Merge and store the two trajectories in allTraj
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
