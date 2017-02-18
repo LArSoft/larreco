@@ -16,6 +16,7 @@
 #include "lardata/DetectorInfo/DetectorProperties.h"
 #include "lardata/DetectorInfo/DetectorClocks.h"
 #include "larcore/Geometry/GeometryCore.h"
+#include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h" // util::kModBoxA ...
 
 // infrastructure and utilities
 // #include "cetlib/exception.h"
@@ -32,18 +33,119 @@
 #include <type_traits> // std::is_same, std::decay_t
 
 namespace calo {
-
+  
+  /**
+   * @brief Calibrates the energy of the clusters.
+   * 
+   * Configuration
+   * --------------
+   * 
+   * Example of configuration:
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   * EnergyAlgo: {
+   *   UseArea: true
+   *   RecombinationModel: Birks
+   *   BirksParameters: {
+   *     A: 0.8
+   *     k: 0.0486
+   *   }
+   * }
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   * 
+   * Parameters:
+   * * *UseArea* (flag, _mandatory): whether to use hit integral
+   *     (`recob::Hit::Integral()`) instead of hit peak amplitude for charge
+   *     estimation
+   * * *RecombinationModel* (string, _mandatory_): specifies one of the
+   *     supported recombination models. Each requires its own specific
+   *     configuration. They are:
+   *     * `Birks`, Birks Law model (see S.Amoruso et al., NIM A 523 (2004) 275)
+   *         configured with *BirksParameters*:
+   *         * *A* (real, default: `util::kRecombA`)
+   *         * *k* (real, default: `util::kRecombk`) in kV/cm*(g/cm^2)/MeV
+   *     * `ModBox`, box model, configured with *ModBoxParameters*:
+   *         * *A* (real, default: `util::kModBoxA`)
+   *         * *B* (real, default: `util::kModBoxB`) in kV/cm*(g/cm^2)/MeV
+   *     * `Constant` recombination factor, configured with
+   *         *ConstantRecombParameters*:
+   *         * *factor* (real, _mandatory_): the recombination factor uniformly
+   *             applied
+   * 
+   */
   class LinearEnergyAlg {
 
     public:
-
+    
+    struct ModelName {
+      static const std::string ModBox;
+      static const std::string Birks;
+      static const std::string Constant;
+    };
+    
     enum RecombinationModel_t {
       kModBox,
-      kBirk,
+      kBirks,
       kConstant,
       nRecombinationModel
     };
+    
+    
+    /// Configuration of parameters of the box model.
+    struct ModBoxConfig {
+      
+      using Name = fhicl::Name;
+      using Comment = fhicl::Comment;
+      
+      fhicl::Atom<double> A {
+        Name("A"),
+        Comment("Parameter \"A\" of box model."),
+        util::kModBoxA
+        };
 
+      fhicl::Atom<double> B {
+        Name("B"),
+        Comment("Parameter \"B\" of box model [kV/cm*(g/cm^2)/MeV]."),
+        util::kModBoxB
+        };
+      
+    }; // ModBoxConfig
+    
+    
+    /// Configuration of parameters of Birks model.
+    struct BirksConfig {
+      
+      using Name = fhicl::Name;
+      using Comment = fhicl::Comment;
+      
+      fhicl::Atom<double> A {
+        Name("A"),
+        Comment("Recombination parameter \"A\" of Birks model."),
+        util::kRecombA
+        };
+
+      fhicl::Atom<double> k {
+        Name("k"),
+        Comment("Recombination parameter \"k\" of Birks model [kV/cm*(g/cm^2)/MeV]."),
+        util::kRecombk
+        };
+      
+    }; // BirksConfig
+    
+    
+    /// Configuration of parameters for constant recombination.
+    struct ConstantConfig {
+      
+      using Name = fhicl::Name;
+      using Comment = fhicl::Comment;
+      
+      fhicl::Atom<double> factor {
+        Name("factor"),
+        Comment("Recombination factor.")
+        };
+      
+    }; // ConstantConfig
+    
+    
     /// Algorithm configuration
     struct Config {
 
@@ -57,11 +159,34 @@ namespace calo {
 
       fhicl::Atom<std::string> RecombinationModel {
         Name("RecombinationModel"),
-        Comment("Which recombination model to use: ModBox, Birk, Constant.")
-      };
-
+        Comment(std::string("Which recombination model to use: "
+          + ModelName::ModBox + ", "
+          + ModelName::Birks + ", "
+          + ModelName::Constant + ".").c_str()
+          )
+        };
+      
+      fhicl::Table<BirksConfig> BirksParameters {
+        Name("BirksParameters"),
+        Comment("Parameters of the Birks recombination model"),
+        [this](){ return RecombinationModel() == ModelName::Birks; }
+        };
+      
+      fhicl::Table<ModBoxConfig> ModBoxParameters {
+        Name("ModBoxParameters"),
+        Comment("Parameters of the box recombination model"),
+        [this](){ return RecombinationModel() == ModelName::ModBox; }
+        };
+      
+      fhicl::Table<ConstantConfig> ConstantRecombination {
+        Name("ConstantRecombination"),
+        Comment("Parameter for a constant recombination"),
+        [this](){ return RecombinationModel() == ModelName::Constant; }
+        };
+      
     }; // Config
-
+    
+    
     /// @{
     /// @name Construction and configuration
 
@@ -144,7 +269,21 @@ namespace calo {
     /// @}
     
   private:
-
+    
+    struct ModBoxParameters {
+      double A = util::kModBoxA;
+      double B = util::kModBoxB;
+    };
+    
+    struct BirksParameters {
+      double A = util::kRecombA;
+      double k = util::kRecombk;
+    };
+    
+    struct ConstantRecombParameters {
+      double factor = 1.0; // no sensible default value here
+    };
+    
     /// Pointer to the geometry to be used
     geo::GeometryCore const* geom = nullptr;
 
@@ -156,6 +295,14 @@ namespace calo {
 
     bool   fUseArea;
     int    fRecombModel;
+    
+    /// Parameters for recombination box model; filled only when this model is selected.
+    ModBoxParameters recombModBoxParams;
+    /// Parameters for recombination Birks model; filled only when this model is selected.
+    BirksParameters recombBirksParams;
+    /// Parameters for constant recombination factor; filled only when this model is selected.
+    ConstantRecombParameters recombConstParams;
+    
     // TODO
     // double fRecombA;
     // double fRecombk;

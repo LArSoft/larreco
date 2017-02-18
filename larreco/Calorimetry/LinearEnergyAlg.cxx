@@ -10,7 +10,6 @@
 // LArSoft libraries
 #include "larreco/Calorimetry/LinearEnergyAlg.h"
 #include "lardata/Utilities/ForEachAssociatedGroup.h" // util::associated_groups()
-#include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
 
 
 // C/C++ standard libraries
@@ -71,6 +70,11 @@ namespace {
 } // local namespace
 
 
+//------------------------------------------------------------------------------
+const std::string calo::LinearEnergyAlg::ModelName::ModBox = "ModBox";
+const std::string calo::LinearEnergyAlg::ModelName::Birks = "Birks";
+const std::string calo::LinearEnergyAlg::ModelName::Constant = "Constant";
+
 
 calo::LinearEnergyAlg::LinearEnergyAlg(Config const& config)
   : fUseArea( config.UseArea() )
@@ -78,13 +82,29 @@ calo::LinearEnergyAlg::LinearEnergyAlg(Config const& config)
   , fElectronLifetime( 1e10 ) // needs to be read from service
   , fDeconNorm( 200 )
 {
-  if ( config.RecombinationModel() == "ModBox" ) fRecombModel = kModBox;
-  else if ( config.RecombinationModel() == "Birk" ) fRecombModel = kBirk;
-  else if ( config.RecombinationModel() == "Constant" ) fRecombModel = kConstant;
+  if ( config.RecombinationModel() == ModelName::ModBox ) {
+    fRecombModel = kModBox;
+    recombModBoxParams.A = config.ModBoxParameters().A();
+    recombModBoxParams.B = config.ModBoxParameters().B();
+  }
+  else if ( config.RecombinationModel() == ModelName::Birks ) {
+    fRecombModel = kBirks;
+    recombBirksParams.A = config.BirksParameters().A();
+    recombBirksParams.k = config.BirksParameters().k();
+  }
+  else if ( config.RecombinationModel() == ModelName::Constant ) {
+    fRecombModel = kConstant;
+    recombConstParams.factor = config.ConstantRecombination().factor();
+  }
   else {
     throw std::runtime_error
       ( "Unsupported recombination mode: '" + config.RecombinationModel() + "'" );
   }
+  
+  if (!fUseArea) {
+    throw std::runtime_error("Energy correction based on hit peak amplitude not implemented yet.");
+  }
+  
 }
 
 
@@ -103,6 +123,7 @@ double calo::LinearEnergyAlg::CalculateHitEnergy(recob::Hit const& hit) const
   double const LifetimeCorr = std::exp( t / fElectronLifetime );
   
   // hit charge (ADC) -> Coulomb -> Number of electrons -> eV
+  // TODO: implement the non-UseArea option
   double dE = hit.Integral() * kWion * fDeconNorm;
   
   // dE * lifetime correction
@@ -153,10 +174,10 @@ double calo::LinearEnergyAlg::RecombinationCorrection( double dEdx ) const {
   switch ( fRecombModel ) {
     case kModBox:
       return this->ModBoxInverse( dEdx );
-    case kBirk:
+    case kBirks:
       return this->BirksInverse( dEdx );
     case kConstant:
-      return fRecombFactor;
+      return recombConstParams.factor;
     default:
       throw std::logic_error
         ("Unexpected! recombination model in RecombinationCorrection()");
@@ -169,8 +190,8 @@ double calo::LinearEnergyAlg::ModBoxInverse( double dEdx ) const {
   // correction at high values of dQ/dx.
   double rho     = detp->Density();                    // LAr density in g/cm^3
   double Efield  = detp->Efield();                     // Electric Field in the drift region in KV/cm
-  double Beta    = util::kModBoxB / (rho * Efield);
-  double Alpha   = util::kModBoxA;
+  double Beta    = recombModBoxParams.B / (rho * Efield);
+  double Alpha   = recombModBoxParams.A;
 
   double dQdx = std::log ( Alpha + Beta * dEdx ) / ( Beta * kWion );
 
@@ -181,8 +202,8 @@ double calo::LinearEnergyAlg::BirksInverse( double dEdx ) const {
   // Correction for charge quenching using parameterization from
   // S.Amoruso et al., NIM A 523 (2004) 275
 
-  double A3t     = util::kRecombA;
-  double K3t     = util::kRecombk;                     // in KV/cm*(g/cm^2)/MeV
+  double A3t     = recombBirksParams.A;
+  double K3t     = recombBirksParams.k;                // in KV/cm*(g/cm^2)/MeV
   double rho     = detp->Density();                    // LAr density in g/cm^3
   double Efield  = detp->Efield();                     // Electric Field in the drift region in KV/cm
   K3t           /= rho;                                // KV/MeV
