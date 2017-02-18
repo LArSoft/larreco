@@ -29,6 +29,7 @@
 
 // C/C++ standard libraries
 #include <vector>
+#include <type_traits> // std::is_same, std::decay_t
 
 namespace calo {
 
@@ -104,22 +105,43 @@ namespace calo {
 
     /// @}
     
+    /// @{
+    /// @name Operations
+    
+    /**
+     * @brief Calculates the energy of a single cluster.
+     * @tparam Hits a range of hits associated with the cluster
+     * @param cluster list of clusters we want the energy of
+     * @param hits pointers to all hits associated to the cluster
+     * @return the calibrated energy of the specified cluster [GeV]
+     * 
+     * @todo Describe the algorithm
+     * 
+     * The `hits` are stored as (constant) pointers into a "range", that is any
+     * object (e.g. a STL vector) supporting `begin()` and `end()` iterators.
+     * 
+     */
+    template <typename Hits>
+    double CalculateClusterEnergy
+      (recob::Cluster const& cluster, Hits&& hits) const;
+    
     /**
      * @brief Calculates the energy of the shower
      * @param clusters list of clusters we want the energy of
      * @param hitsPerCluster associations of all clusters to all hits
      * @return a vector with one energy per input cluster [GeV]
+     * @see CalculateClusterEnergy()
      * 
-     * 
-     * @todo Describe the algorithm
-     * 
+     * A vector is returned with a entry, that is the cluster energy, for each
+     * of the clusters in the input, in the same order.
+     * See `CalculateClusterEnergy()` for the algorithm details.
      */
     std::vector<double> CalculateEnergy(
       std::vector<art::Ptr<recob::Cluster>> const& clusters,
       art::Assns<recob::Cluster, recob::Hit> const& hitsPerCluster
       ) const;
     
-    
+    /// @}
     
   private:
 
@@ -170,4 +192,38 @@ namespace calo {
   };  // class LinearEnergyAlg
 
 }  // namespace calo
+
+
+
+//------------------------------------------------------------------------------
+//--- template implementation
+//---
+template <typename Hits>
+double calo::LinearEnergyAlg::CalculateClusterEnergy
+  (recob::Cluster const& cluster, Hits&& hits) const
+{
+  using std::begin;
+  static_assert( // check the hits type
+    std::is_same<std::decay_t<decltype(**begin(hits))>, recob::Hit>::value,
+    "Hits must be a collection of recob::Hit pointers!" // any pointer will do
+    );
+  
+  double E = 0.0; // total cluster energy
+  
+  for (auto hitPtr: hits) {
+    
+    E += CalculateHitEnergy(*hitPtr);
+    
+  } // for
+    
+  return E;
+  
+} // calo::LinearEnergyAlg::CalculateEnergy()
+
+//------------------------------------------------------------------------------
+
+
+
+
+
 #endif  // LARRECO_CALORIMETRY_LINEARENERGYALG_H

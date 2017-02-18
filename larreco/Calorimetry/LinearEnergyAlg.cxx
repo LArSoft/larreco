@@ -129,17 +129,10 @@ std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
   
   for (art::Ptr<recob::Cluster> const& cluster: clusters) {
     
-    // search for the right association to the cluster we are processing
-    auto hits = hitsAssociatedWith(cluster, hitsPerCluster);
-    
-    double E = 0.0; // total cluster energy
-    
-    // hits are the hits associated to the cluster
-    for (art::Ptr<recob::Hit> const& hitPtr: hits) {
-      
-      E += CalculateHitEnergy(*hitPtr);
-      
-    } // for hits associated to the cluster
+    // hitsAssociatedWith() searches for the right association links
+    // to the cluster we are processing
+    double const E = CalculateClusterEnergy
+      (*cluster, hitsAssociatedWith(cluster, hitsPerCluster));
     
     clusterEnergies.push_back(E);
     
