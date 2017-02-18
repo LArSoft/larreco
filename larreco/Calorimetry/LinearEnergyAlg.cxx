@@ -122,7 +122,7 @@ double calo::LinearEnergyAlg::CalculateHitEnergy(recob::Hit const& hit) const
 std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
   std::vector<art::Ptr<recob::Cluster>> const& clusters,
   art::Assns<recob::Cluster, recob::Hit> const& hitsPerCluster
-  )
+  ) const
 {  // input clusters and hits, shower direction?
   
   std::vector<double> clusterEnergies;

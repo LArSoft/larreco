@@ -117,7 +117,7 @@ namespace calo {
     std::vector<double> CalculateEnergy(
       std::vector<art::Ptr<recob::Cluster>> const& clusters,
       art::Assns<recob::Cluster, recob::Hit> const& hitsPerCluster
-      );
+      ) const;
     
     
     
