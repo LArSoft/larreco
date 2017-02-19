@@ -255,12 +255,31 @@ namespace calo {
     
     /**
      * @brief Calculates the energy of a single cluster.
+     * @tparam BeginHitIter type of iterator to the first associated hit
+     * @tparam EndHitIter type of iterator to the past-the-last associated hit
+     * @param cluster list of clusters we want the energy of
+     * @param hits pointers to all hits associated to the cluster
+     * @param beginHit iterator to the first hit associated to the cluster
+     * @param endHit iterator to past-the-last hit associated to the cluster
+     * @return the calibrated energy of the specified cluster [GeV]
+     * 
+     * @todo Describe the algorithm
+     * 
+     * The `hits` are stored as (constant) pointers.
+     * 
+     */
+    template <typename BeginHitIter, typename EndHitIter>
+    double CalculateClusterEnergy
+      (recob::Cluster const& cluster, BeginHitIter beginHit, EndHitIter endHit)
+      const;
+    
+    /**
+     * @brief Calculates the energy of a single cluster.
      * @tparam Hits a range of hits associated with the cluster
      * @param cluster list of clusters we want the energy of
      * @param hits pointers to all hits associated to the cluster
      * @return the calibrated energy of the specified cluster [GeV]
-     * 
-     * @todo Describe the algorithm
+     * @see CalculateClusterEnergy(recob::Cluster const&. BeginHitIter, EndHitIter)
      * 
      * The `hits` are stored as (constant) pointers into a "range", that is any
      * object (e.g. a STL vector) supporting `begin()` and `end()` iterators.
@@ -268,7 +287,12 @@ namespace calo {
      */
     template <typename Hits>
     double CalculateClusterEnergy
-      (recob::Cluster const& cluster, Hits&& hits) const;
+      (recob::Cluster const& cluster, Hits&& hits) const
+      {
+        using std::begin; using std::end;
+        return CalculateClusterEnergy(cluster, begin(hits), end(hits));
+      }
+    
     
     /**
      * @brief Calculates the energy of the shower
@@ -277,8 +301,9 @@ namespace calo {
      * @return a vector with one energy per input cluster [GeV]
      * @see CalculateClusterEnergy()
      * 
-     * A vector is returned with a entry, that is the cluster energy, for each
-     * of the clusters in the input, in the same order.
+     * A vector is returned with a entry per plane in the TPC of the clusters.
+     * The energy has a very negative value
+     * (`std::numeric_limits<double>::lowest()`) for the planes with no cluster.
      * See `CalculateClusterEnergy()` for the algorithm details.
      */
     std::vector<double> CalculateEnergy(
@@ -365,27 +390,28 @@ namespace calo {
 //------------------------------------------------------------------------------
 //--- template implementation
 //---
-template <typename Hits>
+template <typename BeginHitIter, typename EndHitIter>
 double calo::LinearEnergyAlg::CalculateClusterEnergy
-  (recob::Cluster const& /* cluster */, Hits&& hits) const
+  (recob::Cluster const& cluster, BeginHitIter beginHit, EndHitIter endHit)
+  const
 {
-  using std::begin;
   static_assert( // check the hits type
-    std::is_same<std::decay_t<decltype(**begin(hits))>, recob::Hit>::value,
-    "Hits must be a collection of recob::Hit pointers!" // any pointer will do
+    std::is_same<std::decay_t<decltype(**beginHit)>, recob::Hit>::value,
+    "The hits must be stored as recob::Hit pointers!" // any pointer will do
     );
   
   double E = 0.0; // total cluster energy
   
-  for (auto hitPtr: hits) {
+  for (auto hitIter = beginHit; hitIter != endHit; ++hitIter) {
     
-    E += CalculateHitEnergy(*hitPtr);
+    E += CalculateHitEnergy(**hitIter);
     
   } // for
     
   return E;
   
 } // calo::LinearEnergyAlg::CalculateEnergy()
+
 
 //------------------------------------------------------------------------------
 template <typename Stream>

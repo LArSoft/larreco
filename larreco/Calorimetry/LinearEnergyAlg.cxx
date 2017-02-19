@@ -10,7 +10,10 @@
 // LArSoft libraries
 #include "larreco/Calorimetry/LinearEnergyAlg.h"
 #include "lardata/Utilities/ForEachAssociatedGroup.h" // util::associated_groups()
+#include "larcoreobj/SimpleTypesAndConstants/geo_types.h" // geo::TPCID
 
+// Framework libraries
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // C/C++ standard libraries
 #include <stdexcept> // std::runtime_error()
@@ -147,18 +150,46 @@ std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
   ) const
 {  // input clusters and hits, shower direction?
   
+  if (clusters.empty()) return {}; // no clusters!!
+
+  // prepare the energies vector with one entry per plane
+  // (we get the total number of planes of the TPC  the cluster is in from geometry)
+  // and initialize them to a ridiculously negative number to start with
+
   std::vector<double> clusterEnergies;
-  clusterEnergies.reserve( clusters.size() );
-  if ( clusters.size() > 3 ) std::cout << "LinearEnergyAlg" << clusters.size() << " clusters associated in a shower!" << std::endl;  
+  geo::TPCID refTPC = clusters[0]->Plane();
+  clusterEnergies.resize
+    (geom->TPC(refTPC).Nplanes(), std::numeric_limits<double>::lowest());
+  
+  if ( clusters.size() > clusterEnergies.size() ) {
+    mf::LogError("LinearEnergyAlg") << clusters.size() << " clusters for "
+      << clusterEnergies.size() << " wire planes!";
+  }
 
   for (art::Ptr<recob::Cluster> const& cluster: clusters) {
+    
+    auto const plane = cluster->Plane();
+    if (plane != refTPC) {
+      throw std::runtime_error(
+        "Cluster ID=" + std::to_string(cluster->ID())
+        + " is expected on TPC " + std::string(refTPC)
+        + " but is found on plane " + std::string(plane)
+        );
+    }
     
     // hitsAssociatedWith() searches for the right association links
     // to the cluster we are processing
     double const E = CalculateClusterEnergy
       (*cluster, hitsAssociatedWith(cluster, hitsPerCluster));
     
-    clusterEnergies[cluster->Plane().Plane] = E;
+    auto const planeNo = plane.Plane;
+    if (clusterEnergies[planeNo] >= 0.) {
+      mf::LogWarning("LinearEnergyAlg")
+        << "Warning! two or more clusters share plane "
+        << plane << "! (the last with energy " << E
+        << ", the previous " << clusterEnergies[planeNo] << " GeV)";
+    }
+    clusterEnergies[planeNo] = E;
     
   } // for all clusters
   
