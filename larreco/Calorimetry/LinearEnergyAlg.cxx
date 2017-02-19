@@ -82,23 +82,24 @@ calo::LinearEnergyAlg::LinearEnergyAlg(Config const& config)
   , fElectronLifetime( 1e10 ) // needs to be read from service
   , fDeconNorm( 200 )
 {
-  if ( config.RecombinationModel() == ModelName::ModBox ) {
+  auto const& recombParams = config.Recombination();
+  if ( recombParams.modelIsModBox()) {
     fRecombModel = kModBox;
-    recombModBoxParams.A = config.ModBoxParameters().A();
-    recombModBoxParams.B = config.ModBoxParameters().B();
+    recombModBoxParams.A = recombParams.A();
+    recombModBoxParams.B = recombParams.B();
   }
-  else if ( config.RecombinationModel() == ModelName::Birks ) {
+  else if ( recombParams.modelIsBirks()) {
     fRecombModel = kBirks;
-    recombBirksParams.A = config.BirksParameters().A();
-    recombBirksParams.k = config.BirksParameters().k();
+    recombBirksParams.A = recombParams.A3t();
+    recombBirksParams.k = recombParams.k3t();
   }
-  else if ( config.RecombinationModel() == ModelName::Constant ) {
+  else if ( recombParams.modelIsConstant()) {
     fRecombModel = kConstant;
-    recombConstParams.factor = config.ConstantRecombination().factor();
+    recombConstParams.factor = recombParams.factor();
   }
   else {
     throw std::runtime_error
-      ( "Unsupported recombination mode: '" + config.RecombinationModel() + "'" );
+      ( "Unsupported recombination mode: '" + recombParams.Model() + "'" );
   }
   
   if (!fUseArea) {

@@ -44,10 +44,10 @@ namespace calo {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    * EnergyAlgo: {
    *   UseArea: true
-   *   RecombinationModel: Birks
-   *   BirksParameters: {
-   *     A: 0.8
-   *     k: 0.0486
+   *   Recombination: {
+   *     Model: Birks
+   *     A3t: 0.8
+   *     k3t: 0.0486
    *   }
    * }
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -56,20 +56,23 @@ namespace calo {
    * * *UseArea* (flag, _mandatory): whether to use hit integral
    *     (`recob::Hit::Integral()`) instead of hit peak amplitude for charge
    *     estimation
-   * * *RecombinationModel* (string, _mandatory_): specifies one of the
-   *     supported recombination models. Each requires its own specific
-   *     configuration. They are:
-   *     * `Birks`, Birks Law model (see S.Amoruso et al., NIM A 523 (2004) 275)
-   *         configured with *BirksParameters*:
-   *         * *A* (real, default: `util::kRecombA`)
-   *         * *k* (real, default: `util::kRecombk`) in kV/cm*(g/cm^2)/MeV
-   *     * `ModBox`, box model, configured with *ModBoxParameters*:
-   *         * *A* (real, default: `util::kModBoxA`)
-   *         * *B* (real, default: `util::kModBoxB`) in kV/cm*(g/cm^2)/MeV
-   *     * `Constant` recombination factor, configured with
-   *         *ConstantRecombParameters*:
-   *         * *factor* (real, _mandatory_): the recombination factor uniformly
-   *             applied
+   * * *Recombination* (mandatory table): configures the recombination model
+   *     to be used and its parameters:
+   *     * *Model* (string, _mandatory_): specifies one of the
+   *         supported recombination models: `Birks`, `ModBox` or `Constant`.
+   *         Each requires its own specific configuration parameters.
+   *         * `Birks`, Birks Law model
+   *            (see S.Amoruso et al., NIM A 523 (2004) 275) requires
+   *            configuration parameters:
+   *             * *A3t* (real, default: `util::kRecombA`)
+   *             * *k3t* (real, default: `util::kRecombk`) in kV/cm*(g/cm^2)/MeV
+   *         * `ModBox`, box model requires configuration parameters:
+   *             * *A* (real, default: `util::kModBoxA`)
+   *             * *B* (real, default: `util::kModBoxB`) in kV/cm*(g/cm^2)/MeV
+   *         * `Constant` recombination factor, requires configuration
+   *             parameters:
+   *             * *factor* (real, _mandatory_): the recombination factor,
+   *                 uniformly applied to all hits
    * 
    */
   class LinearEnergyAlg {
@@ -91,59 +94,63 @@ namespace calo {
     
     
     /// Configuration of parameters of the box model.
-    struct ModBoxConfig {
+    struct RecombinationConfig {
       
       using Name = fhicl::Name;
       using Comment = fhicl::Comment;
       
+      bool modelIsBirks() const
+        { return Model() == ModelName::Birks; }
+      bool modelIsModBox() const
+        { return Model() == ModelName::ModBox; }
+      bool modelIsConstant() const
+        { return Model() == ModelName::Constant; }
+      
+      
+      fhicl::Atom<std::string> Model {
+        Name("Model"),
+        Comment(std::string("Which recombination model to use: "
+          + ModelName::ModBox + ", "
+          + ModelName::Birks + ", "
+          + ModelName::Constant + ".").c_str()
+          )
+        };
+      
       fhicl::Atom<double> A {
         Name("A"),
         Comment("Parameter \"A\" of box model."),
+        fhicl::use_if(this, &RecombinationConfig::modelIsModBox),
         util::kModBoxA
         };
 
       fhicl::Atom<double> B {
         Name("B"),
         Comment("Parameter \"B\" of box model [kV/cm*(g/cm^2)/MeV]."),
+        fhicl::use_if(this, &RecombinationConfig::modelIsModBox),
         util::kModBoxB
         };
       
-    }; // ModBoxConfig
-    
-    
-    /// Configuration of parameters of Birks model.
-    struct BirksConfig {
-      
-      using Name = fhicl::Name;
-      using Comment = fhicl::Comment;
-      
-      fhicl::Atom<double> A {
-        Name("A"),
+      fhicl::Atom<double> A3t {
+        Name("A3t"),
         Comment("Recombination parameter \"A\" of Birks model."),
+        fhicl::use_if(this, &RecombinationConfig::modelIsBirks),
         util::kRecombA
         };
 
-      fhicl::Atom<double> k {
-        Name("k"),
+      fhicl::Atom<double> k3t {
+        Name("k3t"),
         Comment("Recombination parameter \"k\" of Birks model [kV/cm*(g/cm^2)/MeV]."),
+        fhicl::use_if(this, &RecombinationConfig::modelIsBirks),
         util::kRecombk
         };
       
-    }; // BirksConfig
-    
-    
-    /// Configuration of parameters for constant recombination.
-    struct ConstantConfig {
-      
-      using Name = fhicl::Name;
-      using Comment = fhicl::Comment;
-      
       fhicl::Atom<double> factor {
         Name("factor"),
-        Comment("Recombination factor.")
+        Comment("Constant recombination factor for \"constant\" model."),
+        fhicl::use_if(this, &RecombinationConfig::modelIsConstant)
         };
       
-    }; // ConstantConfig
+    }; // RecombinationConfig
     
     
     /// Algorithm configuration
@@ -157,31 +164,9 @@ namespace calo {
         Comment("Whether to use the area of hit to count the deposited charges.")
       };
 
-      fhicl::Atom<std::string> RecombinationModel {
-        Name("RecombinationModel"),
-        Comment(std::string("Which recombination model to use: "
-          + ModelName::ModBox + ", "
-          + ModelName::Birks + ", "
-          + ModelName::Constant + ".").c_str()
-          )
-        };
-      
-      fhicl::Table<BirksConfig> BirksParameters {
-        Name("BirksParameters"),
-        Comment("Parameters of the Birks recombination model"),
-        [this](){ return RecombinationModel() == ModelName::Birks; }
-        };
-      
-      fhicl::Table<ModBoxConfig> ModBoxParameters {
-        Name("ModBoxParameters"),
-        Comment("Parameters of the box recombination model"),
-        [this](){ return RecombinationModel() == ModelName::ModBox; }
-        };
-      
-      fhicl::Table<ConstantConfig> ConstantRecombination {
-        Name("ConstantRecombination"),
-        Comment("Parameter for a constant recombination"),
-        [this](){ return RecombinationModel() == ModelName::Constant; }
+      fhicl::Table<RecombinationConfig> Recombination {
+        Name("Recombination"),
+        Comment("Parameters of the recombination model")
         };
       
     }; // Config
@@ -347,7 +332,7 @@ namespace calo {
 //---
 template <typename Hits>
 double calo::LinearEnergyAlg::CalculateClusterEnergy
-  (recob::Cluster const& cluster, Hits&& hits) const
+  (recob::Cluster const& /* cluster */, Hits&& hits) const
 {
   using std::begin;
   static_assert( // check the hits type
