@@ -148,7 +148,9 @@ std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
 {  // input clusters and hits, shower direction?
   
   std::vector<double> clusterEnergies;
-  
+  clusterEnergies.reserve( clusters.size() );
+  if ( clusters.size() > 3 ) std::cout << "LinearEnergyAlg" << clusters.size() << " clusters associated in a shower!" << std::endl;  
+
   for (art::Ptr<recob::Cluster> const& cluster: clusters) {
     
     // hitsAssociatedWith() searches for the right association links
@@ -156,7 +158,7 @@ std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
     double const E = CalculateClusterEnergy
       (*cluster, hitsAssociatedWith(cluster, hitsPerCluster));
     
-    clusterEnergies.push_back(E);
+    clusterEnergies[cluster->Plane().Plane] = E;
     
   } // for all clusters
   
