@@ -30,6 +30,7 @@
 
 // C/C++ standard libraries
 #include <vector>
+#include <utility> // std::forward()
 #include <type_traits> // std::is_same, std::decay_t
 
 namespace calo {
@@ -212,6 +213,40 @@ namespace calo {
      */
     void setup( detinfo::DetectorProperties const& detproperty, detinfo::DetectorClocks const& detclock, geo::GeometryCore const& geometry )
       { detp = &detproperty; detc = &detclock; geom = &geometry; initialize(); }
+    
+    /**
+     * @brief Prints the current algorithm configuration.
+     * @tparam Stream type of output stream 
+     * @param out output stream where to write the information
+     * @param indent indentation for all lines
+     * @param firstIndent special indentation for the first line
+     * 
+     * The configuration parameters are printed in human-readable form.
+     * The output starts at the current line of the stream, and it terminates
+     * with a new line.
+     * 
+     * This method does not require the algorithm to have been set up (via
+     * `Setup()`), since it just prints user configuration as given at
+     * construction time.
+     */
+    template <typename Stream>
+    void DumpConfiguration
+      (Stream&& out, std::string indent, std::string firstIndent) const;
+    
+    /**
+     * @brief Prints the current algorithm configuration.
+     * @tparam Stream type of output stream 
+     * @param out output stream where to write the information
+     * @param indent (default: none) indentation for all lines (including the
+     *               first one)
+     * 
+     * The configuration parameters are printed in human-readable form.
+     * The output starts at the current line of the stream, and it terminates
+     * with a new line.
+     */
+    template <typename Stream>
+    void DumpConfiguration(Stream&& out, std::string indent = "") const
+      { DumpConfiguration(std::forward<Stream>(out), indent, indent); }
 
     /// @}
     
@@ -351,6 +386,39 @@ double calo::LinearEnergyAlg::CalculateClusterEnergy
   return E;
   
 } // calo::LinearEnergyAlg::CalculateEnergy()
+
+//------------------------------------------------------------------------------
+template <typename Stream>
+void calo::LinearEnergyAlg::DumpConfiguration
+  (Stream&& out, std::string indent, std::string firstIndent) const
+{
+  
+  out << firstIndent << "LinearEnergyAlg configuration:"
+    << "\n" << indent << "  use hit " << (fUseArea? "area": "peak amplitude")
+      << " for charge estimation"
+    << "\n" << indent << "  recombination model: ";
+  switch ( fRecombModel ) {
+    case kModBox:
+      out << ModelName::ModBox
+        << "\n" << indent << "    A = " << recombModBoxParams.A
+        << "\n" << indent << "    B = " << recombModBoxParams.B;
+      break;
+    case kBirks:
+      out << ModelName::Birks
+        << "\n" << indent << "    A = " << recombBirksParams.A
+        << "\n" << indent << "    k = " << recombBirksParams.k;
+      break;
+    case kConstant:
+      out << ModelName::Constant
+        << "\n" << indent << "    k = " << recombConstParams.factor;
+      break;
+    default:
+      out << "invalid (" << ((int) fRecombModel) << ")!!!";
+  } // switch
+  out << "\n";
+  
+} // calo::LinearEnergyAlg::DumpConfiguration()
+
 
 //------------------------------------------------------------------------------
 
