@@ -357,7 +357,7 @@ namespace calo {
     double fElectronLifetime;
     double fDeconNorm;
 
-    static constexpr double kWion           = 23.6e-6;  ///< ionization potenial in LAr, 23.6 eV = 1e, Wion in MeV/e
+    static constexpr double kWion           = 23.6e-9;  ///< ionization potenial in LAr, 23.6 eV = 1e, Wion in GeV/e
     // Conversion for energy deposited in GeV to number of ionization electrons produced
     static constexpr double kRecombFactor   = 0.62;     ///< constant correction used in the current MicroBooNE shower reconstruction
 
