@@ -143,7 +143,7 @@ namespace tca {
   struct TCHit {
     raw::TDCtick_t StartTick {0};
     raw::TDCtick_t EndTick {0};
-    float PeakTime {0};     ///< Note that this the time in WSE units - NOT ticks
+    float PeakTime {0};
     float SigmaPeakTime {1};
     float PeakAmplitude {1};
     float SigmaPeakAmp {1};
@@ -186,6 +186,7 @@ namespace tca {
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
+    kMaskBadTPs,
     kCTKink,        ///< kink found in CheckWork
     kCTStepChk,
     kTryWithNextPass,
@@ -211,7 +212,6 @@ namespace tca {
     kUseUnusedHits,
     kVtxTj,
     kRefineVtx,
-    kMaskBadTPs,
     kNoKinkChk,
     kSoftKink,
     kChkStop,
@@ -231,9 +231,7 @@ namespace tca {
     kAtKink,
     kAtVtx,
     kBragg,
-    kRvPrp,
     kAtTj,
-    kBadFits,
     kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   
