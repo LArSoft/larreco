@@ -20,6 +20,7 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/PFParticle.h"
 
 namespace tca {
   
@@ -60,28 +61,31 @@ namespace tca {
     unsigned short NTraj {0};  // = 0 for abandoned vertices
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
-    short Topo {0}; 			// 1 = US-US, 2 = US-DS, 3 = DS-US, 4 = DS-DS, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
+    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
     unsigned short ID {0};
+    short Ptr3D {SHRT_MAX};
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
   };
   
   typedef enum {
     kFixed,           ///< vertex position fixed manually - no fitting done
     kVtxTrjTried,     ///< FindVtxTraj algorithm tried
+    kOnDeadWire,
     kVtxRefined,
+    kNiceVtx,
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
   /// struct of temporary 3D vertices
   struct Vtx3Store {
     float X {0};                    // x position
-    float XErr {0};                 // x position error
+    float XErr {0.5};                 // x position error
     float Y {0};                    // y position
-    float YErr {0};                 // y position error
+    float YErr {0.5};                 // y position error
     float Z {0};                    // z position
-    float ZErr {0};                 // z position error
-    short Wire {-1};                 // wire number for an incomplete 3D vertex
+    float ZErr {0.5};                 // z position error
+    short Wire {-1};                 // wire number for an incomplete 3D vertex, SHRT_MAX = abandoned vertex
     unsigned short CStat {0};
     unsigned short TPC {0};
     std::array<short, 3> Ptr2D {{-1, -1, -1}}; // pointers to 2D vertices in each plane
@@ -101,9 +105,10 @@ namespace tca {
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
     float Delta {0};              // Deviation between trajectory and hits (WSE)
     float DeltaRMS {0.02};           // RMS of Deviation between trajectory and hits (WSE)
+    float FitChi {0};             // Chi/DOF of the fit
     unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
     unsigned short Step {0};      // Step number at which this TP was created
-    float FitChi {0};             // Chi/DOF of the fit
+    unsigned short AngleCode {0};          // 0 = small angle, 1 = large angle, 2 = very large angle
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
   };
@@ -127,11 +132,11 @@ namespace tca {
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
-    short Dir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
-                                        ///< 1 (-1) = in (opposite to)the  StepDir direction, 0 = don't know
-    short WorkID {0};
-    std::bitset<2> StopsAtEnd {0};    // Set true if it looks like the trajectory stops at end[0] or end[1]
-    std::bitset<2> KinkAtEnd {0};    // Set true if there is a kink at end[0] or end[1]
+    short TjDir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
+                                        ///< 1 = in the StepDir direction, -1 in the opposite direction, 0 = don't know
+    int WorkID {0};
+    unsigned short NNeighbors {0};    /// number of neighbors within window defined by ShowerTag
+    std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
   };
   
   // Local version of recob::Hit
@@ -139,8 +144,11 @@ namespace tca {
     raw::TDCtick_t StartTick {0};
     raw::TDCtick_t EndTick {0};
     float PeakTime {0};     ///< Note that this the time in WSE units - NOT ticks
+    float SigmaPeakTime {1};
     float PeakAmplitude {1};
+    float SigmaPeakAmp {1};
     float Integral {1};
+    float SigmaIntegral {1};
     float RMS {1};
     float GoodnessOfFit {0};
     unsigned short NDOF {0};
@@ -149,33 +157,35 @@ namespace tca {
     geo::WireID WireID;
     short InTraj {0};
   };
-  
-  // Trajectory "intersections" used to search for superclusters (aka showers)
-  struct TrjInt {
-    unsigned short itj1;
-    unsigned short ipt1;
-    unsigned short itj2;
-    unsigned short ipt2;
-    float sep2;   // separation^2 at closest point
-    float dang;   // opening angle at closest point
-    float vw;     // intersection wire
-    float vt;     // intersection time
+
+  // Struct for 3D trajectory matching
+  struct MatchStruct {
+    // IDs of Trajectories that match in all planes
+    std::vector<unsigned short> TjIDs;
+    std::vector<unsigned short> ClusterIndices;
+    // Count of the number of time-matched hits
+    int Count {0};
+    std::array<float, 3> sXYZ;        // XYZ position at the start (NOT WSE units)
+    std::array<float, 3> eXYZ;        // XYZ position at the other end
+    unsigned short sVtx3DIndex {USHRT_MAX};
+    unsigned short eVtx3DIndex {USHRT_MAX};
+    // stuff for constructing the PFParticle
+    int PDGCode;
+    std::vector<size_t> DtrIndices;
+    size_t Parent;
   };
   
-  struct TjPairHitShare {
-    // Trajectories in two different trials that share hits
-    unsigned short iTrial;
-    unsigned short iTj;
-    unsigned short jTrial;
-    unsigned short jTj;
-    unsigned short nSameHits;
+  // A temporary structure that defines a 2D shower-like cluster
+  struct ShowerStruct {
+    unsigned short ShowerTjID {USHRT_MAX};      // ID of the Trajectory composed of many shower Tjs
+    std::vector<unsigned short> TjIDs;
+    std::vector<std::array<float, 2>> Envelope;  // Vertices of a polygon that encompasses the shower
+    unsigned short ParentTjID {USHRT_MAX};      // ID of the shower Tj parent
   };
-  
+
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
-    kUnMaskHits,
-    kGottaKink,     ///< GottaKink found a kink
     kCTKink,        ///< kink found in CheckWork
     kCTStepChk,
     kTryWithNextPass,
@@ -183,18 +193,20 @@ namespace tca {
     kChkHiMultHits,
     kSplitTraj,
     kComp3DVx,
+    kComp3DVxIG,
     kHiEndDelta,
-    kHammerVx,
-    kHammerVx2,
+    kHamVx,
+    kHamVx2,
     kJunkTj,
     kKilled,
-    kStopAtVtx,
     kEndMerge,
-    kTrimHits,
+    kTrimEndPts,
     kChkHiMultEndHits,
     kFillGap,
     kUseGhostHits,
     kChkInTraj,
+    kStopBadFits,
+    kFixBegin,
     kFixEnd,
     kUseUnusedHits,
     kVtxTj,
@@ -204,10 +216,29 @@ namespace tca {
     kSoftKink,
     kChkStop,
     kChkAllStop,
+    kFTBRevProp,
+    kStopAtTj,
+    kMatch3D,
+    kInShower,
+    kShowerParent,
+    kShowerTj,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
+  // Stop flag bits
+  typedef enum {
+    kSignal,
+    kAtKink,
+    kAtVtx,
+    kBragg,
+    kRvPrp,
+    kAtTj,
+    kBadFits,
+    kFlagBitSize     ///< don't mess with this line
+  } StopFlag_t; 
+  
   extern const std::vector<std::string> AlgBitNames;
+  extern const std::vector<std::string> StopFlagNames;
   
   struct TjStuff {
     // These variables don't change in size from event to event
@@ -217,10 +248,16 @@ namespace tca {
     std::vector<float> MaxPos1;
     std::vector<unsigned int> FirstWire;    ///< the first wire with a hit
     std::vector<unsigned int> LastWire;      ///< the last wire with a hit
+    unsigned short NumPlanes;
+    float XLo; // fiducial volume of the current tpc
+    float XHi;
+    float YLo;
+    float YHi;
+    float ZLo;
+    float ZHi;
     // The variables below do change in size from event to event
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
-//    std::vector<short> inTraj;       ///< Hit -> trajectory ID (0 = unused)
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
@@ -231,9 +268,10 @@ namespace tca {
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
-    unsigned short NumPlanes;
-    bool ConvertTicksToTime;
-  };
+    std::vector<MatchStruct> matchVec; ///< 3D matching vector
+    std::vector<unsigned short> matchVecPFPList;  /// list of matchVec entries that will become PFPs
+    std::vector<ShowerStruct> cots;
+   };
 
 } // namespace tca
 
