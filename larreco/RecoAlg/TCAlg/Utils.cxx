@@ -196,7 +196,7 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim("TC")<<"TrimEndPts: minPts "<<minPts<<" required. maxPtSep "<<maxPtSep<<" Minimum hit fraction "<<fQualityCuts[0];
-      PrintTrajectory("TEPi", tjs, tj, USHRT_MAX);
+      if(tj.Pts.size() < 50) PrintTrajectory("TEPi", tjs, tj, USHRT_MAX);
     }
 
     unsigned short newEndPt = tj.EndPt[1];
@@ -217,7 +217,7 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<" newEndPt "<<newEndPt<<" ptSep "<<ptSep<<" nPtsWithCharge "<<nPtsWithCharge;
       // allow only one dead wire at the end
       if(nPtsWithCharge == minPts && ptSep < maxPtSep) {
-        // minPts consecutive points have charge. Check the hit fraction
+        // minPts consecutive points have charge. Check the TP Chg fraction
         float npwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], newEndPt);
         float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[newEndPt].Pos[0]) + 1;
         hitFrac = npwc / nwires;
