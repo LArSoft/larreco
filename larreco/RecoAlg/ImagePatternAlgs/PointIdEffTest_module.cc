@@ -49,7 +49,7 @@
 
 #include <cmath>
 
-#define MVA_LENGTH 3
+#define MVA_LENGTH 4
 
 namespace nnet {
 
