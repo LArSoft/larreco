@@ -295,7 +295,10 @@ namespace tca {
     
     if(inDebugMode) {
       std::cout<<"Using algs:";
-      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(fUseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
+      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
+        if(ib % 10 == 0) std::cout<<"\n";
+        if(fUseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
+      }
       std::cout<<"\n";
       std::cout<<"Skipping algs:";
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(!fUseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
@@ -1053,7 +1056,6 @@ namespace tca {
     // restore the original direction
     if(tjWork.StepDir != stepDir) ReverseTraj(tjs, tjWork);
     tj = tjWork;
-    tj.StopFlag[0][kRvPrp] = true;
     if(prt) mf::LogVerbatim("TC")<<" ReversePropagate success. Outgoing StepDir "<<tj.StepDir;
 
   } // ReversePropagate
