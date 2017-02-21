@@ -26,11 +26,13 @@ namespace tca {
   
   // some functions to handle the CTP_t type
   typedef unsigned int CTP_t;
-  constexpr unsigned int CTPpad = 1000; // alignment for CTP sub-items
-  inline CTP_t EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane) { return cryo * CTPpad*CTPpad + tpc * CTPpad + plane; }
+  constexpr unsigned int Tpad = 10; // alignment for CTP sub-items - TPC
+  constexpr unsigned int Cpad = 10000; // alignment for CTP sub-items - Cryostat
+  
+  inline CTP_t EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane) { return cryo * Cpad + tpc * Tpad + plane; }
   inline CTP_t EncodeCTP(const geo::PlaneID& planeID) { return EncodeCTP(planeID.Cryostat, planeID.TPC, planeID.Plane); }
   inline CTP_t EncodeCTP(const geo::WireID& wireID) { return EncodeCTP(wireID.Cryostat, wireID.TPC, wireID.Plane); }
-  inline geo::PlaneID DecodeCTP(CTP_t CTP) { return { CTP / (CTPpad*CTPpad), CTP / CTPpad % CTPpad, CTP % CTPpad }; }
+  geo::PlaneID DecodeCTP(CTP_t CTP);
 
   /// @{
   /// @name Data structures for the reconstruction results
