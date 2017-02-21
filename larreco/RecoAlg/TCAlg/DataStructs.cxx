@@ -54,7 +54,8 @@ namespace tca {
     "VtxTrjTried",
     "OnDeadWire",
     "VtxRefined",
-    "NiceVtx"
+    "NiceVtx",
+    "kInShower"
   } ;
 } // namespace tca
 
