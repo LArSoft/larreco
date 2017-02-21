@@ -382,6 +382,16 @@ namespace tca {
   } // SignalAtPos
 
   //////////////////////////////////////////
+  float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp){
+    float totchg = 0;
+    for (size_t i = 0; i<tp.Hits.size(); ++i){
+      if (!tp.UseHit[i]) continue;
+      totchg += tjs.fHits[tp.Hits[i]].Integral;
+    }
+    return totchg;
+  } // TpSumHitChg
+
+  //////////////////////////////////////////
   bool TjHasNiceVtx(TjStuff& tjs, const Trajectory& tj)
   {
     // returns true if there is a high-quality vertex at either end
@@ -2698,7 +2708,7 @@ namespace tca {
         myprt<<someText<<" ";
         if(aTj.AlgMod[kKilled]) { myprt<<"xxx"; } else { myprt<<"TRJ"; }
         myprt<<std::fixed<<std::setw(4)<<aTj.ID;
-        myprt<<std::setw(3)<<aTj.CTP;
+        myprt<<std::setw(6)<<aTj.CTP;
         myprt<<std::setw(5)<<aTj.Pass;
         myprt<<std::setw(5)<<aTj.Pts.size();
         myprt<<std::setw(4)<<aTj.EndPt[0];
@@ -2769,7 +2779,7 @@ namespace tca {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"Work:    ID "<<tj.ID<<" CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"Work:    ID "<<tj.ID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" StopFlags "<<PrintStopFlag(tjs, tj, 0)<<" "<<PrintStopFlag(tjs, tj, 1);
         myprt<<" AlgMod names:";
@@ -2797,7 +2807,7 @@ namespace tca {
   //////////////////////////////////////////
   void PrintHeader(std::string someText)
   {
-    mf::LogVerbatim("TC")<<someText<<" TRP  CTP  Ind  Stp      W:Tick    Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
+    mf::LogVerbatim("TC")<<someText<<" TRP     CTP  Ind  Stp      W:Tick    Delta  RMS    Ang C   Err  Dir0  Dir1      Q    AveQ  Pull FitChi  NTPF  Hits ";
   } // PrintHeader
   
   ////////////////////////////////////////////////
@@ -2807,7 +2817,7 @@ namespace tca {
     myprt<<someText<<" TRP"<<std::fixed;
     myprt<<pass;
     if(dir > 0) { myprt<<"+"; } else { myprt<<"-"; }
-    myprt<<std::setw(3)<<tp.CTP;
+    myprt<<std::setw(6)<<tp.CTP;
     myprt<<std::setw(5)<<ipt;
     myprt<<std::setw(5)<<tp.Step;
     myprt<<std::setw(7)<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]/tjs.UnitsPerTick; // W:T

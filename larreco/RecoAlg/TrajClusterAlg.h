@@ -350,6 +350,11 @@ namespace tca {
     void ChkAllStop();
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
+    // Check the Michel electron topology, lastGoodPt is the last point of muon
+    bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
+    // TY: Split high charge hits near the trajectory end
+    void ChkHiChgHits();
+    void SplitHiChgHits(Trajectory& tj);
     void SetPDGCode(Trajectory& tj);
     void SetPDGCode(unsigned short itj);
     void MatchTruth();
@@ -363,6 +368,8 @@ namespace tca {
     void Find3DVertices(const geo::TPCID& tpcid);
     void CompleteIncomplete3DVertices(const geo::TPCID& tpcid);
     void CompleteIncomplete3DVerticesInGaps(const geo::TPCID& tpcid);
+    // Improve hit assignments near vertex 
+    void VtxHitsSwap();
     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
     void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);

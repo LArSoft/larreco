@@ -36,6 +36,8 @@ namespace tca {
     "FTBRevProp",
     "StopAtTj",
     "Match3D",
+    "VtxHitsSwap",
+    "SplitHiChgHits",
     "InShower",
     "ShowerParent",
     "ShowerTj"

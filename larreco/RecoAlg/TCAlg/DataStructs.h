@@ -220,6 +220,8 @@ namespace tca {
     kFTBRevProp,
     kStopAtTj,
     kMatch3D,
+    kVtxHitsSwap,
+    kSplitHiChgHits,
     kInShower,
     kShowerParent,
     kShowerTj,
