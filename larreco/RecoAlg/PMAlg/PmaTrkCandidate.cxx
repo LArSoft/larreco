@@ -53,6 +53,13 @@ int pma::TrkCandidateColl::getCandidateIndex(pma::Track3D const * candidate) con
 	return -1;
 }
 
+int pma::TrkCandidateColl::getCandidateTreeId(pma::Track3D const * candidate) const
+{
+    int id = getCandidateIndex(candidate);
+	if (id >= 0) return fCandidates[id].TreeId();
+	else return -1;
+}
+
 void pma::TrkCandidateColl::setParentDaughterConnections(void)
 {
     fParents.clear();
@@ -208,13 +215,71 @@ void pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
 
 			if (pFront[coordinate] > pBack[coordinate])
 			{
-				if (trk->CanFlip()) { trk->Flip(); break; } // go to the next tree if managed to flip
+				if (setTreeOriginAtBack(trk)) { break; }
+				else { mf::LogWarning("pma::TrkCandidateColl") << "Flip to coordinate failed."; }
 			}
-			else break; // good orientation, go to the next tree
+			else
+			{
+			    setTreeOriginAtFront(trk);
+			    break; // good orientation, go to the next tree
+			}
 
 			if (attempts++ > 2) break; // do not try all the tracks in the queue...
 		}
 	}
+}
+// ------------------------------------------------------
+
+bool pma::TrkCandidateColl::setTreeOriginAtFront(pma::Track3D* trk)
+{
+    int trkIdx = getCandidateIndex(trk);
+    int treeId = getCandidateTreeId(trk);
+    if (trkIdx < 0) { throw cet::exception("pma::TrkCandidateColl") << "Track not found in the collection." << std::endl; }
+
+    bool done = true;
+    pma::Node3D* n = trk->Nodes().front();
+    if (n->Prev())
+    {
+        pma::Segment3D* seg = static_cast< pma::Segment3D* >(n->Prev());
+        pma::Track3D* incoming = seg->Parent();
+        std::vector< pma::Track3D* > newTracks;
+        if (incoming->NextSegment(n)) // upfff, need to break the parent track
+        {
+		    int idx = incoming->index_of(n);
+		    if (idx >= 0)
+		    {
+    		    pma::Track3D* u = incoming->Split(idx, false); // u is in front of incoming
+    		    if (u)
+    		    {
+    		        newTracks.push_back(u);
+    		        done = u->Flip(newTracks);
+    		    }
+    		    else { done = false; }
+    		}
+    		else { throw cet::exception("pma::Track3D") << "Node not found." << std::endl; }
+        }
+        else { done = incoming->Flip(newTracks); } // just flip incoming
+
+        for (const auto ts : newTracks) { fCandidates.emplace_back(ts, -1, treeId); }
+    }
+    return done;
+}
+// ------------------------------------------------------
+
+bool pma::TrkCandidateColl::setTreeOriginAtBack(pma::Track3D* trk)
+{
+    int trkIdx = getCandidateIndex(trk);
+    int treeId = getCandidateTreeId(trk);
+    if (trkIdx < 0) { throw cet::exception("pma::TrkCandidateColl") << "Track not found in the collection." << std::endl; }
+
+    pma::Track3D* incoming = fCandidates[trkIdx].Track();
+    std::vector< pma::Track3D* > newTracks;
+    bool done = incoming->Flip(newTracks);
+    for (const auto ts : newTracks)
+    {
+        fCandidates.emplace_back(ts, -1, treeId);
+    }
+    return done;
 }
 // ------------------------------------------------------
 
@@ -241,6 +306,17 @@ void pma::TrkCandidateColl::flipTreesByDQdx(void)
 }
 // ------------------------------------------------------
 
+void pma::TrkCandidateColl::merge(size_t idx1, size_t idx2)
+{
+    fCandidates[idx1].Track()->ExtendWith(fCandidates[idx2].Track()); // deletes track at idx2
+
+    for (auto c : fCandidates[idx2].Clusters()) { fCandidates[idx1].Clusters().push_back(c); }
+
+    fCandidates.erase(fCandidates.begin() + idx2);
+
+    setTreeId(fCandidates[idx1].TreeId(), idx1);
+}
+
 pma::Track3D* pma::TrkCandidateColl::getTreeCopy(pma::TrkCandidateColl & dst, size_t trkIdx, bool isRoot)
 {
 	pma::Track3D* trk = fCandidates[trkIdx].Track();
@@ -254,8 +330,6 @@ pma::Track3D* pma::TrkCandidateColl::getTreeCopy(pma::TrkCandidateColl & dst, si
 	pma::Track3D* trkCopy = new pma::Track3D(*trk);
 	pma::Node3D* vtxCopy = trkCopy->Nodes().front();
 	pma::Segment3D* segThisCopy = 0;
-	trkCopy->SetPrecedingTrack(0);
-	trkCopy->SetSubsequentTrack(0);
 
 	dst.tracks().emplace_back(trkCopy, key, tid);
 

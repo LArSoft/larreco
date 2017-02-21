@@ -64,8 +64,8 @@ standard_pmalgtracker:
   StitchTransverseShift:  3.0     #    - max. transverse displacement [cm] between tracks
   StitchAngle:           10.0     #    - max. angle [degree] between tracks (nearest segments)
                                   #
-  MatchT0inAPACrossing:   false   # match T0 of APA-crossing tracks, TPC stitching limits are used, but track
-                                  # parts are not stitched into a single recob::Track
+  MatchT0inAPACrossing:   false   # match T0 of APA-crossing tracks using PMAlgStitcher
+  MatchT0inCPACrossing:   false   # match T0 of CPA-crossing tracks using PMAlgStitcher
 }
 
 standard_pmalgfitter:

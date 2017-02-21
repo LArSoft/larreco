@@ -33,6 +33,7 @@
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
+#include "larreco/RecoAlg/PMAlgStitching.h"
 
 // ROOT & C++
 #include <memory>
@@ -212,14 +213,21 @@ public:
 
 		fhicl::Atom<bool> MatchT0inAPACrossing {
 			Name("MatchT0inAPACrossing"),
-			Comment("match T0 of APA-crossing tracks, TPC stitching limits are used, but track parts are not stitched into a single recob::Track")
+			Comment("match T0 of APA-crossing tracks using PMAlgStitcher")
 		};
-    };
+
+		fhicl::Atom<bool> MatchT0inCPACrossing {
+			Name("MatchT0inCPACrossing"),
+			Comment("match T0 of CPA-crossing tracks using PMAlgStitcher")
+		};
+
+  };
 
 	PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
 		const pma::ProjectionMatchingAlg::Config& pmalgConfig,
 		const pma::PMAlgTracker::Config& pmalgTrackerConfig,
-		const pma::PMAlgVertexing::Config& pmvtxConfig) :
+		const pma::PMAlgVertexing::Config& pmvtxConfig,
+		const pma::PMAlgStitching::Config& pmstitchConfig) :
 
 		PMAlgTrackingBase(allhitlist, pmalgConfig, pmvtxConfig),
 
@@ -241,6 +249,8 @@ public:
 		fStitchAngle(pmalgTrackerConfig.StitchAngle()),
 
 		fMatchT0inAPACrossing(pmalgTrackerConfig.MatchT0inAPACrossing()),
+		fMatchT0inCPACrossing(pmalgTrackerConfig.MatchT0inCPACrossing()),
+    fStitcher(pmstitchConfig),
 
 		fRunVertexing(pmalgTrackerConfig.RunVertexing()),
 
@@ -278,11 +288,6 @@ private:
 
 	bool mergeCoLinear(pma::TrkCandidateColl & tracks);
 	void mergeCoLinear(pma::tpc_track_map& tracks);
-
-	bool areCoLinear(double& cos3d,
-		TVector3 f0, TVector3 b0, TVector3 f1, TVector3 b1,
-		double distProjThr);
-	void matchCoLinearAnyT0(void);
 
 	double validate(pma::Track3D& trk, unsigned int testView);
 
@@ -348,7 +353,10 @@ private:
 	double fStitchTransverseShift; //   - max. transverse displacement [cm] between tracks
 	double fStitchAngle;           //   - max. angle [degree] between tracks (nearest segments)
 
-	bool fMatchT0inAPACrossing;    // match T0 of APA-crossing tracks, TPC stitching limits are used
+	bool fMatchT0inAPACrossing;    // match T0 of APA-crossing tracks using PMAlgStitcher
+	bool fMatchT0inCPACrossing;    // match T0 of CPA-crossing tracks using PMAlgStitcher
+
+  pma::PMAlgStitching fStitcher;
 
 	bool fRunVertexing;          // run vertex finding
 
