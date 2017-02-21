@@ -193,7 +193,7 @@ void vertex::HarrisVertexFinder::produce(art::Event& evt)
   const float BinsPerTick = fTimeBins / numbertimesamples;
   const float TicksPerBin = numbertimesamples / fTimeBins;
   
-  for(auto pid : geom->PlaneIDs()){
+  for(auto pid : geom->IteratePlaneIDs()){
     art::PtrVector<recob::Hit> vHits;
     geo::View_t view = geom->View(pid);
     hit.clear();
