@@ -74,6 +74,7 @@ namespace tca {
     kOnDeadWire,
     kVtxRefined,
     kNiceVtx,
+    kVtxInShower,
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
