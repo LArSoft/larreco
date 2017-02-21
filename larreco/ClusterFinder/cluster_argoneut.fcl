@@ -22,17 +22,17 @@ argoneut_trajclusteralg.JTMaxHitSep: -3
 # configuration on each pass
 argoneut_trajclusteralg.MinPtsFit:   [ 4,  3, 2]
 argoneut_trajclusteralg.MinPts:      [10, 3, 3]        # Min number of points in the trajectory required on each pass
-argoneut_trajclusteralg.MaxAngleRange: [0, 1, 9]
+argoneut_trajclusteralg.MaxAngleCode: [0, 2, 3]
 argoneut_trajclusteralg.MaxVertexTrajSep: [ 6, 6, 4]
  
 argoneut_trajclusteralg.AngleRanges: [30, 65, 85, 90]
  
 argoneut_trajclusteralg.MuonTag: [-40, 500, 3, 3] # [minPtsFit, minMCSMom, maxWireSkipNoSignal, minDeltaRayLen]
-argoneut_trajclusteralg.ShowerTag: [50, 5, 1]    # max MCSMom for a shower tag, max separation, min #traj < separation
+#argoneut_trajclusteralg.ShowerTag: [50, 5, 1]    # max MCSMom for a shower tag, max separation, min #traj < separation
 argoneut_trajclusteralg.MaxVertexTrajSep: [6, 6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
-argoneut_trajclusteralg.SkipAlgs: [ "ChkStop", "ChkAllStop", "CTKink", "HiEndDelta" ]
+#argoneut_trajclusteralg.SkipAlgs: [ "ChkStop", "ChkAllStop", "CTKink", "HiEndDelta" ]
  
-argoneut_trajclusteralg.Vertex2DCuts:  [6, 4, 30, 3, 5, 60] # max short TjLen, max argoneut_trajclusteralg.Vertex3DChiCut: 3
+argoneut_trajclusteralg.Vertex2DCuts:  [6, 4, 30, 3, 5, 60, 0.6] # max short TjLen, max argoneut_trajclusteralg.Vertex3DChiCut: 3
 
 
 argoneut_clustercrawleralg:          @local::standard_clustercrawleralg
