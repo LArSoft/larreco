@@ -59,5 +59,14 @@ namespace tca {
     "NiceVtx",
     "kInShower"
   } ;
+  
+  geo::PlaneID DecodeCTP(CTP_t CTP) {
+    geo::PlaneID tmp;
+    tmp.Cryostat = CTP / Cpad;
+    tmp.TPC = (CTP - tmp.Cryostat * Cpad) / Tpad;
+    tmp.Plane = (CTP % 10);
+    return tmp;
+  }
+  
 } // namespace tca
 
