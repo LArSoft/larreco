@@ -910,7 +910,7 @@ namespace tca {
     // Check the associations and set the kNiceVtx bit
     CheckVtxAssociations(tjs, fCTP);
 
-    if(fShowerTag[0] > 0 && fUseAlg[kShowerTj]) {
+    if(fShowerTag[0] > 0) {
       FindShowers(tjs, fCTP, fShowerTag);
       if((CTP_t)fShowerTag[8] == fCTP) {
         std::cout<<"temp prt\n";
@@ -3473,6 +3473,8 @@ namespace tca {
         }
         // vertex has been matched already
         if(vPtr[ivx] >= 0) continue;
+        // vertex is in a shower?
+        if(tjs.vtx[ivx].Stat[kVtxInShower]) continue;
         unsigned int iWire = std::nearbyint(tjs.vtx[ivx].Pos[0]);
         for(unsigned short jpl = ipl + 1; jpl < 3; ++jpl) {
           for(unsigned short jj = 0; jj < vIndex[jpl].size(); ++jj) {
@@ -3483,6 +3485,8 @@ namespace tca {
             }
             // vertex has been matched already
             if(vPtr[jvx] >= 0) continue;
+            // vertex is in a shower?
+            if(tjs.vtx[jvx].Stat[kVtxInShower]) continue;
             unsigned int jWire = std::nearbyint(tjs.vtx[jvx].Pos[0]);
             float dX = fabs(vX[ivx] - vX[jvx]);
             float dXSigma = sqrt(vXsigma[ivx] * vXsigma[ivx] + vXsigma[jvx] * vXsigma[jvx]);
@@ -4962,7 +4966,7 @@ namespace tca {
     if(tj.EndPt[0] == tj.EndPt[1]) return;
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"inside CheckTraj with tj.Pts.size = "<<tj.Pts.size();
+      mf::LogVerbatim("TC")<<"inside CheckTraj with tj.Pts.size = "<<tj.Pts.size()<<" MCSMom "<<tj.MCSMom;
     }
     
     // remove any points at the end that don't have charge
