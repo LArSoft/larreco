@@ -183,7 +183,7 @@ namespace tca {
     unsigned short ShowerTjID {USHRT_MAX};      // ID of the Trajectory composed of many shower Tjs
     std::vector<unsigned short> TjIDs;
     std::vector<std::array<float, 2>> Envelope;  // Vertices of a polygon that encompasses the shower
-    unsigned short ParentTjID {USHRT_MAX};      // ID of the shower Tj parent
+    unsigned short ParentTrajID {USHRT_MAX};      // ID of the shower Tj parent
   };
 
   // Algorithm modification bits
