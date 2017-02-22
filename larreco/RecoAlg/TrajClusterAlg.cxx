@@ -1336,6 +1336,8 @@ namespace tca {
     // set true if there is a reconstructed 3D vertex within 1 cm of the true vertex
     bool nuVtxRecoOK = false;
     float neutrinoEnergy = -1;
+    // Ignore eIoni process unless the source particle is an electron or photon
+    bool ignoreEIoni = true;
 
     // MC Particles for the desired true particles
     int sourcePtclTrackID = -1;
@@ -1353,10 +1355,13 @@ namespace tca {
           if(theTruth->Origin() == simb::kBeamNeutrino) {
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kBeamNeutrino;
+            if(fMatchTruth[1] > 2) std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
           }
           if(theTruth->Origin() == simb::kSingleParticle) {
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kSingleParticle;
+            if(fMatchTruth[1] > 2) std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
+            if(part->PdgCode() == 11 || part->PdgCode() == 22) ignoreEIoni = false;
           }
           if(sourceOrigin == simb::kBeamNeutrino) {
             neutrinoEnergy = part->E();
@@ -1405,7 +1410,7 @@ namespace tca {
         for(unsigned short jj = 0; jj < partList.size(); ++jj) {
           // some processes to ignore
           if(partList[jj]->Process() == "hIoni") continue;
-          if(partList[jj]->Process() == "eIoni") continue;
+          if(ignoreEIoni && partList[jj]->Process() == "eIoni") continue;
           if(partList[jj]->Mother() == partList[dpl]->Mother()) ++ndtr;
         } // jj
         // require only one daughter
@@ -1435,7 +1440,7 @@ namespace tca {
     for(unsigned short ipl = 0; ipl < plist.size(); ++ipl) nMatchedHitsInPartList[ipl].resize(tjs.NumPlanes);
     // and make a list of the TJs and hit count for each MC Track
     std::vector<std::vector<std::array<unsigned short, 2>>> nMatchedHitsInTj(partList.size());
-    
+
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       TCHit& hit = tjs.fHits[iht];
       raw::ChannelID_t channel = geom->PlaneWireToChannel((int)hit.WireID.Plane, (int)hit.WireID.Wire, (int)hit.WireID.TPC, (int)hit.WireID.Cryostat);
@@ -3816,7 +3821,7 @@ namespace tca {
       sortVec[indx] = se;
     }
     if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), greaterThan);
-
+/*
     if(prt) {
       mf::LogVerbatim myprt("TC");
       for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
@@ -3824,7 +3829,7 @@ namespace tca {
         myprt<<" Count "<<tjs.matchVec[indx].Count;
       } // ii
     } // prt
-
+*/
     for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
       unsigned int indx = sortVec[ii].index;
       // skip this match if any of the trajectories is already matched
@@ -4270,7 +4275,7 @@ namespace tca {
         newVx3.CStat = planeID.Cryostat;
         newVx3.TPC = planeID.TPC;
         // Set Wire < 0 as a flag that this is a "complete" 3D vertex even though no 2D vertices have been made.
-        newVx3.Wire = -1;
+        newVx3.Wire = -2;
         newVx3.X = ms.sXYZ[0];
         newVx3.Y = ms.sXYZ[1];
         newVx3.Z = ms.sXYZ[2];
@@ -4978,6 +4983,8 @@ namespace tca {
     SetEndPoints(tjs, tj);
     if(tj.EndPt[0] == tj.EndPt[1]) return;
     
+    tj.MCSMom = MCSMom(tjs, tj);
+    
     if(prt) {
       mf::LogVerbatim("TC")<<"inside CheckTraj with tj.Pts.size = "<<tj.Pts.size()<<" MCSMom "<<tj.MCSMom;
     }
@@ -5390,6 +5397,8 @@ namespace tca {
     short firstPtWithChg = tj.EndPt[0];
     bool first = true;
     float maxDelta = 1;
+    // don't let MCSMom suffer too much while filling gaps
+    short minMCSMom = 0.9 * tj.MCSMom;
     while(firstPtWithChg < tj.EndPt[1]) {
       short nextPtWithChg = firstPtWithChg + 1;
       // find the next point with charge
@@ -5458,7 +5467,7 @@ namespace tca {
           chg += tjs.fHits[iht].Integral;
           filled = true;
         } // ii
-        if(chg > maxChg) {
+        if(chg > maxChg || MCSMom(tjs, tj) < minMCSMom) {
           // don't use these hits after all
           UnsetUsedHits(tjs, tj.Pts[mpt]);
           filled = false;
@@ -5466,11 +5475,16 @@ namespace tca {
         if(filled) {
           DefineHitPos(tj.Pts[mpt]);
           tj.AlgMod[kFillGap] = true;
-          if(prt) PrintTrajPoint("FG", tjs, mpt, tj.StepDir, tj.Pass, tj.Pts[mpt]);
+          if(prt) {
+            PrintTrajPoint("FG", tjs, mpt, tj.StepDir, tj.Pass, tj.Pts[mpt]);
+            mf::LogVerbatim("TC")<<"Check MCSMom "<<MCSMom(tjs, tj);
+          }
         } // filled
       } // mpt
       firstPtWithChg = nextPtWithChg;
     } // firstPtWithChg
+    
+    if(tj.AlgMod[kFillGap]) tj.MCSMom = MCSMom(tjs, tj);
     
   } // FillGaps 
   
@@ -7975,7 +7989,7 @@ namespace tca {
         }
       }
     }
-    mf::LogVerbatim("TC")<<"ChkMichel Michel hits: "<<nmichelhits<<" Bragg peak hits: "<<nbragghits;
+    if(prt) mf::LogVerbatim("TC")<<"ChkMichel Michel hits: "<<nmichelhits<<" Bragg peak hits: "<<nbragghits;
     if (nmichelhits>0&&nbragghits>2){//find Michel topology
       lastGoodPt = braggpeak;
       return true;
