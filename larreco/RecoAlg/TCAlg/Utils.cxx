@@ -1888,58 +1888,7 @@ namespace tca {
       }
     } // ish
   } // DefineShowerTj
-/*
-  ////////////////////////////////////////////////
-  void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, const CTP_t& printCTP)
-  {
-    
-    if(printCTP == inCTP) PrintHeader("MS");
-    
-    for(unsigned short ish1 = 0; ish1 < tjs.cots.size() - 1; ++ish1) {
-      // shower already merged?
-      if(tjs.cots[ish1].TjIDs.empty()) continue;
-      // Ensure that this is the correct CTP
-      if(tjs.allTraj[tjs.cots[ish1].TjIDs[0] - 1].CTP != inCTP) continue;
-      unsigned short itj1 = tjs.cots[ish1].ShowerTjID - 1;
-//      if(printCTP == inCTP) PrintTrajPoint("MS", tjs, ish1, 0, 9, chgTp1);
-      for(unsigned short ish2 = ish1 + 1; ish2 < tjs.cots.size(); ++ish2) {
-        ShowerStruct& ss2 = tjs.cots[ish2];
-        if(ss2.TjIDs.empty()) continue;
-        // Ensure that this is the correct CTP
-        if(tjs.allTraj[ss2.TjIDs[0] - 1].CTP != inCTP) continue;
-        unsigned short itj2 = ss2.ShowerTjID - 1;
-        ShowerStruct& ss1 = tjs.cots[ish1];
-        if(printCTP == inCTP) {
-          mf::LogVerbatim myprt("TC");
-          myprt<<"Merge check ID1 "<<tjs.allTraj[itj1].ID;
-          myprt<<" Envelope";
-          for(auto& vtx : ss1.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
-          myprt<<" ID2 "<<tjs.allTraj[itj2].ID;
-          myprt<<" Envelope";
-          for(auto& vtx : ss2.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
-        }
-        bool mergeEm = false;
-        // See if any vertices in tj2 are inside tj1
-        for(auto& vx2 : ss2.Envelope) {
-          if(PointInsideEnvelope(vx2, ss1.Envelope)) {
-            mergeEm = true;
-            break;
-          }
-        } // vx2
-        if(printCTP == inCTP) mf::LogVerbatim("TC")<<" mergeEM? "<<mergeEm;
-        // Merge ss2 into ss1?
-        if(!mergeEm) continue;
-        ss1.TjIDs.insert(ss1.TjIDs.end(), ss2.TjIDs.begin(), ss2.TjIDs.end());
-        ss2.TjIDs.clear();
-        // kill the shower Tj in ss2
-        unsigned short itj = ss2.ShowerTjID - 1;
-        tjs.allTraj[itj].AlgMod[kKilled] = true;
-        // update ss1
-        DefineShowerTj(tjs, inCTP, ish1, fShowerTag, printCTP);
-      } // ish2
-    } // ish1
-  } // MergeShowers
-*/
+
   ////////////////////////////////////////////////
   void CollectHits(TjStuff& tjs, const CTP_t& inCTP, const unsigned short& showerIndex, const CTP_t& printCTP)
   {
@@ -1969,6 +1918,12 @@ namespace tca {
       Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
       // this shouldn't be necessary but do it anyway
       ReleaseHits(tjs, stj);
+      // make stj a daughter
+      if(ss.ParentTrajID != USHRT_MAX) {
+        stj.ParentTrajID = ss.ParentTrajID;
+        tjs.allTraj[ss.ParentTrajID - 1].PDGCode = 13;
+      }
+      stj.PDGCode = 11;
       // Note that UseHit is not used since the size is limited.
       for(auto& tjID : ss.TjIDs) {
         unsigned short itj = tjID - 1;
@@ -2057,22 +2012,23 @@ namespace tca {
   // a small angle wrt to the shower direction
     
     // fShowerTag[] parameters
-    //  0 max Tj MCSMom for a shower tag
-    //  1 max separation
-    //  2 max angle
-    //  3 rms width factor WF (width = WF * rms)
-    //  4 Min shower 1/2 width (WSE units)
-    //  5 Min total number of Tps
-    //  6 Min number of Tjs
-    //  7 print in plane
+    // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+    // 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
+    // 2 Max separation
+    // 3 Max delta angle
+    // 4 rms width factor
+    // 5 Min shower 1/2 width (WSE units)
+    // 6 Min total Tj Pts
+    // 7 Min Tjs
+    // 8 Debug in CTP
     
     unsigned short first = showerIndex;
     unsigned short last = showerIndex + 1;
     if(showerIndex == USHRT_MAX) {
       first = 0;
-      last = tjs.cots.size() - 1;
+      last = tjs.cots.size();
     }
-    if(last > tjs.cots.size() - 1) return;
+    if(last > tjs.cots.size()) return;
     
     unsigned short minParentLength = 4;
     
@@ -2085,7 +2041,7 @@ namespace tca {
       // Reference the Tp charge center of the shower Tj
       TrajPoint& stp = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
       // Construct a Figure of Merit for finding the parent which is the DOCA * DeltaAngle / Parent Length
-      float bestFOM = fShowerTag[1] * fShowerTag[2] / (float)minParentLength;
+      float bestFOM = fShowerTag[2] * fShowerTag[3] / (float)minParentLength;
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         Trajectory& tj = tjs.allTraj[itj];
         if(tj.CTP != inCTP) continue;
@@ -2095,7 +2051,7 @@ namespace tca {
         // or in a shower
         if(tj.AlgMod[kInShower]) continue;
         // or if it has low MCSMom TODO: Is this a good idea?
-        if(tj.MCSMom < fShowerTag[0]) continue;
+        if(tj.MCSMom < fShowerTag[1]) continue;
         // or if it is too short
         float npwc = NumPtsWithCharge(tjs, tj, true);
         if(npwc < minParentLength) continue;
@@ -2119,12 +2075,12 @@ namespace tca {
         float dang = DeltaAngle(tj.Pts[startEndPt].Ang, stp.Ang);
         float fom = minSep * dang / npwc;
         if(fom < bestFOM) {
-          ss.ParentTjID = tj.ID;
+          ss.ParentTrajID = tj.ID;
           bestFOM = fom;
           if(inCTP == printCTP) mf::LogVerbatim("TC")<<"FSP: ish "<<ish<<" Parent tj.ID "<<tj.ID<<" minSep "<<minSep<<" dang  "<<dang<<" fom  "<<fom;
         }
       } // itj
-      if(ss.ParentTjID != USHRT_MAX) {
+      if(ss.ParentTrajID != USHRT_MAX) {
         // We found a parent. 
 /*
         // Re-find the DOCA to the shower center and split the parent so that it doesn't cross
@@ -2650,8 +2606,10 @@ namespace tca {
         myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[1]+1;
         myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[2]+1;
         myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Wire;
-        if(tjs.vtx3[iv].Wire < 0) {
+        if(tjs.vtx3[iv].Wire == -1) {
           myprt<<"    Matched in all planes";
+        } else if(tjs.vtx3[iv].Wire == -2) {
+          myprt<<"    PFParticle vertex";
         } else {
           myprt<<"    Incomplete";
         }
