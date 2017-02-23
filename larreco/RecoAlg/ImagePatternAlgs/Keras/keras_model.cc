@@ -231,15 +231,14 @@ keras::DataChunk* keras::LayerActivation::compute_output(keras::DataChunk* dc) {
 }
 
 // with border mode = valid
-std::vector< std::vector<float> > keras::conv_single_depth_valid(
+void keras::conv_single_depth_valid(
+    std::vector< std::vector<float> > & y, // accumulate here
 	std::vector< std::vector<float> > const & im,
 	std::vector< std::vector<float> > const & k)
 {
   size_t k1_size = k.size(), k2_size = k[0].size();
   unsigned int st_x = (k1_size - 1) >> 1;
   unsigned int st_y = (k2_size - 1) >> 1;
-
-  std::vector< std::vector<float> > y(im.size() - 2*st_x, vector<float>(im[0].size() - 2*st_y, 0));
 
   for(unsigned int i = st_x; i < im.size()-st_x; ++i) {
     for(unsigned int j = st_y; j < im[0].size()-st_y; ++j) {
@@ -252,14 +251,14 @@ std::vector< std::vector<float> > keras::conv_single_depth_valid(
           sum += k_data[k2_size-k2-1] * im_data[j-st_y+k2];
         }
       }
-      y[i-st_x][j-st_y] = sum;
+      y[i-st_x][j-st_y] += sum;
     }
   }
-  return y;
 }
 
 // with border mode = same
-std::vector< std::vector<float> > keras::conv_single_depth_same(
+void keras::conv_single_depth_same(
+    std::vector< std::vector<float> > & y, // accumulate here
 	std::vector< std::vector<float> > const & im,
 	std::vector< std::vector<float> > const & k)
 {
@@ -269,8 +268,6 @@ std::vector< std::vector<float> > keras::conv_single_depth_same(
 
   size_t max_imc = im.size() - 1;
   size_t max_imr = im[0].size() - 1;
-
-  std::vector< std::vector<float> > y(im.size(), vector<float>(im[0].size(), 0));
 
   for(unsigned int i = 0; i < im.size(); ++i) {
     for(unsigned int j = 0; j < im[0].size(); ++j) {
@@ -288,41 +285,30 @@ std::vector< std::vector<float> > keras::conv_single_depth_same(
           sum += k_data[k2_size-k2-1] * im_data[j-st_y+k2];
         }
       }
-      y[i][j] = sum;
+      y[i][j] += sum;
     }
   }
-  return y;
 }
 
 keras::DataChunk* keras::LayerConv2D::compute_output(keras::DataChunk* dc) {
   unsigned int st_x = (m_kernels[0][0].size()-1) >> 1;
   unsigned int st_y = (m_kernels[0][0][0].size()-1) >> 1;
-  vector< vector< vector<float> > > y_ret;
   auto const & im = dc->get_3d();
 
   size_t size_x = (m_border_mode == "valid")? im[0].size() - 2 * st_x : im[0].size();
   size_t size_y = (m_border_mode == "valid")? im[0][0].size() - 2 * st_y: im[0][0].size();
-  for(unsigned int i = 0; i < m_kernels.size(); ++i) { // depth
-    vector<vector<float> > tmp;
-    tmp.reserve(size_x);
-    for(unsigned int j = 0; j < size_x; ++j) { // rows
-      tmp.emplace_back(vector<float>(size_y, 0.0));
-    }
-    y_ret.push_back(tmp);
-  }
+
+  //                                                    depth         rows    cols
+  keras::DataChunk2D *out = new keras::DataChunk2D(m_kernels.size(), size_x, size_y, 0);
+  auto & y_ret = out->get_3d_rw();
 
   for(unsigned int j = 0; j < m_kernels.size(); ++j) { // loop over kernels
     for(unsigned int m = 0; m < im.size(); ++m) { // loope over image depth
 
-      vector<vector<float> > tmp_w = (m_border_mode == "valid")?
-                        keras::conv_single_depth_valid(im[m], m_kernels[j][m]) :
-                        keras::conv_single_depth_same(im[m], m_kernels[j][m]);
-
-      for(unsigned int x = 0; x < tmp_w.size(); ++x) {
-        for(unsigned int y = 0; y < tmp_w[0].size(); ++y) {
-          y_ret[j][x][y] += tmp_w[x][y];
-        }
-      }
+      if (m_border_mode == "valid")
+          keras::conv_single_depth_valid(y_ret[j], im[m], m_kernels[j][m]);
+      else
+          keras::conv_single_depth_same(y_ret[j], im[m], m_kernels[j][m]);
     }
 
     for(unsigned int x = 0; x < y_ret[0].size(); ++x) {
@@ -332,8 +318,6 @@ keras::DataChunk* keras::LayerConv2D::compute_output(keras::DataChunk* dc) {
     }
   }
 
-  keras::DataChunk *out = new keras::DataChunk2D();
-  out->set_data(y_ret);
   return out;
 }
 

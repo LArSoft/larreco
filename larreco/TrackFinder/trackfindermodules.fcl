@@ -1,6 +1,7 @@
 #include "trackfinderalgorithms.fcl"
 #include "clusteralgorithms.fcl"
 #include "pmavertexalg.fcl"
+#include "pmastitchalg.fcl"
 
 BEGIN_PROLOG
 
@@ -60,6 +61,7 @@ standard_pmalgtrackmaker:
   ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
   PMAlgTracking:          @local::standard_pmalgtracker
   PMAlgVertexing:         @local::standard_pmavertexalg
+  PMAlgStitching:         @local::standard_pmastitchalg
                                       #
   SaveOnlyBranchingVtx:   false       # use true to save only vertices interconnecting many tracks, otherwise
                                       # vertex is added to the front of each track

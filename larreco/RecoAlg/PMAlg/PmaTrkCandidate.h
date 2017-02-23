@@ -103,6 +103,10 @@ public:
     std::vector< TrkCandidate > const & parents(void) const { return fParents; }
 
 	int getCandidateIndex(pma::Track3D const * candidate) const;
+	int getCandidateTreeId(pma::Track3D const * candidate) const;
+
+	void merge(size_t idx1, size_t idx2);
+
 	void setParentDaughterConnections(void);
 
 	void setTreeId(int id, size_t trkIdx, bool isRoot = true);
@@ -110,6 +114,9 @@ public:
 
 	void flipTreesToCoordinate(size_t coordinate);
 	void flipTreesByDQdx();
+
+    bool setTreeOriginAtFront(pma::Track3D* trk);
+    bool setTreeOriginAtBack(pma::Track3D* trk);
 
 	pma::Track3D* getTreeCopy(pma::TrkCandidateColl & dst, size_t trkIdx, bool isRoot = true);
 
