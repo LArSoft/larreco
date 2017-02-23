@@ -31,7 +31,7 @@ class pma::Track3D
 public:
 	enum ETrackEnd { kBegin = -1, kEnd = 1 };
 	enum EDirection { kForward = -1, kBackward = 1 };
-	enum ETag { kNotTagged = -1, kTrackLike = 0, kEmLike = 1, kStopping = 2 };
+	enum ETag { kNotTagged = -1, kTrackLike = 0, kEmLike = 1, kStopping = 2, kCosmicMu = 3 };
 
 	Track3D(void);
 	Track3D(const Track3D& src);
@@ -51,6 +51,9 @@ public:
 	pma::Hit3D* & back() { return fHits.back(); }
 	pma::Hit3D* const & back() const { return fHits.back(); }
 	size_t size() const { return fHits.size(); }
+
+	int index_of(const pma::Hit3D* hit) const;
+	int index_of(const pma::Node3D* n) const;
 
 	double Length(size_t step = 1) const { return Length(0, size() - 1, step); }
 	double Length(size_t start, size_t stop, size_t step = 1) const;
@@ -89,10 +92,17 @@ public:
 	/// of neighbouring hits in the track validation functions.
 	std::pair< TVector2, TVector2 > WireDriftRange(unsigned int view, unsigned int tpc, unsigned int cryo) const;
 
-	/// Invert the order of hits and vertices in the track.
+	/// Invert the order of hits and vertices in the track, break other tracks if needed
+	/// (new tracks are added to the allTracks vector). Returns true if successful or false
+	/// if any of required track flips was not possible (e.g. resulting track would be composed
+	/// of hits from a single 2D projection).
+	bool Flip(std::vector< pma::Track3D* >& allTracks);
+
+	/// Invert the order of hits and vertices in the track, will fail on configuration that
+	/// causes breaking another track.
 	void Flip(void);
 
-	/// Check if the track can be flipped.
+	/// Check if the track can be flipped without breaking any other track.
 	bool CanFlip(void) const;
 
 	void AutoFlip(pma::Track3D::EDirection dir, double thr = 0.0, unsigned int n = 0);
@@ -174,16 +184,9 @@ public:
 	double TuneSinglePass(bool skipFirst = false);
 	double TuneFullTree(double eps = 0.001, double gmax = 50.0);
 
-	/// Adjust tree position in drift direction (when T0 is corrected).
+	/// Adjust track tree position in the drift direction (when T0 is being corrected).
 	void ApplyXShiftInTree(double dx, bool skipFirst = false);
 	double GetXShift(void) const { return fXShift; }
-
-	/// Track found with stitching, but not included in the Prev/Next structure
-	/// (used to point tracks crossing APA, found at the end of processing).
-	pma::Track3D* GetPrecedingTrack(void) const { return fPrecedingTrack; }
-	void SetPrecedingTrack(pma::Track3D* trk) { fPrecedingTrack = trk; }
-	pma::Track3D* GetSubsequentTrack(void) const { return fSubsequentTrack; }
-	void SetSubsequentTrack(pma::Track3D* trk) { fSubsequentTrack = trk; }
 
 	/// Cut out tails with no hits assigned.
 	void CleanupTails(void);
@@ -202,7 +205,7 @@ public:
 	pma::Node3D* LastElement(void) const { return fNodes.back(); }
 
 	void AddNode(pma::Node3D* node);
-	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo) { AddNode(new pma::Node3D(p3d, tpc, cryo)); }
+	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo) { AddNode(new pma::Node3D(p3d, tpc, cryo, false, fXShift)); }
 	bool AddNode(void);
 
 	void InsertNode(
@@ -210,11 +213,14 @@ public:
 		unsigned int tpc, unsigned int cryo);
 	bool RemoveNode(size_t idx);
 
-	pma::Track3D* Split(size_t idx);
+	pma::Track3D* Split(size_t idx, bool try_start_at_idx = true);
 
 	bool AttachTo(pma::Node3D* vStart, bool noFlip = false);
 	bool AttachBackTo(pma::Node3D* vStart);
 	bool IsAttachedTo(pma::Track3D const * trk) const;
+
+    /// Extend the track with everything from src, delete the src;
+    void ExtendWith(pma::Track3D* src);
 
 	pma::Track3D* GetRoot(void);
 	bool GetBranches(std::vector< pma::Track3D const * >& branches, bool skipFirst = false) const;
@@ -276,13 +282,13 @@ private:
 	/// the function returns true.
 	bool GetUnconstrainedProj3D(art::Ptr<recob::Hit> hit, TVector3& p3d, double& dist2) const;
 
+    void DeleteSegments(void);
 	void RebuildSegments(void);
 	bool SwapVertices(size_t v0, size_t v1);
 	void UpdateParams(void);
 
 	bool CheckEndSegment(pma::Track3D::ETrackEnd endCode);
 
-	int index_of(const pma::Hit3D* hit) const;
 	std::vector< pma::Hit3D* > fHits;
 
 	std::vector< TVector3* > fAssignedPoints;
@@ -290,6 +296,7 @@ private:
 	pma::Element3D* GetNearestElement(const TVector2& p2d, unsigned int view, int tpc = -1,
 		bool skipFrontVtx = false, bool skipBackVtx = false) const;
 	pma::Element3D* GetNearestElement(const TVector3& p3d) const;
+
 	std::vector< pma::Node3D* > fNodes;
 	std::vector< pma::Segment3D* > fSegments;
 
@@ -307,9 +314,6 @@ private:
 	float fHitsRadius;
 
 	double fXShift;
-
-	pma::Track3D* fPrecedingTrack;
-	pma::Track3D* fSubsequentTrack;
 
 	ETag fTag;
 };

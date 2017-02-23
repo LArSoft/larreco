@@ -120,17 +120,20 @@ keras::KerasModel::KerasModel(const string &input_fname) {
 keras::DataChunk* keras::LayerFlatten::compute_output(keras::DataChunk* dc) {
   vector<vector<vector<float> > > im = dc->get_3d();
 
-  vector<float> y_ret;
-  for(unsigned int i = 0; i < im.size(); ++i) {
-    for(unsigned int j = 0; j < im[0].size(); ++j) {
-      for(unsigned int k = 0; k < im[0][0].size(); ++k) {
-        y_ret.push_back(im[i][j][k]);
+  size_t csize = im[0].size();
+  size_t rsize = im[0][0].size();
+  size_t size = im.size() * csize * rsize;
+  keras::DataChunkFlat *out = new DataChunkFlat(size);
+  float * y_ret = out->get_1d_rw().data();
+  for(size_t i = 0, dst = 0; i < im.size(); ++i) {
+    for(size_t j = 0; j < csize; ++j) {
+      float * row = im[i][j].data();
+      for(size_t k = 0; k < rsize; ++k) {
+        y_ret[dst++] = row[k];
       }
     }
   }
 
-  keras::DataChunk *out = new DataChunkFlat();
-  out->set_data(y_ret);
   return out;
 }
 
@@ -228,96 +231,84 @@ keras::DataChunk* keras::LayerActivation::compute_output(keras::DataChunk* dc) {
 }
 
 // with border mode = valid
-std::vector< std::vector<float> > keras::conv_single_depth_valid(
+void keras::conv_single_depth_valid(
+    std::vector< std::vector<float> > & y, // accumulate here
 	std::vector< std::vector<float> > const & im,
 	std::vector< std::vector<float> > const & k)
 {
   size_t k1_size = k.size(), k2_size = k[0].size();
-  unsigned int st_x = (k1_size - 1) / 2;
-  unsigned int st_y = (k2_size - 1) / 2;
-
-  std::vector< std::vector<float> > y;
-  for(unsigned int i = 0; i < im.size()-2*st_x; ++i) {
-    y.emplace_back(vector<float>(im[0].size()-2*st_y, 0.0));
-  }
+  unsigned int st_x = (k1_size - 1) >> 1;
+  unsigned int st_y = (k2_size - 1) >> 1;
 
   for(unsigned int i = st_x; i < im.size()-st_x; ++i) {
     for(unsigned int j = st_y; j < im[0].size()-st_y; ++j) {
 
       float sum = 0;
       for(unsigned int k1 = 0; k1 < k1_size; ++k1) {
+        const float * k_data = k[k1_size-k1-1].data();
+        const float * im_data = im[i-st_x+k1].data();
         for(unsigned int k2 = 0; k2 < k2_size; ++k2) {
-          sum += k[k1_size-k1-1][k2_size-k2-1] * im[i-st_x+k1][j-st_y+k2];
+          sum += k_data[k2_size-k2-1] * im_data[j-st_y+k2];
         }
       }
-      y[i-st_x][j-st_y] = sum;
+      y[i-st_x][j-st_y] += sum;
     }
   }
-  return y;
 }
 
 // with border mode = same
-std::vector< std::vector<float> > keras::conv_single_depth_same(
+void keras::conv_single_depth_same(
+    std::vector< std::vector<float> > & y, // accumulate here
 	std::vector< std::vector<float> > const & im,
 	std::vector< std::vector<float> > const & k)
 {
   size_t k1_size = k.size(), k2_size = k[0].size();
-  unsigned int st_x = (k1_size - 1) / 2;
-  unsigned int st_y = (k2_size - 1) / 2;
+  unsigned int st_x = (k1_size - 1) >> 1;
+  unsigned int st_y = (k2_size - 1) >> 1;
 
-  std::vector< std::vector<float> > y;
-  for(unsigned int i = 0; i < im.size(); ++i) {
-    y.emplace_back(vector<float>(im[0].size(), 0.0));
-  }
+  size_t max_imc = im.size() - 1;
+  size_t max_imr = im[0].size() - 1;
+
   for(unsigned int i = 0; i < im.size(); ++i) {
     for(unsigned int j = 0; j < im[0].size(); ++j) {
 
       float sum = 0;
       for(unsigned int k1 = 0; k1 < k1_size; ++k1) {
+        const float * k_data = k[k1_size-k1-1].data();
+        const float * im_data = im[i-st_x+k1].data();
         for(unsigned int k2 = 0; k2 < k2_size; ++k2) {
           if(i-st_x+k1 < 0) continue;
-          if(i-st_x+k1 > im.size()-1) continue;
+          if(i-st_x+k1 > max_imc) continue;
           if(j-st_y+k2 < 0) continue;
-          if(j-st_y+k2 > im[0].size()-1) continue;
+          if(j-st_y+k2 > max_imr) continue;
 
-          sum += k[k1_size-k1-1][k2_size-k2-1] * im[i-st_x+k1][j-st_y+k2];
+          sum += k_data[k2_size-k2-1] * im_data[j-st_y+k2];
         }
       }
-      y[i][j] = sum;
+      y[i][j] += sum;
     }
   }
-  return y;
 }
 
 keras::DataChunk* keras::LayerConv2D::compute_output(keras::DataChunk* dc) {
-  unsigned int st_x = (m_kernels[0][0].size()-1)/2;
-  unsigned int st_y = (m_kernels[0][0][0].size()-1)/2;
-  vector< vector< vector<float> > > y_ret;
+  unsigned int st_x = (m_kernels[0][0].size()-1) >> 1;
+  unsigned int st_y = (m_kernels[0][0][0].size()-1) >> 1;
   auto const & im = dc->get_3d();
 
   size_t size_x = (m_border_mode == "valid")? im[0].size() - 2 * st_x : im[0].size();
   size_t size_y = (m_border_mode == "valid")? im[0][0].size() - 2 * st_y: im[0][0].size();
-  for(unsigned int i = 0; i < m_kernels.size(); ++i) { // depth
-    vector<vector<float> > tmp;
-    tmp.reserve(size_x);
-    for(unsigned int j = 0; j < size_x; ++j) { // rows
-      tmp.emplace_back(vector<float>(size_y, 0.0));
-    }
-    y_ret.push_back(tmp);
-  }
+
+  //                                                    depth         rows    cols
+  keras::DataChunk2D *out = new keras::DataChunk2D(m_kernels.size(), size_x, size_y, 0);
+  auto & y_ret = out->get_3d_rw();
 
   for(unsigned int j = 0; j < m_kernels.size(); ++j) { // loop over kernels
     for(unsigned int m = 0; m < im.size(); ++m) { // loope over image depth
 
-      vector<vector<float> > tmp_w = (m_border_mode == "valid")?
-                        keras::conv_single_depth_valid(im[m], m_kernels[j][m]) :
-                        keras::conv_single_depth_same(im[m], m_kernels[j][m]);
-
-      for(unsigned int x = 0; x < tmp_w.size(); ++x) {
-        for(unsigned int y = 0; y < tmp_w[0].size(); ++y) {
-          y_ret[j][x][y] += tmp_w[x][y];
-        }
-      }
+      if (m_border_mode == "valid")
+          keras::conv_single_depth_valid(y_ret[j], im[m], m_kernels[j][m]);
+      else
+          keras::conv_single_depth_same(y_ret[j], im[m], m_kernels[j][m]);
     }
 
     for(unsigned int x = 0; x < y_ret[0].size(); ++x) {
@@ -327,8 +318,6 @@ keras::DataChunk* keras::LayerConv2D::compute_output(keras::DataChunk* dc) {
     }
   }
 
-  keras::DataChunk *out = new keras::DataChunk2D();
-  out->set_data(y_ret);
   return out;
 }
 
@@ -336,20 +325,35 @@ keras::DataChunk* keras::LayerDense::compute_output(keras::DataChunk* dc) {
   //cout << "weights: input size " << m_weights.size() << endl;
   //cout << "weights: neurons size " << m_weights[0].size() << endl;
   //cout << "bias " << m_bias.size() << endl;
-  vector<float> y_ret(m_weights[0].size(), 0.0);
+  size_t size = m_weights[0].size();
+  size_t size8 = size >> 3;
+
+  keras::DataChunkFlat *out = new DataChunkFlat(size, 0);
+  float * y_ret = out->get_1d_rw().data();
+
   auto const & im = dc->get_1d();
 
-  for (unsigned int j = 0; j < m_weights.size(); ++j) { // iter over input
-    for (unsigned int i = 0; i < m_weights[j].size(); ++i) { // iter over neurons
-      y_ret[i] += m_weights[j][i] * im[j];
+  for (size_t j = 0; j < m_weights.size(); ++j) { // iter over input
+    const float * w = m_weights[j].data();
+    float p = im[j];
+    size_t k = 0;
+    for (size_t i = 0; i < size8; ++i) { // iter over neurons
+      y_ret[k]   += w[k]   * p;          // vectorize if you can
+      y_ret[k+1] += w[k+1] * p;
+      y_ret[k+2] += w[k+2] * p;
+      y_ret[k+3] += w[k+3] * p;
+      y_ret[k+4] += w[k+4] * p;
+      y_ret[k+5] += w[k+5] * p;
+      y_ret[k+6] += w[k+6] * p;
+      y_ret[k+7] += w[k+7] * p;
+      k += 8;
     }
+    while (k < size) { y_ret[k] += w[k] * p; ++k; }
   }
-  for (unsigned int i = 0; i < m_weights[0].size(); ++i) { // add biases
+  for (size_t i = 0; i < size; ++i) { // add biases
     y_ret[i] += m_bias[i];
   }
 
-  keras::DataChunk *out = new DataChunkFlat();
-  out->set_data(y_ret);
   return out;
 }
 

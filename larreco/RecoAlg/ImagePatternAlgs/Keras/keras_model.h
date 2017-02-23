@@ -10,8 +10,8 @@ namespace keras
 {
 	std::vector<float> read_1d_array(std::ifstream &fin, int cols);
 	void missing_activation_impl(const std::string &act);
-	std::vector< std::vector<float> > conv_single_depth_valid(std::vector< std::vector<float> > const & im, std::vector< std::vector<float> > const & k);
-	std::vector< std::vector<float> > conv_single_depth_same(std::vector< std::vector<float> > const & im, std::vector< std::vector<float> > const & k);
+	void conv_single_depth_valid(std::vector< std::vector<float> > & y, std::vector< std::vector<float> > const & im, std::vector< std::vector<float> > const & k);
+	void conv_single_depth_same(std::vector< std::vector<float> > & y, std::vector< std::vector<float> > const & im, std::vector< std::vector<float> > const & k);
 
 	class DataChunk;
 	class DataChunk2D;
@@ -43,6 +43,12 @@ public:
 
 class keras::DataChunk2D : public keras::DataChunk {
 public:
+  DataChunk2D(size_t depth, size_t rows, size_t cols, float init) :
+    data(depth, std::vector< std::vector<float> >(rows, std::vector<float>(cols, init)))
+  { }
+  DataChunk2D(void) { }
+
+  std::vector< std::vector< std::vector<float> > > & get_3d_rw() { return data; };
   std::vector< std::vector< std::vector<float> > > const & get_3d() const { return data; };
   virtual void set_data(std::vector<std::vector<std::vector<float> > > const & d) { data = d; };
   size_t get_data_dim(void) const { return 3; }
@@ -77,7 +83,12 @@ public:
 
 class keras::DataChunkFlat : public keras::DataChunk {
 public:
+  DataChunkFlat(size_t size) : f(size) { }
+  DataChunkFlat(size_t size, float init) : f(size, init) { }
+  DataChunkFlat(void) { }
+
   std::vector<float> f;
+  std::vector<float> & get_1d_rw() { return f; }
   std::vector<float> const & get_1d() const { return f; }
   void set_data(std::vector<float> const & d) { f = d; };
   size_t get_data_dim(void) const { return 1; }

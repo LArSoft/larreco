@@ -1085,7 +1085,7 @@ bool pma::ProjectionMatchingAlg::alignTracks(pma::Track3D& first, pma::Track3D& 
 		case 1: mf::LogError("PMAlgTrackMaker") << "Tracks in reversed order."; return false;
 		case 2: break;
 		case 3: second.Flip(); break;
-		default: mf::LogError("PMAlgTrackMaker") << "Should never happen."; return false;
+		default: throw cet::exception("pma::ProjectionMatchingAlg") << "alignTracks: should never happen." << std::endl;
 	}
 	return true;
 }

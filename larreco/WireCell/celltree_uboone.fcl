@@ -4,8 +4,8 @@ process_name: celltree
 
 services:
 {
-  # TFileService: { fileName: "test.root" }
-  TimeTracker   {}
+  #TFileService: { fileName: "test.root" }
+  #TimeTracker   {}
   RandomNumberGenerator: {}
   message:      @local::standard_info
                  @table::microboone_services
@@ -33,13 +33,20 @@ physics:
       module_type     : "CellTree"
       saveRaw         : false
       saveCalib       : false
-      saveSimChannel  : false
-      saveMC          : true
-      saveJSON        : true
+      saveOpHit	      : true
+      saveOpFlash     : true
+      saveSimChannel  : false 
+      saveTrigger     : true
+      saveMC          : false 
+      saveJSON        : false 
       RawDigitLabel   : "daq"
       CalibLabel      : "caldata"
+      OpHitLabel      : "ophit"
+      OpFlashLabel    : "opflash"
+      TriggerLabel    : "daq"  
       SpacePointLabels: ["trackkalmanhit","wirecell"]
       mcOption        : "all"
+      opMultPEThresh  : 5
       saveMCTrackPoints : true
       outFile           : "celltree.root"
     }

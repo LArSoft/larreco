@@ -1,0 +1,13 @@
+BEGIN_PROLOG
+
+# fcl file for default parameters for the pma stitching algorithm
+standard_pmastitchalg:
+{
+
+  StitchingThreshold: 10.0 # This is the tolerance on allowing stitching to happen. Larger is more tolerant.
+  NodesFromEnd: 2          # Number of nodes from the end of the track used for extrapolations for stitching.
+                           # This is important to avoid problems from end effects of tracks. 
+                           # Setting this equal to 2 means it skips two nodes at each end.
+}
+
+END_PROLOG

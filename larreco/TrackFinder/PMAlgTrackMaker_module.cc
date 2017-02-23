@@ -60,6 +60,7 @@
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgTracking.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
+#include "larreco/RecoAlg/PMAlgStitching.h"
 
 #include <memory>
 
@@ -83,6 +84,10 @@ public:
 		fhicl::Table<pma::PMAlgVertexing::Config> PMAlgVertexing {
 			Name("PMAlgVertexing")
 		};
+
+    fhicl::Table<pma::PMAlgStitching::Config> PMAlgStitching {
+      Name("PMAlgStitching")
+    };
 
 		fhicl::Atom<bool> SaveOnlyBranchingVtx {
 			Name("SaveOnlyBranchingVtx"),
@@ -129,6 +134,7 @@ private:
 	pma::ProjectionMatchingAlg::Config fPmaConfig;
 	pma::PMAlgTracker::Config fPmaTrackerConfig;
 	pma::PMAlgVertexing::Config fPmaVtxConfig;
+  pma::PMAlgStitching::Config fPmaStitchConfig;
 
 	bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
 	bool fSavePmaNodes;          // for debugging, save only track nodes
@@ -153,6 +159,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	fPmaConfig(config().ProjectionMatchingAlg()),
 	fPmaTrackerConfig(config().PMAlgTracking()),
 	fPmaVtxConfig(config().PMAlgVertexing()),
+  fPmaStitchConfig(config().PMAlgStitching()),
 
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
 	fSavePmaNodes(config().SavePmaNodes())
@@ -224,7 +231,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	// -------------- PMA Tracker for this event --------------
 	auto pmalgTracker = pma::PMAlgTracker(allhitlist,
-		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig);
+		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig);
 
 
 	if (fEmModuleLabel != "") // --- Exclude EM parts ---------
@@ -292,7 +299,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
 
 			double xShift = trk->GetXShift();
-			if (xShift > 0.0)
+			if (xShift != 0.0)
 			{
 				double tisk2time = 1.0; // what is the coefficient, offset?
 				double t0time = tisk2time * xShift / detProp->GetXTicksCoefficient(trk->FrontTPC(), trk->FrontCryo());
@@ -323,7 +330,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
 				trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 
-				double hx = h3d->Point3D().X() + xShift;
+				double hx = h3d->Point3D().X(); // + xShift; // now done inside track
 				double hy = h3d->Point3D().Y();
 				double hz = h3d->Point3D().Z();
 
