@@ -193,6 +193,7 @@ namespace tca {
 */
     // number of primary particles in the event
     unsigned short nTruPrimary;
+    float sourceParticleEnergy;
     // number of reconstructable primary particles in the event
     unsigned short nTruPrimaryOK;
     // number of reconstructable neutrino vertices in ALL events
