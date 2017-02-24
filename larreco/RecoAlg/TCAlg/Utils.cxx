@@ -1472,6 +1472,7 @@ namespace tca {
       // ignore muons
       if(tj1.PDGCode == 13) continue;
       // Cut on length and MCSMom
+      if(tj1.Pts.size() < 3) continue;
       if(tj1.MCSMom > maxMCSMom) continue;
       tj1.PDGCode = 0;
       std::vector<unsigned short> list;
@@ -1498,6 +1499,7 @@ namespace tca {
           if(list.empty()) list.push_back(tj1.ID);
           list.push_back(tj2.ID);
           ++tj1.NNeighbors;
+//          if(it2 > it1) std::cout<<"tj1 "<<tj1.ID<<" tj2 "<<tj2.ID<<" doca "<<doca<<"\n";
         }
       } // it2
       if(list.size() > minCnt) {
@@ -1542,6 +1544,7 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"tjlist\n";
       for(auto& tjl : tjList) {
+        if(tjl.empty()) continue;
         for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
         myprt<<"\n";
       } // tjl
@@ -1591,8 +1594,9 @@ namespace tca {
       tjl.erase(last, tjl.end());
     } // tjl
     
-    // remove Tjs that don't have enough neighbors
+    // remove Tjs that don't have enough neighbors = ShowerTag[7] - 1
     unsigned short minNeighbors = fShowerTag[7];
+    if(minNeighbors > 0) --minNeighbors;
     for(auto& tjl : tjList) {
       bool didErase = true;
       while(didErase) {
@@ -1613,6 +1617,7 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"tjlist\n";
       for(auto& tjl : tjList) {
+        if(tjl.empty()) continue;
         for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
         myprt<<"\n";
       } // tjl
@@ -1620,6 +1625,7 @@ namespace tca {
     
     // Convert each one into a shower with a shower Tj
     for(auto& tjl : tjList) {
+      if(tjl.empty()) continue;
       // Create the shower Tj
       Trajectory stj;
       stj.CTP = inCTP;
@@ -1634,11 +1640,17 @@ namespace tca {
       tjs.allTraj.push_back(stj);
       // Create the shower struct
       ShowerStruct ss;
+      ss.CTP = stj.CTP;
       // assign all TJ IDs to this ShowerStruct
       ss.TjIDs = tjl;
       ss.ShowerTjID = stj.ID;
       // put it in TJ stuff. The rest of the info will be added in DefineShower
       tjs.cots.push_back(ss);
+      if(printCTP == inCTP) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"Make cots "<<tjs.cots.size()<<" using";
+        for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
+      }
       DefineShowerTj(tjs, inCTP, tjs.cots.size() - 1, fShowerTag, printCTP);
       FindShowerParent(tjs, inCTP, tjs.cots.size() - 1, fShowerTag, printCTP);
     } // tjl
@@ -1649,9 +1661,11 @@ namespace tca {
     // drop those that don't meet the requirements
     for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
       ShowerStruct& ss = tjs.cots[ic];
+      if(ss.CTP != inCTP) continue;
       if(ss.TjIDs.empty()) continue;
       // enough Tjs?
       bool killit = (ss.TjIDs.size() < fShowerTag[7]);
+      if(printCTP == inCTP) mf::LogVerbatim("TC")<<"ic "<<ic<<" nTjs "<<ss.TjIDs.size()<<" killit? "<<killit;
       unsigned short nTjWithVtx = 0;
       if(!killit) {
         // count the number of Tj points
@@ -1662,6 +1676,7 @@ namespace tca {
           if(tj.VtxID[0] > 0 || tj.VtxID[1] > 0) ++nTjWithVtx;
         }  // tjID
         if(nTjPts < fShowerTag[6]) killit = true;
+        if(printCTP == inCTP) mf::LogVerbatim("TC")<<"    "<<" nTjPts "<<nTjPts<<" killit? "<<killit;
       } // !killit
       if(killit) {
         // kill the shower parent Tj
@@ -1685,7 +1700,7 @@ namespace tca {
 
     CollectHits(tjs, inCTP, USHRT_MAX, printCTP);
 
-    if(fShowerTag[8] > 0) {
+    if(fShowerTag[8] >= 0) {
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
         if(tjs.cots[ic].TjIDs.empty()) continue;
         unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
@@ -1700,6 +1715,7 @@ namespace tca {
         for(auto& tjID : ss.TjIDs) {
           myprt<<" "<<tjID;
         } // tjID
+        myprt<<" ParentTrajID "<<ss.ParentTrajID;
       } // ic
     }
 
@@ -1730,7 +1746,7 @@ namespace tca {
       // Ensure that it is valid
       if(ss.TjIDs.empty()) continue;
       // Ensure that this is the correct CTP
-      if(tjs.allTraj[ss.TjIDs[0] - 1].CTP != inCTP) continue;
+      if(ss.CTP != inCTP) continue;
       // Define a reference to the shower trajectory
       if(ss.ShowerTjID > tjs.allTraj.size()) {
         std::cout<<"DefineShowerTj: ss.ShowerTjID not defined "<<ss.ShowerTjID<<" ish "<<ish<<"\n";
@@ -1795,7 +1811,26 @@ namespace tca {
       TrajPoint tmp;
       MakeBareTrajPoint(tjs, sTp0, sTp2, tmp);
       sTp1.Ang = tmp.Ang;
-      sTp1.AngErr = 0.2;
+      std::cout<<"Angle from maxsep "<<tmp.Ang;
+      float sum = 0;
+      float sum2 = 0;
+      float cnt = 0;
+      // estimate the angle from all the TPs
+      for(unsigned short it1 = 0; it1 < ss.TjIDs.size(); ++it1) {
+        unsigned short itj1 = ss.TjIDs[it1] - 1;
+        Trajectory& tj1 = tjs.allTraj[itj1];
+        for(auto& tp : tj1.Pts) {
+          sum += tp.Ang;
+          sum2 += tp.Ang * tp.Ang;
+          ++cnt;
+        } // tp
+      } // it1
+      sum /= cnt;
+      float rms = sqrt((sum2 - cnt * sum * sum) / (cnt - 1));
+      rms /= sqrt(cnt);
+      std::cout<<" from TPs "<<sum<<" rms "<<rms<<"\n";
+      sTp1.Ang = sum;
+      sTp1.AngErr = rms;
       sTp1.Dir = tmp.Dir;
       sTp1.Pos[0] = chgPos0 / chgSum;
       sTp1.Pos[1] = chgPos1 / chgSum;
@@ -1804,8 +1839,7 @@ namespace tca {
       sTp2.Chg = 0;
       // Calculate the rms width of the hits wrt to the shower axis. Try to determine the
       // shower direction by finding the rms width for trajectory Tps that are closest to the start
-      // and end points of the shower Tj. While we are here, sum the charge at each end and put it in
-      // Chg
+      // and end points of the shower Tj. While we are here, sum the charge at each end and put it in Chg
       sTp0.Delta = 0;
       float cnt0 = 0;
       sTp1.Delta = 0;
@@ -1862,7 +1896,15 @@ namespace tca {
       ss.Envelope[2][1] = -ss.Envelope[1][1];
       ss.Envelope[3][0] =  ss.Envelope[0][0];
       ss.Envelope[3][1] = -ss.Envelope[0][1];
+      std::cout<<"Envelope";
+      for(auto& vtx : ss.Envelope) std::cout<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+      std::cout<<"\n";
       double rotAngle = -sTp1.Ang;
+      // Use the angle of the parent Tj instead if it exists
+      if(ss.ParentTrajID != USHRT_MAX) {
+        unsigned short ptj = ss.ParentTrajID - 1;
+        rotAngle = -tjs.allTraj[ptj].Pts[ss.ParentTrajEnd].Ang;
+      }
       double cs = cos(-rotAngle);
       double sn = sin(-rotAngle);
       for(auto& vtx : ss.Envelope) {
@@ -1872,9 +1914,19 @@ namespace tca {
         vtx[0] = pos0;
         vtx[1] = pos1;
         // translate
+//        vtx[0] += sTp0.Pos[0];
+//        vtx[1] += sTp0.Pos[1];
+      } // vtx
+      std::cout<<"Envelope";
+      for(auto& vtx : ss.Envelope) std::cout<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+      std::cout<<" rot\n";
+      for(auto& vtx : ss.Envelope) {
         vtx[0] += sTp1.Pos[0];
         vtx[1] += sTp1.Pos[1];
-      } // vtx
+      }
+      std::cout<<"Envelope";
+      for(auto& vtx : ss.Envelope) std::cout<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+      std::cout<<" trans\n";
       
       // Transfer the angle info to Tp 0 and 2
       sTp1.HitPos = sTp1.Pos;
@@ -1911,7 +1963,7 @@ namespace tca {
     for(unsigned short ish = first; ish < last; ++ish) {
       ShowerStruct& ss = tjs.cots[ish];
       // Ensure that this is the correct CTP
-      if(tjs.allTraj[ss.TjIDs[0] - 1].CTP != inCTP) continue;
+      if(ss.CTP != inCTP) continue;
       // Ensure that it is valid
       if(ss.TjIDs.empty()) continue;
       // Tp 1 of stj will get all of the shower hits
@@ -1981,7 +2033,7 @@ namespace tca {
           if(tj.AlgMod[kShowerTj]) continue;
           if(tj.AlgMod[kInShower]) continue;
           // ignore Tjs with a nice vertex
-          if(TjHasNiceVtx(tjs, tj)) continue;
+//          if(TjHasNiceVtx(tjs, tj)) continue;
           // See if the Tj is fully contained inside the envelope
           bool isContained = true;
           for(unsigned short end = 0; end < 2; ++end) {
@@ -2035,7 +2087,7 @@ namespace tca {
     for(unsigned short ish = first; ish < last; ++ish) {
       ShowerStruct& ss = tjs.cots[ish];
       // Ensure that this is the correct CTP
-      if(tjs.allTraj[ss.TjIDs[0] - 1].CTP != inCTP) continue;
+      if(ss.CTP != inCTP) continue;
       // Ensure that it is valid
       if(ss.TjIDs.empty()) continue;
       // Reference the Tp charge center of the shower Tj
@@ -2076,6 +2128,7 @@ namespace tca {
         float fom = minSep * dang / npwc;
         if(fom < bestFOM) {
           ss.ParentTrajID = tj.ID;
+          ss.ParentTrajEnd = parentStartEnd;
           bestFOM = fom;
           if(inCTP == printCTP) mf::LogVerbatim("TC")<<"FSP: ish "<<ish<<" Parent tj.ID "<<tj.ID<<" minSep "<<minSep<<" dang  "<<dang<<" fom  "<<fom;
         }
