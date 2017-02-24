@@ -180,10 +180,12 @@ namespace tca {
   
   // A temporary structure that defines a 2D shower-like cluster
   struct ShowerStruct {
+    CTP_t CTP;
     unsigned short ShowerTjID {USHRT_MAX};      // ID of the Trajectory composed of many shower Tjs
     std::vector<unsigned short> TjIDs;
     std::vector<std::array<float, 2>> Envelope;  // Vertices of a polygon that encompasses the shower
     unsigned short ParentTrajID {USHRT_MAX};      // ID of the shower Tj parent
+    unsigned short ParentTrajEnd;               // the Start end of the parent trajectory
   };
 
   // Algorithm modification bits
