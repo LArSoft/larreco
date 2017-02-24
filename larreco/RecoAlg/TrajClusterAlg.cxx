@@ -472,6 +472,35 @@ namespace tca {
         fHitRMS[ipl]->Fill(tjs.fHits[iht].RMS);
       } // iht
 */
+      unsigned short nstj = 0;
+      unsigned short nOkEnvelope = 0;
+      for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
+        Trajectory& tj1 = tjs.allTraj[it1];
+        if(tj1.AlgMod[kKilled]) continue;
+        float close = 50;
+        unsigned short imclose = 0;
+        for(unsigned short it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
+          if(it1 == it2) continue;
+          Trajectory& tj2 = tjs.allTraj[it2];
+          if(tj2.AlgMod[kKilled]) continue;
+          if(tj2.CTP != tj1.CTP) continue;
+          float doca = 50;
+          unsigned short ipt1, ipt2;
+          TrajTrajDOCA(tjs, tj1, tjs.allTraj[it2], ipt1, ipt2, doca);
+          if(doca < close) {
+            close = doca;
+            imclose = tjs.allTraj[it2].ID;
+          }
+        } // jtj
+        mf::LogVerbatim("TC")<<"stj "<<tj1.ID<<" Pos "<<tj1.CTP<<":"<<PrintPos(tjs, tj1.Pts[0])<<" MCSMom "<<tj1.MCSMom<<" npts "<<tj1.Pts.size()<<" close "<<close<<" imclose "<<imclose<<" NN "<<tj1.NNeighbors;
+        if(tj1.AlgMod[kShowerTj]) {
+          if(tj1.Pts[0].Delta < tj1.Pts[2].Delta) ++nOkEnvelope;
+          ++nstj;
+        } else {
+          // look at the indivual tjs
+        }
+      } // itj
+      std::cout<<"Nshower Tj in event "<<nstj<<" nOkEnvelope "<<nOkEnvelope<<" SPE "<<sourceParticleEnergy<<"\n";
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         Trajectory& tj = tjs.allTraj[itj];
         if(tj.AlgMod[kKilled]) continue;
@@ -513,7 +542,7 @@ namespace tca {
         if(pdg == 2212) mass = 938.3;
         double tPlusM = tjs.allTraj[itj].TruKE + mass;
         double truMom = sqrt(tPlusM * tPlusM - mass * mass);
-        if(tj.EffPur > 0.7) std::cout<<"Good MC match: PDG "<<tj.TruPDG<<" truMom "<<(int)truMom<<" length "<<(int)len<<" MCSMom "<<tj.MCSMom<<"\n";
+//        if(tj.EffPur > 0.7) std::cout<<"Good MC match: PDG "<<tj.TruPDG<<" truMom "<<(int)truMom<<" length "<<(int)len<<" MCSMom "<<tj.MCSMom<<"\n";
         if(pdg == 11) fMCSMom_TruMom_e->Fill(truMom, tj.MCSMom);
         if(pdg == 13) fMCSMom_TruMom_mu->Fill(truMom, tj.MCSMom);
         if(pdg == 211) fMCSMom_TruMom_pi->Fill(truMom, tj.MCSMom);
@@ -1335,12 +1364,11 @@ namespace tca {
     
     // set true if there is a reconstructed 3D vertex within 1 cm of the true vertex
     bool nuVtxRecoOK = false;
-    float neutrinoEnergy = -1;
-    // Ignore eIoni process unless the source particle is an electron or photon
-    bool ignoreEIoni = true;
 
     // MC Particles for the desired true particles
     int sourcePtclTrackID = -1;
+    sourceParticleEnergy = -1;
+    
     simb::Origin_t sourceOrigin = simb::kUnknown;
     std::vector<simb::MCParticle*> partList;
     // partList is the vector of MC particles that we want to use
@@ -1358,13 +1386,13 @@ namespace tca {
             if(fMatchTruth[1] > 2) std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
           }
           if(theTruth->Origin() == simb::kSingleParticle) {
+            sourceParticleEnergy = part->E();
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kSingleParticle;
             if(fMatchTruth[1] > 2) std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
-            if(part->PdgCode() == 11 || part->PdgCode() == 22) ignoreEIoni = false;
           }
           if(sourceOrigin == simb::kBeamNeutrino) {
-            neutrinoEnergy = part->E();
+            sourceParticleEnergy = part->E();
             // histogram the vertex position difference
             for(auto& aVtx3 : tjs.vtx3) {
               fNuVtx_dx->Fill(part->Vx() - aVtx3.X);
@@ -1381,7 +1409,6 @@ namespace tca {
           }
         }
       }
-      if(fMatchTruth[1] > 2) std::cout<<partList.size()<<" PDG Code  "<<part->PdgCode()<<" TrackId "<<part->TrackId()<<" Mother  "<<part->Mother()<<" sourceOrigin "<<sourceOrigin<<" Origin "<<theTruth->Origin()<<" Process "<<part->Process()<<"\n";
       // ignore anything that has the incorrect origin
       if(theTruth->Origin() != sourceOrigin) continue;
       // ignore processes that aren't a stable final state particle
@@ -1394,23 +1421,51 @@ namespace tca {
       partList.push_back(part);
     } // ipart
     
-    if(fMatchTruth[1] > 2) std::cout<<"partList size "<<partList.size()<<"\n";
+    if(fMatchTruth[1] > 2) {
+      for(unsigned int ii = 0; ii < partList.size(); ++ii) {
+        int trackID = partList[ii]->TrackId();
+        const simb::MCParticle* gmom = bt->TrackIDToMotherParticle(trackID);
+        std::cout<<ii<<" PDG Code  "<<partList[ii]->PdgCode()<<" TrackId "<<trackID<<" Mother  "<<partList[ii]->Mother()<<" Grandmother "<<gmom->TrackId()<<" Process "<<partList[ii]->Process()<<"\n";
+      } // ii
+    }
     
-    // vector of (mother, daughter) pairs
+    // vector of (mother, daughter) pairs of TrackIds
     std::vector<std::pair<int, int>> moda;
-
-    if(sourcePtclTrackID >= 0) {
+    
+    if(sourcePtclTrackID > 0) {
+      // enter grandmother-daughter pairs for primary electrons if we are using shower finding code
+      if(fShowerTag[0] > 1) {
+        for(unsigned short ii = 0; ii < partList.size(); ++ii) {
+          // check for the end of the primary particles
+          if(partList[ii]->Mother() != 0) break;
+          // check for an electron
+          if(abs(partList[ii]->PdgCode()) != 11) continue;
+          int primElectronTrackID = partList[ii]->TrackId();
+          for(unsigned short jj = ii + 1; jj < partList.size(); ++jj) {
+            int trackID = partList[jj]->TrackId();
+            const simb::MCParticle* gmom = bt->TrackIDToMotherParticle(trackID);
+            if(gmom->TrackId() != primElectronTrackID) continue;
+            moda.push_back(std::make_pair(primElectronTrackID, trackID));
+          } // jj
+        } // ii
+      } // Shower finding mode
+      // Now enter mother-daughter pairs for soft interactions
       // daughters appear later in the list so reverse iterate
       for(unsigned short ii = 0; ii < partList.size(); ++ii) {
         unsigned short dpl = partList.size() - 1 - ii;
         if(partList[dpl]->Mother() == 0) continue;
+        // ignore previous entries
+        int trackID = partList[ii]->TrackId();
+        bool skipit = false;
+        for(auto& md : moda) if(md.second == trackID) skipit = true;
+        if(skipit) continue;
         int motherID = partList[dpl]->Mother() + sourcePtclTrackID - 1;
         // count the number of daughters
         unsigned short ndtr = 0;
         for(unsigned short jj = 0; jj < partList.size(); ++jj) {
           // some processes to ignore
           if(partList[jj]->Process() == "hIoni") continue;
-          if(ignoreEIoni && partList[jj]->Process() == "eIoni") continue;
+          if(partList[jj]->Process() == "eIoni") continue;
           if(partList[jj]->Mother() == partList[dpl]->Mother()) ++ndtr;
         } // jj
         // require only one daughter
@@ -1428,11 +1483,19 @@ namespace tca {
         // ensure that mother and daughter have the same PDG code
         if(partList[momIndex]->PdgCode() != partList[dpl]->PdgCode()) continue;
         moda.push_back(std::make_pair(partList[momIndex]->TrackId(), partList[dpl]->TrackId()));
-        if(fMatchTruth[1] > 1) mf::LogVerbatim("TC")<<"dtr "<<partList[dpl]->TrackId()<<" mother "<<partList[momIndex]->TrackId();
       } // ii
     } // sourcePtclTrackID >= 0
 
-    
+    if(fMatchTruth[1] > 2 && !moda.empty()) {
+      std::cout<<"Mother-Daughter track IDs\n";
+      unsigned short cnt = 0;
+      for(auto& md : moda) {
+        std::cout<<" "<<md.first<<"-"<<md.second;
+        ++cnt;
+        if(!(cnt % 20)) std::cout<<"\n";
+      } // md
+    } // fMatchTruth[1] > 2
+
     // Match all hits to the truth. Put the MC track ID in a temp vector
     std::vector<int> hitTruTrkID(tjs.fHits.size());
     // Prepare to count of the number of hits matched to each MC Track in each plane
@@ -1521,7 +1584,7 @@ namespace tca {
       ++nTruPrimaryVtxOK;
       // was it reconstructed?
       if(nuVtxRecoOK) ++nTruPrimaryVtxReco;
-      if(neutrinoEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx neutrino E "<<std::fixed<<std::setprecision(2)<<neutrinoEnergy<<" events processed "<<fEventsProcessed;
+      if(sourceParticleEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx sourceParticleEnergy "<<std::fixed<<std::setprecision(2)<<sourceParticleEnergy<<" events processed "<<fEventsProcessed;
     }
     
     if(fMatchTruth[1] > 1) {
@@ -1585,6 +1648,23 @@ namespace tca {
         if(tjWithMostHits == USHRT_MAX) continue;
         // the total number of hits used in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
+        // deal with daughter trajectories here. Transfer the daughter stuff to 
+        // the parent
+        if(tjs.allTraj[tjWithMostHits].ParentTrajID > 0) {
+          unsigned short ptj = tjs.allTraj[tjWithMostHits].ParentTrajID - 1;
+          // add the parent hits to the vector of daughter hits
+          auto ptmp = PutTrajHitsInVector(tjs.allTraj[ptj], kUsedHits);
+          tmp.insert(tmp.end(), ptmp.begin(), ptmp.end());
+          // revise the mostHits count. To do this we need to find the parent tj index in nMatchedHitsInTj
+          for(unsigned short ii = 0; ii < nMatchedHitsInTj[ipl].size(); ++ii) {
+            unsigned short itj = nMatchedHitsInTj[ipl][ii][0];
+            if(itj == ptj) {
+              mostHits += nMatchedHitsInTj[ipl][ii][1];
+              tjWithMostHits = ptj;
+              break;
+            } // found the parent tj
+          } // ii
+        } // deal with daughters
         // count the number matched to a true particle
         float nTjHits = 0;
         for(auto& iht : tmp) if(hitTruTrkID[iht] > 0) ++nTjHits;
