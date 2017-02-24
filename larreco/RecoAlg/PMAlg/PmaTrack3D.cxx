@@ -30,9 +30,6 @@ pma::Track3D::Track3D(void) :
 
 	fXShift(0.0),
 
-	fPrecedingTrack(0),
-	fSubsequentTrack(0),
-
 	fTag(pma::Track3D::kNotTagged)
 {
 }
@@ -52,9 +49,6 @@ pma::Track3D::Track3D(const Track3D& src) :
 
 	fXShift(src.fXShift),
 
-	fPrecedingTrack(src.fPrecedingTrack),
-	fSubsequentTrack(src.fSubsequentTrack),
-
 	fTag(src.fTag)
 {
 	fHits.reserve(src.fHits.size());
@@ -66,7 +60,7 @@ pma::Track3D::Track3D(const Track3D& src) :
 	}
 
 	fNodes.reserve(src.fNodes.size());
-	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo(), node->IsVertex()));
+	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo(), node->IsVertex(), node->GetXShift()));
 
 	for (auto const& point : src.fAssignedPoints) fAssignedPoints.push_back(new TVector3(*point));
 
@@ -326,6 +320,13 @@ void pma::Track3D::InitFromMiddle(int tpc, int cryo)
 	Optimize(0, 0.01F);
 }
 
+int pma::Track3D::index_of(const pma::Node3D* n) const
+{
+    for (size_t i = 0; i < fNodes.size(); ++i)
+        if (fNodes[i] == n) return (int)i;
+    return -1;
+}
+
 int pma::Track3D::index_of(const pma::Hit3D* hit) const
 {
 	for (size_t i = 0; i < size(); i++)
@@ -472,6 +473,72 @@ std::pair< TVector2, TVector2 > pma::Track3D::WireDriftRange(unsigned int view, 
 	return range;
 }
 
+bool pma::Track3D::Flip(std::vector< pma::Track3D* >& allTracks)
+{
+	if (fNodes.size() < 2) { return true; }
+
+	std::vector< pma::Track3D* > toSort;
+
+	pma::Node3D* n = fNodes.front();
+	if (n->Prev())
+	{
+		pma::Segment3D* s = static_cast< pma::Segment3D* >(n->Prev());
+		pma::Track3D* t = s->Parent();
+
+		if (t->NextSegment(n)) // starts from middle of another track: need to break that one first
+		{
+		    int idx = t->index_of(n);
+		    if (idx >= 0)
+		    {
+    		    pma::Track3D* u = t->Split(idx, false); // u is in front of t
+    		    if (u)
+    		    {
+    		        allTracks.push_back(u);
+    		        if (u->Flip(allTracks))
+    		        {
+                    	InternalFlip(toSort);
+                	    toSort.push_back(this);
+        		    }
+        		    else
+        		    {
+        		        mf::LogWarning("pma::Track3D") << "Flip(): Could not flip after split (but new track is preserved!!).";
+        		        return false;
+        		    }
+    		    }
+    		    else { return false; }  // could not flip/break associated tracks, so give up on this one
+    		}
+    		else { throw cet::exception("pma::Track3D") << "Node not found." << std::endl; }
+		}
+		else // flip root
+		{
+		    if (t->Flip(allTracks)) // all ok, so can flip this track
+		    {
+            	InternalFlip(toSort);
+        	    toSort.push_back(this);
+		    }
+		    else { return false; }  // could not flip/break associated tracks, so give up on this one
+		}
+	}
+	else // simply flip
+	{
+    	InternalFlip(toSort);
+	    toSort.push_back(this);
+	}
+
+   	for (size_t t = 0; t < toSort.size(); t++)
+	{
+		bool sorted = false;
+		for (size_t u = 0; u < t; u++)
+			if (toSort[u] == toSort[t]) { sorted = true; break; }
+		if (!sorted)
+		{
+			toSort[t]->MakeProjection();
+			toSort[t]->SortHits();
+		}
+	}
+	return true;
+}
+
 void pma::Track3D::InternalFlip(std::vector< pma::Track3D* >& toSort)
 {
 	for (size_t i = 0; i < fNodes.size() - 1; i++)
@@ -524,29 +591,17 @@ void pma::Track3D::Flip(void)
 
 bool pma::Track3D::CanFlip(void) const
 {
-	if (!fNodes.size())
-	{
-		//std::cout << "---- track with no nodes ----" << std::endl;
-		return false;
-	}
+	if (!fNodes.size()) { return false; }
 
 	pma::Node3D* n = fNodes.front();
 	if (n->Prev())
 	{
 		pma::Segment3D* s = static_cast< pma::Segment3D* >(n->Prev());
 		pma::Track3D* t = s->Parent();
-		if (t->NextSegment(n))
-		{
-			//std::cout << "starts from middle" << std::endl;
-			return false;
-		} // cannot flip if starts from middle of another track
-		else
-		{
-			//std::cout << "check root" << std::endl;
-			return t->CanFlip();
-		}
+		if (t->NextSegment(n)) { return false; } // cannot flip if starts from middle of another track
+		else { return t->CanFlip(); }            // check root
 	}
-	else return true;
+	else { return true; }
 }
 
 void pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned int n)
@@ -627,6 +682,85 @@ void pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned i
 	}
 }
 
+bool pma::Track3D::AutoFlip(std::vector< pma::Track3D* >& allTracks, pma::Track3D::EDirection dir, double thr, unsigned int n)
+{
+	unsigned int nViews = 3;
+	pma::dedx_map dedxInViews[3];
+	for (unsigned int i = 0; i < nViews; i++)
+	{
+		GetRawdEdxSequence(dedxInViews[i], i, 1);
+	}
+	unsigned int bestView = 2;
+	if (dedxInViews[0].size() > 2 * dedxInViews[2].size()) bestView = 0;
+	if (dedxInViews[1].size() > 2 * dedxInViews[2].size()) bestView = 1;
+
+	std::vector< std::vector<double> > dedx;
+	for (size_t i = 0; i < size(); i++)
+	{
+		auto it = dedxInViews[bestView].find(i);
+		if (it != dedxInViews[bestView].end())
+		{
+			dedx.push_back(it->second);
+		}
+	}
+	if (!dedx.empty()) dedx.pop_back();
+
+	float dEdxStart = 0.0F, dEdxStop = 0.0F;
+	float dEStart = 0.0F, dxStart = 0.0F;
+	float dEStop = 0.0F, dxStop = 0.0F;
+	if (dedx.size() > 4)
+	{
+		if (!n) // use default options
+		{
+			if (dedx.size() > 30) n = 12;
+			else if (dedx.size() > 20) n = 8;
+			else if (dedx.size() > 10) n = 4;
+			else n = 3;
+		}
+
+		size_t k = (dedx.size() - 2) >> 1;
+		if (n > k) n = k;
+
+		for (size_t i = 1, j = 0; j < n; i++, j++)
+		{
+			dEStart += dedx[i][5]; dxStart += dedx[i][6];
+		}
+		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
+
+		for (size_t i = dedx.size() - 2, j = 0; j < n; i--, j++)
+		{
+			dEStop += dedx[i][5]; dxStop += dedx[i][6];
+		}
+		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
+	}
+	else if (dedx.size() == 4)
+	{
+		dEStart = dedx[0][5] + dedx[1][5]; dxStart = dedx[0][6] + dedx[1][6];
+		dEStop = dedx[2][5] + dedx[3][5]; dxStop = dedx[2][6] + dedx[3][6];
+		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
+		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
+
+	}
+	else if (dedx.size() > 1)
+	{
+		if (dedx.front()[2] > 0.0F) dEdxStart = dedx.front()[5] / dedx.front()[6];
+		if (dedx.back()[2] > 0.0F) dEdxStop = dedx.back()[5] / dedx.back()[6];
+	}
+	else return false;
+
+    bool done = false;
+	if ((dir == pma::Track3D::kForward) && ((1.0 + thr) * dEdxStop < dEdxStart))
+	{
+		mf::LogVerbatim("pma::Track3D") << "Auto-flip fired (1), thr: " << (1.0+thr) << ", value: " << dEdxStart/dEdxStop;
+		done = Flip(allTracks);  // particle stops at the end of the track
+	}
+	if ((dir == pma::Track3D::kBackward) && (dEdxStop > (1.0 + thr) * dEdxStart))
+	{
+		mf::LogVerbatim("pma::Track3D") << "Auto-flip fired (2), thr: " << (1.0+thr) << ", value: " << dEdxStop/dEdxStart;
+		done = Flip(allTracks); // particle stops at the front of the track
+	}
+	return done;
+}
 
 double pma::Track3D::TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits, bool normalized) const
 {
@@ -1167,7 +1301,7 @@ bool pma::Track3D::AddNode(void)
 		unsigned int tpc = maxSeg->Hit(i0).TPC();
 		unsigned int cryo = maxSeg->Hit(i0).Cryo();
 
-		pma::Node3D* p = new pma::Node3D((maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5, tpc, cryo);
+		pma::Node3D* p = new pma::Node3D((maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5, tpc, cryo, false, fXShift);
 
 		//mf::LogVerbatim("pma::Track3D") << "add node x:" << p->Point3D().X()
 		//	<< " y:" << p->Point3D().Y() << " z:" << p->Point3D().Z();
@@ -1188,7 +1322,7 @@ void pma::Track3D::InsertNode(
 	unsigned int tpc, unsigned int cryo)
 {
 	//std::cout << " insert after " << at_idx << " in " << fNodes.size() << std::endl;
-	pma::Node3D* vtx = new pma::Node3D(p3d, tpc, cryo);
+	pma::Node3D* vtx = new pma::Node3D(p3d, tpc, cryo, false, fXShift);
 	fNodes.insert(fNodes.begin() + at_idx, vtx);
 	//std::cout << " inserted " << std::endl;
 
@@ -1211,12 +1345,14 @@ bool pma::Track3D::RemoveNode(size_t idx)
 	else return false;
 }
 
-pma::Track3D* pma::Track3D::Split(size_t idx)
+pma::Track3D* pma::Track3D::Split(size_t idx, bool try_start_at_idx)
 {
 	if (!idx || (idx + 1 >= fNodes.size())) return 0;
 
 	pma::Node3D* n = 0;
 	pma::Track3D* t0 = new pma::Track3D();
+	t0->fXShift = fXShift;
+
 	for (size_t i = 0; i < idx; ++i)
 	{
 		n = fNodes.front();
@@ -1238,7 +1374,7 @@ pma::Track3D* pma::Track3D::Split(size_t idx)
 	}
 
 	n = fNodes.front();
-	t0->fNodes.push_back(new pma::Node3D(n->Point3D(), n->TPC(), n->Cryo()));
+	t0->fNodes.push_back(new pma::Node3D(n->Point3D(), n->TPC(), n->Cryo(), false, fXShift));
 	t0->RebuildSegments();
 	RebuildSegments();
 
@@ -1258,25 +1394,27 @@ pma::Track3D* pma::Track3D::Split(size_t idx)
 	bool passed = true;
 	if (HasTwoViews() && t0->HasTwoViews())
 	{
-		mf::LogVerbatim("pma::VtxCandidate") << "  attach trk to trk0";
-		//std::cout << "  split ok, attach src to t0" << std::endl;
-		if (t0->CanFlip())
+		if (try_start_at_idx && t0->CanFlip())
 		{
+		    mf::LogVerbatim("pma::Track3D") << "  attach new t0 and this trk to a common start node";
 			t0->Flip();
 			passed = t0->AttachTo(fNodes.front());
 		}
-		else passed = AttachTo(t0->fNodes.back());
+		else
+		{
+		    mf::LogVerbatim("pma::Track3D") << "  attach this trk to the new t0 end node";
+		    passed = AttachTo(t0->fNodes.back());
+		}
 	}
 	else
 	{
-		mf::LogVerbatim("pma::VtxCandidate") << "  single-view track";
+		mf::LogVerbatim("pma::Track3D") << "  single-view track";
 		passed = false;
 	}
 
 	if (!passed)
 	{
-		mf::LogVerbatim("pma::VtxCandidate") << "  undo split";
-		//std::cout << "  single-view track, undo split" << std::endl;
+		mf::LogVerbatim("pma::Track3D") << "  undo split";
 		while (t0->size()) push_back(t0->release_at(0));
 
 		for (size_t i = 0; i < idx; ++i)
@@ -1419,7 +1557,6 @@ bool pma::Track3D::AttachToSameTPC(pma::Node3D* vStart)
 	if (vtx->NextCount() || vtx->Prev()) // better throw here
 	{
 		throw cet::exception("pma::Track3D") << "Something is still using disconnected vertex.";
-		return false;
 	}
 	else delete vtx; // ok
 	return true;
@@ -1515,11 +1652,39 @@ bool pma::Track3D::AttachBackToSameTPC(pma::Node3D* vStart)
 
 	if (vtx->NextCount() || vtx->Prev())
 	{
-		throw cet::exception("pma::Track3D") << "Something is still using disconnected vertex.";
+		throw cet::exception("pma::Track3D") << "Something is still using disconnected vertex." << std::endl;
 	}
 	else delete vtx; // ok
 
 	return true;
+}
+
+void pma::Track3D::ExtendWith(pma::Track3D* src)
+{
+    if (src->fNodes.front()->Prev())
+    {
+        throw cet::exception("pma::Track3D") << "Cant extend with a track being a daughter of another track." << std::endl;
+    }
+
+    src->DeleteSegments(); // disconnect from vertices and delete
+    for (size_t i = 0; i < src->fNodes.size(); ++i)
+    {
+        fNodes.push_back(src->fNodes[i]);
+
+        size_t idx = fNodes.size() - 1;
+        fSegments.push_back(new pma::Segment3D(this, fNodes[idx - 1], fNodes[idx]));
+    }
+    src->fNodes.clear(); // just empty the node collection
+
+	while (src->size()) { push_back(src->release_at(0)); } // move hits
+
+    for (auto p : src->fAssignedPoints) { fAssignedPoints.push_back(p); } // move 3D reference points
+    src->fAssignedPoints.clear();
+
+	MakeProjection();
+	SortHits();
+
+    delete src;
 }
 
 pma::Track3D* pma::Track3D::GetRoot(void)
@@ -2099,6 +2264,8 @@ void pma::Track3D::ApplyXShiftInTree(double dx, bool skipFirst)
 
 	while (node)
 	{
+	    node->ApplyXShift(dx);
+
 		segThis = NextSegment(node);
 		for (size_t i = 0; i < node->NextCount(); i++)
 		{
@@ -2110,26 +2277,22 @@ void pma::Track3D::ApplyXShiftInTree(double dx, bool skipFirst)
 		else break;
 	}
 
+    for (auto h : fHits) { h->fPoint3D[0] += dx; }
+
+    for (auto p : fAssignedPoints) { (*p)[0] += dx; }
+
 	fXShift += dx;
+}
+
+void pma::Track3D::DeleteSegments(void)
+{
+	for (size_t i = 0; i < fSegments.size(); i++) delete fSegments[i];
+	fSegments.clear();
 }
 
 void pma::Track3D::RebuildSegments(void)
 {
-	for (size_t i = 0; i < fSegments.size(); i++) delete fSegments[i];
-	fSegments.clear();
-
-/*	for (auto n : fNodes)
-	{
-		pma::Segment3D* seg = static_cast< pma::Segment3D* >(n->Prev());
-		if (seg && (seg->Parent() == this)) delete seg;
-
-		for (size_t i = 0; i < n->NextCount(); ++i)
-		{
-			seg = static_cast< pma::Segment3D* >(n->Next(i));
-			if (seg && (seg->Parent() == this)) delete seg;
-		}
-	}
-*/
+	DeleteSegments();
 
 	fSegments.reserve(fNodes.size() - 1);
 	for (size_t i = 1; i < fNodes.size(); i++)

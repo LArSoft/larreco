@@ -42,6 +42,9 @@ void pma::PMAlgVertexing::cleanTracks(void)
 
 	for (auto & t : fEmTracks.tracks()) t.DeleteTrack();
 	fEmTracks.clear();
+
+	for (auto & t : fExcludedTracks.tracks()) t.DeleteTrack();
+	fExcludedTracks.clear();
 }
 // ------------------------------------------------------
 
@@ -59,9 +62,13 @@ void pma::PMAlgVertexing::collectTracks(pma::TrkCandidateColl & result)
 	for (auto const & t : fShortTracks.tracks()) result.push_back(t);
 	fShortTracks.clear();
 
-	mf::LogVerbatim("pma::PMAlgVertexing") << "fill input from em: " << fOutTracks.size() << std::endl;
+	mf::LogVerbatim("pma::PMAlgVertexing") << "fill input from em: " << fEmTracks.size() << std::endl;
 	for (auto const & t : fEmTracks.tracks()) result.push_back(t);
 	fEmTracks.clear();
+
+	mf::LogVerbatim("pma::PMAlgVertexing") << "copy back excluded tracks: " << fExcludedTracks.size() << std::endl;
+	for (auto const & t : fExcludedTracks.tracks()) result.push_back(t);
+	fExcludedTracks.clear();
 }
 // ------------------------------------------------------
 
@@ -71,10 +78,17 @@ void pma::PMAlgVertexing::sortTracks(const pma::TrkCandidateColl & trk_input)
 
 	for (auto const & t : trk_input.tracks())
 	{
-		double l = t.Track()->Length();
-
 		pma::Track3D* copy = new pma::Track3D(*(t.Track()));
 		int key = t.Key();
+		
+		if ((t.Track()->GetXShift() != 0) ||                  // do not create vertices on cosmic muons, now track with any non-zero x-shift is a muon,
+		    (t.Track()->GetTag() == pma::Track3D::kCosmicMu)) // tag for any mu recognized as a cosmic ray is ready, but not yet used
+		{
+		    fExcludedTracks.tracks().emplace_back(copy, key);
+		    continue;
+		}
+
+        double l = t.Track()->Length();
 
 		if (t.Track()->GetTag() == pma::Track3D::kEmLike)
 		{
@@ -89,6 +103,7 @@ void pma::PMAlgVertexing::sortTracks(const pma::TrkCandidateColl & trk_input)
 	}
 	mf::LogVerbatim("pma::PMAlgVertexing") << "long tracks: " << fOutTracks.size() << std::endl;
 	mf::LogVerbatim("pma::PMAlgVertexing") << "em and short tracks: " << fEmTracks.size() << std::endl;
+	mf::LogVerbatim("pma::PMAlgVertexing") << "excluded cosmic tracks: " << fExcludedTracks.size() << std::endl;
 }
 // ------------------------------------------------------
 
