@@ -263,6 +263,7 @@ void nnet::PointIdEffTest::cleanup(void)
     {
         fHitsEM_OK_0p5[i] = 0; fHitsTrack_OK_0p5[i] = 0;
         fHitsEM_OK_0p85[i] = 0; fHitsTrack_OK_0p85[i] = 0;
+        fHitsMichel_OK_0p5[i] = 0; fHitsMichel_False_0p5[i] = 0;
         fHitRecoEM[i] = 0; fHitRecoFractionEM[i] = 0;
     }
 }
