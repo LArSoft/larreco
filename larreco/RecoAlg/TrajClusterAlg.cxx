@@ -945,14 +945,7 @@ namespace tca {
     // Check the associations and set the kNiceVtx bit
     CheckVtxAssociations(tjs, fCTP);
 
-    if(fShowerTag[0] > 0) {
-      FindShowers(tjs, fCTP, fShowerTag);
-      if((CTP_t)fShowerTag[8] == fCTP) {
-        std::cout<<"temp prt\n";
-        debug.Plane = fShowerTag[8];
-        PrintAllTraj("FSo", tjs, debug, USHRT_MAX, tjs.allTraj.size());
-      }
-    }
+    if(fShowerTag[0] > 0) FindShowers(tjs, fCTP, fShowerTag);
     
     // Refine vertices, trajectories and nearby hits
 //    Refine2DVertices();
