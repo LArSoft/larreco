@@ -2,6 +2,7 @@ art_make(
           LIB_LIBRARIES 
 			${FHICLCPP}
 			${CETLIB}
+			${TBB}
         )
 
 install_headers()

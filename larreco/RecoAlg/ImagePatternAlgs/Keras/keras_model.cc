@@ -1,7 +1,11 @@
 #include "keras_model.h"
 
+#include "tbb/parallel_for.h"
+#include "tbb/tbb.h"
+
 #include <iostream>
 #include <fstream>
+#include <chrono>
 #include <algorithm>
 #include <math.h>
 using namespace std;
@@ -302,21 +306,46 @@ keras::DataChunk* keras::LayerConv2D::compute_output(keras::DataChunk* dc) {
   keras::DataChunk2D *out = new keras::DataChunk2D(m_kernels.size(), size_x, size_y, 0);
   auto & y_ret = out->get_3d_rw();
 
-  for(unsigned int j = 0; j < m_kernels.size(); ++j) { // loop over kernels
-    for(unsigned int m = 0; m < im.size(); ++m) { // loope over image depth
+  //auto t1 = std::chrono::high_resolution_clock::now();
 
-      if (m_border_mode == "valid")
+  // Parallelize the kernal calculation
+  tbb::parallel_for( size_t(0), size_t(m_kernels.size()), [&]( size_t j ) {
+
+      for(unsigned int m = 0; m < im.size(); ++m) { // loop over image depth
+	if (m_border_mode == "valid")
           keras::conv_single_depth_valid(y_ret[j], im[m], m_kernels[j][m]);
-      else
+	else
           keras::conv_single_depth_same(y_ret[j], im[m], m_kernels[j][m]);
-    }
-
-    for(unsigned int x = 0; x < y_ret[0].size(); ++x) {
-      for(unsigned int y = 0; y < y_ret[0][0].size(); ++y) {
-        y_ret[j][x][y] += m_bias[j];
       }
-    }
-  }
+
+      for(unsigned int x = 0; x < y_ret[0].size(); ++x) {
+
+	size_t size = y_ret[0][0].size();
+	float bias = m_bias[j];
+	size_t k = 0;
+
+	for(unsigned int y = 0; y < size/8; ++y) {	  
+	  y_ret[j][x][k] += bias; 
+	  y_ret[j][x][k+1] += bias;
+	  y_ret[j][x][k+2] += bias;
+	  y_ret[j][x][k+3] += bias;
+	  y_ret[j][x][k+4] += bias;
+	  y_ret[j][x][k+5] += bias;
+	  y_ret[j][x][k+6] += bias;
+	  y_ret[j][x][k+7] += bias; 
+	  k += 8;
+	}
+	while (k < size) { y_ret[j][x][k] += bias; ++k; }
+      
+      }
+    });
+
+  //auto t2 = std::chrono::high_resolution_clock::now();
+  /*
+  cout << "Parallal : " 
+       << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() 
+       << " microseconds." << endl;
+  */
 
   return out;
 }

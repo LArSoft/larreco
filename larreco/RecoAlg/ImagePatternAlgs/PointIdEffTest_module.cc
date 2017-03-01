@@ -256,6 +256,7 @@ void nnet::PointIdEffTest::cleanup(void)
     fMcFractionEM = 0;
     fHitEM_0p5 = 0; fHitTrack_0p5 = 0;
     fHitEM_0p85 = 0; fHitTrack_0p85 = 0;
+    fHitMichel_0p5 = 0;
     fHitMcFractionEM = 0;
     fTotHit = 0; fCleanHit = 0;
 
@@ -263,6 +264,7 @@ void nnet::PointIdEffTest::cleanup(void)
     {
         fHitsEM_OK_0p5[i] = 0; fHitsTrack_OK_0p5[i] = 0;
         fHitsEM_OK_0p85[i] = 0; fHitsTrack_OK_0p85[i] = 0;
+        fHitsMichel_OK_0p5[i] = 0; fHitsMichel_False_0p5[i] = 0;
         fHitRecoEM[i] = 0; fHitRecoFractionEM[i] = 0;
     }
 }

@@ -682,6 +682,85 @@ void pma::Track3D::AutoFlip(pma::Track3D::EDirection dir, double thr, unsigned i
 	}
 }
 
+bool pma::Track3D::AutoFlip(std::vector< pma::Track3D* >& allTracks, pma::Track3D::EDirection dir, double thr, unsigned int n)
+{
+	unsigned int nViews = 3;
+	pma::dedx_map dedxInViews[3];
+	for (unsigned int i = 0; i < nViews; i++)
+	{
+		GetRawdEdxSequence(dedxInViews[i], i, 1);
+	}
+	unsigned int bestView = 2;
+	if (dedxInViews[0].size() > 2 * dedxInViews[2].size()) bestView = 0;
+	if (dedxInViews[1].size() > 2 * dedxInViews[2].size()) bestView = 1;
+
+	std::vector< std::vector<double> > dedx;
+	for (size_t i = 0; i < size(); i++)
+	{
+		auto it = dedxInViews[bestView].find(i);
+		if (it != dedxInViews[bestView].end())
+		{
+			dedx.push_back(it->second);
+		}
+	}
+	if (!dedx.empty()) dedx.pop_back();
+
+	float dEdxStart = 0.0F, dEdxStop = 0.0F;
+	float dEStart = 0.0F, dxStart = 0.0F;
+	float dEStop = 0.0F, dxStop = 0.0F;
+	if (dedx.size() > 4)
+	{
+		if (!n) // use default options
+		{
+			if (dedx.size() > 30) n = 12;
+			else if (dedx.size() > 20) n = 8;
+			else if (dedx.size() > 10) n = 4;
+			else n = 3;
+		}
+
+		size_t k = (dedx.size() - 2) >> 1;
+		if (n > k) n = k;
+
+		for (size_t i = 1, j = 0; j < n; i++, j++)
+		{
+			dEStart += dedx[i][5]; dxStart += dedx[i][6];
+		}
+		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
+
+		for (size_t i = dedx.size() - 2, j = 0; j < n; i--, j++)
+		{
+			dEStop += dedx[i][5]; dxStop += dedx[i][6];
+		}
+		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
+	}
+	else if (dedx.size() == 4)
+	{
+		dEStart = dedx[0][5] + dedx[1][5]; dxStart = dedx[0][6] + dedx[1][6];
+		dEStop = dedx[2][5] + dedx[3][5]; dxStop = dedx[2][6] + dedx[3][6];
+		if (dxStart > 0.0F) dEdxStart = dEStart / dxStart;
+		if (dxStop > 0.0F) dEdxStop = dEStop / dxStop;
+
+	}
+	else if (dedx.size() > 1)
+	{
+		if (dedx.front()[2] > 0.0F) dEdxStart = dedx.front()[5] / dedx.front()[6];
+		if (dedx.back()[2] > 0.0F) dEdxStop = dedx.back()[5] / dedx.back()[6];
+	}
+	else return false;
+
+    bool done = false;
+	if ((dir == pma::Track3D::kForward) && ((1.0 + thr) * dEdxStop < dEdxStart))
+	{
+		mf::LogVerbatim("pma::Track3D") << "Auto-flip fired (1), thr: " << (1.0+thr) << ", value: " << dEdxStart/dEdxStop;
+		done = Flip(allTracks);  // particle stops at the end of the track
+	}
+	if ((dir == pma::Track3D::kBackward) && (dEdxStop > (1.0 + thr) * dEdxStart))
+	{
+		mf::LogVerbatim("pma::Track3D") << "Auto-flip fired (2), thr: " << (1.0+thr) << ", value: " << dEdxStop/dEdxStart;
+		done = Flip(allTracks); // particle stops at the front of the track
+	}
+	return done;
+}
 
 double pma::Track3D::TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits, bool normalized) const
 {
