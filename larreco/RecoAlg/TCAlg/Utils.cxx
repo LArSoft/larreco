@@ -1922,40 +1922,37 @@ namespace tca {
             continue;
           }
           float delta;
-          // find delta using the trajectory with the highest charge. Also check to see if the direction of the higher
+          // find delta using the trajectory with the highest charge. The error on delta should be calculated
+          // more carefully here. For now just assume that the error is the largest DeltaRMS of the higher charge shower
+          float deltaErr = 0;
+          // Also check to see if the direction of the higher
           // charge Tj is towards the lower charge Tj
           bool chgOK = false;
-          float chgrat;
-          float minSep;
-          if(sepi0j2 < sepi2j0) {
-            minSep = sepi0j2;
-          } else {
-            minSep = sepi2j0;
-          }
           if(iChg > jChg) {
             delta = PointTrajDOCA(tjs, jtj.Pts[1].Pos[0], jtj.Pts[1].Pos[1], itj.Pts[1]);
             TrajPoint itoj;
             MakeBareTrajPoint(tjs, itj.Pts[1], jtj.Pts[1], itoj);
             chgOK = (std::abs(itj.Pts[1].Ang - itoj.Ang) < M_PI / 2);
-            chgrat = iChg / jChg;
+            for(auto& pt : itj.Pts) if(pt.DeltaRMS > deltaErr) deltaErr = pt.DeltaRMS;
           } else {
             delta = PointTrajDOCA(tjs, itj.Pts[1].Pos[0], itj.Pts[1].Pos[1], jtj.Pts[1]);
             TrajPoint jtoi;
             MakeBareTrajPoint(tjs, jtj.Pts[1], itj.Pts[1], jtoi);
             chgOK = (std::abs(jtj.Pts[1].Ang - jtoi.Ang) < M_PI / 2);
-            chgrat = jChg / iChg;
+            for(auto& pt : jtj.Pts) if(pt.DeltaRMS > deltaErr) deltaErr = pt.DeltaRMS;
           }
           float dang = DeltaAngle(itj.Pts[1].Ang, jtj.Pts[1].Ang);
+          // estimate the error on the relative angle between the showers
           float dangErr = sqrt(itj.Pts[1].Ang * itj.Pts[1].Ang + jtj.Pts[1].Ang * jtj.Pts[1].Ang);
           float dangSig = dang / dangErr;
-          std::cout<<"Merge candidate dang "<<dang<<" chgrat "<<chgrat<<" delta "<<delta<<" minSep "<<minSep<<"\n";
+          float deltaSig = delta / deltaErr;
           if(prt) {
-            mf::LogVerbatim("TC")<<" merge candidates dang "<<dang<<" dangSig "<<dangSig<<" delta "<<delta<<" chgOK? "<<chgOK;
+            mf::LogVerbatim("TC")<<" merge candidates dang "<<dang<<" dangSig "<<dangSig<<" delta "<<delta<<" deltaErr "<<deltaErr<<" deltaSig "<<deltaSig<<" chgOK? "<<chgOK;
             PrintTrajectory("itj", tjs, itj, USHRT_MAX);
             PrintTrajectory("jtj", tjs, jtj, USHRT_MAX);
           }
           // These cuts could use more care
-          if(dangSig > 2 || !chgOK || delta > 20) continue;
+          if(dangSig > 2 || !chgOK || deltaSig > 2) continue;
           // Merge em. Put all the InShower Tjs in the higher charge shower Tj
           if(iChg > jChg) {
             iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.end());
