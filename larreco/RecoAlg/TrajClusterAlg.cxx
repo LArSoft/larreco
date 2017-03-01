@@ -461,7 +461,16 @@ namespace tca {
       // Print summary of all TJs
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
-
+/*
+    unsigned short ntj = 0;
+    unsigned short nsh = 0;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      ++ntj;
+      if(tj.AlgMod[kShowerTj]) ++nsh;
+    } // tj
+    std::cout<<"RTC done ntj "<<ntj<<" nsh "<<nsh<<"\n";
+*/
     if(fStudyMode) {
 /*
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
@@ -3551,7 +3560,7 @@ namespace tca {
     // temp vector of all 2D vertex matches
     std::vector<Vtx3Store> v3temp;
     
-    TVector3 WPos = {0, 0, 0};
+//    TVector3 WPos = {0, 0, 0};
     TrajPoint tp;
     // i, j, k indicates 3 different wire planes
     // compare vertices in each view
@@ -3594,14 +3603,12 @@ namespace tca {
             } else {
               continue;
             }
-            WPos[1] = y;
-            WPos[2] = z;
             unsigned short kpl = 3 - ipl - jpl;
             float kX = 0.5 * (vX[ivx] + vX[jvx]);
             float kWire = -1;
             if(TPC.Nplanes() > 2) {
-              kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
-              if((unsigned int)kWire > tjs.NumWires[kpl]) continue;
+              kWire = geom->WireCoordinate(y, z, kpl, tpc, cstat) + 0.5;
+              if(kWire < 0 || (unsigned int)kWire > tjs.NumWires[kpl]) continue;
               tp.Pos[0] = kWire;
               // See if there is a wire signal nearby in kpl
               tp.Pos[1] = detprop->ConvertXToTicks(kX, kpl, fTpc, fCstat) * tjs.UnitsPerTick;
@@ -4254,7 +4261,6 @@ namespace tca {
       } // No 3D vertex assignment exists at either end
       
       // Reverse trajectories as necessary so that EndPt[0] is at the sXYZ end
-      double wpos[3] = {0, ms.sXYZ[1], ms.sXYZ[2]};
       std::array<float, 2> vpos;
       for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
         unsigned short itj = ms.TjIDs[ii] - 1;
@@ -4263,8 +4269,8 @@ namespace tca {
         unsigned short endPt1 = tj.EndPt[1];
         // Project sXYZ to this plane coordinate system
         geo::PlaneID planeID = DecodeCTP(tj.CTP);
-        vpos[0] = geom->NearestWire(wpos, planeID.Plane, tpc, cstat);
-        if((unsigned int)vpos[0] > tjs.NumWires[planeID.Plane]) continue;
+        vpos[0] = geom->WireCoordinate(ms.sXYZ[1], ms.sXYZ[2], planeID) + 0.5;
+        if(vpos[0] < 0 || (unsigned int)vpos[0] > tjs.NumWires[planeID.Plane]) continue;
         vpos[1] = detprop->ConvertXToTicks(ms.sXYZ[0], planeID.Plane, tpc, cstat) * tjs.UnitsPerTick;
         // Reverse if end 0 is further away from vpos than end 1
         if(PosSep2(tj.Pts[endPt0].Pos, vpos) > PosSep2(tj.Pts[endPt1].Pos, vpos)) ReverseTraj(tjs, tj);
