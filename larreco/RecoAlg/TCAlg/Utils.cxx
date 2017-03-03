@@ -1471,6 +1471,8 @@ namespace tca {
       if(tj1.AlgMod[kInShower]) continue;
       // ignore muons
       if(tj1.PDGCode == 13) continue;
+      // ignore stubby Tjs
+      if(tj1.Pts.size() < 3) continue;
       // Cut on length and MCSMom
       if(tj1.Pts.size() < 3) continue;
       if(tj1.MCSMom > maxMCSMom) continue;
@@ -1489,6 +1491,8 @@ namespace tca {
         if(tj2.AlgMod[kInShower]) continue;
         // ignore muons
         if(tj2.PDGCode == 13) continue;
+        // ignore stubby Tjs
+        if(tj2.Pts.size() < 3) continue;
         // Cut on length and MCSMom
         if(tj2.MCSMom > maxMCSMom) continue;
         unsigned short ipt1, ipt2;
@@ -1756,8 +1760,12 @@ namespace tca {
     if(ss.TjIDs.empty()) return;
     // Reference the Tp charge center of the shower Tj
     TrajPoint& stp = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
-    // Construct a Figure of Merit for finding the parent which is the DOCA * DeltaAngle * delta / max separation
+    // Construct a Figure of Merit for finding the parent which is the DOCA * DeltaAngle * delta / min parent length
     ss.ParentFOM = fShowerTag[2] * 0.5 * 10 / (float)minParentLength;
+    // divide the FOM by an expected value. The parent length will vary
+    // Ave DOCA = 6, Ave IP = 4, Ave dAng = 0.2
+    // Assume the average parent length is 10 points
+    float fomScale = 6 * 0.2 * 4 / 10;
     ss.FailedParentFOM = ss.ParentFOM;
     
     for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
@@ -1859,6 +1867,7 @@ namespace tca {
       // Here we divide by the maximum separation^2 to preferentially select as a parent the
       // one that has the furthest distance from the charge center
       float fom = dang * delta / (npwc * maxSep);
+      fom /= fomScale;
       if(prt) mf::LogVerbatim("TC")<<"FSP: tj.ID "<<tj.ID<<" maxSep "<<maxSep<<" dang  "<<dang<<" delta "<<delta<<" npwc "<<npwc<<" fom  "<<fom;
       if(fom < ss.ParentFOM) {
         ss.ParentTrajID = tj.ID;
@@ -2213,6 +2222,14 @@ namespace tca {
     ss.Envelope[2][1] = -ss.Envelope[1][1];
     ss.Envelope[3][0] =  ss.Envelope[0][0];
     ss.Envelope[3][1] = -ss.Envelope[0][1];
+    
+    // Find the aspect ratio
+  
+    ss.EnvelopeLength = ss.Envelope[1][0] - ss.Envelope[0][0];
+    float width  = ss.Envelope[1][1] + ss.Envelope[0][1];
+    ss.EnvelopeArea = ss.EnvelopeLength * width;
+    ss.EnvelopeAspectRatio = width / ss.EnvelopeLength;
+    
     // Rotate into the stp1 coordinate system
     float cs = cos(stp1.Ang);
     float sn = sin(stp1.Ang);
@@ -2224,6 +2241,8 @@ namespace tca {
       vtx[0] = pos0 + stp1.Pos[0];
       vtx[1] = pos1 + stp1.Pos[1];
     } // vtx
+    // Find the charge density inside the envelope
+    ss.ChgDensity = (stp0.Chg + stp1.Chg + stp2.Chg) / ss.EnvelopeArea;
 
   } // DefineShowerEnvelope  
 
@@ -2995,6 +3014,8 @@ namespace tca {
           mf::LogVerbatim myprt("TC");
           myprt<<someText<<" Envelope";
           for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+          myprt<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio;
+          myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
           myprt<<" Tjs";
           for(auto& tjID : ss.TjIDs) {
             myprt<<" "<<tjID;
