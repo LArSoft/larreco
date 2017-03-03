@@ -53,28 +53,36 @@ namespace tca {
     fEP_T[2] = tfs->make<TProfile>("EP_T_Pi","EP vs T(MeV) - Pions", 20, 0, 1000);
     fEP_T[3] = tfs->make<TProfile>("EP_T_Ka","EP vs T(MeV) - Kaons", 20, 0, 1000);
     fEP_T[4] = tfs->make<TProfile>("EP_T_Pr","EP vs T(MeV) - Protons", 20, 0, 1000);
-/*
-    fDeltaN[0] = tfs->make<TH1F>("DeltaN0","Normalized Delta Pln 0", 50, 0, 4);
-    fDeltaN[1] = tfs->make<TH1F>("DeltaN1","Normalized Delta Pln 1", 50, 0, 4);
-    fDeltaN[2] = tfs->make<TH1F>("DeltaN2","Normalized Delta Pln 2", 50, 0, 4);
+    
+    
+    // Shower histos
+    int nbins = 10;
+    fShMCSMom_Energy = tfs->make<TProfile>("MCSMom_Energy","MCSMom vs Electron Energy", nbins, 0, 1000);
+    fShnTjs_Energy = tfs->make<TProfile>("nTjs_Energy","nTjs vs Electron Energy", nbins, 0, 1000);
+    fShAspectRatio_Energy = tfs->make<TProfile>("AspectRatio_Energy","AspectRatio vs Electron Energy", nbins, 0, 1000);
+    fShChg_Energy[0] = tfs->make<TProfile>("Chg0_Energy","Chg Pln0 vs Electron Energy", nbins, 0, 1000);
+    fShChg_Energy[1] = tfs->make<TProfile>("Chg1_Energy","Chg Pln1 vs Electron Energy", nbins, 0, 1000);
+    fShChg_Energy[2] = tfs->make<TProfile>("Chg2_Energy","Chg Pln2 vs Electron Energy", nbins, 0, 1000);
+    fShChgDensity_Energy = tfs->make<TProfile>("ChgDensity_Energy","ChgDensity vs Electron Energy", nbins, 0, 1000);
+    fShLength_Energy = tfs->make<TProfile>("Length_Energy","Length vs Electron Energy", nbins, 0, 1000);
+    fShEP_Energy = tfs->make<TProfile>("EP_Energy","EP vs Electron Energy", nbins, 0, 1000);
+    fParentLength_Energy = tfs->make<TProfile>("ParentLength_Energy","Parent Length Energy", nbins, 0, 1000);
 
-    fHitRMS[0] = tfs->make<TH1F>("hitrms0","Hit RMS Pln 0", 80, 0, 20);
-    fHitRMS[1] = tfs->make<TH1F>("hitrms1","Hit RMS Pln 1", 80, 0, 20);
-    fHitRMS[2] = tfs->make<TH1F>("hitrms2","Hit RMS Pln 2", 80, 0, 20);
+    fShMCSMom = tfs->make<TH1F>("MCSMom","InShower Tj MCSMom", 100 ,  0, 200);
+    fShChgDensity = tfs->make<TH1F>("ChgDensity","ChgDensity", 20, 0, 20);
+    fShAspectRatio = tfs->make<TH1F>("AspectRatio","AspectRatio", 30, 0, 3);
+    fShAspectRatio2 = tfs->make<TH1F>("AspectRatio2","AspectRatio2", 50, -1, 1);
+    fDOCA = tfs->make<TH1F>("DOCA","Min DOCA", 100, 0, 100);
+    fParentFOM = tfs->make<TH1F>("ParentFOM","Parent FOM", 100, 0, 10);
 
-    fTPWidth_Angle[0] = tfs->make<TH2F>("tpwidth_angle0","TP hit width vs Angle Pln 0", 20, 0, M_PI/2, 20, 0, 200);
-    fTPWidth_Angle[1] = tfs->make<TH2F>("tpwidth_angle1","TP hit width vs Angle Pln 1", 20, 0, M_PI/2, 20, 0, 200);
-    fTPWidth_Angle[2] = tfs->make<TH2F>("tpwidth_angle2","TP hit width vs Angle Pln 2", 20, 0, M_PI/2, 20, 0, 200);
-
-    fTPWidth_AngleP[0] = tfs->make<TProfile>("tpwidth_anglep0","TP hit width vs Angle Pln 0", 10, 0, M_PI/2, "S");
-    fTPWidth_AngleP[1] = tfs->make<TProfile>("tpwidth_anglep1","TP hit width vs Angle Pln 1", 10, 0, M_PI/2, "S");
-    fTPWidth_AngleP[2] = tfs->make<TProfile>("tpwidth_anglep2","TP hit width vs Angle Pln 2", 10, 0, M_PI/2, "S");
-
-    fExpect_Angle[0] = tfs->make<TProfile>("expect_angle0","Expected width vs Angle Pln 0", 11, 0, M_PI/2, "S");
-    fExpect_Angle[1] = tfs->make<TProfile>("expect_angle1","Expected width vs Angle Pln 1", 11, 0, M_PI/2, "S");
-    fExpect_Angle[2] = tfs->make<TProfile>("expect_angle2","Expected width vs Angle Pln 2", 11, 0, M_PI/2, "S");
-*/
-    fMCSMom_Length = tfs->make<TH2F>("MCSMom_Length","MCSMom vs Length", 50, 0, 100, 50, 0, 1000);
+    fShPrimIP = tfs->make<TH1F>("ShPrimIP","Primary TP - Shower TP Impact Parameter", 100, 0, 10);
+    fShPrimIP_Energy = tfs->make<TProfile>("ShPrimIP_Energy","Primary TP - Shower TP Impact Parameter vs Energy", nbins, 0, 1000);
+    
+    fShTPAngAve[0] = tfs->make<TH1F>("TPAngAve0","Ave TP Angle Pln 0", 100, -1, 1);
+    fShTPAngAve[1] = tfs->make<TH1F>("TPAngAve1","Ave TP Angle Pln 1", 100, -1, 1);
+    fShTPAngAve[2] = tfs->make<TH1F>("TPAngAve2","Ave TP Angle Pln 2", 100, -1, 1);
+    
+    // End of shower histos
 
     fMCSMom_TruMom_e = tfs->make<TH2F>("MCSMom_TruMom_e","MCSMom vs Tru Mom electrons", 50, 0, 100, 50, 0, 1000);
     fMCSMom_TruMom_mu = tfs->make<TH2F>("MCSMom_TruMom_mu","MCSMom vs Tru Mom electrons", 50, 0, 1000, 50, 0, 1000);
@@ -461,7 +469,7 @@ namespace tca {
       // Print summary of all TJs
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
-/*
+
     unsigned short ntj = 0;
     unsigned short nsh = 0;
     for(auto& tj : tjs.allTraj) {
@@ -469,79 +477,102 @@ namespace tca {
       ++ntj;
       if(tj.AlgMod[kShowerTj]) ++nsh;
     } // tj
-    std::cout<<"RTC done ntj "<<ntj<<" nsh "<<nsh<<"\n";
-*/
+    std::cout<<"RTC done ntj "<<ntj<<" nsh "<<nsh<<" events processed "<<fEventsProcessed<<"\n";
+
     if(fStudyMode) {
-/*
-      for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-        if(tjs.fHits[iht].Multiplicity != 1) continue;
-        if(tjs.fHits[iht].GoodnessOfFit < 0) continue;
-        if(tjs.fHits[iht].GoodnessOfFit > 50) continue;
-        unsigned short ipl = tjs.fHits[iht].WireID.Plane;
-        fHitRMS[ipl]->Fill(tjs.fHits[iht].RMS);
-      } // iht
-*/
-      unsigned short nstj = 0;
-      unsigned short nOkEnvelope = 0;
-      for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
-        Trajectory& tj1 = tjs.allTraj[it1];
+      // shower stuff
+      // count the number of showers in each plane
+      std::vector<unsigned short> nShInPln(3);
+      for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
+        ShowerStruct& ss = tjs.cots[ict];
+        if(ss.TjIDs.empty()) continue;
+        ++nShInPln[ss.CTP];
+      } // ict
+      for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
+        ShowerStruct& ss = tjs.cots[ict];
+        if(ss.TjIDs.empty()) continue;
+        // require only one shower in the plane
+        if(nShInPln[ss.CTP] != 1) continue;
+        unsigned short itj = ss.ShowerTjID - 1;
+        Trajectory& stj = tjs.allTraj[itj];
+        float ep = 0;
+        if(ss.ParentTrajID > 0) ep = tjs.allTraj[ss.ParentTrajID - 1].EffPur;
+        // source particle energy in MeV
+        float spe = 1000 * sourceParticleEnergy;
+        std::cout<<"sPE "<<(int)spe;
+        float aveMom = 0;
+        short maxMom = 0;
+        float aveNN = 0;
+        for(auto& tjID : ss.TjIDs) {
+          unsigned short itj = tjID - 1;
+          float mom = tjs.allTraj[itj].MCSMom;
+          fShMCSMom_Energy->Fill(spe, (float)tjs.allTraj[itj].MCSMom);
+          fShMCSMom->Fill((float)tjs.allTraj[itj].MCSMom);
+          if(mom < 0) mom = 0;
+          if(mom > maxMom) maxMom = mom;
+          aveMom += mom;
+          aveNN += tjs.allTraj[itj].NNeighbors;
+        } // tjID
+        aveMom /= (float)ss.TjIDs.size();
+        aveNN /= (float)ss.TjIDs.size();
+        fShnTjs_Energy->Fill(spe, (float)ss.TjIDs.size());
+        fShAspectRatio_Energy->Fill(spe, ss.EnvelopeAspectRatio);
+        fShAspectRatio->Fill(ss.EnvelopeAspectRatio);
+        float totChg = stj.Pts[0].Chg + stj.Pts[1].Chg + stj.Pts[2].Chg;
+        fShChg_Energy[ss.CTP]->Fill(spe, totChg);
+        fShChgDensity_Energy->Fill(spe, ss.ChgDensity);
+        fShLength_Energy->Fill(spe, ss.EnvelopeLength);
+        fShChgDensity->Fill(ss.ChgDensity);
+        fShEP_Energy->Fill(spe, ep);
+        float aspect2 = (stj.Pts[2].DeltaRMS - stj.Pts[0].DeltaRMS) / ss.EnvelopeLength;
+        fShAspectRatio2->Fill(aspect2);
+        fShTPAngAve[ss.CTP]->Fill(ss.TPAngAve);
+        if(ss.ParentTrajID > 0) {
+          unsigned short iptj = ss.ParentTrajID - 1;
+          unsigned short endPt = tjs.allTraj[iptj].EndPt[ss.ParentTrajEnd];
+          TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
+          float ip = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], ptp);
+          fShPrimIP->Fill(ip);
+          fShPrimIP_Energy->Fill(spe, ip);
+          fParentLength_Energy->Fill(spe, (float)tjs.allTraj[iptj].Pts.size());
+          fParentFOM->Fill(ss.ParentFOM);
+        }
+        std::cout<<" "<<stj.ID<<"_"<<stj.CTP<<" nTjIDs "<<ss.TjIDs.size()<<" AveMom "<<(int)aveMom<<" maxMom "<<maxMom;
+        std::cout<<" aveNN "<<std::fixed<<std::setprecision(1)<<aveNN;
+        for(auto& vtx : ss.Envelope) std::cout<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+        std::cout<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio<<" aspect2 "<<aspect2;
+        std::cout<<" Chg "<<(int)totChg<<" ChgDensity "<<std::fixed<<std::setprecision(1)<<ss.ChgDensity;
+        std::cout<<" EffPur "<<ep;
+        std::cout<<"\n";
+      } // ict
+      // histogram Tj separation
+      float minDOCA = 5000;
+      for(unsigned short itj = 0; itj < tjs.allTraj.size() - 1; ++itj) {
+        Trajectory& tj1 = tjs.allTraj[itj];
         if(tj1.AlgMod[kKilled]) continue;
-        float close = 50;
-        unsigned short imclose = 0;
-        for(unsigned short it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
-          if(it1 == it2) continue;
-          Trajectory& tj2 = tjs.allTraj[it2];
+        if(tj1.Pts.size() < 3) continue;
+        for(unsigned short jtj = itj + 1; jtj < tjs.allTraj.size(); ++jtj) {
+          Trajectory& tj2 = tjs.allTraj[jtj];
           if(tj2.AlgMod[kKilled]) continue;
           if(tj2.CTP != tj1.CTP) continue;
-          float doca = 50;
+          if(tj2.Pts.size() < 3) continue;
+          float doca = 5000;
           unsigned short ipt1, ipt2;
-          TrajTrajDOCA(tjs, tj1, tjs.allTraj[it2], ipt1, ipt2, doca);
-          if(doca < close) {
-            close = doca;
-            imclose = tjs.allTraj[it2].ID;
-          }
+          TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca);
+          if(doca < minDOCA) minDOCA = doca;
         } // jtj
-        mf::LogVerbatim("TC")<<"stj "<<tj1.ID<<" Pos "<<tj1.CTP<<":"<<PrintPos(tjs, tj1.Pts[0])<<" MCSMom "<<tj1.MCSMom<<" npts "<<tj1.Pts.size()<<" close "<<close<<" imclose "<<imclose<<" NN "<<tj1.NNeighbors;
-        if(tj1.AlgMod[kShowerTj]) {
-          if(tj1.Pts[0].Delta < tj1.Pts[2].Delta) ++nOkEnvelope;
-          ++nstj;
-        } else {
-          // look at the indivual tjs
-        }
+        fDOCA->Fill(minDOCA);
       } // itj
-      std::cout<<"Nshower Tj in event "<<nstj<<" nOkEnvelope "<<nOkEnvelope<<" SPE "<<sourceParticleEnergy<<"\n";
+      // end of shower stuff
+      
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         Trajectory& tj = tjs.allTraj[itj];
         if(tj.AlgMod[kKilled]) continue;
-/*
-        // TP hit width plots
-        unsigned short ipl = tj.CTP;
-        for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-          TrajPoint& tp = tj.Pts[ipt];
-          if(tp.Chg == 0) continue;
-          float dang = tp.Ang;
-          if(dang > M_PI) dang = M_PI;
-          if(dang < -M_PI) dang = M_PI;
-          if(dang < 0) dang = -dang;
-          if(dang > M_PI/2) dang = M_PI - dang;
-          // width of all used hits in this tp
-          float hitWid = TPHitsRMSTick(tjs, tp, kAllHits);
-          fTPWidth_Angle[ipl]->Fill(dang, hitWid);
-          fTPWidth_AngleP[ipl]->Fill(dang, hitWid);
-          float expect = fAveHitRMS[ipl];
-          if(std::abs(tp.Dir[0]) > 0.001) expect += std::abs(tp.Dir[1]/tp.Dir[0])/tjs.UnitsPerTick;
-          fExpect_Angle[ipl]->Fill(dang, expect);
-//          std::cout<<dang<<" "<<hitWid<<" "<<expect<<" Dir0 "<<tp.Dir[0]<<"\n";
-          float dn = tp.Delta / fHitErrFac;
-          if(dn > 0) fDeltaN[ipl]->Fill(dn);
-        } // ipt
-*/
         // reco MCSMom vs reco range
         float len = TrajLength(tj);
         if(len > 99) len = 99;
         // ignore really short Tjs
         if(len < 2) continue;
-        fMCSMom_Length->Fill(len, tj.MCSMom);
         if(tj.TruKE == 0) continue;
         // some reco-truth histos
         unsigned short pdg = std::abs(tj.TruPDG);
@@ -6168,8 +6199,19 @@ namespace tca {
     
     // Set the lastPT delta before doing the fit
     lastTP.Delta = PointTrajDOCA(tjs, lastTP.HitPos[0], lastTP.HitPos[1], lastTP);
-    // update MCSMom
-    tj.MCSMom = MCSMom(tjs, tj);
+    
+    // update MCSMom. First ensure that nothing bad has happened
+    float newMCSMom = MCSMom(tjs, tj);
+    if(lastPt > 5 && newMCSMom < 0.6 * tj.MCSMom) {
+      if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: MCSMom took a nose-dive ";
+      UnsetUsedHits(tjs, lastTP);
+      DefineHitPos(lastTP);
+      SetEndPoints(tjs, tj);
+      fMaskedLastTP = true;
+      fUpdateTrajOK = true;
+      return;
+    }
+    tj.MCSMom = newMCSMom;
     
     if(prt) {
       mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleRange "<<AngleRange(lastTP)<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
