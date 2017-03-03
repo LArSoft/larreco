@@ -300,7 +300,19 @@ void pma::TrkCandidateColl::flipTreesByDQdx(void)
 		{
 			pma::Track3D* trk = tEntry.second[i-1];
 			if (trk->CanFlip())
-				trk->AutoFlip(pma::Track3D::kForward, 0.15);
+			{
+    			trk->AutoFlip(pma::Track3D::kForward, 0.15);
+            }
+
+            // This could e.g. break muon by delta ray, so for
+            // the moment use conservative way and think of
+            // a better strategy...
+			//std::vector< pma::Track3D* > newTracks;
+			//trk->AutoFlip(newTracks, pma::Track3D::kForward, 0.15);
+			//for (const auto ts : newTracks)
+            //{
+            //    fCandidates.emplace_back(ts, -1, tEntry.first);
+            //}
 		}
 	}
 }
