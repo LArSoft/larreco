@@ -186,13 +186,18 @@ namespace tca {
     float TPAngAve {0};                             // Average angle of all InShower Tj points
     float TPAngErr {0.5};
     std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
+    float EnvelopeArea;
+    float EnvelopeLength;
+    float ChgDensity {0};                   // Charge density inside the Envelope
+    float EnvelopeAspectRatio {0};
     unsigned short ParentTrajID {0};    // ID of the shower Tj parent
     unsigned short ParentTrajEnd {0};           // the Start end of the parent trajectory
-    float ParentFOM;                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
+    float ParentFOM {100};                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
     // Allow for an alternate parent that is not quite as good
     unsigned short FailedParentTrajID {0};    // ID of the next most likely shower Tj parent
     unsigned short FailedParentTrajEnd {0};           // the Start end of the parent trajectory
     float FailedParentFOM;                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
+    float ShowerFOM {100};
   };
 
   // Algorithm modification bits
