@@ -396,6 +396,9 @@ namespace trkf{
 	sp_hits.push_back(ihit1->second);
 	double hitcoord[3];
 	double length1 = 0;
+	hitcoord[0] = -1e10;
+	hitcoord[1] = -1e10;
+	hitcoord[2] = -1e10;
 	if (vtimemap[iclu1].size()==1){
 	  length1 = wire_pitch;
 	}
