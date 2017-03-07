@@ -28,8 +28,6 @@ namespace trkf {
    * Inputs are: track object, associated hits, and momentum estimate.
    * Output are: resulting track and associated hits. The resulting track will feature covariance matrices at start and end positions.
    *
-   * Note: the fit assumes the track direction to be towards increasing z.
-   *
    */
 
   class TrackKalmanFitter {
@@ -65,7 +63,7 @@ namespace trkf {
       };
     };
     using Parameters = fhicl::Table<Config>;
-    
+
     TrackKalmanFitter(const TrackStatePropagator* prop, bool useRMS, bool sortHitsByPlane, bool sortOutputHitsMinLength, bool skipNegProp, float hitErr2ScaleFact, int dumpLevel){
       propagator=prop;
       useRMS_=useRMS;
@@ -78,7 +76,7 @@ namespace trkf {
     }
     explicit TrackKalmanFitter(const TrackStatePropagator* prop, Parameters const & p)
       : TrackKalmanFitter(prop,p().useRMS(),p().sortHitsByPlane(),p().sortOutputHitsMinLength(),p().skipNegProp(),p().hitErr2ScaleFact(),p().dumpLevel()) {}
-    
+
     bool fitTrack(const recob::Trajectory& track, int tkID,
 		  const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
 		  const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,

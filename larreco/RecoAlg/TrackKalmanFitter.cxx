@@ -10,52 +10,6 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-/*
-
-  TO DO LIST
-
-  - document stuff!
-  - measure timing and compare with old version
-  - produce results, check residuals vs plane and in data. verify how to extract resolution
-  x double check jacobians, understand hasMomentum for jacobians (when to use it?)
-  +
-  + check again fit failures
-  + check various fixme in the code for more todo...
-  + add print/dump functions
-  + restore old propagator and interactor
-  + Rename PropagatorToPlane to TrackStatePropagator
-  + KalmanTrackFitter should work also with Trajectory and TrackTrajectory as input
-  + it should create Assn to the original trajectory
-  + Find a way to make propagator smarter in terms of the number of steps to do in one propagation (possibly remove maxStep, maybe check with only one iteration)
-  + avoid redoing the same calculcation over and over in interactor
-  + add bool to decide whether to write residuals or not
-  + add check on number of valid points
-  + understand propagation difference to old version
-  + try noise without 'regularization term' (no visible difference)
-  + double check tracking plane after fix, add function taking 6d parameters to distinguish from momentum?
-  + fix event display to check at least NoPoint flag
-  + check fit failures
-  + add hit meta data
-  + check what is the meaning of hittpindex
-  + remove tracking types that are not used
-  + add option to try fallback fit withtout rejecting hits in case of failure
-  + check on input if there are bad flags
-  + fitTrack should not reject hits but should rather set the flags
-  + Update propagator so that copies are minimized (propagate should return the object)
-  + Create a method for propagation in place
-  + Make sure bools are returned for failures (propagation, state update, state combine)
-  + Update name of propagator class
-  + Revisit TrackFitMeasurement to minimize copies and avoid duplicate information (plane? make sure hit and track state are on the same plane)
-  + Revisit KFTrackState so that it makes sense both for propagated and updates states (add bool?)
-  + Revisit fitTrack to minimize copies
-  + Retrieve services once for all, and store as members of the fitter class
-  + Create an object to be saved for hit-on-track information
-  + TrackKalmanFitter should produce hit-on-track objects
- */
-
-#include "lardataobj/RecoBase/Track.h"
-#include "lardataobj/RecoBase/Hit.h"
-
 bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
 				       const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
 				       const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
@@ -67,7 +21,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
     return false;
   }
-  
+
   auto position = track.Vertex();
   auto direction = track.VertexDirection();
 
@@ -145,7 +99,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     //array of indices, where iterHitsInPlanes[i] is the iterator over hitsInPlanes[i]
     unsigned int iterHitsInPlanes[nplanes] = {0};
     for (unsigned int p = 0; p<hitstatev.size(); ++p) {
-      if (dumpLevel_>1) std::cout << std::endl << "processing hit #" << p << std::endl;      
+      if (dumpLevel_>1) std::cout << std::endl << "processing hit #" << p << std::endl;
       if (dumpLevel_>1) {
 	std::cout << "compute distance from state=" << trackState.dump() << std::endl;
       }
@@ -197,9 +151,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
       trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::FORWARD);
       if (!propok && !skipNegProp_) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
       if (dumpLevel_>1) {
-	std::cout << "propagation result=" << propok << std::endl;    
+	std::cout << "propagation result=" << propok << std::endl;
 	std::cout << "propagated state "   << trackState.dump() << std::endl;
-	std::cout << "propagated planarity=" << hitstate.plane().direction().Dot(hitstate.plane().position()-trackState.position()) << std::endl;    
+	std::cout << "propagated planarity=" << hitstate.plane().direction().Dot(hitstate.plane().position()-trackState.position()) << std::endl;
       }
       if (propok) {
 	hitstateidx.push_back(ihit);
@@ -306,7 +260,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     const auto& hitstate = hitstatev[hitstateidx[itk]];
     auto& hitflags = hitflagsv[hitstateidx[itk]];
     if (dumpLevel_>1) {
-      std::cout << std::endl << "processing backward hit #" << itk << std::endl;      
+      std::cout << std::endl << "processing backward hit #" << itk << std::endl;
       std::cout << hitstate.dump() << std::endl;
     }
     bool propok = true;
@@ -316,7 +270,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     if (dumpLevel_>1) {
       std::cout << "propagation result=" << propok << std::endl;
       std::cout << "propagated state "   << trackState.dump() << std::endl;
-      std::cout << "propagated planarity=" << hitstate.plane().direction().Dot(hitstate.plane().position()-trackState.position()) << std::endl;    
+      std::cout << "propagated planarity=" << hitstate.plane().direction().Dot(hitstate.plane().position()-trackState.position()) << std::endl;
     }
     if (propok) {
       //combine forward predicted and backward predicted
@@ -364,7 +318,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
     return false;
   }
-  
+
   //fill output trjectory objects with smoothed track and its hits
   std::vector<Point_t>                     positions;
   std::vector<Vector_t>                    momenta;
@@ -479,7 +433,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
 						   Plane(fwdUpdTkState[updstatesindex.front()].position(),fwdUpdTkState[updstatesindex.front()].momentum()));
   KFTrackState resultB = propagator->rotateToPlane(propok, fwdUpdTkState[updstatesindex.back()].trackState(),
 						   Plane(fwdUpdTkState[updstatesindex.back()].position(),fwdUpdTkState[updstatesindex.back()].momentum()));
-  
+
   int ndof = nchi2-4;//hits are 1D measurement, i.e. each hit is one d.o.f.; no B field: 4 fitted parameters
 
   outTrack = recob::Track(recob::TrackTrajectory(std::move(positions),std::move(momenta),std::move(outFlags),true),

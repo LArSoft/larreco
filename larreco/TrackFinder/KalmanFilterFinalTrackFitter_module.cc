@@ -1,11 +1,9 @@
-////////////////////////////////////////////////////////////////////////
-// Class:       KalmanFilterFinalTrackFitter
-// Module Type: producer
-// File:        KalmanFilterFinalTrackFitter_module.cc
-//
-// Generated at Fri Sep  2 10:48:46 2016 by Giuseppe Cerati using artmod
-// from cetpkgsupport v1_10_02.
-////////////////////////////////////////////////////////////////////////
+/// \class KalmanFilterFinalTrackFitter
+///
+/// \brief Producer for fitting Trajectories and TrackTrajectories using TrackKalmanFitter.
+///
+/// \author G. Cerati
+///
 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"

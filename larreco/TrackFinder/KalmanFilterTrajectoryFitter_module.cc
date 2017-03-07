@@ -1,11 +1,9 @@
-////////////////////////////////////////////////////////////////////////
-// Class:       KalmanFilterTrajectoryFitter
-// Module Type: producer
-// File:        KalmanFilterTrajectoryFitter_module.cc
-//
-// Generated at Fri Sep  2 10:48:46 2016 by Giuseppe Cerati using artmod
-// from cetpkgsupport v1_10_02.
-////////////////////////////////////////////////////////////////////////
+/// \class KalmanFilterTrajectoryFitter
+///
+/// \brief Producer for fitting Trajectories and TrackTrajectories using TrackKalmanFitter.
+///
+/// \author G. Cerati
+///
 
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
@@ -77,7 +75,7 @@ namespace trkf {
       };
       fhicl::Atom<double> pval {
 	Name("momentumInGeV"),
-	  Comment("Fixed momentum estimate value, to be used when momFromCalo, momFromLength and momFromMC are all false, or if the estimate is not available.")//momFromMSChi2, 
+	  Comment("Fixed momentum estimate value, to be used when momFromCalo, momFromLength and momFromMC are all false, or if the estimate is not available.")//momFromMSChi2,
       };
       fhicl::Atom<int> pdgId {
 	Name("pdgId"),
@@ -147,7 +145,7 @@ namespace trkf {
     art::InputTag simTrackInputTag;
 
     bool isTT;
-    
+
     double setMomValue(const recob::Trajectory* ptraj, const double pMC, const int pId) const;
     int    setPId() const;
     bool   setDirFlip(const recob::Trajectory* ptraj, TVector3& mcdir) const;
@@ -196,7 +194,7 @@ trkf::KalmanFilterTrajectoryFitter::KalmanFilterTrajectoryFitter(trkf::KalmanFil
   if (p_().options().pFromMC())     nPFroms++;
   if (nPFroms>1) {
     throw cet::exception("KalmanFilterTrajectoryFitter")
-      << "Incompatible configuration parameters: only at most one can be set to true among pFromLength, and pFromMC." << "\n";//pFromMSChi2, 
+      << "Incompatible configuration parameters: only at most one can be set to true among pFromLength, and pFromMC." << "\n";//pFromMSChi2,
   }
 }
 
@@ -217,7 +215,7 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
   //only one will be filled and pushed into the event:
   auto outputTTjTAssn = std::make_unique<art::Assns<recob::TrackTrajectory, recob::Track> >();
   auto outputTjTAssn  = std::make_unique<art::Assns<recob::Trajectory     , recob::Track> >();
-  
+
   auto const tid = getProductID<std::vector<recob::Track> >(e);
   auto const tidgetter = e.productGetter(tid);
 
@@ -241,7 +239,7 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
   unsigned int nTrajs = 0;
 
   art::Handle<std::vector<recob::TrackTrajectory> > inputTrackTrajectoryH;
-  art::Handle<std::vector<recob::Trajectory     > > inputTrajectoryH;  
+  art::Handle<std::vector<recob::Trajectory     > > inputTrajectoryH;
   const std::vector<recob::TrackTrajectory>* trackTrajectoryVec = 0;
   const std::vector<recob::Trajectory     >* trajectoryVec      = 0;
   const art::Assns<recob::TrackTrajectory, recob::Hit>* trackTrajectoryHitsAssn = 0;
@@ -259,9 +257,9 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
     trajectoryHitsAssn = e.getValidHandle<art::Assns<recob::Trajectory, recob::Hit> >(trajectoryInputTag).product();
     nTrajs = trajectoryVec->size();
   }
-  
+
   for (unsigned int iTraj = 0; iTraj < nTrajs; ++iTraj) {
-    
+
     const recob::Trajectory& inTraj = (isTT ? trackTrajectoryVec->at(iTraj).Trajectory() : trajectoryVec->at(iTraj));
     const std::vector<recob::TrajectoryPointFlags>& inFlags = (isTT ? trackTrajectoryVec->at(iTraj).Flags() : std::vector<recob::TrajectoryPointFlags>());
     //this is not computationally optimal, but at least preserves the order unlike FindManyP
