@@ -166,12 +166,31 @@ namespace tca {
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
 */
-    TH2F *fMCSMom_Length;
-
-    TH2F *fMCSMom_TruMom_e;
+     TH2F *fMCSMom_TruMom_e;
     TH2F *fMCSMom_TruMom_mu;
     TH2F *fMCSMom_TruMom_pi;
     TH2F *fMCSMom_TruMom_p;
+    
+    TProfile *fShMinSep;
+    TProfile *fShMCSMom_Energy;
+    TProfile *fShnTjs_Energy;
+    TProfile *fShAspectRatio_Energy;
+    TProfile *fShChg_Energy[3];
+    TProfile *fShChgDensity_Energy;
+    TProfile *fShLength_Energy;
+    TProfile *fShEP_Energy;
+    TProfile *fParentLength_Energy;
+    
+    TH1F *fShMCSMom;
+    TH1F *fShChgDensity;
+    TH1F *fShAspectRatio;
+    TH1F *fShAspectRatio2;
+    TH1F *fDOCA;
+    TH1F *fParentFOM;
+    
+    TH1F *fShTPAngAve[3];
+    TH1F *fShPrimIP;
+    TProfile *fShPrimIP_Energy;
 
     TH2F *fMCSMomEP_TruMom_e;
     
@@ -193,6 +212,7 @@ namespace tca {
 */
     // number of primary particles in the event
     unsigned short nTruPrimary;
+    float sourceParticleEnergy;
     // number of reconstructable primary particles in the event
     unsigned short nTruPrimaryOK;
     // number of reconstructable neutrino vertices in ALL events

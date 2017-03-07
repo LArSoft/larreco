@@ -26,11 +26,13 @@ namespace tca {
   
   // some functions to handle the CTP_t type
   typedef unsigned int CTP_t;
-  constexpr unsigned int CTPpad = 1000; // alignment for CTP sub-items
-  inline CTP_t EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane) { return cryo * CTPpad*CTPpad + tpc * CTPpad + plane; }
+  constexpr unsigned int Tpad = 10; // alignment for CTP sub-items - TPC
+  constexpr unsigned int Cpad = 10000; // alignment for CTP sub-items - Cryostat
+  
+  inline CTP_t EncodeCTP(unsigned int cryo, unsigned int tpc, unsigned int plane) { return cryo * Cpad + tpc * Tpad + plane; }
   inline CTP_t EncodeCTP(const geo::PlaneID& planeID) { return EncodeCTP(planeID.Cryostat, planeID.TPC, planeID.Plane); }
   inline CTP_t EncodeCTP(const geo::WireID& wireID) { return EncodeCTP(wireID.Cryostat, wireID.TPC, wireID.Plane); }
-  inline geo::PlaneID DecodeCTP(CTP_t CTP) { return { CTP / (CTPpad*CTPpad), CTP / CTPpad % CTPpad, CTP % CTPpad }; }
+  geo::PlaneID DecodeCTP(CTP_t CTP);
 
   /// @{
   /// @name Data structures for the reconstruction results
@@ -74,6 +76,7 @@ namespace tca {
     kOnDeadWire,
     kVtxRefined,
     kNiceVtx,
+    kVtxInShower,
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
@@ -143,7 +146,7 @@ namespace tca {
   struct TCHit {
     raw::TDCtick_t StartTick {0};
     raw::TDCtick_t EndTick {0};
-    float PeakTime {0};     ///< Note that this the time in WSE units - NOT ticks
+    float PeakTime {0};
     float SigmaPeakTime {1};
     float PeakAmplitude {1};
     float SigmaPeakAmp {1};
@@ -175,17 +178,32 @@ namespace tca {
     size_t Parent;
   };
   
-  // A temporary structure that defines a 2D shower-like cluster
+  // A temporary structure that defines a 2D shower-like cluster of trajectories
   struct ShowerStruct {
-    unsigned short ShowerTjID {USHRT_MAX};      // ID of the Trajectory composed of many shower Tjs
-    std::vector<unsigned short> TjIDs;
-    std::vector<std::array<float, 2>> Envelope;  // Vertices of a polygon that encompasses the shower
-    unsigned short ParentTjID {USHRT_MAX};      // ID of the shower Tj parent
+    CTP_t CTP;
+    unsigned short ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
+    std::vector<unsigned short> TjIDs;          // list of InShower Tjs
+    float TPAngAve {0};                             // Average angle of all InShower Tj points
+    float TPAngErr {0.5};
+    std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
+    float EnvelopeArea;
+    float EnvelopeLength;
+    float ChgDensity {0};                   // Charge density inside the Envelope
+    float EnvelopeAspectRatio {0};
+    unsigned short ParentTrajID {0};    // ID of the shower Tj parent
+    unsigned short ParentTrajEnd {0};           // the Start end of the parent trajectory
+    float ParentFOM {100};                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
+    // Allow for an alternate parent that is not quite as good
+    unsigned short FailedParentTrajID {0};    // ID of the next most likely shower Tj parent
+    unsigned short FailedParentTrajEnd {0};           // the Start end of the parent trajectory
+    float FailedParentFOM;                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
+    float ShowerFOM {100};
   };
 
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
+    kMaskBadTPs,
     kCTKink,        ///< kink found in CheckWork
     kCTStepChk,
     kTryWithNextPass,
@@ -211,7 +229,6 @@ namespace tca {
     kUseUnusedHits,
     kVtxTj,
     kRefineVtx,
-    kMaskBadTPs,
     kNoKinkChk,
     kSoftKink,
     kChkStop,
@@ -233,9 +250,7 @@ namespace tca {
     kAtKink,
     kAtVtx,
     kBragg,
-    kRvPrp,
     kAtTj,
-    kBadFits,
     kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   

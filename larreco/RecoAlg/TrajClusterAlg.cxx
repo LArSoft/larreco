@@ -53,28 +53,36 @@ namespace tca {
     fEP_T[2] = tfs->make<TProfile>("EP_T_Pi","EP vs T(MeV) - Pions", 20, 0, 1000);
     fEP_T[3] = tfs->make<TProfile>("EP_T_Ka","EP vs T(MeV) - Kaons", 20, 0, 1000);
     fEP_T[4] = tfs->make<TProfile>("EP_T_Pr","EP vs T(MeV) - Protons", 20, 0, 1000);
-/*
-    fDeltaN[0] = tfs->make<TH1F>("DeltaN0","Normalized Delta Pln 0", 50, 0, 4);
-    fDeltaN[1] = tfs->make<TH1F>("DeltaN1","Normalized Delta Pln 1", 50, 0, 4);
-    fDeltaN[2] = tfs->make<TH1F>("DeltaN2","Normalized Delta Pln 2", 50, 0, 4);
+    
+    
+    // Shower histos
+    int nbins = 10;
+    fShMCSMom_Energy = tfs->make<TProfile>("MCSMom_Energy","MCSMom vs Electron Energy", nbins, 0, 1000);
+    fShnTjs_Energy = tfs->make<TProfile>("nTjs_Energy","nTjs vs Electron Energy", nbins, 0, 1000);
+    fShAspectRatio_Energy = tfs->make<TProfile>("AspectRatio_Energy","AspectRatio vs Electron Energy", nbins, 0, 1000);
+    fShChg_Energy[0] = tfs->make<TProfile>("Chg0_Energy","Chg Pln0 vs Electron Energy", nbins, 0, 1000);
+    fShChg_Energy[1] = tfs->make<TProfile>("Chg1_Energy","Chg Pln1 vs Electron Energy", nbins, 0, 1000);
+    fShChg_Energy[2] = tfs->make<TProfile>("Chg2_Energy","Chg Pln2 vs Electron Energy", nbins, 0, 1000);
+    fShChgDensity_Energy = tfs->make<TProfile>("ChgDensity_Energy","ChgDensity vs Electron Energy", nbins, 0, 1000);
+    fShLength_Energy = tfs->make<TProfile>("Length_Energy","Length vs Electron Energy", nbins, 0, 1000);
+    fShEP_Energy = tfs->make<TProfile>("EP_Energy","EP vs Electron Energy", nbins, 0, 1000);
+    fParentLength_Energy = tfs->make<TProfile>("ParentLength_Energy","Parent Length Energy", nbins, 0, 1000);
 
-    fHitRMS[0] = tfs->make<TH1F>("hitrms0","Hit RMS Pln 0", 80, 0, 20);
-    fHitRMS[1] = tfs->make<TH1F>("hitrms1","Hit RMS Pln 1", 80, 0, 20);
-    fHitRMS[2] = tfs->make<TH1F>("hitrms2","Hit RMS Pln 2", 80, 0, 20);
+    fShMCSMom = tfs->make<TH1F>("MCSMom","InShower Tj MCSMom", 100 ,  0, 200);
+    fShChgDensity = tfs->make<TH1F>("ChgDensity","ChgDensity", 20, 0, 20);
+    fShAspectRatio = tfs->make<TH1F>("AspectRatio","AspectRatio", 30, 0, 3);
+    fShAspectRatio2 = tfs->make<TH1F>("AspectRatio2","AspectRatio2", 50, -1, 1);
+    fDOCA = tfs->make<TH1F>("DOCA","Min DOCA", 100, 0, 100);
+    fParentFOM = tfs->make<TH1F>("ParentFOM","Parent FOM", 100, 0, 10);
 
-    fTPWidth_Angle[0] = tfs->make<TH2F>("tpwidth_angle0","TP hit width vs Angle Pln 0", 20, 0, M_PI/2, 20, 0, 200);
-    fTPWidth_Angle[1] = tfs->make<TH2F>("tpwidth_angle1","TP hit width vs Angle Pln 1", 20, 0, M_PI/2, 20, 0, 200);
-    fTPWidth_Angle[2] = tfs->make<TH2F>("tpwidth_angle2","TP hit width vs Angle Pln 2", 20, 0, M_PI/2, 20, 0, 200);
-
-    fTPWidth_AngleP[0] = tfs->make<TProfile>("tpwidth_anglep0","TP hit width vs Angle Pln 0", 10, 0, M_PI/2, "S");
-    fTPWidth_AngleP[1] = tfs->make<TProfile>("tpwidth_anglep1","TP hit width vs Angle Pln 1", 10, 0, M_PI/2, "S");
-    fTPWidth_AngleP[2] = tfs->make<TProfile>("tpwidth_anglep2","TP hit width vs Angle Pln 2", 10, 0, M_PI/2, "S");
-
-    fExpect_Angle[0] = tfs->make<TProfile>("expect_angle0","Expected width vs Angle Pln 0", 11, 0, M_PI/2, "S");
-    fExpect_Angle[1] = tfs->make<TProfile>("expect_angle1","Expected width vs Angle Pln 1", 11, 0, M_PI/2, "S");
-    fExpect_Angle[2] = tfs->make<TProfile>("expect_angle2","Expected width vs Angle Pln 2", 11, 0, M_PI/2, "S");
-*/
-    fMCSMom_Length = tfs->make<TH2F>("MCSMom_Length","MCSMom vs Length", 50, 0, 100, 50, 0, 1000);
+    fShPrimIP = tfs->make<TH1F>("ShPrimIP","Primary TP - Shower TP Impact Parameter", 100, 0, 10);
+    fShPrimIP_Energy = tfs->make<TProfile>("ShPrimIP_Energy","Primary TP - Shower TP Impact Parameter vs Energy", nbins, 0, 1000);
+    
+    fShTPAngAve[0] = tfs->make<TH1F>("TPAngAve0","Ave TP Angle Pln 0", 100, -1, 1);
+    fShTPAngAve[1] = tfs->make<TH1F>("TPAngAve1","Ave TP Angle Pln 1", 100, -1, 1);
+    fShTPAngAve[2] = tfs->make<TH1F>("TPAngAve2","Ave TP Angle Pln 2", 100, -1, 1);
+    
+    // End of shower histos
 
     fMCSMom_TruMom_e = tfs->make<TH2F>("MCSMom_TruMom_e","MCSMom vs Tru Mom electrons", 50, 0, 100, 50, 0, 1000);
     fMCSMom_TruMom_mu = tfs->make<TH2F>("MCSMom_TruMom_mu","MCSMom vs Tru Mom electrons", 50, 0, 1000, 50, 0, 1000);
@@ -295,7 +303,10 @@ namespace tca {
     
     if(inDebugMode) {
       std::cout<<"Using algs:";
-      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(fUseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
+      for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
+        if(ib % 10 == 0) std::cout<<"\n";
+        if(fUseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
+      }
       std::cout<<"\n";
       std::cout<<"Skipping algs:";
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(!fUseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
@@ -459,48 +470,109 @@ namespace tca {
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
 
+    unsigned short ntj = 0;
+    unsigned short nsh = 0;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      ++ntj;
+      if(tj.AlgMod[kShowerTj]) ++nsh;
+    } // tj
+    std::cout<<"RTC done ntj "<<ntj<<" nsh "<<nsh<<" events processed "<<fEventsProcessed<<"\n";
+
     if(fStudyMode) {
-/*
-      for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-        if(tjs.fHits[iht].Multiplicity != 1) continue;
-        if(tjs.fHits[iht].GoodnessOfFit < 0) continue;
-        if(tjs.fHits[iht].GoodnessOfFit > 50) continue;
-        unsigned short ipl = tjs.fHits[iht].WireID.Plane;
-        fHitRMS[ipl]->Fill(tjs.fHits[iht].RMS);
-      } // iht
-*/
+      // shower stuff
+      // count the number of showers in each plane
+      std::vector<unsigned short> nShInPln(3);
+      for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
+        ShowerStruct& ss = tjs.cots[ict];
+        if(ss.TjIDs.empty()) continue;
+        ++nShInPln[ss.CTP];
+      } // ict
+      for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
+        ShowerStruct& ss = tjs.cots[ict];
+        if(ss.TjIDs.empty()) continue;
+        // require only one shower in the plane
+        if(nShInPln[ss.CTP] != 1) continue;
+        unsigned short itj = ss.ShowerTjID - 1;
+        Trajectory& stj = tjs.allTraj[itj];
+        float ep = 0;
+        if(ss.ParentTrajID > 0) ep = tjs.allTraj[ss.ParentTrajID - 1].EffPur;
+        // source particle energy in MeV
+        float spe = 1000 * sourceParticleEnergy;
+        std::cout<<"sPE "<<(int)spe;
+        float aveMom = 0;
+        short maxMom = 0;
+        float aveNN = 0;
+        for(auto& tjID : ss.TjIDs) {
+          unsigned short itj = tjID - 1;
+          float mom = tjs.allTraj[itj].MCSMom;
+          fShMCSMom_Energy->Fill(spe, (float)tjs.allTraj[itj].MCSMom);
+          fShMCSMom->Fill((float)tjs.allTraj[itj].MCSMom);
+          if(mom < 0) mom = 0;
+          if(mom > maxMom) maxMom = mom;
+          aveMom += mom;
+          aveNN += tjs.allTraj[itj].NNeighbors;
+        } // tjID
+        aveMom /= (float)ss.TjIDs.size();
+        aveNN /= (float)ss.TjIDs.size();
+        fShnTjs_Energy->Fill(spe, (float)ss.TjIDs.size());
+        fShAspectRatio_Energy->Fill(spe, ss.EnvelopeAspectRatio);
+        fShAspectRatio->Fill(ss.EnvelopeAspectRatio);
+        float totChg = stj.Pts[0].Chg + stj.Pts[1].Chg + stj.Pts[2].Chg;
+        fShChg_Energy[ss.CTP]->Fill(spe, totChg);
+        fShChgDensity_Energy->Fill(spe, ss.ChgDensity);
+        fShLength_Energy->Fill(spe, ss.EnvelopeLength);
+        fShChgDensity->Fill(ss.ChgDensity);
+        fShEP_Energy->Fill(spe, ep);
+        float aspect2 = (stj.Pts[2].DeltaRMS - stj.Pts[0].DeltaRMS) / ss.EnvelopeLength;
+        fShAspectRatio2->Fill(aspect2);
+        fShTPAngAve[ss.CTP]->Fill(ss.TPAngAve);
+        if(ss.ParentTrajID > 0) {
+          unsigned short iptj = ss.ParentTrajID - 1;
+          unsigned short endPt = tjs.allTraj[iptj].EndPt[ss.ParentTrajEnd];
+          TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
+          float ip = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], ptp);
+          fShPrimIP->Fill(ip);
+          fShPrimIP_Energy->Fill(spe, ip);
+          fParentLength_Energy->Fill(spe, (float)tjs.allTraj[iptj].Pts.size());
+          fParentFOM->Fill(ss.ParentFOM);
+        }
+        std::cout<<" "<<stj.ID<<"_"<<stj.CTP<<" nTjIDs "<<ss.TjIDs.size()<<" AveMom "<<(int)aveMom<<" maxMom "<<maxMom;
+        std::cout<<" aveNN "<<std::fixed<<std::setprecision(1)<<aveNN;
+        for(auto& vtx : ss.Envelope) std::cout<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+        std::cout<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio<<" aspect2 "<<aspect2;
+        std::cout<<" Chg "<<(int)totChg<<" ChgDensity "<<std::fixed<<std::setprecision(1)<<ss.ChgDensity;
+        std::cout<<" EffPur "<<ep;
+        std::cout<<"\n";
+      } // ict
+      // histogram Tj separation
+      float minDOCA = 5000;
+      for(unsigned short itj = 0; itj < tjs.allTraj.size() - 1; ++itj) {
+        Trajectory& tj1 = tjs.allTraj[itj];
+        if(tj1.AlgMod[kKilled]) continue;
+        if(tj1.Pts.size() < 3) continue;
+        for(unsigned short jtj = itj + 1; jtj < tjs.allTraj.size(); ++jtj) {
+          Trajectory& tj2 = tjs.allTraj[jtj];
+          if(tj2.AlgMod[kKilled]) continue;
+          if(tj2.CTP != tj1.CTP) continue;
+          if(tj2.Pts.size() < 3) continue;
+          float doca = 5000;
+          unsigned short ipt1, ipt2;
+          TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca);
+          if(doca < minDOCA) minDOCA = doca;
+        } // jtj
+        fDOCA->Fill(minDOCA);
+      } // itj
+      // end of shower stuff
+      
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         Trajectory& tj = tjs.allTraj[itj];
         if(tj.AlgMod[kKilled]) continue;
-/*
-        // TP hit width plots
-        unsigned short ipl = tj.CTP;
-        for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-          TrajPoint& tp = tj.Pts[ipt];
-          if(tp.Chg == 0) continue;
-          float dang = tp.Ang;
-          if(dang > M_PI) dang = M_PI;
-          if(dang < -M_PI) dang = M_PI;
-          if(dang < 0) dang = -dang;
-          if(dang > M_PI/2) dang = M_PI - dang;
-          // width of all used hits in this tp
-          float hitWid = TPHitsRMSTick(tjs, tp, kAllHits);
-          fTPWidth_Angle[ipl]->Fill(dang, hitWid);
-          fTPWidth_AngleP[ipl]->Fill(dang, hitWid);
-          float expect = fAveHitRMS[ipl];
-          if(std::abs(tp.Dir[0]) > 0.001) expect += std::abs(tp.Dir[1]/tp.Dir[0])/tjs.UnitsPerTick;
-          fExpect_Angle[ipl]->Fill(dang, expect);
-//          std::cout<<dang<<" "<<hitWid<<" "<<expect<<" Dir0 "<<tp.Dir[0]<<"\n";
-          float dn = tp.Delta / fHitErrFac;
-          if(dn > 0) fDeltaN[ipl]->Fill(dn);
-        } // ipt
-*/
         // reco MCSMom vs reco range
         float len = TrajLength(tj);
         if(len > 99) len = 99;
         // ignore really short Tjs
         if(len < 2) continue;
-        fMCSMom_Length->Fill(len, tj.MCSMom);
         if(tj.TruKE == 0) continue;
         // some reco-truth histos
         unsigned short pdg = std::abs(tj.TruPDG);
@@ -510,7 +582,7 @@ namespace tca {
         if(pdg == 2212) mass = 938.3;
         double tPlusM = tjs.allTraj[itj].TruKE + mass;
         double truMom = sqrt(tPlusM * tPlusM - mass * mass);
-        if(tj.EffPur > 0.7) std::cout<<"Good MC match: PDG "<<tj.TruPDG<<" truMom "<<(int)truMom<<" length "<<(int)len<<" MCSMom "<<tj.MCSMom<<"\n";
+//        if(tj.EffPur > 0.7) std::cout<<"Good MC match: PDG "<<tj.TruPDG<<" truMom "<<(int)truMom<<" length "<<(int)len<<" MCSMom "<<tj.MCSMom<<"\n";
         if(pdg == 11) fMCSMom_TruMom_e->Fill(truMom, tj.MCSMom);
         if(pdg == 13) fMCSMom_TruMom_mu->Fill(truMom, tj.MCSMom);
         if(pdg == 211) fMCSMom_TruMom_pi->Fill(truMom, tj.MCSMom);
@@ -913,14 +985,7 @@ namespace tca {
     // Check the associations and set the kNiceVtx bit
     CheckVtxAssociations(tjs, fCTP);
 
-    if(fShowerTag[0] > 0 && fUseAlg[kShowerTj]) {
-      FindShowers(tjs, fCTP, fShowerTag);
-      if((CTP_t)fShowerTag[8] == fCTP) {
-        std::cout<<"temp prt\n";
-        debug.Plane = fShowerTag[8];
-        PrintAllTraj("FSo", tjs, debug, USHRT_MAX, tjs.allTraj.size());
-      }
-    }
+    if(fShowerTag[0] > 0) FindShowers(tjs, fCTP, fShowerTag);
     
     // Refine vertices, trajectories and nearby hits
 //    Refine2DVertices();
@@ -1059,7 +1124,6 @@ namespace tca {
     // restore the original direction
     if(tjWork.StepDir != stepDir) ReverseTraj(tjs, tjWork);
     tj = tjWork;
-    tj.StopFlag[0][kRvPrp] = true;
     if(prt) mf::LogVerbatim("TC")<<" ReversePropagate success. Outgoing StepDir "<<tj.StepDir;
 
   } // ReversePropagate
@@ -1333,10 +1397,11 @@ namespace tca {
     
     // set true if there is a reconstructed 3D vertex within 1 cm of the true vertex
     bool nuVtxRecoOK = false;
-    float neutrinoEnergy = -1;
 
     // MC Particles for the desired true particles
     int sourcePtclTrackID = -1;
+    sourceParticleEnergy = -1;
+    
     simb::Origin_t sourceOrigin = simb::kUnknown;
     std::vector<simb::MCParticle*> partList;
     // partList is the vector of MC particles that we want to use
@@ -1351,13 +1416,16 @@ namespace tca {
           if(theTruth->Origin() == simb::kBeamNeutrino) {
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kBeamNeutrino;
+            if(fMatchTruth[1] > 2) std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
           }
           if(theTruth->Origin() == simb::kSingleParticle) {
+            sourceParticleEnergy = part->E();
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kSingleParticle;
+            if(fMatchTruth[1] > 2) std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
           }
           if(sourceOrigin == simb::kBeamNeutrino) {
-            neutrinoEnergy = part->E();
+            sourceParticleEnergy = part->E();
             // histogram the vertex position difference
             for(auto& aVtx3 : tjs.vtx3) {
               fNuVtx_dx->Fill(part->Vx() - aVtx3.X);
@@ -1374,7 +1442,6 @@ namespace tca {
           }
         }
       }
-      if(fMatchTruth[1] > 2) std::cout<<partList.size()<<" PDG Code  "<<part->PdgCode()<<" TrackId "<<part->TrackId()<<" Mother  "<<part->Mother()<<" sourceOrigin "<<sourceOrigin<<" Origin "<<theTruth->Origin()<<" Process "<<part->Process()<<"\n";
       // ignore anything that has the incorrect origin
       if(theTruth->Origin() != sourceOrigin) continue;
       // ignore processes that aren't a stable final state particle
@@ -1387,16 +1454,44 @@ namespace tca {
       partList.push_back(part);
     } // ipart
     
-    if(fMatchTruth[1] > 2) std::cout<<"partList size "<<partList.size()<<"\n";
+    if(fMatchTruth[1] > 2) {
+      for(unsigned int ii = 0; ii < partList.size(); ++ii) {
+        int trackID = partList[ii]->TrackId();
+        const simb::MCParticle* gmom = bt->TrackIDToMotherParticle(trackID);
+        std::cout<<ii<<" PDG Code  "<<partList[ii]->PdgCode()<<" TrackId "<<trackID<<" Mother  "<<partList[ii]->Mother()<<" Grandmother "<<gmom->TrackId()<<" Process "<<partList[ii]->Process()<<"\n";
+      } // ii
+    }
     
-    // vector of (mother, daughter) pairs
+    // vector of (mother, daughter) pairs of TrackIds
     std::vector<std::pair<int, int>> moda;
-
-    if(sourcePtclTrackID >= 0) {
+    
+    if(sourcePtclTrackID > 0) {
+      // enter grandmother-daughter pairs for primary electrons if we are using shower finding code
+      if(fShowerTag[0] > 1) {
+        for(unsigned short ii = 0; ii < partList.size(); ++ii) {
+          // check for the end of the primary particles
+          if(partList[ii]->Mother() != 0) break;
+          // check for an electron
+          if(abs(partList[ii]->PdgCode()) != 11) continue;
+          int primElectronTrackID = partList[ii]->TrackId();
+          for(unsigned short jj = ii + 1; jj < partList.size(); ++jj) {
+            int trackID = partList[jj]->TrackId();
+            const simb::MCParticle* gmom = bt->TrackIDToMotherParticle(trackID);
+            if(gmom->TrackId() != primElectronTrackID) continue;
+            moda.push_back(std::make_pair(primElectronTrackID, trackID));
+          } // jj
+        } // ii
+      } // Shower finding mode
+      // Now enter mother-daughter pairs for soft interactions
       // daughters appear later in the list so reverse iterate
       for(unsigned short ii = 0; ii < partList.size(); ++ii) {
         unsigned short dpl = partList.size() - 1 - ii;
         if(partList[dpl]->Mother() == 0) continue;
+        // ignore previous entries
+        int trackID = partList[ii]->TrackId();
+        bool skipit = false;
+        for(auto& md : moda) if(md.second == trackID) skipit = true;
+        if(skipit) continue;
         int motherID = partList[dpl]->Mother() + sourcePtclTrackID - 1;
         // count the number of daughters
         unsigned short ndtr = 0;
@@ -1421,11 +1516,19 @@ namespace tca {
         // ensure that mother and daughter have the same PDG code
         if(partList[momIndex]->PdgCode() != partList[dpl]->PdgCode()) continue;
         moda.push_back(std::make_pair(partList[momIndex]->TrackId(), partList[dpl]->TrackId()));
-        if(fMatchTruth[1] > 1) mf::LogVerbatim("TC")<<"dtr "<<partList[dpl]->TrackId()<<" mother "<<partList[momIndex]->TrackId();
       } // ii
     } // sourcePtclTrackID >= 0
 
-    
+    if(fMatchTruth[1] > 2 && !moda.empty()) {
+      std::cout<<"Mother-Daughter track IDs\n";
+      unsigned short cnt = 0;
+      for(auto& md : moda) {
+        std::cout<<" "<<md.first<<"-"<<md.second;
+        ++cnt;
+        if(!(cnt % 20)) std::cout<<"\n";
+      } // md
+    } // fMatchTruth[1] > 2
+
     // Match all hits to the truth. Put the MC track ID in a temp vector
     std::vector<int> hitTruTrkID(tjs.fHits.size());
     // Prepare to count of the number of hits matched to each MC Track in each plane
@@ -1433,7 +1536,7 @@ namespace tca {
     for(unsigned short ipl = 0; ipl < plist.size(); ++ipl) nMatchedHitsInPartList[ipl].resize(tjs.NumPlanes);
     // and make a list of the TJs and hit count for each MC Track
     std::vector<std::vector<std::array<unsigned short, 2>>> nMatchedHitsInTj(partList.size());
-    
+
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       TCHit& hit = tjs.fHits[iht];
       raw::ChannelID_t channel = geom->PlaneWireToChannel((int)hit.WireID.Plane, (int)hit.WireID.Wire, (int)hit.WireID.TPC, (int)hit.WireID.Cryostat);
@@ -1514,7 +1617,7 @@ namespace tca {
       ++nTruPrimaryVtxOK;
       // was it reconstructed?
       if(nuVtxRecoOK) ++nTruPrimaryVtxReco;
-      if(neutrinoEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx neutrino E "<<std::fixed<<std::setprecision(2)<<neutrinoEnergy<<" events processed "<<fEventsProcessed;
+      if(sourceParticleEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx sourceParticleEnergy "<<std::fixed<<std::setprecision(2)<<sourceParticleEnergy<<" events processed "<<fEventsProcessed;
     }
     
     if(fMatchTruth[1] > 1) {
@@ -1578,6 +1681,23 @@ namespace tca {
         if(tjWithMostHits == USHRT_MAX) continue;
         // the total number of hits used in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
+        // deal with daughter trajectories here. Transfer the daughter stuff to 
+        // the parent
+        if(tjs.allTraj[tjWithMostHits].ParentTrajID > 0) {
+          unsigned short ptj = tjs.allTraj[tjWithMostHits].ParentTrajID - 1;
+          // add the parent hits to the vector of daughter hits
+          auto ptmp = PutTrajHitsInVector(tjs.allTraj[ptj], kUsedHits);
+          tmp.insert(tmp.end(), ptmp.begin(), ptmp.end());
+          // revise the mostHits count. To do this we need to find the parent tj index in nMatchedHitsInTj
+          for(unsigned short ii = 0; ii < nMatchedHitsInTj[ipl].size(); ++ii) {
+            unsigned short itj = nMatchedHitsInTj[ipl][ii][0];
+            if(itj == ptj) {
+              mostHits += nMatchedHitsInTj[ipl][ii][1];
+              tjWithMostHits = ptj;
+              break;
+            } // found the parent tj
+          } // ii
+        } // deal with daughters
         // count the number matched to a true particle
         float nTjHits = 0;
         for(auto& iht : tmp) if(hitTruTrkID[iht] > 0) ++nTjHits;
@@ -3471,7 +3591,7 @@ namespace tca {
     // temp vector of all 2D vertex matches
     std::vector<Vtx3Store> v3temp;
     
-    TVector3 WPos = {0, 0, 0};
+//    TVector3 WPos = {0, 0, 0};
     TrajPoint tp;
     // i, j, k indicates 3 different wire planes
     // compare vertices in each view
@@ -3484,6 +3604,8 @@ namespace tca {
         }
         // vertex has been matched already
         if(vPtr[ivx] >= 0) continue;
+        // vertex is in a shower?
+        if(tjs.vtx[ivx].Stat[kVtxInShower]) continue;
         unsigned int iWire = std::nearbyint(tjs.vtx[ivx].Pos[0]);
         for(unsigned short jpl = ipl + 1; jpl < 3; ++jpl) {
           for(unsigned short jj = 0; jj < vIndex[jpl].size(); ++jj) {
@@ -3494,6 +3616,8 @@ namespace tca {
             }
             // vertex has been matched already
             if(vPtr[jvx] >= 0) continue;
+            // vertex is in a shower?
+            if(tjs.vtx[jvx].Stat[kVtxInShower]) continue;
             unsigned int jWire = std::nearbyint(tjs.vtx[jvx].Pos[0]);
             float dX = fabs(vX[ivx] - vX[jvx]);
             float dXSigma = sqrt(vXsigma[ivx] * vXsigma[ivx] + vXsigma[jvx] * vXsigma[jvx]);
@@ -3510,14 +3634,12 @@ namespace tca {
             } else {
               continue;
             }
-            WPos[1] = y;
-            WPos[2] = z;
             unsigned short kpl = 3 - ipl - jpl;
             float kX = 0.5 * (vX[ivx] + vX[jvx]);
             float kWire = -1;
             if(TPC.Nplanes() > 2) {
-              kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
-              if((unsigned int)kWire > tjs.NumWires[kpl]) continue;
+              kWire = geom->WireCoordinate(y, z, kpl, tpc, cstat) + 0.5;
+              if(kWire < 0 || (unsigned int)kWire > tjs.NumWires[kpl]) continue;
               tp.Pos[0] = kWire;
               // See if there is a wire signal nearby in kpl
               tp.Pos[1] = detprop->ConvertXToTicks(kX, kpl, fTpc, fCstat) * tjs.UnitsPerTick;
@@ -3810,7 +3932,7 @@ namespace tca {
       sortVec[indx] = se;
     }
     if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), greaterThan);
-
+/*
     if(prt) {
       mf::LogVerbatim myprt("TC");
       for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
@@ -3818,7 +3940,7 @@ namespace tca {
         myprt<<" Count "<<tjs.matchVec[indx].Count;
       } // ii
     } // prt
-
+*/
     for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
       unsigned int indx = sortVec[ii].index;
       // skip this match if any of the trajectories is already matched
@@ -4170,7 +4292,6 @@ namespace tca {
       } // No 3D vertex assignment exists at either end
       
       // Reverse trajectories as necessary so that EndPt[0] is at the sXYZ end
-      double wpos[3] = {0, ms.sXYZ[1], ms.sXYZ[2]};
       std::array<float, 2> vpos;
       for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
         unsigned short itj = ms.TjIDs[ii] - 1;
@@ -4179,8 +4300,8 @@ namespace tca {
         unsigned short endPt1 = tj.EndPt[1];
         // Project sXYZ to this plane coordinate system
         geo::PlaneID planeID = DecodeCTP(tj.CTP);
-        vpos[0] = geom->NearestWire(wpos, planeID.Plane, tpc, cstat);
-        if((unsigned int)vpos[0] > tjs.NumWires[planeID.Plane]) continue;
+        vpos[0] = geom->WireCoordinate(ms.sXYZ[1], ms.sXYZ[2], planeID) + 0.5;
+        if(vpos[0] < 0 || (unsigned int)vpos[0] > tjs.NumWires[planeID.Plane]) continue;
         vpos[1] = detprop->ConvertXToTicks(ms.sXYZ[0], planeID.Plane, tpc, cstat) * tjs.UnitsPerTick;
         // Reverse if end 0 is further away from vpos than end 1
         if(PosSep2(tj.Pts[endPt0].Pos, vpos) > PosSep2(tj.Pts[endPt1].Pos, vpos)) ReverseTraj(tjs, tj);
@@ -4264,7 +4385,7 @@ namespace tca {
         newVx3.CStat = planeID.Cryostat;
         newVx3.TPC = planeID.TPC;
         // Set Wire < 0 as a flag that this is a "complete" 3D vertex even though no 2D vertices have been made.
-        newVx3.Wire = -1;
+        newVx3.Wire = -2;
         newVx3.X = ms.sXYZ[0];
         newVx3.Y = ms.sXYZ[1];
         newVx3.Z = ms.sXYZ[2];
@@ -4972,8 +5093,10 @@ namespace tca {
     SetEndPoints(tjs, tj);
     if(tj.EndPt[0] == tj.EndPt[1]) return;
     
+    tj.MCSMom = MCSMom(tjs, tj);
+    
     if(prt) {
-      mf::LogVerbatim("TC")<<"inside CheckTraj with tj.Pts.size = "<<tj.Pts.size();
+      mf::LogVerbatim("TC")<<"inside CheckTraj with tj.Pts.size = "<<tj.Pts.size()<<" MCSMom "<<tj.MCSMom;
     }
     
     // remove any points at the end that don't have charge
@@ -5384,6 +5507,8 @@ namespace tca {
     short firstPtWithChg = tj.EndPt[0];
     bool first = true;
     float maxDelta = 1;
+    // don't let MCSMom suffer too much while filling gaps
+    short minMCSMom = 0.9 * tj.MCSMom;
     while(firstPtWithChg < tj.EndPt[1]) {
       short nextPtWithChg = firstPtWithChg + 1;
       // find the next point with charge
@@ -5452,7 +5577,7 @@ namespace tca {
           chg += tjs.fHits[iht].Integral;
           filled = true;
         } // ii
-        if(chg > maxChg) {
+        if(chg > maxChg || MCSMom(tjs, tj) < minMCSMom) {
           // don't use these hits after all
           UnsetUsedHits(tjs, tj.Pts[mpt]);
           filled = false;
@@ -5460,11 +5585,16 @@ namespace tca {
         if(filled) {
           DefineHitPos(tj.Pts[mpt]);
           tj.AlgMod[kFillGap] = true;
-          if(prt) PrintTrajPoint("FG", tjs, mpt, tj.StepDir, tj.Pass, tj.Pts[mpt]);
+          if(prt) {
+            PrintTrajPoint("FG", tjs, mpt, tj.StepDir, tj.Pass, tj.Pts[mpt]);
+            mf::LogVerbatim("TC")<<"Check MCSMom "<<MCSMom(tjs, tj);
+          }
         } // filled
       } // mpt
       firstPtWithChg = nextPtWithChg;
     } // firstPtWithChg
+    
+    if(tj.AlgMod[kFillGap]) tj.MCSMom = MCSMom(tjs, tj);
     
   } // FillGaps 
   
@@ -6069,8 +6199,19 @@ namespace tca {
     
     // Set the lastPT delta before doing the fit
     lastTP.Delta = PointTrajDOCA(tjs, lastTP.HitPos[0], lastTP.HitPos[1], lastTP);
-    // update MCSMom
-    tj.MCSMom = MCSMom(tjs, tj);
+    
+    // update MCSMom. First ensure that nothing bad has happened
+    float newMCSMom = MCSMom(tjs, tj);
+    if(lastPt > 5 && newMCSMom < 0.6 * tj.MCSMom) {
+      if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: MCSMom took a nose-dive ";
+      UnsetUsedHits(tjs, lastTP);
+      DefineHitPos(lastTP);
+      SetEndPoints(tjs, tj);
+      fMaskedLastTP = true;
+      fUpdateTrajOK = true;
+      return;
+    }
+    tj.MCSMom = newMCSMom;
     
     if(prt) {
       mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleRange "<<AngleRange(lastTP)<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
@@ -7969,7 +8110,7 @@ namespace tca {
         }
       }
     }
-    mf::LogVerbatim("TC")<<"ChkMichel Michel hits: "<<nmichelhits<<" Bragg peak hits: "<<nbragghits;
+    if(prt) mf::LogVerbatim("TC")<<"ChkMichel Michel hits: "<<nmichelhits<<" Bragg peak hits: "<<nbragghits;
     if (nmichelhits>0&&nbragghits>2){//find Michel topology
       lastGoodPt = braggpeak;
       return true;
