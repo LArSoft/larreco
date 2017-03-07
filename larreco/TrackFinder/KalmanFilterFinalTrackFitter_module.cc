@@ -14,10 +14,9 @@
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
 
-#include "fhiclcpp/ParameterSet.h"
-
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "fhiclcpp/ParameterSet.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
 #include "canvas/Utilities/InputTag.h"
@@ -27,6 +26,7 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 
 #include "lardataobj/AnalysisBase/ParticleID.h"
@@ -127,27 +127,15 @@ namespace trkf {
 	Name("alwaysInvertDir"),
 	Comment("If true, fit all tracks from end to vertex assuming inverted direction.")
       };
-      fhicl::Atom<bool> useRMS {
-	Name("useRMSError"),
-	Comment("Flag to replace the default hit error SigmaPeakTime() with RMS().")
+      fhicl::Atom<bool> tryNoSkipWhenFails {
+        Name("tryNoSkipWhenFails"),
+        Comment("In case skipNegProp is true and the track fit fails, make a second attempt to fit the track with skipNegProp=false in order to attempt to avoid losing efficiency.")
       };
-      fhicl::Atom<bool> sortHitsByPlane {
-        Name("sortHitsByPlane"),
-        Comment("Flag to sort hits along the forward fit. The hit order in each plane is preserved, the next hit to process in 3D is chosen as the one with shorter 3D propagation distance among the next hit in all planes.")
+      fhicl::Atom<bool> produceTrackFitHitInfo {
+        Name("produceTrackFitHitInfo"),
+        Comment(".") //fixme
       };
-      fhicl::Atom<bool> sortOutputHitsMinLength {
-        Name("sortOutputHitsMinLength"),
-        Comment("Flag to decide whether the hits are sorted before creating the output track in order to avoid tracks with huge length.")
-      };
-      fhicl::Atom<bool> skipNegProp {
-        Name("skipNegProp"),
-        Comment("Flag to decide whether, during the forward fit, the hits corresponding to a negative propagation distance should be dropped.")
-      };
-      fhicl::Atom<float> hitErrScaleFact {
-        Name("hitErrScaleFact"),
-        Comment(".")
-      };
-  };
+    };
 
     struct Config {
       using Name = fhicl::Name;
@@ -156,6 +144,12 @@ namespace trkf {
       };
       fhicl::Table<KalmanFilterFinalTrackFitter::Options> options {
 	Name("options")
+      };
+      fhicl::Table<TrackStatePropagator::Config> propagator {
+	Name("propagator")
+      };
+      fhicl::Table<TrackKalmanFitter::Config> fitter {
+	Name("fitter")
       };
     };
     using Parameters = art::EDProducer::Table<Config>;
@@ -174,7 +168,7 @@ namespace trkf {
   private:
     Parameters p_;
     trkf::TrackKalmanFitter* kalmanFitter;
-    PropagatorToPlane* prop;
+    TrackStatePropagator* prop;
     trkf::TrackMomentumCalculator* tmc;
 
     art::InputTag pfParticleInputTag;
@@ -198,13 +192,8 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   : p_(p)
 {
 
-  prop = new PropagatorToPlane(0.,10.);
-  kalmanFitter = new trkf::TrackKalmanFitter(prop,
-					     p_().options().useRMS(),
-					     p_().options().sortHitsByPlane(),
-					     p_().options().sortOutputHitsMinLength(),
-					     p_().options().skipNegProp(),
-					     p_().options().hitErrScaleFact());
+  prop = new TrackStatePropagator(p_().propagator);
+  kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().fitter);
   tmc = new trkf::TrackMomentumCalculator();
 
   if (p_().options().trackFromPF()) pfParticleInputTag = art::InputTag(p_().inputs().inputPFParticleLabel());
@@ -216,11 +205,13 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   if (p_().options().pFromMC() || p_().options().dirFromMC()) simTrackInputTag = art::InputTag(p_().inputs().inputMCLabel());
 
   produces<std::vector<recob::Track> >();
-  produces<art::Assns<recob::Track, recob::Hit> >();
+  produces<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
   if (p_().options().trackFromPF()) {
     produces<art::Assns<recob::PFParticle, recob::Track> >();
   }
-  produces<std::vector<std::vector<recob::TrackFitHitInfo> > >();
+  if (p_().options().produceTrackFitHitInfo()) {
+    produces<std::vector<std::vector<recob::TrackFitHitInfo> > >();
+  }
 
   //throw expections to avoid possible silent failures due to incompatible configuration options
   if (p_().options().trackFromPF()==0 && p_().options().idFromPF())
@@ -267,7 +258,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 {
 
   auto outputTracks  = std::make_unique<std::vector<recob::Track> >();
-  auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
+  auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
   auto outputHitInfo = std::make_unique<std::vector<std::vector<recob::TrackFitHitInfo> > >();
 
   auto const tid = getProductID<std::vector<recob::Track> >(e);
@@ -297,14 +288,12 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     art::ValidHandle<std::vector<recob::PFParticle> > inputPFParticle = e.getValidHandle<std::vector<recob::PFParticle> >(pfParticleInputTag);
     assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, pfParticleInputTag));
     assocVertices = std::unique_ptr<art::FindManyP<recob::Vertex> >(new art::FindManyP<recob::Vertex>(inputPFParticle, e, pfParticleInputTag));
-    std::vector<art::Ptr<recob::Track> > tracks;
-    std::vector<art::Ptr<recob::Vertex> > vertices;
 
     for (unsigned int iPF = 0; iPF < inputPFParticle->size(); ++iPF) {
 
-      tracks = assocTracks->at(iPF);
+      const std::vector<art::Ptr<recob::Track> >& tracks = assocTracks->at(iPF);
       auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(pfParticleInputTag);
-      vertices = assocVertices->at(iPF);
+      const std::vector<art::Ptr<recob::Vertex> >& vertices = assocVertices->at(iPF);
 
       if (p_().options().pFromCalo()) {
 	trackCalo = std::unique_ptr<art::FindManyP<anab::Calorimetry> >(new art::FindManyP<anab::Calorimetry>(tracks, e, caloInputTag));
@@ -328,11 +317,18 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	recob::Track outTrack;
 	art::PtrVector<recob::Hit> outHits;
 	std::vector<recob::TrackFitHitInfo> trackFitHitInfos;
-	bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-	if (!fitok && kalmanFitter->getSkipNegProp()) {
+	bool fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
+					    track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
+					    inHits,track.Trajectory().Flags(),
+					    mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
+	if (!fitok && kalmanFitter->getSkipNegProp() && p_().options().tryNoSkipWhenFails()) {
 	  //ok try once more without skipping hits
+	  mf::LogWarning("KalmanFilterFinalTrackFitter") << "Try to recover with skipNegProp = false\n";
 	  kalmanFitter->setSkipNegProp(false);
-	  fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
+	  fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
+					 track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
+					 inHits,track.Trajectory().Flags(),
+					 mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
 	  kalmanFitter->setSkipNegProp(true);
 	}
 	if (!fitok) {
@@ -342,8 +338,12 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
 	outputTracks->emplace_back(std::move(outTrack));
 	art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
+	unsigned int ip = 0;
 	for (auto const& trhit: outHits) {
-	  outputHits->addSingle(aptr, trhit);
+	  //the fitter produces collections with 1-1 match between hits and point
+	  recob::TrackHitMeta metadata(ip,-1);
+	  outputHits->addSingle(aptr, trhit, metadata);
+	  ip++;
 	}
 	outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
 	outputHitInfo->emplace_back(std::move(trackFitHitInfos));
@@ -352,7 +352,9 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     e.put(std::move(outputTracks));
     e.put(std::move(outputHits));
     e.put(std::move(outputPFAssn));
-    e.put(std::move(outputHitInfo));
+    if (p_().options().produceTrackFitHitInfo()) {
+      e.put(std::move(outputHitInfo));
+    }
   } else {
 
     art::ValidHandle<std::vector<recob::Track> > inputTracks = e.getValidHandle<std::vector<recob::Track> >(trackInputTag);
@@ -384,11 +386,18 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       recob::Track outTrack;
       art::PtrVector<recob::Hit> outHits;
       std::vector<recob::TrackFitHitInfo> trackFitHitInfos;
-      bool fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-      if (!fitok && kalmanFitter->getSkipNegProp()) {
+      bool fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
+					  track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
+					  inHits,track.Trajectory().Flags(),
+					  mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
+      if (!fitok && kalmanFitter->getSkipNegProp() && p_().options().tryNoSkipWhenFails()) {
 	//ok try once more without skipping hits
+	mf::LogWarning("KalmanFilterFinalTrackFitter") << "Try to recover with skipNegProp = false\n";
 	kalmanFitter->setSkipNegProp(false);
-	fitok = kalmanFitter->fitTrack(track, inHits, mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
+	fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
+				       track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
+				       inHits,track.Trajectory().Flags(),
+				       mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
 	kalmanFitter->setSkipNegProp(true);
       }
       if (!fitok) {
@@ -398,14 +407,20 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
       outputTracks->emplace_back(std::move(outTrack));
       art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
+      unsigned int ip = 0;
       for (auto const& trhit: outHits) {
-	outputHits->addSingle(aptr, trhit);
+	//the fitter produces collections with 1-1 match between hits and point
+	recob::TrackHitMeta metadata(ip,-1);
+	outputHits->addSingle(aptr, trhit, metadata);
+	ip++;
       }
       outputHitInfo->emplace_back(std::move(trackFitHitInfos));
     }
     e.put(std::move(outputTracks));
     e.put(std::move(outputHits));
-    e.put(std::move(outputHitInfo));
+    if (p_().options().produceTrackFitHitInfo()) {
+      e.put(std::move(outputHitInfo));
+    }
   }
 }
 

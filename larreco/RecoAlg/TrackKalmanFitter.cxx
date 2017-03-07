@@ -14,14 +14,36 @@
 
   TO DO LIST
 
-  - fitTrack should work also with Trajectory and TrackTrajectory as input
+  - document stuff!
+  - measure timing and compare with old version
+  - produce results, check residuals vs plane and in data. verify how to extract resolution
+  x double check jacobians, understand hasMomentum for jacobians (when to use it?)
+  +
+  + check again fit failures
+  + check various fixme in the code for more todo...
+  + add print/dump functions
+  + restore old propagator and interactor
+  + Rename PropagatorToPlane to TrackStatePropagator
+  + KalmanTrackFitter should work also with Trajectory and TrackTrajectory as input
+  + it should create Assn to the original trajectory
+  + Find a way to make propagator smarter in terms of the number of steps to do in one propagation (possibly remove maxStep, maybe check with only one iteration)
+  + avoid redoing the same calculcation over and over in interactor
+  + add bool to decide whether to write residuals or not
+  + add check on number of valid points
+  + understand propagation difference to old version
+  + try noise without 'regularization term' (no visible difference)
+  + double check tracking plane after fix, add function taking 6d parameters to distinguish from momentum?
+  + fix event display to check at least NoPoint flag
+  + check fit failures
+  + add hit meta data
+  + check what is the meaning of hittpindex
+  + remove tracking types that are not used
+  + add option to try fallback fit withtout rejecting hits in case of failure
   + check on input if there are bad flags
   + fitTrack should not reject hits but should rather set the flags
-  - check what is the meaning of hittpindex
   + Update propagator so that copies are minimized (propagate should return the object)
   + Create a method for propagation in place
   + Make sure bools are returned for failures (propagation, state update, state combine)
-  - Find a way to make propagator smarter in terms of the number of steps to do in one propagation (possibly remove masStep)
   + Update name of propagator class
   + Revisit TrackFitMeasurement to minimize copies and avoid duplicate information (plane? make sure hit and track state are on the same plane)
   + Revisit KFTrackState so that it makes sense both for propagated and updates states (add bool?)
@@ -29,17 +51,23 @@
   + Retrieve services once for all, and store as members of the fitter class
   + Create an object to be saved for hit-on-track information
   + TrackKalmanFitter should produce hit-on-track objects
-  - check various fixme in the code for more todo...
-  - add print/dump functions
-  - document stuff!
-  - remove tracking types that are not used
  */
 
-bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& hits,
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Hit.h"
+
+bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
+				       const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
+				       const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
 				       const double pval, const int pdgid, const bool flipDirection,
 				       recob::Track& outTrack,    art::PtrVector<recob::Hit>& outHits,
 				       std::vector<recob::TrackFitHitInfo>& trackFitHitInfos) {
-
+  outHits.clear();
+  if (hits.size()<4) {
+    mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
+    return false;
+  }
+  
   auto position = track.Vertex();
   auto direction = track.VertexDirection();
 
@@ -49,8 +77,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   }
 
   SVector5 trackStatePar(0.,0.,0.,0.,1./pval);
-  auto trackStateCov = (flipDirection ? track.EndCovarianceLocal5D() : track.VertexCovarianceLocal5D() );
-  if (track.NumberCovariance()==0) {
+  auto trackStateCov = (flipDirection ? covEnd : covVtx );
+  if (trackStateCov==SMatrixSym55()) {
     trackStateCov(0, 0) = 1000.;
     trackStateCov(1, 1) = 1000.;
     trackStateCov(2, 2) = 0.25;
@@ -58,11 +86,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     trackStateCov(4, 4) = 10.;
   }
 
-  Point_t  op(position(0),position(1),position(2));
-  Vector_t od(direction(0),direction(1),direction(2));
-
   // setup the KFTrackState we'll use throughout the fit
-  KFTrackState trackState(trackStatePar, trackStateCov, Plane(op,od), true, pdgid);//along direction by definition
+  KFTrackState trackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);//along direction by definition
 
   // figure out hit sorting based on minimum distance to first or last hit
   // (to be removed once there is a clear convention for hit sorting)
@@ -71,8 +96,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   Plane pF = recob::tracking::makePlane(wgeomF);
   Plane pB = recob::tracking::makePlane(wgeomB);
   bool success = true;
-  double distF = propToPlane->distanceToPlane(success, op, od, pF);
-  double distB = propToPlane->distanceToPlane(success, op, od, pB);
+  double distF = propagator->distanceToPlane(success, position, direction, pF);
+  double distB = propagator->distanceToPlane(success, position, direction, pB);
+  if (dumpLevel_>1) std::cout << "distF=" << distF << " distB=" << distB << std::endl;
   if (!success) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
     return false;
@@ -92,8 +118,11 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     double terr = (useRMS_ ? hit->RMS() : hit->SigmaPeakTime() );
     double x = detprop->ConvertTicksToX(t, hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
     double xerr = terr * detprop->GetXTicksCoefficient();
-    hitstatev.push_back( std::move( HitState(x,hitErrScaleFact_*xerr*xerr,hit->WireID(),geom->WireIDToWireGeo(hit->WireID())) ) );
-    hitflagsv.push_back( track.FlagsAtPoint(ihit).mask() );
+    hitstatev.push_back( std::move( HitState(x,hitErr2ScaleFact_*xerr*xerr,hit->WireID(),geom->WireIDToWireGeo(hit->WireID())) ) );
+    //
+    if (flags.size()>0) hitflagsv.push_back( flags[ihit].mask() );
+    else hitflagsv.push_back(recob::TrajectoryPointFlags::makeMask());
+    //
     if ((hit->WireID().Plane+1)>nplanes) nplanes = hit->WireID().Plane+1;
   }
 
@@ -116,13 +145,18 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     //array of indices, where iterHitsInPlanes[i] is the iterator over hitsInPlanes[i]
     unsigned int iterHitsInPlanes[nplanes] = {0};
     for (unsigned int p = 0; p<hitstatev.size(); ++p) {
+      if (dumpLevel_>1) std::cout << std::endl << "processing hit #" << p << std::endl;      
+      if (dumpLevel_>1) {
+	std::cout << "compute distance from state=" << trackState.dump() << std::endl;
+      }
       int min_plane = -1;
       double min_dist = DBL_MAX;
       //find the closest hit according to the sorting in each plane
       for (unsigned int iplane = 0; iplane<nplanes; ++iplane) {
 	//note: ih is a reference, so when 'continue' we increment iterHitsInPlanes[iplane] and the hit is effectively rejected
 	for (unsigned int& ih = iterHitsInPlanes[iplane]; ih<hitsInPlanes[iplane].size(); ++ih) {
-	  unsigned int ihit = hitsInPlanes[iplane][ih];
+	  if (dumpLevel_>1) std::cout << "iplane=" << iplane << " nplanes=" << nplanes << " iterHitsInPlanes[iplane]=" << iterHitsInPlanes[iplane] << " hitsInPlanes[iplane].size()=" << hitsInPlanes[iplane].size() << std::endl;
+ 	  unsigned int ihit = hitsInPlanes[iplane][ih];
 	  const auto& hitstate = hitstatev[ihit];
 	  const auto& hitflags = hitflagsv[ihit];
 	  if (hitflags.isSet(recob::TrajectoryPointFlagTraits::NoPoint        ) ||
@@ -133,11 +167,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	  }
 	  //get distance to measurement surface
 	  bool success = true;
-	  const double dist = propToPlane->distanceToPlane(success, trackState.trackState(), hitstate.plane());
+	  const double dist = propagator->distanceToPlane(success, trackState.trackState(), hitstate.plane());
 	  if (!success) {
 	    rejectedhsidx.push_back(ihit);
 	    continue;
 	  }
+	  if (dumpLevel_>1) std::cout << "distance to plane " << iplane << " wire=" << hitstate.wireId().Wire << " = " << dist << ", min_dist=" << min_dist << " min_plane=" << min_plane << std::endl;
 	  if (skipNegProp_ && dist<0.) {
 	    rejectedhsidx.push_back(ihit);
 	    continue;
@@ -149,15 +184,23 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	  break;
 	}
       }
+      if (dumpLevel_>1) std::cout << "pick min_dist=" << min_dist << " min_plane=" << min_plane << std::endl;
       //now we know which is the closest wire: get the hitstate and increment the iterator
       if (min_plane<0) continue;
       const unsigned int ihit = hitsInPlanes[min_plane][iterHitsInPlanes[min_plane]];
       const auto& hitstate = hitstatev[ihit];
+      if (dumpLevel_>1) std::cout << hitstate.dump() << std::endl;
       auto& hitflags = hitflagsv[ihit];
       iterHitsInPlanes[min_plane]++;
       //propagate to measurement surface
       bool propok = true;
-      trackState = propToPlane->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true);
+      trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::FORWARD);
+      if (!propok && !skipNegProp_) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
+      if (dumpLevel_>1) {
+	std::cout << "propagation result=" << propok << std::endl;    
+	std::cout << "propagated state "   << trackState.dump() << std::endl;
+	std::cout << "propagated planarity=" << hitstate.plane().direction().Dot(hitstate.plane().position()-trackState.position()) << std::endl;    
+      }
       if (propok) {
 	hitstateidx.push_back(ihit);
 	fwdPrdTkState.push_back(trackState);
@@ -173,16 +216,18 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	  hitflags.set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
 	  continue;
 	}
-	//
 	//now update the forward fitted track
 	bool upok = trackState.updateWithHitState(hitstate);
 	if (upok==0) {
 	  mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
 	  return false;
 	}
+	if (dumpLevel_>1) {
+	  std::cout << "updated state " << trackState.dump() << std::endl;
+	}
 	fwdUpdTkState.push_back(trackState);
       } else {
-	//mf::LogWarning("TrackKalmanFitter") << "WARNING: forward propagation failed. Skip this hit...";
+	if (dumpLevel_>0) std::cout << "WARNING: forward propagation failed. Skip this hit..." << std::endl;
 	rejectedhsidx.push_back(ihit);
 	continue;
       }
@@ -190,6 +235,10 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   } else {
     for (unsigned int ihit=0; ihit<hitstatev.size(); ++ihit) {
       const auto& hitstate = hitstatev[ihit];
+      if (dumpLevel_>1) {
+	std::cout << std::endl << "processing hit #" << ihit << std::endl;
+	std::cout << hitstate.dump() << std::endl;
+      }
       auto& hitflags = hitflagsv[ihit];
       if (hitflags.isSet(recob::TrajectoryPointFlagTraits::ExcludedFromFit) ||
 	  hitflags.isSet(recob::TrajectoryPointFlagTraits::Rejected)) {
@@ -198,16 +247,17 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       }
       if (skipNegProp_) {
 	bool success = true;
-	const double dist = propToPlane->distanceToPlane(success, trackState.trackState(), hitstate.plane());
+	const double dist = propagator->distanceToPlane(success, trackState.trackState(), hitstate.plane());
 	if (dist<0. || success==false) {
-	  //mf::LogWarning("TrackKalmanFitter") << "WARNING: negative propagation distance. Skip this hit...";
+	  if (dumpLevel_>0) std::cout << "WARNING: negative propagation distance. Skip this hit..." << std::endl;;
 	  rejectedhsidx.push_back(ihit);
 	  continue;
 	}
       }
       //propagate to measurement surface
       bool propok = true;
-      trackState = propToPlane->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true);
+      trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::FORWARD);
+      if (!propok && !skipNegProp_) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
       if (propok) {
 	hitstateidx.push_back(ihit);
 	fwdPrdTkState.push_back(trackState);
@@ -224,7 +274,6 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	  continue;
 	}
 	//
-	//now update the forward fitted track
 	bool upok = trackState.updateWithHitState(hitstate);
 	if (upok==0) {
 	  mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
@@ -232,7 +281,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	}
 	fwdUpdTkState.push_back(trackState);
       } else {
-	//mf::LogWarning("TrackKalmanFitter") << "WARNING: forward propagation failed. Skip this hit...";
+	if (dumpLevel_>0) std::cout << "WARNING: forward propagation failed. Skip this hit..." << std::endl;;
 	rejectedhsidx.push_back(ihit);
 	continue;
       }
@@ -240,34 +289,53 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   }
 
   assert( rejectedhsidx.size()+hitstateidx.size() == hitstatev.size());
-  //std::cout << "TRACK AFTER FWD" << std::endl;
-  //std::cout << "trackState parameters="   << trackState.parameters() << std::endl;
-  //std::cout << "trackState covariance=\n" << trackState.covariance() << std::endl;
+  if (dumpLevel_>0) {
+    std::cout << "TRACK AFTER FWD" << std::endl;
+    std::cout << trackState.dump() << std::endl;
+  }
 
   //reinitialize trf for backward fit, scale the error to avoid biasing the backward fit
   trackState.setCovariance(100.*trackState.covariance());
 
   //backward loop over track states and hits in fwdUpdTracks: use hits for backward fit and fwd track states for smoothing
   float totChi2 = 0.;
+  int nchi2 = 0;
   for (int itk = fwdPrdTkState.size()-1; itk>=0; itk--) {
     auto& fwdPrdTrackState = fwdPrdTkState[itk];
     auto& fwdUpdTrackState = fwdUpdTkState[itk];
     const auto& hitstate = hitstatev[hitstateidx[itk]];
     auto& hitflags = hitflagsv[hitstateidx[itk]];
+    if (dumpLevel_>1) {
+      std::cout << std::endl << "processing backward hit #" << itk << std::endl;      
+      std::cout << hitstate.dump() << std::endl;
+    }
     bool propok = true;
-    trackState = propToPlane->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true);
+    trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
+    if (!propok) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::FORWARD);//do we want this?
+    //
+    if (dumpLevel_>1) {
+      std::cout << "propagation result=" << propok << std::endl;
+      std::cout << "propagated state "   << trackState.dump() << std::endl;
+      std::cout << "propagated planarity=" << hitstate.plane().direction().Dot(hitstate.plane().position()-trackState.position()) << std::endl;    
+    }
     if (propok) {
-      //combine forward predicted and backward predicted, add it to residuals (fixme)
+      //combine forward predicted and backward predicted
       bool pcombok = fwdPrdTrackState.combineWithTrackState(trackState.trackState());
       if (pcombok==0) {
 	mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
 	return false;
       }
-      //combine forward updated and backward predicted, add it to output trajectory
+      if (dumpLevel_>1) {
+	std::cout << "combined prd state "   << fwdPrdTrackState.dump() << std::endl;
+      }
+      //combine forward updated and backward predicted
       bool ucombok = fwdUpdTrackState.combineWithTrackState(trackState.trackState());
       if (ucombok==0) {
 	mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
 	return false;
+      }
+      if (dumpLevel_>1) {
+	std::cout << "combined upd state "   << fwdUpdTrackState.dump() << std::endl;
       }
       //update backward predicted, only if the hit was not excluded
       if (hitflags.isSet(recob::TrajectoryPointFlagTraits::ExcludedFromFit)==0) {
@@ -276,28 +344,33 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
 	  mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
 	  return false;
 	}
+	if (dumpLevel_>1) {
+	  std::cout << "updated state " << trackState.dump() << std::endl;
+	}
 	//compute the chi2 between the combined predicted and the hit
 	totChi2+=fwdPrdTrackState.chi2(hitstate);
+	nchi2++;
       }
     } else {
       // ok, if the backward propagation failed we exclude this point from the rest of the fit,
-      // but we can still use its position from the forward fit, so jsut mark it as ExcludedFromFit
+      // but we can still use its position from the forward fit, so just mark it as ExcludedFromFit
       hitflags.set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
-      //mf::LogWarning("TrackKalmanFitter") << "WARNING: backward propagation failed. Skip this hit...";
+      if (dumpLevel_>0) std::cout << "WARNING: backward propagation failed. Skip this hit..." << std::endl;;
       continue;
     }
   }//for (unsigned int itk = fwdPrdTkState.size()-1; itk>=0; itk--) {
 
-  if (fwdUpdTkState.size()<2) {
+  if (nchi2<4) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
     return false;
   }
-
+  
   //fill output trjectory objects with smoothed track and its hits
   std::vector<Point_t>                     positions;
   std::vector<Vector_t>                    momenta;
-  std::vector<recob::TrajectoryPointFlags> flags;
+  std::vector<recob::TrajectoryPointFlags> outFlags;
   std::vector<unsigned int> hittpindex;
+  std::vector<unsigned int> updstatesindex;
   if (sortOutputHitsMinLength_) {
     //try to sort fixing wires order on planes and picking the closest next plane
     std::vector<std::vector<unsigned int> > tracksInPlanes(nplanes);
@@ -334,11 +407,11 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       const unsigned int originalPos = (reverseHits ? hitstatev.size()-hitstateidx[ihit]-1 : hitstateidx[ihit]);
       //
       assert(originalPos>=0 && originalPos<hitstatev.size());
-      //assert(hitstate.hitPtr().key()==hits[originalPos].key());
       //
-      flags.push_back(recob::TrajectoryPointFlags(originalPos,hitflags));
+      outFlags.push_back(recob::TrajectoryPointFlags(originalPos,hitflags));
       outHits.push_back(hits[originalPos]);
       hittpindex.push_back(p);
+      updstatesindex.push_back(ihit);
       iterTracksInPlanes[min_plane]++;
       //
       const auto& prdtrack = fwdPrdTkState[ihit];
@@ -355,8 +428,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
       assert(originalPos>=0 && originalPos<hitstatev.size());
       positions.push_back(trackstate.position());
       momenta.push_back(trackstate.momentum());
-      flags.push_back(recob::TrajectoryPointFlags(originalPos,hitflags));
+      outFlags.push_back(recob::TrajectoryPointFlags(originalPos,hitflags));
       outHits.push_back(hits[originalPos]);
+      updstatesindex.push_back(p);
       //
       const auto& prdtrack = fwdPrdTkState[p];
       const auto& hitstate = hitstatev[hitstateidx[p]];
@@ -372,7 +446,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     const unsigned int originalPos = (reverseHits ? hitstatev.size()-rejectedhsidx[rejidx]-1 : rejectedhsidx[rejidx]);
     auto& mask = hitflagsv[rejectedhsidx[rejidx]];
     mask.set(recob::TrajectoryPointFlagTraits::HitIgnored,recob::TrajectoryPointFlagTraits::NoPoint,recob::TrajectoryPointFlagTraits::ExcludedFromFit);
-    flags.push_back(recob::TrajectoryPointFlags(originalPos,mask));
+    outFlags.push_back(recob::TrajectoryPointFlags(originalPos,mask));
     outHits.push_back(hits[originalPos]);
     //
     const auto& hitstate = hitstatev[rejectedhsidx[rejidx]];
@@ -381,11 +455,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
     for (int i=0;i<5;i++) for (int j=i;j<5;j++) fakeCov55(i,j) = util::kBogusD;
     assert(hitstate.wireId().Plane == hits[originalPos]->WireID().Plane);
     trackFitHitInfos.push_back( recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),fakePar5,fakeCov55,hitstate.wireId()) );
-    //
-    //assert(hitstatev[rejectedhsidx[rejidx]].hitPtr().key()==hits[originalPos].key());
-    //
   }
 
+  if (dumpLevel_>1) std::cout << "outHits.size()=" << outHits.size() << " hits.size()=" << hits.size() << std::endl;
   assert(outHits.size()==hits.size());
 
   if (positions.size()<4) {
@@ -403,15 +475,22 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Track& track, const std::vec
   }
 
   bool propok = true;
-  KFTrackState resultF = propToPlane->rotateToPlane(propok, fwdUpdTkState.front().trackState(),
-						    Plane(fwdUpdTkState.front().position(),fwdUpdTkState.front().momentum()));
-  KFTrackState resultB = propToPlane->rotateToPlane(propok, fwdUpdTkState.back().trackState(),
-						    Plane(fwdUpdTkState.back().position(),fwdUpdTkState.back().momentum()));
+  KFTrackState resultF = propagator->rotateToPlane(propok, fwdUpdTkState[updstatesindex.front()].trackState(),
+						   Plane(fwdUpdTkState[updstatesindex.front()].position(),fwdUpdTkState[updstatesindex.front()].momentum()));
+  KFTrackState resultB = propagator->rotateToPlane(propok, fwdUpdTkState[updstatesindex.back()].trackState(),
+						   Plane(fwdUpdTkState[updstatesindex.back()].position(),fwdUpdTkState[updstatesindex.back()].momentum()));
+  
+  int ndof = nchi2-4;//hits are 1D measurement, i.e. each hit is one d.o.f.; no B field: 4 fitted parameters
 
-  int ndof = positions.size()-4;//hits are 1D measurement, i.e. each hit is one d.o.f.; no B field: 4 fitted parameters
+  outTrack = recob::Track(recob::TrackTrajectory(std::move(positions),std::move(momenta),std::move(outFlags),true),
+			  pdgid,totChi2,ndof,std::move(resultF.covariance()),std::move(resultB.covariance()),tkID);
 
-  outTrack = recob::Track(recob::TrackTrajectory(std::move(positions),std::move(momenta),std::move(flags),true),
-			  pdgid,totChi2,ndof,std::move(resultF.covariance()),std::move(resultB.covariance()),track.ID());
+  if (dumpLevel_>0) {
+    std::cout << "outTrack vertex=" << outTrack.Start()
+	      << "\ndir=" << outTrack.StartDirection()
+	      << "\ncov=\n" << outTrack.StartCovariance()
+	      << std::endl;
+  }
 
   return true;
 
