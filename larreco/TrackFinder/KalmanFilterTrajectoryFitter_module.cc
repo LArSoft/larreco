@@ -103,7 +103,7 @@ namespace trkf {
       };
       fhicl::Atom<bool> produceTrackFitHitInfo {
         Name("produceTrackFitHitInfo"),
-        Comment(".") //fixme
+        Comment("Option to produce (or not) the detailed TrackFitHitInfo.")
       };
     };
 
