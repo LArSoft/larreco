@@ -5,8 +5,8 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Hit.h"
 
-#include "larreco/TrackFinder/TrackingPlaneHelper.h"
 #include "lardata/RecoObjects/KFTrackState.h"
+#include "lardata/RecoObjects/TrackingPlaneHelper.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
