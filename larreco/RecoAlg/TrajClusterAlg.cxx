@@ -987,14 +987,15 @@ namespace tca {
     // check for a major failure
     if(fQuitAlg) return;
 
-    // TY: Improve hit assignments near vertex 
-    VtxHitsSwap();
-
     // last attempt to attach Tjs to vertices
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, fVertex2DCuts, vtxPrt);
     
     // Check the associations and set the kNiceVtx bit
     CheckVtxAssociations(tjs, fCTP);
+
+    // TY: Improve hit assignments near vertex 
+    VtxHitsSwap();
+
 
     if(fShowerTag[0] > 0) FindShowers(tjs, fCTP, fShowerTag);
     
@@ -8156,7 +8157,7 @@ namespace tca {
 
     if(!fUseAlg[kVtxHitsSwap]) return;
     
-    vtxPrt = (debug.Plane == (int)fPlane && debug.Tick < 0);
+    vtxPrt = ((debug.Plane == (int)fPlane || debug.Plane == 3) && debug.Tick < 0);
     if(vtxPrt) mf::LogVerbatim("TC")<<"inside VtxHitsSwap on plane "<<fPlane;
     for (unsigned short iv = 0; iv < tjs.vtx.size(); ++iv){
       VtxStore& rvx = tjs.vtx[iv];
@@ -8192,21 +8193,25 @@ namespace tca {
         unsigned short endPt1 = tjs.allTraj[tjlist[1-i]].EndPt[1-i];
         //first TP on first trajectory
         float chg0 = TpSumHitChg(tjs, tj0.Pts[endPt0]);
+        float w0 = tj0.Pts[endPt0].Pos[0];
         //if (vtxPrt) mf::LogVerbatim("TC")<<PrintPos(tjs, tj0.Pts[endPt0]);
         //second TP on first trajectory
         float chg1 = 0;
+        float w1 = 0;
         unsigned short j = endPt0;
         while (j!=tj0.EndPt[1-i]){
           if (i==0) ++j;
           else --j;
           if (tj0.Pts[j].Chg){
             chg1 = TpSumHitChg(tjs, tj0.Pts[j]);
+            w1 = tj0.Pts[j].Pos[0];
             //if (vtxPrt) mf::LogVerbatim("TC")<<PrintPos(tjs, tj0.Pts[j]);
             break;
           }
         }
         //first TP on second trajectory
         float chg2 = TpSumHitChg(tjs,tj1.Pts[endPt1]);
+        float w2 = tj1.Pts[endPt1].Pos[0];
         //DOCA between first TP on first TJ and first TP on second TJ
         float delta = 1000;
         for (size_t k = 0; k<tj0.Pts[endPt0].Hits.size(); ++k){
@@ -8216,8 +8221,11 @@ namespace tca {
         }
 //        if (vtxPrt) mf::LogVerbatim("TC")<<PrintPos(tjs, tj1.Pts[endPt1]);
         //if (vtxPrt) mf::LogVerbatim("TC")<<chg0<<" "<<chg1<<" "<<chg2<<" "<<delta;
-        if (chg0>0&&std::abs((chg0-chg1)/chg0)-std::abs((chg0-chg2)/chg0)>0.2&&delta<1.5){
-          if (vtxPrt) mf::LogVerbatim("TC")<<"VHS Moving TP "<<PrintPos(tjs, tj0.Pts[endPt0])<<" from TJ "<<tj0.ID<<" to TJ "<<tj1.ID;
+        if (chg0>0&&std::abs((chg0-chg1)/chg0)-std::abs((chg0-chg2)/chg0)>0.2&&delta<1.5&&std::abs(w2-w1)<1.5){
+          if (vtxPrt) {
+            mf::LogVerbatim("TC")<<"chg0 = "<<chg0<<" chg1 = "<<chg1<<" chg2 = "<<chg2<<" delta = "<<delta<<" w0 = "<<w0<<" w1 = "<<w1<<" w2 = "<<w2;
+            mf::LogVerbatim("TC")<<"VHS Moving TP "<<PrintPos(tjs, tj0.Pts[endPt0])<<" from TJ "<<tj0.ID<<" to TJ "<<tj1.ID;
+          }
           //Add first TP of first trajectory to the second trajectory
           TrajPoint tp = tj0.Pts[endPt0];
           for (size_t j = 0; j<tp.Hits.size(); ++j){
