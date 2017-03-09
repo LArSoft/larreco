@@ -155,6 +155,7 @@ namespace tca {
   void DefineShowerEnvelope(TjStuff& tjs, const unsigned short& cotIndex, const std::vector<float>& fShowerTag, bool prt);
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, bool prt);
   void CollectHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
+  float ShowerEnergy(TjStuff& tjs, const ShowerStruct& ss);
   // ****************************** Vertex finding  ******************************
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, const std::vector<float>& fVertex2DCuts, bool prt);
