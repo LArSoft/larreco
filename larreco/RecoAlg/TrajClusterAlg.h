@@ -127,7 +127,7 @@ namespace tca {
     std::vector<float> fMatchTruth;     ///< Match to MC truth
  
     std::vector<float> fMaxVertexTrajSep;
-    std::bitset<32> fUseAlg;  ///< Allow user to mask off specific algorithms
+    std::bitset<64> fUseAlg;  ///< Allow user to mask off specific algorithms
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
