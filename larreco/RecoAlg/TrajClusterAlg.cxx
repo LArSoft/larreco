@@ -75,7 +75,7 @@ namespace tca {
     fDOCA = tfs->make<TH1F>("DOCA","Min DOCA", 100, 0, 100);
     fParentFOM = tfs->make<TH1F>("ParentFOM","Parent FOM", 100, 0, 10);
 
-    fShPrimIP = tfs->make<TH1F>("ShPrimIP","Primary TP - Shower TP Impact Parameter", 100, 0, 10);
+    fShPrimIP = tfs->make<TH1F>("ShPrimIP","Primary TP - Shower TP Impact Parameter", 100, 0, 20);
     fShPrimIP_Energy = tfs->make<TProfile>("ShPrimIP_Energy","Primary TP - Shower TP Impact Parameter vs Energy", nbins, 0, 1000);
     
     fShTPAngAve[0] = tfs->make<TH1F>("TPAngAve0","Ave TP Angle Pln 0", 100, -1, 1);
@@ -233,8 +233,10 @@ namespace tca {
     // Ensure that the size of the AlgBitNames vector is consistent with the AlgBit typedef enum
     if(kAlgBitSize != AlgBitNames.size()) throw art::Exception(art::errors::Configuration)<<"kAlgBitSize "<<kAlgBitSize<<" != AlgBitNames size "<<AlgBitNames.size();
     fAlgModCount.resize(kAlgBitSize);
-    
+
     if(kFlagBitSize != StopFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != StopFlagNames size "<<StopFlagNames.size();
+    
+    if(kFlagBitSize > 64) throw art::Exception(art::errors::Configuration)<<"Increase the size of fUseAlgs to at least "<<kFlagBitSize;
     
     bool gotit, printHelp = false;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) fUseAlg[ib] = true;
@@ -477,7 +479,6 @@ namespace tca {
       ++ntj;
       if(tj.AlgMod[kShowerTj]) ++nsh;
     } // tj
-    std::cout<<"RTC done ntj "<<ntj<<" nsh "<<nsh<<" events processed "<<fEventsProcessed<<"\n";
 
     if(fStudyMode) {
       // shower stuff
@@ -496,10 +497,15 @@ namespace tca {
         unsigned short itj = ss.ShowerTjID - 1;
         Trajectory& stj = tjs.allTraj[itj];
         float ep = 0;
-        if(ss.ParentTrajID > 0) ep = tjs.allTraj[ss.ParentTrajID - 1].EffPur;
+        if(ss.ParentTrajID == 0) {
+          std::cout<<"No parent Tj for ict "<<ict<<"\n";
+          continue;
+        }
+        ep = tjs.allTraj[ss.ParentTrajID - 1].EffPur;
         // source particle energy in MeV
         float spe = 1000 * sourceParticleEnergy;
-        std::cout<<"sPE "<<(int)spe;
+        mf::LogVerbatim myprt("TC");
+        myprt<<"SPE "<<(int)spe;
         float aveMom = 0;
         short maxMom = 0;
         float aveNN = 0;
@@ -527,23 +533,28 @@ namespace tca {
         float aspect2 = (stj.Pts[2].DeltaRMS - stj.Pts[0].DeltaRMS) / ss.EnvelopeLength;
         fShAspectRatio2->Fill(aspect2);
         fShTPAngAve[ss.CTP]->Fill(ss.TPAngAve);
-        if(ss.ParentTrajID > 0) {
-          unsigned short iptj = ss.ParentTrajID - 1;
-          unsigned short endPt = tjs.allTraj[iptj].EndPt[ss.ParentTrajEnd];
-          TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
-          float ip = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], ptp);
-          fShPrimIP->Fill(ip);
-          fShPrimIP_Energy->Fill(spe, ip);
-          fParentLength_Energy->Fill(spe, (float)tjs.allTraj[iptj].Pts.size());
-          fParentFOM->Fill(ss.ParentFOM);
-        }
-        std::cout<<" "<<stj.ID<<"_"<<stj.CTP<<" nTjIDs "<<ss.TjIDs.size()<<" AveMom "<<(int)aveMom<<" maxMom "<<maxMom;
-        std::cout<<" aveNN "<<std::fixed<<std::setprecision(1)<<aveNN;
-        for(auto& vtx : ss.Envelope) std::cout<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
-        std::cout<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio<<" aspect2 "<<aspect2;
-        std::cout<<" Chg "<<(int)totChg<<" ChgDensity "<<std::fixed<<std::setprecision(1)<<ss.ChgDensity;
-        std::cout<<" EffPur "<<ep;
-        std::cout<<"\n";
+        float parLen = 1E6;
+        if(ss.ParentTrajID == 0) continue;
+        unsigned short iptj = ss.ParentTrajID - 1;
+        unsigned short endPt = tjs.allTraj[iptj].EndPt[ss.ParentTrajEnd];
+        TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
+        float ip = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], ptp);
+        fShPrimIP->Fill(ip);
+        fShPrimIP_Energy->Fill(spe, ip);
+        parLen = PosSep(ptp.Pos, stj.Pts[1].Pos);
+        fParentLength_Energy->Fill(spe, parLen);
+        fParentFOM->Fill(ss.ParentFOM);
+        myprt<<" "<<stj.ID<<"_"<<stj.CTP<<" nTjIDs "<<ss.TjIDs.size()<<" AveMom "<<(int)aveMom;
+//        std::cout<<" aveNN "<<std::fixed<<std::setprecision(1)<<aveNN;
+//        for(auto& vtx : ss.Envelope) std::cout<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+        myprt<<" Parent "<<tjs.allTraj[iptj].ID<<" "<<PrintPos(tjs, ptp);
+        myprt<<" CC "<<PrintPos(tjs, stj.Pts[1].Pos);
+        myprt<<" ParLen "<<(int)parLen;
+        myprt<<" Parfom "<<std::fixed<<std::setprecision(2)<<ss.ParentFOM;
+        myprt<<" AspRat "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio<<" aspect2 "<<aspect2;
+        myprt<<" Chg "<<(int)totChg<<" ChgDensity "<<std::fixed<<std::setprecision(1)<<ss.ChgDensity;
+        myprt<<" EffPur "<<ep;
+        myprt<<" evts processed "<<fEventsProcessed;
       } // ict
       // histogram Tj separation
       float minDOCA = 5000;
@@ -1527,6 +1538,7 @@ namespace tca {
         ++cnt;
         if(!(cnt % 20)) std::cout<<"\n";
       } // md
+      std::cout<<"\n";
     } // fMatchTruth[1] > 2
 
     // Match all hits to the truth. Put the MC track ID in a temp vector
@@ -1679,11 +1691,10 @@ namespace tca {
           }
         } // ii
         if(tjWithMostHits == USHRT_MAX) continue;
-        // the total number of hits used in the TJ
+        // Count the total number of used hits in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
-        // deal with daughter trajectories here. Transfer the daughter stuff to 
-        // the parent
         if(tjs.allTraj[tjWithMostHits].ParentTrajID > 0) {
+          // This is a daughter trajectory that has more truth matched hits than the parent
           unsigned short ptj = tjs.allTraj[tjWithMostHits].ParentTrajID - 1;
           // add the parent hits to the vector of daughter hits
           auto ptmp = PutTrajHitsInVector(tjs.allTraj[ptj], kUsedHits);
@@ -1693,6 +1704,7 @@ namespace tca {
             unsigned short itj = nMatchedHitsInTj[ipl][ii][0];
             if(itj == ptj) {
               mostHits += nMatchedHitsInTj[ipl][ii][1];
+              // re-direct the calculation to the parent
               tjWithMostHits = ptj;
               break;
             } // found the parent tj
@@ -1757,12 +1769,26 @@ namespace tca {
         // print out some debugging information if the EP was pitiful and the number of matched hits is large
         if(tjs.allTraj[itj].EffPur < fMatchTruth[2] && nMatchedHitsInPartList[ipl][plane] > fMatchTruth[3]) {
           mf::LogVerbatim myprt("TC");
-          myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<std::fixed<<std::setprecision(2)<<tjs.allTraj[itj].EffPur<<" TMeV ";
-          myprt<<(int)TMeV<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipl][plane];
+          myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<std::fixed<<std::setprecision(2)<<tjs.allTraj[itj].EffPur;
+          myprt<<" TMeV "<<(int)TMeV<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipl][plane];
           myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<fEventsProcessed;
           // print alg names
           for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tjs.allTraj[itj].AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         }
+        // check for a bad match to a primary electron shower
+        if(fShowerTag[0] > 1 && pdgIndex == 0 && partList[ipl]->Mother() == 0 && sourceParticleEnergy > 50) {
+          Trajectory& ptj = tjs.allTraj[itj];
+          // determine if this is a parent of a shower Tj
+          unsigned short dtrID = 0;
+          for(auto& tj : tjs.allTraj) {
+            if(!tj.AlgMod[kShowerTj]) continue;
+            if(tj.ParentTrajID == ptj.ID) {
+              dtrID = tj.ID;
+              break;
+            }
+          } // tj
+          if(dtrID == 0) mf::LogVerbatim("TC")<<"BadShower Primary electron -> Traj "<<ptj.ID<<"_"<<ptj.CTP<<" Wrong shower parent. Events processed "<<fEventsProcessed;
+        } // check primary electron shower
         // histogram the MC-reco stopping point difference
         unsigned short endPt = tjs.allTraj[itj].EndPt[0];
         float recoWire0 = tjs.allTraj[itj].Pts[endPt].Pos[0];
@@ -2519,6 +2545,12 @@ namespace tca {
           if(it1 == it2) continue;
           if(tjs.allTraj[it2].AlgMod[kKilled]) continue;
           if(tjs.allTraj[it2].CTP != fCTP) continue;
+          // ensure that MCSMom isn't wildly different
+          if(tjs.allTraj[it2].MCSMom > tjs.allTraj[it1].MCSMom) {
+            if(tjs.allTraj[it1].MCSMom < 0.5 * tjs.allTraj[it2].MCSMom) continue;
+          } else {
+            if(tjs.allTraj[it2].MCSMom < 0.5 * tjs.allTraj[it1].MCSMom) continue;
+          }
           unsigned short end2 = 1 - end1;
           // check for a vertex at this end
           if(tjs.allTraj[it2].VtxID[end2] > 0) continue;
@@ -6203,11 +6235,10 @@ namespace tca {
     // update MCSMom. First ensure that nothing bad has happened
     float newMCSMom = MCSMom(tjs, tj);
     if(lastPt > 5 && newMCSMom < 0.6 * tj.MCSMom) {
-      if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: MCSMom took a nose-dive ";
+      if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: MCSMom took a nose-dive "<<newMCSMom;
       UnsetUsedHits(tjs, lastTP);
       DefineHitPos(lastTP);
       SetEndPoints(tjs, tj);
-      fMaskedLastTP = true;
       fUpdateTrajOK = true;
       return;
     }
