@@ -3,6 +3,7 @@
 namespace tca {
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
+    "MaskBadTPs",
     "CTKink",
     "CTStepChk",
     "TryNextPass",
@@ -28,7 +29,6 @@ namespace tca {
     "UseUnusedHits",
     "VtxTj",
     "RefVtx",
-    "MBadTPs",
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
@@ -36,6 +36,8 @@ namespace tca {
     "FTBRevProp",
     "StopAtTj",
     "Match3D",
+    "VtxHitsSwap",
+    "SplitHiChgHits",
     "InShower",
     "ShowerParent",
     "ShowerTj"
@@ -46,9 +48,7 @@ namespace tca {
     "AtKink",
     "AtVtx",
     "Bragg",
-    "RvPrp",
-    "AtTj",
-    "BadFits"
+    "AtTj"
   };
   
   const std::vector<std::string> VtxBitNames {
@@ -56,7 +56,17 @@ namespace tca {
     "VtxTrjTried",
     "OnDeadWire",
     "VtxRefined",
-    "NiceVtx"
+    "NiceVtx",
+    "kInShower"
   } ;
+  
+  geo::PlaneID DecodeCTP(CTP_t CTP) {
+    geo::PlaneID tmp;
+    tmp.Cryostat = CTP / Cpad;
+    tmp.TPC = (CTP - tmp.Cryostat * Cpad) / Tpad;
+    tmp.Plane = (CTP % 10);
+    return tmp;
+  }
+  
 } // namespace tca
 

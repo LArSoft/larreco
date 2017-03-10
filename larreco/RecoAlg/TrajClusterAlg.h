@@ -166,12 +166,31 @@ namespace tca {
     TH2F *fnHitsPerTP_Angle[3];
     TProfile *fnHitsPerTP_AngleP[3];
 */
-    TH2F *fMCSMom_Length;
-
-    TH2F *fMCSMom_TruMom_e;
+     TH2F *fMCSMom_TruMom_e;
     TH2F *fMCSMom_TruMom_mu;
     TH2F *fMCSMom_TruMom_pi;
     TH2F *fMCSMom_TruMom_p;
+    
+    TProfile *fShMinSep;
+    TProfile *fShMCSMom_Energy;
+    TProfile *fShnTjs_Energy;
+    TProfile *fShAspectRatio_Energy;
+    TProfile *fShChg_Energy[3];
+    TProfile *fShChgDensity_Energy;
+    TProfile *fShLength_Energy;
+    TProfile *fShEP_Energy;
+    TProfile *fParentLength_Energy;
+    
+    TH1F *fShMCSMom;
+    TH1F *fShChgDensity;
+    TH1F *fShAspectRatio;
+    TH1F *fShAspectRatio2;
+    TH1F *fDOCA;
+    TH1F *fParentFOM;
+    
+    TH1F *fShTPAngAve[3];
+    TH1F *fShPrimIP;
+    TProfile *fShPrimIP_Energy;
 
     TH2F *fMCSMomEP_TruMom_e;
     
@@ -193,6 +212,7 @@ namespace tca {
 */
     // number of primary particles in the event
     unsigned short nTruPrimary;
+    float sourceParticleEnergy;
     // number of reconstructable primary particles in the event
     unsigned short nTruPrimaryOK;
     // number of reconstructable neutrino vertices in ALL events
@@ -350,6 +370,11 @@ namespace tca {
     void ChkAllStop();
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
+    // Check the Michel electron topology, lastGoodPt is the last point of muon
+    bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
+    // TY: Split high charge hits near the trajectory end
+    void ChkHiChgHits();
+    void SplitHiChgHits(Trajectory& tj);
     void SetPDGCode(Trajectory& tj);
     void SetPDGCode(unsigned short itj);
     void MatchTruth();
@@ -363,6 +388,8 @@ namespace tca {
     void Find3DVertices(const geo::TPCID& tpcid);
     void CompleteIncomplete3DVertices(const geo::TPCID& tpcid);
     void CompleteIncomplete3DVerticesInGaps(const geo::TPCID& tpcid);
+    // Improve hit assignments near vertex 
+    void VtxHitsSwap();
     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
     void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
