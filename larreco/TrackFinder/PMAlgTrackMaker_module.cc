@@ -57,6 +57,9 @@
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/Utilities/PtrMaker.h"
 
+#include "lardata/ArtDataHelper/MVAReader.h"
+#define MVA_LENGTH 4
+
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgTracking.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
@@ -113,6 +116,11 @@ public:
 			Name("EmClusterModuleLabel"),
 			Comment("EM-like clusters, will be excluded from tracking if provided")
 		};
+
+		fhicl::Atom<float> TrackLikeThreshold {
+			Name("TrackLikeThreshold"),
+			Comment("CNN output threshold for track-like recognition")
+		};
     };
     using Parameters = art::EDProducer::Table<Config>;
 
@@ -130,6 +138,7 @@ private:
 	art::InputTag fHitModuleLabel; // tag for hits collection (used for trk validation)
 	art::InputTag fCluModuleLabel; // tag for input cluster collection
 	art::InputTag fEmModuleLabel;  // tag for em-like cluster collection
+	float fTrackLikeThreshold;     // trk-like threshold on cnn output
 
 	pma::ProjectionMatchingAlg::Config fPmaConfig;
 	pma::PMAlgTracker::Config fPmaTrackerConfig;
@@ -155,6 +164,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	fHitModuleLabel(config().HitModuleLabel()),
 	fCluModuleLabel(config().ClusterModuleLabel()),
 	fEmModuleLabel(config().EmClusterModuleLabel()),
+	fTrackLikeThreshold(config().TrackLikeThreshold()),
 
 	fPmaConfig(config().ProjectionMatchingAlg()),
 	fPmaTrackerConfig(config().PMAlgTracking()),
@@ -189,7 +199,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
-	// ---------------- Create data products ------------------
+	// ---------------- Create data products --------------------------
 	auto tracks = std::make_unique< std::vector< recob::Track > >();
 	auto allsp = std::make_unique< std::vector< recob::SpacePoint > >();
 	auto vtxs = std::make_unique< std::vector< recob::Vertex > >();  // interaction vertices
@@ -214,47 +224,43 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	auto pfp2trk = std::make_unique< art::Assns< recob::PFParticle, recob::Track > >();
 
 
-	// -------------- Collect hits and clusters ---------------
-	art::Handle< std::vector<recob::Hit> > allHitListHandle;
-	art::Handle< std::vector<recob::Cluster> > cluListHandle, splitCluHandle;
+	// ------------------------- Hits ---------------------------------
+	auto allHitListHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
 	std::vector< art::Ptr<recob::Hit> > allhitlist;
-
-	if (!(evt.getByLabel(fHitModuleLabel, allHitListHandle) && // all hits associated used to create clusters
-    	  evt.getByLabel(fCluModuleLabel, cluListHandle)))     // clusters used to build 3D tracks
-	{
-		throw cet::exception("PMAlgTrackMaker") << "Not all required data products found in the event." << std::endl;
-	}
-
 	art::fill_ptr_vector(allhitlist, allHitListHandle);
-	art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fCluModuleLabel);
 
 
-	// -------------- PMA Tracker for this event --------------
+	// -------------- PMA Tracker for this event ----------------------
 	auto pmalgTracker = pma::PMAlgTracker(allhitlist,
 		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig);
 
+	if (fEmModuleLabel != "") // ----------- Exclude EM parts ---------
+	{
+	    auto cluListHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fCluModuleLabel);
+	    auto splitCluHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fEmModuleLabel);
 
-	if (fEmModuleLabel != "") // --- Exclude EM parts ---------
-	{
-		if (evt.getByLabel(fEmModuleLabel, splitCluHandle))
-		{
-			art::FindManyP< recob::Hit > hitsFromEmParts(splitCluHandle, evt, fEmModuleLabel);
-			pmalgTracker.init(hitsFromClusters, hitsFromEmParts);
-		}
-		else
-		{
-			throw cet::exception("PMAlgTrackMaker") << "EM-tagged clusters not found in the event." << std::endl;
-		}
+	    art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fCluModuleLabel);
+		art::FindManyP< recob::Hit > hitsFromEmParts(splitCluHandle, evt, fEmModuleLabel);
+		pmalgTracker.init(hitsFromClusters, hitsFromEmParts);
+
 	}
-	else // ------------------------ Use ALL clusters ---------
+	else if (fTrackLikeThreshold > 0) // --- CNN EM/trk separation ----
 	{
+	    //anab::MVAReader< recob::Cluster, MVA_LENGTH > cluResults(evt, fCluModuleLabel);
+	    //const art::FindManyP< recob::Hit > hitsFromClusters(cluResults->dataHandle(), evt, cluResults->dataTag());
+        //pmalgTracker.init(hitsFromClusters, );
+	}
+	else // ------------------------ Use ALL clusters -----------------
+	{
+	    auto cluListHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fCluModuleLabel);
+	    art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fCluModuleLabel);
 		pmalgTracker.init(hitsFromClusters);
 	}
 
 
-	// ------------------ Do the job here: --------------------
+	// ------------------ Do the job here: ----------------------------
 	int retCode = pmalgTracker.build();
-	// --------------------------------------------------------
+	// ----------------------------------------------------------------
 	switch (retCode)
 	{
 		case -2: mf::LogError("Summary") << "problem"; break;
@@ -267,7 +273,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			break;
 	}
 
-	// ---------- Translate output to data products: ----------
+	// ---------- Translate output to data products: ------------------
 	auto const & result = pmalgTracker.result();
 	if (!result.empty()) // ok, there is something to save
 	{
