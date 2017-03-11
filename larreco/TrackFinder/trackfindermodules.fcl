@@ -70,9 +70,6 @@ standard_pmalgtrackmaker:
   HitModuleLabel:         "hits"      # unclustered hits are used for tracks validation
   ClusterModuleLabel:     "cluster"   # cluster module label, these clusters are used for track building
   EmClusterModuleLabel:   ""          # EM-like clusters, will be excluded from tracking if provided
-  TrackLikeThreshold:     0.0         # CNN output threshold for track-like recognition; ClusterModuleLabel
-                                      # needs to be associated to CNN outputs in case of threshold > 0; will
-                                      # exclude obvious EM from tracking and tag clean electron tracks as PDG=11
 }
 
 # Trajectory fit using PMA.

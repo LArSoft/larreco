@@ -156,6 +156,11 @@ public:
 			Comment("min. cluster size used to start building a track in the 2nd pass")
 		};
 
+		fhicl::Atom<float> TrackLikeThreshold {
+			Name("TrackLikeThreshold"),
+			Comment("Threshold for track-like recognition")
+		};
+
 		fhicl::Atom<bool> RunVertexing {
 			Name("RunVertexing"),
 			Comment("find vertices from PFP hierarchy, join with tracks, reoptimize track-vertex structure")
@@ -233,6 +238,8 @@ public:
 
 		fMinSeedSize1stPass(pmalgTrackerConfig.MinSeedSize1stPass()),
 		fMinSeedSize2ndPass(pmalgTrackerConfig.MinSeedSize2ndPass()),
+		fTrackLikeThreshold(pmalgTrackerConfig.TrackLikeThreshold()),
+
 		fMinTwoViewFraction(pmalgConfig.MinTwoViewFraction()),
 
 		fFlipToBeam(pmalgTrackerConfig.FlipToBeam()),
@@ -258,6 +265,9 @@ public:
 	{}
 
 	void init(const art::FindManyP< recob::Hit > & hitsFromClusters);
+
+    void init(const art::FindManyP< recob::Hit > & hitsFromClusters,
+        const std::vector< float > & trackLike);
 
 	void init(const art::FindManyP< recob::Hit > & hitsFromClusters,
 		const art::FindManyP< recob::Hit > & hitsFromEmParts);
@@ -329,6 +339,7 @@ private:
 	}
 
 	std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
+	std::vector< float > fCluWeights;
 
 	/// these guys are temporary states, to be moved to function calls
 	std::vector< size_t > used_clusters, initial_clusters;
@@ -338,6 +349,7 @@ private:
 	// ******************** fcl parameters **********************
 	size_t fMinSeedSize1stPass;  // min. cluster size used to start building a track in the 1st pass
 	size_t fMinSeedSize2ndPass;  // min. cluster size used to start building a track in the 2nd pass
+	float  fTrackLikeThreshold;  // trk-like threshold on cnn output
 	double fMinTwoViewFraction;
 
 	bool fFlipToBeam;            // set the track direction to increasing Z values

@@ -116,11 +116,6 @@ public:
 			Name("EmClusterModuleLabel"),
 			Comment("EM-like clusters, will be excluded from tracking if provided")
 		};
-
-		fhicl::Atom<float> TrackLikeThreshold {
-			Name("TrackLikeThreshold"),
-			Comment("CNN output threshold for track-like recognition")
-		};
     };
     using Parameters = art::EDProducer::Table<Config>;
 
@@ -138,7 +133,6 @@ private:
 	art::InputTag fHitModuleLabel; // tag for hits collection (used for trk validation)
 	art::InputTag fCluModuleLabel; // tag for input cluster collection
 	art::InputTag fEmModuleLabel;  // tag for em-like cluster collection
-	float fTrackLikeThreshold;     // trk-like threshold on cnn output
 
 	pma::ProjectionMatchingAlg::Config fPmaConfig;
 	pma::PMAlgTracker::Config fPmaTrackerConfig;
@@ -164,7 +158,6 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	fHitModuleLabel(config().HitModuleLabel()),
 	fCluModuleLabel(config().ClusterModuleLabel()),
 	fEmModuleLabel(config().EmClusterModuleLabel()),
-	fTrackLikeThreshold(config().TrackLikeThreshold()),
 
 	fPmaConfig(config().ProjectionMatchingAlg()),
 	fPmaTrackerConfig(config().PMAlgTracking()),
@@ -244,11 +237,19 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		pmalgTracker.init(hitsFromClusters, hitsFromEmParts);
 
 	}
-	else if (fTrackLikeThreshold > 0) // --- CNN EM/trk separation ----
+	else if (fPmaTrackerConfig.TrackLikeThreshold() > 0) // --- CNN EM/trk separation ----
 	{
-	    //anab::MVAReader< recob::Cluster, MVA_LENGTH > cluResults(evt, fCluModuleLabel);
-	    //const art::FindManyP< recob::Hit > hitsFromClusters(cluResults->dataHandle(), evt, cluResults->dataTag());
-        //pmalgTracker.init(hitsFromClusters, );
+	    anab::MVAReader< recob::Cluster, MVA_LENGTH > cluResults(evt, fCluModuleLabel);
+	    const art::FindManyP< recob::Hit > hitsFromClusters(cluResults.dataHandle(), evt, cluResults.dataTag());
+	    const auto & cnnOuts = cluResults.outputs();
+	    std::vector< float > trackLike(cnnOuts.size());
+	    for (size_t i = 0; i < cnnOuts.size(); ++i)
+	    {
+	        double trkOrEm = cnnOuts[i][0] + cnnOuts[i][1];
+	        if (trkOrEm > 0) { trackLike[i] = cnnOuts[i][0] / trkOrEm; }
+	        else { trackLike[i] = 0; }
+	    }
+        pmalgTracker.init(hitsFromClusters, trackLike);
 	}
 	else // ------------------------ Use ALL clusters -----------------
 	{
