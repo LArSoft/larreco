@@ -88,9 +88,9 @@ public:
 			Name("PMAlgVertexing")
 		};
 
-    fhicl::Table<pma::PMAlgStitching::Config> PMAlgStitching {
-      Name("PMAlgStitching")
-    };
+        fhicl::Table<pma::PMAlgStitching::Config> PMAlgStitching {
+            Name("PMAlgStitching")
+        };
 
 		fhicl::Atom<bool> SaveOnlyBranchingVtx {
 			Name("SaveOnlyBranchingVtx"),
@@ -129,6 +129,11 @@ public:
 	void produce(art::Event & e) override;
 
 private:
+    // calculate EM/track value for hits in track, in its best 2D projection
+    // (tracks are built starting from track-like cluster, some electrons
+    // still may look track-like)
+    int getPdgFromCnnOnHits(const art::Event& evt, const pma::Track3D& trk) const;
+
 	// ******************** fcl parameters **********************
 	art::InputTag fHitModuleLabel; // tag for hits collection (used for trk validation)
 	art::InputTag fCluModuleLabel; // tag for input cluster collection
@@ -137,7 +142,7 @@ private:
 	pma::ProjectionMatchingAlg::Config fPmaConfig;
 	pma::PMAlgTracker::Config fPmaTrackerConfig;
 	pma::PMAlgVertexing::Config fPmaVtxConfig;
-  pma::PMAlgStitching::Config fPmaStitchConfig;
+    pma::PMAlgStitching::Config fPmaStitchConfig;
 
 	bool fSaveOnlyBranchingVtx;  // for debugging, save only vertices which connect many tracks
 	bool fSavePmaNodes;          // for debugging, save only track nodes
@@ -189,6 +194,38 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	produces< art::Assns<recob::PFParticle, recob::Track> >();
 }
 // ------------------------------------------------------
+
+int PMAlgTrackMaker::getPdgFromCnnOnHits(const art::Event& evt, const pma::Track3D& trk) const
+{
+    int pdg = 0;
+    auto hitResults = anab::MVAReader<recob::Hit, MVA_LENGTH>::create(evt, fCluModuleLabel);
+    if ((fPmaTrackerConfig.TrackLikeThreshold() > 0) && hitResults)
+    {
+        size_t nh[3] = { 0, 0, 0 };
+        for (size_t hidx = 0; hidx < trk.size(); ++hidx) { ++nh[trk[hidx]->View2D()]; }
+
+        size_t best_view = 2; // collection
+        if ((nh[0] >= nh[1]) && (nh[0] > 1.25 * nh[2])) best_view = 0; // ind1
+        if ((nh[1] >= nh[0]) && (nh[1] > 1.25 * nh[2])) best_view = 1; // ind2
+
+        std::vector< art::Ptr<recob::Hit> > trkHitPtrList;
+        trkHitPtrList.reserve(nh[best_view]);
+        for (size_t hidx = 0; hidx < trk.size(); ++hidx)
+        {
+            if (trk[hidx]->View2D() == best_view) { trkHitPtrList.emplace_back(trk[hidx]->Hit2DPtr()); }
+        }
+        auto vout = hitResults->getOutput(trkHitPtrList);
+        double trk_like = -1, trk_or_em = vout[0] + vout[1];
+        if (trk_or_em > 0)
+        {
+            trk_like = vout[0] / trk_or_em;
+            if (trk_like < fPmaTrackerConfig.TrackLikeThreshold()) pdg = 11; // tag if EM-like
+            // (don't set pdg for track-like, for the moment don't like the idea of using "13")
+        }
+        //std::cout << "trk:" << best_view << ":" << trk.size() << ":" << trkHitPtrList.size() << " p=" << trk_like << std::endl;
+    }
+    return pdg;
+}
 
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
@@ -431,6 +468,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 		for (size_t t = 0; t < result.size(); ++t)
 		{
+		    int pdg = getPdgFromCnnOnHits(evt, *(result[t].Track()));
+
 			size_t parentIdx = recob::PFParticle::kPFParticlePrimary;
 			if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent();
 
@@ -438,7 +477,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			for (size_t idx : result[t].Daughters()) { daughterIdxs.push_back(idx); }
 
 			size_t pfpidx = pfps->size();
-			pfps->emplace_back(0, pfpidx, parentIdx, daughterIdxs);
+			pfps->emplace_back(pdg, pfpidx, parentIdx, daughterIdxs);
 
 			auto const pfpptr = make_pfpptr(pfpidx);
 			auto const tptr = make_trkptr(t);
