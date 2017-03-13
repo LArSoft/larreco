@@ -308,6 +308,8 @@ namespace tca {
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
+    // Make showers from clusters of trajectories
+    void MakeShowers();
     // Push the trajectory into allTraj
     void StoreTraj(Trajectory& tj);
     // Check the quality of the trajectory and possibly trim it
@@ -375,6 +377,7 @@ namespace tca {
     // TY: Split high charge hits near the trajectory end
     void ChkHiChgHits();
     void SplitHiChgHits(Trajectory& tj);
+    void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
     void SetPDGCode(Trajectory& tj);
     void SetPDGCode(unsigned short itj);
     void MatchTruth();
