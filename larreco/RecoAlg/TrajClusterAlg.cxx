@@ -319,9 +319,6 @@ namespace tca {
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::ClearResults() {
-    // clear everything in reverse order in which it appears in tjs DataStructs.h
-    // so that vectors that appear later in the list are not unnecessarily shifted
-    // before they are cleared.
     tjs.vtx3.clear();
     tjs.vtx.clear();
     tjs.tcl.clear();
@@ -332,6 +329,7 @@ namespace tca {
     tjs.fHits.clear();
     tjs.allTraj.clear();
     tjs.cots.clear();
+    tjs.showers.clear();
   } // ClearResults()
 
   ////////////////////////////////////////////////
@@ -446,7 +444,10 @@ namespace tca {
     } // tpcid
 
     MatchTruth();
- 
+    
+    FillPFPInfo();
+    // convert the cots vector into recob::Shower
+    MakeShowers();
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -459,6 +460,7 @@ namespace tca {
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in CheckHitClusterAssociations";
       return;
     }
+    
     
     if(TJPrt > 0 || debug.Plane >= 0) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
@@ -3624,7 +3626,6 @@ namespace tca {
     // temp vector of all 2D vertex matches
     std::vector<Vtx3Store> v3temp;
     
-//    TVector3 WPos = {0, 0, 0};
     TrajPoint tp;
     // i, j, k indicates 3 different wire planes
     // compare vertices in each view
@@ -4036,7 +4037,7 @@ namespace tca {
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"matchVecPFPList \n";
-        for(unsigned int ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
+        for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
           unsigned short im = tjs.matchVecPFPList[ii];
           auto& mv = tjs.matchVec[im];
           myprt<<ii<<" im "<<im<<" Count "<<mv.Count<<" TjIDs";
@@ -4050,7 +4051,55 @@ namespace tca {
     Match3D2Views(tpcid, xx);
     Find3DEndPoints(tpcid);
     
-    // TODO: Need to define DtrIndices
+    // Define the parent (j) - daughter (i) relationship and the PDGCode
+    for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned short imv = tjs.matchVecPFPList[ipfp];
+      auto& ims = tjs.matchVec[imv];
+      // assume that this is its own parent
+      ims.Parent = ipfp;
+      unsigned short n11 = 0;
+      unsigned short n13 = 0;
+      unsigned short nsh = 0;
+      unsigned short nshp = 0;
+      // look for a parent (j) in the list of trajectories
+      for(unsigned short ii = 0; ii < ims.TjIDs.size(); ++ii) {
+        unsigned short itj = ims.TjIDs[ii] - 1;
+        Trajectory& tj = tjs.allTraj[itj];
+        if(tj.PDGCode == 11) ++n11;
+        if(tj.PDGCode == 13) ++n13;
+        if(tj.AlgMod[kShowerParent]) ++nshp;
+        if(tj.AlgMod[kShowerTj]) ++nsh;
+        // Look for a parent trajectory that is matched in 3D
+        if(tj.ParentTrajID > 0 && tjs.allTraj[tj.ParentTrajID - 1].AlgMod[kMatch3D]) {
+          // Look for this parent in matchVecPFPList
+          for(unsigned short jpfp = 0; jpfp < tjs.matchVecPFPList.size(); ++jpfp) {
+            if(jpfp == ipfp) continue;
+            unsigned short jmv = tjs.matchVecPFPList[jpfp];
+            auto& jms = tjs.matchVec[jmv];
+            if(std::find(jms.TjIDs.begin(), jms.TjIDs.end(), tj.ParentTrajID) != jms.TjIDs.end()) {
+              ims.Parent = jpfp;
+              if(std::find(jms.DtrIndices.begin(), jms.DtrIndices.end(), ipfp) == jms.DtrIndices.end()) jms.DtrIndices.push_back(ipfp);
+              break;
+            }
+          } // jpfp
+        } // ParentTrajID > 0
+      } // ii
+      ims.PDGCode = 13;
+      if(nshp > 1 || nsh > 1 || n11 > n13) ims.PDGCode = 11;
+      std::cout<<"ipfp "<<ipfp<<" Counts "<<n11<<" "<<n13<<" "<<nsh<<" "<<nshp<<" PDGCode "<<ims.PDGCode<<" Parent "<<ims.Parent<<"\n";
+    } // ipfp
+    
+    unsigned short pfpCount = 0;
+    for(auto& im : tjs.matchVecPFPList) {
+      auto& ms = tjs.matchVec[im];
+      std::cout<<"PFParticle "<<pfpCount<<" PDGCode "<<ms.PDGCode<<" Parent "<<ms.Parent;
+      std::cout<<" TjIDs ";
+      for(auto& tjID : ms.TjIDs) std::cout<<" "<<tjID;
+      std::cout<<" DtrIndices";
+      for(auto& dtrID : ms.DtrIndices) std::cout<<" "<<dtrID;
+      std::cout<<"\n";
+      ++pfpCount;
+    }
 
   } // Match3D
 
@@ -4352,10 +4401,14 @@ namespace tca {
     // Fills the PFParticle info in matchVec. Each entry contains a list of trajectories and has a defined
     // start and end XYZ position, possibly with the index of a 3D vertex. 
     
-    unsigned short ip = 0;
+    unsigned short pfpCount = 0;
     for(auto& im : tjs.matchVecPFPList) {
       auto& ms = tjs.matchVec[im];
       // ms contains a list of tjs that were matched in 3D. 
+      // Set the parent index to itself for now
+      ms.Parent = pfpCount;
+      ++pfpCount;
+/*
       // Define the PDG code; track-like or shower-like
       unsigned short n13 = 0;
       unsigned short n11 = 0;
@@ -4363,13 +4416,13 @@ namespace tca {
         unsigned short itj = tjID - 1;
         if(tjs.allTraj[itj].PDGCode == 13) ++n13;
         if(tjs.allTraj[itj].PDGCode == 11) ++n11;
+        std::cout<<"Chk "<<tjs.allTraj[itj].ID<<" "<<tjs.allTraj[itj].PDGCode<<" "<<tjs.allTraj[itj].AlgMod[kShowerParent]<<"\n";
       } // tjID
       // assume it is track-like
       ms.PDGCode = 13;
       if(n13 == 0 && n11 > 0) ms.PDGCode = 11;
-      // Assume it is a parent and there are no daughters for now
-      ms.Parent = ip;
-      ++ip;
+      std::cout<<" n13 "<<n13<<" "<<n11<<"\n";
+*/
       // Trajectories have been reversed so that the Tj and hit order are consistent. The
       // next step is to decide whether the start of the PFParticle (where the 3D vertex association will be made) is indeed the
       // start of the trajectory from a physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc.
@@ -6979,14 +7032,83 @@ namespace tca {
   } // StoreTraj
   
   ////////////////////////////////////////////////
+  void TrajClusterAlg::MakeShowers()
+  {
+    // Fill recob::Shower variables
+    int shID = 0;
+    for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned short imv = tjs.matchVecPFPList[ipfp];
+      auto& msp = tjs.matchVec[imv];
+      // look for a shower-like parent
+      std::cout<<"MakeShowers "<<ipfp<<" Parent "<<msp.Parent<<" PDGCode "<<msp.PDGCode<<" Dtr size "<<msp.DtrIndices.size()<<"\n";
+      if(msp.PDGCode != 11) continue;
+      if(msp.Parent != ipfp) continue;
+      mf::LogVerbatim("TC")<<"MS: Parent "<<msp.Parent<<" Dtr size "<<msp.DtrIndices.size();
+      ++shID;
+      ShowerStruct3D ss3;
+      ss3.ID = shID;
+      // fill the position
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) ss3.Pos[ixyz] = msp.sXYZ[ixyz];
+      // calculate the direction
+      unsigned short itj = msp.TjIDs[0] - 1;
+      TrajPoint& itp = tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]];
+      unsigned short jtj = msp.TjIDs[1] - 1;
+      TrajPoint& jtp = tjs.allTraj[jtj].Pts[tjs.allTraj[jtj].EndPt[0]];
+      PrintTrajPoint("itp", tjs, tjs.allTraj[itj].EndPt[0], 0, 0, itp);
+      PrintTrajPoint("jtp", tjs, tjs.allTraj[jtj].EndPt[0], 0, 0, jtp);
+//      void TrajClusterAlg::SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr)
+    } // ipfp
+    /*
+
+    for(auto& msp : tjs.matchVec) {
+      // look for a matched ShowerTj parent
+      if(msp.PDGCode != 11) continue;
+      mf::LogVerbatim("TC")<<"MS: Parent "<<msp.Parent<<" Dtr size "<<msp.DtrIndices.size();
+      unsigned short nDtrShowerTj = 0;
+      for(auto& tjID : msp.TjIDs) {
+        unsigned short itj = tjID - 1;
+        if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nDtrShowerTj;
+        PrintTrajectory("MS", tjs, tjs.allTraj[itj], USHRT_MAX);
+      }
+      // Ensure that all of the daughters are shower Tjs
+      if(nDtrShowerTj != msp.TjIDs.size()) continue;
+      ++shID;
+      ShowerStruct3D ss3;
+      ss3.ID = shID;
+      // fill the position
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) ss3.Pos[ixyz] = msp.sXYZ[ixyz];
+      // calculate the direction
+      unsigned short itj = msp.TjIDs[0] - 1;
+      TrajPoint& itp = tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]];
+      unsigned short jtj = msp.TjIDs[1] - 1;
+      TrajPoint& jtp = tjs.allTraj[jtj].Pts[tjs.allTraj[jtj].EndPt[0]];
+      PrintTrajPoint("itp", tjs, tjs.allTraj[itj].EndPt[0], 0, 0, itp);
+      PrintTrajPoint("jtp", tjs, tjs.allTraj[jtj].EndPt[0], 0, 0, jtp);
+//      void TrajClusterAlg::SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr)
+      return;
+    } // ms
+     
+    for(auto& ss : tjs.cots) {
+      if(ss.TjIDs.empty()) continue;
+      if(ss.ParentTrajID == 0) continue;
+      ++shID;
+      ShowerStruct3D ss3D;
+      ss3D.shID = shID;
+      // Use the starting point on the parent Tj to define the shower start
+      unsigned short iptj = ss.ParentTrajID - 1;
+      unsigned short endPt = tjs.allTraj[iptj].EndPt[ss.ParentTrajEnd];
+      TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
+      ss.shDir = ptp.Pos;
+    } // cot
+*/
+  } // MakeShowers
+  ////////////////////////////////////////////////
   void TrajClusterAlg::MakeAllTrajClusters()
   {
     // Make clusters from all trajectories in tjs.allTraj
     
     // Merge hits in trajectory points?
     if(fMakeNewHits) MergeTPHits();
-    
-    FillPFPInfo();
     
     ClusterStore cls;
     tjs.tcl.clear();
@@ -8426,6 +8548,47 @@ namespace tca {
     }
   }
 
+  
+  /////////////////////////////////////////
+  void TrajClusterAlg::SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr)
+  {
+    
+    if(itp.CTP == jtp.CTP) {
+      dir.SetX(-999);
+      return;
+    }
+    TVector3 pt1, pt2;
+    geo::PlaneID iplnID = DecodeCTP(itp.CTP);
+    geo::PlaneID jplnID = DecodeCTP(jtp.CTP);
+    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    double x, y, z;
+    x  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
+    std::cout<<"pt1x "<<x;
+    x += detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
+    std::cout<<" pt2x "<<detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
+    x /= 2;
+    pt1.SetX(x);
+    std::cout<<" Ave "<<pt1.X()<<"\n";
+    unsigned int wire1 = (unsigned int)(itp.Pos[0] + 0.5);
+    unsigned int wire2 = (unsigned int)(jtp.Pos[0] + 0.5);
+    std::cout<<"wire1 "<<iplnID.Plane<<":"<<wire1<<" wire2 "<<jplnID<<":"<<wire2;
+    geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
+    pt1.SetY(y);
+    pt1.SetZ(z);
+    std::cout<<" pt1.Y "<<pt1.Y()<<" pt1.z "<<pt1.Z()<<"\n";
+    
+    // Move itp by 10 wires
+    MoveTPToWire(itp, itp.Pos[0] + 10);
+    wire1 = (unsigned int)(itp.Pos[0] + 0.5);
+    x  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
+    // Determine the number of wires to move jtp to get to the same X position
+    std::array<float, 2> newPos;
+    newPos[1] = detprop->ConvertXToTicks(x, jplnID) * tjs.UnitsPerTick;
+    std::cout<<" newPos[1] "<<newPos[1];
+    newPos[0] += (newPos[1] - jtp.Pos[1]) * jtp.Dir[0] / jtp.Dir[1];
+    std::cout<<" newPos[0] "<<newPos[0]<<" newPos[1] "<<newPos[1];
+  } // MakeSpacePt
+
   ////////////////////////////////////////////////
   void TrajClusterAlg::SetPDGCode(unsigned short itj)
   {
@@ -8436,7 +8599,7 @@ namespace tca {
   ////////////////////////////////////////////////
   void TrajClusterAlg::SetPDGCode(Trajectory& tj)
   {
-    // Sets the PDG code for the supplied trajectory, currently only to 13
+    // Sets the PDG code for the supplied trajectory
     
     // assume it is unknown
     tj.PDGCode = 0;
@@ -8444,6 +8607,11 @@ namespace tca {
     tj.MCSMom = MCSMom(tjs, tj);
     
     if(fMuonTag[0] <= 0) return;
+    
+    if(tj.AlgMod[kShowerParent]) {
+      tj.PDGCode = 11;
+      return;
+    }
     
     // Special handling of very long straight trajectories, e.g. uB cosmic rays
     bool isAMuon = (tj.Pts.size() > (unsigned short)fMuonTag[0] && tj.MCSMom > fMuonTag[1]);
