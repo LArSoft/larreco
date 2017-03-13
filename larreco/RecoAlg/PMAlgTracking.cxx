@@ -350,15 +350,33 @@ void pma::PMAlgFitter::buildShowers(void)
 
 void pma::PMAlgTracker::init(const art::FindManyP< recob::Hit > & hitsFromClusters)
 {
-	mf::LogVerbatim("PMAlgTracker") << "Sort hits by clusters ...";
+	mf::LogVerbatim("PMAlgTracker") << "Sort hits by clusters...";
 	fCluHits.clear(); fCluHits.reserve(hitsFromClusters.size());
+	fCluWeights.clear(); fCluWeights.reserve(fCluHits.size());
 	for (size_t i = 0; i < hitsFromClusters.size(); ++i)
 	{
 		auto v = hitsFromClusters.at(i);
 		fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
-		for (auto const & h : v) { fCluHits.back().push_back(h); }
+		for (auto const & h : v) fCluHits.back().push_back(h);
+		fCluWeights.push_back(1);
 	}
 	mf::LogVerbatim("PMAlgTracker") << "...done, " << fCluHits.size() << " clusters for 3D tracking.";
+}
+// ------------------------------------------------------
+
+void pma::PMAlgTracker::init(const art::FindManyP< recob::Hit > & hitsFromClusters,
+                             const std::vector< float > & trackLike)
+{
+	mf::LogVerbatim("PMAlgTracker") << "Filter track-like clusters using likelihood values...";
+	fCluHits.clear(); fCluHits.reserve(hitsFromClusters.size());
+	fCluWeights.clear(); fCluWeights.reserve(fCluHits.size());
+	for (size_t i = 0; i < hitsFromClusters.size(); ++i)
+	{
+		auto v = hitsFromClusters.at(i);
+		fCluHits.push_back(std::vector< art::Ptr<recob::Hit> >());
+		for (auto const & h : v) fCluHits.back().push_back(h);
+		fCluWeights.push_back(trackLike[i]);
+	}
 }
 // ------------------------------------------------------
 
@@ -367,6 +385,8 @@ void pma::PMAlgTracker::init(const art::FindManyP< recob::Hit > & hitsFromCluste
 {
 	mf::LogVerbatim("PMAlgTracker") << "Filter track-like clusters...";
 	fCluHits.clear(); fCluHits.reserve(hitsFromClusters.size());
+	fCluWeights.clear(); fCluWeights.reserve(fCluHits.size());
+	size_t n = 0; // count not-empty clusters
 	for (size_t i = 0; i < hitsFromClusters.size(); ++i)
 	{
 		auto v = hitsFromClusters.at(i);
@@ -385,8 +405,10 @@ void pma::PMAlgTracker::init(const art::FindManyP< recob::Hit > & hitsFromCluste
 			}
 			if (trkLike) fCluHits.back().push_back(h);
 		}
+		if (!fCluHits.back().empty()) { fCluWeights.push_back(1); ++n; }
+		else { fCluWeights.push_back(0); }
 	}
-	mf::LogVerbatim("PMAlgTracker") << "...done, " << fCluHits.size() << " clusters for 3D tracking.";
+	mf::LogVerbatim("PMAlgTracker") << "...done, " << n << " clusters for 3D tracking.";
 }
 // ------------------------------------------------------
 
@@ -928,7 +950,7 @@ int pma::PMAlgTracker::build(void)
 		fromMaxCluster_tpc(tracks[tpc_iter->TPC], fMinSeedSize2ndPass, tpc_iter->TPC, tpc_iter->Cryostat);
 	}
 
-	// - add 3D ref.points for clean endpoints of wire-plae parallel track
+	// - add 3D ref.points for clean endpoints of wire-plane parallel track
 	// - try correcting single-view sections spuriously merged on 2D clusters level
 	for (auto tpc_iter = fGeom->begin_TPC_id();
 	          tpc_iter != fGeom->end_TPC_id();
@@ -1016,7 +1038,7 @@ void pma::PMAlgTracker::fromMaxCluster_tpc(pma::TrkCandidateColl & result,
 	while (max_first_idx >= 0) // loop over clusters, any view, starting from the largest
 	{
 		mf::LogVerbatim("PMAlgTracker") << "Find max cluster...";
-		max_first_idx = maxCluster(minBuildSize, geo::kUnknown, tpc, cryo); // any view
+		max_first_idx = maxCluster(minBuildSize, geo::kUnknown, tpc, cryo); // any view, but must be track-like
 		if ((max_first_idx >= 0) && !fCluHits[max_first_idx].empty())
 		{
 			geo::View_t first_view = fCluHits[max_first_idx].front()->View();
@@ -1141,7 +1163,7 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
 					if (idx >= 0)
 					{
 						// try building extended copy:
-						//                src,        hits,    valid.plane, add nodes
+						//                src,        hits,      valid.plane, add nodes
 						if (extendTrack(candidate, fCluHits[idx],  testView,    true))
 						{
 							candidate.Clusters().push_back(idx);
@@ -1365,10 +1387,8 @@ int pma::PMAlgTracker::maxCluster(size_t min_clu_size,
 	{
 		const auto & v = fCluHits[i];
 
-		if (v.empty() ||
-		    has(used_clusters, i) ||
-		    has(initial_clusters, i) ||
-		    has(tried_clusters[view], i) ||
+		if (v.empty() || (fCluWeights[i] < fTrackLikeThreshold) ||
+		    has(used_clusters, i) || has(initial_clusters, i) || has(tried_clusters[view], i) ||
 		   ((view != geo::kUnknown) && (v.front()->View() != view)))
 		continue;
 

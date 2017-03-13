@@ -4273,6 +4273,10 @@ namespace tca {
           itjLong = itj;
         }
       } // ii
+      if (itjLong == USHRT_MAX){
+        mf::LogWarning("TC")<<"In Find3DEndPoints, itjLong = "<<itjLong<<", will return";
+        return;
+      }
       Trajectory& iTj = tjs.allTraj[itjLong];
       // find the 2nd longest tj
       unsigned short jtjLong = USHRT_MAX;
@@ -4288,6 +4292,10 @@ namespace tca {
           jtjLong = jtj;
         }
       } // ii
+      if (jtjLong == USHRT_MAX){
+        mf::LogWarning("TC")<<"In Find3DEndPoints, jtjLong = "<<jtjLong<<", will return";
+        return;
+      }
       // consider both ends of each Tj
       unsigned short iPln = DecodeCTP(iTj.CTP).Plane;
       Trajectory& jTj = tjs.allTraj[jtjLong];
