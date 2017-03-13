@@ -1726,6 +1726,13 @@ namespace tca {
         // Trajectories that are in showers haven't had their hits re-assigned to the
         // shower Tj yet so nothing needs to be done to them
       }
+      // Set the PDGCode of the parent to shower-like
+      if(!killit && ss.ParentTrajID != 0) {
+        tjs.allTraj[ss.ParentTrajID - 1].AlgMod[kShowerParent] = true;
+        tjs.allTraj[ss.ParentTrajID - 1].PDGCode = 11;
+        std::cout<<"FindShowers parent "<<ss.ParentTrajID<<"\n";
+
+      }
       // kill vertices in the showers that are left
       if(!killit && nTjWithVtx > 0) {
         for(auto& tjID : ss.TjIDs) {
@@ -2504,7 +2511,7 @@ namespace tca {
     } // ish
   } // CollectHits
 
- /////////////////////////////////////////
+  /////////////////////////////////////////
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
   {
     CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].WireID);
