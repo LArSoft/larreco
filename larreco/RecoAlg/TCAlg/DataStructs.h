@@ -21,6 +21,8 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/Shower.h"
+#include "TVector3.h"
 
 namespace tca {
   
@@ -173,9 +175,9 @@ namespace tca {
     unsigned short sVtx3DIndex {USHRT_MAX};
     unsigned short eVtx3DIndex {USHRT_MAX};
     // stuff for constructing the PFParticle
-    int PDGCode;
+    int PDGCode {0};
     std::vector<size_t> DtrIndices;
-    size_t Parent;
+    size_t Parent {0};
   };
   
   // A temporary structure that defines a 2D shower-like cluster of trajectories
@@ -198,6 +200,24 @@ namespace tca {
     unsigned short FailedParentTrajEnd {0};           // the Start end of the parent trajectory
     float FailedParentFOM;                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
     float ShowerFOM {100};
+  };
+  
+  // Shower variables filled in MakeShowers. These are in cm and radians
+  struct ShowerStruct3D {
+    TVector3 Dir;
+    TVector3 DirErr;
+    TVector3 Pos;
+    TVector3 PosErr;
+    double Len {1};
+    double OpenAngle {0.2};
+    std::vector<double> Energy;
+    std::vector<double> EnergyErr;
+    std::vector<double> dEdx;
+    std::vector<double> dEdxErr;
+    int BestPlane;
+    int ID;
+    // list of 2D ShowerStruct indices that define this 3D shower
+    std::vector<unsigned short> ssList;
   };
 
   // Algorithm modification bits
@@ -288,6 +308,7 @@ namespace tca {
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<unsigned short> matchVecPFPList;  /// list of matchVec entries that will become PFPs
     std::vector<ShowerStruct> cots;
+    std::vector<ShowerStruct3D> showers;
    };
 
 } // namespace tca
