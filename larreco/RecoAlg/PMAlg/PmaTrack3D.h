@@ -208,7 +208,8 @@ public:
 	void AddNode(pma::Node3D* node);
 	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo)
 	{
-	    AddNode(new pma::Node3D(p3d, tpc, cryo, false, fNodes.back()->GetDriftShift()));
+	    double ds = fNodes.empty() ? 0 : fNodes.back()->GetDriftShift();
+	    AddNode(new pma::Node3D(p3d, tpc, cryo, false, ds));
 	}
 	bool AddNode(void);
 
