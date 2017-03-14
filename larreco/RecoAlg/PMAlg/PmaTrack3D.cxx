@@ -28,7 +28,7 @@ pma::Track3D::Track3D(void) :
 	fEndSegWeight(0.05F),
 	fHitsRadius(1.0F),
 
-	fXShift(0.0),
+	fT0(0.0),
 
 	fTag(pma::Track3D::kNotTagged)
 {
@@ -47,7 +47,7 @@ pma::Track3D::Track3D(const Track3D& src) :
 	fEndSegWeight(src.fEndSegWeight),
 	fHitsRadius(src.fHitsRadius),
 
-	fXShift(src.fXShift),
+	fT0(src.fT0),
 
 	fTag(src.fTag)
 {
@@ -60,7 +60,7 @@ pma::Track3D::Track3D(const Track3D& src) :
 	}
 
 	fNodes.reserve(src.fNodes.size());
-	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo(), node->IsVertex(), node->GetXShift()));
+	for (auto const& node : src.fNodes) fNodes.push_back(new pma::Node3D(node->Point3D(), node->TPC(), node->Cryo(), node->IsVertex(), node->GetDriftShift()));
 
 	for (auto const& point : src.fAssignedPoints) fAssignedPoints.push_back(new TVector3(*point));
 
@@ -1301,7 +1301,7 @@ bool pma::Track3D::AddNode(void)
 		unsigned int tpc = maxSeg->Hit(i0).TPC();
 		unsigned int cryo = maxSeg->Hit(i0).Cryo();
 
-		pma::Node3D* p = new pma::Node3D((maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5, tpc, cryo, false, fXShift);
+		pma::Node3D* p = new pma::Node3D((maxSeg->Hit(i0).Point3D() + maxSeg->Hit(i1).Point3D()) * 0.5, tpc, cryo, false, fNodes[vIndex]->GetDriftShift());
 
 		//mf::LogVerbatim("pma::Track3D") << "add node x:" << p->Point3D().X()
 		//	<< " y:" << p->Point3D().Y() << " z:" << p->Point3D().Z();
@@ -1322,7 +1322,7 @@ void pma::Track3D::InsertNode(
 	unsigned int tpc, unsigned int cryo)
 {
 	//std::cout << " insert after " << at_idx << " in " << fNodes.size() << std::endl;
-	pma::Node3D* vtx = new pma::Node3D(p3d, tpc, cryo, false, fXShift);
+	pma::Node3D* vtx = new pma::Node3D(p3d, tpc, cryo, false, fNodes[at_idx]->GetDriftShift());
 	fNodes.insert(fNodes.begin() + at_idx, vtx);
 	//std::cout << " inserted " << std::endl;
 
@@ -1351,7 +1351,7 @@ pma::Track3D* pma::Track3D::Split(size_t idx, bool try_start_at_idx)
 
 	pma::Node3D* n = 0;
 	pma::Track3D* t0 = new pma::Track3D();
-	t0->fXShift = fXShift;
+	t0->fT0 = fT0;
 
 	for (size_t i = 0; i < idx; ++i)
 	{
@@ -1374,7 +1374,7 @@ pma::Track3D* pma::Track3D::Split(size_t idx, bool try_start_at_idx)
 	}
 
 	n = fNodes.front();
-	t0->fNodes.push_back(new pma::Node3D(n->Point3D(), n->TPC(), n->Cryo(), false, fXShift));
+	t0->fNodes.push_back(new pma::Node3D(n->Point3D(), n->TPC(), n->Cryo(), false, n->GetDriftShift()));
 	t0->RebuildSegments();
 	RebuildSegments();
 
@@ -2250,7 +2250,7 @@ double pma::Track3D::TuneFullTree(double eps, double gmax)
 	return g0;
 }
 
-void pma::Track3D::ApplyXShiftInTree(double dx, bool skipFirst)
+void pma::Track3D::ApplyDriftShiftInTree(double dx, bool skipFirst)
 {
 	pma::Node3D* node = fNodes.front();
 	pma::Segment3D* segThis = 0;
@@ -2264,13 +2264,13 @@ void pma::Track3D::ApplyXShiftInTree(double dx, bool skipFirst)
 
 	while (node)
 	{
-	    node->ApplyXShift(dx);
+	    node->ApplyDriftShift(dx);
 
 		segThis = NextSegment(node);
 		for (size_t i = 0; i < node->NextCount(); i++)
 		{
 			seg = static_cast< pma::Segment3D* >(node->Next(i));
-			if (seg != segThis) seg->Parent()->ApplyXShiftInTree(dx, true);
+			if (seg != segThis) seg->Parent()->ApplyDriftShiftInTree(dx, true);
 		}
 
 		if (segThis) node = static_cast< pma::Node3D* >(segThis->Next());
@@ -2281,7 +2281,9 @@ void pma::Track3D::ApplyXShiftInTree(double dx, bool skipFirst)
 
     for (auto p : fAssignedPoints) { (*p)[0] += dx; }
 
-	fXShift += dx;
+    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+	double tisk2time = 1.0; // what is the coefficient, offset?
+	fT0 = tisk2time * dx / detprop->GetXTicksCoefficient(fNodes.front()->TPC(), fNodes.front()->Cryo());
 }
 
 void pma::Track3D::DeleteSegments(void)

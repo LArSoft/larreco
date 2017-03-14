@@ -318,8 +318,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	auto const & result = pmalgTracker.result();
 	if (!result.empty()) // ok, there is something to save
 	{
-		const detinfo::DetectorProperties* detProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
-
 		size_t spStart = 0, spEnd = 0;
 		double sp_pos[3], sp_err[6];
 		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
@@ -345,12 +343,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
 
-			double xShift = trk->GetXShift();
-			if (xShift != 0.0)
+			double t0time = trk->GetT0();
+			if (t0time != 0.0)
 			{
-				double tisk2time = 1.0; // what is the coefficient, offset?
-				double t0time = tisk2time * xShift / detProp->GetXTicksCoefficient(trk->FrontTPC(), trk->FrontCryo());
-
 				// TriggBits=3 means from 3d reco (0,1,2 mean something else)
 				t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
 

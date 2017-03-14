@@ -186,8 +186,8 @@ public:
 	double TuneFullTree(double eps = 0.001, double gmax = 50.0);
 
 	/// Adjust track tree position in the drift direction (when T0 is being corrected).
-	void ApplyXShiftInTree(double dx, bool skipFirst = false);
-	double GetXShift(void) const { return fXShift; }
+	void ApplyDriftShiftInTree(double dx, bool skipFirst = false);
+	double GetT0(void) const { return fT0; }
 
 	/// Cut out tails with no hits assigned.
 	void CleanupTails(void);
@@ -206,7 +206,10 @@ public:
 	pma::Node3D* LastElement(void) const { return fNodes.back(); }
 
 	void AddNode(pma::Node3D* node);
-	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo) { AddNode(new pma::Node3D(p3d, tpc, cryo, false, fXShift)); }
+	void AddNode(TVector3 const & p3d, unsigned int tpc, unsigned int cryo)
+	{
+	    AddNode(new pma::Node3D(p3d, tpc, cryo, false, fNodes.back()->GetDriftShift()));
+	}
 	bool AddNode(void);
 
 	void InsertNode(
@@ -314,7 +317,7 @@ private:
 	float fEndSegWeight;
 	float fHitsRadius;
 
-	double fXShift;
+	double fT0;
 
 	ETag fTag;
 };
