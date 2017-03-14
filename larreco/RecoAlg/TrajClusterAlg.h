@@ -85,6 +85,9 @@ namespace tca {
     std::vector<unsigned short> const& GetPFPList() const { return tjs.matchVecPFPList; }
     // Get a specific matchVec entry that will be turned into a PFParticle
     MatchStruct const& GetMatchStruct(unsigned short im) {return tjs.matchVec[im]; };
+    // Get a ShowerStuct3D entry
+    unsigned short GetShowerStructSize() { return tjs.showers.size(); };
+    ShowerStruct3D const& GetShowerStruct(unsigned short ish) { return tjs.showers[ish]; };
     
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
@@ -228,7 +231,7 @@ namespace tca {
     bool shPrt; /// print shower info
     
     art::ServiceHandle<geo::Geometry> geom;
-    const detinfo::LArProperties* larprop;
+//    const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
     // TEMP for writing event filter selection
 //    std::ofstream outFile;
