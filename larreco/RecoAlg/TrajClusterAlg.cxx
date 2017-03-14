@@ -347,7 +347,7 @@ namespace tca {
     // a gratuitous clearing of everything before we start
     ClearResults();
  
-    larprop = lar::providerFrom<detinfo::LArPropertiesService>();
+//    larprop = lar::providerFrom<detinfo::LArPropertiesService>();
     detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     tjs.fHits.reserve(hitVecHandle->size());
@@ -3571,7 +3571,7 @@ namespace tca {
     if(tjs.vtx.size() < 2) return;
     
     geo::TPCGeo const& TPC = geom->TPC(tpcid);
-    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+//    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     const unsigned int cstat = tpcid.Cryostat;
     const unsigned int tpc = tpcid.TPC;
@@ -3839,8 +3839,6 @@ namespace tca {
     
     if(!fUseAlg[kMatch3D]) return;
     if(fMatch3DCuts[0] < 0) return;
-     
-    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     prt = (debug.Plane >= 0) && (debug.Tick == 3333);
     
@@ -4086,9 +4084,9 @@ namespace tca {
       } // ii
       ims.PDGCode = 13;
       if(nshp > 1 || nsh > 1 || n11 > n13) ims.PDGCode = 11;
-      std::cout<<"ipfp "<<ipfp<<" Counts "<<n11<<" "<<n13<<" "<<nsh<<" "<<nshp<<" PDGCode "<<ims.PDGCode<<" Parent "<<ims.Parent<<"\n";
+//      std::cout<<"ipfp "<<ipfp<<" Counts "<<n11<<" "<<n13<<" "<<nsh<<" "<<nshp<<" PDGCode "<<ims.PDGCode<<" Parent "<<ims.Parent<<"\n";
     } // ipfp
-    
+/*
     unsigned short pfpCount = 0;
     for(auto& im : tjs.matchVecPFPList) {
       auto& ms = tjs.matchVec[im];
@@ -4100,7 +4098,7 @@ namespace tca {
       std::cout<<"\n";
       ++pfpCount;
     }
-
+*/
   } // Match3D
 
   //////////////////////////////////////////
@@ -4396,8 +4394,7 @@ namespace tca {
         // Reverse if end 0 is further away from vpos than end 1
         if(PosSep2(tj.Pts[endPt0].Pos, vpos) > PosSep2(tj.Pts[endPt1].Pos, vpos)) ReverseTraj(tjs, tj);
       } // ii
-      
-      if(prt)  mf::LogVerbatim("TC")<<"F3DEP: im "<<im<<" itjLong "<<itjLong<<" iEnd "<<iEnd<<" jtjLong "<<jtjLong<<" jEnd "<<jEnd;
+     if(prt)  mf::LogVerbatim("TC")<<"F3DEP: im "<<im<<" itjLong "<<itjLong<<" iEnd "<<iEnd<<" jtjLong "<<jtjLong<<" jEnd "<<jEnd;
 
     } // im (ms)
         
@@ -4416,21 +4413,6 @@ namespace tca {
       // Set the parent index to itself for now
       ms.Parent = pfpCount;
       ++pfpCount;
-/*
-      // Define the PDG code; track-like or shower-like
-      unsigned short n13 = 0;
-      unsigned short n11 = 0;
-      for(auto& tjID : ms.TjIDs) {
-        unsigned short itj = tjID - 1;
-        if(tjs.allTraj[itj].PDGCode == 13) ++n13;
-        if(tjs.allTraj[itj].PDGCode == 11) ++n11;
-        std::cout<<"Chk "<<tjs.allTraj[itj].ID<<" "<<tjs.allTraj[itj].PDGCode<<" "<<tjs.allTraj[itj].AlgMod[kShowerParent]<<"\n";
-      } // tjID
-      // assume it is track-like
-      ms.PDGCode = 13;
-      if(n13 == 0 && n11 > 0) ms.PDGCode = 11;
-      std::cout<<" n13 "<<n13<<" "<<n11<<"\n";
-*/
       // Trajectories have been reversed so that the Tj and hit order are consistent. The
       // next step is to decide whether the start of the PFParticle (where the 3D vertex association will be made) is indeed the
       // start of the trajectory from a physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc.
@@ -4498,7 +4480,7 @@ namespace tca {
     if(!fUseAlg[kComp3DVxIG]) return;
     
     geo::TPCGeo const& TPC = geom->TPC(tpcid);
-    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+//    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
     for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
       Vtx3Store& vx3 = tjs.vtx3[iv3];
@@ -4575,7 +4557,7 @@ namespace tca {
     if(!fUseAlg[kComp3DVx]) return;
 
     geo::TPCGeo const& TPC = geom->TPC(tpcid);
-    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+//    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     float maxdoca = 6;
     // list of candidate trajectory indices and ipt index
@@ -7047,69 +7029,81 @@ namespace tca {
     for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
       unsigned short imv = tjs.matchVecPFPList[ipfp];
       auto& msp = tjs.matchVec[imv];
+      if(msp.TjIDs.empty()) continue;
       // look for a shower-like parent
-      std::cout<<"MakeShowers "<<ipfp<<" Parent "<<msp.Parent<<" PDGCode "<<msp.PDGCode<<" Dtr size "<<msp.DtrIndices.size()<<"\n";
+      mf::LogVerbatim("TC")<<"MS: "<<ipfp<<" Parent "<<msp.Parent<<" PDGCode "<<msp.PDGCode<<" Dtr size "<<msp.DtrIndices.size();
       if(msp.PDGCode != 11) continue;
-      if(msp.Parent != ipfp) continue;
-      mf::LogVerbatim("TC")<<"MS: Parent "<<msp.Parent<<" Dtr size "<<msp.DtrIndices.size();
+      if(msp.DtrIndices.empty()) continue;
+      mf::LogVerbatim("TC")<<" Shower parent. Dtr matchVecPFPList index "<<msp.DtrIndices[0];
       ++shID;
       ShowerStruct3D ss3;
       ss3.ID = shID;
+      // Start the list of parent and daughter Tjs in all planes
+      ss3.TjIDs = msp.TjIDs;
+      // Find the daughter matchVec
+      unsigned short dtrIndex = tjs.matchVecPFPList[msp.DtrIndices[0]];
+      auto& msd = tjs.matchVec[dtrIndex];
+      // Add the daughter trajectory IDs
+      ss3.TjIDs.insert(ss3.TjIDs.end(), msd.TjIDs.begin(), msd.TjIDs.end());
       // fill the position
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) ss3.Pos[ixyz] = msp.sXYZ[ixyz];
-      // calculate the direction
-      unsigned short itj = msp.TjIDs[0] - 1;
-      TrajPoint& itp = tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]];
-      unsigned short jtj = msp.TjIDs[1] - 1;
-      TrajPoint& jtp = tjs.allTraj[jtj].Pts[tjs.allTraj[jtj].EndPt[0]];
-      PrintTrajPoint("itp", tjs, tjs.allTraj[itj].EndPt[0], 0, 0, itp);
-      PrintTrajPoint("jtp", tjs, tjs.allTraj[jtj].EndPt[0], 0, 0, jtp);
-//      void TrajClusterAlg::SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr)
-    } // ipfp
-    /*
-
-    for(auto& msp : tjs.matchVec) {
-      // look for a matched ShowerTj parent
-      if(msp.PDGCode != 11) continue;
-      mf::LogVerbatim("TC")<<"MS: Parent "<<msp.Parent<<" Dtr size "<<msp.DtrIndices.size();
-      unsigned short nDtrShowerTj = 0;
-      for(auto& tjID : msp.TjIDs) {
-        unsigned short itj = tjID - 1;
-        if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nDtrShowerTj;
-        PrintTrajectory("MS", tjs, tjs.allTraj[itj], USHRT_MAX);
-      }
-      // Ensure that all of the daughters are shower Tjs
-      if(nDtrShowerTj != msp.TjIDs.size()) continue;
-      ++shID;
-      ShowerStruct3D ss3;
-      ss3.ID = shID;
-      // fill the position
-      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) ss3.Pos[ixyz] = msp.sXYZ[ixyz];
-      // calculate the direction
-      unsigned short itj = msp.TjIDs[0] - 1;
-      TrajPoint& itp = tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]];
-      unsigned short jtj = msp.TjIDs[1] - 1;
-      TrajPoint& jtp = tjs.allTraj[jtj].Pts[tjs.allTraj[jtj].EndPt[0]];
-      PrintTrajPoint("itp", tjs, tjs.allTraj[itj].EndPt[0], 0, 0, itp);
-      PrintTrajPoint("jtp", tjs, tjs.allTraj[jtj].EndPt[0], 0, 0, jtp);
-//      void TrajClusterAlg::SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr)
-      return;
-    } // ms
-     
-    for(auto& ss : tjs.cots) {
-      if(ss.TjIDs.empty()) continue;
-      if(ss.ParentTrajID == 0) continue;
-      ++shID;
-      ShowerStruct3D ss3D;
-      ss3D.shID = shID;
-      // Use the starting point on the parent Tj to define the shower start
-      unsigned short iptj = ss.ParentTrajID - 1;
-      unsigned short endPt = tjs.allTraj[iptj].EndPt[ss.ParentTrajEnd];
-      TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
-      ss.shDir = ptp.Pos;
-    } // cot
+      // cycle through pairs of Tj IDs to get the direction
+      unsigned short npair = 0;
+      for(unsigned short ii = 0; ii < msp.TjIDs.size() - 1; ++ii) {
+        unsigned short itj = msp.TjIDs[ii] - 1;
+        for(unsigned short jj = ii + 1; jj < msp.TjIDs.size(); ++jj) {
+          unsigned short jtj = msp.TjIDs[jj] - 1;
+          if(tjs.allTraj[jtj].CTP == tjs.allTraj[itj].CTP) continue;
+          TrajPoint& itp = tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]];
+          TrajPoint& jtp = tjs.allTraj[jtj].Pts[tjs.allTraj[jtj].EndPt[0]];
+          PrintHeader("itp");
+          PrintTrajPoint("itp", tjs, tjs.allTraj[itj].EndPt[0], 0, 0, itp);
+          PrintTrajPoint("jtp", tjs, tjs.allTraj[jtj].EndPt[0], 0, 0, jtp);
+          TVector3 dir, dirErr;
+          SpacePtDir(tjs, itp, jtp, dir, dirErr);
+          if(dir.X() < -10) continue;
+          ss3.Dir += dir;
+          ss3.DirErr += dirErr;
+          ++npair;
+          if(npair == 2) {
+            ss3.Dir *= 0.5;
+            ss3.DirErr *= 0.5;
+            break;
+          }
+        } // jj
+        if(npair == 2) break;
+      } // ii
+      // Calculate the shower length. Use the start XYZ position of the parent
+      // and the XYZ position of the Shower Tj daughter that is furthest away. 
+      // assume the far position is the end
+      std::array<float, 3> farPos = msd.eXYZ;
+      // and correct it if it's not
+      if(std::abs(msd.sXYZ[2] - msp.sXYZ[2]) > std::abs(msd.eXYZ[2] - msp.sXYZ[2])) farPos = msd.sXYZ;
+/*
+      std::cout<<"Parent   "<<ipfp<<" sXYZ";
+      for(auto& xyz : msp.sXYZ) std::cout<<" "<<xyz;
+      std::cout<<" eXYZ";
+      for(auto& xyz : msp.eXYZ) std::cout<<" "<<xyz;
+      std::cout<<"\n";
+      std::cout<<"Daughter "<<dtrIndex<<" sXYZ";
+      for(auto& xyz : msd.sXYZ) std::cout<<" "<<xyz;
+      std::cout<<" eXYZ";
+      for(auto& xyz : msd.eXYZ) std::cout<<" "<<xyz;
+      std::cout<<"\n";
 */
+      ss3.Len = 0;
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
+        double arg = farPos[ixyz] - msp.sXYZ[ixyz];
+        ss3.Len += arg * arg;
+      } // ixyz
+      ss3.Len = sqrt(ss3.Len);
+      mf::LogVerbatim("TC")<<"Pos "<<ss3.Pos.X()<<" "<<ss3.Pos.Y()<<" "<<ss3.Pos.Z()<<" Dir "<<ss3.Dir.X()<<" "<<ss3.Dir.Y()<<" "<<ss3.Dir.Z()<<" Len "<<ss3.Len;
+      // Calculate the opening angle
+      // Note that we shouldn't define the ss3 Hit vector until hit merging is done
+      tjs.showers.push_back(ss3);
+    } // ipfp
   } // MakeShowers
+  
   ////////////////////////////////////////////////
   void TrajClusterAlg::MakeAllTrajClusters()
   {
@@ -7229,6 +7223,16 @@ namespace tca {
         } // test
       } // jj
     } // ii (im)
+    
+    // Define the Hits vector for showers
+    for(unsigned short ish = 0; ish < tjs.showers.size(); ++ish) {
+      for(auto& TjID : tjs.showers[ish].TjIDs) {
+        Trajectory& tj = tjs.allTraj[TjID - 1];
+        auto tjHits = PutTrajHitsInVector(tj, kUsedHits);
+        tjs.showers[ish].Hits.insert(tjs.showers[ish].Hits.begin(), tjHits.begin(), tjHits.end());
+      } // TjID
+    } // ish
+    
   } // MakeAllTrajClusters
   
   ////////////////////////////////////////////////
@@ -8568,33 +8572,50 @@ namespace tca {
     TVector3 pt1, pt2;
     geo::PlaneID iplnID = DecodeCTP(itp.CTP);
     geo::PlaneID jplnID = DecodeCTP(jtp.CTP);
-    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    double x, y, z;
-    x  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
-    std::cout<<"pt1x "<<x;
-    x += detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
-    std::cout<<" pt2x "<<detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
-    x /= 2;
-    pt1.SetX(x);
-    std::cout<<" Ave "<<pt1.X()<<"\n";
+//    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    double y, z;
+    double xi  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
+//    std::cout<<"xi "<<xi;
+    double xj = detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
+//    std::cout<<" xj "<<xj<<"\n";
+    // don't continue if the points are too far apart in X
+    if(std::abs(xi - xj) > 5) {
+      dir.SetX(-999);
+      return;
+    }
+    xi = 0.5 * (xi + xj);
+
     unsigned int wire1 = (unsigned int)(itp.Pos[0] + 0.5);
     unsigned int wire2 = (unsigned int)(jtp.Pos[0] + 0.5);
-    std::cout<<"wire1 "<<iplnID.Plane<<":"<<wire1<<" wire2 "<<jplnID<<":"<<wire2;
+//    std::cout<<"wire1 "<<iplnID.Plane<<":"<<wire1<<" wire2 "<<jplnID.Plane<<":"<<wire2;
     geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
+    pt1.SetX(xi);
     pt1.SetY(y);
     pt1.SetZ(z);
-    std::cout<<" pt1.Y "<<pt1.Y()<<" pt1.z "<<pt1.Z()<<"\n";
+//    std::cout<<" pt1.X "<<pt1.X()<<" pt1.Y "<<pt1.Y()<<" pt1.z "<<pt1.Z()<<"\n";
     
-    // Move itp by 10 wires
-    MoveTPToWire(itp, itp.Pos[0] + 10);
+    // Move itp by 100 wires. It doesn't matter if we end up outside the TPC bounds since
+    // bounds checking isn't done by these utility functions
+//    std::cout<<"itp "<<PrintPos(tjs, itp.Pos);
+    MoveTPToWire(itp, itp.Pos[0] + 100);
+//    std::cout<<" -> "<<PrintPos(tjs, itp.Pos);
     wire1 = (unsigned int)(itp.Pos[0] + 0.5);
-    x  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
+    xi  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
+//    std::cout<<" new x "<<xi<<"\n";
+//    std::cout<<" jtp Dir "<<jtp.Dir[0]<<" "<<jtp.Dir[1]<<"\n";
     // Determine the number of wires to move jtp to get to the same X position
     std::array<float, 2> newPos;
-    newPos[1] = detprop->ConvertXToTicks(x, jplnID) * tjs.UnitsPerTick;
-    std::cout<<" newPos[1] "<<newPos[1];
-    newPos[0] += (newPos[1] - jtp.Pos[1]) * jtp.Dir[0] / jtp.Dir[1];
-    std::cout<<" newPos[0] "<<newPos[0]<<" newPos[1] "<<newPos[1];
+    newPos[1] = detprop->ConvertXToTicks(xi, jplnID) * tjs.UnitsPerTick;
+//    std::cout<<" jtp.Pos[1] "<<jtp.Pos[1]<<" newPos[1] "<<newPos[1]<<" UPT "<<tjs.UnitsPerTick<<"\n";
+    newPos[0] = (newPos[1] - jtp.Pos[1]) * (jtp.Dir[0] / jtp.Dir[1]) + jtp.Pos[0];
+//    std::cout<<" newPos "<<PrintPos(tjs, newPos)<<"\n";
+    wire2 = (unsigned int)(newPos[0] + 0.5);
+    geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
+    pt2.SetX(xi);
+    pt2.SetY(y);
+    pt2.SetZ(z);
+    dir = pt2 - pt1;
+    dir.SetMag(1);
   } // MakeSpacePt
 
   ////////////////////////////////////////////////
