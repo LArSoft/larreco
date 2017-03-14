@@ -42,7 +42,7 @@ public:
 	Hit3D(const pma::Hit3D& src);
 	virtual ~Hit3D(void) {}
 
-	art::Ptr< recob::Hit > Hit2DPtr(void) const { return fHit; }
+	art::Ptr< recob::Hit > const & Hit2DPtr(void) const { return fHit; }
 
 	TVector3 const & Point3D(void) const { return fPoint3D; }
 

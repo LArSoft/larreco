@@ -81,7 +81,7 @@ void pma::PMAlgVertexing::sortTracks(const pma::TrkCandidateColl & trk_input)
 		pma::Track3D* copy = new pma::Track3D(*(t.Track()));
 		int key = t.Key();
 		
-		if ((t.Track()->GetXShift() != 0) ||                  // do not create vertices on cosmic muons, now track with any non-zero x-shift is a muon,
+		if ((t.Track()->GetT0() != 0) ||                      // do not create vertices on cosmic muons, now track with any non-zero t0 is a muon,
 		    (t.Track()->GetTag() == pma::Track3D::kCosmicMu)) // tag for any mu recognized as a cosmic ray is ready, but not yet used
 		{
 		    fExcludedTracks.tracks().emplace_back(copy, key);

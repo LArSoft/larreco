@@ -47,6 +47,9 @@ standard_pmalgtracker:
                                   # w/o checking large number of possibilities, then use as small size
                                   # as reasonnable for used clustering algorithm to complete the search
                                   # in the second pass
+  TrackLikeThreshold:     0.0     # CNN output threshold for track-like recognition; ClusterModuleLabel
+                                  # needs to be associated to CNN outputs in case of threshold > 0; will
+                                  # exclude obvious EM from tracking and tag clean electron tracks as PDG=11
                                   #
   RunVertexing:           false   # find vertices, join with tracks, reoptimize track-vertex structure
                                   #

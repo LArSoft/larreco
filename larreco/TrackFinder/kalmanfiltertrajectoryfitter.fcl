@@ -1,17 +1,12 @@
 BEGIN_PROLOG
-kalmantrackfit: {
-  module_type:  KalmanFilterFinalTrackFitter
+kalmantrajfit: {
+  module_type:  KalmanFilterTrajectoryFitter
   inputs: {
-        inputPFParticleLabel: @nil
-  	inputTracksLabel: @nil
-  	inputCaloLabel: @nil
+        inputTrajectoryLabel: @nil
+  	isTrackTrajectory: true
   	inputMCLabel: mcreco
-        inputPidLabel: @nil
   }
   options: {
-        trackFromPF: false
-        momFromMSChi2: false
-        momFromCalo: false
         momFromLength: false
         momFromMC: false
         momentumInGeV: 1.0
@@ -21,7 +16,6 @@ kalmantrackfit: {
         dirFromMC: false
         dirFromVec: false
         dirVec: [0,0,1]
-        dirFromVtxPF: false
 	alwaysInvertDir: false
  	tryNoSkipWhenFails: true
 	produceTrackFitHitInfo: true

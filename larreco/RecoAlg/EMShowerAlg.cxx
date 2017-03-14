@@ -1082,12 +1082,14 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
     //std::cout<<pmatrack->size()<<std::endl;
     //pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(alltrackhits);
     std::vector<TVector3> spts;
-    double xshift = pmatrack->GetXShift();
-    bool has_shift = (xshift != 0.0);
+
+//  points are shifted now by tracking code, commented out shifts here
+//    double xshift = pmatrack->GetXShift();
+//    bool has_shift = (xshift != 0.0);
     for (size_t i = 0; i<pmatrack->size(); ++i){
       if ((*pmatrack)[i]->IsEnabled()){
 	TVector3 p3d = (*pmatrack)[i]->Point3D();
-	if (has_shift) p3d.SetX(p3d.X() + xshift);
+//	if (has_shift) p3d.SetX(p3d.X() + xshift);
 	//std::cout<<p3d.X()<<" "<<p3d.Y()<<" "<<p3d.Z()<<std::endl;
 	spts.push_back(p3d);
       }
