@@ -212,12 +212,14 @@ namespace tca {
     double OpenAngle {0.2};
     std::vector<double> Energy;
     std::vector<double> EnergyErr;
+    std::vector<double> MIPEnergy;
+    std::vector<double> MIPEnergyErr;
     std::vector<double> dEdx;
     std::vector<double> dEdxErr;
     int BestPlane;
     int ID;
-    // list of 2D ShowerStruct indices that define this 3D shower
-    std::vector<unsigned short> ssList;
+    std::vector<unsigned short> TjIDs;
+    std::vector<unsigned int> Hits;
   };
 
   // Algorithm modification bits
