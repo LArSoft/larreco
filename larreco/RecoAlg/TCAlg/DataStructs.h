@@ -22,6 +22,7 @@
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Shower.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "TVector3.h"
 
 namespace tca {
