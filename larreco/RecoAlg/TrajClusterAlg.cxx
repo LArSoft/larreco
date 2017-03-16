@@ -30,10 +30,10 @@ bool lessThan (SortEntry c1, SortEntry c2) { return (c1.length < c2.length);}
 namespace tca {
 
   //------------------------------------------------------------------------------
-  TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset)
+
+  TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset):fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg"))
   {
     reconfigure(pset);
-    
 
     art::ServiceHandle<art::TFileService> tfs;
     
@@ -119,7 +119,7 @@ namespace tca {
   //------------------------------------------------------------------------------
   void TrajClusterAlg::reconfigure(fhicl::ParameterSet const& pset)
   {
- 
+
     bool badinput = false;
     fHitFinderModuleLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
     fMakeNewHits          = pset.get< bool >("MakeNewHits", true);
@@ -447,7 +447,7 @@ namespace tca {
     
     FillPFPInfo();
     // convert the cots vector into recob::Shower
-    MakeShowers();
+    MakeShowers(tjs, fShowerTag, geom, detprop, fCaloAlg);
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -3964,15 +3964,17 @@ namespace tca {
       sortVec[indx] = se;
     }
     if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), greaterThan);
-/*
+    
     if(prt) {
       mf::LogVerbatim myprt("TC");
+      myprt<<"matchVec\n";
       for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
-        unsigned int indx = sortVec[ii].index;
-        myprt<<" Count "<<tjs.matchVec[indx].Count;
+        myprt<<ii<<" Count "<<tjs.matchVec[ii].Count<<" TjIDs: ";
+        for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<tjID;
+        myprt<<"\n";
       } // ii
     } // prt
-*/
+
     for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
       unsigned int indx = sortVec[ii].index;
       // skip this match if any of the trajectories is already matched
@@ -4002,7 +4004,7 @@ namespace tca {
         // we have tjs.NumPlanes entries in tjs.matchVec for the later matches unlike the
         // current match where we may be appending the IDs of broken trajectories.
         // fID is the ID of the trajectory fragment
-        unsigned short fragID = USHRT_MAX;
+        unsigned short fragID1 = USHRT_MAX;
         unsigned short nFragTj = 0;
         // This code looks for matches in the first tjs.NumPlanes elements of tjs.matchVec. This scheme is
         // intended to NOT associate delta rays or close short tjs with nearby long tjs
@@ -4016,34 +4018,60 @@ namespace tca {
           } else {
             // jID was not found in this match. Set the fID for later use. Ensure that it hasn't
             // already been matched
-            if(!tjs.allTraj[jID - 1].AlgMod[kMatch3D]) fragID = jID;
+            if(!tjs.allTraj[jID - 1].AlgMod[kMatch3D]) fragID1 = jID;
           }
         } // jpl
-        // Look for a 2-plane match
-        if(nFragTj == 2 && fragID != USHRT_MAX) {
+        if(nFragTj == 2 && fragID1 != USHRT_MAX) {
+          // merge broken trajectories. Find the other Tj that is in the same plane
+          CTP_t fragIDCTP = tjs.allTraj[fragID1 - 1].CTP;
+          // the index of the TjID for the other fragment
+          unsigned short fragID2 = USHRT_MAX;
+          for(unsigned short imv = 0; imv < mv.TjIDs.size(); ++imv) {
+            unsigned short itj = mv.TjIDs[imv] - 1;
+            if(tjs.allTraj[itj].CTP == fragIDCTP) fragID2 = mv.TjIDs[imv];
+          }
+          if(fragID2 != USHRT_MAX) {
+            unsigned short ftj1 = fragID1 - 1;
+            unsigned short ftj2 = fragID2 - 1;
+            // Merge them and update
+            if(MergeAndStore(ftj1, ftj2)) {
+              unsigned short newTjID = tjs.allTraj[tjs.allTraj.size() - 1].ID;
+              // replace all occurrences of the now killed Tjs with the merged one
+              for(auto& jms : tjs.matchVec) {
+                std::replace(jms.TjIDs.begin(), jms.TjIDs.end(), fragID1, newTjID);
+                std::replace(jms.TjIDs.begin(), jms.TjIDs.end(), fragID2, newTjID);
+              }
+              // Set the count to 0 as a flag
+              tjs.matchVec[jndx].Count = 0;
+            } // valid merge
+          } // valid imFrag2
+/*
+          std::cout<<"  Found broken tj. Adding trajectory fragment ID "<<fragID<<" to 3D match "<<fEventsProcessed<<"\n";
+          for(auto& tjID : mv.TjIDs) std::cout<<" "<<tjID;
+          std::cout<<"\n";
           if(prt) mf::LogVerbatim("TC")<<"  Found broken tj. Adding trajectory fragment ID "<<fragID<<" to 3D match";
           Trajectory& ftj = tjs.allTraj[fragID - 1];
           ftj.AlgMod[kMatch3D] = true;
           mv.TjIDs.push_back(fragID);
           mv.ClusterIndices.push_back(USHRT_MAX);
+*/
         } // nmTj == 2 && mID != USHRT_MAX
       } // jj
       //  Index the matches that will become PFParticles into matchVecPFPList
       tjs.matchVecPFPList.push_back(indx);
     } // ii (indx)
     
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"matchVecPFPList \n";
-        for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
-          unsigned short im = tjs.matchVecPFPList[ii];
-          auto& mv = tjs.matchVec[im];
-          myprt<<ii<<" im "<<im<<" Count "<<mv.Count<<" TjIDs";
-          for(auto& itj : mv.TjIDs) {
-            myprt<<" "<<itj;
-          } // ms
-        } // ii
-      } // prt
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"matchVec\n";
+      for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
+        myprt<<ii<<" Count "<<tjs.matchVec[ii].Count<<" TjIDs: ";
+        for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<tjID;
+        myprt<<"\n";
+      } // ii
+      myprt<<"matchVecPFPList";
+      for(auto& pfp : tjs.matchVecPFPList) myprt<<" "<<pfp;
+    } // prt
     
     // Now try to find 3D matches in 2 views using the unmatched hits
     Match3D2Views(tpcid, xx);
@@ -4086,18 +4114,31 @@ namespace tca {
       if(nshp > 1 || nsh > 1 || n11 > n13) ims.PDGCode = 11;
 //      std::cout<<"ipfp "<<ipfp<<" Counts "<<n11<<" "<<n13<<" "<<nsh<<" "<<nshp<<" PDGCode "<<ims.PDGCode<<" Parent "<<ims.Parent<<"\n";
     } // ipfp
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"matchVec out\n";
+      for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
+        myprt<<ii<<" Count "<<tjs.matchVec[ii].Count<<" TjIDs: ";
+        for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<tjID;
+        myprt<<"\n";
+      } // ii
+      myprt<<"matchVecPFPList";
+      for(auto& pfp : tjs.matchVecPFPList) myprt<<" "<<pfp;
+    } // prt
+
 /*
-    unsigned short pfpCount = 0;
-    for(auto& im : tjs.matchVecPFPList) {
-      auto& ms = tjs.matchVec[im];
-      std::cout<<"PFParticle "<<pfpCount<<" PDGCode "<<ms.PDGCode<<" Parent "<<ms.Parent;
-      std::cout<<" TjIDs ";
-      for(auto& tjID : ms.TjIDs) std::cout<<" "<<tjID;
-      std::cout<<" DtrIndices";
-      for(auto& dtrID : ms.DtrIndices) std::cout<<" "<<dtrID;
-      std::cout<<"\n";
-      ++pfpCount;
-    }
+    // Ensure that there is no more than 1 trajectory in each plane
+    for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned short imv = tjs.matchVecPFPList[ipfp];
+      auto& ims = tjs.matchVec[imv];
+      std::array<unsigned short, 3> nInPln = {0};
+      for(auto& tjID : ims.TjIDs) {
+        geo::PlaneID plnID = DecodeCTP(tjs.allTraj[tjID - 1].CTP);
+        ++nInPln[plnID.Plane];
+      }
+      if(nInPln[0] > 1 ||nInPln[1] > 1 ||nInPln[2] > 1) std::cout<<">>>>>>>>>>> Didn't merge broken Tjs\n";
+    } // ipfp check
 */
   } // Match3D
 
@@ -4111,6 +4152,9 @@ namespace tca {
     if(fMatch3DCuts[2] < 0) return;
     
     unsigned int nTriple = tjs.matchVec.size();
+    // make a temporary list of triple Tj match IDs to simplify searching
+    std::vector<unsigned short> tripleTjList;
+    for(auto& ms : tjs.matchVec) tripleTjList.insert(tripleTjList.end(), ms.TjIDs.begin(), ms.TjIDs.end());
     
     unsigned short minTjLen = fMatch3DCuts[2];
     
@@ -4146,6 +4190,8 @@ namespace tca {
               if(tjs.fHits[iht].InTraj <= 0) continue;
               // see if this trajectory already has a 3D match
               unsigned short itj = tjs.fHits[iht].InTraj - 1;
+              // or is in the triple match list
+              if(std::find(tripleTjList.begin(), tripleTjList.end(), tjs.fHits[iht].InTraj) != tripleTjList.end()) continue;
               if(tjs.allTraj[itj].AlgMod[kMatch3D]) continue;
               // don't try to match Tjs in showers
               if(tjs.allTraj[itj].AlgMod[kInShower]) continue;
@@ -4156,6 +4202,8 @@ namespace tca {
                 // see if this trajectory already has a 3D match
                 unsigned short jtj = tjs.fHits[jht].InTraj - 1;
                 if(tjs.allTraj[jtj].AlgMod[kMatch3D]) continue;
+                // or is in the triple match list
+                if(std::find(tripleTjList.begin(), tripleTjList.end(), tjs.fHits[jht].InTraj) != tripleTjList.end()) continue;
                 // don't try to match Tjs in showers
                 if(tjs.allTraj[jtj].AlgMod[kInShower]) continue;
                 if(tjs.allTraj[jtj].Pts.size() < minTjLen) continue;
@@ -4175,7 +4223,6 @@ namespace tca {
                   }
                 } // indx
                 if(indx == tjs.matchVec.size()) {
-                  // not found in the match vector so add it
                   MatchStruct ms;
                   ms.TjIDs.resize(2);
                   ms.TjIDs[0] = tjs.fHits[iht].InTraj;
@@ -4213,6 +4260,8 @@ namespace tca {
         myprt<<ii<<" indx "<<sortVec[ii].index;
         unsigned int indx = sortVec[ii].index;
         myprt<<" Count "<<tjs.matchVec[indx].Count;
+        for(auto& tjID : tjs.matchVec[indx].TjIDs) myprt<<" "<<tjID;
+        myprt<<"\n";
       } // ii
     } // prt
     
@@ -7020,23 +7069,40 @@ namespace tca {
     ChkInTraj("StoreTraj");
     
   } // StoreTraj
-  
+/*
   ////////////////////////////////////////////////
   void TrajClusterAlg::MakeShowers()
   {
-    // Fill recob::Shower variables
+    // Fill shower variables
+    
+    if(fShowerTag[0] < 0) return;
+    
+    // Get the calibration constants
+    
     int shID = 0;
     for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
       unsigned short imv = tjs.matchVecPFPList[ipfp];
       auto& msp = tjs.matchVec[imv];
       if(msp.TjIDs.empty()) continue;
-      // look for a shower-like parent
-      mf::LogVerbatim("TC")<<"MS: "<<ipfp<<" Parent "<<msp.Parent<<" PDGCode "<<msp.PDGCode<<" Dtr size "<<msp.DtrIndices.size();
+      // look for a shower parent
+      if(true) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"MS: "<<ipfp<<" Parent "<<msp.Parent<<" PDGCode "<<msp.PDGCode<<" Dtr size "<<msp.DtrIndices.size();
+        myprt<<" TjIDs:";
+        for(auto& tjID : msp.TjIDs) myprt<<" "<<tjID;
+      }
+      
       if(msp.PDGCode != 11) continue;
       if(msp.DtrIndices.empty()) continue;
       mf::LogVerbatim("TC")<<" Shower parent. Dtr matchVecPFPList index "<<msp.DtrIndices[0];
       ++shID;
       ShowerStruct3D ss3;
+      ss3.Energy.resize(tjs.NumPlanes);
+      ss3.EnergyErr.resize(tjs.NumPlanes);
+      ss3.MIPEnergy.resize(tjs.NumPlanes);
+      ss3.MIPEnergyErr.resize(tjs.NumPlanes);
+      ss3.dEdx.resize(tjs.NumPlanes);
+      ss3.dEdxErr.resize(tjs.NumPlanes);
       ss3.ID = shID;
       // Start the list of parent and daughter Tjs in all planes
       ss3.TjIDs = msp.TjIDs;
@@ -7045,7 +7111,7 @@ namespace tca {
       auto& msd = tjs.matchVec[dtrIndex];
       // Add the daughter trajectory IDs
       ss3.TjIDs.insert(ss3.TjIDs.end(), msd.TjIDs.begin(), msd.TjIDs.end());
-      // fill the position
+      // fill the start position
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) ss3.Pos[ixyz] = msp.sXYZ[ixyz];
       // cycle through pairs of Tj IDs to get the direction
       unsigned short npair = 0;
@@ -7079,18 +7145,6 @@ namespace tca {
       std::array<float, 3> farPos = msd.eXYZ;
       // and correct it if it's not
       if(std::abs(msd.sXYZ[2] - msp.sXYZ[2]) > std::abs(msd.eXYZ[2] - msp.sXYZ[2])) farPos = msd.sXYZ;
-/*
-      std::cout<<"Parent   "<<ipfp<<" sXYZ";
-      for(auto& xyz : msp.sXYZ) std::cout<<" "<<xyz;
-      std::cout<<" eXYZ";
-      for(auto& xyz : msp.eXYZ) std::cout<<" "<<xyz;
-      std::cout<<"\n";
-      std::cout<<"Daughter "<<dtrIndex<<" sXYZ";
-      for(auto& xyz : msd.sXYZ) std::cout<<" "<<xyz;
-      std::cout<<" eXYZ";
-      for(auto& xyz : msd.eXYZ) std::cout<<" "<<xyz;
-      std::cout<<"\n";
-*/
       ss3.Len = 0;
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
         double arg = farPos[ixyz] - msp.sXYZ[ixyz];
@@ -7099,11 +7153,38 @@ namespace tca {
       ss3.Len = sqrt(ss3.Len);
       mf::LogVerbatim("TC")<<"Pos "<<ss3.Pos.X()<<" "<<ss3.Pos.Y()<<" "<<ss3.Pos.Z()<<" Dir "<<ss3.Dir.X()<<" "<<ss3.Dir.Y()<<" "<<ss3.Dir.Z()<<" Len "<<ss3.Len;
       // Calculate the opening angle
+      // Calculate dEdx, etc
+      for(unsigned short ii = 0; ii < msp.TjIDs.size(); ++ii) {
+        unsigned short itj = msp.TjIDs[ii] - 1;
+        Trajectory& tj = tjs.allTraj[itj];
+        geo::PlaneID planeID = DecodeCTP(tj.CTP);
+        double wirePitch = geom->WirePitch(planeID);
+        double angleToVert = geom->WireAngleToVertical(geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
+        double cosgamma = std::abs(std::sin(angleToVert) * ss3.Dir.Y() + std::cos(angleToVert) * ss3.Dir.Z());
+        if(cosgamma == 0) continue;
+        double dx = geom->WirePitch(planeID) / cosgamma;
+        // get the average charge from the first 4 points
+        double dQdx = 0;
+        unsigned short cnt = 0;
+        // Don't use the first point
+        for(unsigned short ipt = tj.EndPt[0] + 1; ipt < tj.EndPt[1]; ++ipt) {
+          if(tj.Pts[ipt].Chg == 0) continue;
+          ++cnt;
+          dQdx += tj.Pts[ipt].Chg;
+          if(cnt == 4) break;
+        }
+        dQdx /= (double)cnt;
+        std::cout<<"ID "<<tj.ID<<" CTP "<<tj.CTP<<" pitch "<<wirePitch<<" angleToVert "<<angleToVert<<" Chg "<<dQdx<<" dx "<<dx<<"\n";
+        dQdx /= dx;
+        std::cout<<"dQdx "<<dQdx;
+        double dEdx = fCaloAlg.ElectronsFromADCArea(dQdx, planeID.Plane);
+        std::cout<<" dEdx "<<dEdx<<"\n";
+      } // ii
       // Note that we shouldn't define the ss3 Hit vector until hit merging is done
       tjs.showers.push_back(ss3);
     } // ipfp
   } // MakeShowers
-  
+*/
   ////////////////////////////////////////////////
   void TrajClusterAlg::MakeAllTrajClusters()
   {
@@ -7182,17 +7263,12 @@ namespace tca {
       // Set the traj info
       tj.ClusterIndex = tjs.tcl.size();
       tjs.tcl.push_back(cls);
-      bool gotit = false;
       // look for this tj ID in the 3D match list
       for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
         unsigned short im = tjs.matchVecPFPList[ii];
         for(unsigned short jj = 0; jj < tjs.matchVec[im].TjIDs.size(); ++jj) {
-          if(tj.ID == tjs.matchVec[im].TjIDs[jj]) {
-            tjs.matchVec[im].ClusterIndices[jj] = tj.ClusterIndex;
-            gotit = true;
-          } // Found tj.ID inn matchVecPFPList
+          if(tj.ID == tjs.matchVec[im].TjIDs[jj]) tjs.matchVec[im].ClusterIndices[jj] = tj.ClusterIndex;
         } // jj
-        if(gotit) break;
       } // ii
       // do some checking and define tjs.inClus
       geo::PlaneID planeID = DecodeCTP(cls.CTP);
@@ -7217,9 +7293,16 @@ namespace tca {
     // ensure that all of the PFParticle - Cluster references are valid
     for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
       unsigned short im = tjs.matchVecPFPList[ii];
+      if(tjs.matchVec[im].TjIDs.empty()) continue;
       for(unsigned short jj = 0; jj < tjs.matchVec[im].TjIDs.size(); ++jj) {
         if(tjs.matchVec[im].ClusterIndices[jj] > tjs.tcl.size() - 1) {
-          std::cout<<"MATC: 3D matched cluster indices not set for matchVec["<<im<<"]\n";
+          std::cout<<"MATC: 3D matched cluster indices not set for matchVec["<<im<<"]. Events processed "<<fEventsProcessed<<"\n";
+          for(unsigned short iii = 0; iii < tjs.matchVec[im].TjIDs.size(); ++iii) {
+            std::cout<<" TjID "<<tjs.matchVec[im].TjIDs[iii];
+            unsigned short itj = tjs.matchVec[im].TjIDs[iii] - 1;
+            std::cout<<" CTP "<<tjs.allTraj[itj].CTP;
+            std::cout<<" ClusterIndex "<<tjs.allTraj[itj].ClusterIndex<<"\n";
+          } // iii
         } // test
       } // jj
     } // ii (im)
@@ -8560,63 +8643,6 @@ namespace tca {
     }
   }
 
-  
-  /////////////////////////////////////////
-  void TrajClusterAlg::SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr)
-  {
-    
-    if(itp.CTP == jtp.CTP) {
-      dir.SetX(-999);
-      return;
-    }
-    TVector3 pt1, pt2;
-    geo::PlaneID iplnID = DecodeCTP(itp.CTP);
-    geo::PlaneID jplnID = DecodeCTP(jtp.CTP);
-//    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    double y, z;
-    double xi  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
-//    std::cout<<"xi "<<xi;
-    double xj = detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
-//    std::cout<<" xj "<<xj<<"\n";
-    // don't continue if the points are too far apart in X
-    if(std::abs(xi - xj) > 5) {
-      dir.SetX(-999);
-      return;
-    }
-    xi = 0.5 * (xi + xj);
-
-    unsigned int wire1 = (unsigned int)(itp.Pos[0] + 0.5);
-    unsigned int wire2 = (unsigned int)(jtp.Pos[0] + 0.5);
-//    std::cout<<"wire1 "<<iplnID.Plane<<":"<<wire1<<" wire2 "<<jplnID.Plane<<":"<<wire2;
-    geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
-    pt1.SetX(xi);
-    pt1.SetY(y);
-    pt1.SetZ(z);
-//    std::cout<<" pt1.X "<<pt1.X()<<" pt1.Y "<<pt1.Y()<<" pt1.z "<<pt1.Z()<<"\n";
-    
-    // Move itp by 100 wires. It doesn't matter if we end up outside the TPC bounds since
-    // bounds checking isn't done by these utility functions
-//    std::cout<<"itp "<<PrintPos(tjs, itp.Pos);
-    MoveTPToWire(itp, itp.Pos[0] + 100);
-//    std::cout<<" -> "<<PrintPos(tjs, itp.Pos);
-    wire1 = (unsigned int)(itp.Pos[0] + 0.5);
-    xi  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
-//    std::cout<<" new x "<<xi<<"\n";
-//    std::cout<<" jtp Dir "<<jtp.Dir[0]<<" "<<jtp.Dir[1]<<"\n";
-    // Determine the number of wires to move jtp to get to the same X position
-    std::array<float, 2> newPos;
-    newPos[1] = detprop->ConvertXToTicks(xi, jplnID) * tjs.UnitsPerTick;
-//    std::cout<<" jtp.Pos[1] "<<jtp.Pos[1]<<" newPos[1] "<<newPos[1]<<" UPT "<<tjs.UnitsPerTick<<"\n";
-    newPos[0] = (newPos[1] - jtp.Pos[1]) * (jtp.Dir[0] / jtp.Dir[1]) + jtp.Pos[0];
-//    std::cout<<" newPos "<<PrintPos(tjs, newPos)<<"\n";
-    wire2 = (unsigned int)(newPos[0] + 0.5);
-    geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
-    pt2.SetX(xi);
-    pt2.SetY(y);
-    pt2.SetZ(z);
-    dir = pt2 - pt1;
-    dir.SetMag(1);
-  } // MakeSpacePt
 
   ////////////////////////////////////////////////
   void TrajClusterAlg::SetPDGCode(unsigned short itj)
