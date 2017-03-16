@@ -296,7 +296,6 @@ namespace cluster {
     unsigned short nshower = fTCAlg->GetShowerStructSize();
     for(unsigned short ish = 0; ish < nshower; ++ish) {
       tca::ShowerStruct3D const& ss3 = fTCAlg->GetShowerStruct(ish);
-      std::cout<<"Module shower "<<ish<<"\n";
       recob::Shower shower;
       shower.set_id(ish + 1);
       shower.set_total_energy(ss3.Energy);
