@@ -27,6 +27,7 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/Showers.h"
 
 namespace tca {
 
@@ -144,6 +145,7 @@ namespace tca {
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+/*
   // ****************************** Shower finding  ******************************
   // Create showers (aka clusters of trajectories, tjs.cots)
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag);
@@ -156,6 +158,7 @@ namespace tca {
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, bool prt);
   void CollectHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   float ShowerEnergy(TjStuff& tjs, const ShowerStruct& ss);
+*/
   // ****************************** Vertex finding  ******************************
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, const std::vector<float>& fVertex2DCuts, bool prt);
