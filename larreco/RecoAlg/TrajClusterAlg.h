@@ -11,6 +11,7 @@
 
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
+#include "larreco/RecoAlg/TCAlg/Showers.h"
 
 // C/C++ standard libraries
 #include <array>
@@ -44,6 +45,7 @@
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include "TH1F.h"
 #include "TH2F.h"
@@ -103,7 +105,6 @@ namespace tca {
     private:
     
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
-    art::InputTag fCalDataModuleLabel; ///< label of module producing ROIs on wires
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
     short fStepDir;             /// US->DS (1), DS->US (-1)
@@ -231,12 +232,12 @@ namespace tca {
     bool shPrt; /// print shower info
     
     art::ServiceHandle<geo::Geometry> geom;
-//    const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
     // TEMP for writing event filter selection
 //    std::ofstream outFile;
     
     trkf::LinFitAlg fLinFitAlg;
+    calo::CalorimetryAlg fCaloAlg;
 
     unsigned int fCstat;         // the current cryostat
     unsigned int fTpc;         // the current TPC
@@ -312,7 +313,7 @@ namespace tca {
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
     // Make showers from clusters of trajectories
-    void MakeShowers();
+//    void MakeShowers();
     // Push the trajectory into allTraj
     void StoreTraj(Trajectory& tj);
     // Check the quality of the trajectory and possibly trim it
