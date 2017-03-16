@@ -1,5 +1,6 @@
 #include "trackfinderalgorithms.fcl"
 #include "cluster3dalgorithms.fcl"
+#include "calorimetry_microboone.fcl"
 BEGIN_PROLOG
 
 standard_trajclusteralg:
@@ -52,6 +53,7 @@ standard_trajclusteralg:
    DebugTick: -1            # Print debug output for a trajectory that starts at DebugTick +/- 5 ticks (<0 = print vtx finding)
    DebugWorkID:     0       # Print debug output for a trajectory with this WorkID (Note WorkID < 0)
 }
+standard_trajclusteralg.CaloAlg: @local::standard_calorimetryalgmc
 
 standard_clustercrawleralg:
 {
@@ -372,6 +374,7 @@ microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
 microboone_trajclusteralg:                    @local::standard_trajclusteralg
 microboone_trajclusteralg.MaxWireSkipNoSignal: 15 # increase a bit to allow for low gain wires
+microboone_trajclusteralg.CaloAlg:            @local::microboone_calorimetryalgmc
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
