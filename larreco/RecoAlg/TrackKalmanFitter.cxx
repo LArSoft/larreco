@@ -399,7 +399,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     momenta.push_back(Vector_t(util::kBogusD,util::kBogusD,util::kBogusD));
     const unsigned int originalPos = (reverseHits ? hitstatev.size()-rejectedhsidx[rejidx]-1 : rejectedhsidx[rejidx]);
     auto& mask = hitflagsv[rejectedhsidx[rejidx]];
-    mask.set(recob::TrajectoryPointFlagTraits::HitIgnored,recob::TrajectoryPointFlagTraits::NoPoint,recob::TrajectoryPointFlagTraits::ExcludedFromFit);
+    mask.set(recob::TrajectoryPointFlagTraits::HitIgnored,recob::TrajectoryPointFlagTraits::NoPoint);
+    if (mask.isSet(recob::TrajectoryPointFlagTraits::Rejected)==0) mask.set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
     outFlags.push_back(recob::TrajectoryPointFlags(originalPos,mask));
     outHits.push_back(hits[originalPos]);
     //

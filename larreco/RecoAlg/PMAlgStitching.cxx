@@ -253,8 +253,8 @@ void pma::PMAlgStitching::StitchTracks(pma::TrkCandidateColl &tracks, bool isCPA
         }
       }
 
-      t1->GetRoot()->ApplyXShiftInTree(-xBestShift);
-      bestTrkMatch->GetRoot()->ApplyXShiftInTree(+xBestShift);
+      t1->GetRoot()->ApplyDriftShiftInTree(-xBestShift);
+      bestTrkMatch->GetRoot()->ApplyDriftShiftInTree(+xBestShift);
 
       if (canMerge)
       {

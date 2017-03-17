@@ -27,7 +27,7 @@ pma::Node3D::Node3D(void) :
 	fMinY(0), fMaxY(0),
 	fMinZ(0), fMaxZ(0),
 	fPoint3D(0, 0, 0),
-	fXOffset(0),
+	fDriftOffset(0),
 	fIsVertex(false)
 {
 	fTPC = 0; fCryo = 0;
@@ -38,7 +38,7 @@ pma::Node3D::Node3D(void) :
 }
 
 pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bool vtx, double xshift) :
-    fXOffset(xshift),
+    fDriftOffset(xshift),
 	fIsVertex(vtx)
 {
 	fTPC = tpc; fCryo = cryo;
@@ -112,17 +112,17 @@ void pma::Node3D::UpdateProj2D(void)
 {
 	fProj2D[0].Set(
 		fWirePitch[0] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kU, fTPC, fCryo),
-		fPoint3D.X() - fXOffset
+		fPoint3D.X() - fDriftOffset
 	);
 
 	fProj2D[1].Set(
 		fWirePitch[1] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kV, fTPC, fCryo),
-		fPoint3D.X() - fXOffset
+		fPoint3D.X() - fDriftOffset
 	);
 	
 	fProj2D[2].Set(
 		fWirePitch[2] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kZ, fTPC, fCryo),
-		fPoint3D.X() - fXOffset
+		fPoint3D.X() - fDriftOffset
 	);
 }
 
